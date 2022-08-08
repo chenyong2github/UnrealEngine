@@ -40,9 +40,9 @@ namespace EpicGames.UHT.Types
 		/// <param name="function">Referenced function</param>
 		public UhtDelegateProperty(UhtPropertySettings propertySettings, UhtFunction function) : base(propertySettings)
 		{
-			this.Function = function;
-			this.HeaderFile.AddReferencedHeader(function);
-			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.IsParameterSupportedByBlueprint |
+			Function = function;
+			HeaderFile.AddReferencedHeader(function);
+			PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.IsParameterSupportedByBlueprint |
 				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
 		}
 
@@ -53,7 +53,7 @@ namespace EpicGames.UHT.Types
 			switch (phase)
 			{
 				case UhtResolvePhase.Final:
-					this.PropertyFlags |= EPropertyFlags.InstancedReference & ~this.DisallowPropertyFlags;
+					PropertyFlags |= EPropertyFlags.InstancedReference & ~DisallowPropertyFlags;
 					break;
 			}
 			return results;
@@ -68,7 +68,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			collector.AddCrossModuleReference(this.Function, true);
+			collector.AddCrossModuleReference(Function, true);
 		}
 
 		/// <inheritdoc/>
@@ -79,11 +79,11 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.ExportMember:
 				case UhtPropertyTextType.RigVMType:
 				case UhtPropertyTextType.EventParameterFunctionMember:
-					builder.Append(this.CppTypeText);
+					builder.Append(CppTypeText);
 					break;
 
 				default:
-					builder.Append(this.Function.SourceName);
+					builder.Append(Function.SourceName);
 					break;
 			}
 			return builder;
@@ -99,7 +99,7 @@ namespace EpicGames.UHT.Types
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FDelegatePropertyParams", "UECodeGen_Private::EPropertyGenFlags::Delegate");
-			AppendMemberDefRef(builder, context, this.Function, true);
+			AppendMemberDefRef(builder, context, Function, true);
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -107,13 +107,13 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override StringBuilder AppendFunctionThunkParameterArg(StringBuilder builder)
 		{
-			return builder.Append(this.Function.SourceName).Append('(').AppendFunctionThunkParameterName(this).Append(')');
+			return builder.Append(Function.SourceName).Append('(').AppendFunctionThunkParameterName(this).Append(')');
 		}
 
 		/// <inheritdoc/>
 		public override void AppendObjectHashes(StringBuilder builder, int startingLength, IUhtPropertyMemberContext context)
 		{
-			builder.AppendObjectHash(startingLength, this, context, this.Function);
+			builder.AppendObjectHash(startingLength, this, context, Function);
 		}
 
 		/// <inheritdoc/>
@@ -134,7 +134,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (other is UhtDelegateProperty otherObject)
 			{
-				return this.Function == otherObject.Function;
+				return Function == otherObject.Function;
 			}
 			return false;
 		}
@@ -148,7 +148,7 @@ namespace EpicGames.UHT.Types
 			{
 				if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest))
 				{
-					if (!this.PropertyFlags.HasAnyFlags(EPropertyFlags.RepSkip))
+					if (!PropertyFlags.HasAnyFlags(EPropertyFlags.RepSkip))
 					{
 						this.LogError("Service request functions cannot contain delegate parameters, unless marked NotReplicated");
 					}

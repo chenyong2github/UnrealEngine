@@ -29,7 +29,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="message">Text of the error</param>
 		public UhtException(string message)
 		{
-			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, null, null, 1, message);
+			UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, null, null, 1, message);
 		}
 
 		/// <summary>
@@ -44,7 +44,7 @@ namespace EpicGames.UHT.Utils
 			{
 				message = $"{message} while parsing {UhtMessage.FormatContext(extraContext)}";
 			}
-			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, messageSite.MessageSource, null, messageSite.GetLineNumber(), message);
+			UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, messageSite.MessageSource, null, messageSite.GetLineNumber(), message);
 		}
 
 		/// <summary>
@@ -60,11 +60,11 @@ namespace EpicGames.UHT.Utils
 			{
 				message = $"{message} while parsing {UhtMessage.FormatContext(extraContext)}";
 			}
-			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, messageSite.MessageSource, null, messageSite.GetLineNumber(lineNumber), message);
+			UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, messageSite.MessageSource, null, messageSite.GetLineNumber(lineNumber), message);
 		}
 
 		/// <inheritdoc/>
-		public override string Message => this.UhtMessage.Message;
+		public override string Message => UhtMessage.Message;
 	}
 
 	/// <summary>
@@ -86,7 +86,7 @@ namespace EpicGames.UHT.Utils
 			string message = expected != null
 				? $"Found {UhtMessage.FormatContext(got)} when expecting {UhtMessage.FormatContext(expected)}{FormatExtraContext(extraContext)}"
 				: $"Found {UhtMessage.FormatContext(got)}{FormatExtraContext(extraContext)}";
-			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, messageSite.MessageSource, null, got.InputLine, message);
+			UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, messageSite.MessageSource, null, got.InputLine, message);
 		}
 
 		/// <summary>
@@ -119,7 +119,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="message">Text of the error</param>
 		public UhtIceException(string message)
 		{
-			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Ice, null, null, 1, message);
+			UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Ice, null, null, 1, message);
 		}
 	}
 }

@@ -736,24 +736,24 @@ namespace EpicGames.UHT.Types
 		/// <param name="messageSite">Message site used to construct meta data object</param>
 		public void Reset(UhtPropertySettings parentPropertySettings, string sourceName, IUhtMessageSite messageSite)
 		{
-			this.SourceName = sourceName;
-			this.EngineName = sourceName;
-			this.MetaData = new UhtMetaData(messageSite, parentPropertySettings.Outer.Session.Config);
-			this.Outer = parentPropertySettings.Outer;
-			this.LineNumber = parentPropertySettings.LineNumber;
-			this.PropertyCategory = parentPropertySettings.PropertyCategory;
-			this.PropertyFlags = parentPropertySettings.PropertyFlags;
-			this.DisallowPropertyFlags = parentPropertySettings.DisallowPropertyFlags;
-			this.PropertyExportFlags = UhtPropertyExportFlags.Public;
-			this.RepNotifyName = null;
-			this.Allocator = UhtPropertyAllocator.Default;
-			this.Options = parentPropertySettings.Options;
-			this.PointerType = UhtPointerType.None;
-			this.ArrayDimensions = null;
-			this.DefaultValueTokens = null;
-			this.Setter = null;
-			this.Getter = null;
-			this.IsBitfield = false;
+			SourceName = sourceName;
+			EngineName = sourceName;
+			MetaData = new UhtMetaData(messageSite, parentPropertySettings.Outer.Session.Config);
+			Outer = parentPropertySettings.Outer;
+			LineNumber = parentPropertySettings.LineNumber;
+			PropertyCategory = parentPropertySettings.PropertyCategory;
+			PropertyFlags = parentPropertySettings.PropertyFlags;
+			DisallowPropertyFlags = parentPropertySettings.DisallowPropertyFlags;
+			PropertyExportFlags = UhtPropertyExportFlags.Public;
+			RepNotifyName = null;
+			Allocator = UhtPropertyAllocator.Default;
+			Options = parentPropertySettings.Options;
+			PointerType = UhtPointerType.None;
+			ArrayDimensions = null;
+			DefaultValueTokens = null;
+			Setter = null;
+			Getter = null;
+			IsBitfield = false;
 		}
 
 		/// <summary>
@@ -765,23 +765,23 @@ namespace EpicGames.UHT.Types
 		/// <param name="disallowPropertyFlags">Property flags that are not allowed</param>
 		public void Reset(UhtType outer, int lineNumber, UhtPropertyCategory propertyCategory, EPropertyFlags disallowPropertyFlags)
 		{
-			this.SourceName = String.Empty;
-			this.EngineName = String.Empty;
-			this.MetaData = new UhtMetaData(outer, outer.Session.Config);
-			this.Outer = outer;
-			this.LineNumber = lineNumber;
-			this.PropertyCategory = propertyCategory;
-			this.PropertyFlags = EPropertyFlags.None;
-			this.DisallowPropertyFlags = disallowPropertyFlags;
-			this.PropertyExportFlags = UhtPropertyExportFlags.Public;
-			this.RepNotifyName = null;
-			this.Allocator = UhtPropertyAllocator.Default;
-			this.PointerType = UhtPointerType.None;
-			this.ArrayDimensions = null;
-			this.DefaultValueTokens = null;
-			this.Setter = null;
-			this.Getter = null;
-			this.IsBitfield = false;
+			SourceName = String.Empty;
+			EngineName = String.Empty;
+			MetaData = new UhtMetaData(outer, outer.Session.Config);
+			Outer = outer;
+			LineNumber = lineNumber;
+			PropertyCategory = propertyCategory;
+			PropertyFlags = EPropertyFlags.None;
+			DisallowPropertyFlags = disallowPropertyFlags;
+			PropertyExportFlags = UhtPropertyExportFlags.Public;
+			RepNotifyName = null;
+			Allocator = UhtPropertyAllocator.Default;
+			PointerType = UhtPointerType.None;
+			ArrayDimensions = null;
+			DefaultValueTokens = null;
+			Setter = null;
+			Getter = null;
+			IsBitfield = false;
 		}
 
 		/// <summary>
@@ -796,24 +796,24 @@ namespace EpicGames.UHT.Types
 			{
 				throw new UhtIceException("Property must have an outer specified");
 			}
-			this.SourceName = property.SourceName;
-			this.EngineName = property.EngineName;
-			this.MetaData = property.MetaData;
-			this.Outer = property.Outer;
-			this.LineNumber = property.LineNumber;
-			this.PropertyCategory = property.PropertyCategory;
-			this.PropertyFlags = property.PropertyFlags;
-			this.DisallowPropertyFlags = property.DisallowPropertyFlags;
-			this.PropertyExportFlags = property.PropertyExportFlags;
-			this.Allocator = property.Allocator;
-			this.Options = options;
-			this.PointerType = property.PointerType;
-			this.RepNotifyName = property.RepNotifyName;
-			this.ArrayDimensions = property.ArrayDimensions;
-			this.DefaultValueTokens = property.DefaultValueTokens;
-			this.Setter = property.Setter;
-			this.Getter = property.Getter;
-			this.IsBitfield = property.IsBitfield;
+			SourceName = property.SourceName;
+			EngineName = property.EngineName;
+			MetaData = property.MetaData;
+			Outer = property.Outer;
+			LineNumber = property.LineNumber;
+			PropertyCategory = property.PropertyCategory;
+			PropertyFlags = property.PropertyFlags;
+			DisallowPropertyFlags = property.DisallowPropertyFlags;
+			PropertyExportFlags = property.PropertyExportFlags;
+			Allocator = property.Allocator;
+			Options = options;
+			PointerType = property.PointerType;
+			RepNotifyName = property.RepNotifyName;
+			ArrayDimensions = property.ArrayDimensions;
+			DefaultValueTokens = property.DefaultValueTokens;
+			Setter = property.Setter;
+			Getter = property.Getter;
+			IsBitfield = property.IsBitfield;
 		}
 	}
 
@@ -962,21 +962,21 @@ namespace EpicGames.UHT.Types
 
 		///<inheritdoc/>
 		[JsonIgnore]
-		public override bool Deprecated => this.PropertyFlags.HasAnyFlags(EPropertyFlags.Deprecated);
+		public override bool Deprecated => PropertyFlags.HasAnyFlags(EPropertyFlags.Deprecated);
 
 		///<inheritdoc/>
 		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable
 		{
 			get
 			{
-				switch (this.PropertyCategory)
+				switch (PropertyCategory)
 				{
 					case UhtPropertyCategory.Member:
-						return this.Session.GetSpecifierValidatorTable(UhtTableNames.PropertyMember);
+						return Session.GetSpecifierValidatorTable(UhtTableNames.PropertyMember);
 					case UhtPropertyCategory.RegularParameter:
 					case UhtPropertyCategory.ReplicatedParameter:
 					case UhtPropertyCategory.Return:
-						return this.Session.GetSpecifierValidatorTable(UhtTableNames.PropertyArgument);
+						return Session.GetSpecifierValidatorTable(UhtTableNames.PropertyArgument);
 					default:
 						throw new UhtIceException("Unknown property category type");
 				}
@@ -987,13 +987,13 @@ namespace EpicGames.UHT.Types
 		/// If true, the property is a fixed/static array
 		/// </summary>
 		[JsonIgnore]
-		public bool IsStaticArray => !String.IsNullOrEmpty(this.ArrayDimensions);
+		public bool IsStaticArray => !String.IsNullOrEmpty(ArrayDimensions);
 
 		/// <summary>
 		/// If true, the property is editor only
 		/// </summary>
 		[JsonIgnore]
-		public bool IsEditorOnlyProperty => this.PropertyFlags.HasAnyFlags(EPropertyFlags.DevelopmentAssets);
+		public bool IsEditorOnlyProperty => PropertyFlags.HasAnyFlags(EPropertyFlags.DevelopmentAssets);
 
 		/// <summary>
 		/// Construct a new property
@@ -1002,8 +1002,8 @@ namespace EpicGames.UHT.Types
 		/// <param name="lineNumber">Line number where property was declared</param>
 		protected UhtProperty(UhtType outer, int lineNumber) : base(outer, lineNumber)
 		{
-			this.PropertyFlags = EPropertyFlags.None;
-			this.PropertyCaps = UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey | UhtPropertyCaps.CanHaveConfig;
+			PropertyFlags = EPropertyFlags.None;
+			PropertyCaps = UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey | UhtPropertyCaps.CanHaveConfig;
 		}
 
 		/// <summary>
@@ -1012,31 +1012,31 @@ namespace EpicGames.UHT.Types
 		/// <param name="propertySettings">Property settings from parsing</param>
 		protected UhtProperty(UhtPropertySettings propertySettings) : base(propertySettings.Outer, propertySettings.LineNumber, propertySettings.MetaData)
 		{
-			this.SourceName = propertySettings.SourceName;
+			SourceName = propertySettings.SourceName;
 			// Engine name defaults to source name.  If it doesn't match what is coming in, then set it.
 			if (propertySettings.EngineName.Length > 0 && propertySettings.SourceName != propertySettings.EngineName)
 			{
-				this.EngineName = propertySettings.EngineName;
+				EngineName = propertySettings.EngineName;
 			}
-			this.PropertyCategory = propertySettings.PropertyCategory;
-			this.PropertyFlags = propertySettings.PropertyFlags;
-			this.DisallowPropertyFlags = propertySettings.DisallowPropertyFlags;
-			this.PropertyExportFlags = propertySettings.PropertyExportFlags;
-			this.Allocator = propertySettings.Allocator;
-			this.PointerType = propertySettings.PointerType;
-			this.RepNotifyName = propertySettings.RepNotifyName;
-			this.ArrayDimensions = propertySettings.ArrayDimensions;
-			this.DefaultValueTokens = propertySettings.DefaultValueTokens;
-			this.Getter = propertySettings.Getter;
-			this.Setter = propertySettings.Setter;
-			this.IsBitfield = propertySettings.IsBitfield;
-			this.PropertyCaps = UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey | UhtPropertyCaps.CanHaveConfig;
+			PropertyCategory = propertySettings.PropertyCategory;
+			PropertyFlags = propertySettings.PropertyFlags;
+			DisallowPropertyFlags = propertySettings.DisallowPropertyFlags;
+			PropertyExportFlags = propertySettings.PropertyExportFlags;
+			Allocator = propertySettings.Allocator;
+			PointerType = propertySettings.PointerType;
+			RepNotifyName = propertySettings.RepNotifyName;
+			ArrayDimensions = propertySettings.ArrayDimensions;
+			DefaultValueTokens = propertySettings.DefaultValueTokens;
+			Getter = propertySettings.Getter;
+			Setter = propertySettings.Setter;
+			IsBitfield = propertySettings.IsBitfield;
+			PropertyCaps = UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey | UhtPropertyCaps.CanHaveConfig;
 		}
 
 		/// <inheritdoc/>
 		protected override string GetDisplayStringFromEngineName()
 		{
-			return UhtFCString.NameToDisplayString(this.EngineName, this is UhtBoolProperty);
+			return UhtFCString.NameToDisplayString(EngineName, this is UhtBoolProperty);
 		}
 
 		#region Text and code generation support
@@ -1050,7 +1050,7 @@ namespace EpicGames.UHT.Types
 		public virtual StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument = false)
 		{
 			// By default, we assume it will be just the simple text
-			return builder.Append(this.CppTypeText);
+			return builder.Append(CppTypeText);
 		}
 
 		/// <summary>
@@ -1062,7 +1062,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>Destination builder</returns>
 		public virtual StringBuilder AppendFullDecl(StringBuilder builder, UhtPropertyTextType textType, bool skipParameterName = false)
 		{
-			UhtPropertyCaps caps = this.PropertyCaps;
+			UhtPropertyCaps caps = PropertyCaps;
 
 			bool isParameter = textType.IsParameter();
 			bool isInterfaceProp = this is UhtInterfaceProperty;
@@ -1074,14 +1074,14 @@ namespace EpicGames.UHT.Types
 			//		AND - if this is a const param OR (if this is an interface property and not an out param)
 			// 3) If this is a parameter without array dimensions, must be passed by reference, but not an out parameter or const param
 			bool passCppArgsByRef = caps.HasAnyFlags(UhtPropertyCaps.PassCppArgsByRef);
-			bool isConstParam = isParameter && (this.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm) || (isInterfaceProp && !this.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm)));
-			bool isConstArgsByRef = isParameter && this.ArrayDimensions == null && passCppArgsByRef && !this.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm | EPropertyFlags.OutParm);
+			bool isConstParam = isParameter && (PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm) || (isInterfaceProp && !PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm)));
+			bool isConstArgsByRef = isParameter && ArrayDimensions == null && passCppArgsByRef && !PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm | EPropertyFlags.OutParm);
 			bool isOnConstClass = false;
 			if (this is UhtObjectProperty objectProperty)
 			{
 				isOnConstClass = objectProperty.Class.ClassFlags.HasAnyFlags(EClassFlags.Const);
 			}
-			bool shouldHaveRef = this.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm | EPropertyFlags.ReferenceParm);
+			bool shouldHaveRef = PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm | EPropertyFlags.ReferenceParm);
 
 			bool constAtTheBeginning = isOnConstClass || isConstArgsByRef || (isConstParam && !shouldHaveRef);
 			if (constAtTheBeginning)
@@ -1089,12 +1089,12 @@ namespace EpicGames.UHT.Types
 				builder.Append("const ");
 			}
 
-			this.AppendText(builder, textType);
+			AppendText(builder, textType);
 
 			bool fromConstClass = false;
-			if (textType == UhtPropertyTextType.ExportMember && this.Outer != null)
+			if (textType == UhtPropertyTextType.ExportMember && Outer != null)
 			{
-				if (this.Outer is UhtClass outerClass)
+				if (Outer is UhtClass outerClass)
 				{
 					fromConstClass = outerClass.ClassFlags.HasAnyFlags(EClassFlags.Const);
 				}
@@ -1105,7 +1105,7 @@ namespace EpicGames.UHT.Types
 				builder.Append(" const");
 			}
 
-			if (isParameter && this.ArrayDimensions == null && (passCppArgsByRef || this.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm | EPropertyFlags.ReferenceParm)))
+			if (isParameter && ArrayDimensions == null && (passCppArgsByRef || PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm | EPropertyFlags.ReferenceParm)))
 			{
 				builder.Append('&');
 			}
@@ -1113,12 +1113,12 @@ namespace EpicGames.UHT.Types
 			builder.Append(' ');
 			if (!skipParameterName)
 			{
-				builder.Append(this.SourceName);
+				builder.Append(SourceName);
 			}
 
-			if (this.ArrayDimensions != null)
+			if (ArrayDimensions != null)
 			{
-				builder.Append('[').Append(this.ArrayDimensions).Append(']');
+				builder.Append('[').Append(ArrayDimensions).Append(']');
 			}
 			return builder;
 		}
@@ -1192,25 +1192,25 @@ namespace EpicGames.UHT.Types
 				.AppendTabs(tabs)
 				.Append("const UECodeGen_Private::").Append(paramsStructName).Append(' ')
 				.AppendNameDef(context, name, nameSuffix).Append(" = { ")
-				.AppendUTF8LiteralString(this.EngineName).Append(", ")
+				.AppendUTF8LiteralString(EngineName).Append(", ")
 				.AppendNotifyFunc(this).Append(", ")
-				.AppendFlags(this.PropertyFlags).Append(", ")
+				.AppendFlags(PropertyFlags).Append(", ")
 				.Append(paramsGenFlags).Append(", ")
 				.Append(ObjectFlags).Append(", ")
 				.AppendArrayDim(this, context).Append(", ");
 
-			if (this.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.SetterFound))
+			if (PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.SetterFound))
 			{
-				builder.Append('&').Append(this.Outer!.SourceName).Append("::").AppendPropertySetterWrapperName(this).Append(", ");
+				builder.Append('&').Append(Outer!.SourceName).Append("::").AppendPropertySetterWrapperName(this).Append(", ");
 			}
 			else
 			{
 				builder.Append("nullptr, ");
 			}
 
-			if (this.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.GetterFound))
+			if (PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.GetterFound))
 			{
-				builder.Append('&').Append(this.Outer!.SourceName).Append("::").AppendPropertyGetterWrapperName(this).Append(", ");
+				builder.Append('&').Append(Outer!.SourceName).Append("::").AppendPropertyGetterWrapperName(this).Append(", ");
 			}
 			else
 			{
@@ -1225,7 +1225,7 @@ namespace EpicGames.UHT.Types
 				}
 				else
 				{
-					builder.Append("STRUCT_OFFSET(").Append(context.OuterStructSourceName).Append(", ").Append(this.SourceName).Append("), ");
+					builder.Append("STRUCT_OFFSET(").Append(context.OuterStructSourceName).Append(", ").Append(SourceName).Append("), ");
 				}
 			}
 			return builder;
@@ -1294,17 +1294,17 @@ namespace EpicGames.UHT.Types
 		public virtual StringBuilder AppendFunctionThunkParameterGet(StringBuilder builder)
 		{
 			builder.Append("P_GET_");
-			if (this.ArrayDimensions != null)
+			if (ArrayDimensions != null)
 			{
 				builder.Append("ARRAY");
 			}
 			else
 			{
-				builder.Append(this.PGetMacroText);
+				builder.Append(PGetMacroText);
 			}
-			if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm))
+			if (PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm))
 			{
-				if (this.PGetPassAsNoPtr)
+				if (PGetPassAsNoPtr)
 				{
 					builder.Append("_REF_NO_PTR");
 				}
@@ -1314,19 +1314,19 @@ namespace EpicGames.UHT.Types
 				}
 			}
 			builder.Append('(');
-			if (this.ArrayDimensions != null)
+			if (ArrayDimensions != null)
 			{
 				builder.AppendFunctionThunkParameterArrayType(this).Append(',');
 			}
 			else
 			{
-				switch (this.PGetTypeArgument)
+				switch (PGetTypeArgument)
 				{
 					case UhtPGetArgumentType.None:
 						break;
 
 					case UhtPGetArgumentType.EngineClass:
-						builder.Append('F').Append(this.EngineClassName).Append(',');
+						builder.Append('F').Append(EngineClassName).Append(',');
 						break;
 
 					case UhtPGetArgumentType.TypeText:
@@ -1356,11 +1356,11 @@ namespace EpicGames.UHT.Types
 		public StringBuilder AppendFunctionThunkParameterName(StringBuilder builder)
 		{
 			builder.Append(FunctionParameterThunkPrefix);
-			if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm))
+			if (PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm))
 			{
 				builder.Append("Out_");
 			}
-			builder.Append(this.EngineName);
+			builder.Append(EngineName);
 			return builder;
 		}
 
@@ -1426,9 +1426,9 @@ namespace EpicGames.UHT.Types
 			switch (phase)
 			{
 				case UhtResolvePhase.Final:
-					if (this.ArrayDimensions != null)
+					if (ArrayDimensions != null)
 					{
-						ReadOnlySpan<char> dim = this.ArrayDimensions.AsSpan();
+						ReadOnlySpan<char> dim = ArrayDimensions.AsSpan();
 
 						bool again;
 						do
@@ -1478,7 +1478,7 @@ namespace EpicGames.UHT.Types
 						} while (again && dim.Length > 0);
 
 						//COMPATIBILITY-TODO - This method is more robust, but causes differences.  See UhtSession for future
-						// plans on fix in this.
+						// plans on fix in 
 						//// Now try to see if this is an enum
 						//UhtEnum? Enum = null;
 						//int Sep = Dim.IndexOf("::");
@@ -1493,27 +1493,27 @@ namespace EpicGames.UHT.Types
 						//}
 						//else
 						//{
-						//	Enum = this.Session.FindRegularEnumValue(Dim.ToString());
+						//	Enum = Session.FindRegularEnumValue(Dim.ToString());
 						//}
 						//if (Enum == null)
 						//{
-						//	Enum = this.Session.FindType(this.Outer, UhtFindOptions.Enum | UhtFindOptions.SourceName, Dim.ToString()) as UhtEnum;
+						//	Enum = Session.FindType(Outer, UhtFindOptions.Enum | UhtFindOptions.SourceName, Dim.ToString()) as UhtEnum;
 						//}
 						//if (Enum != null)
 						//{
-						//	this.MetaData.Add(UhtNames.ArraySizeEnum, Enum.GetPathName());
+						//	MetaData.Add(UhtNames.ArraySizeEnum, Enum.GetPathName());
 						//}
 
 						if (dim.Length > 0 && !UhtFCString.IsDigit(dim[0]))
 						{
-							UhtEnum? enumObj = this.Session.FindRegularEnumValue(dim.ToString());
+							UhtEnum? enumObj = Session.FindRegularEnumValue(dim.ToString());
 							if (enumObj == null)
 							{
-								enumObj = this.Session.FindType(this.Outer, UhtFindOptions.Enum | UhtFindOptions.SourceName, dim.ToString()) as UhtEnum;
+								enumObj = Session.FindType(Outer, UhtFindOptions.Enum | UhtFindOptions.SourceName, dim.ToString()) as UhtEnum;
 							}
 							if (enumObj != null)
 							{
-								this.MetaData.Add(UhtNames.ArraySizeEnum, enumObj.PathName);
+								MetaData.Add(UhtNames.ArraySizeEnum, enumObj.PathName);
 							}
 						}
 					}
@@ -1541,7 +1541,7 @@ namespace EpicGames.UHT.Types
 			options = base.Validate(options);
 
 			// The outer should never be null...
-			if (this.Outer == null)
+			if (Outer == null)
 			{
 				return options;
 			}
@@ -1551,14 +1551,14 @@ namespace EpicGames.UHT.Types
 			// In the old code if you defined the property after the function with argument with the same name, UHT would
 			// not issue an error.  However, if the property was defined PRIOR to the function with the matching argument name,
 			// UHT would generate an error.
-			if (options.HasAnyFlags(UhtValidationOptions.Shadowing) && this.PropertyCategory == UhtPropertyCategory.Member)
+			if (options.HasAnyFlags(UhtValidationOptions.Shadowing) && PropertyCategory == UhtPropertyCategory.Member)
 			{
 
 				// First check for duplicate name in self and then duplicate name in parents
-				UhtType? existing = this.Outer.FindType(UhtFindOptions.PropertyOrFunction | UhtFindOptions.EngineName | UhtFindOptions.SelfOnly, this.EngineName);
+				UhtType? existing = Outer.FindType(UhtFindOptions.PropertyOrFunction | UhtFindOptions.EngineName | UhtFindOptions.SelfOnly, EngineName);
 				if (existing == this)
 				{
-					existing = this.Outer.FindType(UhtFindOptions.PropertyOrFunction | UhtFindOptions.EngineName | UhtFindOptions.ParentsOnly | UhtFindOptions.NoGlobal | UhtFindOptions.NoIncludes, this.EngineName);
+					existing = Outer.FindType(UhtFindOptions.PropertyOrFunction | UhtFindOptions.EngineName | UhtFindOptions.ParentsOnly | UhtFindOptions.NoGlobal | UhtFindOptions.NoIncludes, EngineName);
 				}
 
 				if (existing != null && existing != this)
@@ -1568,29 +1568,29 @@ namespace EpicGames.UHT.Types
 						//@TODO: This exception does not seem sound either, but there is enough existing code that it will need to be
 						// fixed up first before the exception it is removed.
 						bool existingPropDeprecated = existingProperty.PropertyFlags.HasAnyFlags(EPropertyFlags.Deprecated);
-						bool newPropDeprecated = this.PropertyCategory == UhtPropertyCategory.Member && this.PropertyFlags.HasAnyFlags(EPropertyFlags.Deprecated);
+						bool newPropDeprecated = PropertyCategory == UhtPropertyCategory.Member && PropertyFlags.HasAnyFlags(EPropertyFlags.Deprecated);
 						if (!newPropDeprecated && !existingPropDeprecated)
 						{
-							this.LogShadowingError(existingProperty);
+							LogShadowingError(existingProperty);
 						}
 					}
 					else if (existing is UhtFunction existingFunction)
 					{
-						if (this.PropertyCategory == UhtPropertyCategory.Member)
+						if (PropertyCategory == UhtPropertyCategory.Member)
 						{
-							this.LogShadowingError(existingFunction);
+							LogShadowingError(existingFunction);
 						}
 					}
 				}
 			}
 
-			Validate((UhtStruct)this.Outer, this, options);
+			Validate((UhtStruct)Outer, this, options);
 			return options;
 		}
 
 		private void LogShadowingError(UhtType shadows)
 		{
-			this.LogError($"{this.PropertyCategory.GetHintText()}: '{this.SourceName}' cannot be defined in '{this.Outer?.SourceName}' as it is already defined in scope '{shadows.Outer?.SourceName}' (shadowing is not allowed)");
+			this.LogError($"{PropertyCategory.GetHintText()}: '{SourceName}' cannot be defined in '{Outer?.SourceName}' as it is already defined in scope '{shadows.Outer?.SourceName}' (shadowing is not allowed)");
 		}
 
 		/// <summary>
@@ -1603,15 +1603,15 @@ namespace EpicGames.UHT.Types
 		public virtual void Validate(UhtStruct outerStruct, UhtProperty outermostProperty, UhtValidationOptions options)
 		{
 			// Check for deprecation
-			if (options.HasAnyFlags(UhtValidationOptions.Deprecated) && !this.Deprecated)
+			if (options.HasAnyFlags(UhtValidationOptions.Deprecated) && !Deprecated)
 			{
 				ValidateDeprecated();
 			}
 
 			// Validate the types allowed with arrays
-			if (this.ArrayDimensions != null)
+			if (ArrayDimensions != null)
 			{
-				switch (this.PropertyCategory)
+				switch (PropertyCategory)
 				{
 					case UhtPropertyCategory.Return:
 						this.LogError("Arrays aren't allowed as return types");
@@ -1634,45 +1634,45 @@ namespace EpicGames.UHT.Types
 				}
 			}
 
-			if (!options.HasAnyFlags(UhtValidationOptions.IsKey) && this.PropertyFlags.HasAnyFlags(EPropertyFlags.PersistentInstance) && !this.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeInstanced))
+			if (!options.HasAnyFlags(UhtValidationOptions.IsKey) && PropertyFlags.HasAnyFlags(EPropertyFlags.PersistentInstance) && !PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeInstanced))
 			{
 				this.LogError("'Instanced' is only allowed on an object property, an array of objects, a set of objects, or a map with an object value type.");
 			}
 
-			if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.Config) && !this.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanHaveConfig))
+			if (PropertyFlags.HasAnyFlags(EPropertyFlags.Config) && !PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanHaveConfig))
 			{
 				this.LogError("Not allowed to use 'config' with object variables");
 			}
 
-			if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.ExposeOnSpawn))
+			if (PropertyFlags.HasAnyFlags(EPropertyFlags.ExposeOnSpawn))
 			{
-				if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.DisableEditOnInstance))
+				if (PropertyFlags.HasAnyFlags(EPropertyFlags.DisableEditOnInstance))
 				{
 					this.LogWarning("Property cannot have both 'DisableEditOnInstance' and 'ExposeOnSpawn' flags");
 				}
-				if (!this.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintVisible))
+				if (!PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintVisible))
 				{
 					this.LogWarning("Property cannot have 'ExposeOnSpawn' without 'BlueprintVisible' flag.");
 				}
 			}
 
-			if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintAssignable) && !this.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeBlueprintAssignable))
+			if (PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintAssignable) && !PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeBlueprintAssignable))
 			{
 				this.LogError("'BlueprintAssignable' is only allowed on multicast delegate properties");
 			}
 
-			if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintCallable) && !this.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeBlueprintCallable))
+			if (PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintCallable) && !PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeBlueprintCallable))
 			{
 				this.LogError("'BlueprintCallable' is only allowed on multicast delegate properties");
 			}
 
-			if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintAuthorityOnly) && !this.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeBlueprintAuthorityOnly))
+			if (PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintAuthorityOnly) && !PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeBlueprintAuthorityOnly))
 			{
 				this.LogError("'BlueprintAuthorityOnly' is only allowed on multicast delegate properties");
 			}
 
 			// Check for invalid transients
-			EPropertyFlags transients = this.PropertyFlags & (EPropertyFlags.DuplicateTransient | EPropertyFlags.TextExportTransient | EPropertyFlags.NonPIEDuplicateTransient);
+			EPropertyFlags transients = PropertyFlags & (EPropertyFlags.DuplicateTransient | EPropertyFlags.TextExportTransient | EPropertyFlags.NonPIEDuplicateTransient);
 			if (transients != 0 && outerStruct is not UhtClass)
 			{
 				this.LogError($"'{String.Join(", ", transients.ToStringList(false))}' specifier(s) are only allowed on class member variables");
@@ -1680,7 +1680,7 @@ namespace EpicGames.UHT.Types
 
 			if (!options.HasAnyFlags(UhtValidationOptions.IsKeyOrValue))
 			{
-				switch (this.PropertyCategory)
+				switch (PropertyCategory)
 				{
 					case UhtPropertyCategory.Member:
 						ValidateMember(outerStruct, options);
@@ -1712,14 +1712,14 @@ namespace EpicGames.UHT.Types
 		{
 			if (func.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
-				if (this.PropertyFlags.HasExactFlags(EPropertyFlags.ReferenceParm | EPropertyFlags.ConstParm, EPropertyFlags.ReferenceParm))
+				if (PropertyFlags.HasExactFlags(EPropertyFlags.ReferenceParm | EPropertyFlags.ConstParm, EPropertyFlags.ReferenceParm))
 				{
 					this.LogError($"Replicated parameters cannot be passed by non-const reference");
 				}
 
 				if (func.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest))
 				{
-					if (this.PropertyFlags.HasExactFlags(EPropertyFlags.OutParm | EPropertyFlags.RepSkip, EPropertyFlags.OutParm))
+					if (PropertyFlags.HasExactFlags(EPropertyFlags.OutParm | EPropertyFlags.RepSkip, EPropertyFlags.OutParm))
 					{
 						// This is difficult to trigger since NotReplicated also sets the property category
 						this.LogError("Service request functions cannot contain out parameters, unless marked NotReplicated");
@@ -1727,12 +1727,12 @@ namespace EpicGames.UHT.Types
 				}
 				else
 				{
-					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm))
+					if (PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm))
 					{
 						this.LogError("Replicated functions cannot contain out parameters");
 					}
 
-					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.RepSkip))
+					if (PropertyFlags.HasAnyFlags(EPropertyFlags.RepSkip))
 					{
 						// This is difficult to trigger since NotReplicated also sets the property category
 						this.LogError("Only service request functions cannot contain NotReplicated parameters");
@@ -1744,9 +1744,9 @@ namespace EpicGames.UHT.Types
 			if (func.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.BlueprintCallable))
 			{
 				// Check that the parameter name is valid and does not conflict with pre-defined types
-				if (s_invalidParamNames.Contains(this.SourceName))
+				if (s_invalidParamNames.Contains(SourceName))
 				{
-					this.LogError($"Parameter name '{this.SourceName}' in function is invalid, '{this.SourceName}' is a reserved name.");
+					this.LogError($"Parameter name '{SourceName}' in function is invalid, '{SourceName}' is a reserved name.");
 				}
 			}
 		}
@@ -1761,11 +1761,11 @@ namespace EpicGames.UHT.Types
 			if (!options.HasAnyFlags(UhtValidationOptions.IsKeyOrValue))
 			{
 				// First check if the category was specified at all and if the property was exposed to the editor.
-				if (!this.MetaData.TryGetValue(UhtNames.Category, out string? category))
+				if (!MetaData.TryGetValue(UhtNames.Category, out string? category))
 				{
-					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.Edit | EPropertyFlags.BlueprintVisible))
+					if (PropertyFlags.HasAnyFlags(EPropertyFlags.Edit | EPropertyFlags.BlueprintVisible))
 					{
-						if (this.Package.IsPartOfEngine)
+						if (Package.IsPartOfEngine)
 						{
 							this.LogError("An explicit Category specifier is required for any property exposed to the editor or Blueprints in an Engine module.");
 						}
@@ -1773,7 +1773,7 @@ namespace EpicGames.UHT.Types
 				}
 
 				// If the category was specified explicitly, it wins
-				if (!String.IsNullOrEmpty(category) && !this.PropertyFlags.HasAnyFlags(EPropertyFlags.Edit | EPropertyFlags.BlueprintVisible |
+				if (!String.IsNullOrEmpty(category) && !PropertyFlags.HasAnyFlags(EPropertyFlags.Edit | EPropertyFlags.BlueprintVisible |
 					EPropertyFlags.BlueprintAssignable | EPropertyFlags.BlueprintCallable))
 				{
 					this.LogWarning("Property has a Category set but is not exposed to the editor or Blueprints with EditAnywhere, BlueprintReadWrite, " +
@@ -1782,28 +1782,28 @@ namespace EpicGames.UHT.Types
 			}
 
 			// Make sure that editblueprint variables are editable
-			if (!this.PropertyFlags.HasAnyFlags(EPropertyFlags.Edit))
+			if (!PropertyFlags.HasAnyFlags(EPropertyFlags.Edit))
 			{
-				if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.DisableEditOnInstance))
+				if (PropertyFlags.HasAnyFlags(EPropertyFlags.DisableEditOnInstance))
 				{
 					this.LogError("Property cannot have 'DisableEditOnInstance' without being editable");
 				}
 
-				if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.DisableEditOnTemplate))
+				if (PropertyFlags.HasAnyFlags(EPropertyFlags.DisableEditOnTemplate))
 				{
 					this.LogError("Property cannot have 'DisableEditOnTemplate' without being editable");
 				}
 			}
 
-			string exposeOnSpawnValue = this.MetaData.GetValueOrDefault(UhtNames.ExposeOnSpawn);
-			if (exposeOnSpawnValue.Equals("true", StringComparison.OrdinalIgnoreCase) && !this.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanExposeOnSpawn))
+			string exposeOnSpawnValue = MetaData.GetValueOrDefault(UhtNames.ExposeOnSpawn);
+			if (exposeOnSpawnValue.Equals("true", StringComparison.OrdinalIgnoreCase) && !PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanExposeOnSpawn))
 			{
 				this.LogError("ExposeOnSpawn - Property cannot be exposed");
 			}
 
-			if (this.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.FieldNotify))
+			if (PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.FieldNotify))
 			{
-				if (this.Outer is UhtClass classObj)
+				if (Outer is UhtClass classObj)
 				{
 					if (classObj.ClassType != UhtClassType.Class)
 					{
@@ -1833,7 +1833,7 @@ namespace EpicGames.UHT.Types
 				return;
 			}
 
-			if (this.PropertyCategory == UhtPropertyCategory.Member)
+			if (PropertyCategory == UhtPropertyCategory.Member)
 			{
 				this.LogError($"Property is using a deprecated class: '{classObj.SourceName}'.  Property should be marked deprecated as well.");
 			}
@@ -1880,9 +1880,9 @@ namespace EpicGames.UHT.Types
 		public override void CollectReferences(IUhtReferenceCollector collector)
 		{
 			CollectReferencesInternal(collector, false);
-			if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.ParmFlags))
+			if (PropertyFlags.HasAnyFlags(EPropertyFlags.ParmFlags))
 			{
-				collector.AddForwardDeclaration(this.GetForwardDeclarations());
+				collector.AddForwardDeclaration(GetForwardDeclarations());
 			}
 		}
 
@@ -1943,19 +1943,19 @@ namespace EpicGames.UHT.Types
 		/// <returns></returns>
 		public bool MatchesType(UhtProperty other)
 		{
-			if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm))
+			if (PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm))
 			{
 				if (!other.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm))
 				{
 					return false;
 				}
 
-				if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm) && !other.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm))
+				if (PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm) && !other.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm))
 				{
 					return false;
 				}
 			}
-			if (this.IsStaticArray != other.IsStaticArray)
+			if (IsStaticArray != other.IsStaticArray)
 			{
 				return false;
 			}

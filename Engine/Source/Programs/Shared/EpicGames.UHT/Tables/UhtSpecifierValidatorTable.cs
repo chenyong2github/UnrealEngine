@@ -41,8 +41,8 @@ namespace EpicGames.UHT.Tables
 		/// <param name="specifierValidatorDelegate">Delegate of the validator</param>
 		public UhtSpecifierValidator(string name, UhtSpecifierValidatorDelegate specifierValidatorDelegate)
 		{
-			this.Name = name;
-			this.Delegate = specifierValidatorDelegate;
+			Name = name;
+			Delegate = specifierValidatorDelegate;
 		}
 	}
 

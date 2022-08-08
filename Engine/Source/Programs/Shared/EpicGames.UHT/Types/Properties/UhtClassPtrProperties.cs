@@ -36,7 +36,7 @@ namespace EpicGames.UHT.Types
 		public UhtClassPtrProperty(UhtPropertySettings propertySettings, UhtClass classObj, UhtClass metaClass, EPropertyFlags extraFlags = EPropertyFlags.None)
 			: base(propertySettings, classObj, metaClass)
 		{
-			this.PropertyFlags |= extraFlags | EPropertyFlags.UObjectWrapper;
+			PropertyFlags |= extraFlags | EPropertyFlags.UObjectWrapper;
 		}
 
 		/// <inheritdoc/>
@@ -45,7 +45,7 @@ namespace EpicGames.UHT.Types
 			switch (textType)
 			{
 				default:
-					builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
+					builder.Append("TObjectPtr<").Append(Class.SourceName).Append('>');
 					break;
 			}
 			return builder;
@@ -62,8 +62,8 @@ namespace EpicGames.UHT.Types
 		{
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FClassPtrPropertyParams",
 				"UECodeGen_Private::EPropertyGenFlags::Class | UECodeGen_Private::EPropertyGenFlags::ObjectPtr");
-			AppendMemberDefRef(builder, context, this.Class, false);
-			AppendMemberDefRef(builder, context, this.MetaClass, false);
+			AppendMemberDefRef(builder, context, Class, false);
+			AppendMemberDefRef(builder, context, MetaClass, false);
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -75,7 +75,7 @@ namespace EpicGames.UHT.Types
 
 			// UFunctions with a smart pointer as input parameter wont compile anyway, because of missing P_GET_... macro.
 			// UFunctions with a smart pointer as return type will crash when called via blueprint, because they are not supported in VM.
-			if (this.PropertyCategory == UhtPropertyCategory.RegularParameter || this.PropertyCategory == UhtPropertyCategory.ReplicatedParameter)
+			if (PropertyCategory == UhtPropertyCategory.RegularParameter || PropertyCategory == UhtPropertyCategory.ReplicatedParameter)
 			{
 				outerStruct.LogError("UFunctions cannot take a TObjectPtr as a parameter.");
 			}

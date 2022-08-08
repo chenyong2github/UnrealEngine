@@ -247,18 +247,18 @@ namespace EpicGames.UHT.Types
 		/// The super function.  Currently unused
 		/// </summary>
 		[JsonConverter(typeof(UhtNullableTypeSourceNameJsonConverter<UhtFunction>))]
-		public UhtFunction? SuperFunction => (UhtFunction?)this.Super;
+		public UhtFunction? SuperFunction => (UhtFunction?)Super;
 
 		/// <inheritdoc/>
 		[JsonIgnore]
-		public override UhtEngineType EngineType => this.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate) ? UhtEngineType.Delegate : UhtEngineType.Function;
+		public override UhtEngineType EngineType => FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate) ? UhtEngineType.Delegate : UhtEngineType.Function;
 
 		/// <inheritdoc/>
 		public override string EngineClassName
 		{
 			get
 			{
-				switch (this.FunctionType)
+				switch (FunctionType)
 				{
 					case UhtFunctionType.Function:
 						return "Function";
@@ -278,17 +278,17 @@ namespace EpicGames.UHT.Types
 		[JsonIgnore]
 		public string StrippedFunctionName
 		{
-			get => this._strippedFunctionName ?? this.EngineName;
-			set => this._strippedFunctionName = value;
+			get => _strippedFunctionName ?? EngineName;
+			set => _strippedFunctionName = value;
 		}
 
 		///<inheritdoc/>
 		[JsonIgnore]
-		public override bool Deprecated => this.MetaData.ContainsKey(UhtNames.DeprecatedFunction);
+		public override bool Deprecated => MetaData.ContainsKey(UhtNames.DeprecatedFunction);
 
 		///<inheritdoc/>
 		[JsonIgnore]
-		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable => this.Session.GetSpecifierValidatorTable(UhtTableNames.Function);
+		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable => Session.GetSpecifierValidatorTable(UhtTableNames.Function);
 
 		/// <summary>
 		/// Identifier for an RPC call to a platform service
@@ -329,25 +329,25 @@ namespace EpicGames.UHT.Types
 		/// True if the function has a return value.
 		/// </summary>
 		[JsonIgnore]
-		public bool HasReturnProperty => this.Children.Count > 0 && ((UhtProperty)this.Children[^1]).PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm);
+		public bool HasReturnProperty => Children.Count > 0 && ((UhtProperty)Children[^1]).PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm);
 
 		/// <summary>
 		/// The return value property or null if the function doesn't have a return value
 		/// </summary>
 		[JsonIgnore]
-		public UhtProperty? ReturnProperty => this.HasReturnProperty ? (UhtProperty)this.Children[^1] : null;
+		public UhtProperty? ReturnProperty => HasReturnProperty ? (UhtProperty)Children[^1] : null;
 
 		/// <summary>
 		/// True if the function has parameters.
 		/// </summary>
 		[JsonIgnore]
-		public bool HasParameters => this.Children.Count > 0 && !((UhtProperty)this.Children[0]).PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm);
+		public bool HasParameters => Children.Count > 0 && !((UhtProperty)Children[0]).PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm);
 
 		/// <summary>
 		/// Return read only memory of all the function parameters
 		/// </summary>
 		[JsonIgnore]
-		public ReadOnlyMemory<UhtType> ParameterProperties => new(this.Children.ToArray(), 0, this.HasReturnProperty ? this.Children.Count - 1 : this.Children.Count);
+		public ReadOnlyMemory<UhtType> ParameterProperties => new(Children.ToArray(), 0, HasReturnProperty ? Children.Count - 1 : Children.Count);
 
 		/// <summary>
 		/// True if the function has any outputs including a return value
@@ -357,7 +357,7 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				foreach (UhtType type in this.Children)
+				foreach (UhtType type in Children)
 				{
 					if (type is UhtProperty property)
 					{
@@ -389,7 +389,7 @@ namespace EpicGames.UHT.Types
 				{
 					throw new UhtIceException("Only properties marked as parameters can be added to functions");
 				}
-				if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm) && this.HasReturnProperty)
+				if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm) && HasReturnProperty)
 				{
 					throw new UhtIceException("Attempt to set multiple return properties on function");
 				}
@@ -410,35 +410,35 @@ namespace EpicGames.UHT.Types
 			switch (phase)
 			{
 				case UhtResolvePhase.Bases:
-					if (this.FunctionType == UhtFunctionType.Function && this.Outer is UhtClass outerClass)
+					if (FunctionType == UhtFunctionType.Function && Outer is UhtClass outerClass)
 					{
 						// non-static functions in a const class must be const themselves
 						if (outerClass.ClassFlags.HasAnyFlags(EClassFlags.Const))
 						{
-							this.FunctionFlags |= EFunctionFlags.Const;
+							FunctionFlags |= EFunctionFlags.Const;
 						}
 					}
 					break;
 
 				case UhtResolvePhase.Properties:
 					UhtPropertyParser.ResolveChildren(this, GetPropertyParseOptions(false));
-					foreach (UhtProperty property in this.Properties)
+					foreach (UhtProperty property in Properties)
 					{
 						if (property.DefaultValueTokens != null)
 						{
 							string key = "CPP_Default_" + property.EngineName;
-							if (!this.MetaData.ContainsKey(key))
+							if (!MetaData.ContainsKey(key))
 							{
 								bool parsed = false;
 								try
 								{
 									// All tokens MUST be consumed from the reader
 									StringBuilder builder = new();
-									IUhtTokenReader defaultValueReader = UhtTokenReplayReader.GetThreadInstance(property, this.HeaderFile.Data.Memory, property.DefaultValueTokens.ToArray(), UhtTokenType.EndOfDefault);
+									IUhtTokenReader defaultValueReader = UhtTokenReplayReader.GetThreadInstance(property, HeaderFile.Data.Memory, property.DefaultValueTokens.ToArray(), UhtTokenType.EndOfDefault);
 									parsed = property.SanitizeDefaultValue(defaultValueReader, builder) && defaultValueReader.IsEOF;
 									if (parsed)
 									{
-										this.MetaData.Add(key, builder.ToString());
+										MetaData.Add(key, builder.ToString());
 									}
 								}
 								catch (Exception)
@@ -448,7 +448,7 @@ namespace EpicGames.UHT.Types
 
 								if (!parsed)
 								{
-									StringView defaultValueText = new(this.HeaderFile.Data, property.DefaultValueTokens.First().InputStartPos,
+									StringView defaultValueText = new(HeaderFile.Data, property.DefaultValueTokens.First().InputStartPos,
 										property.DefaultValueTokens.Last().InputEndPos - property.DefaultValueTokens.First().InputStartPos);
 									property.LogError($"C++ Default parameter not parsed: {property.SourceName} '{defaultValueText}'");
 								}
@@ -458,31 +458,31 @@ namespace EpicGames.UHT.Types
 					break;
 
 				case UhtResolvePhase.Final:
-					if (this.Outer is UhtClass classObj)
+					if (Outer is UhtClass classObj)
 					{
-						if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.Native) &&
-							!this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.CustomThunk) &&
-							this.CppImplName != this.SourceName)
+						if (FunctionFlags.HasAnyFlags(EFunctionFlags.Native) &&
+							!FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.CustomThunk) &&
+							CppImplName != SourceName)
 						{
-							if (classObj.TryGetDeclaration(this.CppImplName, out UhtFoundDeclaration declaration))
+							if (classObj.TryGetDeclaration(CppImplName, out UhtFoundDeclaration declaration))
 							{
-								this.FunctionExportFlags |= UhtFunctionExportFlags.ImplFound;
+								FunctionExportFlags |= UhtFunctionExportFlags.ImplFound;
 								if (declaration.IsVirtual)
 								{
-									this.FunctionExportFlags |= UhtFunctionExportFlags.ImplVirtual;
+									FunctionExportFlags |= UhtFunctionExportFlags.ImplVirtual;
 								}
 							}
-							if (classObj.TryGetDeclaration(this.CppValidationImplName, out declaration))
+							if (classObj.TryGetDeclaration(CppValidationImplName, out declaration))
 							{
-								this.FunctionExportFlags |= UhtFunctionExportFlags.ValidationImplFound;
+								FunctionExportFlags |= UhtFunctionExportFlags.ValidationImplFound;
 								if (declaration.IsVirtual)
 								{
-									this.FunctionExportFlags |= UhtFunctionExportFlags.ValidationImplVirtual;
+									FunctionExportFlags |= UhtFunctionExportFlags.ValidationImplVirtual;
 								}
 							}
 						}
 
-						if (this.FunctionType == UhtFunctionType.Function && this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.DeclaredConst))
+						if (FunctionType == UhtFunctionType.Function && FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.DeclaredConst))
 						{
 							// @todo: the presence of const and one or more outputs does not guarantee that there are
 							// no side effects. On GCC and clang we could use __attribure__((pure)) or __attribute__((const))
@@ -490,31 +490,31 @@ namespace EpicGames.UHT.Types
 							// const identifier to determine purity is not desirable. We should remove the following logic:
 
 							// If its a const BlueprintCallable function with some sort of output and is not being marked as an BlueprintPure=false function, mark it as BlueprintPure as well
-							if (this.HasAnyOutputs && this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintCallable) &&
-								!this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ForceBlueprintImpure))
+							if (HasAnyOutputs && FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintCallable) &&
+								!FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ForceBlueprintImpure))
 							{
-								this.FunctionFlags |= EFunctionFlags.BlueprintPure;
-								this.FunctionExportFlags |= UhtFunctionExportFlags.AutoBlueprintPure; // Disable error for pure being set
+								FunctionFlags |= EFunctionFlags.BlueprintPure;
+								FunctionExportFlags |= UhtFunctionExportFlags.AutoBlueprintPure; // Disable error for pure being set
 							}
 						}
 					}
 
 					// The following code is only performed on functions in a class.
-					if (this.Outer is UhtClass)
+					if (Outer is UhtClass)
 					{
-						foreach (UhtType type in this.Children)
+						foreach (UhtType type in Children)
 						{
 							if (type is UhtProperty property)
 							{
 								if (property.PropertyFlags.HasExactFlags(EPropertyFlags.OutParm | EPropertyFlags.ReturnParm, EPropertyFlags.OutParm))
 								{
-									this.FunctionFlags |= EFunctionFlags.HasOutParms;
+									FunctionFlags |= EFunctionFlags.HasOutParms;
 								}
 								if (property is UhtStructProperty structProperty)
 								{
 									if (structProperty.ScriptStruct.HasDefaults)
 									{
-										this.FunctionFlags |= EFunctionFlags.HasDefaults;
+										FunctionFlags |= EFunctionFlags.HasDefaults;
 									}
 								}
 							}
@@ -538,29 +538,29 @@ namespace EpicGames.UHT.Types
 			bool checkForBlueprint = false;
 
 			// Function type specific validation
-			switch (this.FunctionType)
+			switch (FunctionType)
 			{
 				case UhtFunctionType.Function:
-					UhtClass? outerClass = (UhtClass?)this.Outer;
+					UhtClass? outerClass = (UhtClass?)Outer;
 
-					if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintPure) && outerClass != null &&
+					if (FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintPure) && outerClass != null &&
 						outerClass.ClassFlags.HasAnyFlags(EClassFlags.Interface) &&
-						!this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.AutoBlueprintPure))
+						!FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.AutoBlueprintPure))
 					{
 						this.LogError("BlueprintPure specifier is not allowed for interface functions");
 					}
 
 					// If this function is blueprint callable or blueprint pure, require a category 
-					if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintCallable | EFunctionFlags.BlueprintPure))
+					if (FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintCallable | EFunctionFlags.BlueprintPure))
 					{
-						bool blueprintAccessor = this.MetaData.ContainsKey(UhtNames.BlueprintSetter) || this.MetaData.ContainsKey(UhtNames.BlueprintGetter);
-						bool hasMenuCategory = this.MetaData.ContainsKey(UhtNames.Category);
-						bool internalOnly = this.MetaData.GetBoolean(UhtNames.BlueprintInternalUseOnly);
+						bool blueprintAccessor = MetaData.ContainsKey(UhtNames.BlueprintSetter) || MetaData.ContainsKey(UhtNames.BlueprintGetter);
+						bool hasMenuCategory = MetaData.ContainsKey(UhtNames.Category);
+						bool internalOnly = MetaData.GetBoolean(UhtNames.BlueprintInternalUseOnly);
 
-						if (!hasMenuCategory && !internalOnly && !this.Deprecated && !blueprintAccessor)
+						if (!hasMenuCategory && !internalOnly && !Deprecated && !blueprintAccessor)
 						{
 							// To allow for quick iteration, don't enforce the requirement that game functions have to be categorized
-							if (this.HeaderFile.Package.IsPartOfEngine)
+							if (HeaderFile.Package.IsPartOfEngine)
 							{
 								this.LogError("An explicit Category specifier is required for Blueprint accessible functions in an Engine module.");
 							}
@@ -568,11 +568,11 @@ namespace EpicGames.UHT.Types
 					}
 
 					// Process the virtual-ness
-					if (this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.Virtual))
+					if (FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.Virtual))
 					{
 
 						// if this is a BlueprintNativeEvent or BlueprintImplementableEvent in an interface, make sure it's not "virtual"
-						if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
+						if (FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 						{
 							if (outerClass != null && outerClass.ClassFlags.HasAnyFlags(EClassFlags.Interface))
 							{
@@ -580,7 +580,7 @@ namespace EpicGames.UHT.Types
 							}
 
 							// if this is a BlueprintNativeEvent, make sure it's not "virtual"
-							else if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.Native))
+							else if (FunctionFlags.HasAnyFlags(EFunctionFlags.Native))
 							{
 								this.LogError("BlueprintNativeEvent functions must be non-virtual.");
 							}
@@ -594,147 +594,147 @@ namespace EpicGames.UHT.Types
 					else
 					{
 						// if this is a function in an Interface, it must be marked 'virtual' unless it's an event
-						if (outerClass != null && outerClass.ClassFlags.HasAnyFlags(EClassFlags.Interface) && !this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
+						if (outerClass != null && outerClass.ClassFlags.HasAnyFlags(EClassFlags.Interface) && !FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 						{
 							this.LogError("Interface functions that are not BlueprintImplementableEvents must be declared 'virtual'");
 						}
 					}
 
 					// This is a final (prebinding, non-overridable) function
-					if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.Final) || this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.Final))
+					if (FunctionFlags.HasAnyFlags(EFunctionFlags.Final) || FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.Final))
 					{
 						if (outerClass != null && outerClass.ClassFlags.HasAnyFlags(EClassFlags.Interface))
 						{
 							this.LogError("Interface functions cannot be declared 'final'");
 						}
-						else if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent) && !this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.AutoFinal))
+						else if (FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent) && !FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.AutoFinal))
 						{
 							this.LogError("Blueprint events cannot be declared 'final'");
 						}
 					}
 
-					if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.RequiredAPI) &&
+					if (FunctionFlags.HasAnyFlags(EFunctionFlags.RequiredAPI) &&
 						outerClass != null && outerClass.ClassFlags.HasAnyFlags(EClassFlags.RequiredAPI))
 					{
 						this.LogError($"API must not be used on methods of a class that is marked with an API itself.");
 					}
 
 					// Make sure that blueprint pure functions have some type of output
-					if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintPure) && !this.HasAnyOutputs)
+					if (FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintPure) && !HasAnyOutputs)
 					{
 						this.LogError("BlueprintPure specifier is not allowed for functions with no return value and no output parameters.");
 					}
 
-					if (this.FunctionFlags.HasExactFlags(EFunctionFlags.Net | EFunctionFlags.NetRequest | EFunctionFlags.NetResponse, EFunctionFlags.Net) && this.ReturnProperty != null)
+					if (FunctionFlags.HasExactFlags(EFunctionFlags.Net | EFunctionFlags.NetRequest | EFunctionFlags.NetResponse, EFunctionFlags.Net) && ReturnProperty != null)
 					{
 						this.LogError("Replicated functions can't have return values");
 					}
 
-					checkForBlueprint = this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintCallable | EFunctionFlags.BlueprintEvent);
+					checkForBlueprint = FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintCallable | EFunctionFlags.BlueprintEvent);
 
-					if (this.Outer is UhtStruct outerStruct)
+					if (Outer is UhtStruct outerStruct)
 					{
 						UhtStruct? outerSuperStruct = outerStruct.SuperStruct;
 						if (outerSuperStruct != null)
 						{
-							UhtType? overriddenFunction = outerSuperStruct.FindType(UhtFindOptions.SourceName | UhtFindOptions.Function, this.SourceName);
+							UhtType? overriddenFunction = outerSuperStruct.FindType(UhtFindOptions.SourceName | UhtFindOptions.Function, SourceName);
 							if (overriddenFunction != null)
 							{
 								// Native function overrides should be done in CPP text, not in a UFUNCTION() declaration (you can't change flags, and it'd otherwise be a burden to keep them identical)
 								this.LogError(
-									$"Override of UFUNCTION '{this.SourceName}' in parent '{overriddenFunction.Outer?.SourceName}' cannot have a UFUNCTION() declaration above it; it will use the same parameters as the original declaration.");
+									$"Override of UFUNCTION '{SourceName}' in parent '{overriddenFunction.Outer?.SourceName}' cannot have a UFUNCTION() declaration above it; it will use the same parameters as the original declaration.");
 							}
 						}
 					}
 
 					// Make sure that the replication flags set on an overridden function match the parent function
-					UhtFunction? superFunction = this.SuperFunction;
+					UhtFunction? superFunction = SuperFunction;
 					if (superFunction != null)
 					{
-						if ((this.FunctionFlags & EFunctionFlags.NetFuncFlags) != (superFunction.FunctionFlags & EFunctionFlags.NetFuncFlags))
+						if ((FunctionFlags & EFunctionFlags.NetFuncFlags) != (superFunction.FunctionFlags & EFunctionFlags.NetFuncFlags))
 						{
-							this.LogError($"Overridden function '{this.SourceName}' cannot specify different replication flags when overriding a function.");
+							this.LogError($"Overridden function '{SourceName}' cannot specify different replication flags when overriding a function.");
 						}
 					}
 
 					// if this function is an RPC in state scope, verify that it is an override
 					// this is required because the networking code only checks the class for RPCs when initializing network data, not any states within it
-					if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.Net) && superFunction == null && this.Outer is not UhtClass)
+					if (FunctionFlags.HasAnyFlags(EFunctionFlags.Net) && superFunction == null && Outer is not UhtClass)
 					{
-						this.LogError($"Function '{this.SourceName}' base implementation of RPCs cannot be in a state. Add a stub outside state scope.");
+						this.LogError($"Function '{SourceName}' base implementation of RPCs cannot be in a state. Add a stub outside state scope.");
 					}
 
 					// Check implemented RPC functions
-					if (this.CppImplName != this.EngineName &&
-						!this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.CustomThunk) &&
+					if (CppImplName != EngineName &&
+						!FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.CustomThunk) &&
 						outerClass!.GeneratedCodeVersion > EGeneratedCodeVersion.V1)
 					{
-						bool isNative = this.FunctionFlags.HasAnyFlags(EFunctionFlags.Native);
-						bool isNet = this.FunctionFlags.HasAnyFlags(EFunctionFlags.Net);
-						bool isNetValidate = this.FunctionFlags.HasAnyFlags(EFunctionFlags.NetValidate);
-						bool isNetResponse = this.FunctionFlags.HasAnyFlags(EFunctionFlags.NetResponse);
-						bool isBlueprintEvent = this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent);
+						bool isNative = FunctionFlags.HasAnyFlags(EFunctionFlags.Native);
+						bool isNet = FunctionFlags.HasAnyFlags(EFunctionFlags.Net);
+						bool isNetValidate = FunctionFlags.HasAnyFlags(EFunctionFlags.NetValidate);
+						bool isNetResponse = FunctionFlags.HasAnyFlags(EFunctionFlags.NetResponse);
+						bool isBlueprintEvent = FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent);
 
 						bool needsImplementation = (isNet && !isNetResponse) || isBlueprintEvent || isNative;
 						bool needsValidate = (isNative || isNet) && !isNetResponse && isNetValidate;
 
-						bool hasImplementation = this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ImplFound);
-						bool hasValidate = this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ValidationImplFound);
-						bool hasVirtualImplementation = this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ImplVirtual);
-						bool hasVirtualValidate = this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ValidationImplVirtual);
+						bool hasImplementation = FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ImplFound);
+						bool hasValidate = FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ValidationImplFound);
+						bool hasVirtualImplementation = FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ImplVirtual);
+						bool hasVirtualValidate = FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ValidationImplVirtual);
 
 						if (needsImplementation || needsValidate)
 						{
 							// Check if functions are missing.
 							if (needsImplementation && !hasImplementation)
 							{
-								LogRpcFunctionError(false, this.CppImplName);
+								LogRpcFunctionError(false, CppImplName);
 							}
 
 							if (needsValidate && !hasValidate)
 							{
-								LogRpcFunctionError(false, this.CppValidationImplName);
+								LogRpcFunctionError(false, CppValidationImplName);
 							}
 
 							// If all needed functions are declared, check if they have virtual specifiers.
 							if (needsImplementation && hasImplementation && !hasVirtualImplementation)
 							{
-								LogRpcFunctionError(true, this.CppImplName);
+								LogRpcFunctionError(true, CppImplName);
 							}
 
 							if (needsValidate && hasValidate && !hasVirtualValidate)
 							{
-								LogRpcFunctionError(true, this.CppValidationImplName);
+								LogRpcFunctionError(true, CppValidationImplName);
 							}
 						}
 					}
 
 					// Validate field notify
-					if (this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify))
+					if (FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify))
 					{
 						if (outerClass == null)
 						{
-							this.LogError($"FieldNofity function '{this.SourceName}' are only valid as UClass member function.");
+							this.LogError($"FieldNofity function '{SourceName}' are only valid as UClass member function.");
 						}
 
-						if (this.ParameterProperties.Length != 0)
+						if (ParameterProperties.Length != 0)
 						{
-							this.LogError($"FieldNotify function '{this.SourceName}' must not have parameters.");
+							this.LogError($"FieldNotify function '{SourceName}' must not have parameters.");
 						}
 
-						if (this.ReturnProperty == null)
+						if (ReturnProperty == null)
 						{
-							this.LogError($"FieldNotify function '{this.SourceName}' must return a value.");
+							this.LogError($"FieldNotify function '{SourceName}' must return a value.");
 						}
 
-						if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
+						if (FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
 						{
-							this.LogError($"FieldNotify function '{this.SourceName}' cannot be a blueprint event.");
+							this.LogError($"FieldNotify function '{SourceName}' cannot be a blueprint event.");
 						}
 
-						if (!this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintPure))
+						if (!FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintPure))
 						{
-							this.LogError($"FieldNotify function '{this.SourceName}' must be pure.");
+							this.LogError($"FieldNotify function '{SourceName}' must be pure.");
 						}
 					}
 					break;
@@ -745,24 +745,24 @@ namespace EpicGames.UHT.Types
 					// Check for shadowing if requested
 					if (options.HasAnyFlags(UhtValidationOptions.Shadowing))
 					{
-						UhtType? existing = this.Outer!.FindType(UhtFindOptions.DelegateFunction | UhtFindOptions.EngineName | UhtFindOptions.SelfOnly, this.EngineName);
+						UhtType? existing = Outer!.FindType(UhtFindOptions.DelegateFunction | UhtFindOptions.EngineName | UhtFindOptions.SelfOnly, EngineName);
 						if (existing != null && existing != this)
 						{
-							this.LogError($"Can't override delegate signature function '{this.SourceName}'");
+							this.LogError($"Can't override delegate signature function '{SourceName}'");
 						}
 					}
 					break;
 			}
 
 			// Make sure this isn't a duplicate type.  In some ways this has already been check above
-			UhtType? existingType = this.Outer!.FindType(UhtFindOptions.PropertyOrFunction | UhtFindOptions.EngineName | UhtFindOptions.SelfOnly, this.EngineName);
+			UhtType? existingType = Outer!.FindType(UhtFindOptions.PropertyOrFunction | UhtFindOptions.EngineName | UhtFindOptions.SelfOnly, EngineName);
 			if (existingType != null && existingType != this)
 			{
-				this.LogError($"'{this.EngineName}' conflicts with '{existingType.FullName}'");
+				this.LogError($"'{EngineName}' conflicts with '{existingType.FullName}'");
 			}
 
 			// Do a more generic validation of the arguments
-			foreach (UhtType type in this.Children)
+			foreach (UhtType type in Children)
 			{
 				if (type is UhtProperty property)
 				{
@@ -786,17 +786,17 @@ namespace EpicGames.UHT.Types
 					{
 						if (property.IsStaticArray)
 						{
-							this.LogError($"Static array cannot be exposed to blueprint. Function: {this.SourceName} Parameter {property.SourceName}");
+							this.LogError($"Static array cannot be exposed to blueprint. Function: {SourceName} Parameter {property.SourceName}");
 						}
 						if (!property.PropertyCaps.HasAnyFlags(UhtPropertyCaps.IsParameterSupportedByBlueprint))
 						{
-							this.LogError($"Type '{property.GetUserFacingDecl()}' is not supported by blueprint. Function:  {this.SourceName} Parameter {property.SourceName}");
+							this.LogError($"Type '{property.GetUserFacingDecl()}' is not supported by blueprint. Function:  {SourceName} Parameter {property.SourceName}");
 						}
 					}
 				}
 			}
 
-			if (!this.Deprecated)
+			if (!Deprecated)
 			{
 				options |= UhtValidationOptions.Deprecated;
 			}
@@ -817,20 +817,20 @@ namespace EpicGames.UHT.Types
 			}
 			else
 			{
-				builder.Append($"Function {this.SourceName} was marked as ");
-				if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.Native))
+				builder.Append($"Function {SourceName} was marked as ");
+				if (FunctionFlags.HasAnyFlags(EFunctionFlags.Native))
 				{
 					builder.Append("Native, ");
 				}
-				if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
+				if (FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 				{
 					builder.Append("Net, ");
 				}
-				if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
+				if (FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 				{
 					builder.Append("BlueprintEvent, ");
 				}
-				if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.NetValidate))
+				if (FunctionFlags.HasAnyFlags(EFunctionFlags.NetValidate))
 				{
 					builder.Append("NetValidate, ");
 				}
@@ -838,7 +838,7 @@ namespace EpicGames.UHT.Types
 				builder.Append(". Declare function \"virtual ");
 			}
 
-			UhtProperty? returnType = this.ReturnProperty;
+			UhtProperty? returnType = ReturnProperty;
 			if (returnType != null)
 			{
 				builder.AppendPropertyText(returnType, UhtPropertyTextType.EventFunctionArgOrRetVal);
@@ -849,10 +849,10 @@ namespace EpicGames.UHT.Types
 				builder.Append("void ");
 			}
 
-			builder.Append(this.Outer!.SourceName).Append("::").Append(functionName).Append('(');
+			builder.Append(Outer!.SourceName).Append("::").Append(functionName).Append('(');
 
 			bool first = true;
-			foreach (UhtProperty arg in this.ParameterProperties.Span)
+			foreach (UhtProperty arg in ParameterProperties.Span)
 			{
 				if (!first)
 				{
@@ -863,7 +863,7 @@ namespace EpicGames.UHT.Types
 			}
 
 			builder.Append(')');
-			if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.Const))
+			if (FunctionFlags.HasAnyFlags(EFunctionFlags.Const))
 			{
 				builder.Append(" const");
 			}
@@ -881,51 +881,51 @@ namespace EpicGames.UHT.Types
 
 		private void ValidateSpecifierFlags()
 		{
-			if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
+			if (FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
-				if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.Exec))
+				if (FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.Exec))
 				{
 					this.LogError("Replicated functions can not be blueprint events or exec");
 				}
 
-				bool isNetService = this.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest | EFunctionFlags.NetResponse);
-				bool isNetReliable = this.FunctionFlags.HasAnyFlags(EFunctionFlags.NetReliable);
+				bool isNetService = FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest | EFunctionFlags.NetResponse);
+				bool isNetReliable = FunctionFlags.HasAnyFlags(EFunctionFlags.NetReliable);
 
-				if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.Static))
+				if (FunctionFlags.HasAnyFlags(EFunctionFlags.Static))
 				{
 					this.LogError("Static functions can't be replicated");
 				}
 
-				if (!isNetReliable && !this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.Unreliable) && !isNetService)
+				if (!isNetReliable && !FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.Unreliable) && !isNetService)
 				{
 					this.LogError("Replicated function: 'reliable' or 'unreliable' is required");
 				}
 
-				if (isNetReliable && this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.Unreliable) && !isNetService)
+				if (isNetReliable && FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.Unreliable) && !isNetService)
 				{
 					this.LogError("'reliable' and 'unreliable' are mutually exclusive");
 				}
 			}
-			else if (this.FunctionFlags.HasAnyFlags(EFunctionFlags.NetReliable))
+			else if (FunctionFlags.HasAnyFlags(EFunctionFlags.NetReliable))
 			{
 				this.LogError("'reliable' specified without 'client' or 'server'");
 			}
-			else if (this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.Unreliable))
+			else if (FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.Unreliable))
 			{
 				this.LogError("'unreliable' specified without 'client' or 'server'");
 			}
 
-			if (this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.SealedEvent) && !this.FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
+			if (FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.SealedEvent) && !FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
 			{
 				this.LogError("SealedEvent may only be used on events");
 			}
 
-			if (this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.SealedEvent) && this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
+			if (FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.SealedEvent) && FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 			{
 				this.LogError("SealedEvent cannot be used on Blueprint events");
 			}
 
-			if (this.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ForceBlueprintImpure) && this.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintPure))
+			if (FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.ForceBlueprintImpure) && FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintPure))
 			{
 				this.LogError("BlueprintPure (or BlueprintPure=true) and BlueprintPure=false should not both appear on the same function, they are mutually exclusive");
 			}
@@ -934,30 +934,29 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override void ValidateDocumentationPolicy(UhtDocumentationPolicy policy)
 		{
-			if (this.FunctionType != UhtFunctionType.Function)
+			if (FunctionType != UhtFunctionType.Function)
 			{
 				return;
 			}
 
-			UhtClass? outerClass = (UhtClass?)this.Outer;
+			UhtClass? outerClass = (UhtClass?)Outer;
 
 			if (policy.FunctionToolTipsRequired)
 			{
-				if (!this.MetaData.ContainsKey(UhtNames.ToolTip))
+				if (!MetaData.ContainsKey(UhtNames.ToolTip))
 				{
-					this.LogError($"Function '{outerClass?.SourceName}::{this.SourceName}' does not provide a tooltip / comment (DocumentationPolicy).");
+					this.LogError($"Function '{outerClass?.SourceName}::{SourceName}' does not provide a tooltip / comment (DocumentationPolicy).");
 				}
 			}
 
 			if (policy.ParameterToolTipsRequired)
 			{
-				if (!this.MetaData.ContainsKey(UhtNames.Comment))
+				if (!MetaData.ContainsKey(UhtNames.Comment))
 				{
-					this.LogError($"Function '{outerClass?.SourceName}::{this.SourceName}' does not provide a comment (DocumentationPolicy).");
-
+					this.LogError($"Function '{outerClass?.SourceName}::{SourceName}' does not provide a comment (DocumentationPolicy).");
 				}
 
-				Dictionary<StringView, StringView> paramToolTips = GetParameterToolTipsFromFunctionComment(this.MetaData.GetValueOrDefault(UhtNames.Comment));
+				Dictionary<StringView, StringView> paramToolTips = GetParameterToolTipsFromFunctionComment(MetaData.GetValueOrDefault(UhtNames.Comment));
 				bool hasAnyParamToolTips = paramToolTips.Count > 1 || (paramToolTips.Count == 1 && !paramToolTips.ContainsKey(UhtNames.ReturnValue));
 
 				// only apply the validation for parameter tooltips if a function has any @param statements at all.
@@ -965,12 +964,12 @@ namespace EpicGames.UHT.Types
 				{
 					// ensure each parameter has a tooltip
 					HashSet<StringView> existingFields = new(StringViewComparer.OrdinalIgnoreCase);
-					foreach (UhtType parameter in this.ParameterProperties.Span)
+					foreach (UhtType parameter in ParameterProperties.Span)
 					{
 						existingFields.Add(parameter.SourceName);
 						if (!paramToolTips.ContainsKey(parameter.SourceName))
 						{
-							this.LogError($"Function '{outerClass?.SourceName}::{this.SourceName}' doesn't provide a tooltip for parameter '{parameter.SourceName}' (DocumentationPolicy).");
+							this.LogError($"Function '{outerClass?.SourceName}::{SourceName}' doesn't provide a tooltip for parameter '{parameter.SourceName}' (DocumentationPolicy).");
 						}
 					}
 
@@ -984,7 +983,7 @@ namespace EpicGames.UHT.Types
 
 						if (!existingFields.Contains(kvp.Key))
 						{
-							this.LogError($"Function '{outerClass?.SourceName}::{this.SourceName}' provides a tooltip for an unknown parameter '{kvp.Key}'");
+							this.LogError($"Function '{outerClass?.SourceName}::{SourceName}' provides a tooltip for an unknown parameter '{kvp.Key}'");
 						}
 					}
 
@@ -999,7 +998,7 @@ namespace EpicGames.UHT.Types
 
 						if (toolTipToParam.TryGetValue(kvp.Value, out StringView existing))
 						{
-							this.LogError($"Function '{outerClass?.SourceName}::{this.SourceName}' uses identical tooltips for parameters '{kvp.Key}' and '{existing}' (DocumentationPolicy).");
+							this.LogError($"Function '{outerClass?.SourceName}::{SourceName}' uses identical tooltips for parameters '{kvp.Key}' and '{existing}' (DocumentationPolicy).");
 						}
 						else
 						{
@@ -1084,15 +1083,15 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override void CollectReferences(IUhtReferenceCollector collector)
 		{
-			if (this.FunctionType != UhtFunctionType.Function)
+			if (FunctionType != UhtFunctionType.Function)
 			{
 				collector.AddExportType(this);
 				collector.AddSingleton(this);
 				collector.AddDeclaration(this, true);
 				collector.AddCrossModuleReference(this, true);
-				collector.AddCrossModuleReference(this.Package, true);
+				collector.AddCrossModuleReference(Package, true);
 			}
-			foreach (UhtType child in this.Children)
+			foreach (UhtType child in Children)
 			{
 				child.CollectReferences(collector);
 			}
@@ -1106,7 +1105,7 @@ namespace EpicGames.UHT.Types
 		/// <exception cref="UhtIceException"></exception>
 		protected internal UhtPropertyParseOptions GetPropertyParseOptions(bool returnValue)
 		{
-			switch (this.FunctionType)
+			switch (FunctionType)
 			{
 				case UhtFunctionType.Delegate:
 				case UhtFunctionType.SparseDelegate:
@@ -1115,7 +1114,7 @@ namespace EpicGames.UHT.Types
 				case UhtFunctionType.Function:
 					UhtPropertyParseOptions options = UhtPropertyParseOptions.DontAddReturn; // Fetch the function name
 					options |= returnValue ? UhtPropertyParseOptions.FunctionNameIncluded : UhtPropertyParseOptions.NameIncluded;
-					if (this.FunctionFlags.HasAllFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.Native))
+					if (FunctionFlags.HasAllFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.Native))
 					{
 						options |= UhtPropertyParseOptions.NoAutoConst;
 					}

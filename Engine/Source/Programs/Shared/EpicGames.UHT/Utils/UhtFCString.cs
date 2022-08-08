@@ -468,7 +468,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="builder">Destination string builder</param>
 		public static void TabsToSpaces(ReadOnlySpan<char> span, int tabSpacing, bool emulateCrBug, int tabIndex, StringBuilder builder)
 		{
-			// Locate the last \n since all tabs have to be computed relative to this.
+			// Locate the last \n since all tabs have to be computed relative to 
 			int crPos = span[..tabIndex].LastIndexOf('\n') + 1;
 
 			int committed = 0;

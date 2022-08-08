@@ -39,23 +39,23 @@ namespace EpicGames.UHT.Types
 		public UhtArrayProperty(UhtPropertySettings propertySettings, UhtProperty value) : base(propertySettings, value)
 		{
 			// If the creation of the value property set more flags, then copy those flags to ourselves
-			this.PropertyFlags |= value.PropertyFlags & EPropertyFlags.UObjectWrapper;
+			PropertyFlags |= value.PropertyFlags & EPropertyFlags.UObjectWrapper;
 
 			if (value.MetaData.ContainsKey(UhtNames.NativeConst))
 			{
-				this.MetaData.Add(UhtNames.NativeConstTemplateArg, "");
+				MetaData.Add(UhtNames.NativeConstTemplateArg, "");
 				value.MetaData.Remove(UhtNames.NativeConst);
 			}
 
-			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.SupportsRigVM | UhtPropertyCaps.IsRigVMArray;
-			this.PropertyCaps &= ~(UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey);
-			this.PropertyCaps = (this.PropertyCaps & ~(UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn)) |
-				(this.ValueProperty.PropertyCaps & (UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn));
-			this.ValueProperty.SourceName = this.SourceName;
-			this.ValueProperty.EngineName = this.EngineName;
-			this.ValueProperty.PropertyFlags = this.PropertyFlags & EPropertyFlags.PropagateToArrayInner;
-			this.ValueProperty.Outer = this;
-			this.ValueProperty.MetaData.Clear();
+			PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.SupportsRigVM | UhtPropertyCaps.IsRigVMArray;
+			PropertyCaps &= ~(UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey);
+			PropertyCaps = (PropertyCaps & ~(UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn)) |
+				(ValueProperty.PropertyCaps & (UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn));
+			ValueProperty.SourceName = SourceName;
+			ValueProperty.EngineName = EngineName;
+			ValueProperty.PropertyFlags = PropertyFlags & EPropertyFlags.PropagateToArrayInner;
+			ValueProperty.Outer = this;
+			ValueProperty.MetaData.Clear();
 		}
 
 		/// <inheritdoc/>
@@ -65,11 +65,11 @@ namespace EpicGames.UHT.Types
 			switch (phase)
 			{
 				case UhtResolvePhase.Final:
-					this.PropertyFlags |= ResolveAndReturnNewFlags(this.ValueProperty, phase);
-					this.MetaData.Add(this.ValueProperty.MetaData);
-					this.ValueProperty.PropertyFlags = this.PropertyFlags & EPropertyFlags.PropagateToArrayInner;
-					this.ValueProperty.MetaData.Clear();
-					PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(this, this.MetaData, this.ValueProperty);
+					PropertyFlags |= ResolveAndReturnNewFlags(ValueProperty, phase);
+					MetaData.Add(ValueProperty.MetaData);
+					ValueProperty.PropertyFlags = PropertyFlags & EPropertyFlags.PropagateToArrayInner;
+					ValueProperty.MetaData.Clear();
+					PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(this, MetaData, ValueProperty);
 					break;
 			}
 			return results;
@@ -78,19 +78,19 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			this.ValueProperty.CollectReferencesInternal(collector, true);
+			ValueProperty.CollectReferencesInternal(collector, true);
 		}
 
 		/// <inheritdoc/>
 		public override string? GetForwardDeclarations()
 		{
-			return this.ValueProperty.GetForwardDeclarations();
+			return ValueProperty.GetForwardDeclarations();
 		}
 
 		/// <inheritdoc/>
 		public override IEnumerable<UhtType> EnumerateReferencedTypes()
 		{
-			foreach (UhtType type in this.ValueProperty.EnumerateReferencedTypes())
+			foreach (UhtType type in ValueProperty.EnumerateReferencedTypes())
 			{
 				yield return type;
 			}
@@ -106,11 +106,11 @@ namespace EpicGames.UHT.Types
 					break;
 
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
-					builder.AppendFunctionThunkParameterArrayType(this.ValueProperty);
+					builder.AppendFunctionThunkParameterArrayType(ValueProperty);
 					break;
 
 				default:
-					builder.Append("TArray<").AppendPropertyText(this.ValueProperty, textType, true);
+					builder.Append("TArray<").AppendPropertyText(ValueProperty, textType, true);
 					if (builder[^1] == '>')
 					{
 						// if our internal property type is a template class, add a space between the closing brackets b/c VS.NET cannot parse this correctly
@@ -125,16 +125,16 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			builder.AppendMemberDecl(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_Inner"), tabs);
+			builder.AppendMemberDecl(ValueProperty, context, name, GetNameSuffix(nameSuffix, "_Inner"), tabs);
 			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FArrayPropertyParams");
 		}
 
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			builder.AppendMemberDef(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_Inner"), "0", tabs);
+			builder.AppendMemberDef(ValueProperty, context, name, GetNameSuffix(nameSuffix, "_Inner"), "0", tabs);
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FArrayPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Array");
-			builder.Append(this.Allocator == UhtPropertyAllocator.MemoryImage ? "EArrayPropertyFlags::UsesMemoryImageAllocator" : "EArrayPropertyFlags::None").Append(", ");
+			builder.Append(Allocator == UhtPropertyAllocator.MemoryImage ? "EArrayPropertyFlags::UsesMemoryImageAllocator" : "EArrayPropertyFlags::None").Append(", ");
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -142,7 +142,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberPtr(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			builder.AppendMemberPtr(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_Inner"), tabs);
+			builder.AppendMemberPtr(ValueProperty, context, name, GetNameSuffix(nameSuffix, "_Inner"), tabs);
 			base.AppendMemberPtr(builder, context, name, nameSuffix, tabs);
 			return builder;
 		}
@@ -150,7 +150,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override void AppendObjectHashes(StringBuilder builder, int startingLength, IUhtPropertyMemberContext context)
 		{
-			this.ValueProperty.AppendObjectHashes(builder, startingLength, context);
+			ValueProperty.AppendObjectHashes(builder, startingLength, context);
 		}
 
 		/// <inheritdoc/>
@@ -175,7 +175,7 @@ namespace EpicGames.UHT.Types
 			{
 				if (!function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest))
 				{
-					if (this.RefQualifier != UhtPropertyRefQualifier.ConstRef && !this.IsStaticArray)
+					if (RefQualifier != UhtPropertyRefQualifier.ConstRef && !IsStaticArray)
 					{
 						this.LogError("Replicated TArray parameters must be passed by const reference");
 					}
@@ -188,9 +188,9 @@ namespace EpicGames.UHT.Types
 		{
 			base.Validate(outerStruct, outermostProperty, options);
 
-			if (this.Allocator != UhtPropertyAllocator.Default)
+			if (Allocator != UhtPropertyAllocator.Default)
 			{
-				if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
+				if (PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
 				{
 					this.LogError("Replicated arrays with MemoryImageAllocators are not yet supported");
 				}
@@ -202,7 +202,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (other is UhtArrayProperty otherArray)
 			{
-				return this.ValueProperty.IsSameType(otherArray.ValueProperty);
+				return ValueProperty.IsSameType(otherArray.ValueProperty);
 			}
 			return false;
 		}

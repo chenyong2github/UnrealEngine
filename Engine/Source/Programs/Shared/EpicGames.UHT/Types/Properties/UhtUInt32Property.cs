@@ -35,14 +35,14 @@ namespace EpicGames.UHT.Types
 		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
 			return AppendMemberDecl(builder, context, name, nameSuffix, tabs,
-				this.IntType == UhtPropertyIntType.Unsized ? "FUnsizedFIntPropertyParams" : "FUInt32PropertyParams");
+				IntType == UhtPropertyIntType.Unsized ? "FUnsizedFIntPropertyParams" : "FUInt32PropertyParams");
 		}
 
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs,
-				this.IntType == UhtPropertyIntType.Unsized ? "FUnsizedFIntPropertyParams" : "FUInt32PropertyParams",
+				IntType == UhtPropertyIntType.Unsized ? "FUnsizedFIntPropertyParams" : "FUInt32PropertyParams",
 				"UECodeGen_Private::EPropertyGenFlags::UInt32");
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;

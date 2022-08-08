@@ -267,8 +267,5 @@ dotnet_diagnostic.CA1508.severity = none
 # CA1501: 'UhtClassParser' has an object hierarchy '6' levels deep within the defining module. If possible, eliminate base classes within the hierarchy to decrease its hierarchy level below '6': 'UhtClassBaseParser, UhtClass, UhtStruct, UhtField, UhtObject, UhtType'.
 dotnet_diagnostic.CA1501.severity = none
 
-# IDE0003: Name can be simplified
-dotnet_diagnostic.IDE0003.severity = none
-
 # IDE0079: Remove unnecessary supression - Different tool versions will complain about unused stuff.
 dotnet_diagnostic.IDE0079.severity = none

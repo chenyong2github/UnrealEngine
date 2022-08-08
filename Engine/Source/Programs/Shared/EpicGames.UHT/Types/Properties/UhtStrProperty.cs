@@ -35,7 +35,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="propertySettings">Property settings</param>
 		public UhtStrProperty(UhtPropertySettings propertySettings) : base(propertySettings)
 		{
-			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
+			PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
 				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
 		}
 
@@ -93,7 +93,7 @@ namespace EpicGames.UHT.Types
 			{
 				if (!function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest))
 				{
-					if (this.RefQualifier != UhtPropertyRefQualifier.ConstRef && !this.IsStaticArray)
+					if (RefQualifier != UhtPropertyRefQualifier.ConstRef && !IsStaticArray)
 					{
 						this.LogError("Replicated FString parameters must be passed by const reference");
 					}

@@ -27,22 +27,22 @@ namespace EpicGames.UHT.Parsers
 
 		public UhtAdvancedDisplayParameterHandler(UhtMetaData metaData)
 		{
-			this._metaData = metaData;
-			this._parameterNames = null;
-			this._numberLeaveUnmarked = -1;
-			this._alreadyLeft = 0;
-			this._bUseNumber = false;
+			_metaData = metaData;
+			_parameterNames = null;
+			_numberLeaveUnmarked = -1;
+			_alreadyLeft = 0;
+			_bUseNumber = false;
 
-			if (this._metaData.TryGetValue(UhtNames.AdvancedDisplay, out string? foundString))
+			if (_metaData.TryGetValue(UhtNames.AdvancedDisplay, out string? foundString))
 			{
-				this._parameterNames = foundString.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries);
-				for (int index = 0, endIndex = this._parameterNames.Length; index < endIndex; ++index)
+				_parameterNames = foundString.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries);
+				for (int index = 0, endIndex = _parameterNames.Length; index < endIndex; ++index)
 				{
-					this._parameterNames[index] = this._parameterNames[index].Trim();
+					_parameterNames[index] = _parameterNames[index].Trim();
 				}
-				if (this._parameterNames.Length == 1)
+				if (_parameterNames.Length == 1)
 				{
-					_bUseNumber = Int32.TryParse(this._parameterNames[0], out _numberLeaveUnmarked);
+					_bUseNumber = Int32.TryParse(_parameterNames[0], out _numberLeaveUnmarked);
 				}
 			}
 		}
@@ -53,26 +53,26 @@ namespace EpicGames.UHT.Parsers
 		 */
 		public bool ShouldMarkParameter(StringView parameterName)
 		{
-			if (this._bUseNumber)
+			if (_bUseNumber)
 			{
-				if (this._numberLeaveUnmarked < 0)
+				if (_numberLeaveUnmarked < 0)
 				{
 					return false;
 				}
-				if (this._alreadyLeft < this._numberLeaveUnmarked)
+				if (_alreadyLeft < _numberLeaveUnmarked)
 				{
-					++this._alreadyLeft;
+					++_alreadyLeft;
 					return false;
 				}
 				return true;
 			}
 
-			if (this._parameterNames == null)
+			if (_parameterNames == null)
 			{
 				return false;
 			}
 
-			foreach (string element in this._parameterNames)
+			foreach (string element in _parameterNames)
 			{
 				if (parameterName.Span.Equals(element, StringComparison.OrdinalIgnoreCase))
 				{
@@ -85,7 +85,7 @@ namespace EpicGames.UHT.Parsers
 		/** return if more parameters can be marked */
 		public bool CanMarkMore()
 		{
-			return this._bUseNumber ? this._numberLeaveUnmarked > 0 : (this._parameterNames != null && this._parameterNames.Length > 0);
+			return _bUseNumber ? _numberLeaveUnmarked > 0 : (_parameterNames != null && _parameterNames.Length > 0);
 		}
 	}
 

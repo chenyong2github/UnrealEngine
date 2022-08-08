@@ -333,7 +333,7 @@ namespace EpicGames.UHT.Types
 		/// Collection of functions and other declarations found in the class
 		/// </summary>
 		[JsonIgnore]
-		public IList<UhtDeclaration>? Declarations => this._declarations;
+		public IList<UhtDeclaration>? Declarations => _declarations;
 
 		/// <summary>
 		/// If this, this class is a UINTERFACE and NativeInterface is the associated native interface
@@ -428,8 +428,8 @@ namespace EpicGames.UHT.Types
 		/// <param name="flags">Flags to add</param>
 		public void AddClassFlags(EClassFlags flags)
 		{
-			this.ClassFlags |= flags;
-			this.RemovedClassFlags &= ~flags;
+			ClassFlags |= flags;
+			RemovedClassFlags &= ~flags;
 		}
 
 		/// <summary>
@@ -438,8 +438,8 @@ namespace EpicGames.UHT.Types
 		/// <param name="flags">Flags to remove</param>
 		public void RemoveClassFlags(EClassFlags flags)
 		{
-			this.RemovedClassFlags |= flags;
-			this.ClassFlags &= ~flags;
+			RemovedClassFlags |= flags;
+			ClassFlags &= ~flags;
 		}
 		#endregion
 
@@ -449,7 +449,7 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				switch (this.ClassType)
+				switch (ClassType)
 				{
 					case UhtClassType.Class:
 						return UhtEngineType.Class;
@@ -468,7 +468,7 @@ namespace EpicGames.UHT.Types
 
 		///<inheritdoc/>
 		[JsonIgnore]
-		public override bool Deprecated => this.ClassFlags.HasAnyFlags(EClassFlags.Deprecated);
+		public override bool Deprecated => ClassFlags.HasAnyFlags(EClassFlags.Deprecated);
 
 		///<inheritdoc/>
 		[JsonIgnore]
@@ -476,14 +476,14 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				switch (this.ClassType)
+				switch (ClassType)
 				{
 					case UhtClassType.Class:
-						return this.Session.GetSpecifierValidatorTable(UhtTableNames.Class);
+						return Session.GetSpecifierValidatorTable(UhtTableNames.Class);
 					case UhtClassType.Interface:
-						return this.Session.GetSpecifierValidatorTable(UhtTableNames.Interface);
+						return Session.GetSpecifierValidatorTable(UhtTableNames.Interface);
 					case UhtClassType.NativeInterface:
-						return this.Session.GetSpecifierValidatorTable(UhtTableNames.NativeInterface);
+						return Session.GetSpecifierValidatorTable(UhtTableNames.NativeInterface);
 					default:
 						throw new UhtIceException("Unknown class type");
 				}
@@ -494,7 +494,7 @@ namespace EpicGames.UHT.Types
 		/// The super class
 		/// </summary>
 		[JsonConverter(typeof(UhtNullableTypeSourceNameJsonConverter<UhtClass>))]
-		public UhtClass? SuperClass => (UhtClass?)this.Super;
+		public UhtClass? SuperClass => (UhtClass?)Super;
 
 		/// <summary>
 		/// Construct a new instance of the class
@@ -503,14 +503,14 @@ namespace EpicGames.UHT.Types
 		/// <param name="lineNumber">Line number where class begins</param>
 		public UhtClass(UhtType outer, int lineNumber) : base(outer, lineNumber)
 		{
-			this.ClassWithin = this;
+			ClassWithin = this;
 		}
 
 		/// <summary>
 		/// True if this class inherits from AActor
 		/// </summary>
 		[JsonIgnore]
-		public bool IsActorClass => IsChildOf(this.Session.AActor);
+		public bool IsActorClass => IsChildOf(Session.AActor);
 
 		///<inheritdoc/>
 		[JsonIgnore]
@@ -518,16 +518,16 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				switch (this.ClassType)
+				switch (ClassType)
 				{
 					case UhtClassType.Class:
 						if (IsActorClass)
 						{
-							return this.ClassFlags.HasAnyFlags(EClassFlags.Deprecated) ? "ADEPRECATED_" : "A";
+							return ClassFlags.HasAnyFlags(EClassFlags.Deprecated) ? "ADEPRECATED_" : "A";
 						}
 						else
 						{
-							return this.ClassFlags.HasAnyFlags(EClassFlags.Deprecated) ? "UDEPRECATED_" : "U";
+							return ClassFlags.HasAnyFlags(EClassFlags.Deprecated) ? "UDEPRECATED_" : "U";
 						}
 
 					case UhtClassType.Interface:
@@ -550,11 +550,11 @@ namespace EpicGames.UHT.Types
 		/// <param name="function">If parsed as part of a UFUNCTION, this will reference it</param>
 		public void AddDeclaration(UhtCompilerDirective compilerDirectives, List<UhtToken> tokens, UhtFunction? function)
 		{
-			if (this._declarations == null)
+			if (_declarations == null)
 			{
-				this._declarations = new List<UhtDeclaration>();
+				_declarations = new List<UhtDeclaration>();
 			}
-			this._declarations.Add(new UhtDeclaration { CompilerDirectives = compilerDirectives, Tokens = tokens.ToArray(), Function = function });
+			_declarations.Add(new UhtDeclaration { CompilerDirectives = compilerDirectives, Tokens = tokens.ToArray(), Function = function });
 		}
 
 		/// <summary>
@@ -567,9 +567,9 @@ namespace EpicGames.UHT.Types
 		{
 			if (name.Length > 0)
 			{
-				if (this.Declarations != null)
+				if (Declarations != null)
 				{
-					foreach (UhtDeclaration declaration in this.Declarations)
+					foreach (UhtDeclaration declaration in Declarations)
 					{
 						bool isVirtual = false;
 						for (int index = 0; index < declaration.Tokens.Length; ++index)
@@ -593,9 +593,9 @@ namespace EpicGames.UHT.Types
 					}
 				}
 			}
-			if (this.NativeInterface != null)
+			if (NativeInterface != null)
 			{
-				return this.NativeInterface.TryGetDeclaration(name, out foundDeclaration);
+				return NativeInterface.TryGetDeclaration(name, out foundDeclaration);
 			}
 			foundDeclaration = new UhtFoundDeclaration();
 			return false;
@@ -632,36 +632,36 @@ namespace EpicGames.UHT.Types
 			base.ResolveSuper(resolvePhase);
 
 			// Make sure the class within is resolved.  We have to make sure we don't try to resolve ourselves.
-			if (this.ClassWithin != null && this.ClassWithin != this)
+			if (ClassWithin != null && ClassWithin != this)
 			{
-				this.ClassWithin.Resolve(resolvePhase);
+				ClassWithin.Resolve(resolvePhase);
 			}
 
 			switch (resolvePhase)
 			{
 				case UhtResolvePhase.Bases:
-					BindAndResolveSuper(this.SuperIdentifier, UhtFindOptions.Class);
-					BindAndResolveBases(this.BaseIdentifiers, UhtFindOptions.Class);
+					BindAndResolveSuper(SuperIdentifier, UhtFindOptions.Class);
+					BindAndResolveBases(BaseIdentifiers, UhtFindOptions.Class);
 
 					// Force the MatchedSerializers on for anything being exported
-					if (!this.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
+					if (!ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
 					{
-						this.ClassFlags |= EClassFlags.MatchedSerializers;
+						ClassFlags |= EClassFlags.MatchedSerializers;
 					}
 
-					switch (this.ClassType)
+					switch (ClassType)
 					{
 						case UhtClassType.Class:
 							{
-								UhtClass? superClass = this.SuperClass;
+								UhtClass? superClass = SuperClass;
 
 								// Merge the super class flags
 								if (superClass != null)
 								{
-									this.ClassFlags |= superClass.ClassFlags & EClassFlags.ScriptInherit & ~this.RemovedClassFlags;
+									ClassFlags |= superClass.ClassFlags & EClassFlags.ScriptInherit & ~RemovedClassFlags;
 								}
 
-								foreach (UhtStruct baseStruct in this.Bases)
+								foreach (UhtStruct baseStruct in Bases)
 								{
 									if (baseStruct is UhtClass baseClass)
 									{
@@ -669,18 +669,18 @@ namespace EpicGames.UHT.Types
 										{
 											this.LogError($"Class '{baseClass.SourceName}' is not an interface; Can only inherit from non-UObjects or UInterface derived interfaces");
 										}
-										this.ClassFlags |= baseClass.ClassFlags & EClassFlags.ScriptInherit & ~this.RemovedClassFlags;
+										ClassFlags |= baseClass.ClassFlags & EClassFlags.ScriptInherit & ~RemovedClassFlags;
 									}
 								}
 
 								// These following collections only inherit from he parent if they are empty in this class
-								if (this.SparseClassDataTypes.Count == 0)
+								if (SparseClassDataTypes.Count == 0)
 								{
-									AppendStringListMetaData(this.SuperClass, UhtNames.SparseClassDataTypes, this.SparseClassDataTypes);
+									AppendStringListMetaData(SuperClass, UhtNames.SparseClassDataTypes, SparseClassDataTypes);
 								}
-								if (this.PrioritizeCategories.Count == 0)
+								if (PrioritizeCategories.Count == 0)
 								{
-									AppendStringListMetaData(this.SuperClass, UhtNames.PrioritizeCategories, this.PrioritizeCategories);
+									AppendStringListMetaData(SuperClass, UhtNames.PrioritizeCategories, PrioritizeCategories);
 								}
 
 								// Merge with categories inherited from the parent.
@@ -690,34 +690,34 @@ namespace EpicGames.UHT.Types
 								SetAndValidateConfigName();
 
 								// Copy all of the lists back to the meta data
-								this.MetaData.AddIfNotEmpty(UhtNames.ClassGroupNames, this.ClassGroupNames);
-								this.MetaData.AddIfNotEmpty(UhtNames.AutoCollapseCategories, this.AutoCollapseCategories);
-								this.MetaData.AddIfNotEmpty(UhtNames.AutoExpandCategories, this.AutoExpandCategories);
-								this.MetaData.AddIfNotEmpty(UhtNames.PrioritizeCategories, this.PrioritizeCategories);
-								this.MetaData.AddIfNotEmpty(UhtNames.HideCategories, this.HideCategories);
-								this.MetaData.AddIfNotEmpty(UhtNames.ShowCategories, this.ShowCategories);
-								this.MetaData.AddIfNotEmpty(UhtNames.SparseClassDataTypes, this.SparseClassDataTypes);
-								this.MetaData.AddIfNotEmpty(UhtNames.HideFunctions, this.HideFunctions);
+								MetaData.AddIfNotEmpty(UhtNames.ClassGroupNames, ClassGroupNames);
+								MetaData.AddIfNotEmpty(UhtNames.AutoCollapseCategories, AutoCollapseCategories);
+								MetaData.AddIfNotEmpty(UhtNames.AutoExpandCategories, AutoExpandCategories);
+								MetaData.AddIfNotEmpty(UhtNames.PrioritizeCategories, PrioritizeCategories);
+								MetaData.AddIfNotEmpty(UhtNames.HideCategories, HideCategories);
+								MetaData.AddIfNotEmpty(UhtNames.ShowCategories, ShowCategories);
+								MetaData.AddIfNotEmpty(UhtNames.SparseClassDataTypes, SparseClassDataTypes);
+								MetaData.AddIfNotEmpty(UhtNames.HideFunctions, HideFunctions);
 
-								this.MetaData.Add(UhtNames.IncludePath, this.HeaderFile.IncludeFilePath);
+								MetaData.Add(UhtNames.IncludePath, HeaderFile.IncludeFilePath);
 							}
 							break;
 
 						case UhtClassType.Interface:
 							{
-								UhtClass? superClass = this.SuperClass;
+								UhtClass? superClass = SuperClass;
 								if (superClass != null)
 								{
-									this.ClassFlags |= superClass.ClassFlags & EClassFlags.ScriptInherit;
+									ClassFlags |= superClass.ClassFlags & EClassFlags.ScriptInherit;
 									if (!superClass.ClassFlags.HasAnyFlags(EClassFlags.Native))
 									{
 										throw new UhtException(this, $"Native classes cannot extend non-native classes");
 									}
-									this.ClassWithin = superClass.ClassWithin;
+									ClassWithin = superClass.ClassWithin;
 								}
 								else
 								{
-									this.ClassWithin = this.Session.UObject;
+									ClassWithin = Session.UObject;
 								}
 							}
 							break;
@@ -740,51 +740,51 @@ namespace EpicGames.UHT.Types
 			switch (phase)
 			{
 				case UhtResolvePhase.InvalidCheck:
-					switch (this.ClassType)
+					switch (ClassType)
 					{
 						case UhtClassType.Class:
 							break;
 
 						case UhtClassType.Interface:
 							{
-								string nativeInterfaceName = "I" + this.EngineName;
-								UhtType? nativeInterface = this.Session.FindType(null, UhtFindOptions.SourceName | UhtFindOptions.Class, nativeInterfaceName);
+								string nativeInterfaceName = "I" + EngineName;
+								UhtType? nativeInterface = Session.FindType(null, UhtFindOptions.SourceName | UhtFindOptions.Class, nativeInterfaceName);
 								if (nativeInterface == null)
 								{
-									this.LogError($"UInterface '{this.SourceName}' parsed without a corresponding '{nativeInterfaceName}'");
+									this.LogError($"UInterface '{SourceName}' parsed without a corresponding '{nativeInterfaceName}'");
 								}
 								else
 								{
 									// Copy the children
-									this.AddChildren(nativeInterface.DetachChildren());
+									AddChildren(nativeInterface.DetachChildren());
 								}
 							}
 							break;
 
 						case UhtClassType.NativeInterface:
 							{
-								string interfaceName = "U" + this.EngineName;
-								UhtClass? interfaceObj = (UhtClass?)this.Session.FindType(null, UhtFindOptions.SourceName | UhtFindOptions.Class, interfaceName);
+								string interfaceName = "U" + EngineName;
+								UhtClass? interfaceObj = (UhtClass?)Session.FindType(null, UhtFindOptions.SourceName | UhtFindOptions.Class, interfaceName);
 								if (interfaceObj == null)
 								{
-									if (this.HasGeneratedBody || this.Children.Count != 0)
+									if (HasGeneratedBody || Children.Count != 0)
 									{
-										this.LogError($"Native interface '{this.SourceName}' parsed without a corresponding '{interfaceName}'");
+										this.LogError($"Native interface '{SourceName}' parsed without a corresponding '{interfaceName}'");
 									}
 									else
 									{
-										this.VisibleType = false;
+										VisibleType = false;
 										result = false;
 									}
 								}
 								else
 								{
-									this.AlternateObject = interfaceObj;
+									AlternateObject = interfaceObj;
 									interfaceObj.NativeInterface = this;
 									//COMPATIBILITY-TODO - Use the native interface access specifier
-									interfaceObj.GeneratedBodyAccessSpecifier = this.GeneratedBodyAccessSpecifier;
+									interfaceObj.GeneratedBodyAccessSpecifier = GeneratedBodyAccessSpecifier;
 
-									if (this.GeneratedBodyLineNumber == -1)
+									if (GeneratedBodyLineNumber == -1)
 									{
 										this.LogError("Expected a GENERATED_BODY() at the start of the native interface");
 									}
@@ -801,24 +801,24 @@ namespace EpicGames.UHT.Types
 
 					// Check to see if this class matches an entry in the ClassCastFlags.  If it does, that
 					// becomes our ClassCastFlags.  If not, then we inherit the flags from the super.
-					if (Enum.TryParse<EClassCastFlags>(this.SourceName, false, out EClassCastFlags found))
+					if (Enum.TryParse<EClassCastFlags>(SourceName, false, out EClassCastFlags found))
 					{
 						if (found != EClassCastFlags.None)
 						{
-							this.ClassCastFlags = found;
+							ClassCastFlags = found;
 						}
 					}
-					if (this.ClassCastFlags == EClassCastFlags.None && this.SuperClass != null)
+					if (ClassCastFlags == EClassCastFlags.None && SuperClass != null)
 					{
-						this.ClassCastFlags = this.SuperClass.ClassCastFlags;
+						ClassCastFlags = SuperClass.ClassCastFlags;
 					}
 
 					// force members to be 'blueprint read only' if in a const class
 					// This must be done after the Const flag has been propagated from the parent
 					// and before properties have been finalized.
-					if (this.ClassType == UhtClassType.Class && this.ClassFlags.HasAnyFlags(EClassFlags.Const))
+					if (ClassType == UhtClassType.Class && ClassFlags.HasAnyFlags(EClassFlags.Const))
 					{
-						foreach (UhtType child in this.Children)
+						foreach (UhtType child in Children)
 						{
 							if (child is UhtProperty property)
 							{
@@ -835,18 +835,18 @@ namespace EpicGames.UHT.Types
 
 				case UhtResolvePhase.Final:
 					Dictionary<string, List<GetterSetterToResolve>>? gsToResolve = null;
-					foreach (UhtType child in this.Children)
+					foreach (UhtType child in Children)
 					{
 						if (child is UhtProperty property)
 						{
 							if (property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.FieldNotify))
 							{
-								this.ClassExportFlags |= UhtClassExportFlags.HasFieldNotify;
+								ClassExportFlags |= UhtClassExportFlags.HasFieldNotify;
 							}
 
 							if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
 							{
-								this.ClassExportFlags |= UhtClassExportFlags.SelfHasReplicatedProperties;
+								ClassExportFlags |= UhtClassExportFlags.SelfHasReplicatedProperties;
 								break;
 							}
 
@@ -870,26 +870,26 @@ namespace EpicGames.UHT.Types
 						{
 							if (function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify))
 							{
-								this.ClassExportFlags |= UhtClassExportFlags.HasFieldNotify;
+								ClassExportFlags |= UhtClassExportFlags.HasFieldNotify;
 							}
 						}
 					}
 
-					if (this.SuperClass != null)
+					if (SuperClass != null)
 					{
-						if (this.SuperClass.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasReplciatedProperties))
+						if (SuperClass.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasReplciatedProperties))
 						{
-							this.ClassExportFlags |= UhtClassExportFlags.SuperHasReplicatedProperties;
+							ClassExportFlags |= UhtClassExportFlags.SuperHasReplicatedProperties;
 						}
 					}
 
-					if (!this.ClassFlags.HasAnyFlags(EClassFlags.Interface))
+					if (!ClassFlags.HasAnyFlags(EClassFlags.Interface))
 					{
-						if (this.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.SelfHasReplicatedProperties))
+						if (ClassExportFlags.HasAnyFlags(UhtClassExportFlags.SelfHasReplicatedProperties))
 						{
 							if (TryGetDeclaration("GetLifetimeReplicatedProps", out UhtFoundDeclaration _))
 							{
-								this.ClassExportFlags |= UhtClassExportFlags.HasGetLifetimeReplicatedProps;
+								ClassExportFlags |= UhtClassExportFlags.HasGetLifetimeReplicatedProps;
 							}
 						}
 					}
@@ -897,9 +897,9 @@ namespace EpicGames.UHT.Types
 					// If we have any getters/setters to resolve 
 					if (gsToResolve != null)
 					{
-						if (this.Declarations != null)
+						if (Declarations != null)
 						{
-							foreach (UhtDeclaration declaration in this.Declarations)
+							foreach (UhtDeclaration declaration in Declarations)
 							{
 
 								// Locate the index of the name
@@ -956,7 +956,7 @@ namespace EpicGames.UHT.Types
 				case UhtResolvePhase.Final:
 					if (ScanForInstancedReferenced(false))
 					{
-						this.ClassFlags |= EClassFlags.HasInstancedReference;
+						ClassFlags |= EClassFlags.HasInstancedReference;
 					}
 					break;
 			}
@@ -965,12 +965,12 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool ScanForInstancedReferenced(bool deepScan)
 		{
-			if (this.ClassFlags.HasAnyFlags(EClassFlags.HasInstancedReference))
+			if (ClassFlags.HasAnyFlags(EClassFlags.HasInstancedReference))
 			{
 				return true;
 			}
 
-			if (this.SuperClass != null && this.SuperClass.ScanForInstancedReferenced(deepScan))
+			if (SuperClass != null && SuperClass.ScanForInstancedReferenced(deepScan))
 			{
 				return true;
 			}
@@ -983,51 +983,51 @@ namespace EpicGames.UHT.Types
 			MergeShowCategories();
 
 			// Merge ShowFunctions and HideFunctions
-			AppendStringListMetaData(this.SuperClass, UhtNames.HideFunctions, this.HideFunctions);
-			foreach (string value in this.ShowFunctions)
+			AppendStringListMetaData(SuperClass, UhtNames.HideFunctions, HideFunctions);
+			foreach (string value in ShowFunctions)
 			{
-				this.HideFunctions.RemoveSwap(value);
+				HideFunctions.RemoveSwap(value);
 			}
-			this.ShowFunctions.Clear();
+			ShowFunctions.Clear();
 
 			// Merge AutoExpandCategories and AutoCollapseCategories (we still want to keep AutoExpandCategories though!)
-			List<string> parentAutoExpandCategories = GetStringListMetaData(this.SuperClass, UhtNames.AutoExpandCategories);
-			List<string> parentAutoCollapseCategories = GetStringListMetaData(this.SuperClass, UhtNames.AutoCollapseCategories);
+			List<string> parentAutoExpandCategories = GetStringListMetaData(SuperClass, UhtNames.AutoExpandCategories);
+			List<string> parentAutoCollapseCategories = GetStringListMetaData(SuperClass, UhtNames.AutoCollapseCategories);
 
-			foreach (string value in this.AutoExpandCategories)
+			foreach (string value in AutoExpandCategories)
 			{
-				this.AutoCollapseCategories.RemoveSwap(value);
+				AutoCollapseCategories.RemoveSwap(value);
 				parentAutoCollapseCategories.RemoveSwap(value);
 			}
 
 			// Do the same as above but the other way around
-			foreach (string value in this.AutoCollapseCategories)
+			foreach (string value in AutoCollapseCategories)
 			{
-				this.AutoExpandCategories.RemoveSwap(value);
+				AutoExpandCategories.RemoveSwap(value);
 				parentAutoExpandCategories.RemoveSwap(value);
 			}
 
 			// Once AutoExpandCategories and AutoCollapseCategories for THIS class have been parsed, add the parent inherited categories
-			this.AutoCollapseCategories.AddRange(parentAutoCollapseCategories);
-			this.AutoExpandCategories.AddRange(parentAutoExpandCategories);
+			AutoCollapseCategories.AddRange(parentAutoCollapseCategories);
+			AutoExpandCategories.AddRange(parentAutoExpandCategories);
 		}
 
 		private void MergeShowCategories()
 		{
 
 			// Add the super class hide categories and prime the output show categories with the parent
-			List<string> outShowCategories = GetStringListMetaData(this.SuperClass, UhtNames.ShowCategories);
-			AppendStringListMetaData(this.SuperClass, UhtNames.HideCategories, this.HideCategories);
+			List<string> outShowCategories = GetStringListMetaData(SuperClass, UhtNames.ShowCategories);
+			AppendStringListMetaData(SuperClass, UhtNames.HideCategories, HideCategories);
 
 			// If this class has new show categories, then merge them
-			if (this.ShowCategories.Count != 0)
+			if (ShowCategories.Count != 0)
 			{
 				StringBuilder subCategoryPath = new();
-				foreach (string value in this.ShowCategories)
+				foreach (string value in ShowCategories)
 				{
 
 					// if we didn't find this specific category path in the HideCategories metadata
-					if (!this.HideCategories.RemoveSwap(value))
+					if (!HideCategories.RemoveSwap(value))
 					{
 						string[] subCategories = value.ToString().Split('|', StringSplitOptions.RemoveEmptyEntries);
 
@@ -1049,22 +1049,22 @@ namespace EpicGames.UHT.Types
 			}
 
 			// Replace the show categories
-			this.ShowCategories.Clear();
-			this.ShowCategories.AddRange(outShowCategories);
+			ShowCategories.Clear();
+			ShowCategories.AddRange(outShowCategories);
 		}
 
 		private void SetAndValidateWithinClass(UhtResolvePhase resolvePhase)
 		{
 			// The class within must be a child of any super class within
-			UhtClass expectedClassWithin = this.SuperClass != null ? this.SuperClass.ClassWithin : this.Session.UObject;
+			UhtClass expectedClassWithin = SuperClass != null ? SuperClass.ClassWithin : Session.UObject;
 
 			// Process all of the class specifiers
-			if (!String.IsNullOrEmpty(this.ClassWithinIdentifier))
+			if (!String.IsNullOrEmpty(ClassWithinIdentifier))
 			{
-				UhtClass? specifiedClassWithin = (UhtClass?)this.Session.FindType(null, UhtFindOptions.EngineName | UhtFindOptions.Class, this.ClassWithinIdentifier);
+				UhtClass? specifiedClassWithin = (UhtClass?)Session.FindType(null, UhtFindOptions.EngineName | UhtFindOptions.Class, ClassWithinIdentifier);
 				if (specifiedClassWithin == null)
 				{
-					this.LogError($"Within class '{this.ClassWithinIdentifier}' not found");
+					this.LogError($"Within class '{ClassWithinIdentifier}' not found");
 				}
 				else
 				{
@@ -1076,7 +1076,7 @@ namespace EpicGames.UHT.Types
 						specifiedClassWithin.Resolve(resolvePhase);
 					}
 
-					if (specifiedClassWithin.IsChildOf(this.Session.UInterface))
+					if (specifiedClassWithin.IsChildOf(Session.UInterface))
 					{
 						this.LogError("Classes cannot be 'within' interfaces");
 					}
@@ -1086,7 +1086,7 @@ namespace EpicGames.UHT.Types
 					}
 					else
 					{
-						this.ClassWithin = specifiedClassWithin;
+						ClassWithin = specifiedClassWithin;
 					}
 				}
 			}
@@ -1094,7 +1094,7 @@ namespace EpicGames.UHT.Types
 			// If we don't have a class within set, then just use the expected within
 			else
 			{
-				this.ClassWithin = expectedClassWithin;
+				ClassWithin = expectedClassWithin;
 			}
 		}
 
@@ -1102,53 +1102,53 @@ namespace EpicGames.UHT.Types
 		{
 			// Since this flag is computed in this method, we have to re-propagate the flag from the super
 			// just in case they were defined in this source file.
-			if (this.SuperClass != null)
+			if (SuperClass != null)
 			{
-				this.ClassFlags |= this.SuperClass.ClassFlags & EClassFlags.Config;
+				ClassFlags |= SuperClass.ClassFlags & EClassFlags.Config;
 			}
 
 			// Set the class config flag if any properties have config
-			if (!this.ClassFlags.HasAnyFlags(EClassFlags.Config))
+			if (!ClassFlags.HasAnyFlags(EClassFlags.Config))
 			{
-				foreach (UhtProperty property in this.Properties)
+				foreach (UhtProperty property in Properties)
 				{
 					if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.Config))
 					{
-						this.ClassFlags |= EClassFlags.Config;
+						ClassFlags |= EClassFlags.Config;
 						break;
 					}
 				}
 			}
 
-			if (this.Config.Length > 0)
+			if (Config.Length > 0)
 			{
 				// if the user specified "inherit", we're just going to use the parent class's config filename
 				// this is not actually necessary but it can be useful for explicitly communicating config-ness
-				if (this.Config.Equals("inherit", StringComparison.OrdinalIgnoreCase))
+				if (Config.Equals("inherit", StringComparison.OrdinalIgnoreCase))
 				{
-					if (this.SuperClass == null)
+					if (SuperClass == null)
 					{
-						this.LogError($"Cannot inherit config filename for class '{this.SourceName}' when it has no super class");
+						this.LogError($"Cannot inherit config filename for class '{SourceName}' when it has no super class");
 					}
-					else if (this.SuperClass.Config.Length == 0)
+					else if (SuperClass.Config.Length == 0)
 					{
-						this.LogError($"Cannot inherit config filename for class '{this.SourceName}' when parent class '{this.SuperClass.SourceName}' has no config filename");
+						this.LogError($"Cannot inherit config filename for class '{SourceName}' when parent class '{SuperClass.SourceName}' has no config filename");
 					}
 					else
 					{
-						this.Config = this.SuperClass.Config;
+						Config = SuperClass.Config;
 					}
 				}
 			}
-			else if (this.ClassFlags.HasAnyFlags(EClassFlags.Config) && this.SuperClass != null)
+			else if (ClassFlags.HasAnyFlags(EClassFlags.Config) && SuperClass != null)
 			{
-				this.Config = this.SuperClass.Config;
+				Config = SuperClass.Config;
 			}
 
-			if (this.ClassFlags.HasAnyFlags(EClassFlags.Config) && this.Config.Length == 0)
+			if (ClassFlags.HasAnyFlags(EClassFlags.Config) && Config.Length == 0)
 			{
 				this.LogError("Classes with config / globalconfig member variables need to specify config file.");
-				this.Config = "Engine";
+				Config = "Engine";
 			}
 		}
 
@@ -1430,27 +1430,27 @@ namespace EpicGames.UHT.Types
 			options = base.Validate(options);
 
 			// Classes must start with a valid prefix
-			string expectedClassName = this.EngineNamePrefix + this.EngineName;
-			if (expectedClassName != this.SourceName)
+			string expectedClassName = EngineNamePrefix + EngineName;
+			if (expectedClassName != SourceName)
 			{
-				this.LogError($"Class '{this.SourceName}' has an invalid Unreal prefix, expecting '{expectedClassName}'");
+				this.LogError($"Class '{SourceName}' has an invalid Unreal prefix, expecting '{expectedClassName}'");
 			}
 
 			// If we have a super class
-			if (this.SuperClass != null)
+			if (SuperClass != null)
 			{
-				if (!this.ClassFlags.HasAnyFlags(EClassFlags.NotPlaceable) && this.SuperClass.ClassFlags.HasAnyFlags(EClassFlags.NotPlaceable))
+				if (!ClassFlags.HasAnyFlags(EClassFlags.NotPlaceable) && SuperClass.ClassFlags.HasAnyFlags(EClassFlags.NotPlaceable))
 				{
 					this.LogError("The 'placeable' specifier cannot override a 'nonplaceable' base class. Classes are assumed to be placeable by default. "
 						+ "Consider whether using the 'abstract' specifier on the base class would work.");
 				}
 
 				// Native interfaces don't require a super class, but UHT technically allows it.
-				if (this.ClassType == UhtClassType.Interface || this.ClassType == UhtClassType.NativeInterface)
+				if (ClassType == UhtClassType.Interface || ClassType == UhtClassType.NativeInterface)
 				{
-					if (this != this.Session.UInterface && !this.SuperClass.ClassFlags.HasAnyFlags(EClassFlags.Interface))
+					if (this != Session.UInterface && !SuperClass.ClassFlags.HasAnyFlags(EClassFlags.Interface))
 					{
-						this.LogError($"Interface class '{this.SourceName}' cannot inherit from non-interface class '{this.SuperClass.SourceName}'");
+						this.LogError($"Interface class '{SourceName}' cannot inherit from non-interface class '{SuperClass.SourceName}'");
 					}
 				}
 			}
@@ -1458,55 +1458,55 @@ namespace EpicGames.UHT.Types
 			// If we don't have a super class
 			else
 			{
-				if (this.ClassType == UhtClassType.Interface)
+				if (ClassType == UhtClassType.Interface)
 				{
-					this.LogError($"Interface '{this.SourceName}' must derive from an interface");
+					this.LogError($"Interface '{SourceName}' must derive from an interface");
 				}
 			}
 
-			if (this.ClassFlags.HasAnyFlags(EClassFlags.NeedsDeferredDependencyLoading) && !this.IsChildOf(this.Session.UClass))
+			if (ClassFlags.HasAnyFlags(EClassFlags.NeedsDeferredDependencyLoading) && !IsChildOf(Session.UClass))
 			{
 				// CLASS_NeedsDeferredDependencyLoading can only be set on classes derived from UClass
-				this.LogError($"'NeedsDeferredDependencyLoading' is set on '{this.SourceName}' but the flag can only be used with classes derived from UClass.");
+				this.LogError($"'NeedsDeferredDependencyLoading' is set on '{SourceName}' but the flag can only be used with classes derived from UClass.");
 			}
 
-			if (this.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasFieldNotify))
+			if (ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasFieldNotify))
 			{
-				if (this.Session.INotifyFieldValueChanged == null)
+				if (Session.INotifyFieldValueChanged == null)
 				{
-					this.LogError($"UClass '{this.SourceName}' has FieldNotify elements but the interface 'INotifyFieldValueChanged' is not defined.");
+					this.LogError($"UClass '{SourceName}' has FieldNotify elements but the interface 'INotifyFieldValueChanged' is not defined.");
 				}
-				else if (!ImplementsInterface(this.Session.INotifyFieldValueChanged))
+				else if (!ImplementsInterface(Session.INotifyFieldValueChanged))
 				{
-					this.LogError($"UClass '{this.SourceName}' need to implement the interface INotifyFieldValueChanged' to support FieldNotify.");
+					this.LogError($"UClass '{SourceName}' need to implement the interface INotifyFieldValueChanged' to support FieldNotify.");
 				}
 			}
 
 			ValidateProperties();
 
 			// Perform any validation specific to the class type
-			switch (this.ClassType)
+			switch (ClassType)
 			{
 				case UhtClassType.Class:
 					{
-						if (this.ClassFlags.HasAnyFlags(EClassFlags.EditInlineNew))
+						if (ClassFlags.HasAnyFlags(EClassFlags.EditInlineNew))
 						{
 							// don't allow actor classes to be declared EditInlineNew
-							if (this.IsChildOf(this.Session.AActor))
+							if (IsChildOf(Session.AActor))
 							{
 								this.LogError("Invalid class attribute: Creating actor instances via the property window is not allowed");
 							}
 						}
 
 						// Make sure both RequiredAPI and MinimalAPI aren't specified
-						if (this.ClassFlags.HasAllFlags(EClassFlags.MinimalAPI | EClassFlags.RequiredAPI))
+						if (ClassFlags.HasAllFlags(EClassFlags.MinimalAPI | EClassFlags.RequiredAPI))
 						{
 							this.LogError("MinimalAPI cannot be specified when the class is fully exported using a MODULENAME_API macro");
 						}
 
 						// Make sure that all interface functions are implemented property
 						// Iterate over all the bases looking for any interfaces
-						foreach (UhtStruct baseStruct in this.Bases)
+						foreach (UhtStruct baseStruct in Bases)
 						{
 
 							// Skip children that aren't interfaces or if a common ancestor
@@ -1532,7 +1532,7 @@ namespace EpicGames.UHT.Types
 								bool implemented = baseFunction.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate);
 
 								// Try to find an existing function
-								foreach (UhtType child in this.Children)
+								foreach (UhtType child in Children)
 								{
 									UhtFunction? function = child as UhtFunction;
 									if (function == null || function.SourceName != baseFunction.SourceName)
@@ -1588,13 +1588,13 @@ namespace EpicGames.UHT.Types
 						}
 					}
 
-					if (!this.ClassFlags.HasAnyFlags(EClassFlags.Interface))
+					if (!ClassFlags.HasAnyFlags(EClassFlags.Interface))
 					{
-						if (this.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.SelfHasReplicatedProperties) &&
-							!this.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasGetLifetimeReplicatedProps) &&
-							this.GeneratedCodeVersion != EGeneratedCodeVersion.V1)
+						if (ClassExportFlags.HasAnyFlags(UhtClassExportFlags.SelfHasReplicatedProperties) &&
+							!ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasGetLifetimeReplicatedProps) &&
+							GeneratedCodeVersion != EGeneratedCodeVersion.V1)
 						{
-							this.LogError($"Class {this.SourceName} has Net flagged properties and should declare member function: void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override");
+							this.LogError($"Class {SourceName} has Net flagged properties and should declare member function: void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override");
 						}
 					}
 					break;
@@ -1605,7 +1605,7 @@ namespace EpicGames.UHT.Types
 						// In the backward compatible case where they declare neither, both of these bools are false
 						bool canImplementInBlueprints = CanImplementInBlueprints();
 						bool cannotImplementInBlueprints = CannotImplementInBlueprints(canImplementInBlueprints);
-						foreach (UhtType child in this.Children)
+						foreach (UhtType child in Children)
 						{
 							if (child is UhtFunction function)
 							{
@@ -1764,7 +1764,7 @@ namespace EpicGames.UHT.Types
 
 		void ValidateProperties()
 		{
-			foreach (UhtType child in this.Children)
+			foreach (UhtType child in Children)
 			{
 				if (child is UhtProperty property)
 				{
@@ -1791,7 +1791,7 @@ namespace EpicGames.UHT.Types
 					}
 
 					// Validate if we are using editor only data in a class or struct definition
-					if (this.ClassFlags.HasAnyFlags(EClassFlags.Optional))
+					if (ClassFlags.HasAnyFlags(EClassFlags.Optional))
 					{
 						if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.EditorOnly))
 						{
@@ -1843,7 +1843,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>True if the interface is marked as Blueprintable</returns>
 		private bool CanImplementInBlueprints()
 		{
-			return this.MetaData.GetBoolean(UhtNames.IsBlueprintBase);
+			return MetaData.GetBoolean(UhtNames.IsBlueprintBase);
 		}
 
 		/// <summary>
@@ -1864,8 +1864,8 @@ namespace EpicGames.UHT.Types
 		/// <returns>True if the interface is marked as NotBlueprintable</returns>
 		private bool CannotImplementInBlueprints(bool canImplementInBlueprints)
 		{
-			return (!canImplementInBlueprints && this.MetaData.ContainsKey(UhtNames.IsBlueprintBase))
-				|| this.MetaData.ContainsKey(UhtNames.CannotImplementInterfaceInBlueprint);
+			return (!canImplementInBlueprints && MetaData.ContainsKey(UhtNames.IsBlueprintBase))
+				|| MetaData.ContainsKey(UhtNames.CannotImplementInterfaceInBlueprint);
 		}
 		#endregion
 
@@ -1874,13 +1874,13 @@ namespace EpicGames.UHT.Types
 		{
 
 			// Ignore any intrinsics
-			if (this.ClassFlags.HasAnyFlags(EClassFlags.Intrinsic))
+			if (ClassFlags.HasAnyFlags(EClassFlags.Intrinsic))
 			{
 				return;
 			}
 
 			// In the original UHT, we don't export IInterface (it wasn't even in the header file)
-			if (this.HeaderFile.IsNoExportTypes && this.SourceName == "IInterface")
+			if (HeaderFile.IsNoExportTypes && SourceName == "IInterface")
 			{
 				return;
 			}
@@ -1892,14 +1892,14 @@ namespace EpicGames.UHT.Types
 			collector.AddCrossModuleReference(this, true);
 
 			// Add the super class
-			if (this.SuperClass != null)
+			if (SuperClass != null)
 			{
-				collector.AddDeclaration(this.SuperClass, true);
-				collector.AddCrossModuleReference(this.SuperClass, true);
+				collector.AddDeclaration(SuperClass, true);
+				collector.AddCrossModuleReference(SuperClass, true);
 			}
 
 			// Add any other base classes
-			foreach (UhtStruct @base in this.Bases)
+			foreach (UhtStruct @base in Bases)
 			{
 				if (@base is UhtClass baseClass)
 				{
@@ -1908,11 +1908,11 @@ namespace EpicGames.UHT.Types
 			}
 
 			// Add the package
-			collector.AddDeclaration(this.Package, true);
-			collector.AddCrossModuleReference(this.Package, true);
+			collector.AddDeclaration(Package, true);
+			collector.AddCrossModuleReference(Package, true);
 
 			// Collect children references
-			foreach (UhtType child in this.Children)
+			foreach (UhtType child in Children)
 			{
 				child.CollectReferences(collector);
 			}
@@ -1920,10 +1920,10 @@ namespace EpicGames.UHT.Types
 			// Done at the end so any contained delegate functions are added first
 			// We also add interfaces in the export type order where the native interface
 			// is located.  But we add the interface...
-			switch (this.ClassType)
+			switch (ClassType)
 			{
 				case UhtClassType.NativeInterface:
-					if (this.AlternateObject != null && this.AlternateObject is UhtField field)
+					if (AlternateObject != null && AlternateObject is UhtField field)
 					{
 						collector.AddExportType(field);
 					}

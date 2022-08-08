@@ -106,9 +106,9 @@ namespace EpicGames.UHT.Utils
 			if (obj != null)
 			{
 				int key = GetKey(obj, registered);
-				if (this.Uniques.Add(key))
+				if (Uniques.Add(key))
 				{
-					this.References.Add(key);
+					References.Add(key);
 				}
 			}
 		}
@@ -121,10 +121,10 @@ namespace EpicGames.UHT.Utils
 		public ReadOnlyMemory<string> GetSortedReferences(GetReferenceStringDelegate referenceStringDelegate)
 		{
 			// Collect the unsorted array
-			string[] sorted = new string[this.References.Count];
-			for (int index = 0; index < this.References.Count; ++index)
+			string[] sorted = new string[References.Count];
+			for (int index = 0; index < References.Count; ++index)
 			{
-				int key = this.References[index];
+				int key = References[index];
 				UngetKey(key, out int objectIndex, out bool registered);
 				sorted[index] = referenceStringDelegate(objectIndex, registered);
 			}
@@ -134,7 +134,7 @@ namespace EpicGames.UHT.Utils
 
 			// Remove duplicates.  In some instances the different keys might return the same string.
 			// This removes those duplicates
-			if (this.References.Count > 1)
+			if (References.Count > 1)
 			{
 				int priorOut = 0;
 				for (int index = 1; index < sorted.Length; ++index)
@@ -200,7 +200,7 @@ namespace EpicGames.UHT.Utils
 			CrossModule.Add(obj, registered);
 			if (obj != null && obj is not UhtPackage && registered)
 			{
-				this.ReferencedHeaders.Add(obj.HeaderFile);
+				ReferencedHeaders.Add(obj.HeaderFile);
 			}
 		}
 
@@ -211,7 +211,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="registered">True if the object being declared must be registered</param>
 		public void AddDeclaration(UhtObject obj, bool registered)
 		{
-			this.Declaration.Add(obj, registered);
+			Declaration.Add(obj, registered);
 		}
 
 		/// <summary>
@@ -220,7 +220,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="field">Field being added</param>
 		public void AddSingleton(UhtField field)
 		{
-			this.Singletons.Add(field);
+			Singletons.Add(field);
 		}
 
 		/// <summary>
@@ -229,7 +229,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="field">Type to be exported</param>
 		public void AddExportType(UhtField field)
 		{
-			this.ExportTypes.Add(field);
+			ExportTypes.Add(field);
 		}
 
 		/// <summary>
@@ -240,7 +240,7 @@ namespace EpicGames.UHT.Utils
 		{
 			if (!String.IsNullOrEmpty(declaration))
 			{
-				this.ForwardDeclarations.Add(declaration);
+				ForwardDeclarations.Add(declaration);
 			}
 		}
 	}

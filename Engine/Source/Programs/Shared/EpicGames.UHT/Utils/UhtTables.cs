@@ -108,8 +108,8 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		public string UserName
 		{
-			get => String.IsNullOrEmpty(this._userName) ? this.TableName : this._userName;
-			set => this._userName = value;
+			get => String.IsNullOrEmpty(_userName) ? TableName : _userName;
+			set => _userName = value;
 		}
 
 		/// <summary>
@@ -178,7 +178,7 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		public UhtLookupTable(StringViewComparer comparer)
 		{
-			this._lookup = new Dictionary<StringView, TValue>(comparer);
+			_lookup = new Dictionary<StringView, TValue>(comparer);
 		}
 
 		/// <summary>
@@ -188,7 +188,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="value">Value to be added</param>
 		public UhtLookupTable<TValue> Add(string key, TValue value)
 		{
-			this._lookup.Add(key, value);
+			_lookup.Add(key, value);
 			return this;
 		}
 
@@ -200,7 +200,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>True if the key was found, false if not</returns>
 		public bool TryGetValue(StringView key, [MaybeNullWhen(false)] out TValue value)
 		{
-			return this._lookup.TryGetValue(key, out value);
+			return _lookup.TryGetValue(key, out value);
 		}
 
 		/// <summary>
@@ -211,7 +211,7 @@ namespace EpicGames.UHT.Utils
 		{
 			foreach (KeyValuePair<StringView, TValue> kvp in ((UhtLookupTable<TValue>)baseTable)._lookup)
 			{
-				this._lookup.TryAdd(kvp.Key, kvp.Value);
+				_lookup.TryAdd(kvp.Key, kvp.Value);
 			}
 		}
 	}
@@ -239,7 +239,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="name">The name of the group</param>
 		public UhtLookupTables(string name)
 		{
-			this.Name = name;
+			Name = name;
 		}
 
 		/// <summary>
@@ -249,11 +249,11 @@ namespace EpicGames.UHT.Utils
 		/// <returns>The table associated with the name.</returns>
 		public TTable Get(string tableName)
 		{
-			if (!this.Tables.TryGetValue(tableName, out TTable? table))
+			if (!Tables.TryGetValue(tableName, out TTable? table))
 			{
 				table = new TTable();
 				table.TableName = tableName;
-				this.Tables.Add(tableName, table);
+				Tables.Add(tableName, table);
 			}
 			return table;
 		}
@@ -286,16 +286,16 @@ namespace EpicGames.UHT.Utils
 		/// <exception cref="UhtIceException">Thrown if there are problems with the tables.</exception>
 		public void Merge()
 		{
-			List<TTable> orderedList = new(this.Tables.Count);
-			List<TTable> remainingList = new(this.Tables.Count);
+			List<TTable> orderedList = new(Tables.Count);
+			List<TTable> remainingList = new(Tables.Count);
 			HashSet<UhtLookupTableBase> doneTables = new();
 
 			// Collect all of the tables
-			foreach (KeyValuePair<string, TTable> kvp in this.Tables)
+			foreach (KeyValuePair<string, TTable> kvp in Tables)
 			{
 				if (!kvp.Value.Implemented)
 				{
-					throw new UhtIceException($"{this.Name} table '{kvp.Value.TableName}' has been referenced but not implemented");
+					throw new UhtIceException($"{Name} table '{kvp.Value.TableName}' has been referenced but not implemented");
 				}
 				remainingList.Add(kvp.Value);
 			}
@@ -322,7 +322,7 @@ namespace EpicGames.UHT.Utils
 				}
 				if (!addedOne)
 				{
-					throw new UhtIceException($"Circular dependency in {this.GetType().Name}.{this.Name} tables detected");
+					throw new UhtIceException($"Circular dependency in {GetType().Name}.{Name} tables detected");
 				}
 			}
 
@@ -607,7 +607,7 @@ namespace EpicGames.UHT.Utils
 					}
 					else if (classAttribute is UhtEngineClassAttribute engineClassAttribute)
 					{
-						this.EngineClassTable.OnEngineClassAttribute(engineClassAttribute);
+						EngineClassTable.OnEngineClassAttribute(engineClassAttribute);
 					}
 				}
 			}
@@ -615,13 +615,13 @@ namespace EpicGames.UHT.Utils
 
 		private void PerformPostInitialization()
 		{
-			this.KeywordTables.Merge();
-			this.SpecifierTables.Merge();
-			this.SpecifierValidatorTables.Merge();
+			KeywordTables.Merge();
+			SpecifierTables.Merge();
+			SpecifierValidatorTables.Merge();
 
 			// Invoke this to generate an exception if there is no default
-			_ = this.PropertyTypeTable.Default;
-			_ = this.StructDefaultValueTable.Default;
+			_ = PropertyTypeTable.Default;
+			_ = StructDefaultValueTable.Default;
 		}
 
 		private void HandleUnrealHeaderToolAttribute(Type type, UnrealHeaderToolAttribute parserAttribute)
@@ -645,35 +645,35 @@ namespace EpicGames.UHT.Utils
 				{
 					if (methodAttribute is UhtSpecifierAttribute specifierAttribute)
 					{
-						this.SpecifierTables.OnSpecifierAttribute(type, methodInfo, specifierAttribute);
+						SpecifierTables.OnSpecifierAttribute(type, methodInfo, specifierAttribute);
 					}
 					else if (methodAttribute is UhtSpecifierValidatorAttribute specifierValidatorAttribute)
 					{
-						this.SpecifierValidatorTables.OnSpecifierValidatorAttribute(type, methodInfo, specifierValidatorAttribute);
+						SpecifierValidatorTables.OnSpecifierValidatorAttribute(type, methodInfo, specifierValidatorAttribute);
 					}
 					else if (methodAttribute is UhtKeywordCatchAllAttribute keywordCatchAllAttribute)
 					{
-						this.KeywordTables.OnKeywordCatchAllAttribute(type, methodInfo, keywordCatchAllAttribute);
+						KeywordTables.OnKeywordCatchAllAttribute(type, methodInfo, keywordCatchAllAttribute);
 					}
 					else if (methodAttribute is UhtKeywordAttribute keywordAttribute)
 					{
-						this.KeywordTables.OnKeywordAttribute(type, methodInfo, keywordAttribute);
+						KeywordTables.OnKeywordAttribute(type, methodInfo, keywordAttribute);
 					}
 					else if (methodAttribute is UhtPropertyTypeAttribute propertyTypeAttribute)
 					{
-						this.PropertyTypeTable.OnPropertyTypeAttribute(methodInfo, propertyTypeAttribute);
+						PropertyTypeTable.OnPropertyTypeAttribute(methodInfo, propertyTypeAttribute);
 					}
 					else if (methodAttribute is UhtStructDefaultValueAttribute structDefaultValueAttribute)
 					{
-						this.StructDefaultValueTable.OnStructDefaultValueAttribute(methodInfo, structDefaultValueAttribute);
+						StructDefaultValueTable.OnStructDefaultValueAttribute(methodInfo, structDefaultValueAttribute);
 					}
 					else if (methodAttribute is UhtExporterAttribute exporterAttribute)
 					{
-						this.ExporterTable.OnExporterAttribute(type, methodInfo, exporterAttribute);
+						ExporterTable.OnExporterAttribute(type, methodInfo, exporterAttribute);
 					}
 					else if (methodAttribute is UhtLocTextDefaultValueAttribute locTextDefaultValueAttribute)
 					{
-						this.LocTextDefaultValueTable.OnLocTextDefaultValueAttribute(methodInfo, locTextDefaultValueAttribute);
+						LocTextDefaultValueTable.OnLocTextDefaultValueAttribute(methodInfo, locTextDefaultValueAttribute);
 					}
 				}
 			}

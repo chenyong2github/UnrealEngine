@@ -35,12 +35,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		#endregion
 
 		public readonly UhtHeaderFile HeaderFile;
-		public string FileId => this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex].FileId;
+		public string FileId => HeaderInfos[HeaderFile.HeaderFileTypeIndex].FileId;
 
 		public UhtHeaderCodeGenerator(UhtCodeGenerator codeGenerator, UhtPackage package, UhtHeaderFile headerFile)
 			: base(codeGenerator, package)
 		{
-			this.HeaderFile = headerFile;
+			HeaderFile = headerFile;
 		}
 
 		#region Event parameter
@@ -162,7 +162,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					!(outerClass != null && outerClass.ClassFlags.HasAnyFlags(EClassFlags.RequiredAPI)) &&
 					exportFlags.HasAnyFlags(UhtFunctionExportFlags.RequiredAPI))
 				{
-					builder.Append(this.PackageApi);
+					builder.Append(PackageApi);
 				}
 
 				if (textType == UhtPropertyTextType.InterfaceFunctionArgOrRetVal)

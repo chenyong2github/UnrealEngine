@@ -18,7 +18,7 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		public void Begin()
 		{
-			this._hash = 0;
+			_hash = 0;
 		}
 
 		/// <summary>
@@ -49,7 +49,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Final hash value</returns>
 		public uint End()
 		{
-			return (uint)(this._hash + (this._hash >> 32));
+			return (uint)(_hash + (_hash >> 32));
 		}
 
 		/// <summary>
@@ -73,7 +73,7 @@ namespace EpicGames.UHT.Utils
 				{
 					fixed (char* textPtr = text)
 					{
-						this._hash = CityHash.CityHash64WithSeed((byte*)textPtr, (uint)(text.Length * sizeof(char)), this._hash);
+						_hash = CityHash.CityHash64WithSeed((byte*)textPtr, (uint)(text.Length * sizeof(char)), _hash);
 					}
 				}
 			}

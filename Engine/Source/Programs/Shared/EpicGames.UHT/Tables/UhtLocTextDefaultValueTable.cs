@@ -62,7 +62,7 @@ namespace EpicGames.UHT.Tables
 		/// <returns></returns>
 		public bool TryGet(StringView name, out UhtLocTextDefaultValue locTextDefaultValue)
 		{
-			return this._locTextDefaultValues.TryGetValue(name, out locTextDefaultValue);
+			return _locTextDefaultValues.TryGetValue(name, out locTextDefaultValue);
 		}
 
 		/// <summary>
@@ -83,7 +83,7 @@ namespace EpicGames.UHT.Tables
 				Delegate = (UhtLocTextDefaultValueDelegate)Delegate.CreateDelegate(typeof(UhtLocTextDefaultValueDelegate), methodInfo)
 			};
 
-			this._locTextDefaultValues.Add(new StringView(locTextDefaultValueAttribute.Name), locTextDefaultValue);
+			_locTextDefaultValues.Add(new StringView(locTextDefaultValueAttribute.Name), locTextDefaultValue);
 		}
 	}
 }

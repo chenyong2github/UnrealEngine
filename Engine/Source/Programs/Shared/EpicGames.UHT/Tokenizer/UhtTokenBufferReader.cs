@@ -44,18 +44,18 @@ namespace EpicGames.UHT.Tokenizer
 		/// <param name="input">Input source</param>
 		public UhtTokenBufferReader(IUhtMessageSite messageSite, ReadOnlyMemory<char> input)
 		{
-			this._messageSite = messageSite;
-			this._data = input;
+			_messageSite = messageSite;
+			_data = input;
 		}
 
 		#region IUHTMessageSite Implementation
-		IUhtMessageSession IUhtMessageSite.MessageSession => this._messageSite.MessageSession;
-		IUhtMessageSource? IUhtMessageSite.MessageSource => this._messageSite.MessageSource;
+		IUhtMessageSession IUhtMessageSite.MessageSession => _messageSite.MessageSession;
+		IUhtMessageSource? IUhtMessageSite.MessageSource => _messageSite.MessageSource;
 		IUhtMessageLineNumber? IUhtMessageSite.MessageLineNumber => this;
 		#endregion
 
 		#region IUHTMessageLinenumber Implementation
-		int IUhtMessageLineNumber.MessageLineNumber => this.InputLine;
+		int IUhtMessageLineNumber.MessageLineNumber => InputLine;
 		#endregion
 
 		#region ITokenReader Implementation
@@ -64,28 +64,28 @@ namespace EpicGames.UHT.Tokenizer
 		{
 			get
 			{
-				if (this._hasToken)
+				if (_hasToken)
 				{
-					return this._currentToken.TokenType.IsEndType();
+					return _currentToken.TokenType.IsEndType();
 				}
 				else
 				{
-					return this.InputPos == this._data.Length;
+					return InputPos == _data.Length;
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		public int InputPos => this._hasToken ? this._preCurrentTokenInputPos : this._inputPos;
+		public int InputPos => _hasToken ? _preCurrentTokenInputPos : _inputPos;
 
 		/// <inheritdoc/>
 		public int InputLine
 		{
-			get => this._hasToken ? this._preCurrentTokenInputLine : this._inputLine;
+			get => _hasToken ? _preCurrentTokenInputLine : _inputLine;
 			set
 			{
 				ClearToken();
-				this._inputLine = value;
+				_inputLine = value;
 			}
 		}
 
@@ -94,9 +94,9 @@ namespace EpicGames.UHT.Tokenizer
 		{
 			get
 			{
-				if (this._comments != null && this._committedComments != 0)
+				if (_comments != null && _committedComments != 0)
 				{
-					return new ReadOnlySpan<StringView>(this._comments.ToArray(), 0, this._committedComments);
+					return new ReadOnlySpan<StringView>(_comments.ToArray(), 0, _committedComments);
 				}
 				else
 				{
@@ -106,17 +106,17 @@ namespace EpicGames.UHT.Tokenizer
 		}
 
 		/// <inheritdoc/>
-		public IUhtTokenPreprocessor? TokenPreprocessor { get => this._tokenPreprocessor; set => this._tokenPreprocessor = value; }
+		public IUhtTokenPreprocessor? TokenPreprocessor { get => _tokenPreprocessor; set => _tokenPreprocessor = value; }
 
 		/// <inheritdoc/>
 		public ref UhtToken PeekToken()
 		{
-			if (!this._hasToken)
+			if (!_hasToken)
 			{
-				this._currentToken = GetTokenInternal(true);
-				this._hasToken = true;
+				_currentToken = GetTokenInternal(true);
+				_hasToken = true;
 			}
-			return ref this._currentToken;
+			return ref _currentToken;
 		}
 
 		/// <inheritdoc/>
@@ -129,18 +129,18 @@ namespace EpicGames.UHT.Tokenizer
 		/// <inheritdoc/>
 		public void ConsumeToken()
 		{
-			if (this._recordTokens && !this._currentToken.IsEndType())
+			if (_recordTokens && !_currentToken.IsEndType())
 			{
-				this._recordedTokens.Add(this._currentToken);
+				_recordedTokens.Add(_currentToken);
 			}
-			this._hasToken = false;
+			_hasToken = false;
 
 			// When comments are disabled, we are still collecting comments, but aren't committing them
-			if (this._commentsDisableCount == 0)
+			if (_commentsDisableCount == 0)
 			{
-				if (this._comments != null)
+				if (_comments != null)
 				{
-					this._committedComments = this._comments.Count;
+					_committedComments = _comments.Count;
 				}
 			}
 			else
@@ -160,12 +160,12 @@ namespace EpicGames.UHT.Tokenizer
 		/// <inheritdoc/>
 		public StringView GetRawString(char terminator, UhtRawStringOptions options)
 		{
-			ReadOnlySpan<char> span = this._data.Span;
+			ReadOnlySpan<char> span = _data.Span;
 
 			ClearToken();
 			SkipWhitespaceAndComments();
 
-			int startPos = this.InputPos;
+			int startPos = InputPos;
 			bool inQuotes = false;
 			while (true)
 			{
@@ -180,7 +180,7 @@ namespace EpicGames.UHT.Tokenizer
 				// Check for end of line
 				if (c == '\r' || c == '\n')
 				{
-					--this._inputPos;
+					--_inputPos;
 					break;
 				}
 
@@ -189,7 +189,7 @@ namespace EpicGames.UHT.Tokenizer
 				{
 					if (options.HasAnyFlags(UhtRawStringOptions.DontConsumeTerminator))
 					{
-						--this._inputPos;
+						--_inputPos;
 					}
 					break;
 				}
@@ -200,7 +200,7 @@ namespace EpicGames.UHT.Tokenizer
 					char p = InternalPeekChar(span);
 					if (p == '*' || p == '/')
 					{
-						--this._inputPos;
+						--_inputPos;
 						break;
 					}
 				}
@@ -219,7 +219,7 @@ namespace EpicGames.UHT.Tokenizer
 			}
 
 			// Remove trailing whitespace
-			int endPos = this.InputPos;
+			int endPos = InputPos;
 			for (; endPos > startPos; --endPos)
 			{
 				char c = span[endPos - 1];
@@ -234,24 +234,24 @@ namespace EpicGames.UHT.Tokenizer
 			{
 				throw new UhtException(this, $"String exceeds maximum of {UhtToken.MaxStringLength} characters");
 			}
-			return new StringView(this._data, startPos, endPos - startPos);
+			return new StringView(_data, startPos, endPos - startPos);
 		}
 
 		/// <inheritdoc/>
 		public UhtToken GetLine()
 		{
-			ReadOnlySpan<char> span = this._data.Span;
+			ReadOnlySpan<char> span = _data.Span;
 
 			ClearToken();
-			this._prevPos = this._inputPos;
-			this._prevLine = this._inputLine;
+			_prevPos = _inputPos;
+			_prevLine = _inputLine;
 
-			if (this._prevPos == span.Length)
+			if (_prevPos == span.Length)
 			{
-				return new UhtToken(UhtTokenType.EndOfFile, this._prevPos, this._prevLine, this._prevPos, this._prevLine, new StringView(this._data.Slice(this._prevPos, 0)));
+				return new UhtToken(UhtTokenType.EndOfFile, _prevPos, _prevLine, _prevPos, _prevLine, new StringView(_data.Slice(_prevPos, 0)));
 			}
 
-			int lastPos = this._inputPos;
+			int lastPos = _inputPos;
 			while (true)
 			{
 				char c = InternalGetChar(span);
@@ -264,150 +264,150 @@ namespace EpicGames.UHT.Tokenizer
 				}
 				else if (c == '\n')
 				{
-					++this._inputLine;
+					++_inputLine;
 					break;
 				}
 				else
 				{
-					lastPos = this._inputPos;
+					lastPos = _inputPos;
 				}
 			}
 
-			return new UhtToken(UhtTokenType.Line, this._prevPos, this._prevLine, this._prevPos, this._prevLine, new StringView(this._data[this._prevPos..lastPos]));
+			return new UhtToken(UhtTokenType.Line, _prevPos, _prevLine, _prevPos, _prevLine, new StringView(_data[_prevPos..lastPos]));
 		}
 
 		/// <inheritdoc/>
 		public StringView GetStringView(int startPos, int count)
 		{
-			return new StringView(this._data, startPos, count);
+			return new StringView(_data, startPos, count);
 		}
 
 		/// <inheritdoc/>
 		public void ClearComments()
 		{
-			if (this._comments != null)
+			if (_comments != null)
 			{
 
 				// Clearing comments does not remove any uncommitted comments
-				this._comments.RemoveRange(0, this._committedComments);
-				this._committedComments = 0;
+				_comments.RemoveRange(0, _committedComments);
+				_committedComments = 0;
 			}
 		}
 
 		/// <inheritdoc/>
 		public void DisableComments()
 		{
-			++this._commentsDisableCount;
+			++_commentsDisableCount;
 		}
 
 		/// <inheritdoc/>
 		public void EnableComments()
 		{
-			--this._commentsDisableCount;
+			--_commentsDisableCount;
 		}
 
 		/// <inheritdoc/>
 		public void CommitPendingComments()
 		{
-			if (this._comments != null)
+			if (_comments != null)
 			{
-				this._committedComments = this._comments.Count;
+				_committedComments = _comments.Count;
 			}
 		}
 
 		/// <inheritdoc/>
 		public bool IsFirstTokenInLine(ref UhtToken token)
 		{
-			return IsFirstTokenInLine(this._data.Span, token.InputStartPos);
+			return IsFirstTokenInLine(_data.Span, token.InputStartPos);
 		}
 
 		/// <inheritdoc/>
 		public void SaveState()
 		{
-			if (this._hasSavedState)
+			if (_hasSavedState)
 			{
 				throw new UhtIceException("Can not save more than one state");
 			}
-			this._hasSavedState = true;
-			this._savedInputLine = this.InputLine;
-			this._savedInputPos = this.InputPos;
-			if (this._comments != null)
+			_hasSavedState = true;
+			_savedInputLine = InputLine;
+			_savedInputPos = InputPos;
+			if (_comments != null)
 			{
-				if (this._savedComments == null)
+				if (_savedComments == null)
 				{
-					this._savedComments = new List<StringView>();
+					_savedComments = new List<StringView>();
 				}
-				this._savedComments.Clear();
-				this._savedComments.AddRange(this._comments);
+				_savedComments.Clear();
+				_savedComments.AddRange(_comments);
 			}
-			if (this._tokenPreprocessor != null)
+			if (_tokenPreprocessor != null)
 			{
-				this._tokenPreprocessor.SaveState();
+				_tokenPreprocessor.SaveState();
 			}
 		}
 
 		/// <inheritdoc/>
 		public void RestoreState()
 		{
-			if (!this._hasSavedState)
+			if (!_hasSavedState)
 			{
 				throw new UhtIceException("Can not restore state when none have been saved");
 			}
-			this._hasSavedState = false;
+			_hasSavedState = false;
 			ClearToken();
-			this._inputPos = this._savedInputPos;
-			this._inputLine = this._savedInputLine;
-			if (this._savedComments != null && this._comments != null)
+			_inputPos = _savedInputPos;
+			_inputLine = _savedInputLine;
+			if (_savedComments != null && _comments != null)
 			{
-				this._comments.Clear();
-				this._comments.AddRange(this._savedComments);
+				_comments.Clear();
+				_comments.AddRange(_savedComments);
 			}
-			if (this._tokenPreprocessor != null)
+			if (_tokenPreprocessor != null)
 			{
-				this._tokenPreprocessor.RestoreState();
+				_tokenPreprocessor.RestoreState();
 			}
 		}
 
 		/// <inheritdoc/>
 		public void AbandonState()
 		{
-			if (!this._hasSavedState)
+			if (!_hasSavedState)
 			{
 				throw new UhtIceException("Can not abandon state when none have been saved");
 			}
-			this._hasSavedState = false;
+			_hasSavedState = false;
 			ClearToken();
 		}
 
 		/// <inheritdoc/>
 		public void EnableRecording()
 		{
-			if (this._recordTokens)
+			if (_recordTokens)
 			{
 				throw new UhtIceException("Can not nest token recording");
 			}
-			this._recordTokens = true;
+			_recordTokens = true;
 		}
 
 		/// <inheritdoc/>
 		public void RecordToken(ref UhtToken token)
 		{
-			if (!this._recordTokens)
+			if (!_recordTokens)
 			{
 				throw new UhtIceException("Attempt to disable token recording when it isn't enabled");
 			}
-			this._recordedTokens.Add(token);
+			_recordedTokens.Add(token);
 		}
 
 		/// <inheritdoc/>
 		public void DisableRecording()
 		{
-			if (!this._recordTokens)
+			if (!_recordTokens)
 			{
 				throw new UhtIceException("Attempt to disable token recording when it isn't enabled");
 			}
-			this._recordedTokens.Clear();
-			this._recordTokens = false;
+			_recordedTokens.Clear();
+			_recordTokens = false;
 		}
 
 		/// <inheritdoc/>
@@ -415,11 +415,11 @@ namespace EpicGames.UHT.Tokenizer
 		{
 			get
 			{
-				if (!this._recordTokens)
+				if (!_recordTokens)
 				{
 					throw new UhtIceException("Attempt to get recorded tokens when it isn't enabled");
 				}
-				return this._recordedTokens;
+				return _recordedTokens;
 			}
 		}
 		#endregion
@@ -427,19 +427,19 @@ namespace EpicGames.UHT.Tokenizer
 		#region Internals
 		private void ClearAllComments()
 		{
-			if (this._comments != null)
+			if (_comments != null)
 			{
-				this._comments.Clear();
-				this._committedComments = 0;
+				_comments.Clear();
+				_committedComments = 0;
 			}
 		}
 
 		private void ClearPendingComments()
 		{
-			if (this._comments != null)
+			if (_comments != null)
 			{
-				int startingComment = this._committedComments + this._preprocessorPendingCommentsCount;
-				this._comments.RemoveRange(startingComment, this._comments.Count - startingComment);
+				int startingComment = _committedComments + _preprocessorPendingCommentsCount;
+				_comments.RemoveRange(startingComment, _comments.Count - startingComment);
 			}
 		}
 
@@ -468,18 +468,18 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>Return the next token from the stream.  If the end of stream is reached, a token type of None will be returned.</returns>
 		private UhtToken GetTokenInternal(bool enablePreprocessor)
 		{
-			ReadOnlySpan<char> span = this._data.Span;
+			ReadOnlySpan<char> span = _data.Span;
 			bool gotInlineComment = false;
 Restart:
-			this._preCurrentTokenInputLine = this._inputLine;
-			this._preCurrentTokenInputPos = this._inputPos;
+			_preCurrentTokenInputLine = _inputLine;
+			_preCurrentTokenInputPos = _inputPos;
 			SkipWhitespaceAndCommentsInternal(ref gotInlineComment, enablePreprocessor);
-			this._prevPos = this._inputPos;
-			this._prevLine = this._inputLine;
+			_prevPos = _inputPos;
+			_prevLine = _inputLine;
 
 			UhtTokenType tokenType = UhtTokenType.EndOfFile;
-			int startPos = this._inputPos;
-			int startLine = this._inputLine;
+			int startPos = _inputPos;
+			int startLine = _inputLine;
 
 			char c = InternalGetChar(span);
 			if (c == 0)
@@ -489,16 +489,16 @@ Restart:
 			else if (UhtFCString.IsAlpha(c) || c == '_')
 			{
 
-				for (; this._inputPos < span.Length; ++this._inputPos)
+				for (; _inputPos < span.Length; ++_inputPos)
 				{
-					c = span[this._inputPos];
+					c = span[_inputPos];
 					if (!(UhtFCString.IsAlpha(c) || UhtFCString.IsDigit(c) || c == '_'))
 					{
 						break;
 					}
 				}
 
-				if (this._inputPos - startPos >= UhtToken.MaxNameLength)
+				if (_inputPos - startPos >= UhtToken.MaxNameLength)
 				{
 					throw new UhtException(this, $"Identifier length exceeds maximum of {UhtToken.MaxNameLength}");
 				}
@@ -533,7 +533,7 @@ Restart:
 				// If we have a hex constant
 				if (isHex)
 				{
-					for (; this._inputPos < span.Length && UhtFCString.IsHexDigit(span[this._inputPos]); ++this._inputPos)
+					for (; _inputPos < span.Length && UhtFCString.IsHexDigit(span[_inputPos]); ++_inputPos)
 					{
 					}
 				}
@@ -543,56 +543,56 @@ Restart:
 				{
 
 					// Skip all digits
-					for (; this._inputPos < span.Length && UhtFCString.IsDigit(span[this._inputPos]); ++this._inputPos)
+					for (; _inputPos < span.Length && UhtFCString.IsDigit(span[_inputPos]); ++_inputPos)
 					{
 					}
 
 					// If we have a '.'
-					if (this._inputPos < span.Length && span[this._inputPos] == '.')
+					if (_inputPos < span.Length && span[_inputPos] == '.')
 					{
 						isFloat = true;
-						++this._inputPos;
+						++_inputPos;
 
 						// Skip all digits
-						for (; this._inputPos < span.Length && UhtFCString.IsDigit(span[this._inputPos]); ++this._inputPos)
+						for (; _inputPos < span.Length && UhtFCString.IsDigit(span[_inputPos]); ++_inputPos)
 						{
 						}
 					}
 
 					// If we have a 'e'
-					if (this._inputPos < span.Length && UhtFCString.IsExponentMarker(span[this._inputPos]))
+					if (_inputPos < span.Length && UhtFCString.IsExponentMarker(span[_inputPos]))
 					{
 						isFloat = true;
-						++this._inputPos;
+						++_inputPos;
 
 						// Skip any signs
-						if (this._inputPos < span.Length && UhtFCString.IsSign(span[this._inputPos]))
+						if (_inputPos < span.Length && UhtFCString.IsSign(span[_inputPos]))
 						{
-							++this._inputPos;
+							++_inputPos;
 						}
 
 						// Skip all digits
-						for (; this._inputPos < span.Length && UhtFCString.IsDigit(span[this._inputPos]); ++this._inputPos)
+						for (; _inputPos < span.Length && UhtFCString.IsDigit(span[_inputPos]); ++_inputPos)
 						{
 						}
 					}
 
 					// If we have a 'f'
-					if (this._inputPos < span.Length && UhtFCString.IsFloatMarker(span[this._inputPos]))
+					if (_inputPos < span.Length && UhtFCString.IsFloatMarker(span[_inputPos]))
 					{
 						isFloat = true;
-						++this._inputPos;
+						++_inputPos;
 					}
 
 					// Check for u/l markers
-					while (this._inputPos < span.Length &&
-						(UhtFCString.IsUnsignedMarker(span[this._inputPos]) || UhtFCString.IsLongMarker(span[this._inputPos])))
+					while (_inputPos < span.Length &&
+						(UhtFCString.IsUnsignedMarker(span[_inputPos]) || UhtFCString.IsLongMarker(span[_inputPos])))
 					{
-						++this._inputPos;
+						++_inputPos;
 					}
 				}
 
-				if (this._inputPos - startPos >= UhtToken.MaxNameLength)
+				if (_inputPos - startPos >= UhtToken.MaxNameLength)
 				{
 					throw new UhtException(this, $"Number length exceeds maximum of {UhtToken.MaxNameLength}");
 				}
@@ -646,7 +646,7 @@ Restart:
 					}
 				}
 
-				if (this._inputPos - startPos >= UhtToken.MaxStringLength)
+				if (_inputPos - startPos >= UhtToken.MaxStringLength)
 				{
 					throw new UhtException(this, $"String constant exceeds maximum of {UhtToken.MaxStringLength} characters");
 				}
@@ -659,9 +659,9 @@ Restart:
 			else
 			{
 				{
-					if (this._inputPos < span.Length)
+					if (_inputPos < span.Length)
 					{
-						char d = span[this._inputPos];
+						char d = span[_inputPos];
 						if ((c == '<' && d == '<')
 							|| (c == '!' && d == '=')
 							|| (c == '<' && d == '=')
@@ -680,7 +680,7 @@ Restart:
 							|| (c == '~' && d == '=')
 							|| (c == ':' && d == ':'))
 						{
-							++this._inputPos;
+							++_inputPos;
 						}
 					}
 
@@ -691,14 +691,14 @@ Restart:
 					// 1) If the block is being skipped, we want to preserve any comments ahead of the token and eliminate all other comments found in the #if block
 					// 2) If the block isn't being skipped or in the case of things such as #pragma or #include, they were considered statements in the UHT
 					//	  and would result in the comments being dropped.  In the new UHT, we just eliminate all pending tokens.
-					if (c == '#' && enablePreprocessor && this._tokenPreprocessor != null && IsFirstTokenInLine(span, startPos))
+					if (c == '#' && enablePreprocessor && _tokenPreprocessor != null && IsFirstTokenInLine(span, startPos))
 					{
-						this._preprocessorPendingCommentsCount = this._comments != null ? this._comments.Count - this._committedComments : 0;
-						UhtToken temp = new(tokenType, startPos, startLine, startPos, this._inputLine, new StringView(this._data[startPos..this._inputPos]));
-						bool include = this._tokenPreprocessor.ParsePreprocessorDirective(ref temp, true, out bool clearComments, out bool illegalContentsCheck);
+						_preprocessorPendingCommentsCount = _comments != null ? _comments.Count - _committedComments : 0;
+						UhtToken temp = new(tokenType, startPos, startLine, startPos, _inputLine, new StringView(_data[startPos.._inputPos]));
+						bool include = _tokenPreprocessor.ParsePreprocessorDirective(ref temp, true, out bool clearComments, out bool illegalContentsCheck);
 						if (!include)
 						{
-							++this._commentsDisableCount;
+							++_commentsDisableCount;
 							int checkStateMachine = 0;
 							while (true)
 							{
@@ -710,7 +710,7 @@ Restart:
 								ReadOnlySpan<char> localValueSpan = localToken.Value.Span;
 								if (localToken.IsSymbol('#') && localValueSpan.Length == 1 && localValueSpan[0] == '#' && IsFirstTokenInLine(span, localToken.InputStartPos))
 								{
-									if (this._tokenPreprocessor.ParsePreprocessorDirective(ref temp, false, out bool _, out bool scratchIllegalContentsCheck))
+									if (_tokenPreprocessor.ParsePreprocessorDirective(ref temp, false, out bool _, out bool scratchIllegalContentsCheck))
 									{
 										break;
 									}
@@ -807,12 +807,12 @@ ResetStateMachineCheck:
 									}
 								}
 							}
-							--this._commentsDisableCount;
+							--_commentsDisableCount;
 
 							// Clear any extra pending comments at this time
 							ClearPendingComments();
 						}
-						this._preprocessorPendingCommentsCount = 0;
+						_preprocessorPendingCommentsCount = 0;
 
 						// Depending on the type of directive and/or the #if expression, we clear comments.
 						if (clearComments)
@@ -826,7 +826,7 @@ ResetStateMachineCheck:
 				tokenType = UhtTokenType.Symbol;
 			}
 
-			return new UhtToken(tokenType, startPos, startLine, startPos, this._inputLine, new StringView(this._data[startPos..this._inputPos]));
+			return new UhtToken(tokenType, startPos, startLine, startPos, _inputLine, new StringView(_data[startPos.._inputPos]));
 		}
 
 		/// <summary>
@@ -834,7 +834,7 @@ ResetStateMachineCheck:
 		/// </summary>
 		private void SkipWhitespaceAndCommentsInternal(ref bool persistGotInlineComment, bool enablePreprocessor)
 		{
-			ReadOnlySpan<char> span = this._data.Span;
+			ReadOnlySpan<char> span = _data.Span;
 
 			bool gotNewlineBetweenComments = false;
 			bool gotInlineComment = persistGotInlineComment;
@@ -848,7 +848,7 @@ ResetStateMachineCheck:
 				else if (c == '\n')
 				{
 					gotNewlineBetweenComments |= gotInlineComment;
-					++this._inputLine;
+					++_inputLine;
 				}
 				else if (c == '\r' || c == '\t' || c == ' ')
 				{
@@ -862,8 +862,8 @@ ResetStateMachineCheck:
 						{
 							ClearAllComments();
 						}
-						int commentStart = this._inputPos - 1;
-						++this._inputPos;
+						int commentStart = _inputPos - 1;
+						++_inputPos;
 						for (; ; )
 						{
 							char commentChar = InternalGetChar(span);
@@ -877,17 +877,17 @@ ResetStateMachineCheck:
 							}
 							else if (commentChar == '\n')
 							{
-								++this._inputLine;
+								++_inputLine;
 							}
 							else if (commentChar == '*' && InternalPeekChar(span) == '/')
 							{
-								++this._inputPos;
+								++_inputPos;
 								break;
 							}
 						}
 						if (enablePreprocessor)
 						{
-							AddComment(new StringView(this._data[commentStart..this._inputPos]));
+							AddComment(new StringView(_data[commentStart.._inputPos]));
 						}
 					}
 					else if (nextChar == '/')
@@ -901,8 +901,8 @@ ResetStateMachineCheck:
 							}
 						}
 						gotInlineComment = true;
-						int commentStart = this._inputPos - 1;
-						++this._inputPos;
+						int commentStart = _inputPos - 1;
+						++_inputPos;
 
 						// Scan to the end of the line
 						for (; ; )
@@ -924,18 +924,18 @@ ResetStateMachineCheck:
 						}
 						if (enablePreprocessor)
 						{
-							AddComment(new StringView(this._data[commentStart..this._inputPos]));
+							AddComment(new StringView(_data[commentStart.._inputPos]));
 						}
 					}
 					else
 					{
-						--this._inputPos;
+						--_inputPos;
 						break;
 					}
 				}
 				else
 				{
-					--this._inputPos;
+					--_inputPos;
 					break;
 				}
 			}
@@ -954,29 +954,29 @@ ResetStateMachineCheck:
 			// Check for [+-]...
 			if (UhtFCString.IsSign(c))
 			{
-				if (this._inputPos == span.Length)
+				if (_inputPos == span.Length)
 				{
 					return false;
 				}
 
 				// Check for [+-][0..9]...
-				if (UhtFCString.IsDigit(span[this._inputPos]))
+				if (UhtFCString.IsDigit(span[_inputPos]))
 				{
 					return true;
 				}
 
 				// Check for [+-][.][0..9]...
-				if (span[this._inputPos] != '.')
+				if (span[_inputPos] != '.')
 				{
 					return false;
 				}
 
-				if (this._inputPos + 1 == span.Length)
+				if (_inputPos + 1 == span.Length)
 				{
 					return false;
 				}
 
-				if (UhtFCString.IsDigit(span[this._inputPos + 1]))
+				if (UhtFCString.IsDigit(span[_inputPos + 1]))
 				{
 					return true;
 				}
@@ -985,13 +985,13 @@ ResetStateMachineCheck:
 
 			if (c == '.')
 			{
-				if (this._inputPos == span.Length)
+				if (_inputPos == span.Length)
 				{
 					return false;
 				}
 
 				// Check for [.][0..9]...
-				if (UhtFCString.IsDigit(span[this._inputPos]))
+				if (UhtFCString.IsDigit(span[_inputPos]))
 				{
 					return true;
 				}
@@ -1007,7 +1007,7 @@ ResetStateMachineCheck:
 		/// <returns>Next character in the stream or zero</returns>
 		private char InternalPeekChar(ReadOnlySpan<char> span)
 		{
-			return this._inputPos < span.Length ? span[this._inputPos] : '\0';
+			return _inputPos < span.Length ? span[_inputPos] : '\0';
 		}
 
 		/// <summary>
@@ -1018,7 +1018,7 @@ ResetStateMachineCheck:
 		/// <returns>Next character in the stream or zero</returns>
 		private char InternalGetChar(ReadOnlySpan<char> span)
 		{
-			return this._inputPos < span.Length ? span[this._inputPos++] : '\0';
+			return _inputPos < span.Length ? span[_inputPos++] : '\0';
 		}
 
 		/// <summary>
@@ -1026,25 +1026,25 @@ ResetStateMachineCheck:
 		/// </summary>
 		private void ClearToken()
 		{
-			if (this._hasToken)
+			if (_hasToken)
 			{
-				this._hasToken = false;
-				if (this._comments != null && this._comments.Count > this._committedComments)
+				_hasToken = false;
+				if (_comments != null && _comments.Count > _committedComments)
 				{
-					this._comments.RemoveRange(this._committedComments, this._comments.Count - this._committedComments);
+					_comments.RemoveRange(_committedComments, _comments.Count - _committedComments);
 				}
-				this._inputPos = this._currentToken.UngetPos;
-				this._inputLine = this._currentToken.UngetLine;
+				_inputPos = _currentToken.UngetPos;
+				_inputLine = _currentToken.UngetLine;
 			}
 		}
 
 		private void AddComment(StringView comment)
 		{
-			if (this._comments == null)
+			if (_comments == null)
 			{
-				this._comments = new List<StringView>(4);
+				_comments = new List<StringView>(4);
 			}
-			this._comments.Add(comment);
+			_comments.Add(comment);
 		}
 		#endregion
 	}

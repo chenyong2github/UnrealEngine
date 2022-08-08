@@ -37,8 +37,8 @@ namespace EpicGames.UHT.Types
 		public UhtObjectPtrProperty(UhtPropertySettings propertySettings, UhtClass classObj, EPropertyFlags extraFlags = EPropertyFlags.None)
 			: base(propertySettings, classObj)
 		{
-			this.PropertyFlags |= extraFlags | EPropertyFlags.UObjectWrapper;
-			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef;
+			PropertyFlags |= extraFlags | EPropertyFlags.UObjectWrapper;
+			PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef;
 		}
 
 		/// <inheritdoc/>
@@ -49,24 +49,24 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.GetterSetterArg:
 					if (isTemplateArgument)
 					{
-						builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
+						builder.Append("TObjectPtr<").Append(Class.SourceName).Append('>');
 					}
 					else
 					{
-						builder.Append(this.Class.SourceName).Append('*');
+						builder.Append(Class.SourceName).Append('*');
 					}
 					break;
 
 				case UhtPropertyTextType.FunctionThunkRetVal:
-					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm))
+					if (PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm))
 					{
 						builder.Append("const ");
 					}
-					builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
+					builder.Append("TObjectPtr<").Append(Class.SourceName).Append('>');
 					break;
 
 				default:
-					builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
+					builder.Append("TObjectPtr<").Append(Class.SourceName).Append('>');
 					break;
 			}
 			return builder;
@@ -82,7 +82,7 @@ namespace EpicGames.UHT.Types
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FObjectPtrPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Object | UECodeGen_Private::EPropertyGenFlags::ObjectPtr");
-			AppendMemberDefRef(builder, context, this.Class, false);
+			AppendMemberDefRef(builder, context, Class, false);
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -94,7 +94,7 @@ namespace EpicGames.UHT.Types
 
 			// UFunctions with a smart pointer as input parameter wont compile anyway, because of missing P_GET_... macro.
 			// UFunctions with a smart pointer as return type will crash when called via blueprint, because they are not supported in VM.
-			if (this.PropertyCategory == UhtPropertyCategory.RegularParameter || this.PropertyCategory == UhtPropertyCategory.ReplicatedParameter)
+			if (PropertyCategory == UhtPropertyCategory.RegularParameter || PropertyCategory == UhtPropertyCategory.ReplicatedParameter)
 			{
 				outerStruct.LogError("UFunctions cannot take a TObjectPtr as a parameter.");
 			}

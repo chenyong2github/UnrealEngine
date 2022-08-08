@@ -28,8 +28,8 @@ namespace EpicGames.UHT.Types
 		/// <param name="intType">Type of integer</param>
 		protected UhtNumericProperty(UhtPropertySettings propertySettings, UhtPropertyIntType intType) : base(propertySettings)
 		{
-			this.IntType = intType;
-			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.SupportsRigVM;
+			IntType = intType;
+			PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.SupportsRigVM;
 		}
 
 		/// <inheritdoc/>

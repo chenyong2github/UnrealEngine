@@ -29,8 +29,8 @@ namespace EpicGames.UHT.Types
 		public UhtObjectProperty(UhtPropertySettings propertySettings, UhtClass classObj, UhtClass? metaClass = null, EPropertyFlags extraFlags = EPropertyFlags.None)
 			: base(propertySettings, classObj, metaClass)
 		{
-			this.PropertyFlags |= extraFlags;
-			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.CanBeInstanced | UhtPropertyCaps.CanExposeOnSpawn |
+			PropertyFlags |= extraFlags;
+			PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.CanBeInstanced | UhtPropertyCaps.CanExposeOnSpawn |
 				UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
 		}
 
@@ -41,10 +41,10 @@ namespace EpicGames.UHT.Types
 			switch (phase)
 			{
 				case UhtResolvePhase.Final:
-					if (this.Class.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced))
+					if (Class.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced))
 					{
-						this.PropertyFlags |= EPropertyFlags.InstancedReference;
-						this.MetaData.Add(UhtNames.EditInline, true);
+						PropertyFlags |= EPropertyFlags.InstancedReference;
+						MetaData.Add(UhtNames.EditInline, true);
 					}
 					break;
 			}
@@ -54,7 +54,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool ScanForInstancedReferenced(bool deepScan)
 		{
-			return this.Class.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced);
+			return Class.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced);
 		}
 
 		/// <inheritdoc/>
@@ -63,19 +63,19 @@ namespace EpicGames.UHT.Types
 			switch (textType)
 			{
 				case UhtPropertyTextType.FunctionThunkRetVal:
-					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm))
+					if (PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm))
 					{
 						builder.Append("const ");
 					}
-					builder.Append(this.Class.SourceName).Append('*');
+					builder.Append(Class.SourceName).Append('*');
 					break;
 
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
-					builder.Append(this.Class.SourceName);
+					builder.Append(Class.SourceName);
 					break;
 
 				default:
-					builder.Append(this.Class.SourceName).Append('*');
+					builder.Append(Class.SourceName).Append('*');
 					break;
 			}
 			return builder;
@@ -91,7 +91,7 @@ namespace EpicGames.UHT.Types
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FObjectPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Object");
-			AppendMemberDefRef(builder, context, this.Class, false);
+			AppendMemberDefRef(builder, context, Class, false);
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -108,7 +108,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (other is UhtObjectProperty otherObject)
 			{
-				return this.Class == otherObject.Class && this.MetaClass == otherObject.MetaClass;
+				return Class == otherObject.Class && MetaClass == otherObject.MetaClass;
 			}
 			return false;
 		}

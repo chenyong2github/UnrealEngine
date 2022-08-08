@@ -141,43 +141,43 @@ namespace EpicGames.UHT.Types
 		/// True if the parameter is marked as "Constant"
 		/// </summary>
 		[JsonIgnore]
-		public bool Constant => this.ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.Constant);
+		public bool Constant => ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.Constant);
 
 		/// <summary>
 		/// True if the parameter is marked as "Input"
 		/// </summary>
 		[JsonIgnore]
-		public bool Input => this.ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.Input);
+		public bool Input => ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.Input);
 
 		/// <summary>
 		/// True if the parameter is marked as "Output"
 		/// </summary>
 		[JsonIgnore]
-		public bool Output => this.ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.Output);
+		public bool Output => ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.Output);
 
 		/// <summary>
 		/// True if the parameter is marked as "Singleton"
 		/// </summary>
 		[JsonIgnore]
-		public bool Singleton => this.ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.Singleton);
+		public bool Singleton => ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.Singleton);
 
 		/// <summary>
 		/// True if the parameter is editor only
 		/// </summary>
 		[JsonIgnore]
-		public bool EditorOnly => this.ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.EditorOnly);
+		public bool EditorOnly => ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.EditorOnly);
 
 		/// <summary>
 		/// True if the parameter is an enum
 		/// </summary>
 		[JsonIgnore]
-		public bool IsEnum => this.ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.IsEnum);
+		public bool IsEnum => ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.IsEnum);
 
 		/// <summary>
 		/// True if the parameter is an array
 		/// </summary>
 		[JsonIgnore]
-		public bool IsArray => this.ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.IsArray);
+		public bool IsArray => ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.IsArray);
 
 		/// <summary>
 		/// Create a new RigVM parameter from a property
@@ -186,47 +186,47 @@ namespace EpicGames.UHT.Types
 		/// <param name="index">Parameter index.  Used to create a unique cast name.</param>
 		public UhtRigVMParameter(UhtProperty property, int index)
 		{
-			this.Property = property;
+			Property = property;
 
-			this.Name = property.EngineName;
-			this.ParameterFlags |= property.MetaData.ContainsKey("Constant") ? UhtRigVMParameterFlags.Constant : UhtRigVMParameterFlags.None;
-			this.ParameterFlags |= property.MetaData.ContainsKey("Input") ? UhtRigVMParameterFlags.Input : UhtRigVMParameterFlags.None;
-			this.ParameterFlags |= property.MetaData.ContainsKey("Output") ? UhtRigVMParameterFlags.Output : UhtRigVMParameterFlags.None;
-			this.ParameterFlags |= property.IsEditorOnlyProperty ? UhtRigVMParameterFlags.EditorOnly : UhtRigVMParameterFlags.None;
-			this.ParameterFlags |= property.MetaData.ContainsKey("Singleton") ? UhtRigVMParameterFlags.Singleton : UhtRigVMParameterFlags.None;
+			Name = property.EngineName;
+			ParameterFlags |= property.MetaData.ContainsKey("Constant") ? UhtRigVMParameterFlags.Constant : UhtRigVMParameterFlags.None;
+			ParameterFlags |= property.MetaData.ContainsKey("Input") ? UhtRigVMParameterFlags.Input : UhtRigVMParameterFlags.None;
+			ParameterFlags |= property.MetaData.ContainsKey("Output") ? UhtRigVMParameterFlags.Output : UhtRigVMParameterFlags.None;
+			ParameterFlags |= property.IsEditorOnlyProperty ? UhtRigVMParameterFlags.EditorOnly : UhtRigVMParameterFlags.None;
+			ParameterFlags |= property.MetaData.ContainsKey("Singleton") ? UhtRigVMParameterFlags.Singleton : UhtRigVMParameterFlags.None;
 
 			if (property.MetaData.ContainsKey("Visible"))
 			{
-				this.ParameterFlags |= UhtRigVMParameterFlags.Constant | UhtRigVMParameterFlags.Input;
-				this.ParameterFlags &= ~UhtRigVMParameterFlags.Output;
+				ParameterFlags |= UhtRigVMParameterFlags.Constant | UhtRigVMParameterFlags.Input;
+				ParameterFlags &= ~UhtRigVMParameterFlags.Output;
 			}
 
-			if (this.EditorOnly)
+			if (EditorOnly)
 			{
-				property.LogError($"RigVM Struct '{this.Property.Outer?.SourceName}' - Member '{this.Property.SourceName}' is editor only - WITH_EDITORONLY_DATA not allowed on structs with RIGVM_METHOD.");
+				property.LogError($"RigVM Struct '{Property.Outer?.SourceName}' - Member '{Property.SourceName}' is editor only - WITH_EDITORONLY_DATA not allowed on structs with RIGVM_METHOD.");
 			}
 
 			if (property.PropertyCaps.HasAnyFlags(UhtPropertyCaps.SupportsRigVM))
 			{
-				this.Type = property.GetRigVMType();
+				Type = property.GetRigVMType();
 				if (property.PropertyCaps.HasAnyFlags(UhtPropertyCaps.IsRigVMEnum))
 				{
-					this.ParameterFlags |= UhtRigVMParameterFlags.IsEnum;
+					ParameterFlags |= UhtRigVMParameterFlags.IsEnum;
 				}
 				if (property.PropertyCaps.HasAnyFlags(UhtPropertyCaps.IsRigVMArray))
 				{
-					this.ParameterFlags |= UhtRigVMParameterFlags.IsArray;
-					if (this.IsConst())
+					ParameterFlags |= UhtRigVMParameterFlags.IsArray;
+					if (IsConst())
 					{
-						string extendedType = this.ExtendedType(false);
-						this.CastName = $"{this.Name}_{index}_Array";
-						this.CastType = $"TArrayView<const {extendedType[1..^1]}>";
+						string extendedType = ExtendedType(false);
+						CastName = $"{Name}_{index}_Array";
+						CastType = $"TArrayView<const {extendedType[1..^1]}>";
 					}
 				}
 			}
 			else
 			{
-				property.LogError($"RigVM Struct '{this.Property.Outer?.SourceName}' - Member '{this.Property.SourceName}' type '{this.Property.GetUserFacingDecl()}' not supported by RigVM.");
+				property.LogError($"RigVM Struct '{Property.Outer?.SourceName}' - Member '{Property.SourceName}' type '{Property.GetUserFacingDecl()}' not supported by RigVM.");
 			}
 		}
 
@@ -237,8 +237,8 @@ namespace EpicGames.UHT.Types
 		/// <param name="type">Type of the parameter</param>
 		public UhtRigVMParameter(string name, string type)
 		{
-			this.Name = name;
-			this.Type = type;
+			Name = name;
+			Type = type;
 		}
 
 		/// <summary>
@@ -248,7 +248,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>Parameter name</returns>
 		public string NameOriginal(bool castName = false)
 		{
-			return castName && this.CastName != null ? this.CastName : this.Name;
+			return castName && CastName != null ? CastName : Name;
 		}
 
 		/// <summary>
@@ -258,7 +258,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>Parameter type</returns>
 		public string TypeOriginal(bool castType = false)
 		{
-			return castType && this.CastType != null ? this.CastType : this.Type;
+			return castType && CastType != null ? CastType : Type;
 		}
 
 		/// <summary>
@@ -386,7 +386,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>True if the parameter is constant</returns>
 		public bool IsConst()
 		{
-			return this.Constant || (this.Input && !this.Output);
+			return Constant || (Input && !Output);
 		}
 
 		/// <summary>
@@ -395,7 +395,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>True if the parameter requires a cast</returns>
 		public bool RequiresCast()
 		{
-			return this.CastType != null && this.CastName != null;
+			return CastType != null && CastName != null;
 		}
 	}
 
@@ -577,42 +577,42 @@ namespace EpicGames.UHT.Types
 		/// True if the struct has the "HasDefaults" specifier
 		/// </summary>
 		[JsonIgnore]
-		public bool HasDefaults => this.ScriptStructExportFlags.HasAnyFlags(UhtScriptStructExportFlags.HasDefaults);
+		public bool HasDefaults => ScriptStructExportFlags.HasAnyFlags(UhtScriptStructExportFlags.HasDefaults);
 
 		/// <summary>
 		/// True if the struct has the "IsAlwaysAccessible" specifier
 		/// </summary>
 		[JsonIgnore]
-		public bool IsAlwaysAccessible => this.ScriptStructExportFlags.HasAnyFlags(UhtScriptStructExportFlags.IsAlwaysAccessible);
+		public bool IsAlwaysAccessible => ScriptStructExportFlags.HasAnyFlags(UhtScriptStructExportFlags.IsAlwaysAccessible);
 
 		/// <summary>
 		/// True if the struct has the "IsCoreType" specifier
 		/// </summary>
 		[JsonIgnore]
-		public bool IsCoreType => this.ScriptStructExportFlags.HasAnyFlags(UhtScriptStructExportFlags.IsCoreType);
+		public bool IsCoreType => ScriptStructExportFlags.HasAnyFlags(UhtScriptStructExportFlags.IsCoreType);
 
 		/// <summary>
 		/// True if the struct has the "HasNoOpConstructor" specifier
 		/// </summary>
 		[JsonIgnore]
-		public bool HasNoOpConstructor => this.ScriptStructExportFlags.HasAnyFlags(UhtScriptStructExportFlags.HasNoOpConstructor);
+		public bool HasNoOpConstructor => ScriptStructExportFlags.HasAnyFlags(UhtScriptStructExportFlags.HasNoOpConstructor);
 
 		/// <inheritdoc/>
 		public override string EngineClassName => "ScriptStruct";
 
 		/// <inheritdoc/>
 		[JsonIgnore]
-		public override string EngineNamePrefix => this.Session.Config!.IsStructWithTPrefix(this.EngineName) ? "T" : "F";
+		public override string EngineNamePrefix => Session.Config!.IsStructWithTPrefix(EngineName) ? "T" : "F";
 
 		///<inheritdoc/>
 		[JsonIgnore]
-		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable => this.Session.GetSpecifierValidatorTable(UhtTableNames.ScriptStruct);
+		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable => Session.GetSpecifierValidatorTable(UhtTableNames.ScriptStruct);
 
 		/// <summary>
 		/// Super struct
 		/// </summary>
 		[JsonConverter(typeof(UhtNullableTypeSourceNameJsonConverter<UhtScriptStruct>))]
-		public UhtScriptStruct? SuperScriptStruct => (UhtScriptStruct?)this.Super;
+		public UhtScriptStruct? SuperScriptStruct => (UhtScriptStruct?)Super;
 
 		/// <summary>
 		/// Construct a new script struct
@@ -632,13 +632,13 @@ namespace EpicGames.UHT.Types
 			switch (resolvePhase)
 			{
 				case UhtResolvePhase.Bases:
-					BindAndResolveSuper(this.SuperIdentifier, UhtFindOptions.ScriptStruct);
+					BindAndResolveSuper(SuperIdentifier, UhtFindOptions.ScriptStruct);
 
 					// if we have a base struct, propagate inherited struct flags now
-					UhtScriptStruct? superScriptStruct = this.SuperScriptStruct;
+					UhtScriptStruct? superScriptStruct = SuperScriptStruct;
 					if (superScriptStruct != null)
 					{
-						this.ScriptStructFlags |= superScriptStruct.ScriptStructFlags & EStructFlags.Inherit;
+						ScriptStructFlags |= superScriptStruct.ScriptStructFlags & EStructFlags.Inherit;
 					}
 					break;
 			}
@@ -671,7 +671,7 @@ namespace EpicGames.UHT.Types
 			switch (phase)
 			{
 				case UhtResolvePhase.Properties:
-					foreach (UhtType child in this.Children)
+					foreach (UhtType child in Children)
 					{
 						if (child is UhtProperty property)
 						{
@@ -695,9 +695,9 @@ namespace EpicGames.UHT.Types
 							if (originalFlags != property.PropertyFlags &&
 								property.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintVisible | EPropertyFlags.BlueprintReadOnly))
 							{
-								if (!this.MetaData.GetBooleanHierarchical(UhtNames.BlueprintType))
+								if (!MetaData.GetBooleanHierarchical(UhtNames.BlueprintType))
 								{
-									this.MetaData.Add(UhtNames.BlueprintType, true);
+									MetaData.Add(UhtNames.BlueprintType, true);
 								}
 
 								if (!property.MetaData.ContainsKey(UhtNames.Category))
@@ -717,7 +717,7 @@ namespace EpicGames.UHT.Types
 				case UhtResolvePhase.Final:
 					if (ScanForInstancedReferenced(false))
 					{
-						this.ScriptStructFlags |= EStructFlags.HasInstancedReference;
+						ScriptStructFlags |= EStructFlags.HasInstancedReference;
 					}
 					CollectRigVMMembers();
 					break;
@@ -727,12 +727,12 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool ScanForInstancedReferenced(bool deepScan)
 		{
-			if (this.ScriptStructFlags.HasAnyFlags(EStructFlags.HasInstancedReference))
+			if (ScriptStructFlags.HasAnyFlags(EStructFlags.HasInstancedReference))
 			{
 				return true;
 			}
 
-			if (this.SuperScriptStruct != null && this.SuperScriptStruct.ScanForInstancedReferenced(deepScan))
+			if (SuperScriptStruct != null && SuperScriptStruct.ScanForInstancedReferenced(deepScan))
 			{
 				return true;
 			}
@@ -747,25 +747,25 @@ namespace EpicGames.UHT.Types
 		{
 			options = base.Validate(options);
 
-			if (this.ScriptStructFlags.HasAnyFlags(EStructFlags.Immutable))
+			if (ScriptStructFlags.HasAnyFlags(EStructFlags.Immutable))
 			{
-				if (this.HeaderFile != this.Session.UObject.HeaderFile)
+				if (HeaderFile != Session.UObject.HeaderFile)
 				{
 					this.LogError("Immutable is being phased out in favor of SerializeNative, and is only legal on the mirror structs declared in UObject");
 				}
 			}
 
 			// Validate the engine name
-			string expectedName = $"{this.EngineNamePrefix}{this.EngineName}";
-			if (this.SourceName != expectedName)
+			string expectedName = $"{EngineNamePrefix}{EngineName}";
+			if (SourceName != expectedName)
 			{
-				this.LogError($"Struct '{this.SourceName}' has an invalid Unreal prefix, expecting '{expectedName}");
+				this.LogError($"Struct '{SourceName}' has an invalid Unreal prefix, expecting '{expectedName}");
 			}
 
 			// Validate RigVM
-			if (this.RigVMStructInfo != null && this.MetaData.ContainsKey("Deprecated") && !this.RigVMStructInfo.HasGetUpgradeInfoMethod)
+			if (RigVMStructInfo != null && MetaData.ContainsKey("Deprecated") && !RigVMStructInfo.HasGetUpgradeInfoMethod)
 			{
-				this.LogError($"RigVMStruct '{this.SourceName}' is marked as deprecated but is missing 'GetUpgradeInfo method.");
+				this.LogError($"RigVMStruct '{SourceName}' is marked as deprecated but is missing 'GetUpgradeInfo method.");
 				this.LogError("Please implement a method like below:");
 				this.LogError("RIGVM_METHOD()");
 				this.LogError("virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;");
@@ -778,19 +778,19 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override void CollectReferences(IUhtReferenceCollector collector)
 		{
-			if (this.ScriptStructFlags.HasAnyFlags(EStructFlags.NoExport))
+			if (ScriptStructFlags.HasAnyFlags(EStructFlags.NoExport))
 			{
 				collector.AddSingleton(this);
 			}
 			collector.AddExportType(this);
 			collector.AddDeclaration(this, true);
 			collector.AddCrossModuleReference(this, true);
-			if (this.SuperScriptStruct != null)
+			if (SuperScriptStruct != null)
 			{
-				collector.AddCrossModuleReference(this.SuperScriptStruct, true);
+				collector.AddCrossModuleReference(SuperScriptStruct, true);
 			}
-			collector.AddCrossModuleReference(this.Package, true);
-			foreach (UhtType child in this.Children)
+			collector.AddCrossModuleReference(Package, true);
+			foreach (UhtType child in Children)
 			{
 				child.CollectReferences(collector);
 			}
@@ -798,23 +798,23 @@ namespace EpicGames.UHT.Types
 
 		private void CollectRigVMMembers()
 		{
-			if (this.RigVMStructInfo != null)
+			if (RigVMStructInfo != null)
 			{
 				for (UhtStruct? current = this; current != null; current = current.SuperStruct)
 				{
 					foreach (UhtProperty property in current.Properties)
 					{
-						this.RigVMStructInfo.Members.Add(new UhtRigVMParameter(property, this.RigVMStructInfo.Members.Count));
+						RigVMStructInfo.Members.Add(new UhtRigVMParameter(property, RigVMStructInfo.Members.Count));
 					}
 				}
 
-				if (this.RigVMStructInfo.Members.Count == 0)
+				if (RigVMStructInfo.Members.Count == 0)
 				{
-					this.LogError($"RigVM Struct '{this.SourceName}' - has zero members - invalid RIGVM_METHOD.");
+					this.LogError($"RigVM Struct '{SourceName}' - has zero members - invalid RIGVM_METHOD.");
 				}
-				else if (this.RigVMStructInfo.Members.Count > 64)
+				else if (RigVMStructInfo.Members.Count > 64)
 				{
-					this.LogError($"RigVM Struct '{this.SourceName}' - has {this.RigVMStructInfo.Members.Count} members (64 is the limit).");
+					this.LogError($"RigVM Struct '{SourceName}' - has {RigVMStructInfo.Members.Count} members (64 is the limit).");
 				}
 			}
 		}

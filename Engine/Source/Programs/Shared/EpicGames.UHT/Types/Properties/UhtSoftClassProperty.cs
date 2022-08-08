@@ -42,13 +42,13 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override string? GetForwardDeclarations()
 		{
-			return this.MetaClass != null ? $"class {this.MetaClass.SourceName};" : null;
+			return MetaClass != null ? $"class {MetaClass.SourceName};" : null;
 		}
 
 		/// <inheritdoc/>
 		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			collector.AddCrossModuleReference(this.MetaClass, false);
+			collector.AddCrossModuleReference(MetaClass, false);
 		}
 
 		/// <inheritdoc/>
@@ -57,7 +57,7 @@ namespace EpicGames.UHT.Types
 			switch (textType)
 			{
 				default:
-					builder.Append("TSoftClassPtr<").Append(this.MetaClass?.SourceName).Append("> ");
+					builder.Append("TSoftClassPtr<").Append(MetaClass?.SourceName).Append("> ");
 					break;
 			}
 			return builder;
@@ -73,7 +73,7 @@ namespace EpicGames.UHT.Types
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FSoftClassPropertyParams", "UECodeGen_Private::EPropertyGenFlags::SoftClass");
-			AppendMemberDefRef(builder, context, this.MetaClass, false);
+			AppendMemberDefRef(builder, context, MetaClass, false);
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}

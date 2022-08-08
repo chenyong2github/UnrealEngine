@@ -135,12 +135,12 @@ namespace EpicGames.UHT.Tables
 		/// <param name="metaNameIndex"></param>
 		public UhtSpecifierContext(UhtParsingScope scope, IUhtMessageSite messageSite, UhtMetaData metaData, int metaNameIndex = UhtMetaData.IndexNone)
 		{
-			this.Type = scope.ScopeType;
-			this.TokenReader = scope.TokenReader;
-			this.AccessSpecifier = scope.AccessSpecifier;
-			this.MessageSite = messageSite;
-			this.MetaData = metaData;
-			this.MetaNameIndex = metaNameIndex;
+			Type = scope.ScopeType;
+			TokenReader = scope.TokenReader;
+			AccessSpecifier = scope.AccessSpecifier;
+			MessageSite = messageSite;
+			MetaData = metaData;
+			MetaNameIndex = metaNameIndex;
 		}
 
 		/// <summary>
@@ -219,16 +219,16 @@ namespace EpicGames.UHT.Tables
 		/// <param name="specifierDelegate">Delegate to invoke</param>
 		public UhtSpecifierNone(string name, UhtSpecifierWhen when, UhtSpecifierNoneDelegate specifierDelegate)
 		{
-			this.Name = name;
-			this.ValueType = UhtSpecifierValueType.None;
-			this.When = when;
-			this._delegate = specifierDelegate;
+			Name = name;
+			ValueType = UhtSpecifierValueType.None;
+			When = when;
+			_delegate = specifierDelegate;
 		}
 
 		/// <inheritdoc/>
 		public override UhtSpecifierDispatchResults Dispatch(UhtSpecifierContext specifierContext, object? value)
 		{
-			this._delegate(specifierContext);
+			_delegate(specifierContext);
 			return UhtSpecifierDispatchResults.Known;
 		}
 	}
@@ -255,10 +255,10 @@ namespace EpicGames.UHT.Tables
 		/// <param name="specifierDelegate">Delegate to invoke</param>
 		public UhtSpecifierString(string name, UhtSpecifierWhen when, UhtSpecifierStringDelegate specifierDelegate)
 		{
-			this.Name = name;
-			this.ValueType = UhtSpecifierValueType.String;
-			this.When = when;
-			this._delegate = specifierDelegate;
+			Name = name;
+			ValueType = UhtSpecifierValueType.String;
+			When = when;
+			_delegate = specifierDelegate;
 		}
 
 		/// <inheritdoc/>
@@ -268,7 +268,7 @@ namespace EpicGames.UHT.Tables
 			{
 				throw new UhtIceException("Required value is null");
 			}
-			this._delegate(specifierContext, (StringView)value);
+			_delegate(specifierContext, (StringView)value);
 			return UhtSpecifierDispatchResults.Known;
 		}
 	}
@@ -295,16 +295,16 @@ namespace EpicGames.UHT.Tables
 		/// <param name="specifierDelegate">Delegate to invoke</param>
 		public UhtSpecifierOptionalString(string name, UhtSpecifierWhen when, UhtSpecifierOptionalStringDelegate specifierDelegate)
 		{
-			this.Name = name;
-			this.ValueType = UhtSpecifierValueType.OptionalString;
-			this.When = when;
-			this._delegate = specifierDelegate;
+			Name = name;
+			ValueType = UhtSpecifierValueType.OptionalString;
+			When = when;
+			_delegate = specifierDelegate;
 		}
 
 		/// <inheritdoc/>
 		public override UhtSpecifierDispatchResults Dispatch(UhtSpecifierContext specifierContext, object? value)
 		{
-			this._delegate(specifierContext, (StringView?)value);
+			_delegate(specifierContext, (StringView?)value);
 			return UhtSpecifierDispatchResults.Known;
 		}
 	}
@@ -331,10 +331,10 @@ namespace EpicGames.UHT.Tables
 		/// <param name="specifierDelegate">Delegate to invoke</param>
 		public UhtSpecifierSingleString(string name, UhtSpecifierWhen when, UhtSpecifierSingleStringDelegate specifierDelegate)
 		{
-			this.Name = name;
-			this.ValueType = UhtSpecifierValueType.SingleString;
-			this.When = when;
-			this._delegate = specifierDelegate;
+			Name = name;
+			ValueType = UhtSpecifierValueType.SingleString;
+			When = when;
+			_delegate = specifierDelegate;
 		}
 
 		/// <inheritdoc/>
@@ -344,7 +344,7 @@ namespace EpicGames.UHT.Tables
 			{
 				throw new UhtIceException("Required value is null");
 			}
-			this._delegate(specifierContext, (StringView)value);
+			_delegate(specifierContext, (StringView)value);
 			return UhtSpecifierDispatchResults.Known;
 		}
 	}
@@ -372,10 +372,10 @@ namespace EpicGames.UHT.Tables
 		/// <param name="specifierDelegate">Delegate to invoke</param>
 		public UhtSpecifierKeyValuePairList(string name, UhtSpecifierWhen when, bool equalsOptional, UhtSpecifierKeyValuePairListDelegate specifierDelegate)
 		{
-			this.Name = name;
-			this.ValueType = equalsOptional ? UhtSpecifierValueType.OptionalEqualsKeyValuePairList : UhtSpecifierValueType.KeyValuePairList;
-			this.When = when;
-			this._delegate = specifierDelegate;
+			Name = name;
+			ValueType = equalsOptional ? UhtSpecifierValueType.OptionalEqualsKeyValuePairList : UhtSpecifierValueType.KeyValuePairList;
+			When = when;
+			_delegate = specifierDelegate;
 		}
 
 		/// <inheritdoc/>
@@ -385,7 +385,7 @@ namespace EpicGames.UHT.Tables
 			{
 				throw new UhtIceException("Required value is null");
 			}
-			this._delegate(specifierContext, (List<KeyValuePair<StringView, StringView>>)value);
+			_delegate(specifierContext, (List<KeyValuePair<StringView, StringView>>)value);
 			return UhtSpecifierDispatchResults.Known;
 		}
 	}
@@ -411,10 +411,10 @@ namespace EpicGames.UHT.Tables
 		/// <param name="specifierDelegate">Delegate to invoke</param>
 		public UhtSpecifierLegacy(string name, UhtSpecifierLegacyDelegate specifierDelegate)
 		{
-			this.Name = name;
-			this.ValueType = UhtSpecifierValueType.StringList;
-			this.When = UhtSpecifierWhen.Deferred;
-			this._delegate = specifierDelegate;
+			Name = name;
+			ValueType = UhtSpecifierValueType.StringList;
+			When = UhtSpecifierWhen.Deferred;
+			_delegate = specifierDelegate;
 		}
 
 		/// <inheritdoc/>
@@ -422,9 +422,9 @@ namespace EpicGames.UHT.Tables
 		{
 			if (value != null)
 			{
-				specifierContext.TokenReader.LogDeprecation($"Specifier '{this.Name}' has a value which is unused, future versions of UnrealHeaderTool will flag this as an error.");
+				specifierContext.TokenReader.LogDeprecation($"Specifier '{Name}' has a value which is unused, future versions of UnrealHeaderTool will flag this as an error.");
 			}
-			this._delegate(specifierContext);
+			_delegate(specifierContext);
 			return UhtSpecifierDispatchResults.Known;
 		}
 	}
@@ -451,16 +451,16 @@ namespace EpicGames.UHT.Tables
 		/// <param name="specifierDelegate">Delegate to invoke</param>
 		public UhtSpecifierStringList(string name, UhtSpecifierWhen when, UhtSpecifierStringListDelegate specifierDelegate)
 		{
-			this.Name = name;
-			this.ValueType = UhtSpecifierValueType.StringList;
-			this.When = when;
-			this._delegate = specifierDelegate;
+			Name = name;
+			ValueType = UhtSpecifierValueType.StringList;
+			When = when;
+			_delegate = specifierDelegate;
 		}
 
 		/// <inheritdoc/>
 		public override UhtSpecifierDispatchResults Dispatch(UhtSpecifierContext specifierContext, object? value)
 		{
-			this._delegate(specifierContext, (List<StringView>?)value);
+			_delegate(specifierContext, (List<StringView>?)value);
 			return UhtSpecifierDispatchResults.Known;
 		}
 	}
@@ -487,10 +487,10 @@ namespace EpicGames.UHT.Tables
 		/// <param name="specifierDelegate">Delegate to invoke</param>
 		public UhtSpecifierNonEmptyStringList(string name, UhtSpecifierWhen when, UhtSpecifierNonEmptyStringListDelegate specifierDelegate)
 		{
-			this.Name = name;
-			this.ValueType = UhtSpecifierValueType.NonEmptyStringList;
-			this.When = when;
-			this._delegate = specifierDelegate;
+			Name = name;
+			ValueType = UhtSpecifierValueType.NonEmptyStringList;
+			When = when;
+			_delegate = specifierDelegate;
 		}
 
 		/// <inheritdoc/>
@@ -500,7 +500,7 @@ namespace EpicGames.UHT.Tables
 			{
 				throw new UhtIceException("Required value is null");
 			}
-			this._delegate(specifierContext, (List<StringView>)value);
+			_delegate(specifierContext, (List<StringView>)value);
 			return UhtSpecifierDispatchResults.Known;
 		}
 	}

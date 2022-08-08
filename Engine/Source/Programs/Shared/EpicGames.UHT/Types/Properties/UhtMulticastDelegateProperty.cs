@@ -40,11 +40,11 @@ namespace EpicGames.UHT.Types
 		/// <param name="function">Referenced function</param>
 		protected UhtMulticastDelegateProperty(UhtPropertySettings propertySettings, UhtFunction function) : base(propertySettings)
 		{
-			this.Function = function;
-			this.HeaderFile.AddReferencedHeader(function);
-			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.CanBeBlueprintAssignable | UhtPropertyCaps.CanBeBlueprintCallable |
+			Function = function;
+			HeaderFile.AddReferencedHeader(function);
+			PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.CanBeBlueprintAssignable | UhtPropertyCaps.CanBeBlueprintCallable |
 				UhtPropertyCaps.CanBeBlueprintAuthorityOnly | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
-			this.PropertyCaps &= ~(UhtPropertyCaps.IsParameterSupportedByBlueprint);
+			PropertyCaps &= ~(UhtPropertyCaps.IsParameterSupportedByBlueprint);
 		}
 
 		/// <inheritdoc/>
@@ -54,7 +54,7 @@ namespace EpicGames.UHT.Types
 			switch (phase)
 			{
 				case UhtResolvePhase.Final:
-					this.PropertyFlags |= EPropertyFlags.InstancedReference & ~this.DisallowPropertyFlags;
+					PropertyFlags |= EPropertyFlags.InstancedReference & ~DisallowPropertyFlags;
 					break;
 			}
 			return results;
@@ -69,7 +69,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			collector.AddCrossModuleReference(this.Function, true);
+			collector.AddCrossModuleReference(Function, true);
 		}
 
 		/// <inheritdoc/>
@@ -81,11 +81,11 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.ExportMember:
 				case UhtPropertyTextType.RigVMType:
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
-					builder.Append(this.CppTypeText);
+					builder.Append(CppTypeText);
 					break;
 
 				default:
-					builder.Append(this.Function.SourceName);
+					builder.Append(Function.SourceName);
 					break;
 			}
 			return builder;
@@ -94,13 +94,13 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override void AppendObjectHashes(StringBuilder builder, int startingLength, IUhtPropertyMemberContext context)
 		{
-			builder.AppendObjectHash(startingLength, this, context, this.Function);
+			builder.AppendObjectHash(startingLength, this, context, Function);
 		}
 
 		/// <inheritdoc/>
 		public override StringBuilder AppendFunctionThunkParameterArg(StringBuilder builder)
 		{
-			return builder.Append(this.Function.SourceName).Append('(').AppendFunctionThunkParameterName(this).Append(')');
+			return builder.Append(Function.SourceName).Append('(').AppendFunctionThunkParameterName(this).Append(')');
 		}
 
 		/// <inheritdoc/>
@@ -121,7 +121,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (other is UhtMulticastDelegateProperty otherObject)
 			{
-				return this.Function == otherObject.Function;
+				return Function == otherObject.Function;
 			}
 			return false;
 		}

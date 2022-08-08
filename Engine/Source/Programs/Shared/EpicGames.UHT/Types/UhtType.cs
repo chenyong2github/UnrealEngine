@@ -727,7 +727,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// The name of the type as used by the engines type system.  If not set, will default to the source name
 		/// </summary>
-		public string EngineName { get => this._engineName ?? this.SourceName; set => this._engineName = value; }
+		public string EngineName { get => _engineName ?? SourceName; set => _engineName = value; }
 
 		/// <summary>
 		/// Simple enumeration that can be used to detect the different types of objects
@@ -788,7 +788,7 @@ namespace EpicGames.UHT.Types
 		/// Return the name of the documentation policy to be used
 		/// </summary>
 		[JsonIgnore]
-		public string DocumentationPolicyName => this.MetaData.GetValueOrDefaultHierarchical(UhtNames.DocumentationPolicy);
+		public string DocumentationPolicyName => MetaData.GetValueOrDefaultHierarchical(UhtNames.DocumentationPolicy);
 
 		/// <summary>
 		/// Return the specifier validation table to be used to validate the meta data on this type
@@ -812,7 +812,7 @@ namespace EpicGames.UHT.Types
 		/// Helper to string method
 		/// </summary>
 		/// <returns></returns>
-		public override string ToString() { return this.SourceName; }
+		public override string ToString() { return SourceName; }
 
 		private string? _engineName = null;
 		private List<UhtType>? _children = null;
@@ -821,11 +821,11 @@ namespace EpicGames.UHT.Types
 		#region IUHTMessageSite implementation
 		/// <inheritdoc/>
 		[JsonIgnore]
-		public virtual IUhtMessageSession MessageSession => this.HeaderFile.MessageSession;
+		public virtual IUhtMessageSession MessageSession => HeaderFile.MessageSession;
 
 		/// <inheritdoc/>
 		[JsonIgnore]
-		public virtual IUhtMessageSource? MessageSource => this.HeaderFile.MessageSource;
+		public virtual IUhtMessageSource? MessageSource => HeaderFile.MessageSource;
 
 		/// <inheritdoc/>
 		[JsonIgnore]
@@ -843,12 +843,12 @@ namespace EpicGames.UHT.Types
 		/// <param name="session"></param>
 		protected UhtType(UhtSession session)
 		{
-			this.Session = session;
-			this.Outer = null;
-			this.SourceName = String.Empty;
-			this.LineNumber = 1;
-			this.TypeIndex = session.GetNextTypeIndex();
-			this.MetaData = new UhtMetaData(this, this.Session.Config);
+			Session = session;
+			Outer = null;
+			SourceName = String.Empty;
+			LineNumber = 1;
+			TypeIndex = session.GetNextTypeIndex();
+			MetaData = new UhtMetaData(this, Session.Config);
 		}
 
 		/// <summary>
@@ -859,14 +859,14 @@ namespace EpicGames.UHT.Types
 		/// <param name="metaData">Optional meta data to be associated with the type.</param>
 		protected UhtType(UhtType outer, int lineNumber, UhtMetaData? metaData = null)
 		{
-			this.Session = outer.Session;
-			this.Outer = outer;
-			this.SourceName = String.Empty;
-			this.LineNumber = lineNumber;
-			this.TypeIndex = this.Session.GetNextTypeIndex();
-			this.MetaData = metaData ?? new UhtMetaData(this, this.Session.Config);
-			this.MetaData.MessageSite = this; // Make sure the site is correct
-			this.MetaData.Config = this.Session.Config;
+			Session = outer.Session;
+			Outer = outer;
+			SourceName = String.Empty;
+			LineNumber = lineNumber;
+			TypeIndex = Session.GetNextTypeIndex();
+			MetaData = metaData ?? new UhtMetaData(this, Session.Config);
+			MetaData.MessageSite = this; // Make sure the site is correct
+			MetaData.Config = Session.Config;
 		}
 
 		/// <summary>
@@ -875,11 +875,11 @@ namespace EpicGames.UHT.Types
 		/// <param name="child">The child to be added.</param>
 		public virtual void AddChild(UhtType child)
 		{
-			if (this._children == null)
+			if (_children == null)
 			{
-				this._children = new List<UhtType>();
+				_children = new List<UhtType>();
 			}
-			this._children.Add(child);
+			_children.Add(child);
 		}
 
 		/// <summary>
@@ -889,8 +889,8 @@ namespace EpicGames.UHT.Types
 		/// <returns>The current list of children</returns>
 		public List<UhtType>? DetachChildren()
 		{
-			List<UhtType>? children = this._children;
-			this._children = null;
+			List<UhtType>? children = _children;
+			_children = null;
 			return children;
 		}
 
@@ -920,7 +920,7 @@ namespace EpicGames.UHT.Types
 		public bool Resolve(UhtResolvePhase phase)
 		{
 			int initState = (int)phase << 1;
-			int currentState = Interlocked.Add(ref this._resolveState, 0);
+			int currentState = Interlocked.Add(ref _resolveState, 0);
 
 			// If we are already passed the init phase for this state, then we are good
 			if (currentState > initState)
@@ -930,7 +930,7 @@ namespace EpicGames.UHT.Types
 
 			// Attempt to make myself the resolve thread for this type.  If we aren't the ones
 			// to get the init state, then we have to wait until the thread that did completes
-			currentState = Interlocked.CompareExchange(ref this._resolveState, initState, currentState);
+			currentState = Interlocked.CompareExchange(ref _resolveState, initState, currentState);
 			if (currentState > initState)
 			{
 				return true;
@@ -940,7 +940,7 @@ namespace EpicGames.UHT.Types
 				do
 				{
 					Thread.Yield();
-					currentState = Interlocked.Add(ref this._resolveState, 0);
+					currentState = Interlocked.Add(ref _resolveState, 0);
 				} while (currentState == initState);
 				return true;
 			}
@@ -955,7 +955,7 @@ namespace EpicGames.UHT.Types
 				}
 				finally
 				{
-					Interlocked.Increment(ref this._resolveState);
+					Interlocked.Increment(ref _resolveState);
 				}
 				return result;
 			}
@@ -985,27 +985,27 @@ namespace EpicGames.UHT.Types
 		/// <param name="phase">Resolution phase</param>
 		protected virtual void ResolveChildren(UhtResolvePhase phase)
 		{
-			if (this._children != null)
+			if (_children != null)
 			{
 				if (phase == UhtResolvePhase.InvalidCheck)
 				{
 					int outIndex = 0;
-					for (int index = 0; index < this._children.Count; ++index)
+					for (int index = 0; index < _children.Count; ++index)
 					{
-						UhtType child = this._children[index];
+						UhtType child = _children[index];
 						if (child.Resolve(phase))
 						{
-							this._children[outIndex++] = child;
+							_children[outIndex++] = child;
 						}
 					}
-					if (outIndex < this._children.Count)
+					if (outIndex < _children.Count)
 					{
-						this._children.RemoveRange(outIndex, this._children.Count - outIndex);
+						_children.RemoveRange(outIndex, _children.Count - outIndex);
 					}
 				}
 				else
 				{
-					foreach (UhtType child in this._children)
+					foreach (UhtType child in _children)
 					{
 						child.Resolve(phase);
 					}
@@ -1025,7 +1025,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>The located type of null if not found</returns>
 		public UhtType? FindType(UhtFindOptions options, string name, IUhtMessageSite? messageSite = null, int lineNumber = -1)
 		{
-			return this.Session.FindType(this, options, name, messageSite, lineNumber);
+			return Session.FindType(this, options, name, messageSite, lineNumber);
 		}
 
 		/// <summary>
@@ -1037,7 +1037,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>The located type of null if not found</returns>
 		public UhtType? FindType(UhtFindOptions options, ref UhtToken name, IUhtMessageSite? messageSite = null)
 		{
-			return this.Session.FindType(this, options, ref name, messageSite);
+			return Session.FindType(this, options, ref name, messageSite);
 		}
 
 		/// <summary>
@@ -1050,7 +1050,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>The located type of null if not found</returns>
 		public UhtType? FindType(UhtFindOptions options, UhtTokenList identifiers, IUhtMessageSite? messageSite = null, int lineNumber = -1)
 		{
-			return this.Session.FindType(this, options, identifiers, messageSite, lineNumber);
+			return Session.FindType(this, options, identifiers, messageSite, lineNumber);
 		}
 
 		/// <summary>
@@ -1063,7 +1063,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>The located type of null if not found</returns>
 		public UhtType? FindType(UhtFindOptions options, UhtToken[] identifiers, IUhtMessageSite? messageSite = null, int lineNumber = -1)
 		{
-			return this.Session.FindType(this, options, identifiers, messageSite, lineNumber);
+			return Session.FindType(this, options, identifiers, messageSite, lineNumber);
 		}
 		#endregion
 
@@ -1082,12 +1082,12 @@ namespace EpicGames.UHT.Types
 
 		private void ValidateMetaData()
 		{
-			UhtSpecifierValidatorTable? table = this.SpecifierValidatorTable;
+			UhtSpecifierValidatorTable? table = SpecifierValidatorTable;
 			if (table != null)
 			{
-				if (this.MetaData.Dictionary != null && this.MetaData.Dictionary.Count > 0)
+				if (MetaData.Dictionary != null && MetaData.Dictionary.Count > 0)
 				{
-					foreach (KeyValuePair<UhtMetaDataKey, string> kvp in this.MetaData.Dictionary)
+					foreach (KeyValuePair<UhtMetaDataKey, string> kvp in MetaData.Dictionary)
 					{
 						if (table.TryGetValue(kvp.Key.Name, out UhtSpecifierValidator? specifier))
 						{
@@ -1100,16 +1100,16 @@ namespace EpicGames.UHT.Types
 
 		private void ValidateDocumentationPolicy()
 		{
-			if (UhtDocumentationPolicy.TryGet(this.DocumentationPolicyName, out UhtDocumentationPolicy policy))
+			if (UhtDocumentationPolicy.TryGet(DocumentationPolicyName, out UhtDocumentationPolicy policy))
 			{
 				if (policy.PolicySet)
 				{
-					this.ValidateDocumentationPolicy(policy);
+					ValidateDocumentationPolicy(policy);
 				}
 			}
 			else
 			{
-				this.LogError(this.MetaData.LineNumber, $"Documentation policy '{this.DocumentationPolicyName}' is not known");
+				this.LogError(MetaData.LineNumber, $"Documentation policy '{DocumentationPolicyName}' is not known");
 			}
 		}
 
@@ -1158,7 +1158,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (this != stopOuter)
 			{
-				UhtType? outer = this.Outer;
+				UhtType? outer = Outer;
 				if (outer != null && outer != stopOuter)
 				{
 					outer.AppendPathName(builder, stopOuter);
@@ -1180,7 +1180,7 @@ namespace EpicGames.UHT.Types
 						builder.Append('.');
 					}
 				}
-				builder.Append(this.EngineName);
+				builder.Append(EngineName);
 			}
 		}
 
@@ -1190,7 +1190,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="builder">Destination builder</param>
 		public virtual void AppendFullName(StringBuilder builder)
 		{
-			builder.Append(this.EngineClassName);
+			builder.Append(EngineClassName);
 			builder.Append(' ');
 			AppendPathName(builder);
 		}
@@ -1201,7 +1201,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>The display name for this object.</returns>
 		public string GetDisplayNameText()
 		{
-			if (this.MetaData.TryGetValue(UhtNames.DisplayName, out string? nativeDisplayName))
+			if (MetaData.TryGetValue(UhtNames.DisplayName, out string? nativeDisplayName))
 			{
 				return nativeDisplayName;
 			}
@@ -1219,12 +1219,12 @@ namespace EpicGames.UHT.Types
 			string nativeToolTip = String.Empty;
 			if (shortToolTip)
 			{
-				nativeToolTip = this.MetaData.GetValueOrDefault(UhtNames.ShortToolTip);
+				nativeToolTip = MetaData.GetValueOrDefault(UhtNames.ShortToolTip);
 			}
 
 			if (nativeToolTip.Length == 0)
 			{
-				nativeToolTip = this.MetaData.GetValueOrDefault(UhtNames.ToolTip);
+				nativeToolTip = MetaData.GetValueOrDefault(UhtNames.ToolTip);
 			}
 
 			if (nativeToolTip.Length == 0)
@@ -1243,7 +1243,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>The generated string</returns>
 		protected virtual string GetDisplayStringFromEngineName()
 		{
-			return UhtFCString.NameToDisplayString(this.EngineName, false);
+			return UhtFCString.NameToDisplayString(EngineName, false);
 		}
 		#endregion
 

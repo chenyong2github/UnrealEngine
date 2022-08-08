@@ -50,7 +50,7 @@ namespace EpicGames.UHT.Types
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FMulticastDelegatePropertyParams", "UECodeGen_Private::EPropertyGenFlags::SparseMulticastDelegate");
-			AppendMemberDefRef(builder, context, this.Function, true);
+			AppendMemberDefRef(builder, context, Function, true);
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}

@@ -91,7 +91,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="typeCount">Number of types in the table.</param>
 		public UhtSymbolTable(int typeCount)
 		{
-			this._symbols = new Symbol[typeCount];
+			_symbols = new Symbol[typeCount];
 		}
 
 		/// <summary>
@@ -101,25 +101,25 @@ namespace EpicGames.UHT.Utils
 		/// <param name="name">The name of the type which could be the source name or the engine name</param>
 		public void Add(UhtType type, string name)
 		{
-			if (this._casedDictionary.TryGetValue(name, out Lookup existing))
+			if (_casedDictionary.TryGetValue(name, out Lookup existing))
 			{
 				AddExisting(type, existing.CasedIndex, existing.SymbolIndex);
 				return;
 			}
 
-			int casedIndex = ++this._casedCount;
+			int casedIndex = ++_casedCount;
 
-			if (this._caselessDictionary.TryGetValue(name, out int symbolIndex))
+			if (_caselessDictionary.TryGetValue(name, out int symbolIndex))
 			{
-				this._casedDictionary.Add(name, new Lookup { SymbolIndex = symbolIndex, CasedIndex = casedIndex });
+				_casedDictionary.Add(name, new Lookup { SymbolIndex = symbolIndex, CasedIndex = casedIndex });
 				AddExisting(type, casedIndex, symbolIndex);
 				return;
 			}
 
 			symbolIndex = type.TypeIndex;
-			this._symbols[symbolIndex] = new Symbol { Type = type, MatchOptions = type.EngineType.FindOptions(), CasedIndex = casedIndex, NextIndex = 0, LastIndex = symbolIndex };
-			this._caselessDictionary.Add(name, symbolIndex);
-			this._casedDictionary.Add(name, new Lookup { SymbolIndex = symbolIndex, CasedIndex = casedIndex });
+			_symbols[symbolIndex] = new Symbol { Type = type, MatchOptions = type.EngineType.FindOptions(), CasedIndex = casedIndex, NextIndex = 0, LastIndex = symbolIndex };
+			_caselessDictionary.Add(name, symbolIndex);
+			_casedDictionary.Add(name, new Lookup { SymbolIndex = symbolIndex, CasedIndex = casedIndex });
 		}
 
 		/// <summary>
@@ -133,13 +133,13 @@ namespace EpicGames.UHT.Utils
 		/// <exception cref="UhtIceException">Thrown if the symbol wasn't found.</exception>
 		public void Replace(UhtType oldType, UhtType newType, string name)
 		{
-			if (this._caselessDictionary.TryGetValue(name, out int symbolIndex))
+			if (_caselessDictionary.TryGetValue(name, out int symbolIndex))
 			{
-				for (; symbolIndex != 0; symbolIndex = this._symbols[symbolIndex].NextIndex)
+				for (; symbolIndex != 0; symbolIndex = _symbols[symbolIndex].NextIndex)
 				{
-					if (this._symbols[symbolIndex].Type == oldType)
+					if (_symbols[symbolIndex].Type == oldType)
 					{
-						this._symbols[symbolIndex].Type = newType;
+						_symbols[symbolIndex].Type = newType;
 						return;
 					}
 				}
@@ -156,7 +156,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Found type or null if not found.</returns>
 		public UhtType? FindCasedType(UhtType? startingType, UhtFindOptions options, string name)
 		{
-			if (this._casedDictionary.TryGetValue(name, out Lookup existing))
+			if (_casedDictionary.TryGetValue(name, out Lookup existing))
 			{
 				return FindType(startingType, options, existing);
 			}
@@ -172,7 +172,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Found type or null if not found.</returns>
 		public UhtType? FindCaselessType(UhtType? startingType, UhtFindOptions options, string name)
 		{
-			if (this._caselessDictionary.TryGetValue(name, out int symbolIndex))
+			if (_caselessDictionary.TryGetValue(name, out int symbolIndex))
 			{
 				return FindType(startingType, options, new Lookup { SymbolIndex = symbolIndex, CasedIndex = 0 });
 			}
@@ -207,7 +207,7 @@ namespace EpicGames.UHT.Utils
 					UhtHeaderFile headerFile = startingType.HeaderFile;
 					foreach (UhtHeaderFile includedFile in headerFile.IncludedHeaders)
 					{
-						found = this.FindSymbolChain(includedFile, options, ref lookup);
+						found = FindSymbolChain(includedFile, options, ref lookup);
 						if (found != null)
 						{
 							break;
@@ -223,11 +223,11 @@ namespace EpicGames.UHT.Utils
 			// Global search.  Match anything that has an owner of parent
 			if (!options.HasAnyFlags(UhtFindOptions.NoGlobal))
 			{
-				for (int index = lookup.SymbolIndex; index != 0; index = this._symbols[index].NextIndex)
+				for (int index = lookup.SymbolIndex; index != 0; index = _symbols[index].NextIndex)
 				{
-					if (IsMatch(options, index, lookup.CasedIndex) && this._symbols[index].Type.Outer is UhtHeaderFile)
+					if (IsMatch(options, index, lookup.CasedIndex) && _symbols[index].Type.Outer is UhtHeaderFile)
 					{
-						return this._symbols[index].Type;
+						return _symbols[index].Type;
 					}
 				}
 			}
@@ -330,11 +330,11 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Found type or null if not found.</returns>
 		private UhtType? FindSymbolChain(UhtType owner, UhtFindOptions options, ref Lookup lookup)
 		{
-			for (int index = lookup.SymbolIndex; index != 0; index = this._symbols[index].NextIndex)
+			for (int index = lookup.SymbolIndex; index != 0; index = _symbols[index].NextIndex)
 			{
-				if (IsMatch(options, index, lookup.CasedIndex) && this._symbols[index].Type.Outer == owner)
+				if (IsMatch(options, index, lookup.CasedIndex) && _symbols[index].Type.Outer == owner)
 				{
-					return this._symbols[index].Type;
+					return _symbols[index].Type;
 				}
 			}
 			return null;
@@ -349,9 +349,9 @@ namespace EpicGames.UHT.Utils
 		private void AddExisting(UhtType type, int casedIndex, int symbolIndex)
 		{
 			int typeIndex = type.TypeIndex;
-			this._symbols[typeIndex] = new Symbol { Type = type, MatchOptions = type.EngineType.FindOptions(), CasedIndex = casedIndex, NextIndex = 0, LastIndex = 0 };
-			this._symbols[this._symbols[symbolIndex].LastIndex].NextIndex = typeIndex;
-			this._symbols[symbolIndex].LastIndex = typeIndex;
+			_symbols[typeIndex] = new Symbol { Type = type, MatchOptions = type.EngineType.FindOptions(), CasedIndex = casedIndex, NextIndex = 0, LastIndex = 0 };
+			_symbols[_symbols[symbolIndex].LastIndex].NextIndex = typeIndex;
+			_symbols[symbolIndex].LastIndex = typeIndex;
 		}
 
 		/// <summary>
@@ -363,9 +363,9 @@ namespace EpicGames.UHT.Utils
 		/// <returns>True if the symbol is a match</returns>
 		private bool IsMatch(UhtFindOptions options, int symbolIndex, int casedIndex)
 		{
-			return (casedIndex == 0 || casedIndex == this._symbols[symbolIndex].CasedIndex) &&
-				this._symbols[symbolIndex].Type.VisibleType &&
-				(this._symbols[symbolIndex].MatchOptions & options) != 0;
+			return (casedIndex == 0 || casedIndex == _symbols[symbolIndex].CasedIndex) &&
+				_symbols[symbolIndex].Type.VisibleType &&
+				(_symbols[symbolIndex].MatchOptions & options) != 0;
 		}
 	}
 }

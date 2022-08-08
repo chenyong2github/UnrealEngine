@@ -111,13 +111,13 @@ namespace EpicGames.UHT.Types
 		/// Contents of the header
 		/// </summary>
 		[JsonIgnore]
-		public StringView Data => this._sourceFile.Data;
+		public StringView Data => _sourceFile.Data;
 
 		/// <summary>
 		/// Path of the header
 		/// </summary>
 		[JsonIgnore]
-		public string FilePath => this._sourceFile.FilePath;
+		public string FilePath => _sourceFile.FilePath;
 
 		/// <summary>
 		/// File name without the extension
@@ -164,7 +164,7 @@ namespace EpicGames.UHT.Types
 		/// If true, the header file should be exported
 		/// </summary>
 		[JsonIgnore]
-		public bool ShouldExport => this.HeaderFileExportFlags.HasAnyFlags(UhtHeaderFileExportFlags.Referenced) || this.Children.Count > 0;
+		public bool ShouldExport => HeaderFileExportFlags.HasAnyFlags(UhtHeaderFileExportFlags.Referenced) || Children.Count > 0;
 
 		/// <summary>
 		/// Resource collector for the header file
@@ -178,11 +178,11 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				if (this.Outer == null)
+				if (Outer == null)
 				{
 					throw new UhtIceException("Attempt to fetch header file package but it has no outer");
 				}
-				return (UhtPackage)this.Outer;
+				return (UhtPackage)Outer;
 			}
 		}
 
@@ -207,11 +207,11 @@ namespace EpicGames.UHT.Types
 
 		/// <inheritdoc/>
 		[JsonIgnore]
-		public override IUhtMessageSession MessageSession => this._messageSite.MessageSession;
+		public override IUhtMessageSession MessageSession => _messageSite.MessageSession;
 
 		/// <inheritdoc/>
 		[JsonIgnore]
-		public override IUhtMessageSource? MessageSource => this._messageSite.MessageSource;
+		public override IUhtMessageSource? MessageSource => _messageSite.MessageSource;
 		#endregion
 
 		/// <summary>
@@ -221,14 +221,14 @@ namespace EpicGames.UHT.Types
 		/// <param name="path">Path to the header file</param>
 		public UhtHeaderFile(UhtPackage package, string path) : base(package, 1)
 		{
-			this.HeaderFileTypeIndex = this.Session.GetNextHeaderFileTypeIndex();
-			this._messageSite = new UhtSimpleMessageSite(this.Session);
-			this._sourceFile = new UhtSourceFile(this.Session, path);
-			this._messageSite.MessageSource = this._sourceFile;
-			this.FileNameWithoutExtension = System.IO.Path.GetFileNameWithoutExtension(this._sourceFile.FilePath);
-			this.GeneratedHeaderFileName = this.FileNameWithoutExtension + ".generated.h";
-			this.SourceName = System.IO.Path.GetFileName(this._sourceFile.FilePath);
-			this.IsNoExportTypes = String.Equals(this._sourceFile.FileName, "NoExportTypes", StringComparison.OrdinalIgnoreCase);
+			HeaderFileTypeIndex = Session.GetNextHeaderFileTypeIndex();
+			_messageSite = new UhtSimpleMessageSite(Session);
+			_sourceFile = new UhtSourceFile(Session, path);
+			_messageSite.MessageSource = _sourceFile;
+			FileNameWithoutExtension = System.IO.Path.GetFileNameWithoutExtension(_sourceFile.FilePath);
+			GeneratedHeaderFileName = FileNameWithoutExtension + ".generated.h";
+			SourceName = System.IO.Path.GetFileName(_sourceFile.FilePath);
+			IsNoExportTypes = String.Equals(_sourceFile.FileName, "NoExportTypes", StringComparison.OrdinalIgnoreCase);
 		}
 
 		/// <summary>
@@ -236,7 +236,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		public void Read()
 		{
-			this._sourceFile.Read();
+			_sourceFile.Read();
 		}
 
 		/// <summary>
@@ -246,7 +246,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="isIncludedFile">True if this is a directly included file</param>
 		public void AddReferencedHeader(string id, bool isIncludedFile)
 		{
-			UhtHeaderFile? headerFile = this.Session.FindHeaderFile(Path.GetFileName(id));
+			UhtHeaderFile? headerFile = Session.FindHeaderFile(Path.GetFileName(id));
 			if (headerFile != null)
 			{
 				AddReferencedHeader(headerFile, isIncludedFile);
@@ -269,10 +269,10 @@ namespace EpicGames.UHT.Types
 		/// <param name="isIncludedFile">True if this is a directly included file</param>
 		public void AddReferencedHeader(UhtHeaderFile headerFile, bool isIncludedFile)
 		{
-			lock (this._referencedHeaders)
+			lock (_referencedHeaders)
 			{
 				// Check for a duplicate
-				foreach (UhtHeaderFile reference in this._referencedHeaders)
+				foreach (UhtHeaderFile reference in _referencedHeaders)
 				{
 					if (reference == headerFile)
 					{
@@ -282,14 +282,14 @@ namespace EpicGames.UHT.Types
 
 				// There is questionable compatibility hack where a source file will always be exported
 				// regardless of having types when it is being included by the SAME package.
-				if (headerFile.Package == this.Package)
+				if (headerFile.Package == Package)
 				{
 					headerFile.HeaderFileExportFlags |= UhtHeaderFileExportFlags.Referenced;
 				}
-				this._referencedHeaders.Add(headerFile);
+				_referencedHeaders.Add(headerFile);
 				if (isIncludedFile)
 				{
-					this.IncludedHeaders.Add(headerFile);
+					IncludedHeaders.Add(headerFile);
 				}
 			}
 		}
@@ -298,7 +298,7 @@ namespace EpicGames.UHT.Types
 		/// Return an enumerator without locking.  This method can only be utilized AFTER all header parsing is complete. 
 		/// </summary>
 		[JsonIgnore]
-		public IEnumerable<UhtHeaderFile> ReferencedHeadersNoLock => this._referencedHeaders;
+		public IEnumerable<UhtHeaderFile> ReferencedHeadersNoLock => _referencedHeaders;
 
 		/// <summary>
 		/// Return an enumerator of all current referenced headers under a lock.  This should be used during parsing.
@@ -308,9 +308,9 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				lock (this._referencedHeaders)
+				lock (_referencedHeaders)
 				{
-					foreach (UhtHeaderFile reference in this._referencedHeaders)
+					foreach (UhtHeaderFile reference in _referencedHeaders)
 					{
 						yield return reference;
 					}
@@ -322,9 +322,9 @@ namespace EpicGames.UHT.Types
 		public override void AppendPathName(StringBuilder builder, UhtType? stopOuter = null)
 		{
 			// Headers do not contribute to path names
-			if (this != stopOuter && this.Outer != null)
+			if (this != stopOuter && Outer != null)
 			{
-				this.Outer.AppendPathName(builder, stopOuter);
+				Outer.AppendPathName(builder, stopOuter);
 			}
 		}
 
@@ -335,7 +335,7 @@ namespace EpicGames.UHT.Types
 
 			Dictionary<int, UhtFunction> usedRPCIds = new();
 			Dictionary<int, UhtFunction> rpcsNeedingHookup = new();
-			foreach (UhtType type in this.Children)
+			foreach (UhtType type in Children)
 			{
 				if (type is UhtClass classObj)
 				{

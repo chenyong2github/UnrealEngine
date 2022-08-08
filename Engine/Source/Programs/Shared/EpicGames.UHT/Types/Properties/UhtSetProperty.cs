@@ -38,17 +38,17 @@ namespace EpicGames.UHT.Types
 		public UhtSetProperty(UhtPropertySettings propertySettings, UhtProperty value) : base(propertySettings, value)
 		{
 			// If the creation of the value property set more flags, then copy those flags to ourselves
-			this.PropertyFlags |= value.PropertyFlags & EPropertyFlags.UObjectWrapper;
+			PropertyFlags |= value.PropertyFlags & EPropertyFlags.UObjectWrapper;
 
-			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef;
-			this.PropertyCaps &= ~(UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey);
-			this.PropertyCaps = (this.PropertyCaps & ~(UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn)) |
-				(this.ValueProperty.PropertyCaps & (UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn));
-			this.ValueProperty.SourceName = this.SourceName;
-			this.ValueProperty.EngineName = this.EngineName;
-			this.ValueProperty.PropertyFlags = this.PropertyFlags & EPropertyFlags.PropagateToSetElement;
-			this.ValueProperty.Outer = this;
-			this.ValueProperty.MetaData.Clear();
+			PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef;
+			PropertyCaps &= ~(UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey);
+			PropertyCaps = (PropertyCaps & ~(UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn)) |
+				(ValueProperty.PropertyCaps & (UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn));
+			ValueProperty.SourceName = SourceName;
+			ValueProperty.EngineName = EngineName;
+			ValueProperty.PropertyFlags = PropertyFlags & EPropertyFlags.PropagateToSetElement;
+			ValueProperty.Outer = this;
+			ValueProperty.MetaData.Clear();
 		}
 
 		/// <inheritdoc/>
@@ -58,11 +58,11 @@ namespace EpicGames.UHT.Types
 			switch (phase)
 			{
 				case UhtResolvePhase.Final:
-					this.PropertyFlags |= ResolveAndReturnNewFlags(this.ValueProperty, phase);
-					this.MetaData.Add(this.ValueProperty.MetaData);
-					this.ValueProperty.MetaData.Clear();
-					this.ValueProperty.PropertyFlags = this.PropertyFlags & EPropertyFlags.PropagateToSetElement;
-					PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(this, this.MetaData, this.ValueProperty);
+					PropertyFlags |= ResolveAndReturnNewFlags(ValueProperty, phase);
+					MetaData.Add(ValueProperty.MetaData);
+					ValueProperty.MetaData.Clear();
+					ValueProperty.PropertyFlags = PropertyFlags & EPropertyFlags.PropagateToSetElement;
+					PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(this, MetaData, ValueProperty);
 					break;
 			}
 			return results;
@@ -71,19 +71,19 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			this.ValueProperty.CollectReferencesInternal(collector, true);
+			ValueProperty.CollectReferencesInternal(collector, true);
 		}
 
 		/// <inheritdoc/>
 		public override string? GetForwardDeclarations()
 		{
-			return this.ValueProperty.GetForwardDeclarations();
+			return ValueProperty.GetForwardDeclarations();
 		}
 
 		/// <inheritdoc/>
 		public override IEnumerable<UhtType> EnumerateReferencedTypes()
 		{
-			foreach (UhtType type in this.ValueProperty.EnumerateReferencedTypes())
+			foreach (UhtType type in ValueProperty.EnumerateReferencedTypes())
 			{
 				yield return type;
 			}
@@ -99,11 +99,11 @@ namespace EpicGames.UHT.Types
 					break;
 
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
-					builder.AppendFunctionThunkParameterArrayType(this.ValueProperty);
+					builder.AppendFunctionThunkParameterArrayType(ValueProperty);
 					break;
 
 				default:
-					builder.Append("TSet<").AppendPropertyText(this.ValueProperty, textType, true);
+					builder.Append("TSet<").AppendPropertyText(ValueProperty, textType, true);
 					if (builder[^1] == '>')
 					{
 						// if our internal property type is a template class, add a space between the closing brackets b/c VS.NET cannot parse this correctly
@@ -118,17 +118,17 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			builder.AppendMemberDecl(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_ElementProp"), tabs);
+			builder.AppendMemberDecl(ValueProperty, context, name, GetNameSuffix(nameSuffix, "_ElementProp"), tabs);
 			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FSetPropertyParams");
 		}
 
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			builder.AppendMemberDef(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_ElementProp"), "0", tabs);
+			builder.AppendMemberDef(ValueProperty, context, name, GetNameSuffix(nameSuffix, "_ElementProp"), "0", tabs);
 			builder.AppendMetaDataDef(this, context, name, nameSuffix, tabs);
 
-			if (this.ValueProperty is UhtStructProperty structProperty)
+			if (ValueProperty is UhtStructProperty structProperty)
 			{
 				builder
 					.AppendTabs(tabs)
@@ -147,7 +147,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberPtr(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			builder.AppendMemberPtr(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_ElementProp"), tabs);
+			builder.AppendMemberPtr(ValueProperty, context, name, GetNameSuffix(nameSuffix, "_ElementProp"), tabs);
 			base.AppendMemberPtr(builder, context, name, nameSuffix, tabs);
 			return builder;
 		}
@@ -155,7 +155,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override void AppendObjectHashes(StringBuilder builder, int startingLength, IUhtPropertyMemberContext context)
 		{
-			this.ValueProperty.AppendObjectHashes(builder, startingLength, context);
+			ValueProperty.AppendObjectHashes(builder, startingLength, context);
 		}
 
 		/// <inheritdoc/>
@@ -176,7 +176,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (other is UhtSetProperty otherSet)
 			{
-				return this.ValueProperty.IsSameType(otherSet.ValueProperty);
+				return ValueProperty.IsSameType(otherSet.ValueProperty);
 			}
 			return false;
 		}
@@ -184,9 +184,9 @@ namespace EpicGames.UHT.Types
 		///<inheritdoc/>
 		public override bool ValidateStructPropertyOkForNet(UhtProperty referencingProperty)
 		{
-			if (!this.PropertyFlags.HasAnyFlags(EPropertyFlags.RepSkip))
+			if (!PropertyFlags.HasAnyFlags(EPropertyFlags.RepSkip))
 			{
-				referencingProperty.LogError($"Sets are not supported for Replication or RPCs.  Set '{this.SourceName}' in '{this.Outer?.SourceName}'.  Origin '{referencingProperty.SourceName}'");
+				referencingProperty.LogError($"Sets are not supported for Replication or RPCs.  Set '{SourceName}' in '{Outer?.SourceName}'.  Origin '{referencingProperty.SourceName}'");
 				return false;
 			}
 			return true;

@@ -165,11 +165,11 @@ namespace EpicGames.UHT.Tables
 		{
 			get
 			{
-				if (this._default == null)
+				if (_default == null)
 				{
 					throw new UhtIceException("No property type has been marked as default");
 				}
-				return (UhtPropertyType)this._default;
+				return (UhtPropertyType)_default;
 			}
 		}
 
@@ -182,8 +182,8 @@ namespace EpicGames.UHT.Tables
 		public bool TryGet(StringView name, out UhtPropertyType propertyType)
 		{
 			return
-				this._caseSensitive.TryGetValue(name, out propertyType) ||
-				this._caseInsensitive.TryGetValue(name, out propertyType);
+				_caseSensitive.TryGetValue(name, out propertyType) ||
+				_caseInsensitive.TryGetValue(name, out propertyType);
 		}
 
 		/// <summary>
@@ -207,21 +207,21 @@ namespace EpicGames.UHT.Tables
 
 			if (propertyTypeAttribute.Options.HasAnyFlags(UhtPropertyTypeOptions.Default))
 			{
-				if (this._default != null)
+				if (_default != null)
 				{
 					throw new UhtIceException("Only one property type dispatcher can be marked as default");
 				}
-				this._default = propertyType;
+				_default = propertyType;
 			}
 			else if (!String.IsNullOrEmpty(propertyTypeAttribute.Keyword))
 			{
 				if (propertyTypeAttribute.Options.HasAnyFlags(UhtPropertyTypeOptions.CaseInsensitive))
 				{
-					this._caseInsensitive.Add(propertyTypeAttribute.Keyword, propertyType);
+					_caseInsensitive.Add(propertyTypeAttribute.Keyword, propertyType);
 				}
 				else
 				{
-					this._caseSensitive.Add(propertyTypeAttribute.Keyword, propertyType);
+					_caseSensitive.Add(propertyTypeAttribute.Keyword, propertyType);
 				}
 			}
 		}

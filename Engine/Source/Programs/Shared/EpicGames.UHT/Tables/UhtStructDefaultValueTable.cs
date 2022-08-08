@@ -126,11 +126,11 @@ namespace EpicGames.UHT.Tables
 		{
 			get
 			{
-				if (this._default == null)
+				if (_default == null)
 				{
 					throw new UhtIceException("No struct default value has been marked as default");
 				}
-				return (UhtStructDefaultValue)this._default;
+				return (UhtStructDefaultValue)_default;
 			}
 		}
 
@@ -142,7 +142,7 @@ namespace EpicGames.UHT.Tables
 		/// <returns></returns>
 		public bool TryGet(StringView name, out UhtStructDefaultValue structDefaultValue)
 		{
-			return this._structDefaultValues.TryGetValue(name, out structDefaultValue);
+			return _structDefaultValues.TryGetValue(name, out structDefaultValue);
 		}
 
 		/// <summary>
@@ -165,15 +165,15 @@ namespace EpicGames.UHT.Tables
 
 			if (structDefaultValueAttribute.Options.HasAnyFlags(UhtStructDefaultValueOptions.Default))
 			{
-				if (this._default != null)
+				if (_default != null)
 				{
 					throw new UhtIceException("Only one struct default value attribute dispatcher can be marked as default");
 				}
-				this._default = structDefaultValue;
+				_default = structDefaultValue;
 			}
 			else if (!String.IsNullOrEmpty(structDefaultValueAttribute.Name))
 			{
-				this._structDefaultValues.Add(new StringView(structDefaultValueAttribute.Name), structDefaultValue);
+				_structDefaultValues.Add(new StringView(structDefaultValueAttribute.Name), structDefaultValue);
 			}
 		}
 	}

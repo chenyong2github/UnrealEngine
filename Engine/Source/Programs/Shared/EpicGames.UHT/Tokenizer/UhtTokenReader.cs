@@ -270,7 +270,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns></returns>
 		public void Join(StringBuilder builder, string seperator = "")
 		{
-			builder.Append(this.Token.Value.ToString());
+			builder.Append(Token.Value.ToString());
 			UhtTokenList list = this;
 			while (list.Next != null)
 			{
@@ -287,9 +287,9 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns></returns>
 		public string Join(string seperator = "")
 		{
-			if (this.Next == null)
+			if (Next == null)
 			{
-				return this.Token.Value.ToString();
+				return Token.Value.ToString();
 			}
 			StringBuilder builder = new();
 			Join(builder, seperator);
@@ -308,7 +308,7 @@ namespace EpicGames.UHT.Tokenizer
 				++count;
 			}
 			UhtToken[] outTokens = new UhtToken[count];
-			outTokens[0] = this.Token;
+			outTokens[0] = Token;
 			count = 1;
 			for (UhtTokenList temp = this; temp.Next != null; temp = temp.Next)
 			{
@@ -417,8 +417,8 @@ namespace EpicGames.UHT.Tokenizer
 		/// <param name="tokenReader">Token reader to disable</param>
 		public UhtTokenDisableComments(IUhtTokenReader tokenReader)
 		{
-			this._tokenReader = tokenReader;
-			this._tokenReader.DisableComments();
+			_tokenReader = tokenReader;
+			_tokenReader.DisableComments();
 		}
 
 		/// <summary>
@@ -426,7 +426,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// </summary>
 		public void Dispose()
 		{
-			this._tokenReader.EnableComments();
+			_tokenReader.EnableComments();
 		}
 	}
 
@@ -444,9 +444,9 @@ namespace EpicGames.UHT.Tokenizer
 		/// <param name="tokenReader">Token reader</param>
 		public UhtTokenSaveState(IUhtTokenReader tokenReader)
 		{
-			this._tokenReader = tokenReader;
-			this._handled = false;
-			this._tokenReader.SaveState();
+			_tokenReader = tokenReader;
+			_handled = false;
+			_tokenReader.SaveState();
 		}
 
 		/// <summary>
@@ -454,7 +454,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// </summary>
 		public void Dispose()
 		{
-			if (!this._handled)
+			if (!_handled)
 			{
 				RestoreState();
 			}
@@ -466,12 +466,12 @@ namespace EpicGames.UHT.Tokenizer
 		/// <exception cref="UhtIceException">Thrown if state has already been restored or aborted</exception>
 		public void RestoreState()
 		{
-			if (this._handled)
+			if (_handled)
 			{
 				throw new UhtIceException("Can not call RestoreState/AbandonState more than once");
 			}
-			this._tokenReader.RestoreState();
-			this._handled = true;
+			_tokenReader.RestoreState();
+			_handled = true;
 		}
 
 		/// <summary>
@@ -480,12 +480,12 @@ namespace EpicGames.UHT.Tokenizer
 		/// <exception cref="UhtIceException">Thrown if state has already been restored or aborted</exception>
 		public void AbandonState()
 		{
-			if (this._handled)
+			if (_handled)
 			{
 				throw new UhtIceException("Can not call RestoreState/AbandonState more than once");
 			}
-			this._tokenReader.AbandonState();
-			this._handled = true;
+			_tokenReader.AbandonState();
+			_handled = true;
 		}
 	}
 }

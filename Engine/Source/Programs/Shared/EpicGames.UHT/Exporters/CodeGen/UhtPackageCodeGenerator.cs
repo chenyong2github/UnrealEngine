@@ -25,19 +25,19 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		public readonly UhtCodeGenerator CodeGenerator;
 		public readonly UhtPackage Package;
-		public bool SaveExportedHeaders => this.Package.Module.SaveExportedHeaders;
+		public bool SaveExportedHeaders => Package.Module.SaveExportedHeaders;
 
-		public Utils.UhtSession Session => this.CodeGenerator.Session;
-		public UhtCodeGenerator.PackageInfo[] PackageInfos => this.CodeGenerator.PackageInfos;
-		public UhtCodeGenerator.HeaderInfo[] HeaderInfos => this.CodeGenerator.HeaderInfos;
-		public UhtCodeGenerator.ObjectInfo[] ObjectInfos => this.CodeGenerator.ObjectInfos;
-		public string PackageApi => this.PackageInfos[this.Package.PackageTypeIndex].Api;
-		public string PackageSingletonName => this.ObjectInfos[this.Package.ObjectTypeIndex].RegisteredSingletonName;
+		public Utils.UhtSession Session => CodeGenerator.Session;
+		public UhtCodeGenerator.PackageInfo[] PackageInfos => CodeGenerator.PackageInfos;
+		public UhtCodeGenerator.HeaderInfo[] HeaderInfos => CodeGenerator.HeaderInfos;
+		public UhtCodeGenerator.ObjectInfo[] ObjectInfos => CodeGenerator.ObjectInfos;
+		public string PackageApi => PackageInfos[Package.PackageTypeIndex].Api;
+		public string PackageSingletonName => ObjectInfos[Package.ObjectTypeIndex].RegisteredSingletonName;
 
 		public UhtPackageCodeGenerator(UhtCodeGenerator codeGenerator, UhtPackage package)
 		{
-			this.CodeGenerator = codeGenerator;
-			this.Package = package;
+			CodeGenerator = codeGenerator;
+			Package = package;
 		}
 
 		#region Utility functions
@@ -50,7 +50,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <returns>Singleton name of "nullptr" if Object is null</returns>
 		public string GetSingletonName(UhtObject? obj, bool registered)
 		{
-			return this.CodeGenerator.GetSingletonName(obj, registered);
+			return CodeGenerator.GetSingletonName(obj, registered);
 		}
 
 		/// <summary>
@@ -61,7 +61,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <returns>External declaration</returns>
 		public string GetExternalDecl(UhtObject obj, bool registered)
 		{
-			return this.CodeGenerator.GetExternalDecl(obj, registered);
+			return CodeGenerator.GetExternalDecl(obj, registered);
 		}
 
 		/// <summary>
@@ -72,7 +72,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <returns>External declaration</returns>
 		public string GetExternalDecl(int objectIndex, bool registered)
 		{
-			return this.CodeGenerator.GetExternalDecl(objectIndex, registered);
+			return CodeGenerator.GetExternalDecl(objectIndex, registered);
 		}
 
 		/// <summary>
@@ -83,7 +83,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <returns>Cross reference</returns>
 		public string GetCrossReference(UhtObject obj, bool registered)
 		{
-			return this.CodeGenerator.GetCrossReference(obj, registered);
+			return CodeGenerator.GetCrossReference(obj, registered);
 		}
 
 		/// <summary>
@@ -94,7 +94,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <returns>Cross reference</returns>
 		public string GetCrossReference(int objectIndex, bool registered)
 		{
-			return this.CodeGenerator.GetCrossReference(objectIndex, registered);
+			return CodeGenerator.GetCrossReference(objectIndex, registered);
 		}
 
 		/// <summary>

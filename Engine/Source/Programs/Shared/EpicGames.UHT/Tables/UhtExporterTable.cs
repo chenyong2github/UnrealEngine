@@ -171,14 +171,14 @@ namespace EpicGames.UHT.Tables
 		/// <param name="exporterDelegate">Delegate to invoke</param>
 		public UhtExporter(UhtExporterAttribute attribute, UhtExporterDelegate exporterDelegate)
 		{
-			this.Name = attribute.Name;
-			this.Description = attribute.Description;
-			this.ModuleName = attribute.ModuleName;
-			this.Options = attribute.Options;
-			this.Delegate = exporterDelegate;
-			this.CppFilters = attribute.CppFilters != null ? new List<string>(attribute.CppFilters) : new List<string>();
-			this.HeaderFilters = attribute.HeaderFilters != null ? new List<string>(attribute.HeaderFilters) : new List<string>();
-			this.OtherFilters = attribute.OtherFilters != null ? new List<string>(attribute.OtherFilters) : new List<string>();
+			Name = attribute.Name;
+			Description = attribute.Description;
+			ModuleName = attribute.ModuleName;
+			Options = attribute.Options;
+			Delegate = exporterDelegate;
+			CppFilters = attribute.CppFilters != null ? new List<string>(attribute.CppFilters) : new List<string>();
+			HeaderFilters = attribute.HeaderFilters != null ? new List<string>(attribute.HeaderFilters) : new List<string>();
+			OtherFilters = attribute.OtherFilters != null ? new List<string>(attribute.OtherFilters) : new List<string>();
 		}
 	}
 
@@ -198,7 +198,7 @@ namespace EpicGames.UHT.Tables
 		/// <returns></returns>
 		public bool TryGet(string name, out UhtExporter value)
 		{
-			return this._exporterValues.TryGetValue(name, out value);
+			return _exporterValues.TryGetValue(name, out value);
 		}
 
 		/// <summary>
@@ -224,7 +224,7 @@ namespace EpicGames.UHT.Tables
 			}
 
 			UhtExporter exporterValue = new(exporterAttribute, (UhtExporterDelegate)Delegate.CreateDelegate(typeof(UhtExporterDelegate), methodInfo));
-			this._exporterValues.Add(exporterAttribute.Name, exporterValue);
+			_exporterValues.Add(exporterAttribute.Name, exporterValue);
 		}
 
 		/// <summary>
@@ -233,7 +233,7 @@ namespace EpicGames.UHT.Tables
 		/// <returns>Enumerator</returns>
 		public IEnumerator<UhtExporter> GetEnumerator()
 		{
-			foreach (KeyValuePair<string, UhtExporter> kvp in this._exporterValues)
+			foreach (KeyValuePair<string, UhtExporter> kvp in _exporterValues)
 			{
 				yield return kvp.Value;
 			}
@@ -245,7 +245,7 @@ namespace EpicGames.UHT.Tables
 		/// <returns>Enumerator</returns>
 		IEnumerator IEnumerable.GetEnumerator()
 		{
-			foreach (KeyValuePair<string, UhtExporter> kvp in this._exporterValues)
+			foreach (KeyValuePair<string, UhtExporter> kvp in _exporterValues)
 			{
 				yield return kvp.Value;
 			}

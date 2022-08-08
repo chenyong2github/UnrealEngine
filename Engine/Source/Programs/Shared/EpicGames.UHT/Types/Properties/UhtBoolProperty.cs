@@ -57,7 +57,7 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				switch (this.BoolType)
+				switch (BoolType)
 				{
 					case UhtBoolType.Native:
 						return "bool";
@@ -80,7 +80,7 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				switch (this.BoolType)
+				switch (BoolType)
 				{
 					case UhtBoolType.Native:
 						return "UBOOL";
@@ -101,7 +101,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// If true, the boolean is a native bool and not a UBOOL
 		/// </summary>
-		protected bool IsNativeBool => this.BoolType == UhtBoolType.Native;
+		protected bool IsNativeBool => BoolType == UhtBoolType.Native;
 
 		/// <summary>
 		/// Type of the boolean
@@ -115,13 +115,13 @@ namespace EpicGames.UHT.Types
 		/// <param name="boolType">Type of the boolean</param>
 		public UhtBoolProperty(UhtPropertySettings propertySettings, UhtBoolType boolType) : base(propertySettings)
 		{
-			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.IsParameterSupportedByBlueprint |
+			PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.IsParameterSupportedByBlueprint |
 				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
 			if (boolType == UhtBoolType.Native || boolType == UhtBoolType.UInt8)
 			{
-				this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn;
+				PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn;
 			}
-			this.BoolType = boolType;
+			BoolType = boolType;
 		}
 
 		/// <inheritdoc/>
@@ -136,7 +136,7 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.RigVMType:
 				case UhtPropertyTextType.ExportMember:
 				case UhtPropertyTextType.GenericFunctionArgOrRetVal:
-					builder.Append(this.CppTypeText);
+					builder.Append(CppTypeText);
 					break;
 
 				case UhtPropertyTextType.Sparse:
@@ -158,7 +158,7 @@ namespace EpicGames.UHT.Types
 		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
 			builder.AppendMetaDataDecl(this, context, name, nameSuffix, tabs);
-			if (this.Outer is not UhtProperty)
+			if (Outer is not UhtProperty)
 			{
 				builder.AppendTabs(tabs).Append("static void ").AppendNameDecl(context, name, nameSuffix).Append("_SetBit(void* Obj);\r\n");
 			}
@@ -170,11 +170,11 @@ namespace EpicGames.UHT.Types
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
 			builder.AppendMetaDataDef(this, context, name, nameSuffix, tabs);
-			if (this.Outer == context.OuterStruct)
+			if (Outer == context.OuterStruct)
 			{
 				builder.AppendTabs(tabs).Append("void ").AppendNameDef(context, name, nameSuffix).Append("_SetBit(void* Obj)\r\n");
 				builder.AppendTabs(tabs).Append("{\r\n");
-				builder.AppendTabs(tabs + 1).Append("((").Append(context.OuterStructSourceName).Append("*)Obj)->").Append(this.SourceName).Append(" = 1;\r\n");
+				builder.AppendTabs(tabs + 1).Append("((").Append(context.OuterStructSourceName).Append("*)Obj)->").Append(SourceName).Append(" = 1;\r\n");
 				builder.AppendTabs(tabs).Append("}\r\n");
 			}
 
@@ -184,9 +184,9 @@ namespace EpicGames.UHT.Types
 				"UECodeGen_Private::EPropertyGenFlags::Bool ",
 				false, false);
 
-			builder.Append("sizeof(").Append(this.CppTypeText).Append("), ");
+			builder.Append("sizeof(").Append(CppTypeText).Append("), ");
 
-			if (this.Outer == context.OuterStruct)
+			if (Outer == context.OuterStruct)
 			{
 				builder
 					.Append("sizeof(").Append(context.OuterStructSourceName).Append("), ")
@@ -207,7 +207,7 @@ namespace EpicGames.UHT.Types
 			AppendText(builder, textType);
 
 			//@todo we currently can't have out bools.. so this isn't really necessary, but eventually out bools may be supported, so leave here for now
-			if (textType.IsParameter() && this.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm))
+			if (textType.IsParameter() && PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm))
 			{
 				builder.Append('&');
 			}
@@ -216,14 +216,14 @@ namespace EpicGames.UHT.Types
 
 			if (!skipParameterName)
 			{
-				builder.Append(this.SourceName);
+				builder.Append(SourceName);
 			}
 
-			if (this.ArrayDimensions != null)
+			if (ArrayDimensions != null)
 			{
-				builder.Append('[').Append(this.ArrayDimensions).Append(']');
+				builder.Append('[').Append(ArrayDimensions).Append(']');
 			}
-			else if (textType == UhtPropertyTextType.ExportMember && !this.IsNativeBool)
+			else if (textType == UhtPropertyTextType.ExportMember && !IsNativeBool)
 			{
 				builder.Append(":1");
 			}

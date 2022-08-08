@@ -55,10 +55,10 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				switch (this.Module.ModuleType)
+				switch (Module.ModuleType)
 				{
 					case UHTModuleType.Program:
-						return this.Module.BaseDirectory.Replace('\\', '/').StartsWith(Unreal.EngineDirectory.FullName.Replace('\\', '/'), StringComparison.Ordinal);
+						return Module.BaseDirectory.Replace('\\', '/').StartsWith(Unreal.EngineDirectory.FullName.Replace('\\', '/'), StringComparison.Ordinal);
 					case UHTModuleType.EngineRuntime:
 					case UHTModuleType.EngineUncooked:
 					case UHTModuleType.EngineDeveloper:
@@ -81,7 +81,7 @@ namespace EpicGames.UHT.Types
 		/// True if the package is a plugin
 		/// </summary>
 		[JsonIgnore]
-		public bool IsPlugin => this.Module.BaseDirectory.Replace('\\', '/').Contains("/Plugins/", StringComparison.Ordinal);
+		public bool IsPlugin => Module.BaseDirectory.Replace('\\', '/').Contains("/Plugins/", StringComparison.Ordinal);
 
 		/// <summary>
 		/// Short name of the package (without the /Script/)
@@ -96,20 +96,20 @@ namespace EpicGames.UHT.Types
 		/// <param name="packageFlags">Assorted package flags</param>
 		public UhtPackage(UhtSession session, UHTManifest.Module module, EPackageFlags packageFlags) : base(session)
 		{
-			this.Module = module;
-			this.PackageFlags = packageFlags;
-			this.PackageTypeIndex = this.Session.GetNextPackageTypeIndex();
+			Module = module;
+			PackageFlags = packageFlags;
+			PackageTypeIndex = Session.GetNextPackageTypeIndex();
 
 			int lastSlashIndex = module.Name.LastIndexOf('/');
 			if (lastSlashIndex == -1)
 			{
-				this.SourceName = $"/Script/{module.Name}";
-				this.ShortName = module.Name;
+				SourceName = $"/Script/{module.Name}";
+				ShortName = module.Name;
 			}
 			else
 			{
-				this.SourceName = module.Name;
-				this.ShortName = this.SourceName[(lastSlashIndex + 1)..];
+				SourceName = module.Name;
+				ShortName = SourceName[(lastSlashIndex + 1)..];
 			}
 		}
 	}

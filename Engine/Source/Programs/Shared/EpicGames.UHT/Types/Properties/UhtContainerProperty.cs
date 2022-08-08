@@ -21,16 +21,16 @@ namespace EpicGames.UHT.Types
 		/// <param name="value">Value property</param>
 		protected UhtContainerBaseProperty(UhtPropertySettings propertySettings, UhtProperty value) : base(propertySettings)
 		{
-			this.ValueProperty = value;
-			this.PropertyCaps = (this.PropertyCaps & ~(UhtPropertyCaps.CanBeInstanced | UhtPropertyCaps.CanHaveConfig)) |
-				(this.ValueProperty.PropertyCaps & (UhtPropertyCaps.CanBeInstanced | UhtPropertyCaps.CanHaveConfig));
+			ValueProperty = value;
+			PropertyCaps = (PropertyCaps & ~(UhtPropertyCaps.CanBeInstanced | UhtPropertyCaps.CanHaveConfig)) |
+				(ValueProperty.PropertyCaps & (UhtPropertyCaps.CanBeInstanced | UhtPropertyCaps.CanHaveConfig));
 		}
 
 		/// <inheritdoc/>
 		public override void Validate(UhtStruct outerStruct, UhtProperty outermostProperty, UhtValidationOptions options)
 		{
 			base.Validate(outerStruct, outermostProperty, options);
-			this.ValueProperty.Validate(outerStruct, outermostProperty, options | UhtValidationOptions.IsValue);
+			ValueProperty.Validate(outerStruct, outermostProperty, options | UhtValidationOptions.IsValue);
 		}
 
 		/// <summary>
@@ -71,13 +71,13 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool ScanForInstancedReferenced(bool deepScan)
 		{
-			return this.ValueProperty.ScanForInstancedReferenced(deepScan);
+			return ValueProperty.ScanForInstancedReferenced(deepScan);
 		}
 
 		///<inheritdoc/>
 		public override bool ContainsEditorOnlyProperties()
 		{
-			return this.ValueProperty.ContainsEditorOnlyProperties();
+			return ValueProperty.ContainsEditorOnlyProperties();
 		}
 	}
 }

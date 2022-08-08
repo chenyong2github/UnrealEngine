@@ -34,7 +34,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <param name="factory">Requesting factory</param>
 		public void Generate(IUhtExportFactory factory)
 		{
-			ref UhtCodeGenerator.HeaderInfo headerInfo = ref this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex];
+			ref UhtCodeGenerator.HeaderInfo headerInfo = ref HeaderInfos[HeaderFile.HeaderFileTypeIndex];
 			{
 				using BorrowStringBuilder borrower = new(StringBuilderCache.Big);
 				StringBuilder builder = borrower.StringBuilder;
@@ -49,14 +49,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("\r\n");
 				builder.Append(DisableDeprecationWarnings).Append("\r\n");
 
-				string strippedName = Path.GetFileNameWithoutExtension(this.HeaderFile.FilePath);
-				string defineName = $"{this.Package.ShortName.ToString().ToUpper()}_{strippedName}_generated_h";
+				string strippedName = Path.GetFileNameWithoutExtension(HeaderFile.FilePath);
+				string defineName = $"{Package.ShortName.ToString().ToUpper()}_{strippedName}_generated_h";
 
-				if (this.HeaderFile.References.ForwardDeclarations.Count > 0)
+				if (HeaderFile.References.ForwardDeclarations.Count > 0)
 				{
-					string[] sorted = new string[this.HeaderFile.References.ForwardDeclarations.Count];
+					string[] sorted = new string[HeaderFile.References.ForwardDeclarations.Count];
 					int index = 0;
-					foreach (string forwardDeclaration in this.HeaderFile.References.ForwardDeclarations)
+					foreach (string forwardDeclaration in HeaderFile.References.ForwardDeclarations)
 					{
 						sorted[index++] = forwardDeclaration;
 					}
@@ -73,7 +73,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("#define ").Append(defineName).Append("\r\n");
 				builder.Append("\r\n");
 
-				foreach (UhtField field in this.HeaderFile.References.ExportTypes)
+				foreach (UhtField field in HeaderFile.References.ExportTypes)
 				{
 					if (field is UhtEnum enumObj)
 					{
@@ -101,7 +101,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("#undef CURRENT_FILE_ID\r\n");
 				builder.Append("#define CURRENT_FILE_ID ").Append(headerInfo.FileId).Append("\r\n\r\n\r\n");
 
-				foreach (UhtField field in this.HeaderFile.References.ExportTypes)
+				foreach (UhtField field in HeaderFile.References.ExportTypes)
 				{
 					if (field is UhtEnum enumObject)
 					{
@@ -111,9 +111,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				builder.Append(EnableDeprecationWarnings).Append("\r\n");
 
-				if (this.SaveExportedHeaders)
+				if (SaveExportedHeaders)
 				{
-					string headerFilePath = factory.MakePath(this.HeaderFile, ".generated.h");
+					string headerFilePath = factory.MakePath(HeaderFile, ".generated.h");
 					factory.CommitOutput(headerFilePath, builder);
 				}
 			}
@@ -145,7 +145,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					builder.Append('\t');
 					if (!scriptStruct.ScriptStructFlags.HasAnyFlags(EStructFlags.RequiredAPI))
 					{
-						builder.Append(this.PackageApi);
+						builder.Append(PackageApi);
 					}
 					builder.Append("static class UScriptStruct* StaticStruct(); \\\r\n");
 
@@ -247,7 +247,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					{
 						builder.Append("\ttypedef ").Append(scriptStruct.SuperScriptStruct.SourceName).Append(" Super; \\\r\n");
 					}
-					UhtProperty? FastArrayProperty = this.ObjectInfos[scriptStruct.ObjectTypeIndex].FastArrayProperty;
+					UhtProperty? FastArrayProperty = ObjectInfos[scriptStruct.ObjectTypeIndex].FastArrayProperty;
 					if (FastArrayProperty != null)
 					{
 						builder
@@ -258,14 +258,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							.Append(", ");
 						if (!scriptStruct.ScriptStructFlags.HasAnyFlags(EStructFlags.RequiredAPI))
 						{
-							builder.Append(this.PackageApi);
+							builder.Append(PackageApi);
 						}
 						builder.Append("); \\\r\n");
 					}
 				}
 
 				// Forward declare the StaticStruct specialization in the header
-				builder.Append("template<> ").Append(this.PackageApi).Append("UScriptStruct* StaticStruct<struct ").Append(scriptStruct.SourceName).Append(">();\r\n");
+				builder.Append("template<> ").Append(PackageApi).Append("UScriptStruct* StaticStruct<struct ").Append(scriptStruct.SourceName).Append(">();\r\n");
 				builder.Append("\r\n");
 			}
 			return builder;
@@ -300,7 +300,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("template<> struct TIsUEnumClass<").Append(enumObj.CppType).Append("> { enum { Value = true }; };\r\n");
 
 				// Forward declare the StaticEnum<> specialization for enum classes
-				builder.Append("template<> ").Append(this.PackageApi).Append("UEnum* StaticEnum<").Append(enumObj.CppType).Append(">();\r\n");
+				builder.Append("template<> ").Append(PackageApi).Append("UEnum* StaticEnum<").Append(enumObj.CppType).Append(">();\r\n");
 				builder.Append("\r\n");
 			}
 
@@ -335,8 +335,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		private StringBuilder AppendClass(StringBuilder builder, UhtClass classObj)
 		{
-			string api = classObj.ClassFlags.HasAnyFlags(EClassFlags.MinimalAPI) ? this.PackageApi : "NO_API ";
-			UhtClass? nativeInterface = this.ObjectInfos[classObj.ObjectTypeIndex].NativeInterface;
+			string api = classObj.ClassFlags.HasAnyFlags(EClassFlags.MinimalAPI) ? PackageApi : "NO_API ";
+			UhtClass? nativeInterface = ObjectInfos[classObj.ObjectTypeIndex].NativeInterface;
 
 			// Write the spare declarations
 			AppendSparseDeclarations(builder, classObj);
@@ -456,7 +456,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 
 			// Forward declare the StaticClass specialization in the header
-			builder.Append("template<> ").Append(this.PackageApi).Append("UClass* StaticClass<class ").Append(classObj.SourceName).Append(">();\r\n");
+			builder.Append("template<> ").Append(PackageApi).Append("UClass* StaticClass<class ").Append(classObj.SourceName).Append(">();\r\n");
 			builder.Append("\r\n");
 			return builder;
 		}
@@ -498,7 +498,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			bool hasProperties, bool hasFunctions, bool hasEditorFields, bool allEditorFields,
 			bool includeEditorOnlyFields)
 		{
-			builder.Append("\tUE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN(").Append(this.PackageApi).Append(") \\\r\n");
+			builder.Append("\tUE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN(").Append(PackageApi).Append(") \\\r\n");
 
 			//UE_FIELD_NOTIFICATION_DECLARE_FIELD
 			AppendFieldNotify(builder, classObj, hasProperties, hasFunctions, hasEditorFields, allEditorFields,
@@ -898,8 +898,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			{
 				builder.Append("\t/** Standard constructor, called after all reflected properties have been initialized */ \\\r\n");
 
-				// Assume super class has OI constructor, this may not always be true but we should always be able to check this.
-				// In any case, it will default to old behavior before we even checked this.
+				// Assume super class has OI constructor, this may not always be true but we should always be able to check 
+				// In any case, it will default to old behavior before we even checked 
 				bool superClassObjectInitializerConstructorDeclared = true;
 				UhtClass? superClass = classObj.SuperClass;
 				if (superClass != null)
@@ -1022,7 +1022,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			builder.Append("\tstatic void StaticRegisterNatives").Append(classObj.SourceName).Append("(); \\\r\n");
 			if (!classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
 			{
-				builder.Append("\tfriend struct ").Append(this.ObjectInfos[classObj.ObjectTypeIndex].RegisteredSingletonName).Append("_Statics; \\\r\n");
+				builder.Append("\tfriend struct ").Append(ObjectInfos[classObj.ObjectTypeIndex].RegisteredSingletonName).Append("_Statics; \\\r\n");
 			}
 			builder.Append("public: \\\r\n");
 
@@ -1049,7 +1049,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			{
 				builder.Append("CASTCLASS_None");
 			}
-			builder.Append(", TEXT(\"").Append(this.Package.SourceName).Append("\"), ").Append(api[0..^1]).Append(") \\\r\n");
+			builder.Append(", TEXT(\"").Append(Package.SourceName).Append("\"), ").Append(api[0..^1]).Append(") \\\r\n");
 
 			builder.Append("\tDECLARE_SERIALIZER(").Append(classObj.SourceName).Append(") \\\r\n");
 
@@ -1158,7 +1158,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 			// we'll need a way to get to the UObject portion of a native interface, so that we can safely pass native interfaces
 			// to script VM functions
-			if (classObj.SuperClass != null && classObj.SuperClass.IsChildOf(this.Session.UInterface))
+			if (classObj.SuperClass != null && classObj.SuperClass.IsChildOf(Session.UInterface))
 			{
 				// Note: This used to be declared as a pure virtual function, but it was changed here in order to allow the Blueprint nativization process
 				// to detect C++ interface classes that explicitly declare pure virtual functions via type traits. This code will no longer trigger that check.

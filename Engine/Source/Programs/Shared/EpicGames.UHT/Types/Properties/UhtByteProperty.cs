@@ -32,10 +32,10 @@ namespace EpicGames.UHT.Types
 		protected override string CppTypeText => "uint8";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText => this.Enum == null || this.Enum.CppForm != UhtEnumCppForm.EnumClass ? "PROPERTY" : "ENUM";
+		protected override string PGetMacroText => Enum == null || Enum.CppForm != UhtEnumCppForm.EnumClass ? "PROPERTY" : "ENUM";
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument => this.Enum == null || this.Enum.CppForm != UhtEnumCppForm.EnumClass ? UhtPGetArgumentType.EngineClass : UhtPGetArgumentType.TypeText;
+		protected override UhtPGetArgumentType PGetTypeArgument => Enum == null || Enum.CppForm != UhtEnumCppForm.EnumClass ? UhtPGetArgumentType.EngineClass : UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// Construct a new property
@@ -45,36 +45,36 @@ namespace EpicGames.UHT.Types
 		/// <param name="enumObj">Optional referenced enum</param>
 		public UhtByteProperty(UhtPropertySettings propertySettings, UhtPropertyIntType intType, UhtEnum? enumObj = null) : base(propertySettings, intType)
 		{
-			this.Enum = enumObj;
-			this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
+			Enum = enumObj;
+			PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
 				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
-			if (this.Enum != null)
+			if (Enum != null)
 			{
-				this.PropertyCaps |= UhtPropertyCaps.IsRigVMEnum;
+				PropertyCaps |= UhtPropertyCaps.IsRigVMEnum;
 			}
 		}
 
 		/// <inheritdoc/>
 		public override IEnumerable<UhtType> EnumerateReferencedTypes()
 		{
-			if (this.Enum != null)
+			if (Enum != null)
 			{
-				yield return this.Enum;
+				yield return Enum;
 			}
 		}
 
 		/// <inheritdoc/>
 		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			collector.AddCrossModuleReference(this.Enum, true);
+			collector.AddCrossModuleReference(Enum, true);
 		}
 
 		/// <inheritdoc/>
 		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			if (this.Enum != null)
+			if (Enum != null)
 			{
-				return UhtEnumProperty.AppendEnumText(builder, this, this.Enum, textType, isTemplateArgument);
+				return UhtEnumProperty.AppendEnumText(builder, this, Enum, textType, isTemplateArgument);
 			}
 			else
 			{
@@ -92,7 +92,7 @@ namespace EpicGames.UHT.Types
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FBytePropertyParams", "UECodeGen_Private::EPropertyGenFlags::Byte");
-			AppendMemberDefRef(builder, context, this.Enum, true, true);
+			AppendMemberDefRef(builder, context, Enum, true, true);
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -100,15 +100,15 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override void AppendObjectHashes(StringBuilder builder, int startingLength, IUhtPropertyMemberContext context)
 		{
-			builder.AppendObjectHash(startingLength, this, context, this.Enum);
+			builder.AppendObjectHash(startingLength, this, context, Enum);
 		}
 
 		/// <inheritdoc/>
 		public override StringBuilder AppendFunctionThunkParameterArg(StringBuilder builder)
 		{
-			if (this.Enum != null)
+			if (Enum != null)
 			{
-				return UhtEnumProperty.AppendEnumFunctionThunkParameterArg(builder, this, this.Enum);
+				return UhtEnumProperty.AppendEnumFunctionThunkParameterArg(builder, this, Enum);
 			}
 			else
 			{
@@ -119,9 +119,9 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			if (this.Enum != null)
+			if (Enum != null)
 			{
-				return UhtEnumProperty.SanitizeEnumDefaultValue(this, this.Enum, defaultValueReader, innerDefaultValue);
+				return UhtEnumProperty.SanitizeEnumDefaultValue(this, Enum, defaultValueReader, innerDefaultValue);
 			}
 
 			int value = defaultValueReader.GetConstIntExpression();
@@ -134,11 +134,11 @@ namespace EpicGames.UHT.Types
 		{
 			if (other is UhtByteProperty otherByte)
 			{
-				return this.Enum == otherByte.Enum;
+				return Enum == otherByte.Enum;
 			}
 			else if (other is UhtEnumProperty otherEnum)
 			{
-				return this.Enum == otherEnum.Enum;
+				return Enum == otherEnum.Enum;
 			}
 			return false;
 		}
@@ -150,7 +150,7 @@ namespace EpicGames.UHT.Types
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.BlueprintCallable))
 			{
-				if (this.Enum != null && this.Enum.UnderlyingType != UhtEnumUnderlyingType.uint8 && this.Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified)
+				if (Enum != null && Enum.UnderlyingType != UhtEnumUnderlyingType.uint8 && Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified)
 				{
 					this.LogError("Invalid enum param for Blueprints - currently only uint8 supported");
 				}

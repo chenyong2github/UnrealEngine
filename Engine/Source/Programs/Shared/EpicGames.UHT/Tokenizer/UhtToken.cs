@@ -142,7 +142,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// End position of the token value
 		/// </summary>
-		public int InputEndPos => this.InputStartPos + this.Value.Span.Length;
+		public int InputEndPos => InputStartPos + Value.Span.Length;
 
 		/// <summary>
 		/// Line containing the token
@@ -160,12 +160,12 @@ namespace EpicGames.UHT.Tokenizer
 		/// <param name="tokenType">Type of the token</param>
 		public UhtToken(UhtTokenType tokenType)
 		{
-			this.TokenType = tokenType;
-			this.UngetPos = 0;
-			this.UngetLine = 0;
-			this.InputStartPos = 0;
-			this.InputLine = 0;
-			this.Value = new StringView();
+			TokenType = tokenType;
+			UngetPos = 0;
+			UngetLine = 0;
+			InputStartPos = 0;
+			InputLine = 0;
+			Value = new StringView();
 		}
 
 		/// <summary>
@@ -179,12 +179,12 @@ namespace EpicGames.UHT.Tokenizer
 		/// <param name="value">Token value</param>
 		public UhtToken(UhtTokenType tokenType, int ungetPos, int ungetLine, int inputStartPos, int inputLine, StringView value)
 		{
-			this.TokenType = tokenType;
-			this.UngetPos = ungetPos;
-			this.UngetLine = ungetLine;
-			this.InputStartPos = inputStartPos;
-			this.InputLine = inputLine;
-			this.Value = value;
+			TokenType = tokenType;
+			UngetPos = ungetPos;
+			UngetLine = ungetLine;
+			InputStartPos = inputStartPos;
+			InputLine = inputLine;
+			Value = value;
 		}
 
 		/// <summary>
@@ -202,7 +202,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>True if the token is an end token</returns>
 		public bool IsEndType()
 		{
-			return this.TokenType.IsEndType();
+			return TokenType.IsEndType();
 		}
 
 		/// <summary>
@@ -212,7 +212,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>True if the token value matches the given value</returns>
 		public bool IsValue(char value)
 		{
-			return this.Value.Span.Length == 1 && this.Value.Span[0] == value;
+			return Value.Span.Length == 1 && Value.Span[0] == value;
 		}
 
 		/// <summary>
@@ -223,7 +223,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>True if the value matches</returns>
 		public bool IsValue(string value, bool ignoreCase = false)
 		{
-			return this.Value.Span.Equals(value, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+			return Value.Span.Equals(value, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 		}
 
 		/// <summary>
@@ -234,7 +234,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>True if the value matches</returns>
 		public bool IsValue(StringView value, bool ignoreCase = false)
 		{
-			return this.Value.Span.Equals(value.Span, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+			return Value.Span.Equals(value.Span, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 		}
 
 		/// <summary>
@@ -245,7 +245,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>True is the value starts with the given string</returns>
 		public bool ValueStartsWith(string value, bool ignoreCase = false)
 		{
-			return this.Value.Span.StartsWith(value, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+			return Value.Span.StartsWith(value, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 		}
 
 		/// <summary>
@@ -254,7 +254,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>True if the token is an identifier</returns>
 		public bool IsIdentifier()
 		{
-			return this.TokenType == UhtTokenType.Identifier;
+			return TokenType == UhtTokenType.Identifier;
 		}
 
 		/// <summary>
@@ -285,7 +285,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>True if the token is a symbol</returns>
 		public bool IsSymbol()
 		{
-			return this.TokenType == UhtTokenType.Symbol;
+			return TokenType == UhtTokenType.Symbol;
 		}
 
 		/// <summary>
@@ -324,7 +324,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>True if constant integer</returns>
 		public bool IsConstInt()
 		{
-			return this.TokenType == UhtTokenType.DecimalConst || this.TokenType == UhtTokenType.HexConst;
+			return TokenType == UhtTokenType.DecimalConst || TokenType == UhtTokenType.HexConst;
 		}
 
 		/// <summary>
@@ -333,7 +333,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>True if constant float</returns>
 		public bool IsConstFloat()
 		{
-			return this.TokenType == UhtTokenType.FloatConst;
+			return TokenType == UhtTokenType.FloatConst;
 		}
 
 		/// <summary>
@@ -444,7 +444,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>True if the token is a string or character constant</returns>
 		public bool IsConstString()
 		{
-			return this.TokenType == UhtTokenType.StringConst || this.TokenType == UhtTokenType.CharConst;
+			return TokenType == UhtTokenType.StringConst || TokenType == UhtTokenType.CharConst;
 		}
 
 		// Return the token value for string constants
@@ -457,14 +457,14 @@ namespace EpicGames.UHT.Tokenizer
 		/// <exception cref="UhtException">Thrown if the token type is not a string or character constant</exception>
 		public StringView GetUnescapedString(IUhtMessageSite messageSite)
 		{
-			switch (this.TokenType)
+			switch (TokenType)
 			{
 				case UhtTokenType.StringConst:
-					ReadOnlySpan<char> span = this.Value.Span[1..^1];
+					ReadOnlySpan<char> span = Value.Span[1..^1];
 					int index = span.IndexOf('\\');
 					if (index == -1)
 					{
-						return new StringView(this.Value, 1, span.Length);
+						return new StringView(Value, 1, span.Length);
 					}
 					else
 					{
@@ -484,9 +484,9 @@ namespace EpicGames.UHT.Tokenizer
 					}
 
 				case UhtTokenType.CharConst:
-					if (this.Value.Span[1] == '\\')
+					if (Value.Span[1] == '\\')
 					{
-						switch (this.Value.Span[2])
+						switch (Value.Span[2])
 						{
 							case 't':
 								return new StringView("\t");
@@ -495,16 +495,16 @@ namespace EpicGames.UHT.Tokenizer
 							case 'r':
 								return new StringView("\r");
 							default:
-								return new StringView(this.Value, 2, 1);
+								return new StringView(Value, 2, 1);
 						}
 					}
 					else
 					{
-						return new StringView(this.Value, 1, 1);
+						return new StringView(Value, 1, 1);
 					}
 			}
 
-			throw new UhtException(messageSite, this.InputLine, "Call to GetUnescapedString on token that isn't a string or char constant");
+			throw new UhtException(messageSite, InputLine, "Call to GetUnescapedString on token that isn't a string or char constant");
 		}
 
 		/// <summary>
@@ -514,7 +514,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>Resulting string</returns>
 		public StringView GetConstantValue(bool respectQuotes = false)
 		{
-			switch (this.TokenType)
+			switch (TokenType)
 			{
 				case UhtTokenType.DecimalConst:
 					return new StringView(GetDecimalValue().ToString(NumberFormatInfo.InvariantInfo));
@@ -538,10 +538,10 @@ namespace EpicGames.UHT.Tokenizer
 		public StringView GetTokenString(bool respectQuotes = false)
 		{
 			StringViewBuilder builder = new();
-			switch (this.TokenType)
+			switch (TokenType)
 			{
 				case UhtTokenType.StringConst:
-					StringView subValue = new(this.Value, 1, this.Value.Span.Length - 2);
+					StringView subValue = new(Value, 1, Value.Span.Length - 2);
 					while (subValue.Span.Length > 0)
 					{
 						int slashIndex = subValue.Span.IndexOf('\\');
@@ -577,10 +577,10 @@ namespace EpicGames.UHT.Tokenizer
 					break;
 
 				case UhtTokenType.CharConst:
-					char charConst = this.Value.Span[1];
+					char charConst = Value.Span[1];
 					if (charConst == '\\')
 					{
-						charConst = this.Value.Span[2];
+						charConst = Value.Span[2];
 						switch (charConst)
 						{
 							case 't':
@@ -713,7 +713,7 @@ namespace EpicGames.UHT.Tokenizer
 
 		long GetDecimalValue()
 		{
-			ReadOnlySpan<char> span = this.Value.Span;
+			ReadOnlySpan<char> span = Value.Span;
 			bool isUnsigned = false;
 			while (span.Length > 0)
 			{
@@ -737,7 +737,7 @@ namespace EpicGames.UHT.Tokenizer
 
 		long GetHexValue()
 		{
-			return Convert.ToInt64(this.Value.ToString(), 16);
+			return Convert.ToInt64(Value.ToString(), 16);
 		}
 	}
 }

@@ -43,13 +43,13 @@ namespace EpicGames.UHT.Types
 		/// <param name="interfaceClass">Referenced interface</param>
 		public UhtInterfaceProperty(UhtPropertySettings propertySettings, UhtClass interfaceClass) : base(propertySettings)
 		{
-			this.InterfaceClass = interfaceClass;
-			this.PropertyFlags |= EPropertyFlags.UObjectWrapper;
-			this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.PassCppArgsByRef;
-			this.PropertyCaps &= ~(UhtPropertyCaps.CanHaveConfig | UhtPropertyCaps.CanBeContainerKey);
-			if (this.Session.Config!.AreRigVMUInterfaceProeprtiesEnabled)
+			InterfaceClass = interfaceClass;
+			PropertyFlags |= EPropertyFlags.UObjectWrapper;
+			PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.PassCppArgsByRef;
+			PropertyCaps &= ~(UhtPropertyCaps.CanHaveConfig | UhtPropertyCaps.CanBeContainerKey);
+			if (Session.Config!.AreRigVMUInterfaceProeprtiesEnabled)
 			{
-				this.PropertyCaps |= UhtPropertyCaps.SupportsRigVM;
+				PropertyCaps |= UhtPropertyCaps.SupportsRigVM;
 			}
 		}
 
@@ -60,9 +60,9 @@ namespace EpicGames.UHT.Types
 			switch (phase)
 			{
 				case UhtResolvePhase.Final:
-					if (this.InterfaceClass.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced))
+					if (InterfaceClass.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced))
 					{
-						this.PropertyFlags |= (EPropertyFlags.InstancedReference | EPropertyFlags.ExportObject) & ~this.DisallowPropertyFlags;
+						PropertyFlags |= (EPropertyFlags.InstancedReference | EPropertyFlags.ExportObject) & ~DisallowPropertyFlags;
 					}
 					break;
 			}
@@ -72,19 +72,19 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool ScanForInstancedReferenced(bool deepScan)
 		{
-			return !this.DisallowPropertyFlags.HasAnyFlags(EPropertyFlags.InstancedReference) && this.InterfaceClass.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced);
+			return !DisallowPropertyFlags.HasAnyFlags(EPropertyFlags.InstancedReference) && InterfaceClass.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced);
 		}
 
 		/// <inheritdoc/>
 		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			collector.AddCrossModuleReference(this.InterfaceClass, false);
+			collector.AddCrossModuleReference(InterfaceClass, false);
 		}
 
 		/// <inheritdoc/>
 		public override string? GetForwardDeclarations()
 		{
-			UhtClass? exportClass = this.InterfaceClass;
+			UhtClass? exportClass = InterfaceClass;
 			while (exportClass != null && !exportClass.ClassFlags.HasAnyFlags(EClassFlags.Native))
 			{
 				exportClass = exportClass.SuperClass;
@@ -95,7 +95,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override IEnumerable<UhtType> EnumerateReferencedTypes()
 		{
-			yield return this.InterfaceClass;
+			yield return InterfaceClass;
 		}
 
 		/// <inheritdoc/>
@@ -108,11 +108,11 @@ namespace EpicGames.UHT.Types
 					break;
 
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
-					builder.Append(this.InterfaceClass.SourceName);
+					builder.Append(InterfaceClass.SourceName);
 					break;
 
 				default:
-					builder.Append("TScriptInterface<").Append(this.InterfaceClass.SourceName).Append('>');
+					builder.Append("TScriptInterface<").Append(InterfaceClass.SourceName).Append('>');
 					break;
 			}
 			return builder;
@@ -129,7 +129,7 @@ namespace EpicGames.UHT.Types
 		{
 			// FScriptInterface<USomeInterface> is valid so in that case we need to pass in the interface class and not the alternate object (which in the end is the same object)
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FInterfacePropertyParams", "UECodeGen_Private::EPropertyGenFlags::Interface");
-			AppendMemberDefRef(builder, context, this.InterfaceClass.AlternateObject ?? this.InterfaceClass, false);
+			AppendMemberDefRef(builder, context, InterfaceClass.AlternateObject ?? InterfaceClass, false);
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -152,9 +152,9 @@ namespace EpicGames.UHT.Types
 		{
 			base.ValidateMember(structObj, options);
 
-			if (this.PointerType == UhtPointerType.Native)
+			if (PointerType == UhtPointerType.Native)
 			{
-				this.LogError($"UPROPERTY pointers cannot be interfaces - did you mean TScriptInterface<{this.InterfaceClass.SourceName}>?");
+				this.LogError($"UPROPERTY pointers cannot be interfaces - did you mean TScriptInterface<{InterfaceClass.SourceName}>?");
 			}
 		}
 
@@ -163,7 +163,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (other is UhtInterfaceProperty otherObject)
 			{
-				return this.InterfaceClass == otherObject.InterfaceClass;
+				return InterfaceClass == otherObject.InterfaceClass;
 			}
 			return false;
 		}
@@ -171,8 +171,8 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool MustBeConstArgument([NotNullWhen(true)] out UhtType? errorType)
 		{
-			errorType = this.InterfaceClass;
-			return this.InterfaceClass.ClassFlags.HasAnyFlags(EClassFlags.Const);
+			errorType = InterfaceClass;
+			return InterfaceClass.ClassFlags.HasAnyFlags(EClassFlags.Const);
 		}
 
 		#region Keywords

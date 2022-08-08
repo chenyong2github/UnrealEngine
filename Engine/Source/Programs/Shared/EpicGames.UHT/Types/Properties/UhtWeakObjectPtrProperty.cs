@@ -21,7 +21,7 @@ namespace EpicGames.UHT.Types
 		public override string EngineClassName => "WeakObjectProperty";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText => this.PropertyFlags.HasAnyFlags(EPropertyFlags.AutoWeak) ? "AUTOWEAKOBJECT" : "WEAKOBJECT";
+		protected override string PGetMacroText => PropertyFlags.HasAnyFlags(EPropertyFlags.AutoWeak) ? "AUTOWEAKOBJECT" : "WEAKOBJECT";
 
 		/// <inheritdoc/>
 		protected override bool PGetPassAsNoPtr => true;
@@ -38,9 +38,9 @@ namespace EpicGames.UHT.Types
 		public UhtWeakObjectPtrProperty(UhtPropertySettings propertySettings, UhtClass propertyClass, EPropertyFlags extraFlags = EPropertyFlags.None)
 			: base(propertySettings, propertyClass, null)
 		{
-			this.PropertyFlags |= EPropertyFlags.UObjectWrapper | extraFlags;
-			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.IsMemberSupportedByBlueprint;
-			this.PropertyCaps &= ~(UhtPropertyCaps.IsParameterSupportedByBlueprint);
+			PropertyFlags |= EPropertyFlags.UObjectWrapper | extraFlags;
+			PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+			PropertyCaps &= ~(UhtPropertyCaps.IsParameterSupportedByBlueprint);
 		}
 
 		/// <inheritdoc/>
@@ -49,13 +49,13 @@ namespace EpicGames.UHT.Types
 			switch (textType)
 			{
 				default:
-					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.AutoWeak))
+					if (PropertyFlags.HasAnyFlags(EPropertyFlags.AutoWeak))
 					{
-						builder.Append("TAutoWeakObjectPtr<").Append(this.Class.SourceName).Append('>');
+						builder.Append("TAutoWeakObjectPtr<").Append(Class.SourceName).Append('>');
 					}
 					else
 					{
-						builder.Append("TWeakObjectPtr<").Append(this.Class.SourceName).Append('>');
+						builder.Append("TWeakObjectPtr<").Append(Class.SourceName).Append('>');
 					}
 					break;
 			}
@@ -72,7 +72,7 @@ namespace EpicGames.UHT.Types
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FWeakObjectPropertyParams", "UECodeGen_Private::EPropertyGenFlags::WeakObject");
-			AppendMemberDefRef(builder, context, this.Class, false);
+			AppendMemberDefRef(builder, context, Class, false);
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -89,7 +89,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (other is UhtWeakObjectPtrProperty otherObject)
 			{
-				return this.Class == otherObject.Class && this.MetaClass == otherObject.MetaClass;
+				return Class == otherObject.Class && MetaClass == otherObject.MetaClass;
 			}
 			return false;
 		}

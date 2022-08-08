@@ -38,7 +38,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="session">Session of the object</param>
 		protected UhtObject(UhtSession session) : base(session)
 		{
-			ObjectTypeIndex = this.Session.GetNextObjectTypeIndex();
+			ObjectTypeIndex = Session.GetNextObjectTypeIndex();
 		}
 
 		/// <summary>
@@ -48,7 +48,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="lineNumber">Line number where object is defined</param>
 		protected UhtObject(UhtType outer, int lineNumber) : base(outer, lineNumber)
 		{
-			ObjectTypeIndex = this.Session.GetNextObjectTypeIndex();
+			ObjectTypeIndex = Session.GetNextObjectTypeIndex();
 		}
 	}
 }

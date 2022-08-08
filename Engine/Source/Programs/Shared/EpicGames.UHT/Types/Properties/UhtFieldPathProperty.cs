@@ -40,14 +40,14 @@ namespace EpicGames.UHT.Types
 		/// <param name="fieldClassName">Field class name</param>
 		public UhtFieldPathProperty(UhtPropertySettings propertySettings, string fieldClassName) : base(propertySettings)
 		{
-			this.FieldClassName = fieldClassName;
-			this.PropertyCaps |= UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+			FieldClassName = fieldClassName;
+			PropertyCaps |= UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
 		}
 
 		/// <inheritdoc/>
 		public override string? GetForwardDeclarations()
 		{
-			return $"class F{this.FieldClassName};";
+			return $"class F{FieldClassName};";
 		}
 
 		/// <inheritdoc/>
@@ -60,7 +60,7 @@ namespace EpicGames.UHT.Types
 					break;
 
 				default:
-					builder.Append("TFieldPath<F").Append(this.FieldClassName).Append('>');
+					builder.Append("TFieldPath<F").Append(FieldClassName).Append('>');
 					break;
 			}
 			return builder;
@@ -76,7 +76,7 @@ namespace EpicGames.UHT.Types
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FFieldPathPropertyParams", "UECodeGen_Private::EPropertyGenFlags::FieldPath");
-			builder.Append("&F").Append(this.FieldClassName).Append("::StaticClass, ");
+			builder.Append("&F").Append(FieldClassName).Append("::StaticClass, ");
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -99,7 +99,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (other is UhtFieldPathProperty otherFieldPath)
 			{
-				return this.FieldClassName == otherFieldPath.FieldClassName;
+				return FieldClassName == otherFieldPath.FieldClassName;
 			}
 			return false;
 		}

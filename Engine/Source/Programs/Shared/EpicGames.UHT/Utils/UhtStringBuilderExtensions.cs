@@ -523,9 +523,9 @@ namespace EpicGames.UHT.Utils
 		/// <param name="initialBufferSize">Initial buffer size for newly created StringBuilders</param>
 		public StringBuilderCache(int capacity, int initialBufferSize)
 		{
-			this._capacity = capacity;
-			this._initialBufferSize = initialBufferSize;
-			this._stack = new Stack<StringBuilder>(this._capacity);
+			_capacity = capacity;
+			_initialBufferSize = initialBufferSize;
+			_stack = new Stack<StringBuilder>(_capacity);
 		}
 
 		/// <summary>
@@ -534,15 +534,15 @@ namespace EpicGames.UHT.Utils
 		/// <returns></returns>
 		public StringBuilder Borrow()
 		{
-			lock (this._stack)
+			lock (_stack)
 			{
-				if (this._stack.Count > 0)
+				if (_stack.Count > 0)
 				{
-					return this._stack.Pop();
+					return _stack.Pop();
 				}
 			}
 
-			return new StringBuilder(this._initialBufferSize);
+			return new StringBuilder(_initialBufferSize);
 		}
 
 		/// <summary>
@@ -553,11 +553,11 @@ namespace EpicGames.UHT.Utils
 		{
 			// Sadly, clearing the builder (sets length to 0) will reallocate chunks.
 			builder.Clear();
-			lock (this._stack)
+			lock (_stack)
 			{
-				if (this._stack.Count < this._capacity)
+				if (_stack.Count < _capacity)
 				{
-					this._stack.Push(builder);
+					_stack.Push(builder);
 				}
 			}
 		}
@@ -586,8 +586,8 @@ namespace EpicGames.UHT.Utils
 		/// <param name="cache">String builder cache</param>
 		public BorrowStringBuilder(StringBuilderCache cache)
 		{
-			this.Cache = cache;
-			this.StringBuilder = this.Cache.Borrow();
+			Cache = cache;
+			StringBuilder = Cache.Borrow();
 		}
 
 		/// <summary>
@@ -595,7 +595,7 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		public void Dispose()
 		{
-			this.Cache.Return(this.StringBuilder);
+			Cache.Return(StringBuilder);
 		}
 	}
 }

@@ -23,10 +23,10 @@ namespace EpicGames.UHT.Types
 		#region IUHTMessageSite implementation
 
 		/// <inheritdoc/>
-		public IUhtMessageSession MessageSession => this._sourceFile.MessageSession;
+		public IUhtMessageSession MessageSession => _sourceFile.MessageSession;
 
 		/// <inheritdoc/>
-		public IUhtMessageSource? MessageSource => this._sourceFile.MessageSource;
+		public IUhtMessageSource? MessageSource => _sourceFile.MessageSource;
 
 		/// <inheritdoc/>
 		public IUhtMessageLineNumber? MessageLineNumber => null;
@@ -39,7 +39,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="filePath">Path of the file</param>
 		public UhtManifestFile(UhtSession session, string filePath)
 		{
-			this._sourceFile = new UhtSourceFile(session, filePath);
+			_sourceFile = new UhtSourceFile(session, filePath);
 		}
 
 		/// <summary>
@@ -47,8 +47,8 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		public void Read()
 		{
-			this._sourceFile.Read();
-			this.Manifest = JsonSerializer.Deserialize<UHTManifest>(this._sourceFile.Data.ToString());
+			_sourceFile.Read();
+			Manifest = JsonSerializer.Deserialize<UHTManifest>(_sourceFile.Data.ToString());
 		}
 	}
 }

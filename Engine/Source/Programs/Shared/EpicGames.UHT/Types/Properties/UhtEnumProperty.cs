@@ -20,16 +20,16 @@ namespace EpicGames.UHT.Types
 	public class UhtEnumProperty : UhtProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName => this.Enum.CppForm != UhtEnumCppForm.EnumClass ? "ByteProperty" : "EnumProperty";
+		public override string EngineClassName => Enum.CppForm != UhtEnumCppForm.EnumClass ? "ByteProperty" : "EnumProperty";
 
 		/// <inheritdoc/>
 		protected override string CppTypeText => "invalid";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText => this.Enum.CppForm != UhtEnumCppForm.EnumClass ? "PROPERTY" : "ENUM";
+		protected override string PGetMacroText => Enum.CppForm != UhtEnumCppForm.EnumClass ? "PROPERTY" : "ENUM";
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument => this.Enum.CppForm != UhtEnumCppForm.EnumClass ? UhtPGetArgumentType.EngineClass : UhtPGetArgumentType.TypeText;
+		protected override UhtPGetArgumentType PGetTypeArgument => Enum.CppForm != UhtEnumCppForm.EnumClass ? UhtPGetArgumentType.EngineClass : UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// Referenced enum
@@ -45,12 +45,12 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Underlying type which defaults to int32 if the referenced enum doesn't have an underlying type
 		/// </summary>
-		public UhtEnumUnderlyingType UnderlyingType => this.Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified ? this.Enum.UnderlyingType : UhtEnumUnderlyingType.int32;
+		public UhtEnumUnderlyingType UnderlyingType => Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified ? Enum.UnderlyingType : UhtEnumUnderlyingType.int32;
 
 		/// <summary>
 		/// Underlying type size.  Defaults to unsized if the referenced enum doesn't have an underlying type
 		/// </summary>
-		public UhtPropertyIntType UnderlyingTypeSize => this.Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified ? UhtPropertyIntType.Sized : UhtPropertyIntType.Unsized;
+		public UhtPropertyIntType UnderlyingTypeSize => Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified ? UhtPropertyIntType.Sized : UhtPropertyIntType.Unsized;
 
 		/// <summary>
 		/// Construct property
@@ -59,40 +59,40 @@ namespace EpicGames.UHT.Types
 		/// <param name="enumObj">Referenced enum</param>
 		public UhtEnumProperty(UhtPropertySettings propertySettings, UhtEnum enumObj) : base(propertySettings)
 		{
-			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
+			PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
 				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM | UhtPropertyCaps.IsRigVMEnum;
-			this.Enum = enumObj;
-			this.HeaderFile.AddReferencedHeader(enumObj);
-			if (this.Enum.CppForm == UhtEnumCppForm.EnumClass)
+			Enum = enumObj;
+			HeaderFile.AddReferencedHeader(enumObj);
+			if (Enum.CppForm == UhtEnumCppForm.EnumClass)
 			{
-				this.UnderlyingProperty = CreateUnderlyingProperty();
+				UnderlyingProperty = CreateUnderlyingProperty();
 			}
 			else
 			{
-				this.UnderlyingProperty = null;
+				UnderlyingProperty = null;
 			}
 		}
 
 		/// <inheritdoc/>
 		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			collector.AddCrossModuleReference(this.Enum, true);
+			collector.AddCrossModuleReference(Enum, true);
 		}
 
 		/// <inheritdoc/>
 		public override string? GetForwardDeclarations()
 		{
-			if (this.Enum.CppForm != UhtEnumCppForm.EnumClass)
+			if (Enum.CppForm != UhtEnumCppForm.EnumClass)
 			{
 				return null;
 			}
-			return $"enum class {this.Enum.SourceName} : {this.UnderlyingType};";
+			return $"enum class {Enum.SourceName} : {UnderlyingType};";
 		}
 
 		/// <inheritdoc/>
 		public override IEnumerable<UhtType> EnumerateReferencedTypes()
 		{
-			yield return this.Enum;
+			yield return Enum;
 		}
 
 		/// <summary>
@@ -212,37 +212,37 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			return AppendEnumText(builder, this, this.Enum, textType, isTemplateArgument);
+			return AppendEnumText(builder, this, Enum, textType, isTemplateArgument);
 		}
 
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			if (this.UnderlyingProperty != null)
+			if (UnderlyingProperty != null)
 			{
-				builder.AppendMemberDecl(this.UnderlyingProperty, context, name, GetNameSuffix(nameSuffix, "_Underlying"), tabs);
+				builder.AppendMemberDecl(UnderlyingProperty, context, name, GetNameSuffix(nameSuffix, "_Underlying"), tabs);
 			}
-			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, this.Enum.CppForm != UhtEnumCppForm.EnumClass ? "FBytePropertyParams" : "FEnumPropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, Enum.CppForm != UhtEnumCppForm.EnumClass ? "FBytePropertyParams" : "FEnumPropertyParams");
 		}
 
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			if (this.Enum.CppForm == UhtEnumCppForm.EnumClass)
+			if (Enum.CppForm == UhtEnumCppForm.EnumClass)
 			{
-				if (this.UnderlyingProperty != null)
+				if (UnderlyingProperty != null)
 				{
-					builder.AppendMemberDef(this.UnderlyingProperty, context, name, GetNameSuffix(nameSuffix, "_Underlying"), "0", tabs);
+					builder.AppendMemberDef(UnderlyingProperty, context, name, GetNameSuffix(nameSuffix, "_Underlying"), "0", tabs);
 				}
 				AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FEnumPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Enum");
-				AppendMemberDefRef(builder, context, this.Enum, true);
+				AppendMemberDefRef(builder, context, Enum, true);
 				AppendMemberDefEnd(builder, context, name, nameSuffix);
 				return builder;
 			}
 			else
 			{
 				AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FBytePropertyParams", "UECodeGen_Private::EPropertyGenFlags::Byte", true, true);
-				AppendMemberDefRef(builder, context, this.Enum, true);
+				AppendMemberDefRef(builder, context, Enum, true);
 				AppendMemberDefEnd(builder, context, name, nameSuffix);
 			}
 			return builder;
@@ -251,9 +251,9 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override StringBuilder AppendMemberPtr(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			if (this.UnderlyingProperty != null)
+			if (UnderlyingProperty != null)
 			{
-				builder.AppendMemberPtr(this.UnderlyingProperty, context, name, GetNameSuffix(nameSuffix, "_Underlying"), tabs);
+				builder.AppendMemberPtr(UnderlyingProperty, context, name, GetNameSuffix(nameSuffix, "_Underlying"), tabs);
 			}
 			base.AppendMemberPtr(builder, context, name, nameSuffix, tabs);
 			return builder;
@@ -262,25 +262,25 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override StringBuilder AppendFunctionThunkParameterArg(StringBuilder builder)
 		{
-			return AppendEnumFunctionThunkParameterArg(builder, this, this.Enum);
+			return AppendEnumFunctionThunkParameterArg(builder, this, Enum);
 		}
 
 		/// <inheritdoc/>
 		public override void AppendObjectHashes(StringBuilder builder, int startingLength, IUhtPropertyMemberContext context)
 		{
-			builder.AppendObjectHash(startingLength, this, context, this.Enum);
+			builder.AppendObjectHash(startingLength, this, context, Enum);
 		}
 
 		/// <inheritdoc/>
 		public override StringBuilder AppendNullConstructorArg(StringBuilder builder, bool isInitializer)
 		{
-			if (this.Enum.CppForm != UhtEnumCppForm.EnumClass)
+			if (Enum.CppForm != UhtEnumCppForm.EnumClass)
 			{
 				builder.Append('0');
 			}
 			else
 			{
-				builder.Append('(').Append(this.Enum.CppType).Append(")0");
+				builder.Append('(').Append(Enum.CppType).Append(")0");
 			}
 			return builder;
 		}
@@ -288,7 +288,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			return SanitizeEnumDefaultValue(this, this.Enum, defaultValueReader, innerDefaultValue);
+			return SanitizeEnumDefaultValue(this, Enum, defaultValueReader, innerDefaultValue);
 		}
 
 		/// <inheritdoc/>
@@ -296,11 +296,11 @@ namespace EpicGames.UHT.Types
 		{
 			if (other is UhtEnumProperty otherEnum)
 			{
-				return this.Enum == otherEnum.Enum;
+				return Enum == otherEnum.Enum;
 			}
 			else if (other is UhtByteProperty otherByte)
 			{
-				return this.Enum == otherByte.Enum;
+				return Enum == otherByte.Enum;
 			}
 			return false;
 		}
@@ -308,26 +308,26 @@ namespace EpicGames.UHT.Types
 		private UhtProperty CreateUnderlyingProperty()
 		{
 			UhtPropertySettings propertySettings = new();
-			propertySettings.Reset(this, 0, this.PropertyCategory, 0);
+			propertySettings.Reset(this, 0, PropertyCategory, 0);
 			propertySettings.SourceName = "UnderlyingType";
-			switch (this.UnderlyingType)
+			switch (UnderlyingType)
 			{
 				case UhtEnumUnderlyingType.int8:
-					return new UhtInt8Property(propertySettings, this.UnderlyingTypeSize);
+					return new UhtInt8Property(propertySettings, UnderlyingTypeSize);
 				case UhtEnumUnderlyingType.int16:
-					return new UhtInt16Property(propertySettings, this.UnderlyingTypeSize);
+					return new UhtInt16Property(propertySettings, UnderlyingTypeSize);
 				case UhtEnumUnderlyingType.int32:
-					return new UhtIntProperty(propertySettings, this.UnderlyingTypeSize);
+					return new UhtIntProperty(propertySettings, UnderlyingTypeSize);
 				case UhtEnumUnderlyingType.int64:
-					return new UhtInt64Property(propertySettings, this.UnderlyingTypeSize);
+					return new UhtInt64Property(propertySettings, UnderlyingTypeSize);
 				case UhtEnumUnderlyingType.uint8:
-					return new UhtByteProperty(propertySettings, this.UnderlyingTypeSize);
+					return new UhtByteProperty(propertySettings, UnderlyingTypeSize);
 				case UhtEnumUnderlyingType.uint16:
-					return new UhtUInt16Property(propertySettings, this.UnderlyingTypeSize);
+					return new UhtUInt16Property(propertySettings, UnderlyingTypeSize);
 				case UhtEnumUnderlyingType.uint32:
-					return new UhtUInt32Property(propertySettings, this.UnderlyingTypeSize);
+					return new UhtUInt32Property(propertySettings, UnderlyingTypeSize);
 				case UhtEnumUnderlyingType.uint64:
-					return new UhtUInt64Property(propertySettings, this.UnderlyingTypeSize);
+					return new UhtUInt64Property(propertySettings, UnderlyingTypeSize);
 				default:
 					throw new UhtIceException("Unexpected underlying enum type");
 			}

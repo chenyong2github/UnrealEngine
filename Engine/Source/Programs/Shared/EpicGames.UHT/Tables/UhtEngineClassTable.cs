@@ -59,7 +59,7 @@ namespace EpicGames.UHT.Tables
 		/// <returns>True if the class name is a property.  False if the class name isn't a property or isn't an engine class.</returns>
 		public bool IsValidPropertyTypeName(StringView name)
 		{
-			if (this._engineClasses.TryGetValue(name, out UhtEngineClass engineClass))
+			if (_engineClasses.TryGetValue(name, out UhtEngineClass engineClass))
 			{
 				return engineClass.IsProperty;
 			}
@@ -76,7 +76,7 @@ namespace EpicGames.UHT.Tables
 			{
 				throw new UhtIceException("EngineClassNames must have a name specified");
 			}
-			this._engineClasses.Add(engineClassAttribute.Name, new UhtEngineClass { Name = engineClassAttribute.Name, IsProperty = engineClassAttribute.IsProperty });
+			_engineClasses.Add(engineClassAttribute.Name, new UhtEngineClass { Name = engineClassAttribute.Name, IsProperty = engineClassAttribute.IsProperty });
 		}
 	}
 }

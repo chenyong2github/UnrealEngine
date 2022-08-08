@@ -48,8 +48,8 @@ namespace EpicGames.UHT.Types
 		/// <param name="index">Meta data index</param>
 		public UhtMetaDataKey(string name, int index = UhtMetaData.IndexNone)
 		{
-			this.Name = name;
-			this.Index = index;
+			Name = name;
+			Index = index;
 		}
 
 		/// <summary>
@@ -60,11 +60,11 @@ namespace EpicGames.UHT.Types
 		{
 			if (Index == UhtMetaData.IndexNone)
 			{
-				return this.Name.ToString();
+				return Name.ToString();
 			}
 			else
 			{
-				return $"{this.Name}:{this.Index}";
+				return $"{Name}:{Index}";
 			}
 		}
 	}
@@ -180,8 +180,8 @@ namespace EpicGames.UHT.Types
 		/// <param name="config">Configuration for redirects</param>
 		public UhtMetaData(IUhtMessageSite? messageSite, IUhtConfig? config)
 		{
-			this.MessageSite = messageSite;
-			this.Config = config;
+			MessageSite = messageSite;
+			Config = config;
 		}
 
 		/// <summary>
@@ -190,7 +190,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>True if the meta data object contains no entries</returns>
 		public bool IsEmpty()
 		{
-			return this.Dictionary == null || this.Dictionary.Count == 0;
+			return Dictionary == null || Dictionary.Count == 0;
 		}
 
 		/// <summary>
@@ -198,9 +198,9 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		public void Clear()
 		{
-			if (this.Dictionary != null)
+			if (Dictionary != null)
 			{
-				this.Dictionary.Clear();
+				Dictionary.Clear();
 			}
 		}
 
@@ -221,11 +221,11 @@ namespace EpicGames.UHT.Types
 		/// <returns>True if the key is found</returns>
 		public bool ContainsKey(string name, int nameIndex = IndexNone)
 		{
-			if (this.Dictionary == null)
+			if (Dictionary == null)
 			{
 				return false;
 			}
-			return this.Dictionary.ContainsKey(new UhtMetaDataKey(name, nameIndex));
+			return Dictionary.ContainsKey(new UhtMetaDataKey(name, nameIndex));
 		}
 
 		/// <summary>
@@ -277,12 +277,12 @@ namespace EpicGames.UHT.Types
 		/// <returns>True if the key is found</returns>
 		public bool TryGetValue(string name, int nameIndex, [NotNullWhen(true)] out string? value)
 		{
-			if (this.Dictionary == null)
+			if (Dictionary == null)
 			{
 				value = String.Empty;
 				return false;
 			}
-			return this.Dictionary.TryGetValue(new UhtMetaDataKey(name, nameIndex), out value);
+			return Dictionary.TryGetValue(new UhtMetaDataKey(name, nameIndex), out value);
 		}
 
 		/// <summary>
@@ -421,13 +421,13 @@ namespace EpicGames.UHT.Types
 		/// <param name="value">Value of the meta data</param>
 		public void Add(string name, int nameIndex, string value)
 		{
-			if (this.Config != null)
+			if (Config != null)
 			{
-				if (this.Config.RedirectMetaDataKey(name, out string remappedName))
+				if (Config.RedirectMetaDataKey(name, out string remappedName))
 				{
-					if (this.MessageSite != null)
+					if (MessageSite != null)
 					{
-						this.MessageSite.LogWarning(this.LineNumber, $"Remapping old metadata key '{name}' to new key '{remappedName}', please update the declaration.");
+						MessageSite.LogWarning(LineNumber, $"Remapping old metadata key '{name}' to new key '{remappedName}', please update the declaration.");
 					}
 				}
 			}
@@ -493,9 +493,9 @@ namespace EpicGames.UHT.Types
 		/// <param name="nameIndex">Index of the meta data key</param>
 		public void Remove(string name, int nameIndex = IndexNone)
 		{
-			if (this.Dictionary != null)
+			if (Dictionary != null)
 			{
-				this.Dictionary.Remove(new UhtMetaDataKey(name, nameIndex));
+				Dictionary.Remove(new UhtMetaDataKey(name, nameIndex));
 			}
 		}
 
@@ -538,12 +538,12 @@ namespace EpicGames.UHT.Types
 		/// <returns>List of meta data key and value pairs</returns>
 		public List<KeyValuePair<string, string>> GetSorted()
 		{
-			List<KeyValuePair<string, string>> output = new(this.Dictionary != null ? this.Dictionary.Count : 0);
-			if (this.Dictionary != null && this.Dictionary.Count > 0)
+			List<KeyValuePair<string, string>> output = new(Dictionary != null ? Dictionary.Count : 0);
+			if (Dictionary != null && Dictionary.Count > 0)
 			{
-				foreach (KeyValuePair<UhtMetaDataKey, string> kvp in this.Dictionary)
+				foreach (KeyValuePair<UhtMetaDataKey, string> kvp in Dictionary)
 				{
-					output.Add(new KeyValuePair<string, string>(this.GetKeyString(kvp.Key), kvp.Value));
+					output.Add(new KeyValuePair<string, string>(GetKeyString(kvp.Key), kvp.Value));
 				}
 
 				output.Sort((KeyValuePair<string, string> lhs, KeyValuePair<string, string> rhs) =>
@@ -556,11 +556,11 @@ namespace EpicGames.UHT.Types
 
 		private SortedList<UhtMetaDataKey, string> GetDictionary()
 		{
-			if (this.Dictionary == null)
+			if (Dictionary == null)
 			{
-				this.Dictionary = new SortedList<UhtMetaDataKey, string>(s_comparer);
+				Dictionary = new SortedList<UhtMetaDataKey, string>(s_comparer);
 			}
-			return this.Dictionary;
+			return Dictionary;
 		}
 	}
 }

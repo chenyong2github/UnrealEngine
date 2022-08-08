@@ -226,13 +226,13 @@ namespace EpicGames.UHT.Utils
 		{
 			get
 			{
-				if (this._useStringBuilder && this._stringBuilder != null)
+				if (_useStringBuilder && _stringBuilder != null)
 				{
-					return this._stringBuilder.Length;
+					return _stringBuilder.Length;
 				}
 				else
 				{
-					return this._stringView.Span.Length;
+					return _stringView.Span.Length;
 				}
 			}
 		}
@@ -243,7 +243,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Contents of the builder</returns>
 		public StringView ToStringView()
 		{
-			return this._useStringBuilder ? new StringView(this._stringBuilder!.ToString()) : this._stringView;
+			return _useStringBuilder ? new StringView(_stringBuilder!.ToString()) : _stringView;
 		}
 
 		/// <summary>
@@ -252,7 +252,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Contents of the builder</returns>
 		public override string ToString()
 		{
-			return this._useStringBuilder ? this._stringBuilder!.ToString() : this._stringView.ToString();
+			return _useStringBuilder ? _stringBuilder!.ToString() : _stringView.ToString();
 		}
 
 		/// <summary>
@@ -262,18 +262,18 @@ namespace EpicGames.UHT.Utils
 		/// <returns>The string builder</returns>
 		public StringViewBuilder Append(StringView text)
 		{
-			if (this._useStringBuilder)
+			if (_useStringBuilder)
 			{
-				this._stringBuilder!.Append(text.Span);
+				_stringBuilder!.Append(text.Span);
 			}
-			else if (this._stringView.Span.Length > 0)
+			else if (_stringView.Span.Length > 0)
 			{
 				SwitchToStringBuilder();
-				this._stringBuilder!.Append(text.Span);
+				_stringBuilder!.Append(text.Span);
 			}
 			else
 			{
-				this._stringView = text;
+				_stringView = text;
 			}
 			return this;
 		}
@@ -286,7 +286,7 @@ namespace EpicGames.UHT.Utils
 		public StringViewBuilder Append(char c)
 		{
 			SwitchToStringBuilder();
-			this._stringBuilder!.Append(c);
+			_stringBuilder!.Append(c);
 			return this;
 		}
 
@@ -295,14 +295,14 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		private void SwitchToStringBuilder()
 		{
-			if (!this._useStringBuilder)
+			if (!_useStringBuilder)
 			{
-				if (this._stringBuilder == null)
+				if (_stringBuilder == null)
 				{
-					this._stringBuilder = new StringBuilder();
+					_stringBuilder = new StringBuilder();
 				}
-				this._useStringBuilder = true;
-				this._stringBuilder.Append(this._stringView.Span);
+				_useStringBuilder = true;
+				_stringBuilder.Append(_stringView.Span);
 			}
 		}
 	}

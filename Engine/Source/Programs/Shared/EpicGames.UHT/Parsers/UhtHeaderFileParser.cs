@@ -196,7 +196,7 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// If true, this header file belongs to the engine
 		/// </summary>
-		public bool IsPartOfEngine => this.HeaderFile.Package.IsPartOfEngine;
+		public bool IsPartOfEngine => HeaderFile.Package.IsPartOfEngine;
 
 		/// <summary>
 		/// If true, the inclusion of the generated header file was seen
@@ -259,9 +259,9 @@ namespace EpicGames.UHT.Parsers
 
 		private UhtHeaderFileParser(UhtHeaderFile headerFile)
 		{
-			this.TokenReader = new UhtTokenBufferReader(headerFile, headerFile.Data.Memory);
-			this.HeaderFile = headerFile;
-			this.TokenReader.TokenPreprocessor = this;
+			TokenReader = new UhtTokenBufferReader(headerFile, headerFile.Data.Memory);
+			HeaderFile = headerFile;
+			TokenReader.TokenPreprocessor = this;
 		}
 
 		/// <summary>
@@ -271,11 +271,11 @@ namespace EpicGames.UHT.Parsers
 		/// <exception cref="UhtIceException">Throw if the new scope isn't parented by the current scope</exception>
 		public void PushScope(UhtParsingScope scope)
 		{
-			if (scope.ParentScope != this._topScope)
+			if (scope.ParentScope != _topScope)
 			{
 				throw new UhtIceException("Pushing a new scope whose parent isn't the current top scope.");
 			}
-			this._topScope = scope;
+			_topScope = scope;
 		}
 
 		/// <summary>
@@ -285,11 +285,11 @@ namespace EpicGames.UHT.Parsers
 		/// <exception cref="UhtIceException">Thrown if the given scope isn't the top scope</exception>
 		public void PopScope(UhtParsingScope scope)
 		{
-			if (scope != this._topScope)
+			if (scope != _topScope)
 			{
 				throw new UhtIceException("Attempt to pop a scope that isn't the top scope");
 			}
-			this._topScope = scope.ParentScope;
+			_topScope = scope.ParentScope;
 		}
 
 		/// <summary>
@@ -298,11 +298,11 @@ namespace EpicGames.UHT.Parsers
 		/// <returns>Property parser</returns>
 		public UhtPropertyParser GetCachedPropertyParser()
 		{
-			if (this.PropertyParser == null)
+			if (PropertyParser == null)
 			{
-				this.PropertyParser = new();
+				PropertyParser = new();
 			}
-			return this.PropertyParser;
+			return PropertyParser;
 		}
 
 		/// <summary>
@@ -311,7 +311,7 @@ namespace EpicGames.UHT.Parsers
 		/// <returns>Enumeration flags for all active compiler directives</returns>
 		public UhtCompilerDirective GetCurrentCompositeCompilerDirective()
 		{
-			return this._compilerDirectives.Count > 0 ? this._compilerDirectives[^1]._composite : UhtCompilerDirective.None;
+			return _compilerDirectives.Count > 0 ? _compilerDirectives[^1]._composite : UhtCompilerDirective.None;
 		}
 
 		/// <summary>
@@ -320,7 +320,7 @@ namespace EpicGames.UHT.Parsers
 		/// <returns>Current compiler directive</returns>
 		public UhtCompilerDirective GetCurrentNonCompositeCompilerDirective()
 		{
-			return this._compilerDirectives.Count > 0 ? this._compilerDirectives[^1]._element : UhtCompilerDirective.None;
+			return _compilerDirectives.Count > 0 ? _compilerDirectives[^1]._element : UhtCompilerDirective.None;
 		}
 
 		#region ITokenPreprocessor implementation
@@ -339,15 +339,15 @@ namespace EpicGames.UHT.Parsers
 		/// <inheritdoc/>
 		public void SaveState()
 		{
-			this._savedCompilerDirectives.Clear();
-			this._savedCompilerDirectives.AddRange(this._compilerDirectives);
+			_savedCompilerDirectives.Clear();
+			_savedCompilerDirectives.AddRange(_compilerDirectives);
 		}
 
 		/// <inheritdoc/>
 		public void RestoreState()
 		{
-			this._compilerDirectives.Clear();
-			this._compilerDirectives.AddRange(this._savedCompilerDirectives);
+			_compilerDirectives.Clear();
+			_compilerDirectives.AddRange(_savedCompilerDirectives);
 		}
 		#endregion
 
@@ -369,21 +369,21 @@ namespace EpicGames.UHT.Parsers
 		/// <param name="logUnhandledKeywords">If true, log any unhandled keywords</param>
 		public void ParseStatements(char initiator, char terminator, bool logUnhandledKeywords)
 		{
-			if (this._topScope == null)
+			if (_topScope == null)
 			{
 				return;
 			}
 
 			if (initiator != 0)
 			{
-				this.TokenReader.Require(initiator);
+				TokenReader.Require(initiator);
 			}
 			while (true)
 			{
-				UhtToken token = this.TokenReader.GetToken();
+				UhtToken token = TokenReader.GetToken();
 				if (token.TokenType.IsEndType())
 				{
-					if (this._topScope != null && this._topScope.ParentScope == null)
+					if (_topScope != null && _topScope.ParentScope == null)
 					{
 						CheckEof(ref token);
 					}
@@ -394,10 +394,10 @@ namespace EpicGames.UHT.Parsers
 					return;
 				}
 
-				if (this._topScope != null)
+				if (_topScope != null)
 				{
-					ParseStatement(this._topScope, ref token, logUnhandledKeywords);
-					this.TokenReader.ClearComments();
+					ParseStatement(_topScope, ref token, logUnhandledKeywords);
+					TokenReader.ClearComments();
 				}
 			}
 		}
@@ -569,9 +569,9 @@ namespace EpicGames.UHT.Parsers
 
 		private void CheckEof(ref UhtToken token)
 		{
-			if (this._compilerDirectives.Count > 0)
+			if (_compilerDirectives.Count > 0)
 			{
-				throw new UhtException(this.TokenReader, token.InputLine, "Missing #endif");
+				throw new UhtException(TokenReader, token.InputLine, "Missing #endif");
 			}
 		}
 		#endregion
@@ -589,11 +589,11 @@ namespace EpicGames.UHT.Parsers
 			// Collect all the lines of the preprocessor statement including any continuations.
 			// We assume that the vast majority of lines will not be continuations.  So avoid using the
 			// string builder as much as possible.
-			int startingLine = this.TokenReader.InputLine;
+			int startingLine = TokenReader.InputLine;
 			StringViewBuilder builder = new();
 			while (true)
 			{
-				UhtToken lineToken = this.TokenReader.GetLine();
+				UhtToken lineToken = TokenReader.GetLine();
 				if (lineToken.TokenType != UhtTokenType.Line)
 				{
 					break;
@@ -611,14 +611,14 @@ namespace EpicGames.UHT.Parsers
 			StringView line = builder.ToStringView();
 
 			// Create a token reader we will use to decode
-			UhtTokenBufferReader lineTokenReader = new(this.HeaderFile, line.Memory);
+			UhtTokenBufferReader lineTokenReader = new(HeaderFile, line.Memory);
 			lineTokenReader.InputLine = startingLine;
 
 			if (!lineTokenReader.TryOptionalIdentifier(out UhtToken directive))
 			{
 				if (isBeingIncluded)
 				{
-					throw new UhtException(this.TokenReader, directive.InputLine, "Missing compiler directive after '#'");
+					throw new UhtException(TokenReader, directive.InputLine, "Missing compiler directive after '#'");
 				}
 				return checkClearComments;
 			}
@@ -627,7 +627,7 @@ namespace EpicGames.UHT.Parsers
 			{
 				if (isBeingIncluded)
 				{
-					throw new UhtException(this.TokenReader, directive.InputLine, "#error directive encountered");
+					throw new UhtException(TokenReader, directive.InputLine, "#error directive encountered");
 				}
 			}
 			else if (directive.IsValue("pragma"))
@@ -638,9 +638,9 @@ namespace EpicGames.UHT.Parsers
 			{
 				if (!lineTokenReader.TryOptionalConstInt(out int newInputLine))
 				{
-					throw new UhtException(this.TokenReader, directive.InputLine, "Missing line number in line number directive");
+					throw new UhtException(TokenReader, directive.InputLine, "Missing line number in line number directive");
 				}
-				this.TokenReader.InputLine = newInputLine;
+				TokenReader.InputLine = newInputLine;
 			}
 			else if (directive.IsValue("include"))
 			{
@@ -649,23 +649,23 @@ namespace EpicGames.UHT.Parsers
 					UhtToken includeName = lineTokenReader.GetToken();
 					if (includeName.IsConstString())
 					{
-						StringView includeNameString = includeName.GetUnescapedString(this.HeaderFile);
-						if (this.SpottedAutogeneratedHeaderInclude)
+						StringView includeNameString = includeName.GetUnescapedString(HeaderFile);
+						if (SpottedAutogeneratedHeaderInclude)
 						{
-							this.HeaderFile.LogError("#include found after .generated.h file - the .generated.h file should always be the last #include in a header");
+							HeaderFile.LogError("#include found after .generated.h file - the .generated.h file should always be the last #include in a header");
 						}
-						if (this.HeaderFile.GeneratedHeaderFileName.AsSpan().Equals(includeNameString.Span, StringComparison.OrdinalIgnoreCase))
+						if (HeaderFile.GeneratedHeaderFileName.AsSpan().Equals(includeNameString.Span, StringComparison.OrdinalIgnoreCase))
 						{
-							this.SpottedAutogeneratedHeaderInclude = true;
+							SpottedAutogeneratedHeaderInclude = true;
 						}
 						if (includeNameString.Span.Contains(".generated.h", StringComparison.Ordinal))
 						{
 							string refName = Path.GetFileName(includeNameString.ToString()).Replace(".generated.h", ".h", StringComparison.Ordinal);
-							this.HeaderFile.AddReferencedHeader(refName, true);
+							HeaderFile.AddReferencedHeader(refName, true);
 						}
 						else
 						{
-							this.HeaderFile.AddReferencedHeader(includeNameString.ToString(), true);
+							HeaderFile.AddReferencedHeader(includeNameString.ToString(), true);
 						}
 					}
 				}
@@ -687,7 +687,7 @@ namespace EpicGames.UHT.Parsers
 				UhtCompilerDirective newCompilerDirective = ParserConditional(lineTokenReader);
 				if (SupportsElif(oldCompilerDirective) != SupportsElif(newCompilerDirective))
 				{
-					throw new UhtException(this.TokenReader, directive.InputLine,
+					throw new UhtException(TokenReader, directive.InputLine,
 						$"Mixing {GetCompilerDirectiveText(oldCompilerDirective)} with {GetCompilerDirectiveText(newCompilerDirective)} in an #elif preprocessor block is not supported");
 				}
 				PushCompilerDirective(newCompilerDirective);
@@ -711,7 +711,7 @@ namespace EpicGames.UHT.Parsers
 						PushCompilerDirective(UhtCompilerDirective.NotCPPBlock);
 						break;
 					case UhtCompilerDirective.WithHotReload:
-						throw new UhtException(this.TokenReader, directive.InputLine, "Can not use WITH_HOT_RELOAD with an #else clause");
+						throw new UhtException(TokenReader, directive.InputLine, "Can not use WITH_HOT_RELOAD with an #else clause");
 					default:
 						PushCompilerDirective(oldCompilerDirective);
 						break;
@@ -731,7 +731,7 @@ namespace EpicGames.UHT.Parsers
 			{
 				if (isBeingIncluded)
 				{
-					throw new UhtException(this.TokenReader, directive.InputLine, $"Unrecognized compiler directive {directive.Value}");
+					throw new UhtException(TokenReader, directive.InputLine, $"Unrecognized compiler directive {directive.Value}");
 				}
 			}
 			return checkClearComments;
@@ -795,7 +795,7 @@ namespace EpicGames.UHT.Parsers
 				case UhtTokenType.EndOfDefault:
 				case UhtTokenType.EndOfType:
 				case UhtTokenType.EndOfDeclaration:
-					throw new UhtException(this.TokenReader, define.InputLine, "#if with no expression");
+					throw new UhtException(TokenReader, define.InputLine, "#if with no expression");
 			}
 
 			return UhtCompilerDirective.Unrecognized;
@@ -810,7 +810,7 @@ namespace EpicGames.UHT.Parsers
 			CompilerDirective newCompileDirective = new();
 			newCompileDirective._element = compilerDirective;
 			newCompileDirective._composite = GetCurrentCompositeCompilerDirective() | compilerDirective;
-			this._compilerDirectives.Add(newCompileDirective);
+			_compilerDirectives.Add(newCompileDirective);
 		}
 
 		/// <summary>
@@ -818,18 +818,18 @@ namespace EpicGames.UHT.Parsers
 		/// </summary>
 		private UhtCompilerDirective PopCompilerDirective(UhtToken token)
 		{
-			if (this._compilerDirectives.Count == 0)
+			if (_compilerDirectives.Count == 0)
 			{
-				throw new UhtException(this.TokenReader, token.InputLine, $"Unmatched '#{token.Value}'");
+				throw new UhtException(TokenReader, token.InputLine, $"Unmatched '#{token.Value}'");
 			}
-			UhtCompilerDirective compilerDirective = this._compilerDirectives[^1]._element;
-			this._compilerDirectives.RemoveAt(this._compilerDirectives.Count - 1);
+			UhtCompilerDirective compilerDirective = _compilerDirectives[^1]._element;
+			_compilerDirectives.RemoveAt(_compilerDirectives.Count - 1);
 			return compilerDirective;
 		}
 
 		private bool IncludeCurrentCompilerDirective()
 		{
-			if (this._compilerDirectives.Count == 0)
+			if (_compilerDirectives.Count == 0)
 			{
 				return true;
 			}
@@ -846,11 +846,11 @@ namespace EpicGames.UHT.Parsers
 		/// <exception cref="UhtIceException"></exception>
 		private bool ClearCommentsCompilerDirective()
 		{
-			if (this._compilerDirectives.Count == 0)
+			if (_compilerDirectives.Count == 0)
 			{
 				return true;
 			}
-			UhtCompilerDirective compilerDirective = this._compilerDirectives[^1]._element;
+			UhtCompilerDirective compilerDirective = _compilerDirectives[^1]._element;
 			switch (compilerDirective)
 			{
 				case UhtCompilerDirective.CPPBlock:
@@ -908,7 +908,7 @@ namespace EpicGames.UHT.Parsers
 
 		private bool CheckForConstructor(UhtClass classObj, UhtDeclaration declaration)
 		{
-			IUhtTokenReader replayReader = UhtTokenReplayReader.GetThreadInstance(this.HeaderFile, this.HeaderFile.Data.Memory, new ReadOnlyMemory<UhtToken>(declaration.Tokens), UhtTokenType.EndOfDeclaration);
+			IUhtTokenReader replayReader = UhtTokenReplayReader.GetThreadInstance(HeaderFile, HeaderFile.Data.Memory, new ReadOnlyMemory<UhtToken>(declaration.Tokens), UhtTokenType.EndOfDeclaration);
 
 			// Allow explicit constructors
 			{
@@ -1021,7 +1021,7 @@ namespace EpicGames.UHT.Parsers
 
 		bool CheckForSerialize(UhtClass classObj, UhtDeclaration declaration)
 		{
-			IUhtTokenReader replayReader = UhtTokenReplayReader.GetThreadInstance(this.HeaderFile, this.HeaderFile.Data.Memory, new ReadOnlyMemory<UhtToken>(declaration.Tokens), UhtTokenType.EndOfDeclaration);
+			IUhtTokenReader replayReader = UhtTokenReplayReader.GetThreadInstance(HeaderFile, HeaderFile.Data.Memory, new ReadOnlyMemory<UhtToken>(declaration.Tokens), UhtTokenType.EndOfDeclaration);
 
 			SkipVirtualAndAPI(replayReader);
 

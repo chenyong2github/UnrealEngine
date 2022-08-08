@@ -26,14 +26,14 @@ namespace EpicGames.UHT.Exporters.Json
 
 		private UhtJsonExporter(IUhtExportFactory factory)
 		{
-			this.Factory = factory;
+			Factory = factory;
 		}
 
 		private void Export()
 		{
 			// Generate the files for the packages
-			List<Task?> generatedPackages = new(this.Session.PackageTypeCount);
-			foreach (UhtPackage package in this.Session.Packages)
+			List<Task?> generatedPackages = new(Session.PackageTypeCount);
+			foreach (UhtPackage package in Session.Packages)
 			{
 				UHTManifest.Module module = package.Module;
 				generatedPackages.Add(Factory.CreateTask(
@@ -46,7 +46,7 @@ namespace EpicGames.UHT.Exporters.Json
 			}
 
 			// Wait for all the packages to complete
-			List<Task> packageTasks = new(this.Session.PackageTypeCount);
+			List<Task> packageTasks = new(Session.PackageTypeCount);
 			foreach (Task? output in generatedPackages)
 			{
 				if (output != null)

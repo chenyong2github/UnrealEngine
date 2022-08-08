@@ -40,8 +40,8 @@ namespace EpicGames.UHT.Types
 		public UhtLazyObjectPtrProperty(UhtPropertySettings propertySettings, UhtClass classObj)
 			: base(propertySettings, classObj, null)
 		{
-			this.PropertyFlags |= EPropertyFlags.UObjectWrapper;
-			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.RequiresNullConstructorArg;
+			PropertyFlags |= EPropertyFlags.UObjectWrapper;
+			PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.RequiresNullConstructorArg;
 		}
 
 		/// <inheritdoc/>
@@ -50,11 +50,11 @@ namespace EpicGames.UHT.Types
 			switch (textType)
 			{
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
-					builder.Append("TLazyObjectPtr<").Append(this.Class.SourceName).Append("> "); //COMPATIBILITY-TODO - Extra space
+					builder.Append("TLazyObjectPtr<").Append(Class.SourceName).Append("> "); //COMPATIBILITY-TODO - Extra space
 					break;
 
 				default:
-					builder.Append("TLazyObjectPtr<").Append(this.Class.SourceName).Append('>');
+					builder.Append("TLazyObjectPtr<").Append(Class.SourceName).Append('>');
 					break;
 			}
 			return builder;
@@ -70,7 +70,7 @@ namespace EpicGames.UHT.Types
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FLazyObjectPropertyParams", "UECodeGen_Private::EPropertyGenFlags::LazyObject");
-			AppendMemberDefRef(builder, context, this.Class, false);
+			AppendMemberDefRef(builder, context, Class, false);
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -87,7 +87,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (other is UhtLazyObjectPtrProperty otherObject)
 			{
-				return this.Class == otherObject.Class && this.MetaClass == otherObject.MetaClass;
+				return Class == otherObject.Class && MetaClass == otherObject.MetaClass;
 			}
 			return false;
 		}
@@ -99,7 +99,7 @@ namespace EpicGames.UHT.Types
 
 			// UFunctions with a smart pointer as input parameter wont compile anyway, because of missing P_GET_... macro.
 			// UFunctions with a smart pointer as return type will crash when called via blueprint, because they are not supported in VM.
-			if (this.PropertyCategory == UhtPropertyCategory.RegularParameter || this.PropertyCategory == UhtPropertyCategory.ReplicatedParameter)
+			if (PropertyCategory == UhtPropertyCategory.RegularParameter || PropertyCategory == UhtPropertyCategory.ReplicatedParameter)
 			{
 				outerStruct.LogError("UFunctions cannot take a lazy pointer as a parameter.");
 			}

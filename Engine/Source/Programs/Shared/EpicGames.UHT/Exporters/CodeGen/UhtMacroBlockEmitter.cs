@@ -13,26 +13,26 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		public UhtMacroBlockEmitter(StringBuilder builder, string macroName, bool initialState = false)
 		{
-			this._builder = builder;
-			this._macroName = macroName;
-			this._bEmitted = false;
+			_builder = builder;
+			_macroName = macroName;
+			_bEmitted = false;
 			Set(initialState);
 		}
 
 		public void Set(bool emit)
 		{
-			if (this._bEmitted == emit)
+			if (_bEmitted == emit)
 			{
 				return;
 			}
-			this._bEmitted = emit;
-			if (this._bEmitted)
+			_bEmitted = emit;
+			if (_bEmitted)
 			{
-				_builder.Append("#if ").Append(this._macroName).Append("\r\n");
+				_builder.Append("#if ").Append(_macroName).Append("\r\n");
 			}
 			else
 			{
-				_builder.Append("#endif // ").Append(this._macroName).Append("\r\n");
+				_builder.Append("#endif // ").Append(_macroName).Append("\r\n");
 			}
 		}
 

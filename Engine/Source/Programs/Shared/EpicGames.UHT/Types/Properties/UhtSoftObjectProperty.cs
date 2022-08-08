@@ -37,8 +37,8 @@ namespace EpicGames.UHT.Types
 		public UhtSoftObjectProperty(UhtPropertySettings propertySettings, UhtClass classObj, UhtClass? metaClass = null)
 			: base(propertySettings, classObj, metaClass)
 		{
-			this.PropertyFlags |= EPropertyFlags.UObjectWrapper;
-			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.CanExposeOnSpawn |
+			PropertyFlags |= EPropertyFlags.UObjectWrapper;
+			PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.CanExposeOnSpawn |
 				UhtPropertyCaps.CanHaveConfig | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
 		}
 
@@ -55,7 +55,7 @@ namespace EpicGames.UHT.Types
 			switch (textType)
 			{
 				default:
-					builder.Append("TSoftObjectPtr<").Append(this.Class.SourceName).Append('>');
+					builder.Append("TSoftObjectPtr<").Append(Class.SourceName).Append('>');
 					break;
 			}
 			return builder;
@@ -71,7 +71,7 @@ namespace EpicGames.UHT.Types
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FSoftObjectPropertyParams", "UECodeGen_Private::EPropertyGenFlags::SoftObject");
-			AppendMemberDefRef(builder, context, this.Class, false);
+			AppendMemberDefRef(builder, context, Class, false);
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -81,7 +81,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (other is UhtSoftObjectProperty otherObject)
 			{
-				return this.Class == otherObject.Class && this.MetaClass == otherObject.MetaClass;
+				return Class == otherObject.Class && MetaClass == otherObject.MetaClass;
 			}
 			return false;
 		}

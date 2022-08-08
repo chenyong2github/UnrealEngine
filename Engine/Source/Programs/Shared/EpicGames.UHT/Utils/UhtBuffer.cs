@@ -66,8 +66,8 @@ namespace EpicGames.UHT.Utils
 		/// <param name="bucketSize">The size all blocks in this bucket</param>
 		private UhtBuffer(int size, int bucket, int bucketSize)
 		{
-			this.Block = new char[bucketSize];
-			this.Bucket = bucket;
+			Block = new char[bucketSize];
+			Bucket = bucket;
 			Reset(size);
 		}
 
@@ -77,7 +77,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="size"></param>
 		public void Reset(int size)
 		{
-			this.Memory = new Memory<char>(this.Block, 0, size);
+			Memory = new Memory<char>(Block, 0, size);
 		}
 
 		/// <summary>
@@ -188,7 +188,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="size">The size to borrow</param>
 		public UhtBorrowBuffer(int size)
 		{
-			this.Buffer = UhtBuffer.Borrow(size);
+			Buffer = UhtBuffer.Borrow(size);
 		}
 
 		/// <summary>
@@ -197,7 +197,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="builder">Initial contents of the buffer</param>
 		public UhtBorrowBuffer(StringBuilder builder)
 		{
-			this.Buffer = UhtBuffer.Borrow(builder);
+			Buffer = UhtBuffer.Borrow(builder);
 		}
 
 		/// <summary>
@@ -208,7 +208,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="length">Length of the data in the builder</param>
 		public UhtBorrowBuffer(StringBuilder builder, int startIndex, int length)
 		{
-			this.Buffer = UhtBuffer.Borrow(builder, startIndex, length);
+			Buffer = UhtBuffer.Borrow(builder, startIndex, length);
 		}
 
 		/// <summary>
@@ -216,7 +216,7 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		public void Dispose()
 		{
-			UhtBuffer.Return(this.Buffer);
+			UhtBuffer.Return(Buffer);
 		}
 	}
 }

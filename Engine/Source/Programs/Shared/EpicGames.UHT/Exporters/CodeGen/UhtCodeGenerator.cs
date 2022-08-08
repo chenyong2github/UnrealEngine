@@ -62,36 +62,36 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		private UhtCodeGenerator(IUhtExportFactory factory)
 		{
-			this.Factory = factory;
-			this.HeaderInfos = new HeaderInfo[this.Factory.Session.HeaderFileTypeCount];
-			this.ObjectInfos = new ObjectInfo[this.Factory.Session.ObjectTypeCount];
-			this.PackageInfos = new PackageInfo[this.Factory.Session.PackageTypeCount];
+			Factory = factory;
+			HeaderInfos = new HeaderInfo[Factory.Session.HeaderFileTypeCount];
+			ObjectInfos = new ObjectInfo[Factory.Session.ObjectTypeCount];
+			PackageInfos = new PackageInfo[Factory.Session.PackageTypeCount];
 		}
 
 		private void Generate()
 		{
 			List<Task?> prereqs = new();
 
-			this.FastArraySerializer = Session.FindType(null, UhtFindOptions.SourceName | UhtFindOptions.ScriptStruct, "FFastArraySerializer") as UhtScriptStruct;
+			FastArraySerializer = Session.FindType(null, UhtFindOptions.SourceName | UhtFindOptions.ScriptStruct, "FFastArraySerializer") as UhtScriptStruct;
 
 			// Perform some startup initialization to compute things we need over and over again
-			if (this.Session.GoWide)
+			if (Session.GoWide)
 			{
-				Parallel.ForEach(this.Factory.Session.Packages, package =>
+				Parallel.ForEach(Factory.Session.Packages, package =>
 				{
 					InitPackageInfo(package);
 				});
 			}
 			else
 			{
-				foreach (UhtPackage package in this.Factory.Session.Packages)
+				foreach (UhtPackage package in Factory.Session.Packages)
 				{
 					InitPackageInfo(package);
 				}
 			}
 
 			// Generate the files for the header files
-			foreach (UhtHeaderFile headerFile in this.Session.SortedHeaderFiles)
+			foreach (UhtHeaderFile headerFile in Session.SortedHeaderFiles)
 			{
 				if (headerFile.ShouldExport)
 				{
@@ -103,11 +103,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					{
 						if (headerFile != referenced)
 						{
-							prereqs.Add(this.HeaderInfos[referenced.HeaderFileTypeIndex].Task);
+							prereqs.Add(HeaderInfos[referenced.HeaderFileTypeIndex].Task);
 						}
 					}
 
-					this.HeaderInfos[headerFile.HeaderFileTypeIndex].Task = Factory.CreateTask(prereqs,
+					HeaderInfos[headerFile.HeaderFileTypeIndex].Task = Factory.CreateTask(prereqs,
 						(IUhtExportFactory factory) =>
 						{
 							new UhtHeaderCodeGeneratorHFile(this, package, headerFile).Generate(factory);
@@ -117,8 +117,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 
 			// Generate the files for the packages
-			List<Task?> generatedPackages = new(this.Session.PackageTypeCount);
-			foreach (UhtPackage package in this.Session.Packages)
+			List<Task?> generatedPackages = new(Session.PackageTypeCount);
+			foreach (UhtPackage package in Session.Packages)
 			{
 				UHTManifest.Module module = package.Module;
 
@@ -126,7 +126,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				prereqs.Clear();
 				foreach (UhtHeaderFile headerFile in package.Children)
 				{
-					prereqs.Add(this.HeaderInfos[headerFile.HeaderFileTypeIndex].Task);
+					prereqs.Add(HeaderInfos[headerFile.HeaderFileTypeIndex].Task);
 					if (!writeHeader)
 					{
 						foreach (UhtType type in headerFile.Children)
@@ -158,7 +158,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 
 			// Wait for all the packages to complete
-			List<Task> packageTasks = new(this.Session.PackageTypeCount);
+			List<Task> packageTasks = new(Session.PackageTypeCount);
 			foreach (Task? output in generatedPackages)
 			{
 				if (output != null)
@@ -182,7 +182,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			{
 				return "nullptr";
 			}
-			return registered ? this.ObjectInfos[obj.ObjectTypeIndex].RegisteredSingletonName : this.ObjectInfos[obj.ObjectTypeIndex].UnregisteredSingletonName;
+			return registered ? ObjectInfos[obj.ObjectTypeIndex].RegisteredSingletonName : ObjectInfos[obj.ObjectTypeIndex].UnregisteredSingletonName;
 		}
 
 		/// <summary>
@@ -204,7 +204,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <returns>External declaration</returns>
 		public string GetExternalDecl(int objectIndex, bool registered)
 		{
-			return registered ? this.ObjectInfos[objectIndex].RegsiteredExternalDecl : this.ObjectInfos[objectIndex].UnregisteredExternalDecl;
+			return registered ? ObjectInfos[objectIndex].RegsiteredExternalDecl : ObjectInfos[objectIndex].UnregisteredExternalDecl;
 		}
 
 		/// <summary>
@@ -226,7 +226,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <returns>Cross reference</returns>
 		public string GetCrossReference(int objectIndex, bool registered)
 		{
-			return registered ? this.ObjectInfos[objectIndex].RegsiteredCrossReference : this.ObjectInfos[objectIndex].UnregsiteredCrossReference;
+			return registered ? ObjectInfos[objectIndex].RegsiteredCrossReference : ObjectInfos[objectIndex].UnregsiteredCrossReference;
 		}
 		#endregion
 
@@ -235,12 +235,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		{
 			StringBuilder builder = new();
 
-			ref PackageInfo packageInfo = ref this.PackageInfos[package.PackageTypeIndex];
+			ref PackageInfo packageInfo = ref PackageInfos[package.PackageTypeIndex];
 			packageInfo.StrippedName = package.SourceName.Replace('/', '_');
 			packageInfo.Api = $"{package.ShortName.ToString().ToUpper()}_API ";
 
 			// Construct the names used commonly during export
-			ref ObjectInfo objectInfo = ref this.ObjectInfos[package.ObjectTypeIndex];
+			ref ObjectInfo objectInfo = ref ObjectInfos[package.ObjectTypeIndex];
 			builder.Append("Z_Construct_UPackage_");
 			builder.Append(packageInfo.StrippedName);
 			objectInfo.UnregisteredSingletonName = objectInfo.RegisteredSingletonName = builder.ToString();
@@ -255,7 +255,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		private void InitHeaderInfo(StringBuilder builder, UhtPackage package, ref PackageInfo packageInfo, UhtHeaderFile headerFile)
 		{
-			ref HeaderInfo headerInfo = ref this.HeaderInfos[headerFile.HeaderFileTypeIndex];
+			ref HeaderInfo headerInfo = ref HeaderInfos[headerFile.HeaderFileTypeIndex];
 
 			headerInfo.IncludePath = Path.GetRelativePath(package.Module.IncludeBase, headerFile.FilePath).Replace('\\', '/');
 
@@ -308,7 +308,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		private void InitObjectInfo(StringBuilder builder, UhtPackage package, ref PackageInfo packageInfo, ref HeaderInfo headerInfo, UhtObject obj)
 		{
-			ref ObjectInfo objectInfo = ref this.ObjectInfos[obj.ObjectTypeIndex];
+			ref ObjectInfo objectInfo = ref ObjectInfos[obj.ObjectTypeIndex];
 
 			builder.Clear();
 
@@ -331,7 +331,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					if (classObj.AlternateObject != null)
 					{
-						this.ObjectInfos[classObj.AlternateObject.ObjectTypeIndex].NativeInterface = classObj;
+						ObjectInfos[classObj.AlternateObject.ObjectTypeIndex].NativeInterface = classObj;
 					}
 				}
 			}

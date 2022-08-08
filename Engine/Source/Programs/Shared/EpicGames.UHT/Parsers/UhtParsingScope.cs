@@ -51,7 +51,7 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Current session
 		/// </summary>
-		public UhtSession Session => this.ScopeType.Session;
+		public UhtSession Session => ScopeType.Session;
 
 		/// <summary>
 		/// Return the current class scope being compiled
@@ -76,7 +76,7 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Return the current class being compiled
 		/// </summary>
-		public UhtClass CurrentClass => (UhtClass)this.CurrentClassScope.ScopeType;
+		public UhtClass CurrentClass => (UhtClass)CurrentClassScope.ScopeType;
 
 		/// <summary>
 		/// Construct a root/global scope
@@ -86,12 +86,12 @@ namespace EpicGames.UHT.Parsers
 		/// <param name="keywordTable">Keyword table</param>
 		public UhtParsingScope(UhtHeaderFileParser headerParser, UhtType scopeType, UhtKeywordTable keywordTable)
 		{
-			this.HeaderParser = headerParser;
-			this.TokenReader = headerParser.TokenReader;
-			this.ParentScope = null;
-			this.ScopeType = scopeType;
-			this.ScopeKeywordTable = keywordTable;
-			this.HeaderParser.PushScope(this);
+			HeaderParser = headerParser;
+			TokenReader = headerParser.TokenReader;
+			ParentScope = null;
+			ScopeType = scopeType;
+			ScopeKeywordTable = keywordTable;
+			HeaderParser.PushScope(this);
 		}
 
 		/// <summary>
@@ -103,13 +103,13 @@ namespace EpicGames.UHT.Parsers
 		/// <param name="accessSpecifier">Current access specifier</param>
 		public UhtParsingScope(UhtParsingScope parentScope, UhtType scopeType, UhtKeywordTable keywordTable, UhtAccessSpecifier accessSpecifier)
 		{
-			this.HeaderParser = parentScope.HeaderParser;
-			this.TokenReader = parentScope.TokenReader;
-			this.ParentScope = parentScope;
-			this.ScopeType = scopeType;
-			this.ScopeKeywordTable = keywordTable;
-			this.AccessSpecifier = accessSpecifier;
-			this.HeaderParser.PushScope(this);
+			HeaderParser = parentScope.HeaderParser;
+			TokenReader = parentScope.TokenReader;
+			ParentScope = parentScope;
+			ScopeType = scopeType;
+			ScopeKeywordTable = keywordTable;
+			AccessSpecifier = accessSpecifier;
+			HeaderParser.PushScope(this);
 		}
 
 		/// <summary>
@@ -129,7 +129,7 @@ namespace EpicGames.UHT.Parsers
 		{
 			if (disposing)
 			{
-				this.HeaderParser.PopScope(this);
+				HeaderParser.PopScope(this);
 			}
 		}
 
@@ -138,7 +138,7 @@ namespace EpicGames.UHT.Parsers
 		/// </summary>
 		public void AddModuleRelativePathToMetaData()
 		{
-			AddModuleRelativePathToMetaData(this.ScopeType.MetaData, this.ScopeType.HeaderFile);
+			AddModuleRelativePathToMetaData(ScopeType.MetaData, ScopeType.HeaderFile);
 		}
 
 		/// <summary>
@@ -157,7 +157,7 @@ namespace EpicGames.UHT.Parsers
 		/// <param name="metaNameIndex">Index for the meta data key.  This is used for enum values</param>
 		public void AddFormattedCommentsAsTooltipMetaData(int metaNameIndex = UhtMetaData.IndexNone)
 		{
-			AddFormattedCommentsAsTooltipMetaData(this.ScopeType, metaNameIndex);
+			AddFormattedCommentsAsTooltipMetaData(ScopeType, metaNameIndex);
 		}
 
 		/// <summary>
@@ -175,7 +175,7 @@ namespace EpicGames.UHT.Parsers
 			}
 
 			// Fetch the comments
-			ReadOnlySpan<StringView> comments = this.TokenReader.Comments;
+			ReadOnlySpan<StringView> comments = TokenReader.Comments;
 
 			// If we don't have any comments, just return
 			if (comments.Length == 0)
@@ -209,12 +209,12 @@ namespace EpicGames.UHT.Parsers
 				type.MetaData.Add(UhtNames.ToolTip, metaNameIndex, toolTip);
 
 				//COMPATIBILITY-TODO - Old UHT would only clear the comments if there was some form of a tooltip
-				this.TokenReader.ClearComments();
+				TokenReader.ClearComments();
 			}
 
 			//COMPATIBILITY-TODO
 			// Clear the comments since they have been consumed
-			//this.TokenReader.ClearComments();
+			//TokenReader.ClearComments();
 		}
 
 		// We consider any alpha/digit or code point > 0xFF as a valid comment char
@@ -608,14 +608,14 @@ namespace EpicGames.UHT.Parsers
 		/// <param name="initialToken">Initial toke nto add to the recorder</param>
 		public UhtTokenRecorder(UhtParsingScope scope, ref UhtToken initialToken)
 		{
-			this._scope = scope;
-			this._compilerDirective = this._scope.HeaderParser.GetCurrentCompositeCompilerDirective();
-			this._function = null;
-			this._flushed = false;
-			if (this._scope.ScopeType is UhtClass)
+			_scope = scope;
+			_compilerDirective = _scope.HeaderParser.GetCurrentCompositeCompilerDirective();
+			_function = null;
+			_flushed = false;
+			if (_scope.ScopeType is UhtClass)
 			{
-				this._scope.TokenReader.EnableRecording();
-				this._scope.TokenReader.RecordToken(ref initialToken);
+				_scope.TokenReader.EnableRecording();
+				_scope.TokenReader.RecordToken(ref initialToken);
 			}
 		}
 
@@ -626,13 +626,13 @@ namespace EpicGames.UHT.Parsers
 		/// <param name="function">Function associated with the recorder</param>
 		public UhtTokenRecorder(UhtParsingScope scope, UhtFunction function)
 		{
-			this._scope = scope;
-			this._compilerDirective = this._scope.HeaderParser.GetCurrentCompositeCompilerDirective();
-			this._function = function;
-			this._flushed = false;
-			if (this._scope.ScopeType is UhtClass)
+			_scope = scope;
+			_compilerDirective = _scope.HeaderParser.GetCurrentCompositeCompilerDirective();
+			_function = function;
+			_flushed = false;
+			if (_scope.ScopeType is UhtClass)
 			{
-				this._scope.TokenReader.EnableRecording();
+				_scope.TokenReader.EnableRecording();
 			}
 		}
 
@@ -653,10 +653,10 @@ namespace EpicGames.UHT.Parsers
 			if (!_flushed)
 			{
 				_flushed = true;
-				if (this._scope.ScopeType is UhtClass classObj)
+				if (_scope.ScopeType is UhtClass classObj)
 				{
-					classObj.AddDeclaration(this._compilerDirective, this._scope.TokenReader.RecordedTokens, this._function);
-					this._scope.TokenReader.DisableRecording();
+					classObj.AddDeclaration(_compilerDirective, _scope.TokenReader.RecordedTokens, _function);
+					_scope.TokenReader.DisableRecording();
 					return true;
 				}
 			}

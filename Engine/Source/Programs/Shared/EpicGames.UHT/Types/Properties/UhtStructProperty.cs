@@ -44,20 +44,20 @@ namespace EpicGames.UHT.Types
 		/// <param name="scriptStruct">USTRUCT being referenced</param>
 		public UhtStructProperty(UhtPropertySettings propertySettings, UhtScriptStruct scriptStruct) : base(propertySettings)
 		{
-			this.ScriptStruct = scriptStruct;
-			this.HeaderFile.AddReferencedHeader(scriptStruct);
-			this.PropertyCaps |= UhtPropertyCaps.SupportsRigVM;
-			if (this.ScriptStruct.HasNoOpConstructor)
+			ScriptStruct = scriptStruct;
+			HeaderFile.AddReferencedHeader(scriptStruct);
+			PropertyCaps |= UhtPropertyCaps.SupportsRigVM;
+			if (ScriptStruct.HasNoOpConstructor)
 			{
-				this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg;
+				PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg;
 			}
-			if (this.ScriptStruct.MetaData.GetBoolean(UhtNames.BlueprintType))
+			if (ScriptStruct.MetaData.GetBoolean(UhtNames.BlueprintType))
 			{
-				this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+				PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
 			}
-			else if (this.ScriptStruct.MetaData.GetBooleanHierarchical(UhtNames.BlueprintType))
+			else if (ScriptStruct.MetaData.GetBooleanHierarchical(UhtNames.BlueprintType))
 			{
-				this.PropertyCaps |= UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
+				PropertyCaps |= UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
 			}
 		}
 
@@ -70,7 +70,7 @@ namespace EpicGames.UHT.Types
 				case UhtResolvePhase.Final:
 					if (ScanForInstancedReferenced(true))
 					{
-						this.PropertyFlags |= EPropertyFlags.ContainsInstancedReference;
+						PropertyFlags |= EPropertyFlags.ContainsInstancedReference;
 					}
 					break;
 			}
@@ -80,25 +80,25 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool ScanForInstancedReferenced(bool deepScan)
 		{
-			return this.ScriptStruct.ScanForInstancedReferenced(deepScan);
+			return ScriptStruct.ScanForInstancedReferenced(deepScan);
 		}
 
 		/// <inheritdoc/>
 		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			collector.AddCrossModuleReference(this.ScriptStruct, true);
+			collector.AddCrossModuleReference(ScriptStruct, true);
 		}
 
 		/// <inheritdoc/>
 		public override string? GetForwardDeclarations()
 		{
-			return !this.ScriptStruct.IsCoreType ? $"struct {this.ScriptStruct.SourceName};" : null;
+			return !ScriptStruct.IsCoreType ? $"struct {ScriptStruct.SourceName};" : null;
 		}
 
 		/// <inheritdoc/>
 		public override IEnumerable<UhtType> EnumerateReferencedTypes()
 		{
-			yield return this.ScriptStruct;
+			yield return ScriptStruct;
 		}
 
 		/// <inheritdoc/>
@@ -107,7 +107,7 @@ namespace EpicGames.UHT.Types
 			switch (textType)
 			{
 				default:
-					builder.Append(this.ScriptStruct.SourceName);
+					builder.Append(ScriptStruct.SourceName);
 					break;
 			}
 			return builder;
@@ -123,7 +123,7 @@ namespace EpicGames.UHT.Types
 		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
 			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FStructPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Struct");
-			AppendMemberDefRef(builder, context, this.ScriptStruct, true);
+			AppendMemberDefRef(builder, context, ScriptStruct, true);
 			AppendMemberDefEnd(builder, context, name, nameSuffix);
 			return builder;
 		}
@@ -131,13 +131,13 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override void AppendObjectHashes(StringBuilder builder, int startingLength, IUhtPropertyMemberContext context)
 		{
-			builder.AppendObjectHash(startingLength, this, context, this.ScriptStruct);
+			builder.AppendObjectHash(startingLength, this, context, ScriptStruct);
 		}
 
 		/// <inheritdoc/>
 		public override StringBuilder AppendNullConstructorArg(StringBuilder builder, bool isInitializer)
 		{
-			bool hasNoOpConstructor = this.ScriptStruct.HasNoOpConstructor;
+			bool hasNoOpConstructor = ScriptStruct.HasNoOpConstructor;
 			if (isInitializer && hasNoOpConstructor)
 			{
 				builder.Append("ForceInit");
@@ -160,9 +160,9 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			if (!this.Session.TryGetStructDefaultValue(this.ScriptStruct.SourceName, out UhtStructDefaultValue structDefaultValue))
+			if (!Session.TryGetStructDefaultValue(ScriptStruct.SourceName, out UhtStructDefaultValue structDefaultValue))
 			{
-				structDefaultValue = this.Session.DefaultStructDefaultValue;
+				structDefaultValue = Session.DefaultStructDefaultValue;
 			}
 			return structDefaultValue.Delegate(this, defaultValueReader, innerDefaultValue);
 		}
@@ -172,7 +172,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (other is UhtStructProperty otherObject)
 			{
-				return this.ScriptStruct == otherObject.ScriptStruct;
+				return ScriptStruct == otherObject.ScriptStruct;
 			}
 			return false;
 		}
@@ -186,7 +186,7 @@ namespace EpicGames.UHT.Types
 			{
 				if (!function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest | EFunctionFlags.NetResponse))
 				{
-					this.Session.ValidateScriptStructOkForNet(this, this.ScriptStruct);
+					Session.ValidateScriptStructOkForNet(this, ScriptStruct);
 				}
 			}
 		}
@@ -194,22 +194,22 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override void ValidateMember(UhtStruct structObj, UhtValidationOptions options)
 		{
-			if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
+			if (PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
 			{
-				this.Session.ValidateScriptStructOkForNet(this, this.ScriptStruct);
+				Session.ValidateScriptStructOkForNet(this, ScriptStruct);
 			}
 		}
 
 		///<inheritdoc/>
 		public override bool ValidateStructPropertyOkForNet(UhtProperty referencingProperty)
 		{
-			return referencingProperty.Session.ValidateScriptStructOkForNet(referencingProperty, this.ScriptStruct);
+			return referencingProperty.Session.ValidateScriptStructOkForNet(referencingProperty, ScriptStruct);
 		}
 
 		///<inheritdoc/>
 		public override bool ContainsEditorOnlyProperties()
 		{
-			foreach (UhtType Child in this.ScriptStruct.Children)
+			foreach (UhtType Child in ScriptStruct.Children)
 			{
 				if (Child is UhtProperty Property)
 				{

@@ -113,19 +113,19 @@ namespace EpicGames.UHT.Tables
 		/// <param name="attribute">Defining attribute</param>
 		public UhtKeyword(string name, UhtKeywordDelegate keywordDelegate, UhtKeywordAttribute? attribute)
 		{
-			this.Name = name;
-			this.Delegate = keywordDelegate;
+			Name = name;
+			Delegate = keywordDelegate;
 			if (attribute != null)
 			{
-				this.AllowText = attribute.AllowText;
-				this.AllScopes = attribute.AllScopes;
-				this.DisableUsageError = attribute.DisableUsageError;
+				AllowText = attribute.AllowText;
+				AllScopes = attribute.AllScopes;
+				DisableUsageError = attribute.DisableUsageError;
 			}
 			else
 			{
-				this.AllowText = null;
-				this.AllScopes = false;
-				this.DisableUsageError = false;
+				AllowText = null;
+				AllScopes = false;
+				DisableUsageError = false;
 			}
 		}
 	}
@@ -164,7 +164,7 @@ namespace EpicGames.UHT.Tables
 		/// <param name="catchAll">The catch-all to be added</param>
 		public UhtKeywordTable AddCatchAll(UhtKeywordCatchAllDelegate catchAll)
 		{
-			this.CatchAlls.Add(catchAll);
+			CatchAlls.Add(catchAll);
 			return this;
 		}
 
@@ -175,7 +175,7 @@ namespace EpicGames.UHT.Tables
 		public override void Merge(UhtLookupTableBase baseTable)
 		{
 			base.Merge(baseTable);
-			this.CatchAlls.AddRange(((UhtKeywordTable)baseTable).CatchAlls);
+			CatchAlls.AddRange(((UhtKeywordTable)baseTable).CatchAlls);
 		}
 	}
 
@@ -238,7 +238,7 @@ namespace EpicGames.UHT.Tables
 		public void LogUnhandledError(IUhtMessageSite messageSite, UhtToken token)
 		{
 			List<string>? tables = null;
-			foreach (KeyValuePair<string, UhtKeywordTable> kvp in this.Tables)
+			foreach (KeyValuePair<string, UhtKeywordTable> kvp in Tables)
 			{
 				UhtKeywordTable keywordTable = kvp.Value;
 				if (keywordTable.Internal)

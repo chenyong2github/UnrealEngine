@@ -37,10 +37,10 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("\r\n");
 				builder.Append("\r\n");
 
-				List<UhtHeaderFile> headerFiles = new(this.Package.Children.Count * 2);
+				List<UhtHeaderFile> headerFiles = new(Package.Children.Count * 2);
 				headerFiles.AddRange(packageSortedHeaders);
 
-				foreach (UhtHeaderFile headerFile in this.Package.Children)
+				foreach (UhtHeaderFile headerFile in Package.Children)
 				{
 					if (headerFile.HeaderFileType == UhtHeaderFileType.Classes)
 					{
@@ -55,15 +55,15 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					if (headerFile.HeaderFileType == UhtHeaderFileType.Classes)
 					{
-						builder.Append("#include \"").Append(this.HeaderInfos[headerFile.HeaderFileTypeIndex].IncludePath).Append("\"\r\n");
+						builder.Append("#include \"").Append(HeaderInfos[headerFile.HeaderFileTypeIndex].IncludePath).Append("\"\r\n");
 					}
 				}
 
 				builder.Append("\r\n");
 
-				if (this.SaveExportedHeaders)
+				if (SaveExportedHeaders)
 				{
-					string headerFilePath = factory.MakePath(this.Package, "Classes.h");
+					string headerFilePath = factory.MakePath(Package, "Classes.h");
 					factory.CommitOutput(headerFilePath, builder);
 				}
 			}

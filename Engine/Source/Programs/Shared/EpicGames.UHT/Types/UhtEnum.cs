@@ -147,7 +147,7 @@ namespace EpicGames.UHT.Types
 
 		///<inheritdoc/>
 		[JsonIgnore]
-		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable => this.Session.GetSpecifierValidatorTable(UhtTableNames.Enum);
+		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable => Session.GetSpecifierValidatorTable(UhtTableNames.Enum);
 
 		/// <summary>
 		/// Construct a new enumeration
@@ -156,8 +156,8 @@ namespace EpicGames.UHT.Types
 		/// <param name="lineNumber">Line number of declaration</param>
 		public UhtEnum(UhtType outer, int lineNumber) : base(outer, lineNumber)
 		{
-			this.MetaData.KeyConversion = this;
-			this.EnumValues = new List<UhtEnumValue>();
+			MetaData.KeyConversion = this;
+			EnumValues = new List<UhtEnumValue>();
 		}
 
 		/// <summary>
@@ -187,7 +187,7 @@ namespace EpicGames.UHT.Types
 			name = CleanEnumValueName(name);
 			for (int index = 0; index < EnumValues.Count; ++index)
 			{
-				if (this.EnumValues[index].Name == name)
+				if (EnumValues[index].Name == name)
 				{
 					return index;
 				}
@@ -203,8 +203,8 @@ namespace EpicGames.UHT.Types
 		/// <returns>Meta data name with the enum value name</returns>
 		public string GetMetaDataKey(string name, int nameIndex)
 		{
-			string enumName = this.EnumValues[nameIndex].Name;
-			if (this.CppForm != UhtEnumCppForm.Regular)
+			string enumName = EnumValues[nameIndex].Name;
+			if (CppForm != UhtEnumCppForm.Regular)
 			{
 				int scopeIndex = enumName.IndexOf("::", StringComparison.Ordinal);
 				if (scopeIndex >= 0)
@@ -223,11 +223,11 @@ namespace EpicGames.UHT.Types
 		/// <exception cref="UhtIceException">Unexpected enum form</exception>
 		public string GetFullEnumName(string shortEnumName)
 		{
-			switch (this.CppForm)
+			switch (CppForm)
 			{
 				case UhtEnumCppForm.Namespaced:
 				case UhtEnumCppForm.EnumClass:
-					return $"{this.SourceName}::{shortEnumName}";
+					return $"{SourceName}::{shortEnumName}";
 
 				case UhtEnumCppForm.Regular:
 					return shortEnumName;
@@ -245,8 +245,8 @@ namespace EpicGames.UHT.Types
 		/// <returns></returns>
 		public int AddEnumValue(string shortEnumName, long value)
 		{
-			int enumIndex = this.EnumValues.Count;
-			this.EnumValues.Add(new UhtEnumValue { Name = GetFullEnumName(shortEnumName), Value = value });
+			int enumIndex = EnumValues.Count;
+			EnumValues.Add(new UhtEnumValue { Name = GetFullEnumName(shortEnumName), Value = value });
 			return enumIndex;
 		}
 
@@ -268,29 +268,29 @@ namespace EpicGames.UHT.Types
 		{
 			if (policy.ClassOrStructCommentRequired)
 			{
-				if (!this.MetaData.ContainsKey(UhtNames.ToolTip))
+				if (!MetaData.ContainsKey(UhtNames.ToolTip))
 				{
-					this.LogError(this.MetaData.LineNumber, $"Enum '{this.SourceName}' does not provide a tooltip / comment (DocumentationPolicy)");
+					this.LogError(MetaData.LineNumber, $"Enum '{SourceName}' does not provide a tooltip / comment (DocumentationPolicy)");
 				}
 			}
 
 			Dictionary<string, string> toolTips = new(StringComparer.OrdinalIgnoreCase);
-			for (int enumIndex = 0; enumIndex < this.EnumValues.Count; ++enumIndex)
+			for (int enumIndex = 0; enumIndex < EnumValues.Count; ++enumIndex)
 			{
-				if (!this.MetaData.TryGetValue(UhtNames.Name, enumIndex, out string? entryName))
+				if (!MetaData.TryGetValue(UhtNames.Name, enumIndex, out string? entryName))
 				{
 					continue;
 				}
 
-				if (!this.MetaData.TryGetValue(UhtNames.ToolTip, enumIndex, out string? toolTip))
+				if (!MetaData.TryGetValue(UhtNames.ToolTip, enumIndex, out string? toolTip))
 				{
-					this.LogError(this.MetaData.LineNumber, $"Enum entry '{this.SourceName}::{entryName}' does not provide a tooltip / comment (DocumentationPolicy)");
+					this.LogError(MetaData.LineNumber, $"Enum entry '{SourceName}::{entryName}' does not provide a tooltip / comment (DocumentationPolicy)");
 					continue;
 				}
 
 				if (toolTips.TryGetValue(toolTip, out string? dupName))
 				{
-					this.LogError(this.MetaData.LineNumber, $"Enum entries '{this.SourceName}::{entryName}' and '{this.SourceName}::{dupName}' have identical tooltips / comments (DocumentationPolicy)");
+					this.LogError(MetaData.LineNumber, $"Enum entries '{SourceName}::{entryName}' and '{SourceName}::{dupName}' have identical tooltips / comments (DocumentationPolicy)");
 				}
 				else
 				{
@@ -306,7 +306,7 @@ namespace EpicGames.UHT.Types
 			collector.AddExportType(this);
 			collector.AddDeclaration(this, true);
 			collector.AddCrossModuleReference(this, true);
-			collector.AddCrossModuleReference(this.Package, true);
+			collector.AddCrossModuleReference(Package, true);
 		}
 	}
 }

@@ -47,23 +47,23 @@ namespace EpicGames.UHT.Types
 		/// <param name="metaClass">Referenced UCLASS used by class properties</param>
 		protected UhtObjectPropertyBase(UhtPropertySettings propertySettings, UhtClass classObj, UhtClass? metaClass) : base(propertySettings)
 		{
-			this.Class = classObj;
-			this.MetaClass = metaClass;
+			Class = classObj;
+			MetaClass = metaClass;
 
 			// This applies to EVERYTHING including raw pointer
 			// Imply const if it's a parameter that is a pointer to a const class
 			// NOTE: We shouldn't be automatically adding const param because in some cases with functions and blueprint native event, the 
 			// generated code won't match.  For now, just disabled the auto add in that case and check for the error in the validation code.
 			// Otherwise, the user is not warned and they will get compile errors.
-			if (propertySettings.PropertyCategory != UhtPropertyCategory.Member && this.Class.ClassFlags.HasAnyFlags(EClassFlags.Const) && !propertySettings.Options.HasAnyFlags(UhtPropertyOptions.NoAutoConst))
+			if (propertySettings.PropertyCategory != UhtPropertyCategory.Member && Class.ClassFlags.HasAnyFlags(EClassFlags.Const) && !propertySettings.Options.HasAnyFlags(UhtPropertyOptions.NoAutoConst))
 			{
-				this.PropertyFlags |= EPropertyFlags.ConstParm;
+				PropertyFlags |= EPropertyFlags.ConstParm;
 			}
 
-			this.PropertyCaps &= ~(UhtPropertyCaps.CanHaveConfig);
-			if (this.Session.Config!.AreRigVMUObjectProeprtiesEnabled)
+			PropertyCaps &= ~(UhtPropertyCaps.CanHaveConfig);
+			if (Session.Config!.AreRigVMUObjectProeprtiesEnabled)
 			{
-				this.PropertyCaps |= UhtPropertyCaps.SupportsRigVM;
+				PropertyCaps |= UhtPropertyCaps.SupportsRigVM;
 			}
 		}
 
@@ -74,9 +74,9 @@ namespace EpicGames.UHT.Types
 			switch (phase)
 			{
 				case UhtResolvePhase.Final:
-					if (this.Class.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced))
+					if (Class.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced))
 					{
-						this.PropertyFlags |= (EPropertyFlags.InstancedReference | EPropertyFlags.ExportObject) & ~this.DisallowPropertyFlags;
+						PropertyFlags |= (EPropertyFlags.InstancedReference | EPropertyFlags.ExportObject) & ~DisallowPropertyFlags;
 					}
 					break;
 			}
@@ -86,29 +86,29 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool ScanForInstancedReferenced(bool deepScan)
 		{
-			return !this.DisallowPropertyFlags.HasAnyFlags(EPropertyFlags.InstancedReference) && this.Class.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced);
+			return !DisallowPropertyFlags.HasAnyFlags(EPropertyFlags.InstancedReference) && Class.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced);
 		}
 
 		/// <inheritdoc/>
 		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			collector.AddCrossModuleReference(this.Class, false);
-			collector.AddCrossModuleReference(this.MetaClass, false);
+			collector.AddCrossModuleReference(Class, false);
+			collector.AddCrossModuleReference(MetaClass, false);
 		}
 
 		/// <inheritdoc/>
 		public override string? GetForwardDeclarations()
 		{
-			return $"class {this.Class.SourceName};";
+			return $"class {Class.SourceName};";
 		}
 
 		/// <inheritdoc/>
 		public override IEnumerable<UhtType> EnumerateReferencedTypes()
 		{
-			yield return this.Class;
-			if (this.MetaClass != null)
+			yield return Class;
+			if (MetaClass != null)
 			{
-				yield return this.MetaClass;
+				yield return MetaClass;
 			}
 		}
 
@@ -128,15 +128,15 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override void ValidateDeprecated()
 		{
-			ValidateDeprecatedClass(this.Class);
-			ValidateDeprecatedClass(this.MetaClass);
+			ValidateDeprecatedClass(Class);
+			ValidateDeprecatedClass(MetaClass);
 		}
 
 		/// <inheritdoc/>
 		public override bool MustBeConstArgument([NotNullWhen(true)] out UhtType? errorType)
 		{
-			errorType = this.Class;
-			return this.Class.ClassFlags.HasAnyFlags(EClassFlags.Const);
+			errorType = Class;
+			return Class.ClassFlags.HasAnyFlags(EClassFlags.Const);
 		}
 
 		#region Parsing support methods

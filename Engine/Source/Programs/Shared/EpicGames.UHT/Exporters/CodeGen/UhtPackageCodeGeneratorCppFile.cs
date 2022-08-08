@@ -39,7 +39,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				uint bodiesHash = 0;
 				foreach (UhtHeaderFile headerFile in packageSortedHeaders)
 				{
-					ref UhtCodeGenerator.HeaderInfo headerInfo = ref this.HeaderInfos[headerFile.HeaderFileTypeIndex];
+					ref UhtCodeGenerator.HeaderInfo headerInfo = ref HeaderInfos[headerFile.HeaderFileTypeIndex];
 					ReadOnlyMemory<string> sorted = headerFile.References.Declaration.GetSortedReferences(
 						(int objectIndex, bool registered) => GetExternalDecl(objectIndex, registered));
 					foreach (string declaration in sorted.Span)
@@ -49,7 +49,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 					singletons.AddRange(headerFile.References.Singletons);
 
-					uint bodyHash = this.HeaderInfos[headerFile.HeaderFileTypeIndex].BodyHash;
+					uint bodyHash = HeaderInfos[headerFile.HeaderFileTypeIndex].BodyHash;
 					if (bodiesHash == 0)
 					{
 						// Don't combine in the first case because it keeps GUID backwards compatibility
@@ -68,8 +68,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				}
 				uint declarationsHash = UhtHash.GenenerateTextHash(declarations.ToString());
 
-				string strippedName = this.PackageInfos[this.Package.PackageTypeIndex].StrippedName;
-				string singletonName = this.PackageSingletonName;
+				string strippedName = PackageInfos[Package.PackageTypeIndex].StrippedName;
+				string singletonName = PackageSingletonName;
 				singletons.Sort((UhtField lhs, UhtField rhs) =>
 				{
 					bool lhsIsDel = IsDelegateFunction(lhs);
@@ -79,16 +79,16 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						return !lhsIsDel ? -1 : 1;
 					}
 					return StringComparerUE.OrdinalIgnoreCase.Compare(
-						this.ObjectInfos[lhs.ObjectTypeIndex].RegisteredSingletonName,
-						this.ObjectInfos[rhs.ObjectTypeIndex].RegisteredSingletonName);
+						ObjectInfos[lhs.ObjectTypeIndex].RegisteredSingletonName,
+						ObjectInfos[rhs.ObjectTypeIndex].RegisteredSingletonName);
 				});
 
 				builder.Append(HeaderCopyright);
 				builder.Append(RequiredCPPIncludes);
 				builder.Append(DisableDeprecationWarnings).Append("\r\n");
-				builder.Append("void EmptyLinkFunctionForGeneratedCode").Append(this.Package.ShortName).Append("_init() {}\r\n");
+				builder.Append("void EmptyLinkFunctionForGeneratedCode").Append(Package.ShortName).Append("_init() {}\r\n");
 
-				if (this.Session.IncludeDebugOutput)
+				if (Session.IncludeDebugOutput)
 				{
 					builder.Append("#if 0\r\n");
 					foreach (UhtHeaderFile headerFile in packageSortedHeaders)
@@ -101,11 +101,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				foreach (UhtObject obj in singletons)
 				{
-					ref UhtCodeGenerator.ObjectInfo info = ref this.ObjectInfos[obj.ObjectTypeIndex];
+					ref UhtCodeGenerator.ObjectInfo info = ref ObjectInfos[obj.ObjectTypeIndex];
 					builder.Append(info.RegsiteredExternalDecl);
 				}
 
-				builder.AppendMetaDataDef(this.Package, null, MetaDataParamsName, 3);
+				builder.AppendMetaDataDef(Package, null, MetaDataParamsName, 3);
 
 				builder.Append("\tstatic FPackageRegistrationInfo Z_Registration_Info_UPackage_").Append(strippedName).Append(";\r\n");
 				builder.Append("\tFORCENOINLINE UPackage* ").Append(singletonName).Append("()\r\n");
@@ -118,20 +118,20 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					builder.Append("\t\t\tstatic UObject* (*const SingletonFuncArray[])() = {\r\n");
 					foreach (UhtField field in singletons)
 					{
-						builder.Append("\t\t\t\t(UObject* (*)())").Append(this.ObjectInfos[field.ObjectTypeIndex].RegisteredSingletonName).Append(",\r\n");
+						builder.Append("\t\t\t\t(UObject* (*)())").Append(ObjectInfos[field.ObjectTypeIndex].RegisteredSingletonName).Append(",\r\n");
 					}
 					builder.Append("\t\t\t};\r\n");
 				}
 
-				EPackageFlags flags = this.Package.PackageFlags & (EPackageFlags.ClientOptional | EPackageFlags.ServerSideOnly | EPackageFlags.EditorOnly | EPackageFlags.Developer | EPackageFlags.UncookedOnly);
+				EPackageFlags flags = Package.PackageFlags & (EPackageFlags.ClientOptional | EPackageFlags.ServerSideOnly | EPackageFlags.EditorOnly | EPackageFlags.Developer | EPackageFlags.UncookedOnly);
 				builder.Append("\t\t\tstatic const UECodeGen_Private::FPackageParams PackageParams = {\r\n");
-				builder.Append("\t\t\t\t").AppendUTF8LiteralString(this.Package.SourceName).Append(",\r\n");
+				builder.Append("\t\t\t\t").AppendUTF8LiteralString(Package.SourceName).Append(",\r\n");
 				builder.Append("\t\t\t\t").Append(singletons.Count != 0 ? "SingletonFuncArray" : "nullptr").Append(",\r\n");
 				builder.Append("\t\t\t\t").Append(singletons.Count != 0 ? "UE_ARRAY_COUNT(SingletonFuncArray)" : "0").Append(",\r\n");
 				builder.Append("\t\t\t\tPKG_CompiledIn | ").Append($"0x{(uint)flags:X8}").Append(",\r\n");
 				builder.Append("\t\t\t\t").Append($"0x{bodiesHash:X8}").Append(",\r\n");
 				builder.Append("\t\t\t\t").Append($"0x{declarationsHash:X8}").Append(",\r\n");
-				builder.Append("\t\t\t\t").AppendMetaDataParams(this.Package, null, MetaDataParamsName).Append("\r\n");
+				builder.Append("\t\t\t\t").AppendMetaDataParams(Package, null, MetaDataParamsName).Append("\r\n");
 				builder.Append("\t\t\t};\r\n");
 				builder.Append("\t\t\tUECodeGen_Private::ConstructUPackage(Z_Registration_Info_UPackage_").Append(strippedName).Append(".OuterSingleton, PackageParams);\r\n");
 				builder.Append("\t\t}\r\n");
@@ -140,14 +140,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				// Do not change the Z_CompiledInDeferPackage_UPackage_ without changing LC_SymbolPatterns
 				builder.Append("\tstatic FRegisterCompiledInInfo Z_CompiledInDeferPackage_UPackage_").Append(strippedName).Append('(').Append(singletonName)
-					.Append(", TEXT(\"").Append(this.Package.SourceName).Append("\"), Z_Registration_Info_UPackage_").Append(strippedName).Append(", CONSTRUCT_RELOAD_VERSION_INFO(FPackageReloadVersionInfo, ")
+					.Append(", TEXT(\"").Append(Package.SourceName).Append("\"), Z_Registration_Info_UPackage_").Append(strippedName).Append(", CONSTRUCT_RELOAD_VERSION_INFO(FPackageReloadVersionInfo, ")
 					.Append($"0x{bodiesHash:X8}, 0x{declarationsHash:X8}").Append("));\r\n");
 
 				builder.Append(EnableDeprecationWarnings).Append("\r\n");
 
-				if (this.SaveExportedHeaders)
+				if (SaveExportedHeaders)
 				{
-					string cppFilePath = factory.MakePath(this.Package, ".init.gen.cpp");
+					string cppFilePath = factory.MakePath(Package, ".init.gen.cpp");
 					factory.CommitOutput(cppFilePath, builder);
 				}
 			}

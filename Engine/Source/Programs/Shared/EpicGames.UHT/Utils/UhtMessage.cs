@@ -296,9 +296,9 @@ namespace EpicGames.UHT.Utils
 
 		#region IUHTMessageSite implementation
 		/// <inheritdoc/>
-		public IUhtMessageSession MessageSession => this._messageSession;
+		public IUhtMessageSession MessageSession => _messageSession;
 		/// <inheritdoc/>
-		public IUhtMessageSource? MessageSource { get => this._messageSource; set => this._messageSource = value; }
+		public IUhtMessageSource? MessageSource { get => _messageSource; set => _messageSource = value; }
 		/// <inheritdoc/>
 		public IUhtMessageLineNumber? MessageLineNumber => null;
 		#endregion
@@ -310,8 +310,8 @@ namespace EpicGames.UHT.Utils
 		/// <param name="messageSource">Source for the messages</param>
 		public UhtSimpleMessageSite(IUhtMessageSession messageSession, IUhtMessageSource? messageSource = null)
 		{
-			this._messageSession = messageSession;
-			this._messageSource = messageSource;
+			_messageSession = messageSession;
+			_messageSource = messageSource;
 		}
 	}
 
@@ -322,9 +322,9 @@ namespace EpicGames.UHT.Utils
 	{
 		#region IUHTMessageSource implementation
 		/// <inheritdoc/>
-		public string MessageFilePath => this._filePath;
+		public string MessageFilePath => _filePath;
 		/// <inheritdoc/>
-		public string MessageFullFilePath => this._filePath;
+		public string MessageFullFilePath => _filePath;
 		/// <inheritdoc/>
 		public bool MessageIsFragment => false;
 		/// <inheritdoc/>
@@ -344,8 +344,8 @@ namespace EpicGames.UHT.Utils
 		/// <param name="filePath">File associated with the site</param>
 		public UhtSimpleFileMessageSite(IUhtMessageSession messageSession, string filePath) : base(messageSession, null)
 		{
-			this._filePath = filePath;
-			this.MessageSource = this;
+			_filePath = filePath;
+			MessageSource = this;
 		}
 	}
 
@@ -518,7 +518,7 @@ namespace EpicGames.UHT.Utils
 		private static readonly ThreadLocal<UhtTlsMessageExtraContext> s_tls = new(() => new UhtTlsMessageExtraContext());
 
 		#region IUHTMessageExtraContext implementation
-		IEnumerable<object?>? IUhtMessageExtraContext.MessageExtraContext => this._extraContexts;
+		IEnumerable<object?>? IUhtMessageExtraContext.MessageExtraContext => _extraContexts;
 		#endregion
 
 		/// <summary>
@@ -527,11 +527,11 @@ namespace EpicGames.UHT.Utils
 		/// <param name="exceptionContext"></param>
 		public void PushExtraContext(object? exceptionContext)
 		{
-			if (this._extraContexts == null)
+			if (_extraContexts == null)
 			{
-				this._extraContexts = new Stack<object?>(8);
+				_extraContexts = new Stack<object?>(8);
 			}
-			this._extraContexts.Push(exceptionContext);
+			_extraContexts.Push(exceptionContext);
 		}
 
 		/// <summary>
@@ -539,9 +539,9 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		public void PopExtraContext()
 		{
-			if (this._extraContexts != null)
+			if (_extraContexts != null)
 			{
-				this._extraContexts.Pop();
+				_extraContexts.Pop();
 			}
 		}
 
@@ -571,10 +571,10 @@ namespace EpicGames.UHT.Utils
 		/// <param name="extraContext">Extra context to be added</param>
 		public UhtMessageContext(object? extraContext)
 		{
-			this._stack = UhtTlsMessageExtraContext.GetTls();
-			if (this._stack != null)
+			_stack = UhtTlsMessageExtraContext.GetTls();
+			if (_stack != null)
 			{
-				this._stack.PushExtraContext(extraContext);
+				_stack.PushExtraContext(extraContext);
 			}
 		}
 
@@ -585,10 +585,10 @@ namespace EpicGames.UHT.Utils
 		/// <param name="extraContext">New extra context</param>
 		public void Reset(object? extraContext)
 		{
-			if (this._stack != null)
+			if (_stack != null)
 			{
-				this._stack.PopExtraContext();
-				this._stack.PushExtraContext(extraContext);
+				_stack.PopExtraContext();
+				_stack.PushExtraContext(extraContext);
 			}
 		}
 
@@ -597,9 +597,9 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		public void Dispose()
 		{
-			if (this._stack != null)
+			if (_stack != null)
 			{
-				this._stack.PopExtraContext();
+				_stack.PopExtraContext();
 			}
 		}
 	}

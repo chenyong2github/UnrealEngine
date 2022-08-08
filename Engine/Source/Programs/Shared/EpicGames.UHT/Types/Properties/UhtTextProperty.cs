@@ -36,9 +36,9 @@ namespace EpicGames.UHT.Types
 		/// <param name="propertySettings">Property settings</param>
 		public UhtTextProperty(UhtPropertySettings propertySettings) : base(propertySettings)
 		{
-			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
+			PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
 				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
-			this.PropertyCaps &= ~(UhtPropertyCaps.CanBeContainerKey);
+			PropertyCaps &= ~(UhtPropertyCaps.CanBeContainerKey);
 		}
 
 		/// <inheritdoc/>
@@ -101,7 +101,7 @@ namespace EpicGames.UHT.Types
 			if (token.IsIdentifier("LOCTEXT"))
 			{
 				//ETSTODO - Add a test case for this
-				this.LogError($"LOCTEXT default parameter values are not supported; use NSLOCTEXT instead: {this.SourceName}");
+				this.LogError($"LOCTEXT default parameter values are not supported; use NSLOCTEXT instead: {SourceName}");
 				return false;
 			}
 			else

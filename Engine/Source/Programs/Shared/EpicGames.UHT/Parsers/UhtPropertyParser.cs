@@ -393,8 +393,8 @@ namespace EpicGames.UHT.Parsers
 		/// <param name="typeTokens">Type tokens</param>
 		public UhtPreResolveProperty(UhtPropertySettings propertySettings, ReadOnlyMemory<UhtToken> typeTokens) : base(propertySettings)
 		{
-			this.TypeTokens = typeTokens;
-			this.PropertySettings = propertySettings;
+			TypeTokens = typeTokens;
+			PropertySettings = propertySettings;
 		}
 
 		/// <inheritdoc/>
@@ -472,7 +472,7 @@ namespace EpicGames.UHT.Parsers
 		/// </summary>
 		public UhtPropertyParser()
 		{
-			this._gatherTypeTokensDelegate = GatherTypeTokens;
+			_gatherTypeTokensDelegate = GatherTypeTokens;
 		}
 
 		/// <summary>
@@ -502,11 +502,11 @@ namespace EpicGames.UHT.Parsers
 			specifierContext.SeenBlueprintGetterSpecifier = false;
 
 			// Initialize the settings
-			this._options = options;
-			this._category = category;
-			this._currentTokenReader = topScope.TokenReader;
-			this._currentTypeTokens = new List<UhtToken>();
-			this._currentTemplateDepth = 0;
+			_options = options;
+			_category = category;
+			_currentTokenReader = topScope.TokenReader;
+			_currentTypeTokens = new List<UhtToken>();
+			_currentTemplateDepth = 0;
 
 			using UhtMessageContext tokenContext = new(this);
 			ParseInternal(topScope, specifierContext, propertyDelegate);
@@ -520,7 +520,7 @@ namespace EpicGames.UHT.Parsers
 			get
 			{
 				Stack<object?> extraContext = new(1);
-				extraContext.Push(this._category.GetHintText());
+				extraContext.Push(_category.GetHintText());
 				return extraContext;
 			}
 		}
@@ -820,7 +820,7 @@ namespace EpicGames.UHT.Parsers
 			// Handle MemoryLayout.h macros
 			bool hasWrapperBrackets = false;
 			UhtLayoutMacroType layoutMacroType = UhtLayoutMacroType.None;
-			if (this._options.HasAnyFlags(UhtPropertyParseOptions.ParseLayoutMacro))
+			if (_options.HasAnyFlags(UhtPropertyParseOptions.ParseLayoutMacro))
 			{
 				ref UhtToken layoutToken = ref tokenReader.PeekToken();
 				if (layoutToken.IsIdentifier())
@@ -854,7 +854,7 @@ namespace EpicGames.UHT.Parsers
 			tokenReader.While(_gatherTypeTokensDelegate);
 
 			// Verify we at least have one type
-			if (this._currentTypeTokens.Count < 1)
+			if (_currentTypeTokens.Count < 1)
 			{
 				throw new UhtException(tokenReader, $"{propertySettings.PropertyCategory.GetHintText()}: Missing variable type or name");
 			}
@@ -871,7 +871,7 @@ namespace EpicGames.UHT.Parsers
 				tokenReader.LogError("Specified type modifiers not allowed here");
 			}
 
-			if (this._options.HasAnyFlags(UhtPropertyParseOptions.AddModuleRelativePath))
+			if (_options.HasAnyFlags(UhtPropertyParseOptions.AddModuleRelativePath))
 			{
 				UhtParsingScope.AddModuleRelativePathToMetaData(propertySettings.MetaData, topScope.ScopeType.HeaderFile);
 			}
@@ -897,20 +897,20 @@ namespace EpicGames.UHT.Parsers
 				}
 				tokenReader.Require(')');
 
-				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
+				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(_currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
 			}
-			else if (this._options.HasAnyFlags(UhtPropertyParseOptions.List))
+			else if (_options.HasAnyFlags(UhtPropertyParseOptions.List))
 			{
 				// Extract the property name from the types
-				if (this._currentTypeTokens.Count < 2 || !this._currentTypeTokens[^1].IsIdentifier())
+				if (_currentTypeTokens.Count < 2 || !_currentTypeTokens[^1].IsIdentifier())
 				{
 					throw new UhtException(tokenReader, $"{propertySettings.PropertyCategory.GetHintText()}: Expected name");
 				}
-				UhtToken nameToken = this._currentTypeTokens[^1];
-				this._currentTypeTokens.RemoveAt(this._currentTypeTokens.Count - 1);
+				UhtToken nameToken = _currentTypeTokens[^1];
+				_currentTypeTokens.RemoveAt(_currentTypeTokens.Count - 1);
 				CheckForOptionalParts(tokenReader, propertySettings, ref nameToken);
 
-				ReadOnlyMemory<UhtToken> typeTokens = new(this._currentTypeTokens.ToArray());
+				ReadOnlyMemory<UhtToken> typeTokens = new(_currentTypeTokens.ToArray());
 
 				while (true)
 				{
@@ -926,24 +926,24 @@ namespace EpicGames.UHT.Parsers
 					throw new UhtException(tokenReader, $"Comma delimited properties cannot be converted");
 
 					// we'll need any metadata tags we parsed later on when we call ConvertEOLCommentToTooltip() so the tags aren't clobbered
-					//this.SpecifierContext.PropertySettings.MetaData = Property.MetaData.Clone();
-					//this.SpecifierContext.PropertySettings.ResetTrailingSettings();
+					//SpecifierContext.PropertySettings.MetaData = Property.MetaData.Clone();
+					//SpecifierContext.PropertySettings.ResetTrailingSettings();
 
 					// Get the next property name
 					//NameToken = tokenReader.GetIdentifier();
-					//CheckForOptionalParts(this.SpecifierContext.PropertySettings, ref NameToken);
+					//CheckForOptionalParts(SpecifierContext.PropertySettings, ref NameToken);
 				}
 			}
-			else if (this._options.HasAnyFlags(UhtPropertyParseOptions.CommaSeparatedName))
+			else if (_options.HasAnyFlags(UhtPropertyParseOptions.CommaSeparatedName))
 			{
 				tokenReader.Require(',');
 				UhtToken nameToken = tokenReader.GetIdentifier();
 				CheckForOptionalParts(tokenReader, propertySettings, ref nameToken);
-				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
+				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(_currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
 			}
-			else if (this._options.HasAnyFlags(UhtPropertyParseOptions.FunctionNameIncluded))
+			else if (_options.HasAnyFlags(UhtPropertyParseOptions.FunctionNameIncluded))
 			{
-				UhtToken nameToken = this._currentTypeTokens[^1];
+				UhtToken nameToken = _currentTypeTokens[^1];
 				nameToken.Value = new StringView("Function");
 				if (CheckForOptionalParts(tokenReader, propertySettings, ref nameToken))
 				{
@@ -951,31 +951,31 @@ namespace EpicGames.UHT.Parsers
 				}
 				else
 				{
-					if (this._currentTypeTokens.Count < 2 || !this._currentTypeTokens[^1].IsIdentifier())
+					if (_currentTypeTokens.Count < 2 || !_currentTypeTokens[^1].IsIdentifier())
 					{
 						throw new UhtException(tokenReader, $"{propertySettings.PropertyCategory.GetHintText()}: Expected name");
 					}
-					nameToken = this._currentTypeTokens[^1];
-					this._currentTypeTokens.RemoveAt(this._currentTypeTokens.Count - 1);
+					nameToken = _currentTypeTokens[^1];
+					_currentTypeTokens.RemoveAt(_currentTypeTokens.Count - 1);
 				}
-				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
+				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(_currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
 			}
-			else if (this._options.HasAnyFlags(UhtPropertyParseOptions.NameIncluded))
+			else if (_options.HasAnyFlags(UhtPropertyParseOptions.NameIncluded))
 			{
-				if (this._currentTypeTokens.Count < 2 || !this._currentTypeTokens[^1].IsIdentifier())
+				if (_currentTypeTokens.Count < 2 || !_currentTypeTokens[^1].IsIdentifier())
 				{
 					throw new UhtException(tokenReader, $"{propertySettings.PropertyCategory.GetHintText()}: Expected name");
 				}
-				UhtToken nameToken = this._currentTypeTokens[^1];
-				this._currentTypeTokens.RemoveAt(this._currentTypeTokens.Count - 1);
+				UhtToken nameToken = _currentTypeTokens[^1];
+				_currentTypeTokens.RemoveAt(_currentTypeTokens.Count - 1);
 				CheckForOptionalParts(tokenReader, propertySettings, ref nameToken);
-				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
+				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(_currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
 			}
 			else
 			{
 				UhtToken nameToken = new();
 				CheckForOptionalParts(tokenReader, propertySettings, ref nameToken);
-				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
+				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(_currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
 			}
 		}
 
@@ -1159,7 +1159,7 @@ namespace EpicGames.UHT.Parsers
 			propertyDelegate(topScope, newProperty, ref nameToken, layoutMacroType);
 
 			// Void properties don't get added when they are the return value
-			if (newProperty.PropertyCategory != UhtPropertyCategory.Return || !this._options.HasAnyFlags(UhtPropertyParseOptions.DontAddReturn))
+			if (newProperty.PropertyCategory != UhtPropertyCategory.Return || !_options.HasAnyFlags(UhtPropertyParseOptions.DontAddReturn))
 			{
 				topScope.ScopeType.AddChild(newProperty);
 			}
@@ -1206,24 +1206,24 @@ namespace EpicGames.UHT.Parsers
 
 		private bool GatherTypeTokens(ref UhtToken token)
 		{
-			if (this._currentTemplateDepth == 0 && token.IsSymbol() && (token.IsValue(',') || token.IsValue('(') || token.IsValue(')') || 
+			if (_currentTemplateDepth == 0 && token.IsSymbol() && (token.IsValue(',') || token.IsValue('(') || token.IsValue(')') || 
 				token.IsValue(';') || token.IsValue('[') || token.IsValue(':') || token.IsValue('=') || token.IsValue('{')))
 			{
 				return false;
 			}
 
-			this._currentTypeTokens.Add(token);
+			_currentTypeTokens.Add(token);
 			if (token.IsSymbol('<'))
 			{
-				++this._currentTemplateDepth;
+				++_currentTemplateDepth;
 			}
 			else if (token.IsSymbol('>'))
 			{
-				if (this._currentTemplateDepth == 0)
+				if (_currentTemplateDepth == 0)
 				{
-					throw new UhtTokenException(this._currentTokenReader!, token, "',' or ')'");
+					throw new UhtTokenException(_currentTokenReader!, token, "',' or ')'");
 				}
-				--this._currentTemplateDepth;
+				--_currentTemplateDepth;
 			}
 			return true;
 		}
