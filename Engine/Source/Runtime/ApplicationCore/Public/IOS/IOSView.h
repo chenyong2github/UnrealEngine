@@ -66,7 +66,7 @@ APPLICATIONCORE_API
 	BOOL bSecureTextEntry;
 	
 	volatile int32 KeyboardShowCount;
-	NSUInteger SupportedInterfaceOrientations = UIInterfaceOrientationMaskAll;
+	NSUInteger SupportedInterfaceOrientations;
 }
 
 #if WITH_ACCESSIBILITY

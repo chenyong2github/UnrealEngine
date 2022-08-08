@@ -188,6 +188,7 @@ id<MTLDevice> GMetalDevice = nil;
 	
 	
 #if !PLATFORM_TVOS
+	SupportedInterfaceOrientations = UIInterfaceOrientationMaskAll;
 	self.multipleTouchEnabled = YES;
 #endif
 
@@ -1039,11 +1040,19 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 }
 
 /**
- * Tell the OS what the default supported orientations are
+ * Tell the OS about the default supported orientations
  */
 - (NSUInteger)supportedInterfaceOrientations
 {
-	return SupportedInterfaceOrientations;
+	const FIOSView *View = [[IOSAppDelegate GetDelegate] IOSView];
+	if (View != nil)
+	{
+		return View->SupportedInterfaceOrientations;
+	}
+	else
+	{	
+		return 0;
+	}	
 }
 
 /**
