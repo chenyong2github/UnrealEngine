@@ -353,8 +353,7 @@ namespace Chaos::Softs
 
 				if (Property.CacheToFile)
 				{
-					// @todo
-					//WriteFrame(Proxy, DeltaTime);
+					WriteFrame(*Proxy, DeltaTime);
 				}
 			}
 
