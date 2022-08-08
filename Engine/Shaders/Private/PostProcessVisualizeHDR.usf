@@ -207,7 +207,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	{
 		const float PixelDx = abs(PixelPos.x - OutputViewportCenter.x);
 		const float PixelDy = abs(PixelPos.y - OutputViewportCenter.y);
-		if (PixelDx < 130 && PixelDy < 40)
+		if (PixelDx < 130 && PixelDy < 42)
 		{
 			float3 LuminanceAvg = 0.0f;
 			float3 SceneColorAvg = 0.0f;

@@ -70,7 +70,13 @@ void PrintCharacter(int2 PixelPos, inout float3 OutColor, float3 FontColor, inou
 {
 	uint2 Rel = (uint2)(PixelPos - LeftTop);
 
-	FLATTEN if (Rel.x < NATIVE_CHARACTER_RES && Rel.y < NATIVE_CHARACTER_RES)
+	// Background: black character as shadow
+	FLATTEN if (Rel.x < (NATIVE_CHARACTER_RES + 1) && Rel.y < (NATIVE_CHARACTER_RES + 1))
+	{
+		OutColor = lerp(OutColor, float3(0.0, 0.0, 0.0), SampleMiniFont(CharacterID, Rel - uint2(1, 1)));
+	}
+	// Foreground: colored character
+	FLATTEN if (Rel.x < (NATIVE_CHARACTER_RES) && Rel.y < (NATIVE_CHARACTER_RES))
 	{
 		OutColor = lerp(OutColor, FontColor, SampleMiniFont(CharacterID, Rel));
 	}
