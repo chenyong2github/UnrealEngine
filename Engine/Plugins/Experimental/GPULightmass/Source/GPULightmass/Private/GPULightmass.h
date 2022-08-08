@@ -53,4 +53,5 @@ private:
 	void OnStationaryLightChannelReassigned(ULightComponentBase* InComponent, int32 NewShadowMapChannel);
 	void OnLightmassImportanceVolumeModified();
 	void OnMaterialInvalidated(FMaterialRenderProxy* Material);
+	void OnSkyAtmosphereModified();
 };

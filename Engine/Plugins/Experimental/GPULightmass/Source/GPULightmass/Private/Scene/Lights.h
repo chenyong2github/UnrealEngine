@@ -73,7 +73,8 @@ struct FLocalLightBuildInfo
 	bool bCastShadow = true;
 	int ShadowMapChannel = INDEX_NONE;
 
-	TUniquePtr<FLightComponentMapBuildData> LightComponentMapBuildData;
+	// This will also be held by FLocalLightRenderState to extend its lifetime until RenderThread has finished with it
+	TSharedPtr<FLightComponentMapBuildData, ESPMode::ThreadSafe> LightComponentMapBuildData;
 
 	virtual bool AffectsBounds(const FBoxSphereBounds& InBounds) const = 0;
 	virtual ULightComponent* GetComponentUObject() const = 0;
@@ -92,6 +93,8 @@ struct FLocalLightRenderState
 	bool bStationary = false;
 	bool bCastShadow = true;
 	int ShadowMapChannel = INDEX_NONE;
+	
+	TSharedPtr<FLightComponentMapBuildData, ESPMode::ThreadSafe> LightComponentMapBuildData;
 
 	virtual FLightRenderParameters GetLightShaderParameters() const = 0;
 };

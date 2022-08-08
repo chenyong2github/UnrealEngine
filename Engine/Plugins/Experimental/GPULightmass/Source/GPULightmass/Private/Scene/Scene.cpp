@@ -389,6 +389,7 @@ void FScene::AddLight(LightComponentType* LightComponent)
 	LightTypeInfo<LightComponentType>::GetLightComponentRegistration(LightScene).Add(LightComponent, LightRef);
 
 	typename LightTypeInfo<LightComponentType>::RenderStateType LightRenderState(LightComponent);
+	LightRenderState.LightComponentMapBuildData = LightRef->LightComponentMapBuildData;
 
 	TArray<FPrimitiveSceneProxy*> SceneProxiesToUpdateOnRenderThread;
 	TArray<FGeometryRenderStateToken> RelevantGeometriesToUpdateOnRenderThread;
@@ -646,6 +647,34 @@ void FScene::RemoveLight(USkyLightComponent* SkyLight)
 
 		RenderState.LightmapRenderer->BumpRevision();
 	});
+}
+
+void FScene::OnSkyAtmosphereModified()
+{
+	TArray<UDirectionalLightComponent*> PreviouslyRegisteredDirectionalLight;
+	LightScene.RegisteredDirectionalLightComponentUObjects.GenerateKeyArray(PreviouslyRegisteredDirectionalLight);	
+	for(UDirectionalLightComponent* DirectionalLight : PreviouslyRegisteredDirectionalLight)
+	{
+		RemoveLight(DirectionalLight);
+		AddLight(DirectionalLight);
+	}
+
+	ConditionalTriggerSkyLightRecapture();
+}
+
+void FScene::ConditionalTriggerSkyLightRecapture()
+{
+	if (LightScene.SkyLight.IsSet())
+	{
+		USkyLightComponent* SkyLight = LightScene.SkyLight->ComponentUObject;
+		if (SkyLight->SourceType == SLS_CapturedScene || SkyLight->bRealTimeCapture)
+		{
+			RemoveLight(SkyLight);
+			SkyLight->SetCaptureIsDirty();
+			SkyLight->UpdateSkyCaptureContents(SkyLight->GetWorld());
+			AddLight(SkyLight);
+		}
+	}
 }
 
 template<typename LightType, typename GeometryRefType>

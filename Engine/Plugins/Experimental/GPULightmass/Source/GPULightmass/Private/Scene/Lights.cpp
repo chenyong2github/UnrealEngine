@@ -4,6 +4,8 @@
 #include "RenderGraphBuilder.h"
 #include "ReflectionEnvironment.h"
 #include "RectLightTextureManager.h"
+#include "Components/SkyAtmosphereComponent.h"
+#include "UObject/UObjectIterator.h"
 
 RENDERER_API void PrepareSkyTexture_Internal(
 	FRDGBuilder& GraphBuilder,
@@ -44,7 +46,7 @@ FLocalLightBuildInfo::FLocalLightBuildInfo(ULightComponent* LightComponent)
 	bStationary = LightComponent->Mobility == EComponentMobility::Stationary;
 	bCastShadow = LightComponent->CastShadows && LightComponent->CastStaticShadows;
 	ShadowMapChannel = LightComponent->PreviewShadowMapChannel;
-	LightComponentMapBuildData = MakeUnique<FLightComponentMapBuildData>();
+	LightComponentMapBuildData = MakeShared<FLightComponentMapBuildData>();
 	LightComponentMapBuildData->ShadowMapChannel = ShadowMapChannel;
 }
 
@@ -65,6 +67,21 @@ FDirectionalLightRenderState::FDirectionalLightRenderState(UDirectionalLightComp
 	: FLocalLightRenderState(DirectionalLightComponent)
 {
 	Color = DirectionalLightComponent->GetColoredLightBrightness();
+	
+	if (DirectionalLightComponent->IsUsedAsAtmosphereSunLight())
+	{
+		for (USkyAtmosphereComponent* SkyAtmosphere : TObjectRange<USkyAtmosphereComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
+		{
+			if (SkyAtmosphere->GetWorld() == DirectionalLightComponent->GetWorld())
+			{
+				FAtmosphereSetup AtmosphereSetup(*SkyAtmosphere);
+				FLinearColor SunLightAtmosphereTransmittance = AtmosphereSetup.GetTransmittanceAtGroundLevel(-DirectionalLightComponent->GetDirection());
+				Color *= SunLightAtmosphereTransmittance;
+				break; // We only register the first we find
+			}
+		}
+	}
+	
 	Direction = DirectionalLightComponent->GetDirection();
 	LightSourceAngle = DirectionalLightComponent->LightSourceAngle;
 	LightSourceSoftAngle = DirectionalLightComponent->LightSourceSoftAngle;

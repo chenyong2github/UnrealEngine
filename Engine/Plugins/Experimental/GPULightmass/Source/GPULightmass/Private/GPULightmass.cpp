@@ -103,6 +103,7 @@ void FGPULightmass::InstallGameThreadEventHooks()
 	FStaticLightingSystemInterface::OnStationaryLightChannelReassigned.AddRaw(this, &FGPULightmass::OnStationaryLightChannelReassigned);
 	FStaticLightingSystemInterface::OnLightmassImportanceVolumeModified.AddRaw(this, &FGPULightmass::OnLightmassImportanceVolumeModified);
 	FStaticLightingSystemInterface::OnMaterialInvalidated.AddRaw(this, &FGPULightmass::OnMaterialInvalidated);
+	FStaticLightingSystemInterface::OnSkyAtmosphereModified.AddRaw(this, &FGPULightmass::OnSkyAtmosphereModified);
 }
 
 void FGPULightmass::RemoveGameThreadEventHooks()
@@ -116,6 +117,7 @@ void FGPULightmass::RemoveGameThreadEventHooks()
 	FStaticLightingSystemInterface::OnStationaryLightChannelReassigned.RemoveAll(this);
 	FStaticLightingSystemInterface::OnLightmassImportanceVolumeModified.RemoveAll(this);
 	FStaticLightingSystemInterface::OnMaterialInvalidated.RemoveAll(this);
+	FStaticLightingSystemInterface::OnSkyAtmosphereModified.RemoveAll(this);
 }
 
 void FGPULightmass::OnPrimitiveComponentRegistered(UPrimitiveComponent* InComponent)
@@ -168,6 +170,7 @@ void FGPULightmass::OnLightComponentRegistered(ULightComponentBase* InComponent)
 
 	if (UDirectionalLightComponent* DirectionalLight = Cast<UDirectionalLightComponent>(InComponent))
 	{
+		Scene.ConditionalTriggerSkyLightRecapture();
 		Scene.AddLight(DirectionalLight);
 	}
 	else if (URectLightComponent* RectLight = Cast<URectLightComponent>(InComponent))
@@ -195,6 +198,7 @@ void FGPULightmass::OnLightComponentUnregistered(ULightComponentBase* InComponen
 	if (UDirectionalLightComponent* DirectionalLight = Cast<UDirectionalLightComponent>(InComponent))
 	{
 		Scene.RemoveLight(DirectionalLight);
+		Scene.ConditionalTriggerSkyLightRecapture();
 	}
 	else if (URectLightComponent* RectLight = Cast<URectLightComponent>(InComponent))
 	{
@@ -250,6 +254,11 @@ void FGPULightmass::OnStationaryLightChannelReassigned(ULightComponentBase* InCo
 			Scene.AddLight(PointLight);
 		}
 	}
+}
+
+void FGPULightmass::OnSkyAtmosphereModified()
+{
+	Scene.OnSkyAtmosphereModified();
 }
 
 void FGPULightmass::OnPreWorldFinishDestroy(UWorld* InWorld)

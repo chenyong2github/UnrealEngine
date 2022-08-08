@@ -96,6 +96,7 @@
 #include "UnrealWidget.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
+#include "Rendering/StaticLightingSystemInterface.h"
 
 DEFINE_LOG_CATEGORY(LogEditorViewport);
 
@@ -187,6 +188,13 @@ static void NotifyAtmosphericLightHasMoved(UDirectionalLightComponent& SelectedA
 		// Now notify the owner about the transform update, e.g. construction script on instance.
 		LightOwner->PostEditMove(bFinished);
 		// No PostEditChangeProperty because not paired with a PreEditChange
+
+		if (bFinished)
+		{
+			SelectedAtmosphericLight.InvalidateLightingCache();
+		}
+		
+		FStaticLightingSystemInterface::OnSkyAtmosphereModified.Broadcast();
 	}
 }
 

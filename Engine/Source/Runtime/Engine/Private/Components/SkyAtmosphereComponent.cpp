@@ -18,6 +18,7 @@
 
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
+#include "Rendering/StaticLightingSystemInterface.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "SkyAtmosphereComponent"
@@ -259,6 +260,11 @@ void USkyAtmosphereComponent::PostEditChangeProperty(FPropertyChangedEvent& Prop
 		{
 			SendRenderTransformCommand();
 		}
+
+#if WITH_EDITOR
+		FStaticLightingSystemInterface::OnSkyAtmosphereModified.Broadcast();
+#endif
+
 	}
 }
 

@@ -176,6 +176,8 @@ public:
 	bool HasLight(LightComponentType* Light);
 
 	void GatherImportanceVolumes();
+	void OnSkyAtmosphereModified();
+	void ConditionalTriggerSkyLightRecapture();
 	
 	void BackgroundTick();
 	void AddRelevantStaticLightGUIDs(FQuantizedLightmapData* QuantizedLightmapData, const FBoxSphereBounds& WorldBounds);
