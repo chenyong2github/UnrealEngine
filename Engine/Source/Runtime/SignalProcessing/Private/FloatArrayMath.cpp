@@ -559,9 +559,24 @@ namespace Audio
 		}
 		else
 		{
-			for (int32 i = 0; i < Num; i++)
+			const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+			const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+			if (NumToSimd)
 			{
-				OutData[i] = FMath::Abs(InData[i]);
+				for (int32 i = 0; i < NumToSimd; i += AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
+				{
+					VectorRegister4Float Input = VectorLoad(&InData[i]);
+					VectorStore(VectorAbs(Input), &OutData[i]);
+				}
+			}
+
+			if (NumNotToSimd)
+			{
+				for (int32 i = NumToSimd; i < Num; ++i)
+				{
+					OutData[i] = FMath::Abs(InData[i]);
+				}
 			}
 		}
 	}
@@ -581,9 +596,24 @@ namespace Audio
 		}
 		else
 		{
-			for (int32 i = 0; i < Num; i++)
+			const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+			const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+			if (NumToSimd)
 			{
-				Data[i] = FMath::Abs(Data[i]);
+				for (int32 i = 0; i < NumToSimd; i += AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
+				{
+					VectorRegister4Float Input = VectorLoad(&Data[i]);
+					VectorStore(VectorAbs(Input), &Data[i]);
+				}
+			}
+
+			if (NumNotToSimd)
+			{
+				for (int32 i = NumToSimd; i < Num; ++i)
+				{
+					Data[i] = FMath::Abs(Data[i]);
+				}
 			}
 		}
 	}
