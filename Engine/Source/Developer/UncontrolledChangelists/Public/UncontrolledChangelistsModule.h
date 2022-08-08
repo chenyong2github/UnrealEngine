@@ -41,11 +41,11 @@ public:
 	 TArray<FUncontrolledChangelistStateRef> GetChangelistStates() const;
 
 	 /**
-	  * Called when a file has been made writable. Adds the file to the Default Uncontrolled Changelist
-	  * @param	InFilename			The file to be added.
-	  * @return True if the file has been added to the Default Uncontrolled Changelist.
+	  * Called when files have been made writable. Adds the files to the Default Uncontrolled Changelist
+	  * @param	InFilenames			The files to be added.
+	  * @return True if the files have been added to the Default Uncontrolled Changelist.
 	  */
-	 bool OnMakeWritable(const FString& InFilename);
+	 bool OnMakeWritable(const TArray<FString>& InFilenames);
 
 	/**
 	 * Updates the status of Uncontrolled Changelists and files.

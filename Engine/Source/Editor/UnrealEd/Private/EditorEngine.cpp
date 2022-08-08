@@ -101,6 +101,7 @@
 #include "Misc/AutomationTest.h"
 #include "ActorFolder.h"
 #include "Materials/MaterialInterface.h"
+#include "UncontrolledChangelistsModule.h"
 
 // needed for the RemotePropagator
 #include "AudioDevice.h"
@@ -4213,7 +4214,7 @@ bool UEditorEngine::IsPackageValidForAutoAdding(UPackage* InPackage, const FStri
 	// Ensure the package exists, the user is running the editor (and not a commandlet or cooking), and that source control
 	// is enabled and expecting new files to be auto-added before attempting to test the validity of the package
 	if (InPackage && GIsEditor && !IsRunningCommandlet() 
-		&& ISourceControlModule::Get().IsEnabled() 
+		&& (ISourceControlModule::Get().IsEnabled() || FUncontrolledChangelistsModule::Get().IsEnabled())
 		&& GetDefault<UEditorLoadingSavingSettings>()->bSCCAutoAddNewFiles)
 	{
 		const FString CleanFilename = FPaths::GetCleanFilename(InFilename);
@@ -4255,7 +4256,7 @@ void UEditorEngine::RunDeferredMarkForAddFiles(bool)
 		return;
 	}
 
-	if(ISourceControlModule::Get().IsEnabled())
+	if (ISourceControlModule::Get().IsEnabled())
 	{
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 		if(SourceControlProvider.IsAvailable())
@@ -4263,6 +4264,12 @@ void UEditorEngine::RunDeferredMarkForAddFiles(bool)
 			SourceControlProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), SourceControlHelpers::PackageFilenames(DeferredFilesToAddToSourceControl));
 		}
 	}
+	else if (FUncontrolledChangelistsModule::Get().IsEnabled())
+	{
+		FUncontrolledChangelistsModule& UncontrolledChangelistsModule = FUncontrolledChangelistsModule::Get();
+		UncontrolledChangelistsModule.OnMakeWritable(DeferredFilesToAddToSourceControl);
+	}
+
 	// Clear the list when this run whether source control is active or not, since we do not want to accumulate those if the user is running without source control
 	DeferredFilesToAddToSourceControl.Empty();
 }
@@ -4464,10 +4471,12 @@ FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InAsset
 	// to the default changelist
 	if (Result == ESavePackageResult::Success && bAutoAddPkgToSCC)
 	{
-		// IsPackageValidForAutoAdding should not return true if SCC is disabled
-		check(ISourceControlModule::Get().IsEnabled());
+		const bool bIsUncontrolledChangelistEnabled = FUncontrolledChangelistsModule::Get().IsEnabled();
 
-		if(!ISourceControlModule::Get().GetProvider().IsAvailable())
+		// IsPackageValidForAutoAdding should not return true if SCC is disabled
+		check(ISourceControlModule::Get().IsEnabled() || bIsUncontrolledChangelistEnabled);
+
+		if(!ISourceControlModule::Get().GetProvider().IsAvailable() && !bIsUncontrolledChangelistEnabled)
 		{
 			// Show the login window here & store the file we are trying to add.
 			// We defer the add operation until we have a valid source control connection.

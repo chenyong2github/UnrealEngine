@@ -1875,7 +1875,7 @@ bool FEditorFileUtils::PromptToCheckoutPackagesInternal(bool bCheckDirty, const 
 						{
 							// Add to PackagesNotToPromptAnyMore only if not added to Uncontrolled Changelist.
 							// If added to Uncontrolled Changelist, we want the checkout prompt to be displayed again if the file is reverted
-							if (!UncontrolledChangelistModule.OnMakeWritable(Filename))
+							if (!UncontrolledChangelistModule.OnMakeWritable({Filename}))
 							{
 								PackagesNotToPromptAnyMore.Add(PackageToMakeWritable->GetName());
 							}

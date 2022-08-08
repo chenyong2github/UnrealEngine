@@ -80,7 +80,7 @@ TArray<FUncontrolledChangelistStateRef> FUncontrolledChangelistsModule::GetChang
 	return UncontrolledChangelistStates;
 }
 
-bool FUncontrolledChangelistsModule::OnMakeWritable(const FString& InFilename)
+bool FUncontrolledChangelistsModule::OnMakeWritable(const TArray<FString>& InFilenames)
 {
 	bool bHasStateChanged = false;
 
@@ -92,7 +92,7 @@ bool FUncontrolledChangelistsModule::OnMakeWritable(const FString& InFilename)
 	FUncontrolledChangelist DefaultUncontrolledChangelist(FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_GUID, FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_NAME.ToString());
 	FUncontrolledChangelistsStateCache::ValueType& UncontrolledChangelistState = UncontrolledChangelistsStateCache.FindOrAdd(MoveTemp(DefaultUncontrolledChangelist), MakeShareable(new FUncontrolledChangelistState(DefaultUncontrolledChangelist)));
 
-	bHasStateChanged = UncontrolledChangelistState->AddFiles({ InFilename }, FUncontrolledChangelistState::ECheckFlags::NotCheckedOut);
+	bHasStateChanged = UncontrolledChangelistState->AddFiles(InFilenames, FUncontrolledChangelistState::ECheckFlags::NotCheckedOut);
 
 	if (bHasStateChanged)
 	{

@@ -96,6 +96,7 @@ bool FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, 
 {
 	TArray<FSourceControlStateRef> FileStates;
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	IFileManager& FileManager = IFileManager::Get();
 	bool bCheckStatus = (InCheckFlags & ECheckFlags::Modified) != ECheckFlags::None;
 	bool bCheckCheckout = (InCheckFlags & ECheckFlags::NotCheckedOut) != ECheckFlags::None;
 	bool bOutChanged = false;
@@ -109,7 +110,10 @@ bool FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, 
 	if (!SourceControlProvider.IsAvailable())
 	{
 		int32 OldSize = OfflineFiles.Num();
-		Algo::Copy(SourceControlHelpers::AbsoluteFilenames(InFilenames), OfflineFiles);
+		Algo::CopyIf(SourceControlHelpers::AbsoluteFilenames(InFilenames), OfflineFiles, [&FileManager](const FString& Filename)
+		{
+			return FileManager.FileExists(*Filename);
+		});
 		return OldSize != OfflineFiles.Num();
 	}
 
@@ -129,7 +133,7 @@ bool FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, 
 		for (FSourceControlStateRef FileState : FileStates)
 		{
 			const bool bIsSourceControlled = (!FileState->IsUnknown()) && FileState->IsSourceControlled();
-			const bool bFileExists = IFileManager::Get().FileExists(*FileState->GetFilename());
+			const bool bFileExists = FileManager.FileExists(*FileState->GetFilename());
 
 			const bool bIsUncontrolled = (!bIsSourceControlled) && bFileExists;
 			// File doesn't exist and is not marked for delete
