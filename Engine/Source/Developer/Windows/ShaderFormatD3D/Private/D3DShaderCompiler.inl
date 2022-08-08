@@ -410,14 +410,15 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 				const FString UniformBufferName(CBDesc.Name);
 
 				HandleReflectedUniformBuffer(UniformBufferName, CBIndex, Output);
-
-				if (UniformBufferNames.Num() <= (int32)CBIndex)
-				{
-					UniformBufferNames.AddDefaulted(CBIndex - UniformBufferNames.Num() + 1);
-				}
-				UniformBufferNames[CBIndex] = UE::ShaderCompilerCommon::RemoveConstantBufferPrefix(UniformBufferName);
+				
 				UsedUniformBufferSlots[CBIndex] = true;
 			}
+
+			if (UniformBufferNames.Num() <= (int32)CBIndex)
+			{
+				UniformBufferNames.AddDefaulted(CBIndex - UniformBufferNames.Num() + 1);
+			}
+			UniformBufferNames[CBIndex] = UE::ShaderCompilerCommon::RemoveConstantBufferPrefix(FString(CBDesc.Name));
 
 			NumCBs = FMath::Max(NumCBs, BindDesc.BindPoint + BindDesc.BindCount);
 		}
@@ -544,7 +545,7 @@ inline void GenerateFinalOutput(TRefCountPtr<TBlob>& CompressedData,
 
 		if (UniformBufferNames.Num() < GenericSRT.ResourceTableLayoutHashes.Num())
 		{
-			UniformBufferNames.AddDefaulted(GenericSRT.ResourceTableLayoutHashes.Num() - UniformBufferNames.Num() + 1);
+			UniformBufferNames.AddDefaulted(GenericSRT.ResourceTableLayoutHashes.Num() - UniformBufferNames.Num());
 		}
 
 		for (int32 Index = 0; Index < GenericSRT.ResourceTableLayoutHashes.Num(); ++Index)
