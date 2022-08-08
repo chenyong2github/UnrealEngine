@@ -33,19 +33,19 @@ struct FListViewColumnInfo
 {
 	GENERATED_BODY()
 	
-	TObjectPtr<FProperty> PropertyRef;
+	TObjectPtr<FProperty> PropertyRef = nullptr;
 	
 	UPROPERTY()
-	FName PropertyName;
+	FName PropertyName = NAME_None;
 
 	UPROPERTY()
-	FText PropertyDisplayText;
+	FText PropertyDisplayText = FText::GetEmpty();
 
 	UPROPERTY()
-	EListViewColumnType PropertyType;
+	EListViewColumnType PropertyType = EListViewColumnType::PropertyGenerated;
 
 	UPROPERTY()
-	FName CategoryName;
+	FName CategoryName = NAME_None;
 
 	UPROPERTY()
 	bool bIsDesiredForDisplay = false;
