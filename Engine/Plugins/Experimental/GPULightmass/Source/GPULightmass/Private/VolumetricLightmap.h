@@ -24,7 +24,7 @@ public:
 	FBox CombinedImportanceVolume;
 	TArray<FBox> ImportanceVolumes;
 	float TargetDetailCellSize = 50.0f;
-	int32 NumTotalBricks;
+	int32 NumTotalBricks = 0;
 
 	int32 FrameNumber = 0;
 	int32 NumTotalPassesToRender = 0;

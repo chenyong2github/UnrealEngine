@@ -58,6 +58,8 @@ private:
 
 struct FCachedRayTracingSceneData
 {
+	~FCachedRayTracingSceneData();
+	
 	TArray<TArray<FVisibleRayTracingMeshCommand>> VisibleRayTracingMeshCommandsPerLOD;
 	TChunkedArray<FRayTracingMeshCommand> MeshCommandStorage;
 

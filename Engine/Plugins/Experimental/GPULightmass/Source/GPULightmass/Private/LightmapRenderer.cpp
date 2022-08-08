@@ -657,8 +657,7 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 
 			for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 			{
-				const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-				const FMaterial& Material = MeshBatches[SegmentIndex].MaterialRenderProxy->GetMaterialWithFallback(Scene.FeatureLevel, FallbackMaterialRenderProxyPtr);
+				const FMaterial& Material = MeshBatches[SegmentIndex].MaterialRenderProxy->GetIncompleteMaterialWithFallback(Scene.FeatureLevel);
 
 				bAllSegmentsUnlit &= Material.GetShadingModels().HasOnlyShadingModel(MSM_Unlit) || !MeshBatches[SegmentIndex].CastShadow;
 				bAllSegmentsOpaque &= Material.GetBlendMode() == EBlendMode::BLEND_Opaque;
@@ -710,8 +709,7 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 
 			for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 			{
-				const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-				const FMaterial& Material = MeshBatches[SegmentIndex].MaterialRenderProxy->GetMaterialWithFallback(Scene.FeatureLevel, FallbackMaterialRenderProxyPtr);
+				const FMaterial& Material = MeshBatches[SegmentIndex].MaterialRenderProxy->GetIncompleteMaterialWithFallback(Scene.FeatureLevel);
 
 				bAllSegmentsUnlit &= Material.GetShadingModels().HasOnlyShadingModel(MSM_Unlit) || !MeshBatches[SegmentIndex].CastShadow;
 				bAllSegmentsOpaque &= Material.GetBlendMode() == EBlendMode::BLEND_Opaque;
@@ -766,6 +764,14 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 #else // RHI_RAYTRACING
 	checkNoEntry();
 #endif // RHI_RAYTRACING
+}
+
+FCachedRayTracingSceneData::~FCachedRayTracingSceneData()
+{
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+	// Move OwnedRayTracingInstanceTransforms to RHIThread and it will get destroyed when the lambda is released
+	RHICmdList.EnqueueLambda([OwnedRayTracingInstanceTransforms = MoveTemp(OwnedRayTracingInstanceTransforms)](FRHICommandList&){});
 }
 
 bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
@@ -917,6 +923,8 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 		FRayTracingMeshCommandOneFrameArray VisibleRayTracingMeshCommands;
 		FDynamicRayTracingMeshCommandStorage DynamicRayTracingMeshCommandStorage;
 
+		TArray<TUniquePtr<FMatrix>> LandscapeTransforms;
+		
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Landscapes);
 
@@ -978,6 +986,12 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 							MeshBatches[0].Elements[0].DynamicPrimitiveIndex += StaticMeshInstanceRenderStates.Elements.Num();
 							MeshBatches[0].Elements[0].DynamicPrimitiveIndex += InstanceGroupRenderStates.Elements.Num();
 
+							for (FMeshBatch& MeshBatch : MeshBatches)
+							{
+								// Override with default material as we're not considering WPO in GPULM landscape creation
+								MeshBatch.MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+							}
+							
 							FRayTracingDynamicGeometryUpdateParams UpdateParams
 							{
 								MeshBatches,
@@ -1013,7 +1027,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 
 						FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstances[InstanceIndex];
 						RayTracingInstance.GeometryRHI = Landscape.SectionRayTracingStates[SubSectionIdx]->Geometry.RayTracingGeometryRHI;
-						RayTracingInstance.Transforms = MakeArrayView(&FMatrix::Identity, 1);
+						RayTracingInstance.Transforms = MakeArrayView(LandscapeTransforms.Emplace_GetRef(MakeUnique<FMatrix>(Landscape.LocalToWorld)).Get(), 1);
 						RayTracingInstance.NumTransforms = 1;
 						RayTracingInstance.DefaultUserData = (uint32)(StaticMeshInstanceRenderStates.Elements.Num() + InstanceGroupRenderStates.Elements.Num() + LandscapeIndex);
 
@@ -1041,8 +1055,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 
 							RayTracingMeshProcessor.AddMeshBatch(MeshBatches[SegmentIndex], 1, nullptr);
 
-							const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-							const FMaterial& Material = MeshBatches[SegmentIndex].MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
+							const FMaterial& Material = MeshBatches[SegmentIndex].MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
 
 							bAllSegmentsUnlit &= Material.GetShadingModels().HasOnlyShadingModel(MSM_Unlit) || !MeshBatches[SegmentIndex].CastShadow;
 							bAllSegmentsOpaque &= Material.GetBlendMode() == EBlendMode::BLEND_Opaque;
@@ -1191,6 +1204,9 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 				RHICmdList.BuildAccelerationStructure(BuildParams);
 			}
 
+			// Move LandscapeTransforms to RHIThread to extend its lifetime until RHI cmd execution
+			RHICmdList.EnqueueLambda([LandscapeTransforms = MoveTemp(LandscapeTransforms)](FRHICommandList&){});
+			
 			FRayTracingPipelineStateInitializer PSOInitializer;
 
 			PSOInitializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE;
@@ -1947,7 +1963,10 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 
 	RectLightAtlas::UpdateRectLightAtlasTexture(GraphBuilder, Scene->FeatureLevel);
 
-	Scene->SetupRayTracingScene(MostCommonLODIndex);
+	if (!Scene->SetupRayTracingScene(MostCommonLODIndex))
+	{
+		return;
+	}
 
 	TStaticArray<FRDGTextureUAVRef, 3> ScratchTilePoolLayerUAVs;
 

@@ -63,7 +63,8 @@ protected:
 		if (EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData)
 			&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
 			&& bAllowStaticLighting
-			&& Parameters.VertexFactoryType->SupportsStaticLighting())
+			&& Parameters.VertexFactoryType->SupportsStaticLighting()
+			&& Parameters.MaterialParameters.bIsSpecialEngineMaterial)
 		{
 			return true;
 		}
@@ -117,7 +118,8 @@ public:
 		if (EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData)
 			&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
 			&& bAllowStaticLighting
-			&& Parameters.VertexFactoryType->SupportsStaticLighting())
+			&& Parameters.VertexFactoryType->SupportsStaticLighting()
+			&& Parameters.MaterialParameters.bIsSpecialEngineMaterial)
 		{
 			return true;
 		}
@@ -181,19 +183,17 @@ public:
 
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final
 	{
-		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
-		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
-
-		if (MeshBatch.bUseForMaterial
-			&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass()))
+		if (MeshBatch.bUseForMaterial)
 		{
-			Process(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, MaterialRenderProxy, Material);
+			const FMaterialRenderProxy& DefaultProxy = *UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+			const FMaterial& DefaultMaterial = *DefaultProxy.GetMaterialNoFallback(FeatureLevel);
+
+			Process(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, DefaultProxy, DefaultMaterial);
 		}
 	}
 
 private:
-	void Process(
+	bool Process(
 		const FMeshBatch& MeshBatch,
 		uint64 BatchElementMask,
 		int32 StaticMeshId,
@@ -203,12 +203,19 @@ private:
 	{
 		const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 
+		FMaterialShaderTypes ShaderTypes;
+		ShaderTypes.AddShaderType<FLightmapGBufferVS>();
+		ShaderTypes.AddShaderType<FLightmapGBufferPS>();
+
+		FMaterialShaders MaterialShaders;
+		verify(MaterialResource.TryGetShaders(ShaderTypes, MeshBatch.VertexFactory->GetType(), MaterialShaders));
+		
 		TMeshProcessorShaders<
 			FLightmapGBufferVS,
 			FLightmapGBufferPS> Shaders;
 
-		Shaders.VertexShader = MaterialResource.GetShader<FLightmapGBufferVS>(VertexFactory->GetType());
-		Shaders.PixelShader = MaterialResource.GetShader<FLightmapGBufferPS>(VertexFactory->GetType());
+		MaterialShaders.TryGetVertexShader(Shaders.VertexShader);
+		MaterialShaders.TryGetPixelShader(Shaders.PixelShader);
 
 		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 		ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, MaterialResource, OverrideSettings);
@@ -235,6 +242,8 @@ private:
 			SortKey,
 			EMeshPassFeatures::Default,
 			ShaderElementData);
+
+		return true;
 	}
 
 private:

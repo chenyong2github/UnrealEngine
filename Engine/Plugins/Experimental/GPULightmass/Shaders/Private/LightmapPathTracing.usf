@@ -918,7 +918,7 @@ void LightmapPathTracingMainRG()
 					PathTracingKernel(
 						BatchedTiles[TileIndex].RenderPassIndex,
 						TranslatedWorldPosition,
-						WorldNormal,
+						ShadingNormal,
 						RandSequence,
 						SampleIndex,
 						bIsValidSample,

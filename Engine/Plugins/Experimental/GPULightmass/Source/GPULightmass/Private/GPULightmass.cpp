@@ -293,11 +293,14 @@ void FGPULightmass::OnLightmassImportanceVolumeModified()
 
 void FGPULightmass::OnMaterialInvalidated(FMaterialRenderProxy* Material)
 {
-	if (Scene.RenderState.CachedRayTracingScene.IsValid())
+	ENQUEUE_RENDER_COMMAND(OnMaterialInvalidatedRenderThread)([&RenderState = Scene.RenderState](FRHICommandListImmediate&) mutable
 	{
-		Scene.RenderState.CachedRayTracingScene.Reset();
-		UE_LOG(LogGPULightmass, Log, TEXT("Cached ray tracing scene is invalidated due to material changes"));
-	}
+		if (RenderState.CachedRayTracingScene.IsValid())
+		{
+			RenderState.CachedRayTracingScene.Reset();
+			UE_LOG(LogGPULightmass, Log, TEXT("Cached ray tracing scene is invalidated due to material changes"));
+		}
+	});
 }
 
 void FGPULightmass::StartRecordingVisibleTiles() 

@@ -369,7 +369,6 @@ void FScene::AddLight(LightComponentType* LightComponent)
 {
 	if (LightTypeInfo<LightComponentType>::GetLightComponentRegistration(LightScene).Contains(LightComponent))
 	{
-		UE_LOG(LogGPULightmass, Log, TEXT("Warning: duplicated component registration"));
 		return;
 	}
 
@@ -576,7 +575,6 @@ void FScene::AddLight(USkyLightComponent* SkyLight)
 {
 	if (LightScene.SkyLight.IsSet() && LightScene.SkyLight->ComponentUObject == SkyLight)
 	{
-		UE_LOG(LogGPULightmass, Log, TEXT("Warning: duplicated component registration"));
 		return;
 	}
 
@@ -684,7 +682,6 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 {
 	if (RegisteredStaticMeshComponentUObjects.Contains(InComponent))
 	{
-		UE_LOG(LogGPULightmass, Log, TEXT("Warning: duplicated component registration"));
 		return;
 	}
 	
@@ -896,13 +893,11 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 {
 	if (InComponent->PerInstanceSMData.Num() == 0)
 	{
-		UE_LOG(LogGPULightmass, Log, TEXT("Skipping empty instanced static mesh"));
 		return;
 	}
 
 	if (RegisteredInstancedStaticMeshComponentUObjects.Contains(InComponent))
 	{
-		UE_LOG(LogGPULightmass, Log, TEXT("Warning: duplicated component registration"));
 		return;
 	}
 
@@ -1112,13 +1107,11 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 {
 	if (InComponent->GetLandscapeInfo() == nullptr)
 	{
-		UE_LOG(LogGPULightmass, Log, TEXT("Skipping landscape with empty info object"));
 		return;
 	}
 
 	if (RegisteredLandscapeComponentUObjects.Contains(InComponent))
 	{
-		UE_LOG(LogGPULightmass, Log, TEXT("Warning: duplicated component registration"));
 		return;
 	}
 

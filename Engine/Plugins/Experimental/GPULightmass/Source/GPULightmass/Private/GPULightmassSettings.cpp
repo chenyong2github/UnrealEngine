@@ -152,9 +152,6 @@ void UGPULightmassSubsystem::Launch()
 		SlowTask.MakeDialog();
 		SlowTask.EnterProgressFrame(1, LOCTEXT("StartingStaticLightingSystem", "Starting static lighting system"));
 
-		UMaterialInterface::SubmitRemainingJobsForWorld(World);
-		FAssetCompilingManager::Get().FinishAllCompilation();
-
 		{
 			FGlobalComponentRecreateRenderStateContext RecreateRenderStateContext; // Implicit FlushRenderingCommands();
 

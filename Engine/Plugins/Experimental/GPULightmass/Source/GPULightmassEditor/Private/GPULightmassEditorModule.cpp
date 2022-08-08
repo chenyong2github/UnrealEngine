@@ -24,8 +24,6 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "ToolMenus.h"
 
-extern ENGINE_API void ToggleLightmapPreview_GameThread(UWorld* InWorld);
-
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 
 IMPLEMENT_MODULE( FGPULightmassEditorModule, GPULightmassEditor )
