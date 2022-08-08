@@ -33,7 +33,7 @@ RWBuffer<uint>						OutClusterStatsArgs;
 
 #if SHADER_PRINT_STATS
 
-float2 ShaderPrintLeftAlign(float2 ScreenPos, uint Value)
+void PrintLeftAlign(inout FShaderPrintContext Context, uint Value)
 {
 	int Len = 9;
 	
@@ -46,12 +46,12 @@ float2 ShaderPrintLeftAlign(float2 ScreenPos, uint Value)
 
 	while (Len > 0)
 	{
-		ScreenPos = ShaderPrintSymbol(ScreenPos, _SPC_);
+		PrintSymbol(Context, _SPC_);
 		Len--;
 	}
 		
 
-	return ShaderPrint(ScreenPos, Value);
+	Print(Context, Value);
 }
 
 [numthreads(1, 1, 1)]
@@ -63,175 +63,175 @@ void PrintStats()
 	const float HeadlineX = 0.77f;
 	const float ItemX = 0.78f;
 
-	float2 ScreenPos = float2(HeadlineX, TopMargin);
+	FShaderPrintContext Context = InitShaderPrintContext(true, float2(HeadlineX, TopMargin));
 
 #if PRINT_PASS == 0
 	// Main Pass
-	ScreenPos.x = HeadlineX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Main"), FontOrange);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = HeadlineX;
+	Print(Context, TEXT("Main"), FontOrange);
+	Newline(Context);
 
 	if (InStatsBuffer[0].NumPrimaryViews > 0)
 	{
-		ScreenPos.x = ItemX;
-		ScreenPos = ShaderPrintText(ScreenPos, TEXT("Pri Views "), FontYellow);
-		ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumPrimaryViews);
-		ScreenPos = ShaderPrintNewline(ScreenPos);
+		Context.Pos.x = ItemX;
+		Print(Context, TEXT("Pri Views "), FontYellow);
+		PrintLeftAlign(Context, InStatsBuffer[0].NumPrimaryViews);
+		Newline(Context);
 
-		ScreenPos.x = ItemX;
-		ScreenPos = ShaderPrintText(ScreenPos, TEXT("Views     "), FontYellow);
-		ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumTotalViews);
-		ScreenPos = ShaderPrintNewline(ScreenPos);
+		Context.Pos.x = ItemX;
+		Print(Context, TEXT("Views     "), FontYellow);
+		PrintLeftAlign(Context, InStatsBuffer[0].NumTotalViews);
+		Newline(Context);
 	}
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("  Pre-Cull"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumMainInstancesPreCull);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("  Pre-Cull"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumMainInstancesPreCull);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT(" Post-Cull"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumMainInstancesPostCull);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT(" Post-Cull"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumMainInstancesPostCull);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("NodeVisits"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumMainVisitedNodes);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("NodeVisits"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumMainVisitedNodes);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Candidates"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumMainCandidateClusters);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("Candidates"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumMainCandidateClusters);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("ClustersSW"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, MainPassRasterizeArgsSWHW[0]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("ClustersSW"), FontYellow);
+	PrintLeftAlign(Context, MainPassRasterizeArgsSWHW[0]);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("ClustersHW"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, MainPassRasterizeArgsSWHW[HWClusterCounterIndex]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("ClustersHW"), FontYellow);
+	PrintLeftAlign(Context, MainPassRasterizeArgsSWHW[HWClusterCounterIndex]);
+	Newline(Context);
 	
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("  Clusters"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, MainPassRasterizeArgsSWHW[0] + MainPassRasterizeArgsSWHW[HWClusterCounterIndex]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("  Clusters"), FontYellow);
+	PrintLeftAlign(Context, MainPassRasterizeArgsSWHW[0] + MainPassRasterizeArgsSWHW[HWClusterCounterIndex]);
+	Newline(Context);
+	Newline(Context);
 #else
-	ScreenPos.y += (InStatsBuffer[0].NumPrimaryViews > 0 ? 11 : 9) * ShaderPrintData.FontSpacing.y;
+	Context.Pos.y += (InStatsBuffer[0].NumPrimaryViews > 0 ? 11 : 9) * ShaderPrintData.FontSpacing.y;
 #endif // PRINT_PASS == 0
 
 #if TWO_PASS_CULLING
 #if PRINT_PASS == 1
 	// Post Pass
-	ScreenPos.x = HeadlineX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Post"), FontOrange);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = HeadlineX;
+	Print(Context, TEXT("Post"), FontOrange);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("  Pre-Cull"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumPostInstancesPreCull);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("  Pre-Cull"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumPostInstancesPreCull);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT(" Post-Cull"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumPostInstancesPostCull);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT(" Post-Cull"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumPostInstancesPostCull);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("NodeVisits"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumPostVisitedNodes);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("NodeVisits"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumPostVisitedNodes);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Candidates"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumPostCandidateClusters);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("Candidates"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumPostCandidateClusters);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("ClustersSW"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, PostPassRasterizeArgsSWHW[0]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("ClustersSW"), FontYellow);
+	PrintLeftAlign(Context, PostPassRasterizeArgsSWHW[0]);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("ClustersHW"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, PostPassRasterizeArgsSWHW[HWClusterCounterIndex]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("ClustersHW"), FontYellow);
+	PrintLeftAlign(Context, PostPassRasterizeArgsSWHW[HWClusterCounterIndex]);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("  Clusters"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, PostPassRasterizeArgsSWHW[0] + PostPassRasterizeArgsSWHW[HWClusterCounterIndex]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("  Clusters"), FontYellow);
+	PrintLeftAlign(Context, PostPassRasterizeArgsSWHW[0] + PostPassRasterizeArgsSWHW[HWClusterCounterIndex]);
+	Newline(Context);
+	Newline(Context);
 #else
-	ScreenPos.y += 9 * ShaderPrintData.FontSpacing.y;
+	Context.Pos.y += 9 * ShaderPrintData.FontSpacing.y;
 #endif // PRINT_PASS == 1
 #endif
 
 #if PRINT_PASS == 2
 	// Total
-	ScreenPos.x = HeadlineX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Total"), FontOrange);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = HeadlineX;
+	Print(Context, TEXT("Total"), FontOrange);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("  Clusters"), FontYellow);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("  Clusters"), FontYellow);
 #if TWO_PASS_CULLING
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, MainPassRasterizeArgsSWHW[0] + MainPassRasterizeArgsSWHW[HWClusterCounterIndex] + PostPassRasterizeArgsSWHW[0] + PostPassRasterizeArgsSWHW[HWClusterCounterIndex]);
+	PrintLeftAlign(Context, MainPassRasterizeArgsSWHW[0] + MainPassRasterizeArgsSWHW[HWClusterCounterIndex] + PostPassRasterizeArgsSWHW[0] + PostPassRasterizeArgsSWHW[HWClusterCounterIndex]);
 #else
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, MainPassRasterizeArgsSWHW[0] + MainPassRasterizeArgsSWHW[HWClusterCounterIndex]);
+	PrintLeftAlign(Context, MainPassRasterizeArgsSWHW[0] + MainPassRasterizeArgsSWHW[HWClusterCounterIndex]);
 #endif
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("      Tris"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumTris);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("      Tris"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumTris);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("     Verts"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumVerts);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("     Verts"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumVerts);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("LGE P-RECT"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumLargePageRectClusters);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("LGE P-RECT"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumLargePageRectClusters);
 #else
-	ScreenPos.y += 6 * ShaderPrintData.FontSpacing.y;
+	Context.Pos.y += 6 * ShaderPrintData.FontSpacing.y;
 #endif // PRINT_PASS == 2
 
 #if PRINT_PASS == 3
 	// Materials: Raster Bins
-	ScreenPos.x = HeadlineX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Raster Bins"), FontOrange);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = HeadlineX;
+	Print(Context, TEXT("Raster Bins"), FontOrange);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("     Total"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumTotalRasterBins);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("     Total"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumTotalRasterBins);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("     Empty"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumEmptyRasterBins);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("     Empty"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumEmptyRasterBins);
+	Newline(Context);
+	Newline(Context);
 
 	// Materials: Shading Bins
-	ScreenPos.x = HeadlineX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Shading Bins"), FontOrange);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = HeadlineX;
+	Print(Context, TEXT("Shading Bins"), FontOrange);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("     Total"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumTotalShadingBins);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("     Total"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumTotalShadingBins);
+	Newline(Context);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("     Empty"), FontYellow);
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[0].NumEmptyShadingBins);
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("     Empty"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumEmptyShadingBins);
 #endif // PRINT_PASS == 3
 }
 

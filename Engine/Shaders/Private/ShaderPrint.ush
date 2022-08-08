@@ -76,28 +76,6 @@
 //       ...
 //    }
 // 
-// 
-// 4. Global-based state API
-// -------------------------
-// Another API can be used with a more 'global' context accross the shader execution.
-// 
-// This API is used to restrict ShaderPrint to a subset of active threads
-// The filter functions can be called once at the start of the shader to filter all later printing
-//
-// To debug a single pixel:
-//
-//   ShaderPrintFilter(all(SvPosition.xy == float2(100, 100)));
-// 
-// To debug a single compute shader thread:
-// 
-//   ShaderPrintFilter(all(DispatchThreadId == uint3(0, 0, 0)));
-// 
-// To debug a single random active thread
-// 
-//   ShaderPrintFilterOneThread()
-// 
-// Note that ShaderPrintFilterOneThread() only works for one shader invocation in a view since it relies on a global memory location 
-//
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Input types
@@ -303,14 +281,8 @@ FShaderPrintItem ReadSymbol(uint Offset, StructuredBuffer<uint> InBuffer)
 
 #include "/Engine/Generated/UniformBuffers/ShaderPrintData.ush"
 
-static const float2 ShaderPrintCursorStart = float2(0.05f, 0.05f);
-
-// 'Global' values for tracking printing state (per thread)
-static float2 ShaderPrintCursorPos = ShaderPrintCursorStart;
-static bool ShaderPrintFilterEnable = true;
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Print API (Experimental)
+// Print API
 
 struct FShaderPrintContext
 {
@@ -328,6 +300,11 @@ FShaderPrintContext InitShaderPrintContext(bool bActive, float2 InStartPos)
 	return Out;
 }
 FShaderPrintContext InitShaderPrintContext(bool bActive, uint2 InStartCoord) { return InitShaderPrintContext(bActive, float2(InStartCoord) / float2(ShaderPrintData.Resolution)); }
+
+uint2 ShaderPrintGetResolution()
+{
+	return ShaderPrintData.Resolution;
+}
 
 void Newline(inout FShaderPrintContext InContext)
 {
@@ -374,22 +351,15 @@ void ShaderPrint_Internal(in float2 ScreenPos, in int Value, in FFontColor FontC
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Symbol printing
 
-float2 ShaderPrintSymbol(in float2 ScreenPos, in int Symbol, in FFontColor Color)
+void PrintSymbol(inout FShaderPrintContext Ctx, in int Symbol, in FFontColor Color)
 {
-	if (ShaderPrintFilterEnable)
+	if (Ctx.bIsActive)
 	{
-		ShaderPrint_Internal(ScreenPos, Symbol, Color, 0u, SHADER_PRINT_TYPE_SYMBOL);
-		ScreenPos.x += ShaderPrintData.FontSpacing.x;
+		ShaderPrint_Internal(Ctx.Pos, Symbol, Color, 0u, SHADER_PRINT_TYPE_SYMBOL);
+		Ctx.Pos.x += ShaderPrintData.FontSpacing.x;
 	}
-	return ScreenPos;
 }
-float2 ShaderPrintSymbol(in float2 ScreenPos, in int Symbol) { return ShaderPrintSymbol(ScreenPos, Symbol, GetDefaultFontColor()); }
-
-void ShaderPrintSymbol(in int symbol, in FFontColor Color)
-{
-	ShaderPrintCursorPos = ShaderPrintSymbol(ShaderPrintCursorPos, symbol, Color);
-}
-void ShaderPrintSymbol(in int symbol) { ShaderPrintSymbol(symbol, GetDefaultFontColor()); }
+void PrintSymbol(inout FShaderPrintContext Ctx, in int Symbol) { PrintSymbol(Ctx, Symbol, GetDefaultFontColor()); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Text & hash
@@ -447,15 +417,8 @@ float2 ShaderPrintText_Internal(bool bIsActive, float2 InPos, FShaderPrintText I
 	return InPos;
 }
 
-float2 ShaderPrintText(float2 InPos, FShaderPrintText InTextEntry, FFontColor InColor)						{ return ShaderPrintText_Internal(ShaderPrintFilterEnable, InPos, InTextEntry, InColor); }
-float2 ShaderPrintText(float2 InPos, FShaderPrintText InTextEntry)											{ return ShaderPrintText_Internal(ShaderPrintFilterEnable, InPos, InTextEntry, GetDefaultFontColor()); }
-void ShaderPrintText(inout FShaderPrintContext InCtx, FShaderPrintText InTextEntry, FFontColor InColor)		{ InCtx.Pos = ShaderPrintText_Internal(InCtx.bIsActive, InCtx.Pos, InTextEntry, InColor); }
-void ShaderPrintText(inout FShaderPrintContext InCtx, FShaderPrintText InTextEntry)							{ InCtx.Pos = ShaderPrintText_Internal(InCtx.bIsActive, InCtx.Pos, InTextEntry, GetDefaultFontColor()); }
-
-float2 Print(float2 InPos, FShaderPrintText InTextEntry, FFontColor InColor)								{ return ShaderPrintText_Internal(ShaderPrintFilterEnable, InPos, InTextEntry, InColor); }
-float2 Print(float2 InPos, FShaderPrintText InTextEntry)													{ return ShaderPrintText_Internal(ShaderPrintFilterEnable, InPos, InTextEntry, GetDefaultFontColor()); }
-void   Print(inout FShaderPrintContext InCtx, FShaderPrintText InTextEntry, FFontColor InColor)				{ InCtx.Pos = ShaderPrintText_Internal(InCtx.bIsActive, InCtx.Pos, InTextEntry, InColor); }
-void   Print(inout FShaderPrintContext InCtx, FShaderPrintText InTextEntry)									{ InCtx.Pos = ShaderPrintText_Internal(InCtx.bIsActive, InCtx.Pos, InTextEntry, GetDefaultFontColor()); }
+void Print(inout FShaderPrintContext InCtx, FShaderPrintText InTextEntry, FFontColor InColor)	{ InCtx.Pos = ShaderPrintText_Internal(InCtx.bIsActive, InCtx.Pos, InTextEntry, InColor); }
+void Print(inout FShaderPrintContext InCtx, FShaderPrintText InTextEntry)						{ InCtx.Pos = ShaderPrintText_Internal(InCtx.bIsActive, InCtx.Pos, InTextEntry, GetDefaultFontColor()); }
 
 // Function for reading global TEXT string. 
 // The data and function are generated by the shader compiler.
@@ -466,152 +429,54 @@ GENERATED_SHADER_PRINT
 #define MAX_DECIMAL_COUNT 5u
 #define MAX_DIGIT_COUNT 12u
 
-float2 ShaderPrintValue(float2 ScreenPos, float Value, FFontColor Color, uint MaxDigit, uint MaxDecimal)  { ShaderPrint_Internal(ScreenPos, asint(Value),           Color, MaxDecimal, SHADER_PRINT_TYPE_FLOAT); ScreenPos.x += ShaderPrintData.FontSpacing.x * MaxDigit; return ScreenPos; }
-float2 ShaderPrintValue(float2 ScreenPos, int   Value, FFontColor Color, uint MaxDigit, uint MaxDecimal)  { ShaderPrint_Internal(ScreenPos, Value,                  Color, MaxDecimal, SHADER_PRINT_TYPE_INT);   ScreenPos.x += ShaderPrintData.FontSpacing.x * MaxDigit; return ScreenPos; }
-float2 ShaderPrintValue(float2 ScreenPos, uint  Value, FFontColor Color, uint MaxDigit, uint MaxDecimal)  { ShaderPrint_Internal(ScreenPos, asint(Value),           Color, MaxDecimal, SHADER_PRINT_TYPE_UINT);  ScreenPos.x += ShaderPrintData.FontSpacing.x * MaxDigit; return ScreenPos; }
-float2 ShaderPrintValue(float2 ScreenPos, bool  Value, FFontColor Color, uint MaxDigit, uint MaxDecimal)  { ShaderPrint_Internal(ScreenPos, asint(Value ? 1u : 0u), Color, MaxDecimal, SHADER_PRINT_TYPE_UINT);  ScreenPos.x += ShaderPrintData.FontSpacing.x * MaxDigit; return ScreenPos; }
+float2 ShaderPrintValue_Internal(float2 ScreenPos, float Value, FFontColor Color, uint MaxDigit, uint MaxDecimal)  { ShaderPrint_Internal(ScreenPos, asint(Value),           Color, MaxDecimal, SHADER_PRINT_TYPE_FLOAT); ScreenPos.x += ShaderPrintData.FontSpacing.x * MaxDigit; return ScreenPos; }
+float2 ShaderPrintValue_Internal(float2 ScreenPos, int   Value, FFontColor Color, uint MaxDigit, uint MaxDecimal)  { ShaderPrint_Internal(ScreenPos, Value,                  Color, MaxDecimal, SHADER_PRINT_TYPE_INT);   ScreenPos.x += ShaderPrintData.FontSpacing.x * MaxDigit; return ScreenPos; }
+float2 ShaderPrintValue_Internal(float2 ScreenPos, uint  Value, FFontColor Color, uint MaxDigit, uint MaxDecimal)  { ShaderPrint_Internal(ScreenPos, asint(Value),           Color, MaxDecimal, SHADER_PRINT_TYPE_UINT);  ScreenPos.x += ShaderPrintData.FontSpacing.x * MaxDigit; return ScreenPos; }
+float2 ShaderPrintValue_Internal(float2 ScreenPos, bool  Value, FFontColor Color, uint MaxDigit, uint MaxDecimal)  { ShaderPrint_Internal(ScreenPos, asint(Value ? 1u : 0u), Color, MaxDecimal, SHADER_PRINT_TYPE_UINT);  ScreenPos.x += ShaderPrintData.FontSpacing.x * MaxDigit; return ScreenPos; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Scalar type printing
 
-#define SHADER_PRINT_OVERLOAD_1(InPrefix, InNumComponent, InType) \
-void   InPrefix##Print(InType Value, FFontColor Color, uint MaxDigit=MAX_DIGIT_COUNT, uint MaxDecimal=MAX_DECIMAL_COUNT)									{ if (ShaderPrintFilterEnable) { ShaderPrintCursorPos = ShaderPrintValue(ShaderPrintCursorPos, Value, Color, MaxDigit, MaxDecimal); } } \
-float2 InPrefix##Print(float2 ScreenPos, InType Value, FFontColor Color, uint MaxDigit=MAX_DIGIT_COUNT, uint MaxDecimal=MAX_DECIMAL_COUNT)					{ if (ShaderPrintFilterEnable) { ScreenPos            = ShaderPrintValue(ScreenPos,            Value, Color, MaxDigit, MaxDecimal); } return ScreenPos; } \
-void   InPrefix##Print(inout FShaderPrintContext InCtx, InType Value, FFontColor Color, uint MaxDigit=MAX_DIGIT_COUNT, uint MaxDecimal=MAX_DECIMAL_COUNT)	{ if (InCtx.bIsActive)         { InCtx.Pos            = ShaderPrintValue(InCtx.Pos,            Value, Color, MaxDigit, MaxDecimal); } } \
-void   InPrefix##Print(InType Value)																														{ if (ShaderPrintFilterEnable) { ShaderPrintCursorPos = ShaderPrintValue(ShaderPrintCursorPos, Value, GetDefaultFontColor(), MAX_DIGIT_COUNT, MAX_DECIMAL_COUNT); } } \
-float2 InPrefix##Print(float2 ScreenPos, InType Value)																										{ if (ShaderPrintFilterEnable) { ScreenPos            = ShaderPrintValue(ScreenPos,            Value, GetDefaultFontColor(), MAX_DIGIT_COUNT, MAX_DECIMAL_COUNT); } return ScreenPos; } \
-void   InPrefix##Print(inout FShaderPrintContext InCtx, InType Value)																						{ if (InCtx.bIsActive)         { InCtx.Pos            = ShaderPrintValue(InCtx.Pos,            Value, GetDefaultFontColor(), MAX_DIGIT_COUNT, MAX_DECIMAL_COUNT); } }
+#define SHADER_PRINT_OVERLOAD_1(InNumComponent, InType) \
+void   Print(inout FShaderPrintContext InCtx, InType Value, FFontColor Color, uint MaxDigit=MAX_DIGIT_COUNT, uint MaxDecimal=MAX_DECIMAL_COUNT)	{ if (InCtx.bIsActive) { InCtx.Pos = ShaderPrintValue_Internal(InCtx.Pos, Value, Color, MaxDigit, MaxDecimal); } } \
+void   Print(inout FShaderPrintContext InCtx, InType Value)																						{ if (InCtx.bIsActive) { InCtx.Pos = ShaderPrintValue_Internal(InCtx.Pos, Value, GetDefaultFontColor(), MAX_DIGIT_COUNT, MAX_DECIMAL_COUNT); } }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Vector type printing
 
-#define SHADER_PRINT_OVERLOAD_N(InPrefix, InNumComponent, InType) \
-void   InPrefix##Print(InType Value, FFontColor Color, uint MaxDigit=MAX_DIGIT_COUNT, uint MaxDecimal=MAX_DECIMAL_COUNT)									{ if (ShaderPrintFilterEnable) { UNROLL for (uint CompIt=0;CompIt<InNumComponent;++CompIt) { ShaderPrintCursorPos = ShaderPrintValue(ShaderPrintCursorPos, Value[CompIt], Color, MaxDigit, MaxDecimal); } } } \
-float2 InPrefix##Print(float2 ScreenPos, InType Value, FFontColor Color, uint MaxDigit=MAX_DIGIT_COUNT, uint MaxDecimal=MAX_DECIMAL_COUNT)					{ if (ShaderPrintFilterEnable) { UNROLL for (uint CompIt=0;CompIt<InNumComponent;++CompIt) { ScreenPos            = ShaderPrintValue(ScreenPos,            Value[CompIt], Color, MaxDigit, MaxDecimal); } } return ScreenPos; } \
-void   InPrefix##Print(inout FShaderPrintContext InCtx, InType Value, FFontColor Color, uint MaxDigit=MAX_DIGIT_COUNT, uint MaxDecimal=MAX_DECIMAL_COUNT)	{ if (InCtx.bIsActive)         { UNROLL for (uint CompIt=0;CompIt<InNumComponent;++CompIt) { InCtx.Pos            = ShaderPrintValue(InCtx.Pos,            Value[CompIt], Color, MaxDigit, MaxDecimal); } } } \
-void   InPrefix##Print(InType Value)																														{ if (ShaderPrintFilterEnable) { UNROLL for (uint CompIt=0;CompIt<InNumComponent;++CompIt) { ShaderPrintCursorPos = ShaderPrintValue(ShaderPrintCursorPos, Value[CompIt], GetDefaultFontColor(), MAX_DIGIT_COUNT, MAX_DECIMAL_COUNT); } } } \
-float2 InPrefix##Print(float2 ScreenPos, InType Value)																										{ if (ShaderPrintFilterEnable) { UNROLL for (uint CompIt=0;CompIt<InNumComponent;++CompIt) { ScreenPos            = ShaderPrintValue(ScreenPos,            Value[CompIt], GetDefaultFontColor(), MAX_DIGIT_COUNT, MAX_DECIMAL_COUNT); } } return ScreenPos; } \
-void   InPrefix##Print(inout FShaderPrintContext InCtx, InType Value)																						{ if (InCtx.bIsActive)         { UNROLL for (uint CompIt=0;CompIt<InNumComponent;++CompIt) { InCtx.Pos            = ShaderPrintValue(InCtx.Pos,            Value[CompIt], GetDefaultFontColor(), MAX_DIGIT_COUNT, MAX_DECIMAL_COUNT); } } }
-
-// ShaderPrint(X) version (legacy)
-SHADER_PRINT_OVERLOAD_1(Shader, 1, float)
-SHADER_PRINT_OVERLOAD_N(Shader, 2, float2)
-SHADER_PRINT_OVERLOAD_N(Shader, 3, float3)
-SHADER_PRINT_OVERLOAD_N(Shader, 4, float4)
-
-SHADER_PRINT_OVERLOAD_1(Shader, 1, uint)
-SHADER_PRINT_OVERLOAD_N(Shader, 2, uint2)
-SHADER_PRINT_OVERLOAD_N(Shader, 3, uint3)
-SHADER_PRINT_OVERLOAD_N(Shader, 4, uint4)
-
-SHADER_PRINT_OVERLOAD_1(Shader, 1, int)
-SHADER_PRINT_OVERLOAD_N(Shader, 2, int2)
-SHADER_PRINT_OVERLOAD_N(Shader, 3, int3)
-SHADER_PRINT_OVERLOAD_N(Shader, 4, int4)
-
-SHADER_PRINT_OVERLOAD_1(Shader, 1, bool)
+#define SHADER_PRINT_OVERLOAD_N(InNumComponent, InType) \
+void   Print(inout FShaderPrintContext InCtx, InType Value, FFontColor Color, uint MaxDigit=MAX_DIGIT_COUNT, uint MaxDecimal=MAX_DECIMAL_COUNT)	{ if (InCtx.bIsActive) { UNROLL for (uint CompIt=0;CompIt<InNumComponent;++CompIt) { InCtx.Pos = ShaderPrintValue_Internal(InCtx.Pos, Value[CompIt], Color, MaxDigit, MaxDecimal); } } } \
+void   Print(inout FShaderPrintContext InCtx, InType Value)																						{ if (InCtx.bIsActive) { UNROLL for (uint CompIt=0;CompIt<InNumComponent;++CompIt) { InCtx.Pos = ShaderPrintValue_Internal(InCtx.Pos, Value[CompIt], GetDefaultFontColor(), MAX_DIGIT_COUNT, MAX_DECIMAL_COUNT); } } }
 
 // Print(X) version
-SHADER_PRINT_OVERLOAD_1(, 1, float)
-SHADER_PRINT_OVERLOAD_N(, 2, float2)
-SHADER_PRINT_OVERLOAD_N(, 3, float3)
-SHADER_PRINT_OVERLOAD_N(, 4, float4)
+SHADER_PRINT_OVERLOAD_1(1, float)
+SHADER_PRINT_OVERLOAD_N(2, float2)
+SHADER_PRINT_OVERLOAD_N(3, float3)
+SHADER_PRINT_OVERLOAD_N(4, float4)
 
-SHADER_PRINT_OVERLOAD_1(, 1, uint)
-SHADER_PRINT_OVERLOAD_N(, 2, uint2)
-SHADER_PRINT_OVERLOAD_N(, 3, uint3)
-SHADER_PRINT_OVERLOAD_N(, 4, uint4)
+SHADER_PRINT_OVERLOAD_1(1, uint)
+SHADER_PRINT_OVERLOAD_N(2, uint2)
+SHADER_PRINT_OVERLOAD_N(3, uint3)
+SHADER_PRINT_OVERLOAD_N(4, uint4)
 
-SHADER_PRINT_OVERLOAD_1(, 1, int)
-SHADER_PRINT_OVERLOAD_N(, 2, int2)
-SHADER_PRINT_OVERLOAD_N(, 3, int3)
-SHADER_PRINT_OVERLOAD_N(, 4, int4)
+SHADER_PRINT_OVERLOAD_1(1, int)
+SHADER_PRINT_OVERLOAD_N(2, int2)
+SHADER_PRINT_OVERLOAD_N(3, int3)
+SHADER_PRINT_OVERLOAD_N(4, int4)
 
-SHADER_PRINT_OVERLOAD_1(, 1, bool)
+SHADER_PRINT_OVERLOAD_1(1, bool)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Matrix type printing
 
-#define SHADER_PRINT_OVERLOAD_NN(InPrefix, InNumComponentX, InNumComponentY, InType) \
-void   InPrefix##Print(InType Value, FFontColor Color, uint MaxDigit=MAX_DIGIT_COUNT, uint MaxDecimal=MAX_DECIMAL_COUNT)									{ if (ShaderPrintFilterEnable) { UNROLL for (uint CompY=0;CompY<InNumComponentY;++CompY) { ShaderPrintCursorPos = InPrefix##Print(ShaderPrintCursorPos, Value[CompY], Color, MaxDigit, MaxDecimal); ShaderPrintCursorPos += float2(0.f, ShaderPrintData.FontSpacing.y); } } } \
-float2 InPrefix##Print(float2 ScreenPos, InType Value, FFontColor Color, uint MaxDigit=MAX_DIGIT_COUNT, uint MaxDecimal=MAX_DECIMAL_COUNT)					{ if (ShaderPrintFilterEnable) { UNROLL for (uint CompY=0;CompY<InNumComponentY;++CompY) { ScreenPos            = InPrefix##Print(ScreenPos,            Value[CompY], Color, MaxDigit, MaxDecimal); ScreenPos += float2(0.f, ShaderPrintData.FontSpacing.y); } } return ScreenPos; } \
-void   InPrefix##Print(inout FShaderPrintContext InCtx, InType Value, FFontColor Color, uint MaxDigit=MAX_DIGIT_COUNT, uint MaxDecimal=MAX_DECIMAL_COUNT)	{ if (InCtx.bIsActive)         { UNROLL for (uint CompY=0;CompY<InNumComponentY;++CompY) { InCtx.Pos            = InPrefix##Print(InCtx.Pos,            Value[CompY], Color, MaxDigit, MaxDecimal); InCtx.Pos += float2(0.f, ShaderPrintData.FontSpacing.y); } } } \
-void   InPrefix##Print(InType Value)																														{ if (ShaderPrintFilterEnable) { UNROLL for (uint CompY=0;CompY<InNumComponentY;++CompY) { ShaderPrintCursorPos = InPrefix##Print(ShaderPrintCursorPos, Value[CompY], GetDefaultFontColor(), MAX_DIGIT_COUNT, MAX_DECIMAL_COUNT); ShaderPrintCursorPos += float2(0.f, ShaderPrintData.FontSpacing.y); } } } \
-float2 InPrefix##Print(float2 ScreenPos, InType Value)																										{ if (ShaderPrintFilterEnable) { UNROLL for (uint CompY=0;CompY<InNumComponentY;++CompY) { ScreenPos            = InPrefix##Print(ScreenPos,            Value[CompY], GetDefaultFontColor(), MAX_DIGIT_COUNT, MAX_DECIMAL_COUNT); ScreenPos += float2(0.f, ShaderPrintData.FontSpacing.y); } } return ScreenPos; } \
-void   InPrefix##Print(inout FShaderPrintContext InCtx, InType Value)																						{ if (InCtx.bIsActive)         { UNROLL for (uint CompY=0;CompY<InNumComponentY;++CompY) { InCtx.Pos            = InPrefix##Print(InCtx.Pos,            Value[CompY], GetDefaultFontColor(), MAX_DIGIT_COUNT, MAX_DECIMAL_COUNT); InCtx.Pos += float2(0.f, ShaderPrintData.FontSpacing.y); } } }
-
-// ShaderPrint(X) version
-SHADER_PRINT_OVERLOAD_NN(Shader, 3, 3, float3x3)
-SHADER_PRINT_OVERLOAD_NN(Shader, 4, 3, float4x3)
-SHADER_PRINT_OVERLOAD_NN(Shader, 4, 4, float4x4)
+#define SHADER_PRINT_OVERLOAD_NN(InNumComponentX, InNumComponentY, InType) \
+void   Print(inout FShaderPrintContext InCtx, InType Value, FFontColor Color, uint MaxDigit=MAX_DIGIT_COUNT, uint MaxDecimal=MAX_DECIMAL_COUNT)	{ if (InCtx.bIsActive) { UNROLL for (uint CompY=0;CompY<InNumComponentY;++CompY) { Print(InCtx, Value[CompY], Color, MaxDigit, MaxDecimal); InCtx.Pos += float2(0.f, ShaderPrintData.FontSpacing.y); } } } \
+void   Print(inout FShaderPrintContext InCtx, InType Value)																						{ if (InCtx.bIsActive) { UNROLL for (uint CompY=0;CompY<InNumComponentY;++CompY) { Print(InCtx, Value[CompY], GetDefaultFontColor(), MAX_DIGIT_COUNT, MAX_DECIMAL_COUNT); InCtx.Pos += float2(0.f, ShaderPrintData.FontSpacing.y); } } }
 
 // Print(X) version
-SHADER_PRINT_OVERLOAD_NN(, 3, 3, float3x3)
-SHADER_PRINT_OVERLOAD_NN(, 4, 3, float4x3)
-SHADER_PRINT_OVERLOAD_NN(, 4, 4, float4x4)
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Formating helpers
-
-float2 ShaderPrintSpace(in float2 ScreenPos, in float Count = 1)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ScreenPos.x += ShaderPrintData.FontSpacing.x * Count;
-	}
-	return ScreenPos;
-
-}
-
-void ShaderPrintSpace(in float Count = 1)
-{
-	ShaderPrintCursorPos = ShaderPrintSpace(ShaderPrintCursorPos, Count);
-}
-
-float2 ShaderPrintNewline(in float2 ScreenPos)
-{
-	if (ShaderPrintFilterEnable)
-	{
-		ScreenPos.x = ShaderPrintCursorStart.x;
-		ScreenPos.y += ShaderPrintData.FontSpacing.y;
-	}
-	return ScreenPos;
-}
-
-void ShaderPrintNewline()
-{
-	ShaderPrintCursorPos = ShaderPrintNewline(ShaderPrintCursorPos);
-}
-
-float2 ShaderPrintGetCursorPos()
-{
-	return ShaderPrintCursorPos;
-}
-
-float2 ShaderPrintSetCursorPos(in float2 ScreenPos)
-{
-	float2 PrevScreenPos = ShaderPrintCursorPos;
-	ShaderPrintCursorPos = ScreenPos;
-	return PrevScreenPos;
-}
-
-float2 ShaderPrintGetPos(in uint2 PixelCoord)
-{
-	return float2(PixelCoord) / float2(ShaderPrintData.Resolution);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Filter helpers
-
-void ShaderPrintFilter(bool bFilter)
-{
-	ShaderPrintFilterEnable = bFilter;
-}
-
-void ShaderPrintFilterOneThread()
-{
-	// Deprecated
-}
+SHADER_PRINT_OVERLOAD_NN(3, 3, float3x3)
+SHADER_PRINT_OVERLOAD_NN(4, 3, float4x3)
+SHADER_PRINT_OVERLOAD_NN(4, 4, float4x4)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Widgets (experimental)
@@ -714,7 +579,7 @@ bool AddCheckbox(inout FShaderPrintContext InContext, FShaderPrintText InTextEnt
 		InContext.Pos.x += float(WidgetSize.x) / float(ShaderPrintData.Resolution.x) + ShaderPrintData.FontSpacing.x;
 
 		// Text
-		InContext.Pos = ShaderPrintText(InContext.Pos, InTextEntry, InColor);
+		Print(InContext, InTextEntry, InColor);
 		InContext.Pos.x += ShaderPrintData.FontSpacing.x;
 	}
 
@@ -762,7 +627,7 @@ float AddSlider(inout FShaderPrintContext InContext, FShaderPrintText InTextEntr
 		InContext.Pos.x += float(WidgetSize.x) / float(ShaderPrintData.Resolution.x) + ShaderPrintData.FontSpacing.x;
 
 		// Text
-		InContext.Pos = ShaderPrintText(InContext.Pos, InTextEntry, InColor);
+		Print(InContext, InTextEntry, InColor);
 		InContext.Pos.x += ShaderPrintData.FontSpacing.x;
 	}
 

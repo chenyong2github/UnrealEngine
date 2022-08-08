@@ -105,44 +105,40 @@ void MainDrawDebugAABBCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	if (DispatchThreadId.x == 0)
 	{
 		const bool bDrawClusterInfo = ClusterDebugMode == MODE_CLUSTER || ClusterDebugMode == MODE_CULLED || ClusterDebugMode == MODE_LOD;
-		const float HairGroupHeight = bDrawClusterInfo ? 120.0f : 60.f;
+		const uint HairGroupHeight = bDrawClusterInfo ? 120u : 60u;
 
-		float2 StartPos = float2(50.0f, 50.0f + float(HairGroupId) * HairGroupHeight) * View.ViewSizeAndInvSize.zw;
-		float2 Pos = StartPos;
+		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 50 + HairGroupId * HairGroupHeight));
 
 		if (bDrawClusterInfo)
 		{
 			const uint VisibleClusterCount  = CulledDispatchIndirectParametersClusterCountBuffer[0];
 			const uint VisibleTriangleCount = CulledDrawIndirectParameters[0] / 3; // CulledDrawIndirectParameters contains the total number of triangle indices (3 per triangle)
 
-			Pos = ShaderPrintText(Pos, TEXT("HairGroup "), FontYellow);
-			Pos = ShaderPrintSymbol(Pos, HairGroupId);
-			Pos = ShaderPrintText(Pos, TEXT("       Count        Percent"), FontYellow);
+			Print(Context, TEXT("HairGroup "), FontYellow);
+			Print(Context, HairGroupId);
+			Print(Context, TEXT("       Count        Percent"), FontYellow);
+			Newline(Context);
 
-			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			Print(Context, TEXT("Visible Clusters  "), FontYellow);
+			Print(Context, VisibleClusterCount);
+			Print(Context, TEXT(" "), FontYellow);
+			PrintSymbol(Context, _SPC_);
+			Print(Context, 100.0f * float(VisibleClusterCount) / float(ClusterCount));
+			Newline(Context);
 
-			Pos = ShaderPrintText(Pos, TEXT("Visible Clusters  "), FontYellow);
-			Pos = ShaderPrint(Pos, VisibleClusterCount);
-			Pos = ShaderPrintText(Pos, TEXT(" "), FontYellow);
-			Pos = ShaderPrintSymbol(Pos, _SPC_);
-			Pos = ShaderPrint(Pos, 100.0f * float(VisibleClusterCount) / float(ClusterCount));
-
-			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
-
-			Pos = ShaderPrintText(Pos, TEXT("Visible Triangles "), FontYellow);
-			Pos = ShaderPrint(Pos, VisibleTriangleCount);
-			Pos = ShaderPrintSymbol(Pos, _SPC_);
-			Pos = ShaderPrint(Pos, 100.0f * float(VisibleTriangleCount) / float(TriangleCount));
-
-			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			Print(Context, TEXT("Visible Triangles "), FontYellow);
+			Print(Context, VisibleTriangleCount);
+			PrintSymbol(Context, _SPC_);
+			Print(Context, 100.0f * float(VisibleTriangleCount) / float(TriangleCount));
+			Newline(Context);
 		}
 
 		#if PERMUTATION_DEBUGAABBBUFFER
 		{
 			// Extra new line to seperate from previous block
-			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			Newline(Context);
 
-			Pos = ShaderPrintText(Pos, TEXT("Screen Size       "), FontYellow);
+			Print(Context, TEXT("Screen Size       "), FontYellow);
 
 			float ScreenSize = 1;
 			{
@@ -152,17 +148,16 @@ void MainDrawDebugAABBCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 				const float  SphereRadius = length(Bound.Max - SphereOrigin);
 				ScreenSize = ComputeBoundsScreenSize(SphereOrigin, SphereRadius, LWCHackToFloat(PrimaryView.WorldCameraOrigin), View.ViewToClip);
 			}
-			Pos = ShaderPrint(Pos, ScreenSize);
-
-			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			Print(Context, ScreenSize);
+			Newline(Context);
 
 			// Show actual LOD distribution for all clusters. Otherwise show the average LOD index
 			const bool bShowLODHistogram = false;
 
 			if (bShowLODHistogram)
 			{
-				Pos = ShaderPrintText(Pos, TEXT("LOD0        LOD1        LOD2        LOD3        LOD4        LOD5        LOD6        LOD7"), FontYellow);
-				Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+				Print(Context, TEXT("LOD0        LOD1        LOD2        LOD3        LOD4        LOD5        LOD6        LOD7"), FontYellow);
+				Newline(Context);
 			}
 		
 			// Aggregate all the cluster results
@@ -186,41 +181,35 @@ void MainDrawDebugAABBCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 			if (bShowLODHistogram)
 			{		
-				Pos = ShaderPrint(Pos, uint(LODHistogram[0] / float(max(1u, TotalVisibleCluster)) * 100.f));
-				Pos = ShaderPrint(Pos, uint(LODHistogram[1] / float(max(1u, TotalVisibleCluster)) * 100.f));
-				Pos = ShaderPrint(Pos, uint(LODHistogram[2] / float(max(1u, TotalVisibleCluster)) * 100.f));
-				Pos = ShaderPrint(Pos, uint(LODHistogram[3] / float(max(1u, TotalVisibleCluster)) * 100.f));
-				Pos = ShaderPrint(Pos, uint(LODHistogram[4] / float(max(1u, TotalVisibleCluster)) * 100.f));
-				Pos = ShaderPrint(Pos, uint(LODHistogram[5] / float(max(1u, TotalVisibleCluster)) * 100.f));
-				Pos = ShaderPrint(Pos, uint(LODHistogram[6] / float(max(1u, TotalVisibleCluster)) * 100.f));
-				Pos = ShaderPrint(Pos, uint(LODHistogram[7] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Print(Context, uint(LODHistogram[0] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Print(Context, uint(LODHistogram[1] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Print(Context, uint(LODHistogram[2] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Print(Context, uint(LODHistogram[3] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Print(Context, uint(LODHistogram[4] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Print(Context, uint(LODHistogram[5] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Print(Context, uint(LODHistogram[6] / float(max(1u, TotalVisibleCluster)) * 100.f));
+				Print(Context, uint(LODHistogram[7] / float(max(1u, TotalVisibleCluster)) * 100.f));
 			}
 			else
 			{
-				Pos = ShaderPrintText(Pos, TEXT("LOD               "), FontYellow);
+				Print(Context, TEXT("LOD               "), FontYellow);
 
 				if (TotalVisibleCluster > 0)
 				{
-					Pos = ShaderPrint(Pos, AvgLOD);
+					Print(Context, AvgLOD);
 				}
 				else
 				{
-					Pos = ShaderPrintText(Pos, TEXT("Culled"), FontYellow);
-					Pos = ShaderPrintSymbol(Pos, _C_);
-					Pos = ShaderPrintSymbol(Pos, _U_);
-					Pos = ShaderPrintSymbol(Pos, _L_);
-					Pos = ShaderPrintSymbol(Pos, _L_);
-					Pos = ShaderPrintSymbol(Pos, _E_);
-					Pos = ShaderPrintSymbol(Pos, _D_);
+					Print(Context, TEXT("Culled"), FontYellow);
 				}
 			}
 
-			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			Newline(Context);
 
 			// Extra stats for validation purpose
-			// Pos = ShaderPrint(Pos, TotalVertexCount);
-			// Pos = ShaderPrint(Pos, TotalVisibleCluster);
-			// Pos = ShaderPrint(Pos, ScreenSize);
+			// Print(Context, TotalVertexCount);
+			// Print(Context, TotalVisibleCluster);
+			// Print(Context, ScreenSize);
 		}
 		#endif
 

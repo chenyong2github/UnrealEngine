@@ -207,11 +207,6 @@ FFontColor GetOccupancyColor(float In)
 	return InitFontColor(Color);
 }
 
-void AddNewLine(float2 OriginalPos, inout float2 Pos)
-{
-	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;
-}
-
 bool IsInSlot(float2 Coord, float2 MinRect, float2 MaxRect)
 {
 	return all(Coord >= MinRect) && all(Coord <= MaxRect);
@@ -230,36 +225,36 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	// Draw stats
 	if (all(DispatchThreadId == 0))
 	{
-		float2 OriginalPos = float2(50, 100) / float2(OutputResolution);
-		float2 Pos = OriginalPos;
-		Pos = ShaderPrintText(Pos, TEXT("Atlas resolution : "), FontSilver);
-		Pos = ShaderPrint(Pos, AtlasResolution, FontOrange);
-		AddNewLine(OriginalPos, Pos);
+		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 100));
 
-		Pos = ShaderPrintText(Pos, TEXT("Atlas max. MIP   : "), FontSilver);
-		Pos = ShaderPrint(Pos, AtlasMaxMipLevel, FontOrange);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Atlas resolution : "), FontSilver);
+		Print(Context, AtlasResolution, FontOrange);
+		Newline(Context);
 
-		Pos = ShaderPrintText(Pos, TEXT("Atlas MIP Index  : "), FontSilver);
-		Pos = ShaderPrint(Pos, AtlasMIPIndex, FontOrange);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Atlas max. MIP   : "), FontSilver);
+		Print(Context, AtlasMaxMipLevel, FontOrange);
+		Newline(Context);
+
+		Print(Context, TEXT("Atlas MIP Index  : "), FontSilver);
+		Print(Context, AtlasMIPIndex, FontOrange);
+		Newline(Context);
 
 		const FFontColor OccupancyColor = GetOccupancyColor(Occupancy);
-		Pos = ShaderPrintText(Pos, TEXT("Atlas occupancy  : "), FontSilver);
-		Pos = ShaderPrint(Pos, Occupancy * 100.f, OccupancyColor);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Atlas occupancy  : "), FontSilver);
+		Print(Context, Occupancy * 100.f, OccupancyColor);
+		Newline(Context);
 
-		Pos = ShaderPrintText(Pos, TEXT("Textures count   : "), FontSilver);
-		Pos = ShaderPrint(Pos, SlotCount, FontOrange);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Textures count   : "), FontSilver);
+		Print(Context, SlotCount, FontOrange);
+		Newline(Context);
 
-		Pos = ShaderPrintText(Pos, TEXT("Src. MIP bias    : "), FontSilver);
-		Pos = ShaderPrint(Pos, AtlasSourceTextureMIPBias, FontOrange);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Src. MIP bias    : "), FontSilver);
+		Print(Context, AtlasSourceTextureMIPBias, FontOrange);
+		Newline(Context);
 
-		Pos = ShaderPrintText(Pos, TEXT("Atlas format     : "), FontSilver);
-		Pos = ShaderPrintText(Pos, TEXT("PF_FloatR11G11B10"), FontOrange);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Atlas format     : "), FontSilver);
+		Print(Context, TEXT("PF_FloatR11G11B10"), FontOrange);
+		Newline(Context);
 	}
 
 	// Draw atlas

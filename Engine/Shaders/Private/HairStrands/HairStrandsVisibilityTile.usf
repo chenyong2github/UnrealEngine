@@ -216,41 +216,36 @@ uint TileType;
 int2 TileCountXY;
 uint bRectPrimitive;
 
-void AddNewLine(float2 OriginalPos, inout float2 Pos)
-{
-	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;
-}
-
-void AddTileCountLine(float2 OriginalPos, inout float2 Pos, uint TileType)
+void AddTileCountLine(inout FShaderPrintContext Context, uint TileType)
 {
 	const uint ActiveTileCount = HairStrands.HairTileCount[TileType];
-	Pos = ShaderPrintText(Pos, TEXT("Count "), FontWhite);
+	Print(Context, TEXT("Count "), FontWhite);
 	if (TileType == HAIRTILE_HAIR_ALL)
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Hair(All)    "), FontEmerald);
+		Print(Context, TEXT("Hair(All)    "), FontEmerald);
 	}
 	else if (TileType == HAIRTILE_HAIR_FULL)
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Hair(Full)   "), FontEmerald);
+		Print(Context, TEXT("Hair(Full)   "), FontEmerald);
 	}
 	else if (TileType == HAIRTILE_HAIR_PARTIAL)
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Hair(Partial)"), FontEmerald);
+		Print(Context, TEXT("Hair(Partial)"), FontEmerald);
 	}
 	else if (TileType == HAIRTILE_OTHER)
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Clear        "), FontEmerald);
+		Print(Context, TEXT("Clear        "), FontEmerald);
 	}
 	else
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Unknown      "), FontEmerald);
+		Print(Context, TEXT("Unknown      "), FontEmerald);
 	}
-	Pos = ShaderPrintText(Pos, TEXT(": "), FontWhite);
+	Print(Context, TEXT(": "), FontWhite);
 	
-	Pos = ShaderPrint(Pos, ActiveTileCount, FontYellow);
-	Pos = ShaderPrint(Pos, 100.f * float(ActiveTileCount) / float(TileCount), FontOrange);
-	Pos = ShaderPrintText(Pos, TEXT("%"), FontOrange);
-	AddNewLine(OriginalPos, Pos);
+	Print(Context, ActiveTileCount, FontYellow);
+	Print(Context, 100.f * float(ActiveTileCount) / float(TileCount), FontOrange);
+	Print(Context, TEXT("%"), FontOrange);
+	Newline(Context);
 }
 
 [numthreads(1, 1, 1)]
@@ -259,63 +254,62 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	if (any(DispatchThreadId != 0)) return;
 
 	// Pixel coord
-	float2 OriginalPos = float2(50, 50) / float2(MaxResolution);
-	float2 Pos = OriginalPos;
+	FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 50));
 
-	Pos = ShaderPrintText(Pos, TEXT("Tile Count XY      : "), FontWhite);
-	Pos = ShaderPrint(Pos, TileCountXY, FontEmerald);
-	AddNewLine(OriginalPos, Pos);
+	Print(Context, TEXT("Tile Count XY      : "), FontWhite);
+	Print(Context, TileCountXY, FontEmerald);
+	Newline(Context);
 
-	Pos = ShaderPrintText(Pos, TEXT("Tile type          : "), FontWhite);
+	Print(Context, TEXT("Tile type          : "), FontWhite);
 	FFontColor HairAllColor = FontOrange;
 	FFontColor HairFullColor = FontOrange;
 	FFontColor HairPartialColor = FontOrange;
 	FFontColor OtherColor = FontOrange;
 	if (TileType == HAIRTILE_HAIR_ALL)
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Hair(All)"), FontOrange);
+		Print(Context, TEXT("Hair(All)"), FontOrange);
 		HairAllColor = FontOrange;
 	}
 	else if (TileType == HAIRTILE_HAIR_FULL)
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Hair(Full)"), FontOrange);
+		Print(Context, TEXT("Hair(Full)"), FontOrange);
 		HairFullColor = FontOrange;
 	}
 	else if (TileType == HAIRTILE_HAIR_PARTIAL)
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Hair(Partial)"), FontOrange);
+		Print(Context, TEXT("Hair(Partial)"), FontOrange);
 		HairPartialColor = FontOrange;
 	}
 	else if (TileType == HAIRTILE_OTHER)
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Clear"), FontOrange);
+		Print(Context, TEXT("Clear"), FontOrange);
 		OtherColor = FontOrange;
 	}
 	else
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Unknown"), FontOrange);
+		Print(Context, TEXT("Unknown"), FontOrange);
 	}
-	AddNewLine(OriginalPos, Pos);
-	Pos = ShaderPrintText(Pos, TEXT("Tile Size          : "), FontWhite);
-	Pos = ShaderPrint(Pos, TileSize, FontYellow);
-	AddNewLine(OriginalPos, Pos);
+	Newline(Context);
+	Print(Context, TEXT("Tile Size          : "), FontWhite);
+	Print(Context, TileSize, FontYellow);
+	Newline(Context);
 
-	Pos = ShaderPrintText(Pos, TEXT("Tile Threads       : "), FontWhite);
-	Pos = ShaderPrint(Pos, TileGroupSize, FontYellow);
-	AddNewLine(OriginalPos, Pos);
+	Print(Context, TEXT("Tile Threads       : "), FontWhite);
+	Print(Context, TileGroupSize, FontYellow);
+	Newline(Context);
 
-	Pos = ShaderPrintText(Pos, TEXT("Primitive          : "), FontWhite);
+	Print(Context, TEXT("Primitive          : "), FontWhite);
 	if (bRectPrimitive)
-		Pos = ShaderPrintText(Pos, TEXT("Rect."), FontOrange);
+		Print(Context, TEXT("Rect."), FontOrange);
 	else
-		Pos = ShaderPrintText(Pos, TEXT("Triangle"), FontOrange);
-	AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Triangle"), FontOrange);
+	Newline(Context);
 
-	AddNewLine(OriginalPos, Pos);
-	AddTileCountLine(OriginalPos, Pos, HAIRTILE_HAIR_ALL);
-	AddTileCountLine(OriginalPos, Pos, HAIRTILE_HAIR_FULL);
-	AddTileCountLine(OriginalPos, Pos, HAIRTILE_HAIR_PARTIAL);
-	AddTileCountLine(OriginalPos, Pos, HAIRTILE_OTHER);
+	Newline(Context);
+	AddTileCountLine(Context, HAIRTILE_HAIR_ALL);
+	AddTileCountLine(Context, HAIRTILE_HAIR_FULL);
+	AddTileCountLine(Context, HAIRTILE_HAIR_PARTIAL);
+	AddTileCountLine(Context, HAIRTILE_OTHER);
 
 }
 

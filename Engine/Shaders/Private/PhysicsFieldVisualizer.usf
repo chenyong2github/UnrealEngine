@@ -71,152 +71,31 @@ void SetOutputTexture(inout float RayDensity, in int BoundsIndex, in uint2 Pixel
 // Vector field visualisation
 #if PERMUTATION_FIELD == 0
 
-void PrintLinearForce(inout float2 Pos)
-{
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _F_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-}
-
-void PrintAngularTorque(inout float2 Pos)
-{
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _G_);
-	Pos = ShaderPrintSymbol(Pos, _U_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _Q_);
-	Pos = ShaderPrintSymbol(Pos, _U_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-}
-
-void PrintLinearVelocity(inout float2 Pos)
-{
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _V_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _Y_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-}
-
-void PrintAngularVelocity(inout float2 Pos)
-{
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _G_);
-	Pos = ShaderPrintSymbol(Pos, _U_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _V_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _Y_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-}
-
 void PrintVectorField()
 {
-	float2 StartPos = float2(50.0f, 200.0f ) / OutputResolution;
+	FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50.0f, 200.0f));
 
-	float2 Pos = StartPos;
-	Pos = ShaderPrintSymbol(Pos, _V_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _F_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _Y_);
-	Pos = ShaderPrintSymbol(Pos, _P_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-
-	Pos = ShaderPrintSymbol(Pos, _MINUS_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-
+	Print(Context, TEXT("Vector Field Type - "));
 	if(GlobalTarget == LINEAR_FORCE)
 	{
-		PrintLinearForce(Pos);
+		Print(Context, TEXT("Linear Force "));
 	}
 	else if(GlobalTarget == LINEAR_VELOCITY)
 	{
-		PrintLinearVelocity(Pos);
+		Print(Context, TEXT("Linear Velocity "));
 	}
 	else if(GlobalTarget == ANGULAR_TORQUE)
 	{
-		PrintAngularTorque(Pos);
+		Print(Context, TEXT("Angular Torque "));
 	}
 	else if(GlobalTarget == ANGULAR_VELOCITY)
 	{
-		PrintAngularVelocity(Pos);
+		Print(Context, TEXT("Angular Velocity "));
 	}
-	Pos = ShaderPrintNewline(Pos); 
-	Pos.x = StartPos.x;
+	Newline(Context);
 
-	Pos = ShaderPrintSymbol(Pos, _V_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _F_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _U_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-
-	Pos = ShaderPrintSymbol(Pos, _MINUS_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrint(Pos, BoundsSize);
+	Print(Context, TEXT("Vector Field Count - "));
+	Print(Context, BoundsSize);
 }
 
 [numthreads(4, 4, 4)]
@@ -272,316 +151,61 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID,
 
 #if PERMUTATION_FIELD == 1 || PERMUTATION_FIELD == 2
 
-void PrintExternalStrain(inout float2 Pos)
-{
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _X_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-}
-
-void PrintInternalStrain(inout float2 Pos)
-{
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-}
-
-void PrintDisabledThreshold(inout float2 Pos)
-{
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _B_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _H_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _H_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-}
-
-void PrintSleepingThreshold(inout float2 Pos)
-{
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _P_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _G_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _H_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _H_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-}
-
-void PrintKillParticles(inout float2 Pos)
-{
-	Pos = ShaderPrintSymbol(Pos, _K_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _P_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-}
-
 void PrintScalarField()
 {
-	float2 StartPos = float2(50.0f, 200.0f ) / OutputResolution;
+	FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50.0f, 200.0f));
 
-	float2 Pos = StartPos;
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _F_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _Y_);
-	Pos = ShaderPrintSymbol(Pos, _P_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-
-	Pos = ShaderPrintSymbol(Pos, _MINUS_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
+	Print(Context, TEXT("Scalar Field Type - "));
 
 	if(GlobalTarget == EXTERNAL_STRAIN)
 	{
-		PrintExternalStrain(Pos);
+		Print(Context, TEXT("External Strain "));
 	}
 	else if(GlobalTarget == INTERNAL_STRAIN)
 	{
-		PrintInternalStrain(Pos);
+		Print(Context, TEXT("Internal Strain "));
 	}
 	else if(GlobalTarget == DISABLED_THRESHOLD)
 	{
-		PrintDisabledThreshold(Pos);
+		Print(Context, TEXT("Disabled Threshold "));
 	}
 	else if(GlobalTarget == SLEEPING_THRESHOLD)
 	{
-		PrintSleepingThreshold(Pos);
+		Print(Context, TEXT("Sleeping Threshold "));
 	}
 	else if(GlobalTarget == KILL_PARTICLES)
 	{
-		PrintKillParticles(Pos);
+		Print(Context, TEXT("Kill Particles "));
 	}
 
-	Pos = ShaderPrintNewline(Pos); 
-	Pos.x = StartPos.x;
+	Newline(Context);
 
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _F_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _U_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-
-	Pos = ShaderPrintSymbol(Pos, _MINUS_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrint(Pos, BoundsSize);
+	Print(Context, TEXT("Scalar Field Count - "));
+	Print(Context, BoundsSize);
 }
-
-void PrintDynamicState(inout float2 Pos)
-{
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _Y_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _M_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-}
-
-void PrintCollisionGroup(inout float2 Pos)
-{
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _G_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _U_);
-	Pos = ShaderPrintSymbol(Pos, _P_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-}
-
-void PrintActivateDisabled(inout float2 Pos)
-{
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _V_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _B_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-}
-
 
 void PrintIntegerField()
 {
-	float2 StartPos = float2(50.0f, 200.0f ) / OutputResolution;
+	FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50.0f, 200.0f));
 
-	float2 Pos = StartPos;
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _G_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _F_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _Y_);
-	Pos = ShaderPrintSymbol(Pos, _P_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-
-	Pos = ShaderPrintSymbol(Pos, _MINUS_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
+	Print(Context, TEXT("Integer Field Type - "));
 
 	if(GlobalTarget == DYNAMIC_STATE)
 	{
-		PrintDynamicState(Pos);
+		Print(Context, TEXT("Dynamic State "));
 	}
 	else if(GlobalTarget == COLLISION_GROUP)
 	{
-		PrintCollisionGroup(Pos);
+		Print(Context, TEXT("Collision Group "));
 	}
 	else if(GlobalTarget == ACTIVATE_DISABLED)
 	{
-		PrintActivateDisabled(Pos);
+		Print(Context, TEXT("Activate Disabled "));
 	}
 
-	Pos = ShaderPrintNewline(Pos); 
-	Pos.x = StartPos.x;
-
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _G_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _F_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _U_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-
-	Pos = ShaderPrintSymbol(Pos, _MINUS_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrint(Pos, BoundsSize);
+	Newline(Context);
+	Print(Context, TEXT("Integer Field Count - "));
+	Print(Context, BoundsSize);
 }
 
 // Integer and scalar field visualisation

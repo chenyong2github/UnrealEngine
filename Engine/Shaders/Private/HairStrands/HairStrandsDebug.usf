@@ -509,32 +509,29 @@ void VisibilityDebugPPLLCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThread
 
 	if (DispatchThreadId.x == 0 && DispatchThreadId.y == 0)
 	{
-		ShaderPrintFilter(true);
-
 		const float PPLLNodeSizeInMb = (4 + 4 + 4) / 1000000.f;
 		const float NodePercentage = float(PPLLListElementcount) / float(PPLLMaxTotalListElementCount);
 
-		float2 StartPos = (BarOrigin + BarSize*float2(0.0f, 2.0f)) * View.ViewSizeAndInvSize.zw;
-		float2 Pos = StartPos;
-		Pos = Print(Pos, TEXT("Mean Node Per Pixel : "));
-		Pos = ShaderPrint(Pos, PPLLMeanListElementCountPerPixel, FontEmerald);
-		Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(BarOrigin + BarSize*uint2(0, 2)));
+		Print(Context, TEXT("Mean Node Per Pixel : "));
+		Print(Context, PPLLMeanListElementCountPerPixel, FontEmerald);
+		Newline(Context);
 		
-		Pos = Print(Pos, TEXT("Nodes Used (%)      : "));
-		Pos = ShaderPrint(Pos, NodePercentage * 100.f, GetOccupancyColor(NodePercentage));
-		Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+		Print(Context, TEXT("Nodes Used (%)      : "));
+		Print(Context, NodePercentage * 100.f, GetOccupancyColor(NodePercentage));
+		Newline(Context);
 
-		Pos = Print(Pos, TEXT("Nodes Used          : "));
-		Pos = ShaderPrint(Pos, PPLLListElementcount, FontSilver);
-		Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+		Print(Context, TEXT("Nodes Used          : "));
+		Print(Context, PPLLListElementcount, FontSilver);
+		Newline(Context);
 
-		Pos = Print(Pos, TEXT("Allocated Nodes (Mb): "));
-		Pos = ShaderPrint(Pos, PPLLMaxTotalListElementCount * PPLLNodeSizeInMb, FontSilver);
-		Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+		Print(Context, TEXT("Allocated Nodes (Mb): "));
+		Print(Context, PPLLMaxTotalListElementCount * PPLLNodeSizeInMb, FontSilver);
+		Newline(Context);
 
-		Pos = Print(Pos, TEXT("Total               : "));
-		Pos = ShaderPrint(Pos, PPLLMaxTotalListElementCount, FontOrange);
-		Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+		Print(Context, TEXT("Total               : "));
+		Print(Context, PPLLMaxTotalListElementCount, FontOrange);
+		Newline(Context);
 	}
 }
 
@@ -793,11 +790,6 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsAABBCommon.ush" 
 
-void AddNewLine(float2 OriginalPos, inout float2 Pos)
-{
-	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;
-}
-
 int2 PixelCoord;
 int2 MaxResolution;
 uint FastResolveMask;
@@ -856,25 +848,29 @@ void DrawInstanceAABB(uint PrimitiveId)
 }
 
 [numthreads(1, 1, 1)]
-void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
+void MainCS(uint InGroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
 {	
 	// Draw AABB of the instance groups
 	if (all(DispatchThreadId == 0))
 	{
 		// Macro groups bounds
-		for (uint GroupIndex =0;GroupIndex< HairMacroGroupCount; GroupIndex++)
 		{
-			const float4 InstanceBoundColor = float4(0.25f, 1.f, 0.25f, 1.0f); 
-			FHairAABB Bound = ReadHairAABB(GroupIndex, HairMacroGroupAABBBuffer);
-			AddAABBTWS(Bound.Min, Bound.Max, InstanceBoundColor);
+			for (uint GroupIndex =0;GroupIndex< HairMacroGroupCount; GroupIndex++)
+			{
+				const float4 InstanceBoundColor = float4(0.25f, 1.f, 0.25f, 1.0f); 
+				FHairAABB Bound = ReadHairAABB(GroupIndex, HairMacroGroupAABBBuffer);
+				AddAABBTWS(Bound.Min, Bound.Max, InstanceBoundColor);
+			}
 		}
 
 		// Voxel aligned macro groups bounds
-		for (uint GroupIndex = 0; GroupIndex < HairMacroGroupCount; GroupIndex++)
 		{
-			const float4 InstanceBoundColor = float4(1.f, 0.5f, 0.5f, 1.0f);
-			FHairAABB Bound = ReadHairAABB(GroupIndex, HairMacroGroupVoxelAlignedAABBBuffer);
-			AddAABBTWS(Bound.Min, Bound.Max, InstanceBoundColor);
+			for (uint GroupIndex = 0; GroupIndex < HairMacroGroupCount; GroupIndex++)
+			{
+				const float4 InstanceBoundColor = float4(1.f, 0.5f, 0.5f, 1.0f);
+				FHairAABB Bound = ReadHairAABB(GroupIndex, HairMacroGroupVoxelAlignedAABBBuffer);
+				AddAABBTWS(Bound.Min, Bound.Max, InstanceBoundColor);
+			}
 		}
 
 		// Hair instance bounds
@@ -895,33 +891,30 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		const uint2 EquivalentResolution = ceil(sqrt(UsedSampleCount));
 	
 		// Pixel coord
-		float2 OriginalPos = float2(450, 50) / float2(MaxResolution);
-		float2 Pos = OriginalPos;
-		Pos = ShaderPrintText(Pos, TEXT("Sample Count (Used/Alloc)  "), FontCyan);
-		Pos = ShaderPrint(Pos, UsedSampleCount, FontCyan);
-		Pos = ShaderPrint(Pos, AllocatedSampleCount, FontCyan);
+		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(450, 50));
+		Print(Context, TEXT("Sample Count (Used/Alloc)  "), FontCyan);
+		Print(Context, UsedSampleCount, FontCyan);
+		Print(Context, AllocatedSampleCount, FontCyan);
 
 		const float AllocationPercentage = float(UsedSampleCount) / float(AllocatedSampleCount);
 		const FFontColor OccupancyColor = GetOccupancyColor(AllocationPercentage);
-		Pos = ShaderPrintText(Pos, TEXT(" %% "), OccupancyColor);
-		Pos = ShaderPrint(Pos, AllocationPercentage * 100.f, OccupancyColor);
+		Print(Context, TEXT(" %% "), OccupancyColor);
+		Print(Context, AllocationPercentage * 100.f, OccupancyColor);
 
-		AddNewLine(OriginalPos, Pos);
+		Newline(Context);
 
-		Pos = ShaderPrintText(Pos, TEXT("Sample Lighting Resolution "), FontCyan);
-		Pos = ShaderPrint(Pos, EquivalentResolution, FontCyan);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Sample Lighting Resolution "), FontCyan);
+		Print(Context, EquivalentResolution, FontCyan);
+		Newline(Context);
 
-		Pos = ShaderPrintText(Pos, TEXT("MacroGroup Count           "), FontYellow);
-		Pos = ShaderPrint(Pos, HairMacroGroupCount, FontYellow);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("MacroGroup Count           "), FontYellow);
+		Print(Context, HairMacroGroupCount, FontYellow);
+		Newline(Context);
 	}
 
 	const float2 PixelPos = PixelCoord;
 	if (PixelCoord.x < 0 || PixelCoord.y < 0 || PixelCoord.x >= MaxResolution.x || PixelCoord.y >= MaxResolution.y)
 		return;
-
-	ShaderPrintFilter(true);
 
 	const float HairPixelCoverage = HairStrands.HairCoverageTexture.Load(uint3(PixelPos, 0));
 	const bool bIsValid = HairPixelCoverage > 0;
@@ -931,9 +924,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	const float ViewHairCount = HairCountTexture.Load(uint3(PixelPos, 0));
 	const float ViewHairCountUint = HairCountUintTexture.Load(uint3(PixelPos, 0)) /  1000.f;
 
-//	const float2 OriginalPos = PixelPos / float2(MaxResolution);
-	const float2 OriginalPos = float2(50,500) / float2(MaxResolution);
-	float2 Pos = OriginalPos;
+	FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 500));
 
 	uint Total8BitCoverage = 0;
 	const FNodeDesc NodeDesc = DecodeNodeDesc(HairStrands.HairSampleOffset.Load(uint3(PixelCoord, 0)));
@@ -946,88 +937,88 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	}
 
 	// Pixel coord
-	Pos = ShaderPrintText(Pos, TEXT("Pixel           "), FontTurquoise);
-	Pos = ShaderPrint(Pos, PixelCoord, FontTurquoise);
-	AddNewLine(OriginalPos, Pos);
+	Print(Context, TEXT("Pixel           "), FontTurquoise);
+	Print(Context, PixelCoord, FontTurquoise);
+	Newline(Context);
 
 	// Max sample
-	Pos = ShaderPrintText(Pos, TEXT("Max Sample      "));
-	Pos = ShaderPrint(Pos, HairStrands.MaxSamplePerPixelCount);
-	AddNewLine(OriginalPos, Pos);
+	Print(Context, TEXT("Max Sample      "));
+	Print(Context, HairStrands.MaxSamplePerPixelCount);
+	Newline(Context);
 
 	// Unique sample
-	Pos = ShaderPrintText(Pos, TEXT("Sample          "), FontOrange);
-	Pos = ShaderPrint(Pos, NodeDesc.Count, FontOrange);
-	AddNewLine(OriginalPos, Pos);
+	Print(Context, TEXT("Sample          "), FontOrange);
+	Print(Context, NodeDesc.Count, FontOrange);
+	Newline(Context);
 
 	// Accurate coverage (if coverage pass is activated)
-	Pos = ShaderPrintText(Pos, TEXT("Hair Count      "));
-	Pos = ShaderPrint(Pos, ViewHairCount);
-	AddNewLine(OriginalPos, Pos);
+	Print(Context, TEXT("Hair Count      "));
+	Print(Context, ViewHairCount);
+	Newline(Context);
 
 	// Accurate coverage (if coverage pass is activated) uint
-	Pos = ShaderPrintText(Pos, TEXT("Hair Count Uint "));
-	Pos = ShaderPrint(Pos, ViewHairCountUint);
-	AddNewLine(OriginalPos, Pos);
+	Print(Context, TEXT("Hair Count Uint "));
+	Print(Context, ViewHairCountUint);
+	Newline(Context);
 	
 	// Accurate coverage (if coverage pass is activated)
-	Pos = ShaderPrintText(Pos, TEXT("Coverage        "), FontOrange);
-	Pos = ShaderPrint(Pos, HairPixelCoverage, FontOrange);
-	AddNewLine(OriginalPos, Pos);
+	Print(Context, TEXT("Coverage        "), FontOrange);
+	Print(Context, HairPixelCoverage, FontOrange);
+	Newline(Context);
 
 	// 8 bit Coverage (summed)
-	Pos = ShaderPrintText(Pos, TEXT("Sum cov. 8bits  "));
-	Pos = ShaderPrint(Pos, Total8BitCoverage);
-	AddNewLine(OriginalPos, Pos);
+	Print(Context, TEXT("Sum cov. 8bits  "));
+	Print(Context, Total8BitCoverage);
+	Newline(Context);
 
 	// Resolve type
 	const uint Stencil = StencilTexture.Load(uint3(PixelPos,0)).y;
 	const bool bIsFastResolve = (Stencil & FastResolveMask) != 0;
-	Pos = ShaderPrintText(Pos, TEXT("Resolve         "));
+	Print(Context, TEXT("Resolve         "));
 
 	if (bIsFastResolve)
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Fast"), FontEmerald);
+		Print(Context, TEXT("Fast"), FontEmerald);
 	}
 	else
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Regular"), FontEmerald);
+		Print(Context, TEXT("Regular"), FontEmerald);
 	}
 
-	AddNewLine(OriginalPos, Pos);
-	AddNewLine(OriginalPos, Pos);
+	Newline(Context);
+	Newline(Context);
 
-	const float2 ColumnPos = Pos;
+	const float2 ColumnPos = Context.Pos;
 
 	// Sample Description
 	{	
-		Pos = ShaderPrintText(Pos, TEXT("Sample ID       "), FontWhite);	AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Sample ID       "), FontWhite);	Newline(Context);
 	#if MATERIAL_DATA
-		Pos = ShaderPrintText(Pos, TEXT(".Base Color R   "), FontRed);		AddNewLine(OriginalPos, Pos); 
-		Pos = ShaderPrintText(Pos, TEXT(".Base Color G   "), FontGreen);	AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT(".Base Color B   "), FontBlue);		AddNewLine(OriginalPos, Pos);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT(".Base Color R   "), FontRed);		Newline(Context); 
+		Print(Context, TEXT(".Base Color G   "), FontGreen);	Newline(Context);
+		Print(Context, TEXT(".Base Color B   "), FontBlue);		Newline(Context);
+		Newline(Context);
 
-		Pos = ShaderPrintText(Pos, TEXT(".Tangent X      "), FontEmerald);	AddNewLine(OriginalPos, Pos); 
-		Pos = ShaderPrintText(Pos, TEXT(".Tangent Y      "), FontEmerald);	AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT(".Tangent Z      "), FontEmerald);	AddNewLine(OriginalPos, Pos);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT(".Tangent X      "), FontEmerald);	Newline(Context); 
+		Print(Context, TEXT(".Tangent Y      "), FontEmerald);	Newline(Context);
+		Print(Context, TEXT(".Tangent Z      "), FontEmerald);	Newline(Context);
+		Newline(Context);
 
-		Pos = ShaderPrintText(Pos, TEXT(".Roughness      "), FontOrange);	AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT(".Specular       "), FontEmerald);	AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT(".Backlit        "), FontOrange);	AddNewLine(OriginalPos, Pos);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT(".Roughness      "), FontOrange);	Newline(Context);
+		Print(Context, TEXT(".Specular       "), FontEmerald);	Newline(Context);
+		Print(Context, TEXT(".Backlit        "), FontOrange);	Newline(Context);
+		Newline(Context);
 	#endif 													  
 	#if DETAIL_DATA											  
-		Pos = ShaderPrintText(Pos, TEXT(".Light Channels "), FontEmerald);	AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT(".Scatter Scene  "), FontOrange);	AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT(".Depth          "), FontEmerald);	AddNewLine(OriginalPos, Pos);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT(".Light Channels "), FontEmerald);	Newline(Context);
+		Print(Context, TEXT(".Scatter Scene  "), FontOrange);	Newline(Context);
+		Print(Context, TEXT(".Depth          "), FontEmerald);	Newline(Context);
+		Newline(Context);
 
-		Pos = ShaderPrintText(Pos, TEXT(".Macro Group ID "), FontYellow);	AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT(".Primitive		 "), FontEmerald);	AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT(".Macro Group ID "), FontYellow);	Newline(Context);
+		Print(Context, TEXT(".Primitive		 "), FontEmerald);	Newline(Context);
 	#endif													  
-		Pos = ShaderPrintText(Pos, TEXT(".Coverage       "), FontOrange);	AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT(".Coverage       "), FontOrange);	Newline(Context);
 	}
 
 	// Per sample description
@@ -1036,41 +1027,40 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		const uint LocalOffset = NodeDesc.Offset + SampleIt;
 		const FHairSample Sample = UnpackHairSample(HairStrands.HairSampleData[LocalOffset]);
 
-		float2 StartSamplePos = ColumnPos + float2(150.f + 80.f * SampleIt, 0.f) / float2(MaxResolution);
-		Pos = StartSamplePos;
+		FShaderPrintContext Context2 = InitShaderPrintContext(true, ColumnPos + float2(150.f + 80.f * SampleIt, 0.f) / float2(MaxResolution));
 
-		Pos = ShaderPrint(Pos, SampleIt, FontWhite);									AddNewLine(StartSamplePos, Pos);
+		Print(Context2, SampleIt, FontWhite);									Newline(Context2);
 
 	#if MATERIAL_DATA
-		Pos = ShaderPrint(Pos, Sample.BaseColor.x,	FontRed);							AddNewLine(StartSamplePos, Pos);
-		Pos = ShaderPrint(Pos, Sample.BaseColor.y,	FontGreen);							AddNewLine(StartSamplePos, Pos);
-		Pos = ShaderPrint(Pos, Sample.BaseColor.z,	FontBlue);							AddNewLine(StartSamplePos, Pos);
-		AddNewLine(StartSamplePos, Pos);
+		Print(Context2, Sample.BaseColor.x,	FontRed);							Newline(Context2);
+		Print(Context2, Sample.BaseColor.y,	FontGreen);							Newline(Context2);
+		Print(Context2, Sample.BaseColor.z,	FontBlue);							Newline(Context2);
+		Newline(Context2);
 
-		Pos = ShaderPrint(Pos, Sample.Tangent.x,	FontEmerald);						AddNewLine(StartSamplePos, Pos);
-		Pos = ShaderPrint(Pos, Sample.Tangent.y,	FontEmerald);						AddNewLine(StartSamplePos, Pos);
-		Pos = ShaderPrint(Pos, Sample.Tangent.z,	FontEmerald);						AddNewLine(StartSamplePos, Pos);
-		AddNewLine(StartSamplePos, Pos);
+		Print(Context2, Sample.Tangent.x,	FontEmerald);						Newline(Context2);
+		Print(Context2, Sample.Tangent.y,	FontEmerald);						Newline(Context2);
+		Print(Context2, Sample.Tangent.z,	FontEmerald);						Newline(Context2);
+		Newline(Context2);
 
-		Pos = ShaderPrint(Pos, Sample.Roughness,	FontOrange);						AddNewLine(StartSamplePos, Pos);
-		Pos = ShaderPrint(Pos, Sample.Specular,		FontEmerald);						AddNewLine(StartSamplePos, Pos);
-		Pos = ShaderPrint(Pos, Sample.Backlit,		FontOrange);						AddNewLine(StartSamplePos, Pos);
-		AddNewLine(StartSamplePos, Pos);
+		Print(Context2, Sample.Roughness,	FontOrange);						Newline(Context2);
+		Print(Context2, Sample.Specular,		FontEmerald);						Newline(Context2);
+		Print(Context2, Sample.Backlit,		FontOrange);						Newline(Context2);
+		Newline(Context2);
 	#endif 
 
 	#if DETAIL_DATA
-		Pos = ShaderPrint(Pos,(Sample.LightChannelMask & 0x1) ? 1u : 0u, FontEmerald);	AddNewLine(StartSamplePos, Pos);
-//		Pos = ShaderPrint(Pos,(Sample.LightChannelMask & 0x1) ? 1u : 0u);				AddNewLine(StartSamplePos, Pos);
-//		Pos = ShaderPrint(Pos,(Sample.LightChannelMask & 0x2) ? 1u : 0u);				AddNewLine(StartSamplePos, Pos);
-//		Pos = ShaderPrint(Pos,(Sample.LightChannelMask & 0x4) ? 1u : 0u);				AddNewLine(StartSamplePos, Pos);
-		Pos = ShaderPrint(Pos, Sample.bScatterSceneLighting ? 1u : 0u, FontOrange);		AddNewLine(StartSamplePos, Pos);
-		Pos = ShaderPrint(Pos, Sample.Depth, FontEmerald);								AddNewLine(StartSamplePos, Pos);
-		AddNewLine(StartSamplePos, Pos);
+		Print(Context2,(Sample.LightChannelMask & 0x1) ? 1u : 0u, FontEmerald);	Newline(Context2);
+//		Print(Context2,(Sample.LightChannelMask & 0x1) ? 1u : 0u);				Newline(Context2);
+//		Print(Context2,(Sample.LightChannelMask & 0x2) ? 1u : 0u);				Newline(Context2);
+//		Print(Context2,(Sample.LightChannelMask & 0x4) ? 1u : 0u);				Newline(Context2);
+		Print(Context2, Sample.bScatterSceneLighting ? 1u : 0u, FontOrange);		Newline(Context2);
+		Print(Context2, Sample.Depth, FontEmerald);								Newline(Context2);
+		Newline(Context2);
 
-		Pos = ShaderPrint(Pos, Sample.MacroGroupId, FontYellow);						AddNewLine(StartSamplePos, Pos);
-		Pos = ShaderPrint(Pos, Sample.PrimitiveId, FontEmerald);						AddNewLine(StartSamplePos, Pos);
+		Print(Context2, Sample.MacroGroupId, FontYellow);						Newline(Context2);
+		Print(Context2, Sample.PrimitiveId, FontEmerald);						Newline(Context2);
 	#endif
-		Pos = ShaderPrint(Pos, Sample.Coverage8bit, FontOrange);						AddNewLine(StartSamplePos, Pos);
+		Print(Context2, Sample.Coverage8bit, FontOrange);						Newline(Context2);
 	}
 }
 
@@ -1083,11 +1073,6 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 #include "../ShaderPrint.ush"
 #include "HairStrandsAABBCommon.ush"
-
-void AddNewLine(float2 OriginalPos, inout float2 Pos)
-{
-	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;
-}
 
 int2					MaxResolution;
 uint					InstanceCount;
@@ -1211,7 +1196,7 @@ FNameInfo FindNameInfo(uint PrimitiveID)
 	return Out;
 }
 
-float2 PrintInstanceName(float2 InPos, uint PrimitiveID, FFontColor InColor)
+void PrintInstanceName(inout FShaderPrintContext Context, uint PrimitiveID, FFontColor InColor)
 {
 	const FNameInfo Info = FindNameInfo(PrimitiveID);
 	if (Info.PrimitiveID != ~0 && (Info.Length + Info.Offset) <= NameCharacterCount)
@@ -1219,10 +1204,9 @@ float2 PrintInstanceName(float2 InPos, uint PrimitiveID, FFontColor InColor)
 		for (uint It = 0; It < Info.Length; ++It)
 		{
 			const uint Char = Names[It + Info.Offset];
-			InPos = ShaderPrintSymbol(InPos, Char, InColor);
+			PrintSymbol(Context, Char, InColor);
 		}
 	}
-	return InPos;
 }
 
 [numthreads(1, 1, 1)]
@@ -1235,10 +1219,8 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		return;
 	}
 
+	FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 50));
 	// Draw legend
-	float2 OriginalPos = ShaderPrintGetPos(uint2(50, 50));
-	float2 Pos = OriginalPos;
-
 
 	// Draw totals
 	const uint TotalGroup = InstanceCount;
@@ -1254,120 +1236,120 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	}
 
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Total Groups        : "), FontWhite);
-		Pos = Print(Pos, TotalGroup, FontYellow, 8);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Total Groups        : "), FontWhite);
+		Print(Context,TotalGroup, FontYellow, 8);
+		Newline(Context);
 
-		Pos = ShaderPrintText(Pos, TEXT("Total Strand Curves : "), FontWhite);
-		Pos = Print(Pos, TotalStrandsCount, FontOrange, 8);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Total Strand Curves : "), FontWhite);
+		Print(Context,TotalStrandsCount, FontOrange, 8);
+		Newline(Context);
 
-		Pos = ShaderPrintText(Pos, TEXT("Total Strand Vertex : "), FontWhite);
-		Pos = Print(Pos, TotalVertexCount, FontSilver, 8);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Total Strand Vertex : "), FontWhite);
+		Print(Context,TotalVertexCount, FontSilver, 8);
+		Newline(Context);
 	}
-	AddNewLine(OriginalPos, Pos);
+	Newline(Context);
 
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Total Strand primary: "), FontWhite);
-		Pos = Print(Pos, InstanceCount_StrandsPrimaryView, FontYellow, 8);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Total Strand primary: "), FontWhite);
+		Print(Context,InstanceCount_StrandsPrimaryView, FontYellow, 8);
+		Newline(Context);
 
-		Pos = ShaderPrintText(Pos, TEXT("Total Strand shadow : "), FontWhite);
-		Pos = Print(Pos, InstanceCount_StrandsShadowView, FontYellow, 8);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Total Strand shadow : "), FontWhite);
+		Print(Context,InstanceCount_StrandsShadowView, FontYellow, 8);
+		Newline(Context);
 
-		Pos = ShaderPrintText(Pos, TEXT("Total Cards / Meshes: "), FontWhite);
-		Pos = Print(Pos, InstanceCount_CardsOrMeshes, FontYellow, 8);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Total Cards / Meshes: "), FontWhite);
+		Print(Context,InstanceCount_CardsOrMeshes, FontYellow, 8);
+		Newline(Context);
 	}
-	AddNewLine(OriginalPos, Pos);
+	Newline(Context);
 
 	// Draw instance details
-	Pos = ShaderPrintText(Pos, TEXT("   Group  LOD     Geometry Binding Sim   RBF   Clip    Strands Vertex  Bind.Triangle Bind.Section Primary Shadow Name"));
-	AddNewLine(OriginalPos, Pos);
+	Print(Context, TEXT("   Group  LOD     Geometry Binding Sim   RBF   Clip    Strands Vertex  Bind.Triangle Bind.Section Primary Shadow Name"));
+	Newline(Context);
 
 	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 	{
 		const FInstanceInfo Info = ReadInstanceInfo(InstanceIndex);
 
 		// Index
-		Pos = Print(Pos, InstanceIndex, FontSilver, 2);
-		Pos = ShaderPrintText(Pos, TEXT(" "));
+		Print(Context,InstanceIndex, FontSilver, 2);
+		Print(Context, TEXT(" "));
 
 		// Group
-		Pos = Print(Pos, Info.GroupIndex, FontYellow, 1);
-		Pos = ShaderPrintText(Pos, TEXT("/"));
-		Pos = Print(Pos, Info.GroupCount, FontYellow, 1);
-		Pos = ShaderPrintText(Pos, TEXT("    "));
+		Print(Context,Info.GroupIndex, FontYellow, 1);
+		Print(Context, TEXT("/"));
+		Print(Context,Info.GroupCount, FontYellow, 1);
+		Print(Context, TEXT("    "));
 
 		// LOD
-		Pos = Print(Pos, Info.LOD, FontYellow, 4, 2);
-		Pos = ShaderPrintText(Pos, TEXT("/"));
-		Pos = Print(Pos, Info.LODCount, FontYellow, 1);
-		Pos = ShaderPrintText(Pos, TEXT("  "));
+		Print(Context,Info.LOD, FontYellow, 4, 2);
+		Print(Context, TEXT("/"));
+		Print(Context,Info.LODCount, FontYellow, 1);
+		Print(Context, TEXT("  "));
 
 		// Geometry
-		if (Info.GeometryType == 0)		{ Pos = ShaderPrintText(Pos, TEXT("Strands "), FontEmerald); }
-		else if (Info.GeometryType == 1){ Pos = ShaderPrintText(Pos, TEXT("Cards   "), FontEmerald); }
-		else if (Info.GeometryType == 2){ Pos = ShaderPrintText(Pos, TEXT("Meshes  "), FontEmerald); }
-		Pos = ShaderPrintText(Pos, TEXT(" "));
+		if (Info.GeometryType == 0)		{ Print(Context, TEXT("Strands "), FontEmerald); }
+		else if (Info.GeometryType == 1){ Print(Context, TEXT("Cards   "), FontEmerald); }
+		else if (Info.GeometryType == 2){ Print(Context, TEXT("Meshes  "), FontEmerald); }
+		Print(Context, TEXT(" "));
 
 		// Binding
-		if (Info.BindingType == 0)		{ Pos = ShaderPrintText(Pos, TEXT("Skinned "), FontTurquoise); }
-		else if (Info.BindingType == 1)	{ Pos = ShaderPrintText(Pos, TEXT("Rigid   "), FontTurquoise); }
-		else if (Info.BindingType == 2)	{ Pos = ShaderPrintText(Pos, TEXT("None    "), FontTurquoise); }
+		if (Info.BindingType == 0)		{ Print(Context, TEXT("Skinned "), FontTurquoise); }
+		else if (Info.BindingType == 1)	{ Print(Context, TEXT("Rigid   "), FontTurquoise); }
+		else if (Info.BindingType == 2)	{ Print(Context, TEXT("None    "), FontTurquoise); }
 
 		// Sim
 		if (Info.bHasSim)
-			Pos = ShaderPrintText(Pos, TEXT("True "), FontGreen);
+			Print(Context, TEXT("True "), FontGreen);
 		else
-			Pos = ShaderPrintText(Pos, TEXT("False"), FontRed);
-		Pos = ShaderPrintText(Pos, TEXT(" "), FontWhite);
+			Print(Context, TEXT("False"), FontRed);
+		Print(Context, TEXT(" "), FontWhite);
 
 		// RBF
 		if (Info.bHasRBF)
-			Pos = ShaderPrintText(Pos, TEXT("True "), FontGreen);
+			Print(Context, TEXT("True "), FontGreen);
 		else
-			Pos = ShaderPrintText(Pos, TEXT("False"), FontRed);
-		Pos = ShaderPrintText(Pos, TEXT(" "));
+			Print(Context, TEXT("False"), FontRed);
+		Print(Context, TEXT(" "));
 
 		// Clip
 		if (Info.ClipValue >= 0)
-			Pos = Print(Pos, Info.ClipValue, FontGreen, 7);
+			Print(Context,Info.ClipValue, FontGreen, 7);
 		else 
-			Pos = Print(Pos, 0u, FontSilver, 7);
-		Pos = ShaderPrintText(Pos, TEXT(" "));
+			Print(Context,0u, FontSilver, 7);
+		Print(Context, TEXT(" "));
 
 		// Strands/Vertex sCount
-		Pos = Print(Pos, Info.StrandsCount, FontOrange, 8);
-		Pos = Print(Pos, Info.VertexCount,  FontSilver, 8);
+		Print(Context,Info.StrandsCount, FontOrange, 8);
+		Print(Context,Info.VertexCount,  FontSilver, 8);
 
 		// Binding data
-		Pos = Print(Pos, Info.UniqueTriangle, FontOrange, 8);
-		Pos = ShaderPrintText(Pos, TEXT("      "));
-		Pos = Print(Pos, Info.UniqueSection, FontSilver, 8);
-		Pos = ShaderPrintText(Pos, TEXT("     "));
+		Print(Context,Info.UniqueTriangle, FontOrange, 8);
+		Print(Context, TEXT("      "));
+		Print(Context,Info.UniqueSection, FontSilver, 8);
+		Print(Context, TEXT("     "));
 
 		// Primary view
 		if (Info.bIsVisibleInPrimaryView)
-			Pos = ShaderPrintText(Pos, TEXT("True "), FontGreen);
+			Print(Context, TEXT("True "), FontGreen);
 		else
-			Pos = ShaderPrintText(Pos, TEXT("False"), FontRed);
-		Pos = ShaderPrintText(Pos, TEXT(" "), FontWhite);
+			Print(Context, TEXT("False"), FontRed);
+		Print(Context, TEXT(" "), FontWhite);
 
 		// Shadow view
-		Pos = ShaderPrintText(Pos, TEXT("  "));
+		Print(Context, TEXT("  "));
 		if (Info.bIsVisibleInShadowView)
-			Pos = ShaderPrintText(Pos, TEXT("True "), FontGreen);
+			Print(Context, TEXT("True "), FontGreen);
 		else
-			Pos = ShaderPrintText(Pos, TEXT("False"), FontRed);
-		Pos = ShaderPrintText(Pos, TEXT(" "), FontWhite);
+			Print(Context, TEXT("False"), FontRed);
+		Print(Context, TEXT(" "), FontWhite);
 
 		// Name
-		Pos = PrintInstanceName(Pos, InstanceIndex, FontWhite);
+		PrintInstanceName(Context, InstanceIndex, FontWhite);
 
-		AddNewLine(OriginalPos, Pos);
+		Newline(Context);
 	}
 }
 #else  // PERMUTATION_OUTPUT_TYPE
@@ -1404,10 +1386,6 @@ RWTexture2D<float4> OutputTexture;
 #define HAIR_TANGENT_STRANDS 1
 #define HAIR_TANGENT_CARDS   2
 
-void AddNewLine(float2 OriginalPos, inout float2 Pos)
-{
-	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;
-}
 
 struct FTangentDesc
 {
@@ -1471,20 +1449,20 @@ FTangentDesc AddTangentPlot(uint2 PixelCoord, float2 UV)
 
 void AddTangentText(float2 UV, float3 Tangent, uint TangentType)
 {
-	const float2 OriginalPos = UV;
-	float2 Pos = OriginalPos;
+	FShaderPrintContext Context = InitShaderPrintContext(true, UV);
+
 	if (TangentType == HAIR_TANGENT_STRANDS)
-		Pos = ShaderPrintText(Pos, TEXT("Strands"), FontYellow);
+		Print(Context, TEXT("Strands"), FontYellow);
 	else if (TangentType == HAIR_TANGENT_CARDS)
-		Pos = ShaderPrintText(Pos, TEXT("Cards "), FontYellow);
+		Print(Context, TEXT("Cards "), FontYellow);
 	else if (TangentType == HAIR_TANGENT_CARDS)
-		Pos = ShaderPrintText(Pos, TEXT("Invalid"), FontRed);
+		Print(Context, TEXT("Invalid"), FontRed);
 
-	AddNewLine(OriginalPos, Pos);
+	Newline(Context);
 
-	Pos = ShaderPrint(Pos, Tangent.x, FontRed);		AddNewLine(OriginalPos, Pos);
-	Pos = ShaderPrint(Pos, Tangent.y, FontGreen);	AddNewLine(OriginalPos, Pos);
-	Pos = ShaderPrint(Pos, Tangent.z, FontBlue);	AddNewLine(OriginalPos, Pos);
+	Print(Context, Tangent.x, FontRed);		Newline(Context);
+	Print(Context, Tangent.y, FontGreen);	Newline(Context);
+	Print(Context, Tangent.z, FontBlue);	Newline(Context);
 }
 
 [numthreads(8, 8, 1)]
@@ -1528,11 +1506,6 @@ void MainCS(int2 DispatchThreadId : SV_DispatchThreadID)
 
 #include "../ShaderPrint.ush"
 
-void AddNewLine(float2 OriginalPos, inout float2 Pos)
-{
-	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;
-}
-
 int2 MaxResolution;
 uint GroupIndex;
 uint GeometryType;
@@ -1546,47 +1519,43 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	// Legend
 	if (GroupIndex == 0)
 	{
-		float2 OriginalPos = float2(15, 50) / float2(MaxResolution);
-		float2 Pos = OriginalPos;
-		Pos = ShaderPrintText(Pos, TEXT("Group Geom.   LOD      Screen Size"), FontSilver); AddNewLine(OriginalPos, Pos);
+		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(10, 50));
+		Print(Context, TEXT("  Group Geom.   LOD  Screen Size"), FontSilver); Newline(Context);
 	}
 
 	// Values
 	{
-		float2 OriginalPos = float2(30, 50) / float2(MaxResolution);
-		OriginalPos.y = float(65 + GroupIndex * 15) / float(MaxResolution.y);
-		float2 Pos = OriginalPos;
+		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(10, 65 + GroupIndex * 15));
 
 		// Group Color
-		Pos = ShaderPrintText(Pos, TEXT("* "), InitFontColor(GroupColor));
+		Print(Context, TEXT("* "), InitFontColor(GroupColor));
 
 		// Group index
-		ShaderPrint(Pos, GroupIndex, FontEmerald);
-		Pos.x += 20.f / float(MaxResolution.x);
+		Print(Context, GroupIndex, FontEmerald, 3, 0);
 
 		// Geometry Type
+		Print(Context, TEXT("   "));
 		if (GeometryType == 0)
 		{
-			Pos = ShaderPrintText(Pos, TEXT("Strands "), FontOrange);
+			Print(Context, TEXT("Strands "), FontOrange);
 		}
 		else if (GeometryType == 1)
 		{
-			Pos = ShaderPrintText(Pos, TEXT("Cards   "), FontOrange);
+			Print(Context, TEXT("Cards   "), FontOrange);
 		}
 		else if (GeometryType == 2)
 		{
-			Pos = ShaderPrintText(Pos, TEXT("Meshes  "), FontOrange);
+			Print(Context, TEXT("Meshes  "), FontOrange);
 		}
 
 		// LOD
-		ShaderPrint(Pos, LOD, FontWhite);
-		Pos.x += 80.f / float(MaxResolution.x);
+		Print(Context, LOD, FontWhite, 4, 2);
+		Print(Context, TEXT(" "));
 
 		// Screen size
-		ShaderPrint(Pos, saturate(ScreenSize), FontWhite);
-		Pos.x += 80.f / float(MaxResolution.x);
+		Print(Context, saturate(ScreenSize), FontWhite);
 
-		AddNewLine(OriginalPos, Pos);
+		Newline(Context);
 	}
 }
 
@@ -1653,13 +1622,10 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	// Draw AABB of the instance groups
 	if (DispatchThreadId.x == 0 && DispatchThreadId.y == 0)
 	{
-		float2 OriginalPos = float2(50, 40) / float2(OutputResolution);
-		float2 Pos = OriginalPos;
-		Pos = Print("Atlas Resolution: ")
-		Pos = ShaderPrint(Pos, AtlasResolution);
-
-		Pos = ShaderPrintNewline(Pos);
-		Pos.x = OriginalPos.x;
+		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 40));
+		Print(Context, TEXT("Atlas Resolution: "))
+		Print(Context, AtlasResolution);
+		Newline(Context);
 	}
 #endif
 }

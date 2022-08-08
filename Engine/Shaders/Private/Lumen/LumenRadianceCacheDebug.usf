@@ -26,65 +26,63 @@ void RadianceCacheUpdateStatsCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	float2 Origin = float2(0.1, 0.1);
-	float2 TextPos = Origin;
-
-	TextPos = ShaderPrintNewline(TextPos);
+	FShaderPrintContext Context = InitShaderPrintContext(true, float2(0.1, 0.1));
+	Newline(Context);
 
 	[loop]
 	for (uint BucketIndex = 0; BucketIndex < PRIORITY_HISTOGRAM_SIZE; ++BucketIndex)
 	{
-		TextPos = ShaderPrint(TextPos, PriorityHistogram[BucketIndex]);
+		Print(Context, PriorityHistogram[BucketIndex]);
 
 		if ((BucketIndex + 1) % 8 == 0)
 		{
-			TextPos = ShaderPrintNewline(TextPos);
+			Newline(Context);
 		}
 		else
 		{
-			TextPos = ShaderPrintSymbol(TextPos, _SPC_);
+			PrintSymbol(Context, _SPC_);
 		}
 	}
 
 	const uint MaxUpdateBucketIndex = MaxUpdateBucket[0];
 	const uint LocalMaxTracesFromMaxUpdateBucket = MaxTracesFromMaxUpdateBucket[0];
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT("MaxBucket "));
-	TextPos = ShaderPrint(TextPos, MaxUpdateBucketIndex);
+	Newline(Context);
+	Print(Context, TEXT("MaxBucket "));
+	Print(Context, MaxUpdateBucketIndex);
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT("MaxTracesFromMaxUpdateBucket "));
-	TextPos = ShaderPrint(TextPos, LocalMaxTracesFromMaxUpdateBucket);
+	Newline(Context);
+	Print(Context, TEXT("MaxTracesFromMaxUpdateBucket "));
+	Print(Context, LocalMaxTracesFromMaxUpdateBucket);
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT("Out "));
+	Newline(Context);
+	Print(Context, TEXT("Out "));
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT(" TraceCost "));
-	TextPos = ShaderPrint(TextPos, ProbesToUpdateTraceCost[0]);
+	Newline(Context);
+	Print(Context, TEXT(" TraceCost "));
+	Print(Context, ProbesToUpdateTraceCost[0]);
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT(" TraceCostFromMaxUpdateBucket "));
-	TextPos = ShaderPrint(TextPos, ProbesToUpdateTraceCost[1]);
+	Newline(Context);
+	Print(Context, TEXT(" TraceCostFromMaxUpdateBucket "));
+	Print(Context, ProbesToUpdateTraceCost[1]);
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT(" Probes "));
-	TextPos = ShaderPrint(TextPos, ProbeTraceAllocator[0]);
+	Newline(Context);
+	Print(Context, TEXT(" Probes "));
+	Print(Context, ProbeTraceAllocator[0]);
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT("MaxProbesInAtlas "));
-	TextPos = ShaderPrint(TextPos, MaxNumProbes);
+	Newline(Context);
+	Print(Context, TEXT("MaxProbesInAtlas "));
+	Print(Context, MaxNumProbes);
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT("ProbesInAtlas "));
-	TextPos = ShaderPrint(TextPos, ProbeAllocator[0] - ProbeFreeListAllocator[0]);
+	Newline(Context);
+	Print(Context, TEXT("ProbesInAtlas "));
+	Print(Context, ProbeAllocator[0] - ProbeFreeListAllocator[0]);
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT("Allocator "));
-	TextPos = ShaderPrint(TextPos, ProbeAllocator[0]);
+	Newline(Context);
+	Print(Context, TEXT("Allocator "));
+	Print(Context, ProbeAllocator[0]);
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT("FreeList "));
-	TextPos = ShaderPrint(TextPos, ProbeFreeListAllocator[0]);
+	Newline(Context);
+	Print(Context, TEXT("FreeList "));
+	Print(Context, ProbeFreeListAllocator[0]);
 }

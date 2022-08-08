@@ -19,47 +19,45 @@ StructuredBuffer<uint> IndirectLightingCardPageIndexAllocator;
 
 void LumenSceneLightingStats(uint CardUpdateContext, StructuredBuffer<uint> CardPageIndexAllocator)
 {
-	float2 Origin = float2(0.1, 0.1);
-	float2 TextPos = Origin;
-
-	TextPos = ShaderPrintNewline(TextPos);
+	FShaderPrintContext Context = InitShaderPrintContext(true, float2(0.1, 0.1));
+	Newline(Context);
 
 	[loop]
 	for (uint BucketIndex = 0; BucketIndex < PRIORITY_HISTOGRAM_SIZE; ++BucketIndex)
 	{
-		TextPos = ShaderPrint(TextPos, PriorityHistogram[CardUpdateContext * PRIORITY_HISTOGRAM_SIZE + BucketIndex]);
+		Print(Context, PriorityHistogram[CardUpdateContext * PRIORITY_HISTOGRAM_SIZE + BucketIndex]);
 
 		if ((BucketIndex + 1) % 8 == 0)
 		{
-			TextPos = ShaderPrintNewline(TextPos);
+			Newline(Context);
 		}
 		else
 		{
-			TextPos = ShaderPrintSymbol(TextPos, _SPC_);
+			PrintSymbol(Context, _SPC_);
 		}
 	}
 
 	const uint MaxUpdateBucketIndex = MaxUpdateBucket[MAX_UPDATE_BUCKET_STRIDE * CardUpdateContext + 0];
 	const uint MaxTilesFromMaxUpdateBucket = MaxUpdateBucket[MAX_UPDATE_BUCKET_STRIDE * CardUpdateContext + 1];
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT("MaxBucket "));
-	TextPos = ShaderPrint(TextPos, MaxUpdateBucketIndex);
+	Newline(Context);
+	Print(Context, TEXT("MaxBucket "));
+	Print(Context, MaxUpdateBucketIndex);
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT("MaxTilesFromMaxBucket "));
-	TextPos = ShaderPrint(TextPos, MaxTilesFromMaxUpdateBucket);
+	Newline(Context);
+	Print(Context, TEXT("MaxTilesFromMaxBucket "));
+	Print(Context, MaxTilesFromMaxUpdateBucket);
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT("Out "));
+	Newline(Context);
+	Print(Context, TEXT("Out "));
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT(" Pages "));
-	TextPos = ShaderPrint(TextPos, CardPageIndexAllocator[0]);
+	Newline(Context);
+	Print(Context, TEXT(" Pages "));
+	Print(Context, CardPageIndexAllocator[0]);
 
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT(" Tiles "));
-	TextPos = ShaderPrint(TextPos, CardPageTileAllocator[CARD_PAGE_TILE_ALLOCATOR_STRIDE * CardUpdateContext + 0]);
+	Newline(Context);
+	Print(Context, TEXT(" Tiles "));
+	Print(Context, CardPageTileAllocator[CARD_PAGE_TILE_ALLOCATOR_STRIDE * CardUpdateContext + 0]);
 }
 
 /** 

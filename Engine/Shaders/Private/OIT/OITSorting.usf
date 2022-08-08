@@ -364,101 +364,93 @@ uint TotalEntries;
 
 Buffer<uint> DebugData;
 
-void AddNewLine(float2 OriginalPos, inout float2 Pos)
-{
-	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;
-}
-
-float2 PrintSize(float2 Pos, uint SizeInBytes, FFontColor Color)
+void PrintSize(inout FShaderPrintContext Context, uint SizeInBytes, FFontColor Color)
 {
 	if (SizeInBytes < 1000)
 	{
-		Pos = ShaderPrint(Pos, SizeInBytes / 1000.f, Color);
-		Pos = ShaderPrintText(Pos, TEXT("bytes"), Color);
+		Print(Context, SizeInBytes / 1000.f, Color);
+		Print(Context, TEXT("bytes"), Color);
 	}
 	else if (SizeInBytes < 1000000)
 	{
-		Pos = ShaderPrint(Pos, SizeInBytes / 1000.f, Color);
-		Pos = ShaderPrintText(Pos, TEXT("Kbytes"), Color);
+		Print(Context, SizeInBytes / 1000.f, Color);
+		Print(Context, TEXT("Kbytes"), Color);
 	}
 	else
 	{
-		Pos = ShaderPrint(Pos, SizeInBytes / 1000.f, Color);
-		Pos = ShaderPrintText(Pos, TEXT("Mbytes"), Color);
+		Print(Context, SizeInBytes / 1000.f, Color);
+		Print(Context, TEXT("Mbytes"), Color);
 	}
-	return Pos;
 }
 
 [numthreads(1, 1, 1)]
 void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 {
-	//float2 OriginalPos = ShaderPrintGetPos(uint2(50, 50)); // TODO: renable this when ported.
-	float2 OriginalPos = uint2(50, 50) / float2(1920,1080); 
-	float2 Pos = OriginalPos;
+	FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 50));
 
 	// Total NumPrimitive | Total Size 0.4 Mb
 
 	// Visible
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Visible"), FontOrange); AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT("Instances      : "), FontWhite); Pos = ShaderPrint(Pos, VisibleInstances, FontSilver); AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT("Primitives     : "), FontWhite); Pos = ShaderPrint(Pos, VisiblePrimitives, FontSilver); AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT("Size           : "), FontYellow); PrintSize(Pos, VisibleIndexSizeInBytes, FontYellow); AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Visible"), FontOrange); Newline(Context);
+		Print(Context, TEXT("Instances      : "), FontWhite); Print(Context, VisibleInstances, FontSilver); Newline(Context);
+		Print(Context, TEXT("Primitives     : "), FontWhite); Print(Context, VisiblePrimitives, FontSilver); Newline(Context);
+		Print(Context, TEXT("Size           : "), FontYellow); PrintSize(Context, VisibleIndexSizeInBytes, FontYellow); Newline(Context);
 	}
 
-	AddNewLine(OriginalPos, Pos);
+	Newline(Context);
 
 	// Allocated
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Allocated"), FontOrange); AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT("Buffers        : "), FontWhite); Pos = ShaderPrint(Pos, AllocatedBuffers, FontSilver); AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT("Size           : "), FontYellow); PrintSize(Pos, AllocatedIndexSizeInBytes, FontYellow); AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Allocated"), FontOrange); Newline(Context);
+		Print(Context, TEXT("Buffers        : "), FontWhite); Print(Context, AllocatedBuffers, FontSilver); Newline(Context);
+		Print(Context, TEXT("Size           : "), FontYellow); PrintSize(Context, AllocatedIndexSizeInBytes, FontYellow); Newline(Context);
 	}
 
-	AddNewLine(OriginalPos, Pos);
+	Newline(Context);
 
 	// Unused
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Unused"), FontOrange); AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT("Buffers        : "), FontWhite); Pos = ShaderPrint(Pos, UnusedBuffers, FontSilver); AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT("Size           : "), FontYellow); PrintSize(Pos, UnusedIndexSizeInBytes, FontYellow); AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Unused"), FontOrange); Newline(Context);
+		Print(Context, TEXT("Buffers        : "), FontWhite); Print(Context, UnusedBuffers, FontSilver); Newline(Context);
+		Print(Context, TEXT("Size           : "), FontYellow); PrintSize(Context, UnusedIndexSizeInBytes, FontYellow); Newline(Context);
 	}
 
-	AddNewLine(OriginalPos, Pos);
+	Newline(Context);
 
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Total"), FontOrange); AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT("Entries        : "), FontWhite); ShaderPrint(Pos, TotalEntries, FontWhite); AddNewLine(OriginalPos, Pos);
-		Pos = ShaderPrintText(Pos, TEXT("Size           : "), FontOrange); PrintSize(Pos, AllocatedIndexSizeInBytes + UnusedIndexSizeInBytes, FontOrange); AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Total"), FontOrange); Newline(Context);
+		Print(Context, TEXT("Entries        : "), FontWhite); Print(Context, TotalEntries, FontWhite); Newline(Context);
+		Print(Context, TEXT("Size           : "), FontOrange); PrintSize(Context, AllocatedIndexSizeInBytes + UnusedIndexSizeInBytes, FontOrange); Newline(Context);
 	}
 
-	AddNewLine(OriginalPos, Pos);
+	Newline(Context);
 
 	// 1: NumPrimitive | PrimitiveType | 0.4 Mb
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Visible (details)"), FontSilver);
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Visible (details)"), FontSilver);
+		Newline(Context);
 
-		Pos = ShaderPrintText(Pos, TEXT("Index       "));
-		Pos = ShaderPrintText(Pos, TEXT("Primitive   ")); 
-		Pos = ShaderPrintText(Pos, TEXT("Type  "));
-		Pos = ShaderPrintText(Pos, TEXT("Size"));
-		AddNewLine(OriginalPos, Pos);
+		Print(Context, TEXT("Index       "));
+		Print(Context, TEXT("Primitive   ")); 
+		Print(Context, TEXT("Type  "));
+		Print(Context, TEXT("Size"));
+		Newline(Context);
 
 		for (uint Index = 0; Index < VisibleInstances; ++Index)
 		{
 			const FOITDebugData Data = GetDebugInfo(DebugData, Index);
 
-			Pos = ShaderPrint(Pos, Data.Index, FontWhite);
-			Pos = ShaderPrint(Pos, Data.PrimitiveCount, FontSilver);
+			Print(Context, Data.Index, FontWhite);
+			Print(Context, Data.PrimitiveCount, FontSilver);
 			if (Data.Type == 0)
-				Pos = ShaderPrintText(Pos, TEXT("List  "), FontSilver);
+				Print(Context, TEXT("List  "), FontSilver);
 			else
-				Pos = ShaderPrintText(Pos, TEXT("Strip "), FontSilver);
+				Print(Context, TEXT("Strip "), FontSilver);
 
-			Pos = PrintSize(Pos, Data.SizeInBytes, FontYellow);
+			PrintSize(Context, Data.SizeInBytes, FontYellow);
 
-			AddNewLine(OriginalPos, Pos);
+			Newline(Context);
 		}
 	}
 }

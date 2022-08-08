@@ -20,39 +20,17 @@ void GlobalDistanceFieldDebugCS(
 			NumFreePages = GlobalDistanceFieldMaxPageNum - GlobalDistanceFieldPageFreeListAllocatorBuffer[0];
 		}
 
-		float2 Origin = float2(0.8, 0.2);
-		float2 TextPos = Origin;
-		TextPos = ShaderPrintSymbol(TextPos, _G_);
-		TextPos = ShaderPrintSymbol(TextPos, _D_);
-		TextPos = ShaderPrintSymbol(TextPos, _F_);
-		TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-		TextPos = ShaderPrintSymbol(TextPos, _P_);
-		TextPos = ShaderPrintSymbol(TextPos, _A_);
-		TextPos = ShaderPrintSymbol(TextPos, _G_);
-		TextPos = ShaderPrintSymbol(TextPos, _E_);
-		TextPos = ShaderPrintSymbol(TextPos, _S_);
-		TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-		TextPos = ShaderPrintNewline(TextPos);
-		TextPos.x = Origin.x;
+		FShaderPrintContext Context = InitShaderPrintContext(true, float2(0.8, 0.2));
 
-		TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-		TextPos = ShaderPrintSymbol(TextPos, _A_);
-		TextPos = ShaderPrintSymbol(TextPos, _L_);
-		TextPos = ShaderPrintSymbol(TextPos, _L_);
-		TextPos = ShaderPrintSymbol(TextPos, _O_);
-		TextPos = ShaderPrintSymbol(TextPos, _C_);
-		TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-		TextPos = ShaderPrint(TextPos, NumFreePages);
-		TextPos = ShaderPrintNewline(TextPos);
-		TextPos.x = Origin.x;
+		Print(Context, TEXT("GDF Pages"));
+		Newline(Context);
 
-		TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-		TextPos = ShaderPrintSymbol(TextPos, _M_);
-		TextPos = ShaderPrintSymbol(TextPos, _A_);
-		TextPos = ShaderPrintSymbol(TextPos, _X_);
-		TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-		TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-		TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-		TextPos = ShaderPrint(TextPos, GlobalDistanceFieldMaxPageNum);
+		Print(Context, TEXT(" Alloc "));
+		Print(Context, NumFreePages);
+		Newline(Context);
+
+		Print(Context, TEXT(" Max   "));
+		Print(Context, GlobalDistanceFieldMaxPageNum);
+		Newline(Context);
 	}
 }
