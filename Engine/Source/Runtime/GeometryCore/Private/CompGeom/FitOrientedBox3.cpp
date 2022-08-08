@@ -12,6 +12,7 @@
 #include "CompGeom/ConvexHull3.h"
 #include "CompGeom/ExactPredicates.h"
 #include "Async/ParallelTransformReduce.h"
+#include "Util/ProgressCancel.h"
 
 namespace UE
 {
@@ -71,13 +72,10 @@ namespace
 
 		return true;
 	}
-}
 
-template <typename RealType>
-TOrientedBox3<RealType> FitOrientedBox3Points(int32 NumPts, TFunctionRef<TVector<RealType>(int32)> GetPtFn, TFunctionRef<bool(int32)> FilterFn, EBox3FitCriteria FitMethod, RealType SameNormalTolerance)
-{
-	// For failure cases, we fall back to an axis-aligned box instead
-	auto GetFallbackBox = [NumPts, &GetPtFn, &FilterFn]() -> TOrientedBox3<RealType>
+	// Helper to compute an oriented box from the axis-aligned box, as a fallback
+	template <typename RealType>
+	TOrientedBox3<RealType> GetAxisAligned(int32 NumPts, TFunctionRef<TVector<RealType>(int32)> GetPtFn, TFunctionRef<bool(int32)> FilterFn)
 	{
 		TAxisAlignedBox3<RealType> AABB;
 		for (int32 Idx = 0; Idx < NumPts; ++Idx)
@@ -88,6 +86,104 @@ TOrientedBox3<RealType> FitOrientedBox3Points(int32 NumPts, TFunctionRef<TVector
 			}
 		}
 		return TOrientedBox3<RealType>(AABB);
+	}
+}
+
+template <typename RealType>
+TOrientedBox3<RealType> OptimizeOrientedBox3Points(const TOrientedBox3<RealType>& InitialBox, int32 NumIterations, int32 NumPoints,
+	TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> Filter, EBox3FitCriteria FitMethod, FProgressCancel* ProgressCancel)
+{
+	TArray<TVector2<RealType>> Projection;
+	Projection.Reserve(NumPoints);
+	TOrientedBox3<RealType> BestBox = InitialBox;
+	RealType BestScore = (FitMethod == EBox3FitCriteria::Volume) ? BestBox.Volume() : BestBox.SurfaceArea();
+	int32 BestBoxIter = -1; // iteration that BestBox was updated
+	for (int32 Iter = 0; Iter < NumIterations; ++Iter)
+	{
+		if (ProgressCancel && ProgressCancel->Cancelled())
+		{
+			return BestBox;
+		}
+
+		if (Iter > BestBoxIter + 3)
+		{
+			return BestBox;
+		}
+		int32 Axis = Iter % 3;
+		TVector<RealType> FixedAxis = BestBox.GetAxis(Axis);
+		int32 BasisXIdx = (Axis + 1) % 3;
+		int32 BasisYIdx = (Axis + 2) % 3;
+		TVector<RealType> BasisX = BestBox.GetAxis(BasisXIdx);
+		TVector<RealType> BasisY = BestBox.GetAxis(BasisYIdx);
+
+		Projection.Reset();
+		for (int32 PtIdx = 0; PtIdx < NumPoints; ++PtIdx)
+		{
+			if (Filter(PtIdx))
+			{
+				TVector<RealType> Pt = GetPointFunc(PtIdx);
+				Projection.Emplace(Pt.Dot(BasisX), Pt.Dot(BasisY));
+			}
+		}
+		RealType Depth = BestBox.Extents[Axis] * 2;
+		using TFitFn = TFunctionRef<RealType(RealType, RealType)>;
+		TFitFn Score2 = FitMethod == EBox3FitCriteria::Volume ?
+			TFitFn([](RealType Width, RealType Height) -> RealType
+				{
+					// for volume, we can just use area when finding the best 2D box
+					return Width * Height;
+				}) :
+			TFitFn([Depth](RealType Width, RealType Height) -> RealType
+				{
+					// for surface area, we also need to use the depth in the 2D box search
+					return Width * Height + (Width + Height) * Depth;
+				});
+		TOrientedBox2<RealType> ProjBox = FitOrientedBox2Points<RealType>(Projection, Score2);
+
+		// rotate the solution so we don't arbitrarily swap or flip the axes
+		if (FMath::Abs(ProjBox.UnitAxisX.X) < FMath::Abs(ProjBox.UnitAxisX.Y))
+		{
+			ProjBox.UnitAxisX = PerpCW(ProjBox.UnitAxisX);
+			Swap(ProjBox.Extents.X, ProjBox.Extents.Y);
+		}
+		if (ProjBox.UnitAxisX.X < 0)
+		{
+			ProjBox.UnitAxisX = -ProjBox.UnitAxisX;
+		}
+
+		TVector<RealType> Extents = BestBox.Extents;
+		Extents[BasisXIdx] = ProjBox.Extents.X;
+		Extents[BasisYIdx] = ProjBox.Extents.Y;
+		TAxisAlignedBox3<RealType> SizeBox(-Extents, Extents);
+		RealType Score = FitMethod == EBox3FitCriteria::Volume ? SizeBox.Volume() : SizeBox.SurfaceArea();
+		if (Score < BestScore)
+		{
+			BestScore = Score;
+			BestBoxIter = Iter;
+			RealType CenterOnFixedAxis = FixedAxis.Dot(BestBox.Center());
+			// Convert result to an oriented box
+			TVector2<RealType> ProjC = ProjBox.Center();
+			TVector<RealType> Center = FixedAxis * CenterOnFixedAxis + BasisX * ProjC.X + BasisY * ProjC.Y;
+			TVector<RealType> Axes[3];
+			Axes[Axis] = FixedAxis;
+			TVector2<RealType> ProjAxisX = ProjBox.AxisX(), ProjAxisY = ProjBox.AxisY();
+			Axes[BasisXIdx] = ProjAxisX.X * BasisX + ProjAxisX.Y * BasisY;
+			Axes[BasisYIdx] = ProjAxisY.X * BasisX + ProjAxisY.Y * BasisY;
+			TFrame3<RealType> Frame(Center, Axes[0], Axes[1], Axes[2]);
+			BestBox = TOrientedBox3<RealType>(Frame, Extents);
+		}
+	}
+
+	return BestBox;
+}
+
+template <typename RealType>
+TOrientedBox3<RealType> FitOrientedBox3Points(int32 NumPts, TFunctionRef<TVector<RealType>(int32)> GetPtFn, TFunctionRef<bool(int32)> FilterFn, EBox3FitCriteria FitMethod, RealType SameNormalTolerance, FProgressCancel* ProgressCancel)
+{
+	// For failure cases, we fall back to an axis-aligned box instead
+	auto GetFallbackBox = [NumPts, &GetPtFn, &FilterFn]() -> TOrientedBox3<RealType>
+	{
+		return GetAxisAligned(NumPts, GetPtFn, FilterFn);
 	};
 
 	TConvexHull3<RealType> Hull;
@@ -229,8 +325,18 @@ TOrientedBox3<RealType> FitOrientedBox3Points(int32 NumPts, TFunctionRef<TVector
 	bool bSingleThread = Tris.Num() < 1000; // TODO: test to find the threshold at which threading is helpful
 	int64 TasksToUse = bSingleThread ? 1 : 64;
 
-	auto FitBoxForDirection = [&GetPtFn, &Normals, &Tris, &TriNbrs, &UsedVerts, &FitMethod, bSingleThread](int32 NormalIdx) -> FResult
+	if (ProgressCancel && ProgressCancel->Cancelled())
 	{
+		return TOrientedBox3<RealType>();
+	}
+
+	auto FitBoxForDirection = [&GetPtFn, &Normals, &Tris, &TriNbrs, &UsedVerts, &FitMethod, bSingleThread, &ProgressCancel](int32 NormalIdx) -> FResult
+	{
+		if (ProgressCancel && ProgressCancel->Cancelled())
+		{
+			return FResult { TMathUtil<RealType>::MaxReal, TOrientedBox3<RealType>() };
+		}
+
 		TVector<RealType> N = Normals[NormalIdx];
 		TArray<bool> Facing;
 		Facing.SetNumUninitialized(Tris.Num());
@@ -305,6 +411,11 @@ TOrientedBox3<RealType> FitOrientedBox3Points(int32 NumPts, TFunctionRef<TVector
 		return B;
 	};
 
+	if (ProgressCancel && ProgressCancel->Cancelled())
+	{
+		return TOrientedBox3<RealType>();
+	}
+
 	FResult BestResult = ParallelTransformReduce<int32, FResult, TFunctionRef<FResult(int32)>, TFunctionRef<FResult(FResult, FResult)>>
 		(Normals.Num(), DefaultInit, FitBoxForDirection, TakeMinBox, TasksToUse);
 
@@ -312,8 +423,16 @@ TOrientedBox3<RealType> FitOrientedBox3Points(int32 NumPts, TFunctionRef<TVector
 }
 
 // explicit instantiations
-template TOrientedBox3<float> GEOMETRYCORE_API FitOrientedBox3Points<float>(int32 NumPts, TFunctionRef<TVector<float>(int32)> GetPtFn, TFunctionRef<bool(int32)> FilterFn, EBox3FitCriteria FitMethod, float SameNormalTolerance);
-template TOrientedBox3<double> GEOMETRYCORE_API FitOrientedBox3Points<double>(int32 NumPts, TFunctionRef<TVector<double>(int32)> GetPtFn, TFunctionRef<bool(int32)> FilterFn, EBox3FitCriteria FitMethod, double SameNormalTolerance);
+template TOrientedBox3<float> GEOMETRYCORE_API FitOrientedBox3Points<float>(int32 NumPts, TFunctionRef<TVector<float>(int32)> GetPtFn, 
+	TFunctionRef<bool(int32)> FilterFn, EBox3FitCriteria FitMethod, float SameNormalTolerance, FProgressCancel* ProgressCancel);
+template TOrientedBox3<double> GEOMETRYCORE_API FitOrientedBox3Points<double>(int32 NumPts, TFunctionRef<TVector<double>(int32)> GetPtFn,
+	TFunctionRef<bool(int32)> FilterFn, EBox3FitCriteria FitMethod, double SameNormalTolerance, FProgressCancel* ProgressCancel);
+
+template TOrientedBox3<float> GEOMETRYCORE_API OptimizeOrientedBox3Points(const TOrientedBox3<float>& InitialBox, int32 NumIterations, int32 NumPoints,
+	TFunctionRef<TVector<float>(int32)> GetPointFunc, TFunctionRef<bool(int32)> Filter, EBox3FitCriteria FitMethod, FProgressCancel* ProgressCancel);
+template TOrientedBox3<double> GEOMETRYCORE_API OptimizeOrientedBox3Points(const TOrientedBox3<double>& InitialBox, int32 NumIterations, int32 NumPoints,
+	TFunctionRef<TVector<double>(int32)> GetPointFunc, TFunctionRef<bool(int32)> Filter, EBox3FitCriteria FitMethod, FProgressCancel* ProgressCancel);
+
 
 }
 }
