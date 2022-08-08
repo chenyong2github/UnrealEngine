@@ -48,6 +48,8 @@ namespace MovieScene
 		UMG,
 		/** The linker is handling a standalone sequence, such as those with a blocking evaluation flag */
 		Standalone,
+		/** This linker is owned by a Sequencer UI */
+		SequencerUI,
 		/** This value and any greater values are for other custom roles */
 		Custom
 	};
@@ -283,6 +285,7 @@ public:
 
 private:
 
+	void HandlePreGarbageCollection();
 	void HandlePostGarbageCollection();
 
 	void TagInvalidBoundObjects();

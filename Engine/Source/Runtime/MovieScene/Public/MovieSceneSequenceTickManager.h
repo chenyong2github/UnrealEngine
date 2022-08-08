@@ -168,10 +168,16 @@ private:
 		/** The tick interval of this group, rounded to the nearest Sequencer.TickIntervalGroupingResolutionMs */
 		int32 RoundedTickIntervalMs = 0;
 
+		/** The frame budget for all linkers within this linker group in milliseconds */
+		float FrameBudgetMs = 0.f;
+
 		/** The value of UWorld::GetUnpausedTimeSeconds last time this group was evaluated */
 		float LastUnpausedTimeSeconds = -1;
 		/** The value of UWorld::GetTimeSeconds last time this group was evaluated */
 		float LastTimeSeconds = -1;
+
+		/** The number of times this group has been starved of frames for budgeted evaluation */
+		uint16 BudgetedStarvationCount = 0;
 
 		/** Total number of clients in this group */
 		uint16 NumClients = 0;
