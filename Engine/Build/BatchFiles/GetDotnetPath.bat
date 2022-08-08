@@ -9,7 +9,7 @@ rem if UE_USE_SYSTEM_DOTNET we assume a installed dotnet is present
 if "%UE_USE_SYSTEM_DOTNET%" == "1" goto verify_dotnet
 
 rem add the dotnet sdk in the repo as the current dotnet sdk
-set UE_DOTNET_DIR=%~dp0..\..\Binaries\ThirdParty\DotNet\6.0.200\windows
+set UE_DOTNET_DIR=%~dp0..\..\Binaries\ThirdParty\DotNet\6.0.302\windows
 set PATH=%UE_DOTNET_DIR%;%PATH%
 set DOTNET_ROOT=%UE_DOTNET_DIR%
 

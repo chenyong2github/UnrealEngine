@@ -79,7 +79,7 @@ namespace UnrealBuildBase
 			return UnrealBuildToolDllPath;
 		}
 
-		static private string DotnetVersionDirectory = "6.0.200";
+		static private string DotnetVersionDirectory = "6.0.302";
 			
 		static private string FindRelativeDotnetDirectory(RuntimePlatform.Type HostPlatform)
 		{
