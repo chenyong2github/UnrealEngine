@@ -451,26 +451,26 @@ void FElectraPlayer::FInternalPlayerImpl::DoCloseAsync(TSharedPtr<FInternalPlaye
 	if (GIsRunning)
 	{
 		Async(EAsyncExecution::ThreadPool, MoveTemp(CloseTask));
+
+		#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			FInternalPlayerImpl* PlayerImpl = Player.Get();
+
+			TFunction<void()> CheckTimeoutTask = [bClosedSig, PlayerImpl]()
+			{
+				// Wait for 3 seconds and if the player did not close by then log an error!
+				FPlatformProcess::Sleep(3.0f);
+				if (*bClosedSig == false)
+				{
+					UE_LOG(LogElectraPlayer, Error, TEXT("[%p] DoCloseAsync() did not complete in time. Player may be dead and dangling!"), PlayerImpl);
+				}
+			};
+			Async(EAsyncExecution::Thread, MoveTemp(CheckTimeoutTask));
+		#endif
 	}
 	else
 	{
 		CloseTask();
 	}
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	FInternalPlayerImpl* PlayerImpl = Player.Get();
-
-	TFunction<void()> CheckTimeoutTask = [bClosedSig, PlayerImpl]()
-	{
-		// Wait for 3 seconds and if the player did not close by then log an error!
-		FPlatformProcess::Sleep(3.0f);
-		if (*bClosedSig == false)
-		{
-			UE_LOG(LogElectraPlayer, Error, TEXT("[%p] DoCloseAsync() did not complete in time. Player may be dead and dangling!"), PlayerImpl);
-		}
-	};
-	Async(EAsyncExecution::Thread, MoveTemp(CheckTimeoutTask));
-#endif
 }
 
 
