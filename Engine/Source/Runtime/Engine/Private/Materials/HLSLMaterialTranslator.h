@@ -435,6 +435,15 @@ protected:
 	bool bStrataUsesConversionFromLegacy;
 	bool bStrataOutputsOpaqueRoughRefractions;
 
+	struct FStrataSimplificationStatus
+	{
+		bool bMaterialFitsInMemoryBudget = false;	// Track whether or not the material fits.
+
+		uint32 OriginalRequestedByteSize = 0;
+		bool bRunFullSimplification = false;	// Simple implementation for now: if the material does not fit, we simply everything.
+	};
+	FStrataSimplificationStatus StrataSimplificationStatus;
+
 	/** Tracks the total number of vt samples in the shader. */
 	uint32 NumVtSamples;
 

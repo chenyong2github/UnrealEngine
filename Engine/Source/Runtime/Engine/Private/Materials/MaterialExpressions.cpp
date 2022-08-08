@@ -2187,6 +2187,22 @@ static void AssignOperatorIndexIfNotNull(int32& NextOperatorPin, FStrataOperator
 	NextOperatorPin = Operator ? Operator->Index : INDEX_NONE;
 }
 
+static void CombineFlagForParameterBlending(FStrataOperator& DstOp, FStrataOperator* OpA, FStrataOperator* OpB = nullptr)
+{
+	if (OpA && OpB)
+	{
+		DstOp.CombineFlagsForParameterBlending(*OpA, *OpB);
+	}
+	else if (OpA)
+	{
+		DstOp.CopyFlagsForParameterBlending(*OpA);
+	}
+	else if (OpB)
+	{
+		DstOp.CopyFlagsForParameterBlending(*OpB);
+	}
+}
+
 #endif // WITH_EDITOR
 
 UMaterialExpressionTextureBase::UMaterialExpressionTextureBase(const FObjectInitializer& ObjectInitializer)
@@ -7537,14 +7553,19 @@ FStrataOperator* UMaterialExpressionBlendMaterialAttributes::StrataGenerateMater
 
 	UMaterialExpression* ChildAExpression = A.GetTracedInput().Expression;
 	UMaterialExpression* ChildBExpression = B.GetTracedInput().Expression;
+	FStrataOperator* OpA = nullptr;
+	FStrataOperator* OpB = nullptr;
 	if (ChildAExpression)
 	{
-		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex));
+		OpA = ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex);
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, OpA);
 	}
 	if (ChildBExpression)
 	{
-		AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, B.OutputIndex));
+		OpB = ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, B.OutputIndex);
+		AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, OpB);
 	}
+	CombineFlagForParameterBlending(StrataOperator, OpA, OpB);
 
 	return &StrataOperator;
 }
@@ -22827,7 +22848,7 @@ FStrataOperator* UMaterialExpressionStrataSimpleClearCoatBSDF::StrataGenerateMat
 	StrataOperator.BSDFType = STRATA_BSDF_TYPE_SLAB;
 	StrataOperator.bBSDFHasEdgeColor = false;
 	StrataOperator.bBSDFHasFuzz = false;
-	StrataOperator.bBSDFHasSecondRoughnessOrSimpleClearCoat = true;	// This node explicitely requires simple clear coat
+	StrataOperator.bBSDFHasSecondRoughnessOrSimpleClearCoat = true;	// This node explicitly requires simple clear coat
 	StrataOperator.bBSDFHasSSS = false;
 	StrataOperator.bBSDFHasMFPPluggedIn = false;
 	StrataOperator.bBSDFHasAnisotropy = false;
@@ -23101,7 +23122,6 @@ int32 UMaterialExpressionStrataConvertToDecal::Compile(class FMaterialCompiler* 
 			if (StrataOperator.bRootOfParameterBlendingSubTree)
 			{
 				StrataOperator.BSDFRegisteredSharedLocalBasis = Operator->BSDFRegisteredSharedLocalBasis;
-				StrataOperator.CopyFlagsForParameterBlending(*Operator);
 			}
 
 			OutputCodeChunk = Compiler->StrataWeightParameterBlending(
@@ -23161,10 +23181,13 @@ FStrataOperator* UMaterialExpressionStrataConvertToDecal::StrataGenerateMaterial
 	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_WEIGHT, this, Parent, bUseParameterBlending);
 
 	UMaterialExpression* ChildDecalMaterialExpression = DecalMaterial.GetTracedInput().Expression;
+	FStrataOperator* OpA = nullptr;
 	if (ChildDecalMaterialExpression)
 	{
-		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, ChildDecalMaterialExpression->StrataGenerateMaterialTopologyTree(Compiler, this, DecalMaterial.OutputIndex));
+		OpA = ChildDecalMaterialExpression->StrataGenerateMaterialTopologyTree(Compiler, this, DecalMaterial.OutputIndex);
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, OpA);
 	}
+	CombineFlagForParameterBlending(StrataOperator, OpA);
 
 	return &StrataOperator;
 }
@@ -23652,7 +23675,6 @@ int32 UMaterialExpressionStrataHorizontalMixing::Compile(class FMaterialCompiler
 
 		// Propagate the parameter blended normal
 		StrataOperator.BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
-		StrataOperator.CombineFlagsForParameterBlending(*BackgroundBSDFOperator, *ForegroundBSDFOperator);
 	}
 	else
 	{
@@ -23712,14 +23734,19 @@ FStrataOperator* UMaterialExpressionStrataHorizontalMixing::StrataGenerateMateri
 
 	UMaterialExpression* ChildAExpression = Background.GetTracedInput().Expression;
 	UMaterialExpression* ChildBExpression = Foreground.GetTracedInput().Expression;
+	FStrataOperator* OpA = nullptr;
+	FStrataOperator* OpB = nullptr;
 	if (ChildAExpression)
 	{
-		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Background.OutputIndex));
+		OpA = ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Background.OutputIndex);
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, OpA);
 	}
 	if (ChildBExpression)
 	{
-		AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Foreground.OutputIndex));
+		OpB = ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Foreground.OutputIndex);
+		AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, OpB);
 	}
+	CombineFlagForParameterBlending(StrataOperator, OpA, OpB);
 
 	return &StrataOperator;
 }
@@ -23802,7 +23829,6 @@ int32 UMaterialExpressionStrataVerticalLayering::Compile(class FMaterialCompiler
 
 		// Propagate the parameter blended normal
 		StrataOperator.BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
-		StrataOperator.CombineFlagsForParameterBlending(*TopBSDFOperator, *BaseBSDFOperator);
 	}
 	else
 	{
@@ -23858,14 +23884,19 @@ FStrataOperator* UMaterialExpressionStrataVerticalLayering::StrataGenerateMateri
 
 	UMaterialExpression* ChildAExpression = Top.GetTracedInput().Expression;
 	UMaterialExpression* ChildBExpression = Base.GetTracedInput().Expression;
+	FStrataOperator* OpA = nullptr;
+	FStrataOperator* OpB = nullptr;
 	if (ChildAExpression)
 	{
-		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Top.OutputIndex));
+		OpA = ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Top.OutputIndex);
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, OpA);
 	}
 	if (ChildBExpression)
 	{
-		AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Base.OutputIndex));
+		OpB = ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, Base.OutputIndex);
+		AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, OpB);
 	}
+	CombineFlagForParameterBlending(StrataOperator, OpA, OpB);
 
 	return &StrataOperator;
 }
@@ -23948,7 +23979,6 @@ int32 UMaterialExpressionStrataAdd::Compile(class FMaterialCompiler* Compiler, i
 
 		// Propagate the parameter blended normal
 		StrataOperator.BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
-		StrataOperator.CombineFlagsForParameterBlending(*ABSDFOperator, *BBSDFOperator);
 	}
 	else
 	{
@@ -24003,14 +24033,19 @@ FStrataOperator* UMaterialExpressionStrataAdd::StrataGenerateMaterialTopologyTre
 
 	UMaterialExpression* ChildAExpression = A.GetTracedInput().Expression;
 	UMaterialExpression* ChildBExpression = B.GetTracedInput().Expression;
+	FStrataOperator* OpA = nullptr;
+	FStrataOperator* OpB = nullptr;
 	if (ChildAExpression)
 	{
-		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex));
+		OpA = ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex);
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, OpA);
 	}
 	if (ChildBExpression)
 	{
-		AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, B.OutputIndex));
+		OpB = ChildBExpression->StrataGenerateMaterialTopologyTree(Compiler, this, B.OutputIndex);
+		AssignOperatorIndexIfNotNull(StrataOperator.RightIndex, OpB);
 	}
+	CombineFlagForParameterBlending(StrataOperator, OpA, OpB);
 
 	return &StrataOperator;
 }
@@ -24063,7 +24098,6 @@ int32 UMaterialExpressionStrataWeight::Compile(class FMaterialCompiler* Compiler
 		}
 
 		StrataOperator.BSDFRegisteredSharedLocalBasis = Operator->BSDFRegisteredSharedLocalBasis;
-		StrataOperator.CopyFlagsForParameterBlending(*Operator);
 
 		OutputCodeChunk = Compiler->StrataWeightParameterBlending(
 			ACodeChunk, WeightCodeChunk, 
@@ -24114,10 +24148,13 @@ FStrataOperator* UMaterialExpressionStrataWeight::StrataGenerateMaterialTopology
 	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_WEIGHT, this, Parent);
 
 	UMaterialExpression* ChildAExpression = A.GetTracedInput().Expression;
+	FStrataOperator* OpA = nullptr;
 	if (ChildAExpression)
 	{
-		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex));
+		OpA = ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex);
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, OpA);
 	}
+	CombineFlagForParameterBlending(StrataOperator, OpA);
 
 	return &StrataOperator;
 }
@@ -24162,7 +24199,6 @@ int32 UMaterialExpressionStrataThinFilm::Compile(class FMaterialCompiler* Compil
 			return Compiler->Errorf(TEXT("Missing input on ThinFilm node."));
 		}
 		StrataOperator.BSDFRegisteredSharedLocalBasis = Operator->BSDFRegisteredSharedLocalBasis;
-		StrataOperator.CopyFlagsForParameterBlending(*Operator);
 
 		int32 NormalCodeChunk = Operator->BSDFRegisteredSharedLocalBasis.NormalCodeChunk;
 		OutputCodeChunk = Compiler->StrataThinFilmParameterBlending(ACodeChunk, ThicknessCodeChunk, IORCodeChunk, NormalCodeChunk, StrataOperator.bRootOfParameterBlendingSubTree ? &StrataOperator : nullptr);
@@ -24211,10 +24247,13 @@ FStrataOperator* UMaterialExpressionStrataThinFilm::StrataGenerateMaterialTopolo
 	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_THINFILM, this, Parent);
 
 	UMaterialExpression* ChildAExpression = A.GetTracedInput().Expression;
+	FStrataOperator* OpA = nullptr;
 	if (ChildAExpression)
 	{
-		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex));
+		OpA = ChildAExpression->StrataGenerateMaterialTopologyTree(Compiler, this, A.OutputIndex);
+		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, OpA);
 	}
+	CombineFlagForParameterBlending(StrataOperator, OpA);
 
 	return &StrataOperator;
 }
