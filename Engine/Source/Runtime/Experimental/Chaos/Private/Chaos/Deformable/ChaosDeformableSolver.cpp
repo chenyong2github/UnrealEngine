@@ -55,10 +55,18 @@ namespace Chaos::Softs
 		FSolverRigidParticles RigidParticles;
 		Evolution.Reset(new FPBDEvolution(MoveTemp(LocalParticlesDummy), MoveTemp(RigidParticles), {}, Property.NumSolverIterations));
 		Evolution->Particles().AddArray(&MObjects);
-		if (Property.bDoSelfCollision)
+		if (Property.bDoSelfCollision || Property.CacheToFile)
 		{
 			SurfaceElements.Reset(new TArray<Chaos::TVec3<int32>>());
+		}
+		
+		if (Property.bDoSelfCollision)
+		{
 			SurfaceTriangleMesh.Reset(new Chaos::FTriangleMesh());
+		}
+		if (Property.bUseGridBasedConstraints)
+		{
+			AllElements.Reset(new TArray<Chaos::TVec4<int32>>());
 		}
 		Frame = 0;
 		Time = 0.f;
@@ -101,12 +109,20 @@ namespace Chaos::Softs
 			FThreadingProxy::FKey Key = Proxy->GetOwner();
 			Proxies.Add(Key, TUniquePtr<FThreadingProxy>(Proxy.Release()));
 		}
-		UninitializedProxys.SetNum(0, true);
-
-		if (Property.bDoSelfCollision)
+		
+		if (UninitializedProxys.Num() != 0)
 		{
-			InitializeSelfCollisionVariables();
+			if (Property.bDoSelfCollision)
+			{
+				InitializeSelfCollisionVariables();
+			}
+
+			if (Property.bUseGridBasedConstraints)
+			{
+				InitializeGridBasedConstraintVariables();
+			}
 		}
+		UninitializedProxys.SetNum(0, true);
 		InitializeCollisionBodies();
 	}
 
@@ -199,6 +215,17 @@ namespace Chaos::Softs
 									Elements[edx] = ChaosTet(Tetrahedron[edx], Range[0]);
 								}
 
+								if (Property.bUseGridBasedConstraints)
+								{
+									int32 ElementsOffset = AllElements->Num();
+									AllElements->SetNum(ElementsOffset + NumElements);
+									for (uint32 edx = 0; edx < NumElements; ++edx)
+									{
+										(*AllElements)[edx + ElementsOffset] = ChaosTet(Tetrahedron[edx], Range[0]);
+									}
+
+								}
+
 
 								FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>* CorotatedConstraint =
 									new FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>(
@@ -222,7 +249,7 @@ namespace Chaos::Softs
 								CorotatedConstraints.Add(TUniquePtr<FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>>(CorotatedConstraint));
 							}
 
-							if (Property.bDoSelfCollision)
+							if (Property.bDoSelfCollision || Property.CacheToFile)
 							{
 								// Add Surface Elements Node
 								int32 SurfaceElementsOffset = SurfaceElements->Num();
@@ -325,6 +352,27 @@ namespace Chaos::Softs
 		};
 	}
 
+	void FDeformableSolver::InitializeGridBasedConstraintVariables()
+	{
+		GridBasedCorotatedConstraint.Reset(new Chaos::Softs::FXPBDGridBasedCorotatedConstraints<FSolverReal, FSolverParticles>(
+			Evolution->Particles(), *AllElements, Property.GridDx, /*bRecordMetric = */false, (Chaos::Softs::FSolverReal).1, (Chaos::Softs::FSolverReal).01, (Chaos::Softs::FSolverReal).4, (Chaos::Softs::FSolverReal)1000.0));
+		Evolution->ResetConstraintRules();
+		int32 InitIndex1 = Evolution->AddConstraintInitRange(1, true);
+		Evolution->ConstraintInits()[InitIndex1] =
+			[this](FSolverParticles& InParticles, const FSolverReal Dt)
+		{
+			this->GridBasedCorotatedConstraint->Init(InParticles, Dt);
+		};
+		int32 ConstraintIndex1 = Evolution->AddConstraintRuleRange(1, true);
+		Evolution->ConstraintRules()[ConstraintIndex1] =
+			[this](FSolverParticles& InParticles, const FSolverReal Dt)
+		{
+			this->GridBasedCorotatedConstraint->ApplyInParallel(InParticles, Dt);
+		};
+	
+	
+	}
+
 
 	void FDeformableSolver::FPhysicsThreadAccess::TickSimulation(FSolverReal DeltaTime)
 	{
@@ -342,6 +390,7 @@ namespace Chaos::Softs
 			Evolution->AdvanceOneTimeStep(Property.TimeStepSize);
 			Time += Property.TimeStepSize;
 		}
+
 
 		FOutputDataMap OutputBuffers;
 		for (TPair< FThreadingProxy::FKey, TUniquePtr<FThreadingProxy> > & BaseProxyPair : Proxies)
@@ -432,7 +481,7 @@ namespace Chaos::Softs
 			{
 				const TManagedArray<FIntVector>& Indices = Rest->GetAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup);
 
-				WriteTrisGEO(Evolution->Particles(), Indices);
+				WriteTrisGEO(Evolution->Particles(), *SurfaceElements);
 				FString file = FPaths::ProjectDir();
 				file.Append(TEXT("/HoudiniOutput/DtLog.txt"));
 				if (Frame == 0)
@@ -444,11 +493,11 @@ namespace Chaos::Softs
 		}
 	}
 
-	void  FDeformableSolver::FPhysicsThreadAccess::WriteTrisGEO(const FSolverParticles& Particles, const TManagedArray<FIntVector>& Mesh)
+	void  FDeformableSolver::FPhysicsThreadAccess::WriteTrisGEO(const FSolverParticles& Particles, const TArray<TVec3<int32>>& Mesh)
 	{
 		Solver.WriteTrisGEO(Particles, Mesh);
 	}
-	void FDeformableSolver::WriteTrisGEO(const FSolverParticles& Particles, const TManagedArray<FIntVector>& Mesh)
+	void FDeformableSolver::WriteTrisGEO(const FSolverParticles& Particles, const TArray<TVec3<int32>>& Mesh)
 	{
 		FString file = FPaths::ProjectDir();
 		//file.Append(TEXT("\HoudiniOuput\Test.geo"));

@@ -320,6 +320,8 @@ public:
 	TMPMGrid() {}
 	TMPMGrid(const TVector<T, 3>& MinCorner, const TVector<T, 3>& MaxCorner, const TVector<int32, 3>& Cells, const uint32 GhostCells = 0)
 		: TUniformGridBase<T, 3>(MinCorner, MaxCorner, Cells, GhostCells) {}
+	TMPMGrid(const int32 GridN) { for (int32 i = 0; i < 3; i++) { MDx[i] = (T)1. / (T)GridN; } }
+	TMPMGrid(const T GridDx) { for (int32 i = 0; i < 3; i++) { MDx[i] = GridDx; } }
 	TMPMGrid(std::istream& Stream)
 		: TUniformGridBase<T, 3>(Stream) {}
 	~TMPMGrid() {}

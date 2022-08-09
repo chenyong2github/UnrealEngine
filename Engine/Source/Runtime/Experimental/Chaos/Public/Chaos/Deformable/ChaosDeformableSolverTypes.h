@@ -20,7 +20,9 @@ namespace Chaos::Softs
 			bool InCacheToFile = false,
 			bool InbEnableKinematics = true,
 			bool InbUseFloor = true,
-			bool InbDoSelfCollision = false)
+			bool InbDoSelfCollision = false,
+			bool InbUseGridBasedConstraints = false,
+			FSolverReal InGridDx = (FSolverReal)1. )
 			: NumSolverSubSteps(InNumSolverSubSteps)
 			, NumSolverIterations(InNumSolverIterations)
 			, FixTimeStep(InFixTimeStep)
@@ -29,6 +31,8 @@ namespace Chaos::Softs
 			, bEnableKinematics(InbEnableKinematics)
 			, bUseFloor(InbUseFloor)
 			, bDoSelfCollision(InbDoSelfCollision)
+			, bUseGridBasedConstraints(InbUseGridBasedConstraints)
+			, GridDx(InGridDx)
 		{}
 
 		FDeformableSolverProperties(const FDeformableSolverProperties& InProp)
@@ -40,6 +44,8 @@ namespace Chaos::Softs
 			, bEnableKinematics(InProp.bEnableKinematics)
 			, bUseFloor(InProp.bUseFloor)
 			, bDoSelfCollision(InProp.bDoSelfCollision)
+			, bUseGridBasedConstraints(InProp.bUseGridBasedConstraints)
+			, GridDx(InProp.GridDx)
 		{}
 
 		int32 NumSolverSubSteps = 5;
@@ -50,6 +56,8 @@ namespace Chaos::Softs
 		bool bEnableKinematics = true;
 		bool bUseFloor = true;
 		bool bDoSelfCollision = false;
+		bool bUseGridBasedConstraints = false;
+		FSolverReal GridDx = (FSolverReal)1.;
 	};
 
 

@@ -62,6 +62,39 @@ namespace Chaos::Softs
 			InitColor(InParticles);
 		}
 
+		FXPBDCorotatedConstraints(
+			const ParticleType& InParticles,
+			const TArray<TVector<int32, 4>>& InMesh,
+			const T GridN = (T).1,
+			const T& EMesh = (T)10.0,
+			const T& NuMesh = (T).3
+		)
+			: MeshConstraints(InMesh)
+		{
+			LambdaArray.Init((T)0., 2 * MeshConstraints.Num());
+			DmInverse.Init((T)0., 9 * MeshConstraints.Num());
+			Measure.Init((T)0., MeshConstraints.Num());
+			Lambda = EMesh * NuMesh / (((T)1. + NuMesh) * ((T)1. - (T)2. * NuMesh));
+			Mu = EMesh / ((T)2. * ((T)1. + NuMesh));
+			for (int e = 0; e < InMesh.Num(); e++)
+			{
+				PMatrix<T, 3, 3> Dm = DsInit(e, InParticles);
+				PMatrix<T, 3, 3> DmInv = Dm.Inverse();
+				for (int r = 0; r < 3; r++) {
+					for (int c = 0; c < 3; c++) {
+						DmInverse[(3 * 3) * e + 3 * r + c] = DmInv.GetAt(r, c);
+					}
+				}
+
+				Measure[e] = Dm.Determinant() / (T)6.;
+
+				if (Measure[e] < (T)0.)
+				{
+					Measure[e] = -Measure[e];
+				}
+			}
+		}
+
 		virtual ~FXPBDCorotatedConstraints() {}
 
 		PMatrix<T, 3, 3> DsInit(const int e, const ParticleType& InParticles) const {
@@ -395,8 +428,8 @@ namespace Chaos::Softs
 				return TVec4<TVector<T, 3>>(TVector<T, 3>((T)0.));
 			}
 
-			TVector<T, 81> dRdF((T)0.);
-			Chaos::dRdFCorotated(Fe, dRdF);
+			//TVector<T, 81> dRdF((T)0.);
+			//Chaos::dRdFCorotated(Fe, dRdF);
 
 			PMatrix<T, 3, 3> DmInvT = ElementDmInv(ElementIndex).GetTransposed();
 

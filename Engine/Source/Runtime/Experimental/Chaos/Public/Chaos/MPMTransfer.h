@@ -33,6 +33,7 @@ public:
 	TArray<TArray<int32>> ElementGridNodes;
 	TArray<TArray<T>> ElementGridNodeWeights;
 	TArray<TArray<TArray<int32>>> ElementGridNodeIncidentElements;
+	TArray<TArray<int32>> ElementGridNodesSet;
 
 
 	TMPMTransfer(){}
@@ -102,17 +103,20 @@ public:
 					{
 						int32 CurrentLocIndex = ii * NPerSec + jj * Grid.NPerDir + kk;
 						PhysicsParallelFor(GridCells[0] / Grid.NPerDir, [&](const int32 iii)
-							{
+							//{
+						//for (int32 iii = 0; iii < int32(GridCells[0] / Grid.NPerDir); iii++)
+						{
 								for (int32 jjj = 0; jjj < int32(GridCells[1] / Grid.NPerDir); jjj++)
 								{
 									for (int32 kkk = 0; kkk < int32(GridCells[2] / Grid.NPerDir); kkk++)
 									{
-										TVector<int32, 3> MultiIndex = { iii * int32(Grid.NPerDir) + ii, jjj * int32(Grid.NPerDir) + jj, kkk * int32(Grid.NPerDir) + kk};
+										TVector<int32, 3> MultiIndex = { iii * int32(Grid.NPerDir) + ii, jjj * int32(Grid.NPerDir) + jj, kkk * int32(Grid.NPerDir) + kk };
 										int32 CellIndex = Grid.FlatIndex(MultiIndex);
 										P2GApplyHelper(InParticles, CellIndex, GridData);
 									}
 								}
-						});
+							});
+						//}
 
 					}
 				}
@@ -145,6 +149,10 @@ public:
 							T Nkk = Grid.Nijk(Weights[p][2], kkk);
 							T NProd = Nii * Njj * Nkk;
 							GridData[(NTransfer + 1) * GlobIndex] += NProd * InParticles.M(p);
+							//if (GlobIndex == 13472)
+							//{
+							//	std::cout << "";
+							//}
 							for (int32 alpha = 0; alpha < 3; alpha++)
 							{
 								GridData[(NTransfer + 1) * GlobIndex + alpha + 1] += NProd * InParticles.M(p) * InParticles.V(p)[alpha];
@@ -162,6 +170,7 @@ public:
 		ElementGridNodes.SetNum(InMesh.Num());
 		ElementGridNodeWeights.SetNum(InMesh.Num());
 		ElementGridNodeIncidentElements.SetNum(InMesh.Num());
+		ElementGridNodesSet.SetNum(InMesh.Num());
 		//TODO(Yizhou): make following loop parallel for with appropriate bool condition
 		for (int32 e = 0; e < InMesh.Num(); e++)
 		{
@@ -171,13 +180,13 @@ public:
 			{
 				int32 p = InMesh[e][ie];
 				TVector<int32, 3> Index = Indices[p];
-				for (int32 ii = 0; ii < Grid.NPerDir; ii++)
+				for (int32 ii = 0; ii < int32(Grid.NPerDir); ii++)
 				{
 					T Nii = Grid.Nijk(Weights[p][0], ii);
-					for (int32 jj = 0; jj < Grid.NPerDir; jj++)
+					for (int32 jj = 0; jj < int32(Grid.NPerDir); jj++)
 					{
 						T Njj = Grid.Nijk(Weights[p][1], jj);
-						for (int32 kk = 0; kk < Grid.NPerDir; kk++)
+						for (int32 kk = 0; kk < int32(Grid.NPerDir); kk++)
 						{
 							T Nkk = Grid.Nijk(Weights[p][2], kk);
 							TVector<int32, 3> LocIndex = { ii, jj, kk };
@@ -190,6 +199,11 @@ public:
 				}
 			}
 			ComputeIncidentElements(ElementGridNodes[e], ElementGridNodeIncidentElements[e]);
+			ElementGridNodesSet[e].SetNum(ElementGridNodeIncidentElements[e].Num());
+			for (int32 kk = 0; kk < ElementGridNodeIncidentElements[e].Num(); kk++)
+			{
+				ElementGridNodesSet[e][kk] = ElementGridNodes[e][ElementGridNodeIncidentElements[e][kk][0]];
+			}
 		}
 	}
 
@@ -230,8 +244,71 @@ public:
 		}
 	}
 
-	
+	void ComputeGridPositions(const TArray<T>& GridData, const T Dt, TArray<TVector<T, 3>>& GridPositions)
+	{
+		GridPositions.SetNum(Grid.Size());
+		for (int32 i = 0; i < Grid.Size(); i++)
+		{
+			TVector<T,3> XOld = Grid.Node(i);
+			T Mass = GridData[(NTransfer + 1) * i];
+			if (Mass == 0) {
+				GridPositions[i] = XOld;
+			}
+			else {
+				for (int32 Alpha = 0; Alpha < int32(NTransfer); Alpha++)
+					GridPositions[i][Alpha] = Dt * GridData[(NTransfer + 1) * i + Alpha + 1] / Mass + XOld[Alpha];
+			}
+		}
+	}
 
+
+	TVec4<TVector<T, 3>> SparseG2P(const TArray<TVector<T, 3>>& GridPositions, const int32 ElementIndex)
+	{
+		TVec4<TVector<T, 3>> Result(TVector<T, 3>((T)0.));
+
+		for (int32 i = 0; i < 4; i++) {
+			for (int32 ii = 0; ii < int32(NPerEle); ii++) {
+				int32 FlatIndex = ElementGridNodes[ElementIndex][NPerEle * i + ii];
+				for (int32 Alpha = 0; Alpha < 3; Alpha++) {
+					Result[i][Alpha] += ElementGridNodeWeights[ElementIndex][NPerEle * i + ii] * GridPositions[FlatIndex][Alpha];
+				}
+			}
+		}
+		
+		return Result;
+	}
+
+
+	TArray<TVector<T, 3>> SparseP2G(const TVec4<TVector<T, 3>>& InGradient, const int32 ElementIndex)
+	{
+		
+		TArray<TVector<T, 3>> GridGradient;
+		GridGradient.Init(TVector<T, 3>((T)0.), 4 * NPerEle);
+		for (int32 i = 0; i < 4; i++) {
+			for (int32 ii = 0; ii < int32(NPerEle); ii++) {
+				for (int32 alpha = 0; alpha < 3; alpha++) {
+					GridGradient[NPerEle * i + ii][alpha] += ElementGridNodeWeights[ElementIndex][NPerEle * i + ii] * InGradient[i][alpha];
+				}
+			}
+		}
+
+		TArray<TVector<T, 3>> GridGradientCompact;
+		GridGradientCompact.Init(TVector<T, 3>((T)0.), ElementGridNodeIncidentElements[ElementIndex].Num());
+
+		for (int32 node = 0; node < ElementGridNodeIncidentElements[ElementIndex].Num(); node++) 
+		{
+			for (int32 node_indices = 0; node_indices < ElementGridNodeIncidentElements[ElementIndex][node].Num(); node_indices++) 
+			{
+				for (int32 alpha = 0; alpha < 3; alpha++) 
+				{
+					GridGradientCompact[node][alpha] += GridGradient[ElementGridNodeIncidentElements[ElementIndex][node][node_indices]][alpha];
+				}
+			}
+		}
+
+		return GridGradient;
+	
+	}
 
 };
 

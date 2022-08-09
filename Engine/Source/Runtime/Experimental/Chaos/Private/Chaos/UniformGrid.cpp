@@ -390,25 +390,15 @@ bool Chaos::TUniformGrid<T, 3>::IsValid(const TVector<int32, 3>& X) const
 template class CHAOS_API Chaos::TUniformGridBase<Chaos::FReal, 3>;
 template class CHAOS_API Chaos::TUniformGrid<Chaos::FReal, 3>;
 template class CHAOS_API Chaos::TUniformGrid<Chaos::FReal, 2>;
+template class CHAOS_API Chaos::TMPMGrid<Chaos::FRealSingle>;
+template class CHAOS_API Chaos::TMPMGrid<Chaos::FReal>;
 #else
 template class Chaos::TUniformGridBase<Chaos::FReal, 3>;
 template class Chaos::TUniformGrid<Chaos::FReal, 3>;
 template class Chaos::TUniformGrid<Chaos::FReal, 2>;
+template class Chaos::TMPMGrid<Chaos::FRealSingle>;
+template class Chaos::TMPMGrid<Chaos::FReal>;
 #endif
 
 template FVec3 Chaos::TUniformGridBase<Chaos::FReal, 3>::LinearlyInterpolate<FVec3>(const TArrayND<FVec3, 3>&, const FVec3&) const;
 template CHAOS_API Chaos::FReal Chaos::TUniformGridBase<Chaos::FReal, 3>::LinearlyInterpolate<Chaos::FReal>(const TArrayND<Chaos::FReal, 3>&, const FVec3&) const;
-template int32 TMPMGrid<Chaos::FReal>::Loc2GlobIndex(const int32 IndexIn, const TVector<int32, 3>& LocalIndexIn) const;
-template int32 TMPMGrid<Chaos::FReal>::FlatIndex(const TVector<int32, 3>& Index) const;
-template TVector<int32, 3> TMPMGrid<Chaos::FReal>::Lin2MultiIndex(const int32 IndexIn) const;
-template void TMPMGrid<Chaos::FReal>::SetInterp(InterpType InterpIn);
-template void TMPMGrid<Chaos::FReal>::UpdateGridFromPositions(const Chaos::TDynamicParticles<Chaos::FReal, 3>& InParticles);
-template void TMPMGrid<Chaos::FReal>::BaseNodeIndex(const TVector<Chaos::FReal, 3>& X, TVector<int32, 3>& Index, TVector<Chaos::FReal, 3>& Weights) const;
-template TVector<Chaos::FReal, 3> TMPMGrid<Chaos::FReal>::Node(int32 FlatIndexIn) const;
-template int32 TMPMGrid<Chaos::FRealSingle>::Loc2GlobIndex(const int32 IndexIn, const TVector<int32, 3>& LocalIndexIn) const;
-template int32 TMPMGrid<Chaos::FRealSingle>::FlatIndex(const TVector<int32, 3>& Index) const;
-template TVector<int32, 3> TMPMGrid<Chaos::FRealSingle>::Lin2MultiIndex(const int32 IndexIn) const;
-template void TMPMGrid<Chaos::FRealSingle>::SetInterp(InterpType InterpIn);
-template void TMPMGrid<Chaos::FRealSingle>::UpdateGridFromPositions(const Chaos::TDynamicParticles<Chaos::FRealSingle, 3>& InParticles);
-template void TMPMGrid<Chaos::FRealSingle>::BaseNodeIndex(const TVector<Chaos::FRealSingle, 3>& X, TVector<int32, 3>& Index, TVector<Chaos::FRealSingle, 3>& Weights) const;
-template TVector<Chaos::FRealSingle, 3> TMPMGrid<Chaos::FRealSingle>::Node(int32 FlatIndexIn) const;

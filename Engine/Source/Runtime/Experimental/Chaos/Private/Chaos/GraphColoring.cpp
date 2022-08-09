@@ -2,6 +2,7 @@
 #include "Chaos/GraphColoring.h"
 #include "Chaos/Array.h"
 #include "ChaosLog.h"
+#include "Chaos/Framework/Parallel.h"
 
 template<typename T>
 static bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<Chaos::TVec2<int32>>& Graph, const Chaos::TDynamicParticles<T, 3>& InParticles)
@@ -999,7 +1000,7 @@ TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoringAllDynamic(cons
 
 
 template<typename T>
-void Chaos::ComputeGridBasedGraphSubColoringPointer(const TArray<TArray<int32>>& ElementsPerColor, const TMPMGrid<T>& Grid, const int32 GridSize, TArray<TArray<int32>>* PreviousColoring, const TArray<TArray<int32>>& ConstraintsNodesSet, TArray<TArray<TArray<int32>>>& ElementsPerSubColors) 
+void Chaos::ComputeGridBasedGraphSubColoringPointer(const TArray<TArray<int32>>& ElementsPerColor, const TMPMGrid<T>& Grid, const int32 GridSize, TArray<TArray<int32>>*& PreviousColoring, const TArray<TArray<int32>>& ConstraintsNodesSet, TArray<TArray<TArray<int32>>>& ElementsPerSubColors) 
 {
 	bool InitialGuess = true;
 	if (!PreviousColoring) {
@@ -1009,84 +1010,86 @@ void Chaos::ComputeGridBasedGraphSubColoringPointer(const TArray<TArray<int32>>&
 	}
 	ElementsPerSubColors.SetNum(ElementsPerColor.Num());
 
-
-	for (int32 i = 0; i < ElementsPerColor.Num(); i++) {
-		if (!InitialGuess) {
-			PreviousColoring->operator[](i).Init(-1, ElementsPerColor[i].Num());
-		}
-		int32 NumNodes = GridSize;
-		TArray<int32> ElementSubColors;
-		ElementSubColors.Init(-1, ElementsPerColor[i].Num());
-		TArray<TSet<int32>*> UsedColors;
-		UsedColors.Init(nullptr, NumNodes);
-		//std::vector<std::unordered_set<int>*> UsedColors(NumNodes, nullptr);
-		for (int32 j = 0; j < ElementsPerColor[i].Num(); j++) {
-			int32 ColorToUse = 0;
-			int32 e = ElementsPerColor[i][j];
-			// check initial guess:
-			if (InitialGuess) {
-				ColorToUse = PreviousColoring->operator[](i)[j];
-				bool ColorFound = false;
-				for (auto node : ConstraintsNodesSet[e]) {
-					if (!UsedColors[node]) {
-						UsedColors[node] = new TSet<int32>();
-					}
-					if (UsedColors[node]->Contains(ColorToUse)) {
-						ColorFound = true;
-						break;
-					}
-				}
-				if (ColorFound) {
-					ColorToUse = 0;
-				}
-				else {
-					for (auto node : ConstraintsNodesSet[e]) {
-						UsedColors[node]->Emplace(ColorToUse);
-					}
-					ElementSubColors[j] = ColorToUse;
-				}
+	//for (int32 i = 0; i < ElementsPerColor.Num(); i++) {
+	PhysicsParallelFor(ElementsPerColor.Num(), [&](const int32 i)
+		{
+			if (!InitialGuess) {
+				PreviousColoring->operator[](i).Init(-1, ElementsPerColor[i].Num());
 			}
-			if (ElementSubColors[j] == -1) {
-				while (true) {
+			int32 NumNodes = GridSize;
+			TArray<int32> ElementSubColors;
+			ElementSubColors.Init(-1, ElementsPerColor[i].Num());
+			TArray<TSet<int32>*> UsedColors;
+			UsedColors.Init(nullptr, NumNodes);
+			//std::vector<std::unordered_set<int>*> UsedColors(NumNodes, nullptr);
+			for (int32 j = 0; j < ElementsPerColor[i].Num(); j++) {
+				int32 ColorToUse = 0;
+				int32 e = ElementsPerColor[i][j];
+				// check initial guess:
+				if (InitialGuess) {
+					ColorToUse = PreviousColoring->operator[](i)[j];
 					bool ColorFound = false;
 					for (auto node : ConstraintsNodesSet[e]) {
 						if (!UsedColors[node]) {
-							UsedColors[node] = new TSet<int32>();// new std::unordered_set<int>;
+							UsedColors[node] = new TSet<int32>();
 						}
 						if (UsedColors[node]->Contains(ColorToUse)) {
 							ColorFound = true;
 							break;
 						}
 					}
-					if (!ColorFound) {
-						break;
+					if (ColorFound) {
+						ColorToUse = 0;
 					}
-					ColorToUse++;
+					else {
+						for (auto node : ConstraintsNodesSet[e]) {
+							UsedColors[node]->Emplace(ColorToUse);
+						}
+						ElementSubColors[j] = ColorToUse;
+					}
 				}
-				ElementSubColors[j] = ColorToUse;
-				for (auto node : ConstraintsNodesSet[e]) {
-					UsedColors[node]->Emplace(ColorToUse);
+				if (ElementSubColors[j] == -1) {
+					while (true) {
+						bool ColorFound = false;
+						for (auto node : ConstraintsNodesSet[e]) {
+							if (!UsedColors[node]) {
+								UsedColors[node] = new TSet<int32>();// new std::unordered_set<int>;
+							}
+							if (UsedColors[node]->Contains(ColorToUse)) {
+								ColorFound = true;
+								break;
+							}
+						}
+						if (!ColorFound) {
+							break;
+						}
+						ColorToUse++;
+					}
+					ElementSubColors[j] = ColorToUse;
+					for (auto node : ConstraintsNodesSet[e]) {
+						UsedColors[node]->Emplace(ColorToUse);
+					}
 				}
+
+				// assign colors to previous guess for next timestep:
+				PreviousColoring->operator[](i)[j] = ColorToUse;
 			}
 
-			// assign colors to previous guess for next timestep:
-			PreviousColoring->operator[](i)[j] = ColorToUse;
-		}
+			for (int ii = 0; ii < UsedColors.Num(); ii++) {
+				delete (UsedColors[ii]);
+			}
 
-		for (int ii = 0; ii < UsedColors.Num(); ii++) {
-			delete (UsedColors[ii]);
-		}
+			int32 NumColors = FMath::Max<int32>(ElementSubColors);
 
-		int32 NumColors = FMath::Max<int32>(ElementSubColors);
+			//int32 num_colors = *std::max_element(ElementSubColors.begin(), ElementSubColors.end());
+			ElementsPerSubColors[i].SetNum(0);
+			ElementsPerSubColors[i].SetNum(NumColors + 1);
 
-		//int32 num_colors = *std::max_element(ElementSubColors.begin(), ElementSubColors.end());
-		ElementsPerSubColors[i].SetNum(0);
-		ElementsPerSubColors[i].SetNum(NumColors + 1);
-
-		for (int32 j = 0; j < ElementsPerColor[i].Num(); j++) {
-			ElementsPerSubColors[i][ElementSubColors[j]].Emplace(ElementsPerColor[i][j]);
-		}
-	}
+			for (int32 j = 0; j < ElementsPerColor[i].Num(); j++) {
+				ElementsPerSubColors[i][ElementSubColors[j]].Emplace(ElementsPerColor[i][j]);
+			}
+		}, ElementsPerColor.Num() < 20);
+	
 	checkSlow(VerifyGridBasedSubColoring<T>(ElementsPerColor, Grid, ConstraintsNodesSet, ElementsPerSubColors));
 }
 
@@ -1099,5 +1102,5 @@ template CHAOS_API TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColo
 template CHAOS_API TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoring<Chaos::FRealDouble>(const TArray<Chaos::TVector<int32, 4>>&, const Chaos::TDynamicParticles<Chaos::FRealDouble, 3>&);
 template CHAOS_API TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoringAllDynamic<Chaos::FRealSingle>(const TArray<Chaos::TVector<int32, 4>>&, const Chaos::TDynamicParticles<Chaos::FRealSingle, 3>&);
 template CHAOS_API TArray<TArray<int32>> Chaos::FGraphColoring::ComputeGraphColoringAllDynamic<Chaos::FRealDouble>(const TArray<Chaos::TVector<int32, 4>>&, const Chaos::TDynamicParticles<Chaos::FRealDouble, 3>&);
-template CHAOS_API void Chaos::ComputeGridBasedGraphSubColoringPointer(const TArray<TArray<int32>>& ElementsPerColor, const TMPMGrid<Chaos::FRealSingle>& Grid, const int32 GridSize, TArray<TArray<int32>>* PreviousColoring, const TArray<TArray<int32>>& ConstraintsNodesSet, TArray<TArray<TArray<int32>>>& ElementsPerSubColors);
-template CHAOS_API void Chaos::ComputeGridBasedGraphSubColoringPointer(const TArray<TArray<int32>>& ElementsPerColor, const TMPMGrid<Chaos::FRealDouble>& Grid, const int32 GridSize, TArray<TArray<int32>>* PreviousColoring, const TArray<TArray<int32>>& ConstraintsNodesSet, TArray<TArray<TArray<int32>>>& ElementsPerSubColors);
+template CHAOS_API void Chaos::ComputeGridBasedGraphSubColoringPointer(const TArray<TArray<int32>>& ElementsPerColor, const TMPMGrid<Chaos::FRealSingle>& Grid, const int32 GridSize, TArray<TArray<int32>>*& PreviousColoring, const TArray<TArray<int32>>& ConstraintsNodesSet, TArray<TArray<TArray<int32>>>& ElementsPerSubColors);
+template CHAOS_API void Chaos::ComputeGridBasedGraphSubColoringPointer(const TArray<TArray<int32>>& ElementsPerColor, const TMPMGrid<Chaos::FRealDouble>& Grid, const int32 GridSize, TArray<TArray<int32>>*& PreviousColoring, const TArray<TArray<int32>>& ConstraintsNodesSet, TArray<TArray<TArray<int32>>>& ElementsPerSubColors);

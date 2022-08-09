@@ -11,6 +11,7 @@
 #include "Chaos/PBDTriangleMeshCollisions.h"
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/XPBDCorotatedConstraints.h"
+#include "Chaos/XPBDGridBasedCorotatedConstraints.h"
 #include "Chaos/Deformable/ChaosDeformableSolverTypes.h"
 #include "Chaos/Deformable/ChaosDeformableSolverProxy.h"
 #include "CoreMinimal.h"
@@ -52,7 +53,7 @@ namespace Chaos::Softs
 			void InitializeSelfCollisionVariables();
 
 			/*IO Utility*/
-			void WriteTrisGEO(const Softs::FSolverParticles& Particles, const TManagedArray<FIntVector>& Mesh);
+			void WriteTrisGEO(const Softs::FSolverParticles& Particles, const TArray<TVec3<int32>>& Mesh);
 			void WriteFrame(FThreadingProxy& , const FSolverReal DeltaTime);
 
 			const FDeformableSolverProperties& GetProperties() const { return Solver.GetProperties(); }
@@ -99,9 +100,10 @@ namespace Chaos::Softs
 		void InitializeCollisionBodies();
 		void InitializeKinematicState(FThreadingProxy&);
 		void InitializeSelfCollisionVariables();
+		void InitializeGridBasedConstraintVariables();
 
 		/*IO Utility*/
-		void WriteTrisGEO(const FSolverParticles& Particles, const TManagedArray<FIntVector>& Mesh);
+		void WriteTrisGEO(const FSolverParticles& Particles, const TArray<TVec3<int32>>& Mesh);
 		void WriteFrame(FThreadingProxy&, const FSolverReal DeltaTime);
 
 		/*Game Thread API*/
@@ -125,10 +127,12 @@ namespace Chaos::Softs
 		// Simulation Variables
 		TUniquePtr<Softs::FPBDEvolution> Evolution;
 		TArray<TUniquePtr<Softs::FXPBDCorotatedConstraints<Softs::FSolverReal, Softs::FSolverParticles>>> CorotatedConstraints;
+		TUniquePtr<Softs::FXPBDGridBasedCorotatedConstraints<Softs::FSolverReal, Softs::FSolverParticles>> GridBasedCorotatedConstraint;
 		TUniquePtr<Softs::FPBDCollisionSpringConstraints> CollisionSpringConstraint;
 		TUniquePtr<Softs::FPBDTriangleMeshCollisions> TriangleMeshCollisions;
 		TArrayCollectionArray<const UObject*> MObjects;
 		TUniquePtr <TArray<TVec3<int32>>> SurfaceElements;
+		TUniquePtr <TArray<Chaos::TVec4<int32>>> AllElements;
 		TUniquePtr <FTriangleMesh> SurfaceTriangleMesh;
 
 		FSolverReal Time = 0.f;
