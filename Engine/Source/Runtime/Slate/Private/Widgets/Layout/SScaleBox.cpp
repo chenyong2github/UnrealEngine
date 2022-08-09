@@ -137,6 +137,7 @@ bool SScaleBox::DoesScaleRequireNormalizingPrepassOrLocalGeometry() const
 	case EStretch::Fill:
 	case EStretch::ScaleBySafeZone:
 	case EStretch::UserSpecified:
+	case EStretch::UserSpecifiedWithClipping:
 		return false;
 	default:
 		return true;
@@ -166,6 +167,7 @@ float SScaleBox::ComputeContentScale(const FGeometry& PaintGeometry) const
 	case EStretch::ScaleBySafeZone:
 		return SafeZoneScale;
 	case EStretch::UserSpecified:
+	case EStretch::UserSpecifiedWithClipping:
 		return UserSpecifiedScaleAttribute.Get();
 	}
 
@@ -310,6 +312,7 @@ int32 SScaleBox::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 		case EStretch::ScaleToFitX:
 		case EStretch::ScaleToFitY:
 		case EStretch::ScaleToFill:
+		case EStretch::UserSpecifiedWithClipping:
 			bClippingNeeded = true;
 			break;
 		}

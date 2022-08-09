@@ -62,7 +62,9 @@ namespace EStretch
 		/** Scales the content according to the size of the safe zone currently applied to the viewport. */
 		ScaleBySafeZone,
 		/** Scales the content by the scale specified by the user. */
-		UserSpecified
+		UserSpecified,
+		/** Scales the content by the scale specified by the user and also clips. */
+		UserSpecifiedWithClipping
 	};
 }
 

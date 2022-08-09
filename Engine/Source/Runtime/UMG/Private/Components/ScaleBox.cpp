@@ -136,12 +136,13 @@ bool UScaleBox::CanEditChange(const FProperty* InProperty) const
 
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(UScaleBox, StretchDirection))
 		{
-			return Stretch != EStretch::None && Stretch != EStretch::ScaleBySafeZone && Stretch != EStretch::UserSpecified;
+			return Stretch != EStretch::None && Stretch != EStretch::ScaleBySafeZone &&
+				Stretch != EStretch::UserSpecified && Stretch != EStretch::UserSpecifiedWithClipping;
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(UScaleBox, UserSpecifiedScale))
 		{
-			return Stretch == EStretch::UserSpecified;
+			return Stretch == EStretch::UserSpecified || Stretch == EStretch::UserSpecifiedWithClipping;
 		}
 	}
 
