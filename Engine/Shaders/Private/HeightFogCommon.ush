@@ -250,6 +250,9 @@ float4 CombineVolumetricFog(float4 GlobalFog, float3 VolumeUV, uint EyeIndex, fl
 		VolFogStartDistance = FogStruct.VolumetricFogStartDistance;
 		VolumetricFogLookup = Texture3DSampleLevel(FogStruct.IntegratedLightScattering, SharedIntegratedLightScatteringSampler, VolumeUV, 0);
 	#endif
+
+		// IntegratedLightScattering is pre-exposed, remove pre exposure now so that it can correctly be applied later
+		VolumetricFogLookup.rgb *= View.OneOverPreExposure;
 	}
 
 	// Do not apply the Froxel volumetric texture in front of the fog start distance. (the soft fading occur in FinalIntegrationCS).

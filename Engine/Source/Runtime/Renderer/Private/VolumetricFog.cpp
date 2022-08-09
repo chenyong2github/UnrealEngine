@@ -666,6 +666,7 @@ class FVolumetricFogLightScatteringCS : public FGlobalShader
 		SHADER_PARAMETER(FMatrix44f, CloudShadowmapTranslatedWorldToLightClipMatrix)
 		SHADER_PARAMETER(FVector2f, PrevConservativeDepthTextureSize)
 		SHADER_PARAMETER(FVector2f, UseHeightFogColors)
+		SHADER_PARAMETER(FVector2f, LightScatteringHistoryPreExposureAndInv)
 		SHADER_PARAMETER(float, StaticLightingScatteringIntensity)
 		SHADER_PARAMETER(float, SkyLightVolumetricScatteringIntensity)
 		SHADER_PARAMETER(float, SkyLightUseStaticShadowing)
@@ -914,6 +915,7 @@ void FDeferredShadingSceneRenderer::SetupVolumetricFog()
 			if (View.ViewState)
 			{
 				View.ViewState->LightScatteringHistory = NULL;
+				View.ViewState->LightScatteringHistoryPreExposure = 1.0f;
 			}
 		}
 	}
@@ -1151,13 +1153,16 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 
 			FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
 			FRDGTexture* LightScatteringHistoryRDGTexture = VolumetricBlackDummyTexture;
+			float LightScatteringHistoryPreExposure = 1.0f;
 			if (bUseTemporalReprojection && View.ViewState->LightScatteringHistory.IsValid())
 			{
 				LightScatteringHistoryRDGTexture = GraphBuilder.RegisterExternalTexture(View.ViewState->LightScatteringHistory);
+				LightScatteringHistoryPreExposure = View.ViewState->LightScatteringHistoryPreExposure;
 			}
 
 			PassParameters->LightScatteringHistory = LightScatteringHistoryRDGTexture;
 			PassParameters->LightScatteringHistorySampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			PassParameters->LightScatteringHistoryPreExposureAndInv = FVector2f(LightScatteringHistoryPreExposure, LightScatteringHistoryPreExposure > 0.0f ? 1.0f / LightScatteringHistoryPreExposure : 1.0f);
 
 			FSkyLightSceneProxy* SkyLight = Scene->SkyLight;
 			if (SkyLight
@@ -1298,10 +1303,12 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 		if (bUseTemporalReprojection)
 		{
 			GraphBuilder.QueueTextureExtraction(IntegrationData.LightScattering, &View.ViewState->LightScatteringHistory);
+			View.ViewState->LightScatteringHistoryPreExposure = View.CachedViewUniformShaderParameters->PreExposure;
 		}
 		else if (View.ViewState)
 		{
 			View.ViewState->LightScatteringHistory = nullptr;
+			View.ViewState->LightScatteringHistoryPreExposure = 1.0f;
 		}
 
 		if (bUseTemporalReprojection && GVolumetricFogConservativeDepth > 0)

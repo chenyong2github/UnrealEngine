@@ -992,6 +992,7 @@ public:
 
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResources;
 
+	float LightScatteringHistoryPreExposure;
 	TRefCountPtr<IPooledRenderTarget> LightScatteringHistory;
 	TRefCountPtr<IPooledRenderTarget> PrevLightScatteringConservativeDepthTexture;
 

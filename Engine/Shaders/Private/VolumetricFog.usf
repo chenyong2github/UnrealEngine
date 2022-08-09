@@ -397,26 +397,11 @@ uint UseEmissive;
 
 Texture3D<float4> LightScatteringHistory;
 SamplerState LightScatteringHistorySampler;
+float2 LightScatteringHistoryPreExposureAndInv;
 
 Texture3D<float4> LocalShadowedLightScattering;
 
 RWTexture3D<float4> RWLightScattering;
-
-float4 EncodeHDR(float4 Color)
-{
-	return Color;
-
-	//float Exposure = 1;
-	//return float4(Color.rgb * rcp((Color.r*0.299 + Color.g*0.587 + Color.b*0.114) * Exposure + 1.0), Color.a);
-}
-
-float4 DecodeHDR(float4 Color)
-{
-	return Color;
-
-	//float Exposure = 1;
-	//return float4(Color.rgb * rcp((Color.r*(-0.299) + Color.g*(-0.587) + Color.b*(-0.114)) * Exposure + 1.0), Color.a);
-}
 
 float HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 	uniform uint ClipmapIndex,
@@ -772,22 +757,23 @@ void LightScatteringCS(
 	{
 		MaterialEmissive = VBufferB[GridCoordinate].xyz;
 	}
-	float4 ScatteringAndExtinction = EncodeHDR(float4(LightScattering * MaterialScatteringAndAbsorption.xyz + MaterialEmissive, Extinction));
+	float4 PreExposedScatteringAndExtinction = float4(View.PreExposure * (LightScattering * MaterialScatteringAndAbsorption.xyz + MaterialEmissive), Extinction);
 
 #if USE_TEMPORAL_REPROJECTION
 	BRANCH
 	if (HistoryAlpha > 0)
 	{
-		float4 HistoryScatteringAndExtinction = Texture3DSampleLevel(LightScatteringHistory, LightScatteringHistorySampler, HistoryUV, 0);
-		ScatteringAndExtinction = lerp(ScatteringAndExtinction, HistoryScatteringAndExtinction, HistoryAlpha);
+		float4 PreExposedHistoryScatteringAndExtinction = Texture3DSampleLevel(LightScatteringHistory, LightScatteringHistorySampler, HistoryUV, 0);
+		PreExposedHistoryScatteringAndExtinction *= LightScatteringHistoryPreExposureAndInv.y * View.PreExposure; // Bring previous frame pre exposed history luminance as current frame pre exposed luminance.
+		PreExposedScatteringAndExtinction = lerp(PreExposedScatteringAndExtinction, PreExposedHistoryScatteringAndExtinction, HistoryAlpha);
 	}
 	
 #endif
 
 	if (all(int3(GridCoordinate) < VolumetricFog.GridSizeInt))
 	{
-		ScatteringAndExtinction = MakePositiveFinite(ScatteringAndExtinction);
-		RWLightScattering[GridCoordinate] = ScatteringAndExtinction;
+		PreExposedScatteringAndExtinction = MakePositiveFinite(PreExposedScatteringAndExtinction);
+		RWLightScattering[GridCoordinate] = PreExposedScatteringAndExtinction;
 	}
 }
 
@@ -811,13 +797,13 @@ void FinalIntegrationCS(
 	for (int LayerIndex = 0; LayerIndex < VolumetricFog.GridSizeInt.z; LayerIndex++)
 	{
 		uint3 LayerCoordinate = uint3(GridCoordinate.xy, LayerIndex);
-		float4 ScatteringAndExtinction = DecodeHDR(LightScattering[LayerCoordinate]);
+		float4 PreExposedScatteringAndExtinction = LightScattering[LayerCoordinate];
 
 		float3 LayerTranslatedWorldPosition = ComputeCellTranslatedWorldPosition(LayerCoordinate, .5f);
 		float StepLength = length(LayerTranslatedWorldPosition - PreviousSliceTranslatedWorldPosition);
 		PreviousSliceTranslatedWorldPosition = LayerTranslatedWorldPosition;
 
-		float Transmittance = exp(-ScatteringAndExtinction.w * StepLength);
+		float Transmittance = exp(-PreExposedScatteringAndExtinction.w * StepLength);
 
 		AccumulatedDepth += StepLength;
 
@@ -827,10 +813,10 @@ void FinalIntegrationCS(
 		// See "Physically Based and Unified Volumetric Rendering in Frostbite"
 		#define ENERGY_CONSERVING_INTEGRATION 1
 		#if ENERGY_CONSERVING_INTEGRATION
-			float3 ScatteringIntegratedOverSlice = FadeInLerpValue * (ScatteringAndExtinction.rgb - ScatteringAndExtinction.rgb * Transmittance) / max(ScatteringAndExtinction.w, .00001f);
+			float3 ScatteringIntegratedOverSlice = FadeInLerpValue * (PreExposedScatteringAndExtinction.rgb - PreExposedScatteringAndExtinction.rgb * Transmittance) / max(PreExposedScatteringAndExtinction.w, .00001f);
 			AccumulatedLighting += ScatteringIntegratedOverSlice * AccumulatedTransmittance;
 		#else
-			AccumulatedLighting += FadeInLerpValue * ScatteringAndExtinction.rgb * AccumulatedTransmittance * StepLength;
+			AccumulatedLighting += FadeInLerpValue * PreExposedScatteringAndExtinction.rgb * AccumulatedTransmittance * StepLength;
 		#endif
 		
 		AccumulatedTransmittance *= lerp(1.0f, Transmittance, FadeInLerpValue);
