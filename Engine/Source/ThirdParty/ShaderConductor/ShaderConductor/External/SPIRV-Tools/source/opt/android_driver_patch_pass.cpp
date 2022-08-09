@@ -243,7 +243,6 @@ bool AndroidDriverPatchPass::FixupOpVectorShuffle(Instruction* inst) {
   }
 
   bool bOutputHasRelaxedPrecision = HasRelaxedPrecision(inst->GetOperand(0).words[0]);
-  bool bInputHasRelaxedPrecision = HasRelaxedPrecision(inputOp1.words[0]) || HasRelaxedPrecision(inputOp2.words[0]);
 
   uint32_t inputCompCount1 = inputType1->GetSingleWordOperand(2);
 
