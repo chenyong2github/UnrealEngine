@@ -8,7 +8,10 @@
 class IMediaIOCoreDeviceProvider;
 class SNotificationItem;
 class STextBlock;
+class UMediaSource;
 class UMediaSourceManagerChannel;
+
+struct FAssetData;
 struct FMediaIOConfiguration;
 
 /**
@@ -53,6 +56,28 @@ private:
 	 * Callback to create the assign input menu.
 	 */
 	TSharedRef<SWidget> CreateAssignInputMenu();
+
+	/**
+	 * Creates a widget to select a media source.
+	 */
+	TSharedRef<SWidget> BuildMediaSourcePickerWidget();
+
+	/**
+	 * Callback to add a media source.
+	 */
+	void AddMediaSource(const FAssetData& AssetData);
+
+	/**
+	 * Callback to add a media source.
+	 */
+	void AddMediaSourceEnterPressed(const TArray<FAssetData>& AssetData);
+
+	/**
+	 * Assignss a media source to this channel.
+	 * 
+	 * @param MediaSource	Media source to use as input.
+	 */
+	void AssignMediaSourceInput(UMediaSource* MediaSource);
 
 	/**
 	 * Assigns a MediaIO input to this channel.
