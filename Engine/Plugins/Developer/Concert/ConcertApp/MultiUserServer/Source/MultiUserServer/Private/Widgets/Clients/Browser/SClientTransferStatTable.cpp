@@ -23,13 +23,13 @@ namespace UE::MultiUserServer
 		const FName HeaderIdName_DataRate     = TEXT("DataRate");
 	}
 
-	class SClientTransferStatTableRow : public SMultiColumnTableRow<TSharedRef<FTransferStatistics>>
+	class SClientTransferStatTableRow : public SMultiColumnTableRow<TSharedRef<FOutboundTransferStatistics>>
 	{
-		using Super = SMultiColumnTableRow<TSharedRef<FTransferStatistics>>;
+		using Super = SMultiColumnTableRow<TSharedRef<FOutboundTransferStatistics>>;
 	public:
 		
 		SLATE_BEGIN_ARGS(SClientTransferStatTableRow) { }
-			SLATE_ARGUMENT(TSharedPtr<FTransferStatistics>, Stats)
+			SLATE_ARGUMENT(TSharedPtr<FOutboundTransferStatistics>, Stats)
 		SLATE_END_ARGS()
 		
 		void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwerTableView)
@@ -40,7 +40,7 @@ namespace UE::MultiUserServer
 		
 	private:
 
-		TSharedPtr<FTransferStatistics> Stats;
+		TSharedPtr<FOutboundTransferStatistics> Stats;
 
 		virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
 		{
@@ -105,7 +105,7 @@ namespace UE::MultiUserServer
 
 		ChildSlot
 		[
-			SAssignNew(SegmenterListView, SListView<TSharedPtr<FTransferStatistics>>)
+			SAssignNew(SegmenterListView, SListView<TSharedPtr<FOutboundTransferStatistics>>)
 			.ListItemsSource(&InStatsModel->GetTransferStatsGroupedById())
 			.OnGenerateRow(this, &SClientTransferStatTable::OnGenerateActivityRowWidget)
 			.SelectionMode(ESelectionMode::Multi)
@@ -128,7 +128,7 @@ namespace UE::MultiUserServer
 		];
 	}
 
-	TSharedRef<ITableRow> SClientTransferStatTable::OnGenerateActivityRowWidget(TSharedPtr<FTransferStatistics> InStats, const TSharedRef<STableViewBase>& OwnerTable) const
+	TSharedRef<ITableRow> SClientTransferStatTable::OnGenerateActivityRowWidget(TSharedPtr<FOutboundTransferStatistics> InStats, const TSharedRef<STableViewBase>& OwnerTable) const
 	{
 		return SNew(SClientTransferStatTableRow, OwnerTable)
 			.Stats(InStats);;

@@ -51,7 +51,7 @@ struct FMessageTransportStatistics
 };
 
 /** Per-node per-message transfer statistics. */
-struct FTransferStatistics
+struct FOutboundTransferStatistics
 {
 	/** Unique Id for the target. */
 	FGuid  DestinationId;
@@ -69,7 +69,25 @@ struct FTransferStatistics
 	uint64 BytesAcknowledged;
 };
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnTransferDataUpdated, FTransferStatistics);
+/** Per-node per-message transfer statistics. */
+struct FInboundTransferStatistics
+{
+	/** Unique Id for the target. */
+	FGuid  OriginId;
+
+	/** Message Id that uniquely identifies the inbound message. If MessageId == -1 then this message is not reliably sent or is not segmented over multiple packets.*/
+	int32  MessageId;
+	
+	/** Total bytes to send for the given MessageId */
+	uint64 BytesToReceive;
+
+	/** Total bytes sent thus far. */
+	int32 BytesReceived;
+};
+
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnOutboundTransferDataUpdated, FOutboundTransferStatistics);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnInboundTransferDataUpdated, FInboundTransferStatistics);
 
 /**
  * Interface for the messaging module network extension
@@ -122,10 +140,16 @@ public:
 	virtual FGuid GetNodeIdFromAddress(const FMessageAddress& MessageAddress) const = 0;
 
 	/**
-	 * Delegate invoked when any transmission statistics are updated. This delegate may get called from another thread.
+	 * Delegate invoked when any transmission statistics are updated for outbound nodes (sent). This delegate may get called from another thread.
 	 * Please consider thread safety when receiving this delegate.
 	 */
-	virtual FOnTransferDataUpdated& OnTransferUpdatedFromThread() = 0;
+	virtual FOnOutboundTransferDataUpdated& OnOutboundTransferUpdatedFromThread() = 0;
+
+	/**
+	 * Delegate invoked when any transmission statistics are update for inbound (received). This delegate may get called from another thread.
+	 * Please consider thread safety when receiving this delegate.
+	 */
+	virtual FOnInboundTransferDataUpdated& OnInboundTransferUpdatedFromThread() = 0;
 
 	/**
 	 * Shutdown this messaging extension services for MessageBus

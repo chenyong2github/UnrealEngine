@@ -303,6 +303,11 @@ public:
 		return FString::Printf(TEXT("Sender=%s, Sequence=%llu"), *Sender.ToString(), Sequence);
 	}
 
+	int32 GetReceivedBytes() const
+	{
+		return ReceivedBytes;
+	}
+
 private:
 
 	/** Holds the message protocol version. */

@@ -10,12 +10,12 @@
 
 namespace UE::MultiUserServer
 {
-	struct FTransferStatItem : FTransferStatistics
+	struct FTransferStatItem : FOutboundTransferStatistics
 	{
 		FDateTime LocalTime;
 
-		FTransferStatItem(const FDateTime& LocalTime, const FTransferStatistics& Data)
-			: FTransferStatistics(Data)
+		FTransferStatItem(const FDateTime& LocalTime, const FOutboundTransferStatistics& Data)
+			: FOutboundTransferStatistics(Data)
 			, LocalTime(LocalTime)
 		{}
 	};
@@ -28,14 +28,14 @@ namespace UE::MultiUserServer
 		virtual ~FClientTransferStatisticsModel() override;
 		
 		virtual const TArray<FConcertTransferSamplePoint>& GetTransferStatTimeline(EConcertTransferStatistic StatisticType) const override { return TransferStatisticsTimelines[StatisticType]; }
-		virtual const TArray<TSharedPtr<FTransferStatistics>>& GetTransferStatsGroupedById() const override { return TransferStatisticsGroupedById; }
+		virtual const TArray<TSharedPtr<FOutboundTransferStatistics>>& GetTransferStatsGroupedById() const override { return TransferStatisticsGroupedById; }
 		virtual FOnTransferTimelineUpdated& OnTransferTimelineUpdated(EConcertTransferStatistic StatisticType) override { return OnTimelineUpdatedDelegates[StatisticType]; }
 		virtual FOnTransferGroupsUpdated& OnTransferGroupsUpdated() override { return OnGroupsUpdatedDelegate; }
 
 	private:
 
 		using FConcertStatTypeFlags = TBitArray<TInlineAllocator<static_cast<int32>(EConcertTransferStatistic::Count)>>;
-		using FMessageId = decltype(FTransferStatistics::MessageId);
+		using FMessageId = decltype(FOutboundTransferStatistics::MessageId);
 		struct FIncompleteMessageData
 		{
 			uint64 BytesTransferredSoFar;
@@ -50,7 +50,7 @@ namespace UE::MultiUserServer
 		TMap<FMessageId, FIncompleteMessageData> IncompleteStatsUntilNow;
 
 		// Grouped
-		TArray<TSharedPtr<FTransferStatistics>> TransferStatisticsGroupedById;
+		TArray<TSharedPtr<FOutboundTransferStatistics>> TransferStatisticsGroupedById;
 		TMap<FMessageId, FDateTime> LastUpdateGroupUpdates;
 		
 		// Delegate info
@@ -58,10 +58,10 @@ namespace UE::MultiUserServer
 		FOnTransferGroupsUpdated OnGroupsUpdatedDelegate;
 		FTSTicker::FDelegateHandle TickHandle;
 		
-		void OnTransferUpdatedFromThread(FTransferStatistics TransferStatistics);
-		bool AreRelevantStats(const FTransferStatistics& TransferStatistics) const;
-		bool IsSentToClient(const FTransferStatistics& Item) const;
-		bool IsReceivedFromClient(const FTransferStatistics& Item) const;
+		void OnTransferUpdatedFromThread(FOutboundTransferStatistics TransferStatistics);
+		bool AreRelevantStats(const FOutboundTransferStatistics& TransferStatistics) const;
+		bool IsSentToClient(const FOutboundTransferStatistics& Item) const;
+		bool IsReceivedFromClient(const FOutboundTransferStatistics& Item) const;
 		
 		bool Tick(float DeltaTime);
 		

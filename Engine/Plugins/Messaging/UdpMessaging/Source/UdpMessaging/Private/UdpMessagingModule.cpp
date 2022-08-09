@@ -397,9 +397,14 @@ public:
 		return MessageBridge->LookupAddress(MessageAddress);
 	}
 
-	virtual FOnTransferDataUpdated& OnTransferUpdatedFromThread() override
+	virtual FOnOutboundTransferDataUpdated& OnOutboundTransferUpdatedFromThread() override
 	{
 		return UE::Private::MessageProcessor::OnSegmenterUpdated();
+	}
+
+	virtual FOnInboundTransferDataUpdated& OnInboundTransferUpdatedFromThread() override
+	{
+		return UE::Private::MessageProcessor::OnReassemblerUpdated();
 	}
 
 	virtual TArray<FString> GetListeningAddresses() const override

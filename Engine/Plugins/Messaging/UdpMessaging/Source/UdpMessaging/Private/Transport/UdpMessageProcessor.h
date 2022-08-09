@@ -111,9 +111,14 @@ struct FSentSegmentInfo
 namespace UE::Private::MessageProcessor
 {
 /**
- * Global delegate for handling segmenter updates.
+ * Global delegate for handling segmenter (aka sent data) updates.
  */
-FOnTransferDataUpdated& OnSegmenterUpdated();
+FOnOutboundTransferDataUpdated &OnSegmenterUpdated();
+
+/*
+ * Global delegate for handling reassembler (aka received data) updates.
+ */
+FOnInboundTransferDataUpdated& OnReassemblerUpdated();
 }
 
 /**

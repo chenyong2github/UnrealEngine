@@ -51,7 +51,7 @@ namespace UE::MultiUserServer
 		
 		if (INetworkMessagingExtension* Statistics = Private::ClientTransferStatisticsModel::GetMessagingStatistics())
 		{
-			Statistics->OnTransferUpdatedFromThread().AddRaw(this, &FClientTransferStatisticsModel::OnTransferUpdatedFromThread);
+			Statistics->OnOutboundTransferUpdatedFromThread().AddRaw(this, &FClientTransferStatisticsModel::OnTransferUpdatedFromThread);
 			TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FClientTransferStatisticsModel::Tick));
 		}
 	}
@@ -60,13 +60,13 @@ namespace UE::MultiUserServer
 	{
 		if (INetworkMessagingExtension* Statistics = Private::ClientTransferStatisticsModel::GetMessagingStatistics())
 		{
-			Statistics->OnTransferUpdatedFromThread().RemoveAll(this);
+			Statistics->OnOutboundTransferUpdatedFromThread().RemoveAll(this);
 		}
 		
 		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 	}
 
-	void FClientTransferStatisticsModel::OnTransferUpdatedFromThread(FTransferStatistics TransferStatistics)
+	void FClientTransferStatisticsModel::OnTransferUpdatedFromThread(FOutboundTransferStatistics TransferStatistics)
 	{
 		if (AreRelevantStats(TransferStatistics))
 		{
@@ -74,12 +74,12 @@ namespace UE::MultiUserServer
 		}
 	}
 
-	bool FClientTransferStatisticsModel::AreRelevantStats(const FTransferStatistics& TransferStatistics) const
+	bool FClientTransferStatisticsModel::AreRelevantStats(const FOutboundTransferStatistics& TransferStatistics) const
 	{
 		return IsSentToClient(TransferStatistics) || IsReceivedFromClient(TransferStatistics);
 	}
 
-	bool FClientTransferStatisticsModel::IsSentToClient(const FTransferStatistics& Item) const
+	bool FClientTransferStatisticsModel::IsSentToClient(const FOutboundTransferStatistics& Item) const
 	{
 		if (INetworkMessagingExtension* Statistics = Private::ClientTransferStatisticsModel::GetMessagingStatistics())
 		{
@@ -89,7 +89,7 @@ namespace UE::MultiUserServer
 		return false;
 	}
 
-	bool FClientTransferStatisticsModel::IsReceivedFromClient(const FTransferStatistics& Item) const
+	bool FClientTransferStatisticsModel::IsReceivedFromClient(const FOutboundTransferStatistics& Item) const
 	{
 		// TODO: UDP module is missing a way to find out
 		return false; 
@@ -177,7 +177,7 @@ namespace UE::MultiUserServer
 		const FDateTime Now = FDateTime::Now();
 		for (auto It = TransferStatisticsGroupedById.CreateIterator(); It; ++It)
 		{
-			const TSharedPtr<FTransferStatistics>& Stat = *It;
+			const TSharedPtr<FOutboundTransferStatistics>& Stat = *It;
 			if (Private::ClientTransferStatisticsModel::IsTooOld(LastUpdateGroupUpdates[Stat->MessageId], Now))
 			{
 				LastUpdateGroupUpdates.Remove(Stat->MessageId);
@@ -203,8 +203,8 @@ namespace UE::MultiUserServer
 
 	void FClientTransferStatisticsModel::UpdateGroupedStats(const FTransferStatItem& TransferStatistics)
 	{
-		const TSharedPtr<FTransferStatistics> NewValue = MakeShared<FTransferStatistics>(TransferStatistics);
-		const auto Pos = Algo::LowerBound(TransferStatisticsGroupedById, NewValue, [](const TSharedPtr<FTransferStatistics>& Value, const TSharedPtr<FTransferStatistics>& Check)
+		const TSharedPtr<FOutboundTransferStatistics> NewValue = MakeShared<FOutboundTransferStatistics>(TransferStatistics);
+		const auto Pos = Algo::LowerBound(TransferStatisticsGroupedById, NewValue, [](const TSharedPtr<FOutboundTransferStatistics>& Value, const TSharedPtr<FOutboundTransferStatistics>& Check)
 		{
 			return Value->MessageId < Check->MessageId;
 		});

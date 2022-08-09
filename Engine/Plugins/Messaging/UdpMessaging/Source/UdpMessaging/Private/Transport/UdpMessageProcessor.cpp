@@ -77,9 +77,15 @@ bool ShouldErrorOnConnection(const FIPv4Endpoint& InEndpoint)
 	return false;
 }
 
-FOnTransferDataUpdated& OnSegmenterUpdated()
+FOnOutboundTransferDataUpdated& OnSegmenterUpdated()
 {
-	static FOnTransferDataUpdated OnTransferUpdated;
+	static FOnOutboundTransferDataUpdated OnTransferUpdated;
+	return OnTransferUpdated;
+}
+
+FOnInboundTransferDataUpdated& OnReassemblerUpdated()
+{
+	static FOnInboundTransferDataUpdated OnTransferUpdated;
 	return OnTransferUpdated;
 }
 
@@ -252,7 +258,7 @@ FMessageTransportStatistics FUdpMessageProcessor::GetStats(FGuid Node) const
 
 void FUdpMessageProcessor::SendSegmenterStatsToListeners(int32 MessageId, FGuid NodeId, const TSharedPtr<FUdpMessageSegmenter>& Segmenter)
 {
-	FOnTransferDataUpdated& SegmenterUpdatedDelegate = UE::Private::MessageProcessor::OnSegmenterUpdated();
+	FOnOutboundTransferDataUpdated& SegmenterUpdatedDelegate = UE::Private::MessageProcessor::OnSegmenterUpdated();
 	if(!SegmenterUpdatedDelegate.IsBound())
 	{
 		return;
@@ -717,6 +723,16 @@ void FUdpMessageProcessor::ProcessDataSegment(FInboundSegment& Segment, FNodeInf
 	NodeInfo.Statistics.TotalBytesReceived += DataChunk.Data.Num();
 	NodeInfo.Statistics.PacketsReceived++;
 	ReassembledMessage->Reassemble(DataChunk.SegmentNumber, DataChunk.SegmentOffset, DataChunk.Data, CurrentTime);
+	FOnInboundTransferDataUpdated& ReassemblerUpdated = UE::Private::MessageProcessor::OnReassemblerUpdated();
+	if(ReassemblerUpdated.IsBound())
+	{
+		ReassemblerUpdated.Broadcast(
+			{NodeInfo.NodeId,
+			 DataChunk.MessageId,
+			 UDP_MESSAGING_SEGMENT_SIZE * ReassembledMessage->GetPendingSegmentsCount(),
+			 ReassembledMessage->GetReceivedBytes()}
+			);
+	}
 
 	// Deliver or re-sequence message
 	if (!ReassembledMessage->IsComplete() || ReassembledMessage->IsDelivered())

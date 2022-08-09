@@ -43,7 +43,7 @@ namespace UE::MultiUserServer
 		/** @return Contains the transfer statistics over time. Used for graphs. */
 		virtual const TArray<FConcertTransferSamplePoint>& GetTransferStatTimeline(EConcertTransferStatistic StatisticType) const = 0;
 		/** @return Sorted descending by message ID. Every message ID is unique. Used for list views. */
-		virtual const TArray<TSharedPtr<FTransferStatistics>>& GetTransferStatsGroupedById() const = 0;
+		virtual const TArray<TSharedPtr<FOutboundTransferStatistics>>& GetTransferStatsGroupedById() const = 0;
 
 		/** Called when GetTransferStatisticsGroupedById changes */
 		virtual FOnTransferTimelineUpdated& OnTransferTimelineUpdated(EConcertTransferStatistic StatisticType) = 0;
