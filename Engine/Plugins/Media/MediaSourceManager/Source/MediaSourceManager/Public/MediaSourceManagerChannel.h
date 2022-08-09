@@ -8,6 +8,7 @@
 
 #include "MediaSourceManagerChannel.generated.h"
 
+class UMaterialInstanceConstant;
 class UMediaPlayer;
 class UMediaSource;
 class UMediaSourceManagerInput;
@@ -41,6 +42,10 @@ public:
 	/** The channel will output the media here. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Channel")
 	TObjectPtr<UTexture> OutTexture = nullptr;
+
+	/** Material that uses our texture. */
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceConstant> Material = nullptr;
 
 	/**
 	 * Call this to get the media player.
