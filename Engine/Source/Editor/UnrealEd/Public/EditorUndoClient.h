@@ -7,8 +7,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/ITransaction.h"
-#include "Misc/TransactionObjectEvent.h"
+
+struct FTransactionContext;
+class FTransactionObjectEvent;
 
 /**
  * Interface for tools wanting to handle undo/redo operations
