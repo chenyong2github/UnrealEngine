@@ -161,7 +161,10 @@ public:
 	void Start()
 	{
 		Thread = CreateThread(NULL, 0, StaticThreadProc, this, 0, NULL);
-		SetThreadDescription(Thread, TEXT("LogConsoleHwnd"));
+		if (ensure(Thread))
+		{
+			SetThreadDescription(Thread, TEXT("LogConsoleHwnd"));
+		}
 	}
 
 	static DWORD WINAPI StaticThreadProc(LPVOID lpParameter)
