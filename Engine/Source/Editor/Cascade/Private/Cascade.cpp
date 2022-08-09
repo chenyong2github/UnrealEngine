@@ -7,6 +7,7 @@
 #include "Engine/Engine.h"
 #include "Components/StaticMeshComponent.h"
 #include "Editor.h"
+#include "Editor/Transactor.h"
 #include "Components/VectorFieldComponent.h"
 #include "Engine/InterpCurveEdSetup.h"
 #include "CascadeConfiguration.h"
