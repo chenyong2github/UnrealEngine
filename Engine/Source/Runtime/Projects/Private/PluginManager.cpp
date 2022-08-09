@@ -86,7 +86,7 @@ namespace PluginSystemDefs
 
 	bool IsCachingIniFilesForProcessing()
 	{
-#if WITH_EDITOR
+#if PLATFORM_WINDOWS // return false should be false for all platforms according to Josh Adams but has not been tested on other platforms than windows
 		return false;
 #endif
 		return true;
