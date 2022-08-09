@@ -64,6 +64,9 @@ class USkeleton;
 class USoundBase;
 class USoundNode;
 class UTextureRenderTarget2D;
+class UTransactor;
+class FTransactionObjectEvent;
+struct FTransactionContext;
 struct FTypedElementHandle;
 struct FAnalyticsEventAttribute;
 class UEditorWorldExtensionManager;
@@ -2784,23 +2787,7 @@ public:
 
 private:
 
-	/** Internal struct to hold undo/redo transaction object context */
-	struct FTransactionDeltaContext
-	{
-		FGuid	OuterOperationId;
-		int32	OperationDepth;
-		TArray<TPair<UObject*, FTransactionObjectEvent>> TransactionObjects;
-
-		void Reset()
-		{
-			OuterOperationId.Invalidate();
-			TransactionObjects.Empty();
-			OperationDepth = 0;
-		}
-
-		FTransactionDeltaContext() = default;
-	};
-	FTransactionDeltaContext CurrentUndoRedoContext;
+	TSharedPtr<struct FEditorTransactionDeltaContext> CurrentUndoRedoContext;
 
 	/** List of all viewport clients */
 	TArray<class FEditorViewportClient*> AllViewportClients;
