@@ -81,9 +81,7 @@ typedef FHoloLensTypes FPlatformTypes;
 //@todo.HoloLens: Fixup once sockets are supported
 #define PLATFORM_SUPPORTS_MESSAGEBUS						1
 
-// @SPLASH_DAMAGE_CHANGE: v-jacsmi@microsoft.com - BEGIN
 #define PLATFORM_SUPPORTS_XBOX_LIVE 0
-// @SPLASH_DAMAGE_CHANGE: v-jacsmi@microsoft.com - END
 
 #define PLATFORM_HAS_128BIT_ATOMICS							PLATFORM_64BITS
 

@@ -354,7 +354,7 @@ void WindowsGamingInputInterface::UpdateGamepads()
 				// map left/right stick digital inputs to (top 8 bits)
 
 				// kept h/v key switch due to following change.
-				// @BLACK_TUSK_CHANGE: a-tagrig@microsoft.com - BEGIN - Only send a single direction of left stick analog readings as a key down event at a time.
+				// Only send a single direction of left stick analog readings as a key down event at a time.
 				// - This is to work around the fact that SWidget navigation for the left stick responds to OnKeyDown rather than OnAnalogValue
 				// - To get around that without this change would require a number of changes to the way SWidget handles navigation, 
 				// - and not only that, but any of our UMG screens that implement OnPreviewKeyDown or OnKeyDown themselves to handle left stick navigation manually would need changes as well.
