@@ -229,6 +229,17 @@ void USignificanceManager::RegisterManagedObject(FManagedObjectInfo* ObjectInfo)
 	}
 }
 
+void USignificanceManager::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	USignificanceManager* This = CastChecked<USignificanceManager>(InThis);
+	// Do not allow eliminating references here so that we don't have to deal with cleaning up management info during GC.
+	// All managed objects should be removed from the significance manager before being marked for explicit destruction.
+	Collector.AllowEliminatingReferences(false);
+	// This explicit template instantiation prevents the use of the overload which expects the map's value type to be a UObject*
+	Collector.AddReferencedObjects<UObject, FManagedObjectInfo*>(This->ManagedObjects, This);
+	Collector.AllowEliminatingReferences(true);
+}
+
 void USignificanceManager::UnregisterObject(UObject* Object)
 {
 	DEC_DWORD_STAT(STAT_SignificanceManager_NumObjects);

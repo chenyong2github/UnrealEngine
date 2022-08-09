@@ -206,6 +206,8 @@ public:
 
 	// Returns the list of viewpoints currently being represented by the significance manager
 	const TArray<FTransform>& GetViewpoints() const { return Viewpoints; }
+	
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 protected:
 
 	// Internal function that takes the managed object info and registers it with the significance manager
