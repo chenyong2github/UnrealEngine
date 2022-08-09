@@ -6143,6 +6143,11 @@ uint8 FSkeletalMeshSceneProxy::GetCurrentFirstLODIdx_Internal() const
 	return SkeletalMeshRenderData->CurrentFirstLODIdx;
 }
 
+bool FSkeletalMeshSceneProxy::GetCachedGeometry(FCachedGeometry& OutCachedGeometry) const 
+{
+	return MeshObject != nullptr && MeshObject->GetCachedGeometry(OutCachedGeometry); 
+}
+
 void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, 
 	const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, bool bSectionSelected,
 	const FSectionElementInfo& SectionElementInfo, bool bInSelectable, FMeshElementCollector& Collector ) const

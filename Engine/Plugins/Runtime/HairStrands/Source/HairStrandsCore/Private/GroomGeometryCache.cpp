@@ -6,7 +6,7 @@
 #include "GeometryCacheComponent.h"
 #include "GeometryCacheMeshData.h"
 #include "GeometryCacheSceneProxy.h"
-#include "GPUSkinCache.h"
+#include "CachedGeometry.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkinWeightVertexBuffer.h"
 #include "CommonRenderResources.h"
@@ -17,8 +17,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-FHairStrandsProjectionMeshData::Section ConvertMeshSection(const FCachedGeometry::Section& In, const FTransform& InLocalToWorld)
+FHairStrandsProjectionMeshData::Section ConvertMeshSection(FCachedGeometry const& InCachedGeometry, int32 InSectionIndex)
 {
+	FCachedGeometry::Section const& In = InCachedGeometry.Sections[InSectionIndex];
 	FHairStrandsProjectionMeshData::Section Out;
 	Out.IndexBuffer = In.IndexBuffer;
 	Out.RDGPositionBuffer = In.RDGPositionBuffer;
@@ -36,7 +37,7 @@ FHairStrandsProjectionMeshData::Section ConvertMeshSection(const FCachedGeometry
 	Out.NumVertices= In.NumVertices;
 	Out.SectionIndex = In.SectionIndex;
 	Out.LODIndex = In.LODIndex;
-	Out.LocalToWorld = InLocalToWorld;
+	Out.LocalToWorld = InCachedGeometry.LocalToWorld;
 	return Out;
 }
 

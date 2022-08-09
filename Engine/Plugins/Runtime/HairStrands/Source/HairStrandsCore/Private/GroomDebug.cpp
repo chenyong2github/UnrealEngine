@@ -3,12 +3,13 @@
 #include "GeometryCacheComponent.h"
 #include "GroomInstance.h"
 #include "GroomManager.h"
-#include "GPUSkinCache.h"
 #include "HairStrandsMeshProjection.h"
 #include "HairStrandsInterface.h"
 #include "CommonRenderResources.h"
+#include "CachedGeometry.h"
 #include "GroomGeometryCache.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "SkeletalRenderPublic.h"
 #include "UnrealEngine.h"
 #include "SystemTextures.h"
 #include "CanvasTypes.h"
@@ -72,7 +73,6 @@ bool IsHairStrandsSkinCacheEnable();
 FCachedGeometry GetCacheGeometryForHair(
 	FRDGBuilder& GraphBuilder,
 	FHairGroupInstance* Instance,
-	const FGPUSkinCache* SkinCache,
 	FGlobalShaderMap* ShaderMap,
 	const bool bOutputTriangleData);
 
@@ -81,7 +81,6 @@ static void GetGroomInterpolationData(
 	FGlobalShaderMap* ShaderMap,
 	const FHairStrandsInstances& Instances,
 	const EHairStrandsProjectionMeshType MeshType,
-	const FGPUSkinCache* SkinCache,
 	FHairStrandsProjectionMeshData::LOD& OutGeometries)
 {
 	for (FHairStrandsInstance* AbstractInstance : Instances)
@@ -91,22 +90,23 @@ static void GetGroomInterpolationData(
 		if (!Instance || !Instance->Debug.MeshComponent)
 			continue;
 
-		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, SkinCache,ShaderMap, true);
+		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, ShaderMap, true);
 		if (CachedGeometry.Sections.Num() == 0)
 			continue;
 
 		if (MeshType == EHairStrandsProjectionMeshType::DeformedMesh || MeshType == EHairStrandsProjectionMeshType::RestMesh)
 		{
-			for (const FCachedGeometry::Section& Section : CachedGeometry.Sections)
+			for (int32 SectionIndex = 0; SectionIndex < CachedGeometry.Sections.Num(); ++SectionIndex)
 			{
-				FHairStrandsProjectionMeshData::Section OutSection = ConvertMeshSection(Section, CachedGeometry.LocalToWorld);
+				FHairStrandsProjectionMeshData::Section OutSection = ConvertMeshSection(CachedGeometry, SectionIndex);
 				if (MeshType == EHairStrandsProjectionMeshType::RestMesh)
 				{					
 					// If the mesh has some mesh-tranferred data, we display that otherwise we use the rest data
-					const bool bHasTransferData = Section.LODIndex < Instance->Debug.TransferredPositions.Num();
+					const int32 SectionLodIndex = CachedGeometry.Sections[SectionIndex].LODIndex;
+					const bool bHasTransferData = SectionLodIndex < Instance->Debug.TransferredPositions.Num();
 					if (bHasTransferData)
 					{
-						OutSection.PositionBuffer = Instance->Debug.TransferredPositions[Section.LODIndex].SRV;
+						OutSection.PositionBuffer = Instance->Debug.TransferredPositions[SectionLodIndex].SRV;
 					}
 					else if (Instance->Debug.TargetMeshData.LODs.Num() > 0)
 					{
@@ -1043,7 +1043,6 @@ void RunHairStrandsDebug(
 	const FSceneView& View,
 	const FHairStrandsInstances& Instances,
 	const FUintVector4& InstanceCountPerType,
-	const FGPUSkinCache* SkinCache,
 	const FShaderPrintData* ShaderPrintData,
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthTexture,
@@ -1062,10 +1061,10 @@ void RunHairStrandsDebug(
 		{
 			if (GHairDebugMeshProjection_SkinCacheMesh > 0)
 			{
-				auto RenderMeshProjection = [ShaderMap, ShaderPrintData, Viewport, &ViewUniformBuffer, Instances, SkinCache, &GraphBuilder](FRDGBuilder& LocalGraphBuilder, EHairStrandsProjectionMeshType MeshType)
+				auto RenderMeshProjection = [ShaderMap, ShaderPrintData, Viewport, &ViewUniformBuffer, Instances, &GraphBuilder](FRDGBuilder& LocalGraphBuilder, EHairStrandsProjectionMeshType MeshType)
 				{
 					FHairStrandsProjectionMeshData::LOD MeshProjectionLODData;
-					GetGroomInterpolationData(GraphBuilder, ShaderMap, Instances, MeshType, SkinCache, MeshProjectionLODData);
+					GetGroomInterpolationData(GraphBuilder, ShaderMap, Instances, MeshType, MeshProjectionLODData);
 					for (FHairStrandsProjectionMeshData::Section& Section : MeshProjectionLODData.Sections)
 					{
 						AddDebugProjectionMeshPass(LocalGraphBuilder, ShaderMap, ShaderPrintData, Viewport, ViewUniformBuffer, MeshType, Section);

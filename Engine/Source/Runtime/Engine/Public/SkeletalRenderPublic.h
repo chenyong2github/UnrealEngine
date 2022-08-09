@@ -18,6 +18,7 @@ class FPrimitiveDrawInterface;
 class FVertexFactory;
 class UMorphTarget;
 struct FSkelMeshRenderSection;
+struct FCachedGeometry;
 class FGPUSkinCacheEntry;
 
 /** data for a single skinned skeletal mesh vertex */
@@ -112,6 +113,11 @@ public:
 	 *	Not safe to hold this reference between frames, because it exists in dynamic data passed from main thread.
 	 */
 	virtual const TArray<FMatrix44f>& GetReferenceToLocalMatrices() const = 0;
+
+	/**
+	 * If we are caching geometry deformation through skin-cache/mesh-deformers or other, then this returns the currently cached geoemtry.
+	 */
+	virtual bool GetCachedGeometry(FCachedGeometry& OutCachedGeometry) const { return false; }
 
 	/**
 	*	Will force re-evaluating which Skin Weight buffer should be used for skinning, determined by checking for any override weights or a skin weight profile being set.

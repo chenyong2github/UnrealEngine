@@ -342,6 +342,7 @@ public:
 	virtual bool IsCPUSkinned() const override { return false; }
 	virtual TArray<FTransform>* GetComponentSpaceTransforms() const override;
 	virtual const TArray<FMatrix44f>& GetReferenceToLocalMatrices() const override;
+	virtual bool GetCachedGeometry(FCachedGeometry& OutCachedGeometry) const override;
 
 #if RHI_RAYTRACING
 	/** Geometry for ray tracing. */

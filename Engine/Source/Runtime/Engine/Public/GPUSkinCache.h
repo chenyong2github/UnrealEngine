@@ -42,6 +42,7 @@
 #include "GPUSkinPublicDefs.h"
 #include "VertexFactory.h"
 #include "CanvasTypes.h"
+#include "CachedGeometry.h"
 
 class FGPUSkinPassthroughVertexFactory;
 class FGPUBaseSkinVertexFactory;
@@ -94,36 +95,6 @@ struct FGPUSkinBatchElementUserData
 	int32 Section;
 };
 
-class FRDGPooledBuffer;
-struct FCachedGeometry
-{
-	struct Section
-	{
-		FRDGBufferSRVRef RDGPositionBuffer = nullptr;				// Valid when the input comes from a manual skin cache (i.e. skinned run into compute on demand)
-		FRDGBufferSRVRef RDGPreviousPositionBuffer = nullptr;		// Valid when the input comes from a manual skin cache (i.e. skinned run into compute on demand)
-		FRHIShaderResourceView* PositionBuffer = nullptr;			// Valid when the input comes from the skin cached (since it is not convert yet to RDG)
-		FRHIShaderResourceView* PreviousPositionBuffer = nullptr;	// Valid when the input comes from the skin cached (since it is not convert yet to RDG)
-		FRHIShaderResourceView* UVsBuffer = nullptr;
-		FRHIShaderResourceView* IndexBuffer = nullptr;
-		uint32 UVsChannelOffset = 0;
-		uint32 UVsChannelCount = 0;
-		uint32 NumPrimitives = 0;
-		uint32 NumVertices = 0;
-		uint32 VertexBaseIndex = 0;
-		uint32 IndexBaseIndex = 0;
-		uint32 TotalVertexCount = 0;
-		uint32 TotalIndexCount = 0;
-		uint32 SectionIndex = 0;
-		int32 LODIndex = -1;
-	};
-
-	int32 LODIndex = -1;
-	TArray<Section> Sections;
-	FRDGBufferRef DeformedPositionBuffer = nullptr;
-	FRDGBufferRef DeformedPreviousPositionBuffer = nullptr;
-	FTransform LocalToWorld = FTransform::Identity;
-};
-
 enum class EGPUSkinCacheEntryMode
 {
 	Raster,
@@ -158,9 +129,7 @@ public:
 	ENGINE_API FGPUSkinCache(ERHIFeatureLevel::Type InFeatureLevel, bool bInRequiresMemoryLimit, UWorld* InWorld);
 	ENGINE_API ~FGPUSkinCache();
 
-	ENGINE_API FCachedGeometry GetCachedGeometry(uint32 ComponentId, EGPUSkinCacheEntryMode InMode) const;
-	FCachedGeometry::Section GetCachedGeometry(FGPUSkinCacheEntry* InOutEntry, uint32 SectionId);
-	void UpdateSkinWeightBuffer(FGPUSkinCacheEntry* Entry);
+	static void UpdateSkinWeightBuffer(FGPUSkinCacheEntry* Entry);
 
 	bool ProcessEntry(
 		EGPUSkinCacheEntryMode Mode,
@@ -419,9 +388,13 @@ public:
 		const FVertexBufferAndSRV* BoneBuffers[NUM_BUFFERS];
 	};
 
-	ENGINE_API FRWBuffer* GetPositionBuffer(uint32 ComponentId, uint32 SectionIndex) const;
-	ENGINE_API FRWBuffer* GetTangentBuffer(uint32 ComponentId, uint32 SectionIndex) const;
-	ENGINE_API FRHIShaderResourceView* GetBoneBuffer(uint32 ComponentId, uint32 SectionIndex) const;
+	FGPUSkinCacheEntry const* GetSkinCacheEntry(uint32 ComponentId) const;
+	static FRWBuffer* GetPositionBuffer(FGPUSkinCacheEntry const* Entry, uint32 SectionIndex);
+	static FRWBuffer* GetPreviousPositionBuffer(FGPUSkinCacheEntry const* Entry, uint32 SectionIndex);
+
+	// Deprecated function. Can remove include of CachedGeometry.h when this is removed.
+	UE_DEPRECATED(5.1, "Use GetPositionBuffer() or similar instead.")
+	FCachedGeometry::Section GetCachedGeometry(FGPUSkinCacheEntry* InOutEntry, uint32 SectionId);
 
 #if RHI_RAYTRACING
 	void ProcessRayTracingGeometryToUpdate(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry);

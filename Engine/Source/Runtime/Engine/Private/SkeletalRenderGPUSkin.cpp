@@ -9,6 +9,7 @@
 #include "SceneUtils.h"
 #include "SkeletalRender.h"
 #include "GPUSkinCache.h"
+#include "CachedGeometry.h"
 #include "RayTracingSkinnedGeometry.h"
 #include "Animation/MorphTarget.h"
 #include "ClearQuad.h"
@@ -476,23 +477,22 @@ void FSkeletalMeshObjectGPUSkin::UpdateSkinWeightBuffer(USkinnedMeshComponent* I
 
 			if (InMeshComponent && InMeshComponent->SceneProxy)
 			{
-				FGPUSkinCache* GPUSkinCache = InMeshComponent->SceneProxy->GetScene().GetGPUSkinCache();
 				FGPUSkinCacheEntry* SkinCacheEntryToUpdate = SkinCacheEntry;
-				if (GPUSkinCache && SkinCacheEntryToUpdate)
+				if (SkinCacheEntryToUpdate)
 				{
 					ENQUEUE_RENDER_COMMAND(UpdateSkinCacheSkinWeightBuffer)(
-						[GPUSkinCache, SkinCacheEntryToUpdate](FRHICommandListImmediate& RHICmdList)
+						[SkinCacheEntryToUpdate](FRHICommandListImmediate& RHICmdList)
 					{
-						GPUSkinCache->UpdateSkinWeightBuffer(SkinCacheEntryToUpdate);
+						FGPUSkinCache::UpdateSkinWeightBuffer(SkinCacheEntryToUpdate);
 					});
 				}
 
-				if (GPUSkinCache && SkinCacheEntryForRayTracing)
+				if (SkinCacheEntryForRayTracing)
 				{
 					ENQUEUE_RENDER_COMMAND(UpdateSkinCacheSkinWeightBuffer)(
-						[GPUSkinCache, SkinCacheEntryForRayTracing = SkinCacheEntryForRayTracing](FRHICommandListImmediate& RHICmdList)
+						[SkinCacheEntryForRayTracing = SkinCacheEntryForRayTracing](FRHICommandListImmediate& RHICmdList)
 					{
-						GPUSkinCache->UpdateSkinWeightBuffer(SkinCacheEntryForRayTracing);
+						FGPUSkinCache::UpdateSkinWeightBuffer(SkinCacheEntryForRayTracing);
 					});
 				}
 			}
@@ -2195,6 +2195,76 @@ TArray<FTransform>* FSkeletalMeshObjectGPUSkin::GetComponentSpaceTransforms() co
 const TArray<FMatrix44f>& FSkeletalMeshObjectGPUSkin::GetReferenceToLocalMatrices() const
 {
 	return DynamicData->ReferenceToLocal;
+}
+
+bool FSkeletalMeshObjectGPUSkin::GetCachedGeometry(FCachedGeometry& OutCachedGeometry) const
+{
+	OutCachedGeometry = FCachedGeometry();
+	
+	const int32 LodIndex = GetLOD();
+	if (SkeletalMeshRenderData == nullptr || !SkeletalMeshRenderData->LODRenderData.IsValidIndex(LodIndex))
+	{
+		return false;
+	}
+
+	FSkeletalMeshLODRenderData const& LODRenderData = SkeletalMeshRenderData->LODRenderData[LodIndex];
+	const uint32 SectionCount = LODRenderData.RenderSections.Num();
+
+	FVertexFactoryData const& VertexFactories = LODs[LodIndex].GPUSkinVertexFactories;
+	if (VertexFactories.PassthroughVertexFactories.Num() != SectionCount)
+	{
+		return false;
+	}
+
+	for (uint32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
+	{
+		FCachedGeometry::Section& CachedSection = OutCachedGeometry.Sections.AddDefaulted_GetRef();
+
+		if (SkinCacheEntry != nullptr)
+		{
+			// Get the cached geometry SRVs from the skin cache.
+			CachedSection.PositionBuffer = FGPUSkinCache::GetPositionBuffer(SkinCacheEntry, SectionIndex)->SRV;
+			CachedSection.PreviousPositionBuffer = FGPUSkinCache::GetPreviousPositionBuffer(SkinCacheEntry, SectionIndex)->SRV;
+		}
+		else
+		{
+			// Pull the cached geometry SRV directly out of the vertex factory.
+			// This catches cases where we have setup deformed data outside of the skin cache (eg mesh deformers).
+			// This approach _could_ be used for the skin cache case as well, except that skin cache only 
+			// actually pokes the vertex factory once instead of every frame. It flips current/previous buffers
+			// by setting SRVs directly in GetShaderBindings().
+			FGPUSkinPassthroughVertexFactory* VertexFactory = VertexFactories.PassthroughVertexFactories[SectionIndex].Get();
+			if (VertexFactory == nullptr || VertexFactory->GetPositionsSRV() == nullptr)
+			{
+				// Reset all output if one section isn't available.
+				OutCachedGeometry.Sections.Reset();
+				return false;
+			}
+
+			CachedSection.PositionBuffer = VertexFactory->GetPositionsSRV();
+			FRHIShaderResourceView* PreviousPositionBuffer = VertexFactory->GetPreviousPositionsSRV();
+			CachedSection.PreviousPositionBuffer = PreviousPositionBuffer != nullptr ? PreviousPositionBuffer : CachedSection.PositionBuffer;
+		}
+				
+		CachedSection.IndexBuffer = LODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
+		CachedSection.TotalIndexCount = LODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->Num();
+		CachedSection.TotalVertexCount = LODRenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
+		CachedSection.UVsBuffer = LODRenderData.StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV();
+		CachedSection.UVsChannelOffset = 0; // Assume that we needs to pair meshes based on UVs 0
+		CachedSection.UVsChannelCount = LODRenderData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+
+		FSkelMeshRenderSection const& Section = LODRenderData.RenderSections[SectionIndex];
+		CachedSection.LODIndex = LodIndex;
+		CachedSection.SectionIndex = SectionIndex;
+		CachedSection.NumPrimitives = Section.NumTriangles;
+		CachedSection.NumVertices = Section.NumVertices;
+		CachedSection.IndexBaseIndex = Section.BaseIndex;
+		CachedSection.VertexBaseIndex = Section.BaseVertexIndex;
+	}
+			
+	OutCachedGeometry.LODIndex = LodIndex;
+	OutCachedGeometry.LocalToWorld = FTransform(GetTransform());
+	return true;
 }
 
 /*-----------------------------------------------------------------------------

@@ -235,8 +235,7 @@ public:
 		return GetCurrentFirstLODIdx_Internal();
 	}
 
-	const TArray<FMatrix>& GetMeshObjectReferenceToLocalMatrices() const;
-	const TIndirectArray<FSkeletalMeshLODRenderData>& GetSkeletalMeshRenderDataLOD() const;
+	bool GetCachedGeometry(struct FCachedGeometry& OutCachedGeometry) const;
 
 protected:
 	AActor* Owner;

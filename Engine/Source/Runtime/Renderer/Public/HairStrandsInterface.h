@@ -480,7 +480,6 @@ enum EHairInstanceCount : uint8
 
 struct FHairStrandsBookmarkParameters
 {
-	class FGPUSkinCache* SkinCache = nullptr;
 	FShaderPrintData* ShaderPrintData = nullptr;
 	class FGlobalShaderMap* ShaderMap = nullptr;
 

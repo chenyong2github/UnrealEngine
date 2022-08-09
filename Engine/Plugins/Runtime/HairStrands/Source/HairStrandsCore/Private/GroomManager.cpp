@@ -4,7 +4,6 @@
 #include "HairStrandsMeshProjection.h"
 
 #include "GeometryCacheComponent.h"
-#include "GPUSkinCache.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkinWeightVertexBuffer.h"
 #include "CommonRenderResources.h"
@@ -20,6 +19,7 @@
 #include "HairStrandsVertexFactory.h"
 #include "RenderGraphEvent.h"
 #include "RenderGraphUtils.h"
+#include "CachedGeometry.h"
 
 static int32 GHairStrandsMinLOD = 0;
 static FAutoConsoleVariableRef CVarGHairStrandsMinLOD(TEXT("r.HairStrands.MinLOD"), GHairStrandsMinLOD, TEXT("Clamp the min hair LOD to this value, preventing to reach lower/high-quality LOD."), ECVF_Scalability);
@@ -86,7 +86,6 @@ static bool IsSkeletalMeshEvaluationEnabled()
 FCachedGeometry GetCacheGeometryForHair(
 	FRDGBuilder& GraphBuilder, 
 	FHairGroupInstance* Instance, 
-	const FGPUSkinCache* SkinCache, 
 	FGlobalShaderMap* ShaderMap,
 	const bool bOutputTriangleData)
 {
@@ -95,11 +94,12 @@ FCachedGeometry GetCacheGeometryForHair(
 	{
 		if (IsSkeletalMeshEvaluationEnabled())
 		{
+			//todo: It's unsafe to be accessing the component directly here. This can be solved when we have persistent ids available on the render thread.
 			if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Instance->Debug.MeshComponent))
 			{
-				if (SkinCache)
+				if (FSkeletalMeshSceneProxy* SceneProxy = static_cast<FSkeletalMeshSceneProxy*>(SkeletalMeshComponent->SceneProxy))
 				{
-					Out = SkinCache->GetCachedGeometry(SkeletalMeshComponent->ComponentId.PrimIDValue, EGPUSkinCacheEntryMode::Raster);
+					SceneProxy->GetCachedGeometry(Out);
 				}
 
 				if (IsHairStrandsSkinCacheEnable() && Out.Sections.Num() == 0)
@@ -141,7 +141,6 @@ static void RunInternalHairStrandsInterpolation(
 	const FSceneView* View,
 	const uint32 ViewUniqueID,
 	const FHairStrandsInstances& Instances,
-	const FGPUSkinCache* SkinCache,
 	const FShaderPrintData* ShaderPrintData,
 	FGlobalShaderMap* ShaderMap, 
 	EHairStrandsInterpolationType Type,
@@ -167,14 +166,15 @@ static void RunInternalHairStrandsInterpolation(
 		check(Instance->HairGroupPublicData);
 
 		FHairStrandsProjectionMeshData::LOD MeshDataLOD;
-		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, SkinCache, ShaderMap, true);
-		for (const FCachedGeometry::Section& Section : CachedGeometry.Sections)
+		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, ShaderMap, true);
+		for (int32 SectionIndex = 0; SectionIndex < CachedGeometry.Sections.Num(); ++SectionIndex)
 		{
 			// Ensure all mesh's sections have the same LOD index
-			if (MeshLODIndex < 0) MeshLODIndex = Section.LODIndex;
-			check(MeshLODIndex == Section.LODIndex);
+			const int32 SectionLodIndex = CachedGeometry.Sections[SectionIndex].LODIndex;
+			if (MeshLODIndex < 0) MeshLODIndex = SectionLodIndex;
+			check(MeshLODIndex == SectionLodIndex);
 
-			MeshDataLOD.Sections.Add(ConvertMeshSection(Section, CachedGeometry.LocalToWorld));
+			MeshDataLOD.Sections.Add(ConvertMeshSection(CachedGeometry, SectionIndex));
 		}
 
 		Instance->Debug.MeshLODIndex = MeshLODIndex;
@@ -399,7 +399,6 @@ static void RunHairStrandsInterpolation_Guide(
 	const FSceneView* View,
 	const uint32 ViewUniqueID,
 	const FHairStrandsInstances& Instances,
-	const FGPUSkinCache* SkinCache,
 	const FShaderPrintData* ShaderPrintData,
 	FGlobalShaderMap* ShaderMap,
 	FHairStrandClusterData* ClusterData)
@@ -415,7 +414,6 @@ static void RunHairStrandsInterpolation_Guide(
 		View,
 		ViewUniqueID,
 		Instances,
-		SkinCache,
 		ShaderPrintData,
 		ShaderMap,
 		EHairStrandsInterpolationType::SimulationStrands,
@@ -427,7 +425,6 @@ static void RunHairStrandsInterpolation_Strands(
 	const FSceneView* View,
 	const uint32 ViewUniqueID,
 	const FHairStrandsInstances& Instances,
-	const FGPUSkinCache* SkinCache,
 	const FShaderPrintData* ShaderPrintData,
 	FGlobalShaderMap* ShaderMap,
 	FHairStrandClusterData* ClusterData)
@@ -443,7 +440,6 @@ static void RunHairStrandsInterpolation_Strands(
 		View,
 		ViewUniqueID,
 		Instances,
-		SkinCache,
 		ShaderPrintData,
 		ShaderMap,
 		EHairStrandsInterpolationType::RenderStrands,
@@ -691,7 +687,6 @@ static void RunHairLODSelection(
 	FRDGBuilder& GraphBuilder, 
 	const FHairStrandsInstances& Instances, 
 	const TArray<const FSceneView*>& Views, 
-	const FGPUSkinCache* SkinCache, 
 	FGlobalShaderMap* ShaderMap)
 {
 	EShaderPlatform ShaderPlatform = EShaderPlatform::SP_NumPlatforms;
@@ -719,7 +714,7 @@ static void RunHairLODSelection(
 
 		check(Instance);
 		check(Instance->HairGroupPublicData);
-		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, SkinCache, ShaderMap, false);
+		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, ShaderMap, false);
 		const int32 MeshLODIndex = GetCacheGeometryLODIndex(CachedGeometry);
 
 		// Perform LOD selection based on all the views	
@@ -1032,7 +1027,6 @@ void RunHairStrandsDebug(
 	const FSceneView& View,
 	const FHairStrandsInstances& Instances,
 	const FUintVector4& InstanceCountPerType,
-	const FGPUSkinCache* SkinCache,
 	const FShaderPrintData* ShaderPrintData,
 	FRDGTextureRef SceneColor,
 	FRDGTextureRef SceneDepth,
@@ -1084,7 +1078,6 @@ void ProcessHairStrandsBookmark(
 			*GraphBuilder,
 			*Parameters.Instances,
 			Parameters.AllViews,
-			Parameters.SkinCache, 
 			Parameters.ShaderMap);
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessEndOfFrame)
@@ -1104,7 +1097,6 @@ void ProcessHairStrandsBookmark(
 			Parameters.View,
 			Parameters.ViewUniqueID,
 			Instances,
-			Parameters.SkinCache,
 			Parameters.ShaderPrintData,
 			Parameters.ShaderMap,
 			&Parameters.HairClusterData);
@@ -1123,7 +1115,6 @@ void ProcessHairStrandsBookmark(
 			Parameters.View,
 			Parameters.ViewUniqueID,
 			Instances,
-			Parameters.SkinCache,
 			Parameters.ShaderPrintData,
 			Parameters.ShaderMap,
 			&Parameters.HairClusterData);
@@ -1137,7 +1128,6 @@ void ProcessHairStrandsBookmark(
 			*Parameters.View,
 			Instances,
 			Parameters.InstanceCountPerType,
-			Parameters.SkinCache,
 			Parameters.ShaderPrintData,
 			Parameters.SceneColorTexture,
 			Parameters.SceneDepthTexture,

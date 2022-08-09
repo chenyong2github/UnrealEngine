@@ -595,6 +595,7 @@ public:
 #endif // RHI_RAYTRACING
 
 	TArray<FSectionDispatchData>& GetDispatchData() { return DispatchData; }
+	TArray<FSectionDispatchData> const& GetDispatchData() const { return DispatchData; }
 
 protected:
 	EGPUSkinCacheEntryMode Mode;
@@ -2081,94 +2082,38 @@ void FGPUSkinCache::InvalidateAllEntries()
 	SET_MEMORY_STAT(STAT_GPUSkinCache_TangentsIntermediateMemUsed, 0);
 }
 
-FRWBuffer* FGPUSkinCache::GetPositionBuffer(uint32 ComponentId, uint32 SectionIndex) const
+FGPUSkinCacheEntry const* FGPUSkinCache::GetSkinCacheEntry(uint32 ComponentId) const
 {
 	for (FGPUSkinCacheEntry* Entry : Entries)
 	{
 		if (Entry && Entry->GPUSkin && Entry->GPUSkin->GetComponentId() == ComponentId)
 		{
-			FGPUSkinCacheEntry::FSectionDispatchData& DispatchData = Entry->GetDispatchData()[SectionIndex];
-			FSkinCacheRWBuffer* SkinCacheRWBuffer = DispatchData.PositionBuffer;
-			return SkinCacheRWBuffer != nullptr ? &SkinCacheRWBuffer->Buffer : nullptr;
+			return Entry;
 		}
 	}
-
 	return nullptr;
 }
 
-FRWBuffer* FGPUSkinCache::GetTangentBuffer(uint32 ComponentId, uint32 SectionIndex) const
+FRWBuffer* FGPUSkinCache::GetPositionBuffer(FGPUSkinCacheEntry const* Entry, uint32 SectionIndex)
 {
-	for (FGPUSkinCacheEntry* Entry : Entries)
+	if (Entry)
 	{
-		if (Entry && Entry->GPUSkin && Entry->GPUSkin->GetComponentId() == ComponentId)
-		{
-			FGPUSkinCacheEntry::FSectionDispatchData& DispatchData = Entry->GetDispatchData()[SectionIndex];
-			FSkinCacheRWBuffer* SkinCacheRWBuffer = DispatchData.GetTangentRWBuffer();
-			return SkinCacheRWBuffer != nullptr ? &SkinCacheRWBuffer->Buffer : nullptr;
-		}
+		FGPUSkinCacheEntry::FSectionDispatchData const& DispatchData = Entry->GetDispatchData()[SectionIndex];
+		FSkinCacheRWBuffer* SkinCacheRWBuffer = DispatchData.PositionBuffer;
+		return SkinCacheRWBuffer != nullptr ? &SkinCacheRWBuffer->Buffer : nullptr;
 	}
-
 	return nullptr;
 }
 
-FRHIShaderResourceView* FGPUSkinCache::GetBoneBuffer(uint32 ComponentId, uint32 SectionIndex) const
+FRWBuffer* FGPUSkinCache::GetPreviousPositionBuffer(FGPUSkinCacheEntry const* Entry, uint32 SectionIndex)
 {
-	for (FGPUSkinCacheEntry* Entry : Entries)
+	if (Entry)
 	{
-		FGPUSkinCacheEntry::FSectionDispatchData& DispatchData = Entry->GetDispatchData()[SectionIndex];
-		FGPUBaseSkinVertexFactory::FShaderDataType& ShaderData = DispatchData.SourceVertexFactory->GetShaderData();
-		return ShaderData.GetBoneBufferForReading(false).VertexBufferSRV;
+		FGPUSkinCacheEntry::FSectionDispatchData const& DispatchData = Entry->GetDispatchData()[SectionIndex];
+		FSkinCacheRWBuffer* SkinCacheRWBuffer = DispatchData.PreviousPositionBuffer;
+		return SkinCacheRWBuffer != nullptr ? &SkinCacheRWBuffer->Buffer : nullptr;
 	}
-
 	return nullptr;
-}
-
-FCachedGeometry FGPUSkinCache::GetCachedGeometry(uint32 ComponentId, EGPUSkinCacheEntryMode Mode) const
-{
-	auto FindEntry = [&](EGPUSkinCacheEntryMode InMode, bool bByPassModeCheck, FCachedGeometry& Out) -> bool
-	{
-		for (FGPUSkinCacheEntry* Entry : Entries)
-		{
-			if (Entry && (bByPassModeCheck || Entry->Mode == InMode) && Entry->GPUSkin && Entry->GPUSkin->GetComponentId() == ComponentId && Entry->GPUSkin->HaveValidDynamicData())
-			{
-				const FSkeletalMeshRenderData& RenderData = Entry->GPUSkin->GetSkeletalMeshRenderData();
-				const int32 LODIndex = Entry->LOD;
-				if (LODIndex >= 0 && LODIndex < RenderData.LODRenderData.Num())
-				{
-					const FSkeletalMeshLODRenderData& LODData = RenderData.LODRenderData[LODIndex];
-					const uint32 SectionCount = LODData.RenderSections.Num();
-					for (uint32 SectionIdx = 0; SectionIdx < SectionCount; ++SectionIdx)
-					{
-						FCachedGeometry::Section CachedSection = Entry->GetCachedGeometry(SectionIdx);
-						CachedSection.IndexBuffer = LODData.MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
-						CachedSection.TotalIndexCount = LODData.MultiSizeIndexContainer.GetIndexBuffer()->Num();
-						CachedSection.LODIndex = LODIndex;
-						CachedSection.UVsChannelOffset = 0; // Assume that we needs to pair meshes based on UVs 0
-						CachedSection.UVsChannelCount = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
-						Out.Sections.Add(CachedSection);
-					}
-					Out.LocalToWorld = FTransform(Entry->GPUSkin->GetTransform());
-					Out.LODIndex = LODIndex;
-					return true;
-				}
-			}
-		}
-		return false;
-	};
-
-	// 1. Try to find a Skin cache entry which matches the requested mode (Raster/Raytracing)
-	// 2. If we can't find an entry with a matching mode, use any mode type
-	FCachedGeometry Out;
-	if (!FindEntry(Mode, false, Out))
-	{
-		FindEntry(Mode, true, Out);
-	}
-	return Out;
-}
-
-FCachedGeometry::Section FGPUSkinCache::GetCachedGeometry(FGPUSkinCacheEntry* InOutEntry, uint32 sectionIndex)
-{
-	return InOutEntry ? InOutEntry->GetCachedGeometry(sectionIndex) : FCachedGeometry::Section();
 }
 
 void FGPUSkinCache::UpdateSkinWeightBuffer(FGPUSkinCacheEntry* Entry)

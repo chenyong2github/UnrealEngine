@@ -879,7 +879,7 @@ IMPLEMENT_TYPE_LAYOUT(FGPUSkinVertexPassthroughFactoryShaderParameters);
 FGPUSkinPassthroughVertexFactory
 -----------------------------------------------------------------------------*/
 FGPUSkinPassthroughVertexFactory::FGPUSkinPassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
-	: FLocalVertexFactory(InFeatureLevel, "FGPUSkinPassthroughVertexFactory"), PositionStreamIndex(-1), TangentStreamIndex(-1)
+	: FLocalVertexFactory(InFeatureLevel, "FGPUSkinPassthroughVertexFactory")
 {
 	bSupportsManualVertexFetch = true;
 }

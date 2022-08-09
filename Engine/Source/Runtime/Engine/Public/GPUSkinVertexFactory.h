@@ -536,6 +536,11 @@ public:
 		}
 	}
 
+	inline FRHIShaderResourceView* GetPreviousPositionsSRV() const
+	{
+		return PrevPositionSRVAlias;
+	}
+
 protected:
 	friend class FGPUSkinVertexPassthroughFactoryShaderParameters;
 
@@ -549,13 +554,13 @@ protected:
 	FVertexBuffer TangentVBAlias;
 	FVertexBuffer ColorVBAlias;
 	// SRVs required for binding
-	FRHIShaderResourceView* PositionSRVAlias;
-	FRHIShaderResourceView* PrevPositionSRVAlias;
-	FRHIShaderResourceView* TangentSRVAlias;
-	FRHIShaderResourceView* ColorSRVAlias;
+	FRHIShaderResourceView* PositionSRVAlias = nullptr;
+	FRHIShaderResourceView* PrevPositionSRVAlias = nullptr;
+	FRHIShaderResourceView* TangentSRVAlias = nullptr;
+	FRHIShaderResourceView* ColorSRVAlias = nullptr;
 	// Cached stream indices
-	int32 PositionStreamIndex;
-	int32 TangentStreamIndex;
+	int32 PositionStreamIndex = -1;
+	int32 TangentStreamIndex = -1;
 	// Frame number of the bone data that is last updated
 	uint32 UpdatedFrameNumber = 0;
 
