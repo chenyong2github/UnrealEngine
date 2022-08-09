@@ -6,7 +6,6 @@
 
 #include "Animation/AnimCompressionTypes.h"
 #include "TickableEditorObject.h"
-#include "Animation/AnimCompressionTypes.h"
 #include "UObject/GCObject.h"
 
 class UAnimSequence;
@@ -54,7 +53,7 @@ struct FQueuedAsyncCompressionWork
 //   Maintains active compressions
 //   tracks memory usage of async compression
 //   Gives API for blocking on compression
-class ENGINE_API FAsyncCompressedAnimationsManagement : public FTickableEditorObject, public FGCObject
+class ENGINE_API FAsyncCompressedAnimationsManagement : public FTickableEditorObject, public FTickableCookObject, public FGCObject
 {
 public:
 	static FAsyncCompressedAnimationsManagement& Get();
@@ -95,6 +94,10 @@ private:
 	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
 	virtual TStatId GetStatId() const override;
 	/* End FTickableEditorObject */
+
+	/* Begin FTickableCookObject */
+	virtual void TickCook(float DeltaTime, bool bCookCompete) override;
+	/* End FTickableCookObject */
 
 	// FGCObject interface
 	void AddReferencedObjects(FReferenceCollector& Collector) override;

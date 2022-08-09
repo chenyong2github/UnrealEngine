@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 
 #if WITH_EDITOR
 #include "DerivedDataPluginInterface.h"
@@ -11,6 +11,7 @@
 #include "Animation/AnimCompressionTypes.h"
 
 struct FAnimCompressContext;
+struct FDerivedDataUsageStats;
 
 #if WITH_EDITOR
 
@@ -59,6 +60,7 @@ public:
 		return AssetDDCKey;
 	}
 
+	virtual FString GetDebugContextString() const override;
 
 	virtual bool IsBuildThreadsafe() const override
 	{
@@ -73,5 +75,10 @@ public:
 		return DataToCompressPtr.IsValid();
 	}
 };
+
+namespace AnimSequenceCookStats
+{
+	extern FDerivedDataUsageStats UsageStats;
+}
 
 #endif	//WITH_EDITOR

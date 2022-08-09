@@ -80,7 +80,7 @@ DECLARE_CYCLE_STAT(TEXT("AnimSeq EvalCurveData"), STAT_AnimSeq_EvalCurveData, ST
 #if ENABLE_COOK_STATS
 namespace AnimSequenceCookStats
 {
-	static FCookStats::FDDCResourceUsageStats UsageStats;
+	FDerivedDataUsageStats UsageStats;
 	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
 	{
 		UsageStats.LogStats(AddStat, TEXT("AnimSequence.Usage"), TEXT(""));
@@ -1171,6 +1171,13 @@ void UAnimSequence::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RecompressAnimationData();
 	}
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
+bool UAnimSequence::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
+{
+	return !bCompressionInProgress;
 }
 #endif // WITH_EDITOR
 
