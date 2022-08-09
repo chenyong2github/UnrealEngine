@@ -174,6 +174,15 @@ public:
 	virtual void AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile, bool bInsideTick) {}
 	virtual void ReleaseReflectionCubemap(UReflectionCaptureComponent* CaptureComponent) {}
 
+	/**
+	  * Resets reflection capture data to allow it to be rebuilt from scratch.  Allows shrinking of the number of items in
+	  * the capture array, which otherwise only grows.  This can allow the user to solve cases where an out of memory (OOM)
+	  * condition prevented captures from being generated.  The user can remove some items or reduce the capture resolution
+	  * to fix the issue, and run "Build Reflection Captures" (which calls this function), instead of needing to restart
+	  * the editor.  The flag "bOnlyIfOOM" only does the reset if an OOM had occurred.
+	  */
+	virtual void ResetReflectionCaptures(bool bOnlyIfOOM) {}
+
 	UE_DEPRECATED(5.1, "This method now accepts a bInsideTick parameter, which specifies whether it's called during the frame Tick.")
 	inline void AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile)
 	{

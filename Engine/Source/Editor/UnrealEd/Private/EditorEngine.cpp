@@ -3845,6 +3845,10 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 	// Calling code should not allow building reflection captures on lower feature levels
 	check(World->FeatureLevel >= ERHIFeatureLevel::SM5);
 
+	// Only reset reflection captures if we had hit an OOM condition, and there is a chance we could fit in memory if we rebuild from scratch
+	const bool bOnlyIfOOM = true;
+	World->Scene->ResetReflectionCaptures(bOnlyIfOOM);
+
 	// Update sky light first because it's considered direct lighting, sky diffuse will be visible in reflection capture indirect specular
 	World->UpdateAllSkyCaptures();
 
@@ -3964,16 +3968,22 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 				// Capture can fail if there are more than GMaxNumReflectionCaptures captures
 				if (ReadbackCaptureData.CubemapSize > 0)
 				{
-					ULevel* StorageLevel = LightingScenarios[LevelIndex] ? LightingScenarios[LevelIndex] : CaptureComponent->GetOwner()->GetLevel();
-					UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
-					if (!CaptureComponent->bModifyMaxValueRGBM)
+					// Capture should also fail if memory limitations prevent full resolution captures from being generated.
+					// We report an error message for this case below in the non-mobile capture code path (no need for two errors).
+					int32 DesiredCaptureSize = UReflectionCaptureComponent::GetReflectionCaptureSize();
+					if (ReadbackCaptureData.CubemapSize == DesiredCaptureSize)
 					{
-						CaptureComponent->MaxValueRGBM = GetMaxValueRGBM(ReadbackCaptureData.FullHDRCapturedData, ReadbackCaptureData.CubemapSize);
+						ULevel* StorageLevel = LightingScenarios[LevelIndex] ? LightingScenarios[LevelIndex] : CaptureComponent->GetOwner()->GetLevel();
+						UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
+						if (!CaptureComponent->bModifyMaxValueRGBM)
+						{
+							CaptureComponent->MaxValueRGBM = GetMaxValueRGBM(ReadbackCaptureData.FullHDRCapturedData, ReadbackCaptureData.CubemapSize);
+						}
+						FString TextureName = CaptureComponent->GetName() + TEXT("Texture");
+						TextureName += LexToString(CaptureComponent->MapBuildDataId);
+						GenerateEncodedHDRTextureCube(Registry, ReadbackCaptureData, TextureName, CaptureComponent->MaxValueRGBM, CaptureComponent, bIsReflectionCaptureCompressionProjectSetting);
+						EncodedCaptures[CaptureIndex] = ReadbackCaptureData.EncodedCaptureData;
 					}
-					FString TextureName = CaptureComponent->GetName() + TEXT("Texture");
-					TextureName += LexToString(CaptureComponent->MapBuildDataId);
-					GenerateEncodedHDRTextureCube(Registry, ReadbackCaptureData, TextureName, CaptureComponent->MaxValueRGBM, CaptureComponent, bIsReflectionCaptureCompressionProjectSetting);
-					EncodedCaptures[CaptureIndex] = ReadbackCaptureData.EncodedCaptureData;
 				}
 			}
 		}
@@ -3994,14 +4004,24 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 			// Capture can fail if there are more than GMaxNumReflectionCaptures captures
 			if (ReadbackCaptureData.CubemapSize > 0)
 			{
-				ULevel* StorageLevel = LightingScenarios[LevelIndex] ? LightingScenarios[LevelIndex] : CaptureComponent->GetOwner()->GetLevel();
-				UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
-				FReflectionCaptureMapBuildData& CaptureBuildData = Registry->AllocateReflectionCaptureBuildData(CaptureComponent->MapBuildDataId, true);
-				(FReflectionCaptureData&)CaptureBuildData = ReadbackCaptureData;
-				CaptureBuildData.EncodedCaptureData = EncodedCaptures[CaptureIndex];
-				CaptureBuildData.FinalizeLoad();
-				// Recreate capture render state now that we have valid BuildData
-				CaptureComponent->MarkRenderStateDirty();
+				// Capture should also fail if memory limitations prevent full resolution captures from being generated.
+				int32 DesiredCaptureSize = UReflectionCaptureComponent::GetReflectionCaptureSize();
+				if (ReadbackCaptureData.CubemapSize == DesiredCaptureSize)
+				{
+					ULevel* StorageLevel = LightingScenarios[LevelIndex] ? LightingScenarios[LevelIndex] : CaptureComponent->GetOwner()->GetLevel();
+					UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
+					FReflectionCaptureMapBuildData& CaptureBuildData = Registry->AllocateReflectionCaptureBuildData(CaptureComponent->MapBuildDataId, true);
+					(FReflectionCaptureData&)CaptureBuildData = ReadbackCaptureData;
+					CaptureBuildData.EncodedCaptureData = EncodedCaptures[CaptureIndex];
+					CaptureBuildData.FinalizeLoad();
+					// Recreate capture render state now that we have valid BuildData
+					CaptureComponent->MarkRenderStateDirty();
+				}
+				else
+				{
+					UE_LOG(LogEditor, Error, TEXT("Unable to build Reflection Capture %s, requested reflection capture cube size of %d didn't fit in memory on host machine (size clamped to %d)"),
+						*CaptureComponent->GetPathName(), DesiredCaptureSize, ReadbackCaptureData.CubemapSize);
+				}
 			}
 			else
 			{

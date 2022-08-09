@@ -383,10 +383,11 @@ void FReflectionCaptureCache::UnregisterComponentMapBuildDataId(const UReflectio
 	RegisteredComponentMapBuildDataIds.Remove(Component);
 }
 
-void FReflectionEnvironmentSceneData::SetGameThreadTrackingData(int32 MaxAllocatedCubemaps, int32 CaptureSize)
+void FReflectionEnvironmentSceneData::SetGameThreadTrackingData(int32 MaxAllocatedCubemaps, int32 CaptureSize, int32 DesiredCaptureSize)
 {
 	MaxAllocatedReflectionCubemapsGameThread = MaxAllocatedCubemaps;
 	ReflectionCaptureSizeGameThread = CaptureSize;
+	DesiredReflectionCaptureSizeGameThread = DesiredCaptureSize;
 }
 
 bool FReflectionEnvironmentSceneData::DoesAllocatedDataNeedUpdate(int32 DesiredMaxCubemaps, int32 DesiredCaptureSize) const
@@ -457,6 +458,43 @@ void FReflectionEnvironmentSceneData::ResizeCubemapArrayGPU(uint32 InMaxCubemaps
 	}
 
 	CubemapArray.ResizeCubemapArrayGPU(InMaxCubemaps, InCubemapSize, IndexRemapping);
+}
+
+void FReflectionEnvironmentSceneData::Reset(FScene* Scene)
+{
+	for (TSparseArray<UReflectionCaptureComponent*>::TIterator It(AllocatedReflectionCapturesGameThread); It; ++It)
+	{
+		UReflectionCaptureComponent* CurrentCapture = *It;
+
+		// Unused slots will have a null component pointer
+		if (CurrentCapture)
+		{
+			Scene->RemoveReflectionCapture(CurrentCapture);
+		}
+	}
+
+	// Fields to reset in the game thread
+	AllocatedReflectionCapturesGameThread.Empty();
+	MaxAllocatedReflectionCubemapsGameThread = 0;
+	ReflectionCaptureSizeGameThread = 0;
+	DesiredReflectionCaptureSizeGameThread = 0;
+
+	ENQUEUE_RENDER_COMMAND(ReflectionEnvironmentSceneDataReset)(
+		[this](FRHICommandList& RHICmdList)
+		{
+			// Fields to reset in the render thread
+			bRegisteredReflectionCapturesHasChanged = true;
+			AllocatedReflectionCaptureStateHasChanged = false;
+
+			RegisteredReflectionCaptures.Empty();
+			RegisteredReflectionCapturePositionAndRadius.Empty();
+			CubemapArray.Reset();
+			AllocatedReflectionCaptureState.Empty();
+			CubemapArraySlotsUsed.Empty();
+			SortedCaptures.Empty();
+			NumBoxCaptures = 0;
+			NumSphereCaptures = 0;
+		});
 }
 
 void FReflectionEnvironmentCubemapArray::ResizeCubemapArrayGPU(uint32 InMaxCubemaps, int32 InCubemapSize, const TArray<int32>& IndexRemapping)
@@ -532,6 +570,13 @@ void FReflectionEnvironmentCubemapArray::UpdateMaxCubemaps(uint32 InMaxCubemaps,
 	{
 		InitResource();
 	}
+}
+
+void FReflectionEnvironmentCubemapArray::Reset()
+{
+	ReleaseDynamicRHI();
+	MaxCubemaps = 0;
+	CubemapSize = 0;
 }
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(ReflectionCapture);

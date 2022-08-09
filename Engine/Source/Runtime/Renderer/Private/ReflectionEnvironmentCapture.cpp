@@ -830,7 +830,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 				if (ReflectionCaptureSize == ReflectionSceneData.CubemapArray.GetCubemapSize())
 				{
 					// We can do a fast GPU copy to realloc the array, so we don't need to update all captures
-					ReflectionSceneData.SetGameThreadTrackingData(DesiredMaxCubemaps, ReflectionCaptureSize);
+					ReflectionSceneData.SetGameThreadTrackingData(DesiredMaxCubemaps, ReflectionCaptureSize, DesiredCaptureSize);
 
 					FScene* Scene = this;
 					uint32 MaxSize = ReflectionSceneData.MaxAllocatedReflectionCubemapsGameThread;
@@ -847,7 +847,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 
 			if (bNeedsUpdateAllCaptures)
 			{
-				ReflectionSceneData.SetGameThreadTrackingData(DesiredMaxCubemaps, ReflectionCaptureSize);
+				ReflectionSceneData.SetGameThreadTrackingData(DesiredMaxCubemaps, ReflectionCaptureSize, DesiredCaptureSize);
 
 				FScene* Scene = this;
 				uint32 MaxSize = ReflectionSceneData.MaxAllocatedReflectionCubemapsGameThread;
@@ -941,6 +941,14 @@ void FScene::UpdateAllReflectionCaptures(const TCHAR* CaptureReason, int32 Refle
 	}
 }
 
+void FScene::ResetReflectionCaptures(bool bOnlyIfOOM)
+{
+	if (bOnlyIfOOM == false || ReflectionSceneData.ReflectionCaptureSizeGameThread != ReflectionSceneData.DesiredReflectionCaptureSizeGameThread)
+	{
+		ReflectionSceneData.Reset(this);
+	}
+}
+
 void GetReflectionCaptureData_RenderingThread(FRHICommandListImmediate& RHICmdList, FScene* Scene, const UReflectionCaptureComponent* Component, FReflectionCaptureData* OutCaptureData)
 {
 	const FCaptureComponentSceneState* ComponentStatePtr = Scene->ReflectionSceneData.AllocatedReflectionCaptureState.Find(Component);
@@ -1015,20 +1023,31 @@ void FScene::GetReflectionCaptureData(UReflectionCaptureComponent* Component, FR
 
 void UploadReflectionCapture_RenderingThread(FScene* Scene, const FReflectionCaptureData* CaptureData, const UReflectionCaptureComponent* CaptureComponent)
 {
-	const int32 EffectiveTopMipSize = CaptureData->CubemapSize;
-	const int32 NumMips = FMath::CeilLogTwo(EffectiveTopMipSize) + 1;
+	// Due to memory limitations, it's possible for the in-memory size to be smaller than the originally captured size.
+	const int32 EffectiveTopMipSize = Scene->ReflectionSceneData.CubemapArray.GetCubemapSize();
+	const int32 NumMipsSource = FMath::CeilLogTwo(CaptureData->CubemapSize) + 1;
+	const int32 NumMipsDest = FMath::CeilLogTwo(EffectiveTopMipSize) + 1;
 
 	const int32 CaptureIndex = FindOrAllocateCubemapIndex(Scene, CaptureComponent);
-	check(CaptureData->CubemapSize == Scene->ReflectionSceneData.CubemapArray.GetCubemapSize());
+	check(CaptureData->CubemapSize >= Scene->ReflectionSceneData.CubemapArray.GetCubemapSize());
 	check(CaptureIndex < Scene->ReflectionSceneData.CubemapArray.GetMaxCubemaps());
 	FRHITexture* CubeMapArray = Scene->ReflectionSceneData.CubemapArray.GetRenderTarget()->GetRHI();
 	check(CubeMapArray->GetFormat() == PF_FloatRGBA);
 
 	int32 MipBaseIndex = 0;
 
-	for (int32 MipIndex = 0; MipIndex < NumMips; MipIndex++)
+	// Skip over mips in originally captured data, based on what we can fit in memory.
+	for (int32 MipIndex = 0; MipIndex < NumMipsSource - NumMipsDest; MipIndex++)
 	{
-		const int32 MipSize = 1 << (NumMips - MipIndex - 1);
+		const int32 MipSize = 1 << (NumMipsSource - MipIndex - 1);
+		const int32 CubeFaceBytes = MipSize * MipSize * sizeof(FFloat16Color);
+
+		MipBaseIndex += CubeFaceBytes * CubeFace_MAX;
+	}
+
+	for (int32 MipIndex = 0; MipIndex < NumMipsDest; MipIndex++)
+	{
+		const int32 MipSize = 1 << (NumMipsDest - MipIndex - 1);
 		const int32 CubeFaceBytes = MipSize * MipSize * sizeof(FFloat16Color);
 
 		for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)

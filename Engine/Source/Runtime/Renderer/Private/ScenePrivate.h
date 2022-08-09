@@ -1528,6 +1528,7 @@ public:
 	int32 GetCubemapSize() const { return CubemapSize; }
 	bool IsValid() const { return IsValidRef(ReflectionEnvs); }
 	const TRefCountPtr<IPooledRenderTarget>& GetRenderTarget() const { return ReflectionEnvs; }
+	void Reset();
 
 protected:
 	uint32 MaxCubemaps;
@@ -1671,22 +1672,27 @@ public:
 
 	/** Game thread tracking of what size cubemaps are in the cubemap array. */
 	int32 ReflectionCaptureSizeGameThread;
+	int32 DesiredReflectionCaptureSizeGameThread;
 
 	FReflectionEnvironmentSceneData(ERHIFeatureLevel::Type InFeatureLevel) :
 		bRegisteredReflectionCapturesHasChanged(true),
 		AllocatedReflectionCaptureStateHasChanged(false),
 		CubemapArray(InFeatureLevel),
 		MaxAllocatedReflectionCubemapsGameThread(0),
-		ReflectionCaptureSizeGameThread(0)
+		ReflectionCaptureSizeGameThread(0),
+		DesiredReflectionCaptureSizeGameThread(0)
 	{}
 
 	/** Set Data necessary to determine if GPU resources will need future updates */
-	void SetGameThreadTrackingData(int32 MaxAllocatedCubemaps, int32 CaptureSize);
+	void SetGameThreadTrackingData(int32 MaxAllocatedCubemaps, int32 CaptureSize, int32 DesiredCaptureSize);
 
 	/** Do the resources on the GPU match our desired state?  If not, reallocation will be necessary. */
 	bool DoesAllocatedDataNeedUpdate(int32 DesiredMaxCubemaps, int32 DesiredCaptureSize) const;
 
 	void ResizeCubemapArrayGPU(uint32 InMaxCubemaps, int32 InCubemapSize);
+
+	/** Resets the structure to empty, useful if you want to shrink the allocation. */
+	void Reset(FScene* Scene);
 };
 
 /** Scene state used to manage hair strands. */
@@ -3094,6 +3100,7 @@ public:
 	virtual void UpdateSceneCaptureContents(class USceneCaptureComponentCube* CaptureComponent) override;
 	virtual void UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureComponent, FSceneRenderer& MainSceneRenderer) override;
 	virtual void AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile, bool bInsideTick) override;
+	virtual void ResetReflectionCaptures(bool bOnlyIfOOM) override;
 	virtual void UpdateSkyCaptureContents(const USkyLightComponent* CaptureComponent, bool bCaptureEmissiveOnly, UTextureCube* SourceCubemap, FTexture* OutProcessedTexture, float& OutAverageBrightness, FSHVectorRGB3& OutIrradianceEnvironmentMap, TArray<FFloat16Color>* OutRadianceMap) override; 
 	virtual void AllocateAndCaptureFrameSkyEnvMap(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, FViewInfo& MainView, bool bShouldRenderSkyAtmosphere, bool bShouldRenderVolumetricCloud, FInstanceCullingManager& InstanceCullingManager) override;
 	virtual void ValidateSkyLightRealTimeCapture(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColorTexture) override;
