@@ -23,6 +23,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Generated code version of the type.  Set via specifiers
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public EGeneratedCodeVersion GeneratedCodeVersion { get; set; } = EGeneratedCodeVersion.None;
 
 		/// <summary>
@@ -81,13 +82,13 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Super type
 		/// </summary>
+		[JsonConverter(typeof(UhtNullableTypeSourceNameJsonConverter<UhtStruct>))]
 		public UhtStruct? Super { get; set; } = null;
 
 		/// <summary>
 		/// Base types
 		/// </summary>
-		//[JsonConverter(typeof(UhtNullableTypeListJsonConverter<UhtStruct>))]
-		[JsonIgnore]
+		[JsonConverter(typeof(UhtTypeReadOnlyListSourceNameJsonConverter<UhtStruct>))]
 		public IReadOnlyList<UhtStruct> Bases => _bases ?? s_emptyBases;
 
 		/// <summary>

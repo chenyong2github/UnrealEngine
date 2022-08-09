@@ -122,16 +122,19 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// File name without the extension
 		/// </summary>
+		[JsonIgnore]
 		public string FileNameWithoutExtension { get; }
 
 		/// <summary>
 		/// Required name for the generated.h file name.  Used to validate parsed code
 		/// </summary>
+		[JsonIgnore]
 		public string GeneratedHeaderFileName { get; }
 
 		/// <summary>
 		/// True if this header is NoExportTypes.h
 		/// </summary>
+		[JsonIgnore]
 		public bool IsNoExportTypes { get; }
 
 		/// <summary>
@@ -147,11 +150,13 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Location where the header file was found
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtHeaderFileType HeaderFileType { get; set; } = UhtHeaderFileType.Private;
 
 		/// <summary>
 		/// Unique index of the header file
 		/// </summary>
+		[JsonIgnore]
 		public int HeaderFileTypeIndex { get; }
 
 		/// <summary>

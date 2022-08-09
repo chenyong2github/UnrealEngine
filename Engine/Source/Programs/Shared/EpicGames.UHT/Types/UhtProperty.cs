@@ -884,6 +884,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Property category
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtPropertyCategory PropertyCategory { get; set; } = UhtPropertyCategory.Member;
 
 		/// <summary>
@@ -902,26 +903,32 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Engine flags that are disallowed on this property
 		/// </summary>
+		[JsonIgnore]
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public EPropertyFlags DisallowPropertyFlags { get; set; } = EPropertyFlags.None;
 
 		/// <summary>
 		/// UHT specified property flags
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtPropertyExportFlags PropertyExportFlags { get; set; } = UhtPropertyExportFlags.Public;
 
 		/// <summary>
 		/// Reference type of the property
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtPropertyRefQualifier RefQualifier { get; set; } = UhtPropertyRefQualifier.None;
 
 		/// <summary>
 		/// Pointer type of the property
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtPointerType PointerType { get; set; } = UhtPointerType.None;
 
 		/// <summary>
 		/// Allocator to be used with containers
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtPropertyAllocator Allocator { get; set; } = UhtPropertyAllocator.Default;
 
 		/// <summary>
@@ -965,6 +972,7 @@ namespace EpicGames.UHT.Types
 		public override bool Deprecated => PropertyFlags.HasAnyFlags(EPropertyFlags.Deprecated);
 
 		///<inheritdoc/>
+		[JsonIgnore]
 		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable
 		{
 			get

@@ -20,11 +20,13 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Unique index of the package
 		/// </summary>
+		[JsonIgnore]
 		public int PackageTypeIndex { get; }
 
 		/// <summary>
 		/// Engine package flags
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public EPackageFlags PackageFlags { get; set; } = EPackageFlags.None;
 
 		/// <summary>

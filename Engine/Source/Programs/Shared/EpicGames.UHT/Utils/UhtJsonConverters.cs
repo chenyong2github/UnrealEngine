@@ -10,6 +10,44 @@ namespace EpicGames.UHT.Utils
 {
 
 	/// <summary>
+	/// JSON converter to output the meta data
+	/// </summary>
+	public class UhtMetaDataConverter : JsonConverter<UhtMetaData> 
+	{
+		/// <summary>
+		/// Read the JSON value
+		/// </summary>
+		/// <param name="reader">Source reader</param>
+		/// <param name="typeToConvert">Type to convert</param>
+		/// <param name="options">Serialization options</param>
+		/// <returns>Read value</returns>
+		/// <exception cref="NotImplementedException"></exception>
+		public override UhtMetaData Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+		{
+			throw new NotImplementedException();
+		}
+
+		/// <summary>
+		/// Write the JSON value
+		/// </summary>
+		/// <param name="writer">Destination writer</param>
+		/// <param name="type">Value being written</param>
+		/// <param name="options">Serialization options</param>
+		public override void Write(Utf8JsonWriter writer, UhtMetaData type, JsonSerializerOptions options)
+		{
+			writer.WriteStartArray();
+			foreach (KeyValuePair<string, string> kvp in type.GetSorted())
+			{
+				writer.WriteStartObject();
+				writer.WriteString("Key", kvp.Key);
+				writer.WriteString("Value", kvp.Value);
+				writer.WriteEndObject();
+			}
+			writer.WriteEndArray();
+		}
+	}
+
+	/// <summary>
 	/// JSON converter to output the source name of a type
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
@@ -71,6 +109,42 @@ namespace EpicGames.UHT.Utils
 			{
 				writer.WriteStringValue(type.SourceName);
 			}
+		}
+	}
+
+	/// <summary>
+	/// Read/Write type list source name for an optional type value
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
+	public class UhtTypeReadOnlyListSourceNameJsonConverter<T> : JsonConverter<IReadOnlyList<T>> where T : UhtType
+	{
+		/// <summary>
+		/// Read the JSON value
+		/// </summary>
+		/// <param name="reader">Source reader</param>
+		/// <param name="typeToConvert">Type to convert</param>
+		/// <param name="options">Serialization options</param>
+		/// <returns>Read value</returns>
+		/// <exception cref="NotImplementedException"></exception>
+		public override IReadOnlyList<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+		{
+			throw new NotImplementedException();
+		}
+
+		/// <summary>
+		/// Write the JSON value
+		/// </summary>
+		/// <param name="writer">Destination writer</param>
+		/// <param name="collection">Value being written</param>
+		/// <param name="options">Serialization options</param>
+		public override void Write(Utf8JsonWriter writer, IReadOnlyList<T> collection, JsonSerializerOptions options)
+		{
+			writer.WriteStartArray();
+			foreach (UhtType type in collection)
+			{
+				writer.WriteStringValue(type.SourceName);
+			}
+			writer.WriteEndArray();
 		}
 	}
 

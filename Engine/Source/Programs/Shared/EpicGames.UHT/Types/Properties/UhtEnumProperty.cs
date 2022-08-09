@@ -40,16 +40,19 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Underlying property set when the enum has an underlying interger type
 		/// </summary>
+		[JsonIgnore]
 		public UhtProperty? UnderlyingProperty { get; set; }
 
 		/// <summary>
 		/// Underlying type which defaults to int32 if the referenced enum doesn't have an underlying type
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtEnumUnderlyingType UnderlyingType => Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified ? Enum.UnderlyingType : UhtEnumUnderlyingType.int32;
 
 		/// <summary>
 		/// Underlying type size.  Defaults to unsized if the referenced enum doesn't have an underlying type
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtPropertyIntType UnderlyingTypeSize => Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified ? UhtPropertyIntType.Sized : UhtPropertyIntType.Unsized;
 
 		/// <summary>

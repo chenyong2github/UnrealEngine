@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Text.Json.Serialization;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Utils;
@@ -16,17 +17,20 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Internal object flags.
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public EInternalObjectFlags InternalObjectFlags { get; set; } = EInternalObjectFlags.None;
 
 		/// <summary>
 		/// Unique index of the object
 		/// </summary>
+		[JsonIgnore]
 		public int ObjectTypeIndex { get; }
 
 		/// <summary>
 		/// The alternate object is used by the interface system where the native interface will
 		/// update this setting to point to the UInterface derived companion object.
 		/// </summary>
+		[JsonIgnore]
 		public UhtObject? AlternateObject { get; set; } = null;
 
 		/// <inheritdoc/>

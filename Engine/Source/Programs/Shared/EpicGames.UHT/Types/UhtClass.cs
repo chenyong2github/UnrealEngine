@@ -287,6 +287,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// If needed, the #if block define for the serializer
 		/// </summary>
+		[JsonIgnore]
 		public string EnclosingDefine { get; set; } = String.Empty;
 
 		/// <summary>
@@ -316,6 +317,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Type of the class
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtClassType ClassType { get; set; } = UhtClassType.Class;
 
 		/// <summary>
@@ -338,6 +340,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// If this, this class is a UINTERFACE and NativeInterface is the associated native interface
 		/// </summary>
+		[JsonIgnore]
 		public UhtClass? NativeInterface { get; set; } = null;
 
 		/// <summary>

@@ -2,6 +2,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using System.Text.Json.Serialization;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
@@ -106,6 +107,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Type of the boolean
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtBoolType BoolType { get; }
 
 		/// <summary>

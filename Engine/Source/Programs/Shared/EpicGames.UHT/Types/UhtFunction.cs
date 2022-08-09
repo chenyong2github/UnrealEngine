@@ -226,6 +226,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// The type of function
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtFunctionType FunctionType { get; set; } = UhtFunctionType.Function;
 
 		/// <summary>

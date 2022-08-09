@@ -743,6 +743,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// If true, then this type is visible to the symbol table.
 		/// </summary>
+		[JsonIgnore]
 		public bool VisibleType { get; set; } = true;
 
 		/// <summary>
@@ -793,12 +794,13 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Return the specifier validation table to be used to validate the meta data on this type
 		/// </summary>
+		[JsonIgnore]
 		protected virtual UhtSpecifierValidatorTable? SpecifierValidatorTable => null;
 
 		/// <summary>
 		/// Meta data associated with the type
 		/// </summary>
-		[JsonIgnore] //ETSTODO - disable for now
+		[JsonConverter(typeof(UhtMetaDataConverter))]
 		public UhtMetaData MetaData { get; set; }
 
 		/// <summary>

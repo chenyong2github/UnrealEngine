@@ -110,6 +110,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Property associated with the RigVM parameter
 		/// </summary>
+		[JsonConverter(typeof(UhtTypeSourceNameJsonConverter<UhtProperty>))]
 		public UhtProperty? Property { get; }
 
 		/// <summary>
@@ -125,16 +126,19 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Cast name
 		/// </summary>
+		[JsonIgnore]
 		public string? CastName { get; }
 
 		/// <summary>
 		/// Cast type
 		/// </summary>
+		[JsonIgnore]
 		public string? CastType { get; }
 
 		/// <summary>
 		/// Flags associated with the parameter
 		/// </summary>
+		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtRigVMParameterFlags ParameterFlags { get; set; } = UhtRigVMParameterFlags.None;
 
 		/// <summary>

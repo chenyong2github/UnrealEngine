@@ -209,11 +209,11 @@ namespace EpicGames.UHT.Types
 		///<inheritdoc/>
 		public override bool ContainsEditorOnlyProperties()
 		{
-			foreach (UhtType Child in ScriptStruct.Children)
+			foreach (UhtType child in ScriptStruct.Children)
 			{
-				if (Child is UhtProperty Property)
+				if (child is UhtProperty property)
 				{
-					if (Property.PropertyFlags.HasAnyFlags(EPropertyFlags.EditorOnly) || Property.ContainsEditorOnlyProperties())
+					if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.EditorOnly) || property.ContainsEditorOnlyProperties())
 					{
 						return true;
 					}
