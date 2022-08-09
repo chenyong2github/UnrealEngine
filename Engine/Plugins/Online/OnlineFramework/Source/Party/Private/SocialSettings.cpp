@@ -97,3 +97,11 @@ const TArray<FSocialPlatformDescription>& USocialSettings::GetSocialPlatformDesc
 	const USocialSettings& SettingsCDO = *GetDefault<USocialSettings>();
 	return SettingsCDO.SocialPlatformDescriptions;
 }
+
+const FSocialPlatformDescription* USocialSettings::GetSocialPlatformDescriptionForOnlineSubsystem(const FName& OnlineSubsystemName)
+{
+	return GetSocialPlatformDescriptions().FindByPredicate([&OnlineSubsystemName](const FSocialPlatformDescription& Candidate)
+	{
+		return Candidate.OnlineSubsystem == OnlineSubsystemName;
+	});
+}

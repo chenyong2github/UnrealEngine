@@ -109,11 +109,7 @@ static FAutoConsoleVariableRef CVar_EstablishSessionRetryDelay(
 
 static const FSocialPlatformDescription* FindPlatformDescriptionByOss(FName OssName)
 {
-	auto FindPlatformDescriptionByOssName = [OssName](const FSocialPlatformDescription& TestPlatformDescription)
-	{
-		return TestPlatformDescription.OnlineSubsystem == OssName;
-	};
-	return USocialSettings::GetSocialPlatformDescriptions().FindByPredicate(FindPlatformDescriptionByOssName);
+	return USocialSettings::GetSocialPlatformDescriptionForOnlineSubsystem(OssName);
 }
 
 bool FPartyPlatformSessionManager::DoesOssNeedPartySession(FName OssName)

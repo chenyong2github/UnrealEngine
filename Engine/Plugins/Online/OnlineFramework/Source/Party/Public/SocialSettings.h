@@ -65,6 +65,12 @@ public:
 	static int32 GetMinNicknameLength();
 	static int32 GetMaxNicknameLength();
 	static const TArray<FSocialPlatformDescription>& GetSocialPlatformDescriptions();
+	/**
+	 * Get a platform description (from GetSocialPlatformDescriptions) for a specific OnlineSubsystem.
+	 * @param OnlineSubsystemName the online subsystem name to search for
+	 * @return the social platform description for that online subsystem. May return null if it is not found.
+	 */
+	static const FSocialPlatformDescription* GetSocialPlatformDescriptionForOnlineSubsystem(const FName& OnlineSubsystemName);
 
 private:
 	/**

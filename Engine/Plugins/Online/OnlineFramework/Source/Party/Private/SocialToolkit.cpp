@@ -93,11 +93,8 @@ public:
 		{
 			// The external mappings will always be checked on the primary OSS, so we use the passed-in OSS as the target we want to map to
 			IOnlineSubsystem* OSS = GetOSS();
-			auto FindPlatformDescriptionByOssName = [OSS](const FSocialPlatformDescription& TestPlatformDescription)
-			{
-				return TestPlatformDescription.OnlineSubsystem == OSS->GetSubsystemName();
-			};
-			const FSocialPlatformDescription* PlatformDescription = OSS ? USocialSettings::GetSocialPlatformDescriptions().FindByPredicate(FindPlatformDescriptionByOssName) : nullptr;
+			check(OSS);
+			const FSocialPlatformDescription* PlatformDescription = OSS ? USocialSettings::GetSocialPlatformDescriptionForOnlineSubsystem(OSS->GetSubsystemName()) : nullptr;
 			IOnlineUserPtr PrimaryUserInterface = Toolkit->GetSocialOss(ESocialSubsystem::Primary)->GetUserInterface();
 			if (ensure(PlatformDescription && PrimaryUserInterface))
 			{
@@ -429,11 +426,8 @@ void USocialToolkit::QueueUserDependentActionInternal(const FUniqueNetIdRepl& Su
 			IOnlineUserPtr UserInterface = Online::GetUserInterfaceChecked(GetWorld(), USocialManager::GetSocialOssName(ESocialSubsystem::Primary));
 
 			IOnlineSubsystem* OSS = GetSocialOss(SubsystemType);
-			auto FindPlatformDescriptionByOssName = [OSS](const FSocialPlatformDescription& TestPlatformDescription)
-			{
-				return TestPlatformDescription.OnlineSubsystem == OSS->GetSubsystemName();
-			};
-			const FSocialPlatformDescription* PlatformDescription = OSS ? USocialSettings::GetSocialPlatformDescriptions().FindByPredicate(FindPlatformDescriptionByOssName) : nullptr;
+			check(OSS);
+			const FSocialPlatformDescription* PlatformDescription = OSS ? USocialSettings::GetSocialPlatformDescriptionForOnlineSubsystem(OSS->GetSubsystemName()) : nullptr;
 			
 			FExternalIdQueryOptions QueryOptions;
 			QueryOptions.AuthType = PlatformDescription ? PlatformDescription->ExternalAccountType : FString();

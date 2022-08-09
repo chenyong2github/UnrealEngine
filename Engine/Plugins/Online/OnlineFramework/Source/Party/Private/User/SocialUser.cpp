@@ -1378,11 +1378,7 @@ void USocialUser::SetUserInfo(ESocialSubsystem SubsystemType, const TSharedRef<F
 			{
 				if (IOnlineSubsystem* MissingOSS = GetOwningToolkit().GetSocialOss(Subsystem))
 				{
-					auto FindPlatformDescriptionByOssName = [MissingOSS](const FSocialPlatformDescription& TestPlatformDescription)
-					{
-						return TestPlatformDescription.OnlineSubsystem == MissingOSS->GetSubsystemName();
-					};
-					if (const FSocialPlatformDescription* PlatformDescription = USocialSettings::GetSocialPlatformDescriptions().FindByPredicate(FindPlatformDescriptionByOssName))
+					if (const FSocialPlatformDescription* PlatformDescription = USocialSettings::GetSocialPlatformDescriptionForOnlineSubsystem(MissingOSS->GetSubsystemName()))
 					{
 						if (!PlatformDescription->ExternalAccountType.IsEmpty())
 						{
