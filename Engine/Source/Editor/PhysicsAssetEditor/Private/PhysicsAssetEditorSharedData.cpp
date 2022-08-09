@@ -481,7 +481,7 @@ void FPhysicsAssetEditorSharedData::Mirror()
 					}
 				}
 
-				// Display an error notification if neccesary.
+				// Display an error notification if necessary.
 				if (!(MirrorCollisionsMissingBones.IsEmpty() && MirrorCollisionsMissingBodies.IsEmpty()))
 				{
 					// Construct error message for failed collision mirroring.
@@ -2293,35 +2293,16 @@ void FPhysicsAssetEditorSharedData::SetConstraintRelTM(const FPhysicsAssetEditor
 	}
 }
 
-void FPhysicsAssetEditorSharedData::SnapConstraintToBone(int32 ConstraintIndex)
+void FPhysicsAssetEditorSharedData::SnapConstraintToBone(const int32 ConstraintIndex, const EConstraintTransformComponentFlags ComponentFlags /* = EConstraintTransformComponentFlags::All */)
 {
 	UPhysicsConstraintTemplate* ConstraintSetup = PhysicsAsset->ConstraintSetup[ConstraintIndex];
 	ConstraintSetup->Modify();
-	SnapConstraintToBone(ConstraintSetup->DefaultInstance);
+	SnapConstraintToBone(ConstraintSetup->DefaultInstance, ComponentFlags);
 }
 
-void FPhysicsAssetEditorSharedData::SnapConstraintToBone(FConstraintInstance& ConstraintInstance)
+void FPhysicsAssetEditorSharedData::SnapConstraintToBone(FConstraintInstance& ConstraintInstance, const EConstraintTransformComponentFlags ComponentFlags /* = EConstraintTransformComponentFlags::All */)
 {
-	USkeletalMesh* EditorSkelMesh = PhysicsAsset->GetPreviewMesh();
-	if(EditorSkelMesh == nullptr)
-	{
-		return;
-	}
-
-	const int32 BoneIndex1 = EditorSkelMesh->GetRefSkeleton().FindBoneIndex(ConstraintInstance.ConstraintBone1);
-	const int32 BoneIndex2 = EditorSkelMesh->GetRefSkeleton().FindBoneIndex(ConstraintInstance.ConstraintBone2);
-
-	check(BoneIndex1 != INDEX_NONE);
-	check(BoneIndex2 != INDEX_NONE);
-
-	const FTransform BoneTransform1 = EditorSkelComp->GetBoneTransform(BoneIndex1);
-	const FTransform BoneTransform2 = EditorSkelComp->GetBoneTransform(BoneIndex2);
-
-	// Bone transforms are world space, and frame transforms are local space (local to bones).
-	// Frame 1 is the child frame, and set to identity.
-	// Frame 2 is the parent frame, and needs to be set relative to Frame1.
-	ConstraintInstance.SetRefFrame(EConstraintFrame::Frame2, BoneTransform1.GetRelativeTransform(BoneTransform2));
-	ConstraintInstance.SetRefFrame(EConstraintFrame::Frame1, FTransform::Identity);
+	ConstraintInstance.SnapTransformsToDefault(ComponentFlags, PhysicsAsset);
 }
 
 void FPhysicsAssetEditorSharedData::CopyConstraintProperties()

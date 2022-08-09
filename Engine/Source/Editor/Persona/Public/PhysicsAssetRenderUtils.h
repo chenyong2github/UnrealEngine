@@ -6,6 +6,7 @@
 #include "IPhysicsAssetRenderInterface.h"
 #include "UObject/ObjectMacros.h"
 #include "Math/Color.h"
+#include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsEngine/ShapeElem.h"
 #include "SceneManagement.h"
 #include "PhysicsAssetRenderUtils.generated.h"
@@ -61,6 +62,15 @@ public:
 	void SetHiddenBodies(const TArray<int32>& InHiddenBodies);
 	void SetHiddenConstraints(const TArray<int32>& InHiddenConstraints);
 
+	/** Returns a set of flags describing which components of the selected constraint's transforms are being manipulated in the view port. */
+	EConstraintTransformComponentFlags GetConstraintViewportManipulationFlags() const;
+
+	/** Returns true if all the constraint transform components specified by the flags should be displayed as an offset from the default (snapped) transforms. */
+	bool IsDisplayingConstraintTransformComponentRelativeToDefault(const EConstraintTransformComponentFlags ComponentFlags) const;
+
+	/** Set how the constraint transform components specified by the flags should be displayed, in the frame of their associated physics body (false) or as an offset from the default (snapped) transforms (true). */
+	void SetDisplayConstraintTransformComponentRelativeToDefault(const EConstraintTransformComponentFlags ComponentFlags, const bool bShouldDisplayRelativeToDefault);
+
 	void ResetEditorViewportOptions();
 
 	// Physics Asset Editor Viewport Options
@@ -69,6 +79,14 @@ public:
 
 	UPROPERTY()
 	EPhysicsAssetEditorConstraintViewMode ConstraintViewMode;
+
+	// Flags that determine which parts of the constraints transforms (parent frame, child frame, position and rotation) are currently begin manipulated in the viewport.
+	UPROPERTY(Transient)
+	EConstraintTransformComponentFlags ConstraintViewportManipulationFlags;
+
+	// Flags that determine which parts of the constraints transforms (parent/child position/rotation) should be displayed as an offset from the default (snapped) transforms.
+	UPROPERTY()
+	EConstraintTransformComponentFlags ConstraintTransformComponentDisplayRelativeToDefaultFlags;
 
 	UPROPERTY()
 	float ConstraintDrawSize;
@@ -207,4 +225,13 @@ public:
 	virtual void ToggleShowAllConstraints(UPhysicsAsset* const PhysicsAsset) override;
 	virtual bool AreAnyBodiesHidden(UPhysicsAsset* const PhysicsAsset) override;
 	virtual bool AreAnyConstraintsHidden(UPhysicsAsset* const PhysicsAsset) override;
+
+	/** Returns a set of flags describing which components of the selected constraint's transforms are being manipulated in the viewport. */
+	virtual EConstraintTransformComponentFlags GetConstraintViewportManipulationFlags(class UPhysicsAsset* const PhysicsAsset) override;
+
+	/** Returns true if the constraint transform component specified by the flags should be displayed as an offset from the default (snapped) transforms. */
+	virtual bool IsDisplayingConstraintTransformComponentRelativeToDefault(class UPhysicsAsset* const PhysicsAsset, const EConstraintTransformComponentFlags ComponentFlags) override;
+
+	/** Change how the constraint transform component specified by the flags should be displayed, in the frame of their associated physics body or as an offset from the default (snapped) transforms. */
+	virtual void SetDisplayConstraintTransformComponentRelativeToDefault(class UPhysicsAsset* const PhysicsAsset, const EConstraintTransformComponentFlags ComponentFlags, const bool bShouldDisplayRelativeToDefault) override;
 };

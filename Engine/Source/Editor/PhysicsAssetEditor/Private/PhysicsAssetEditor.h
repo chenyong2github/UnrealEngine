@@ -274,7 +274,7 @@ private:
 	bool CanDuplicatePrimitive() const;
 	void OnResetConstraint();
 	void OnConstrainChildBodiesToParentBody();
-	void OnSnapConstraint();
+	void OnSnapConstraint(const EConstraintTransformComponentFlags ComponentFlags);
 	void OnConvertToBallAndSocket();
 	void OnConvertToHinge();
 	void OnConvertToPrismatic();

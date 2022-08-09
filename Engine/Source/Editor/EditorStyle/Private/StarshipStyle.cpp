@@ -6907,6 +6907,10 @@ void FStarshipEditorStyle::FStyle::SetupToolkitStyles()
 		Set( "PhysicsAssetEditor.DuplicatePrimitive", new IMAGE_BRUSH( "PhysicsAssetEditor/icon_PhAT_DupePrim_40x", Icon40x40 ) );
 		Set( "PhysicsAssetEditor.ResetConstraint", new IMAGE_BRUSH( "PhysicsAssetEditor/icon_PhAT_ResetConstraint_40x", Icon40x40 ) );
 		Set( "PhysicsAssetEditor.SnapConstraint", new IMAGE_BRUSH( "PhysicsAssetEditor/icon_PhAT_SnapConstraint_40x", Icon40x40 ) );
+		Set( "PhysicsAssetEditor.SnapConstraintChildPosition", new IMAGE_BRUSH("PhysicsAssetEditor/icon_PhAT_SnapConstraint_40x", Icon40x40));
+		Set( "PhysicsAssetEditor.SnapConstraintChildOrientation", new IMAGE_BRUSH("PhysicsAssetEditor/icon_PhAT_SnapConstraint_40x", Icon40x40));
+		Set( "PhysicsAssetEditor.SnapConstraintParentPosition", new IMAGE_BRUSH("PhysicsAssetEditor/icon_PhAT_SnapConstraint_40x", Icon40x40));
+		Set( "PhysicsAssetEditor.SnapConstraintParentOrientation", new IMAGE_BRUSH("PhysicsAssetEditor/icon_PhAT_SnapConstraint_40x", Icon40x40));
 		Set( "PhysicsAssetEditor.SnapAllConstraints", new IMAGE_BRUSH( "PhysicsAssetEditor/icon_PhAT_SnapAll_40x", Icon40x40 ) );
 		Set( "PhysicsAssetEditor.ConvertToBallAndSocket", new IMAGE_BRUSH_SVG("Starship/Persona/AnimationToBallAndSocket", Icon20x20));
 		Set( "PhysicsAssetEditor.ConvertToHinge", new IMAGE_BRUSH_SVG("Starship/Persona/AnimationToHinge", Icon20x20));

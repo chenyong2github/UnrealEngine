@@ -69,6 +69,30 @@ FVector RevolutionsToRads(const FVector Revolutions)
 	return Revolutions * 2.f * UE_PI;
 }
 
+#if WITH_EDITORONLY_DATA
+
+/** Returns the child bone's transform relative to the parent bone. */
+FTransform CalculateChildTransformRelativeToParent(const FName ChildBoneName, const FName ParentBoneName, const UPhysicsAsset* const PhysicsAsset)
+{
+	FReferenceSkeleton& ReferenceSkeleton = PhysicsAsset->PreviewSkeletalMesh->GetRefSkeleton();
+	const TArray<FTransform>& LocalPose = PhysicsAsset->PreviewSkeletalMesh->GetRefSkeleton().GetRefBonePose();
+	const int32 ChildBoneIndex = ReferenceSkeleton.FindBoneIndex(ChildBoneName);
+	const int32 ParentBoneIndex = ReferenceSkeleton.FindBoneIndex(ParentBoneName);
+
+	// Transform of child from parent is just child ref-pose entry.
+	FTransform RelTM = FTransform::Identity;
+
+	// Traverse the skeleton hierarchy from child to parent bone, accumulating transforms.
+	for (int32 ParentIndex = ChildBoneIndex; LocalPose.IsValidIndex(ParentIndex) && (ParentIndex != ParentBoneIndex); ParentIndex = ReferenceSkeleton.GetParentIndex(ParentIndex))
+	{
+		RelTM = RelTM * LocalPose[ParentIndex];
+	}
+
+	return RelTM;
+}
+
+#endif // WITH_EDITORONLY_DATA
+
 #if WITH_EDITOR
 void FConstraintProfileProperties::SyncChangedConstraintProperties(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
@@ -222,6 +246,46 @@ void FConstraintInstance::UpdateDriveTarget()
 		FPhysicsInterface::UpdateDriveTarget_AssumesLocked(InUnbrokenConstraint, ProfileInstance.LinearDrive, ProfileInstance.AngularDrive);
 	});
 }
+
+#if WITH_EDITORONLY_DATA
+
+FTransform FConstraintInstance::CalculateDefaultParentTransform(const UPhysicsAsset* const PhysicsAsset) const
+{
+	return CalculateChildTransformRelativeToParent(ConstraintBone1, ConstraintBone2, PhysicsAsset);
+}
+
+FTransform FConstraintInstance::CalculateDefaultChildTransform() const
+{
+	return FTransform::Identity;
+} 
+
+void FConstraintInstance::SnapTransformsToDefault(const EConstraintTransformComponentFlags SnapFlags, const UPhysicsAsset* const PhysicsAsset)
+{
+	const FTransform ParentTransform = CalculateDefaultParentTransform(PhysicsAsset);
+	const FTransform ChildTransform = CalculateDefaultChildTransform();
+
+	if (EnumHasAnyFlags(SnapFlags, EConstraintTransformComponentFlags::ChildPosition))
+	{
+		SetRefPosition(EConstraintFrame::Frame1, ChildTransform.GetLocation());
+	}
+
+	if (EnumHasAnyFlags(SnapFlags, EConstraintTransformComponentFlags::ChildRotation))
+	{
+		SetRefOrientation(EConstraintFrame::Frame1, ChildTransform.GetUnitAxis(EAxis::X), ChildTransform.GetUnitAxis(EAxis::Y));
+	}
+
+	if (EnumHasAnyFlags(SnapFlags, EConstraintTransformComponentFlags::ParentPosition))
+	{
+		SetRefPosition(EConstraintFrame::Frame2, ParentTransform.GetLocation());
+	}
+
+	if (EnumHasAnyFlags(SnapFlags, EConstraintTransformComponentFlags::ParentRotation))
+	{
+		SetRefOrientation(EConstraintFrame::Frame2, ParentTransform.GetUnitAxis(EAxis::X), ParentTransform.GetUnitAxis(EAxis::Y));
+	}
+}
+
+#endif // WITH_EDITORONLY_DATA
 
 /** Constructor **/
 FConstraintInstanceBase::FConstraintInstanceBase()

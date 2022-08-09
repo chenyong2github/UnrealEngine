@@ -244,18 +244,12 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 				// create joint to parent body
 				if (Params.bCreateConstraints)
 				{
-					// Transform of child from parent is just child ref-pose entry.
-					FTransform RelTM = FTransform::Identity;
-
 					int32 ParentIndex = BoneIndex;
 					int32 ParentBodyIndex = INDEX_NONE;
 					FName ParentName;
 
 					do
 					{
-						// Transform of child from parent is just child ref-pose entry.
-						RelTM = RelTM * LocalPose[ParentIndex];
-
 						//Travel up the hierarchy to find a parent which has a valid body
 						ParentIndex = SkelMesh->GetRefSkeleton().GetParentIndex(ParentIndex);
 						if(ParentIndex != INDEX_NONE)
@@ -284,14 +278,8 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 
 						// Place joint at origin of child
 						CS->DefaultInstance.ConstraintBone1 = BoneName;
-						CS->DefaultInstance.Pos1 = FVector::ZeroVector;
-						CS->DefaultInstance.PriAxis1 = FVector(1, 0, 0);
-						CS->DefaultInstance.SecAxis1 = FVector(0, 1, 0);
-
 						CS->DefaultInstance.ConstraintBone2 = ParentName;
-						CS->DefaultInstance.Pos2 = RelTM.GetLocation();
-						CS->DefaultInstance.PriAxis2 = RelTM.GetUnitAxis(EAxis::X);
-						CS->DefaultInstance.SecAxis2 = RelTM.GetUnitAxis(EAxis::Y);
+						CS->DefaultInstance.SnapTransformsToDefault(EConstraintTransformComponentFlags::All, PhysicsAsset);
 
 						CS->SetDefaultProfile(CS->DefaultInstance);
 

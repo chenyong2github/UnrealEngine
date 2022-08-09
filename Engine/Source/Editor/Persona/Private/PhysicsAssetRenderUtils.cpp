@@ -45,6 +45,8 @@ FTransform GetConstraintMatrix(const USkeletalMeshComponent* const SkeletalMeshC
 FPhysicsAssetRenderSettings::FPhysicsAssetRenderSettings()
 	: CollisionViewMode(EPhysicsAssetEditorCollisionViewMode::Solid)
 	, ConstraintViewMode(EPhysicsAssetEditorConstraintViewMode::AllLimits)
+	, ConstraintViewportManipulationFlags(EConstraintTransformComponentFlags::All)
+	, ConstraintTransformComponentDisplayRelativeToDefaultFlags(EConstraintTransformComponentFlags::None)
 	, ConstraintDrawSize(1.0f)
 	, PhysicsBlend(1.0f)
 	, bHideKinematicBodies(false)
@@ -228,6 +230,21 @@ void FPhysicsAssetRenderSettings::SetHiddenConstraints(const TArray<int32>& InHi
 {
 	HiddenConstraints.Reset();
 	HiddenConstraints.Append(InHiddenConstraints);
+}
+
+EConstraintTransformComponentFlags FPhysicsAssetRenderSettings::GetConstraintViewportManipulationFlags() const
+{
+	return ConstraintViewportManipulationFlags;
+}
+
+bool FPhysicsAssetRenderSettings::IsDisplayingConstraintTransformComponentRelativeToDefault(const EConstraintTransformComponentFlags ComponentFlags) const
+{
+	return EnumHasAllFlags(ConstraintTransformComponentDisplayRelativeToDefaultFlags, ComponentFlags);
+}
+
+void FPhysicsAssetRenderSettings::SetDisplayConstraintTransformComponentRelativeToDefault(const EConstraintTransformComponentFlags ComponentFlags, const bool bShouldDisplayRelativeToDefault)
+{
+	ConstraintTransformComponentDisplayRelativeToDefaultFlags = (bShouldDisplayRelativeToDefault) ? (ConstraintTransformComponentDisplayRelativeToDefaultFlags | ComponentFlags) : (ConstraintTransformComponentDisplayRelativeToDefaultFlags & ~ComponentFlags);
 }
 
 void FPhysicsAssetRenderSettings::ResetEditorViewportOptions()
@@ -718,6 +735,34 @@ bool FPhysicsAssetRenderInterface::AreAnyConstraintsHidden(class UPhysicsAsset* 
 	}
 
 	return false;
+}
+
+EConstraintTransformComponentFlags FPhysicsAssetRenderInterface::GetConstraintViewportManipulationFlags(class UPhysicsAsset* const PhysicsAsset)
+{
+	if (FPhysicsAssetRenderSettings* PhysicsAssetRenderSettings = UPhysicsAssetRenderUtilities::GetSettings(PhysicsAsset))
+	{
+		return PhysicsAssetRenderSettings->GetConstraintViewportManipulationFlags();
+	}
+
+	return EConstraintTransformComponentFlags::None;
+}
+
+bool FPhysicsAssetRenderInterface::IsDisplayingConstraintTransformComponentRelativeToDefault(class UPhysicsAsset* const PhysicsAsset, const EConstraintTransformComponentFlags ComponentFlags)
+{
+	if (FPhysicsAssetRenderSettings* PhysicsAssetRenderSettings = UPhysicsAssetRenderUtilities::GetSettings(PhysicsAsset))
+	{
+		return PhysicsAssetRenderSettings->IsDisplayingConstraintTransformComponentRelativeToDefault(ComponentFlags);
+	}
+
+	return false;
+}
+
+void FPhysicsAssetRenderInterface::SetDisplayConstraintTransformComponentRelativeToDefault(class UPhysicsAsset* const PhysicsAsset, const EConstraintTransformComponentFlags ComponentFlags, const bool bShouldDisplayRelativeToDefault)
+{
+	if (FPhysicsAssetRenderSettings* PhysicsAssetRenderSettings = UPhysicsAssetRenderUtilities::GetSettings(PhysicsAsset))
+	{
+		PhysicsAssetRenderSettings->SetDisplayConstraintTransformComponentRelativeToDefault(ComponentFlags, bShouldDisplayRelativeToDefault);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

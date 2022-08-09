@@ -923,7 +923,27 @@ void FPhysicsAssetEditor::BindCommands()
 
 	ToolkitCommands->MapAction(
 		Commands.SnapConstraint,
-		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSnapConstraint),
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSnapConstraint, EConstraintTransformComponentFlags::All),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::HasSelectedConstraintAndIsNotSimulation));
+
+	ToolkitCommands->MapAction(
+		Commands.SnapConstraintChildPosition,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSnapConstraint, EConstraintTransformComponentFlags::ChildPosition),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::HasSelectedConstraintAndIsNotSimulation));
+
+	ToolkitCommands->MapAction(
+		Commands.SnapConstraintChildOrientation,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSnapConstraint, EConstraintTransformComponentFlags::ChildRotation),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::HasSelectedConstraintAndIsNotSimulation));
+
+	ToolkitCommands->MapAction(
+		Commands.SnapConstraintParentPosition,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSnapConstraint, EConstraintTransformComponentFlags::ParentPosition),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::HasSelectedConstraintAndIsNotSimulation));
+
+	ToolkitCommands->MapAction(
+		Commands.SnapConstraintParentOrientation,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSnapConstraint, EConstraintTransformComponentFlags::ParentRotation),
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::HasSelectedConstraintAndIsNotSimulation));
 
 	ToolkitCommands->MapAction(
@@ -1533,11 +1553,26 @@ void FPhysicsAssetEditor::BuildMenuWidgetConstraint(FMenuBuilder& InMenuBuilder)
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.ConvertToSkeletal);
 				InSubMenuBuilder.EndSection();
 			}
+
+			static void FillSnapMenu(FMenuBuilder& InSubMenuBuilder)
+			{
+				const FPhysicsAssetEditorCommands& PhysicsAssetEditorCommands = FPhysicsAssetEditorCommands::Get();
+
+				InSubMenuBuilder.BeginSection("SnapHeader", LOCTEXT("SnapHeader", "Snap"));
+				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.SnapConstraint);
+				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.SnapConstraintChildPosition);
+				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.SnapConstraintChildOrientation);
+				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.SnapConstraintParentPosition);
+				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.SnapConstraintParentOrientation);
+				InSubMenuBuilder.EndSection();
+			}
 		};
 
 		InMenuBuilder.BeginSection("EditTypeActions", LOCTEXT("ConstraintEditTypeHeader", "Edit"));
 
-		InMenuBuilder.AddMenuEntry(Commands.SnapConstraint);
+		InMenuBuilder.AddSubMenu(LOCTEXT("SnapMenu", "Snap"), LOCTEXT("SnapMenu_ToolTip", "Set constraint transforms to defaults"),
+			FNewMenuDelegate::CreateStatic(&FLocal::FillSnapMenu));
+
 		InMenuBuilder.AddMenuEntry(Commands.ResetConstraint);
 		
 		InMenuBuilder.AddSubMenu( LOCTEXT("AxesAndLimitsMenu", "Axes and Limits"), LOCTEXT("AxesAndLimitsMenu_ToolTip", "Edit axes and limits of this constraint"),
@@ -2732,13 +2767,13 @@ void FPhysicsAssetEditor::OnResetConstraint()
 	RefreshPreviewViewport();
 }
 
-void FPhysicsAssetEditor::OnSnapConstraint()
+void FPhysicsAssetEditor::OnSnapConstraint(const EConstraintTransformComponentFlags ComponentFlags)
 {
 	const FScopedTransaction Transaction( LOCTEXT( "SnapConstraints", "Snap Constraints" ) );
 
 	for(int32 i=0; i<SharedData->SelectedConstraints.Num(); ++i)
 	{
-		SnapConstraintToBone(&SharedData->SelectedConstraints[i]);
+		SharedData->SnapConstraintToBone(SharedData->SelectedConstraints[i].Index, ComponentFlags);
 	}
 	
 	RefreshPreviewViewport();

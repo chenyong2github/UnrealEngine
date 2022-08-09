@@ -83,6 +83,10 @@ public:
 	TSharedPtr<FUICommandInfo> ConstrainChildBodiesToParentBody;
 	TSharedPtr<FUICommandInfo> ResetConstraint;
 	TSharedPtr<FUICommandInfo> SnapConstraint;
+	TSharedPtr<FUICommandInfo> SnapConstraintChildPosition;
+	TSharedPtr<FUICommandInfo> SnapConstraintChildOrientation;
+	TSharedPtr<FUICommandInfo> SnapConstraintParentPosition;
+	TSharedPtr<FUICommandInfo> SnapConstraintParentOrientation;
 	TSharedPtr<FUICommandInfo> ConvertToBallAndSocket;
 	TSharedPtr<FUICommandInfo> ConvertToHinge;
 	TSharedPtr<FUICommandInfo> ConvertToPrismatic;

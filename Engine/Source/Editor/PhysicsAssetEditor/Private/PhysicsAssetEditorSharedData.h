@@ -112,12 +112,12 @@ public:
     {
         SetConstraintRelTM(GetSelectedConstraint(), RelTM);
     }
-	
+
 	/** Snaps a constraint at the specified index to it's bone */
-	void SnapConstraintToBone(int32 ConstraintIndex);
+	void SnapConstraintToBone(const int32 ConstraintIndex, const EConstraintTransformComponentFlags ComponentFlags = EConstraintTransformComponentFlags::All);
 
 	/** Snaps the specified constraint to it's bone */
-	void SnapConstraintToBone(FConstraintInstance& ConstraintInstance);
+	void SnapConstraintToBone(FConstraintInstance& ConstraintInstance, const EConstraintTransformComponentFlags ComponentFlags = EConstraintTransformComponentFlags::All);
 
 	/** Deletes the currently selected constraints */
 	void DeleteCurrentConstraint();

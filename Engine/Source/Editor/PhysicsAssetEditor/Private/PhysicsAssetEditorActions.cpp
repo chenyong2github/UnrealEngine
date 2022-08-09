@@ -70,7 +70,11 @@ void FPhysicsAssetEditorCommands::RegisterCommands()
 	UI_COMMAND(DuplicatePrimitive, "Duplicate", "Duplicate Selected Primitive(s)", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ConstrainChildBodiesToParentBody, "Constrain selected bodies", "Create a constraint between all selected bodies as children and the last selected body as parent", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::Y));
 	UI_COMMAND(ResetConstraint, "Reset", "Reset Constraint", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt, EKeys::P));
-	UI_COMMAND(SnapConstraint, "Snap", "Snap Constraint Translation To Bone", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::P));
+	UI_COMMAND(SnapConstraint, "Snap All Transforms", "Snap Constraint Transforms To Bone", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::P));
+	UI_COMMAND(SnapConstraintChildPosition, "Snap Child Position", "Snap Constraint Child Positions To Bone", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SnapConstraintChildOrientation, "Snap Child Rotation", "Snap Constraint Child Rotations To Bone", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SnapConstraintParentPosition, "Snap Parent Position", "Snap Constraint Parent Positions To Bone", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SnapConstraintParentOrientation, "Snap Parent Rotation", "Snap Constraint Parent Rotations To Bone", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ConvertToBallAndSocket, "To Ball & Socket", "Convert Selected Constraint To Ball-And-Socket", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ConvertToHinge, "To Hinge", "Convert Selected Constraint To Hinge", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ConvertToPrismatic, "To Prismatic", "Convert Selected Constraint To Prismatic", EUserInterfaceActionType::Button, FInputChord());

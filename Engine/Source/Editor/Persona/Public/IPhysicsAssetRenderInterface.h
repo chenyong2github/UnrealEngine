@@ -6,6 +6,8 @@
 #include "Features/IModularFeature.h"
 #include "Modules/ModuleInterface.h"
 
+enum class EConstraintTransformComponentFlags : uint8;
+
 class IPhysicsAssetRenderInterface : public IModuleInterface, public IModularFeature
 {
 	// virtual ~IPhysicsAssetRenderInterface() = default;
@@ -22,4 +24,8 @@ public:
 	virtual void ToggleShowAllConstraints(class UPhysicsAsset* const PhysicsAsset) = 0;
 	virtual bool AreAnyBodiesHidden(class UPhysicsAsset* const PhysicsAsset) = 0;
 	virtual bool AreAnyConstraintsHidden(class UPhysicsAsset* const PhysicsAsset) = 0;
+
+	virtual EConstraintTransformComponentFlags GetConstraintViewportManipulationFlags(class UPhysicsAsset* const PhysicsAsset) = 0;
+	virtual bool IsDisplayingConstraintTransformComponentRelativeToDefault(class UPhysicsAsset* const PhysicsAsset, const EConstraintTransformComponentFlags ComponentFlags) = 0;
+	virtual void SetDisplayConstraintTransformComponentRelativeToDefault(class UPhysicsAsset* const PhysicsAsset, const EConstraintTransformComponentFlags ComponentFlags, const bool bShouldDisplayRelativeToDefault) = 0;
 };

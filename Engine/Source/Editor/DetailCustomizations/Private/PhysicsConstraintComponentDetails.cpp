@@ -18,19 +18,669 @@
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "IDetailGroup.h"
 #include "IDetailPropertyRow.h"
 #include "DetailCategoryBuilder.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathUtility.h"
+#include "PhysicsAssetRenderUtils.h"
 #include "PhysicsEngine/ConstraintTypes.h"
 #include "PhysicsEngine/ConstraintDrives.h"
-#include "PhysicsEngine/ConstraintInstance.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
+#include "VectorUtil.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Text/SRichTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "PhysicsConstraintComponentDetails"
+
+namespace ConstraintCopyPasteStringTokens
+{
+	static const FString Position = "Position";
+	static const FString Rotation = "Rotation";
+};
+
+// File scope utility functions.
+
+bool IsNearlyEqual(const FVector A, const FVector B, float ErrorTolerance)
+{
+	return FMath::IsNearlyEqual(A.X, B.X, ErrorTolerance) && FMath::IsNearlyEqual(A.Y, B.Y, ErrorTolerance) && FMath::IsNearlyEqual(A.Z, B.Z, ErrorTolerance);
+}
+
+template< typename TPropertyValueType > bool IsChildPropertyNearlyEqual(TSharedPtr<IPropertyHandle> ParentPropertyHandle, const FName& LhsPropertyName, const TPropertyValueType& RhsValue)
+{
+	if (ParentPropertyHandle.IsValid())
+	{
+		TSharedPtr<IPropertyHandle> LhsPropertyHandle = ParentPropertyHandle->GetChildHandle(LhsPropertyName);
+
+		if (LhsPropertyHandle.IsValid())
+		{
+			TPropertyValueType LhsValue;
+			LhsPropertyHandle->GetValue(LhsValue);
+
+			return IsNearlyEqual(LhsValue, RhsValue, SMALL_NUMBER);
+		}
+	}
+
+	return false;
+}
+
+// Class FOrthonormalVectorPairStructCustomization.
+FConstraintTransformCustomization::FConstraintTransformCustomization()
+	: CachedRotation(MakeShareable(new TProxyValue<FRotator>(FRotator::ZeroRotator)))
+	, CachedRotationYaw(MakeShareable(new TProxyProperty<FRotator, FRotator::FReal>(CachedRotation, CachedRotation->Get().Yaw)))
+	, CachedRotationPitch(MakeShareable(new TProxyProperty<FRotator, FRotator::FReal>(CachedRotation, CachedRotation->Get().Pitch)))
+	, CachedRotationRoll(MakeShareable(new TProxyProperty<FRotator, FRotator::FReal>(CachedRotation, CachedRotation->Get().Roll)))
+	, CachedPosition(MakeShareable(new TProxyValue<FVector>(FVector::ZeroVector)))
+	, CachedPositionX(MakeShareable(new TProxyProperty<FVector, FRotator::FReal>(CachedPosition, CachedPosition->Get().X)))
+	, CachedPositionY(MakeShareable(new TProxyProperty<FVector, FRotator::FReal>(CachedPosition, CachedPosition->Get().Y)))
+	, CachedPositionZ(MakeShareable(new TProxyProperty<FVector, FRotator::FReal>(CachedPosition, CachedPosition->Get().Z)))
+	, DefaultTransform(FTransform::Identity)
+	, InverseDefaultTransform(FTransform::Identity)
+	, bPositionDisplayRelativeToDefault(false)
+	, bRotationDisplayRelativeToDefault(false)
+{}
+
+TSharedRef<IPropertyTypeCustomization> FConstraintTransformCustomization::MakeInstance()
+{
+	return MakeShareable(new FConstraintTransformCustomization);
+}
+
+void FConstraintTransformCustomization::MakeRotationRow(TSharedRef<class IPropertyHandle>& InPriAxisPropertyHandle, TSharedRef<class IPropertyHandle>& InSecAxisPropertyHandle, FDetailWidgetRow& Row, TSharedRef<SWidget> EditSpaceToggleButtonWidget)
+{
+	TWeakPtr<IPropertyHandle> WeakPriAxisHandlePtr = InPriAxisPropertyHandle;
+	TWeakPtr<IPropertyHandle> WeakSecAxisHandlePtr = InSecAxisPropertyHandle;
+
+	const FText ComponentToolTipFormatText = LOCTEXT("ConstraintTransformRotationToolTip", "{0} component of the constraint rotation relative to the {1} bone (in degrees).");
+
+	Row
+	.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FConstraintTransformCustomization::OnCopyRotation, WeakPriAxisHandlePtr, WeakSecAxisHandlePtr)))
+	.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FConstraintTransformCustomization::OnPasteRotation, WeakPriAxisHandlePtr, WeakSecAxisHandlePtr)))
+	.NameContent()
+	.HAlign(HAlign_Fill)
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+		[
+			InPriAxisPropertyHandle->CreatePropertyNameWidget(LOCTEXT("RotationLabel", "Rotation"), FText::Format(LOCTEXT("RotationToolTip", "Constraint rotation relative to the {0} bone (in degrees)."), FrameLabelText))
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
+		[
+			EditSpaceToggleButtonWidget
+		]
+	]
+	.ValueContent()
+	.MinDesiredWidth(375.0f)
+	.MaxDesiredWidth(375.0f)
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.Padding(FMargin(0.0f, 2.0f, 3.0f, 2.0f))
+		[
+			MakeNumericProxyWidget<FRotator, FRotator::FReal>(InPriAxisPropertyHandle, InSecAxisPropertyHandle, CachedRotationRoll, FText::Format(ComponentToolTipFormatText, LOCTEXT("RotationRoll", "Roll (X)"), FrameLabelText), true, SNumericEntryBox<FRotator::FReal>::RedLabelBackgroundColor)
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(FMargin(0.0f, 2.0f, 3.0f, 2.0f))
+		[
+			MakeNumericProxyWidget<FRotator, FRotator::FReal>(InPriAxisPropertyHandle, InSecAxisPropertyHandle, CachedRotationPitch, FText::Format(ComponentToolTipFormatText, LOCTEXT("RotationPitch", "Pitch (Y)"), FrameLabelText), true, SNumericEntryBox<FRotator::FReal>::GreenLabelBackgroundColor)
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(FMargin(0.0f, 2.0f, 0.0f, 2.0f))
+		[
+			MakeNumericProxyWidget<FRotator, FRotator::FReal>(InPriAxisPropertyHandle, InSecAxisPropertyHandle, CachedRotationYaw, FText::Format(ComponentToolTipFormatText, LOCTEXT("RotationYaw", "Yaw (Z)"), FrameLabelText), true, SNumericEntryBox<FRotator::FReal>::BlueLabelBackgroundColor)
+		]
+	];
+}
+
+void FConstraintTransformCustomization::MakePositionRow(TSharedRef<class IPropertyHandle>& InPositionPropertyHandle, FDetailWidgetRow& Row, TSharedRef<SWidget> EditSpaceToggleButtonWidget)
+{
+	TWeakPtr<IPropertyHandle> WeakPositionHandlePtr = InPositionPropertyHandle;
+
+	const FText ComponentToolTipFormatText = LOCTEXT("ConstraintTransformPositionToolTip", "{0} component of the constraint position relative to the {1} bone.");
+
+	Row
+	.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FConstraintTransformCustomization::OnCopyPosition, WeakPositionHandlePtr)))
+	.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FConstraintTransformCustomization::OnPastePosition, WeakPositionHandlePtr)))
+	.NameContent()
+	.HAlign(HAlign_Fill)
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+		[
+			InPositionPropertyHandle->CreatePropertyNameWidget(LOCTEXT("PositionLabel", "Position"), FText::Format(LOCTEXT("PositionToolTip", "Constraint position relative to the {0} bone."), FrameLabelText))
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
+		[
+			EditSpaceToggleButtonWidget
+		]
+	]
+	.ValueContent()
+	.MinDesiredWidth(375.0f)
+	.MaxDesiredWidth(375.0f)
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.Padding(FMargin(0.0f, 2.0f, 3.0f, 2.0f))
+		[
+			MakeNumericProxyWidget<FVector, FVector::FReal>(InPositionPropertyHandle, CachedPositionX, FText::Format(ComponentToolTipFormatText, LOCTEXT("PositionX", "X"), FrameLabelText), SNumericEntryBox<FRotator::FReal>::RedLabelBackgroundColor)
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(FMargin(0.0f, 2.0f, 3.0f, 2.0f))
+		[
+			MakeNumericProxyWidget<FVector, FVector::FReal>(InPositionPropertyHandle, CachedPositionY, FText::Format(ComponentToolTipFormatText, LOCTEXT("PositionY", "Y"), FrameLabelText), SNumericEntryBox<FRotator::FReal>::GreenLabelBackgroundColor)
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(FMargin(0.0f, 2.0f, 0.0f, 2.0f))
+		[
+			MakeNumericProxyWidget<FVector, FVector::FReal>(InPositionPropertyHandle, CachedPositionZ, FText::Format(ComponentToolTipFormatText, LOCTEXT("PositionY", "Z"), FrameLabelText), SNumericEntryBox<FRotator::FReal>::BlueLabelBackgroundColor)
+		]
+	];
+}
+
+void FConstraintTransformCustomization::OrthonormalVectorPairToDisplayedRotator(const FVector& PriAxis, const FVector& SecAxis, FRotator& OutRotator) const
+{
+	FMatrix Rotation = FRotationMatrix::MakeFromXY(PriAxis, SecAxis);
+
+	// If rotation should be displayed relative to default then transform it from bone space.
+	if (bRotationDisplayRelativeToDefault)
+	{
+		Rotation = Rotation * InverseDefaultTransform.ToMatrixNoScale();
+	}
+
+	OutRotator = Rotation.Rotator();
+}
+
+void FConstraintTransformCustomization::DisplayedRotatorToOrthonormalVectorPair(const FRotator& InRotator, FVector& OutPriAxis, FVector& OutSecAxis) const
+{
+	FMatrix Rotation = FRotationMatrix::Make(InRotator);
+
+	// If rotation is displayed relative to default then transform it back to bone space.
+	if (bRotationDisplayRelativeToDefault)
+	{
+		Rotation = Rotation * DefaultTransform.ToMatrixNoScale();
+	}
+
+	OutPriAxis = Rotation.GetUnitAxis(EAxis::X);
+	OutSecAxis = Rotation.GetUnitAxis(EAxis::Y);
+}
+
+bool FConstraintTransformCustomization::CacheValues(TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr) const
+{
+	TSharedPtr<IPropertyHandle> PositionPropertyHandle = PositionPropertyHandlePtr.Pin();
+
+	if (!PositionPropertyHandle.IsValid())
+	{
+		return false;
+	}
+
+	FVector Position;
+
+	if (PositionPropertyHandle->GetValue(Position) == FPropertyAccess::Success)
+	{
+		if (bPositionDisplayRelativeToDefault)
+		{
+			Position = InverseDefaultTransform.TransformPosition(Position);
+		}
+
+		CachedPosition->Set(Position);
+		CachedPositionX->Set(Position.X);
+		CachedPositionY->Set(Position.Y);
+		CachedPositionZ->Set(Position.Z);
+
+		return true;
+	}
+
+	return false;
+}
+
+bool FConstraintTransformCustomization::CacheValues(TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr) const
+{
+	TSharedPtr<IPropertyHandle> PriAxisPropertyHandle = PriAxisPropertyHandlePtr.Pin();
+	TSharedPtr<IPropertyHandle> SecAxisPropertyHandle = SecAxisPropertyHandlePtr.Pin();
+
+	if (!PriAxisPropertyHandle.IsValid() || !SecAxisPropertyHandle.IsValid())
+	{
+		return false;
+	}
+
+	FVector PriAxis;
+	FVector SecAxis;
+
+	if ((PriAxisPropertyHandle->GetValue(PriAxis) == FPropertyAccess::Success) && (SecAxisPropertyHandle->GetValue(SecAxis) == FPropertyAccess::Success))
+	{
+		FRotator CurrentRotation;
+		OrthonormalVectorPairToDisplayedRotator(PriAxis, SecAxis, CurrentRotation);
+
+		CachedRotation->Set(CurrentRotation);
+		CachedRotationPitch->Set(CurrentRotation.Pitch);
+		CachedRotationYaw->Set(CurrentRotation.Yaw);
+		CachedRotationRoll->Set(CurrentRotation.Roll);
+
+		return true;
+	}
+
+	return false;
+}
+
+bool FConstraintTransformCustomization::FlushValues(TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr) const
+{
+	// Update the constraint position from the one displayed in the details panel.
+
+	TSharedPtr<IPropertyHandle> PositionPropertyHandle = PositionPropertyHandlePtr.Pin();
+
+	if (!PositionPropertyHandle.IsValid())
+	{
+		return false;
+	}
+
+	// Read position from the property
+	FVector Position;
+	PositionPropertyHandle->GetValue(Position);
+
+	// Update position with any changes from the UI.
+	FVector ModifiedPosition(
+		CachedPositionX->IsSet() ? CachedPositionX->Get() : Position.X,
+		CachedPositionY->IsSet() ? CachedPositionY->Get() : Position.Y,
+		CachedPositionZ->IsSet() ? CachedPositionZ->Get() : Position.Z
+	);
+
+	// If position is displayed relative to default then transform it back to bone space.
+	if (bPositionDisplayRelativeToDefault)
+	{
+		ModifiedPosition = DefaultTransform.TransformPosition(ModifiedPosition);
+	}
+
+	// Write back to the property.
+	return PositionPropertyHandle->SetValue(ModifiedPosition) == FPropertyAccess::Success;
+}
+
+bool FConstraintTransformCustomization::FlushValues(TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr) const
+{
+	// Update the constraint rotation from the one displayed in the details panel.
+
+	TSharedPtr<IPropertyHandle> PriAxisPropertyHandle = PriAxisPropertyHandlePtr.Pin();
+	TSharedPtr<IPropertyHandle> SecAxisPropertyHandle = SecAxisPropertyHandlePtr.Pin();
+
+	if (!PriAxisPropertyHandle.IsValid() || !SecAxisPropertyHandle.IsValid())
+	{
+		return false;
+	}
+
+	FVector PriAxis;
+	FVector SecAxis;
+	PriAxisPropertyHandle->GetValue(PriAxis);
+	SecAxisPropertyHandle->GetValue(SecAxis);
+	
+	FRotator CurrentRotation;
+	OrthonormalVectorPairToDisplayedRotator(PriAxis, SecAxis, CurrentRotation);
+
+	FRotator Rotation(
+		CachedRotationPitch->IsSet() ? CachedRotationPitch->Get() : CurrentRotation.Pitch,
+		CachedRotationYaw->IsSet() ? CachedRotationYaw->Get() : CurrentRotation.Yaw,
+		CachedRotationRoll->IsSet() ? CachedRotationRoll->Get() : CurrentRotation.Roll
+	);
+
+	DisplayedRotatorToOrthonormalVectorPair(Rotation, PriAxis, SecAxis);
+
+	bool Success = true;
+	Success &= (PriAxisPropertyHandle->SetValue(PriAxis) == FPropertyAccess::Result::Success);
+	Success &= (SecAxisPropertyHandle->SetValue(SecAxis) == FPropertyAccess::Result::Success);
+
+	return Success;
+}
+
+void FConstraintTransformCustomization::SetDefaultTransform(const FTransform& InTransform, TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr, TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr)
+{ 
+	DefaultTransform = InTransform;
+	InverseDefaultTransform = InTransform.Inverse();
+
+	CacheValues(PositionPropertyHandlePtr);
+	CacheValues(PriAxisPropertyHandlePtr, SecAxisPropertyHandlePtr); // Update display values from actual properties (which as always stored as absolutes).
+}
+
+void FConstraintTransformCustomization::GetPositionAsFormattedString(FString& OutString)
+{
+	FVector Position = CachedPosition->Get();
+	OutString = FString::Printf(TEXT("(X=%f,Y=%f,Z=%f)"), Position.X, Position.Y, Position.Z);
+}
+
+void FConstraintTransformCustomization::GetRotationAsFormattedString(FString& OutString)
+{
+	FRotator Rotation = CachedRotation->Get();
+	OutString = FString::Printf(TEXT("(Pitch=%f,Yaw=%f,Roll=%f)"), Rotation.Pitch, Rotation.Yaw, Rotation.Roll);
+}
+
+void FConstraintTransformCustomization::GetValueAsFormattedString(FString& OutString)
+{
+	FString Buffer;
+	GetPositionAsFormattedString(Buffer);
+	OutString += ConstraintCopyPasteStringTokens::Position + Buffer;
+	Buffer.Reset();
+	GetRotationAsFormattedString(Buffer);
+	OutString += ConstraintCopyPasteStringTokens::Rotation + Buffer;
+}
+
+bool FConstraintTransformCustomization::SetPositionFromFormattedString(const FString& InString)
+{
+	FVector Position;
+
+	if (Position.InitFromString(InString))
+	{
+		CachedPosition->Set(Position);
+		CachedPositionX->Set(Position.X);
+		CachedPositionY->Set(Position.Y);
+		CachedPositionZ->Set(Position.Z);
+
+		return true;
+	}
+
+	return false;
+}
+
+bool FConstraintTransformCustomization::SetRotationFromFormattedString(const FString& InString)
+{
+	FString MutableString = InString;
+
+	FRotator Rotation;
+	MutableString.ReplaceInline(TEXT("Pitch="), TEXT("P="));
+	MutableString.ReplaceInline(TEXT("Yaw="), TEXT("Y="));
+	MutableString.ReplaceInline(TEXT("Roll="), TEXT("R="));
+
+	if (Rotation.InitFromString(MutableString))
+	{
+		CachedRotation->Set(Rotation);
+		CachedRotationPitch->Set(Rotation.Pitch);
+		CachedRotationYaw->Set(Rotation.Yaw);
+		CachedRotationRoll->Set(Rotation.Roll);
+
+		return true;
+	}
+
+	return false;
+}
+
+bool FConstraintTransformCustomization::SetValueFromFormattedString(const FString& InString)
+{
+	bool Success = true;
+
+	FString FormattedString = InString;
+	FString SubString;
+	
+	FormattedString.Split(ConstraintCopyPasteStringTokens::Rotation, &FormattedString, &SubString);
+	Success &= SetRotationFromFormattedString(SubString);
+
+	FormattedString.Split(ConstraintCopyPasteStringTokens::Position, &FormattedString, &SubString);
+	Success &= SetPositionFromFormattedString(SubString);
+
+	return Success;
+}
+
+void FConstraintTransformCustomization::OnCopy(TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr, TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr)
+{
+	TSharedPtr<IPropertyHandle> PositionPropertyHandle = PositionPropertyHandlePtr.Pin();
+	TSharedPtr<IPropertyHandle> PriAxisPropertyHandle = PriAxisPropertyHandlePtr.Pin();
+	TSharedPtr<IPropertyHandle> SecAxisPropertyHandle = SecAxisPropertyHandlePtr.Pin();
+
+	if (!PositionPropertyHandle.IsValid() || !PriAxisPropertyHandle.IsValid() || !SecAxisPropertyHandle.IsValid())
+	{
+		return;
+	}
+
+	CacheValues(PositionPropertyHandle);
+	CacheValues(PriAxisPropertyHandle, SecAxisPropertyHandle);
+
+	FString CopyStr;
+	GetValueAsFormattedString(CopyStr);
+
+	if (!CopyStr.IsEmpty())
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*CopyStr);
+	}
+}
+
+void FConstraintTransformCustomization::OnPaste(TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr, TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr)
+{
+	TSharedPtr<IPropertyHandle> PositionPropertyHandle = PositionPropertyHandlePtr.Pin();
+	TSharedPtr<IPropertyHandle> PriAxisPropertyHandle = PriAxisPropertyHandlePtr.Pin();
+	TSharedPtr<IPropertyHandle> SecAxisPropertyHandle = SecAxisPropertyHandlePtr.Pin();
+
+	if (!PositionPropertyHandle.IsValid() || !PriAxisPropertyHandle.IsValid() || !SecAxisPropertyHandle.IsValid())
+	{
+		return;
+	}
+
+	FString PastedText;
+	FPlatformApplicationMisc::ClipboardPaste(PastedText);
+
+	{
+		FScopedTransaction Transaction(LOCTEXT("PastePosition", "Paste Position"));
+		SetValueFromFormattedString(PastedText);
+		FlushValues(PriAxisPropertyHandle, SecAxisPropertyHandle);
+		FlushValues(PositionPropertyHandle);
+	}
+}
+
+void FConstraintTransformCustomization::OnCopyPosition(TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr)
+{
+	TSharedPtr<IPropertyHandle> PositionPropertyHandle = PositionPropertyHandlePtr.Pin();
+
+	if (!PositionPropertyHandle.IsValid())
+	{
+		return;
+	}
+
+	CacheValues(PositionPropertyHandle);
+
+	FString CopyStr;
+	GetPositionAsFormattedString(CopyStr);
+
+	if (!CopyStr.IsEmpty())
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*CopyStr);
+	}
+}
+
+void FConstraintTransformCustomization::OnCopyRotation(TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr)
+{
+	TSharedPtr<IPropertyHandle> PriAxisPropertyHandle = PriAxisPropertyHandlePtr.Pin();
+	TSharedPtr<IPropertyHandle> SecAxisPropertyHandle = SecAxisPropertyHandlePtr.Pin();
+
+	if (!PriAxisPropertyHandle.IsValid() || !SecAxisPropertyHandle.IsValid())
+	{
+		return;
+	}
+
+	CacheValues(PriAxisPropertyHandle, SecAxisPropertyHandle);
+
+	FString CopyStr;
+	GetRotationAsFormattedString(CopyStr);
+
+	if (!CopyStr.IsEmpty())
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*CopyStr);
+	}
+}
+
+void FConstraintTransformCustomization::OnPastePosition(TWeakPtr<IPropertyHandle> PositionPropertyHandlePtr)
+{
+	TSharedPtr<IPropertyHandle> PositionPropertyHandle = PositionPropertyHandlePtr.Pin();
+
+	if (!PositionPropertyHandle.IsValid())
+	{
+		return;
+	}
+
+	FString PastedText;
+	FPlatformApplicationMisc::ClipboardPaste(PastedText);
+
+	{
+		FScopedTransaction Transaction(LOCTEXT("PastePosition", "Paste Position"));
+		SetPositionFromFormattedString(PastedText);
+		FlushValues(PositionPropertyHandle);
+	}
+}
+
+void FConstraintTransformCustomization::OnPasteRotation(TWeakPtr<IPropertyHandle> PriAxisPropertyHandlePtr, TWeakPtr<IPropertyHandle> SecAxisPropertyHandlePtr)
+{
+	TSharedPtr<IPropertyHandle> PriAxisPropertyHandle = PriAxisPropertyHandlePtr.Pin();
+	TSharedPtr<IPropertyHandle> SecAxisPropertyHandle = SecAxisPropertyHandlePtr.Pin();
+
+	if (!PriAxisPropertyHandle.IsValid() || !SecAxisPropertyHandle.IsValid())
+	{
+		return;
+	}
+
+	FString PastedText;
+	FPlatformApplicationMisc::ClipboardPaste(PastedText);
+	
+	{
+		FScopedTransaction Transaction(LOCTEXT("PasteRotation", "Paste Rotation"));
+		SetRotationFromFormattedString(PastedText);
+		FlushValues(PriAxisPropertyHandle, SecAxisPropertyHandle);
+	}
+}
+
+template<typename ProxyType, typename NumericType> TSharedRef<SWidget> FConstraintTransformCustomization::MakeNumericProxyWidget(TSharedRef<IPropertyHandle>& PriAxisPropertyHandle, TSharedRef<IPropertyHandle>& SecAxisPropertyHandle, TSharedRef< TProxyProperty<ProxyType, NumericType> >& ProxyValue, const FText& ToolTipText, bool bRotationInDegrees, const FLinearColor& LabelBackgroundColor)
+{
+	TWeakPtr<IPropertyHandle> WeakPriAxisHandlePtr = PriAxisPropertyHandle;
+	TWeakPtr<IPropertyHandle> WeakSecAxisHandlePtr = SecAxisPropertyHandle;
+
+	return
+		SNew(SNumericEntryBox<NumericType>)
+		.IsEnabled(this, &FConstraintTransformCustomization::IsRotationValueEnabled, WeakPriAxisHandlePtr, WeakSecAxisHandlePtr)
+		.Value(this, &FConstraintTransformCustomization::OnGetRotationValue<ProxyType, NumericType>, WeakPriAxisHandlePtr, WeakSecAxisHandlePtr, ProxyValue)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.UndeterminedString(NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values"))
+		.OnValueCommitted(this, &FConstraintTransformCustomization::OnRotationValueCommitted<ProxyType, NumericType>, WeakPriAxisHandlePtr, WeakSecAxisHandlePtr, ProxyValue)
+		.OnValueChanged(this, &FConstraintTransformCustomization::OnRotationValueChanged<ProxyType, NumericType>, WeakPriAxisHandlePtr, WeakSecAxisHandlePtr, ProxyValue)
+		.AllowSpin(false)
+		.MinValue(TOptional<NumericType>())
+		.MaxValue(TOptional<NumericType>())
+		.MaxSliderValue(bRotationInDegrees ? 360.0f : TOptional<NumericType>())
+		.MinSliderValue(bRotationInDegrees ? 0.0f : TOptional<NumericType>())
+		.LabelPadding(FMargin(3))
+		.ToolTipText(ToolTipText)
+		.LabelLocation(SNumericEntryBox<NumericType>::ELabelLocation::Inside)
+		.Label()
+		[
+			SNumericEntryBox<NumericType>::BuildNarrowColorLabel(LabelBackgroundColor)
+		];
+}
+
+template<typename ProxyType, typename NumericType> TSharedRef<SWidget> FConstraintTransformCustomization::MakeNumericProxyWidget(TSharedRef<IPropertyHandle>& PositionPropertyHandle, TSharedRef< TProxyProperty<ProxyType, NumericType> >& ProxyValue, const FText& ToolTipText, const FLinearColor& LabelBackgroundColor)
+{
+	TWeakPtr<IPropertyHandle> WeakPositionHandlePtr = PositionPropertyHandle;
+
+	return
+		SNew(SNumericEntryBox<NumericType>)
+		.IsEnabled(this, &FConstraintTransformCustomization::IsPositionValueEnabled, WeakPositionHandlePtr)
+		.Value(this, &FConstraintTransformCustomization::OnGetPositionValue<ProxyType, NumericType>, WeakPositionHandlePtr, ProxyValue)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.UndeterminedString(NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values"))
+		.OnValueCommitted(this, &FConstraintTransformCustomization::OnPositionValueCommitted<ProxyType, NumericType>, WeakPositionHandlePtr, ProxyValue)
+		.OnValueChanged(this, &FConstraintTransformCustomization::OnPositionValueChanged<ProxyType, NumericType>, WeakPositionHandlePtr, ProxyValue)
+		.AllowSpin(false)
+		.LabelPadding(FMargin(3))
+		.ToolTipText(ToolTipText)
+		.LabelLocation(SNumericEntryBox<NumericType>::ELabelLocation::Inside)
+		.Label()
+		[
+			SNumericEntryBox<NumericType>::BuildNarrowColorLabel(LabelBackgroundColor)
+		];
+}
+
+
+bool FConstraintTransformCustomization::IsRotationValueEnabled(TWeakPtr<IPropertyHandle> PriAxisWeakHandlePtr, TWeakPtr<IPropertyHandle> SecAxisWeakHandlePtr) const
+{
+	return (PriAxisWeakHandlePtr.IsValid() && !PriAxisWeakHandlePtr.Pin()->IsEditConst()) && (SecAxisWeakHandlePtr.IsValid() && !SecAxisWeakHandlePtr.Pin()->IsEditConst());
+}
+
+template<typename ProxyType, typename NumericType>
+TOptional<NumericType> FConstraintTransformCustomization::OnGetRotationValue(TWeakPtr<IPropertyHandle> PriAxisWeakHandlePtr, TWeakPtr<IPropertyHandle> SecAxisWeakHandlePtr, TSharedRef< TProxyProperty<ProxyType, NumericType> > ProxyValue) const
+{
+	if (CacheValues(PriAxisWeakHandlePtr, SecAxisWeakHandlePtr))
+	{
+		return ProxyValue->Get();
+	}
+	return TOptional<NumericType>();
+}
+
+template<typename ProxyType, typename NumericType>
+void FConstraintTransformCustomization::OnRotationValueCommitted(NumericType NewValue, ETextCommit::Type CommitType, TWeakPtr<IPropertyHandle> PriAxisWeakHandlePtr, TWeakPtr<IPropertyHandle> SecAxisWeakHandlePtr, TSharedRef< TProxyProperty<ProxyType, NumericType> > ProxyValue)
+{
+	if (!bIsUsingSlider && !GIsTransacting)
+	{
+		ProxyValue->Set(NewValue);
+		FlushValues(PriAxisWeakHandlePtr, SecAxisWeakHandlePtr);
+	}
+}
+
+template<typename ProxyType, typename NumericType>
+void FConstraintTransformCustomization::OnRotationValueChanged(NumericType NewValue, TWeakPtr<IPropertyHandle> PriAxisWeakHandlePtr, TWeakPtr<IPropertyHandle> SecAxisWeakHandlePtr, TSharedRef< TProxyProperty<ProxyType, NumericType> > ProxyValue)
+{
+	if (bIsUsingSlider)
+	{
+		ProxyValue->Set(NewValue);
+		FlushValues(PriAxisWeakHandlePtr, SecAxisWeakHandlePtr);
+	}
+}
+
+bool FConstraintTransformCustomization::IsPositionValueEnabled(TWeakPtr<IPropertyHandle> PositionWeakHandlePtr) const
+{
+	return (PositionWeakHandlePtr.IsValid() && !PositionWeakHandlePtr.Pin()->IsEditConst());
+}
+
+template<typename ProxyType, typename NumericType> TOptional<NumericType> FConstraintTransformCustomization::OnGetPositionValue(TWeakPtr<IPropertyHandle> PositionWeakHandlePtr, TSharedRef< TProxyProperty<ProxyType, NumericType> > ProxyValue) const
+{
+	if (CacheValues(PositionWeakHandlePtr))
+	{
+		return ProxyValue->Get();
+	}
+	return TOptional<NumericType>();
+}
+
+template<typename ProxyType, typename NumericType>
+void FConstraintTransformCustomization::OnPositionValueCommitted(NumericType NewValue, ETextCommit::Type CommitType, TWeakPtr<IPropertyHandle> PositionWeakHandlePtr, TSharedRef< TProxyProperty<ProxyType, NumericType> > ProxyValue)
+{
+	if (!GIsTransacting)
+	{
+		ProxyValue->Set(NewValue);
+		FlushValues(PositionWeakHandlePtr);
+	}
+}
+
+template<typename ProxyType, typename NumericType>
+void FConstraintTransformCustomization::OnPositionValueChanged(NumericType NewValue, TWeakPtr<IPropertyHandle> PositionWeakHandlePtr, TSharedRef< TProxyProperty<ProxyType, NumericType> > ProxyValue)
+{
+	ProxyValue->Set(NewValue);
+	FlushValues(PositionWeakHandlePtr);
+}
+
+void FConstraintTransformCustomization::SetFrameLabelText(const FText InText)
+{
+	FrameLabelText = InText;
+}
+
+FText& FConstraintTransformCustomization::GetFrameLabelText()
+{
+	return FrameLabelText;
+}
+
 namespace ConstraintDetails
 {
 	bool GetBoolProperty(TSharedPtr<IPropertyHandle> Prop)
@@ -156,9 +806,350 @@ namespace ConstraintDetails
 
 }
 
+FPhysicsConstraintComponentDetails::FPhysicsConstraintComponentDetails()
+: ChildTransformProxy(StaticCastSharedRef<FConstraintTransformCustomization>(FConstraintTransformCustomization::MakeInstance()))
+, ParentTransformProxy(StaticCastSharedRef<FConstraintTransformCustomization>(FConstraintTransformCustomization::MakeInstance()))
+{}
+
 TSharedRef<IDetailCustomization> FPhysicsConstraintComponentDetails::MakeInstance()
 {
 	return MakeShareable(new FPhysicsConstraintComponentDetails());
+}
+
+void FPhysicsConstraintComponentDetails::AddConstraintProperties(IDetailLayoutBuilder& DetailBuilder, TSharedPtr<IPropertyHandle> ConstraintInstance, TArray<TWeakObjectPtr<UObject>>& Objects)
+{
+	ChildPositionPropertyHandle = ConstraintInstance->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConstraintInstance, Pos1));
+	ChildPriAxisPropertyHandle = ConstraintInstance->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConstraintInstance, PriAxis1));
+	ChildSecAxisPropertyHandle = ConstraintInstance->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConstraintInstance, SecAxis1));
+
+	ParentPositionPropertyHandle = ConstraintInstance->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConstraintInstance, Pos2));
+	ParentPriAxisPropertyHandle = ConstraintInstance->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConstraintInstance, PriAxis2));
+	ParentSecAxisPropertyHandle = ConstraintInstance->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConstraintInstance, SecAxis2));
+
+	IDetailCategoryBuilder& ConstraintCategory = DetailBuilder.EditCategory("Constraint");
+
+	// Add current profile name to the constraint category header.
+	if (bInPhat)
+	{
+		ConstraintCategory.HeaderContent(
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SRichTextBlock)
+				.DecoratorStyleSet(&FAppStyle::Get())
+				.Text_Lambda([Objects]()
+				{
+					if (Objects.Num() > 0)
+					{
+						if (UPhysicsConstraintTemplate* Constraint = Cast<UPhysicsConstraintTemplate>(Objects[0].Get()))
+						{
+							FName CurrentProfileName = Constraint->GetCurrentConstraintProfileName();
+							if (CurrentProfileName != NAME_None)
+							{
+								if (Constraint->ContainsConstraintProfile(CurrentProfileName))
+								{
+									return FText::Format(LOCTEXT("ProfileFormatAssigned", "Assigned to Profile: <RichTextBlock.Bold>{0}</>"), FText::FromName(CurrentProfileName));
+								}
+								else
+								{
+									return FText::Format(LOCTEXT("ProfileFormatNotAssigned", "Not Assigned to Profile: <RichTextBlock.Bold>{0}</>"), FText::FromName(CurrentProfileName));
+								}
+							}
+							else
+							{
+								return LOCTEXT("ProfileFormatNone", "Current Profile: <RichTextBlock.Bold>None</>");
+							}
+						}
+					}
+
+					return FText();
+				})
+			]);
+	}
+
+	ConstraintCategory.AddProperty(ConstraintInstance->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConstraintInstance, ConstraintBone1))).DisplayName(LOCTEXT("ConstraintChildBoneName", "Child Bone Name"));
+	ConstraintCategory.AddProperty(ConstraintInstance->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConstraintInstance, ConstraintBone2))).DisplayName(LOCTEXT("ConstraintParentBoneName", "Parent Bone Name"));
+
+	IDetailCategoryBuilder& ConstraintTransformsCat = DetailBuilder.EditCategory("ConstraintTransforms");
+
+	AddConstraintFrameTransform(EConstraintFrame::Frame1, ConstraintTransformsCat, ConstraintInstance);
+	AddConstraintFrameTransform(EConstraintFrame::Frame2, ConstraintTransformsCat, ConstraintInstance);
+
+	UpdateTransformProxyDisplayRelativeToDefault(ConstraintInstance);
+
+	// Hide the constraint transform values that are being represented by the proxy values in the details panel.
+	ChildPositionPropertyHandle->MarkHiddenByCustomization();
+	ChildPriAxisPropertyHandle->MarkHiddenByCustomization();
+	ChildSecAxisPropertyHandle->MarkHiddenByCustomization();
+
+	ParentPositionPropertyHandle->MarkHiddenByCustomization();
+	ParentPriAxisPropertyHandle->MarkHiddenByCustomization();
+	ParentSecAxisPropertyHandle->MarkHiddenByCustomization();
+}	
+
+TSharedRef<SWidget> FPhysicsConstraintComponentDetails::MakeEditSpaceToggleButtonWidget(TSharedPtr<IPropertyHandle> ConstraintInstancePropertyHandle, const EConstraintTransformComponentFlags ComponentFlags)
+{
+	auto ToolTipTextLambda = [this, ComponentFlags]()
+	{
+		const FText FrameText = EnumHasAnyFlags(ComponentFlags, EConstraintTransformComponentFlags::AllChild) ? LOCTEXT("Child", "Child") : LOCTEXT("Parent", "Parent");
+		const FText ComponentText = EnumHasAnyFlags(ComponentFlags, EConstraintTransformComponentFlags::AllPosition) ? LOCTEXT("Position", "Position") : LOCTEXT("Rotation", "Rotation");
+		const FText LocalFrameText = FText::Format(LOCTEXT("LocalFrameDescription", "in the frame of the {0} bone"), FrameText);
+		const FText SnapFrameText = LOCTEXT("SnapFrameDescription", "relative to the default (snapped) transforms");
+
+		const bool IsDisplayingRelativeToDefault = this->IsDisplayingConstraintTransformComponentRelativeToDefault(ComponentFlags);
+		const FText CurrentFrameText = IsDisplayingRelativeToDefault ? SnapFrameText : LocalFrameText;
+		const FText AlternativeFrameText = IsDisplayingRelativeToDefault ? LocalFrameText : SnapFrameText;
+
+		return FText::Format(LOCTEXT("ToggleDisplayConstraintTransformComponentRelativeToDefault", "{0} transform {1} component displayed {2}. Click here to switch to displaying {3}. Hold Shift to change all."), FrameText, ComponentText, CurrentFrameText, AlternativeFrameText);
+	};
+
+	return
+		SNew(SButton)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.OnClicked_Lambda([this, ConstraintInstancePropertyHandle, ComponentFlags]() { this->ToggleDisplayConstraintTransformComponentRelativeToDefault(ConstraintInstancePropertyHandle, ComponentFlags); return FReply::Handled(); })
+		.ButtonColorAndOpacity(FSlateColor::UseForeground())
+		.Content()
+		[
+			SNew(SImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image_Lambda([this, ComponentFlags]() { return (IsDisplayingConstraintTransformComponentRelativeToDefault(ComponentFlags)) ? FAppStyle::GetBrush("Icons.Snap") : FAppStyle::GetBrush("Icons.Transform"); })
+			.ToolTipText_Lambda(ToolTipTextLambda)
+		];
+}
+
+void FPhysicsConstraintComponentDetails::AddConstraintFrameTransform(const EConstraintFrame::Type ConstraintFrameType, IDetailCategoryBuilder& ConstraintCat, TSharedPtr<IPropertyHandle> ConstraintInstancePropertyHandle)
+{
+	TSharedPtr<FConstraintTransformCustomization> TransformProxy;
+	TSharedPtr<IPropertyHandle> PositionPropertyHandle;
+	TSharedPtr<IPropertyHandle> PriAxisPropertyHandle;
+	TSharedPtr<IPropertyHandle> SecAxisPropertyHandle;
+	EConstraintTransformComponentFlags PositionSnapFlag = EConstraintTransformComponentFlags::None;
+	EConstraintTransformComponentFlags RotationSnapFlag = EConstraintTransformComponentFlags::None;
+	FText KeyboardShortcutText;
+
+	if (ConstraintFrameType == EConstraintFrame::Frame1) // Child Frame
+	{
+		TransformProxy = ChildTransformProxy;
+		TransformProxy->SetFrameLabelText(LOCTEXT("Child", "Child"));
+		KeyboardShortcutText = LOCTEXT("ShiftCtl", "[Shift + Alt]");
+		PositionPropertyHandle = ChildPositionPropertyHandle;
+		PriAxisPropertyHandle = ChildPriAxisPropertyHandle;
+		SecAxisPropertyHandle = ChildSecAxisPropertyHandle;
+		PositionSnapFlag = EConstraintTransformComponentFlags::ChildPosition;
+		RotationSnapFlag = EConstraintTransformComponentFlags::ChildRotation;
+	}
+	
+	if (ConstraintFrameType == EConstraintFrame::Frame2) // Parent Frame
+	{
+		TransformProxy = ParentTransformProxy;
+		TransformProxy->SetFrameLabelText(LOCTEXT("Parent", "Parent"));
+		KeyboardShortcutText = LOCTEXT("Alt", "[Alt]");
+		PositionPropertyHandle = ParentPositionPropertyHandle;
+		PriAxisPropertyHandle = ParentPriAxisPropertyHandle;
+		SecAxisPropertyHandle = ParentSecAxisPropertyHandle;
+		PositionSnapFlag = EConstraintTransformComponentFlags::ParentPosition;
+		RotationSnapFlag = EConstraintTransformComponentFlags::ParentRotation;
+	}
+
+	const EConstraintTransformComponentFlags SnapFlag = PositionSnapFlag | RotationSnapFlag;
+		
+	if (TransformProxy && PositionPropertyHandle && PriAxisPropertyHandle && SecAxisPropertyHandle)
+	{
+		// Create list of properties to be associated with the proxy custom rows.
+		TArray<TSharedPtr<IPropertyHandle>> TransformProxyPropertyHandleList;
+		TransformProxyPropertyHandleList.Add(ConstraintInstancePropertyHandle);
+
+		FDetailWidgetRow& HeaderRow = ConstraintCat.AddCustomRow(TransformProxy->GetFrameLabelText());
+
+		HeaderRow
+			.WholeRowContent()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left)
+				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+				[
+					SNew(STextBlock)
+					.Text(TransformProxy->GetFrameLabelText())
+					.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
+					.ColorAndOpacity(this, &FPhysicsConstraintComponentDetails::GetConstraintTransformColorAndOpacity, SnapFlag)
+				]
+
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Right)
+				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+				[
+					SNew(STextBlock)
+					.Text(KeyboardShortcutText)
+					.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
+					.ColorAndOpacity(this, &FPhysicsConstraintComponentDetails::GetConstraintTransformColorAndOpacity, SnapFlag)
+				]
+			];
+
+		HeaderRow.PropertyHandleList(TransformProxyPropertyHandleList);
+
+		HeaderRow.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FPhysicsConstraintComponentDetails::OnCopyConstraintTransform, PositionPropertyHandle, PriAxisPropertyHandle, SecAxisPropertyHandle, TransformProxy)));
+		HeaderRow.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FPhysicsConstraintComponentDetails::OnPasteConstraintTransform, PositionPropertyHandle, PriAxisPropertyHandle, SecAxisPropertyHandle, TransformProxy)));
+
+		HeaderRow.OverrideResetToDefault(
+			FResetToDefaultOverride::Create(
+				FIsResetToDefaultVisible::CreateSP(this, &FPhysicsConstraintComponentDetails::IsSnapConstraintTransformComponentVisible, SnapFlag),
+				FResetToDefaultHandler::CreateSP(this, &FPhysicsConstraintComponentDetails::SnapConstraintTransformComponentsToDefault, SnapFlag)
+			));
+
+		PositionPropertyHandle->MarkHiddenByCustomization();
+		PriAxisPropertyHandle->MarkHiddenByCustomization();
+		SecAxisPropertyHandle->MarkHiddenByCustomization();
+
+		TSharedRef<IPropertyHandle> PositionPropertyHandleRef = PositionPropertyHandle.ToSharedRef();
+		TSharedRef<IPropertyHandle> PriAxisPropertyHandleRef = PriAxisPropertyHandle.ToSharedRef();
+		TSharedRef<IPropertyHandle> SecAxisPropertyHandleRef = SecAxisPropertyHandle.ToSharedRef();
+
+		// Create Position Row
+		{
+			// Create a new, empty row in the details panel.
+			FDetailWidgetRow& ProxyRow = ConstraintCat.AddCustomRow(LOCTEXT("ConstraintPositionProxy", "ConstraintPositionProxy")); // TODO - non localised ?
+
+			// Associate the constraint property with the new row.
+			ProxyRow.PropertyHandleList(TransformProxyPropertyHandleList);
+
+			// Populate the new row with widgets generated by the rotation proxy object.
+			TransformProxy->MakePositionRow(PositionPropertyHandleRef, ProxyRow, MakeEditSpaceToggleButtonWidget(ConstraintInstancePropertyHandle, PositionSnapFlag));
+
+			// Set the behavior of the reset button for the new row, so that it snaps the orientation back to the default.
+			ProxyRow.OverrideResetToDefault(
+				FResetToDefaultOverride::Create(
+					FIsResetToDefaultVisible::CreateSP(this, &FPhysicsConstraintComponentDetails::IsSnapConstraintTransformComponentVisible, PositionSnapFlag),
+					FResetToDefaultHandler::CreateSP(this, &FPhysicsConstraintComponentDetails::SnapConstraintTransformComponentsToDefault, PositionSnapFlag)
+				));
+
+			ProxyRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPhysicsConstraintComponentDetails::IsConstraintTransformComponentEnabled, SnapFlag)));
+		}
+
+		// Create Rotation Row
+		{
+			// Create a new, empty row in the details panel.
+			FDetailWidgetRow& ProxyRow = ConstraintCat.AddCustomRow(LOCTEXT("ConstraintTransformProxy", "ConstraintTransformProxy"));
+
+			// Associate the constraint property with the new row.
+			ProxyRow.PropertyHandleList(TransformProxyPropertyHandleList);
+
+			// Populate the new row with widgets generated by the rotation proxy object.
+			TransformProxy->MakeRotationRow(PriAxisPropertyHandleRef, SecAxisPropertyHandleRef, ProxyRow, MakeEditSpaceToggleButtonWidget(ConstraintInstancePropertyHandle, RotationSnapFlag));
+
+			// Set the behavior of the reset button for the new row, so that it snaps the orientation back to the default.
+			ProxyRow.OverrideResetToDefault(
+				FResetToDefaultOverride::Create(
+					FIsResetToDefaultVisible::CreateSP(this, &FPhysicsConstraintComponentDetails::IsSnapConstraintTransformComponentVisible, RotationSnapFlag),
+					FResetToDefaultHandler::CreateSP(this, &FPhysicsConstraintComponentDetails::SnapConstraintTransformComponentsToDefault, RotationSnapFlag)
+				));
+
+			ProxyRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPhysicsConstraintComponentDetails::IsConstraintTransformComponentEnabled, SnapFlag)));
+		}
+	}
+}
+
+void FPhysicsConstraintComponentDetails::SnapConstraintTransformComponentsToDefault(TSharedPtr<IPropertyHandle> ConstraintInstancePropertyHandle, const EConstraintTransformComponentFlags SnapFlags)
+{
+	if (FConstraintInstance* const ConstraintInstance = GetConstraintInstance())
+	{
+		ConstraintInstance->SnapTransformsToDefault(SnapFlags, ParentPhysicsAsset);
+	}
+}
+
+bool FPhysicsConstraintComponentDetails::IsSnapConstraintTransformComponentVisible(TSharedPtr<IPropertyHandle> ConstraintInstancePropertyHandle, const EConstraintTransformComponentFlags SnapFlags)
+{
+	bool Result = false;
+
+	const FTransform ParentTransform = ParentTransformProxy->GetDefaultTransform();
+	const FTransform ChildTransform = ChildTransformProxy->GetDefaultTransform();
+
+	if (EnumHasAnyFlags(SnapFlags, EConstraintTransformComponentFlags::ChildPosition))
+	{
+		Result |= !IsChildPropertyNearlyEqual< FVector >(ConstraintInstancePropertyHandle, GET_MEMBER_NAME_CHECKED(FConstraintInstance, Pos1), ChildTransform.GetLocation());
+	}
+
+	if (EnumHasAnyFlags(SnapFlags, EConstraintTransformComponentFlags::ChildRotation))
+	{
+		Result |= !(IsChildPropertyNearlyEqual< FVector >(ConstraintInstancePropertyHandle, GET_MEMBER_NAME_CHECKED(FConstraintInstance, PriAxis1), ChildTransform.GetUnitAxis(EAxis::X)) && IsChildPropertyNearlyEqual< FVector >(ConstraintInstancePropertyHandle, GET_MEMBER_NAME_CHECKED(FConstraintInstance, SecAxis1), ChildTransform.GetUnitAxis(EAxis::Y)));
+	}
+
+	if (EnumHasAnyFlags(SnapFlags, EConstraintTransformComponentFlags::ParentPosition))
+	{
+		Result |= !IsChildPropertyNearlyEqual< FVector >(ConstraintInstancePropertyHandle, GET_MEMBER_NAME_CHECKED(FConstraintInstance, Pos2), ParentTransform.GetLocation());
+	}
+
+	if (EnumHasAnyFlags(SnapFlags, EConstraintTransformComponentFlags::ParentRotation))
+	{
+		Result |= !(IsChildPropertyNearlyEqual< FVector >(ConstraintInstancePropertyHandle, GET_MEMBER_NAME_CHECKED(FConstraintInstance, PriAxis2), ParentTransform.GetUnitAxis(EAxis::X)) && IsChildPropertyNearlyEqual< FVector >(ConstraintInstancePropertyHandle, GET_MEMBER_NAME_CHECKED(FConstraintInstance, SecAxis2), ParentTransform.GetUnitAxis(EAxis::Y)));
+	}
+
+	return Result;
+}
+
+void FPhysicsConstraintComponentDetails::ToggleDisplayConstraintTransformComponentRelativeToDefault(TSharedPtr<IPropertyHandle> ConstraintInstancePropertyHandle, const EConstraintTransformComponentFlags ComponentFlags)
+{
+	IPhysicsAssetRenderInterface& PhysicsAssetRenderInterface = IModularFeatures::Get().GetModularFeature<IPhysicsAssetRenderInterface>("PhysicsAssetRenderInterface");
+	const bool bCurrentState = IsDisplayingConstraintTransformComponentRelativeToDefault(ComponentFlags);
+	const EConstraintTransformComponentFlags ComponentFlagsToModify = (FSlateApplication::Get().GetModifierKeys().IsShiftDown()) ? EConstraintTransformComponentFlags::All : ComponentFlags;
+	PhysicsAssetRenderInterface.SetDisplayConstraintTransformComponentRelativeToDefault(ParentPhysicsAsset, ComponentFlagsToModify, !bCurrentState);
+	UpdateTransformProxyDisplayRelativeToDefault(ConstraintInstancePropertyHandle);
+}
+
+bool FPhysicsConstraintComponentDetails::IsConstraintTransformComponentEnabled(const EConstraintTransformComponentFlags ComponentFlags) const
+{
+	IPhysicsAssetRenderInterface& PhysicsAssetRenderInterface = IModularFeatures::Get().GetModularFeature<IPhysicsAssetRenderInterface>("PhysicsAssetRenderInterface");
+	const EConstraintTransformComponentFlags ComponentManipulationFlags = PhysicsAssetRenderInterface.GetConstraintViewportManipulationFlags(ParentPhysicsAsset);
+
+	return EnumHasAllFlags(ComponentManipulationFlags, ComponentFlags);
+}
+
+FSlateColor FPhysicsConstraintComponentDetails::GetConstraintTransformColorAndOpacity(const EConstraintTransformComponentFlags ComponentFlags) const
+{
+	return IsConstraintTransformComponentEnabled(ComponentFlags) ? FSlateColor::UseForeground() : FSlateColor::UseSubduedForeground();
+}
+
+void FPhysicsConstraintComponentDetails::UpdateTransformProxyDisplayRelativeToDefault(TSharedPtr<IPropertyHandle> ConstraintInstancePropertyHandle)
+{
+	IPhysicsAssetRenderInterface& PhysicsAssetRenderInterface = IModularFeatures::Get().GetModularFeature<IPhysicsAssetRenderInterface>("PhysicsAssetRenderInterface");
+
+	ChildTransformProxy->SetPositionDisplayRelativeToDefault(PhysicsAssetRenderInterface.IsDisplayingConstraintTransformComponentRelativeToDefault(ParentPhysicsAsset, EConstraintTransformComponentFlags::ChildPosition));
+	ChildTransformProxy->SetRotationDisplayRelativeToDefault(PhysicsAssetRenderInterface.IsDisplayingConstraintTransformComponentRelativeToDefault(ParentPhysicsAsset, EConstraintTransformComponentFlags::ChildRotation));
+	ParentTransformProxy->SetPositionDisplayRelativeToDefault(PhysicsAssetRenderInterface.IsDisplayingConstraintTransformComponentRelativeToDefault(ParentPhysicsAsset, EConstraintTransformComponentFlags::ParentPosition));
+	ParentTransformProxy->SetRotationDisplayRelativeToDefault(PhysicsAssetRenderInterface.IsDisplayingConstraintTransformComponentRelativeToDefault(ParentPhysicsAsset, EConstraintTransformComponentFlags::ParentRotation));
+
+	if (FConstraintInstance* const ConstraintInstance = GetConstraintInstance())
+	{
+		ChildTransformProxy->SetDefaultTransform(ConstraintInstance->CalculateDefaultChildTransform(), ChildPositionPropertyHandle, ChildPriAxisPropertyHandle, ChildSecAxisPropertyHandle);
+		ParentTransformProxy->SetDefaultTransform(ConstraintInstance->CalculateDefaultParentTransform(ParentPhysicsAsset), ParentPositionPropertyHandle, ParentPriAxisPropertyHandle, ParentSecAxisPropertyHandle);
+	}
+}
+
+bool FPhysicsConstraintComponentDetails::IsDisplayingConstraintTransformComponentRelativeToDefault(const EConstraintTransformComponentFlags ComponentFlags)
+{
+	return IModularFeatures::Get().GetModularFeature<IPhysicsAssetRenderInterface>("PhysicsAssetRenderInterface").IsDisplayingConstraintTransformComponentRelativeToDefault(ParentPhysicsAsset, ComponentFlags);
+}
+
+void FPhysicsConstraintComponentDetails::OnCopyConstraintTransform(TSharedPtr<IPropertyHandle> PositionPropertyHandle, TSharedPtr<IPropertyHandle> PriAxisPropertyHandle, TSharedPtr<IPropertyHandle> SecAxisPropertyHandle, TSharedPtr<FConstraintTransformCustomization> TransformProxy)
+{
+	if (TransformProxy.IsValid())
+	{
+		TransformProxy->OnCopy(PositionPropertyHandle, PriAxisPropertyHandle, SecAxisPropertyHandle);
+	}
+}
+
+void FPhysicsConstraintComponentDetails::OnPasteConstraintTransform(TSharedPtr<IPropertyHandle> PositionPropertyHandle, TSharedPtr<IPropertyHandle> PriAxisPropertyHandle, TSharedPtr<IPropertyHandle> SecAxisPropertyHandle, TSharedPtr<FConstraintTransformCustomization> TransformProxy)
+{
+	if (TransformProxy.IsValid())
+	{
+		TransformProxy->OnPaste(PositionPropertyHandle, PriAxisPropertyHandle, SecAxisPropertyHandle);
+	}
 }
 
 void FPhysicsConstraintComponentDetails::AddConstraintBehaviorProperties(IDetailLayoutBuilder& DetailBuilder, TSharedPtr<IPropertyHandle> ConstraintInstance, TSharedPtr<IPropertyHandle> ProfilePropertiesProperty)
@@ -859,8 +1850,6 @@ void FPhysicsConstraintComponentDetails::AddAngularDrive(IDetailLayoutBuilder& D
 	[
 		MaxForceWidget
 	];
-
-
 }
 
 void FPhysicsConstraintComponentDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder )
@@ -868,8 +1857,7 @@ void FPhysicsConstraintComponentDetails::CustomizeDetails( IDetailLayoutBuilder&
 	TArray<TWeakObjectPtr<UObject>> Objects;
 	DetailBuilder.GetObjectsBeingCustomized(Objects);
 
-	TSharedPtr<IPropertyHandle> ConstraintInstance;
-	UPhysicsConstraintComponent* ConstraintComp = NULL;
+	TSharedPtr<IPropertyHandle> ConstraintInstanceProperty;
 	APhysicsConstraintActor* OwningConstraintActor = NULL;
 
 	bInPhat = false;
@@ -880,70 +1868,32 @@ void FPhysicsConstraintComponentDetails::CustomizeDetails( IDetailLayoutBuilder&
 
 		if (Objects[i]->IsA(UPhysicsConstraintTemplate::StaticClass()))
 		{
-			ConstraintInstance = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPhysicsConstraintTemplate, DefaultInstance));
+			ConstraintInstanceProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPhysicsConstraintTemplate, DefaultInstance));
+			ConstraintTemplate = Cast<UPhysicsConstraintTemplate>(Objects[i].Get());
+			ParentPhysicsAsset = Cast<UPhysicsAsset>(Objects[i]->GetOuter());
 			bInPhat = true;
 			break;
 		}
 		else if (Objects[i]->IsA(UPhysicsConstraintComponent::StaticClass()))
 		{
-			ConstraintInstance = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPhysicsConstraintComponent, ConstraintInstance));
+			ConstraintInstanceProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPhysicsConstraintComponent, ConstraintInstance));
 			ConstraintComp = (UPhysicsConstraintComponent*)Objects[i].Get();
 			OwningConstraintActor = Cast<APhysicsConstraintActor>(ConstraintComp->GetOwner());
 			break;
 		}
 	}
 
-	IDetailCategoryBuilder& ConstraintCategory = DetailBuilder.EditCategory("Constraint");	//Create this category first so it's at the top
+	AddConstraintProperties(DetailBuilder, ConstraintInstanceProperty, Objects);
+
 	DetailBuilder.EditCategory("Constraint Behavior");	//Create this category first so it's at the top
 
-	TSharedPtr<IPropertyHandle> ProfileInstance = ConstraintInstance->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConstraintInstance, ProfileInstance));
-	AddLinearLimits(DetailBuilder, ConstraintInstance, ProfileInstance);
-	AddAngularLimits(DetailBuilder, ConstraintInstance, ProfileInstance);
-	AddLinearDrive(DetailBuilder, ConstraintInstance, ProfileInstance);
-	AddAngularDrive(DetailBuilder, ConstraintInstance, ProfileInstance);
+	TSharedPtr<IPropertyHandle> ProfileInstance = ConstraintInstanceProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConstraintInstance, ProfileInstance));
+	AddLinearLimits(DetailBuilder, ConstraintInstanceProperty, ProfileInstance);
+	AddAngularLimits(DetailBuilder, ConstraintInstanceProperty, ProfileInstance);
+	AddLinearDrive(DetailBuilder, ConstraintInstanceProperty, ProfileInstance);
+	AddAngularDrive(DetailBuilder, ConstraintInstanceProperty, ProfileInstance);
 
-	AddConstraintBehaviorProperties(DetailBuilder, ConstraintInstance, ProfileInstance);	//Now we've added all the complex UI, just dump the rest into Constraint category
-
-	if(bInPhat)
-	{
-		ConstraintCategory.HeaderContent(
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SRichTextBlock)
-				.DecoratorStyleSet(&FAppStyle::Get())
-				.Text_Lambda([Objects]()
-				{
-					if (Objects.Num() > 0)
-					{
-						if (UPhysicsConstraintTemplate* Constraint = Cast<UPhysicsConstraintTemplate>(Objects[0].Get()))
-						{
-							FName CurrentProfileName = Constraint->GetCurrentConstraintProfileName();
-							if(CurrentProfileName != NAME_None)
-							{
-								if(Constraint->ContainsConstraintProfile(CurrentProfileName))
-								{
-									return FText::Format(LOCTEXT("ProfileFormatAssigned", "Assigned to Profile: <RichTextBlock.Bold>{0}</>"), FText::FromName(CurrentProfileName));
-								}
-								else
-								{
-									return FText::Format(LOCTEXT("ProfileFormatNotAssigned", "Not Assigned to Profile: <RichTextBlock.Bold>{0}</>"), FText::FromName(CurrentProfileName));
-								}
-							}
-							else
-							{
-								return LOCTEXT("ProfileFormatNone", "Current Profile: <RichTextBlock.Bold>None</>");
-							}
-						}
-					}
-
-					return FText();
-				})
-			]);
-	}
+	AddConstraintBehaviorProperties(DetailBuilder, ConstraintInstanceProperty, ProfileInstance);	//Now we've added all the complex UI, just dump the rest into Constraint category
 }
 
 
@@ -990,5 +1940,22 @@ void FPhysicsConstraintComponentDetails::OnLimitRadioChanged( ECheckBoxState Che
 		Property->SetValue(Value);
 	}
 }
+
+FConstraintInstance* FPhysicsConstraintComponentDetails::GetConstraintInstance()
+{
+	FConstraintInstance* ConstraintInstance = nullptr;
+
+	if (ConstraintTemplate)
+	{
+		ConstraintInstance = &ConstraintTemplate->DefaultInstance;
+	}
+	else if (ConstraintComp)
+	{
+		ConstraintInstance = &ConstraintComp->ConstraintInstance;
+	}
+
+	return ConstraintInstance;
+}
+
 
 #undef LOCTEXT_NAMESPACE

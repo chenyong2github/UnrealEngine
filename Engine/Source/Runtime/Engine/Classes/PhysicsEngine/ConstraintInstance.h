@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/EnumClassFlags.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 #include "EngineDefines.h"
@@ -19,6 +20,26 @@ struct FBodyInstance;
 class FMaterialRenderProxy;
 class FPrimitiveDrawInterface;
 class FMaterialRenderProxy;
+class UPhysicsAsset;
+
+UENUM()
+enum class EConstraintTransformComponentFlags : uint8
+{
+	None = 0,
+
+	ChildPosition = 1 << 0,
+	ChildRotation = 1 << 1,
+	ParentPosition = 1 << 2,
+	ParentRotation = 1 << 3,
+
+	AllChild = ChildPosition | ChildRotation,
+	AllParent = ParentPosition | ParentRotation,
+	AllPosition = ChildPosition | ParentPosition,
+	AllRotation = ChildRotation | ParentRotation,
+	All = AllChild | AllParent
+};
+
+ENUM_CLASS_FLAGS(EConstraintTransformComponentFlags);
 
 /** Container for properties of a physics constraint that can be easily swapped at runtime. This is useful for switching different setups when going from ragdoll to standup for example */
 USTRUCT()
@@ -235,29 +256,29 @@ public:
 	///////////////////////////// Body1 ref frame
 	
 	/** Location of constraint in Body1 reference frame (usually the "child" body for skeletal meshes). */
-	UPROPERTY(EditAnywhere, Category=Constraint)
+	UPROPERTY(EditAnywhere, Category = ConstraintTransforms)
 	FVector Pos1;
 
 	/** Primary (twist) axis in Body1 reference frame. */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = ConstraintTransforms)
 	FVector PriAxis1;
 
-	/** Seconday axis in Body1 reference frame. Orthogonal to PriAxis1. */
-	UPROPERTY()
+	/** Secondary axis in Body1 reference frame. Orthogonal to PriAxis1. */
+	UPROPERTY(EditAnywhere, Category = ConstraintTransforms)
 	FVector SecAxis1;
 
 	///////////////////////////// Body2 ref frame
 	
 	/** Location of constraint in Body2 reference frame (usually the "parent" body for skeletal meshes). */
-	UPROPERTY(EditAnywhere, Category=Constraint)
+	UPROPERTY(EditAnywhere, Category= ConstraintTransforms)
 	FVector Pos2;
 
 	/** Primary (twist) axis in Body2 reference frame. */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = ConstraintTransforms)
 	FVector PriAxis2;
 
-	/** Seconday axis in Body2 reference frame. Orthogonal to PriAxis2. */
-	UPROPERTY()
+	/** Secondary axis in Body2 reference frame. Orthogonal to PriAxis2. */
+	UPROPERTY(EditAnywhere, Category = ConstraintTransforms)
 	FVector SecAxis2;
 
 	/** Specifies the angular offset between the two frames of reference. By default limit goes from (-Angle, +Angle)
@@ -990,6 +1011,18 @@ private:
 	void UpdateDriveTarget();
 
 public:
+
+#if WITH_EDITORONLY_DATA
+
+	/** Returns this constraint's default transform relative to its parent bone. */
+	FTransform CalculateDefaultParentTransform(const UPhysicsAsset* const PhysicsAsset) const;
+
+	/** Returns this constraint's default transform relative to its child bone. */
+	FTransform CalculateDefaultChildTransform() const;
+
+	/** Set the constraint transform components specified by the SnapFlags to their default values (derived from the parent and child bone transforms). */
+	void SnapTransformsToDefault(const EConstraintTransformComponentFlags SnapFlags, const UPhysicsAsset* const PhysicsAsset);
+#endif // WITH_EDITORONLY_DATA
 
 	///////////////////////////// DEPRECATED
 	// Most of these properties have moved inside the ProfileInstance member (FConstraintProfileProperties struct)

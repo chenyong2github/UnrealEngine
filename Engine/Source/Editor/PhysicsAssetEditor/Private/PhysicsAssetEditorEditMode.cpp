@@ -15,6 +15,7 @@
 #include "PhysicsAssetEditor.h"
 #include "PhysicsAssetEditorHitProxies.h"
 #include "PhysicsAssetEditorPhysicsHandleComponent.h"
+#include "PhysicsAssetRenderUtils.h"
 #include "DrawDebugHelpers.h"
 #include "SEditorViewport.h"
 #include "IPersonaToolkit.h"
@@ -447,23 +448,32 @@ bool FPhysicsAssetEditorEditMode::InputDelta(FEditorViewportClient* InViewportCl
 					SelectedObject.ManipulateTM = FTransform(Result);
 				}
 
-				UPhysicsConstraintTemplate* ConstraintSetup = SharedData->PhysicsAsset->ConstraintSetup[SelectedObject.Index];
-
-				ConstraintSetup->DefaultInstance.SetRefFrame(EConstraintFrame::Frame2, SelectedObject.ManipulateTM * StartManParentConTM[i]);
-
-				// Alt + Move will split frames and rotate or move them separately
-				bool bMultiFrame = !InViewportClient->IsAltPressed();
-
-				if (bMultiFrame)
+				// Apply manipulations to Child or Parent or both transforms according to the constraint's view port manipulation flags.
 				{
-					SharedData->SetConstraintRelTM(&SelectedObject, StartManRelConTM[i]);
-				}
-				else
-				{
-					ConstraintSetup->DefaultInstance.SetRefFrame(EConstraintFrame::Frame1, FTransform(StartManChildConTM[i]));
-				}
+					UPhysicsConstraintTemplate* ConstraintSetup = SharedData->PhysicsAsset->ConstraintSetup[SelectedObject.Index];
+					FPhysicsAssetRenderSettings* const RenderSettings = SharedData->GetRenderSettings();
 
-				bHandled = true;
+					if (RenderSettings && !EnumHasAnyFlags(RenderSettings->ConstraintViewportManipulationFlags, EConstraintTransformComponentFlags::AllChild))
+					{
+						// Rotate or move the parent transform only.
+						ConstraintSetup->DefaultInstance.SetRefFrame(EConstraintFrame::Frame2, SelectedObject.ManipulateTM * StartManParentConTM[i]);
+						ConstraintSetup->DefaultInstance.SetRefFrame(EConstraintFrame::Frame1, FTransform(StartManChildConTM[i]));
+					}
+					else if (RenderSettings && !EnumHasAnyFlags(RenderSettings->ConstraintViewportManipulationFlags, EConstraintTransformComponentFlags::AllParent))
+					{
+						// Rotate or move the child transform only.
+						ConstraintSetup->DefaultInstance.SetRefFrame(EConstraintFrame::Frame1, SelectedObject.ManipulateTM * StartManChildConTM[i]);
+						ConstraintSetup->DefaultInstance.SetRefFrame(EConstraintFrame::Frame2, FTransform(StartManParentConTM[i]));
+					}
+					else
+					{
+						// Rotate or move both the parent and child transform.
+						ConstraintSetup->DefaultInstance.SetRefFrame(EConstraintFrame::Frame2, SelectedObject.ManipulateTM * StartManParentConTM[i]);
+						SharedData->SetConstraintRelTM(&SelectedObject, StartManRelConTM[i]);
+					}
+
+					bHandled = true;
+				}
 			}
 		}
 	}
@@ -502,6 +512,21 @@ void FPhysicsAssetEditorEditMode::Tick(FEditorViewportClient* ViewportClient, fl
 		static FPhysicalAnimationData EmptyProfile;
 
 		SharedData->PhysicalAnimationComponent->ApplyPhysicalAnimationProfileBelow(NAME_None, SharedData->PhysicsAsset->CurrentPhysicalAnimationProfileName, /*Include Self=*/true, /*Clear Not Found=*/true);
+	}
+
+	// Update the constraint view port manipulation flags from state of the modifier keys. These flags determine which parts of the constraint transform (Parent, child or both) should be modified when a view port widget is manipulated.
+	if (FPhysicsAssetRenderSettings* const RenderSettings = SharedData->GetRenderSettings())
+	{
+		RenderSettings->ConstraintViewportManipulationFlags = EConstraintTransformComponentFlags::All;
+
+		if (ViewportClient->IsShiftPressed() && ViewportClient->IsAltPressed()) // Shft + Alt + Move will rotate or move the child transform only.
+		{
+			EnumRemoveFlags(RenderSettings->ConstraintViewportManipulationFlags, EConstraintTransformComponentFlags::AllParent); // Remove Parent Frame flags.
+		}
+		else if (ViewportClient->IsAltPressed()) // Alt + Move will rotate or move the parent transform only.
+		{
+			EnumRemoveFlags(RenderSettings->ConstraintViewportManipulationFlags, EConstraintTransformComponentFlags::AllChild); // Remove Child Frame flags.
+		}	
 	}
 }
 
