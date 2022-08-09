@@ -21,6 +21,7 @@ struct FEOSPlatformConfig
 	FString DeploymentId;
 	FString ClientId;
 	FString ClientSecret;
+	FString EncryptionKey;
 };
 
 FEOSPlatformConfig LoadEOSPlatformConfig()
@@ -32,6 +33,7 @@ FEOSPlatformConfig LoadEOSPlatformConfig()
 	GConfig->GetString(*ConfigSection, TEXT("DeploymentId"), PlatformConfig.DeploymentId, GEngineIni);
 	GConfig->GetString(*ConfigSection, TEXT("ClientId"), PlatformConfig.ClientId, GEngineIni);
 	GConfig->GetString(*ConfigSection, TEXT("ClientSecret"), PlatformConfig.ClientSecret, GEngineIni);
+	GConfig->GetString(*ConfigSection, TEXT("EncryptionKey"), PlatformConfig.EncryptionKey, GEngineIni);
 	return PlatformConfig;
 }
 
@@ -91,6 +93,7 @@ IEOSPlatformHandlePtr FOnlineServicesEOSGSPlatformFactory::CreatePlatform()
 	const FTCHARToUTF8 DeploymentId(*EOSPlatformConfig.DeploymentId);
 	const FTCHARToUTF8 ClientId(*EOSPlatformConfig.ClientId);
 	const FTCHARToUTF8 ClientSecret(*EOSPlatformConfig.ClientSecret);
+	const FTCHARToUTF8 EncryptionKey(EOSPlatformConfig.EncryptionKey.IsEmpty() ? nullptr : *EOSPlatformConfig.EncryptionKey);
 	const FTCHARToUTF8 CacheDirectory(*(SDKManager->GetCacheDirBase() / TEXT("OnlineServicesEOS")));
 
 	EOS_Platform_Options PlatformOptions = {};
@@ -114,13 +117,13 @@ IEOSPlatformHandlePtr FOnlineServicesEOSGSPlatformFactory::CreatePlatform()
 	PlatformOptions.DeploymentId = DeploymentId.Get();
 	PlatformOptions.ClientCredentials.ClientId = ClientId.Get();
 	PlatformOptions.ClientCredentials.ClientSecret = ClientSecret.Get();
+	PlatformOptions.EncryptionKey = EncryptionKey.Get();
 	PlatformOptions.CacheDirectory = CacheDirectory.Get();
 
 	IEOSPlatformHandlePtr EOSPlatformHandle = SDKManager->CreatePlatform(PlatformOptions);
 	if (!EOSPlatformHandle)
 	{
-		UE_LOG(LogOnlineServices, Verbose, TEXT("[FOnlineServicesEOSGS::Initialize] Unable to initialize Socket Subsystem. EOS Platform Handle was invalid."));
-		return {};
+		UE_LOG(LogOnlineServices, Warning, TEXT("[FOnlineServicesEOSGS::Initialize] Failed to create platform."));
 	}
 	return EOSPlatformHandle;
 }

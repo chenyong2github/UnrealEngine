@@ -53,7 +53,9 @@ protected:
 
 	TOptional<TArray<FString>> EnumeratedFiles;
 
+	static EOS_TitleStorage_EReadResult EOS_CALL OnReadFileDataStatic(const EOS_TitleStorage_ReadFileDataCallbackInfo* Data);
 	static void EOS_CALL OnFileTransferProgressStatic(const EOS_TitleStorage_FileTransferProgressCallbackInfo* Data);
+	static void EOS_CALL OnReadFileCompleteStatic(const EOS_TitleStorage_ReadFileCallbackInfo* Data);
 };
 
 /* UE::Online */ }

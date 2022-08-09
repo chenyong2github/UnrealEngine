@@ -136,6 +136,19 @@ TOnlineResult<FTitleFileGetEnumeratedFiles> FTitleFileEOSGS::GetEnumeratedFiles(
 	return TOnlineResult<FTitleFileGetEnumeratedFiles>({*EnumeratedFiles});
 }
 
+struct FTitleFileReadFileClientData
+{
+	using PromiseType = TPromise<const EOS_TitleStorage_ReadFileCallbackInfo*>;
+
+	FTitleFileReadFileClientData(const FTitleFileContentsRef& InFileContents, PromiseType&& InPromise)
+		: FileContents(InFileContents)
+		, Promise(MoveTemp(InPromise))
+	{}
+
+	FTitleFileContentsWeakPtr FileContents;
+	PromiseType Promise;
+};
+
 TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileEOSGS::ReadFile(FTitleFileReadFile::Params&& InParams)
 {
 	static const TCHAR* FileContentsKey = TEXT("FileContents");
@@ -164,22 +177,7 @@ TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileEOSGS::ReadFile(FTitleFileRea
 		FTitleFileContentsRef FileContentsRef = MakeShared<FTitleFileContents>();
 		InAsyncOp.Data.Set<FTitleFileContentsRef>(FileContentsKey, FileContentsRef);
 
-		using FReadFileDataCallback = TEOSGlobalCallback<EOS_TitleStorage_OnReadFileDataCallback, EOS_TitleStorage_ReadFileDataCallbackInfo, TOnlineAsyncOp<FTitleFileReadFile>, EOS_TitleStorage_EReadResult>;
-		TSharedRef<FReadFileDataCallback> ReadFileDataCallback = MakeShared<FReadFileDataCallback>(InAsyncOp.AsWeak());
-		InAsyncOp.Data.Set<TSharedRef<FReadFileDataCallback>>(TEXT("ReadFileDataCallback"), ReadFileDataCallback);
-		ReadFileDataCallback->CallbackLambda = [FileContentsRef](const EOS_TitleStorage_ReadFileDataCallbackInfo* Data) -> EOS_TitleStorage_EReadResult
-		{
-			FTitleFileContents& FileContents = const_cast<FTitleFileContents&>(FileContentsRef.Get());
-			// Only has any effect on the first callback
-			FileContents.Reserve(Data->TotalFileSizeBytes);
-			FileContents.Append((uint8*)Data->DataChunk, Data->DataChunkLengthBytes);
-
-			UE_LOG(LogTemp, VeryVerbose, TEXT("FTitleFileEOSGS::ReadFile ReadProgress Filename=[%s] %d/%d"), UTF8_TO_TCHAR(Data->Filename), FileContents.Num(), Data->TotalFileSizeBytes);
-
-			return EOS_TitleStorage_EReadResult::EOS_TS_RR_ContinueReading;
-		};
-
-		const FTCHARToUTF8 Utf8Filename(Params.Filename);
+		const FTCHARToUTF8 Utf8Filename(*Params.Filename);
 
 		EOS_TitleStorage_ReadFileOptions Options = {};
 		Options.ApiVersion = EOS_TITLESTORAGE_READFILEOPTIONS_API_LATEST;
@@ -187,10 +185,12 @@ TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileEOSGS::ReadFile(FTitleFileRea
 		Options.LocalUserId = GetProductUserIdChecked(Params.LocalUserId);
 		Options.Filename = Utf8Filename.Get();
 		Options.ReadChunkLengthBytes = Config.ReadChunkLengthBytes;
-		Options.ReadFileDataCallback = ReadFileDataCallback->GetCallbackPtr();
+		Options.ReadFileDataCallback = &FTitleFileEOSGS::OnReadFileDataStatic;
 		Options.FileTransferProgressCallback = &FTitleFileEOSGS::OnFileTransferProgressStatic;
 
-		const EOS_HTitleStorageFileTransferRequest RequestHandle = EOS_Async(EOS_TitleStorage_ReadFile, TitleStorageHandle, Options, MoveTemp(Promise));
+		FTitleFileReadFileClientData* ClientData = new FTitleFileReadFileClientData(FileContentsRef, MoveTemp(Promise));
+
+		const EOS_HTitleStorageFileTransferRequest RequestHandle = EOS_TitleStorage_ReadFile(TitleStorageHandle, &Options, ClientData, &FTitleFileEOSGS::OnReadFileCompleteStatic);
 		InAsyncOp.Data.Set<EOS_HTitleStorageFileTransferRequest>(RequestHandleKey, RequestHandle);
 	})
 	.Then([this](TOnlineAsyncOp<FTitleFileReadFile>& InAsyncOp, const EOS_TitleStorage_ReadFileCallbackInfo* Data)
@@ -222,9 +222,37 @@ TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileEOSGS::ReadFile(FTitleFileRea
 	return Op->GetHandle();
 }
 
+EOS_TitleStorage_EReadResult EOS_CALL FTitleFileEOSGS::OnReadFileDataStatic(const EOS_TitleStorage_ReadFileDataCallbackInfo* Data)
+{
+	FTitleFileReadFileClientData* ClientData = (FTitleFileReadFileClientData*)Data->ClientData;
+	check(ClientData);
+	FTitleFileContentsPtr FileContentsPtr = ClientData->FileContents.Pin();
+	if (ensure(FileContentsPtr))
+	{
+		FTitleFileContents& FileContents = *ConstCastSharedPtr<FTitleFileContents>(FileContentsPtr);
+		// Only has any effect on the first callback
+		FileContents.Reserve(Data->TotalFileSizeBytes);
+		FileContents.Append((uint8*)Data->DataChunk, Data->DataChunkLengthBytes);
+
+		UE_LOG(LogTemp, VeryVerbose, TEXT("FTitleFileEOSGS::ReadFile ReadProgress Filename=[%s] %d/%d"), UTF8_TO_TCHAR(Data->Filename), FileContents.Num(), Data->TotalFileSizeBytes);
+	}
+
+	return EOS_TitleStorage_EReadResult::EOS_TS_RR_ContinueReading;
+}
 void EOS_CALL FTitleFileEOSGS::OnFileTransferProgressStatic(const EOS_TitleStorage_FileTransferProgressCallbackInfo* Data)
 {
 	UE_LOG(LogTemp, VeryVerbose, TEXT("FTitleFileEOSGS::ReadFile TransferProgress Filename=[%s] %d/%d"), UTF8_TO_TCHAR(Data->Filename), Data->BytesTransferred, Data->TotalFileSizeBytes);
+}
+
+void EOS_CALL FTitleFileEOSGS::OnReadFileCompleteStatic(const EOS_TitleStorage_ReadFileCallbackInfo* Data)
+{
+	UE_LOG(LogTemp, VeryVerbose, TEXT("FTitleFileEOSGS::ReadFile Complete Filename=[%s]"), UTF8_TO_TCHAR(Data->Filename));
+
+	FTitleFileReadFileClientData* ClientData = (FTitleFileReadFileClientData*)Data->ClientData;
+	check(ClientData);
+	ClientData->Promise.EmplaceValue(Data);
+
+	delete ClientData;
 }
 
 /* UE::Online */ }
