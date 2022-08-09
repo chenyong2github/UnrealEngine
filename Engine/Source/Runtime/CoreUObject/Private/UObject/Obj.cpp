@@ -15,7 +15,7 @@
 #include "Misc/ConfigContext.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
-#include "Misc/ITransaction.h"
+#include "Misc/ITransactionObjectAnnotation.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"

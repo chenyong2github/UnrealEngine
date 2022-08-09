@@ -13,7 +13,7 @@
 #include "RCVirtualPropertyContainer.h"
 #include "RCVirtualProperty.h"
 #include "Misc/CoreDelegates.h"
-#include "Misc/ITransaction.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Misc/Optional.h"
 #include "RemoteControlExposeRegistry.h"
 #include "RemoteControlFieldPath.h"

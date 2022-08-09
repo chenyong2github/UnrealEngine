@@ -4,7 +4,7 @@
 
 #include "Algo/Transform.h"
 #include "Misc/AsyncTaskNotification.h"
-#include "Misc/ITransaction.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/SOverlay.h"

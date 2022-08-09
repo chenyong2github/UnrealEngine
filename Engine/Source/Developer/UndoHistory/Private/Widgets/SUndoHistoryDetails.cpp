@@ -17,7 +17,7 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "UndoHistoryUtils.h"
-#include "Misc/ITransaction.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Algo/Transform.h"
 
 #define LOCTEXT_NAMESPACE "SUndoHistoryDetails"

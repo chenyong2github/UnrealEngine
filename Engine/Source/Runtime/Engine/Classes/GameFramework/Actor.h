@@ -16,13 +16,13 @@
 #include "ComponentInstanceDataCache.h"
 #include "Components/ChildActorComponent.h"
 #include "RenderCommandFence.h"
-#include "Misc/ITransaction.h"
 #include "Engine/Level.h"
 #include "Net/Core/Misc/NetSubObjectRegistry.h"
 #include "Engine/HitResult.h"
 #include "Engine/ReplicatedState.h"
 
 #if WITH_EDITOR
+#include "Misc/ITransactionObjectAnnotation.h"
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "Folder.h"
 #endif

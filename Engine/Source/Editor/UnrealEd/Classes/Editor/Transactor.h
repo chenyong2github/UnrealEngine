@@ -14,6 +14,7 @@
 #include "Serialization/ArchiveUObject.h"
 #include "Serialization/ArchiveSerializedPropertyChain.h"
 #include "Misc/ITransaction.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "TransactionCommon.h"
 #include "Algo/Find.h"
 #include <type_traits>

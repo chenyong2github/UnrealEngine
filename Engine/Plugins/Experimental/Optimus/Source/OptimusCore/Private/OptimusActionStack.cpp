@@ -5,7 +5,7 @@
 #include "Actions/OptimusAction.h"
 #include "IOptimusPathResolver.h"
 
-#include "Misc/ITransaction.h"
+#include "Misc/TransactionObjectEvent.h"
 
 
 UOptimusActionStack::UOptimusActionStack()
