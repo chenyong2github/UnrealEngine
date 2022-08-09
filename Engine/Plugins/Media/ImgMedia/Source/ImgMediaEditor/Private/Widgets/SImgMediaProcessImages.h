@@ -60,20 +60,6 @@ private:
 	bool HasAlphaChannel(const FString& Ext, const FString& File);
 
 	/**
-	 * Processess a single image and writes out 1 or more files.
-	 * Tiles and mips may be generated.
-	 * This does NOT run on the game thread.
-	 *
-	 * @param InImageWrapper	ImageWrapper to read/write the image.
-	 * @param InTileWidth		Desired width of tiles.
-	 * @param InTileHeight		Desired height of tiles.
-	 * @param InName			Full path and name of file to write to WITHOUT the extension (e.g. no .exr)
-	 * @param FileExtension		Extension to append to the file name.
-	 */
-	void ProcessImage(TSharedPtr<IImageWrapper>& InImageWrapper,
-		int32 InTileWidth, int32 InTileHeight, const FString& InName, const FString& FileExtension);
-
-	/**
 	 * Processess a single image and writes out a file.
 	 * Tiles and mips may be generated.
 	 * This does NOT run on the game thread.
@@ -85,10 +71,12 @@ private:
 	 * @param bInEnableMips		Turn on mip mapping.
 	 * @param bHasAlphaChannel	True if there really is an alpha channel.
 	 * @param InName			Full path and name of file to write.
+	 * @param bIsCustomFormat	True to output in our custom format.
 	 */
 	void ProcessImageCustom(TSharedPtr<IImageWrapper>& InImageWrapper,
 		int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, 
-		bool bInEnableMips, bool bHasAlphaChannel, const FString& InName);
+		bool bInEnableMips, bool bHasAlphaChannel, const FString& InName,
+		bool bIsCustomFormat);
 
 	/**
 	 * Processess a single image and writes out a file.
@@ -105,11 +93,12 @@ private:
 	 * @param bInEnableMips		Turn on mip mapping.
 	 * @param bHasAlphaChannel	True if there really is an alpha channel.
 	 * @param InName			Full path and name of file to write.
+	 * @param bIsCustomFormat	True to output in our custom format.
 	 */
 	void ProcessImageCustomRawData(TArray64<uint8>& RawData,
 		int32 Width, int32 Height, int32 BitDepth,
 		int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, bool bInEnableMips,
-		bool bHasAlphaChannel, const FString& InName);
+		bool bHasAlphaChannel, const FString& InName, bool bIsCustomFormat);
 	
 	/**
 	 * Removes the alpha channel from a buffer.

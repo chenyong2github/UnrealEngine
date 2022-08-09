@@ -213,12 +213,14 @@ public:
 	 * @param DisplayWindowMax		Normally (width - 1, height - 1).
 	 * @param DataWindowMin			Normally (0, 0).
 	 * @param DataWindowMax			Normally (width - 1, height - 1).
+	 * @param bInIsTiled			True if you want tiles.
 	 */
 	FTiledOutputFile(
 		const FIntPoint& DisplayWindowMin,
 		const FIntPoint& DisplayWindowMax,
 		const FIntPoint& DataWindowMin,
-		const FIntPoint& DataWindowMax);
+		const FIntPoint& DataWindowMax,
+		bool bInIsTiled = true);
 
 	/**
 	 * Destructor.
@@ -255,6 +257,16 @@ public:
 	int32 GetMipHeight(int32 MipLevel);
 
 	/**
+	 * Get number of horizontal tiles for a mip level.
+	 */
+	int32 GetNumXTiles(int32 MipLevel);
+
+	/**
+	 * Get number of vertical tiles for a mip level.
+	 */
+	int32 GetNumYTiles(int32 MipLevel);
+
+	/**
 	 * Call this before SetFrameBuffer for each channel in the frame buffer.
 	 *
 	 * @param Name			Name of channel (e.g. R, G, B, or A).
@@ -284,12 +296,25 @@ public:
 
 	/**
 	 * Call this to write data to a specific tile.
+	 * If tiles are not enabled then this just writes out the whole image.
 	 *
 	 * @param TileX			X coordinate of tile.
 	 * @param TileY			Y coordinate of tile.
 	 * @param MipLevel		Mipmap level of tile.
 	 */
 	void WriteTile(int32 TileX, int32 TileY, int32 MipLevel);
+
+	/**
+	 * Call this to write data to some tiles.
+	 * If tiles are not enabled then this just writes out the whole image.
+	 *
+	 * @param TileX1		X coordinate of first tile.
+	 * @param TileX2		X coordinate of last tile.
+	 * @param TileY1		Y coordinate of first tile.
+	 * @param TileY2		Y coordinate of last tile.
+	 * @param MipLevel		Mipmap level of tile.
+	 */
+	void WriteTiles(int32 TileX1, int32 TileX2, int32 TileY1, int32 TileY2, int32 MipLevel);
 
 	//~ FBaseOutputFile interface.
 	virtual int32 GetNumberOfMipLevels() override;
@@ -298,5 +323,7 @@ private:
 
 	/** Stores the EXR frame buffer object. */
 	void* FrameBuffer;
+	/** True if tiles are enabled. */
+	bool bIsTiled;
 };
 

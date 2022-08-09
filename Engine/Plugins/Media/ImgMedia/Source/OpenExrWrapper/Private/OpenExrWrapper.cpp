@@ -14,6 +14,7 @@ THIRD_PARTY_INCLUDES_START
 	#include "OpenEXR/ImfCompressionAttribute.h"
 	#include "OpenEXR/ImfHeader.h"
 	#include "OpenEXR/ImfIntAttribute.h"
+	#include "OpenEXR/ImfOutputFile.h"
 	#include "OpenEXR/ImfTileDescriptionAttribute.h"
 	#include "OpenEXR/ImfRgbaFile.h"
 	#include "OpenEXR/ImfStandardAttributes.h"
@@ -407,8 +408,10 @@ FTiledOutputFile::FTiledOutputFile(
 	const FIntPoint& DisplayWindowMin,
 	const FIntPoint& DisplayWindowMax,
 	const FIntPoint& DataWindowMin,
-	const FIntPoint& DataWindowMax)
+	const FIntPoint& DataWindowMax,
+	bool bInIsTiled)
 	: FBaseOutputFile(DisplayWindowMin, DisplayWindowMax, DataWindowMin, DataWindowMax)
+	, bIsTiled(bInIsTiled)
 {
 	FrameBuffer = new Imf::FrameBuffer;
 }
@@ -433,13 +436,21 @@ void FTiledOutputFile::CreateOutputFile(const FString& FilePath,
 	{
 		try
 		{
-			((Imf::Header*)Header)->setTileDescription(Imf::TileDescription(TileWidth, TileHeight,
-				bIsMipsEnabled ? Imf::MIPMAP_LEVELS : Imf::ONE_LEVEL));
+			if (bIsTiled)
+			{
+				((Imf::Header*)Header)->setTileDescription(Imf::TileDescription(TileWidth, TileHeight,
+					bIsMipsEnabled ? Imf::MIPMAP_LEVELS : Imf::ONE_LEVEL));
 
-
-			// Create output file.
-			OutputFile = new Imf::TiledOutputFile(StringCast<ANSICHAR>(*FilePath).Get(),
-				*((Imf::Header*)Header), NumThreads);
+				// Create output file.
+				OutputFile = new Imf::TiledOutputFile(StringCast<ANSICHAR>(*FilePath).Get(),
+					*((Imf::Header*)Header), NumThreads);
+			}
+			else
+			{
+				// Create output file.
+				OutputFile = new Imf::OutputFile(StringCast<ANSICHAR>(*FilePath).Get(),
+					*((Imf::Header*)Header), NumThreads);
+			}
 		}
 		catch (std::exception const& Exception)
 		{
@@ -482,7 +493,14 @@ void FTiledOutputFile::SetFrameBuffer()
 {
 	if (OutputFile != nullptr)
 	{
-		((Imf::TiledOutputFile*)OutputFile)->setFrameBuffer(*((Imf::FrameBuffer*)FrameBuffer));
+		if (bIsTiled)
+		{
+			((Imf::TiledOutputFile*)OutputFile)->setFrameBuffer(*((Imf::FrameBuffer*)FrameBuffer));
+		}
+		else
+		{
+			((Imf::OutputFile*)OutputFile)->setFrameBuffer(*((Imf::FrameBuffer*)FrameBuffer));
+		}
 	}
 	else
 	{
@@ -493,11 +511,47 @@ void FTiledOutputFile::SetFrameBuffer()
 
 void FTiledOutputFile::WriteTile(int32 TileX, int32 TileY, int32 MipLevel)
 {
+	if (bIsTiled)
+	{
+		if (OutputFile != nullptr)
+		{
+			try
+			{
+				((Imf::TiledOutputFile*)OutputFile)->writeTiles(0, TileX, 0, TileY, MipLevel);
+			}
+			catch (std::exception const& Exception)
+			{
+				UE_LOG(LogOpenEXRWrapper, Error, TEXT("Cannot write EXR file: %s"),
+					StringCast<TCHAR>(Exception.what()).Get());
+			}
+		}
+		else
+		{
+			UE_LOG(LogOpenEXRWrapper, Error,
+				TEXT("WriteTile failed: CreateOutputFile has not been called yet."));
+		}
+	}
+	else
+	{
+		WriteTiles(0, 0, 0, 0, 0);
+	}
+}
+
+void FTiledOutputFile::WriteTiles(int32 TileX1, int32 TileX2, int32 TileY1, int32 TileY2, int32 MipLevel)
+{
 	if (OutputFile != nullptr)
 	{
 		try
 		{
-			((Imf::TiledOutputFile*)OutputFile)->writeTile(TileX, TileY, MipLevel);
+			if (bIsTiled)
+			{
+				((Imf::TiledOutputFile*)OutputFile)->writeTiles(TileX1, TileX2, TileY1, TileY2, MipLevel);
+			}
+			else
+			{
+				Imath::Box2i DataWindow = ((Imf::Header*)Header)->dataWindow();
+				((Imf::OutputFile*)OutputFile)->writePixels(DataWindow.max.y - DataWindow.min.y + 1);
+			}
 		}
 		catch (std::exception const& Exception)
 		{
@@ -508,7 +562,7 @@ void FTiledOutputFile::WriteTile(int32 TileX, int32 TileY, int32 MipLevel)
 	else
 	{
 		UE_LOG(LogOpenEXRWrapper, Error,
-			TEXT("WriteTile failed: CreateOutputFile has not been called yet."));
+			TEXT("WriteTiles failed: CreateOutputFile has not been called yet."));
 	}
 }
 
@@ -516,7 +570,14 @@ int32 FTiledOutputFile::GetNumberOfMipLevels()
 {
 	if (OutputFile != nullptr)
 	{
-		return ((Imf::TiledOutputFile*)OutputFile)->numLevels();
+		if (bIsTiled)
+		{
+			return ((Imf::TiledOutputFile*)OutputFile)->numLevels();
+		}
+		else
+		{
+			return 1;
+		}
 	}
 	else
 	{
@@ -530,7 +591,15 @@ int32 FTiledOutputFile::GetMipWidth(int32 MipLevel)
 {
 	if (OutputFile != nullptr)
 	{
-		return ((Imf::TiledOutputFile*)OutputFile)->levelWidth(MipLevel);
+		if (bIsTiled)
+		{
+			return ((Imf::TiledOutputFile*)OutputFile)->levelWidth(MipLevel);
+		}
+		else
+		{
+			Imath::Box2i DataWindow = ((Imf::Header*)Header)->dataWindow();
+			return DataWindow.size().x + 1;
+		}
 	}
 	else
 	{
@@ -544,12 +613,62 @@ int32 FTiledOutputFile::GetMipHeight(int32 MipLevel)
 {
 	if (OutputFile != nullptr)
 	{
-		return ((Imf::TiledOutputFile*)OutputFile)->levelHeight(MipLevel);
+		if (bIsTiled)
+		{
+			return ((Imf::TiledOutputFile*)OutputFile)->levelHeight(MipLevel);
+		}
+		else
+		{
+			Imath::Box2i DataWindow = ((Imf::Header*)Header)->dataWindow();
+			return DataWindow.size().y + 1;
+		}
 	}
 	else
 	{
 		UE_LOG(LogOpenEXRWrapper, Error,
 			TEXT("GetMipHeight failed: CreateOutputFile has not been called yet."));
+		return 0;
+	}
+}
+
+int32 FTiledOutputFile::GetNumXTiles(int32 MipLevel)
+{
+	if (OutputFile != nullptr)
+	{
+		if (bIsTiled)
+		{
+			return ((Imf::TiledOutputFile*)OutputFile)->numXTiles(MipLevel);
+		}
+		else
+		{
+			return 0;
+		}
+	}
+	else
+	{
+		UE_LOG(LogOpenEXRWrapper, Error,
+			TEXT("GetNumXTiles failed: CreateOutputFile has not been called yet."));
+		return 0;
+	}
+}
+
+int32 FTiledOutputFile::GetNumYTiles(int32 MipLevel)
+{
+	if (OutputFile != nullptr)
+	{
+		if (bIsTiled)
+		{
+			return ((Imf::TiledOutputFile*)OutputFile)->numYTiles(MipLevel);
+		}
+		else
+		{
+			return 0;
+		}
+	}
+	else
+	{
+		UE_LOG(LogOpenEXRWrapper, Error,
+			TEXT("GetNumYTiles failed: CreateOutputFile has not been called yet."));
 		return 0;
 	}
 }
