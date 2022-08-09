@@ -822,7 +822,7 @@ void FLensFileExchange::PopulateNodalOffsetTable(ULensFile& OutLensFile, const F
 
 			if (Metadata.NodalOffsetCoordinateSystem == ENodalOffsetCoordinateSystem::OpenCV)
 			{
-				FOpenCVHelper::ConvertUnrealToOpenCV(NodalOffsetTransform);
+				FOpenCVHelper::ConvertOpenCVToUnreal(NodalOffsetTransform);
 			}
 
 			FNodalPointOffset NodalPointOffset;
