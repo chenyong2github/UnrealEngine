@@ -46,14 +46,7 @@ void UNeuralMorphModel::Serialize(FArchive& Archive)
 	if (bHasMorphData)
 	{
 		check(MorphTargetSet.IsValid());
-		if (Archive.IsLoading())
-		{
-			Archive << MorphTargetSet->MorphBuffers;
-		}
-		else
-		{
-			Archive << MorphTargetSet->MorphBuffers;
-		}
+		Archive << MorphTargetSet->MorphBuffers;
 	}
 }
 

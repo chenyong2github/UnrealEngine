@@ -2327,7 +2327,10 @@ void FDynamicSkelMeshObjectDataGPUSkin::InitDynamicSkelMeshObjectDataGPUSkin(
 
 	ExternalMorphWeightData = InExternalMorphWeightData;
 	ExternalMorphWeightData.UpdateNumActiveMorphTargets();
-	ExternalMorphSets = InMeshComponent->GetExternalMorphSets(InLODIndex);
+	if (InMeshComponent)
+	{
+		ExternalMorphSets = InMeshComponent->GetExternalMorphSets(InLODIndex);
+	}
 
 	// Gather any bones referenced by shadow shapes
 	FSkeletalMeshSceneProxy* SkeletalMeshProxy = InMeshComponent ? (FSkeletalMeshSceneProxy*)InMeshComponent->SceneProxy : nullptr;
