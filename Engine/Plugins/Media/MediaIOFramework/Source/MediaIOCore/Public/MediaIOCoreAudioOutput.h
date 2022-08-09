@@ -21,7 +21,8 @@ namespace UE::MediaIoCoreModule::Private
 		// @Note: We only support upmixing at the moment.
 		
 		TArray<OutputType> ConvertedBuffer;
-		ConvertedBuffer.SetNumZeroed(NumOutputChannels / NumInputChannels * InBuffer.Num());
+		const float ChannelRatio = static_cast<float>(NumOutputChannels) / NumInputChannels;
+		ConvertedBuffer.SetNumZeroed(FMath::CeilToInt32(ChannelRatio * InBuffer.Num()));
 
 		OutputType* ConvertedBufferPtr = ConvertedBuffer.GetData();
 
