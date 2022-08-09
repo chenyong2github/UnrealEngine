@@ -629,6 +629,14 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = SkeletalMesh)
 	uint8 bEnablePhysicsOnDedicatedServer:1;
 
+	/** 
+	 * If true, then the physics bodies will be used to drive the skeletal mesh even when they are
+	 * kinematic (not simulating), otherwise the skeletal mesh will be driven by the animation input 
+	 * when the bodies are kinematic
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = SkeletalMesh)
+	uint8 bUpdateMeshWhenKinematic:1;
+
 	/**
 	 *	If we should pass joint position to joints each frame, so that they can be used by motorized joints to drive the
 	 *	ragdoll based on the animation.

@@ -205,6 +205,10 @@ void USkeletalMeshComponent::PerformBlendPhysicsBones(const TArray<FBoneIndexTyp
 			// need to update back to physX so that physX knows where it was after blending
 			FBodyInstance* PhysicsAssetBodyInstance = nullptr;
 
+			// Gets set to true if we have a valid body and the skeletal mesh option has been set to
+			// be driven by kinematic body parts.
+			bool bDriveMeshWhenKinematic = false;
+
 			// If so - get its world space matrix and its parents world space matrix and calc relative atom.
 			if(BodyIndex != INDEX_NONE )
 			{	
@@ -221,8 +225,12 @@ void USkeletalMeshComponent::PerformBlendPhysicsBones(const TArray<FBoneIndexTyp
 #endif
 				PhysicsAssetBodyInstance = Bodies[BodyIndex];
 
+				bDriveMeshWhenKinematic =
+					bUpdateMeshWhenKinematic &&
+					PhysicsAssetBodyInstance->IsValidBodyInstance();
+
 				//if simulated body copy back and blend with animation
-				if(PhysicsAssetBodyInstance->IsInstanceSimulatingPhysics())
+				if(PhysicsAssetBodyInstance->IsInstanceSimulatingPhysics() || bDriveMeshWhenKinematic)
 				{
 					FTransform PhysTM = PhysicsAssetBodyInstance->GetUnrealWorldTransform_AssumesLocked();
 
@@ -230,10 +238,10 @@ void USkeletalMeshComponent::PerformBlendPhysicsBones(const TArray<FBoneIndexTyp
 					WorldBoneTMs[BoneIndex].TM = PhysTM;
 					WorldBoneTMs[BoneIndex].bUpToDate = true;
 
-					float UsePhysWeight = (bBlendPhysics)? 1.f : PhysicsAssetBodyInstance->PhysicsBlendWeight;
+					float UsePhysWeight = (bBlendPhysics || bDriveMeshWhenKinematic)? 1.f : PhysicsAssetBodyInstance->PhysicsBlendWeight;
 
 					// if the body instance is disabled, then we want to use the animation transform and ignore the physics one
-					if (PhysicsAssetBodyInstance->IsPhysicsDisabled())
+					if (PhysicsAssetBodyInstance->IsPhysicsDisabled() && !bDriveMeshWhenKinematic)
 					{
 						UsePhysWeight = 0.0f;
 					}
@@ -241,7 +249,7 @@ void USkeletalMeshComponent::PerformBlendPhysicsBones(const TArray<FBoneIndexTyp
 					// Find this bones parent matrix.
 					FTransform ParentWorldTM;
 
-					// if we wan't 'full weight' we just find 
+					// if we want 'full weight' we just find 
 					if(UsePhysWeight > 0.f)
 					{
 						if (!(ensure(InOutBoneSpaceTransforms.Num())))
@@ -300,7 +308,7 @@ void USkeletalMeshComponent::PerformBlendPhysicsBones(const TArray<FBoneIndexTyp
 			}
 			else
 			{
-				if(bLocalSpaceKinematics || BodyIndex == INDEX_NONE || Bodies[BodyIndex]->IsInstanceSimulatingPhysics())
+				if(bDriveMeshWhenKinematic || bLocalSpaceKinematics || BodyIndex == INDEX_NONE || Bodies[BodyIndex]->IsInstanceSimulatingPhysics())
 				{
 					if (!(ensure(BoneIndex < InOutBoneSpaceTransforms.Num())))
 					{
