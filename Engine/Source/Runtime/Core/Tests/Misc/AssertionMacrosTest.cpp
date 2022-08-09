@@ -22,6 +22,7 @@ static void MultipleEnsuresFailedDifferent();
  */
 TEST_CASE("Core::Misc::AssertionMacros", "[Core][Misc][AssertionMacros][Ensure]")
 {
+	TGuardValue<bool> IgnoreDebugger(GIgnoreDebugger, true);
 	GLog->SetSuppressEventTag(true);
 	SECTION("Ensure not triggered with REQUIRE_NOENSURE")
 	{
