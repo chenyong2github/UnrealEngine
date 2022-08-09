@@ -3,14 +3,25 @@
 #include "Widgets/SMediaSourceManagerChannel.h"
 
 #include "DragAndDrop/AssetDragDropOp.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "IMediaIOCoreDeviceProvider.h"
+#include "IMediaIOCoreModule.h"
 #include "Inputs/MediaSourceManagerInputMediaSource.h"
 #include "MediaSource.h"
 #include "MediaSourceManagerChannel.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SMediaSourceManagerTexture.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SMediaSourceManagerChannel"
+
+SMediaSourceManagerChannel::~SMediaSourceManagerChannel()
+{
+	DismissErrorNotification();
+}
 
 void SMediaSourceManagerChannel::Construct(const FArguments& InArgs,
 	UMediaSourceManagerChannel* InChannel)
@@ -29,6 +40,24 @@ void SMediaSourceManagerChannel::Construct(const FArguments& InArgs,
 				[
 					SNew(STextBlock)
 						.Text(FText::FromString(ChannelPtr->Name))
+				]
+
+			// Set input.
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2)
+				.HAlign(HAlign_Left)
+				[
+					SNew(SComboButton)
+						.OnGetMenuContent(this, &SMediaSourceManagerChannel::CreateAssignInputMenu)
+						.ContentPadding(2)
+						.ButtonContent()
+						[
+							SNew(STextBlock)
+								.ToolTipText(LOCTEXT("Assign_ToolTip",
+									"Assign an input to this channel."))
+								.Text(LOCTEXT("AssignInput", "Assign Input"))
+						]
 				]
 
 			// Name of input.
@@ -108,6 +137,100 @@ FReply SMediaSourceManagerChannel::OnDrop(const FGeometry& MyGeometry, const FDr
 	}
 
 	return FReply::Unhandled();
+}
+
+
+TSharedRef<SWidget> SMediaSourceManagerChannel::CreateAssignInputMenu()
+{
+	FMenuBuilder MenuBuilder(true, NULL);
+
+	// Get all Media IO device providers.
+	IMediaIOCoreModule& MediaIOCoreModule = IMediaIOCoreModule::Get();
+	TConstArrayView<IMediaIOCoreDeviceProvider*> DeviceProviders =
+		MediaIOCoreModule.GetDeviceProviders();
+
+	// Loop through each provider.
+	for (IMediaIOCoreDeviceProvider* DeviceProvider : DeviceProviders)
+	{
+		if (DeviceProvider != nullptr)
+		{
+			// Start menu section.
+			FName ProviderName = DeviceProvider->GetFName();
+			MenuBuilder.BeginSection(ProviderName, FText::FromName(ProviderName));
+
+			// Go over all input configurations.
+			TArray<FMediaIOConfiguration> Configurations = DeviceProvider->GetConfigurations(true, false);
+			for (const FMediaIOConfiguration& Configuration : Configurations)
+			{
+				// Add this device.
+				FName DeviceName = Configuration.MediaConnection.Device.DeviceName;
+
+				FUIAction AssignMediaIOInputAction(FExecuteAction::CreateSP(this,
+					&SMediaSourceManagerChannel::AssignMediaIOInput, DeviceProvider, Configuration));
+				MenuBuilder.AddMenuEntry(FText::FromName(DeviceName), FText(), FSlateIcon(),
+					AssignMediaIOInputAction);
+			}
+
+			MenuBuilder.EndSection();
+		}
+	}
+
+	return MenuBuilder.MakeWidget();
+}
+
+void SMediaSourceManagerChannel::AssignMediaIOInput(IMediaIOCoreDeviceProvider* DeviceProvider,
+	FMediaIOConfiguration Config)
+{
+	UMediaSourceManagerChannel* Channel = ChannelPtr.Get();
+	if (Channel != nullptr)
+	{
+		// Create media source.
+		UMediaSource* MediaSource = DeviceProvider->CreateMediaSource(Config, Channel);
+		if (MediaSource != nullptr)
+		{
+			// Assign to channel.
+			Channel->Modify();
+			UMediaSourceManagerInputMediaSource* Input = NewObject<UMediaSourceManagerInputMediaSource>(Channel);
+			Input->MediaSource = MediaSource;
+			Channel->Input = Input;
+
+			Channel->Play();
+
+			Refresh();
+		}
+		else
+		{
+			// Failed to create media source.
+			// Remove any existing error.
+			DismissErrorNotification();
+
+			// Inform the user.
+			FNotificationInfo Info(LOCTEXT("FailedToCreateMediaSource", "Failed to create a Media Source."));
+			Info.bFireAndForget = false;
+			Info.bUseLargeFont = false;
+			Info.bUseThrobber = false;
+			Info.FadeOutDuration = 0.25f;
+			Info.ButtonDetails.Add(FNotificationButtonInfo(LOCTEXT("Dismiss", "Dismiss"), LOCTEXT("DismissToolTip", "Dismiss this notification."),
+				FSimpleDelegate::CreateSP(this, &SMediaSourceManagerChannel::DismissErrorNotification)));
+
+			ErrorNotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+			TSharedPtr<SNotificationItem> ErrorNotification = ErrorNotificationPtr.Pin();
+			if (ErrorNotification != nullptr)
+			{
+				ErrorNotification->SetCompletionState(SNotificationItem::CS_Pending);
+			}
+		}
+	}
+}
+
+void SMediaSourceManagerChannel::DismissErrorNotification()
+{
+	TSharedPtr<SNotificationItem> ErrorNotification = ErrorNotificationPtr.Pin();
+	if (ErrorNotification != nullptr)
+	{
+		ErrorNotification->ExpireAndFadeout();
+		ErrorNotification.Reset();
+	}
 }
 
 void SMediaSourceManagerChannel::Refresh()

@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "MediaIOCoreDefinitions.h"
 
+class UMediaSource;
+
 class MEDIAIOCORE_API IMediaIOCoreDeviceProvider
 {
 public:
@@ -24,6 +26,9 @@ public:
 	virtual FMediaIOInputConfiguration GetDefaultInputConfiguration() const = 0;
 	virtual FMediaIOOutputConfiguration GetDefaultOutputConfiguration() const = 0;
 	virtual FMediaIOVideoTimecodeConfiguration GetDefaultTimecodeConfiguration() const = 0;
+
+	virtual UMediaSource* CreateMediaSource(const FMediaIOConfiguration& InConfiguration,
+		UObject* Outer) const { return nullptr; }
 
 	virtual FText ToText(const FMediaIOConfiguration& InConfiguration) const;
 	virtual FText ToText(const FMediaIOConnection& InConnection) const;

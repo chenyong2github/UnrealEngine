@@ -5,6 +5,7 @@
 #include "Blackmagic.h"
 #include "BlackmagicLib.h"
 #include "BlackmagicMediaPrivate.h"
+#include "BlackmagicMediaSource.h"
 #include "IBlackmagicMediaModule.h"
 #include "MediaIOCoreCommonDisplayMode.h"
 
@@ -428,6 +429,19 @@ FMediaIOOutputConfiguration FBlackmagicDeviceProvider::GetDefaultOutputConfigura
 	Configuration.OutputReference = EMediaIOReferenceType::FreeRun;
 	Configuration.OutputType = EMediaIOOutputType::Fill;
 	return Configuration;
+}
+
+
+UMediaSource* FBlackmagicDeviceProvider::CreateMediaSource(
+	const FMediaIOConfiguration& InConfiguration, UObject* Outer) const
+{
+	UBlackmagicMediaSource* MediaSource = NewObject<UBlackmagicMediaSource>(Outer);
+	if (MediaSource != nullptr)
+	{
+		MediaSource->MediaConfiguration = InConfiguration;
+	}
+
+	return MediaSource;
 }
 
 

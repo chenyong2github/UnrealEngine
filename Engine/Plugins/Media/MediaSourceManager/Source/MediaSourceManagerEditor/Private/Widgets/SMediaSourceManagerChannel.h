@@ -5,8 +5,11 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+class IMediaIOCoreDeviceProvider;
+class SNotificationItem;
 class STextBlock;
 class UMediaSourceManagerChannel;
+struct FMediaIOConfiguration;
 
 /**
  * Implements a single channel.
@@ -18,6 +21,8 @@ public:
 
 	SLATE_BEGIN_ARGS(SMediaSourceManagerChannel) { }
 	SLATE_END_ARGS()
+
+	virtual ~SMediaSourceManagerChannel();
 
 	/**
 	 * Construct this widget.
@@ -41,7 +46,27 @@ private:
 	TWeakObjectPtr<UMediaSourceManagerChannel> ChannelPtr;
 	/** Widget for the input name. */
 	TSharedPtr<STextBlock> InputNameTextBlock;
+	/** Holds our error notification so we can dismiss it. */
+	TWeakPtr<SNotificationItem> ErrorNotificationPtr;
 	
+	/**
+	 * Callback to create the assign input menu.
+	 */
+	TSharedRef<SWidget> CreateAssignInputMenu();
+
+	/**
+	 * Assigns a MediaIO input to this channel.
+	 *
+	 * @param DeviceProvider	MediaIO device provider to get the input from.
+	 * @param Config			MediaIO configuration to pass to the device provider.
+	 */
+	void AssignMediaIOInput(IMediaIOCoreDeviceProvider* DeviceProvider, FMediaIOConfiguration Config);
+
+	/**
+	 * Call this to remove the error notification.
+	 */
+	void DismissErrorNotification();
+
 	/**
 	 * Refreshes the widgets based on the current sstate.
 	 */
