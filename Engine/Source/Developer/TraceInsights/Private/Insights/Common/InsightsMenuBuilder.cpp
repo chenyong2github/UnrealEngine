@@ -8,6 +8,7 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 
+#include "Insights/ImportTool/TableImportTool.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/InsightsManager.h"
 
@@ -65,6 +66,11 @@ void FInsightsMenuBuilder::PopulateMenu(FMenuBuilder& MenuBuilder)
 		false,
 		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.FolderOpen")
 	);
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ImportTable", "Import Table"),
+		LOCTEXT("ImportTable_ToolTip", "Import CSV or TSV data from a file to an Insights Table."),
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Import.Table"),
+		FUIAction(FExecuteAction::CreateLambda([] { Insights::FTableImportTool::Get()->StartImportProcess(); })));
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AutoOpenLiveTrace", "Auto Open Live Trace"),
 		LOCTEXT("AutoOpenLiveTrace_ToolTip", "If enabled, the analysis starts automatically for each new live trace session, replacing the current analysis session."),
