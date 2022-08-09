@@ -182,7 +182,7 @@ class UCloudStorageBase
 
 	/**
 	 * If there was a conflict notification, this will tell the cloud interface
-	 * to choose the version with a given Index to be the master version, and to
+	 * to choose the version with a given Index to be the primary version, and to
 	 * toss any others.
 	 *
 	 * @param Index Conflict version index.

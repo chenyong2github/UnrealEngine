@@ -176,14 +176,14 @@ public:
 	/** The FUniqueNetId which this player is associated with. */
 	FUniqueNetIdRepl CachedUniqueNetId;
 
-	/** The master viewport containing this player's view. */
+	/** The primary viewport containing this player's view. */
 	UPROPERTY()
 	TObjectPtr<class UGameViewportClient> ViewportClient;
 
-	/** The coordinates for the upper left corner of the master viewport subregion allocated to this player. 0-1 */
+	/** The coordinates for the upper left corner of the primary viewport subregion allocated to this player. 0-1 */
 	FVector2D Origin;
 
-	/** The size of the master viewport subregion allocated to this player. 0-1 */
+	/** The size of the primary viewport subregion allocated to this player. 0-1 */
 	FVector2D Size;
 
 	/** The location of the player's view the previous frame. */

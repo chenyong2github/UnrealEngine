@@ -297,11 +297,11 @@ public:
 	virtual ~FTickFunction();
 
 	/** 
-	 * Adds the tick function to the master list of tick functions. 
+	 * Adds the tick function to the primary list of tick functions. 
 	 * @param Level - level to place this tick function in
 	 **/
 	void RegisterTickFunction(class ULevel* Level);
-	/** Removes the tick function from the master list of tick functions. **/
+	/** Removes the tick function from the primary list of tick functions. **/
 	void UnRegisterTickFunction();
 	/** See if the tick function is currently registered */
 	bool IsTickFunctionRegistered() const { return (InternalData && InternalData->bRegistered); }
