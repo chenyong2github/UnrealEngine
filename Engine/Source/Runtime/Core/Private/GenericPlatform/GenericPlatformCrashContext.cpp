@@ -104,6 +104,7 @@ const TCHAR* const FGenericCrashContext::CrashTypeStall = TEXT("Stall");
 const TCHAR* const FGenericCrashContext::CrashTypeGPU = TEXT("GPUCrash");
 const TCHAR* const FGenericCrashContext::CrashTypeHang = TEXT("Hang");
 const TCHAR* const FGenericCrashContext::CrashTypeAbnormalShutdown = TEXT("AbnormalShutdown");
+const TCHAR* const FGenericCrashContext::CrashTypeOutOfMemory = TEXT("OutOfMemory");
 
 const TCHAR* const FGenericCrashContext::EngineModeExUnknown = TEXT("Unset");
 const TCHAR* const FGenericCrashContext::EngineModeExDirty = TEXT("Dirty");
@@ -1046,6 +1047,8 @@ const TCHAR* FGenericCrashContext::GetCrashTypeString(ECrashContextType Type)
 		return CrashTypeAssert;
 	case ECrashContextType::AbnormalShutdown:
 		return CrashTypeAbnormalShutdown;
+	case ECrashContextType::OutOfMemory:
+		return CrashTypeOutOfMemory;
 	default:
 		return CrashTypeCrash;
 	}

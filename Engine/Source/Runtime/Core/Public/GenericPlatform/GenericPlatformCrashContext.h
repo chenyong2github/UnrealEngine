@@ -294,6 +294,7 @@ public:
 	static const TCHAR* const CrashTypeGPU;
 	static const TCHAR* const CrashTypeHang;
 	static const TCHAR* const CrashTypeAbnormalShutdown;
+	static const TCHAR* const CrashTypeOutOfMemory;
 
 	static const TCHAR* const EngineModeExUnknown;
 	static const TCHAR* const EngineModeExDirty;
