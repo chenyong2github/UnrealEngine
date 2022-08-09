@@ -931,7 +931,7 @@ namespace Horde.Build.Server
 				Func<CancellationToken, Task> updateIndexTask = await _mongoService.ReadNextUpgradeTask(cancellationToken);
 				for (; ; )
 				{
-					using (RedisLock schemaLock = new RedisLock(_redisService.Database, s_schemaLockKey))
+					using (RedisLock schemaLock = new (_redisService.GetDatabase(), s_schemaLockKey))
 					{
 						if (await schemaLock.AcquireAsync(TimeSpan.FromMinutes(5.0)) && await UpdateOneAsync(updateIndexTask, cancellationToken))
 						{

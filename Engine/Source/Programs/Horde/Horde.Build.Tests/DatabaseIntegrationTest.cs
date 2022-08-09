@@ -202,10 +202,11 @@ namespace Horde.Build.Tests
 
 				(string host, int port) = redisRunner.GetListenAddress();
 				_redisService = new RedisService($"{host}:{port},allowAdmin=true", RedisDbNum, _loggerFactory);
+				IConnectionMultiplexer cm = _redisService.ConnectionPool.GetConnection();
 
-				foreach (EndPoint endpoint in _redisService.Multiplexer.GetEndPoints())
+				foreach (EndPoint endpoint in cm.GetEndPoints())
 				{
-					_redisService.Multiplexer.GetServer(endpoint).FlushDatabase(RedisDbNum);
+					cm.GetServer(endpoint).FlushDatabase(RedisDbNum);
 				}
 			}
 			return _redisService;

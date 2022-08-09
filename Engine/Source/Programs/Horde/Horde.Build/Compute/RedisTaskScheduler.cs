@@ -77,7 +77,7 @@ namespace Horde.Build.Compute
 			}
 		}
 
-		readonly IDatabase _redis;
+		readonly RedisConnectionPool _redisConnectionPool;
 		readonly RedisKey _baseKey;
 		readonly RedisSet<TQueueId> _queueIndex;
 		readonly RedisHash<TQueueId, DateTime> _activeQueues; // Queues which are actively being dequeued from
@@ -92,15 +92,15 @@ namespace Horde.Build.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="redis">The Redis database instance</param>
+		/// <param name="redisConnectionPool">The Redis connection pool</param>
 		/// <param name="baseKey">Base key for all keys used by this scheduler</param>
 		/// <param name="logger"></param>
-		public RedisTaskScheduler(IDatabase redis, RedisKey baseKey, ILogger logger)
+		public RedisTaskScheduler(RedisConnectionPool redisConnectionPool, RedisKey baseKey, ILogger logger)
 		{
-			_redis = redis;
+			_redisConnectionPool = redisConnectionPool;
 			_baseKey = baseKey;
-			_queueIndex = new RedisSet<TQueueId>(redis, baseKey.Append("index"));
-			_activeQueues = new RedisHash<TQueueId, DateTime>(redis, baseKey.Append("active"));
+			_queueIndex = new RedisSet<TQueueId>(_redisConnectionPool, baseKey.Append("index"));
+			_activeQueues = new RedisHash<TQueueId, DateTime>(_redisConnectionPool, baseKey.Append("active"));
 			_newQueueChannel = new RedisChannel<TQueueId>(baseKey.Append("new_queues").ToString());
 			_logger = logger;
 
@@ -141,7 +141,7 @@ namespace Horde.Build.Compute
 		/// <returns></returns>
 		RedisList<TTask> GetQueue(TQueueId queueId)
 		{
-			return new RedisList<TTask>(_redis, GetQueueKey(queueId));
+			return new RedisList<TTask>(_redisConnectionPool, GetQueueKey(queueId));
 		}
 
 		/// <summary>
@@ -177,14 +177,15 @@ namespace Horde.Build.Compute
 					break;
 				}
 
-				ITransaction transaction = _redis.CreateTransaction();
+				IDatabase redis = _redisConnectionPool.GetDatabase();
+				ITransaction transaction = redis.CreateTransaction();
 				_ = transaction.With(_queueIndex).AddAsync(queueId, CommandFlags.FireAndForget);
 				_ = PushTaskAsync(transaction.With(list), task, When.Always, CommandFlags.FireAndForget, atFront);
 
 				if (await transaction.ExecuteAsync())
 				{
 					_logger.LogInformation("Created queue {QueueId}", queueId);
-					await _redis.PublishAsync(_newQueueChannel, queueId);
+					await redis.PublishAsync(_newQueueChannel, queueId);
 					break;
 				}
 
@@ -285,7 +286,7 @@ namespace Horde.Build.Compute
 			TTask? item = await GetQueue(queueId).LeftPopAsync();
 			if (item == null)
 			{
-				ITransaction transaction = _redis.CreateTransaction();
+				ITransaction transaction = _redisConnectionPool.GetDatabase().CreateTransaction();
 				transaction.AddCondition(Condition.KeyNotExists(GetQueueKey(queueId)));
 				Task<bool> wasRemoved = transaction.With(_queueIndex).RemoveAsync(queueId);
 
@@ -378,7 +379,7 @@ namespace Horde.Build.Compute
 		{
 			Channel<TQueueId> newQueues = Channel.CreateUnbounded<TQueueId>();
 
-			ISubscriber subscriber = _redis.Multiplexer.GetSubscriber();
+			ISubscriber subscriber = _redisConnectionPool.GetDatabase().Multiplexer.GetSubscriber();
 			await using RedisChannelSubscription<TQueueId>? _ = await subscriber.SubscribeAsync(_newQueueChannel, (_, v) => newQueues.Writer.TryWrite(v));
 
 			while (await newQueues.Reader.WaitToReadAsync(cancellationToken))

@@ -468,7 +468,7 @@ namespace Horde.Build.Issues
 			Stopwatch timer = Stopwatch.StartNew();
 			TimeSpan nextNotifyTime = TimeSpan.FromSeconds(2.0);
 
-			RedisLock issueLock = new RedisLock(_redisService.Database, "issues/lock");
+			RedisLock issueLock = new (_redisService.GetDatabase(), "issues/lock");
 			while (!await issueLock.AcquireAsync(TimeSpan.FromMinutes(1)))
 			{
 				if (timer.Elapsed > nextNotifyTime)

@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Redis;
 using Horde.Build.Logs.Data;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;

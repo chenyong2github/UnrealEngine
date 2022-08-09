@@ -168,8 +168,9 @@ namespace Horde.Build.Server
 			try
 			{
 				string key = "HordeLifetimeService-Health-Check";
-				await _redisService.Database.StringSetAsync(key, "ok");
-				await _redisService.Database.StringGetAsync(key);
+				IDatabase redis = _redisService.GetDatabase();
+				await redis.StringSetAsync(key, "ok");
+				await redis.StringGetAsync(key);
 				isHealthy = true;
 			}
 			catch (Exception e)

@@ -158,7 +158,7 @@ namespace Horde.Build.Perforce
 		public ReplicationServiceOptions Options { get; }
 
 		// Redis
-		readonly IDatabase _redis;
+		readonly RedisConnectionPool _redisConnectionPool;
 
 		// Collections
 		readonly CommitService _commitService;
@@ -190,9 +190,9 @@ namespace Horde.Build.Perforce
 		{
 			Options = options.Value;
 
-			_redis = redisService.Database;
-			_redisDirtyStreams = new RedisSet<StreamId>(_redis, RedisBaseKey.Append("streams"));
-			_redisReservations = new RedisSortedSet<StreamId>(_redis, RedisBaseKey.Append("reservations"));
+			_redisConnectionPool = redisService.ConnectionPool;
+			_redisDirtyStreams = new RedisSet<StreamId>(_redisConnectionPool, RedisBaseKey.Append("streams"));
+			_redisReservations = new RedisSortedSet<StreamId>(_redisConnectionPool, RedisBaseKey.Append("reservations"));
 
 			_commitService = commitService;
 			_commitListener = _commitService.AddListener(OnCommitAdded);
@@ -216,7 +216,7 @@ namespace Horde.Build.Perforce
 			{
 				_stopping = false;
 				_updateStreamsEvent.Reset();
-				_redisUpdateSubscription = await _redis.Multiplexer.GetSubscriber().SubscribeAsync(RedisUpdateChannel, (_, _) => _updateStreamsEvent.Pulse());
+				_redisUpdateSubscription = await _redisConnectionPool.GetDatabase().Multiplexer.GetSubscriber().SubscribeAsync(RedisUpdateChannel, (_, _) => _updateStreamsEvent.Pulse());
 				_streamUpdateTask = Task.Run(() => UpdateContentAsync(), cancellationToken);
 			}
 		}
@@ -238,7 +238,7 @@ namespace Horde.Build.Perforce
 			}
 		}
 
-		RedisList<int> RedisStreamChanges(StreamId streamId) => new RedisList<int>(_redis, RedisBaseKey.Append($"stream/{streamId}/changes"));
+		RedisList<int> RedisStreamChanges(StreamId streamId) => new RedisList<int>(_redisConnectionPool, RedisBaseKey.Append($"stream/{streamId}/changes"));
 
 		async Task OnCommitAdded(ICommit commit)
 		{
@@ -248,7 +248,7 @@ namespace Horde.Build.Perforce
 
 			// Signal to any listeners that we have new data to process
 			await _redisDirtyStreams.AddAsync(commit.StreamId);
-			await _redis.PublishAsync(RedisUpdateChannel, commit.StreamId);
+			await _redisConnectionPool.GetDatabase().PublishAsync(RedisUpdateChannel, commit.StreamId);
 		}
 
 		async Task UpdateContentAsync()
@@ -391,7 +391,7 @@ namespace Horde.Build.Perforce
 				}
 
 				// Remove this stream from the dirty list if it's empty
-				ITransaction transaction = _redis.CreateTransaction();
+				ITransaction transaction = _redisConnectionPool.GetDatabase().CreateTransaction();
 				transaction.AddCondition(Condition.ListLengthLessThan(streamChanges.Key, 2));
 				_ = transaction.With(_redisDirtyStreams).RemoveAsync(streamId);
 				if (await transaction.ExecuteAsync())
@@ -441,7 +441,7 @@ namespace Horde.Build.Perforce
 					prevChange = values[1];
 
 					// Remove the first item from the list
-					ITransaction transaction = _redis.CreateTransaction();
+					ITransaction transaction = _redisConnectionPool.GetDatabase().CreateTransaction();
 					transaction.AddCondition(Condition.ListIndexEqual(changes.Key, 0, values[0]));
 					transaction.AddCondition(Condition.ListIndexEqual(changes.Key, 1, values[1]));
 					_ = transaction.With(changes).LeftPopAsync();

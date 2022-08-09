@@ -110,7 +110,7 @@ namespace Horde.Build.Agents
 			_sessions = sessions;
 			_aclService = aclService;
 			_downtimeService = downtimeService;
-			_agentRateTableData = new RedisString<AgentRateTable>(redisService.Database, "agent-rates");
+			_agentRateTableData = new RedisString<AgentRateTable>(redisService.ConnectionPool, "agent-rates");
 			_agentRateTable = new AsyncCachedValue<AgentRateTable?>(() => _agentRateTableData.GetAsync(), TimeSpan.FromSeconds(2.0));//.FromMinutes(5.0));
 			_poolsList = new AsyncCachedValue<List<IPool>>(() => poolCollection.GetAsync(), TimeSpan.FromSeconds(30.0));
 			_dogStatsd = dogStatsd;
@@ -915,7 +915,7 @@ namespace Horde.Build.Agents
 			RedisKey key = $"agent-rate/{agentId}";
 
 			// Try to get the current value
-			RedisValue value = await _redisService.Database.StringGetAsync(key);
+			RedisValue value = await _redisService.GetDatabase().StringGetAsync(key);
 			if (!value.IsNull)
 			{
 				double rate = (double)value;
@@ -951,7 +951,7 @@ namespace Horde.Build.Agents
 				}
 
 				// Cache it for future reference
-				await _redisService.Database.StringSetAsync(key, rate, TimeSpan.FromMinutes(5.0), flags: CommandFlags.FireAndForget);
+				await _redisService.GetDatabase().StringSetAsync(key, rate, TimeSpan.FromMinutes(5.0), flags: CommandFlags.FireAndForget);
 				return rate;
 			}
 		}

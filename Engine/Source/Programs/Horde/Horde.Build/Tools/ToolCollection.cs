@@ -177,7 +177,7 @@ namespace Horde.Build.Tools
 		private async Task ClearCachedIndexAsync()
 		{
 			CachedIndex newIndexData = new CachedIndex { Rev = ObjectId.GenerateNewId().ToString() };
-			await _redisService.Database.StringSetAsync(s_indexKey, CbSerializer.SerializeToByteArray(newIndexData));
+			await _redisService.GetDatabase().StringSetAsync(s_indexKey, CbSerializer.SerializeToByteArray(newIndexData));
 		}
 
 		/// <summary>
@@ -186,11 +186,12 @@ namespace Horde.Build.Tools
 		/// <returns>Sequence of tool documents</returns>
 		async Task<List<ToolId>> FindAllIdsAsync()
 		{
+			IDatabase redis = _redisService.GetDatabase();
 			CachedIndex? index;
 			for (; ; )
 			{
 				// Get the cached index, and check if it has valid data
-				RedisValue value = await _redisService.Database.StringGetAsync(s_indexKey);
+				RedisValue value = await redis.StringGetAsync(s_indexKey);
 				if (!value.IsNullOrEmpty)
 				{
 					index = CbSerializer.Deserialize<CachedIndex>((byte[])value);
@@ -210,14 +211,14 @@ namespace Horde.Build.Tools
 				RedisValue newValue = CbSerializer.SerializeToByteArray(index);
 				if (value.IsNull)
 				{
-					if (await _redisService.Database.StringSetAsync(s_indexKey, newValue, when: When.NotExists))
+					if (await redis.StringSetAsync(s_indexKey, newValue, when: When.NotExists))
 					{
 						break;
 					}
 				}
 				else
 				{
-					ITransaction transaction = _redisService.Database.CreateTransaction();
+					ITransaction transaction = redis.CreateTransaction();
 					transaction.AddCondition(Condition.StringEqual(s_indexKey, value));
 					_ = transaction.StringSetAsync(s_indexKey, newValue);
 

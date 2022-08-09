@@ -14,7 +14,8 @@ namespace EpicGames.Redis
 	/// <typeparam name="TElement">The type of element stored in the list</typeparam>
 	public readonly struct RedisSet<TElement>
 	{
-		readonly IDatabaseAsync _database;
+		internal readonly RedisConnectionPool? ConnectionPool = null;
+		internal readonly IDatabaseAsync? Database = null;
 
 		/// <summary>
 		/// The key for the list
@@ -24,70 +25,95 @@ namespace EpicGames.Redis
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="database">Explicitly set Redis database (overrides use of any connection pool)</param>
+		/// <param name="key">Redis key this type is using</param>
 		public RedisSet(IDatabaseAsync database, RedisKey key)
 		{
-			_database = database;
+			Database = database;
 			Key = key;
+		}
+		
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="connectionPool">Connection pool for Redis databases</param>
+		/// <param name="key">Redis key this type is using</param>
+		public RedisSet(RedisConnectionPool connectionPool, RedisKey key)
+		{
+			ConnectionPool = connectionPool;
+			Key = key;
+		}
+		
+		/// <summary>
+		/// Get the Redis database in use
+		/// </summary>
+		/// <returns>A connection pool or explicitly set Redis database</returns>
+		/// <exception cref="InvalidOperationException">If neither are set</exception>
+		public IDatabaseAsync GetDatabase()
+		{
+			if (Database != null) return Database;
+			if (ConnectionPool != null) return ConnectionPool.GetDatabase();
+			throw new InvalidOperationException($"Neither {nameof(Database)} or {nameof(ConnectionPool)} has been set!");
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SetAddAsync(RedisKey, RedisValue, CommandFlags)"/>
 		public Task<bool> AddAsync(TElement item, CommandFlags flags = CommandFlags.None)
 		{
-			return _database.SetAddAsync(Key, RedisSerializer.Serialize(item), flags);
+			return GetDatabase().SetAddAsync(Key, RedisSerializer.Serialize(item), flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SetAddAsync(RedisKey, RedisValue[], CommandFlags)"/>
 		public Task<long> AddAsync(IEnumerable<TElement> items, CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue[] values = items.Select(x => RedisSerializer.Serialize(x)).ToArray();
-			return _database.SetAddAsync(Key, values, flags);
+			return GetDatabase().SetAddAsync(Key, values, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SetContainsAsync(RedisKey, RedisValue, CommandFlags)"/>
 		public Task<bool> ContainsAsync(TElement item, CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue value = RedisSerializer.Serialize(item);
-			return _database.SetContainsAsync(Key, value, flags);
+			return GetDatabase().SetContainsAsync(Key, value, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SetLengthAsync(RedisKey, CommandFlags)"/>
 		public Task<long> LengthAsync(CommandFlags flags = CommandFlags.None)
 		{
-			return _database.SetLengthAsync(Key, flags);
+			return GetDatabase().SetLengthAsync(Key, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SetRemoveAsync(RedisKey, RedisValue, CommandFlags)"/>
 		public async Task<TElement[]> MembersAsync(CommandFlags flags = CommandFlags.None)
 		{
-			RedisValue[] values = await _database.SetMembersAsync(Key, flags);
+			RedisValue[] values = await GetDatabase().SetMembersAsync(Key, flags);
 			return Array.ConvertAll(values, (Converter<RedisValue, TElement>)(x => RedisSerializer.Deserialize<TElement>(x)!));
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SetPopAsync(RedisKey, CommandFlags)"/>
 		public async Task<TElement> PopAsync(CommandFlags flags = CommandFlags.None)
 		{
-			RedisValue value = await _database.SetPopAsync(Key, flags);
+			RedisValue value = await GetDatabase().SetPopAsync(Key, flags);
 			return value.IsNull ? default! : RedisSerializer.Deserialize<TElement>(value)!;
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SetPopAsync(RedisKey, Int64, CommandFlags)"/>
 		public async Task<TElement[]> PopAsync(long count, CommandFlags flags = CommandFlags.None)
 		{
-			RedisValue[] values = await _database.SetPopAsync(Key, count, flags);
+			RedisValue[] values = await GetDatabase().SetPopAsync(Key, count, flags);
 			return Array.ConvertAll<RedisValue, TElement>(values, x => RedisSerializer.Deserialize<TElement>(x)!);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SetRemoveAsync(RedisKey, RedisValue, CommandFlags)"/>
 		public Task<bool> RemoveAsync(TElement item, CommandFlags flags = CommandFlags.None)
 		{
-			return _database.SetRemoveAsync(Key, RedisSerializer.Serialize(item), flags);
+			return GetDatabase().SetRemoveAsync(Key, RedisSerializer.Serialize(item), flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SetRemoveAsync(RedisKey, RedisValue[], CommandFlags)"/>
 		public Task<long> RemoveAsync(IEnumerable<TElement> items, CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue[] values = items.Select(x => RedisSerializer.Serialize(x)).ToArray();
-			return _database.SetRemoveAsync(Key, values, flags);
+			return GetDatabase().SetRemoveAsync(Key, values, flags);
 		}
 	}
 

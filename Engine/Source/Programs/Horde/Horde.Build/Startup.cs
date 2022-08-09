@@ -324,8 +324,6 @@ namespace Horde.Build
 			RedisService redisService = new RedisService(settings);
 #pragma warning restore CA2000 // Dispose objects before losing scope
 			services.AddSingleton<RedisService>(sp => redisService);
-			services.AddSingleton<IDatabase>(redisService.Database);
-			services.AddSingleton<ConnectionMultiplexer>(sp => redisService.Multiplexer);
 			services.AddDataProtection().PersistKeysToStackExchangeRedis(() => redisService.Database, "aspnet-data-protection");
 
 			if (settings.CorsEnabled)

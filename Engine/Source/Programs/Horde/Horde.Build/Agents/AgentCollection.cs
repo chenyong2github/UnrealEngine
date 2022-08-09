@@ -571,13 +571,13 @@ namespace Horde.Build.Agents
 		/// <inheritdoc/>
 		Task PublishUpdateEventAsync(AgentId agentId)
 		{
-			return _redisService.Database.PublishAsync(_updateEventChannel, agentId);
+			return _redisService.GetDatabase().PublishAsync(_updateEventChannel, agentId);
 		}
 
 		/// <inheritdoc/>
 		public async Task<IDisposable> SubscribeToUpdateEventsAsync(Action<AgentId> onUpdate)
 		{
-			return await _redisService.Multiplexer.GetSubscriber().SubscribeAsync(_updateEventChannel, (channel, agentId) => onUpdate(agentId));
+			return await _redisService.GetDatabase().Multiplexer.GetSubscriber().SubscribeAsync(_updateEventChannel, (channel, agentId) => onUpdate(agentId));
 		}
 	}
 }

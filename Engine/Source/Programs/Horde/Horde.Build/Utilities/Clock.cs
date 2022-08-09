@@ -237,7 +237,7 @@ namespace HordeCommon
 
 		async ValueTask TriggerSharedAsync(RedisKey key, TimeSpan interval, Func<CancellationToken, ValueTask> tickAsync, CancellationToken cancellationToken)
 		{
-			using (RedisLock sharedLock = new RedisLock(_redis.Database, key))
+			using (RedisLock sharedLock = new (_redis.GetDatabase(), key))
 			{
 				if (await sharedLock.AcquireAsync(interval, false))
 				{

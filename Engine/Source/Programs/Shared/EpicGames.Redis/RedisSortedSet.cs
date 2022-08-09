@@ -70,7 +70,8 @@ namespace EpicGames.Redis
 	/// <typeparam name="TElement">The type of element stored in the list</typeparam>
 	public readonly struct RedisSortedSet<TElement>
 	{
-		readonly IDatabaseAsync _database;
+		internal readonly RedisConnectionPool? ConnectionPool = null;
+		internal readonly IDatabaseAsync? Database = null;
 
 		/// <summary>
 		/// The key for the list
@@ -80,30 +81,55 @@ namespace EpicGames.Redis
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="database">Explicitly set Redis database (overrides use of any connection pool)</param>
+		/// <param name="key">Redis key this type is using</param>
 		public RedisSortedSet(IDatabaseAsync database, RedisKey key)
 		{
-			_database = database;
+			Database = database;
 			Key = key;
+		}
+		
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="connectionPool">Connection pool for Redis databases</param>
+		/// <param name="key">Redis key this type is using</param>
+		public RedisSortedSet(RedisConnectionPool connectionPool, RedisKey key)
+		{
+			ConnectionPool = connectionPool;
+			Key = key;
+		}
+		
+		/// <summary>
+		/// Get the Redis database in use
+		/// </summary>
+		/// <returns>A connection pool or explicitly set Redis database</returns>
+		/// <exception cref="InvalidOperationException">If neither are set</exception>
+		public IDatabaseAsync GetDatabase()
+		{
+			if (Database != null) return Database;
+			if (ConnectionPool != null) return ConnectionPool.GetDatabase();
+			throw new InvalidOperationException($"Neither {nameof(Database)} or {nameof(ConnectionPool)} has been set!");
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetAddAsync(RedisKey, RedisValue, Double, CommandFlags)"/>
 		public Task<bool> AddAsync(TElement item, double score, When when = When.Always, CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue value = RedisSerializer.Serialize(item);
-			return _database.SortedSetAddAsync(Key, value, score, when, flags);
+			return GetDatabase().SortedSetAddAsync(Key, value, score, when, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetAddAsync(RedisKey, RedisValue, Double, When, CommandFlags)"/>
 		public Task<long> AddAsync(SortedSetEntry<TElement>[] values, When when = When.Always, CommandFlags flags = CommandFlags.None)
 		{
 			SortedSetEntry[] untyped = Array.ConvertAll(values, x => new SortedSetEntry(x.ElementValue, x.Score));
-			return _database.SortedSetAddAsync(Key, untyped, when, flags);
+			return GetDatabase().SortedSetAddAsync(Key, untyped, when, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetLengthAsync(RedisKey, Double, Double, Exclude, CommandFlags)"/>
 		public Task<long> LengthAsync(double min = Double.NegativeInfinity, double max = Double.PositiveInfinity, Exclude exclude = Exclude.None, CommandFlags flags = CommandFlags.None)
 		{
-			return _database.SortedSetLengthAsync(Key, min, max, exclude, flags);
+			return GetDatabase().SortedSetLengthAsync(Key, min, max, exclude, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetLengthByValueAsync(RedisKey, RedisValue, RedisValue, Exclude, CommandFlags)"/>
@@ -111,34 +137,34 @@ namespace EpicGames.Redis
 		{
 			RedisValue minValue = RedisSerializer.Serialize(min);
 			RedisValue maxValue = RedisSerializer.Serialize(max);
-			return _database.SortedSetLengthByValueAsync(Key, minValue, maxValue, exclude, flags);
+			return GetDatabase().SortedSetLengthByValueAsync(Key, minValue, maxValue, exclude, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRangeByRankAsync(RedisKey, Int64, Int64, Order, CommandFlags)"/>
 		public async Task<TElement[]> RangeByRankAsync(long start, long stop = -1, Order order = Order.Ascending, CommandFlags flags = CommandFlags.None)
 		{
-			RedisValue[] values = await _database.SortedSetRangeByRankAsync(Key, start, stop, order, flags);
+			RedisValue[] values = await GetDatabase().SortedSetRangeByRankAsync(Key, start, stop, order, flags);
 			return Array.ConvertAll(values, x => RedisSerializer.Deserialize<TElement>(x)!);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRangeByRankWithScoresAsync(RedisKey, Int64, Int64, Order, CommandFlags)"/>
 		public async Task<SortedSetEntry<TElement>[]> RangeByRankWithScoresAsync(long start, long stop = -1, Order order = Order.Ascending, CommandFlags flags = CommandFlags.None)
 		{
-			SortedSetEntry[] values = await _database.SortedSetRangeByRankWithScoresAsync(Key, start, stop, order, flags);
+			SortedSetEntry[] values = await GetDatabase().SortedSetRangeByRankWithScoresAsync(Key, start, stop, order, flags);
 			return Array.ConvertAll(values, x => new SortedSetEntry<TElement>(x));
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRangeByScoreAsync(RedisKey, Double, Double, Exclude, Order, Int64, Int64, CommandFlags)"/>
 		public async Task<TElement[]> RangeByScoreAsync(double start = Double.NegativeInfinity, double stop = Double.PositiveInfinity, Exclude exclude = Exclude.None, Order order = Order.Ascending, long skip = 0L, long take = -1L, CommandFlags flags = CommandFlags.None)
 		{
-			RedisValue[] values = await _database.SortedSetRangeByScoreAsync(Key, start, stop, exclude, order, skip, take, flags);
+			RedisValue[] values = await GetDatabase().SortedSetRangeByScoreAsync(Key, start, stop, exclude, order, skip, take, flags);
 			return Array.ConvertAll(values, x => RedisSerializer.Deserialize<TElement>(x)!);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRangeByScoreWithScoresAsync(RedisKey, Double, Double, Exclude, Order, Int64, Int64, CommandFlags)"/>
 		public async Task<SortedSetEntry<TElement>[]> RangeByScoreWithScoresAsync(double start = Double.NegativeInfinity, double stop = Double.PositiveInfinity, Exclude exclude = Exclude.None, Order order = Order.Ascending, long skip = 0L, long take = -1L, CommandFlags flags = CommandFlags.None)
 		{
-			SortedSetEntry[] values = await _database.SortedSetRangeByScoreWithScoresAsync(Key, start, stop, exclude, order, skip, take, flags);
+			SortedSetEntry[] values = await GetDatabase().SortedSetRangeByScoreWithScoresAsync(Key, start, stop, exclude, order, skip, take, flags);
 			return Array.ConvertAll(values, x => new SortedSetEntry<TElement>(x));
 		}
 
@@ -147,39 +173,39 @@ namespace EpicGames.Redis
 		{
 			RedisValue minValue = RedisSerializer.Serialize(min);
 			RedisValue maxValue = RedisSerializer.Serialize(max);
-			RedisValue[] values = await _database.SortedSetRangeByValueAsync(Key, minValue, maxValue, exclude, order, skip, take, flags);
+			RedisValue[] values = await GetDatabase().SortedSetRangeByValueAsync(Key, minValue, maxValue, exclude, order, skip, take, flags);
 			return Array.ConvertAll(values, x => RedisSerializer.Deserialize<TElement>(x)!);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRankAsync(RedisKey, RedisValue, Order, CommandFlags)"/>
 		public Task<long?> RankAsync(TElement item, Order order = Order.Ascending, CommandFlags flags = CommandFlags.None)
 		{
-			return _database.SortedSetRankAsync(Key, RedisSerializer.Serialize(item), order, flags);
+			return GetDatabase().SortedSetRankAsync(Key, RedisSerializer.Serialize(item), order, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRemoveAsync(RedisKey, RedisValue, CommandFlags)"/>
 		public Task<bool> RemoveAsync(TElement value, CommandFlags flags = CommandFlags.None)
 		{
-			return _database.SortedSetRemoveAsync(Key, RedisSerializer.Serialize(value), flags);
+			return GetDatabase().SortedSetRemoveAsync(Key, RedisSerializer.Serialize(value), flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRemoveAsync(RedisKey, RedisValue[], CommandFlags)"/>
 		public Task<long> RemoveAsync(IEnumerable<TElement> items, CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue[] values = items.Select(x => RedisSerializer.Serialize(x)).ToArray();
-			return _database.SortedSetRemoveAsync(Key, values, flags);
+			return GetDatabase().SortedSetRemoveAsync(Key, values, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRemoveRangeByRankAsync(RedisKey, Int64, Int64, CommandFlags)"/>
 		public Task<long> RemoveRangeByRankAsync(long start, long stop, CommandFlags flags = CommandFlags.None)
 		{
-			return _database.SortedSetRemoveRangeByRankAsync(Key, start, stop, flags);
+			return GetDatabase().SortedSetRemoveRangeByRankAsync(Key, start, stop, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRemoveRangeByScoreAsync(RedisKey, Double, Double, Exclude, CommandFlags)"/>
 		public Task<long> RemoveRangeByScoreAsync(double start, double stop, Exclude exclude = Exclude.None, CommandFlags flags = CommandFlags.None)
 		{
-			return _database.SortedSetRemoveRangeByScoreAsync(Key, start, stop, exclude, flags);
+			return GetDatabase().SortedSetRemoveRangeByScoreAsync(Key, start, stop, exclude, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRemoveRangeByValueAsync(RedisKey, RedisValue, RedisValue, Exclude, CommandFlags)"/>
@@ -187,13 +213,13 @@ namespace EpicGames.Redis
 		{
 			RedisValue minValue = RedisSerializer.Serialize(min);
 			RedisValue maxValue = RedisSerializer.Serialize(max);
-			return await _database.SortedSetRemoveRangeByValueAsync(Key, minValue, maxValue, exclude, flags);
+			return await GetDatabase().SortedSetRemoveRangeByValueAsync(Key, minValue, maxValue, exclude, flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetAddAsync(RedisKey, RedisValue, Double, CommandFlags)"/>
 		public async IAsyncEnumerable<SortedSetEntry<TElement>> ScanAsync(RedisValue pattern = default, int pageSize = 250, long cursor = 0, int pageOffset = 0, CommandFlags flags = CommandFlags.None)
 		{
-			await foreach (SortedSetEntry entry in _database.SortedSetScanAsync(Key, pattern, pageSize, cursor, pageOffset, flags))
+			await foreach (SortedSetEntry entry in GetDatabase().SortedSetScanAsync(Key, pattern, pageSize, cursor, pageOffset, flags))
 			{
 				yield return new SortedSetEntry<TElement>(entry);
 			}
@@ -203,7 +229,7 @@ namespace EpicGames.Redis
 		public Task<double?> ScoreAsync(TElement member, CommandFlags flags = CommandFlags.None)
 		{
 			RedisValue value = RedisSerializer.Serialize(member);
-			return _database.SortedSetScoreAsync(Key, value, flags);
+			return GetDatabase().SortedSetScoreAsync(Key, value, flags);
 		}
 	}
 

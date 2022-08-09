@@ -8,6 +8,7 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Redis;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Devices;
 using Horde.Build.Issues;
@@ -88,9 +89,9 @@ namespace Horde.Build.Notifications
 		private readonly IDogStatsd _dogStatsd;
 
 		/// <summary>
-		/// Redis database
+		/// Connection pool for Redis databases
 		/// </summary>
-		private readonly IDatabase _redisDatabase;
+		private readonly RedisConnectionPool _redisConnectionPool;
 		
 		/// <summary>
 		/// Settings for the application.
@@ -141,7 +142,7 @@ namespace Horde.Build.Notifications
 			_issueService = issueService;
 			_logFileService = logFileService;
 			_dogStatsd = dogStatsd;
-			_redisDatabase = redisService.Database;
+			_redisConnectionPool = redisService.ConnectionPool;
 
 			issueService.OnIssueUpdated += NotifyIssueUpdated;
 			jobService.OnJobStepComplete += NotifyJobStepComplete;
@@ -290,7 +291,7 @@ namespace Horde.Build.Notifications
 			try
 			{
 				byte[] data = JsonSerializer.SerializeToUtf8Bytes(notification);
-				await _redisDatabase.ListRightPushAsync(RedisQueueListKey(typeof(T).ToString()), data);
+				await _redisConnectionPool.GetDatabase().ListRightPushAsync(RedisQueueListKey(typeof(T).ToString()), data);
 			}
 			catch (Exception e)
 			{
@@ -318,11 +319,13 @@ namespace Horde.Build.Notifications
 		/// <exception cref="Exception"></exception>
 		private async Task<List<T>> GetAllQueuedNotificationsAsync<T>() where T : INotification
 		{
+			IDatabase redis = _redisConnectionPool.GetDatabase();
+
 			// Reading and deleting the entire list from Redis in this way is not thread-safe.
 			// But likely not a big deal considering the alternative of distributed locks.
 			string redisKey = RedisQueueListKey(typeof(T).ToString());
-			RedisValue[] rawNotifications = await _redisDatabase.ListRangeAsync(redisKey);
-			await _redisDatabase.KeyDeleteAsync(redisKey);
+			RedisValue[] rawNotifications = await redis.ListRangeAsync(redisKey);
+			await redis.KeyDeleteAsync(redisKey);
 
 			List<T> notifications = new List<T>();
 			foreach (byte[] data in rawNotifications)

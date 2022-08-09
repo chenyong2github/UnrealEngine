@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using EpicGames.Redis;
 using Horde.Build.Server;
 using MongoDB.Bson;
 using MongoDB.Bson.IO;
@@ -124,7 +125,7 @@ namespace Horde.Build.Utilities
 
 		private static FilterDefinitionBuilder<VersionedDocument<TId, TLatest>> FilterBuilder { get; } = Builders<VersionedDocument<TId, TLatest>>.Filter;
 
-		private readonly IDatabase _redis;
+		private readonly RedisConnectionPool _redisConnectionPool;
 		private readonly RedisKey _baseKey;
 
 		private static readonly HashSet<Type> s_registeredTypes = new HashSet<Type>();
@@ -149,7 +150,7 @@ namespace Horde.Build.Utilities
 		/// <param name="types">Types to serialize from the collection</param>
 		public VersionedCollection(MongoService mongoService, string collectionName, RedisService redisService, RedisKey baseKey, IReadOnlyDictionary<int, Type> types)
 		{
-			_redis = redisService.Database;
+			_redisConnectionPool = redisService.ConnectionPool;
 			_baseKey = baseKey;
 
 			lock (s_registeredTypes)
@@ -208,12 +209,12 @@ namespace Horde.Build.Utilities
 			KeyValuePair<RedisKey, RedisValue>[] pairs = new KeyValuePair<RedisKey, RedisValue>[2];
 			pairs[0] = new KeyValuePair<RedisKey, RedisValue>(docKey, doc.ToBson(typeof(VersionedDocument<TId, TLatest>)));
 			pairs[1] = new KeyValuePair<RedisKey, RedisValue>(docKey.Append(s_timeSuffix), doc.LastUpdateTime.Ticks);
-			_redis.StringSetAsync(pairs, When.NotExists, flags: CommandFlags.FireAndForget);
+			_redisConnectionPool.GetDatabase().StringSetAsync(pairs, When.NotExists, flags: CommandFlags.FireAndForget);
 		}
 
 		private async ValueTask<VersionedDocument<TId, TLatest>?> GetCachedValueAsync(RedisKey docKey)
 		{
-			RedisValue cacheValue = await _redis.StringGetAsync(docKey);
+			RedisValue cacheValue = await _redisConnectionPool.GetDatabase().StringGetAsync(docKey);
 			if (!cacheValue.IsNull)
 			{
 				try
@@ -230,7 +231,7 @@ namespace Horde.Build.Utilities
 
 		private async ValueTask<bool> UpdateCachedValueAsync(RedisKey docKey, VersionedDocument<TId, TLatest> prevDoc, TLatest doc)
 		{
-			ITransaction transaction = _redis.CreateTransaction();
+			ITransaction transaction = _redisConnectionPool.GetDatabase().CreateTransaction();
 			transaction.AddCondition(Condition.StringEqual(docKey.Append(s_timeSuffix), prevDoc.LastUpdateTime.Ticks));
 
 			KeyValuePair<RedisKey, RedisValue>[] pairs = new KeyValuePair<RedisKey, RedisValue>[2];
@@ -250,7 +251,7 @@ namespace Horde.Build.Utilities
 
 		private async ValueTask DeleteCachedValueAsync(RedisKey docKey)
 		{
-			await _redis.KeyDeleteAsync(new[] { docKey, docKey.Append(s_timeSuffix) });
+			await _redisConnectionPool.GetDatabase().KeyDeleteAsync(new[] { docKey, docKey.Append(s_timeSuffix) });
 		}
 
 		/// <summary>

@@ -85,7 +85,7 @@ namespace Horde.Build.Perforce
 		public CommitServiceOptions Options { get; }
 
 		// Redis
-		readonly IDatabase _redis;
+		readonly RedisConnectionPool _redisConnectionPool;
 
 		// Collections
 		readonly ICommitCollection _commitCollection;
@@ -111,8 +111,7 @@ namespace Horde.Build.Perforce
 		{
 			Options = options.Value;
 
-			_redis = redisService.Database;
-
+			_redisConnectionPool = redisService.ConnectionPool;
 			_commitCollection = commitCollection;
 			_streamCollection = streamCollection;
 			_perforceService = perforceService;
@@ -231,7 +230,7 @@ namespace Horde.Build.Perforce
 			Dictionary<IStream, int> streamToNextChange = new Dictionary<IStream, int>();
 			foreach (IStream stream in streams)
 			{
-				RedisValue lastChange = await _redis.StringGetAsync(LastChangeKey(stream.Id));
+				RedisValue lastChange = await _redisConnectionPool.GetDatabase().StringGetAsync(LastChangeKey(stream.Id));
 
 				int nextChange = 0;
 				if (lastChange.HasValue && lastChange.IsInteger)

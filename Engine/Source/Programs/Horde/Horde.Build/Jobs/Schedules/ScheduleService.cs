@@ -172,7 +172,7 @@ namespace Horde.Build.Jobs.Schedules
 			_redis = redis;
 			_baseLockKey = "scheduler/locks";
 			_tickLockKey = _baseLockKey.Append("/tick");
-			_queue = new RedisSortedSet<QueueItem>(redis.Database, "scheduler/queue");
+			_queue = new RedisSortedSet<QueueItem>(redis.GetDatabase(), "scheduler/queue");
 			if (mongoService.ReadOnlyMode)
 			{
 				_ticker = new NullTicker();
@@ -206,7 +206,7 @@ namespace Horde.Build.Jobs.Schedules
 			DateTime utcNow = _clock.UtcNow;
 
 			// Update the current queue
-			await using (RedisLock sharedLock = new RedisLock(_redis.Database, _tickLockKey))
+			await using (RedisLock sharedLock = new (_redis.GetDatabase(), _tickLockKey))
 			{
 				if (await sharedLock.AcquireAsync(TimeSpan.FromMinutes(1.0), false))
 				{
@@ -225,7 +225,7 @@ namespace Horde.Build.Jobs.Schedules
 				}
 
 				// Acquire the lock for this schedule and update it
-				await using (RedisLock sharedLock = new RedisLock<QueueItem>(_redis.Database, _baseLockKey, item))
+				await using (RedisLock sharedLock = new RedisLock<QueueItem>(_redis.GetDatabase(), _baseLockKey, item))
 				{
 					if (await sharedLock.AcquireAsync(TimeSpan.FromMinutes(1.0)))
 					{
@@ -264,8 +264,9 @@ namespace Horde.Build.Jobs.Schedules
 
 		internal async Task ResetAsync()
 		{
-			await _redis.Database.KeyDeleteAsync(_queue.Key);
-			await _redis.Database.KeyDeleteAsync(_tickLockKey);
+			IDatabase redis = _redis.GetDatabase();
+			await redis.KeyDeleteAsync(_queue.Key);
+			await redis.KeyDeleteAsync(_tickLockKey);
 		}
 
 		internal async Task TickForTestingAsync()

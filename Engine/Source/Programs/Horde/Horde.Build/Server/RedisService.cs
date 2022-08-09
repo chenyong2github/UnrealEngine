@@ -9,6 +9,7 @@ using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Redis;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -39,10 +40,11 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// Connection multiplexer
 		/// </summary>
-		public ConnectionMultiplexer Multiplexer { get; }
+		private readonly ConnectionMultiplexer _multiplexer;
 
 		/// <summary>
-		/// The database interface
+		/// The database interface.
+		/// If possible, use ConnectionPool instead. 
 		/// </summary>
 		public IDatabase Database { get; }
 
@@ -105,15 +107,25 @@ namespace Horde.Build.Server
 				}
 			}
 
-			Multiplexer = ConnectionMultiplexer.Connect(connectionString);
-			Database = Multiplexer.GetDatabase(dbNum);
+			_multiplexer = ConnectionMultiplexer.Connect(connectionString);
+			Database = _multiplexer.GetDatabase(dbNum);
 			ConnectionPool = new RedisConnectionPool(20, connectionString, dbNum);
+		}
+
+		/// <summary>
+		/// Get the least-loaded Redis database from the connection pool
+		/// Don't store the returned object and try to resolve this as late as possible to ensure load is balanced.
+		/// </summary>
+		/// <returns>A Redis database</returns>
+		public IDatabase GetDatabase()
+		{
+			return ConnectionPool.GetDatabase();
 		}
 
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			Multiplexer.Dispose();
+			_multiplexer.Dispose();
 
 			if (_redisProcess != null)
 			{

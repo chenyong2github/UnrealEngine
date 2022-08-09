@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using StackExchange.Redis;
 
-namespace Horde.Build.Utilities
+namespace EpicGames.Redis
 {
 	/// <summary>
 	/// A connection pool for Redis client

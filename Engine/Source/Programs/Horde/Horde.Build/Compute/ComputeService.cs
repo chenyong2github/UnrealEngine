@@ -137,8 +137,8 @@ namespace Horde.Build.Compute
 		public ComputeService(MongoService mongoService, RedisService redisService, IStorageClient storageClient, IClock clock, ILogger<ComputeService> logger)
 		{
 			_storageClient = storageClient;
-			_taskScheduler = new RedisTaskScheduler<QueueKey, ComputeTaskInfo>(redisService.Database, "compute/tasks/", logger);
-			_messageQueue = new RedisMessageQueue<ComputeTaskStatus>(redisService.Database, "compute/messages/");
+			_taskScheduler = new RedisTaskScheduler<QueueKey, ComputeTaskInfo>(redisService.ConnectionPool, "compute/tasks/", logger);
+			_messageQueue = new RedisMessageQueue<ComputeTaskStatus>(redisService.GetDatabase(), "compute/messages/");
 			_expireTasksTicker = clock.AddTicker<ComputeService>(TimeSpan.FromMinutes(2.0), ExpireTasksAsync, logger);
 			_requirementsCache = new MemoryCache(new MemoryCacheOptions());
 			_globals = new LazyCachedValue<Task<Globals>>(() => mongoService.GetGlobalsAsync(), TimeSpan.FromSeconds(120.0));
