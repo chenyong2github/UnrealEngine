@@ -37,8 +37,6 @@ public:
 	// TOptional<EItemDropZone> HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, FObjectMixerEditorListRowPtr TargetItem);
 	// FReply HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, FObjectMixerEditorListRowPtr TargetItem);
 	
-	void FlashRow();
-
 private:
 
 	bool IsVisible() const;
@@ -48,32 +46,14 @@ private:
 	
 	/** Get the brush for this widget */
 	const FSlateBrush* GetVisibilityBrush() const;
-	
-	EVisibility GetFlashImageVisibility() const;
-	FSlateColor GetFlashImageColorAndOpacity() const;
 
 	static const FSlateBrush* GetBorderImage(const FObjectMixerEditorListRow::EObjectMixerEditorListRowType InRowType);
 
-	TSharedRef<SWidget> GenerateCells(const FName& InColumnName, const TSharedPtr<FObjectMixerEditorListRow> PinnedItem);
+	TSharedPtr<SWidget> GenerateCells(const FName& InColumnName, const TSharedPtr<FObjectMixerEditorListRow> PinnedItem);
 
 	void OnPropertyChanged(const FProperty* Property, void* ContainerWithChangedProperty);
 	
 	TWeakPtr<FObjectMixerEditorListRow> Item;
-	
-	TSharedPtr<IToolTip> HoverToolTip;
-
-	TArray<TSharedPtr<SImage>> FlashImages;
-
-	TSet<FDelegateHandle> StructureChangeDelegateHandles;
-
-	TSharedPtr<SObjectMixerEditorListValueInput> ValueChildInputWidget;
-	
-	TSharedPtr<SObjectMixerEditorListRowHoverWidgets> HoverableWidgetsPtr;
-
-	FCurveSequence FlashAnimation;
-
-	const float FlashAnimationDuration = 0.75f;
-	const FLinearColor FlashColor = FLinearColor::White;
 	
 	const FSlateBrush* VisibleHoveredBrush = nullptr;
 	const FSlateBrush* VisibleNotHoveredBrush = nullptr;

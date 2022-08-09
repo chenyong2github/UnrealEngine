@@ -15,7 +15,7 @@ public:
 
 	/**
 	 * If true, the Object Mixer menu item will be disabled and removed.
-	 * This is useful if you only want to use Light Mixer and avoid cluttering the menus.
+	 * This is useful if you only want to use Light Mixer and to avoid cluttering the menus.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category="Light Mixer", meta = (ConfigRestartRequired = true))
 	bool bHideObjectMixerMenuItem = false;

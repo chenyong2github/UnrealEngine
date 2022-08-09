@@ -2,24 +2,26 @@
 
 #include "Views/List/SObjectMixerEditorList.h"
 
-// Filters
+// View Filters
 #include "Views/List/ObjectMixerEditorListFilters/ObjectMixerEditorListFilter_Source.h"
 
+#include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
 #include "ObjectMixerEditorLog.h"
 #include "ObjectMixerEditorModule.h"
+#include "ObjectMixerEditorProjectSettings.h"
 #include "ObjectMixerEditorStyle.h"
 #include "Views/List/SObjectMixerEditorListRow.h"
+#include "Views/Widgets/SObjectMixerPlacementAssetMenuEntry.h"
 
 #include "Algo/AllOf.h"
 #include "Algo/AnyOf.h"
-#include "Algo/Find.h"
-#include "Components/LightComponent.h"
 #include "Editor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
+#include "SPositiveActionButton.h"
+#include "DragAndDrop/AssetDragDropOp.h"
+#include "PlacementMode/Public/IPlacementModeModule.h"
 #include "Styling/StyleColors.h"
 #include "UObject/UObjectIterator.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
@@ -54,39 +56,7 @@ void SObjectMixerEditorList::Construct(const FArguments& InArgs, TSharedRef<FObj
 		.AutoHeight()
 		.Padding(FMargin(8.f, 0.f, 8.f, 0.f))
 		[
-			SNew(SHorizontalBox)
-
-			+SHorizontalBox::Slot()
-			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Center)
-			.Padding(0.f, 1.f, 0.f, 1.f)
-			[
-				SAssignNew(ListSearchBoxPtr, SSearchBox)
-				.HintText(LOCTEXT("SearchHintText", "Search Scene Objects"))
-				.ToolTipText(LOCTEXT("ObjectMixerEditorList_TooltipText", "Search Scene Objects"))
-				.OnTextChanged_Raw(this, &SObjectMixerEditorList::OnListViewSearchTextChanged)
-			]
-
-			// Show Options
-			+SHorizontalBox::Slot()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			.Padding(8.f, 1.f, 0.f, 1.f)
-			[
-				SAssignNew( ViewOptionsComboButton, SComboButton )
-				.ContentPadding(4.f)
-				.ToolTipText(LOCTEXT("ShowOptions_Tooltip", "Show options to affect the visibility of items in the Object Mixer list"))
-				.ComboButtonStyle( FAppStyle::Get(), "SimpleComboButtonWithIcon" ) // Use the tool bar item style for this button
-				.OnGetMenuContent( this, &SObjectMixerEditorList::BuildShowOptionsMenu)
-				.HasDownArrow(false)
-				.ButtonContent()
-				[
-					SNew(SImage)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image( FAppStyle::Get().GetBrush("Icons.Settings") )
-				]
-			]
+			GenerateToolbar()
 		]
 
 		+ SVerticalBox::Slot()
@@ -111,11 +81,11 @@ void SObjectMixerEditorList::Construct(const FArguments& InArgs, TSharedRef<FObj
 				{
 					if (GEditor && FSlateApplication::Get().GetModifierKeys().IsAltDown())
 					{
-						GEditor->SelectNone(false, true, true);
-
+						TArray<AActor*> ActorsToSelect;
 						for (const TSharedPtr<FObjectMixerEditorListRow>& SelectedRow : TreeViewPtr->GetSelectedItems())
 						{
-							if (SelectedRow->GetRowType() == FObjectMixerEditorListRow::SingleItem)
+							if (SelectedRow->GetRowType() == FObjectMixerEditorListRow::MatchingObject ||
+								SelectedRow->GetRowType() == FObjectMixerEditorListRow::ContainerObject)
 							{
 								AActor* Actor = Cast<AActor>(SelectedRow->GetObject());
 
@@ -126,8 +96,18 @@ void SObjectMixerEditorList::Construct(const FArguments& InArgs, TSharedRef<FObj
 
 								if (Actor)
 								{
-									GEditor->SelectActor( Actor, true, true, true );
+									ActorsToSelect.Add(Actor);
 								}
+							}
+						}
+
+						if (ActorsToSelect.Num())
+						{
+							GEditor->SelectNone(true, true, true);
+
+							for (AActor* Actor : ActorsToSelect)
+							{
+								GEditor->SelectActor( Actor, true, true, true );
 							}
 						}
 					}
@@ -138,7 +118,7 @@ void SObjectMixerEditorList::Construct(const FArguments& InArgs, TSharedRef<FObj
 						check(Row.IsValid());
 					
 						return SNew(SObjectMixerEditorListRow, TreeViewPtr.ToSharedRef(), Row)
-								.Visibility_Raw(Row.Get(), &FObjectMixerEditorListRow::GetDesiredVisibility);
+								.Visibility_Raw(Row.Get(), &FObjectMixerEditorListRow::GetDesiredRowWidgetVisibility);
 					})
 				.OnGetChildren_Raw(this, &SObjectMixerEditorList::OnGetRowChildren)
 				.OnExpansionChanged_Raw(this, &SObjectMixerEditorList::OnRowChildExpansionChange, false)
@@ -165,20 +145,7 @@ void SObjectMixerEditorList::Construct(const FArguments& InArgs, TSharedRef<FObj
 }
 
 SObjectMixerEditorList::~SObjectMixerEditorList()
-{
-	// Unbind Delegates
-	if (GEditor)
-	{
-		if (const UWorld* EditorWorld = GEditor->GetEditorWorldContext().World())
-		{
-			EditorWorld->RemoveOnActorSpawnedHandler(OnActorSpawnedHandle);
-			EditorWorld->RemoveOnActorDestroyededHandler(OnActorDestroyedHandle);
-		}
-	}
-
-	OnActorSpawnedHandle.Reset();
-	OnActorDestroyedHandle.Reset();
-	
+{	
 	HeaderRow.Reset();
 	
 	ListSearchBoxPtr.Reset();
@@ -189,6 +156,97 @@ SObjectMixerEditorList::~SObjectMixerEditorList()
 
 	ShowFilters.Reset();
 	TreeViewPtr.Reset();
+}
+
+TSharedRef<SWidget> SObjectMixerEditorList::GenerateToolbar()
+{
+	check(ListModelPtr.IsValid());
+	
+	TSharedRef<SHorizontalBox> ToolbarBox = SNew(SHorizontalBox);
+
+	// Add object button
+	ToolbarBox->AddSlot()
+   .HAlign(HAlign_Left)
+   .VAlign(VAlign_Center)
+   .AutoWidth()
+   .Padding(FMargin(0, 4))
+   [
+	   SNew(SPositiveActionButton)
+	   .Text(LOCTEXT("AddObject", "Add"))
+	   .OnGetMenuContent(FOnGetContent::CreateRaw(this, &SObjectMixerEditorList::OnGenerateAddObjectButtonMenu))
+   ];
+
+	ToolbarBox->AddSlot()
+	.HAlign(HAlign_Fill)
+	.VAlign(VAlign_Center)
+	.Padding(0.f, 1.f, 0.f, 1.f)
+	[
+		SAssignNew(ListSearchBoxPtr, SSearchBox)
+		.HintText(LOCTEXT("SearchHintText", "Search Scene Objects"))
+		.ToolTipText(LOCTEXT("ObjectMixerEditorList_TooltipText", "Search Scene Objects"))
+		.OnTextChanged_Raw(this, &SObjectMixerEditorList::OnListViewSearchTextChanged)
+	];
+
+	// Show Options
+	ToolbarBox->AddSlot()
+	.HAlign(HAlign_Right)
+	.VAlign(VAlign_Center)
+	.AutoWidth()
+	.Padding(8.f, 1.f, 0.f, 1.f)
+	[
+		SAssignNew( ViewOptionsComboButton, SComboButton )
+		.ContentPadding(4.f)
+		.ToolTipText(LOCTEXT("ShowOptions_Tooltip", "Show options to affect the visibility of items in the Object Mixer list"))
+		.ComboButtonStyle( FAppStyle::Get(), "SimpleComboButtonWithIcon" ) // Use the tool bar item style for this button
+		.OnGetMenuContent( this, &SObjectMixerEditorList::BuildShowOptionsMenu)
+		.HasDownArrow(false)
+		.ButtonContent()
+		[
+			SNew(SImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image( FAppStyle::Get().GetBrush("Icons.Settings") )
+		]
+	];
+
+	return ToolbarBox;
+}
+
+TSharedRef<SWidget> SObjectMixerEditorList::OnGenerateAddObjectButtonMenu() const
+{
+	check(ListModelPtr.IsValid());
+
+	const TSet<TSubclassOf<AActor>> SubclassesOfActor = ListModelPtr.Pin()->GetObjectClassesToPlace();
+
+	if (SubclassesOfActor.Num() > 0)
+	{
+		TSet<UClass*> ClassesToPlace =
+		   ListModelPtr.Pin()->GetObjectFilter()->GetParentAndChildClassesFromSpecifiedClasses(
+			   SubclassesOfActor,
+			   ListModelPtr.Pin()->GetObjectFilter()->GetObjectMixerPlacementClassInclusionOptions());
+	
+		FMenuBuilder AddObjectButtonMenuBuilder = FMenuBuilder(true, nullptr);
+
+		for (const UClass* Class : ClassesToPlace)
+		{
+			if (const UActorFactory* Factory = GEditor->FindActorFactoryForActorClass(Class))
+			{
+				AddObjectButtonMenuBuilder.AddWidget(
+					SNew(SObjectMixerPlacementAssetMenuEntry, MakeShareable(new FPlaceableItem(*Factory->GetClass()))), FText::GetEmpty());
+			}
+		}
+
+		return AddObjectButtonMenuBuilder.MakeWidget();
+	}
+
+	return
+		SNew(SBox)
+		.Padding(5)
+		[
+			SNew(STextBlock)
+				.Text(LOCTEXT("NoPlaceableActorsDefinedWarning", "Please define some placeable actors in the\nfilter class by overriding GetObjectClassesToPlace."))
+				.Font(FAppStyle::Get().GetFontStyle("NormalFontItalic"))
+		]
+	;
 }
 
 void SObjectMixerEditorList::RebuildList()
@@ -231,11 +289,11 @@ int32 SObjectMixerEditorList::GetSelectedTreeViewItemCount() const
 	return TreeViewPtr->GetSelectedItems().Num();
 }
 
-void SObjectMixerEditorList::SetSelectedTreeViewItemActorsEditorVisible(const bool bNewIsVisible)
+void SObjectMixerEditorList::SetSelectedTreeViewItemActorsEditorVisible(const bool bNewIsVisible, const bool bIsRecursive)
 {
 	for (const TSharedPtr<FObjectMixerEditorListRow>& SelectedItem : TreeViewPtr->GetSelectedItems())
 	{
-		SelectedItem->SetObjectVisibility(bNewIsVisible);
+		SelectedItem->SetObjectVisibility(bNewIsVisible, bIsRecursive);
 	}
 }
 
@@ -306,7 +364,7 @@ bool SObjectMixerEditorList::DoesTreeViewHaveVisibleChildren() const
 	{
 		for (const TSharedPtr<FObjectMixerEditorListRow>& Header : TreeViewRootObjects)
 		{
-			const EVisibility HeaderVisibility = Header->GetDesiredVisibility();
+			const EVisibility HeaderVisibility = Header->GetDesiredRowWidgetVisibility();
 			
 			if (HeaderVisibility != EVisibility::Hidden && HeaderVisibility != EVisibility::Collapsed)
 			{
@@ -318,11 +376,37 @@ bool SObjectMixerEditorList::DoesTreeViewHaveVisibleChildren() const
 	return false;
 }
 
+bool SObjectMixerEditorList::IsTreeViewItemExpanded(const TSharedPtr<FObjectMixerEditorListRow>& Row) const
+{
+	if (TreeViewPtr.IsValid())
+	{
+		return TreeViewPtr->IsItemExpanded(Row);
+	}
+	
+	return false;
+}
+
 void SObjectMixerEditorList::SetTreeViewItemExpanded(const TSharedPtr<FObjectMixerEditorListRow>& RowToExpand, const bool bNewExpansion) const
 {
 	if (TreeViewPtr.IsValid())
 	{
 		TreeViewPtr->SetItemExpansion(RowToExpand, bNewExpansion);
+	}
+}
+
+EObjectMixerTreeViewMode SObjectMixerEditorList::GetTreeViewMode()
+{
+	const TSharedPtr<FObjectMixerEditorList> PinnedListModel = GetListModelPtr().Pin();
+	check(PinnedListModel);
+	
+	return PinnedListModel->GetTreeViewMode();
+}
+
+void SObjectMixerEditorList::SetTreeViewMode(EObjectMixerTreeViewMode InViewMode)
+{
+	if (TSharedPtr<FObjectMixerEditorList> PinnedListModel = GetListModelPtr().Pin())
+	{
+		PinnedListModel->SetTreeViewMode(InViewMode);
 	}
 }
 
@@ -364,7 +448,7 @@ void SObjectMixerEditorList::EvaluateIfRowsPassFilters(const bool bShouldRefresh
 	
 	for (const FObjectMixerEditorListRowPtr& Row : TreeViewRootObjects)
 	{
-		if (Row.IsValid() && Row->GetRowType() == FObjectMixerEditorListRow::SingleItem)
+		if (Row.IsValid() && Row->GetRowType() == FObjectMixerEditorListRow::MatchingObject)
 		{
 			auto Projection = [&Row](const TSharedRef<IObjectMixerEditorListFilter>& Filter)
 			{
@@ -499,7 +583,7 @@ TSharedRef<SWidget> SObjectMixerEditorList::GenerateHeaderRowContextMenu() const
 bool SObjectMixerEditorList::AddUniquePropertyColumnsToHeaderRow(
 	FProperty* Property,
 	const bool bForceIncludeProperty,
-	const TArray<FName>& PropertySkipList)
+	const TSet<FName>& PropertySkipList)
 {
 	if (!ensureAlwaysMsgf(Property, TEXT("%hs: Invalid property passed in. Please ensure only valid properties are passed to this function."), __FUNCTION__))
 	{
@@ -596,33 +680,20 @@ TSharedPtr<SHeaderRow> SObjectMixerEditorList::GenerateHeaderRow()
 {
 	check(ListModelPtr.IsValid());
 	check(HeaderRow);
-
+	
 	TMap<FName, bool> LastVisibleColumns;
+	
 	for (const SHeaderRow::FColumn& Column : HeaderRow->GetColumns())
 	{
 		LastVisibleColumns.Add(Column.ColumnId, Column.bIsVisible);
 	}
-	
+
 	HeaderRow->ClearColumns();
 	ListViewColumns.Empty(ListViewColumns.Num());
-
-	// Property Columns
-	const TObjectPtr<UObjectMixerObjectFilter> SelectedFilter = ListModelPtr.Pin()->GetObjectFilter();
-	if (!SelectedFilter)
-	{
-		UE_LOG(LogObjectMixerEditor, Display, TEXT("%hs: No classes defined in UObjectMixerObjectFilter class."), __FUNCTION__);
-		return nullptr;
-	}
-
-	const EObjectMixerPropertyInheritanceInclusionOptions Options =
-		SelectedFilter->GetObjectMixerPropertyInheritanceInclusionOptions();
-	TArray<UClass*> SpecifiedClasses =
-		SelectedFilter->GetParentAndChildClassesFromSpecifiedClasses(SelectedFilter->GetObjectClassesToFilter(), Options);
 	
-	const TArray<FName> PropertySkipList = SelectedFilter->GetColumnsFilter();
-	const TArray<FName> ForceAddedPropertyList = SelectedFilter->GetForceAddedColumns();
-
-	const bool bShouldIncludeUnsupportedProperties = SelectedFilter->ShouldIncludeUnsupportedProperties();
+	TSet<UClass*> SpecifiedClasses =
+		ListModelPtr.Pin()->GetObjectFilter()->GetParentAndChildClassesFromSpecifiedClasses(
+			ObjectClassesToFilterCache, PropertyInheritanceInclusionOptionsCache);
 	
 	for (const UClass* Class : SpecifiedClasses)
 	{
@@ -630,12 +701,12 @@ TSharedPtr<SHeaderRow> SObjectMixerEditorList::GenerateHeaderRow()
 		{
 			if (FProperty* Property = *FieldIterator)
 			{
-				AddUniquePropertyColumnsToHeaderRow(Property, bShouldIncludeUnsupportedProperties, PropertySkipList);
+				AddUniquePropertyColumnsToHeaderRow(Property, bShouldIncludeUnsupportedPropertiesCache, ColumnsToExcludeCache);
 			}
 		}
 
 		// Check Force Added Columns
-		for (const FName& PropertyName : ForceAddedPropertyList)
+		for (const FName& PropertyName : ForceAddedColumnsCache)
 		{
 			if (FProperty* Property = FindFProperty<FProperty>(Class, PropertyName))
 			{
@@ -660,91 +731,91 @@ TSharedPtr<SHeaderRow> SObjectMixerEditorList::GenerateHeaderRow()
 	AddBuiltinColumnsToHeaderRow();
 
 	// Actually add columns to Header
-	const FText ClickToSortTooltip = LOCTEXT("ClickToSort","Click to sort");
-	
-	const TArray<FName> ColumnsToShowByDefault = SelectedFilter->GetColumnsToShowByDefault();
+	{	
+		const FText ClickToSortTooltip = LOCTEXT("ClickToSort","Click to sort");
 
-	const TSharedRef<SWidget> HeaderMenuContent = GenerateHeaderRowContextMenu();
+		const TSharedRef<SWidget> HeaderMenuContent = GenerateHeaderRowContextMenu();
 
-	for (const FListViewColumnInfo& ColumnInfo : ListViewColumns)
-	{
-		const FText Tooltip = ColumnInfo.PropertyRef ? ColumnInfo.PropertyRef->GetToolTipText() :
-			ColumnInfo.bCanBeSorted ? ClickToSortTooltip : ColumnInfo.PropertyDisplayText;
+		for (const FListViewColumnInfo& ColumnInfo : ListViewColumns)
+		{
+			const FText Tooltip = ColumnInfo.PropertyRef ? ColumnInfo.PropertyRef->GetToolTipText() :
+				ColumnInfo.bCanBeSorted ? ClickToSortTooltip : ColumnInfo.PropertyDisplayText;
 		
-		SHeaderRow::FColumn::FArguments Column =
-			SHeaderRow::Column(ColumnInfo.PropertyName)
-			.DefaultLabel(ColumnInfo.PropertyDisplayText)
-			.ToolTipText(Tooltip)
-			.HAlignHeader(EHorizontalAlignment::HAlign_Left)
-		;
+			SHeaderRow::FColumn::FArguments Column =
+				SHeaderRow::Column(ColumnInfo.PropertyName)
+				.DefaultLabel(ColumnInfo.PropertyDisplayText)
+				.ToolTipText(Tooltip)
+				.HAlignHeader(EHorizontalAlignment::HAlign_Left)
+			;
 
-		if (ColumnInfo.bUseFixedWidth)
-		{
-			Column.FixedWidth(ColumnInfo.FixedWidth);
-		}
-		else
-		{
-			Column.FillWidth(ColumnInfo.FillWidth);
-		}
+			if (ColumnInfo.bUseFixedWidth)
+			{
+				Column.FixedWidth(ColumnInfo.FixedWidth);
+			}
+			else
+			{
+				Column.FillWidth(ColumnInfo.FillWidth);
+			}
 
-		if (ColumnInfo.bCanBeSorted)
-		{
-			Column.SortMode_Raw(this, &SObjectMixerEditorList::GetSortModeForColumn, ColumnInfo.PropertyName);
-			Column.OnSort_Raw(this, &SObjectMixerEditorList::OnSortColumnCalled);
-		}
+			if (ColumnInfo.bCanBeSorted)
+			{
+				Column.SortMode_Raw(this, &SObjectMixerEditorList::GetSortModeForColumn, ColumnInfo.PropertyName);
+				Column.OnSort_Raw(this, &SObjectMixerEditorList::OnSortColumnCalled);
+			}
 
-		if (ColumnInfo.PropertyType == EListViewColumnType::BuiltIn)
-		{
-			Column.ShouldGenerateWidget(true);
-		}
+			if (ColumnInfo.PropertyType == EListViewColumnType::BuiltIn)
+			{
+				Column.ShouldGenerateWidget(true);
+			}
 
-		if (ColumnInfo.PropertyName.IsEqual(EditorVisibilityColumnName))
-		{
-			Column.HeaderContent()
-			[
-				SNew(SBox)
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding(0.f)
+			if (ColumnInfo.PropertyName.IsEqual(EditorVisibilityColumnName))
+			{
+				Column.HeaderContent()
 				[
-					SNew(SImage)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image(FAppStyle::Get().GetBrush("Level.VisibleIcon16x"))
-				]
-			];
-		}
-		else if (ColumnInfo.PropertyName.IsEqual(EditorVisibilitySoloColumnName))
-		{
-			Column.HeaderContent()
-			[
-				SNew(SBox)
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding(0.f)
+					SNew(SBox)
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					.Padding(0.f)
+					[
+						SNew(SImage)
+						.ColorAndOpacity(FSlateColor::UseForeground())
+						.Image(FAppStyle::Get().GetBrush("Level.VisibleIcon16x"))
+					]
+				];
+			}
+			else if (ColumnInfo.PropertyName.IsEqual(EditorVisibilitySoloColumnName))
+			{
+				Column.HeaderContent()
 				[
-					SNew(SImage)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image(FAppStyle::Get().GetBrush("MediaAsset.AssetActions.Solo.Small"))
-				]
-			];
-		}
-		else // Add Column Selection Menu widget to all other columns
-		{
-			Column.MenuContent()
-			[
-				HeaderMenuContent
-			];
-		}
+					SNew(SBox)
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					.Padding(0.f)
+					[
+						SNew(SImage)
+						.ColorAndOpacity(FSlateColor::UseForeground())
+						.Image(FAppStyle::Get().GetBrush("MediaAsset.AssetActions.Solo.Small"))
+					]
+				];
+			}
+			else // Add Column Selection Menu widget to all other columns
+			{
+				Column.MenuContent()
+				[
+					HeaderMenuContent
+				];
+			}
 		
-		HeaderRow->AddColumn(Column);
-		bool bShouldShowColumn = ColumnsToShowByDefault.Contains(ColumnInfo.PropertyName);
+			HeaderRow->AddColumn(Column);
+			bool bShouldShowColumn = ColumnsToShowByDefaultCache.Contains(ColumnInfo.PropertyName);
 
-		if (const bool* Match = LastVisibleColumns.Find(ColumnInfo.PropertyName))
-		{
-			bShouldShowColumn = *Match;
-		}
+			if (const bool* Match = LastVisibleColumns.Find(ColumnInfo.PropertyName))
+			{
+				bShouldShowColumn = *Match;
+			}
 		
-		HeaderRow->SetShowGeneratedColumn(ColumnInfo.PropertyName, bShouldShowColumn);
+			HeaderRow->SetShowGeneratedColumn(ColumnInfo.PropertyName, bShouldShowColumn);
+		}
 	}
 
 	return HeaderRow;
@@ -755,54 +826,207 @@ void SObjectMixerEditorList::SetupFilters()
 	
 }
 
+TSharedRef<SWidget> SObjectMixerEditorList::OnGenerateFilterClassMenu()
+{
+	FMenuBuilder MenuBuilder(true, NULL);
+
+	TArray<UClass*> DerivedClasses;
+	GetDerivedClasses(UObjectMixerObjectFilter::StaticClass(), DerivedClasses, true);
+
+	DerivedClasses.Remove(UObjectMixerObjectFilter::StaticClass());
+	DerivedClasses.Remove(UObjectMixerBlueprintObjectFilter::StaticClass());
+
+	DerivedClasses.Sort([](UClass& A, UClass& B)
+	{
+		return A.GetFName().LexicalLess(B.GetFName());
+	});
+
+	if (DerivedClasses.Num())
+	{
+		const TSharedPtr<FObjectMixerEditorList, ESPMode::ThreadSafe> PinnedList = ListModelPtr.Pin();
+		check(PinnedList);
+		
+		MenuBuilder.BeginSection(NAME_None, LOCTEXT("SelectClassMenuSection", "Select Class"));
+		{
+			for (UClass* DerivedClass : DerivedClasses)
+			{
+				if (IsValid(DerivedClass))
+				{
+					if (DerivedClass->GetName().StartsWith(TEXT("SKEL_")) || DerivedClass->GetName().StartsWith(TEXT("REINST_")))
+					{
+						continue;
+					}
+
+					if (DerivedClass->HasAnyClassFlags(CLASS_Abstract | CLASS_HideDropDown | CLASS_Deprecated))
+					{
+						continue;
+					}
+					
+					MenuBuilder.AddMenuEntry(
+					   FText::FromName(DerivedClass->GetFName()),
+					   FText::GetEmpty(),
+					   FSlateIcon(),
+					   FUIAction(
+						   FExecuteAction::CreateSP(PinnedList.ToSharedRef(), &FObjectMixerEditorList::SetObjectFilterClass, DerivedClass),
+						   FCanExecuteAction::CreateLambda([](){ return true; }),
+						   FIsActionChecked::CreateSP(PinnedList.ToSharedRef(), &FObjectMixerEditorList::IsClassSelected, DerivedClass)
+					   ),
+					   NAME_None,
+					   EUserInterfaceActionType::RadioButton
+				   );
+				}
+			}
+		}
+		MenuBuilder.EndSection();
+	}
+	else
+	{
+		MenuBuilder.AddMenuEntry(LOCTEXT("NoFilterClassesAvailable", "No filter classes available."), FText::GetEmpty(), FSlateIcon(), FUIAction());
+	}
+
+	TSharedRef<SWidget> Widget = MenuBuilder.MakeWidget();
+	FChildren* ChildWidgets = Widget->GetChildren();
+	for (int32 ChildItr = 0; ChildItr < ChildWidgets->Num(); ChildItr++)
+	{
+		const TSharedRef<SWidget>& Child = ChildWidgets->GetChildAt(ChildItr);
+
+		Child->EnableToolTipForceField(false);
+	}
+	Widget->EnableToolTipForceField(false);
+	
+	return Widget;
+}
+
 TSharedRef<SWidget> SObjectMixerEditorList::BuildShowOptionsMenu()
 {
 	FMenuBuilder ShowOptionsMenuBuilder = FMenuBuilder(true, nullptr);
 
-	ShowOptionsMenuBuilder.AddMenuEntry(
-		FText::FromString("Open Generic Object Mixer Instance"),
-		FText::FromString("Open Generic Object Mixer Instance"),
-		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateLambda([]()
-		{
-			FGlobalTabmanager::Get()->TryInvokeTab(FObjectMixerEditorModule::Get().GetTabSpawnerId());
-		})));
-
-	ShowOptionsMenuBuilder.AddMenuEntry(FText::FromString("Refresh List"), FText::FromString("Refresh"), FSlateIcon(),
-		FUIAction(FExecuteAction::CreateRaw(this, &SObjectMixerEditorList::GenerateTreeView)));
-
-	ShowOptionsMenuBuilder.BeginSection("", LOCTEXT("ShowOptions_ShowSectionHeading", "Show"));
+	ShowOptionsMenuBuilder.BeginSection("ListViewOptions", LOCTEXT("FilterClassManagementSection", "Filter Class Management"));
 	{
-		// Add show filters
-		auto AddFiltersLambda = [this, &ShowOptionsMenuBuilder](const TSharedRef<IObjectMixerEditorListFilter>& InFilter)
-		{
-			const FString& FilterName = InFilter->GetFilterName();
-			
-			ShowOptionsMenuBuilder.AddMenuEntry(
-			   InFilter->GetFilterButtonLabel(),
-			   InFilter->GetFilterButtonToolTip(),
-			   FSlateIcon(),
-			   FUIAction(
-				   FExecuteAction::CreateLambda(
-				   	[this, FilterName]()
-					   {
-						   ToggleFilterActive(FilterName);
-					   }
-					),
-				   FCanExecuteAction(),
-				   FIsActionChecked::CreateSP( InFilter, &IObjectMixerEditorListFilter::GetIsFilterActive )
-			   ),
-			   NAME_None,
-			   EUserInterfaceActionType::ToggleButton
-		   );
-		};
+		// Filter Class Management Button
+		const TSharedRef<SWidget> FilterClassManagementButton =
+			SNew(SBox)
+			.Padding(8, 0)
+			[
+				SNew(SComboButton)
+				.ToolTipText(LOCTEXT("FilterClassManagementButton_Tooltip", "Select a filter class"))
+				.ContentPadding(FMargin(4, 0.5f))
+				.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton"))
+				.OnGetMenuContent(this, &SObjectMixerEditorList::OnGenerateFilterClassMenu)
+				.ForegroundColor(FStyleColors::Foreground)
+				.MenuPlacement(EMenuPlacement::MenuPlacement_MenuRight)
+				.ButtonContent()
+				[
+					SNew(SHorizontalBox)
 
-		for (const TSharedRef<IObjectMixerEditorListFilter>& Filter : ShowFilters)
+					+ SHorizontalBox::Slot()
+					.Padding(0, 1, 4, 0)
+					.AutoWidth()
+					[
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
+
+					+ SHorizontalBox::Slot()
+					.Padding(0, 1, 0, 0)
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("FilterClassToolbarButton", "Object Filter Class"))
+					]
+				]
+			];
+
+		ShowOptionsMenuBuilder.AddWidget(FilterClassManagementButton, FText::GetEmpty());
+	}
+	ShowOptionsMenuBuilder.EndSection();
+
+	// Add List View Mode Options
+	ShowOptionsMenuBuilder.BeginSection("ListViewOptions", LOCTEXT("ListViewOptionsSection", "List View Options"));
+	{
+		// Foreach on uenum
+		const FString EnumPath = "/Script/ObjectMixerEditor.EObjectMixerTreeViewMode";
+		if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, *EnumPath, true))
 		{
-			AddFiltersLambda(Filter);
+			for (int32 EnumItr = 0; EnumItr < EnumPtr->GetMaxEnumValue(); EnumItr++)
+			{
+				EObjectMixerTreeViewMode EnumValue = (EObjectMixerTreeViewMode)EnumItr;
+				
+				ShowOptionsMenuBuilder.AddMenuEntry(
+					EnumPtr->GetDisplayNameTextByIndex(EnumItr),
+					EnumPtr->GetToolTipTextByIndex(EnumItr),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateLambda([this, EnumValue]()
+						{
+							SetTreeViewMode(EnumValue);
+						}),
+						FCanExecuteAction::CreateLambda([](){ return true; }),
+						FIsActionChecked::CreateLambda([this, EnumValue]()
+						{
+							return GetTreeViewMode() == EnumValue;
+						})
+					),
+					NAME_None,
+					EUserInterfaceActionType::RadioButton
+				);
+			}
 		}
 	}
 	ShowOptionsMenuBuilder.EndSection();
+
+	ShowOptionsMenuBuilder.BeginSection("MiscOptionsSection", LOCTEXT("MiscOptionsSection","Misc"));
+	{
+		ShowOptionsMenuBuilder.AddMenuEntry(
+		   FText::FromString("Open Generic Object Mixer Instance"),
+		   FText::FromString("Open Generic Object Mixer Instance"),
+		   FSlateIcon(),
+		   FUIAction(FExecuteAction::CreateLambda([]()
+		   {
+			   FGlobalTabmanager::Get()->TryInvokeTab(FObjectMixerEditorModule::Get().GetTabSpawnerId());
+		   })));
+
+		ShowOptionsMenuBuilder.AddMenuEntry(FText::FromString("Refresh List"), FText::FromString("Refresh"), FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &SObjectMixerEditorList::GenerateTreeView)));
+	}
+	ShowOptionsMenuBuilder.EndSection();
+
+	if (ShowFilters.Num())
+	{
+		ShowOptionsMenuBuilder.BeginSection("", LOCTEXT("ShowOptions_ShowSectionHeading", "Show"));
+		{
+			// Add show filters
+			auto AddFiltersLambda = [this, &ShowOptionsMenuBuilder](const TSharedRef<IObjectMixerEditorListFilter>& InFilter)
+			{
+				const FString& FilterName = InFilter->GetFilterName();
+			
+				ShowOptionsMenuBuilder.AddMenuEntry(
+				   InFilter->GetFilterButtonLabel(),
+				   InFilter->GetFilterButtonToolTip(),
+				   FSlateIcon(),
+				   FUIAction(
+					   FExecuteAction::CreateLambda(
+						   [this, FilterName]()
+						   {
+							   ToggleFilterActive(FilterName);
+						   }
+						),
+					   FCanExecuteAction(),
+					   FIsActionChecked::CreateSP( InFilter, &IObjectMixerEditorListFilter::GetIsFilterActive )
+				   ),
+				   NAME_None,
+				   EUserInterfaceActionType::ToggleButton
+			   );
+			};
+
+			for (const TSharedRef<IObjectMixerEditorListFilter>& Filter : ShowFilters)
+			{
+				AddFiltersLambda(Filter);
+			}
+		}
+		ShowOptionsMenuBuilder.EndSection();
+	}
 
 	return ShowOptionsMenuBuilder.MakeWidget();
 }
@@ -843,6 +1067,158 @@ void SObjectMixerEditorList::OnListViewSearchTextChanged(const FText& Text)
 	ExecuteListViewSearchOnAllRows(Text.ToString(), true);
 }
 
+void SObjectMixerEditorList::CacheTreeState()
+{
+	struct Local
+	{
+		static void RecursivelyCacheTreeState(
+			const TArray<FObjectMixerEditorListRowPtr>& InObjects,
+			TMap<FString, bool>& TreeItemExpansionStateCache,
+			TSharedPtr<STreeView<FObjectMixerEditorListRowPtr>> TreeViewPtr)
+		{
+			for (const TSharedPtr<FObjectMixerEditorListRow>& TreeViewItem : InObjects)
+			{
+				const FString ObjectName = TreeViewItem->GetDisplayName().ToString();
+
+				if (!ObjectName.IsEmpty())
+				{
+					TreeItemExpansionStateCache.Add(ObjectName, TreeViewPtr->IsItemExpanded(TreeViewItem));
+				}
+
+				RecursivelyCacheTreeState(TreeViewItem->GetChildRows(), TreeItemExpansionStateCache, TreeViewPtr);
+			}
+		}
+	};
+
+	Local::RecursivelyCacheTreeState(TreeViewRootObjects, TreeItemExpansionStateCache, TreeViewPtr);
+}
+
+void SObjectMixerEditorList::RestoreTreeState(const bool bFlushCache)
+{
+	struct Local
+	{
+		static void RecursivelyRestoreTreeState(
+			const TArray<FObjectMixerEditorListRowPtr>& InObjects,
+			TMap<FString, bool>& TreeItemExpansionStateCache,
+			TSharedPtr<STreeView<FObjectMixerEditorListRowPtr>> TreeViewPtr,
+			const bool bExpandByDefault)
+		{
+			for (const TSharedPtr<FObjectMixerEditorListRow>& TreeViewItem : InObjects)
+			{
+				const FString ObjectName = TreeViewItem->GetDisplayName().ToString();
+
+				if (!ObjectName.IsEmpty())
+				{
+					if (const bool* bExpansionStatePtr = TreeItemExpansionStateCache.Find(ObjectName))
+					{
+						TreeViewPtr->SetItemExpansion(TreeViewItem, *bExpansionStatePtr);
+					}
+					else
+					{
+						TreeViewPtr->SetItemExpansion(TreeViewItem, bExpandByDefault);
+					}
+				}
+
+				RecursivelyRestoreTreeState(
+					TreeViewItem->GetChildRows(), TreeItemExpansionStateCache, TreeViewPtr, bExpandByDefault);
+			}
+		}
+	};
+	
+	bool bExpandByDefault = true;
+	if (const UObjectMixerEditorProjectSettings* const Settings = GetDefault<UObjectMixerEditorProjectSettings>())
+	{
+		bExpandByDefault = Settings->bExpandTreeViewItemsByDefault;
+	}
+	
+	Local::RecursivelyRestoreTreeState(
+		TreeViewRootObjects, TreeItemExpansionStateCache, TreeViewPtr, bExpandByDefault);
+
+	if (bFlushCache)
+	{
+		TreeItemExpansionStateCache.Empty();
+	}
+}
+
+void SObjectMixerEditorList::BuildPerformanceCacheAndGenerateHeaderIfNeeded()
+{
+	// If any of the following overrides change, we need to regenerate the header row. Otherwise skip regeneration for performance reasons.
+	// GetObjectClassesToFilter, GetColumnsToShowByDefault, GetColumnsToExclude,
+	// GetForceAddedColumns, GetObjectMixerPropertyInheritanceInclusionOptions, ShouldIncludeUnsupportedProperties
+	bool bNeedToGenerateHeaders = false;
+	
+	const TObjectPtr<UObjectMixerObjectFilter> SelectedFilter = ListModelPtr.Pin()->GetObjectFilter();
+	if (!SelectedFilter)
+	{
+		UE_LOG(LogObjectMixerEditor, Display, TEXT("%hs: No classes defined in UObjectMixerObjectFilter class."), __FUNCTION__);
+		return;
+	}
+
+	if (const TSet<UClass*> ObjectClassesToFilter = SelectedFilter->GetObjectClassesToFilter();
+		ObjectClassesToFilter.Num() != ObjectClassesToFilterCache.Num() ||
+		ObjectClassesToFilter.Difference(ObjectClassesToFilterCache).Num() > 0 || ObjectClassesToFilterCache.Difference(ObjectClassesToFilter).Num() > 0)
+	{
+		ObjectClassesToFilterCache = ObjectClassesToFilter;
+		if (!bNeedToGenerateHeaders)
+		{
+			bNeedToGenerateHeaders = true;
+		}
+	}
+	if (const TSet<FName> ColumnsToShowByDefault = SelectedFilter->GetColumnsToShowByDefault();
+		ColumnsToShowByDefault.Num() != ColumnsToShowByDefaultCache.Num() ||
+		ColumnsToShowByDefault.Difference(ColumnsToShowByDefaultCache).Num() > 0 || ColumnsToShowByDefaultCache.Difference(ColumnsToShowByDefault).Num() > 0)
+	{
+		ColumnsToShowByDefaultCache = ColumnsToShowByDefault;
+		if (!bNeedToGenerateHeaders)
+		{
+			bNeedToGenerateHeaders = true;
+		}
+	}
+	if (const TSet<FName> ColumnsToExclude = SelectedFilter->GetColumnsToExclude();
+		ColumnsToExclude.Num() != ColumnsToExcludeCache.Num() ||
+		ColumnsToExclude.Difference(ColumnsToExcludeCache).Num() > 0 || ColumnsToExcludeCache.Difference(ColumnsToExclude).Num() > 0)
+	{
+		ColumnsToExcludeCache = ColumnsToExclude;
+		if (!bNeedToGenerateHeaders)
+		{
+			bNeedToGenerateHeaders = true;
+		}
+	}
+	if (const TSet<FName> ForceAddedColumns = SelectedFilter->GetForceAddedColumns();
+		ForceAddedColumns.Num() != ForceAddedColumnsCache.Num() ||
+		ForceAddedColumns.Difference(ForceAddedColumnsCache).Num() > 0 || ForceAddedColumnsCache.Difference(ForceAddedColumns).Num() > 0)
+	{
+		ForceAddedColumnsCache = ForceAddedColumns;
+		if (!bNeedToGenerateHeaders)
+		{
+			bNeedToGenerateHeaders = true;
+		}
+	}
+	if (const EObjectMixerInheritanceInclusionOptions PropertyInheritanceInclusionOptions = SelectedFilter->GetObjectMixerPropertyInheritanceInclusionOptions(); 
+		PropertyInheritanceInclusionOptions != PropertyInheritanceInclusionOptionsCache)
+	{
+		PropertyInheritanceInclusionOptionsCache = PropertyInheritanceInclusionOptions;
+		if (!bNeedToGenerateHeaders)
+		{
+			bNeedToGenerateHeaders = true;
+		}
+	}
+	if (const bool bShouldIncludeUnsupportedProperties = SelectedFilter->ShouldIncludeUnsupportedProperties(); 
+		bShouldIncludeUnsupportedProperties != bShouldIncludeUnsupportedPropertiesCache)
+	{
+		bShouldIncludeUnsupportedPropertiesCache = bShouldIncludeUnsupportedProperties;
+		if (!bNeedToGenerateHeaders)
+		{
+			bNeedToGenerateHeaders = true;
+		}
+	}
+	
+	if (bNeedToGenerateHeaders)
+	{
+		GenerateHeaderRow();
+	}
+}
+
 void SObjectMixerEditorList::GenerateTreeView()
 {
 	check(ListModelPtr.IsValid());
@@ -851,35 +1227,27 @@ void SObjectMixerEditorList::GenerateTreeView()
 	{
 		return;
 	}
+
+	CacheTreeState();
 	
 	FlushMemory(true);
-	
-	GenerateHeaderRow();
 
-	TArray<UClass*> AcceptableClasses = ListModelPtr.Pin()->GetObjectClasses();
+	BuildPerformanceCacheAndGenerateHeaderIfNeeded();
 
 	check(GEditor);
 	const UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
 
-	// Bind delegates to keep view up to date
-	OnActorSpawnedHandle = EditorWorld->AddOnActorSpawnedHandler(
-			FOnActorSpawned::FDelegate::CreateRaw(
-			this, &SObjectMixerEditorList::OnActorSpawnedOrDestroyed));
-	OnActorDestroyedHandle = EditorWorld->AddOnActorDestroyedHandler(
-		FOnActorDestroyed::FDelegate::CreateRaw(
-		this, &SObjectMixerEditorList::OnActorSpawnedOrDestroyed));
-
 	// Find valid matching objects
+	TArray<UObject*> MatchingObjects;
 	for (TObjectIterator<UObject> ObjectIterator; ObjectIterator; ++ObjectIterator)
 	{
 		if (UObject* Object = *ObjectIterator; IsValid(Object))
 		{
-			if (Object->GetWorld() == EditorWorld)
+			if (UWorld* ObjectWorld = Object->GetWorld(); ObjectWorld == EditorWorld)
 			{
-				//Object->GetWorld()->GetLevel(0).
 				bool bIsAcceptableClass = false;
 
-				for (UClass* Class : AcceptableClasses)
+				for (UClass* Class : ObjectClassesToFilterCache)
 				{
 					if (Object->IsA(Class))
 					{
@@ -890,16 +1258,141 @@ void SObjectMixerEditorList::GenerateTreeView()
 
 				if (bIsAcceptableClass)
 				{
-					TreeViewRootObjects.Add(
-						MakeShared<FObjectMixerEditorListRow>(
-							Object, FObjectMixerEditorListRow::SingleItem, SharedThis(this), nullptr)
-					);
+					MatchingObjects.Add(Object);
 				}
 			}
 		}
 	}
 
+	// A quick lookup for objects that already exist in the list.
+	// Helpful to avoid double-generating rows when considering parent->child hierarchy.
+	TMap<UObject*, TSharedRef<FObjectMixerEditorListRow>> CreatedObjectMap;
+	TMap<FName, TSharedRef<FObjectMixerEditorListRow>> FolderMap;
+	for (UObject* Object : MatchingObjects)
+	{
+		if (!CreatedObjectMap.Contains(Object)) // Ensure we don't double-generate container objects
+		{
+			TSharedRef<FObjectMixerEditorListRow> TopLevelRow = MakeShared<FObjectMixerEditorListRow>(
+				Object, FObjectMixerEditorListRow::MatchingObject, SharedThis(this));
+
+			CreatedObjectMap.Add(Object, TopLevelRow);
+
+			// If the view is not in flat mode, we need to consider the hierarchy of outliner folders/attach parents as desired
+			if (ListModelPtr.Pin()->GetTreeViewMode() != EObjectMixerTreeViewMode::Flat)
+			{
+				AActor* BaseActor = Cast<AActor>(Object);
+				
+				if (!BaseActor)
+				{
+					if (Object->IsA(UActorComponent::StaticClass()))
+					{
+						BaseActor = Object->GetTypedOuter<AActor>();
+
+						// If it's not flat or folder view mode, we need to find or create the container object for the actor that owns the matching component
+						if (ListModelPtr.Pin()->GetTreeViewMode() != EObjectMixerTreeViewMode::Folder)
+						{
+							TSharedPtr<FObjectMixerEditorListRow> OwningActorRow;
+
+							if (const TSharedRef<FObjectMixerEditorListRow>* Match = CreatedObjectMap.Find(BaseActor))
+							{
+								OwningActorRow = *Match;
+							}
+							else
+							{
+								OwningActorRow = MakeShared<FObjectMixerEditorListRow>(
+									BaseActor, FObjectMixerEditorListRow::ContainerObject, SharedThis(this));
+
+								CreatedObjectMap.Add(BaseActor, OwningActorRow.ToSharedRef());
+							}
+
+							if (OwningActorRow)
+							{
+								OwningActorRow->AddToChildRows(TopLevelRow);
+													
+								TopLevelRow = OwningActorRow.ToSharedRef();
+							}
+						}
+					}
+				}
+
+				if (BaseActor)
+				{
+					while (AActor* AttachParent = BaseActor->GetAttachParentActor())
+					{
+						// Make a row for each attach parent up the chain until we reach the top if not in flat/folder mode
+						if (ListModelPtr.Pin()->GetTreeViewMode() != EObjectMixerTreeViewMode::Folder)
+						{
+							TSharedPtr<FObjectMixerEditorListRow> OwningActorRow;
+
+							if (const TSharedRef<FObjectMixerEditorListRow>* Match = CreatedObjectMap.Find(AttachParent))
+							{
+								OwningActorRow = *Match;
+							}
+							else
+							{
+								OwningActorRow = MakeShared<FObjectMixerEditorListRow>(
+									AttachParent, FObjectMixerEditorListRow::ContainerObject, SharedThis(this));
+
+								CreatedObjectMap.Add(AttachParent, OwningActorRow.ToSharedRef());
+							}
+
+							if (OwningActorRow)
+							{
+								OwningActorRow->AddToChildRows(TopLevelRow);
+												
+								TopLevelRow = OwningActorRow.ToSharedRef();
+							}
+						}
+
+						BaseActor = AttachParent;
+					}
+
+					// Now consider folder hierarchy for the base actor if desired
+					if (ListModelPtr.Pin()->GetTreeViewMode() == EObjectMixerTreeViewMode::Folder ||
+						ListModelPtr.Pin()->GetTreeViewMode() == EObjectMixerTreeViewMode::FolderObjectSubObject)
+					{
+						FFolder BaseActorFolder = BaseActor->GetFolder();
+
+						while (!BaseActorFolder.IsNone())
+						{
+							TSharedPtr<FObjectMixerEditorListRow> FolderRow;
+							
+							if (const TSharedRef<FObjectMixerEditorListRow>* Match = FolderMap.Find(BaseActorFolder.GetPath()))
+							{
+								FolderRow = *Match;
+							}
+							else
+							{
+								FolderRow =
+									MakeShared<FObjectMixerEditorListRow>(
+										nullptr, FObjectMixerEditorListRow::Folder, SharedThis(this),
+										FText::FromName(BaseActorFolder.GetLeafName()));
+
+								FolderMap.Add(BaseActorFolder.GetPath(), FolderRow.ToSharedRef());
+							}
+
+							if (FolderRow)
+							{
+								FolderRow->AddToChildRows(TopLevelRow);
+													
+								TopLevelRow = FolderRow.ToSharedRef();
+							}
+
+							BaseActorFolder = BaseActorFolder.GetParent();
+						}
+					}
+				}
+			}
+
+			TreeViewRootObjects.AddUnique(TopLevelRow);
+		}
+	}
+
+	TreeViewRootObjects.StableSort(SortByTypeThenName);
+
 	RefreshList();
+
+	RestoreTreeState();
 }
 
 void SObjectMixerEditorList::FindVisibleTreeViewObjects()
@@ -908,7 +1401,7 @@ void SObjectMixerEditorList::FindVisibleTreeViewObjects()
 
 	for (const TSharedPtr<FObjectMixerEditorListRow>& Row : TreeViewRootObjects)
 	{
-		if (Row->ShouldBeVisible())
+		if (Row->ShouldRowWidgetBeVisible())
 		{
 			VisibleTreeViewObjects.Add(Row);
 		}
@@ -943,7 +1436,7 @@ void SObjectMixerEditorList::OnRowChildExpansionChange(FObjectMixerEditorListRow
 		{
 			if (bIsExpanded)
 			{
-				if (Row->GetRowType() == FObjectMixerEditorListRow::Group)
+				if (Row->GetRowType() == FObjectMixerEditorListRow::Folder)
 				{
 					Row->SetShouldExpandAllChildren(true);
 				}

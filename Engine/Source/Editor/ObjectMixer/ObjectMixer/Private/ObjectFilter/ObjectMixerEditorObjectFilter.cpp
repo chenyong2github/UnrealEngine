@@ -3,20 +3,51 @@
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
 
 #include "GameFramework/Actor.h"
+#include "Kismet2/ComponentEditorUtils.h"
 
-FText UObjectMixerObjectFilter::GetRowDisplayName(UObject* InObject) const
+FText UObjectMixerObjectFilter::GetRowDisplayName(UObject* InObject, EObjectMixerTreeViewMode InViewMode) const
 {
-	if (InObject->IsValidLowLevel())
+	if (IsValid(InObject))
 	{
+		if (InViewMode == EObjectMixerTreeViewMode::Flat || InViewMode == EObjectMixerTreeViewMode::Folder)
+		{
+			if (const AActor* Outer = InObject->GetTypedOuter<AActor>())
+			{
+				return FText::Format(INVTEXT("{0} ({1})"), FText::FromString(Outer->GetActorLabel()), FText::FromString(InObject->GetName()));
+			}
+		}
+
+		if (const AActor* AsActor = Cast<AActor>(InObject))
+		{
+			return FText::FromString(AsActor->GetActorLabel());
+		}
+		else if (const UActorComponent* AsActorComponent = Cast<UActorComponent>(InObject))
+		{
+			const FName ComponentName = FComponentEditorUtils::FindVariableNameGivenComponentInstance(AsActorComponent);
+			if (ComponentName != NAME_None)
+			{
+				if (!ComponentName.IsEqual(AsActorComponent->GetFName()))
+				{
+					return
+					   FText::Format(INVTEXT("{0} ({1})"),
+						   FText::FromName(ComponentName),
+						   FText::FromName(AsActorComponent->GetFName())
+					   );
+				}
+
+				return FText::FromName(ComponentName);
+			}
+		}
+		
 		return FText::FromString(InObject->GetName());
 	}
 
 	return FText::GetEmpty();
 }
 
-bool UObjectMixerObjectFilter::GetRowEditorVisibility(UObject* InObject) const
+bool UObjectMixerObjectFilter::GetRowEditorVisibility(UObject* InObject, EObjectMixerTreeViewMode InViewMode) const
 {
-	if (InObject->IsValidLowLevel())
+	if (IsValid(InObject))
 	{
 		TObjectPtr<AActor> Actor = Cast<AActor>(InObject);
 	
@@ -31,9 +62,9 @@ bool UObjectMixerObjectFilter::GetRowEditorVisibility(UObject* InObject) const
 	return false;
 }
 
-void UObjectMixerObjectFilter::OnSetRowEditorVisibility(UObject* InObject, bool bNewIsVisible) const
+void UObjectMixerObjectFilter::OnSetRowEditorVisibility(UObject* InObject, bool bNewIsVisible, EObjectMixerTreeViewMode InViewMode) const
 {
-	if (InObject->IsValidLowLevel())
+	if (IsValid(InObject))
 	{
 		TObjectPtr<AActor> Actor = Cast<AActor>(InObject);
 	
@@ -49,19 +80,24 @@ void UObjectMixerObjectFilter::OnSetRowEditorVisibility(UObject* InObject, bool 
 	}
 }
 
-TArray<FName> UObjectMixerObjectFilter::GetColumnsToShowByDefault() const
+TSet<FName> UObjectMixerObjectFilter::GetColumnsToShowByDefault() const
 {
 	return {};
 }
 
-TArray<FName> UObjectMixerObjectFilter::GetColumnsFilter() const
+TSet<FName> UObjectMixerObjectFilter::GetColumnsToExclude() const
 {
 	return {};
 }
 
-EObjectMixerPropertyInheritanceInclusionOptions UObjectMixerObjectFilter::GetObjectMixerPropertyInheritanceInclusionOptions() const
+EObjectMixerInheritanceInclusionOptions UObjectMixerObjectFilter::GetObjectMixerPropertyInheritanceInclusionOptions() const
 {
-	return EObjectMixerPropertyInheritanceInclusionOptions::None;
+	return EObjectMixerInheritanceInclusionOptions::None;
+}
+
+EObjectMixerInheritanceInclusionOptions UObjectMixerObjectFilter::GetObjectMixerPlacementClassInclusionOptions() const
+{
+	return EObjectMixerInheritanceInclusionOptions::None;
 }
 
 bool UObjectMixerObjectFilter::ShouldIncludeUnsupportedProperties() const
@@ -69,18 +105,18 @@ bool UObjectMixerObjectFilter::ShouldIncludeUnsupportedProperties() const
 	return false;
 }
 
-TArray<UClass*> UObjectMixerObjectFilter::GetParentAndChildClassesFromSpecifiedClasses(
-	const TArray<UClass*>& InSpecifiedClasses, EObjectMixerPropertyInheritanceInclusionOptions Options)
+TSet<UClass*> UObjectMixerObjectFilter::GetParentAndChildClassesFromSpecifiedClasses(
+	const TSet<UClass*>& InSpecifiedClasses, EObjectMixerInheritanceInclusionOptions Options)
 {
 	// 'None' means we only want the specified classes
-	if (Options == EObjectMixerPropertyInheritanceInclusionOptions::None)
+	if (Options == EObjectMixerInheritanceInclusionOptions::None)
 	{
 		return InSpecifiedClasses;
 	}
 	
-	TArray<UClass*> ReturnValue;
+	TSet<UClass*> ReturnValue;
 
-	auto GetChildClassesLambda = [](const UClass* Class, TArray<UClass*>& OutReturnValue, const bool bRecursive)
+	auto GetChildClassesLambda = [](const UClass* Class, TSet<UClass*>& OutReturnValue, const bool bRecursive)
 	{
 		TArray<UClass*> DerivedClasses;
 		GetDerivedClasses(Class, DerivedClasses, bRecursive);
@@ -94,9 +130,9 @@ TArray<UClass*> UObjectMixerObjectFilter::GetParentAndChildClassesFromSpecifiedC
 		// Super Classes
 
 			// Immediate only
-		if (Options == EObjectMixerPropertyInheritanceInclusionOptions::IncludeOnlyImmediateParent ||
-			Options == EObjectMixerPropertyInheritanceInclusionOptions::IncludeOnlyImmediateParentAndChildren ||
-			Options == EObjectMixerPropertyInheritanceInclusionOptions::IncludeOnlyImmediateParentAndAllChildren)
+		if (Options == EObjectMixerInheritanceInclusionOptions::IncludeOnlyImmediateParent ||
+			Options == EObjectMixerInheritanceInclusionOptions::IncludeOnlyImmediateParentAndChildren ||
+			Options == EObjectMixerInheritanceInclusionOptions::IncludeOnlyImmediateParentAndAllChildren)
 		{
 			if (UClass* Super = Class->GetSuperClass())
 			{
@@ -104,9 +140,9 @@ TArray<UClass*> UObjectMixerObjectFilter::GetParentAndChildClassesFromSpecifiedC
 			}
 		}
 			// All Parents
-		if (Options == EObjectMixerPropertyInheritanceInclusionOptions::IncludeAllParents ||
-			Options == EObjectMixerPropertyInheritanceInclusionOptions::IncludeAllParentsAndChildren ||
-			Options == EObjectMixerPropertyInheritanceInclusionOptions::IncludeAllParentsAndOnlyImmediateChildren)
+		if (Options == EObjectMixerInheritanceInclusionOptions::IncludeAllParents ||
+			Options == EObjectMixerInheritanceInclusionOptions::IncludeAllParentsAndChildren ||
+			Options == EObjectMixerInheritanceInclusionOptions::IncludeAllParentsAndOnlyImmediateChildren)
 		{
 			if (UClass* Super = Class->GetSuperClass())
 			{
@@ -121,16 +157,16 @@ TArray<UClass*> UObjectMixerObjectFilter::GetParentAndChildClassesFromSpecifiedC
 		// Child Classes
 
 			// Immediate only
-		if (Options == EObjectMixerPropertyInheritanceInclusionOptions::IncludeOnlyImmediateChildren ||
-			Options == EObjectMixerPropertyInheritanceInclusionOptions::IncludeOnlyImmediateParentAndChildren ||
-			Options == EObjectMixerPropertyInheritanceInclusionOptions::IncludeAllParentsAndOnlyImmediateChildren)
+		if (Options == EObjectMixerInheritanceInclusionOptions::IncludeOnlyImmediateChildren ||
+			Options == EObjectMixerInheritanceInclusionOptions::IncludeOnlyImmediateParentAndChildren ||
+			Options == EObjectMixerInheritanceInclusionOptions::IncludeAllParentsAndOnlyImmediateChildren)
 		{
 			GetChildClassesLambda(Class, ReturnValue, false);
 		}
 			// All Children
-		if (Options == EObjectMixerPropertyInheritanceInclusionOptions::IncludeAllChildren ||
-			Options == EObjectMixerPropertyInheritanceInclusionOptions::IncludeAllParentsAndChildren ||
-			Options == EObjectMixerPropertyInheritanceInclusionOptions::IncludeOnlyImmediateParentAndAllChildren)
+		if (Options == EObjectMixerInheritanceInclusionOptions::IncludeAllChildren ||
+			Options == EObjectMixerInheritanceInclusionOptions::IncludeAllParentsAndChildren ||
+			Options == EObjectMixerInheritanceInclusionOptions::IncludeOnlyImmediateParentAndAllChildren)
 		{
 			GetChildClassesLambda(Class, ReturnValue, true);
 		}
@@ -139,18 +175,31 @@ TArray<UClass*> UObjectMixerObjectFilter::GetParentAndChildClassesFromSpecifiedC
 	return ReturnValue;
 }
 
+TSet<UClass*> UObjectMixerObjectFilter::GetParentAndChildClassesFromSpecifiedClasses(
+	const TSet<TSubclassOf<AActor>>& InSpecifiedClasses, EObjectMixerInheritanceInclusionOptions Options)
+{
+	TSet<UClass*> AsUClasses;
+	
+	for (TSubclassOf<AActor> ActorClass : InSpecifiedClasses)
+	{
+		AsUClasses.Add(ActorClass);
+	}
+
+	return GetParentAndChildClassesFromSpecifiedClasses(AsUClasses, Options);
+}
+
 EFieldIterationFlags UObjectMixerObjectFilter::GetDesiredFieldIterationFlags(const bool bIncludeInheritedProperties)
 {
 	return bIncludeInheritedProperties ? EFieldIterationFlags::IncludeSuper : EFieldIterationFlags::Default;
 }
 
-TArray<FName> UObjectMixerObjectFilter::GenerateIncludeListFromExcludeList(const TSet<FName>& ExcludeList) const
+TSet<FName> UObjectMixerObjectFilter::GenerateIncludeListFromExcludeList(const TSet<FName>& ExcludeList) const
 {
 	TSet<FName> IncludeList;
 
-	const EObjectMixerPropertyInheritanceInclusionOptions Options =
+	const EObjectMixerInheritanceInclusionOptions Options =
 		GetObjectMixerPropertyInheritanceInclusionOptions();
-	TArray<UClass*> SpecifiedClasses =
+	TSet<UClass*> SpecifiedClasses =
 		GetParentAndChildClassesFromSpecifiedClasses(GetObjectClassesToFilter(), Options);
 	
 	for (const UClass* Class : SpecifiedClasses)
@@ -164,5 +213,5 @@ TArray<FName> UObjectMixerObjectFilter::GenerateIncludeListFromExcludeList(const
 		}
 	}
 
-	return IncludeList.Difference(ExcludeList).Array();
+	return IncludeList.Difference(ExcludeList);
 }

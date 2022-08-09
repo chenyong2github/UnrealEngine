@@ -2,13 +2,9 @@
 
 #pragma once
 
-#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SCompoundWidget.h"
 
 class FObjectMixerEditorMainPanel;
-class SBox;
-class SHorizontalBox;
-class SVerticalBox;
 
 class OBJECTMIXEREDITOR_API SObjectMixerEditorMainPanel final : public SCompoundWidget
 {
@@ -28,14 +24,4 @@ private:
 
 	/** A reference to the struct that controls this widget */
 	TWeakPtr<FObjectMixerEditorMainPanel> MainPanel;
-
-	TSharedPtr<SHorizontalBox> ToolbarHBox;
-
-	/** A reference to the button which opens the plugin settings */
-	TSharedPtr<SCheckBox> ConcertButtonPtr;
-
-	/** Creates the toolbar at the top of the MainPanel widget */
-	TSharedRef<SWidget> GeneratePanelToolbar();
-
-	TSharedRef<SWidget> OnGeneratePresetsMenu();
 };

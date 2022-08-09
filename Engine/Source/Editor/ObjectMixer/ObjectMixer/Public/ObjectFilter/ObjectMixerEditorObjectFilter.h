@@ -8,7 +8,7 @@
 #include "ObjectMixerEditorObjectFilter.generated.h"
 
 UENUM(BlueprintType)
-enum class EObjectMixerPropertyInheritanceInclusionOptions : uint8
+enum class EObjectMixerInheritanceInclusionOptions : uint8
 {
 	None, // Get only the properties in the specified classes without considering parent or child classes + Specified Class
 	IncludeOnlyImmediateParent, // Get properties from the class the specified class immediately derives from, but not their parents + Specified Class
@@ -19,6 +19,15 @@ enum class EObjectMixerPropertyInheritanceInclusionOptions : uint8
 	IncludeAllParentsAndChildren, // IncludeAllParents + IncludeAllChildren + Specified Class
 	IncludeAllParentsAndOnlyImmediateChildren, // IncludeAllParents + IncludeOnlyImmediateChildren + Specified Class
 	IncludeOnlyImmediateParentAndAllChildren // IncludeOnlyImmediateParent + IncludeAllChildren + Specified Class
+};
+
+UENUM(BlueprintType)
+enum class EObjectMixerTreeViewMode : uint8
+{
+	Flat, // Show all matching objects in a flat list without any hierarchy
+	Folder, // Display objects in a folder hierarchy but without Object->SubObject hierarchy
+	ObjectSubObject, // Display objects as SubObjects of BaseObjects (usually actors) without considering folder hierarchy
+	FolderObjectSubObject // Display objects in a full hierarchy (folder->BaseObject->SubObject)
 };
 
 /**
@@ -34,52 +43,65 @@ public:
 
 	UObjectMixerObjectFilter() = default;
 	
-	/*
+	/**
 	 * Return the basic object types you want to filter for in your level.
 	 * For example, if you want to work with Lights, return ULightComponentBase.
 	 * If you also want to see the properties for parent or child classes,
 	 * override the GetObjectMixerPropertyInheritanceInclusionOptions and GetForceAddedColumns functions.
 	 */
-	virtual TArray<UClass*> GetObjectClassesToFilter() const { return {}; }
+	virtual TSet<UClass*> GetObjectClassesToFilter() const { return {}; }
 
-	/*
+	/**
+	 * Return the basic actor types you want to be able to place using the Add button.
+	 * Note that only subclasses of AActor are supported and only those which have a registered factory.
+	 * This includes most engine actor types.
+	 */
+	virtual TSet<TSubclassOf<AActor>> GetObjectClassesToPlace() const { return {}; }
+
+	/**
 	 * Get the text to display for the object name/label.
 	 * This is useful if one of your classes is a component type and you want the label of the component's owning actor, for example.
 	 * If not overridden, this returns the object's name.
+	 * @param InViewMode The tree view display option (i.e. Flat list or hierarchy).
 	 */
-	virtual FText GetRowDisplayName(UObject* InObject) const;
+	virtual FText GetRowDisplayName(
+		UObject* InObject, EObjectMixerTreeViewMode InViewMode) const;
 
-	/*
+	/**
 	 * Controls how to display the row's visibility icon. Return true if the object should be visible.
 	 * Generally this should work like the Scene Outliner does.
 	 * If not overridden, we use the Editor Visibility of the object's AActor outer (unless it's an actor itself).
+	 * @param InViewMode The tree view display option (i.e. Flat list or hierarchy) (unused)
 	 */
-	virtual bool GetRowEditorVisibility(UObject* InObject) const;
+	virtual bool GetRowEditorVisibility(
+		UObject* InObject, EObjectMixerTreeViewMode InViewMode) const;
 
-	/*
+	/**
 	 * Controls what happens when the row's visibility icon is clicked.
 	 * Generally this should work like the Scene Outliner does.
 	 * If not overridden, we set the Editor Visibility of the object's AActor outer (unless it's an actor itself).
+	 * @param InViewMode The tree view display option (i.e. Flat list or hierarchy) (unused)
 	 */
-	virtual void OnSetRowEditorVisibility(UObject* InObject, bool bNewIsVisible) const;
+	virtual void OnSetRowEditorVisibility(
+		UObject* InObject, bool bNewIsVisible, EObjectMixerTreeViewMode InViewMode) const;
 
-	/*
+	/**
 	 * Specify a list of property names corresponding to columns you want to show by default.
 	 * For example, you can specify "Intensity" and "LightColor" to show only those property columns by default in the UI.
 	 * Columns not specified will not be shown by default but can be enabled by the user in the UI.
 	 */
-	virtual TArray<FName> GetColumnsToShowByDefault() const;
+	virtual TSet<FName> GetColumnsToShowByDefault() const;
 
-	/*
+	/**
 	 * Specify a list of property names corresponding to columns you don't want to ever show.
 	 * For example, you can specify "Intensity" and "LightColor" to ensure that they can't be enabled or shown in the UI.
 	 * Columns not specified can be enabled by the user in the UI.
 	 */
-	virtual TArray<FName> GetColumnsFilter() const;
+	virtual TSet<FName> GetColumnsToExclude() const;
 
-	/*
+	/**
 	 * Specify a list of property names found in parent classes you want to show that aren't in the specified classes.
-	 * Note that properties specified here do not override the properties specified in GetColumnsFilter(),
+	 * Note that properties specified here do not override the properties specified in GetColumnsToExclude(),
 	 * but do override the supported property tests so these will appear even if ShouldIncludeUnsupportedProperties returns false.
 	 * For example, a ULightComponent displays "LightColor" in the editor's details panel,
 	 * but ULightComponent itself doesn't have a property named "LightColor". Instead it's in its parent class, ULightComponentBase.
@@ -87,36 +109,42 @@ public:
 	 * Specify "LightColor" in this function to ensure that "LightColor" will appear as a column as long as
 	 * the property is accessible to one of the specified classes regardless of which parent class it comes from.
 	 */
-	virtual TArray<FName> GetForceAddedColumns() const { return {}; }
+	virtual TSet<FName> GetForceAddedColumns() const { return {}; }
 
-	/*
+	/**
 	 * Specify whether we should return only the properties of the specified classes or the properties of parent and child classes.
 	 * Defaults to 'None' which only considers the properties of the specified classes.
 	 * If you're not seeing all the properties you expected, try overloading this function.
 	 */
-	virtual EObjectMixerPropertyInheritanceInclusionOptions GetObjectMixerPropertyInheritanceInclusionOptions() const;
+	virtual EObjectMixerInheritanceInclusionOptions GetObjectMixerPropertyInheritanceInclusionOptions() const;
 
-	/*
+	/**
+	 * Specify whether we should return only the specified classes or the parent and child classes in placement mode.
+	 * Defaults to 'None' which only considers the specified classes.
+	 */
+	virtual EObjectMixerInheritanceInclusionOptions GetObjectMixerPlacementClassInclusionOptions() const;
+
+	/**
 	 * If true, properties that are not visible in the details panel and properties not supported by SSingleProperty will be selectable.
 	 * Defaults to false.
 	 */
 	virtual bool ShouldIncludeUnsupportedProperties() const;
 
-	static TArray<UClass*> GetParentAndChildClassesFromSpecifiedClasses(
-		const TArray<UClass*>& InSpecifiedClasses, EObjectMixerPropertyInheritanceInclusionOptions Options);
+	static TSet<UClass*> GetParentAndChildClassesFromSpecifiedClasses(
+		const TSet<UClass*>& InSpecifiedClasses, EObjectMixerInheritanceInclusionOptions Options);
+
+	static TSet<UClass*> GetParentAndChildClassesFromSpecifiedClasses(
+		const TSet<TSubclassOf<AActor>>& InSpecifiedClasses, EObjectMixerInheritanceInclusionOptions Options);
 
 	static EFieldIterationFlags GetDesiredFieldIterationFlags(const bool bIncludeInheritedProperties);
 
-	// Folder view should reflect outliner folder structure if possible
-	// Mute/solo lights
-
 protected:
 
-	/*
+	/**
 	 * Given a set of property names you wish to include, returns a list of all other properties on InObject not found in ExcludeList.
 	 * Useful when defining default visible columns in a list view.
 	 */
-	TArray<FName> GenerateIncludeListFromExcludeList(const TSet<FName>& ExcludeList) const;
+	TSet<FName> GenerateIncludeListFromExcludeList(const TSet<FName>& ExcludeList) const;
 };
 
 /**
@@ -129,88 +157,107 @@ class OBJECTMIXEREDITOR_API UObjectMixerBlueprintObjectFilter : public UObjectMi
 	GENERATED_BODY()
 public:
 	
-	/*
+	/**
 	 * Return the basic object types you want to filter for in your level.
 	 * For example, if you want to work with Lights, return ULightComponentBase.
 	 * If you also want to see the properties for parent or child classes,
 	 * override the GetObjectMixerPropertyInheritanceInclusionOptions and GetForceAddedColumns functions.
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	TArray<UClass*> GetObjectClassesToFilter() const override;
+	TSet<UClass*> GetObjectClassesToFilter() const override;
 
-	TArray<UClass*> GetObjectClassesToFilter_Implementation() const
+	TSet<UClass*> GetObjectClassesToFilter_Implementation() const
 	{
 		return Super::GetObjectClassesToFilter();
 	}
 
-	/*
+	/**
+	 * Return the basic actor types you want to be able to place using the Add button.
+	 * Note that only subclasses of AActor are supported and only those which have a registered factory.
+	 * This includes most engine actor types.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
+	TSet<TSubclassOf<AActor>> GetObjectClassesToPlace() const override;
+
+	TSet<TSubclassOf<AActor>> GetObjectClassesToPlace_Implementation() const
+	{
+		return Super::GetObjectClassesToPlace();
+	}
+
+	/**
 	 * Get the text to display for the object name/label.
 	 * This is useful if one of your classes is a component type and you want the label of the component's owning actor, for example.
 	 * If not overridden, this returns the object's name.
+	 * @param InViewMode The tree view display option (i.e. Flat list or hierarchy).
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	FText GetRowDisplayName(UObject* InObject) const override;
+	FText GetRowDisplayName(
+		UObject* InObject, EObjectMixerTreeViewMode InViewMode = EObjectMixerTreeViewMode::FolderObjectSubObject) const override;
 	
-	FText GetRowDisplayName_Implementation(UObject* InObject) const
+	FText GetRowDisplayName_Implementation(UObject* InObject, EObjectMixerTreeViewMode InViewMode) const
 	{
-		return Super::GetRowDisplayName(InObject);
+		return Super::GetRowDisplayName(InObject, InViewMode);
 	}
 	
-	/*
+	/**
 	 * Controls how to display the row's visibility icon. Return true if the object should be visible.
 	 * Generally this should work like the Scene Outliner does.
 	 * If not overridden, we use the Editor Visibility of the object's AActor outer (unless it's an actor itself).
+	 * @param InViewMode The tree view display option (i.e. Flat list or hierarchy) (unused)
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	bool GetRowEditorVisibility(UObject* InObject) const override;
+	bool GetRowEditorVisibility(
+		UObject* InObject, EObjectMixerTreeViewMode InViewMode = EObjectMixerTreeViewMode::FolderObjectSubObject) const override;
 
-	bool GetRowEditorVisibility_Implementation(UObject* InObject) const
+	bool GetRowEditorVisibility_Implementation(UObject* InObject, EObjectMixerTreeViewMode InViewMode) const
 	{
-		return Super::GetRowEditorVisibility(InObject);
+		return Super::GetRowEditorVisibility(InObject, InViewMode);
 	}
 	
-	/*
+	/**
 	 * Controls what happens when the row's visibility icon is clicked.
 	 * Generally this should work like the Scene Outliner does.
 	 * If not overridden, we set the Editor Visibility of the object's AActor outer (unless it's an actor itself).
+	 * @param InViewMode The tree view display option (i.e. Flat list or hierarchy) (unused)
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	void OnSetRowEditorVisibility(UObject* InObject, bool bNewIsVisible) const override;
+	void OnSetRowEditorVisibility(
+		UObject* InObject, bool bNewIsVisible, EObjectMixerTreeViewMode InViewMode = EObjectMixerTreeViewMode::FolderObjectSubObject) const override;
 
-	void OnSetRowEditorVisibility_Implementation(UObject* InObject, bool bNewIsVisible) const
+	void OnSetRowEditorVisibility_Implementation(UObject* InObject, bool bNewIsVisible, EObjectMixerTreeViewMode InViewMode) const
 	{
-		return Super::OnSetRowEditorVisibility(InObject, bNewIsVisible);
+		return Super::OnSetRowEditorVisibility(InObject, bNewIsVisible, InViewMode);
 	}
 	
-	/*
+	/**
 	 * Specify a list of property names corresponding to columns you want to show by default.
 	 * For example, you can specify "Intensity" and "LightColor" to show only those property columns by default in the UI.
 	 * Columns not specified will not be shown by default but can be enabled by the user in the UI.
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	TArray<FName> GetColumnsToShowByDefault() const override;
+	TSet<FName> GetColumnsToShowByDefault() const override;
 	
-	TArray<FName> GetColumnsToShowByDefault_Implementation() const
+	TSet<FName> GetColumnsToShowByDefault_Implementation() const
 	{
 		return Super::GetColumnsToShowByDefault();
 	}
 	
-	/*
+	/**
 	 * Specify a list of property names corresponding to columns you don't want to ever show.
 	 * For example, you can specify "Intensity" and "LightColor" to ensure that they can't be enabled or shown in the UI.
 	 * Columns not specified can be enabled by the user in the UI.
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	TArray<FName> GetColumnsFilter() const override;
+	TSet<FName> GetColumnsToExclude() const override;
 
-	TArray<FName> GetColumnsFilter_Implementation() const
+	TSet<FName> GetColumnsToExclude_Implementation() const
 	{
-		return Super::GetColumnsFilter();
+		return Super::GetColumnsToExclude();
 	}
 
-	/*
+	/**
 	 * Specify a list of property names found in parent classes you want to show that aren't in the specified classes.
-	 * Note that properties specified here do not override the properties specified in GetColumnsFilter().
+	 * Note that properties specified here do not override the properties specified in GetColumnsToExclude().
 	 * For example, a ULightComponent displays "LightColor" in the editor's details panel,
 	 * but ULightComponent itself doesn't have a property named "LightColor". Instead it's in its parent class, ULightComponentBase.
 	 * In this scenario, ULightComponent is specified and PropertyInheritanceInclusionOptions is None, so "LightColor" won't appear by default.
@@ -218,27 +265,39 @@ public:
 	 * the property is accessible to one of the specified classes regardless of which parent class it comes from.
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	TArray<FName> GetForceAddedColumns() const override;
+	TSet<FName> GetForceAddedColumns() const override;
 	
-	TArray<FName> GetForceAddedColumns_Implementation() const
+	TSet<FName> GetForceAddedColumns_Implementation() const
 	{
 		return Super::GetForceAddedColumns();
 	}
 	
-	/*
+	/**
 	 * Specify whether we should return only the properties of the specified classes or the properties of parent and child classes.
 	 * Defaults to 'None' which only considers the properties of the specified classes.
 	 * If you're not seeing all the properties you expected, try overloading this function.
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
-	EObjectMixerPropertyInheritanceInclusionOptions GetObjectMixerPropertyInheritanceInclusionOptions() const override;
+	EObjectMixerInheritanceInclusionOptions GetObjectMixerPropertyInheritanceInclusionOptions() const override;
 
-	EObjectMixerPropertyInheritanceInclusionOptions GetObjectMixerPropertyInheritanceInclusionOptions_Implementation() const
+	EObjectMixerInheritanceInclusionOptions GetObjectMixerPropertyInheritanceInclusionOptions_Implementation() const
 	{
 		return Super::GetObjectMixerPropertyInheritanceInclusionOptions();
 	}
 
-	/*
+	/**
+	 * Specify whether we should return only the specified classes or the parent and child classes in placement mode.
+	 * Defaults to 'None' which only considers the specified classes.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
+	EObjectMixerInheritanceInclusionOptions GetObjectMixerPlacementClassInclusionOptions() const override;
+
+	EObjectMixerInheritanceInclusionOptions GetObjectMixerPlacementClassInclusionOptions_Implementation() const
+	{
+		return Super::GetObjectMixerPlacementClassInclusionOptions();
+	}
+
+	/**
 	 * If true, properties that are not visible in the details panel and properties not supported by SSingleProperty will be selectable.
 	 * Defaults to false.
 	 */

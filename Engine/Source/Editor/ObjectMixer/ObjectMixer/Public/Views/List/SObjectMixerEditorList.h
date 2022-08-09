@@ -93,7 +93,7 @@ public:
 	 */
 	void RefreshList();
 
-	/*
+	/**
 	 * Regenerate the list items and refresh the list. Call when adding or removing items.
 	 */
 	void RequestRebuildList(const FString& InItemToScrollTo = "");
@@ -101,7 +101,7 @@ public:
 	[[nodiscard]] TArray<FObjectMixerEditorListRowPtr> GetSelectedTreeViewItems() const;
 	int32 GetSelectedTreeViewItemCount() const;
 
-	void SetSelectedTreeViewItemActorsEditorVisible(const bool bNewIsVisible);
+	void SetSelectedTreeViewItemActorsEditorVisible(const bool bNewIsVisible, const bool bIsRecursive = false);
 
 	bool IsTreeViewItemSelected(TSharedRef<FObjectMixerEditorListRow> Item);
 
@@ -134,7 +134,17 @@ public:
 
 	bool DoesTreeViewHaveVisibleChildren() const;
 
+	bool IsTreeViewItemExpanded(const TSharedPtr<FObjectMixerEditorListRow>& Row) const;
 	void SetTreeViewItemExpanded(const TSharedPtr<FObjectMixerEditorListRow>& RowToExpand, const bool bNewExpansion) const;
+
+	/**
+	 * Determines the style of the tree (flat list or hierarchy)
+	 */
+	EObjectMixerTreeViewMode GetTreeViewMode();
+	/**
+	 * Determine the style of the tree (flat list or hierarchy)
+	 */
+	void SetTreeViewMode(EObjectMixerTreeViewMode InViewMode);
 
 	void ToggleFilterActive(const FString& FilterName);
 	void EvaluateIfRowsPassFilters(const bool bShouldRefreshAfterward = true);
@@ -164,6 +174,14 @@ public:
 	static const FName EditorVisibilityColumnName;
 	static const FName EditorVisibilitySoloColumnName;
 
+	inline static TFunction<bool(const FObjectMixerEditorListRowPtr&, const FObjectMixerEditorListRowPtr&)> SortByTypeThenName =
+		[](const FObjectMixerEditorListRowPtr& A, const FObjectMixerEditorListRowPtr& B)
+	{
+		return (A->GetRowType() < B->GetRowType() ||
+			(A->GetRowType() == B->GetRowType() && A->GetDisplayName().ToString() < B->GetDisplayName().ToString())
+		);
+	};
+
 private:
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -178,22 +196,25 @@ private:
 	TSharedPtr<SHeaderRow> HeaderRow;
 	TSharedRef<SWidget> GenerateHeaderRowContextMenu() const;
 
-	bool bShouldRebuild = false;
+	TSharedRef<SWidget> GenerateToolbar();
+	TSharedRef<SWidget> OnGenerateAddObjectButtonMenu() const;
 
-	/*
+	bool bShouldRebuild = false;
+	
+	/**
 	 * Regenerate the list items and refresh the list. Call when adding or removing items.
 	 */
 	void RebuildList();
 
-	/*
+	/**
 	 * Only adds properties that pass a series of tests, including having only one unique entry in the column list array.
 	 * @param bForceIncludeProperty If true, only Skiplist and Uniqueness tests will be checked, bypassing class, blueprint editability and other requirements.
-	 * @param
+	 * @param PropertySkipList These property names will be skipped when they are encountered in the iteration.
 	 */
 	bool AddUniquePropertyColumnsToHeaderRow(
 		FProperty* Property,
 		const bool bForceIncludeProperty = false,
-		const TArray<FName>& PropertySkipList = {}
+		const TSet<FName>& PropertySkipList = {}
 	);
 	void AddBuiltinColumnsToHeaderRow();
 	TSharedPtr<SHeaderRow> GenerateHeaderRow();
@@ -201,6 +222,7 @@ private:
 
 	void SetupFilters();
 
+	TSharedRef<SWidget> OnGenerateFilterClassMenu();
 	TSharedRef<SWidget> BuildShowOptionsMenu();
 	
 	void FlushMemory(const bool bShouldKeepMemoryAllocated);
@@ -218,6 +240,10 @@ private:
 
 	//  Tree View Implementation
 
+	/** Saves tree item expanded states to be recalled after the tree view is regenerated. */
+	void CacheTreeState();
+	void RestoreTreeState(const bool bFlushCache = true);
+	void BuildPerformanceCacheAndGenerateHeaderIfNeeded();
 	void GenerateTreeView();
 	void FindVisibleTreeViewObjects();
 	void FindVisibleObjectsAndRequestTreeRefresh();
@@ -230,6 +256,8 @@ private:
 	TArray<TSharedRef<IObjectMixerEditorListFilter>> ShowFilters;
 
 	TSharedPtr<STreeView<FObjectMixerEditorListRowPtr>> TreeViewPtr;
+
+	TMap<FString, bool> TreeItemExpansionStateCache;
 
 	/** All Tree view objects */
 	TArray<FObjectMixerEditorListRowPtr> TreeViewRootObjects;
@@ -249,6 +277,11 @@ private:
 			return A->GetSortOrder() < B->GetSortOrder();
 		};
 
-	FDelegateHandle OnActorSpawnedHandle;
-	FDelegateHandle OnActorDestroyedHandle;
+	// Performance cache
+	TSet<UClass*> ObjectClassesToFilterCache;
+	TSet<FName> ColumnsToShowByDefaultCache;
+	TSet<FName> ColumnsToExcludeCache;
+	TSet<FName> ForceAddedColumnsCache;
+	EObjectMixerInheritanceInclusionOptions PropertyInheritanceInclusionOptionsCache = EObjectMixerInheritanceInclusionOptions::None;
+	bool bShouldIncludeUnsupportedPropertiesCache = false;
 };

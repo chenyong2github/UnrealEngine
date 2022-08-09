@@ -26,7 +26,7 @@ public:
 	
 	virtual TSharedPtr<SWidget> MakeObjectMixerDialog() const;
 
-	/*
+	/**
 	 * Regenerate the list items and refresh the list. Call when adding or removing variables.
 	 */
 	virtual void RequestRebuildList() const;
@@ -60,6 +60,8 @@ public:
 protected:
 
 	virtual TSharedRef<SDockTab> SpawnMainPanelTab();
+
+	virtual void BindDelegates();
 	
 	/** Lives for as long as the module is loaded. */
 	TSharedPtr<FObjectMixerEditorMainPanel> MainPanel;

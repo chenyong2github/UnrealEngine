@@ -40,10 +40,7 @@ void FObjectMixerEditorModule::ShutdownModule()
 
 void FObjectMixerEditorModule::Initialize()
 {
-	DelegateHandles.Add(FEditorDelegates::MapChange.AddLambda([this](uint32 Index)
-	{
-		RequestRebuildList();
-	}));
+	BindDelegates();
 	
 	SetupMenuItemVariables();
 	
@@ -54,7 +51,25 @@ void FObjectMixerEditorModule::Initialize()
 void FObjectMixerEditorModule::Teardown()
 {
 	// Unbind Delegates
+	if (GEngine)
+	{
+		GEngine->OnLevelActorFolderChanged().RemoveAll(this);
+		GEngine->OnLevelActorListChanged().RemoveAll(this);
+		GEngine->OnActorFolderAdded().RemoveAll(this);
+		GEngine->OnLevelActorDetached().RemoveAll(this);
+		GEngine->OnLevelActorAttached().RemoveAll(this);
+		GEngine->OnActorFolderAdded().RemoveAll(this);
+		GEngine->OnActorFoldersUpdatedEvent().RemoveAll(this);
+	}
+
+	if (GEditor)
+	{
+		GEditor->OnBlueprintCompiled().RemoveAll(this);
+	}
+	
 	FEditorDelegates::MapChange.RemoveAll(this);
+	FEditorDelegates::PostUndoRedo.RemoveAll(this);
+	FCoreUObjectDelegates::OnObjectTransacted.RemoveAll(this);
 
 	for (FDelegateHandle& Delegate : DelegateHandles)
 	{
@@ -208,6 +223,11 @@ TSharedRef<SDockTab> FObjectMixerEditorModule::SpawnTab(const FSpawnTabArgs& Arg
 	 return SpawnMainPanelTab();
 }
 
+TSharedPtr<FWorkspaceItem> FObjectMixerEditorModule::GetWorkspaceGroup()
+{
+	return WorkspaceGroup;
+}
+
 TSharedRef<SDockTab> FObjectMixerEditorModule::SpawnMainPanelTab()
 {
 	MainPanel = MakeShared<FObjectMixerEditorMainPanel>();
@@ -219,15 +239,69 @@ TSharedRef<SDockTab> FObjectMixerEditorModule::SpawnMainPanelTab()
 	;
 	const TSharedPtr<SWidget> ObjectMixerDialog = MakeObjectMixerDialog();
 	DockTab->SetContent(ObjectMixerDialog ? ObjectMixerDialog.ToSharedRef() : SNullWidget::NullWidget);
-	MainPanel->OnClassSelectionChanged(DefaultFilterClass);
-	MainPanel->RequestRebuildList();
+
+	if (DefaultFilterClass)
+	{
+		MainPanel->OnClassSelectionChanged(DefaultFilterClass);
+	}
 			
 	return DockTab;
 }
 
-TSharedPtr<FWorkspaceItem> FObjectMixerEditorModule::GetWorkspaceGroup()
+void FObjectMixerEditorModule::BindDelegates()
 {
-	return WorkspaceGroup;
+	check(GEngine && GEditor);
+	DelegateHandles.Add(GEngine->OnLevelActorFolderChanged().AddLambda([this] (const AActor*, FName)
+	{
+		RequestRebuildList();
+	}));
+	DelegateHandles.Add(GEngine->OnLevelActorListChanged().AddLambda([this] ()
+	{
+		RequestRebuildList();
+	}));
+	DelegateHandles.Add(GEngine->OnActorFolderAdded().AddLambda([this] (UActorFolder*)
+	{
+		RequestRebuildList();
+	}));
+	DelegateHandles.Add(GEngine->OnLevelActorDetached().AddLambda([this] (AActor*, const AActor*)
+	{
+		RequestRebuildList();
+	}));
+	DelegateHandles.Add(GEngine->OnLevelActorAttached().AddLambda([this] (AActor*, const AActor*)
+	{
+		RequestRebuildList();
+	}));
+	DelegateHandles.Add(GEngine->OnActorFolderAdded().AddLambda([this] (UActorFolder*)
+	{
+		RequestRebuildList();
+	}));
+	DelegateHandles.Add(GEngine->OnActorFoldersUpdatedEvent().AddLambda([this] (ULevel*)
+	{
+		RequestRebuildList();
+	}));
+
+	DelegateHandles.Add(GEditor->OnBlueprintCompiled().AddLambda([this] ()
+	{
+		RequestRebuildList();
+	}));
+
+	DelegateHandles.Add(FEditorDelegates::MapChange.AddLambda([this](uint32 Index)
+	{
+		RequestRebuildList();
+	}));
+
+	DelegateHandles.Add(FEditorDelegates::PostUndoRedo.AddLambda([this]()
+	{
+		RequestRebuildList();
+	}));
+
+	DelegateHandles.Add(FCoreUObjectDelegates::OnObjectTransacted.AddLambda([this](UObject*, const FTransactionObjectEvent& Event)
+	{
+		if (Event.GetEventType() == ETransactionObjectEventType::Finalized)
+		{
+			RequestRebuildList();
+		}
+	}));
 }
 
 #undef LOCTEXT_NAMESPACE

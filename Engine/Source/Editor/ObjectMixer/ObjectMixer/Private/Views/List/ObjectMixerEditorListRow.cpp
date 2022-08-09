@@ -91,7 +91,9 @@ void FObjectMixerEditorListRow::SetChildRows(const TArray<FObjectMixerEditorList
 
 void FObjectMixerEditorListRow::AddToChildRows(const FObjectMixerEditorListRowPtr& InRow)
 {
-	ChildRows.Add(InRow);
+	InRow->SetDirectParentRow(SharedThis(this));
+	ChildRows.AddUnique(InRow);
+	ChildRows.StableSort(SObjectMixerEditorList::SortByTypeThenName);
 }
 
 void FObjectMixerEditorListRow::InsertChildRowAtIndex(const FObjectMixerEditorListRowPtr& InRow,
@@ -100,24 +102,14 @@ void FObjectMixerEditorListRow::InsertChildRowAtIndex(const FObjectMixerEditorLi
 	ChildRows.Insert(InRow, AtIndex);
 }
 
-bool FObjectMixerEditorListRow::GetIsTreeViewItemExpanded() const
+bool FObjectMixerEditorListRow::GetIsTreeViewItemExpanded()
 {
-	return bIsTreeViewItemExpanded;
+	return GetListViewPtr().Pin()->IsTreeViewItemExpanded(GetAsShared());
 }
 
 void FObjectMixerEditorListRow::SetIsTreeViewItemExpanded(const bool bNewExpanded)
 {
-	bIsTreeViewItemExpanded = bNewExpanded;
-}
-
-bool FObjectMixerEditorListRow::GetShouldFlashOnScrollIntoView() const
-{
-	return bShouldFlashOnScrollIntoView;
-}
-
-void FObjectMixerEditorListRow::SetShouldFlashOnScrollIntoView(const bool bNewShouldFlashOnScrollIntoView)
-{
-	bShouldFlashOnScrollIntoView = bNewShouldFlashOnScrollIntoView;
+	GetListViewPtr().Pin()->SetTreeViewItemExpanded(GetAsShared(), bNewExpanded);
 }
 
 bool FObjectMixerEditorListRow::GetShouldExpandAllChildren() const
@@ -128,11 +120,6 @@ bool FObjectMixerEditorListRow::GetShouldExpandAllChildren() const
 void FObjectMixerEditorListRow::SetShouldExpandAllChildren(const bool bNewShouldExpandAllChildren)
 {
 	bShouldExpandAllChildren = bNewShouldExpandAllChildren;
-}
-
-void FObjectMixerEditorListRow::ResetToStartupValueAndSource() const
-{
-
 }
 
 bool FObjectMixerEditorListRow::MatchSearchTokensToSearchTerms(
@@ -149,7 +136,7 @@ bool FObjectMixerEditorListRow::MatchSearchTokensToSearchTerms(
 
 			if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
 			{
-				CachedSearchTerms = Filter->GetRowDisplayName(Object).ToString();
+				CachedSearchTerms = Filter->GetRowDisplayName(Object, GetTreeViewMode()).ToString();
 			}
 		}
 
@@ -201,7 +188,7 @@ void FObjectMixerEditorListRow::ExecuteSearchOnChildNodes(const TArray<FString>&
 			continue;
 		}
 
-		if (ChildRow->GetRowType() == EObjectMixerEditorListRowType::Group)
+		if (ChildRow->GetRowType() == EObjectMixerEditorListRowType::Folder)
 		{
 			if (ChildRow->MatchSearchTokensToSearchTerms(Tokens))
 			{
@@ -238,14 +225,48 @@ bool FObjectMixerEditorListRow::GetIsSelected()
 	return ListViewPtr.Pin()->IsTreeViewItemSelected(SharedThis(this));
 }
 
-bool FObjectMixerEditorListRow::ShouldBeVisible() const
+bool FObjectMixerEditorListRow::ShouldRowWidgetBeVisible() const
 {
-	return (bDoesRowMatchSearchTerms && bDoesRowPassFilters) || HasVisibleChildren();
+	return (bDoesRowMatchSearchTerms && bDoesRowPassFilters) || HasVisibleChildRowWidgets();
 }
 
-EVisibility FObjectMixerEditorListRow::GetDesiredVisibility() const
+EVisibility FObjectMixerEditorListRow::GetDesiredRowWidgetVisibility() const
 {
-	return ShouldBeVisible() ? EVisibility::Visible : EVisibility::Collapsed;
+	return ShouldRowWidgetBeVisible() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FText FObjectMixerEditorListRow::GetDisplayName()
+{
+	if (!GetDisplayNameOverride().IsEmpty())
+	{
+		return GetDisplayNameOverride();
+	}
+
+	if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
+	{
+		if (const TObjectPtr<UObject> Object = GetObject())
+		{
+			return Filter->GetRowDisplayName(Object, GetTreeViewMode());
+		}
+	}
+
+	return FText::GetEmpty();
+}
+
+EObjectMixerTreeViewMode FObjectMixerEditorListRow::GetTreeViewMode()
+{
+	const TSharedPtr<SObjectMixerEditorList> PinnedListModel = GetListViewPtr().Pin();
+	check(PinnedListModel);
+	
+	return PinnedListModel->GetTreeViewMode();
+}
+
+void FObjectMixerEditorListRow::SetTreeViewMode(EObjectMixerTreeViewMode InViewMode)
+{
+	if (TSharedPtr<SObjectMixerEditorList> PinnedListModel = GetListViewPtr().Pin())
+	{
+		PinnedListModel->SetTreeViewMode(InViewMode);
+	}
 }
 
 TArray<FObjectMixerEditorListRowPtr> FObjectMixerEditorListRow::GetSelectedTreeViewItems() const
@@ -255,9 +276,19 @@ TArray<FObjectMixerEditorListRowPtr> FObjectMixerEditorListRow::GetSelectedTreeV
 
 const FSlateBrush* FObjectMixerEditorListRow::GetObjectIconBrush()
 {
-	if (GetRowType() != SingleItem)
+	if (GetRowType() == EObjectMixerEditorListRowType::None)
 	{
 		return nullptr;
+	}
+
+	if (GetRowType() == EObjectMixerEditorListRowType::Folder)
+	{
+		if (GetIsTreeViewItemExpanded() && ChildRows.Num())
+		{
+			return FAppStyle::Get().GetBrush(TEXT("SceneOutliner.FolderOpen"));
+		}
+		
+		return FAppStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
 	}
 	
 	if (UObject* RowObject = GetObject())
@@ -279,12 +310,7 @@ const FSlateBrush* FObjectMixerEditorListRow::GetObjectIconBrush()
 		}
 	
 		if (RowObject->IsA(UActorComponent::StaticClass()))
-		{
-			if (AActor* OuterActor = RowObject->GetTypedOuter<AActor>())
-			{
-				return GetIconForActor(OuterActor);
-			}
-		
+		{		
 			return FSlateIconFinder::FindIconBrushForClass(RowObject->GetClass(), TEXT("SCS.Component"));
 		}
 	}
@@ -294,19 +320,42 @@ const FSlateBrush* FObjectMixerEditorListRow::GetObjectIconBrush()
 
 bool FObjectMixerEditorListRow::GetObjectVisibility()
 {
+	if (GetRowType() == EObjectMixerEditorListRowType::Folder)
+	{
+		// If any child returns true, the folder returns true
+		for (const FObjectMixerEditorListRowPtr& Child : GetChildRows())
+		{
+			if (Child->GetObjectVisibility())
+			{
+				return true;
+			}
+		}
+
+		// The folder's visibility is only returned false if all children also return false
+		return false;
+	}
+	
 	if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
 	{
-		return Filter->GetRowEditorVisibility(GetObject());
+		return Filter->GetRowEditorVisibility(GetObject(), GetTreeViewMode());
 	}
 
 	return false;
 }
 
-void FObjectMixerEditorListRow::SetObjectVisibility(const bool bNewIsVisible)
+void FObjectMixerEditorListRow::SetObjectVisibility(const bool bNewIsVisible, const bool bIsRecursive)
 {
 	if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
 	{
-		Filter->OnSetRowEditorVisibility(GetObject(), bNewIsVisible);
+		Filter->OnSetRowEditorVisibility(GetObject(), bNewIsVisible, GetTreeViewMode());
+
+		if (bIsRecursive)
+		{
+			for (const FObjectMixerEditorListRowPtr& Child : GetChildRows())
+			{
+				Child->SetObjectVisibility(bNewIsVisible, true);
+			}
+		}
 	}
 }
 
@@ -323,4 +372,9 @@ void FObjectMixerEditorListRow::SetThisAsSoloRow()
 void FObjectMixerEditorListRow::ClearSoloRow()
 {
 	GetListViewPtr().Pin()->ClearSoloRow();
+}
+
+FObjectMixerEditorListRowPtr FObjectMixerEditorListRow::GetAsShared()
+{
+	return SharedThis(this);
 }

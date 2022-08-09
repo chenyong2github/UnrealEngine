@@ -17,7 +17,7 @@ public:
 
 	TSharedRef<SWidget> GetOrCreateWidget();
 
-	/*
+	/**
 	 * Regenerate the list items and refresh the list. Call when adding or removing items.
 	 */
 	void RequestRebuildList() const;

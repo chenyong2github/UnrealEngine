@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
-
 #include "ObjectMixerEditorProjectSettings.generated.h"
 
 UCLASS(config = Engine, defaultconfig)
@@ -19,5 +17,5 @@ public:
 	 * If false, a new object will be created every time the filter object is accessed.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category="Object Mixer")
-	bool bShouldCacheFilterObject = true;
+	bool bExpandTreeViewItemsByDefault = true;
 };

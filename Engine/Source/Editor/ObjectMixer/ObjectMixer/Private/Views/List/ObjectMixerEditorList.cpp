@@ -84,3 +84,8 @@ void FObjectMixerEditorList::RefreshList() const
 		ListWidget->RefreshList();
 	}
 }
+
+bool FObjectMixerEditorList::IsClassSelected(UClass* InNewClass) const
+{
+	return InNewClass == GetObjectFilterClass();
+}

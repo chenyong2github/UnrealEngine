@@ -2,25 +2,24 @@
 
 #include "Views/List/SObjectMixerEditorListRow.h"
 
+#include "EditorClassUtils.h"
 #include "ObjectMixerEditorStyle.h"
 #include "Views/List/ObjectMixerEditorList.h"
 #include "Views/List/SObjectMixerEditorList.h"
 
 #include "Customizations/ColorStructCustomization.h"
+#include "Engine/Blueprint.h"
+#include "GameFramework/Actor.h"
 #include "Input/DragAndDrop.h"
 #include "ISinglePropertyView.h"
-#include "IStructureDetailsView.h"
 #include "Modules/ModuleManager.h"
-#include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 #include "PropertyHandle.h"
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/SOverlay.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -80,9 +79,6 @@ void SObjectMixerEditorListRow::Construct(
 	Item = InRow;
 	const FObjectMixerEditorListRowPtr PinnedItem = Item.Pin();
 
-	// Set up flash animation
-	FlashAnimation = FCurveSequence(0.f, FlashAnimationDuration, ECurveEaseFunction::QuadInOut);
-
 	SMultiColumnTableRow<FObjectMixerEditorListRowPtr>::Construct(
 		FSuperRowType::FArguments()
 		.Padding(1.0f)
@@ -102,54 +98,53 @@ void SObjectMixerEditorListRow::Construct(
 	VisibleNotHoveredBrush = FAppStyle::Get().GetBrush(VisibleNotHoveredBrushName);
 	NotVisibleHoveredBrush = FAppStyle::Get().GetBrush(NotVisibleHoveredBrushName);
 	NotVisibleNotHoveredBrush = FAppStyle::Get().GetBrush(NotVisibleNotHoveredBrushName);
-
-	if (PinnedItem->GetShouldFlashOnScrollIntoView())
-	{
-		FlashRow();
-
-		PinnedItem->SetShouldFlashOnScrollIntoView(false);
-	}
 }
 
 TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateWidgetForColumn(const FName& InColumnName)
 {
 	const FObjectMixerEditorListRowPtr PinnedItem = Item.Pin();
 
-	const TSharedPtr<SWidget> CellWidget = GenerateCells(InColumnName, PinnedItem);
-
-	const TSharedRef<SImage> FlashImage = SNew(SImage)
-										.Image(new FSlateColorBrush(FStyleColors::White))
-										.Visibility_Raw(
-											this, &SObjectMixerEditorListRow::GetFlashImageVisibility)
-										.ColorAndOpacity_Raw(
-											this, &SObjectMixerEditorListRow::GetFlashImageColorAndOpacity);
-
-	FlashImages.Add(FlashImage);
-
-	return SNew(SOverlay)
-			.Visibility(EVisibility::SelfHitTestInvisible)
-
-			+ SOverlay::Slot()
-			[
-				FlashImage
-			]
-
-			+ SOverlay::Slot()
-			[
-				SNew(SBorder)
-					.HAlign(HAlign_Fill)
-					.VAlign(VAlign_Center)
-					.BorderImage(GetBorderImage(PinnedItem->GetRowType()))
+	if (const TSharedPtr<SWidget> CellWidget = GenerateCells(InColumnName, PinnedItem))
+	{
+		if (InColumnName == SObjectMixerEditorList::ItemNameColumnName)
+		{
+			// The first column gets the tree expansion arrow for this row
+			return SNew(SBox)
+				.MinDesiredHeight(20)
 				[
-					CellWidget.ToSharedRef()
-				]
-			];
+					SNew( SHorizontalBox )
+
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(6, 0, 0, 0)
+					[
+						SNew( SExpanderArrow, SharedThis(this) ).IndentAmount(12)
+					]
+
+					+SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					[
+						CellWidget.ToSharedRef()
+					]
+				];
+		}
+		
+		return SNew(SBorder)
+				   .HAlign(HAlign_Fill)
+				   .VAlign(VAlign_Center)
+				   .BorderImage(GetBorderImage(PinnedItem->GetRowType()))
+			   [
+				   CellWidget.ToSharedRef()
+			   ];
+	}
+
+	return SNullWidget::NullWidget;
 }
 
 void SObjectMixerEditorListRow::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	bIsHovered = true;
-
+	
 	SMultiColumnTableRow<FObjectMixerEditorListRowPtr>::OnMouseEnter(MyGeometry, MouseEvent);
 }
 
@@ -163,13 +158,6 @@ void SObjectMixerEditorListRow::OnMouseLeave(const FPointerEvent& MouseEvent)
 SObjectMixerEditorListRow::~SObjectMixerEditorListRow()
 {
 	Item.Reset();
-	HoverToolTip.Reset();
-
-	FlashImages.Empty();
-
-	ValueChildInputWidget.Reset();
-
-	HoverableWidgetsPtr.Reset();
 }
 
 // FReply SObjectMixerEditorListRow::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -291,25 +279,11 @@ SObjectMixerEditorListRow::~SObjectMixerEditorListRow()
 // 	return FReply::Handled();
 // }
 
-void SObjectMixerEditorListRow::FlashRow()
-{
-	FlashAnimation.Play(this->AsShared());
-}
-
 bool SObjectMixerEditorListRow::IsVisible() const
 {
 	if (const TSharedPtr<FObjectMixerEditorListRow> PinnedItem = Item.Pin())
 	{
-		if (const TSharedPtr<SObjectMixerEditorList> PinnedListView = PinnedItem->GetListViewPtr().Pin())
-		{
-			if (const TSharedPtr<FObjectMixerEditorList> PinnedListModel = PinnedListView->GetListModelPtr().Pin())
-			{
-				if (const UObjectMixerObjectFilter* Filter = PinnedListModel->GetObjectFilter())
-				{
-					return Filter->GetRowEditorVisibility(PinnedItem->GetObject());
-				}
-			}
-		}
+		return PinnedItem->GetObjectVisibility();
 	}
 
 	return false;
@@ -356,70 +330,69 @@ const FSlateBrush* SObjectMixerEditorListRow::GetVisibilityBrush() const
 	return bIsHovered ? NotVisibleHoveredBrush : NotVisibleNotHoveredBrush;
 }
 
-EVisibility SObjectMixerEditorListRow::GetFlashImageVisibility() const
-{
-	return FlashAnimation.IsPlaying() ? EVisibility::SelfHitTestInvisible : EVisibility::Hidden;
-}
-
-FSlateColor SObjectMixerEditorListRow::GetFlashImageColorAndOpacity() const
-{
-	if (FlashAnimation.IsPlaying())
-	{
-		// This equation modulates the alpha into a parabolic curve 
-		const float Progress = FMath::Abs(FMath::Abs((FlashAnimation.GetLerp() - 0.5f) * 2) - 1);
-		return FLinearColor::LerpUsingHSV(FLinearColor::Transparent, FlashColor, Progress);
-	}
-
-	return FLinearColor::Transparent;
-}
-
 const FSlateBrush* SObjectMixerEditorListRow::GetBorderImage(
 	const FObjectMixerEditorListRow::EObjectMixerEditorListRowType InRowType)
 {
-	switch (InRowType)
-	{
-	case FObjectMixerEditorListRow::Group:
-		return FObjectMixerEditorStyle::Get().GetBrush("ObjectMixerEditor.CommandGroupBorder");
-
-	default:
-		return FObjectMixerEditorStyle::Get().GetBrush("ObjectMixerEditor.DefaultBorder");
-	}
+	return FObjectMixerEditorStyle::Get().GetBrush("ObjectMixerEditor.DefaultBorder");
 }
 
-TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateCells(
+TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 	const FName& InColumnName, const TSharedPtr<FObjectMixerEditorListRow> PinnedItem)
 {
 	check(PinnedItem.IsValid());
 	
 	if (InColumnName.IsEqual(SObjectMixerEditorList::ItemNameColumnName))
 	{
-		FText RowName;
-
-		if (const UObjectMixerObjectFilter* Filter = PinnedItem->GetObjectFilter())
-		{
-			RowName = Filter->GetRowDisplayName(PinnedItem->GetObject());
-		}
-
 		TSharedRef<SHorizontalBox> HBox = SNew(SHorizontalBox);
 		
-		if (const FSlateBrush* Icon = PinnedItem->GetObjectIconBrush())
+		HBox->AddSlot()
+		.AutoWidth()
+		[
+			SNew(SImage)
+			.Image_Lambda([PinnedItem]()
+			{
+				return PinnedItem->GetObjectIconBrush();
+			})
+			.ColorAndOpacity(FSlateColor::UseForeground())
+		];
+
+		bool bNeedsStandardTextBlock = true;
+		const FText DisplayName = PinnedItem->GetDisplayName();
+		if (TObjectPtr<UObject> Object = PinnedItem->GetObject())
 		{
-			HBox->AddSlot()
-			.AutoWidth()
-			[
-				SNew(SImage).Image(Icon)
-			];
+			if (UClass* ActorClass = Object->GetClass())
+			{
+				if (UBlueprint* AsBlueprint = UBlueprint::GetBlueprintFromClass(ActorClass))
+				{
+					bNeedsStandardTextBlock = false;
+					
+					FEditorClassUtils::FSourceLinkParams SourceLinkParams;
+					SourceLinkParams.Object = Object;
+					SourceLinkParams.bUseDefaultFormat = false;
+					SourceLinkParams.bUseFormatIfNoLink = true;
+					SourceLinkParams.BlueprintFormat = &DisplayName;
+
+					HBox->AddSlot()
+					.Padding(FMargin(10.0, 0, 0, 0))
+					[
+						FEditorClassUtils::GetSourceLink(ActorClass, SourceLinkParams)
+					];
+				}
+			}
 		}
 
-		HBox->AddSlot()
-		.Padding(FMargin(10.0, 0, 0, 0))
-		[
-			SNew(STextBlock)
-			.Visibility(EVisibility::Visible)
-			.Justification(ETextJustify::Left)
-			.Text(RowName)
-			.ToolTip(HoverToolTip)
-		];
+		if (bNeedsStandardTextBlock)
+		{
+			HBox->AddSlot()
+			.Padding(FMargin(10.0, 0, 0, 0))
+			[
+				SNew(STextBlock)
+				.Visibility(EVisibility::Visible)
+				.Justification(ETextJustify::Left)
+				.Text(DisplayName)
+				.ToolTipText(DisplayName)
+			];
+		}
 		
 		return SNew(SBox)
 				.Visibility(EVisibility::SelfHitTestInvisible)
@@ -433,6 +406,16 @@ TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateCells(
 
 	if (InColumnName.IsEqual(SObjectMixerEditorList::EditorVisibilityColumnName))
 	{
+		if (PinnedItem->GetRowType() == FObjectMixerEditorListRow::None)
+		{
+			return nullptr;
+		}
+
+		if (PinnedItem->GetObject() && !PinnedItem->GetObject()->IsA(AActor::StaticClass()))
+		{
+			return nullptr;
+		}
+		
 		return SNew(SBox)
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
@@ -458,8 +441,9 @@ TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateCells(
 
 								return FReply::Handled();
 							}
-							
-							PinnedItem->SetObjectVisibility(!bIsVisible);
+
+							// Set Visibility Recursively
+							PinnedItem->SetObjectVisibility(!bIsVisible, true);
 
 							return FReply::Handled();
 						}
@@ -470,6 +454,16 @@ TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateCells(
 
 	if (InColumnName.IsEqual(SObjectMixerEditorList::EditorVisibilitySoloColumnName))
 	{
+		if (PinnedItem->GetRowType() == FObjectMixerEditorListRow::None)
+		{
+			return nullptr;
+		}
+
+		if (PinnedItem->GetObject() && !PinnedItem->GetObject()->IsA(AActor::StaticClass()))
+		{
+			return nullptr;
+		}
+		
 		return SNew(SBox)
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
@@ -490,7 +484,7 @@ TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateCells(
 								const bool bIsRowSolo = PinnedItem->IsThisRowSolo();
 								for (const TSharedPtr<FObjectMixerEditorListRow>& TreeItem : PinnedListView->GetTreeViewItems())
 								{
-									TreeItem->SetObjectVisibility(bIsRowSolo);
+									TreeItem->SetObjectVisibility(bIsRowSolo, true);
 								}
 
 								if (bIsRowSolo)
@@ -499,7 +493,7 @@ TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateCells(
 								}
 								else
 								{
-									PinnedItem->SetObjectVisibility(true);
+									PinnedItem->SetObjectVisibility(true, true);
 									PinnedItem->SetThisAsSoloRow();
 								}
 
@@ -513,23 +507,24 @@ TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateCells(
 			;
 	}
 	
-	TSharedPtr<SWidget> Widget;
 	if (UObject* ObjectRef = PinnedItem->GetObject())
 	{
 		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		{
 			FSinglePropertyParams Params;
 			Params.NamePlacement = EPropertyNamePlacement::Hidden;
-
-			if (const TSharedPtr<ISinglePropertyView> SinglePropertyView =
+			
+			const TSharedPtr<ISinglePropertyView> SinglePropertyView =
 				PropertyEditorModule.CreateSingleProperty(ObjectRef, InColumnName, Params
-			))
+			);
+
+			if (SinglePropertyView)
 			{
 				if (const TSharedPtr<IPropertyHandle> Handle = SinglePropertyView->GetPropertyHandle())
 				{
 					if (const FProperty* Property = Handle->GetProperty())
 					{
-						// Do this for all selected rows with a similar property
+						// Simultaneously edit all selected rows with a similar property
 						FSimpleDelegate OnPropertyValueChanged =
 							FSimpleDelegate::CreateRaw(
 								this,
@@ -537,25 +532,20 @@ TSharedRef<SWidget> SObjectMixerEditorListRow::GenerateCells(
 					
 						SinglePropertyView->SetOnPropertyValueChanged(OnPropertyValueChanged);
 
-						Widget = SinglePropertyView;
+						return SNew(SBox)
+								.Visibility(EVisibility::SelfHitTestInvisible)
+								.HAlign(HAlign_Fill)
+								.VAlign(VAlign_Center)
+								[
+									SinglePropertyView.ToSharedRef()
+								];
 					}
 				}
 			}
 		}
 	}
-	
-	if (Widget.IsValid())
-	{
-		return SNew(SBox)
-				.Visibility(EVisibility::SelfHitTestInvisible)
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Center)
-				[
-					Widget.ToSharedRef()
-				];
-	}
 
-	return SNullWidget::NullWidget;
+	return nullptr;
 }
 
 void SObjectMixerEditorListRow::OnPropertyChanged(const FProperty* Property, void* ContainerWithChangedProperty)

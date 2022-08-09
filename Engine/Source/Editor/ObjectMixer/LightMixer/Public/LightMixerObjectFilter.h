@@ -4,6 +4,7 @@
 
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
 
+#include "Engine/Light.h"
 #include "GameFramework/Actor.h"
 
 #include "LightMixerObjectFilter.generated.h"
@@ -14,7 +15,7 @@ class LIGHTMIXER_API ULightMixerObjectFilter : public UObjectMixerObjectFilter
 	GENERATED_BODY()
 public:
 	
-	virtual TArray<UClass*> GetObjectClassesToFilter() const override
+	virtual TSet<UClass*> GetObjectClassesToFilter() const override
 	{
 		return
 		{
@@ -22,30 +23,23 @@ public:
 		};
 	}
 
-	virtual FText GetRowDisplayName(UObject* InObject) const override
+	virtual TSet<TSubclassOf<AActor>> GetObjectClassesToPlace() const override
 	{
-		if (InObject)
+		return
 		{
-			if (const AActor* Outer = InObject->GetTypedOuter<AActor>())
-			{
-				return FText::Format(INVTEXT("{0} ({1})"), FText::FromString(Outer->GetActorLabel()), Super::GetRowDisplayName(InObject));
-			}
-		}
-
-		return Super::GetRowDisplayName(InObject);
+			ALight::StaticClass()
+		};
 	}
 
-	virtual TArray<FName> GetColumnsToShowByDefault() const override
+	virtual TSet<FName> GetColumnsToShowByDefault() const override
 	{
-		const TArray<FName> IncludeList =
+		return 
 		{
 			"Intensity", "LightColor", "AttenuationRadius"
 		};
-
-		return IncludeList;
 	}
 
-	virtual TArray<FName> GetForceAddedColumns() const override
+	virtual TSet<FName> GetForceAddedColumns() const override
 	{
 		return {"LightColor"};
 	}
@@ -55,8 +49,13 @@ public:
 		return false;
 	}
 
-	virtual EObjectMixerPropertyInheritanceInclusionOptions GetObjectMixerPropertyInheritanceInclusionOptions() const override
+	virtual EObjectMixerInheritanceInclusionOptions GetObjectMixerPropertyInheritanceInclusionOptions() const override
 	{
-		return EObjectMixerPropertyInheritanceInclusionOptions::IncludeAllParentsAndChildren;
+		return EObjectMixerInheritanceInclusionOptions::IncludeAllParentsAndChildren;
+	}
+
+	virtual EObjectMixerInheritanceInclusionOptions GetObjectMixerPlacementClassInclusionOptions() const override
+	{
+		return EObjectMixerInheritanceInclusionOptions::IncludeAllChildren;
 	}
 };

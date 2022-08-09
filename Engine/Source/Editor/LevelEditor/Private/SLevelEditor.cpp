@@ -1488,13 +1488,19 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 			FObjectMixerEditorModule& ObjectMixer = FObjectMixerEditorModule::Get();
 			{
 				FDelegateHandle ObjectMixerComponentEditedHandle =
-				   LevelEditorModule.OnComponentsEdited().AddRaw(&ObjectMixer, &FObjectMixerEditorModule::RequestRebuildList);
+					LevelEditorModule.OnComponentsEdited().AddLambda([]()
+					{
+						FObjectMixerEditorModule::Get().RequestRebuildList();
+					});
 				ObjectMixer.AddOnComponentEditedDelegate(ObjectMixerComponentEditedHandle);
 			}
 			FLightMixerModule& LightMixer = FLightMixerModule::Get();
 			{
 				FDelegateHandle LightMixerComponentEditedHandle =
-				   LevelEditorModule.OnComponentsEdited().AddRaw(&LightMixer, &FLightMixerModule::RequestRebuildList);
+				   LevelEditorModule.OnComponentsEdited().AddLambda([]()
+				   {
+					   FLightMixerModule::Get().RequestRebuildList();
+				   });
 				LightMixer.AddOnComponentEditedDelegate(LightMixerComponentEditedHandle);
 			}
 		}
