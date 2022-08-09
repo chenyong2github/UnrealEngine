@@ -516,7 +516,7 @@ public:
 
 	virtual int32 SkyAtmosphereLightIlluminance(int32 WorldPosition, int32 LightIndex) = 0;
 	virtual int32 SkyAtmosphereLightDirection(int32 LightIndex) = 0;
-	virtual int32 SkyAtmosphereLightDiskLuminance(int32 LightIndex) = 0;
+	virtual int32 SkyAtmosphereLightDiskLuminance(int32 LightIndex, int32 OverrideAtmosphereLightDiscCosHalfApexAngle) = 0;
 	virtual int32 SkyAtmosphereViewLuminance() = 0;
 	virtual int32 SkyAtmosphereAerialPerspective(int32 WorldPosition) = 0;
 	virtual int32 SkyAtmosphereDistantLightScatteredLuminance() = 0;
@@ -965,9 +965,9 @@ public:
 		return Compiler->SkyAtmosphereLightDirection(LightIndex);
 	}
 
-	virtual int32 SkyAtmosphereLightDiskLuminance(int32 LightIndex) override
+	virtual int32 SkyAtmosphereLightDiskLuminance(int32 LightIndex, int32 OverrideAtmosphereLightDiscCosHalfApexAngle) override
 	{
-		return Compiler->SkyAtmosphereLightDiskLuminance(LightIndex);
+		return Compiler->SkyAtmosphereLightDiskLuminance(LightIndex, OverrideAtmosphereLightDiscCosHalfApexAngle);
 	}
 
 	virtual int32 SkyAtmosphereViewLuminance() override

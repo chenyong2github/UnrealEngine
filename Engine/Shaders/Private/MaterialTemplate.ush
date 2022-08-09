@@ -1579,7 +1579,7 @@ float3 MaterialExpressionSkyAtmosphereLightIlluminance(FMaterialPixelParameters 
 DEFINE_SKYATMLIGHTDIRECTION(FMaterialPixelParameters)
 DEFINE_SKYATMLIGHTDIRECTION(FMaterialVertexParameters)
 
-float3 MaterialExpressionSkyAtmosphereLightDiskLuminance(FMaterialPixelParameters Parameters, uint LightIndex)
+float3 MaterialExpressionSkyAtmosphereLightDiskLuminance(FMaterialPixelParameters Parameters, uint LightIndex, float OverrideAtmosphereLightDiscCosHalfApexAngle)
 {
 	float3 LightDiskLuminance = float3(0.0f, 0.0f, 0.0f);
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
@@ -1591,7 +1591,9 @@ float3 MaterialExpressionSkyAtmosphereLightDiskLuminance(FMaterialPixelParameter
 		// GetLightDiskLuminance does a test against the virtual planet but SkyCameraTranslatedWorldOrigin is always put safely setup above it (to never have the camera into the virtual planet with a black screen)
 		LightDiskLuminance =  GetLightDiskLuminance(PlanetCenterToCameraTranslatedWorld, ViewDir, ResolvedView.SkyAtmosphereBottomRadiusKm, ResolvedView.SkyAtmosphereTopRadiusKm,
 			View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler,
-			ResolvedView.AtmosphereLightDirection[LightIndex].xyz, ResolvedView.AtmosphereLightDiscCosHalfApexAngle_PPTrans[LightIndex].x, ResolvedView.AtmosphereLightDiscLuminance[LightIndex].xyz);
+			ResolvedView.AtmosphereLightDirection[LightIndex].xyz, 
+			OverrideAtmosphereLightDiscCosHalfApexAngle >= 0.0f ? OverrideAtmosphereLightDiscCosHalfApexAngle : ResolvedView.AtmosphereLightDiscCosHalfApexAngle_PPTrans[LightIndex].x,
+			ResolvedView.AtmosphereLightDiscLuminance[LightIndex].xyz);
 	}
 #endif
 	return LightDiskLuminance;

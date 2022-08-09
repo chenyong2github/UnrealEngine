@@ -20354,7 +20354,13 @@ UMaterialExpressionSkyAtmosphereLightDiskLuminance::UMaterialExpressionSkyAtmosp
 #if WITH_EDITOR
 int32 UMaterialExpressionSkyAtmosphereLightDiskLuminance::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compiler->SkyAtmosphereLightDiskLuminance(LightIndex);
+	int32 CosHalfDiskRadiusCodeChunk = INDEX_NONE;
+	if (DiskAngularDiameterOverride.GetTracedInput().Expression)
+	{
+		// Convert from apex angle (angular diameter) to cosine of the disk radius.
+		CosHalfDiskRadiusCodeChunk = Compiler->Cosine(Compiler->Mul(Compiler->Constant(0.5f * float(UE_PI) / 180.0f), DiskAngularDiameterOverride.Compile(Compiler)));
+	}
+	return Compiler->SkyAtmosphereLightDiskLuminance(LightIndex, CosHalfDiskRadiusCodeChunk);
 }
 
 void UMaterialExpressionSkyAtmosphereLightDiskLuminance::GetCaption(TArray<FString>& OutCaptions) const
