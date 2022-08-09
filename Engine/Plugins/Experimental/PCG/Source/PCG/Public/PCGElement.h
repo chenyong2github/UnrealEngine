@@ -44,6 +44,8 @@ public:
 	/** Note: the following methods must be called from the main thread */
 #if WITH_EDITOR
 	void DebugDisplay(FPCGContext* Context) const;
+	const TArray<double>& GetTimers() const { return Timers; }
+	void ResetTimers();
 #endif
 
 protected:
@@ -56,6 +58,17 @@ protected:
 
 private:
 	void CleanupAndValidateOutput(FPCGContext* Context) const;
+
+#if WITH_EDITOR
+	// Set mutable because we need to modify them in the execute call, which is const
+	// TODO: Should be a map with PCG Components. We need a mechanism to make sure that this map is cleaned up when component doesn't exist anymore.
+	// For now, it will track all calls to execute (excluding call where the result is already in cache).
+	mutable TArray<double> Timers;
+	mutable int CurrentTimerIndex = 0;
+	// Perhaps overkill but there is a slight chance that we need to protect the timers array. If we call reset from the UI while an element is executing,
+	// it could crash while writing to the timers array.
+	mutable FCriticalSection TimersLock;
+#endif // WITH_EDITOR
 };
 
 /**

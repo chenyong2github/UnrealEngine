@@ -75,8 +75,24 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 #if WITH_EDITOR
 		const double EndTime = FPlatformTime::Seconds();
-		Context->ElapsedTime += (EndTime - StartTime);
+		const double ElapsedTime = EndTime - StartTime;
+		Context->ElapsedTime += ElapsedTime;
 		Context->ExecutionCount++;
+
+		// TODO: Is hardcoded, should be configurable
+		constexpr int MaxNumberOfTrackedTimers = 100;
+		{
+			FScopeLock Lock(&TimersLock);
+			if (Timers.Num() < MaxNumberOfTrackedTimers)
+			{
+				Timers.Add(ElapsedTime);
+			}
+			else
+			{
+				Timers[CurrentTimerIndex] = ElapsedTime;
+			}
+			CurrentTimerIndex = (CurrentTimerIndex + 1) % MaxNumberOfTrackedTimers;
+		}
 #endif
 
 		if (bDone)
@@ -149,6 +165,14 @@ void IPCGElement::DebugDisplay(FPCGContext* Context) const
 			Context->OutputData.bCancelExecution = true;
 		}
 	}
+}
+
+void IPCGElement::ResetTimers()
+{
+	FScopeLock Lock(&TimersLock);
+	Timers.Empty();
+	CurrentTimerIndex = 0;
+
 }
 #endif // WITH_EDITOR
 

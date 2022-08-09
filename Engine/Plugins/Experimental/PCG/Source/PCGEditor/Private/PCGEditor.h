@@ -15,6 +15,7 @@ class SPCGEditorGraphAttributeListView;
 class SPCGEditorGraphDeterminismListView;
 class SPCGEditorGraphFind;
 class SPCGEditorGraphNodePalette;
+class SPCGEditorGraphProfilingView;
 class UPCGComponent;
 class UPCGEditorGraph;
 class UPCGEditorGraphNodeBase;
@@ -166,6 +167,9 @@ private:
 	/** Create a new determinism tab widget */
 	TSharedRef<SPCGEditorGraphDeterminismListView> CreateDeterminismWidget();
 
+	/** Create a new profiling tab widget */
+	TSharedRef<SPCGEditorGraphProfilingView> CreateProfilingWidget();
+
 	/** Called when the selection changes in the GraphEditor */
 	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
 
@@ -195,6 +199,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_Attributes(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Find(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Determinism(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_Profiling(const FSpawnTabArgs& Args);
 
 	TSharedPtr<SGraphEditor> GraphEditorWidget;
 	TSharedPtr<IDetailsView> PropertyDetailsWidget;
@@ -202,6 +207,7 @@ private:
 	TSharedPtr<SPCGEditorGraphFind> FindWidget;
 	TSharedPtr<SPCGEditorGraphAttributeListView> AttributesWidget;
 	TSharedPtr<SPCGEditorGraphDeterminismListView> DeterminismWidget;
+	TSharedPtr<SPCGEditorGraphProfilingView> ProfilingWidget;
 
 	TSharedPtr<FUICommandList> GraphEditorCommands;
 

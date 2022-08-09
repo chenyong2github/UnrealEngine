@@ -28,6 +28,7 @@
 #include "SPCGEditorGraphDeterminism.h"
 #include "SPCGEditorGraphFind.h"
 #include "SPCGEditorGraphNodePalette.h"
+#include "SPCGEditorGraphProfilingView.h"
 
 #include "AssetToolsModule.h"
 #include "EdGraphUtilities.h"
@@ -67,6 +68,7 @@ namespace FPCGEditor_private
 	const FName AttributesID = FName(TEXT("Attributes"));
 	const FName FindID = FName(TEXT("Find"));
 	const FName DeterminismID = FName(TEXT("Determinism"));
+	const FName ProfilingID = FName(TEXT("Profiling"));
 }
 
 void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<class IToolkitHost>& InToolkitHost, UPCGGraph* InPCGGraph)
@@ -90,6 +92,7 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 	FindWidget = CreateFindWidget();
 	AttributesWidget = CreateAttributesWidget();
 	DeterminismWidget = CreateDeterminismWidget();
+	ProfilingWidget = CreateProfilingWidget();
 
 	BindCommands();
 	RegisterToolbar();
@@ -208,6 +211,10 @@ void FPCGEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager
 
 	InTabManager->RegisterTabSpawner(FPCGEditor_private::DeterminismID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Determinism))
 		.SetDisplayName(LOCTEXT("DeterminismTab", "Determinism"))
+		.SetGroup(WorkspaceMenuCategoryRef);
+
+	InTabManager->RegisterTabSpawner(FPCGEditor_private::ProfilingID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Profiling))
+		.SetDisplayName(LOCTEXT("ProfilingTab", "Profiling"))
 		.SetGroup(WorkspaceMenuCategoryRef);
 }
 
@@ -1417,6 +1424,11 @@ TSharedRef<SPCGEditorGraphDeterminismListView> FPCGEditor::CreateDeterminismWidg
 	return SNew(SPCGEditorGraphDeterminismListView, SharedThis(this));
 }
 
+TSharedRef<SPCGEditorGraphProfilingView> FPCGEditor::CreateProfilingWidget()
+{
+	return SNew(SPCGEditorGraphProfilingView, SharedThis(this));
+}
+
 void FPCGEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
@@ -1567,6 +1579,16 @@ TSharedRef<SDockTab> FPCGEditor::SpawnTab_Determinism(const FSpawnTabArgs& Args)
 		.TabColorScale(GetTabColorScale())
 		[
 			DeterminismWidget.ToSharedRef()
+		];
+}
+
+TSharedRef<SDockTab> FPCGEditor::SpawnTab_Profiling(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.Label(LOCTEXT("PCGProfilingTitle", "Profiling"))
+		.TabColorScale(GetTabColorScale())
+		[
+			ProfilingWidget.ToSharedRef()
 		];
 }
 
