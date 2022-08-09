@@ -46,6 +46,18 @@ static TAutoConsoleVariable<FString> GDerivedDataCacheGraphName(
 	TEXT("Name of the graph to use for the Derived Data Cache."),
 	ECVF_ReadOnly);
 
+namespace UE::DerivedData::Private
+{
+
+static std::atomic<int32> GAsyncTaskCounter;
+
+int32 AddToAsyncTaskCounter(int32 Addend)
+{
+	return GAsyncTaskCounter.fetch_add(Addend);
+}
+
+} // UE::DerivedData::Private
+
 namespace UE::DerivedData
 {
 
@@ -907,9 +919,9 @@ public:
 			bIsShuttingDown.store(true, std::memory_order_relaxed);
 		}
 
-		while (AsyncCompletionCounter.GetValue())
+		while (const int32 AsyncCompletionCounter = Private::AddToAsyncTaskCounter(0))
 		{
-			check(AsyncCompletionCounter.GetValue() >= 0);
+			check(AsyncCompletionCounter > 0);
 			FPlatformProcess::Sleep(0.1f);
 			if (FPlatformTime::Seconds() - LastPrint > 5.0)
 			{
@@ -988,13 +1000,12 @@ public:
 
 	virtual void AddToAsyncCompletionCounter(int32 Addend) override
 	{
-		AsyncCompletionCounter.Add(Addend);
-		check(AsyncCompletionCounter.GetValue() >= 0);
+		verify(Private::AddToAsyncTaskCounter(Addend) + Addend >= 0);
 	}
 
 	virtual bool AnyAsyncRequestsRemaining() override
 	{
-		return AsyncCompletionCounter.GetValue() > 0;
+		return Private::AddToAsyncTaskCounter(0) > 0;
 	}
 
 	virtual bool IsShuttingDown() override
@@ -1187,7 +1198,6 @@ private:
 
 	static inline FDerivedDataBackendGraph*			StaticGraph;
 
-	FThreadSafeCounter								AsyncCompletionCounter;
 	FString											GraphName;
 	FString											ReadPakFilename;
 	FString											WritePakFilename;

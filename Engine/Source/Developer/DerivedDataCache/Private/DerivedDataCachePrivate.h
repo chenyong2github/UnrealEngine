@@ -15,6 +15,9 @@ namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData::Private
 {
 
+// Implemented in DerivedDataBackends.cpp
+int32 AddToAsyncTaskCounter(int32 Addend); // returns the previous value
+
 // Implemented in DerivedDataCache.cpp
 ICache* CreateCache(FDerivedDataCacheInterface** OutLegacyCache);
 void LaunchTaskInCacheThreadPool(IRequestOwner& Owner, TUniqueFunction<void ()>&& TaskBody);

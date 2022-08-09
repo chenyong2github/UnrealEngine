@@ -154,11 +154,11 @@ void FCacheStoreAsync::Execute(
 				COOK_STAT(Timer.AddHit(0));
 			}
 			OnComplete(MoveTemp(Response));
-			FDerivedDataBackend::Get().AddToAsyncCompletionCounter(-1);
+			Private::AddToAsyncTaskCounter(-1);
 		});
 	};
 
-	FDerivedDataBackend::Get().AddToAsyncCompletionCounter(Requests.Num());
+	Private::AddToAsyncTaskCounter(Requests.Num());
 	if (Owner.GetPriority() == EPriority::Blocking)
 	{
 		return ExecuteWithStats(Requests, Owner, MoveTemp(OnComplete));
@@ -178,7 +178,7 @@ void FCacheStoreAsync::Execute(
 			else
 			{
 				CompleteWithStatus(Requests, MoveTemp(OnComplete), EStatus::Canceled);
-				FDerivedDataBackend::Get().AddToAsyncCompletionCounter(-Requests.Num());
+				Private::AddToAsyncTaskCounter(-Requests.Num());
 			}
 		});
 }
