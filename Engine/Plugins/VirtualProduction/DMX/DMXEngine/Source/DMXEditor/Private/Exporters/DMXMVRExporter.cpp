@@ -68,7 +68,7 @@ void FDMXMVRExporter::ExportInternal(UDMXLibrary* DMXLibrary, const FString& Fil
 	ZipThirdPartyData(Zip, GeneralSceneDescription);
 	if (!Zip->SaveToFile(FilePathAndName))
 	{
-		OutErrorReason = FText::Format(LOCTEXT("MVRExportCreateZipFailedReason", "File is not writable or locked by another process. Cannot export {0}."), FText::FromString(FilePathAndName));
+		OutErrorReason = FText::Format(LOCTEXT("MVRExportWriteZipFailedReason", "File is not writable or locked by another process. Cannot export {0}."), FText::FromString(FilePathAndName));
 		return;
 	}
 }

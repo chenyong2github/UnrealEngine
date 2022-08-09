@@ -164,7 +164,7 @@ private:
 			}
 			else if (Item->GetFixtureType()->Modes.IsEmpty())
 			{
-				const FText IssueText = LOCTEXT("NoFixtureTypeIssue", "Fixture Type has no Modes defined.");
+				const FText IssueText = LOCTEXT("NoModesIssue", "Fixture Type has no Modes defined.");
 				ItemToIssueMap.Add(Item, IssueText);
 			}
 			else if (Item->GetFixtureType() && Item->GetModeIndex() == INDEX_NONE)
