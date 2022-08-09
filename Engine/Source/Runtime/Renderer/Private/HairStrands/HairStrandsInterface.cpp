@@ -442,12 +442,12 @@ bool IsHairStrandsVisibleInShadows(const FViewInfo& View, const FHairStrandsInst
 			return false;
 		}
 
-		if (const FBoxSphereBounds* Bounds = Instance.GetBounds())
+		const FBoxSphereBounds& Bounds = Instance.GetBounds();
 		{
 			// Local lights
 			for (const FLightSceneInfo* LightInfo : View.HairStrandsViewData.VisibleShadowCastingLights)
 			{
-				if (LightInfo->Proxy->AffectsBounds(*Bounds))
+				if (LightInfo->Proxy->AffectsBounds(Bounds))
 				{
 					bIsVisibleInShadow = true;
 					break;
@@ -464,7 +464,7 @@ bool IsHairStrandsVisibleInShadows(const FViewInfo& View, const FHairStrandsInst
 					const FMatrix& WorldToLight = CullData.LightInfo->Proxy->GetWorldToLight();
 					
 					// Transform groom bound into light space, and extend it along the light direction
-					FBoxSphereBounds BoundsInLightSpace = Bounds->TransformBy(WorldToLight);
+					FBoxSphereBounds BoundsInLightSpace = Bounds.TransformBy(WorldToLight);
 					BoundsInLightSpace.BoxExtent.X += CullDistance;
 
 					const bool bIntersect = CullData.ViewFrustumInLightSpace.IntersectBox(BoundsInLightSpace.Origin, BoundsInLightSpace.BoxExtent);
@@ -477,7 +477,7 @@ bool IsHairStrandsVisibleInShadows(const FViewInfo& View, const FHairStrandsInst
 						LightData.Extent = FVector3f(CullData.LightInfo->Proxy->GetBoundingSphere().W);
 						LightData.ViewFrustumInLightSpace = CullData.ViewFrustumInLightSpace;
 						LightData.InstanceBoundInLightSpace.Add({FVector3f(BoundsInLightSpace.GetBox().Min), FVector3f(BoundsInLightSpace.GetBox().Max)});
-						LightData.InstanceBoundInWorldSpace.Add({ FVector3f(Bounds->GetBox().Min), FVector3f(Bounds->GetBox().Max)});
+						LightData.InstanceBoundInWorldSpace.Add({ FVector3f(Bounds.GetBox().Min), FVector3f(Bounds.GetBox().Max)});
 						LightData.InstanceIntersection.Add(bIntersect ? 1u : 0u);
 					}
 

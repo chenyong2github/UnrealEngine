@@ -264,13 +264,13 @@ void RenderHairStrandsDeepShadows(
 				const FLightSceneProxy* LightProxy = LightInfo->Proxy;
 				if (!LightProxy->AffectsBounds(MacroGroupBounds))
 				{
-					return;
+					continue;
 				}
 
 				// Run out of atlas slot
 				if (DOMSlotCount >= FHairStrandsDeepShadowResources::MaxAtlasSlotCount)
 				{
-					return;
+					continue;
 				}
 
 				DOMSlotCount++;

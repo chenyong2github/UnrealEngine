@@ -743,7 +743,7 @@ static void RunHairLODSelection(
 		float LODViewIndex = -1;
 		{
 			float MaxScreenSize = 0.f;
-			const FSphere SphereBound = Instance->ProxyBounds ? Instance->ProxyBounds->GetSphere() : FSphere(0);
+			const FSphere SphereBound = Instance->GetBounds().GetSphere();
 			for (const FSceneView* View : Views)
 			{
 				const float ScreenSize = ComputeBoundsScreenSize(FVector4(SphereBound.Center, 1), SphereBound.W, *View);

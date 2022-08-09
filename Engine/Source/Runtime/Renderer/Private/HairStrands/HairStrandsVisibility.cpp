@@ -2662,6 +2662,11 @@ void AddMeshDrawTransitionPass(
 	{
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroup.PrimitivesInfos)
 		{
+			if (PrimitiveInfo.Mesh == nullptr)
+			{
+				continue;
+			}
+
 			FHairGroupPublicData* HairGroupPublicData = PrimitiveInfo.PublicDataPtr;
 			check(HairGroupPublicData);
 

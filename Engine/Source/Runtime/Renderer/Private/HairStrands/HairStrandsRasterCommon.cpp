@@ -355,10 +355,16 @@ void AddHairStrandsRasterPass(
 
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : PrimitiveSceneInfos)
 		{
-			const bool bCullingEnable = PrimitiveInfo.IsCullingEnable();
-			const FMeshBatch& MeshBatch = *PrimitiveInfo.Mesh;
-			const uint64 BatchElementMask = ~0ull;
-			HairRasterMeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.PrimitiveSceneProxy, -1 , bCullingEnable);
+			// Ensure that we submit only primitive with valid MeshBatch data. Non-visible groom casting 
+			// deep shadow map, will be skipped. This will be fixed once we remove mesh processor to replace 
+			// it with a global shader
+			if (PrimitiveInfo.Mesh != nullptr)
+			{
+				const bool bCullingEnable = PrimitiveInfo.IsCullingEnable();
+				const FMeshBatch& MeshBatch = *PrimitiveInfo.Mesh;
+				const uint64 BatchElementMask = ~0ull;
+				HairRasterMeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.PrimitiveSceneProxy, -1 , bCullingEnable);
+			}
 		}
 	});
 }

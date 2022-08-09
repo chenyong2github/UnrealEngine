@@ -143,7 +143,8 @@ struct RENDERER_API FHairStrandsInstance
 	uint32 AddRef() const;
 	uint32 Release() const;
 	int32 RegisteredIndex = -1;
-	virtual const FBoxSphereBounds* GetBounds() const { return nullptr; }
+	virtual const FBoxSphereBounds& GetBounds() const = 0;
+	virtual const FBoxSphereBounds& GetLocalBounds() const = 0;
 	virtual const FHairGroupPublicData* GetHairData() const { return nullptr; }
 protected:
 	mutable uint32 RefCount = 0;

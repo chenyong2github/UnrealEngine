@@ -333,8 +333,6 @@ public:
 			const FHairGroupData& InGroupData = Component->GroomAsset->HairGroupsData[GroupIt];
 			FHairGroupInstance* HairInstance = Component->HairGroupInstances[GroupIt];
 			check(HairInstance->HairGroupPublicData);
-			HairInstance->ProxyBounds = &GetBounds();
-			HairInstance->ProxyLocalBounds = &GetLocalBounds();
 			HairInstance->bForceCards = Component->bUseCards;
 			HairInstance->bUpdatePositionOffset = Component->RegisteredMeshComponent != nullptr;
 			HairInstance->bCastShadow = Component->CastShadow;
@@ -460,6 +458,7 @@ public:
 			{
 				check(Instance->HairGroupPublicData != nullptr);
 				Instance->AddRef();
+				Instance->Debug.Proxy = this;
 				LocalScene.AddHairStrands(Instance);
 			}
 		}
@@ -483,6 +482,7 @@ public:
 			{
 				check(Instance->GetRefCount() > 0);
 				LocalScene.RemoveHairStrands(Instance);
+				Instance->Debug.Proxy = nullptr;
 				Instance->Release();
 			}
 		}
