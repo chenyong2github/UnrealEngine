@@ -197,7 +197,15 @@ namespace Horde.Storage
         [Required] public string ConnectionString { get; set; } = "";
     }
 
-    public class MemoryCacheBlobSettings : MemoryCacheOptions
+    public class MemoryCacheContentIdSettings : MemoryCacheOptions
+    {
+        public bool Enabled { get; set; } = true;
+
+        public bool EnableSlidingExpiry { get; set; } = true;
+        public int SlidingExpirationMinutes { get; set; } = 120;
+    }
+
+	public class MemoryCacheBlobSettings : MemoryCacheOptions
     {
         public bool Enabled { get; set; } = true;
 

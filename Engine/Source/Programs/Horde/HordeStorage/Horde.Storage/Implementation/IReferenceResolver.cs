@@ -51,10 +51,12 @@ namespace Horde.Storage.Implementation
     public class ContentIdAttachment : Attachment
     {
         public ContentId Identifier { get; }
+        public BlobIdentifier[] ReferencedBlobs { get; }
 
-        public ContentIdAttachment(ContentId contentId)
+        public ContentIdAttachment(ContentId contentId, BlobIdentifier[] referencedBlobs)
         {
             Identifier = contentId;
+            ReferencedBlobs = referencedBlobs;
         }
 
         public override IoHash AsIoHash()
@@ -83,7 +85,6 @@ namespace Horde.Storage.Implementation
 
         public async IAsyncEnumerable<Attachment> GetAttachments(NamespaceId ns, CbObject cb)
         {
-            // TODO: This is cacheable and we should store the result somewhere
             Queue<CbObject> objectsToVisit = new Queue<CbObject>();
             objectsToVisit.Enqueue(cb);
             List<BlobIdentifier> unresolvedBlobReferences = new List<BlobIdentifier>();
@@ -105,27 +106,27 @@ namespace Horde.Storage.Implementation
 
                         if (field.IsBinaryAttachment())
                         {
-                            bool isContentId = false;
+                            BlobIdentifier[]? resolvedBlobs = null;
+                            bool wasContentId = false;
                             try
                             {
-                                // TODO: Having to do a proper resolve here is not good as its quite expensive
-                                // it would be much better if the attachment type indicated if it was a content id or not
-                                Task<BlobIdentifier[]?> resolveContentId = _contentIdStore.Resolve(ns, contentId, mustBeContentId: true);
+                                Task<(ContentId, BlobIdentifier[]?)> resolveContentId = ResolveContentId(ns, contentId);
                                 resolveContentId.Wait();
-                                isContentId = resolveContentId.Result != null;
+                                resolvedBlobs = resolveContentId.Result.Item2;
+                                wasContentId = !(resolvedBlobs is { Length: 1 } && resolvedBlobs[0].Equals(blobIdentifier));
                             }
                             catch (InvalidContentIdException)
                             {
-                                isContentId = false;
+                                resolvedBlobs = null;
                             }
                             catch (BlobNotFoundException e)
                             {
                                 unresolvedBlobReferences.Add(e.Blob);
                             }
                             
-                            if (isContentId)
+                            if (wasContentId && resolvedBlobs != null)
                             {
-                                attachments.Add(new ContentIdAttachment(contentId));
+                                attachments.Add(new ContentIdAttachment(contentId, resolvedBlobs));
                             }
                             else
                             {
@@ -189,7 +190,6 @@ namespace Horde.Storage.Implementation
 
         public async IAsyncEnumerable<BlobIdentifier> GetReferencedBlobs(NamespaceId ns, CbObject cb)
         {
-            List<Task<(ContentId, BlobIdentifier[]?)>> pendingContentIdResolves = new();
             List<Task<(BlobIdentifier, bool)>> pendingBlobExistsChecks = new();
             List<ContentId> unresolvedContentIdReferences = new List<ContentId>();
             List<BlobIdentifier> unresolvedBlobReferences = new List<BlobIdentifier>();
@@ -204,7 +204,19 @@ namespace Horde.Storage.Implementation
                 else if (attachment is ContentIdAttachment contentIdAttachment)
                 {
                     // If we find a content id we resolve that into the actual blobs it references
-                    pendingContentIdResolves.Add(ResolveContentId(ns, contentIdAttachment.Identifier));
+                    
+                    foreach (BlobIdentifier b in contentIdAttachment.ReferencedBlobs)
+                    {
+                        (BlobIdentifier _, bool exists) = await CheckBlobExists(ns, b);
+                        if (!exists)
+                        {
+                            unresolvedContentIdReferences.Add(contentIdAttachment.Identifier);
+                            continue;
+                        }
+
+                        yield return b;
+                    }
+
                 }
                 else if (attachment is ObjectAttachment objectAttachment)
                 {
@@ -214,23 +226,6 @@ namespace Horde.Storage.Implementation
                 else
                 {
                     throw new NotSupportedException($"Unknown attachment type {attachment.GetType()}");
-                }
-            }
-
-            // Return the results of all the content id resolves
-            foreach (Task<(ContentId, BlobIdentifier[]?)> pendingContentIdResolveTask in pendingContentIdResolves)
-            {
-                (ContentId contentId, BlobIdentifier[]? resolvedBlobs) =  await pendingContentIdResolveTask;
-                if (resolvedBlobs != null)
-                {
-                    foreach (BlobIdentifier b in resolvedBlobs)
-                    {
-                        pendingBlobExistsChecks.Add(CheckBlobExists(ns, b));
-                    }
-                }
-                else
-                {
-                    unresolvedContentIdReferences.Add(contentId);
                 }
             }
 

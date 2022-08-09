@@ -262,20 +262,28 @@ namespace Horde.Storage
         private object ContentIdStoreFactory(IServiceProvider provider)
         {
             HordeStorageSettings settings = provider.GetService<IOptionsMonitor<HordeStorageSettings>>()!.CurrentValue!;
-            switch (settings.ContentIdStoreImplementation)
+            IContentIdStore store = settings.ContentIdStoreImplementation switch
             {
-                case HordeStorageSettings.ContentIdStoreImplementations.Memory:
-                    return ActivatorUtilities.CreateInstance<MemoryContentIdStore>(provider);
-                case HordeStorageSettings.ContentIdStoreImplementations.Scylla:
-                    return ActivatorUtilities.CreateInstance<ScyllaContentIdStore>(provider);
-                case HordeStorageSettings.ContentIdStoreImplementations.Mongo:
-                    return ActivatorUtilities.CreateInstance<MongoContentIdStore>(provider);
-                case HordeStorageSettings.ContentIdStoreImplementations.Cache:
-                    return ActivatorUtilities.CreateInstance<CacheContentIdStore>(provider);
-                default:
-                    throw new NotImplementedException($"Unknown content id store implementation: {settings.ContentIdStoreImplementation}");
+                HordeStorageSettings.ContentIdStoreImplementations.Memory => ActivatorUtilities
+                    .CreateInstance<MemoryContentIdStore>(provider),
+                HordeStorageSettings.ContentIdStoreImplementations.Scylla => ActivatorUtilities
+                    .CreateInstance<ScyllaContentIdStore>(provider),
+                HordeStorageSettings.ContentIdStoreImplementations.Mongo => ActivatorUtilities
+                    .CreateInstance<MongoContentIdStore>(provider),
+                HordeStorageSettings.ContentIdStoreImplementations.Cache => ActivatorUtilities
+                    .CreateInstance<CacheContentIdStore>(provider),
+                _ => throw new NotImplementedException(
+                    $"Unknown content id store implementation: {settings.ContentIdStoreImplementation}")
+            };
+
+            MemoryCacheContentIdSettings memoryCacheSettings = provider.GetService<IOptionsMonitor<MemoryCacheContentIdSettings>>()!.CurrentValue;
+
+            if (memoryCacheSettings.Enabled)
+            {
+                store = ActivatorUtilities.CreateInstance<MemoryCachedContentIdStore>(provider, store);
             }
-        }
+			return store;
+		}
 
         private IScyllaSessionManager ScyllaFactory(IServiceProvider provider)
         {
