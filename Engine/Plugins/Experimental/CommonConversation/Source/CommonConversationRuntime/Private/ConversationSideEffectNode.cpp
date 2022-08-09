@@ -2,9 +2,12 @@
 
 #include "ConversationSideEffectNode.h"
 #include "ConversationInstance.h"
+#include "Engine/World.h"
 
 void UConversationSideEffectNode::CauseSideEffect(const FConversationContext& Context) const
 {
+	TGuardValue<decltype(EvalWorldContextObj)> Swapper(EvalWorldContextObj, Context.GetWorld());
+	
 	if (Context.IsServerContext())
 	{
 		ServerCauseSideEffect(Context);
