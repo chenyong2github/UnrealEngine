@@ -10,6 +10,7 @@
 #include "Engine/Level.h"
 #include "Components/ActorComponent.h"
 #include "Model.h"
+#include "Misc/ITransactionObjectAnnotation.h"
 #include "Editor/Transactor.h"
 #include "Editor/TransBuffer.h"
 #include "Components/ModelComponent.h"

@@ -7,6 +7,7 @@
 
 #include "ConcertTransactionEvents.h"
 #include "IConcertClientTransactionBridge.h"
+#include "Misc/ITransactionObjectAnnotation.h"
 #include "Misc/PackageName.h"
 #include "Misc/CoreDelegates.h"
 #include "HAL/IConsoleManager.h"

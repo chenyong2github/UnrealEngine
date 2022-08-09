@@ -5,6 +5,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
+#include "Misc/ITransaction.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"
 #include "Components/MeshComponent.h"
