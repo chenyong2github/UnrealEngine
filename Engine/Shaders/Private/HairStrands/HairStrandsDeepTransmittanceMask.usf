@@ -244,21 +244,20 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 void PrintInfo(uint Index, uint2 PixelCoord, FHairTransmittanceMask TransmittanceMask)
 {
 	#if 0
-	const uint2 OutputResolution = uint2(1024, 1024); // TODO send the actual output resolution
+	const uint2 OutputResolution = uint2(1024, 1024); 
 	float2 Origin = (PixelCoord) / float2(OutputResolution);
 	Origin.y += (Index % 8) * 2 * ShaderPrintUniform.FontSize.w;
 
-	float2 Pos = Origin;
-	Pos = ShaderPrintText(Pos, TEXT("Hair Count "));
-	Pos = ShaderPrint(Pos, TransmittanceMask.HairCount);
+	FShaderPrintContext Context = InitShaderPrintContext(true, Origin);
 
-	Pos = ShaderPrintNewline(Pos);
-	Pos.x = Origin.x;
+	Print(Context, TEXT("Hair Count "));
+	Print(Context, TransmittanceMask.HairCount);
+	Newline(Context);
 
-	Pos = ShaderPrintText(Pos, TEXT("Visibility "));
-	Pos = ShaderPrint(Pos, TransmittanceMask.Visibility);
+	Print(Context, TEXT("Visibility "));
+	Print(Context, TransmittanceMask.Visibility);
+	Newline(Context);
 
-	Pos = ShaderPrintNewline(Pos);
 	#endif
 }
 #endif // VOXEL_TRAVERSAL_DEBUG
