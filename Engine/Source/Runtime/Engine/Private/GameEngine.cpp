@@ -258,14 +258,6 @@ void UGameEngine::CreateGameViewport( UGameViewportClient* GameViewportClient )
 	int32 SaveWinPos;
 	if (FParse::Value(FCommandLine::Get(), TEXT("SAVEWINPOS="), SaveWinPos) && SaveWinPos > 0 )
 	{
-		// Get WinX/WinY from GameSettings, apply them if valid.
-		FIntPoint PiePosition = GetGameUserSettings()->GetWindowPosition();
-		if (PiePosition.X >= 0 && PiePosition.Y >= 0)
-		{
-			int32 WinX = GetGameUserSettings()->GetWindowPosition().X;
-			int32 WinY = GetGameUserSettings()->GetWindowPosition().Y;
-			Window->MoveWindowTo(FVector2D(WinX, WinY));
-		}
 		Window->SetOnWindowMoved( FOnWindowMoved::CreateUObject( this, &UGameEngine::OnGameWindowMoved ) );
 	}
 
@@ -553,6 +545,21 @@ TSharedRef<SWindow> UGameEngine::CreateGameWindow()
 	if (FParse::Value(FCommandLine::Get(), TEXT("WinX="), WinX) && FParse::Value(FCommandLine::Get(), TEXT("WinY="), WinY))
 	{
 		AutoCenterType = EAutoCenter::None;
+	}
+
+	// SAVEWINPOS tells us to load/save window positions to user settings (this is disabled by default)
+	int32 SaveWinPos;
+	if (FParse::Value(FCommandLine::Get(), TEXT("SAVEWINPOS="), SaveWinPos) && SaveWinPos > 0)
+	{
+		// Note GameUserSettings is not instantiated here yet, so we need to read directly from the configs
+		FString ScriptEngineCategory = TEXT("/Script/Engine.Engine");
+		FString GameUserSettingsCategory = TEXT("/Script/Engine.GameUserSettings");
+		GConfig->GetString(*ScriptEngineCategory, TEXT("GameUserSettingsClassName"), GameUserSettingsCategory, GEngineIni);
+		if (GConfig->GetInt(*GameUserSettingsCategory, TEXT("WindowPosX"), WinX, GGameUserSettingsIni) &&
+			GConfig->GetInt(*GameUserSettingsCategory, TEXT("WindowPosY"), WinY, GGameUserSettingsIni))
+		{
+			AutoCenterType = EAutoCenter::None;
+		}
 	}
 
 	// Give the window the max width/height of either the requested resolution, or your available desktop resolution
