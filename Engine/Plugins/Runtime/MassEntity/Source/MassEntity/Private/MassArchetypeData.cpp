@@ -1121,7 +1121,7 @@ void FMassArchetypeData::BatchSetFragmentValues(TConstArrayView<FMassArchetypeEn
 			void* Dst = FragmentConfigs[FragmentIndex].GetFragmentData(Chunk.GetRawMemory(), EntityRange.SubchunkStart);
 			const void* Src = FragmentPayload.GetDataAt(EntitiesHandled);
 
-			FMemory::Memcpy(Dst, Src, FragmentType.GetStructureSize() * EntityRange.Length);
+			FragmentType.CopyScriptStruct(Dst, Src, EntityRange.Length);
 		}
 
 		EntitiesHandled += EntityRange.Length;

@@ -76,6 +76,11 @@ std::atomic<uint32> FMassBatchedCommand::CommandsCounter;
 FMassCommandBuffer::~FMassCommandBuffer()
 {
 	ensureMsgf(HasPendingCommands() == false, TEXT("Destroying FMassCommandBuffer while there are still unprocessed commands. These operations will never be performed now."));
+
+	for (FMassBatchedCommand*& Command : CommandInstances)
+	{
+		delete Command;
+	}
 }
 
 void FMassCommandBuffer::Flush(UMassEntitySubsystem& EntitySystem)
