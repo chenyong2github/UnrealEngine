@@ -2054,6 +2054,7 @@ public:
 	 */
 	static int64 LookupEnumName(FName TestName, UEnum** FoundEnum = nullptr)
 	{
+		FReadScopeLock ScopeLock(AllEnumNamesLock);
 		UEnum* TheEnum = AllEnumNames.FindRef(TestName);
 		if (FoundEnum != nullptr)
 		{
@@ -2329,6 +2330,9 @@ protected:
 
 	/** pointer to function used to look up the enum's display name. Currently only assigned for UEnums generated for nativized blueprints */
 	FEnumDisplayNameFn EnumDisplayNameFn;
+
+	/** lock to be taken when accessing AllEnumNames */
+	static FRWLock AllEnumNamesLock;
 
 	/** global list of all value names used by all enums in memory, used for property text import */
 	static TMap<FName, UEnum*> AllEnumNames;

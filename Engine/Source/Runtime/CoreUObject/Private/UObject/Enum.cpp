@@ -20,6 +20,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogEnum, Log, All);
 	UEnum implementation.
 -----------------------------------------------------------------------------*/
 
+FRWLock UEnum::AllEnumNamesLock;
 TMap<FName, UEnum*> UEnum::AllEnumNames;
 
 UEnum::UEnum(const FObjectInitializer& ObjectInitializer)
@@ -260,6 +261,7 @@ bool UEnum::IsValidEnumName(FName InName) const
 
 void UEnum::AddNamesToMasterList()
 {
+	FWriteScopeLock ScopeLock(AllEnumNamesLock);
 	for (TPair<FName, int64> Kvp : Names)
 	{
 		UEnum* Enum = AllEnumNames.FindRef(Kvp.Key);
@@ -276,6 +278,7 @@ void UEnum::AddNamesToMasterList()
 
 void UEnum::RemoveNamesFromMasterList()
 {
+	FWriteScopeLock ScopeLock(AllEnumNamesLock);
 	for (TPair<FName, int64> Kvp : Names)
 	{
 		UEnum* Enum = AllEnumNames.FindRef(Kvp.Key);
