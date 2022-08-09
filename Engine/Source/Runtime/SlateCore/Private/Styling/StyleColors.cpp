@@ -158,6 +158,7 @@ void USlateThemeManager::SaveCurrentThemeAs(const FString& Filename)
 {
 	FStyleTheme& CurrentTheme = GetMutableCurrentTheme();
 	CurrentTheme.Filename = Filename;
+	FString NewPath = CurrentTheme.Filename;
 	{
 		FString Output;
 		TSharedRef<TJsonWriter<>> WriterRef = TJsonWriterFactory<>::Create(&Output);
@@ -166,7 +167,7 @@ void USlateThemeManager::SaveCurrentThemeAs(const FString& Filename)
 		Writer.WriteValue(TEXT("Version"), 1);
 		Writer.WriteValue(TEXT("Id"), CurrentTheme.Id.ToString());
 		Writer.WriteValue(TEXT("DisplayName"), CurrentTheme.DisplayName.ToString());
-
+		
 		{
 			Writer.WriteObjectStart(TEXT("Colors"));
 			UEnum* Enum = StaticEnum<EStyleColor>();
@@ -184,8 +185,16 @@ void USlateThemeManager::SaveCurrentThemeAs(const FString& Filename)
 		if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*Filename))
 		{
 			FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*Filename, false);
+			// create a new path if the filename has been changed. 
+			NewPath = USlateThemeManager::Get().GetEngineThemeDir() / CurrentTheme.DisplayName.ToString() + TEXT(".json");
+
+			if (!NewPath.Equals(CurrentTheme.Filename))
+			{
+				// rename the current .json file with the new name. 
+				IFileManager::Get().Move(*NewPath, *Filename);
+			}
 		}
-		FFileHelper::SaveStringToFile(Output, *Filename);
+		FFileHelper::SaveStringToFile(Output, *NewPath);
 	}
 	
 }
