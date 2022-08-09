@@ -148,9 +148,8 @@ private:
 	 * Callback when changing a variable property
 	 *
 	 * @param InPropertyChangedEvent	Information on the property changed
-	 * @param InModifiedObjectInstance	The object instance for which the value was changed
 	 */
-	void OnFinishedChangingVariable(const FPropertyChangedEvent& InPropertyChangedEvent, UObject* InModifiedObjectInstance);
+	void OnFinishedChangingVariable(const FPropertyChangedEvent& InPropertyChangedEvent);
 
 	/**
 	 * Callback when changing a local variable property

@@ -998,7 +998,7 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 
 					if (DetailsView.IsValid())
 					{
-						DetailsView->OnFinishedChangingProperties().AddSP(this, &FBlueprintVarActionDetails::OnFinishedChangingVariable, TargetBlueprintDefaultObject);
+						DetailsView->OnFinishedChangingProperties().AddSP(this, &FBlueprintVarActionDetails::OnFinishedChangingVariable);
 					}
 				}
 			}
@@ -2737,14 +2737,14 @@ EVisibility FBlueprintVarActionDetails::IsTooltipEditVisible() const
 	return EVisibility::Collapsed;
 }
 
-void FBlueprintVarActionDetails::OnFinishedChangingVariable(const FPropertyChangedEvent& InPropertyChangedEvent, UObject* InModifiedObjectInstance)
+void FBlueprintVarActionDetails::OnFinishedChangingVariable(const FPropertyChangedEvent& InPropertyChangedEvent)
 {
-	if (!InModifiedObjectInstance)
+	if (InPropertyChangedEvent.GetNumObjectsBeingEdited() == 0)
 	{
 		return;
 	}
 
-	ImportNamespacesForPropertyValue(InPropertyChangedEvent.MemberProperty, InModifiedObjectInstance);
+	ImportNamespacesForPropertyValue(InPropertyChangedEvent.MemberProperty, InPropertyChangedEvent.GetObjectBeingEdited(0));
 }
 
 void FBlueprintVarActionDetails::OnFinishedChangingLocalVariable(const FPropertyChangedEvent& InPropertyChangedEvent, TSharedPtr<FStructOnScope> InStructData, TWeakObjectPtr<UK2Node_EditablePinBase> InEntryNode)
