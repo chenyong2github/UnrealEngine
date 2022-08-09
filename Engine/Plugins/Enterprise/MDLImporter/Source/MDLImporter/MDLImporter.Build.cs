@@ -17,7 +17,6 @@ namespace UnrealBuildTool.Rules
 
         public MDLImporter(ReadOnlyTargetRules Target) : base(Target)
         {
-	        OptimizeCode = CodeOptimization.Never;
 			bLegalToDistributeObjectCode = true;
 
             PrivateDependencyModuleNames.AddRange(
