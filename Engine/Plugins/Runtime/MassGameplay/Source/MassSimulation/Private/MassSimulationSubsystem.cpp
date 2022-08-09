@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassSimulationSubsystem.h"
-#include "MassSimulationLocalCoordinator.h"
 #include "MassEntitySubsystem.h"
 #include "MassExecutor.h"
 #include "MassSimulationSettings.h"
@@ -25,20 +24,6 @@ UMassSimulationSubsystem::UMassSimulationSubsystem(const FObjectInitializer& Obj
 	: Super()
 {
 	PhaseManager = CreateDefaultSubobject<UMassProcessingPhaseManager>(TEXT("PhaseManager"));
-}
-
-void UMassSimulationSubsystem::PostInitProperties()
-{
-	REDIRECT_OBJECT_TO_VLOG(PhaseManager, this);
-
-	Super::PostInitProperties();
-
-	if (HasAnyFlags(RF_ClassDefaultObject) == false)
-	{
-#if WITH_EDITOR
-		GET_MASS_CONFIG_VALUE(GetOnTickSchematicChanged()).AddUObject(this, &UMassSimulationSubsystem::RebuildTickPipeline);
-#endif // WITH_EDITOR
-	}
 }
 
 void UMassSimulationSubsystem::BeginDestroy()
@@ -80,9 +65,6 @@ void UMassSimulationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UMassSimulationSubsystem::Deinitialize()
 {
-#if WITH_EDITOR
-	GET_MASS_CONFIG_VALUE(GetOnTickSchematicChanged()).RemoveAll(this);
-#endif // WITH_EDITOR
 	GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).RemoveAll(this);
 	StopSimulation();
 

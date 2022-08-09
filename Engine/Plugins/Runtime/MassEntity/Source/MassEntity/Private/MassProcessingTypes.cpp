@@ -2,7 +2,6 @@
 
 #include "MassProcessingTypes.h"
 #include "MassProcessor.h"
-#include "MassSchematic.h"
 #include "Misc/OutputDevice.h"
 #include "MassEntityUtils.h"
 #include "VisualLogger/VisualLogger.h"
@@ -56,27 +55,6 @@ void FMassRuntimePipeline::Initialize(UObject& Owner)
 void FMassRuntimePipeline::SetProcessors(TArray<UMassProcessor*>&& InProcessors)
 {
 	Processors = InProcessors;
-}
-
-void FMassRuntimePipeline::InitializeFromSchematics(TConstArrayView<TSoftObjectPtr<UMassSchematic>> Schematics, UObject& InOwner)
-{
-	Reset();
-	
-	// @todo we'll sometimes end up with duplicated MassProcessors in the resulting array. We need to come up with a consistent policy for handling that 
-	for (const TSoftObjectPtr<UMassSchematic>& Schematic : Schematics)
-	{
-		UMassSchematic* SchematicInstance = Schematic.LoadSynchronous();
-		if (SchematicInstance)
-		{
-			AppendOrOverrideRuntimeProcessorCopies(SchematicInstance->GetProcessors(), InOwner);
-		}
-		else
-		{
-			UE_LOG(LogMass, Error, TEXT("Unable to resolve MassSchematic %s while creating FMassRuntimePipeline"), *Schematic.GetLongPackageName());
-		}
-	}
-
-	Initialize(InOwner);
 }
 
 void FMassRuntimePipeline::CreateFromArray(TConstArrayView<const UMassProcessor*> InProcessors, UObject& InOwner)

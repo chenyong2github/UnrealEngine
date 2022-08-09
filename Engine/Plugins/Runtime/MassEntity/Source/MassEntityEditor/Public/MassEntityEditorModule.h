@@ -12,7 +12,6 @@
 class IMassEntityEditor;
 class FAssetTypeActions_Base;
 struct FGraphPanelNodeFactory;
-class UMassSchematic;
 
 /**
 * The public interface to this module
@@ -24,9 +23,6 @@ public:
 
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
-
-	/** Creates an instance of Mass editor. Only virtual so that it can be called across the DLL boundary. */
-	virtual TSharedRef<IMassEntityEditor> CreateMassEntityEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UMassSchematic* MassSchematic);
 
 	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override { return MenuExtensibilityManager; }
 	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override { return ToolBarExtensibilityManager; }

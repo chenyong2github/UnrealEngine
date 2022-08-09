@@ -4,12 +4,10 @@
 #include "Modules/ModuleManager.h"
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
-#include "AssetTypeActions_MassSchematic.h"
 #include "MassEditorStyle.h"
-#include "MassEntityEditor.h"
 #include "AIGraphTypes.h" // Class cache
-#include "MassSchematic.h"
 #include "MassProcessor.h"
+#include "AssetTypeActions_Base.h"
 
 
 #define LOCTEXT_NAMESPACE "MassEntityEditor"
@@ -23,12 +21,10 @@ void FMassEntityEditorModule::StartupModule()
 
 	FMassEntityEditorStyle::Initialize();
 
-	// Register asset types
-	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-
-	TSharedPtr<FAssetTypeActions_MassSchematic> MassAssetTypeAction = MakeShareable(new FAssetTypeActions_MassSchematic);
-	ItemDataAssetTypeActions.Add(MassAssetTypeAction);
-	AssetTools.RegisterAssetTypeActions(MassAssetTypeAction.ToSharedRef());
+	// Do register asset types here
+	//	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	//	ItemDataAssetTypeActions.Add(MakeShareable(new FAssetTypeActions_MassThingy));
+	//	AssetTools.RegisterAssetTypeActions(ItemDataAssetTypeActions.Last().ToSharedRef());
 
 	// Register the details customizers
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -65,21 +61,5 @@ void FMassEntityEditorModule::ShutdownModule()
 		//PropertyModule.UnregisterCustomPropertyTypeLayout("StateTreeVariableDesc");
 		PropertyModule.NotifyCustomizationModuleChanged();
 	}
-}
-
-TSharedRef<IMassEntityEditor> FMassEntityEditorModule::CreateMassEntityEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UMassSchematic* MassSchematic)
-{
-	if (!ProcessorClassCache.IsValid())
-	{
-		ProcessorClassCache = MakeShareable(new FGraphNodeClassHelper(UMassProcessor::StaticClass()));
-		ProcessorClassCache->UpdateAvailableBlueprintClasses();
-	}
-
-	TSharedRef<FMassEntityEditor> NewEditor(new FMassEntityEditor());
-	if (ensure(MassSchematic))
-	{
-		NewEditor->InitEditor(Mode, InitToolkitHost, *MassSchematic);
-	}
-	return NewEditor;
 }
 #undef LOCTEXT_NAMESPACE

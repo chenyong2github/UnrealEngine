@@ -9,7 +9,6 @@
 #include "MassSimulationSubsystem.generated.h"
 
 
-class AMassSimulationLocalCoordinator;
 class UMassEntitySubsystem;
 class UMassProcessingPhaseManager;
 
@@ -34,7 +33,6 @@ public:
 	bool IsSimulationStarted() const { return bSimulationStarted; }
 
 protected:
-	virtual void PostInitProperties() override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void PostInitialize() override;
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;

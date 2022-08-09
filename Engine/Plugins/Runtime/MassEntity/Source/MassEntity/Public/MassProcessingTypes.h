@@ -14,7 +14,6 @@
 
 class UMassEntitySubsystem;
 class UMassProcessor;
-class UMassSchematic;
 class UMassCompositeProcessor;
 struct FMassCommandBuffer;
 
@@ -64,7 +63,7 @@ struct MASSENTITY_API FMassProcessingContext
 };
 
 /** 
- *  A helper type that converts a set of UMassSchematics into a runtime-usable array of MassProcessor copies
+ *  Runtime-usable array of MassProcessor copies
  */
 USTRUCT()
 struct MASSENTITY_API FMassRuntimePipeline
@@ -79,9 +78,6 @@ struct MASSENTITY_API FMassRuntimePipeline
 	
 	/** Creates runtime copies of the given UMassProcessors collection. */
 	void SetProcessors(TArray<UMassProcessor*>&& InProcessors);
-
-	/** Creates runtime copies of UMassProcessors declared in Schematics using InOwner as new UMassProcessors' outer. */
-	void InitializeFromSchematics(TConstArrayView<TSoftObjectPtr<UMassSchematic>> Schematics, UObject& InOwner);
 
 	/** Creates runtime copies of UMassProcessors given in InProcessors input parameter, using InOwner as new UMassProcessors' outer. */
 	void CreateFromArray(TConstArrayView<const UMassProcessor*> InProcessors, UObject& InOwner);
