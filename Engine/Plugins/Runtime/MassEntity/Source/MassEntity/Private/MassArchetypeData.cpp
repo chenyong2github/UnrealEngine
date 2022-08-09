@@ -741,6 +741,12 @@ FString FMassArchetypeData::DebugGetDescription() const
 #if WITH_MASSENTITY_DEBUG
 	FStringOutputDevice OutDescription;
 
+	if (!DebugNames.IsEmpty())
+	{
+		OutDescription += TEXT("Name: ");
+		OutDescription += GetCombinedDebugNamesAsString();
+		OutDescription += TEXT("\n");
+	}
 	OutDescription += TEXT("Chunk fragments: ");
 	CompositionDescriptor.ChunkFragments.DebugGetStringDesc(OutDescription);
 	OutDescription += TEXT("\nTags: ");
@@ -754,9 +760,25 @@ FString FMassArchetypeData::DebugGetDescription() const
 #endif
 }
 
+FString FMassArchetypeData::GetCombinedDebugNamesAsString() const
+{
+	TStringBuilder<256> StringBuilder;
+	for (int i = 0; i < DebugNames.Num(); i++)
+	{
+		if (i > 0)
+		{
+			StringBuilder.Append(TEXT(", "));;
+		}
+		StringBuilder.Append(DebugNames[i].ToString());
+	}
+	return StringBuilder.ToString();
+}
+
 #if WITH_MASSENTITY_DEBUG
 void FMassArchetypeData::DebugPrintArchetype(FOutputDevice& Ar)
 {
+	Ar.Logf(ELogVerbosity::Log, TEXT("Name: %s"), *GetCombinedDebugNamesAsString());
+
 	FStringOutputDevice TagsDecription;
 	CompositionDescriptor.Tags.DebugGetStringDesc(TagsDecription);
 	Ar.Logf(ELogVerbosity::Log, TEXT("Tags: %s"), *TagsDecription);

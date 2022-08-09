@@ -85,6 +85,9 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	void SetTemplateID(FMassEntityTemplateID InTemplateID) { TemplateID = InTemplateID; }
 	FMassEntityTemplateID GetTemplateID() const { return TemplateID; }
 
+	void SetTemplateName(const FString& Name) { TemplateName = Name; }
+	const FString& GetTemplateName() const { return TemplateName; }
+	
 	const FMassArchetypeCompositionDescriptor& GetCompositionDescriptor() const { return Composition; }
 	const FMassArchetypeSharedFragmentValues& GetSharedFragmentValues() const { return SharedFragmentValues; }
 	TConstArrayView<FInstancedStruct> GetInitialFragmentValues() const { return InitialFragmentValues; }
@@ -252,4 +255,6 @@ private:
 	TArray<FObjectFragmentInitializerFunction> ObjectInitializers;
 
 	FMassEntityTemplateID TemplateID;
+
+	FString TemplateName;
 };

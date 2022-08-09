@@ -81,6 +81,7 @@ const FMassEntityTemplate& FMassEntityConfig::GetOrCreateEntityTemplate(const UW
 	FMassEntityTemplateBuildContext BuildContext(Template);
 
 	BuildContext.BuildFromTraits(CombinedTraits, World);
+	Template.SetTemplateName(ConfigOwner.GetName());
 
 	if (ensureMsgf(!Template.IsEmpty(), TEXT("Need at least one fragment to create an Archetype")))
 	{

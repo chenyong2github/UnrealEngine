@@ -167,6 +167,9 @@ private:
 	int32 TotalBytesPerEntity;
 	int32 EntityListOffsetWithinChunk;
 
+	// Arrays of names the archetype is referred as.
+	TArray<FName> DebugNames;
+	
 	friend FMassEntityQuery;
 	friend FMassArchetypeEntityCollection;
 	friend FMassDebugger;
@@ -259,6 +262,18 @@ public:
 
 	// Converts the list of fragments into a user-readable debug string
 	FString DebugGetDescription() const;
+
+	/** Adds new debug name associated with the archetype. */
+	void AddUniqueDebugName(const FName& Name) { DebugNames.AddUnique(Name); }
+	
+	/** @return array of debug names associated with this archetype. */
+	const TConstArrayView<FName> GetDebugNames() const { return DebugNames; }
+	
+	/** Copies debug names from another archetype data. */
+	void CopyDebugNamesFrom(const FMassArchetypeData& Other) { DebugNames = Other.DebugNames; }
+	
+	/** @return string of all debug names combined */
+	FString GetCombinedDebugNamesAsString() const;
 
 #if WITH_MASSENTITY_DEBUG
 	/**

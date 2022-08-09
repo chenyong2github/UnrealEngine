@@ -156,7 +156,7 @@ void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& 
 	// Sort anything there is to sort for later comparison purposes
 	OutTemplate.Sort();
 
-	const FMassArchetypeHandle ArchetypeHandle = EntitySys->CreateArchetype(OutTemplate.GetCompositionDescriptor(), OutTemplate.GetSharedFragmentValues());
+	const FMassArchetypeHandle ArchetypeHandle = EntitySys->CreateArchetype(OutTemplate.GetCompositionDescriptor(), OutTemplate.GetSharedFragmentValues(), FName(OutTemplate.GetTemplateName()));
 	OutTemplate.SetArchetype(ArchetypeHandle);
 }
 

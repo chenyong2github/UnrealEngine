@@ -268,6 +268,12 @@ void FMassDebugger::GetArchetypeEntityStats(const FMassArchetypeHandle& Archetyp
 	OutChunksCount = ArchetypeData.GetChunkCount();
 }
 
+const TConstArrayView<FName> FMassDebugger::GetArchetypeDebugNames(const FMassArchetypeHandle& ArchetypeHandle)
+{
+	const FMassArchetypeData& ArchetypeData = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ArchetypeHandle);
+	return ArchetypeData.GetDebugNames();
+}
+
 TConstArrayView<struct UMassCompositeProcessor::FDependencyNode> FMassDebugger::GetProcessingGraph(const UMassCompositeProcessor& GraphOwner)
 {
 	return GraphOwner.ProcessingFlatGraph;
