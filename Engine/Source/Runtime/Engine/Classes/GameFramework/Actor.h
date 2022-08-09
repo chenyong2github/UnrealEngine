@@ -13,7 +13,7 @@
 #include "Engine/EngineTypes.h"
 #include "Engine/EngineBaseTypes.h"
 #include "PropertyPairsMap.h"
-#include "ComponentInstanceDataCache.h"
+#include "ActorTransactionAnnotation.h"
 #include "Components/ChildActorComponent.h"
 #include "RenderCommandFence.h"
 #include "Engine/Level.h"
@@ -22,7 +22,6 @@
 #include "Engine/ReplicatedState.h"
 
 #if WITH_EDITOR
-#include "Misc/ITransactionObjectAnnotation.h"
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "Folder.h"
 #endif
@@ -42,6 +41,8 @@ class UPrimitiveComponent;
 struct FAttachedActorInfo;
 struct FNetViewer;
 struct FNetworkObjectInfo;
+class FActorTransactionAnnotation;
+class FComponentInstanceDataCache;
 class UDEPRECATED_DataLayer;
 class UDataLayerAsset;
 class UDataLayerInstance;
@@ -2060,74 +2061,10 @@ public:
 	virtual bool SupportsExternalPackaging() const;
 #endif
 
-	/** Internal struct used to store information about an actor's components during reconstruction */
-	struct FActorRootComponentReconstructionData
-	{
-		/** Struct to store info about attached actors */
-		struct FAttachedActorInfo
-		{
-			TWeakObjectPtr<AActor> Actor;
-			TWeakObjectPtr<USceneComponent> AttachParent;
-			FName AttachParentName;
-			FName SocketName;
-			FTransform RelativeTransform;
-
-			friend FArchive& operator<<(FArchive& Ar, FAttachedActorInfo& ActorInfo);
-		};
-
-		/** The RootComponent's transform */
-		FTransform Transform;
-
-		/** The RootComponent's relative rotation cache (enforces using the same rotator) */
-		FRotationConversionCache TransformRotationCache;
-
-		/** The Actor the RootComponent is attached to */
-		FAttachedActorInfo AttachedParentInfo;
-
-		/** Actors that are attached to this RootComponent */
-		TArray<FAttachedActorInfo> AttachedToInfo;
-
-		friend FArchive& operator<<(FArchive& Ar, FActorRootComponentReconstructionData& RootComponentData);
-	};
-
-	struct FActorTransactionAnnotationData
-	{
-		TWeakObjectPtr<const AActor> Actor;
-		FComponentInstanceDataCache ComponentInstanceData;
-
-		bool bRootComponentDataCached;
-		FActorRootComponentReconstructionData RootComponentData;
-
-		friend ENGINE_API FArchive& operator<<(FArchive& Ar, FActorTransactionAnnotationData& ActorTransactionAnnotationData);
-	};
+	using FActorTransactionAnnotationData = FActorTransactionAnnotationData;
+	using FActorRootComponentReconstructionData = FActorRootComponentReconstructionData;
 
 #if WITH_EDITOR
-	/** Internal struct to track currently active transactions */
-	class FActorTransactionAnnotation : public ITransactionObjectAnnotation
-	{
-	public:
-		/** Create an empty instance */
-		static TSharedRef<FActorTransactionAnnotation> Create();
-
-		/** Create an instance from the given actor, optionally caching root component data */
-		static TSharedRef<FActorTransactionAnnotation> Create(const AActor* InActor, const bool InCacheRootComponentData = true);
-
-		/** Create an instance from the given actor if required (UActorTransactionAnnotation::HasInstanceData would return true), optionally caching root component data */
-		static TSharedPtr<FActorTransactionAnnotation> CreateIfRequired(const AActor* InActor, const bool InCacheRootComponentData = true);
-
-		//~ ITransactionObjectAnnotation interface
-		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-		virtual void Serialize(FArchive& Ar) override;
-
-		bool HasInstanceData() const;
-
-		FActorTransactionAnnotationData ActorTransactionAnnotationData;
-
-	private:
-		FActorTransactionAnnotation();
-		FActorTransactionAnnotation(const AActor* InActor, FComponentInstanceDataCache&& InComponentInstanceData, const bool InCacheRootComponentData = true);
-	};
-
 	/** Cached pointer to the transaction annotation data from PostEditUndo to be used in the next RerunConstructionScript */
 	TSharedPtr<FActorTransactionAnnotation> CurrentTransactionAnnotation;
 

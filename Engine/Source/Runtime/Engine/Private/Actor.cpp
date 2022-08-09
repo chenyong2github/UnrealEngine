@@ -2,6 +2,7 @@
 
 #include "GameFramework/Actor.h"
 
+#include "ActorTransactionAnnotation.h"
 #include "EngineDefines.h"
 #include "EngineStats.h"
 #include "EngineGlobals.h"
@@ -5941,7 +5942,7 @@ void AActor::SetInstigator(APawn* InInstigator)
 TFunction<bool(const AActor*)> GIsActorSelectedInEditor;
 #endif
 
-FArchive& operator<<(FArchive& Ar, AActor::FActorRootComponentReconstructionData::FAttachedActorInfo& ActorInfo)
+FArchive& operator<<(FArchive& Ar, FActorRootComponentReconstructionData::FAttachedActorInfo& ActorInfo)
 {
 	enum class EVersion : uint8
 	{
@@ -5969,7 +5970,7 @@ FArchive& operator<<(FArchive& Ar, AActor::FActorRootComponentReconstructionData
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, AActor::FActorRootComponentReconstructionData& RootComponentData)
+FArchive& operator<<(FArchive& Ar, FActorRootComponentReconstructionData& RootComponentData)
 {
 	enum class EVersion : uint8
 	{
@@ -6009,7 +6010,7 @@ FArchive& operator<<(FArchive& Ar, AActor::FActorRootComponentReconstructionData
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, AActor::FActorTransactionAnnotationData& ActorTransactionAnnotationData)
+FArchive& operator<<(FArchive& Ar, FActorTransactionAnnotationData& ActorTransactionAnnotationData)
 {
 	enum class EVersion : uint8
 	{

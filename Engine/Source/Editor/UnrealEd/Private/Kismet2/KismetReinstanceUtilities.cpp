@@ -8,6 +8,7 @@
 #include "UObject/Package.h"
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
+#include "ActorTransactionAnnotation.h"
 #include "Engine/World.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/ChildActorComponent.h"
@@ -1191,7 +1192,7 @@ struct FActorReplacementHelper
 		, TargetWorldTransform(FTransform::Identity)
 		, AttachmentData( MoveTemp(InAttachmentData) )
 	{
-		CachedActorData = StaticCastSharedPtr<AActor::FActorTransactionAnnotation>(OldActor->FindOrCreateTransactionAnnotation());
+		CachedActorData = StaticCastSharedPtr<FActorTransactionAnnotation>(OldActor->FindOrCreateTransactionAnnotation());
 		TArray<AActor*> AttachedActors;
 		OldActor->GetAttachedActors(AttachedActors);
 
@@ -1256,7 +1257,7 @@ private:
 	FActorAttachmentData AttachmentData;
 
 	/** Holds actor component data, etc. that we use to apply */
-	TSharedPtr<AActor::FActorTransactionAnnotation> CachedActorData;
+	TSharedPtr<FActorTransactionAnnotation> CachedActorData;
 
 	TMap<FName, UActorComponent*> OldActorComponentNameMap;
 };

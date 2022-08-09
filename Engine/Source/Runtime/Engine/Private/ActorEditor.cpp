@@ -30,6 +30,7 @@
 
 #include "Editor.h"
 #include "Misc/TransactionObjectEvent.h"
+#include "ActorTransactionAnnotation.h"
 #include "Engine/LevelStreaming.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
@@ -350,17 +351,17 @@ void AActor::DebugShowOneComponentHierarchy( USceneComponent* SceneComp, int32& 
 	}
 }
 
-TSharedRef<AActor::FActorTransactionAnnotation> AActor::FActorTransactionAnnotation::Create()
+TSharedRef<FActorTransactionAnnotation> FActorTransactionAnnotation::Create()
 {
 	return MakeShareable(new FActorTransactionAnnotation());
 }
 
-TSharedRef<AActor::FActorTransactionAnnotation> AActor::FActorTransactionAnnotation::Create(const AActor* InActor, const bool InCacheRootComponentData)
+TSharedRef<FActorTransactionAnnotation> FActorTransactionAnnotation::Create(const AActor* InActor, const bool InCacheRootComponentData)
 {
 	return MakeShareable(new FActorTransactionAnnotation(InActor, FComponentInstanceDataCache(InActor), InCacheRootComponentData));
 }
 
-TSharedPtr<AActor::FActorTransactionAnnotation> AActor::FActorTransactionAnnotation::CreateIfRequired(const AActor* InActor, const bool InCacheRootComponentData)
+TSharedPtr<FActorTransactionAnnotation> FActorTransactionAnnotation::CreateIfRequired(const AActor* InActor, const bool InCacheRootComponentData)
 {
 	// Don't create a transaction annotation for something that has no instance data, or a root component that's created by a construction script
 	FComponentInstanceDataCache TempComponentInstanceData(InActor);
@@ -376,12 +377,12 @@ TSharedPtr<AActor::FActorTransactionAnnotation> AActor::FActorTransactionAnnotat
 	return MakeShareable(new FActorTransactionAnnotation(InActor, MoveTemp(TempComponentInstanceData), InCacheRootComponentData));
 }
 
-AActor::FActorTransactionAnnotation::FActorTransactionAnnotation()
+FActorTransactionAnnotation::FActorTransactionAnnotation()
 {
 	ActorTransactionAnnotationData.bRootComponentDataCached = false;
 }
 
-AActor::FActorTransactionAnnotation::FActorTransactionAnnotation(const AActor* InActor, FComponentInstanceDataCache&& InComponentInstanceData, const bool InCacheRootComponentData)
+FActorTransactionAnnotation::FActorTransactionAnnotation(const AActor* InActor, FComponentInstanceDataCache&& InComponentInstanceData, const bool InCacheRootComponentData)
 {
 	ActorTransactionAnnotationData.ComponentInstanceData = MoveTemp(InComponentInstanceData);
 	ActorTransactionAnnotationData.Actor = InActor;
@@ -424,17 +425,17 @@ AActor::FActorTransactionAnnotation::FActorTransactionAnnotation(const AActor* I
 	}
 }
 
-void AActor::FActorTransactionAnnotation::AddReferencedObjects(FReferenceCollector& Collector)
+void FActorTransactionAnnotation::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	ActorTransactionAnnotationData.ComponentInstanceData.AddReferencedObjects(Collector);
 }
 
-void AActor::FActorTransactionAnnotation::Serialize(FArchive& Ar)
+void FActorTransactionAnnotation::Serialize(FArchive& Ar)
 {
 	Ar << ActorTransactionAnnotationData;
 }
 
-bool AActor::FActorTransactionAnnotation::HasInstanceData() const
+bool FActorTransactionAnnotation::HasInstanceData() const
 {
 	return (ActorTransactionAnnotationData.bRootComponentDataCached || ActorTransactionAnnotationData.ComponentInstanceData.HasInstanceData());
 }
