@@ -87,26 +87,45 @@ void UE::RenderPages::Private::SRenderPagesPageViewerPreview::Construct(const FA
 			.IsFocusable(false)
 			.OnClicked(this, &SRenderPagesPageViewerPreview::OnClicked)
 			[
-				SNew(SScaleBox)
+				SNew(SOverlay)
+
+				// waiting text
+				+ SOverlay::Slot()
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
-				.Stretch(EStretch::ScaleToFit)
-				.StretchDirection(EStretchDirection::Both)
 				[
-					SNew(SOverlay)
+					SNew(STextBlock)
+					.Text(FText::FromString(IsPreviewWidget() ? TEXT("Waiting for renderer...") : TEXT("Click here to start rendering")))
+				]
 
-					+ SOverlay::Slot()
-					.HAlign(HAlign_Fill)
-					.VAlign(VAlign_Fill)
+				// image & background
+				+ SOverlay::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				[
+					SNew(SScaleBox)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Stretch(EStretch::ScaleToFit)
+					.StretchDirection(EStretchDirection::Both)
 					[
-						ImageBackground.ToSharedRef()
-					]
+						SNew(SOverlay)
 
-					+ SOverlay::Slot()
-					.HAlign(HAlign_Fill)
-					.VAlign(VAlign_Fill)
-					[
-						Image.ToSharedRef()
+						// background
+						+ SOverlay::Slot()
+						.HAlign(HAlign_Fill)
+						.VAlign(VAlign_Fill)
+						[
+							ImageBackground.ToSharedRef()
+						]
+
+						// image
+						+ SOverlay::Slot()
+						.HAlign(HAlign_Fill)
+						.VAlign(VAlign_Fill)
+						[
+							Image.ToSharedRef()
+						]
 					]
 				]
 			]

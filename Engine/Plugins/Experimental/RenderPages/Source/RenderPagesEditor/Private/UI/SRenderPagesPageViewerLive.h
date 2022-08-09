@@ -52,10 +52,12 @@ namespace UE::RenderPages::Private
 		SLATE_END_ARGS()
 
 		virtual void Tick(const FGeometry&, const double, const float) override;
-		void Construct(const FArguments& InArgs);
+		void Construct(const FArguments& InArgs, TSharedPtr<IRenderPageCollectionEditor> InBlueprintEditor);
 		virtual ~SRenderPagesEditorViewport() override;
 
-		bool ShowSequenceFrame(URenderPage* InPage, URenderPageCollection* InPageCollection, ULevelSequence* InSequence, const float InTime);
+		void Render();
+		bool ShowSequenceFrame(URenderPage* InPage, ULevelSequence* InSequence, const float InTime);
+		bool HasRenderedLastAttempt() const { return bRenderedLastAttempt; }
 
 	protected:
 		//~ Begin SEditorViewport Interface
@@ -68,6 +70,9 @@ namespace UE::RenderPages::Private
 		void DestroySequencePlayer();
 
 	private:
+		/** A reference to the BP Editor that owns this collection. */
+		TWeakPtr<IRenderPageCollectionEditor> BlueprintEditorWeakPtr;
+
 		/** The viewport client. */
 		TSharedPtr<FRenderPagesEditorViewportClient> ViewportClient;
 
@@ -87,16 +92,17 @@ namespace UE::RenderPages::Private
 		UPROPERTY()
 		TObjectPtr<ULevelSequence> LevelSequence;
 
-		/** The time of the currently playing sequence. */
-		float LevelSequenceTime;
-
 		/** The page that's currently being shown. */
 		UPROPERTY()
 		TObjectPtr<URenderPage> Page;
 
-		/** The collection of the page that's currently being shown. */
+		/** The time of the currently playing sequence. */
 		UPROPERTY()
-		TObjectPtr<URenderPageCollection> PageCollection;
+		float LevelSequenceTime;
+
+		/** Whether it rendered or not during the last tick. */
+		UPROPERTY()
+		bool bRenderedLastAttempt;
 	};
 
 
@@ -126,10 +132,14 @@ namespace UE::RenderPages::Private
 		/** A reference to the job that's currently rendering. */
 		TWeakObjectPtr<URenderPage> SelectedPageWeakPtr;
 
-		/** The scene viewport widget */
+		/** The viewport widget. */
 		TSharedPtr<SRenderPagesEditorViewport> ViewportWidget;
 
 		/** The widget that allows the user to select what frame they'd like to see. */
 		TSharedPtr<SRenderPagesPageViewerFrameSlider> FrameSlider;
+
+		/** Whether the viewport widget (and waiting text etc) should be visible or not. */
+		UPROPERTY()
+		bool bViewportWidgetVisible;
 	};
 }

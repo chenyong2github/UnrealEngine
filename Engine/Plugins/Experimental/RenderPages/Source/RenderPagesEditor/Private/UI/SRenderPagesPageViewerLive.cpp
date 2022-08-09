@@ -31,80 +31,20 @@ UE::RenderPages::Private::FRenderPagesEditorViewportClient::FRenderPagesEditorVi
 
 void UE::RenderPages::Private::SRenderPagesEditorViewport::Tick(const FGeometry&, const double, const float)
 {
-	if (!ViewportClient.IsValid())
-	{
-		return;
-	}
-
-	ULevelSequencePlayer* SequencePlayer = GetSequencePlayer();
-	if (IsValid(SequencePlayer))
-	{
-		SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LevelSequenceTime, EUpdatePositionMethod::Play));// execute this every tick, in case any sequencer values get overwritten (by remote control props for example)
-	}
-
-	if (IsValid(Page) && IsValid(PageCollection))
-	{
-		PageCollection->PreRender(Page);
-	}
-
-	bool bHasSetCameraData = false;
-	if (IsValid(SequencePlayer))
-	{
-		if (UCameraComponent* Camera = SequencePlayer->GetActiveCameraComponent(); IsValid(Camera))
-		{
-			ViewportClient->SetViewLocation(Camera->GetComponentLocation());
-			ViewportClient->SetViewRotation(Camera->GetComponentRotation());
-			ViewportClient->ViewFOV = Camera->FieldOfView;
-			bHasSetCameraData = true;
-		}
-	}
-	if (!bHasSetCameraData)
-	{
-		if (UWorld* World = GetWorld(); IsValid(World))
-		{
-			if (APlayerController* LocalPlayerController = World->GetFirstPlayerController(); IsValid(LocalPlayerController))
-			{
-				FVector ViewLocation;
-				FRotator ViewRotation;
-				LocalPlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
-				ViewportClient->SetViewLocation(ViewLocation);
-				ViewportClient->SetViewRotation(ViewRotation);
-				ViewportClient->ViewFOV = 90;
-			}
-			else
-			{
-				for (TActorIterator<APlayerStart> It(World); It; ++It)
-				{
-					if (APlayerStart* PlayerStart = *It; IsValid(PlayerStart))
-					{
-						ViewportClient->SetViewLocation(PlayerStart->GetActorLocation());
-						ViewportClient->SetViewRotation(PlayerStart->GetActorRotation());
-						ViewportClient->ViewFOV = 90;
-						break;
-					}
-				}
-			}
-		}
-	}
-
-	ViewportClient->Viewport->Draw();
-
-	if (IsValid(Page) && IsValid(PageCollection))
-	{
-		PageCollection->PostRender(Page);
-	}
+	Render();
 }
 
-void UE::RenderPages::Private::SRenderPagesEditorViewport::Construct(const FArguments& InArgs)
+void UE::RenderPages::Private::SRenderPagesEditorViewport::Construct(const FArguments& InArgs, TSharedPtr<IRenderPageCollectionEditor> InBlueprintEditor)
 {
+	BlueprintEditorWeakPtr = InBlueprintEditor;
 	ViewportClient = MakeShareable(new FRenderPagesEditorViewportClient(nullptr, SharedThis(this)));
 	LevelSequencePlayerWorld = nullptr;
 	LevelSequencePlayerActor = nullptr;
 	LevelSequencePlayer = nullptr;
 	LevelSequence = nullptr;
-	LevelSequenceTime = 0.0f;
 	Page = nullptr;
-	PageCollection = nullptr;
+	LevelSequenceTime = 0.0f;
+	bRenderedLastAttempt = false;
 
 	SEditorViewport::Construct(SEditorViewport::FArguments());
 }
@@ -115,10 +55,94 @@ UE::RenderPages::Private::SRenderPagesEditorViewport::~SRenderPagesEditorViewpor
 	ViewportClient.Reset();
 }
 
-bool UE::RenderPages::Private::SRenderPagesEditorViewport::ShowSequenceFrame(URenderPage* InPage, URenderPageCollection* InPageCollection, ULevelSequence* InSequence, const float InTime)
+void UE::RenderPages::Private::SRenderPagesEditorViewport::Render()
+{
+	bRenderedLastAttempt = false;
+
+	if (!ViewportClient.IsValid())
+	{
+		return;
+	}
+
+	if (const TSharedPtr<IRenderPageCollectionEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
+	{
+		if (BlueprintEditor->IsCurrentlyRenderingOrPlaying())
+		{
+			return;
+		}
+
+		if (URenderPageCollection* PageCollection = BlueprintEditor->GetInstance(); IsValid(PageCollection))
+		{
+			if (!PageCollection->HasRenderPage(Page))
+			{
+				return;
+			}
+			bRenderedLastAttempt = true;
+
+			ULevelSequencePlayer* SequencePlayer = GetSequencePlayer();
+			if (IsValid(SequencePlayer))
+			{
+				SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LevelSequenceTime, EUpdatePositionMethod::Play));// execute this every tick, in case any sequencer values get overwritten (by remote control props for example)
+			}
+
+			if (IsValid(Page) && IsValid(PageCollection))
+			{
+				PageCollection->PreRender(Page);
+			}
+
+			bool bHasSetCameraData = false;
+			if (IsValid(SequencePlayer))
+			{
+				if (UCameraComponent* Camera = SequencePlayer->GetActiveCameraComponent(); IsValid(Camera))
+				{
+					ViewportClient->SetViewLocation(Camera->GetComponentLocation());
+					ViewportClient->SetViewRotation(Camera->GetComponentRotation());
+					ViewportClient->ViewFOV = Camera->FieldOfView;
+					bHasSetCameraData = true;
+				}
+			}
+			if (!bHasSetCameraData)
+			{
+				if (UWorld* World = GetWorld(); IsValid(World))
+				{
+					if (APlayerController* LocalPlayerController = World->GetFirstPlayerController(); IsValid(LocalPlayerController))
+					{
+						FVector ViewLocation;
+						FRotator ViewRotation;
+						LocalPlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
+						ViewportClient->SetViewLocation(ViewLocation);
+						ViewportClient->SetViewRotation(ViewRotation);
+						ViewportClient->ViewFOV = 90;
+					}
+					else
+					{
+						for (TActorIterator<APlayerStart> It(World); It; ++It)
+						{
+							if (APlayerStart* PlayerStart = *It; IsValid(PlayerStart))
+							{
+								ViewportClient->SetViewLocation(PlayerStart->GetActorLocation());
+								ViewportClient->SetViewRotation(PlayerStart->GetActorRotation());
+								ViewportClient->ViewFOV = 90;
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			ViewportClient->Viewport->Draw();
+
+			if (IsValid(Page) && IsValid(PageCollection))
+			{
+				PageCollection->PostRender(Page);
+			}
+		}
+	}
+}
+
+bool UE::RenderPages::Private::SRenderPagesEditorViewport::ShowSequenceFrame(URenderPage* InPage, ULevelSequence* InSequence, const float InTime)
 {
 	Page = InPage;
-	PageCollection = InPageCollection;
 	LevelSequenceTime = InTime;
 	if (!IsValid(InSequence))
 	{
@@ -130,10 +154,6 @@ bool UE::RenderPages::Private::SRenderPagesEditorViewport::ShowSequenceFrame(URe
 	{
 		LevelSequence = InSequence;
 		DestroySequencePlayer();
-	}
-	if (ULevelSequencePlayer* SequencePlayer = GetSequencePlayer(); IsValid(SequencePlayer))
-	{
-		SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LevelSequenceTime, EUpdatePositionMethod::Play));
 	}
 	return true;
 }
@@ -169,7 +189,6 @@ ULevelSequencePlayer* UE::RenderPages::Private::SRenderPagesEditorViewport::GetS
 			{
 				Player->Initialize(LevelSequence, World->PersistentLevel, PlaybackSettings, CameraSettings);
 				Player->State.AssignSequence(MovieSceneSequenceID::Root, *LevelSequence, *Player);
-				Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LevelSequence->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue().Value, EUpdatePositionMethod::Play));
 
 				LevelSequencePlayerWorld = World;
 				LevelSequencePlayerActor = PlayerActor;
@@ -207,15 +226,16 @@ void UE::RenderPages::Private::SRenderPagesPageViewerLive::Construct(const FArgu
 {
 	BlueprintEditorWeakPtr = InBlueprintEditor;
 	SelectedPageWeakPtr = nullptr;
+	bViewportWidgetVisible = false;
 
-	SAssignNew(ViewportWidget, SRenderPagesEditorViewport)
-		.Visibility(EVisibility::Hidden);
+	SAssignNew(ViewportWidget, SRenderPagesEditorViewport, InBlueprintEditor);
 
 	SAssignNew(FrameSlider, SRenderPagesPageViewerFrameSlider)
 		.Visibility(EVisibility::Hidden)
 		.OnValueChanged(this, &SRenderPagesPageViewerLive::FrameSliderValueChanged);
 
 	SelectedPageChanged();
+	ViewportWidget->Render();// prevents the waiting text from showing up for 1 frame when switching from any other viewer mode to the live viewer mode
 
 	InBlueprintEditor->OnRenderPagesChanged().AddSP(this, &SRenderPagesPageViewerLive::PagesDataChanged);
 	InBlueprintEditor->OnRenderPagesSelectionChanged().AddSP(this, &SRenderPagesPageViewerLive::SelectedPageChanged);
@@ -225,24 +245,61 @@ void UE::RenderPages::Private::SRenderPagesPageViewerLive::Construct(const FArgu
 	[
 		SNew(SVerticalBox)
 
-		// viewport
+		// viewport & waiting text
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		.Padding(0.0f)
 		[
-			SNew(SScaleBox)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.Stretch(EStretch::ScaleToFit)
-			.StretchDirection(EStretchDirection::Both)
+			SNew(SOverlay)
+			.Visibility_Lambda([this]() -> EVisibility { return (bViewportWidgetVisible ? EVisibility::SelfHitTestInvisible : EVisibility::Hidden); })
+
+			// viewport
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
 			[
-				SNew(SBox)
+				SNew(SScaleBox)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.Stretch(EStretch::ScaleToFit)
+				.StretchDirection(EStretchDirection::Both)
+				[
+					SNew(SBox)
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
+					.WidthOverride(1.0f)
+					.HeightOverride_Lambda([this]() -> float { return 1.0 / (SelectedPageWeakPtr.IsValid() ? SelectedPageWeakPtr->GetOutputAspectRatio() : 1.0); })
+					[
+						ViewportWidget.ToSharedRef()
+					]
+				]
+			]
+
+			// waiting text
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			[
+				SNew(SOverlay)
+				.Visibility_Lambda([this]() -> EVisibility { return (ViewportWidget->HasRenderedLastAttempt() ? EVisibility::Hidden : EVisibility::HitTestInvisible); })
+
+				// image to hide the viewport
+				+ SOverlay::Slot()
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
-				.WidthOverride(1.0f)
-				.HeightOverride_Lambda([this]() -> float { return 1.0 / (SelectedPageWeakPtr.IsValid() ? SelectedPageWeakPtr->GetOutputAspectRatio() : 1.0); })
 				[
-					ViewportWidget.ToSharedRef()
+					SNew(SImage)
+					.Image(FAppStyle::GetBrush("Brushes.White"))
+					.ColorAndOpacity(FLinearColor(0.0185, 0.0185, 0.0185, 1))
+				]
+
+				// text
+				+ SOverlay::Slot()
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(TEXT("Waiting for renderer...")))
 				]
 			]
 		]
@@ -306,37 +363,32 @@ void UE::RenderPages::Private::SRenderPagesPageViewerLive::FrameSliderValueChang
 
 void UE::RenderPages::Private::SRenderPagesPageViewerLive::UpdateViewport()
 {
-	if (!ViewportWidget.IsValid())
+	bViewportWidgetVisible = false;
+
+	if (!ViewportWidget.IsValid() || !FrameSlider.IsValid())
 	{
 		return;
 	}
-	ViewportWidget->SetVisibility(EVisibility::Hidden);
 
-	if (FrameSlider.IsValid())
+	if (URenderPage* SelectedPage = SelectedPageWeakPtr.Get(); IsValid(SelectedPage))
 	{
-		if (URenderPage* SelectedPage = SelectedPageWeakPtr.Get(); IsValid(SelectedPage))
+		if (ULevelSequence* Sequence = SelectedPage->GetSequence(); IsValid(Sequence))
 		{
-			if (ULevelSequence* Sequence = SelectedPage->GetSequence(); IsValid(Sequence))
+			if (const TSharedPtr<IRenderPageCollectionEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 			{
-				if (const TSharedPtr<IRenderPageCollectionEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
+				TOptional<double> StartTime = SelectedPage->GetStartTime();
+				TOptional<double> EndTime = SelectedPage->GetEndTime();
+				if (!StartTime.IsSet() || !EndTime.IsSet() || (StartTime.Get(0) > EndTime.Get(0)))
 				{
-					if (URenderPageCollection* PageCollection = BlueprintEditor->GetInstance(); IsValid(PageCollection))
-					{
-						TOptional<double> StartTime = SelectedPage->GetStartTime();
-						TOptional<double> EndTime = SelectedPage->GetEndTime();
-						if (!StartTime.IsSet() || !EndTime.IsSet() || (StartTime.Get(0) > EndTime.Get(0)))
-						{
-							return;
-						}
-
-						if (!ViewportWidget->ShowSequenceFrame(SelectedPage, PageCollection, Sequence, FMath::Lerp(StartTime.Get(0), EndTime.Get(0), FrameSlider->GetValue())))
-						{
-							return;
-						}
-
-						ViewportWidget->SetVisibility(EVisibility::Visible);
-					}
+					return;
 				}
+
+				if (!ViewportWidget->ShowSequenceFrame(SelectedPage, Sequence, FMath::Lerp(StartTime.Get(0), EndTime.Get(0), FrameSlider->GetValue())))
+				{
+					return;
+				}
+
+				bViewportWidgetVisible = true;
 			}
 		}
 	}

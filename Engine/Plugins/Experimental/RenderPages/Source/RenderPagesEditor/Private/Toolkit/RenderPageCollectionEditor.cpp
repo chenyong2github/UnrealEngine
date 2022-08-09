@@ -95,14 +95,12 @@ UE::RenderPages::Private::FRenderPageCollectionEditor::FRenderPageCollectionEdit
 UE::RenderPages::Private::FRenderPageCollectionEditor::~FRenderPageCollectionEditor()
 {
 	URenderPagesBlueprint* RenderPagesBlueprint = FRenderPageCollectionEditor::GetRenderPagesBlueprint();
-
-	RenderPagesEditorClosedDelegate.Broadcast(this, RenderPagesBlueprint);
-
-	if (RenderPagesBlueprint)
+	if (IsValid(RenderPagesBlueprint))
 	{
-		RenderPagesBlueprint->SetObjectBeingDebugged(nullptr);
-		RenderPagesBlueprint = nullptr;
+		RenderPagesEditorClosedDelegate.Broadcast(this, RenderPagesBlueprint);
 	}
+	RenderPagesBlueprint = nullptr;
+
 	DestroyInstance();
 }
 
