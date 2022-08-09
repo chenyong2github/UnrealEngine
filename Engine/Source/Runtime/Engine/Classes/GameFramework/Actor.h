@@ -2457,6 +2457,9 @@ public:
 	 */
 	virtual bool GetReferencedContentObjects( TArray<UObject*>& Objects ) const;
 
+	/** Similar to GetReferencedContentObjects, but for soft referenced objects */
+	virtual bool GetSoftReferencedContentObjects(TArray<FSoftObjectPath>& SoftObjects) const;
+
 	/** Returns NumUncachedStaticLightingInteractions for this actor */
 	const int32 GetNumUncachedStaticLightingInteractions() const;
 

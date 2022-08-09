@@ -1070,14 +1070,14 @@ UActorFolder* AActor::GetActorFolder(bool bSkipDeleted) const
 	UActorFolder* ActorFolder = nullptr;
 	if (ULevel* Level = GetLevel())
 	{
-		if (FolderGuid.IsValid())
-		{
+	if (FolderGuid.IsValid())
+	{
 			ActorFolder = Level->GetActorFolder(FolderGuid, bSkipDeleted);
-		}
-		else if (!FolderPath.IsNone())
-		{
+	}
+	else if (!FolderPath.IsNone())
+	{
 			ActorFolder = Level->GetActorFolder(FolderPath);
-		}
+	}
 	}
 	return ActorFolder;
 }
@@ -1323,6 +1323,11 @@ bool AActor::GetReferencedContentObjects( TArray<UObject*>& Objects ) const
 		Objects.AddUnique(Blueprint);
 	}
 	return true;
+}
+
+bool AActor::GetSoftReferencedContentObjects(TArray<FSoftObjectPath>& SoftObjects) const
+{
+	return false;
 }
 
 EDataValidationResult AActor::IsDataValid(TArray<FText>& ValidationErrors)

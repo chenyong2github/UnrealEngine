@@ -2986,6 +2986,25 @@ void UEditorEngine::GetAssetsToSyncToContentBrowser(TArray<FAssetData>& Assets, 
 					{
 						Assets.Add(FAssetData(Object));
 					}
+
+					TArray<FSoftObjectPath> SoftObjects;
+					Actor->GetSoftReferencedContentObjects(SoftObjects);
+
+					if (SoftObjects.Num())
+					{
+						FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+						IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+						for (const FSoftObjectPath& SoftObject : SoftObjects)
+						{
+							FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(*SoftObject.ToString());
+
+							if (AssetData.IsValid())
+							{
+								Assets.Add(AssetData);
+							}
+						}
+					}
 				}
 			}
 		}
@@ -3072,6 +3091,16 @@ void UEditorEngine::GetReferencedAssetsForEditorSelection(TArray<UObject*>& Obje
 	}
 }
 
+void UEditorEngine::GetSoftReferencedAssetsForEditorSelection(TArray<FSoftObjectPath>& SoftObjects)
+{
+	for ( FSelectionIterator It( GetSelectedActorIterator() ) ; It ; ++It )
+	{
+		AActor* Actor = static_cast<AActor*>( *It );
+		checkSlow( Actor->IsA(AActor::StaticClass()) );
+
+		Actor->GetSoftReferencedContentObjects(SoftObjects);
+	}
+}
 
 void UEditorEngine::ToggleSelectedActorMovementLock()
 {

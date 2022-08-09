@@ -250,6 +250,16 @@ bool ALevelInstance::IsLockLocation() const
 	return Super::IsLockLocation() || LevelInstanceActorImpl.IsLockLocation();
 }
 
+bool ALevelInstance::GetSoftReferencedContentObjects(TArray<FSoftObjectPath>& SoftObjects) const
+{
+	if (WorldAsset.ToSoftObjectPath().IsValid())
+	{
+		SoftObjects.Add(WorldAsset.ToSoftObjectPath());
+		return true;
+	}
+	return false;
+}
+
 FBox ALevelInstance::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	FBox Box = Super::GetComponentsBoundingBox(bNonColliding, bIncludeFromChildActors);

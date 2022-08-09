@@ -2441,6 +2441,13 @@ public:
 	*/
 	void GetReferencedAssetsForEditorSelection(TArray<UObject*>& Objects, const bool bIgnoreOtherAssetsIfBPReferenced = false);
 
+	/**
+	* Queries for a list of assets that are soft referenced by the current editor selection (actors, surfaces, etc.)
+	*
+	* @param	SoftObjects							Array to be filled with asset objects referenced soft by the current editor selection
+	*/
+	void GetSoftReferencedAssetsForEditorSelection(TArray<FSoftObjectPath>& SoftObjects);
+
 	/** Returns a filter to restruct what assets show up in asset pickers based on what the selection is used for (i.e. what will reference the assets) */
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<IAssetReferenceFilter>, FOnMakeAssetReferenceFilter, const FAssetReferenceFilterContext& /*Context*/);
 	FOnMakeAssetReferenceFilter& OnMakeAssetReferenceFilter() { return OnMakeAssetReferenceFilterDelegate; }
