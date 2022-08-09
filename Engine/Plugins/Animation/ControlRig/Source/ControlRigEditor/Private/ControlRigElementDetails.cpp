@@ -648,7 +648,11 @@ void FRigBaseElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 FRigElementKey FRigBaseElementDetails::GetElementKey() const
 {
 	check(PerElementInfos.Num() == 1);
-	return PerElementInfos[0].GetElement()->GetKey();
+	if (FRigBaseElement* Element = PerElementInfos[0].GetElement())
+	{
+		return Element->GetKey();
+	}
+	return FRigElementKey();
 }
 
 FText FRigBaseElementDetails::GetName() const
