@@ -487,16 +487,21 @@ private:
 		const UE::Anim::FootPlacement::FEvaluationContext& Context,
 		const UE::Anim::FootPlacement::FLegRuntimeData::FInputPoseData& LegInputPose) const;
 
+	struct FPelvisOffsetRangeForLimb
+	{
+		float MaxExtension;
+		float MinExtension;
+		float DesiredExtension;
+	};
+
 	// Find the horizontal pelvis offset range for the foot to reach:
-	// OutPelvisOffsetRangeCS.GetLowerBoundValue() = Offset for Desired extension
-	// OutPelvisOffsetRangeCS.GetUperBoundValue() = Offset for Max extension
 	void FindPelvisOffsetRangeForLimb(
 		const UE::Anim::FootPlacement::FEvaluationContext& Context,
 		const UE::Anim::FootPlacement::FLegRuntimeData::FInputPoseData& LegInputPoseData,
 		const FVector& PlantTargetLocationCS,
 		const FTransform& PelvisTransformCS,
 		const float LimbLength,
-		FFloatRange& OutPelvisOffsetRangeCS) const;
+		FPelvisOffsetRangeForLimb& OutPelvisOffsetRangeCS) const;
 
 	// Adjust LastPlantTransformWS to current, to have the foot pivot around the ball instead of the ankle
 	FTransform GetFootPivotAroundBallWS(
@@ -549,4 +554,5 @@ private:
 #endif
 
 	bool bIsFirstUpdate = false;
+	FGraphTraversalCounter UpdateCounter;
 };
