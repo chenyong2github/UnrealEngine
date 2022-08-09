@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/ITransaction.h"
+#include "Misc/TransactionObjectEvent.h"
 
 /**
  * Interface for tools wanting to handle undo/redo operations

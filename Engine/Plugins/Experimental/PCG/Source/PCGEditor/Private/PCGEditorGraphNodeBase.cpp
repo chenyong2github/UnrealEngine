@@ -14,6 +14,7 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "GraphEditorActions.h"
 #include "GraphEditorSettings.h"
 #include "ToolMenu.h"

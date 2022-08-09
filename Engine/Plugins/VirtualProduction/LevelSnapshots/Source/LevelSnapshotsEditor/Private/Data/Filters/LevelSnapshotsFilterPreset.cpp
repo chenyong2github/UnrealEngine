@@ -4,7 +4,7 @@
 
 #include "Data/Filters/ConjunctionFilter.h"
 
-#include "Misc/ITransaction.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "ScopedTransaction.h"
 #include "UObject/UObjectGlobals.h"
 

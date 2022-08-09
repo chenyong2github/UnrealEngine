@@ -4,6 +4,7 @@
 #include "LevelSequence.h"
 #include "MovieScene.h"
 #include "MovieSceneToolsProjectSettings.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "UObject/Package.h"
 
 UTakePreset::UTakePreset(const FObjectInitializer& ObjInit)

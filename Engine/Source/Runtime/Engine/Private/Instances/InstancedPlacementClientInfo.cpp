@@ -3,6 +3,7 @@
 #include "Instances/InstancedPlacementClientInfo.h"
 
 #if WITH_EDITORONLY_DATA
+#include "Misc/ITransaction.h"
 #include "Instances/InstancedPlacementPartitionActor.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 

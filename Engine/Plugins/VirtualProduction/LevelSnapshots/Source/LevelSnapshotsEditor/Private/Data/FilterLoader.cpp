@@ -8,7 +8,7 @@
 #include "EditorDirectories.h"
 #include "FileHelpers.h"
 #include "Misc/Paths.h"
-#include "Misc/ITransaction.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "ScopedTransaction.h"
 
 void UFilterLoader::OverwriteExisting()

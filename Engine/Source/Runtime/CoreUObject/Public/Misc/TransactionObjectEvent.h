@@ -5,6 +5,8 @@
 #include "CoreTypes.h"
 #include "Misc/Guid.h"
 
+class ITransactionObjectAnnotation;
+
 /** Delta-change information for an object that was transacted */
 struct FTransactionObjectDeltaChange
 {

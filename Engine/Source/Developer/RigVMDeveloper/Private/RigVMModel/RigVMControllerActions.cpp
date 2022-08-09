@@ -4,7 +4,7 @@
 #include "UObject/Package.h"
 
 #if WITH_EDITOR
-#include "Misc/ITransaction.h"
+#include "Misc/TransactionObjectEvent.h"
 #endif
 
 UScriptStruct* FRigVMActionKey::GetScriptStruct() const

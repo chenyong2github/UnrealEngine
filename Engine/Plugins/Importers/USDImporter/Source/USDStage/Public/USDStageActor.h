@@ -4,6 +4,7 @@
 
 #include "GameFramework/Actor.h"
 #include "Misc/SecureHash.h"
+#include "Misc/ITransaction.h"
 #include "Templates/Function.h"
 
 #include "USDInfoCache.h"
