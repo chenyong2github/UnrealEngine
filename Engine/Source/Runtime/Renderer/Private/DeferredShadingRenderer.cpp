@@ -394,6 +394,19 @@ FDeferredShadingSceneRenderer::FDeferredShadingSceneRenderer(const FSceneViewFam
 #endif
 
 	ShadowSceneRenderer = MakeUnique<FShadowSceneRenderer>(*this);
+
+#if RHI_RAYTRACING
+	bAnyRayTracingPassEnabled = false;
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		bool bHasRayTracing = AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
+
+		Views[ViewIndex].bHasAnyRayTracingPass = bHasRayTracing;
+
+		bAnyRayTracingPassEnabled |= bHasRayTracing;
+	}
+	bShouldUpdateRayTracingScene = bAnyRayTracingPassEnabled;
+#endif  // RHI_RAYTRACING
 }
 
 /** 
