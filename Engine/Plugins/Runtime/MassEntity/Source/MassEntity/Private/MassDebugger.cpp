@@ -200,6 +200,8 @@ namespace UE::Mass::Debug
 //----------------------------------------------------------------------//
 // FMassDebugger
 //----------------------------------------------------------------------//
+FMassDebugger::FOnEntitySelected FMassDebugger::OnEntitySelectedDelegate;
+
 TConstArrayView<FMassEntityQuery*> FMassDebugger::GetProcessorQueries(const UMassProcessor& Processor)
 {
 	return Processor.OwnedQueries;
@@ -420,6 +422,11 @@ void FMassDebugger::OutputEntityDescription(FOutputDevice& Ar, const UMassEntity
 	{
 		Archetype->DebugPrintEntity(Entity, Ar, InPrefix);
 	}
+}
+
+void FMassDebugger::SelectEntity(const UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle EntityHandle)
+{
+	OnEntitySelectedDelegate.Broadcast(EntitySubsystem, EntityHandle);
 }
 
 #endif // WITH_MASSENTITY_DEBUG

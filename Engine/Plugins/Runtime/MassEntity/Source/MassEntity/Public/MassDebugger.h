@@ -41,6 +41,8 @@ MASSENTITY_API extern void DebugOutputDescription(TConstArrayView<UMassProcessor
 
 struct MASSENTITY_API FMassDebugger
 {
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEntitySelected, const UMassEntitySubsystem&, const FMassEntityHandle);
+
 	static TConstArrayView<FMassEntityQuery*> GetProcessorQueries(const UMassProcessor& Processor);
 	/** fetches all queries registered for given Processor. Note that in order to get up to date information
 	 *  FMassEntityQuery::CacheArchetypes will be called on each query */
@@ -65,6 +67,10 @@ struct MASSENTITY_API FMassDebugger
 	static void OutputArchetypeDescription(FOutputDevice& Ar, const FMassArchetypeHandle& Archetype);
 	static void OutputEntityDescription(FOutputDevice& Ar, const UMassEntitySubsystem& EntitySubsystem, const int32 EntityIndex, const TCHAR* InPrefix = TEXT(""));
 	static void OutputEntityDescription(FOutputDevice& Ar, const UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle Entity, const TCHAR* InPrefix = TEXT(""));
+
+	static void SelectEntity(const UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle EntityHandle);
+
+	static FOnEntitySelected OnEntitySelectedDelegate;
 };
 
 #else

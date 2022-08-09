@@ -9,6 +9,7 @@
 
 class UMassDebugVisualizationComponent;
 class AMassDebugVisualizer;
+class UMassEntitySubsystem;
 
 UCLASS()
 class MASSGAMEPLAYDEBUG_API UMassDebuggerSubsystem : public UWorldSubsystem
@@ -46,10 +47,12 @@ public:
 protected:
 	// USubsystem BEGIN
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 	// USubsystem END
 	
 	void OnProcessingPhaseStarted(const float DeltaSeconds);
 	void PreTickProcessors();
+	void OnEntitySelected(const UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle EntityHandle);
 
 protected:
 	bool bCollectingData = false;
@@ -65,6 +68,8 @@ protected:
 
 	UPROPERTY(Transient)
 	AMassDebugVisualizer* DebugVisualizer;
+
+	FDelegateHandle OnEntitySelectedHandle;
 };
 
 

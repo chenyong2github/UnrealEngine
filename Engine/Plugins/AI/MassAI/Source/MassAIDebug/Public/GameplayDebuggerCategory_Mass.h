@@ -9,6 +9,7 @@
 
 #include "GameplayDebuggerCategory.h"
 
+class UMassEntitySubsystem;
 class UMassDebuggerSubsystem;
 class APlayerController;
 class AActor;
@@ -24,7 +25,7 @@ protected:
 	virtual void CollectData(APlayerController* OwnerPC, AActor* DebugActor) override;
 	virtual void DrawData(APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext) override;
 	
-	void SetCachedEntity(FMassEntityHandle BestEntity, UMassDebuggerSubsystem& Debugger);
+	void SetCachedEntity(const FMassEntityHandle Entity, UMassEntitySubsystem& EntitySystem);
 
 	void OnToggleArchetypes() { bShowArchetypes = !bShowArchetypes; }
 	void OnToggleShapes() { bShowShapes = !bShowShapes; }
@@ -35,7 +36,7 @@ protected:
 	void OnToggleNearEntityAvoidance() { bShowNearEntityAvoidance = !bShowNearEntityAvoidance; }
 	void OnToggleNearEntityPath() { bShowNearEntityPath = !bShowNearEntityPath; }
 	
-	void PickEntity(const APlayerController& OwnerPC, const UWorld& World, UMassDebuggerSubsystem& Debugger, const bool bLimitAngle = true);
+	void PickEntity(const APlayerController& OwnerPC, const UWorld& World, UMassEntitySubsystem& EntitySystem, const bool bLimitAngle = true);
 
 protected:
 	AActor* CachedDebugActor;

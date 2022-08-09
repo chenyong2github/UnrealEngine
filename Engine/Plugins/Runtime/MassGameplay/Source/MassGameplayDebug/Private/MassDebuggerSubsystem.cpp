@@ -7,6 +7,8 @@
 #include "MassDebugVisualizationComponent.h"
 #include "MassEntitySubsystem.h"
 #include "MassDebugVisualizer.h"
+#include "MassDebugger.h"
+#include "MassEntitySubsystem.h"
 
 
 void UMassDebuggerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -17,7 +19,28 @@ void UMassDebuggerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	UMassSimulationSubsystem* SimSystem = UWorld::GetSubsystem<UMassSimulationSubsystem>(GetWorld());
 	check(SimSystem);
 	SimSystem->GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).AddUObject(this, &UMassDebuggerSubsystem::OnProcessingPhaseStarted);
+
+#if WITH_MASSENTITY_DEBUG
+	OnEntitySelectedHandle = FMassDebugger::OnEntitySelectedDelegate.AddUObject(this, &UMassDebuggerSubsystem::OnEntitySelected);
+#endif // WITH_MASSENTITY_DEBUG
 }
+
+void UMassDebuggerSubsystem::Deinitialize()
+{
+#if WITH_MASSENTITY_DEBUG
+	FMassDebugger::OnEntitySelectedDelegate.Remove(OnEntitySelectedHandle);
+#endif // WITH_MASSENTITY_DEBUG
+}
+
+#if WITH_MASSENTITY_DEBUG
+void UMassDebuggerSubsystem::OnEntitySelected(const UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle EntityHandle)
+{
+	if (EntitySubsystem.GetWorld() == GetWorld())
+	{
+		SetSelectedEntity(EntityHandle);
+	}
+}
+#endif // WITH_MASSENTITY_DEBUG
 
 void UMassDebuggerSubsystem::PreTickProcessors()
 {
