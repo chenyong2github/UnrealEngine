@@ -268,8 +268,6 @@ float CalcSpriteSize(float3 Position)
 
 float3 ProcessPosition(float3 Position, half3x3 TangentToLocal, int VertexID)
 {
-	Position = ApplyClipping(Position + LocationOffset);
-	
 	const float Size = bUseScreenSizeScaling ? mul(float4(Position.xyz, 1), ResolvedView.TranslatedWorldToView).z * 0.01f : CalcSpriteSize(Position);
 	const half2 Scale = PrecomputedUV_Quad[VertexID % 4];
 	return Position + (TangentToLocal[0] * Scale.x + TangentToLocal[1] * Scale.y) * SpriteSizeMultiplier * Size;
@@ -327,7 +325,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.TangentToLocal = CalcTangentToLocal(MetaData);
 	Intermediates.TangentToWorldSign = Intermediates.SceneData.InstanceData.DeterminantSign;
 	Intermediates.TangentToWorld = CalcTangentToWorldNoScale(Intermediates.TangentToLocal);
-	Intermediates.Position = Position;
+	Intermediates.Position = ApplyClipping(Position + LocationOffset);
 	
 	// Color
 	{
@@ -395,13 +393,13 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIn
 }
 float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
 {
-	float4 WorldPosition = TransformLocalToTranslatedWorld(bUseStaticBuffers ? Input.Position.xyz : LidarGetInstancePosition(Input.VertexId));
+	float4 WorldPosition = TransformLocalToTranslatedWorld(ApplyClipping((bUseStaticBuffers ? Input.Position.xyz : LidarGetInstancePosition(Input.VertexId)) + LocationOffset));
 	WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, Input.VertexId);
 	return WorldPosition;
 }
 float4 VertexFactoryGetWorldPosition(FPositionAndNormalOnlyVertexFactoryInput Input)
 {
-	float4 WorldPosition = TransformLocalToTranslatedWorld(bUseStaticBuffers ? Input.Position.xyz : LidarGetInstancePosition(Input.VertexId));
+	float4 WorldPosition = TransformLocalToTranslatedWorld(ApplyClipping((bUseStaticBuffers ? Input.Position.xyz : LidarGetInstancePosition(Input.VertexId)) + LocationOffset));
 	WorldPosition.xyz = ProcessPosition(WorldPosition.xyz, Input.VertexId);
 	return WorldPosition;
 }

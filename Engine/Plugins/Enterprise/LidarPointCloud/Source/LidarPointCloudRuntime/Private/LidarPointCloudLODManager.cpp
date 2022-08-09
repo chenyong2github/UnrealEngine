@@ -183,19 +183,6 @@ int32 FLidarPointCloudTraversalOctree::GetVisibleNodes(TArray<FLidarPointCloudTr
 		const float BoundsScaleSq = SelectionParams.BoundsScale * SelectionParams.BoundsScale;
 		const float BaseLODImportance = FMath::Max(0.0f, CVarBaseLODImportance.GetValueOnAnyThread());
 
-		bool bStartClipped = false;
-		if (SelectionParams.ClippingVolumes)
-		{
-			for (const FLidarPointCloudClippingVolumeParams& Volume : *SelectionParams.ClippingVolumes)
-			{
-				if (Volume.Mode == ELidarClippingVolumeMode::ClipOutside)
-				{
-					bStartClipped = true;
-					break;
-				}
-			}
-		}
-
 		TQueue<FLidarPointCloudTraversalOctreeNode*> Nodes;
 		FLidarPointCloudTraversalOctreeNode* CurrentNode = nullptr;
 		Nodes.Enqueue(&Root);
@@ -215,37 +202,7 @@ int32 FLidarPointCloudTraversalOctree::GetVisibleNodes(TArray<FLidarPointCloudTr
 			{
 				continue;
 			}
-
-			const FBox NodeBounds(CurrentNode->Center - NodeExtent, CurrentNode->Center + NodeExtent);
-
-			// Check vs Clipping Volumes
-			bool bClip = bStartClipped;
-			if (SelectionParams.ClippingVolumes)
-			{
-				for (const FLidarPointCloudClippingVolumeParams& Volume : *SelectionParams.ClippingVolumes)
-				{
-					if (Volume.Mode == ELidarClippingVolumeMode::ClipOutside)
-					{
-						if (Volume.Bounds.Intersect(NodeBounds))
-						{
-							bClip = false;
-						}
-					}
-					else
-					{
-						if (Volume.Bounds.IsInside(NodeBounds))
-						{
-							bClip = true;
-						}
-					}
-				}
-
-				if (bClip)
-				{
-					continue;
-				}
-			}
-
+			
 			// Only process this node if it has any visible points - do not use continue; as the children may still contain visible points!
 			if (CurrentNode->DataNode->GetNumVisiblePoints() > 0 && CurrentNode->Depth >= SelectionParams.MinDepth)
 			{
