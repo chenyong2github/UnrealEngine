@@ -912,6 +912,17 @@ bool FPoseSearchDatabaseSequence::IsLooping() const
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchDatabase
 
+UPoseSearchDatabase::~UPoseSearchDatabase()
+{
+	if (PrivateDerivedData)
+	{
+#if WITH_EDITOR
+		PrivateDerivedData->CancelCache();
+#endif
+		delete PrivateDerivedData;
+	}
+}
+
 FPoseSearchIndex* UPoseSearchDatabase::GetSearchIndex()
 {
 	if (PrivateDerivedData == nullptr)
