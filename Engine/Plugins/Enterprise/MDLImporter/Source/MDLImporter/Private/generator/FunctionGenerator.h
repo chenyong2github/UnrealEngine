@@ -692,6 +692,17 @@ namespace Generator
 			    Function, TEXT("normal"), EFunctionInputType::FunctionInput_Vector3, NewMaterialExpressionFunctionCall(Function, StateNormal, {}));
 			UMaterialExpressionFunctionInput* Clip = NewMaterialExpressionFunctionInput(
 			    Function, TEXT("clip"), EFunctionInputType::FunctionInput_StaticBool, NewMaterialExpressionStaticBool(Function, false));
+			UMaterialExpressionFunctionInput* BSpline = NewMaterialExpressionFunctionInput(
+			    Function, TEXT("b_spline"), EFunctionInputType::FunctionInput_StaticBool, NewMaterialExpressionStaticBool(Function, false));
+			UMaterialExpressionFunctionInput* AnimationStartTime = NewMaterialExpressionFunctionInput(
+			    Function, TEXT("animation_start_time"), EFunctionInputType::FunctionInput_Scalar, 0.0f);
+			UMaterialExpressionFunctionInput* AnimationCrop = NewMaterialExpressionFunctionInput(
+				Function, TEXT("animation_crop"), EFunctionInputType::FunctionInput_Vector2, {0.0f, 0.0f});
+			UMaterialExpressionFunctionInput* AnimationWrap = NewMaterialExpressionFunctionInput(
+			    Function, TEXT("animation_wrap"), EFunctionInputType::FunctionInput_Scalar, wrap_repeat); // wrap_mode
+			UMaterialExpressionFunctionInput* AnimationFps = NewMaterialExpressionFunctionInput(
+			    Function, TEXT("animation_fps"), EFunctionInputType::FunctionInput_Scalar, 30.0f);
+
 #if defined(USE_WORLD_ALIGNED_TEXTURES)
 #if defined(USE_WAT_AS_SCALAR)
 			UMaterialExpressionFunctionInput* UseWorldAlignedTexture =
@@ -951,6 +962,15 @@ namespace Generator
 			    NewMaterialExpressionFunctionInput(Function, TEXT("wrap_v"), EFunctionInputType::FunctionInput_Scalar, wrap_repeat);
 			UMaterialExpressionFunctionInput* Clip = NewMaterialExpressionFunctionInput(
 			    Function, TEXT("clip"), EFunctionInputType::FunctionInput_StaticBool, NewMaterialExpressionStaticBool(Function, false));
+			UMaterialExpressionFunctionInput* AnimationStartTime = NewMaterialExpressionFunctionInput(
+			    Function, TEXT("animation_start_time"), EFunctionInputType::FunctionInput_Scalar, 0.0f);
+			UMaterialExpressionFunctionInput* AnimationCrop = NewMaterialExpressionFunctionInput(
+				Function, TEXT("animation_crop"), EFunctionInputType::FunctionInput_Vector2, {0.0f, 0.0f});
+			UMaterialExpressionFunctionInput* AnimationWrap = NewMaterialExpressionFunctionInput(
+			    Function, TEXT("animation_wrap"), EFunctionInputType::FunctionInput_Scalar, wrap_repeat); // wrap_mode
+			UMaterialExpressionFunctionInput* AnimationFps = NewMaterialExpressionFunctionInput(
+			    Function, TEXT("animation_fps"), EFunctionInputType::FunctionInput_Scalar, 30.0f);
+
 #if defined(USE_WORLD_ALIGNED_TEXTURES)
 #if defined(USE_WAT_AS_SCALAR)
 			UMaterialExpressionFunctionInput* UseWorldAlignedTexture =
@@ -1672,6 +1692,15 @@ namespace Generator
 			    NewMaterialExpressionFunctionInput(Function, TEXT("scale"), EFunctionInputType::FunctionInput_Scalar, 1.0f);
 			UMaterialExpressionFunctionInput* Offset =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("offset"), EFunctionInputType::FunctionInput_Scalar, 0.0f);
+			UMaterialExpressionFunctionInput* AnimationStartTime = NewMaterialExpressionFunctionInput(
+			    Function, TEXT("animation_start_time"), EFunctionInputType::FunctionInput_Scalar, 0.0f);
+			UMaterialExpressionFunctionInput* AnimationCrop = NewMaterialExpressionFunctionInput(
+				Function, TEXT("animation_crop"), EFunctionInputType::FunctionInput_Vector2, {0.0f, 0.0f});
+			UMaterialExpressionFunctionInput* AnimationWrap = NewMaterialExpressionFunctionInput(
+			    Function, TEXT("animation_wrap"), EFunctionInputType::FunctionInput_Scalar, wrap_repeat); // wrap_mode
+			UMaterialExpressionFunctionInput* AnimationFps = NewMaterialExpressionFunctionInput(
+			    Function, TEXT("animation_fps"), EFunctionInputType::FunctionInput_Scalar, 30.0f);
+
 #if defined(USE_WORLD_ALIGNED_TEXTURES)
 #if defined(USE_WAT_AS_SCALAR)
 			UMaterialExpressionFunctionInput* UseWorldAlignedTexture =
@@ -3507,11 +3536,46 @@ namespace Generator
 			    NewMaterialExpressionFunctionInput(Function, TEXT("crop_u"), EFunctionInputType::FunctionInput_Vector2, {0.0f, 1.0f});
 			UMaterialExpressionFunctionInput* CropV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("crop_v"), EFunctionInputType::FunctionInput_Vector2, {0.0f, 1.0f});
+			UMaterialExpressionFunctionInput* Frame =
+			    NewMaterialExpressionFunctionInput(Function, TEXT("frame"), EFunctionInputType::FunctionInput_Scalar, 0);
 
 			UMaterialExpressionMaterialFunctionCall* Sample =
 			    NewMaterialExpressionFunctionCall(Function, ImporterTextureSample, {Tex, Coord, WrapU, WrapV, CropU, CropV});
 
-			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), {Sample, 1});
+			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), {Sample, 1});// r in output index 1
+		}
+
+		void TexLookupFloat2(UMaterialFunction* Function, int32 ArraySize)
+		{
+			check(0 == ArraySize);
+			UMaterialFunction* ImporterTextureSample = LoadFunction(TEXT("mdlimporter_texture_sample"));
+
+			Function->Description = TEXT(
+			    "Returns the sampled texture value for the twodimensional coordinates coord given in normalized texture space in the range [0, 1)², where the wrap"
+			    "modes define the behavior for coordinates outside of that range. The crop parameters further define a sub - range on the texture that is actually"
+			    "used and that defines the normalized texture space in the range [0, 1)². The crop parameter defaults float2(0.0, 1.0) corresponds to the whole texture"
+			    "in the corresponding axis. A lookup on an invalid texture reference returns zero.");
+
+			UMaterialExpressionFunctionInput* Tex = NewMaterialExpressionFunctionInput(
+			    Function, TEXT("tex"), EFunctionInputType::FunctionInput_Texture2D, NewMaterialExpressionTextureObject(Function, nullptr));
+			UMaterialExpressionFunctionInput* Coord = NewMaterialExpressionFunctionInput(
+			    Function, TEXT("coord"), EFunctionInputType::FunctionInput_Vector2, NewMaterialExpressionTextureCoordinate(Function, 0));
+			UMaterialExpressionFunctionInput* WrapU =
+			    NewMaterialExpressionFunctionInput(Function, TEXT("wrap_u"), EFunctionInputType::FunctionInput_Scalar, wrap_repeat);
+			UMaterialExpressionFunctionInput* WrapV =
+			    NewMaterialExpressionFunctionInput(Function, TEXT("wrap_v"), EFunctionInputType::FunctionInput_Scalar, wrap_repeat);
+			UMaterialExpressionFunctionInput* CropU =
+			    NewMaterialExpressionFunctionInput(Function, TEXT("crop_u"), EFunctionInputType::FunctionInput_Vector2, {0.0f, 1.0f});
+			UMaterialExpressionFunctionInput* CropV =
+			    NewMaterialExpressionFunctionInput(Function, TEXT("crop_v"), EFunctionInputType::FunctionInput_Vector2, {0.0f, 1.0f});
+			UMaterialExpressionFunctionInput* Frame =
+			    NewMaterialExpressionFunctionInput(Function, TEXT("frame"), EFunctionInputType::FunctionInput_Scalar, 0);
+
+			UMaterialExpressionMaterialFunctionCall* Sample =
+			    NewMaterialExpressionFunctionCall(Function, ImporterTextureSample, {Tex, Coord, WrapU, WrapV, CropU, CropV});
+
+			UMaterialFunction* MakeFloat2 = LoadFunction(TEXT("/Engine/Functions/Engine_MaterialFunctions02/Utility"), TEXT("MakeFloat2.MakeFloat2"));
+			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), NewMaterialExpressionFunctionCall(Function, MakeFloat2, {{Sample, 1}, {Sample, 2}})); // (r, b)
 		}
 
 		void TexLookupFloat3(UMaterialFunction* Function, int32 ArraySize)
@@ -3537,11 +3601,13 @@ namespace Generator
 			    NewMaterialExpressionFunctionInput(Function, TEXT("crop_u"), EFunctionInputType::FunctionInput_Vector2, {0.0f, 1.0f});
 			UMaterialExpressionFunctionInput* CropV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("crop_v"), EFunctionInputType::FunctionInput_Vector2, {0.0f, 1.0f});
+			UMaterialExpressionFunctionInput* Frame =
+			    NewMaterialExpressionFunctionInput(Function, TEXT("frame"), EFunctionInputType::FunctionInput_Scalar, 0);
 
 			UMaterialExpressionMaterialFunctionCall* Sample =
 			    NewMaterialExpressionFunctionCall(Function, ImporterTextureSample, {Tex, Coord, WrapU, WrapV, CropU, CropV});
 
-			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), Sample);
+			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), Sample); // rgb in output index 0
 		}
 
 		void TexLookupFloat4(UMaterialFunction* Function, int32 ArraySize)
@@ -3567,11 +3633,13 @@ namespace Generator
 			    NewMaterialExpressionFunctionInput(Function, TEXT("crop_u"), EFunctionInputType::FunctionInput_Vector2, {0.0f, 1.0f});
 			UMaterialExpressionFunctionInput* CropV =
 			    NewMaterialExpressionFunctionInput(Function, TEXT("crop_v"), EFunctionInputType::FunctionInput_Vector2, {0.0f, 1.0f});
+			UMaterialExpressionFunctionInput* Frame =
+			    NewMaterialExpressionFunctionInput(Function, TEXT("frame"), EFunctionInputType::FunctionInput_Scalar, 0);
 
 			UMaterialExpressionMaterialFunctionCall* Sample =
 			    NewMaterialExpressionFunctionCall(Function, ImporterTextureSample, {Tex, Coord, WrapU, WrapV, CropU, CropV});
 
-			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), NewMaterialExpressionAppendVector(Function, {Sample, 0}, {Sample, 4}));
+			NewMaterialExpressionFunctionOutput(Function, TEXT("result"), NewMaterialExpressionAppendVector(Function, {Sample, 0}, {Sample, 4}));// Append(rba, a)
 		}
 
 		/*static*/ void ImporterAddDetailNormal(UMaterialFunction* Function, int32 ArraySize)

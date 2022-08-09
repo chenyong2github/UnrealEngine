@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 
         public MDLImporter(ReadOnlyTargetRules Target) : base(Target)
         {
+	        OptimizeCode = CodeOptimization.Never;
 			bLegalToDistributeObjectCode = true;
 
             PrivateDependencyModuleNames.AddRange(
@@ -52,9 +53,11 @@ namespace UnrealBuildTool.Rules
 
             if (Target.Platform == UnrealTargetPlatform.Win64)
             {
+				RuntimeModuleNames.Add("dds.dll");
 				RuntimeModuleNames.Add("libmdl_sdk.dll");
+				RuntimeModuleNames.Add("mdl_distiller.dll");
 				RuntimeModuleNames.Add("nv_freeimage.dll");
-                    
+
                 foreach (string RuntimeModuleName in RuntimeModuleNames)
                 {
                     string ModulePath = Path.Combine(BinaryLibraryFolder, RuntimeModuleName);
@@ -77,9 +80,10 @@ namespace UnrealBuildTool.Rules
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
             {
-                RuntimeModuleNames.Add("libmdl_sdk.so");
-                RuntimeModuleNames.Add("nv_freeimage.so");
                 RuntimeModuleNames.Add("dds.so");
+                RuntimeModuleNames.Add("libmdl_sdk.so");
+                RuntimeModuleNames.Add("mdl_distiller.so");
+                RuntimeModuleNames.Add("nv_freeimage.so");
 
                 foreach (string RuntimeModuleName in RuntimeModuleNames)
                 {
@@ -99,7 +103,7 @@ namespace UnrealBuildTool.Rules
             if (Directory.Exists(ThirdPartyPath))
             {
                 //third party libraries
-                string[] Libs = { "mdl-sdk-334300.2228"};
+                string[] Libs = { "mdl-sdk-349500.8766a"};
                 foreach (string Lib in Libs)
                 {
                     string IncludePath = Path.Combine(ThirdPartyPath, Lib, "include");

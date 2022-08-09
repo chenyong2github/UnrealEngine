@@ -63,6 +63,7 @@ namespace Mdl
 			check(Texture);
 			FString FileName = ANSI_TO_TCHAR(Texture->get_image());
 			FileName.RemoveFromStart("MI_default_image_");
+			FileName.RemoveFromEnd("_");
 			FPaths::NormalizeDirectoryName(FileName);
 			return FileName;
 		}
@@ -147,7 +148,7 @@ namespace Mdl
 		{
 			mi::neuraylib::IImage_api* ImageApi  = Neuray->get_api_component<mi::neuraylib::IImage_api>();
 			const char*                PixelType = GetPixelType(Channels);
-			mi::neuraylib::ICanvas*    Canvas    = ImageApi->create_canvas(PixelType, Width, Height, 0, 0, 1, false, Gamma);
+			mi::neuraylib::ICanvas*    Canvas    = ImageApi->create_canvas(PixelType, Width, Height, 1, false, Gamma);
 
 			return Canvas;
 		}
@@ -157,7 +158,7 @@ namespace Mdl
 		{
 			mi::neuraylib::IImage_api* ImageApi  = Neuray->get_api_component<mi::neuraylib::IImage_api>();
 			const char*                PixelType = GetPixelType(Channels);
-			mi::neuraylib::ICanvas*    Canvas    = ImageApi->create_canvas(PixelType, Width, Height, 0, 0, 1, false, Gamma);
+			mi::neuraylib::ICanvas*    Canvas    = ImageApi->create_canvas(PixelType, Width, Height, 1, false, Gamma);
 			MDL_CHECK_RESULT()                   = ImageApi->write_raw_pixels(Width, Height, Canvas, 0, 0, 0, Src, bFlipY, PixelType);
 
 			return Canvas;
@@ -185,7 +186,7 @@ namespace Mdl
 
 		int GetChannelCount(const mi::neuraylib::ICanvas& Canvas)
 		{
-			mi::base::Handle<const mi::neuraylib::ITile> Tile(Canvas.get_tile(0, 0));
+			mi::base::Handle<const mi::neuraylib::ITile> Tile(Canvas.get_tile());
 
 			const FString Type = ANSI_TO_TCHAR(Tile->get_type());
 			if (Type == TEXT("Float32"))

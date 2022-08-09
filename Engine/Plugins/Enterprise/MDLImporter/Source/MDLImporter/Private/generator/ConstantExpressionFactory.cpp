@@ -20,6 +20,32 @@ MDLSDK_INCLUDES_END
 
 namespace Generator
 {
+	template<typename T>
+	FMaterialExpressionConnectionList FConstantExpressionFactory::AddNewMaterialExpressionConstantHelper(const mi::base::Handle<const mi::neuraylib::IValue_vector>& Value)
+	{
+		mi::base::Handle<T> Values[4];
+		for (mi::Size i = 0; i < Value->get_size(); ++i)
+		{
+			auto Handle = mi::base::make_handle(Value->get_value(i));
+			Values[i] = mi::base::make_handle(Handle->get_interface<T>());
+		}
+
+		switch (Value->get_size())
+		{
+			case 2:
+				return { AddExpression(NewMaterialExpressionConstant(CurrentMaterial, static_cast<float>(Values[0]->get_value()), static_cast<float>(Values[1]->get_value()))) };
+			case 3:
+				return { AddExpression(NewMaterialExpressionConstant(  //
+					CurrentMaterial, static_cast<float>(Values[0]->get_value()), static_cast<float>(Values[1]->get_value()), static_cast<float>(Values[2]->get_value()))) };
+			case 4:
+				return { AddExpression(NewMaterialExpressionConstant(  //
+					CurrentMaterial, static_cast<float>(Values[0]->get_value()), static_cast<float>(Values[1]->get_value()), static_cast<float>(Values[2]->get_value()), static_cast<float>(Values[3]->get_value()))) };
+		}
+		
+		return {};
+		
+	}
+
 	FConstantExpressionFactory::FConstantExpressionFactory()
 	    : TextureFactory(nullptr)
 	{
@@ -68,22 +94,29 @@ namespace Generator
 			{
 				auto Value = mi::base::make_handle(MDLConstant.get_interface<const mi::neuraylib::IValue_vector>());
 
-				mi::base::Handle<const mi::neuraylib::IValue_float> Values[4];
-				for (mi::Size i = 0; i < Value->get_size(); i++)
+				const mi::neuraylib::IType::Kind ElementKind = Value->get_type()->get_element_type()->get_kind();
+				FMaterialExpressionConnectionList Result;
+				switch (ElementKind)
 				{
-					auto Handle = mi::base::make_handle(Value->get_value(i));
-					Values[i]   = mi::base::make_handle(Handle->get_interface<const mi::neuraylib::IValue_float>());
+					case mi::neuraylib::IType::Kind::TK_BOOL:
+						Result = AddNewMaterialExpressionConstantHelper<const mi::neuraylib::IValue_bool>(Value);
+						break;
+					case mi::neuraylib::IType::Kind::TK_INT:
+						Result = AddNewMaterialExpressionConstantHelper<const mi::neuraylib::IValue_int>(Value);
+						break;
+					case mi::neuraylib::IType::Kind::TK_FLOAT:
+						Result = AddNewMaterialExpressionConstantHelper<const mi::neuraylib::IValue_float>(Value);
+						break;
+					case mi::neuraylib::IType::Kind::TK_DOUBLE:
+						Result = AddNewMaterialExpressionConstantHelper<const mi::neuraylib::IValue_double>(Value);
+						break;
+					default:
+						break;
 				}
-				switch (Value->get_size())
+
+				if (Result.Num() > 0)
 				{
-					case 2:
-						return {AddExpression(NewMaterialExpressionConstant(CurrentMaterial, Values[0]->get_value(), Values[1]->get_value()))};
-					case 3:
-						return {AddExpression(NewMaterialExpressionConstant(  //
-						    CurrentMaterial, Values[0]->get_value(), Values[1]->get_value(), Values[2]->get_value()))};
-					case 4:
-						return {AddExpression(NewMaterialExpressionConstant(  //
-						    CurrentMaterial, Values[0]->get_value(), Values[1]->get_value(), Values[2]->get_value(), Values[3]->get_value()))};
+					return Result;
 				}
 				break;
 			}
@@ -149,7 +182,7 @@ namespace Generator
 				{
 					Common::FTextureProperty Property;
 					Property.Path = Mdl::Util::GetTextureFileName(MDLTexture.get());
-					float Gamma = MDLTexture->get_effective_gamma();
+					float Gamma = MDLTexture->get_effective_gamma(0, 0);
 					Property.bIsSRGB = Gamma != 1.0f;
 					if (bProcessingNormapMap)
 					{

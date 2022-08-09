@@ -97,7 +97,7 @@ namespace Mdl
 			RemapFunc(CanvasData);
 		}
 
-		mi::base::Handle<const mi::neuraylib::ITile> Tile(CanvasData.get_tile(0, 0));
+		mi::base::Handle<const mi::neuraylib::ITile> Tile(CanvasData.get_tile());
 		const mi::Float32*                           Buffer = static_cast<const mi::Float32*>(Tile->get_data());
 
 		BakedTextureData->SetName(Name);

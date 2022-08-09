@@ -4,7 +4,7 @@
 
 #include "MaterialDistiller.h"
 
-#define MDL_DEBUG_PRINT_MATERIAL 0
+#define MDL_DEBUG_PRINT_MATERIAL 3
 
 #include "ArgumentGetter.h"
 #include "BakeParam.h"
@@ -85,7 +85,7 @@ namespace Mdl
 				return;
 			}
 
-			mi::base::Handle<mi::neuraylib::ITile> Tile(Canvas->get_tile(0, 0));
+			mi::base::Handle<mi::neuraylib::ITile> Tile(Canvas->get_tile());
 			mi::Float32*                           Buffer = static_cast<mi::Float32*>(Tile->get_data());
 
 			const mi::Uint32 ChannelCount = 3;
@@ -109,7 +109,7 @@ namespace Mdl
 				return;
 			}
 
-			mi::base::Handle<mi::neuraylib::ITile> Tile(Canvas->get_tile(0, 0));
+			mi::base::Handle<mi::neuraylib::ITile> Tile(Canvas->get_tile());
 			mi::Float32*                           Buffer = static_cast<mi::Float32*>(Tile->get_data());
 
 			const mi::Uint32 ChannelCount = 1;
@@ -261,7 +261,7 @@ namespace Mdl
 			                   [&Material, MetersPerSceneUnit](mi::base::IInterface& ColorInterface)  //
 			                   {
 				                   mi::base::Handle<mi::neuraylib::ICanvas> Canvas(ColorInterface.get_interface<mi::neuraylib::ICanvas>());
-				                   mi::base::Handle<mi::neuraylib::ITile>   Tile(Canvas->get_tile(0, 0));
+				                   mi::base::Handle<mi::neuraylib::ITile>   Tile(Canvas->get_tile());
 								   const char* PixelType = Tile->get_type();
 				                   mi::Float32* Data = static_cast<mi::Float32*>(Tile->get_data());
 
@@ -381,7 +381,7 @@ namespace Mdl
 		int MaterialIndex = 0;
 		for (FMaterial& Material : Materials)
 		{
-			if (Material.Name.IsEmpty())
+			if (Material.IsDisabled())
 			{
 				continue;
 			}
@@ -390,7 +390,7 @@ namespace Mdl
 			mi::base::Handle<mi::neuraylib::ITransaction> Transaction(Scope->create_transaction());
 
 			// Compile the material before distillation
-			FString       MaterialDbName         = Mdl::Util::GetMaterialDatabaseName(Materials.Name, Material.Name);
+			FString       MaterialDbName         = Mdl::Util::GetMaterialDatabaseName(Materials.Name, Material.BaseName);
 			const FString MaterialInstanceDbName = Mdl::Util::GetMaterialInstanceName(MaterialDbName);
 			const FString MaterialCompiledDbName = MaterialDbName + TEXT("_compiled");
 			if (!Material.InstantiateFunction)
@@ -569,7 +569,7 @@ namespace Mdl
 		}
 		MDL_CHECK_RESULT() = Baker->bake_texture(Canvas.get(), 1);
 
-		mi::base::Handle<const mi::neuraylib::ITile> Tile(Canvas->get_tile(0, 0));
+		mi::base::Handle<const mi::neuraylib::ITile> Tile(Canvas->get_tile());
 		const mi::Float32*                           Buffer = static_cast<const mi::Float32*>(Tile->get_data());
 
 		check(4 >= ChannelCount);

@@ -4,6 +4,12 @@
 
 #include "generator/BaseExpressionFactory.h"
 #include "generator/MaterialExpressionConnection.h"
+#include "mdl/MdlSdkDefines.h"
+
+MDLSDK_INCLUDES_START
+#include "mi/neuraylib/ivalue.h"
+#include "mi/neuraylib/ivector.h"
+MDLSDK_INCLUDES_END
 
 namespace mi
 {
@@ -37,6 +43,9 @@ namespace Generator
 			return Expressions.Add_GetRef(Expression);
 		}
 
+		template<typename T>
+		FMaterialExpressionConnectionList AddNewMaterialExpressionConstantHelper(const mi::base::Handle<const mi::neuraylib::IValue_vector>& Value);
+		
 		TArray<FMaterialExpressionHandle> Expressions;
 	};
 

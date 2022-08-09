@@ -392,7 +392,7 @@ namespace Generator
 				{
 					Common::FTextureProperty Property;
 					Property.Path    = Mdl::Util::GetTextureFileName(MDLTexture.get());
-					float Gamma      = MDLTexture->get_effective_gamma();
+					float Gamma      = MDLTexture->get_effective_gamma(0, 0);
 					Property.bIsSRGB = Gamma != 1.0;
 					if (!FPaths::GetExtension(Property.Path).IsEmpty())
 					{

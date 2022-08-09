@@ -394,7 +394,7 @@ bool FMDLImporter::Reimport(const FString& InFileName, const UMDLImporterOptions
 	UMaterial*      Material    = Cast<UMaterial>(OutMaterial);
 	MDLImporterImpl::ClearMaterial(Material);
 
-	const FString                   DbName       = Mdl::Util::GetMaterialDatabaseName(Materials.Name, MdlMaterial.Name, true);
+	const FString                   DbName       = Mdl::Util::GetMaterialDatabaseName(Materials.Name, MdlMaterial.BaseName, true);
 	const TMap<FString, UMaterial*> MaterialsMap = {{DbName, Material}};
 
 	MdlContext->GetDistiller()->SetBakingSettings(InImporterOptions.BakingResolution, InImporterOptions.BakingSamples);

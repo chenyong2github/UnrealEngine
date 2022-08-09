@@ -146,7 +146,16 @@ namespace Mdl
 		};
 
 		uint32  Id;
-		FString Name;
+		FString Name; // Name used to identify Material
+
+		// Base name in the Mdl db(full name is something like ::<ModuleName>::<BaseName>)
+		// note: separated from Name, because with resent Mdl SDK changes db name includes full signature(i.e. material-as-function argument list)
+		FString BaseName; 
+
+		FString GetBaseName()
+		{
+			return BaseName;
+		}
 		// The preferred baking texture size.
 		int PreferredWidth;
 		int PreferredHeight;

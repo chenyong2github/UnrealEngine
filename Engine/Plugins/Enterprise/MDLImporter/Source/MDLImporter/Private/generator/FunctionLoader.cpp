@@ -155,6 +155,7 @@ namespace Generator
 		FunctionGenerateMap.Add(TEXT("mdl_state_transform_vector"), {&FFunctionGenerator::StateTransformVector, 1});
 		FunctionGenerateMap.Add(TEXT("mdl_tex_lookup_color"), {&FFunctionGenerator::TexLookupFloat3, 7});
 		FunctionGenerateMap.Add(TEXT("mdl_tex_lookup_float"), {&FFunctionGenerator::TexLookupFloat, 2});
+		FunctionGenerateMap.Add(TEXT("mdl_tex_lookup_float2"), {&FFunctionGenerator::TexLookupFloat2, 2});
 		FunctionGenerateMap.Add(TEXT("mdl_tex_lookup_float3"), {&FFunctionGenerator::TexLookupFloat3, 7});
 		FunctionGenerateMap.Add(TEXT("mdl_tex_lookup_float4"), {&FFunctionGenerator::TexLookupFloat4, 7});
 		FunctionGenerateMap.Add(TEXT("mdlimporter_add_detail_normal"), {&FFunctionGenerator::ImporterAddDetailNormal, 1});

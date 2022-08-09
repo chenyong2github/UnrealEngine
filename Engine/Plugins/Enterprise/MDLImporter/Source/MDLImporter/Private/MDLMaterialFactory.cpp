@@ -211,7 +211,7 @@ bool FMDLMaterialFactory::CreateMaterials(const FString& Filename, UObject* Pare
 		NewMaterial->AssetImportData = NewObject<UAssetImportData>(NewMaterial, TEXT("AssetImportData"));
 		NewMaterial->AssetImportData->Update(Filename);
 
-		const FString DbName        = Mdl::Util::GetMaterialDatabaseName(Materials.Name, MdlMaterial.Name, true);
+		const FString DbName        = Mdl::Util::GetMaterialDatabaseName(Materials.Name, MdlMaterial.BaseName, true);
 		NameMaterialMap.Add(DbName) = NewMaterial;
 	}
 
@@ -228,7 +228,7 @@ void FMDLMaterialFactory::PostImport(Mdl::FMaterialCollection& Materials)
 			continue;
 		}
 
-		const FString DbName   = Mdl::Util::GetMaterialDatabaseName(Materials.Name, MdlMaterial.Name, true);
+		const FString DbName   = Mdl::Util::GetMaterialDatabaseName(Materials.Name, MdlMaterial.BaseName, true);
 		UMaterial*    Material = NameMaterialMap[DbName];
 		if (Material == nullptr)
 		{
