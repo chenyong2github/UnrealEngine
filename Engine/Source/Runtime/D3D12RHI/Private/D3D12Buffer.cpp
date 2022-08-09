@@ -500,13 +500,6 @@ void FD3D12Buffer::GetResourceDescAndAlignment(uint64 InSize, uint32 InStride, E
 	if (EnumHasAnyFlags(InUsage, BUF_UnorderedAccess))
 	{
 		ResourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-
-		static bool bRequiresRawView = (GMaxRHIFeatureLevel < ERHIFeatureLevel::SM5);
-		if (bRequiresRawView)
-		{
-			// Force the buffer to be a raw, byte address buffer
-			InUsage |= BUF_ByteAddressBuffer;
-		}
 	}
 
 	if (!EnumHasAnyFlags(InUsage, BUF_ShaderResource))
