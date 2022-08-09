@@ -27,7 +27,7 @@ class LIDARPOINTCLOUDRUNTIME_API ULidarPointCloudComponent : public UMeshCompone
 		
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lidar Point Cloud", meta = (AllowPrivateAccess = "true"))
-	ULidarPointCloud *PointCloud;
+	ULidarPointCloud* PointCloud;
 
 	/**
 	 * Allows using custom-built material for the point cloud.
@@ -147,9 +147,9 @@ private:
 	UPROPERTY(Transient)
 	UMaterialInterface* Material;
 	UPROPERTY(Transient)
-	UMaterialInterface *MasterMaterial;
+	UMaterialInterface* BaseMaterial;
 	UPROPERTY(Transient)
-	UMaterialInterface* MasterMaterialMasked;
+	UMaterialInterface* BaseMaterialMasked;
 
 	/** Pointer to the viewport client of the owning editor, or null, if this is a game object. */
 	TWeakPtr<FViewportClient> OwningViewportClient;

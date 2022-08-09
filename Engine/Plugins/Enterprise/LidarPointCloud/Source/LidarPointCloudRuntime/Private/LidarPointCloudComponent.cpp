@@ -49,10 +49,10 @@ ULidarPointCloudComponent::ULidarPointCloudComponent()
 	SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 
 	static ConstructorHelpers::FObjectFinder<UMaterial> M_PointCloud(TEXT("/LidarPointCloud/Materials/M_LidarPointCloud"));
-	MasterMaterial = M_PointCloud.Object;
+	BaseMaterial = M_PointCloud.Object;
 
 	static ConstructorHelpers::FObjectFinder<UMaterial> M_PointCloud_Masked(TEXT("/LidarPointCloud/Materials/M_LidarPointCloud_Masked"));
-	MasterMaterialMasked = M_PointCloud_Masked.Object;
+	BaseMaterialMasked = M_PointCloud_Masked.Object;
 }
 
 FBoxSphereBounds ULidarPointCloudComponent::CalcBounds(const FTransform& LocalToWorld) const
@@ -70,7 +70,7 @@ void ULidarPointCloudComponent::UpdateMaterial()
 	// ... otherwise, create MID from it
 	else
 	{
-		Material = UMaterialInstanceDynamic::Create(CustomMaterial ? CustomMaterial : PointShape != ELidarPointCloudSpriteShape::Square ? MasterMaterialMasked : MasterMaterial, nullptr);
+		Material = UMaterialInstanceDynamic::Create(CustomMaterial ? CustomMaterial : PointShape != ELidarPointCloudSpriteShape::Square ? BaseMaterialMasked : BaseMaterial, nullptr);
 	}
 
 	ApplyRenderingParameters();
