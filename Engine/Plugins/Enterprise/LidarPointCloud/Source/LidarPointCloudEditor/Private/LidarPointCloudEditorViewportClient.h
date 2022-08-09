@@ -16,14 +16,6 @@ class SLidarPointCloudEditorViewport;
 class ULidarPointCloud;
 class ULidarPointCloudComponent;
 
-enum class ELidarPointCloudSelectionMethod : uint8
-{
-	Box,
-	Polygonal,
-	Lasso,
-	Paint
-};
-
 /** Viewport Client for the preview viewport */
 class FLidarPointCloudEditorViewportClient : public FEditorViewportClient, public TSharedFromThis<FLidarPointCloudEditorViewportClient>
 {
@@ -32,9 +24,6 @@ public:
 	~FLidarPointCloudEditorViewportClient();
 
 	// FEditorViewportClient interface
-	virtual bool InputKey(const FInputKeyEventArgs& EventArgs) override;
-	virtual bool InputAxis(FViewport* InViewport, FInputDeviceId DeviceId, FKey Key, float Delta, float DeltaTime, int32 NumSamples = 1, bool bGamepad = false) override;
-	virtual void Tick(float DeltaSeconds) override;
 	virtual void DrawCanvas(FViewport& InViewport, FSceneView& View, FCanvas& Canvas) override;
 	virtual bool InputWidgetDelta(FViewport* InViewport, EAxisList::Type CurrentAxis, FVector& Drag, FRotator& Rot, FVector& Scale) override { return false; }
 	virtual void TrackingStarted(const struct FInputEventState& InInputState, bool bIsDragging, bool bNudge) override {}
@@ -47,9 +36,7 @@ public:
 	virtual FMatrix GetWidgetCoordSystem() const override { return FMatrix::Identity; }
 	virtual ECoordSystem GetWidgetCoordSystemSpace() const override { return COORD_Local; }
 	virtual bool ShouldOrbitCamera() const override;
-	virtual void LostFocus(FViewport* InViewport) override;
-	virtual void ReceivedFocus(FViewport* InViewport) override;
-
+	
 	void ResetCamera();
 
 	/** Callback for toggling the nodes show flag. */
@@ -57,9 +44,6 @@ public:
 
 	/** Callback for checking the nodes show flag. */
 	bool IsSetShowNodesChecked() const;
-
-	FORCEINLINE ELidarPointCloudSelectionMethod GetSelectionMethod() const { return SelectionMethod; }
-	void SetSelectionMethod(ELidarPointCloudSelectionMethod NewSelectionMethod);
 
 protected:
 	// FEditorViewportClient interface
@@ -69,22 +53,6 @@ protected:
 	void OnAssetViewerSettingsChanged(const FName& InPropertyName);
 	/** Used to (re)-set the viewport show flags related to post processing*/
 	void SetAdvancedShowFlagsForScene(const bool bAdvancedShowFlags);
-
-	FSceneView* GetView();
-	FLidarPointCloudRay DeprojectCurrentMousePosition();
-
-private:
-	void OnBoxSelectionEnd();
-	void OnPolygonalSelectionEnd();
-	void OnLassoSelectionEnd();
-	void OnPaintSelection();
-
-	void DrawSelectionBox(FCanvas& Canvas);
-	void DrawSelectionPolygonal(FCanvas& Canvas);
-	void DrawSelectionLasso(FCanvas& Canvas);
-	void DrawSelectionPaint(FCanvas& Canvas);
-
-	FConvexVolume BuildConvexVolumeForPoints(const TArray<FVector2D>& Points);
 
 private:
 	/** Component for the point cloud. */
@@ -98,13 +66,4 @@ private:
 
 	/** Stored pointer to the preview scene in which the point cloud is shown */
 	FAdvancedPreviewScene* AdvancedPreviewScene;
-
-	ELidarPointCloudSelectionMethod SelectionMethod;
-	ELidarPointCloudSelectionMode SelectionMode;
-	TArray<FIntPoint> SelectionPoints;
-
-	float PaintingRadius;
-	bool bLineTraceHit;
-	FVector LineTraceHitPoint;
-	float LineTraceDistance;
 };

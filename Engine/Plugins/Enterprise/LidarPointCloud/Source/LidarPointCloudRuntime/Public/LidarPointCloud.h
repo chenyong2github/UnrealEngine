@@ -221,6 +221,10 @@ public:
 	/** Returns true, if the Octree has collision built */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	bool HasCollisionData() const;
+	
+	/** Returns the number of polygons in the collider or 0 if no collider is built */
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
+	int32 GetColliderPolys() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void RefreshRendering();

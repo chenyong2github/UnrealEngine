@@ -36,24 +36,6 @@ public:
 	TSharedPtr<FUICommandInfo> SetShowNodes;
 	TSharedPtr<FUICommandInfo> ResetCamera;
 	TSharedPtr<FUICommandInfo> Center;
-	TSharedPtr<FUICommandInfo> BuildCollision;
-	TSharedPtr<FUICommandInfo> RemoveCollision;
-	TSharedPtr<FUICommandInfo> EditMode;
-	TSharedPtr<FUICommandInfo> BoxSelection;
-	TSharedPtr<FUICommandInfo> PolygonalSelection;
-	TSharedPtr<FUICommandInfo> LassoSelection;
-	TSharedPtr<FUICommandInfo> PaintSelection;
-	TSharedPtr<FUICommandInfo> InvertSelection;
-	TSharedPtr<FUICommandInfo> HideSelected;
-	TSharedPtr<FUICommandInfo> UnhideAll;
-	TSharedPtr<FUICommandInfo> DeleteSelected;
-	TSharedPtr<FUICommandInfo> DeleteHidden;
-	TSharedPtr<FUICommandInfo> CalculateNormals;
-	TSharedPtr<FUICommandInfo> CalculateNormalsSelection;
-	TSharedPtr<FUICommandInfo> Extract;
-	TSharedPtr<FUICommandInfo> ExtractCopy;
-	TSharedPtr<FUICommandInfo> Merge;
-	TSharedPtr<FUICommandInfo> Align;
 
 	// TOOLKIT COMMANDS
 

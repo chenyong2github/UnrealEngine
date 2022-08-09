@@ -449,6 +449,11 @@ bool ULidarPointCloud::HasCollisionData() const
 	return Octree.HasCollisionData();
 }
 
+int32 ULidarPointCloud::GetColliderPolys() const
+{
+	return Octree.HasCollisionData() ? Octree.GetCollisionData()->Indices.Num() : 0;
+}
+
 void ULidarPointCloud::RefreshRendering()
 {
 	Octree.MarkRenderDataDirty();

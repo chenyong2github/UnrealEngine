@@ -10,7 +10,6 @@
 #include "Styling/AppStyle.h"
 #include "ComponentReregisterContext.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Components/StaticMeshComponent.h"
 
 ///////////////////////////////////////////////////////////
 // SPointCloudEditorViewportToolbar
@@ -73,18 +72,7 @@ void SLidarPointCloudEditorViewport::Construct(const FArguments& InArgs)
 	PreviewScene.AddComponent(PreviewCloudComponent, FTransform::Identity);
 
 	SetPreviewCloud(PointCloud);
-
-	// Add Paint Brush
-	static UStaticMesh* PaintBrushMesh = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere")));
-	static UMaterialInterface* PaintBrushMat = Cast<UMaterialInterface>(StaticLoadObject(UMaterialInterface::StaticClass(), nullptr, TEXT("/LidarPointCloud/Materials/M_LidarSelectionBrush.M_LidarSelectionBrush")));
-
-	PaintBrush = NewObject<UStaticMeshComponent>();
-	PaintBrush->SetMobility(EComponentMobility::Movable);
-	PaintBrush->SetVisibility(false);
-	PaintBrush->SetStaticMesh(PaintBrushMesh);
-	PaintBrush->SetMaterial(0, PaintBrushMat);
-	PreviewScene.AddComponent(PaintBrush, FTransform::Identity);
-
+	
 	ViewportOverlay->AddSlot()
 		.VAlign(VAlign_Top)
 		.HAlign(HAlign_Left)
@@ -123,7 +111,6 @@ SLidarPointCloudEditorViewport::~SLidarPointCloudEditorViewport()
 void SLidarPointCloudEditorViewport::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(PreviewCloudComponent);
-	Collector.AddReferencedObject(PaintBrush);
 	Collector.AddReferencedObject(PointCloud);
 }
 
@@ -232,6 +219,5 @@ void SLidarPointCloudEditorViewport::OnFocusViewportToSelection()
 	if (PreviewCloudComponent)
 	{
 		EditorViewportClient->FocusViewportOnBox(PreviewCloudComponent->Bounds.GetBox());
-		return;
 	}
 }

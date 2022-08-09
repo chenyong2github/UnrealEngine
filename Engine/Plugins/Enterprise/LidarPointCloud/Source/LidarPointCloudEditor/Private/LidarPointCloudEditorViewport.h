@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SlateFwd.h"
 #include "UObject/GCObject.h"
 #include "EditorViewportClient.h"
 #include "AdvancedPreviewScene.h"
@@ -15,7 +14,6 @@ class FLidarPointCloudEditorViewportClient;
 class SVerticalBox;
 class ULidarPointCloud;
 class ULidarPointCloudComponent;
-class UStaticMeshComponent;
 
 /**
  * PointCloud Editor Preview viewport widget
@@ -46,9 +44,7 @@ public:
 
 	/** Component for the preview point cloud. */
 	ULidarPointCloudComponent* PreviewCloudComponent;
-
-	UStaticMeshComponent* PaintBrush;
-
+	
 	/**
 	 *	Sets up the point cloud that the Point Cloud editor is viewing.
 	 *
@@ -91,7 +87,7 @@ protected:
 
 private:
 	/** Determines the visibility of the viewport. */
-	bool IsVisible() const override;
+	virtual bool IsVisible() const override;
 
 private:
 	/** The parent tab where this viewport resides */
