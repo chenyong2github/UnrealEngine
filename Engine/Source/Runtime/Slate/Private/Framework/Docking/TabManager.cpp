@@ -387,7 +387,10 @@ FString FTabManager::FLayout::ToString() const
 
 	FString LayoutAsString;
 	TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create( &LayoutAsString );
-	check( FJsonSerializer::Serialize( LayoutJson, Writer ) );
+	if (!FJsonSerializer::Serialize(LayoutJson, Writer))
+	{
+		UE_LOG(LogSlate, Error, TEXT("Failed save layout as Json string: %s"), *GetLayoutName().ToString());
+	}
 
 	return LayoutAsString;
 }
