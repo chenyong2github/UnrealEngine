@@ -255,7 +255,7 @@ FGameplayAbilitySpec::FGameplayAbilitySpec(TSubclassOf<UGameplayAbility> InAbili
 FGameplayAbilitySpec::FGameplayAbilitySpec(FGameplayAbilitySpecDef& InDef, int32 InGameplayEffectLevel, FActiveGameplayEffectHandle InGameplayEffectHandle)
 	: Ability(InDef.Ability ? InDef.Ability->GetDefaultObject<UGameplayAbility>() : nullptr)
 	, InputID(InDef.InputID)
-	, SourceObject(InDef.SourceObject)
+	, SourceObject(InDef.SourceObject.Get())
 	, ActiveCount(0)
 	, InputPressed(false)
 	, RemoveAfterActivation(false)
@@ -270,7 +270,7 @@ FGameplayAbilitySpec::FGameplayAbilitySpec(FGameplayAbilitySpecDef& InDef, int32
 
 	FString ContextString = FString::Printf(TEXT("FGameplayAbilitySpec::FGameplayAbilitySpec for %s from %s"), 
 		(InDef.Ability ? *InDef.Ability->GetName() : TEXT("INVALID ABILITY")), 
-		(InDef.SourceObject ? *InDef.SourceObject->GetName() : TEXT("INVALID ABILITY")));
+		(InDef.SourceObject.IsValid() ? *InDef.SourceObject->GetName() : TEXT("INVALID ABILITY")));
 	Level = InDef.LevelScalableFloat.GetValueAtLevel(InGameplayEffectLevel, &ContextString);
 }
 

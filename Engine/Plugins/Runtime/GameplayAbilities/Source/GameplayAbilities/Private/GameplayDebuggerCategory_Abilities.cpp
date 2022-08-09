@@ -99,7 +99,7 @@ void FGameplayDebuggerCategory_Abilities::CollectData(APlayerController* OwnerPC
 			ItemData.Ability.RemoveFromStart(DEFAULT_OBJECT_PREFIX);
 			ItemData.Ability.RemoveFromEnd(TEXT("_C"));
 
-			ItemData.Source = GetNameSafe(AbilitySpec.SourceObject);
+			ItemData.Source = GetNameSafe(AbilitySpec.SourceObject.Get());
 			ItemData.Source.RemoveFromStart(DEFAULT_OBJECT_PREFIX);
 
 			ItemData.Level = AbilitySpec.Level;
