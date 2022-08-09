@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MonoWaveTablePresetBank.h"
 
+#include "EngineAnalytics.h"
 #include "SynthComponents/SynthComponentMonoWaveTable.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
@@ -36,7 +37,10 @@ UMonoWaveTableSynthPresetFactory::UMonoWaveTableSynthPresetFactory(const FObject
 UObject* UMonoWaveTableSynthPresetFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
 	UMonoWaveTableSynthPreset* NewPresetBank = NewObject<UMonoWaveTableSynthPreset>(InParent, InName, Flags);
-
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.SynthesisAndDSPEffects.MonoWaveTableSynthPresetCreated"));
+	}
 	return NewPresetBank;
 }
 #undef LOCTEXT_NAMESPACE

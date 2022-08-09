@@ -3,6 +3,8 @@
 //
 
 #include "PhononSpatializationSettingsFactory.h"
+
+#include "EngineAnalytics.h"
 #include "PhononSpatializationSourceSettings.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
@@ -52,6 +54,10 @@ UPhononSpatializationSettingsFactory::UPhononSpatializationSettingsFactory(const
 UObject* UPhononSpatializationSettingsFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName InName, EObjectFlags Flags,
 	UObject* Context, FFeedbackContext* Warn)
 {
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.SteamAudio.PhononSpatializationSettingsCreated"));
+	}
 	return NewObject<UPhononSpatializationSourceSettings>(InParent, InName, Flags);
 }
 

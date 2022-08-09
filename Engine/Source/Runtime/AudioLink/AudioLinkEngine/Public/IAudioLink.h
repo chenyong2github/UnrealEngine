@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 /** IAudioLink
   *	Abstract interface for AudioLink instances. 
   *	Purely opaque.
@@ -11,7 +9,7 @@
 class IAudioLink
 {
 protected:
-	IAudioLink() = default;
+	IAudioLink();
 public:
 	virtual ~IAudioLink() = default;
 };
