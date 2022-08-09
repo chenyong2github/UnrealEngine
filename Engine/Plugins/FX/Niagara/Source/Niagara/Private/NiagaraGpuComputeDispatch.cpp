@@ -219,9 +219,6 @@ FNiagaraGpuComputeDispatch::~FNiagaraGpuComputeDispatch()
 	FinishDispatches();
 
 	AsyncGpuTraceHelper->Reset();
-
-	FPrimitiveSceneInfo::OnGPUSceneInstancesAllocated.RemoveAll(this);
-	FPrimitiveSceneInfo::OnGPUSceneInstancesFreed.RemoveAll(this);
 }
 
 void FNiagaraGpuComputeDispatch::AddGpuComputeProxy(FNiagaraSystemGpuComputeProxy* ComputeProxy)

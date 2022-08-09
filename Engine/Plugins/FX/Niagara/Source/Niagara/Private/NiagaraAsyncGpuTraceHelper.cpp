@@ -31,8 +31,15 @@ FNiagaraAsyncGpuTraceHelper::FNiagaraAsyncGpuTraceHelper(EShaderPlatform InShade
 	InitProviders(Dispatcher);
 
 #if NIAGARA_ASYNC_GPU_TRACE_COLLISION_GROUPS
-	FPrimitiveSceneInfo::OnGPUSceneInstancesAllocated.AddRaw(this, &FNiagaraAsyncGpuTraceHelper::OnPrimitiveGPUSceneInstancesDirtied);
-	FPrimitiveSceneInfo::OnGPUSceneInstancesFreed.AddRaw(this, &FNiagaraAsyncGpuTraceHelper::OnPrimitiveGPUSceneInstancesDirtied);
+	// The owner of the trace helper is constructed on the GameThread so we need to enqueue a command to set the delegates
+	ENQUEUE_RENDER_COMMAND(NiagaraAsyncGpuTraceHelperSetupGPUSceneDelegates)
+	(
+		[RT_Helper=this](FRHICommandListImmediate&)
+		{
+			FPrimitiveSceneInfo::OnGPUSceneInstancesAllocated.AddRaw(RT_Helper, &FNiagaraAsyncGpuTraceHelper::OnPrimitiveGPUSceneInstancesDirtied);
+			FPrimitiveSceneInfo::OnGPUSceneInstancesFreed.AddRaw(RT_Helper, &FNiagaraAsyncGpuTraceHelper::OnPrimitiveGPUSceneInstancesDirtied);
+		}
+	);
 #endif
 }
 
