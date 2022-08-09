@@ -16,6 +16,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "EngineUtils.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "ContextualAnimTypes.h"
 #include "ContextualAnimEditorTypes.h"
 #include "ContextualAnimUtilities.h"

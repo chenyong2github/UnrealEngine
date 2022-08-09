@@ -30,6 +30,7 @@
 #include "UObject/UObjectHash.h"
 
 #include "Editor.h"
+#include "Misc/TransactionObjectEvent.h"
 
 void UDataprepActionStep::PostLoad()
 {

@@ -20,6 +20,7 @@
 #include "Settings/EditorLoadingSavingSettings.h"
 #include "EngineGlobals.h"
 #include "Editor.h"
+#include "Editor/Transactor.h"
 #include "FileHelpers.h"
 #include "UnrealEdGlobals.h"
 

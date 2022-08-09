@@ -16,6 +16,7 @@
 #include "HAL/IConsoleManager.h"
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
+#include "Editor/Transactor.h"
 #include "Misc/ConfigCacheIni.h"
 #include "TickableEditorObject.h"
 #endif

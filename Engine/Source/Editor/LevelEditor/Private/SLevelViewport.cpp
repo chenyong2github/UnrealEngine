@@ -30,6 +30,7 @@
 #include "Styling/CoreStyle.h"
 #include "Styling/AppStyle.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Editor/Transactor.h"
 #include "Exporters/ExportTextContainer.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"

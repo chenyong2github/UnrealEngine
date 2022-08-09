@@ -10,6 +10,7 @@
 #include "SEnumCombo.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Editor.h"
+#include "Editor/Transactor.h"
 #include "Graph/ControlRigGraph.h"
 #include "BlueprintActionDatabase.h"
 #include "ControlRigBlueprintCommands.h"

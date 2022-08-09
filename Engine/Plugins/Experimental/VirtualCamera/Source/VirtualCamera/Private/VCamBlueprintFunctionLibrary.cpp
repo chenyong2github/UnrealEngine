@@ -10,6 +10,7 @@
 #include "GameFramework/PlayerController.h"
 #if WITH_EDITOR
 #include "Editor.h"
+#include "Editor/Transactor.h"
 #include "EditorAssetLibrary.h"
 #include "ITakeRecorderModule.h"
 #include "LevelEditor.h"

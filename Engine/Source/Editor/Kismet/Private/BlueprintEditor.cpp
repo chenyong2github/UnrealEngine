@@ -33,6 +33,7 @@
 #include "EdGraph/EdGraphSchema.h"
 #include "EdGraphNode_Comment.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Editor/Transactor.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Settings/BlueprintEditorProjectSettings.h"
 #include "GeneralProjectSettings.h"

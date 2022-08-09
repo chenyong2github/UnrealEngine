@@ -17,6 +17,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/AssetData.h"
 #include "Editor.h"
+#include "Editor/Transactor.h"
 #include "InterchangeManager.h"
 #include "UObject/SavePackage.h"
 #include "ObjectTools.h"

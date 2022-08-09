@@ -33,6 +33,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/MessageDialog.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/Package.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"

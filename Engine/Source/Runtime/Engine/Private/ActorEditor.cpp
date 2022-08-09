@@ -29,6 +29,7 @@
 #if WITH_EDITOR
 
 #include "Editor.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Engine/LevelStreaming.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"

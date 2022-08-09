@@ -11,6 +11,7 @@
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Engine/Engine.h"
+#include "Editor/Transactor.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"

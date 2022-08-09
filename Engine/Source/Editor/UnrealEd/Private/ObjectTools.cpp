@@ -57,6 +57,7 @@
 #include "Engine/UserDefinedStruct.h"
 #include "Animation/MorphTarget.h"
 #include "Editor.h"
+#include "Editor/Transactor.h"
 #include "EditorDirectories.h"
 #include "FileHelpers.h"
 #include "Dialogs/Dialogs.h"

@@ -56,6 +56,7 @@
 #include "UnrealEngine.h"
 #include "EngineUtils.h"
 #include "Editor.h"
+#include "Editor/Transactor.h"
 #include "LevelEditorViewport.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"

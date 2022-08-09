@@ -18,6 +18,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Editor.h"
+#include "Editor/Transactor.h"
 
 #include "Framework/Commands/GenericCommands.h"
 #include "Subsystems/AssetEditorSubsystem.h"

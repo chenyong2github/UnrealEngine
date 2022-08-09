@@ -16,6 +16,7 @@
 #include "Styling/AppStyle.h"
 #include "Settings/EditorStyleSettings.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Editor/Transactor.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "UnrealEdGlobals.h"
 #include "Frame/MainFrameActions.h"

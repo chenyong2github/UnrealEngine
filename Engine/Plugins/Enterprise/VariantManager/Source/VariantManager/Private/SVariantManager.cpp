@@ -56,7 +56,7 @@
 #include "Misc/CString.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
-#include "Misc/ITransaction.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "ObjectTools.h"

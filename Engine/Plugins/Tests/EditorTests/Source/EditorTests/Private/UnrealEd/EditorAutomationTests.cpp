@@ -48,6 +48,7 @@
 #include "Tests/AutomationEditorCommon.h"
 
 #include "PackageTools.h"
+#include "Editor/Transactor.h"
 
 #include "K2Node_Event.h"
 #include "K2Node_CustomEvent.h"

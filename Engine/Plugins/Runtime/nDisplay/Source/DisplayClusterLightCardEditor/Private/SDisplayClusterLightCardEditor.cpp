@@ -31,6 +31,7 @@
 #include "Misc/FileHelper.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Selection.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Widgets/Docking/SDockTab.h"

@@ -17,6 +17,7 @@
 #include "Engine/Engine.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/ITransaction.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Serialization/Archive.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/CoreObjectVersion.h"

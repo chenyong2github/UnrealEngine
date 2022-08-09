@@ -8,6 +8,7 @@
 #include "Engine/LevelBounds.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "Editor.h"
+#include "Editor/Transactor.h"
 #include "ScopedTransaction.h"
 #include "EditorLevelUtils.h"
 #include "LevelCollectionModel.h"

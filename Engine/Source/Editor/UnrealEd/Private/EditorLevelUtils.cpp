@@ -27,6 +27,7 @@ EditorLevelUtils.cpp: Editor-specific level management routines
 #include "Engine/LevelStreaming.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
+#include "Editor/Transactor.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
 #include "FileHelpers.h"

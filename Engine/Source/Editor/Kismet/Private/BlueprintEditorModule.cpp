@@ -15,6 +15,7 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Editor/Transactor.h"
 #include "Editor/LevelEditor/Public/LevelEditor.h"
 #include "UserDefinedEnumEditor.h"
 #include "MessageLogInitializationOptions.h"

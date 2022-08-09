@@ -78,6 +78,7 @@
 #include "ControlRigSpaceChannelEditors.h"
 #include "TransformConstraint.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/TransactionObjectEvent.h"
 
 #define LOCTEXT_NAMESPACE "FControlRigParameterTrackEditor"
 

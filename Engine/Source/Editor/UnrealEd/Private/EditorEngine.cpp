@@ -71,6 +71,7 @@
 #include "UnrealEngine.h"
 #include "EngineUtils.h"
 #include "Editor.h"
+#include "Editor/Transactor.h"
 #include "EditorViewportClient.h"
 #include "LevelEditorViewport.h"
 #include "EditorModeManager.h"

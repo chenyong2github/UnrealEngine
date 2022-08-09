@@ -36,6 +36,7 @@
 #if WITH_EDITOR
 #include "ControlRigEditor/Private/Editor/SControlRigFunctionLocalizationWidget.h"
 #include "Misc/MessageDialog.h"
+#include "Editor/Transactor.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "ControlRigGraphSchema"

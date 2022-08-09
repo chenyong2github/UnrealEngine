@@ -5,6 +5,7 @@
 #include "Misc/Paths.h"
 #include "Misc/AutomationTest.h"
 #include "Editor.h"
+#include "Editor/Transactor.h"
 #include "ObjectTools.h"
 #include "ScopedTransaction.h"
 #include "Tests/AutomationTestSettings.h"

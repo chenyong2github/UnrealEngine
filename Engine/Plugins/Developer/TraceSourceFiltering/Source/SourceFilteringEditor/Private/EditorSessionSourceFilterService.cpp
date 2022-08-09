@@ -8,6 +8,7 @@
 #include "UObject/SoftObjectPath.h"
 #include "ScopedTransaction.h"
 #include "Editor.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Factories/BlueprintFactory.h"
 
 #include "TraceSourceFiltering.h"

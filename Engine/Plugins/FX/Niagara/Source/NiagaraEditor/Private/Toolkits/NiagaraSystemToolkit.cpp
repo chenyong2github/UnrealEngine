@@ -44,6 +44,7 @@
 #include "Widgets/SNiagaraEmitterVersionWidget.h"
 #include "BusyCursor.h"
 #include "Misc/FeedbackContext.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Editor.h"
 #include "LevelEditor.h"
 #include "LevelEditorActions.h"

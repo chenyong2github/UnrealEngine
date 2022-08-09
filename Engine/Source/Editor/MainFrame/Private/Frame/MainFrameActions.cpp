@@ -34,6 +34,7 @@
 #include "CookerSettings.h"
 #include "UnrealEdMisc.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Editor/Transactor.h"
 #include "Preferences/UnrealEdOptions.h"
 #include "UnrealEdGlobals.h"
 #include "FileHelpers.h"

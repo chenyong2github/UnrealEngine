@@ -57,6 +57,7 @@
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor.h"
+#include "Editor/Transactor.h"
 
 #include "Editor/Kismet/Public/BlueprintEditorModule.h"
 #include "Editor/Kismet/Public/FindInBlueprintManager.h"

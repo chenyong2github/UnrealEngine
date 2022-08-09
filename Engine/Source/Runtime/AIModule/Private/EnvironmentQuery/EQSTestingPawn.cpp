@@ -17,6 +17,7 @@
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
+#include "Misc/TransactionObjectEvent.h"
 #include "Editor/EditorEngine.h"
 extern UNREALED_API UEditorEngine* GEditor;
 #endif // WITH_EDITOR

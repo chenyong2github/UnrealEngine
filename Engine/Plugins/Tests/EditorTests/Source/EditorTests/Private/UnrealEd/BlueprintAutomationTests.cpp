@@ -30,6 +30,7 @@
 #include "GameFramework/SaveGame.h"
 #include "EngineUtils.h"
 #include "Editor.h"
+#include "Editor/Transactor.h"
 #include "FileHelpers.h"
 
 #include "ObjectTools.h"

@@ -30,6 +30,7 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
+#include "Editor/Transactor.h"
 #include "HAL/IConsoleManager.h"
 #include "ScopedTransaction.h"
 #endif
