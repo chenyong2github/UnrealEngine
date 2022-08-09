@@ -25,7 +25,7 @@ public:
 	}
 
 	/* Returns the ARFilter for this advanced copy */
-	FARFilter GetARFilter() const
+	virtual FARFilter GetARFilter() const
 	{
 		return FilterForExcludingDependencies;
 	}
