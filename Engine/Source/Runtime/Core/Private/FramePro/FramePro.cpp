@@ -8463,7 +8463,8 @@ namespace FramePro
 	//------------------------------------------------------------------------
 	void Thread::WaitForThreadToTerminate(int timeout)
 	{
-		m_ThreadTerminatedEvent.Wait(timeout);
+		if (m_Created)
+			m_ThreadTerminatedEvent.Wait(timeout);
 	}
 }
 
