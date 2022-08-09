@@ -1612,89 +1612,102 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 	const int32 NiagaraVer = Ar.CustomVer(FNiagaraCustomVersion::GUID);
 
 #if WITH_EDITORONLY_DATA
-	IsCooked = Ar.IsLoading() && Ar.IsFilterEditorOnly();
+	FNiagaraParameterStore::FScopedSuppressOnChanged SupressOnChanged(RapidIterationParameters);
+#endif
 
+	FNiagaraParameterStore TemporaryStore;
+	int32 NumRemoved = 0;
 	if (Ar.IsCooking())
 	{
-		// Cook optimization can temporarily modify the rapid iteration parameters for the serialize call.  We don't want this to broadcast
-		// on changed messages because it will modify the change id on owning objects so we supress those messages starting here.
-		FNiagaraParameterStore::FScopedSuppressOnChanged SupressOnChanged(RapidIterationParameters);
+		bool bUsesRapidIterationParams = true;
 
-		UNiagaraSystem* System = GetTypedOuter<UNiagaraSystem>();
-		bool bUsesRapidIterationParams = System != nullptr && System->ShouldUseRapidIterationParameters();
+#if WITH_EDITORONLY_DATA
+		if (UNiagaraSystem* System = GetTypedOuter<UNiagaraSystem>())
+		{
+			bUsesRapidIterationParams = System->ShouldUseRapidIterationParameters();
+		}
+#endif
+
 		if (!bUsesRapidIterationParams)
 		{
-			// Cache the unmodified rapid iteration parameters in an editor only property so that they can be restored in a cooked editor
-			// and so they can be restored after this optimization.
+			// Copy off the parameter store for now..
+			TemporaryStore = RapidIterationParameters;
+
+#if WITH_EDITORONLY_DATA
+			// Cache the unmodified rapid iteration parameters in an editor only property so that they can be restored in a cooked editor.
 			RapidIterationParametersCookedEditorCache = RapidIterationParameters;
+#endif
+
+			auto ParameterVariables = TemporaryStore.ReadParameterVariables();
 
 			// Get the active parameters
 			// Remove all parameters that aren't data interfaces or uobjects
-			int32 NumRemoved = 0;
-			auto ParameterVariables = RapidIterationParameters.ReadParameterVariables();
 			for (const FNiagaraVariableBase& Var : ParameterVariables)
 			{
 				if (Var.IsDataInterface() || Var.IsUObject())
-				{
 					continue;
-				}
 				RapidIterationParameters.RemoveParameter(Var);
 				NumRemoved++;
 			}
 
 			UE_LOG(LogNiagara, Verbose, TEXT("Pruned %d/%d parameters from script %s"), NumRemoved, ParameterVariables.Num(), *GetFullName());
 		}
-
-		if (Ar.IsSaving())
-		{
-			auto& ExecutableData = GetVMExecutableData();
-
-			if (Usage != ENiagaraScriptUsage::ParticleGPUComputeScript)
-			{
-				ExecutableData.BakeScriptLiterals(ExecutableData.ScriptLiterals);
-
-				// we only need the padding info for when we're dealing with GPU scripts (for
-				// FNiagaraScriptInstanceParameterStore::CopyParameterDataToPaddedBuffer())
-				ScriptExecutionParamStore.PaddingInfo.Empty();
-			}
-			else
-			{
-				ExecutableData.ScriptLiterals.Empty();
-				ScriptExecutionParamStore.CoalescePaddingInfo();
-			}
-
-			if (GNiagaraCompressScriptByteCode)
-			{
-				ExecutableData.ByteCode.Compress();
-			}
-		}
-
-		Super::Serialize(Ar);
-
-		// If we cached the rapid iteration parameters before serialize, restore them here.
-		if (RapidIterationParametersCookedEditorCache.Num() != 0)
-		{
-			RapidIterationParameters = RapidIterationParametersCookedEditorCache;
-			RapidIterationParametersCookedEditorCache.Empty();
-		}
-	}
-	else if (Ar.IsLoading() && GetOutermost()->HasAnyPackageFlags(PKG_Cooked))
-	{
-		Super::Serialize(Ar);
-		if (RapidIterationParametersCookedEditorCache.Num() > 0)
-		{
-			// Restore the rapid iteration parameters from the cache for cooked editor builds.
-			RapidIterationParameters = RapidIterationParametersCookedEditorCache;
-			RapidIterationParametersCookedEditorCache.Empty();
-		}
-	}
-	else
-#endif
-	{
-		Super::Serialize(Ar);
 	}
 
 #if WITH_EDITORONLY_DATA
+	if (Ar.IsCooking() && Ar.IsSaving())
+	{
+		auto& ExecutableData = GetVMExecutableData();
+
+		if (Usage != ENiagaraScriptUsage::ParticleGPUComputeScript)
+		{
+			ExecutableData.BakeScriptLiterals(ExecutableData.ScriptLiterals);
+
+			// we only need the padding info for when we're dealing with GPU scripts (for
+			// FNiagaraScriptInstanceParameterStore::CopyParameterDataToPaddedBuffer())
+			ScriptExecutionParamStore.PaddingInfo.Empty();
+		}
+		else
+		{
+			ExecutableData.ScriptLiterals.Empty();
+			ScriptExecutionParamStore.CoalescePaddingInfo();
+		}
+
+		if (GNiagaraCompressScriptByteCode)
+		{
+			ExecutableData.ByteCode.Compress();
+		}
+	}
+
+	if (Ar.IsLoading())
+	{
+		IsCooked = Ar.IsFilterEditorOnly();
+	}
+#endif
+
+	Super::Serialize(Ar);
+
+	// Restore after serialize
+	if (Ar.IsCooking())
+	{
+		if (NumRemoved > 0)
+		{
+			RapidIterationParameters = TemporaryStore;
+		}
+#if WITH_EDITORONLY_DATA
+		RapidIterationParametersCookedEditorCache.Empty();
+#endif
+	}
+
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading() && RapidIterationParametersCookedEditorCache.Num() > 0)
+	{
+		// If we're loading and the cooked editor cache is available, re-populate the parameters from the cache after they're
+		// deserialized.
+		RapidIterationParameters = RapidIterationParametersCookedEditorCache;
+		RapidIterationParametersCookedEditorCache.Empty();
+	}
+
 	if (Ar.IsCooking() && Ar.IsSaving())
 	{
 		if (!HasValidParameterBindings())
