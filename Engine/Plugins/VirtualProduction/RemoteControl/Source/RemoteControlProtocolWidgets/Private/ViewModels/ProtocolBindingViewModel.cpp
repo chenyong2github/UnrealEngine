@@ -10,6 +10,7 @@
 #include "RCTypeTraits.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlProtocolWidgetsModule.h"
+#include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
 #include "Algo/AnyOf.h"
 

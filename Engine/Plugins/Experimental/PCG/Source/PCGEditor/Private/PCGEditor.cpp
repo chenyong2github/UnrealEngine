@@ -49,6 +49,7 @@
 #include "Preferences/UnrealEdOptions.h"
 #include "PropertyEditorModule.h"
 #include "SNodePanel.h"
+#include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
 #include "SourceCodeNavigation.h"
 #include "ToolMenus.h"

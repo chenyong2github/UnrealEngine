@@ -23,6 +23,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ClassViewerFilter.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
 
 #include "GameProjectGenerationModule.h"	// Adding new component classes

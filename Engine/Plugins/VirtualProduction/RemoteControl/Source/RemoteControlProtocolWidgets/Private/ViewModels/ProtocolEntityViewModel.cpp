@@ -9,6 +9,7 @@
 #include "ProtocolCommandChange.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlProtocolWidgetsSettings.h"
+#include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
 #include "Algo/AllOf.h"
 #include "Algo/AnyOf.h"

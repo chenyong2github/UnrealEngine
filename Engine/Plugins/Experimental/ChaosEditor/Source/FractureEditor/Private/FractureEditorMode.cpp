@@ -23,6 +23,7 @@
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "FractureSelectionTools.h"
 #include "EditorViewportClient.h"
+#include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "EdModeInteractiveToolsContext.h"
