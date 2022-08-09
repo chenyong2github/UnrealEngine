@@ -42,6 +42,8 @@ struct FTitleFileGetEnumeratedFiles
 
 using FTitleFileContents = TArray<uint8>;
 using FTitleFileContentsRef = TSharedRef<const FTitleFileContents>;
+using FTitleFileContentsPtr = TSharedPtr<const FTitleFileContents>;
+using FTitleFileContentsWeakPtr = TWeakPtr<const FTitleFileContents>;
 
 struct FTitleFileReadFile
 {
