@@ -251,6 +251,9 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 	// id because the copy's change id may have been updated from the original as part of post load and we use this id to detect if the editable 
 	// emitter has been changed.
 	LastSyncedEmitterChangeId = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel()->GetEmitter().Emitter->GetChangeId();
+
+	// Mirror the system setup above so that the parameter panel updates appropriately
+	SystemViewModel->SetParameterPanelViewModel(ParameterPanelViewModel);
 	SystemToolkitMode = ESystemToolkitMode::Emitter;
 
 	if (GbLogNiagaraSystemChanges > 0)

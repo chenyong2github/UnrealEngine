@@ -346,7 +346,7 @@ void UNiagaraSystemEditorDocumentsViewModel::SetActiveDocumentTab(TSharedPtr<SDo
 bool UNiagaraSystemEditorDocumentsViewModel::IsPrimaryDocumentActive() const
 {
 	TSharedPtr<SDockTab> Tab = ActiveDocumentTab.Pin();
-	if (Tab.IsValid() && Tab->GetLayoutIdentifier().TabType == PrimaryDocumentTabId)
+	if (Tab.IsValid() && (Tab->GetLayoutIdentifier().TabType == PrimaryDocumentTabId || PrimaryDocumentTabId.IsNone()))
 	{
 		return true;
 	}
