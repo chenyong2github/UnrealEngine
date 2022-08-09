@@ -61,6 +61,9 @@ FLazyName UMediaPlateComponent::MediaPlaylistName(TEXT("MediaPlaylist0"));
 UMediaPlateComponent::UMediaPlateComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
+
 	CacheSettings.bOverride = true;
 
 	// Set up playlist.
@@ -110,6 +113,9 @@ void UMediaPlateComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Activate tick if needed.
+	UpdateTicking();
+
 	// Start playing?
 	if (bAutoPlay)
 	{
@@ -136,6 +142,33 @@ void UMediaPlateComponent::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+
+void UMediaPlateComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (bPlayOnlyWhenVisible)
+	{
+		bool bIsVisible = IsVisible();
+
+		if (MediaPlayer != nullptr)
+		{
+			if (bIsVisible)
+			{
+				ResumeWhenVisible();
+			}
+			else
+			{
+				if (MediaPlayer->IsPlaying())
+				{
+					MediaPlayer->Pause();
+					TimeWhenPlaybackPaused = FApp::GetGameTime();
+				}
+			}
+		}
+	}
+}
+
 UMediaPlayer* UMediaPlateComponent::GetMediaPlayer()
 {
 	return MediaPlayer;
@@ -148,39 +181,47 @@ UMediaTexture* UMediaPlateComponent::GetMediaTexture()
 
 void UMediaPlateComponent::Play()
 {
-	bool bIsPlaying = false;
-	if (MediaPlayer != nullptr)
+	if ((bPlayOnlyWhenVisible == false) || (IsVisible()))
 	{
-		UMediaSource* MediaSource = nullptr;
-		if (MediaPlaylist != nullptr)
-		{
-			MediaSource = MediaPlaylist->Get(0);
-		}
-		bIsPlaying = PlayMediaSource(MediaSource);
-	}
+		bool bIsPlaying = false;
+			if (MediaPlayer != nullptr)
+			{
+				UMediaSource* MediaSource = nullptr;
+					if (MediaPlaylist != nullptr)
+					{
+						MediaSource = MediaPlaylist->Get(0);
+					}
+				bIsPlaying = PlayMediaSource(MediaSource);
+			}
 
-	// Did anything play?
-	if (bIsPlaying == false)
-	{
-		UE_LOG(LogMediaPlate, Warning, TEXT("Could not play anything."));
+		// Did anything play?
+		if (bIsPlaying == false)
+		{
+			UE_LOG(LogMediaPlate, Warning, TEXT("Could not play anything."));
+		}
+		else
+		{
+			// Are we using automatic aspect ratio?
+			if ((bIsAspectRatioAuto) &&
+				(VisibleMipsTilesCalculations == EMediaTextureVisibleMipsTiles::Plane))
+			{
+				// Start the clock sink so we can tick.
+				IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
+				if (MediaModule != nullptr)
+				{
+					if (ClockSink.IsValid() == false)
+					{
+						ClockSink = MakeShared<FMediaComponentClockSink, ESPMode::ThreadSafe>(this);
+					}
+					MediaModule->GetClock().AddSink(ClockSink.ToSharedRef());
+				}
+			}
+		}
 	}
 	else
 	{
-		// Are we using automatic aspect ratio?
-		if ((bIsAspectRatioAuto) &&
-			(VisibleMipsTilesCalculations == EMediaTextureVisibleMipsTiles::Plane))
-		{
-			// Start the clock sink so we can tick.
-			IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
-			if (MediaModule != nullptr)
-			{
-				if (ClockSink.IsValid() == false)
-				{
-					ClockSink = MakeShared<FMediaComponentClockSink, ESPMode::ThreadSafe>(this);
-				}
-				MediaModule->GetClock().AddSink(ClockSink.ToSharedRef());
-			}
-		}
+		bWantsToPlayWhenVisible = true;
+		TimeWhenPlaybackPaused = FApp::GetGameTime();
 	}
 }
 
@@ -192,6 +233,7 @@ void UMediaPlateComponent::Stop()
 	}
 
 	StopClockSink();
+	bWantsToPlayWhenVisible = false;
 }
 
 void UMediaPlateComponent::SetMeshRange(FVector2D InMeshRange)
@@ -202,6 +244,18 @@ void UMediaPlateComponent::SetMeshRange(FVector2D InMeshRange)
 	{
 		MediaTextureTrackerObject->MeshRange = MeshRange;
 	}
+}
+
+void UMediaPlateComponent::SetPlayOnlyWhenVisible(bool bInPlayOnlyWhenVisible)
+{
+	// If we are turning off PlayOnlyWhenVisible then make sure we are playing.
+	if (bInPlayOnlyWhenVisible == false)
+	{
+		ResumeWhenVisible();
+	}
+
+	bPlayOnlyWhenVisible = bInPlayOnlyWhenVisible;
+	UpdateTicking();
 }
 
 void UMediaPlateComponent::RegisterWithMediaTextureTracker()
@@ -306,6 +360,59 @@ void UMediaPlateComponent::StopClockSink()
 			MediaModule->GetClock().RemoveSink(ClockSink.ToSharedRef());
 		}
 	}
+}
+
+bool UMediaPlateComponent::IsVisible()
+{
+#if WITH_EDITOR
+	// Always return true if the game is not running as the visibility checks do not work in this
+	// case.
+	if (FApp::IsGame() == false)
+	{
+		return true;
+	}
+#endif
+
+	return GetOwner()->WasRecentlyRendered();
+}
+
+void UMediaPlateComponent::ResumeWhenVisible()
+{
+	if (MediaPlayer != nullptr)
+	{
+		if (MediaPlayer->IsPaused())
+		{
+			FTimespan PlayTime = GetResumeTime();
+			MediaPlayer->Seek(PlayTime);
+			MediaPlayer->Play();
+		}
+		else if (bWantsToPlayWhenVisible)
+		{
+			Play();
+			FTimespan PlayTime = GetResumeTime();
+			MediaPlayer->Seek(PlayTime);
+		}
+	}
+}
+
+FTimespan UMediaPlateComponent::GetResumeTime()
+{
+	FTimespan PlayerTime;
+	if (MediaPlayer != nullptr)
+	{
+		PlayerTime = MediaPlayer->GetTime();
+		float CurrentTime = FApp::GetGameTime();
+		float ElapsedTime = CurrentTime - TimeWhenPlaybackPaused;
+		PlayerTime += FTimespan::FromSeconds(ElapsedTime);
+	}
+
+	return PlayerTime;
+}
+
+void UMediaPlateComponent::UpdateTicking()
+{
+	bool bEnableTick = bPlayOnlyWhenVisible;
+	PrimaryComponentTick.SetTickFunctionEnable(bEnableTick);
 }
 
 #if WITH_EDITOR

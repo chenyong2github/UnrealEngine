@@ -32,6 +32,8 @@ public:
 	virtual void OnRegister();
 	virtual void BeginPlay();
 	virtual void BeginDestroy();
+	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
@@ -80,8 +82,6 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "MediaPlate")
 	bool bIsAspectRatioAuto = true;
 
-	
-
 	/** Holds the component to play sound. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = MediaPlate)
 	TObjectPtr<UMediaSoundComponent> SoundComponent;
@@ -113,6 +113,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlate")
 	FVector2D GetMeshRange() const { return MeshRange; }
 
+	/** Call this to set bPlayOnlyWhenVisible. */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlate")
+	void SetPlayOnlyWhenVisible(bool bInPlayOnlyWhenVisible);
+
 	/**
 	 * Adds our media texture to the media texture tracker.
 	 */
@@ -138,6 +142,10 @@ public:
 #endif
 
 private:
+	/** If true then only allow playback when the media plate is visible. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
+	bool bPlayOnlyWhenVisible = false;
+
 	UPROPERTY()
 	FVector2D MeshRange = FVector2D(360.0f, 180.0f);
 
@@ -158,6 +166,10 @@ private:
 	TSharedPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> MediaTextureTrackerObject;
 	/** Our media clock sink. */
 	TSharedPtr<FMediaComponentClockSink, ESPMode::ThreadSafe> ClockSink;
+	/** Game time when we paused playback. */
+	float TimeWhenPlaybackPaused = 0.0f;
+	/** True if our media should be playing when visible. */
+	bool bWantsToPlayWhenVisible = false;
 
 	/**
 	 * Plays a media source.
@@ -171,5 +183,25 @@ private:
 	 * Stops the clock sink so we no longer tick.
 	 */
 	void StopClockSink();
+
+	/**
+	 * Call this to see if this media plate is visible.
+	 */
+	bool IsVisible();
+
+	/**
+	 * Call this to resume playback when the media plate is visible.
+	 */
+	void ResumeWhenVisible();
+
+	/**
+	 * Returns the time to seek to when resuming playback.
+	 */
+	FTimespan GetResumeTime();
+
+	/**
+	 * Updates if we should tick or not based on current state.
+	 */
+	void UpdateTicking();
 
 };
