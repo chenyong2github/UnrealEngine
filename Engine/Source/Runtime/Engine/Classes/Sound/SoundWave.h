@@ -106,8 +106,6 @@ struct ENGINE_API FStreamedAudioPlatformData
 {
 	GENERATED_USTRUCT_BODY()
 
-	/** Number of audio chunks. */
-	int32 NumChunks;
 	/** Format in which audio chunks are stored. */
 	FName AudioFormat;
 	/** audio data. */
