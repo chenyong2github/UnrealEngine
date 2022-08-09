@@ -510,14 +510,14 @@ void FD3D12StateCacheBase::ApplyState()
 	// Ensure the correct graphics PSO is set.
 	InternalSetPipelineState(PSOCommonData->PipelineState);
 
-	bool bBindlessResources = false;
-	bool bBindlessSamplers = false;
+	bool bBindlessResources = PSOCommonData->RootSignature->UsesDynamicResources();
+	bool bBindlessSamplers = PSOCommonData->RootSignature->UsesDynamicSamplers();
+
+	const bool bApplyResources = !bBindlessResources && PSOCommonData->RootSignature->HasResources();
+	const bool bApplySamplers = !bBindlessSamplers && PSOCommonData->RootSignature->HasSamplers();
 
 	if (bRootSignatureChanged)
 	{
-		bBindlessResources = PSOCommonData->RootSignature->UsesDynamicResources();
-		bBindlessSamplers = PSOCommonData->RootSignature->UsesDynamicSamplers();
-		
 		FD3D12BindlessDescriptorManager& BindlessManager = GetParentDevice()->GetBindlessDescriptorManager();
 
 		FD3D12DescriptorHeap* ResourceHeap = BindlessManager.GetHeapForType(ERHIDescriptorHeapType::Standard);
@@ -611,12 +611,12 @@ void FD3D12StateCacheBase::ApplyState()
 	//
 
 	// Samplers
-	if (!bBindlessSamplers)
+	if (bApplySamplers)
 	{
 		ApplySamplers(PSOCommonData->RootSignature, StartStage, EndStage);
 	}
 
-	if (!bBindlessResources)
+	if (bApplyResources)
 	{
 		ApplyResources(PSOCommonData->RootSignature, StartStage, EndStage);
 	}

@@ -985,8 +985,8 @@ void FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(const D3D12_RESOU
 	}
 	else
 	{
-		Shader.SamplerCount = MaxSamplerCount;
-		Shader.ShaderResourceCount = MaxShaderResourceCount;
+		Shader.SamplerCount = Counts.NumSamplers > 0 ? MaxSamplerCount : 0;
+		Shader.ShaderResourceCount = Counts.NumSRVs > 0 ? MaxShaderResourceCount : 0;
 	}
 
 	if (ResourceBindingTier <= D3D12_RESOURCE_BINDING_TIER_2)
@@ -997,7 +997,7 @@ void FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(const D3D12_RESOU
 	else
 	{
 		Shader.ConstantBufferCount = (Counts.NumCBs > MAX_ROOT_CBVS) ? MaxConstantBufferCount : Counts.NumCBs;
-		Shader.UnorderedAccessCount = (bAllowUAVs) ? MaxUnorderedAccessCount : 0;
+		Shader.UnorderedAccessCount = Counts.NumUAVs > 0 && bAllowUAVs ? MaxUnorderedAccessCount : 0;
 	}
 }
 

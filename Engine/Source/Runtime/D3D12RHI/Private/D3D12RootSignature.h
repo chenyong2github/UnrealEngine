@@ -183,6 +183,7 @@ public:
 	inline bool HasUAVs() const { return bHasUAVs; }
 	inline bool HasSRVs() const { return bHasSRVs; }
 	inline bool HasCBVs() const { return bHasCBVs; }
+	inline bool HasResources() const { return bHasUAVs || bHasSRVs || bHasCBVs; }
 	inline bool HasSamplers() const { return bHasSamplers; }
 	inline bool UsesDynamicResources() const { return bUsesDynamicResources; }
 	inline bool UsesDynamicSamplers() const { return bUsesDynamicSamplers; }
