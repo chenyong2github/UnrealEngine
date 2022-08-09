@@ -72,6 +72,7 @@ class FOutputDevice;
  * FilterMode=OptIn/OptOut					When 'OptIn' payloads will be virtualized by default, when 'OptOut' they will not be virtualized by default
  * FilterEngineContent=True/False			When true any payload from a package under Engine/Content/.. will be excluded from virtualization
  * FilterEnginePluginContent=True/False		When true any payload from a package under Engine/Plugins/../Content/.. will be excluded from virtualization
+ * FilterMapContent=True/False				When true any payload stored in a .umap or _BuildData.uasset file will be excluded from virtualization
  * 
  * PackagePath Setup:
  * 
@@ -129,7 +130,7 @@ private:
 	virtual bool IsEnabled() const override;
 	virtual bool IsPushingEnabled(EStorageType StorageType) const override;
 
-	virtual bool IsDisabledForObject(const UObject* Owner) const override;
+	virtual EPayloadFilterReason FilterPayload(const UObject* Owner) const override;
 
 	virtual bool AllowSubmitIfVirtualizationFailed() const override;
 	
@@ -184,6 +185,8 @@ private:
 	FCompressedBuffer PullDataFromAllBackends(const FIoHash& Id);
 	FCompressedBuffer PullDataFromBackend(IVirtualizationBackend& Backend, const FIoHash& Id);
 
+	bool ShouldVirtualizeAsset(const UObject* Owner) const;
+
 	/** 
 	 * Determines if a package path should be virtualized or not based on any exclusion/inclusion patterns
 	 * that might have been set in UVirtualizationFilterSettings.
@@ -232,11 +235,14 @@ private:
 	/** The default filtering mode to apply if a payload is not matched with an option in UVirtualizationFilterSettings */
 	EPackageFilterMode FilteringMode;
 
-	/** Should payloads in engine content packages before filtered out and never virtualized */
+	/** Should payloads in engine content packages be filtered out and never virtualized */
 	bool bFilterEngineContent;
 	
-	/** Should payloads in engine plugin content packages before filtered out and never virtualized */
+	/** Should payloads in engine plugin content packages be filtered out and never virtualized */
 	bool bFilterEnginePluginContent;
+
+	/** Should payloads in .umap files (or associated _BuildData files) be filtered out and never virtualized */
+	bool bFilterMapContent;
 
 	/** Should file submits be allowed to continue if a call to TryVirtualizePackages fails */
 	bool bAllowSubmitIfVirtualizationFailed;

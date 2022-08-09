@@ -268,6 +268,7 @@ FVirtualizationManager::FVirtualizationManager()
 	, FilteringMode(EPackageFilterMode::OptOut)
 	, bFilterEngineContent(true)
 	, bFilterEnginePluginContent(true)
+	, bFilterMapContent(true)
 	, bAllowSubmitIfVirtualizationFailed(false)
 {
 }
@@ -376,22 +377,34 @@ bool FVirtualizationManager::IsPushingEnabled(EStorageType StorageType) const
 	}
 }
 
-bool FVirtualizationManager::IsDisabledForObject(const UObject* OwnerObject) const
+EPayloadFilterReason FVirtualizationManager::FilterPayload(const UObject* Owner) const
 {
-	if (OwnerObject == nullptr)
+	UE::Virtualization::EPayloadFilterReason PayloadFilter = UE::Virtualization::EPayloadFilterReason::None;
+	if (!ShouldVirtualizeAsset(Owner))
 	{
-		return false;
+		PayloadFilter |= UE::Virtualization::EPayloadFilterReason::Asset;
 	}
 
-	const UClass* OwnerClass = OwnerObject->GetClass();
-	if (OwnerClass == nullptr)
+	// TODO: If we keep this feature long term then we might want to work this out in SavePackage.cpp and pass the info
+	// via FLinkerSave rather than the following code.
+	if (bFilterMapContent)
 	{
-		// TODO: Not actually sure if the class being nullptr is reasonable or if we should warn/error here?
-		return false;
+		if (const UObject* Outer = Owner->GetOutermostObject())
+		{
+			if (const UClass* OuterClass = Outer->GetClass())
+			{
+				const FName OuterClassName = OuterClass->GetFName();
+				if (OuterClassName == FName("Level") ||
+					OuterClassName == FName("World") ||
+					OuterClassName == FName("MapBuildDataRegistry"))
+				{
+					PayloadFilter |= UE::Virtualization::EPayloadFilterReason::MapContent;
+				}
+			}
+		}
 	}
 
-	FName ClassName = OwnerClass->GetFName();
-	return DisabledAssetTypes.Find(ClassName) != nullptr;
+	return PayloadFilter;
 }
 
 bool FVirtualizationManager::AllowSubmitIfVirtualizationFailed() const
@@ -844,6 +857,17 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].FilterEnginePluginContent from config file!"));
 	}
 
+	// Optional
+	bool bFilterMapContentFromIni = false;
+	if (ConfigFile.GetBool(TEXT("Core.VirtualizationModule"), TEXT("FilterMapContent"), bFilterMapContentFromIni))
+	{
+		bFilterMapContent = bFilterMapContentFromIni;
+		UE_LOG(LogVirtualization, Display, TEXT("\tFilterMapContent : %s"), bFilterMapContent ? TEXT("true") : TEXT("false"));
+	}
+	else
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].FilterMapContent from config file!"));
+	}
 
 	// Optional
 	TArray<FString> DisabledAssetTypesFromIni;
@@ -1414,6 +1438,25 @@ FCompressedBuffer FVirtualizationManager::PullDataFromBackend(IVirtualizationBac
 	}
 	
 	return Payload;
+}
+
+
+bool FVirtualizationManager::ShouldVirtualizeAsset(const UObject* OwnerObject) const
+{
+	if (OwnerObject == nullptr)
+	{
+		return true;
+	}
+
+	const UClass* OwnerClass = OwnerObject->GetClass();
+	if (OwnerClass == nullptr)
+	{
+		// TODO: Not actually sure if the class being nullptr is reasonable or if we should warn/error here?
+		return true;
+	}
+
+	const FName ClassName = OwnerClass->GetFName();
+	return DisabledAssetTypes.Find(ClassName) == nullptr;
 }
 
 bool FVirtualizationManager::ShouldVirtualizePackage(const FPackagePath& PackagePath) const

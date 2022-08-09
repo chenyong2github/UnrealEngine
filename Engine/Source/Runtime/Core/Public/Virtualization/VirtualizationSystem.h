@@ -18,6 +18,7 @@
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
+#include "Virtualization/VirtualizationTypes.h"
 
 class FPackagePath;
 class FText;
@@ -351,14 +352,14 @@ public:
 	virtual bool IsPushingEnabled(EStorageType StorageType) const = 0;
 
 	/** 
-	 * Poll to see if virtualization is disabled for the given asset type.
+	 * Run checks to see if the payload can be virtualized or not.
 	 * 
-	 * @param	Owner	The object to be tested, assumed to be an asset that 
-	 *					can own virtualized payloads.
+	 * @param	Owner	The UObject that contains the payload, this can be nullptr if the payload is not owned by one
 	 * 
-	 * @return	True if payloads owned by this object should never virtualized
+	 * @return	The reasons why the payload can not be virtualized, encoded as a bitfield of EPayloadFilterReason. 
+	 *			This bitfield will be EPayloadFilterReason::None (0) if no reason was found.
 	 */
-	virtual bool IsDisabledForObject(const UObject* Owner) const = 0;
+	virtual EPayloadFilterReason FilterPayload(const UObject* Owner) const = 0;
 
 	/** 
 	 * Poll to see if the virtualization process failing when submitting a collection of files to source

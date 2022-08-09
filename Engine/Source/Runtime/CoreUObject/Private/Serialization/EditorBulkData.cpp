@@ -20,6 +20,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/SavePackage.h"
 #include "Virtualization/VirtualizationSystem.h"
+#include "Virtualization/VirtualizationTypes.h"
 
 //#if WITH_EDITORONLY_DATA
 
@@ -1702,11 +1703,14 @@ void FEditorBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompre
 		}
 	};
 
-	EPayloadFilterReason PayloadFilter = EPayloadFilterReason::None;
-	if (bSkipVirtualization || UE::Virtualization::IVirtualizationSystem::Get().IsDisabledForObject(Owner))
+	UE::Virtualization::EPayloadFilterReason PayloadFilter = UE::Virtualization::IVirtualizationSystem::Get().FilterPayload(Owner);
+
+#if UE_ENABLE_VIRTUALIZATION_TOGGLE
+	if (bSkipVirtualization)
 	{
-		PayloadFilter = EPayloadFilterReason::Asset;
+		PayloadFilter |= UE::Virtualization::EPayloadFilterReason::Asset;
 	}
+#endif //UE_ENABLE_VIRTUALIZATION_TOGGLE
 
 	LinkerSave.PackageTrailerBuilder->AddPayload(PayloadContentId, MoveTemp(PayloadToSerialize), PayloadFilter, MoveTemp(OnPayloadWritten));
 }

@@ -12,6 +12,7 @@
 #include "Templates/Function.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
+#include "Virtualization/VirtualizationTypes.h"
 
 class FArchive;
 class FLinkerSave;
@@ -123,22 +124,6 @@ enum class EPayloadFlags : uint16
 
 ENUM_CLASS_FLAGS(EPayloadFlags);
 
-enum class EPayloadFilterReason : uint16
-{
-	/** Not filtered */
-	None				= 0,
-	/** Filtered due to the asset type of the owning UObject */
-	Asset				= 1 << 0,
-	/** Filtered due to the path of the owning UPackage */
-	Path				= 1 << 1,
-	/** Filtered because the payload size is below the minimum size for virtualization */
-	MinSize				= 1 << 2,
-	/** Filtered because the owning editor bulkdata had virtualization disabled programmatically */
-	EditorBulkDataCode	= 1 << 3
-};
-
-ENUM_CLASS_FLAGS(EPayloadFilterReason);
-
 enum class EPackageTrailerVersion : uint32;
 
 namespace Private
@@ -185,7 +170,7 @@ struct FLookupTableEntry
 	/** Bitfield of flags, see @UE::EPayloadFlags */
 	EPayloadFlags Flags = EPayloadFlags::None;
 	/** Bitfield of flags showing if the payload allowed to be virtualized or the reason why it cannot be virtualized, see @UE::EPayloadFilterReason */
-	EPayloadFilterReason FilterFlags = EPayloadFilterReason::None;
+	Virtualization::EPayloadFilterReason FilterFlags = Virtualization::EPayloadFilterReason::None;
 
 	EPayloadAccessMode AccessMode = EPayloadAccessMode::Local;
 };
@@ -202,7 +187,7 @@ struct FPayloadInfo
 
 	EPayloadAccessMode AccessMode = EPayloadAccessMode::Local;
 	EPayloadFlags Flags = EPayloadFlags::None;
-	EPayloadFilterReason FilterFlags = EPayloadFilterReason::None;
+	Virtualization::EPayloadFilterReason FilterFlags = Virtualization::EPayloadFilterReason::None;
 };
 
 /** 
@@ -266,7 +251,7 @@ public:
 	 * @param Flags			The custom flags to be applied to the payload
 	 * @param Callback		This callback will be invoked once the FPackageTrailer has been built and appended to disk.
 	 */
-	void AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, EPayloadFilterReason Filter, AdditionalDataCallback&& Callback);
+	void AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, UE::Virtualization::EPayloadFilterReason Filter, AdditionalDataCallback&& Callback);
 
 	/**
 	 * Adds an already virtualized payload to the builder to be written to the trailer. When the trailer is written
@@ -326,7 +311,7 @@ private:
 	struct LocalEntry
 	{
 		LocalEntry() = default;
-		LocalEntry(FCompressedBuffer&& InPayload, EPayloadFilterReason InFilterFlags)
+		LocalEntry(FCompressedBuffer&& InPayload, Virtualization::EPayloadFilterReason InFilterFlags)
 			: Payload(InPayload)
 			, FilterFlags(InFilterFlags)
 		{
@@ -335,7 +320,7 @@ private:
 		~LocalEntry() = default;
 
 		FCompressedBuffer Payload;
-		EPayloadFilterReason FilterFlags = EPayloadFilterReason::None;
+		Virtualization::EPayloadFilterReason FilterFlags = Virtualization::EPayloadFilterReason::None;
 	};
 
 	/** All of the data required to add a reference to a payload stored in another trailer */
@@ -567,4 +552,4 @@ private:
 
 } //namespace UE
 
-[[nodiscard]] COREUOBJECT_API FString LexToString(UE::EPayloadFilterReason FilterFlags);
+[[nodiscard]] COREUOBJECT_API FString LexToString(UE::Virtualization::EPayloadFilterReason FilterFlags);

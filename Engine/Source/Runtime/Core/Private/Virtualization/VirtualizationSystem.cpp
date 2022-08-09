@@ -42,9 +42,9 @@ public:
 		return false;
 	}
 
-	virtual bool IsDisabledForObject(const UObject* Owner) const override
+	virtual EPayloadFilterReason FilterPayload(const UObject* Owner) const override
 	{
-		return false;
+		return EPayloadFilterReason::None;
 	}
 
 	virtual bool AllowSubmitIfVirtualizationFailed() const override

@@ -205,7 +205,7 @@ FPackageTrailerBuilder::FPackageTrailerBuilder(FString&& InDebugContext)
 {
 }
 
-void FPackageTrailerBuilder::AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, EPayloadFilterReason FilterFlags, AdditionalDataCallback&& Callback)
+void FPackageTrailerBuilder::AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, UE::Virtualization::EPayloadFilterReason FilterFlags, AdditionalDataCallback&& Callback)
 {
 	Callbacks.Emplace(MoveTemp(Callback));
 
@@ -242,7 +242,7 @@ bool FPackageTrailerBuilder::UpdatePayloadAsLocal(const FIoHash& Identifier, FCo
 	if (!Identifier.IsZero() && VirtualizedEntries.Remove(Identifier) > 0)
 	{
 		check(LocalEntries.Find(Identifier) == nullptr);
-		LocalEntries.Add(Identifier, LocalEntry(MoveTemp(Payload), EPayloadFilterReason::None));
+		LocalEntries.Add(Identifier, LocalEntry(MoveTemp(Payload), UE::Virtualization::EPayloadFilterReason::None));
 
 		return true;
 	}
@@ -780,7 +780,7 @@ TArray<FIoHash> FPackageTrailer::GetPayloads(EPayloadFilter Filter) const
 		switch (Filter)
 		{
 			case EPayloadFilter::CanVirtualize:
-				if (Entry.IsLocal() && Entry.FilterFlags == EPayloadFilterReason::None)
+				if (Entry.IsLocal() && Entry.FilterFlags == UE::Virtualization::EPayloadFilterReason::None)
 				{
 					Identifiers.Add(Entry.Identifier);
 				}
@@ -803,7 +803,7 @@ int32 FPackageTrailer::GetNumPayloads(EPayloadFilter Filter) const
 		case EPayloadFilter::CanVirtualize:
 			Count = (int32)Algo::CountIf(Header.PayloadLookupTable, [](const Private::FLookupTableEntry& Entry)
 				{
-					return Entry.AccessMode == EPayloadAccessMode::Local && Entry.FilterFlags == EPayloadFilterReason::None;
+					return Entry.AccessMode == EPayloadAccessMode::Local && Entry.FilterFlags == UE::Virtualization::EPayloadFilterReason::None;
 				});
 			break;
 
@@ -890,9 +890,9 @@ bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadStorageT
 
 } //namespace UE
 
-FString LexToString(UE::EPayloadFilterReason FilterFlags)
+FString LexToString(UE::Virtualization::EPayloadFilterReason FilterFlags)
 {
-	using namespace UE;
+	using namespace UE::Virtualization;
 
 	if (FilterFlags == EPayloadFilterReason::None)
 	{
@@ -932,13 +932,22 @@ FString LexToString(UE::EPayloadFilterReason FilterFlags)
 			Builder << TEXT("EditorBulkDataCode");
 		}
 
+		if (EnumHasAllFlags(FilterFlags, EPayloadFilterReason::MapContent))
+		{
+			AddSeparatorIfNeeded();
+			Builder << TEXT("MapContent");
+		}
+
 		// In case a new entry was added to EPayloadFilterReason without this function being
 		// updated we need to check if any of the other bits are set and if they are print 
 		// and unknown entry.
 		// We don't want a Max or Count entry being added to EPayloadFilterReason as we'd then
 		// need to validate all places taking the enum to make sure that nobody is using it.
-		const uint16 Mask = ~uint16(EPayloadFilterReason::Asset | EPayloadFilterReason::Path |
-			EPayloadFilterReason::MinSize | EPayloadFilterReason::EditorBulkDataCode);
+		const uint16 Mask = ~uint16(	EPayloadFilterReason::Asset |
+										EPayloadFilterReason::Path |
+										EPayloadFilterReason::MinSize |
+										EPayloadFilterReason::EditorBulkDataCode |
+										EPayloadFilterReason::MapContent);
 
 		const bool bHasUnknownBits = ((uint16)FilterFlags & Mask) != 0;
 		if (bHasUnknownBits)
