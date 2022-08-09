@@ -577,7 +577,7 @@ void UAutomatedLevelSequenceCapture::SetupFrameRange()
 				// This is a fun hack... Due to the fragility of this code (which this makes more fragile admittedly...) the original audio implementation
 				// just ran the entire process twice, starting all the way back at the Setup loop so that everything would be re-initialized like it was
 				// for the video capture. Unfortunately, it looks like when we switch from a Fixed Timestep clock to the Platform clock (needed for audio
-				// as audio is realtime only) this allows the sequence player to get out of sync with the warmup frame counter. Audio recording doens't start
+				// as audio is realtime only) this allows the sequence player to get out of sync with the warmup frame counter. Audio recording doesn't start
 				// until the warmup time has passed, but because the sequence is playing at realtime it can start playing the part of the sequence you wanted
 				// the audio for before the recorder ever kicks in!
 				// To minimize changes, we're just going to override any warmup/delay times to zero here in the event that this is an audio pass, so that

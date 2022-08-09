@@ -422,7 +422,7 @@ void SControlRigMappingWindow::CreateBoneMappingList(const FString& SearchText, 
 
 				if (bDoFiltering)
 				{
-					// make sure it doens't fit any of them
+					// make sure it doesn't fit any of them
 					if (!DisplayName.Contains(SearchText) && (BoneName && !(*BoneName).ToString().Contains(SearchText)))
 					{
 						continue; // Skip items that don't match our filter

@@ -952,7 +952,7 @@ bool FTiledTileInfo::ParseTileInfoFromJSON(int32 TileIndex, TSharedPtr<FJsonObje
 	}
 
 	// Try reading the per-tile collision data if present
-	// Note: This is really an entire fake objectgroup layer, but only the objects array matters; Tiled doens't even provide a way to edit the rest of the data.
+	// Note: This is really an entire fake objectgroup layer, but only the objects array matters; Tiled doesn't even provide a way to edit the rest of the data.
 	const TSharedPtr<FJsonObject>* ObjectGroupSubobject;
 	if (Tree->TryGetObjectField(TEXT("objectgroup"), /*out*/ ObjectGroupSubobject))
 	{

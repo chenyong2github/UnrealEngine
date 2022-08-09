@@ -489,7 +489,7 @@ bool UAnimationAsset::ReplaceSkeleton(USkeleton* NewSkeleton, bool bConvertSpace
 
 bool UAnimationAsset::GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationSequences, bool bRecursive /*= true*/) 
 {
-	//@todo:@fixme: this doens't work for retargeting because postload gets called after duplication, mixing up the mapping table
+	//@todo:@fixme: this doesn't work for retargeting because postload gets called after duplication, mixing up the mapping table
 	// because skeleton changes, for now we don't support retargeting for parent asset, it will disconnect, and just duplicate everything else
 // 	if (ParentAsset)
 // 	{
@@ -516,7 +516,7 @@ void UAnimationAsset::HandleAnimReferenceCollection(TArray<UAnimationAsset*>& An
 
 void UAnimationAsset::ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimationAsset*>& ReplacementMap)
 {
-	//@todo:@fixme: this doens't work for retargeting because postload gets called after duplication, mixing up the mapping table
+	//@todo:@fixme: this doesn't work for retargeting because postload gets called after duplication, mixing up the mapping table
 	// because skeleton changes, for now we don't support retargeting for parent asset, it will disconnect, and just duplicate everything else
 	if (ParentAsset)
 	{

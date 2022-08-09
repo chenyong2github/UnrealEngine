@@ -3298,7 +3298,7 @@ FString FConfigCacheIni::GetDestIniFilename(const TCHAR* BaseIniName, const TCHA
 	{
 		FString Name(PlatformName ? PlatformName : ANSI_TO_TCHAR(FPlatformProperties::PlatformName()));
 
-		// if the BaseIniName doens't contain the config dir, put it all together
+		// if the BaseIniName doesn't contain the config dir, put it all together
 		if (FCString::Stristr(BaseIniName, GeneratedConfigDir) != nullptr)
 		{
 			IniFilename = BaseIniName;

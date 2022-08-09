@@ -168,7 +168,7 @@ public:
 					}
 					else
 					{
-						// if parent doens't exists, we have to add one
+						// if parent doesn't exist, we have to add one
 						// this doesn't change bone map size 
 						Section.BoneMap.RemoveAt(BoneMapIndex);
 						ParentBoneMapIndex = Section.BoneMap.Add(*ParentBoneIndex);

@@ -128,7 +128,7 @@ public:
 	/**
 	 * Get the custom attribute DoNotImportCurveWithZero, return false if the attribute is not set.
 	 * 
-	 * Note - If value is true, do not import if it doens't have any value other than zero. This is to avoid adding extra curves to evaluate.
+	 * Note - If value is true, do not import if it doesn't have any value other than zero. This is to avoid adding extra curves to evaluate.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | AnimSequence")
 	bool GetCustomDoNotImportCurveWithZero(bool& AttributeValue) const;
@@ -136,7 +136,7 @@ public:
 	/**
 	 * Set the custom attribute DoNotImportCurveWithZero. Return false if the attribute cannot be set.
 	 * 
-	 * Note - If value is true, do not import if it doens't have any value other than zero. This is to avoid adding extra curves to evaluate.
+	 * Note - If value is true, do not import if it doesn't have any value other than zero. This is to avoid adding extra curves to evaluate.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | AnimSequence")
 	bool SetCustomDoNotImportCurveWithZero(const bool& AttributeValue);

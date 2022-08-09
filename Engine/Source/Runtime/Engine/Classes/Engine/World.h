@@ -1345,7 +1345,7 @@ public:
 	 */
 	uint8 bKismetScriptError:1;
 
-	// Kismet debugging flags - they can be only editor only, but they're uint32, so it doens't make much difference
+	// Kismet debugging flags - they can be only editor only, but they're uint32, so it doesn't make much difference
 	uint8 bDebugPauseExecution:1;
 
 	/** When set, camera is potentially moveable even when paused */

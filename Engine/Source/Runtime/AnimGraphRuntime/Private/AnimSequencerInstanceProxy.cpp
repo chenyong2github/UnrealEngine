@@ -218,7 +218,7 @@ void FAnimSequencerInstanceProxy::InitAnimTrack(UAnimSequenceBase* InAnimSequenc
 // where we could just clear one sequence id. We just clear all the weights before update. 
 // once they go out of range, they don't get called anymore, so there is no good point of tearing down
 // there is multiple tear down point but we couldn't find where only happens once activated and once getting out
-// because sequencer finds the nearest point, not exact point, it doens't have good point of tearing down
+// because sequencer finds the nearest point, not exact point, it doesn't have good point of tearing down
 void FAnimSequencerInstanceProxy::TermAnimTrack(int32 SequenceId)
 {
 	FSequencerPlayerState* PlayerState = FindPlayer(SequenceId);

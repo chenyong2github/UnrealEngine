@@ -485,7 +485,7 @@ void FAnimationRuntime::BlendTwoPosesTogetherPerBone(const FAnimationPoseData& S
 		{
 			OutPose[BoneIndex] = SourcePoseTwo[BoneIndex];
 		}
-		// if it doens't have weight, take source pose 1
+		// if it doesn't have weight, take source pose 1
 		else if (FAnimationRuntime::HasWeight(BlendWeight))
 		{
 			BlendTransform<ETransformBlendMode::Overwrite>(SourcePoseOne[BoneIndex], OutPose[BoneIndex], 1.f - BlendWeight);

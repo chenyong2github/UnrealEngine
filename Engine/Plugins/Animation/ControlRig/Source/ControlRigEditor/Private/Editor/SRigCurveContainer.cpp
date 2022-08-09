@@ -634,7 +634,7 @@ void SRigCurveContainer::CreateImportMenu(FMenuBuilder& MenuBuilder)
 			SNew(STextBlock)
 			.Font(FAppStyle::GetFontStyle("ControlRig.Curve.Menu"))
 			.Text(LOCTEXT("ImportMesh_Title", "Select Mesh"))
-			.ToolTipText(LOCTEXT("ImportMesh_Tooltip", "Select Mesh to import Curve from... It will only import if the node doens't exists in the current Curve."))
+			.ToolTipText(LOCTEXT("ImportMesh_Tooltip", "Select Mesh to import Curve from... It will only import if the node doesn't exist in the current Curve."))
 		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()

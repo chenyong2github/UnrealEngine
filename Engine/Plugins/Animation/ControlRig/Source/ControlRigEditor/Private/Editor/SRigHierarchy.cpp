@@ -1392,7 +1392,7 @@ void SRigHierarchy::CreateImportMenu(FMenuBuilder& MenuBuilder)
 			SNew(STextBlock)
 			.Font(FAppStyle::GetFontStyle("ControlRig.Hierarchy.Menu"))
 			.Text(LOCTEXT("ImportMesh_Title", "Select Mesh"))
-			.ToolTipText(LOCTEXT("ImportMesh_Tooltip", "Select Mesh to import hierarchy from... It will only import if the node doens't exists in the current hierarchy."))
+			.ToolTipText(LOCTEXT("ImportMesh_Tooltip", "Select Mesh to import hierarchy from... It will only import if the node doesn't exist in the current hierarchy."))
 		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()
