@@ -15,6 +15,8 @@ using Amazon.S3.Model;
 using Horde.Build.Utilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using OpenTracing;
+using OpenTracing.Util;
 
 namespace Horde.Build.Storage.Backends
 {
@@ -257,6 +259,9 @@ namespace Horde.Build.Storage.Backends
 		/// <inheritdoc/>
 		public async Task<Stream?> ReadAsync(string path, CancellationToken cancellationToken)
 		{
+			using IScope scope = GlobalTracer.Instance.BuildSpan("AwsStorageBackend.ReadAsync").StartActive();
+			scope.Span.SetTag("Path", path);
+			
 			string fullPath = GetFullPath(path);
 
 			IDisposable? semaLock = null;
@@ -320,6 +325,9 @@ namespace Horde.Build.Storage.Backends
 		/// <inheritdoc/>
 		public async Task WriteInternalAsync(string fullPath, Stream stream, CancellationToken cancellationToken)
 		{
+			using IScope scope = GlobalTracer.Instance.BuildSpan("AwsStorageBackend.WriteInternalAsync").StartActive();
+			scope.Span.SetTag("Path", fullPath);
+			
 			const int MinPartSize = 5 * 1024 * 1024;
 
 			long streamLen = stream.Length;
@@ -426,6 +434,9 @@ namespace Horde.Build.Storage.Backends
 		/// <inheritdoc/>
 		public async Task DeleteAsync(string path, CancellationToken cancellationToken)
 		{
+			using IScope scope = GlobalTracer.Instance.BuildSpan("AwsStorageBackend.DeleteAsync").StartActive();
+			scope.Span.SetTag("Path", path);
+			
 			DeleteObjectRequest newDeleteRequest = new DeleteObjectRequest();
 			newDeleteRequest.BucketName = _options.AwsBucketName;
 			newDeleteRequest.Key = GetFullPath(path);
@@ -435,6 +446,9 @@ namespace Horde.Build.Storage.Backends
 		/// <inheritdoc/>
 		public async Task<bool> ExistsAsync(string path, CancellationToken cancellationToken)
 		{
+			using IScope scope = GlobalTracer.Instance.BuildSpan("AwsStorageBackend.ExistsAsync").StartActive();
+			scope.Span.SetTag("Path", path);
+			
 			try
 			{
 				GetObjectMetadataRequest request = new GetObjectMetadataRequest();

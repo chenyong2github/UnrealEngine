@@ -6,6 +6,8 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTracing;
+using OpenTracing.Util;
 
 namespace Horde.Build.Storage.Backends
 {
@@ -77,6 +79,9 @@ namespace Horde.Build.Storage.Backends
 		/// <inheritdoc/>
 		public async Task<Stream?> ReadAsync(string path, CancellationToken cancellationToken)
 		{
+			using IScope scope = GlobalTracer.Instance.BuildSpan("RelayStorageBackend.ReadAsync").StartActive();
+			scope.Span.SetTag("Path", path);
+			
 			Stream? localResult = await _localStorage.ReadAsync(path, cancellationToken);
 			if (localResult != null)
 			{
@@ -100,6 +105,9 @@ namespace Horde.Build.Storage.Backends
 		/// <inheritdoc/>
 		public Task WriteAsync(string path, Stream stream, CancellationToken cancellationToken)
 		{
+			using IScope scope = GlobalTracer.Instance.BuildSpan("RelayStorageBackend.WriteAsync").StartActive();
+			scope.Span.SetTag("Path", path);
+
 			return _localStorage.WriteAsync(path, stream, cancellationToken);
 		}
 
