@@ -133,8 +133,26 @@ private:
 	TVariant<FString, FLinearColor, float> VisitTextureSampleNode(const UInterchangeShaderNode* ShaderNode) const;
 
 private:
-	bool bParsingForNormalInput;
-	bool bParsingForLinearInput; // True when parsing non-color inputs (metallic, roughness, specular, etc.)
+	enum class EMaterialInputType : uint8
+	{
+		Unknown,
+		Color,
+		Vector,
+		Scalar
+	};
+	friend FString LexToString(UInterchangeGenericMaterialPipeline::EMaterialInputType);
+
+	struct FMaterialCreationContext
+	{
+		EMaterialInputType InputTypeBeingProcessed = EMaterialInputType::Color;
+	} MaterialCreationContext;
+
+	struct FMaterialExpressionCreationContext
+	{
+		FString OutputName; // The name of the output we will be connecting from
+	};
+
+	TArray<FMaterialExpressionCreationContext> MaterialExpressionCreationContextStack;
 };
 
 
