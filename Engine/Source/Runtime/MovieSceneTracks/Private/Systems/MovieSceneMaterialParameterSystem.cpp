@@ -55,10 +55,11 @@ struct FApplyVectorParameters
 				continue;
 			}
 
+			// Default to white for unanimated channels for backwards compatibility with the legacy track
 			FLinearColor Color(
-				R ? (float)R[Index] : 0.f,
-				G ? (float)G[Index] : 0.f,
-				B ? (float)B[Index] : 0.f,
+				R ? (float)R[Index] : 1.f,
+				G ? (float)G[Index] : 1.f,
+				B ? (float)B[Index] : 1.f,
 				A ? (float)A[Index] : 1.f
 			);
 			if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(BoundMaterial))
