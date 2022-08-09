@@ -177,8 +177,6 @@ void FAnimNode_BlendStack::UpdateAssetPlayer(const FAnimationUpdateContext& Cont
 	{
 		const FAnimationUpdateContext AnimPlayerContext = Context.FractionalWeightAndRootMotion(AnimPlayer.GetBlendWeight(), AnimPlayer.GetBlendWeight());
 		AnimPlayer.Update_AnyThread(AnimPlayerContext);
-		check(AnimPlayer.GetBlendWeight() == AnimPlayerContext.GetFinalBlendWeight());
-		check(AnimPlayer.GetBlendWeight() == AnimPlayerContext.GetRootMotionWeightModifier());
 	}
 }
 
