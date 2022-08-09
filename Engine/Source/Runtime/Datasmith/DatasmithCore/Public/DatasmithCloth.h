@@ -19,7 +19,7 @@ public:
 	TArray<uint32> SimTriangleIndices;
 
 public:
-	bool IsValid() { return SimRestPosition.Num() == SimPosition.Num() && SimTriangleIndices.Num() % 3 == 0; }
+	bool IsValid() { return SimRestPosition.Num() == SimPosition.Num() && SimTriangleIndices.Num() % 3 == 0 && SimTriangleIndices.Num(); }
 };
 
 
