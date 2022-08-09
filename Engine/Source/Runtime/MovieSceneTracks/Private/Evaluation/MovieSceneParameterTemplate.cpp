@@ -114,17 +114,47 @@ void FMovieSceneParameterSectionTemplate::EvaluateCurves(const FMovieSceneContex
 
 void FDefaultMaterialAccessor::Apply(UMaterialInstanceDynamic& Material, const FEvaluatedParameterSectionValues& Values)
 {
+	check(Material.Parent);
+
+	TArray<FMaterialParameterInfo> ParameterInfos;
+	TArray<FGuid> Guids;
+
+	Material.Parent->GetAllScalarParameterInfo(ParameterInfos, Guids);
 	for (const FScalarParameterNameAndValue& ScalarValue : Values.ScalarValues)
 	{
-		Material.SetScalarParameterValue(ScalarValue.ParameterName, ScalarValue.Value);
+		for (const FMaterialParameterInfo& ParameterInfo : ParameterInfos)
+		{
+			if (ParameterInfo.Name == ScalarValue.ParameterName)
+			{
+				Material.SetScalarParameterValueByInfo(ParameterInfo, ScalarValue.Value);
+				break;
+			}
+		}
 	}
+
+	Material.Parent->GetAllVectorParameterInfo(ParameterInfos, Guids);
 	for (const FVectorParameterNameAndValue& VectorValue : Values.VectorValues)
 	{
-		Material.SetVectorParameterValue(VectorValue.ParameterName, VectorValue.Value);
+		for (const FMaterialParameterInfo& ParameterInfo : ParameterInfos)
+		{
+			if (ParameterInfo.Name == VectorValue.ParameterName)
+			{
+				Material.SetVectorParameterValueByInfo(ParameterInfo, VectorValue.Value);
+				break;
+			}
+		}
 	}
+
 	for (const FColorParameterNameAndValue& ColorValue : Values.ColorValues)
 	{
-		Material.SetVectorParameterValue(ColorValue.ParameterName, ColorValue.Value);
+		for (const FMaterialParameterInfo& ParameterInfo : ParameterInfos)
+		{
+			if (ParameterInfo.Name == ColorValue.ParameterName)
+			{
+				Material.SetVectorParameterValueByInfo(ParameterInfo, ColorValue.Value);
+				break;
+			}
+		}
 	}
 }
 

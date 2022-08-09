@@ -6,6 +6,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Sections/MovieSceneParameterSection.h"
 #include "Tracks/MovieSceneMaterialTrack.h"
 #include "Sections/ParameterSection.h"
@@ -66,11 +67,16 @@ TSharedRef<SWidget> FMaterialTrackEditor::OnGetAddParameterMenuContent( FGuid Ob
 	FMenuBuilder AddParameterMenuBuilder( true, nullptr );
 
 	UMaterial* Material = GetMaterialForTrack( ObjectBinding, MaterialTrack );
+	UMaterialInterface* MaterialInterface = nullptr;
 	if ( Material != nullptr )
 	{
-		UMaterialInterface* MaterialInterface = GetMaterialInterfaceForTrack(ObjectBinding, MaterialTrack);
-		
-		UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>( MaterialInterface );	
+		MaterialInterface = GetMaterialInterfaceForTrack(ObjectBinding, MaterialTrack);
+
+		UMaterialInstanceDynamic* MaterialInstanceDynamic = Cast<UMaterialInstanceDynamic>(MaterialInterface);
+		UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MaterialInterface);
+
+		MaterialInterface = MaterialInstanceDynamic ? MaterialInstanceDynamic->Parent : (MaterialInstance ? MaterialInstance : MaterialInterface);
+
 		TArray<FMaterialParameterInfo> VisibleExpressions;
 
 		IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>( "MaterialEditor" );
@@ -86,10 +92,11 @@ TSharedRef<SWidget> FMaterialTrackEditor::OnGetAddParameterMenuContent( FGuid Ob
 		// Collect scalar parameters.
 		TArray<FMaterialParameterInfo> ScalarParameterInfo;
 		TArray<FGuid> ScalarParameterGuids;
-		Material->GetAllScalarParameterInfo(ScalarParameterInfo, ScalarParameterGuids );
+		MaterialInterface->GetAllScalarParameterInfo(ScalarParameterInfo, ScalarParameterGuids);
+
 		for (int32 ScalarParameterIndex = 0; ScalarParameterIndex < ScalarParameterInfo.Num(); ++ScalarParameterIndex)
 		{
-			if (!bCollectedVisibleParameters || VisibleExpressions.Contains(FMaterialParameterInfo(ScalarParameterInfo[ScalarParameterIndex].Name)))
+			if (!bCollectedVisibleParameters || VisibleExpressions.Contains(FMaterialParameterInfo(ScalarParameterInfo[ScalarParameterIndex].Name, ScalarParameterInfo[ScalarParameterIndex].Association, ScalarParameterInfo[ScalarParameterIndex].Index)))
 			{
 				FName ScalarParameterName = ScalarParameterInfo[ScalarParameterIndex].Name;
 				FUIAction AddParameterMenuAction( FExecuteAction::CreateSP( this, &FMaterialTrackEditor::AddScalarParameter, ObjectBinding, MaterialTrack, ScalarParameterName ) );
@@ -101,7 +108,8 @@ TSharedRef<SWidget> FMaterialTrackEditor::OnGetAddParameterMenuContent( FGuid Ob
 		// Collect color parameters.
 		TArray<FMaterialParameterInfo> ColorParameterInfo;
 		TArray<FGuid> ColorParameterGuids;
-		Material->GetAllVectorParameterInfo( ColorParameterInfo, ColorParameterGuids );
+		MaterialInterface->GetAllVectorParameterInfo(ColorParameterInfo, ColorParameterGuids);
+
 		for (int32 ColorParameterIndex = 0; ColorParameterIndex < ColorParameterInfo.Num(); ++ColorParameterIndex)
 		{
 			if (!bCollectedVisibleParameters || VisibleExpressions.Contains(FMaterialParameterInfo(ColorParameterInfo[ColorParameterIndex].Name)))
@@ -152,12 +160,28 @@ void FMaterialTrackEditor::AddScalarParameter( FGuid ObjectBinding, UMovieSceneM
 {
 	FFrameNumber KeyTime = GetTimeForKey();
 
-	UMaterialInterface* Material = GetMaterialInterfaceForTrack(ObjectBinding, MaterialTrack);
-	if (Material != nullptr)
+	UMaterialInterface* MaterialInterface = GetMaterialInterfaceForTrack(ObjectBinding, MaterialTrack);
+	if (MaterialInterface != nullptr)
 	{
-		const FScopedTransaction Transaction( LOCTEXT( "AddScalarParameter", "Add scalar parameter" ) );
+		const FScopedTransaction Transaction(LOCTEXT("AddScalarParameter", "Add scalar parameter"));
 		float ParameterValue;
-		Material->GetScalarParameterValue(ParameterName, ParameterValue);
+
+		UMaterialInstanceDynamic* MaterialInstanceDynamic = Cast<UMaterialInstanceDynamic>(MaterialInterface);
+		UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MaterialInterface);
+		MaterialInterface = MaterialInstanceDynamic ? MaterialInstanceDynamic->Parent : (MaterialInstance ? MaterialInstance : MaterialInterface);
+
+		TArray<FMaterialParameterInfo> ParameterInfos;
+		TArray<FGuid> Guids;
+		MaterialInterface->GetAllScalarParameterInfo(ParameterInfos, Guids);
+		for (const FMaterialParameterInfo& ParameterInfo : ParameterInfos)
+		{
+			if (ParameterInfo.Name == ParameterName)
+			{
+				MaterialInterface->GetScalarParameterValue(ParameterInfo, ParameterValue);
+				break;
+			}
+		}
+
 		MaterialTrack->Modify();
 		MaterialTrack->AddScalarParameterKey(ParameterName, KeyTime, ParameterValue);
 	}
@@ -169,12 +193,28 @@ void FMaterialTrackEditor::AddColorParameter( FGuid ObjectBinding, UMovieSceneMa
 {
 	FFrameNumber KeyTime = GetTimeForKey();
 
-	UMaterialInterface* Material = GetMaterialInterfaceForTrack( ObjectBinding, MaterialTrack );
-	if ( Material != nullptr )
+	UMaterialInterface* MaterialInterface = GetMaterialInterfaceForTrack( ObjectBinding, MaterialTrack );
+	if ( MaterialInterface != nullptr )
 	{
-		const FScopedTransaction Transaction( LOCTEXT( "AddVectorParameter", "Add vector parameter" ) );
+		const FScopedTransaction Transaction(LOCTEXT("AddVectorParameter", "Add vector parameter"));
 		FLinearColor ParameterValue;
-		Material->GetVectorParameterValue( ParameterName, ParameterValue );
+
+		UMaterialInstanceDynamic* MaterialInstanceDynamic = Cast<UMaterialInstanceDynamic>(MaterialInterface);
+		UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MaterialInterface);
+		MaterialInterface = MaterialInstanceDynamic ? MaterialInstanceDynamic->Parent : (MaterialInstance ? MaterialInstance : MaterialInterface);
+
+		TArray<FMaterialParameterInfo> ParameterInfos;
+		TArray<FGuid> Guids;
+		MaterialInterface->GetAllVectorParameterInfo(ParameterInfos, Guids);
+		for (const FMaterialParameterInfo& ParameterInfo : ParameterInfos)
+		{
+			if (ParameterInfo.Name == ParameterName)
+			{
+				MaterialInterface->GetVectorParameterValue(ParameterInfo, ParameterValue);
+				break;
+			}
+		}
+
 		MaterialTrack->Modify();
 		MaterialTrack->AddColorParameterKey( ParameterName, KeyTime, ParameterValue );
 	}
