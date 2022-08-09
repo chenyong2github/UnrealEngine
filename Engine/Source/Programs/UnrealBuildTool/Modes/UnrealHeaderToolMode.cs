@@ -543,6 +543,7 @@ namespace UnrealBuildTool.Modes
 			UhtTestFileManager TestFileManager = new(TestDirectory);
 			UhtSession Session = new()
 			{
+				Logger = Logger,
 				Tables = Tables,
 				Config = Config,
 				FileManager = TestFileManager,
@@ -1093,6 +1094,7 @@ namespace UnrealBuildTool.Modes
 
 				UhtSession Session = new()
 				{
+					Logger = Logger,
 					Tables = Tables,
 					Config = Config,
 					FileManager = new UhtStdFileManager(),

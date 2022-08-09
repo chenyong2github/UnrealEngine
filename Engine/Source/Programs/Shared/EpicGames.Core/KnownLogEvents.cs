@@ -36,6 +36,11 @@ namespace EpicGames.Core
 		public static EventId Compiler { get; } = new EventId(100);
 
 		/// <summary>
+		/// UHT compiler message
+		/// </summary>
+		public static EventId UHT { get; } = new EventId(110);
+
+		/// <summary>
 		/// Linker error
 		/// </summary>
 		public static EventId Linker { get; } = new EventId(200);
