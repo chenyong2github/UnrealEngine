@@ -16,6 +16,8 @@
 #include "IDesktopPlatform.h"
 #include "DesktopPlatformModule.h"
 #include "SPrimaryButton.h"
+#include "HAL/FileManager.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "ThemeEditor"
 
@@ -451,6 +453,27 @@ void FEditorStyleSettingsCustomization::MakeThemePickerRow(IDetailPropertyRow& P
 				.Image(FAppStyle::Get().GetBrush("Icons.Duplicate"))
 			]
 		]
+		+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Center)
+			.AutoWidth()
+			[
+			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			.Visibility_Lambda(
+				[]()
+				{
+					// if current active theme is the default dark theme: hide the delete button. 
+					return USlateThemeManager::Get().IsDefaultThemeActive() ? EVisibility::Hidden : EVisibility::Visible;
+				})
+			.ToolTipText(LOCTEXT("DeleteThemeToolTip", "Delete this theme"))
+			.OnClicked(this, &FEditorStyleSettingsCustomization::OnDeleteThemeClicked)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::Get().GetBrush("Icons.Delete"))
+			]
+		]
 	];
 }
 
@@ -482,6 +505,31 @@ static void OnThemeEditorClosed(bool bSaved, TWeakPtr<FEditorStyleSettingsCustom
 			}
 		}
 	}
+}
+
+FReply FEditorStyleSettingsCustomization::OnDeleteThemeClicked()
+{
+	const FStyleTheme PreviouslyActiveTheme = USlateThemeManager::Get().GetCurrentTheme();
+
+	// Are you sure you want to do this?
+	const FText FileNameToRemove = FText::FromString(PreviouslyActiveTheme.DisplayName.ToString());
+	const FText TextBody = FText::Format(LOCTEXT("ActionRemoveMsg", "Are you sure you want to permanently delete the theme \"{0}\"? This action cannot be undone."), FileNameToRemove);
+	const FText TextTitle = FText::Format(LOCTEXT("RemoveTheme_Title", "Remove Theme \"{0}\"?"), FileNameToRemove);
+
+	// If user select "OK"...
+	if (EAppReturnType::Ok == FMessageDialog::Open(EAppMsgType::OkCancel, TextBody, &TextTitle))
+	{
+		// apply default theme
+		USlateThemeManager::Get().ApplyDefaultTheme();
+
+		// remove previously active theme
+		const FString Filename = USlateThemeManager::Get().GetEngineThemeDir() / PreviouslyActiveTheme.DisplayName.ToString() + TEXT(".json");
+		IFileManager::Get().Delete(*Filename);
+		USlateThemeManager::Get().RemoveTheme(PreviouslyActiveTheme.Id);
+		RefreshComboBox();
+	}
+	// Else, do nothing. 
+	return FReply::Handled();
 }
 
 FReply FEditorStyleSettingsCustomization::OnDuplicateAndEditThemeClicked()

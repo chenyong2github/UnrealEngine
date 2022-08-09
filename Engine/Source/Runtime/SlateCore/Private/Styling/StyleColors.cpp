@@ -232,6 +232,16 @@ void USlateThemeManager::ApplyTheme(FGuid ThemeId)
 	}
 }
 
+void USlateThemeManager::ApplyDefaultTheme()
+{
+	ApplyTheme(DefaultDarkTheme.Id); 
+}
+
+bool USlateThemeManager::IsDefaultThemeActive() const 
+{
+	return GetCurrentTheme() == DefaultDarkTheme; 
+}
+
 void USlateThemeManager::RemoveTheme(FGuid ThemeId)
 {
 	// Current Theme cannot currently be removed.  Apply a new theme first
@@ -369,7 +379,6 @@ bool USlateThemeManager::ReadTheme(const FString& ThemeData, FStyleTheme& Theme)
 
 void USlateThemeManager::EnsureValidCurrentTheme()
 {
-	FStyleTheme DefaultDarkTheme;
 	DefaultDarkTheme.DisplayName = NSLOCTEXT("StyleColors", "DefaultDarkTheme", "Dark");
 	// If you change this you invalidate the default dark theme forcing the default theme to be reset and the existing dark theme to become a user theme
 	// In general you should not do this. You should instead update the default "dark.json" file 

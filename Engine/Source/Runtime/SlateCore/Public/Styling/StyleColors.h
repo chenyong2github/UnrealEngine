@@ -208,6 +208,16 @@ public:
 	void ApplyTheme(FGuid ThemeId);
 
 	/**
+	 * Applies the default dark theme as the active theme
+	*/
+	void ApplyDefaultTheme();
+
+	/**
+	* Returns true if the default dark theme is the active theme
+	*/
+	bool IsDefaultThemeActive() const;
+
+	/**
 	 * Removes a theme. 
 	 * Note: The active theme cannot be removed and there must always be an active theme.  Apply a new theme first before removing the current theme.
 	 */
@@ -269,6 +279,7 @@ private:
 
 
 private:
+	FStyleTheme DefaultDarkTheme;
 	TArray<FStyleTheme> Themes;
 	FLinearColor DefaultColors[(int32)EStyleColor::MAX];
 #endif // ALLOW_THEMES

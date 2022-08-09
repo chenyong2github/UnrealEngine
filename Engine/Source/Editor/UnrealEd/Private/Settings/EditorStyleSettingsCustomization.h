@@ -40,6 +40,7 @@ private:
 	void GenerateThemeOptions(TSharedPtr<FString>& OutSelectedTheme);
 
 	void MakeThemePickerRow(IDetailPropertyRow& PropertyRow);
+	FReply OnDeleteThemeClicked();
 	FReply OnDuplicateAndEditThemeClicked();
 	FReply OnEditThemeClicked();
 	FString GetTextLabelForThemeEntry(TSharedPtr<FString> Entry);
