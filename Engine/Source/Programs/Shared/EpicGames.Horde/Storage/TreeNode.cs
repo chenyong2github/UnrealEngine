@@ -1,11 +1,14 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
+using EpicGames.Serialization;
 
 namespace EpicGames.Horde.Storage
 {
@@ -46,28 +49,58 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Serialize a node to data
+		/// Serialize a node to a block of memory
 		/// </summary>
-		/// <typeparam name="T"></typeparam>
-		/// <param name="node"></param>
-		/// <param name="writer"></param>
-		/// <param name="cancellationToken"></param>
-		/// <returns></returns>
-		public static ValueTask<ITreeBlob> SerializeAsync<T>(T node, ITreeBlobWriter writer, CancellationToken cancellationToken) where T : TreeNode
-		{
-			return SerializerInstance<T>.Serializer.SerializeAsync(writer, node, cancellationToken);
-		}
+		/// <returns>New data to be stored into a blob</returns>
+		public abstract NewTreeBlob Serialize();
 
 		/// <summary>
 		/// Deserialize a node from data
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		/// <param name="data"></param>
-		/// <param name="cancellationToken"></param>
+		/// <param name="blob">Blob to deserialize</param>
 		/// <returns></returns>
-		public static ValueTask<T> DeserializeAsync<T>(ITreeBlob data, CancellationToken cancellationToken) where T : TreeNode
+		public static T Deserialize<T>(ITreeBlob blob) where T : TreeNode
 		{
-			return SerializerInstance<T>.Serializer.DeserializeAsync(data, cancellationToken);
+			return SerializerInstance<T>.Serializer.Deserialize(blob);
+		}
+	}
+
+	/// <summary>
+	/// Data to be stored in a tree blob
+	/// </summary>
+	public struct NewTreeBlob
+	{
+		/// <summary>
+		/// The opaque data payload
+		/// </summary>
+		public ReadOnlySequence<byte> Data { get; }
+
+		/// <summary>
+		/// References to other tree nodes
+		/// </summary>
+		public IReadOnlyList<TreeNodeRef> Refs { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="data">Data payload</param>
+		/// <param name="refs">References to other nodes</param>
+		public NewTreeBlob(ReadOnlyMemory<byte> data, IReadOnlyList<TreeNodeRef> refs)
+		{
+			Data = new ReadOnlySequence<byte>(data);
+			Refs = refs;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="data">Data payload</param>
+		/// <param name="refs">References to other nodes</param>
+		public NewTreeBlob(ReadOnlySequence<byte> data, IReadOnlyList<TreeNodeRef> refs)
+		{
+			Data = data;
+			Refs = refs;
 		}
 	}
 
@@ -78,21 +111,11 @@ namespace EpicGames.Horde.Storage
 	public abstract class TreeNodeSerializer<T> where T : TreeNode
 	{
 		/// <summary>
-		/// Serialize a given node
-		/// </summary>
-		/// <param name="writer">Writer for node data</param>
-		/// <param name="node">The user type to be serialized</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Serialized node instance</returns>
-		public abstract ValueTask<ITreeBlob> SerializeAsync(ITreeBlobWriter writer, T node, CancellationToken cancellationToken);
-
-		/// <summary>
 		/// Deserializes data from the given data
 		/// </summary>
-		/// <param name="node">Node to deserialize from</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <param name="blob">The typed blob</param>
 		/// <returns>New node parsed from the data</returns>
-		public abstract ValueTask<T> DeserializeAsync(ITreeBlob node, CancellationToken cancellationToken);
+		public abstract T Deserialize(ITreeBlob blob);
 	}
 
 	/// <summary>
@@ -110,5 +133,74 @@ namespace EpicGames.Horde.Storage
 		/// Constructor
 		/// </summary>
 		public TreeSerializerAttribute(Type type) => Type = type;
+	}
+
+	/// <summary>
+	/// Extension methods for serializing <see cref="TreeNode"/> objects
+	/// </summary>
+	public static class TreeNodeExtensions
+	{
+		/// <summary>
+		/// Flush the tree with the given root node to storage
+		/// </summary>
+		/// <param name="writer">Writer to output the nodes to</param>
+		/// <param name="root">Root node to serialize</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public static async Task FlushAsync(this ITreeWriter writer, TreeNode root, CancellationToken cancellationToken = default)
+		{
+			ITreeBlobRef rootBlobRef = await writer.WriteTreeAsync(root, cancellationToken);
+			ITreeBlob rootBlob = await rootBlobRef.GetTargetAsync(cancellationToken);
+
+			await writer.FlushAsync(rootBlob, cancellationToken);
+		}
+
+		/// <summary>
+		/// Write a tree of nodes to an <see cref="ITreeWriter"/>
+		/// </summary>
+		/// <param name="writer">Writer to output the nodes to</param>
+		/// <param name="node">Root node to serialize</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Reference to the new tree of nodes</returns>
+		public static async Task<ITreeBlobRef> WriteTreeAsync(this ITreeWriter writer, TreeNode node, CancellationToken cancellationToken = default)
+		{
+			NewTreeBlob blob = node.Serialize();
+
+			List<ITreeBlobRef> targetRefs = new List<ITreeBlobRef>();
+			foreach (TreeNodeRef typedRef in blob.Refs)
+			{
+				targetRefs.Add(await typedRef.CollapseAsync(writer, cancellationToken));
+			}
+
+			return await writer.WriteNodeAsync(blob.Data, targetRefs, cancellationToken);
+		}
+
+		/// <inheritdoc/>
+		public static async Task<T?> TryReadTreeAsync<T>(this ITreeStore store, RefName name, CancellationToken cancellationToken = default) where T : TreeNode
+		{
+			ITreeBlob? root = await store.TryReadTreeAsync(name, cancellationToken);
+			if (root == null)
+			{
+				return null;
+			}
+			return TreeNode.Deserialize<T>(root);
+		}
+
+		/// <inheritdoc/>
+		public static async Task<T> ReadTreeAsync<T>(this ITreeStore store, RefName name, CancellationToken cancellationToken = default) where T : TreeNode
+		{
+			T? result = await store.TryReadTreeAsync<T>(name, cancellationToken);
+			if (result == null)
+			{
+				throw new RefNameNotFoundException(name);
+			}
+			return result;
+		}
+
+		/// <inheritdoc/>
+		public static async Task WriteTreeAsync(this ITreeStore store, RefName name, TreeNode root, CancellationToken cancellationToken = default)
+		{
+			ITreeWriter writer = store.CreateTreeWriter(name);
+			await writer.FlushAsync(root, cancellationToken);
+		}
 	}
 }

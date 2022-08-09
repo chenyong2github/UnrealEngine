@@ -88,31 +88,30 @@ namespace Horde.Build.Perforce
 			Contents = new TreeNodeRef<DirectoryNode>(this, contents);
 		}
 
-		private ReplicationNode(IEnumerable<Utf8String> paths, ITreeBlob contents)
+		private ReplicationNode(IEnumerable<Utf8String> paths, ITreeBlobRef contents)
 		{
 			Paths = new List<Utf8String>(paths);
 			Contents = new TreeNodeRef<DirectoryNode>(this, contents);
 		}
 
-		internal async ValueTask<ITreeBlob> SerializeAsync(ITreeBlobWriter writer, CancellationToken cancellationToken)
+		/// <inheritdoc/>
+		public override NewTreeBlob Serialize()
 		{
-			List<ITreeBlob> references = new List<ITreeBlob>();
-			references.Add(await Contents.CollapseAsync(writer, cancellationToken));
+			List<TreeNodeRef> references = new List<TreeNodeRef>();
+			references.Add(Contents);
 
 			ByteArrayBuilder builder = new ByteArrayBuilder();
 			builder.WriteVariableLengthArray(Paths, x => builder.WriteUtf8String(x));
-			return await writer.WriteBlobAsync(builder.AsSequence(), references, cancellationToken);
+
+			return new NewTreeBlob(builder.AsSequence(), references);
 		}
 
-		internal static async ValueTask<ReplicationNode> DeserializeAsync(ITreeBlob blob, CancellationToken cancellationToken)
+		internal static ReplicationNode Deserialize(ITreeBlob blob)
 		{
-			IReadOnlyList<ITreeBlob> children = await blob.GetReferencesAsync(cancellationToken);
-			ReadOnlySequence<byte> data = await blob.GetDataAsync(cancellationToken);
-
-			MemoryReader reader = new MemoryReader(data.AsSingleSegment());
+			MemoryReader reader = new MemoryReader(blob.Data.AsSingleSegment());
 			Utf8String[] paths = reader.ReadVariableLengthArray(() => reader.ReadUtf8String());
 
-			return new ReplicationNode(paths, children[0]);
+			return new ReplicationNode(paths, blob.Refs[0]);
 		}
 
 		/// <inheritdoc/>
@@ -127,18 +126,13 @@ namespace Horde.Build.Perforce
 	class ReplicationNodeSerializer : TreeNodeSerializer<ReplicationNode>
 	{
 		/// <inheritdoc/>
-		public override ValueTask<ReplicationNode> DeserializeAsync(ITreeBlob node, CancellationToken cancellationToken)
-			=> ReplicationNode.DeserializeAsync(node, cancellationToken);
-
-		/// <inheritdoc/>
-		public override ValueTask<ITreeBlob> SerializeAsync(ITreeBlobWriter writer, ReplicationNode node, CancellationToken cancellationToken)
-			=> node.SerializeAsync(writer, cancellationToken);
+		public override ReplicationNode Deserialize(ITreeBlob node) => ReplicationNode.Deserialize(node);
 	}
 
 	/// <summary>
 	/// Service which replicates content from Perforce
 	/// </summary>
-	class ReplicationService : IHostedService, IAsyncDisposable
+	sealed class ReplicationService : IHostedService, IDisposable
 	{
 		/// <summary>
 		/// Metadata about a stream that needs to have commits mirrored
@@ -204,9 +198,9 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public async ValueTask DisposeAsync()
+		public void Dispose()
 		{
-			await _commitListener.DisposeAsync();
+			_commitListener.DisposeAsync().AsTask().Wait();
 		}
 
 		/// <inheritdoc/>
@@ -465,14 +459,14 @@ namespace Horde.Build.Perforce
 		/// <returns></returns>
 		static RefName GetRefName(StreamId streamId, int change, string? filter, bool revisionsOnly)
 		{
-			StringBuilder builder = new StringBuilder($"v3/{streamId}/{change}");
+			StringBuilder builder = new StringBuilder($"v4/{streamId}/{change}");
 			if (filter != null)
 			{
-				builder.Append($"_filter_{IoHash.Compute(Encoding.UTF8.GetBytes(filter))}");
+				builder.Append($"-flt_{IoHash.Compute(Encoding.UTF8.GetBytes(filter)).ToString().Substring(0, 6)}");
 			}
 			if (revisionsOnly)
 			{
-				builder.Append("_revs");
+				builder.Append("-revs");
 			}
 			return new RefName(builder.ToString());
 		}
@@ -574,7 +568,8 @@ namespace Horde.Build.Perforce
 			string queryPath = $"//{clientInfo.Client.Name}/{filterOrDefault}";
 
 			RefName refName = GetRefName(stream.Id, change, filter, revisionsOnly);
-			RefName incRefName = new RefName($"{refName}_inc");
+			RefName incRefName = new RefName($"{refName}-inc");
+			ITreeWriter writer = _treeStore.CreateTreeWriter(incRefName);
 
 			// Get the current sync state for this change
 			ReplicationNode? syncNode = await _treeStore.TryReadTreeAsync<ReplicationNode>(incRefName, cancellationToken);
@@ -590,7 +585,6 @@ namespace Horde.Build.Perforce
 
 			if (revisionsOnly)
 			{
-				int count = 0;
 				await foreach (PerforceResponse<SyncRecord> record in perforce.StreamCommandAsync<SyncRecord>("sync", new[] { "-k", $"{queryPath}@{change}" }, null, default, cancellationToken))
 				{
 					PerforceError? error = record.Error;
@@ -610,14 +604,8 @@ namespace Horde.Build.Perforce
 
 					using ReadOnlyMemoryStream dataStream = new ReadOnlyMemoryStream(data);
 
-					FileEntry entry = await root.AddFileByPathAsync(path, FileEntryFlags.PerforceDepotPathAndRevision, cancellationToken);
-					await entry.AppendAsync(dataStream, Options.Chunking, cancellationToken);
-
-					if (++count > 1000)
-					{
-						await _treeStore.WriteTreeAsync(refName, syncNode, false, cancellationToken);
-						count = 0;
-					}
+					FileEntry entry = await root.AddFileByPathAsync(path, FileEntryFlags.PerforceDepotPathAndRevision, writer, cancellationToken);
+					await entry.AppendAsync(dataStream, Options.Chunking, writer, cancellationToken);
 				}
 			}
 			else
@@ -661,6 +649,9 @@ namespace Horde.Build.Perforce
 				long totalSize = files.Sum(x => x.Size);
 				_logger.LogInformation("Total sync size: {Size:n1}mb", totalSize / (1024.0 * 1024.0));
 
+				// Previously scheduled flush task
+				Task flushTask = Task.CompletedTask;
+
 				// Sync incrementally
 				long syncedSize = 0;
 				while (files.Count > 0)
@@ -668,7 +659,7 @@ namespace Horde.Build.Perforce
 					// Save the incremental state
 					if (syncedSize > 0)
 					{
-						await _treeStore.WriteTreeAsync(incRefName, syncNode, cancellationToken: cancellationToken);
+						await writer.FlushAsync(syncNode, cancellationToken);
 						deleteIncRef = true;
 					}
 
@@ -677,10 +668,16 @@ namespace Horde.Build.Perforce
 					(int idx, Utf8String path, long size) = GetSyncBatch(files, MaxBatchSize, clientInfo.ServerInfo.Utf8PathComparer, _logger);
 					syncedSize += size;
 
-					const long TrimInterval = 1024 * 1024 * 256;
+					// If we're syncing the entire view, use the given filter instead. It will be tighter than the base path from all files.
+					if (filter != null && path.Equals("..."))
+					{
+						path = filter;
+					}
+
+					const long FlushInterval = 1024 * 1024 * 256;
 
 					long dataSize = 0;
-					long trimDataSize = TrimInterval;
+					long flushDataSize = FlushInterval;
 
 					string syncPath = $"//{clientInfo.Client.Name}/{path}@{change}";
 					double syncPct = (totalSize == 0) ? 100.0 : (syncedSize * 100.0) / totalSize;
@@ -688,9 +685,8 @@ namespace Horde.Build.Perforce
 
 					Stopwatch syncTimer = Stopwatch.StartNew();
 					Stopwatch processTimer = new Stopwatch();
-					Stopwatch trimTimer = new Stopwatch();
+					Stopwatch flushTimer = new Stopwatch();
 					Stopwatch gcTimer = new Stopwatch();
-					Task trimTask = Task.CompletedTask;
 
 					Dictionary<int, FileEntry> handles = new Dictionary<int, FileEntry>();
 					await foreach (PerforceResponse response in perforce.StreamCommandAsync("sync", Array.Empty<string>(), new string[] { syncPath }, null, typeof(SyncRecord), true, default))
@@ -710,12 +706,12 @@ namespace Horde.Build.Perforce
 							if (io.Command == PerforceIoCommand.Open)
 							{
 								Utf8String file = GetClientRelativePath(io.Payload, clientInfo.Client.Root);
-								handles[io.File] = await root.AddFileByPathAsync(file, FileEntryFlags.None, cancellationToken);
+								handles[io.File] = await root.AddFileByPathAsync(file, FileEntryFlags.None, writer, cancellationToken);
 							}
 							else if (io.Command == PerforceIoCommand.Write)
 							{
 								FileEntry entry = handles[io.File];
-								await entry.AppendAsync(io.Payload, Options.Chunking, cancellationToken);
+								await entry.AppendAsync(io.Payload, Options.Chunking, writer, cancellationToken);
 								dataSize += io.Payload.Length;
 							}
 							else if (io.Command == PerforceIoCommand.Close)
@@ -731,45 +727,70 @@ namespace Horde.Build.Perforce
 							{
 								_logger.LogWarning("Unhandled command code {Code}", io.Command);
 							}
-
-							if (dataSize > trimDataSize)
-							{
-								_logger.LogInformation("Trimming working set after receiving {Size:n1}mb...", dataSize / (1024 * 1024));
-								if (!trimTask.IsCompleted)
-								{
-									_logger.LogInformation("Waiting for previous trim to complete...");
-								}
-								await trimTask;
-								trimTask = Task.Run(async () =>
-								{
-									trimTimer.Start();
-									await _treeStore.WriteTreeAsync(refName, syncNode, false, cancellationToken);
-									trimTimer.Stop();
-									gcTimer.Start();
-									GC.Collect();
-									gcTimer.Stop();
-								}, cancellationToken);
-								trimDataSize = dataSize + TrimInterval;
-								_logger.LogInformation("Trimming complete. Next trim at {Size:n1}mb.", trimDataSize / (1024 * 1024));
-							}
 						}
 
 						processTimer.Stop();
 					}
-					await trimTask;
-					_logger.LogInformation("Completed batch in {TimeSeconds:n1}s ({ProcessTimeSeconds:n1}s processing, {TrimTimeSeconds:n1}s trimming, {GcTimeSeconds:n1}s gc)", syncTimer.Elapsed.TotalSeconds, processTimer.Elapsed.TotalSeconds, trimTimer.Elapsed.TotalSeconds, gcTimer.Elapsed.TotalSeconds);
+					_logger.LogInformation("Completed batch in {TimeSeconds:n1}s ({ProcessTimeSeconds:n1}s processing, {TrimTimeSeconds:n1}s stalled for flush)", syncTimer.Elapsed.TotalSeconds, processTimer.Elapsed.TotalSeconds, flushTimer.Elapsed.TotalSeconds);
 
-					// Update the root sync node
-					syncNode.Paths.Add(path);
+					// Combine all the existing sync paths together with a new wildcard.
+					List<Utf8String> paths = syncNode.Paths;
+					if (paths.Count > 0)
+					{
+						Utf8String lastPath = syncNode.Paths[^1];
+						for (int endIdx = 0; endIdx < lastPath.Length; endIdx++)
+						{
+							if (lastPath[endIdx] == '/')
+							{
+								Utf8String prefix = lastPath.Substring(0, endIdx + 1);
+								if (!path.StartsWith(prefix, clientInfo.ServerInfo.Utf8PathComparer))
+								{
+									// Find all the paths that start with this prefix
+									int pathIdx = paths.Count - 1;
+									while (pathIdx > 0 && paths[pathIdx - 1].StartsWith(prefix, clientInfo.ServerInfo.Utf8PathComparer))
+									{
+										pathIdx--;
+									}
+
+									// Replace the paths with a wildcard
+									paths.RemoveRange(pathIdx, paths.Count - pathIdx);
+									paths.Add(prefix + "...");
+									break;
+								}
+							}
+						}
+					}
+					paths.Add(path);
+
+					// Print the new state
+					if (dataSize > flushDataSize)
+					{
+						_logger.LogInformation("Queuing flush of working set after receiving {Size:n1}mb. Filter:", dataSize / (1024 * 1024));
+						foreach (Utf8String nextPath in paths)
+						{
+							_logger.LogInformation("  {Path}", nextPath);
+						}
+
+						flushTimer.Start();
+						await flushTask;
+						flushTask = writer.FlushAsync(syncNode, cancellationToken);
+						flushTimer.Stop();
+
+						flushDataSize = dataSize + FlushInterval;
+						_logger.LogInformation("Next flush at {Size:n1}mb.", flushDataSize / (1024 * 1024));
+					}
+
+					// Remove the paths we've synced
 					files.RemoveRange(idx, files.Count - idx);
 				}
+				await flushTask;
 			}
 
 			clientInfo.Change = change;
 
 			// Return the new root object
 			_logger.LogInformation("Writing ref {RefId} for {StreamId} change {Change}", refName, stream.Id, change);
-			await _treeStore.WriteTreeAsync(refName, syncNode, true, cancellationToken);
+			await _treeStore.WriteTreeAsync(refName, syncNode, cancellationToken);
 
 			// Delete the incremental state
 			if (deleteIncRef)

@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Serialization;
 
 namespace EpicGames.Horde.Storage
 {
@@ -36,7 +38,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Handle to the node in storage. May be set to null when the node is in memory.
 		/// </summary>
-		internal ITreeBlob? _target;
+		internal ITreeBlobRef? _target;
 
 		/// <summary>
 		/// Reference to the node.
@@ -55,7 +57,7 @@ namespace EpicGames.Horde.Storage
 		/// Creates a reference to a node with the given hash
 		/// </summary>
 		/// <param name="persistedNode">Hash of the referenced node</param>
-		public TreeNodeRef(ITreeBlob persistedNode)
+		public TreeNodeRef(ITreeBlobRef persistedNode)
 		{
 			_target = persistedNode;
 		}
@@ -65,7 +67,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="owner">The node which owns the reference</param>
 		/// <param name="persistedNode">Hash of the referenced node</param>
-		public TreeNodeRef(TreeNode owner, ITreeBlob persistedNode)
+		public TreeNodeRef(TreeNode owner, ITreeBlobRef persistedNode)
 		{
 			_owner = owner;
 			_target = persistedNode;
@@ -148,7 +150,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Marks this reference as clean
 		/// </summary>
-		internal void MarkAsClean(ITreeBlob persistedNode)
+		internal void MarkAsClean(ITreeBlobRef persistedNode)
 		{
 			_target = persistedNode;
 
@@ -161,6 +163,23 @@ namespace EpicGames.Horde.Storage
 			}
 
 			_lastModifiedTime = 0;
+		}
+
+		/// <summary>
+		/// Collapse this reference and write its node to storage
+		/// </summary>
+		/// <param name="writer">Writer to output the node to</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		public async ValueTask<ITreeBlobRef> CollapseAsync(ITreeWriter writer, CancellationToken cancellationToken)
+		{
+			ITreeBlobRef? target = _target;
+			if (target == null)
+			{
+				target = await writer.WriteTreeAsync(Node!, cancellationToken);
+				MarkAsClean(target);
+			}
+			return target;
 		}
 
 		/// <summary>
@@ -191,7 +210,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="owner">The node which owns the reference</param>
 		/// <param name="target">Hash of the referenced node</param>
-		public TreeNodeRef(TreeNode owner, ITreeBlob target) : base(owner, target)
+		public TreeNodeRef(TreeNode owner, ITreeBlobRef target) : base(owner, target)
 		{
 		}
 
@@ -219,35 +238,19 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Collapse this reference and write its node to storage
-		/// </summary>
-		/// <param name="writer"></param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
-		public async ValueTask<ITreeBlob> CollapseAsync(ITreeBlobWriter writer, CancellationToken cancellationToken)
-		{
-			ITreeBlob? node = _target;
-			if (node == null)
-			{
-				node = await Serializer.SerializeAsync(writer, Node!, cancellationToken);
-				MarkAsClean(node);
-			}
-			return node;
-		}
-
-		/// <summary>
 		/// Resolve this reference to a concrete node
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async ValueTask<T> ExpandAsync(CancellationToken cancellationToken)
+		public async ValueTask<T> ExpandAsync(CancellationToken cancellationToken = default)
 		{
 			T? result = (T?)ConvertToStrongRef();
 			if (result == null)
 			{
 				Debug.Assert(_target != null);
+				ITreeBlob node = await _target.GetTargetAsync(cancellationToken);
 
-				_strongRef = await Serializer.DeserializeAsync(_target, cancellationToken);
+				_strongRef = Serializer.Deserialize(node);
 				_strongRef.IncomingRef = this;
 
 				result = (T)_strongRef;

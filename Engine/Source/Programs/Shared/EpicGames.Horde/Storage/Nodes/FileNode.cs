@@ -88,21 +88,14 @@ namespace EpicGames.Horde.Storage.Nodes
 		public abstract uint RollingHash { get; }
 
 		/// <summary>
-		/// Serailize this node
-		/// </summary>
-		/// <param name="writer"></param>
-		/// <param name="cancellationToken"></param>
-		/// <returns></returns>
-		public abstract ValueTask<ITreeBlob> SerializeAsync(ITreeBlobWriter writer, CancellationToken cancellationToken);
-
-		/// <summary>
 		/// Creates a file node from a stream
 		/// </summary>
 		/// <param name="stream">The stream to read from</param>
 		/// <param name="options">Options for chunking the data</param>
+		/// <param name="writer">Writer for new tree nodes</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>New file node</returns>
-		public static async Task<FileNode> CreateAsync(Stream stream, ChunkingOptions options, CancellationToken cancellationToken)
+		public static async Task<FileNode> CreateAsync(Stream stream, ChunkingOptions options, ITreeWriter writer, CancellationToken cancellationToken)
 		{
 			FileNode node = new LeafFileNode();
 
@@ -114,7 +107,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				{
 					break;
 				}
-				node = node.Append(buffer.AsMemory(0, numBytes), options);
+				node = await node.AppendAsync(buffer.AsMemory(0, numBytes), options, writer, cancellationToken);
 			}
 
 			return node;
@@ -125,17 +118,19 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="input">The data to write</param>
 		/// <param name="options">Settings for chunking the data</param>
-		public FileNode Append(ReadOnlyMemory<byte> input, ChunkingOptions options)
+		/// <param name="writer">Writer for new tree nodes</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public ValueTask<FileNode> AppendAsync(ReadOnlyMemory<byte> input, ChunkingOptions options, ITreeWriter writer, CancellationToken cancellationToken)
 		{
-			return Append(this, input, options);
+			return AppendAsync(this, input, options, writer, cancellationToken);
 		}
 
-		static FileNode Append(FileNode root, ReadOnlyMemory<byte> input, ChunkingOptions options)
+		static async ValueTask<FileNode> AppendAsync(FileNode root, ReadOnlyMemory<byte> input, ChunkingOptions options, ITreeWriter writer, CancellationToken cancellationToken)
 		{
 			for (; ; )
 			{
 				// Append as much data as possible to the existing tree
-				input = root.AppendToNode(input, options);
+				input = await root.AppendToNodeAsync(input, options, writer, cancellationToken);
 				if (input.IsEmpty)
 				{
 					break;
@@ -147,7 +142,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			return root;
 		}
 
-		private ReadOnlyMemory<byte> AppendToNode(ReadOnlyMemory<byte> appendData, ChunkingOptions options)
+		private async Task<ReadOnlyMemory<byte>> AppendToNodeAsync(ReadOnlyMemory<byte> appendData, ChunkingOptions options, ITreeWriter writer, CancellationToken cancellationToken)
 		{
 			if (appendData.Length == 0 || IsReadOnly())
 			{
@@ -155,7 +150,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			}
 			else
 			{
-				return AppendData(appendData, options);
+				return await AppendDataAsync(appendData, options, writer, cancellationToken);
 			}
 		}
 
@@ -164,8 +159,10 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="newData">The data to append</param>
 		/// <param name="options">Options for chunking the data</param>
+		/// <param name="writer">Writer for new tree nodes</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Remaining data in the buffer</returns>
-		public abstract ReadOnlyMemory<byte> AppendData(ReadOnlyMemory<byte> newData, ChunkingOptions options);
+		public abstract ValueTask<ReadOnlyMemory<byte>> AppendDataAsync(ReadOnlyMemory<byte> newData, ChunkingOptions options, ITreeWriter writer, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Copies the contents of this node and its children to the given output stream
@@ -296,13 +293,15 @@ namespace EpicGames.Horde.Storage.Nodes
 		public override IReadOnlyList<TreeNodeRef> GetReferences() => Array.Empty<TreeNodeRef>();
 
 		/// <inheritdoc/>
-		public override async ValueTask<ITreeBlob> SerializeAsync(ITreeBlobWriter writer, CancellationToken cancellationToken)
-		{
-			return await writer.WriteBlobAsync(_writtenSequence, Array.Empty<ITreeBlob>(), cancellationToken);
-		}
+		public override NewTreeBlob Serialize() => new NewTreeBlob(_writtenSequence, Array.Empty<TreeNodeRef>());
 
 		/// <inheritdoc/>
-		public override ReadOnlyMemory<byte> AppendData(ReadOnlyMemory<byte> newData, ChunkingOptions options)
+		public override ValueTask<ReadOnlyMemory<byte>> AppendDataAsync(ReadOnlyMemory<byte> newData, ChunkingOptions options, ITreeWriter writer, CancellationToken cancellationToken)
+		{
+			return new ValueTask<ReadOnlyMemory<byte>>(AppendData(newData, options));
+		}
+
+		ReadOnlyMemory<byte> AppendData(ReadOnlyMemory<byte> newData, ChunkingOptions options)
 		{
 			if (_isReadOnly)
 			{
@@ -458,7 +457,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="data"></param>
 		/// <param name="children"></param>
-		public InteriorFileNode(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlob> children)
+		public InteriorFileNode(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> children)
 		{
 			ReadOnlySpan<byte> span = data.AsSingleSegment().Span;
 			if (span[0] != TypeId)
@@ -485,14 +484,8 @@ namespace EpicGames.Horde.Storage.Nodes
 		public override IReadOnlyList<TreeNodeRef> GetReferences() => _children;
 
 		/// <inheritdoc/>
-		public override async ValueTask<ITreeBlob> SerializeAsync(ITreeBlobWriter writer, CancellationToken cancellationToken)
+		public override NewTreeBlob Serialize()
 		{
-			List<ITreeBlob> children = new List<ITreeBlob>();
-			foreach (TreeNodeRef<FileNode> child in _children)
-			{
-				children.Add(await child.CollapseAsync(writer, cancellationToken));
-			}
-
 			byte[] data = new byte[1 + sizeof(uint) + VarInt.MeasureUnsigned((ulong)_length) + 1];
 			data[0] = TypeId;
 
@@ -508,13 +501,12 @@ namespace EpicGames.Horde.Storage.Nodes
 			pos++;
 
 			Debug.Assert(pos == data.Length);
-			return await writer.WriteBlobAsync(new ReadOnlySequence<byte>(data), children, cancellationToken);
+			return new NewTreeBlob(data, _children);
 		}
 
 		/// <inheritdoc/>
-		public override ReadOnlyMemory<byte> AppendData(ReadOnlyMemory<byte> newData, ChunkingOptions options)
+		public override async ValueTask<ReadOnlyMemory<byte>> AppendDataAsync(ReadOnlyMemory<byte> newData, ChunkingOptions options, ITreeWriter writer, CancellationToken cancellationToken)
 		{
-			Span<byte> hashData = stackalloc byte[4];
 			for (; ; )
 			{
 				Debug.Assert(_children != null);
@@ -527,15 +519,14 @@ namespace EpicGames.Horde.Storage.Nodes
 					{
 						// Update the length to match the new node
 						_length -= lastNode.Length;
-						newData = lastNode.AppendData(newData, options);
+						newData = await lastNode.AppendDataAsync(newData, options, writer, cancellationToken);
 						_length += lastNode.Length;
 
 						// If the last node is complete, write it to the buffer
 						if (lastNode.IsReadOnly())
 						{
 							// Update the hash
-							BinaryPrimitives.WriteUInt32LittleEndian(hashData, lastNode.RollingHash);
-							_rollingHash = BuzHash.Add(_rollingHash, hashData);
+							AppendChildHash(lastNode.RollingHash);
 
 							// Check if it's time to finish this chunk
 							uint hashThreshold = (uint)(((1L << 32) * IoHash.NumBytes) / options.LeafOptions.TargetSize);
@@ -551,12 +542,26 @@ namespace EpicGames.Horde.Storage.Nodes
 						{
 							return newData;
 						}
+
+						// Collapse the final node
+						await Children[^1].CollapseAsync(writer, cancellationToken);
 					}
 				}
 
 				// Add a new child node
 				_children.Add(new TreeNodeRef<FileNode>(this, new LeafFileNode()));
 			}
+		}
+
+		/// <summary>
+		/// Updates the rolling hash to append a child hash
+		/// </summary>
+		/// <param name="childHash">The child hash to append</param>
+		void AppendChildHash(uint childHash)
+		{
+			Span<byte> hashData = stackalloc byte[4];
+			BinaryPrimitives.WriteUInt32LittleEndian(hashData, childHash);
+			_rollingHash = BuzHash.Add(_rollingHash, hashData);
 		}
 
 		/// <inheritdoc/>
@@ -576,21 +581,18 @@ namespace EpicGames.Horde.Storage.Nodes
 	public class FileNodeSerializer : TreeNodeSerializer<FileNode>
 	{
 		/// <inheritdoc/>
-		public override async ValueTask<FileNode> DeserializeAsync(ITreeBlob blob, CancellationToken cancellationToken)
+		public override FileNode Deserialize(ITreeBlob blob)
 		{
-			ReadOnlySequence<byte> data = await blob.GetDataAsync(cancellationToken);
+			ReadOnlySequence<byte> data = blob.Data;
 			switch (data.FirstSpan[0])
 			{
 				case LeafFileNode.TypeId:
 					return new LeafFileNode(data);
 				case InteriorFileNode.TypeId:
-					return new InteriorFileNode(data, await blob.GetReferencesAsync(cancellationToken));
+					return new InteriorFileNode(data, blob.Refs);
 				default:
 					throw new InvalidDataException("Unknown type id while deserializing file node");
 			};
 		}
-
-		/// <inheritdoc/>
-		public override ValueTask<ITreeBlob> SerializeAsync(ITreeBlobWriter writer, FileNode node, CancellationToken cancellationToken) => node.SerializeAsync(writer, cancellationToken);
 	}
 }

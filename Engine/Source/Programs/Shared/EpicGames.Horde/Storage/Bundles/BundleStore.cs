@@ -5,7 +5,6 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -47,78 +46,45 @@ namespace EpicGames.Horde.Storage.Bundles
 	}
 
 	/// <summary>
-	/// Statistics for the state of a bundle
+	/// Implementation of <see cref="ITreeStore"/> which packs nodes together into <see cref="Bundle"/> objects, then stores them
+	/// in a <see cref="IBlobStore"/>.
 	/// </summary>
-	public class BundleStats
-	{
-		/// <summary>
-		/// Number of blobs that have been written
-		/// </summary>
-		public int NewBlobCount { get; set; }
-
-		/// <summary>
-		/// Total size of the blobs that have been written
-		/// </summary>
-		public long NewBlobBytes { get; set; }
-
-		/// <summary>
-		/// Number of refs that have been written
-		/// </summary>
-		public int NewRefCount { get; set; }
-
-		/// <summary>
-		/// Total size of the refs that have been written
-		/// </summary>
-		public long NewRefBytes { get; set; }
-
-		/// <summary>
-		/// Number of nodes in the tree that have been written
-		/// </summary>
-		public int NewNodeCount { get; set; }
-
-		/// <summary>
-		/// Total size of the nodes that have been serialized
-		/// </summary>
-		public long NewNodeBytes { get; set; }
-	}
-
-	/// <summary>
-	/// Manages a collection of bundles.
-	/// </summary>
-	public class BundleStore : ITreeStore, ITreeBlobWriter, IDisposable
+	public class BundleStore : ITreeStore, IDisposable
 	{
 		/// <summary>
 		/// Information about a node within a bundle.
 		/// </summary>
 		[DebuggerDisplay("{Hash}")]
-		sealed class NodeInfo : ITreeBlob
+		sealed class NodeInfo : ITreeBlobRef
 		{
 			public readonly BundleStore Owner;
-			public IoHash Hash { get; }
-			public NodeState State => _state;
-
-			NodeState _state;
+			public readonly IoHash Hash;
+			public NodeState State { get; private set; }
 
 			public NodeInfo(BundleStore owner, IoHash hash, NodeState state)
 			{
 				Owner = owner;
 				Hash = hash;
-				_state = state;
+				State = state;
 			}
 
-			public bool TrySetState(NodeState prevState, NodeState nextState)
+			/// <summary>
+			/// Updates the current state. The only allowed transition is to an exported node state.
+			/// </summary>
+			/// <param name="state">The new state</param>
+			public void SetState(ExportedNodeState state)
 			{
-				return Interlocked.CompareExchange(ref _state, nextState, prevState) == prevState;
+				State = state;
 			}
 
 			/// <inheritdoc/>
-			public ValueTask<ReadOnlySequence<byte>> GetDataAsync(CancellationToken cancellationToken) => Owner.GetDataAsync(this, cancellationToken);
-
-			/// <inheritdoc/>
-			public async ValueTask<IReadOnlyList<ITreeBlob>> GetReferencesAsync(CancellationToken cancellationToken) => await Owner.GetReferencesAsync(this, cancellationToken);
+			public ValueTask<ITreeBlob> GetTargetAsync(CancellationToken cancellationToken = default) => Owner.GetNodeAsync(this, cancellationToken);
 		}
 
-		sealed class PacketInfo
+		/// <summary>
+		/// Metadata about a compression packet within a bundle
+		/// </summary>
+		class PacketInfo
 		{
 			public readonly int Offset;
 			public readonly int DecodedLength;
@@ -132,26 +98,33 @@ namespace EpicGames.Horde.Storage.Bundles
 			}
 		}
 
+		/// <summary>
+		/// Base class for the state of a node
+		/// </summary>
 		abstract class NodeState
 		{
 		}
 
-		// State for data imported from a bundle, but whose location within it is not yet known because the bundle's header has not been read yet.
-		// Can be transitioned to ExportedNodeState.
+		/// <summary>
+		/// State for data imported from a bundle, but whose location within it is not yet known because the bundle's header has not been read yet.
+		/// Can be transitioned to ExportedNodeState.
+		/// </summary>
 		class ImportedNodeState : NodeState
 		{
-			public readonly BlobInfo BundleInfo;
+			public readonly BundleInfo BundleInfo;
 			public readonly int ExportIdx;
 
-			public ImportedNodeState(BlobInfo bundleInfo, int exportIdx)
+			public ImportedNodeState(BundleInfo bundleInfo, int exportIdx)
 			{
 				BundleInfo = bundleInfo;
 				ExportIdx = exportIdx;
 			}
 		}
 
-		// State for data persisted to a bundle. Decoded data is cached outside this structure in the store's MemoryCache.
-		// Cannot be transitioned to any other state.
+		/// <summary>
+		/// State for data persisted to a bundle. Decoded data is cached outside this structure in the store's MemoryCache.
+		/// Cannot be transitioned to any other state.
+		/// </summary>
 		class ExportedNodeState : ImportedNodeState
 		{
 			public readonly PacketInfo PacketInfo;
@@ -159,7 +132,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			public readonly int Length;
 			public readonly IReadOnlyList<NodeInfo> References;
 
-			public ExportedNodeState(BlobInfo bundleInfo, int exportIdx, PacketInfo packetInfo, int offset, int length, IReadOnlyList<NodeInfo> references)
+			public ExportedNodeState(BundleInfo bundleInfo, int exportIdx, PacketInfo packetInfo, int offset, int length, IReadOnlyList<NodeInfo> references)
 				: base(bundleInfo, exportIdx)
 			{
 				PacketInfo = packetInfo;
@@ -169,12 +142,17 @@ namespace EpicGames.Horde.Storage.Bundles
 			}
 		}
 
-		// Data for a node which exists in memory, but which does NOT exist in storage yet. Nodes which 
-		// are read in from storage are represented by ExportedNodeState and a MemoryCache. Can transition to an ExportedNodeState only.
-		class InMemoryNodeState : NodeState
+		/// <summary>
+		/// Data for a node which exists in memory, but which does NOT exist in storage yet. Nodes which 
+		/// are read in from storage are represented by ExportedNodeState and a MemoryCache. Can transition to an ExportedNodeState only.
+		/// </summary>
+		class InMemoryNodeState : NodeState, ITreeBlob
 		{
 			public readonly ReadOnlySequence<byte> Data;
 			public readonly IReadOnlyList<NodeInfo> References;
+
+			ReadOnlySequence<byte> ITreeBlob.Data => Data;
+			IReadOnlyList<ITreeBlobRef> ITreeBlob.Refs => References;
 
 			public InMemoryNodeState(ReadOnlySequence<byte> data, IReadOnlyList<NodeInfo> references)
 			{
@@ -184,30 +162,69 @@ namespace EpicGames.Horde.Storage.Bundles
 		}
 
 		/// <summary>
-		/// Information about a blob
+		/// Stores a lookup from blob id to bundle info, and from there to the nodes it contains.
 		/// </summary>
-		[DebuggerDisplay("{BlobId}")]
-		class BlobInfo
+		class BundleContext
 		{
-			public readonly BlobId BlobId;
-			public readonly NodeInfo?[] Exports;
-			public Task<NodeInfo>? _mountTask;
+			readonly ConcurrentDictionary<BlobId, BundleInfo> _blobIdToBundle = new ConcurrentDictionary<BlobId, BundleInfo>();
 
-			public BlobInfo(BlobId blobId, int exportCount)
-				: this(blobId, new NodeInfo?[exportCount])
+			public BundleInfo FindOrAddBundle(BlobId blobId, int exportCount)
 			{
-			}
-
-			public BlobInfo(BlobId blobId, NodeInfo?[] exports)
-			{
-				BlobId = blobId;
-				Exports = exports;
+				BundleInfo bundleInfo = _blobIdToBundle.GetOrAdd(blobId, new BundleInfo(this, blobId, exportCount));
+				Debug.Assert(bundleInfo.Exports.Length == exportCount);
+				return bundleInfo;
 			}
 		}
 
+		/// <summary>
+		/// Information about an imported bundle
+		/// </summary>
+		[DebuggerDisplay("{BlobId}")]
+		class BundleInfo
+		{
+			public readonly BundleContext Context;
+			public readonly BlobId BlobId;
+			public readonly NodeInfo?[] Exports;
+
+			public bool Mounted;
+			public Task MountTask = Task.CompletedTask;
+
+			public BundleInfo(BundleContext context, BlobId blobId, int exportCount)
+			{
+				Context = context;
+				BlobId = blobId;
+				Exports = new NodeInfo?[exportCount];
+			}
+		}
+
+		class BundleWriteContext : BundleContext, ITreeWriter
+		{
+			readonly BundleStore _owner;
+
+			public readonly RefName Name;
+			public readonly ConcurrentDictionary<IoHash, NodeInfo> HashToNode = new ConcurrentDictionary<IoHash, NodeInfo>();
+
+			public Task WriteTask = Task.CompletedTask;
+			public readonly List<NodeInfo> WriteNodes = new List<NodeInfo>();
+			public readonly HashSet<NodeInfo> WriteNodesSet = new HashSet<NodeInfo>();
+			public long WriteLength;
+
+			public byte[] PacketBuffer = Array.Empty<byte>();
+
+			public BundleWriteContext(BundleStore owner, RefName name)
+			{
+				_owner = owner;
+				Name = name;
+			}
+
+			/// <inheritdoc/>
+			public Task FlushAsync(ITreeBlob root, CancellationToken cancellationToken = default) => _owner.FlushAsync(this, root, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task<ITreeBlobRef> WriteNodeAsync(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default) => _owner.WriteNodeAsync(this, data, refs, cancellationToken);
+		}
+
 		readonly IBlobStore _blobStore;
-		readonly ConcurrentDictionary<IoHash, NodeInfo> _hashToNode = new ConcurrentDictionary<IoHash, NodeInfo>();
-		readonly ConcurrentDictionary<BlobId, BlobInfo> _blobIdToBundleInfo = new ConcurrentDictionary<BlobId, BlobInfo>();
 		readonly IMemoryCache _cache;
 
 		readonly object _lockObject = new object();
@@ -218,18 +235,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		// so that other threads can also await it.
 		readonly Dictionary<string, Task<Bundle>> _readTasks = new Dictionary<string, Task<Bundle>>();
 
-		Task _writeTask = Task.CompletedTask;
-
 		readonly BundleOptions _options;
-
-		/// <summary>
-		/// Tracks statistics for the size of written data
-		/// </summary>
-		public BundleStats Stats { get; private set; } = new BundleStats();
-
-		BundleStats _nextStats = new BundleStats();
-		byte[] _blockBuffer = Array.Empty<byte>();
-		byte[] _encodedBuffer = Array.Empty<byte>();
 
 		/// <summary>
 		/// Constructor
@@ -241,6 +247,12 @@ namespace EpicGames.Horde.Storage.Bundles
 			_cache = cache;
 			_readSema = new SemaphoreSlim(options.MaxConcurrentReads);
 		}
+
+		/// <inheritdoc/>
+		public ITreeWriter CreateTreeWriter(RefName name) => new BundleWriteContext(this, name);
+
+		/// <inheritdoc/>
+		public Task DeleteTreeAsync(RefName name, CancellationToken cancellationToken) => _blobStore.DeleteRefAsync(name, cancellationToken);
 
 		/// <inheritdoc/>
 		public void Dispose()
@@ -269,295 +281,15 @@ namespace EpicGames.Horde.Storage.Bundles
 			{
 				return null;
 			}
-			return MountInMemoryBundle(bundle);
-		}
 
-		/// <inheritdoc/>
-		public async Task<T?> TryReadTreeAsync<T>(RefName name, CancellationToken cancellationToken = default) where T : TreeNode
-		{
-			ITreeBlob? node = await TryReadTreeAsync(name, cancellationToken);
-			if (node == null)
-			{
-				return null;
-			}
-			return await TreeNode.DeserializeAsync<T>(node, cancellationToken);
-		}
+			// Create a new context for this bundle and its references
+			BundleContext context = new BundleContext();
 
-		/// <inheritdoc/>
-		public async Task WriteTreeAsync(RefName name, ITreeBlob root, bool flush = true, CancellationToken cancellationToken = default)
-		{
-			await SequenceWrite(() => WriteTreeInternalAsync(name, root, flush, cancellationToken), cancellationToken);
-		}
-
-		async Task SequenceWrite(Func<Task> writeFunc, CancellationToken cancellationToken)
-		{
-			Task task;
-			lock (_lockObject)
-			{
-				Task prevTask = _writeTask;
-
-				// Wait for the previous write to complete first, ignoring any exceptions
-				Func<Task> wrappedWriteFunc = async () =>
-				{
-					await prevTask.ContinueWith(x => { }, cancellationToken, TaskContinuationOptions.None, TaskScheduler.Default);
-					await writeFunc();
-				};
-				task = Task.Run(wrappedWriteFunc, cancellationToken);
-
-				_writeTask = task;
-			}
-			await task;
-		}
-
-		async Task WriteTreeInternalAsync(RefName name, ITreeBlob root, bool flush = true, CancellationToken cancellationToken = default)
-		{
-			// Find all the referenced in-memory nodes from the root
-			List<NodeInfo> nodes = new List<NodeInfo>();
-			FindNodesToWrite((NodeInfo)root, nodes, new HashSet<NodeInfo>(), flush);
-
-			// Group the nodes into bundles
-			long bundleSize = 0;
-			List<NodeInfo> bundleNodes = new List<NodeInfo>();
-
-			foreach (NodeInfo node in nodes)
-			{
-				// Check if we need to flush the current bundle
-				long nodeSize = ((InMemoryNodeState)node.State).Data.Length;
-				if (bundleNodes.Count > 0 && bundleSize + nodeSize > _options.MaxBlobSize)
-				{
-					Bundle bundle = CreateBundle(bundleNodes);
-					BlobId blobId = await _blobStore.WriteBundleBlobAsync(name, bundle, cancellationToken);
-
-					BlobInfo bundleInfo = new BlobInfo(blobId, bundleNodes.ToArray());
-					MountExportedBundle(bundleInfo, bundle);
-
-					bundleSize = 0;
-					bundleNodes.Clear();
-				}
-
-				// Add this node to the list
-				bundleSize += nodeSize;
-				bundleNodes.Add(node);
-			}
-
-			// If we're doing a full flush, also write whatever is left
-			if (flush)
-			{
-				// Write the main ref
-				Bundle rootBundle = CreateBundle(bundleNodes);
-				await _blobStore.WriteBundleRefAsync(name, rootBundle, cancellationToken);
-
-				// Copy the stats over
-				Stats = _nextStats;
-				_nextStats = new BundleStats();
-			}
-		}
-
-		/// <inheritdoc/>
-		public async Task WriteTreeAsync<T>(RefName name, T root, bool flush = true, CancellationToken cancellationToken = default) where T : TreeNode
-		{
-			ITreeBlob rootBlob = await TreeNode.SerializeAsync(root, this, cancellationToken);
-			await WriteTreeAsync(name, rootBlob, flush, cancellationToken);
-		}
-
-		/// <inheritdoc/>
-		public Task DeleteTreeAsync(RefName name, CancellationToken cancellationToken) => _blobStore.DeleteRefAsync(name, cancellationToken);
-
-		/// <summary>
-		/// Gets the data for a given node
-		/// </summary>
-		/// <param name="node">The node to get the data for</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The node data</returns>
-		async ValueTask<ReadOnlySequence<byte>> GetDataAsync(NodeInfo node, CancellationToken cancellationToken)
-		{
-			if (node.State is InMemoryNodeState inMemoryState)
-			{
-				return inMemoryState.Data;
-			}
-
-			ExportedNodeState exportedState = await GetExportedStateAsync(node, cancellationToken);
-
-			Bundle bundle = await ReadBundleAsync(exportedState.BundleInfo, cancellationToken);
-			ReadOnlyMemory<byte> packetData = DecodePacket(exportedState.BundleInfo, exportedState.PacketInfo, bundle.Payload);
-			ReadOnlyMemory<byte> nodeData = packetData.Slice(exportedState.Offset, exportedState.Length);
-
-			return new ReadOnlySequence<byte>(nodeData);
-		}
-
-		/// <summary>
-		/// Gets the references from a given node
-		/// </summary>
-		/// <param name="node">The node to get the data for</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The node data</returns>
-		async ValueTask<IReadOnlyList<NodeInfo>> GetReferencesAsync(NodeInfo node, CancellationToken cancellationToken)
-		{
-			if (node.State is InMemoryNodeState inMemoryState)
-			{
-				return inMemoryState.References;
-			}
-
-			ExportedNodeState exportedState = await GetExportedStateAsync(node, cancellationToken);
-			return exportedState.References;
-		}
-
-		async ValueTask<ExportedNodeState> GetExportedStateAsync(NodeInfo node, CancellationToken cancellationToken)
-		{
-			ExportedNodeState? exportedState = node.State as ExportedNodeState;
-			if (exportedState == null)
-			{
-				ImportedNodeState importedState = (ImportedNodeState)node.State;
-				await MountBundleAsync(importedState.BundleInfo, cancellationToken);
-				exportedState = (ExportedNodeState)node.State;
-			}
-			return exportedState;
-		}
-
-		/// <inheritdoc/>
-		public Task<ITreeBlob> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlob> references, CancellationToken cancellationToken)
-		{
-			List<NodeInfo> typedReferences = references.ConvertAll(x => (NodeInfo)x);
-			if (typedReferences.Any(x => x.Owner != this))
-			{
-				throw new InvalidDataException("Referenced node does not belong to the current tree.");
-			}
-
-			IoHash hash = ComputeHash(data, typedReferences);
-
-			InMemoryNodeState state = new InMemoryNodeState(data, typedReferences);
-			NodeInfo node = FindOrAddNode(hash, state);
-
-			_nextStats.NewNodeCount++;
-			_nextStats.NewNodeBytes += data.Length;
-
-			return Task.FromResult<ITreeBlob>(node);
-		}
-
-		NodeInfo FindOrAddNode(IoHash hash, NodeState state)
-		{
-			NodeInfo? node;
-			if (!_hashToNode.TryGetValue(hash, out node))
-			{
-				node = _hashToNode.GetOrAdd(hash, new NodeInfo(this, hash, state));
-			}
-
-			if (state is ExportedNodeState)
-			{
-				// Transition from any non-exported state
-				for (; ; )
-				{
-					NodeState prevState = node.State;
-					if (prevState is ExportedNodeState)
-					{
-						break;
-					}
-					else if (node.TrySetState(prevState, state))
-					{
-						break;
-					}
-				}
-			}
-			else if (state is ImportedNodeState)
-			{
-				// Transition from in memory state
-				for (; ; )
-				{
-					NodeState prevState = node.State;
-					if (!(prevState is InMemoryNodeState))
-					{
-						break;
-					}
-					else if (node.TrySetState(prevState, state))
-					{
-						break;
-					}
-				}
-			}
-
-			return node;
-		}
-
-		static IoHash ComputeHash(ReadOnlySequence<byte> data, IReadOnlyList<NodeInfo> references)
-		{
-			byte[] buffer = new byte[IoHash.NumBytes * (references.Count + 1)];
-
-			Span<byte> span = buffer;
-			for (int idx = 0; idx < references.Count; idx++)
-			{
-				references[idx].Hash.CopyTo(span);
-				span = span[IoHash.NumBytes..];
-			}
-			IoHash.Compute(data).CopyTo(span);
-
-			return IoHash.Compute(buffer);
-		}
-
-		void FindNodesToWrite(NodeInfo root, List<NodeInfo> nodes, HashSet<NodeInfo> uniqueNodes, bool flush)
-		{
-			if (root.State is InMemoryNodeState inMemoryState)
-			{
-				if (uniqueNodes.Add(root))
-				{
-					int count = inMemoryState.References.Count;
-					for (int idx = 0; idx < count; idx++)
-					{
-						FindNodesToWrite(inMemoryState.References[idx], nodes, uniqueNodes, flush || idx < count - 1);
-					}
-					if (flush)
-					{
-						nodes.Add(root);
-					}
-				}
-			}
-		}
-
-		async Task<NodeInfo> MountBundleAsync(BlobInfo bundle, CancellationToken cancellationToken)
-		{
-			Task<NodeInfo>? mountTask = bundle._mountTask;
-			if (mountTask == null)
-			{
-				lock (bundle)
-				{
-					bundle._mountTask ??= Task.Run(() => MountBundleInternalAsync(bundle, cancellationToken));
-					mountTask = bundle._mountTask;
-				}
-			}
-			return await mountTask;
-		}
-
-		async Task<NodeInfo> MountBundleInternalAsync(BlobInfo bundleInfo, CancellationToken cancellationToken)
-		{
-			Bundle bundle = await ReadBundleAsync(bundleInfo, cancellationToken);
-			return MountExportedBundle(bundleInfo, bundle);
-		}
-
-		List<NodeInfo> RegisterImports(BundleHeader header)
-		{
-			// Create all the nodes as imports first, so we can fix up references later.
-			List<NodeInfo> nodes = new List<NodeInfo>(header.Imports.Sum(x => x.Exports.Count) + header.Exports.Count);
-			foreach (BundleImport import in header.Imports)
-			{
-				BlobInfo importBundle = _blobIdToBundleInfo.GetOrAdd(import.BlobId, id => new BlobInfo(id, import.ExportCount));
-				foreach ((int exportIdx, IoHash exportHash) in import.Exports)
-				{
-					NodeInfo? export = importBundle.Exports[exportIdx];
-					if (export == null)
-					{
-						export = FindOrAddNode(exportHash, new ImportedNodeState(importBundle, exportIdx));
-						importBundle.Exports[exportIdx] = export;
-					}
-					nodes.Add(export);
-				}
-			}
-			return nodes;
-		}
-
-		NodeInfo MountInMemoryBundle(Bundle bundle)
-		{
+			// Create all the imports for the root bundle
 			BundleHeader header = bundle.Header;
-			List<NodeInfo> nodes = RegisterImports(header);
+			List<NodeInfo> nodes = CreateImports(context, header);
 
+			// Decompress the bundle data and mount all the nodes in memory
 			int exportIdx = 0;
 			int packetOffset = 0;
 			foreach (BundlePacket packet in header.Packets)
@@ -575,54 +307,64 @@ namespace EpicGames.Horde.Storage.Bundles
 					ReadOnlyMemory<byte> nodeData = decodedPacket.AsMemory(nodeOffset, export.Length);
 					List<NodeInfo> nodeRefs = export.References.ConvertAll(x => nodes[x]);
 
-					InMemoryNodeState nodeState = new InMemoryNodeState(new ReadOnlySequence<byte>(nodeData), nodeRefs);
-					NodeInfo node = FindOrAddNode(export.Hash, nodeState);
+					NodeInfo node = new NodeInfo(this, export.Hash, new InMemoryNodeState(new ReadOnlySequence<byte>(nodeData), nodeRefs));
 					nodes.Add(node);
 
-					nodeOffset += header.Exports[exportIdx].Length;
+					nodeOffset += export.Length;
 				}
 
 				packetOffset += packet.EncodedLength;
 			}
 
-			return nodes[^1];
+			// Return the last node as the root
+			return (InMemoryNodeState)nodes[^1].State;
 		}
 
-		NodeInfo MountExportedBundle(BlobInfo bundleInfo, Bundle bundle)
+		/// <summary>
+		/// Gets the data for a given node
+		/// </summary>
+		/// <param name="node">The node to get the data for</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>The node data</returns>
+		async ValueTask<ITreeBlob> GetNodeAsync(NodeInfo node, CancellationToken cancellationToken)
 		{
-			BundleHeader header = bundle.Header;
-			List<NodeInfo> nodes = RegisterImports(header);
-
-			int exportIdx = 0;
-			int packetOffset = 0;
-			foreach (BundlePacket packet in header.Packets)
+			if (node.State is InMemoryNodeState inMemoryState)
 			{
-				PacketInfo packetInfo = new PacketInfo(packetOffset, packet);
-
-				int nodeOffset = 0;
-				for (; exportIdx < header.Exports.Count && nodeOffset + header.Exports[exportIdx].Length <= packet.DecodedLength; exportIdx++)
-				{
-					BundleExport export = header.Exports[exportIdx];
-
-					List<NodeInfo> nodeRefs = export.References.ConvertAll(x => nodes[x]);
-					ExportedNodeState exportedState = new ExportedNodeState(bundleInfo, exportIdx, packetInfo, nodeOffset, export.Length, nodeRefs);
-
-					NodeInfo node = FindOrAddNode(export.Hash, exportedState);
-					bundleInfo.Exports[exportIdx] = node;
-					nodes.Add(node);
-
-					nodeOffset += header.Exports[exportIdx].Length;
-				}
-
-				packetOffset += packet.EncodedLength;
+				return inMemoryState;
 			}
 
-			return nodes[^1];
+			ExportedNodeState exportedState = await GetExportedStateAsync(node, cancellationToken);
+
+			Bundle bundle = await ReadBundleAsync(exportedState.BundleInfo.BlobId, cancellationToken);
+			ReadOnlyMemory<byte> packetData = DecodePacket(exportedState.BundleInfo.BlobId, exportedState.PacketInfo, bundle.Payload);
+			ReadOnlyMemory<byte> nodeData = packetData.Slice(exportedState.Offset, exportedState.Length);
+
+			return new InMemoryNodeState(new ReadOnlySequence<byte>(nodeData), exportedState.References);
 		}
 
-		async Task<Bundle> ReadBundleAsync(BlobInfo bundleInfo, CancellationToken cancellationToken)
+		async ValueTask<ExportedNodeState> GetExportedStateAsync(NodeInfo node, CancellationToken cancellationToken)
 		{
-			string cacheKey = $"bundle:{bundleInfo.BlobId}";
+			ExportedNodeState? exportedState = node.State as ExportedNodeState;
+			if (exportedState == null)
+			{
+				ImportedNodeState importedState = (ImportedNodeState)node.State;
+				await MountBundleAsync(importedState.BundleInfo, cancellationToken);
+				exportedState = (ExportedNodeState)node.State;
+			}
+			return exportedState;
+		}
+
+		#region Reading bundles
+
+		/// <summary>
+		/// Reads a bundle from the given blob id, or retrieves it from the cache
+		/// </summary>
+		/// <param name="blobId"></param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		async Task<Bundle> ReadBundleAsync(BlobId blobId, CancellationToken cancellationToken = default)
+		{
+			string cacheKey = GetBundleCacheKey(blobId);
 			if (!_cache.TryGetValue<Bundle>(cacheKey, out Bundle? bundle))
 			{
 				Task<Bundle>? readTask;
@@ -630,7 +372,7 @@ namespace EpicGames.Horde.Storage.Bundles
 				{
 					if (!_readTasks.TryGetValue(cacheKey, out readTask))
 					{
-						readTask = Task.Run(() => ReadBundleInternalAsync(cacheKey, bundleInfo.BlobId, cancellationToken));
+						readTask = Task.Run(() => ReadBundleInternalAsync(cacheKey, blobId, cancellationToken), cancellationToken);
 						_readTasks.Add(cacheKey, readTask);
 					}
 				}
@@ -679,16 +421,113 @@ namespace EpicGames.Horde.Storage.Bundles
 			return bundle;
 		}
 
+		static string GetBundleCacheKey(BlobId blobId) => $"bundle:{blobId}";
+
+		void AddBundleToCache(string cacheKey, Bundle bundle)
+		{
+			using (ICacheEntry entry = _cache.CreateEntry(cacheKey))
+			{
+				entry.SetSize(bundle.Payload.Length);
+				entry.SetValue(bundle);
+			}
+		}
+
+		async Task MountBundleAsync(BundleInfo bundleInfo, CancellationToken cancellationToken)
+		{
+			if (!bundleInfo.Mounted)
+			{
+				Task mountTask;
+				lock (bundleInfo)
+				{
+					Task prevMountTask = bundleInfo.MountTask.ContinueWith(x => { }, cancellationToken, TaskContinuationOptions.None, TaskScheduler.Default);
+					mountTask = Task.Run(() => MountBundleInternalAsync(prevMountTask, bundleInfo, cancellationToken), cancellationToken);
+					bundleInfo.MountTask = mountTask;
+				}
+				await mountTask;
+			}
+		}
+
+		async Task MountBundleInternalAsync(Task prevMountTask, BundleInfo bundleInfo, CancellationToken cancellationToken)
+		{
+			// Wait for the previous mount task to complete. This may succeed or be cancelled.
+			await prevMountTask;
+
+			// If it didn't succeed, try again
+			if (!bundleInfo.Mounted)
+			{
+				// Read the bundle data
+				Bundle bundle = await ReadBundleAsync(bundleInfo.BlobId, cancellationToken);
+				BundleHeader header = bundle.Header;
+
+				// Create all the imported nodes
+				List<NodeInfo> nodes = CreateImports(bundleInfo.Context, header);
+
+				// Create the exported nodes, or update the state of any imported nodes to exported
+				int exportIdx = 0;
+				int packetOffset = 0;
+				foreach (BundlePacket packet in header.Packets)
+				{
+					PacketInfo packetInfo = new PacketInfo(packetOffset, packet);
+
+					int nodeOffset = 0;
+					for (; exportIdx < header.Exports.Count && nodeOffset + header.Exports[exportIdx].Length <= packet.DecodedLength; exportIdx++)
+					{
+						BundleExport export = header.Exports[exportIdx];
+						List<NodeInfo> nodeRefs = export.References.ConvertAll(x => nodes[x]);
+
+						ExportedNodeState state = new ExportedNodeState(bundleInfo, exportIdx, packetInfo, nodeOffset, export.Length, nodeRefs);
+
+						NodeInfo? node = bundleInfo.Exports[exportIdx];
+						if (node == null)
+						{
+							node = bundleInfo.Exports[exportIdx] = new NodeInfo(this, export.Hash, state);
+						}
+						else
+						{
+							node.SetState(state);
+						}
+						nodes.Add(node);
+
+						nodeOffset += export.Length;
+					}
+
+					packetOffset += packet.EncodedLength;
+				}
+
+				// Mark the bundle as mounted
+				bundleInfo.Mounted = true;
+			}
+		}
+
+		List<NodeInfo> CreateImports(BundleContext context, BundleHeader header)
+		{
+			List<NodeInfo> indexedNodes = new List<NodeInfo>(header.Imports.Sum(x => x.Exports.Count) + header.Exports.Count);
+			foreach (BundleImport import in header.Imports)
+			{
+				BundleInfo importBundle = context.FindOrAddBundle(import.BlobId, import.ExportCount);
+				foreach ((int exportIdx, IoHash exportHash) in import.Exports)
+				{
+					NodeInfo? node = importBundle.Exports[exportIdx];
+					if (node == null)
+					{
+						node = new NodeInfo(this, exportHash, new ImportedNodeState(importBundle, exportIdx));
+						importBundle.Exports[exportIdx] = node;
+					}
+					indexedNodes.Add(node);
+				}
+			}
+			return indexedNodes;
+		}
 		/// <summary>
 		/// Gets a decoded block from the store
 		/// </summary>
-		/// <param name="bundleInfo">Information about the bundle</param>
+		/// <param name="blobId">Information about the bundle</param>
 		/// <param name="packetInfo">The decoded block location and size</param>
 		/// <param name="payload">The bundle payload</param>
 		/// <returns>The decoded data</returns>
-		ReadOnlyMemory<byte> DecodePacket(BlobInfo bundleInfo, PacketInfo packetInfo, ReadOnlyMemory<byte> payload)
+		ReadOnlyMemory<byte> DecodePacket(BlobId blobId, PacketInfo packetInfo, ReadOnlyMemory<byte> payload)
 		{
-			string cacheKey = $"bundle-packet:{bundleInfo.BlobId}@{packetInfo.Offset}";
+			string cacheKey = $"bundle-packet:{blobId}@{packetInfo.Offset}";
 			return _cache.GetOrCreate<ReadOnlyMemory<byte>>(cacheKey, entry =>
 			{
 				ReadOnlyMemory<byte> decodedPacket = DecodePacketUncached(packetInfo, payload);
@@ -707,41 +546,196 @@ namespace EpicGames.Horde.Storage.Bundles
 			return decodedPacket;
 		}
 
-		async Task FindLiveNodes(NodeInfo node, Dictionary<BlobInfo, HashSet<NodeInfo>> bundleToLiveNodes, HashSet<NodeInfo> nodes, CancellationToken cancellationToken)
-		{
-			if (nodes.Add(node))
-			{
-				if (node.State is ImportedNodeState importedState)
-				{
-					HashSet<NodeInfo>? liveNodes;
-					if (!bundleToLiveNodes.TryGetValue(importedState.BundleInfo, out liveNodes))
-					{
-						liveNodes = new HashSet<NodeInfo>();
-						bundleToLiveNodes.Add(importedState.BundleInfo, liveNodes);
-					}
-					liveNodes.Add(node);
-				}
+		#endregion
 
-				foreach (NodeInfo reference in await GetReferencesAsync(node, cancellationToken))
+		#region Writing bundles
+
+		Task<ITreeBlobRef> WriteNodeAsync(BundleWriteContext context, ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default)
+		{
+			IReadOnlyList<NodeInfo> typedRefs = refs.Select(x => (NodeInfo)x).ToList();
+
+			IoHash hash = ComputeHash(data, typedRefs);
+
+			NodeInfo? node;
+			if (!context.HashToNode.TryGetValue(hash, out node))
+			{
+				InMemoryNodeState state = new InMemoryNodeState(data, typedRefs);
+				NodeInfo newNode = new NodeInfo(this, hash, state);
+
+				// Try to add the node again. If we succeed, check if we need to flush the current bundle being built.
+				node = context.HashToNode.GetOrAdd(hash, newNode);
+				if (node == newNode)
 				{
-					await FindLiveNodes(reference, bundleToLiveNodes, nodes, cancellationToken);
+					lock (context)
+					{
+						WriteInMemoryNodes(context, node);
+					}
+				}
+			}
+
+			return Task.FromResult<ITreeBlobRef>(node);
+		}
+
+		void WriteInMemoryNodes(BundleWriteContext context, NodeInfo root)
+		{
+			if (root.State is InMemoryNodeState inMemoryState)
+			{
+				if (context.WriteNodesSet.Add(root))
+				{
+					// Write all the references
+					foreach (NodeInfo reference in inMemoryState.References)
+					{
+						WriteInMemoryNodes(context, reference);
+					}
+
+					// If this node pushes the current blob over the max size, queue it to be written now
+					long length = inMemoryState.Data.Length;
+					if (context.WriteLength + length > _options.MaxBlobSize)
+					{
+						// Start the write, but don't wait for it to complete. Once we've copied the list of nodes they can be written asynchronously.
+						NodeInfo[] writeNodes = context.WriteNodes.ToArray();
+						_ = SequenceWriteAsync(context, () => WriteBundleAsync(context, writeNodes, CancellationToken.None), CancellationToken.None);
+
+						context.WriteNodes.Clear();
+						context.WriteLength = 0;
+					}
+
+					// Add this node to the list of nodes to be written
+					context.WriteNodes.Add(root);
+					context.WriteLength += length;
 				}
 			}
 		}
 
+		static IoHash ComputeHash(ReadOnlySequence<byte> data, IReadOnlyList<NodeInfo> references)
+		{
+			byte[] buffer = new byte[IoHash.NumBytes * (references.Count + 1)];
+
+			Span<byte> span = buffer;
+			for (int idx = 0; idx < references.Count; idx++)
+			{
+				references[idx].Hash.CopyTo(span);
+				span = span[IoHash.NumBytes..];
+			}
+			IoHash.Compute(data).CopyTo(span);
+
+			return IoHash.Compute(buffer);
+		}
+
+		async Task WriteBundleAsync(BundleWriteContext context, NodeInfo[] nodes, CancellationToken cancellationToken)
+		{
+			// Create the bundle
+			Bundle bundle = CreateBundle(context, nodes);
+			BundleHeader header = bundle.Header;
+
+			// Write it to storage
+			BlobId blobId = await _blobStore.WriteBundleBlobAsync(context.Name, bundle, cancellationToken);
+			string cacheKey = GetBundleCacheKey(blobId);
+			AddBundleToCache(cacheKey, bundle);
+
+			// Create a BundleInfo for it
+			BundleInfo bundleInfo = context.FindOrAddBundle(blobId, nodes.Length);
+			for (int idx = 0; idx < nodes.Length; idx++)
+			{
+				bundleInfo.Exports[idx] = nodes[idx];
+			}
+
+			// Update the node states to reference the written bundle
+			int exportIdx = 0;
+			int packetOffset = 0;
+			foreach (BundlePacket packet in bundle.Header.Packets)
+			{
+				PacketInfo packetInfo = new PacketInfo(packetOffset, packet);
+
+				int nodeOffset = 0;
+				for (; exportIdx < header.Exports.Count && nodeOffset + bundle.Header.Exports[exportIdx].Length <= packet.DecodedLength; exportIdx++)
+				{
+					InMemoryNodeState inMemoryState = (InMemoryNodeState)nodes[exportIdx].State;
+
+					BundleExport export = header.Exports[exportIdx];
+					nodes[exportIdx].SetState(new ExportedNodeState(bundleInfo, exportIdx, packetInfo, nodeOffset, export.Length, inMemoryState.References));
+
+					nodeOffset += header.Exports[exportIdx].Length;
+				}
+
+				packetOffset += packet.EncodedLength;
+			}
+
+			// Remove all the newly written nodes from the dirty set
+			lock (context)
+			{
+				context.WriteNodesSet.ExceptWith(nodes);
+			}
+		}
+
+		async Task FlushAsync(BundleWriteContext context, ITreeBlob root, CancellationToken cancellationToken = default)
+		{
+			// Create the root node, and add everything it references to the write buffer
+			IoHash rootHash = ComputeHash(root.Data, root.Refs.ConvertAll(x => (NodeInfo)x));
+			NodeInfo rootNode = new NodeInfo(this, rootHash, (InMemoryNodeState)root);
+
+			// Flush all the nodes to bundles, and snapshot the remaining ref
+			Task task;
+			lock (context)
+			{
+				WriteInMemoryNodes(context, rootNode);
+				NodeInfo[] writeNodes = context.WriteNodes.ToArray();
+				task = SequenceWriteAsync(context, () => FlushInternalAsync(context, writeNodes, cancellationToken), cancellationToken);
+			}
+			await task;
+		}
+
+		async Task FlushInternalAsync(BundleWriteContext context, NodeInfo[] writeNodes, CancellationToken cancellationToken)
+		{
+			Bundle bundle = CreateBundle(context, writeNodes);
+			await _blobStore.WriteBundleRefAsync(context.Name, bundle, cancellationToken);
+		}
+
+		void FindNodesToWrite(NodeInfo root, List<NodeInfo> nodes, HashSet<NodeInfo> uniqueNodes)
+		{
+			if (root.State is InMemoryNodeState inMemoryState)
+			{
+				if (uniqueNodes.Add(root))
+				{
+					foreach (NodeInfo reference in inMemoryState.References)
+					{
+						FindNodesToWrite(reference, nodes, uniqueNodes);
+					}
+					nodes.Add(root);
+				}
+			}
+		}
+
+		static async Task SequenceWriteAsync(BundleWriteContext context, Func<Task> writeFunc, CancellationToken cancellationToken)
+		{
+			Task task;
+			lock (context)
+			{
+				Task prevTask = context.WriteTask;
+
+				// Wait for the previous write to complete first, ignoring any exceptions
+				Func<Task> wrappedWriteFunc = async () =>
+				{
+					await prevTask.ContinueWith(x => { }, cancellationToken, TaskContinuationOptions.None, TaskScheduler.Default);
+					await writeFunc();
+				};
+				task = Task.Run(wrappedWriteFunc, cancellationToken);
+
+				context.WriteTask = task;
+			}
+			await task;
+		}
+
 		/// <summary>
 		/// Creates a Bundle containing a set of nodes. 
-		///
-		/// WARNING: The <see cref="Bundle.Payload"/> member will be set to the value of <see cref="_encodedBuffer"/> on return, which will be
-		/// reused on a subsequent call. If the object needs to be persisted across the lifetime of other objects, this field must be duplicated.
 		/// </summary>
-		Bundle CreateBundle(IReadOnlyList<NodeInfo> nodes)
+		Bundle CreateBundle(BundleWriteContext context, NodeInfo[] nodes)
 		{
 			// Create a set from the nodes to be written. We use this to determine references that are imported.
 			HashSet<NodeInfo> nodeSet = new HashSet<NodeInfo>(nodes);
 
 			// Find all the imported nodes by bundle
-			Dictionary<BlobInfo, List<NodeInfo>> bundleToImportedNodes = new Dictionary<BlobInfo, List<NodeInfo>>();
+			Dictionary<BundleInfo, List<NodeInfo>> bundleToImportedNodes = new Dictionary<BundleInfo, List<NodeInfo>>();
 			foreach (NodeInfo node in nodes)
 			{
 				InMemoryNodeState state = (InMemoryNodeState)node.State;
@@ -751,7 +745,7 @@ namespace EpicGames.Horde.Storage.Bundles
 					{
 						// Get the persisted node info
 						ImportedNodeState importedState = (ImportedNodeState)reference.State;
-						BlobInfo bundleInfo = importedState.BundleInfo;
+						BundleInfo bundleInfo = importedState.BundleInfo;
 
 						// Get the list of nodes within it
 						List<NodeInfo>? importedNodes;
@@ -770,7 +764,7 @@ namespace EpicGames.Horde.Storage.Bundles
 
 			// Add all the imports and assign them identifiers
 			Dictionary<NodeInfo, int> nodeToIndex = new Dictionary<NodeInfo, int>();
-			foreach ((BlobInfo bundleInfo, List<NodeInfo> importedNodes) in bundleToImportedNodes)
+			foreach ((BundleInfo bundleInfo, List<NodeInfo> importedNodes) in bundleToImportedNodes)
 			{
 				(int, IoHash)[] exportInfos = new (int, IoHash)[importedNodes.Count];
 				for (int idx = 0; idx < importedNodes.Count; idx++)
@@ -785,7 +779,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			}
 
 			// Preallocate data in the encoded buffer to reduce fragmentation if we have to resize
-			CreateFreeSpace(ref _encodedBuffer, 0, _options.MaxBlobSize);
+			byte[] outputBuffer = new byte[_options.MaxBlobSize];
 
 			// Create the export list
 			List<BundleExport> exports = new List<BundleExport>();
@@ -794,8 +788,8 @@ namespace EpicGames.Horde.Storage.Bundles
 			// Size of data currently stored in the block buffer
 			int blockSize = 0;
 
-			// Compress all the nodes into the encoded buffer
-			int packetOffset = 0;
+			// Compress all the nodes into the output buffer buffer
+			int outputOffset = 0;
 			foreach (NodeInfo node in nodes)
 			{
 				InMemoryNodeState nodeState = (InMemoryNodeState)node.State;
@@ -804,7 +798,7 @@ namespace EpicGames.Horde.Storage.Bundles
 				// If we can't fit this data into the current block, flush the contents of it first
 				if (blockSize > 0 && blockSize + nodeData.Length > _options.MinCompressionPacketSize)
 				{
-					FlushPacket(_blockBuffer.AsMemory(0, blockSize), ref packetOffset, packets);
+					FlushPacket(context.PacketBuffer.AsMemory(0, blockSize), ref outputBuffer, ref outputOffset, packets);
 					blockSize = 0;
 				}
 
@@ -818,41 +812,41 @@ namespace EpicGames.Horde.Storage.Bundles
 				if (nodeData.Length < _options.MinCompressionPacketSize || !nodeData.IsSingleSegment)
 				{
 					int requiredSize = Math.Max(blockSize + (int)nodeData.Length, (int)(_options.MaxBlobSize * 1.2));
-					CreateFreeSpace(ref _blockBuffer, blockSize, requiredSize);
+					CreateFreeSpace(ref context.PacketBuffer, blockSize, requiredSize);
 
 					foreach (ReadOnlyMemory<byte> nodeSegment in nodeData)
 					{
-						nodeSegment.CopyTo(_blockBuffer.AsMemory(blockSize));
+						nodeSegment.CopyTo(context.PacketBuffer.AsMemory(blockSize));
 						blockSize += nodeSegment.Length;
 					}
 				}
 				else
 				{
-					FlushPacket(nodeData.First, ref packetOffset, packets);
+					FlushPacket(nodeData.First, ref outputBuffer, ref outputOffset, packets);
 				}
 			}
-			FlushPacket(_blockBuffer.AsMemory(0, blockSize), ref packetOffset, packets);
+			FlushPacket(context.PacketBuffer.AsMemory(0, blockSize), ref outputBuffer, ref outputOffset, packets);
 
 			// Flush the data
 			BundleHeader header = new BundleHeader(imports, exports, packets);
-			ReadOnlyMemory<byte> payload = _encodedBuffer.AsMemory(0, packets.Sum(x => x.EncodedLength));
+			ReadOnlyMemory<byte> payload = outputBuffer.AsMemory(0, packets.Sum(x => x.EncodedLength));
 			return new Bundle(header, payload);
 		}
 
-		void FlushPacket(ReadOnlyMemory<byte> inputData, ref int packetOffset, List<BundlePacket> packets)
+		static void FlushPacket(ReadOnlyMemory<byte> inputData, ref byte[] outputBuffer, ref int outputOffset, List<BundlePacket> packets)
 		{
 			if (inputData.Length > 0)
 			{
 				int minFreeSpace = LZ4Codec.MaximumOutputSize(inputData.Length);
-				CreateFreeSpace(ref _encodedBuffer, packetOffset, packetOffset + minFreeSpace);
+				CreateFreeSpace(ref outputBuffer, outputOffset, outputOffset + minFreeSpace);
 
 				ReadOnlySpan<byte> inputSpan = inputData.Span;
-				Span<byte> outputSpan = _encodedBuffer.AsSpan(packetOffset);
+				Span<byte> outputSpan = outputBuffer.AsSpan(outputOffset);
 
 				int encodedLength = LZ4Codec.Encode(inputSpan, outputSpan);
 				packets.Add(new BundlePacket(encodedLength, inputData.Length));
 
-				packetOffset += encodedLength;
+				outputOffset += encodedLength;
 
 				Debug.Assert(encodedLength >= 0);
 			}
@@ -867,5 +861,7 @@ namespace EpicGames.Horde.Storage.Bundles
 				buffer = newBuffer;
 			}
 		}
+
+		#endregion
 	}
 }

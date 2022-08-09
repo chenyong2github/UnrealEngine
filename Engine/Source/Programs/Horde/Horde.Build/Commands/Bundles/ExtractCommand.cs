@@ -35,10 +35,11 @@ namespace Horde.Build.Commands.Bundles
 		{
 			using ServiceProvider serviceProvider = Startup.CreateServiceProvider(_configuration, _loggerProvider);
 
-			ITreeStore store = serviceProvider.GetRequiredService<ITreeStore<CommitService>>();
+			ITreeStore store = serviceProvider.GetRequiredService<ITreeStore<ReplicationService>>();
 
-			DirectoryNode node = await store.ReadTreeAsync<DirectoryNode>(RefName);
-			await node.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
+			ReplicationNode node = await store.ReadTreeAsync<ReplicationNode>(RefName);
+			DirectoryNode root = await node.Contents.ExpandAsync();
+			await root.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
 
 			return 0;
 		}

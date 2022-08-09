@@ -90,7 +90,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FileEntry(DirectoryNode owner, Utf8String name, FileEntryFlags flags, long length, ITreeBlob target)
+		public FileEntry(DirectoryNode owner, Utf8String name, FileEntryFlags flags, long length, ITreeBlobRef target)
 			: base(owner, target)
 		{
 			Name = name;
@@ -104,11 +104,12 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="data">Data to append to the file</param>
 		/// <param name="options">Options for chunking the data</param>
+		/// <param name="writer">Writer for new node data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task AppendAsync(ReadOnlyMemory<byte> data, ChunkingOptions options, CancellationToken cancellationToken)
+		public async Task AppendAsync(ReadOnlyMemory<byte> data, ChunkingOptions options, ITreeWriter writer, CancellationToken cancellationToken)
 		{
 			FileNode node = await ExpandAsync(cancellationToken);
-			Node = node.Append(data, options);
+			Node = await node.AppendAsync(data, options, writer, cancellationToken);
 			MarkAsDirty();
 		}
 
@@ -117,8 +118,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="stream">Data to append to the file</param>
 		/// <param name="options">Options for chunking the data</param>
+		/// <param name="writer">Writer for new node data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task AppendAsync(Stream stream, ChunkingOptions options, CancellationToken cancellationToken)
+		public async Task AppendAsync(Stream stream, ChunkingOptions options, ITreeWriter writer, CancellationToken cancellationToken)
 		{
 			byte[] buffer = new byte[4 * 1024];
 			for (; ; )
@@ -128,7 +130,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				{
 					break;
 				}
-				await AppendAsync(buffer.AsMemory(0, numBytes), options, cancellationToken);
+				await AppendAsync(buffer.AsMemory(0, numBytes), options, writer, cancellationToken);
 			}
 		}
 
@@ -174,7 +176,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DirectoryEntry(DirectoryNode owner, Utf8String name, long length, ITreeBlob target)
+		public DirectoryEntry(DirectoryNode owner, Utf8String name, long length, ITreeBlobRef target)
 			: base(owner, target)
 		{
 			Name = name;
@@ -195,7 +197,7 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// <summary>
 	/// A directory node
 	/// </summary>
-	[TreeSerializer(typeof(DirectoryNodeDeserializer))]
+	[TreeSerializer(typeof(DirectoryNodeSerializer))]
 	public class DirectoryNode : TreeNode
 	{
 		internal const byte TypeId = (byte)'d';
@@ -275,12 +277,13 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="flags">Flags for the new file</param>
 		/// <param name="stream">The stream to read from</param>
 		/// <param name="options">Options for chunking the data</param>
+		/// <param name="writer">Writer for new node data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The new directory object</returns>
-		public async Task<FileEntry> AddFileAsync(Utf8String name, FileEntryFlags flags, Stream stream, ChunkingOptions options, CancellationToken cancellationToken = default)
+		public async Task<FileEntry> AddFileAsync(Utf8String name, FileEntryFlags flags, Stream stream, ChunkingOptions options, ITreeWriter writer, CancellationToken cancellationToken = default)
 		{
 			FileEntry entry = AddFile(name, flags);
-			await entry.AppendAsync(stream, options, cancellationToken);
+			await entry.AppendAsync(stream, options, writer, cancellationToken);
 			return entry;
 		}
 
@@ -289,9 +292,10 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="path">Path to the file</param>
 		/// <param name="flags">Flags for the new file</param>
+		/// <param name="writer">Writer for new node data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The new directory object</returns>
-		public async ValueTask<FileEntry> AddFileByPathAsync(Utf8String path, FileEntryFlags flags, CancellationToken cancellationToken = default)
+		public async ValueTask<FileEntry> AddFileByPathAsync(Utf8String path, FileEntryFlags flags, ITreeWriter writer, CancellationToken cancellationToken = default)
 		{
 			DirectoryNode directory = this;
 
@@ -473,24 +477,23 @@ namespace EpicGames.Horde.Storage.Nodes
 		#endregion
 
 		/// <inheritdoc/>
-		public async ValueTask<ITreeBlob> SerializeAsync(ITreeBlobWriter writer, CancellationToken cancellationToken)
+		public override NewTreeBlob Serialize()
 		{
-			List<ITreeBlob> childNodes = new List<ITreeBlob>();
+			List<TreeNodeRef> refs = new List<TreeNodeRef>();
 
 			List<FileEntry> fileEntries = _nameToFileEntry.Values.OrderBy(x => x.Name).ToList();
 			foreach (FileEntry fileEntry in fileEntries)
 			{
-				childNodes.Add(await fileEntry.CollapseAsync(writer, cancellationToken));
+				refs.Add(fileEntry);
 			}
 
 			List<DirectoryEntry> directoryEntries = _nameToDirectoryEntry.Values.OrderBy(x => x.Name).ToList();
 			foreach (DirectoryEntry directoryEntry in directoryEntries)
 			{
-				childNodes.Add(await directoryEntry.CollapseAsync(writer, cancellationToken));
+				refs.Add(directoryEntry);
 			}
 
-			ReadOnlySequence<byte> data = SerializeData(fileEntries, directoryEntries);
-			return await writer.WriteBlobAsync(data, childNodes, cancellationToken);
+			return new NewTreeBlob(SerializeData(fileEntries, directoryEntries), refs);
 		}
 
 		static ReadOnlySequence<byte> SerializeData(List<FileEntry> fileEntries, List<DirectoryEntry> directoryEntries)
@@ -549,12 +552,11 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Deserialize a directory node from data
 		/// </summary>
-		/// <param name="payload">The data to read from</param>
-		/// <param name="children">Child nodes</param>
+		/// <param name="source">The source node to deserialize</param>
 		/// <returns>The deserialized directory node</returns>
-		public static DirectoryNode Deserialize(ReadOnlySequence<byte> payload, IReadOnlyList<ITreeBlob> children)
+		public static DirectoryNode Deserialize(ITreeBlob source)
 		{
-			ReadOnlySpan<byte> span = payload.AsSingleSegment().Span;
+			ReadOnlySpan<byte> span = source.Data.AsSingleSegment().Span;
 			if(span[0] != TypeId)
 			{
 				throw new InvalidOperationException("Invalid signature byte for directory");
@@ -582,7 +584,8 @@ namespace EpicGames.Horde.Storage.Nodes
 				long length = (long)VarInt.ReadUnsigned(span, out int lengthBytes);
 				span = span.Slice(lengthBytes);
 
-				node._nameToFileEntry[name] = new FileEntry(node, name, flags, length, children[childIdx++]);
+				ITreeBlobRef child = source.Refs[childIdx++];
+				node._nameToFileEntry[name] = new FileEntry(node, name, flags, length, child);
 			}
 
 			int directoryCount = (int)VarInt.ReadUnsigned(span, out int directoryCountBytes);
@@ -598,7 +601,8 @@ namespace EpicGames.Horde.Storage.Nodes
 				long length = (long)VarInt.ReadUnsigned(span, out int lengthBytes);
 				span = span.Slice(lengthBytes);
 
-				node._nameToDirectoryEntry[name] = new DirectoryEntry(node, name, length, children[childIdx++]);
+				ITreeBlobRef child = source.Refs[childIdx++];
+				node._nameToDirectoryEntry[name] = new DirectoryEntry(node, name, length, child);
 			}
 
 			Debug.Assert(span.Length == 0);
@@ -610,22 +614,23 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="directoryInfo"></param>
 		/// <param name="options">Options for chunking file content</param>
+		/// <param name="writer">Writer for new node data</param>
 		/// <param name="logger"></param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async Task CopyFromDirectoryAsync(DirectoryInfo directoryInfo, ChunkingOptions options, ILogger logger, CancellationToken cancellationToken)
+		public async Task CopyFromDirectoryAsync(DirectoryInfo directoryInfo, ChunkingOptions options, ITreeWriter writer, ILogger logger, CancellationToken cancellationToken)
 		{
 			foreach (DirectoryInfo subDirectoryInfo in directoryInfo.EnumerateDirectories())
 			{
 				logger.LogInformation("Adding {Directory}", subDirectoryInfo.FullName);
 				DirectoryNode subDirectoryNode = AddDirectory(subDirectoryInfo.Name);
-				await subDirectoryNode.CopyFromDirectoryAsync(subDirectoryInfo, options, logger, cancellationToken);
+				await subDirectoryNode.CopyFromDirectoryAsync(subDirectoryInfo, options, writer, logger, cancellationToken);
 			}
 			foreach (FileInfo fileInfo in directoryInfo.EnumerateFiles())
 			{
 				logger.LogInformation("Adding {File}", fileInfo.FullName);
 				using Stream stream = fileInfo.OpenRead();
-				await AddFileAsync(fileInfo.Name, 0, stream, options, cancellationToken);
+				await AddFileAsync(fileInfo.Name, 0, stream, options, writer, cancellationToken);
 			}
 		}
 
@@ -663,13 +668,10 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// <summary>
 	/// Factory for creating and serializing <see cref="DirectoryNode"/> objects
 	/// </summary>
-	public class DirectoryNodeDeserializer : TreeNodeSerializer<DirectoryNode>
+	public class DirectoryNodeSerializer : TreeNodeSerializer<DirectoryNode>
 	{
 		/// <inheritdoc/>
-		public override async ValueTask<DirectoryNode> DeserializeAsync(ITreeBlob blob, CancellationToken cancellationToken) => DirectoryNode.Deserialize(await blob.GetDataAsync(cancellationToken), await blob.GetReferencesAsync(cancellationToken));
-
-		/// <inheritdoc/>
-		public override ValueTask<ITreeBlob> SerializeAsync(ITreeBlobWriter writer, DirectoryNode node, CancellationToken cancellationToken) => node.SerializeAsync(writer, cancellationToken);
+		public override DirectoryNode Deserialize(ITreeBlob blob) => DirectoryNode.Deserialize(blob);
 	}
 
 	/// <summary>

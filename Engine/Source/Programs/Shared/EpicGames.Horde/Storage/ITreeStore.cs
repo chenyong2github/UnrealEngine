@@ -1,47 +1,40 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using EpicGames.Core;
 
 namespace EpicGames.Horde.Storage
 {
 	/// <summary>
-	/// Interface for a blob of data for a tree node
+	/// Interface for a node within a tree, represented by an opaque blob of data
 	/// </summary>
 	public interface ITreeBlob
 	{
 		/// <summary>
-		/// Gets the data for a node with the given hash
+		/// Data for the node
 		/// </summary>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Data for the blob</returns>
-		ValueTask<ReadOnlySequence<byte>> GetDataAsync(CancellationToken cancellationToken = default);
+		ReadOnlySequence<byte> Data { get; }
 
 		/// <summary>
-		/// Find the outward references for a node
+		/// References to other tree blobs
 		/// </summary>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>List of outward references from the blob</returns>
-		ValueTask<IReadOnlyList<ITreeBlob>> GetReferencesAsync(CancellationToken cancellationToken = default);
+		IReadOnlyList<ITreeBlobRef> Refs { get; }
 	}
 
 	/// <summary>
-	/// Writer for trees
+	/// Reference to a <see cref="ITreeBlob"/>
 	/// </summary>
-	public interface ITreeBlobWriter
+	public interface ITreeBlobRef
 	{
 		/// <summary>
-		/// Write a blob to storage
+		/// Gets the target of a reference
 		/// </summary>
-		/// <param name="data"></param>
-		/// <param name="references"></param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
-		public Task<ITreeBlob> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlob> references, CancellationToken cancellationToken);
+		/// <returns>The referenced node</returns>
+		ValueTask<ITreeBlob> GetTargetAsync(CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -50,12 +43,10 @@ namespace EpicGames.Horde.Storage
 	public interface ITreeStore : IDisposable
 	{
 		/// <summary>
-		/// Tests whether a tree exists with the given name
+		/// Creates a new context for reading trees.
 		/// </summary>
-		/// <param name="name">Name of the ref used to store the tree</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Tree reader instance</returns>
-		Task<bool> HasTreeAsync(RefName name, CancellationToken cancellationToken = default);
+		/// <returns>New context instance</returns>
+		ITreeWriter CreateTreeWriter(RefName name);
 
 		/// <summary>
 		/// Deletes a tree with the given name
@@ -65,40 +56,20 @@ namespace EpicGames.Horde.Storage
 		Task DeleteTreeAsync(RefName name, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Reads the root blob from a tree in storage
+		/// Tests whether a tree exists with the given name
 		/// </summary>
-		/// <param name="name">Identifier for the tree</param>
+		/// <param name="name">Name of the ref used to store the tree</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
+		/// <returns>Tree reader instance</returns>
+		Task<bool> HasTreeAsync(RefName name, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Attempts to read a tree with the given name
+		/// </summary>
+		/// <param name="name">Name of the ref used to store the tree</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Reference to the root of the tree. Null if the ref does not exist.</returns>
 		Task<ITreeBlob?> TryReadTreeAsync(RefName name, CancellationToken cancellationToken = default);
-
-		/// <summary>
-		/// Reads a root node from the store
-		/// </summary>
-		/// <param name="name">Name of the tree to fetch</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Deserialized node stored with this name</returns>
-		Task<T?> TryReadTreeAsync<T>(RefName name, CancellationToken cancellationToken = default) where T : TreeNode;
-
-		/// <summary>
-		/// Creates a writer for a tree with the given name
-		/// </summary>
-		/// <param name="name">Name of the ref used to store the tree</param>
-		/// <param name="root">Node to flush</param>
-		/// <param name="flush">Whether to flush the complete tree state. If false, an implementation may choose to buffer some writes to allow packing multiple nodes together.</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Tree writer instance</returns>
-		Task WriteTreeAsync(RefName name, ITreeBlob root, bool flush = true, CancellationToken cancellationToken = default);
-
-		/// <summary>
-		/// Creates a writer for a tree with the given name
-		/// </summary>
-		/// <param name="name">Name of the ref used to store the tree</param>
-		/// <param name="root">Node to flush</param>
-		/// <param name="flush">Whether to flush the complete tree state. If false, an implementation may choose to buffer some writes to allow packing multiple nodes together.</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Tree writer instance</returns>
-		Task WriteTreeAsync<T>(RefName name, T root, bool flush = true, CancellationToken cancellationToken = default) where T : TreeNode;
 	}
 
 	/// <summary>
@@ -106,6 +77,28 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	public interface ITreeStore<T> : ITreeStore
 	{
+	}
+
+	/// <summary>
+	/// Allows incrementally writing new trees
+	/// </summary>
+	public interface ITreeWriter
+	{
+		/// <summary>
+		/// Adds a new node to this tree
+		/// </summary>
+		/// <param name="data">Data for the node</param>
+		/// <param name="refs">References to other nodes</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Reference to the node that was added</returns>
+		Task<ITreeBlobRef> WriteNodeAsync(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Flush the tree with the given root.
+		/// </summary>
+		/// <param name="root">The root node</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		Task FlushAsync(ITreeBlob root, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -123,6 +116,9 @@ namespace EpicGames.Horde.Storage
 			}
 
 			/// <inheritdoc/>
+			public ITreeWriter CreateTreeWriter(RefName name) => _inner.CreateTreeWriter(name);
+
+			/// <inheritdoc/>
 			public Task DeleteTreeAsync(RefName name, CancellationToken cancellationToken = default) => _inner.DeleteTreeAsync(name, cancellationToken);
 
 			/// <inheritdoc/>
@@ -133,15 +129,6 @@ namespace EpicGames.Horde.Storage
 
 			/// <inheritdoc/>
 			public Task<ITreeBlob?> TryReadTreeAsync(RefName name, CancellationToken cancellationToken = default) => _inner.TryReadTreeAsync(name, cancellationToken);
-
-			/// <inheritdoc/>
-			public Task<TNode?> TryReadTreeAsync<TNode>(RefName name, CancellationToken cancellationToken = default) where TNode : TreeNode => _inner.TryReadTreeAsync<TNode>(name, cancellationToken);
-
-			/// <inheritdoc/>
-			public Task WriteTreeAsync(RefName name, ITreeBlob root, bool flush = true, CancellationToken cancellationToken = default) => _inner.WriteTreeAsync(name, root, flush, cancellationToken);
-
-			/// <inheritdoc/>
-			public Task WriteTreeAsync<TNode>(RefName name, TNode root, bool flush = true, CancellationToken cancellationToken = default) where TNode : TreeNode => _inner.WriteTreeAsync<TNode>(name, root, flush, cancellationToken);
 		}
 
 		/// <summary>
@@ -153,40 +140,6 @@ namespace EpicGames.Horde.Storage
 		public static ITreeStore<T> ForType<T>(this ITreeStore store)
 		{
 			return new TypedTreeStore<T>(store);
-		}
-
-		/// <summary>
-		/// Reads a tree, throwing an exception if it doesn't exist
-		/// </summary>
-		/// <param name="store">Store to read from</param>
-		/// <param name="name">Name of the ref</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
-		public static async Task<ITreeBlob> ReadTreeAsync(this ITreeStore store, RefName name, CancellationToken cancellationToken = default)
-		{
-			ITreeBlob? blob = await store.TryReadTreeAsync(name, cancellationToken);
-			if (blob == null)
-			{
-				throw new RefNameNotFoundException(name);
-			}
-			return blob;
-		}
-
-		/// <summary>
-		/// Reads a tree, throwing an exception if it doesn't exist
-		/// </summary>
-		/// <param name="store">Store to read from</param>
-		/// <param name="name">Name of the ref</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
-		public static async Task<T> ReadTreeAsync<T>(this ITreeStore store, RefName name, CancellationToken cancellationToken = default) where T : TreeNode
-		{
-			T? node = await store.TryReadTreeAsync<T>(name, cancellationToken);
-			if (node == null)
-			{
-				throw new RefNameNotFoundException(name);
-			}
-			return node;
 		}
 	}
 }
