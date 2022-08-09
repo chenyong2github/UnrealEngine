@@ -34,46 +34,7 @@ void UWorldFolders::Initialize(UWorld* InWorld)
 
 void UWorldFolders::RebuildList()
 {
-	Modify();
-	
-	// Clear folders with a Root Object.
-	TArray<FFolder> FoldersToRemove;
-	ForEachFolder([&FoldersToRemove](const FFolder& Folder)
-	{
-		if (!Folder.IsRootObjectPersistentLevel())
-		{
-			FoldersToRemove.Add(Folder);
-		}
-		return true;
-	});
-
-	for (const FFolder& Folder : FoldersToRemove)
-	{
-		RemoveFolder(Folder);
-	}
-
-	// Iterate over every actor in memory. WARNING: This is potentially very expensive!
-	for (FActorIterator ActorIt(GetWorld()); ActorIt; ++ActorIt)
-	{
-		AddFolder(ActorIt->GetFolder());
-	}
-
-	// Add levels ActorFolders as they are still needed for unloaded actors (only in editor)
-	if (!GetWorld()->IsGameWorld())
-	{
-		for (ULevel* Level : GetWorld()->GetLevels())
-		{
-			const bool bIsLevelVisibleOrAssociating = (Level->bIsVisible && !Level->bIsBeingRemoved) || Level->bIsAssociatingLevel || Level->bIsDisassociatingLevel;
-			if (bIsLevelVisibleOrAssociating)
-			{
-				Level->ForEachActorFolder([this](UActorFolder* ActorFolder)
-				{
-					AddFolder(ActorFolder->GetFolder());
-					return true;
-				}, /*bSkipDeleted*/ true);
-			}
-		}
-	}
+	bNeedRebuildList = true;
 }
 
 UWorld* UWorldFolders::GetWorld() const
@@ -275,6 +236,71 @@ void UWorldFolders::Serialize(FArchive& Ar)
 	Ar << FoldersProperties;
 
 	Super::Serialize(Ar);
+}
+
+void UWorldFolders::Tick(float DeltaTime)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldFolders::RebuildList)
+
+	check(bNeedRebuildList);
+	bNeedRebuildList = false;
+
+	// Clear folders with a Root Object.
+	TArray<FFolder> FoldersToRemove;
+	ForEachFolder([&FoldersToRemove](const FFolder& Folder)
+	{
+		if (!Folder.IsRootObjectPersistentLevel())
+		{
+			FoldersToRemove.Add(Folder);
+		}
+		return true;
+	});
+
+	for (const FFolder& Folder : FoldersToRemove)
+	{
+		RemoveFolder(Folder);
+	}
+
+	// Iterate over every actor in memory. WARNING: This is potentially very expensive!
+	if (UWorld* CurrentWorld = GetWorld())
+	{
+		for (FActorIterator ActorIt(CurrentWorld); ActorIt; ++ActorIt)
+		{
+			AddFolder(ActorIt->GetFolder());
+		}
+
+		// Add levels ActorFolders as they are still needed for unloaded actors (only in editor)
+		if (!CurrentWorld->IsGameWorld())
+		{
+			for (ULevel* Level : CurrentWorld->GetLevels())
+			{
+				const bool bIsLevelVisibleOrAssociating = (Level->bIsVisible && !Level->bIsBeingRemoved) || Level->bIsAssociatingLevel || Level->bIsDisassociatingLevel;
+				if (bIsLevelVisibleOrAssociating)
+				{
+					Level->ForEachActorFolder([this](UActorFolder* ActorFolder)
+					{
+						AddFolder(ActorFolder->GetFolder());
+						return true;
+					}, /*bSkipDeleted*/ true);
+				}
+			}
+		}
+	}
+}
+
+ETickableTickType UWorldFolders::GetTickableTickType() const
+{
+	return ETickableTickType::Conditional;
+}
+
+bool UWorldFolders::IsTickable() const
+{
+	return bNeedRebuildList;
+}
+
+TStatId UWorldFolders::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(UWorldFolders, STATGROUP_Tickables);
 }
 
 FString UWorldFolders::GetWorldStateFilename() const
