@@ -33,10 +33,8 @@ TMap<FString, FTitleFileContentsRef> GetTitleFilesFromConfig()
 
 		if (!FileContentsStr.IsEmpty())
 		{
-			const int ArrayLen = FileContentsStr.GetCharArray().Num() * sizeof(TCHAR);
-			FTitleFileContents FileContents((uint8*)FileContentsStr.GetCharArray().GetData(), ArrayLen);
-
-			Result.Emplace(MoveTemp(Filename), MakeShared<const FTitleFileContents>(MoveTemp(FileContents)));
+			const FTCHARToUTF8 FileContentsUtf8(*FileContentsStr);
+			Result.Emplace(MoveTemp(Filename), MakeShared<FTitleFileContents>((uint8*)FileContentsUtf8.Get(), FileContentsUtf8.Length()));
 		}
 	}
 
@@ -97,6 +95,12 @@ TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileNull::ReadFile(FTitleFileRead
 	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalUserId))
 	{
 		Op->SetError(Errors::InvalidUser());
+		return Op->GetHandle();
+	}
+
+	if (Op->GetParams().Filename.IsEmpty())
+	{
+		Op->SetError(Errors::InvalidParams());
 		return Op->GetHandle();
 	}
 
