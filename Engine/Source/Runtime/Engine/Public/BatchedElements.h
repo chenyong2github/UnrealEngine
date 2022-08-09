@@ -342,8 +342,7 @@ private:
 		float OpacityMaskRefVal;
 		uint8 BlendMode;
 	};
-	/** This array is sorted during draw-calls */
-	mutable TArray<FBatchedSprite> Sprites;
+	TArray<FBatchedSprite> Sprites;
 
 	struct FBatchedMeshElement
 	{
