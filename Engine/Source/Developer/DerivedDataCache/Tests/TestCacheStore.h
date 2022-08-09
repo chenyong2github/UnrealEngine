@@ -38,4 +38,4 @@ ITestCacheStore* CreateTestCacheStore(ECacheStoreFlags Flags, bool bAsync);
 
 } // UE::DerivedData
 
-#endif WITH_LOW_LEVEL_TESTS
+#endif // WITH_LOW_LEVEL_TESTS
