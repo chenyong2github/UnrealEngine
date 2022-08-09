@@ -2674,7 +2674,6 @@ const UNiagaraStackFunctionInput::FCollectedUsageData& UNiagaraStackFunctionInpu
 {
 	if (CachedCollectedUsageData.IsSet() == false)
 	{
-		CachedCollectedUsageData = FCollectedUsageData();
 		TSharedRef<FNiagaraSystemViewModel> SystemVM = GetSystemViewModel();
 		INiagaraParameterPanelViewModel* ParamVM = SystemVM->GetParameterPanelViewModel();
 		if (ParamVM)
@@ -2685,8 +2684,18 @@ const UNiagaraStackFunctionInput::FCollectedUsageData& UNiagaraStackFunctionInpu
 				FNiagaraVariableBase Var(InputType, InputValues.LinkedHandle.GetParameterHandleString());
 				bFoundOverride = ParamVM->IsVariableSelected(Var);
 			}
+			else if (InputValues.Mode == EValueMode::Dynamic)
+			{
+				CachedCollectedUsageData = UNiagaraStackEntry::GetCollectedUsageData();
+				return CachedCollectedUsageData.GetValue();
+			}
+			CachedCollectedUsageData = FCollectedUsageData();
 			FNiagaraVariableBase Var(InputType, AliasedInputParameterHandle.GetParameterHandleString());
 			CachedCollectedUsageData.GetValue().bHasReferencedParameterRead = ParamVM->IsVariableSelected(Var) || bFoundOverride;
+		}
+		else
+		{
+			CachedCollectedUsageData = FCollectedUsageData();
 		}
 
 	}

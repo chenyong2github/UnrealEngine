@@ -29,6 +29,7 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraScratchPadViewModel.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
@@ -225,6 +226,30 @@ const UNiagaraStackModuleItem::FCollectedUsageData& UNiagaraStackModuleItem::Get
 	if (CachedCollectedUsageData.IsSet() == false)
 	{
 		CachedCollectedUsageData = FCollectedUsageData();
+		if (FunctionCallNode && FunctionCallNode->IsA<UNiagaraNodeAssignment>())
+		{
+			UNiagaraNodeAssignment* AssignmentNode = CastChecked<UNiagaraNodeAssignment>(FunctionCallNode);
+			TSharedRef<FNiagaraSystemViewModel> SystemVM = GetSystemViewModel();
+			INiagaraParameterPanelViewModel* ParamVM = SystemVM->GetParameterPanelViewModel();
+
+			CachedCollectedUsageData.GetValue().bHasReferencedParameterWrite = false;
+			CachedCollectedUsageData.GetValue().bHasReferencedParameterRead = false;
+
+			if (ParamVM)
+			{
+				const TArray<FNiagaraVariable>& TargetVars = AssignmentNode->GetAssignmentTargets();
+				for (const FNiagaraVariable& Var : TargetVars)
+				{
+					FNiagaraVariableBase TestVar = Var;
+					bool bHandled = ParamVM->IsVariableSelected(TestVar);
+					if (bHandled)
+					{
+						CachedCollectedUsageData.GetValue().bHasReferencedParameterWrite = true;
+					}
+				}
+			}
+		}
+
 		if (!LinkedInputCollection.IsNull())
 		{
 			if (LinkedInputCollection->GetCollectedUsageData().bHasReferencedParameterRead)
