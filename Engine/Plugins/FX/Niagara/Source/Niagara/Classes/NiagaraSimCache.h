@@ -70,8 +70,6 @@ struct FNiagaraSimCacheFrame
 
 	UPROPERTY()
 	TArray<FNiagaraSimCacheEmitterFrame> EmitterData;
-
-	//-TODO: DataInterface cache of data
 };
 
 USTRUCT()
@@ -171,6 +169,9 @@ class NIAGARA_API UNiagaraSimCache : public UObject
 	UPROPERTY()
 	TArray<FNiagaraSimCacheFrame> CacheFrames;
 
+	UPROPERTY()
+	TMap<FNiagaraVariableBase, TObjectPtr<UObject>> DataInterfaceStorage;
+
 	// UObject Interface
 	virtual bool IsReadyForFinishDestroy() override;
 	// UObject Interface
@@ -183,7 +184,7 @@ class NIAGARA_API UNiagaraSimCache : public UObject
 
 	bool CanRead(UNiagaraSystem* NiagaraSystem);
 	bool Read(float TimeSeconds, FNiagaraSystemInstance* SystemInstance) const;
-	bool ReadFrame(int32 FrameIndex, FNiagaraSystemInstance* SystemInstance) const;
+	bool ReadFrame(int32 FrameIndex, float FrameFraction, FNiagaraSystemInstance* SystemInstance) const;
 
 	/*
 	Create a simulation cache from the component's current data.

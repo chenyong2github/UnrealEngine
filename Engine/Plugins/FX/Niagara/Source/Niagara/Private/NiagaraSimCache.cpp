@@ -5,6 +5,7 @@
 #include "NiagaraClearCounts.h"
 #include "NiagaraComponent.h"
 #include "NiagaraComputeExecutionContext.h"
+#include "NiagaraDataInterfaceUtilities.h"
 #include "NiagaraDataSetReadback.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraGPUInstanceCountManager.h"
@@ -460,6 +461,20 @@ void UNiagaraSimCache::BeginWrite(UNiagaraComponent* NiagaraComponent)
 		const FNiagaraEmitterCompiledData& EmitterCompiledData = Helper.NiagaraSystem->GetEmitterCompiledData()[i].Get();
 		Helper.BuildCacheLayout(CacheLayout.EmitterLayouts[i], EmitterCompiledData.DataSetCompiledData, Helper.NiagaraSystem->GetEmitterHandle(i).GetName());
 	}
+
+	// Find data interfaces we may want to cache
+	FNiagaraDataInterfaceUtilities::ForEachDataInterface(
+		Helper.SystemInstance,
+		[&](const FNiagaraVariableBase& Variable, UNiagaraDataInterface* DataInterface)
+		{
+			const void* PerInstanceData = Helper.SystemInstance->FindDataInterfaceInstanceData(DataInterface);
+			if (UObject* DICacheStorage = DataInterface->SimCacheBeginWrite(this, Helper.SystemInstance, PerInstanceData))
+			{
+				DataInterfaceStorage.FindOrAdd(Variable) = DICacheStorage;
+			}
+			return true;
+		}
+	);
 }
 
 void UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
@@ -534,6 +549,33 @@ void UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
 			Helper.WriteDataBuffer(*EmitterCurrentData, CacheLayout.EmitterLayouts[i], CacheEmitterFrame.ParticleDataBuffers, 0, EmitterCurrentData->GetNumInstances());
 		}
 	}
+
+	// Store data interface data
+	//-OPT: We shouldn't need to search all the time here
+	if (DataInterfaceStorage.IsEmpty() == false)
+	{
+		const int FrameIndex = CacheFrames.Num() - 1;
+		bool bDataInterfacesSucess = true;
+
+		FNiagaraDataInterfaceUtilities::ForEachDataInterface(
+			Helper.SystemInstance,
+			[&](const FNiagaraVariableBase& Variable, UNiagaraDataInterface* DataInterface)
+			{
+				if ( UObject* StorageObject = DataInterfaceStorage.FindRef(Variable) )
+				{
+					const void* PerInstanceData = Helper.SystemInstance->FindDataInterfaceInstanceData(DataInterface);
+					bDataInterfacesSucess &= DataInterface->SimCacheWriteFrame(StorageObject, FrameIndex, Helper.SystemInstance, PerInstanceData);
+				}
+				return true;
+			}
+		);
+
+		// A data interface failed to write information
+		if (bDataInterfacesSucess == false)
+		{
+			SoftNiagaraSystem.Reset();
+		}
+	}
 }
 
 void UNiagaraSimCache::EndWrite()
@@ -542,6 +584,23 @@ void UNiagaraSimCache::EndWrite()
 	if ( CacheFrames.Num() == 0 )
 	{
 		SoftNiagaraSystem.Reset();
+	}
+
+	if (DataInterfaceStorage.IsEmpty() == false)
+	{
+		bool bDataInterfacesSucess = true;
+		for ( auto it=DataInterfaceStorage.CreateIterator(); it; ++it )
+		{
+			UClass* DataInterfaceClass = it.Key().GetType().GetClass();
+			check(DataInterfaceClass != nullptr);
+			UNiagaraDataInterface* DataInterface = CastChecked<UNiagaraDataInterface>(DataInterfaceClass->GetDefaultObject());
+			bDataInterfacesSucess &= DataInterface->SimCacheEndWrite(it.Value());
+		}
+
+		if (bDataInterfacesSucess == false)
+		{
+			SoftNiagaraSystem.Reset();
+		}
 	}
 }
 
@@ -630,14 +689,13 @@ bool UNiagaraSimCache::Read(float TimeSeconds, FNiagaraSystemInstance* SystemIns
 	}
 
 	const float FrameTime		= (RelativeTime / DurationSeconds) * float(CacheFrames.Num() - 1);
-	const float FrameIndexA		= FMath::Floor(FrameTime);
-	const float FrameIndexB		= FMath::Min(FrameIndexA + 1 , CacheFrames.Num() - 1);
-	const float FrameFraction	= FrameTime - float(FrameIndexA);
+	const float FrameIndex		= FMath::Floor(FrameTime);
+	const float FrameFraction	= FrameTime - float(FrameIndex);
 
-	return ReadFrame(FrameIndexA, SystemInstance);
+	return ReadFrame(FrameIndex, FrameFraction, SystemInstance);
 }
 
-bool UNiagaraSimCache::ReadFrame(int32 FrameIndex, FNiagaraSystemInstance* SystemInstance) const
+bool UNiagaraSimCache::ReadFrame(int32 FrameIndex, float FrameFraction, FNiagaraSystemInstance* SystemInstance) const
 {
 	FNiagaraSimCacheHelper Helper(SystemInstance);
 	if ( !Helper.HasValidSimulation() )
@@ -665,7 +723,36 @@ bool UNiagaraSimCache::ReadFrame(int32 FrameIndex, FNiagaraSystemInstance* Syste
 			Helper.ReadDataBuffer(CacheLayout.EmitterLayouts[i], CacheEmitterFrame.ParticleDataBuffers, EmitterInstance.GetData());
 		}
 	}
-	for(TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& DataInterfacePair : SystemInstance->DataInterfaceInstanceDataOffsets)
+
+	// Store data interface data
+	//-OPT: We shouldn't need to search all the time here
+	if (DataInterfaceStorage.IsEmpty() == false)
+	{
+		const int NextFrameIndex = FMath::Min(FrameIndex + 1, CacheFrames.Num() - 1);
+		bool bDataInterfacesSucess = true;
+
+		FNiagaraDataInterfaceUtilities::ForEachDataInterface(
+			Helper.SystemInstance,
+			[&](const FNiagaraVariableBase& Variable, UNiagaraDataInterface* DataInterface)
+			{
+				if (UObject* StorageObject = DataInterfaceStorage.FindRef(Variable))
+				{
+					void* PerInstanceData = Helper.SystemInstance->FindDataInterfaceInstanceData(DataInterface);
+					bDataInterfacesSucess &= DataInterface->SimCacheReadFrame(StorageObject, FrameIndex, NextFrameIndex, FrameFraction, Helper.SystemInstance, PerInstanceData);
+				}
+				return true;
+			}
+		);
+
+
+		if (bDataInterfacesSucess == false)
+		{
+			return false;
+		}
+	}
+
+	//-TODO: This should loop over all DataInterfaces that register not just ones with instance data
+	for (TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>& DataInterfacePair : SystemInstance->DataInterfaceInstanceDataOffsets)
 	{
 		if (UNiagaraDataInterface* Interface = DataInterfacePair.Key.Get())
 		{
