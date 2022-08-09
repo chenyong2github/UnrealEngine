@@ -90,9 +90,12 @@ void SMassProcessorsView::Construct(const FArguments& InArgs, TSharedRef<FMassDe
 
 	ChildSlot
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.3)
+			SNew(SSplitter)
+			.Orientation(Orient_Horizontal)
+			 
+			+ SSplitter::Slot()
+			.Value(.3f)
+			.MinSize(250.0f)
 			[
 				SAssignNew(ProcessorsListWidget, SListView<TSharedPtr<FMassDebuggerProcessorData> >)
 					.ItemHeight(20)
@@ -104,8 +107,9 @@ void SMassProcessorsView::Construct(const FArguments& InArgs, TSharedRef<FMassDe
 							return SNew(SMassProcessorListTableRow, OwnerTable, Item);
 						})
 			]
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.7)
+			
+			+ SSplitter::Slot()
+			.Value(.7f)
 			[
 				SNew(SScrollBox)
 				.Orientation(Orient_Vertical)

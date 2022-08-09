@@ -7,6 +7,7 @@
 #include "Styling/SlateBrush.h"
 #include "MassDebuggerStyle.h"
 #include "Widgets/Views/STreeView.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SMassDebugger"
 
@@ -38,7 +39,7 @@ public:
 		STableRow<FMassDebuggerProcessingGraphNodeTreeItemPtr>::ConstructInternal(STableRow::FArguments()
 			.Padding(5.0f)
 			, InOwnerTableView.ToSharedRef());
-	
+
 		ChildSlot
 			[
 				SNew(SHorizontalBox)
@@ -63,16 +64,18 @@ public:
 						.Text(Item->Node.GetLabel())
 						.ColorAndOpacity_Lambda([this]()
 							{
+								const FLinearColor Foreground = FStyleColors::Foreground.GetSpecifiedColor();
+							
 								switch (Item->Node.GraphNodeSelection)
 								{
-									case EMassDebuggerProcessingGraphNodeSelection::None: // fall through on purpose
+									case EMassDebuggerProcessingGraphNodeSelection::None:
 										return FLinearColor::White;
 										break;
 									case EMassDebuggerProcessingGraphNodeSelection::WaitFor:
-										return FLinearColor::Green;
+										return FMath::Lerp(Foreground, FLinearColor::Green, 0.75f);
 										break;
 									case EMassDebuggerProcessingGraphNodeSelection::Block:
-										return FLinearColor::Red;
+										return FMath::Lerp(Foreground, FLinearColor::Red, 0.75f);
 										break;
 									default:
 										return FLinearColor::White;

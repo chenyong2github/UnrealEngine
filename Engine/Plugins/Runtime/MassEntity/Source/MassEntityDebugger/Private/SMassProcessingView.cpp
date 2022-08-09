@@ -48,9 +48,12 @@ void SMassProcessingView::Construct(const FArguments& InArgs, TSharedRef<FMassDe
 
 	ChildSlot
 	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
+		SNew(SSplitter)
+		.Orientation(Orient_Horizontal)
+	 
+		+ SSplitter::Slot()
+		.Value(.3f)
+		.MinSize(250.0f)
 		[
 			SAssignNew(GraphsListWidget, SListView<TSharedPtr<FMassDebuggerProcessingGraph>>)
 			.ListItemsSource(&DebuggerModel->CachedProcessingGraphs)
@@ -64,7 +67,9 @@ void SMassProcessingView::Construct(const FArguments& InArgs, TSharedRef<FMassDe
 					ProcessingGraphWidget->Display(SelectedItem);
 				})
 		]
-		+ SHorizontalBox::Slot()
+		
+		+ SSplitter::Slot()
+		.Value(.7f)
 		[
 			SAssignNew(ProcessingGraphWidget, SMassProcessingGraphView, InDebuggerModel)
 		]
