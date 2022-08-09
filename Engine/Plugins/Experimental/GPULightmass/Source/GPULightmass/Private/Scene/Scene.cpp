@@ -663,14 +663,6 @@ void FScene::RemoveLight(USkyLightComponent* SkyLight)
 
 void FScene::OnSkyAtmosphereModified()
 {
-	TArray<UDirectionalLightComponent*> PreviouslyRegisteredDirectionalLight;
-	LightScene.RegisteredDirectionalLightComponentUObjects.GenerateKeyArray(PreviouslyRegisteredDirectionalLight);	
-	for(UDirectionalLightComponent* DirectionalLight : PreviouslyRegisteredDirectionalLight)
-	{
-		RemoveLight(DirectionalLight);
-		AddLight(DirectionalLight);
-	}
-
 	ConditionalTriggerSkyLightRecapture();
 }
 
@@ -681,10 +673,8 @@ void FScene::ConditionalTriggerSkyLightRecapture()
 		USkyLightComponent* SkyLight = LightScene.SkyLight->ComponentUObject;
 		if (SkyLight->SourceType == SLS_CapturedScene || SkyLight->bRealTimeCapture)
 		{
-			RemoveLight(SkyLight);
 			SkyLight->SetCaptureIsDirty();
 			SkyLight->UpdateSkyCaptureContents(SkyLight->GetWorld());
-			AddLight(SkyLight);
 		}
 	}
 }

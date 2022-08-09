@@ -152,6 +152,8 @@ void UGPULightmassSubsystem::Launch()
 		SlowTask.MakeDialog();
 		SlowTask.EnterProgressFrame(1, LOCTEXT("StartingStaticLightingSystem", "Starting static lighting system"));
 
+		World->UpdateAllSkyCaptures();
+		
 		{
 			FGlobalComponentRecreateRenderStateContext RecreateRenderStateContext; // Implicit FlushRenderingCommands();
 

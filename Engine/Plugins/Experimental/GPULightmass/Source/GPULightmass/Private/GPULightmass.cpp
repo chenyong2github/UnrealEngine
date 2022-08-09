@@ -170,7 +170,6 @@ void FGPULightmass::OnLightComponentRegistered(ULightComponentBase* InComponent)
 
 	if (UDirectionalLightComponent* DirectionalLight = Cast<UDirectionalLightComponent>(InComponent))
 	{
-		Scene.ConditionalTriggerSkyLightRecapture();
 		Scene.AddLight(DirectionalLight);
 	}
 	else if (URectLightComponent* RectLight = Cast<URectLightComponent>(InComponent))
@@ -198,7 +197,6 @@ void FGPULightmass::OnLightComponentUnregistered(ULightComponentBase* InComponen
 	if (UDirectionalLightComponent* DirectionalLight = Cast<UDirectionalLightComponent>(InComponent))
 	{
 		Scene.RemoveLight(DirectionalLight);
-		Scene.ConditionalTriggerSkyLightRecapture();
 	}
 	else if (URectLightComponent* RectLight = Cast<URectLightComponent>(InComponent))
 	{
