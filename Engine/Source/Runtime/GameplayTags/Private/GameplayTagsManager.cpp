@@ -287,7 +287,7 @@ void UGameplayTagsManager::AddTagIniSearchPath(const FString& RootDir)
 		if (!bIsConstructingGameplayTagTree)
 		{
 			InvalidateNetworkIndex();
-			IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
+			BroadcastOnGameplayTagTreeChanged();
 		}
 	}
 }
@@ -538,7 +538,7 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 
 		{
 			SCOPE_LOG_GAMEPLAYTAGS(TEXT("UGameplayTagsManager::ConstructGameplayTagTree: GameplayTagTreeChangedEvent.Broadcast"));
-			IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
+			BroadcastOnGameplayTagTreeChanged();
 		}
 	}
 }
@@ -640,6 +640,20 @@ FGameplayTagNetIndex UGameplayTagsManager::GetNetIndexFromTag(const FGameplayTag
 	}
 
 	return InvalidTagNetIndex;
+}
+
+void UGameplayTagsManager::PushDeferOnGameplayTagTreeChangedBroadcast()
+{
+	++bDeferBroadcastOnGameplayTagTreeChanged;
+}
+
+void UGameplayTagsManager::PopDeferOnGameplayTagTreeChangedBroadcast()
+{
+	if (!--bDeferBroadcastOnGameplayTagTreeChanged && bShouldBroadcastDeferredOnGameplayTagTreeChanged)
+	{
+		bShouldBroadcastDeferredOnGameplayTagTreeChanged = false;
+		IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
+	}
 }
 
 bool UGameplayTagsManager::ShouldImportTagsFromINI() const
@@ -1074,6 +1088,19 @@ void UGameplayTagsManager::MarkChildrenOfNodeConflict(TSharedPtr<FGameplayTagNod
 #endif
 }
 
+void
+UGameplayTagsManager::BroadcastOnGameplayTagTreeChanged()
+{
+	if (bDeferBroadcastOnGameplayTagTreeChanged)
+	{
+		bShouldBroadcastDeferredOnGameplayTagTreeChanged = true;
+	}
+	else
+	{
+		IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
+	}
+}
+
 UGameplayTagsManager::~UGameplayTagsManager()
 {
 	DestroyGameplayTagTree();
@@ -1102,44 +1129,45 @@ int32 UGameplayTagsManager::InsertTagIntoNodeArray(FName Tag, FName FullTag, TSh
 	int32 WhereToInsert = INDEX_NONE;
 
 	// See if the tag is already in the array
-	for (int32 CurIdx = 0; CurIdx < NodeArray.Num(); ++CurIdx)
+
+	// LowerBoundBy returns Position of the first element >= Value, may be position after last element in range
+	int32 LowerBoundIndex = Algo::LowerBoundBy(NodeArray, Tag,
+		[](const TSharedPtr<FGameplayTagNode>& N) -> FName { return N->GetSimpleTagName(); },
+		[](const FName& A, const FName& B) { return A != B && UE::ComparisonUtility::CompareWithNumericSuffix(A, B) < 0; });
+
+	if (LowerBoundIndex < NodeArray.Num())
 	{
-		FGameplayTagNode* CurrNode = NodeArray[CurIdx].Get();
-		if (CurrNode)
+		FGameplayTagNode* CurrNode = NodeArray[LowerBoundIndex].Get();
+		if (CurrNode->GetSimpleTagName() == Tag)
 		{
-			FName SimpleTagName = CurrNode->GetSimpleTagName();
-			if (SimpleTagName == Tag)
-			{
-				FoundNodeIdx = CurIdx;
+			FoundNodeIdx = LowerBoundIndex;
 #if WITH_EDITORONLY_DATA
-				// If we are explicitly adding this tag then overwrite the existing children restrictions with whatever is in the ini
-				// If we restrict children in the input data, make sure we restrict them in the existing node. This applies to explicit and implicitly defined nodes
-				if (bAllowNonRestrictedChildren == false || bIsExplicitTag)
-				{
-					// check if the tag is explicitly being created in more than one place.
-					if (CurrNode->bIsExplicitTag && bIsExplicitTag)
-					{
-						// restricted tags always get added first
-						// 
-						// There are two possibilities if we're adding a restricted tag. 
-						// If the existing tag is non-restricted the restricted tag should take precedence. This may invalidate some child tags of the existing tag.
-						// If the existing tag is restricted we have a conflict. This is explicitly not allowed.
-						if (bIsRestrictedTag)
-						{
-							
-						}
-					}
-					CurrNode->bAllowNonRestrictedChildren = bAllowNonRestrictedChildren;
-					CurrNode->bIsExplicitTag = CurrNode->bIsExplicitTag || bIsExplicitTag;
-				}
-#endif				
-				break;
-			}
-			else if (UE::ComparisonUtility::CompareWithNumericSuffix(Tag, SimpleTagName) < 0 && WhereToInsert == INDEX_NONE)
+			// If we are explicitly adding this tag then overwrite the existing children restrictions with whatever is in the ini
+			// If we restrict children in the input data, make sure we restrict them in the existing node. This applies to explicit and implicitly defined nodes
+			if (bAllowNonRestrictedChildren == false || bIsExplicitTag)
 			{
-				// Insert new node before this
-				WhereToInsert = CurIdx;
+				// check if the tag is explicitly being created in more than one place.
+				if (CurrNode->bIsExplicitTag && bIsExplicitTag)
+				{
+					// restricted tags always get added first
+					// 
+					// There are two possibilities if we're adding a restricted tag. 
+					// If the existing tag is non-restricted the restricted tag should take precedence. This may invalidate some child tags of the existing tag.
+					// If the existing tag is restricted we have a conflict. This is explicitly not allowed.
+					if (bIsRestrictedTag)
+					{
+
+					}
+				}
+				CurrNode->bAllowNonRestrictedChildren = bAllowNonRestrictedChildren;
+				CurrNode->bIsExplicitTag = CurrNode->bIsExplicitTag || bIsExplicitTag;
 			}
+#endif				
+		}
+		else
+		{
+			// Insert new node before this
+			WhereToInsert = LowerBoundIndex;
 		}
 	}
 
@@ -1917,7 +1945,7 @@ void UGameplayTagsManager::AddNativeGameplayTag(FNativeGameplayTag* TagSource)
 {
 	AddTagTableRow(TagSource->GetGameplayTagTableRow(), FGameplayTagSource::GetNativeName());
 	InvalidateNetworkIndex();
-	IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
+	BroadcastOnGameplayTagTreeChanged();
 }
 
 void UGameplayTagsManager::RemoveNativeGameplayTag(const FNativeGameplayTag* TagSource)

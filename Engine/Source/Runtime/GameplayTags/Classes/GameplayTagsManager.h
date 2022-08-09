@@ -592,6 +592,9 @@ public:
 	/** Numbers of bits to use for replicating container size. This can be set via config. */
 	int32 NumBitsForContainerSize;
 
+	void PushDeferOnGameplayTagTreeChangedBroadcast();
+	void PopDeferOnGameplayTagTreeChangedBroadcast();
+
 private:
 	/** Cached number of bits we need to replicate tags. That is, Log2(Number of Tags). Will always be <= 16. */
 	int32 NetIndexTrueBitNum;
@@ -779,6 +782,8 @@ private:
 
 	void InvalidateNetworkIndex() { bNetworkIndexInvalidated = true; }
 
+	void BroadcastOnGameplayTagTreeChanged();
+
 	// Tag Sources
 	///////////////////////////////////////////////////////
 
@@ -818,6 +823,9 @@ private:
 
 	/** True if native tags have all been added and flushed */
 	bool bDoneAddingNativeTags;
+
+	int32 bDeferBroadcastOnGameplayTagTreeChanged = 0;
+	bool bShouldBroadcastDeferredOnGameplayTagTreeChanged = false;
 
 	/** String with outlawed characters inside tags */
 	FString InvalidTagCharacters;

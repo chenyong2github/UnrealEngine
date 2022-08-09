@@ -6,7 +6,7 @@
 #include "GameFeatureData.h"
 #include "GameFeaturePluginStateMachine.h"
 #include "GameFeatureStateChangeObserver.h"
-
+#include "GameplayTagsManager.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
@@ -876,6 +876,7 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugins(FBuiltInPluginAdditionalFilters AdditionalFilter)
 {
 	UAssetManager::Get().PushBulkScanning();
+	UGameplayTagsManager::Get().PushDeferOnGameplayTagTreeChangedBroadcast();
 
 	TArray<TSharedRef<IPlugin>> EnabledPlugins = IPluginManager::Get().GetEnabledPlugins();
 	for (const TSharedRef<IPlugin>& Plugin : EnabledPlugins)
@@ -883,6 +884,7 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugins(FBuiltInPluginAdditio
 		LoadBuiltInGameFeaturePlugin(Plugin, AdditionalFilter);
 	}
 
+	UGameplayTagsManager::Get().PopDeferOnGameplayTagTreeChangedBroadcast();
 	UAssetManager::Get().PopBulkScanning();
 }
 
