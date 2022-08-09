@@ -202,16 +202,16 @@ void FTrackedActivity::Update(ELight Light, uint32 Index)
 
 FTrackedActivity& FTrackedActivity::GetEngineActivity()
 {
-	static FTrackedActivity A(TEXT("Status"), TEXT("Unknown"));
-	return A;
+	static TSharedPtr<FTrackedActivity> A(MakeShared<FTrackedActivity>(TEXT("Status"), TEXT("Unknown")));
+	return *A;
 }
 
 FTrackedActivity& FTrackedActivity::GetIOActivity()
 {
 	GetEngineActivity(); // Ugly, but just to make sure Status show first
 
-	static FTrackedActivity A(TEXT("I/O"), TEXT("Idle"));
-	return A;
+	static TSharedPtr<FTrackedActivity> A(MakeShared<FTrackedActivity>(TEXT("I/O"), TEXT("Idle")));
+	return *A;
 }
 
 void FTrackedActivity::RegisterEventListener(TUniqueFunction<void(EEvent Event, const FInfo& Info)>&& Func, uint32 MaxDepth)

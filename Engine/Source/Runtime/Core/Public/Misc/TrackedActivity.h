@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
 
 /**
  * Tracked Activity is used to be able to visualize on a semi-high level what is going on in the process.
@@ -11,7 +12,7 @@
  * When new console is enabled tracked activities show at the bottom of the window under the log
  * Tracked Activities can be created/updated/destroyed on multiple threads
  */
-class CORE_API FTrackedActivity
+class CORE_API FTrackedActivity : public TSharedFromThis<FTrackedActivity>
 {
 public:
 	/**
