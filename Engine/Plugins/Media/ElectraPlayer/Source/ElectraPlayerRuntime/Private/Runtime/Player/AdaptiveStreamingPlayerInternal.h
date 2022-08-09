@@ -50,6 +50,8 @@ public:
 	virtual FTimeValue GetEnqueuedSampleDuration() = 0;
 	virtual int32 GetNumEnqueuedSamples(FTimeValue* OutOptionalDuration) = 0;
 
+	virtual void DisableHoldbackOfFirstRenderableVideoFrame(bool bDisableHoldback) = 0;
+
 	virtual FTimeRange GetSupportedRenderRateScale() = 0;
 	virtual void SetPlayRateScale(double InNewScale) = 0;
 	virtual double GetPlayRateScale() = 0;

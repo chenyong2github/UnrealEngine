@@ -81,6 +81,8 @@ namespace Electra
 		FTimeValue GetEnqueuedSampleDuration() override;
 		int32 GetNumEnqueuedSamples(FTimeValue* OutOptionalDuration) override;
 
+		void DisableHoldbackOfFirstRenderableVideoFrame(bool bDisableHoldback) override;
+
 		FTimeRange GetSupportedRenderRateScale() override;
 		void SetPlayRateScale(double InNewScale) override;
 		double GetPlayRateScale() override;
@@ -114,6 +116,8 @@ namespace Electra
 		int64 CurrentValidityValue = 0;
 		EStreamType Type = EStreamType::Unsupported;
 		bool bIsRunning = false;
+		bool bDoNotHoldBackFirstVideoFrame = false;
+		uint32 NumBuffersNotHeldBack = 0;
 
 		TQueue<FPendingReturnBuffer> PendingReturnBuffers;
 		std::atomic<int32> NumPendingReturnBuffers;
@@ -425,7 +429,23 @@ UEMediaError FAdaptiveStreamingWrappedRenderer::ReturnBufferCommon(IBuffer* Buff
 	FScopeLock lock(&Lock);
 	EnqueuedDuration += Duration;
 	++NumEnqueuedSamples;
-	if (!bIsRunning)
+
+	bool bHoldback = !bIsRunning;
+	// If the video renderer shall not hold back the first frame (used for scrubbing video)
+	// then we pass it out. The count is reset in Flush().
+	if (Type == EStreamType::Video && bDoNotHoldBackFirstVideoFrame)
+	{
+		if (NumBuffersNotHeldBack == 0)
+		{
+			bHoldback = false;
+		}
+		if (!bHoldback)
+		{
+			++NumBuffersNotHeldBack;
+		}
+	}
+
+	if (bHoldback)
 	{
 		FPendingReturnBuffer pb;
 		pb.Buffer = Buffer;
@@ -484,6 +504,7 @@ UEMediaError FAdaptiveStreamingWrappedRenderer::Flush(const FParamDict& InOption
 	ReturnAllPendingBuffers(true);
 	++CurrentValidityValue;
 	NumEnqueuedSamples = 0;
+	NumBuffersNotHeldBack = 0;
 	EnqueuedDuration.SetToZero();
 	Lock.Unlock();
 
@@ -544,6 +565,12 @@ int32 FAdaptiveStreamingWrappedRenderer::GetNumEnqueuedSamples(FTimeValue* OutOp
 		*OutOptionalDuration = EnqueuedDuration;
 	}
 	return NumEnqueuedSamples;
+}
+
+void FAdaptiveStreamingWrappedRenderer::DisableHoldbackOfFirstRenderableVideoFrame(bool bInDisableHoldback)
+{
+	FScopeLock lock(&Lock);
+	bDoNotHoldBackFirstVideoFrame = bInDisableHoldback;
 }
 
 FTimeRange FAdaptiveStreamingWrappedRenderer::GetSupportedRenderRateScale()

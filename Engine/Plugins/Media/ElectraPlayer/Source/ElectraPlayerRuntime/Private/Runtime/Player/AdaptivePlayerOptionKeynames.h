@@ -39,6 +39,9 @@ namespace Electra
 	//! (FTimeValue) absolute end time (excluding) of the range to limit playback to
 	const TCHAR* const OptionPlayRangeEnd = TEXT("play_range_end");
 
+	//! (bool) true to emit the first decoded video frame while prerolling so it can be displayed while scrubbing.
+	const TCHAR* const OptionKeyDoNotHoldBackFirstVideoFrame = TEXT("do_not_hold_back_first_frame");
+	
 
 
 	const TCHAR* const OptionKeyCurrentAvgStartingVideoBitrate = TEXT("current:avg_video_bitrate");

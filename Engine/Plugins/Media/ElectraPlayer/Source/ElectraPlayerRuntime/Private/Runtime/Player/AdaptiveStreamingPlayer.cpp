@@ -1152,6 +1152,13 @@ int32 FAdaptiveStreamingPlayer::CreateRenderers()
 	// Set the render clock with the renderes.
 	VideoRender.Renderer->SetRenderClock(RenderClock);
 	AudioRender.Renderer->SetRenderClock(RenderClock);
+
+	// Hold back all frames during preroll or emit the first frame for scrubbing?
+	if (PlayerOptions.HaveKey(OptionKeyDoNotHoldBackFirstVideoFrame))
+	{
+		VideoRender.Renderer->DisableHoldbackOfFirstRenderableVideoFrame(PlayerOptions.GetValue(OptionKeyDoNotHoldBackFirstVideoFrame).SafeGetBool(false));
+	}
+
 	return 0;
 }
 
@@ -2549,6 +2556,8 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingStartRequest(const FTimeValu
 							FTimeRange Seekable = Manifest->GetSeekableTimeRange();
 							PendingStartRequest->SearchType = IManifest::ESearchType::Closest;
 							StartAt.Time = Seekable.Start;
+							ClampStartRequestTime(StartAt.Time);
+							PendingStartRequest->StartAt.Time = StartAt.Time;
 						}
 						else
 						{
