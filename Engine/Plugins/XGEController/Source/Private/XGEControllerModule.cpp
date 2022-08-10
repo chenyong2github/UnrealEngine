@@ -268,18 +268,13 @@ bool FXGEControllerModule::IsSupported()
 
 void FXGEControllerModule::CleanWorkingDirectory()
 {
-#if UE_BUILD_SHIPPING && WITH_EDITOR
-	// this is not expected to run in a shipped editor, but if it is, we should deal with it
-	unimplemented();
-#else
 	// Only clean the directory if we are the only instance running,
 	// and we're not running in multi-process mode.
-	if ((GIsFirstInstance) && !FParse::Param(FCommandLine::Get(), TEXT("Multiprocess")))
+	if (FPlatformProcess::IsFirstInstance() && !FParse::Param(FCommandLine::Get(), TEXT("Multiprocess")))
 	{
 		UE_LOG(LogXGEController, Log, TEXT("Cleaning working directory: %s"), *RootWorkingDirectory);
 		IFileManager::Get().DeleteDirectory(*RootWorkingDirectory, false, true);
 	}
-#endif
 }
 
 void FXGEControllerModule::StartupModule()

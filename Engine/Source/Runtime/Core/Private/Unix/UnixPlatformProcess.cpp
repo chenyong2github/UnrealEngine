@@ -2005,7 +2005,6 @@ bool FUnixPlatformProcess::IsFirstInstance()
 	static bool bIsFirstInstance = false;
 	static bool bNeverFirst = FParse::Param(FCommandLine::Get(), TEXT("neverfirst"));
 
-#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
 	if (!bIsFirstInstance && !bNeverFirst)	// once we determined that we're first, this can never change until we exit; otherwise, we re-check each time
 	{
 		// create the file if it doesn't exist
@@ -2036,13 +2035,12 @@ bool FUnixPlatformProcess::IsFirstInstance()
 			}
 		}
 	}
-#endif
+
 	return bIsFirstInstance;
 }
 
 void FUnixPlatformProcess::CeaseBeingFirstInstance()
 {
-#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
 	if (GFileLockDescriptor != -1)
 	{
 		// may fail if we didn't have the lock
@@ -2050,7 +2048,6 @@ void FUnixPlatformProcess::CeaseBeingFirstInstance()
 		close(GFileLockDescriptor);
 		GFileLockDescriptor = -1;
 	}
-#endif
 }
 
 void FUnixPlatformProcess::OnChildEndFramePostFork()

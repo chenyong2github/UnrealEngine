@@ -2727,11 +2727,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	{
 		bool bShouldCleanShaderWorkingDirectory = true;
-#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
+
 		// Only clean the shader working directory if we are the first instance, to avoid deleting files in use by other instances
 		//@todo - check if any other instances are running right now
-		bShouldCleanShaderWorkingDirectory = GIsFirstInstance;
-#endif
+		bShouldCleanShaderWorkingDirectory = FPlatformProcess::IsFirstInstance();
 
 		if (bShouldCleanShaderWorkingDirectory && !FParse::Param(FCommandLine::Get(), TEXT("Multiprocess")))
 		{

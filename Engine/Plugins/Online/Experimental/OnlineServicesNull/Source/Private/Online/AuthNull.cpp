@@ -56,13 +56,11 @@ FString GenerateRandomUserId(const FAuthNullConfig& Config, FPlatformUserId Plat
 		UserSuffix = FString::Printf(TEXT("-%d"), PlatformUserId.GetInternalId());
 	}
 	 
-#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
-	if (GIsFirstInstance && !GIsEditor)
+	if (FPlatformProcess::IsFirstInstance() && !GIsEditor)
 	{
 		// If we're outside the editor and know this is the first instance, use the system login id
 		bUseStableNullId = true;
 	}
-#endif
 
 	if (bUseStableNullId)
 	{
