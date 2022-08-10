@@ -58,8 +58,10 @@ void FMassProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENa
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR(*FString::Printf(TEXT("FMassProcessingPhase::ExecuteTick %s"), *UEnum::GetValueAsString(Phase)));
 
 	Manager->OnPhaseStart(*this);
-	
-	OnPhaseStart.Broadcast(DeltaTime);
+	{
+		LLM_SCOPE_BYNAME(TEXT("Mass/PhaseStartDelegate"));
+		OnPhaseStart.Broadcast(DeltaTime);
+	}
 
 	check(PhaseProcessor);
 	
@@ -93,7 +95,10 @@ void FMassProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENa
 	{
 		UE::Mass::Executor::Run(*PhaseProcessor, Context);
 
-		OnPhaseEnd.Broadcast(DeltaTime);
+		{
+			LLM_SCOPE_BYNAME(TEXT("Mass/PhaseEndDelegate"));
+			OnPhaseEnd.Broadcast(DeltaTime);
+		}
 		Manager->OnPhaseEnd(*this);
 		bIsDuringMassProcessing = false;
 	}
@@ -102,7 +107,10 @@ void FMassProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENa
 void FMassProcessingPhase::OnParallelExecutionDone(const float DeltaTime)
 {
 	bIsDuringMassProcessing = false;
-	OnPhaseEnd.Broadcast(DeltaTime);
+	{
+		LLM_SCOPE_BYNAME(TEXT("Mass/PhaseEndDelegate"));
+		OnPhaseEnd.Broadcast(DeltaTime);
+	}
 	check(Manager);
 	Manager->OnPhaseEnd(*this);
 }

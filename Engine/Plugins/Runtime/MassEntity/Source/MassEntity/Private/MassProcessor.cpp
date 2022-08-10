@@ -154,6 +154,9 @@ void UMassProcessor::PostInitProperties()
 void UMassProcessor::CallExecute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*StatId);
+	LLM_SCOPE_BYNAME(TEXT("Mass/ExecuteProcessor"));
+	// Not using a more specific scope by default (i.e. LLM_SCOPE_BYNAME(*StatId)) since LLM is more strict regarding the provided string (no spaces or '_')
+
 #if WITH_MASSENTITY_DEBUG
 	Context.DebugSetExecutionDesc(FString::Printf(TEXT("%s (%s)"), *GetProcessorName(), *ToString(EntitySubsystem.GetWorld()->GetNetMode())));
 #endif

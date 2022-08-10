@@ -96,6 +96,7 @@ void FMassCommandBuffer::Flush(UMassEntitySubsystem& EntitySystem)
 
 	{
 		UE_MT_SCOPED_WRITE_ACCESS(PendingBatchCommandsDetector);
+		LLM_SCOPE_BYNAME(TEXT("Mass/FlushCommands"));
 
 		// array used to group commands depending on their operations. Based on EMassCommandOperationType
 		// @todo I'm opened to suggestions on how to better implement this

@@ -22,6 +22,7 @@ public:
 	template< template<typename... TArgs> typename TCommand, typename... TArgs >
 	void PushCommand(const FMassEntityHandle Entity, TArgs&&... InArgs)
 	{
+		LLM_SCOPE_BYNAME(TEXT("Mass/PushCommand"));
 		TCommand<TArgs...>& Instance = CreateOrAddCommand<TCommand<TArgs...>>();
 		Instance.Add(Entity, Forward<TArgs>(InArgs)...);
 	}
@@ -29,6 +30,7 @@ public:
 	template<typename TCommand, typename... TArgs>
 	void PushCommand(TArgs&&... InArgs)
 	{
+		LLM_SCOPE_BYNAME(TEXT("Mass/PushCommand"));
 		TCommand& Instance = CreateOrAddCommand<TCommand>();
 		Instance.Add(Forward<TArgs>(InArgs)...);
 	}
@@ -37,12 +39,14 @@ public:
 	template< typename TCommand>
 	void PushCommand(const FMassEntityHandle Entity)
 	{
+		LLM_SCOPE_BYNAME(TEXT("Mass/PushCommand"));
 		CreateOrAddCommand<TCommand>().Add(Entity);
 	}
 
 	template< typename TCommand>
 	void PushCommand(TConstArrayView<FMassEntityHandle> Entities)
 	{
+		LLM_SCOPE_BYNAME(TEXT("Mass/PushCommand"));
 		CreateOrAddCommand<TCommand>().Add(Entities);
 	}
 
