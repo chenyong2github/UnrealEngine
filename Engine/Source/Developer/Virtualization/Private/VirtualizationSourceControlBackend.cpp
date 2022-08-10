@@ -436,13 +436,20 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlBackend::PushData::CreateWorkspace);
 		TSharedRef<FCreateWorkspace> CreateWorkspaceCommand = ISourceControlOperation::Create<FCreateWorkspace>(WorkspaceName, SessionDirectory);
 
-		TStringBuilder<512> DepotMapping;
-		DepotMapping << DepotRoot << TEXT("...");
+		if (ClientStream.IsEmpty())
+		{
+			TStringBuilder<512> DepotMapping;
+			DepotMapping << DepotRoot << TEXT("...");
 
-		TStringBuilder<128> ClientMapping;
-		ClientMapping << TEXT("//") << WorkspaceName << TEXT("/...");
+			TStringBuilder<128> ClientMapping;
+			ClientMapping << TEXT("//") << WorkspaceName << TEXT("/...");
 
-		CreateWorkspaceCommand->AddNativeClientViewMapping(DepotMapping, ClientMapping);
+			CreateWorkspaceCommand->AddNativeClientViewMapping(DepotMapping, ClientMapping);
+		}
+		else
+		{
+			CreateWorkspaceCommand->SetStream(ClientStream);
+		}
 
 		if (bUsePartitionedClient)
 		{
@@ -453,7 +460,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 
 		if (SCCProvider->Execute(CreateWorkspaceCommand) != ECommandResult::Succeeded)
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to create temp workspace '%s' to submit payloads from"),
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to create temp workspace '%s' to use for payload submission"),
 				*GetDebugName(),
 				WorkspaceName.ToString());
 
@@ -716,18 +723,33 @@ bool FSourceControlBackend::DoPayloadsExist(TArrayView<const FIoHash> PayloadIds
 bool FSourceControlBackend::TryApplySettingsFromConfigFiles(const FString& ConfigEntry)
 {
 	// We require that a valid depot root has been provided
-	if (!FParse::Value(*ConfigEntry, TEXT("DepotRoot="), DepotRoot))
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("'DepotRoot=' not found in the config file"));
-		return false;
-	}
+		if (!FParse::Value(*ConfigEntry, TEXT("DepotRoot="), DepotRoot))
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("'DepotRoot=' not found in the config file"));
+			return false;
+		}
 
-	if (!DepotRoot.EndsWith(TEXT("/")))
-	{
-		DepotRoot.AppendChar(TEXT('/'));
+		if (!DepotRoot.EndsWith(TEXT("/")))
+		{
+			DepotRoot.AppendChar(TEXT('/'));
+		}
 	}
 
 	// Now parse the optional config values
+
+	// If the depot root is within a perforce stream then we must specify which stream. This may be a virtual stream with a custom view.
+	{
+		FParse::Value(*ConfigEntry, TEXT("ClientStream="), ClientStream);
+		if (!ClientStream.IsEmpty())
+		{
+			UE_LOG(LogVirtualization, Log, TEXT("[%s] Using client stream: '%s'"), *GetDebugName(), *ClientStream);
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Log, TEXT("[%s] Not using client stream"), *GetDebugName());
+		}
+	}
 
 	// Check to see if we should use partitioned clients or not. This is a perforce specific optimization to make the workspace churn cheaper on the server
 	{

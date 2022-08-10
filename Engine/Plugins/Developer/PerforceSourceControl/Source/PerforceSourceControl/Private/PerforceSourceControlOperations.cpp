@@ -3138,6 +3138,19 @@ bool FPerforceCreateWorkspaceWorker::Execute(FPerforceSourceControlCommand& InCo
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
 
 		TSharedRef<FCreateWorkspace, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FCreateWorkspace>(InCommand.Operation);
+	
+		// Early out if the operation set up is invalid
+		// Note if we set Stream and View this will not result in a p4 error and the View setting will be ignored.
+		// As a precaution we will consider this an error instead to avoid unintended consequences for the caller.
+		if (!Operation->GetWorkspaceStream().IsEmpty() && !Operation->GetClientView().IsEmpty())
+		{
+			FText ErrorMsg = LOCTEXT("WorkspaceInvalidSetup", "Cannot create a workspace for a stream and apply a client view at the same time");
+
+			InCommand.ResultInfo.ErrorMessages.Add(ErrorMsg);
+			InCommand.bCommandSuccessful = false;
+			
+			return InCommand.bCommandSuccessful;
+		}
 
 		TStringBuilder<2048> ClientDesc;
 
@@ -3146,17 +3159,28 @@ bool FPerforceCreateWorkspaceWorker::Execute(FPerforceSourceControlCommand& InCo
 
 		if (!Operation->GetWorkspaceDescription().IsEmpty())
 		{
-			ClientDesc << TEXT("Description:\t") << Operation->GetWorkspaceDescription() << TEXT("\n\n");
+			ClientDesc << TEXT("Description:\n\t") << Operation->GetWorkspaceDescription() << TEXT("\n\n");
 		}
 
 		ClientDesc << TEXT("Root:\t") << Operation->GetWorkspaceRoot() << TEXT("\n\n");
-		ClientDesc << TEXT("View:\t\n\n");
 
-		for (const FCreateWorkspace::FClientViewMapping& Mapping : Operation->GetClientView())
+		if (!Operation->GetWorkspaceStream().IsEmpty())
 		{
-			ClientDesc << TEXT("\t") << Mapping.Key;
-			ClientDesc << TEXT(" ");
-			ClientDesc << Mapping.Value << TEXT("\n");
+			ClientDesc << TEXT("Stream:\t") << Operation->GetWorkspaceStream() << TEXT("\n\n");
+		}
+
+		if(!Operation->GetClientView().IsEmpty())
+		{
+			ClientDesc << TEXT("View:\t\n");
+
+			for (const FCreateWorkspace::FClientViewMapping& Mapping : Operation->GetClientView())
+			{
+				ClientDesc << TEXT("\t") << Mapping.Key;
+				ClientDesc << TEXT(" ");
+				ClientDesc << Mapping.Value << TEXT("\n");
+			}
+
+			ClientDesc << TEXT("\n");
 		}
 
 		AddType(*Operation, ClientDesc);

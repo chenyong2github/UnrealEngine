@@ -1000,6 +1000,12 @@ public:
 		WorkspaceDescription = Desciption;
 	}
 
+	/** Set the stream to be used by the workspace, if left unset then a classic depot with ClientView will be used */
+	void SetStream(FStringView Stream)
+	{
+		WorkspaceStream = Stream;
+	}
+
 	/**
 	 * Add a new mapping for the client spec in the native format of the current source control provider.
 	 * These will be written to the client spec in the order that they are added.
@@ -1010,6 +1016,12 @@ public:
 	void AddNativeClientViewMapping(FStringView DepotPath, FStringView ClientPath)
 	{
 		ClientView.Emplace(DepotPath, ClientPath);
+	}
+
+	/** Remove all currently set client-view mappings */
+	void ClearClientViewMappings()
+	{
+		ClientView.Empty();
 	}
 
 	/** Set the type of workspace to be created. @see FCreateWorkspace::EType */
@@ -1031,6 +1043,11 @@ public:
 	const FString& GetWorkspaceDescription() const
 	{
 		return WorkspaceDescription;
+	}
+
+	const FString& GetWorkspaceStream() const
+	{
+		return WorkspaceStream;
 	}
 
 	const TArray<FClientViewMapping> GetClientView() const
@@ -1061,6 +1078,7 @@ protected:
 	FString WorkspaceRoot;
 
 	FString WorkspaceDescription;
+	FString WorkspaceStream;
 
 	EType Type = EType::Writeable;
 
