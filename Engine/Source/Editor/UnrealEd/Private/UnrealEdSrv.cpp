@@ -1316,7 +1316,7 @@ bool UUnrealEdEngine::IsTemplateMap( const FString& MapName ) const
 {
 	for (const FTemplateMapInfo& It : GetTemplateMapInfos())
 	{
-		if (It.Map == MapName)
+		if (It.Map.GetLongPackageName() == MapName)
 		{
 			return true;
 		}
