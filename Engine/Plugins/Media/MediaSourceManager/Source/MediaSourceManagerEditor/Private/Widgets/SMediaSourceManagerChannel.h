@@ -93,6 +93,11 @@ private:
 	void DismissErrorNotification();
 
 	/**
+	 * Called when the edit input button is pressed.
+	 */
+	FReply OnEditInput();
+
+	/**
 	 * Refreshes the widgets based on the current sstate.
 	 */
 	void Refresh();

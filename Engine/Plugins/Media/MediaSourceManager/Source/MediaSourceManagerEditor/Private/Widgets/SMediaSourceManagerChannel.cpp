@@ -4,6 +4,7 @@
 
 #include "ContentBrowserModule.h"
 #include "DragAndDrop/AssetDragDropOp.h"
+#include "Editor.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -13,6 +14,8 @@
 #include "Inputs/MediaSourceManagerInputMediaSource.h"
 #include "MediaSource.h"
 #include "MediaSourceManagerChannel.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -60,6 +63,18 @@ void SMediaSourceManagerChannel::Construct(const FArguments& InArgs,
 								.ToolTipText(LOCTEXT("Assign_ToolTip",
 									"Assign an input to this channel."))
 						]
+				]
+
+			// Edit input.
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.Padding(2)
+				[
+					SNew(SButton)
+						.ContentPadding(3)
+						.OnClicked(this, &SMediaSourceManagerChannel::OnEditInput)
+						.Text(LOCTEXT("EditInput", "Edit Input"))
 				]
 
 			// Out texture
@@ -287,6 +302,34 @@ void SMediaSourceManagerChannel::DismissErrorNotification()
 		ErrorNotification->ExpireAndFadeout();
 		ErrorNotification.Reset();
 	}
+}
+
+
+FReply SMediaSourceManagerChannel::OnEditInput()
+{
+	// Get our input.
+	TArray<UObject*> AssetArray;
+	UMediaSourceManagerChannel* Channel = ChannelPtr.Get();
+	if (Channel != nullptr)
+	{
+		UMediaSourceManagerInput* Input = Channel->Input;
+		if (Input != nullptr)
+		{
+			UMediaSource* MediaSource = Input->GetMediaSource();
+			if (MediaSource != nullptr)
+			{
+				AssetArray.Add(MediaSource);
+			}
+		}
+	}
+
+	// Open the editor.
+	if (AssetArray.Num() > 0)
+	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(AssetArray);
+	}
+
+	return FReply::Handled();
 }
 
 void SMediaSourceManagerChannel::Refresh()
