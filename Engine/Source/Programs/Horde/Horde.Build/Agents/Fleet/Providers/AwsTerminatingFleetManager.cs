@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Amazon;
 using Amazon.EC2;
 using Amazon.EC2.Model;
+using Amazon.Extensions.NETCore.Setup;
 using Horde.Build.Agents.Pools;
 using Horde.Build.Auditing;
 using Microsoft.Extensions.Logging;
@@ -103,6 +104,22 @@ namespace Horde.Build.Agents.Fleet.Providers
 			int index = new Random().Next(SubnetIds.Count);
 			return SubnetIds[index];
 		}
+
+		/// <summary>
+		/// Get user-data as base64
+		/// Required when interacting with the EC2 API.
+		/// </summary>
+		/// <returns>User-data encoded as Base64</returns>
+		public string? GetUserDataAsBase64()
+		{
+			if (UserData == null)
+			{
+				return UserData;
+			}
+			
+			byte[] plainTextBytes = System.Text.Encoding.UTF8.GetBytes(UserData);
+			return Convert.ToBase64String(plainTextBytes);
+		}
 	}
 	
 	/// <summary>
@@ -125,7 +142,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AwsFleetManager(IAgentCollection agentCollection, AwsInstanceLaunchSettings launchSettings, ILogger<AwsFleetManager> logger)
+		public AwsFleetManager(AWSOptions awsOptions, IAgentCollection agentCollection, AwsInstanceLaunchSettings launchSettings, ILogger<AwsFleetManager> logger)
 		{
 			_agentCollection = agentCollection;
 			_launchSettings = launchSettings;
@@ -133,7 +150,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 
 			AmazonEC2Config config = new () { RegionEndpoint = RegionEndpoint.GetBySystemName(_launchSettings.Region) };
 			logger.LogInformation("Initializing AWS fleet manager for region {Region}", config.RegionEndpoint);
-			_client = new AmazonEC2Client(config);
+			_client = new AmazonEC2Client(awsOptions.Credentials, config);
 		}
 
 		/// <inheritdoc/>
@@ -151,6 +168,8 @@ namespace Horde.Build.Agents.Fleet.Providers
 			scope.Span.SetTag("count", count);
 
 			List<Tag> tags = _launchSettings.Tags.Select(x => new Tag(x.Key, x.Value)).ToList();
+			tags.Add(new Tag("Horde:RequestedPools", pool.Name));
+			tags.Add(new Tag("Horde:Timestamp:Ec2InstanceLaunchRequested", Convert.ToString(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())));
 			
 			RunInstancesRequest request = new ()
 			{
@@ -161,13 +180,21 @@ namespace Horde.Build.Agents.Fleet.Providers
 				SubnetId = _launchSettings.GetRandomSubnetId(), // Pick randomly to spread evenly among available subnets 
 				MinCount = count,
 				MaxCount = count,
-				UserData = _launchSettings.UserData,
-				InstanceInitiatedShutdownBehavior = ShutdownBehavior.Terminate
+				UserData = _launchSettings.GetUserDataAsBase64(),
+				InstanceInitiatedShutdownBehavior = ShutdownBehavior.Terminate,
+				MetadataOptions = new InstanceMetadataOptionsRequest
+				{
+					HttpEndpoint = InstanceMetadataEndpointState.Enabled,
+					InstanceMetadataTags = InstanceMetadataTagsState.Enabled,
+				}
 			};
 
 			if (_launchSettings.IamInstanceProfile != null)
 			{
-				request.IamInstanceProfile = new IamInstanceProfileSpecification { Name = _launchSettings.IamInstanceProfile };
+				request.IamInstanceProfile =
+					_launchSettings.IamInstanceProfile.StartsWith("arn:aws", StringComparison.InvariantCulture)
+						? new IamInstanceProfileSpecification { Arn = _launchSettings.IamInstanceProfile }
+						: new IamInstanceProfileSpecification { Name = _launchSettings.IamInstanceProfile };
 			}
 			
 			if (tags.Count > 0)
