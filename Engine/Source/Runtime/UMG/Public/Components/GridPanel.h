@@ -41,7 +41,7 @@ public:
 	void SetColumnFill(int32 ColumnIndex, float Coefficient);
 
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetRowFill(int32 ColumnIndex, float Coefficient);
+	void SetRowFill(int32 RowIndex, float Coefficient);
 
 public:
 

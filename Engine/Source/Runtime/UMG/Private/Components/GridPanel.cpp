@@ -111,17 +111,17 @@ void UGridPanel::SetColumnFill(int32 ColumnIndex, float Coefficient)
 	}
 }
 
-void UGridPanel::SetRowFill(int32 ColumnIndex, float Coefficient)
+void UGridPanel::SetRowFill(int32 RowIndex, float Coefficient)
 {
-	while (RowFill.Num() <= ColumnIndex)
+	while (RowFill.Num() <= RowIndex)
 	{
 		RowFill.Emplace(0);
 	}
-	RowFill[ColumnIndex] = Coefficient;
+	RowFill[RowIndex] = Coefficient;
 
 	if (MyGridPanel.IsValid())
 	{
-		MyGridPanel->SetRowFill(ColumnIndex, Coefficient);
+		MyGridPanel->SetRowFill(RowIndex, Coefficient);
 	}
 }
 
