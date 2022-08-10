@@ -312,6 +312,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	int32 NumBonesInLimb = 2;
 
+	// Name of the curve representing the foot/ball speed. Not required in Graph speed mode
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	FName SpeedCurveName = NAME_None;
 
@@ -390,6 +391,13 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_FootPlacement : public FAnimNode_Sk
 	GENERATED_BODY()
 
 public:
+
+	// Foot/Ball speed evaluation mode (Graph or Manual) used to decide when the feet are locked
+	// Graph mode uses the root motion attribute from the animations to calculate the joint's speed
+	// Manual mode uses a per-foot curve name representing the joint's speed
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	EWarpingEvaluationMode PlantSpeedMode = EWarpingEvaluationMode::Manual;
+
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	TArray<FFootPlacemenLegDefinition> LegDefinitions;
 
