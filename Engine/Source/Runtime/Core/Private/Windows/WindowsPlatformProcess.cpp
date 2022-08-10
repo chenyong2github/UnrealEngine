@@ -45,49 +45,6 @@ TArray<FString> FWindowsPlatformProcess::DllDirectories;
 bool IsJobObjectSet = false;
 HANDLE GhJob = NULL;
 
-namespace WindowsPlatformProcess
-{
-	/**
-	 * Maintain a named mutex to detect whether we are the first instance of this game
-	 */
-	static HANDLE GNamedMutex = NULL;
-
-	void ReleaseNamedMutex(void)
-	{
-		if (GNamedMutex)
-		{
-			ReleaseMutex(GNamedMutex);
-			GNamedMutex = NULL;
-		}
-	}
-
-	bool MakeNamedMutex(const TCHAR* CmdLine)
-	{
-		bool bIsFirstInstance = false;
-
-		TCHAR MutexName[MAX_SPRINTF] = TEXT("");
-
-		FCString::Strcpy(MutexName, MAX_SPRINTF, TEXT("UnrealEngine4"));
-
-		GNamedMutex = CreateMutex(NULL, true, MutexName);
-
-		if (GNamedMutex && GetLastError() != ERROR_ALREADY_EXISTS && !FParse::Param(CmdLine, TEXT("NEVERFIRST")))
-		{
-			// We're the first instance!
-			bIsFirstInstance = true;
-		}
-		else
-		{
-			// Still need to release it in this case, because it gave us a valid copy
-			ReleaseNamedMutex();
-			// There is already another instance of the game running.
-			bIsFirstInstance = false;
-		}
-
-		return(bIsFirstInstance);
-	}
-}
-
 void FWindowsPlatformProcess::AddDllDirectory(const TCHAR* Directory)
 {
 	FString NormalizedDirectory = FPaths::ConvertRelativePathToFull(Directory);
@@ -2098,20 +2055,6 @@ FString FWindowsPlatformProcess::FProcEnumInfo::GetFullPath() const
 void FWindowsPlatformProcess::SetupGameThread()
 {
 	SetThreadName(TEXT("GameThread"));
-}
-
-bool FWindowsPlatformProcess::IsFirstInstance()
-{
-	// Named mutex we use to figure out whether we are the first instance of the game running. This is needed to e.g.
-	// make sure there is no contention when trying to save the shader cache.
-	static bool bIsFirstInstance = WindowsPlatformProcess::MakeNamedMutex(FCommandLine::Get());
-	return bIsFirstInstance;
-}
-
-void FWindowsPlatformProcess::CeaseBeingFirstInstance()
-{
-	// Release the mutex in the error case to ensure subsequent runs don't find it.
-	WindowsPlatformProcess::ReleaseNamedMutex();
 }
 
 namespace WindowsPlatformProcessImpl

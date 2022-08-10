@@ -62,11 +62,13 @@ FString FOnlineIdentityNull::GenerateRandomUserId(int32 LocalUserNum)
 		UserSuffix = FString::Printf(TEXT("-%d"), LocalUserNum);
 	}
 
-	if (FPlatformProcess::IsFirstInstance() && !GIsEditor)
+#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
+	if (GIsFirstInstance && !GIsEditor)
 	{
 		// If we're outside the editor and know this is the first instance, use the system login id
 		bUseStableNullId = true;
 	}
+#endif
 
 	if (bUseStableNullId)
 	{

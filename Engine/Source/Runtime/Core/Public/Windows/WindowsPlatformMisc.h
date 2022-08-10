@@ -46,7 +46,6 @@ struct CORE_API FWindowsPlatformMisc
 {
 	static void PlatformPreInit();
 	static void PlatformInit();
-	static void PlatformTearDown();
 	static void SetGracefulTerminationHandler();
 	static void CallGracefulTerminationHandler();
 	static ECrashHandlingType GetCrashHandlingType();

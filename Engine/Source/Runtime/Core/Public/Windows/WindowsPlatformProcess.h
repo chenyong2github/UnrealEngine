@@ -197,13 +197,6 @@ public:
 	static void SetupGameThread();
 	static void SetupAudioThread();
 	static void TeardownAudioThread();
-	static bool IsFirstInstance();
-
-	/**
-	 * @brief Releases locks that we held for IsFirstInstance check
-	 */
-	static void CeaseBeingFirstInstance();
-
 protected:
 
 	/**

@@ -359,6 +359,13 @@ uint64					GInputTime					= 0;
 uint32					GFrameNumber					= 1;
 /** NEED TO RENAME, for RT version of GFrameTime use View.ViewFamily->FrameNumber or pass down from RT from GFrameTime). */
 uint32					GFrameNumberRenderThread		= 1;
+#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
+// We cannot count on this variable to be accurate in a shipped game, so make sure no code tries to use it
+/** Whether we are the first instance of the game running.													*/
+#if !PLATFORM_UNIX
+bool					GIsFirstInstance				= true;
+#endif
+#endif
 /** Threshold for a frame to be considered a hitch (in milliseconds). */
 float GHitchThresholdMS = 60.0f;
 /** Size to break up data into when saving compressed data													*/
