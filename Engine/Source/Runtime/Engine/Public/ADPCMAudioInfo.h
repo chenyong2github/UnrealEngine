@@ -180,6 +180,7 @@ private:
 private:
 	void ProcessSeekRequest();
 	void SeekToTimeInternal(const float InSeekTime);
+	void ResetSeekState();
 
 	std::atomic<float> TargetSeekTime;
 

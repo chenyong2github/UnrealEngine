@@ -110,8 +110,7 @@ void FADPCMAudioInfo::SeekToTimeInternal(const float InSeekTime)
 		CurrentChunkBufferOffset = FirstChunkSampleDataOffset;
 		TotalSamplesStreamed = 0;
 		
-		bNewSeekRequest = false;
-		bSeekPendingRead = false;
+		ResetSeekState();
 		return;
 	}
 
@@ -383,6 +382,9 @@ bool FADPCMAudioInfo::ReadCompressedData(uint8* Destination, bool bLooping, uint
 				{
 					// Zero remaining buffer
 					FMemory::Memzero(OutData, BufferSize);
+					
+					ResetSeekState();
+					
 					return true;
 				}
 				else
@@ -422,11 +424,16 @@ bool FADPCMAudioInfo::ReadCompressedData(uint8* Destination, bool bLooping, uint
 				{
 					// Zero remaining buffer
 					FMemory::Memzero(OutData, BufferSize);
+
+					ResetSeekState();
+
 					return true;
 				}
 			}
 		}
 	}
+
+	ResetSeekState();
 
 	return ReachedEndOfSamples;
 }
@@ -456,6 +463,12 @@ void FADPCMAudioInfo::ProcessSeekRequest()
 	{
 		SeekToTimeInternal(NewSeekTime);
 	}
+}
+
+void FADPCMAudioInfo::ResetSeekState()
+{
+	bSeekPendingRead = false;
+	bNewSeekRequest = false;
 }
 
 bool FADPCMAudioInfo::StreamCompressedInfoInternal(const FSoundWaveProxyPtr& InWaveProxy, struct FSoundQualityInfo* QualityInfo)
@@ -774,8 +787,7 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 						CurrentChunkBufferOffset = FirstChunkSampleDataOffset;
 					}
 
-					bSeekPendingRead = false;
-					bNewSeekRequest = false;
+					ResetSeekState();
 				}
 
 				// Decompress one block for each channel and store it in UncompressedBlockData
@@ -901,8 +913,7 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 					CurrentChunkBufferOffset = CurrentChunkIndex == FirstChunkSampleDataIndex ? FirstChunkSampleDataOffset : 0;
 				}
 
-				bSeekPendingRead = false;
-				bNewSeekRequest = false;
+				ResetSeekState();
 			}
 			
 			uint32 DecompressedSamplesToCopy = FMath::Min<uint32>(
@@ -953,6 +964,8 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 
 bool FADPCMAudioInfo::ReleaseStreamChunk(bool bBlockUntilReleased)
 {
+	ResetSeekState();
+
 	if (bBlockUntilReleased)
 	{
 		// Wait for any pending decode tasks to finish.
