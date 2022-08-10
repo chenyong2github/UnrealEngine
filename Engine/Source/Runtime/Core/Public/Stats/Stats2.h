@@ -101,7 +101,7 @@ CORE_API bool DirectStatsCommand(const TCHAR* Cmd, bool bBlockForCompletion = fa
 struct CORE_API FStats
 {
 	/** Delegate to fire every time we need to advance the stats for the rendering thread. */
-	DECLARE_DELEGATE_ThreeParams( FOnAdvanceRenderingThreadStats, bool /*bDiscardCallstack*/, int64 /*StatsFrame*/, int32 /*MasterDisableChangeTagStartFrame*/ );
+	DECLARE_DELEGATE_ThreeParams( FOnAdvanceRenderingThreadStats, bool /*bDiscardCallstack*/, int64 /*StatsFrame*/, int32 /*PrimaryDisableChangeTagStartFrame*/ );
 
 	/** Advances stats for the current frame. */
 	static void AdvanceFrame( bool bDiscardCallstack, const FOnAdvanceRenderingThreadStats& AdvanceRenderingThreadStatsDelegate = FOnAdvanceRenderingThreadStats() );
@@ -1252,17 +1252,17 @@ class FThreadStats : FNoncopyable
 	friend struct FThreadStatsPool;
 
 	/** Used to control when we are collecting stats. User of the stats system increment and decrement this counter as they need data. **/
-	CORE_API static FThreadSafeCounter MasterEnableCounter;
-	/** Every time bMasterEnable changes, we update this. This is used to determine frames that have complete data. **/
-	CORE_API static FThreadSafeCounter MasterEnableUpdateNumber;
-	/** while bMasterEnable (or other things affecting stat collection) is chaning, we lock this. This is used to determine frames that have complete data. **/
-	CORE_API static FThreadSafeCounter MasterDisableChangeTagLock;
+	CORE_API static FThreadSafeCounter PrimaryEnableCounter;
+	/** Every time bPrimaryEnable changes, we update this. This is used to determine frames that have complete data. **/
+	CORE_API static FThreadSafeCounter PrimaryEnableUpdateNumber;
+	/** while bPrimaryEnable (or other things affecting stat collection) is chaning, we lock this. This is used to determine frames that have complete data. **/
+	CORE_API static FThreadSafeCounter PrimaryDisableChangeTagLock;
 	/** TLS slot that holds a FThreadStats. **/
 	CORE_API static uint32 TlsSlot;
-	/** Computed by CheckEnable, the current "master control" for stats collection, based on MasterEnableCounter and a few other things. **/
-	CORE_API static bool bMasterEnable;
+	/** Computed by CheckEnable, the current "primary control" for stats collection, based on PrimaryEnableCounter and a few other things. **/
+	CORE_API static bool bPrimaryEnable;
 	/** Set to permanently disable the stats system. **/
-	CORE_API static bool bMasterDisableForever;
+	CORE_API static bool bPrimaryDisableForever;
 	/** True if we running in the raw stats mode, all stats processing is disabled, captured stats messages are written in timely manner, memory overhead is minimal. */
 	CORE_API static bool bIsRawStatsActive;
 
@@ -1456,7 +1456,7 @@ public:
 	/** Return true if we are currently collecting data **/
 	static FORCEINLINE_STATS bool IsCollectingData()
 	{
-		return bMasterEnable;
+		return bPrimaryEnable;
 	}
 	static FORCEINLINE_STATS bool IsCollectingData(TStatId StatId)
 	{
@@ -1467,7 +1467,7 @@ public:
 	/** Return true if we are currently collecting data **/
 	static FORCEINLINE_STATS bool WillEverCollectData()
 	{
-		return !bMasterDisableForever;
+		return !bPrimaryDisableForever;
 	}
 
 	/** Return true if the threading is ready **/
@@ -1477,59 +1477,94 @@ public:
 	}
 
 	/** Indicate that you would like the system to begin collecting data, if it isn't already collecting data. Think reference count. **/
-	static FORCEINLINE_STATS void MasterEnableAdd(int32 Value = 1)
+	static FORCEINLINE_STATS void PrimaryEnableAdd(int32 Value = 1)
 	{
-		MasterEnableCounter.Add(Value);
+		PrimaryEnableCounter.Add(Value);
 		CheckEnable();
 	}
 
 	/** Indicate that you no longer need stat data, if nobody else needs stat data, then no stat data will be collected. Think reference count. **/
-	static FORCEINLINE_STATS void MasterEnableSubtract(int32 Value = 1)
+	static FORCEINLINE_STATS void PrimaryEnableSubtract(int32 Value = 1)
 	{
-		MasterEnableCounter.Subtract(Value);
+		PrimaryEnableCounter.Subtract(Value);
 		CheckEnable();
 	}
 
 	/** Indicate that you no longer need stat data, forever. **/
-	static FORCEINLINE_STATS void MasterDisableForever()
+	static FORCEINLINE_STATS void PrimaryDisableForever()
 	{
-		bMasterDisableForever = true;
+		bPrimaryDisableForever = true;
 		CheckEnable();
 	}
 
 	/** This is called before we start to change something that will invalidate. **/
-	static FORCEINLINE_STATS void MasterDisableChangeTagLockAdd(int32 Value = 1)
+	static FORCEINLINE_STATS void PrimaryDisableChangeTagLockAdd(int32 Value = 1)
 	{
-		MasterDisableChangeTagLock.Add(Value);
+		PrimaryDisableChangeTagLock.Add(Value);
 		FPlatformMisc::MemoryBarrier();
-		MasterEnableUpdateNumber.Increment();
+		PrimaryEnableUpdateNumber.Increment();
 	}
 
 	/** Indicate that you no longer need stat data, if nobody else needs stat data, then no stat data will be collected. Think reference count. **/
-	static FORCEINLINE_STATS void MasterDisableChangeTagLockSubtract(int32 Value = 1)
+	static FORCEINLINE_STATS void PrimaryDisableChangeTagLockSubtract(int32 Value = 1)
 	{
 		FPlatformMisc::MemoryBarrier();
-		MasterEnableUpdateNumber.Increment();
+		PrimaryEnableUpdateNumber.Increment();
 		FPlatformMisc::MemoryBarrier();
-		MasterDisableChangeTagLock.Subtract(Value);
+		PrimaryDisableChangeTagLock.Subtract(Value);
 	}
 
-	/** Everytime master enable changes, this number increases. This is used to determine full frames. **/
+	/** Everytime primary enable changes, this number increases. This is used to determine full frames. **/
 	static FORCEINLINE_STATS int32 PrimaryDisableChangeTag()
 	{
-		if (MasterDisableChangeTagLock.GetValue())
+		if (PrimaryDisableChangeTagLock.GetValue())
 		{
 			// while locked we are continually invalid, so we will just keep giving unique numbers
-			return MasterEnableUpdateNumber.Increment();
+			return PrimaryEnableUpdateNumber.Increment();
 		}
-		return MasterEnableUpdateNumber.GetValue();
+		return PrimaryEnableUpdateNumber.GetValue();
+	}
+
+	/** Indicate that you would like the system to begin collecting data, if it isn't already collecting data. Think reference count. **/
+	UE_DEPRECATED(5.1, "Use PrimaryEnableAdd instead")
+	static FORCEINLINE_STATS void MasterEnableAdd(int32 Value = 1)
+	{
+		PrimaryEnableAdd(Value);
+	}
+
+	/** Indicate that you no longer need stat data, if nobody else needs stat data, then no stat data will be collected. Think reference count. **/
+	UE_DEPRECATED(5.1, "Use PrimaryEnableSubtract instead")
+	static FORCEINLINE_STATS void MasterEnableSubtract(int32 Value = 1)
+	{
+		PrimaryEnableSubtract(Value);
+	}
+
+	/** Indicate that you no longer need stat data, forever. **/
+	UE_DEPRECATED(5.1, "Use PrimaryDisableForever instead")
+	static FORCEINLINE_STATS void MasterDisableForever()
+	{
+		PrimaryDisableForever();
+	}
+
+	/** This is called before we start to change something that will invalidate. **/
+	UE_DEPRECATED(5.1, "Use PrimaryDisableChangeTagLockAdd instead")
+	static FORCEINLINE_STATS void MasterDisableChangeTagLockAdd(int32 Value = 1)
+	{
+		PrimaryDisableChangeTagLockAdd(Value);
+	}
+
+	/** Indicate that you no longer need stat data, if nobody else needs stat data, then no stat data will be collected. Think reference count. **/
+	UE_DEPRECATED(5.1, "Use PrimaryDisableChangeTagLockSubtract instead")
+	static FORCEINLINE_STATS void MasterDisableChangeTagLockSubtract(int32 Value = 1)
+	{
+		PrimaryDisableChangeTagLockSubtract(Value);
 	}
 
 	/** Call this if something disrupts data gathering. For example when the render thread is killed, data is abandoned.**/
 	static FORCEINLINE_STATS void FrameDataIsIncomplete()
 	{
 		FPlatformMisc::MemoryBarrier();
-		MasterEnableUpdateNumber.Increment();
+		PrimaryEnableUpdateNumber.Increment();
 		FPlatformMisc::MemoryBarrier();
 	}
 

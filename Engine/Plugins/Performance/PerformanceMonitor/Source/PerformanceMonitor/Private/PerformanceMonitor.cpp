@@ -289,7 +289,7 @@ void FPerformanceMonitorModule::StartRecordingPerfTimers(FString FileNameToUse, 
 			bRequiresCutsceneStart = GatheredBool;
 		}
 	}
-	FThreadStats::MasterEnableAdd(1);
+	FThreadStats::PrimaryEnableAdd(1);
 	FAutomationTestFramework::Get().SetCaptureStack(false);
 	FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
 	// Set up our delegate to gather data from the stats thread for safe consumption on game thread.
@@ -464,7 +464,7 @@ void FPerformanceMonitorModule::StopRecordingPerformanceTimers()
 		RecordData();
 	}
 
-	FThreadStats::MasterEnableSubtract(1);
+	FThreadStats::PrimaryEnableSubtract(1);
 	FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
 	Stats.NewFrameDelegate.RemoveAll(this);
 	bRecording = false;

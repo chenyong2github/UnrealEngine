@@ -494,7 +494,7 @@ void DumpEventsOnce( int64 TargetFrame, float DumpEventsCullMS, bool bDisplayAll
 {
 	FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
 	DumpEvents( TargetFrame, DumpEventsCullMS, bDisplayAllThreads );
-	StatsMasterEnableSubtract();
+	StatsPrimaryEnableSubtract();
 	Stats.NewFrameDelegate.Remove( DumpEventsDelegateHandle );
 }
 
@@ -1055,12 +1055,12 @@ struct FHUDGroupManager
 		{
 			bEnabled = true;
 			NewFrameDelegateHandle = Stats.NewFrameDelegate.AddRaw( this, &FHUDGroupManager::NewFrame );
-			StatsMasterEnableAdd();
+			StatsPrimaryEnableAdd();
 		}
 		else if( !EnabledGroups.Num() && bEnabled )
 		{
 			Stats.NewFrameDelegate.Remove( NewFrameDelegateHandle );
-			StatsMasterEnableSubtract();
+			StatsPrimaryEnableSubtract();
 			bEnabled = false;
 
 			DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.StatsToGame"),
@@ -1674,7 +1674,7 @@ static void DumpFrame(int64 Frame)
 	check(Latest > 0);
 	DumpHistoryFrame(Stats, Latest, DumpCull, GMaxDepth, *GNameFilter);
 	Stats.NewFrameDelegate.Remove(GDumpFrameDelegateHandle);
-	StatsMasterEnableSubtract();
+	StatsPrimaryEnableSubtract();
 }
 
 static void DumpCPU(int64 Frame)
@@ -1684,7 +1684,7 @@ static void DumpCPU(int64 Frame)
 	check(Latest > 0);
 	DumpCPUSummary(Stats, Latest);
 	Stats.NewFrameDelegate.Remove(GDumpCPUDelegateHandle);
-	StatsMasterEnableSubtract();
+	StatsPrimaryEnableSubtract();
 }
 
 static struct FDumpMultiple* DumpMultiple = NULL;
@@ -1707,7 +1707,7 @@ struct FDumpMultiple
 		, NumFramesToGo(0)
 		, Stack(NULL)
 	{
-		StatsMasterEnableAdd();
+		StatsPrimaryEnableAdd();
 		NewFrameDelegateHandle = Stats.NewFrameDelegate.AddRaw(this, &FDumpMultiple::NewFrame);
 	}
 
@@ -1753,7 +1753,7 @@ struct FDumpMultiple
 			Stack = NULL;
 		}
 		Stats.NewFrameDelegate.Remove(NewFrameDelegateHandle);
-		StatsMasterEnableSubtract();
+		StatsPrimaryEnableSubtract();
 		DumpMultiple = NULL;
 	}
 
@@ -1801,14 +1801,14 @@ struct FDumpSpam
 		, NumPackets(0)
 	{
 		FThreadStats::EnableRawStats();
-		StatsMasterEnableAdd();
+		StatsPrimaryEnableAdd();
 		NewRawStatPacketDelegateHandle = Stats.NewRawStatPacket.AddRaw(this, &FDumpSpam::NewFrame);
 	}
 
 	~FDumpSpam()
 	{
 		FThreadStats::DisableRawStats();
-		StatsMasterEnableSubtract();
+		StatsPrimaryEnableSubtract();
 		UE_LOG(LogStats, Log, TEXT("------------------ %d packets, %d total messages ---------------"), NumPackets, TotalCount);
 
 		Counts.ValueSort(TGreater<int32>());
@@ -1912,7 +1912,7 @@ static void StatCmd(FString InCmd, bool bStatCommand, FOutputDevice* Ar /*= null
 		FParse::Value(Cmd, TEXT("DEPTH="), GMaxDepth);
 		if (FParse::Command(&Cmd, TEXT("DUMPFRAME")))
 		{
-			StatsMasterEnableAdd();
+			StatsPrimaryEnableAdd();
 			GDumpFrameDelegateHandle = Stats.NewFrameDelegate.AddStatic(&DumpFrame);
 		}
 		else if (FParse::Command(&Cmd, TEXT("DUMPNONFRAME")))
@@ -1924,7 +1924,7 @@ static void StatCmd(FString InCmd, bool bStatCommand, FOutputDevice* Ar /*= null
 		}
 		else if (FParse::Command(&Cmd, TEXT("DUMPCPU")))
 		{
-			StatsMasterEnableAdd();
+			StatsPrimaryEnableAdd();
 			GDumpCPUDelegateHandle = Stats.NewFrameDelegate.AddStatic(&DumpCPU);
 		}
 		else if (FParse::Command(&Cmd, TEXT("STOP")))
@@ -2000,14 +2000,14 @@ static void StatCmd(FString InCmd, bool bStatCommand, FOutputDevice* Ar /*= null
 			bToggle = !bToggle;
 			if (bToggle)
 			{
-				StatsMasterEnableAdd();
+				StatsPrimaryEnableAdd();
 				HitchIndex = 0;
 				TotalHitchTime = 0.0;
 				DumpHitchDelegateHandle = Stats.NewFrameDelegate.AddStatic(&DumpHitch);
 			}
 			else
 			{
-				StatsMasterEnableSubtract();
+				StatsPrimaryEnableSubtract();
 				Stats.NewFrameDelegate.Remove(DumpHitchDelegateHandle);
 				UE_LOG(LogStats, Log, TEXT("**************************** %d hitches	%8.0fms total hitch time"), HitchIndex, TotalHitchTime);
 			}
@@ -2022,7 +2022,7 @@ static void StatCmd(FString InCmd, bool bStatCommand, FOutputDevice* Ar /*= null
 			FParse::Value(Cmd, TEXT("MS="), DumpEventsCullMS);
 			const bool bDisplayAllThreads = FParse::Param(Cmd, TEXT("all"));
 
-			StatsMasterEnableAdd();
+			StatsPrimaryEnableAdd();
 			DumpEventsDelegateHandle = Stats.NewFrameDelegate.AddStatic(&DumpEventsOnce, DumpEventsCullMS, bDisplayAllThreads);
 		}
 		else if (FParse::Command(&Cmd, TEXT("STARTFILE")))
@@ -2070,7 +2070,7 @@ static void StatCmd(FString InCmd, bool bStatCommand, FOutputDevice* Ar /*= null
 		}
 		else if (FParse::Command(&Cmd, TEXT("testdisable")))
 		{
-			FThreadStats::MasterDisableForever();
+			FThreadStats::PrimaryDisableForever();
 		}
 		else if (FParse::Command(&Cmd, TEXT("none")))
 		{

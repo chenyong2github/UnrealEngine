@@ -131,7 +131,7 @@ void FProfilerServiceManager::AddNewFrameHandleStatsPipe()
 #if	STATS
 	const FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
 	NewFrameDelegateHandle = Stats.NewFrameDelegate.AddRaw( this, &FProfilerServiceManager::HandleNewFrame );
-	StatsMasterEnableAdd();
+	StatsPrimaryEnableAdd();
 	MetadataSize = 0;
 #endif //STATS
 }
@@ -142,7 +142,7 @@ void FProfilerServiceManager::RemoveNewFrameHandleStatsPipe()
 #if	STATS
 	const FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
 	Stats.NewFrameDelegate.Remove( NewFrameDelegateHandle );
-	StatsMasterEnableSubtract();
+	StatsPrimaryEnableSubtract();
 	MetadataSize = 0;
 #endif //STATS
 }

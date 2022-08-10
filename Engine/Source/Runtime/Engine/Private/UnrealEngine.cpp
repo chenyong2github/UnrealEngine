@@ -17116,7 +17116,7 @@ bool UEngine::ToggleStatNamedEvents(UWorld* World, FCommonViewportClient* Viewpo
 	{
 		if (GCycleStatsShouldEmitNamedEvents == 0)
 		{
-			StatsMasterEnableAdd();
+			StatsPrimaryEnableAdd();
 		}
 		GCycleStatsShouldEmitNamedEvents++;
 	}
@@ -17125,7 +17125,7 @@ bool UEngine::ToggleStatNamedEvents(UWorld* World, FCommonViewportClient* Viewpo
 	{
 		if (GCycleStatsShouldEmitNamedEvents == 1)
 		{
-			StatsMasterEnableSubtract();
+			StatsPrimaryEnableSubtract();
 		}
 		GCycleStatsShouldEmitNamedEvents = FMath::Max(0, GCycleStatsShouldEmitNamedEvents - 1);
 	}

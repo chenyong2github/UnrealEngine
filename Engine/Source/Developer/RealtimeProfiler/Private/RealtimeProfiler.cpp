@@ -21,12 +21,12 @@ void FRealtimeProfiler::MakeWindow()
 FRealtimeProfiler::FRealtimeProfiler()
 {
 	MakeWindow();	
-	StatsMasterEnableAdd();
+	StatsPrimaryEnableAdd();
 }
 
 FRealtimeProfiler::~FRealtimeProfiler()
 {
-	StatsMasterEnableSubtract();
+	StatsPrimaryEnableSubtract();
 }
 
 bool FRealtimeProfiler::IsProfiling()

@@ -78,13 +78,25 @@ public:
 
 };
 
+FORCEINLINE void StatsPrimaryEnableAdd(int32 Value = 1)
+{
+	FThreadStats::PrimaryEnableAdd(Value);
+}
+FORCEINLINE void StatsPrimaryEnableSubtract(int32 Value = 1)
+{
+	FThreadStats::PrimaryEnableSubtract(Value);
+}
+
+UE_DEPRECATED(5.1, "Use StatsPrimaryEnableAdd instead")
 FORCEINLINE void StatsMasterEnableAdd(int32 Value = 1)
 {
-	FThreadStats::MasterEnableAdd(Value);
+	StatsPrimaryEnableAdd(Value);
 }
+
+UE_DEPRECATED(5.1, "Use StatsPrimaryEnableSubtract instead")
 FORCEINLINE void StatsMasterEnableSubtract(int32 Value = 1)
 {
-	FThreadStats::MasterEnableSubtract(Value);
+	StatsPrimaryEnableSubtract(Value);
 }
 
 #else	//STATS
@@ -208,10 +220,10 @@ public:
 };
 #endif
 
-FORCEINLINE void StatsMasterEnableAdd(int32 Value = 1)
+FORCEINLINE void StatsPrimaryEnableAdd(int32 Value = 1)
 {
 }
-FORCEINLINE void StatsMasterEnableSubtract(int32 Value = 1)
+FORCEINLINE void StatsPrimaryEnableSubtract(int32 Value = 1)
 {
 }
 

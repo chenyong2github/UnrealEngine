@@ -1964,7 +1964,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		// Leave the stats enabled.
 		if (!FStats::EnabledForCommandlet())
 		{
-			FThreadStats::MasterDisableForever();
+			FThreadStats::PrimaryDisableForever();
 		}
 #endif
 

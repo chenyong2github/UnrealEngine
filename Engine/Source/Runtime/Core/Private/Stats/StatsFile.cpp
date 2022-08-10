@@ -246,7 +246,7 @@ void IStatsWriteFile::Start( const FString& InFilename )
 		ArchiveFilename = Filename;
 		WriteHeader();
 		SetDataDelegate( true );
-		StatsMasterEnableAdd();
+		StatsPrimaryEnableAdd();
 	}
 }
 
@@ -255,7 +255,7 @@ void IStatsWriteFile::Stop()
 {
 	if (IsValid())
 	{
-		StatsMasterEnableSubtract();
+		StatsPrimaryEnableSubtract();
 		SetDataDelegate( false );
 		SendTask();
 		SendTask();

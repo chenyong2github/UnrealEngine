@@ -18,7 +18,7 @@ void FFrameProfiler::Start()
 	if (!bActive)
 	{
 		bActive = true;
-		StatsMasterEnableAdd();
+		StatsPrimaryEnableAdd();
 
 		const FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
 
@@ -34,7 +34,7 @@ void FFrameProfiler::Stop()
 
 		Stats.NewFrameDelegate.Remove(OnNewFrameDelegateHandle);
 
-		StatsMasterEnableSubtract();
+		StatsPrimaryEnableSubtract();
 		bActive = false;
 
 

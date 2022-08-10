@@ -105,13 +105,13 @@ void FFramePerformanceProvider::EnableHitchDetection(bool bShouldEnable)
 			CachedHitchSettings = GetDefault<UStageMonitoringSettings>()->ProviderSettings.HitchDetectionSettings;
 
 			// Subscribe to Stats provider to verify hitches
-			StatsMasterEnableAdd();
+			StatsPrimaryEnableAdd();
 			FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
 			Stats.NewFrameDelegate.AddRaw(this, &FFramePerformanceProvider::CheckHitches);
 		}
 		else
 		{
-			StatsMasterEnableSubtract();
+			StatsPrimaryEnableSubtract();
 			FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
 			Stats.NewFrameDelegate.RemoveAll(this);
 		}
