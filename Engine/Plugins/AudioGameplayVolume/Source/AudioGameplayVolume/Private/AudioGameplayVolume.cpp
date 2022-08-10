@@ -19,7 +19,7 @@ AAudioGameplayVolume::AAudioGameplayVolume(const FObjectInitializer& ObjectIniti
 		BrushComp->bAlwaysCreatePhysicsState = true;
 	}
 
-	AGVComponent = CreateDefaultSubobject<UAudioGameplayVolumeProxyComponent>(TEXT("AGVComponent"));
+	AGVComponent = CreateDefaultSubobject<UAudioGameplayVolumeComponent>(TEXT("AGVComponent"));
 
 #if WITH_EDITOR
 	bColored = true;

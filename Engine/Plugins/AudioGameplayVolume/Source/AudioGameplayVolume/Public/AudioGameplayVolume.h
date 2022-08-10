@@ -9,7 +9,7 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAudioGameplayVolumeEvent);
 
 // Forward Declarations 
-class UAudioGameplayVolumeProxyComponent;
+class UAudioGameplayVolumeComponent;
 class UAudioGameplayVolumeSubsystem;
 
 /**
@@ -28,7 +28,7 @@ private:
 
 	// A representation of this volume for the audio thread
 	UPROPERTY()
-	UAudioGameplayVolumeProxyComponent* AGVComponent = nullptr;
+	UAudioGameplayVolumeComponent* AGVComponent = nullptr;
 
 	// Whether this volume is currently enabled.  Disabled volumes will not have a volume proxy, 
 	// and therefore will not be considered for intersection checks.

@@ -20,7 +20,7 @@ bool UAudioGameplayVolumeProxy::ContainsPosition(const FVector& Position) const
 	return false;
 }
 
-void UAudioGameplayVolumeProxy::InitFromComponent(const UAudioGameplayVolumeProxyComponent* Component)
+void UAudioGameplayVolumeProxy::InitFromComponent(const UAudioGameplayVolumeComponent* Component)
 {
 	if (!Component || !Component->GetWorld())
 	{
@@ -140,7 +140,7 @@ bool UAGVPrimitiveComponentProxy::ContainsPosition(const FVector& Position) cons
 	return BodyInstancePointer->GetSquaredDistanceToBody(Position, DistanceSquared, PointOnBody) && FMath::IsNearlyZero(DistanceSquared);
 }
 
-void UAGVPrimitiveComponentProxy::InitFromComponent(const UAudioGameplayVolumeProxyComponent* Component)
+void UAGVPrimitiveComponentProxy::InitFromComponent(const UAudioGameplayVolumeComponent* Component)
 {
 	Super::InitFromComponent(Component);
 
@@ -180,7 +180,7 @@ bool UAGVConditionProxy::ContainsPosition(const FVector& Position) const
 	return false;
 }
 
-void UAGVConditionProxy::InitFromComponent(const UAudioGameplayVolumeProxyComponent* Component)
+void UAGVConditionProxy::InitFromComponent(const UAudioGameplayVolumeComponent* Component)
 {
 	Super::InitFromComponent(Component);
 

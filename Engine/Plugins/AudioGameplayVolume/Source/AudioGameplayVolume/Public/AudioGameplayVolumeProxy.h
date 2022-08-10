@@ -13,7 +13,7 @@ struct FAudioProxyMutatorPriorities;
 struct FAudioProxyMutatorSearchResult;
 class FProxyVolumeMutator;
 class UPrimitiveComponent;
-class UAudioGameplayVolumeProxyComponent;
+class UAudioGameplayVolumeComponent;
 
 /**
  *  UAudioGameplayVolumeProxy - Abstract proxy used on audio thread to represent audio gameplay volumes.
@@ -31,7 +31,7 @@ public:
 	virtual ~UAudioGameplayVolumeProxy() = default;
 
 	virtual bool ContainsPosition(const FVector& Position) const;
-	virtual void InitFromComponent(const UAudioGameplayVolumeProxyComponent* Component);
+	virtual void InitFromComponent(const UAudioGameplayVolumeComponent* Component);
 
 	void FindMutatorPriority(FAudioProxyMutatorPriorities& Priorities) const;
 	void GatherMutators(const FAudioProxyMutatorPriorities& Priorities, FAudioProxyMutatorSearchResult& OutResult) const;
@@ -64,7 +64,7 @@ public:
 	virtual ~UAGVPrimitiveComponentProxy() = default;
 
 	virtual bool ContainsPosition(const FVector& Position) const override;
-	virtual void InitFromComponent(const UAudioGameplayVolumeProxyComponent* Component) override;
+	virtual void InitFromComponent(const UAudioGameplayVolumeComponent* Component) override;
 
 protected:
 	
@@ -84,7 +84,7 @@ public:
 	virtual ~UAGVConditionProxy() = default;
 
 	virtual bool ContainsPosition(const FVector& Position) const override;
-	virtual void InitFromComponent(const UAudioGameplayVolumeProxyComponent* Component) override;
+	virtual void InitFromComponent(const UAudioGameplayVolumeComponent* Component) override;
 
 protected:
 

@@ -274,7 +274,7 @@ void UAudioGameplayVolumeSubsystem::OnNotifyPendingDelete(const FActiveSound& Ac
 	}
 }
 
-void UAudioGameplayVolumeSubsystem::AddVolumeComponent(const UAudioGameplayVolumeProxyComponent* VolumeComponent)
+void UAudioGameplayVolumeSubsystem::AddVolumeComponent(const UAudioGameplayVolumeComponent* VolumeComponent)
 {
 	if (!VolumeComponent)
 	{
@@ -309,7 +309,7 @@ void UAudioGameplayVolumeSubsystem::AddVolumeComponent(const UAudioGameplayVolum
 	}
 }
 
-void UAudioGameplayVolumeSubsystem::UpdateVolumeComponent(const UAudioGameplayVolumeProxyComponent* VolumeComponent)
+void UAudioGameplayVolumeSubsystem::UpdateVolumeComponent(const UAudioGameplayVolumeComponent* VolumeComponent)
 {
 	if (!VolumeComponent || !VolumeComponent->GetWorld())
 	{
@@ -337,7 +337,7 @@ void UAudioGameplayVolumeSubsystem::UpdateVolumeComponent(const UAudioGameplayVo
 	}
 }
 
-void UAudioGameplayVolumeSubsystem::RemoveVolumeComponent(const UAudioGameplayVolumeProxyComponent* VolumeComponent)
+void UAudioGameplayVolumeSubsystem::RemoveVolumeComponent(const UAudioGameplayVolumeComponent* VolumeComponent)
 {
 	if (!VolumeComponent || !VolumeComponent->GetWorld())
 	{
@@ -450,7 +450,7 @@ void UAudioGameplayVolumeSubsystem::UpdateComponentsFromProxyInfo(const FAudioGa
 			continue;
 		}
 
-		if (const UAudioGameplayVolumeProxyComponent* ProxyComponent = AGVComponents[VolumeID])
+		if (const UAudioGameplayVolumeComponent* ProxyComponent = AGVComponents[VolumeID])
 		{
 			ProxyComponent->EnterProxy();
 		}
@@ -463,7 +463,7 @@ void UAudioGameplayVolumeSubsystem::UpdateComponentsFromProxyInfo(const FAudioGa
 			continue;
 		}
 
-		if (const UAudioGameplayVolumeProxyComponent* ProxyComponent = AGVComponents[VolumeID])
+		if (const UAudioGameplayVolumeComponent* ProxyComponent = AGVComponents[VolumeID])
 		{
 			ProxyComponent->ExitProxy();
 		}

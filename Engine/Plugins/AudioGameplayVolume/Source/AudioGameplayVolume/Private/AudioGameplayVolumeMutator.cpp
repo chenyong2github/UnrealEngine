@@ -161,8 +161,8 @@ void UAudioGameplayVolumeMutator::NotifyDataChanged() const
 {
 	if (IsActive())
 	{
-		TInlineComponentArray<UAudioGameplayVolumeProxyComponent*> VolumeComponents(GetOwner());
-		for (UAudioGameplayVolumeProxyComponent* VolumeComponent : VolumeComponents)
+		TInlineComponentArray<UAudioGameplayVolumeComponent*> VolumeComponents(GetOwner());
+		for (UAudioGameplayVolumeComponent* VolumeComponent : VolumeComponents)
 		{
 			if (VolumeComponent != nullptr)
 			{

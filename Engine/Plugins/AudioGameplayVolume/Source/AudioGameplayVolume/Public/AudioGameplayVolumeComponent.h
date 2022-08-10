@@ -12,17 +12,17 @@ class UAudioGameplayVolumeSubsystem;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAudioGameplayVolumeProxyStateChange);
 
 /**
- *  UAudioGameplayVolumeProxyComponent - Component used to drive interaction with AudioGameplayVolumeSubsystem.
+ *  UAudioGameplayVolumeComponent - Component used to drive interaction with AudioGameplayVolumeSubsystem.
  *   NOTE: Do not inherit from this class, use UAudioGameplayVolumeMutator to create extendable functionality
  */
 UCLASS(Config = Game, ClassGroup = ("AudioGameplay"), meta = (BlueprintSpawnableComponent, IsBlueprintBase = false, DisplayName = "Volume Proxy"))
-class AUDIOGAMEPLAYVOLUME_API UAudioGameplayVolumeProxyComponent final : public UAudioGameplayComponent
+class AUDIOGAMEPLAYVOLUME_API UAudioGameplayVolumeComponent final : public UAudioGameplayComponent
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
-	virtual ~UAudioGameplayVolumeProxyComponent() = default;
+	virtual ~UAudioGameplayVolumeComponent() = default;
 
 	void SetProxy(UAudioGameplayVolumeProxy* NewProxy);
 	UAudioGameplayVolumeProxy* GetProxy() const { return Proxy; }
@@ -30,7 +30,7 @@ public:
 	/** Called by a component on same actor to notify our proxy may need updating */
 	void OnComponentDataChanged();
 
-	/** Called when the proxy is 'entered' - This is when the proxy goes from zero listeners to at lesat one. */
+	/** Called when the proxy is 'entered' - This is when the proxy goes from zero listeners to at least one. */
 	void EnterProxy() const;
 
 	/** Called when the proxy is 'exited' - This is when the proxy goes from at least one listeners to zero. */

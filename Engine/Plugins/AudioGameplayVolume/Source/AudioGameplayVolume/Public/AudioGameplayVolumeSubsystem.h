@@ -13,7 +13,7 @@
 class UWorld;
 class FProxyVolumeMutator;
 class UAudioGameplayVolumeProxy;
-class UAudioGameplayVolumeProxyComponent;
+class UAudioGameplayVolumeComponent;
 
 /**
  *  FAudioGameplayActiveSoundInfo - Helper struct for caching active sound data
@@ -138,13 +138,13 @@ public:
 	//~ End IActiveSoundUpdateInterface
 	
 	/** Add a volume to the system */
-	void AddVolumeComponent(const UAudioGameplayVolumeProxyComponent* VolumeComponent);
+	void AddVolumeComponent(const UAudioGameplayVolumeComponent* VolumeComponent);
 
 	/** Update an existing volume in the system */
-	void UpdateVolumeComponent(const UAudioGameplayVolumeProxyComponent* VolumeComponent);
+	void UpdateVolumeComponent(const UAudioGameplayVolumeComponent* VolumeComponent);
 
 	/** Remove a volume from the system */
-	void RemoveVolumeComponent(const UAudioGameplayVolumeProxyComponent* VolumeComponent);
+	void RemoveVolumeComponent(const UAudioGameplayVolumeComponent* VolumeComponent);
 
 protected:
 
@@ -167,7 +167,7 @@ protected:
 
 	// Components in our system
 	UPROPERTY(Transient)
-	TMap<uint32, const UAudioGameplayVolumeProxyComponent*> AGVComponents;
+	TMap<uint32, const UAudioGameplayVolumeComponent*> AGVComponents;
 
 	// Audio thread representation of Listeners
 	TArray<FAudioGameplayVolumeListener> AGVListeners;
