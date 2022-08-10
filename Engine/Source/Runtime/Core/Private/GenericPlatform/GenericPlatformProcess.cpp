@@ -647,11 +647,9 @@ bool FGenericPlatformProcess::Daemonize()
 
 bool FGenericPlatformProcess::IsFirstInstance()
 {
-#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return GIsFirstInstance;
-#else
-	return true;
-#endif
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FSystemWideCriticalSectionNotImplemented::FSystemWideCriticalSectionNotImplemented(const FString& Name, FTimespan Timeout)

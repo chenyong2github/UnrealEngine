@@ -40,48 +40,8 @@ extern "C" { _declspec(dllexport) extern const UINT D3D12SDKVersion = 602; }
 extern "C" { _declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\"; }
 #endif // USE_D3D12_REDIST
 
-/**
- * Maintain a named mutex to detect whether we are the first instance of this game
- */
-HANDLE GNamedMutex = NULL;
-
 /** Whether we should pause before exiting. used by UCC */
 bool		GShouldPauseBeforeExit;
-
-void ReleaseNamedMutex( void )
-{
-	if( GNamedMutex )
-	{
-		ReleaseMutex( GNamedMutex );
-		GNamedMutex = NULL;
-	}
-}
-
-bool MakeNamedMutex( const TCHAR* CmdLine )
-{
-	bool bIsFirstInstance = false;
-
-	TCHAR MutexName[MAX_SPRINTF] = TEXT( "" );
-
-	FCString::Strcpy( MutexName, MAX_SPRINTF, TEXT( "UnrealEngine4" ) );
-
-	GNamedMutex = CreateMutex( NULL, true, MutexName );
-
-	if( GNamedMutex	&& GetLastError() != ERROR_ALREADY_EXISTS && !FParse::Param( CmdLine, TEXT( "NEVERFIRST" ) ) )
-	{
-		// We're the first instance!
-		bIsFirstInstance = true;
-	}
-	else
-	{
-		// Still need to release it in this case, because it gave us a valid copy
-		ReleaseNamedMutex();
-		// There is already another instance of the game running.
-		bIsFirstInstance = false;
-	}
-
-	return( bIsFirstInstance );
-}
 
 /**
  * Handler for CRT parameter validation. Triggers error
@@ -234,16 +194,10 @@ LAUNCH_API int32 LaunchWindowsStartup( HINSTANCE hInInstance, HINSTANCE hPrevIns
 		SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
 	}
 
-#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
-	// Named mutex we use to figure out whether we are the first instance of the game running. This is needed to e.g.
-	// make sure there is no contention when trying to save the shader cache.
-	GIsFirstInstance = MakeNamedMutex( CmdLine );
-
 	if ( FParse::Param( CmdLine,TEXT("crashreports") ) )
 	{
 		GAlwaysReportCrash = true;
 	}
-#endif
 
 	bool bNoExceptionHandler = FParse::Param(CmdLine,TEXT("noexceptionhandler"));
 	(void)bNoExceptionHandler;
@@ -293,10 +247,6 @@ LAUNCH_API int32 LaunchWindowsStartup( HINSTANCE hInInstance, HINSTANCE hPrevIns
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 		__except( GEnableInnerException ? EXCEPTION_EXECUTE_HANDLER : ReportCrash( GetExceptionInformation( ) ) )
 		{
-#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
-			// Release the mutex in the error case to ensure subsequent runs don't find it.
-			ReleaseNamedMutex();
-#endif
 			// Crashed.
 			ErrorLevel = 1;
 			if(GError)
@@ -319,11 +269,6 @@ LAUNCH_API void LaunchWindowsShutdown()
 {
 	// Final shut down.
 	FEngineLoop::AppExit();
-
-#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
-	// Release the named mutex again now that we are done.
-	ReleaseNamedMutex();
-#endif
 
 	// pause if we should
 	if (GShouldPauseBeforeExit)

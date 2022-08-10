@@ -465,16 +465,9 @@ extern CORE_API uint32 GFrameNumber;
 /** NEED TO RENAME, for RT version of GFrameTime use View.ViewFamily->FrameNumber or pass down from RT from GFrameTime). */
 extern CORE_API uint32 GFrameNumberRenderThread;
 
-#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
-// We cannot count on this variable to be accurate in a shipped game, so make sure no code tries to use it
 /** Whether we are the first instance of the game running. */
-#if PLATFORM_UNIX
-#define GIsFirstInstance FPlatformProcess::IsFirstInstance()
-#else
+UE_DEPRECATED(5.1, "Please use `FPlatformProcess::IsFirstInstance()`")
 extern CORE_API bool GIsFirstInstance;
-#endif
-
-#endif
 
 /** Threshold for a frame to be considered a hitch (in milliseconds). */
 extern CORE_API float GHitchThresholdMS;

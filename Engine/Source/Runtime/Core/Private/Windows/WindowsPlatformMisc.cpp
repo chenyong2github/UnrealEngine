@@ -574,6 +574,10 @@ void FWindowsPlatformMisc::PlatformInit()
 	FWindowsPlatformStackWalk::RegisterOnModulesChanged();
 }
 
+void FWindowsPlatformMisc::PlatformTearDown()
+{
+	FPlatformProcess::CeaseBeingFirstInstance();
+}
 
 /**
  * Handler called for console events like closure, CTRL-C, ...
