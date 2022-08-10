@@ -7142,7 +7142,7 @@ UWorld* FSeamlessTravelHandler::Tick()
 				{
 					if (AController* Player = Iterator->Get())
 					{
-						if (Player->ShouldParticipateInServerTravel())
+						if (Player->ShouldParticipateInSeamlessTravel())
 						{
 							KeepAnnotation.Set(Player);
 						}
