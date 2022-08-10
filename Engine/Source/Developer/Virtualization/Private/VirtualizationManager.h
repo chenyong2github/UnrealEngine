@@ -218,7 +218,7 @@ private:
 	// The following members are set from the config file
 
 	/** Are payloads allowed to be virtualized. Defaults to true. */
-	bool bEnablePayloadPushing;
+	bool bEnablePayloadVirtualization;
 
 	/** Should payloads be cached locally after being pulled from persistent storage? Defaults to true. */
 	bool bEnableCacheAfterPull;
