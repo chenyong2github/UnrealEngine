@@ -972,13 +972,23 @@ namespace UnrealBuildTool
 			}
 		}
 
-		static void AppendCLArguments_C(List<string> Arguments)
+		static void AppendCLArguments_C(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			// Explicitly compile the file as C.
 			Arguments.Add("/TC");
 
 			// Level 0 warnings.  Needed for external C projects that produce warnings at higher warning levels.
 			Arguments.Add("/W0");
+
+			// Select C Standard version available
+			if (CompileEnvironment.CStandard == CStandardVersion.C11)
+			{
+				Arguments.Add("/std:c11");
+			}
+			else if (CompileEnvironment.CStandard >= CStandardVersion.C17)
+			{
+				Arguments.Add("/std:c17");
+			}
 		}
 
 		protected virtual void AppendLinkArguments(LinkEnvironment LinkEnvironment, List<string> Arguments)
@@ -1379,7 +1389,7 @@ namespace UnrealBuildTool
 				// Add C or C++ specific compiler arguments.
 				if (bIsPlainCFile)
 				{
-					AppendCLArguments_C(CompileAction.Arguments);
+					AppendCLArguments_C(CompileEnvironment, CompileAction.Arguments);
 				}
 				else
 				{

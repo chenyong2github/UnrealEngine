@@ -856,6 +856,12 @@ namespace UnrealBuildTool
 			{
 				return false;
 			}
+			
+			if (ModuleCompileEnvironment.CStandard != CompileEnvironment.CStandard)
+			{
+				return false;
+			}
+			
 			if (ModuleCompileEnvironment.IncludeOrderVersion != CompileEnvironment.IncludeOrderVersion)
 			{
 				return false;
@@ -954,6 +960,11 @@ namespace UnrealBuildTool
 				Variant += String.Format(".{0}", CompileEnvironment.CppStandard);
 			}
 
+			if (CompileEnvironment.CStandard != BaseCompileEnvironment.CStandard)
+			{
+				Variant += String.Format(".{0}", CompileEnvironment.CStandard);
+			}
+
 			if (CompileEnvironment.IncludeOrderVersion != BaseCompileEnvironment.IncludeOrderVersion)
 			{
 				if (CompileEnvironment.IncludeOrderVersion != EngineIncludeOrderVersion.Latest)
@@ -979,6 +990,7 @@ namespace UnrealBuildTool
 			CompileEnvironment.UnsafeTypeCastWarningLevel = ModuleCompileEnvironment.UnsafeTypeCastWarningLevel;
 			CompileEnvironment.bEnableUndefinedIdentifierWarnings = ModuleCompileEnvironment.bEnableUndefinedIdentifierWarnings;
 			CompileEnvironment.CppStandard = ModuleCompileEnvironment.CppStandard;
+			CompileEnvironment.CStandard = ModuleCompileEnvironment.CStandard;
 			CompileEnvironment.IncludeOrderVersion = ModuleCompileEnvironment.IncludeOrderVersion;
 		}
 
@@ -1483,6 +1495,12 @@ namespace UnrealBuildTool
 			if (Target.bEnableCppModules && Result.CppStandard == CppStandardVersion.Default)
 			{
 				Result.CppStandard = CppStandardVersion.Cpp20;
+			}
+
+			// If the module overrides the C language version, override it on the compile environment
+			if (Rules.CStandard != CStandardVersion.Default)
+			{
+				Result.CStandard = Rules.CStandard;
 			}
 
 			// Set the macro used to check whether monolithic headers can be used

@@ -1787,6 +1787,14 @@ namespace UnrealBuildTool
 		public CppStandardVersion CppStandard = CppStandardVersion.Default;
 
 		/// <summary>
+		/// Which C standard to use for compiling this target
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		[CommandLine("-CStd")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public CStandardVersion CStandard = CStandardVersion.Default;
+
+		/// <summary>
 		/// Do not allow manifest changes when building this target. Used to cause earlier errors when building multiple targets with a shared build environment.
 		/// </summary>
 		[CommandLine("-NoManifestChanges")]
@@ -3327,6 +3335,11 @@ namespace UnrealBuildTool
 		public CppStandardVersion CppStandard
 		{
 			get { return Inner.CppStandard; }
+		}
+
+		public CStandardVersion CStandard
+		{
+			get { return Inner.CStandard; }
 		}
 
 		internal bool bNoManifestChanges

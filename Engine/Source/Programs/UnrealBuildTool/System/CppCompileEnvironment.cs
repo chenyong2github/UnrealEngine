@@ -53,6 +53,42 @@ namespace UnrealBuildTool
 		/// </summary>
 		Default = Cpp17,
 	}
+	
+	/// <summary>
+	/// Specifies which C language standard to use. This enum should be kept in order, so that toolchains can check whether the requested setting is >= values that they support.
+	/// </summary>
+	public enum CStandardVersion
+	{
+		/// <summary>
+		/// Use the default standard version
+		/// </summary>
+		Default,
+
+		/// <summary>
+		/// Supports C89
+		/// </summary>
+		C89,
+
+		/// <summary>
+		/// Supports C99
+		/// </summary>
+		C99,
+
+		/// <summary>
+		/// Supports C11
+		/// </summary>
+		C11,
+
+		/// <summary>
+		/// Supports C17
+		/// </summary>
+		C17,
+
+		/// <summary>
+		/// Latest standard supported by the compiler
+		/// </summary>
+		Latest,
+	}
 
 	/// <summary>
 	/// The optimization level that may be compilation targets for C# files.
@@ -397,6 +433,11 @@ namespace UnrealBuildTool
 		/// Which C++ standard to support. May not be compatible with all platforms.
 		/// </summary>
 		public CppStandardVersion CppStandard = CppStandardVersion.Default;
+		
+		/// <summary>
+		/// Which C standard to support. May not be compatible with all platforms.
+		/// </summary>
+		public CStandardVersion CStandard = CStandardVersion.Default;
 
 		/// <summary>
 		/// The amount of the stack usage to report static analysis warnings.
@@ -501,6 +542,7 @@ namespace UnrealBuildTool
 			bHackHeaderGenerator = Other.bHackHeaderGenerator;
 			bHideSymbolsByDefault = Other.bHideSymbolsByDefault;
 			CppStandard = Other.CppStandard;
+			CStandard = Other.CStandard;
 			bEnableCoroutines = Other.bEnableCoroutines;
 			IncludeOrderVersion = Other.IncludeOrderVersion;
 			CrashDiagnosticDirectory = Other.CrashDiagnosticDirectory;

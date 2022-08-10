@@ -324,6 +324,32 @@ namespace UnrealBuildTool
 			}
 		}
 
+		protected virtual void GetCStandardCompileArgument(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			switch (CompileEnvironment.CStandard)
+			{
+				case CStandardVersion.Default:
+					break;
+				case CStandardVersion.C89:
+					Arguments.Add("-std=c89");
+					break;
+				case CStandardVersion.C99:
+					Arguments.Add("-std=c99");
+					break;
+				case CStandardVersion.C11:
+					Arguments.Add("-std=c11");
+					break;
+				case CStandardVersion.C17:
+					Arguments.Add("-std=c17");
+					break;
+				case CStandardVersion.Latest:
+					Arguments.Add("-std=c2x");
+					break;
+				default:
+					throw new BuildException($"Unsupported C standard type set: {CompileEnvironment.CStandard}");
+			}
+		}
+
 		protected virtual void GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			Arguments.Add("-x c++");
@@ -333,6 +359,7 @@ namespace UnrealBuildTool
 		protected virtual void GetCompileArguments_C(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			Arguments.Add("-x c");
+			GetCStandardCompileArgument(CompileEnvironment, Arguments);
 		}
 
 		protected virtual void GetCompileArguments_MM(CppCompileEnvironment CompileEnvironment, List<string> Arguments)

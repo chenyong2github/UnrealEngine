@@ -84,26 +84,24 @@ namespace UnrealBuildTool
 							{
 								UEBuildModuleCPP.InputFileCollection InputFileCollection = Module.FindInputFiles(Target.Platform, new Dictionary<DirectoryItem, FileItem[]>());
 
-								List<FileItem> InputFiles = new List<FileItem>();
-								InputFiles.AddRange(InputFileCollection.CPPFiles);
-								InputFiles.AddRange(InputFileCollection.CCFiles);
-
 								CppCompileEnvironment ModuleCompileEnvironment = Module.CreateModuleCompileEnvironment(Target.Rules, BinaryCompileEnvironment);
 
 								StringBuilder CommandBuilder = new StringBuilder();
+								StringBuilder CppCommandBuilder = new StringBuilder();
+								StringBuilder CCommandBuilder = new StringBuilder();
 								CommandBuilder.AppendFormat("\"{0}\"", ClangPath.FullName);
 
 								switch (ModuleCompileEnvironment.CppStandard)
 								{
 									case CppStandardVersion.Cpp14:
-										CommandBuilder.AppendFormat(IsWindowsClang ? " /std:c++14" : " -std=c++14");
+										CppCommandBuilder.AppendFormat(IsWindowsClang ? " /std:c++14" : " -std=c++14");
 										break;
 									case CppStandardVersion.Cpp17:
-										CommandBuilder.AppendFormat(IsWindowsClang ? " /std:c++17" : " -std=c++17");
+										CppCommandBuilder.AppendFormat(IsWindowsClang ? " /std:c++17" : " -std=c++17");
 										break;
 									case CppStandardVersion.Cpp20:
 									case CppStandardVersion.Latest:
-										CommandBuilder.AppendFormat(IsWindowsClang ? " /std:c++latest" : " -std=c++20");
+										CppCommandBuilder.AppendFormat(IsWindowsClang ? " /std:c++latest" : " -std=c++20");
 										break;
 									default:
 										throw new BuildException($"Unsupported C++ standard type set: {ModuleCompileEnvironment.CppStandard}");
@@ -111,11 +109,34 @@ namespace UnrealBuildTool
 
 								if (ModuleCompileEnvironment.bEnableCoroutines)
 								{
-									CommandBuilder.AppendFormat(" -fcoroutines-ts");
+									CppCommandBuilder.AppendFormat(" -fcoroutines-ts");
 									if (!ModuleCompileEnvironment.bEnableExceptions)
 									{
-										CommandBuilder.AppendFormat(" -Wno-coroutine-missing-unhandled-exception");
+										CppCommandBuilder.AppendFormat(" -Wno-coroutine-missing-unhandled-exception");
 									}
+								}
+
+								switch (ModuleCompileEnvironment.CStandard)
+								{
+									case CStandardVersion.Default:
+										break;
+									case CStandardVersion.C89:
+										CCommandBuilder.AppendFormat(IsWindowsClang ? "" : " -std=c89");
+										break;
+									case CStandardVersion.C99:
+										CCommandBuilder.AppendFormat(IsWindowsClang ? "" : " -std=c99");
+										break;
+									case CStandardVersion.C11:
+										CCommandBuilder.AppendFormat(IsWindowsClang ? " /std:c11" : " -std=c11");
+										break;
+									case CStandardVersion.C17:
+										CCommandBuilder.AppendFormat(IsWindowsClang ? " /std:c17" : " -std=c17");
+										break;
+									case CStandardVersion.Latest:
+										CCommandBuilder.AppendFormat(IsWindowsClang ? " /std:c17" : " -std=c2x");
+										break;
+									default:
+										throw new BuildException($"Unsupported C standard type set: {ModuleCompileEnvironment.CStandard}");
 								}
 
 								foreach (FileItem ForceIncludeFile in ModuleCompileEnvironment.ForceIncludeFiles)
@@ -135,11 +156,19 @@ namespace UnrealBuildTool
 									CommandBuilder.AppendFormat(" -I\"{0}\"", IncludePath);
 								}
 
-								foreach (FileItem InputFile in InputFiles)
+								foreach (FileItem InputFile in InputFileCollection.CPPFiles)
 								{
 									if (FileFilter == null || FileFilter.Matches(InputFile.Location.MakeRelativeTo(Unreal.RootDirectory)))
 									{
-										FileToCommand[InputFile.Location] = String.Format("{0} \"{1}\"", CommandBuilder, InputFile.FullName);
+										FileToCommand[InputFile.Location] = String.Format("{0} {1} \"{2}\"", CommandBuilder, CppCommandBuilder, InputFile.FullName);
+									}
+								}
+
+								foreach (FileItem InputFile in InputFileCollection.CFiles)
+								{
+									if (FileFilter == null || FileFilter.Matches(InputFile.Location.MakeRelativeTo(Unreal.RootDirectory)))
+									{
+										FileToCommand[InputFile.Location] = String.Format("{0} {1} \"{2}\"", CommandBuilder, CCommandBuilder, InputFile.FullName);
 									}
 								}
 							}

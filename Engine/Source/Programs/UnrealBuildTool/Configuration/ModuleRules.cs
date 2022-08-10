@@ -1098,6 +1098,12 @@ namespace UnrealBuildTool
 		/// Which stanard to use for compiling this module
 		/// </summary>
 		public CppStandardVersion CppStandard = CppStandardVersion.Default;
+		
+		/// <summary>
+		/// Which standard to use for compiling this module
+		/// </summary>
+		public CStandardVersion CStandard = CStandardVersion.Default;
+
 
 		/// <summary>
 		///  Control visibility of symbols
