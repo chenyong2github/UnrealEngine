@@ -528,7 +528,7 @@ bool UFactory::IsSupportedFileExtension(FStringView InExtension) const
 }
 
 
-bool UFactory::ImportUntypedBulkDataFromText(const TCHAR*& Buffer, FUntypedBulkData& BulkData)
+bool UFactory::ImportUntypedBulkDataFromText(const TCHAR*& Buffer, FBulkData& BulkData)
 {
 	FString StrLine;
 	int32 ElementCount = 0;
@@ -566,7 +566,7 @@ bool UFactory::ImportUntypedBulkDataFromText(const TCHAR*& Buffer, FUntypedBulkD
 					check(Size == (ElementSize *ElementCount));
 
 					BulkData.Lock(LOCK_READ_WRITE);
-					void* RawBulkData = BulkData.Realloc(ElementCount);
+					void* RawBulkData = BulkData.Realloc(ElementCount, ElementSize);
 					RawData = (uint8*)RawBulkData;
 					bBulkDataIsLocked = true;
 				}

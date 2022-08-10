@@ -1212,6 +1212,7 @@ public:
 	}
 };
 
+UE_DEPRECATED(5.1, "Use FBulkData/TBulkData");
 struct COREUOBJECT_API FUntypedBulkData : public FBulkData
 {
 	virtual ~FUntypedBulkData() = default;

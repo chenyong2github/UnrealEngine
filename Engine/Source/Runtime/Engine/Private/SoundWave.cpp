@@ -1236,36 +1236,6 @@ const FPlatformAudioCookOverrides* USoundWave::GetPlatformCompressionOverridesFo
 	return FPlatformCompressionUtilities::GetCookOverrides();
 }
 
-namespace SoundWavePrivate
-{
-	struct FBulkDataReadScopeLock
-	{
-		FBulkDataReadScopeLock(const FUntypedBulkData& InBulkData)
-		:	BulkData(InBulkData)
-		{
-			RawPtr = BulkData.LockReadOnly();
-		}
-
-		template<typename T>
-		const T* GetData() const
-		{
-			return static_cast<const T*>(RawPtr);
-		}
-			
-		~FBulkDataReadScopeLock()
-		{
-			if (BulkData.IsLocked())
-			{
-				BulkData.Unlock();
-			}
-		}
-
-		private:
-			const FUntypedBulkData& BulkData;
-			const void* RawPtr = nullptr;
-	};
-}
-
 #if WITH_EDITOR
 bool USoundWave::GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& OutSampleRate, uint16& OutNumChannels) const
 {
@@ -1287,8 +1257,6 @@ bool USoundWave::GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& 
 
 bool USoundWave::GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& OutSampleRate, TArray<EAudioSpeakers>& OutChannelOrder) const
 {
-	using namespace SoundWavePrivate;
-
 	OutRawPCMData.Reset();
 	OutSampleRate = 0;
 	OutChannelOrder.Reset();

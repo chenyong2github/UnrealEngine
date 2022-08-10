@@ -412,9 +412,9 @@ void UVectorFieldStatic::UpdateCPUData(bool bDiscardData)
 		if (bDiscardData && SourceData.IsBulkDataLoaded())
 		{
 			// NOTE(mv): This assertion will fail in the case where the bulk data is still available even though the bDiscardInternalCopy
-			//           flag is toggled when FUntypedBulkData::CanLoadFromDisk() also fail. This happens when the user tries to allow 
+			//           flag is toggled when FBulkData::CanLoadFromDisk() also fail. This happens when the user tries to allow 
 			//           CPU access to a newly imported file that isn't reloaded. We still have our valid data, so we just issue a 
-			//           warning and move on. See FUntypedBulkData::GetCopy() for more details. 
+			//           warning and move on. See FBulkData::GetCopy() for more details. 
 			UE_LOG(LogVectorField, Warning, TEXT("SourceData.GetCopy() is supposed to unload the data after copying, but it is still loaded."));
 		}
 

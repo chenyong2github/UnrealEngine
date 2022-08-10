@@ -10,7 +10,7 @@
 #include "Factory.generated.h"
 
 class UAssetImportTask;
-struct FUntypedBulkData;
+class FBulkData;
 
 /**
  * Base class for all factories
@@ -174,7 +174,7 @@ public:
 	}
 
 	// @todo document
-	virtual bool ImportUntypedBulkDataFromText(const TCHAR*& Buffer, FUntypedBulkData& BulkData);
+	virtual bool ImportUntypedBulkDataFromText(const TCHAR*& Buffer, FBulkData& BulkData);
 
 	/** Creates a list of file extensions supported by this factory */
 	virtual void GetSupportedFileExtensions(TArray<FString>& OutExtensions) const;

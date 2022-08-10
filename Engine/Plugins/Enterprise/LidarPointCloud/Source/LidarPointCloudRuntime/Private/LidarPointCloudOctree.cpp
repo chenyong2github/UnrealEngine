@@ -35,16 +35,27 @@ FArchive& operator<<(FArchive& Ar, FLidarPointCloudPoint_Legacy& P)
 	return Ar;
 }
 
-struct FLidarPointCloudBulkData_Legacy : public FUntypedBulkData
+struct FLidarPointCloudBulkData_Legacy : public FBulkData
 {
 private:
 	int32 ElementSize;
 
 public:
 	FLidarPointCloudBulkData_Legacy(int32 ElementSize) : ElementSize(ElementSize) {}
-	virtual int32 GetElementSize() const override { return ElementSize; }
-	virtual void SerializeElement(FArchive& Ar, void* Data, int64 ElementIndex) override { }
+	void Serialize(FArchive& Ar, UObject* Owner);
+	int32 GetElementCount() const;
 };
+
+void FLidarPointCloudBulkData_Legacy::Serialize(FArchive& Ar, UObject* Owner)
+{
+	const bool bAttemptFileMapping = false;
+	FBulkData::Serialize(Ar, Owner, bAttemptFileMapping, ElementSize, EFileRegionType::None);
+}
+
+int32 FLidarPointCloudBulkData_Legacy::GetElementCount() const
+{
+	return GetBulkDataSize() / ElementSize;
+}
 
 /** Used for grid allocation calculations */
 struct FGridAllocation

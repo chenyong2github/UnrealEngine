@@ -848,64 +848,6 @@ struct FStaticMeshTriangle
 	uint32		bExplicitNormals;
 };
 
-struct FStaticMeshTriangleBulkData : public FUntypedBulkData
-{
-	virtual int32 GetElementSize() const
-	{
-		return sizeof(FStaticMeshTriangle);
-	}
-
-	virtual void SerializeElement( FArchive& Ar, void* Data, int64 ElementIndex )
-	{
-		FStaticMeshTriangle& StaticMeshTriangle = *((FStaticMeshTriangle*)Data + ElementIndex);
-		Ar << StaticMeshTriangle.Vertices[0];
-		Ar << StaticMeshTriangle.Vertices[1];
-		Ar << StaticMeshTriangle.Vertices[2];
-		for( int32 VertexIndex=0; VertexIndex<3; VertexIndex++ )
-		{
-			for( int32 UVIndex=0; UVIndex<8; UVIndex++ )
-			{
-				Ar << StaticMeshTriangle.UVs[VertexIndex][UVIndex];
-			}
-        }
-		Ar << StaticMeshTriangle.Colors[0];
-		Ar << StaticMeshTriangle.Colors[1];
-		Ar << StaticMeshTriangle.Colors[2];
-		Ar << StaticMeshTriangle.MaterialIndex;
-		Ar << StaticMeshTriangle.FragmentIndex;
-		Ar << StaticMeshTriangle.SmoothingMask;
-		Ar << StaticMeshTriangle.NumUVs;
-		Ar << StaticMeshTriangle.TangentX[0];
-		Ar << StaticMeshTriangle.TangentX[1];
-		Ar << StaticMeshTriangle.TangentX[2];
-		Ar << StaticMeshTriangle.TangentY[0];
-		Ar << StaticMeshTriangle.TangentY[1];
-		Ar << StaticMeshTriangle.TangentY[2];
-		Ar << StaticMeshTriangle.TangentZ[0];
-		Ar << StaticMeshTriangle.TangentZ[1];
-		Ar << StaticMeshTriangle.TangentZ[2];
-		Ar << StaticMeshTriangle.bOverrideTangentBasis;
-		Ar << StaticMeshTriangle.bExplicitNormals;
-	}
-
-	virtual bool RequiresSingleElementSerialization( FArchive& Ar )
-	{
-		return false;
-	}
-};
-
-struct FFragmentRange
-{
-	int32 BaseIndex;
-	int32 NumPrimitives;
-
-	friend FArchive& operator<<(FArchive& Ar,FFragmentRange& FragmentRange)
-	{
-		Ar << FragmentRange.BaseIndex << FragmentRange.NumPrimitives;
-		return Ar;
-	}
-};
-
 void UStaticMesh::FixupZeroTriangleSections()
 {
 	if (GetRenderData()->MaterialIndexToImportIndex.Num() > 0 && GetRenderData()->LODResources.Num())

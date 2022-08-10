@@ -3262,53 +3262,6 @@ void FLegacyLightMap1D::Serialize(FArchive& Ar)
 	SimpleSamples.Serialize( Ar, Owner, INDEX_NONE, false );
 }
 
-/*-----------------------------------------------------------------------------
-	FQuantizedLightSample version of bulk data.
------------------------------------------------------------------------------*/
-
-/**
- * Returns whether single element serialization is required given an archive. This e.g.
- * can be the case if the serialization for an element changes and the single element
- * serialization code handles backward compatibility.
- */
-template<class QuantizedLightSampleType>
-bool TQuantizedLightSampleBulkData<QuantizedLightSampleType>::RequiresSingleElementSerialization( FArchive& Ar )
-{
-	return false;
-}
-
-/**
- * Returns size in bytes of single element.
- *
- * @return Size in bytes of single element
- */
-template<class QuantizedLightSampleType>
-int32 TQuantizedLightSampleBulkData<QuantizedLightSampleType>::GetElementSize() const
-{
-	return sizeof(QuantizedLightSampleType);
-}
-
-/**
- * Serializes an element at a time allowing and dealing with endian conversion and backward compatiblity.
- * 
- * @param Ar			Archive to serialize with
- * @param Data			Base pointer to data
- * @param ElementIndex	Element index to serialize
- */
-template<class QuantizedLightSampleType>
-void TQuantizedLightSampleBulkData<QuantizedLightSampleType>::SerializeElement( FArchive& Ar, void* Data, int64 ElementIndex )
-{
-	QuantizedLightSampleType* QuantizedLightSample = (QuantizedLightSampleType*)Data + ElementIndex;
-	// serialize as colors
-	const uint32 NumCoefficients = sizeof(QuantizedLightSampleType) / sizeof(FColor);
-	for(int32 CoefficientIndex = 0; CoefficientIndex < NumCoefficients; CoefficientIndex++)
-	{
-		uint32 ColorDWORD = QuantizedLightSample->Coefficients[CoefficientIndex].DWColor();
-		Ar << ColorDWORD;
-		QuantizedLightSample->Coefficients[CoefficientIndex] = FColor(ColorDWORD);
-	} 
-};
-
 FArchive& operator<<(FArchive& Ar, FLightMap*& R)
 {
 	uint32 LightMapType = FLightMap::LMT_None;

@@ -119,7 +119,7 @@ public:
 	~FEditorBulkData();
 
 	/** 
-	 * Convenience method to make it easier to convert from FUntypedBulkData to FEditorBulkData and sets the Guid 
+	 * Convenience method to make it easier to convert from FBulkData to FEditorBulkData and sets the Guid 
 	 *
 	 * @param BulkData	The bulkdata object to create from.
 	 * @param Guid		A guid associated with the bulkdata object which will be used to identify the payload.

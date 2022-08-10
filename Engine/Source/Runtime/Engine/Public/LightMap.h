@@ -402,31 +402,9 @@ template <> struct TIsPODType<FQuantizedSimpleLightSample> { enum { Value = true
  * Bulk data array of FQuantizedLightSamples
  */
 template<class QuantizedLightSampleType>
-struct TQuantizedLightSampleBulkData : public FUntypedBulkData
+struct TQuantizedLightSampleBulkData : public TBulkData<QuantizedLightSampleType>
 {
 	typedef QuantizedLightSampleType SampleType;
-	/**
-	 * Returns whether single element serialization is required given an archive. This e.g.
-	 * can be the case if the serialization for an element changes and the single element
-	 * serialization code handles backward compatibility.
-	 */
-	virtual bool RequiresSingleElementSerialization( FArchive& Ar );
-
-	/**
-	 * Returns size in bytes of single element.
-	 *
-	 * @return Size in bytes of single element
-	 */
-	virtual int32 GetElementSize() const;
-
-	/**
-	 * Serializes an element at a time allowing and dealing with endian conversion and backward compatiblity.
-	 * 
-	 * @param Ar			Archive to serialize with
-	 * @param Data			Base pointer to data
-	 * @param ElementIndex	Element index to serialize
-	 */
-	virtual void SerializeElement( FArchive& Ar, void* Data, int64 ElementIndex );
 };
 
 /** A 1D array of incident lighting data. */

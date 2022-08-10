@@ -13,8 +13,6 @@ namespace Chaos
 	class FConvex;
 }
 
-struct FUntypedBulkData;
-
 template<typename T, int d>
 class FChaosDerivedDataReader
 {

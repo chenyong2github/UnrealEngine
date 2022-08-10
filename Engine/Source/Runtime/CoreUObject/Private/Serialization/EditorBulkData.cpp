@@ -734,7 +734,7 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 		// We've made changes to this serialization path without versioning them, because we assume
 		// IsTransacting means !IsPersistent and therefore all loaded data was saved with the current binary.
 		check(!Ar.IsPersistent()); 
-		// Do not process the transaction if the owner is mid loading (see FUntypedBulkData::Serialize)
+		// Do not process the transaction if the owner is mid loading (see FBulkData::Serialize)
 		bool bNeedsTransaction = Ar.IsSaving() && (!Owner || !Owner->HasAnyFlags(RF_NeedLoad));
 
 		Ar << bNeedsTransaction;
