@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #if WITH_EDITOR
+#include "Tests/Determinism/PCGDifferenceDeterminismTest.h"
+
+#include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
 #include "Elements/PCGDifferenceElement.h"
-#include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGDifferenceDeterminismSingleSameDataTest, FPCGTestBaseClass, "pcg.tests.Difference.Determinism.SingleSameData", PCGTestsCommon::TestFlags)
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGDifferenceDeterminismSingleIdenticalDataTest, FPCGTestBaseClass, "pcg.tests.Difference.Determinism.SingleMultipleData", PCGTestsCommon::TestFlags)
@@ -33,7 +34,7 @@ namespace
 
 	void DifferenceTestBase(PCGTestsCommon::FTestData& TestData, EPCGDifferenceMode DifferenceMode)
 	{
-		TFunction<void(PCGTestsCommon::FTestData& TestData)> AdditionalSettingsDelegate;
+		TFunction<void(PCGTestsCommon::FTestData&)> AdditionalSettingsDelegate;
 
 		switch (DifferenceMode)
 		{
@@ -54,7 +55,7 @@ namespace
 		// Source
 		PCGDeterminismTests::AddVolumeInputData(TestData.InputData, FVector::ZeroVector, PCGDeterminismTests::Defaults::LargeVector, PCGDeterminismTests::Defaults::SmallVector, PCGDifferenceConstants::SourceLabel);
 
-		// Difference 
+		// Difference
 		PCGDeterminismTests::AddVolumeInputData(TestData.InputData, FVector::ZeroVector, PCGDeterminismTests::Defaults::MediumVector, PCGDeterminismTests::Defaults::SmallVector, PCGDifferenceConstants::DifferencesLabel);
 	}
 
@@ -69,6 +70,30 @@ namespace
 		// Randomized Differences
 		PCGDeterminismTests::AddRandomizedVolumeInputData(TestData, PCGDifferenceConstants::DifferencesLabel);
 		PCGDeterminismTests::AddRandomizedMultiplePointInputData(TestData, 20, PCGDifferenceConstants::DifferencesLabel);
+	}
+}
+
+namespace PCGDeterminismTests
+{
+	namespace DifferenceElement
+	{
+		inline bool RunTestSuite()
+		{
+			FString EmptyParameters;
+			FPCGDifferenceDeterminismSingleSameDataTest DifferenceDeterminismSingleSameDataTest(EmptyParameters);
+			FPCGDifferenceDeterminismSingleIdenticalDataTest DifferenceDeterminismSingleIdenticalDataTest(EmptyParameters);
+			FPCGDifferenceDeterminismMultipleSameDataTest DifferenceDeterminismMultipleSameDataTest(EmptyParameters);
+			FPCGDifferenceDeterminismMultipleIdenticalDataTest DifferenceDeterminismMultipleIdenticalDataTest(EmptyParameters);
+			FPCGDifferenceDeterminismOrderIndependenceTest DifferenceDeterminismOrderIndependenceTest(EmptyParameters);
+
+			bool bSuccess = true;
+			bSuccess &= DifferenceDeterminismSingleSameDataTest.RunPCGTest(EmptyParameters);
+			bSuccess &= DifferenceDeterminismSingleIdenticalDataTest.RunPCGTest(EmptyParameters);
+			bSuccess &= DifferenceDeterminismMultipleSameDataTest.RunPCGTest(EmptyParameters);
+			bSuccess &= DifferenceDeterminismMultipleIdenticalDataTest.RunPCGTest(EmptyParameters);
+			bSuccess &= DifferenceDeterminismOrderIndependenceTest.RunPCGTest(EmptyParameters);
+			return bSuccess;
+		}
 	}
 }
 

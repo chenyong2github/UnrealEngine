@@ -9,6 +9,7 @@
 #include "PCGInputOutputSettings.h"
 #include "PCGPin.h"
 #include "PCGSubgraph.h"
+#include "Tests/Determinism/PCGDeterminismNativeTests.h"
 #include "Tests/Determinism/PCGDeterminismTestBlueprintBase.h"
 #include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
@@ -35,6 +36,7 @@
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
 #include "EditorAssetLibrary.h"
+#include "Fonts/FontMeasure.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/UICommandList.h"
@@ -393,10 +395,20 @@ void FPCGEditor::OnDeterminismTests()
 	DeterminismWidget->ClearItems();
 	DeterminismWidget->BuildBaseColumns();
 
-	int32 Index = 1;
 	for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
 	{
 		check(Object);
+
+		// Gets an appropriate width for each new column
+		auto GetSlateTextWidth = [](const FText& Text) -> float
+		{
+			check(FSlateApplication::Get().GetRenderer());
+			const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+			// TODO: Verify the below property for this part of the UI
+			FSlateFontInfo FontInfo(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"));
+			constexpr float Padding = 30.f;
+			return Padding + FontMeasure->Measure(Text, FontInfo).X;
+		};
 
 		if (!Object->IsA<UPCGEditorGraphNodeInput>() && !Object->IsA<UPCGEditorGraphNodeOutput>())
 		{
@@ -405,25 +417,36 @@ void FPCGEditor::OnDeterminismTests()
 				const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
 				check(PCGNode && PCGNode->DefaultSettings);
 
-				// TODO: Check if the node has a native test
-
 				TSharedPtr<FDeterminismNodeTestResult> NodeResult = MakeShared<FDeterminismNodeTestResult>();
 				NodeResult->NodeTitle = PCGNode->GetNodeTitle();
 				NodeResult->NodeName = PCGNode->GetName();
 				NodeResult->Seed = PCGNode->DefaultSettings->Seed;
 
-				if (PCGNode->DefaultSettings->DeterminismSettings.bBasicTests)
+				if (PCGNode->DefaultSettings->DeterminismSettings.bNativeTests)
 				{
-					PCGDeterminismTests::FNodeTestInfo TestInfo = PCGDeterminismTests::Defaults::DeterminismBasicTestInfo;
-					PCGDeterminismTests::RunDeterminismTest(PCGNode, *NodeResult, TestInfo);
-					TestsConducted.FindOrAdd(TestInfo.TestName, {TestInfo.TestName, TestInfo.TestLabel, TestInfo.TestLabelWidth, HAlign_Center});
-				}
+					// If the settings has a native test suite
+					if (TFunction<bool()> NativeTestSuite = PCGDeterminismTests::GetNativeTestIfExists(PCGNode->DefaultSettings))
+					{
+						FName NodeName(PCGNode->GetName());
 
-				if (PCGNode->DefaultSettings->DeterminismSettings.bOrderIndependenceTests)
-				{
-					PCGDeterminismTests::FNodeTestInfo TestInfo = PCGDeterminismTests::Defaults::DeterminismOrderIndependenceInfo;
-					PCGDeterminismTests::RunDeterminismTest(PCGNode, *NodeResult, TestInfo);
-					TestsConducted.FindOrAdd(TestInfo.TestName, {TestInfo.TestName, TestInfo.TestLabel, TestInfo.TestLabelWidth, HAlign_Center});
+						bool bSuccess = NativeTestSuite();
+						NodeResult->TestResults.Emplace(NodeName, bSuccess ? EDeterminismLevel::Basic : EDeterminismLevel::NoDeterminism);
+						NodeResult->AdditionalDetails.Emplace(FString(TEXT("Native test conducted for - ")) + NodeName.ToString());
+						NodeResult->bFlagRaised = !bSuccess;
+
+						FText ColumnText = NSLOCTEXT("PCGDeterminism", "NativeTest", "Native Test");
+						TestsConducted.FindOrAdd(NodeName, {NodeName, ColumnText, GetSlateTextWidth(ColumnText), HAlign_Center});
+					}
+					else // There is no native test suite, so run the basic tests
+					{
+						PCGDeterminismTests::FNodeTestInfo BasicTestInfo = PCGDeterminismTests::Defaults::DeterminismBasicTestInfo;
+						PCGDeterminismTests::RunDeterminismTest(PCGNode, *NodeResult, BasicTestInfo);
+						TestsConducted.FindOrAdd(BasicTestInfo.TestName, {BasicTestInfo.TestName, BasicTestInfo.TestLabel, BasicTestInfo.TestLabelWidth, HAlign_Center});
+
+						PCGDeterminismTests::FNodeTestInfo OrderIndependenceTestInfo = PCGDeterminismTests::Defaults::DeterminismOrderIndependenceInfo;
+						PCGDeterminismTests::RunDeterminismTest(PCGNode, *NodeResult, OrderIndependenceTestInfo);
+						TestsConducted.FindOrAdd(OrderIndependenceTestInfo.TestName, {OrderIndependenceTestInfo.TestName, OrderIndependenceTestInfo.TestLabel, OrderIndependenceTestInfo.TestLabelWidth, HAlign_Center});
+					}
 				}
 
 				// Custom tests
@@ -433,8 +456,8 @@ void FPCGEditor::OnDeterminismTests()
 					Blueprint.GetDefaultObject()->ExecuteTest(PCGNode, *NodeResult);
 					FName BlueprintName(Blueprint->GetName());
 
-					// TODO: Add a dynamic tab size guess for the width
-					TestsConducted.FindOrAdd(BlueprintName, {BlueprintName, FText::FromString(Blueprint->GetName()), 140.f, HAlign_Center});
+					FText ColumnText = FText::FromString(Blueprint->GetName());
+					TestsConducted.FindOrAdd(BlueprintName, {BlueprintName, ColumnText, GetSlateTextWidth(ColumnText), HAlign_Center});
 				}
 
 				DeterminismWidget->AddItem(NodeResult);

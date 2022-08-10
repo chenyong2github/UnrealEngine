@@ -13,12 +13,9 @@ USTRUCT(BlueprintType)
 struct FPCGDeterminismSettings
 {
 	GENERATED_BODY()
-	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Determinism)
-	bool bBasicTests = true;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Determinism)
-	bool bOrderIndependenceTests = true;
+	bool bNativeTests = true;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Determinism)
 	bool bUseBlueprintDeterminismTest = false;

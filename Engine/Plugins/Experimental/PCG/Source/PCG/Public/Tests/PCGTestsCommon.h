@@ -66,6 +66,8 @@ class FPCGTestBaseClass : public FAutomationTestBase
 {
 public:
 	using FAutomationTestBase::FAutomationTestBase;
+	/** Hook to expose private test function publicly */
+	bool RunPCGTest(const FString& Parameters) { return RunTest(Parameters); }
 
 protected:
 	/** Generates all valid input combinations */
