@@ -55,12 +55,14 @@ protected:
 			void Reset()
 			{
 				FTransactionSerializedObject::Reset();
+				ObjectInfo.Reset();
 				ObjectAnnotation.Reset();
 			}
 
 			void Swap(FSerializedObject& Other)
 			{
 				FTransactionSerializedObject::Swap(Other);
+				ObjectInfo.Swap(Other.ObjectInfo);
 				Exchange(ObjectAnnotation, Other.ObjectAnnotation);
 			}
 
