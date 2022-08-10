@@ -9,6 +9,7 @@
 #include "NiagaraShaderCompilationManager.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraScriptSource.h"
+#include "NiagaraSimulationStageCompileData.h"
 
 class Error;
 class UNiagaraGraph;
@@ -97,25 +98,7 @@ public:
 	virtual bool GetDisableDebugSwitches() const override { return bDisableDebugSwitches; }
 
 	// Simulation Stage Variables. Sim stage of 0 is always Spawn/Update
-	struct FCompileSimStageData
-	{
-		FGuid							StageGuid;
-		FName							StageName;
-		FName							EnabledBinding;
-		FName							ElementCountBinding;
-		uint32							NumIterations = 1;
-		FName							NumIterationsBinding;
-		FName							IterationSource;
-		ENiagaraSimStageExecuteBehavior	ExecuteBehavior = ENiagaraSimStageExecuteBehavior::Always;
-		mutable bool					PartialParticleUpdate = false;
-		bool							bParticleIterationStateEnabled = false;
-		FName							ParticleIterationStateBinding;
-		FIntPoint						ParticleIterationStateRange = FIntPoint::ZeroValue;
-		bool							bGpuDispatchForceLinear = false;
-		bool							bOverrideGpuDispatchNumThreads = false;
-		FIntVector						OverrideGpuDispatchNumThreads = FIntVector(1, 1, 1);
-	};
-	TArray<FCompileSimStageData> CompileSimStageData;
+	TArray<FNiagaraSimulationStageCompilationData> CompileSimStageData;
 
 	struct FCompileDataInterfaceData
 	{

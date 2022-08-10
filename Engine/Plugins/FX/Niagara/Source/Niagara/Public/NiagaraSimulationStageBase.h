@@ -7,6 +7,7 @@
 #include "NiagaraCommon.h"
 #include "NiagaraTypes.h"
 #include "NiagaraConstants.h"
+#include "NiagaraSimulationStageCompileData.h"
 #include "NiagaraSimulationStageBase.generated.h"
 
 class UNiagaraScript;
@@ -14,7 +15,7 @@ class UNiagaraScript;
 /**
 * A base class for niagara simulation stages.  This class should be derived to add stage specific information.
 */
-UCLASS()
+UCLASS(abstract)
 class NIAGARA_API UNiagaraSimulationStageBase : public UNiagaraMergeable
 {
 	GENERATED_BODY()
@@ -38,6 +39,7 @@ public:
 
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 #if WITH_EDITORONLY_DATA
+	virtual bool FillCompilationData(TArray<FNiagaraSimulationStageCompilationData>& CompilationSimStageData) const PURE_VIRTUAL(UNiagaraSimulationStageBase::FillCompileSimStageData, return false;);
 	/** Return the FName to use in place of the default for the location in the stack context. If this would be the default, return NAME_None.*/
 	virtual FName GetStackContextReplacementName() const { return NAME_None; }
 	void SetEnabled(bool bEnabled);
@@ -140,6 +142,9 @@ public:
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+#if WITH_EDITORONLY_DATA
+	virtual bool FillCompilationData(TArray<FNiagaraSimulationStageCompilationData>& CompilationSimStageData) const override;
+#endif
 #if WITH_EDITOR
 	virtual FName GetStackContextReplacementName() const override; 
 

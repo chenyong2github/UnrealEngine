@@ -90,6 +90,37 @@ bool UNiagaraSimulationStageGeneric::AppendCompileHash(FNiagaraCompileHashVisito
 	return true;
 }
 
+#if WITH_EDITORONLY_DATA
+bool UNiagaraSimulationStageGeneric::FillCompilationData(TArray<FNiagaraSimulationStageCompilationData>& CompilationSimStageData) const
+{
+	FNiagaraSimulationStageCompilationData& SimStageData = CompilationSimStageData.AddDefaulted_GetRef();
+	SimStageData.StageGuid = Script->GetUsageId();
+	SimStageData.StageName = SimulationStageName;
+	SimStageData.EnabledBinding = EnabledBinding.GetName();
+	SimStageData.ElementCountBinding = ElementCountBinding.GetName();
+	SimStageData.NumIterations = Iterations;
+	SimStageData.NumIterationsBinding = NumIterationsBinding.GetName();
+	SimStageData.IterationSource = IterationSource == ENiagaraIterationSource::DataInterface ? DataInterface.BoundVariable.GetName() : FName();
+	SimStageData.ExecuteBehavior = ExecuteBehavior;
+	SimStageData.PartialParticleUpdate = bDisablePartialParticleUpdate == false;
+	SimStageData.bParticleIterationStateEnabled = bParticleIterationStateEnabled;
+	SimStageData.ParticleIterationStateRange = ParticleIterationStateRange;
+	SimStageData.bGpuDispatchForceLinear = bGpuDispatchForceLinear;
+	SimStageData.bOverrideGpuDispatchNumThreads = bOverrideGpuDispatchNumThreads;
+	SimStageData.OverrideGpuDispatchNumThreads = OverrideGpuDispatchNumThreads;
+
+	if (SimStageData.bParticleIterationStateEnabled)
+	{
+		FString AttributeName = ParticleIterationStateBinding.GetName().ToString();
+		if (ensureMsgf(AttributeName.RemoveFromStart(TEXT("Particles.")), TEXT("Attribute '%s' is not in particles namespace"), *AttributeName))
+		{
+			SimStageData.ParticleIterationStateBinding = FName(AttributeName);
+		}
+	}
+	return true;
+}
+#endif //WITH_EDITORONLY_DATA
+
 void UNiagaraSimulationStageGeneric::PostInitProperties()
 {
 	Super::PostInitProperties();

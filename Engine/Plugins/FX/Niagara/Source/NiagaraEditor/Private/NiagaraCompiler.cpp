@@ -712,33 +712,8 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 					continue;
 				}
 
-				if ( UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage) )
+				if ( SimStage->FillCompilationData(CompileSimStageData) )
 				{
-					FCompileSimStageData& SimStageData	= CompileSimStageData.AddDefaulted_GetRef();
-					SimStageData.StageGuid				= GenericStage->Script->GetUsageId();
-					SimStageData.StageName				= GenericStage->SimulationStageName;
-					SimStageData.EnabledBinding			= GenericStage->EnabledBinding.GetName();
-					SimStageData.ElementCountBinding	= GenericStage->ElementCountBinding.GetName();
-					SimStageData.NumIterations			= GenericStage->Iterations;
-					SimStageData.NumIterationsBinding	= GenericStage->NumIterationsBinding.GetName();
-					SimStageData.IterationSource		= GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
-					SimStageData.ExecuteBehavior		= GenericStage->ExecuteBehavior;
-					SimStageData.PartialParticleUpdate	= GenericStage->bDisablePartialParticleUpdate == false;
-					SimStageData.bParticleIterationStateEnabled	= GenericStage->bParticleIterationStateEnabled;
-					SimStageData.ParticleIterationStateRange	= GenericStage->ParticleIterationStateRange;
-					SimStageData.bGpuDispatchForceLinear		= GenericStage->bGpuDispatchForceLinear;
-					SimStageData.bOverrideGpuDispatchNumThreads	= GenericStage->bOverrideGpuDispatchNumThreads;
-					SimStageData.OverrideGpuDispatchNumThreads	= GenericStage->OverrideGpuDispatchNumThreads;
-
-					if (SimStageData.bParticleIterationStateEnabled)
-					{
-						FString AttributeName = GenericStage->ParticleIterationStateBinding.GetName().ToString();
-						if ( ensureMsgf(AttributeName.RemoveFromStart(TEXT("Particles.")), TEXT("Attribute '%s' is not in particles namespace"), *AttributeName) )
-						{
-							SimStageData.ParticleIterationStateBinding = FName(AttributeName);
-						}
-					}
-
 					++ActiveStageCount;
 				}
 			}
