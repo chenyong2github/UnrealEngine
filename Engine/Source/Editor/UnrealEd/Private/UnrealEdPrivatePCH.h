@@ -209,7 +209,6 @@
 #include "Misc/Paths.h"
 #include "Misc/CoreStats.h"
 #include "Templates/ScopedCallback.h"
-#include "Misc/ITransaction.h"
 #include "Serialization/CustomVersion.h"
 #include "Misc/OutputDeviceError.h"
 #include "Misc/ObjectThumbnail.h"

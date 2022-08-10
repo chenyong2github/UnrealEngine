@@ -189,7 +189,6 @@
 #include "Templates/RefCounting.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/Attribute.h"
-#include "Misc/ITransaction.h"
 #include "Templates/ScopedCallback.h"
 #include "Misc/CoreStats.h"
 #include "Modules/ModuleInterface.h"

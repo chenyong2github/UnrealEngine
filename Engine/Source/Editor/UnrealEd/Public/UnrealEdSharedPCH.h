@@ -202,7 +202,6 @@
 #include "Misc/OutputDeviceError.h"
 #include "Misc/ObjectThumbnail.h"
 #include "Containers/StaticArray.h"
-#include "Misc/ITransaction.h"
 #include "Templates/ScopedCallback.h"
 #include "Misc/CoreStats.h"
 #include "HAL/PlatformProcess.h"
