@@ -828,9 +828,9 @@ void FPhysicsConstraintComponentDetails::AddConstraintProperties(IDetailLayoutBu
 
 	IDetailCategoryBuilder& ConstraintCategory = DetailBuilder.EditCategory("Constraint");
 
-	// Add current profile name to the constraint category header.
 	if (bInPhat)
 	{
+		// Add current profile name to the constraint category header.
 		ConstraintCategory.HeaderContent(
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -868,17 +868,18 @@ void FPhysicsConstraintComponentDetails::AddConstraintProperties(IDetailLayoutBu
 					return FText();
 				})
 			]);
+
+		// Add PhAT specific components to details panel.
+		ConstraintCategory.AddProperty(ConstraintInstance->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConstraintInstance, ConstraintBone1))).DisplayName(LOCTEXT("ConstraintChildBoneName", "Child Bone Name"));
+		ConstraintCategory.AddProperty(ConstraintInstance->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConstraintInstance, ConstraintBone2))).DisplayName(LOCTEXT("ConstraintParentBoneName", "Parent Bone Name"));
+
+		IDetailCategoryBuilder& ConstraintTransformsCat = DetailBuilder.EditCategory("ConstraintTransforms");
+
+		AddConstraintFrameTransform(EConstraintFrame::Frame1, ConstraintTransformsCat, ConstraintInstance);
+		AddConstraintFrameTransform(EConstraintFrame::Frame2, ConstraintTransformsCat, ConstraintInstance);
+
+		UpdateTransformProxyDisplayRelativeToDefault(ConstraintInstance);
 	}
-
-	ConstraintCategory.AddProperty(ConstraintInstance->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConstraintInstance, ConstraintBone1))).DisplayName(LOCTEXT("ConstraintChildBoneName", "Child Bone Name"));
-	ConstraintCategory.AddProperty(ConstraintInstance->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConstraintInstance, ConstraintBone2))).DisplayName(LOCTEXT("ConstraintParentBoneName", "Parent Bone Name"));
-
-	IDetailCategoryBuilder& ConstraintTransformsCat = DetailBuilder.EditCategory("ConstraintTransforms");
-
-	AddConstraintFrameTransform(EConstraintFrame::Frame1, ConstraintTransformsCat, ConstraintInstance);
-	AddConstraintFrameTransform(EConstraintFrame::Frame2, ConstraintTransformsCat, ConstraintInstance);
-
-	UpdateTransformProxyDisplayRelativeToDefault(ConstraintInstance);
 
 	// Hide the constraint transform values that are being represented by the proxy values in the details panel.
 	ChildPositionPropertyHandle->MarkHiddenByCustomization();
