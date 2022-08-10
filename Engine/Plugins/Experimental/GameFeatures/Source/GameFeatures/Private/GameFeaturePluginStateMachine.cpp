@@ -1365,8 +1365,12 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 			BackupGameFeatureDataPath = OverridePath;
 		}
 		
-		TSharedPtr<FStreamableHandle> GameFeatureDataHandle = UGameFeaturesSubsystem::LoadGameFeatureData(PreferredGameFeatureDataPath);
-		if (!GameFeatureDataHandle.IsValid())
+		TSharedPtr<FStreamableHandle> GameFeatureDataHandle;
+		if (FPackageName::DoesPackageExist(PreferredGameFeatureDataPath))
+		{
+			GameFeatureDataHandle = UGameFeaturesSubsystem::LoadGameFeatureData(PreferredGameFeatureDataPath);
+		}
+		else
 		{
 			GameFeatureDataHandle = UGameFeaturesSubsystem::LoadGameFeatureData(BackupGameFeatureDataPath);
 		}
