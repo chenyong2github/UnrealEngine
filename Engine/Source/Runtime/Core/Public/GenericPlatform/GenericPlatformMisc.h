@@ -29,7 +29,7 @@ enum class ECustomChunkType : uint8;
 template <typename FuncType>
 class TFunction;
 
-#if UE_BUILD_SHIPPING
+#if UE_BUILD_SHIPPING && !WITH_EDITOR
 #define UE_DEBUG_BREAK() ((void)0)
 #else
 #define UE_DEBUG_BREAK() ((void)(FPlatformMisc::IsDebuggerPresent() && ([] () { UE_DEBUG_BREAK_IMPL(); } (), 1)))
