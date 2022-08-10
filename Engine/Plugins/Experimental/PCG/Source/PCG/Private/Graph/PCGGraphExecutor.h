@@ -3,14 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PCGData.h"
 #include "PCGContext.h"
+#include "PCGData.h"
 #include "PCGElement.h"
-#include "PCGSubsystem.h"
 #include "PCGGraphCache.h"
+#include "PCGSubsystem.h"
 
 #if WITH_EDITOR
-#include "WorldPartition/WorldPartitionHandle.h" // Needed for FWorldPartitonReference
+#include "AsyncCompilationHelpers.h"
+#include "WorldPartition/WorldPartitionHandle.h" // Needed for FWorldPartitionReference
 #endif
 
 class UPCGPin;
@@ -83,6 +84,7 @@ public:
 
 	/** Notify compiler that graph has changed so it'll be removed from the cache */
 	void NotifyGraphChanged(UPCGGraph* InGraph);
+	void UpdateGenerationNotification();
 #endif
 
 	/** "Tick" of the graph executor. This call is NOT THREADSAFE */
@@ -102,6 +104,8 @@ private:
 #if WITH_EDITOR
 	void SaveDirtyActors();
 	void ReleaseUnusedActors();
+	void EndGenerationNotification();
+	static FTextFormat GetNotificationTextFormat();
 #endif
 
 	/** Graph compiler that turns a graph into tasks */
@@ -136,6 +140,9 @@ private:
 	TSet<FWorldPartitionReference> ActorsToRelease;
 
 	int32 CountUntilGC = 30;
+	int32 RemainingTaskNum = 0;
+	bool bTasksAreRunning = false;
+	FAsyncCompilationNotification GenerationProgressNotification;
 #endif
 };
 

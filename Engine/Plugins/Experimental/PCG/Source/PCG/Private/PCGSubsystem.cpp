@@ -84,6 +84,10 @@ void UPCGSubsystem::Tick(float DeltaSeconds)
 
 	// If we have any tasks to execute, schedule some
 	GraphExecutor->Execute();
+
+#if WITH_EDITOR
+	GraphExecutor->UpdateGenerationNotification();
+#endif
 }
 
 APCGWorldActor* UPCGSubsystem::GetPCGWorldActor()
@@ -286,8 +290,8 @@ TArray<FPCGTaskId> UPCGSubsystem::ScheduleMultipleComponent(UPCGComponent* Origi
 				// Add check to avoid infinite loop
 				if (ensure(!LocalComponent->IsPartitioned()))
 				{
-				// Ensure that the PCG actor match our original
-				LocalComponent->SetPropertiesFromOriginal(OriginalComponent);
+					// Ensure that the PCG actor match our original
+					LocalComponent->SetPropertiesFromOriginal(OriginalComponent);
 
 					FPCGTaskId LocalTask = ScheduleComponent(LocalComponent, /*bSave=*/ false, Dependencies);
 
