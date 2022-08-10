@@ -40,6 +40,36 @@ public:
 	const TCHAR* Extension;
 };
 
+class FDependencyUniqueArrayEnumerator : public IPlatformFile::FDirectoryVisitor
+{
+public:
+	FDependencyUniqueArrayEnumerator(TArray<FString>& InFullUniqueDependenciesArray, const TCHAR* InPrefix, const TCHAR* InExtension)
+        : FullUniqueDependenciesArray(InFullUniqueDependenciesArray)
+        , Prefix(InPrefix)
+        , Extension(InExtension)
+	{
+	}
+
+	virtual bool Visit(const TCHAR* FilenameChar, bool bIsDirectory) override
+	{
+		if (!bIsDirectory)
+		{
+			const FString Filename = FString(FilenameChar);
+
+			if ((!Prefix || Filename.Contains(Prefix)) && (!Extension || Filename.EndsWith(Extension)))
+			{
+				FullUniqueDependenciesArray.AddUnique(*IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*Filename));
+			}
+		}
+
+		return true;
+	}
+
+	TArray<FString>& FullUniqueDependenciesArray;
+	const TCHAR* Prefix;
+	const TCHAR* Extension;
+};
+
 class FastBuildUtilities
 {
 public:

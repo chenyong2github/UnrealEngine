@@ -1290,7 +1290,7 @@ static void SplitJobsByType(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs
 }
 
 // Serialize Queued Job information
-bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& InTransferFile, bool bUseRelativePaths, bool bCompressTaskFile)
+bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& InTransferFile, IDistributedBuildController* BuildDistributionController, bool bUseRelativePaths, bool bCompressTaskFile)
 {
 	int32 InputVersion = ShaderCompileWorkerInputVersion;
 	InTransferFile << InputVersion;
@@ -1313,8 +1313,25 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 	TMap<FString, FString> ShaderSourceDirectoryMappings = AllShaderSourceDirectoryMappings();
 	for(TPair<FString, FString>& Pair : ShaderSourceDirectoryMappings)
 	{
-		// enforce relative paths when bUseRelativePaths=true
-		Pair.Value = bUseRelativePaths ? FPaths::CreateStandardFilename(Pair.Value) : FPaths::ConvertRelativePathToFull(Pair.Value);
+		// Remap/enforce relative paths when bUseRelativePaths=true
+		if (bUseRelativePaths && BuildDistributionController != nullptr)
+		{
+			FString SourcePath = FPaths::ConvertRelativePathToFull(Pair.Value);
+			if (!FPaths::IsUnderDirectory(SourcePath, FPaths::RootDir()))
+			{
+				FString DestinationPath = BuildDistributionController->RemapPath(SourcePath);
+				DestinationPath = FPaths::CreateStandardFilename(DestinationPath);
+				Pair.Value = DestinationPath;
+			}
+			else
+			{
+				Pair.Value = FPaths::CreateStandardFilename(Pair.Value);
+			}
+		}
+		else
+		{
+			Pair.Value = FPaths::ConvertRelativePathToFull(Pair.Value);
+		}
 	}
 	TransferFile << ShaderSourceDirectoryMappings;
 

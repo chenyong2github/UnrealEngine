@@ -1738,7 +1738,12 @@ void AddShaderSourceDirectoryMapping(const FString& VirtualShaderDirectory, cons
 	check(!GShaderSourceDirectoryMappings.Contains(VirtualShaderDirectory));
 
 	// Make sure the real directory to map exists.
-	checkf(FPaths::DirectoryExists(RealShaderDirectory), TEXT("FPaths::DirectoryExists(%s)"), *RealShaderDirectory);
+	bool bDirectoryExists = FPaths::DirectoryExists(RealShaderDirectory);
+	if (!bDirectoryExists)
+	{
+		UE_LOG(LogShaders, Log, TEXT("Directory %s"), *RealShaderDirectory);
+	}
+	checkf(bDirectoryExists, TEXT("FPaths::DirectoryExists(%s %s) %s"), *RealShaderDirectory, *FPaths::ConvertRelativePathToFull(RealShaderDirectory), FPlatformProcess::ComputerName());
 
 	// Make sure the Generated directory does not exist, because is reserved for C++ generated shader source
 	// by the FShaderCompilerEnvironment::IncludeVirtualPathToContentsMap member.

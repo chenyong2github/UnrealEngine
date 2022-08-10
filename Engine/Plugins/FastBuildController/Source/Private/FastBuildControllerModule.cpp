@@ -5,6 +5,7 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformFile.h"
+#include "Misc/App.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/Paths.h"
@@ -59,7 +60,10 @@ FFastBuildControllerModule::FFastBuildControllerModule()
 	, RootWorkingDirectory(FString::Printf(TEXT("%sUnrealFastBuildWorkingDir/"), FPlatformProcess::UserTempDir()))
 	, WorkingDirectory(RootWorkingDirectory + FGuid::NewGuid().ToString(EGuidFormats::Digits))
 	, bShutdown(false)
-{}
+{
+	const FGuid Guid = FGuid::NewGuid();
+	IntermediateShadersDirectory = FPaths::EngineIntermediateDir() / TEXT("Shaders") / TEXT("FB") / FApp::GetProjectName();
+}
 
 FFastBuildControllerModule::~FFastBuildControllerModule()
 {
@@ -222,6 +226,8 @@ void FFastBuildControllerModule::InitializeController()
 		IFileManager::Get().MakeDirectory(*RootWorkingDirectory);
 	}
 
+	IFileManager::Get().DeleteDirectory(*IntermediateShadersDirectory, false, true);
+
 	if (IsSupported())
 	{
 		JobDispatcherThread = MakeUnique<FFastBuildJobProcessor>(*this);
@@ -229,6 +235,39 @@ void FFastBuildControllerModule::InitializeController()
 	}
 
 	bControllerInitialized = true;
+}
+
+FString FFastBuildControllerModule::RemapPath(const FString& SourcePath) const
+{
+	if (!FPaths::IsUnderDirectory(SourcePath, FPaths::RootDir()))
+	{
+		FString DestinationPath = SourcePath;
+		FString AbsoluteProjectDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
+		if (DestinationPath.StartsWith(AbsoluteProjectDir))
+		{
+			DestinationPath = DestinationPath.Mid(AbsoluteProjectDir.Len());
+		}
+		if (DestinationPath.StartsWith(TEXT("\\\\"), ESearchCase::CaseSensitive))
+		{
+			DestinationPath = TEXT("____") + DestinationPath.Mid(2);
+		}
+		DestinationPath.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
+		if (DestinationPath.Len() > 1 && DestinationPath[1] == ':')
+		{
+			DestinationPath = DestinationPath.Left(1) + TEXT("__") / DestinationPath.Mid(2);
+		}
+		if (DestinationPath.Len() > 0 && DestinationPath[0] == '/')
+		{
+			DestinationPath = TEXT("__") + DestinationPath.Mid(1);
+		}
+		DestinationPath = IntermediateShadersDirectory / DestinationPath;
+
+		return DestinationPath;
+	}
+	else
+	{
+		return SourcePath;
+	}
 }
 
 void FFastBuildControllerModule::CleanWorkingDirectory()
@@ -240,6 +279,14 @@ void FFastBuildControllerModule::CleanWorkingDirectory()
 		if (!FileManager.DeleteDirectory(*WorkingDirectory, false, true))
 		{
 			UE_LOG(LogFastBuildController, Log, TEXT("%s => Failed to delete current working Directory => %s"), ANSI_TO_TCHAR(__FUNCTION__), *RootWorkingDirectory);
+		}
+	}
+
+	if (!IntermediateShadersDirectory.IsEmpty())
+	{
+		if (!FileManager.DeleteDirectory(*IntermediateShadersDirectory, false, true))
+		{
+			UE_LOG(LogFastBuildController, Log, TEXT("%s => Failed to delete directory => %s"), ANSI_TO_TCHAR(__FUNCTION__), *IntermediateShadersDirectory);
 		}	
 	}
 }

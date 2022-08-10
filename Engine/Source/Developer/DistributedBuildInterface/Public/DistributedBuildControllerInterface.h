@@ -57,6 +57,8 @@ public:
 	// Returns the name of the controller. Used for logging purposes.
 	virtual const FString GetName() = 0;
 
+	virtual FString RemapPath(const FString& SourcePath) const { return SourcePath; }
+
 	virtual void Tick(float DeltaSeconds){}
 
 	// Returns a new file path to be used for writing input data to.

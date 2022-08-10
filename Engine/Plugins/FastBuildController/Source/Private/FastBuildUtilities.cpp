@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FastBuildUtilities.h"
-#include <DistributedBuildInterface/Public/DistributedBuildControllerInterface.h>
+#include "FastBuildControllerModule.h"
 
 #include "ShaderCore.h"
 #include "HAL/PlatformFileManager.h"
@@ -20,7 +20,7 @@ namespace FASTBuildControllerUtilitiesVariables
         TEXT("1: Send along debug information in FASTBuild."),
         ECVF_Default);
 
-	int32 SendAllPossibleShaderDependencies = 0;
+	int32 SendAllPossibleShaderDependencies = 1;
 	FAutoConsoleVariableRef CVarFASTBuildSendAllPossibleShaderDependencies(
         TEXT("r.FASTBuildController.SendAllPossibleShaderDependencies"),
         SendAllPossibleShaderDependencies,
@@ -152,13 +152,13 @@ void FastBuildUtilities::WritePlatformCompilerDependenciesToFile(FArchive& Scrip
 
 void FastBuildUtilities::WriteDependenciesForShaderToScript(const TArray<FTask*>& InCompilationTasks, FArchive& ScriptFile)
 {
+	TArray<FString> FullUniqueDependenciesArray;
 	if (FASTBuildControllerUtilitiesVariables::SendAllPossibleShaderDependencies)
 	{
 		// This is kinda a hack because we are sending all possible dependencies
-		// Warning: this can result in sending files with the same name located in different paths. FASTBuild currently (as of v1.05) does not handle this, and BFF reading will be broken.
-		FDependencyEnumerator ShaderUsfDeps = FDependencyEnumerator(ScriptFile, nullptr, TEXT(".usf"));
-		FDependencyEnumerator ShaderUshDeps = FDependencyEnumerator(ScriptFile, nullptr, TEXT(".ush"));
-		FDependencyEnumerator ShaderHeaderDeps = FDependencyEnumerator(ScriptFile, nullptr, TEXT(".h"));
+		FDependencyUniqueArrayEnumerator ShaderUsfDeps = FDependencyUniqueArrayEnumerator(FullUniqueDependenciesArray, nullptr, TEXT(".usf"));
+		FDependencyUniqueArrayEnumerator ShaderUshDeps = FDependencyUniqueArrayEnumerator(FullUniqueDependenciesArray, nullptr, TEXT(".ush"));
+		FDependencyUniqueArrayEnumerator ShaderHeaderDeps = FDependencyUniqueArrayEnumerator(FullUniqueDependenciesArray, nullptr, TEXT(".h"));
 		const TMap<FString, FString> ShaderSourceDirectoryMappings = AllShaderSourceDirectoryMappings();
 		for (auto& ShaderDirectoryMapping : ShaderSourceDirectoryMappings)
 		{
@@ -169,21 +169,14 @@ void FastBuildUtilities::WriteDependenciesForShaderToScript(const TArray<FTask*>
 	}
 	else
 	{
-		TArray<FString> FullUniqueDependenciesArray;
 		{
 			for (FTask* CompilationTask : InCompilationTasks)
 			{
 				for (const FString& Dependency : CompilationTask->CommandData.Dependencies)
 				{
-					FullUniqueDependenciesArray.AddUnique(Dependency);
+					FullUniqueDependenciesArray.AddUnique(GetShaderFullPathOfShaderDependency(Dependency));
 				}
 			}
-		}
-
-		for (const FString& ExtraDependency : FullUniqueDependenciesArray)
-		{
-			const FString ExtraFile = TEXT("\t\t'") + GetShaderFullPathOfShaderDependency(ExtraDependency) + TEXT("'," LINE_TERMINATOR_ANSI);
-			ScriptFile.Serialize((void*)StringCast<ANSICHAR>(*ExtraFile, ExtraFile.Len()).Get(), sizeof(ANSICHAR) * ExtraFile.Len());
 		}
 	}
 
@@ -192,6 +185,40 @@ void FastBuildUtilities::WriteDependenciesForShaderToScript(const TArray<FTask*>
 	FDependencyEnumerator MetalCompilerDeps = FDependencyEnumerator(ScriptFile, nullptr, nullptr);
 	IFileManager::Get().IterateDirectoryRecursively(*MetalIntermediateDir, MetalCompilerDeps);
 #endif
+
+	for (const FString& ExtraDependency : FullUniqueDependenciesArray)
+	{
+		FString SourcePath = ExtraDependency;
+		FString DestinationPath;
+		if (!FPaths::IsUnderDirectory(SourcePath, FPaths::RootDir()))
+		{
+			DestinationPath = FFastBuildControllerModule::Get().RemapPath(SourcePath);
+
+			IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+			FDateTime SourceTimeStamp = PlatformFile.GetTimeStamp(*SourcePath);
+			FDateTime DestinationTimeStamp = PlatformFile.GetTimeStamp(*DestinationPath);
+
+			if (SourceTimeStamp != FDateTime::MinValue() && SourceTimeStamp != DestinationTimeStamp)
+			{
+				FString DestinationDirectory = FPaths::GetPath(DestinationPath);
+				if (!PlatformFile.DirectoryExists(*DestinationDirectory))
+				{
+					PlatformFile.CreateDirectoryTree(*DestinationDirectory);
+				}
+				PlatformFile.CopyFile(*DestinationPath, *SourcePath);
+				PlatformFile.SetTimeStamp(*DestinationPath, SourceTimeStamp);
+			}
+
+			DestinationPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*DestinationPath);
+		}
+		else
+		{
+			DestinationPath = SourcePath;
+		}
+
+		const FString ExtraFile = TEXT("\t\t'") + DestinationPath + TEXT("'," LINE_TERMINATOR_ANSI);
+		ScriptFile.Serialize((void*)StringCast<ANSICHAR>(*ExtraFile, ExtraFile.Len()).Get(), sizeof(ANSICHAR) * ExtraFile.Len());
+	}
 }
 
 void FastBuildUtilities::FASTBuildWriteScriptFileHeader(const TArray<FTask*>& InCompilationTasks, FArchive& ScriptFile, const FString& WorkerName)
@@ -258,14 +285,14 @@ FString FastBuildUtilities::GetFastBuildExecutablePath()
 {
 	FString FASTBuildExecutablePath = TEXT("PLATFORM NOT SUPPORTED");
 #if PLATFORM_WINDOWS
-	FASTBuildExecutablePath = TEXT("Extras\\ThirdPartyNotUE\\FASTBuild\\Win64\\FBuild.exe");
+	FASTBuildExecutablePath = FPaths::EngineDir() / TEXT("Extras\\ThirdPartyNotUE\\FASTBuild\\Win64\\FBuild.exe");
 #elif PLATFORM_MAC
-	FASTBuildExecutablePath = TEXT("Extras/ThirdPartyNotUE/FASTBuild/Mac/FBuild");
+	FASTBuildExecutablePath = FPaths::EngineDir() / TEXT("Extras/ThirdPartyNotUE/FASTBuild/Mac/FBuild");
 #elif PLATFORM_LINUX
-	FASTBuildExecutablePath = TEXT("Extras/ThirdPartyNotUE/FASTBuild/Linux/fbuild");
+	FASTBuildExecutablePath = FPaths::EngineDir() / TEXT("Extras/ThirdPartyNotUE/FASTBuild/Linux/fbuild");
 #endif
 
-	return FPaths::EngineDir() / FASTBuildExecutablePath;
+	return FASTBuildExecutablePath;
 }
 
 FString FastBuildUtilities::GetFastBuildCache()

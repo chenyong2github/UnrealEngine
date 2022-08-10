@@ -35,6 +35,8 @@ class FFastBuildControllerModule : public IDistributedBuildController
 
 	const FString WorkingDirectory;
 
+	FString IntermediateShadersDirectory;
+
 	bool bShutdown;
 
 	void CleanWorkingDirectory();
@@ -52,10 +54,13 @@ public:
 
 	virtual const FString GetName() override final { return FString("FastBuild Controller"); };
 
+	virtual FString RemapPath(const FString& SourcePath) const override final;
+
 	virtual bool IsSupported() override final;
 
 	virtual FString CreateUniqueFilePath() override final;
 	virtual TFuture<FDistributedBuildTaskResult> EnqueueTask(const FTaskCommandData& CommandData) override final;
+
 	void EnqueueTask(FTask* Task);
 	FTask* DequeueTask();
 
@@ -89,6 +94,8 @@ public:
 	FString GetRootWorkingDirectory() const { return RootWorkingDirectory;}
 
 	FString GetWorkingDirectory() const { return WorkingDirectory;}
+
+	FString GetIntermediateShadersDirectory() const { return IntermediateShadersDirectory; }
 
 	const TMap<uint32, FTask*>& GetDispatchedTasks() const
 	{
