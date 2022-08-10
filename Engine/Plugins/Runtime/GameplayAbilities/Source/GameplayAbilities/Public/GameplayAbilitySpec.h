@@ -133,7 +133,7 @@ struct FGameplayAbilitySpecDef
 
 	/** What granted this spec, not replicated or settable in editor */
 	UPROPERTY(NotReplicated)
-	UObject* SourceObject;
+	TWeakObjectPtr<UObject> SourceObject;
 
 	/** SetbyCaller Magnitudes that were passed in to this ability by a GE (GE's that grant abilities) */
 	TMap<FGameplayTag, float>	SetByCallerTagMagnitudes;
@@ -248,7 +248,7 @@ struct GAMEPLAYABILITIES_API FGameplayAbilitySpec : public FFastArraySerializerI
 
 	/** Object this ability was created from, can be an actor or static object. Useful to bind an ability to a gameplay object */
 	UPROPERTY()
-	UObject* SourceObject;
+	TWeakObjectPtr<UObject> SourceObject;
 
 	/** A count of the number of times this ability has been activated minus the number of times it has been ended. For instanced abilities this will be the number of currently active instances. Can't replicate until prediction accurately handles this.*/
 	UPROPERTY(NotReplicated)

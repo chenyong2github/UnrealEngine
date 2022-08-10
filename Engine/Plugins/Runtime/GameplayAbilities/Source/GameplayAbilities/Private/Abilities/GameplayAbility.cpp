@@ -1576,7 +1576,7 @@ UObject* UGameplayAbility::GetSourceObject(FGameplayAbilitySpecHandle Handle, co
 			FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(Handle);
 			if (AbilitySpec)
 			{
-				return AbilitySpec->SourceObject;
+				return AbilitySpec->SourceObject.Get();
 			}
 		}
 	}
@@ -1593,7 +1593,7 @@ UObject* UGameplayAbility::GetCurrentSourceObject() const
 	FGameplayAbilitySpec* AbilitySpec = GetCurrentAbilitySpec();
 	if (AbilitySpec)
 	{
-		return AbilitySpec->SourceObject;
+		return AbilitySpec->SourceObject.Get();
 	}
 	return nullptr;
 }
@@ -1611,7 +1611,7 @@ FGameplayEffectContextHandle UGameplayAbility::MakeEffectContext(const FGameplay
 	// Pass along the source object to the effect
 	if (FGameplayAbilitySpec* AbilitySpec = ActorInfo->AbilitySystemComponent->FindAbilitySpecFromHandle(Handle))
 	{
-		Context.AddSourceObject(AbilitySpec->SourceObject);
+		Context.AddSourceObject(AbilitySpec->SourceObject.Get());
 	}
 
 	return Context;
