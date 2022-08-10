@@ -3161,6 +3161,11 @@ enum class InternalSavePackageResult : int8
 	Error,
 };
 
+static void PrepareSavePackages(const TArray<UPackage*>& PackagesToSave)
+{
+	ResetLoaders(MakeArrayView<UObject*>((UObject**)PackagesToSave.GetData(), PackagesToSave.Num()));
+}
+
 /**
  * Actually save a package. Prompting for Save as if necessary
  *
@@ -3595,6 +3600,8 @@ static bool InternalSavePackagesFast(const TArray<UPackage*>& PackagesToSave, bo
 		ObjectTools::CleanupAfterSuccessfulDelete(PackagesToClean, true);
 	}
 
+	PrepareSavePackages(FinalPackagesToSave);
+
 	for (UPackage* Package : FinalPackagesToSave)
 	{
 		bool bPackageLocallyWritable;
@@ -3988,6 +3995,8 @@ FEditorFileUtils::EPromptReturnCode InternalPromptForCheckoutAndSave(const TArra
 		{
 			ObjectTools::CleanupAfterSuccessfulDelete(PackagesToClean, true);
 		}
+
+		PrepareSavePackages(PackagesToSave);
 
 		for (UPackage* Package : PackagesToSave)
 		{
