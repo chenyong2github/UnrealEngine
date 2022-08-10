@@ -218,8 +218,8 @@ struct FReleasedPackages
 
 static void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 {
-	OutCryptoSettings.SigningKey = InvalidRSAKeyHandle;
-	OutCryptoSettings.EncryptionKeys.Empty();
+	OutCryptoSettings.SetSigningKey(InvalidRSAKeyHandle);
+	OutCryptoSettings.GetEncryptionKeys().Empty();
 
 	// First, try and parse the keys from a supplied crypto key cache file
 	FString CryptoKeysCacheFilename;
@@ -281,7 +281,7 @@ static void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 					FBase64::Decode(PrivateExpBase64, PrivateExp);
 					FBase64::Decode(ModulusBase64, Modulus);
 
-					OutCryptoSettings.SigningKey = FRSA::CreateKey(PublicExp, PrivateExp, Modulus);
+					OutCryptoSettings.SetSigningKey(FRSA::CreateKey(PublicExp, PrivateExp, Modulus));
 
 					UE_LOG(LogIoStore, Display, TEXT("Parsed signature keys from config files."));
 				}
@@ -300,7 +300,7 @@ static void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 						NewKey.Name = TEXT("Default");
 						NewKey.Guid = FGuid();
 						FMemory::Memcpy(NewKey.Key.Key, &Key[0], sizeof(FAES::FAESKey::Key));
-						OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
+						OutCryptoSettings.GetEncryptionKeys().Add(NewKey.Guid, NewKey);
 						UE_LOG(LogIoStore, Display, TEXT("Parsed AES encryption key from config files."));
 					}
 				}
@@ -344,7 +344,7 @@ static void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 						{
 							NewKey.Key.Key[Index] = (uint8)EncryptionKeyString[Index];
 						}
-						OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
+						OutCryptoSettings.GetEncryptionKeys().Add(NewKey.Guid, NewKey);
 						UE_LOG(LogIoStore, Display, TEXT("Parsed AES encryption key from config files."));
 					}
 				}
@@ -387,7 +387,7 @@ static void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 			const auto AsAnsi = StringCast<ANSICHAR>(*EncryptionKeyString);
 			check(AsAnsi.Length() == RequiredKeyLength);
 			FMemory::Memcpy(NewKey.Key.Key, AsAnsi.Get(), RequiredKeyLength);
-			OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
+			OutCryptoSettings.GetEncryptionKeys().Add(NewKey.Guid, NewKey);
 			UE_LOG(LogIoStore, Display, TEXT("Parsed AES encryption key from command line."));
 		}
 	}
@@ -399,7 +399,7 @@ static void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 		UE_LOG(LogIoStore, Display, TEXT("Using encryption key override '%s'"), *EncryptionKeyOverrideGuidString);
 		FGuid::Parse(EncryptionKeyOverrideGuidString, EncryptionKeyOverrideGuid);
 	}
-	OutCryptoSettings.MasterEncryptionKey = OutCryptoSettings.EncryptionKeys.Find(EncryptionKeyOverrideGuid);
+	OutCryptoSettings.SetPrincipalEncryptionKey(OutCryptoSettings.GetEncryptionKeys().Find(EncryptionKeyOverrideGuid));
 }
 
 struct FContainerSourceFile 
@@ -1637,7 +1637,7 @@ static TUniquePtr<FIoStoreReader> CreateIoStoreReader(const TCHAR* Path, const F
 	TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
 
 	TMap<FGuid, FAES::FAESKey> DecryptionKeys;
-	for (const auto& KV : KeyChain.EncryptionKeys)
+	for (const auto& KV : KeyChain.GetEncryptionKeys())
 	{
 		DecryptionKeys.Add(KV.Key, KV.Value.Key);
 	}
@@ -3323,7 +3323,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			FIoContainerSettings GlobalContainerSettings;
 			if (Arguments.bSign)
 			{
-				GlobalContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
+				GlobalContainerSettings.SigningKey = Arguments.KeyChain.GetSigningKey();
 				GlobalContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
 			}
 			GlobalIoStoreWriter = IoStoreWriterContext->CreateContainer(*Arguments.GlobalContainerPath, GlobalContainerSettings);
@@ -3342,14 +3342,14 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				}
 				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
 				{
-					const FNamedAESKey* Key = Arguments.KeyChain.EncryptionKeys.Find(ContainerTarget->EncryptionKeyGuid);
+					const FNamedAESKey* Key = Arguments.KeyChain.GetEncryptionKeys().Find(ContainerTarget->EncryptionKeyGuid);
 					check(Key);
 					ContainerSettings.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
 					ContainerSettings.EncryptionKey = Key->Key;
 				}
 				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Signed))
 				{
-					ContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
+					ContainerSettings.SigningKey = Arguments.KeyChain.GetSigningKey();
 					ContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
 				}
 				ContainerSettings.bGenerateDiffPatch = ContainerTarget->bGenerateDiffPatch;
@@ -3777,14 +3777,14 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 		ContainerSettings.ContainerId = TargetReader->GetContainerId();
 		if (Arguments.bSign || EnumHasAnyFlags(TargetContainerFlags, EIoContainerFlags::Signed))
 		{
-			ContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
+			ContainerSettings.SigningKey =Arguments.KeyChain.GetSigningKey();
 			ContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
 		}
 
 		if (EnumHasAnyFlags(TargetContainerFlags, EIoContainerFlags::Encrypted))
 		{
 			ContainerSettings.ContainerFlags |= EIoContainerFlags::Encrypted;
-			const FNamedAESKey* Key = Arguments.KeyChain.EncryptionKeys.Find(TargetReader->GetEncryptionKeyGuid());
+			const FNamedAESKey* Key = Arguments.KeyChain.GetEncryptionKeys().Find(TargetReader->GetEncryptionKeyGuid());
 			if (!Key)
 			{
 				UE_LOG(LogIoStore, Error, TEXT("Missing encryption key for target container"));
@@ -5517,7 +5517,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 
 	UE_LOG(LogIoStore, Display, TEXT("Extracting files from paks..."));
 	FPakPlatformFile PakPlatformFile;
-	for (const auto& KV : KeyChain.EncryptionKeys)
+	for (const auto& KV : KeyChain.GetEncryptionKeys())
 	{
 		FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().Broadcast(KV.Key, KV.Value.Key);
 	}

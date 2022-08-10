@@ -865,8 +865,8 @@ bool PrepareCopyFileToPak(const FString& InMountPoint, const FPakInputPair& InFi
 			}
 
 			//Encrypt the buffer before writing it to disk
-			check(InKeyChain.MasterEncryptionKey);
-			FAES::EncryptData(UncompressedBuffer, PaddedEncryptedFileSize, InKeyChain.MasterEncryptionKey->Key);
+			check(InKeyChain.GetPrincipalEncryptionKey());
+			FAES::EncryptData(UncompressedBuffer, PaddedEncryptedFileSize, InKeyChain.GetPrincipalEncryptionKey()->Key);
 			// Update the size to be written
 			OutSizeToWrite = PaddedEncryptedFileSize;
 			OutNewEntry.Info.SetEncrypted( true );
@@ -917,8 +917,8 @@ bool PrepareCopyCompressedFileToPak(const FString& InMountPoint, FPakInfo& Info,
 
 	if (InFile.bNeedEncryption)
 	{
-		check(InKeyChain.MasterEncryptionKey);
-		FAES::EncryptData(CompressedFile.CompressedBuffer.Get(), CompressedFile.TotalCompressedSize, InKeyChain.MasterEncryptionKey->Key);
+		check(InKeyChain.GetPrincipalEncryptionKey());
+		FAES::EncryptData(CompressedFile.CompressedBuffer.Get(), CompressedFile.TotalCompressedSize, InKeyChain.GetPrincipalEncryptionKey()->Key);
 	}
 
 	//Hash the final buffer thats written
@@ -1420,7 +1420,7 @@ bool BufferedCopyFile(FArchive& Dest, FArchive& Source, const FPakFile& PakFile,
 		Source.Serialize(Buffer,SizeToRead);
 		if (Entry.IsEncrypted())
 		{
-			const FNamedAESKey* Key = InKeyChain.MasterEncryptionKey;
+			const FNamedAESKey* Key = InKeyChain.GetPrincipalEncryptionKey();
 			check(Key);
 			FAES::DecryptData((uint8*)Buffer, SizeToRead, Key->Key);
 		}
@@ -1466,10 +1466,10 @@ bool UncompressCopyFile(FArchive& Dest, FArchive& Source, const FPakEntry& Entry
 
 		if (Entry.IsEncrypted())
 		{
-			const FNamedAESKey* Key = InKeyChain.EncryptionKeys.Find(PakFile.GetInfo().EncryptionKeyGuid);
+			const FNamedAESKey* Key = InKeyChain.GetEncryptionKeys().Find(PakFile.GetInfo().EncryptionKeyGuid);
 			if (Key == nullptr)
 			{
-				Key = InKeyChain.MasterEncryptionKey;
+				Key = InKeyChain.GetPrincipalEncryptionKey();
 			}
 			check(Key);
 			FAES::DecryptData(PersistentBuffer, SizeToRead, Key->Key);
@@ -1503,8 +1503,8 @@ TEncryptionInt ParseEncryptionIntFromJson(TSharedPtr<FJsonObject> InObj, const T
 
 void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 {
-	OutCryptoSettings.SigningKey = InvalidRSAKeyHandle;
-	OutCryptoSettings.EncryptionKeys.Empty();
+	OutCryptoSettings.SetSigningKey( InvalidRSAKeyHandle );
+	OutCryptoSettings.GetEncryptionKeys().Empty();
 
 	// First, try and parse the keys from a supplied crypto key cache file
 	FString CryptoKeysCacheFilename;
@@ -1566,7 +1566,7 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 					FBase64::Decode(PrivateExpBase64, PrivateExp);
 					FBase64::Decode(ModulusBase64, Modulus);
 
-					OutCryptoSettings.SigningKey = FRSA::CreateKey(PublicExp, PrivateExp, Modulus);
+					OutCryptoSettings.SetSigningKey(FRSA::CreateKey(PublicExp, PrivateExp, Modulus));
 
 					UE_LOG(LogPakFile, Display, TEXT("Parsed signature keys from config files."));
 				}
@@ -1585,7 +1585,7 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 						NewKey.Name = TEXT("Default");
 						NewKey.Guid = FGuid();
 						FMemory::Memcpy(NewKey.Key.Key, &Key[0], sizeof(FAES::FAESKey::Key));
-						OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
+						OutCryptoSettings.GetEncryptionKeys().Add(NewKey.Guid, NewKey);
 						UE_LOG(LogPakFile, Display, TEXT("Parsed AES encryption key from config files."));
 					}
 				}
@@ -1629,7 +1629,7 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 						{
 							NewKey.Key.Key[Index] = (uint8)EncryptionKeyString[Index];
 						}
-						OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
+						OutCryptoSettings.GetEncryptionKeys().Add(NewKey.Guid, NewKey);
 						UE_LOG(LogPakFile, Display, TEXT("Parsed AES encryption key from config files."));
 					}
 				}
@@ -1672,7 +1672,7 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 			const auto AsAnsi = StringCast<ANSICHAR>(*EncryptionKeyString);
 			check(AsAnsi.Length() == RequiredKeyLength);
 			FMemory::Memcpy(NewKey.Key.Key, AsAnsi.Get(), RequiredKeyLength);
-			OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
+			OutCryptoSettings.GetEncryptionKeys().Add(NewKey.Guid, NewKey);
 			UE_LOG(LogPakFile, Display, TEXT("Parsed AES encryption key from command line."));
 		}
 	}
@@ -1683,7 +1683,7 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 	{
 		FGuid::Parse(EncryptionKeyOverrideGuidString, EncryptionKeyOverrideGuid);
 	}
-	OutCryptoSettings.MasterEncryptionKey = OutCryptoSettings.EncryptionKeys.Find(EncryptionKeyOverrideGuid);
+	OutCryptoSettings.SetPrincipalEncryptionKey(OutCryptoSettings.GetEncryptionKeys().Find(EncryptionKeyOverrideGuid));
 }
 
 /**
@@ -1698,7 +1698,7 @@ FArchive* CreatePakWriter(const TCHAR* Filename, const FKeyChain& InKeyChain, bo
 		if (bSign)
 		{
 			UE_LOG(LogPakFile, Display, TEXT("Creating signed pak %s."), Filename);
-			Writer = new FSignedArchiveWriter(*Writer, Filename, InKeyChain.SigningKey);
+			Writer = new FSignedArchiveWriter(*Writer, Filename, InKeyChain.GetSigningKey());
 		}
 		else
 		{
@@ -2005,13 +2005,13 @@ bool FPakWriterContext::AddPakFile(const TCHAR* Filename, const TArray<FPakInput
 		}
 	}
 
-	if (InKeyChain.MasterEncryptionKey)
+	if (InKeyChain.GetPrincipalEncryptionKey())
 	{
-		UE_LOG(LogPakFile, Display, TEXT("Using encryption key '%s' [%s]"), *InKeyChain.MasterEncryptionKey->Name, *InKeyChain.MasterEncryptionKey->Guid.ToString());
+		UE_LOG(LogPakFile, Display, TEXT("Using encryption key '%s' [%s]"), *InKeyChain.GetPrincipalEncryptionKey()->Name, *InKeyChain.GetPrincipalEncryptionKey()->Guid.ToString());
 	}
 
-	OutputPakFile->Info.bEncryptedIndex = (InKeyChain.MasterEncryptionKey && CmdLineParameters.EncryptIndex);
-	OutputPakFile->Info.EncryptionKeyGuid = InKeyChain.MasterEncryptionKey ? InKeyChain.MasterEncryptionKey->Guid : FGuid();
+	OutputPakFile->Info.bEncryptedIndex = (InKeyChain.GetPrincipalEncryptionKey() && CmdLineParameters.EncryptIndex);
+	OutputPakFile->Info.EncryptionKeyGuid = InKeyChain.GetPrincipalEncryptionKey() ? InKeyChain.GetPrincipalEncryptionKey()->Guid : FGuid();
 
 	if (CmdLineParameters.bPatchCompatibilityMode421)
 	{
@@ -2450,7 +2450,7 @@ void FPakWriterContext::WriterThreadFunc()
 			{
 				OutputEntry->PakFile->TotalRequestedEncryptedFiles++;
 
-				if (OutputEntry->PakFile->KeyChain.MasterEncryptionKey)
+				if (OutputEntry->PakFile->KeyChain.GetPrincipalEncryptionKey())
 				{
 					OutputEntry->PakFile->TotalEncryptedFiles++;
 					OutputEntry->PakFile->TotalEncryptedDataSize += SizeToWrite;
@@ -2506,7 +2506,7 @@ bool FPakWriterContext::Flush()
 
 				if (OutputEntry.InputPair.bNeedEncryption)
 				{
-					if (OutputEntry.PakFile->KeyChain.MasterEncryptionKey)
+					if (OutputEntry.PakFile->KeyChain.GetPrincipalEncryptionKey())
 					{
 						EncryptedString = TEXT("encrypted ");
 					}
@@ -2710,8 +2710,8 @@ void WritePakFooter(FArchive& PakHandle, FPakFooterInfo& Footer)
 
 		if (Footer.Info.bEncryptedIndex)
 		{
-			check(Footer.KeyChain && Footer.KeyChain->MasterEncryptionKey && Footer.TotalEncryptedDataSize);
-			FAES::EncryptData(IndexData.GetData(), IndexData.Num(), Footer.KeyChain->MasterEncryptionKey->Key);
+			check(Footer.KeyChain && Footer.KeyChain->GetPrincipalEncryptionKey() && Footer.TotalEncryptedDataSize);
+			FAES::EncryptData(IndexData.GetData(), IndexData.Num(), Footer.KeyChain->GetPrincipalEncryptionKey()->Key);
 			*Footer.TotalEncryptedDataSize += IndexData.Num();
 		}
 	};
@@ -3011,7 +3011,7 @@ bool ListFilesInPak(const TCHAR * InPakFilename, int64 SizeFilter, bool bInclude
 	}
 	else
 	{
-		if (PakFile.GetInfo().Magic != 0 && PakFile.GetInfo().EncryptionKeyGuid.IsValid() && !InKeyChain.EncryptionKeys.Contains(PakFile.GetInfo().EncryptionKeyGuid))
+		if (PakFile.GetInfo().Magic != 0 && PakFile.GetInfo().EncryptionKeyGuid.IsValid() && !InKeyChain.GetEncryptionKeys().Contains(PakFile.GetInfo().EncryptionKeyGuid))
 		{
 			UE_LOG(LogPakFile, Fatal, TEXT("Missing encryption key %s for pak file \"%s\"."), *PakFile.GetInfo().EncryptionKeyGuid.ToString(), InPakFilename);
 		}
@@ -3501,7 +3501,7 @@ bool ShowCompressionBlockCRCs( const TCHAR* InPakFileName, TArray<int64>& InOffs
 
 			if (Entry->IsEncrypted())
 			{
-				const FNamedAESKey* Key = InKeyChain.MasterEncryptionKey;
+				const FNamedAESKey* Key = InKeyChain.GetPrincipalEncryptionKey();
 				check(Key);
 				FAES::DecryptData(PersistentBuffer, SizeToRead, Key->Key);
 			}
@@ -4895,10 +4895,10 @@ bool Repack(const FString& InputPakFile, const FString& OutputPakFile, const FPa
 		FString TempOutputPakFile = FPaths::CreateTempFilename(*FPaths::GetPath(OutputPakFile), *FPaths::GetCleanFilename(OutputPakFile));
 
 		FPakCommandLineParameters ModifiedCmdLineParameters = CmdLineParameters;
-		ModifiedCmdLineParameters.bSign = bAnySigned && (InKeyChain.SigningKey != InvalidRSAKeyHandle);
+		ModifiedCmdLineParameters.bSign = bAnySigned && (InKeyChain.GetSigningKey() != InvalidRSAKeyHandle);
 		
 		FKeyChain ModifiedKeyChain = InKeyChain;
-		ModifiedKeyChain.MasterEncryptionKey = InKeyChain.EncryptionKeys.Find(EncryptionKeys.Num() ? EncryptionKeys[0] : FGuid());
+		ModifiedKeyChain.SetPrincipalEncryptionKey( InKeyChain.GetEncryptionKeys().Find(EncryptionKeys.Num() ? EncryptionKeys[0] : FGuid()) );
 
 		// Create the new pak file
 		UE_LOG(LogPakFile, Display, TEXT("Creating %s..."), *OutputPakFile);
@@ -5615,7 +5615,7 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 			{
 				FGuid::Parse(EncryptionKeyOverrideGuidString, EncryptionKeyOverrideGuid);
 			}
-			KeyChainForPakFile.MasterEncryptionKey = KeyChainForPakFile.EncryptionKeys.Find(EncryptionKeyOverrideGuid);
+			KeyChainForPakFile.SetPrincipalEncryptionKey( KeyChainForPakFile.GetEncryptionKeys().Find(EncryptionKeyOverrideGuid) );
 		
 			int32 LowestSourcePakVersion = 0;
 			TMap<FString, FFileInfo> SourceFileHashes;
@@ -5652,7 +5652,7 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 					if (UsedEncryptionKeys[0].IsValid())
 					{
 						UE_LOG(LogPakFile, Display, TEXT("Found encryption key %s in pak file %s will use to encrypt patch"), *((UsedEncryptionKeys[0]).ToString()), *CmdLineParameters.SourcePatchPakFilename);
-						KeyChainForPakFile.MasterEncryptionKey = KeyChainForPakFile.EncryptionKeys.Find(UsedEncryptionKeys[0]);
+						KeyChainForPakFile.SetPrincipalEncryptionKey(KeyChainForPakFile.GetEncryptionKeys().Find(UsedEncryptionKeys[0]));
 					}
 				}
 			}

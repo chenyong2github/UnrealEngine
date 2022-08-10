@@ -182,12 +182,12 @@ void LoadKeychainFromInI(FKeyChain& OutCryptoSettings)
 			NewKey.Name = TEXT("Default");
 			NewKey.Guid = FGuid();
 			FMemory::Memcpy(NewKey.Key.Key, &Key[0], sizeof(FAES::FAESKey::Key));
-			OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
+			OutCryptoSettings.GetEncryptionKeys().Add(NewKey.Guid, NewKey);
 		}
 	}
 
 	FGuid EncryptionKeyOverrideGuid;
-	OutCryptoSettings.MasterEncryptionKey = OutCryptoSettings.EncryptionKeys.Find(EncryptionKeyOverrideGuid);
+	OutCryptoSettings.SetPrincipalEncryptionKey(OutCryptoSettings.GetEncryptionKeys().Find(EncryptionKeyOverrideGuid));
 }
 #endif // WITH_EDITOR
 

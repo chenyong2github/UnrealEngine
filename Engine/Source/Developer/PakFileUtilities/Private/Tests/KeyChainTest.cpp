@@ -19,130 +19,130 @@ bool FKeyChainTest::RunTest(const FString& Parameters)
 	// Default construct
 	{
 		FKeyChain Chain;
-		TestTrue(TEXT("Default construct - master key is invalid"), Chain.MasterEncryptionKey == nullptr); 
-		TestTrue(TEXT("Default construct - signing key is invalid"), Chain.SigningKey == nullptr); 
-		TestTrue(TEXT("Default construct - encryption keys are empty"), Chain.EncryptionKeys.Num() == 0); 
+		TestTrue(TEXT("Default construct - principal key is invalid"), Chain.GetPrincipalEncryptionKey() == nullptr);
+		TestTrue(TEXT("Default construct - signing key is invalid"), Chain.GetSigningKey() == nullptr);
+		TestTrue(TEXT("Default construct - encryption keys are empty"), Chain.GetEncryptionKeys().Num() == 0);
 	}
 
 	// Copy construct
 	{
 		FKeyChain Chain;
-		Chain.EncryptionKeys.Add(DefaultGuid, FNamedAESKey { TEXT("Default"), DefaultGuid, FAES::FAESKey() });
-		Chain.MasterEncryptionKey = Chain.EncryptionKeys.Find(DefaultGuid);
-		Chain.SigningKey = DefaultSigningKey;
+		Chain.GetEncryptionKeys().Add(DefaultGuid, FNamedAESKey { TEXT("Default"), DefaultGuid, FAES::FAESKey() });
+		Chain.SetPrincipalEncryptionKey(Chain.GetEncryptionKeys().Find(DefaultGuid));
+		Chain.SetSigningKey(DefaultSigningKey);
 
 		FKeyChain Copy(Chain);
 
-		TestTrue(TEXT("Copy construct - with valid master key does NOT copy pointer"),
-			Copy.MasterEncryptionKey != Chain.MasterEncryptionKey); 
-		TestTrue(TEXT("Copy construct - master key name matches"),
-			Copy.MasterEncryptionKey->Name == Chain.MasterEncryptionKey->Name); 
-		TestTrue(TEXT("Copy construct - master key GUID name matches"),
-			Copy.MasterEncryptionKey->Guid == Chain.MasterEncryptionKey->Guid); 
-		TestTrue(TEXT("Copy construct - with valid master key sets master key"),
-			Copy.MasterEncryptionKey == Copy.EncryptionKeys.Find(DefaultGuid)); 
+		TestTrue(TEXT("Copy construct - with valid principal key does NOT copy pointer"),
+			Copy.GetPrincipalEncryptionKey() != Chain.GetPrincipalEncryptionKey());
+		TestTrue(TEXT("Copy construct - principal key name matches"),
+			Copy.GetPrincipalEncryptionKey()->Name == Chain.GetPrincipalEncryptionKey()->Name);
+		TestTrue(TEXT("Copy construct - principal key GUID name matches"),
+			Copy.GetPrincipalEncryptionKey()->Guid == Chain.GetPrincipalEncryptionKey()->Guid);
+		TestTrue(TEXT("Copy construct - with valid principal key sets principal key"),
+			Copy.GetPrincipalEncryptionKey() == Copy.GetEncryptionKeys().Find(DefaultGuid));
 		TestTrue(TEXT("Copy construct - signing key matches"),
-			Copy.SigningKey == Chain.SigningKey ); 
+			Copy.GetSigningKey() == Chain.GetSigningKey());
 	}
 
 	// Copy assign
 	{
 		{
 			FKeyChain Chain;
-			Chain.EncryptionKeys.Add(DefaultGuid, FNamedAESKey { TEXT("Default"), DefaultGuid, FAES::FAESKey() });
-			Chain.MasterEncryptionKey = Chain.EncryptionKeys.Find(DefaultGuid);
-			Chain.SigningKey = DefaultSigningKey;
+			Chain.GetEncryptionKeys().Add(DefaultGuid, FNamedAESKey{TEXT("Default"), DefaultGuid, FAES::FAESKey()});
+			Chain.SetPrincipalEncryptionKey(Chain.GetEncryptionKeys().Find(DefaultGuid));
+			Chain.SetSigningKey(DefaultSigningKey);
 
 			FKeyChain Copy;
 			Copy = Chain;
 			
-			TestTrue(TEXT("Copy assign - with valid master key does NOT copy pointer"),
-				Copy.MasterEncryptionKey != Chain.MasterEncryptionKey); 
-			TestTrue(TEXT("Copy assign - master key name matches"),
-				Copy.MasterEncryptionKey->Name == Chain.MasterEncryptionKey->Name); 
-			TestTrue(TEXT("Copy assign - master key GUID name matches"),
-				Copy.MasterEncryptionKey->Guid == Chain.MasterEncryptionKey->Guid); 
-			TestTrue(TEXT("Copy assign - with valid master key sets master key"),
-				Copy.MasterEncryptionKey == Copy.EncryptionKeys.Find(DefaultGuid)); 
+			TestTrue(TEXT("Copy assign - with valid principal key does NOT copy pointer"),
+				Copy.GetPrincipalEncryptionKey() != Chain.GetPrincipalEncryptionKey());
+			TestTrue(TEXT("Copy assign - principal key name matches"),
+				Copy.GetPrincipalEncryptionKey()->Name == Chain.GetPrincipalEncryptionKey()->Name);
+			TestTrue(TEXT("Copy assign - principal key GUID name matches"),
+				Copy.GetPrincipalEncryptionKey()->Guid == Chain.GetPrincipalEncryptionKey()->Guid);
+			TestTrue(TEXT("Copy assign - with valid principal key sets principal key"),
+				Copy.GetPrincipalEncryptionKey() == Copy.GetEncryptionKeys().Find(DefaultGuid));
 			TestTrue(TEXT("Copy assign - signing key matches"),
-				Copy.SigningKey == Chain.SigningKey ); 
+				Copy.GetSigningKey() == Chain.GetSigningKey());
 		}
 
 		{
 			FKeyChain Copy;
-			Copy.EncryptionKeys.Add(DefaultGuid, FNamedAESKey { TEXT("Default"), DefaultGuid, FAES::FAESKey() });
-			Copy.MasterEncryptionKey = Copy.EncryptionKeys.Find(DefaultGuid);
-			Copy.SigningKey = DefaultSigningKey;
+			Copy.GetEncryptionKeys().Add(DefaultGuid, FNamedAESKey { TEXT("Default"), DefaultGuid, FAES::FAESKey() });
+			Copy.SetPrincipalEncryptionKey(Copy.GetEncryptionKeys().Find(DefaultGuid));
+			Copy.SetSigningKey(DefaultSigningKey);
 
 			FKeyChain Chain;
 			Copy = Chain;
 			
-			TestTrue(TEXT("Copy assign - empty instance, clears master key"),
-				Copy.MasterEncryptionKey == nullptr); 
+			TestTrue(TEXT("Copy assign - empty instance, clears principal key"),
+				Copy.GetPrincipalEncryptionKey() == nullptr);
 			TestTrue(TEXT("Copy assign - empty instance, clears encryption keys"),
-				Copy.EncryptionKeys.Num() == 0); 
+				Copy.GetEncryptionKeys().Num() == 0);
 			TestTrue(TEXT("Copy assign - signing key is invalid"),
-				Copy.SigningKey == nullptr); 
+				Copy.GetSigningKey() == nullptr);
 		}
 	}
 
 	// Move construct
 	{
 		FKeyChain Moved;
-		Moved.EncryptionKeys.Add(DefaultGuid, FNamedAESKey { TEXT("Default"), DefaultGuid, FAES::FAESKey() });
-		Moved.MasterEncryptionKey = Moved.EncryptionKeys.Find(DefaultGuid);
-		Moved.SigningKey = DefaultSigningKey;
+		Moved.GetEncryptionKeys().Add(DefaultGuid, FNamedAESKey { TEXT("Default"), DefaultGuid, FAES::FAESKey() });
+		Moved.SetPrincipalEncryptionKey(Moved.GetEncryptionKeys().Find(DefaultGuid));
+		Moved.SetSigningKey(DefaultSigningKey);
 
 		FKeyChain Chain(MoveTemp(Moved));
 
-		TestTrue(TEXT("Move construct - with valid master key sets master key"),
-			Chain.MasterEncryptionKey == Chain.EncryptionKeys.Find(DefaultGuid)); 
-		TestTrue(TEXT("Move construct - with valid master key sets signing key"),
-			Chain.SigningKey == DefaultSigningKey); 
+		TestTrue(TEXT("Move construct - with valid principal key sets principal key"),
+			Chain.GetPrincipalEncryptionKey() == Chain.GetEncryptionKeys().Find(DefaultGuid));
+		TestTrue(TEXT("Move construct - with valid principal key sets signing key"),
+			Chain.GetSigningKey() == DefaultSigningKey); 
 		TestTrue(TEXT("Move construct - invalidates moved instance"),
-			Moved.MasterEncryptionKey == nullptr); 
+			Moved.GetPrincipalEncryptionKey() == nullptr);
 		TestTrue(TEXT("Move construct - invalidates moved instance"),
-			Moved.SigningKey == InvalidRSAKeyHandle); 
+			Moved.GetSigningKey() == InvalidRSAKeyHandle);
 		TestTrue(TEXT("Move construct - invalidates moved instance"),
-			Moved.EncryptionKeys.Num() == 0); 
+			Moved.GetEncryptionKeys().Num() == 0);
 	}
 
 	// Move assign
 	{
 		{
 			FKeyChain Moved;
-			Moved.EncryptionKeys.Add(DefaultGuid, FNamedAESKey { TEXT("Default"), DefaultGuid, FAES::FAESKey() });
-			Moved.MasterEncryptionKey = Moved.EncryptionKeys.Find(DefaultGuid);
-			Moved.SigningKey = DefaultSigningKey;
+			Moved.GetEncryptionKeys().Add(DefaultGuid, FNamedAESKey{TEXT("Default"), DefaultGuid, FAES::FAESKey()});
+			Moved.SetPrincipalEncryptionKey(Moved.GetEncryptionKeys().Find(DefaultGuid));
+			Moved.SetSigningKey(DefaultSigningKey);
 
 			FKeyChain Chain;
 			Chain = MoveTemp(Moved);
 
-			TestTrue(TEXT("Move construct - with valid master key sets master key"),
-				Chain.MasterEncryptionKey == Chain.EncryptionKeys.Find(DefaultGuid)); 
-			TestTrue(TEXT("Move construct - with valid master key sets signing key"),
-				Chain.SigningKey == DefaultSigningKey); 
+			TestTrue(TEXT("Move construct - with valid principal key sets principal key"),
+				Chain.GetPrincipalEncryptionKey() == Chain.GetEncryptionKeys().Find(DefaultGuid));
+			TestTrue(TEXT("Move construct - with valid principal key sets signing key"),
+				Chain.GetSigningKey() == DefaultSigningKey);
 			TestTrue(TEXT("Move construct - invalidates moved instance"),
-				Moved.MasterEncryptionKey == nullptr); 
+				Moved.GetPrincipalEncryptionKey() == nullptr);
 			TestTrue(TEXT("Move construct - invalidates moved instance"),
-				Moved.SigningKey == InvalidRSAKeyHandle); 
+				Moved.GetSigningKey() == InvalidRSAKeyHandle);
 			TestTrue(TEXT("Move construct - invalidates moved instance"),
-				Moved.EncryptionKeys.Num() == 0); 
+				Moved.GetEncryptionKeys().Num() == 0);
 		}
 		
 		{
 			FKeyChain Copy;
-			Copy.EncryptionKeys.Add(DefaultGuid, FNamedAESKey { TEXT("Default"), DefaultGuid, FAES::FAESKey() });
-			Copy.MasterEncryptionKey = Copy.EncryptionKeys.Find(DefaultGuid);
+			Copy.GetEncryptionKeys().Add(DefaultGuid, FNamedAESKey{TEXT("Default"), DefaultGuid, FAES::FAESKey()});
+			Copy.SetPrincipalEncryptionKey(Copy.GetEncryptionKeys().Find(DefaultGuid));
 
 			Copy = FKeyChain();
 
-			TestTrue(TEXT("Move assign - empty instance, clears master key"),
-				Copy.MasterEncryptionKey == nullptr); 
+			TestTrue(TEXT("Move assign - empty instance, clears principal key"),
+				Copy.GetPrincipalEncryptionKey() == nullptr);
 			TestTrue(TEXT("Move assign - empty instance, clears encryption keys"),
-				Copy.EncryptionKeys.Num() == 0);
+				Copy.GetEncryptionKeys().Num() == 0);
 			TestTrue(TEXT("Move assign - invalidates signing key"),
-				Copy.SigningKey == InvalidRSAKeyHandle); 
+				Copy.GetSigningKey() == InvalidRSAKeyHandle);
 		}
 	}
 

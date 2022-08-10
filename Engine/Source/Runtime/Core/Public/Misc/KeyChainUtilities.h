@@ -26,43 +26,47 @@ struct FNamedAESKey
 
 struct FKeyChain
 {
+public:
+
 	FKeyChain() = default;
 
 	FKeyChain(const FKeyChain& Other)
-		: SigningKey(Other.SigningKey)
-		, EncryptionKeys(Other.EncryptionKeys)
 	{
-		if (Other.MasterEncryptionKey)
+		SetSigningKey(Other.GetSigningKey());
+		SetEncryptionKeys(Other.GetEncryptionKeys());
+
+		if (Other.GetPrincipalEncryptionKey())
 		{
-			MasterEncryptionKey = EncryptionKeys.Find(Other.MasterEncryptionKey->Guid);
+			SetPrincipalEncryptionKey(GetEncryptionKeys().Find(Other.GetPrincipalEncryptionKey()->Guid));
 		}
 	}
 	
 	FKeyChain(FKeyChain&& Other)
-		: SigningKey(Other.SigningKey)
-		, EncryptionKeys(MoveTemp(Other.EncryptionKeys))
 	{
-		if (Other.MasterEncryptionKey)
+		SetSigningKey(Other.GetSigningKey());
+		SetEncryptionKeys(MoveTemp(Other.GetEncryptionKeys()));
+
+		if (Other.GetPrincipalEncryptionKey())
 		{
-			MasterEncryptionKey = EncryptionKeys.Find(Other.MasterEncryptionKey->Guid);
+			SetPrincipalEncryptionKey(GetEncryptionKeys().Find(Other.GetPrincipalEncryptionKey()->Guid));
 		}
 		
-		Other.SigningKey = InvalidRSAKeyHandle;
-		Other.MasterEncryptionKey = nullptr;
+		Other.SetSigningKey(InvalidRSAKeyHandle);
+		Other.SetPrincipalEncryptionKey(nullptr);
 	}
 
 	FKeyChain& operator=(const FKeyChain& Other)
 	{
-		SigningKey = Other.SigningKey;
-		EncryptionKeys = Other.EncryptionKeys;
+		SetSigningKey(Other.GetSigningKey());
+		SetEncryptionKeys(Other.GetEncryptionKeys());
 		
-		if (Other.MasterEncryptionKey)
+		if (Other.GetPrincipalEncryptionKey())
 		{
-			MasterEncryptionKey = EncryptionKeys.Find(Other.MasterEncryptionKey->Guid);
+			SetPrincipalEncryptionKey(GetEncryptionKeys().Find(Other.GetPrincipalEncryptionKey()->Guid));
 		}
 		else
 		{
-			MasterEncryptionKey = nullptr;
+			SetPrincipalEncryptionKey(nullptr);
 		}
 
 		return *this;
@@ -70,26 +74,44 @@ struct FKeyChain
 
 	FKeyChain& operator=(FKeyChain&& Other)
 	{
-		SigningKey = Other.SigningKey;
-		EncryptionKeys = MoveTemp(Other.EncryptionKeys);
+		SetSigningKey(Other.GetSigningKey());
+		SetEncryptionKeys(MoveTemp(Other.GetEncryptionKeys()));
 		
-		if (Other.MasterEncryptionKey)
+		if (Other.GetPrincipalEncryptionKey())
 		{
-			MasterEncryptionKey = EncryptionKeys.Find(Other.MasterEncryptionKey->Guid);
+			SetPrincipalEncryptionKey(GetEncryptionKeys().Find(Other.GetPrincipalEncryptionKey()->Guid));
 		}
 		else
 		{
-			MasterEncryptionKey = nullptr;
+			SetPrincipalEncryptionKey(nullptr);
 		}
 
-		Other.SigningKey = InvalidRSAKeyHandle;
-		Other.MasterEncryptionKey = nullptr;
+		Other.SetSigningKey(InvalidRSAKeyHandle);
+		Other.SetPrincipalEncryptionKey(nullptr);
 
 		return *this;
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FRSAKeyHandle GetSigningKey() const { return SigningKey; }
+	void SetSigningKey(FRSAKeyHandle key) { SigningKey = key; }
+
+	const FNamedAESKey* GetPrincipalEncryptionKey() const { return MasterEncryptionKey; }
+	void SetPrincipalEncryptionKey(const FNamedAESKey* key) { MasterEncryptionKey =key; }
+
+	const TMap<FGuid, FNamedAESKey>& GetEncryptionKeys() const { return EncryptionKeys; }
+	TMap<FGuid, FNamedAESKey>& GetEncryptionKeys() { return EncryptionKeys; }
+
+	void SetEncryptionKeys(const TMap<FGuid, FNamedAESKey>& keys) { EncryptionKeys = keys; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	UE_DEPRECATED(5.1, "Use Get/SetSigningKey instead")
 	FRSAKeyHandle SigningKey = InvalidRSAKeyHandle;
+
+	UE_DEPRECATED(5.1, "Use GetEncryptionKeys instead")
 	TMap<FGuid, FNamedAESKey> EncryptionKeys;
+	
+	UE_DEPRECATED(5.1, "Use Get/SetPrincipalEncryptionKey instead")
 	const FNamedAESKey* MasterEncryptionKey = nullptr;
 };
 
@@ -146,7 +168,7 @@ namespace KeyChainUtilities
 						NewKey.Name = TEXT("Default");
 						NewKey.Guid = FGuid();
 						FMemory::Memcpy(NewKey.Key.Key, &Key[0], sizeof(FAES::FAESKey::Key));
-						OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
+						OutCryptoSettings.GetEncryptionKeys().Add(NewKey.Guid, NewKey);
 					}
 				}
 			}
@@ -154,7 +176,7 @@ namespace KeyChainUtilities
 			const TSharedPtr<FJsonObject>* SigningKey = nullptr;
 			if (RootObject->TryGetObjectField(TEXT("SigningKey"), SigningKey))
 			{
-				OutCryptoSettings.SigningKey = ParseRSAKeyFromJson(*SigningKey);
+				OutCryptoSettings.SetSigningKey(ParseRSAKeyFromJson(*SigningKey));
 			}
 
 			const TArray<TSharedPtr<FJsonValue>>* SecondaryEncryptionKeyArray = nullptr;
@@ -173,25 +195,25 @@ namespace KeyChainUtilities
 					check(Key.Num() == sizeof(FAES::FAESKey::Key));
 					FMemory::Memcpy(NewKey.Key.Key, &Key[0], sizeof(FAES::FAESKey::Key));
 
-					check(!OutCryptoSettings.EncryptionKeys.Contains(NewKey.Guid) || OutCryptoSettings.EncryptionKeys[NewKey.Guid].Key == NewKey.Key);
-					OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
+					check(!OutCryptoSettings.GetEncryptionKeys().Contains(NewKey.Guid) || OutCryptoSettings.GetEncryptionKeys()[NewKey.Guid].Key == NewKey.Key);
+					OutCryptoSettings.GetEncryptionKeys().Add(NewKey.Guid, NewKey);
 				}
 			}
 		}
 		delete File;
 		FGuid EncryptionKeyOverrideGuid;
-		OutCryptoSettings.MasterEncryptionKey = OutCryptoSettings.EncryptionKeys.Find(EncryptionKeyOverrideGuid);
+		OutCryptoSettings.SetPrincipalEncryptionKey(OutCryptoSettings.GetEncryptionKeys().Find(EncryptionKeyOverrideGuid));
 	}
 
 	static void ApplyEncryptionKeys(const FKeyChain& KeyChain)
 	{
-		if (KeyChain.EncryptionKeys.Contains(FGuid()))
+		if (KeyChain.GetEncryptionKeys().Contains(FGuid()))
 		{
-			FAES::FAESKey DefaultKey = KeyChain.EncryptionKeys[FGuid()].Key;
+			FAES::FAESKey DefaultKey = KeyChain.GetEncryptionKeys()[FGuid()].Key;
 			FCoreDelegates::GetPakEncryptionKeyDelegate().BindLambda([DefaultKey](uint8 OutKey[32]) { FMemory::Memcpy(OutKey, DefaultKey.Key, sizeof(DefaultKey.Key)); });
 		}
 
-		for (const TMap<FGuid, FNamedAESKey>::ElementType& Key : KeyChain.EncryptionKeys)
+		for (const TMap<FGuid, FNamedAESKey>::ElementType& Key : KeyChain.GetEncryptionKeys())
 		{
 			if (Key.Key.IsValid())
 			{
