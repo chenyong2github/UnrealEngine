@@ -10,6 +10,8 @@
 #include "MassSimulationSubsystem.h"
 #include "Logging/LogScopedVerbosityOverride.h"
 
+CSV_DEFINE_CATEGORY(MassActors, true);
+
 namespace UE::MassActors
 {
 	int32 bUseActorPooling = 1;
@@ -70,6 +72,7 @@ void UMassActorSpawnerSubsystem::DestroyActor(AActor* Actor, bool bImmediate /*=
 			check(World);
 
 			World->DestroyActor(Actor);
+			--NumActorSpawned;
 		}
 	}
 	else
@@ -101,6 +104,7 @@ bool UMassActorSpawnerSubsystem::ReleaseActorToPool(AActor* Actor)
 			TArray<AActor*>& Pool = PooledActors.FindOrAdd(Actor->GetClass());
 			checkf(Pool.Find(Actor) == INDEX_NONE, TEXT("Actor%s is already in the pool"), *AActor::GetDebugName(Actor));
 			Pool.Add(Actor);
+			++NumActorPooled;
 			return true;
 		}
 	}
@@ -186,6 +190,7 @@ AActor* UMassActorSpawnerSubsystem::SpawnOrRetrieveFromPool(FConstStructView Spa
 		{
 			AActor* PooledActor = (*Pool)[0];
 			Pool->RemoveAt(0);
+			--NumActorPooled;
 			PooledActor->SetActorHiddenInGame(false);
 			PooledActor->SetActorTransform(SpawnRequest.Transform, false, nullptr, ETeleportType::ResetPhysics);
 
@@ -217,6 +222,7 @@ AActor* UMassActorSpawnerSubsystem::SpawnActor(FConstStructView SpawnRequestView
 		// Add code here before construction script
 
 		SpawnedActor->FinishSpawning(SpawnRequest.Transform);
+		++NumActorSpawned;
 		// The finish spawning might have failed and the spawned actor is destroyed.
 		if (IsValidChecked(SpawnedActor))
 		{
@@ -310,6 +316,7 @@ void UMassActorSpawnerSubsystem::ProcessPendingDestruction(const double MaxTimeS
 			{
 				// Couldn't release actor back to pool, so destroy it
 				World->DestroyActor(ActorToDestroy);
+				--NumActorSpawned;
 			}
 		}
 	}
@@ -368,6 +375,9 @@ void UMassActorSpawnerSubsystem::OnPrePhysicsPhaseStarted(const float DeltaSecon
 	// Note: MassRepresentationProcessor relies on actor spawns being processed before it runs so it can confirm the
 	// spawn and clean up the previous representation  
 	ProcessPendingSpawningRequest(GET_MASS_CONFIG_VALUE(DesiredActorSpawningTimeSlicePerTick));
+
+	CSV_CUSTOM_STAT(MassActors, NumSpawned, NumActorSpawned, ECsvCustomStatOp::Accumulate);
+	CSV_CUSTOM_STAT(MassActors, NumPooled, NumActorPooled, ECsvCustomStatOp::Accumulate);
 }
 
 void UMassActorSpawnerSubsystem::OnPrePhysicsPhaseFinished(const float DeltaSeconds)
@@ -420,7 +430,12 @@ void UMassActorSpawnerSubsystem::ReleaseAllResources()
 			{
 				World->DestroyActor(ActorArray[i]);
 			}
+			NumActorSpawned -= ActorArray.Num();
 		}
 	}
 	PooledActors.Empty();
+
+	NumActorPooled = 0;
+	CSV_CUSTOM_STAT(MassActors, NumSpawned, NumActorSpawned, ECsvCustomStatOp::Accumulate);
+	CSV_CUSTOM_STAT(MassActors, NumPooled, NumActorPooled, ECsvCustomStatOp::Accumulate);
 }

@@ -235,4 +235,7 @@ protected:
 	FMassEntityHandleManager_ActorSpawnRequest SpawnRequestHandleManager;
 
 	std::atomic<uint32> RequestSerialNumberCounter;
+
+	mutable int32 NumActorSpawned = 0;
+	mutable int32 NumActorPooled = 0;
 };

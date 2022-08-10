@@ -178,6 +178,7 @@
 			<graph title="Mass Signals Count" budget="0"/>
 			<graph title="Deferred Commands Count" budget="0"/>
 			<graph title="Deferred Commands Costs" budget="0"/>
+			<graph title="Mass Actor Counts" budget="0" />
 		</reporttype>
 
 		<reporttype name="Memory" title="Physical Memory Report" vsync="1">

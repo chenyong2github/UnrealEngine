@@ -140,16 +140,16 @@
 	<graphGroup name="AI5">		
 		<baseSettings smooth="0" maxy="0"/>
 
-		<graph title="All StateTree Costs" showAverages="1" hideStatPrefix="Exclusive/Gamethread/StateTree" stacked="1">
+		<graph title="All StateTree Costs" showAverages="1" hideStatPrefix="Exclusive/Gamethread/" stacked="1">
 			<statString>Exclusive/Gamethread/StateTree*</statString>
 		</graph>
 
-		<graph title="StateTree Processor Costs" showAverages="1" hideStatPrefix="Exclusive/Gamethread/StateTree" stacked="1">
+		<graph title="StateTree Processor Costs" showAverages="1" hideStatPrefix="Exclusive/Gamethread/StateTreeProcessor" stacked="1">
 			<statString>Exclusive/Gamethread/StateTreeProcessor*</statString>
 		</graph>
 
-		<graph title="StateTree Context Costs" showAverages="1" hideStatPrefix="Exclusive/Gamethread/StateTree" stacked="1">
-			<statString>Exclusive/Gamethread/StateTreeCtx*</statString>
+		<graph title="StateTree Context Costs" showAverages="1" hideStatPrefix="Exclusive/Gamethread/StateTree_" stacked="1">
+			<statString>Exclusive/Gamethread/StateTree_*</statString>
 		</graph>
 
 		<graph title="Ticked StateTree Count" showAverages="1" hideStatPrefix="StateTreeProcessor/">
@@ -166,6 +166,10 @@
 		
 		<graph title="Deferred Commands Costs" showAverages="1" hideStatPrefix="MassEntities/Gamethread/" stacked="1">
 			<statString>MassEntities/*</statString>
+		</graph>
+
+		<graph title="Mass Actor Counts" showAverages="1" hideStatPrefix="MassActors/" stacked="1">
+			<statString>MassActors/*</statString>
 		</graph>
 
 	</graphGroup>
