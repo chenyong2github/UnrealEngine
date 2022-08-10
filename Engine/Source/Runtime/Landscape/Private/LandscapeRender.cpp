@@ -1535,11 +1535,15 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 	{
 		LandscapeParams.HeightmapTexture = HeightmapTexture->TextureReference.TextureReferenceRHI;
 		LandscapeParams.HeightmapTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		LandscapeParams.NormalmapTexture = HeightmapTexture->TextureReference.TextureReferenceRHI;
+		LandscapeParams.NormalmapTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 	}
 	else
 	{
 		LandscapeParams.HeightmapTexture = GBlackTexture->TextureRHI;
 		LandscapeParams.HeightmapTextureSampler = GBlackTexture->SamplerStateRHI;
+		LandscapeParams.NormalmapTexture = GBlackTexture->TextureRHI;
+		LandscapeParams.NormalmapTextureSampler = GBlackTexture->SamplerStateRHI;
 	}
 
 	if (XYOffsetmapTexture)

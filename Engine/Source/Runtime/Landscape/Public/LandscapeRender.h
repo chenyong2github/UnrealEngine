@@ -103,6 +103,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, LANDSCAP
 	SHADER_PARAMETER(FMatrix44f, LocalToWorldNoScaling)
 	SHADER_PARAMETER_TEXTURE(Texture2D, HeightmapTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, HeightmapTextureSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D, NormalmapTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, NormalmapTextureSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, XYOffsetmapTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, XYOffsetmapTextureSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()

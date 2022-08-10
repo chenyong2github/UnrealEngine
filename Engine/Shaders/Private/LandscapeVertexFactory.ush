@@ -361,7 +361,7 @@ float3x3 VertexFactoryGetPerPixelTangentBasis(FVertexFactoryInterpolantsVSToPS I
 {
 	float3x3 Result;
 #if PIXELSHADER || RAYHITGROUPSHADER || COMPUTESHADER
-	float4 SampleValue = Texture2DSample(LandscapeParameters.HeightmapTexture, LandscapeParameters.HeightmapTextureSampler, Interpolants.WeightHeightMapTexCoord.zw);
+	float4 SampleValue = Texture2DSample(LandscapeParameters.NormalmapTexture, LandscapeParameters.NormalmapTextureSampler, Interpolants.WeightHeightMapTexCoord.zw);
 	float2 SampleNormal = float2(SampleValue.b, SampleValue.a) * float2(2.0,2.0) - float2(1.0,1.0);
 	float3 WorldNormal = float3( SampleNormal, sqrt(max(1.0-dot(SampleNormal,SampleNormal),0.0)) );
 
