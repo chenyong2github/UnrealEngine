@@ -16,7 +16,7 @@
 #include "Strata/Strata.h"
 #include "ScreenRendering.h"
 
-DECLARE_GPU_STAT(Distortion);
+DECLARE_GPU_DRAWCALL_STAT(Distortion);
 
 const uint8 kStencilMaskBit = STENCIL_SANDBOX_MASK;
 

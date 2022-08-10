@@ -34,7 +34,7 @@
 	#define ENABLE_DEBUG_DISCARD_PROP 0
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-DECLARE_GPU_STAT(Lights);
+DECLARE_GPU_DRAWCALL_STAT(Lights);
 
 IMPLEMENT_TYPE_LAYOUT(FLightFunctionSharedParameters);
 IMPLEMENT_TYPE_LAYOUT(FStencilingGeometryShaderParameters);

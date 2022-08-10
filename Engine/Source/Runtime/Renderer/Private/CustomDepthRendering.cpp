@@ -32,7 +32,7 @@ static TAutoConsoleVariable<int32> CVarCustomDepthTemporalAAJitter(
 	TEXT("If disabled the Engine will remove the TemporalAA Jitter from the Custom Depth Pass. Only has effect when TemporalAA is used."),
 	ECVF_RenderThreadSafe);
 
-DECLARE_GPU_STAT_NAMED(CustomDepth, TEXT("Custom Depth"));
+DECLARE_GPU_DRAWCALL_STAT_NAMED(CustomDepth, TEXT("Custom Depth"));
 
 ECustomDepthPassLocation GetCustomDepthPassLocation(EShaderPlatform Platform)
 {

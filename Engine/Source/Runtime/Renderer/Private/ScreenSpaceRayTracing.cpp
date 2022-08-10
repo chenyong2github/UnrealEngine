@@ -75,7 +75,7 @@ static TAutoConsoleVariable<float> CVarSSGISkyDistance(
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 
-DECLARE_GPU_STAT_NAMED(ScreenSpaceReflections, TEXT("ScreenSpace Reflections"));
+DECLARE_GPU_DRAWCALL_STAT_NAMED(ScreenSpaceReflections, TEXT("ScreenSpace Reflections"));
 DECLARE_GPU_STAT_NAMED(ScreenSpaceDiffuseIndirect, TEXT("Screen Space Diffuse Indirect"));
 
 

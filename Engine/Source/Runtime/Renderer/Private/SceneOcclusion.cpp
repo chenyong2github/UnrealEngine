@@ -86,6 +86,7 @@ bool UseDownsampledOcclusionQueries()
 }
 
 DEFINE_GPU_STAT(HZB);
+DECLARE_GPU_DRAWCALL_STAT(BeginOcclusionTests);
 
 /** Random table for occlusion **/
 FOcclusionRandomStream GOcclusionRandomStream;
@@ -1409,6 +1410,7 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(OcclusionDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
 			PassParameters->RenderTargets.NumOcclusionQueries = NumQueriesForBatch;
 
+			RDG_GPU_STAT_SCOPE(GraphBuilder, BeginOcclusionTests);
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("BeginOcclusionTests"),
 				PassParameters,

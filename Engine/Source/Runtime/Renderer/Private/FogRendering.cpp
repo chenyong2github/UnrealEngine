@@ -8,7 +8,7 @@
 #include "SingleLayerWaterRendering.h"
 #include "ScreenPass.h"
 
-DECLARE_GPU_STAT(Fog);
+DECLARE_GPU_DRAWCALL_STAT(Fog);
 
 static TAutoConsoleVariable<int32> CVarFog(
 	TEXT("r.Fog"),

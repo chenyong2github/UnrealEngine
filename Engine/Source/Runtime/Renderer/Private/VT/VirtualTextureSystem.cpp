@@ -69,7 +69,7 @@ DECLARE_MEMORY_STAT_POOL(TEXT("Total Physical Memory"), STAT_TotalPhysicalMemory
 DECLARE_MEMORY_STAT_POOL(TEXT("Total Pagetable Memory"), STAT_TotalPagetableMemory, STATGROUP_VirtualTextureMemory, FPlatformMemory::MCR_GPU);
 
 DECLARE_GPU_STAT(VirtualTexture);
-DECLARE_GPU_DRAWCALL_STAT(VirtualTextureAllocate);
+DECLARE_GPU_STAT(VirtualTextureAllocate);
 
 static TAutoConsoleVariable<int32> CVarVTVerbose(
 	TEXT("r.VT.Verbose"),

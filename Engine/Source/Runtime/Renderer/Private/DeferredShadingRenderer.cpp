@@ -297,7 +297,7 @@ DECLARE_GPU_STAT(RayTracingUpdate);
 DECLARE_GPU_STAT(RayTracingScene);
 DECLARE_GPU_STAT(RayTracingGeometry);
 
-DECLARE_GPU_STAT(Postprocessing);
+DECLARE_GPU_DRAWCALL_STAT(Postprocessing);
 DECLARE_GPU_STAT(VisibilityCommands);
 DECLARE_GPU_STAT(RenderDeferredLighting);
 DECLARE_GPU_STAT(AllocateRendertargets);
@@ -306,7 +306,7 @@ DECLARE_GPU_STAT(SortLights);
 DECLARE_GPU_STAT(PostRenderOpsFX);
 DECLARE_GPU_STAT(GPUSceneUpdate);
 DECLARE_GPU_STAT_NAMED(Unaccounted, TEXT("[unaccounted]"));
-DECLARE_GPU_DRAWCALL_STAT(WaterRendering);
+DECLARE_GPU_STAT(WaterRendering);
 DECLARE_GPU_STAT(HairRendering);
 DEFINE_GPU_DRAWCALL_STAT(VirtualTextureUpdate);
 DECLARE_GPU_STAT(UploadDynamicBuffers);

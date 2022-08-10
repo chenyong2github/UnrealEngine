@@ -235,7 +235,7 @@ static TAutoConsoleVariable<int32> CVarHairStrandsCullPerObjectShadowCaster(
 	TEXT("Enable CPU culling of object casting per-object shadow (stationnary object)"),
 	ECVF_RenderThreadSafe);
 
-DEFINE_GPU_DRAWCALL_STAT(ShadowProjection);
+DEFINE_GPU_STAT(ShadowProjection);
 
 // Use Shadow stencil mask is set to 0x07u instead of 0xFF so that that last bit can be used for strata classification without clearing the stencil bit for pre-shadow/per-object static shadow mask
 constexpr uint32 ShadowStencilMask = 0x07u;

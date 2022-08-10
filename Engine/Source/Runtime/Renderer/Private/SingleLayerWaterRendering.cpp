@@ -23,7 +23,7 @@
 
 DECLARE_GPU_STAT_NAMED(RayTracingWaterReflections, TEXT("Ray Tracing Water Reflections"));
 
-DECLARE_GPU_STAT(SingleLayerWater);
+DECLARE_GPU_DRAWCALL_STAT(SingleLayerWater);
 DECLARE_CYCLE_STAT(TEXT("WaterSingleLayer"), STAT_CLP_WaterSingleLayerPass, STATGROUP_ParallelCommandListMarkers);
 
 static TAutoConsoleVariable<int32> CVarWaterSingleLayer(
