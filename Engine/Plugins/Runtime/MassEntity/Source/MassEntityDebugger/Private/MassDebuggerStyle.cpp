@@ -11,6 +11,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/Font.h"
 #include "Components/Widget.h"
+#include "Styling/StyleColors.h"
 
 
 #define TTF_CORE_FONT(RelativePath, ...) FSlateFontInfo(RootToCoreContentDir(RelativePath, TEXT(".ttf")), __VA_ARGS__)
@@ -45,8 +46,16 @@ public:
 		Set("MassDebug.Font.Large", StateTitle);
 
 		Set("MassDebug.Fragment", new BOX_BRUSH("Common/LightGroupBorder", FMargin(4.0f / 16.0f), FLinearColor(.2f, .2f, .9f)));
+		Set("MassDebug.Fragment.Added", new BOX_BRUSH("Common/LightGroupBorder", FMargin(4.0f / 16.0f), FLinearColor(.2f, .2f, .9f)));
+		Set("MassDebug.Fragment.Removed", new BOX_BRUSH("Common/LightGroupBorder", FMargin(4.0f / 16.0f), FLinearColor(.9f, .2f, .2f)));
 		Set("MassDebug.Fragment.ReadOnly", new BOX_BRUSH("Common/LightGroupBorder", FMargin(4.0f / 16.0f), FLinearColor(.5f, .5f, .5f)));
 		Set("MassDebug.Fragment.ReadWrite", new BOX_BRUSH("Common/LightGroupBorder", FMargin(4.0f / 16.0f), FLinearColor(0.f, .7f, 0.f)));
+
+		Set("MassDebug.Label.Background", new FSlateRoundedBoxBrush(FStyleColors::Foreground, 4.0f));
+
+		Set("MassDebug.Label.Text", FTextBlockStyle(NormalText)
+			.SetFont(FSlateFontInfo(FONT(7, "Bold")))
+			.SetColorAndOpacity(FStyleColors::Background));
 	}
 };
 

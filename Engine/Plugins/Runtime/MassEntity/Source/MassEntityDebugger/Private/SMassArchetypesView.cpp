@@ -3,6 +3,9 @@
 #include "SMassArchetypesView.h"
 #include "MassDebuggerModel.h"
 #include "SMassArchetype.h"
+#include "MassDebuggerStyle.h"
+#include "Styling/StyleColors.h"
+#include "Widgets/Layout/SScrollBox.h"		
 
 #define LOCTEXT_NAMESPACE "SMassDebugger"
 
@@ -11,46 +14,43 @@ namespace UE::Mass::Debugger::UI::Private
 {
 	FLinearColor GetArchetypeDistanceColor(float Distance)
 	{
-		const FLinearColor MinDistance = FLinearColor::Green;
-		const FLinearColor MaxDistance = FLinearColor::Red;
-		
-		return (1.f - Distance) * MinDistance + Distance * MaxDistance;
+		const FLinearColor Foreground = FStyleColors::Foreground.GetSpecifiedColor();
+		const FLinearColor MinDistance = FMath::Lerp(Foreground, FLinearColor::Green, 0.75f);
+		const FLinearColor MaxDistance = FMath::Lerp(Foreground, FLinearColor::Red, 0.75f);
+
+		return FMath::Lerp(MinDistance, MaxDistance, Distance);
 	}
+
+	static const FName ColumnName_ArcheType = TEXT("Archetype");
+	static const FName ColumnName_Hash = TEXT("Hash");
+	static const FName ColumnName_Entities = TEXT("Entities");
+
 }
 
 using FMassDebuggerArchetypeDataPtr = TSharedPtr<FMassDebuggerArchetypeData, ESPMode::ThreadSafe>;
 
 //----------------------------------------------------------------------//
-// SMassArchetypeTableRowBase
-//----------------------------------------------------------------------//
-class SMassArchetypeTableRowBase : public STableRow<FMassDebuggerArchetypeDataPtr>
-{
-public:
-	SLATE_BEGIN_ARGS(SMassArchetypeTableRowBase) { }
-	SLATE_END_ARGS()
-
-protected:
-	void Construct(const FArguments& InArgs, const TSharedPtr<STableViewBase>& InOwnerTableView, const FMassDebuggerArchetypeDataPtr InEntryItem)
-	{
-		Item = InEntryItem;
-		STableRow<FMassDebuggerArchetypeDataPtr>::Construct(STableRow<FMassDebuggerArchetypeDataPtr>::FArguments(), InOwnerTableView.ToSharedRef());
-	}
-
-	FMassDebuggerArchetypeDataPtr Item;
-};
-
-//----------------------------------------------------------------------//
 // SMassArchetypeTableRow
 //----------------------------------------------------------------------//
-class SMassArchetypeTableRow : public SMassArchetypeTableRowBase
+class SMassArchetypeTableRow : public SMultiColumnTableRow<FMassDebuggerArchetypeDataPtr>
 {
 public:
-	void Construct(const FArguments& InArgs, const TSharedPtr<STableViewBase>& InOwnerTableView, const FMassDebuggerArchetypeDataPtr InEntryItem, TSharedPtr<FMassDebuggerModel> DebuggerModel)
+	void Construct(const FArguments& InArgs, const TSharedPtr<STableViewBase>& InOwnerTableView, const FMassDebuggerArchetypeDataPtr InEntryItem, const FMassDebuggerArchetypeDataPtr InBaseItem, TSharedPtr<FMassDebuggerModel> InDebuggerModel)
 	{
-		SMassArchetypeTableRowBase::Construct(InArgs, InOwnerTableView, InEntryItem);
+		Item = InEntryItem;
+		DebuggerModel = InDebuggerModel;
+		bIsBase = InEntryItem == InBaseItem;
+		SMultiColumnTableRow<FMassDebuggerArchetypeDataPtr>::Construct(FSuperRowType::FArguments(), InOwnerTableView.ToSharedRef());
+	}
 
-		TSharedPtr<SHorizontalBox> Box = SNew(SHorizontalBox);
-		Box->AddSlot()
+	// SMultiColumnTableRow overrides
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
+	{
+		TSharedPtr<SHorizontalBox> Contents = SNew(SHorizontalBox);
+
+		if (ColumnName == UE::Mass::Debugger::UI::Private::ColumnName_ArcheType)
+		{
+			Contents->AddSlot()
 			.VAlign(VAlign_Fill)
 			.HAlign(HAlign_Left)
 			.AutoWidth()
@@ -61,61 +61,86 @@ public:
 				.BaseIndentLevel(0)
 			];
 
-		if (DebuggerModel->SelectedArchetypes.Num())
-		{
-			if (InEntryItem->bIsSelected)
+			FLinearColor Color = FLinearColor::White;
+			if (DebuggerModel->SelectedArchetypes.Num())
 			{
-				Box->AddSlot()
-				[
-					SNew(STextBlock)
-					.Text(FText::FromString(InEntryItem->Label))
-					.ColorAndOpacity(FLinearColor::Green)
-				];
+				if (Item->bIsSelected)
+				{
+					const FLinearColor Foreground = FStyleColors::Foreground.GetSpecifiedColor();
+					Color = FMath::Lerp(Foreground, FLinearColor::Green, 0.75f);
+				}
+				else
+				{
+					const float DistanceToSelected = DebuggerModel->MinDistanceToSelectedArchetypes(Item);
+					Color = UE::Mass::Debugger::UI::Private::GetArchetypeDistanceColor(DistanceToSelected);
+					if (Item->EntitiesCount == 0)
+					{
+						Color.A *= 0.5f;
+					}
+				}
 			}
 			else
 			{
-				const float DistanceToSelected = DebuggerModel->MinDistanceToSelectedArchetypes(InEntryItem);
-				const FLinearColor LerpedColor = UE::Mass::Debugger::UI::Private::GetArchetypeDistanceColor(DistanceToSelected);
-
-				Box->AddSlot()
-				[
-					SNew(STextBlock)
-					.Text(FText::FromString(InEntryItem->Label))
-					.ColorAndOpacity(LerpedColor)
-				];
+				Color = FLinearColor::White;
+				if (Item->EntitiesCount == 0)
+				{
+					Color.A *= 0.5f;
+				}
 			}
-		}
-		else
-		{
-			Box->AddSlot()
+			Contents->AddSlot()
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(InEntryItem->Label))
+				.Text(Item->Label)
+				.ToolTipText(Item->LabelTooltip)
+				.ColorAndOpacity(Color)
 			];
+
+			if (bIsBase)
+			{
+				Contents->AddSlot()
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(6,0))
+				.AutoWidth()
+				[
+					SNew(SBorder)
+					.BorderImage(FMassDebuggerStyle::GetBrush("MassDebug.Label.Background"))
+					.Padding(FMargin(4, 1))
+					[
+						SNew(STextBlock)
+						.TextStyle(FMassDebuggerStyle::Get(), TEXT("MassDebug.Label.Text"))
+						.Text(LOCTEXT("ArchetypeDiffBase", "BASE"))
+						.ToolTipText(LOCTEXT("ArchetypeDiffBaseTootip", "Base archetype used for diffing."))
+					]
+			];
+			}
+		}
+		else if (ColumnName == UE::Mass::Debugger::UI::Private::ColumnName_Hash)
+		{
+			Contents->AddSlot()
+				.Padding(5, 0)
+				[
+					SNew(STextBlock)
+					.Font(FCoreStyle::GetDefaultFontStyle("Mono", 9))
+					.Text(Item->HashLabel)
+				];
+		}
+		else if (ColumnName == UE::Mass::Debugger::UI::Private::ColumnName_Entities)
+		{
+			Contents->AddSlot()
+				.Padding(5, 0)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(FString::Printf(TEXT("%d"), Item->EntitiesCount)))
+					.Justification(ETextJustify::Right)
+				];
 		}
 
-		ChildSlot
-		[
-			Box.ToSharedRef()
-		];
+		return Contents.ToSharedRef();
 	}
-};
 
-//----------------------------------------------------------------------//
-// SMassArchetypeDetailTableRow
-//----------------------------------------------------------------------//
-class SMassArchetypeDetailTableRow : public SMassArchetypeTableRowBase
-{
-public:
-	void Construct(const FArguments& InArgs, const TSharedPtr<STableViewBase>& InOwnerTableView, const FMassDebuggerArchetypeDataPtr InEntryItem)
-	{
-		SMassArchetypeTableRowBase::Construct(InArgs, InOwnerTableView, InEntryItem);
-
-		ChildSlot
-			[
-				SNew(SMassArchetype, InEntryItem)
-			];
-	}
+	FMassDebuggerArchetypeDataPtr Item;
+	bool bIsBase = false;
+	TSharedPtr<FMassDebuggerModel> DebuggerModel;
 };
 
 //----------------------------------------------------------------------//
@@ -127,37 +152,99 @@ void SMassArchetypesView::Construct(const FArguments& InArgs, TSharedRef<FMassDe
 
 	ChildSlot
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.2f)
+			SNew(SSplitter)
+			.Orientation(Orient_Horizontal)
+			
+			+ SSplitter::Slot()
+			.Value(.4f)
+			.MinSize(350.0f)
 			[
-				SAssignNew(ArchetypesTreeView, STreeView<TSharedPtr<FMassDebuggerArchetypeData>>)
-				.TreeItemsSource(&TreeViewSource)
-				.OnGenerateRow_Lambda([this](TSharedPtr<FMassDebuggerArchetypeData> Item, const TSharedPtr<STableViewBase>& OwnerTable)
-					{
-						return SNew(SMassArchetypeTableRow, OwnerTable, Item, DebuggerModel);
-					})
-				.OnGetChildren_Lambda([](TSharedPtr<FMassDebuggerArchetypeData> InItem, TArray<TSharedPtr<FMassDebuggerArchetypeData>>& OutChildren)
-					{
-						if (InItem->Children.Num())
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				[
+					SAssignNew(ArchetypesTreeView, STreeView<TSharedPtr<FMassDebuggerArchetypeData>>)
+					.TreeItemsSource(&TreeViewSource)
+					.HeaderRow(SNew(SHeaderRow)
+						+SHeaderRow::Column(UE::Mass::Debugger::UI::Private::ColumnName_ArcheType)
+							.DefaultLabel(LOCTEXT("ArchetypeColumnHeader", "Archetype"))
+							.FillWidth(0.70f)
+						+SHeaderRow::Column(UE::Mass::Debugger::UI::Private::ColumnName_Hash)
+							.DefaultLabel(LOCTEXT("HashColumnHeader", "Hash"))
+							.FillSized(100)
+						+SHeaderRow::Column(UE::Mass::Debugger::UI::Private::ColumnName_Entities)
+							.DefaultLabel(LOCTEXT("EntitiesColumnHeader", "Entities"))
+							.FillSized(60)
+					)
+					.OnGenerateRow_Lambda([this](TSharedPtr<FMassDebuggerArchetypeData> Item, const TSharedPtr<STableViewBase>& OwnerTable)
 						{
-							OutChildren.Append(InItem->Children);
+							return SNew(SMassArchetypeTableRow, OwnerTable, Item, DiffBase, DebuggerModel);
+						})
+					.OnGetChildren_Lambda([](TSharedPtr<FMassDebuggerArchetypeData> InItem, TArray<TSharedPtr<FMassDebuggerArchetypeData>>& OutChildren)
+						{
+							if (InItem->Children.Num())
+							{
+								OutChildren.Append(InItem->Children);
+							}
+						})
+					.OnSelectionChanged(this, &SMassArchetypesView::HandleSelectionChanged)
+				]
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(3)
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]()
+					{
+						int32 ActiveCount = 0;
+						int32 TotalCount = 0;
+						for (const TSharedPtr<FMassDebuggerArchetypeData>& ArchetypeData : DebuggerModel->CachedArchetypes)
+						{
+							TotalCount++;
+							if (ArchetypeData->EntitiesCount > 0)
+							{
+								ActiveCount++;
+							}
+							
+							for (const TSharedPtr<FMassDebuggerArchetypeData>& ChildArchetypeData : ArchetypeData->Children)
+							{
+								TotalCount++;
+								if (ChildArchetypeData->EntitiesCount > 0)
+								{
+									ActiveCount++;
+								}
+							}
 						}
+						
+						return FText::Format(LOCTEXT("ArchetypeInfoFormat", "{0} archetypes, {1} active, {2} selected"),
+							TotalCount, ActiveCount, DebuggerModel->SelectedArchetypes.Num());
 					})
-				.OnSelectionChanged(this, &SMassArchetypesView::HandleSelectionChanged)
+				]					
 			]
 
-			+ SHorizontalBox::Slot()
+			+ SSplitter::Slot()
+			.Value(.6f)
 			[
-				SAssignNew(SelectedArchetypesListWidget, SListView<TSharedPtr<FMassDebuggerArchetypeData>>)
-				.ListItemsSource(&DebuggerModel->SelectedArchetypes)
-				.SelectionMode(ESelectionMode::None)
-				.OnGenerateRow_Lambda([](TSharedPtr<FMassDebuggerArchetypeData> Item, const TSharedPtr<STableViewBase>& OwnerTable)
-					{
-						return SNew(SMassArchetypeDetailTableRow, OwnerTable, Item);
-					})
+				SAssignNew(SelectedArchetypesView, SScrollBox)
 			]
 		];
+
+	RebuildSelectedView();
+}
+
+void SMassArchetypesView::RebuildSelectedView()
+{
+	SelectedArchetypesView->ClearChildren();
+
+	const EMassBitSetDiffPrune Prune = DebuggerModel->SelectedArchetypes.Num() > 1 ? EMassBitSetDiffPrune::Same : EMassBitSetDiffPrune::None;
+	
+	for (const TSharedPtr<FMassDebuggerArchetypeData>& ArchetypeData : DebuggerModel->SelectedArchetypes)
+	{
+		SelectedArchetypesView->AddSlot()
+			[
+				SNew(SMassArchetype, ArchetypeData, DiffBase, Prune)
+			];
+	}
 }
 
 void SMassArchetypesView::HandleSelectionChanged(TSharedPtr<FMassDebuggerArchetypeData> InNode, ESelectInfo::Type InSelectInfo)
@@ -174,32 +261,20 @@ void SMassArchetypesView::HandleSelectionChanged(TSharedPtr<FMassDebuggerArchety
 
 void SMassArchetypesView::OnRefresh()
 {
+	TreeViewSource.Reset();
+	
 	if (DebuggerModel)
 	{
-		TreeViewSource.Reset();
-		
-		TMap<uint32, TSharedPtr<FMassDebuggerArchetypeData>> ArchetypeRepresentativeMap;
-		for (const TSharedPtr<FMassDebuggerArchetypeData>& ArchetypeData : DebuggerModel->CachedArchetypes)
-		{
-			if (TSharedPtr<FMassDebuggerArchetypeData>* Representative = ArchetypeRepresentativeMap.Find(ArchetypeData->FamilyHash))
-			{
-				(*Representative)->Children.Add(ArchetypeData);
-			}
-			else
-			{
-				ArchetypeRepresentativeMap.Add(ArchetypeData->FamilyHash, ArchetypeData);
-			}
-		}
+		TreeViewSource = DebuggerModel->CachedArchetypes;
 
-		for (auto& KVP : ArchetypeRepresentativeMap)
+		for (const TSharedPtr<FMassDebuggerArchetypeData>& ArchetypeData : TreeViewSource)
 		{
-			TreeViewSource.Add(KVP.Value);
-			ArchetypesTreeView->SetItemExpansion(KVP.Value, true);
+			ArchetypesTreeView->SetItemExpansion(ArchetypeData, true);
 		}
 	}
 
 	ArchetypesTreeView->RequestListRefresh();
-	SelectedArchetypesListWidget->RequestListRefresh();
+	RebuildSelectedView();
 }
 
 void SMassArchetypesView::OnProcessorsSelected(TConstArrayView<TSharedPtr<FMassDebuggerProcessorData>> SelectedProcessors, ESelectInfo::Type SelectInfo)
@@ -226,8 +301,19 @@ void SMassArchetypesView::OnArchetypesSelected(TConstArrayView<TSharedPtr<FMassD
 			ArchetypesTreeView->RequestScrollIntoView(SelectedArchetypes[0]);
 		}
 	}
+
+	DiffBase = nullptr;
+	if (SelectedArchetypes.Num() == 1)
+	{
+		DiffBase = SelectedArchetypes[0]->Parent.Pin();
+	}
+	else if (SelectedArchetypes.Num() > 1)
+	{
+		DiffBase = SelectedArchetypes[0];
+	}
+	
 	ArchetypesTreeView->RebuildList();
-	SelectedArchetypesListWidget->RequestListRefresh();
+	RebuildSelectedView();
 }
 
 #undef LOCTEXT_NAMESPACE

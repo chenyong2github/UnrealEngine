@@ -4,6 +4,8 @@
 #include "SMassDebuggerViewBase.h"
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Views/SListView.h"
+#include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Layout/SScrollBox.h"
 
 struct FMassDebuggerModel;
 struct FMassDebuggerArchetypeData;
@@ -18,7 +20,7 @@ public:
 	}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedRef<FMassDebuggerModel> DebuggerModel);
+	void Construct(const FArguments& InArgs, TSharedRef<FMassDebuggerModel> InDebuggerModel);
 
 	void HandleSelectionChanged(TSharedPtr<FMassDebuggerArchetypeData> InNode, ESelectInfo::Type InSelectInfo);
 
@@ -27,8 +29,11 @@ protected:
 	virtual void OnProcessorsSelected(TConstArrayView<TSharedPtr<FMassDebuggerProcessorData>> SelectedProcessors, ESelectInfo::Type SelectInfo) override;
 	virtual void OnArchetypesSelected(TConstArrayView<TSharedPtr<FMassDebuggerArchetypeData>> SelectedArchetypes, ESelectInfo::Type SelectInfo) override;
 
+	void RebuildSelectedView();
+	
 	TSharedPtr<STreeView<TSharedPtr<FMassDebuggerArchetypeData>>> ArchetypesTreeView;
-	TSharedPtr<SListView<TSharedPtr<FMassDebuggerArchetypeData>>> SelectedArchetypesListWidget;
-
+	TSharedPtr<SScrollBox> SelectedArchetypesView;
+	TSharedPtr<SHeaderRow> ArchetypesHeaderRow;
+	TSharedPtr<FMassDebuggerArchetypeData> DiffBase;
 	TArray<TSharedPtr<FMassDebuggerArchetypeData>> TreeViewSource;
 };

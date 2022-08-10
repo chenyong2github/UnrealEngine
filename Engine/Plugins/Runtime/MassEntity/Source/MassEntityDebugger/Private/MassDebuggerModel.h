@@ -59,18 +59,39 @@ struct FMassDebuggerArchetypeData
 
 	FMassArchetypeCompositionDescriptor Composition;
 	FMassArchetypeSharedFragmentValues SharedFragments;
-	uint32 FamilyHash = 0;
+
+	/** Hash of the Compositions. */
+	uint32 CompositionHash = 0;
+	/** Combined hash of composition and shared fragments. */
 	uint32 FullHash = 0;
 
+	/** Number of active entities of the archetype. */
 	int32 EntitiesCount = 0;
+	/** Number of entities that fit per chunk. */
 	int32 EntitiesCountPerChunk = 0;
+	/** Number of allocated chunks. */
 	int32 ChunksCount = 0;
 
+	/** Child debugger data (same as parent, but changed in some way) */
 	TArray<TSharedPtr<FMassDebuggerArchetypeData>> Children;
+	/** Parent debugger data. */
+	TWeakPtr<FMassDebuggerArchetypeData> Parent;
 
+
+	/** Index in FMassDebuggerModel::CachedArchetypes */
 	int32 Index = INDEX_NONE;
-	FString Label;
+	/** Display label */
+	FText Label;
+	/** Display label */
+	FText LabelLong;
+	/** Display label tooltip */
+	FText LabelTooltip;
+	/** FullHash as a display string */
+	FText HashLabel;
+	/** Primary debug name, used for grouping derived archetypes. */
+	FString PrimaryDebugName;
 
+	/** True if the archetype is selected. */
 	bool bIsSelected = false;
 
 	int32 GetTotalBitsUsedCount() const;

@@ -156,12 +156,80 @@ FMassDebuggerArchetypeData::FMassDebuggerArchetypeData(const FMassArchetypeHandl
 	SharedFragments = FMassDebugger::GetArchetypeSharedFragmentValues(ArchetypeHandle);
 
 	// @todo should ensure we're using same hashing as the EntitySubsystem here
-	FamilyHash = Composition.CalculateHash();
-	FullHash = HashCombine(FamilyHash, GetTypeHash(SharedFragments));
+	CompositionHash = Composition.CalculateHash();
+	FullHash = HashCombine(CompositionHash, GetTypeHash(SharedFragments));
 
-	BytesToHexLower(reinterpret_cast<const uint8*>(&FullHash), sizeof(FullHash), Label);
+	FString FullHashAsString;
+	BytesToHexLower(reinterpret_cast<const uint8*>(&FullHash), sizeof(FullHash), FullHashAsString);
+	HashLabel = FText::FromString(FullHashAsString);
 
 	FMassDebugger::GetArchetypeEntityStats(ArchetypeHandle, EntitiesCount, EntitiesCountPerChunk, ChunksCount);
+
+	const TConstArrayView<FName> DebugNames = FMassDebugger::GetArchetypeDebugNames(ArchetypeHandle);
+
+	if (DebugNames.IsEmpty())
+	{
+		// This archetype has no associated debug names, use hash as name.
+		FString HashAsString; 
+		BytesToHexLower(reinterpret_cast<const uint8*>(&CompositionHash), sizeof(CompositionHash), HashAsString);
+		PrimaryDebugName = HashAsString;
+
+		// Use first fragment as name
+		if (FMassFragmentBitSet::FIndexIterator It = Composition.Fragments.GetIndexIterator())
+		{
+			const FName FirstStructName = Composition.Fragments.DebugGetStructTypeName(*It);
+			TStringBuilder<256> StringBuilder;
+			StringBuilder.Append(FirstStructName.ToString());
+			StringBuilder.Append(TEXT("..."));
+			Label = FText::FromString(StringBuilder.ToString());
+		}
+		else
+		{
+			Label = FText::FromString(HashAsString);
+		}
+		
+		LabelLong = Label;
+	}
+	else
+	{
+		PrimaryDebugName = DebugNames[0].ToString();
+
+		TStringBuilder<256> StringBuilder;
+
+		// Short label for lists
+		StringBuilder.Reset();
+		StringBuilder.Append(DebugNames[0].ToString());
+		if (DebugNames.Num() > 1)
+		{
+			StringBuilder.Append(TEXT("..."));
+		}
+		Label = FText::FromString(StringBuilder.ToString());
+
+		// Longer label for info display
+		StringBuilder.Reset();
+		for (int i = 0; i < DebugNames.Num(); i++)
+		{
+			if (i > 0)
+			{
+				StringBuilder.Append(TEXT(", "));
+			}
+			StringBuilder.Append(DebugNames[i].ToString());
+		}
+		LabelLong = FText::FromString(StringBuilder.ToString());
+
+		// Label tooltip
+		StringBuilder.Reset();
+		for (int i = 0; i < DebugNames.Num(); i++)
+		{
+			if (i > 0)
+			{
+				StringBuilder.Append(TEXT("\n"));
+			}
+			StringBuilder.Append(DebugNames[i].ToString());
+		}
+		LabelTooltip = FText::FromString(StringBuilder.ToString());
+	}
+
 #endif // WITH_MASSENTITY_DEBUG
 }
 
@@ -431,6 +499,24 @@ void FMassDebuggerModel::StoreArchetypes(const UMassEntitySubsystem& EntitySubsy
 			const float Distance = UE::Mass::Debugger::Private::CalcArchetypeBitDistance(*CachedArchetypes[i].Get(), *CachedArchetypes[k].Get());
 			ArchetypeDistances[i][k] = Distance;
 			ArchetypeDistances[k][i] = Distance;
+		}
+	}
+
+	// Add archetypes that share same primary name under the same entry. 
+	TMap<FString, TSharedPtr<FMassDebuggerArchetypeData>> ArchetypeNameMap;
+	for (int32 Index = 0; Index < CachedArchetypes.Num(); Index++)
+	{
+		TSharedPtr<FMassDebuggerArchetypeData> ArchetypeData = CachedArchetypes[Index];
+		if (const TSharedPtr<FMassDebuggerArchetypeData>* Representative = ArchetypeNameMap.Find(ArchetypeData->PrimaryDebugName))
+		{
+			(*Representative)->Children.Add(ArchetypeData);
+			ArchetypeData->Parent = *Representative; 
+			CachedArchetypes.RemoveAt(Index);
+			Index--;
+		}
+		else
+		{
+			ArchetypeNameMap.Add(ArchetypeData->PrimaryDebugName, ArchetypeData);
 		}
 	}
 }
