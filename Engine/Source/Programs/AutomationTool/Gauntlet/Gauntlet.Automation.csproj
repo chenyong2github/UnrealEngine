@@ -50,6 +50,9 @@
       <HintPath>..\..\..\..\Binaries\ThirdParty\Newtonsoft\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="WindowsDevicePortalWrapper">
+      <HintPath>..\..\..\..\Binaries\ThirdParty\WindowsDevicePortalWrapper\WindowsDevicePortalWrapper.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

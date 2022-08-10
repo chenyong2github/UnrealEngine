@@ -39,6 +39,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Gauntlet\**" />
+    <Compile Remove="LowLevelTests\**" />
+    <Compile Remove="AutomationUtils\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Include="..\..\..\..\..\..\Engine\Source\Programs\Shared\MetaData.cs">
       <Link>Properties\MetaData.cs</Link>
     </Compile>
@@ -48,6 +54,7 @@
     <ProjectReference Include="..\..\..\..\..\..\Engine\Source\Programs\UnrealBuildTool\UnrealBuildTool.csproj" PrivateAssets="All"><Private>false</Private></ProjectReference>
     <ProjectReference Include="..\..\..\..\..\..\Engine\Source\Programs\AutomationTool\AutomationUtils\AutomationUtils.Automation.csproj" PrivateAssets="All"><Private>false</Private></ProjectReference>
     <ProjectReference Include="..\..\..\..\..\..\Engine\Source\Programs\AutomationTool\Scripts\AutomationScripts.Automation.csproj" PrivateAssets="All"><Private>false</Private></ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\Source\Programs\AutomationTool\Gauntlet\Gauntlet.Automation.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />

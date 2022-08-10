@@ -1748,79 +1748,9 @@ namespace HoloLens.Automation
 			}
 		}
 
-		private string[] GetPathToVCLibsPackages(bool UseDebugCrt, WindowsCompiler Compiler)
+		public string[] GetPathToVCLibsPackages(bool UseDebugCrt, WindowsCompiler Compiler)
 		{
-			List<DirectoryReference> SdkRootDirs = new List<DirectoryReference>();
-			WindowsExports.EnumerateSdkRootDirs(SdkRootDirs, Log.Logger);
-			
-			string VCVersionFragment;
-            switch (Compiler)
-			{
-				case WindowsCompiler.VisualStudio2019:
-				case WindowsCompiler.VisualStudio2022:
-				//Compiler version is still 14 for 2017
-				case WindowsCompiler.Default:
-					VCVersionFragment = "14";
-					break;
-
-				default:
-					VCVersionFragment = "Unsupported_VC_Version";
-					break;
-			}
-
-			List<string> Runtimes = new List<string>();
-
-			bool foundVcLibs = false;
-			foreach (DirectoryReference SdkRootDir in SdkRootDirs)
-			{
-				if (!foundVcLibs)
-				{
-					foreach (var Arch in ActualArchitectures)
-					{
-						string ArchitectureFragment = WindowsExports.GetArchitectureSubpath(Arch);
-
-						// For whatever reason, VCLibs are not in Windows Kits/, but Microsoft SDKs/Windows Kits, so go up two directories and start from there.
-						if (DirectoryExists(SdkRootDir.ParentDirectory.ToString()) && DirectoryExists(SdkRootDir.ParentDirectory.ParentDirectory.ToString()))
-						{
-							DirectoryReference Win64SDKsRootDir = SdkRootDir.ParentDirectory.ParentDirectory;
-
-							string RuntimePath = Path.Combine(Win64SDKsRootDir.ToString(),
-								"Microsoft SDKs",
-								"Windows Kits",
-								"10",
-								"ExtensionSDKs",
-								"Microsoft.VCLibs",
-								string.Format("{0}.0", VCVersionFragment),
-								"Appx",
-								UseDebugCrt ? "Debug" : "Retail",
-								ArchitectureFragment,
-								string.Format("Microsoft.VCLibs.{0}.{1}.00.appx", ArchitectureFragment, VCVersionFragment));
-
-							if (FileExists(RuntimePath))
-							{
-								Runtimes.Add(RuntimePath);
-								LogLog("found vclibs, path: " + RuntimePath);
-								foundVcLibs = true;
-							}
-							else
-							{
-								LogLog("no vclib found, path: " + RuntimePath);
-							}
-						}
-						else
-						{
-							LogLog("Directory structure for VCLibs not present , SDK path: " + SdkRootDir.ToString());
-						}
-					}
-				}
-			}
-
-			if (!foundVcLibs)
-			{
-				LogError("no appropriate VCLibs found in any of the SDK locations");
-			}
-
-			return Runtimes.ToArray();
+			return Gauntlet.TargetDeviceHoloLens.GetPathToVCLibsPackages(UseDebugCrt, Compiler, ActualArchitectures);
 		}
 
 		private void GenerateDLCManifestIfNecessary(ProjectParams Params, DeploymentContext SC)
