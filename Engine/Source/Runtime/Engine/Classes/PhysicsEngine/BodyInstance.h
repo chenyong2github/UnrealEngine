@@ -1082,9 +1082,10 @@ public:
 	 *  @param  Rotation		Rotation to apply to the shape before testing
 	 *	@param	CollisionShape	Shape to test against
 	 *  @param  OutMTD			The minimum translation direction needed to push the shape out of this BodyInstance. (Optional)
+	 *  @param  TraceComplex    Trace against complex or simple geometry (Defaults simple)
 	 *  @return true if the geometry associated with this body instance overlaps the query shape at the specified location/rotation
 	 */
-	bool OverlapTest(const FVector& Position, const FQuat& Rotation, const struct FCollisionShape& CollisionShape, FMTDResult* OutMTD = nullptr) const;
+	bool OverlapTest(const FVector& Position, const FQuat& Rotation, const struct FCollisionShape& CollisionShape, FMTDResult* OutMTD = nullptr, bool bTraceComplex = false) const;
 
 	/**
 	 *  Test if the bodyinstance overlaps with the specified shape at the specified position/rotation
@@ -1094,9 +1095,10 @@ public:
 	 *  @param  Rotation		Rotation to apply to the shape before testing
 	 *	@param	CollisionShape	Shape to test against
 	 *  @param  OutMTD			The minimum translation direction needed to push the shape out of this BodyInstance. (Optional)
+	 * 	@param  TraceComplex    Trace against complex or simple geometry  (Defaults simple)
 	 *  @return true if the geometry associated with this body instance overlaps the query shape at the specified location/rotation
 	 */
-	bool OverlapTest_AssumesLocked(const FVector& Position, const FQuat& Rotation, const struct FCollisionShape& CollisionShape, FMTDResult* OutMTD = nullptr) const;
+	bool OverlapTest_AssumesLocked(const FVector& Position, const FQuat& Rotation, const struct FCollisionShape& CollisionShape, FMTDResult* OutMTD = nullptr, bool bTraceComplex = false) const;
 
 	/**
 	 *  Test if the bodyinstance overlaps with the specified body instances
@@ -1104,10 +1106,11 @@ public:
 	 *  @param  Position		Position to place our shapes at before testing (shapes of this BodyInstance)
 	 *  @param  Rotation		Rotation to apply to our shapes before testing (shapes of this BodyInstance)
 	 *  @param  Bodies			The bodies we are testing for overlap with. These bodies will be in world space already
+	 *  @param  TraceComplex    Trace against complex or simple geometry (Defaults simple)
 	 *  @return true if any of the bodies passed in overlap with this
 	 */
-	bool OverlapTestForBodies(const FVector& Position, const FQuat& Rotation, const TArray<FBodyInstance*>& Bodies) const;
-	bool OverlapTestForBody(const FVector& Position, const FQuat& Rotation, FBodyInstance* Body) const;
+	bool OverlapTestForBodies(const FVector& Position, const FQuat& Rotation, const TArray<FBodyInstance*>& Bodies, bool bTraceComplex = false) const;
+	bool OverlapTestForBody(const FVector& Position, const FQuat& Rotation, FBodyInstance* Body, bool bTraceComplex = false) const;
 
 	/**
 	 *  Determines the set of components that this body instance would overlap with at the supplied location/rotation
@@ -1231,7 +1234,7 @@ private:
 	static bool IsValidCollisionProfileName(FName InCollisionProfileName);
 
 	template<typename AllocatorType>
-	bool OverlapTestForBodiesImpl(const FVector& Position, const FQuat& Rotation, const TArray<FBodyInstance*, AllocatorType>& Bodies) const;
+	bool OverlapTestForBodiesImpl(const FVector& Position, const FQuat& Rotation, const TArray<FBodyInstance*, AllocatorType>& Bodies, bool bTraceComplex = false) const;
 
 	friend class UPhysicsAsset;
 	friend class UCollisionProfile;
@@ -1287,16 +1290,16 @@ FORCEINLINE_DEBUGGABLE bool FBodyInstance::OverlapMulti(TArray<struct FOverlapRe
 
 /// @endcond
 
-FORCEINLINE_DEBUGGABLE bool FBodyInstance::OverlapTestForBodies(const FVector& Position, const FQuat& Rotation, const TArray<FBodyInstance*>& Bodies) const
+FORCEINLINE_DEBUGGABLE bool FBodyInstance::OverlapTestForBodies(const FVector& Position, const FQuat& Rotation, const TArray<FBodyInstance*>& Bodies, bool bTraceComplex) const
 {
-	return OverlapTestForBodiesImpl(Position, Rotation, Bodies);
+	return OverlapTestForBodiesImpl(Position, Rotation, Bodies, bTraceComplex);
 }
 
-FORCEINLINE_DEBUGGABLE bool FBodyInstance::OverlapTestForBody(const FVector& Position, const FQuat& Rotation, FBodyInstance* Body) const
+FORCEINLINE_DEBUGGABLE bool FBodyInstance::OverlapTestForBody(const FVector& Position, const FQuat& Rotation, FBodyInstance* Body, bool bTraceComplex) const
 {
 	TArray<FBodyInstance*, TInlineAllocator<1>> InlineArray;
 	InlineArray.Add(Body);
-	return OverlapTestForBodiesImpl(Position, Rotation, InlineArray);
+	return OverlapTestForBodiesImpl(Position, Rotation, InlineArray, bTraceComplex);
 }
 
 FORCEINLINE_DEBUGGABLE bool FBodyInstance::IsInstanceSimulatingPhysics() const
@@ -1304,5 +1307,5 @@ FORCEINLINE_DEBUGGABLE bool FBodyInstance::IsInstanceSimulatingPhysics() const
 	return ShouldInstanceSimulatingPhysics() && IsValidBodyInstance();
 }
 
-extern template ENGINE_API bool FBodyInstance::OverlapTestForBodiesImpl(const FVector& Position, const FQuat& Rotation, const TArray<FBodyInstance*>& Bodies) const;
-extern template ENGINE_API bool FBodyInstance::OverlapTestForBodiesImpl(const FVector& Position, const FQuat& Rotation, const TArray<FBodyInstance*, TInlineAllocator<1>>& Bodies) const;
+extern template ENGINE_API bool FBodyInstance::OverlapTestForBodiesImpl(const FVector& Position, const FQuat& Rotation, const TArray<FBodyInstance*>& Bodies, bool bTraceComplex) const;
+extern template ENGINE_API bool FBodyInstance::OverlapTestForBodiesImpl(const FVector& Position, const FQuat& Rotation, const TArray<FBodyInstance*, TInlineAllocator<1>>& Bodies, bool bTraceComplex) const;
