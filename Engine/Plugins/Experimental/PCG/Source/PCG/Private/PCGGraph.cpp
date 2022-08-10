@@ -529,7 +529,7 @@ void UPCGGraph::NotifyGraphChanged(bool bIsStructural)
 	}
 
 	// Skip recursive cases which can happen either through direct recursivity (A -> A) or indirectly (A -> B -> A)
-	if (bIsNotifying)
+	if (bSubsystemNotificationDisabled || bIsNotifying)
 	{
 		return;
 	}

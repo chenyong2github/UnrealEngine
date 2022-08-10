@@ -36,13 +36,13 @@ public:
 
 	/** Sets the PCG component we want to debug */
 	void SetPCGComponentBeingDebugged(UPCGComponent* InPCGComponent);
-	
+
 	/** Gets the PCG component we are debugging */
 	UPCGComponent* GetPCGComponentBeingDebugged() const { return PCGComponentBeingDebugged; }
 
 	/** Sets the PCG node we want to inspect */
 	void SetPCGNodeBeingInspected(UPCGNode* InPCGNode);
-	
+
 	/** Gets the PCG node we are inspecting */
 	UPCGNode* GetPCGNodeBeingInspected() const { return PCGNodeBeingInspected; }
 
@@ -68,7 +68,7 @@ public:
 	virtual void OnClose() override;
 	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 	// ~End FAssetEditorToolkit interface
-	
+
 	FOnDebugObjectChanged OnDebugObjectChangedDelegate;
 	FOnInspectedNodeChanged OnInspectedNodeChangedDelegate;
 
@@ -88,6 +88,10 @@ private:
 	/** Bring up the find tab */
 	void OnFind();
 
+	/** Enable/Disable automatic PCG node generation */
+	void OnPauseAutomaticRegeneration_Clicked();
+	bool IsAutomaticRegenerationPaused() const;
+
 	/** Start inspecting the current selected node */
 	void OnStartInspectNode();
 	/** Stop inspecting the current inspected node */
@@ -98,12 +102,12 @@ private:
 	/** Summon the Determinism tab */
 	void OnDeterminismTests();
 
-	/** Whether or not an execution mode is active for the selected ndoes */
+	/** Whether or not an execution mode is active for the selected nodes */
 	bool IsExecutionModeActive(EPCGSettingsExecutionMode InExecutionMode) const;
-		
+
 	/** Set execution mode for selected nodes */
 	void OnSetExecutionMode(EPCGSettingsExecutionMode InExecutionMode);
-	
+
 	/** Select every node in the graph */
 	void SelectAllNodes();
 	/** Whether we can select every node */

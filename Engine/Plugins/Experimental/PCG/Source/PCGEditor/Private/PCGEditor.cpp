@@ -289,10 +289,17 @@ void FPCGEditor::RegisterToolbar() const
 	{
 		FToolMenuSection& Section = ToolBar->AddSection("PCGToolbar", TAttribute<FText>(), InsertAfterAssetSection);
 		Section.AddEntry(FToolMenuEntry::InitToolBarButton(
- 			PCGEditorCommands.Find,
- 			TAttribute<FText>(),
- 			TAttribute<FText>(),
- 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintEditor.FindInBlueprint"))); // TODO, use own application style?
+			PCGEditorCommands.Find,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintEditor.FindInBlueprint"))); // TODO, use own application style?
+
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+			FPCGEditorCommands::Get().PauseAutoRegeneration,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.PausePlaySession")));
+
 		Section.AddSeparator(NAME_None);
 		Section.AddDynamicEntry("Debugging", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 		{
@@ -312,6 +319,12 @@ void FPCGEditor::BindCommands()
 	ToolkitCommands->MapAction(
 		PCGEditorCommands.Find,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnFind));
+
+	ToolkitCommands->MapAction(
+		PCGEditorCommands.PauseAutoRegeneration,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnPauseAutomaticRegeneration_Clicked),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FPCGEditor::IsAutomaticRegenerationPaused));
 
 	GraphEditorCommands->MapAction(
 		PCGEditorCommands.CollapseNodes,
@@ -336,19 +349,19 @@ void FPCGEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnSetExecutionMode, EPCGSettingsExecutionMode::Enabled),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FPCGEditor::IsExecutionModeActive, EPCGSettingsExecutionMode::Enabled));
-	
+
 	GraphEditorCommands->MapAction(
 		PCGEditorCommands.ExecutionModeDebug,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnSetExecutionMode, EPCGSettingsExecutionMode::Debug),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FPCGEditor::IsExecutionModeActive, EPCGSettingsExecutionMode::Debug));
-	
+
 	GraphEditorCommands->MapAction(
 		PCGEditorCommands.ExecutionModeDisabled,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnSetExecutionMode, EPCGSettingsExecutionMode::Disabled),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FPCGEditor::IsExecutionModeActive, EPCGSettingsExecutionMode::Disabled));
-	
+
 	GraphEditorCommands->MapAction(
 		PCGEditorCommands.ExecutionModeIsolated,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnSetExecutionMode, EPCGSettingsExecutionMode::Isolated),
@@ -363,6 +376,26 @@ void FPCGEditor::OnFind()
 		TabManager->TryInvokeTab(FPCGEditor_private::FindID);
 		FindWidget->FocusForUse();
 	}
+}
+
+void FPCGEditor::OnPauseAutomaticRegeneration_Clicked()
+{
+	if (!PCGGraphBeingEdited)
+	{
+		return;
+	}
+
+	PCGGraphBeingEdited->ToggleSubsystemNotifications();
+
+	if (!PCGGraphBeingEdited->SubsystemNotificationsAreDisabled())
+	{
+		PCGGraphBeingEdited->NotifyGraphChanged(/*bIsStructural=*/true);
+	}
+}
+
+bool FPCGEditor::IsAutomaticRegenerationPaused() const
+{
+	return PCGGraphBeingEdited && PCGGraphBeingEdited->SubsystemNotificationsAreDisabled();
 }
 
 bool FPCGEditor::CanRunDeterminismTests() const
@@ -911,26 +944,26 @@ bool FPCGEditor::IsExecutionModeActive(EPCGSettingsExecutionMode InExecutionMode
 			{
 				continue;
 			}
-			
+
 			const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
 			if (!PCGNode)
 			{
 				continue;
 			}
 
-			const UPCGSettings* PCGSettings = PCGNode->DefaultSettings; 
+			const UPCGSettings* PCGSettings = PCGNode->DefaultSettings;
 			if (!PCGSettings)
 			{
-				continue;				
+				continue;
 			}
-			
+
 			if (PCGSettings->ExecutionMode == InExecutionMode)
 			{
 				return true;
 			}
 		}
 	}
-	
+
 	return false;
 }
 

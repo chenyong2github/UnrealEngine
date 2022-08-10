@@ -87,6 +87,8 @@ public:
 
 	const TArray<TObjectPtr<UObject>>& GetExtraEditorNodes() const { return ExtraEditorNodes; }
 	void SetExtraEditorNodes(const TArray<TObjectPtr<const UObject>>& InNodes);
+	void ToggleSubsystemNotifications() { bSubsystemNotificationDisabled = !bSubsystemNotificationDisabled; }
+	bool SubsystemNotificationsAreDisabled() const { return bSubsystemNotificationDisabled; }
 #endif
 
 #if WITH_EDITOR
@@ -127,5 +129,6 @@ private:
 	bool bDelayedChangeNotification = false;
 	bool bDelayedChangeNotificationStructural = false;
 	bool bIsNotifying = false;
+	bool bSubsystemNotificationDisabled = false;
 #endif // WITH_EDITOR
 };
