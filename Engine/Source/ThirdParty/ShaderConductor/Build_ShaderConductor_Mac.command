@@ -29,22 +29,12 @@ DST_DIR="../../../../Binaries/ThirdParty/ShaderConductor/Mac"
 
 if [ "$#" -eq 1 ] && [ "$1" == "-debug" ]; then
 	# Debug
-    if [ "$BUILD_UNIVERSAL" = true ] ; then
-        python3 BuildAll.py ninja clang mac_universal Debug
-        SRC_DIR="$SRC_DIR/ninja-osx-clang-mac_universal-Debug"
-    else
-        python3 BuildAll.py ninja clang x64 Debug
-        SRC_DIR="$SRC_DIR/ninja-osx-clang-x64-Debug"
-    fi
+	python3 BuildAll.py ninja clang mac_universal Debug
+	SRC_DIR="$SRC_DIR/ninja-osx-clang-mac_universal-Debug"
 else
 	# Release
-    if [ "$BUILD_UNIVERSAL" = true ] ; then
-        python3 BuildAll.py ninja clang mac_universal RelWithDebInfo
-        SRC_DIR="$SRC_DIR/ninja-osx-clang-mac_universal-RelWithDebInfo"
-    else
-        python3 BuildAll.py ninja clang x64 RelWithDebInfo
-        SRC_DIR="$SRC_DIR/ninja-osx-clang-x64-RelWithDebInfo"
-    fi
+	python3 BuildAll.py ninja clang mac_universal RelWithDebInfo
+	SRC_DIR="$SRC_DIR/ninja-osx-clang-mac_universal-RelWithDebInfo"
 fi
 
 # Copy binary files from source to destination
