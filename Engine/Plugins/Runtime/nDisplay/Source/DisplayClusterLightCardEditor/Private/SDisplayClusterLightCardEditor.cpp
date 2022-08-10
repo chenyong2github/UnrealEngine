@@ -8,6 +8,7 @@
 #include "SDisplayClusterLightCardList.h"
 #include "LightCardTemplates/SDisplayClusterLightCardTemplateList.h"
 #include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
+#include "LightCardTemplates/DisplayClusterLightCardTemplateHelpers.h"
 #include "Settings/DisplayClusterLightCardEditorSettings.h"
 
 #include "Viewport/DisplayClusterLightcardEditorViewport.h"
@@ -33,6 +34,7 @@
 #include "ScopedTransaction.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "Selection.h"
+#include "Styling/SlateIconFinder.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -121,7 +123,6 @@ void SDisplayClusterLightCardEditor::Construct(const FArguments& InArgs, const T
 	TabManager = FGlobalTabmanager::Get()->NewTabManager(MajorTabOwner);
 
 	const FName LightCardTab = TEXT("LightCards");
-	const FName LightCardTemplateTab = TEXT("LightCardTemplates");
 	const FName ViewportTab = TEXT("Viewport"); 
 	
 	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("LightCardEditor")
@@ -138,13 +139,6 @@ void SDisplayClusterLightCardEditor::Construct(const FArguments& InArgs, const T
 			(
 			FTabManager::NewStack()
 				->AddTab(LightCardTab, ETabState::OpenedTab)
-				->SetHideTabWell(true)
-				->SetForegroundTab(LightCardTab)
-			)
-			->Split
-			(
-			FTabManager::NewStack()
-				->AddTab(LightCardTemplateTab, ETabState::OpenedTab)
 				->SetHideTabWell(true)
 				->SetForegroundTab(LightCardTab)
 			)
@@ -168,18 +162,6 @@ void SDisplayClusterLightCardEditor::Construct(const FArguments& InArgs, const T
 		.ContentPadding(0)
 		[
 			CreateLightCardListWidget()
-		];
-	}));
-
-	TabManager->RegisterTabSpawner(LightCardTemplateTab, FOnSpawnTab::CreateLambda([this](const FSpawnTabArgs&) -> TSharedRef<SDockTab>
-	{
-		return SNew(SDockTab)
-		.TabRole(ETabRole::PanelTab)
-		.CanEverClose(false)
-		.OnCanCloseTab(SDockTab::FCanCloseTab::CreateLambda([](){ return false; }))
-		.ContentPadding(0)
-		[
-			CreateLightCardTemplateWidget()
 		];
 	}));
 	
@@ -278,7 +260,9 @@ ADisplayClusterLightCardActor* SDisplayClusterLightCardEditor::SpawnLightCardFro
 		return nullptr;
 	}
 
-	check(InTemplate);
+	FScopedTransaction Transaction(LOCTEXT("SpawnLightCardFromTemplateTransactionMessage", "Spawn Light Card from Template"));
+	
+	check(InTemplate && InTemplate->LightCardActor);
 
 	ULevel* Level = InLevel ? InLevel : ActiveRootActor->GetWorld()->GetCurrentLevel();
 	
@@ -300,6 +284,12 @@ ADisplayClusterLightCardActor* SDisplayClusterLightCardEditor::SpawnLightCardFro
 	
 		const TArray<ADisplayClusterLightCardActor*> LightCards { NewLightCard } ;
 		AddLightCardsToActor(LightCards);
+
+		FDisplayClusterLightCardEditorRecentItem RecentlyPlacedItem;
+		RecentlyPlacedItem.ObjectPath = InTemplate;
+		RecentlyPlacedItem.ItemType = FDisplayClusterLightCardEditorRecentItem::Type_LightCardTemplate;
+		
+		AddRecentlyPlacedItem(MoveTemp(RecentlyPlacedItem));
 	}
 	
 	return NewLightCard;
@@ -317,6 +307,12 @@ void SDisplayClusterLightCardEditor::AddNewLightCard()
 	if (NewLightCard)
 	{
 		CenterLightCardInView(*NewLightCard);
+
+		FDisplayClusterLightCardEditorRecentItem RecentlyPlacedItem;
+		RecentlyPlacedItem.ObjectPath = NewLightCard->GetClass();
+		RecentlyPlacedItem.ItemType = FDisplayClusterLightCardEditorRecentItem::Type_LightCard;
+		
+		AddRecentlyPlacedItem(MoveTemp(RecentlyPlacedItem));
 	}
 }
 
@@ -787,6 +783,176 @@ TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateViewportWidget()
 	return SAssignNew(ViewportView, SDisplayClusterLightCardEditorViewport, SharedThis(this), CommandList);
 }
 
+TSharedRef<SWidget> SDisplayClusterLightCardEditor::GeneratePlaceActorsMenu()
+{
+	const bool bInShouldCloseWindowAfterMenuSelection = true;
+
+	FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
+	MenuBuilder.BeginSection("PlaceActors", LOCTEXT("PlaceActorsMenuHeader", "Place Actors"));
+	{
+		FSlateIcon LightCardIcon = FSlateIconFinder::FindIconForClass(ADisplayClusterLightCardActor::StaticClass());
+		
+		MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().AddNewLightCard,
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), LightCardIcon);
+		MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().AddExistingLightCard,
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), LightCardIcon);
+		
+		MenuBuilder.AddSubMenu(LOCTEXT("AllTemplatesLabel", "All Templates"),
+		LOCTEXT("AllTemplatesTooltip", "Select a template"),
+		FNewMenuDelegate::CreateSP(this, &SDisplayClusterLightCardEditor::GenerateTemplateSubMenu),
+		false,
+		FSlateIcon(),
+		true);
+	}
+	MenuBuilder.EndSection();
+	MenuBuilder.BeginSection("Favorites", LOCTEXT("FavoritesMenuHeader", "Favorites"));
+	{
+		TArray<UDisplayClusterLightCardTemplate*> LightCardTemplates =
+		UE::DisplayClusterLightCardTemplateHelpers::GetLightCardTemplates(/*bFavoritesOnly*/ true);
+
+		TemplateBrushes.Empty();
+		
+		for (UDisplayClusterLightCardTemplate* Template : LightCardTemplates)
+		{
+			// Create a brush if this template is using a custom texture.
+			if (Template->LightCardActor != nullptr && Template->LightCardActor->Texture.Get() != nullptr)
+			{
+				TSharedPtr<FSlateBrush> SlateBrush = MakeShared<FSlateBrush>();
+
+				SlateBrush->SetResourceObject(Template->LightCardActor->Texture.Get());
+				SlateBrush->ImageSize = FVector2D(16.f, 16.f);
+				TemplateBrushes.Add(Template, SlateBrush);
+			}
+
+			TWeakObjectPtr<UDisplayClusterLightCardTemplate> TemplateWeakPtr = MakeWeakObjectPtr(Template);
+
+			const TSharedPtr<SWidget> TemplateWidget = SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SBox)
+				.HeightOverride(16.f)
+				.WidthOverride(16.f)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(this, &SDisplayClusterLightCardEditor::GetLightCardTemplateIcon, TemplateWeakPtr)
+				]
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.f, 0.f)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(Template->GetName()))
+			];
+
+			FMenuEntryParams EntryParams;
+			EntryParams.EntryWidget = TemplateWidget;
+			EntryParams.LabelOverride = FText::FromString(Template->GetName());
+			EntryParams.ToolTipOverride = LOCTEXT("FavoriteEntryTooltip", "Spawn this favorite");
+			EntryParams.DirectActions.ExecuteAction = FExecuteAction::CreateLambda([this, TemplateWeakPtr]()
+			{
+				if (TemplateWeakPtr.IsValid())
+				{
+					SpawnLightCardFromTemplate(TemplateWeakPtr.Get());
+				}
+			});
+			
+			MenuBuilder.AddMenuEntry(EntryParams);
+		}
+	}
+	MenuBuilder.EndSection();
+
+	CleanupRecentlyPlacedItems();
+	
+	MenuBuilder.BeginSection("RecentlyPlaced", LOCTEXT("RecentlyPlacedMenuHeader", "Recently Placed"));
+	{
+		const UDisplayClusterLightCardEditorSettings* Settings = GetDefault<UDisplayClusterLightCardEditorSettings>();
+		for (const FDisplayClusterLightCardEditorRecentItem& RecentlyPlacedItem : Settings->RecentlyPlacedItems)
+		{
+			TWeakObjectPtr<UObject> ObjectWeakPtr = MakeWeakObjectPtr(RecentlyPlacedItem.ObjectPath.LoadSynchronous());
+			check(ObjectWeakPtr.IsValid());
+			
+			const TSharedPtr<SWidget> RecentItemWidget = SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SBox)
+				.HeightOverride(16.f)
+				.WidthOverride(16.f)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(RecentlyPlacedItem.GetSlateBrush())
+				]
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.f, 0.f)
+			[
+				SNew(STextBlock)
+				.Text(RecentlyPlacedItem.GetItemDisplayName())
+			];
+
+			FMenuEntryParams EntryParams;
+			EntryParams.EntryWidget = RecentItemWidget;
+			EntryParams.LabelOverride = FText::FromString(ObjectWeakPtr->GetName());
+			EntryParams.ToolTipOverride = LOCTEXT("RecentItemEntryTooltip", "Spawn this recently placed item");
+			EntryParams.DirectActions.ExecuteAction = FExecuteAction::CreateLambda([this, RecentlyPlacedItem, ObjectWeakPtr]()
+			{
+				if (ObjectWeakPtr.IsValid())
+				{
+					if (RecentlyPlacedItem.ItemType == FDisplayClusterLightCardEditorRecentItem::Type_LightCard)
+					{
+						AddNewLightCard();
+					}
+					else if (RecentlyPlacedItem.ItemType == FDisplayClusterLightCardEditorRecentItem::Type_LightCardTemplate)
+					{
+						if (const UDisplayClusterLightCardTemplate* Template = Cast<UDisplayClusterLightCardTemplate>(ObjectWeakPtr.Get()))
+						{
+							SpawnLightCardFromTemplate(Template);
+						}
+					}
+				}
+			});
+			
+			MenuBuilder.AddMenuEntry(EntryParams);
+		}
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+const FSlateBrush* SDisplayClusterLightCardEditor::GetLightCardTemplateIcon(const TWeakObjectPtr<UDisplayClusterLightCardTemplate> InTemplate) const
+{
+	if (!InTemplate.IsValid())
+	{
+		return nullptr;
+	}
+		
+	if (const TSharedPtr<FSlateBrush>* Brush = TemplateBrushes.Find(InTemplate))
+	{
+		return (*Brush).Get();
+	}
+	
+	return FSlateIconFinder::FindIconBrushForClass(InTemplate->GetClass());
+}
+
+void SDisplayClusterLightCardEditor::GenerateTemplateSubMenu(FMenuBuilder& InMenuBuilder)
+{
+	InMenuBuilder.BeginSection("Templates", LOCTEXT("TemplatesMenuHeader", "Templates"));
+	{
+		InMenuBuilder.AddWidget(CreateLightCardTemplateWidget(), FText::GetEmpty(), true);
+	}
+	InMenuBuilder.EndSection();
+}
+
 TSharedRef<SWidget> SDisplayClusterLightCardEditor::GenerateLabelsMenu()
 {
 	const bool bInShouldCloseWindowAfterMenuSelection = true;
@@ -833,7 +999,9 @@ TSharedRef<SWidget> SDisplayClusterLightCardEditor::GenerateLabelsMenu()
 
 TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateLightCardTemplateWidget()
 {
-	return SAssignNew(LightCardTemplateList, SDisplayClusterLightCardTemplateList, SharedThis(this));
+	return SNew(SDisplayClusterLightCardTemplateList, SharedThis(this))
+	.HideHeader(true)
+	.SpawnOnSelection(true);
 }
 
 void SDisplayClusterLightCardEditor::BindCommands()
@@ -905,14 +1073,27 @@ void SDisplayClusterLightCardEditor::ExtendToolbar(FToolBarBuilder& ToolbarBuild
 	// TODO: Any toolbar buttons needed for the lightcards editor can be added to the operator panel's toolbar using this toolbar extender
 
 	ToolbarBuilder.AddSeparator();
+	{
+		const FUIAction DefaultAction;
+		ToolbarBuilder.AddComboButton(
+			DefaultAction,
+			FOnGetContent::CreateSP(this, &SDisplayClusterLightCardEditor::GeneratePlaceActorsMenu),
+			TAttribute<FText>(),
+			LOCTEXT("PlaceActors_ToolTip", "Place actors in the scene"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.PlaceActors"));
+	}
 	
-	const FUIAction DefaultAction;
-	ToolbarBuilder.AddComboButton(
-		DefaultAction,
-		FOnGetContent::CreateSP(this, &SDisplayClusterLightCardEditor::GenerateLabelsMenu),
-		TAttribute<FText>(),
-		LOCTEXT("Labels_ToolTip", "Configure options for labels"),
-		FSlateIcon(FDisplayClusterLightCardEditorStyle::Get().GetStyleSetName(), "DisplayClusterLightCardEditor.Labels"));
+	ToolbarBuilder.AddSeparator();
+	{
+		const FUIAction DefaultAction;
+		ToolbarBuilder.AddComboButton(
+			DefaultAction,
+			FOnGetContent::CreateSP(this, &SDisplayClusterLightCardEditor::GenerateLabelsMenu),
+			TAttribute<FText>(),
+			LOCTEXT("Labels_ToolTip", "Configure options for labels"),
+			FSlateIcon(FDisplayClusterLightCardEditorStyle::Get().GetStyleSetName(), "DisplayClusterLightCardEditor.Labels"));
+	}
+	
 }
 
 void SDisplayClusterLightCardEditor::RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType ProxyType)
@@ -1086,6 +1267,39 @@ void SDisplayClusterLightCardEditor::OnObjectTransacted(UObject* Object,
 void SDisplayClusterLightCardEditor::OnLightCardListChanged()
 {
 	RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType::LightCards);
+}
+
+void SDisplayClusterLightCardEditor::AddRecentlyPlacedItem(const FDisplayClusterLightCardEditorRecentItem& InItem)
+{
+	UDisplayClusterLightCardEditorSettings* Settings = GetMutableDefault<UDisplayClusterLightCardEditorSettings>();
+	
+	Settings->RecentlyPlacedItems.RemoveAll([&](const FDisplayClusterLightCardEditorRecentItem& Compare)
+	{
+		return Compare == InItem;
+	});
+	Settings->RecentlyPlacedItems.Insert(InItem, 0);
+
+	const int32 MaxRecentlyPlaced = 5;
+	
+	if (Settings->RecentlyPlacedItems.Num() > MaxRecentlyPlaced)
+	{
+		Settings->RecentlyPlacedItems.RemoveAt(MaxRecentlyPlaced - 1, Settings->RecentlyPlacedItems.Num() - MaxRecentlyPlaced);
+	}
+
+	Settings->PostEditChange();
+	Settings->SaveConfig();
+}
+
+void SDisplayClusterLightCardEditor::CleanupRecentlyPlacedItems()
+{
+	UDisplayClusterLightCardEditorSettings* Settings = GetMutableDefault<UDisplayClusterLightCardEditorSettings>();
+	Settings->RecentlyPlacedItems.RemoveAll([&](const FDisplayClusterLightCardEditorRecentItem& Compare)
+	{
+		return !Compare.ObjectPath.LoadSynchronous();
+	});
+
+	Settings->PostEditChange();
+	Settings->SaveConfig();
 }
 
 #undef LOCTEXT_NAMESPACE

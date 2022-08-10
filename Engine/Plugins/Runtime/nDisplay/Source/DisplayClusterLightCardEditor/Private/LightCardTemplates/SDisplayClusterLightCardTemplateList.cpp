@@ -4,6 +4,7 @@
 
 #include "DisplayClusterLightCardTemplate.h"
 #include "DisplayClusterLightCardTemplateDragDropOp.h"
+#include "DisplayClusterLightCardTemplateHelpers.h"
 #include "SDisplayClusterLightCardEditor.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -29,7 +30,9 @@ class SLightCardTemplateTreeItemRow : public SMultiColumnTableRow<TSharedPtr<SDi
 
 public:
 
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable, const TSharedPtr<SDisplayClusterLightCardTemplateList>& InTemplateList, const TSharedPtr<SDisplayClusterLightCardTemplateList::FLightCardTemplateTreeItem> InLightCardTreeItem)
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable,
+		const TSharedPtr<SDisplayClusterLightCardTemplateList>& InTemplateList,
+		const TSharedPtr<SDisplayClusterLightCardTemplateList::FLightCardTemplateTreeItem> InLightCardTreeItem)
 	{
 		LightCardTreeItem = InLightCardTreeItem;
 		OwningTemplateListPtr = InTemplateList;
@@ -123,7 +126,8 @@ private:
 	
 	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 	{
-		if (LightCardTreeItem.IsValid() && MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+		if (OwningTemplateListPtr.IsValid() && OwningTemplateListPtr.Pin()->IsDragDropEnabled() &&
+			LightCardTreeItem.IsValid() && MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
 		{
 			const TSharedPtr<FDragDropOperation> DragDropOp = FDisplayClusterLightCardTemplateDragDropOp::New(LightCardTreeItem.Pin()->LightCardTemplate);
 
@@ -148,8 +152,8 @@ private:
 		if (LightCardTreeItem.IsValid() && LightCardTreeItem.Pin()->LightCardTemplate.IsValid())
 		{
 			LightCardTreeItem.Pin()->LightCardTemplate->bIsFavorite = !LightCardTreeItem.Pin()->LightCardTemplate->bIsFavorite;
-			LightCardTreeItem.Pin()->LightCardTemplate->SaveConfig();
 			LightCardTreeItem.Pin()->LightCardTemplate->PostEditChange();
+			LightCardTreeItem.Pin()->LightCardTemplate->SaveConfig();
 			
 			if (OwningTemplateListPtr.IsValid())
 			{
@@ -182,6 +186,8 @@ void SDisplayClusterLightCardTemplateList::Construct(const FArguments& InArgs, T
 {
 	LightCardEditorPtr = InLightCardEditor;
 
+	bSpawnOnSelection = InArgs._SpawnOnSelection;
+
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
 	AssetRegistry.OnAssetAdded().AddRaw(this, &SDisplayClusterLightCardTemplateList::OnAssetAddedOrRemoved);
 	AssetRegistry.OnAssetRemoved().AddRaw(this, &SDisplayClusterLightCardTemplateList::OnAssetAddedOrRemoved);
@@ -191,53 +197,59 @@ void SDisplayClusterLightCardTemplateList::Construct(const FArguments& InArgs, T
 
 	ChildSlot
 	[
-		SNew(SVerticalBox)
-		+SVerticalBox::Slot()
-		.Padding(0.f, 8.f, 0.f, 5.f)
-		.AutoHeight()
+		SNew(SBox)
+		.MinDesiredWidth(260.f)
+		.Padding(FMargin(4.f, 0.f))
 		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.Padding(6.f, 0.f)
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center)
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.Padding(0.f, 8.f, 0.f, 5.f)
+			.AutoHeight()
 			[
-				SNew(SImage)
-				.Image(this, &SDisplayClusterLightCardTemplateList::GetFavoriteFilterIcon)
-				.ToolTipText(LOCTEXT("FavoriteFilterToolTip", "Filter by favorites"))
-				.OnMouseButtonDown_Lambda([this](const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-				{
-					bFilterFavorites = !bFilterFavorites;
-					ApplyFilter();
-					return FReply::Handled();
-				})
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.Padding(6.f, 0.f)
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				[
+					SNew(SImage)
+					.Image(this, &SDisplayClusterLightCardTemplateList::GetFavoriteFilterIcon)
+					.ToolTipText(LOCTEXT("FavoriteFilterToolTip", "Filter by favorites"))
+					.OnMouseButtonDown_Lambda([this](const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+					{
+						bFilterFavorites = !bFilterFavorites;
+						ApplyFilter();
+						return FReply::Handled();
+					})
+				]
+				+SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				[
+					SNew(SSearchBox)
+					.SelectAllTextWhenFocused(true)
+					.OnTextChanged(this, &SDisplayClusterLightCardTemplateList::OnFilterTextChanged)
+					.HintText(LOCTEXT("SearchBoxHint", "Search Light Card Templates..."))
+				]
 			]
-			+SHorizontalBox::Slot()
-			.FillWidth(1.f)
+			+SVerticalBox::Slot()
 			[
-				SNew(SSearchBox)
-				.SelectAllTextWhenFocused(true)
-				.OnTextChanged(this, &SDisplayClusterLightCardTemplateList::OnFilterTextChanged)
-				.HintText(LOCTEXT("SearchBoxHint", "Search Light Card Templates..."))
+				SAssignNew(LightCardTemplateTreeView, STreeView<TSharedPtr<FLightCardTemplateTreeItem>>)
+				.TreeItemsSource(&FilteredLightCardTemplateTree)
+				.ItemHeight(28)
+				.SelectionMode(ESelectionMode::Single)
+				.OnGenerateRow(this, &SDisplayClusterLightCardTemplateList::GenerateTreeItemRow)
+				.OnGetChildren(this, &SDisplayClusterLightCardTemplateList::GetChildrenForTreeItem)
+				.OnSelectionChanged(this, &SDisplayClusterLightCardTemplateList::OnSelectionChanged)
+				.HeaderRow
+				(
+					SNew(SHeaderRow)
+					.Visibility(InArgs._HideHeader ? EVisibility::Collapsed : EVisibility::Visible)
+					+SHeaderRow::Column(DisplayClusterLightCardTemplateListColumnNames::LightCardTemplateName)
+					.DefaultLabel(LOCTEXT("LightCardTemplateName", "Light Card Templates"))
+					.FillWidth(0.8f)
+				)
 			]
-		]
-		+SVerticalBox::Slot()
-		[
-			SAssignNew(LightCardTemplateTreeView, STreeView<TSharedPtr<FLightCardTemplateTreeItem>>)
-			.TreeItemsSource(&FilteredLightCardTemplateTree)
-			.ItemHeight(28)
-			.SelectionMode(ESelectionMode::Single)
-			.OnGenerateRow(this, &SDisplayClusterLightCardTemplateList::GenerateTreeItemRow)
-			.OnGetChildren(this, &SDisplayClusterLightCardTemplateList::GetChildrenForTreeItem)
-			.HeaderRow
-			(
-				SNew(SHeaderRow)
-
-				+ SHeaderRow::Column(DisplayClusterLightCardTemplateListColumnNames::LightCardTemplateName)
-				.DefaultLabel(LOCTEXT("LightCardTemplateName", "Light Card Templates"))
-				.FillWidth(0.8f)
-			)
 		]
 	];
 }
@@ -245,26 +257,22 @@ void SDisplayClusterLightCardTemplateList::Construct(const FArguments& InArgs, T
 void SDisplayClusterLightCardTemplateList::RefreshTemplateList()
 {
 	LightCardTemplateTree.Reset();
-	
-	const IAssetRegistry& AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
-	
-	TArray<FAssetData> TemplateAssets;
-	const FTopLevelAssetPath ClassPath = UDisplayClusterLightCardTemplate::StaticClass()->GetClassPathName();
-	AssetRegistry.GetAssetsByClass(ClassPath, TemplateAssets, true);
 
-	for (const FAssetData& AssetData : TemplateAssets)
+	TArray<UDisplayClusterLightCardTemplate*> LightCardTemplates =
+		UE::DisplayClusterLightCardTemplateHelpers::GetLightCardTemplates();
+	
+	for (UDisplayClusterLightCardTemplate* Template : LightCardTemplates)
 	{
 		TSharedPtr<FLightCardTemplateTreeItem> TemplateTreeItem = MakeShared<FLightCardTemplateTreeItem>();
-		UDisplayClusterLightCardTemplate* AssetObject = CastChecked<UDisplayClusterLightCardTemplate>(AssetData.GetAsset());
 		
-		TemplateTreeItem->TemplateName = AssetData.AssetName;
-		TemplateTreeItem->LightCardTemplate = AssetObject;
+		TemplateTreeItem->TemplateName = Template->GetFName();
+		TemplateTreeItem->LightCardTemplate = Template;
 
-		if (AssetObject->LightCardActor && AssetObject->LightCardActor->Texture.Get())
+		if (Template->LightCardActor && Template->LightCardActor->Texture.Get())
 		{
 			TemplateTreeItem->SlateBrush = MakeShared<FSlateBrush>();
 		
-			TemplateTreeItem->SlateBrush->SetResourceObject(AssetObject->LightCardActor->Texture.Get());
+			TemplateTreeItem->SlateBrush->SetResourceObject(Template->LightCardActor->Texture.Get());
 			TemplateTreeItem->SlateBrush->ImageSize = FVector2D(64.f, 64.f);
 		}
 		
@@ -301,6 +309,11 @@ void SDisplayClusterLightCardTemplateList::ApplyFilter()
 	ApplyFilter(FilterText, bFilterFavorites);
 }
 
+bool SDisplayClusterLightCardTemplateList::IsDragDropEnabled() const
+{
+	return !bSpawnOnSelection;
+}
+
 TSharedRef<ITableRow> SDisplayClusterLightCardTemplateList::GenerateTreeItemRow(
 	TSharedPtr<FLightCardTemplateTreeItem> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
@@ -316,6 +329,16 @@ const FSlateBrush* SDisplayClusterLightCardTemplateList::GetFavoriteFilterIcon()
 {
 	const FName FavoriteIconName = bFilterFavorites ? "DetailsView.PropertyIsFavorite" : "DetailsView.PropertyIsNotFavorite";
 	return FSlateIcon(FAppStyle::Get().GetStyleSetName(), FavoriteIconName).GetIcon();
+}
+
+void SDisplayClusterLightCardTemplateList::OnSelectionChanged(TSharedPtr<FLightCardTemplateTreeItem> InItem, ESelectInfo::Type SelectInfo)
+{
+	if (bSpawnOnSelection && (SelectInfo == ESelectInfo::OnKeyPress || SelectInfo == ESelectInfo::OnMouseClick) && InItem.IsValid() && LightCardEditorPtr.IsValid())
+	{
+		LightCardEditorPtr.Pin()->SpawnLightCardFromTemplate(InItem->LightCardTemplate.Get());
+		// Close the menu containing this widget
+		FSlateApplication::Get().DismissAllMenus();
+	}
 }
 
 void SDisplayClusterLightCardTemplateList::OnFilterTextChanged(const FText& SearchText)

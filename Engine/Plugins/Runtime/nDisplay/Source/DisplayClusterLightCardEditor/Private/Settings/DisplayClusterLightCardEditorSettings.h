@@ -3,9 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "DisplayClusterLightCardEditorSettings.generated.h"
 
+struct FSlateBrush;
 
+/**
+ * Default settings shared across users of the project
+ */
 UCLASS(config = Editor, defaultconfig, meta = (DisplayClusterMultiUserInclude))
 class UDisplayClusterLightCardEditorProjectSettings : public UObject
 {
@@ -25,4 +30,56 @@ public:
 	/** The scale to use for light card labels */
 	UPROPERTY(config, EditAnywhere, Category = LightCardLabels)
 	float LightCardLabelScale;
+};
+
+USTRUCT()
+struct FDisplayClusterLightCardEditorRecentItem
+{
+	GENERATED_BODY()
+	
+	static const FName Type_LightCard;
+	static const FName Type_LightCardTemplate;
+
+	/** Path of object to instantiate */
+	UPROPERTY()
+	TSoftObjectPtr<UObject> ObjectPath;
+	
+	/** Type of item placed */
+	UPROPERTY()
+	FName ItemType;
+
+	FText GetItemDisplayName() const;
+	const FSlateBrush* GetSlateBrush() const;
+
+	bool operator==(const FDisplayClusterLightCardEditorRecentItem& Rhs) const
+	{
+		return ObjectPath == Rhs.ObjectPath && ItemType == Rhs.ItemType;
+	}
+
+private:
+	mutable TSharedPtr<FSlateBrush> SlateBrush;
+};
+
+/**
+ * Editor preferences unique to this user
+ */
+UCLASS(config = EditorPerProjectUserSettings)
+class UDisplayClusterLightCardEditorSettings : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UDisplayClusterLightCardEditorSettings();
+
+	/** Items recently placed by the user */
+	UPROPERTY(config)
+	TArray<FDisplayClusterLightCardEditorRecentItem> RecentlyPlacedItems;
+
+	/** Last used projection mode user has set */
+	UPROPERTY(config)
+	uint8 ProjectionMode;
+
+	/** Last used viewport type user has set */
+	UPROPERTY(config)
+	uint8 RenderViewportType;
 };

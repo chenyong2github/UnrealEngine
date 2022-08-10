@@ -10,9 +10,10 @@
 
 #include "EditorUndoClient.h"
 
-class FTabManager;
 class FLayoutExtender;
+class FMenuBuilder;
 class FSpawnTabArgs;
+class FTabManager;
 class FToolBarBuilder;
 class FUICommandList;
 class SDockTab;
@@ -22,6 +23,8 @@ class SDisplayClusterLightCardEditorViewport;
 class ADisplayClusterRootActor;
 class ADisplayClusterLightCardActor;
 class UDisplayClusterLightCardTemplate;
+
+struct FDisplayClusterLightCardEditorRecentItem;
 
 /** A panel that can be spawned in a tab that contains all the UI elements that make up the 2D light cards editor */
 class SDisplayClusterLightCardEditor : public SCompoundWidget, public FEditorUndoClient
@@ -74,7 +77,7 @@ public:
 	ADisplayClusterLightCardActor* SpawnLightCard();
 
 	/** Spawns a new light card from a light card template */
-	ADisplayClusterLightCardActor* SpawnLightCardFromTemplate(const UDisplayClusterLightCardTemplate* InTemplate, ULevel* InLevel, bool bIsPreview);
+	ADisplayClusterLightCardActor* SpawnLightCardFromTemplate(const UDisplayClusterLightCardTemplate* InTemplate, ULevel* InLevel = nullptr, bool bIsPreview = false);
 
 	/** Adds a new light card to the root actor and centers it in the viewport */
 	void AddNewLightCard();
@@ -155,6 +158,15 @@ private:
 	/** Create the 3d viewport widget */
 	TSharedRef<SWidget> CreateViewportWidget();
 
+	/** Generate the place actors drop down menu */
+	TSharedRef<SWidget> GeneratePlaceActorsMenu();
+
+	/** Return the correct template icon to use */
+	const FSlateBrush* GetLightCardTemplateIcon(const TWeakObjectPtr<UDisplayClusterLightCardTemplate> InTemplate) const;
+
+	/** Generate the All Templates sub menu */
+	void GenerateTemplateSubMenu(FMenuBuilder& InMenuBuilder);
+	
 	/** Generate the labels dropdown menu */
 	TSharedRef<SWidget> GenerateLabelsMenu();
 
@@ -201,6 +213,12 @@ private:
 
 	/** Raised when the light card list has added or removed a card */
 	void OnLightCardListChanged();
+
+	/** Add an item to recently placed list. Reorders matching items to the top of the list and trims the list */
+	void AddRecentlyPlacedItem(const FDisplayClusterLightCardEditorRecentItem& InItem);
+
+	/** Make sure no invalid entries are present */
+	void CleanupRecentlyPlacedItems();
 	
 private:
 	TSharedPtr<FTabManager> TabManager;
@@ -208,8 +226,8 @@ private:
 	/** The light card list widget */
 	TSharedPtr<SDisplayClusterLightCardList> LightCardList;
 
-	/** The light card template list */
-	TSharedPtr<SDisplayClusterLightCardTemplateList> LightCardTemplateList;
+	/** Templates to their icon brushes */
+	TMap<TWeakObjectPtr<UDisplayClusterLightCardTemplate>, TSharedPtr<FSlateBrush>> TemplateBrushes;
 	
 	/** The 3d viewport */
 	TSharedPtr<SDisplayClusterLightCardEditorViewport> ViewportView;

@@ -151,30 +151,6 @@ void SDisplayClusterLightCardList::Construct(const FArguments& InArgs, TSharedPt
 	[
 		SNew(SVerticalBox)
 		+SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(0.f, 5.f, 0.f, 0.f)
-		[
-			SNew(SBorder)
-			.Padding(0)
-			.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryTop"))
-			.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
-			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.Padding(3.0f, 3.0f)
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				[
-						
-					SNew(SPositiveActionButton)
-					.Text(LOCTEXT("AddNewItem", "Add"))
-					.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
-					.ToolTipText(LOCTEXT("AddNewLightCardTooltip", "Adds a new Light Card to the display cluster"))
-					.OnGetMenuContent(this, &SDisplayClusterLightCardList::CreateAddNewMenuContent)
-				]
-			]
-		]
-		+SVerticalBox::Slot()
 		[
 			SAssignNew(LightCardTreeView, STreeView<TSharedPtr<FLightCardTreeItem>>)
 			.TreeItemsSource(&LightCardTree)
@@ -397,18 +373,6 @@ FReply SDisplayClusterLightCardList::OnKeyDown(const FGeometry& MyGeometry, cons
 		return FReply::Handled();
 	}
 	return FReply::Unhandled();
-}
-
-TSharedRef<SWidget> SDisplayClusterLightCardList::CreateAddNewMenuContent()
-{
-	const FDisplayClusterLightCardEditorCommands& Commands = FDisplayClusterLightCardEditorCommands::Get();
-	
-	const bool bCloseAfterSelection = true;
-	FMenuBuilder MenuBuilder(bCloseAfterSelection, CommandList, Extenders);
-	MenuBuilder.AddMenuEntry(Commands.AddNewLightCard);
-	MenuBuilder.AddMenuEntry(Commands.AddExistingLightCard);
-	
-	return MenuBuilder.MakeWidget();
 }
 
 TSharedPtr<SWidget> SDisplayClusterLightCardList::CreateContextMenu()

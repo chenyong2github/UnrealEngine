@@ -32,6 +32,8 @@ public:
 	
 	SLATE_BEGIN_ARGS(SDisplayClusterLightCardTemplateList)
 	{}
+	SLATE_ARGUMENT(bool, HideHeader)
+	SLATE_ARGUMENT(bool, SpawnOnSelection)
 	SLATE_END_ARGS()
 
 	virtual ~SDisplayClusterLightCardTemplateList() override;
@@ -46,11 +48,15 @@ public:
 	
 	/** Reapply the current filter */
 	void ApplyFilter();
+
+	/** If drag & drop should be used */
+	bool IsDragDropEnabled() const;
 	
 private:
 	TSharedRef<ITableRow> GenerateTreeItemRow(TSharedPtr<FLightCardTemplateTreeItem> Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void GetChildrenForTreeItem(TSharedPtr<FLightCardTemplateTreeItem> InItem, TArray<TSharedPtr<FLightCardTemplateTreeItem>>& OutChildren);
 	const FSlateBrush* GetFavoriteFilterIcon() const;
+	void OnSelectionChanged(TSharedPtr<FLightCardTemplateTreeItem> InItem, ESelectInfo::Type SelectInfo);
 	
 	void OnFilterTextChanged(const FText& SearchText);
 	
@@ -75,4 +81,7 @@ private:
 
 	/** If the favorite filter should be applied */
 	bool bFilterFavorites = false;
+ 
+	/** If selecting a template should spawn it */
+	bool bSpawnOnSelection = false;
 };

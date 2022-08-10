@@ -69,7 +69,6 @@ private:
 
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	
-	TSharedRef<SWidget> CreateAddNewMenuContent();
 	TSharedPtr<SWidget> CreateContextMenu();
 	
 private:

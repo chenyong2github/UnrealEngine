@@ -18,6 +18,7 @@
 #include "DisplayClusterLightCardEditorLog.h"
 #include "IDisplayClusterScenePreview.h"
 #include "SDisplayClusterLightCardEditor.h"
+#include "Settings/DisplayClusterLightCardEditorSettings.h"
 
 #include "AudioDevice.h"
 #include "CameraController.h"
@@ -74,7 +75,7 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 	check(InEditorViewportWidget.IsValid());
 	
 	LightCardEditorPtr = InEditorViewportWidget.Pin()->GetLightCardEditor();
-	check(LightCardEditorPtr.IsValid())
+	check(LightCardEditorPtr.IsValid());
 
 	IDisplayClusterScenePreview& PreviewModule = IDisplayClusterScenePreview::Get();
 	PreviewRendererId = PreviewModule.CreateRenderer();
@@ -119,7 +120,10 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 	
 	UpdatePreviewActor(LightCardEditorPtr.Pin()->GetActiveRootActor().Get());
 
-	SetProjectionMode(EDisplayClusterMeshProjectionType::Azimuthal, ELevelViewportType::LVT_Perspective);
+	const UDisplayClusterLightCardEditorSettings* Settings = GetDefault<UDisplayClusterLightCardEditorSettings>();
+	
+	SetProjectionMode(static_cast<EDisplayClusterMeshProjectionType>(Settings->ProjectionMode),
+		static_cast<ELevelViewportType>(Settings->RenderViewportType));
 }
 
 FDisplayClusterLightCardEditorViewportClient::~FDisplayClusterLightCardEditorViewportClient()
@@ -1402,6 +1406,13 @@ void FDisplayClusterLightCardEditorViewportClient::SetProjectionMode(EDisplayClu
 {
 	ProjectionMode = InProjectionMode;
 	RenderViewportType = InViewportType;
+
+	UDisplayClusterLightCardEditorSettings* Settings = GetMutableDefault<UDisplayClusterLightCardEditorSettings>();
+	
+	Settings->ProjectionMode = ProjectionMode;
+	Settings->RenderViewportType = InViewportType;
+	Settings->PostEditChange();
+	Settings->SaveConfig();
 
 	ProjectionHelper->SetProjectionMode(ProjectionMode);
 	ProjectionHelper->SetIsOrthographic(InViewportType != LVT_Perspective);

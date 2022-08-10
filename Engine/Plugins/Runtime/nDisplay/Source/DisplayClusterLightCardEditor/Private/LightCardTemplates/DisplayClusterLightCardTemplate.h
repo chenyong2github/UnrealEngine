@@ -9,7 +9,7 @@
 /**
  * A template asset to store appearance settings from Light Card actors.
  */
-UCLASS(NotBlueprintType, NotBlueprintable, NotPlaceable, config=EditorPerProjectUserSettings)
+UCLASS(NotBlueprintType, NotBlueprintable, NotPlaceable, PerObjectConfig, config=EditorPerProjectUserSettings)
 class DISPLAYCLUSTERLIGHTCARDEDITOR_API UDisplayClusterLightCardTemplate : public UObject
 {
 	GENERATED_BODY()
