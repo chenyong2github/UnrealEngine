@@ -4287,8 +4287,6 @@ void UWorld::FlushLevelStreaming(EFlushLevelStreamingType FlushType)
 	bool bLevelsPendingVisibility = IsVisibilityRequestPending();
 	while( bLevelsPendingVisibility )
 	{
-		// TEMP Hack - there's a bug causing us to get stuck with a level pending visibility which is not in the consider list. 
-		PopulateStreamingLevelsToConsider();
 		const EFlushLevelStreamingType LastStreamingType = FlushLevelStreamingType;
 
 		// Tick level streaming to make levels visible.
