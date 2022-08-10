@@ -54,11 +54,12 @@ namespace UE::Cook
 
 
 /** The different ways a package can be discovered by the cooker. */
-enum class EInstigator
+enum class EInstigator : uint8
 {
 #define EINSTIGATOR_VALUE_CALLBACK(Name, bAllowUnparameterized) Name,
 	EINSTIGATOR_VALUES(EINSTIGATOR_VALUE_CALLBACK)
 #undef EINSTIGATOR_VALUE_CALLBACK
+	Count,
 };
 ENGINE_API const TCHAR* LexToString(EInstigator Value);
 

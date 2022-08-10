@@ -11,6 +11,7 @@
 namespace UE::Cook { class IMPCollector; }
 namespace UE::Cook { struct FAssignPackagesMessage; }
 namespace UE::Cook { struct FDirectorConnectionInfo; }
+namespace UE::Cook { struct FDiscoveredPackage; }
 namespace UE::Cook { struct FInitialConfigMessage; }
 namespace UE::Cook { struct FPackageRemoteResult; }
 
@@ -47,9 +48,11 @@ public:
 	void DoneWithInitialSettings();
 
 	/** Queue a message to the server that the Package was cook-suppressed. Will be sent during Tick. */
-	void ReportDemoteToIdle(FPackageData& PackageData, ESuppressCookReason Reason);
+	void ReportDemoteToIdle(const FPackageData& PackageData, ESuppressCookReason Reason);
 	/** Queue a message to the server that the Package was saved. Will be sent during Tick. */
 	void ReportPromoteToSaveComplete(FPackageData& PackageData);
+	/** Queue a message to the server that a package was discovered as needed in the cook. Will be sent during Tick. */
+	void ReportDiscoveredPackage(const FPackageData& PackageData, const FInstigator& Instigator);
 
 	/** Register a Collector for periodic ticking that sends messages to the Director. */
 	void Register(IMPCollector* Collector);
@@ -106,6 +109,7 @@ private:
 	TUniquePtr<FInitialConfigMessage> InitialConfigMessage;
 	TArray<ITargetPlatform*> OrderedSessionPlatforms;
 	TArray<FPackageRemoteResult> PendingResults;
+	TArray<FDiscoveredPackage> PendingDiscoveredPackages;
 	TArray<TRefCountPtr<IMPCollector>> CollectorsToTick;
 	UE::CompactBinaryTCP::FSendBuffer SendBuffer;
 	UE::CompactBinaryTCP::FReceiveBuffer ReceiveBuffer;

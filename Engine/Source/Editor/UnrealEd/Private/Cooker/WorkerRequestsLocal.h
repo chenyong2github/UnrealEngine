@@ -14,12 +14,15 @@ class FWorkerRequestsLocal : public IWorkerRequests
 public:
 	virtual bool HasExternalRequests() const override;
 	virtual int32 GetNumExternalRequests() const override;
-	virtual EExternalRequestType DequeueNextCluster(TArray<FSchedulerCallback>& OutCallbacks, TArray<FFilePlatformRequest>& OutBuildRequests) override;
+	virtual EExternalRequestType DequeueNextCluster(TArray<FSchedulerCallback>& OutCallbacks,
+		TArray<FFilePlatformRequest>& OutBuildRequests) override;
 	virtual bool DequeueSchedulerCallbacks(TArray<FSchedulerCallback>& OutCallbacks) override;
-	virtual void DequeueAllExternal(TArray<FSchedulerCallback>& OutCallbacks, TArray<FFilePlatformRequest>& OutCookRequests) override;
+	virtual void DequeueAllExternal(TArray<FSchedulerCallback>& OutCallbacks,
+		TArray<FFilePlatformRequest>& OutCookRequests) override;
 	virtual void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap) override;
 	virtual void OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform) override;
-	virtual void AddDiscoveredPackage(FPackageData& PackageData, FInstigator& Instigator, bool bLoadReady, bool& bOutShouldAddToQueue) override;
+	virtual void AddDiscoveredPackage(const FPackageData& PackageData, const FInstigator& Instigator,
+		bool bLoadReady, bool& bOutShouldAddToQueue) override;
 	virtual void AddStartCookByTheBookRequest(FFilePlatformRequest&& Request) override;
 	virtual void InitializeCookOnTheFly() override;
 	virtual void AddCookOnTheFlyRequest(FFilePlatformRequest&& Request) override;
@@ -31,8 +34,10 @@ public:
 	virtual void ReportAccessedIniSettings(UCookOnTheFlyServer& COTFS, const FConfigFile& Config) override;
 	virtual void ReportDemoteToIdle(UE::Cook::FPackageData& PackageData, ESuppressCookReason Reason) override;
 	virtual void ReportPromoteToSaveComplete(UE::Cook::FPackageData& PackageData) override;
-	virtual void GetInitializeConfigSettings(UCookOnTheFlyServer& COTFS, const FString& OutputOverrideDirectory, UE::Cook::FInitializeConfigSettings& Settings) override;
-	virtual void GetBeginCookConfigSettings(UCookOnTheFlyServer& COTFS, FBeginCookContext& BeginContext, UE::Cook::FBeginCookConfigSettings& Settings) override;
+	virtual void GetInitializeConfigSettings(UCookOnTheFlyServer& COTFS, const FString& OutputOverrideDirectory,
+		UE::Cook::FInitializeConfigSettings& Settings) override;
+	virtual void GetBeginCookConfigSettings(UCookOnTheFlyServer& COTFS, FBeginCookContext& BeginContext,
+		UE::Cook::FBeginCookConfigSettings& Settings) override;
 	virtual void GetBeginCookIterativeFlags(UCookOnTheFlyServer& COTFS, FBeginCookContext& BeginContext) override;
 	virtual ECookMode::Type GetDirectorCookMode(UCookOnTheFlyServer& COTFS) override;
 

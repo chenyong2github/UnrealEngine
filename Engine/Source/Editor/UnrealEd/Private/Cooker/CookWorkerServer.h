@@ -17,6 +17,7 @@ struct FProcHandle;
 namespace UE::CompactBinaryTCP { struct FMarshalledMessage; }
 namespace UE::Cook { class FCookDirector; }
 namespace UE::Cook { struct FConstructPackageData; }
+namespace UE::Cook { struct FDiscoveredPackage; }
 namespace UE::Cook { struct FPackageData; }
 namespace UE::Cook { struct FPackageResultsMessage; }
 namespace UE::Cook { struct FWorkerConnectMessage; }
@@ -100,6 +101,7 @@ private:
 	/** Add results from the client to the local CookOnTheFlyServer. */
 	void RecordResults(FPackageResultsMessage& Message);
 	void LogInvalidMessage(const TCHAR* MessageTypeName);
+	void AddDiscoveredPackage(FDiscoveredPackage&& DiscoveredPackage);
 
 	TArray<FPackageData*> PackagesToAssign;
 	TSet<FPackageData*> PendingPackages;
@@ -204,6 +206,32 @@ private:
 	ECookMode::Type DirectorCookMode = ECookMode::CookByTheBook;
 	ECookInitializationFlags CookInitializationFlags = ECookInitializationFlags::None;
 	bool bZenStore = false;
+};
+
+/** Information about a discovered package sent from a CookWorker to the Director. */
+struct FDiscoveredPackage
+{
+	FName PackageName;
+	FName NormalizedFileName;
+	FInstigator Instigator;
+};
+FCbWriter& operator<<(FCbWriter& Writer, const FDiscoveredPackage& Package);
+bool LoadFromCompactBinary(FCbFieldView Field, FDiscoveredPackage& OutPackage);
+
+/**
+ * Message from CookWorker to Director that reports dependency packages discovered during load/save of
+ * a package that were not found in the earlier traversal of the packages dependencies.
+ */
+struct FDiscoveredPackagesMessage : public UE::CompactBinaryTCP::IMessage
+{
+public:
+	virtual void Write(FCbWriter& Writer) const override;
+	virtual bool TryRead(FCbObject&& Object) override;
+	virtual FGuid GetMessageType() const override { return MessageType; }
+
+public:
+	TArray<FDiscoveredPackage> Packages;
+	static FGuid MessageType;
 };
 
 }

@@ -143,6 +143,7 @@ namespace UE::Cook
 		SaveError,
 		OnlyEditorOnly,
 		CookCanceled,
+		MultiprocessAssignmentError,
 	};
 
 	/** The type of callback for External Requests that needs to be executed within the Scheduler's lock. */

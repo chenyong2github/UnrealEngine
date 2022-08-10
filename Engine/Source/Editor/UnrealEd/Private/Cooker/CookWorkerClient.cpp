@@ -118,7 +118,7 @@ void FCookWorkerClient::DoneWithInitialSettings()
 	InitialConfigMessage.Reset();
 }
 
-void FCookWorkerClient::ReportDemoteToIdle(FPackageData& PackageData, ESuppressCookReason Reason)
+void FCookWorkerClient::ReportDemoteToIdle(const FPackageData& PackageData, ESuppressCookReason Reason)
 {
 	FPackageRemoteResult& Result = PendingResults.Emplace_GetRef();
 	Result.PackageName = PackageData.GetPackageName();
@@ -181,6 +181,14 @@ void FCookWorkerClient::ReportPromoteToSaveComplete(FPackageData& PackageData)
 		FPackageData::FPlatformData& PackagePlatformData = PackageData.FindOrAddPlatformData(TargetPlatform);
 		PlatformResults.bSuccessful = PackagePlatformData.bCookSucceeded;
 	}
+}
+
+void FCookWorkerClient::ReportDiscoveredPackage(const FPackageData& PackageData, const FInstigator& Instigator)
+{
+	FDiscoveredPackage& Discovered = PendingDiscoveredPackages.Emplace_GetRef();
+	Discovered.PackageName = PackageData.GetPackageName();
+	Discovered.NormalizedFileName = PackageData.GetFileName();
+	Discovered.Instigator = Instigator;
 }
 
 EPollStatus FCookWorkerClient::PollTryConnect(const FDirectorConnectionInfo& ConnectInfo)
@@ -370,14 +378,20 @@ void FCookWorkerClient::PumpSendMessages()
 
 void FCookWorkerClient::SendPendingResults()
 {
-	if (PendingResults.IsEmpty())
+	if (!PendingResults.IsEmpty())
 	{
-		return;
+		FPackageResultsMessage Message;
+		Message.Results = MoveTemp(PendingResults);
+		SendMessage(Message);
+		PendingResults.Reset();
 	}
-	FPackageResultsMessage Message;
-	Message.Results = MoveTemp(PendingResults);
-	SendMessage(Message);
-	PendingResults.Reset();
+	if (!PendingDiscoveredPackages.IsEmpty())
+	{
+		FDiscoveredPackagesMessage Message;
+		Message.Packages = MoveTemp(PendingDiscoveredPackages);
+		SendMessage(Message);
+		PendingDiscoveredPackages.Reset();
+	}
 }
 
 void FCookWorkerClient::PumpReceiveMessages()
@@ -405,7 +419,6 @@ void FCookWorkerClient::HandleReceiveMessages(TArray<UE::CompactBinaryTCP::FMars
 			if (AbortMessage.Type == FAbortWorkerMessage::EType::CookComplete)
 			{
 				UE_LOG(LogCook, Display, TEXT("CookWorkerClient received CookComplete message from Director. Flushing messages and shutting down."));
-				// MPCOOKTODO: Add synchronous flush of messages here
 			}
 			else
 			{

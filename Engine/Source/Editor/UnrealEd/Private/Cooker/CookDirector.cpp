@@ -130,15 +130,39 @@ void FCookDirector::AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests,
 	LoadBalanceStriped(SortedWorkers, Requests, OutAssignments);
 
 	// Split the output array of WorkerId assignments into a batch for each of the RemoteWorkers 
-	TArray<TArray<FPackageData*>> RemoteBatches;
+	TArray<TArray<FPackageData*>> RemoteBatches; // Indexed by WorkerId.GetRemoteIndex()
+	TArray<bool> RemoteIndexIsValid; // Indexed by WorkerId.GetRemoteIndex()
 	RemoteBatches.SetNum(MaxRemoteIndex+1);
+	RemoteIndexIsValid.Init(false, MaxRemoteIndex+1);
+	for (FCookWorkerServer* Worker : SortedWorkers)
+	{
+		RemoteIndexIsValid[Worker->GetWorkerId().GetRemoteIndex()] = true;
+	}
+
 	for (int32 RequestIndex = 0; RequestIndex < Requests.Num(); ++RequestIndex)
 	{
 		FWorkerId WorkerId = OutAssignments[RequestIndex];
+		// Override the loadbalancer's assignment if the Package has a WorkerAssignmentConstraint
+		// This allows us to guarantee that generated packages will be cooked on the worker that cooked
+		// their generator package
+		FWorkerId WorkerIdConstraint = Requests[RequestIndex]->GetWorkerAssignmentConstraint();
+		if (WorkerIdConstraint.IsValid())
+		{
+			OutAssignments[RequestIndex] = WorkerIdConstraint;
+			WorkerId = WorkerIdConstraint;
+		}
+
 		if (!WorkerId.IsLocal())
 		{
 			uint8 RemoteIndex = WorkerId.GetRemoteIndex();
 			check(RemoteIndex < RemoteBatches.Num());
+			if (!RemoteIndexIsValid[RemoteIndex])
+			{
+				UE_LOG(LogCook, Error, TEXT("Package %s can only be cooked by CookWorkerServer %d, but this worker has disconnected. The package can not be cooked."),
+					*Requests[RequestIndex]->GetPackageName().ToString(), RemoteIndex);
+				OutAssignments[RequestIndex] = FWorkerId::Invalid();
+				continue;
+			}
 			TArray<FPackageData*>& RemoteBatch = RemoteBatches[RemoteIndex];
 			if (RemoteBatch.Num() == 0)
 			{

@@ -1403,6 +1403,7 @@ bool FGeneratorPackage::TryGenerateList(UObject* OwnerObject, FPackageDatas& Pac
 		GeneratedInfo.Dependencies = MoveTemp(SplitterData.Dependencies);
 		GeneratedInfo.SetIsCreateAsMap(bCreateAsMap);
 		PackageData->SetGeneratedOwner(this);
+		PackageData->SetWorkerAssignmentConstraint(FWorkerId::Local());
 	}
 	RemainingToPopulate = GeneratorDatas.Num() + 1; // GeneratedPackaged plus one for the Generator
 	return true;

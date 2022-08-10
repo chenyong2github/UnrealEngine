@@ -428,6 +428,21 @@ void FCookWorkerServer::HandleReceiveMessages(TArray<UE::CompactBinaryTCP::FMars
 				RecordResults(ResultsMessage);
 			}
 		}
+		else if (Message.MessageType == FDiscoveredPackagesMessage::MessageType)
+		{
+			FDiscoveredPackagesMessage DiscoveredMessage;
+			if (!DiscoveredMessage.TryRead(MoveTemp(Message.Object)))
+			{
+				LogInvalidMessage(TEXT("FDiscoveredPackagesMessage"));
+			}
+			else
+			{
+				for (FDiscoveredPackage& DiscoveredPackage : DiscoveredMessage.Packages)
+				{
+					AddDiscoveredPackage(MoveTemp(DiscoveredPackage));
+				}
+			}
+		}
 		else
 		{
 			TRefCountPtr<IMPCollector>* Collector = Director.MessageHandlers.Find(Message.MessageType);
@@ -528,6 +543,24 @@ void FCookWorkerServer::LogInvalidMessage(const TCHAR* MessageTypeName)
 {
 	UE_LOG(LogCook, Error, TEXT("CookWorkerServer received invalidly formatted message for type %s from CookWorker. Ignoring it."),
 		MessageTypeName);
+}
+
+void FCookWorkerServer::AddDiscoveredPackage(FDiscoveredPackage&& DiscoveredPackage)
+{
+	FPackageData& PackageData = COTFS.PackageDatas->FindOrAddPackageData(DiscoveredPackage.PackageName,
+		DiscoveredPackage.NormalizedFileName);
+	if (PackageData.IsInProgress() || PackageData.HasAnyCookedPlatform())
+	{
+		// The CookWorker thought this was a new package, but the Director already knows about it; ignore the report
+		return;
+	}
+
+	if (DiscoveredPackage.Instigator.Category == EInstigator::GeneratedPackage)
+	{
+		PackageData.SetGenerated(true);
+		PackageData.SetWorkerAssignmentConstraint(GetWorkerId());
+	}
+	COTFS.QueueDiscoveredPackageData(PackageData, MoveTemp(DiscoveredPackage.Instigator));
 }
 
 FAssignPackagesMessage::FAssignPackagesMessage(TArray<FConstructPackageData>&& InPackageDatas)
@@ -664,5 +697,51 @@ bool FInitialConfigMessage::TryRead(FCbObject&& Object)
 }
 
 FGuid FInitialConfigMessage::MessageType(TEXT("340CDCB927304CEB9C0A66B5F707FC2B"));
+
+FCbWriter& operator<<(FCbWriter& Writer, const FDiscoveredPackage& Package)
+{
+	Writer.BeginObject();
+	Writer << "PackageName" << Package.PackageName;
+	Writer << "NormalizedFileName" << Package.NormalizedFileName;
+	Writer << "Instigator.Category" << static_cast<uint8>(Package.Instigator.Category);
+	Writer << "Instigator.Referencer" << Package.Instigator.Referencer;
+	Writer.EndObject();
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FDiscoveredPackage& OutPackage)
+{
+	bool bOk = LoadFromCompactBinary(Field["PackageName"], OutPackage.PackageName);
+	bOk = LoadFromCompactBinary(Field["NormalizedFileName"], OutPackage.NormalizedFileName) & bOk;
+	uint8 CategoryInt;
+	if (LoadFromCompactBinary(Field["Instigator.Category"], CategoryInt) &&
+		CategoryInt < static_cast<uint8>(EInstigator::Count))
+
+	{
+		OutPackage.Instigator.Category = static_cast<EInstigator>(CategoryInt);
+	}
+	else
+	{
+		bOk = false;
+	}
+	bOk = LoadFromCompactBinary(Field["Instigator.Referencer"], OutPackage.Instigator.Referencer) & bOk;
+	if (!bOk)
+	{
+		OutPackage = FDiscoveredPackage();
+	}
+	return bOk;
+}
+
+void FDiscoveredPackagesMessage::Write(FCbWriter& Writer) const
+{
+	Writer << "Packages" << Packages;
+}
+
+bool FDiscoveredPackagesMessage::TryRead(FCbObject&& Object)
+{
+	return LoadFromCompactBinary(Object["Packages"], Packages);
+}
+
+FGuid FDiscoveredPackagesMessage::MessageType(TEXT("C9F5BC5C11484B06B346B411F1ED3090"));
 
 }

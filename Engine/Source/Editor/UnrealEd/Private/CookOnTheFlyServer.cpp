@@ -2436,7 +2436,11 @@ void UCookOnTheFlyServer::AssignRequests(TArrayView<UE::Cook::FPackageData*> Req
 		{
 			FPackageData* PackageData = Requests[Index];
 			FWorkerId Assignment = Assignments[Index];
-			if (Assignment.IsLocal())
+			if (Assignment.IsInvalid())
+			{
+				DemoteToIdle(*PackageData, ESendFlags::QueueAdd, ESuppressCookReason::MultiprocessAssignmentError);
+			}
+			else if (Assignment.IsLocal())
 			{
 				RequestQueue.AddReadyRequest(PackageData);
 			}

@@ -25,7 +25,8 @@ int32 FWorkerRequestsRemote::GetNumExternalRequests() const
 	return ExternalRequests.GetNumRequests();
 }
 
-EExternalRequestType FWorkerRequestsRemote::DequeueNextCluster(TArray<FSchedulerCallback>& OutCallbacks, TArray<FFilePlatformRequest>& OutBuildRequests)
+EExternalRequestType FWorkerRequestsRemote::DequeueNextCluster(TArray<FSchedulerCallback>& OutCallbacks,
+	TArray<FFilePlatformRequest>& OutBuildRequests)
 {
 	return ExternalRequests.DequeueNextCluster(OutCallbacks, OutBuildRequests);
 }
@@ -40,12 +41,11 @@ void FWorkerRequestsRemote::DequeueAllExternal(TArray<FSchedulerCallback>& OutCa
 	ExternalRequests.DequeueAll(OutCallbacks, OutCookRequests);
 }
 
-void FWorkerRequestsRemote::AddDiscoveredPackage(FPackageData& PackageData, FInstigator& Instigator, bool bLoadReady, bool& bOutShouldAddToQueue)
+void FWorkerRequestsRemote::AddDiscoveredPackage(const FPackageData& PackageData, const FInstigator& Instigator,
+	bool bLoadReady, bool& bOutShouldAddToQueue)
 {
 	bOutShouldAddToQueue = false;
-	// MPCOOKTODO: Not yet implemented
-	// Send package information to the Director, and make sure to send the instigator.
-	// The director needs to handle GeneratedPackages by forcing them to go to this CookWorker, or if they need to go to another worker, add handling that calls pumpsave on the generator first
+	CookWorkerClient.ReportDiscoveredPackage(PackageData, Instigator);
 }
 
 void FWorkerRequestsRemote::AddStartCookByTheBookRequest(FFilePlatformRequest&& Request)

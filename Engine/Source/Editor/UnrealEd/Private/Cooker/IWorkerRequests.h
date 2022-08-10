@@ -49,7 +49,8 @@ public:
 	virtual void DequeueAllExternal(TArray<FSchedulerCallback>& OutCallbacks, TArray<FFilePlatformRequest>& OutCookRequests) = 0;
 
 	// Writing Packages during Cook
-	virtual void AddDiscoveredPackage(FPackageData& PackageData, FInstigator& Instigator, bool bLoadReady, bool& bOutShouldAddToQueue) = 0;
+	virtual void AddDiscoveredPackage(const FPackageData& PackageData, const FInstigator& Instigator,
+		bool bLoadReady, bool& bOutShouldAddToQueue) = 0;
 
 	// Writing Packages from CookByTheBook
 	virtual void AddStartCookByTheBookRequest(FFilePlatformRequest&& Request) = 0;

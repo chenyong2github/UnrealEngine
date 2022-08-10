@@ -32,7 +32,8 @@ void FWorkerRequestsLocal::DequeueAllExternal(TArray<FSchedulerCallback>& OutCal
 	ExternalRequests.DequeueAll(OutCallbacks, OutCookRequests);
 }
 
-void FWorkerRequestsLocal::AddDiscoveredPackage(FPackageData& PackageData, FInstigator& Instigator, bool bLoadReady, bool& bOutShouldAddToQueue)
+void FWorkerRequestsLocal::AddDiscoveredPackage(const FPackageData& PackageData, const FInstigator& Instigator,
+	bool bLoadReady, bool& bOutShouldAddToQueue)
 {
 	bOutShouldAddToQueue = true;
 }

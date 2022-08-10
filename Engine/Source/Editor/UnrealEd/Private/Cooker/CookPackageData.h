@@ -481,10 +481,14 @@ public:
 	/** Set whether COTFS is keeping this package referenced referenced during GC. */
 	void SetKeepReferencedDuringGC(bool Value) { bKeepReferencedDuringGC = Value != 0; }
 
-	/** For MultiProcessCooks, Get the id of the worker this Package is assigned to. Returns Invalid if not assigned to a worker. */
+	/** For MultiProcessCooks, Get the id of the worker this Package is assigned to; InvalidId means owned by local. */
 	FWorkerId GetWorkerAssignment() const { return WorkerAssignment; }
 	/** Set the id of the worker this Package is assigned to. */
 	void SetWorkerAssignment(FWorkerId InWorkerAssignment) { WorkerAssignment = InWorkerAssignment; }
+	/** Get the workerid that is the only worker allowed to cook this package; InvalidId means no constraint. */
+	FWorkerId GetWorkerAssignmentConstraint() const { return WorkerAssignmentConstraint; }
+	/** Set the workerid that is the only worker allowed to cook this package; default is InvalidId; */
+	void SetWorkerAssignmentConstraint(FWorkerId InWorkerAssignment) { WorkerAssignmentConstraint = InWorkerAssignment; }
 
 	/** Marshall this PackageData to a ConstructData that can be used later or on a remote machine to reconstruct it. */
 	FConstructPackageData CreateConstructData();
@@ -592,6 +596,7 @@ private:
 	FInstigator Instigator;
 
 	FWorkerId WorkerAssignment = FWorkerId::Invalid();
+	FWorkerId WorkerAssignmentConstraint = FWorkerId::Invalid();
 	uint32 State : int32(EPackageState::BitCount);
 	uint32 bIsUrgent : 1;
 	uint32 bIsVisited : 1;
