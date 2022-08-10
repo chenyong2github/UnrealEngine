@@ -2,18 +2,23 @@
 
 #include "RCActionModel.h"
 
+#include "Commands/RemoteControlCommands.h"
 #include "Controller/RCController.h"
 #include "IDetailTreeNode.h"
+#include "Interfaces/IMainFrameModule.h"
 #include "IPropertyRowGenerator.h"
 #include "RCVirtualProperty.h"
 #include "RCVirtualPropertyContainer.h"
 #include "RemoteControlField.h"
 #include "RemoteControlPreset.h"
 #include "Styling/RemoteControlStyles.h"
+#include "UI/Action/SRCActionPanel.h"
+#include "UI/Action/SRCVirtualPropertyWidget.h"
 #include "UI/RCUIHelpers.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRCPanelDragHandle.h"
 #include "UI/SRCPanelExposedEntity.h"
+#include "UI/SRemoteControlPanel.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/SListView.h"
@@ -210,43 +215,7 @@ const FName& FRCPropertyActionType::GetPropertyName() const
 
 TSharedRef<SWidget> FRCPropertyActionType::GetPropertyWidget() const
 {
-	if (!ensure(PropertyActionWeakPtr.IsValid()))
-	{
-		return SNullWidget::NullWidget;
-	}
-
-	const URCPropertyAction* PropertyAction = PropertyActionWeakPtr.Get();	
-
-	if (DetailTreeNodeWeakPtr.IsValid())
-	{
-		const FNodeWidgets NodeWidgets = DetailTreeNodeWeakPtr.Pin()->CreateNodeWidgets();
-
-		const TSharedRef<SHorizontalBox> FieldWidget = SNew(SHorizontalBox);
-
-		if (NodeWidgets.ValueWidget)
-		{
-			FieldWidget->AddSlot()
-				.Padding(FMargin(3.0f, 2.0f))
-				.HAlign(HAlign_Right)
-				.AutoWidth()
-				[
-					NodeWidgets.ValueWidget.ToSharedRef()
-				];
-		}
-		else if (NodeWidgets.WholeRowWidget)
-		{
-			FieldWidget->AddSlot()
-				.Padding(FMargin(3.0f, 2.0f))
-				.AutoWidth()
-				[
-					NodeWidgets.WholeRowWidget.ToSharedRef()
-				];
-		}
-
-		return FieldWidget;
-	}
-	
-	return SNullWidget::NullWidget;
+	return UE::RCUIHelpers::GetGenericFieldWidget(DetailTreeNodeWeakPtr.Pin());
 }
 
 FLinearColor FRCPropertyActionType::GetPropertyTypeColor() const
@@ -261,6 +230,45 @@ FLinearColor FRCPropertyActionType::GetPropertyTypeColor() const
 	const FLinearColor TypeColor = UE::RCUIHelpers::GetFieldClassTypeColor(PropertyAction->PropertySelfContainer->GetProperty());
 
 	return TypeColor;
+}
+
+TSharedPtr<SWidget> FRCActionModel::GetContextMenuWidget()
+{
+	IMainFrameModule& MainFrame = FModuleManager::Get().LoadModuleChecked<IMainFrameModule>("MainFrame");
+
+	FMenuBuilder MenuBuilder(true, MainFrame.GetMainFrameCommandBindings());
+
+	MenuBuilder.BeginSection("Common");
+
+	if (TSharedPtr<SRemoteControlPanel> RemoteControlPanel = PanelWeakPtr.Pin())
+	{
+		// 1. Edit (if available)
+		if (EditableVirtualPropertyWidget)
+		{
+			EditableVirtualPropertyWidget->AddEditContextMenuOption(MenuBuilder);
+		}
+
+		// 2. Delete
+		if (TSharedPtr<SRCActionPanel> ActionPanelList = RemoteControlPanel->GetLogicActionPanel())
+		{
+			FUIAction Action(FExecuteAction::CreateSP(ActionPanelList.Get(), &SRCActionPanel::DeleteSelectedPanelItem));
+			MenuBuilder.AddMenuEntry(LOCTEXT("ContextMenuEdit", "Delete"),
+				LOCTEXT("ContextMenuEditTooltip", "Delete the selected action"),
+				FSlateIcon(), Action);
+		}
+	}
+
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+void FRCActionModel::OnSelectionExit()
+{
+	if (EditableVirtualPropertyWidget)
+	{
+		EditableVirtualPropertyWidget->ExitEditMode();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

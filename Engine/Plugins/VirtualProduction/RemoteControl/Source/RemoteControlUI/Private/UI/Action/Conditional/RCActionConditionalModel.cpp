@@ -11,6 +11,7 @@
 #include "RemoteControlField.h"
 #include "RemoteControlPreset.h"
 #include "Styling/RemoteControlStyles.h"
+#include "UI/Action/SRCVirtualPropertyWidget.h"
 #include "UI/Behaviour/Builtin/Conditional/RCBehaviourConditionalModel.h"
 #include "UI/RCUIHelpers.h"
 #include "UI/RemoteControlPanelStyle.h"
@@ -127,8 +128,33 @@ TSharedPtr<FRCActionConditionalModel> FRCActionConditionalModel::GetModelByActio
 	return nullptr;
 }
 
-TSharedRef<SWidget> FRCActionConditionalModel::GetConditionWidget() const
+TSharedRef<SWidget> FRCActionConditionalModel::GetConditionWidget()
 {
+	if (TSharedPtr<FRCBehaviourConditionalModel> BehaviourItem = StaticCastSharedPtr<FRCBehaviourConditionalModel>(BehaviourItemWeakPtr.Pin()))
+	{
+		if (URCBehaviourConditional* Behaviour = Cast<URCBehaviourConditional>(BehaviourItem->GetBehaviour()))
+		{
+			if (FRCBehaviourCondition* Condition = Behaviour->Conditions.Find(GetAction()))
+			{
+				if(ensure(Condition->Comparand))
+				{
+					return SAssignNew(EditableVirtualPropertyWidget, SRCVirtualPropertyWidget, Condition->Comparand)
+						.OnGenerateWidget(this, &FRCActionConditionalModel::OnGenerateConditionWidget);
+				}
+			}
+		}
+	}
+
+	return SNullWidget::NullWidget;
+}
+
+TSharedRef<SWidget> FRCActionConditionalModel::OnGenerateConditionWidget(URCVirtualPropertySelfContainer* InComparand)
+{
+	if (!ensure(InComparand))
+	{
+		return SNullWidget::NullWidget;
+	}
+
 	if (TSharedPtr<FRCBehaviourConditionalModel> BehaviourItem = StaticCastSharedPtr<FRCBehaviourConditionalModel>(BehaviourItemWeakPtr.Pin()))
 	{
 		if (URCBehaviourConditional* Behaviour = Cast<URCBehaviourConditional>(BehaviourItem->GetBehaviour()))
@@ -150,15 +176,10 @@ TSharedRef<SWidget> FRCActionConditionalModel::GetConditionWidget() const
 					ConditionComparandText = FText::Format(FText::FromName("{0} {1}"), ConditionText, ComparandValueText);
 				}
 
-				return SNew(SBox)
-					.Padding(FMargin(6.f))
-					[
-						SNew(STextBlock).Text(ConditionComparandText)
-					];
+				return SNew(STextBlock).Text(ConditionComparandText);
 			}
 		}
 	}
-	
 
 	return SNullWidget::NullWidget;
 }

@@ -38,7 +38,9 @@ void SRCActionPanelList<ActionType>::Construct(const FArguments& InArgs, const T
 	ListView = SNew(SListView<TSharedPtr<ActionType>>)
 		.ListItemsSource(&ActionItems)
 		.OnGenerateRow(this, &SRCActionPanelList::OnGenerateWidgetForList)
+		.OnSelectionChanged(this, &SRCActionPanelList::OnSelectionChanged)
 		.ListViewStyle(&RCPanelStyle->TableViewStyle)
+		.OnContextMenuOpening(this, &SRCActionPanelList::GetContextMenuWidget)
 		.HeaderRow(ActionType::GetHeaderRow());
 
 	ChildSlot
@@ -238,6 +240,28 @@ template <class ActionType>
 void SRCActionPanelList<ActionType>::DeleteSelectedPanelItem()
 {
 	DeleteItemFromLogicPanel<ActionType>(ActionItems, ListView->GetSelectedItems());
+}
+
+template <typename ActionType>
+TSharedPtr<SWidget> SRCActionPanelList<ActionType>::GetContextMenuWidget()
+{
+	if (SelectedActionItem)
+	{
+		return SelectedActionItem->GetContextMenuWidget();
+	}
+
+	return SNullWidget::NullWidget;
+}
+
+template <typename ActionType>
+void SRCActionPanelList<ActionType>::OnSelectionChanged(TSharedPtr<ActionType> InItem, ESelectInfo::Type)
+{
+	if (SelectedActionItem)
+	{
+		SelectedActionItem->OnSelectionExit();
+	}
+
+	SelectedActionItem = InItem;
 }
 
 #undef LOCTEXT_NAMESPACE

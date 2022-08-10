@@ -89,7 +89,16 @@ private:
 	/** Whether drag and drop is possible from the current exposed property to the Actions table */
 	bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
 
+	/** Context menu for Actions panel list */
+	TSharedPtr<SWidget> GetContextMenuWidget();
+
+	/** OnSelectionChanged delegate for Actions List View */
+	void OnSelectionChanged(TSharedPtr<ActionType> InItem, ESelectInfo::Type);
+
 private:
+
+	/** The currently selected Action item*/
+	TSharedPtr<ActionType> SelectedActionItem;
 
 	/** The parent Action Panel widget*/
 	TWeakPtr<SRCActionPanel> ActionPanelWeakPtr;

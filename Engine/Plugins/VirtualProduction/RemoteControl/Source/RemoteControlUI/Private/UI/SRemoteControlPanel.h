@@ -34,6 +34,7 @@ class SComboButton;
 struct SRCPanelTreeNode;
 class SRCPanelFunctionPicker;
 class SRemoteControlPanel;
+class SRCActionPanel;
 class SRCPanelDrawer;
 class SRCPanelExposedEntitiesList;
 class SRCPanelFilter;
@@ -140,6 +141,12 @@ public:
 	/** Adds or removes widgets from the default toolbar in this asset editor */
 	void AddToolbarWidget(TSharedRef<SWidget> Widget);
 	void RemoveAllToolbarWidgets();
+
+	/** Retrieves the Logic Action panel. */
+	TSharedPtr<SRCActionPanel> GetLogicActionPanel()
+	{
+		return ActionPanel;
+	}
 
 private:
 

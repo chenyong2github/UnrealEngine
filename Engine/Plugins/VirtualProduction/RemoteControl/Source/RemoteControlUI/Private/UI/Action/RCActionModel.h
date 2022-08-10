@@ -15,6 +15,7 @@ class ITableRow;
 class IPropertyRowGenerator;
 class SHeaderRow;
 class SHorizontalBox;
+class SRCVirtualPropertyWidget;
 class STableViewBase;
 class SWidget;
 class URCAction;
@@ -57,6 +58,12 @@ public:
 	/** Chooses the appropriate Action model for the current class and field type*/
 	static TSharedPtr<FRCActionModel> GetModelByActionType(URCAction* InAction, const TSharedPtr<class FRCBehaviourModel> InBehaviourItem, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel);
 
+	/** Context menu for Actions panel list */
+	virtual TSharedPtr<SWidget> GetContextMenuWidget();
+
+	/** Invoked when this Action item no longer has focus*/
+	virtual void OnSelectionExit();
+
 protected:
 	/** The Action (data model) associated with us*/
 	TWeakObjectPtr<URCAction> ActionWeakPtr;
@@ -66,6 +73,10 @@ protected:
 
 	/** The Behaviour (UI model) associated with us*/
 	TWeakPtr<FRCBehaviourModel> BehaviourItemWeakPtr;
+
+	/** Optional: An editable virtual property widget associated with this row
+	* Child action models can assign this variable and receive the Edit context menu option automatically*/
+	TSharedPtr<SRCVirtualPropertyWidget> EditableVirtualPropertyWidget;
 };
 
 /*
@@ -96,7 +107,7 @@ protected:
 	TSharedPtr<IPropertyRowGenerator> PropertyRowGenerator;
 
 	/** Used to create a generic Value Widget for the property row widget*/
-	TWeakPtr<IDetailTreeNode> DetailTreeNodeWeakPtr;	
+	TWeakPtr<IDetailTreeNode> DetailTreeNodeWeakPtr;
 };
 
 /*

@@ -6,13 +6,17 @@
 #include "Action/RCPropertyAction.h"
 #include "UI/Action/RCActionModel.h"
 
+class SActionItemListRow;
+class SBox;
+class SRCVirtualPropertyWidget;
+
 /* 
 * ~ FRCActionConditionalModel ~
 *
 * UI model for representing an Action of the Conditional Behaviour.
 * Contains a Condition widget for representing the comparand/comparator and target property/value widgets
 * 
-*                              <Condition>                   <Description>         <Value>
+*  <Actions Table>       <Condition>                <Description>         <Value>
 * 
 *  Color coding | Comparator+Comparand | Target Property | Value To Set
 */
@@ -24,7 +28,7 @@ public:
 	/** Widget representing the Condition (Comparator|Comparand) used
 	* to trigger the corresponding action
 	*/
-	virtual TSharedRef<SWidget> GetConditionWidget() const;
+	TSharedRef<SWidget> GetConditionWidget();
 
 	/** OnGenerateRow delegate for the Actions List View*/
 	TSharedRef<ITableRow> OnGenerateWidgetForList(TSharedPtr<FRCActionConditionalModel> InItem, const TSharedRef<STableViewBase>& OwnerTable);
@@ -34,6 +38,9 @@ public:
 
 	/** Chooses the appropriate Action model for the current class and field type*/
 	static TSharedPtr<FRCActionConditionalModel> GetModelByActionType(URCAction* InAction, const TSharedPtr<class FRCBehaviourModel> InBehaviourItem, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel);
+
+private:
+	TSharedRef<SWidget> OnGenerateConditionWidget(class URCVirtualPropertySelfContainer* InComparand);
 };
 
 /*
