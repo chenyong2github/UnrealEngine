@@ -25,11 +25,8 @@ class UWidgetAnimationPlayCallbackProxy : public UObject
 private:
 	class UUMGSequencePlayer* ExecutePlayAnimation(class UUserWidget* Widget, class UWidgetAnimation* InAnimation, float StartAtTime, int32 NumLoopsToPlay, EUMGSequencePlayMode::Type PlayMode, float PlaybackSpeed);
 	class UUMGSequencePlayer* ExecutePlayAnimationTimeRange(class UUserWidget* Widget, class UWidgetAnimation* InAnimation, float StartAtTime, float EndAtTime, int32 NumLoopsToPlay, EUMGSequencePlayMode::Type PlayMode, float PlaybackSpeed);
-	void OnFinished(class UUMGSequencePlayer& Player);
-	void OnFinished_Delayed();
-
-	// Pointer to the world, needed to delay the results slightly
-	TWeakObjectPtr<UWorld> WorldPtr;
+	void OnSequenceFinished(class UUMGSequencePlayer& Player);
+	bool OnAnimationFinished(float DeltaTime);
 
 	FDelegateHandle OnFinishedHandle;
 };
