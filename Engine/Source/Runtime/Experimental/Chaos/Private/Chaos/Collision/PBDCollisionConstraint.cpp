@@ -281,24 +281,27 @@ namespace Chaos
 
 		CullDistance = InCullDistance;
 
-		// Are we allowing manifolds? If manifolds are enabled, we will build a one-shot manifold
-		// if supported by the shape pair, otherwise an incremental manifold will be created and
-		// we call collision detection every iteration to add new points (this is expensive).
-		// NOTE: bUseIncrementalManifold will get set to false later if we add a one-shot manifold
-		Flags.bUseManifold = bInUseManifold;
-		Flags.bUseIncrementalManifold = bInUseManifold;
-
 		// Initialize the is-probe and is-probe-unmodified flags to the same value.
 		// Contact modification may change bIsProbe but we want to store the unmodified value
 		// so that it can be reset between frames.
-		Flags.bIsProbe = 
-		Flags.bIsProbeUnmodified = (Shape[0] && Shape[0]->GetIsProbe()) || (Shape[1] && Shape[1]->GetIsProbe());
+		Flags.bIsProbe = (Shape[0] && Shape[0]->GetIsProbe()) || (Shape[1] && Shape[1]->GetIsProbe());
+		Flags.bIsProbeUnmodified = Flags.bIsProbe;
 
 		const FReal Margin0 = GetImplicit0()->GetMargin();
 		const FReal Margin1 = GetImplicit1()->GetMargin();
 		const EImplicitObjectType ImplicitType0 = GetInnerType(GetImplicit0()->GetCollisionType());
 		const EImplicitObjectType ImplicitType1 = GetInnerType(GetImplicit1()->GetCollisionType());
 		InitMarginsAndTolerances(ImplicitType0, ImplicitType1, Margin0, Margin1);
+
+		// Are we allowing manifolds?
+		Flags.bUseManifold = bInUseManifold;
+		Flags.bUseIncrementalManifold = false;
+
+		// Only levelsets use incremental collision manifolds
+		if (bInUseManifold && ((ImplicitType0 == ImplicitObjectType::LevelSet) || (ImplicitType1 == ImplicitObjectType::LevelSet)))
+		{
+			Flags.bUseIncrementalManifold = true;
+		}
 
 		// Debug testing for solver stiffness
 		if (Chaos_Collision_Stiffness >= 0)
@@ -587,7 +590,7 @@ namespace Chaos
 			return;
 		}
 
-		if (Flags.bUseIncrementalManifold)
+		if (Flags.bUseManifold)
 		{
 			// See if the manifold point already exists
 			int32 ManifoldPointIndex = FindManifoldPoint(ContactPoint);

@@ -65,14 +65,16 @@ namespace Chaos
 	public:
 		FPBDCollisionSolverAdapter()
 			: Constraint(nullptr)
-			, bIsIncremental(false)
+			, bIsManifold(true)
+			, bIsIncrementalManifold(false)
 		{
 		}
 
 		FPBDCollisionSolver& GetSolver() { return Solver; }
 		FPBDCollisionConstraint* GetConstraint() { return Constraint; }
 
-		bool IsIncrementalManifold() const { return bIsIncremental; }
+		bool IsManifold() const { return bIsManifold; }
+		bool IsIncrementalManifold() const { return bIsIncrementalManifold; }
 
 		void PreGatherInput(
 			const FReal Dt,
@@ -192,6 +194,9 @@ namespace Chaos
 			Solver.SolverBody0().SetInvIScale(Constraint->GetInvInertiaScale0());
 			Solver.SolverBody1().SetInvMScale(Constraint->GetInvMassScale1());
 			Solver.SolverBody1().SetInvIScale(Constraint->GetInvInertiaScale1());
+
+			bIsManifold = Constraint->GetUseManifold();
+			bIsIncrementalManifold = bIsManifold && Constraint->GetUseIncrementalCollisionDetection();
 		}
 
 		void UpdateManifoldPoints(
@@ -202,7 +207,7 @@ namespace Chaos
 			const FConstraintSolverBody& Body1 = Solver.SolverBody1();
 
 			// We handle incremental manifolds by just collecting any new contacts
-			const int32 BeginPointIndex = Solver.NumManifoldPoints();
+			const int32 BeginPointIndex = bIsIncrementalManifold ? Solver.NumManifoldPoints() : 0;
 			const int32 EndPointIndex = Solver.SetNumManifoldPoints(Constraint->GetManifoldPoints().Num());
 
 			const FSolverReal RestitutionVelocityThreshold = FSolverReal(Constraint->GetRestitutionThreshold()) * Dt;
@@ -352,7 +357,8 @@ namespace Chaos
 	private:
 		FPBDCollisionSolver Solver;
 		FPBDCollisionConstraint* Constraint;
-		bool bIsIncremental;
+		bool bIsManifold;
+		bool bIsIncrementalManifold;
 	};
 
 
@@ -364,7 +370,7 @@ namespace Chaos
 
 	FPBDCollisionSolverContainer::FPBDCollisionSolverContainer()
 		: FConstraintSolverContainer()
-		, bRequiresIncrementalCollisionDetection(false)
+		, bPerIterationCollisionDetection(false)
 		, bDeferredCollisionDetection(false)
 	{
 	}
@@ -415,7 +421,7 @@ namespace Chaos
 			CollisionSolver.UpdateManifoldPoints(Dt);
 		}
 
-		bRequiresIncrementalCollisionDetection |= CollisionSolver.IsIncrementalManifold();
+		bPerIterationCollisionDetection |= (!CollisionSolver.IsManifold() || CollisionSolver.IsIncrementalManifold());
 	}
 
 	void FPBDCollisionSolverContainer::UpdatePositionShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
@@ -491,10 +497,9 @@ namespace Chaos
 
 		// We run collision detection here under two conditions (normally it is run after Integration and before the constraint solver phase):
 		// 1) When deferring collision detection until the solver phase for better joint-collision behaviour (RBAN). In this case, we only do this on the first iteration.
-		// 2) When using incremental manifolds, where we may add/replace manifold points every iteration.
+		// 2) When using no manifolds or incremental manifolds, where we may add/replace manifold points every iteration.
 		const bool bDeferredCollisions = bDeferredCollisionDetection && (It == 0);
-		const bool bIncrementalManifolds = bRequiresIncrementalCollisionDetection;
-		if (bIncrementalManifolds || bDeferredCollisions)
+		if (bDeferredCollisions || bPerIterationCollisionDetection)
 		{
 			UpdateCollisions(Dt, BeginIndex, EndIndex);
 		}
@@ -614,7 +619,7 @@ namespace Chaos
 		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
 		{
 			FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[SolverIndex];
-			if (CollisionSolver.IsIncrementalManifold() || bDeferredCollisionDetection)
+			if (!CollisionSolver.IsManifold() || CollisionSolver.IsIncrementalManifold() || bDeferredCollisionDetection)
 			{
 				Collisions::Update(*CollisionSolver.GetConstraint(), Dt);
 				CollisionSolver.UpdateManifoldPoints(Dt);

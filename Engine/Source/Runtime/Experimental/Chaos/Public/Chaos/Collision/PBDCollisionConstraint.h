@@ -502,10 +502,6 @@ namespace Chaos
 				{
 					ClosestManifoldPointIndex = ManifoldPointIndex;
 				}
-
-				// If we can use a one-shot manifold with this shape pair, disable the incremental flag
-				// to prevent calling collision detection again
-				Flags.bUseIncrementalManifold = false;
 			}
 		}
 
@@ -518,9 +514,6 @@ namespace Chaos
 		inline void SetOneShotManifoldContacts(const TArrayView<const FContactPoint>& ContactPoints)
 		{
 			ResetActiveManifoldContacts();
-
-			// Disable the incremental flag to prevent calling collision detection again
-			Flags.bUseIncrementalManifold = false;
 
 			FReal MinPhi = TNumericLimits<FReal>::Max();
 			const int32 NumContacts = FMath::Min(ContactPoints.Num(), MaxManifoldPoints);

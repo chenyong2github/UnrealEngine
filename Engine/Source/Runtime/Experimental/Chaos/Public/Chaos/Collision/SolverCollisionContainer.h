@@ -92,7 +92,7 @@ namespace Chaos
 		void UpdateCollisions(const FReal InDt, const int32 BeginIndex, const int32 EndIndex);
 
 		TArray<FPBDCollisionSolverAdapter> CollisionSolvers;
-		bool bRequiresIncrementalCollisionDetection;
+		bool bPerIterationCollisionDetection;
 		bool bDeferredCollisionDetection;
 	};
 }
