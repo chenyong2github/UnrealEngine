@@ -7,7 +7,6 @@
 #include "LevelInstance/LevelInstanceTypes.h"
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
-#include "Misc/ITransaction.h"
 #include "Templates/UnrealTemplate.h"
 
 /**
