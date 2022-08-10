@@ -73,7 +73,6 @@ struct FPerforceExe
 		ExecutablePath = OutResults.TrimEnd();
 #endif // PLATFORM_WINDOWS
 
-		UE_LOG(LogSlate, Warning, TEXT("Result: %s, Error: %s"), *ExecutablePath, *OutErrors);
 		return ExecutablePath;
 	}
 
