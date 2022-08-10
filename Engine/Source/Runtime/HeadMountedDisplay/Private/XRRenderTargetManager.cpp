@@ -20,25 +20,8 @@ void FXRRenderTargetManager::CalculateRenderTargetSize(const class FViewport& Vi
 		{
 			const FIntPoint IdealRenderTargetSize = HMDDevice->GetIdealRenderTargetSize();
 			const float PixelDensity = HMDDevice->GetPixelDenity();
-
-			FIntPoint DensityAdjustedTargetSize =
-			{
-				FMath::CeilToInt(IdealRenderTargetSize.X * PixelDensity),
-				FMath::CeilToInt(IdealRenderTargetSize.Y * PixelDensity)
-			};
-
-			// We need a custom quantized width here because if we have an atlased texture, each half needs to be aligned.
-			// We could modify or overload QuantizeSceneBufferSize, but this is the only call point that needs to fix up 
-			// the pixel-density-adjusted width. Strata requires DivBy8, hence aligning to 16.
-			// TODO: Would be nice if we could offload the alignment to QSBS by passing in number of atlased views
-			constexpr uint32 Mask16 = ~(16 - 1);
-			DensityAdjustedTargetSize.X = (DensityAdjustedTargetSize.X + (16 - 1)) & Mask16;
-
-			QuantizeSceneBufferSize(DensityAdjustedTargetSize, DensityAdjustedTargetSize);
-
-			InOutSizeX = DensityAdjustedTargetSize.X;
-			InOutSizeY = DensityAdjustedTargetSize.Y;
-
+			InOutSizeX = FMath::CeilToInt(IdealRenderTargetSize.X * PixelDensity);
+			InOutSizeY = FMath::CeilToInt(IdealRenderTargetSize.Y * PixelDensity);
 			check(InOutSizeX != 0 && InOutSizeY != 0);
 		}
 	}
