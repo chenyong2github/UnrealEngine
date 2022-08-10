@@ -13,7 +13,6 @@
 #include "Engine/EngineTypes.h"
 #include "Engine/EngineBaseTypes.h"
 #include "PropertyPairsMap.h"
-#include "ActorTransactionAnnotation.h"
 #include "Components/ChildActorComponent.h"
 #include "RenderCommandFence.h"
 #include "Engine/Level.h"
@@ -2060,9 +2059,6 @@ public:
 	/** Does this actor supports external packaging? */
 	virtual bool SupportsExternalPackaging() const;
 #endif
-
-	using FActorTransactionAnnotationData = FActorTransactionAnnotationData;
-	using FActorRootComponentReconstructionData = FActorRootComponentReconstructionData;
 
 #if WITH_EDITOR
 	/** Cached pointer to the transaction annotation data from PostEditUndo to be used in the next RerunConstructionScript */
