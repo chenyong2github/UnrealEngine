@@ -652,12 +652,12 @@ void RegisterCompiledInInfo(class UClass* (*InOuterRegister)(), class UClass* (*
 {
 	check(InOuterRegister);
 	check(InInnerRegister);
-	bool bExisting = FClassDeferredRegistry::Get().AddRegistration(InOuterRegister, InInnerRegister, InPackageName, InName, InInfo, InVersionInfo, nullptr);
+	FClassDeferredRegistry::AddResult result = FClassDeferredRegistry::Get().AddRegistration(InOuterRegister, InInnerRegister, InPackageName, InName, InInfo, InVersionInfo, nullptr);
 #if WITH_RELOAD
-	if (bExisting && !IsReloadActive())
+	if (result == FClassDeferredRegistry::AddResult::ExistingChanged && !IsReloadActive())
 	{
 		// Class exists, this can only happen during hot-reload or live coding
-		UE_LOG(LogUObjectBase, Fatal, TEXT("Trying to recreate class '%s' outside of hot reload and live coding!"), InName);
+		UE_LOG(LogUObjectBase, Fatal, TEXT("Trying to recreate changed class '%s' outside of hot reload and live coding!"), InName);
 	}
 #endif
 	FString NoPrefix(UObjectBase::RemoveClassPrefix(InName));
