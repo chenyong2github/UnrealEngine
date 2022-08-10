@@ -183,8 +183,8 @@ void FNiagaraBakerRendererOutputTexture2D::BakeFrame(UNiagaraBakerOutput* InBake
 			OutputTexture->Source.Init(BakerOutput->FrameSize.X, BakerOutput->FrameSize.Y, 1, 1, TSF_RGBA16F, (const uint8*)(FrameResults.GetData()));
 			OutputTexture->PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
 			OutputTexture->MipGenSettings = bIsPoT ? TextureMipGenSettings::TMGS_FromTextureGroup : TextureMipGenSettings::TMGS_NoMipmaps;
-			OutputTexture->AddressX = TextureAddress::TA_Clamp;
-			OutputTexture->AddressY = TextureAddress::TA_Clamp;
+			OutputTexture->AddressX = BakerOutput->bSetTextureAddressX ? BakerOutput->TextureAddressX : OutputTexture->AddressX;
+			OutputTexture->AddressY = BakerOutput->bSetTextureAddressY ? BakerOutput->TextureAddressY : OutputTexture->AddressY;
 			OutputTexture->UpdateResource();
 			OutputTexture->PostEditChange();
 			OutputTexture->MarkPackageDirty();
@@ -219,8 +219,8 @@ void FNiagaraBakerRendererOutputTexture2D::EndBake(UNiagaraBakerOutput* InBakerO
 			OutputTexture->Source.Init(BakerOutput->AtlasTextureSize.X, BakerOutput->AtlasTextureSize.Y, 1, 1, TSF_RGBA16F, (const uint8*)(BakeAtlasTextureData.GetData()));
 			OutputTexture->PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
 			OutputTexture->MipGenSettings = bIsPoT ? TextureMipGenSettings::TMGS_FromTextureGroup : TextureMipGenSettings::TMGS_NoMipmaps;
-			OutputTexture->AddressX = TextureAddress::TA_Clamp;
-			OutputTexture->AddressY = TextureAddress::TA_Clamp;
+			OutputTexture->AddressX = BakerOutput->bSetTextureAddressX ? BakerOutput->TextureAddressX : OutputTexture->AddressX;
+			OutputTexture->AddressY = BakerOutput->bSetTextureAddressY ? BakerOutput->TextureAddressY : OutputTexture->AddressY;
 			OutputTexture->UpdateResource();
 			OutputTexture->PostEditChange();
 			OutputTexture->MarkPackageDirty();

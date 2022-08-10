@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Engine/Texture.h"
 #include "NiagaraBakerOutput.h"
 #include "NiagaraBakerOutputTexture2D.generated.h"
 
@@ -13,6 +14,8 @@ class NIAGARA_API UNiagaraBakerOutputTexture2D : public UNiagaraBakerOutput
 public:
 	UNiagaraBakerOutputTexture2D(const FObjectInitializer& Init)
 		: bGenerateAtlas(true)
+		, bSetTextureAddressX(true)
+		, bSetTextureAddressY(true)
 	{
 	}
 
@@ -29,6 +32,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bExportFrames : 1;
 
+	UPROPERTY(EditAnywhere, Category = "Settings", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bSetTextureAddressX : 1;
+
+	UPROPERTY(EditAnywhere, Category = "Settings", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bSetTextureAddressY : 1;
+
 	/** Size of each frame we generate. */
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	FIntPoint FrameSize = FIntPoint(128, 128);
@@ -39,6 +48,14 @@ public:
 
 	/** When either exporting or generating individual frames this is the size of the texture. */
 	FIntPoint SequenceFrameSize = FIntPoint(128, 128);
+
+	/** After baking sets the texture address mode to use on the X axis. */
+	UPROPERTY(EditAnywhere, Category="Settings", meta = (EditCondition = "bSetTextureAddressX"))
+	TEnumAsByte<enum TextureAddress> TextureAddressX = TextureAddress::TA_Wrap;
+
+	/** After baking sets the texture address mode to use on the Y axis. */
+	UPROPERTY(EditAnywhere, Category = "Settings", meta = (EditCondition = "bSetTextureAddressY"))
+	TEnumAsByte<enum TextureAddress> TextureAddressY = TextureAddress::TA_Wrap;
 
 	/**
 	When enabled a texture atlas is created
