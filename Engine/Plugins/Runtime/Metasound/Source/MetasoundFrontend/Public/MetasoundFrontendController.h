@@ -529,6 +529,11 @@ namespace Metasound
 			virtual const FMetasoundFrontendClassMetadata& GetClassMetadata() const = 0;
 			virtual const FMetasoundFrontendClassInterface& GetClassInterface() const = 0;
 
+			/** Returns the node interface, which may be different than the class interface
+			  * if the class supports dynamic input/output behavior (ex. Templates).
+			  */
+			virtual const FMetasoundFrontendNodeInterface& GetNodeInterface() const = 0;
+			
 #if WITH_EDITOR
 			/** Returns associated node class data */
 			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const = 0;
@@ -944,6 +949,17 @@ namespace Metasound
 			 * @return Node handle for new node. On error, an invalid handle is returned. 
 			 */
 			virtual FNodeHandle AddDuplicateNode(const INodeController& InNodeController) = 0;
+
+			/** Add a new template node to this graph, providing the defined interface as expected by the caller.
+			 *
+			 * @param InKey - Class key (must correspond with a class in the registry that was registered as a template).
+			 * @param InNodeInterface - Interface for node class.  Validated by template class registered in the node class registry. If invalid, node is not created/added.
+			 * @param InNodeGuid - (Optional) Explicit guid for the new node. Must be unique within the graph.
+			 * Only useful to specify explicitly when caller is managing or tracking the graph's guids (ex. replacing removed node).
+			 *
+			 * @return Node handle for class. On error, an invalid handle is returned.
+			 */
+			virtual FNodeHandle AddTemplateNode(const FNodeRegistryKey& InKey, FMetasoundFrontendNodeInterface&& InNodeInterface, FGuid InNodeGuid = FGuid::NewGuid()) = 0;
 
 			/** Remove the node corresponding to this node handle.
 			 *

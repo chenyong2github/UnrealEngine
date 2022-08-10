@@ -50,6 +50,12 @@ namespace Metasound
 				return Invalid;
 			}
 
+			const FMetasoundFrontendNodeInterface& GetInvalidNodeInterface()
+			{
+				static const FMetasoundFrontendNodeInterface Invalid;
+				return Invalid;
+			}
+
 			const FMetasoundFrontendGraphClassPresetOptions& GetInvalidGraphClassPresetOptions()
 			{
 				static const FMetasoundFrontendGraphClassPresetOptions Invalid;

@@ -34,6 +34,7 @@ namespace Metasound
 
 			const FMetasoundFrontendLiteral& GetInvalidLiteral();
 			const FMetasoundFrontendClassInterface& GetInvalidClassInterface();
+			const FMetasoundFrontendNodeInterface& GetInvalidNodeInterface();
 			const FMetasoundFrontendClassMetadata& GetInvalidClassMetadata();
 			const FMetasoundFrontendGraphClassPresetOptions& GetInvalidGraphClassPresetOptions();
 			const FMetasoundFrontendGraphClass& GetInvalidGraphClass();
@@ -237,6 +238,8 @@ namespace Metasound
 			virtual const FMetasoundFrontendClassInterface& GetClassInterface() const override { return Invalid::GetInvalidClassInterface(); }
 			virtual const FMetasoundFrontendClassMetadata& GetClassMetadata() const override { return Invalid::GetInvalidClassMetadata(); }
 
+			virtual const FMetasoundFrontendNodeInterface& GetNodeInterface() const override { return Invalid::GetInvalidNodeInterface(); }
+
 #if WITH_EDITOR
 			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override { return Invalid::GetInvalidInterfaceStyle(); }
 			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override { return Invalid::GetInvalidInterfaceStyle(); }
@@ -404,6 +407,7 @@ namespace Metasound
 			virtual FNodeHandle AddNode(const FNodeRegistryKey& InNodeClass, FGuid InNodeGuid) override { return INodeController::GetInvalidHandle(); }
 			virtual FNodeHandle AddNode(const FMetasoundFrontendClassMetadata& InNodeClass, FGuid InNodeGuid) override { return INodeController::GetInvalidHandle(); }
 			virtual FNodeHandle AddDuplicateNode(const INodeController& InNode) override { return INodeController::GetInvalidHandle(); }
+			virtual FNodeHandle AddTemplateNode(const FNodeRegistryKey& InNodeClass, FMetasoundFrontendNodeInterface&& InNodeInterface, FGuid InNodeGuid) override { return INodeController::GetInvalidHandle(); }
 
 			// Remove the node corresponding to this node handle.
 			// On success, invalidates the received node handle.

@@ -8,6 +8,7 @@
 #include "MetasoundFrontendDocumentAccessPtr.h"
 #include "MetasoundFrontendGraph.h"
 #include "MetasoundFrontendNodeController.h"
+#include "MetasoundFrontendNodeTemplateRegistry.h"
 #include "MetasoundFrontendSubgraphNodeController.h"
 #include "MetasoundFrontendInvalidController.h"
 #include "MetasoundFrontendVariableController.h"
@@ -1378,6 +1379,38 @@ namespace Metasound
 			return AddNode(NodeRegistryKey::CreateKey(InClassMetadata), InNodeGuid);
 		}
 
+		FNodeHandle FGraphController::AddTemplateNode(const FNodeRegistryKey& InKey, FMetasoundFrontendNodeInterface&& InNodeInterface, FGuid InNodeGuid)
+		{
+			if (const INodeTemplate* Template = INodeTemplateRegistry::Get().FindTemplate(InKey))
+			{
+				const bool bIsValidInterface = Template->IsValidNodeInterface(InNodeInterface);
+				if (ensureAlwaysMsgf(bIsValidInterface, TEXT("Cannot implement interface when attempting to add node using template with key '%s'"), *InKey))
+				{
+					// Construct a FNodeClassInfo from this lookup key.
+					FConstClassAccessPtr Class = OwningDocument->FindOrAddClass(InKey);
+					const bool bIsValidClass = (nullptr != Class.Get());
+
+					if (bIsValidClass)
+					{
+						if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+						{
+							if (const FMetasoundFrontendClass* NodeClass = Class.Get())
+							{
+								FMetasoundFrontendNode& Node = GraphClass->Graph.Nodes.Emplace_GetRef(*NodeClass);
+								Node.UpdateID(InNodeGuid);
+								Node.Interface = InNodeInterface;
+								FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.GetID());
+								return GetNodeHandle(FGraphController::FNodeAndClass{ NodePtr, Class });
+							}
+						}
+					}
+				}
+			}
+
+			UE_LOG(LogMetaSound, Warning, TEXT("Failed to find or add node template class info with registry key [Key:%s]"), *InKey);
+			return INodeController::GetInvalidHandle();
+		}
+
 		FNodeHandle FGraphController::AddDuplicateNode(const INodeController& InNode)
 		{
 			// TODO: will need to copy node interface when dynamic pins exist.
@@ -1454,6 +1487,7 @@ namespace Metasound
 							// TODO: remove node from variable.7
 						case EMetasoundFrontendClassType::Literal:
 						case EMetasoundFrontendClassType::External:
+						case EMetasoundFrontendClassType::Template:
 						case EMetasoundFrontendClassType::Graph:
 						{
 							return RemoveNode(*FrontendNode);
@@ -1462,7 +1496,7 @@ namespace Metasound
 						default:
 						case EMetasoundFrontendClassType::Invalid:
 						{
-							static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 9, "Possible missing switch case coverage for EMetasoundFrontendClassType.");
+							static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 10, "Possible missing switch case coverage for EMetasoundFrontendClassType.");
 							checkNoEntry();
 						}
 					}
@@ -1950,6 +1984,7 @@ namespace Metasound
 						break;
 
 					case EMetasoundFrontendClassType::External:
+					case EMetasoundFrontendClassType::Template:
 						{
 							FNodeController::FInitParams InitParams
 							{
@@ -1977,7 +2012,7 @@ namespace Metasound
 
 					default:
 						checkNoEntry();
-						static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 9, "Possible missing switch case coverage for EMetasoundFrontendClassType.");
+						static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 10, "Possible missing switch case coverage for EMetasoundFrontendClassType.");
 				}
 			}
 
@@ -2049,6 +2084,7 @@ namespace Metasound
 						break;
 
 					case EMetasoundFrontendClassType::External:
+					case EMetasoundFrontendClassType::Template:
 						{
 							FNodeController::FInitParams InitParams
 							{
@@ -2076,7 +2112,7 @@ namespace Metasound
 
 					default:
 						checkNoEntry();
-						static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 9, "Possible missing switch case coverage for EMetasoundFrontendClassType.");
+						static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 10, "Possible missing switch case coverage for EMetasoundFrontendClassType.");
 				}
 			}
 

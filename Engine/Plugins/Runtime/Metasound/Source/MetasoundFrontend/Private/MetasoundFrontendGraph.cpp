@@ -9,6 +9,8 @@
 #include "CoreMinimal.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDataTypeRegistry.h"
+#include "MetasoundFrontendNodeTemplateRegistry.h"
+#include "MetasoundFrontendRegistries.h"
 #include "MetasoundGraph.h"
 #include "MetasoundLiteralNode.h"
 #include "MetasoundLog.h"
@@ -286,6 +288,8 @@ namespace Metasound
 
 	TUniquePtr<INode> FFrontendGraphBuilder::CreateExternalNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, FBuildGraphContext& InGraphContext, const TSet<FNodeIDVertexID>& InEdgeDestinations)
 	{
+		using namespace Frontend;
+
 		check(InNode.ClassID == InClass.ID);
 
 		const FNodeInitData InitData = FrontendGraphPrivate::CreateNodeInitData(InNode);
@@ -300,8 +304,7 @@ namespace Metasound
 		// TODO: handle check to see if node interface conforms to class interface here. 
 		// TODO: check to see if external object supports class interface.
 
-		Metasound::Frontend::FNodeRegistryKey Key = FMetasoundFrontendRegistryContainer::GetRegistryKey(InClass.Metadata);
-
+		const FNodeRegistryKey Key = NodeRegistryKey::CreateKey(InClass.Metadata);
 		return FMetasoundFrontendRegistryContainer::Get()->CreateNode(Key, InitData);
 	}
 
@@ -492,8 +495,9 @@ namespace Metasound
 					}
 					break;
 
-					// Variable accessors and mutators are constructed with the same
-					// parameters as external nodes. 
+					// Templates, variable accessors and mutators are
+					// constructed with the same parameters as external nodes.
+					case EMetasoundFrontendClassType::Template:
 					case EMetasoundFrontendClassType::VariableAccessor:
 					case EMetasoundFrontendClassType::VariableDeferredAccessor:
 					case EMetasoundFrontendClassType::VariableMutator:
@@ -720,8 +724,9 @@ namespace Metasound
 	{
 		// All dependencies are external dependencies in a flat graph
 		auto IsClassExternal = [&](const FMetasoundFrontendClass& InDesc) 
-		{ 
-			bool bIsExternal = (InDesc.Metadata.GetType() == EMetasoundFrontendClassType::External) ||
+		{
+			const bool bIsExternal = (InDesc.Metadata.GetType() == EMetasoundFrontendClassType::External) ||
+				(InDesc.Metadata.GetType() == EMetasoundFrontendClassType::Template) ||
 				(InDesc.Metadata.GetType() == EMetasoundFrontendClassType::Input) ||
 				(InDesc.Metadata.GetType() == EMetasoundFrontendClassType::Output);
 			return bIsExternal;

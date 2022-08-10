@@ -32,6 +32,7 @@ namespace Metasound
 				static const FString VariableType(TEXT("Variable"));
 				static const FString LiteralType(TEXT("Literal"));
 				static const FString GraphType(TEXT("Graph"));
+				static const FString TemplateType(TEXT("Template"));
 				static const FString InvalidType(TEXT("Invalid"));
 
 				switch (InType)
@@ -60,11 +61,14 @@ namespace Metasound
 					case EMetasoundFrontendClassType::VariableMutator:
 						return VariableMutatorType;
 
+					case EMetasoundFrontendClassType::Template:
+						return TemplateType;
+
 					case EMetasoundFrontendClassType::Graph:
 						return GraphType;
 
 					default:
-						static_assert(static_cast<uint8>(EMetasoundFrontendClassType::Invalid) == 9, "Missing EMetasoundFrontendClassType case coverage");
+						static_assert(static_cast<uint8>(EMetasoundFrontendClassType::Invalid) == 10, "Missing EMetasoundFrontendClassType case coverage");
 						return InvalidType;
 				}
 			}
@@ -235,6 +239,38 @@ namespace Metasound
 			return Key;
 		}
 
+		FNodeRegistryKey FRegistryContainerImpl::RegisterNodeTemplate(TUniquePtr<INodeTemplateRegistryEntry>&& InEntry)
+		{
+			METASOUND_LLM_SCOPE;
+
+			FNodeRegistryKey Key;
+
+			if (InEntry.IsValid())
+			{
+				TSharedRef<INodeTemplateRegistryEntry, ESPMode::ThreadSafe> Entry(InEntry.Release());
+
+				FNodeRegistryTransaction::FTimeType Timestamp = FPlatformTime::Cycles64();
+
+				Key = NodeRegistryKey::CreateKey(Entry->GetClassInfo());
+
+				// check to see if an identical node was already registered, and log
+				ensureAlwaysMsgf(
+					!RegisteredNodes.Contains(Key),
+					TEXT("Node template with registry key '%s' already registered. The previously registered node will be overwritten."),
+					*Key);
+
+				// Store update to newly registered node in history so nodes
+				// can be queried by transaction ID
+
+				TransactionBuffer->AddTransaction(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeRegistration, Entry->GetClassInfo(), Timestamp));
+
+				// Store registry elements in map so nodes can be queried using registry key.
+				RegisteredNodeTemplates.Add(Key, Entry);
+			}
+
+			return Key;
+		}
+
 		bool FRegistryContainerImpl::UnregisterNode(const FNodeRegistryKey& InKey)
 		{
 			METASOUND_LLM_SCOPE;
@@ -248,6 +284,26 @@ namespace Metasound
 					TransactionBuffer->AddTransaction(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeUnregistration, Entry->GetClassInfo(), Timestamp));
 
 					RegisteredNodes.Remove(InKey);
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool FRegistryContainerImpl::UnregisterNodeTemplate(const FNodeRegistryKey& InKey)
+		{
+			METASOUND_LLM_SCOPE;
+
+			if (NodeRegistryKey::IsValid(InKey))
+			{
+				if (const INodeTemplateRegistryEntry* Entry = FindNodeTemplateEntry(InKey))
+				{
+					FNodeRegistryTransaction::FTimeType Timestamp = FPlatformTime::Cycles64();
+
+					TransactionBuffer->AddTransaction(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeUnregistration, Entry->GetClassInfo(), Timestamp));
+
+					RegisteredNodeTemplates.Remove(InKey);
 					return true;
 				}
 			}
@@ -278,7 +334,7 @@ namespace Metasound
 
 		bool FRegistryContainerImpl::IsNodeRegistered(const FNodeRegistryKey& InKey) const
 		{
-			return RegisteredNodes.Contains(InKey);
+			return RegisteredNodes.Contains(InKey) || RegisteredNodeTemplates.Contains(InKey);
 		}
 
 		bool FRegistryContainerImpl::IsNodeNative(const FNodeRegistryKey& InKey) const
@@ -288,9 +344,13 @@ namespace Metasound
 				return Entry->IsNative();
 			}
 
+			if (const INodeTemplateRegistryEntry* TemplateEntry = FindNodeTemplateEntry(InKey))
+			{
+				return true;
+			}
+
 			return false;
 		}
-
 
 		bool FRegistryContainerImpl::FindFrontendClassFromRegistered(const FNodeRegistryKey& InKey, FMetasoundFrontendClass& OutClass)
 		{
@@ -299,12 +359,25 @@ namespace Metasound
 				OutClass = Entry->GetFrontendClass();
 				return true;
 			}
+
+			if (const INodeTemplateRegistryEntry* Entry = FindNodeTemplateEntry(InKey))
+			{
+				OutClass = Entry->GetFrontendClass();
+				return true;
+			}
+
 			return false;
 		}
 
 		bool FRegistryContainerImpl::FindNodeClassInfoFromRegistered(const Metasound::Frontend::FNodeRegistryKey& InKey, FNodeClassInfo& OutInfo)
 		{
 			if (const INodeRegistryEntry* Entry = FindNodeEntry(InKey))
+			{
+				OutInfo = Entry->GetClassInfo();
+				return true;
+			}
+
+			if (const INodeTemplateRegistryEntry* Entry = FindNodeTemplateEntry(InKey))
 			{
 				OutInfo = Entry->GetClassInfo();
 				return true;
@@ -404,7 +477,6 @@ namespace Metasound
 			}
 		}
 
-
 		const INodeRegistryEntry* FRegistryContainerImpl::FindNodeEntry(const FNodeRegistryKey& InKey) const
 		{
 			if (const TSharedRef<INodeRegistryEntry, ESPMode::ThreadSafe>* Entry = RegisteredNodes.Find(InKey))
@@ -415,6 +487,15 @@ namespace Metasound
 			return nullptr;
 		}
 
+		const INodeTemplateRegistryEntry* FRegistryContainerImpl::FindNodeTemplateEntry(const FNodeRegistryKey& InKey) const
+		{
+			if (const TSharedRef<INodeTemplateRegistryEntry, ESPMode::ThreadSafe>* Entry = RegisteredNodeTemplates.Find(InKey))
+			{
+				return &Entry->Get();
+			}
+
+			return nullptr;
+		}
 
 		FNodeRegistryTransaction::FNodeRegistryTransaction(ETransactionType InType, const FNodeClassInfo& InNodeClassInfo, FNodeRegistryTransaction::FTimeType InTimestamp)
 		: Type(InType)

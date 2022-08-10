@@ -11,6 +11,7 @@
 #include "MetasoundLog.h"
 #include "MetasoundParameterTransmitter.h"
 #include "MetasoundVertex.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
@@ -202,7 +203,7 @@ protected:
 	};
 
 	// Returns the cached runtime data. Call updates cached data if out-of-date.
-	const FRuntimeData& CacheRuntimeData();
+	const FRuntimeData& CacheRuntimeData(const FMetasoundFrontendDocument& InPreBuiltDoc);
 
 	// Returns the cached runtime data.
 	const FRuntimeData& GetRuntimeData() const;
@@ -218,7 +219,7 @@ private:
 	FGuid CurrentCachedRuntimeDataChangeID;
 	FRuntimeData CachedRuntimeData;
 
-	TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> BuildMetasoundDocument(const TArray<FMetasoundFrontendClassInput>& InTransmittableInputs) const;
+	TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> BuildMetasoundDocument(const FMetasoundFrontendDocument& InPreBuildDoc, const TArray<FMetasoundFrontendClassInput>& InTransmittableInputs) const;
 	Metasound::FSendAddress CreateSendAddress(uint64 InInstanceID, const Metasound::FVertexName& InVertexName, const FName& InDataTypeName) const;
 	Metasound::Frontend::FNodeHandle AddInputPinForSendAddress(const Metasound::FMetaSoundParameterTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const;
 };

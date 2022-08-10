@@ -58,22 +58,22 @@ enum class EMetasoundFrontendVertexAccessType
 UENUM()
 enum class EMetasoundFrontendClassType : uint8
 {
-	// The Metasound class is defined externally, in compiled code or in another document.
+	// The MetaSound class is defined externally, in compiled code or in another document.
 	External,
 
-	// The Metasound class is a graph within the containing document.
+	// The MetaSound class is a graph within the containing document.
 	Graph,
 
-	// The Metasound class is an input into a graph in the containing document.
+	// The MetaSound class is an input into a graph in the containing document.
 	Input,
 
-	// The Metasound class is an output from a graph in the containing document.
+	// The MetaSound class is an output from a graph in the containing document.
 	Output,
 
-	// The Metasound class is an literal requiring an literal value to construct.
+	// The MetaSound class is an literal requiring an literal value to construct.
 	Literal,
 
-	// The Metasound class is an variable requiring an literal value to construct.
+	// The MetaSound class is an variable requiring an literal value to construct.
 	Variable,
 
 	// The MetaSound class accesses variables.
@@ -84,6 +84,10 @@ enum class EMetasoundFrontendClassType : uint8
 
 	// The MetaSound class mutates variables.
 	VariableMutator,
+
+	// The MetaSound class is defined only by the Frontend, and associatively
+	// performs a functional replacement operation in a pre-build step.
+	Template,
 
 	Invalid UMETA(Hidden)
 };
@@ -260,8 +264,6 @@ USTRUCT()
 struct METASOUNDFRONTEND_API FMetasoundFrontendVertex
 {
 	GENERATED_BODY()
-
-	virtual ~FMetasoundFrontendVertex() = default;
 
 	// Name of the vertex. Unique amongst other vertices on the same interface.
 	UPROPERTY(VisibleAnywhere, Category = CustomView)
@@ -676,8 +678,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassVertex : public FMetasoundFr
 {
 	GENERATED_BODY()
 
-	virtual ~FMetasoundFrontendClassVertex() = default;
-
 	UPROPERTY()
 	FGuid NodeID = Metasound::FrontendInvalidID;
 
@@ -713,6 +713,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassStyleDisplay
 	,	bShowName(InDisplayStyle.bShowName)
 	,	bShowInputNames(InDisplayStyle.bShowInputNames)
 	,	bShowOutputNames(InDisplayStyle.bShowOutputNames)
+	,	bShowLiterals(InDisplayStyle.bShowLiterals)
 	{
 	}
 
@@ -727,6 +728,9 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassStyleDisplay
 
 	UPROPERTY()
 	bool bShowOutputNames = true;
+
+	UPROPERTY()
+	bool bShowLiterals = true;
 #endif // WITH_EDITORONLY_DATA
 };
 
@@ -740,8 +744,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassInput : public FMetasoundFro
 	FMetasoundFrontendClassInput() = default;
 
 	FMetasoundFrontendClassInput(const FMetasoundFrontendClassVertex& InOther);
-
-	virtual ~FMetasoundFrontendClassInput() = default;
 
 	// Default value for this input.
 	UPROPERTY(EditAnywhere, Category = Parameters)
@@ -757,8 +759,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassVariable : public FMetasound
 	FMetasoundFrontendClassVariable() = default;
 
 	FMetasoundFrontendClassVariable(const FMetasoundFrontendClassVertex& InOther);
-
-	virtual ~FMetasoundFrontendClassVariable() = default;
 
 	// Default value for this variable.
 	UPROPERTY(EditAnywhere, Category = Parameters)
@@ -777,16 +777,12 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassOutput : public FMetasoundFr
 	:	FMetasoundFrontendClassVertex(InOther)
 	{
 	}
-
-	virtual ~FMetasoundFrontendClassOutput() = default;
 };
 
 USTRUCT()
 struct METASOUNDFRONTEND_API FMetasoundFrontendClassEnvironmentVariable
 {
 	GENERATED_BODY()
-
-	virtual ~FMetasoundFrontendClassEnvironmentVariable() = default;
 
 	// Name of environment variable.
 	UPROPERTY()

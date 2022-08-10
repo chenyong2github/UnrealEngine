@@ -166,6 +166,15 @@ namespace Metasound
 			return Invalid::GetInvalidClassMetadata();
 		}
 
+		const FMetasoundFrontendNodeInterface& FBaseNodeController::GetNodeInterface() const
+		{
+			if (const FMetasoundFrontendNode* Node = NodePtr.Get())
+			{
+				return Node->Interface;
+			}
+			return Invalid::GetInvalidNodeInterface();
+		}
+
 #if WITH_EDITOR
 		const FMetasoundFrontendInterfaceStyle& FBaseNodeController::GetInputStyle() const
 		{

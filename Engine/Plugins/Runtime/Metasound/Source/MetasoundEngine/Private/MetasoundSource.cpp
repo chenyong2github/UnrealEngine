@@ -7,6 +7,7 @@
 #include "IAudioParameterInterfaceRegistry.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundAssetManager.h"
 #include "MetasoundAudioFormats.h"
 #include "MetasoundEngineArchetypes.h"
 #include "MetasoundEngineEnvironment.h"
@@ -69,6 +70,18 @@ namespace Metasound
 			};
 			static const FFormatOutputVertexKeyMap Map = CreateVertexKeyMap();
 			return Map;
+		}
+
+		Frontend::FMetaSoundAssetRegistrationOptions GetInitRegistrationOptions()
+		{
+			Frontend::FMetaSoundAssetRegistrationOptions RegOptions;
+			RegOptions.bForceReregister = false;
+			if (const UMetaSoundSettings* Settings = GetDefault<UMetaSoundSettings>())
+			{
+				RegOptions.bAutoUpdateLogWarningOnDroppedConnection = Settings->bAutoUpdateLogWarningOnDroppedConnection;
+			}
+
+			return RegOptions;
 		}
 	} // namespace SourcePrivate
 } // namespace Metasound
@@ -268,11 +281,14 @@ void UMetaSoundSource::SetRegistryAssetClassInfo(const Metasound::Frontend::FNod
 
 void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToInit, FName InFeatureName)
 {
+	using namespace Metasound::SourcePrivate;
+
 	METASOUND_LLM_SCOPE;
 
-	// Have to call cache vs a simple get as the source may have yet to start playing/has not been registered
+	// Have to call register vs a simple get as the source may have yet to start playing/has not been registered
 	// via InitResources. If it has, this call is fast and returns the already cached RuntimeData.
-	const FRuntimeData& RuntimeData = CacheRuntimeData();
+	RegisterGraphWithFrontend(GetInitRegistrationOptions());
+	const FRuntimeData& RuntimeData = GetRuntimeData();
 	const TArray<FMetasoundFrontendClassInput>& TransmittableInputs = RuntimeData.TransmittableInputs;
 
 	// Removes values that are not explicitly defined by the ParamType and returns
@@ -460,19 +476,12 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToIni
 void UMetaSoundSource::InitResources()
 {
 	using namespace Metasound::Frontend;
+	using namespace Metasound::SourcePrivate;
 
 	METASOUND_LLM_SCOPE;
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundSource::InitResources);
 
-	FMetaSoundAssetRegistrationOptions RegOptions;
-	RegOptions.bForceReregister = false;
-	if (const UMetaSoundSettings* Settings = GetDefault<UMetaSoundSettings>())
-	{
-		RegOptions.bAutoUpdateLogWarningOnDroppedConnection = Settings->bAutoUpdateLogWarningOnDroppedConnection;
-	}
-
-	RegisterGraphWithFrontend(RegOptions);
-	CacheRuntimeData();
+	RegisterGraphWithFrontend(GetInitRegistrationOptions());
 }
 
 Metasound::Frontend::FNodeClassInfo UMetaSoundSource::GetAssetClassInfo() const

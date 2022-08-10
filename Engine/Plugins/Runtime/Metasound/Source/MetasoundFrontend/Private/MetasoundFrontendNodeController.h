@@ -47,6 +47,8 @@ namespace Metasound
 			virtual const FMetasoundFrontendClassInterface& GetClassInterface() const override;
 			virtual const FMetasoundFrontendClassMetadata& GetClassMetadata() const override;
 
+			virtual const FMetasoundFrontendNodeInterface& GetNodeInterface() const override;
+
 #if WITH_EDITOR
 			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override;
 			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override;

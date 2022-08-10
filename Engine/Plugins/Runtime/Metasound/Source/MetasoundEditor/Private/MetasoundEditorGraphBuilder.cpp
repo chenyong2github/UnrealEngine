@@ -1208,6 +1208,7 @@ namespace Metasound
 				break;
 
 				case EMetasoundFrontendClassType::External:
+				case EMetasoundFrontendClassType::Template:
 				{
 					return CastChecked<UMetasoundEditorGraphNode>(AddExternalNode(InMetaSound, InNodeHandle, InLocation, bInSelectNewNode));
 				}
@@ -1236,7 +1237,7 @@ namespace Metasound
 				default:
 				{
 					checkNoEntry();
-					static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 9, "Possible missing FMetasoundFrontendClassType case coverage");
+					static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 10, "Possible missing FMetasoundFrontendClassType case coverage");
 				}
 				break;
 			}
@@ -1514,9 +1515,10 @@ namespace Metasound
 					case EMetasoundFrontendClassType::VariableMutator:
 					case EMetasoundFrontendClassType::Variable:
 					case EMetasoundFrontendClassType::External:
+					case EMetasoundFrontendClassType::Template:
 					default:
 					{
-						static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 9, "Possible missing MetasoundFrontendClassType switch case coverage.");
+						static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 10, "Possible missing MetasoundFrontendClassType switch case coverage.");
 						RemoveNodeHandle(GraphHandle, NodeHandle);
 					}
 					break;

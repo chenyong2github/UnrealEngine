@@ -32,6 +32,9 @@ namespace Metasound
 
 		/** Whether or not to show output names in visual layout. */
 		bool bShowOutputNames = true;
+
+		/** Whether or not to show input literals in visual layout. */
+		bool bShowLiterals = true;
 	};
 
 	/** Name of a node class.

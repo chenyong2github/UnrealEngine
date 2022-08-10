@@ -280,7 +280,8 @@ namespace Metasound
 				if (FMetasoundFrontendClass* MetasoundClass = ClassPtr.Get())
 				{
 					// External node classes must match version to return shared definition.
-					if (MetasoundClass->Metadata.GetType() == EMetasoundFrontendClassType::External)
+					if (MetasoundClass->Metadata.GetType() == EMetasoundFrontendClassType::Template
+						|| MetasoundClass->Metadata.GetType() == EMetasoundFrontendClassType::External)
 					{
 						// TODO: Assuming we want to recheck classes when they add another
 						// node, this should be replace with a call to synchronize a 
@@ -323,8 +324,9 @@ namespace Metasound
 			
 			if (const FMetasoundFrontendClass* Class = ClassPtr.Get())
 			{
-				// External node classes must match major version to return shared definition.
-				if (EMetasoundFrontendClassType::External == InMetadata.GetType())
+				// External & Template node classes must match major version to return shared definition.
+				if (EMetasoundFrontendClassType::External == InMetadata.GetType()
+					|| EMetasoundFrontendClassType::Template == InMetadata.GetType())
 				{
 					if (InMetadata.GetVersion().Major != Class->Metadata.GetVersion().Major)
 					{
@@ -344,6 +346,7 @@ namespace Metasound
 					switch (InMetadata.GetType())
 					{
 						case EMetasoundFrontendClassType::External:
+						case EMetasoundFrontendClassType::Template:
 						case EMetasoundFrontendClassType::Input:
 						case EMetasoundFrontendClassType::Output:
 						{

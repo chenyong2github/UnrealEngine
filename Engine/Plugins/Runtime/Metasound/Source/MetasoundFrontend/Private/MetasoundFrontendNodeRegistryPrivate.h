@@ -15,6 +15,26 @@ namespace Metasound
 		using FNodeRegistryTransactionBuffer = TTransactionBuffer<FNodeRegistryTransaction>;
 		using FNodeRegistryTransactionStream = TTransactionStream<FNodeRegistryTransaction>; 
 
+		/** INodeTemplateRegistryEntry declares the interface for a node registry entry.
+		 * Each node class in the registry must satisfy this interface.
+		 */
+		class INodeTemplateRegistryEntry
+		{
+		public:
+			virtual ~INodeTemplateRegistryEntry() = default;
+
+			/** Return FNodeClassInfo for the node class.
+			 *
+			 * Implementations of method should avoid any expensive operations
+			 * (e.g. loading from disk, allocating memory) as this method is called
+			 * frequently when querying nodes.
+			 */
+			virtual const FNodeClassInfo& GetClassInfo() const = 0;
+
+			/** Return a FMetasoundFrontendClass which describes the node. */
+			virtual const FMetasoundFrontendClass& GetFrontendClass() const = 0;
+		};
+
 		// Registry container private implementation.
 		class FRegistryContainerImpl : public FMetasoundFrontendRegistryContainer
 		{
@@ -53,7 +73,8 @@ namespace Metasound
 			 *
 			 * @return True on success.
 			 */
-			virtual FNodeRegistryKey RegisterNode(TUniquePtr<Metasound::Frontend::INodeRegistryEntry>&&) override;
+			virtual FNodeRegistryKey RegisterNode(TUniquePtr<Metasound::Frontend::INodeRegistryEntry>&& InEntry) override;
+
 			virtual void ForEachNodeRegistryTransactionSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID, TFunctionRef<void(const Metasound::Frontend::FNodeRegistryTransaction&)> InFunc) const override;
 			virtual bool UnregisterNode(const FNodeRegistryKey& InKey) override;
 			virtual bool IsNodeRegistered(const FNodeRegistryKey& InKey) const override;
@@ -84,6 +105,10 @@ namespace Metasound
 			// Returns an empty array if none are available.
 			virtual TArray<FConverterNodeInfo> GetPossibleConverterNodes(const FName& FromDataType, const FName& ToDataType) override;
 
+			// Private implementation until hardened and used for template nodes other than reroutes.
+			FNodeRegistryKey RegisterNodeTemplate(TUniquePtr<Metasound::Frontend::INodeTemplateRegistryEntry>&& InEntry);
+			bool UnregisterNodeTemplate(const FNodeRegistryKey& InKey);
+
 			// Create a transaction stream for any newly transactions
 			TUniquePtr<FNodeRegistryTransactionStream> CreateTransactionStream();
 
@@ -92,6 +117,7 @@ namespace Metasound
 
 			const INodeRegistryEntry* FindNodeEntry(const FNodeRegistryKey& InKey) const;
 
+			const INodeTemplateRegistryEntry* FindNodeTemplateEntry(const FNodeRegistryKey& InKey) const;
 
 			// This buffer is used to enqueue nodes and datatypes to register when the module has been initialized,
 			// in order to avoid bad behavior with ensures, logs, etc. on static initialization.
@@ -104,6 +130,9 @@ namespace Metasound
 
 			// Registry in which we keep all information about nodes implemented in C++.
 			TMap<FNodeRegistryKey, TSharedRef<INodeRegistryEntry, ESPMode::ThreadSafe>> RegisteredNodes;
+
+			// Registry in which we keep all information about dynamically-generated templated nodes via in C++.
+			TMap<FNodeRegistryKey, TSharedRef<INodeTemplateRegistryEntry, ESPMode::ThreadSafe>> RegisteredNodeTemplates;
 
 			// Registry in which we keep lists of possible nodes to use to convert between two datatypes
 			TMap<FConverterNodeRegistryKey, FConverterNodeRegistryValue> ConverterNodeRegistry;
