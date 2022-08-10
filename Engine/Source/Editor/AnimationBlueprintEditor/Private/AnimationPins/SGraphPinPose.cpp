@@ -210,7 +210,7 @@ void SGraphPinPose::ReconfigureWidgetForAttributes()
 			AnimGraphNode->GetOutputLinkAttributes(NodeAttributes);
 
 			// Unlinked pins display attributes if they are inputs and the node takes them as inputs
-			if(GraphPinObj->LinkedTo.Num() == 0)
+			if(GraphPinObj->LinkedTo.Num() == 0 || AnimBlueprintClass == nullptr)
 			{
 				AddAttributes(TArrayView<const FName>(), PinAttributes, TArrayView<const FName>());
 			}
