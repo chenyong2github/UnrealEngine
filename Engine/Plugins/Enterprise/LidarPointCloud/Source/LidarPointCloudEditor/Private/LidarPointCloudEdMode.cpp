@@ -40,29 +40,14 @@ void ULidarEditorMode::Enter()
 
 #define REGISTER_TOOL(Tool) RegisterTool(Commands.Toolkit##Tool, TEXT("Lidar"#Tool"Tool"), NewObject<ULidarEditorToolBuilder##Tool>())
 	REGISTER_TOOL(Select);
-	REGISTER_TOOL(Align);
-	REGISTER_TOOL(Merge);
-	REGISTER_TOOL(Collision);
-	REGISTER_TOOL(Normals);
-	REGISTER_TOOL(Meshing);
 	REGISTER_TOOL(BoxSelection);
 	REGISTER_TOOL(PolygonalSelection);
 	REGISTER_TOOL(LassoSelection);
 	REGISTER_TOOL(PaintSelection);
 #undef REGISTER_TOOL
-	
-	PaletteChangedHandle = Toolkit->OnPaletteChanged().AddUObject(this, &ULidarEditorMode::UpdateOnPaletteChange);
-	
-	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
-	Toolkit->SetCurrentPalette(LidarEditorPalletes::Manage);
-	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::UndoToExit);
-}
 
-void ULidarEditorMode::Exit()
-{
-	Toolkit->OnPaletteChanged().Remove(PaletteChangedHandle);
-	
-	Super::Exit();
+	GetToolManager()->SelectActiveToolType(EToolSide::Mouse, "LidarSelectTool");
+	GetToolManager()->ActivateTool(EToolSide::Mouse);
 }
 
 bool ULidarEditorMode::IsSelectionAllowed(AActor* InActor, bool bInSelection) const
@@ -87,13 +72,7 @@ bool ULidarEditorMode::GetPivotForOrbit(FVector& OutPivot) const
 
 TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> ULidarEditorMode::GetModeCommands() const
 {
-	return FLidarPointCloudEditorCommands::GetCommands();
-}
-
-void ULidarEditorMode::UpdateOnPaletteChange(FName NewPalette)
-{
-	GetToolManager()->SelectActiveToolType(EToolSide::Mouse, "LidarSelectTool");
-	GetToolManager()->ActivateTool(EToolSide::Mouse);
+	return FLidarPointCloudEditorCommands::GetToolkitCommands();
 }
 
 void ULidarEditorMode::CancelActiveToolAction()
@@ -123,9 +102,15 @@ void ULidarEditorMode::BindCommands()
 
 void ULidarEditorMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
-	if(ULidarEditorToolBase* LidarTool = Cast<ULidarEditorToolBase>(Tool))
+	if(const ULidarEditorToolBase* LidarTool = Cast<ULidarEditorToolBase>(Tool))
 	{
 		GetToolManager()->DisplayMessage(LidarTool->GetToolMessage(), EToolMessageLevel::UserNotification);
+
+		if(FLidarPointCloudEdModeToolkit* LidarToolkit = (FLidarPointCloudEdModeToolkit*)Toolkit.Get())
+		{
+			LidarToolkit->SetActorSelection(LidarTool->IsActorSelection());
+			LidarToolkit->SetBrushTool(Cast<ULidarEditorToolPaintSelection>(Tool));
+		}
 	}
 }
 

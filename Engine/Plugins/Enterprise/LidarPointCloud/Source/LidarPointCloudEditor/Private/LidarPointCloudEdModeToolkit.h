@@ -5,11 +5,45 @@
 #include "EditorModeManager.h"
 #include "StatusBarSubsystem.h"
 
+class ULidarEditorMode;
+class ULidarEditorToolPaintSelection;
+
 namespace LidarEditorPalletes
 {
 	static const FName Manage(TEXT("ToolMode_Manage")); 
-	static const FName Edit(TEXT("ToolMode_Edit"));
 }
+
+class SLidarEditorWidget : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SLidarEditorWidget) {}
+	SLATE_END_ARGS()
+
+public:
+	void Construct(const FArguments& InArgs);
+
+	bool IsActorSelection() const { return bActorSelection; }
+	bool IsPointSelection() const { return !bActorSelection; }
+	bool IsBrushVisible() const { return BrushTool != nullptr; }
+
+	EVisibility GetActorVisibility() const { return bActorSelection ? EVisibility::Visible : EVisibility::Collapsed; }
+	EVisibility GetPointVisibility() const { return bActorSelection ? EVisibility::Collapsed : EVisibility::Visible; }
+	EVisibility GetBrushVisibility() const { return IsBrushVisible() ? EVisibility::Visible : EVisibility::Collapsed; }
+
+private:	
+	float MaxCollisionError = 0.0f;
+	float MaxMeshingError = 0.0f;
+	bool bMergeMeshes = true;
+	bool bRetainTransform = true;
+	int32 NormalsQuality = 40;
+	float NormalsNoiseTolerance = 1.0f;
+
+	ULidarEditorMode* LidarEditorMode = nullptr;
+	ULidarEditorToolPaintSelection* BrushTool = nullptr;
+	bool bActorSelection = false;
+
+	friend class FLidarPointCloudEdModeToolkit;
+};
 
 /**
  * Public interface to Lidar Edit mode.
@@ -31,10 +65,14 @@ public:
 	virtual bool HasIntegratedToolPalettes() const override { return true; }	
 	virtual FText GetActiveToolDisplayName() const override;
 	virtual FText GetActiveToolMessage() const override;
-
+	virtual TSharedPtr<SWidget> GetInlineContent() const override { return EditorWidget; }
+	
 	void SetActiveToolMessage(const FText& Message);
+	void SetActorSelection(bool bNewActorSelection);
+	void SetBrushTool(ULidarEditorToolPaintSelection* NewBrushTool);
 
 private:
 	FStatusBarMessageHandle ActiveToolMessageHandle;
 	FText ActiveToolMessageCache;
+	TSharedPtr<SLidarEditorWidget> EditorWidget;
 };

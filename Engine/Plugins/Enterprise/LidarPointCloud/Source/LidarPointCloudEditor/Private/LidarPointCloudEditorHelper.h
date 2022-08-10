@@ -37,7 +37,7 @@ public:
 	static void MeshSelected(bool bMeshByPoints, float CellSize, bool bMergeMeshes, bool bRetainTransform);
 	
 	static void CalculateNormalsForSelection();
-	static void SetNormalsQualityForSelection(int32 Quality, float NoiseTolerance);
+	static void SetNormalsQuality(int32 Quality, float NoiseTolerance);
 	
 	static void SelectPointsByConvexVolume(const FConvexVolume& ConvexVolume, ELidarPointCloudSelectionMode SelectionMode);
 	static void SelectPointsBySphere(FSphere Sphere, ELidarPointCloudSelectionMode SelectionMode);
@@ -45,6 +45,9 @@ public:
 	static void DeleteSelected();
 	static void InvertSelection();
 	static void ClearSelection();
+	
+	static void InvertActorSelection();
+	static void ClearActorSelection();
 
 	static void ResetVisibility();
 	static void DeleteHidden();

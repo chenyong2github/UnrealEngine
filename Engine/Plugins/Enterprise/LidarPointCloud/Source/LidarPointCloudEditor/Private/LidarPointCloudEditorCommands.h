@@ -24,9 +24,9 @@ public:
 	virtual void RegisterCommands() override;
 	// End of TCommand<> interface
 
-	static TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetCommands()
+	static TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetToolkitCommands()
 	{
-		return Get().Commands;
+		return Get().ToolkitCommands;
 	}
 
 public:
@@ -40,11 +40,6 @@ public:
 	// TOOLKIT COMMANDS
 
 	TSharedPtr<FUICommandInfo> ToolkitSelect;
-	TSharedPtr<FUICommandInfo> ToolkitAlign;
-	TSharedPtr<FUICommandInfo> ToolkitMerge;
-	TSharedPtr<FUICommandInfo> ToolkitCollision;
-	TSharedPtr<FUICommandInfo> ToolkitNormals;
-	TSharedPtr<FUICommandInfo> ToolkitMeshing;
 	TSharedPtr<FUICommandInfo> ToolkitBoxSelection;
 	TSharedPtr<FUICommandInfo> ToolkitPolygonalSelection;
 	TSharedPtr<FUICommandInfo> ToolkitLassoSelection;
@@ -52,5 +47,5 @@ public:
 	TSharedPtr<FUICommandInfo> ToolktitCancelSelection;
 
 private:
-	TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> Commands;
+	TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> ToolkitCommands;
 };

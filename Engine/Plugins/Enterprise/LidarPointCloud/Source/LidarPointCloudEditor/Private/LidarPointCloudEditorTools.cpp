@@ -121,7 +121,7 @@ void ULidarToolActionsMeshing::BuildStaticMesh()
 
 void ULidarToolActionsNormals::CalculateNormals()
 {
-	FLidarPointCloudEditorHelper::SetNormalsQualityForSelection(Quality, NoiseTolerance);
+	FLidarPointCloudEditorHelper::SetNormalsQuality(Quality, NoiseTolerance);
 	FLidarPointCloudEditorHelper::CalculateNormalsForSelection();
 }
 

@@ -107,7 +107,7 @@ namespace
 
 		return Actors;
 	}
-
+	
 	int32 GetNumLidarActors()
 	{
 		int32 NumActors = 0;
@@ -599,9 +599,9 @@ void FLidarPointCloudEditorHelper::CalculateNormalsForSelection()
 	});
 }
 
-void FLidarPointCloudEditorHelper::SetNormalsQualityForSelection(int32 Quality, float NoiseTolerance)
+void FLidarPointCloudEditorHelper::SetNormalsQuality(int32 Quality, float NoiseTolerance)
 {
-	ProcessSelection([Quality, NoiseTolerance](ALidarPointCloudActor* Actor)
+	ProcessAll([Quality, NoiseTolerance](ALidarPointCloudActor* Actor)
 	{
 		if(ULidarPointCloud* PointCloud = Actor->GetPointCloud())
 		{
@@ -860,6 +860,21 @@ void FLidarPointCloudEditorHelper::ClearSelection()
 	{
 		Actor->GetPointCloudComponent()->ClearSelection();
 	});
+}
+
+void FLidarPointCloudEditorHelper::InvertActorSelection()
+{
+	TArray<ALidarPointCloudActor*> SelectedActors = GetSelectedActors();
+
+	ProcessAll([&SelectedActors](ALidarPointCloudActor* Actor)
+	{
+		GEditor->SelectActor(Actor, !SelectedActors.Contains(Actor), true);
+	});
+}
+
+void FLidarPointCloudEditorHelper::ClearActorSelection()
+{
+	GEditor->SelectNone(true, true);
 }
 
 void FLidarPointCloudEditorHelper::MergeLidar(ULidarPointCloud* TargetAsset, TArray<ULidarPointCloud*> SourceAssets)

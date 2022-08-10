@@ -21,6 +21,7 @@ public:
 	virtual void Setup() override;
 	virtual TObjectPtr<UInteractiveToolPropertySet> CreateToolActions() { return nullptr; }
 	virtual FText GetToolMessage() const;
+	virtual bool IsActorSelection() const { return true; }
 
 	UPROPERTY()
 	TObjectPtr<UInteractiveToolPropertySet> ToolActions = nullptr;
@@ -48,6 +49,8 @@ public:
 	
 	virtual void Setup() override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+
+	virtual bool IsActorSelection() const override { return false; }
 
 	// IClickDragBehaviorTarget implementation
 	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override { return FInputRayHit(TNumericLimits<float>::Max()); }
@@ -266,35 +269,44 @@ class ULidarToolActionsSelection : public UInteractiveToolPropertySet
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(CallInEditor, Category = Visibility)
-	void HideSelected();
-
-	UFUNCTION(CallInEditor, Category = Visibility)
-	void ResetVisibility();
-
-	UFUNCTION(CallInEditor, Category = Selection)
+	UFUNCTION(CallInEditor, Category = Selection, meta = (DisplayName = "Clear"))
+	void ClearSelection();
+	
+	UFUNCTION(CallInEditor, Category = Selection, meta = (DisplayName = "Invert"))
 	void InvertSelection();
 
-	UFUNCTION(CallInEditor, Category = Selection)
-	void ClearSelection();
-
-	UFUNCTION(CallInEditor, Category = Deletion)
+	UFUNCTION(CallInEditor, Category = Cleanup)
 	void DeleteSelected();
 	
-	UFUNCTION(CallInEditor, Category = Deletion)
+	UFUNCTION(CallInEditor, Category = Cleanup)
 	void DeleteHidden();
+	
+	UFUNCTION(CallInEditor, Category = Cleanup)
+	void HideSelected();
 
-	UFUNCTION(CallInEditor, Category = Extraction)
-	void Extract();
+	UFUNCTION(CallInEditor, Category = Cleanup)
+	void ResetVisibility();
+	
+	/** Higher values will generally result in more accurate calculations, at the expense of time */
+	UPROPERTY(EditAnywhere, Category = "Normals", meta = (ClampMin = "1", ClampMax = "100"))
+	int32 Quality = 40;
 
-	UFUNCTION(CallInEditor, Category = Extraction)
-	void ExtractAsCopy();
-
+	/**
+	 * Higher values are less susceptible to noise, but will most likely lose finer details, especially around hard edges.
+	 * Lower values retain more detail, at the expense of time.
+	 * NOTE: setting this too low will cause visual artifacts and geometry holes in noisier datasets.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Normals", meta = (ClampMin = "0.0"))
+	float NoiseTolerance = 1;
+	
 	UFUNCTION(CallInEditor, Category = Normals)
 	void CalculateNormals();
+	
+	UFUNCTION(CallInEditor, Category = "Merge & Extract")
+	void Extract();
 
-	UFUNCTION(CallInEditor, Category = Meshing)
-	void BuildStaticMesh();
+	UFUNCTION(CallInEditor, Category = "Merge & Extract")
+	void ExtractAsCopy();
 	
 	/** Max error around the meshed areas. Leave at 0 for max quality */
 	UPROPERTY(EditAnywhere, Category = Meshing, meta = (UIMin = "0", UIMax = "2000", ClampMin = "0"))
@@ -306,6 +318,9 @@ public:
 	/** If not merging meshes, this will retain the transform of the original cloud */
 	UPROPERTY(EditAnywhere, Category = Meshing, meta=(EditCondition="!bMergeMeshes"))
 	bool bRetainTransform = true;
+
+	UFUNCTION(CallInEditor, Category = Meshing, meta = (DisplayName = "Create Static Mesh"))
+	void BuildStaticMesh();
 };
 
 UCLASS()
@@ -420,11 +435,13 @@ public:
 private:
 	void Paint();
 
+public:
+	float BrushRadius;
+	
 private:
 	FVector3f HitLocation;
 	float LastHitDistance;
 	bool bHasHit;
-	float BrushRadius;
 };
 
 UCLASS()

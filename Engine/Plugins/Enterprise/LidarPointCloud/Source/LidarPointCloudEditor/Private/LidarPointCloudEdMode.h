@@ -16,15 +16,12 @@ namespace FLidarEditorModes
 UCLASS()
 class ULidarEditorMode : public UBaseLegacyWidgetEdMode
 {
-	FDelegateHandle PaletteChangedHandle;
-
 public:
 	GENERATED_BODY()
 	
 	ULidarEditorMode();
 
 	virtual void Enter() override;
-	virtual void Exit() override;
 	virtual bool IsSelectionAllowed(AActor* InActor, bool bInSelection) const override;
 	virtual void CreateToolkit() override;
 	virtual bool GetPivotForOrbit(FVector& OutPivot) const override;
@@ -34,6 +31,5 @@ public:
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 
 private:
-	void UpdateOnPaletteChange(FName NewPalette);
 	void CancelActiveToolAction();
 };

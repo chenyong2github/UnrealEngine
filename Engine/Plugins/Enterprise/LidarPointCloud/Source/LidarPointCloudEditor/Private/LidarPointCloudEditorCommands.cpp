@@ -19,24 +19,10 @@ void FLidarPointCloudEditorCommands::RegisterCommands()
 	UI_COMMAND(Center, "Center", "Enable, to center the point cloud asset\nDisable, to use original coordinates.", EUserInterfaceActionType::ToggleButton, FInputChord());
 
 	// TOOLKIT COMMANDS
-
-	TArray<TSharedPtr<FUICommandInfo, ESPMode::ThreadSafe>>& ManageCommands = Commands.FindOrAdd(LidarEditorPalletes::Manage);
-	UI_COMMAND(ToolkitSelect, "Select", "Select point cloud assets", EUserInterfaceActionType::ToggleButton, FInputChord());
-	ManageCommands.Add(ToolkitSelect);
-	UI_COMMAND(ToolkitAlign, "Align", "Aligns selected point cloud assets", EUserInterfaceActionType::ToggleButton, FInputChord());
-	ManageCommands.Add(ToolkitAlign);
-	UI_COMMAND(ToolkitMerge, "Merge", "Merges selected point cloud assets", EUserInterfaceActionType::ToggleButton, FInputChord());
-	ManageCommands.Add(ToolkitMerge);
-	UI_COMMAND(ToolkitCollision, "Collision", "Create and Destroy point cloud asset collisions", EUserInterfaceActionType::ToggleButton, FInputChord());
-	ManageCommands.Add(ToolkitCollision);
-	UI_COMMAND(ToolkitNormals, "Normals", "Calculates normals", EUserInterfaceActionType::ToggleButton, FInputChord());
-	ManageCommands.Add(ToolkitNormals);
-	UI_COMMAND(ToolkitMeshing, "Meshing", "Build Static Meshes", EUserInterfaceActionType::ToggleButton, FInputChord());
-	ManageCommands.Add(ToolkitMeshing);
-	
-	TArray<TSharedPtr<FUICommandInfo, ESPMode::ThreadSafe>>& EditCommands = Commands.FindOrAdd(LidarEditorPalletes::Edit);
+	TArray<TSharedPtr<FUICommandInfo, ESPMode::ThreadSafe>>& EditCommands = ToolkitCommands.FindOrAdd(LidarEditorPalletes::Manage);
+	UI_COMMAND(ToolkitSelect, "Object", "Select point cloud assets", EUserInterfaceActionType::ToggleButton, FInputChord());
 	EditCommands.Add(ToolkitSelect);
-	UI_COMMAND(ToolkitBoxSelection, "Box", "Uses box to select points.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToolkitBoxSelection, "Marquee", "Uses box to select points.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	EditCommands.Add(ToolkitBoxSelection);
 	UI_COMMAND(ToolkitPolygonalSelection, "Polygon", "Uses custom polygon to select points.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	EditCommands.Add(ToolkitPolygonalSelection);
