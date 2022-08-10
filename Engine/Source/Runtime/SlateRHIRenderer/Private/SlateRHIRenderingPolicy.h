@@ -91,8 +91,8 @@ private:
 
 private:
 	/** Buffers used for rendering */
-	TSlateElementVertexBuffer<FSlateVertex> MasterVertexBuffer;
-	FSlateElementIndexBuffer MasterIndexBuffer;
+	TSlateElementVertexBuffer<FSlateVertex> SourceVertexBuffer;
+	FSlateElementIndexBuffer SourceIndexBuffer;
 
 	FSlateStencilClipVertexBuffer StencilVertexBuffer;
 
