@@ -72,9 +72,9 @@ public:
 	TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UDataLayerEditorSubsystem, STATGROUP_Tickables); }
 	//~ End FTickableGameObject interface
 
-	// UObject overrides.
+	//~ Begin UObject overrides.
 	virtual void BeginDestroy() override;
-	// ~END UObject overrides.
+	// ~End UObject overrides.
 
 	//~ Begin IActorEditorContextClient interface
 	virtual void OnExecuteActorEditorContextAction(UWorld* InWorld, const EActorEditorContextAction& InType, AActor* InActor = nullptr) override;
