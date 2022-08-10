@@ -84,7 +84,7 @@ void FFindStronglyConnected::FindAllCycles()
 	UE_LOG(LogObj, Log, TEXT("Finding simple cycles"));
 	Stack.Empty();
 	NodeIndex.Empty();
-	MasterIndex = 1;
+	PrimaryIndex = 1;
 
 	for (int32 Index = 0; Index < Components.Num(); Index++)
 	{
@@ -151,10 +151,10 @@ void FFindStronglyConnected::StrongConnect( UObject* Node )
 FFindStronglyConnected::NodeInfo* FFindStronglyConnected::StrongConnectInner( UObject* Node )
 {
 	NodeInfo NewNode;
-	NewNode.IndexValue = MasterIndex;
-	NewNode.LowIndex = MasterIndex;
+	NewNode.IndexValue = PrimaryIndex;
+	NewNode.LowIndex = PrimaryIndex;
 	NewNode.InStack = true;
-	MasterIndex++;
+	PrimaryIndex++;
 	Stack.Push(Node);
 	NodeInfo* CurrentIndex = &NodeIndex.Add(Node, NewNode);
 

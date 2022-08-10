@@ -91,13 +91,13 @@ void UEnum::Serialize( FArchive& Ar )
 			// Rename enum names to reflect new class.
 			RenameNamesAfterDuplication();
 		}
-		AddNamesToMasterList();
+		AddNamesToPrimaryList();
 	}
 }
 
 void UEnum::BeginDestroy()
 {
-	RemoveNamesFromMasterList();
+	RemoveNamesFromPrimaryList();
 
 	Super::BeginDestroy();
 }
@@ -276,9 +276,37 @@ void UEnum::AddNamesToMasterList()
 	}
 }
 
+void UEnum::AddNamesToPrimaryList()
+{
+	for (TPair<FName, int64> Kvp : Names)
+	{
+		UEnum* Enum = AllEnumNames.FindRef(Kvp.Key);
+		if (Enum == nullptr || Enum->HasAnyFlags(RF_NewerVersionExists))
+		{
+			AllEnumNames.Add(Kvp.Key, this);
+		}
+		else if (Enum != this && Enum->GetOutermost() != GetTransientPackage())
+		{
+			UE_LOG(LogEnum, Warning, TEXT("Enum name collision: '%s' is in both '%s' and '%s'"), *Kvp.Key.ToString(), *GetPathName(), *Enum->GetPathName());
+		}
+	}
+}
+
 void UEnum::RemoveNamesFromMasterList()
 {
 	FWriteScopeLock ScopeLock(AllEnumNamesLock);
+	for (TPair<FName, int64> Kvp : Names)
+	{
+		UEnum* Enum = AllEnumNames.FindRef(Kvp.Key);
+		if (Enum == this)
+		{
+			AllEnumNames.Remove(Kvp.Key);
+		}
+	}
+}
+
+void UEnum::RemoveNamesFromPrimaryList()
+{
 	for (TPair<FName, int64> Kvp : Names)
 	{
 		UEnum* Enum = AllEnumNames.FindRef(Kvp.Key);
@@ -599,7 +627,7 @@ bool UEnum::SetEnums(TArray<TPair<FName, int64>>& InNames, UEnum::ECppForm InCpp
 {
 	if (Names.Num() > 0)
 	{
-		RemoveNamesFromMasterList();
+		RemoveNamesFromPrimaryList();
 	}
 	Names     = InNames;
 	CppForm   = InCppForm;
@@ -619,7 +647,7 @@ bool UEnum::SetEnums(TArray<TPair<FName, int64>>& InNames, UEnum::ECppForm InCpp
 			Names.Emplace(MaxEnumItem, GetMaxEnumValue() + 1);
 		}
 	}
-	AddNamesToMasterList();
+	AddNamesToPrimaryList();
 
 	return true;
 }

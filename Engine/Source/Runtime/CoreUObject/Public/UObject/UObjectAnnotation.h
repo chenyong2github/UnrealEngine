@@ -522,7 +522,7 @@ class FUObjectAnnotationChunked : public FUObjectArray::FUObjectDeleteListener
 	};
 
 
-	/** Master table to chunks of pointers **/
+	/** Primary table to chunks of pointers **/
 	TArray<TAnnotationChunk> Chunks;
 	/** Number of elements we currently have **/
 	int32 NumAnnotations;

@@ -1999,7 +1999,11 @@ public:
 	bool IsValidEnumName(FName InName) const;
 
 	/** Removes the Names in this enum from the master AllEnumNames list */
+	UE_DEPRECATED(5.1, "RemoveNamesFromMasterList is deprecated, please use RemoveNamesFromPrimaryList instead.")
 	void RemoveNamesFromMasterList();
+
+	/** Removes the Names in this enum from the primary AllEnumNames list */
+	void RemoveNamesFromPrimaryList();
 
 	/** Try to update an out-of-date enum index after an enum changes at runtime */
 	virtual int64 ResolveEnumerator(FArchive& Ar, int64 EnumeratorIndex) const;
@@ -2338,7 +2342,11 @@ protected:
 	static TMap<FName, UEnum*> AllEnumNames;
 
 	/** adds the Names in this enum to the master AllEnumNames list */
+	UE_DEPRECATED(5.1, "AddNamesToMasterList is deprecated, please use AddNamesToPrimaryList instead.")
 	void AddNamesToMasterList();
+
+	/** adds the Names in this enum to the primary AllEnumNames list */
+	void AddNamesToPrimaryList();
 
 private:
 	FORCEINLINE static FString GetValueAsString_Internal( const TCHAR* EnumPath, const int64 EnumeratorValue)

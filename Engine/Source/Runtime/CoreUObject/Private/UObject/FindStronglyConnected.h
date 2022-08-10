@@ -20,14 +20,14 @@ struct FFindStronglyConnected
 	TSet<UObject*> PermanentObjects;
 	TArray<UObject*> TempObjects;
 	TMap<UObject*, NodeInfo> NodeIndex;
-	int32 MasterIndex;
+	int32 PrimaryIndex;
 	TArray<UObject *> Stack;
 
 	TArray<TArray<UObject *> > Components;
 	TArray<TArray<UObject *> > SimpleCycles;
 
 	FFindStronglyConnected()
-		: MasterIndex(1)
+		: PrimaryIndex(1)
 	{
 	}
 

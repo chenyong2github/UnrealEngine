@@ -219,7 +219,7 @@ bool UUserDefinedEnum::SetEnums(TArray<TPair<FName, int64>>& InNames, ECppForm I
 	ensure(bAddMaxKeyIfMissing);
 	if (Names.Num() > 0)
 	{
-		RemoveNamesFromMasterList();
+		RemoveNamesFromPrimaryList();
 	}
 	Names = InNames;
 	CppForm = InCppForm;
@@ -238,7 +238,7 @@ bool UUserDefinedEnum::SetEnums(TArray<TPair<FName, int64>>& InNames, ECppForm I
 		{
 			int64 MaxEnumValue = (InNames.Num() == 0)? 0 : GetMaxEnumValue() + 1;
 			Names.Emplace(MaxEnumItem, MaxEnumValue);
-			AddNamesToMasterList();
+			AddNamesToPrimaryList();
 			return true;
 		}
 	}

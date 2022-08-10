@@ -23,7 +23,7 @@ void ReloadProcessObject(UEnum* Enum, const TCHAR* RenamePrefix)
 	const FName OldRename = MakeUniqueObjectName(GetTransientPackage(), Enum->GetClass(), *FString::Printf(TEXT("%s_%s"), RenamePrefix, *Enum->GetName()));
 	Enum->Rename(*OldRename.ToString(), GetTransientPackage());
 
-	Enum->RemoveNamesFromMasterList();
+	Enum->RemoveNamesFromPrimaryList();
 }
 
 void ReloadProcessObject(UClass* Class, const TCHAR* RenamePrefix)
@@ -47,7 +47,7 @@ void ReloadProcessObject(UClass* Class, const TCHAR* RenamePrefix)
 	{
 		if (auto Enum = dynamic_cast<UEnum*>(ClassSubobject))
 		{
-			Enum->RemoveNamesFromMasterList();
+			Enum->RemoveNamesFromPrimaryList();
 		}
 	}
 

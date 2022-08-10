@@ -230,7 +230,7 @@ struct FUObjectItem
 */
 class FFixedUObjectArray
 {
-	/** Static master table to chunks of pointers **/
+	/** Static primary table to chunks of pointers **/
 	FUObjectItem* Objects;
 	/** Number of elements we currently have **/
 	int32 MaxElements;
@@ -369,7 +369,7 @@ class FChunkedFixedUObjectArray
 		NumElementsPerChunk = 64 * 1024,
 	};
 
-	/** Master table to chunks of pointers **/
+	/** Primary table to chunks of pointers **/
 	FUObjectItem** Objects;
 	/** If requested, a contiguous memory where all objects are allocated **/
 	FUObjectItem* PreAllocatedObjects;
@@ -1103,8 +1103,8 @@ private:
 	FCriticalSection UObjectDeleteListenersCritical;
 #endif
 
-	/** Current master serial number **/
-	FThreadSafeCounter	MasterSerialNumber;
+	/** Current primary serial number **/
+	FThreadSafeCounter	PrimarySerialNumber;
 
 public:
 

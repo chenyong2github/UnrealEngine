@@ -447,22 +447,22 @@ void FBlueprintSupport::ValidateNoExternalRefsToSkeletons()
  ******************************************************************************/
 
 #if WITH_EDITOR
-UClass* FScopedClassDependencyGather::BatchMasterClass = NULL;
+UClass* FScopedClassDependencyGather::BatchAuthorityClass = NULL;
 TArray<UClass*> FScopedClassDependencyGather::BatchClassDependencies;
 
 FScopedClassDependencyGather::FScopedClassDependencyGather(UClass* ClassToGather, FUObjectSerializeContext* InLoadContext)
-	: bMasterClass(false)
+	: bAuthoritativeClass(false)
 	, LoadContext(InLoadContext)
 {
 	// Do NOT track duplication dependencies, as these are intermediate products that we don't care about
 	if( !GIsDuplicatingClassForReinstancing )
 	{
-		if( BatchMasterClass == NULL )
+		if( BatchAuthorityClass == NULL )
 		{
-			// If there is no current dependency master, register this class as the master, and reset the array
-			BatchMasterClass = ClassToGather;
+			// If there is no current dependency authority, register this class as the authority, and reset the array
+			BatchAuthorityClass = ClassToGather;
 			BatchClassDependencies.Empty();
-			bMasterClass = true;
+			bAuthoritativeClass = true;
 		}
 		else
 		{
@@ -476,11 +476,11 @@ FScopedClassDependencyGather::~FScopedClassDependencyGather()
 {
 	// If this gatherer was the initial gatherer for the current scope, process 
 	// dependencies (unless compiling on load is explicitly disabled)
-	if( bMasterClass )
+	if( bAuthoritativeClass )
 	{
 		auto DependencyIter = BatchClassDependencies.CreateIterator();
 		// implemented as a lambda, to prevent duplicated code between 
-		// BatchMasterClass and BatchClassDependencies entries
+		// BatchAuthorityClass and BatchClassDependencies entries
 		auto RecompileClassLambda = [&DependencyIter](UClass* Class, FUObjectSerializeContext* InLoadContext)
 		{
 			Class->ConditionalRecompileClass(InLoadContext);
@@ -510,9 +510,9 @@ FScopedClassDependencyGather::~FScopedClassDependencyGather()
 			}
 		};
 
-		BatchMasterClass->ConditionalRecompileClass(LoadContext);
+		BatchAuthorityClass->ConditionalRecompileClass(LoadContext);
 
-		BatchMasterClass = NULL;
+		BatchAuthorityClass = NULL;
 	}
 }
 
