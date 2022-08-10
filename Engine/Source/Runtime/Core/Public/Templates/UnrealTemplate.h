@@ -180,7 +180,24 @@ constexpr bool IntFitsIn(InType In)
 template<typename OutType, typename InType>
 OutType IntCastChecked(InType In)
 {
-	check(IntFitsIn<OutType>(In));
+	checkf(IntFitsIn<OutType>(In), TEXT("Loss of data caused by narrowing conversion"));
+	return static_cast<OutType>(In);
+}
+
+/** Test if value can make a static_cast roundtrip via OutType whilst maintaining precision */
+template<typename OutType, typename InType>
+constexpr bool FloatFitsIn(InType In, InType Precision)
+{
+	static_assert(std::is_floating_point_v<InType> && std::is_floating_point_v<OutType>, "Only floating point supported");
+	
+	OutType Out = static_cast<OutType>(In);
+	return std::abs(static_cast<InType>(Out) - In) <= Precision;
+}
+
+template<typename OutType, typename InType>
+OutType FloatCastChecked(InType In, InType Precision)
+{
+	checkf(FloatFitsIn<OutType>(In, Precision), TEXT("Loss of data caused by narrowing conversion"));
 	return static_cast<OutType>(In);
 }
 
