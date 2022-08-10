@@ -62,6 +62,6 @@ bool UE::LevelSnapshots::Foliage::Private::FFoliageRestorationInfo::ShouldSerial
 	}
 
 	// Actor foliage is currently not supported: just restore everything
-	UE_LOG(LogLevelSnapshots, Warning, TEXT("Only static mesh foliage is supported"));
+	UE_CLOG(SavedData.GetImplType() != EFoliageImplType::StaticMesh, LogLevelSnapshots, Warning, TEXT("Only static mesh foliage is supported"));
 	return false;
 }

@@ -500,10 +500,17 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 			}
 
 			UObject* WorldObject = Group->GetWorldObject();
-
 			if (!ensureMsgf(WorldObject,
 				TEXT("%hs: WorldObject is not valid. Group name: %s"), __FUNCTION__, *Group->GetDisplayName().ToString()))
 			{
+				return;
+			}
+			
+			if (Group->GetWidgetCheckedState() == ECheckBoxState::Unchecked)
+			{
+				SelectionMap.RemoveObjectPropertiesFromMap(WorldObject);
+				SelectionMap.RemoveComponentSelection(Cast<AActor>(WorldObject));
+				SelectionMap.RemoveCustomEditorSubobjectToRecreate(WorldObject, Group->GetSnapshotObject());
 				return;
 			}
 
@@ -530,7 +537,6 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 
 			UE::LevelSnapshots::FAddedAndRemovedComponentInfo NewComponentSelection;
 			const UE::LevelSnapshots::FAddedAndRemovedComponentInfo* OldComponentSelection = SelectionMap.GetObjectSelection(WorldObject).GetComponentSelection();
-
 			if (OldComponentSelection)
 			{
 				NewComponentSelection.SnapshotComponentsToAdd = OldComponentSelection->SnapshotComponentsToAdd;
@@ -592,8 +598,6 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 
 			if (UncheckedChildPropertyNodes.Num())
 			{
-				SelectionMap.RemoveObjectPropertiesFromMap(WorldObject);
-
 				for (const FLevelSnapshotsEditorResultsRowPtr& ChildRow : UncheckedChildPropertyNodes)
 				{
 					if (ChildRow.IsValid())

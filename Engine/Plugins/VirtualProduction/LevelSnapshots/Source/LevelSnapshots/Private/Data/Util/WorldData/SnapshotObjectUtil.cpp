@@ -32,7 +32,8 @@ namespace UE::LevelSnapshots::Private::Internal
 		}
 		
 		// We're supposed to be dealing with an external (asset) reference, e.g. a UMaterial.
-		ensureMsgf(ExternalReference == nullptr || (!ExternalReference->IsA<AActor>() && !ExternalReference->IsA<UActorComponent>()), TEXT("Something is wrong. We just checked that the reference is not a world object but it is an actor or component."));
+		// Note that Blueprints contain AActors and they are referenced by UChildActorComponent.
+		ensureMsgf(ExternalReference == nullptr || !ExternalReference->IsInA(UWorld::StaticClass()), TEXT("Something is wrong. We just checked that the reference is not a world object but it is an actor or component."));
 		return ExternalReference;
 	}
 	

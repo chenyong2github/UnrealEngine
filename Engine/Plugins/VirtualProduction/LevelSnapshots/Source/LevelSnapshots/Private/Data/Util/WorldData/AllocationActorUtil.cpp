@@ -354,6 +354,7 @@ TOptional<TNonNullPtr<AActor>> UE::LevelSnapshots::Private::GetPreallocated(cons
 		SpawnParams.Name = FindObjectFast<UObject>(SpawnParams.OverrideLevel, ActorName)
 			? MakeUniqueObjectName(SpawnParams.OverrideLevel, TargetClass, ActorName)
 			: ActorName;
+		SpawnParams.bNoFail = true;
 		ActorCache.CachedSnapshotActor = SnapshotWorld->SpawnActor<AActor>(TargetClass, SpawnParams);
 
 		const bool bSpawnWasSuccess = ActorCache.CachedSnapshotActor.IsValid();

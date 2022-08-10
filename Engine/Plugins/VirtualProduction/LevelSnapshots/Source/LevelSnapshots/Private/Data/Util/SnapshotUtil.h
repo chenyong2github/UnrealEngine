@@ -19,11 +19,8 @@ namespace UE::LevelSnapshots::Private
 	/** If path contains an actor, return subobject path to that actor. */
 	TOptional<FSoftObjectPath> ExtractActorFromPath(const FSoftObjectPath& OriginalObjectPath, bool& bIsPathToActorSubobject);
 
-	inline bool IsPathToWorldObject(const FSoftObjectPath& OriginalObjectPath)
-	{
-		bool bDummy;
-		return ExtractActorFromPath(OriginalObjectPath, bDummy).IsSet();
-	}
+	/** Checks whether this is a soft object path to an object in an editor world */
+	bool IsPathToWorldObject(const FSoftObjectPath& OriginalObjectPath);
 
 	/** Given a path such as "/Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.SomeComponent" returns the index of "S" in "SomeComponent" */
 	TOptional<int32> FindDotAfterActorName(const FSoftObjectPath& OriginalObjectPath);

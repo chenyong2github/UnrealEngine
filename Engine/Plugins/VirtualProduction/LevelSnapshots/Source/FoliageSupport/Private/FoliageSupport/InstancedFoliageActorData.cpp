@@ -130,10 +130,14 @@ namespace UE::LevelSnapshots::Foliage::Private::Internal
 			if (RestorationInfo.ShouldSerializeFoliageType(FoliageInfoData))
 			{
 				FFoliageInfo* FoliageInfo = FindOrAddFoliageInfo(FoliageType, FoliageActor);
-				if (FoliageInfo
-					&& ensureAlwaysMsgf(FoliageInfoData.GetComponentName(), TEXT("ComponentName is supposed to have been saved. Investigate. Maybe you used an unsupported foliage type (only EFoliageImplType::StaticMesh is supported)?")))
+				if (FoliageInfo)
 				{
-					HandleExistingFoliageUsingRequiredComponent(FoliageActor, *FoliageInfoData.GetComponentName(), PreexistingComponentToFoliageType, FoliageType);
+					// If there were no instances, no component existed, hence no component name could be saved
+					const bool bHadAtLeastOneInstanceWhenSaved = FoliageInfoData.GetComponentName().IsSet();
+					if (bHadAtLeastOneInstanceWhenSaved)
+					{
+						HandleExistingFoliageUsingRequiredComponent(FoliageActor, *FoliageInfoData.GetComponentName(), PreexistingComponentToFoliageType, FoliageType);
+					}
 					FoliageInfoData.ApplyTo(*FoliageInfo, VersionInfo);
 				}
 			}

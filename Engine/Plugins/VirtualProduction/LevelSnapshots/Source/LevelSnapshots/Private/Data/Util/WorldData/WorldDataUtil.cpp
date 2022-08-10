@@ -390,20 +390,25 @@ namespace UE::LevelSnapshots::Private::Internal
 					const FName ActorFName = *ActorName;
 					UClass* ActorClass = ActorCDO->GetClass();
 					FActorSpawnParameters SpawnParameters;
+					// Cannot be overriden but we want to inform the subscribers
+					SpawnParameters.bNoFail = true;
 					SpawnParameters.Name = ActorFName;
 					SpawnParameters.OverrideLevel = OverrideLevel;
-					SpawnParameters.bNoFail = true;
-					SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+					SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
+					// Overriable properties
 					SpawnParameters.Template = ActorCDO.GetValue();
 					SpawnParameters.ObjectFlags = ActorSnapshot->SerializedActorData.GetObjectFlags();
 					
 					Module.OnPreCreateActor(OwningLevelWorld, ActorClass, SpawnParameters);
-					checkf(SpawnParameters.Name == ActorFName, TEXT("You cannot override the actor's name"));
-					checkf(SpawnParameters.OverrideLevel == OverrideLevel, TEXT("You cannot override the actor's level"))
-					
+					ensureMsgf(SpawnParameters.bNoFail, TEXT("You cannot override bNoFail"));
+					ensureMsgf(SpawnParameters.Name == ActorFName, TEXT("You cannot override the actor's name"));
+					ensureMsgf(SpawnParameters.OverrideLevel == OverrideLevel, TEXT("You cannot override the actor's level"));
+					ensureMsgf(SpawnParameters.NameMode == FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull, TEXT("You cannot override the actor's NameMode"));
+					SpawnParameters.bNoFail = true;
 					SpawnParameters.Name = ActorFName;
-					SpawnParameters.OverrideLevel = OwningLevelWorld->PersistentLevel;
+					SpawnParameters.OverrideLevel = OverrideLevel;
 					SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
+					
 					if (AActor* RecreatedActor = OwningLevelWorld->SpawnActor(ActorClass, nullptr, SpawnParameters))
 					{
 						Module.OnPostRecreateActor(RecreatedActor);

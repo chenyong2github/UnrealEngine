@@ -5,14 +5,14 @@
 #include "ActorGroupRestoration.h"
 #include "Restorability/CollisionRestoration.h"
 #include "Restorability/GridPlacementRestoration.h"
+#include "SpecialActorPropertySupport.h"
 
-#include "EngineUtils.h"
 #include "Algo/Transform.h"
-#include "Editor/GroupActor.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "EngineUtils.h"
 #include "Engine/Brush.h"
 #include "GameFramework/Actor.h"
 #include "Materials/MaterialInstance.h"
-
 
 namespace UE::LevelSnapshots::Private::EngineTypesRestorationFence
 {
@@ -87,6 +87,16 @@ namespace UE::LevelSnapshots::Private::EngineTypesRestorationFence
 		}
 #endif
 	}
+
+	static void DisableClothingSimulationFactory(UE::LevelSnapshots::Private::FLevelSnapshotsModule& Module)
+	{
+		// This property is directly set by RegisterComponent and similar functions... we have no chance of restoring this property properly
+		const FProperty* ClothingSimulationFactory = USkeletalMeshComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(USkeletalMeshComponent, ClothingSimulationFactory));
+		if (ensure(ClothingSimulationFactory))
+		{
+			Module.AddExplicitlyUnsupportedProperties({ ClothingSimulationFactory });
+		}
+	}
 	
 	void RegisterSpecialEngineTypeSupport(FLevelSnapshotsModule& Module)
 	{
@@ -97,10 +107,12 @@ namespace UE::LevelSnapshots::Private::EngineTypesRestorationFence
 		DisableIrrelevantWorldSettings(Module);
 		DisableIrrelevantMaterialInstanceProperties(Module);
 		DisableIrrelevantActorProperties(Module);
+		DisableClothingSimulationFactory(Module);
 
 		// Interact with special engine features
 		FCollisionRestoration::Register(Module);
 		GridPlacementRestoration::Register(Module);
 		ActorGroupRestoration::Register(Module);
+		SpecialActorPropertySupport::Register(Module);
 	}
 }

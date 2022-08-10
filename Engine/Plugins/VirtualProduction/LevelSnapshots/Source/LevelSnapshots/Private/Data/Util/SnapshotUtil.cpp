@@ -56,6 +56,12 @@ TOptional<FSoftObjectPath> UE::LevelSnapshots::Private::ExtractActorFromPath(con
 		FSoftObjectPath(OriginalObjectPath.GetAssetPathName(), SubPathString.Left(DotAfterActorNameIndex));
 }
 
+bool UE::LevelSnapshots::Private::IsPathToWorldObject(const FSoftObjectPath& OriginalObjectPath)
+{
+	bool bDummy;
+	return ExtractActorFromPath(OriginalObjectPath, bDummy).IsSet();
+}
+
 TOptional<int32> UE::LevelSnapshots::Private::FindDotAfterActorName(const FSoftObjectPath& OriginalObjectPath)
 {
 	const static FString PersistentLevelString("PersistentLevel.");
