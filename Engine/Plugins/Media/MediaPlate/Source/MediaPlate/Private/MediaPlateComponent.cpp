@@ -7,6 +7,7 @@
 #include "IMediaClock.h"
 #include "IMediaClockSink.h"
 #include "IMediaModule.h"
+#include "Materials/Material.h"
 #include "MediaComponent.h"
 #include "MediaPlateModule.h"
 #include "MediaPlayer.h"
@@ -310,6 +311,24 @@ bool UMediaPlateComponent::PlayMediaSource(UMediaSource* InMediaSource)
 	return bIsPlaying;
 }
 
+
+float UMediaPlateComponent::GetAspectRatio()
+{
+	if (StaticMeshComponent != nullptr)
+	{
+		// Calculate aspect ratio from the scale.
+		FVector Scale = StaticMeshComponent->GetComponentScale();
+		float AspectRatio = 0.0f;
+		if (Scale.Z != 0.0f)
+		{
+			AspectRatio = Scale.Y / Scale.Z;
+		}
+		return AspectRatio;
+	}
+
+	return 0.0f;
+}
+
 void UMediaPlateComponent::SetAspectRatio(float AspectRatio)
 {
 	// Get the static mesh.
@@ -326,7 +345,24 @@ void UMediaPlateComponent::SetAspectRatio(float AspectRatio)
 		StaticMeshComponent->Modify();
 #endif // WITH_EDITOR
 		StaticMeshComponent->SetRelativeScale3D(Scale);
+
+		UpdateLetterboxes();
 	}
+}
+
+void UMediaPlateComponent::SetLetterboxAspectRatio(float AspectRatio)
+{
+	LetterboxAspectRatio = FMath::Max(0.0f, AspectRatio);
+	if (LetterboxAspectRatio == 0.0f)
+	{
+		RemoveLetterboxes();
+	}
+	else
+	{
+		AddLetterboxes();
+	}
+
+	UpdateLetterboxes();
 }
 
 void UMediaPlateComponent::TickOutput()
@@ -413,6 +449,97 @@ void UMediaPlateComponent::UpdateTicking()
 {
 	bool bEnableTick = bPlayOnlyWhenVisible;
 	PrimaryComponentTick.SetTickFunctionEnable(bEnableTick);
+}
+
+
+void UMediaPlateComponent::UpdateLetterboxes()
+{
+	float AspectRatio = GetAspectRatio();
+	if ((AspectRatio <= LetterboxAspectRatio) || (LetterboxAspectRatio <= 0.0f))
+	{
+		for (TObjectPtr<UStaticMeshComponent> Letterbox : Letterboxes)
+		{
+			if (Letterbox != nullptr)
+			{
+				Letterbox->Modify();
+
+				Letterbox->SetVisibility(false);
+			}
+		}
+	}
+	else if (AspectRatio > 0.0f)
+	{
+		float DefaultHeight = 50.0f;
+		float VideoHeight = DefaultHeight / AspectRatio;
+		float MaxHeight = DefaultHeight / LetterboxAspectRatio;
+
+		float LetterboxHeight = (MaxHeight - VideoHeight) * 0.5f;
+		LetterboxHeight = FMath::Max(LetterboxHeight, 0.0f);
+		FVector Scale(1.0f, 1.0f, LetterboxHeight / DefaultHeight);
+
+		FVector Location(0.0f, 0.0f, VideoHeight + LetterboxHeight);
+
+		for (TObjectPtr<UStaticMeshComponent> Letterbox : Letterboxes)
+		{
+			if (Letterbox != nullptr)
+			{
+				Letterbox->Modify();
+				Letterbox->SetVisibility(true);
+				Letterbox->SetRelativeScale3D(Scale);
+				Letterbox->SetRelativeLocation(Location);
+				Location.Z = -Location.Z;
+			}
+		}
+	}
+}
+
+
+void UMediaPlateComponent::AddLetterboxes()
+{
+	if (Letterboxes.Num() == 0)
+	{
+		AActor* Owner = GetOwner();
+		if (Owner != nullptr)
+		{
+			UStaticMesh* Mesh = LoadObject<UStaticMesh>(NULL, TEXT("/MediaPlate/SM_MediaPlateScreen"), NULL, LOAD_None, NULL);
+			UMaterial* Material = LoadObject<UMaterial>(NULL, TEXT("/MediaPlate/M_MediaPlateLetterbox"), NULL, LOAD_None, NULL);
+			if ((Mesh != nullptr) && (Material != nullptr))
+			{
+				for (int32 Index = 0; Index < 2; ++Index)
+				{
+					UStaticMeshComponent* Letterbox = NewObject<UStaticMeshComponent>(Owner);
+					if (Letterbox != nullptr)
+					{
+						Letterboxes.Add(Letterbox);
+						Owner->Modify();
+						Owner->AddInstanceComponent(Letterbox);
+						Letterbox->OnComponentCreated();
+						Letterbox->AttachToComponent(Owner->GetRootComponent(),
+							FAttachmentTransformRules::KeepRelativeTransform);
+						Letterbox->RegisterComponent();
+						Letterbox->SetStaticMesh(Mesh);
+						Letterbox->SetMaterial(0, Material);
+						Letterbox->bCastStaticShadow = false;
+						Letterbox->bCastDynamicShadow = false;
+						Letterbox->SetVisibility(true);
+					}
+				}
+			}
+		}
+	}
+}
+
+void UMediaPlateComponent::RemoveLetterboxes()
+{
+	for (TObjectPtr<UStaticMeshComponent> Letterbox : Letterboxes)
+	{
+		if (Letterbox != nullptr)
+		{	
+			Letterbox->DestroyComponent();
+		}
+	}
+
+	Letterboxes.Empty();
 }
 
 #if WITH_EDITOR

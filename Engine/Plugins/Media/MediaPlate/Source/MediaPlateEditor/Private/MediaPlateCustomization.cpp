@@ -417,6 +417,48 @@ void FMediaPlateCustomization::AddMeshCustomization(IDetailCategoryBuilder& Medi
 				]
 		];
 
+		// Add letterbox aspect ratio.
+		DetailGroup.AddWidgetRow()
+			.Visibility(MeshPlaneVisibility)
+			.NameContent()
+			[
+				SNew(STextBlock)
+					.Text(LOCTEXT("LetterboxAspectRatio", "Letterbox Aspect Ratio"))
+					.ToolTipText(LOCTEXT("LetterboxAspectRatio_ToolTip",
+						"Sets the aspect ratio of the whole screen.\n"
+						"If the screen is larger than the media then letterboxes will be added."))
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+			.ValueContent()
+			[
+				SNew(SHorizontalBox)
+
+				// Presets button.
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SComboButton)
+						.OnGetMenuContent(this, &FMediaPlateCustomization::OnGetLetterboxAspectRatios)
+						.ContentPadding(2)
+						.ButtonContent()
+						[
+							SNew(STextBlock)
+								.ToolTipText(LOCTEXT("Presets_ToolTip", "Select one of the presets for the aspect ratio."))
+								.Text(LOCTEXT("Presets", "Presets"))
+						]
+			]
+
+		// Numeric entry box.
+		+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SNumericEntryBox<float>)
+					.Value(this, &FMediaPlateCustomization::GetLetterboxAspectRatio)
+					.MinValue(0.0f)
+					.OnValueChanged(this, &FMediaPlateCustomization::SetLetterboxAspectRatio)
+			]
+		];
+
 	// Add auto aspect ratio.
 	DetailGroup.AddWidgetRow()
 		.Visibility(MeshPlaneVisibility)
@@ -502,9 +544,15 @@ void FMediaPlateCustomization::SetMeshMode(EMediaTextureVisibleMipsTiles InMode)
 				{
 					MeshCustomization.SetPlaneMesh(MediaPlate);
 				}
-				else if (MeshMode == EMediaTextureVisibleMipsTiles::Sphere)
+				else
 				{
-					SetSphereMesh(MediaPlate);
+					// Letterboxes are only for planes.
+					SetLetterboxAspectRatio(0.0f);
+
+					if (MeshMode == EMediaTextureVisibleMipsTiles::Sphere)
+					{
+						SetSphereMesh(MediaPlate);
+					}
 				}
 			}
 		}
@@ -560,21 +608,40 @@ void FMediaPlateCustomization::SetIsAspectRatioAuto(ECheckBoxState State)
 
 TSharedRef<SWidget> FMediaPlateCustomization::OnGetAspectRatios()
 {
+	FUIAction Actions[4];
+	Actions[0] = FUIAction(FExecuteAction::CreateSP(this, &FMediaPlateCustomization::SetAspectRatio, 16.0f / 9.0f));
+	Actions[1] = FUIAction(FExecuteAction::CreateSP(this, &FMediaPlateCustomization::SetAspectRatio, 16.0f / 10.0f));
+	Actions[2] = FUIAction(FExecuteAction::CreateSP(this, &FMediaPlateCustomization::SetAspectRatio, 4.0f / 3.0f));
+	Actions[3] = FUIAction(FExecuteAction::CreateSP(this, &FMediaPlateCustomization::SetAspectRatio, 1.0f));
+
 	FMenuBuilder MenuBuilder(true, NULL);
-
-	FUIAction Set16x9Action(FExecuteAction::CreateSP(this, &FMediaPlateCustomization::SetAspectRatio, 16.0f / 9.0f));
-	MenuBuilder.AddMenuEntry(LOCTEXT("16x9", "16x9"), FText(), FSlateIcon(), Set16x9Action);
-
-	FUIAction Set16x10Action(FExecuteAction::CreateSP(this, &FMediaPlateCustomization::SetAspectRatio, 16.0f / 10.0f));
-	MenuBuilder.AddMenuEntry(LOCTEXT("16x10", "16x10"), FText(), FSlateIcon(), Set16x10Action);
-
-	FUIAction Set4x3Action(FExecuteAction::CreateSP(this, &FMediaPlateCustomization::SetAspectRatio, 4.0f / 3.0f));
-	MenuBuilder.AddMenuEntry(LOCTEXT("4x3", "4x3"), FText(), FSlateIcon(), Set4x3Action);
-
-	FUIAction Set1x1Action(FExecuteAction::CreateSP(this, &FMediaPlateCustomization::SetAspectRatio, 1.0f));
-	MenuBuilder.AddMenuEntry(LOCTEXT("1x1", "1x1"), FText(), FSlateIcon(), Set1x1Action);
+	AddAspectRatiosToMenuBuilder(MenuBuilder, Actions);
 
 	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> FMediaPlateCustomization::OnGetLetterboxAspectRatios()
+{
+	FUIAction Actions[5];
+	Actions[0] = FUIAction(FExecuteAction::CreateSP(this, &FMediaPlateCustomization::SetLetterboxAspectRatio, 16.0f / 9.0f));
+	Actions[1] = FUIAction(FExecuteAction::CreateSP(this, &FMediaPlateCustomization::SetLetterboxAspectRatio, 16.0f / 10.0f));
+	Actions[2] = FUIAction(FExecuteAction::CreateSP(this, &FMediaPlateCustomization::SetLetterboxAspectRatio, 4.0f / 3.0f));
+	Actions[3] = FUIAction(FExecuteAction::CreateSP(this, &FMediaPlateCustomization::SetLetterboxAspectRatio, 1.0f));
+	Actions[4] = FUIAction(FExecuteAction::CreateSP(this, &FMediaPlateCustomization::SetLetterboxAspectRatio, 0.0f));
+
+	FMenuBuilder MenuBuilder(true, NULL);
+	AddAspectRatiosToMenuBuilder(MenuBuilder, Actions);
+	MenuBuilder.AddMenuEntry(LOCTEXT("Disable", "Disable"), FText(), FSlateIcon(), Actions[4]);
+
+	return MenuBuilder.MakeWidget();
+}
+
+void FMediaPlateCustomization::AddAspectRatiosToMenuBuilder(FMenuBuilder& MenuBuilder, FUIAction Actions[])
+{
+	MenuBuilder.AddMenuEntry(LOCTEXT("16x9", "16x9"), FText(), FSlateIcon(), Actions[0]);
+	MenuBuilder.AddMenuEntry(LOCTEXT("16x10", "16x10"), FText(), FSlateIcon(), Actions[1]);
+	MenuBuilder.AddMenuEntry(LOCTEXT("4x3", "4x3"), FText(), FSlateIcon(), Actions[2]);
+	MenuBuilder.AddMenuEntry(LOCTEXT("1x1", "1x1"), FText(), FSlateIcon(), Actions[3]);
 }
 
 void FMediaPlateCustomization::SetAspectRatio(float AspectRatio)
@@ -605,25 +672,40 @@ TOptional<float> FMediaPlateCustomization::GetAspectRatio() const
 		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 		if (MediaPlate != nullptr)
 		{
-			AActor* Owner = MediaPlate->GetOwner();
-			AMediaPlate* MediaPlateActor = Cast<AMediaPlate>(Owner);
-			if (MediaPlateActor != nullptr)
-			{
-				// Get the static mesh.
-				UStaticMeshComponent* StaticMeshComponent = MediaPlateActor->StaticMeshComponent;
-				if (StaticMeshComponent != nullptr)
-				{
-					// Calculate aspect ratio from the scale.
-					FVector Scale = StaticMeshComponent->GetComponentScale();
-					float AspectRatio = 0.0f;
-					if (Scale.Z != 0.0f)
-					{
-						AspectRatio = Scale.Y / Scale.Z;
-					}
-					return AspectRatio;
-				}
-			}
-			break;
+			return MediaPlate->GetAspectRatio();
+		}
+	}
+
+	return TOptional<float>();
+}
+
+void FMediaPlateCustomization::SetLetterboxAspectRatio(float AspectRatio)
+{
+	for (const TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+		if (MediaPlate != nullptr)
+		{
+			MediaPlate->SetLetterboxAspectRatio(AspectRatio);
+		}
+	}
+
+	// Invalidate the viewport so we can see the mesh change.
+	if (GCurrentLevelEditingViewportClient != nullptr)
+	{
+		GCurrentLevelEditingViewportClient->Invalidate();
+	}
+}
+
+
+TOptional<float> FMediaPlateCustomization::GetLetterboxAspectRatio() const
+{
+	for (const TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+		if (MediaPlate != nullptr)
+		{
+			return MediaPlate->GetLetterboxAspectRatio();
 		}
 	}
 

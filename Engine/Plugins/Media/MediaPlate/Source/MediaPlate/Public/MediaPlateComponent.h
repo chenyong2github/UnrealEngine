@@ -89,6 +89,9 @@ public:
 	/** Holds the component for the mesh. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = MediaPlate)
 	TObjectPtr<UStaticMeshComponent> StaticMeshComponent;
+	/** Holds the component for the mesh. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = MediaPlate)
+	TArray<TObjectPtr<UStaticMeshComponent>> Letterboxes;
 
 	/** What media playlist to play. */
 	UPROPERTY(EditAnywhere, Category = "MediaPlate")
@@ -127,9 +130,26 @@ public:
 	void UnregisterWithMediaTextureTracker();
 
 	/**
+	 * Call this to geet the aspect ratio of the mesh.
+	 */
+	float GetAspectRatio();
+
+	/**
 	 * Call this to set the aspect ratio of the mesh.
 	 */
 	void SetAspectRatio(float AspectRatio);
+
+	/**
+	 * Call this to get the aspect ratio of the screen.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlate")
+	float GetLetterboxAspectRatio() { return LetterboxAspectRatio; }
+
+	/**
+	 * Call this to set the aspect ratio of the screen.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlate")
+	void SetLetterboxAspectRatio(float AspectRatio);
 
 	/**
 	 * Called from the media clock.
@@ -145,6 +165,11 @@ private:
 	/** If true then only allow playback when the media plate is visible. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
 	bool bPlayOnlyWhenVisible = false;
+
+	/** If > 0, then this is the aspect ratio of our screen and 
+	 * letterboxes will be added if the media is smaller than the screen. */
+	UPROPERTY()
+	float LetterboxAspectRatio = 0.0f;
 
 	UPROPERTY()
 	FVector2D MeshRange = FVector2D(360.0f, 180.0f);
@@ -203,5 +228,20 @@ private:
 	 * Updates if we should tick or not based on current state.
 	 */
 	void UpdateTicking();
+
+	/**
+	 * Updates letterboxes based on the current state.
+	 */
+	void UpdateLetterboxes();
+
+	/**
+	 * Adds ability to have letterboxes.
+	 */
+	void AddLetterboxes();
+
+	/**
+	 * Removes ability to have letterboxes.
+	 */
+	void RemoveLetterboxes();
 
 };

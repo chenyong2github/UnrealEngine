@@ -82,6 +82,16 @@ private:
 	TSharedRef<SWidget> OnGetAspectRatios();
 
 	/**
+	 * Returns menu options for all aspect ratio presets.
+	 */
+	TSharedRef<SWidget> OnGetLetterboxAspectRatios();
+
+	/**
+	 * Returns menu options for all aspect ratio presets.
+	 */
+	void AddAspectRatiosToMenuBuilder(FMenuBuilder& MenuBuilder, FUIAction Actions[]);
+
+	/**
 	 * Call this to see if auto aspect ratio is enabled.
 	 */
 	ECheckBoxState IsAspectRatioAuto() const;
@@ -100,6 +110,16 @@ private:
 	 * Call this to get the aspect ratio.
 	 */
 	TOptional<float> GetAspectRatio() const;
+
+	/**
+	 * Call this to set the aspect ratio.
+	 */
+	void SetLetterboxAspectRatio(float AspectRatio);
+
+	/**
+	 * Call this to get the aspect ratio.
+	 */
+	TOptional<float> GetLetterboxAspectRatio() const;
 
 	/**
 	 * Call this to set the horizontal range of the mesh.
