@@ -190,7 +190,6 @@ private:
 	TSharedPtr<IPropertyHandle> ParentPriAxisPropertyHandle;
 	TSharedPtr<IPropertyHandle> ParentSecAxisPropertyHandle;
 
-//	TWeakObjectPtr<UObject> ConstraintComponent;
 	UPhysicsConstraintComponent* ConstraintComp;
 	UPhysicsConstraintTemplate* ConstraintTemplate;
 
