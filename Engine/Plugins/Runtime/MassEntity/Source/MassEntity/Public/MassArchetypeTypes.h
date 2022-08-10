@@ -21,7 +21,6 @@ struct FMassArchetypeHelper;
 
 typedef TFunction< void(FMassExecutionContext& /*ExecutionContext*/) > FMassExecuteFunction;
 typedef TFunction< bool(const FMassExecutionContext& /*ExecutionContext*/) > FMassChunkConditionFunction;
-typedef TFunction< bool(const FMassExecutionContext& /*ExecutionContext*/) > FMassArchetypeConditionFunction;
 
 
 //////////////////////////////////////////////////////////////////////

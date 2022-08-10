@@ -374,6 +374,11 @@ void FMassArchetypeData::MoveEntityToAnotherArchetype(const FMassEntityHandle En
 
 void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, FMassArchetypeEntityCollection::FConstEntityRangeArrayView EntityRangeContainer)
 {
+	if (GetNumEntities() == 0)
+	{
+		return;
+	}
+
 	// mz@todo to be removed
 	RunContext.SetCurrentArchetypesTagBitSet(GetTagBitSet());
 
@@ -382,17 +387,17 @@ void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, cons
 	{
 		FMassArchetypeChunk& Chunk = Chunks[ChunkIterator->ChunkIndex];
 
-		const uint32 SharedFragmentValuesHash = GetTypeHash(Chunk.GetSharedFragmentValues());
-		if (PrevSharedFragmentValuesHash != SharedFragmentValuesHash)
-		{
-			PrevSharedFragmentValuesHash = SharedFragmentValuesHash;
-			BindConstSharedFragmentRequirements(RunContext, Chunk.GetSharedFragmentValues(), RequirementMapping.ConstSharedFragments);
-			BindSharedFragmentRequirements(RunContext, Chunk.GetSharedFragmentValues(), RequirementMapping.SharedFragments);
-		}
-
 		const int32 ChunkLength = ChunkIterator->Length > 0 ? ChunkIterator->Length : (Chunk.GetNumInstances() - ChunkIterator->SubchunkStart);
 		if (ChunkLength)
 		{
+			const uint32 SharedFragmentValuesHash = GetTypeHash(Chunk.GetSharedFragmentValues());
+			if (PrevSharedFragmentValuesHash != SharedFragmentValuesHash)
+			{
+				PrevSharedFragmentValuesHash = SharedFragmentValuesHash;
+				BindConstSharedFragmentRequirements(RunContext, Chunk.GetSharedFragmentValues(), RequirementMapping.ConstSharedFragments);
+				BindSharedFragmentRequirements(RunContext, Chunk.GetSharedFragmentValues(), RequirementMapping.SharedFragments);
+			}
+
 			checkf((ChunkIterator->SubchunkStart + ChunkLength) <= Chunk.GetNumInstances() && ChunkLength > 0, TEXT("Invalid subchunk, it is going over the number of instances in the chunk or it is empty."));
 
 			RunContext.SetCurrentChunkSerialModificationNumber(Chunk.GetSerialModificationNumber());
@@ -404,15 +409,20 @@ void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, cons
 	}
 }
 
-void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, const FMassArchetypeConditionFunction& ArchetypeCondition, const FMassChunkConditionFunction& ChunkCondition)
+void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, const FMassChunkConditionFunction& ChunkCondition)
 {
+	if (GetNumEntities() == 0)
+	{
+		return;
+	}
+
 	// mz@todo to be removed
 	RunContext.SetCurrentArchetypesTagBitSet(GetTagBitSet());
 
-	if (!ArchetypeCondition || ArchetypeCondition(RunContext))
+	uint32 PrevSharedFragmentValuesHash = UINT32_MAX;
+	for (FMassArchetypeChunk& Chunk : Chunks)
 	{
-		uint32 PrevSharedFragmentValuesHash = UINT32_MAX;
-		for (FMassArchetypeChunk& Chunk : Chunks)
+		if (Chunk.GetNumInstances())
 		{
 			const uint32 SharedFragmentValuesHash = GetTypeHash(Chunk.GetSharedFragmentValues());
 			if (PrevSharedFragmentValuesHash != SharedFragmentValuesHash)
@@ -422,16 +432,13 @@ void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, cons
 				BindSharedFragmentRequirements(RunContext, Chunk.GetSharedFragmentValues(), RequirementMapping.SharedFragments);
 			}
 
-			if (Chunk.GetNumInstances())
-			{
-				RunContext.SetCurrentChunkSerialModificationNumber(Chunk.GetSerialModificationNumber());
-				BindChunkFragmentRequirements(RunContext, RequirementMapping.ChunkFragments, Chunk);
+			RunContext.SetCurrentChunkSerialModificationNumber(Chunk.GetSerialModificationNumber());
+			BindChunkFragmentRequirements(RunContext, RequirementMapping.ChunkFragments, Chunk);
 
-				if (!ChunkCondition || ChunkCondition(RunContext))
-				{
-					BindEntityRequirements(RunContext, RequirementMapping.EntityFragments, Chunk, 0, Chunk.GetNumInstances());
-					Function(RunContext);
-				}
+			if (!ChunkCondition || ChunkCondition(RunContext))
+			{
+				BindEntityRequirements(RunContext, RequirementMapping.EntityFragments, Chunk, 0, Chunk.GetNumInstances());
+				Function(RunContext);
 			}
 		}
 	}

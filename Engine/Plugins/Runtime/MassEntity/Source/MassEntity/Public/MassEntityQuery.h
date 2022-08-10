@@ -92,21 +92,11 @@ public:
 	 * that this condition won't be applied when a specific entity colleciton is used (via FMassArchetypeEntityCollection )
 	 * The value returned by InFunction controls whether to allow execution (true) or block it (false).
 	 */
-	void SetChunkFilter(const FMassChunkConditionFunction& InFunction) { ChunkCondition = InFunction; }
+	void SetChunkFilter(const FMassChunkConditionFunction& InFunction) { checkf(!HasChunkFilter(), TEXT("Chunk filter needs to be cleared before setting a new one.")); ChunkCondition = InFunction; }
 
 	void ClearChunkFilter() { ChunkCondition.Reset(); }
 
 	bool HasChunkFilter() const { return bool(ChunkCondition); }
-
-	/**
-	 * Sets a archetype filter condition that will applied to each valid archetypes.
-	 * The value returned by InFunction controls whether to allow execution (true) or block it (false).
-	 */
-	void SetArchetypeFilter(const FMassArchetypeConditionFunction& InFunction) { ArchetypeCondition = InFunction; }
-
-	void ClearArchetypeFilter() { ArchetypeCondition.Reset(); }
-
-	bool HasArchetypeFilter() const { return bool(ArchetypeCondition); }
 
 	/** 
 	 * If ArchetypeHandle is among ValidArchetypes then the function retrieves requirements mapping cached for it,
@@ -126,13 +116,6 @@ private:
 	 * ChunkCondition is executed.
 	 */
 	FMassChunkConditionFunction ChunkCondition;
-
-	/**
-	 * This function represents a condition that will be called for every archetype to be processed before the actual
-	 * execution function is called. The shared fragment requirements are already bound and ready to be used by the time
-	 * ArchetypeCondition is executed.
-	 */
-	FMassArchetypeConditionFunction ArchetypeCondition;
 
 	uint32 EntitySubsystemHash = 0;
 	uint32 ArchetypeDataVersion = 0;
