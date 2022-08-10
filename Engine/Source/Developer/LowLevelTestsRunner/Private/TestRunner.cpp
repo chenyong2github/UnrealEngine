@@ -108,7 +108,7 @@ int RunTests(int argc, const char* argv[])
 #endif
 
 	int CatchArgc = 0;
-	TUniquePtr<const char* []> CatchArgv = MakeUnique<const char* []>(argc);
+	TUniquePtr<const char* []> CatchArgv = MakeUnique<const char* []>(argc + 1);
 
 	std::set<std::string> KnownLLTArgs;
 	KnownLLTArgs.insert("--wait");
@@ -182,6 +182,9 @@ int RunTests(int argc, const char* argv[])
 			CatchArgv.Get()[CatchArgc++] = argv[i];
 		}
 	}
+
+	//add break by default to break in debugger on test failures when attached
+	CatchArgv.Get()[CatchArgc++] = "--break";
 
 	if (bGGlobalSetup)
 	{	
