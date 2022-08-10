@@ -1269,7 +1269,7 @@ void UEditorEngine::CreateStartupAnalyticsAttributes( TArray<FAnalyticsEventAttr
 
 UTransactor* UEditorEngine::CreateTrans()
 {
-	CurrentUndoRedoContext = MakeShared<FEditorTransactionDeltaContext>();
+	CurrentUndoRedoContext = MakePimpl<FEditorTransactionDeltaContext>();
 
 	int32 UndoBufferSize;
 

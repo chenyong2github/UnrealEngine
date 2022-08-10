@@ -30,6 +30,7 @@
 #include "Subsystems/SubsystemCollection.h"
 #include "RHI.h"
 #include "UnrealEngine.h"
+#include "Templates/PimplPtr.h"
 #include "Templates/UniqueObj.h"
 
 #include "EditorEngine.generated.h"
@@ -67,6 +68,7 @@ class UTextureRenderTarget2D;
 class UTransactor;
 class FTransactionObjectEvent;
 struct FTransactionContext;
+struct FEditorTransactionDeltaContext;
 struct FTypedElementHandle;
 struct FAnalyticsEventAttribute;
 class UEditorWorldExtensionManager;
@@ -2787,7 +2789,7 @@ public:
 
 private:
 
-	TSharedPtr<struct FEditorTransactionDeltaContext> CurrentUndoRedoContext;
+	TPimplPtr<FEditorTransactionDeltaContext> CurrentUndoRedoContext;
 
 	/** List of all viewport clients */
 	TArray<class FEditorViewportClient*> AllViewportClients;
