@@ -48,7 +48,7 @@ static FAutoConsoleVariableRef CVarASTCCompressor(
 #endif
 
 // increment this if you change anything that will affect compression in this file
-#define BASE_ASTC_FORMAT_VERSION 42
+#define BASE_ASTC_FORMAT_VERSION 43
 
 #define MAX_QUALITY_BY_SIZE 4
 #define MAX_QUALITY_BY_SPEED 3
@@ -314,6 +314,8 @@ static bool CompressSliceToASTC(
 
 	// write to InputFilePath :
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ASTC.WriteFile);
+
 		FArchive* PNGFile = IFileManager::Get().CreateFileWriter(*InputFilePath);
 		while (!PNGFile)
 		{
@@ -333,29 +335,40 @@ static bool CompressSliceToASTC(
 	FileData.Reset();
 
 	// Compress PNG file to ASTC (using the reference astcenc.exe from ARM)
-	FString Params = (bHDR ? TEXT("-ch ") : TEXT("-cl ")) + FString::Printf(TEXT("\"%s\" \"%s\" %s"),
+	// -j option to set thread count ? when we're running lots of textures at the same time in a cook,
+	//	 it might be better to limit the astcenc process to fewer threads?
+	FString Params = (bHDR ? TEXT("-ch ") : TEXT("-cl ")) + FString::Printf(TEXT("\"%s\" \"%s\" %s -silent"),
 		*InputFilePath,
 		*OutputFilePath,
 		*CompressionParameters
 	);
 
-	UE_LOG(LogTextureFormatASTC, Display, TEXT("Compressing to ASTC (options = '%s')..."), *CompressionParameters);
+	UE_LOG(LogTextureFormatASTC, Verbose, TEXT("Compressing to ASTC (options = '%s')..."), *CompressionParameters);
 
 	// Start Compressor
+	// @todo Oodle : check if we have sse4 and use those
 #if PLATFORM_MAC_X86
 	FString CompressorPath(FPaths::EngineDir() + TEXT("Binaries/ThirdParty/ARM/Mac/astcenc-sse2"));
+	//FString CompressorPath(FPaths::EngineDir() + TEXT("Binaries/ThirdParty/ARM/Mac/astcenc-sse4.1"));
 #elif PLATFORM_MAC_ARM64
 	FString CompressorPath(FPaths::EngineDir() + TEXT("Binaries/ThirdParty/ARM/Mac/astcenc-neon"));
 #elif PLATFORM_LINUX
 	FString CompressorPath(FPaths::EngineDir() + TEXT("Binaries/ThirdParty/ARM/Linux64/astcenc-sse2"));
+	//FString CompressorPath(FPaths::EngineDir() + TEXT("Binaries/ThirdParty/ARM/Linux64/astcenc-sse4.1"));
 #elif PLATFORM_WINDOWS
 	FString CompressorPath(FPaths::EngineDir() + TEXT("Binaries/ThirdParty/ARM/Win64/astcenc-sse2.exe"));
+	//FString CompressorPath(FPaths::EngineDir() + TEXT("Binaries/ThirdParty/ARM/Win64/astcenc-sse4.1.exe"));
+
+	// avx2 is no faster than sse4 , so just use the sse4 variant when possible
+	//FString CompressorPath(FPaths::EngineDir() + TEXT("Binaries/ThirdParty/ARM/Win64/astcenc-avx2.exe"));
 #else
 #error Unsupported platform
 #endif
 
 	// run the astcenc process :
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ASTC.RunProc);
+
 		FProcHandle Proc = FPlatformProcess::CreateProc(*CompressorPath, *Params, true, false, false, NULL, -1, NULL, NULL);
 
 		// Failed to start the compressor process
@@ -374,13 +387,16 @@ static bool CompressSliceToASTC(
 		// Did it work?
 		if ( ReturnCode != 0)
 		{
-			UE_LOG(LogTextureFormatASTC, Error, TEXT("ASTC encoder failed with return code %d, mip size (%d, %d). Leaving '%s' for testing."), ReturnCode, SourceImage.SizeX, SourceImage.SizeY, *InputFilePath);
+			UE_LOG(LogTextureFormatASTC, Error, TEXT("ASTC encoder failed with return code %d, mip size (%d, %d). Leaving '%s' for testing.  Full params = '%s'"), 
+				ReturnCode, SourceImage.SizeX, SourceImage.SizeY, *InputFilePath, *Params);
 			return false;
 		}
 	}
 
 	// Open compressed file and put the data in OutCompressedImage
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ASTC.ReadFile);
+
 		// Get raw file data
 		TArray64<uint8> ASTCData;
 		if ( ! FFileHelper::LoadFileToArray(ASTCData, *OutputFilePath) )
@@ -434,8 +450,13 @@ static bool CompressSliceToASTC(
 	}
 		
 	// Delete intermediate files
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ASTC.DeleteFiles);
+
 	IFileManager::Get().Delete(*InputFilePath);
 	IFileManager::Get().Delete(*OutputFilePath);
+	}
+
 	return true;
 }
 
@@ -556,6 +577,8 @@ public:
 		}
 #endif
 
+		TRACE_CPUPROFILER_EVENT_SCOPE(ASTC.CompressImage);
+
 		UE_CALL_ONCE( [&](){
 			UE_LOG(LogTextureFormatASTC, Display, TEXT("TextureFormatASTC using astcenc"))
 		} );
@@ -602,6 +625,7 @@ public:
 			BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBAuto || 
 			BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBA_HQ )
 		{
+			// astcenc has "-perceptual" but it just does luma weighting so its not very interesting
 
 			if ( BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGB ||
 				! bImageHasAlphaChannel )
@@ -621,11 +645,13 @@ public:
 		}
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG)
 		{
-			CompressionParameters = FString::Printf(TEXT("%s -esw 0g0b -cw 0 1 0 1 -dblimit 60 -b 2.5 -v 3 1 1 0 50 0 -va 1 1 0 50"), *QualityString);
+			// astcenc has "-normal" , dunno if that does anything other than just channel swizzling (it outputs xxxy)
+
+			CompressionParameters = FString::Printf(TEXT("%s -esw 0g0b -cw 0 1 0 1 -dblimit 60"), *QualityString);
 		}
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG)
 		{
-			CompressionParameters = FString::Printf(TEXT("%s -esw bg00 -cw 1 1 0 0 -dblimit 60 -b 2.5 -v 3 1 1 0 50 0 -va 1 1 0 50"), *QualityString);
+			CompressionParameters = FString::Printf(TEXT("%s -esw bg00 -cw 1 1 0 0 -dblimit 60"), *QualityString);
 		}
 		else
 		{
