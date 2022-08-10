@@ -8,6 +8,7 @@
 #include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 
 #include "Editor.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Framework/Docking/TabManager.h"
 #include "ISettingsModule.h"
 #include "Modules/ModuleManager.h"
