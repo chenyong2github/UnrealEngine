@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CollisionDebugDrawingPublic.h"
+
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "CollisionQueryParams.h"

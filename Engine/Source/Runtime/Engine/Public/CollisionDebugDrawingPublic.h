@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 
+struct FHitResult;
+
 /** Draw line trace results */
 ENGINE_API void DrawLineTraces(const UWorld* InWorld, const FVector& Start, const FVector& End, const TArray<FHitResult>& Hits, float Lifetime);
 /** Draw sphere sweep results */
