@@ -76,6 +76,7 @@ public:
 	virtual UObject* GetJumpTargetForDoubleClick() const override;
 	virtual bool CanJumpToDefinition() const override;
 	virtual void JumpToDefinition() const override;
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual FString GetPinMetaData(FName InPinName, FName InKey) override;
 	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const override;
 	//~ End UEdGraphNode Interface
@@ -195,6 +196,9 @@ protected:
 	 * @return Found UActorComponent for the FProperty, else nullptr
 	 */
 	const UActorComponent* GetActorComponent(const FProperty* VariableProperty) const;
+
+	/** Adds the variable reference to the suppressed deprecation warnings list */
+	void SuppressDeprecationWarning() const;
 
 	/** Returns whether a Function Graph contains a parameter with the given name */
 	static bool FunctionParameterExists(const UEdGraph* InFunctionGraph, const FName InParameterName);

@@ -64,6 +64,13 @@ public:
 	TArray<FName> DisabledCompilerMessages;
 
 	/**
+	 * List of deprecated UProperties/UFunctions to supress warning messages for - useful for source changes
+	 * that would otherwise cause content warnings
+	 */
+	UPROPERTY(EditAnywhere, config, Category = Blueprints, DisplayName = "Deprecated Symbols to Supress")
+	TArray<FString> SuppressedDeprecationMessages;
+
+	/**
 	 * Any blueprint deriving from one of these base classes will be allowed to recompile during Play-in-Editor
 	 * (This setting exists both as an editor preference and project setting, and will be allowed if listed in either place) 
 	 */

@@ -95,6 +95,7 @@ public:
 	virtual UObject* GetJumpTargetForDoubleClick() const override;
 	virtual bool CanJumpToDefinition() const override;
 	virtual void JumpToDefinition() const override;
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual FString GetPinMetaData(FName InPinName, FName InKey) override;
 	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const override;
 	// End of UEdGraphNode interface
@@ -237,6 +238,9 @@ protected:
 
 	/** Helper function to ensure function is called in our context */
 	virtual void FixupSelfMemberContext();
+
+	/** Adds this function to the suppressed deprecation warnings list for this project */
+	void SuppressDeprecationWarning() const;
 
 	/** Helper function to find UFunction entries from the skeleton class, use with caution.. */
 	UFunction* GetTargetFunctionFromSkeletonClass() const;

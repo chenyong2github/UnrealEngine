@@ -20,6 +20,8 @@
 #include "Editor/UnrealEdEngine.h"
 #include "Preferences/UnrealEdOptions.h"
 #include "UnrealEdGlobals.h"
+#include "Settings/BlueprintEditorProjectSettings.h"
+#include "ToolMenu.h"
 
 #define LOCTEXT_NAMESPACE "K2Node"
 
@@ -1036,22 +1038,48 @@ void UK2Node_Variable::PostPasteNode()
 
 bool UK2Node_Variable::HasDeprecatedReference() const
 {
+	bool bDeprecated = false;
+	FProperty* VariableProperty = nullptr; // Declare up here so we can reuse if we would have resolved twice
+
 	// Check if the referenced variable is deprecated.
 	if (VariableReference.IsDeprecated())
 	{
-		return true;
+		bDeprecated = true;
 	}
-	else if (FProperty* VariableProperty = VariableReference.ResolveMember<FProperty>(GetBlueprintClassFromNode()))
+	else
 	{
-		// Backcompat: Allow variables tagged only with 'DeprecationMessage' meta to be seen as deprecated if inherited from a native parent class.
-		const bool bHasDeprecationMessage = VariableProperty->HasMetaData(FBlueprintMetadata::MD_DeprecationMessage);
-		if (bHasDeprecationMessage && VariableProperty->GetOwnerUObject()->IsNative())
+		VariableProperty = VariableReference.ResolveMember<FProperty>(GetBlueprintClassFromNode());
+		if (VariableProperty)
 		{
-			return true;
+			// Backcompat: Allow variables tagged only with 'DeprecationMessage' meta to be seen as deprecated if inherited from a native parent class.
+			const bool bHasDeprecationMessage = VariableProperty->HasMetaData(FBlueprintMetadata::MD_DeprecationMessage);
+			if (bHasDeprecationMessage && VariableProperty->GetOwnerUObject()->IsNative())
+			{
+				bDeprecated = true;
+			}
 		}
 	}
 
-	return false;
+	if (bDeprecated)
+	{
+		const UBlueprintEditorProjectSettings* BlueprintEditorProjectSettings = GetDefault<UBlueprintEditorProjectSettings>();
+		if (!VariableProperty)
+		{
+			VariableProperty = VariableReference.ResolveMember<FProperty>(GetBlueprintClassFromNode());
+		}
+
+
+		if (VariableProperty)
+		{
+			const FString PathName = VariableProperty->GetPathName();
+			if (BlueprintEditorProjectSettings->SuppressedDeprecationMessages.Contains(PathName))
+			{
+				bDeprecated = false;
+			}
+		}
+	}
+
+	return bDeprecated;
 }
 
 FEdGraphNodeDeprecationResponse UK2Node_Variable::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
@@ -1117,6 +1145,30 @@ void UK2Node_Variable::JumpToDefinition() const
 	Super::JumpToDefinition();
 }
 
+void UK2Node_Variable::GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
+{
+	Super::GetNodeContextMenuActions(Menu, Context);
+
+	if (HasDeprecatedReference())
+	{
+		FText MenuEntryTitle = LOCTEXT("SuppressDeprecationWarningTitle", "Suppress Deprecation Warning");
+		FText MenuEntryTooltip = LOCTEXT("SuppressDeprecationWarningTooltip", "Adds this variable to the suppressed deprecation warnings list for the project.");
+
+		FToolMenuSection& Section = Menu->AddSection("K2NodeVariable", LOCTEXT("VariableHeader", "Variable"));
+		Section.AddMenuEntry(
+			"SuppressDeprecationWarning",
+			MenuEntryTitle,
+			MenuEntryTooltip,
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateUObject(this, &UK2Node_Variable::SuppressDeprecationWarning),
+				FCanExecuteAction::CreateUObject(this, &UK2Node_Variable::HasDeprecatedReference),
+				FIsActionChecked()
+			)
+		);
+	}
+}
+
 bool UK2Node_Variable::FunctionParameterExists(const UEdGraph* InFunctionGraph, const FName InParameterName)
 {
 	TArray<UK2Node_FunctionEntry*> Entry;
@@ -1156,6 +1208,18 @@ const UActorComponent* UK2Node_Variable::GetActorComponent(const FProperty* Vari
 	}
 	
 	return nullptr;
+}
+
+void UK2Node_Variable::SuppressDeprecationWarning() const
+{
+	if (const FProperty* Property = VariableReference.ResolveMember<FProperty>(GetBlueprintClassFromNode()))
+	{
+		FString PathName = Property->GetPathName();
+		UBlueprintEditorProjectSettings* BlueprintEditorProjectSettings = GetMutableDefault<UBlueprintEditorProjectSettings>();
+		BlueprintEditorProjectSettings->SuppressedDeprecationMessages.Add(MoveTemp(PathName));
+		BlueprintEditorProjectSettings->SaveConfig();
+		BlueprintEditorProjectSettings->TryUpdateDefaultConfigFile("", false);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

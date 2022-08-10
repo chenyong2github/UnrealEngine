@@ -45,6 +45,8 @@
 #include "HAL/FileManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "BlueprintNodeStatics.h"
+#include "Settings/BlueprintEditorProjectSettings.h"
+#include "ToolMenu.h"
 
 #define LOCTEXT_NAMESPACE "K2Node"
 
@@ -491,8 +493,25 @@ UK2Node_CallFunction::UK2Node_CallFunction(const FObjectInitializer& ObjectIniti
 
 bool UK2Node_CallFunction::HasDeprecatedReference() const
 {
-	UFunction* Function = GetTargetFunction();
-	return (Function && Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction));
+	if (UFunction* Function = GetTargetFunction())
+	{
+		bool bDeprecated = Function->HasMetaData(FBlueprintMetadata::MD_DeprecatedFunction);
+
+		if (bDeprecated)
+		{
+			const UBlueprintEditorProjectSettings* BlueprintEditorProjectSettings = GetDefault<UBlueprintEditorProjectSettings>();
+			const FString PathName = Function->GetPathName();
+
+			if (BlueprintEditorProjectSettings->SuppressedDeprecationMessages.Contains(PathName))
+			{
+				bDeprecated = false;
+			}
+		}
+
+		return bDeprecated;
+	}
+
+	return false;
 }
 
 FEdGraphNodeDeprecationResponse UK2Node_CallFunction::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
@@ -1967,6 +1986,18 @@ void UK2Node_CallFunction::FixupSelfMemberContext()
 	}
 }
 
+void UK2Node_CallFunction::SuppressDeprecationWarning() const
+{
+	if (UFunction* Function = GetTargetFunction())
+	{
+		FString PathName = Function->GetPathName();
+		UBlueprintEditorProjectSettings* BlueprintEditorProjectSettings = GetMutableDefault<UBlueprintEditorProjectSettings>();
+		BlueprintEditorProjectSettings->SuppressedDeprecationMessages.Add(MoveTemp(PathName));
+		BlueprintEditorProjectSettings->SaveConfig();
+		BlueprintEditorProjectSettings->TryUpdateDefaultConfigFile("", false);
+	}
+}
+
 void UK2Node_CallFunction::PostPasteNode()
 {
 	Super::PostPasteNode();
@@ -3353,6 +3384,30 @@ void UK2Node_CallFunction::JumpToDefinition() const
 
 	// Otherwise, fall back to the inherited behavior which should go to the function entry node
 	Super::JumpToDefinition();
+}
+
+void UK2Node_CallFunction::GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
+{
+	Super::GetNodeContextMenuActions(Menu, Context);
+
+	if (HasDeprecatedReference())
+	{
+		FText MenuEntryTitle = LOCTEXT("SuppressDeprecationWarningTitle", "Suppress Deprecation Warning");
+		FText MenuEntryTooltip = LOCTEXT("SuppressDeprecationWarningTooltip", "Adds this variable to the suppressed deprecation warnings list for the project.");
+
+		FToolMenuSection& Section = Menu->AddSection("K2NodeCallFunction", LOCTEXT("FunctionHeader", "Function"));
+		Section.AddMenuEntry(
+			"SuppressDeprecationWarning",
+			MenuEntryTitle,
+			MenuEntryTooltip,
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateUObject(this, &UK2Node_CallFunction::SuppressDeprecationWarning),
+				FCanExecuteAction::CreateUObject(this, &UK2Node_CallFunction::HasDeprecatedReference),
+				FIsActionChecked()
+			)
+		);
+	}
 }
 
 FString UK2Node_CallFunction::GetPinMetaData(FName InPinName, FName InKey)
