@@ -104,7 +104,7 @@ void UNaniteDisplacedMeshComponent::UnbindCallback()
 {
 	if (DisplacedMesh)
 	{
-		DisplacedMesh->UnregisterOnRebuild(this);
+		DisplacedMesh->UnregisterOnRenderingDataChanged(this);
 	}
 }
 
@@ -112,7 +112,7 @@ void UNaniteDisplacedMeshComponent::BindCallback()
 {
 	if (DisplacedMesh)
 	{
-		DisplacedMesh->RegisterOnRebuild(
+		DisplacedMesh->RegisterOnRenderingDataChanged(
 			UNaniteDisplacedMesh::FOnRebuild::CreateUObject(this, &UNaniteDisplacedMeshComponent::OnRebuild)
 		);
 	}

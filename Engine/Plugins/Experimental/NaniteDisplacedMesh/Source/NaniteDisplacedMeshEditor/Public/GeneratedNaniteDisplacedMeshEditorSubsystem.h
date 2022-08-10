@@ -9,7 +9,11 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectKey.h"
 
+
 #include "GeneratedNaniteDisplacedMeshEditorSubsystem.generated.h"
+
+class UNaniteDisplacedMesh;
+class UFactory;
 
 struct FNaniteDisplacedMeshParams;
 struct FPropertyChangedEvent;
@@ -18,7 +22,7 @@ template<typename Type>
 class TSubclassOf;
 
 UCLASS()
-class NANITEDISPLACEDMESHEDITOR_API UGeneratedNaniteDisplacedMeshEditorSubsystem : public UEditorSubsystem
+class NANITEDISPLACEDMESHEDITOR_API UGeneratedNaniteDisplacedMeshEditorSubsystem : public UEditorSubsystem, public FUObjectArray::FUObjectDeleteListener
 {
 	GENERATED_BODY()
 
@@ -51,28 +55,71 @@ public:
 	/**
 	 * Tell the system to stop tracking stuff for this actor.
 	 */
-	void RemoveActor(AActor* ActorToRemove);
+	void RemoveActor(const AActor* ActorToRemove);
 
 public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
 private:
+	void OnObjectPreEditChange(UObject* Object, const class FEditPropertyChain& EditPropertyChain);
 	void OnObjectPostEditChange(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
 	void OnLevelActorDeleted(AActor* Actor);
 
+	void OnAssetPreImport(UFactory* InFactory, UClass* InClass, UObject* InParent, const FName& Name, const TCHAR* Type);
+	void OnAssetPostImport(UFactory* InFactory, UObject* InCreatedObject);
+
 	bool CanObjectBeTracked(UObject* InObject);
-	bool RemoveActor(const TObjectKey<AActor>& InActorToRemove, uint32 InWeakActorHash);
+	bool RemoveActor(TObjectKey<AActor> InActorToRemove, uint32 InWeakActorHash);
 
 	FActorClassHandler* FindClassHandler(UClass* Class);
 	bool ShouldCallback(UClass* AssetClass, const FActorClassHandler& ClassHandler, const FPropertyChangedEvent& PropertyChangedEvent);
+
+	void UpdateDisplacedMeshesDueToAssetChanges(UObject* Asset);
+	void UpdateDisplacementMeshToAssets(UNaniteDisplacedMesh* DisplacementMesh);
+	void WaitForDependentDisplacedMeshesToFinishTheirCompilation(UObject* AssetAboutToChange);
+
 private:
+	// Track the change to asset for actors
 	TMap<UClass*, FActorClassHandler> ActorClassHandlers;
 	TMap<TObjectKey<AActor>, TArray<TObjectKey<UObject>>> ActorsToDependencies;
 	TMap<TObjectKey<UObject>, TSet<TObjectKey<AActor>>> DependenciesToActors;
 
+	// Track re import of asset for the displaced meshes
+	struct FBidirectionalAssetsAndDisplacementMeshMap
+	{
+		void RemoveDisplacedMesh(UNaniteDisplacedMesh* DisplacedMesh);
+		void RemoveAssetForReimportTracking(UObject* Object);
+
+		void AddDisplacedMesh(UNaniteDisplacedMesh* Mesh, TSet<UObject*>&& AssetsToTrack);
+
+		const TSet<UNaniteDisplacedMesh*>* GetMeshesThatUseAsset(UObject* Object);
+		const TSet<UNaniteDisplacedMesh*>* GetMeshesThatUseAsset(UObject* Object, uint32 Hash);
+
+		void ReplaceObject(UObject* OldObject, UObject* NewObject);
+	private:
+		TMap<UNaniteDisplacedMesh*, TSet<UObject*>> MeshToAssets;
+		TMap<UObject*, TSet<UNaniteDisplacedMesh*>> AssetToMeshes;
+	};
+
+	FBidirectionalAssetsAndDisplacementMeshMap MeshesAndAssetsReimportTracking;
+
+	bool bIsNotifyingDisplacedMeshesOfAssetChange = false;
+
+	FDelegateHandle OnPreEditChangeHandle;
 	FDelegateHandle OnPostEditChangeHandle;
 	FDelegateHandle OnObjectsReplacedHandle;
 	FDelegateHandle OnLevelActorDeletedHandle;
+	FDelegateHandle OnAssetReimportHandle;
+	FDelegateHandle OnAssetPostImportHandle;
+	FDelegateHandle OnAssetPreImportHandle;
+	FDelegateHandle OnInMemoryAssetDeleted;
+
+private:
+	// Begin FUObjectArray::FUObjectDeleteListener Api
+	virtual void NotifyUObjectDeleted(const UObjectBase *Object, int32 Index) override;
+	virtual void OnUObjectArrayShutdown() override;
+	// End FUObjectArray::FUObjectDeleteListener Api
+
 };

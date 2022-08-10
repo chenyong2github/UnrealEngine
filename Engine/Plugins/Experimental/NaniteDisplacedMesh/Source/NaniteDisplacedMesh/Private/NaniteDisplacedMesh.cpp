@@ -122,13 +122,16 @@ private:
 	void BeginCache(const FIoHash& KeyHash);
 	void EndCache(UE::DerivedData::FCacheGetValueResponse&& Response);
 	bool BuildData(const UE::DerivedData::FSharedString& Name, const UE::DerivedData::FCacheKey& Key);
-	void InitResources();
 
 private:
 	friend class FNaniteDisplacedMeshAsyncBuildWorker;
 	TUniquePtr<FNaniteDisplacedMeshAsyncBuildTask> BuildTask;
 	FNaniteData* Data;
 	TWeakObjectPtr<UNaniteDisplacedMesh> WeakDisplacedMesh;
+
+	// Raw for now (The compilation is protected by the NaniteDisplacedMeshEditorSubsystem (todo update this so that it is safe even when the editor subsystem is not present))
+	FNaniteDisplacedMeshParams Parameters;
+
 	UE::DerivedData::FRequestOwner Owner;
 	TRefCountPtr<IExecutionResource> ExecutionResource;
 };
@@ -141,6 +144,7 @@ FNaniteBuildAsyncCacheTask::FNaniteBuildAsyncCacheTask(
 )
 	: Data(InData)
 	, WeakDisplacedMesh(&InDisplacedMesh)
+	, Parameters(InDisplacedMesh.Parameters)
 	// Once we pass the BeginCache throttling gate, we want to finish as fast as possible
 	// to avoid holding on to memory for a long time. We use the highest priority for all
 	// subsequent task.
@@ -201,7 +205,7 @@ void FNaniteBuildAsyncCacheTask::EndCache(UE::DerivedData::FCacheGetValueRespons
 				Data->Resources.Serialize(Ar, DisplacedMesh, /*bCooked*/ false);
 				Ar << Data->MeshSections;
 
-				InitResources();
+				// The initialization of the resources is done by the nanite FNaniteDisplacedMeshCompilingManager to avoid race conditions
 			}
 		});
 	}
@@ -225,7 +229,7 @@ void FNaniteBuildAsyncCacheTask::EndCache(UE::DerivedData::FCacheGetValueRespons
 
 				GetCache().PutValue({ {Name, Key, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(RecordData)))} }, Owner);
 
-				InitResources();
+				// The initialization of the resources is done by the nanite FNaniteDisplacedMeshCompilingManager to avoid race conditions
 			}
 		});
 	}
@@ -259,7 +263,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 	Data->Resources = {};
 	Data->MeshSections.Empty();
 
-	UStaticMesh* BaseMesh = DisplacedMesh->Parameters.BaseMesh;
+	UStaticMesh* BaseMesh = Parameters.BaseMesh;
 
 	if (!IsValid(BaseMesh))
 	{
@@ -289,7 +293,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 	// will always want Nanite unless the platform, runtime, or "Disallow Nanite" on SMC prevents it.
 	FMeshNaniteSettings NaniteSettings;
 	NaniteSettings.bEnabled = true;
-	NaniteSettings.TrimRelativeError = DisplacedMesh->Parameters.RelativeError;
+	NaniteSettings.TrimRelativeError = Parameters.RelativeError;
 
 	const int32 NumSourceModels = BaseMesh->GetNumSourceModels();
 
@@ -370,7 +374,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 
 	// Perform displacement mapping against base mesh using supplied parameterization
 	if (!DisplaceNaniteMesh(
-			DisplacedMesh->Parameters,
+			Parameters,
 			NumTextureCoord,
 			InputMeshData.Vertices,
 			InputMeshData.TriangleIndices,
@@ -425,20 +429,7 @@ void FNaniteBuildAsyncCacheTask::Reschedule(FQueuedThreadPool* InThreadPool, EQu
 	}
 }
 
-void FNaniteBuildAsyncCacheTask::InitResources()
-{
-	Async(EAsyncExecution::TaskGraphMainThread, [this]
-	{
-		if (UNaniteDisplacedMesh* DisplacedMesh = WeakDisplacedMesh.Get())
-		{
-			// Only initialize resources for the running platform
-			if (Data == &DisplacedMesh->Data)
-			{
-				DisplacedMesh->InitResources();
-			}
-		}
-	});
-}
+UNaniteDisplacedMesh::FOnNaniteDisplacmentMeshDependenciesChanged UNaniteDisplacedMesh::OnDependenciesChanged;
 
 #endif
 
@@ -485,6 +476,10 @@ void UNaniteDisplacedMesh::PostLoad()
 		}
 	#endif
 	}
+
+	#if WITH_EDITOR
+		OnDependenciesChanged.Broadcast(this);
+	#endif
 
 	Super::PostLoad();
 }
@@ -557,27 +552,11 @@ bool UNaniteDisplacedMesh::HasValidNaniteData() const
 
 #if WITH_EDITOR
 
-void UNaniteDisplacedMesh::PreEditChange(FProperty* PropertyAboutToChange)
-{
-	// Cancel any async cache and build tasks.
-	CacheTasksByKeyHash.Empty();
-
-	// Make sure the GPU is no longer referencing the current Nanite resource data.
-	ReleaseResources();
-	ReleaseResourcesFence.Wait();
-	Data.Resources = {};
-	Data.MeshSections.Empty();
-
-	Super::PreEditChange(PropertyAboutToChange);
-}
-
 void UNaniteDisplacedMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	// Make sure we finish the previous build before starting another one
-	TryCancelAsyncTasks();
-	FinishAsyncTasks();
-
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	OnDependenciesChanged.Broadcast(this);
 
 	// TODO: Add delegates for begin and end build events to safely reload scene proxies, etc.
 
@@ -618,24 +597,24 @@ void UNaniteDisplacedMesh::ClearAllCachedCookedPlatformData()
 	Super::ClearAllCachedCookedPlatformData();
 }
 
-FDelegateHandle UNaniteDisplacedMesh::RegisterOnRebuild(const FOnRebuild& Delegate)
+FDelegateHandle UNaniteDisplacedMesh::RegisterOnRenderingDataChanged(const FOnRebuild& Delegate)
 {
-	return OnRebuild.Add(Delegate);
+	return OnRenderingDataChanged.Add(Delegate);
 }
 
-void UNaniteDisplacedMesh::UnregisterOnRebuild(void* Unregister)
+void UNaniteDisplacedMesh::UnregisterOnRenderingDataChanged(void* Unregister)
 {
-	OnRebuild.RemoveAll(Unregister);
+	OnRenderingDataChanged.RemoveAll(Unregister);
 }
 
-void UNaniteDisplacedMesh::UnregisterOnRebuild(FDelegateHandle Handle)
+void UNaniteDisplacedMesh::UnregisterOnRenderingDataChanged(FDelegateHandle Handle)
 {
-	OnRebuild.Remove(Handle);
+	OnRenderingDataChanged.Remove(Handle);
 }
 
-void UNaniteDisplacedMesh::NotifyOnRebuild()
+void UNaniteDisplacedMesh::NotifyOnRenderingDataChanged()
 {
-	OnRebuild.Broadcast();
+	OnRenderingDataChanged.Broadcast();
 }
 
 FIoHash UNaniteDisplacedMesh::CreateDerivedDataKeyHash(const ITargetPlatform* TargetPlatform)
@@ -647,7 +626,7 @@ FIoHash UNaniteDisplacedMesh::CreateDerivedDataKeyHash(const ITargetPlatform* Ta
 
 	FMemoryHasherBlake3 Writer;
 
-	FGuid DisplacedMeshVersionGuid(0x9D52AD14, 0x38AE4012, 0xB020AB31, 0xE7DCF4F6);
+	FGuid DisplacedMeshVersionGuid(0x5E7DB989, 0x619E4CCA, 0x88D133BE, 0x2B847F10);
 	Writer << DisplacedMeshVersionGuid;
 
 	FGuid NaniteVersionGuid = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().NANITE_DERIVEDDATA_VER);
@@ -687,6 +666,18 @@ FIoHash UNaniteDisplacedMesh::BeginCacheDerivedData(const ITargetPlatform* Targe
 	{
 		return KeyHash;
 	}
+
+	// Make sure we finish the previous build before starting another one
+	UNaniteDisplacedMesh* LValueThis = this;
+	FNaniteDisplacedMeshCompilingManager::Get().FinishCompilation(TArrayView<UNaniteDisplacedMesh* const>(&LValueThis, 1));
+
+	// Make sure the GPU is no longer referencing the current Nanite resource data.
+	ReleaseResources();
+	ReleaseResourcesFence.Wait();
+	Data.Resources = {};
+	Data.MeshSections.Empty();
+
+	NotifyOnRenderingDataChanged();
 
 	FNaniteData* TargetData = nullptr;
 	if (TargetPlatform->IsRunningPlatform())

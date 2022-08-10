@@ -153,7 +153,6 @@ public:
 	}
 
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
@@ -213,18 +212,21 @@ private:
 	TMap<FIoHash, TUniquePtr<FNaniteData>> DataByPlatformKeyHash;
 	TMap<FIoHash, TPimplPtr<FNaniteBuildAsyncCacheTask>> CacheTasksByKeyHash;
 
-	DECLARE_MULTICAST_DELEGATE(FOnNaniteDisplacedMeshRebuild);
-	FOnNaniteDisplacedMeshRebuild OnRebuild;
+	DECLARE_MULTICAST_DELEGATE(FOnNaniteDisplacedMeshRenderingDataChanged);
+	FOnNaniteDisplacedMeshRenderingDataChanged OnRenderingDataChanged;
 #endif
 
 public:
 #if WITH_EDITOR
-	typedef FOnNaniteDisplacedMeshRebuild::FDelegate FOnRebuild;
-	FDelegateHandle RegisterOnRebuild(const FOnRebuild& Delegate);
-	void UnregisterOnRebuild(void* Unregister);
-	void UnregisterOnRebuild(FDelegateHandle Handle);
+	typedef FOnNaniteDisplacedMeshRenderingDataChanged::FDelegate FOnRebuild;
+	FDelegateHandle RegisterOnRenderingDataChanged(const FOnRebuild& Delegate);
+	void UnregisterOnRenderingDataChanged(void* Unregister);
+	void UnregisterOnRenderingDataChanged(FDelegateHandle Handle);
 
-	void NotifyOnRebuild();
+	void NotifyOnRenderingDataChanged();
+
+	DECLARE_EVENT_OneParam(UNaniteDisplacedMesh, FOnNaniteDisplacmentMeshDependenciesChanged, UNaniteDisplacedMesh*);
+	static FOnNaniteDisplacmentMeshDependenciesChanged OnDependenciesChanged;
 #endif
 };
 

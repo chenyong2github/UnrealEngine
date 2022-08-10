@@ -190,7 +190,8 @@ void FNaniteDisplacedMeshCompilingManager::PostCompilation(TArrayView<UNaniteDis
 
 				if (FApp::CanEverRender())
 				{
-					NaniteDisplacedMesh->NotifyOnRebuild();
+					NaniteDisplacedMesh->InitResources();
+					NaniteDisplacedMesh->NotifyOnRenderingDataChanged();
 				}
 			}
 		}
