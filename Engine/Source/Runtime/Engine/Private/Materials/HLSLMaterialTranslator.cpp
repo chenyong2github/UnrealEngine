@@ -6571,7 +6571,7 @@ void FHLSLMaterialTranslator::UseSceneTextureId(ESceneTextureId SceneTextureId, 
 
 	if (bNeedsGBuffer && IsForwardShadingEnabled(Platform))
 	{
-		Errorf(TEXT("GBuffer scene textures not available with forward shading."));
+		Errorf(TEXT("GBuffer scene textures not available with forward shading (platform id %d)."), Platform);
 	}
 
 	if (SceneTextureId == PPI_Velocity)
