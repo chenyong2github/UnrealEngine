@@ -17,11 +17,10 @@ bool FWorldPartitionActorDescUtils::IsValidActorDescriptorFromAssetData(const FA
 	return InAssetData.FindTag(NAME_ActorMetaDataClass) && InAssetData.FindTag(NAME_ActorMetaData);
 }
 
-TUniquePtr<FWorldPartitionActorDesc> FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(const FAssetData& InAssetData)
+UClass* FWorldPartitionActorDescUtils::GetActorNativeClassFromAssetData(const FAssetData& InAssetData)
 {
 	FString ActorMetaDataClass;
-	FString ActorMetaDataStr;
-	if (InAssetData.GetTagValue(NAME_ActorMetaDataClass, ActorMetaDataClass) && InAssetData.GetTagValue(NAME_ActorMetaData, ActorMetaDataStr))
+	if (InAssetData.GetTagValue(NAME_ActorMetaDataClass, ActorMetaDataClass))
 	{
 		FString ActorClassName;
 		FString ActorPackageName;
@@ -34,8 +33,19 @@ TUniquePtr<FWorldPartitionActorDesc> FWorldPartitionActorDescUtils::GetActorDesc
 		const FCoreRedirectObjectName OldClassName = FCoreRedirectObjectName(*ActorClassName, NAME_None, *ActorPackageName);
 		const FCoreRedirectObjectName NewClassName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, OldClassName);
 
+		return UClass::TryFindTypeSlow<UClass>(NewClassName.ToString(), EFindFirstObjectOptions::ExactClass);
+	}
+	return nullptr;
+}
+
+TUniquePtr<FWorldPartitionActorDesc> FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(const FAssetData& InAssetData)
+{
+	FString ActorMetaDataClass;
+	FString ActorMetaDataStr;
+	if (InAssetData.GetTagValue(NAME_ActorMetaDataClass, ActorMetaDataClass) && InAssetData.GetTagValue(NAME_ActorMetaData, ActorMetaDataStr))
+	{
 		bool bIsValidClass = true;
-		UClass* ActorClass = UClass::TryFindTypeSlow<UClass>(NewClassName.ToString(), EFindFirstObjectOptions::ExactClass);
+		UClass* ActorClass = GetActorNativeClassFromAssetData(InAssetData);
 
 		if (!ActorClass)
 		{
@@ -55,7 +65,7 @@ TUniquePtr<FWorldPartitionActorDesc> FWorldPartitionActorDescUtils::GetActorDesc
 			
 		if (!bIsValidClass)
 		{
-			UE_LOG(LogWorldPartition, Warning, TEXT("Invalid class `%s` for actor guid `%s` ('%s') from package '%s'"), *NewClassName.ToString(), *NewActorDesc->GetGuid().ToString(), *NewActorDesc->GetActorName().ToString(), *NewActorDesc->GetActorPackage().ToString());
+			UE_LOG(LogWorldPartition, Warning, TEXT("Invalid class for actor guid `%s` ('%s') from package '%s'"), *NewActorDesc->GetGuid().ToString(), *NewActorDesc->GetActorName().ToString(), *NewActorDesc->GetActorPackage().ToString());
 			return nullptr;
 		}
 

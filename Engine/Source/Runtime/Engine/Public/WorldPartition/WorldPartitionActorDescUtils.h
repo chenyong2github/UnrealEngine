@@ -12,6 +12,7 @@ struct FAssetData;
 struct ENGINE_API FWorldPartitionActorDescUtils
 {
 	static bool IsValidActorDescriptorFromAssetData(const FAssetData& InAssetData);
+	static UClass* GetActorNativeClassFromAssetData(const FAssetData& InAssetData);
 	static TUniquePtr<FWorldPartitionActorDesc> GetActorDescriptorFromAssetData(const FAssetData& InAssetData);
 	static void AppendAssetDataTagsFromActor(const AActor* Actor, TArray<UObject::FAssetRegistryTag>& OutTags);
 	static void UpdateActorDescriptorFomActor(const AActor* Actor, TUniquePtr<FWorldPartitionActorDesc>& ActorDesc);

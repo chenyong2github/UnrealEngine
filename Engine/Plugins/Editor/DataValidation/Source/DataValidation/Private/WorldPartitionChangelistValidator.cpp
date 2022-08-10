@@ -74,9 +74,9 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	FSourceControlChangelistStatePtr ChangelistState = SourceControlProvider.GetState(Changelist->Changelist->AsShared(), EStateCacheUsage::Use);
 
-	// Figure out which world(s) those assets are in and split the files per world
+	// Figure out which world(s) these actors are in and split the files per world, and return the actor's native class
 	TMap<FName, TSet<FAssetData>> MapToActorsFiles;
-	auto TryAssociateActorToMap = [&MapToActorsFiles](const FAssetData& AssetData)
+	auto TryAssociateActorToMap = [&MapToActorsFiles](const FAssetData& AssetData) -> UClass*
 	{
 		// Check that the asset is an actor
 		if (FWorldPartitionActorDescUtils::IsValidActorDescriptorFromAssetData(AssetData))
@@ -99,11 +99,11 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 			if (ActorFiles)	// A null Files indicates a World not using World Partition and OFPA 
 			{
 				ActorFiles->Add(AssetData);
-				return true;
+				return FWorldPartitionActorDescUtils::GetActorNativeClassFromAssetData(AssetData);;
 			}
 		}
 
-		return false;
+		return nullptr;
 	};
 	
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(FName("AssetRegistry"));
@@ -124,15 +124,11 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 			
 			for (FAssetData& AssetData : PackageAssetsData)
 			{
-				UClass* AssetClass = AssetData.GetClass();
-
-				if (TryAssociateActorToMap(AssetData))
+				if (UClass* ActorNativeClass = TryAssociateActorToMap(AssetData))
 				{
-					check(AssetClass);
-					check(AssetClass->IsChildOf<AActor>())
-					SubmittingWorldDataLayers = AssetClass->IsChildOf<AWorldDataLayers>();
+					SubmittingWorldDataLayers = ActorNativeClass->IsChildOf<AWorldDataLayers>();
 				}
-				else if (AssetClass)
+				else if (UClass* AssetClass = AssetData.GetClass())
 				{
 					if (AssetClass->IsChildOf<UDataLayerAsset>())
 					{
