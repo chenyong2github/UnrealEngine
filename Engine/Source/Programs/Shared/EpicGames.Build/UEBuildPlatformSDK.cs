@@ -1342,6 +1342,9 @@ namespace EpicGames.Core
 					{
 						// installers may require administrator access to succeed. so run as an admin.
 						HookProcess.StartInfo.Verb = "runas";
+
+						//Forcing the old .Net Framework default to prevent processes from failing
+						HookProcess.StartInfo.UseShellExecute = true;
 					}
 					else
 					{
