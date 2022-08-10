@@ -130,7 +130,7 @@ TOnlineResult<FGetResolvedConnectString> FOnlineServicesEOSGS::GetResolvedConnec
 		ISessionsPtr SessionsEOS = GetSessionsInterface();
 		check(SessionsEOS);
 
-		TOnlineResult<FGetSessionById> Result = SessionsEOS->GetSessionById({ Params.SessionId });
+		TOnlineResult<FGetSessionById> Result = SessionsEOS->GetSessionById({ Params.LocalUserId, Params.SessionId });
 		if (Result.IsOk())
 		{
 #if WITH_ENGINE

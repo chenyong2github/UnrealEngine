@@ -23,6 +23,11 @@ FOnlineSessionIdHandle FOnlineSessionIdRegistryLAN::GetNextSessionId()
 	return BasicRegistry.FindOrAddHandle(FGuid::NewGuid().ToString());
 }
 
+bool FOnlineSessionIdRegistryLAN::IsSessionIdExpired(const FOnlineSessionIdHandle& InHandle) const
+{
+	return BasicRegistry.FindIdValue(InHandle).IsEmpty();
+}
+
 /** FSessionLAN */
 
 FSessionLAN::FSessionLAN()
@@ -129,8 +134,7 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsLAN::CreateSession(FCreateSession:
 		// For LAN sessions, we'll add all the Session members manually instead of calling JoinSession since there is no API calls involved
 		NewSessionLANRef->SessionSettings.SessionMembers.Append(OpParams.LocalUsers);
 
-		SessionsByName.Add(OpParams.SessionName, NewSessionLANRef);
-		SessionsById.Add(NewSessionLANRef->SessionId, NewSessionLANRef);
+		LocalSessionsByName.Add(OpParams.SessionName, NewSessionLANRef);
 
 		Op.SetResult(FCreateSession::Result{ NewSessionLANRef });
 	})
@@ -156,7 +160,7 @@ TOnlineAsyncOpHandle<FUpdateSession> FSessionsLAN::UpdateSession(FUpdateSession:
 
 		// We'll check and update all settings one by one, with additional logic wherever required
 
-		TSharedRef<FSession>& FoundSession = SessionsByName.FindChecked(OpParams.SessionName);
+		TSharedRef<FSession>& FoundSession = LocalSessionsByName.FindChecked(OpParams.SessionName);
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 		const FSessionSettingsUpdate& UpdatedSettings = OpParams.Mutations;
 
@@ -248,11 +252,23 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsLAN::JoinSession(FJoinSession::Param
 			return;
 		}
 
-		// TODO: This should retrieve an FSession from a cache and move it, instead of making a copy
-		TSharedRef<FSession> NewSessionRef = MakeShared<FSession>(*OpParams.Session);
+		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.LocalUserId, OpParams.SessionId });
+		if (GetSessionByIdResult.IsError())
+		{
+			// If no result is found, the id might be expired, which we should notify
+			if (FOnlineSessionIdRegistryLAN::Get().IsSessionIdExpired(OpParams.SessionId))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FSessionsLAN::JoinSession] SessionId parameter [%s] is expired. Please call FindSessions to get an updated list of available sessions "), *ToLogString(OpParams.SessionId));
+			}
 
-		SessionsByName.Add(OpParams.SessionName, NewSessionRef);
-		SessionsById.Add(NewSessionRef->SessionId, NewSessionRef);
+			Op.SetError(MoveTemp(GetSessionByIdResult.GetErrorValue()));
+			return ;
+		}
+
+		const TSharedRef<const FSession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
+		TSharedRef<FSession> NewSessionRef = ConstCastSharedRef<FSession>(FoundSession);
+
+		LocalSessionsByName.Add(OpParams.SessionName, NewSessionRef);
 
 		Op.SetResult(FJoinSession::Result{ NewSessionRef });
 
@@ -286,7 +302,7 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsLAN::LeaveSession(FLeaveSession::Pa
 
 		// This scope guarantees that FoundSession can't be used after its removal
 		{
-			TSharedRef<FSession>& FoundSession = SessionsByName.FindChecked(OpParams.SessionName);
+			TSharedRef<FSession>& FoundSession = LocalSessionsByName.FindChecked(OpParams.SessionName);
 
 			// Only the host should stop the session at this point
 			if (FoundSession->OwnerUserId == OpParams.LocalUserId && FoundSession->SessionSettings.JoinPolicy == ESessionJoinPolicy::Public)
@@ -294,10 +310,7 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsLAN::LeaveSession(FLeaveSession::Pa
 				StopLANSession();
 			}
 
-			// TODO: Remove all local users from session
-
-			SessionsById.Remove(FoundSession->SessionId);
-			SessionsByName.Remove(OpParams.SessionName);
+			LocalSessionsByName.Remove(OpParams.SessionName);
 		}
 
 		Op.SetResult(FLeaveSession::Result{ });
@@ -400,7 +413,7 @@ void FSessionsLAN::StopLANSession()
 void FSessionsLAN::OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLength, uint64 ClientNonce)
 {
 	// Iterate through all registered sessions and respond for each one that can be joinable
-	for (const TPair<FName, TSharedRef<FSession>>& Entry : SessionsByName)
+	for (const TPair<FName, TSharedRef<FSession>>& Entry : LocalSessionsByName)
 	{
 		const TSharedRef<FSession>& Session = Entry.Value;
 
@@ -436,6 +449,9 @@ void FSessionsLAN::OnValidResponsePacketReceived(uint8* PacketData, int32 Packet
 		ReadSessionFromPacket(Packet, *Session);
 
 		CurrentSessionSearch->FoundSessions.Add(Session);
+
+		TMap<FOnlineSessionIdHandle, TSharedRef<FSession>>& UserMap = SessionSearchResultsUserMap.FindOrAdd(CurrentSessionSearchHandle->GetParams().LocalUserId);
+		UserMap.Emplace(Session->SessionId, Session);
 	}
 }
 

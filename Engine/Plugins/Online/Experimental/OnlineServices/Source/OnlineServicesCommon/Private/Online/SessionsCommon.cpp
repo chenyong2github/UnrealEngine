@@ -30,9 +30,9 @@ namespace UE::Online {
 		RegisterCommand(&FSessionsCommon::LeaveSession);
 		RegisterCommand(&FSessionsCommon::FindSessions);
 		RegisterCommand(&FSessionsCommon::StartMatchmaking);
-		//RegisterCommand(&FSessionsCommon::JoinSession);
+		RegisterCommand(&FSessionsCommon::JoinSession);
 		RegisterCommand(&FSessionsCommon::SendSessionInvite);
-		//RegisterCommand(&FSessionsCommon::RejectSessionInvite);
+		RegisterCommand(&FSessionsCommon::RejectSessionInvite);
 		RegisterCommand(&FSessionsCommon::RegisterPlayers);
 		RegisterCommand(&FSessionsCommon::UnregisterPlayers);
 	}
@@ -41,7 +41,7 @@ namespace UE::Online {
 	{
 		FGetAllSessions::Result Result;
 
-		for (const TPair<FName, TSharedRef<FSession>>& SessionPair : SessionsByName)
+		for (const TPair<FName, TSharedRef<FSession>>& SessionPair : LocalSessionsByName)
 		{
 			Result.Sessions.Add(SessionPair.Value);
 		}
@@ -51,7 +51,7 @@ namespace UE::Online {
 
 	TOnlineResult<FGetSessionByName> FSessionsCommon::GetSessionByName(FGetSessionByName::Params&& Params) const
 	{
-		if (const TSharedRef<FSession>* FoundSession = SessionsByName.Find(Params.LocalName))
+		if (const TSharedRef<FSession>* FoundSession = LocalSessionsByName.Find(Params.LocalName))
 		{
 			return TOnlineResult<FGetSessionByName>({ *FoundSession });
 		}
@@ -63,14 +63,26 @@ namespace UE::Online {
 
 	TOnlineResult<FGetSessionById> FSessionsCommon::GetSessionById(FGetSessionById::Params&& Params) const
 	{
-		if (const TSharedRef<FSession>* FoundSession = SessionsById.Find(Params.IdHandle))
+		if (const TMap<FOnlineSessionIdHandle, TSharedRef<FSession>>* UserMap = SessionSearchResultsUserMap.Find(Params.LocalUserId))
 		{
-			return TOnlineResult<FGetSessionById>({ *FoundSession });
+			if (const TSharedRef<FSession>* FoundSession = UserMap->Find(Params.IdHandle))
+			{
+				return TOnlineResult<FGetSessionById>({ *FoundSession });
+			}
 		}
-		else
+
+		if (const TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(Params.LocalUserId))
 		{
-			return TOnlineResult<FGetSessionById>(Errors::NotFound());
+			for (const TPair<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>& Entry : *UserMap)
+			{
+				if (Entry.Value->Session->SessionId == Params.IdHandle)
+				{
+					return TOnlineResult<FGetSessionById>({ Entry.Value->Session });
+				}
+			}
 		}
+
+		return TOnlineResult<FGetSessionById>({ Errors::NotFound() });
 	}
 
 	TOnlineAsyncOpHandle<FCreateSession> FSessionsCommon::CreateSession(FCreateSession::Params&& Params)
@@ -182,6 +194,25 @@ namespace UE::Online {
 		return Operation->GetHandle();
 	}
 
+	TOnlineResult<FGetSessionInvites> FSessionsCommon::GetSessionInvites(FGetSessionInvites::Params&& Params)
+	{
+		TArray<TSharedRef<const FSessionInvite>> SessionInvites;
+
+		if (const TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(Params.LocalUserId))
+		{
+			for (const TPair<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>& Entry : *UserMap)
+			{
+				SessionInvites.Add(Entry.Value);
+			}
+		}
+		else
+		{
+			return TOnlineResult<FGetSessionInvites>(Errors::NotFound());
+		}
+
+		return TOnlineResult<FGetSessionInvites>({ SessionInvites });
+	}
+
 	TOnlineAsyncOpHandle<FRejectSessionInvite> FSessionsCommon::RejectSessionInvite(FRejectSessionInvite::Params&& Params)
 	{
 		TOnlineAsyncOpRef<FRejectSessionInvite> Operation = GetOp<FRejectSessionInvite>(MoveTemp(Params));
@@ -278,7 +309,7 @@ namespace UE::Online {
 
 	TOnlineResult<FAddSessionMembers> FSessionsCommon::AddSessionMembersImpl(const FAddSessionMembers::Params& Params)
 	{
-		TSharedRef<FSession> FoundSession = SessionsByName.FindChecked(Params.SessionName);
+		TSharedRef<FSession> FoundSession = LocalSessionsByName.FindChecked(Params.SessionName);
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
@@ -343,7 +374,7 @@ namespace UE::Online {
 
 	TOnlineResult<FRemoveSessionMembers> FSessionsCommon::RemoveSessionMembersImpl(const FRemoveSessionMembers::Params& Params)
 	{
-		TSharedRef<FSession> FoundSession = SessionsByName.FindChecked(Params.SessionName);
+		TSharedRef<FSession> FoundSession = LocalSessionsByName.FindChecked(Params.SessionName);
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
@@ -385,7 +416,7 @@ namespace UE::Online {
 
 	TOnlineResult<FRegisterPlayers> FSessionsCommon::RegisterPlayersImpl(const FRegisterPlayers::Params& Params)
 	{
-		TSharedRef<FSession> FoundSession = SessionsByName.FindChecked(Params.SessionName);
+		TSharedRef<FSession> FoundSession = LocalSessionsByName.FindChecked(Params.SessionName);
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
@@ -424,7 +455,7 @@ namespace UE::Online {
 
 	TOnlineResult<FUnregisterPlayers> FSessionsCommon::UnregisterPlayersImpl(const FUnregisterPlayers::Params& Params)
 	{
-		TSharedRef<FSession> FoundSession = SessionsByName.FindChecked(Params.SessionName);
+		TSharedRef<FSession> FoundSession = LocalSessionsByName.FindChecked(Params.SessionName);
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
@@ -485,7 +516,7 @@ namespace UE::Online {
 
 	FOnlineError FSessionsCommon::CheckCreateSessionState(const FCreateSession::Params& Params)
 	{
-		if (TSharedRef<FSession>* FoundSession = SessionsByName.Find(Params.SessionName))
+		if (TSharedRef<FSession>* FoundSession = LocalSessionsByName.Find(Params.SessionName))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionState] Could not create session with name [%s]. A session with that name already exists"), *Params.SessionName.ToString());
 
@@ -494,7 +525,7 @@ namespace UE::Online {
 
 		if (Params.SessionSettings.bPresenceEnabled)
 		{
-			for (const TPair<FName, TSharedRef<FSession>>& Entry : SessionsByName)
+			for (const TPair<FName, TSharedRef<FSession>>& Entry : LocalSessionsByName)
 			{
 				if (Entry.Value->SessionSettings.bPresenceEnabled)
 				{
@@ -527,7 +558,7 @@ namespace UE::Online {
 
 	FOnlineError FSessionsCommon::CheckUpdateSessionState(const FUpdateSession::Params& Params)
 	{
-		if (TSharedRef<FSession>* FoundSession = SessionsByName.Find(Params.SessionName))
+		if (TSharedRef<FSession>* FoundSession = LocalSessionsByName.Find(Params.SessionName))
 		{
 			if (!FoundSession->Get().SessionSettings.bIsDedicatedServerSession)
 			{
@@ -584,61 +615,32 @@ namespace UE::Online {
 
 	FOnlineError FSessionsCommon::CheckJoinSessionParams(const FJoinSession::Params& Params)
 	{
-		const FSessionSettings& SessionSettings = Params.Session->SessionSettings;
-
-		if (Params.Session->CurrentState != ESessionState::Valid)
+		if (!Params.LocalUserId.IsValid())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::FJoinSession] Could not join session with invalid session state [%s]"), LexToString(Params.Session->CurrentState));
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session with name [%s]. LocalUserId [%s] not valid"), *ToLogString(Params.LocalUserId));
 
 			return Errors::InvalidParams();
 		}
 
-		TArray<FOnlineAccountIdHandle> LocalUserIds;
-		LocalUserIds.Reserve(Params.LocalUsers.Num());
-		Params.LocalUsers.GenerateKeyArray(LocalUserIds);
-
-		for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
+		if (!Params.LocalUsers.Contains(Params.LocalUserId))
 		{
-			if (SessionSettings.SessionMembers.Contains(LocalUserId))
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session. User [%s] already in session"), *ToLogString(LocalUserId));
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session with name [%s]. Missing Session Member info for user [%s]"), *ToLogString(Params.LocalUserId));
 
-				return Errors::AccessDenied();
-			}
+			return Errors::InvalidParams();
 		}
 
-		if (!SessionSettings.bAllowNewMembers)
+		if (!Params.SessionId.IsValid())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session. bAllowNewMembers is set to false"));
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session with name [%s]. SessionId [%s] not valid"), *ToLogString(Params.SessionId));
 
-			return Errors::AccessDenied();
+			return Errors::InvalidParams();
 		}
 
-		if (!SessionSettings.bAllowUnregisteredPlayers)
+		if (Params.SessionName.ToString().IsEmpty())
 		{
-			for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
-			{
-				if (!SessionSettings.RegisteredPlayers.Contains(LocalUserId))
-				{
-					UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session. bAllowUnregisteredPlayers is set to false and user [%s] is not registered"), *ToLogString(LocalUserId));
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session with no valid SessionName set"));
 
-					return Errors::AccessDenied();
-				}
-			}
-		}
-
-		if (SessionSettings.NumMaxPublicConnections > 0 && SessionSettings.NumOpenPublicConnections < (uint32)LocalUserIds.Num())
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session. Not enough NumOpenPublicConnections [%u] for the amount of joining players [%d]"), SessionSettings.NumOpenPublicConnections, LocalUserIds.Num());
-
-			return Errors::AccessDenied();
-		}
-
-		if (SessionSettings.NumMaxPrivateConnections > 0 && SessionSettings.NumOpenPrivateConnections < (uint32)LocalUserIds.Num())
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session. Not enough NumOpenPrivateConnections [%u] for the amount of joining players [%d]"), SessionSettings.NumOpenPrivateConnections, LocalUserIds.Num());
-
-			return Errors::AccessDenied();
+			return Errors::InvalidParams();
 		}
 
 		return Errors::Success();
@@ -647,7 +649,7 @@ namespace UE::Online {
 	FOnlineError FSessionsCommon::CheckJoinSessionState(const FJoinSession::Params& Params)
 	{
 		// Check if a session with that name already exists
-		if (TSharedRef<FSession>* FoundSession = SessionsByName.Find(Params.SessionName))
+		if (TSharedRef<FSession>* FoundSession = LocalSessionsByName.Find(Params.SessionName))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session with name [%s]. A session with that name already exists"), *Params.SessionName.ToString());
 
@@ -669,6 +671,70 @@ namespace UE::Online {
 
 				return Errors::InvalidUser();
 			}
+		}
+
+		// We check that the session is cached and valid for a join operation by the users
+		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ Params.LocalUserId, Params.SessionId });
+		if (GetSessionByIdResult.IsError())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Unable to find session with SessionId parameter [%s]. Please call FindSessions to get an updated list of available sessions "), *ToLogString(Params.SessionId));
+
+			return GetSessionByIdResult.GetErrorValue();
+		}
+
+		TSharedRef<const FSession> FoundSession = GetSessionByIdResult.GetOkValue().Session;
+
+		const FSessionSettings& SessionSettings = FoundSession->SessionSettings;
+
+		if (FoundSession->CurrentState != ESessionState::Valid)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session with invalid session state [%s]"), LexToString(FoundSession->CurrentState));
+
+			return Errors::InvalidParams();
+		}
+
+		for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
+		{
+			if (SessionSettings.SessionMembers.Contains(LocalUserId))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session. User [%s] already in session"), *ToLogString(LocalUserId));
+
+				return Errors::AccessDenied();
+			}
+		}
+
+		if (!SessionSettings.bAllowNewMembers)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session. bAllowNewMembers is set to false"));
+
+			return Errors::AccessDenied();
+		}
+
+		if (!SessionSettings.bAllowUnregisteredPlayers)
+		{
+			for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
+			{
+				if (!SessionSettings.RegisteredPlayers.Contains(LocalUserId))
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session. bAllowUnregisteredPlayers is set to false and user [%s] is not registered"), *ToLogString(LocalUserId));
+
+					return Errors::AccessDenied();
+				}
+			}
+		}
+
+		if (SessionSettings.NumMaxPublicConnections > 0 && SessionSettings.NumOpenPublicConnections < (uint32)LocalUserIds.Num())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session. Not enough NumOpenPublicConnections [%u] for the amount of joining players [%d]"), SessionSettings.NumOpenPublicConnections, LocalUserIds.Num());
+
+			return Errors::AccessDenied();
+		}
+
+		if (SessionSettings.NumMaxPrivateConnections > 0 && SessionSettings.NumOpenPrivateConnections < (uint32)LocalUserIds.Num())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session. Not enough NumOpenPrivateConnections [%u] for the amount of joining players [%d]"), SessionSettings.NumOpenPrivateConnections, LocalUserIds.Num());
+
+			return Errors::AccessDenied();
 		}
 
 		return Errors::Success();
@@ -703,7 +769,7 @@ namespace UE::Online {
 	FOnlineError FSessionsCommon::CheckLeaveSessionState(const FLeaveSession::Params& Params)
 	{
 		// User login check for main caller, session check
-		if (!SessionsByName.Contains(Params.SessionName))
+		if (!LocalSessionsByName.Contains(Params.SessionName))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckLeaveSessionState] Could not leave session with name [%s]. Session not found"), *Params.SessionName.ToString());
 
@@ -729,7 +795,7 @@ namespace UE::Online {
 	FOnlineError FSessionsCommon::CheckSendSessionInviteState(const FSendSessionInvite::Params& Params)
 	{
 		// User login check for main caller, session check
-		if (TSharedRef<FSession>* FoundSession = SessionsByName.Find(Params.SessionName))
+		if (TSharedRef<FSession>* FoundSession = LocalSessionsByName.Find(Params.SessionName))
 		{
 			if (!FoundSession->Get().SessionSettings.bIsDedicatedServerSession)
 			{
@@ -798,7 +864,7 @@ namespace UE::Online {
 	{
 		TOptional<FOnlineError> Result;
 
-		if (!SessionsByName.Contains(SessionName))
+		if (!LocalSessionsByName.Contains(SessionName))
 		{
 			Result.Emplace(Errors::NotFound());
 		}

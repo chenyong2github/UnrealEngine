@@ -16,6 +16,8 @@ public:
 	static FOnlineSessionIdRegistryLAN& Get();
 
 	FOnlineSessionIdHandle GetNextSessionId();
+
+	bool IsSessionIdExpired(const FOnlineSessionIdHandle& InHandle) const;
 };
 
 class ONLINESERVICESCOMMONENGINEUTILS_API FSessionLAN : public FSession

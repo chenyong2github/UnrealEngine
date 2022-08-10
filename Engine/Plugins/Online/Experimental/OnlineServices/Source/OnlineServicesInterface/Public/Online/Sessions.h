@@ -250,8 +250,8 @@ struct FSessionInvite
 	/* The user which sent the invite */
 	FOnlineAccountIdHandle SenderId;
 
-	/* The invite id, needed for retrieving session information and rejecting the invite */
-	FString InviteId;
+	/* The invite id handle, needed for retrieving session information and rejecting the invite */
+	FOnlineSessionInviteIdHandle InviteId;
 
 	/* Pointer to the session information */
 	TSharedRef<const FSession> Session;
@@ -297,6 +297,8 @@ struct FGetSessionById
 
 	struct Params
 	{
+		FOnlineAccountIdHandle LocalUserId;
+
 		FOnlineSessionIdHandle IdHandle;
 	};
 
@@ -457,8 +459,8 @@ struct FJoinSession
 		/* Local name for the session */
 		FName SessionName;
 
-		/* A reference to the session to be joined. */
-		TSharedRef<const FSession> Session; // TODO: FOnlineSessionIdHandle to be used after we cache search results
+		/* Id handle for the session to be joined. To be retrieved via session search or invite */
+		FOnlineSessionIdHandle SessionId;
 
 		/* Information for all local users who will join the session (includes the session creator). Any player that wants to join the session needs defined information to become a new member */
 		FSessionMembersMap LocalUsers;
@@ -544,6 +546,23 @@ struct FSendSessionInvite
 	};
 };
 
+struct FGetSessionInvites
+{
+	static constexpr TCHAR Name[] = TEXT("GetSessionInvites");
+
+	struct Params
+	{
+		/* The local user agent */
+		FOnlineAccountIdHandle LocalUserId;
+	};
+
+	struct Result
+	{
+		/** Set of active session invites */
+		TArray<TSharedRef<const FSessionInvite>> SessionInvites;
+	};
+};
+
 struct FRejectSessionInvite
 {
 	static constexpr TCHAR Name[] = TEXT("RejectSessionInvite");
@@ -553,8 +572,8 @@ struct FRejectSessionInvite
 		/* The local user agent which started the query*/
 		FOnlineAccountIdHandle LocalUserId;
 
-		/* The invite to be rejected */
-		TSharedRef<const FSessionInvite> SessionInvite; // TODO: FOnlineSessionInviteIdHandle to be used after we cache invites
+		/* The id handle for the invite to be rejected */
+		FOnlineSessionInviteIdHandle SessionInviteId;
 	};
 
 	struct Result
@@ -776,6 +795,14 @@ public:
 	virtual TOnlineAsyncOpHandle<FSendSessionInvite> SendSessionInvite(FSendSessionInvite::Params&& Params) = 0;
 
 	/**
+	 * Returns all cached session invites for the given user.
+	 *
+	 * @param Parameters for the SendSessionInvite call
+	 * @return
+	 */
+	virtual TOnlineResult<FGetSessionInvites> GetSessionInvites(FGetSessionInvites::Params&& Params) = 0;
+
+	/**
 	 * Rejects a given session invite for a user.
 	 *
 	 * @param Parameters for the RejectSessionInvite call
@@ -937,6 +964,7 @@ BEGIN_ONLINE_STRUCT_META(FGetSessionByName::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetSessionById::Params)
+	ONLINE_STRUCT_FIELD(FGetSessionById::Params, LocalUserId),
 	ONLINE_STRUCT_FIELD(FGetSessionById::Params, IdHandle)
 END_ONLINE_STRUCT_META()
 
@@ -1003,7 +1031,7 @@ END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FJoinSession::Params)
 	ONLINE_STRUCT_FIELD(FJoinSession::Params, LocalUserId),
 	ONLINE_STRUCT_FIELD(FJoinSession::Params, SessionName),
-	ONLINE_STRUCT_FIELD(FJoinSession::Params, Session),
+	ONLINE_STRUCT_FIELD(FJoinSession::Params, SessionId),
 	ONLINE_STRUCT_FIELD(FJoinSession::Params, LocalUsers)
 END_ONLINE_STRUCT_META()
 
@@ -1040,9 +1068,17 @@ END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FSendSessionInvite::Result)
 END_ONLINE_STRUCT_META()
 
+BEGIN_ONLINE_STRUCT_META(FGetSessionInvites::Params)
+	ONLINE_STRUCT_FIELD(FGetSessionInvites::Params, LocalUserId)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FGetSessionInvites::Result)
+	ONLINE_STRUCT_FIELD(FGetSessionInvites::Result, SessionInvites)
+END_ONLINE_STRUCT_META()
+
 BEGIN_ONLINE_STRUCT_META(FRejectSessionInvite::Params)
 	ONLINE_STRUCT_FIELD(FRejectSessionInvite::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FRejectSessionInvite::Params, SessionInvite)
+	ONLINE_STRUCT_FIELD(FRejectSessionInvite::Params, SessionInviteId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FRejectSessionInvite::Result)

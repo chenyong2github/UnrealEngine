@@ -83,5 +83,8 @@ using TOnlineBasicAccountIdRegistry = TOnlineBasicIdRegistry<OnlineIdHandleTags:
 template<typename IdValueType, EOnlineServices OnlineServicesType>
 using TOnlineBasicSessionIdRegistry = TOnlineBasicIdRegistry<OnlineIdHandleTags::FSession, IdValueType, OnlineServicesType>;
 
+template<typename IdValueType, EOnlineServices OnlineServicesType>
+using TOnlineBasicSessionInviteIdRegistry = TOnlineBasicIdRegistry<OnlineIdHandleTags::FSessionInvite, IdValueType, OnlineServicesType>;
+
 /* UE::Online */ }
 

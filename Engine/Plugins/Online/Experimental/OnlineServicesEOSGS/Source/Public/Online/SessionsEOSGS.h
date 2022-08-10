@@ -20,6 +20,16 @@ class FOnlineSessionIdRegistryEOSGS : public TOnlineSessionIdStringRegistry<EOnl
 {
 public:
 	static FOnlineSessionIdRegistryEOSGS& Get();
+
+	bool IsSessionIdExpired(const FOnlineSessionIdHandle& InHandle) const;
+};
+
+class FOnlineSessionInviteIdRegistryEOSGS : public TOnlineSessionInviteIdStringRegistry<EOnlineServices::Epic>
+{
+public:
+	static FOnlineSessionInviteIdRegistryEOSGS& Get();
+
+	bool IsSessionInviteIdExpired(const FOnlineSessionInviteIdHandle& InHandle) const;
 };
 
 static FName EOS_SESSIONS_BUCKET_ID = TEXT("EOS_SESSIONS_BUCKET_ID");
@@ -152,14 +162,10 @@ protected:
 	void WriteSessionSearchHandle(FSessionSearchHandleEOSGS& SessionSearchHandle, const FFindSessions::Params& Params);
 
 	static FOnlineSessionIdHandle CreateSessionId(const FString& SessionId);
+	FOnlineSessionInviteIdHandle CreateSessionInviteId(const FString& SessionInviteId) const;
 
 	/**
-	 * Builds a session invite from an invite id, using the class' Sessions Handle
-	 */
-	TResult<TSharedRef<const FSessionInvite>, FOnlineError> BuildSessionInvite(FOnlineAccountIdHandle RecipientId, FOnlineAccountIdHandle SenderId, const FString& InInviteId) const;
-
-	/**
-	* Builds a session from an invite id, using the class' Sessions Handle
+	 * Builds a session from an invite id, using the class' Sessions Handle
 	 */
 	TResult<TSharedRef<const FSession>, FOnlineError> BuildSessionFromInvite(const FString& InInviteId) const;
 
@@ -169,9 +175,6 @@ protected:
 	TResult<TSharedRef<const FSession>, FOnlineError> BuildSessionFromUIEvent(const EOS_UI_EventId& UIEventId) const;
 
 private:
-	/** Returns true if the named session is found and removed successfully, and false otherwise */
-	bool TryRemoveSession(const FName& SessionName);
-
 	// FSessionsLAN
 	virtual void AppendSessionToPacket(FNboSerializeToBuffer& Packet, const FSessionLAN& Session) override;
 	virtual void ReadSessionFromPacket(FNboSerializeFromBuffer& Packet, FSessionLAN& Session) override;

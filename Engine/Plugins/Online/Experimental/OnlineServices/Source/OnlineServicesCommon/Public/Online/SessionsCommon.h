@@ -62,6 +62,56 @@ public:
 	TOnlineBasicSessionIdRegistry<FString, OnlineServicesType> BasicRegistry;
 };
 
+template<EOnlineServices OnlineServicesType>
+class TOnlineSessionInviteIdStringRegistry : public IOnlineSessionInviteIdRegistry
+{
+public:
+	// Begin IOnlineSessionIdRegistry
+	virtual inline FString ToLogString(const FOnlineSessionInviteIdHandle& Handle) const override
+	{
+		FString IdValue = BasicRegistry.FindIdValue(Handle);
+
+		if (IdValue.Len() == 0)
+		{
+			IdValue = FString(TEXT("[InvalidSessionID]"));
+		}
+
+		return IdValue;
+	};
+
+	virtual inline TArray<uint8> ToReplicationData(const FOnlineSessionInviteIdHandle& Handle) const override
+	{
+		const FString IdValue = BasicRegistry.FindIdValue(Handle);
+		const FTCHARToUTF8 IdValueUtf8(IdValue);
+
+		TArray<uint8> ReplicationData;
+		ReplicationData.SetNumUninitialized(IdValueUtf8.Length());
+
+		FMemory::Memcpy(ReplicationData.GetData(), IdValueUtf8.Get(), IdValueUtf8.Length());
+
+		return ReplicationData;
+	}
+
+	virtual inline FOnlineSessionInviteIdHandle FromReplicationData(const TArray<uint8>& ReplicationData) override
+	{
+		const FUTF8ToTCHAR IdValueTCHAR((char*)ReplicationData.GetData(), ReplicationData.Num());
+		const FString IdValue = FString(IdValueTCHAR.Length(), IdValueTCHAR.Get());
+
+		if (!IdValue.IsEmpty())
+		{
+			return BasicRegistry.FindOrAddHandle(IdValue);
+		}
+
+		return FOnlineSessionInviteIdHandle();
+	}
+	// End IOnlineSessionIdRegistry
+
+	virtual ~TOnlineSessionInviteIdStringRegistry() = default;
+
+public:
+	TOnlineBasicSessionInviteIdRegistry<FString, OnlineServicesType> BasicRegistry;
+};
+
 class ONLINESERVICESCOMMON_API FSessionsCommon : public TOnlineComponent<ISessions>
 {
 public:
@@ -86,6 +136,7 @@ public:
 	virtual TOnlineAsyncOpHandle<FAddSessionMembers> AddSessionMembers(FAddSessionMembers::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FRemoveSessionMembers> RemoveSessionMembers(FRemoveSessionMembers::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FSendSessionInvite> SendSessionInvite(FSendSessionInvite::Params&& Params) override;
+	virtual TOnlineResult<FGetSessionInvites> GetSessionInvites(FGetSessionInvites::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FRejectSessionInvite> RejectSessionInvite(FRejectSessionInvite::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FRegisterPlayers> RegisterPlayers(FRegisterPlayers::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FUnregisterPlayers> UnregisterPlayers(FUnregisterPlayers::Params&& Params) override;
@@ -142,8 +193,12 @@ protected:
 		TOnlineEventCallable<void(const FUISessionJoinRequested&)> OnUISessionJoinRequested;
 	} SessionEvents;
 
-	TMap<FName, TSharedRef<FSession>> SessionsByName;
-	TMap<FOnlineSessionIdHandle, TSharedRef<FSession>> SessionsById;
+	/** Map of sessions that local users are part of, indexed by their local name */
+	TMap<FName, TSharedRef<FSession>> LocalSessionsByName;
+	/** Cache for the last set of session search results, mapped per user */
+	TMap<FOnlineAccountIdHandle, TMap<FOnlineSessionIdHandle, TSharedRef<FSession>>> SessionSearchResultsUserMap;
+	/** Cache for received session invites, mapped per user */
+	TMap<FOnlineAccountIdHandle, TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>> SessionInvitesUserMap;
 
 	TSharedPtr<FFindSessions::Result> CurrentSessionSearch;
 	TSharedPtr<TOnlineAsyncOp<FFindSessions>> CurrentSessionSearchHandle;
