@@ -3461,7 +3461,7 @@ void UNiagaraDataInterfaceSkeletalMesh::UnbindSourceDelegates()
 void UNiagaraDataInterfaceSkeletalMesh::OnSourceEndPlay(AActor* InSource, EEndPlayReason::Type Reason)
 {
 	// Increment change id in case we're able to find a new source component 
-	ChangeId++;
+	++ChangeId;
 	SoftSourceActor = nullptr;
 	SourceComponent = nullptr;
 }
@@ -3469,7 +3469,7 @@ void UNiagaraDataInterfaceSkeletalMesh::OnSourceEndPlay(AActor* InSource, EEndPl
 void UNiagaraDataInterfaceSkeletalMesh::SetSourceComponentFromBlueprints(USkeletalMeshComponent* ComponentToUse)
 {
 	// NOTE: When ChangeId changes the next tick will be skipped and a reset of the per-instance data will be initiated.
-	ChangeId++;
+	++ChangeId;
 	UnbindSourceDelegates();
 	SourceComponent = ComponentToUse;
 	SoftSourceActor = ComponentToUse->GetOwner();
@@ -3479,8 +3479,22 @@ void UNiagaraDataInterfaceSkeletalMesh::SetSourceComponentFromBlueprints(USkelet
 void UNiagaraDataInterfaceSkeletalMesh::SetSamplingRegionsFromBlueprints(const TArray<FName>& InSamplingRegions)
 {
 	// NOTE: When ChangeId changes the next tick will be skipped and a reset of the per-instance data will be initiated.
-	ChangeId++;
+	++ChangeId;
 	SamplingRegions = InSamplingRegions;
+}
+
+void UNiagaraDataInterfaceSkeletalMesh::SetFilteredBonesFromBlueprints(const TArray<FName>& InFilteredBones)
+{
+	// NOTE: When ChangeId changes the next tick will be skipped and a reset of the per-instance data will be initiated.
+	++ChangeId;
+	FilteredBones = InFilteredBones;
+}
+
+void UNiagaraDataInterfaceSkeletalMesh::SetFilteredSocketsFromBlueprints(const TArray<FName>& InFilteredSockets)
+{
+	// NOTE: When ChangeId changes the next tick will be skipped and a reset of the per-instance data will be initiated.
+	++ChangeId;
+	FilteredSockets = InFilteredSockets;
 }
 
 void UNiagaraDataInterfaceSkeletalMesh::SetWholeMeshLODFromBlueprints(int32 InWholeMeshLOD)
