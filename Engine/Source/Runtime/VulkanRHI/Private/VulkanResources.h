@@ -953,6 +953,9 @@ public:
 	void* Lock(FRHICommandListBase& RHICmdList, EResourceLockMode LockMode, uint32 Size, uint32 Offset);
 	void Unlock(FRHICommandListBase& RHICmdList);
 
+	void* Lock(FVulkanCommandListContext& Context, EResourceLockMode LockMode, uint32 Size, uint32 Offset);
+	void Unlock(FVulkanCommandListContext& Context);
+
 	void Swap(FVulkanResourceMultiBuffer& Other);
 
 

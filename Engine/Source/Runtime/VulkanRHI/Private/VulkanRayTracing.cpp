@@ -451,7 +451,7 @@ void FVulkanRayTracingScene::BuildAccelerationStructure(
 {
 	// Build a metadata buffer	that contains VulkanRHI-specific per-geometry parameters that allow us to access
 	// vertex and index buffers from shaders that use inline ray tracing.
-	BuildPerInstanceGeometryParameterBuffer();
+	BuildPerInstanceGeometryParameterBuffer(CommandContext);
 
 	check(AccelerationStructureBuffer.IsValid());
 	check(InInstanceBuffer != nullptr);
@@ -516,7 +516,7 @@ void FVulkanRayTracingScene::BuildAccelerationStructure(
 	CommandBufferManager.PrepareForNewActiveCommandBuffer();
 }
 
-void FVulkanRayTracingScene::BuildPerInstanceGeometryParameterBuffer()
+void FVulkanRayTracingScene::BuildPerInstanceGeometryParameterBuffer(FVulkanCommandListContext& CommandContext)
 {
 	// TODO: we could cache parameters in the geometry object to avoid some of the pointer chasing (if this is measured to be a performance issue)
 
@@ -524,9 +524,8 @@ void FVulkanRayTracingScene::BuildPerInstanceGeometryParameterBuffer()
 	check(PerInstanceGeometryParameterBuffer->GetSize() >= ParameterBufferSize);
 
 	check(IsInRHIThread() || !IsRunningRHIInSeparateThread());
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
-	void* MappedBuffer = PerInstanceGeometryParameterBuffer->Lock(RHICmdList, RLM_WriteOnly, ParameterBufferSize, 0);
+	void* MappedBuffer = PerInstanceGeometryParameterBuffer->Lock(CommandContext, RLM_WriteOnly, ParameterBufferSize, 0);
 	FVulkanRayTracingGeometryParameters* MappedParameters = reinterpret_cast<FVulkanRayTracingGeometryParameters*>(MappedBuffer);
 	uint32 ParameterIndex = 0;
 
@@ -571,7 +570,7 @@ void FVulkanRayTracingScene::BuildPerInstanceGeometryParameterBuffer()
 
 	check(ParameterIndex == Initializer.NumTotalSegments);
 
-	PerInstanceGeometryParameterBuffer->Unlock(RHICmdList);
+	PerInstanceGeometryParameterBuffer->Unlock(CommandContext);
 }
 
 void FVulkanDynamicRHI::RHITransferRayTracingGeometryUnderlyingResource(FRHIRayTracingGeometry* DestGeometry, FRHIRayTracingGeometry* SrcGeometry)

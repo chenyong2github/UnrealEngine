@@ -128,7 +128,7 @@ private:
 	// Buffer that contains per-instance index and vertex buffer binding data
 	TRefCountPtr<FVulkanResourceMultiBuffer> PerInstanceGeometryParameterBuffer;
 	TRefCountPtr<FVulkanShaderResourceView> PerInstanceGeometryParameterSRV;
-	void BuildPerInstanceGeometryParameterBuffer();
+	void BuildPerInstanceGeometryParameterBuffer(FVulkanCommandListContext& CommandContext);
 };
 
 class FVulkanRayTracingPipelineState : public FRHIRayTracingPipelineState
