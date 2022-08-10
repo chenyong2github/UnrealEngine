@@ -3249,31 +3249,6 @@ public:
 		//		we have dump in TextureFormatOodle for the after-processing (before encoding) image
 		//		get a dump spot for before-processing as well
 
-
-		#if 0
-		// @todo Oodle : use or remove me
-		// experimental : detect if alpha is wanted in the mip filter process
-		bool bAlpha_Before = false;
-		bool bAlpha_Programmatic = false;
-		if ( ! BuildSettings.bForceNoAlphaChannel && ! BuildSettings.bForceAlphaChannel )
-		{
-			// at this point SourceMips is still in original format (eg. BGRA8 not yet promoted to linear float)
-			// bAlpha_Before can be accelerated from the source image in many cases (if it was 3-channel RGB source)
-			bAlpha_Before = DetectAlphaChannel(SourceMips[0]);
-
-			// can mip processing add alpha ?
-			//  does not gaurantee it definitely does add alpha, it just might
-			bAlpha_Programmatic =
-				BuildSettings.bComputeBokehAlpha ||
-				BuildSettings.bReplicateRed ||
-				BuildSettings.bChromaKeyTexture ||
-				( BuildSettings.CompositeTextureMode == CTM_NormalRoughnessToAlpha && AssociatedNormalSourceMips.Num() > 0 );
-			// (note bLongLatCubemap skips these processings, may be wrong)
-		}
-		// if bFilterAlpha is off, we can make mips in RGB 3-channel and skip A processing
-		bool bFilterAlpha = (! BuildSettings.bForceNoAlphaChannel) && ( BuildSettings.bForceAlphaChannel || bAlpha_Before || bAlpha_Programmatic );
-		#endif
-
 		TArray<FImage> IntermediateMipChain;
 
 
@@ -3309,8 +3284,8 @@ public:
 			// use new mip filter setting from build settings
 			DefaultSettings.bUseNewMipFilter = BuildSettings.bUseNewMipFilter;
 
-			// @todo Oodle : filtering the normal map then computing roughness is fundamentally wrong
-			//  we should instead compute the roughness scalar first on the original normap map
+			// someday: filtering the normal map then computing roughness is fundamentally wrong
+			//  we should instead compute the roughness scalar first on the original normal map
 			//  then filter on the roughness scalar
 
 			if (!BuildTextureMips(AssociatedNormalSourceMips, DefaultSettings, true, IntermediateAssociatedNormalSourceMipChain, DebugTexturePathName))
@@ -3330,14 +3305,6 @@ public:
 		// note the order of operations in bForceAlphaChannel and bForceNoAlphaChannel ( ForceNo takes precedence )
 		const bool bImageHasAlphaChannel = !BuildSettings.bForceNoAlphaChannel  && (BuildSettings.bForceAlphaChannel || DetectAlphaChannel(IntermediateMipChain[0]));
 	
-		#if 0
-		// @todo Oodle : experimental : verify bFilterAlpha was right
-		// if bAlpha_Programmatic, we have to recheck if alpha got made or not
-		check( bImageHasAlphaChannel == bAlpha_Before || bAlpha_Programmatic );
-		// if bFilterAlpha is off, we should not have alpha out
-		check( bFilterAlpha || !bImageHasAlphaChannel );
-		#endif
-
 		// Set the correct biased texture size so that the compressor understands the original source image size
 		// This is requires for platforms that may need to tile based on the original source texture size
 		BuildSettings.TopMipSize.X = IntermediateMipChain[0].SizeX;

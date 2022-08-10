@@ -1004,9 +1004,7 @@ static int64 GetBuildRequiredMemoryEstimate(UTexture* InTexture,
 
 		return MemoryEstimate;
 
-		// @@!! @todo Oodle : not right for :
-		//	volumes
-		//	latlong cubes
+		// @todo Oodle : not right for volumes & latlong cubes
 	}
 }
 
@@ -2177,8 +2175,9 @@ FTexturePlatformData::FStructuredDerivedDataKey CreateTextureDerivedDataKey(
 		{
 			// this is just to make DDC Key so I don't need RequiredMemoryEstimate
 			// but it goes in the the DDC Key, so I have to compute it
-			// @todo Oodle : how do I pass something to TBF without it going in the DDC Key ? -> currently you can't
-			//int64 RequiredMemoryEstimate = 0;
+			// how do I pass something to TBF without it going in the DDC Key ? -> currently you can't
+			// @todo Oodle : RequiredMemoryEstimate goes in the key for DDC2, not ideal
+
 			check( Texture.Source.GetNumLayers() == 1 ); // no SettingsPerLayer here
 			int64 RequiredMemoryEstimate = GetBuildRequiredMemoryEstimate(&Texture,&Settings);
 

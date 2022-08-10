@@ -32,7 +32,7 @@
 *****/
 
 // when GASTCCompressor == 0 ,use TextureFormatIntelISPCTexComp instead of this
-// @@!! does this break DDC2 ?  can TBW see GASTCCompressor ? @todo Oodle fix me
+// @todo Oodle : GASTCCompressor global breaks DDC2.  Need to pass through so TBW can see.
 int32 GASTCCompressor = 0;
 static FAutoConsoleVariableRef CVarASTCCompressor(
 	TEXT("cook.ASTCTextureCompressor"),
@@ -566,9 +566,6 @@ public:
 		// note: wasteful, often copies image to same format
 		FImage Image;
 		InImage.CopyTo(Image, bHDRImage ? ERawImageFormat::RGBA16F : ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
-
-		// @todo Oodle : for HDR need to clamp the F16 image in [0,F16_max] (like Oodle Texture does)
-		//	  maybe also set A to 1.f to match BC6 ?
 
 		// Determine the compressed pixel format and compression parameters
 		EPixelFormat CompressedPixelFormat = GetEncodedPixelFormat(BuildSettings, bImageHasAlphaChannel);

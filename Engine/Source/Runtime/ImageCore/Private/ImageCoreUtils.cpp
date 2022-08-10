@@ -37,7 +37,7 @@ EPixelFormat FImageCoreUtils::GetPixelFormatForRawImageFormat(ERawImageFormat::T
 		return PF_FloatRGBA;
 	case ERawImageFormat::RGBA32F: 
 		*pOutEquivalentFormat = ERawImageFormat::RGBA16F;
-		return PF_FloatRGBA;  // @@!! could be PF_A32B32G32R32F only if bSupportFilteredFloat32Textures
+		return PF_FloatRGBA;
 	case ERawImageFormat::R16F:	
 		return PF_R16F;
 	case ERawImageFormat::R32F:	

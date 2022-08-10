@@ -133,7 +133,7 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	MaxTextureSize = 0; // means no limitation
 	MipGenSettings = TMGS_FromTextureGroup;
 	CompositeTextureMode = CTM_NormalRoughnessToAlpha;
-	// @todo Oodle : this should have defaulted to CTM_Disabled
+	// this should have defaulted to CTM_Disabled
 	//	but it's hard to change now because of UPROPERTY writing deltas to default
 	CompositePower = 1.0f;
 	bUseLegacyGamma = false;
@@ -693,7 +693,6 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 		{
 			UTexture* Tex = *It;
 			
-			// @@!! should this just be done in reimport, not for every property change?
 			if(Tex != this && Tex->CompositeTexture == this && Tex->CompositeTextureMode != CTM_Disabled)
 			{
 				TexturesThatUseThisTexture.Add(Tex);
@@ -3060,7 +3059,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		// eg. if you were in bIsTCThatMapsToUncompressed , and for some reason you get bNoCompression set
 		//	 then your output format can change from one uncompressed format to another
 
-		// @todo Oodle : if this was redone, I would make two changes
+		// someday: if this was redone, I would make two changes
 		// 1. first of all detect if you already have a TC that maps to uncompressed with a specific format,
 		//		and if so, stick to that
 		//		eg. currently if you choose TC_HDR and your source image is G8 you will get RGBA16F output
@@ -3071,7 +3070,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 
 		if (Texture->HasHDRSource(LayerIndex))
 		{
-			// @todo Oodle : this is a very poor selection from SourceFormat
+			// @todo Oodle : this is not the best possible selection of output format from SourceFormat
 			// R16F and R32F is available but not used here even if their TC_ would have chosen them!
 			TextureFormatName = NameRGBA16F;
 		}
@@ -3126,7 +3125,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	else if (FormatSettings.CompressionSettings == TC_Grayscale || 
 		FormatSettings.CompressionSettings == TC_Displacementmap)
 	{
-		// @todo Oodle : this is a very poor selection from SourceFormat
+		// @todo Oodle : this is not the best possible selection of output format from SourceFormat
 		// eg. doesn't use G16 if source is RGBA16 or float
 		if (SourceFormat == TSF_G16)
 		{
@@ -3185,7 +3184,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	// Some PC GPUs don't support sRGB read from G8 textures (e.g. AMD DX10 cards on ShaderModel3.0)
 	// This solution requires 4x more memory but a lot of PC HW emulate the format anyway
 	// note: GrayscaleSRGB is off on all targetplatforms currently
-	// @todo Oodle : I think this could use G16 instead and be half the size
+	// someday: I think this could use G16 instead and be half the size
 	//	 (that's doing the gamma->linear in the G8->G16 conversion)
 	if ((TextureFormatName == NameG8) && FormatSettings.SRGB && !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::GrayscaleSRGB))
 	{

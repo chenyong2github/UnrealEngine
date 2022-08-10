@@ -1216,8 +1216,9 @@ void FVirtualTextureDataBuilder::BuildMipTails()
 
 bool FVirtualTextureDataBuilder::DetectAlphaChannel(const FImage &Image)
 {
-	// @todo Oodle : BAD DetectAlphaChannel slightly different than the same function in TextureCompressorModule
+	// @todo Oodle : VT DetectAlphaChannel slightly different than the same function in TextureCompressorModule
 	//	  factor them out and share
+	//		technically could change output so may need a ddc key bump and verify
 
 	if (Image.Format == ERawImageFormat::BGRA8)
 	{
