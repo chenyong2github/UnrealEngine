@@ -14,6 +14,7 @@
 #include "SkeletalRenderPublic.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "RenderGraphUtils.h"
+#include "SkeletalMeshDeformerHelpers.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -46,56 +47,6 @@ FHairStrandsProjectionMeshData::Section ConvertMeshSection(FCachedGeometry const
 ENGINE_API void UpdateRefToLocalMatrices(TArray<FMatrix44f>& ReferenceToLocal, const USkinnedMeshComponent* InMeshComponent, const FSkeletalMeshRenderData* InSkeletalMeshRenderData, int32 LODIndex, const TArray<FBoneIndexType>* ExtraRequiredBoneIndices = NULL);
 ENGINE_API void UpdatePreviousRefToLocalMatrices(TArray<FMatrix44f>& ReferenceToLocal, const USkinnedMeshComponent* InMeshComponent, const FSkeletalMeshRenderData* InSkeletalMeshRenderData, int32 LODIndex, const TArray<FBoneIndexType>* ExtraRequiredBoneIndices = NULL);
 
-static void BuildBoneMatrices(
-	const USkeletalMeshComponent* SkeletalMeshComponent, 
-	const FSkeletalMeshRenderData* RenderData,
-	const FSkeletalMeshLODRenderData& LODData,
-	const uint32 LODIndex, 
-	const bool bNeedPreviousPosition,
-	TArray<uint32>& OutMatrixOffsets, 
-	TArray<FVector4f>& OutBoneMatrices,
-	TArray<FVector4f>& OutPrevBoneMatrices)
-{
-	//SkeletalMeshComponent->GetCurrentRefToLocalMatrices(BoneTransforms, LODIndex);
-	check(RenderData->LODRenderData.IsValidIndex(LODIndex));
-
-	TArray<FMatrix44f> BoneTransforms;
-	UpdateRefToLocalMatrices(BoneTransforms, SkeletalMeshComponent, RenderData, LODIndex, nullptr);
-
-	TArray<FMatrix44f> PrevBoneTransforms;
-	if (bNeedPreviousPosition)
-	{
-		UpdatePreviousRefToLocalMatrices(PrevBoneTransforms, SkeletalMeshComponent, RenderData, LODIndex, nullptr);
-	}
-	
-	OutMatrixOffsets.SetNum(LODData.GetNumVertices());
-	uint32 BonesOffset = 0;
-	for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
-	{
-		const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIdx];
-		for (uint32 SectionVertex = 0; SectionVertex < Section.NumVertices; ++SectionVertex)
-		{
-			OutMatrixOffsets[Section.BaseVertexIndex + SectionVertex] = BonesOffset;
-		}
-		BonesOffset += Section.BoneMap.Num();
-	}
-	OutBoneMatrices.SetNum(BonesOffset * 3);
-	OutPrevBoneMatrices.SetNum(BonesOffset * 3);
-	BonesOffset = 0;
-	for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
-	{
-		const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIdx];
-		for (int32 BoneIdx = 0; BoneIdx < Section.BoneMap.Num(); ++BoneIdx, ++BonesOffset)
-		{
-			BoneTransforms[Section.BoneMap[BoneIdx]].To3x4MatrixTranspose(&OutBoneMatrices[3 * BonesOffset].X);
-			if (bNeedPreviousPosition)
-			{
-				PrevBoneTransforms[Section.BoneMap[BoneIdx]].To3x4MatrixTranspose(&OutPrevBoneMatrices[3 * BonesOffset].X);
-			}
-		}
-	}
-}
-
  void BuildCacheGeometry(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap, 
@@ -103,59 +54,67 @@ static void BuildBoneMatrices(
 	const bool bOutputTriangleData,
 	FCachedGeometry& Out)
 {
-	if (SkeletalMeshComponent)
+	if (SkeletalMeshComponent == nullptr)
 	{
-		const uint32 LODIndex = SkeletalMeshComponent->GetPredictedLODLevel();// RenderData->PendingFirstLODIdx;
-		Out.LocalToWorld = SkeletalMeshComponent->SceneProxy ? FTransform(SkeletalMeshComponent->SceneProxy->GetLocalToWorld()) : FTransform();
-		Out.LODIndex = LODIndex;
+		return;
+	}
 
-		if (bOutputTriangleData)
+	const uint32 LODIndex = SkeletalMeshComponent->GetPredictedLODLevel();// RenderData->PendingFirstLODIdx;
+	Out.LocalToWorld = SkeletalMeshComponent->SceneProxy ? FTransform(SkeletalMeshComponent->SceneProxy->GetLocalToWorld()) : FTransform();
+	Out.LODIndex = LODIndex;
+
+	FSkeletalMeshObject* SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
+	if (!bOutputTriangleData || SkeletalMeshObject == nullptr)
+	{
+		return;
+	}
+
+	FSkeletalMeshRenderData* RenderData = SkeletalMeshComponent->GetSkeletalMesh()->GetResourceForRendering();
+	FSkeletalMeshLODRenderData& LODData = RenderData->LODRenderData[LODIndex];
+
+	const bool bNeedPreviousPosition = IsHairStrandContinuousDecimationReorderingEnabled();
+
+	// Create deformed position buffer (output)
+	FRDGBufferRef DeformedPositionsBuffer			= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float), LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() * 3), TEXT("Hair.SkinnedDeformedPositions"));
+	FRDGBufferRef DeformedPreviousPositionsBuffer	= bNeedPreviousPosition ? GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float), LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() * 3), TEXT("Hair.SkinnedDeformedPreviousPositions")) : nullptr;
+
+	const int32 LodIndex = SkeletalMeshObject->GetLOD();
+	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshObject->GetSkeletalMeshRenderData().LODRenderData[LodIndex];
+						
+	Out.DeformedPositionBuffer = DeformedPositionsBuffer;
+	Out.DeformedPreviousPositionBuffer = DeformedPreviousPositionsBuffer;
+	FRDGBufferSRVRef DeformedPositionSRV = GraphBuilder.CreateSRV(DeformedPositionsBuffer, PF_R32_FLOAT);
+	FRDGBufferSRVRef DeformedPreviousPositionSRV = bNeedPreviousPosition ? GraphBuilder.CreateSRV(DeformedPreviousPositionsBuffer, PF_R32_FLOAT) : nullptr;
+
+	uint32 BonesOffset = 0;
+	for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
+	{
+		const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIdx];
+		if (SkeletalMeshObject->HaveValidDynamicData())
 		{
-			FSkeletalMeshRenderData* RenderData = SkeletalMeshComponent->GetSkeletalMesh()->GetResourceForRendering();
-			FSkeletalMeshLODRenderData& LODData = RenderData->LODRenderData[LODIndex];
+			FRHIShaderResourceView * BoneBuffer		= FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(SkeletalMeshObject, LodIndex, SectionIdx, false);
+			FRHIShaderResourceView * BonePrevBuffer	= FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(SkeletalMeshObject, LodIndex, SectionIdx, true);
+			AddSkinUpdatePass(GraphBuilder, ShaderMap, SectionIdx, BonesOffset, SkeletalMeshComponent->GetSkinWeightBuffer(LODIndex), LODData, BoneBuffer, BonePrevBuffer, DeformedPositionsBuffer, DeformedPreviousPositionsBuffer);
 
-			const bool bNeedPreviousPosition = IsHairStrandContinuousDecimationReorderingEnabled();
-
-			TArray<uint32> MatrixOffsets;
-			TArray<FVector4f> BoneMatrices;
-			TArray<FVector4f> PrevBoneMatrices;
-			BuildBoneMatrices(SkeletalMeshComponent, RenderData, LODData, LODIndex, bNeedPreviousPosition, MatrixOffsets, BoneMatrices, PrevBoneMatrices);
-
-			FRDGBufferRef DeformedPositionsBuffer			= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float), LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() * 3), TEXT("Hair.SkinnedDeformedPositions"));
-			FRDGBufferRef DeformedPreviousPositionsBuffer	= bNeedPreviousPosition ? GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float), LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() * 3), TEXT("Hair.SkinnedDeformedPreviousPositions")) : nullptr;
-			FRDGBufferRef BoneMatricesBuffer				= CreateStructuredBuffer(GraphBuilder, TEXT("Hair.SkinnedBoneMatrices"), sizeof(float) * 4, BoneMatrices.Num(), BoneMatrices.GetData(), sizeof(float) * 4 * BoneMatrices.Num());
-			FRDGBufferRef PreviousBoneMatricesBuffer		= bNeedPreviousPosition ? CreateStructuredBuffer(GraphBuilder, TEXT("Hair.SkinnedPreviousBoneMatrices"), sizeof(float) * 4, BoneMatrices.Num(), BoneMatrices.GetData(), sizeof(float) * 4 * BoneMatrices.Num()) : nullptr;
-			FRDGBufferRef MatrixOffsetsBuffer				= CreateStructuredBuffer(GraphBuilder, TEXT("Hair.SkinnedMatrixOffsets"), sizeof(uint32), MatrixOffsets.Num(), MatrixOffsets.GetData(), sizeof(uint32) * MatrixOffsets.Num());
-
-			AddSkinUpdatePass(GraphBuilder, ShaderMap, SkeletalMeshComponent->GetSkinWeightBuffer(LODIndex), LODData, BoneMatricesBuffer, PreviousBoneMatricesBuffer, MatrixOffsetsBuffer, DeformedPositionsBuffer, DeformedPreviousPositionsBuffer);
-
-			Out.DeformedPositionBuffer = DeformedPositionsBuffer;
-			Out.DeformedPreviousPositionBuffer = DeformedPreviousPositionsBuffer;
-			FRDGBufferSRVRef DeformedPositionSRV = GraphBuilder.CreateSRV(DeformedPositionsBuffer, PF_R32_FLOAT);
-			FRDGBufferSRVRef DeformedPreviousPositionSRV = bNeedPreviousPosition ? GraphBuilder.CreateSRV(DeformedPreviousPositionsBuffer, PF_R32_FLOAT) : nullptr;
-			for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
-			{
-				const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIdx];
-
-				FCachedGeometry::Section& OutSection = Out.Sections.AddDefaulted_GetRef();
-				OutSection.RDGPositionBuffer = DeformedPositionSRV;
-				OutSection.RDGPreviousPositionBuffer = DeformedPreviousPositionSRV;
-				OutSection.PositionBuffer = nullptr; // Do not use the SRV slot, but instead use the RDG buffer created above (DeformedPositionSRV)
-				OutSection.PreviousPositionBuffer = nullptr; // Do not use the SRV slot, but instead use the RDG buffer created above (DeformedPositionSRV)
-				OutSection.UVsBuffer = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV();
-				OutSection.TotalVertexCount = LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
-				OutSection.IndexBuffer = LODData.MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
-				OutSection.TotalIndexCount = LODData.MultiSizeIndexContainer.GetIndexBuffer()->Num();
-				OutSection.UVsChannelCount = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
-				OutSection.NumPrimitives = Section.NumTriangles;
-				OutSection.NumVertices = Section.NumVertices;
-				OutSection.IndexBaseIndex = Section.BaseIndex;
-				OutSection.VertexBaseIndex = Section.BaseVertexIndex;
-				OutSection.SectionIndex = SectionIdx;
-				OutSection.LODIndex = LODIndex;
-				OutSection.UVsChannelOffset = 0; // Assume that we needs to pair meshes based on UVs 0
-			}
+			FCachedGeometry::Section& OutSection = Out.Sections.AddDefaulted_GetRef();
+			OutSection.RDGPositionBuffer = DeformedPositionSRV;
+			OutSection.RDGPreviousPositionBuffer = DeformedPreviousPositionSRV;
+			OutSection.PositionBuffer = nullptr; // Do not use the SRV slot, but instead use the RDG buffer created above (DeformedPositionSRV)
+			OutSection.PreviousPositionBuffer = nullptr; // Do not use the SRV slot, but instead use the RDG buffer created above (DeformedPositionSRV)
+			OutSection.UVsBuffer = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV();
+			OutSection.TotalVertexCount = LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
+			OutSection.IndexBuffer = LODData.MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
+			OutSection.TotalIndexCount = LODData.MultiSizeIndexContainer.GetIndexBuffer()->Num();
+			OutSection.UVsChannelCount = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+			OutSection.NumPrimitives = Section.NumTriangles;
+			OutSection.NumVertices = Section.NumVertices;
+			OutSection.IndexBaseIndex = Section.BaseIndex;
+			OutSection.VertexBaseIndex = Section.BaseVertexIndex;
+			OutSection.SectionIndex = SectionIdx;
+			OutSection.LODIndex = LODIndex;
+			OutSection.UVsChannelOffset = 0; // Assume that we needs to pair meshes based on UVs 0
 		}
+		BonesOffset += Section.BoneMap.Num();
 	}
 }
 

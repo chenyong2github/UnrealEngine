@@ -118,11 +118,12 @@ void AddComputeMipsPass(
 void AddSkinUpdatePass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
+	uint32 SectionIndex,
+	uint32 BonesOffset, 
 	class FSkinWeightVertexBuffer* SkinWeight,
 	class FSkeletalMeshLODRenderData& RenderData,
-	FRDGBufferRef BoneMatrices,
-	FRDGBufferRef PreviousBoneMatrices,
-	FRDGBufferRef MatrixOffsets,
+	FRHIShaderResourceView* BoneMatrices,
+	FRHIShaderResourceView* PrevBoneMatrices,
 	FRDGBufferRef OutDeformedosition,
 	FRDGBufferRef OutPreviousDeformedosition);
 

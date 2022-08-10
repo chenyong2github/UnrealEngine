@@ -83,13 +83,14 @@ class FSkinUpdateCS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FUnlimitedBoneInfluence, FUseExtraInfluence, FIndexUint16, FPrevious>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, NumTotalVertices)
+		SHADER_PARAMETER(uint32, SectionVertexBaseIndex)
 		SHADER_PARAMETER(uint32, IndexSize)
-		SHADER_PARAMETER(uint32, NumVertices)
 		SHADER_PARAMETER(uint32, WeightStride)
+		SHADER_PARAMETER(uint32, BonesOffset)
 		SHADER_PARAMETER_SRV(Buffer<uint>, WeightLookup)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, BoneMatrices)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, PrevBoneMatrices)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MatrixOffsets)
+		SHADER_PARAMETER_SRV(Buffer<float4>, BoneMatrices)
+		SHADER_PARAMETER_SRV(Buffer<float4>, PrevBoneMatrices)
 		SHADER_PARAMETER_SRV(Buffer<uint>, VertexWeights)
 		SHADER_PARAMETER_SRV(Buffer<float>, RestPositions)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, DeformedPositions)
@@ -105,29 +106,39 @@ IMPLEMENT_GLOBAL_SHADER(FSkinUpdateCS, "/Engine/Private/HairStrands/HairStrandsS
 void AddSkinUpdatePass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
+	uint32 SectionIndex,
+	uint32 BonesOffset,
 	FSkinWeightVertexBuffer* SkinWeight,
 	FSkeletalMeshLODRenderData& RenderData,
-	FRDGBufferRef BoneMatrices,
-	FRDGBufferRef PrevBoneMatrices,
-	FRDGBufferRef MatrixOffsets,
+	FRHIShaderResourceView* BoneMatrices,
+	FRHIShaderResourceView* PrevBoneMatrices,
 	FRDGBufferRef OutDeformedPosition,
 	FRDGBufferRef OutPrevDeformedPosition)
 {
-	const bool bPrevPosition = OutPrevDeformedPosition != nullptr && PrevBoneMatrices != nullptr;
+	check(BoneMatrices);
 
+	const FSkelMeshRenderSection& Section = RenderData.RenderSections[SectionIndex];
+	const uint32 NumVertexToProcess = Section.NumVertices;
+	const uint32 SectionVertexBaseIndex = Section.BaseVertexIndex;
+	const uint32 NumTotalVertices = RenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
+
+	const bool bPrevPosition = OutPrevDeformedPosition != nullptr && PrevBoneMatrices != nullptr;
+	
 	FSkinUpdateCS::FParameters* Parameters = GraphBuilder.AllocParameters<FSkinUpdateCS::FParameters>();
 	Parameters->IndexSize = SkinWeight->GetBoneIndexByteSize();
-	Parameters->NumVertices = RenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
+	Parameters->NumTotalVertices = NumTotalVertices;
+	Parameters->SectionVertexBaseIndex = SectionVertexBaseIndex;
 	Parameters->WeightStride = SkinWeight->GetConstantInfluencesVertexStride();
 	Parameters->WeightLookup = SkinWeight->GetLookupVertexBuffer()->GetSRV();
-	Parameters->BoneMatrices = GraphBuilder.CreateSRV(BoneMatrices);
-	Parameters->MatrixOffsets = GraphBuilder.CreateSRV(MatrixOffsets);
+	Parameters->BonesOffset = BonesOffset;
+	Parameters->BoneMatrices = BoneMatrices;
 	Parameters->VertexWeights = SkinWeight->GetDataVertexBuffer()->GetSRV();
 	Parameters->RestPositions = RenderData.StaticVertexBuffers.PositionVertexBuffer.GetSRV();
 	Parameters->DeformedPositions = GraphBuilder.CreateUAV(OutDeformedPosition, PF_R32_FLOAT);
 	if (bPrevPosition)
 	{
-		Parameters->PrevBoneMatrices = GraphBuilder.CreateSRV(BoneMatrices);
+		check(PrevBoneMatrices);
+		Parameters->PrevBoneMatrices = BoneMatrices;
 		Parameters->PrevDeformedPositions = GraphBuilder.CreateUAV(OutPrevDeformedPosition, PF_R32_FLOAT);
 	}
 
@@ -137,12 +148,12 @@ void AddSkinUpdatePass(
 	PermutationVector.Set<FSkinUpdateCS::FIndexUint16>(SkinWeight->Use16BitBoneIndex());
 	PermutationVector.Set<FSkinUpdateCS::FPrevious>(bPrevPosition);
 
-	const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices(), 64);
+	const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(NumVertexToProcess, 64);
 	check(DispatchGroupCount.X < 65536);
 	TShaderMapRef<FSkinUpdateCS> ComputeShader(ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrands::UpdateSkinPosition(%s)", bPrevPosition ? TEXT("Curr,Prev") : TEXT("Curr")),
+		RDG_EVENT_NAME("HairStrands::UpdateSkinPosition(%s,Section:%d)", bPrevPosition ? TEXT("Curr,Prev") : TEXT("Curr"), SectionIndex),
 		ComputeShader,
 		Parameters,
 		DispatchGroupCount);

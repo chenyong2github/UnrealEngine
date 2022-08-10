@@ -68,8 +68,6 @@ static FAutoConsoleVariableRef CVarHairStrandsControlPointDebug(TEXT("r.HairStra
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool IsHairStrandsSkinCacheEnable();
-
 FCachedGeometry GetCacheGeometryForHair(
 	FRDGBuilder& GraphBuilder,
 	FHairGroupInstance* Instance,

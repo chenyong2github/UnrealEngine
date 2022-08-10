@@ -7,21 +7,22 @@
 //----------------------------------------------------------------------------------
 
 uint IndexSize; // bone index size: 1 - 8bit or 2 - 16bit
-uint NumVertices;
+uint SectionVertexBaseIndex;
+uint NumTotalVertices;
 uint WeightStride;
+uint BonesOffset;
 
 Buffer<uint> WeightLookup;
-StructuredBuffer<uint> MatrixOffsets;
 Buffer<uint> VertexWeights;
 Buffer<float> RestPositions;
 
 // Current Position
-StructuredBuffer<float4> BoneMatrices;
+Buffer<float4> BoneMatrices;
 RWBuffer<float> DeformedPositions;
 
 // Previous Position
 #if PERMUTATION_PREV
-StructuredBuffer<float4> PrevBoneMatrices;
+Buffer<float4> PrevBoneMatrices;
 RWBuffer<float> PrevDeformedPositions;
 #endif
 
@@ -50,9 +51,9 @@ struct FUnpackedWeight
 
 //----------------------------------------------------------------------------------
 
-FBlendedMatrix BlendMatrix(FUnpackedWeight UnpackedWeight, uint VertexIndex, StructuredBuffer<float4> InBoneMatrices)
+FBlendedMatrix BlendMatrix(FUnpackedWeight UnpackedWeight, uint VertexIndex, Buffer<float4> InBoneMatrices)
 {
-	const uint MatrixOffset = MatrixOffsets[VertexIndex];
+	const uint MatrixOffset = BonesOffset;
 #if GPUSKIN_UNLIMITED_BONE_INFLUENCE
 	uint BlendOffsetCount = WeightLookup[VertexIndex];
 	int NumBoneInfluences = BlendOffsetCount & 0xff;
@@ -156,8 +157,8 @@ void UpdateSkinPositionCS(uint3 GroupID : SV_GroupID,
  uint3 DispatchThreadID : SV_DispatchThreadID,
  uint3 GroupThreadID : SV_GroupThreadID)
 {
-	const uint VertexIndex = DispatchThreadID.x;
-	if (VertexIndex < NumVertices)
+	const uint VertexIndex = DispatchThreadID.x + SectionVertexBaseIndex;
+	if (VertexIndex < NumTotalVertices)
 	{
 		const uint PositionOffset = VertexIndex * 3;
 		const uint WeightOffset = VertexIndex * WeightStride / 4;
@@ -174,7 +175,7 @@ void UpdateSkinPositionCS(uint3 GroupID : SV_GroupID,
 		{
 			const FBlendedMatrix BlendedMatrix = BlendMatrix(UnpackedWeight, VertexIndex, BoneMatrices);
 			const float3 OutputPosition =  mul(BlendedMatrix, InputPosition);
-			DeformedPositions[PositionOffset] = OutputPosition.x;
+			DeformedPositions[PositionOffset    ] = OutputPosition.x;
 			DeformedPositions[PositionOffset + 1] = OutputPosition.y;
 			DeformedPositions[PositionOffset + 2] = OutputPosition.z;
 		}
@@ -184,7 +185,7 @@ void UpdateSkinPositionCS(uint3 GroupID : SV_GroupID,
 		{
 			const FBlendedMatrix PrevBlendedMatrix = BlendMatrix(UnpackedWeight, VertexIndex, PrevBoneMatrices);
 			const float3 OutputPosition = mul(PrevBlendedMatrix, InputPosition);
-			PrevDeformedPositions[PositionOffset] = OutputPosition.x;
+			PrevDeformedPositions[PositionOffset    ] = OutputPosition.x;
 			PrevDeformedPositions[PositionOffset + 1] = OutputPosition.y;
 			PrevDeformedPositions[PositionOffset + 2] = OutputPosition.z;
 		}
