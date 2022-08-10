@@ -149,34 +149,71 @@ namespace MaterialX
 
 	namespace Category
 	{
+		// Math nodes
 		static constexpr const char* Add = "add";
 		static constexpr const char* Sub = "subtract";
 		static constexpr const char* Multiply = "multiply";
-		static constexpr const char* Clamp = "clamp";
-		static constexpr const char* Max = "max";
-		static constexpr const char* Min = "min";
-		static constexpr const char* Mix = "mix";
-		static constexpr const char* DotProduct = "dotproduct";
-		static constexpr const char* Combine2 = "combine2";
-		static constexpr const char* Combine3 = "combine2";
-		static constexpr const char* Combine4 = "combine4";
-		static constexpr const char* Constant = "constant";
-		static constexpr const char* Cos = "cos";
+		static constexpr const char* Divide = "divide";
+		static constexpr const char* Modulo = "modulo";
+		static constexpr const char* Invert = "invert";
+		static constexpr const char* Absval = "absval";
+		static constexpr const char* Floor = "floor";
+		static constexpr const char* Ceil = "ceil";
+		static constexpr const char* Power = "power";
 		static constexpr const char* Sin = "sin";
+		static constexpr const char* Cos = "cos";
+		static constexpr const char* Tan = "tan";
+		static constexpr const char* Asin = "asin";
+		static constexpr const char* Acos = "acos";
+		static constexpr const char* Atan2 = "atan2";
+		static constexpr const char* Sqrt = "sqrt";
+		static constexpr const char* Ln = "ln";
+		static constexpr const char* Exp = "exp";
+		static constexpr const char* Sign = "sign";
+		static constexpr const char* Clamp = "clamp";
+		static constexpr const char* Min = "min";
+		static constexpr const char* Max = "max";
+		static constexpr const char* Normalize = "normalize";
+		static constexpr const char* Magnitude = "magnitude";
+		static constexpr const char* DotProduct = "dotproduct";
+		static constexpr const char* CrossProduct = "crossproduct";
+		static constexpr const char* TransformPoint = "transformpoint";
+		static constexpr const char* TransformVector = "transformvector";
+		static constexpr const char* TransformNormal = "transformnormal";
+		static constexpr const char* TransformMatrix = "transformmatrix";
+		static constexpr const char* NormalMap = "normalmap";
+		static constexpr const char* Transpose = "transpose";
+		static constexpr const char* Determinant = "determinant";
+		static constexpr const char* InvertMatrix = "invertmatrix";
+		static constexpr const char* Rotate2D = "rotate2d";
+		static constexpr const char* Rotate3D = "rotate3d";
+		static constexpr const char* ArrayAppend = "arrayappend";
+		// Compositing nodes
+		static constexpr const char* Mix = "mix";
+		// Channel nodes
+		static constexpr const char* Convert = "convert";
+		static constexpr const char* Combine2 = "combine2";
+		static constexpr const char* Combine3 = "combine3";
+		static constexpr const char* Combine4 = "combine4";
+		static constexpr const char* Extract = "extract";
+		// Procedural nodes 
+		static constexpr const char* Constant = "constant";
+		// Organization nodes 
 		static constexpr const char* Dot = "dot";
+		// Texture nodes 
 		static constexpr const char* Image = "image";
 		static constexpr const char* TiledImage = "tiledimage";
-		static constexpr const char* NormalMap = "normalmap";
-		static constexpr const char* Extract = "extract";
+		// Geometric nodes 
 		static constexpr const char* TexCoord = "texcoord";
+		// Light nodes
 		static constexpr const char* PointLight = "point_light";
 		static constexpr const char* DirectionalLight = "directional_light";
 		static constexpr const char* SpotLight = "spot_light";
-		static constexpr const char* StandardSurface = "standard_surface";
-		//static constexpr const char* Convert = "convert";
-		static constexpr const char* Power = "power";
+		// Adjustment nodes
 		static constexpr const char* RgbToHsv = "rgbtohsv";
 		static constexpr const char* HsvToRgb = "hsvtorgb";
+		// PBR
+		static constexpr const char* StandardSurface = "standard_surface";
 	}
 
 	namespace NodeDefinition

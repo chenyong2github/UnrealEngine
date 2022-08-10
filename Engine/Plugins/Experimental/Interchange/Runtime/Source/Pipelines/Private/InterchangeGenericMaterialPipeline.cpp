@@ -516,30 +516,31 @@ bool UInterchangeGenericMaterialPipeline::HandleStandardSurfaceModel(const UInte
 		
 		static ArgumentsType ArgumentsPerInputs[]
 		{
-			ArgumentsType{StandardSurface::Parameters::Base.ToString(), EMaterialInputType::Scalar},					// Base
-			ArgumentsType{StandardSurface::Parameters::BaseColor.ToString(), EMaterialInputType::Color},				// BaseColor
-			ArgumentsType{StandardSurface::Parameters::DiffuseRoughness.ToString(),  EMaterialInputType::Scalar},		// DiffuseRoughness
-			ArgumentsType{StandardSurface::Parameters::Metalness.ToString(), EMaterialInputType::Scalar},			// Metalness
-			ArgumentsType{StandardSurface::Parameters::Specular.ToString(), EMaterialInputType::Scalar},				// Specular
-			ArgumentsType{StandardSurface::Parameters::SpecularRoughness.ToString(), EMaterialInputType::Scalar},	// SpecularRoughness
-			ArgumentsType{StandardSurface::Parameters::SpecularIOR.ToString(), EMaterialInputType::Scalar},			// SpecularIOR
-			ArgumentsType{StandardSurface::Parameters::SpecularAnisotropy.ToString(), EMaterialInputType::Scalar},	// SpecularAnisotropy
-			ArgumentsType{StandardSurface::Parameters::SpecularRotation.ToString(), EMaterialInputType::Scalar},		// SpecularRotation
-			ArgumentsType{StandardSurface::Parameters::Subsurface.ToString(), EMaterialInputType::Scalar},			// Subsurface
-			ArgumentsType{StandardSurface::Parameters::SubsurfaceColor.ToString(), EMaterialInputType::Scalar},		// SubsurfaceColor
-			ArgumentsType{StandardSurface::Parameters::SubsurfaceRadius.ToString(), EMaterialInputType::Scalar},		// SubsurfaceRadius
-			ArgumentsType{StandardSurface::Parameters::SubsurfaceScale.ToString(), EMaterialInputType::Scalar},		// SubsurfaceScale
-			ArgumentsType{StandardSurface::Parameters::Sheen.ToString(), EMaterialInputType::Scalar},				// Sheen
-			ArgumentsType{StandardSurface::Parameters::SheenColor.ToString(), EMaterialInputType::Color},			// SheenColor
-			ArgumentsType{StandardSurface::Parameters::SheenRoughness.ToString(), EMaterialInputType::Scalar},		// SheenRoughness
-			ArgumentsType{StandardSurface::Parameters::Coat.ToString(), EMaterialInputType::Scalar},					// Coat
-			ArgumentsType{StandardSurface::Parameters::CoatColor.ToString(),  EMaterialInputType::Color},			// Coat Color
-			ArgumentsType{StandardSurface::Parameters::CoatRoughness.ToString(), EMaterialInputType::Scalar},		// CoatRoughness
-			ArgumentsType{StandardSurface::Parameters::ThinFilmThickness.ToString(), EMaterialInputType::Scalar},	// ThinFilmThickness
-			ArgumentsType{StandardSurface::Parameters::Emission.ToString(), EMaterialInputType::Scalar},				// Emission
-			ArgumentsType{StandardSurface::Parameters::EmissionColor.ToString(), EMaterialInputType::Color},			// EmissionColor
-			ArgumentsType{StandardSurface::Parameters::Normal.ToString(), EMaterialInputType::Vector},				// Normal
-			ArgumentsType{StandardSurface::Parameters::Tangent.ToString(), EMaterialInputType::Vector}				// Tangent
+			ArgumentsType{StandardSurface::Parameters::Base.ToString(), EMaterialInputType::Scalar},               // Base
+			ArgumentsType{StandardSurface::Parameters::BaseColor.ToString(), EMaterialInputType::Color},           // BaseColor
+			ArgumentsType{StandardSurface::Parameters::DiffuseRoughness.ToString(),  EMaterialInputType::Scalar},  // DiffuseRoughness
+			ArgumentsType{StandardSurface::Parameters::Metalness.ToString(), EMaterialInputType::Scalar},          // Metalness
+			ArgumentsType{StandardSurface::Parameters::Specular.ToString(), EMaterialInputType::Scalar},           // Specular
+			ArgumentsType{StandardSurface::Parameters::SpecularRoughness.ToString(), EMaterialInputType::Scalar},  // SpecularRoughness
+			ArgumentsType{StandardSurface::Parameters::SpecularIOR.ToString(), EMaterialInputType::Scalar},        // SpecularIOR
+			ArgumentsType{StandardSurface::Parameters::SpecularAnisotropy.ToString(), EMaterialInputType::Scalar}, // SpecularAnisotropy
+			ArgumentsType{StandardSurface::Parameters::SpecularRotation.ToString(), EMaterialInputType::Scalar},   // SpecularRotation
+			ArgumentsType{StandardSurface::Parameters::Subsurface.ToString(), EMaterialInputType::Scalar},         // Subsurface
+			ArgumentsType{StandardSurface::Parameters::SubsurfaceColor.ToString(), EMaterialInputType::Scalar},    // SubsurfaceColor
+			ArgumentsType{StandardSurface::Parameters::SubsurfaceRadius.ToString(), EMaterialInputType::Scalar},   // SubsurfaceRadius
+			ArgumentsType{StandardSurface::Parameters::SubsurfaceScale.ToString(), EMaterialInputType::Scalar},    // SubsurfaceScale
+			ArgumentsType{StandardSurface::Parameters::Sheen.ToString(), EMaterialInputType::Scalar},              // Sheen
+			ArgumentsType{StandardSurface::Parameters::SheenColor.ToString(), EMaterialInputType::Color},          // SheenColor
+			ArgumentsType{StandardSurface::Parameters::SheenRoughness.ToString(), EMaterialInputType::Scalar},     // SheenRoughness
+			ArgumentsType{StandardSurface::Parameters::Coat.ToString(), EMaterialInputType::Scalar},               // Coat
+			ArgumentsType{StandardSurface::Parameters::CoatColor.ToString(),  EMaterialInputType::Color},          // CoatColor
+			ArgumentsType{StandardSurface::Parameters::CoatNormal.ToString(),  EMaterialInputType::Vector},        // CoatNormal
+			ArgumentsType{StandardSurface::Parameters::CoatRoughness.ToString(), EMaterialInputType::Scalar},      // CoatRoughness
+			ArgumentsType{StandardSurface::Parameters::ThinFilmThickness.ToString(), EMaterialInputType::Scalar},  // ThinFilmThickness
+			ArgumentsType{StandardSurface::Parameters::Emission.ToString(), EMaterialInputType::Scalar},           // Emission
+			ArgumentsType{StandardSurface::Parameters::EmissionColor.ToString(), EMaterialInputType::Color},       // EmissionColor
+			ArgumentsType{StandardSurface::Parameters::Normal.ToString(), EMaterialInputType::Vector},             // Normal
+			ArgumentsType{StandardSurface::Parameters::Tangent.ToString(), EMaterialInputType::Vector}             // Tangent
 		};
 
 		for(const ArgumentsType & Arguments : ArgumentsPerInputs)

@@ -130,20 +130,19 @@ protected:
 	 * 
 	 * @param NodeName - The name of the shader node
 	 * @param ShaderType - The shader node's type we want to create
-	 * @param ParentNode - The parent node of the created node
 	 * @param NamesToShaderNodes - Map of the shader nodes already created
 	 * @param The container where to add the translated Interchange nodes.
 	 * 
 	 * @return The shader node that was created
 	 */
 	template<typename ShaderNodeType>
-	ShaderNodeType* CreateShaderNode(const FString& NodeName, const FString& ShaderType, const FString & ParentNodeUID, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+	ShaderNodeType* CreateShaderNode(const FString& NodeName, const FString& ShaderType, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
 	{
 		static_assert(std::is_convertible_v<ShaderNodeType*, UInterchangeShaderNode*>, "CreateShaderNode only accepts type that derived from UInterchangeShaderNode");
 
 		ShaderNodeType* Node;
 
-		const FString NodeUID = UInterchangeShaderNode::MakeNodeUid(NodeName, ParentNodeUID);
+		const FString NodeUID = UInterchangeShaderNode::MakeNodeUid(NodeName, FStringView{});
 		
 		//Test directly in the NodeContainer, because the NamesToShaderNodes can be altered during the node graph either by the parent (dot/normalmap),
 		//or by putting an intermediary node between the child and the parent (tiledimage)
@@ -154,7 +153,7 @@ protected:
 			NodeContainer.AddNode(Node);
 			if constexpr(std::is_same_v<ShaderNodeType, UInterchangeShaderGraphNode>)
 			{
-				NodeContainer.SetNodeParentUid(NodeUID, ParentNodeUID);
+				NodeContainer.SetNodeParentUid(NodeUID, FString{});
 			}
 			Node->SetCustomShaderType(ShaderType);
 
@@ -326,22 +325,70 @@ protected:
 	FString GetColorSpace(MaterialX::ElementPtr Element) const;
 
 	/**
-	 * Helper function that returns a color after a color space conversion, the function makes no assumption on the input, and it should have a value of Color3 type
+	 * Helper function that returns a linear color after a color space conversion, the function makes no assumption on the input, and it should have a value of Color3-4 type
 	 * 
-	 * @param Input - The input that has a Color3 value in it
+	 * @param Input - The input that has a Color3-4 value in it
 	 * 
 	 * @return The linear color after color space conversion
 	 */
-	FLinearColor MakeLinearColorFromColor3(MaterialX::InputPtr Input) const;
+	FLinearColor GetLinearColor(MaterialX::InputPtr Input) const;
+
+	void ConnectConstantInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
+	void ConnectExtractInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
+	void ConnectDotInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
+	void ConnectTransformPositionInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
+	void ConnectTransformVectorInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
+	void ConnectRotate2DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
+	void ConnectRotate3DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
+	void ConnectImageInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
+	void ConnectConvertInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
+
+	UInterchangeShaderNode* CreateMaskShaderNode(uint8 RGBA, const FString & NodeName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
 
 	/**
-	 * Helper function that returns a color after a color space conversion, the function makes no assumption on the input, and it should have a value of Color3 type
+	 * Helper function that returns a vector, the function makes no assumption on the input, and it should have a value of vectorN type
 	 *
-	 * @param Input - The input that has a Color3 value in it
+	 * @param Input - The input that has a vectorN value in it
 	 *
-	 * @return The linear color after color space conversion
+	 * @return The vector
 	 */
-	FLinearColor MakeLinearColorFromColor4(MaterialX::InputPtr Input) const;
+	FLinearColor GetVector(MaterialX::InputPtr Input) const;
+
+	/** 
+	 * @param const char * - New name of the Input to copy
+	 * @param MaterialX::InputPtr - Input to copy
+	 */
+	using FInputToCopy = TPair<const char*, MaterialX::InputPtr>; 
+
+	/**
+	 * @param const char * - Attribute
+	 * @param const char * - Value
+	 */
+	using FAttributeValue = TPair<const char*, const char*>;
+
+	/**
+	 * @param TArray<FAttributeValueType> - Array of attribute/value
+	 */
+	using FAttributeValueArray = TArray<FAttributeValue>;
+
+	/**
+	 * @param TArray<FAttributeValueType> - Array of attribute/value
+	 */
+	using FInputToCreate = TPair<const char*, FAttributeValueArray>; // Name - Attributes
+
+	/**
+	 * Helper function that create a MaterialX node, useful to insert a node between 2 nodes especially when an operation cannot be done in one pass
+	 * If the node already exists in the graph, this one is returned
+	 *
+	 * @param NodeGraph - The node graph to insert the new node into
+	 * @param NodeName - The name of the node
+	 * @param Category - The category of the node to create
+	 * @param InputsToCopy - The inputs from another node/nodegraph to copy in the new node, can be empty
+	 * @param InputsToCreate - The inputs to create from scratch and insert in the new node, can be empty
+	 * 
+	 * @return The newly created node
+	 */
+	MaterialX::NodePtr CreateNode(MaterialX::NodeGraphPtr NodeGraph, const char * NodeName, const char * Category, TArray<FInputToCopy> InputsToCopy, TArray<FInputToCreate> InputsToCreate) const;
 
 private:
 
