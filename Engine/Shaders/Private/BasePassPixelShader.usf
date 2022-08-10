@@ -1685,7 +1685,10 @@ void FPixelShaderInOut_MainPS(
 		if(StrataSubSurfaceHeaderGetIsValid(SSSData.Header))
 		{
 			StrataStruct.SSSTextureUAV[uint3(PixelPos, 0)] = SSSData.Header.Bytes;
-			StrataStruct.SSSTextureUAV[uint3(PixelPos, 1)] = SSSData.Extras.Bytes;
+			if (StrataSubSurfaceHeaderHasExtras(SSSData.Header))
+			{
+				StrataStruct.SSSTextureUAV[uint3(PixelPos, 1)] = SSSData.Extras.Bytes;
+			}
 		}
 
 		// Unlit view mode

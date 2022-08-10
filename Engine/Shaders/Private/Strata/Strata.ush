@@ -749,6 +749,12 @@ bool StrataSubSurfaceHeaderGetIsValid(in FStrataSubsurfaceHeader SSSHeader)
 	return SSSHEADER_TYPE(SSSHeader) != SSS_TYPE_INVALID;
 }
 
+bool StrataSubSurfaceHeaderHasExtras(in FStrataSubsurfaceHeader SSSHeader)
+{
+	const uint SSSType = SSSHEADER_TYPE(SSSHeader);
+	return SSSType == SSS_TYPE_DIFFUSION || SSSType == SSS_TYPE_DIFFUSION_PROFILE;
+}
+
 bool StrataSubSurfaceHeaderGetUseDiffusion(in FStrataSubsurfaceHeader SSSHeader)
 {
 	const uint SSSType = SSSHEADER_TYPE(SSSHeader);
