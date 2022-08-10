@@ -76,39 +76,39 @@ public:
 	virtual bool DoesQuerierPassCondition(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const override;
 };
 
-// UContextualAnimSelectionCriterion_Angle
+// UContextualAnimSelectionCriterion_Cone
 //===========================================================================
 
 UENUM(BlueprintType)
-enum class EContextualAnimCriterionAngleMode : uint8
+enum class EContextualAnimCriterionConeMode : uint8
 {
-	/** Uses the angle between the vector from querier to primary and querier forward vector */
+	/** Uses the angle between the vector from querier to primary and querier forward vector rotated by offset */
 	ToPrimary,
 
-	/** Uses the angle between the vector from primary to querier and primary forward vector */
+	/** Uses the angle between the vector from primary to querier and primary forward vector rotated by offset */
 	FromPrimary
 };
 
 UCLASS()
-class CONTEXTUALANIMATION_API UContextualAnimSelectionCriterion_Angle : public UContextualAnimSelectionCriterion
+class CONTEXTUALANIMATION_API UContextualAnimSelectionCriterion_Cone : public UContextualAnimSelectionCriterion
 {
 	GENERATED_BODY()
 
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Default")
-	EContextualAnimCriterionAngleMode Mode = EContextualAnimCriterionAngleMode::ToPrimary;
+	EContextualAnimCriterionConeMode Mode = EContextualAnimCriterionConeMode::ToPrimary;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Default")
-	bool bUseSignedAngle = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Default", meta = (ClampMin = "0", UIMin = "0"))
+	float Distance = 200.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Default", meta = (ClampMin = "0", UIMin = "0", ClampMax = "180", UIMax = "180"))
+	float HalfAngle = 45.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Default", meta = (ClampMin = "-180", UIMin = "-180", ClampMax = "180", UIMax = "180"))
-	float MinAngle = 0.f;
+	float Offset = 0.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Default", meta = (ClampMin = "-180", UIMin = "-180", ClampMax = "180", UIMax = "180"))
-	float MaxAngle = 0.f;
-
-	UContextualAnimSelectionCriterion_Angle(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
+	UContextualAnimSelectionCriterion_Cone(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
 
 	virtual bool DoesQuerierPassCondition(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const override;
 };

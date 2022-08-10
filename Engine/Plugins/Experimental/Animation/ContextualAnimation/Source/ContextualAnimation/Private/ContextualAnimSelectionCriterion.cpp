@@ -80,53 +80,39 @@ bool UContextualAnimSelectionCriterion_TriggerArea::DoesQuerierPassCondition(con
 	return bResult;
 }
 
-// UContextualAnimSelectionCriterion_Angle
+// UContextualAnimSelectionCriterion_Cone
 //===========================================================================
 
-bool UContextualAnimSelectionCriterion_Angle::DoesQuerierPassCondition(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const
+bool UContextualAnimSelectionCriterion_Cone::DoesQuerierPassCondition(const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Querier) const
 {
+	bool bResult = false;
+
 	const FTransform PrimaryTransform = Primary.GetTransform();
 	const FTransform QuerierTransform = Querier.GetTransform();
+	const float ActualDist = FVector::Dist(PrimaryTransform.GetLocation(), QuerierTransform.GetLocation());
 
-	auto CalculateAngle = [](const FTransform& A, const FTransform& B, bool bSignedAngle)
+	if(ActualDist <= Distance)
 	{
-		const FVector ToTarget = (A.GetLocation() - B.GetLocation()).GetSafeNormal2D();
-		const float ForwardCosAngle = FVector::DotProduct(B.GetRotation().GetForwardVector(), ToTarget);
-		const float ForwardDeltaDegree = FMath::RadiansToDegrees(FMath::Acos(ForwardCosAngle));
+		auto CheckCondition = [this](const FTransform& A, const FTransform& B)
+		{
+			const FVector VecA = (A.GetLocation() - B.GetLocation()).GetSafeNormal2D();
+			const FVector VecB = B.GetRotation().GetForwardVector().RotateAngleAxis(Offset, FVector::UpVector);
+			return FVector::DotProduct(VecA, VecB) > FMath::Cos(FMath::Clamp(FMath::DegreesToRadians(HalfAngle), 0.f, PI));
+		};
 		
-		if(bSignedAngle)
+		if (Mode == EContextualAnimCriterionConeMode::ToPrimary)
 		{
-			const float RightCosAngle = FVector::DotProduct(B.GetRotation().GetRightVector(), ToTarget);
-			return (RightCosAngle < 0) ? (ForwardDeltaDegree * -1) : ForwardDeltaDegree;
+			bResult = CheckCondition(PrimaryTransform, QuerierTransform);
 		}
-		else
+		else if (Mode == EContextualAnimCriterionConeMode::FromPrimary)
 		{
-			return ForwardDeltaDegree;
+			bResult = CheckCondition(QuerierTransform, PrimaryTransform);
 		}
-	};
+	}
+	
 
-	float Angle = 0.f;
-	if (Mode == EContextualAnimCriterionAngleMode::ToPrimary)
-	{
-		Angle = CalculateAngle(PrimaryTransform, QuerierTransform, bUseSignedAngle);
-	}
-	else if (Mode == EContextualAnimCriterionAngleMode::FromPrimary)
-	{
-		Angle = CalculateAngle(QuerierTransform, PrimaryTransform, bUseSignedAngle);
-	}
-
-	bool bResult = false;
-	if (MinAngle <= 0 && MaxAngle >= 0)
-	{
-		bResult = FMath::IsWithinInclusive(FMath::Abs(Angle), FMath::Abs(MinAngle), FMath::Abs(MaxAngle));
-	}
-	else
-	{
-		bResult = FMath::IsWithinInclusive(Angle, MinAngle, MaxAngle);
-	}
-
-	UE_LOG(LogContextualAnim, Verbose, TEXT("UContextualAnimSelectionCriterion_Angle: Primary: %s Querier: %s Mode: %s bUseSignedAngle: %d MinAngle: %.1f MaxAngle: %.1f Angle: %.1f Result: %d"), 
-		*GetNameSafe(Primary.GetActor()), *GetNameSafe(Querier.GetActor()), *UEnum::GetValueAsString(TEXT("ContextualAnimation.EContextualAnimCriterionAngleMode"), Mode), bUseSignedAngle, MinAngle, MaxAngle, Angle, bResult);
+	UE_LOG(LogContextualAnim, Verbose, TEXT("UContextualAnimSelectionCriterion_Cone: Primary: %s Querier: %s Mode: %s Distance: %.1f HalfAngle: %.1f Offset: %.1f Result: %d"), 
+		*GetNameSafe(Primary.GetActor()), *GetNameSafe(Querier.GetActor()), *UEnum::GetValueAsString(TEXT("ContextualAnimation.EContextualAnimCriterionAngleMode"), Mode), Distance, HalfAngle, Offset, bResult);
 
 	return bResult;
 }

@@ -114,6 +114,24 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 									PDI->SetHitProxy(nullptr);
 								}
 							}
+							else if (const UContextualAnimSelectionCriterion_Cone* Cone = Cast<UContextualAnimSelectionCriterion_Cone>(Criterion))
+							{
+								const FTransform QuerierTransform = Binding.GetContext().GetTransform();
+
+								FVector Origin, Direction;
+								if (Cone->Mode == EContextualAnimCriterionConeMode::ToPrimary)
+								{
+									Origin = QuerierTransform.GetLocation();
+									Direction = QuerierTransform.GetRotation().GetForwardVector().RotateAngleAxis(Cone->Offset, FVector::UpVector);
+								}
+								else if (Cone->Mode == EContextualAnimCriterionConeMode::FromPrimary)
+								{
+									Origin = PrimaryTransform.GetLocation();
+									Direction = PrimaryTransform.GetRotation().GetForwardVector().RotateAngleAxis(Cone->Offset, FVector::UpVector);
+								}
+
+								UContextualAnimUtilities::DrawSector(*PDI, Origin, Direction, 0.f, Cone->Distance, -Cone->HalfAngle, Cone->HalfAngle, DrawColor, SDPG_World, 1.f);
+							}
 						}
 					}
 				}
