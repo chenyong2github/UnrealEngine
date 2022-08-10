@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2017-2020, NVIDIA CORPORATION.  All rights reserved.
+* Copyright (c) 2017-2022, NVIDIA CORPORATION.  All rights reserved.
 *
 * NVIDIA CORPORATION and its licensors retain all intellectual property
 * and proprietary rights in and to this software, related documentation
@@ -21,6 +21,11 @@
 *
 *  HOW TO USE AFTERMATH for DX11 and DX12
 *  --------------------------------------
+*
+*  NOTES: Some of the Aftermath 1.x functionality will go away in a future release.
+*         The functions and structures to be removed are indicated with a DEPRECATED comment.
+*         The supported method for accessing this data is provided via the GPU crash dump functionality.
+*         Please refer to the GFSDK_Aftermath_GpuCrashDump.h header file for more details.
 *
 *  Call 'GFSDK_Aftermath_DXxx_Initialize', to initialize the library and to enable
 *  the desired Aftermath feature set. See 'GFSDK_Aftermath_FeatureFlags' below for
@@ -126,8 +131,16 @@ GFSDK_AFTERMATH_DECLARE_ENUM(FeatureFlags)
 
     // With this flag set, the SetEventMarker and GetData entry points are available.
     //
-    // Using event markers should be considered carefully as they can cause very high
-    // CPU overhead when used in high frequency code paths.
+    // Using event markers should be considered carefully as they can cause
+    // very high CPU overhead when used in high frequency code paths. Due to
+    // the inherent overhead, event markers should be used only for debugging
+    // purposes on development or QA systems. Therefore, starting with the R495
+    // driver, Aftermath event marker tracking on D3D11 and D3D12 is only
+    // available if the Nsight Aftermath GPU Crash Dump Monitor is running on
+    // the system. No Aftermath configuration needs to be made in the Monitor.
+    // It serves only as a dongle to ensure Aftermath event markers do not
+    // impact application performance on end user systems. That means this flag
+    // will be ignored if the monitor process is not detected.
     //
     GFSDK_Aftermath_FeatureFlags_EnableMarkers = 0x00000001,
 
@@ -146,35 +159,40 @@ GFSDK_AFTERMATH_DECLARE_ENUM(FeatureFlags)
     GFSDK_Aftermath_FeatureFlags_CallStackCapturing = 0x40000000,
 
     // With this flag set, shader debug information is generated.
+    //
     // Not supported for UWP applications.
+    //
     GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo = 0x00000008,
 
-    // DEPRECATED - do not use!
-    //
-    // With this flag set, a special shader compiler code path to generate source-level
-    // shader line tables is enabled. This is not necessary for mapping shader addresses
-    // to source lines, when using Nsight Graphics to analyze crash dumps!
-    // This flag is only useful if GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo
-    // is set, too.
-    // Not supported for UWP applications.
-    GFSDK_Aftermath_FeatureFlags_EnableShaderSourceTracking = 0x00008000,
+    // If this flag is set, the GPU will run in a mode that allows to capture runtime
+    // errors in shaders. This can provide additional information when debugging GPU
+    // crashes related to shader execution.
+    GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting = 0x00000010,
 
     // Use all Aftermath features
+    //
     // Be careful when using this! Some features can cause considerable performance overhead,
     // for example, GFSDK_Aftermath_FeatureFlags_EnableMarkers.
+    //
     GFSDK_Aftermath_FeatureFlags_Maximum = GFSDK_Aftermath_FeatureFlags_Minimum |
                                            GFSDK_Aftermath_FeatureFlags_EnableMarkers |
                                            GFSDK_Aftermath_FeatureFlags_EnableResourceTracking |
                                            GFSDK_Aftermath_FeatureFlags_CallStackCapturing |
-                                           GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo,
+                                           GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo |
+                                           GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting,
 };
 
 #if defined(__d3d11_h__) || defined(__d3d12_h__)
 
 // Used with Aftermath entry points to reference an API object.
 GFSDK_AFTERMATH_DECLARE_HANDLE(GFSDK_Aftermath_ContextHandle);
+
+//      DEPRECATED - this functionality will go away in a future release. Do not use!
+//
 GFSDK_AFTERMATH_DECLARE_HANDLE(GFSDK_Aftermath_ResourceHandle);
 
+//      DEPRECATED - this functionality will go away in a future release. Do not use!
+//
 // Used with, 'GFSDK_Aftermath_GetData'. Filled with information,
 // about each requested context.
 typedef struct GFSDK_Aftermath_ContextData
@@ -184,6 +202,8 @@ typedef struct GFSDK_Aftermath_ContextData
     GFSDK_Aftermath_Context_Status status;
 } GFSDK_Aftermath_ContextData;
 
+//      DEPRECATED - this functionality will go away in a future release. Do not use!
+//
 // Minimal description of a graphics resource.
 typedef struct GFSDK_Aftermath_ResourceDescriptor
 {
@@ -211,9 +231,10 @@ typedef struct GFSDK_Aftermath_ResourceDescriptor
     GFSDK_AFTERMATH_DECLARE_BOOLEAN_MEMBER(bPlacedResource);
 
     GFSDK_AFTERMATH_DECLARE_BOOLEAN_MEMBER(bWasDestroyed);
-} GFSDK_Aftermath_ResourceDescriptor
-;
+} GFSDK_Aftermath_ResourceDescriptor;
 
+//      DEPRECATED - this functionality will go away in a future release. Do not use!
+//
 // Used with GFSDK_Aftermath_GetPageFaultInformation
 typedef struct GFSDK_Aftermath_PageFaultInformation
 {
@@ -334,6 +355,8 @@ GFSDK_Aftermath_API GFSDK_Aftermath_SetEventMarker(const GFSDK_Aftermath_Context
 // GFSDK_Aftermath_GetData
 // ------------------------------
 //
+//      DEPRECATED - this functionality will go away in a future release. Do not use!
+//
 // numContexts;
 //      Number of contexts to fetch information for.
 //
@@ -358,6 +381,8 @@ GFSDK_Aftermath_API GFSDK_Aftermath_GetData(const uint32_t numContexts, const GF
 /////////////////////////////////////////////////////////////////////////
 // GFSDK_Aftermath_GetContextError()
 // ------------------------------
+//
+//      DEPRECATED - this functionality will go away in a future release. Do not use!
 //
 // pContextData;
 //      Context data for which to determine error status.
@@ -386,6 +411,8 @@ GFSDK_Aftermath_API GFSDK_Aftermath_GetDeviceStatus(GFSDK_Aftermath_Device_Statu
 // GFSDK_Aftermath_GetPageFaultInformation
 // ---------------------------------
 //
+//      DEPRECATED - this functionality will go away in a future release. Do not use!
+//
 // pOutPageFaultInformation;
 //      OUTPUT: Information about a page fault which may have occurred.
 //
@@ -402,6 +429,8 @@ GFSDK_Aftermath_API GFSDK_Aftermath_GetPageFaultInformation(GFSDK_Aftermath_Page
 /////////////////////////////////////////////////////////////////////////
 // GFSDK_Aftermath_DX12_RegisterResource
 // ---------------------------------
+//
+//      DEPRECATED - this functionality will go away in a future release. Do not use!
 //
 // pResource;
 //      ID3D12Resource to register.
@@ -433,6 +462,8 @@ GFSDK_Aftermath_API GFSDK_Aftermath_DX12_RegisterResource(ID3D12Resource* const 
 // GFSDK_Aftermath_DX12_UnregisterResource
 // ---------------------------------
 //
+//      DEPRECATED - this functionality will go away in a future release. Do not use!
+//
 // resourceHandle;
 //      Aftermath resource handle for a resource that was reagister earlier
 //      with GFSDK_Aftermath_DX12_RegisterResource().
@@ -453,12 +484,12 @@ GFSDK_Aftermath_API GFSDK_Aftermath_DX12_UnregisterResource(const GFSDK_Aftermat
 //
 /////////////////////////////////////////////////////////////////////////
 #if defined(__d3d11_h__)
-GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_DX11_Initialize)(GFSDK_Aftermath_Version version, GFSDK_Aftermath_FeatureFlags flags, ID3D11Device* const pDx11Device);
+GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_DX11_Initialize)(GFSDK_Aftermath_Version version, uint32_t flags, ID3D11Device* const pDx11Device);
 GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_DX11_CreateContextHandle)(ID3D11DeviceContext* const pDx11DeviceContext, GFSDK_Aftermath_ContextHandle* pOutContextHandle);
 #endif
 
 #if defined(__d3d12_h__)
-GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_DX12_Initialize)(GFSDK_Aftermath_Version version, GFSDK_Aftermath_FeatureFlags flags, ID3D12Device* const pDx12Device);
+GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_DX12_Initialize)(GFSDK_Aftermath_Version version, uint32_t flags, ID3D12Device* const pDx12Device);
 GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_DX12_CreateContextHandle)(IUnknown* const pDx12CommandList, GFSDK_Aftermath_ContextHandle* pOutContextHandle);
 #endif
 
@@ -472,8 +503,8 @@ GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_GetPageFaultInform
 #endif
 
 #if defined(__d3d12_h__)
-GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_RegisterResource)(ID3D12Resource* const pResource, GFSDK_Aftermath_ResourceHandle* pOutResourceHandle);
-GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_UnregisterResource)(const GFSDK_Aftermath_ResourceHandle resourceHandle);
+GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_DX12_RegisterResource)(ID3D12Resource* const pResource, GFSDK_Aftermath_ResourceHandle* pOutResourceHandle);
+GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_DX12_UnregisterResource)(const GFSDK_Aftermath_ResourceHandle resourceHandle);
 #endif
 
 #endif // defined(__d3d11_h__) || defined(__d3d12_h__)

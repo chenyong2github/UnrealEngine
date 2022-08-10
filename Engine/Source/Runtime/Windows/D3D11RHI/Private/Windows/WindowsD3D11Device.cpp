@@ -1358,9 +1358,10 @@ void EnableNVAftermathCrashDumps()
 				GFSDK_Aftermath_Version_API,
 				GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_DX,
 				GFSDK_Aftermath_GpuCrashDumpFeatureFlags_Default,
-				D3D11AftermathCrashCallback,
+				&D3D11AftermathCrashCallback,
 				nullptr, //Shader debug callback
 				nullptr, // description callback
+				nullptr, // resolve marker callback
 				nullptr); // user data
 
 			if (Result == GFSDK_Aftermath_Result_Success)

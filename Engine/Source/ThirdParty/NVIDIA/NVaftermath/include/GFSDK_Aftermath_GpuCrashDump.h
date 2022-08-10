@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
+* Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
 *
 * NVIDIA CORPORATION and its licensors retain all intellectual property
 * and proprietary rights in and to this software, related documentation
@@ -53,6 +53,32 @@
 *
 *      Disabling GPU crash dumps will also re-establish any settings from an also active
 *      Nsight Graphics GPU crash dump monitor for the calling process.
+*
+*
+*  5)  If the application detects a potential GPU crash, e.g. device removed/lost,
+*      call 'GFSDK_Aftermath_GetCrashDumpStatus' to check the GPU crash dump status.
+*      The application should then wait until Aftermath has finished processing the
+*      crash dump before releasing the device or exiting.
+*      Here is the recommended pattern:
+*           a) Call 'GFSDK_Aftermath_GetCrashDumpStatus' to check the GPU crash dump status.
+*           b) If the status is "Unknown", this means the driver does not support the crash dump
+*              status query feature. But it's still possible to receive the "Finished" or "Failed"
+*              status. The application should continue to poll the status as step d describes.
+*           c) If the status is not "Unknown" and not "NotStarted", this means Aftermath has detected
+*              the GPU crash.
+*           d) The application should wait for a few seconds to allow the Aftermath driver thread
+*              to collect the GPU crash dump data. Start polling the status until the crash dump data
+*              has been collected and the notification callback has been processed by the application
+*              or a timeout of a couple of seconds has expired.
+*               while (status != GFSDK_Aftermath_CrashDump_Status_CollectingDataFailed &&
+*                      status != GFSDK_Aftermath_CrashDump_Status_Finished &&
+*                      !timeout) {
+*                   // Wait for a couple of milliseconds, and poll the crash dump status again.
+*                   Sleep(50);
+*                   GFSDK_Aftermath_GetCrashDumpStatus(&status);
+*               }
+*           e) Continue handling the device lost event, e.g. release the device or terminate
+*              the application, if the timeout expires or status turns to "Finished" or "Failed".
 *
 *
 *  OPTIONAL:
@@ -132,6 +158,28 @@ GFSDK_AFTERMATH_DECLARE_ENUM(GpuCrashDumpDescriptionKey)
     GFSDK_Aftermath_GpuCrashDumpDescriptionKey_UserDefined = 0x00010000,
 };
 
+GFSDK_AFTERMATH_DECLARE_ENUM(CrashDump_Status)
+{
+    // No GPU crash has been detected by Aftermath, so far.
+    GFSDK_Aftermath_CrashDump_Status_NotStarted = 0,
+
+    // A GPU crash happened, Aftermath started to collect crash dump data.
+    GFSDK_Aftermath_CrashDump_Status_CollectingData,
+
+    // Aftermath failed to collect crash dump data. No further callback will be invoked.
+    GFSDK_Aftermath_CrashDump_Status_CollectingDataFailed,
+
+    // Aftermath is invoking the gpuCrashDumpCb callback after collecting the crash dump data successfully.
+    GFSDK_Aftermath_CrashDump_Status_InvokingCallback,
+
+    // gpuCrashDumpCb callback returned and Aftermath finished processing the GPU crash.
+    GFSDK_Aftermath_CrashDump_Status_Finished,
+
+    // Unknown problem - likely using an older driver
+    //  incompatible with this Aftermath feature.
+    GFSDK_Aftermath_CrashDump_Status_Unknown,
+};
+
 // Function for adding user-defined description key-value pairs.
 // Key must be one of the predefined keys of GFSDK_Aftermath_GpuCrashDumpDescriptionKey
 // or a user-defined key based on GFSDK_Aftermath_GpuCrashDumpDescriptionKey_UserDefined.
@@ -147,6 +195,7 @@ typedef void (GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_AddGpuCrashDumpDescripti
 typedef void (GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_GpuCrashDumpCb)(const void* pGpuCrashDump, const uint32_t gpuCrashDumpSize, void* pUserData);
 typedef void (GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_ShaderDebugInfoCb)(const void* pShaderDebugInfo, const uint32_t shaderDebugInfoSize, void* pUserData);
 typedef void (GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_GpuCrashDumpDescriptionCb)(PFN_GFSDK_Aftermath_AddGpuCrashDumpDescription addValue, void* pUserData);
+typedef void (GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_ResolveMarkerCb)(const void* pMarker, void* pUserData, void** resolvedMarkerData, uint32_t* markerSize);
 
 /////////////////////////////////////////////////////////////////////////
 // GFSDK_Aftermath_EnableGpuCrashDumps
@@ -184,6 +233,21 @@ typedef void (GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_GpuCrashDumpDescriptionC
 //      Callback is free-threaded, ensure the provided function is thread-safe.
 //      Optional, can be NULL.
 //
+// resolveMarkerCb;
+//      Callback function to be called when the crash dump contains an event marker with
+//      a size of zero. This means that GFSDK_Aftermath_SetEventMarker() was called with
+//      markerSize=0, meaning that the marker payload itself is managed by the application
+//      rather than copied by Aftermath internally. All Vulkan markers set using the
+//      NV_device_diagnostic_checkpoints extension are application-managed as well.
+//      This callback allows the application to pass the marker's associated data back
+//      to the crash dump process to be included in the dump file.
+//      The application should set the value of *resolvedMarkerData to the pointer of
+//      the marker's data, and set the value of *markerSize to the size of the marker's
+//      data in bytes.
+//      Note: ensure that the marker data memory passed back via resolvedMarkerData will
+//      remain valid for the entirety of the crash dump generation process, i.e. until
+//      gpuCrashDumpCb is called.
+//
 // pUserData;
 //      User data made available in the callbacks.
 //
@@ -201,6 +265,7 @@ GFSDK_Aftermath_API GFSDK_Aftermath_EnableGpuCrashDumps(
     PFN_GFSDK_Aftermath_GpuCrashDumpCb gpuCrashDumpCb,
     PFN_GFSDK_Aftermath_ShaderDebugInfoCb shaderDebugInfoCb,
     PFN_GFSDK_Aftermath_GpuCrashDumpDescriptionCb descriptionCb,
+    PFN_GFSDK_Aftermath_ResolveMarkerCb resolveMarkerCb,
     void* pUserData);
 
 /////////////////////////////////////////////////////////////////////////
@@ -216,43 +281,27 @@ GFSDK_Aftermath_API GFSDK_Aftermath_EnableGpuCrashDumps(
 GFSDK_Aftermath_API GFSDK_Aftermath_DisableGpuCrashDumps();
 
 /////////////////////////////////////////////////////////////////////////
-// GFSDK_Aftermath_SetShaderDebugInfoPaths
+// GFSDK_Aftermath_GetCrashDumpStatus
 // ---------------------------------
 //
-//      DEPRECATED - do not use!
-//
-// shaderDebugInfoSearchPaths;
-//      (NUL-terminated) List of file paths in which to search for shader
-//      (source) debug information, i.e. shader code precompiled with
-//      the /Zi compiler flag.
-//
-// recursiveSearch;
-//      If set, search includes all subdirectories in the provided search
-//      paths.
+// pOutStatus;
+//      OUTPUT: Crash dump status.
 //
 //// DESCRIPTION;
-//      Allows to set search paths for (source) debug info to be used when
-//      GFSDK_Aftermath_FeatureFlags_EnableShaderSourceTracking is enabled.
-//      This would be the directories where the unstripped shader binaries
-//      (compiled with the /Zi compiler flag) are stored.
+//      Query the status of GPU crash detection and crash dump data collection.
+//      See GFSDK_Aftermath_CrashDump_Status for details.
 //
 /////////////////////////////////////////////////////////////////////////
-#if defined(__d3d12_h__)
-GFSDK_Aftermath_API GFSDK_Aftermath_SetShaderDebugInfoPaths(
-    const char** shaderDebugInfoSearchPaths,
-    bool recursiveSearch);
-#endif
+GFSDK_Aftermath_API GFSDK_Aftermath_GetCrashDumpStatus(GFSDK_Aftermath_CrashDump_Status* pOutStatus);
 
 /////////////////////////////////////////////////////////////////////////
 //
 // NOTE: Function table provided - if dynamic loading is preferred.
 //
 /////////////////////////////////////////////////////////////////////////
-GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_EnableGpuCrashDumps)(GFSDK_Aftermath_Version apiVersion, uint32_t watchedApis, uint32_t flags, PFN_GFSDK_Aftermath_GpuCrashDumpCb gpuCrashDumpCb, PFN_GFSDK_Aftermath_ShaderDebugInfoCb shaderDebugInfoCb, PFN_GFSDK_Aftermath_GpuCrashDumpDescriptionCb descriptionCb, void* pUserData);
+GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_EnableGpuCrashDumps)(GFSDK_Aftermath_Version apiVersion, uint32_t watchedApis, uint32_t flags, PFN_GFSDK_Aftermath_GpuCrashDumpCb gpuCrashDumpCb, PFN_GFSDK_Aftermath_ShaderDebugInfoCb shaderDebugInfoCb, PFN_GFSDK_Aftermath_GpuCrashDumpDescriptionCb descriptionCb, PFN_GFSDK_Aftermath_ResolveMarkerCb resolveMarkerCb, void* pUserData);
 GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_DisableGpuCrashDumps)();
-#if defined(__d3d12_h__)
-GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_SetShaderDebugInfoPaths)(const char** shaderDebugInfoSearchPaths, bool recursiveSearch);
-#endif
+GFSDK_Aftermath_PFN(GFSDK_AFTERMATH_CALL *PFN_GFSDK_Aftermath_GetCrashDumpStatus)(GFSDK_Aftermath_CrashDump_Status* pOutStatus);
 
 #ifdef __cplusplus
 } // extern "C"
