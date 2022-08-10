@@ -156,6 +156,8 @@ $ bPublicSymbolsByDefault : Whether to expose all symbols as public by default o
 
 $ CppStandard : Which C++ stanard to use for compiling this target
 
+$ CStandard : Which C standard to use for compiling this target
+
 $ bStopSNDBSCompilationAfterErrors : When enabled, SN-DBS will stop compiling targets after a compile error occurs.  Recommended, as it saves computing resources for others.
 
 $ bXGENoWatchdogThread : Whether to use the no_watchdog_thread option to prevent VS2015 toolchain stalls.

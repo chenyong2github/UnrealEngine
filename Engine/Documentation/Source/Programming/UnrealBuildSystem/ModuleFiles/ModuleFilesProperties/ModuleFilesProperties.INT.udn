@@ -146,6 +146,8 @@ $ bValidateCircularDependencies (Boolean): Whether circular dependencies will be
 
 $ CppStandard (CppStandardVersion): Which stanard to use for compiling this module
 
+$ CStandard (CStandardVersion): Which standard to use for compiling this module
+
 $ ModuleSymbolVisibility (SymbolVisibility): Control visibility of symbols
 
 $ Name (String): Name of this module
