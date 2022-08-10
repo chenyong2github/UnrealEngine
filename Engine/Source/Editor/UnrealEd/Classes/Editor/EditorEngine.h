@@ -18,7 +18,6 @@
 #include "UObject/UObjectAnnotation.h"
 #include "Engine/Brush.h"
 #include "Model.h"
-#include "Editor/Transactor.h"
 #include "Engine/Engine.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Settings/LevelEditorViewportSettings.h"

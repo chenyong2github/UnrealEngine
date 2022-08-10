@@ -469,7 +469,6 @@
 #include "Engine/MaterialMerging.h"
 #include "Engine/Level.h"
 #include "GameFramework/Actor.h"
-#include "ComponentInstanceDataCache.h"
 #include "Components/ActorComponent.h"
 #include "Components/SceneComponent.h"
 #include "EngineDefines.h"
@@ -614,7 +613,6 @@
 
 // From UnrealEd:
 #include "Editor/UnrealEdTypes.h"
-#include "Editor/Transactor.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Viewports.h"
 #include "Editor/EditorEngine.h"
