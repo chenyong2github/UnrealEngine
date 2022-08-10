@@ -47,7 +47,7 @@ void UMassReplicationProcessor::ConfigureQueries()
 	AdjustLODDistancesQuery.AddRequirement<FMassReplicationViewerInfoFragment>(EMassFragmentAccess::ReadOnly);
 	AdjustLODDistancesQuery.AddRequirement<FMassReplicationLODFragment>(EMassFragmentAccess::ReadWrite);
 	AdjustLODDistancesQuery.AddSharedRequirement<FMassReplicationSharedFragment>(EMassFragmentAccess::ReadWrite);
-	AdjustLODDistancesQuery.SetArchetypeFilter([](const FMassExecutionContext& Context)
+	AdjustLODDistancesQuery.SetChunkFilter([](const FMassExecutionContext& Context)
 	{
 		const FMassReplicationSharedFragment& LODSharedFragment = Context.GetSharedFragment<FMassReplicationSharedFragment>();
 		return LODSharedFragment.bHasAdjustedDistancesFromCount;
@@ -89,7 +89,7 @@ void UMassReplicationProcessor::PrepareExecution(UMassEntitySubsystem& EntitySub
 		if (!RepSharedFragment.bEntityQueryInitialized)
 		{
 			RepSharedFragment.EntityQuery = EntityQuery;
-			RepSharedFragment.EntityQuery.SetArchetypeFilter([&RepSharedFragment](const FMassExecutionContext& Context)
+			RepSharedFragment.EntityQuery.SetChunkFilter([&RepSharedFragment](const FMassExecutionContext& Context)
 			{
 				const FMassReplicationSharedFragment& CurRepSharedFragment = Context.GetSharedFragment<FMassReplicationSharedFragment>();
 				return &CurRepSharedFragment == &RepSharedFragment;

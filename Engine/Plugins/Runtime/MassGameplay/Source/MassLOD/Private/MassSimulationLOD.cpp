@@ -87,12 +87,11 @@ void UMassSimulationLODProcessor::ConfigureQueries()
 	EntityQueryCalculateLOD.SetChunkFilter(FMassSimulationVariableTickSharedFragment::ShouldCalculateLODForChunk);
 
 	EntityQueryAdjustDistances = EntityQuery;
-	EntityQueryAdjustDistances.SetArchetypeFilter([](const FMassExecutionContext& Context)
+	EntityQueryAdjustDistances.SetChunkFilter([](const FMassExecutionContext& Context)
 	{
 		const FMassSimulationLODSharedFragment& LODSharedFragment = Context.GetSharedFragment<FMassSimulationLODSharedFragment>();
-		return LODSharedFragment.bHasAdjustedDistancesFromCount;
+		return LODSharedFragment.bHasAdjustedDistancesFromCount && FMassSimulationVariableTickSharedFragment::ShouldAdjustLODFromCountForChunk(Context);
 	});
-	EntityQueryAdjustDistances.SetChunkFilter(&FMassSimulationVariableTickSharedFragment::ShouldAdjustLODFromCountForChunk);
 
 	EntityQueryVariableTick.AddRequirement<FMassSimulationLODFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQueryVariableTick.AddRequirement<FMassSimulationVariableTickFragment>(EMassFragmentAccess::ReadWrite);
@@ -104,7 +103,7 @@ void UMassSimulationLODProcessor::ConfigureQueries()
 	EntityQuerySetLODTag.AddRequirement<FMassSimulationLODFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuerySetLODTag.AddRequirement<FMassSimulationVariableTickFragment>(EMassFragmentAccess::ReadWrite, EMassFragmentPresence::None);
 	EntityQuerySetLODTag.AddConstSharedRequirement<FMassSimulationLODParameters>();
-	EntityQuerySetLODTag.SetArchetypeFilter([](const FMassExecutionContext& Context)
+	EntityQuerySetLODTag.SetChunkFilter([](const FMassExecutionContext& Context)
 	{
 		const FMassSimulationLODParameters& LODParams = Context.GetConstSharedFragment<FMassSimulationLODParameters>();
 		return LODParams.bSetLODTags;

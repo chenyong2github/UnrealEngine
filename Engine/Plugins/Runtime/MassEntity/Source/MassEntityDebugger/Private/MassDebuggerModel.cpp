@@ -153,11 +153,10 @@ FMassDebuggerArchetypeData::FMassDebuggerArchetypeData(const FMassArchetypeHandl
 {
 #if WITH_MASSENTITY_DEBUG
 	Composition = FMassDebugger::GetArchetypeComposition(ArchetypeHandle);
-	SharedFragments = FMassDebugger::GetArchetypeSharedFragmentValues(ArchetypeHandle);
 
 	// @todo should ensure we're using same hashing as the EntitySubsystem here
 	CompositionHash = Composition.CalculateHash();
-	FullHash = HashCombine(CompositionHash, GetTypeHash(SharedFragments));
+	FullHash = CompositionHash;
 
 	FString FullHashAsString;
 	BytesToHexLower(reinterpret_cast<const uint8*>(&FullHash), sizeof(FullHash), FullHashAsString);

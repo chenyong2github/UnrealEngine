@@ -224,39 +224,14 @@ struct MASSENTITY_API FMassArchetypeSharedFragmentValues
 	static constexpr uint32 EmptyInstanceHash = 0;
 
 	FMassArchetypeSharedFragmentValues() = default;
+	FMassArchetypeSharedFragmentValues(const FMassArchetypeSharedFragmentValues& OtherFragmentValues) = default;
+	FMassArchetypeSharedFragmentValues(FMassArchetypeSharedFragmentValues&& OtherFragmentValues) = default;
+	FMassArchetypeSharedFragmentValues& operator=(const FMassArchetypeSharedFragmentValues& OtherFragmentValues) = default;
+	FMassArchetypeSharedFragmentValues& operator=(FMassArchetypeSharedFragmentValues&& OtherFragmentValues) = default;
 
-	FMassArchetypeSharedFragmentValues(const FMassArchetypeSharedFragmentValues& OtherFragmentValues)
+	FORCEINLINE bool HasExactFragmentTypesMatch(const FMassSharedFragmentBitSet& InSharedFragmentBitSet) const
 	{
-		ConstSharedFragments = OtherFragmentValues.ConstSharedFragments;
-		SharedFragments = OtherFragmentValues.SharedFragments;
-		HashCache = OtherFragmentValues.HashCache;
-		bSorted = OtherFragmentValues.bSorted;
-	}
-
-	FMassArchetypeSharedFragmentValues(FMassArchetypeSharedFragmentValues&& OtherFragmentValues)
-	{
-		ConstSharedFragments = MoveTemp(OtherFragmentValues.ConstSharedFragments);
-		SharedFragments = MoveTemp(OtherFragmentValues.SharedFragments);
-		HashCache = OtherFragmentValues.HashCache;
-		bSorted = OtherFragmentValues.bSorted;
-	}
-
-	FMassArchetypeSharedFragmentValues& operator=(const FMassArchetypeSharedFragmentValues& OtherFragmentValues)
-	{
-		ConstSharedFragments = OtherFragmentValues.ConstSharedFragments;
-		SharedFragments = OtherFragmentValues.SharedFragments;
-		HashCache = OtherFragmentValues.HashCache;
-		bSorted = OtherFragmentValues.bSorted;
-		return *this;
-	}
-
-	FMassArchetypeSharedFragmentValues& operator=(FMassArchetypeSharedFragmentValues&& OtherFragmentValues)
-	{
-		ConstSharedFragments = MoveTemp(OtherFragmentValues.ConstSharedFragments);
-		SharedFragments = MoveTemp(OtherFragmentValues.SharedFragments);
-		HashCache = OtherFragmentValues.HashCache;
-		bSorted = OtherFragmentValues.bSorted;
-		return *this;
+		return SharedFragmentBitSet == InSharedFragmentBitSet;
 	}
 
 	FORCEINLINE bool IsEquivalent(const FMassArchetypeSharedFragmentValues& OtherSharedFragmentValues) const
@@ -267,12 +242,16 @@ struct MASSENTITY_API FMassArchetypeSharedFragmentValues
 	FORCEINLINE FConstSharedStruct& AddConstSharedFragment(const FConstSharedStruct& Fragment)
 	{
 		DirtyHashCache();
+		check(Fragment.GetScriptStruct());
+		SharedFragmentBitSet.Add(*Fragment.GetScriptStruct());
 		return ConstSharedFragments.Add_GetRef(Fragment);
 	}
 
 	FORCEINLINE FSharedStruct AddSharedFragment(const FSharedStruct& Fragment)
 	{
 		DirtyHashCache();
+		check(Fragment.GetScriptStruct());
+		SharedFragmentBitSet.Add(*Fragment.GetScriptStruct());
 		return SharedFragments.Add_GetRef(Fragment);
 	}
 
@@ -329,6 +308,7 @@ protected:
 	mutable uint32 HashCache = UINT32_MAX;
 	mutable bool bSorted = true; // When no element in the array, consider already sorted
 	
+	FMassSharedFragmentBitSet SharedFragmentBitSet;
 	TArray<FConstSharedStruct> ConstSharedFragments;
 	TArray<FSharedStruct> SharedFragments;
 };

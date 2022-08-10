@@ -155,7 +155,7 @@ FMassArchetypeHandle UMassEntitySubsystem::CreateArchetype(TConstArrayView<const
 	}
 
 	const FMassArchetypeCompositionDescriptor Composition(FMassFragmentBitSet(FragmentList), Tags, ChunkFragments, FMassSharedFragmentBitSet());
-	return CreateArchetype(Composition, FMassArchetypeSharedFragmentValues(), ArchetypeDebugName);
+	return CreateArchetype(Composition, ArchetypeDebugName);
 }
 
 FMassArchetypeHandle UMassEntitySubsystem::CreateArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassFragmentBitSet& AddedFragments, const FName ArchetypeDebugName)
@@ -164,19 +164,19 @@ FMassArchetypeHandle UMassEntitySubsystem::CreateArchetype(const TSharedPtr<FMas
 	checkf(AddedFragments.IsEmpty() == false, TEXT("%s Adding an empty fragment list to an archetype is not supported."), ANSI_TO_TCHAR(__FUNCTION__));
 
 	const FMassArchetypeCompositionDescriptor Composition(AddedFragments + SourceArchetype->GetFragmentBitSet(), SourceArchetype->GetTagBitSet(), SourceArchetype->GetChunkFragmentBitSet(), SourceArchetype->GetSharedFragmentBitSet());
-	return CreateArchetype(Composition, SourceArchetype->GetSharedFragmentValues(), ArchetypeDebugName);
+	return CreateArchetype(Composition, ArchetypeDebugName);
 }
 
-FMassArchetypeHandle UMassEntitySubsystem::CreateArchetype(const FMassArchetypeCompositionDescriptor& Composition, const FMassArchetypeSharedFragmentValues& SharedFragmentValues, const FName ArchetypeDebugName)
+FMassArchetypeHandle UMassEntitySubsystem::CreateArchetype(const FMassArchetypeCompositionDescriptor& Composition, const FName ArchetypeDebugName)
 {
-	const uint32 TypeHash = HashCombine(Composition.CalculateHash(), GetTypeHash(SharedFragmentValues));
+	const uint32 TypeHash = Composition.CalculateHash();
 
 	TArray<TSharedPtr<FMassArchetypeData>>& HashRow = FragmentHashToArchetypeMap.FindOrAdd(TypeHash);
 
 	TSharedPtr<FMassArchetypeData> ArchetypeDataPtr;
 	for (const TSharedPtr<FMassArchetypeData>& Ptr : HashRow)
 	{
-		if (Ptr->IsEquivalent(Composition, SharedFragmentValues))
+		if (Ptr->IsEquivalent(Composition))
 		{
 			// Keep track of all names for this archetype.
 			if (!ArchetypeDebugName.IsNone())
@@ -192,7 +192,7 @@ FMassArchetypeHandle UMassEntitySubsystem::CreateArchetype(const FMassArchetypeC
 	{
 		// Create a new archetype
 		FMassArchetypeData* NewArchetype = new FMassArchetypeData();
-		NewArchetype->Initialize(Composition, SharedFragmentValues);
+		NewArchetype->Initialize(Composition);
 		if (!ArchetypeDebugName.IsNone())
 		{
 			NewArchetype->AddUniqueDebugName(ArchetypeDebugName);
@@ -229,14 +229,14 @@ FMassArchetypeHandle UMassEntitySubsystem::InternalCreateSimilarArchetype(const 
 
 FMassArchetypeHandle UMassEntitySubsystem::InternalCreateSimilarArchetype(const FMassArchetypeData& SourceArchetypeRef, FMassArchetypeCompositionDescriptor&& NewComposition)
 {
-	const uint32 TypeHash = HashCombine(NewComposition.CalculateHash(), GetTypeHash(SourceArchetypeRef.GetSharedFragmentValues()));
+	const uint32 TypeHash = NewComposition.CalculateHash();
 
 	TArray<TSharedPtr<FMassArchetypeData>>& HashRow = FragmentHashToArchetypeMap.FindOrAdd(TypeHash);
 
 	TSharedPtr<FMassArchetypeData> ArchetypeDataPtr;
 	for (const TSharedPtr<FMassArchetypeData>& Ptr : HashRow)
 	{
-		if (Ptr->IsEquivalent(NewComposition, SourceArchetypeRef.GetSharedFragmentValues()))
+		if (Ptr->IsEquivalent(NewComposition))
 		{
 			ArchetypeDataPtr = Ptr;
 			break;
@@ -309,25 +309,25 @@ void UMassEntitySubsystem::DoEntityCompaction(const double TimeAllowed)
 	}
 }
 
-FMassEntityHandle UMassEntitySubsystem::CreateEntity(const FMassArchetypeHandle& ArchetypeHandle)
+FMassEntityHandle UMassEntitySubsystem::CreateEntity(const FMassArchetypeHandle& ArchetypeHandle, const FMassArchetypeSharedFragmentValues& SharedFragmentValues)
 {
 	check(ArchetypeHandle.IsValid());
 
 	const FMassEntityHandle Entity = ReserveEntity();
-	InternalBuildEntity(Entity, ArchetypeHandle);
+	InternalBuildEntity(Entity, ArchetypeHandle, SharedFragmentValues);
 	return Entity;
 }
 
-FMassEntityHandle UMassEntitySubsystem::CreateEntity(TConstArrayView<FInstancedStruct> FragmentInstanceList, const FName ArchetypeDebugName)
+FMassEntityHandle UMassEntitySubsystem::CreateEntity(TConstArrayView<FInstancedStruct> FragmentInstanceList, const FMassArchetypeSharedFragmentValues& SharedFragmentValues, const FName ArchetypeDebugName)
 {
 	check(FragmentInstanceList.Num() > 0);
 
 	const FMassArchetypeHandle& ArchetypeHandle = CreateArchetype(FMassArchetypeCompositionDescriptor(FragmentInstanceList,
-		FMassTagBitSet(), FMassChunkFragmentBitSet(), FMassSharedFragmentBitSet()), FMassArchetypeSharedFragmentValues(), ArchetypeDebugName);
+		FMassTagBitSet(), FMassChunkFragmentBitSet(), FMassSharedFragmentBitSet()), ArchetypeDebugName);
 	check(ArchetypeHandle.IsValid());
 
 	const FMassEntityHandle Entity = ReserveEntity();
-	InternalBuildEntity(Entity, ArchetypeHandle);
+	InternalBuildEntity(Entity, ArchetypeHandle, SharedFragmentValues);
 
 	const FEntityData& EntityData = Entities[Entity.Index];
 	EntityData.CurrentArchetype->SetFragmentsData(Entity, FragmentInstanceList);
@@ -353,21 +353,20 @@ void UMassEntitySubsystem::ReleaseReservedEntity(FMassEntityHandle Entity)
 	InternalReleaseEntity(Entity);
 }
 
-void UMassEntitySubsystem::BuildEntity(FMassEntityHandle Entity, const FMassArchetypeHandle& ArchetypeHandle)
+void UMassEntitySubsystem::BuildEntity(FMassEntityHandle Entity, const FMassArchetypeHandle& ArchetypeHandle, const FMassArchetypeSharedFragmentValues& SharedFragmentValues)
 {
 	checkf(!IsEntityBuilt(Entity), TEXT("Expecting an entity that is not already built"));
 	check(ArchetypeHandle.IsValid());
 
-	InternalBuildEntity(Entity, ArchetypeHandle);
+	InternalBuildEntity(Entity, ArchetypeHandle, SharedFragmentValues);
 }
 
-void UMassEntitySubsystem::BuildEntity(FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> FragmentInstanceList, FMassArchetypeSharedFragmentValues SharedFragmentValues)
+void UMassEntitySubsystem::BuildEntity(FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> FragmentInstanceList, const FMassArchetypeSharedFragmentValues& SharedFragmentValues)
 {
 	check(FragmentInstanceList.Num() > 0);
 	checkf(!IsEntityBuilt(Entity), TEXT("Expecting an entity that is not already built"));
 
-	SharedFragmentValues.Sort();
-	SharedFragmentValues.CacheHash();
+	checkf(SharedFragmentValues.IsSorted(), TEXT("Expecting shared fragment values to be previously sorted"));
 	FMassArchetypeCompositionDescriptor Composition(FragmentInstanceList, FMassTagBitSet(), FMassChunkFragmentBitSet(), FMassSharedFragmentBitSet());
 	for (const FConstSharedStruct& SharedFragment : SharedFragmentValues.GetConstSharedFragments())
 	{
@@ -378,10 +377,10 @@ void UMassEntitySubsystem::BuildEntity(FMassEntityHandle Entity, TConstArrayView
 		Composition.SharedFragments.Add(*SharedFragment.GetScriptStruct());
 	}
 
-	const FMassArchetypeHandle& ArchetypeHandle = CreateArchetype(Composition, SharedFragmentValues);
+	const FMassArchetypeHandle& ArchetypeHandle = CreateArchetype(Composition);
 	check(ArchetypeHandle.IsValid());
 
-	InternalBuildEntity(Entity, ArchetypeHandle);
+	InternalBuildEntity(Entity, ArchetypeHandle, SharedFragmentValues);
 
 	const FEntityData& EntityData = Entities[Entity.Index];
 	EntityData.CurrentArchetype->SetFragmentsData(Entity, FragmentInstanceList);
@@ -411,7 +410,7 @@ void UMassEntitySubsystem::BatchBuildEntities(const FMassArchetypeEntityCollecti
 	FMassArchetypeEntityCollection::FEntityRangeArray TargetArchetypeEntityRanges;
 
 	// "built" entities case, this is verified during FMassArchetypeEntityCollectionWithPayload construction
-	FMassArchetypeHandle TargetArchetypeHandle = CreateArchetype(Composition, SharedFragmentValues, ArchetypeDebugName);
+	FMassArchetypeHandle TargetArchetypeHandle = CreateArchetype(Composition, ArchetypeDebugName);
 	check(TargetArchetypeHandle.IsValid());
 
 	// there are some extra steps in creating EncodedEntities from the original given entity handles and then back
@@ -432,7 +431,7 @@ void UMassEntitySubsystem::BatchBuildEntities(const FMassArchetypeEntityCollecti
 		EntityData.CurrentArchetype = TargetArchetypeHandle.DataPtr;
 	}
 
-	TargetArchetypeHandle.DataPtr->BatchAddEntities(EntityHandles, TargetArchetypeEntityRanges);
+	TargetArchetypeHandle.DataPtr->BatchAddEntities(EntityHandles, SharedFragmentValues, TargetArchetypeEntityRanges);
 
 	if (EncodedEntitiesWithPayload.GetPayload().IsEmpty() == false)
 	{
@@ -451,7 +450,7 @@ void UMassEntitySubsystem::BatchBuildEntities(const FMassArchetypeEntityCollecti
 	}
 }
 
-TSharedRef<UMassEntitySubsystem::FEntityCreationContext> UMassEntitySubsystem::BatchCreateEntities(const FMassArchetypeHandle& ArchetypeHandle, const int32 Count, TArray<FMassEntityHandle>& OutEntities)
+TSharedRef<UMassEntitySubsystem::FEntityCreationContext> UMassEntitySubsystem::BatchCreateEntities(const FMassArchetypeHandle& ArchetypeHandle, const FMassArchetypeSharedFragmentValues& SharedFragmentValues, const int32 Count, TArray<FMassEntityHandle>& OutEntities)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Mass_BatchCreateEntities);
 
@@ -472,7 +471,7 @@ TSharedRef<UMassEntitySubsystem::FEntityCreationContext> UMassEntitySubsystem::B
 		EntityData.CurrentArchetype = ArchetypeHandle.DataPtr;
 		EntityData.SerialNumber = Result.SerialNumber;
 		
-		ArchetypeData.AddEntity(Result);
+		ArchetypeData.AddEntity(Result, SharedFragmentValues);
 	}
 		
 	FEntityCreationContext* CreationContext = new FEntityCreationContext(Count);
@@ -617,7 +616,7 @@ void UMassEntitySubsystem::AddCompositionToEntity_GetDelta(FMassEntityHandle Ent
 		NewDescriptor.Fragments += InDescriptor.Fragments;
 		NewDescriptor.Tags += InDescriptor.Tags;
 
-		const FMassArchetypeHandle NewArchetypeHandle = CreateArchetype(NewDescriptor, OldArchetype->GetSharedFragmentValues());
+		const FMassArchetypeHandle NewArchetypeHandle = CreateArchetype(NewDescriptor);
 
 		if (ensure(NewArchetypeHandle.DataPtr != EntityData.CurrentArchetype))
 		{
@@ -654,7 +653,7 @@ void UMassEntitySubsystem::RemoveCompositionFromEntity(FMassEntityHandle Entity,
 			ensureMsgf(OldArchetype->GetCompositionDescriptor().HasAll(InDescriptor), TEXT("Some of the elements being removed are already missing from entity\'s composition."));
 			ObserverManager.OnPreCompositionRemoved(Entity, InDescriptor);
 
-			const FMassArchetypeHandle NewArchetypeHandle = CreateArchetype(NewDescriptor, OldArchetype->GetSharedFragmentValues());
+			const FMassArchetypeHandle NewArchetypeHandle = CreateArchetype(NewDescriptor);
 
 			if (ensure(NewArchetypeHandle.DataPtr != EntityData.CurrentArchetype))
 			{
@@ -674,11 +673,11 @@ const FMassArchetypeCompositionDescriptor& UMassEntitySubsystem::GetArchetypeCom
 	return ArchetypeData.GetCompositionDescriptor();
 }
 
-void UMassEntitySubsystem::InternalBuildEntity(FMassEntityHandle Entity, const FMassArchetypeHandle& ArchetypeHandle)
+void UMassEntitySubsystem::InternalBuildEntity(FMassEntityHandle Entity, const FMassArchetypeHandle& ArchetypeHandle, const FMassArchetypeSharedFragmentValues& SharedFragmentValues)
 {
 	FEntityData& EntityData = Entities[Entity.Index];
 	EntityData.CurrentArchetype = ArchetypeHandle.DataPtr;
-	EntityData.CurrentArchetype->AddEntity(Entity);
+	EntityData.CurrentArchetype->AddEntity(Entity, SharedFragmentValues);
 }
 
 void UMassEntitySubsystem::InternalReleaseEntity(FMassEntityHandle Entity)
@@ -760,7 +759,7 @@ void UMassEntitySubsystem::RemoveFragmentListFromEntity(FMassEntityHandle Entity
 	{
 		// If all the fragments got removed this will result in fetching of the empty archetype
 		const FMassArchetypeCompositionDescriptor NewComposition(OldArchetype->GetFragmentBitSet() - FragmentsToRemove, OldArchetype->GetTagBitSet(), OldArchetype->GetChunkFragmentBitSet(), OldArchetype->GetSharedFragmentBitSet());
-		const FMassArchetypeHandle NewArchetypeHandle = CreateArchetype(NewComposition, OldArchetype->GetSharedFragmentValues());
+		const FMassArchetypeHandle NewArchetypeHandle = CreateArchetype(NewComposition);
 
 		// Move the entity over
 		FMassArchetypeData& NewArchetype = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(NewArchetypeHandle);

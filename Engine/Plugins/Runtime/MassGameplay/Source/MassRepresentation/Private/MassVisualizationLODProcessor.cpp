@@ -31,7 +31,7 @@ void UMassVisualizationLODProcessor::ConfigureQueries()
 	CloseEntityQuery.RegisterWithProcessor(*this);
 
 	CloseEntityAdjustDistanceQuery = CloseEntityQuery;
-	CloseEntityAdjustDistanceQuery.SetArchetypeFilter([](const FMassExecutionContext& Context)
+	CloseEntityAdjustDistanceQuery.SetChunkFilter([](const FMassExecutionContext& Context)
 	{
 		const FMassVisualizationLODSharedFragment& LODSharedFragment = Context.GetSharedFragment<FMassVisualizationLODSharedFragment>();
 		return LODSharedFragment.bHasAdjustedDistancesFromCount;
