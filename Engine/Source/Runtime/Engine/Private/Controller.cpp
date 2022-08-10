@@ -766,4 +766,9 @@ void AController::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutL
 	DOREPLIFETIME_CONDITION_NOTIFY(AController, Pawn, COND_None, REPNOTIFY_Always);
 }
 
+bool AController::ShouldParticipateInServerTravel() const
+{
+	return (PlayerState != nullptr);
+}
+
 #undef LOCTEXT_NAMESPACE

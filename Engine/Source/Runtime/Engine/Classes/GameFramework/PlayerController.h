@@ -2145,6 +2145,12 @@ public:
 	 */
 	void SetAsLocalPlayerController() { bIsLocalPlayerController = true; }
 
+	/**
+	 * Whether this controller should persist through seamless server travel
+	 * Player controllers should always be included in server travel
+	 */
+	virtual bool ShouldParticipateInServerTravel() const override { return true; }
+
 private:
 	/** If true, prevent any haptic effects from playing */
 	bool bDisableHaptics : 1;

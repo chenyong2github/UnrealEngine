@@ -385,6 +385,9 @@ public:
 	/** Called when the level this controller is in is unloaded via streaming. */
 	virtual void CurrentLevelUnloaded();
 
+	/** Returns whether this controller should persist through seamless server travel */
+	virtual bool ShouldParticipateInServerTravel() const;
+
 protected:
 	/** State entered when inactive (no possessed pawn, not spectating, etc). */
 	virtual void BeginInactiveState();
