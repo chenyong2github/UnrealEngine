@@ -37,5 +37,5 @@ public:
 
 protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SourceData)
-	TSoftObjectPtr<ULandscapeSplinesComponent> Spline;
+	TWeakObjectPtr<ULandscapeSplinesComponent> Spline;
 };
