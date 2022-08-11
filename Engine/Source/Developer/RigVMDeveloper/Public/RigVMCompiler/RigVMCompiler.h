@@ -82,6 +82,7 @@ struct RIGVMDEVELOPER_API FRigVMCompilerWorkData
 public:
 	bool bSetupMemory;
 	URigVM* VM;
+	UScriptStruct* ExecuteContextStruct;
 	FRigVMUserDataArray RigVMUserData;
 	TMap<FString, FRigVMOperand>* PinPathToOperand;
 	TMap<const FRigVMVarExprAST*, FRigVMOperand> ExprToOperand;

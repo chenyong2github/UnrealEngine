@@ -49,10 +49,11 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(FProperty* InProperty)
 	}
 	Type.CPPType = *RigVMTypeUtils::PostProcessCPPType(Type.CPPType.ToString(), Type.CPPTypeObject);
 
-	const TRigVMTypeIndex TypeIndex = FRigVMRegistry::Get().FindOrAddType(Type); 
+	const TRigVMTypeIndex TypeIndex = FRigVMRegistry::Get().FindOrAddType_Internal(Type, true); 
 
 	TypeIndices.Add(TypeIndex);
-	TypeToPermutations.Add(TypeIndex, {0});
+	EnsureValidExecuteType();
+	UpdateTypeToPermutations();
 }
 
 FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, TRigVMTypeIndex InTypeIndex)
@@ -61,6 +62,7 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDir
 , Direction(InDirection)
 , TypeIndices({InTypeIndex})
 {
+	EnsureValidExecuteType();
 	UpdateTypeToPermutations();
 }
 
@@ -72,6 +74,7 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDir
 {
 	check(TypeIndices.Num() > 0);
 
+	EnsureValidExecuteType();
 	UpdateTypeToPermutations();
 }
 
@@ -85,8 +88,42 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDir
 	{
 		TypeIndices.Append(FRigVMRegistry::Get().GetTypesForCategory(TypeCategory));
 	}
-	
+
+	EnsureValidExecuteType();
 	UpdateTypeToPermutations();
+}
+
+void FRigVMTemplateArgument::EnsureValidExecuteType()
+{
+	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+	for(TRigVMTypeIndex& TypeIndex : TypeIndices)
+	{
+		if(TypeIndex == INDEX_NONE)
+		{
+			continue;
+		}
+		
+		if(TypeIndex == RigVMTypeUtils::TypeIndex::Execute) 
+		{
+			continue;
+		}
+
+		if(!Registry.IsExecuteType(TypeIndex))
+		{
+			continue;
+		}
+
+		// execute arguments are converted to the base type to make
+		// matching types easier later
+		if(Registry.IsArrayType(TypeIndex))
+		{
+			TypeIndex = Registry.GetArrayTypeFromBaseTypeIndex(RigVMTypeUtils::TypeIndex::Execute);
+		}
+		else
+		{
+			TypeIndex = RigVMTypeUtils::TypeIndex::Execute;
+		}
+	}
 }
 
 void FRigVMTemplateArgument::Serialize(FArchive& Ar)
@@ -180,6 +217,23 @@ void FRigVMTemplateArgument::UpdateTypeToPermutations()
 
 bool FRigVMTemplateArgument::SupportsTypeIndex(TRigVMTypeIndex InTypeIndex, TRigVMTypeIndex* OutTypeIndex) const
 {
+	if(InTypeIndex == INDEX_NONE)
+	{
+		return false;
+	}
+	
+	// convert any execute type into the base execute
+	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+	if(Registry.IsExecuteType(InTypeIndex))
+	{
+		const bool bIsArray = Registry.IsArrayType(InTypeIndex);
+		InTypeIndex = RigVMTypeUtils::TypeIndex::Execute;
+		if(bIsArray)
+		{
+			InTypeIndex = Registry.GetArrayTypeFromBaseTypeIndex(InTypeIndex);
+		}
+	}
+	
 	if (const TArray<int32>* Permutations = TypeToPermutations.Find(InTypeIndex))
 	{
 		if(OutTypeIndex)
@@ -190,7 +244,7 @@ bool FRigVMTemplateArgument::SupportsTypeIndex(TRigVMTypeIndex InTypeIndex, TRig
 	}
 
 	// Try to find compatible type
-	const TArray<TRigVMTypeIndex>& CompatibleTypes = FRigVMRegistry::Get().GetCompatibleTypes(InTypeIndex);
+	const TArray<TRigVMTypeIndex>& CompatibleTypes = Registry.GetCompatibleTypes(InTypeIndex);
 	for (const TRigVMTypeIndex& CompatibleTypeIndex : CompatibleTypes)
 	{
 		if (const TArray<int32>* Permutations = TypeToPermutations.Find(CompatibleTypeIndex))
@@ -1380,6 +1434,17 @@ bool FRigVMTemplate::AddTypeForArgument(const FName& InArgumentName, TRigVMTypeI
 		const FRigVMTemplateTypeMap Types = OnNewArgumentType().Execute(this, InArgumentName, InTypeIndex);
 		if(Types.Num() == Arguments.Num())
 		{
+			// make sure this permutation doesn't exist yet
+			FRigVMTemplateTypeMap TempTypes = Types;
+			TArray<int32> ExistingPermutations;
+			if(Resolve(TempTypes, ExistingPermutations, false))
+			{
+				if(ExistingPermutations.Num() == 1)
+				{
+					return false;
+				}
+			}
+			
 			for(FRigVMTemplateArgument& Argument : Arguments)
 			{
 				const TRigVMTypeIndex* TypeIndex = Types.Find(Argument.Name);

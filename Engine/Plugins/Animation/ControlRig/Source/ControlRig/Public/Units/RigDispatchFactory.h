@@ -14,6 +14,11 @@ struct CONTROLRIG_API FRigDispatchFactory : public FRigVMDispatchFactory
 {
 	GENERATED_BODY()
 
+	FORCEINLINE virtual UScriptStruct* GetExecuteContextStruct() const override
+	{
+		return FControlRigExecuteContext::StaticStruct();
+	}
+
 	FORCEINLINE virtual void RegisterDependencyTypes() const override
 	{
 		FRigVMRegistry::Get().FindOrAddType(FControlRigExecuteContext::StaticStruct());

@@ -62,7 +62,10 @@ public:
 
 	// Adds a type if it doesn't exist yet and returns its index.
 	// This function is not thead-safe
-	TRigVMTypeIndex FindOrAddType(const FRigVMTemplateArgumentType& InType);
+	FORCEINLINE TRigVMTypeIndex FindOrAddType(const FRigVMTemplateArgumentType& InType)
+	{
+		return FindOrAddType_Internal(InType, false);
+	}
 
 	// Returns the type index given a type
 	TRigVMTypeIndex GetTypeIndex(const FRigVMTemplateArgumentType& InType) const;
@@ -232,6 +235,8 @@ private:
 		bool bIsExecute;
 	};
 
+	TRigVMTypeIndex FindOrAddType_Internal(const FRigVMTemplateArgumentType& InType, bool bForce);
+
 	FORCEINLINE static EObjectFlags DisallowedFlags()
 	{
 		return RF_BeginDestroyed | RF_FinishDestroyed;
@@ -278,4 +283,5 @@ private:
 	static FRigVMRegistry s_RigVMRegistry;
 	friend struct FRigVMStruct;
 	friend struct FRigVMTemplate;
+	friend struct FRigVMTemplateArgument;
 };

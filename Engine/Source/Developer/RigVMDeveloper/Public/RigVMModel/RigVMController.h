@@ -1105,6 +1105,8 @@ private:
 
 	bool RenameObject(UObject* InObjectToRename, const TCHAR* InNewName, UObject* InNewOuter = nullptr);
 	void DestroyObject(UObject* InObjectToDestroy);
+	static URigVMPin* MakeExecutePin(URigVMNode* InNode, const FName& InName);
+	static void MakeExecutePin(URigVMPin* InOutPin);
 	static void AddNodePin(URigVMNode* InNode, URigVMPin* InPin);
 	static void AddSubPin(URigVMPin* InParentPin, URigVMPin* InPin);
 	static bool EnsurePinValidity(URigVMPin* InPin, bool bRecursive);

@@ -1185,11 +1185,7 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 
 	if (!bIsGetter)
 	{
-		UScriptStruct* ExecuteContextStruct = Graph->GetExecuteContextStruct();
-		URigVMPin* ExecutePin = NewObject<URigVMPin>(Node, FRigVMStruct::ExecuteContextName);
-		ExecutePin->CPPType = ExecuteContextStruct->GetStructCPPName();
-		ExecutePin->CPPTypeObject = ExecuteContextStruct;
-		ExecutePin->CPPTypeObjectPath = *ExecutePin->CPPTypeObject->GetPathName();
+		URigVMPin* ExecutePin = MakeExecutePin(Node, FRigVMStruct::ExecuteContextName);
 		ExecutePin->Direction = ERigVMPinDirection::IO;
 		AddNodePin(Node, ExecutePin);
 	}
@@ -11139,7 +11135,7 @@ URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctio
 	
 	if (bMutable)
 	{
-		UScriptStruct* ExecuteContextStruct = Graph->GetExecuteContextStruct();
+		const UScriptStruct* ExecuteContextStruct = FRigVMExecuteContext::StaticStruct();
 		
 		FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->ContainedGraph, bSetupUndoRedo);
 		AddExposedPin(FRigVMStruct::ExecuteContextName,
@@ -12251,12 +12247,7 @@ URigVMBranchNode* URigVMController::AddBranchNode(const FVector2D& InPosition, c
 	URigVMBranchNode* Node = NewObject<URigVMBranchNode>(Graph, *Name);
 	Node->Position = InPosition;
 
-	UScriptStruct* ExecuteContextStruct = Graph->GetExecuteContextStruct();
-	URigVMPin* ExecutePin = NewObject<URigVMPin>(Node, FRigVMStruct::ExecuteContextName);
-	ExecutePin->DisplayName = FRigVMStruct::ExecuteName;
-	ExecutePin->CPPType = FString::Printf(TEXT("F%s"), *ExecuteContextStruct->GetName());
-	ExecutePin->CPPTypeObject = ExecuteContextStruct;
-	ExecutePin->CPPTypeObjectPath = *ExecutePin->CPPTypeObject->GetPathName();
+	URigVMPin* ExecutePin = MakeExecutePin(Node, FRigVMStruct::ExecuteContextName);
 	ExecutePin->Direction = ERigVMPinDirection::Input;
 	AddNodePin(Node, ExecutePin);
 
@@ -12624,6 +12615,8 @@ URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, c
 	FRigVMTemplate::FTypeMap Types;
 	Template->FullyResolve(Types, PermutationIndex);
 	Node->InitializeFilteredPermutations();
+
+	FRigVMRegistry& Registry = FRigVMRegistry::Get();
 	
 	for (int32 ArgIndex = 0; ArgIndex < Template->NumArguments(); ArgIndex++)
 	{
@@ -12631,7 +12624,8 @@ URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, c
 
 		URigVMPin* Pin = NewObject<URigVMPin>(Node, Arg->GetName());
 		const TRigVMTypeIndex& TypeIndex = Types.FindChecked(Arg->GetName());
-		const FRigVMTemplateArgumentType Type = FRigVMRegistry::Get().GetType(TypeIndex);
+		const FRigVMTemplateArgumentType Type = Registry.GetType(TypeIndex);
+		
 		Pin->CPPType = Type.CPPType.ToString();
 		Pin->CPPTypeObject = Type.CPPTypeObject;
 		if (Pin->CPPTypeObject)
@@ -12639,6 +12633,8 @@ URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, c
 			Pin->CPPTypeObjectPath = *Pin->CPPTypeObject->GetPathName();
 		}
 		Pin->Direction = Arg->GetDirection();
+		Pin->LastKnownTypeIndex = TypeIndex;
+		Pin->LastKnownCPPType = Pin->CPPType;
 
 		AddNodePin(Node, Pin);
 
@@ -12938,7 +12934,7 @@ URigVMArrayNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FSt
 		static URigVMPin* AddExecutePin(URigVMController* InController, URigVMNode* InNode, ERigVMPinDirection InDirection = ERigVMPinDirection::IO, const FName& InName = NAME_None)
 		{
 			const FName PinName = InName.IsNone() ? FRigVMStruct::ExecuteContextName : InName;
-			UScriptStruct* ExecuteContextStruct = InController->GetGraph()->GetExecuteContextStruct();
+			UScriptStruct* ExecuteContextStruct = FRigVMExecuteContext::StaticStruct();
 			URigVMPin* Pin = AddPin(InController, InNode, PinName, InDirection, false, FString::Printf(TEXT("F%s"), *ExecuteContextStruct->GetName()), ExecuteContextStruct);
 			if(PinName == FRigVMStruct::ExecuteContextName)
 			{
@@ -13197,11 +13193,7 @@ URigVMInvokeEntryNode* URigVMController::AddInvokeEntryNode(const FName& InEntry
 	URigVMInvokeEntryNode* Node = NewObject<URigVMInvokeEntryNode>(Graph, *Name);
 	Node->Position = InPosition;
 
-	UScriptStruct* ExecuteContextStruct = Graph->GetExecuteContextStruct();
-	URigVMPin* ExecutePin = NewObject<URigVMPin>(Node, FRigVMStruct::ExecuteContextName);
-	ExecutePin->CPPType = ExecuteContextStruct->GetStructCPPName();
-	ExecutePin->CPPTypeObject = ExecuteContextStruct;
-	ExecutePin->CPPTypeObjectPath = *ExecutePin->CPPTypeObject->GetPathName();
+	URigVMPin* ExecutePin = MakeExecutePin(Node, FRigVMStruct::ExecuteContextName);
 	ExecutePin->Direction = ERigVMPinDirection::IO;
 	AddNodePin(Node, ExecutePin);
 
@@ -13954,6 +13946,11 @@ void URigVMController::ConfigurePinFromProperty(FProperty* InProperty, URigVMPin
 	}
 
 	InOutPin->CPPType = RigVMTypeUtils::PostProcessCPPType(InOutPin->CPPType, InOutPin->GetCPPTypeObject());
+
+	if(InOutPin->IsExecuteContext() && InOutPin->CPPTypeObject != FRigVMExecuteContext::StaticStruct())
+	{
+		MakeExecutePin(InOutPin);
+	}
 }
 
 void URigVMController::ConfigurePinFromPin(URigVMPin* InOutPin, URigVMPin* InPin, bool bCopyDisplayName)
@@ -13971,6 +13968,11 @@ void URigVMController::ConfigurePinFromPin(URigVMPin* InOutPin, URigVMPin* InPin
 	if(bCopyDisplayName)
 	{
 		InOutPin->SetDisplayName(InPin->GetDisplayName());
+	}
+
+	if(InOutPin->IsExecuteContext() && InOutPin->CPPTypeObject != FRigVMExecuteContext::StaticStruct())
+	{
+		MakeExecutePin(InOutPin);
 	}
 }
 
@@ -14560,6 +14562,15 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	// step 0/3: update execute pins
+	for(URigVMPin* Pin : InNode->Pins)
+	{
+		if(Pin->IsExecuteContext())
+		{
+			MakeExecutePin(Pin);
+		}
+	}
 
 	// step 1/3: keep a record of the current state of the node's pins
 	TMap<FString, FString> RedirectedPinPaths;
@@ -15586,7 +15597,7 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 			return false;
 		}
 
-		if(Pin->GetTypeIndex() != ResolvedTypeIndex)
+		if(Pin->GetTypeIndex() != ResolvedTypeIndex && ResolvedTypeIndex != RigVMTypeUtils::TypeIndex::Execute)
 		{
 			PinTypesToChange.Add(Pin, ResolvedTypeIndex);
 		}
@@ -15603,7 +15614,7 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 				const TRigVMTypeIndex ExpectedTypeIndex = Argument.TypeIndices[InputPermutation];
 				if(URigVMPin* Pin = InNode->FindPin(Argument.GetName().ToString()))
 				{
-					if(Pin->GetTypeIndex() != ExpectedTypeIndex)
+					if(Pin->GetTypeIndex() != ExpectedTypeIndex && ExpectedTypeIndex != RigVMTypeUtils::TypeIndex::Execute)
 					{
 						PinTypesToChange.Add(Pin, ExpectedTypeIndex);
 					}
@@ -15626,7 +15637,7 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 
 					if(URigVMPin* Pin = InNode->FindPin(It->GetFName().ToString()))
 					{
-						if(Pin->GetTypeIndex() != ExpectedTypeIndex)
+						if(Pin->GetTypeIndex() != ExpectedTypeIndex && ExpectedTypeIndex != RigVMTypeUtils::TypeIndex::Execute)
 						{
 							PinTypesToChange.Add(Pin, ExpectedTypeIndex);
 						}
@@ -16627,7 +16638,7 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 			
 				if (Pin->GetCPPType() != CPPType || Pin->GetCPPTypeObject() != CPPObjectType)
 				{
-					bAnyTypeChanged = true;
+					bAnyTypeChanged = !Pin->IsExecuteContext();
 					ChangePinType(Pin, CPPType, CPPObjectType, bSetupUndoRedo, false, false, false, bInitializeDefaultValue);
 				}
 			}
@@ -16636,7 +16647,7 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 				// Resolve
 				if (Pin->GetTypeIndex() != Types[0])
 				{
-					bAnyTypeChanged = true;
+					bAnyTypeChanged = !Pin->IsExecuteContext();
 					ChangePinType(Pin, Types[0], bSetupUndoRedo, false, false, false, bInitializeDefaultValue);
 				}
 
@@ -17743,6 +17754,11 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, TRigVMTypeIndex InTypeInd
 	}
 
 	check(InPin->GetGraph() == GetGraph());
+	if(InPin->IsExecuteContext() && FRigVMRegistry::Get().IsExecuteType(InTypeIndex))
+	{
+		return false;
+	}
+	
 
 	// only allow valid pin cpp types on template nodes
 	TRigVMTypeIndex TypeIndex = InTypeIndex;
@@ -18128,6 +18144,36 @@ void URigVMController::DestroyObject(UObject* InObjectToDestroy)
 	InObjectToDestroy->MarkAsGarbage();
 }
 
+URigVMPin* URigVMController::MakeExecutePin(URigVMNode* InNode, const FName& InName)
+{
+	URigVMPin* ExecutePin = NewObject<URigVMPin>(InNode, InName);
+	ExecutePin->DisplayName = FRigVMStruct::ExecuteName;
+	MakeExecutePin(ExecutePin);
+	return ExecutePin;
+}
+
+void URigVMController::MakeExecutePin(URigVMPin* InOutPin)
+{
+	if(InOutPin->CPPTypeObject != FRigVMExecuteContext::StaticStruct())
+	{
+		const bool bIsArray = InOutPin->IsArray();
+		InOutPin->CPPType = FRigVMExecuteContext::StaticStruct()->GetStructCPPName();
+		InOutPin->CPPTypeObject = FRigVMExecuteContext::StaticStruct();
+		InOutPin->CPPTypeObjectPath = *InOutPin->CPPTypeObject->GetPathName();
+
+		if(bIsArray)
+		{
+			InOutPin->CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(InOutPin->CPPType);
+			InOutPin->LastKnownTypeIndex = FRigVMRegistry::Get().GetArrayTypeFromBaseTypeIndex(RigVMTypeUtils::TypeIndex::Execute);
+		}
+		else
+		{
+			InOutPin->LastKnownTypeIndex = RigVMTypeUtils::TypeIndex::Execute;
+		}
+		InOutPin->LastKnownCPPType = InOutPin->CPPType;
+	}
+}
+
 void URigVMController::AddNodePin(URigVMNode* InNode, URigVMPin* InPin)
 {
 	ValidatePin(InPin);
@@ -18248,6 +18294,11 @@ void URigVMController::ValidatePin(URigVMPin* InPin)
 	// create a property description from the pin here as a test,
 	// since the compiler needs this
 	FRigVMPropertyDescription(InPin->GetFName(), InPin->GetCPPType(), InPin->GetCPPTypeObject(), InPin->GetDefaultValue());
+
+	if(InPin->IsExecuteContext())
+	{
+		ensure(InPin->GetCPPTypeObject() == FRigVMExecuteContext::StaticStruct());
+	}
 }
 
 void URigVMController::EnsureLocalVariableValidity()

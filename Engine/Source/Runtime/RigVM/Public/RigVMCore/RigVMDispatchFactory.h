@@ -82,6 +82,9 @@ public:
 
 #endif
 
+	// Returns the execute context support for this dispatch factory
+	FORCEINLINE virtual UScriptStruct* GetExecuteContextStruct() const { return FRigVMExecuteContext::StaticStruct(); }
+
 	// registered needed types during registration of the factory
 	FORCEINLINE virtual void RegisterDependencyTypes() const {}
 

@@ -187,7 +187,7 @@ void FRigVMRegistry::Reset()
 	Factories.Reset();
 }
 
-TRigVMTypeIndex FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& InType)
+TRigVMTypeIndex FRigVMRegistry::FindOrAddType_Internal(const FRigVMTemplateArgumentType& InType, bool bForce)
 {
 	TRigVMTypeIndex Index = GetTypeIndex(InType);
 	if(Index == INDEX_NONE)
@@ -199,7 +199,7 @@ TRigVMTypeIndex FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& 
 		}
 		
 		const UObject* CPPTypeObject = ElementType.CPPTypeObject;
-		if(CPPTypeObject != nullptr)
+		if(!bForce && (CPPTypeObject != nullptr))
 		{
 			if(const UClass* Class = Cast<UClass>(CPPTypeObject))
 			{
@@ -234,9 +234,9 @@ TRigVMTypeIndex FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& 
 		Indices.Reserve(3);
 		for (int32 ArrayDimension=0; ArrayDimension<3; ++ArrayDimension)
 		{
-			if (bIsExecute && ArrayDimension>0)
+			if (bIsExecute && ArrayDimension > 1)
 			{
-				continue;
+				break;
 			}
 			
 			FRigVMTemplateArgumentType CurType = ElementType;
@@ -259,23 +259,29 @@ TRigVMTypeIndex FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& 
 			Indices.Add(Index);
 		}
 
+		Types[Indices[1]].BaseTypeIndex = Indices[0];
+		Types[Indices[0]].ArrayTypeIndex = Indices[1];
+
 		if (!bIsExecute)
 		{
 			Types[Indices[1]].BaseTypeIndex = Indices[0];
 			Types[Indices[2]].BaseTypeIndex = Indices[1];
+		}
 
-			Types[Indices[0]].ArrayTypeIndex = Indices[1];
+		if (!bIsExecute)
+		{
+			Types[Indices[2]].BaseTypeIndex = Indices[1];
 			Types[Indices[1]].ArrayTypeIndex = Indices[2];
 		}
 
 		for (int32 ArrayDimension=0; ArrayDimension<3; ++ArrayDimension)
 		{
-			if(bIsExecute && ArrayDimension > 0)
+			if(bIsExecute && ArrayDimension > 1)
 			{
 				break;
 			}
 			Index = Indices[ArrayDimension];
-			
+
 			// Add to category
 			// simple types
 			if(CPPTypeObject == nullptr)
@@ -420,10 +426,10 @@ TRigVMTypeIndex FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& 
 			for (TFieldIterator<FProperty> It(Struct); It; ++It)
 			{
 				FProperty* Property = *It;
-				if(IsAllowedType(Property))
+				if(bForce || IsAllowedType(Property))
 				{
 					// by creating a template argument for the child property
-					// the type will be added by calling ::FindOrAddType recursively.
+					// the type will be added by calling ::FindOrAddType_Internal recursively.
 					FRigVMTemplateArgument DummyArgument(Property);
 				}
 			}			
@@ -542,6 +548,12 @@ bool FRigVMRegistry::CanMatchTypes(TRigVMTypeIndex InTypeIndexA, TRigVMTypeIndex
 	if(InTypeIndexA == InTypeIndexB)
 	{
 		return true;
+	}
+
+	// execute types can always be connected
+	if(IsExecuteType(InTypeIndexA) && IsExecuteType(InTypeIndexB))
+	{
+		return GetArrayDimensionsForType(InTypeIndexA) == GetArrayDimensionsForType(InTypeIndexB);
 	}
 
 	if(bAllowFloatingPointCasts)

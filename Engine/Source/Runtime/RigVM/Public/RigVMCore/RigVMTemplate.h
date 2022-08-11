@@ -130,14 +130,16 @@ struct RIGVM_API FRigVMTemplateArgumentType
 		return CPPType.ToString();
 	}
 
-	void ConvertToArray() 
+	FRigVMTemplateArgumentType& ConvertToArray() 
 	{
 		CPPType = *RigVMTypeUtils::ArrayTypeFromBaseType(CPPType.ToString());
+		return *this;
 	}
 
-	void ConvertToBaseElement() 
+	FRigVMTemplateArgumentType& ConvertToBaseElement() 
 	{
 		CPPType = *RigVMTypeUtils::BaseTypeFromArrayType(CPPType.ToString());
+		return *this;
 	}
 };
 
@@ -229,9 +231,10 @@ protected:
 	TMap<TRigVMTypeIndex, TArray<int32>> TypeToPermutations;
 	TArray<ETypeCategory> TypeCategories;
 
-	// constructor from a property
+	// constructor from a property. this forces the type to be created
 	FRigVMTemplateArgument(FProperty* InProperty);
 
+	void EnsureValidExecuteType();
 	void UpdateTypeToPermutations();
 
 	friend struct FRigVMTemplate;

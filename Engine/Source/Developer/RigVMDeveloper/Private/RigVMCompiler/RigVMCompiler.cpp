@@ -69,8 +69,21 @@ FRigVMOperand FRigVMCompilerWorkData::AddProperty(
 	const FString& InDefaultValue)
 {
 	check(bSetupMemory);
+
+	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+	FRigVMTemplateArgumentType ArgumentType(*InCPPType, InCPPTypeObject);
+	const TRigVMTypeIndex TypeIndex = Registry.GetTypeIndex(ArgumentType);
+	if(TypeIndex != INDEX_NONE)
+	{
+		// for execute pins we should use the graph's default execute context struct
+		if(Registry.IsExecuteType(TypeIndex))
+		{
+			ensure(!ArgumentType.IsArray());
+			ArgumentType = FRigVMTemplateArgumentType(ExecuteContextStruct);
+		}
+	}
 	
-	FRigVMPropertyDescription Description(InName, InCPPType, InCPPTypeObject, InDefaultValue);
+	FRigVMPropertyDescription Description(InName, ArgumentType.CPPType.ToString(), ArgumentType.CPPTypeObject, InDefaultValue);
 
 	TArray<FRigVMPropertyDescription>& PropertyArray = PropertyDescriptions.FindOrAdd(InMemoryType);
 	const int32 PropertyIndex = PropertyArray.Add(Description);
@@ -366,6 +379,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 	ensure(WorkData.AST.IsValid());
 
 	WorkData.VM = OutVM;
+	WorkData.ExecuteContextStruct = InGraphs[0]->GetExecuteContextStruct();
 	WorkData.PinPathToOperand = OutOperands;
 	WorkData.RigVMUserData = UserData[0];
 	WorkData.bSetupMemory = true;
@@ -775,17 +789,53 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		return INDEX_NONE;
 	}
 
+	auto CheckExecuteStruct = [this, &WorkData](URigVMNode* Subject, const UScriptStruct* ExecuteStruct) -> bool
+	{
+		if(ExecuteStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+		{
+			// top level expected execute struct is provided by the graph
+			const UScriptStruct* SpecializedExecuteStruct = WorkData.ExecuteContextStruct;
+			if(!SpecializedExecuteStruct->IsChildOf(ExecuteStruct))
+			{
+				static constexpr TCHAR UnknownExecuteContextMessage[] = TEXT("Node @@ uses an unexpected execute type '%s'. This graph uses '%s'.");
+				Settings.Report(EMessageSeverity::Error, Subject, FString::Printf(
+					UnknownExecuteContextMessage, *ExecuteStruct->GetStructCPPName(), *SpecializedExecuteStruct->GetStructCPPName()));
+				return false;
+			}
+		}
+		return true;
+	};
+	
 	if(UnitNode)
 	{
-		if(UnitNode->GetScriptStruct() == nullptr)
+		const UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct(); 
+		if(ScriptStruct == nullptr)
 		{
 			return INDEX_NONE;
+		}
+
+		// check execute pins for compatibility
+		for (TFieldIterator<FProperty> It(ScriptStruct); It; ++It)
+		{
+			if(const FStructProperty* StructProperty = CastField<FStructProperty>(*It))
+			{
+				if(!CheckExecuteStruct(UnitNode, StructProperty->Struct))
+				{
+					return INDEX_NONE;
+				}
+			}
 		}
 	}
 
 	if(DispatchNode)
 	{
 		if(DispatchNode->GetFactory() == nullptr)
+		{
+			return INDEX_NONE;
+		}
+
+		// check execute pins for compatibility
+		if(!CheckExecuteStruct(DispatchNode, DispatchNode->GetFactory()->GetExecuteContextStruct()))
 		{
 			return INDEX_NONE;
 		}
