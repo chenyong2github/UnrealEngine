@@ -48,7 +48,7 @@ public:
 
 	void Replay(IAsyncPackageLoader& PackageLoader)
 	{
-		UE_LOG(LogStreaming, Display, TEXT("NotifyRegistrationEvent: Replay %d entries"), RecordedEvents.Num());
+		UE_LOG(LogStreaming, Log, TEXT("NotifyRegistrationEvent: Replay %d entries"), RecordedEvents.Num());
 		for (const FRecordedEvent& Event : RecordedEvents)
 		{
 			PackageLoader.NotifyRegistrationEvent(*Event.PackageName, *Event.Name, Event.NotifyRegistrationType, Event.NotifyRegistrationPhase, Event.RegisterFunc, Event.bDynamic);
