@@ -335,6 +335,20 @@ public:
 			return ((T(1.5) * (w * w - w) - T(0.25)) * (T(ii) - 1) + (T(0.5) * w - T(0.25))) * (T(ii) - 1) - w * w + w + T(0.5);
 	}
 
+	inline void GradNi(const TVector<T, 3>& Ni, const TVector<T, 3>& dNi, TVector<T, 3>& result) const 
+	{
+		result[0] = dNi[0] * Ni[1] * Ni[2];
+		result[1] = Ni[0] * dNi[1] * Ni[2];
+		result[2] = Ni[0] * Ni[1] * dNi[2];
+	}
+
+	inline T dNijk(T w, int32 ii, T dx) const {
+		if (interp == linear)
+			return (T(2) * T(ii) - T(1)) / dx;
+		else
+			return ((w - 1) * (T(ii) - 1) * (T(ii) - 2) * T(0.5) + (2 * w - 1) * T(ii) * (T(ii) - 2) + w * T(ii) * (T(ii) - 1) * T(0.5)) / dx;
+	}
+
 	inline TVector<int32, 3> Loc2GlobIndex(const TVector<int32, 3>& IndexIn, const TVector<int32, 3>& LocalIndexIn) const {
 		TVector<int32, 3> Result;
 		if (interp == linear) {
@@ -381,6 +395,7 @@ public:
 	TVector<int32, 3> Lin2MultiIndex(const int32 IndexIn) const;
 	const TVector<int32, 3> GetCells() const { return MCells; }
 	const TVector<T, 3> GetMinCorner() const { return MMinCorner; } 
+	const TVector<T, 3>& GetDx() const { return MDx; }
 	void SetDx(const TVector<T, 3> DxIn) { MDx = DxIn; }
 	void UpdateGridFromPositions(const Chaos::TDynamicParticles<T, 3>& InParticles);
 	

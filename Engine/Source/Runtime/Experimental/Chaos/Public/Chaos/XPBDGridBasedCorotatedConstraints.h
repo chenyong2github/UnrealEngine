@@ -40,7 +40,7 @@ namespace Chaos::Softs
 			const T& EMesh = (T)1000.0,
 			const T& NuMesh = (T).3
 		)
-			: Base(InParticles, InMesh, GridDx, EMesh, NuMesh), MaxDt(MaxDtIn), MinDt(MinDtIn), CFLCoeff(CFLCoeffIn), MPMGrid(GridDx), MPMTransfer(MPMGrid), PreviousColoring(nullptr)
+			: Base(InParticles, InMesh, GridDx, EMesh, NuMesh), MaxDt(MaxDtIn), MinDt(MinDtIn), CFLCoeff(CFLCoeffIn), MPMGrid(GridDx), MPMTransfer(MPMGrid, InParticles.Size()), PreviousColoring(nullptr)
 		{
 			//TMPMGrid<T> MPMGrid(GridN);
 			MPMGrid.UpdateGridFromPositions(InParticles);
@@ -138,16 +138,25 @@ namespace Chaos::Softs
 				TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("STAT_ChaosXPBDGridBasedCorotatedComputeGridPositions"));
 				MPMTransfer.ComputeGridPositions(GridData, Dt, GridPositions);
 			}
+		}
 
-			//if (!InitialGridDataWritten)
-			//{
-			//	WriteGridNodes();
-			//}
-			//MPMTransfer.Grid.UpdateGridFromPositions(InParticles);
-			//MPMTransfer.InitialP2G(InParticles, GridData);
-			//MPMTransfer.ComputeElementMetaData(MeshConstraints);
-			//ComputeGridBasedGraphSubColoringPointer(ElementsPerColor, MPMTransfer.Grid, MPMTransfer.Grid.Size(), PreviousColoring, MPMTransfer.ElementGridNodesSet, ElementsPerSubColors);
-			//MPMTransfer.ComputeGridPositions(GridData, Dt, GridPositions);
+		void TimeStepPostprocessing(const ParticleType& InParticles, const T Dt)
+		{
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("STAT_ChaosXPBDGridBasedCorotatedGrid::FinalG2P"));
+				FinalG2P(InParticles);
+			}
+			
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("STAT_ChaosXPBDGridBasedCorotated::GridPositions2GridData"));
+				MPMTransfer.GridPositionsToGridData(GridPositions, Dt, GridData);
+			}
+
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("STAT_ChaosXPBDGridBasedCorotated::ComputeAArray"));
+				MPMTransfer.ComputeAArray(GridData, InParticles);
+			}
+		
 		}
 
 		T ComputeCFLDt(const ParticleType& InParticles)
@@ -445,12 +454,8 @@ namespace Chaos::Softs
 		//interpolate particle positions from grid positions
 		void FinalG2P(ParticleType& Particles)
 		{
-			TVec4<TVector<T, 3>> Result(TVector<T, 3>((T)0.));
-
 			PhysicsParallelFor(Particles.Size(), [&](const int32 p)
-				//for (int32 p = 0; p < int32(Particles.Size()); p++) 
 				{
-					//TVector<int32, 3> BaseIndex = MPMTransfer.Indices[p];
 					Particles.P(p) = TVec3<T>((T)0.);
 					for (int32 ii = 0; ii < int32(MPMGrid.NPerDir); ii++)
 					{
@@ -464,12 +469,12 @@ namespace Chaos::Softs
 								TVector<int32, 3> LocIndex = { ii, jj, kk };
 								TVector<int32, 3> GlobIndex = MPMGrid.Loc2GlobIndex(MPMTransfer.Indices[p], LocIndex);
 								int32 GlobIndexFlat = MPMGrid.FlatIndex(GlobIndex);
+								//G2PHelper(Nii * Njj * Nkk, GridPositions[GlobIndexFlat], p, Particles);
 								Particles.P(p) += Nii * Njj * Nkk * GridPositions[GlobIndexFlat];
 							}
 						}
 					}
 				}, Particles.Size() < 50);
-
 		}
 
 	protected:
