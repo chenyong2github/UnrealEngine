@@ -39,7 +39,6 @@ namespace Chaos::Softs
 
 			/* Simulation Advance */
 			bool Advance(FSolverReal DeltaTime);
-			bool IsInitialized() { return Solver.IsInitialized(); }
 			void Reset(const FDeformableSolverProperties&);
 			void TickSimulation(FSolverReal DeltaTime);
 			void UpdateOutputState(FThreadingProxy&);
@@ -88,7 +87,6 @@ namespace Chaos::Softs
 
 		/* Simulation Advance */
 		bool Advance(FSolverReal DeltaTime);
-		bool IsInitialized() { return bSimulationInitialized; }
 		void Reset(const FDeformableSolverProperties&);
 		void TickSimulation(FSolverReal DeltaTime);
 		void UpdateOutputState(FThreadingProxy&);

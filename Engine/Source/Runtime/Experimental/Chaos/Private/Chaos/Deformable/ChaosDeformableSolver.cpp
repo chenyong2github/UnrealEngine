@@ -263,7 +263,6 @@ namespace Chaos::Softs
 
 
 							Time = 0.f;
-							bSimulationInitialized = true;
 						}
 					}
 				}
@@ -380,6 +379,8 @@ namespace Chaos::Softs
 	}
 	void FDeformableSolver::TickSimulation(FSolverReal DeltaTime)
 	{
+		if (!Proxies.Num()) return;
+
 		if (!Property.FixTimeStep)
 		{
 			Evolution->AdvanceOneTimeStep(DeltaTime);
