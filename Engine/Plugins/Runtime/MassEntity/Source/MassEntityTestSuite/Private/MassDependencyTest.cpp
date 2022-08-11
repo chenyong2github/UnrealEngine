@@ -104,7 +104,6 @@ struct FMissingDependency : FDependencySolverBase
 			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_B>());
 			Proc->GetMutableExecutionOrder().ExecuteBefore.Add(TEXT("NonExistingDependency2"));
 			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(GetProcessorName<UMassTestProcessor_C>());
-			Proc->GetMutableExecutionOrder().ExecuteBefore.Add(GetProcessorName<UMassTestProcessor_A>());
 		}
 		{
 			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_C>());
@@ -114,10 +113,10 @@ struct FMissingDependency : FDependencySolverBase
 
 	virtual bool InstantTest() override
 	{
-		// we're expecting two occurrences, for NonExistingDependency and NonExistingDependency2
-		GetTestRunner().AddExpectedError(TEXT("Unable to find dependency"), EAutomationExpectedErrorFlags::Contains, 2);
-
 		Solve();
+
+		// event though there's no direct dependency between A and B due to declared dependencies on "NonExistingDependency"
+		// B should come before A
 
 		AITEST_TRUE("C is expected to be the first one", Result[0].Name == GetProcessorName<UMassTestProcessor_C>());
 		AITEST_TRUE("Then B", Result[1].Name == GetProcessorName<UMassTestProcessor_B>());
