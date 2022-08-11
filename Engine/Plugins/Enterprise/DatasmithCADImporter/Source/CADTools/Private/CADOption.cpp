@@ -79,6 +79,16 @@ This welding is performed respecting the ds.CADTranslator.StitchingTolerance\n\
 Default value is true\n"),
 ECVF_Default);
 
+float FImportParameters::GMeshingParameterFactor = 1;
+FAutoConsoleVariableRef GCADTranslatorMeshingParameterFactor(
+	TEXT("ds.CADTranslator.MeshingParameterFactor"),
+	FImportParameters::GMeshingParameterFactor,
+	TEXT("Factor to allow to use smaller value than the defined minimal value of metric meshing parameters (i.e. Chord error > 0.005 cm, Max Edge Length > 1. cm) \n\
+The used value of the meshing parameter is value * MeshingParameterFactor \n\
+Default value is 1.\n"),
+ECVF_Default);
+
+
 static bool bGAliasSewByColor = false;
 FAutoConsoleVariableRef GAliasSewByColor(
 	TEXT("ds.CADTranslator.Alias.SewByColor"),

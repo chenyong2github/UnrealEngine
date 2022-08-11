@@ -37,6 +37,7 @@ namespace CADLibrary
 		CADTOOLS_API static bool bGSewMeshIfNeeded;
 		CADTOOLS_API static float GStitchingTolerance;
 		CADTOOLS_API static float GUnitScale;
+		CADTOOLS_API static float GMeshingParameterFactor;
 
 	public:
 		FImportParameters(FDatasmithUtils::EModelCoordSystem NewCoordinateSystem = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded)
@@ -50,8 +51,8 @@ namespace CADLibrary
 	
 		void SetTesselationParameters(double InChordTolerance, double InMaxEdgeLength, double InMaxNormalAngle, CADLibrary::EStitchingTechnique InStitchingTechnique)
 		{
-			ChordTolerance = InChordTolerance;
-			MaxEdgeLength = InMaxEdgeLength;
+			ChordTolerance = InChordTolerance * GMeshingParameterFactor;
+			MaxEdgeLength = InMaxEdgeLength * GMeshingParameterFactor;
 			MaxNormalAngle = InMaxNormalAngle;
 			StitchingTechnique = InStitchingTechnique;
 		}
