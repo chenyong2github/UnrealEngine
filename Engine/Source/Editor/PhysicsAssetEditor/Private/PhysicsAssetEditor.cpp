@@ -692,16 +692,16 @@ void FPhysicsAssetEditor::ExtendMenu()
 		{
 			const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
 			MenuBarBuilder.BeginSection("Selection", LOCTEXT("PhatEditSelection", "Selection"));
-
-			MenuBarBuilder.AddMenuEntry(Commands.ShowSelected);
-			MenuBarBuilder.AddMenuEntry(Commands.HideSelected);
-			MenuBarBuilder.AddMenuEntry(Commands.ToggleShowOnlySelected);
-			MenuBarBuilder.AddMenuEntry(Commands.ToggleShowOnlyColliding);
-			MenuBarBuilder.AddMenuEntry(Commands.ToggleShowOnlyConstrained);
-			MenuBarBuilder.AddMenuEntry(Commands.ShowAll);
-			MenuBarBuilder.AddMenuEntry(Commands.HideAll);
-			MenuBarBuilder.AddMenuEntry(Commands.DeselectAll);
-			MenuBarBuilder.AddMenuEntry(Commands.ToggleShowSelected);
+				MenuBarBuilder.AddMenuEntry(Commands.ShowSelected);
+				MenuBarBuilder.AddMenuEntry(Commands.HideSelected);
+				MenuBarBuilder.AddMenuEntry(Commands.ToggleShowOnlySelected);
+				MenuBarBuilder.AddMenuEntry(Commands.ToggleShowOnlyColliding);
+				MenuBarBuilder.AddMenuEntry(Commands.ToggleShowOnlyConstrained);
+				MenuBarBuilder.AddMenuEntry(Commands.ShowAll);
+				MenuBarBuilder.AddMenuEntry(Commands.HideAll);
+				MenuBarBuilder.AddMenuEntry(Commands.DeselectAll);
+				MenuBarBuilder.AddMenuEntry(Commands.ToggleShowSelected);
+			MenuBarBuilder.EndSection();
 
 			// Bodies
 			MenuBarBuilder.BeginSection("Bodies & Constraints", LOCTEXT("PhatEditSelectionBodies", "Bodies & Constraints"));
@@ -720,8 +720,6 @@ void FPhysicsAssetEditor::ExtendMenu()
 				MenuBarBuilder.AddMenuEntry(Commands.SelectShapesPhysicsOnly);
 				MenuBarBuilder.AddMenuEntry(Commands.SelectShapesQueryAndProbe);
 				MenuBarBuilder.AddMenuEntry(Commands.SelectShapesProbeOnly);
-			MenuBarBuilder.EndSection();
-
 			MenuBarBuilder.EndSection();
 		}
 	};
