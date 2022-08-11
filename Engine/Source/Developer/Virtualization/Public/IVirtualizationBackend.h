@@ -276,7 +276,7 @@ ENUM_CLASS_FLAGS(IVirtualizationBackend::EOperations);
 	class F##FactoryName : public IVirtualizationBackendFactory \
 	{ \
 	public: \
-		F##FactoryName(TCHAR* InLegacyConfigName, TCHAR* InNewConfigName) \
+		F##FactoryName(const TCHAR* InLegacyConfigName, const TCHAR* InNewConfigName) \
 			: StoredLegacyConfigName(InLegacyConfigName) \
 			, StoredNewConfigName(InNewConfigName) \
 			{ IModularFeatures::Get().RegisterModularFeature(FName("VirtualizationBackendFactory"), this); }\
