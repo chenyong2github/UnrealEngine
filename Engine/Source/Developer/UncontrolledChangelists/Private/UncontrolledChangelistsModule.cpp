@@ -33,6 +33,11 @@ static TAutoConsoleVariable<bool> CVarUncontrolledChangelistsEnable(
 
 void FUncontrolledChangelistsModule::StartupModule()
 {
+	if (!IsEnabled())
+	{
+		return;
+	}
+
 	// Adds Default Uncontrolled Changelist if it is not already present.
 	FUncontrolledChangelist DefaultUncontrolledChangelist(FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_GUID, FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_NAME.ToString());
 	UncontrolledChangelistsStateCache.FindOrAdd(MoveTemp(DefaultUncontrolledChangelist), MakeShareable(new FUncontrolledChangelistState(DefaultUncontrolledChangelist)));
