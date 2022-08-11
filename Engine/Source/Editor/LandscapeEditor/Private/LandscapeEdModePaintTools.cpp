@@ -1187,6 +1187,7 @@ public:
 		{
 			HeightmapFlattenPreviewComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
 			HeightmapFlattenPreviewComponent->DestroyComponent();
+			HeightmapFlattenPreviewComponent = nullptr;
 		}
 	}
 };
