@@ -78,7 +78,7 @@ class ENGINE_API ABrush
 	GENERATED_UCLASS_BODY()
 
 	/** Type of brush */
-	UPROPERTY(EditAnywhere, Category=Brush)
+	UPROPERTY(EditAnywhere, Category=Brush, meta = (NoResetToDefault))
 	TEnumAsByte<enum EBrushType> BrushType;
 
 	// Information.
