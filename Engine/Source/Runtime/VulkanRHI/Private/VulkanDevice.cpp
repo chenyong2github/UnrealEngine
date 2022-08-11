@@ -51,7 +51,6 @@ static TAutoConsoleVariable<int32> CVarVulkanUseD24(
 void AftermathGpuCrashDumpCallback(const void* pGpuCrashDump, const uint32 gpuCrashDumpSize, void* pUserData);
 void AftermathShaderDebugInfoCallback(const void* pShaderDebugInfo, const uint32 shaderDebugInfoSize, void* pUserData);
 void AftermathCrashDumpDescriptionCallback(PFN_GFSDK_Aftermath_AddGpuCrashDumpDescription addDescription, void* pUserData);
-void AftermathResolveMarkerCallback(const void* pMarker, void* pUserData, void** resolvedMarkerData, uint32_t* markerSize);
 #endif
 
 // Mirror GPixelFormats with format information for buffers
@@ -361,10 +360,9 @@ void FVulkanDevice::CreateDevice(TArray<const ANSICHAR*>& DeviceLayers, FVulkanD
 		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_EnableGpuCrashDumps(GFSDK_Aftermath_Version_API, 
 			GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_Vulkan,
 			GFSDK_Aftermath_GpuCrashDumpFeatureFlags_DeferDebugInfoCallbacks, 
-			&AftermathGpuCrashDumpCallback,
-			&AftermathShaderDebugInfoCallback,
-			&AftermathCrashDumpDescriptionCallback,
-			&AftermathResolveMarkerCallback,
+			AftermathGpuCrashDumpCallback,
+			AftermathShaderDebugInfoCallback,
+			AftermathCrashDumpDescriptionCallback,
 			this);
 		if (Result != GFSDK_Aftermath_Result_Success)
 		{

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2016-2022, NVIDIA CORPORATION.  All rights reserved.
+* Copyright (c) 2016-2020, NVIDIA CORPORATION.  All rights reserved.
 *
 * NVIDIA CORPORATION and its licensors retain all intellectual property
 * and proprietary rights in and to this software, related documentation
@@ -23,17 +23,9 @@
 #define GFSDK_Aftermath_Defines_H
 
 #if defined(_MSC_VER)
-#if defined(_M_X86)
 #define GFSDK_AFTERMATH_CALL __cdecl
-#else
-#define GFSDK_AFTERMATH_CALL
-#endif
 #elif defined(__clang__) || defined(__GNUC__)
-#if defined(__i386__)
 #define GFSDK_AFTERMATH_CALL __attribute__((cdecl))
-#else
-#define GFSDK_AFTERMATH_CALL
-#endif
 #else
 #error "Unsupported compiler"
 #endif
@@ -78,7 +70,7 @@
 
 GFSDK_AFTERMATH_DECLARE_ENUM(Version)
 {
-    GFSDK_Aftermath_Version_API = 0x0000212  // Version 2.18
+    GFSDK_Aftermath_Version_API = 0x0000209  // Version 2.9
 };
 
 GFSDK_AFTERMATH_DECLARE_ENUM(Result)

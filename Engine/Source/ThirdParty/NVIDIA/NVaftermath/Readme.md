@@ -1,13 +1,13 @@
 # Nsight Aftermath SDK
 
 Aftermath is a compact, easy to use C/C++ library aimed at developers of D3D12
-or Vulkan based applications on Microsoft Windows or Linux, enabling post-mortem
-GPU crash analysis on NVIDIA GeForce based GPUs.
+or Vulkan based applications on Microsoft Windows, enabling post-mortem GPU
+crash analysis on NVIDIA GeForce based GPUs.
 
 ## Key Features
 
-The Nsight Aftermath SDK is an easy to use C/C++ API (shared libraries + header
-files), which provides support for three major use cases:
+The Nsight Aftermath SDK is an easy to use C/C++ API (DLL + header files),
+which provides support for three major use cases:
 
 * GPU crash dump creation
 * GPU crash dump analysis
@@ -29,17 +29,9 @@ conventional graphics APIs, but reporting a finer grained reason.
 One of the key principles of Aftermath is for the marker insertion to be as
 unobtrusive as possible. Avoiding situations common with other similar
 debuggers, where their associated performance cost changes timing enough to
-make a bug repro vanish: a "Heisenbug". Aftermath avoids this problem by using
-a very light-weight event marker design.
-
-Nevertheless, there is still considerable performance overhead associated with
-event markers and they should be used only for debugging purposes on
-development or QA systems. Therefore, starting with the R495 driver, Aftermath
-event marker tracking on D3D11 and D3D12 is only available if the Nsight
-Aftermath GPU Crash Dump Monitor is running on the system. No Aftermath
-configuration needs to be made in the Monitor. It serves only as a dongle to
-ensure Aftermath event markers do not impact application performance on end
-user systems.
+make a bug repro vanish: a "Heisenbug". Aftermath avoids this problem by
+design, while simultaneously not compromising on functionality: a catch-all
+solution for post-mortem GPU crash analysis.
 
 For Vulkan the Aftermath event marker functionality is exposed as a Vulkan
 extension: `NV_device_diagnostic_checkpoints`.
@@ -70,8 +62,8 @@ dump creation feature:
 
 ## Distribution
 
-The following portions of the SDK are distributable: all .dll / .so files in the
-`lib` directory.
+The following portions of the SDK are distributable: all .dll files in the `lib`
+directory.
 
 NOTE: Redistribution of the files is subject to the terms and conditions listed
 in the LICENSE file, including the terms and conditions inherited from any
@@ -79,13 +71,11 @@ third-party component used within this product.
 
 ## Support
 
-* Microsoft Windows 10 (Version 1809 or newer)
-* Linux (kernel 4.15.0 or newer)
+* Microsoft Windows 10 (Version 1809, Version 1903, Version 1909)
 * D3D12, DXR, D3D11 (basic support), Vulkan
 * NVIDIA Turing GPU
 * NVIDIA Display Driver R440 or newer (for D3D)
-* NVIDIA Display Driver R445 or newer (for Vulkan on Windows)
-* NVIDIA Display Driver R455 or newer (for Vulkan on Linux)
+* NVIDIA Display Driver R445 or newer (for Vulkan)
 
 # Usage Examples
 
@@ -99,9 +89,8 @@ The code samples cover the following commonly required tasks:
 2. Configure what data to include in GPU crash dumps
 3. Instrument an application with Aftermath event markers
 4. Handle GPU crash dump callback events
-5. Handle device removed/lost
-6. Disable GPU crash dump collection
-7. Use the GPU crash dump decoding API
+5. Disable GPU crash dump collection
+6. Use the GPU crash dump decoding API
 
 ## Enabling GPU Crash Dumps
 
@@ -125,15 +114,14 @@ crash, to be included with the GPU crash dump.
 
 The following code snippet shows an example of how to enable GPU crash dumps
 and how to setup the callbacks for crash dump notifications, for shader debug
-information notifications, for providing additional crash dump description
-data, and for resolving application-managed markers. Only the crash dump
-callback is mandatory. The other three callbacks are optional and can be omitted
-by passing a NULL pointer if the corresponding functionality is not needed.
-In this example, GPU cash dumps are only enabled for D3D12 and D3D11 devices.
-For watching Vulkan devices the `GFSDK_Aftermath_EnableGpuCrashDumps()` functions
-must be called with `GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_Vulkan`.
-It is also possible to combine both flags, if an application uses both the D3D
-and the Vulkan API.
+information notifications, and for providing additional crash dump description
+data. Only the crash dump callback is mandatory. The other two callbacks are
+optional and can be omitted by passing a NULL pointer if the corresponding
+functionality is not needed. In this example, GPU cash dumps are only enabled
+for D3D12 and D3D11 devices. For watching Vulkan devices the
+`GFSDK_Aftermath_EnableGpuCrashDumps()` functions must be called with
+`GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_Vulkan`. It is also possible to
+combine both flags, if an application uses both the D3D and the Vulkan API.
 
 ```C++
     void MyApp::InitDevice()
@@ -148,7 +136,6 @@ and the Vulkan API.
             GpuCrashDumpCallback,                               // Register callback for GPU crash dumps.
             ShaderDebugInfoCallback,                            // Register callback for shader debug information.
             CrashDumpDescriptionCallback,                       // Register callback for GPU crash dump description.
-            ResolveMarkerCallback,                              // Register callback for marker resolution.
             &m_gpuCrashDumpTracker));                           // Set the GpuCrashTracker object as user data passed back by the above callbacks.
 
         [...]
@@ -173,13 +160,6 @@ and the Vulkan API.
     {
         GpuCrashTracker* pGpuCrashTracker = reinterpret_cast<GpuCrashTracker*>(pUserData);
         pGpuCrashTracker->OnDescription(addDescription);
-    }
-
-    // Static wrapper for the resolve marker handler. See the 'Handling Marker Resolve Callbacks' section for details.
-    void MyApp::ResolveMarkerCallback(const void* pMarker, void* pUserData, void** resolvedMarkerData, uint32_t* markerSize)
-    {
-        GpuCrashTracker* pGpuCrashTracker = reinterpret_cast<GpuCrashTracker*>(pUserData);
-        pGpuCrashTracker->onResolveMarker(pMarker, resolvedMarkerData, markerSize);
     }
 ```
 
@@ -210,12 +190,8 @@ to enable the following features for a D3D12 device:
 
 * _Aftermath event markers_ - this will include information about the Aftermath
   event marker nearest to the crash. Using event markers should be considered
-  carefully. Injecting markers in high-frequency code paths can introduce high
-  CPU overhead. Therefore, the event marker feature is only available if the
-  Nsight Aftermath GPU Crash Dump Monitor is running on the system. No
-  Aftermath configuration needs to be made in the Monitor. It serves only as a
-  dongle to ensure Aftermath event markers do not impact application
-  performance on end user systems.
+  carefully. Injecting markers in high-frequency code paths can introduce hight
+  CPU overhead.
 * _Resource tracking_ - this will include additional information about the
   resource related to a GPU virtual address seen in the case of a crash due to
   a GPU page fault. This includes, for example, information about the size of
@@ -223,20 +199,13 @@ to enable the following features for a D3D12 device:
   object.
 * _Call stack capturing_ - this will include call stack and module information
   for the draw call, compute dispatch, or resource copy nearest to the crash.
-  The call stack capturing feature is only available if the event marker
-  feature is enabled, too.  Using this option should be considered carefully.
-  Enabling call stack capturing can cause considerable CPU overhead.
+  Using this option should be considered carefully. Enabling call stack
+  capturing can cause considerable CPU overhead.
 * _Generating shader debug information_ - this instructs the shader compiler to
   generate debug information (line tables) for all shaders. Using this option
   should be considered carefully. It may cause considerable shader compilation
   overhead and additional overhead for handling the corresponding shader debug
   information callbacks.
-* _Reporting shader errors_ - this puts the GPU in a special mode that allows
-  to report runtime shader errors. The additional information may help in
-  debugging GPU crashes due to errors in shader execution. Enabling this feature
-  should not cause any performance overhead, but it may result in additional
-  crashes being reported for shaders that exhibit undefined behavior, which so
-  far went unnoticed.
 
 ``` C++
     void MyApp::InitDevice()
@@ -247,11 +216,10 @@ to enable the following features for a D3D12 device:
 
         // Initialize Nsight Aftermath for this device.
         const uint32_t aftermathFlags =
-            GFSDK_Aftermath_FeatureFlags_EnableMarkers |              // Enable event marker tracking. Only effective in combination with the Nsight Aftermath Crash Dump Monitor.
-            GFSDK_Aftermath_FeatureFlags_EnableResourceTracking |     // Enable tracking of resources.
-            GFSDK_Aftermath_FeatureFlags_CallStackCapturing |         // Capture call stacks for all draw calls, compute dispatches, and resource copies.
-            GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo |    // Generate debug information for shaders.
-            GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting;  // Enable runtime shader error reporting.
+            GFSDK_Aftermath_FeatureFlags_EnableMarkers |           // Enable event marker tracking.
+            GFSDK_Aftermath_FeatureFlags_EnableResourceTracking |  // Enable tracking of resources.
+            GFSDK_Aftermath_FeatureFlags_CallStackCapturing |      // Capture call stacks for all draw calls, compute dispatches, and resource copies.
+            GFSDK_Aftermath_FeatureFlags_GenerateShaderDebugInfo;  // Generate debug information for shaders.
 
         AFTERMATH_CHECK_ERROR(GFSDK_Aftermath_DX12_Initialize(
             GFSDK_Aftermath_Version_API,
@@ -286,13 +254,13 @@ this:
             VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV |  // Capture call stacks for all draw calls, compute dispatches, and resource copies.
             VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV;       // Generate debug information for shaders.
         VkDeviceDiagnosticsConfigCreateInfoNV aftermathInfo = {};
-        aftermathInfo.sType = VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV;
+        aftermathInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         aftermathInfo.flags = aftermathFlags;
 
         // Set up device creation info.
         VkDeviceCreateInfo deviceInfo = {};
         deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        deviceInfo.pNext = &aftermathInfo;
+        deviceInfo.pNext = &aftermath_info;
         deviceInfo.queueCreateInfoCount = 1;
         deviceInfo.pQueueCreateInfos = &queueInfo;
         deviceInfo.enabledExtensionCount = extensionNames.size();
@@ -315,11 +283,6 @@ Here is some D3D12 example code that shows how to create the necessary command
 context handle with `GFSDK_Aftermath_DX12_CreateContextHandle()` and how to
 call `GFSDK_Aftermath_SetEventMarker()` to set a simple event marker with a
 character string as payload.
-
-Note that calls of `GFSDK_Aftermath_SetEventMarker()` are only effective if the
-`GFSDK_Aftermath_FeatureFlags_EnableMarkers` option was provided to
-`GFSDK_Aftermath_DX12_Initialize()` and the Nsight Aftermath GPU Crash Dump
-Monitor is running on the system.
 
 ```C++
     void MyApp::PopulateCommandList()
@@ -473,80 +436,6 @@ dump. This behavior is enabled by passing the
 Note that all callback functions are free-threaded; the application is
 responsible for providing thread-safe callback handlers.
 
-## Handling Marker Resolve Callbacks
-
-For D3D applications which call `GFSDK_Aftermath_SetEventMarker()` with a
-`markerSize` of zero, or for all Vulkan applications, the application passes
-a unique token (such as a pointer) identifying the marker to Aftermath,
-and is responsible for tracking the meaning of that token internally.
-When generating the crash dump, if a marker of interest has a size of zero,
-the crash dump process will invoke this callback, passing back the marker's
-token, expecting the application to resolve the token to the actual marker
-data (such as a string) and pass the data back.
-
-The association of token to marker data is completely up to the application.
-Pointers to the application-managed marker data is usually a viable token,
-since if the application is keeping all marker data in memory, different
-markers will have unique pointer values by definition.
-
-The pointer to the marker data passed back to the crash dump process from
-the application must be valid for the duration of crash dump generation.
-Crash dump generation is complete when the GPU crash dump callback is called.
-
-## Handling Device Removed/Lost
-
-After a GPU crash happens (e.g. seeing device removed/lost in the application),
-call 'GFSDK_Aftermath_GetCrashDumpStatus' to check the GPU crash dump status.
-The Application should wait until Aftermath has finished processing the crash dump
-before exiting/terminating the application. Here is an example of how an application may
-handle the device removed event, if it is setup for collecting Aftermath GPU crash dumps.
-
-```C++
-void Graphics::Present(void)
-{
-    [...]
-
-    HRESULT hr = s_SwapChain1->Present(PresentInterval, 0);
-
-    if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
-    {
-        [...]
-
-        GFSDK_Aftermath_CrashDump_Status status = GFSDK_Aftermath_CrashDump_Status_Unknown;
-        AFTERMATH_CHECK_ERROR(GFSDK_Aftermath_GetCrashDumpStatus(&status));
-
-        auto tStart = std::chrono::steady_clock::now();
-        auto tElapsed = std::chrono::milliseconds::zero();
-
-        // Loop while Aftermath crash dump data collection has not finished or
-        // the application is still processing the crash dump data.
-        while (status != GFSDK_Aftermath_CrashDump_Status_CollectingDataFailed &&
-               status != GFSDK_Aftermath_CrashDump_Status_Finished &&
-               tElapsed.count() < deviceLostTimeout)
-        {
-            // Sleep a couple of milliseconds and poll the status again.
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            AFTERMATH_CHECK_ERROR(GFSDK_Aftermath_GetCrashDumpStatus(&status));
-
-            tElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tStart);
-        }
-
-        if (status == GFSDK_Aftermath_CrashDump_Status_Finished)
-        {
-            Utility::Print("Aftermath finished processing the crash dump.\n");
-        }
-        else
-        {
-            Utility::Printf("Unexpected crash dump status after timeout: %d\n", status);
-        }
-
-        exit(-1);
-    }
-
-    [...]
-}
-```
-
 ## Disable GPU Crash Dumps
 
 To disable GPU crash dumps simply call `GFSDK_Aftermath_DisableGpuCrashDumps()`.
@@ -608,10 +497,6 @@ dump using a previously created decoder object:
     {
         // Print information about the GPU page fault.
         Utility::Printf("GPU page fault at 0x%016llx", pageFaultInfo.faultingGpuVA);
-        Utility::Printf("Fault Type: %u", pageFaultInfo.faultType);
-        Utility::Printf("Access Type: %u", pageFaultInfo.accessType);
-        Utility::Printf("Engine: %u", pageFaultInfo.engine);
-        Utility::Printf("Client: %u", pageFaultInfo.client);
         if (pageFaultInfo.bHasResourceInfo)
         {
             Utility::Printf("Fault in resource starting at 0x%016llx", pageFaultInfo.resourceInfo.gpuVa);
@@ -687,6 +572,7 @@ needs to ensure that it can provide the necessary information to the decoder.
         GFSDK_Aftermath_GpuCrashDumpFormatterFlags_CONDENSED_OUTPUT, // Generate condensed out, i.e. omit all unnecessary whitespace.
         ShaderDebugInfoLookupCallback,                               // Callback function invoked to find shader debug information data.
         ShaderLookupCallback,                                        // Callback function invoked to find shader binary data by shader hash.
+        ShaderInstructionsLookupCallback,                            // Callback function invoked to find shader binary shader data by instructions hash.
         ShaderSourceDebugDataLookupCallback,                         // Callback function invoked to find shader source debug data by shader DebugName.
         &m_gpuCrashDumpTracker,                                      // User data that will be provided to the above callback functions.
         &jsonSize);                                                  // Result of the call: size in bytes of the generated JSON data.
@@ -725,12 +611,22 @@ lookup callbacks:
 
     // Static callback wrapper for OnShaderLookup
     void MyApp::ShaderLookupCallback(
-        const GFSDK_Aftermath_ShaderBinaryHash* pShaderHash,
+        const GFSDK_Aftermath_ShaderHash* pShaderHash,
         PFN_GFSDK_Aftermath_SetData setShaderBinary,
         void* pUserData)
     {
         GpuCrashTracker* pGpuCrashTracker = reinterpret_cast<GpuCrashTracker*>(pUserData);
         pGpuCrashTracker->OnShaderLookup(*pShaderHash, setShaderBinary);
+    }
+
+    // Static callback wrapper for OnShaderInstructionsLookup
+    void MyApp::ShaderInstructionsLookupCallback(
+        const GFSDK_Aftermath_ShaderInstructionsHash* pShaderInstructionsHash,
+        PFN_GFSDK_Aftermath_SetData setShaderBinary,
+        void* pUserData)
+    {
+        GpuCrashTracker* pGpuCrashTracker = reinterpret_cast<GpuCrashTracker*>(pUserData);
+        pGpuCrashTracker->OnShaderInstructionsLookup(*pShaderInstructionsHash, setShaderBinary);
     }
 
     // Static callback wrapper for OnShaderSourceDebugInfoLookup
@@ -770,12 +666,35 @@ lookup callbacks:
     // will require access to both the stripped and the non-stripped
     // shader binaries.
     void GpuCrashTracker::OnShaderLookup(
-        const GFSDK_Aftermath_ShaderBinaryHash& shaderHash,
+        const GFSDK_Aftermath_ShaderHash& shaderHash,
         PFN_GFSDK_Aftermath_SetData setShaderBinary) const
     {
-        // Find shader binary data for the shader hash in the shader database.
+        // Find shader binary data for the shader instruction hash in the shader database.
         std::vector<uint8_t> shaderBinary;
-        if (!m_shaderDatabase.FindShaderBinary(shaderHash, shaderBinary))
+        if (!m_shaderDatabase.FindShaderBinary(shaderInstructionsHash, shaderBinary))
+        {
+            // Early exit, nothing found. No need to call setShaderBinary.
+            return;
+        }
+
+        // Let the GPU crash dump decoder know about the shader data
+        // that was found.
+        setShaderBinary(shaderBinary.data(), shaderBinary.size());
+    }
+
+    // Handler for shader instructions lookup callbacks (D3D-only).
+    // This is used by the JSON decoder for mapping shader instruction
+    // addresses to DXIL lines or HLSL source lines.
+    // NOTE: If the application loads stripped shader binaries (-Qstrip_debug),
+    // Aftermath will require access to both the stripped and the non-stripped
+    // shader binaries.
+    void GpuCrashTracker::OnShaderInstructionsLookup(
+        const GFSDK_Aftermath_ShaderInstructionsHash& shaderInstructionsHash,
+        PFN_GFSDK_Aftermath_SetData setShaderBinary) const
+    {
+        // Find shader binary data for the shader instruction hash in the shader database.
+        std::vector<uint8_t> shaderBinary;
+        if (!m_shaderDatabase.FindShaderBinary(shaderInstructionsHash, shaderBinary))
         {
             // Early exit, nothing found. No need to call setShaderBinary.
             return;
@@ -828,8 +747,8 @@ shaders are supported:
 
    Compile the shaders with the debug information. Use the full (i.e. not
    stripped) shader binary when running the application and make it accessible
-   through `ShaderLookupCallback`. In this case there is no need to provide a
-   `ShaderSourceDebugDataLookupCallback`.
+   through `ShaderLookupCallback` and `ShaderInstructionsLookupCallback`. In
+   this case there is no need to provide a `ShaderSourceDebugDataLookupCallback`.
 
    Compilation example:
    ```
@@ -841,8 +760,9 @@ shaders are supported:
    Compile the shaders with debug information and then strip off the debug
    information. Use the stripped shader binary data when running the
    application. Make the stripped shader binary data accessible through
-   `ShaderLookupCallback`. In addition, make the non-stripped shader binary
-   data accessible through `ShaderSourceDebugDataLookupCallback`.
+   `ShaderLookupCallback` and `ShaderInstructionsLookupCallback`. In addition,
+   make the non-stripped shader binary data accessible through
+   `ShaderSourceDebugDataLookupCallback`.
 
    Compilation example:
    ```
@@ -860,9 +780,10 @@ shaders are supported:
    Compile the shaders with debug information and instruct the compiler to store
    the debug meta data in a separate shader debug information file. The name of
    the file generated by the compiler will match the DebugName of the shader.
-   Make the shader binary data accessible through `ShaderLookupCallback`.
-   In addition, make the data from the compiler generated shader debug data file
-   accessible through `ShaderSourceDebugDataLookupCallback`.
+   Make the shader binary data accessible through `ShaderLookupCallback` and
+   `ShaderInstructionsLookupCallback`. In addition, make the data from the
+   compiler generated shader debug data file accessible through
+   `ShaderSourceDebugDataLookupCallback`.
 
    Compilation example:
    ```
@@ -879,7 +800,8 @@ shaders are supported:
    Compile the shaders with debug information and instruct the compiler to
    store the debug meta data in a separate shader debug information file. The
    name of the file is freely choosen by the user. Make the shader binary data
-   accessible through `ShaderLookupCallback`. In addition, make the data from the
+   accessible through `ShaderLookupCallback` and
+   `ShaderInstructionsLookupCallback`. In addition, make the data from the
    compiler generated shader debug data file accessible through
    `ShaderSourceDebugDataLookupCallback`.
 
@@ -905,7 +827,7 @@ of generating source shader debug information:
    Compile the shaders with the debug information. Use the full (i.e. not
    stripped) shader binary when running the application and make it accessible
    through `ShaderLookupCallback`. In this case there is no need to provide
-   `ShaderSourceDebugInfoLookupCallback`.
+   ShaderInstructionsLookupCallback` or ShaderSourceDebugInfoLookupCallback`.
 
    Compilation example using the Vulkan SDK tool-chain:
    ```
@@ -942,13 +864,16 @@ of generating source shader debug information:
 * Nsight Aftermath is only fully supported for D3D12 devices. Only basic support
   with a reduced feature set (no resource tracking and no shader address
   mapping) is available for D3D11 devcies.
-* Nsight Aftermath is fully supported on Windows 10, with limited support on
-  Windows 7.
 * Nsight Aftermath event markers and resource tracking is incompatible with the
   D3D debug layer and tools using D3D API interception, such as Microsoft PIX
   or Nsight Graphics.
 * Shader line mappings for active warps are only supported for DXIL shaders,
   i.e. Shader Model 6 or above.
+* Due to a known driver bug the captured GPU state may be incomplete for
+  drivers < R440. This can affect the capturing of shader instruction addresses
+  for active warps.
+* Due to a driver bug, Aftermath event markers may not report the exact point
+  of failure.
 
 # Copyright and Licenses
 

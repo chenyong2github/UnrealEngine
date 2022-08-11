@@ -391,10 +391,9 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 				GFSDK_Aftermath_Version_API,
 				GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_DX,
 				GFSDK_Aftermath_GpuCrashDumpFeatureFlags_Default,
-				&D3D12AftermathCrashCallback,
+				D3D12AftermathCrashCallback,
 				nullptr, //Shader debug callback
 				nullptr, // description callback
-				nullptr, // resolve marker callback
 				CurrentThread); // user data
 
 			if (Result == GFSDK_Aftermath_Result_Success)
