@@ -91,10 +91,10 @@ public:
 
 	/**
 	 * Delegate callback called before an asset has been written to disk.
-	 * @param 	InAsset 			The saved asset.
+	 * @param 	InObject 			The saved object.
 	 * @param 	InPreSaveContext 	Interface used to access saved parameters.
 	 */
-	void OnObjectPreSaved(UObject* InAsset, const FObjectPreSaveContext& InPreSaveContext);
+	void OnObjectPreSaved(UObject* InObject, const FObjectPreSaveContext& InPreSaveContext);
 
 	/**
 	 * Moves files to an Uncontrolled Changelist.

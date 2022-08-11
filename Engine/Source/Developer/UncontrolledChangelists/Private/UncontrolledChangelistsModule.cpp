@@ -209,9 +209,17 @@ void FUncontrolledChangelistsModule::OnAssetAddedInternal(const FAssetData& Asse
 	}
 
 	// No need to check for existence when running startup task
-	if (!bInStartupTask && !FPackageName::DoesPackageExist(PackagePath, &PackagePath))
+	if (!bInStartupTask)
 	{
-		return; // If the package does not exist on disk there is nothing more to do
+		if (FPackageName::IsTempPackage(PackagePath.GetPackageName()))
+		{
+			return; // Ignore temp packages
+		}
+
+		if(!FPackageName::DoesPackageExist(PackagePath, &PackagePath))
+		{
+			return; // If the package does not exist on disk there is nothing more to do
+		}
 	}
 
 	const FString LocalFullPath(PackagePath.GetLocalFullPath());
@@ -234,9 +242,21 @@ void FUncontrolledChangelistsModule::OnAssetAddedInternal(const FAssetData& Asse
 	}
 }
 
-void FUncontrolledChangelistsModule::OnObjectPreSaved(UObject* InAsset, const FObjectPreSaveContext& InPreSaveContext)
+void FUncontrolledChangelistsModule::OnObjectPreSaved(UObject* InObject, const FObjectPreSaveContext& InPreSaveContext)
 {
 	if (!IsEnabled())
+	{
+		return;
+	}
+
+	// Make sure we are catching the top level asset object to avoid processing same package multiple times
+	if (!InObject || !InObject->IsAsset())
+	{
+		return;
+	}
+
+	// Ignore procedural save and autosaves
+	if (InPreSaveContext.IsProceduralSave() || ((InPreSaveContext.GetSaveFlags() & SAVE_FromAutosave) != 0))
 	{
 		return;
 	}
