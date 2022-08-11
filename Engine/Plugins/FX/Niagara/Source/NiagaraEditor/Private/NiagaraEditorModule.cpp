@@ -21,6 +21,7 @@
 #include "AssetTypeActions/AssetTypeActions_NiagaraParameterCollection.h"
 #include "AssetTypeActions/AssetTypeActions_NiagaraEffectType.h"
 #include "AssetTypeActions/AssetTypeActions_NiagaraParameterDefinitions.h"
+#include "AssetTypeActions/AssetTypeActions_NiagaraSimCache.h"
 
 #include "EdGraphUtilities.h"
 #include "SGraphPin.h"
@@ -847,6 +848,7 @@ void FNiagaraEditorModule::StartupModule()
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraParameterCollectionInstance()));
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraParameterDefinitions()));
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraEffectType()));
+	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraSimCache()));
 
 	// Preload all parameter definition & collection assets so that they will be postloaded before postload calls to scripts/emitters/systems that rely on them.
 	{
