@@ -48,8 +48,10 @@ struct FPayloadActivityInfo
 /** Describes the type of storage to use for a given action */
 enum class EStorageType : int8
 {
+	/** Deprecated value, replaced by EStorageType::Cache */
+	Local UE_DEPRECATED(5.1, "Use EStorageType::Cache instead")  = -1,
 	/** Store in the local cache backends, this can be called from any thread */
-	Local = 0,
+	Cache = 0,
 	/** Store in the persistent backends, this can only be called from the game thread due to limitations with ISourceControlModule. */
 	Persistent
 };

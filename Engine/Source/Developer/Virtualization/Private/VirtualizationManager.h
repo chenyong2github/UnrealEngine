@@ -172,7 +172,7 @@ private:
 	bool ShouldDebugFailPulling();
 
 	void MountBackends(const FConfigFile& ConfigFile);
-	void ParseHierarchy(const FConfigFile& ConfigFile, const TCHAR* GraphName, const TCHAR* HierarchyKey, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
+	void ParseHierarchy(const FConfigFile& ConfigFile, const TCHAR* GraphName, const TCHAR* HierarchyKey, const TCHAR* LegacyHierarchyKey, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
 	bool CreateBackend(const FConfigFile& ConfigFile, const TCHAR* GraphName, const FString& ConfigEntryName, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
 
 	void AddBackend(TUniquePtr<IVirtualizationBackend> Backend, FBackendArray& PushArray);
@@ -259,7 +259,7 @@ private:
 	TArray<TUniquePtr<IVirtualizationBackend>> AllBackends;
 
 	/** Backends used for caching operations (must support push operations). */
-	FBackendArray LocalCachableBackends; 
+	FBackendArray CacheStorageBackends; 
 
 	/** Backends used for persistent storage operations (must support push operations). */
 	FBackendArray PersistentStorageBackends; 
