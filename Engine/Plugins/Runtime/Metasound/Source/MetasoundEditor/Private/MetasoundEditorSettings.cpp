@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundEditorSettings.h"
 
-#include "UObject/UnrealType.h"
 #include "Styling/AppStyle.h"
+#include "UObject/UnrealType.h"
 
 
 UMetasoundEditorSettings::UMetasoundEditorSettings(const FObjectInitializer& ObjectInitializer)
@@ -28,7 +28,7 @@ UMetasoundEditorSettings::UMetasoundEditorSettings(const FObjectInitializer& Obj
 	OutputNodeTitleColor = FLinearColor(1.0f, 0.878f, 0.1686f);					// yellow
 	VariableNodeTitleColor = FLinearColor(0.211f, 0.513f, 0.035f);				// copper
 
-	bAnimateConnections = false;
+	bAnimateConnections = true;
 	ActiveAnalyzerNumericWireThickness = 5.0f;
 	ActiveAnalyzerEnvelopeWireThickness = 1.0f;
 	ActiveAnalyzerWireScalarMin = 1.0f;

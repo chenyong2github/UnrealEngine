@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 
 #include "MetasoundEditorSettings.generated.h"
 
@@ -108,7 +107,7 @@ public:
 	FLinearColor VariableNodeTitleColor;
 
 	/** Whether or not animated connections are enabled. */
-	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (DisplayName = "Animate Connections (Experimental)"))
+	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (DisplayName = "Animate Connections (Beta)"))
 	bool bAnimateConnections;
 
 	/** Thickness of default envelope analyzer wire thickness when connection analyzer is active. */
