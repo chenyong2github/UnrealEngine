@@ -1356,6 +1356,13 @@ bool DoCompileMetalShader(
 	}
 #endif
 
+	// Attribute [[clang::optnone]] causes performance hit with WPO on M1 Macs => replace with empty space
+	const std::string ClangOptNoneString = "[[clang::optnone]]";
+	for (size_t Begin = 0, End = 0; (Begin = MetalSource.find(ClangOptNoneString, End)) != std::string::npos; End = Begin)
+	{
+		MetalSource.replace(Begin, ClangOptNoneString.length(), " ");
+	}
+	
 	if (bDumpDebugInfo && !MetalSource.empty())
 	{
 		DumpDebugShaderText(Input, &MetalSource[0], MetalSource.size(), TEXT("metal"));
