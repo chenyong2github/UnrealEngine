@@ -78,6 +78,7 @@ void FDataflowInput::Invalidate()
 FDataflowOutput::FDataflowOutput(const Dataflow::FOutputParameters& Param, FGuid InGuid)
 	: FDataflowConnection(Dataflow::FPin::EDirection::OUTPUT, Param.Type, Param.Name, Param.Owner, Param.Property, InGuid)
 {
+	OutputLock = MakeShared<FCriticalSection>();
 }
 
 const TArray<FDataflowInput*>& FDataflowOutput::GetConnections() const { return Connections; }

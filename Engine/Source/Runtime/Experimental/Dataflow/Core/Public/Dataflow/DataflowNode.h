@@ -130,6 +130,13 @@ struct DATAFLOWCORE_API FDataflowNode
 		checkSlow(FindInput(Reference));
 		return FindInput(Reference)->template GetValue<T>(Context, *Reference);
 	}
+	
+	template<class T>
+	TFuture<const T&> GetValueParallel(Dataflow::FContext& Context, const T* Reference) const
+	{
+		checkSlow(FindInput(Reference));
+		return FindInput(Reference)->template GetValueParallel<T>(Context, *Reference);
+	}
 
 	/**
 	*   GetValue(...)

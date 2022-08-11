@@ -7,6 +7,8 @@
 #include "Dataflow/DataflowConnection.h"
 #include "Dataflow/DataflowNode.h"
 #include "Templates/Function.h"
+#include "Async/Async.h"
+#include "GenericPlatform/GenericPlatformCriticalSection.h"
 
 #include "DataflowInputOutput.generated.h"
 
@@ -53,7 +55,11 @@ public:
 	virtual TArray< FDataflowOutput* > GetConnectedOutputs();
 	virtual const TArray< const FDataflowOutput* > GetConnectedOutputs() const;
 
-	template<class T> const T& GetValue(Dataflow::FContext& Context, const T& Default) const;
+	template<class T>
+	const T& GetValue(Dataflow::FContext& Context, const T& Default) const;
+
+	template<class T>
+	TFuture<const T&> GetValueParallel(Dataflow::FContext& Context, const T& Default) const;
 
 	virtual void Invalidate() override;
 };
@@ -87,12 +93,18 @@ struct DATAFLOWCORE_API FDataflowOutput : public FDataflowConnection
 	mutable uint32 CacheKeyValue = UINT_MAX;
 	mutable Dataflow::TCacheValue Cache;
 
+
 	TArray< FDataflowInput* > Connections;
 
 	size_t PassthroughOffsetAddress = INDEX_NONE;
 
 public:
 	static FDataflowOutput NoOpOutput;
+	
+	mutable TSharedPtr<FCriticalSection> OutputLock; // @todo(dataflow) find alternatives
+	// Why is this made into a SharedPtr? FCriticalSection cannot be copied - making FCriticalSection a member of
+	// FDataflowOutput deletes the copy constructor of FDataflowOutput. But some other part of the code needs
+	// FDataflowOutput to be copyable. Hence wrapped it in a sharedPtr inspired by NiagaraEmitter.h:227.
 
 	FDataflowOutput(const Dataflow::FOutputParameters& Param = {}, FGuid InGuid = FGuid::NewGuid());
 
@@ -146,6 +158,10 @@ public:
 
 	template<class T>
 	bool Evaluate(Dataflow::FContext& Context) const;
+
+	template<class T>
+	TFuture<bool> EvaluateParallel(Dataflow::FContext& Context) const;
+
 	virtual void Invalidate() override;
 
 };
@@ -171,10 +187,18 @@ const T& FDataflowInput::GetValue(Dataflow::FContext& Context, const T& Default)
 	}
 	return Default;
 }
- 
+
+template<class T>
+TFuture<const T&> FDataflowInput::GetValueParallel(Dataflow::FContext& Context, const T& Default) const
+{
+	return Async(EAsyncExecution::TaskGraph, [&]() -> const T& { return this->GetValue<T>(Context, Default); });
+}
+
 template<class T>
 bool FDataflowOutput::Evaluate(Dataflow::FContext& Context) const
 {
+	OutputLock->Lock(); ON_SCOPE_EXIT { this->OutputLock->Unlock(); };
+
 	check(OwningNode);
  
 	if (OwningNode->bActive)
@@ -202,4 +226,10 @@ bool FDataflowOutput::Evaluate(Dataflow::FContext& Context) const
 	}
  
 	return false;
+}
+
+template<class T>
+TFuture<bool> FDataflowOutput::EvaluateParallel(Dataflow::FContext& Context) const
+{
+	return Async(EAsyncExecution::TaskGraph, [&]() -> bool { return this->Evaluate<T>(Context); });
 }

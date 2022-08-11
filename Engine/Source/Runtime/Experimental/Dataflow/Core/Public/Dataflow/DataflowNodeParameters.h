@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/UnrealType.h"
 #include "Templates/UniquePtr.h"
+#include "GenericPlatform/GenericPlatformCriticalSection.h"
 
 class  UDataflow;
 
@@ -53,6 +54,7 @@ namespace Dataflow
 	class DATAFLOWCORE_API FContext
 	{
 		TMap<int64, TUniquePtr<FContextCacheBase>> DataStore;
+		TSharedPtr<FCriticalSection> CacheLock;
 		
 		FContext(FContext&&) = default;
 		FContext& operator=(FContext&&) = default;
@@ -65,7 +67,9 @@ namespace Dataflow
 		FContext(float InTime, FString InType = FString(""))
 			: Timestamp(InTime)
 			, Type(StaticType().Append(InType))
-		{}
+		{
+			CacheLock = MakeShared<FCriticalSection>();
+		}
 
 		float Timestamp = 0.f;
 		FString Type;
@@ -89,6 +93,8 @@ namespace Dataflow
 		template<typename T>
 		void SetData(size_t Key, FProperty* Property, const T& Value)
 		{
+			CacheLock->Lock(); ON_SCOPE_EXIT { CacheLock->Unlock(); };
+			
 			int64 IntKey = (int64)Key;
 			TUniquePtr<FContextCache<T>> DataStoreEntry = MakeUnique<FContextCache<T>>(Property, Value, FPlatformTime::Cycles64());
 			DataStore.Emplace(IntKey, MoveTemp(DataStoreEntry));
@@ -97,6 +103,8 @@ namespace Dataflow
 		template<typename T>
 		void SetData(size_t Key, FProperty* Property, T&& Value)
 		{
+			CacheLock->Lock(); ON_SCOPE_EXIT { CacheLock->Unlock(); };
+			
 			int64 IntKey = (int64)Key;
 			TUniquePtr<FContextCache<T>> DataStoreEntry = MakeUnique<FContextCache<T>>(Property, Forward<T>(Value), FPlatformTime::Cycles64());
 			DataStore.Emplace(IntKey, MoveTemp(DataStoreEntry));
@@ -105,6 +113,8 @@ namespace Dataflow
 		template<class T>
 		const T& GetData(size_t Key, FProperty* Property, const T& Default = T())
 		{
+			CacheLock->Lock(); ON_SCOPE_EXIT { CacheLock->Unlock(); };
+			
 			if (TUniquePtr<FContextCacheBase>* Cache = DataStore.Find(Key))
 			{
 				return (*Cache)->GetTypedData<T>(Property);
@@ -114,6 +124,8 @@ namespace Dataflow
 
 		bool HasData(size_t Key, uint64 StoredAfter = 0)
 		{
+			CacheLock->Lock(); ON_SCOPE_EXIT { CacheLock->Unlock(); };
+			
 			int64 IntKey = (int64)Key;
 			return DataStore.Contains(IntKey) && DataStore[Key]->Timestamp >= StoredAfter;
 		}
