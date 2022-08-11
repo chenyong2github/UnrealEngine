@@ -52,6 +52,7 @@ public:
 	void RequestUnloadLevelInstance(ILevelInstanceInterface* LevelInstance);
 	bool IsLoaded(const ILevelInstanceInterface* LevelInstance) const;
 	void ForEachLevelInstanceAncestorsAndSelf(AActor* Actor, TFunctionRef<bool(ILevelInstanceInterface*)> Operation) const;
+	ULevelStreamingLevelInstance* GetLevelInstanceLevelStreaming(const ILevelInstanceInterface* LevelInstance) const;
 
 #if WITH_EDITOR
 	void Tick();

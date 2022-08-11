@@ -28,6 +28,36 @@ class ENGINE_API ULevelStreamingDynamic : public ULevelStreaming
 	UPROPERTY(Category=LevelStreaming, EditAnywhere)
 	uint32 bInitiallyVisible:1;
 	
+	struct FLoadLevelInstanceParams
+	{
+		FLoadLevelInstanceParams(UWorld* InWorld, const FString& InLongPackageName, FTransform InLevelTransform)
+			: World(InWorld)
+			, LongPackageName(InLongPackageName)
+			, LevelTransform(InLevelTransform) 
+		{}
+
+		/** World to instance the level into. */
+		UWorld* World = nullptr;
+
+		/** Level long package name to load. */
+		FString LongPackageName;
+
+		/** Transform of the instanced level. */
+		FTransform LevelTransform;
+
+		/** If set, the loaded level package have this name, which is used by other functions like UnloadStreamLevel. Note this is necessary for server and client networking because the level must have the same name on both. */
+		const FString* OptionalLevelNameOverride = nullptr;
+
+		/** If set, the level streaming class will be used instead of ULevelStreamingDynamic. */
+		TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass = nullptr;
+
+		/** If set, package path is prefixed by /Temp. */
+		bool bLoadAsTempPackage = false;
+
+		/** Set whether the level will be made visible initially. */
+		bool bInitiallyVisible = true;
+	};
+
 	/**  
  	* Stream in a level with a specific location and rotation. You can create multiple instances of the same level!
  	*
@@ -53,6 +83,8 @@ class ENGINE_API ULevelStreamingDynamic : public ULevelStreaming
  	
 	static ULevelStreamingDynamic* LoadLevelInstanceBySoftObjectPtr(UObject* WorldContextObject, TSoftObjectPtr<UWorld> Level, const FTransform LevelTransform, bool& bOutSuccess, const FString& OptionalLevelNameOverride = TEXT(""), TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass = nullptr, bool bLoadAsTempPackage = false);
 
+	static ULevelStreamingDynamic* LoadLevelInstance(const FLoadLevelInstanceParams& Params, bool& bOutSuccess);
+
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
 	//~ End UObject Interface
@@ -68,7 +100,7 @@ private:
 	// Counter used by LoadLevelInstance to create unique level names
 	static int32 UniqueLevelInstanceId;
 
- 	static ULevelStreamingDynamic* LoadLevelInstance_Internal(UWorld* World, const FString& LongPackageName, const FTransform LevelTransform, bool& bOutSuccess, const FString& OptionalLevelNameOverride, TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass, bool bLoadAsTempPackage);
+ 	static ULevelStreamingDynamic* LoadLevelInstance_Internal(const FLoadLevelInstanceParams& Params, bool& bOutSuccess);
 
 };
 

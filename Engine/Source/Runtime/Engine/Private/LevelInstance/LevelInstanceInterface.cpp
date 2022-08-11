@@ -60,6 +60,16 @@ void ILevelInstanceInterface::UnloadLevelInstance()
 	}
 }
 
+ULevelStreamingLevelInstance* ILevelInstanceInterface::GetLevelStreaming() const
+{
+	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+	{
+		return LevelInstanceSubsystem->GetLevelInstanceLevelStreaming(this);
+	}
+
+	return nullptr;
+}
+
 #if WITH_EDITOR
 ULevel* ILevelInstanceInterface::GetLoadedLevel() const
 {

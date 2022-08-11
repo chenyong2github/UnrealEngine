@@ -9,6 +9,7 @@
 #include "LevelInstanceInterface.generated.h"
 
 class ULevelInstanceComponent;
+class ULevelStreamingLevelInstance;
 
 UINTERFACE()
 class ENGINE_API ULevelInstanceInterface : public UInterface
@@ -64,7 +65,11 @@ class ENGINE_API ILevelInstanceInterface
 	virtual void LoadLevelInstance();
 
 	virtual void UnloadLevelInstance();
-		
+
+	virtual bool IsInitiallyVisible() const { return true; }
+
+	virtual ULevelStreamingLevelInstance* GetLevelStreaming() const;
+
 #if WITH_EDITOR
 	virtual ULevel* GetLoadedLevel() const;
 

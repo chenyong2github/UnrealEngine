@@ -2162,9 +2162,13 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance(UObject* World
 	{
 		return nullptr;
 	}
-	FString LongPackageNameObjectPath = ExistingPackageName.ToString() + ObjectRelativePath;
+	const FString LongPackageNameObjectPath = ExistingPackageName.ToString() + ObjectRelativePath;
 
-	return LoadLevelInstance_Internal(World, LongPackageNameObjectPath, FTransform(Rotation, Location), bOutSuccess, OptionalLevelNameOverride, OptionalLevelStreamingClass, bLoadAsTempPackage);
+	FLoadLevelInstanceParams Params(World, LongPackageNameObjectPath, FTransform(Rotation, Location));
+	Params.OptionalLevelNameOverride = OptionalLevelNameOverride.IsEmpty() ? nullptr : &OptionalLevelNameOverride;
+	Params.OptionalLevelStreamingClass = OptionalLevelStreamingClass;
+	Params.bLoadAsTempPackage = bLoadAsTempPackage;
+	return LoadLevelInstance(Params, bOutSuccess);
 }
 
 ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, const FVector Location, const FRotator Rotation, bool& bOutSuccess, const FString& OptionalLevelNameOverride, TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass, bool bLoadAsTempPackage)
@@ -2175,30 +2179,46 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr
 ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, const FTransform LevelTransform, bool& bOutSuccess, const FString& OptionalLevelNameOverride, TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass, bool bLoadAsTempPackage)
 {
 	bOutSuccess = false;
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	if (!World)
-	{
-		return nullptr;
-	}
-
-	// Check whether requested map exists, this could be very slow if LevelName is a short package name
 	if (Level.IsNull())
 	{
 		return nullptr;
 	}
 
-	return LoadLevelInstance_Internal(World, Level.GetLongPackageName(), LevelTransform, bOutSuccess, OptionalLevelNameOverride, OptionalLevelStreamingClass, bLoadAsTempPackage);
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+
+	FLoadLevelInstanceParams Params(World, Level.GetLongPackageName(), LevelTransform);
+	Params.OptionalLevelNameOverride = OptionalLevelNameOverride.IsEmpty() ? nullptr : &OptionalLevelNameOverride;
+	Params.OptionalLevelStreamingClass = OptionalLevelStreamingClass;
+	Params.bLoadAsTempPackage = bLoadAsTempPackage;
+	return LoadLevelInstance(Params, bOutSuccess);
 }
 
-ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(UWorld* World, const FString& LongPackageName, const FTransform LevelTransform, bool& bOutSuccess, const FString& OptionalLevelNameOverride, TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass, bool bLoadAsTempPackage)
+ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance(const FLoadLevelInstanceParams& Params, bool& bOutSuccess)
 {
-	const FString PackagePath = FPackageName::GetLongPackagePath(LongPackageName);
-	FString ShortPackageName = FPackageName::GetShortName(LongPackageName);
-	UClass* LevelStreamingClass = OptionalLevelStreamingClass != nullptr ? OptionalLevelStreamingClass.Get() : ULevelStreamingDynamic::StaticClass();
-
-	if (ShortPackageName.StartsWith(World->StreamingLevelsPrefix))
+	bOutSuccess = false;
+	if (!Params.World)
 	{
-		ShortPackageName.RightChopInline(World->StreamingLevelsPrefix.Len(), false);
+		return nullptr;
+	}
+
+	if (Params.LongPackageName.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	return LoadLevelInstance_Internal(Params, bOutSuccess);
+}
+
+
+ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(const FLoadLevelInstanceParams& Params, bool& bOutSuccess)
+{
+	const FString PackagePath = FPackageName::GetLongPackagePath(Params.LongPackageName);
+	FString ShortPackageName = FPackageName::GetShortName(Params.LongPackageName);
+	UClass* LevelStreamingClass = Params.OptionalLevelStreamingClass != nullptr ? Params.OptionalLevelStreamingClass.Get() : ULevelStreamingDynamic::StaticClass();
+
+	if (ShortPackageName.StartsWith(Params.World->StreamingLevelsPrefix))
+	{
+		ShortPackageName.RightChopInline(Params.World->StreamingLevelsPrefix.Len(), false);
 	}
 
 	// Remove PIE prefix if it's there before we actually load the level
@@ -2206,7 +2226,7 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(UWorl
 
 	// Determine loaded package name
 	TStringBuilder<512> LevelPackageNameStrBuilder;
-	if (bLoadAsTempPackage)
+	if (Params.bLoadAsTempPackage)
 	{
 		LevelPackageNameStrBuilder.Append(TEXT("/Temp"));
 	}
@@ -2214,27 +2234,27 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(UWorl
 	LevelPackageNameStrBuilder.Append(TEXT("/"));
 		
 	bool bNeedsUniqueTest = false;
-	if (OptionalLevelNameOverride.IsEmpty())
+	if (Params.OptionalLevelNameOverride)
+	{
+		// Use the supplied suffix, which is expected to result in a unique package name but we have to check if it is not.
+		LevelPackageNameStrBuilder.Append(*Params.OptionalLevelNameOverride);
+		bNeedsUniqueTest = true;
+	}
+	else
 	{
 		LevelPackageNameStrBuilder.Append(ShortPackageName);
 		LevelPackageNameStrBuilder.Append(TEXT("_LevelInstance_"));
 		LevelPackageNameStrBuilder.Append(FString::FromInt(++UniqueLevelInstanceId));
 	}
-	else
-	{
-		// Use the supplied suffix, which is expected to result in a unique package name but we have to check if it is not.
-		LevelPackageNameStrBuilder.Append(OptionalLevelNameOverride);
-		bNeedsUniqueTest = true;
-	}
 
 	const FString LevelPackageNameStr(LevelPackageNameStrBuilder.ToString());
 	const FName UnmodifiedLevelPackageName = FName(*LevelPackageNameStr);
 #if WITH_EDITOR
-	const bool bIsPlayInEditor = World->IsPlayInEditor();
+	const bool bIsPlayInEditor = Params.World->IsPlayInEditor();
 	int32 PIEInstance = INDEX_NONE;
 	if (bIsPlayInEditor)
 	{
-		const FWorldContext& WorldContext = GEngine->GetWorldContextFromWorldChecked(World);
+		const FWorldContext& WorldContext = GEngine->GetWorldContextFromWorldChecked(Params.World);
 		PIEInstance = WorldContext.PIEInstance;
 	}
 #endif
@@ -2247,7 +2267,7 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(UWorl
 			ModifiedLevelPackageName = FName(*UWorld::ConvertToPIEPackageName(LevelPackageNameStr, PIEInstance));
 		}
 #endif
-		if (World->GetStreamingLevels().ContainsByPredicate([&ModifiedLevelPackageName](ULevelStreaming* LS) { return LS && LS->GetWorldAssetPackageFName() == ModifiedLevelPackageName; }))
+		if (Params.World->GetStreamingLevels().ContainsByPredicate([&ModifiedLevelPackageName](ULevelStreaming* LS) { return LS && LS->GetWorldAssetPackageFName() == ModifiedLevelPackageName; }))
 		{
 			// The streaming level already exists, error and return.
 			UE_LOG(LogLevelStreaming, Error, TEXT("LoadLevelInstance called with a name that already exists, returning nullptr. LevelPackageName:%s"), *ModifiedLevelPackageName.ToString());
@@ -2256,7 +2276,7 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(UWorl
 	}
     
 	// Setup streaming level object that will load specified map
-	ULevelStreamingDynamic* StreamingLevel = NewObject<ULevelStreamingDynamic>(World, LevelStreamingClass, NAME_None, RF_Transient, NULL);
+	ULevelStreamingDynamic* StreamingLevel = NewObject<ULevelStreamingDynamic>(Params.World, LevelStreamingClass, NAME_None, RF_Transient, NULL);
 
 	FSoftObjectPath WorldAssetPath(*WriteToString<512>(UnmodifiedLevelPackageName, TEXT("."), ShortPackageName));
     StreamingLevel->SetWorldAsset(TSoftObjectPtr<UWorld>(WorldAssetPath));
@@ -2269,17 +2289,17 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(UWorl
 #endif // WITH_EDITOR
     StreamingLevel->LevelColor = FColor::MakeRandomColor();
     StreamingLevel->SetShouldBeLoaded(true);
-    StreamingLevel->SetShouldBeVisible(true);
+    StreamingLevel->SetShouldBeVisible(Params.bInitiallyVisible);
     StreamingLevel->bShouldBlockOnLoad = false;
     StreamingLevel->bInitiallyLoaded = true;
-    StreamingLevel->bInitiallyVisible = true;
+    StreamingLevel->bInitiallyVisible = Params.bInitiallyVisible;
 	// Transform
-    StreamingLevel->LevelTransform = LevelTransform;
+    StreamingLevel->LevelTransform = Params.LevelTransform;
 	// Map to Load
     StreamingLevel->PackageNameToLoad = FName(*OnDiskPackageName);
           
     // Add the new level to world.
-    World->AddStreamingLevel(StreamingLevel);
+    Params.World->AddStreamingLevel(StreamingLevel);
       
 	bOutSuccess = true;
     return StreamingLevel;
