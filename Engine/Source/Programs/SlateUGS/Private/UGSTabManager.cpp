@@ -96,6 +96,12 @@ void UGSTabManager::StartScheduledSyncTimer()
 		ScheduledTime += FTimespan(1, 0, 0, 0);
 	}
 
+	// Add or subtract some fudge time to distribute some of the sync time around versus all at the same time
+	int FudgeMinutes = 10;
+	FTimespan FudgeTime = FTimespan::FromMinutes(FMath::RandRange(FudgeMinutes * -100, FudgeMinutes * 100) / 100.0f);
+
+	ScheduledTime += FudgeTime;
+
 	UE_LOG(LogSlateUGS, Log, TEXT("Schedule: Started ScheduleTimer for %s (%s remaining)"),
 		*ScheduledTime.ToString(TEXT("%Y/%m/%d at %h:%M%a")),
 		*(ScheduledTime - CurrentTime).ToString(TEXT("%h hours and %m minutes")));
