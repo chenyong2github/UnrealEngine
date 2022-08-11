@@ -103,6 +103,8 @@ protected:
 		bool				bFinalized = false;
 		/** True if record should serialize data as binary blob (more compact). False to use tagged serialization (more robust) */
 		bool				bWantsBinarySerialization = true;
+		/** True if the serialized object state changed between when the transaction started and when the transaction ended (set once finalized) */
+		bool				bHasSerializedObjectChanges = false;
 		/** The serialized object data */
 		FSerializedObject	SerializedObject;
 		/** The serialized object data that will be used when the transaction is flipped */
@@ -111,7 +113,7 @@ protected:
 		TUniquePtr<FTransactionDiffableObject> DiffableObject;
 		/** The diffable object data when it was last snapshot (always null once finalized) */
 		TUniquePtr<FTransactionDiffableObject> DiffableObjectSnapshot;
-		/** Delta change information between the state of the object when the transaction started, and the state of the object when the transaction ended */
+		/** Delta change information between the diffable state of the object when the transaction started, and the diffable state of the object when the transaction ended */
 		FTransactionObjectDeltaChange DeltaChange;
 
 		// Constructors.

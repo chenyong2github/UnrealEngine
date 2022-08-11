@@ -282,6 +282,14 @@ void FTransaction::FObjectRecord::Finalize( FTransaction* Owner, TSharedPtr<ITra
 				SerializeObject(Writer);
 			}
 
+			// Determine if the actual transacted object has changes, as we use this to detect if the transaction was a no-op and can be discarded
+			// Note: We don't use the DeltaChange for this as Ar.IsTransacting() may have added extra data in the transacted object that is important for undo/redo, but not for 
+			//       delta change detection. This can result in an empty delta for a change that still needs to be kept for undo/redo (eg, changes to transient object data).
+			bHasSerializedObjectChanges 
+				 = SerializedObject.SerializedData != SerializedObjectFlip.SerializedData
+				|| SerializedObject.ReferencedNames != SerializedObjectFlip.ReferencedNames
+				|| SerializedObject.ReferencedObjects != SerializedObjectFlip.ReferencedObjects;
+
 			// Serialize the object so we can diff it
 			FTransactionDiffableObject CurrentDiffableObject;
 			{
@@ -548,7 +556,7 @@ bool FTransaction::FObjectRecord::ContainsPieObject() const
 bool FTransaction::FObjectRecord::HasChanges() const
 {
 	// A record contains change if it has a detected delta or a custom change or an object annotation
-	return DeltaChange.HasChanged() || CustomChange || SerializedObject.ObjectAnnotation || SerializedObjectFlip.ObjectAnnotation;
+	return bHasSerializedObjectChanges || CustomChange || SerializedObject.ObjectAnnotation || SerializedObjectFlip.ObjectAnnotation;
 }
 
 bool FTransaction::FObjectRecord::HasExpired() const
@@ -766,7 +774,7 @@ void FTransaction::Apply()
 
 		const FObjectRecord& ChangedObjectRecord = Records[ChangedObjectIt.Value.RecordIndex];
 		const FTransactionObjectDeltaChange& DeltaChange = ChangedObjectRecord.DeltaChange;
-		if (DeltaChange.HasChanged() || ChangedObjectTransactionAnnotation.IsValid())
+		if (DeltaChange.HasChanged() || ChangedObjectTransactionAnnotation.IsValid() || ChangedObjectRecord.bHasSerializedObjectChanges)
 		{
 			const FObjectRecord::FSerializedObject& InitialSerializedObject = ChangedObjectRecord.SerializedObject;
 			ChangedObject->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::UndoRedo, DeltaChange, ChangedObjectTransactionAnnotation
@@ -831,7 +839,7 @@ void FTransaction::Finalize()
 
 		const FObjectRecord& ChangedObjectRecord = Records[ChangedObjectIt.Value.RecordIndex];
 		const FTransactionObjectDeltaChange& DeltaChange = ChangedObjectRecord.DeltaChange;
-		if (DeltaChange.HasChanged() || ChangedObjectTransactionAnnotation.IsValid())
+		if (DeltaChange.HasChanged() || ChangedObjectTransactionAnnotation.IsValid() || ChangedObjectRecord.bHasSerializedObjectChanges)
 		{
 			UObject* ChangedObject = ChangedObjectIt.Key;
 			
