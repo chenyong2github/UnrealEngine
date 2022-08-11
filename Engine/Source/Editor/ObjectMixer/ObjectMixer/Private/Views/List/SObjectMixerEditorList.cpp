@@ -626,12 +626,18 @@ bool SObjectMixerEditorList::AddUniquePropertyColumnsToHeaderRow(
 				})
 			)
 		{
+			FString CategoryName = "Generated Properties";
+			if (const FString* CategoryMeta = Property->FindMetaData("Category"))
+			{
+				CategoryName = *CategoryMeta;
+			}
+			
 			ListViewColumns.Add(
 				{
 					Property, PropertyName,
 					Property->GetDisplayNameText(),
 					EListViewColumnType::PropertyGenerated,
-					"Generated Properties",
+					*CategoryName,
 					true, true, false
 				}
 			);
