@@ -5,7 +5,6 @@
 
 #include "Engine/Texture2D.h"
 #include "Factories/Texture2dFactoryNew.h"
-#include "AssetToolsModule.h"
 #include "CanvasTypes.h"
 #include "CanvasItem.h"
 
@@ -170,13 +169,7 @@ void FNiagaraBakerRendererOutputTexture2D::BakeFrame(UNiagaraBakerOutput* InBake
 	if ( BakerOutput->bGenerateFrames )
 	{
 		const FString AssetFullName = BakerOutput->GetAssetPath(BakerOutput->FramesAssetPathFormat, FrameIndex);
-		const FString AssetName = FString(FPathViews::GetCleanFilename(AssetFullName));
-		const FString PackagePath = FString(FPathViews::GetPath(AssetFullName));
-
-		IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		UTexture2DFactoryNew* TextureFactory = NewObject<UTexture2DFactoryNew>();
-		UTexture2D* OutputTexture = Cast<UTexture2D>(AssetTools.CreateAsset(AssetName, PackagePath, UTexture2D::StaticClass(), TextureFactory));
-		if (OutputTexture)
+		if (UTexture2D* OutputTexture = UNiagaraBakerOutput::GetOrCreateAsset<UTexture2D, UTexture2DFactoryNew>(AssetFullName))
 		{
 			const bool bIsPoT = FMath::IsPowerOfTwo(BakerOutput->FrameSize.X) && FMath::IsPowerOfTwo(BakerOutput->FrameSize.Y);
 
@@ -206,13 +199,7 @@ void FNiagaraBakerRendererOutputTexture2D::EndBake(UNiagaraBakerOutput* InBakerO
 	if ( BakerOutput->bGenerateAtlas )
 	{
 		const FString AssetFullName = BakerOutput->GetAssetPath(BakerOutput->AtlasAssetPathFormat, 0);
-		const FString AssetName = FString(FPathViews::GetCleanFilename(AssetFullName));
-		const FString PackagePath = FString(FPathViews::GetPath(AssetFullName));
-
-		IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		UTexture2DFactoryNew* TextureFactory = NewObject<UTexture2DFactoryNew>();
-		UTexture2D* OutputTexture = Cast<UTexture2D>(AssetTools.CreateAsset(AssetName, PackagePath, UTexture2D::StaticClass(), TextureFactory));
-		if (OutputTexture)
+		if (UTexture2D* OutputTexture = UNiagaraBakerOutput::GetOrCreateAsset<UTexture2D, UTexture2DFactoryNew>(AssetFullName))
 		{
 			const bool bIsPoT = FMath::IsPowerOfTwo(BakerOutput->AtlasTextureSize.X) && FMath::IsPowerOfTwo(BakerOutput->AtlasTextureSize.Y);
 

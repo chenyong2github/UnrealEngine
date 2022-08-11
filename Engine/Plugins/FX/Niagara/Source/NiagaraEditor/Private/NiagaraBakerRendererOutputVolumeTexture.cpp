@@ -16,8 +16,6 @@
 #include "Misc/PathViews.h"
 #include "Modules/ModuleManager.h"
 #include "Factories/VolumeTextureFactory.h"
-#include "IAssetTools.h"
-#include "AssetToolsModule.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "VolumeCache.h"
@@ -558,15 +556,7 @@ void FNiagaraBakerRendererOutputVolumeTexture::BakeFrame(UNiagaraBakerOutput* In
 		if (OutputVolumeTexture->bGenerateFrames)
 		{
 			const FString AssetFullName	= OutputVolumeTexture->GetAssetPath(OutputVolumeTexture->FramesAssetPathFormat, FrameIndex);
-			const FString AssetName		= FString(FPathViews::GetCleanFilename(AssetFullName));
-			const FString PackagePath	= FString(FPathViews::GetPath(AssetFullName));
-
-			//-TODO: Handle package existing
-
-			IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-			UVolumeTextureFactory* VolumeTextureFactory = NewObject<UVolumeTextureFactory>();
-			UVolumeTexture* OutputTexture = Cast<UVolumeTexture>(AssetTools.CreateAsset(AssetName, PackagePath, UVolumeTexture::StaticClass(), VolumeTextureFactory));
-			if (OutputTexture)
+			if (UVolumeTexture* OutputTexture = UNiagaraBakerOutput::GetOrCreateAsset<UVolumeTexture, UVolumeTextureFactory>(AssetFullName))
 			{
 				OutputTexture->Source.Init(TextureSize.X, TextureSize.Y, TextureSize.Z, 1, TSF_RGBA16F, (const uint8*)(TextureData.GetData()));
 				OutputTexture->PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
@@ -617,15 +607,7 @@ void FNiagaraBakerRendererOutputVolumeTexture::EndBake(UNiagaraBakerOutput* InBa
 	if (BakeAtlasTextureData.Num() > 0)
 	{
 		const FString AssetFullName = OutputVolumeTexture->GetAssetPath(OutputVolumeTexture->AtlasAssetPathFormat, 0);
-		const FString AssetName = FString(FPathViews::GetCleanFilename(AssetFullName));
-		const FString PackagePath = FString(FPathViews::GetPath(AssetFullName));
-
-		//-TODO: Handle package existing
-
-		IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		UVolumeTextureFactory* VolumeTextureFactory = NewObject<UVolumeTextureFactory>();
-		UVolumeTexture* OutputTexture = Cast<UVolumeTexture>(AssetTools.CreateAsset(AssetName, PackagePath, UVolumeTexture::StaticClass(), VolumeTextureFactory));
-		if (OutputTexture)
+		if (UVolumeTexture* OutputTexture = UNiagaraBakerOutput::GetOrCreateAsset<UVolumeTexture, UVolumeTextureFactory>(AssetFullName))
 		{
 			OutputTexture->Source.Init(BakeAtlasTextureSize.X, BakeAtlasTextureSize.Y, BakeAtlasTextureSize.Z, 1, TSF_RGBA16F, (const uint8*)(BakeAtlasTextureData.GetData()));
 			OutputTexture->PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
@@ -644,60 +626,48 @@ void FNiagaraBakerRendererOutputVolumeTexture::EndBake(UNiagaraBakerOutput* InBa
 	if (OutputVolumeTexture->bExportFrames)
 	{
 		const FString AssetFullName = OutputVolumeTexture->GetAssetPath(OutputVolumeTexture->AtlasAssetPathFormat, 0);
-		const FString AssetName = FString(FPathViews::GetCleanFilename(AssetFullName));
-		const FString PackagePath = FString(FPathViews::GetPath(AssetFullName));
-		IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		
-		// see if the asset has been created
-		UPackage* Pkg = CreatePackage(*AssetFullName);		
-		UVolumeCache* OutputCache = Cast<UVolumeCache>(StaticFindObject(UObject::StaticClass(), Pkg, *AssetName));
-		
-		if (OutputCache == nullptr)
+		if (UVolumeCache* OutputCache = UNiagaraBakerOutput::GetOrCreateAsset<UVolumeCache, UVolumeCacheFactory>(AssetFullName))
 		{
-			UVolumeCacheFactory* VolumeCacheFactory = NewObject<UVolumeCacheFactory>();
-			OutputCache = Cast<UVolumeCache>(AssetTools.CreateAsset(AssetName, PackagePath, UVolumeCache::StaticClass(), VolumeCacheFactory));
-		}
+			FString FullPath = OutputVolumeTexture->GetExportPath(OutputVolumeTexture->FramesExportPathFormat, 0);
+			FullPath = FString(FPathViews::GetPath(FullPath));
 
-		FString FullPath = OutputVolumeTexture->GetExportPath(OutputVolumeTexture->FramesExportPathFormat, 0);
-		FullPath = FString(FPathViews::GetPath(FullPath));
+			FString FullFileName = FString(FPathViews::GetCleanFilename(OutputVolumeTexture->FramesExportPathFormat));
 
-		FString FullFileName = FString(FPathViews::GetCleanFilename(OutputVolumeTexture->FramesExportPathFormat));
+			FullPath = FullPath + "/" + FullFileName;
 
-		FullPath = FullPath + "/" + FullFileName;
-
-		OutputCache->FilePath = FullPath;
+			OutputCache->FilePath = FullPath;
 		
-		OutputCache->FrameRangeStart = BakedFrameRange.X;
-		OutputCache->FrameRangeEnd = BakedFrameRange.Y;
-		OutputCache->Resolution = BakedFrameSize;
-		OutputCache->CacheType = EVolumeCacheType::OpenVDB;
+			OutputCache->FrameRangeStart = BakedFrameRange.X;
+			OutputCache->FrameRangeEnd = BakedFrameRange.Y;
+			OutputCache->Resolution = BakedFrameSize;
+			OutputCache->CacheType = EVolumeCacheType::OpenVDB;
 
-		OutputCache->Modify();
-		OutputCache->PostEditChange();		
+			OutputCache->Modify();
+			OutputCache->PostEditChange();		
 
-		if (BakedFrameRange.Y - BakedFrameRange.X > 0)
-		{
-			if (BakedFrameSize.X + BakedFrameSize.Y + BakedFrameSize.Z > 0)
+			if (BakedFrameRange.Y - BakedFrameRange.X > 0)
 			{
-
-				OutputCache->InitData();
+				if (BakedFrameSize.X + BakedFrameSize.Y + BakedFrameSize.Z > 0)
+				{
+					OutputCache->InitData();
 		
-				// @todo: could be cool to have an option where the whole cache is read into memory after writing it so you can preview results super quick
-				// bool LoadedCache = OutputCache->LoadRange();
+					// @todo: could be cool to have an option where the whole cache is read into memory after writing it so you can preview results super quick
+					// bool LoadedCache = OutputCache->LoadRange();
 
-				// if (!LoadedCache)
-				// {
-				// 	UE_LOG(LogNiagaraBaker, Warning, TEXT("Could not load cache into memory: %s"), *FullPath);
-				// }
+					// if (!LoadedCache)
+					// {
+					// 	UE_LOG(LogNiagaraBaker, Warning, TEXT("Could not load cache into memory: %s"), *FullPath);
+					// }
+				}
+				else
+				{
+					UE_LOG(LogNiagaraBaker, Warning, TEXT("Output cache has no voxels : %s"), *FullPath);
+				}
 			}
 			else
 			{
-				UE_LOG(LogNiagaraBaker, Warning, TEXT("Output cache has no voxels : %s"), *FullPath);
+				UE_LOG(LogNiagaraBaker, Warning, TEXT("No frames written : %s"), *FullPath);
 			}
-		}
-		else
-		{
-			UE_LOG(LogNiagaraBaker, Warning, TEXT("No frames written : %s"), *FullPath);
 		}
 	}
 }

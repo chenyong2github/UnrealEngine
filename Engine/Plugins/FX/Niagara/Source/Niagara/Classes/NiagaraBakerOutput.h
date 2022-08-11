@@ -56,6 +56,15 @@ public:
 		const FString AssetPath = AssetFullName + "." + AssetName;
 		return TSoftObjectPtr<TObjectClass>(AssetPath).LoadSynchronous();
 	}
+
+	static UObject* GetOrCreateAsset(const FString& PackagePath, UClass* ObjectClass, UClass* FactoryClass);
+
+	template<typename TObjectClass, typename TFactoryClass>
+	static TObjectClass* GetOrCreateAsset(const FString& PackagePath)
+	{
+		UObject* FoundObject = GetOrCreateAsset(PackagePath, TObjectClass::StaticClass(), TFactoryClass::StaticClass());
+		return FoundObject ? CastChecked<TObjectClass>(FoundObject) : nullptr;
+	}
 #endif
 
 	virtual void PostInitProperties() override;

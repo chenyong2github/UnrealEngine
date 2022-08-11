@@ -3,6 +3,9 @@
 #include "NiagaraBakerOutput.h"
 #include "NiagaraSystem.h"
 
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetToolsModule.h"
+
 FString UNiagaraBakerOutput::MakeOutputName() const
 {
 	return SanitizeOutputName(GetFName().ToString());
@@ -81,6 +84,37 @@ FString UNiagaraBakerOutput::GetExportFolder(FString PathFormat, int32 FrameInde
 {
 	const FString AssetPath = GetExportPath(PathFormat, FrameIndex);
 	return FString(FPathViews::GetPath(AssetPath));
+}
+
+UObject* UNiagaraBakerOutput::GetOrCreateAsset(const FString& PackagePath, UClass* ObjectClass, UClass* FactoryClass)
+{
+	// Find existing
+	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
+	TArray<FAssetData> FoundAssets;
+	if (AssetRegistry->GetAssetsByPackageName(FName(PackagePath), FoundAssets))
+	{
+		if (FoundAssets.Num() > 0)
+		{
+			if (UObject* ExistingOject = StaticLoadObject(ObjectClass, nullptr, *PackagePath))
+			{
+				return ExistingOject;
+			}
+
+			// If the above failed then the asset is not the right type, warn the user
+			FText ErrorMessage = FText::Format(
+				NSLOCTEXT("NiagarBaker", "GetOrCreateAsset_PackageExistsOfWrongType", "Could not bake asset '{0}' as package exists but is not a {1}.\nPlease delete the asset or the output to a different location."),
+				FText::FromString(PackagePath),
+				FText::FromName(ObjectClass->GetFName())
+			);
+			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage);
+			return nullptr;
+		}
+	}
+
+	// Create new
+	IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	UFactory* NewFactory = NewObject<UFactory>(GetTransientPackage(), FactoryClass);
+	return AssetTools.CreateAsset(FString(FPathViews::GetCleanFilename(PackagePath)), FString(FPathViews::GetPath(PackagePath)), ObjectClass, NewFactory);
 }
 #endif
 

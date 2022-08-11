@@ -8,8 +8,6 @@
 #include "NiagaraSimCacheFactoryNew.h"
 #include "NiagaraSystemInstance.h"
 
-#include "AssetToolsModule.h"
-
 TArray<FNiagaraBakerOutputBinding> FNiagaraBakerRendererOutputSimCache::GetRendererBindings(UNiagaraBakerOutput* InBakerOutput) const
 {
 	return TArray<FNiagaraBakerOutputBinding>();
@@ -54,12 +52,7 @@ bool FNiagaraBakerRendererOutputSimCache::BeginBake(UNiagaraBakerOutput* InBaker
 	check(BakerSettings && BakerOutput);
 
 	const FString AssetFullName = BakerOutput->GetAssetPath(BakerOutput->SimCacheAssetPathFormat, 0);
-	const FString AssetName = FString(FPathViews::GetCleanFilename(AssetFullName));
-	const FString PackagePath = FString(FPathViews::GetPath(AssetFullName));
-
-	IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	UNiagaraSimCacheFactoryNew* SimCacheFactory = NewObject<UNiagaraSimCacheFactoryNew>();
-	BakeSimCache = Cast<UNiagaraSimCache>(AssetTools.CreateAsset(AssetName, PackagePath, UNiagaraSimCache::StaticClass(), SimCacheFactory));
+	BakeSimCache = UNiagaraBakerOutput::GetOrCreateAsset<UNiagaraSimCache, UNiagaraSimCacheFactoryNew>(AssetFullName);
 	if (BakeSimCache == nullptr)
 	{
 		return false;
