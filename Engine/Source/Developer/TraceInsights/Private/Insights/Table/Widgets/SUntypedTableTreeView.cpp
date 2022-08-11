@@ -31,6 +31,7 @@ SUntypedTableTreeView::~SUntypedTableTreeView()
 
 void SUntypedTableTreeView::Construct(const FArguments& InArgs, TSharedPtr<Insights::FUntypedTable> InTablePtr)
 {
+	bRunInAsyncMode = InArgs._RunInAsyncMode;
 	ConstructWidget(InTablePtr);
 }
 

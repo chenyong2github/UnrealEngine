@@ -22,7 +22,10 @@ public:
 	/** Virtual destructor. */
 	virtual ~SUntypedTableTreeView();
 
-	SLATE_BEGIN_ARGS(SUntypedTableTreeView) {}
+	SLATE_BEGIN_ARGS(SUntypedTableTreeView)
+		: _RunInAsyncMode(false)
+		{}
+		SLATE_ARGUMENT(bool, RunInAsyncMode)
 	SLATE_END_ARGS()
 
 	/**

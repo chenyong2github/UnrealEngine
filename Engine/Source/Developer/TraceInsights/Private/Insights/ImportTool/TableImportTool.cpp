@@ -156,6 +156,7 @@ TSharedRef<SDockTab> FTableImportTool::SpawnTab_TableImportTreeView(const FSpawn
 		.TabRole(ETabRole::PanelTab)
 		[
 			SAssignNew(TableTreeView, SUntypedTableTreeView, UntypedTable)
+			.RunInAsyncMode(true)
 		];
 
 	FOpenImportedTableTabData OpenTabData;
