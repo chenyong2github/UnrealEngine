@@ -108,7 +108,7 @@ public:
 	void Load(FArchive& Ar);
 	virtual void PostLoad() override;
 #if WITH_EDITOR
-	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	virtual void PostEditUndo() override;
 #endif
 
 	/**

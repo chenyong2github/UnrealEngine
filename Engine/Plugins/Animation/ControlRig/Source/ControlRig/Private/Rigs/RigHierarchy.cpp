@@ -2205,16 +2205,14 @@ bool URigHierarchy::SetTransformStackIndex(int32 InTransformStackIndex)
 
 #if WITH_EDITOR
 
-void URigHierarchy::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
+void URigHierarchy::PostEditUndo()
 {
-	if (TransactionEvent.GetEventType() == ETransactionObjectEventType::UndoRedo)
+	Super::PostEditUndo();
+
+	const int32 DesiredStackIndex = TransformStackIndex;
+	TransformStackIndex = TransformUndoStack.Num();
+	if (DesiredStackIndex != TransformStackIndex)
 	{
-		const int32 DesiredStackIndex = TransformStackIndex;
-		TransformStackIndex = TransformUndoStack.Num();
-		if (DesiredStackIndex == TransformStackIndex)
-		{
-			return;
-		}
 		SetTransformStackIndex(DesiredStackIndex);
 	}
 }
