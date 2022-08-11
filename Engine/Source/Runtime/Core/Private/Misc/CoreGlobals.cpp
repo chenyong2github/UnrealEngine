@@ -422,10 +422,10 @@ bool CORE_API			GIsGPUCrashed = false;
 /** Whether we should ignore the attached debugger. */
 CORE_API bool			GIgnoreDebugger = false;
 
+#endif // #if !UE_BUILD_SHIPPING
+
 /** Whether local print will produce output. */
 CORE_API bool			GBlockLocalPrint = false;
-
-#endif // #if !UE_BUILD_SHIPPING
 
 bool GetEmitDrawEvents()
 {
