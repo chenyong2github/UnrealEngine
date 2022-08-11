@@ -297,7 +297,6 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 			if (!ChangelistResultErrorsText.IsEmpty())
 			{
 				Contents->AddSlot()
-				.AutoHeight()
 				.Padding(FMargin(5))
 				[
 					SNew(SHorizontalBox)
@@ -321,7 +320,6 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 			if (!ChangelistResultWarningsText.IsEmpty())
 			{
 				Contents->AddSlot()
-				.AutoHeight()
 				.Padding(FMargin(5))
 				[
 					SNew(SHorizontalBox)
