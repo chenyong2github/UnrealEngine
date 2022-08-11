@@ -56,7 +56,7 @@ public:
 	FORCEINLINE void DirtyCachedData()
 	{
 		EntitySubsystemHash = 0;
-		ArchetypeDataVersion = 0;
+		LastUpdatedArchetypeDataVersion = 0;
 	}
 	
 	bool DoesRequireGameThreadExecution() const 
@@ -118,7 +118,7 @@ private:
 	FMassChunkConditionFunction ChunkCondition;
 
 	uint32 EntitySubsystemHash = 0;
-	uint32 ArchetypeDataVersion = 0;
+	uint32 LastUpdatedArchetypeDataVersion = 0;
 
 	TArray<FMassArchetypeHandle> ValidArchetypes;
 	TArray<FMassQueryRequirementIndicesMapping> ArchetypeFragmentMapping;

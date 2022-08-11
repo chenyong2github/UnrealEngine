@@ -190,9 +190,12 @@ FMassArchetypeHandle UMassEntitySubsystem::CreateArchetype(const FMassArchetypeC
 
 	if (!ArchetypeDataPtr.IsValid())
 	{
+		// Important to pre-increment the version as the queries will use this value to do incremental updates
+		++ArchetypeDataVersion;
+
 		// Create a new archetype
 		FMassArchetypeData* NewArchetype = new FMassArchetypeData();
-		NewArchetype->Initialize(Composition);
+		NewArchetype->Initialize(Composition, ArchetypeDataVersion);
 		if (!ArchetypeDebugName.IsNone())
 		{
 			NewArchetype->AddUniqueDebugName(ArchetypeDebugName);
@@ -204,8 +207,6 @@ FMassArchetypeHandle UMassEntitySubsystem::CreateArchetype(const FMassArchetypeC
 			checkSlow(FragmentConfig.FragmentType)
 			FragmentTypeToArchetypeMap.FindOrAdd(FragmentConfig.FragmentType).Add(ArchetypeDataPtr);
 		}
-
-		++ArchetypeDataVersion;
 	}
 
 	return FMassArchetypeHelper::ArchetypeHandleFromData(ArchetypeDataPtr);
@@ -245,9 +246,12 @@ FMassArchetypeHandle UMassEntitySubsystem::InternalCreateSimilarArchetype(const 
 
 	if (!ArchetypeDataPtr.IsValid())
 	{
+		// Important to pre-increment the version as the queries will use this value to do incremental updates
+		++ArchetypeDataVersion;
+
 		// Create a new archetype
 		FMassArchetypeData* NewArchetype = new FMassArchetypeData();
-		NewArchetype->InitializeWithSimilar(SourceArchetypeRef, MoveTemp(NewComposition));
+		NewArchetype->InitializeWithSimilar(SourceArchetypeRef, MoveTemp(NewComposition), ArchetypeDataVersion);
 		NewArchetype->CopyDebugNamesFrom(SourceArchetypeRef);
 
 		ArchetypeDataPtr = HashRow.Add_GetRef(MakeShareable(NewArchetype));
@@ -257,8 +261,6 @@ FMassArchetypeHandle UMassEntitySubsystem::InternalCreateSimilarArchetype(const 
 			checkSlow(FragmentConfig.FragmentType)
 			FragmentTypeToArchetypeMap.FindOrAdd(FragmentConfig.FragmentType).Add(ArchetypeDataPtr);
 		}
-
-		++ArchetypeDataVersion;
 	}
 
 	return FMassArchetypeHelper::ArchetypeHandleFromData(ArchetypeDataPtr);
@@ -1097,7 +1099,7 @@ void UMassEntitySubsystem::CheckIfEntityIsActive(FMassEntityHandle Entity) const
 	checkf(IsEntityBuilt(Entity), TEXT("Entity not yet created(ID: %d, SN:%d)"));
 }
 
-void UMassEntitySubsystem::GetValidArchetypes(const FMassEntityQuery& Query, TArray<FMassArchetypeHandle>& OutValidArchetypes) const
+void UMassEntitySubsystem::GetValidArchetypes(const FMassEntityQuery& Query, TArray<FMassArchetypeHandle>& OutValidArchetypes, const uint32 FromArchetypeDataVersion) const
 {
 	//@TODO: Not optimized yet, but we call this rarely now, so not a big deal.
 
@@ -1119,6 +1121,12 @@ void UMassEntitySubsystem::GetValidArchetypes(const FMassEntityQuery& Query, TAr
 	for (TSharedPtr<FMassArchetypeData>& ArchetypePtr : AnyArchetypes)
 	{
 		FMassArchetypeData& Archetype = *(ArchetypePtr.Get());
+
+		// Only return archetypes with a newer created version than the specified version, this is for incremental query updates
+		if (Archetype.GetCreatedArchetypeDataVersion() <= FromArchetypeDataVersion)
+		{
+			continue;
+		}
 
 		if (Archetype.GetTagBitSet().HasAll(Query.GetRequiredAllTags()) == false)
 		{

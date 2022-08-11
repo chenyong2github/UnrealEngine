@@ -71,24 +71,49 @@ void FMassEntityQuery::ReadCommandlineParams()
 void FMassEntityQuery::CacheArchetypes(const UMassEntitySubsystem& InEntitySubsystem)
 {
 	const uint32 InEntitySubsystemHash = PointerHash(&InEntitySubsystem);
-	if (EntitySubsystemHash != InEntitySubsystemHash || InEntitySubsystem.GetArchetypeDataVersion() != ArchetypeDataVersion || IncrementalChangesCount)
+
+	// Do an incremental update if the last updated archetype data version is different 
+    bool bUpdateArchetypes = InEntitySubsystem.GetArchetypeDataVersion() != LastUpdatedArchetypeDataVersion;
+
+	// Force a full update if the entity system changed or if the requirements changed
+	if (EntitySubsystemHash != InEntitySubsystemHash || IncrementalChangesCount)
 	{
-		IncrementalChangesCount = 0;
+		bUpdateArchetypes = true;
+		EntitySubsystemHash = InEntitySubsystemHash;
+		ValidArchetypes.Reset();
+		LastUpdatedArchetypeDataVersion = 0;
+		ArchetypeFragmentMapping.Reset();
 
-		if (CheckValidity())
+		if (IncrementalChangesCount)
 		{
-			SortRequirements();
-
-			EntitySubsystemHash = InEntitySubsystemHash;
-			ValidArchetypes.Reset();
-			InEntitySubsystem.GetValidArchetypes(*this, ValidArchetypes);
-			ArchetypeDataVersion = InEntitySubsystem.GetArchetypeDataVersion();
+			IncrementalChangesCount = 0;
+			if( CheckValidity() )
+			{
+				SortRequirements();
+			}
+			else
+			{
+				bUpdateArchetypes = false;
+				UE_VLOG_UELOG(&InEntitySubsystem, LogMass, Error, TEXT("FMassEntityQuery::CacheArchetypes: requirements not valid: %s"), *FMassDebugger::GetRequirementsDescription(*this));
+			}
+		}
+	}
+	
+	// Process any new archetype that is newer than the LastUpdatedArchetypeDataVersion
+	if (bUpdateArchetypes)
+	{
+		TArray<FMassArchetypeHandle> NewValidArchetypes;
+		InEntitySubsystem.GetValidArchetypes(*this, NewValidArchetypes, LastUpdatedArchetypeDataVersion);
+		LastUpdatedArchetypeDataVersion = InEntitySubsystem.GetArchetypeDataVersion();
+		if (NewValidArchetypes.Num())
+		{
+			const int32 FirstNewArchetype = ValidArchetypes.Num();
+			ValidArchetypes.Append(NewValidArchetypes);
 
 			TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass RequirementsBinding")
 			const TConstArrayView<FMassFragmentRequirementDescription> LocalRequirements = GetFragmentRequirements();
-			ArchetypeFragmentMapping.Reset(ValidArchetypes.Num());
-			ArchetypeFragmentMapping.AddDefaulted(ValidArchetypes.Num());
-			for (int i = 0; i < ValidArchetypes.Num(); ++i)
+			ArchetypeFragmentMapping.AddDefaulted(NewValidArchetypes.Num());
+			for (int i = FirstNewArchetype; i < ValidArchetypes.Num(); ++i)
 			{
 				FMassArchetypeData& ArchetypeData = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ValidArchetypes[i]);
 				ArchetypeData.GetRequirementsFragmentMapping(LocalRequirements, ArchetypeFragmentMapping[i].EntityFragments);
@@ -105,10 +130,6 @@ void FMassEntityQuery::CacheArchetypes(const UMassEntitySubsystem& InEntitySubsy
 					ArchetypeData.GetRequirementsSharedFragmentMapping(SharedFragmentRequirements, ArchetypeFragmentMapping[i].SharedFragments);
 				}
 			}
-		}
-		else
-		{
-			UE_VLOG_UELOG(&InEntitySubsystem, LogMass, Error, TEXT("FMassEntityQuery::CacheArchetypes: requirements not valid: %s"), *FMassDebugger::GetRequirementsDescription(*this));
 		}
 	}
 }

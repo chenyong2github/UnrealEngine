@@ -171,6 +171,9 @@ private:
 	int32 TotalBytesPerEntity;
 	int32 EntityListOffsetWithinChunk;
 
+	// Archetype version at which this archetype was created, useful for query to do incremental archetype matching
+	uint32 CreatedArchetypeDataVersion;
+
 	// Arrays of names the archetype is referred as.
 	TArray<FName> DebugNames;
 	
@@ -208,13 +211,13 @@ public:
 		return CompositionDescriptor.IsEquivalent(OtherCompositionDescriptor);
 	}
 
-	void Initialize(const FMassArchetypeCompositionDescriptor& InCompositionDescriptor);
+	void Initialize(const FMassArchetypeCompositionDescriptor& InCompositionDescriptor, const uint32 ArchetypeDataVersion);
 
 	/** 
 	 * A special way of initializing an archetype resulting in a copy of SiblingArchetype's setup with OverrideTags
 	 * replacing original tags of SiblingArchetype
 	 */
-	void InitializeWithSimilar(const FMassArchetypeData& BaseArchetype, FMassArchetypeCompositionDescriptor&& NewComposition);
+	void InitializeWithSimilar(const FMassArchetypeData& BaseArchetype, FMassArchetypeCompositionDescriptor&& NewComposition, const uint32 ArchetypeDataVersion);
 
 	void AddEntity(FMassEntityHandle Entity, const FMassArchetypeSharedFragmentValues& InSharedFragmentValues);
 	void RemoveEntity(FMassEntityHandle Entity);
@@ -231,6 +234,8 @@ public:
 	int32 GetChunkAllocSize() const { return UE::Mass::ChunkSize; }
 
 	int32 GetChunkCount() const { return Chunks.Num(); }
+
+	uint32 GetCreatedArchetypeDataVersion() const { return CreatedArchetypeDataVersion; }
 
 	void ExecuteFunction(FMassExecutionContext& RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, FMassArchetypeEntityCollection::FConstEntityRangeArrayView EntityRangeContainer);
 	void ExecuteFunction(FMassExecutionContext& RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, const FMassChunkConditionFunction& ChunkCondition);

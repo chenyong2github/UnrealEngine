@@ -20,8 +20,9 @@ bool FMassArchetypeData::HasFragmentType(const UScriptStruct* FragmentType) cons
 	return (FragmentType && CompositionDescriptor.Fragments.Contains(*FragmentType));
 }
 
-void FMassArchetypeData::Initialize(const FMassArchetypeCompositionDescriptor& InCompositionDescriptor)
+void FMassArchetypeData::Initialize(const FMassArchetypeCompositionDescriptor& InCompositionDescriptor, const uint32 ArchetypeDataVersion)
 {
+	CreatedArchetypeDataVersion = ArchetypeDataVersion;
 	CompositionDescriptor.Fragments = InCompositionDescriptor.Fragments;
 	ConfigureFragments();
 
@@ -45,9 +46,11 @@ void FMassArchetypeData::Initialize(const FMassArchetypeCompositionDescriptor& I
 	EntityListOffsetWithinChunk = 0;
 }
 
-void FMassArchetypeData::InitializeWithSimilar(const FMassArchetypeData& BaseArchetype, FMassArchetypeCompositionDescriptor&& NewComposition)
+void FMassArchetypeData::InitializeWithSimilar(const FMassArchetypeData& BaseArchetype, FMassArchetypeCompositionDescriptor&& NewComposition, const uint32 ArchetypeDataVersion)
 {
 	checkf(IsInitialized() == false, TEXT("Trying to %s but this archetype has already been initialized"));
+
+	CreatedArchetypeDataVersion = ArchetypeDataVersion;
 
 	// note that we're calling this function rarely, so we can be a little bit inefficient here.
 	CompositionDescriptor = MoveTemp(NewComposition);
