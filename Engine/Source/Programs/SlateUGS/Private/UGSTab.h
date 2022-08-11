@@ -30,7 +30,7 @@ class UGSTab
 {
 public:
 	UGSTab();
-	void Initialize();
+	void Initialize(TSharedPtr<UGSCore::FUserSettings> UserSettings);
 
 	const TSharedRef<SDockTab> GetTabWidget();
 	FSpawnTabArgs GetTabArgs() const;
@@ -39,6 +39,8 @@ public:
 	void SetTabArgs(FSpawnTabArgs InTabArgs);
 
 	void Tick();
+
+	bool IsProjectLoaded() const;
 
 	// Slate callbacks
 	bool OnWorkspaceChosen(const FString& Project);
@@ -62,8 +64,8 @@ public:
 	TArray<UGSCore::FWorkspaceSyncCategory> GetSyncCategories(SyncCategoryType CategoryType) const;
 	TArray<FString> GetSyncViews(SyncCategoryType CategoryType) const;
 	UGSTabManager* GetTabManager();
-private:
 
+private:
 	void OnWorkspaceSyncComplete(
 		TSharedRef<UGSCore::FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext,
 		UGSCore::EWorkspaceUpdateResult SyncResult,

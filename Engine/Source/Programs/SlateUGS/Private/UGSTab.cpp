@@ -28,11 +28,13 @@ UGSTab::UGSTab() : TabArgs(nullptr, FTabId()),
 				   GameSyncTabView(SNew(SGameSyncTab).Tab(this)),
 				   bHasQueuedMessages(false)
 {
-	Initialize();
+	Initialize(nullptr);
 }
 
-void UGSTab::Initialize()
+void UGSTab::Initialize(TSharedPtr<UGSCore::FUserSettings> InUserSettings)
 {
+	UserSettings = InUserSettings;
+
 	TabWidget->SetContent(EmptyTabView);
 	TabWidget->SetLabel(FText(LOCTEXT("TabName", "Select a Project")));
 }
@@ -173,6 +175,11 @@ namespace
 
 		return NormalUserName.ToString();
 	}
+}
+
+bool UGSTab::IsProjectLoaded() const
+{
+	return !ProjectFileName.IsEmpty();
 }
 
 bool UGSTab::OnWorkspaceChosen(const FString& Project)
@@ -502,11 +509,6 @@ void UGSTab::SetupWorkspace()
 		return;
 	}
 
-	FString DataFolder = FString(FPlatformProcess::UserSettingsDir()) / TEXT("UnrealGameSync");
-	IFileManager::Get().MakeDirectory(*DataFolder);
-
-	UserSettings = MakeShared<UGSCore::FUserSettings>(*(DataFolder / TEXT("UnrealGameSync_Slate.ini")));
-
 	PerforceClient    = DetectSettings->PerforceClient;
 	WorkspaceSettings = UserSettings->FindOrAddWorkspace(*DetectSettings->BranchClientPath);
 	ProjectSettings   = UserSettings->FindOrAddProject(*DetectSettings->NewSelectedClientFileName);
@@ -523,6 +525,8 @@ void UGSTab::SetupWorkspace()
 	{
 		ClientKey = ClientKey.Left(ClientKey.Len() - 1);
 	}
+
+	FString DataFolder = FString(FPlatformProcess::UserSettingsDir()) / TEXT("UnrealGameSync");
 
 	FString ProjectLogBaseName         = DataFolder / FString::Printf(TEXT("%s@%s"), *PerforceClient->ClientName, *ClientKey.Replace(TEXT("/"), TEXT("$")));
 	FString TelemetryProjectIdentifier = UGSCore::FPerforceUtils::GetClientOrDepotDirectoryName(*DetectSettings->NewSelectedProjectIdentifier);
