@@ -244,7 +244,65 @@ void UGameFeaturesSubsystem::OnAssetManagerCreated()
 
 TSharedPtr<FStreamableHandle> UGameFeaturesSubsystem::LoadGameFeatureData(const FString& GameFeatureToLoad)
 {
-	return UAssetManager::Get().GetStreamableManager().RequestAsyncLoad(FSoftObjectPath(GameFeatureToLoad));
+	UAssetManager& LocalAssetManager = UAssetManager::Get();
+	IAssetRegistry& LocalAssetRegistry = LocalAssetManager.GetAssetRegistry();
+
+#if WITH_EDITOR
+	const FString GameFeaturePackageName = FPackageName::ObjectPathToPackageName(GameFeatureToLoad);
+	LocalAssetRegistry.ScanFilesSynchronous({ FPackageName::LongPackageNameToFilename(GameFeaturePackageName, FPackageName::GetAssetPackageExtension()) });
+#endif // WITH_EDITOR
+
+	FAssetData GameFeatureAssetData;
+	{
+		FARFilter ArFilter;
+		ArFilter.ObjectPaths.Add(FName(*GameFeatureToLoad));
+		ArFilter.ClassPaths.Add(UGameFeatureData::StaticClass()->GetClassPathName());
+		ArFilter.bRecursiveClasses = true;
+#if !WITH_EDITOR
+		ArFilter.bIncludeOnlyOnDiskAssets = true;
+#endif //if !WITH_EDITOR
+
+		LocalAssetRegistry.EnumerateAssets(ArFilter, [&GameFeatureAssetData](const FAssetData& AssetData)
+		{
+			GameFeatureAssetData = AssetData;
+			return false;
+		});
+	}
+
+	if (GameFeatureAssetData.IsValid())
+	{
+		FPrimaryAssetId AssetId = GameFeatureAssetData.GetPrimaryAssetId();
+
+#if WITH_EDITOR
+		// Support for pre-primary data asset game feature data, or game feature data copied from another plugin without being resaved.
+		FString PluginRoot;
+		FString ExpectedPluginRoot = FString::Printf(TEXT("/%s/"), *AssetId.PrimaryAssetName.ToString());
+		if (!AssetId.IsValid() || (UAssetManager::GetContentRootPathFromPackageName(GameFeaturePackageName, PluginRoot) && (PluginRoot != ExpectedPluginRoot)))
+		{
+			if (UObject* LoadedObject = GameFeatureAssetData.GetAsset())
+			{
+				AssetId = LoadedObject->GetPrimaryAssetId();
+				GameFeatureAssetData = FAssetData(LoadedObject);
+			}
+		}
+#endif // WITH_EDITOR
+
+		// Add the GameFeatureData itself to the primary asset list
+		LocalAssetManager.RegisterSpecificPrimaryAsset(AssetId, GameFeatureAssetData);
+
+		// LoadPrimaryAsset will return a null handle if the AssetID is already loaded. Check if there is an existing handle first.
+		TSharedPtr<FStreamableHandle> ReturnHandle = LocalAssetManager.GetPrimaryAssetHandle(AssetId);
+		if (ReturnHandle.IsValid())
+		{
+			return ReturnHandle;
+		}
+		else
+		{
+			return LocalAssetManager.LoadPrimaryAsset(AssetId);
+		}
+	}
+
+	return nullptr;
 }
 
 void UGameFeaturesSubsystem::UnloadGameFeatureData(const UGameFeatureData* GameFeatureToUnload)
@@ -259,9 +317,6 @@ void UGameFeaturesSubsystem::AddGameFeatureToAssetManager(const UGameFeatureData
 	FString PluginRootPath = TEXT("/") + PluginName + TEXT("/");
 	UAssetManager& LocalAssetManager = UAssetManager::Get();
 	IAssetRegistry& LocalAssetRegistry = LocalAssetManager.GetAssetRegistry();
-
-	// Add the GameFeatureData itself to the primary asset list
-	LocalAssetManager.RegisterSpecificPrimaryAsset(GameFeatureToAdd->GetPrimaryAssetId(), FAssetData(GameFeatureToAdd));
 
 	// @TODO: HACK - There is no guarantee that the plugin mount point was added before inte initial asset scan.
 	// If not, ScanPathsForPrimaryAssets will fail to find primary assets without a syncronous scan.
