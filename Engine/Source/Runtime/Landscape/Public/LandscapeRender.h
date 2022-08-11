@@ -27,6 +27,7 @@ LandscapeRender.h: New terrain rendering
 #include "PrimitiveSceneProxy.h"
 #include "StaticMeshResources.h"
 #include "SceneViewExtension.h"
+#include "Tasks/Task.h"
 
 // This defines the number of border blocks to surround terrain by when generating lightmaps
 #define TERRAIN_PATCH_EXPAND_SCALAR	1
@@ -465,7 +466,6 @@ struct FLandscapeRenderSystem
 	const TResourceArray<float>& ComputeSectionsLODForView(const FSceneView& InView);
 	void FetchHeightmapLODBiases();
 	void UpdateBuffers();
-	void PreRenderViewFamily_RenderThread();
 
 private:
 	void CreateResources_Internal(FLandscapeSectionInfo* InSectionInfo);
@@ -488,13 +488,29 @@ public:
 	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override {}
 
-	virtual void PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) override;
 	virtual void PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView) override;
+	virtual void PreInitViews_RenderThread(FRDGBuilder& GraphBuilder) override;
 
 	LANDSCAPE_API const TMap<uint32, FLandscapeRenderSystem*>& GetLandscapeRenderSystems() const;
 private:
 	FBufferRHIRef LandscapeLODDataBuffer;
 	FBufferRHIRef LandscapeIndirectionBuffer;
+
+	struct FLandscapeViewData
+	{
+		FLandscapeViewData() = default;
+
+		FLandscapeViewData(FSceneView& InView)
+			: View(&InView)
+		{}
+
+		FSceneView* View = nullptr;
+		TResourceArray<uint32> LandscapeIndirection;
+		TResourceArray<float> LandscapeLODData;
+	};
+
+	TArray<FLandscapeViewData> LandscapeViews;
+	UE::Tasks::FTask LandscapeSetupTask;
 };
 
 

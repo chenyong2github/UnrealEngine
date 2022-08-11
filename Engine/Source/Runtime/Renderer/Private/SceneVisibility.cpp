@@ -46,7 +46,7 @@
 #include "TemporalAA.h"
 #include "RayTracing/RayTracingInstanceCulling.h"
 #include "RendererModule.h"
-
+#include "SceneViewExtension.h"
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -4015,6 +4015,11 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 
 		DitherUniformShaderParameters.LODFactor = View.GetTemporalLODTransition() - 1.0f;
 		View.DitherFadeInUniformBuffer = FDitherUniformBufferRef::CreateUniformBufferImmediate(DitherUniformShaderParameters, UniformBuffer_SingleFrame);
+	}
+
+	for (const auto& ViewExtension : ViewFamily.ViewExtensions)
+	{
+		ViewExtension->PreInitViews_RenderThread(GraphBuilder);
 	}
 }
 

@@ -88,6 +88,12 @@ static FAutoConsoleVariableRef CVarAllowLandscapeShadows(
 	TEXT("Allow Landscape Shadows")
 );
 
+int32 GLandscapeUseAsyncTasksForLODComputation = 1;
+FAutoConsoleVariableRef CVarLandscapeUseAsyncTasksForLODComputation(
+	TEXT("r.LandscapeUseAsyncTasksForLODComputation"),
+	GLandscapeUseAsyncTasksForLODComputation,
+	TEXT("Use async tasks for computing per-landscape component LOD biases."));
+
 int32 GDisableLandscapeNaniteGI = 1;
 static FAutoConsoleVariableRef CVarDisableLandscapeNaniteGI(
 	TEXT("r.DisableLandscapeNaniteGI"),
@@ -538,16 +544,6 @@ const TResourceArray<float>& FLandscapeRenderSystem::ComputeSectionsLODForView(c
 	return SectionLODValues;
 }
 
-void FLandscapeRenderSystem::PreRenderViewFamily_RenderThread()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeRenderSystem::PreRenderViewFamily_RenderThread);
-	check(IsInRenderingThread());
-
-	CachedSectionLODValues.Reset();
-	FetchHeightmapLODBiases();
-	UpdateBuffers();
-}
-
 void FLandscapeRenderSystem::FetchHeightmapLODBiases()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeRenderSystem::FetchHeightmapLODBiases);
@@ -612,56 +608,85 @@ FLandscapeSceneViewExtension::~FLandscapeSceneViewExtension()
 	FCoreDelegates::OnEndFrameRT.RemoveAll(this);
 }
 
-void FLandscapeSceneViewExtension::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
+void FLandscapeSceneViewExtension::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
 {
-	for (auto& Pair : LandscapeRenderSystems)
+	LandscapeViews.Emplace(InView);
+
+	// Kick the job once all views have been collected.
+	if (!LandscapeRenderSystems.IsEmpty() && LandscapeViews.Num() == InView.Family->Views.Num())
 	{
-		FLandscapeRenderSystem& RenderSystem = *Pair.Value;
-		RenderSystem.PreRenderViewFamily_RenderThread();
+		const auto ComputeLODs = [this]
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeRenderSystem::ComputeLODs);
+			FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+
+			for (auto& Pair : LandscapeRenderSystems)
+			{
+				FLandscapeRenderSystem& RenderSystem = *Pair.Value;
+				RenderSystem.CachedSectionLODValues.Reset();
+				RenderSystem.FetchHeightmapLODBiases();
+			}
+
+			for (FLandscapeViewData& LandscapeView : LandscapeViews)
+			{
+				LandscapeView.LandscapeIndirection.SetNum(FLandscapeRenderSystem::LandscapeIndexAllocator.Num());
+
+				for (auto& Pair : LandscapeRenderSystems)
+				{
+					FLandscapeRenderSystem& RenderSystem = *Pair.Value;
+
+					// Store index where the LOD data for this landscape starts
+					LandscapeView.LandscapeIndirection[RenderSystem.LandscapeIndex] = LandscapeView.LandscapeLODData.Num();
+
+					// Compute sections lod values for this view & append to the global landscape LOD data
+					LandscapeView.LandscapeLODData.Append(RenderSystem.ComputeSectionsLODForView(*LandscapeView.View));
+				}
+			}
+		};
+
+		if (GIsThreadedRendering && GLandscapeUseAsyncTasksForLODComputation)
+		{
+			LandscapeSetupTask = UE::Tasks::Launch(UE_SOURCE_LOCATION, ComputeLODs, LowLevelTasks::ETaskPriority::Normal);
+		}
+		else
+		{
+			ComputeLODs();
+		}
 	}
 }
 
-void FLandscapeSceneViewExtension::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
+void FLandscapeSceneViewExtension::PreInitViews_RenderThread(FRDGBuilder& GraphBuilder)
 {
-	FShaderResourceViewRHIRef LODDataSRV;
-	FShaderResourceViewRHIRef IndirectionSRV;
+	LandscapeSetupTask.Wait();
 
-	if (!LandscapeRenderSystems.IsEmpty())
+	for (auto& Pair : LandscapeRenderSystems)
 	{
-		TResourceArray<uint32> LandscapeIndirection;
-		TResourceArray<float> LandscapeLODData;
+		FLandscapeRenderSystem& RenderSystem = *Pair.Value;
+		RenderSystem.UpdateBuffers();
+	}
 
-		LandscapeIndirection.SetNum(FLandscapeRenderSystem::LandscapeIndexAllocator.Num());
-
-		for (auto& Pair : LandscapeRenderSystems)
+	for (FLandscapeViewData& LandscapeView : LandscapeViews)
+	{
+		if (!LandscapeRenderSystems.IsEmpty())
 		{
-			FLandscapeRenderSystem& RenderSystem = *Pair.Value;
+			FBufferRHIRef Buffer;
 
-			// Store index where the LOD data for this landscape starts
-			uint32& IndirectionEntry = LandscapeIndirection[RenderSystem.LandscapeIndex];
-			IndirectionEntry = LandscapeLODData.Num();
+			FRHIResourceCreateInfo CreateInfoLODBuffer(TEXT("LandscapeLODDataBuffer"), &LandscapeView.LandscapeLODData);
+			Buffer = RHICreateVertexBuffer(LandscapeView.LandscapeLODData.GetResourceDataSize(), BUF_ShaderResource | BUF_Volatile, CreateInfoLODBuffer);
+			LandscapeView.View->LandscapePerComponentDataBuffer = RHICreateShaderResourceView(Buffer, sizeof(float), PF_R32_FLOAT);
 
-			// Compute sections lod values for this view & append to the global landscape LOD data
-			const TResourceArray<float>& SectionsLODValues = RenderSystem.ComputeSectionsLODForView(InView);
-			LandscapeLODData.Append(SectionsLODValues);
+			FRHIResourceCreateInfo CreateInfoIndirection(TEXT("LandscapeIndirectionBuffer"), &LandscapeView.LandscapeIndirection);
+			Buffer = RHICreateVertexBuffer(LandscapeView.LandscapeIndirection.GetResourceDataSize(), BUF_ShaderResource | BUF_Volatile, CreateInfoIndirection);
+			LandscapeView.View->LandscapeIndirectionBuffer = RHICreateShaderResourceView(Buffer, sizeof(uint32), PF_R32_UINT);
 		}
-
-		FRHIResourceCreateInfo CreateInfoLODBuffer(TEXT("LandscapeLODDataBuffer"), &LandscapeLODData);
-		LandscapeLODDataBuffer = RHICreateVertexBuffer(LandscapeLODData.GetResourceDataSize(), BUF_ShaderResource | BUF_Volatile, CreateInfoLODBuffer);
-		LODDataSRV = RHICreateShaderResourceView(LandscapeLODDataBuffer, sizeof(float), PF_R32_FLOAT);
-
-		FRHIResourceCreateInfo CreateInfoIndirection(TEXT("LandscapeIndirectionBuffer"), &LandscapeIndirection);
-		LandscapeIndirectionBuffer = RHICreateVertexBuffer(LandscapeIndirection.GetResourceDataSize(), BUF_ShaderResource | BUF_Volatile, CreateInfoIndirection);
-		IndirectionSRV = RHICreateShaderResourceView(LandscapeIndirectionBuffer, sizeof(uint32), PF_R32_UINT);
-	}
-	else
-	{
-		LODDataSRV = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
-		IndirectionSRV = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
+		else
+		{
+			LandscapeView.View->LandscapePerComponentDataBuffer = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
+			LandscapeView.View->LandscapeIndirectionBuffer = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
+		}
 	}
 
-	InView.LandscapePerComponentDataBuffer = LODDataSRV;
-	InView.LandscapeIndirectionBuffer = IndirectionSRV;
+	LandscapeViews.Reset();
 }
 
 // TODO [jonathan.bard] Ideally this should be symmetrical with FLandscapeSceneViewExtension::PreRenderView_RenderThread and should be called in FLandscapeSceneViewExtension::PostRenderView_RenderThread
