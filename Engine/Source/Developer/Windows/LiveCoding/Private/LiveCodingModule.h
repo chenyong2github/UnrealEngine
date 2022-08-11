@@ -105,7 +105,7 @@ private:
 
 	void UpdateModules();
 
-	bool ShouldPreloadModule(const FString& FullFilePath) const;
+	bool ShouldPreloadModule(const TSet<FName>& PreloadedFileNames, const FString& FullFilePath) const;
 
 	bool IsReinstancingEnabled() const;
 
