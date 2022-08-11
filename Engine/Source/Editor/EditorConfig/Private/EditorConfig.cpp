@@ -562,7 +562,8 @@ TSharedPtr<FJsonValue> FEditorConfig::WriteMap(const FMapProperty* MapProperty, 
 				if (MapHelper.IsValidIndex(Idx))
 				{
 					FString KeyString;
-					check(JsonKeysArray[Idx]->TryGetString(KeyString));
+					const bool bGetStringSuccess = JsonKeysArray[Idx]->TryGetString(KeyString);
+					check(bGetStringSuccess);
 
 					ResultObject->SetField(KeyString, JsonValuesArray[Idx]);
 				}
