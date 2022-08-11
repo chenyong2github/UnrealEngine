@@ -16,4 +16,7 @@ class UUsdProjectSettings : public UDeveloperSettings
 public:
 	UPROPERTY(config, EditAnywhere, Category=General)
 	TArray<FDirectoryPath> AdditionalPluginDirectories;
+
+	UPROPERTY( config, EditAnywhere, Category = USD )
+	bool bShowConfirmationWhenClearingLayers = true;
 };

@@ -104,6 +104,8 @@ namespace UE
 
 		bool Export( const TCHAR* Filename ) const;
 
+		void Clear();
+
 		bool HasStartTimeCode() const;
 		double GetStartTimeCode() const;
 		void SetStartTimeCode( double TimeCode );

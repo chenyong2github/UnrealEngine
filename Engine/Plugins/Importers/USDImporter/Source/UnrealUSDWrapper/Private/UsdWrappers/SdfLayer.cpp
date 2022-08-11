@@ -677,6 +677,17 @@ namespace UE
 		return false;
 	}
 
+	template<typename PtrType>
+	void FSdfLayerBase<PtrType>::Clear()
+	{
+#if USE_USD_SDK
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->Clear();
+		}
+#endif // #if USE_USD_SDK
+	}
+
 	FString FSdfLayerUtils::SdfComputeAssetPathRelativeToLayer( const FSdfLayer& Anchor, const TCHAR* AssetPath )
 	{
 #if USE_USD_SDK
