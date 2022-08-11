@@ -39,6 +39,7 @@ USpinBox::USpinBox(const FObjectInitializer& ObjectInitializer)
 	MinDesiredWidth = 0;
 	ClearKeyboardFocusOnCommit = false;
 	SelectAllTextOnCommit = true;
+	KeyboardType = EVirtualKeyboardType::Number;
 
 	if (DefaultSpinBoxStyle == nullptr)
 	{
@@ -86,6 +87,7 @@ TSharedRef<SWidget> USpinBox::RebuildWidget()
 	.ClearKeyboardFocusOnCommit(ClearKeyboardFocusOnCommit)
 	.SelectAllTextOnCommit(SelectAllTextOnCommit)
 	.Justification(Justification)
+	.KeyboardType(EVirtualKeyboardType::AsKeyboardType(KeyboardType.GetValue()))
 	.OnValueChanged(BIND_UOBJECT_DELEGATE(FOnFloatValueChanged, HandleOnValueChanged))
 	.OnValueCommitted(BIND_UOBJECT_DELEGATE(FOnFloatValueCommitted, HandleOnValueCommitted))
 	.OnBeginSliderMovement(BIND_UOBJECT_DELEGATE(FSimpleDelegate, HandleOnBeginSliderMovement))

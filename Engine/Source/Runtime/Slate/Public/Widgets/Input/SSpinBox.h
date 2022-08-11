@@ -153,6 +153,8 @@ public:
 		SLATE_ATTRIBUTE(float, MinDesiredWidth)
 		/** How should the value be justified in the spinbox. */
 		SLATE_ATTRIBUTE(ETextJustify::Type, Justification)
+		/** What keyboard to display. */
+		SLATE_ATTRIBUTE(EKeyboardType, KeyboardType)
 		/** Provide custom type conversion functionality to this spin box */
 		SLATE_ARGUMENT(TSharedPtr< INumericTypeInterface<NumericType> >, TypeInterface)
 		/** If refresh requests for the viewport should happen for all value changes **/
@@ -286,7 +288,7 @@ public:
 				.ClearKeyboardFocusOnCommit(InArgs._ClearKeyboardFocusOnCommit)
 				.SelectAllTextOnCommit(InArgs._SelectAllTextOnCommit)
 				.MinDesiredWidth(this, &SSpinBox<NumericType>::GetTextMinDesiredWidth)
-				.VirtualKeyboardType(EKeyboardType::Keyboard_Number)
+				.VirtualKeyboardType(InArgs._KeyboardType)
 				.Justification(InArgs._Justification)
 				.VirtualKeyboardTrigger(EVirtualKeyboardTrigger::OnAllFocusEvents)
 				.ContextMenuExtender(InArgs._ContextMenuExtender)
