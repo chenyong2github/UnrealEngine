@@ -45,6 +45,12 @@ IAchievementsPtr FOnlineServicesCommon::GetAchievementsInterface()
 	return IAchievementsPtr(AsShared(), Get<IAchievements>());
 }
 
+ICommercePtr FOnlineServicesCommon::GetCommerceInterface()
+{
+	return ICommercePtr(AsShared(), Get<ICommerce>());
+}
+
+
 IAuthPtr FOnlineServicesCommon::GetAuthInterface()
 {
 	return IAuthPtr(AsShared(), Get<IAuth>());

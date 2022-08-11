@@ -15,6 +15,7 @@ namespace UE::Online {
 using IOnlineServicesPtr = TSharedPtr<class IOnlineServices>;
 using IAchievementsPtr = TSharedPtr<class IAchievements>;
 using IAuthPtr = TSharedPtr<class IAuth>;
+using ICommercePtr = TSharedPtr<class ICommerce>;
 using IUserInfoPtr = TSharedPtr<class IUserInfo>;
 using IFriendsPtr = TSharedPtr<class IFriends>;
 using IPresencePtr = TSharedPtr<class IPresence>;
@@ -68,6 +69,11 @@ public:
 	 *
 	 */
 	virtual IAuthPtr GetAuthInterface() = 0;
+
+	/**
+	 *
+	 */
+	virtual ICommercePtr GetCommerceInterface() = 0;
 
 	/**
 	 *

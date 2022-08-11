@@ -19,6 +19,8 @@ template <typename... Ts> FString ToLogString(const TVariant<Ts...>& Variant);
 template <typename T, ESPMode Mode> FString ToLogString(const TSharedRef<T, Mode>& Ref);
 inline FString ToLogString(const FString& String);
 inline FString ToLogString(const FName& Name);
+inline FString ToLogString(const FText& Text);
+inline FString ToLogString(const FDateTime& Time);
 inline FString ToLogString(uint8 Value);
 inline FString ToLogString(int8 Value);
 inline FString ToLogString(uint16 Value);
@@ -107,6 +109,17 @@ inline FString ToLogString(const FName& Name)
 {
 	return Name.ToString();
 }
+
+inline FString ToLogString(const FText& Text)
+{
+	return Text.ToString();
+}
+
+inline FString ToLogString(const FDateTime& Time)
+{
+	return Time.ToString();
+}
+
 
 inline FString ToLogString(uint8 Value)
 {
