@@ -7,6 +7,7 @@
 #include "BaseGizmos/GizmoElementShared.h"
 #include "BaseGizmos/GizmoInterfaces.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
+#include "BaseGizmos/GizmoViewContext.h"
 #include "InputState.h"
 #include "SceneView.h"
 #include "ToolContextInterfaces.h"
@@ -14,7 +15,6 @@
 #include "GizmoElementBase.generated.h"
 
 class UMaterialInterface;
-class UGizmoViewContext;
 
 /**
  * Base class for 2d and 3d primitive objects intended to be used as part of 3D Gizmos.
@@ -98,11 +98,16 @@ public:
 		// Pixel to world scale
 		double PixelToWorldScale = 1.0;
 
+		// View context is perspective projecion
+		bool bIsPerspectiveProjection = true;
+
 		// Initialize state 
 		void Initialize(const UGizmoViewContext* InGizmoViewContext, FTransform InTransform)
 		{
+			check(InGizmoViewContext);
 			LocalToWorldTransform = InTransform;
 			PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(InGizmoViewContext, InTransform.GetLocation());
+			bIsPerspectiveProjection = InGizmoViewContext->IsPerspectiveProjection();
 		}
 	};
 
@@ -117,15 +122,36 @@ public:
 	// Calcute box sphere bounds for use when hit testing.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const PURE_VIRTUAL(UGizmoElementBase::CalcBounds, return FBoxSphereBounds(););
 
-	// Whether this object is visible.
-	virtual bool IsVisible() const;
+	// Return whether the visible bit is enabled in element state.
+	virtual bool GetVisibleState() const;
 
-	// Whether this object is hittable.
-	virtual bool IsHittable() const;
+	// Return whether the hittable bit is enabled in element state.
+	virtual bool GetHittableState() const;
 
-	// Render and LineTrace should only occur when bEnabled is true.
-	virtual void SetEnabled(bool InEnabled);
+	// Element enabled flag. Render and LineTrace only occur when bEnabled is true.
+	// This flag is useful for turning on and off an element globally while retaining its specific settings.
+	virtual void SetEnabled(bool bInEnabled);
 	virtual bool GetEnabled() const;
+
+	// Whether element is enabled for perspective projections.
+	virtual void SetEnabledForPerspectiveProjection(bool bInEnabledForPerspectiveProjection);
+	virtual bool GetEnabledForPerspectiveProjection();
+
+	// Whether element is enabled for orthographic projections.
+	virtual void SetEnabledInOrthographicProjection(bool bInEnabledForOrthographicProjection);
+	virtual bool GetEnabledInOrthographicProjection();
+
+	// Whether element is enabled when element state is default.
+	virtual void SetEnabledForDefaultState(bool bInEnabledForDefaultState);
+	virtual bool GetEnabledForDefaultState();
+
+	// Whether element is enabled when element state is hovering.
+	virtual void SetEnabledForHoveringState(bool bInEnabledForHoveringState);
+	virtual bool GetEnabledForHoveringState();
+
+	// Whether element is enabled when element state is interacting.
+	virtual void SetEnabledForInteractingState(bool bInEnabledForInteractingState);
+	virtual bool GetEnabledForInteractingState();
 
 	// For an element hierarchy representing multiple parts of a single gizmo, the part identifier establishes 
 	// a correspondence between a gizmo part and the elements that represent that part. The recognized
@@ -267,6 +293,26 @@ protected:
 	UPROPERTY()
 	bool bEnabled = true;
 
+	// Whether element is enabled for perspective projection
+	UPROPERTY()
+	bool bEnabledForPerspectiveProjection = true;
+
+	// Whether element is enabled for orthographic projection
+	UPROPERTY()
+	bool bEnabledForOrthographicProjection = true;
+
+	// Whether element is enabled when element state is default
+	UPROPERTY()
+	bool bEnabledForDefaultState = true;
+
+	// Whether element is enabled when element state is hovering
+	UPROPERTY()
+	bool bEnabledForHoveringState = true;
+
+	// Whether element is enabled when element state is interacting
+	UPROPERTY()
+	bool bEnabledForInteractingState = true;
+
 	// Part identifier
 	UPROPERTY()
 	uint32 PartIdentifier = DefaultPartIdentifier;
@@ -279,7 +325,7 @@ protected:
 	UPROPERTY()
 	EGizmoElementState ElementState = EGizmoElementState::VisibleAndHittable;
 
-	// Element interaction state - None, Hovering or Interacting
+	// Current element interaction state - None, Hovering or Interacting
 	UPROPERTY()
 	EGizmoElementInteractionState ElementInteractionState = EGizmoElementInteractionState::None;
 
@@ -341,23 +387,29 @@ protected:
 
 protected:
 
-	// Returns whether object is visible in input FSceneView based on view-dependent visibility settings 
+	// Return whether element is currently visible.
+	virtual bool IsVisible(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
+
+	// Return whether element is currently hittable.
+	virtual bool IsHittable(const UGizmoViewContext* ViewContext, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
+
+	// Returns whether object is visible in input FSceneView based on view-dependent visibility settings.
 	virtual bool GetViewDependentVisibility(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
 
 	// Returns whether object is visible in input gizmo view context based on view-dependent visibility settings
 	virtual bool GetViewDependentVisibility(const UGizmoViewContext* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
 
-	// Returns whether object is visible based input view parameters and view-dependent visibility settings
+	// Returns whether object is visible based on view-dependent visibility settings.
 	virtual bool GetViewDependentVisibility(const FVector& InViewLocation, const FVector& InViewDirection, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
 
-	// Returns whether object is hittable in input FSceneView based on element state and view-dependent settings. 
-	virtual bool GetViewDependentHittable(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
+	// Returns whether element is enabled based on element's current interaction state and input view projection type.
+	virtual bool GetEnabledForCurrentState(bool bIsPerspectiveProjection) const;
 
-	// Returns whether object is hittable in input gizmo view context based on element state and view-dependent settings. 
-	virtual bool GetViewDependentHittable(const UGizmoViewContext* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
+	// Returns whether element is enabled for given interaction state.
+	virtual bool GetEnabledForInteractionState(EGizmoElementInteractionState InInteractionState) const;
 
-	// Returns whether object is hittable based on input view parameters, element state and view-dependent settings. 
-	virtual bool GetViewDependentHittable(const FVector& InViewLocation, const FVector& InViewDirection, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
+	// Returns whether element is enabled for given view projection type.
+	virtual bool GetEnabledForViewProjection(bool bIsPerspectiveProjection) const;
 
 	// Return whether this element has a view alignment rotation based on input FSceneView and view-dependent alignment settings.
 	// @param OutAlignRot the rotation to align this element in local space, should be prepended to the local-to-world transform.
@@ -378,7 +430,7 @@ protected:
 	// @return view dependent visibility, true if this element is visible in the current view. 
 	virtual bool UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalCenter, FRenderTraversalState& InOutRenderState);
 
-	// Update render state during render traversal, determines the current render state for this element, same parameters as
+	// Update render state during render traversal, determines the current render state for this element
 	// Same parameters as UpdateRenderState above plus two output parameters:
 	// @param bOutHasAlignRot - whether alignment rotation was applied to output state
 	// @param OutAlignRot - alignment rotation applied to output state, if applicable.

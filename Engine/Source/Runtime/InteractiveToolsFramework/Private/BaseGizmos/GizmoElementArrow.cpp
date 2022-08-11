@@ -19,11 +19,6 @@ UGizmoElementArrow::UGizmoElementArrow()
 
 void UGizmoElementArrow::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState)
 {
-	if (!IsVisible())
-	{
-		return;
-	}
-
 	check(RenderAPI);
 
 	if (bUpdateArrowBody)
@@ -59,11 +54,6 @@ void UGizmoElementArrow::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 
 FInputRayHit UGizmoElementArrow::LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection)
 {
-	if (!IsHittable())
-	{
-		return FInputRayHit();
-	}
-
 	FLineTraceTraversalState CurrentLineTraceState(LineTraceState);
 	bool bHittableViewDependent = UpdateLineTraceState(ViewContext, Base, CurrentLineTraceState);
 

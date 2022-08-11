@@ -9,13 +9,6 @@
 
 void UGizmoElementCylinder::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState)
 {
-	if (!IsVisible())
-	{
-		return;
-	}
-
-	check(RenderAPI);
-
 	FRenderTraversalState CurrentRenderState(RenderState);
 	bool bVisibleViewDependent = UpdateRenderState(RenderAPI, Base, CurrentRenderState);
 
@@ -37,11 +30,6 @@ void UGizmoElementCylinder::Render(IToolsContextRenderAPI* RenderAPI, const FRen
 
 FInputRayHit UGizmoElementCylinder::LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection)
 {
-	if (!IsHittable())
-	{
-		return FInputRayHit();
-	}
-
 	FLineTraceTraversalState CurrentLineTraceState(LineTraceState);
 	bool bHittableViewDependent = UpdateLineTraceState(ViewContext, Base, CurrentLineTraceState);
 

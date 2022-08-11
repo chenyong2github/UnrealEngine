@@ -59,6 +59,6 @@ protected:
 	UPROPERTY()
 	TArray<TObjectPtr<UGizmoElementBase>> Elements;
 
-	// Applies constant scale to the current local to world transform, if constant scale is true
-	virtual void ApplyConstantScale(float PixelToWorldScale, FTransform& InOutLocalToWorldTransform);
+	// Updates input transform's scale component to have uniform scale and applies constant scale if bConstantScale is true
+	virtual void ApplyUniformConstantScaleToTransform(float PixelToWorldScale, FTransform& InOutLocalToWorldTransform) const;
 };

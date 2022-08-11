@@ -4,7 +4,7 @@
 #include "BaseGizmos/GizmoViewContext.h"
 
 
-void UGizmoElementGroup::ApplyConstantScale(float PixelToWorldScale, FTransform& InOutLocalToWorldTransform)
+void UGizmoElementGroup::ApplyUniformConstantScaleToTransform(float PixelToWorldScale, FTransform& InOutLocalToWorldTransform) const
 {
 	float Scale = InOutLocalToWorldTransform.GetScale3D().X;
 	if (bConstantScale)
@@ -16,19 +16,12 @@ void UGizmoElementGroup::ApplyConstantScale(float PixelToWorldScale, FTransform&
 
 void UGizmoElementGroup::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState)
 {
-	if (!IsVisible())
-	{
-		return;
-	}
-
-	check(RenderAPI);
-
 	FRenderTraversalState CurrentRenderState(RenderState);
 	bool bVisibleViewDependent = UpdateRenderState(RenderAPI, FVector::ZeroVector, CurrentRenderState);
 
 	if (bVisibleViewDependent)
 	{
-		ApplyConstantScale(CurrentRenderState.PixelToWorldScale, CurrentRenderState.LocalToWorldTransform);
+		ApplyUniformConstantScaleToTransform(CurrentRenderState.PixelToWorldScale, CurrentRenderState.LocalToWorldTransform);
 
 		// Continue render even if not visible so all transforms will be cached 
 		// for subsequent line tracing.
@@ -51,7 +44,7 @@ FInputRayHit UGizmoElementGroup::LineTrace(const UGizmoViewContext* ViewContext,
 
 	if (bHittableViewDependent)
 	{
-		ApplyConstantScale(CurrentLineTraceState.PixelToWorldScale, CurrentLineTraceState.LocalToWorldTransform);
+		ApplyUniformConstantScaleToTransform(CurrentLineTraceState.PixelToWorldScale, CurrentLineTraceState.LocalToWorldTransform);
 
 		for (UGizmoElementBase* Element : Elements)
 		{

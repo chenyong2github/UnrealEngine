@@ -9,14 +9,6 @@
 
 void UGizmoElementTorus::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState)
 {
-	if (!IsVisible())
-	{
-		return;
-	}
-
-	check(RenderAPI);
-
-
 	FRenderTraversalState CurrentRenderState(RenderState);
 	bool bVisibleViewDependent = UpdateRenderState(RenderAPI, Center, CurrentRenderState);
 

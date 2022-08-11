@@ -37,24 +37,6 @@ bool UGizmoElementBase::GetViewDependentVisibility(const UGizmoViewContext* View
 	return GetViewDependentVisibility(ViewLocation, ViewDirection, bIsPerspectiveView, InLocalToWorldTransform, InLocalCenter);
 }
 
-
-bool UGizmoElementBase::GetViewDependentHittable(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
-{
-	bool bIsPerspectiveView;
-	FVector ViewLocation, ViewDirection, ViewUp;
-	GizmoElementBaseLocals::GetViewInfo<FSceneView>(View, ViewLocation, ViewDirection, ViewUp, bIsPerspectiveView);
-	return GetViewDependentHittable(ViewLocation, ViewDirection, bIsPerspectiveView, InLocalToWorldTransform, InLocalCenter);
-}
-
-bool UGizmoElementBase::GetViewDependentHittable(const UGizmoViewContext* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
-{
-	bool bIsPerspectiveView;
-	FVector ViewLocation, ViewDirection, ViewUp;
-	GizmoElementBaseLocals::GetViewInfo<UGizmoViewContext>(View, ViewLocation, ViewDirection, ViewUp, bIsPerspectiveView);
-	return GetViewDependentHittable(ViewLocation, ViewDirection, bIsPerspectiveView, InLocalToWorldTransform, InLocalCenter);
-}
-
-
 bool UGizmoElementBase::GetViewAlignRot(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const
 {
 	bool bIsPerspectiveView;
@@ -102,11 +84,6 @@ bool UGizmoElementBase::GetViewDependentVisibility(const FVector& InViewLocation
 
 	return bVisibleViewDependent;
 
-}
-
-bool UGizmoElementBase::GetViewDependentHittable(const FVector& InViewLocation, const FVector& InViewDirection, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
-{
-	return (IsHittable() && (!IsVisible() || GetViewDependentVisibility(InViewLocation, InViewDirection, bInPerspectiveView, InLocalToWorldTransform, InLocalCenter)));
 }
 
 bool UGizmoElementBase::GetViewAlignRot(const FVector& InViewLocation, const FVector& InViewDirection, const FVector& InViewUp, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const
@@ -208,6 +185,62 @@ FQuat UGizmoElementBase::GetAlignRotBetweenCoordSpaces(FVector SourceForward, FV
 	return Result;
 }
 
+bool UGizmoElementBase::GetEnabledForCurrentState(bool bIsPerspectiveProjection) const
+{
+	return (GetEnabledForInteractionState(ElementInteractionState) && GetEnabledForViewProjection(bIsPerspectiveProjection));
+}
+
+bool UGizmoElementBase::GetEnabledForInteractionState(const EGizmoElementInteractionState InElementInteractionState) const
+{
+	if (bEnabled)
+	{
+		switch (InElementInteractionState)
+		{
+		case EGizmoElementInteractionState::None:
+			return bEnabledForDefaultState;		
+
+		case EGizmoElementInteractionState::Hovering:
+			return bEnabledForHoveringState;
+
+		case EGizmoElementInteractionState::Interacting:	
+			return bEnabledForInteractingState;
+		}
+	}
+
+	return false;
+}
+
+bool UGizmoElementBase::GetEnabledForViewProjection(bool bIsPerspectiveProjection) const
+{
+	if (bEnabled)
+	{
+		if (bIsPerspectiveProjection)
+		{
+			return bEnabledForPerspectiveProjection;
+		}
+		else
+		{
+			return bEnabledForOrthographicProjection;
+		}
+	}
+	
+	return false;
+}
+
+bool UGizmoElementBase::IsVisible(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
+{
+	return (GetVisibleState() &&
+		GetEnabledForCurrentState(View->IsPerspectiveProjection()) &&
+		GetViewDependentVisibility(View, InLocalToWorldTransform, InLocalCenter));
+}
+
+bool UGizmoElementBase::IsHittable(const UGizmoViewContext* ViewContext, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
+{
+	return (GetHittableState() &&
+		GetEnabledForCurrentState(ViewContext->IsPerspectiveProjection()) &&
+		(!GetVisibleState() || GetViewDependentVisibility(ViewContext, InLocalToWorldTransform, InLocalCenter)));
+}
+
 bool UGizmoElementBase::UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalCenter, FRenderTraversalState& InOutRenderState)
 {
 	FQuat AlignRot;
@@ -231,15 +264,14 @@ bool UGizmoElementBase::UpdateRenderState(IToolsContextRenderAPI* RenderAPI, con
 
 	InOutRenderState.MeshRenderState.Update(MeshRenderAttributes);
 
-	bool bVisibleViewDependent = GetViewDependentVisibility(View, InOutRenderState.LocalToWorldTransform, InLocalCenter);
-
-	if (bVisibleViewDependent)
+	if (IsVisible(View, InOutRenderState.LocalToWorldTransform, InLocalCenter))
 	{
 		bOutHasAlignRot = GetViewAlignRot(View, InOutRenderState.LocalToWorldTransform, InLocalCenter, OutAlignRot);
 		InOutRenderState.LocalToWorldTransform = FTransform(OutAlignRot, InLocalCenter) * InOutRenderState.LocalToWorldTransform;
+		return true;
 	}
 
-	return bVisibleViewDependent;
+	return false;
 }
 
 bool UGizmoElementBase::UpdateLineTraceState(const UGizmoViewContext* ViewContext, const FVector& InLocalCenter, FLineTraceTraversalState& InOutRenderState)
@@ -256,27 +288,24 @@ bool UGizmoElementBase::UpdateLineTraceState(const UGizmoViewContext* ViewContex
 	OutAlignRot = FQuat::Identity;
 	bOutHasAlignRot = false;
 
-	bool bHittableViewDependent = GetViewDependentHittable(ViewContext, InOutRenderState.LocalToWorldTransform, InLocalCenter);
-
-	if (bHittableViewDependent)
+	if (IsHittable(ViewContext, InOutRenderState.LocalToWorldTransform, InLocalCenter))
 	{
 		bOutHasAlignRot = GetViewAlignRot(ViewContext, InOutRenderState.LocalToWorldTransform, InLocalCenter, OutAlignRot);
 		InOutRenderState.LocalToWorldTransform = FTransform(OutAlignRot, InLocalCenter) * InOutRenderState.LocalToWorldTransform;
+		return true;
 	}
 
-	return bHittableViewDependent;
+	return false;
 }
 
-bool UGizmoElementBase::IsVisible() const
+bool UGizmoElementBase::GetVisibleState() const
 {
-	bool bVisible = static_cast<uint8>(ElementState) & static_cast<uint8>(EGizmoElementState::Visible);
-	return (bEnabled && bVisible);
+	return (static_cast<uint8>(ElementState) & static_cast<uint8>(EGizmoElementState::Visible));
 }
 
-bool UGizmoElementBase::IsHittable() const
+bool UGizmoElementBase::GetHittableState() const
 {
-	bool bHittable = static_cast<uint8>(ElementState) & static_cast<uint8>(EGizmoElementState::Hittable);
-	return (bEnabled && bHittable);
+	return (static_cast<uint8>(ElementState) & static_cast<uint8>(EGizmoElementState::Hittable));
 }
 
 void UGizmoElementBase::SetEnabled(bool InEnabled)
@@ -288,6 +317,57 @@ bool UGizmoElementBase::GetEnabled() const
 {
 	return bEnabled;
 }
+
+void UGizmoElementBase::SetEnabledForPerspectiveProjection(bool bInEnabledForPerspectiveProjection)
+{
+	bEnabledForPerspectiveProjection = bInEnabledForPerspectiveProjection;
+}
+
+bool UGizmoElementBase::GetEnabledForPerspectiveProjection()
+{
+	return bEnabledForPerspectiveProjection;
+}
+
+void UGizmoElementBase::SetEnabledInOrthographicProjection(bool bInEnabledForOrthographicProjection)
+{
+	bEnabledForOrthographicProjection = bInEnabledForOrthographicProjection;
+}
+
+bool UGizmoElementBase::GetEnabledInOrthographicProjection()
+{
+	return bEnabledForOrthographicProjection;
+}
+
+void UGizmoElementBase::SetEnabledForDefaultState(bool bInEnabledForDefaultState)
+{
+	bEnabledForDefaultState = bInEnabledForDefaultState;
+}
+
+bool UGizmoElementBase::GetEnabledForDefaultState()
+{
+	return bEnabledForDefaultState;
+}
+
+void UGizmoElementBase::SetEnabledForHoveringState(bool bInEnabledForHoveringState)
+{
+	bEnabledForHoveringState = bInEnabledForHoveringState;
+}
+
+bool UGizmoElementBase::GetEnabledForHoveringState()
+{
+	return bEnabledForHoveringState;
+}
+
+void UGizmoElementBase::SetEnabledForInteractingState(bool bInEnabledForInteractingState)
+{
+	bEnabledForInteractingState = bInEnabledForInteractingState;
+}
+
+bool UGizmoElementBase::GetEnabledForInteractingState()
+{
+	return bEnabledForInteractingState;
+}
+
 void UGizmoElementBase::SetPartIdentifier(uint32 InPartIdentifier)
 {
 	PartIdentifier = InPartIdentifier;
