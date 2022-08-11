@@ -118,6 +118,7 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 		GPixelFormats[PF_DepthStencil].PlatformFormat = DXGI_FORMAT_R32G8X24_TYPELESS;
 		GPixelFormats[PF_DepthStencil].BlockBytes = 5;
 		GPixelFormats[PF_DepthStencil].Supported = true;
+		GPixelFormats[PF_DepthStencil].bIs24BitUnormDepthStencil = false;
 		GPixelFormats[PF_X24_G8].PlatformFormat = DXGI_FORMAT_X32_TYPELESS_G8X24_UINT;
 		GPixelFormats[PF_X24_G8].BlockBytes = 5;
 	}
