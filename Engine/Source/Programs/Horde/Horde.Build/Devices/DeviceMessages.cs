@@ -240,7 +240,7 @@ namespace Horde.Build.Devices
 	}
 
 	/// <summary>
-	/// Get response object which describes a device
+	/// Get response object which describes a device (DEPRECATED)
 	/// </summary>
 	public class GetDeviceUtilizationResponse
 	{
@@ -545,6 +545,164 @@ namespace Horde.Build.Devices
 		/// </summary>
 		public string LegacyGuid { get; set; } = null!;
 	}
+
+	/// <summary>
+	/// Device telemetry respponse
+	/// </summary>
+	public class GetTelemetryInfoResponse
+	{
+		/// <summary>
+		/// The UTC time the telemetry data was created
+		/// </summary>
+		[Required]
+		public DateTime CreateTimeUtc { get; set; }
+
+		/// <summary>
+		/// The job id which utilized device
+		/// </summary>
+		public string? JobId { get; set; }
+
+		/// <summary>
+		/// The job's step id
+		/// </summary>
+		public string? StepId { get; set; }
+
+		/// <summary>
+		/// If this telemetry has a reservation, the start time of the reservation
+		/// </summary>
+		public DateTime? ReservationStartUtc { get; set; }
+
+		/// <summary>
+		/// If this telemetry has a reservation, the finish time of the reservation
+		/// </summary>
+		public DateTime? ReservationFinishUtc { get; set; }
+
+		/// <summary>
+		/// If this telemetry marks a detected device issue, the time of the issue
+		/// </summary>
+		public DateTime? ProblemTimeUtc { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="data"></param>
+		public GetTelemetryInfoResponse(IDeviceTelemetry data)
+		{
+			CreateTimeUtc = data.CreateTimeUtc;
+			JobId = data.JobId;
+			StepId = data.StepId;
+			ReservationStartUtc = data.ReservationStartUtc;
+			ReservationFinishUtc = data.ReservationFinishUtc;
+			ProblemTimeUtc = data.ProblemTimeUtc;
+		}
+
+	}
+
+	/// <summary>
+	/// Device telemetry respponse
+	/// </summary>
+	public class GetDeviceTelemetryResponse
+	{
+		/// <summary>
+		/// The device id for the telemetry data
+		/// </summary>
+		[Required]
+		public string DeviceId { get; set; } = null!;
+
+		/// <summary>
+		/// Individual telemetry data points
+		/// </summary>
+		[Required]
+		public List<GetTelemetryInfoResponse> Telemetry { get; set; } = null!;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="deviceId"></param>
+		/// <param name="telemetry"></param>
+		public GetDeviceTelemetryResponse(string deviceId, List<GetTelemetryInfoResponse> telemetry)
+		{
+			DeviceId = deviceId;
+			Telemetry = telemetry;
+		}
+	}
+
+
+	/// <summary>
+	/// Device telemetry respponse
+	/// </summary>
+	public class GetDevicePlatformTelemetryResponse
+	{
+		/// <summary>
+		/// The corresponding platform id
+		/// </summary>
+		public string PlatformId { get; set; }
+
+		/// <summary>
+		/// Number of available devices of this platform 
+		/// </summary>
+		public int Available { get; set; }
+
+		/// <summary>
+		/// Number of reserved devices of this platform 
+		/// </summary>
+		public int Reserved { get; set; }
+
+		/// <summary>
+		/// Number of devices in maintenance state
+		/// </summary>
+		public int Maintenance { get; set; }
+
+		/// <summary>
+		/// Number of devices in problem state
+		/// </summary>
+		public int Problem { get; set; }
+
+		/// <summary>
+		/// Number of devices in disabled state
+		/// </summary>
+		public int Disabled { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public GetDevicePlatformTelemetryResponse(string platformId, int available, int reserved, int maintenance, int problem, int disabled)
+		{
+			PlatformId = platformId;
+			Available = available;
+			Reserved = reserved;
+			Maintenance = maintenance;
+			Problem = problem;
+			Disabled = disabled;
+		}
+	}
+
+	/// <summary>
+	/// Device telemetry respponse
+	/// </summary>
+	public class GetDevicePoolTelemetryResponse
+	{
+		/// <summary>
+		/// The UTC time the telemetry data was created
+		/// </summary>
+		public DateTime CreateTimeUtc { get; set; }
+
+		/// <summary>
+		/// Individual pool telemetry data points
+		/// </summary>
+		public Dictionary<string, List<GetDevicePlatformTelemetryResponse>> Telemetry { get; set; } = null!;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public GetDevicePoolTelemetryResponse(DateTime createTimeUtc, Dictionary<string, List<GetDevicePlatformTelemetryResponse>> telemetry)
+		{
+			CreateTimeUtc = createTimeUtc;
+			Telemetry = telemetry;
+		}
+
+	}
+
 
 	// Legacy clients
 

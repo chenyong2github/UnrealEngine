@@ -63,7 +63,7 @@ namespace Horde.Build.Devices
 			public DevicePoolId Id { get; set; }
 
 			[BsonRequired]
-            public DevicePoolType PoolType { get; set; }
+			public DevicePoolType PoolType { get; set; }
 
 			[BsonIgnoreIfNull]
 			public List<ProjectId>? ProjectIds { get; set; }
@@ -77,15 +77,15 @@ namespace Horde.Build.Devices
 			[BsonConstructor]
 			private DevicePoolDocument()
 			{
-            }
+			}
 
 			public DevicePoolDocument(DevicePoolId id, string name, DevicePoolType poolType, List<ProjectId>? projectIds)
 			{
 				Id = id;
 				Name = name;
-                PoolType = poolType;
+				PoolType = poolType;
 				ProjectIds = projectIds;
-            }
+			}
 		}
 
 		/// <summary>
@@ -108,16 +108,16 @@ namespace Horde.Build.Devices
 			[BsonIgnoreIfNull]
 			public string? StepId { get; set; }
 
-            /// <summary>
-            /// Reservations held by a user, requires a token like download code
-            /// </summary>
-            [BsonIgnoreIfNull]
+			/// <summary>
+			/// Reservations held by a user, requires a token like download code
+			/// </summary>
+			[BsonIgnoreIfNull]
 			public UserId? UserId { get; set; }
 
-            /// <summary>
-            /// The hostname of the machine which has made the reservation
-            /// </summary>
-            [BsonIgnoreIfNull]
+			/// <summary>
+			/// The hostname of the machine which has made the reservation
+			/// </summary>
+			[BsonIgnoreIfNull]
 			public string? Hostname { get; set; }
 
 			/// <summary>
@@ -156,10 +156,10 @@ namespace Horde.Build.Devices
 				UpdateTimeUtc = createTimeUtc;
 				Hostname = hostname;
 				ReservationDetails = reservationDetails;
-                JobId = jobId;
-                StepId = stepId;
+				JobId = jobId;
+				StepId = stepId;
 
-                LegacyGuid = Guid.NewGuid().ToString();
+				LegacyGuid = Guid.NewGuid().ToString();
 			}
 		}
 
@@ -212,6 +212,10 @@ namespace Horde.Build.Devices
 			[BsonIgnoreIfNull]
 			public string? Notes { get; set; }
 
+
+			/// <summary>
+			/// [DEPRECATED]
+			/// </summary>
 			[BsonIgnoreIfNull]
 			public List<DeviceUtilizationTelemetry>? Utilization { get; set; }
 
@@ -232,9 +236,197 @@ namespace Horde.Build.Devices
 				Enabled = enabled;
 				Address = address;
 				ModelId = modelId;
-                ModifiedByUser = userId?.ToString();
-            }
+				ModifiedByUser = userId?.ToString();
+			}
 		}
+
+		/// <summary>
+		/// Device telemetry information for an individual device 
+		/// </summary>
+		class DeviceTelemetryDocument : IDeviceTelemetry
+		{
+			/// <summary>
+			/// Id of telemetry document
+			/// </summary>
+			[BsonRequired, BsonId]
+			public ObjectId TelemetryId { get; set; }
+
+			/// <summary>
+			/// The device id
+			/// </summary>
+			[BsonRequired]
+			public DeviceId DeviceId { get; set; }
+
+			/// <summary>
+			/// The time this telemetry data was created
+			/// </summary>
+			[BsonRequired]
+			public DateTime CreateTimeUtc { get; set; }
+
+			/// <summary>
+			/// The job id which utilized device
+			/// </summary>
+			[BsonIgnoreIfNull]
+			public string? JobId { get; set; }
+
+			/// <summary>
+			/// The job's step id
+			/// </summary>
+			[BsonIgnoreIfNull]
+			public string? StepId { get; set; }
+
+			/// <summary>
+			/// Reservation Id (transient, reservations are deleted upon expiration)
+			/// </summary>
+			[BsonIgnoreIfNull]
+			public ObjectId? ReservationId { get; set; }
+
+			/// <summary>
+			/// The time device was reserved
+			/// </summary>
+			[BsonIgnoreIfNull]
+			public DateTime? ReservationStartUtc { get; set; }
+
+			/// <summary>
+			/// The time device was freed
+			/// </summary>
+			[BsonIgnoreIfNull]
+			public DateTime? ReservationFinishUtc { get; set; }
+
+			/// <summary>
+			/// If the device reported a problem
+			/// </summary>
+			[BsonIgnoreIfNull]
+			public DateTime? ProblemTimeUtc { get; set; }
+
+			[BsonConstructor]
+			private DeviceTelemetryDocument()
+			{
+			}
+
+			public DeviceTelemetryDocument(DeviceId deviceId, ObjectId? reservationId = null, DateTime? reservationStartTime = null, string? jobId = null, string? stepId = null)
+			{
+				TelemetryId = ObjectId.GenerateNewId();
+				CreateTimeUtc = DateTime.UtcNow;
+				DeviceId = deviceId;
+
+				ReservationId = reservationId;
+				ReservationStartUtc = reservationStartTime;
+
+				JobId = jobId;
+				StepId = stepId;
+			}
+
+		}
+
+		class DevicePlatformTelemetryDocument : IDevicePlatformTelemetry
+		{
+			/// <summary>
+			/// Id of telemetry document
+			/// </summary>
+			[BsonRequired, BsonId]
+			public ObjectId TelemetryId { get; set; }
+
+			/// <summary>
+			/// The time this telemetry data was created
+			/// </summary>
+			[BsonRequired]
+			public DateTime CreateTimeUtc { get; set; }
+
+			/// <summary>
+			/// The platform id 
+			/// </summary>
+			[BsonRequired]
+			public DevicePlatformId PlatformId { get; set; }
+
+			/// <summary>
+			/// Number of available devices of this platform 
+			/// </summary>
+			[BsonRequired]
+			public int Available { get; set; } = 0;
+
+			/// <summary>
+			/// Number of reserved devices of this platform 
+			/// </summary>
+			[BsonRequired]
+			public int Reserved { get; set; } = 0;
+
+			/// <summary>
+			/// Number of devices in maintenance state
+			/// </summary>
+			[BsonRequired]
+			public int Maintenance { get; set; } = 0;
+
+			/// <summary>
+			/// Number of devices in problem state
+			/// </summary>
+			[BsonRequired]
+			public int Problem { get; set; } = 0;
+
+			/// <summary>
+			/// Number of devices that are disabled
+			/// </summary>
+			[BsonRequired]
+			public int Disabled { get; set; } = 0;
+
+
+			[BsonConstructor]
+			private DevicePlatformTelemetryDocument()
+			{
+			}
+
+			public DevicePlatformTelemetryDocument(DevicePlatformId platformId, int available, int reserved, int maintenance, int problem, int disabled)
+			{
+				TelemetryId = ObjectId.GenerateNewId();
+				CreateTimeUtc = DateTime.UtcNow;
+				PlatformId = platformId;
+				Available = available;
+				Reserved = reserved;
+				Maintenance = maintenance;	
+				Problem = problem;
+				Disabled = disabled;
+			}
+
+		}
+
+		/// <summary>
+		/// Device telemetry information for pools
+		/// </summary>
+		class DevicePoolTelemetryDocument : IDevicePoolTelemetry
+		{
+			/// <summary>
+			/// Id of telemetry document
+			/// </summary>
+			[BsonRequired, BsonId]
+			public ObjectId TelemetryId { get; set; }
+
+			/// <summary>
+			/// The time this telemetry data was created
+			/// </summary>
+			[BsonRequired]
+			public DateTime CreateTimeUtc { get; set; }
+
+			/// <summary>
+			/// Pool platform state
+			/// </summary>
+			[BsonRequired]
+			public Dictionary<DevicePoolId, List<DevicePlatformTelemetryDocument>> Pools { get; set; } = new Dictionary<DevicePoolId, List<DevicePlatformTelemetryDocument>>();
+
+			IReadOnlyDictionary<DevicePoolId, IReadOnlyList<IDevicePlatformTelemetry>> IDevicePoolTelemetry.Pools => Pools.ToDictionary(kvp => kvp.Key, kvp => kvp.Value as IReadOnlyList<IDevicePlatformTelemetry>);
+
+			[BsonConstructor]
+			private DevicePoolTelemetryDocument()
+			{
+			}
+
+			public DevicePoolTelemetryDocument(Dictionary<DevicePoolId, List<DevicePlatformTelemetryDocument>> pools)
+			{
+				TelemetryId = ObjectId.GenerateNewId();
+				CreateTimeUtc = DateTime.UtcNow;
+				Pools = pools;
+			}
+		}
+
 
 		readonly IMongoCollection<DevicePlatformDocument> _platforms;
 
@@ -243,6 +435,10 @@ namespace Horde.Build.Devices
 		readonly IMongoCollection<DevicePoolDocument> _pools;
 
 		readonly IMongoCollection<DeviceReservationDocument> _reservations;
+
+		readonly IMongoCollection<DeviceTelemetryDocument> _deviceTelemetry;
+
+		readonly IMongoCollection<DevicePoolTelemetryDocument> _poolTelemetry;
 
 		readonly int _checkoutDays = 7;
 
@@ -255,6 +451,14 @@ namespace Horde.Build.Devices
 			_platforms = mongoService.GetCollection<DevicePlatformDocument>("Devices.Platforms", keys => keys.Ascending(x => x.Name), unique: true);
 			_pools = mongoService.GetCollection<DevicePoolDocument>("Devices.Pools", keys => keys.Ascending(x => x.Name), unique: true);
 			_reservations = mongoService.GetCollection<DeviceReservationDocument>("Devices.Reservations");
+
+			List<MongoIndex<DeviceTelemetryDocument>> deviceTelemetryIndexes = new List<MongoIndex<DeviceTelemetryDocument>>();
+			deviceTelemetryIndexes.Add((keys => keys.Descending(x => x.CreateTimeUtc)));
+			_deviceTelemetry = mongoService.GetCollection<DeviceTelemetryDocument>("Devices.DeviceTelemetry", deviceTelemetryIndexes);
+
+			List<MongoIndex<DevicePoolTelemetryDocument>> poolTelemetryIndexes = new List<MongoIndex<DevicePoolTelemetryDocument>>();
+			poolTelemetryIndexes.Add((keys => keys.Descending(x => x.CreateTimeUtc)));
+			_poolTelemetry = mongoService.GetCollection<DevicePoolTelemetryDocument>("Devices.PoolTelemetry", poolTelemetryIndexes);
 		}
 
 		/// <inheritdoc/>
@@ -358,13 +562,22 @@ namespace Horde.Build.Devices
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IDevice>> FindAllDevicesAsync(List<DeviceId>? deviceIds = null)
+		public async Task<List<IDevice>> FindAllDevicesAsync(List<DeviceId>? deviceIds = null, DevicePoolId? poolId = null, DevicePlatformId? platformId = null)
 		{
 			FilterDefinition<DeviceDocument> filter = Builders<DeviceDocument>.Filter.Empty;
 			if (deviceIds != null)
 			{
 				filter &= Builders<DeviceDocument>.Filter.In(x => x.Id, deviceIds);
 			}
+			if (poolId != null)
+			{
+				filter &= Builders<DeviceDocument>.Filter.Eq(x => x.PoolId, poolId);
+			}
+			if (platformId != null)
+			{
+				filter &= Builders<DeviceDocument>.Filter.Eq(x => x.PlatformId, platformId);
+			}
+
 			List<DeviceDocument> results = await _devices.Find(filter).ToListAsync();
 			return results.OrderBy(x => x.Name).Select<DeviceDocument, IDevice>(x => x).ToList();
 		}
@@ -407,9 +620,9 @@ namespace Horde.Build.Devices
 
 			List<UpdateDefinition<DeviceDocument>> updates = new List<UpdateDefinition<DeviceDocument>>();
 
-            string? userId = checkedOutByUserId?.ToString();
+			string? userId = checkedOutByUserId?.ToString();
 
-            updates.Add(updateBuilder.Set(x => x.CheckedOutByUser, String.IsNullOrEmpty(userId) ? null : userId));			
+			updates.Add(updateBuilder.Set(x => x.CheckedOutByUser, String.IsNullOrEmpty(userId) ? null : userId));
 
 			if (checkedOutByUserId != null)
 			{
@@ -467,7 +680,7 @@ namespace Horde.Build.Devices
 				else
 				{
 					updates.Add(updateBuilder.Set(x => x.ModelId, newModelId));
-				}				
+				}
 			}
 
 			if (newNotes != null)
@@ -501,6 +714,16 @@ namespace Horde.Build.Devices
 			{
 				await _devices.FindOneAndUpdateAsync<DeviceDocument>(x => x.Id == deviceId, updateBuilder.Combine(updates));
 			}
+
+			if (newProblem.HasValue && newProblem.Value)
+			{
+				IDeviceReservation? reservation = await TryGetDeviceReservationAsync(deviceId);
+				if (reservation != null)
+				{
+					UpdateDefinition<DeviceTelemetryDocument> update = Builders<DeviceTelemetryDocument>.Update.Set(x => x.ProblemTimeUtc, utcNow);
+					await _deviceTelemetry.FindOneAndUpdateAsync(t => t.ReservationId == reservation.Id && t.DeviceId == deviceId, update);
+				}
+			}
 		}
 
 		/// <inheritdoc/>
@@ -531,9 +754,9 @@ namespace Horde.Build.Devices
 
 			if (pool == null || pool.PoolType != DevicePoolType.Automation)
 			{
-                return null;
-            }
-			
+				return null;
+			}
+
 			HashSet<DeviceId> allocated = new HashSet<DeviceId>();
 			Dictionary<DeviceId, string> platformRequestMap = new Dictionary<DeviceId, string>();
 
@@ -552,6 +775,8 @@ namespace Horde.Build.Devices
 
 			// filter out currently reserved devices
 			poolDevices = poolDevices.FindAll(x => poolReservations.FirstOrDefault(p => p.Devices.Contains(x.Id)) == null);
+
+			int availablePoolDevices = poolDevices.Count;			
 
 			// sort to use last reserved first to cycle devices
 			poolDevices.Sort((a, b) =>
@@ -646,6 +871,18 @@ namespace Horde.Build.Devices
 			DeviceReservationDocument newReservation = new DeviceReservationDocument(ObjectId.GenerateNewId(), poolId, deviceIds, requestedPlatforms, reservationTimeUtc, hostname, reservationDetails, jobId, stepId);
 			await _reservations.InsertOneAsync(newReservation);
 
+			// Create device telemetry data for reservation
+			List<DeviceTelemetryDocument> telemetry = new List<DeviceTelemetryDocument>();
+			foreach (DeviceId deviceId in deviceIds)
+			{
+				telemetry.Add(new DeviceTelemetryDocument(deviceId, newReservation.Id, newReservation.CreateTimeUtc, jobId, stepId));
+			}
+
+			if (telemetry.Count > 0)
+			{
+				await _deviceTelemetry.InsertManyAsync(telemetry);
+			}
+
 			return newReservation;
 
 		}
@@ -660,6 +897,11 @@ namespace Horde.Build.Devices
 		/// <inheritdoc/>
 		public async Task<bool> DeleteReservationAsync(ObjectId id)
 		{
+			FilterDefinition<DeviceTelemetryDocument> telemetryFilter = Builders<DeviceTelemetryDocument>.Filter.Eq(x => x.ReservationId, id);
+
+			// update telemetry
+			await _deviceTelemetry.UpdateManyAsync(x => x.ReservationId == id, Builders<DeviceTelemetryDocument>.Update.Set(x => x.ReservationFinishUtc, DateTime.UtcNow));
+
 			FilterDefinition<DeviceReservationDocument> filter = Builders<DeviceReservationDocument>.Filter.Eq(x => x.Id, id);
 			DeleteResult result = await _reservations.DeleteOneAsync(filter);
 			return result.DeletedCount > 0;
@@ -676,14 +918,16 @@ namespace Horde.Build.Devices
 
 			reserves = reserves.FindAll(r => (utcNow - r.UpdateTimeUtc).TotalMinutes > 10).ToList();
 
-			if (reserves.Count > 0)
+			bool result = true;
+			foreach (IDeviceReservation reservation in reserves)
 			{
-				DeleteResult result = await _reservations.DeleteManyAsync(Builders<DeviceReservationDocument>.Filter.In(x => x.Id, reserves.Select(y => y.Id)));
-				return (result.DeletedCount > 0);
+				if (!await DeleteReservationAsync(reservation.Id))
+				{
+					result = false;
+				}
 			}
 
-			return false;
-
+			return result;
 		}
 
 		/// <summary>
@@ -715,7 +959,7 @@ namespace Horde.Build.Devices
 
 				if (result.ModifiedCount > 0)
 				{
-					return expiredDevices.Select(x => (UserId.Parse(x.CheckedOutByUser!), (IDevice) x)).ToList();
+					return expiredDevices.Select(x => (UserId.Parse(x.CheckedOutByUser!), (IDevice)x)).ToList();
 				}
 			}
 
@@ -774,6 +1018,148 @@ namespace Horde.Build.Devices
 		{
 			List<DeviceReservationDocument> results = await _reservations.Find(x => true).ToListAsync();
 			return results.FirstOrDefault(r => r.Devices.Contains(id));
-        }
+		}
+
+		/// <inheritdoc/>
+		public async Task<List<IDeviceTelemetry>> FindDeviceTelemetryAsync(DeviceId[]? deviceIds = null, DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null)
+		{
+			FilterDefinitionBuilder<DeviceTelemetryDocument> filterBuilder = Builders<DeviceTelemetryDocument>.Filter;
+			FilterDefinition<DeviceTelemetryDocument> filter = filterBuilder.Empty;
+
+			if (deviceIds != null && deviceIds.Length > 0)
+			{
+				filter &= filterBuilder.In(x => x.DeviceId, deviceIds);
+			}
+
+			if (minCreateTime != null)
+			{
+				filter &= filterBuilder.Gte(x => x.CreateTimeUtc!, minCreateTime.Value.UtcDateTime);
+			}
+
+			if (maxCreateTime != null)
+			{
+				filter &= filterBuilder.Lte(x => x.CreateTimeUtc!, maxCreateTime.Value.UtcDateTime);
+			}
+
+			List<DeviceTelemetryDocument> results = await _deviceTelemetry.Find(filter).ToListAsync();	
+			return results.ConvertAll<IDeviceTelemetry>(x => x);
+		}
+
+		internal class DevicePoolTelemetryHelper
+		{
+			public int available = 0;
+			public int reserved = 0;
+			public int maintenance = 0;
+			public int problem = 0;
+			public int disabled = 0;
+
+		}
+
+		/// <summary>
+		/// Create a device pool telemetry snapshot
+		/// </summary>
+		/// <returns></returns>
+		public async Task CreatePoolTelemetrySnapshot()
+		{
+			List<IDevice> devices = await FindAllDevicesAsync();
+			List<IDevicePool> pools = await FindAllPoolsAsync();			
+			List<IDeviceReservation> reservations = await FindAllDeviceReservationsAsync();
+
+			// narrow to automation pools, may want to collect telemetry on other pools in the future
+			pools = pools.Where(x => x.PoolType == DevicePoolType.Automation).ToList();
+			devices = devices.Where(x => pools.FirstOrDefault(p => p.Id == x.PoolId) != null).ToList();
+
+			if (devices.Count == 0 || pools.Count == 0)
+			{
+				return;
+			}
+
+			DateTime now = DateTime.UtcNow;
+
+			List<IDevice> reservedDevices = devices.Where(x => reservations.FirstOrDefault(r => r.Devices.Contains(x.Id)) != null).ToList();
+			List<IDevice> maintenanceDevices = devices.Where(x => x.MaintenanceTimeUtc != null).ToList();
+			List<IDevice> disabledDevices  = devices.Where(x => !x.Enabled).ToList();
+			List<IDevice> problemDevices = devices.Where(x => (x.ProblemTimeUtc != null && ((now - x.ProblemTimeUtc).Value.TotalMinutes < 30))).ToList();
+
+			Dictionary<DevicePoolId, List<DevicePlatformTelemetryDocument>> poolTelemetry = new Dictionary<DevicePoolId, List<DevicePlatformTelemetryDocument>>();
+
+			foreach (IDevicePool pool in pools)
+			{								
+				List<IDevice> poolDevices = devices.Where(x => x.PoolId == pool.Id).ToList();
+
+				HashSet<DevicePlatformId> platforms = new HashSet<DevicePlatformId>();
+				poolDevices.ForEach(d => platforms.Add(d.PlatformId));
+
+				Dictionary<DevicePlatformId, DevicePoolTelemetryHelper> helpers = new Dictionary<DevicePlatformId, DevicePoolTelemetryHelper>();
+				foreach (DevicePlatformId platform in platforms)
+				{
+					helpers[platform] = new DevicePoolTelemetryHelper();
+				}
+				
+				foreach (IDevice device in poolDevices)
+				{
+					DevicePoolTelemetryHelper helper = helpers[device.PlatformId];
+
+					if (reservedDevices.Contains(device))
+					{
+						helper.reserved++;
+						continue;
+					}
+
+					if (problemDevices.Contains(device))
+					{
+						helper.problem++;
+						continue;
+					}
+
+					if (maintenanceDevices.Contains(device))
+					{
+						helper.maintenance++;
+						continue;
+					}
+
+					if (disabledDevices.Contains(device))
+					{
+						helper.disabled++;
+						continue;
+					}
+
+					helper.available++;
+				}
+
+				List<DevicePlatformTelemetryDocument> platformTelemtry = new List<DevicePlatformTelemetryDocument>();
+				foreach (KeyValuePair<DevicePlatformId, DevicePoolTelemetryHelper> platform in helpers)
+				{
+					DevicePoolTelemetryHelper helper = platform.Value;
+					platformTelemtry.Add(new DevicePlatformTelemetryDocument(platform.Key, helper.available, helper.reserved, helper.maintenance, helper.problem, helper.disabled));
+				}
+
+				poolTelemetry[pool.Id] = platformTelemtry;
+			}
+
+			await _poolTelemetry.InsertOneAsync(new DevicePoolTelemetryDocument(poolTelemetry));
+		}
+
+		/// <inheritdoc/>
+		public async Task<List<IDevicePoolTelemetry>> FindPoolTelemetryAsync(DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null)
+		{
+			FilterDefinitionBuilder<DevicePoolTelemetryDocument> filterBuilder = Builders<DevicePoolTelemetryDocument>.Filter;
+			FilterDefinition<DevicePoolTelemetryDocument> filter = filterBuilder.Empty;
+
+			if (minCreateTime != null)
+			{
+				filter &= filterBuilder.Gte(x => x.CreateTimeUtc!, minCreateTime.Value.UtcDateTime);
+			}
+
+			if (maxCreateTime != null)
+			{
+				filter &= filterBuilder.Lte(x => x.CreateTimeUtc!, maxCreateTime.Value.UtcDateTime);
+			}
+
+			List<DevicePoolTelemetryDocument> results = await _poolTelemetry.Find(filter).ToListAsync();
+			return results.ConvertAll<IDevicePoolTelemetry>(x => x);
+		}
+
+
 	}
 }

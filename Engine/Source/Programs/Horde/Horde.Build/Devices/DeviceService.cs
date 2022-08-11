@@ -130,7 +130,9 @@ namespace Horde.Build.Devices
 		/// Device collection
 		/// </summary>
 		readonly IDeviceCollection _devices;
-		readonly ITicker _ticker;
+		readonly ITicker _ticker;		
+		static readonly int _poolTelemetryMinutes = 15;
+		int _poolTelemetryTick = _poolTelemetryMinutes;
 
 		/// <summary>
 		/// Platform map V1 singleton
@@ -173,27 +175,69 @@ namespace Horde.Build.Devices
 
 			if (!stoppingToken.IsCancellationRequested)
 			{
-				await _devices.ExpireReservationsAsync();
-
-				List<(UserId, IDevice)>? expireNotifications = await _devices.ExpireNotificatonsAsync();
-				if (expireNotifications != null && expireNotifications.Count > 0)
+				try
 				{
-					foreach ((UserId, IDevice) expiredDevice in expireNotifications)
-					{
-						await NotifyDeviceServiceAsync($"Device {expiredDevice.Item2.PlatformId.ToString().ToUpperInvariant()} / {expiredDevice.Item2.Name} checkout will expire in 24 hours.  Please visit https://horde.devtools.epicgames.com/devices to renew the checkout if needed.", null, null, null, expiredDevice.Item1);
-					}
+					await _devices.ExpireReservationsAsync();
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Exception while expiring reservations: {Message}", ex.Message);
 				}
 
-				List<(UserId, IDevice)>? expireCheckouts = await _devices.ExpireCheckedOutAsync();
-				if (expireCheckouts != null && expireCheckouts.Count > 0)
+
+				// expire shared devices and notifications
+				try
 				{
-					foreach ((UserId, IDevice) expiredDevice in expireCheckouts)
+					List<(UserId, IDevice)>? expireNotifications = await _devices.ExpireNotificatonsAsync();
+					if (expireNotifications != null && expireNotifications.Count > 0)
 					{
-						await NotifyDeviceServiceAsync($"Device {expiredDevice.Item2.PlatformId.ToString().ToUpperInvariant()} / {expiredDevice.Item2.Name} checkout has expired.  The device has been returned to the shared pool and should no longer be accessed.  Please visit https://horde.devtools.epicgames.com/devices to checkout devices as needed.", null, null, null, expiredDevice.Item1);
+						foreach ((UserId, IDevice) expiredDevice in expireNotifications)
+						{
+							await NotifyDeviceServiceAsync($"Device {expiredDevice.Item2.PlatformId.ToString().ToUpperInvariant()} / {expiredDevice.Item2.Name} checkout will expire in 24 hours.  Please visit https://horde.devtools.epicgames.com/devices to renew the checkout if needed.", null, null, null, expiredDevice.Item1);
+						}
 					}
+
+					List<(UserId, IDevice)>? expireCheckouts = await _devices.ExpireCheckedOutAsync();
+					if (expireCheckouts != null && expireCheckouts.Count > 0)
+					{
+						foreach ((UserId, IDevice) expiredDevice in expireCheckouts)
+						{
+							await NotifyDeviceServiceAsync($"Device {expiredDevice.Item2.PlatformId.ToString().ToUpperInvariant()} / {expiredDevice.Item2.Name} checkout has expired.  The device has been returned to the shared pool and should no longer be accessed.  Please visit https://horde.devtools.epicgames.com/devices to checkout devices as needed.", null, null, null, expiredDevice.Item1);
+						}
+					}
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Exception while expiring device checkouts: {Message}", ex.Message);
+				}
+
+				// update pool telemetry
+				try
+				{
+
+					if (_poolTelemetryTick >= _poolTelemetryMinutes)
+					{
+						_poolTelemetryTick = 0;
+						await _devices.CreatePoolTelemetrySnapshot();						
+					}
+					else
+					{
+						_poolTelemetryTick++;
+					}
+
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Exception while generating pool telemetry: {Message}", ex.Message);
 				}
 			}
 		}
+
+		internal async Task TickForTestingAsync()
+		{
+			await TickAsync(CancellationToken.None);
+		}
+
 
 		/// <summary>
 		/// Create a new device platform
@@ -262,10 +306,27 @@ namespace Horde.Build.Devices
 		/// <summary>
 		/// Get a list of devices, optionally filtered to provided ids
 		/// </summary>
-		public Task<List<IDevice>> GetDevicesAsync(List<DeviceId>? deviceIds = null)
+		public Task<List<IDevice>> GetDevicesAsync(List<DeviceId>? deviceIds = null, DevicePoolId? poolId = null, DevicePlatformId? platformId = null)
 		{
-			return _devices.FindAllDevicesAsync(deviceIds);
+			return _devices.FindAllDevicesAsync(deviceIds, poolId, platformId);
 		}
+
+		/// <summary>
+		/// Get device telemetry
+		/// </summary>
+		public Task<List<IDeviceTelemetry>> GetDeviceTelemetryAsync(DeviceId[]? deviceIds = null, DateTimeOffset? minCreateTime=null, DateTimeOffset? maxCreateTime=null)
+		{
+			return _devices.FindDeviceTelemetryAsync(deviceIds, minCreateTime, maxCreateTime);
+		}
+
+		/// <summary>
+		/// Get device pool telemetry
+		/// </summary>
+		public Task<List<IDevicePoolTelemetry>> GetDevicePoolTelemetryAsync(DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null)
+		{
+			return _devices.FindPoolTelemetryAsync(minCreateTime, maxCreateTime);
+		}
+
 
 		/// <summary>
 		/// Get a specific device

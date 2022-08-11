@@ -152,7 +152,7 @@ namespace Horde.Build.Devices
 	}
 
 	/// <summary>
-	/// A device utilization snapshot
+	/// A device utilization snapshot [DEPRECATED]
 	/// </summary>
 	public class DeviceUtilizationTelemetry
 	{
@@ -193,6 +193,54 @@ namespace Horde.Build.Devices
 			ReservationStartUtc = reservationStartUtc;
 		}
 	}
+
+	/// <summary>
+	/// Device telemetry information
+	/// </summary>
+	public interface IDeviceTelemetry
+	{
+		/// <summary>
+		///  The creation time of this telemetry data
+		/// </summary>
+		public DateTime CreateTimeUtc { get; }
+
+		/// <summary>
+		/// The device id for telemetry
+		/// </summary>
+		public DeviceId DeviceId { get; }
+
+		/// <summary>
+		/// The job id which utilized device
+		/// </summary>
+		public string? JobId { get; }
+
+		/// <summary>
+		/// The job's step id
+		/// </summary>
+		public string? StepId { get; }
+
+		/// <summary>
+		/// Reservation Id (transient, reservations are deleted upon expiration)
+		/// </summary>
+		public ObjectId? ReservationId { get; }
+
+		/// <summary>
+		/// The time device was reserved
+		/// </summary>
+		public DateTime? ReservationStartUtc { get; }
+
+		/// <summary>
+		/// The time device was freed
+		/// </summary>
+		public DateTime? ReservationFinishUtc { get; }
+
+		/// <summary>
+		/// If the device reported a problem
+		/// </summary>
+		public DateTime? ProblemTimeUtc { get; }
+
+	}
+
 
 	/// <summary>
 	/// A physical device
@@ -274,4 +322,59 @@ namespace Horde.Build.Devices
 		/// </summary>
 		public Acl? Acl { get; }
 	}
+
+	/// <summary>
+	/// Platform telemetry for a device pool
+	/// </summary>
+	public interface IDevicePlatformTelemetry
+	{
+		/// <summary>
+		/// The corresponding platform id
+		/// </summary>
+		public DevicePlatformId PlatformId { get; }
+
+		/// <summary>
+		/// Number of available devices of this platform 
+		/// </summary>
+		public int Available { get; }
+
+		/// <summary>
+		/// Number of reserved devices of this platform 
+		/// </summary>
+		public int Reserved { get; }
+
+		/// <summary>
+		/// Number of devices in maintenance state
+		/// </summary>
+		public int Maintenance { get; }
+
+		/// <summary>
+		/// Number of devices in problem state
+		/// </summary>
+		public int Problem { get; }
+
+		/// <summary>
+		/// Number of devices in disabled state
+		/// </summary>
+		public int Disabled { get; }
+
+	}
+
+	/// <summary>
+	/// A snapshot of device pool telemetry
+	/// </summary>
+	public interface IDevicePoolTelemetry
+	{
+		/// <summary>
+		/// The creation time of this telemetry data
+		/// </summary>
+		public DateTime CreateTimeUtc { get; }
+
+		/// <summary>
+		/// Pool platform telemetry
+		/// </summary>
+		public IReadOnlyDictionary<DevicePoolId, IReadOnlyList<IDevicePlatformTelemetry>> Pools { get; }
+
+	}
+
 }

@@ -489,6 +489,49 @@ namespace Horde.Build.Devices
 			return responses;
 		}
 
+		/// <summary>
+		/// Get device telemetry
+		/// </summary>		
+		[HttpGet]
+		[Authorize]
+		[Route("/api/v2/devices/pools/telemetry")]
+		[ProducesResponseType(typeof(List<GetDevicePoolTelemetryResponse>), 200)]
+		public async Task<ActionResult<List<GetDevicePoolTelemetryResponse>>> GetDevicePoolTelemetry(
+			[FromQuery] DateTimeOffset? minCreateTime = null,
+			[FromQuery] DateTimeOffset? maxCreateTime = null)
+		{
+			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceRead, User))
+			{
+				return Forbid();
+			}
+
+			List<IDevicePoolTelemetry> telemetryData = await _deviceService.GetDevicePoolTelemetryAsync(minCreateTime, maxCreateTime);
+
+			List<GetDevicePoolTelemetryResponse> response = new List<GetDevicePoolTelemetryResponse>();
+						
+			foreach (IDevicePoolTelemetry t in telemetryData)
+			{
+				Dictionary<string, List<GetDevicePlatformTelemetryResponse>> poolData = new Dictionary<string, List<GetDevicePlatformTelemetryResponse>>();
+
+				foreach ( KeyValuePair<DevicePoolId, IReadOnlyList<IDevicePlatformTelemetry>> pool in t.Pools)
+				{
+					List<GetDevicePlatformTelemetryResponse> platformTelemetry = new List<GetDevicePlatformTelemetryResponse>();
+
+					foreach (IDevicePlatformTelemetry telemetry in pool.Value)
+					{
+						platformTelemetry.Add(new GetDevicePlatformTelemetryResponse(telemetry.PlatformId.ToString(), telemetry.Available, telemetry.Reserved, telemetry.Maintenance, telemetry.Problem, telemetry.Disabled));
+					}
+
+					poolData[pool.Key.ToString()] = platformTelemetry;
+				}
+
+				response.Add(new GetDevicePoolTelemetryResponse(t.CreateTimeUtc, poolData));
+			}		
+
+			return response;
+		}
+
+
 		// RESERVATIONS
 
 		/// <summary>
@@ -663,6 +706,73 @@ namespace Horde.Build.Devices
 			}
 
 			return Ok();
+		}
+
+		/// <summary>
+		/// Get device telemetry
+		/// </summary>		
+		[HttpGet]
+		[Authorize]
+		[Route("/api/v2/devices/telemetry")]
+		[ProducesResponseType(typeof(List<GetDeviceTelemetryResponse>), 200)]
+		public async Task<ActionResult<List<GetDeviceTelemetryResponse>>> GetDeviceTelemetry(
+			[FromQuery(Name = "Id")] string[]? deviceIds = null,
+			[FromQuery] string? poolId = null,
+			[FromQuery] string? platformId = null,
+			[FromQuery] DateTimeOffset? minCreateTime = null,
+			[FromQuery] DateTimeOffset? maxCreateTime = null)
+		{
+			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceRead, User))
+			{
+				return Forbid();
+			}
+
+			HashSet<DeviceId> deviceIdValues = new HashSet<DeviceId>();
+
+			if (deviceIds != null && deviceIds.Length > 0)
+			{
+				foreach(string deviceId in deviceIds)
+				{
+					deviceIdValues.Add(new DeviceId(deviceId));
+				}
+			}
+
+			DevicePoolId? poolIdValue = poolId == null ? null : new DevicePoolId(poolId);
+			DevicePlatformId? platformIdValue = platformId == null ? null : new DevicePlatformId(platformId);
+
+			List<IDevice> devices = await _deviceService.GetDevicesAsync(deviceIdValues.Count > 0 ? deviceIdValues.ToList() : null, poolIdValue, platformIdValue);
+
+			List<GetDeviceTelemetryResponse> response = new List<GetDeviceTelemetryResponse>();
+
+			if (devices.Count == 0)
+			{
+				return response;
+			}
+			
+			List<IDeviceTelemetry> telemetryData = await _deviceService.GetDeviceTelemetryAsync(devices.Select(x => x.Id).ToArray(), minCreateTime, maxCreateTime);
+
+			Dictionary<string, List<GetTelemetryInfoResponse>> results = new Dictionary<string, List<GetTelemetryInfoResponse>>();
+
+			foreach (IDeviceTelemetry t in telemetryData)
+			{
+				List<GetTelemetryInfoResponse>? info = null;
+				string deviceId = t.DeviceId.ToString();
+				if (!results.TryGetValue(deviceId, out info))
+				{
+					info = new List<GetTelemetryInfoResponse>();
+					results[deviceId] = info;
+				}
+
+				info.Add(new GetTelemetryInfoResponse(t));
+			}
+
+			foreach(KeyValuePair<string, List<GetTelemetryInfoResponse >> result in results)
+			{
+				GetDeviceTelemetryResponse deviceTelemetry = new GetDeviceTelemetryResponse(result.Key, result.Value);
+				response.Add(deviceTelemetry);
+			}
+
+			return response;
 		}
 
 		// LEGACY V1 API

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Projects;
@@ -127,7 +128,9 @@ namespace Horde.Build.Devices
 		/// Get a list of all devices
 		/// </summary>
 		/// <param name="deviceIds">Optional list of device ids to get</param>
-		Task<List<IDevice>> FindAllDevicesAsync(List<DeviceId>? deviceIds);
+		/// <param name="poolId">Optional id of pool for devices</param>
+		/// <param name="platformId">Optional id of platform for devices</param>
+		Task<List<IDevice>> FindAllDevicesAsync(List<DeviceId>? deviceIds, DevicePoolId? poolId = null, DevicePlatformId? platformId = null);
 
 		/// <summary>
 		/// Adds a new device
@@ -227,5 +230,30 @@ namespace Horde.Build.Devices
 		/// Gets a list of users to notify whose device checkout is about to expire
 		/// </summary>
 		public Task<List<(UserId, IDevice)>?> ExpireNotificatonsAsync();
+
+		/// <summary>
+		/// Find device telemetry
+		/// </summary>
+		/// <param name="deviceIds"></param>
+		/// <param name="minCreateTime"></param>
+		/// <param name="maxCreateTime"></param>
+		/// <returns></returns>
+		public Task<List<IDeviceTelemetry>> FindDeviceTelemetryAsync(DeviceId[]? deviceIds = null, DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null);
+
+		/// <summary>
+		/// Creates a device pool telemetry snapshot
+		/// </summary>
+		/// <returns></returns>
+		public Task CreatePoolTelemetrySnapshot();
+
+		/// <summary>
+		/// Gets pool telemetry for an optional date range
+		/// </summary>
+		/// <param name="minCreateTime"></param>
+		/// <param name="maxCreateTime"></param>
+		/// <returns></returns>
+		public Task<List<IDevicePoolTelemetry>> FindPoolTelemetryAsync(DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null);
+
+
 	}
 }

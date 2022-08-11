@@ -58,6 +58,7 @@ using Horde.Build.Tasks;
 using Horde.Build.Auditing;
 using Horde.Build.Storage.Backends;
 using EpicGames.Horde.Storage.Bundles;
+using Horde.Build.Devices;
 
 namespace Horde.Build.Tests
 {
@@ -90,6 +91,7 @@ namespace Horde.Build.Tests
 		public IAgentSoftwareCollection AgentSoftwareCollection => ServiceProvider.GetRequiredService <IAgentSoftwareCollection>();
 		public ITestDataCollection TestDataCollection => ServiceProvider.GetRequiredService<ITestDataCollection>();
 		public IUserCollection UserCollection => ServiceProvider.GetRequiredService<IUserCollection>();
+		public IDeviceCollection DeviceCollection => ServiceProvider.GetRequiredService<IDeviceCollection>();
 
 		public AclService AclService => ServiceProvider.GetRequiredService<AclService>();
 		public AgentSoftwareService AgentSoftwareService => ServiceProvider.GetRequiredService<AgentSoftwareService>();
@@ -112,6 +114,7 @@ namespace Horde.Build.Tests
 		public PoolService PoolService => ServiceProvider.GetRequiredService<PoolService>();
 		public LifetimeService LifetimeService => ServiceProvider.GetRequiredService<LifetimeService>();
 		public ScheduleService ScheduleService => ServiceProvider.GetRequiredService<ScheduleService>();
+		public DeviceService DeviceService => ServiceProvider.GetRequiredService<DeviceService>();
 
 		public ServerSettings ServerSettings => ServiceProvider.GetRequiredService<IOptions<ServerSettings>>().Value;
 		public IOptionsMonitor<ServerSettings> ServerSettingsMon => ServiceProvider.GetRequiredService<IOptionsMonitor<ServerSettings>>();
@@ -120,6 +123,7 @@ namespace Horde.Build.Tests
 		public AgentsController AgentsController => GetAgentsController();
 		public PoolsController PoolsController => GetPoolsController();
 		public LeasesController LeasesController => GetLeasesController();
+		public DevicesController DevicesController => GetDevicesController();
 
 		private static bool s_datadogWriterPatched;
 
@@ -181,6 +185,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<ITemplateCollection, TemplateCollection>();
 			services.AddSingleton<IUgsMetadataCollection, UgsMetadataCollection>();
 			services.AddSingleton<IUserCollection, UserCollectionV1>();
+			services.AddSingleton<IDeviceCollection, DeviceCollection>();
 
 			services.AddSingleton<ToolCollection>();
 
@@ -216,6 +221,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<ScheduleService>();
 			services.AddSingleton<StreamService>();
 			services.AddSingleton<UpgradeService>();
+			services.AddSingleton<DeviceService>();
 
 			services.AddSingleton<ConformTaskSource>();
 			services.AddSingleton<ICommitService, CommitService>();
@@ -233,6 +239,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<IStorageClient, BasicStorageClient>();
 
 			services.AddSingleton<ISingletonDocument<AgentSoftwareChannels>>(new SingletonDocumentStub<AgentSoftwareChannels>());
+			services.AddSingleton<ISingletonDocument<DevicePlatformMapV1>>(new SingletonDocumentStub<DevicePlatformMapV1>());
 		}
 
 		public async Task<IStream?> CreateOrReplaceStreamAsync(StreamId streamId, IStream? stream, ProjectId projectId, StreamConfig config)
@@ -261,6 +268,14 @@ namespace Horde.Build.Tests
 	        jobsCtrl.ControllerContext = GetControllerContext();
 	        return jobsCtrl;
         }
+
+		private DevicesController GetDevicesController()
+		{
+			ILogger<DevicesController> logger = ServiceProvider.GetRequiredService<ILogger<DevicesController>>();
+			DevicesController devicesCtrl = new DevicesController(DeviceService, AclService, UserCollection, logger);
+			devicesCtrl.ControllerContext = GetControllerContext();
+			return devicesCtrl;
+		}
 
 		private AgentsController GetAgentsController()
 		{
