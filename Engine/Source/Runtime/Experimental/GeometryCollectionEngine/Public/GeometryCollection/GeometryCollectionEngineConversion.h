@@ -29,7 +29,7 @@ public:
 	 * @param Materials : Materials fetched from the StaticMeshComponent used to configure this geometry
 	 * @param GeometryCollection  : Collection to append the mesh into.
 	 */
-	static int32 AppendMaterials(const TArray<UMaterialInterface*>& Materials, UGeometryCollection* GeometryCollectionObject);
+	static int32 AppendMaterials(const TArray<UMaterialInterface*>& Materials, UGeometryCollection* GeometryCollectionObject, bool bAddInteriorCopy);
 
 	/**
 	 * Appends a MeshDescription to a GeometryCollection.
