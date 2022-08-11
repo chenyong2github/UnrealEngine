@@ -1344,9 +1344,9 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 		const FString PluginFolder = FPaths::GetPath(StateProperties.PluginInstalledFilename);
 		UGameplayTagsManager::Get().AddTagIniSearchPath(PluginFolder / TEXT("Config") / TEXT("Tags"));
 
-		const FString PreferredGameFeatureDataPath = FString::Printf(TEXT("/%s/%s.%s"), *StateProperties.PluginName, *StateProperties.PluginName, *StateProperties.PluginName);
+		const FString BackupGameFeatureDataPath = FString::Printf(TEXT("/%s/%s.%s"), *StateProperties.PluginName, *StateProperties.PluginName, *StateProperties.PluginName);
 
-		FString BackupGameFeatureDataPath = TEXT("/") + StateProperties.PluginName + TEXT("/GameFeatureData.GameFeatureData");
+		FString PreferredGameFeatureDataPath = TEXT("/") + StateProperties.PluginName + TEXT("/GameFeatureData.GameFeatureData");
 		// Allow game feature location to be overriden globally and from within the plugin
 		FString OverrideIniPathName = StateProperties.PluginName + TEXT("_Override");
 		FString OverridePath = GConfig->GetStr(TEXT("GameFeatureData"), *OverrideIniPathName, GGameIni);
@@ -1362,20 +1362,30 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 		}
 		if (!OverridePath.IsEmpty())
 		{
-			BackupGameFeatureDataPath = OverridePath;
+			PreferredGameFeatureDataPath = OverridePath;
 		}
 		
-		TSharedPtr<FStreamableHandle> GameFeatureDataHandle = UGameFeaturesSubsystem::LoadGameFeatureData(PreferredGameFeatureDataPath);
-		if (!GameFeatureDataHandle.IsValid())
+		auto LoadGameFeatureData = [](const FString& Path) -> UGameFeatureData*
 		{
-			GameFeatureDataHandle = UGameFeaturesSubsystem::LoadGameFeatureData(BackupGameFeatureDataPath);
-		}
+			TSharedPtr<FStreamableHandle> GameFeatureDataHandle;
+			if (FPackageName::DoesPackageExist(Path))
+			{
+				GameFeatureDataHandle = UGameFeaturesSubsystem::LoadGameFeatureData(Path);
+				// @todo make this async. For now we just wait
+				if (GameFeatureDataHandle.IsValid())
+				{
+					GameFeatureDataHandle->WaitUntilComplete(0.0f, false);
+					return Cast<UGameFeatureData>(GameFeatureDataHandle->GetLoadedAsset());
+				}
+			}
 
-		// @todo make this async. For now we just wait
-		if (GameFeatureDataHandle.IsValid())
+			return nullptr;
+		};
+
+		StateProperties.GameFeatureData = LoadGameFeatureData(PreferredGameFeatureDataPath);
+		if (!StateProperties.GameFeatureData)
 		{
-			GameFeatureDataHandle->WaitUntilComplete(0.0f, false);
-			StateProperties.GameFeatureData = Cast<UGameFeatureData>(GameFeatureDataHandle->GetLoadedAsset());
+			StateProperties.GameFeatureData = LoadGameFeatureData(BackupGameFeatureDataPath);
 		}
 
 		if (StateProperties.GameFeatureData)
