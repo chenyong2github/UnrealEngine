@@ -73,12 +73,12 @@ FString UE::Modeling::GetWorldRelativeAssetRootPath(const UWorld* World)
 		World = GEditor->bIsSimulatingInEditor ? GEditor->GetPIEWorldContext()->World() : GEditor->GetEditorWorldContext().World();
 	}
 
-	if (ensure(World->GetOutermost() != nullptr) == false)
+	if (ensure(World->GetPackage() != nullptr) == false)
 	{
 		return TEXT("/Game/");
 	}
 
-	const FString WorldPackageName = World->GetOutermost()->GetName();
+	const FString WorldPackageName = World->GetPackage()->GetName();
 	const FString WorldPackageFolder = FPackageName::GetLongPackagePath(WorldPackageName);
 	return WorldPackageFolder;
 }
