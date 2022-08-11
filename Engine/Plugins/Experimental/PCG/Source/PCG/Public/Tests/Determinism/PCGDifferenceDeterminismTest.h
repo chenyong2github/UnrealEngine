@@ -8,7 +8,7 @@ namespace PCGDeterminismTests
 {
 	namespace DifferenceElement
 	{
-		PCG_API inline bool RunTestSuite();
+		PCG_API bool RunTestSuite();
 	}
 }
 

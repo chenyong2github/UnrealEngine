@@ -77,7 +77,7 @@ namespace PCGDeterminismTests
 {
 	namespace DifferenceElement
 	{
-		inline bool RunTestSuite()
+		bool RunTestSuite()
 		{
 			FString EmptyParameters;
 			FPCGDifferenceDeterminismSingleSameDataTest DifferenceDeterminismSingleSameDataTest(EmptyParameters);
