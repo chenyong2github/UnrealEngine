@@ -55,9 +55,11 @@ void APostProcessVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	static const FName NAME_Blendables = FName(TEXT("Blendables"));
-	
-	if(PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == NAME_Blendables)
+	static const FName NAME_Blendables = FName(TEXT("Blendables"));	
+
+	const FName ChangedPropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;	
+
+	if(ChangedPropertyName == NAME_Blendables)
 	{
 		// remove unsupported types
 		uint32 Count = Settings.WeightedBlendables.Array.Num();
@@ -72,7 +74,13 @@ void APostProcessVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 		}
 	}
 
-	bIsSpatiallyLoaded = !bUnbound;
+	if (ChangedPropertyName == GET_MEMBER_NAME_CHECKED(APostProcessVolume, bUnbound))
+	{
+		if (bUnbound)
+		{
+			bIsSpatiallyLoaded = false;
+		}
+	}	
 	
 	if (PropertyChangedEvent.Property)
 	{
