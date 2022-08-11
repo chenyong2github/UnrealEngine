@@ -28,15 +28,15 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
-#include "Developer/MessageLog/Public/IMessageLogListing.h"
-#include "Developer/MessageLog/Public/MessageLogModule.h"
+#include "IMessageLogListing.h"
+#include "MessageLogModule.h"
 #include "Misc/UObjectToken.h"
 
 #include "GameProjectGenerationModule.h"
 #include "AnalyticsEventAttribute.h"
 
 #include "ShaderCompiler.h"
-#include "Developer/OutputLog/Public/OutputLogModule.h"
+#include "OutputLogModule.h"
 
 #define LOCTEXT_NAMESPACE "UATHelper"
 
