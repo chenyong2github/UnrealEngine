@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "Types/WidgetActiveTimerDelegate.h"
+#include "Containers/Ticker.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
