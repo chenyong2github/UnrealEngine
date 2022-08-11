@@ -289,6 +289,122 @@ IOnlineAccountIdRegistry* FOnlineIdRegistryRegistry::GetAccountIdRegistry(EOnlin
 	return Registry;
 }
 
+void FOnlineIdRegistryRegistry::RegisterSessionIdRegistry(EOnlineServices OnlineServices, IOnlineSessionIdRegistry* Registry, int32 Priority)
+{
+	FSessionIdRegistryAndPriority* Found = SessionIdRegistries.Find(OnlineServices);
+	if (Found == nullptr || Found->Priority < Priority)
+	{
+		SessionIdRegistries.Emplace(OnlineServices, FSessionIdRegistryAndPriority(Registry, Priority));
+	}
+}
+
+void FOnlineIdRegistryRegistry::UnregisterSessionIdRegistry(EOnlineServices OnlineServices, int32 Priority)
+{
+	FSessionIdRegistryAndPriority* Found = SessionIdRegistries.Find(OnlineServices);
+	if (Found != nullptr && Found->Priority == Priority)
+	{
+		SessionIdRegistries.Remove(OnlineServices);
+	}
+}
+
+FString FOnlineIdRegistryRegistry::ToLogString(const FOnlineSessionIdHandle& Handle) const
+{
+	FString Result;
+	if (IOnlineSessionIdRegistry* Registry = GetSessionIdRegistry(Handle.GetOnlineServicesType()))
+	{
+		Result = Registry->ToLogString(Handle);
+	}
+	return Result;
+}
+
+TArray<uint8> FOnlineIdRegistryRegistry::ToReplicationData(const FOnlineSessionIdHandle& Handle) const
+{
+	TArray<uint8> RepData;
+	if (IOnlineSessionIdRegistry* Registry = GetSessionIdRegistry(Handle.GetOnlineServicesType()))
+	{
+		RepData = Registry->ToReplicationData(Handle);
+	}
+	return RepData;
+}
+
+FOnlineSessionIdHandle FOnlineIdRegistryRegistry::ToSessionId(EOnlineServices Services, const TArray<uint8>& RepData) const
+{
+	FOnlineSessionIdHandle Handle;
+	if (IOnlineSessionIdRegistry* Registry = GetSessionIdRegistry(Services))
+	{
+		Handle = Registry->FromReplicationData(RepData);
+	}
+	return Handle;
+}
+
+IOnlineSessionIdRegistry* FOnlineIdRegistryRegistry::GetSessionIdRegistry(EOnlineServices OnlineServices) const
+{
+	IOnlineSessionIdRegistry* Registry = nullptr;
+	if (const FSessionIdRegistryAndPriority* Found = SessionIdRegistries.Find(OnlineServices))
+	{
+		Registry = Found->Registry;
+	}
+	return Registry;
+}
+
+void FOnlineIdRegistryRegistry::RegisterSessionInviteIdRegistry(EOnlineServices OnlineServices, IOnlineSessionInviteIdRegistry* Registry, int32 Priority)
+{
+	FSessionInviteIdRegistryAndPriority* Found = SessionInviteIdRegistries.Find(OnlineServices);
+	if (Found == nullptr || Found->Priority < Priority)
+	{
+		SessionInviteIdRegistries.Emplace(OnlineServices, FSessionInviteIdRegistryAndPriority(Registry, Priority));
+	}
+}
+
+void FOnlineIdRegistryRegistry::UnregisterSessionInviteIdRegistry(EOnlineServices OnlineServices, int32 Priority)
+{
+	FSessionInviteIdRegistryAndPriority* Found = SessionInviteIdRegistries.Find(OnlineServices);
+	if (Found != nullptr && Found->Priority == Priority)
+	{
+		SessionInviteIdRegistries.Remove(OnlineServices);
+	}
+}
+
+FString FOnlineIdRegistryRegistry::ToLogString(const FOnlineSessionInviteIdHandle& Handle) const
+{
+	FString Result;
+	if (IOnlineSessionInviteIdRegistry* Registry = GetSessionInviteIdRegistry(Handle.GetOnlineServicesType()))
+	{
+		Result = Registry->ToLogString(Handle);
+	}
+	return Result;
+}
+
+TArray<uint8> FOnlineIdRegistryRegistry::ToReplicationData(const FOnlineSessionInviteIdHandle& Handle) const
+{
+	TArray<uint8> RepData;
+	if (IOnlineSessionInviteIdRegistry* Registry = GetSessionInviteIdRegistry(Handle.GetOnlineServicesType()))
+	{
+		RepData = Registry->ToReplicationData(Handle);
+	}
+	return RepData;
+}
+
+FOnlineSessionInviteIdHandle FOnlineIdRegistryRegistry::ToSessionInviteId(EOnlineServices Services, const TArray<uint8>& RepData) const
+{
+	FOnlineSessionInviteIdHandle Handle;
+	if (IOnlineSessionInviteIdRegistry* Registry = GetSessionInviteIdRegistry(Services))
+	{
+		Handle = Registry->FromReplicationData(RepData);
+	}
+	return Handle;
+}
+
+IOnlineSessionInviteIdRegistry* FOnlineIdRegistryRegistry::GetSessionInviteIdRegistry(EOnlineServices OnlineServices) const
+{
+	IOnlineSessionInviteIdRegistry* Registry = nullptr;
+	if (const FSessionInviteIdRegistryAndPriority* Found = SessionInviteIdRegistries.Find(OnlineServices))
+	{
+		Registry = Found->Registry;
+	}
+	return Registry;
+}
+
 FString ToLogString(const FOnlineAccountIdHandle& Id)
 {
 	return FString::Printf(TEXT("%s:%d (%s)"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle(), *FOnlineIdRegistryRegistry::Get().ToLogString(Id));
@@ -302,7 +418,12 @@ FString ToLogString(const FOnlineLobbyIdHandle& Id)
 
 FString ToLogString(const FOnlineSessionIdHandle& Id)
 {
-	return FString::Printf(TEXT("%s:%d"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle());
+	return FString::Printf(TEXT("%s:%d (%s)"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle(), *FOnlineIdRegistryRegistry::Get().ToLogString(Id));
+}
+
+FString ToLogString(const FOnlineSessionInviteIdHandle& Id)
+{
+	return FString::Printf(TEXT("%s:%d (%s)"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle(), *FOnlineIdRegistryRegistry::Get().ToLogString(Id));
 }
 
 FString ToLogString(const FOnlineVerifiedAuthTicketIdHandle& Id)

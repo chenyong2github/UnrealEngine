@@ -4,11 +4,11 @@
 
 #include "Online/OnlineServicesCommon.h"
 
+#include "OnlineIdOSSAdapter.h"
+
 class IOnlineSubsystem;
 
 namespace UE::Online {
-
-class FOnlineUniqueNetIdRegistry;
 
 class FOnlineServicesOSSAdapter : public FOnlineServicesCommon
 {
@@ -20,15 +20,16 @@ public:
 	ONLINESERVICESOSSADAPTER_API virtual void RegisterComponents() override;
 	ONLINESERVICESOSSADAPTER_API virtual void Initialize() override;
 	virtual EOnlineServices GetServicesProvider() const override { return ServicesType; }
+	virtual TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(FGetResolvedConnectString::Params&& Params) override;
 
 	IOnlineSubsystem& GetSubsystem() const { return *Subsystem; }
-	FOnlineUniqueNetIdRegistry& GetAccountIdRegistry() const { return *AccountIdRegistry; }
-	FOnlineUniqueNetIdRegistry& GetAccountIdRegistry() { return *AccountIdRegistry; }
+	FOnlineAccountIdRegistryOSSAdapter& GetAccountIdRegistry() const { return *AccountIdRegistry; }
+	FOnlineAccountIdRegistryOSSAdapter& GetAccountIdRegistry() { return *AccountIdRegistry; }
 
 protected:
 	EOnlineServices ServicesType;
 	IOnlineSubsystem* Subsystem;
-	FOnlineUniqueNetIdRegistry* AccountIdRegistry;
+	FOnlineAccountIdRegistryOSSAdapter* AccountIdRegistry;
 };
 
 /* UE::Online */ }

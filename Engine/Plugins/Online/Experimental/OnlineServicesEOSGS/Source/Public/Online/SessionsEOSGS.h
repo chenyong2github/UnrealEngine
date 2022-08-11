@@ -16,20 +16,22 @@ namespace UE::Online {
 
 class FOnlineServicesEOSGS;
 
-class FOnlineSessionIdRegistryEOSGS : public TOnlineSessionIdStringRegistry<EOnlineServices::Epic>
+class FOnlineSessionIdRegistryEOSGS : public FOnlineSessionIdRegistryLAN
 {
 public:
 	static FOnlineSessionIdRegistryEOSGS& Get();
 
-	bool IsSessionIdExpired(const FOnlineSessionIdHandle& InHandle) const;
+private:
+	FOnlineSessionIdRegistryEOSGS();
 };
 
-class FOnlineSessionInviteIdRegistryEOSGS : public TOnlineSessionInviteIdStringRegistry<EOnlineServices::Epic>
+class FOnlineSessionInviteIdRegistryEOSGS : public FOnlineSessionInviteIdStringRegistry
 {
 public:
 	static FOnlineSessionInviteIdRegistryEOSGS& Get();
 
-	bool IsSessionInviteIdExpired(const FOnlineSessionInviteIdHandle& InHandle) const;
+private:
+	FOnlineSessionInviteIdRegistryEOSGS();
 };
 
 static FName EOS_SESSIONS_BUCKET_ID = TEXT("EOS_SESSIONS_BUCKET_ID");

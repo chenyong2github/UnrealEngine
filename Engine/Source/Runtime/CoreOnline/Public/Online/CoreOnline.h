@@ -316,6 +316,7 @@ using FOnlineVerifiedAuthSessionIdHandle = TOnlineIdHandle<OnlineIdHandleTags::F
 COREONLINE_API FString ToLogString(const FOnlineAccountIdHandle& Id);
 COREONLINE_API FString ToLogString(const FOnlineLobbyIdHandle& Id);
 COREONLINE_API FString ToLogString(const FOnlineSessionIdHandle& Id);
+COREONLINE_API FString ToLogString(const FOnlineSessionInviteIdHandle& Id);
 COREONLINE_API FString ToLogString(const FOnlineVerifiedAuthTicketIdHandle& Id);
 COREONLINE_API FString ToLogString(const FOnlineVerifiedAuthSessionIdHandle& Id);
 
@@ -330,6 +331,8 @@ template<typename IdType>
 class IOnlineIdRegistry
 {
 public:
+	virtual ~IOnlineIdRegistry() = default;
+
 	virtual FString ToLogString(const TOnlineIdHandle<IdType>& Handle) const = 0;
 	virtual TArray<uint8> ToReplicationData(const TOnlineIdHandle<IdType>& Handle) const = 0;
 	virtual TOnlineIdHandle<IdType> FromReplicationData(const TArray<uint8>& ReplicationData) = 0;
@@ -355,16 +358,16 @@ public:
 	COREONLINE_API static void TearDown();
 
 	/**
-	 * Register a registry for a given OnlineServices implementation and TOnlineIdHandle type
+	 * Register a registry for a given OnlineServices implementation and IOnlineAccountIdHandle type
 	 *
 	 * @param OnlineServices Services that the registry is for
-	 * @param Registry the registry of online ids
+	 * @param Registry the registry of online account ids
 	 * @param Priority Integer priority, allows an existing registry to be extended and registered with a higher priority so it is used instead
 	 */
 	COREONLINE_API void RegisterAccountIdRegistry(EOnlineServices OnlineServices, IOnlineAccountIdRegistry* Registry, int32 Priority = 0);
 
 	/**
-	 * Unregister a previously registered Id registry
+	 * Unregister a previously registered Account Id registry
 	 *
 	 * @param OnlineServices Services that the registry is for
 	 * @param Priority Integer priority, will be unregistered only if the priority matches the one that is registered
@@ -377,19 +380,76 @@ public:
 
 	COREONLINE_API IOnlineAccountIdRegistry* GetAccountIdRegistry(EOnlineServices OnlineServices) const;
 
+	/**
+	 * Register a registry for a given OnlineServices implementation and IOnlineSessionIdHandle type
+	 *
+	 * @param OnlineServices Services that the registry is for
+	 * @param Registry the registry of online session ids
+	 * @param Priority Integer priority, allows an existing registry to be extended and registered with a higher priority so it is used instead
+	 */
+	COREONLINE_API void RegisterSessionIdRegistry(EOnlineServices OnlineServices, IOnlineSessionIdRegistry* Registry, int32 Priority = 0);
+
+	/**
+	 * Unregister a previously registered Session Id registry
+	 *
+	 * @param OnlineServices Services that the registry is for
+	 * @param Priority Integer priority, will be unregistered only if the priority matches the one that is registered
+	 */
+	COREONLINE_API void UnregisterSessionIdRegistry(EOnlineServices OnlineServices, int32 Priority = 0);
+
+	COREONLINE_API FString ToLogString(const FOnlineSessionIdHandle& Handle) const;
+	COREONLINE_API TArray<uint8> ToReplicationData(const FOnlineSessionIdHandle& Handle) const;
+	COREONLINE_API FOnlineSessionIdHandle ToSessionId(EOnlineServices Services, const TArray<uint8>& RepData) const;
+
+	COREONLINE_API IOnlineSessionIdRegistry* GetSessionIdRegistry(EOnlineServices OnlineServices) const;
+
+	/**
+	 * Register a registry for a given OnlineServices implementation and IOnlineSessionInviteIdHandle type
+	 *
+	 * @param OnlineServices Services that the registry is for
+	 * @param Registry the registry of online session ids
+	 * @param Priority Integer priority, allows an existing registry to be extended and registered with a higher priority so it is used instead
+	 */
+	COREONLINE_API void RegisterSessionInviteIdRegistry(EOnlineServices OnlineServices, IOnlineSessionInviteIdRegistry* Registry, int32 Priority = 0);
+
+	/**
+	 * Unregister a previously registered Session Invite Id registry
+	 *
+	 * @param OnlineServices Services that the registry is for
+	 * @param Priority Integer priority, will be unregistered only if the priority matches the one that is registered
+	 */
+	COREONLINE_API void UnregisterSessionInviteIdRegistry(EOnlineServices OnlineServices, int32 Priority = 0);
+
+	COREONLINE_API FString ToLogString(const FOnlineSessionInviteIdHandle& Handle) const;
+	COREONLINE_API TArray<uint8> ToReplicationData(const FOnlineSessionInviteIdHandle& Handle) const;
+	COREONLINE_API FOnlineSessionInviteIdHandle ToSessionInviteId(EOnlineServices Services, const TArray<uint8>& RepData) const;
+
+	COREONLINE_API IOnlineSessionInviteIdRegistry* GetSessionInviteIdRegistry(EOnlineServices OnlineServices) const;
+
 private:
 
-	struct FAccountIdRegistryAndPriority
+	template<typename IdType>
+	struct FOnlineIdRegistryAndPriority
 	{
-		FAccountIdRegistryAndPriority(IOnlineAccountIdRegistry* InRegistry, int32 InPriority)
+		FOnlineIdRegistryAndPriority(IOnlineIdRegistry<IdType>* InRegistry, int32 InPriority)
 			: Registry(InRegistry), Priority(InPriority) {}
 
-		IOnlineAccountIdRegistry* Registry;
+		virtual ~FOnlineIdRegistryAndPriority() = default;
+
+		IOnlineIdRegistry<IdType>* Registry;
 		int32 Priority;
 	};
 
+	typedef FOnlineIdRegistryAndPriority<OnlineIdHandleTags::FAccount> FAccountIdRegistryAndPriority;
+	typedef FOnlineIdRegistryAndPriority<OnlineIdHandleTags::FSession> FSessionIdRegistryAndPriority;
+	typedef FOnlineIdRegistryAndPriority<OnlineIdHandleTags::FSessionInvite> FSessionInviteIdRegistryAndPriority;
+
 	TMap<EOnlineServices, FAccountIdRegistryAndPriority> AccountIdRegistries;
 	TUniquePtr<FOnlineForeignAccountIdRegistry> ForeignAccountIdRegistry;
+
+	TMap<EOnlineServices, FSessionIdRegistryAndPriority> SessionIdRegistries;
+
+	TMap<EOnlineServices, FSessionInviteIdRegistryAndPriority> SessionInviteIdRegistries;
 
 	friend FLazySingleton;
 

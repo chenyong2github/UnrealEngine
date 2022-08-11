@@ -12,6 +12,12 @@ namespace UE::Online {
 const uint8 OnlineIdEOSUtf8BufferLength = 32;
 const uint8 OnlineIdEOSHexBufferLength = 16;
 
+FOnlineAccountIdRegistryEOSGS::FOnlineAccountIdRegistryEOSGS()
+	: Registry(EOnlineServices::Epic)
+{
+
+}
+
 FOnlineAccountIdHandle FOnlineAccountIdRegistryEOSGS::FindAccountId(const EOS_ProductUserId ProductUserId) const
 {
 	return Registry.FindHandle(ProductUserId);
@@ -62,7 +68,7 @@ FOnlineAccountIdHandle FOnlineAccountIdRegistryEOSGS::FromReplicationData(const 
 		EOS_ProductUserId ProductUserId = EOS_ProductUserId_FromString(EosBuffer);
 		return FindOrAddAccountId(ProductUserId);
 	}
-	return Registry.InvalidHandle;
+	return Registry.GetInvalidHandle();
 }
 
 IOnlineAccountIdRegistryEOSGS& FOnlineAccountIdRegistryEOSGS::GetRegistered()
@@ -84,7 +90,7 @@ FOnlineAccountIdHandle FOnlineAccountIdRegistryEOSGS::FindOrAddAccountId(const E
 	{
 		return Registry.FindOrAddHandle(ProductUserId);
 	}
-	return Registry.InvalidHandle;
+	return Registry.GetInvalidHandle();
 }
 
 EOS_ProductUserId GetProductUserId(const FOnlineAccountIdHandle& Handle)

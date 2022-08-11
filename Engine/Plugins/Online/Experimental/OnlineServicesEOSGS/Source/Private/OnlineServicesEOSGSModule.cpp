@@ -6,6 +6,7 @@
 #include "Online/OnlineServicesEOSGS.h"
 #include "Online/OnlineServicesRegistry.h"
 #include "Online/OnlineServicesEOSGSPlatformFactory.h"
+#include "Online/SessionsEOSGS.h"
 
 #include "CoreMinimal.h"
 
@@ -35,6 +36,8 @@ void FOnlineServicesEOSGSModule::StartupModule()
 {
 	FOnlineServicesRegistry::Get().RegisterServicesFactory(EOnlineServices::Epic, MakeUnique<FOnlineServicesFactoryEOSGS>());
 	FOnlineIdRegistryRegistry::Get().RegisterAccountIdRegistry(EOnlineServices::Epic, &FOnlineAccountIdRegistryEOSGS::Get());
+	FOnlineIdRegistryRegistry::Get().RegisterSessionIdRegistry(EOnlineServices::Epic, &FOnlineSessionIdRegistryEOSGS::Get());
+	FOnlineIdRegistryRegistry::Get().RegisterSessionInviteIdRegistry(EOnlineServices::Epic, &FOnlineSessionInviteIdRegistryEOSGS::Get());
 
 	// Initialize the platform factory on startup.  This is necessary for the SDK to bind to rendering and input very early.
 	FOnlineServicesEOSGSPlatformFactory::Get();

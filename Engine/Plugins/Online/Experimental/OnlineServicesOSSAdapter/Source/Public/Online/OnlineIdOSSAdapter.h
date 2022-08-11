@@ -11,19 +11,20 @@ namespace UE::Online {
 /**
  * A net id registry suitable for use with OSS FUniqueNetIds
  */
-class FOnlineUniqueNetIdRegistry : public IOnlineAccountIdRegistry
+template<typename IdType>
+class TOnlineUniqueNetIdRegistry : public IOnlineIdRegistry<IdType>
 {
 public:
-	FOnlineUniqueNetIdRegistry(EOnlineServices InOnlineServicesType)
+	TOnlineUniqueNetIdRegistry(EOnlineServices InOnlineServicesType)
 		: OnlineServicesType(InOnlineServicesType)
 	{
 	}
 
-	virtual ~FOnlineUniqueNetIdRegistry() {}
+	virtual ~TOnlineUniqueNetIdRegistry() {}
 
-	FOnlineAccountIdHandle FindOrAddHandle(const FUniqueNetIdRef& IdValue)
+	TOnlineIdHandle<IdType> FindOrAddHandle(const FUniqueNetIdRef& IdValue)
 	{
-		FOnlineAccountIdHandle Handle;
+		TOnlineIdHandle<IdType> Handle;
 		if (!ensure(IdValue->IsValid()))
 		{
 			return Handle;
@@ -34,7 +35,7 @@ public:
 			FReadScopeLock ReadLock(Lock);
 			if (const uint32* FoundHandle = IdValueToHandleMap.Find(IdValue))
 			{
-				Handle = FOnlineAccountIdHandle(OnlineServicesType, *FoundHandle);
+				Handle = TOnlineIdHandle<IdType>(OnlineServicesType, *FoundHandle);
 			}
 		}
 
@@ -44,13 +45,13 @@ public:
 			FWriteScopeLock WriteLock(Lock);
 			if (const uint32* FoundHandle = IdValueToHandleMap.Find(IdValue))
 			{
-				Handle = FOnlineAccountIdHandle(OnlineServicesType, *FoundHandle);
+				Handle = TOnlineIdHandle<IdType>(OnlineServicesType, *FoundHandle);
 			}
 
 			if (!Handle.IsValid())
 			{
 				IdValues.Emplace(IdValue);
-				Handle = FOnlineAccountIdHandle(OnlineServicesType, IdValues.Num());
+				Handle = TOnlineIdHandle<IdType>(OnlineServicesType, IdValues.Num());
 				IdValueToHandleMap.Emplace(IdValue, Handle.GetHandle());
 			}
 		}
@@ -59,7 +60,7 @@ public:
 	}
 
 	// Returns a copy as it's not thread safe to return a pointer/ref to an element of an array that can be relocated by another thread.
-	FUniqueNetIdPtr GetIdValue(const FOnlineAccountIdHandle Handle) const
+	FUniqueNetIdPtr GetIdValue(const TOnlineIdHandle<IdType> Handle) const
 	{
 		if (Handle.GetOnlineServicesType() == OnlineServicesType && Handle.IsValid())
 		{
@@ -72,26 +73,31 @@ public:
 		return FUniqueNetIdPtr();
 	}
 
-	FUniqueNetIdRef GetIdValueChecked(const FOnlineAccountIdHandle Handle) const
+	FUniqueNetIdRef GetIdValueChecked(const TOnlineIdHandle<IdType> Handle) const
 	{
 		return GetIdValue(Handle).ToSharedRef();
 	}
 
+	bool IsHandleExpired(const FOnlineSessionIdHandle& InHandle) const
+	{
+		return GetIdValue(InHandle).IsValid();
+	}
+
 	// Begin IOnlineAccountIdRegistry
-	virtual FString ToLogString(const FOnlineAccountIdHandle& Handle) const override
+	virtual FString ToLogString(const TOnlineIdHandle<IdType>& Handle) const override
 	{
 		FUniqueNetIdPtr IdValue = GetIdValue(Handle);
 		return IdValue ? IdValue->ToDebugString() : FString(TEXT("invalid_id"));
 	}
 
-	virtual TArray<uint8> ToReplicationData(const FOnlineAccountIdHandle& Handle) const
+	virtual TArray<uint8> ToReplicationData(const TOnlineIdHandle<IdType>& Handle) const override
 	{
 		return TArray<uint8>();
 	}
 
-	virtual FOnlineAccountIdHandle FromReplicationData(const TArray<uint8>& Handle)
+	virtual TOnlineIdHandle<IdType> FromReplicationData(const TArray<uint8>& Handle) override
 	{
-		return FOnlineAccountIdHandle();
+		return TOnlineIdHandle<IdType>();
 	}
 
 	// End IOnlineAccountIdRegistry
@@ -103,5 +109,7 @@ private:
 	TArray<FUniqueNetIdRef> IdValues;
 	TUniqueNetIdMap<uint32> IdValueToHandleMap;
 };
+
+using FOnlineAccountIdRegistryOSSAdapter = TOnlineUniqueNetIdRegistry<OnlineIdHandleTags::FAccount>;
 
 /* UE::Online */ }

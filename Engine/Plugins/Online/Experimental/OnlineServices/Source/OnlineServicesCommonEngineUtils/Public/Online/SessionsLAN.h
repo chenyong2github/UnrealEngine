@@ -10,14 +10,15 @@ namespace UE::Online {
 
 class FOnlineServicesCommon;
 
-class ONLINESERVICESCOMMONENGINEUTILS_API FOnlineSessionIdRegistryLAN : public TOnlineSessionIdStringRegistry<EOnlineServices::Default>
+class ONLINESERVICESCOMMONENGINEUTILS_API FOnlineSessionIdRegistryLAN : public FOnlineSessionIdStringRegistry
 {
 public:
-	static FOnlineSessionIdRegistryLAN& Get();
+	static FOnlineSessionIdRegistryLAN& GetChecked(EOnlineServices ServicesType);
 
 	FOnlineSessionIdHandle GetNextSessionId();
 
-	bool IsSessionIdExpired(const FOnlineSessionIdHandle& InHandle) const;
+protected:
+	FOnlineSessionIdRegistryLAN(EOnlineServices ServicesType);
 };
 
 class ONLINESERVICESCOMMONENGINEUTILS_API FSessionLAN : public FSession

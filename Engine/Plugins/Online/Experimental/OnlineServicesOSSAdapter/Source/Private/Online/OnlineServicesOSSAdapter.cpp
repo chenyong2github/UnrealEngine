@@ -10,6 +10,7 @@
 #include "Online/OnlineIdOSSAdapter.h"
 #include "Online/PresenceOSSAdapter.h"
 #include "Online/PrivilegesOSSAdapter.h"
+#include "Online/SessionsOSSAdapter.h"
 #include "Online/StatsOSSAdapter.h"
 #include "Online/TitleFileOSSAdapter.h"
 #include "Online/UserFileOSSAdapter.h"
@@ -40,6 +41,10 @@ void FOnlineServicesOSSAdapter::RegisterComponents()
 	Components.Register<FPrivilegesOSSAdapter>(*this);
 	Components.Register<FStatsOSSAdapter>(*this);
 
+	if (Subsystem->GetSessionInterface().IsValid())
+	{
+		Components.Register<FSessionsOSSAdapter>(*this);
+	}
 	if (Subsystem->GetAchievementsInterface().IsValid())
 	{
 		Components.Register<FAchievementsOSSAdapter>(*this);
@@ -66,9 +71,17 @@ void FOnlineServicesOSSAdapter::RegisterComponents()
 
 void FOnlineServicesOSSAdapter::Initialize()
 {
-	AccountIdRegistry = static_cast<FOnlineUniqueNetIdRegistry*>(FOnlineIdRegistryRegistry::Get().GetAccountIdRegistry(ServicesType));
+	AccountIdRegistry = static_cast<FOnlineAccountIdRegistryOSSAdapter*>(FOnlineIdRegistryRegistry::Get().GetAccountIdRegistry(ServicesType));
 
 	FOnlineServicesCommon::Initialize();
+}
+
+TOnlineResult<FGetResolvedConnectString> FOnlineServicesOSSAdapter::GetResolvedConnectString(FGetResolvedConnectString::Params&& Params)
+{
+	FSessionsOSSAdapter* SessionsOSSAdapter = Get<FSessionsOSSAdapter>();
+	check(SessionsOSSAdapter);
+
+	return SessionsOSSAdapter->GetResolvedConnectString(Params);
 }
 
 /* UE::Online*/ }

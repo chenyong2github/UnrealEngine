@@ -7,6 +7,19 @@
 
 namespace UE::Online {
 
+/** FOnlineSessionIdRegistryNull */
+
+FOnlineSessionIdRegistryNull::FOnlineSessionIdRegistryNull()
+	: FOnlineSessionIdRegistryLAN(EOnlineServices::Null)
+{
+}
+
+FOnlineSessionIdRegistryNull& FOnlineSessionIdRegistryNull::Get()
+{
+	static FOnlineSessionIdRegistryNull Instance;
+	return Instance;
+}
+
 /** FSessionsNull */
 
 FSessionsNull::FSessionsNull(FOnlineServicesNull& InServices)

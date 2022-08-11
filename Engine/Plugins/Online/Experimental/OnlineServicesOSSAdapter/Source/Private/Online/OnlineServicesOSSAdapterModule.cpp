@@ -7,6 +7,7 @@
 #include "Online/OnlineServicesOSSAdapter.h"
 #include "Online/OnlineServicesRegistry.h"
 #include "Online/OnlineIdOSSAdapter.h"
+#include "Online/SessionsOSSAdapter.h"
 
 #include "OnlineSubsystem.h"
 
@@ -136,7 +137,9 @@ void FOnlineServicesOSSAdapterModule::StartupModule()
 			if (IOnlineSubsystem::IsEnabled(ServiceConfig.OnlineSubsystem))
 			{
 				FOnlineServicesRegistry::Get().RegisterServicesFactory(ServiceConfig.Service, MakeUnique<FOnlineServicesFactoryOSSAdapter>(ServiceConfig), ServiceConfig.Priority);
-				FOnlineIdRegistryRegistry::Get().RegisterAccountIdRegistry(ServiceConfig.Service, new FOnlineUniqueNetIdRegistry(ServiceConfig.Service), ServiceConfig.Priority);
+				FOnlineIdRegistryRegistry::Get().RegisterAccountIdRegistry(ServiceConfig.Service, new FOnlineAccountIdRegistryOSSAdapter(ServiceConfig.Service), ServiceConfig.Priority);
+				FOnlineIdRegistryRegistry::Get().RegisterSessionIdRegistry(ServiceConfig.Service, new FOnlineSessionIdRegistryOSSAdapter(ServiceConfig.Service), ServiceConfig.Priority);
+				FOnlineIdRegistryRegistry::Get().RegisterSessionInviteIdRegistry(ServiceConfig.Service, new FOnlineSessionInviteIdRegistryOSSAdapter(ServiceConfig.Service), ServiceConfig.Priority);
 			}
 		}
 	}
@@ -157,6 +160,8 @@ void FOnlineServicesOSSAdapterModule::ShutdownModule()
 			{
 				FOnlineServicesRegistry::Get().UnregisterServicesFactory(ServiceConfig.Service, ServiceConfig.Priority);
 				FOnlineIdRegistryRegistry::Get().UnregisterAccountIdRegistry(ServiceConfig.Service, ServiceConfig.Priority);
+				FOnlineIdRegistryRegistry::Get().UnregisterSessionIdRegistry(ServiceConfig.Service, ServiceConfig.Priority);
+				FOnlineIdRegistryRegistry::Get().UnregisterSessionInviteIdRegistry(ServiceConfig.Service, ServiceConfig.Priority);
 			}
 		}
 	}

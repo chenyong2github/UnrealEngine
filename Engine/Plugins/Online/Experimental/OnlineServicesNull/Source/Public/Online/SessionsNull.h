@@ -7,6 +7,15 @@ namespace UE::Online {
 
 class FOnlineServicesNull;
 
+class FOnlineSessionIdRegistryNull : public FOnlineSessionIdRegistryLAN
+{
+public:
+	static FOnlineSessionIdRegistryNull& Get();
+
+private:
+	FOnlineSessionIdRegistryNull();
+};
+
 typedef FSessionLAN FSessionNull;
 
 class FSessionsNull : public FSessionsLAN

@@ -7,6 +7,7 @@
 #include "Online/OnlineServicesEOSGS.h"
 #include "Online/OnlineServicesEOSGSTypes.h"
 #include "Online/NboSerializerEOSGSSvc.h"
+#include "Online/OnlineErrorEOSGS.h"
 
 #include "eos_sessions.h"
 #include "eos_sessions_types.h"
@@ -30,28 +31,28 @@ EOS_EOnlineSessionPermissionLevel GetEOSGSType(const ESessionJoinPolicy& Value)
 
 /** FOnlineSessionIdRegistryEOSGS */
 
+FOnlineSessionIdRegistryEOSGS::FOnlineSessionIdRegistryEOSGS()
+	: FOnlineSessionIdRegistryLAN(EOnlineServices::Epic)
+{
+}
+
 FOnlineSessionIdRegistryEOSGS& FOnlineSessionIdRegistryEOSGS::Get()
 {
 	static FOnlineSessionIdRegistryEOSGS Instance;
 	return Instance;
 }
 
-bool FOnlineSessionIdRegistryEOSGS::IsSessionIdExpired(const FOnlineSessionIdHandle& InHandle) const
-{
-	return BasicRegistry.FindIdValue(InHandle).IsEmpty();
-}
-
 /** FOnlineSessionInviteIdRegistryEOSGS */
+
+FOnlineSessionInviteIdRegistryEOSGS::FOnlineSessionInviteIdRegistryEOSGS()
+	: FOnlineSessionInviteIdStringRegistry(EOnlineServices::Epic)
+{
+}
 
 FOnlineSessionInviteIdRegistryEOSGS& FOnlineSessionInviteIdRegistryEOSGS::Get()
 {
 	static FOnlineSessionInviteIdRegistryEOSGS Instance;
 	return Instance;
-}
-
-bool FOnlineSessionInviteIdRegistryEOSGS::IsSessionInviteIdExpired(const FOnlineSessionInviteIdHandle& InHandle) const
-{
-	return BasicRegistry.FindIdValue(InHandle).IsEmpty();
 }
 
 /** FSessionEOSGS */
@@ -955,6 +956,12 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 	TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.LocalUserId, OpParams.SessionId });
 	if (GetSessionByIdResult.IsError())
 	{
+		// If no result is found, the id might be expired, which we should notify
+		if (FOnlineSessionIdRegistryEOSGS::Get().IsSessionIdExpired(OpParams.SessionId))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::JoinSession] SessionId parameter [%s] is expired. Please call FindSessions to get an updated list of available sessions "), *ToLogString(OpParams.SessionId));
+		}
+
 		Op->SetError(MoveTemp(GetSessionByIdResult.GetErrorValue()));
 		return Op->GetHandle();
 	}
@@ -1002,6 +1009,12 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.LocalUserId, OpParams.SessionId });
 		if (GetSessionByIdResult.IsError())
 		{
+			// If no result is found, the id might be expired, which we should notify
+			if (FOnlineSessionIdRegistryEOSGS::Get().IsSessionIdExpired(OpParams.SessionId))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::JoinSession] SessionId parameter [%s] is expired. Please call FindSessions to get an updated list of available sessions "), *ToLogString(OpParams.SessionId));
+			}
+
 			Op.SetError(MoveTemp(GetSessionByIdResult.GetErrorValue()));
 			Promise.EmplaceValue();
 			return;

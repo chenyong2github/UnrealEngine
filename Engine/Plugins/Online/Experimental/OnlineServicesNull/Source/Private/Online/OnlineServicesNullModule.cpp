@@ -7,6 +7,7 @@
 #include "Online/OnlineServicesRegistry.h"
 #include "Online/OnlineServicesNull.h"
 #include "Online/AuthNull.h"
+#include "Online/SessionsNull.h"
 
 namespace UE::Online
 {
@@ -33,6 +34,7 @@ void FOnlineServicesNullModule::StartupModule()
 {
 	FOnlineServicesRegistry::Get().RegisterServicesFactory(EOnlineServices::Null, MakeUnique<FOnlineServicesFactoryNull>());
 	FOnlineIdRegistryRegistry::Get().RegisterAccountIdRegistry(EOnlineServices::Null, &FOnlineAccountIdRegistryNull::Get());
+	FOnlineIdRegistryRegistry::Get().RegisterSessionIdRegistry(EOnlineServices::Null, &FOnlineSessionIdRegistryNull::Get());
 }
 
 /* UE::Online */ }

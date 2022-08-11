@@ -12,8 +12,7 @@ class FOnlineServicesCommon;
 
 static FName CONNECT_STRING_TAG = TEXT("CONNECT_STRING");
 
-template<EOnlineServices OnlineServicesType>
-class TOnlineSessionIdStringRegistry : public IOnlineSessionIdRegistry
+class FOnlineSessionIdStringRegistry : public IOnlineSessionIdRegistry
 {
 public:
 	// Begin IOnlineSessionIdRegistry
@@ -56,14 +55,24 @@ public:
 	}
 	// End IOnlineSessionIdRegistry
 
-	virtual ~TOnlineSessionIdStringRegistry() = default;
+	inline bool IsSessionIdExpired(const FOnlineSessionIdHandle& InHandle) const
+	{
+		return BasicRegistry.FindIdValue(InHandle).IsEmpty();
+	}
+
+	FOnlineSessionIdStringRegistry(EOnlineServices OnlineServicesType)
+		: BasicRegistry(OnlineServicesType)
+	{
+
+	}
+
+	virtual ~FOnlineSessionIdStringRegistry() = default;
 
 public:
-	TOnlineBasicSessionIdRegistry<FString, OnlineServicesType> BasicRegistry;
+	TOnlineBasicSessionIdRegistry<FString> BasicRegistry;
 };
 
-template<EOnlineServices OnlineServicesType>
-class TOnlineSessionInviteIdStringRegistry : public IOnlineSessionInviteIdRegistry
+class FOnlineSessionInviteIdStringRegistry : public IOnlineSessionInviteIdRegistry
 {
 public:
 	// Begin IOnlineSessionIdRegistry
@@ -106,10 +115,16 @@ public:
 	}
 	// End IOnlineSessionIdRegistry
 
-	virtual ~TOnlineSessionInviteIdStringRegistry() = default;
+	FOnlineSessionInviteIdStringRegistry(EOnlineServices OnlineServicesType)
+		: BasicRegistry(OnlineServicesType)
+	{
+
+	}
+
+	virtual ~FOnlineSessionInviteIdStringRegistry() = default;
 
 public:
-	TOnlineBasicSessionInviteIdRegistry<FString, OnlineServicesType> BasicRegistry;
+	TOnlineBasicSessionInviteIdRegistry<FString> BasicRegistry;
 };
 
 class ONLINESERVICESCOMMON_API FSessionsCommon : public TOnlineComponent<ISessions>
@@ -161,6 +176,9 @@ protected:
 
 	FOnlineError CheckFindSessionsParams(const FFindSessions::Params& Params);
 	FOnlineError CheckFindSessionsState(const FFindSessions::Params& Params);
+
+	FOnlineError CheckStartMatchmakingParams(const FStartMatchmaking::Params& Params);
+	FOnlineError CheckStartMatchmakingState(const FStartMatchmaking::Params& Params);
 
 	FOnlineError CheckJoinSessionParams(const FJoinSession::Params& Params);
 	FOnlineError CheckJoinSessionState(const FJoinSession::Params& Params);

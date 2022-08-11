@@ -11,21 +11,22 @@
 namespace UE::Online {
 
 /** FOnlineSessionIdRegistryLAN */
-
-FOnlineSessionIdRegistryLAN& FOnlineSessionIdRegistryLAN::Get()
+FOnlineSessionIdRegistryLAN::FOnlineSessionIdRegistryLAN(EOnlineServices ServicesType)
+	: FOnlineSessionIdStringRegistry(ServicesType)
 {
-	static FOnlineSessionIdRegistryLAN Instance;
-	return Instance;
+
+}
+
+FOnlineSessionIdRegistryLAN& FOnlineSessionIdRegistryLAN::GetChecked(EOnlineServices ServicesType)
+{
+	FOnlineSessionIdRegistryLAN* SessionIdRegistry = static_cast<FOnlineSessionIdRegistryLAN*>(FOnlineIdRegistryRegistry::Get().GetSessionIdRegistry(ServicesType));
+	check(SessionIdRegistry);
+	return *SessionIdRegistry;
 }
 
 FOnlineSessionIdHandle FOnlineSessionIdRegistryLAN::GetNextSessionId()
 {
 	return BasicRegistry.FindOrAddHandle(FGuid::NewGuid().ToString());
-}
-
-bool FOnlineSessionIdRegistryLAN::IsSessionIdExpired(const FOnlineSessionIdHandle& InHandle) const
-{
-	return BasicRegistry.FindIdValue(InHandle).IsEmpty();
 }
 
 /** FSessionLAN */
@@ -128,7 +129,7 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsLAN::CreateSession(FCreateSession:
 		TSharedRef<FSessionLAN> NewSessionLANRef = MakeShared<FSessionLAN>();
 		NewSessionLANRef->CurrentState = ESessionState::Valid;
 		NewSessionLANRef->OwnerUserId = OpParams.LocalUserId;
-		NewSessionLANRef->SessionId = FOnlineSessionIdRegistryLAN::Get().GetNextSessionId();
+		NewSessionLANRef->SessionId = FOnlineSessionIdRegistryLAN::GetChecked(Services.GetServicesProvider()).GetNextSessionId();
 		NewSessionLANRef->SessionSettings = OpParams.SessionSettings;
 
 		// For LAN sessions, we'll add all the Session members manually instead of calling JoinSession since there is no API calls involved
@@ -256,7 +257,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsLAN::JoinSession(FJoinSession::Param
 		if (GetSessionByIdResult.IsError())
 		{
 			// If no result is found, the id might be expired, which we should notify
-			if (FOnlineSessionIdRegistryLAN::Get().IsSessionIdExpired(OpParams.SessionId))
+			if (FOnlineSessionIdRegistryLAN::GetChecked(Services.GetServicesProvider()).IsSessionIdExpired(OpParams.SessionId))
 			{
 				UE_LOG(LogTemp, Warning, TEXT("[FSessionsLAN::JoinSession] SessionId parameter [%s] is expired. Please call FindSessions to get an updated list of available sessions "), *ToLogString(OpParams.SessionId));
 			}

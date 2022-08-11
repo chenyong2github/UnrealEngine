@@ -613,6 +613,50 @@ namespace UE::Online {
 		return Errors::Success();
 	}
 
+	FOnlineError FSessionsCommon::CheckStartMatchmakingParams(const FStartMatchmaking::Params& Params)
+	{
+		if (Params.SessionSettings.NumMaxPrivateConnections == 0 && Params.SessionSettings.NumMaxPublicConnections == 0)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckStartMatchmakingParams] Could not create session with invalid NumMaxPrivateConnections and NumMaxPublicConnections"));
+
+			return Errors::InvalidParams();
+		}
+
+		return Errors::Success();
+	}
+
+	FOnlineError FSessionsCommon::CheckStartMatchmakingState(const FStartMatchmaking::Params& Params)
+	{
+		// Check if a session with that name already exists
+		if (TSharedRef<FSession>* FoundSession = LocalSessionsByName.Find(Params.SessionName))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckStartMatchmakingState] Could not join session with name [%s]. A session with that name already exists"), *Params.SessionName.ToString());
+
+			return Errors::InvalidState(); // TODO: New error: Session with name %s already exists
+		}
+
+		// User login check for all local users
+		IAuthPtr Auth = Services.GetAuthInterface();
+
+		TArray<FOnlineAccountIdHandle> LocalUserIds;
+		LocalUserIds.Reserve(Params.LocalUsers.Num());
+		Params.LocalUsers.GenerateKeyArray(LocalUserIds);
+
+		for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
+		{
+			if (!Auth->IsLoggedIn(LocalUserId))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckStartMatchmakingState] Could not join session with user [%s] not logged in"), *ToLogString(LocalUserId));
+
+				return Errors::InvalidUser();
+			}
+		}
+
+		// TODO: Check that only one session has bUsesPresence set
+
+		return Errors::Success();
+	}
+
 	FOnlineError FSessionsCommon::CheckJoinSessionParams(const FJoinSession::Params& Params)
 	{
 		if (!Params.LocalUserId.IsValid())

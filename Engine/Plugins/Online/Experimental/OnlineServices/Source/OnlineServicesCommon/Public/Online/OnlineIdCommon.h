@@ -9,15 +9,24 @@ namespace UE::Online {
 /**
  * A net id registry suitable for use with trivial immutable keys
  */
-template<typename IdType, typename IdValueType, EOnlineServices OnlineServicesType>
+template<typename IdType, typename IdValueType>
 class TOnlineBasicIdRegistry
 {
 public:
+	TOnlineBasicIdRegistry(EOnlineServices InOnlineServicesType)
+		: OnlineServicesType(InOnlineServicesType)
+	{
+
+	}
+
 	virtual ~TOnlineBasicIdRegistry() = default;
 
 	using HandleType = TOnlineIdHandle<IdType>;
 
-	const HandleType InvalidHandle = HandleType(OnlineServicesType, 0);
+	HandleType GetInvalidHandle() const
+	{
+		return HandleType(OnlineServicesType, 0);
+	}
 
 	HandleType FindHandle(const IdValueType& IdValue) const
 	{
@@ -26,7 +35,7 @@ public:
 		{
 			return *FoundHandle;
 		}
-		return InvalidHandle;
+		return GetInvalidHandle();
 	}
 
 	HandleType FindOrAddHandle(const IdValueType& IdValue)
@@ -65,26 +74,28 @@ public:
 		return IdValueType();
 	}
 
-	static inline bool ValidateOnlineId(const HandleType& Handle)
+	inline bool ValidateOnlineId(const HandleType& Handle) const
 	{
 		return ensure(Handle.GetOnlineServicesType() == OnlineServicesType) && Handle.IsValid();
 	}
 
 private:
+	EOnlineServices OnlineServicesType;
+
 	mutable FRWLock Lock;
 
 	TArray<IdValueType> IdValues;
 	TMap<IdValueType, HandleType> IdValueToHandleMap;
 };
 
-template<typename IdValueType, EOnlineServices OnlineServicesType>
-using TOnlineBasicAccountIdRegistry = TOnlineBasicIdRegistry<OnlineIdHandleTags::FAccount, IdValueType, OnlineServicesType>;
+template<typename IdValueType>
+using TOnlineBasicAccountIdRegistry = TOnlineBasicIdRegistry<OnlineIdHandleTags::FAccount, IdValueType>;
 
-template<typename IdValueType, EOnlineServices OnlineServicesType>
-using TOnlineBasicSessionIdRegistry = TOnlineBasicIdRegistry<OnlineIdHandleTags::FSession, IdValueType, OnlineServicesType>;
+template<typename IdValueType>
+using TOnlineBasicSessionIdRegistry = TOnlineBasicIdRegistry<OnlineIdHandleTags::FSession, IdValueType>;
 
-template<typename IdValueType, EOnlineServices OnlineServicesType>
-using TOnlineBasicSessionInviteIdRegistry = TOnlineBasicIdRegistry<OnlineIdHandleTags::FSessionInvite, IdValueType, OnlineServicesType>;
+template<typename IdValueType>
+using TOnlineBasicSessionInviteIdRegistry = TOnlineBasicIdRegistry<OnlineIdHandleTags::FSessionInvite, IdValueType>;
 
 /* UE::Online */ }
 

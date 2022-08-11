@@ -26,6 +26,7 @@ class FOnlineAccountIdRegistryEOSGS
 	: public IOnlineAccountIdRegistryEOSGS
 {
 public:
+	FOnlineAccountIdRegistryEOSGS();
 	virtual ~FOnlineAccountIdRegistryEOSGS() = default;
 
 	// Begin IOnlineAccountIdRegistryEOSGS
@@ -48,7 +49,7 @@ private:
 	static FOnlineAccountIdRegistryEOSGS& Get();
 	FOnlineAccountIdHandle FindOrAddAccountId(const EOS_ProductUserId ProductUserId);
 
-	TOnlineBasicAccountIdRegistry<EOS_ProductUserId, EOnlineServices::Epic> Registry;
+	TOnlineBasicAccountIdRegistry<EOS_ProductUserId> Registry;
 };
 
 EOS_ProductUserId ONLINESERVICESEOSGS_API GetProductUserId(const FOnlineAccountIdHandle& Handle);
