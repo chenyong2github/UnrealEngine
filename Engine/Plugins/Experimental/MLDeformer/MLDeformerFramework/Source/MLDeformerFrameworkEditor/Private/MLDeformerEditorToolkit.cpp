@@ -414,7 +414,7 @@ namespace UE::MLDeformer
 				),
 				NAME_None,
 				LOCTEXT("TrainModel", "Train Model"),
-				LOCTEXT("TrainModelTooltip", "Train Model using Pytorch"),
+				LOCTEXT("TrainModelTooltip", "Train the machine learning model.\nIf this button is disabled you first need to configure your inputs in the details panel."),
 				FSlateIcon(),
 				EUserInterfaceActionType::ToggleButton
 			);

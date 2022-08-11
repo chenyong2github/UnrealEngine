@@ -84,20 +84,6 @@ namespace UE::NeuralMorphModel
 					.Message(GeomErrorText)
 				]
 			];
-
-		const FText VertexErrorText = GetGeomCacheVertexErrorText(Model->GetSkeletalMesh(), NeuralMorphVizSettings->GetTestGroundTruth(), FText::FromString("Base Mesh"), FText::FromString("Ground Truth Mesh"));
-		FDetailWidgetRow& GroundTruthVertexErrorRow = TestAssetsCategory->AddCustomRow(FText::FromString("GroundTruthVertexMismatchError"))
-			.Visibility(!VertexErrorText.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
-			.WholeRowContent()
-			[
-				SNew(SBox)
-				.Padding(FMargin(0.0f, 4.0f))
-				[
-					SNew(SWarningOrErrorBox)
-					.MessageStyle(EMessageStyle::Warning)
-					.Message(VertexErrorText)
-				]
-			];
 	}
 
 	bool FNeuralMorphModelVizSettingsDetails::IsMorphTargetsEnabled() const

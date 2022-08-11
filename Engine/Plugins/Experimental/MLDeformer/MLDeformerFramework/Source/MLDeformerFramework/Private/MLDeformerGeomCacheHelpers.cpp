@@ -70,50 +70,48 @@ namespace UE::MLDeformer
 		return Result;
 	}
 
-	FText GetGeomCacheVertexErrorText(USkeletalMesh* InSkelMesh, UGeometryCache* InGeomCache, const FText& SkelName, const FText& GeomCacheName)
-	{
-		FText Result;
-
-		if (InSkelMesh && InGeomCache)
-		{
-			const int32 SkelVertCount = UMLDeformerModel::ExtractNumImportedSkinnedVertices(InSkelMesh);
-			const int32 GeomCacheVertCount = ExtractNumImportedGeomCacheVertices(InGeomCache);
-			const bool bHasGeomCacheError = !GetGeomCacheErrorText(InSkelMesh, InGeomCache).IsEmpty();
-			if (SkelVertCount != GeomCacheVertCount && !bHasGeomCacheError)
-			{
-				Result = FText::Format(
-					LOCTEXT("MeshVertexNumVertsMismatch", "Vertex count of {0} doesn't match with {1}!\n\n{2} has {3} verts, while {4} has {5} verts."),
-					SkelName,
-					GeomCacheName,
-					SkelName,
-					SkelVertCount,
-					GeomCacheName,
-					GeomCacheVertCount);
-			}
-		}
-
-		return Result;
-	}
-
 	FText GetGeomCacheMeshMappingErrorText(USkeletalMesh* InSkelMesh, UGeometryCache* InGeomCache)
 	{
 		FText Result;
-
 		if (InGeomCache && InSkelMesh)
 		{
 			// Check for failed mesh mappings.
 			TArray<FMLDeformerGeomCacheMeshMapping> MeshMappings;
 			TArray<FString> FailedNames;
-			GenerateGeomCacheMeshMappings(InSkelMesh, InGeomCache, MeshMappings, FailedNames);
+			TArray<FString> VertexMisMatchNames;
+			GenerateGeomCacheMeshMappings(InSkelMesh, InGeomCache, MeshMappings, FailedNames, VertexMisMatchNames);
 
 			// List all mesh names that have issues.
 			FString ErrorString;
-			for (int32 Index = 0; Index < FailedNames.Num(); ++Index)
+			if (!FailedNames.IsEmpty())
 			{
-				ErrorString += FailedNames[Index];
-				if (Index < FailedNames.Num() - 1)
+				const FText ErrorText = LOCTEXT("FailedMappingNames", "No SkelMesh meshes found for GeomCache tracks:\n\n");
+				ErrorString += ErrorText.ToString();
+				for (int32 Index = 0; Index < FailedNames.Num(); ++Index)
 				{
-					ErrorString += TEXT("\n");
+					ErrorString += "\t\t" + FailedNames[Index];
+					if (Index < FailedNames.Num() - 1)
+					{
+						ErrorString += TEXT("\n");
+					}
+				}
+			}
+
+			if (VertexMisMatchNames.Num() > 0)
+			{
+				if (!FailedNames.IsEmpty())
+				{
+					ErrorString += "\n\n";
+				}
+				const FText ErrorText = LOCTEXT("FailedMappingVertexMisMatch", "Mismatching vertex counts for:\n\n");
+				ErrorString += ErrorText.ToString();
+				for (int32 Index = 0; Index < VertexMisMatchNames.Num(); ++Index)
+				{
+					ErrorString += "\t\t" + VertexMisMatchNames[Index];
+					if (Index < VertexMisMatchNames.Num() - 1)
+					{
+						ErrorString += TEXT("\n");
+					}
 				}
 			}
 
@@ -130,10 +128,11 @@ namespace UE::MLDeformer
 		return (TrackName.Find(MeshName) == 0);
 	}
 
-	void GenerateGeomCacheMeshMappings(USkeletalMesh* SkelMesh, UGeometryCache* GeomCache, TArray<FMLDeformerGeomCacheMeshMapping>& OutMeshMappings, TArray<FString>& OutFailedImportedMeshNames)
+	void GenerateGeomCacheMeshMappings(USkeletalMesh* SkelMesh, UGeometryCache* GeomCache, TArray<FMLDeformerGeomCacheMeshMapping>& OutMeshMappings, TArray<FString>& OutFailedImportedMeshNames, TArray<FString>& OutVertexMisMatchNames)
 	{
 		OutMeshMappings.Empty();
 		OutFailedImportedMeshNames.Empty();
+		OutVertexMisMatchNames.Empty();
 		if (SkelMesh == nullptr || GeomCache == nullptr)
 		{
 			return;
@@ -152,21 +151,22 @@ namespace UE::MLDeformer
 		// For all meshes in the skeletal mesh.
 		const float SampleTime = 0.0f;
 		FString SkelMeshName;
-		for (int32 SkelMeshIndex = 0; SkelMeshIndex < SkelMeshInfos.Num(); ++SkelMeshIndex)
-		{
-			const FSkelMeshImportedMeshInfo& MeshInfo = SkelMeshInfos[SkelMeshIndex];
-			SkelMeshName = MeshInfo.Name.ToString();
 
-			// Find the matching one in the geom cache.
+		const bool bIsSoloMesh = (GeomCache->Tracks.Num() == 1 && SkelMeshInfos.Num() == 1);	// Do we just have one mesh and one track?
+		for (int32 TrackIndex = 0; TrackIndex < GeomCache->Tracks.Num(); ++TrackIndex)
+		{
+			// Check if this is a candidate based on the mesh and track name.
+			UGeometryCacheTrack* Track = GeomCache->Tracks[TrackIndex];
+
 			bool bFoundMatch = false;
-			for (int32 TrackIndex = 0; TrackIndex < GeomCache->Tracks.Num(); ++TrackIndex)
+			for (int32 SkelMeshIndex = 0; SkelMeshIndex < SkelMeshInfos.Num(); ++SkelMeshIndex)
 			{
-				// Check if this is a candidate based on the mesh and track name.
-				UGeometryCacheTrack* Track = GeomCache->Tracks[TrackIndex];
-				const bool bIsSoloMesh = (GeomCache->Tracks.Num() == 1 && SkelMeshInfos.Num() == 1);	// Do we just have one mesh and one track?
-				if (Track && 
+				const FSkelMeshImportedMeshInfo& MeshInfo = SkelMeshInfos[SkelMeshIndex];
+				SkelMeshName = MeshInfo.Name.ToString();
+
+				if (Track &&
 					(IsPotentialMatch(Track->GetName(), SkelMeshName) || bIsSoloMesh))
-				{	
+				{
 					// Extract the geom cache mesh data.
 					FGeometryCacheMeshData GeomCacheMeshData;
 					if (!Track->GetMeshDataAtTime(SampleTime, GeomCacheMeshData))
@@ -192,6 +192,7 @@ namespace UE::MLDeformer
 					const int32 NumSkelMeshVerts = MeshInfo.NumVertices;
 					if (NumSkelMeshVerts != NumGeomMeshVerts)
 					{
+						OutVertexMisMatchNames.Add(Track->GetName());
 						continue;
 					}
 
@@ -211,7 +212,7 @@ namespace UE::MLDeformer
 						// However they all share the same vertex position, so we can just find the first hit, as we only need the position later on.
 						const int32 GeomCacheVertexIndex = GeomCacheMeshData.ImportedVertexNumbers.Find(VertexIndex);
 						Mapping.SkelMeshToTrackVertexMap[VertexIndex] = GeomCacheVertexIndex;
-					
+
 						// Map the source asset vertex number to a render vertex. This is the first duplicate of that vertex.
 						const int32 RenderVertexIndex = ImportedModel->LODModels[0].MeshToImportVertexMap.Find(MeshInfo.StartImportedVertex + VertexIndex);
 						Mapping.ImportedVertexToRenderVertexMap[VertexIndex] = RenderVertexIndex;
@@ -221,14 +222,14 @@ namespace UE::MLDeformer
 					bFoundMatch = true;
 					break;
 				} // If the track name matches the skeletal meshes internal mesh name.
-			} // For all tracks.
+			} // For all meshes in the Skeletal Mesh.
 
 			if (!bFoundMatch)
 			{
-				OutFailedImportedMeshNames.Add(SkelMeshName);
-				UE_LOG(LogMLDeformer, Warning, TEXT("Imported mesh '%s' cannot be matched with a geometry cache track."), *SkelMeshName);
+				OutFailedImportedMeshNames.Add(Track->GetName());
+				UE_LOG(LogMLDeformer, Warning, TEXT("Geometry cache '%s' cannot be matched with a mesh inside the Skeletal Mesh."), *Track->GetName());
 			}
-		} // For all meshes inside the skeletal mesh.
+		} // For all tracks.
 	}
 
 	void SampleGeomCachePositions(

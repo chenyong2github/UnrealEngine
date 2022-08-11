@@ -260,8 +260,7 @@ namespace UE::NeuralMorphModel
 		UNeuralMorphModel* NeuralMorphModel = GetNeuralMorphModel();
 		UGeometryCache* GeomCache = NeuralMorphModel->GetGeometryCache();
 		USkeletalMesh* SkeletalMesh = NeuralMorphModel->GetSkeletalMesh();
-		if (!GetGeomCacheVertexErrorText(SkeletalMesh, GeomCache, FText(), FText()).IsEmpty() ||
-			!GetGeomCacheErrorText(SkeletalMesh, GeomCache).IsEmpty())
+		if (!GetGeomCacheErrorText(SkeletalMesh, GeomCache).IsEmpty())
 		{
 			return;
 		}

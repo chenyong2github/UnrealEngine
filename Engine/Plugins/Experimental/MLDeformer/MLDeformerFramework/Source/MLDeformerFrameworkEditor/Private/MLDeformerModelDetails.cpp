@@ -6,6 +6,7 @@
 #include "MLDeformerModel.h"
 #include "MLDeformerEditorModel.h"
 #include "MLDeformerEditorModule.h"
+#include "MLDeformerGeomCacheHelpers.h"
 #include "NeuralNetwork.h"
 #include "GeometryCache.h"
 #include "GeometryCacheTrack.h"
@@ -272,6 +273,23 @@ namespace UE::MLDeformer
 		EditorModel->InitCurveIncludeListToAnimatedCurvesOnly();
 		DetailLayoutBuilder->ForceRefreshDetails();
 		return FReply::Handled();
+	}
+
+	void FMLDeformerModelDetails::AddGeomCacheMeshMappingWarnings(IDetailCategoryBuilder* InTargetMeshCategoryBuilder, USkeletalMesh* SkeletalMesh, UGeometryCache* GeometryCache)
+	{
+		const FText MeshMappingError = GetGeomCacheMeshMappingErrorText(SkeletalMesh, GeometryCache);
+		InTargetMeshCategoryBuilder->AddCustomRow(FText::FromString("MeshMappingWarning"))
+			.Visibility(!MeshMappingError.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
+			.WholeRowContent()
+			[
+				SNew(SBox)
+				.Padding(FMargin(0.0f, 4.0f))
+				[
+					SNew(SWarningOrErrorBox)
+					.MessageStyle(EMessageStyle::Warning)
+					.Message(MeshMappingError)
+				]
+			];
 	}
 }	// namespace UE::MLDeformer
 

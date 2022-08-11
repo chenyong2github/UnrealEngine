@@ -11,6 +11,8 @@ class IDetailLayoutBuilder;
 class USkeleton;
 class IDetailCategoryBuilder;
 class UMLDeformerModel;
+class UGeometryCache;
+class USkeletalMesh;
 
 namespace UE::MLDeformer
 {
@@ -35,9 +37,9 @@ namespace UE::MLDeformer
 
 	protected:
 		bool FilterAnimSequences(const FAssetData& AssetData, USkeleton* Skeleton);
+		void AddGeomCacheMeshMappingWarnings(IDetailCategoryBuilder* InTargetMeshCategoryBuilder, USkeletalMesh* SkeletalMesh, UGeometryCache* GeometryCache);
 		FReply OnFilterAnimatedBonesOnly() const;
 		FReply OnFilterAnimatedCurvesOnly() const;
-
 
 	protected:
 		/** Associated detail layout builder. */

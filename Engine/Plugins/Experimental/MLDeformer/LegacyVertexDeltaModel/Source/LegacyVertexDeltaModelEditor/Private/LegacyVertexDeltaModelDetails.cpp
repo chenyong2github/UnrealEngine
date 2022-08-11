@@ -81,24 +81,6 @@ namespace UE::LegacyVertexDeltaModel
 		SettingsCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(ULegacyVertexDeltaModel, MaxCacheSizeGB));
 	}
 
-	void FLegacyVertexDeltaModelDetails::AddBaseMeshErrors()
-	{
-		// Check if the base mesh matches the target mesh vertex count.
-		FText ErrorText = GetGeomCacheVertexErrorText(Model->SkeletalMesh, VertexModel->GetGeometryCache(), FText::FromString("Base Mesh"), FText::FromString("Target Mesh"));
-		BaseMeshCategoryBuilder->AddCustomRow(FText::FromString("BaseMeshError"))
-			.Visibility(!ErrorText.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
-			.WholeRowContent()
-			[
-				SNew(SBox)
-				.Padding(FMargin(0.0f, 4.0f))
-				[
-					SNew(SWarningOrErrorBox)
-					.MessageStyle(EMessageStyle::Error)
-					.Message(ErrorText)
-				]
-			];
-	}
-	
 	void FLegacyVertexDeltaModelDetails::AddAnimSequenceErrors()
 	{
 		const FText WarningText = GetGeomCacheAnimSequenceErrorText(VertexModel->GetGeometryCache(), Model->GetAnimSequence());
@@ -148,39 +130,7 @@ namespace UE::LegacyVertexDeltaModel
 				]
 			];
 
-		// Show meshes that have no matching geometry track list.
-		const FText MeshMappingErrorList = GetGeomCacheMeshMappingErrorText(Model->GetSkeletalMesh(), VertexModel->GetGeometryCache());
-		FString GeomTrackNameList;
-		if (!MeshMappingErrorList.IsEmpty())
-		{
-			UGeometryCache* GeomCache = VertexModel->GetGeometryCache();
-			for (int32 Index = 0; Index < GeomCache->Tracks.Num(); ++Index)
-			{
-				GeomTrackNameList += GeomCache->Tracks[Index]->GetName();
-				if (Index < GeomCache->Tracks.Num() - 1)
-				{
-					GeomTrackNameList += TEXT("\n");
-				}
-			}
-		}
-
-		FText MeshMappingErrorFull = FText::Format(
-			LOCTEXT("MeshMappingError", "No matching GeomCache Tracks names found for meshes:\n{0}\n\nGeomCache Track List:\n{1}"), 
-			MeshMappingErrorList,
-			FText::FromString(GeomTrackNameList));
-
-		TargetMeshCategoryBuilder->AddCustomRow(FText::FromString("MeshMappingError"))
-			.Visibility(!MeshMappingErrorList.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
-			.WholeRowContent()
-			[
-				SNew(SBox)
-				.Padding(FMargin(0.0f, 4.0f))
-				[
-					SNew(SWarningOrErrorBox)
-					.MessageStyle(EMessageStyle::Error)
-					.Message(MeshMappingErrorFull)
-				]
-			];
+		AddGeomCacheMeshMappingWarnings(TargetMeshCategoryBuilder, Model->GetSkeletalMesh(), VertexModel->GetGeometryCache());
 	}
 }	// namespace UE::LegacyVertexDeltaModel
 

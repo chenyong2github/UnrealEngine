@@ -77,8 +77,9 @@ UMLDeformerModelInstance* UNeuralMorphModel::CreateModelInstance(UMLDeformerComp
 
 		if (MeshMappings.IsEmpty())
 		{
-			TArray<FString> FailedImportedMeshnames;
-			GenerateGeomCacheMeshMappings(SkeletalMesh, GeomCache, MeshMappings, FailedImportedMeshnames);
+			TArray<FString> FailedImportedMeshNames;
+			TArray<FString> VertexMisMatchNames;
+			GenerateGeomCacheMeshMappings(SkeletalMesh, GeomCache, MeshMappings, FailedImportedMeshNames, VertexMisMatchNames);
 		}
 
 		UE::MLDeformer::SampleGeomCachePositions(
@@ -163,7 +164,10 @@ void UNeuralMorphModel::BeginDestroy()
 {
 	if (MorphTargetSet.IsValid())
 	{
-		BeginReleaseResource(&MorphTargetSet->MorphBuffers);
+		// Release and flush, waiting for the release to have completed, 
+		// If we don't do this we can get an error that we destroy a render resource that is still initialized,
+		// as the release happens in another thread.
+		ReleaseResourceAndFlush(&MorphTargetSet->MorphBuffers);
 		MorphTargetSet.Reset();
 	}
 	Super::BeginDestroy();

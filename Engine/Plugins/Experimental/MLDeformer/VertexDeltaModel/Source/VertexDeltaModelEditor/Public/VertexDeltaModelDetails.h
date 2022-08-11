@@ -34,7 +34,6 @@ namespace UE::VertexDeltaModel
 		// FMLDeformerModelDetails overrides.
 		bool UpdateMemberPointers(const TArray<TWeakObjectPtr<UObject>>& Objects) override;
 		void AddTargetMesh() override;
-		void AddBaseMeshErrors() override;
 		void AddAnimSequenceErrors() override;
 		// ~END FMLDeformerModelDetails overrides.
 

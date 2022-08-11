@@ -258,8 +258,7 @@ namespace UE::VertexDeltaModel
 		UVertexDeltaModel* VertexDeltaModel = GetVertexDeltaModel();
 		UGeometryCache* GeomCache = VertexDeltaModel->GetGeometryCache();
 		USkeletalMesh* SkeletalMesh = VertexDeltaModel->GetSkeletalMesh();
-		if (!GetGeomCacheVertexErrorText(SkeletalMesh, GeomCache, FText(), FText()).IsEmpty() ||
-			!GetGeomCacheErrorText(SkeletalMesh, GeomCache).IsEmpty())
+		if (!GetGeomCacheErrorText(SkeletalMesh, GeomCache).IsEmpty())
 		{
 			return;
 		}

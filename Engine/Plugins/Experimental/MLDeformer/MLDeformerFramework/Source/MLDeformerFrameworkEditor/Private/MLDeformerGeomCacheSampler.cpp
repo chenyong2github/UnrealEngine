@@ -44,7 +44,8 @@ namespace UE::MLDeformer
 				Model->GetSkeletalMesh(), 
 				GeomCache, 
 				MeshMappings, 
-				FailedImportedMeshNames);
+				FailedImportedMeshNames,
+				VertexCountMisMatchNames);
 
 			GeomCacheMeshDatas.Reset(MeshMappings.Num());
 			GeomCacheMeshDatas.AddDefaulted(MeshMappings.Num());

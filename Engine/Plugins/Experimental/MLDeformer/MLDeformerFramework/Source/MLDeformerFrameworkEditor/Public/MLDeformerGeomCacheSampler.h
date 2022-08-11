@@ -48,8 +48,11 @@ namespace UE::MLDeformer
 		/** The geometry cache mesh data reusable buffers. One for each MeshMapping.*/
 		TArray<FGeometryCacheMeshData> GeomCacheMeshDatas;
 
-		/** Imported mesh names in the skeletal mesh for which no geom cache track could be found. */
+		/** Geom cache track names for which no mesh can be found inside the skeletal mesh. */
 		TArray<FString> FailedImportedMeshNames; 
+
+		/** Imported mesh names in the skeletal mesh for which the geometry track had a different vertex count. */
+		TArray<FString> VertexCountMisMatchNames;
 
 		/** The function that grabs the geometry cache. */
 		FMLDeformerGetGeomCacheEvent GetGeometryCacheEvent;

@@ -1906,8 +1906,8 @@ USkinnedAsset* USkinnedMeshComponent::GetSkinnedAsset() const
 void USkinnedMeshComponent::SetMeshDeformer(UMeshDeformer* InMeshDeformer)
 {
 	MeshDeformer = InMeshDeformer;
-	MeshDeformerInstanceSettings = MeshDeformer->CreateSettingsInstance(this);
-	MeshDeformerInstance = (MeshDeformer != nullptr) ? MeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
+	MeshDeformerInstanceSettings = MeshDeformer ? MeshDeformer->CreateSettingsInstance(this) : nullptr;
+	MeshDeformerInstance = MeshDeformer ? MeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
 	MarkRenderDynamicDataDirty();
 }
 

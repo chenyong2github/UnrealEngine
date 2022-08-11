@@ -37,7 +37,8 @@ ULegacyVertexDeltaModel::ULegacyVertexDeltaModel(const FObjectInitializer& Objec
 		if (MeshMappings.IsEmpty())
 		{
 			TArray<FString> FailedImportedMeshnames;
-			GenerateGeomCacheMeshMappings(SkeletalMesh, GeomCache, MeshMappings, FailedImportedMeshnames);
+			TArray<FString> VertexMisMatchNames;
+			GenerateGeomCacheMeshMappings(SkeletalMesh, GeomCache, MeshMappings, FailedImportedMeshnames, VertexMisMatchNames);
 		}
 
 		UE::MLDeformer::SampleGeomCachePositions(
