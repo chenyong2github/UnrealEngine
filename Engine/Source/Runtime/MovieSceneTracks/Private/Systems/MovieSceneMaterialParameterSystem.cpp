@@ -216,7 +216,13 @@ void UMovieSceneMaterialParameterSystem::OnRun(FSystemTaskPrerequisites& InPrere
 {
 	using namespace UE::MovieScene;
 
-	ESystemPhase CurrentPhase = Linker->GetActiveRunner()->GetCurrentPhase();
+	FMovieSceneEntitySystemRunner* ActiveRunner = Linker->GetActiveRunner();
+	if (!ensure(ActiveRunner))
+	{
+		return;
+	}
+
+	ESystemPhase CurrentPhase = ActiveRunner->GetCurrentPhase();
 	if (CurrentPhase == ESystemPhase::Instantiation)
 	{
 		OnInstantiation();
