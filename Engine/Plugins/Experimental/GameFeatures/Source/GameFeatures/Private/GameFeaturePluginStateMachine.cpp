@@ -1344,9 +1344,9 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 		const FString PluginFolder = FPaths::GetPath(StateProperties.PluginInstalledFilename);
 		UGameplayTagsManager::Get().AddTagIniSearchPath(PluginFolder / TEXT("Config") / TEXT("Tags"));
 
-		const FString PreferredGameFeatureDataPath = FString::Printf(TEXT("/%s/%s.%s"), *StateProperties.PluginName, *StateProperties.PluginName, *StateProperties.PluginName);
+		const FString BackupGameFeatureDataPath = FString::Printf(TEXT("/%s/%s.%s"), *StateProperties.PluginName, *StateProperties.PluginName, *StateProperties.PluginName);
 
-		FString BackupGameFeatureDataPath = TEXT("/") + StateProperties.PluginName + TEXT("/GameFeatureData.GameFeatureData");
+		FString PreferredGameFeatureDataPath = TEXT("/") + StateProperties.PluginName + TEXT("/GameFeatureData.GameFeatureData");
 		// Allow game feature location to be overriden globally and from within the plugin
 		FString OverrideIniPathName = StateProperties.PluginName + TEXT("_Override");
 		FString OverridePath = GConfig->GetStr(TEXT("GameFeatureData"), *OverrideIniPathName, GGameIni);
@@ -1362,11 +1362,15 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 		}
 		if (!OverridePath.IsEmpty())
 		{
-			BackupGameFeatureDataPath = OverridePath;
+			PreferredGameFeatureDataPath = OverridePath;
 		}
 		
-		TSharedPtr<FStreamableHandle> GameFeatureDataHandle = UGameFeaturesSubsystem::LoadGameFeatureData(PreferredGameFeatureDataPath);
-		if (!GameFeatureDataHandle.IsValid())
+		TSharedPtr<FStreamableHandle> GameFeatureDataHandle;
+		if (FPackageName::DoesPackageExist(PreferredGameFeatureDataPath))
+		{
+			GameFeatureDataHandle = UGameFeaturesSubsystem::LoadGameFeatureData(PreferredGameFeatureDataPath);
+		}
+		else
 		{
 			GameFeatureDataHandle = UGameFeaturesSubsystem::LoadGameFeatureData(BackupGameFeatureDataPath);
 		}
