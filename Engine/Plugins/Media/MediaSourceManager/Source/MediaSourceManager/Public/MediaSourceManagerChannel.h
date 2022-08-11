@@ -62,6 +62,9 @@ public:
 	void Validate();
 
 	//~ Begin UObject interface
+	virtual void PostInitProperties() override;
+	virtual void BeginDestroy() override;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
@@ -72,4 +75,12 @@ private:
 	UPROPERTY()
 	TObjectPtr<UMediaPlayer> CurrentMediaPlayer = nullptr;
 
+#if WITH_EDITOR
+	
+	/**
+	 * Called when an object is edited.
+	 */
+	void OnObjectPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
+
+#endif // WITH_EDITOR
 };

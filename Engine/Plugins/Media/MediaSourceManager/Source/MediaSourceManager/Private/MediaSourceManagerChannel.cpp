@@ -63,6 +63,29 @@ void UMediaSourceManagerChannel::Play()
 	}
 }
 
+void UMediaSourceManagerChannel::PostInitProperties()
+{
+#if WITH_EDITOR
+	// Don't run on CDO
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this,
+			&UMediaSourceManagerChannel::OnObjectPropertyChanged);
+	}
+#endif // WITH_EDITOR
+
+	Super::PostInitProperties();
+}
+
+void UMediaSourceManagerChannel::BeginDestroy()
+{
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+#endif // WITH_EDITOR
+
+	Super::BeginDestroy();
+}
+
 #if WITH_EDITOR
 
 void UMediaSourceManagerChannel::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -75,6 +98,24 @@ void UMediaSourceManagerChannel::PostEditChangeProperty(FPropertyChangedEvent& P
 		{
 			OutMediaSource->SetMediaSource(InMediaSource);
 			OutMediaSource->MarkPackageDirty();
+		}
+	}
+}
+
+void UMediaSourceManagerChannel::OnObjectPropertyChanged(UObject* ObjectBeingModified,
+	FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// Did our media source change?
+	if (Input != nullptr)
+	{
+		UMediaSource* MediaSource = Input->GetMediaSource();
+		if (MediaSource != nullptr)
+		{
+			if (MediaSource == ObjectBeingModified)
+			{
+				// Restart playback.
+				Play();
+			}
 		}
 	}
 }
