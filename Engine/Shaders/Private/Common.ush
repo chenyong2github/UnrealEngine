@@ -216,6 +216,12 @@ float VectorSum(float4 V) { return V.x + V.y + V.z + V.w; }
 	#define VELOCITY_ENCODE_GAMMA 0
 #endif
 
+#if COMPILER_GLSL_ES3_1
+	#define ENCODED_VELOCITY_TYPE uint4
+#else
+	#define ENCODED_VELOCITY_TYPE float4
+#endif
+
 //Tie Editor features to platform support and the COMPILE_SHADERS_FOR_DEVELOPMENT which is set via CVAR.
 #define USE_EDITOR_SHADERS (PLATFORM_SUPPORTS_EDITOR_SHADERS && USE_DEVELOPMENT_SHADERS)
 
@@ -1691,7 +1697,7 @@ struct FScreenVertexOutput
 // for velocity rendering, motionblur and temporal AA
 // velocity needs to support -2..2 screen space range for x and y
 // texture is 16bit 0..1 range per channel
-float4 EncodeVelocityToTexture(float3 V)
+ENCODED_VELOCITY_TYPE EncodeVelocityToTexture(float3 V)
 {
 	#if VELOCITY_ENCODE_GAMMA
 		V.xy = sign(V.xy) * sqrt(abs(V.xy)) * (2.0 / sqrt(2.0));
@@ -1711,11 +1717,20 @@ float4 EncodeVelocityToTexture(float3 V)
 		EncodedV.zw = 0.0;
 	#endif
 
+#if COMPILER_GLSL_ES3_1
+	return uint4(EncodedV * 65535.0 + 0.5f);
+#else
 	return EncodedV;
+#endif
 }
 // see EncodeVelocityToTexture()
-float3 DecodeVelocityFromTexture(float4 EncodedV)
+float3 DecodeVelocityFromTexture(ENCODED_VELOCITY_TYPE InEncodedV)
 {
+#if COMPILER_GLSL_ES3_1
+	float4 EncodedV = InEncodedV / 65535.0f;
+#else
+	float4 EncodedV = InEncodedV;
+#endif
 	const float InvDiv = 1.0f / (0.499f * 0.5f);
 
 	float3 V;

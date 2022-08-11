@@ -143,6 +143,7 @@ class FTemporalAACS : public FGlobalShader
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthTextureSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GBufferVelocityTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, GBufferVelocityTextureSampler)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, GBufferVelocityTextureSRV)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, StencilTexture)
 
@@ -727,6 +728,8 @@ FTAAOutputs AddTemporalAAPass(
 				ResDivisorInv * InputViewRect.Min.X * InvSizeX,
 				ResDivisorInv * InputViewRect.Min.Y * InvSizeY);
 		}
+
+		PassParameters->GBufferVelocityTextureSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(PassParameters->GBufferVelocityTexture));
 
 		if (View.GetFeatureLevel() <= ERHIFeatureLevel::ES3_1)
 		{

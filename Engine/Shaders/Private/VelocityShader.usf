@@ -148,7 +148,7 @@ void MainPixelShader(
 	FVelocityInterpsVSToPS Input
 	OPTIONAL_IsFrontFace
 	OPTIONAL_OutDepthConservative
-	,out float4 OutColor : SV_Target0
+	,out ENCODED_VELOCITY_TYPE OutColor : SV_Target0
 #if MATERIALBLENDING_MASKED_USING_COVERAGE
 	, out uint OutCoverage : SV_Coverage
 #endif

@@ -370,8 +370,16 @@ EPixelFormat FVelocityRendering::GetFormat(EShaderPlatform ShaderPlatform)
 	const bool bNeedVelocityDepth = (DoesProjectSupportDistanceFields() && FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(ShaderPlatform)) 
 		|| FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(ShaderPlatform);
 
-	// Android platform doesn't support unorm G16R16 format, use G16R16F instead.
-	return bNeedVelocityDepth ? PF_A16B16G16R16 : (IsAndroidOpenGLESPlatform(ShaderPlatform) ? PF_G16R16F : PF_G16R16);
+	// Android GLES platform doesn't support R16G16_UNORM and R16G16B16A16_UNORM format, use R16G16_UINT or R16G16B16A16_UINT instead.
+	const bool bIsAndroidOpenGLESPlatform = IsAndroidOpenGLESPlatform(ShaderPlatform);
+	if (bIsAndroidOpenGLESPlatform)
+	{
+		return bNeedVelocityDepth ? PF_R16G16B16A16_UINT : PF_R16G16_UINT;
+	}
+	else
+	{
+		return bNeedVelocityDepth ? PF_A16B16G16R16 : PF_G16R16;
+	}
 }
 
 FRDGTextureDesc FVelocityRendering::GetRenderTargetDesc(EShaderPlatform ShaderPlatform, FIntPoint Extent)
