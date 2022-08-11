@@ -8,6 +8,9 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectGlobals.h"
+#include "Async/AsyncWork.h"
+
+struct FAssetData;
 
 /**
  * Interface for talking to Uncontrolled Changelists
@@ -78,7 +81,7 @@ public:
 	 * Delegate callback called when assets are added to AssetRegistry.
 	 * @param 	AssetData 	The asset just added.
 	 */
-	void OnAssetAdded(const struct FAssetData& AssetData);
+	void OnAssetAdded(const FAssetData& AssetData);
 
 	/**
 	 * Delegate callback called when an asset is loaded.
@@ -116,6 +119,15 @@ public:
 	void MoveFilesToControlledChangelist(const TArray<FString>& InUncontrolledFiles, const FSourceControlChangelistPtr& InChangelist);
 
 private:
+	/**
+	 * Helper use by Startup task and OnAssetLoaded delegate.
+	 * @param 	InAssetData 		The asset just added.
+	 * @param  	InAddedAssetsCache 	The cache to add the asset to.
+	 * @param	bInStartupTask		If true, this asset was added from the startup task.
+	 * 
+	 */
+	void OnAssetAddedInternal(const FAssetData& InAssetData, TSet<FString>& InAddedAssetsCache, bool bInStartupTask);
+
 	/**
 	 * Saves the state of UncontrolledChangelists to Json for persistency.
 	 */
@@ -161,8 +173,32 @@ private:
 	bool AddFilesToDefaultUncontrolledChangelist(const TArray<FString>& InFilenames, const FUncontrolledChangelistState::ECheckFlags InCheckFlags);
 
 private:
+	class FStartupTask : public FNonAbandonableTask
+	{
+	public:
+		
+		FStartupTask(FUncontrolledChangelistsModule* InOwner)
+			: Owner(InOwner)
+		{}
+		~FStartupTask() {}
+		
+		TStatId GetStatId() const
+		{
+			RETURN_QUICK_DECLARE_CYCLE_STAT(FStartupTask, STATGROUP_ThreadPoolAsyncTasks);
+		}
+		
+		void DoWork();
+		const TSet<FString>& GetAddedAssetsCache() const { return AddedAssetsCache; }
+	
+	private:
+		FUncontrolledChangelistsModule* Owner;
+		TSet<FString> AddedAssetsCache;
+	};
+
+	TUniquePtr<FAsyncTask<FStartupTask>> StartupTask;
 	FUncontrolledChangelistsStateCache	UncontrolledChangelistsStateCache;
 	TSet<FString>						AddedAssetsCache;
 	FDelegateHandle						OnAssetAddedDelegateHandle;
 	FDelegateHandle						OnObjectPreSavedDelegateHandle;
+	bool								bIsEnabled = false;
 };
