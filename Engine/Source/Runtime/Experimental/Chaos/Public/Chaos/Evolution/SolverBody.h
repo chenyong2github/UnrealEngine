@@ -256,16 +256,26 @@ namespace Chaos
 		}
 
 		/**
+		 * @brief Get the world-space Actor position 
+		*/
+		inline FVec3 ActorP() const { return P() - ActorQ().RotateVector(CoM()); }
+
+		/**
+		 * @brief Get the world-space Actor rotation 
+		*/
+		inline FRotation3 ActorQ() const { return Q() * RoM().Inverse(); }
+
+		/**
 		 * @brief Get the current world-space Actor position 
 		 * @note This is recalculated from the current CoM transform including the accumulated position and rotation corrections.
 		*/
-		inline FVec3 ActorP() const { return CorrectedP() - ActorQ().RotateVector(CoM()); }
+		inline FVec3 CorrectedActorP() const { return CorrectedP() - CorrectedActorQ().RotateVector(CoM()); }
 
 		/**
 		 * @brief Get the current world-space Actor rotation
 		 * @note This is recalculated from the current CoM transform including the accumulated position and rotation corrections.
 		*/
-		inline FRotation3 ActorQ() const { return CorrectedQ() * RoM().Inverse(); }
+		inline FRotation3 CorrectedActorQ() const { return CorrectedQ() * RoM().Inverse(); }
 
 		/**
 		 * @brief Contact graph level. This is used in shock propagation to determine which of two bodies should have its inverse mass scaled
@@ -515,6 +525,8 @@ namespace Chaos
 		inline const FRotation3& Q() const { return Body->Q(); }
 		inline const FVec3 ActorP() const { return Body->ActorP(); }
 		inline const FRotation3 ActorQ() const { return Body->ActorQ(); }
+		inline const FVec3 CorrectedActorP() const { return Body->CorrectedActorP(); }
+		inline const FRotation3 CorrectedActorQ() const { return Body->CorrectedActorQ(); }
 		inline const FVec3& V() const { return Body->V(); }
 		inline const FVec3& W() const { return Body->W(); }
 		inline int32 Level() const { return Body->Level(); }

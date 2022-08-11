@@ -3,6 +3,7 @@
 
 #include "Chaos/Collision/CollisionApplyType.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
+#include "Chaos/CollisionResolution.h"
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
 #include "Chaos/Particle/ParticleUtilities.h"
@@ -621,7 +622,23 @@ namespace Chaos
 			FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[SolverIndex];
 			if (!CollisionSolver.IsManifold() || CollisionSolver.IsIncrementalManifold() || bDeferredCollisionDetection)
 			{
-				Collisions::Update(*CollisionSolver.GetConstraint(), Dt);
+				FPBDCollisionConstraint* Constraint = CollisionSolver.GetConstraint();
+
+				// Run collision detection at the current transforms including any correction from previous iterations
+				const FSolverBody& Body0 = CollisionSolver.GetSolver().SolverBody0().SolverBody();
+				const FSolverBody& Body1 = CollisionSolver.GetSolver().SolverBody1().SolverBody();
+				const FRigidTransform3 CorrectedActorWorldTransform0 = FRigidTransform3(Body0.CorrectedActorP(), Body0.CorrectedActorQ());
+				const FRigidTransform3 CorrectedActorWorldTransform1 = FRigidTransform3(Body1.CorrectedActorP(), Body1.CorrectedActorQ());
+				const FRigidTransform3 CorrectedShapeWorldTransform0 = Constraint->GetShapeRelativeTransform0() * CorrectedActorWorldTransform0;
+				const FRigidTransform3 CorrectedShapeWorldTransform1 = Constraint->GetShapeRelativeTransform1() * CorrectedActorWorldTransform1;
+
+				// NOTE: We deliberately have not updated the ShapwWorldTranforms on the constraint. If we did that, we would calculate 
+				// errors incorrectly in UpdateManifoldPoints, because the solver assumes nothing has been moved as we iterate (we accumulate 
+				// corrections that will be applied later.)
+				Constraint->ResetPhi(Constraint->GetCullDistance());
+				Collisions::UpdateConstraint(*Constraint, CorrectedShapeWorldTransform0, CorrectedShapeWorldTransform1, Dt);
+
+				// Update the manifold based on the new or updated contacts
 				CollisionSolver.UpdateManifoldPoints(Dt);
 			}
 		}
