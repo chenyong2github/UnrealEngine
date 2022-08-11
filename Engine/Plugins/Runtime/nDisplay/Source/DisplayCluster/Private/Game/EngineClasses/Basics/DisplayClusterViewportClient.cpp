@@ -830,7 +830,6 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 			ViewFamilies[0]->bAdditionalViewFamily = false;
 			ViewFamilies[0]->bIsFirstViewInMultipleViewFamily = true;
 			ViewFamilies[0]->bIsMultipleViewFamily = true;
-			ViewFamilies[0]->MultipleViewFamilyIndex = 0;
 
 			for (int32 FamilyIndex = 1; FamilyIndex < ViewFamilies.Num(); FamilyIndex++)
 			{
@@ -838,7 +837,6 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 				ViewFamily.bAdditionalViewFamily = true;
 				ViewFamily.bIsFirstViewInMultipleViewFamily = false;
 				ViewFamily.bIsMultipleViewFamily = true;
-				ViewFamily.MultipleViewFamilyIndex = FamilyIndex;
 			}
 		}
 

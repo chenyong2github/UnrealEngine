@@ -4569,7 +4569,10 @@ void FRendererModule::BeginRenderingViewFamilies(FCanvas* Canvas, TArrayView<FSc
 	if (Scene)
 	{
 		// We allow caching of per-frame, per-scene data
-		Scene->IncrementFrameNumber();
+		if (ViewFamilies[0]->bIsFirstViewInMultipleViewFamily)
+		{
+			Scene->IncrementFrameNumber();
+		}
 		for (FSceneViewFamily* ViewFamily : ViewFamilies)
 		{
 			ViewFamily->FrameNumber = Scene->GetFrameNumber();
