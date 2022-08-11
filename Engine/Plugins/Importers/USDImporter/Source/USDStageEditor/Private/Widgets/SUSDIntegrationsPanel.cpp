@@ -5,6 +5,7 @@
 #if USE_USD_SDK
 
 #include "SUSDStageEditorStyle.h"
+#include "USDAttributeUtils.h"
 #include "USDIntegrationUtils.h"
 #include "USDTypesConversion.h"
 #include "USDValueConversion.h"
@@ -109,6 +110,10 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 
 		FName TypeName = Attribute->GetTypeName();
 		TSharedPtr<UE::FUsdAttribute> AttributeCopy = Attribute;
+		if ( !AttributeCopy || !*AttributeCopy )
+		{
+			return ColumnWidget;
+		}
 
 		if ( AttributeName == *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealAnimBlueprintPath ) )
 		{
@@ -158,6 +163,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 					{
 						UE::FSdfChangeBlock Block;
 						AttributeCopy->Set( Value );
+						UsdUtils::NotifyIfOverriddenOpinion( *AttributeCopy );
 					}
 				} );
 				PropertyView->SetOnPropertyValueChanged( PropertyChanged );
@@ -215,6 +221,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 					{
 						UE::FSdfChangeBlock Block;
 						AttributeCopy->Set( Value );
+						UsdUtils::NotifyIfOverriddenOpinion( *AttributeCopy );
 					}
 				} );
 				PropertyView->SetOnPropertyValueChanged( PropertyChanged );
@@ -273,6 +280,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 					{
 						UE::FSdfChangeBlock Block;
 						AttributeCopy->Set( Value );
+						UsdUtils::NotifyIfOverriddenOpinion( *AttributeCopy );
 					}
 				})
 			];
@@ -298,6 +306,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 					{
 						UE::FSdfChangeBlock Block;
 						AttributeCopy->Set( Value );
+						UsdUtils::NotifyIfOverriddenOpinion( *AttributeCopy );
 					}
 				})
 				.Value_Lambda( [AttributeCopy]() -> float
@@ -364,6 +373,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 				{
 					UE::FSdfChangeBlock Block;
 					AttributeCopy->Set( Value );
+					UsdUtils::NotifyIfOverriddenOpinion( *AttributeCopy );
 				}
 			});
 		}
@@ -402,6 +412,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 					{
 						UE::FSdfChangeBlock Block;
 						AttributeCopy->Set( Value );
+						UsdUtils::NotifyIfOverriddenOpinion( *AttributeCopy );
 					}
 				})
 			];

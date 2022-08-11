@@ -3,6 +3,7 @@
 #include "USDLightConversion.h"
 
 #include "USDAssetCache.h"
+#include "USDAttributeUtils.h"
 #include "USDConversionUtils.h"
 #include "USDLayerUtils.h"
 #include "USDLog.h"
@@ -11,6 +12,7 @@
 
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/SdfPath.h"
+#include "UsdWrappers/UsdAttribute.h"
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
@@ -413,6 +415,7 @@ bool UnrealToUsd::ConvertLightComponent( const ULightComponentBase& LightCompone
 	if ( pxr::UsdAttribute Attr = LightAPI.CreateIntensityAttr() )
 	{
 		Attr.Set<float>( LightComponent.Intensity, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	// When converting into UE we multiply intensity and exposure together, so when writing back we just
@@ -420,6 +423,7 @@ bool UnrealToUsd::ConvertLightComponent( const ULightComponentBase& LightCompone
 	if ( pxr::UsdAttribute Attr = LightAPI.CreateExposureAttr() )
 	{
 		Attr.Set<float>( 0.0f, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	if ( const ULightComponent* DerivedLightComponent = Cast<ULightComponent>( &LightComponent ) )
@@ -427,11 +431,13 @@ bool UnrealToUsd::ConvertLightComponent( const ULightComponentBase& LightCompone
 		if ( pxr::UsdAttribute Attr = LightAPI.CreateEnableColorTemperatureAttr() )
 		{
 			Attr.Set<bool>( DerivedLightComponent->bUseTemperature, UsdTimeCode );
+			UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 		}
 
 		if ( pxr::UsdAttribute Attr = LightAPI.CreateColorTemperatureAttr() )
 		{
 			Attr.Set<float>( DerivedLightComponent->Temperature, UsdTimeCode );
+			UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 		}
 	}
 
@@ -439,6 +445,7 @@ bool UnrealToUsd::ConvertLightComponent( const ULightComponentBase& LightCompone
 	{
 		pxr::GfVec4f LinearColor = UnrealToUsd::ConvertColor( LightComponent.LightColor );
 		Attr.Set<pxr::GfVec3f>( pxr::GfVec3f( LinearColor[0], LinearColor[1], LinearColor[2] ), UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	return true;
@@ -462,6 +469,7 @@ bool UnrealToUsd::ConvertDirectionalLightComponent( const UDirectionalLightCompo
 	if ( pxr::UsdAttribute Attr = Light.CreateAngleAttr() )
 	{
 		Attr.Set<float>( LightComponent.LightSourceAngle, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	// USD intensity units should be in Nits == Lux / Steradian, but there is no
@@ -498,6 +506,7 @@ bool UnrealToUsd::ConvertRectLightComponent( const URectLightComponent& LightCom
 		if ( pxr::UsdAttribute Attr = DiskLight.CreateRadiusAttr() )
 		{
 			Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, Radius ), UsdTimeCode );
+			UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 		}
 	}
 	// Rect light
@@ -508,11 +517,13 @@ bool UnrealToUsd::ConvertRectLightComponent( const URectLightComponent& LightCom
 		if ( pxr::UsdAttribute Attr = RectLight.CreateWidthAttr() )
 		{
 			Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, LightComponent.SourceWidth ), UsdTimeCode );
+			UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 		}
 
 		if ( pxr::UsdAttribute Attr = RectLight.CreateHeightAttr() )
 		{
 			Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, LightComponent.SourceHeight ), UsdTimeCode );
+			UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 		}
 	}
 	else
@@ -558,6 +569,7 @@ bool UnrealToUsd::ConvertRectLightComponent( const URectLightComponent& LightCom
 		}
 
 		Attr.Set<float>( FinalIntensityNits, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	return true;
@@ -583,11 +595,13 @@ bool UnrealToUsd::ConvertPointLightComponent( const UPointLightComponent& LightC
 	if ( pxr::UsdAttribute Attr = Light.CreateRadiusAttr() )
 	{
 		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, LightComponent.SourceRadius ), UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	if ( pxr::UsdAttribute Attr = Light.CreateTreatAsPointAttr() )
 	{
 		Attr.Set<bool>( FMath::IsNearlyZero( LightComponent.SourceRadius ), UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	float SolidAngle = 4.f * PI;
@@ -625,6 +639,7 @@ bool UnrealToUsd::ConvertPointLightComponent( const UPointLightComponent& LightC
 		}
 
 		Attr.Set<float>( FinalIntensityNits, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	return true;
@@ -666,6 +681,7 @@ bool UnrealToUsd::ConvertSkyLightComponent( const USkyLightComponent& LightCompo
 
 				UsdUtils::MakePathRelativeToLayer( UE::FSdfLayer{ Prim.GetStage()->GetEditTarget().GetLayer() }, FilePath );
 				Attr.Set<pxr::SdfAssetPath>( pxr::SdfAssetPath{ UnrealToUsd::ConvertString( *FilePath ).Get() }, UsdTimeCode );
+				UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 			}
 		}
 	}
@@ -687,6 +703,7 @@ bool UnrealToUsd::ConvertSpotLightComponent( const USpotLightComponent& LightCom
 	if ( pxr::UsdAttribute ConeAngleAttr = ShapingAPI.CreateShapingConeAngleAttr() )
 	{
 		ConeAngleAttr.Set<float>( LightComponent.OuterConeAngle, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ ConeAngleAttr } );
 	}
 
 	// As of March 2021 there doesn't seem to be a consensus on what softness means, according to https://groups.google.com/g/usd-interest/c/A6bc4OZjSB0
@@ -696,6 +713,7 @@ bool UnrealToUsd::ConvertSpotLightComponent( const USpotLightComponent& LightCom
 		// Keep in [0, 1] range, where 1 is maximum softness, i.e. inner cone angle is zero
 		const float Softness = FMath::IsNearlyZero( LightComponent.OuterConeAngle ) ? 0.0 : 1.0f - LightComponent.InnerConeAngle / LightComponent.OuterConeAngle;
 		SoftnessAttr.Set<float>( Softness, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ SoftnessAttr } );
 	}
 
 	return true;

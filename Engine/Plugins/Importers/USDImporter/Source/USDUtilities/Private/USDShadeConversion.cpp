@@ -6,6 +6,7 @@
 
 #include "USDAssetCache.h"
 #include "USDAssetImportData.h"
+#include "USDAttributeUtils.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
@@ -14,6 +15,7 @@
 #include "USDTypesConversion.h"
 
 #include "UsdWrappers/SdfLayer.h"
+#include "UsdWrappers/UsdAttribute.h"
 #include "UsdWrappers/UsdPrim.h"
 
 #include "Algo/AllOf.h"
@@ -2348,6 +2350,7 @@ bool UsdUtils::MarkMaterialPrimWithWorldSpaceNormals( const UE::FUsdPrim& Materi
 	}
 
 	Attr.Set<bool>( true );
+	UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	return true;
 }
 

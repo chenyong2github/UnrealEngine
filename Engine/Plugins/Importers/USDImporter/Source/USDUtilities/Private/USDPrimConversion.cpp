@@ -3,6 +3,7 @@
 #include "USDPrimConversion.h"
 
 #include "UnrealUSDWrapper.h"
+#include "USDAttributeUtils.h"
 #include "USDConversionUtils.h"
 #include "USDLayerUtils.h"
 #include "USDLightConversion.h"
@@ -1525,26 +1526,31 @@ bool UnrealToUsd::ConvertCameraComponent( const UCineCameraComponent& CameraComp
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFocalLengthAttr() )
 	{
 		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent.CurrentFocalLength ), UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFocusDistanceAttr() )
 	{
 		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent.FocusSettings.ManualFocusDistance ), UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFStopAttr() )
 	{
 		Attr.Set<float>( CameraComponent.CurrentAperture, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateHorizontalApertureAttr() )
 	{
 		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent.Filmback.SensorWidth ), UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateVerticalApertureAttr() )
 	{
 		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent.Filmback.SensorHeight ), UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	return true;
@@ -2095,6 +2101,7 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 		}
 
 		VisibilityAttr.Set<pxr::TfToken>( Value );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ VisibilityAttr } );
 	}
 
 	return true;
@@ -2361,21 +2368,25 @@ bool UnrealToUsd::ConvertHierarchicalInstancedStaticMeshComponent( const UHierar
 	if ( UsdAttribute Attr = PointInstancer.CreateProtoIndicesAttr() )
 	{
 		Attr.Set( ProtoIndices, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	if ( UsdAttribute Attr = PointInstancer.CreatePositionsAttr() )
 	{
 		Attr.Set( Positions, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	if ( UsdAttribute Attr = PointInstancer.CreateOrientationsAttr() )
 	{
 		Attr.Set( Orientations, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	if ( UsdAttribute Attr = PointInstancer.CreateScalesAttr() )
 	{
 		Attr.Set( Scales, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	return true;
@@ -2415,6 +2426,9 @@ bool UnrealToUsd::ConvertXformable( const FTransform& RelativeTransform, pxr::Us
 	if ( pxr::UsdGeomXformOp MatrixXform = UE::USDPrimConversionImpl::Private::ForceMatrixXform( XForm ) )
 	{
 		MatrixXform.Set( UsdTransform, UsdTimeCode );
+
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ MatrixXform.GetAttr() } );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ XForm.GetXformOpOrderAttr() } );
 	}
 
 	return true;
@@ -2551,21 +2565,25 @@ bool UnrealToUsd::ConvertInstancedFoliageActor( const AInstancedFoliageActor& Ac
 	if ( UsdAttribute Attr = PointInstancer.CreateProtoIndicesAttr() )
 	{
 		Attr.Set( ProtoIndices, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	if ( UsdAttribute Attr = PointInstancer.CreatePositionsAttr() )
 	{
 		Attr.Set( Positions, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	if ( UsdAttribute Attr = PointInstancer.CreateOrientationsAttr() )
 	{
 		Attr.Set( Orientations, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	if ( UsdAttribute Attr = PointInstancer.CreateScalesAttr() )
 	{
 		Attr.Set( Scales, UsdTimeCode );
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	return true;
@@ -3431,6 +3449,8 @@ UnrealToUsd::FPropertyTrackWriter UnrealToUsd::CreatePropertyTrackWriter( const 
 		{
 			Attr.ClearAtTime( TimeSample );
 		}
+
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
 	}
 
 	return Result;

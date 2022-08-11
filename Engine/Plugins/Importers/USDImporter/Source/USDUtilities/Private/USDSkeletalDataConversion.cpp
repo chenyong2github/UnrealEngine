@@ -4,6 +4,7 @@
 
 #include "UnrealUSDWrapper.h"
 #include "USDAssetImportData.h"
+#include "USDAttributeUtils.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDGeomMeshConversion.h"
@@ -14,6 +15,7 @@
 
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/SdfPath.h"
+#include "UsdWrappers/UsdAttribute.h"
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
@@ -3269,6 +3271,11 @@ bool UnrealToUsd::ConvertControlRigSection(
 		EndInclTickFrame = UpperBoundToUse.GetValue().GetValue() + ( UpperBoundToUse.GetValue().IsInclusive() ? 0 : -1 );
 	}
 
+	UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ BlendShapeWeightsAttr } );
+	UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ TranslationsAttr } );
+	UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ RotationsAttr } );
+	UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ ScalesAttr } );
+
 	pxr::VtArray<pxr::TfToken> CurveNames;
 	pxr::VtArray<float> CurvesValuesForTime;
 
@@ -3401,6 +3408,7 @@ bool UnrealToUsd::ConvertControlRigSection(
 						if ( bRenamedAChannel )
 						{
 							ChannelsAttr.Set( BlendShapeChannels );
+							UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ ChannelsAttr } );
 						}
 					}
 				}
@@ -3412,6 +3420,8 @@ bool UnrealToUsd::ConvertControlRigSection(
 		BlendShapeWeightsAttr.Clear();
 		BlendShapesAttr.Set( CurveNames );
 		CurvesValuesForTime.resize( CurveNames.size() );
+
+		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ BlendShapesAttr } );
 	}
 
 	FFrameTime TickIncr = FFrameRate::TransformTime( 1, DisplayRate, TickResolution );

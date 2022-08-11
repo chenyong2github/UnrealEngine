@@ -14,9 +14,14 @@ class UUsdProjectSettings : public UDeveloperSettings
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(config, EditAnywhere, Category=General)
+	// Additional paths to check for USD plugins
+	UPROPERTY( config, EditAnywhere, Category = USD )
 	TArray<FDirectoryPath> AdditionalPluginDirectories;
 
 	UPROPERTY( config, EditAnywhere, Category = USD )
 	bool bShowConfirmationWhenClearingLayers = true;
+
+	// Whether to show the warning dialog when authoring opinions that could have no effect on the composed stage
+	UPROPERTY( config, EditAnywhere, Category = USD )
+	bool bShowOverriddenOpinionsWarning = true;
 };
