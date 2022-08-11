@@ -30,6 +30,9 @@ namespace Chaos
 			, Mass1((FReal)0.0)
 			, Mass2((FReal)0.0)
 			, PenetrationDepth((FReal)0.0)
+			, Mat1(FMaterialHandle())
+			, Mat2(FMaterialHandle())
+			, bProbe(false)
 			, Proxy1(nullptr)
 			, Proxy2(nullptr)
 		{}
@@ -48,6 +51,9 @@ namespace Chaos
 			, Mass1(InMass1)
 			, Mass2(InMass2)
 			, PenetrationDepth(InPenetrationDepth)
+			, Mat1(FMaterialHandle())
+			, Mat2(FMaterialHandle())
+			, bProbe(false)
 			, Proxy1(InProxy1)
 			, Proxy2(InProxy2)
 		{}
@@ -66,6 +72,7 @@ namespace Chaos
 		FReal PenetrationDepth;
 		FMaterialHandle Mat1;
 		FMaterialHandle Mat2;
+		bool bProbe;
 
 		// The pointers to the proxies should be used with caution on the Game Thread.
 		// Ideally we only ever use these as table keys when acquiring related structures.

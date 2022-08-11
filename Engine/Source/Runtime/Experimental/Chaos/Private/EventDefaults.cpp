@@ -160,8 +160,6 @@ namespace Chaos
 								const FKinematicGeometryParticleHandle* Secondary = Body0 ? Body1 : Body0;
 
 								//
-								const bool bIsProbe = Constraint.IsProbe();
-								const bool bUseManifold = Constraint.GetUseManifold();
 								const int32 NumManifoldPoints = Constraint.GetManifoldPoints().Num();
 
 								if (((Constraint.IsProbe() && NumManifoldPoints > 0) || !Constraint.AccumulatedImpulse.IsZero()) && Primary)
@@ -210,6 +208,7 @@ namespace Chaos
 								Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
 								Data.Normal = Constraint.CalculateWorldContactNormal();
 								Data.PenetrationDepth = Constraint.GetPhi();
+								Data.bProbe = Constraint.GetIsProbe();
 
 								// @todo(chaos): fix this casting
 								Data.Proxy1 = Particle0 ? const_cast<IPhysicsProxyBase*>(Particle0->PhysicsProxy()) : nullptr;
