@@ -117,7 +117,7 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12UpdateUniformBufferTime);
 
-	if (Validation == EUniformBufferValidation::ValidateResources)
+	if (Contents && Validation == EUniformBufferValidation::ValidateResources)
 	{
 		ValidateShaderParameterResourcesRHI(Contents, *Layout);
 	}
@@ -143,33 +143,38 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 			// Create an offline CBV descriptor
 			NewUniformBuffer->View = new FD3D12ConstantBufferView(Device);
 #endif
-			void* MappedData = nullptr;
-			if (Usage == EUniformBufferUsage::UniformBuffer_MultiFrame)
-			{
-				// Uniform buffers that live for multiple frames must use the more expensive and persistent allocation path
-				FD3D12UploadHeapAllocator& Allocator = GetAdapter().GetUploadHeapAllocator(Device->GetGPUIndex());
-				MappedData = Allocator.AllocUploadResource(NumBytesActualData, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, NewUniformBuffer->ResourceLocation);
-			}
-			else
-			{
-				// Uniform buffers which will live for 1 frame at the max can be allocated very efficiently from a ring buffer
-				FD3D12FastConstantAllocator& Allocator = GetAdapter().GetTransientUniformBufferAllocator();
-				MappedData = Allocator.Allocate(NumBytesActualData, NewUniformBuffer->ResourceLocation, nullptr);
-			}
-			check(NewUniformBuffer->ResourceLocation.GetOffsetFromBaseOfResource() % 16 == 0);
 
-			// Copy the data to the upload heap
-			check(MappedData != nullptr);
+			// Uniform buffers can be created without contents and updated later.
+			if (Contents)
+			{
+				void* MappedData = nullptr;
+				if (Usage == EUniformBufferUsage::UniformBuffer_MultiFrame)
+				{
+					// Uniform buffers that live for multiple frames must use the more expensive and persistent allocation path
+					FD3D12UploadHeapAllocator& Allocator = GetAdapter().GetUploadHeapAllocator(Device->GetGPUIndex());
+					MappedData = Allocator.AllocUploadResource(NumBytesActualData, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT, NewUniformBuffer->ResourceLocation);
+				}
+				else
+				{
+					// Uniform buffers which will live for 1 frame at the max can be allocated very efficiently from a ring buffer
+					FD3D12FastConstantAllocator& Allocator = GetAdapter().GetTransientUniformBufferAllocator();
+					MappedData = Allocator.Allocate(NumBytesActualData, NewUniformBuffer->ResourceLocation, nullptr);
+				}
+				check(NewUniformBuffer->ResourceLocation.GetOffsetFromBaseOfResource() % 16 == 0);
 
-			UpdateUniformBufferConstants(MappedData, Contents, Layout);
+				// Copy the data to the upload heap
+				check(MappedData != nullptr);
+
+				UpdateUniformBufferConstants(MappedData, Contents, Layout);
 
 #if USE_STATIC_ROOT_SIGNATURE
-			NewUniformBuffer->View->Create(NewUniformBuffer->ResourceLocation.GetGPUVirtualAddress(), NumBytesActualData);
+				NewUniformBuffer->View->Create(NewUniformBuffer->ResourceLocation.GetGPUVirtualAddress(), NumBytesActualData);
 #endif
+			}
 		}
 
 		// The GPUVA is used to see if this uniform buffer contains constants or is just a resource table.
-		check((NumBytesActualData > 0) ? (0 != NewUniformBuffer->ResourceLocation.GetGPUVirtualAddress()) : (0 == NewUniformBuffer->ResourceLocation.GetGPUVirtualAddress()));
+		check((Contents && NumBytesActualData > 0) ? (0 != NewUniformBuffer->ResourceLocation.GetGPUVirtualAddress()) : (0 == NewUniformBuffer->ResourceLocation.GetGPUVirtualAddress()));
 		return NewUniformBuffer;
 	});
 
@@ -181,11 +186,14 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 
 		for (FD3D12UniformBuffer& CurrentBuffer : *UniformBufferOut)
 		{
-			CurrentBuffer.ResourceTable.Empty(NumResources);
-			for (int32 Index = 0; Index < NumResources; ++Index)
+			CurrentBuffer.ResourceTable.SetNumZeroed(NumResources);
+
+			if (Contents)
 			{
-				//Emplace here instead of assignation prevents a lot of boiler plate code for the destruction/release of TSharedPtr from being generated at all.
-				CurrentBuffer.ResourceTable.Emplace(GetShaderParameterResourceRHI(Contents, Layout->Resources[Index].MemberOffset, Layout->Resources[Index].MemberType));
+				for (int32 Index = 0; Index < NumResources; ++Index)
+				{
+					CurrentBuffer.ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, Layout->Resources[Index].MemberOffset, Layout->Resources[Index].MemberType);
+				}
 			}
 		}
 	}

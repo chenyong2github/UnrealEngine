@@ -588,10 +588,11 @@ namespace RHIValidation
 	struct FUniformBufferResource
 	{
 		uint64 AllocatedFrameID = 0;
+		bool bContainsNullContents = false;
 		EUniformBufferUsage UniformBufferUsage;
 		void* AllocatedCallstack;
 
-		void InitLifetimeTracking(uint64 FrameID, EUniformBufferUsage Usage);
+		void InitLifetimeTracking(uint64 FrameID, const void* Contents, EUniformBufferUsage Usage);
 		void UpdateAllocation(uint64 FrameID);
 		void ValidateLifeTime();
 	};	

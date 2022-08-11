@@ -22,8 +22,11 @@ FMetalSuballocatedUniformBuffer::FMetalSuballocatedUniformBuffer(const void *Con
     , Validation(InValidation)
 #endif // METAL_UNIFORM_BUFFER_VALIDATION
 {
-	FMemory::Memcpy(Shadow, Contents, GetSize());
-	CopyResourceTable(Contents, ResourceTable);
+	if (Contents)
+	{
+		FMemory::Memcpy(Shadow, Contents, GetSize());
+		CopyResourceTable(Contents, ResourceTable);
+	}
 }
 
 FMetalSuballocatedUniformBuffer::~FMetalSuballocatedUniformBuffer()

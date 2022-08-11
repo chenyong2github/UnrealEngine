@@ -1581,10 +1581,11 @@ namespace RHIValidation
 	}
 
 
-	void FUniformBufferResource::InitLifetimeTracking(uint64 FrameID, EUniformBufferUsage Usage)
+	void FUniformBufferResource::InitLifetimeTracking(uint64 FrameID, const void* Contents, EUniformBufferUsage Usage)
 	{
 		AllocatedFrameID = FrameID;
 		UniformBufferUsage = Usage;
+		bContainsNullContents = Contents == nullptr;
 
 #if CAPTURE_UNIFORMBUFFER_ALLOCATION_BACKTRACES
 		AllocatedCallstack = (UniformBufferUsage != UniformBuffer_MultiFrame) ? RHIValidation::CaptureBacktrace() : nullptr;
@@ -1596,6 +1597,7 @@ namespace RHIValidation
 	void FUniformBufferResource::UpdateAllocation(uint64 FrameID)
 	{
 		AllocatedFrameID = FrameID;
+		bContainsNullContents = false;
 
 #if CAPTURE_UNIFORMBUFFER_ALLOCATION_BACKTRACES
 		AllocatedCallstack = (UniformBufferUsage != UniformBuffer_MultiFrame) ? RHIValidation::CaptureBacktrace() : nullptr;
@@ -1607,6 +1609,9 @@ namespace RHIValidation
 	void FUniformBufferResource::ValidateLifeTime()
 	{
 		FValidationRHI* ValidateRHI = (FValidationRHI*)GDynamicRHI;
+
+		RHI_VALIDATION_CHECK(bContainsNullContents == false, TEXT("Uniform buffer created with null contents is now being bound for rendering on an RHI context. The contents must first be updated."));
+
 		if (UniformBufferUsage != UniformBuffer_MultiFrame && AllocatedFrameID != ValidateRHI->RHIThreadFrameID)
 		{
 			FString ErrorMessage = TEXT("Non MultiFrame Uniform buffer has been allocated in a previous frame. The data could have been deleted already!");
@@ -1615,7 +1620,7 @@ namespace RHIValidation
 				ErrorMessage += FString::Printf(TEXT("\nAllocation callstack: (void**)0x%p,32"), AllocatedCallstack);
 			}
 			RHI_VALIDATION_CHECK(false, *ErrorMessage);
-		}		
+		}
 	}
 
 	

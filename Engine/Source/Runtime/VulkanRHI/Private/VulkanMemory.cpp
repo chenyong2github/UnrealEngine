@@ -3561,8 +3561,12 @@ namespace VulkanRHI
 			HandleOOM(false);
 			checkNoEntry();
 		}
-		FMemory::Memcpy(OutAllocation.GetMappedPointer(Device), Contents, Size);
-		OutAllocation.FlushMappedMemory(Device);
+
+		if (Contents)
+		{
+			FMemory::Memcpy(OutAllocation.GetMappedPointer(Device), Contents, Size);
+			OutAllocation.FlushMappedMemory(Device);
+		}
 	}
 	void FMemoryManager::FreeUniformBuffer(FVulkanAllocation& InAllocation)
 	{

@@ -113,9 +113,13 @@ FVulkanUniformBuffer::FVulkanUniformBuffer(FVulkanDevice& Device, const FRHIUnif
 		// Transfer the resource table to an internal resource-array
 		ResourceTable.Empty(NumResources);
 		ResourceTable.AddZeroed(NumResources);
-		for (uint32 Index = 0; Index < NumResources; ++Index)
+
+		if (Contents)
 		{
-			ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, InLayout->Resources[Index].MemberOffset, InLayout->Resources[Index].MemberType);
+			for (uint32 Index = 0; Index < NumResources; ++Index)
+			{
+				ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, InLayout->Resources[Index].MemberOffset, InLayout->Resources[Index].MemberType);
+			}
 		}
 	}
 
@@ -126,29 +130,32 @@ FVulkanUniformBuffer::FVulkanUniformBuffer(FVulkanDevice& Device, const FRHIUnif
 
 		if (UseRingBuffer(InUsage) && (bInRenderingThread || bInRHIThread))
 		{
-			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-			FVulkanUniformBuffer* UniformBuffer = this;
-			int32 DataSize = InLayout->ConstantBufferSize;
-			
-			// make sure we allocate from RingBuffer on RHIT
-			const bool bCanAllocOnThisThread = RHICmdList.Bypass() || (!IsRunningRHIInSeparateThread() && bInRenderingThread) || bInRHIThread;
-			if (bCanAllocOnThisThread)
+			if (Contents)
 			{
-				FVulkanCommandListContextImmediate& Context = Device.GetImmediateContext();
-				UpdateUniformBufferHelper(Context, UniformBuffer, DataSize, Contents);
-			}
-			else
-			{
-				void* CmdListConstantBufferData = RHICmdList.Alloc(DataSize, 16);
-				FMemory::Memcpy(CmdListConstantBufferData, Contents, DataSize);
-				
-				RHICmdList.EnqueueLambda([UniformBuffer, DataSize, CmdListConstantBufferData](FRHICommandList& CmdList)
-				{
-					FVulkanCommandListContext& Context = FVulkanCommandListContext::GetVulkanContext(CmdList.GetContext());
-					UpdateUniformBufferHelper(Context, UniformBuffer, DataSize, CmdListConstantBufferData);
-				});
+				FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+				FVulkanUniformBuffer* UniformBuffer = this;
+				int32 DataSize = InLayout->ConstantBufferSize;
 
-				RHICmdList.RHIThreadFence(true);
+				// make sure we allocate from RingBuffer on RHIT
+				const bool bCanAllocOnThisThread = RHICmdList.Bypass() || (!IsRunningRHIInSeparateThread() && bInRenderingThread) || bInRHIThread;
+				if (bCanAllocOnThisThread)
+				{
+					FVulkanCommandListContextImmediate& Context = Device.GetImmediateContext();
+					UpdateUniformBufferHelper(Context, UniformBuffer, DataSize, Contents);
+				}
+				else
+				{
+					void* CmdListConstantBufferData = RHICmdList.Alloc(DataSize, 16);
+					FMemory::Memcpy(CmdListConstantBufferData, Contents, DataSize);
+
+					RHICmdList.EnqueueLambda([UniformBuffer, DataSize, CmdListConstantBufferData](FRHICommandList& CmdList)
+					{
+						FVulkanCommandListContext& Context = FVulkanCommandListContext::GetVulkanContext(CmdList.GetContext());
+						UpdateUniformBufferHelper(Context, UniformBuffer, DataSize, CmdListConstantBufferData);
+					});
+
+					RHICmdList.RHIThreadFence(true);
+				}
 			}
 		}
 		else

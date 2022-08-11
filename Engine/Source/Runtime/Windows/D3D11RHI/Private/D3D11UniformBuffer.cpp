@@ -154,19 +154,22 @@ static TRefCountPtr<ID3D11Buffer> CreateAndUpdatePooledUniformBuffer(
 
 	check(IsValidRef(UniformBufferResource));
 
-	D3D11_MAPPED_SUBRESOURCE MappedSubresource;
-	// Discard previous results since we always do a full update
-	VERIFYD3D11RESULT_EX(Context->Map(UniformBufferResource, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource), Device);
-	check(MappedSubresource.RowPitch >= NumBytes);
-	FMemory::Memcpy(MappedSubresource.pData, Contents, NumBytes);
-	Context->Unmap(UniformBufferResource, 0);
+	if (Contents)
+	{
+		D3D11_MAPPED_SUBRESOURCE MappedSubresource;
+		// Discard previous results since we always do a full update
+		VERIFYD3D11RESULT_EX(Context->Map(UniformBufferResource, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedSubresource), Device);
+		check(MappedSubresource.RowPitch >= NumBytes);
+		FMemory::Memcpy(MappedSubresource.pData, Contents, NumBytes);
+		Context->Unmap(UniformBufferResource, 0);
+	}
 
 	return UniformBufferResource;
 }
 
 FUniformBufferRHIRef FD3D11DynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
-	if (Validation == EUniformBufferValidation::ValidateResources)
+	if (Contents && Validation == EUniformBufferValidation::ValidateResources)
 	{
 		ValidateShaderParameterResourcesRHI(Contents, *Layout);
 	}
@@ -201,8 +204,14 @@ FUniformBufferRHIRef FD3D11DynamicRHI::RHICreateUniformBuffer(const void* Conten
 			{
 				NewUniformBuffer = new FD3D11UniformBuffer(this, Layout, nullptr, FRingAllocation(), bAllocatedFromPool);
 				NewUniformBuffer->AddRef();
-				void* CPUContent = FMemory::Malloc(NumBytes);
-				FMemory::Memcpy(CPUContent, Contents, NumBytes);
+
+				void* CPUContent = nullptr;
+				
+				if (Contents)
+				{
+					CPUContent = FMemory::Malloc(NumBytes);
+					FMemory::Memcpy(CPUContent, Contents, NumBytes);
+				}
 
 				RunOnRHIThread(
 					[NewUniformBuffer, CPUContent, NumBytes]()
@@ -254,10 +263,13 @@ FUniformBufferRHIRef FD3D11DynamicRHI::RHICreateUniformBuffer(const void* Conten
 		NewUniformBuffer->ResourceTable.Empty(ResourceCount);
 		NewUniformBuffer->ResourceTable.AddZeroed(ResourceCount);
 
-		for (int32 Index = 0; Index < ResourceCount; ++Index)
+		if (Contents)
 		{
-			const auto ResourceParameter = Layout->Resources[Index];
-			NewUniformBuffer->ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, ResourceParameter.MemberOffset, ResourceParameter.MemberType);
+			for (int32 Index = 0; Index < ResourceCount; ++Index)
+			{
+				const auto ResourceParameter = Layout->Resources[Index];
+				NewUniformBuffer->ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, ResourceParameter.MemberOffset, ResourceParameter.MemberType);
+			}
 		}
 	}
 

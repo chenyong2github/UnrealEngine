@@ -3575,9 +3575,9 @@ void FUniformExpressionCache::ResetAllocatedVTs()
 	OwnedAllocatedVTs.Reset();
 }
 
-void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& OutUniformExpressionCache, const FMaterialRenderContext& Context, FRHIComputeCommandList*) const
+void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& OutUniformExpressionCache, const FMaterialRenderContext& Context, FUniformExpressionCacheUpdater* Updater) const
 {
-	check(IsInParallelRenderingThread());
+	check(IsInRenderingThread());
 
 	SCOPE_CYCLE_COUNTER(STAT_CacheUniformExpressions);
 
@@ -3618,27 +3618,42 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 	}
 
 	const FRHIUniformBufferLayout* UniformBufferLayout = ShaderMap->GetUniformBufferLayout();
-	FMemMark Mark(FMemStack::Get());
-	uint8* TempBuffer = FMemStack::Get().PushBytes(UniformBufferLayout->ConstantBufferSize, SHADER_PARAMETER_STRUCT_ALIGNMENT);
-
-	check(TempBuffer != nullptr);
-	UniformExpressionSet.FillUniformBuffer(Context, OutUniformExpressionCache, UniformBufferLayout, TempBuffer, UniformBufferLayout->ConstantBufferSize);
-
-	if (IsValidRef(OutUniformExpressionCache.UniformBuffer) && !OutUniformExpressionCache.UniformBuffer->IsValid())
-	{
-		UE_LOG(LogMaterial, Fatal, TEXT("The Uniformbuffer needs to be valid if it has been set"));
-	}
 
 	if (IsValidRef(OutUniformExpressionCache.UniformBuffer))
 	{
+		if (!OutUniformExpressionCache.UniformBuffer->IsValid())
+		{
+			UE_LOG(LogMaterial, Fatal, TEXT("The Uniformbuffer needs to be valid if it has been set"));
+		}
+
 		// The actual pointer may not match because there are cases (in the editor, during the shader compilation) when material's shader map gets updated without proxy's cache
 		// getting invalidated, but the layout contents must match.
 		check(OutUniformExpressionCache.UniformBuffer->GetLayoutPtr() == UniformBufferLayout || *OutUniformExpressionCache.UniformBuffer->GetLayoutPtr() == *UniformBufferLayout);
-		RHIUpdateUniformBuffer(OutUniformExpressionCache.UniformBuffer, TempBuffer);
+	}
+
+	if (Updater)
+	{
+		if (!IsValidRef(OutUniformExpressionCache.UniformBuffer))
+		{
+			OutUniformExpressionCache.UniformBuffer = RHICreateUniformBuffer(nullptr, UniformBufferLayout, UniformBuffer_MultiFrame);
+		}
+
+		Updater->Add(&OutUniformExpressionCache, &UniformExpressionSet, UniformBufferLayout, Context);
 	}
 	else
 	{
-		OutUniformExpressionCache.UniformBuffer = RHICreateUniformBuffer(TempBuffer, UniformBufferLayout, UniformBuffer_MultiFrame);
+		FMemMark Mark(FMemStack::Get());
+		uint8* TempBuffer = FMemStack::Get().PushBytes(UniformBufferLayout->ConstantBufferSize, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+		UniformExpressionSet.FillUniformBuffer(Context, OutUniformExpressionCache, UniformBufferLayout, TempBuffer, UniformBufferLayout->ConstantBufferSize);
+
+		if (IsValidRef(OutUniformExpressionCache.UniformBuffer))
+		{
+			RHIUpdateUniformBuffer(OutUniformExpressionCache.UniformBuffer, TempBuffer);
+		}
+		else
+		{
+			OutUniformExpressionCache.UniformBuffer = RHICreateUniformBuffer(TempBuffer, UniformBufferLayout, UniformBuffer_MultiFrame);
+		}
 	}
 
 	OutUniformExpressionCache.ParameterCollections = UniformExpressionSet.ParameterCollections;
@@ -3877,6 +3892,38 @@ const FMaterial& FMaterialRenderProxy::GetIncompleteMaterialWithFallback(ERHIFea
 	return *Material;
 }
 
+void FUniformExpressionCacheUpdater::Update(FRHICommandListImmediate& RHICmdListImmediate)
+{
+	if (Items.IsEmpty())
+	{
+		return;
+	}
+
+	FRHICommandList* RHICmdList = new FRHICommandList(FRHIGPUMask::All());
+
+	FGraphEventRef Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
+		[Items = MoveTemp(Items), RHICmdList]
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FUniformExpressionCacheUpdater::Update);
+		FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+		FMemMark Mark(FMemStack::Get());
+
+		for (const FItem& Item : Items)
+		{
+			uint8* TempBuffer = FMemStack::Get().PushBytes(Item.UniformBufferLayout->ConstantBufferSize, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+
+			FMaterialRenderContext Context(Item.MaterialRenderProxy, *Item.Material, Item.bShowSelection);
+
+			Item.UniformExpressionSet->FillUniformBuffer(Context, *Item.UniformExpressionCache, Item.UniformBufferLayout, TempBuffer, Item.UniformBufferLayout->ConstantBufferSize);
+
+			RHICmdList->UpdateUniformBuffer(Item.UniformExpressionCache->UniformBuffer, TempBuffer);
+		}
+
+	}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask);
+
+	RHICmdListImmediate.QueueRenderThreadCommandListSubmit(Event, RHICmdList);
+}
+
 void FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions()
 {
 	LLM_SCOPE(ELLMTag::Materials);
@@ -3886,6 +3933,8 @@ void FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions()
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Material_UpdateDeferredCachedUniformExpressions);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateDeferredCachedUniformExpressions);
+
+	FUniformExpressionCacheUpdater Updater;
 
 	for (TSet<FMaterialRenderProxy*>::TConstIterator It(DeferredUniformExpressionCacheRequests); It; ++It)
 	{
@@ -3903,10 +3952,12 @@ void FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions()
 			{
 				FMaterialRenderContext MaterialRenderContext(MaterialProxy, *Material, nullptr);
 				MaterialRenderContext.bShowSelection = GIsEditor;
-				MaterialProxy->EvaluateUniformExpressions(MaterialProxy->UniformExpressionCache[(int32)InFeatureLevel], MaterialRenderContext);
+				MaterialProxy->EvaluateUniformExpressions(MaterialProxy->UniformExpressionCache[(int32)InFeatureLevel], MaterialRenderContext, &Updater);
 			}
 		});
 	}
+
+	Updater.Update(FRHICommandListExecutor::GetImmediateCommandList());
 
 	DeferredUniformExpressionCacheRequests.Reset();
 }
