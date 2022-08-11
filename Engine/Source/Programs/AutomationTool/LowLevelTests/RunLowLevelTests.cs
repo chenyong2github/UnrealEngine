@@ -54,7 +54,8 @@ namespace LowLevelTests
 			LowLevelTestsBuildSource BuildSource = new LowLevelTestsBuildSource(
 				ContextOptions.TestApp,
 				ContextOptions.Build,
-				ContextOptions.Platform);
+				ContextOptions.Platform,
+				ContextOptions.Configuration);
 
 			SetupDevices(TestPlatform, ContextOptions);
 
@@ -426,9 +427,9 @@ namespace LowLevelTests
 	{
 		bool CanSupportPlatform(UnrealTargetPlatform InPlatform);
 
-		LowLevelTestsBuild CreateBuild(UnrealTargetPlatform InPlatform, string InTestApp, string InBuildPath);
+		LowLevelTestsBuild CreateBuild(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, string InTestApp, string InBuildPath);
 
-		protected static string GetExecutable(UnrealTargetPlatform InPlatform, string InTestApp, string InBuildPath, string FileRegEx)
+		protected static string GetExecutable(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, string InTestApp, string InBuildPath, string FileRegEx)
 		{
 			IEnumerable<string> Executables = DirectoryUtils.FindFiles(InBuildPath, new Regex(FileRegEx));
 			foreach (string Executable in Executables)
@@ -437,21 +438,24 @@ namespace LowLevelTests
 				{
 					if (InBuildPath.ToLower().Contains(InTestApp.ToString().ToLower()))
 					{
-						return Path.GetRelativePath(InBuildPath, Executable);
+						if (InConfiguration == UnrealTargetConfiguration.Development || InBuildPath.ToLower().Contains(InConfiguration.ToString().ToLower()))
+						{
+							return Path.GetRelativePath(InBuildPath, Executable);
+						}
 					}
 				}
 			}
 			throw new AutomationException("Cannot find low level test executable for {0} in build path {1} for {2} using regex \"{3}\"", InPlatform, InBuildPath, InTestApp, FileRegEx);
 		}
 
-		protected static void CleanupUnusedFiles(UnrealTargetPlatform InPlatform, string InBuildPath)
+		protected static void CleanupUnusedFiles(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, string InBuildPath)
 		{
 			try
 			{
 				string[] BuildFiles = Directory.GetFiles(InBuildPath);
 				foreach (string BuildFile in BuildFiles)
 				{
-					if (new FileInfo(BuildFile).Extension == ".pdb")
+					if (new FileInfo(BuildFile).Extension == ".pdb" && InConfiguration != UnrealTargetConfiguration.Debug)
 					{
 						File.Delete(BuildFile);
 					}
@@ -471,12 +475,12 @@ namespace LowLevelTests
 			return InPlatform.IsInGroup(UnrealPlatformGroup.Desktop);
 		}
 
-		public LowLevelTestsBuild CreateBuild(UnrealTargetPlatform InPlatform, string InTestApp, string InBuildPath)
+		public LowLevelTestsBuild CreateBuild(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, string InTestApp, string InBuildPath)
 		{
 			string DesktopExecutableRegEx;
 			if (InPlatform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
-				DesktopExecutableRegEx = @"\w+Tests.exe$";
+				DesktopExecutableRegEx = @"\w+Tests(?:-\w+)?(?:-\w+)?.exe$";
 			}
 			else if (InPlatform == UnrealTargetPlatform.Linux || InPlatform == UnrealTargetPlatform.Mac)
 			{
@@ -486,8 +490,8 @@ namespace LowLevelTests
 			{
 				throw new AutomationException("Cannot create build for non-desktop platform " + InPlatform);
 			}
-			string ExecutablePath = ILowLevelTestsBuildFactory.GetExecutable(InPlatform, InTestApp, InBuildPath, DesktopExecutableRegEx);
-			return new LowLevelTestsBuild(InPlatform, InBuildPath, ExecutablePath);
+			string ExecutablePath = ILowLevelTestsBuildFactory.GetExecutable(InPlatform, InConfiguration, InTestApp, InBuildPath, DesktopExecutableRegEx);
+			return new LowLevelTestsBuild(InPlatform, InConfiguration, InBuildPath, ExecutablePath);
 		}
 	}
 
@@ -523,22 +527,24 @@ namespace LowLevelTests
 		private ILowLevelTestsReporting LowLevelTestsReporting;
 
 		public UnrealTargetPlatform Platform { get; protected set; }
+		public UnrealTargetConfiguration Configuration { get; protected set; }
 		public LowLevelTestsBuild DiscoveredBuild { get; protected set; }
 
-		public LowLevelTestsBuildSource(string InTestApp, string InBuildPath, UnrealTargetPlatform InTargetPlatform)
+		public LowLevelTestsBuildSource(string InTestApp, string InBuildPath, UnrealTargetPlatform InTargetPlatform, UnrealTargetConfiguration InConfiguration)
 		{
 			TestApp = InTestApp;
 			Platform = InTargetPlatform;
 			BuildPath = InBuildPath;
-			InitBuildSource(InTestApp, InBuildPath, InTargetPlatform);
+			Configuration = InConfiguration;
+			InitBuildSource(InTestApp, InBuildPath, InTargetPlatform, InConfiguration);
 		}
 
-		protected void InitBuildSource(string InTestApp, string InBuildPath, UnrealTargetPlatform InTargetPlatform)
+		protected void InitBuildSource(string InTestApp, string InBuildPath, UnrealTargetPlatform InTargetPlatform, UnrealTargetConfiguration InConfiguration)
 		{
 			LowLevelTestsBuildFactory = Gauntlet.Utils.InterfaceHelpers.FindImplementations<ILowLevelTestsBuildFactory>(true)
 				.Where(B => B.CanSupportPlatform(InTargetPlatform))
 				.First();
-			DiscoveredBuild = LowLevelTestsBuildFactory.CreateBuild(InTargetPlatform, InTestApp, InBuildPath);
+			DiscoveredBuild = LowLevelTestsBuildFactory.CreateBuild(InTargetPlatform, InConfiguration, InTestApp, InBuildPath);
 			if (DiscoveredBuild == null)
 			{
 				throw new AutomationException("No builds were discovered at path {0} matching test app name {1} and target platform {2}", InBuildPath, InTestApp, InTargetPlatform);
@@ -589,12 +595,9 @@ namespace LowLevelTests
 
 	public class LowLevelTestsBuild : StagedBuild
 	{
-		public LowLevelTestsBuild(UnrealTargetPlatform InPlatform, string InBuildPath, string InExecutablePath)
-			: base(InPlatform, UnrealTargetConfiguration.Development, UnrealTargetRole.Client, InBuildPath, InExecutablePath)
+		public LowLevelTestsBuild(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, string InBuildPath, string InExecutablePath)
+			: base(InPlatform, InConfiguration, UnrealTargetRole.Client, InBuildPath, InExecutablePath)
 		{
-			Platform = InPlatform;
-			BuildPath = InBuildPath;
-			ExecutablePath = InExecutablePath;
 			Flags = BuildFlags.CanReplaceExecutable | BuildFlags.Loose;
 		}
 	}

@@ -887,13 +887,16 @@ void FGenericPlatformMisc::SetUTF8Output()
 
 void FGenericPlatformMisc::LocalPrint( const TCHAR* Str )
 {
+	if (!GBlockLocalPrint)
+	{
 #if PLATFORM_TCHAR_IS_CHAR16
-	printf("%s", TCHAR_TO_UTF8(Str));
+		printf("%s", TCHAR_TO_UTF8(Str));
 #elif PLATFORM_USE_LS_SPEC_FOR_WIDECHAR
-	printf("%ls", Str);
+		printf("%ls", Str);
 #else
-	wprintf(TEXT("%s"), Str);
+		wprintf(TEXT("%s"), Str);
 #endif
+	}
 }
 
 bool FGenericPlatformMisc::HasSeparateChannelForDebugOutput()

@@ -948,7 +948,7 @@ public:
 	/** Sets the default output to UTF8 */
 	static void SetUTF8Output();
 
-	/** Prints string to the default output */
+	/** Prints string to the default output, unless GBlockLocalPrint is set to true */
 	static void LocalPrint( const TCHAR* Str );
 
 	/** Whether LocalPrint can be called from any thread without overlapping */

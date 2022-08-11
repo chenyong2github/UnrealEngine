@@ -1,12 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TestListeners/ConsoleListener.h"
+#include "Containers/UnrealString.h"
 
 using namespace Catch;
 
 class ConsoleListener : public EventListenerBase, public FOutputDevice
 {
-	using EventListenerBase::EventListenerBase; // inherit constructor
+public:
+	ConsoleListener(IConfig const* config): EventListenerBase(config)
+	{
+		m_preferences.shouldRedirectStdOut = true;
+	}
 private:
 	void testRunStarting(TestRunInfo const& testRunInfo) override {
 		// Register this event listener as an output device to enable reporting of UE_LOG, ensure etc
@@ -16,6 +21,27 @@ private:
 
 	void testRunEnded(TestRunStats const& testRunStats) override {
 		GLog->RemoveOutputDevice(this);
+	}
+
+	void platformPrint(const TCHAR* Message, bool ForceOutput = false)
+	{
+		bool SavedBlockPrintValue = GBlockLocalPrint;
+		// Force: always print this event
+		if (ForceOutput)
+		{
+			TGuardValue<bool> BlockLocalPrint(GBlockLocalPrint, false);
+		}
+
+#if defined(PLATFORM_WINDOWS)
+		FGenericPlatformMisc::LocalPrint(Message);
+#else
+		FPlatformMisc::LocalPrint(Message);
+#endif
+
+		if (ForceOutput)
+		{
+			TGuardValue<bool> RestoreBlockLocalPrint(GBlockLocalPrint, SavedBlockPrintValue);
+		}
 	}
 
 	// FOutputDevice interface
@@ -33,14 +59,10 @@ private:
 		// I tried this but unfortunately it didn't work, passing that option makes catch complain with the error message:
 		// "Verbosity level not supported by this reporter"
 
-		if (LogVerbosity <= DesiredLogVerbosity && !GLog->GetSuppressEventTag())
+		if (LogVerbosity <= DesiredLogVerbosity)
 		{
-			std::cout << TCHAR_TO_UTF8(*FText::FromName(Category).ToString())
-				<< "("
-				<< TCHAR_TO_UTF8(ToString(LogVerbosity))
-				<< "): "
-				<< TCHAR_TO_UTF8(V)
-				<< "\n";
+			FString OutputMessage = FString::Printf(TEXT("%s(%s): %s\n"), *FText::FromName(Category).ToString(), ToString(LogVerbosity), V);
+			platformPrint(OutputMessage.GetCharArray().GetData());
 		}
 	}
 
@@ -58,20 +80,25 @@ private:
 	void testCaseStarting(TestCaseInfo  const& TestInfo) override {
 		if (bGDebug)
 		{
-			std::cout << TestInfo.lineInfo.file << ":" << TestInfo.lineInfo.line << " with tags " << TestInfo.tagsAsString() << " \n";
+			FString InfoTestCaseStarting = FString::Printf(TEXT("%s:%d with tags %s\n"), *FString(TestInfo.lineInfo.file), TestInfo.lineInfo.line, *FString(TestInfo.tagsAsString().c_str()));			
+			platformPrint(InfoTestCaseStarting.GetCharArray().GetData(), true);
 		}
 	}
 
+	// TODO: Use UE structured logging for build machines
 	void testCaseEnded(TestCaseStats const& testCaseStats) override {
 		if (testCaseStats.totals.testCases.failed > 0)
 		{
-			std::cout << "* Error: Test case \"" << testCaseStats.testInfo->name << "\" failed \n";
+			FString ErrorTestCase = FString::Printf(TEXT("* Error: Test case \"%s\" failed \n"), *FString(testCaseStats.testInfo->name.c_str()));
+			platformPrint(ErrorTestCase.GetCharArray().GetData(), true);
 		}
 	}
 
+	// TODO: Use UE structured logging for build machines
 	void assertionEnded(AssertionStats const& assertionStats) override {
 		if (!assertionStats.assertionResult.succeeded()) {
-			std::cout << "* Error: Assertion \"" << assertionStats.assertionResult.getExpression() << "\" failed at " << assertionStats.assertionResult.getSourceInfo().file << ": " << assertionStats.assertionResult.getSourceInfo().line << "\n";
+			FString ErrorAssertion = FString::Printf(TEXT("* Error: Assertion \"%s\" failed at %s:%d\n"), *FString(assertionStats.assertionResult.getExpression().c_str()), *FString(assertionStats.assertionResult.getSourceInfo().file), assertionStats.assertionResult.getSourceInfo().line);
+			platformPrint(ErrorAssertion.GetCharArray().GetData(), true);
 		}
 	}
 };

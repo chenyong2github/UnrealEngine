@@ -543,6 +543,9 @@ extern CORE_API bool GEnableVREditorHacks;
 /** Whether we should ignore the attached debugger. */
 extern CORE_API bool GIgnoreDebugger;
 
+/** Whether local print will produce output. */
+extern CORE_API bool GBlockLocalPrint;
+
 #endif // #if !UE_BUILD_SHIPPING
 
 enum class ETaskTag : int32

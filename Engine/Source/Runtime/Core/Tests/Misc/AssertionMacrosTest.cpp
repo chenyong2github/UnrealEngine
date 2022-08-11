@@ -3,6 +3,7 @@
 #if WITH_LOW_LEVEL_TESTS && DO_ENSURE
 
 #include "Misc/AssertionMacros.h"
+#include "GenericPlatform/GenericPlatformMisc.h"
 
 #include "TestHarness.h"
 #include "TestMacros/Assertions.h"
@@ -23,7 +24,7 @@ static void MultipleEnsuresFailedDifferent();
 TEST_CASE("Core::Misc::AssertionMacros", "[Core][Misc][AssertionMacros][Ensure]")
 {
 	TGuardValue<bool> IgnoreDebugger(GIgnoreDebugger, true);
-	GLog->SetSuppressEventTag(true);
+	TGuardValue<bool> BlockLocalPrint(GBlockLocalPrint, true);
 	SECTION("Ensure not triggered with REQUIRE_NOENSURE")
 	{
 		REQUIRE_NOENSURE(OneEnsureNonFailed());
@@ -69,7 +70,6 @@ TEST_CASE("Core::Misc::AssertionMacros", "[Core][Misc][AssertionMacros][Ensure]"
 	{
 		CHECK_ENSURE(MultipleEnsuresFailedDifferent());
 	}
-	GLog->SetSuppressEventTag(false);
 }
 
 static void OneEnsureNonFailed()
