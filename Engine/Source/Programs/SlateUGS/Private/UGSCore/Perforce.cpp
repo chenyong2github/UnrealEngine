@@ -125,7 +125,7 @@ struct FPerforceExe
 		TArray<FString> Lines;
 		if (RunCommand(TEXT(""), Lines) == -1)
 		{
-			PerforceExe.ReplaceInline(TEXT(" (x86)"), TEXT(""));
+			ExecutablePath.ReplaceInline(TEXT(" (x86)"), TEXT(""));
 			bValidP4 = (RunCommand(TEXT(""), Lines) == -1);
 		}
 		else
