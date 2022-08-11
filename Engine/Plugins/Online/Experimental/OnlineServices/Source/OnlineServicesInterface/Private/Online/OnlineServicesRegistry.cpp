@@ -52,9 +52,17 @@ TSharedPtr<IOnlineServices> FOnlineServicesRegistry::GetNamedServicesInstance(EO
 
 	if (OnlineServices == EOnlineServices::Default)
 	{
-		FString Value;
-		GConfig->GetString(TEXT("OnlineServices"), TEXT("DefaultServices"), Value, GEngineIni);
-		LexFromString(OnlineServices, *Value);
+		if(DefaultServiceOverride != EOnlineServices::Default)
+		{
+			OnlineServices = DefaultServiceOverride;
+		}
+		else
+		{
+			FString Value;
+			GConfig->GetString(TEXT("OnlineServices"), TEXT("DefaultServices"), Value, GEngineIni);
+
+			LexFromString(OnlineServices, *Value);
+		};
 	}
 	else if (OnlineServices == EOnlineServices::Platform)
 	{
@@ -82,6 +90,18 @@ TSharedPtr<IOnlineServices> FOnlineServicesRegistry::GetNamedServicesInstance(EO
 
 	return Services;
 }
+
+#if WITH_DEV_AUTOMATION_TESTS
+void FOnlineServicesRegistry::SetDefaultServiceOverride(EOnlineServices DefaultService)
+{
+	DefaultServiceOverride = DefaultService;
+}
+
+void FOnlineServicesRegistry::ClearDefaultServiceOverride()
+{
+	DefaultServiceOverride = EOnlineServices::Default;
+}
+#endif //WITH_DEV_AUTOMATION_TESTS
 
 void FOnlineServicesRegistry::DestroyNamedServicesInstance(EOnlineServices OnlineServices, FName InstanceName)
 {

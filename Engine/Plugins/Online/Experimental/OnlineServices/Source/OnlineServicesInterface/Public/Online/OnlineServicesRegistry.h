@@ -105,6 +105,20 @@ public:
 	 * @param OutOnlineServices Array of online services to fill
 	 */
 	ONLINESERVICESINTERFACE_API void GetAllServicesInstances(TArray<TSharedRef<IOnlineServices>>& OutOnlineServices) const;
+
+#if WITH_DEV_AUTOMATION_TESTS
+	/**
+	 * Adds a temporary override to the default online service. Used for testing to quickly run tests with different default online services.
+	 * 
+	 * @param Service the name of the Online Service to force default online service to return
+	 */
+	ONLINESERVICESINTERFACE_API void SetDefaultServiceOverride(EOnlineServices DefaultService);
+
+	/**
+	 * Removes an override for the target service.
+	 */
+	ONLINESERVICESINTERFACE_API void ClearDefaultServiceOverride();
+#endif //WITH_DEV_AUTOMATION_TESTS
 private:
 	struct FFactoryAndPriority
 	{
@@ -120,6 +134,7 @@ private:
 
 	TMap<EOnlineServices, FFactoryAndPriority> ServicesFactories;
 	TMap<EOnlineServices, TMap<FName, TSharedRef<IOnlineServices>>> NamedServiceInstances;
+	EOnlineServices DefaultServiceOverride;
 
 	FOnlineServicesRegistry() {}
 	~FOnlineServicesRegistry();
