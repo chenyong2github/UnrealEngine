@@ -42,6 +42,8 @@ struct FUserFileGetEnumeratedFiles
 
 using FUserFileContents = TArray<uint8>;
 using FUserFileContentsRef = TSharedRef<const FUserFileContents>;
+using FUserFileContentsPtr = TSharedPtr<const FUserFileContents>;
+using FUserFileContentsWeakPtr = TWeakPtr<const FUserFileContents>;
 
 struct FUserFileReadFile
 {
