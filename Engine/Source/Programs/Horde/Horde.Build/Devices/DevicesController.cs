@@ -505,6 +505,11 @@ namespace Horde.Build.Devices
 				return Forbid();
 			}
 
+			if (minCreateTime == null)
+			{
+				minCreateTime = new DateTimeOffset(DateTime.UtcNow - TimeSpan.FromHours(24));
+			}
+
 			List<IDevicePoolTelemetry> telemetryData = await _deviceService.GetDevicePoolTelemetryAsync(minCreateTime, maxCreateTime);
 
 			List<GetDevicePoolTelemetryResponse> response = new List<GetDevicePoolTelemetryResponse>();
@@ -725,6 +730,11 @@ namespace Horde.Build.Devices
 			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceRead, User))
 			{
 				return Forbid();
+			}
+
+			if (minCreateTime == null)
+			{
+				minCreateTime = new DateTimeOffset(DateTime.UtcNow - TimeSpan.FromHours(24));
 			}
 
 			HashSet<DeviceId> deviceIdValues = new HashSet<DeviceId>();
