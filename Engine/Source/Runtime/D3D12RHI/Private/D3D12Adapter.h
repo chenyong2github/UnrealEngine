@@ -182,6 +182,11 @@ public:
 	FORCEINLINE IDXGIFactory6* GetDXGIFactory6() const { return DxgiFactory6; }
 #endif
 
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+	FORCEINLINE bool AreBindlessResourcesAllowed() const { return bBindlessResourcesAllowed; }
+	FORCEINLINE bool AreBindlessSamplersAllowed() const { return bBindlessSamplersAllowed; }
+#endif
+
 	FORCEINLINE void SetDeviceRemoved(bool value) { bDeviceRemoved = value; }
 	FORCEINLINE const bool IsDeviceRemoved() const { return bDeviceRemoved; }
 	FORCEINLINE const bool IsDebugDevice() const { return bDebugDevice; }
@@ -547,6 +552,12 @@ protected:
 	bool bDeviceRemoved;
 
 	FD3D12AdapterDesc Desc;
+
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+	bool bBindlessResourcesAllowed = false;
+	bool bBindlessSamplersAllowed = false;
+#endif
+
 	TRefCountPtr<IDXGIAdapter> DxgiAdapter;
 
 	FD3D12RootSignatureManager RootSignatureManager;

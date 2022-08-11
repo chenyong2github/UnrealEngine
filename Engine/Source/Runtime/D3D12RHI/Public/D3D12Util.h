@@ -112,7 +112,7 @@ struct FD3D12QuantizedBoundShaderState
 
 	friend uint32 GetTypeHash(const FD3D12QuantizedBoundShaderState& Key);
 
-	static void InitShaderRegisterCounts(const D3D12_RESOURCE_BINDING_TIER& ResourceBindingTier, const FShaderCodePackedResourceCounts& Counts, FShaderRegisterCounts& Shader, bool bAllowUAVs = false);
+	static void InitShaderRegisterCounts(D3D12_RESOURCE_BINDING_TIER ResourceBindingTier, const FShaderCodePackedResourceCounts& Counts, FShaderRegisterCounts& Shader, bool bAllowUAVs = false);
 };
 
 /**
@@ -120,25 +120,14 @@ struct FD3D12QuantizedBoundShaderState
 */
 
 class FD3D12BoundShaderState;
-extern void QuantizeBoundShaderState(
-	const D3D12_RESOURCE_BINDING_TIER& ResourceBindingTier,
-	const FD3D12BoundShaderState* const BSS,
-	FD3D12QuantizedBoundShaderState &OutQBSS);
-
 class FD3D12ComputeShader;
-extern void QuantizeBoundShaderState(
-	const D3D12_RESOURCE_BINDING_TIER& ResourceBindingTier,
-	const FD3D12ComputeShader* const ComputeShader,
-	FD3D12QuantizedBoundShaderState &OutQBSS);
+
+extern FD3D12QuantizedBoundShaderState QuantizeBoundGraphicsShaderState(FD3D12Adapter& Adapter, const FD3D12BoundShaderState* BSS);
+extern FD3D12QuantizedBoundShaderState QuantizeBoundComputeShaderState(FD3D12Adapter& Adapter, const FD3D12ComputeShader* ComputeShader);
 
 #if D3D12_RHI_RAYTRACING
 class FD3D12RayTracingShader;
-FD3D12QuantizedBoundShaderState GetRayTracingGlobalRootSignatureDesc();
-extern void QuantizeBoundShaderState(
-	EShaderFrequency ShaderFrequency,
-	const D3D12_RESOURCE_BINDING_TIER& ResourceBindingTier,
-	const FD3D12RayTracingShader* const Shader,
-	FD3D12QuantizedBoundShaderState &OutQBSS);
+extern FD3D12QuantizedBoundShaderState QuantizeBoundRayTracingShaderState(FD3D12Adapter& Adapter, EShaderFrequency ShaderFrequency, const FD3D12RayTracingShader* Shader);
 #endif
 
 /**

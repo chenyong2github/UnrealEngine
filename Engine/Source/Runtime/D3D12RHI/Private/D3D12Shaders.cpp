@@ -152,9 +152,7 @@ FComputeShaderRHIRef FD3D12DynamicRHI::RHICreateComputeShader(TArrayView<const u
 #if USE_STATIC_ROOT_SIGNATURE
 		Shader->RootSignature = Adapter.GetStaticComputeRootSignature();
 #else
-		const D3D12_RESOURCE_BINDING_TIER Tier = Adapter.GetResourceBindingTier();
-		FD3D12QuantizedBoundShaderState QBSS;
-		QuantizeBoundShaderState(Tier, Shader, QBSS);
+		const FD3D12QuantizedBoundShaderState QBSS = QuantizeBoundComputeShaderState(Adapter, Shader);
 		Shader->RootSignature = Adapter.GetRootSignature(QBSS);
 #endif
 	}
@@ -212,9 +210,7 @@ FRayTracingShaderRHIRef FD3D12DynamicRHI::RHICreateRayTracingShader(TArrayView<c
 		checkNoEntry(); // Unexpected shader target frequency
 	}
 #else // USE_STATIC_ROOT_SIGNATURE
-	const D3D12_RESOURCE_BINDING_TIER Tier = Adapter.GetResourceBindingTier();
-	FD3D12QuantizedBoundShaderState QBSS;
-	QuantizeBoundShaderState(ShaderFrequency, Tier, Shader, QBSS);
+	const FD3D12QuantizedBoundShaderState QBSS = QuantizeBoundRayTracingShaderState(Adapter, ShaderFrequency, Shader);
 	Shader->pRootSignature = Adapter.GetRootSignature(QBSS);
 #endif // USE_STATIC_ROOT_SIGNATURE
 
@@ -243,9 +239,7 @@ FD3D12BoundShaderState::FD3D12BoundShaderState(
 #if USE_STATIC_ROOT_SIGNATURE
 	pRootSignature = InAdapter->GetStaticGraphicsRootSignature();
 #else
-	const D3D12_RESOURCE_BINDING_TIER Tier = InAdapter->GetResourceBindingTier();
-	FD3D12QuantizedBoundShaderState QuantizedBoundShaderState;
-	QuantizeBoundShaderState(Tier, this, QuantizedBoundShaderState);
+	const FD3D12QuantizedBoundShaderState QuantizedBoundShaderState = QuantizeBoundGraphicsShaderState(*InAdapter, this);
 	pRootSignature = InAdapter->GetRootSignature(QuantizedBoundShaderState);
 #endif
 
@@ -268,9 +262,7 @@ FD3D12BoundShaderState::FD3D12BoundShaderState(
 #if USE_STATIC_ROOT_SIGNATURE
 	pRootSignature = InAdapter->GetStaticGraphicsRootSignature();
 #else
-	const D3D12_RESOURCE_BINDING_TIER Tier = InAdapter->GetResourceBindingTier();
-	FD3D12QuantizedBoundShaderState QuantizedBoundShaderState;
-	QuantizeBoundShaderState(Tier, this, QuantizedBoundShaderState);
+	const FD3D12QuantizedBoundShaderState QuantizedBoundShaderState = QuantizeBoundGraphicsShaderState(*InAdapter, this);
 	pRootSignature = InAdapter->GetRootSignature(QuantizedBoundShaderState);
 #endif
 

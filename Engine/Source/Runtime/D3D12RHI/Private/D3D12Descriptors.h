@@ -69,9 +69,6 @@ public:
 	FD3D12DescriptorManager(FD3D12Device* Device, FD3D12DescriptorHeap* InHeap);
 	~FD3D12DescriptorManager();
 
-	void Init(TCHAR* InName, ERHIDescriptorHeapType InType, uint32 InNumDescriptors);
-	void Destroy();
-
 	void UpdateImmediately(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle);
 
 	inline FD3D12DescriptorHeap* GetHeap() { return Heap.GetReference(); }
@@ -95,6 +92,7 @@ class FD3D12BindlessDescriptorManager : public FD3D12DeviceChild
 {
 public:
 	FD3D12BindlessDescriptorManager(FD3D12Device* Device);
+	~FD3D12BindlessDescriptorManager();
 
 	void Init(uint32 InNumResourceDescriptors, uint32 InNumSamplerDescriptors);
 

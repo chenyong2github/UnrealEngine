@@ -390,6 +390,8 @@ inline void UnregisterD3D12RayTracingGeometry(FD3D12RayTracingGeometry* Geometry
 #define RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE 1
 #endif // RAY_TRACING_DESCRIPTOR_CACHE_FULL_COMPARE
 
+const FD3D12RootSignature* GetGlobalRayTracingRootSignature(FD3D12Adapter& Adapter);
+
 struct FD3D12ShaderIdentifier
 {
 	uint64 Data[4] = {~0ull, ~0ull, ~0ull, ~0ull};
@@ -1259,13 +1261,8 @@ public:
 	ID3D12RootSignature* GetGlobalRootSignature()
 	{
 		FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-
-	#if USE_STATIC_ROOT_SIGNATURE
-		return Adapter->GetStaticRayTracingGlobalRootSignature()->GetRootSignature();
-	#else // USE_STATIC_ROOT_SIGNATURE
-		FD3D12QuantizedBoundShaderState QBSS = GetRayTracingGlobalRootSignatureDesc();
-		return Adapter->GetRootSignature(QBSS)->GetRootSignature();
-	#endif // USE_STATIC_ROOT_SIGNATURE
+		const FD3D12RootSignature* RootSignature = GetGlobalRayTracingRootSignature(*Adapter);
+		return RootSignature->GetRootSignature();
 	}
 
 private:
@@ -1622,16 +1619,10 @@ public:
 	{
 		UpdateSyncPoint();
 
-		ID3D12DescriptorHeap* Heaps[2] =
-		{
-			ViewHeap.D3D12Heap,
-			SamplerHeap.D3D12Heap
-		};
-
 		check(ViewHeap.GetParentDevice() == CommandContext.GetParentDevice());
 		check(SamplerHeap.GetParentDevice() == CommandContext.GetParentDevice());
 
-		CommandContext.CommandListHandle.GraphicsCommandList()->SetDescriptorHeaps(2, Heaps);
+		CommandContext.StateCache.GetDescriptorCache()->OverrideLastSetHeaps(ViewHeap.D3D12Heap, SamplerHeap.D3D12Heap);
 	}
 
 	// Returns descriptor heap base index for this descriptor table allocation or -1 if allocation failed.
@@ -5222,15 +5213,6 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 	}
 
 	// Setup state for RT dispatch
-	
-	// #dxr_todo UE-72158: RT and non-RT descriptors should use the same global heap that's dynamically sub-allocated.
-	// This requires a major refactor of descriptor heap management. In the short term, RT work uses a dedicated heap
-	// that's temporarily set for the duration of RT dispatch.
-	ID3D12DescriptorHeap* PreviousHeaps[2] =
-	{
-		CommandContext.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->GetHeap(),
-		CommandContext.StateCache.GetDescriptorCache()->GetCurrentSamplerHeap()->GetHeap(),
-	};
 
 	// Invalidate state cache to ensure all root parameters for regular shaders are reset when non-RT work is dispatched later.
 	CommandContext.StateCache.TransitionComputeState(ED3D12PipelineType::RayTracing);
@@ -5239,12 +5221,7 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 
 	// Bind diagnostic buffer to allow asserts in ray generation shaders
 	{
-#if USE_STATIC_ROOT_SIGNATURE
-		const FD3D12RootSignature* RootSignature = Adapter->GetStaticRayTracingGlobalRootSignature();
-#else // USE_STATIC_ROOT_SIGNATURE
-		FD3D12QuantizedBoundShaderState RSDesc = GetRayTracingGlobalRootSignatureDesc();
-		const FD3D12RootSignature* RootSignature = Adapter->GetRootSignature(RSDesc);
-#endif // USE_STATIC_ROOT_SIGNATURE
+		const FD3D12RootSignature* RootSignature = GetGlobalRayTracingRootSignature(*Adapter);
 
 		const int8 DiagnosticBufferSlot = RootSignature->GetDiagnosticBufferSlot();
 		D3D12_GPU_VIRTUAL_ADDRESS DiagnosticBufferAddress = CommandContext.GetParentDevice()->GetCommandListManager().GetDiagnosticBufferGPUAddress();
@@ -5333,7 +5310,7 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 	}
 
 	// Restore old global descriptor heaps
-	CommandContext.CommandListHandle.GraphicsCommandList()->SetDescriptorHeaps(2, PreviousHeaps);
+	CommandContext.StateCache.GetDescriptorCache()->RestoreAfterExternalHeapsSet();
 }
 
 

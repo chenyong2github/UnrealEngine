@@ -319,6 +319,14 @@ FD3D12Adapter::~FD3D12Adapter()
 void FD3D12Adapter::Initialize(FD3D12DynamicRHI* RHI)
 {
 	OwningRHI = RHI;
+
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+	if (Desc.MaxSupportedFeatureLevel >= D3D_FEATURE_LEVEL_12_0 && Desc.MaxSupportedShaderModel >= D3D_SHADER_MODEL_6_6 && Desc.ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_3)
+	{
+		bBindlessResourcesAllowed = (RHIGetBindlessResourcesConfiguration(SP_PCD3D_SM6) != ERHIBindlessConfiguration::Disabled);
+		bBindlessSamplersAllowed = (RHIGetBindlessSamplersConfiguration(SP_PCD3D_SM6) != ERHIBindlessConfiguration::Disabled);
+	}
+#endif
 }
 
 /** Callback function called when the GPU crashes, when Aftermath is enabled */

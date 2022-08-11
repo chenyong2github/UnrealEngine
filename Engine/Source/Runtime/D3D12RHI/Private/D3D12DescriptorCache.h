@@ -381,6 +381,9 @@ public:
 
 	bool SetHeapOverrides(FD3D12DescriptorHeap* InOverrideViewHeap, FD3D12DescriptorHeap* InOverrideSamplerHeap);
 
+	void OverrideLastSetHeaps(ID3D12DescriptorHeap* ViewHeap, ID3D12DescriptorHeap* SamplerHeap);
+	void RestoreAfterExternalHeapsSet();
+
 	TArray<FD3D12UniqueSamplerTable>& GetUniqueTables() { return UniqueTables; }
 
 	inline bool UsingGlobalSamplerHeap() const { return bUsingGlobalSamplerHeap; }
@@ -424,6 +427,7 @@ private:
 
 	FD3D12SamplerSet LocalSamplerSet;
 	bool bUsingGlobalSamplerHeap = false;
+	bool bHeapsOverridden = false;
 
 	uint32 NumLocalViewDescriptors = 0;
 };

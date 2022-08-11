@@ -830,6 +830,25 @@ bool FD3D12DescriptorCache::SetHeapOverrides(FD3D12DescriptorHeap* InOverrideVie
 	return bDescriptorHeapsChanged;
 }
 
+void FD3D12DescriptorCache::OverrideLastSetHeaps(ID3D12DescriptorHeap* ViewHeap, ID3D12DescriptorHeap* SamplerHeap)
+{
+	LastSetViewHeap = ViewHeap;
+	LastSetSamplerHeap = SamplerHeap;
+
+	ID3D12DescriptorHeap* ppHeaps[] = { ViewHeap, SamplerHeap };
+	CmdContext->CommandListHandle->SetDescriptorHeaps(UE_ARRAY_COUNT(ppHeaps), ppHeaps);
+
+	bHeapsOverridden = true;
+}
+
+void FD3D12DescriptorCache::RestoreAfterExternalHeapsSet()
+{
+	if (bHeapsOverridden)
+	{
+		SetDescriptorHeaps();
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FD3D12OnlineHeap
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -62,30 +62,6 @@ FD3D12DescriptorManager::FD3D12DescriptorManager(FD3D12Device* Device, FD3D12Des
 
 FD3D12DescriptorManager::~FD3D12DescriptorManager() = default;
 
-void FD3D12DescriptorManager::Init(TCHAR* InName, ERHIDescriptorHeapType InType, uint32 InNumDescriptors)
-{
-	if (InNumDescriptors > 0)
-	{
-		Heap = GetParentDevice()->GetDescriptorHeapManager().AllocateHeap(
-			InName,
-			InType,
-			InNumDescriptors,
-			D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
-		);
-
-		FRHIDescriptorAllocator::Init(InNumDescriptors);
-	}
-}
-
-void FD3D12DescriptorManager::Destroy()
-{
-	if (Heap)
-	{
-		GetParentDevice()->GetDescriptorHeapManager().FreeHeap(Heap);
-		Heap.SafeRelease();
-	}
-}
-
 void FD3D12DescriptorManager::UpdateImmediately(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle)
 {
 	if (InHandle.IsValid())
@@ -104,6 +80,8 @@ FD3D12BindlessDescriptorManager::FD3D12BindlessDescriptorManager(FD3D12Device* D
 	: FD3D12DeviceChild(Device)
 {
 }
+
+FD3D12BindlessDescriptorManager::~FD3D12BindlessDescriptorManager() = default;
 
 void FD3D12BindlessDescriptorManager::Init(uint32 InNumResourceDescriptors, uint32 InNumSamplerDescriptors)
 {
