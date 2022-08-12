@@ -21,4 +21,7 @@ public:
 
 	virtual void Enter() override;
 	//~ End UVREditorMode interface
+
+protected:
+	bool ValidateSettings();
 };

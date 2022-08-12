@@ -9,6 +9,7 @@
 #endif
 
 #include "IOpenXRHMDModule.h"
+#include "IVREditorModule.h"
 #include "IXRTrackingSystem.h"
 #include "Logging/LogMacros.h"
 #include "Modules/ModuleManager.h"
@@ -70,6 +71,13 @@ void UVirtualScoutingMode::Enter()
 	if (!XrExt)
 	{
 		UE_LOG(LogVirtualScouting, Error, TEXT("OpenXR extension plugin invalid"));
+		IVREditorModule::Get().EnableVREditor(false);
+		return;
+	}
+
+	if (!ValidateSettings())
+	{
+		IVREditorModule::Get().EnableVREditor(false);
 		return;
 	}
 
@@ -100,6 +108,24 @@ void UVirtualScoutingMode::Enter()
 
 		return DeviceType;
 	});
+}
+
+
+bool UVirtualScoutingMode::ValidateSettings()
+{
+	bool bSettingsValid = true;
+
+	IConsoleManager& ConsoleMgr = IConsoleManager::Get();
+	if (IConsoleVariable* PropagateAlpha = ConsoleMgr.FindConsoleVariable(TEXT("r.PostProcessing.PropagateAlpha")))
+	{
+		if (PropagateAlpha->GetInt() != 0)
+		{
+			UE_LOG(LogVirtualScouting, Error, TEXT("r.PostProcessing.PropagateAlpha must be set to 0 (and requires an engine restart)"));
+			bSettingsValid = false;
+		}
+	}
+
+	return bSettingsValid;
 }
 
 
