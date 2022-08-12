@@ -1361,6 +1361,29 @@ private:
 	float TimeHorizon = 0.0f;
 };
 
+struct FHistoricalPoseIndex
+{
+	bool operator==(const FHistoricalPoseIndex& Index) const
+	{
+		return PoseIndex == Index.PoseIndex && DatabaseKey == Index.DatabaseKey;
+	}
+
+	friend FORCEINLINE uint32 GetTypeHash(const FHistoricalPoseIndex& Index)
+	{
+		return GetTypeHash(Index.PoseIndex) ^ GetTypeHash(Index.DatabaseKey);
+	}
+
+	int32 PoseIndex = -1;
+	FObjectKey DatabaseKey;
+};
+
+struct FPoseIndicesHistory
+{
+	void Update(const FSearchResult& SearchResult, float DeltaTime, float MaxTime);
+	void Reset() { IndexToTime.Reset(); }
+	TMap<FHistoricalPoseIndex, float> IndexToTime;
+};
+
 struct POSESEARCH_API FSearchContext
 {
 	EPoseSearchBooleanRequest QueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent;
@@ -1387,11 +1410,14 @@ struct POSESEARCH_API FSearchContext
 	bool GetOrBuildQuery(const UPoseSearchDatabase* Database, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder);
 	void CacheCurrentResultFeatureVectors();
 
+	bool IsCurrentResultFromDatabase(const UPoseSearchDatabase* Database) const;
+
 	static constexpr int8 SchemaRootBoneIdx = -1;
 
 	FPoseSearchFeatureVectorBuilder CurrentResultPoseVector;
 	FPoseSearchFeatureVectorBuilder CurrentResultPrevPoseVector;
 	FPoseSearchFeatureVectorBuilder CurrentResultNextPoseVector;
+	const FPoseIndicesHistory* PoseIndicesHistory = nullptr;
 
 private:
 	struct FCachedEntry

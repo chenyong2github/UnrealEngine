@@ -43,6 +43,10 @@ struct POSESEARCH_API FMotionMatchingSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
 	float PoseJumpThresholdTime = 1.f;
 
+	// Don't jump to poses that has been selected previously within this many seconds in the past
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0"))
+	float PoseReselectHistory = 0.f;
+
 	// Minimum amount of time to wait between pose search queries
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
 	float SearchThrottleTime = 0.1f;
@@ -92,6 +96,8 @@ struct POSESEARCH_API FMotionMatchingState
 	FDebugFloatHistory SearchCostHistoryBruteForce;
 	FDebugFloatHistory SearchCostHistoryKDTree;
 #endif
+
+	UE::PoseSearch::FPoseIndicesHistory PoseIndicesHistory;
 };
 
 /**
