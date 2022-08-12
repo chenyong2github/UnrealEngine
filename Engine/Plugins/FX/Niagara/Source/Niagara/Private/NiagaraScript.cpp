@@ -98,6 +98,14 @@ static FAutoConsoleVariableRef CVarLogCompileStaticVars(
 	ECVF_Default
 );
 
+int32 GNiagaraScriptStripByteCodeOnLoad = 0;
+static FAutoConsoleVariableRef CVarGNiagaraScriptStripByteCodeOnLoad(
+	TEXT("fx.NiagaraScript.StripByteCodeOnLoad"),
+	GNiagaraScriptStripByteCodeOnLoad,
+	TEXT("If > 0 all scripts will have their legacy byte code stripped on load.  If < 0 all scripts will have their experimental data stripped on load. \n"),
+	ECVF_Default
+);
+
 FNiagaraScriptDebuggerInfo::FNiagaraScriptDebuggerInfo() : bWaitForGPU(false), Usage(ENiagaraScriptUsage::Function), FrameLastWriteId(-1), bWritten(false)
 {
 }
@@ -313,6 +321,41 @@ FVectorVMOptimizeContext FNiagaraVMExecutableData::BuildExperimentalContext() co
 }
 #endif
 
+bool FNiagaraVMExecutableData::HasByteCode() const
+{
+#if VECTORVM_SUPPORTS_LEGACY
+	if (ByteCode.HasByteCode() || OptimizedByteCode.HasByteCode())
+	{
+		return true;
+	}
+#endif
+
+#if VECTORVM_SUPPORTS_EXPERIMENTAL
+	if (!ExperimentalContextData.IsEmpty())
+	{
+		return true;
+	}
+#endif
+
+	return false;
+}
+
+void FNiagaraVMExecutableData::PostSerialize(const FArchive& Ar)
+{
+#if VECTORVM_SUPPORTS_EXPERIMENTAL && VECTORVM_SUPPORTS_LEGACY && !WITH_EDITOR
+	if (Ar.IsLoading())
+	{
+		if (GNiagaraScriptStripByteCodeOnLoad > 0)
+		{
+			ByteCode.Reset();
+		}
+		else if (GNiagaraScriptStripByteCodeOnLoad < 0)
+		{
+			ExperimentalContextData.Empty();
+		}
+	}
+#endif
+}
 
 UNiagaraScript::UNiagaraScript()
 {
@@ -3550,7 +3593,10 @@ NIAGARA_API bool UNiagaraScript::IsScriptCompilationPending(bool bGPUScript) con
 	}
 	else if (CachedScriptVM.IsValid())
 	{
-		return !CachedScriptVM.ByteCode.HasByteCode() && !CachedScriptVM.OptimizedByteCode.HasByteCode() && (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_BeingCreated || CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_Unknown);
+		if (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_BeingCreated || CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_Unknown)
+		{
+			return !CachedScriptVM.HasByteCode();
+		}
 	}
 	return false;
 }
@@ -3583,7 +3629,7 @@ NIAGARA_API bool UNiagaraScript::DidScriptCompilationSucceed(bool bGPUScript) co
 	}
 	else if (CachedScriptVM.IsValid())
 	{
-		return (CachedScriptVM.ByteCode.HasByteCode()) || (CachedScriptVM.OptimizedByteCode.HasByteCode());
+		return (CachedScriptVM.HasByteCode());
 	}
 
 	return false;

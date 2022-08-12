@@ -222,6 +222,7 @@ namespace VectorVM
 			else
 			{
 				InputOffset = Context.Legacy.DecodeU16();
+				bIsRegister = !!(InputOffset & VVM_EXT_FUNC_INPUT_LOC_BIT);
 
 				const int32 Offset = GetOffset();
 				InputPtr = IsConstant() ? Context.Legacy.GetConstant<T>(Offset) : reinterpret_cast<T*>(Context.Legacy.GetTempRegister(Offset));
@@ -229,7 +230,6 @@ namespace VectorVM
 
 				//Hack: Offset into the buffer by the instance offset.
 				InputPtr += Context.Legacy.GetExternalFunctionInstanceOffset() * AdvanceOffset;
-				bIsRegister = !!(InputOffset & VVM_EXT_FUNC_INPUT_LOC_BIT);
 			}
 #elif VECTORVM_SUPPORTS_EXPERIMENTAL
 			InputPtr = (T*)Context.GetNextRegister(&AdvanceOffset, &InputOffset) + Context.PerInstanceFnInstanceIdx;

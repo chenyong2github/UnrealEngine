@@ -563,10 +563,23 @@ public:
 	void BakeScriptLiterals(TArray<uint8>& OutLiterals) const;
 #endif
 
+	bool HasByteCode() const;
+
 #if VECTORVM_SUPPORTS_EXPERIMENTAL
 	bool SupportsExperimentalVM() const;
 	FVectorVMOptimizeContext BuildExperimentalContext() const;
 #endif //VECTORVM_SUPPORTS_EXPERIMENTAL
+
+	void PostSerialize(const FArchive& Ar);
+};
+
+template<>
+struct TStructOpsTypeTraits<FNiagaraVMExecutableData> : public TStructOpsTypeTraitsBase2<FNiagaraVMExecutableData>
+{
+	enum
+	{
+		WithPostSerialize = true,
+	};
 };
 
 struct NIAGARA_API FNiagaraGraphCachedDataBase
