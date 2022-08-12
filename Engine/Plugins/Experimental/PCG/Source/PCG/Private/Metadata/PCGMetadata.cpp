@@ -53,7 +53,7 @@ void UPCGMetadata::Serialize(FArchive& InArchive)
 	if (InArchive.IsLoading())
 	{
 		NextAttributeId = Attributes.Num();
-		ItemKeyOffset = (Parent ? Parent->GetItemCountForChild() : 0);
+		ItemKeyOffset = (Parent.IsValid() ? Parent->GetItemCountForChild() : 0);
 	}
 }
 
@@ -72,14 +72,14 @@ void UPCGMetadata::BeginDestroy()
 
 void UPCGMetadata::Initialize(const UPCGMetadata* InParent)
 {
-	if (Parent || Attributes.Num() != 0)
+	if (Parent.IsValid() || Attributes.Num() != 0)
 	{
 		// Already initialized; note that while that might be construed as a warning, there are legit cases where this is correct
 		return;
 	}
 
 	Parent = ((InParent != this) ? InParent : nullptr);
-	ItemKeyOffset = Parent ? Parent->GetItemCountForChild() : 0;
+	ItemKeyOffset = Parent.IsValid() ? Parent->GetItemCountForChild() : 0;
 	AddAttributes(InParent);
 }
 
@@ -91,7 +91,7 @@ void UPCGMetadata::InitializeAsCopy(const UPCGMetadata* InMetadataToCopy)
 	}
 
 	check(InMetadataToCopy);
-	if (Parent || Attributes.Num() != 0)
+	if (Parent.IsValid() || Attributes.Num() != 0)
 	{
 		UE_LOG(LogPCG, Error, TEXT("Metadata has already been initialized or already contains attributes"));
 		return;
@@ -198,7 +198,7 @@ void UPCGMetadata::CopyAttribute(const UPCGMetadata* InOther, FName AttributeToC
 
 const UPCGMetadata* UPCGMetadata::GetRoot() const
 {
-	if (Parent)
+	if (Parent.IsValid())
 	{
 		return Parent->GetRoot();
 	}
@@ -363,7 +363,7 @@ FName UPCGMetadata::GetSingleAttributeNameOrNone() const
 
 bool UPCGMetadata::ParentHasAttribute(FName AttributeName) const
 {
-	return Parent && Parent->HasAttribute(AttributeName);
+	return Parent.IsValid() && Parent->HasAttribute(AttributeName);
 }
 
 void UPCGMetadata::CreateInteger64Attribute(FName AttributeName, int64 DefaultValue, bool bAllowsInterpolation, bool bOverrideParent)
@@ -472,7 +472,7 @@ FPCGMetadataAttributeBase* UPCGMetadata::CopyAttribute(FName AttributeToCopy, FN
 	}
 	AttributeLock.ReadUnlock();
 
-	if (!OriginalAttribute && Parent)
+	if (!OriginalAttribute && Parent.IsValid())
 	{
 		OriginalAttribute = Parent->GetConstAttribute(AttributeToCopy);
 	}
@@ -573,6 +573,26 @@ int64 UPCGMetadata::AddEntry(int64 ParentEntry)
 {
 	FWriteScopeLock ScopeLock(ItemLock);
 	return ParentKeys.Add(ParentEntry) + ItemKeyOffset;
+}
+
+int64 UPCGMetadata::AddEntryPlaceholder()
+{
+	FReadScopeLock ScopeLock(ItemLock);
+	return ParentKeys.Num() + DelayedEntriesIndex.IncrementExchange() + ItemKeyOffset;
+}
+
+void UPCGMetadata::AddDelayedEntries(const TArray<TTuple<int64, int64>>& AllEntries)
+{
+	FWriteScopeLock ScopeLock(ItemLock);
+	ParentKeys.AddUninitialized(AllEntries.Num());
+	for (const TTuple<int64, int64>& Entry : AllEntries)
+	{
+		int64 Index = Entry.Get<0>() - ItemKeyOffset;
+		check(Index < ParentKeys.Num());
+		ParentKeys[Index] = Entry.Get<1>();
+	}
+
+	DelayedEntriesIndex.Exchange(0);
 }
 
 bool UPCGMetadata::InitializeOnSet(PCGMetadataEntryKey& InKey, PCGMetadataEntryKey InParentKeyA, const UPCGMetadata* InParentMetadataA, PCGMetadataEntryKey InParentKeyB, const UPCGMetadata* InParentMetadataB)

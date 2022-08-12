@@ -120,6 +120,9 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 		}
 	}
 
+	TArray<TTuple<int64, int64>> AllMetadataEntries;
+	AllMetadataEntries.SetNum(SourcePoints.Num() * TargetPoints.Num());
+
 	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num() * TargetPoints.Num(), OutPoints, [&](int32 Index, FPCGPoint& OutPoint)
 	{
 		const FPCGPoint& SourcePoint = SourcePoints[Index / TargetPoints.Num()];
@@ -194,7 +197,8 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 			NonRootPoint = &SourcePoint;
 		}
 
-		OutPoint.MetadataEntry = OutPointData->Metadata->AddEntry(RootPoint->MetadataEntry);
+		OutPoint.MetadataEntry = OutPointData->Metadata->AddEntryPlaceholder();
+		AllMetadataEntries[Index] = TTuple<int64, int64>(OutPoint.MetadataEntry, RootPoint->MetadataEntry);
 
 		// Copy EntryToValue key mappings from NonRootAttributes
 		for (FPCGMetadataAttributeBase* NonRootAttribute : NonRootAttributes)
@@ -207,6 +211,8 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 		return true;
 	});
+
+	OutPointData->Metadata->AddDelayedEntries(AllMetadataEntries);
 
 	// Forward any non-input data
 	Outputs.Append(Context->InputData.GetAllSettings());
