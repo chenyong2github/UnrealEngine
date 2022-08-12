@@ -1826,13 +1826,10 @@ void UMetasoundEditorGraph::IterateOutputs(TUniqueFunction<void(UMetasoundEditor
 	}
 }
 
-bool UMetasoundEditorGraph::ValidateInternal(Metasound::Editor::FGraphValidationResults& OutResults)
+void UMetasoundEditorGraph::ValidateInternal(Metasound::Editor::FGraphValidationResults& OutResults)
 {
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
-
-	bool bMarkDirty = false;
-	bool bIsValid = true;
 
 	OutResults = FGraphValidationResults();
 
@@ -1841,19 +1838,10 @@ bool UMetasoundEditorGraph::ValidateInternal(Metasound::Editor::FGraphValidation
 	for (UMetasoundEditorGraphNode* Node : NodesToValidate)
 	{
 		FGraphNodeValidationResult NodeResult(*Node);
+		Node->Validate(NodeResult);
 
-		bIsValid &= Node->Validate(NodeResult);
-		bMarkDirty |= NodeResult.bIsDirty;
-
-		OutResults.NodeResults.Add(NodeResult);
+		OutResults.NodeResults.Add(MoveTemp(NodeResult));
 	}
-
-	if (bMarkDirty)
-	{
-		MarkPackageDirty();
-	}
-
-	return bIsValid;
 }
 
 bool UMetasoundEditorGraph::RemoveMember(UMetasoundEditorGraphMember& InGraphMember)

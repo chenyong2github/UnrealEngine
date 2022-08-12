@@ -5,6 +5,7 @@
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
 #include "Internationalization/Text.h"
+#include "Logging/TokenizedMessage.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
 #include "UObject/NoExportTypes.h"
@@ -43,9 +44,6 @@ namespace Metasound
 		{
 			static void InitGraphNode(Frontend::FNodeHandle& InNodeHandle, UMetasoundEditorGraphNode* NewGraphNode, UObject& InMetaSound);
 
-			// Validates MetaSound graph.
-			static bool ValidateGraph(UObject& InMetaSound, bool bForceRefreshNodes);
-
 		public:
 			static const FName PinCategoryAudio;
 			static const FName PinCategoryBoolean;
@@ -71,6 +69,9 @@ namespace Metasound
 			static TSharedPtr<FEditor> GetEditorForGraph(const UEdGraph& InEdGraph);
 			static TSharedPtr<FEditor> GetEditorForNode(const UEdGraphNode& InEdNode);
 			static TSharedPtr<FEditor> GetEditorForPin(const UEdGraphPin& InEdPin);
+
+			// Validates MetaSound graph, returning the highest EMessageSeverity integer value
+			static EMessageSeverity::Type ValidateGraph(UObject& InMetaSound, bool bForceRefreshNodes);
 
 			// Wraps RegisterGraphWithFrontend logic in Frontend with any additional logic required to refresh editor & respective editor object state.
 			// @param InMetaSound - MetaSound to register
@@ -196,6 +197,8 @@ namespace Metasound
 			static Frontend::FInputHandle GetInputHandleFromPin(const UEdGraphPin* InPin);
 			static Frontend::FConstInputHandle GetConstInputHandleFromPin(const UEdGraphPin* InPin);
 
+			static FName GetPinDataType(const UEdGraphPin* InPin);
+
 			static const FMetasoundFrontendEdgeStyle* GetOutputEdgeStyle(Frontend::FConstOutputHandle InOutputHandle);
 			static const FMetasoundFrontendEdgeStyle* GetOutputEdgeStyle(const UEdGraphPin* InPin);
 
@@ -203,6 +206,17 @@ namespace Metasound
 			// TODO: use IDs to connect rather than names. Likely need an UMetasoundEditorGraphPin
 			static Frontend::FOutputHandle GetOutputHandleFromPin(const UEdGraphPin* InPin);
 			static Frontend::FConstOutputHandle GetConstOutputHandleFromPin(const UEdGraphPin* InPin);
+
+			static UEdGraphPin* FindReroutedOutputPin(UEdGraphPin* InPin);
+
+			// Find the "concrete" output handle associated with an output pin.  If the given output pin is on
+			// a reroute node, will recursively search for the non-rerouted output its representing.
+			static Frontend::FOutputHandle FindReroutedOutputHandleFromPin(const UEdGraphPin* InOutputPin);
+			static Frontend::FConstOutputHandle FindReroutedConstOutputHandleFromPin(const UEdGraphPin* InPin);
+
+			// Find the "concrete" input handle associated with an output pin.  If the given input pin is on
+			// a reroute node, will recursively search for all the non-rerouted input pins its representing.
+			static void FindReroutedInputPins(UEdGraphPin* InPinToCheck, TArray<UEdGraphPin*>& InOutInputPins);
 
 			// Returns the default literal stored on the respective Frontend Node's Input.
 			static bool GetPinLiteral(UEdGraphPin& InInputPin, FMetasoundFrontendLiteral& OutLiteralDefault);
@@ -235,8 +249,8 @@ namespace Metasound
 			// Adds and removes nodes, pins and connections so that the UEdGraph of the MetaSound matches the FMetasoundFrontendDocumentModel
 			//
 			// @param bForceRefreshNodes - Refreshes all transient data stored on editor nodes & redraws them
-			// @return True if the UEdGraph is synchronized and is in valid state, false otherwise.
-			static bool SynchronizeGraph(UObject& InMetaSound, bool bForceRefreshNodes = false);
+			// @return Highest MessageSeverity integer value listed on validated nodes post synchronization.
+			static int32 SynchronizeGraph(UObject& InMetaSound, bool bForceRefreshNodes = false);
 
 			// Synchronizes editor nodes with frontend nodes, removing editor nodes that are not represented in the frontend, and adding editor nodes to represent missing frontend nodes.
 			//

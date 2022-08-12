@@ -4,6 +4,7 @@
 #include "EdGraphUtilities.h"
 #include "EdGraph/EdGraphNode.h"
 #include "MetasoundEditorGraphNode.h"
+#include "NodeTemplates/MetasoundFrontendNodeTemplateReroute.h"
 #include "SGraphNode.h"
 #include "SMetasoundGraphNode.h"
 #include "SMetasoundGraphNodeComment.h"
@@ -16,9 +17,19 @@ class FMetasoundGraphNodeFactory : public FGraphPanelNodeFactory
 	virtual TSharedPtr<SGraphNode> CreateNode(UEdGraphNode* InNode) const override
 	{
 		using namespace Metasound::Editor;
+		using namespace Metasound::Frontend;
 
 		if (InNode->IsA<UMetasoundEditorGraphNode>())
 		{
+			if (const UMetasoundEditorGraphExternalNode* Node = Cast<UMetasoundEditorGraphExternalNode>(InNode))
+			{
+				FConstNodeHandle NodeHandle = Node->GetConstNodeHandle();
+				const FMetasoundFrontendClassName ClassName = NodeHandle->GetClassMetadata().GetClassName();
+				if (ClassName == FRerouteNodeTemplate::ClassName)
+				{
+					return SNew(SMetaSoundGraphNodeKnot, InNode);
+				}
+			}
 			return SNew(SMetaSoundGraphNode, InNode);
 		}
 		else if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(InNode))

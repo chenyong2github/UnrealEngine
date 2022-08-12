@@ -239,7 +239,7 @@ namespace Metasound
 			return Key;
 		}
 
-		FNodeRegistryKey FRegistryContainerImpl::RegisterNodeTemplate(TUniquePtr<INodeTemplateRegistryEntry>&& InEntry)
+		FNodeRegistryKey FRegistryContainerImpl::RegisterNodeTemplate(TUniquePtr<INodeRegistryTemplateEntry>&& InEntry)
 		{
 			METASOUND_LLM_SCOPE;
 
@@ -247,7 +247,7 @@ namespace Metasound
 
 			if (InEntry.IsValid())
 			{
-				TSharedRef<INodeTemplateRegistryEntry, ESPMode::ThreadSafe> Entry(InEntry.Release());
+				TSharedRef<INodeRegistryTemplateEntry, ESPMode::ThreadSafe> Entry(InEntry.Release());
 
 				FNodeRegistryTransaction::FTimeType Timestamp = FPlatformTime::Cycles64();
 
@@ -297,7 +297,7 @@ namespace Metasound
 
 			if (NodeRegistryKey::IsValid(InKey))
 			{
-				if (const INodeTemplateRegistryEntry* Entry = FindNodeTemplateEntry(InKey))
+				if (const INodeRegistryTemplateEntry* Entry = FindNodeTemplateEntry(InKey))
 				{
 					FNodeRegistryTransaction::FTimeType Timestamp = FPlatformTime::Cycles64();
 
@@ -344,7 +344,7 @@ namespace Metasound
 				return Entry->IsNative();
 			}
 
-			if (const INodeTemplateRegistryEntry* TemplateEntry = FindNodeTemplateEntry(InKey))
+			if (const INodeRegistryTemplateEntry* TemplateEntry = FindNodeTemplateEntry(InKey))
 			{
 				return true;
 			}
@@ -360,7 +360,7 @@ namespace Metasound
 				return true;
 			}
 
-			if (const INodeTemplateRegistryEntry* Entry = FindNodeTemplateEntry(InKey))
+			if (const INodeRegistryTemplateEntry* Entry = FindNodeTemplateEntry(InKey))
 			{
 				OutClass = Entry->GetFrontendClass();
 				return true;
@@ -377,7 +377,7 @@ namespace Metasound
 				return true;
 			}
 
-			if (const INodeTemplateRegistryEntry* Entry = FindNodeTemplateEntry(InKey))
+			if (const INodeRegistryTemplateEntry* Entry = FindNodeTemplateEntry(InKey))
 			{
 				OutInfo = Entry->GetClassInfo();
 				return true;
@@ -487,9 +487,9 @@ namespace Metasound
 			return nullptr;
 		}
 
-		const INodeTemplateRegistryEntry* FRegistryContainerImpl::FindNodeTemplateEntry(const FNodeRegistryKey& InKey) const
+		const INodeRegistryTemplateEntry* FRegistryContainerImpl::FindNodeTemplateEntry(const FNodeRegistryKey& InKey) const
 		{
-			if (const TSharedRef<INodeTemplateRegistryEntry, ESPMode::ThreadSafe>* Entry = RegisteredNodeTemplates.Find(InKey))
+			if (const TSharedRef<INodeRegistryTemplateEntry, ESPMode::ThreadSafe>* Entry = RegisteredNodeTemplates.Find(InKey))
 			{
 				return &Entry->Get();
 			}

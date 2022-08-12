@@ -12,6 +12,7 @@
 #include "MetasoundEditorSettings.h"
 #include "MetasoundTrace.h"
 #include "Misc/App.h"
+#include "NodeTemplates/MetasoundFrontendNodeTemplateReroute.h"
 #include "Templates/Function.h"
 
 #define METASOUND_EDITOR_DEBUG_CONNECTIONS 0
@@ -84,7 +85,7 @@ namespace Metasound
 
 				if (MetasoundEditor.IsValid())
 				{
-					FConstOutputHandle OutputHandle = FGraphBuilder::GetConstOutputHandleFromPin(OutputPin);
+					FConstOutputHandle OutputHandle = FGraphBuilder::FindReroutedConstOutputHandleFromPin(OutputPin);
 					const FGuid NodeId = OutputHandle->GetOwningNodeID();
 					FName OutputName = OutputHandle->GetName();
 
@@ -196,7 +197,7 @@ namespace Metasound
 			if (Params.AssociatedPin1)
 			{
 				OutputPin = Params.AssociatedPin1->Direction == EGPD_Output ? Params.AssociatedPin1 : Params.AssociatedPin2;
-				OutputHandle = FGraphBuilder::GetConstOutputHandleFromPin(OutputPin);
+				OutputHandle = FGraphBuilder::FindReroutedConstOutputHandleFromPin(OutputPin);
 			}
 
 			// The curve will include the endpoints but can extend out of a tight bounds because of the tangents
@@ -289,6 +290,10 @@ namespace Metasound
 			: FConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements)
 			, GraphObj(InGraphObj)
 		{
+			// Don't show arrow images in the MetaSound graph
+			ArrowImage = nullptr;
+			ArrowRadius = FVector2D::ZeroVector;
+
 			WireAnimationLayerID = (InFrontLayerID + InBackLayerID) / 2;
 			ActiveWireThickness = Settings->TraceAttackWireThickness;
 			InactiveWireThickness = Settings->TraceReleaseWireThickness;
@@ -608,7 +613,7 @@ namespace Metasound
 				{
 					if (MetasoundEditor.IsValid())
 					{
-						FConstOutputHandle OutputHandle = FGraphBuilder::GetConstOutputHandleFromPin(InParams.ConnectionData.OutputPin);
+						FConstOutputHandle OutputHandle = FGraphBuilder::FindReroutedConstOutputHandleFromPin(InParams.ConnectionData.OutputPin);
 						const FGuid NodeId = OutputHandle->GetOwningNodeID();
 						FName OutputName = OutputHandle->GetName();
 

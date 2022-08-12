@@ -410,7 +410,7 @@ private:
 	bool RemoveFrontendInput(UMetasoundEditorGraphInput& Input);
 	bool RemoveFrontendOutput(UMetasoundEditorGraphOutput& Output);
 	bool RemoveFrontendVariable(UMetasoundEditorGraphVariable& Variable);
-	bool ValidateInternal(Metasound::Editor::FGraphValidationResults& OutResults);
+	void ValidateInternal(Metasound::Editor::FGraphValidationResults& OutResults);
 
 	// Preview ID is the Unique ID provided by the UObject that implements
 	// a sound's ParameterInterface when a sound begins playing.

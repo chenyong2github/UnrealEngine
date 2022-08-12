@@ -6,6 +6,7 @@
 #include "Layout/Visibility.h"
 #include "Misc/Attribute.h"
 #include "SGraphNode.h"
+#include "SGraphNodeKnot.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SOverlay.h"
 
@@ -81,6 +82,24 @@ namespace Metasound
 			FDelegateHandle InputSliderOnValueChangedDelegateHandle;
 			// Handle for on input slider range changed  
 			FDelegateHandle InputSliderOnRangeChangedDelegateHandle;
+		};
+
+		class SMetaSoundGraphNodeKnot : public SGraphNodeKnot
+		{
+		public:
+			SLATE_BEGIN_ARGS(SMetaSoundGraphNode)
+			{
+			}
+
+			SLATE_END_ARGS()
+
+			void Construct(const FArguments& InArgs, class UEdGraphNode* InNode);
+
+			virtual TSharedPtr<SGraphPin> CreatePinWidget(UEdGraphPin* Pin) const override;
+			virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty) override;
+
+			UMetasoundEditorGraphNode& GetMetaSoundNode();
+			const UMetasoundEditorGraphNode& GetMetaSoundNode() const;
 		};
 	} // namespace Editor
 } // namespace Metasound

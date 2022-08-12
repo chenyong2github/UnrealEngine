@@ -20,7 +20,10 @@ namespace Metasound
 			virtual const FMetasoundFrontendClass& GetFrontendClass() const = 0;
 			virtual const FMetasoundFrontendVersion& GetVersion() const = 0;
 			virtual bool IsValidNodeInterface(const FMetasoundFrontendNodeInterface& InNodeInterface) const = 0;
+
+#if WITH_EDITOR
 			virtual bool HasRequiredConnections(FConstNodeHandle InNodeHandle) const = 0;
+#endif // WITH_EDITOR
 		};
 
 		class METASOUNDFRONTEND_API INodeTemplateRegistry

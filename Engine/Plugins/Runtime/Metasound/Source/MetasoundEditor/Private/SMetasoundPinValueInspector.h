@@ -53,9 +53,9 @@ namespace Metasound
 			FMetasoundNumericDebugLineItem(UEdGraphPin* InGraphPinObj, FGetValueStringFunction&& InGetValueStringFunction);
 			virtual ~FMetasoundNumericDebugLineItem() = default;
 
-			const UMetasoundEditorGraphNode* GetNode() const;
+			const UMetasoundEditorGraphNode* GetReroutedNode() const;
 
-			const UMetasoundEditorGraphNode& GetNodeChecked() const;
+			const UMetasoundEditorGraphNode& GetReroutedNodeChecked() const;
 
 			Frontend::FConstOutputHandle GetOutputHandle() const;
 

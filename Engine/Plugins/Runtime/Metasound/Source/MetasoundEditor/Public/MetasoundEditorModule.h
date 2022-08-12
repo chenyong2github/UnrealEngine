@@ -25,6 +25,12 @@ namespace Metasound
 {
 	namespace Editor
 	{
+		namespace Style
+		{
+			METASOUNDEDITOR_API FSlateIcon CreateSlateIcon(FName InName);
+			METASOUNDEDITOR_API const FSlateBrush& GetSlateBrushSafe(FName InName);
+		} // namespace Style
+
 		// Status of initial asset scan when editor loads up.
 		enum class EAssetScanStatus : uint8
 		{

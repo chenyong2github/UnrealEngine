@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Algo/NoneOf.h"
-#include "MetasoundEditorGraph.h"
+#include "Containers/Array.h"
+#include "Logging/TokenizedMessage.h"
 #include "MetasoundEditorGraphNode.h"
+#include "MetasoundEditorGraph.h"
 
 class UMetasoundEditorGraphNode;
+
 
 namespace Metasound
 {
@@ -13,20 +15,29 @@ namespace Metasound
 	{
 		struct METASOUNDEDITOR_API FGraphNodeValidationResult
 		{
+			FGraphNodeValidationResult(UMetasoundEditorGraphNode& InNode);
+
+			// Whether or not validation operations on result have
+			// dirtied the associated Node (Validation doesn't mark
+			// node as dirtied to avoid resave being required at
+			// asset level)
+			bool GetHasDirtiedNode() const;
+
+			UMetasoundEditorGraphNode& GetNodeChecked() const;
+
+			// Whether associated node is in invalid state, i.e.
+			// may fail to build or may result in undefined behavior.
+			bool GetIsInvalid() const;
+
+			void SetMessage(EMessageSeverity::Type InSeverity, const FString& InMessage);
+			void SetPinOrphaned(UEdGraphPin& Pin, bool bIsOrphaned);
+
+		private:
 			// Node associated with validation result
 			UMetasoundEditorGraphNode* Node = nullptr;
 
-			// Whether associated node is in invalid state (document is corrupt and no Frontend representation could be
-			// found for the node)
-			bool bIsInvalid = false;
-
 			// Whether validation made changes to the node and is now in a dirty state
-			bool bIsDirty = false;
-
-			FGraphNodeValidationResult(UMetasoundEditorGraphNode& InNode)
-				: Node(&InNode)
-			{
-			}
+			bool bHasDirtiedNode = false;
 		};
 
 		struct METASOUNDEDITOR_API FGraphValidationResults
@@ -34,19 +45,10 @@ namespace Metasound
 			TArray<FGraphNodeValidationResult> NodeResults;
 
 			// Results corresponding with node validation
-			const TArray<FGraphNodeValidationResult>& GetResults() const
-			{
-				return NodeResults;
-			}
+			const TArray<FGraphNodeValidationResult>& GetResults() const;
 
-			// Returns whether or not the graph is in a valid state
-			bool IsValid() const
-			{
-				return Algo::NoneOf(NodeResults, [](const FGraphNodeValidationResult& Result)
-				{
-					return Result.bIsInvalid;
-				});
-			}
+			// Returns highest message severity of validated nodes
+			EMessageSeverity::Type GetHighestMessageSeverity() const;
 		};
 	} // namespace Editor
 } // namespace Metasound

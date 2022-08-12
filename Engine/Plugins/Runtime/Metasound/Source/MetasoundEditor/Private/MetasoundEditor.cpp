@@ -54,6 +54,7 @@
 #include "SMetasoundActionMenu.h"
 #include "SMetasoundPalette.h"
 #include "SNodePanel.h"
+#include "Stats/Stats.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
@@ -62,7 +63,6 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/SWindow.h"
-#include "Stats/Stats.h"
 
 struct FGraphActionNode;
 
@@ -359,11 +359,8 @@ namespace Metasound
 							{
 								bDropTargetValid = true;
 
-								if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
-								{
-									PrimarySymbol = MetasoundStyle->GetBrush("MetasoundEditor.Graph.Node.Class.Input");
-									SecondarySymbol = nullptr;
-								}
+								Style::GetSlateBrushSafe("MetasoundEditor.Graph.Node.Class.Input");
+								SecondarySymbol = nullptr;
 
 								if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
 								{
@@ -976,10 +973,7 @@ namespace Metasound
 		{
 			if (IsPlaying())
 			{
-				if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
-				{
-					return MetasoundStyle->GetBrush("MetasoundEditor.Play");
-				}
+				return &Style::GetSlateBrushSafe("MetasoundEditor.Play");
 			}
 
 			return FAssetEditorToolkit::GetDefaultTabIcon();
@@ -1243,17 +1237,7 @@ namespace Metasound
  					}
  					ToolbarBuilder.EndSection();
 
-					if (Metasound->IsA<USoundBase>())
-					{
-						ToolbarBuilder.BeginSection("Audition");
-						{
-							ToolbarBuilder.AddToolBarButton(FEditorCommands::Get().Play);
-							ToolbarBuilder.AddToolBarButton(FEditorCommands::Get().Stop);
-						}
-						ToolbarBuilder.EndSection();
-					}
-
-					ToolbarBuilder.BeginSection("Utilities");
+					ToolbarBuilder.BeginSection("Settings");
 					{
 						if (Metasound->IsA<USoundBase>())
 						{
@@ -1277,6 +1261,37 @@ namespace Metasound
 						);
 					}
 					ToolbarBuilder.EndSection();
+
+					if (Metasound->IsA<USoundBase>())
+					{
+						ToolbarBuilder.BeginSection("Audition");
+						{
+							ToolbarBuilder.BeginStyleOverride("Toolbar.BackplateLeft");
+							{
+								ToolbarBuilder.AddToolBarButton(
+									FEditorCommands::Get().Play,
+									NAME_None,
+									TAttribute<FText>(),
+									TAttribute<FText>::Create([this] { return GetGraphStatusDescription(); }),
+									TAttribute<FSlateIcon>::Create([this]() { return GetPlayIcon(); })
+								);
+							}
+							ToolbarBuilder.EndStyleOverride();
+
+							ToolbarBuilder.BeginStyleOverride("Toolbar.BackplateRight");
+							{
+								ToolbarBuilder.AddToolBarButton(
+									FEditorCommands::Get().Stop,
+									NAME_None,
+									TAttribute<FText>(),
+									TAttribute<FText>(),
+									TAttribute<FSlateIcon>::Create([this]() { return GetStopIcon(); })
+								);
+							}
+							ToolbarBuilder.EndStyleOverride();
+						}
+						ToolbarBuilder.EndSection();
+					}
 				})
 			);
 
@@ -1425,11 +1440,112 @@ namespace Metasound
 			MetasoundAsset->GetDocumentHandle()->ExportToJSONAsset(Path);
 		}
 
+		FText FEditor::GetGraphStatusDescription() const
+		{
+			switch (HighestMessageSeverity)
+			{
+				case EMessageSeverity::Error:
+				{
+					return LOCTEXT("MetaSoundPlayStateTooltip_Error", "MetaSound contains errors and cannot be played.");
+				}
+
+				case EMessageSeverity::PerformanceWarning:
+				case EMessageSeverity::Warning:
+				{
+					return LOCTEXT("MetaSoundPlayStateTooltip_Warning", "MetaSound contains warnings and playback behavior may be undesired.");
+				}
+				break;
+
+				case EMessageSeverity::Info:
+				default:
+				{
+					return FEditorCommands::Get().Play->GetDescription();
+				}
+				break;
+			}
+		}
+
+		const FSlateIcon& FEditor::GetPlayIcon() const
+		{
+			switch (HighestMessageSeverity)
+			{
+				case EMessageSeverity::Error:
+				{
+					static const FSlateIcon Icon = Style::CreateSlateIcon("MetasoundEditor.Play.Error");
+					return Icon;
+				}
+
+				case EMessageSeverity::PerformanceWarning:
+				case EMessageSeverity::Warning:
+				{
+					if (IsPlaying())
+					{
+						static const FSlateIcon Icon = Style::CreateSlateIcon("MetasoundEditor.Play.Active.Warning");
+						return Icon;
+					}
+					else
+					{
+						static const FSlateIcon Icon = Style::CreateSlateIcon("MetasoundEditor.Play.Inactive.Warning");
+						return Icon;
+					}
+				}
+				break;
+
+				case EMessageSeverity::Info:
+				default:
+				{
+					if (IsPlaying())
+					{
+						static const FSlateIcon Icon = Style::CreateSlateIcon("MetasoundEditor.Play.Active.Valid");
+						return Icon;
+					}
+					else
+					{
+						static const FSlateIcon Icon = Style::CreateSlateIcon("MetasoundEditor.Play.Inactive.Valid");
+						return Icon;
+					}
+				}
+				break;
+			}
+		}
+
+		const FSlateIcon& FEditor::GetStopIcon() const
+		{
+			switch (HighestMessageSeverity)
+			{
+				case EMessageSeverity::Error:
+				{
+					static const FSlateIcon Icon = Style::CreateSlateIcon("MetasoundEditor.Stop.Disabled");
+					return Icon;
+				}
+				break;
+
+				case EMessageSeverity::PerformanceWarning:
+				case EMessageSeverity::Warning:
+				case EMessageSeverity::Info:
+				default:
+				{
+					if (IsPlaying())
+					{
+						static const FSlateIcon Icon = Style::CreateSlateIcon("MetasoundEditor.Stop.Active");
+						return Icon;
+					}
+					else
+					{
+						static const FSlateIcon Icon = Style::CreateSlateIcon("MetasoundEditor.Stop.Inactive");
+						return Icon;
+					}
+				}
+				break;
+			}
+		}
+
 		void FEditor::Play()
 		{
 			if (USoundBase* MetasoundToPlay = Cast<USoundBase>(Metasound))
 			{
-				if (!FGraphBuilder::SynchronizeGraph(*Metasound))
+				HighestMessageSeverity = FGraphBuilder::SynchronizeGraph(*Metasound);
+				if (HighestMessageSeverity == EMessageSeverity::Error)
 				{
 					return;
 				}
@@ -3168,7 +3284,7 @@ namespace Metasound
 
 				// Capture before synchronizing as the flag is cleared therein.
 				const bool bShouldRefreshDetails = MetasoundAsset->GetSynchronizationUpdateDetails();
-				FGraphBuilder::SynchronizeGraph(*Metasound);
+				HighestMessageSeverity = FGraphBuilder::SynchronizeGraph(*Metasound);
 
 				// Presets always update interfaces
 				const FMetasoundFrontendGraphClass& RootGraphClass = MetasoundAsset->GetDocumentHandle()->GetRootGraphClass();

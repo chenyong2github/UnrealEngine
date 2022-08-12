@@ -3,6 +3,7 @@
 #include "MetasoundFrontendNodeTemplateRegistry.h"
 
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendNodeRegistryPrivate.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendRegistryTransaction.h"
 #include "MetasoundLog.h"
@@ -24,7 +25,7 @@ namespace Metasound
 			virtual const INodeTemplate* FindTemplate(const FNodeRegistryKey& InKey) const override;
 
 			void Register(TUniquePtr<INodeTemplate>&& InEntry);
-			void Unregister(const FMetasoundFrontendVersion& InNodeTemplateVersion);
+			void Unregister(const FNodeRegistryKey& InKey);
 
 		private:
 			TMap<FNodeRegistryKey, TUniquePtr<INodeTemplate>> Templates;
@@ -43,13 +44,9 @@ namespace Metasound
 			}
 		}
 
-		void FNodeTemplateRegistry::Unregister(const FMetasoundFrontendVersion& InVersion)
+		void FNodeTemplateRegistry::Unregister(const FNodeRegistryKey& InKey)
 		{
-			const FNodeRegistryKey Key = NodeRegistryKey::CreateKey(EMetasoundFrontendClassType::Template, InVersion.Name.ToString(), InVersion.Number.Major, InVersion.Number.Minor);
-			if (ensure(NodeRegistryKey::IsValid(Key)))
-			{
-				Templates.Remove(Key);
-			}
+			ensure(Templates.Remove(InKey) > 0);
 		}
 
 		const INodeTemplate* FNodeTemplateRegistry::FindTemplate(const FNodeRegistryKey& InKey) const
@@ -70,12 +67,46 @@ namespace Metasound
 
 		void RegisterNodeTemplate(TUniquePtr<INodeTemplate>&& InTemplate)
 		{
+			class FTemplateRegistryEntry : public INodeRegistryTemplateEntry
+			{
+				const FNodeClassInfo ClassInfo;
+				const FMetasoundFrontendClass FrontendClass;
+
+			public:
+				FTemplateRegistryEntry(const INodeTemplate& InNodeTemplate)
+					: ClassInfo(InNodeTemplate.GetFrontendClass().Metadata)
+					, FrontendClass(InNodeTemplate.GetFrontendClass())
+				{
+				}
+
+				virtual ~FTemplateRegistryEntry() = default;
+
+				virtual const FNodeClassInfo& GetClassInfo() const override
+				{
+					return ClassInfo;
+				}
+
+				/** Return a FMetasoundFrontendClass which describes the node. */
+				virtual const FMetasoundFrontendClass& GetFrontendClass() const override
+				{
+					return FrontendClass;
+				}
+			};
+
+			TUniquePtr<INodeRegistryTemplateEntry> RegEntry = TUniquePtr<INodeRegistryTemplateEntry>(new FTemplateRegistryEntry(*InTemplate.Get()));
+			FRegistryContainerImpl::Get().RegisterNodeTemplate(MoveTemp(RegEntry));
+
 			static_cast<FNodeTemplateRegistry&>(INodeTemplateRegistry::Get()).Register(MoveTemp(InTemplate));
 		}
 
 		void UnregisterNodeTemplate(const FMetasoundFrontendVersion& InVersion)
 		{
-			static_cast<FNodeTemplateRegistry&>(INodeTemplateRegistry::Get()).Unregister(InVersion);
+			const FNodeRegistryKey Key = NodeRegistryKey::CreateKey(EMetasoundFrontendClassType::Template, InVersion.Name.ToString(), InVersion.Number.Major, InVersion.Number.Minor);
+			if (ensure(NodeRegistryKey::IsValid(Key)))
+			{
+				FRegistryContainerImpl::Get().UnregisterNodeTemplate(Key);
+				static_cast<FNodeTemplateRegistry&>(INodeTemplateRegistry::Get()).Unregister(Key);
+			}
 		}
 	} // namespace Frontend
 } // namespace Metasound

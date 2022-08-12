@@ -9,6 +9,7 @@
 #include "GraphEditor.h"
 #include "IDetailsView.h"
 #include "IMetasoundEditor.h"
+#include "Logging/TokenizedMessage.h"
 #include "Math/UnrealMathUtility.h"
 #include "MetasoundEditorGraphConnectionManager.h"
 #include "MetasoundEditorGraphNode.h"
@@ -189,6 +190,8 @@ namespace Metasound
 			/** Creates analyzers */
 			void CreateAnalyzers();
 
+			void BuildTransport(FToolBarBuilder& InToolBarBuilder);
+
 			/** Destroys analyzers */
 			void DestroyAnalyzers();
 
@@ -255,6 +258,10 @@ namespace Metasound
 			FGraphAppearanceInfo GetGraphAppearance() const;
 
 			UMetasoundEditorGraph& GetMetaSoundGraphChecked();
+
+			FText GetGraphStatusDescription() const;
+			const FSlateIcon& GetPlayIcon() const;
+			const FSlateIcon& GetStopIcon() const;
 
 			/**
 			 * Called when a node's title is committed for a rename
@@ -443,6 +450,8 @@ namespace Metasound
 
 			/** Whether or not registry is currently being primed due to assets still loading */
 			bool bPrimingRegistry = false;
+
+			int32 HighestMessageSeverity = EMessageSeverity::Info;
 		};
 	} // namespace Editor
 } // namespace Metasound

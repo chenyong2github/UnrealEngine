@@ -31,11 +31,6 @@ namespace Metasound
 
 		// Map of class names to sorted array of registered version numbers
 		using FSortedClassVersionMap = TMap<FName, TArray<FMetasoundFrontendVersionNumber>>;
-
-		namespace GraphNode
-		{
-			void SetMessage(UEdGraphNode& InNode, EMessageSeverity::Type InSeverity, const FString& InMessage);
-		}
 	} // namespace Editor
 } // namespace Metasound
 
@@ -106,7 +101,7 @@ public:
 	virtual FGuid GetNodeID() const { return FGuid(); }
 	virtual FText GetDisplayName() const;
 	virtual void CacheTitle();
-	virtual bool Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult);
+	virtual void Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult);
 
 	// Mark node for refresh
 	void SyncChangeIDs();
@@ -152,10 +147,6 @@ public:
 	{
 		return true;
 	}
-
-protected:
-	// Utility to construct a new validaton result for child classes
-	Metasound::Editor::FGraphNodeValidationResult CreateNewValidationResult();
 };
 
 /** Node that represents a graph output */
@@ -183,7 +174,7 @@ public:
 	// Disables interact widgets (ex. sliders, knobs) when input is connected
 	virtual bool EnableInteractWidgets() const override;
 
-	virtual bool Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult) override;
+	virtual void Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult) override;
 
 protected:
 	virtual FLinearColor GetNodeTitleColor() const override;
@@ -216,15 +207,17 @@ public:
 	virtual FGuid GetNodeID() const override { return NodeID; }
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetNodeTitleIcon() const override;
+	virtual bool ShouldDrawNodeAsControlPointOnly(int32& OutInputPinIndex, int32& OutOutputPinIndex) const override;
 
 	virtual void ReconstructNode() override;
 	virtual void CacheTitle() override;
+	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& OutHoverText) const override;
 
 	FMetasoundFrontendVersionNumber FindHighestVersionInRegistry() const;
 	bool CanAutoUpdate() const;
 
 	// Validates node and returns whether or not the node is valid.
-	virtual bool Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult) override;
+	virtual void Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult) override;
 
 
 protected:

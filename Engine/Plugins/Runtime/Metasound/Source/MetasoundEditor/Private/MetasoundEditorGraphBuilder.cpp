@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundEditorGraphBuilder.h"
 
+#include "Algo/AnyOf.h"
 #include "Algo/Sort.h"
 #include "Algo/Transform.h"
-#include "Algo/AnyOf.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
@@ -35,6 +35,7 @@
 #include "MetasoundVariableNodes.h"
 #include "MetasoundVertex.h"
 #include "Modules/ModuleManager.h"
+#include "NodeTemplates/MetasoundFrontendNodeTemplateReroute.h"
 #include "Templates/Tuple.h"
 #include "Toolkits/ToolkitManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -336,7 +337,11 @@ namespace Metasound
 			using namespace Frontend;
 
 			UMetasoundEditorGraphExternalNode* NewGraphNode = nullptr;
-			if (!ensure(InNodeHandle->GetClassMetadata().GetType() == EMetasoundFrontendClassType::External))
+
+			const EMetasoundFrontendClassType ClassType = InNodeHandle->GetClassMetadata().GetType();
+			const bool bIsExternalNode = ClassType == EMetasoundFrontendClassType::External;
+			const bool bIsTemplateNode = ClassType == EMetasoundFrontendClassType::Template;
+			if (!ensure(bIsExternalNode || bIsTemplateNode))
 			{
 				return nullptr;
 			}
@@ -476,7 +481,7 @@ namespace Metasound
 			RebuildNodePins(*NewGraphNode);
 		}
 
-		bool FGraphBuilder::ValidateGraph(UObject& InMetaSound, bool bForceRefreshNodes)
+		EMessageSeverity::Type FGraphBuilder::ValidateGraph(UObject& InMetaSound, bool bForceRefreshNodes)
 		{
 			using namespace Frontend;
 
@@ -494,30 +499,28 @@ namespace Metasound
 			bForceRefreshNodes |= Graph.RequiresForceRefreshNodes();
 			Graph.ClearForceRefreshNodes();
 
+			int8 HighestMessageSeverity = EMessageSeverity::Info;
+
 			FGraphValidationResults Results;
-
-			bool bMarkDirty = false;
-
 			Graph.ValidateInternal(Results);
 			for (const FGraphNodeValidationResult& Result : Results.GetResults())
 			{
-				bMarkDirty |= Result.bIsDirty;
-				check(Result.Node);
-				const bool bInterfaceChange = Result.Node->ContainsInterfaceChange();
-				const bool bMetadataChange = Result.Node->ContainsMetadataChange();
-				const bool bStyleChange = Result.Node->ContainsStyleChange();
+				UMetasoundEditorGraphNode& Node = Result.GetNodeChecked();
+				const bool bInterfaceChange = Node.ContainsInterfaceChange();
+				const bool bMetadataChange = Node.ContainsMetadataChange();
+				const bool bStyleChange = Node.ContainsStyleChange();
 
-				const FText Title = Result.Node->GetCachedTitle();
-				Result.Node->CacheTitle();
-				const bool bTitleUpdated = !Title.IdenticalTo(Result.Node->GetCachedTitle());
+				const FText Title = Node.GetCachedTitle();
+				Node.CacheTitle();
+				const bool bTitleUpdated = !Title.IdenticalTo(Node.GetCachedTitle());
 
-				if (Result.bIsDirty || bTitleUpdated || bMetadataChange || bInterfaceChange || bStyleChange || bForceRefreshNodes)
+				if (Result.GetHasDirtiedNode() || bTitleUpdated || bMetadataChange || bInterfaceChange || bStyleChange || bForceRefreshNodes)
 				{
-					Result.Node->SyncChangeIDs();
+					Node.SyncChangeIDs();
 
 					if (GraphEditor.IsValid())
 					{
-						GraphEditor->RefreshNode(*Result.Node);
+						GraphEditor->RefreshNode(Node);
 					}
 				}
 			}
@@ -527,12 +530,7 @@ namespace Metasound
 				MetaSoundEditor->RefreshGraphMemberMenu();
 			}
 
-			if (bMarkDirty)
-			{
-				InMetaSound.MarkPackageDirty();
-			}
-
-			return Results.IsValid();
+			return Results.GetHighestMessageSeverity();
 		}
 
 		TArray<FString> FGraphBuilder::GetDataTypeNameCategories(const FName& InDataTypeName)
@@ -696,6 +694,27 @@ namespace Metasound
 			return GetInputHandleFromPin(InPin);
 		}
 
+		FName FGraphBuilder::GetPinDataType(const UEdGraphPin* InPin)
+		{
+			using namespace Frontend;
+
+			if (InPin)
+			{
+				if (InPin->Direction == EGPD_Input)
+				{
+					FConstInputHandle InputHandle = GetConstInputHandleFromPin(InPin);
+					return InputHandle->GetDataType();
+				}
+				else // EGPD_Output
+				{
+					FConstOutputHandle OutputHandle = GetConstOutputHandleFromPin(InPin);
+					return OutputHandle->GetDataType();
+				}
+			}
+
+			return { };
+		}
+
 		Frontend::FOutputHandle FGraphBuilder::GetOutputHandleFromPin(const UEdGraphPin* InPin)
 		{
 			using namespace Frontend;
@@ -743,13 +762,103 @@ namespace Metasound
 		{
 			using namespace Frontend;
 
-			FConstOutputHandle OutputHandle = GetConstOutputHandleFromPin(InGraphPin);
+			FConstOutputHandle OutputHandle = FindReroutedConstOutputHandleFromPin(InGraphPin);
 			return GetOutputEdgeStyle(OutputHandle);
 		}
 
 		Frontend::FConstOutputHandle FGraphBuilder::GetConstOutputHandleFromPin(const UEdGraphPin* InPin)
 		{
 			return GetOutputHandleFromPin(InPin);
+		}
+
+		UEdGraphPin* FGraphBuilder::FindReroutedOutputPin(UEdGraphPin* OutputPin)
+		{
+			using namespace Frontend;
+
+			if (OutputPin)
+			{
+				if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(OutputPin->GetOwningNode()))
+				{
+					if (ExternalNode->GetClassName() == FRerouteNodeTemplate::ClassName)
+					{
+						auto IsInput = [](UEdGraphPin* Pin) { check(Pin); return Pin->Direction == EGPD_Input; };
+						if (UEdGraphPin* RerouteInput = *ExternalNode->Pins.FindByPredicate(IsInput))
+						{
+							TArray<UEdGraphPin*>& LinkedTo = RerouteInput->LinkedTo;
+							if (!LinkedTo.IsEmpty())
+							{
+								UEdGraphPin* ReroutedOutput = LinkedTo.Last();
+								return FindReroutedOutputPin(ReroutedOutput);
+							}
+						}
+					}
+				}
+			}
+
+			return OutputPin;
+		}
+
+		Frontend::FOutputHandle FGraphBuilder::FindReroutedOutputHandleFromPin(const UEdGraphPin* OutputPin)
+		{
+			using namespace Frontend;
+
+			if (OutputPin)
+			{
+				if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(OutputPin->GetOwningNode()))
+				{
+					if (ExternalNode->GetClassName() == FRerouteNodeTemplate::ClassName)
+					{
+						auto IsInput = [](UEdGraphPin* Pin) { check(Pin); return Pin->Direction == EGPD_Input; };
+						if (UEdGraphPin* RerouteInput = *ExternalNode->Pins.FindByPredicate(IsInput))
+						{
+							TArray<UEdGraphPin*>& LinkedTo = RerouteInput->LinkedTo;
+							if (!LinkedTo.IsEmpty())
+							{
+								UEdGraphPin* ReroutedOutput = LinkedTo.Last();
+								return FindReroutedOutputHandleFromPin(ReroutedOutput);
+							}
+						}
+					}
+				}
+
+				return GetOutputHandleFromPin(OutputPin);
+			}
+
+			return IOutputController::GetInvalidHandle();
+		}
+
+		Frontend::FConstOutputHandle FGraphBuilder::FindReroutedConstOutputHandleFromPin(const UEdGraphPin* InPin)
+		{
+			return FindReroutedOutputHandleFromPin(InPin);
+		}
+
+		void FGraphBuilder::FindReroutedInputPins(UEdGraphPin* InPinToCheck, TArray<UEdGraphPin*>& InOutInputPins)
+		{
+			using namespace Frontend;
+
+			if (InPinToCheck && InPinToCheck->Direction == EGPD_Input)
+			{
+				if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(InPinToCheck->GetOwningNode()))
+				{
+					if (ExternalNode->GetClassName() == FRerouteNodeTemplate::ClassName)
+					{
+						for (UEdGraphPin* Pin : ExternalNode->Pins)
+						{
+							if (Pin->Direction == EGPD_Output)
+							{
+								for (UEdGraphPin* LinkedInput : Pin->LinkedTo)
+								{
+									FindReroutedInputPins(LinkedInput, InOutInputPins);
+								}
+							}
+						}
+
+						return;
+					}
+				}
+
+				InOutInputPins.Add(InPinToCheck);
+			}
 		}
 
 		bool FGraphBuilder::GraphContainsErrors(const UObject& InMetaSound)
@@ -764,15 +873,7 @@ namespace Metasound
 			EditorGraph->GetNodesOfClass(EditorNodes);
 
 			// Do not synchronize with errors present as the graph is expected to be malformed.
-			for (const UMetasoundEditorGraphNode* Node : EditorNodes)
-			{
-				if (Node->ErrorType == EMessageSeverity::Error)
-				{
-					return true;
-				}
-			}
-
-			return false;
+			return Algo::AnyOf(EditorNodes, [](const UMetasoundEditorGraphNode* Node) { return Node->ErrorType == EMessageSeverity::Error; });
 		}
 
 		bool FGraphBuilder::SynchronizeNodeLocation(UMetasoundEditorGraphNode& InNode)
@@ -1256,7 +1357,10 @@ namespace Metasound
 				const UEdGraphSchema* Schema = InInputPin.GetSchema();
 				if (ensure(Schema))
 				{
-					return Schema->TryCreateConnection(&InInputPin, &InOutputPin);
+					if (!Schema->TryCreateConnection(&InInputPin, &InOutputPin))
+					{
+						return false;
+					}
 				}
 				else
 				{
@@ -1901,7 +2005,7 @@ namespace Metasound
 			return bIsGraphDirty;
 		}
 
-		bool FGraphBuilder::SynchronizeGraph(UObject& InMetaSound, bool bForceRefreshNodes)
+		int32 FGraphBuilder::SynchronizeGraph(UObject& InMetaSound, bool bForceRefreshNodes)
 		{
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
 			check(MetaSoundAsset);
@@ -1940,11 +2044,11 @@ namespace Metasound
 			}
 
 			bForceRefreshNodes |= bEditorGraphModified;
-			const bool bIsValid = FGraphBuilder::ValidateGraph(InMetaSound, bForceRefreshNodes);
+			const int32 HighestMessageSeverity = FGraphBuilder::ValidateGraph(InMetaSound, bForceRefreshNodes);
 
 			MetaSoundAsset->ResetSynchronizationState();
 
-			return bIsValid;
+			return HighestMessageSeverity;
 		}
 
 		bool FGraphBuilder::SynchronizeNodeMembers(UObject& InMetaSound)

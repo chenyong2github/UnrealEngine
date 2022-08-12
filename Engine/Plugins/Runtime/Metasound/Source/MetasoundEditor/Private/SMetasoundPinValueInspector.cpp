@@ -138,9 +138,9 @@ namespace Metasound
 			return PickerArgs;
 		}
 
-		const UMetasoundEditorGraphNode* FMetasoundNumericDebugLineItem::GetNode() const
+		const UMetasoundEditorGraphNode* FMetasoundNumericDebugLineItem::GetReroutedNode() const
 		{
-			if (GraphPinObj)
+			if (UEdGraphPin* ReroutedOutputPin = FGraphBuilder::FindReroutedOutputPin(GraphPinObj))
 			{
 				return Cast<UMetasoundEditorGraphNode>(GraphPinObj->GetOwningNode());
 			}
@@ -148,21 +148,21 @@ namespace Metasound
 			return nullptr;
 		}
 
-		const UMetasoundEditorGraphNode& FMetasoundNumericDebugLineItem::GetNodeChecked() const
+		const UMetasoundEditorGraphNode& FMetasoundNumericDebugLineItem::GetReroutedNodeChecked() const
 		{
-			const UMetasoundEditorGraphNode* Node = GetNode();
+			const UMetasoundEditorGraphNode* Node = GetReroutedNode();
 			check(Node);
 			return *Node;
 		}
 
 		Frontend::FConstOutputHandle FMetasoundNumericDebugLineItem::GetOutputHandle() const
 		{
-			return FGraphBuilder::GetOutputHandleFromPin(GraphPinObj);
+			return FGraphBuilder::FindReroutedConstOutputHandleFromPin(GraphPinObj);
 		}
 
 		Frontend::FOutputHandle FMetasoundNumericDebugLineItem::GetOutputHandle()
 		{
-			return FGraphBuilder::GetOutputHandleFromPin(GraphPinObj);
+			return FGraphBuilder::FindReroutedOutputHandleFromPin(GraphPinObj);
 		}
 
 		FLinearColor FMetasoundNumericDebugLineItem::GetEdgeStyleColorAtIndex(int32 InIndex) const
@@ -183,14 +183,15 @@ namespace Metasound
 
 			FScopedTransaction Transaction(PinValueInspectorPrivate::DisableValueColorizationText);
 
-			UObject* ParentObject = GetNodeChecked().GetOutermostObject();
+			const UMetasoundEditorGraphNode& Node = GetReroutedNodeChecked();
+			UObject* ParentObject = Node.GetOutermostObject();
 			check(ParentObject);
 			ParentObject->Modify();
 
 			FGraphHandle GraphHandle = GetGraphHandle();
 			FMetasoundFrontendGraphStyle Style = GraphHandle->GetGraphStyle();
 
-			const FGuid NodeID = GetNodeChecked().GetNodeID();
+			const FGuid NodeID = Node.GetNodeID();
 			const FName OutputName = GetOutputHandle()->GetName();
 			Style.EdgeStyles.RemoveAllSwap([&NodeID, &OutputName](FMetasoundFrontendEdgeStyle& EdgeStyle)
 				{
@@ -207,7 +208,8 @@ namespace Metasound
 
 			FScopedTransaction Transaction(PinValueInspectorPrivate::EnableValueColorizationText);
 
-			UObject* ParentObject = GetNodeChecked().GetOutermostObject();
+			const UMetasoundEditorGraphNode& Node = GetReroutedNodeChecked();
+			UObject* ParentObject = Node.GetOutermostObject();
 			check(ParentObject);
 			ParentObject->Modify();
 
@@ -221,7 +223,7 @@ namespace Metasound
 			FMetasoundFrontendGraphStyle Style = GraphHandle->GetGraphStyle();
 			FConstOutputHandle OutputHandle = GetOutputHandle();
 
-			const FGuid NodeID = GetNodeChecked().GetNodeID();
+			const FGuid NodeID = Node.GetNodeID();
 			const FName OutputName = OutputHandle->GetName();
 			FMetasoundFrontendEdgeStyle* EdgeStyle = Style.EdgeStyles.FindByPredicate([&NodeID, &OutputName](FMetasoundFrontendEdgeStyle& EdgeStyle)
 			{
@@ -249,14 +251,15 @@ namespace Metasound
 			const FName Name = GetOutputHandle()->GetName();
 			FScopedTransaction Transaction(FText::Format(SetValueFormat, FText::FromName(Name), FText::AsNumber(InIndex), FText::FromString(InColor.ToString())));
 
-			UObject* ParentObject = GetNodeChecked().GetOutermostObject();
+			const UMetasoundEditorGraphNode& Node = GetReroutedNodeChecked();
+			UObject* ParentObject = Node.GetOutermostObject();
 			check(ParentObject);
 			ParentObject->Modify();
 
 			FGraphHandle GraphHandle = GetGraphHandle();
 			FMetasoundFrontendGraphStyle Style = GraphHandle->GetGraphStyle();
 
-			const FGuid NodeID = GetNodeChecked().GetNodeID();
+			const FGuid NodeID = Node.GetNodeID();
 			const FName OutputName = GetOutputHandle()->GetName();
 			FMetasoundFrontendEdgeStyle* EdgeStyle = Style.EdgeStyles.FindByPredicate([&NodeID, &OutputName](FMetasoundFrontendEdgeStyle& EdgeStyle)
 			{
@@ -278,7 +281,7 @@ namespace Metasound
 		{
 			using namespace Frontend;
 
-			if (const UMetasoundEditorGraphNode* Node = GetNode())
+			if (const UMetasoundEditorGraphNode* Node = GetReroutedNode())
 			{
 				FOutputHandle OutputHandle = GetOutputHandle();
 
@@ -330,7 +333,8 @@ namespace Metasound
 		{
 			using namespace Frontend;
 
-			TSharedPtr<FEditor> Editor = FGraphBuilder::GetEditorForNode(GetNodeChecked());
+			const UMetasoundEditorGraphNode& Node = GetReroutedNodeChecked();
+			TSharedPtr<FEditor> Editor = FGraphBuilder::GetEditorForNode(Node);
 			if (Editor.IsValid())
 			{
 				return &Editor->GetConnectionManager();
@@ -349,7 +353,8 @@ namespace Metasound
 				return nullptr;
 			}
 
-			const FGuid NodeID = GetNodeChecked().GetNodeID();
+			const UMetasoundEditorGraphNode& Node = GetReroutedNodeChecked();
+			const FGuid NodeID = Node.GetNodeID();
 			const FName OutputName = GetOutputHandle()->GetName();
 			const FMetasoundFrontendGraphStyle& Style = OwningGraph->GetGraphStyle();
 
@@ -366,7 +371,9 @@ namespace Metasound
 			bIsValueColorizationEnabled = false;
 
 			const FMetasoundFrontendEdgeStyle* EdgeStyle = GetEdgeStyle();
-			FGuid NodeID = GetNodeChecked().GetNodeID();
+
+ 			const UMetasoundEditorGraphNode& Node = GetReroutedNodeChecked();
+			FGuid NodeID = Node.GetNodeID();
 			FName OutputName = GetOutputHandle()->GetName();
 			if (EdgeStyle)
 			{

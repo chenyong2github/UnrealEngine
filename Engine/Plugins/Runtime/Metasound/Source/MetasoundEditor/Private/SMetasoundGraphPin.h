@@ -208,7 +208,7 @@ namespace Metasound
 					];
 			}
 
-			virtual const FSlateBrush* GetPinIcon() const
+			virtual const FSlateBrush* GetPinIcon() const override
 			{
 				const bool bIsConnected = ParentPinType::IsConnected();
 				EMetasoundFrontendVertexAccessType AccessType = EMetasoundFrontendVertexAccessType::Reference;

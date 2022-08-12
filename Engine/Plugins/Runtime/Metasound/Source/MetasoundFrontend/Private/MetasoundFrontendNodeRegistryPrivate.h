@@ -15,13 +15,13 @@ namespace Metasound
 		using FNodeRegistryTransactionBuffer = TTransactionBuffer<FNodeRegistryTransaction>;
 		using FNodeRegistryTransactionStream = TTransactionStream<FNodeRegistryTransaction>; 
 
-		/** INodeTemplateRegistryEntry declares the interface for a node registry entry.
+		/** INodeRegistryTemplateEntry declares the interface for a node registry entry.
 		 * Each node class in the registry must satisfy this interface.
 		 */
-		class INodeTemplateRegistryEntry
+		class INodeRegistryTemplateEntry
 		{
 		public:
-			virtual ~INodeTemplateRegistryEntry() = default;
+			virtual ~INodeRegistryTemplateEntry() = default;
 
 			/** Return FNodeClassInfo for the node class.
 			 *
@@ -106,7 +106,7 @@ namespace Metasound
 			virtual TArray<FConverterNodeInfo> GetPossibleConverterNodes(const FName& FromDataType, const FName& ToDataType) override;
 
 			// Private implementation until hardened and used for template nodes other than reroutes.
-			FNodeRegistryKey RegisterNodeTemplate(TUniquePtr<Metasound::Frontend::INodeTemplateRegistryEntry>&& InEntry);
+			FNodeRegistryKey RegisterNodeTemplate(TUniquePtr<Metasound::Frontend::INodeRegistryTemplateEntry>&& InEntry);
 			bool UnregisterNodeTemplate(const FNodeRegistryKey& InKey);
 
 			// Create a transaction stream for any newly transactions
@@ -117,7 +117,7 @@ namespace Metasound
 
 			const INodeRegistryEntry* FindNodeEntry(const FNodeRegistryKey& InKey) const;
 
-			const INodeTemplateRegistryEntry* FindNodeTemplateEntry(const FNodeRegistryKey& InKey) const;
+			const INodeRegistryTemplateEntry* FindNodeTemplateEntry(const FNodeRegistryKey& InKey) const;
 
 			// This buffer is used to enqueue nodes and datatypes to register when the module has been initialized,
 			// in order to avoid bad behavior with ensures, logs, etc. on static initialization.
@@ -132,7 +132,7 @@ namespace Metasound
 			TMap<FNodeRegistryKey, TSharedRef<INodeRegistryEntry, ESPMode::ThreadSafe>> RegisteredNodes;
 
 			// Registry in which we keep all information about dynamically-generated templated nodes via in C++.
-			TMap<FNodeRegistryKey, TSharedRef<INodeTemplateRegistryEntry, ESPMode::ThreadSafe>> RegisteredNodeTemplates;
+			TMap<FNodeRegistryKey, TSharedRef<INodeRegistryTemplateEntry, ESPMode::ThreadSafe>> RegisteredNodeTemplates;
 
 			// Registry in which we keep lists of possible nodes to use to convert between two datatypes
 			TMap<FConverterNodeRegistryKey, FConverterNodeRegistryValue> ConverterNodeRegistry;

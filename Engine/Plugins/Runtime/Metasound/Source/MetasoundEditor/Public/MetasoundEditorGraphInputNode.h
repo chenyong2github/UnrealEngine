@@ -34,7 +34,7 @@ public:
 	virtual FGuid GetNodeID() const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetNodeTitleIcon() const override;
-	virtual bool Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult) override;
+	virtual void Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult) override;
 
 protected:
 	virtual void SetNodeID(FGuid InNodeID) override;

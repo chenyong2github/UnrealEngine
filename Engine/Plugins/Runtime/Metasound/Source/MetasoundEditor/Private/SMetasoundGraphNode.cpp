@@ -21,9 +21,11 @@
 #include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorModule.h"
 #include "MetasoundFrontendArchetypeRegistry.h"
+#include "MetasoundFrontendNodeTemplateRegistry.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundTrigger.h"
 #include "NodeFactory.h"
+#include "NodeTemplates/MetasoundFrontendNodeTemplateReroute.h"
 #include "PropertyCustomizationHelpers.h"
 #include "SAudioRadialSlider.h"
 #include "SAudioSlider.h"
@@ -34,6 +36,7 @@
 #include "SLevelOfDetailBranchNode.h"
 #include "SMetasoundGraphEnumPin.h"
 #include "SMetasoundGraphPin.h"
+#include "SPinTypeSelector.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateColor.h"
 #include "Styling/SlateStyleRegistry.h"
@@ -55,6 +58,22 @@ namespace Metasound
 {
 	namespace Editor
 	{
+		class SMetaSoundGraphPinKnot : public SGraphPinKnot
+		{
+		public:
+			SLATE_BEGIN_ARGS(SMetaSoundGraphPinKnot) {}
+			SLATE_END_ARGS()
+
+			void Construct(const FArguments& InArgs, UEdGraphPin* InPin);
+
+			virtual const FSlateBrush* GetPinIcon() const override;
+			virtual FSlateColor GetPinColor() const override;
+
+		protected:
+			bool HasRequiredConnections() const;
+		};
+
+
 		SMetaSoundGraphNode::~SMetaSoundGraphNode()
 		{
 			UMetasoundEditorGraphNode& Node = GetMetaSoundNode();
@@ -891,6 +910,139 @@ namespace Metasound
 				[
 					(bShowInputWidget ? OuterContentBox : ContentBox).ToSharedRef()
 				];
+		}
+
+		TSharedPtr<SGraphPin> SMetaSoundGraphNodeKnot::CreatePinWidget(UEdGraphPin* Pin) const
+		{
+			return SNew(SMetaSoundGraphPinKnot, Pin);
+		}
+
+		void SMetaSoundGraphNodeKnot::Construct(const FArguments& InArgs, class UEdGraphNode* InNode)
+		{
+			GraphNode = InNode;
+			SetCursor(EMouseCursor::CardinalCross);
+			UpdateGraphNode();
+		}
+
+		void SMetaSoundGraphNodeKnot::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
+		{
+			SGraphNode::MoveTo(NewPosition, NodeFilter, bMarkDirty);
+
+			UMetasoundEditorGraphNode& Node = GetMetaSoundNode();
+			Node.GetMetasoundChecked().Modify();
+			Node.SetNodeLocation(NewPosition);
+		}
+
+		UMetasoundEditorGraphNode& SMetaSoundGraphNodeKnot::GetMetaSoundNode()
+		{
+			return *CastChecked<UMetasoundEditorGraphNode>(GraphNode);
+		}
+
+		const UMetasoundEditorGraphNode& SMetaSoundGraphNodeKnot::GetMetaSoundNode() const
+		{
+			check(GraphNode);
+			return *Cast<UMetasoundEditorGraphNode>(GraphNode);
+		}
+
+		void SMetaSoundGraphPinKnot::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
+		{
+			SGraphPinKnot::Construct(SGraphPinKnot::FArguments(), InPin);
+
+			TSharedRef<SWidget> PinWidgetRef = SPinTypeSelector::ConstructPinTypeImage(
+				MakeAttributeSP(this, &SMetaSoundGraphPinKnot::GetPinIcon),
+				MakeAttributeSP(this, &SMetaSoundGraphPinKnot::GetPinColor),
+				MakeAttributeSP(this, &SMetaSoundGraphPinKnot::GetSecondaryPinIcon),
+				MakeAttributeSP(this, &SMetaSoundGraphPinKnot::GetSecondaryPinColor));
+			PinImage = PinWidgetRef;
+		}
+
+		FSlateColor SMetaSoundGraphPinKnot::GetPinColor() const
+		{
+			if (UEdGraphPin* Pin = GetPinObj())
+			{
+				if (Pin->Direction == EGPD_Output)
+				{
+					if (!HasRequiredConnections())
+					{
+						return FLinearColor::Yellow;
+					}
+				}
+			}
+
+			return SGraphPin::GetPinColor();
+		}
+
+		const FSlateBrush* SMetaSoundGraphPinKnot::GetPinIcon() const
+		{
+			using namespace Metasound::Frontend;
+
+			bool bIsConstructorPin = false;
+
+			if (UEdGraphPin* Pin = GetPinObj())
+			{
+				if (!HasRequiredConnections())
+				{
+					if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+					{
+						return MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.InvalidReroute"));
+					}
+				}
+
+				Pin = FGraphBuilder::FindReroutedOutputPin(Pin);
+				if (const UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(Pin->GetOwningNode()))
+				{
+					if (const UMetasoundEditorGraphMemberNode* MemberNode = Cast<UMetasoundEditorGraphMemberNode>(Node))
+					{
+						if (const UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(MemberNode->GetMember()))
+						{
+							FConstNodeHandle NodeHandle = Input->GetConstNodeHandle();
+							TArray<FConstOutputHandle> OutputHandles = NodeHandle->GetConstOutputs();
+
+							check(!OutputHandles.IsEmpty());
+							bIsConstructorPin = OutputHandles.Last()->GetVertexAccessType() == EMetasoundFrontendVertexAccessType::Value;
+						}
+					}
+				}
+			}
+
+			if (bIsConstructorPin)
+			{
+				if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+				{
+					const bool bIsConnected = IsConnected();
+					if (IsArray())
+					{
+						return bIsConnected ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPinArray")) :
+							MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPinArrayDisconnected"));
+					}
+					else
+					{
+						return bIsConnected ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPin")) :
+							MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPinDisconnected"));
+					}
+				}
+			}
+
+			return SGraphPin::GetPinIcon();
+		}
+
+		bool SMetaSoundGraphPinKnot::HasRequiredConnections() const
+		{
+			using namespace Frontend;
+
+			if (UEdGraphPin* Pin = GetPinObj())
+			{
+				if (const UMetasoundEditorGraphExternalNode* OwningNode = Cast<UMetasoundEditorGraphExternalNode>(Pin->GetOwningNode()))
+				{
+					if (const INodeTemplate* Template = INodeTemplateRegistry::Get().FindTemplate(FRerouteNodeTemplate::GetRegistryKey()))
+					{
+						FConstNodeHandle NodeHandle = OwningNode->GetConstNodeHandle();
+						return Template->HasRequiredConnections(NodeHandle);
+					}
+				}
+			}
+
+			return false;
 		}
 	} // namespace Editor
 } // namespace Metasound
