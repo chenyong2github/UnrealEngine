@@ -234,6 +234,15 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 		break;
 	}
 
+	// Start out with alpha channel unchecked for render targets.  Scene capture render targets have a depth mask
+	// in the alpha channel, which causes them to appear as fully transparent (checkerboard), and it isn't easily
+	// discoverable that toggling off the alpha channel would solve the issue, so it's helpful to start out with
+	// it disabled.
+	if (Texture->GetTextureClass() == ETextureClass::RenderTarget)
+	{
+		bIsAlphaChannel = false;
+	}
+
 	bIsDesaturation = false;
 
 	PreviewEffectiveTextureWidth = 0;
