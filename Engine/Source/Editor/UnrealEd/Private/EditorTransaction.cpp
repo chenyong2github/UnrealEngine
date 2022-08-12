@@ -486,16 +486,12 @@ void FTransaction::FObjectRecord::AddReferencedObjects( FReferenceCollector& Col
 {
 	Object.AddStructReferencedObjects(Collector);
 
-	auto AddTransactionSerializedObjectReferences = [&Collector](FTransactionSerializedObject& InSerializedObject)
+	auto AddSerializedObjectReferences = [&Collector](FSerializedObject& InSerializedObject)
 	{
 		for (FPersistentObjectRef& ReferencedObject : InSerializedObject.ReferencedObjects)
 		{
 			ReferencedObject.AddStructReferencedObjects(Collector);
 		}
-	};
-	auto AddSerializedObjectReferences = [&Collector, &AddTransactionSerializedObjectReferences](FSerializedObject& InSerializedObject)
-	{
-		AddTransactionSerializedObjectReferences(InSerializedObject);
 
 		if (InSerializedObject.ObjectAnnotation.IsValid())
 		{
@@ -504,14 +500,6 @@ void FTransaction::FObjectRecord::AddReferencedObjects( FReferenceCollector& Col
 	};
 	AddSerializedObjectReferences(SerializedObject);
 	AddSerializedObjectReferences(SerializedObjectFlip);
-	if (DiffableObject)
-	{
-		AddTransactionSerializedObjectReferences(DiffableObject->SerializedObject);
-	}
-	if (DiffableObjectSnapshot)
-	{
-		AddTransactionSerializedObjectReferences(DiffableObjectSnapshot->SerializedObject);
-	}
 
 	if (CustomChange.IsValid())
 	{

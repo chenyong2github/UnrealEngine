@@ -313,15 +313,15 @@ public:
 		Exchange(ReferencedNames, Other.ReferencedNames);
 	}
 
-	/** The data stream used to serialize/deserialize record */
+	/** The serialized data for the transacted object */
 	UPROPERTY()
 	FTransactionSerializedObjectData SerializedData;
 
-	/** External objects referenced in the transaction */
+	/** External objects referenced by the transacted object */
 	UPROPERTY()
 	TArray<FTransactionPersistentObjectRef> ReferencedObjects;
 	
-	/** FNames referenced in the object record */
+	/** Names referenced by the transacted object */
 	UPROPERTY()
 	TArray<FName> ReferencedNames;
 };
@@ -340,40 +340,28 @@ public:
 	void Reset()
 	{
 		ObjectInfo.Reset();
-		SerializedObject.Reset();
+		SerializedData.Reset();
 		SerializedTaggedData.Reset();
-		SerializedObjectIndices.Reset();
-		SerializedNameIndices.Reset();
 	}
 
 	void Swap(FTransactionDiffableObject& Other)
 	{
 		ObjectInfo.Swap(Other.ObjectInfo);
-		SerializedObject.Swap(Other.SerializedObject);
+		Exchange(SerializedData, Other.SerializedData);
 		Exchange(SerializedTaggedData, Other.SerializedTaggedData);
-		Exchange(SerializedObjectIndices, Other.SerializedObjectIndices);
-		Exchange(SerializedNameIndices, Other.SerializedNameIndices);
 	}
 
 	/** Information about the object when it was serialized */
 	UPROPERTY()
 	FTransactionSerializedObjectInfo ObjectInfo;
 
-	/** The serialized object data */
+	/** The serialized data for the diffable object */
 	UPROPERTY()
-	FTransactionSerializedObject SerializedObject;
+	FTransactionSerializedObjectData SerializedData;
 
 	/** Information about tagged data (mainly properties) that were serialized within this object */
 	UPROPERTY()
 	TMap<FName, FTransactionSerializedTaggedData> SerializedTaggedData;
-
-	/** Information about the object pointer offsets that were serialized within this object (this maps the tagged data key (or None if there was no tagged data key) to the ReferencedObjects indices of the tagged data) */
-	UPROPERTY()
-	TMap<FName, FTransactionSerializedIndices> SerializedObjectIndices;
-
-	/** Information about the name offsets that were serialized within this object (this maps the tagged data name to the ReferencedNames index of the tagged data) */
-	UPROPERTY()
-	TMap<FName, FTransactionSerializedIndices> SerializedNameIndices;
 };
 
 namespace UE::Transaction
@@ -403,26 +391,40 @@ protected:
 	int64 Offset = 0;
 };
 
+namespace Internal
+{
+
 /** Core archive to write a transaction object to the buffer. */
-class ENGINE_API FSerializedObjectDataWriter : public FArchiveUObject
+class ENGINE_API FSerializedObjectDataWriterCommon : public FArchiveUObject
 {
 public:
-	FSerializedObjectDataWriter(FTransactionSerializedObject& InSerializedObject);
+	FSerializedObjectDataWriterCommon(FTransactionSerializedObjectData& InSerializedData);
 
 	virtual int64 Tell() override { return Offset; }
-	virtual void Seek(int64 InPos) override { checkSlow(Offset <= SerializedObject.SerializedData.Num()); Offset = InPos; }
-	virtual int64 TotalSize() override { return SerializedObject.SerializedData.Num(); }
+	virtual void Seek(int64 InPos) override { checkSlow(Offset <= SerializedData.Num()); Offset = InPos; }
+	virtual int64 TotalSize() override { return SerializedData.Num(); }
 
 protected:
 	virtual void Serialize(void* SerData, int64 Num) override;
 
+	virtual void OnDataSerialized(int64 InOffset, int64 InNum) {}
+
+	FTransactionSerializedObjectData& SerializedData;
+	int64 Offset = 0;
+};
+
+} // namespace Internal
+
+/** Core archive to write a transaction object to the buffer. */
+class ENGINE_API FSerializedObjectDataWriter : public Internal::FSerializedObjectDataWriterCommon
+{
+public:
+	FSerializedObjectDataWriter(FTransactionSerializedObject& InSerializedObject);
+
+protected:
 	using FArchiveUObject::operator<<;
 	virtual FArchive& operator<<(class FName& N) override;
 	virtual FArchive& operator<<(class UObject*& Res) override;
-
-	virtual void OnDataSerialized(int64 InOffset, int64 InNum) {}
-	virtual void OnNameSerialized(int32 InNameIndex) {}
-	virtual void OnObjectSerialized(int32 InObjectIndex) {}
 
 	FTransactionSerializedObject& SerializedObject;
 	int64 Offset = 0;
@@ -432,7 +434,7 @@ protected:
 };
 
 /** Core archive to write a diffable object to the buffer. */
-class ENGINE_API FDiffableObjectDataWriter : public FSerializedObjectDataWriter
+class ENGINE_API FDiffableObjectDataWriter : public Internal::FSerializedObjectDataWriterCommon
 {
 public:
 	FDiffableObjectDataWriter(FTransactionDiffableObject& InDiffableObject, TArrayView<const FProperty*> InPropertiesToSerialize = TArrayView<const FProperty*>());
@@ -448,8 +450,10 @@ protected:
 	virtual void MarkScriptSerializationEnd(const UObject* Obj) override;
 
 	virtual void OnDataSerialized(int64 InOffset, int64 InNum) override;
-	virtual void OnNameSerialized(int32 InNameIndex) override;
-	virtual void OnObjectSerialized(int32 InObjectIndex) override;
+
+	using FArchiveUObject::operator<<;
+	virtual FArchive& operator<<(class FName& N) override;
+	virtual FArchive& operator<<(class UObject*& Res) override;
 
 private:
 	struct FCachedPropertyKey
@@ -478,14 +482,6 @@ namespace DiffUtil
 {
 
 ENGINE_API void GenerateObjectDiff(const FTransactionDiffableObject& OldDiffableObject, const FTransactionDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff = true);
-
-namespace Internal
-{
-
-ENGINE_API bool AreObjectPointersIdentical(const FTransactionDiffableObject& OldDiffableObject, const FTransactionDiffableObject& NewDiffableObject, const FName TaggedDataKey);
-ENGINE_API bool AreNamesIdentical(const FTransactionDiffableObject& OldDiffableObject, const FTransactionDiffableObject& NewDiffableObject, const FName TaggedDataKey);
-
-} // namespace Internal
 
 } // namespace DiffUtil
 
