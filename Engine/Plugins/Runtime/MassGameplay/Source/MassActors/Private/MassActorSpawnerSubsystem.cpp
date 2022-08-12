@@ -9,6 +9,7 @@
 #include "MassActorPoolableInterface.h"
 #include "MassSimulationSubsystem.h"
 #include "Logging/LogScopedVerbosityOverride.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 CSV_DEFINE_CATEGORY(MassActors, true);
 
