@@ -89,6 +89,11 @@ public:
 	 */
 	void OnAssetLoaded(UObject* InAsset);
 
+	/** Called when "Revert files" button is clicked. Reverts modified files and deletes new ones.
+	 *  @param	InFilenames		The files to be reverted
+	 */
+	void OnRevert(const TArray<FString>& InFilenames);
+
 	/**
 	 * Delegate callback called before an asset has been written to disk.
 	 * @param 	InObject 			The saved object.

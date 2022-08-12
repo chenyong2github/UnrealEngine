@@ -242,6 +242,54 @@ void FUncontrolledChangelistsModule::OnAssetAddedInternal(const FAssetData& Asse
 	}
 }
 
+void FUncontrolledChangelistsModule::OnRevert(const TArray<FString>& InFilenames)
+{
+	if (!IsEnabled() || InFilenames.IsEmpty())
+	{
+		return;
+	}
+
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	IFileManager& FileManager = IFileManager::Get();
+	TArray<FSourceControlStateRef> UpdatedFilestates;
+
+	SourceControlProvider.GetState(InFilenames, UpdatedFilestates, EStateCacheUsage::ForceUpdate);
+
+	TArray<FString> FilesToDelete;
+	TArray<FString> FilesToRevert;
+
+	for (const FSourceControlStateRef& Filestate : UpdatedFilestates)
+	{
+		if (Filestate->IsSourceControlled())
+		{
+			FilesToRevert.Add(Filestate->GetFilename());
+		}
+		else
+		{
+			FilesToDelete.Add(Filestate->GetFilename());
+		}
+	}
+
+	if (!FilesToRevert.IsEmpty())
+	{
+		TSharedRef<FSync> ForceSyncOperation = ISourceControlOperation::Create<FSync>();
+		ForceSyncOperation->SetForce(true);
+		ForceSyncOperation->SetLastSyncedFlag(true);
+		SourceControlProvider.Execute(ForceSyncOperation, FilesToRevert);
+	}
+
+	for (const FString& FileToDelete : FilesToDelete)
+	{
+		const bool bRequireExists = true;
+		const bool bEvenReadOnly = false;
+		const bool bQuiet = false;
+
+		FileManager.Delete(*FileToDelete, bRequireExists, bEvenReadOnly, bQuiet);
+	}
+
+	UpdateStatus();
+}
+
 void FUncontrolledChangelistsModule::OnObjectPreSaved(UObject* InObject, const FObjectPreSaveContext& InPreSaveContext)
 {
 	if (!IsEnabled())

@@ -774,12 +774,7 @@ void SSourceControlChangelistsWidget::OnRevert()
 	// Reverts selected Uncontrolled Files
 	if (!SelectedUncontrolledFiles.IsEmpty())
 	{
-		auto ForceSyncOperation = ISourceControlOperation::Create<FSync>();
-		ForceSyncOperation->SetForce(true);
-		ForceSyncOperation->SetLastSyncedFlag(true);
-		SourceControlProvider.Execute(ForceSyncOperation, SelectedUncontrolledFiles);
-
-		FUncontrolledChangelistsModule::Get().UpdateStatus();
+		FUncontrolledChangelistsModule::Get().OnRevert(SelectedUncontrolledFiles);
 	}
 }
 
