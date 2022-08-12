@@ -316,6 +316,10 @@ namespace UnrealBuildTool
 						}
 					}
 				}
+				else if (Target.StaticAnalyzer == StaticAnalyzer.Default && CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
+				{
+					AddDefinition(Arguments, "__clang_analyzer__");
+				}
 			}
 			else if (Target.StaticAnalyzer == StaticAnalyzer.Default)
 			{
