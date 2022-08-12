@@ -39,8 +39,10 @@ private:
 #endif
 
 // Support run-time toggling on supported platforms in non-shipping configurations
-#if !INTEL_ISPC || UE_BUILD_SHIPPING
-static constexpr bool bChaos_DampVelocity_ISPC_Enabled = INTEL_ISPC && CHAOS_DAMP_VELOCITY_ISPC_ENABLED_DEFAULT;
+#if INTEL_ISPC
+#if UE_BUILD_SHIPPING
+static constexpr bool bChaos_DampVelocity_ISPC_Enabled = CHAOS_DAMP_VELOCITY_ISPC_ENABLED_DEFAULT;
 #else
 extern CHAOS_API bool bChaos_DampVelocity_ISPC_Enabled;
+#endif // UE_BUILD_SHIPPING
 #endif
