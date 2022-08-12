@@ -440,6 +440,35 @@ FName FDiffableObjectDataWriter::FCachedPropertyKey::SyncCache(const FArchiveSer
 namespace DiffUtil
 {
 
+FDiffableObject GetDiffableObject(const UObject* Object, const EGetDiffableObjectMode Mode)
+{
+	FDiffableObject DiffableObject;
+	DiffableObject.SetObject(Object);
+
+	FDiffableObjectDataWriter DiffWriter(DiffableObject);
+	switch (Mode)
+	{
+	case EGetDiffableObjectMode::SerializeObject:
+		const_cast<UObject*>(Object)->Serialize(DiffWriter);
+		break;
+	case EGetDiffableObjectMode::SerializeProperties:
+		const_cast<UObject*>(Object)->SerializeScriptProperties(DiffWriter);
+		break;
+	default:
+		checkf(false, TEXT("Unknown EGetDiffableObjectMode!"));
+		break;
+	}
+
+	return DiffableObject;
+}
+
+FTransactionObjectDeltaChange GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, const bool bFullDiff)
+{
+	FTransactionObjectDeltaChange DeltaChange;
+	GenerateObjectDiff(OldDiffableObject, NewDiffableObject, DeltaChange, bFullDiff);
+	return DeltaChange;
+}
+
 void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff)
 {
 	auto IsTaggedDataBlockIdentical = [&OldDiffableObject, &NewDiffableObject, &OutDeltaChange](const FName TaggedDataKey, const FSerializedTaggedData& OldSerializedTaggedData, const FSerializedTaggedData& NewSerializedTaggedData) -> bool

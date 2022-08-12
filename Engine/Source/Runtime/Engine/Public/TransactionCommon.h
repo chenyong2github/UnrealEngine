@@ -416,6 +416,14 @@ private:
 namespace DiffUtil
 {
 
+enum EGetDiffableObjectMode : uint8
+{
+	SerializeObject,
+	SerializeProperties,
+};
+ENGINE_API FDiffableObject GetDiffableObject(const UObject* Object, const EGetDiffableObjectMode Mode = EGetDiffableObjectMode::SerializeObject);
+
+ENGINE_API FTransactionObjectDeltaChange GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, const bool bFullDiff = true);
 ENGINE_API void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff = true);
 
 } // namespace DiffUtil
