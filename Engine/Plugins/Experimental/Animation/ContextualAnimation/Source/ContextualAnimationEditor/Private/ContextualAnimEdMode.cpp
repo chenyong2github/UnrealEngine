@@ -5,7 +5,6 @@
 #include "ContextualAnimSceneAsset.h"
 #include "ContextualAnimSelectionCriterion.h"
 #include "ContextualAnimUtilities.h"
-#include "ContextualAnimSceneInstance.h"
 #include "ContextualAnimViewportClient.h"
 #include "ContextualAnimAssetEditorToolkit.h"
 #include "ContextualAnimViewModel.h"
@@ -39,22 +38,21 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 
 	// @TODO: This should not be initialized here
 	FContextualAnimViewportClient* ViewportClient = static_cast<FContextualAnimViewportClient*>(Viewport->GetClient());
-	if(!ViewModel)
+	if (!ViewModel)
 	{
 		ViewModel = ViewportClient->GetAssetEditorToolkit()->GetViewModel();
 	}
 
 	if (ViewModel)
 	{
-		if (const UContextualAnimSceneInstance* SceneInstance = ViewModel->GetSceneInstance())
+		if (const UContextualAnimSceneAsset* SceneAsset = ViewModel->GetSceneAsset())
 		{
-			const UContextualAnimSceneAsset& SceneAsset = SceneInstance->GetSceneAsset();
-			const FContextualAnimSceneBindings& Bindings = SceneInstance->GetBindings();
+			const FContextualAnimSceneBindings& Bindings = ViewModel->SceneBindings;
 
 			// Draw Scene Pivots
-			if(const FContextualAnimSceneSection* Section = SceneAsset.GetSection(Bindings.GetSectionIdx()))
+			if (const FContextualAnimSceneSection* Section = SceneAsset->GetSection(Bindings.GetSectionIdx()))
 			{
-				if(const FContextualAnimSet* AnimSet = Section->GetAnimSet(Bindings.GetAnimSetIdx()))
+				if (const FContextualAnimSet* AnimSet = Section->GetAnimSet(Bindings.GetAnimSetIdx()))
 				{
 					for (const FTransform& ScenePivot : AnimSet->ScenePivots)
 					{
@@ -74,14 +72,14 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 				}
 
 				// Draw Selection Criteria
-				if(const FContextualAnimSceneBinding* PrimaryBinding = Bindings.FindBindingByRole(SceneAsset.GetPrimaryRole()))
+				if (const FContextualAnimSceneBinding* PrimaryBinding = Bindings.FindBindingByRole(SceneAsset->GetPrimaryRole()))
 				{
 					const FTransform PrimaryTransform = PrimaryBinding->GetTransform();
 
 					const FContextualAnimTrack& AnimTrack = Binding.GetAnimTrack();
 					for (int32 CriterionIdx = 0; CriterionIdx < AnimTrack.SelectionCriteria.Num(); CriterionIdx++)
 					{
-						if(const UContextualAnimSelectionCriterion* Criterion = AnimTrack.SelectionCriteria[CriterionIdx])
+						if (const UContextualAnimSelectionCriterion* Criterion = AnimTrack.SelectionCriteria[CriterionIdx])
 						{
 							FLinearColor DrawColor = FLinearColor::White;
 							if (Criterion->DoesQuerierPassCondition(FContextualAnimSceneBindingContext(PrimaryTransform), Binding.GetContext()))
@@ -155,7 +153,7 @@ void FContextualAnimEdMode::DrawIKTargetsForBinding(FPrimitiveDrawInterface& PDI
 {
 	for (const FContextualAnimIKTargetDefinition& IKTargetDef : Binding.GetIKTargetDefs().IKTargetDefs)
 	{
-		if (const FContextualAnimSceneBinding* TargetBinding = Binding.GetSceneInstance()->FindBindingByRole(IKTargetDef.TargetRoleName))
+		if (const FContextualAnimSceneBinding* TargetBinding = ViewModel->SceneBindings.FindBindingByRole(IKTargetDef.TargetRoleName))
 		{
 			if (USkeletalMeshComponent* TargetSkelMeshComp = TargetBinding->GetSkeletalMeshComponent())
 			{
@@ -257,7 +255,7 @@ bool FContextualAnimEdMode::InputDelta(FEditorViewportClient* InViewportClient, 
 
 bool FContextualAnimEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
-	if(ViewModel && ViewModel->IsSimulateModePaused())
+	if (ViewModel && ViewModel->IsSimulateModePaused())
 	{
 		if (Key == EKeys::Enter && Event == IE_Released)
 		{

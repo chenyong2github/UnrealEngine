@@ -352,18 +352,13 @@ void FContextualAnimViewModel::RefreshPreviewScene()
 		SceneInstance.Reset();
 	}
 
-	if (StartSceneParams.RoleToActorMap.Num() > 0)
+	for (const FContextualAnimSceneBinding& Binding : SceneBindings)
 	{
-		for (auto& MapEntry : StartSceneParams.RoleToActorMap)
+		if (AActor* Actor = Binding.GetActor())
 		{
-			if (AActor* Actor = MapEntry.Value.GetActor())
-			{
-				Actor->Destroy();
-			}
+			Actor->Destroy();
 		}
 	}
-
-	StartSceneParams.Reset();
 
 	if (!SceneAsset->Sections.IsValidIndex(ActiveSectionIdx))
 	{
@@ -377,6 +372,10 @@ void FContextualAnimViewModel::RefreshPreviewScene()
 		return;
 	}
 	
+	FContextualAnimStartSceneParams StartSceneParams;
+	StartSceneParams.SectionIdx = ActiveSectionIdx;
+	StartSceneParams.AnimSetIdx = ActiveAnimSetIdx;
+
 	const FContextualAnimSet& AnimSet = ContextualAnimSection.AnimSets[ActiveAnimSetIdx];
 	for (const FContextualAnimTrack& AnimTrack : AnimSet.Tracks)
 	{
@@ -386,15 +385,14 @@ void FContextualAnimViewModel::RefreshPreviewScene()
 		}
 	}
 
-	StartSceneParams.SectionIdx = ActiveSectionIdx;
-	StartSceneParams.AnimSetIdx = ActiveAnimSetIdx;
-
 	SceneInstance = ContextualAnimManager->ForceStartScene(*GetSceneAsset(), StartSceneParams);
 
 	// Disable auto blend out
 	if (SceneInstance.IsValid())
 	{
-		for (auto& Binding : SceneInstance->GetBindings())
+		SceneBindings = SceneInstance->GetBindings();
+
+		for (const FContextualAnimSceneBinding& Binding : SceneBindings)
 		{
 			if (FAnimMontageInstance* MontageInstance = Binding.GetAnimMontageInstance())
 			{
@@ -515,7 +513,10 @@ void FContextualAnimViewModel::ToggleSimulateMode()
 void FContextualAnimViewModel::StartSimulation()
 {
 	FContextualAnimStartSceneParams Params;
-	Params.RoleToActorMap = StartSceneParams.RoleToActorMap;
+	for (const FContextualAnimSceneBinding& Binding : SceneBindings)
+	{
+		Params.RoleToActorMap.Add(Binding.GetRoleDef().Name, Binding.GetContext());
+	}
 	Params.SectionIdx = 0;
 	SceneInstance = ContextualAnimManager->TryStartScene(*GetSceneAsset(), Params);
 
@@ -525,6 +526,8 @@ void FContextualAnimViewModel::StartSimulation()
 		UE_LOG(LogContextualAnim, Warning, TEXT("Can't start scene"));
 		return;
 	}
+
+	SceneBindings = SceneInstance->GetBindings();
 
 	SimulateModeState = ESimulateModeState::Playing;
 }
@@ -717,7 +720,7 @@ void FContextualAnimViewModel::AnimationModified(UAnimSequenceBase& Animation)
 
 void FContextualAnimViewModel::UpdateSelection(const AActor* SelectedActor)
 {
-	const FContextualAnimSceneBinding* Binding = SceneInstance.IsValid() ? SceneInstance->FindBindingByActor(SelectedActor) : nullptr;
+	const FContextualAnimSceneBinding* Binding = SceneBindings.FindBindingByActor(SelectedActor);
 	if (Binding)
 	{
 		// Discard changes if we were modifying the transform of an actor in the scene but never confirmed the changes before selecting a different actor
@@ -751,7 +754,7 @@ void FContextualAnimViewModel::ClearSelection()
 
 FContextualAnimSceneBinding* FContextualAnimViewModel::GetSelectedBinding() const
 {
-	return SceneInstance.IsValid() ? const_cast<FContextualAnimSceneBinding*>(SceneInstance->FindBindingByRole(SelectionInfo.Role)) : nullptr;
+	return const_cast<FContextualAnimSceneBinding*>(SceneBindings.FindBindingByRole(SelectionInfo.Role));
 }
 
 AActor* FContextualAnimViewModel::GetSelectedActor() const

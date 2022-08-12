@@ -34,6 +34,8 @@ class FContextualAnimViewModel : public TSharedFromThis<FContextualAnimViewModel
 {
 public:
 
+	friend class FContextualAnimEdMode;
+
 	enum class ETimelineMode : uint8
 	{
 		Default,
@@ -163,6 +165,9 @@ private:
 
 	TWeakObjectPtr<UContextualAnimSceneInstance> SceneInstance;
 
+	/** Copy of the bindings so we can access them even when simulation mode is not playing (and SceneInstance is not valid) */
+	FContextualAnimSceneBindings SceneBindings;
+
 	/** Active section idx */
 	int32 ActiveSectionIdx = 0;
 
@@ -179,8 +184,6 @@ private:
 	bool bUpdatingAnimationFromSequencer = false;
 
 	ESimulateModeState SimulateModeState = ESimulateModeState::Inactive;
-
-	FContextualAnimStartSceneParams StartSceneParams;
 
 	ETimelineMode TimelineMode = ETimelineMode::Default;
 
