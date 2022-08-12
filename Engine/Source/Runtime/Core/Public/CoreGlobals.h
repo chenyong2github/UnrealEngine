@@ -545,9 +545,6 @@ extern CORE_API bool GIgnoreDebugger;
 
 #endif // #if !UE_BUILD_SHIPPING
 
-/** Whether local print will produce output. */
-extern CORE_API bool GBlockLocalPrint;
-
 enum class ETaskTag : int32
 {
 	ENone						= 0 << 0,

@@ -85,6 +85,7 @@ THIRD_PARTY_INCLUDES_END
 #define DISABLED_TEST_CASE(...) static void LLT_CONCAT(disabled_test_,__LINE__)()
 #define DISABLED_TEST_CASE_METHOD(...) static void LLT_CONCAT(disabled_test_method_,__LINE__)()
 #define DISABLED_SCENARIO(...) static void LLT_CONCAT(disabled_scenario_,__LINE__)()
+#define DISABLED_SECTION(...) auto LLT_CONCAT(disabled_section_,__LINE__) = []()
 
 // Tell Catch how to print TTuple<KeyType, ValueType>
 template <typename... Types> struct TTuple;

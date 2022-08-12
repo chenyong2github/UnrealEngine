@@ -937,10 +937,7 @@ void FWindowsPlatformMisc::SetUTF8Output()
 void FWindowsPlatformMisc::LocalPrint( const TCHAR *Message )
 {
 #if USE_DEBUG_LOGGING
-	if (!GBlockLocalPrint)
-	{
-		OutputDebugString(Message);
-	}
+	OutputDebugString(Message);
 #endif
 }
 

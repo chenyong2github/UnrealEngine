@@ -4,12 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Xml;
-using System.Xml.XPath;
-using System.Xml.Linq;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Diagnostics;
 using System.Security;
 using EpicGames.Core;
 using UnrealBuildBase;
@@ -517,16 +514,13 @@ namespace UnrealBuildTool
 			public string ProjectPlatformName;
 			public string ProjectConfigurationName;
 			public ProjectTarget? ProjectTarget;
-			public bool TestMode;
 
-			public ProjectConfigAndTargetCombination(UnrealTargetPlatform? InPlatform, UnrealTargetConfiguration InConfiguration, string InProjectPlatformName, string InProjectConfigurationName, ProjectTarget? InProjectTarget, bool InTestMode = false)
+			public ProjectConfigAndTargetCombination(UnrealTargetPlatform? InPlatform, UnrealTargetConfiguration InConfiguration, string InProjectPlatformName, string InProjectConfigurationName, ProjectTarget? InProjectTarget)
 			{
-				TestMode = InTestMode;
-
 				Platform = InPlatform;
 				Configuration = InConfiguration;
 				ProjectPlatformName = InProjectPlatformName;
-				ProjectConfigurationName = InProjectConfigurationName + (!InTestMode ? string.Empty : "_LowLevelTests");
+				ProjectConfigurationName = InProjectConfigurationName;
 				ProjectTarget = InProjectTarget;				
 			}
 
@@ -650,9 +644,6 @@ namespace UnrealBuildTool
 				{
 					ProjectConfigAndTargetCombination StubCombination = new ProjectConfigAndTargetCombination(UnrealTargetPlatform.Parse(StubProjectPlatformName), UnrealTargetConfiguration.Unknown, StubProjectPlatformName, StubProjectConfigurationName, null);
 					ProjectConfigAndTargetCombinations.Add(StubCombination);
-
-					ProjectConfigAndTargetCombination TestModeStubCombination = new ProjectConfigAndTargetCombination(UnrealTargetPlatform.Parse(StubProjectPlatformName), UnrealTargetConfiguration.Unknown, StubProjectPlatformName, StubProjectConfigurationName, null, true);
-					ProjectConfigAndTargetCombinations.Add(TestModeStubCombination);
 				}
 				else
 				{
@@ -688,10 +679,6 @@ namespace UnrealBuildTool
 
 										ProjectConfigAndTargetCombination Combination = new ProjectConfigAndTargetCombination(Platform, Configuration, ProjectPlatformName, ProjectConfigurationName, ProjectTarget);
 										ProjectConfigAndTargetCombinations.Add(Combination);
-
-										// Configuration for building with -Mode=Test, produces separate low level tests executable
-										ProjectConfigAndTargetCombination TestModeCombination = new ProjectConfigAndTargetCombination(Platform, Configuration, ProjectPlatformName, ProjectConfigurationName, ProjectTarget, true);
-										ProjectConfigAndTargetCombinations.Add(TestModeCombination);
 									}
 								}
 							}
@@ -1600,7 +1587,6 @@ namespace UnrealBuildTool
 
 			public bool bIsForeignProject;
 			public bool bUsePrecompiled;
-			public bool bIsTestMode;
 			public bool bIsFromMSBuild;
 
 			public PlatformProjectGenerator? ProjectGenerator;
@@ -1643,11 +1629,6 @@ namespace UnrealBuildTool
 				if (bIsForeignProject)
 				{
 					BuildArguments.AppendFormat(" -Project={0}", UProjectPath);
-				}
-
-				if (bIsTestMode)
-				{
-					BuildArguments.Append(" -Mode=Test");
 				}
 
 				List<string> ExtraTargets = new List<string>();
@@ -1713,7 +1694,6 @@ namespace UnrealBuildTool
 				Combination.ProjectTarget!, UProjectPath, BuildToolOverride)
 			{
 				ProjectGenerator = ProjGenerator,
-				bIsTestMode = Combination.TestMode,
 				bEditorDependsOnShaderCompileWorker = Settings.bEditorDependsOnShaderCompileWorker,
 				bBuildLiveCodingConsole = Settings.bBuildLiveCodingConsole,
 				bAddFastPDBToProjects = Settings.bAddFastPDBToProjects,

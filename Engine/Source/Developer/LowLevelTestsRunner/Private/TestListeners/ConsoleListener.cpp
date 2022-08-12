@@ -23,25 +23,13 @@ private:
 		GLog->RemoveOutputDevice(this);
 	}
 
-	void platformPrint(const TCHAR* Message, bool ForceOutput = false)
+	void platformPrint(const TCHAR* Message)
 	{
-		bool SavedBlockPrintValue = GBlockLocalPrint;
-		// Force: always print this event
-		if (ForceOutput)
-		{
-			TGuardValue<bool> BlockLocalPrint(GBlockLocalPrint, false);
-		}
-
 #if defined(PLATFORM_WINDOWS)
 		FGenericPlatformMisc::LocalPrint(Message);
 #else
 		FPlatformMisc::LocalPrint(Message);
 #endif
-
-		if (ForceOutput)
-		{
-			TGuardValue<bool> RestoreBlockLocalPrint(GBlockLocalPrint, SavedBlockPrintValue);
-		}
 	}
 
 	// FOutputDevice interface
@@ -81,7 +69,7 @@ private:
 		if (bGDebug)
 		{
 			FString InfoTestCaseStarting = FString::Printf(TEXT("%s:%d with tags %s\n"), *FString(TestInfo.lineInfo.file), TestInfo.lineInfo.line, *FString(TestInfo.tagsAsString().c_str()));			
-			platformPrint(InfoTestCaseStarting.GetCharArray().GetData(), true);
+			platformPrint(InfoTestCaseStarting.GetCharArray().GetData());
 		}
 	}
 
@@ -90,7 +78,7 @@ private:
 		if (testCaseStats.totals.testCases.failed > 0)
 		{
 			FString ErrorTestCase = FString::Printf(TEXT("* Error: Test case \"%s\" failed \n"), *FString(testCaseStats.testInfo->name.c_str()));
-			platformPrint(ErrorTestCase.GetCharArray().GetData(), true);
+			platformPrint(ErrorTestCase.GetCharArray().GetData());
 		}
 	}
 
@@ -98,7 +86,7 @@ private:
 	void assertionEnded(AssertionStats const& assertionStats) override {
 		if (!assertionStats.assertionResult.succeeded()) {
 			FString ErrorAssertion = FString::Printf(TEXT("* Error: Assertion \"%s\" failed at %s:%d\n"), *FString(assertionStats.assertionResult.getExpression().c_str()), *FString(assertionStats.assertionResult.getSourceInfo().file), assertionStats.assertionResult.getSourceInfo().line);
-			platformPrint(ErrorAssertion.GetCharArray().GetData(), true);
+			platformPrint(ErrorAssertion.GetCharArray().GetData());
 		}
 	}
 };

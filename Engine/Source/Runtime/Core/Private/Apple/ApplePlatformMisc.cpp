@@ -73,11 +73,8 @@ FString FApplePlatformMisc::GetEnvironmentVariable(const TCHAR* VariableName)
 
 void FApplePlatformMisc::LocalPrint(const TCHAR* Message)
 {
-	if (!GBlockLocalPrint)
-	{
-		//NsLog will out to all iOS output consoles, instead of just the Xcode console.
-		NSLog(@"[UE] %s", TCHAR_TO_UTF8(Message));
-	}
+	//NsLog will out to all iOS output consoles, instead of just the Xcode console.
+	NSLog(@"[UE] %s", TCHAR_TO_UTF8(Message));
 }
 
 const TCHAR* FApplePlatformMisc::GetSystemErrorMessage(TCHAR* OutBuffer, int32 BufferCount, int32 Error)
