@@ -497,12 +497,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 		FSourceControlResultInfo SwitchToOldWorkspaceInfo;
 		if (SCCProvider->SwitchWorkspace(OriginalWorkspace, SwitchToOldWorkspaceInfo, nullptr) != ECommandResult::Succeeded)
 		{
-			// Failing to restore the old workspace could result in confusing editor issues and data loss, so for now it is fatal.
-			// The medium term plan should be to refactor the SourceControlModule so that we could use an entirely different 
-			// ISourceControlProvider so as not to affect the rest of the editor.
-			UE_LOG(LogVirtualization, Fatal, TEXT("[%s] Failed to restore the original workspace to temp workspace '%s' continuing would risk editor instability and potential data loss"),
-					*GetDebugName(),
-					*OriginalWorkspace);
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to restore the original workspace '%s'"), *GetDebugName(), *OriginalWorkspace);
 		}
 	};
 
