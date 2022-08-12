@@ -65,8 +65,8 @@ namespace AnalyticsSessionUtils
 
 	FRegexPattern GetAnalyticsPropertyFilenamePattern()
 	{
-		// Filename format is like "ProcessGroupGUID_PID_PID_ProcessName", for example 3E1D7ADBC38F4A789939D781E1B91520_12345_232513_Editor"
-		return FRegexPattern(TEXT(R"((^[0-9A-Za-z]+)_([0-9]+)_([0-9]+)_(.*))")); // Need help with regex? Try https://regex101.com/
+		// Filename format is like "ProcessGroupGUID_PID_PID_StoreCount_ProcessName", for example 3E1D7ADBC38F4A789939D781E1B91520_12345_232513_0_Editor"
+		return FRegexPattern(TEXT(R"((^[0-9A-Za-z]+)_([0-9]+)_([0-9]+)(_[0-9]+)?_(.*))")); // Need help with regex? Try https://regex101.com/
 	}
 
 	/** Try to acquire the rigth to process and send sessions for orphan groups. */
@@ -190,6 +190,7 @@ FAnalyticsSessionSummaryManager::FAnalyticsSessionSummaryManager(const FString& 
 	, SessionRootPath(InSavedDir)
 	, CurrentProcessId(InCurrentProcessId)
 	, PrincipalProcessId(InPrincipalProcessId)
+	, StoreCounter(0)
 	, NextOrphanSessionCheckTimeSecs(FPlatformTime::Seconds())
 	, bOrphanGroupOwner(false)
 	, bIsPrincipal(InCurrentProcessId == InPrincipalProcessId)
@@ -220,13 +221,13 @@ FAnalyticsSessionSummaryManager::~FAnalyticsSessionSummaryManager()
 TSharedPtr<IAnalyticsPropertyStore> FAnalyticsSessionSummaryManager::MakeStore(uint32 InitialCapacity)
 {
 	// NOTE: The ProcessGroupId (a GUID) + PrincipalProcessId is expected to provide a unique key that should not collide with existing files.
-	FString PropertyStorePathname = SessionRootPath / FString::Printf(TEXT("%s_%d_%d_%s"), *ProcessGroupId, PrincipalProcessId, CurrentProcessId, *ProcessName);
+	FString PropertyStorePathname = SessionRootPath / FString::Printf(TEXT("%s_%d_%d_%d_%s"), *ProcessGroupId, PrincipalProcessId, CurrentProcessId, StoreCounter, *ProcessName);
 
 	TSharedPtr<FAnalyticsPropertyStore> PropertyStore = MakeShared<FAnalyticsPropertyStore>();
 	if (PropertyStore && PropertyStore->Create(PropertyStorePathname, InitialCapacity))
 	{
 		// If this is the principal process for which the session summary is created.
-		if (IsPrincipalProcess())
+		if (IsPrincipalProcess() && StoreCounter == 0)
 		{
 			// Add some internal key required to enable a subsidiary process to sent the summary on the behalf of this process.
 			AnalyticsManagerProperties::InternalSessionUserId.Set(PropertyStore.Get(), UserId);
@@ -234,6 +235,8 @@ TSharedPtr<IAnalyticsPropertyStore> FAnalyticsSessionSummaryManager::MakeStore(u
 			AnalyticsManagerProperties::InternalSessionAppVersion.Set(PropertyStore.Get(), AppVersion);
 			AnalyticsManagerProperties::InternalSessionId.Set(PropertyStore.Get(), SessionId);
 		}
+
+		++StoreCounter;
 	}
 	else
 	{
@@ -274,6 +277,8 @@ void FAnalyticsSessionSummaryManager::Shutdown(bool bDiscard)
 			CleanupFiles(ProcessGroup->PropertyFiles, /*bOnSuccess*/false);
 		}
 	}
+
+	StoreCounter = 0;
 }
 
 void FAnalyticsSessionSummaryManager::Tick()
@@ -317,7 +322,7 @@ TMap<FString, FAnalyticsSessionSummaryManager::FProcessGroup> FAnalyticsSessionS
 	{
 		if (!bIsDirectory)
 		{
-			// The property filename is "ProcessGroupGUID_PrincipalProcessId_WriterProcessId_WriterProcessName". The ProcessGroupGUID is expected to have EGuidFormats::Digits -> "00000A00C0000F000000000000000000"
+			// The property filename is "ProcessGroupGUID_PrincipalProcessId_WriterProcessId_StoreCount_WriterProcessName". The ProcessGroupGUID is expected to have EGuidFormats::Digits -> "00000A00C0000F000000000000000000"
 			FRegexMatcher Matcher(FilenamePattern, FPaths::GetCleanFilename(Pathname));
 			if (Matcher.FindNext())
 			{
@@ -329,7 +334,7 @@ TMap<FString, FAnalyticsSessionSummaryManager::FProcessGroup> FAnalyticsSessionS
 
 				FPropertyFileInfo PropertyFileInfo;
 				PropertyFileInfo.ProcessId = static_cast<uint32>(FCString::Atoi64(*Matcher.GetCaptureGroup(3)));
-				PropertyFileInfo.ProcessName = Matcher.GetCaptureGroup(4);
+				PropertyFileInfo.ProcessName = Matcher.GetCaptureGroup(5);
 				PropertyFileInfo.Pathname = Pathname;
 
 				uint32 FilePrincipalProcessId = static_cast<uint32>(FCString::Atoi64(*Matcher.GetCaptureGroup(2)));

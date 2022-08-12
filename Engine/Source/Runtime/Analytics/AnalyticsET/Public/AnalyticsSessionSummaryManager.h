@@ -91,7 +91,7 @@ public:
 	/**
 	 * Creates a new property store associated to this manager process group. The manager only sends an analytics session summary when all
 	 * collecting processes have closed their property store. Ensure to flush and release the store before calling the manager Shutdown() to
-	 * ensure the session is sent as soon a possible.
+	 * ensure the session is sent as soon a possible. Subsequent calls to MakeStore will increment an internal counter in the store's filename.
 	 * @param InitialCapacity The amount of space to reserve in the file.
 	 */
 	TSharedPtr<IAnalyticsPropertyStore> MakeStore(uint32 InitialCapacity);
@@ -187,6 +187,7 @@ private:
 	FString SessionRootPath;
 	uint32 CurrentProcessId;
 	uint32 PrincipalProcessId;
+	uint32 StoreCounter;
 	double NextOrphanSessionCheckTimeSecs;
 	bool bOrphanGroupOwner = false;
 	bool bIsPrincipal = false;

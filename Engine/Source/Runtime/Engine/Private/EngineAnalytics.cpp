@@ -35,6 +35,8 @@ TSharedPtr<FEngineSessionManager> FEngineAnalytics::SessionManager;
 static TUniquePtr<FAnalyticsSessionSummaryManager> AnalyticsSessionSummaryManager;
 static TUniquePtr<FEditorAnalyticsSessionSummary> EditorAnalyticSessionSummary;
 static TSharedPtr<FAnalyticsSessionSummarySender> AnalyticsSessionSummarySender;
+FSimpleMulticastDelegate FEngineAnalytics::OnInitializeEngineAnalytics;
+FSimpleMulticastDelegate FEngineAnalytics::OnShutdownEngineAnalytics;
 #endif
 
 static TSharedPtr<IAnalyticsProviderET> CreateEpicAnalyticsProvider()
@@ -71,6 +73,15 @@ IAnalyticsProviderET& FEngineAnalytics::GetProvider()
 
 	return *Analytics.Get();
 }
+
+#if WITH_EDITOR
+FAnalyticsSessionSummaryManager& FEngineAnalytics::GetSummaryManager()
+{
+	checkf(bIsInitialized && AnalyticsSessionSummaryManager.IsValid(), TEXT("FEngineAnalytics::GetSessionManager called outside of Initialize/Shutdown."));
+
+	return *AnalyticsSessionSummaryManager.Get();
+}
+#endif
 
 void FEngineAnalytics::Initialize()
 {
@@ -171,6 +182,8 @@ void FEngineAnalytics::Initialize()
 				// Create the object responsible to collect the Editor session properties.
 				EditorAnalyticSessionSummary = MakeUnique<FEditorAnalyticsSessionSummary>(EditorPropertyStore, FGenericCrashContext::GetOutOfProcessCrashReporterProcessId());
 			}
+
+			OnInitializeEngineAnalytics.Broadcast();
 		}
 #endif
 	}
@@ -186,6 +199,8 @@ void FEngineAnalytics::Shutdown(bool bIsEngineShutdown)
 	}
 
 #if WITH_EDITOR
+	OnShutdownEngineAnalytics.Broadcast();
+
 	if (EditorAnalyticSessionSummary)
 	{
 		EditorAnalyticSessionSummary->Shutdown();

@@ -6,6 +6,7 @@
 #include "IAnalyticsProviderET.h" // NOTE: Consider changing the code to replace IAnalyticProvider.h by IAnalyticProviderET.h
 
 class FEngineSessionManager;
+class FAnalyticsSessionSummaryManager;
 class IAnalyticsProvider;
 class IAnalyticsProviderET;
 struct FAnalyticsEventAttribute;
@@ -29,14 +30,27 @@ public:
 	 */
 	static ENGINE_API IAnalyticsProviderET& GetProvider();
 
+#if WITH_EDITOR
+	/** This is intended ONLY for use by Epic Games so that plugins can append to the session summary. */
+	static ENGINE_API FAnalyticsSessionSummaryManager& GetSummaryManager();
+#endif
+
 	/** Helper function to determine if the provider is valid. */
 	static ENGINE_API bool IsAvailable() { return Analytics.IsValid(); }
 
 	/** Called to initialize the singleton. */
 	static ENGINE_API void Initialize();
+#if WITH_EDITOR
+	/** A hook for analytics initialization after the SummaryManager is initialized */
+	static ENGINE_API FSimpleMulticastDelegate OnInitializeEngineAnalytics;
+#endif
 
 	/** Called to shut down the singleton */
 	static ENGINE_API void Shutdown(bool bIsEngineShutdown = false);
+#if WITH_EDITOR
+	/** A hook for analytics shutdown before the SummaryManager is shutdown */
+	static ENGINE_API FSimpleMulticastDelegate OnShutdownEngineAnalytics;
+#endif
 
 	static ENGINE_API void Tick(float DeltaTime);
 
