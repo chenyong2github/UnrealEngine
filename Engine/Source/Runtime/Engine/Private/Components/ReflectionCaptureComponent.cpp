@@ -105,7 +105,9 @@ FReflectionCaptureMapBuildData* UReflectionCaptureComponent::GetMapBuildData() c
 			{
 				MapBuildData = ActiveLightingScenario->MapBuildData;
 			}
-			else if (OwnerLevel->MapBuildData)
+			
+			// Fixed: Reflection capture lost when switching lighting scenario sublevel.
+			if (OwnerLevel->MapBuildData)
 			{
 				MapBuildData = OwnerLevel->MapBuildData;
 			}
