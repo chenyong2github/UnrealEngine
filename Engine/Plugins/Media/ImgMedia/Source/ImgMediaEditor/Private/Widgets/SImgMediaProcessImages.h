@@ -101,6 +101,14 @@ private:
 		bool bHasAlphaChannel, const FString& InName, bool bIsCustomFormat);
 	
 	/**
+	 * Converts a buffer from 32 bit floating point to 16 bit floating point.
+	 * This will be done in place.
+	 * 
+	 * @param Buffer			Buffer to convert.
+	 */
+	void ConvertTo16Bit(TArray64<uint8>& Buffer);
+
+	/**
 	 * Removes the alpha channel from a buffer.
 	 * This will be done in place.
 	 * Assumes 2 bytes per channel, 4 channels, alpha is the last channel.

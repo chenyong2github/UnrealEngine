@@ -389,6 +389,20 @@ void SImgMediaProcessImages::ProcessImageCustomRawData(TArray64<uint8>& RawData,
 	int32 BytesPerPixelPerChannel = BitDepth / 8;
 	int32 NumChannels = BytesPerPixel / BytesPerPixelPerChannel;
 	int32 DestNumChannels = NumChannels;
+
+	// We use 16 bits only, so convert if we have 32.
+	if (BitDepth == 32)
+	{
+		ConvertTo16Bit(RawData);
+		BitDepth = 16;
+		BytesPerPixel /= 2;
+		BytesPerPixelPerChannel /= 2;
+	}
+	else if (BitDepth != 16)
+	{
+		UE_LOG(LogImgMediaEditor, Error, TEXT("Unsupported bit depth %d"), BitDepth);
+	}
+
 	// ImageWrapper always returns an alpha channel, so make sure we really have one.
 	if ((DestNumChannels == 4) && (bHasAlphaChannel == false))
 	{
@@ -654,6 +668,27 @@ void SImgMediaProcessImages::ProcessImageCustomRawData(TArray64<uint8>& RawData,
 #else // IMGMEDIAEDITOR_EXR_SUPPORTED_PLATFORM
 	UE_LOG(LogImgMediaEditor, Error, TEXT("EXR not supported on this platform."));
 #endif // IMGMEDIAEDITOR_EXR_SUPPORTED_PLATFORM
+}
+
+
+void SImgMediaProcessImages::ConvertTo16Bit(TArray64<uint8>& Buffer)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::ConvertTo16Bit);
+
+	int32 BytesPerPixelPerChannel = 4;
+	int64 BufferSize = Buffer.Num() / BytesPerPixelPerChannel;
+	FFloat32* InBufferPtr = (FFloat32*)(Buffer.GetData());
+	FFloat16* OutBufferPtr = (FFloat16*)(Buffer.GetData());
+
+	// Loop through the buffer.
+	for (int64 Index = 0; Index < BufferSize; ++Index)
+	{
+		// Convert the data in place.
+		OutBufferPtr[Index] = InBufferPtr[Index].FloatValue;
+	}
+
+	// Don't bother shrinking as its just a waste and extra work.
+	Buffer.SetNum(BufferSize / 2, false);
 }
 
 void SImgMediaProcessImages::RemoveAlphaChannel(TArray64<uint8>& Buffer)
