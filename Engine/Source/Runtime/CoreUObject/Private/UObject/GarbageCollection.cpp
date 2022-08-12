@@ -604,7 +604,7 @@ public:
 	/** Returns the number of objects already destroyed */
 	int32 GetObjectsDestroyedSinceLastMarkPhase() const
 	{
-		return ObjectsDestroyedSinceLastMarkPhase;
+		return ObjectsDestroyedSinceLastMarkPhase - NumObjectsToDestroyOnGameThread + NumObjectsDestroyedOnGameThread;
 	}
 
 	/** Resets the number of objects already destroyed */
@@ -2385,7 +2385,6 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 			ArrayPool.DumpGarbageReferencers(AllArrays);
 
 			GatherUnreachableObjects(!(Options & EFastReferenceCollectorOptions::Parallel));
-			NotifyUnreachableObjects(GUnreachableObjects);
 
 			// This needs to happen after GatherUnreachableObjects since it can mark more objects as unreachable
 			ArrayPool.ClearWeakReferences(AllArrays);
@@ -2407,6 +2406,8 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 
 			// Make sure nothing will be using potentially freed arrays
 			AllArrays.Empty();
+
+			NotifyUnreachableObjects(GUnreachableObjects);
 		}
 		if (GGCLockBehavior == FGCLockBehavior::Default)
 		{
