@@ -2187,6 +2187,8 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 	}
 
+	FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::ThreadPoolReady);
+
 #if WITH_APPLICATION_CORE
 	// Get a pointer to the log output device
 	GLogConsole = GScopedLogConsole.Get();

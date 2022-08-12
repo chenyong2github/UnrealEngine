@@ -15,6 +15,7 @@ enum class EDelayedRegisterRunPhase : uint8
 	PreObjectSystemReady,
 	ObjectSystemReady,
 	EndOfEngineInit,
+	ThreadPoolReady,
 
 	NumPhases,
 };

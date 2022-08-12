@@ -107,8 +107,8 @@ public:
 	{
 		if (bLoadOnce)
 		{
-			OnTaskGraphReady.Emplace(STATS ? EDelayedRegisterRunPhase::StatSystemReady :
-											 EDelayedRegisterRunPhase::TaskGraphSystemReady,
+			// it needs both TaskGraph and ThreadPool to be ready, but ThreadPool is initialized after TaskGraph
+			OnThreadPoolReady.Emplace(EDelayedRegisterRunPhase::ThreadPoolReady,
 				[this] () 
 				{
 					if (bLoadOnce && CanLoadAsync())
@@ -202,7 +202,7 @@ private:
 	}
 	
 	bool bLoadOnce;
-	TOptional<FDelayedAutoRegisterHelper> OnTaskGraphReady;
+	TOptional<FDelayedAutoRegisterHelper> OnThreadPoolReady;
 	FString Path;
 	TFuture<void> StateReady; // void since TFuture lack move support
 	FAssetRegistryState State;
