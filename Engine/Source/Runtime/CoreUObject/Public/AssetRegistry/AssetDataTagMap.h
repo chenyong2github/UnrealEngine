@@ -106,7 +106,7 @@ namespace FixedTagPrivate
 
 	struct FNumberlessPair
 	{
-		FNameEntryId Key;
+		FDisplayNameEntryId Key;
 		FValueId Value;
 	};
 
@@ -158,7 +158,7 @@ namespace FixedTagPrivate
 			{
 				for (FNumberlessPair Pair : GetNumberlessView())
 				{
-					Fn(FNumberedPair{FName::CreateFromDisplayId(Pair.Key, 0), Pair.Value});
+					Fn(FNumberedPair{Pair.Key.ToName(NAME_NO_NUMBER_INTERNAL), Pair.Value});
 				}
 			}
 			else

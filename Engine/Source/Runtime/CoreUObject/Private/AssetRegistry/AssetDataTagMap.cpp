@@ -274,6 +274,16 @@ namespace FixedTagPrivate
 	{
 		return FName::CreateFromDisplayId(EntryId, NAME_NO_NUMBER_INTERNAL);
 	}
+
+	static FName MakeNumberedName(FDisplayNameEntryId EntryId)
+	{
+		return EntryId.ToName(NAME_NO_NUMBER_INTERNAL);
+	}
+
+	static bool EqualsInsensitive(FDisplayNameEntryId A, FDisplayNameEntryId B)
+	{
+		return MakeNumberedName(A) == MakeNumberedName(B);
+	}
 	
 	static FNameEntryId MakeNumberlessDisplayName(FName Name)
 	{
@@ -410,7 +420,7 @@ namespace FixedTagPrivate
 		{
 		case EValueType::AnsiString:			return FString(Store.GetAnsiString(Index));
 		case EValueType::WideString:			return FString(Store.GetWideString(Index));
-		case EValueType::NumberlessName:		return FName::GetEntry(Store.NumberlessNames[Index])->GetPlainNameString();
+		case EValueType::NumberlessName:		return MakeNumberedName(Store.NumberlessNames[Index]).GetPlainNameString();
 		case EValueType::Name:					return Store.Names[Index].ToString();
 		case EValueType::NumberlessExportPath:	return Store.NumberlessExportPaths[Index].ToString();
 		case EValueType::ExportPath:			return Store.ExportPaths[Index].ToString();
@@ -466,7 +476,7 @@ namespace FixedTagPrivate
 		{
 		case EValueType::AnsiString:			return FAssetRegistryExportPath(Store.GetAnsiString(Index));
 		case EValueType::WideString:			return FAssetRegistryExportPath(Store.GetWideString(Index));
-		case EValueType::NumberlessName:		return MakeNumberedPath(*FName::GetEntry(Store.NumberlessNames[Index]));
+		case EValueType::NumberlessName:		return MakeNumberedPath(MakeNumberedName(Store.NumberlessNames[Index]));
 		case EValueType::Name:					return MakeNumberedPath(Store.Names[Index]);
 		case EValueType::NumberlessExportPath:	return MakeNumberedPath(Store.NumberlessExportPaths[Index]);
 		case EValueType::ExportPath:			return Store.ExportPaths[Index];
@@ -599,7 +609,7 @@ namespace FixedTagPrivate
 		{
 			for (const FNumberlessPair& Pair : GetNumberlessView())
 			{
-				if (Key.GetComparisonIndex() == Pair.Key)
+				if (Key.GetComparisonIndex() == MakeNumberedName(Pair.Key).GetComparisonIndex())
 				{
 					return &Pair.Value;
 				}
@@ -617,7 +627,7 @@ namespace FixedTagPrivate
 	static FNumberlessPair MakeNumberlessPair(FNumberedPair Pair)
 	{
 		check(Pair.Key.GetNumber() == NAME_NO_NUMBER_INTERNAL);
-		return {Pair.Key.GetComparisonIndex(), Pair.Value};
+		return {FDisplayNameEntryId(Pair.Key), Pair.Value};
 	}
 
 	FNumberedPair FMapHandle::At(uint32 Index) const
@@ -862,7 +872,7 @@ namespace FixedTagPrivate
 		{
 			FName Name = Value.AsName();
 			return IsNumberless(Name)
-				? FValueId{EValueType::NumberlessName,			Index(NumberlessNameIndices, MakeNumberlessDisplayName(Name))}
+				? FValueId{EValueType::NumberlessName,			Index(NumberlessNameIndices, FDisplayNameEntryId(Name))}
 				: FValueId{EValueType::Name,					Index(NameIndices, Name)};
 		}
 		else if (Options.StoreAsPath.Contains(Key))
@@ -988,14 +998,14 @@ namespace FixedTagPrivate
 			return Item;
 		}
 		
-		void SaveItem(FNameEntryId NameId)
+		void SaveItem(FDisplayNameEntryId NameId)
 		{
 			SaveItem(MakeNumberedName(NameId));
 		}
 
-		template<> FNameEntryId LoadItem<FNameEntryId>()
+		template<> FDisplayNameEntryId LoadItem<FDisplayNameEntryId>()
 		{
-			return MakeNumberlessDisplayName(LoadItem<FName>());
+			return FDisplayNameEntryId(LoadItem<FName>());
 		}
 		
 		void SaveItem(FNumberlessExportPath Path)
@@ -1494,7 +1504,7 @@ namespace FixedTagPrivate
 		{
 			for (FNumberlessPair Pair : Fixed.GetNumberlessView())
 			{
-				const FString* LooseValue = Loose->Find(FName::CreateFromDisplayId(Pair.Key, 0));
+				const FString* LooseValue = Loose->Find(MakeNumberedName(Pair.Key));
 				if (!LooseValue || FAssetTagValueRef(Fixed.StoreIndex, Pair.Value) != *LooseValue)
 				{
 					return false;
@@ -1762,7 +1772,7 @@ bool FStoreTest::RunTest(const FString& Parameters)
 		TestEqual("String values excludes",		CountOccurences(Data.AnsiStrings, "NameValue"), 0);
 		TestEqual("String value deduplication",	CountOccurences(Data.AnsiStrings, "SameSame"), 1);
 		TestEqual("Wide characters",			FStringView(Data.WideStrings.GetData(), Data.WideStrings.Num() - 1), FStringView(TEXT("Wide\x00DF")));
-		TestEqual("Numberless name values",		Data.NumberlessNames, {MakeNumberlessDisplayName("NameValue")});
+		TestEqual("Numberless name values",		Data.NumberlessNames, {FDisplayNameEntryId("NameValue")});
 		TestEqual("Numbered name values",		Data.Names, {FName("NameValue_0")});
 		TestEqual("Numberless path values",		Data.NumberlessExportPaths.Num(), 3); // C\'P.O\', P.O, O  
 		TestEqual("Numbered path values",		Data.ExportPaths.Num(), 7); // NumPath[0-7] values

@@ -51,7 +51,7 @@ namespace FixedTagPrivate
 		TArrayView<ANSICHAR> AnsiStrings;
 		TArrayView<uint32> WideStringOffsets;
 		TArrayView<WIDECHAR> WideStrings;
-		TArrayView<FNameEntryId> NumberlessNames;
+		TArrayView<FDisplayNameEntryId> NumberlessNames;
 		TArrayView<FName> Names;
 		TArrayView<FNumberlessExportPath> NumberlessExportPaths;
 		TArrayView<FAssetRegistryExportPath> ExportPaths;
@@ -103,7 +103,7 @@ namespace FixedTagPrivate
 		TArray<ANSICHAR> AnsiStrings;
 		TArray<uint32> WideStringOffsets;
 		TArray<WIDECHAR> WideStrings;
-		TArray<FNameEntryId> NumberlessNames;
+		TArray<FDisplayNameEntryId> NumberlessNames;
 		TArray<FName> Names;
 		TArray<FNumberlessExportPath> NumberlessExportPaths;
 		TArray<FAssetRegistryExportPath> ExportPaths;
@@ -208,7 +208,7 @@ namespace FixedTagPrivate
 		const FOptions Options;
 		FStringIndexer AnsiStrings;
 		FStringIndexer WideStrings;
-		TMap<FNameEntryId, uint32> NumberlessNameIndices;
+		TMap<FDisplayNameEntryId, uint32> NumberlessNameIndices;
 		TMap<FName, uint32, FDefaultSetAllocator, FCaseSensitiveFuncs<uint32>> NameIndices;
 		TMap<FNumberlessExportPath, uint32, FDefaultSetAllocator, FCaseSensitiveFuncs<uint32>> NumberlessExportPathIndices;
 		TMap<FAssetRegistryExportPath, uint32, FDefaultSetAllocator, FCaseSensitiveFuncs<uint32>> ExportPathIndices;
