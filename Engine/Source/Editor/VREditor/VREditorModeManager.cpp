@@ -94,34 +94,31 @@ void FVREditorModeManager::EnableVREditor( const bool bEnable, const bool bForce
 	{
 		if( bEnable && ( IsVREditorAvailable() || bForceWithoutHMD ))
 		{
-			UEditorStyleSettings* StyleSettings = GetMutableDefault<UEditorStyleSettings>();
-			const UVRModeSettings* VRModeSettings = GetDefault<UVRModeSettings>();
-			bool bUsingDefaultInteractors = true;
-			if (VRModeSettings)
+			// Check to see if we should warn the user and potentially early out.
+			if (IsVREditorAvailable())
 			{
-				const TSoftClassPtr<UVREditorInteractor> InteractorClassSoft = VRModeSettings->InteractorClass;
-				InteractorClassSoft.LoadSynchronous();
-
-				if (InteractorClassSoft.IsValid())
+				TSoftClassPtr<UVREditorMode> ModeClassSoft = GetDefault<UVRModeSettings>()->ModeClass;
+				check(ModeClassSoft.LoadSynchronous()); // IsVREditorAvailable() should have returned false otherwise.
+				const UVREditorMode* VRModeCDO = ModeClassSoft->GetDefaultObject<UVREditorMode>();
+				if (VRModeCDO->ShouldDisplayExperimentalWarningOnEntry())
 				{
-					bUsingDefaultInteractors = (InteractorClassSoft.Get() == UVREditorInteractor::StaticClass());
+					FSuppressableWarningDialog::FSetupInfo SetupInfo(
+						LOCTEXT("VRModeEntry_Message", "VR Mode enables you to work on your project in virtual reality using motion controllers. This feature is still under development, so you may experience bugs or crashes while using it."),
+						LOCTEXT("VRModeEntry_Title", "Entering VR Mode - Experimental"), "Warning_VRModeEntry", GEditorSettingsIni);
+
+					SetupInfo.ConfirmText = LOCTEXT("VRModeEntry_ConfirmText", "Continue");
+					SetupInfo.CancelText = LOCTEXT("VRModeEntry_CancelText", "Cancel");
+					SetupInfo.bDefaultToSuppressInTheFuture = true;
+
+					FSuppressableWarningDialog VRModeEntryWarning(SetupInfo);
+					if (VRModeEntryWarning.ShowModal() == FSuppressableWarningDialog::Cancel)
+					{
+						return;
+					}
 				}
 			}
 
-			{
-				FSuppressableWarningDialog::FSetupInfo SetupInfo(LOCTEXT("VRModeEntry_Message", "VR Mode enables you to work on your project in virtual reality using motion controllers. This feature is still under development, so you may experience bugs or crashes while using it."),
-					LOCTEXT("VRModeEntry_Title", "Entering VR Mode - Experimental"), "Warning_VRModeEntry", GEditorSettingsIni);
-
-				SetupInfo.ConfirmText = LOCTEXT("VRModeEntry_ConfirmText", "Continue");
-				SetupInfo.CancelText = LOCTEXT("VRModeEntry_CancelText", "Cancel");
-				SetupInfo.bDefaultToSuppressInTheFuture = true;
-				FSuppressableWarningDialog VRModeEntryWarning(SetupInfo);
-
-				if (VRModeEntryWarning.ShowModal() != FSuppressableWarningDialog::Cancel)
-				{
-					StartVREditorMode(bForceWithoutHMD);
-				}
-			}
+			StartVREditorMode(bForceWithoutHMD);
 		}
 		else if( !bEnable )
 		{
@@ -140,17 +137,28 @@ bool FVREditorModeManager::IsVREditorActive() const
 const static FName WMRSytemName = FName(TEXT("WindowsMixedRealityHMD"));
 bool FVREditorModeManager::IsVREditorAvailable() const
 {
-	if (GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDEnabled())
-	{
-		// TODO: UE-71871 Work around for avoiding starting VRMode when using WMR
-		FName SystemName = GEngine->XRSystem->GetSystemName();
-		const bool bIsWMR = SystemName == WMRSytemName;
-		return !bIsWMR && !GEditor->IsPlayingSessionInEditor();
-	}
-	else
+	if (!GetDefault<UVRModeSettings>()->ModeClass.LoadSynchronous())
 	{
 		return false;
 	}
+
+	if (GEditor->IsPlayingSessionInEditor())
+	{
+		return false;
+	}
+
+	if (!GEngine->XRSystem.IsValid())
+	{
+		return false;
+	}
+
+	// TODO: UE-71871 Work around for avoiding starting VRMode when using WMR
+	if (GEngine->XRSystem->GetSystemName() == WMRSytemName)
+	{
+		return false;
+	}
+
+	return GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDEnabled();
 }
 
 bool FVREditorModeManager::IsVREditorButtonActive() const

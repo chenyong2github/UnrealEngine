@@ -40,6 +40,13 @@ private:
 IMPLEMENT_MODULE(FVirtualScoutingEditorModule, VirtualScoutingEditor);
 
 
+UVirtualScoutingMode::UVirtualScoutingMode(const FObjectInitializer& ObjectInitializer)
+{
+	InteractorClass = FSoftObjectPath("/VirtualProductionUtilities/VR/VirtualScoutingInteractor.VirtualScoutingInteractor_C");
+	TeleporterClass = FSoftObjectPath("/VirtualProductionUtilities/VR/VirtualScoutingTeleporter.VirtualScoutingTeleporter_C");
+}
+
+
 bool UVirtualScoutingMode::NeedsSyntheticDpad()
 {
 	if (!GEngine->XRSystem.IsValid() || GEngine->XRSystem->GetSystemName() != OpenXRSystemName)
@@ -94,5 +101,6 @@ void UVirtualScoutingMode::Enter()
 		return DeviceType;
 	});
 }
+
 
 #undef LOCTEXT_NAMESPACE

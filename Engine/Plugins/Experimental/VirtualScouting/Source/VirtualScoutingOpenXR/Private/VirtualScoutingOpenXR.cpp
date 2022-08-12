@@ -171,7 +171,13 @@ void FVirtualScoutingOpenXRExtension::AddActions(XrInstance InInstance, FCreateA
 		ActionSet = XR_NULL_HANDLE;
 	}
 
-	UClass* InteractorClass = GetDefault<UVRModeSettings>()->InteractorClass.Get();
+	UVREditorMode* VRMode = IVREditorModule::Get().GetVRMode();
+	if (!VRMode)
+	{
+		return;
+	}
+
+	UClass* InteractorClass = VRMode->InteractorClass.Get();
 	if (!InteractorClass)
 	{
 		return;

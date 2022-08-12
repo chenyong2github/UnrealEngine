@@ -49,7 +49,7 @@ namespace VRActionTypes
 /**
  * VR Editor Mode. Extends editor viewports with functionality for VR controls and object manipulation
  */
-UCLASS( BlueprintType, Transient )
+UCLASS( BlueprintType, Blueprintable, Transient )
 class VREDITOR_API UVREditorMode : public UEditorWorldExtension
 {
 	GENERATED_BODY()
@@ -80,6 +80,8 @@ public:
 	{
 		return false;
 	}
+
+	virtual bool ShouldDisplayExperimentalWarningOnEntry() const { return true; }
 
 	/** When the user actually enters the VR Editor mode */
 	virtual void Enter();
@@ -498,6 +500,14 @@ public:
 
 	/** The asset container path */
 	static const TCHAR* AssetContainerPath;
+
+	/** The controller to use when UnrealEd is in VR mode. Use VREditorInteractor get default editor behavior, or select a custom controller for special behavior */
+	UPROPERTY( EditAnywhere, BlueprintReadWrite, NoClear, Category="Classes" )
+	TSoftClassPtr<UVREditorInteractor> InteractorClass;
+
+	/** The teleporter to use when UnrealEd is in VR mode. Use VREditorTeleporter to get default editor behavior, or select a custom teleporter */
+	UPROPERTY( EditAnywhere, BlueprintReadWrite, NoClear, Category="Classes" )
+	TSoftClassPtr<AVREditorTeleporter> TeleporterClass;
 
 private:
 

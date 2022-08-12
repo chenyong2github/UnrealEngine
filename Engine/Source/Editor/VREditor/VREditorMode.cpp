@@ -96,6 +96,8 @@ UVREditorMode::UVREditorMode() :
 	TeleportActor( nullptr ),
 	AutoScalerSystem( nullptr ),
 	WorldInteraction( nullptr ),
+	InteractorClass( UVREditorInteractor::StaticClass() ),
+	TeleporterClass( AVREditorTeleporter::StaticClass() ),
 	bFirstTick( true ),
 	AssetContainer( nullptr )
 {
@@ -190,13 +192,12 @@ void UVREditorMode::AllocateInteractors()
 	class UVREditorInteractor* LeftHandInteractor = nullptr;
 	class UVREditorInteractor* RightHandInteractor = nullptr;
 
-	const TSoftClassPtr<UVREditorInteractor> InteractorClassSoft = GetDefault<UVRModeSettings>()->InteractorClass;
-	InteractorClassSoft.LoadSynchronous();
+	InteractorClass.LoadSynchronous();
 
-	if (InteractorClassSoft.IsValid())
+	if (InteractorClass.IsValid())
 	{
-		LeftHandInteractor = NewObject<UVREditorInteractor>(GetTransientPackage(), InteractorClassSoft.Get());
-		RightHandInteractor = NewObject<UVREditorInteractor>(GetTransientPackage(), InteractorClassSoft.Get());
+		LeftHandInteractor = NewObject<UVREditorInteractor>(GetTransientPackage(), InteractorClass.Get());
+		RightHandInteractor = NewObject<UVREditorInteractor>(GetTransientPackage(), InteractorClass.Get());
 	}
 
 	if (LeftHandInteractor == nullptr)
@@ -346,12 +347,11 @@ void UVREditorMode::SetupSubsystems()
 	PlacementSystem->Init(this);
 
 	// Setup teleporter
-	const TSoftClassPtr<AVREditorTeleporter> TeleporterClassSoft = GetDefault<UVRModeSettings>()->TeleporterClass;
-	TeleporterClassSoft.LoadSynchronous();
+	TeleporterClass.LoadSynchronous();
 
-	if (TeleporterClassSoft.IsValid())
+	if (TeleporterClass.IsValid())
 	{
-		TeleportActor = CastChecked<AVREditorTeleporter>( SpawnTransientSceneActor(TeleporterClassSoft.Get(), TEXT( "Teleporter" ), true ) );
+		TeleportActor = CastChecked<AVREditorTeleporter>( SpawnTransientSceneActor(TeleporterClass.Get(), TEXT( "Teleporter" ), true ) );
 	}
 
 	if( !TeleportActor )
