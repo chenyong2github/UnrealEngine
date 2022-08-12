@@ -734,6 +734,8 @@ private:
 	*/
 	bool QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply = false);
 
+	void BroadcastOnSystemCompiled();
+
 	void PreProcessWaitingDDCTasks(bool bProcessForWait);
 
 	bool CompilationResultsValid(FNiagaraSystemCompileRequest& CompileRequest) const;

@@ -796,6 +796,7 @@ void UControlRigBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	}
 
 	FunctionReferenceNodeData = GetReferenceNodeData();
+	IAssetRegistry::GetChecked().AssetTagsFinalized(*this);
 }
 
 void UControlRigBlueprint::PostLoad()
@@ -1086,7 +1087,7 @@ void UControlRigBlueprint::HandlePackageDone()
 			if(!FunctionLibrary->FunctionReferences_DEPRECATED.IsEmpty())
 			{
 				// let's also update the asset data of the dependents
-				const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+				IAssetRegistry& AssetRegistry = IAssetRegistry::GetChecked();
 				
 				for(const TTuple< TObjectPtr<URigVMLibraryNode>, FRigVMFunctionReferenceArray >& Pair :
 					FunctionLibrary->FunctionReferences_DEPRECATED)
@@ -1099,7 +1100,7 @@ void UControlRigBlueprint::HandlePackageDone()
 						BuildData->RegisterFunctionReference(FunctionKey, Pair.Value[ReferenceIndex]);
 
 						// find all control rigs matching the reference node
-						FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(
+						FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(
 							Pair.Value[ReferenceIndex].ToSoftObjectPath().GetAssetPathName());
 
 						// if the asset has never been loaded - make sure to load it once and mark as dirty
@@ -2364,7 +2365,7 @@ TArray<FAssetData> UControlRigBlueprint::GetDependentAssets() const
 
 	if(URigVMFunctionLibrary* FunctionLibrary = RigVMClient.GetFunctionLibrary())
 	{
-		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		IAssetRegistry& AssetRegistry = IAssetRegistry::GetChecked();
 		TArray<URigVMLibraryNode*> Functions = FunctionLibrary->GetFunctions();
 		for(URigVMLibraryNode* Function : Functions)
 		{
@@ -2384,7 +2385,7 @@ TArray<FAssetData> UControlRigBlueprint::GetDependentAssets() const
 					{
 						AssetPaths.Add(AssetPath);
 
-						const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*AssetPath.ToString());
+						const FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(*AssetPath.ToString());
 						if(AssetData.IsValid())
 						{
 							Dependents.Add(AssetData);

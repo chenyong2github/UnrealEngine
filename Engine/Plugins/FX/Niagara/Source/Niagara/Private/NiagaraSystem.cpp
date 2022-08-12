@@ -3,6 +3,7 @@
 
 #include "NiagaraSystem.h"
 
+#include "AssetRegistry/IAssetRegistry.h"
 #include "INiagaraEditorOnlyDataUtlities.h"
 #include "NiagaraAsyncCompile.h"
 #include "NiagaraConstants.h"
@@ -2723,13 +2724,21 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Niagara_System_CompileScriptResetAfter);
 
-			OnSystemCompiled().Broadcast(this);
+			BroadcastOnSystemCompiled();
 		}
 
 		return true;
 	}
 
 	return false;
+}
+
+void UNiagaraSystem::BroadcastOnSystemCompiled()
+{
+	OnSystemCompiled().Broadcast(this);
+#if WITH_EDITOR
+	IAssetRegistry::GetChecked().AssetTagsFinalized(*this);
+#endif
 }
 
 void UNiagaraSystem::InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& EmitterCompiledDataToInit, const UNiagaraEmitter* InAssociatedEmitter)
