@@ -15,6 +15,34 @@ FUserFileNull::FUserFileNull(FOnlineServicesNull& InOwningSubsystem)
 {
 }
 
+void FUserFileNull::LoadConfig()
+{
+	const TCHAR* ConfigSection = TEXT("OnlineServices.Null.UserFile");
+
+	InitialFileStateFromConfig.Reset();
+
+	for (int FileIdx = 0;; FileIdx++)
+	{
+		FString Filename;
+		GConfig->GetString(ConfigSection, *FString::Printf(TEXT("File_%d_Name"), FileIdx), Filename, GEngineIni);
+		if (Filename.IsEmpty())
+		{
+			break;
+		}
+
+		FString FileContentsStr;
+		GConfig->GetString(ConfigSection, *FString::Printf(TEXT("File_%d_Contents"), FileIdx), FileContentsStr, GEngineIni);
+
+		if (!FileContentsStr.IsEmpty())
+		{
+			const int ArrayLen = FileContentsStr.GetCharArray().Num() * sizeof(TCHAR);
+			FUserFileContents FileContents((uint8*)FileContentsStr.GetCharArray().GetData(), ArrayLen);
+
+			InitialFileStateFromConfig.Emplace(MoveTemp(Filename), MakeShared<const FUserFileContents>(MoveTemp(FileContents)));
+		}
+	}
+}
+
 TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileNull::EnumerateFiles(FUserFileEnumerateFiles::Params&& InParams)
 {
 	TOnlineAsyncOpRef<FUserFileEnumerateFiles> Op = GetOp<FUserFileEnumerateFiles>(MoveTemp(InParams));
@@ -26,14 +54,8 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileNull::EnumerateFiles(FUse
 		return Op->GetHandle();
 	}
 
-	if (!UserToFilesMap.Contains(Params.LocalUserId))
-	{
-		if (!InitialFileStateFromConfig.IsSet())
-		{
-			LoadUserFilesFromConfig();
-		}
-		UserToFilesMap.Emplace(Params.LocalUserId, *InitialFileStateFromConfig);
-	}
+	FUserState& UserState = GetUserState(Params.LocalUserId);
+	UserState.bEnumerated = true;
 
 	Op->SetResult({});
 	return Op->GetHandle();
@@ -46,15 +68,15 @@ TOnlineResult<FUserFileGetEnumeratedFiles> FUserFileNull::GetEnumeratedFiles(FUs
 		return TOnlineResult<FUserFileGetEnumeratedFiles>(Errors::InvalidUser());
 	}
 
-	FUserFileMap* UserFiles = UserToFilesMap.Find(Params.LocalUserId);
-	if (!UserFiles)
+	FUserState& FileState = GetUserState(Params.LocalUserId);
+	if (!FileState.bEnumerated)
 	{
 		// Need to call EnumerateFiles first.
 		return TOnlineResult<FUserFileGetEnumeratedFiles>(Errors::InvalidState());
 	}
 
 	FUserFileGetEnumeratedFiles::Result Result;
-	UserFiles->GenerateKeyArray(Result.Filenames);
+	FileState.Files.GenerateKeyArray(Result.Filenames);
 	return TOnlineResult<FUserFileGetEnumeratedFiles>(MoveTemp(Result));
 }
 
@@ -69,21 +91,14 @@ TOnlineAsyncOpHandle<FUserFileReadFile> FUserFileNull::ReadFile(FUserFileReadFil
 		return Op->GetHandle();
 	}
 
-	FUserFileMap* UserFiles = UserToFilesMap.Find(Params.LocalUserId);
-	if (!UserFiles)
-	{
-		// Need to call EnumerateFiles first.
-		Op->SetError(Errors::InvalidState());
-		return Op->GetHandle();
-	}
-
 	if (Params.Filename.IsEmpty())
 	{
 		Op->SetError(Errors::InvalidParams());
 		return Op->GetHandle();
 	}
 
-	const FUserFileContentsRef* Found = UserFiles->Find(Params.Filename);
+	FUserState& UserState = GetUserState(Params.LocalUserId);
+	const FUserFileContentsRef* Found = UserState.Files.Find(Params.Filename);
 	if (!Found)
 	{
 		Op->SetError(Errors::NotFound());
@@ -103,15 +118,7 @@ TOnlineAsyncOpHandle<FUserFileWriteFile> FUserFileNull::WriteFile(FUserFileWrite
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
-	}
-
-	FUserFileMap* UserFiles = UserToFilesMap.Find(Params.LocalUserId);
-	if (!UserFiles)
-	{
-		// Need to call EnumerateFiles first.
-		Op->SetError(Errors::InvalidState());
-		return Op->GetHandle();
-	}
+	}	
 
 	if (Params.Filename.IsEmpty() || Params.FileContents.IsEmpty())
 	{
@@ -119,7 +126,8 @@ TOnlineAsyncOpHandle<FUserFileWriteFile> FUserFileNull::WriteFile(FUserFileWrite
 		return Op->GetHandle();
 	}
 
-	UserFiles->Emplace(Params.Filename, MakeShared<FUserFileContents>(Params.FileContents));
+	FUserState& UserState = GetUserState(Params.LocalUserId);
+	UserState.Files.Emplace(Params.Filename, MakeShared<FUserFileContents>(Params.FileContents));
 	Op->SetResult({});
 	return Op->GetHandle();
 }
@@ -135,28 +143,21 @@ TOnlineAsyncOpHandle<FUserFileCopyFile> FUserFileNull::CopyFile(FUserFileCopyFil
 		return Op->GetHandle();
 	}
 
-	FUserFileMap* UserFiles = UserToFilesMap.Find(Params.LocalUserId);
-	if (!UserFiles)
-	{
-		// Need to call EnumerateFiles first.
-		Op->SetError(Errors::InvalidState());
-		return Op->GetHandle();
-	}
-
 	if (Params.SourceFilename.IsEmpty() || Params.TargetFilename.IsEmpty())
 	{
 		Op->SetError(Errors::InvalidParams());
 		return Op->GetHandle();
 	}
 
-	const FUserFileContentsRef* SourceFile = UserFiles->Find(Params.SourceFilename);
+	FUserState& UserState = GetUserState(Params.LocalUserId);
+	const FUserFileContentsRef* SourceFile = UserState.Files.Find(Params.SourceFilename);
 	if (!SourceFile)
 	{
 		Op->SetError(Errors::NotFound());
 		return Op->GetHandle();
 	}
 
-	UserFiles->Emplace(Params.TargetFilename, *SourceFile);
+	UserState.Files.Emplace(Params.TargetFilename, *SourceFile);
 	Op->SetResult({});
 	return Op->GetHandle();
 }
@@ -172,21 +173,14 @@ TOnlineAsyncOpHandle<FUserFileDeleteFile> FUserFileNull::DeleteFile(FUserFileDel
 		return Op->GetHandle();
 	}
 
-	FUserFileMap* UserFiles = UserToFilesMap.Find(Params.LocalUserId);
-	if (!UserFiles)
-	{
-		// Need to call EnumerateFiles first.
-		Op->SetError(Errors::InvalidState());
-		return Op->GetHandle();
-	}
-
 	if (Params.Filename.IsEmpty())
 	{
 		Op->SetError(Errors::InvalidParams());
 		return Op->GetHandle();
 	}
 
-	const bool bRemoved = UserFiles->Remove(Params.Filename) != 0;
+	FUserState& UserState = GetUserState(Params.LocalUserId);
+	const bool bRemoved = UserState.Files.Remove(Params.Filename) != 0;
 	if (!bRemoved)
 	{
 		Op->SetError(Errors::NotFound());
@@ -197,32 +191,18 @@ TOnlineAsyncOpHandle<FUserFileDeleteFile> FUserFileNull::DeleteFile(FUserFileDel
 	return Op->GetHandle();
 }
 
-void FUserFileNull::LoadUserFilesFromConfig()
+FUserFileNull::FUserState& FUserFileNull::GetUserState(const FOnlineAccountIdHandle AccountId)
 {
-	const TCHAR* ConfigSection = TEXT("OnlineServices.Null.UserFile");
+	check(AccountId.IsValid());
 
-	InitialFileStateFromConfig.Emplace();
-
-	for (int FileIdx = 0;; FileIdx++)
+	FUserState* FileState = UserStates.Find(AccountId);
+	if (!FileState)
 	{
-		FString Filename;
-		GConfig->GetString(ConfigSection, *FString::Printf(TEXT("File_%d_Name"), FileIdx), Filename, GEngineIni);
-		if (Filename.IsEmpty())
-		{
-			break;
-		}
-
-		FString FileContentsStr;
-		GConfig->GetString(ConfigSection, *FString::Printf(TEXT("File_%d_Contents"), FileIdx), FileContentsStr, GEngineIni);
-
-		if (!FileContentsStr.IsEmpty())
-		{
-			const int ArrayLen = FileContentsStr.GetCharArray().Num() * sizeof(TCHAR);
-			FUserFileContents FileContents((uint8*)FileContentsStr.GetCharArray().GetData(), ArrayLen);
-
-			InitialFileStateFromConfig->Emplace(MoveTemp(Filename), MakeShared<const FUserFileContents>(MoveTemp(FileContents)));
-		}
+		FileState = &UserStates.Emplace(AccountId);
+		FileState->Files = InitialFileStateFromConfig;
 	}
+
+	return *FileState;
 }
 
 /* UE::Online */ }

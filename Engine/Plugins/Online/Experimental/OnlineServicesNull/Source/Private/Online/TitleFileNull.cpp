@@ -8,16 +8,18 @@
 #include "Online/OnlineServicesNull.h"
 #include "Online/OnlineServicesNullTypes.h"
 
-namespace {
+namespace UE::Online {
 
-using FTitleFileContents = UE::Online::FTitleFileContents;
-using FTitleFileContentsRef = UE::Online::FTitleFileContentsRef;
+FTitleFileNull::FTitleFileNull(FOnlineServicesNull& InOwningSubsystem)
+	: Super(InOwningSubsystem)
+{
+}
 
-TMap<FString, FTitleFileContentsRef> GetTitleFilesFromConfig()
+void FTitleFileNull::LoadConfig()
 {
 	const TCHAR* ConfigSection = TEXT("OnlineServices.Null.TitleFile");
 
-	TMap<FString, FTitleFileContentsRef> Result;
+	TitleFiles.Reset();
 
 	for (int FileIdx = 0;; FileIdx++)
 	{
@@ -34,20 +36,9 @@ TMap<FString, FTitleFileContentsRef> GetTitleFilesFromConfig()
 		if (!FileContentsStr.IsEmpty())
 		{
 			const FTCHARToUTF8 FileContentsUtf8(*FileContentsStr);
-			Result.Emplace(MoveTemp(Filename), MakeShared<FTitleFileContents>((uint8*)FileContentsUtf8.Get(), FileContentsUtf8.Length()));
+			TitleFiles.Emplace(MoveTemp(Filename), MakeShared<FTitleFileContents>((uint8*)FileContentsUtf8.Get(), FileContentsUtf8.Length()));
 		}
 	}
-
-	return Result;
-}
-
-}
-
-namespace UE::Online {
-
-FTitleFileNull::FTitleFileNull(FOnlineServicesNull& InOwningSubsystem)
-	: Super(InOwningSubsystem)
-{
 }
 
 TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileNull::EnumerateFiles(FTitleFileEnumerateFiles::Params&& Params)
@@ -60,10 +51,7 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileNull::EnumerateFiles(FT
 		return Op->GetHandle();
 	}
 
-	if(!TitleFiles.IsSet())
-	{
-		TitleFiles.Emplace(GetTitleFilesFromConfig());
-	}
+	bEnumerated = true;
 
 	Op->SetResult({});
 	return Op->GetHandle();
@@ -76,14 +64,14 @@ TOnlineResult<FTitleFileGetEnumeratedFiles> FTitleFileNull::GetEnumeratedFiles(F
 		return TOnlineResult<FTitleFileGetEnumeratedFiles>(Errors::InvalidUser());
 	}
 
-	if (!TitleFiles.IsSet())
+	if (!bEnumerated)
 	{
 		// Need to call EnumerateFiles first.
 		return TOnlineResult<FTitleFileGetEnumeratedFiles>(Errors::InvalidState());
 	}
 
 	FTitleFileGetEnumeratedFiles::Result Result;
-	TitleFiles->GenerateKeyArray(Result.Filenames);
+	TitleFiles.GenerateKeyArray(Result.Filenames);
 	return TOnlineResult<FTitleFileGetEnumeratedFiles>(MoveTemp(Result));
 	
 }
@@ -104,14 +92,7 @@ TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileNull::ReadFile(FTitleFileRead
 		return Op->GetHandle();
 	}
 
-	if (!TitleFiles.IsSet())
-	{
-		// Need to call EnumerateFiles first.
-		Op->SetError(Errors::InvalidState());
-		return Op->GetHandle();
-	}
-
-	const FTitleFileContentsRef* Found = TitleFiles->Find(Op->GetParams().Filename);
+	const FTitleFileContentsRef* Found = TitleFiles.Find(Op->GetParams().Filename);
 	if (!Found)
 	{
 		Op->SetError(Errors::NotFound());

@@ -16,13 +16,18 @@ public:
 
 	FTitleFileNull(FOnlineServicesNull& InOwningSubsystem);
 
+	// IOnlineComponent
+	virtual void LoadConfig() override;
+
 	// ITitleFile
 	virtual TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> EnumerateFiles(FTitleFileEnumerateFiles::Params&& Params) override;
 	virtual TOnlineResult<FTitleFileGetEnumeratedFiles> GetEnumeratedFiles(FTitleFileGetEnumeratedFiles::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FTitleFileReadFile> ReadFile(FTitleFileReadFile::Params&& Params) override;
 
 protected:
-	TOptional<TMap<FString, FTitleFileContentsRef>> TitleFiles;
+	TMap<FString, FTitleFileContentsRef> TitleFiles;
+
+	bool bEnumerated = false;
 };
 
 /* UE::Online */ }

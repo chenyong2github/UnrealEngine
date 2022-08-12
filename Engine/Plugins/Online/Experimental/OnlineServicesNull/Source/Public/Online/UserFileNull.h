@@ -16,6 +16,9 @@ public:
 
 	FUserFileNull(FOnlineServicesNull& InOwningSubsystem);
 
+	// IOnlineComponent
+	virtual void LoadConfig() override;
+
 	// IUserFile
 	virtual TOnlineAsyncOpHandle<FUserFileEnumerateFiles> EnumerateFiles(FUserFileEnumerateFiles::Params&& Params) override;
 	virtual TOnlineResult<FUserFileGetEnumeratedFiles> GetEnumeratedFiles(FUserFileGetEnumeratedFiles::Params&& Params) override;
@@ -27,10 +30,16 @@ public:
 protected:
 	using FUserFileMap = TMap<FString, FUserFileContentsRef>;
 
-	TMap<FOnlineAccountIdHandle, FUserFileMap> UserToFilesMap;
+	struct FUserState
+	{
+		bool bEnumerated = false;
+		FUserFileMap Files;
+	};
 
-	TOptional<FUserFileMap> InitialFileStateFromConfig;
-	void LoadUserFilesFromConfig();
+	TMap<FOnlineAccountIdHandle, FUserState> UserStates;
+	FUserState& GetUserState(const FOnlineAccountIdHandle AccountId);
+
+	FUserFileMap InitialFileStateFromConfig;
 };
 
 /* UE::Online */ }
