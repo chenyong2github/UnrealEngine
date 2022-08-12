@@ -1044,6 +1044,8 @@ public:
 
 	/** Returns if an async task for a certain platform has finished. */
 	bool IsCompressedDataReady(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides) const;
+
+	bool IsLoadedFromCookedData() const;
 #endif //WITH_EDITOR
 
 	virtual void BeginGetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides);
@@ -1230,6 +1232,9 @@ public:
 		, bIsSeekable(0)
 		, bShouldUseStreamCaching(0)
 		, bLoadingBehaviorOverridden(0)
+#if WITH_EDITOR
+		, bLoadedFromCookedData(0)
+#endif //WITH_EDITOR
 	{
 	}
 
@@ -1346,6 +1351,10 @@ private:
 	uint8 bIsSeekable : 1;
 	uint8 bShouldUseStreamCaching : 1;
 	uint8 bLoadingBehaviorOverridden : 1;
+
+#if WITH_EDITOR
+	uint8 bLoadedFromCookedData : 1;
+#endif //WITH_EDITOR
 
 	friend class USoundWave;
 }; // class FSoundWaveData
