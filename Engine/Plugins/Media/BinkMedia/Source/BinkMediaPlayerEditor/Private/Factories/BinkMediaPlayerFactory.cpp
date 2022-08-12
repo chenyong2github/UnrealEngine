@@ -12,7 +12,6 @@ UBinkMediaPlayerFactory::UBinkMediaPlayerFactory( const FObjectInitializer& Obje
 	bCreateNew = false;
 	bEditorImport = true;
 
-	Formats.Add(TEXT("bik;Bink Movie File"));
 	Formats.Add(TEXT("bk2;Bink 2 Movie File"));
 }
 

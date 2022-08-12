@@ -198,6 +198,9 @@ struct FBinkMediaPlayerModule : IModuleInterface, FTickableGameObject
 
 			static IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
 			MainFrameModule.OnMainFrameCreationFinished().AddRaw(this, &FBinkMediaPlayerModule::Initialize);
+		
+			FEditorDelegates::BeginPIE.AddRaw(this, &FBinkMediaPlayerModule::HandleEditorTogglePIE);
+			FEditorDelegates::EndPIE.AddRaw(this, &FBinkMediaPlayerModule::HandleEditorTogglePIE);
 		}
 #endif
 		GetMutableDefault<UBinkMoviePlayerSettings>()->LoadConfig();
@@ -213,6 +216,10 @@ struct FBinkMediaPlayerModule : IModuleInterface, FTickableGameObject
 				GEngine->GameViewport->OnDrawn().Remove(overlayHook);
 			}
 		}
+#if BINKPLUGIN_UE4_EDITOR
+		FEditorDelegates::BeginPIE.RemoveAll(this);
+		FEditorDelegates::EndPIE.RemoveAll(this);
+#endif
 	}
 
 #if BINKPLUGIN_UE4_EDITOR
@@ -221,6 +228,19 @@ struct FBinkMediaPlayerModule : IModuleInterface, FTickableGameObject
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomClassLayout("MoviePlayerSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FBinkMoviePlayerSettingsDetails::MakeInstance));
 		PropertyModule.NotifyCustomizationModuleChanged();
+	}
+
+	void HandleEditorTogglePIE(bool bIsSimulating)
+	{
+		for (TObjectIterator<UBinkMediaPlayer> It; It; ++It)
+		{
+			UBinkMediaPlayer* Player = *It;
+			Player->Close();
+			if(Player->StartImmediately)
+			{
+				Player->InitializePlayer();
+			}
+		}
 	}
 #endif
 

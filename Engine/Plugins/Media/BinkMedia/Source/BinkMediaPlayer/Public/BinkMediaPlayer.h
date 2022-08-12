@@ -211,7 +211,7 @@ public:
 	bool OpenUrl( const FString& NewUrl );
 
 	/**
-	 * Opens the specified media URL.
+	 * Closes the specified media URL.
 	 *
 	 * @param NewUrl The URL to open.
 	 * @return true on success, false otherwise.
