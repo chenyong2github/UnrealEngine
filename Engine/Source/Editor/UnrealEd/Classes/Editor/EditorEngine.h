@@ -70,6 +70,7 @@ struct FTransactionContext;
 struct FEditorTransactionDeltaContext;
 struct FTypedElementHandle;
 struct FAnalyticsEventAttribute;
+struct FAssetCompileData;
 class UEditorWorldExtensionManager;
 class ITargetDevice;
 class ULevelEditorDragDropHandler;
@@ -3148,6 +3149,9 @@ private:
 
 	/** Handler for when an asset is created (used to detect world duplication after PostLoad) */
 	void OnAssetCreated( UObject* Asset );
+
+	/** Handler for when an asset finishes compiling (used to notify AssetRegistry to update tags after Load) */
+	void OnAssetPostCompile(const TArray<FAssetCompileData>& CompiledAssets);
 
 	/** Handler for when a world is duplicated in the editor */
 	void InitializeNewlyCreatedInactiveWorld(UWorld* World);

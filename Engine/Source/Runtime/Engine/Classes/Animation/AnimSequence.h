@@ -592,6 +592,10 @@ protected:
     void ClearCompressedCurveData();
     // Write the compressed data to the supplied FArchive
     void SerializeCompressedData(FArchive& Ar, bool bDDCData);
+#if WITH_EDITOR
+	void SetCompressionComplete();
+#endif
+
 public:
 	bool IsCompressedDataValid() const;
 	bool IsCurveCompressedDataValid() const;

@@ -3441,7 +3441,20 @@ void UAssetRegistryImpl::AssetSaved(const UObject& SavedAsset)
 	}
 
 	FWriteScopeLock InterfaceScopeLock(InterfaceLock);
-	GuardedData.OnAssetSaved(SavedAsset);
+	GuardedData.AddLoadedAssetToProcess(SavedAsset);
+#endif
+}
+
+void UAssetRegistryImpl::AssetTagsFinalized(const UObject& FinalizedAsset)
+{
+#if WITH_EDITOR
+	if (!FinalizedAsset.IsAsset())
+	{
+		return;
+	}
+
+	FWriteScopeLock InterfaceScopeLock(InterfaceLock);
+	GuardedData.AddLoadedAssetToProcess(FinalizedAsset);
 #endif
 }
 
@@ -5031,7 +5044,7 @@ void FAssetRegistryImpl::OnDirectoryChanged(Impl::FEventContext& EventContext, T
 void UAssetRegistryImpl::OnAssetLoaded(UObject *AssetLoaded)
 {
 	FWriteScopeLock InterfaceScopeLock(InterfaceLock);
-	GuardedData.OnAssetLoaded(AssetLoaded);
+	GuardedData.AddLoadedAssetToProcess(*AssetLoaded);
 }
 
 void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(UE::AssetRegistry::Impl::FEventContext& EventContext,
@@ -5109,14 +5122,9 @@ void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(UE::AssetRegistry::Imp
 namespace UE::AssetRegistry
 {
 
-void FAssetRegistryImpl::OnAssetLoaded(UObject* AssetLoaded)
+void FAssetRegistryImpl::AddLoadedAssetToProcess(const UObject& AssetLoaded)
 {
-	LoadedAssetsToProcess.Add(AssetLoaded);
-}
-
-void FAssetRegistryImpl::OnAssetSaved(const UObject& AssetSaved)
-{
-	LoadedAssetsToProcess.Add(&AssetSaved);
+	LoadedAssetsToProcess.Add(&AssetLoaded);
 }
 
 void FAssetRegistryImpl::GetProcessLoadedAssetsBatch(TArray<const UObject*>& OutLoadedAssets, uint32 BatchSize)
@@ -5148,8 +5156,14 @@ void FAssetRegistryImpl::GetProcessLoadedAssetsBatch(TArray<const UObject*>& Out
 		UPackage* InMemoryPackage = LoadedAsset->GetOutermost();
 		if (InMemoryPackage->IsDirty())
 		{
-			// Package is dirty, which means it has temporary changes other than just a PostLoad, ignore
-			continue;
+			// Package is dirty, which means it has changes other than just a PostLoad
+			// In editor, ignore the update of the asset; it will be updated when saved
+			// In the cook commandlet, in which editoruser-created changes are impossible, do the update anyway.
+			// Occurrences of IsDirty in the cook commandlet are spurious and a code bug.
+			if (!IsRunningCookCommandlet())
+			{
+				continue;
+			}
 		}
 
 		OutLoadedAssets.Add(LoadedAsset);

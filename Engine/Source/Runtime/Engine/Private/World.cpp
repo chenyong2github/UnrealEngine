@@ -140,6 +140,7 @@
 #include "ObjectTrace.h"
 #include "ReplaySubsystem.h"
 #include "Net/NetPing.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #if UE_WITH_IRIS
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
@@ -1958,6 +1959,9 @@ void UWorld::InitWorld(const InitializationValues IVS)
 	PostInitializeSubsystems();
 
 	BroadcastLevelsChanged();
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	AssetRegistryModule.Get().AssetTagsFinalized(*this);
 }
 
 #if WITH_EDITOR

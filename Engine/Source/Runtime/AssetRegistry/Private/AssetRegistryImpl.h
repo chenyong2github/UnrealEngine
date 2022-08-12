@@ -144,8 +144,7 @@ public:
 	bool ResolveRedirect(const FString& InPackageName, FString& OutPackageName) const;
 #if WITH_EDITOR
 	void OnDirectoryChanged(Impl::FEventContext& EventContext, TArray<FFileChangeData>& FileChangesProcessed);
-	void OnAssetLoaded(UObject* AssetLoaded);
-	void OnAssetSaved(const UObject& AssetSaved);
+	void AddLoadedAssetToProcess(const UObject& AssetLoaded);
 #endif
 	void OnContentPathMounted(Impl::FEventContext& EventContext, const FString& InAssetPath,
 		const FString& AssetPathWithTrailingSlash, const FString& FileSystemPath);

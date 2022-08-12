@@ -130,6 +130,7 @@ public:
 	virtual void AssetDeleted(UObject* DeletedAsset) override;
 	virtual void AssetRenamed(const UObject* RenamedAsset, const FString& OldObjectPath) override;
 	virtual void AssetSaved(const UObject& SavedAsset) override;
+	virtual void AssetTagsFinalized(const UObject& FinalizedAsset) override;
 
 	virtual void PackageDeleted(UPackage* DeletedPackage) override;
 

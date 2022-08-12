@@ -404,6 +404,9 @@ UEditorEngine::UEditorEngine(const FObjectInitializer& ObjectInitializer)
 	ActorGroupingUtilsClassName = UActorGroupingUtils::StaticClass();
 
 	bUATSuccessfullyCompiledOnce = FApp::IsEngineInstalled() || FApp::GetEngineIsPromotedBuild();
+
+	// The AssetRegistry module is needed early in initialization functions so load it here rather than in Init
+	FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 }
 
 
@@ -868,6 +871,8 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 			GEditor->Exec(nullptr, *InString);
 		}));
 	}
+
+	FAssetCompilingManager::Get().OnAssetPostCompileEvent().AddUObject(this, &UEditorEngine::OnAssetPostCompile);
 }
 
 bool UEditorEngine::HandleOpenAsset(UObject* Asset)
@@ -946,8 +951,7 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 	FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UEditorEngine::OnLevelAddedToWorld);
 	FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &UEditorEngine::OnLevelRemovedFromWorld);
 
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	AssetRegistryModule.Get().OnInMemoryAssetCreated().AddUObject(this, &UEditorEngine::OnAssetCreated);
+	IAssetRegistry::GetChecked().OnInMemoryAssetCreated().AddUObject(this, &UEditorEngine::OnAssetCreated);
 
 	FEditorDelegates::BeginPIE.AddLambda([](bool)
 	{
@@ -1035,7 +1039,7 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("MainFrame"),
 			TEXT("PropertyEditor"),
 			TEXT("PackagesDialog"),
-			TEXT("AssetRegistry"),
+			// TEXT("AssetRegistry"), // Loaded in constructor
 			TEXT("DetailCustomizations"),
 			TEXT("ComponentVisualizers"),
 			TEXT("Layers"),
@@ -1301,6 +1305,8 @@ void UEditorEngine::FinishDestroy()
 				AssetRegistry->OnInMemoryAssetCreated().RemoveAll(this);
 			}
 		}
+		FAssetCompilingManager::Get().OnAssetPostCompileEvent().RemoveAll(this);
+
 
 		// Shut down transaction tracking system.
 		if( Trans )
@@ -2993,8 +2999,7 @@ void UEditorEngine::GetAssetsToSyncToContentBrowser(TArray<FAssetData>& Assets, 
 
 					if (SoftObjects.Num())
 					{
-						FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-						IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+						IAssetRegistry& AssetRegistry = IAssetRegistry::GetChecked();
 
 						for (const FSoftObjectPath& SoftObject : SoftObjects)
 						{
@@ -5825,7 +5830,7 @@ AActor* UEditorEngine::ConvertBrushesToStaticMesh(const FString& InStaticMeshPac
 		}
 
 		// Notify the asset registry
-		FAssetRegistryModule::AssetCreated(NewMesh);
+		IAssetRegistry::GetChecked().AssetCreated(NewMesh);
 	}
 
 	ConversionTempModel->EmptyModel(1, 1);
@@ -6326,9 +6331,10 @@ bool UEditorEngine::ShouldThrottleCPUUsage() const
 			if (bShouldThrottle)
 			{
 				static const FName AssetRegistryName(TEXT("AssetRegistry"));
-				FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(AssetRegistryName);
+				IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
 				// Don't throttle during amortized export, greatly increases export time
-				if (IsLightingBuildCurrentlyExporting() || FStaticLightingSystemInterface::IsStaticLightingSystemRunning() || GShaderCompilingManager->IsCompiling() || (AssetRegistryModule && AssetRegistryModule->Get().IsLoadingAssets()))
+				if (IsLightingBuildCurrentlyExporting() || FStaticLightingSystemInterface::IsStaticLightingSystemRunning() ||
+					GShaderCompilingManager->IsCompiling() || (AssetRegistry && AssetRegistry->IsLoadingAssets()))
 				{
 					bShouldThrottle = false;
 				}
@@ -7328,6 +7334,21 @@ void UEditorEngine::OnAssetCreated(UObject* Asset)
 	{
 		// Init inactive worlds here instead of UWorld::PostLoad because it is illegal to call UpdateWorldComponents while IsRoutingPostLoad
 		InitializeNewlyCreatedInactiveWorld(World);
+	}
+}
+
+void UEditorEngine::OnAssetPostCompile(const TArray<FAssetCompileData>& CompiledAssets)
+{
+	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
+	if (AssetRegistry)
+	{
+		for (const FAssetCompileData& CompileData : CompiledAssets)
+		{
+			if (CompileData.Asset.IsValid())
+			{
+				AssetRegistry->AssetTagsFinalized(*CompileData.Asset);
+			}
+		}
 	}
 }
 

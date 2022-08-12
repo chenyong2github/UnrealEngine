@@ -63,6 +63,7 @@ LLM_DEFINE_TAG(SequenceData);
 #if WITH_EDITOR
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/BuiltInAttributeTypes.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #endif // WITH_EDITOR
 
 #include "Animation/AnimSequenceHelpers.h"
@@ -1869,8 +1870,18 @@ void UAnimSequence::WaitOnExistingCompression(const bool bWantResults)
 	{
 		COOK_STAT(auto Timer = AnimSequenceCookStats::UsageStats.TimeAsyncWait());
 		FAsyncCompressedAnimationsManagement::Get().WaitOnExistingCompression(this, bWantResults);
-		bCompressionInProgress = false;
+		SetCompressionComplete();
 		COOK_STAT(Timer.TrackCyclesOnly()); // Need to get hit/miss and size from WaitOnExistingCompression!
+	}
+}
+
+void UAnimSequence::SetCompressionComplete()
+{
+	if (bCompressionInProgress)
+	{
+		bCompressionInProgress = false;
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		AssetRegistryModule.Get().AssetTagsFinalized(*this);
 	}
 }
 
@@ -1995,7 +2006,7 @@ void UAnimSequence::ApplyCompressedData(const FString& DataCacheKeySuffix, const
 	}
 	else
 	{
-		bCompressionInProgress = false;
+		SetCompressionComplete();
 	}
 }
 #endif
@@ -2003,7 +2014,7 @@ void UAnimSequence::ApplyCompressedData(const FString& DataCacheKeySuffix, const
 void UAnimSequence::ApplyCompressedData(const TArray<uint8>& Data)
 {
 #if WITH_EDITOR
-	bCompressionInProgress = false;
+	SetCompressionComplete();
 	
 	SynchronousAnimatedBoneAttributesCompression();
 #endif

@@ -2439,7 +2439,16 @@ void FAssetRegistryState::Dump(const TArray<FString>& Arguments, TArray<FString>
 						{
 							PageBuffer.Appendf(TEXT("		%s"), CategoryName);
 							AddLine();
-							Dependencies.Sort([](const FAssetDependency& A, const FAssetDependency& B) { return A.AssetId.ToString() < B.AssetId.ToString(); });
+							Dependencies.Sort([](const FAssetDependency& A, const FAssetDependency& B)
+								{
+									FString AString = A.AssetId.ToString();
+									FString BString = B.AssetId.ToString();
+									if (AString != BString)
+									{
+										return AString < BString;
+									}
+									return A.Properties < B.Properties;
+								});
 							for (const FAssetDependency& AssetDependency : Dependencies)
 							{
 								PageBuffer.Append(TEXT("			"));
