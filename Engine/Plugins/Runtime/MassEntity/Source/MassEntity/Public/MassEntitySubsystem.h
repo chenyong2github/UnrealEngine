@@ -3,10 +3,9 @@
 #pragma once
 
 #include "Subsystems/WorldSubsystem.h"
+#include "MassEntityManager.h"
 #include "MassEntitySubsystem.generated.h"
 
-
-struct FMassEntityManager;
 
 /** 
  * The sole responsibility of this world subsystem class is to host the default instance of FMassEntityManager
