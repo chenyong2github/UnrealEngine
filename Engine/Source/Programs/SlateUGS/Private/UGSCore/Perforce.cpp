@@ -52,13 +52,13 @@ struct FPerforceExe
 
 	FString GetPerforceExe()
 	{
-		static bool bExecuatblePathCached = false;
-		if (bExecuatblePathCached)
+		static bool bExecutablePathCached = false;
+		if (bExecutablePathCached)
 		{
 			return ExecutablePath;
 		}
 
-		bExecuatblePathCached = true;
+		bExecutablePathCached = true;
 
 #if PLATFORM_MAC || PLATFORM_LINUX
 		int32 ReturnCode = -1;
