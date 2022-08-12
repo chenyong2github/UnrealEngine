@@ -42,12 +42,12 @@ namespace EpicGames.Horde.Storage.Bundles
 		/// <summary>
 		/// Packet data as described in the header
 		/// </summary>
-		public ReadOnlyMemory<byte> Payload { get; }
+		public ReadOnlySequence<byte> Payload { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public Bundle(BundleHeader header, ReadOnlyMemory<byte> payload)
+		public Bundle(BundleHeader header, ReadOnlySequence<byte> payload)
 		{
 			Header = header;
 			Payload = payload;
@@ -60,7 +60,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		{
 			Header = new BundleHeader(reader);
 			int length = (int)reader.ReadUnsignedVarInt();
-			Payload = reader.ReadFixedLengthBytes(length);
+			Payload = new ReadOnlySequence<byte>(reader.ReadFixedLengthBytes(length));
 		}
 
 		/// <summary>
@@ -71,7 +71,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		{
 			ByteArrayBuilder builder = new ByteArrayBuilder();
 			Header.Write(builder);
-			builder.WriteUnsignedVarInt(Payload.Length);
+			builder.WriteUnsignedVarInt((ulong)Payload.Length);
 
 			ReadOnlySequenceBuilder<byte> sequence = new ReadOnlySequenceBuilder<byte>();
 			sequence.Append(builder.AsSequence());

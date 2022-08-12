@@ -39,6 +39,15 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="chunkSize"></param>
+		public ByteArrayBuilder(int chunkSize)
+			: this(chunkSize, chunkSize)
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		/// <param name="initialSize">Size of the initial chunk</param>
 		/// <param name="chunkSize">Default size for subsequent chunks</param>
 		public ByteArrayBuilder(int initialSize = 4096, int chunkSize = 4096)

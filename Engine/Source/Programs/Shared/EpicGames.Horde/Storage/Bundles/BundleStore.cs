@@ -43,6 +43,11 @@ namespace EpicGames.Horde.Storage.Bundles
 		/// Number of reads from storage to allow concurrently. This has an impact on memory usage as well as network throughput.
 		/// </summary>
 		public int MaxConcurrentReads { get; set; } = 5;
+
+		/// <summary>
+		/// Size of the bundle/decode cache
+		/// </summary>
+		public long CacheSize { get; set; }
 	}
 
 	/// <summary>
@@ -225,7 +230,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		}
 
 		readonly IBlobStore _blobStore;
-		readonly IMemoryCache _cache;
+		readonly IMemoryCache? _cache;
 
 		readonly object _lockObject = new object();
 
@@ -244,7 +249,10 @@ namespace EpicGames.Horde.Storage.Bundles
 		{
 			_blobStore = blobStore;
 			_options = options;
-			_cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 512 * 1024 * 1024 });
+			if (_options.CacheSize > 0)
+			{
+				_cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = _options.CacheSize });
+			}
 			_readSema = new SemaphoreSlim(options.MaxConcurrentReads);
 		}
 
@@ -270,7 +278,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			if (disposing)
 			{
 				_readSema.Dispose();
-				_cache.Dispose();
+				_cache?.Dispose();
 			}
 		}
 
@@ -298,7 +306,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			int packetOffset = 0;
 			foreach (BundlePacket packet in header.Packets)
 			{
-				ReadOnlyMemory<byte> encodedPacket = bundle.Payload.Slice(packetOffset, packet.EncodedLength);
+				ReadOnlyMemory<byte> encodedPacket = bundle.Payload.Slice(packetOffset, packet.EncodedLength).AsSingleSegment();
 
 				byte[] decodedPacket = new byte[packet.DecodedLength];
 				LZ4Codec.Decode(encodedPacket.Span, decodedPacket);
@@ -369,7 +377,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		async Task<Bundle> ReadBundleAsync(BlobId blobId, CancellationToken cancellationToken = default)
 		{
 			string cacheKey = GetBundleCacheKey(blobId);
-			if (!_cache.TryGetValue<Bundle>(cacheKey, out Bundle? bundle))
+			if (_cache == null || !_cache.TryGetValue<Bundle>(cacheKey, out Bundle? bundle))
 			{
 				Task<Bundle>? readTask;
 				lock (_lockObject)
@@ -390,7 +398,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			// Perform another (sequenced) check whether an object has been added to the cache, to counteract the race between a read task being added and a task completing.
 			lock (_lockObject)
 			{
-				if (_cache.TryGetValue<Bundle>(cacheKey, out Bundle? cachedObject))
+				if (_cache != null && _cache.TryGetValue<Bundle>(cacheKey, out Bundle? cachedObject))
 				{
 					return cachedObject;
 				}
@@ -411,11 +419,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			}
 
 			// Add the object to the cache
-			using (ICacheEntry entry = _cache.CreateEntry(cacheKey))
-			{
-				entry.SetSize(bundle.Payload.Length);
-				entry.SetValue(bundle);
-			}
+			AddBundleToCache(cacheKey, bundle);
 
 			// Remove this object from the list of read tasks
 			lock (_lockObject)
@@ -429,10 +433,13 @@ namespace EpicGames.Horde.Storage.Bundles
 
 		void AddBundleToCache(string cacheKey, Bundle bundle)
 		{
-			using (ICacheEntry entry = _cache.CreateEntry(cacheKey))
+			if (_cache != null)
 			{
-				entry.SetSize(bundle.Payload.Length);
-				entry.SetValue(bundle);
+				using (ICacheEntry entry = _cache.CreateEntry(cacheKey))
+				{
+					entry.SetSize(bundle.Payload.Length);
+					entry.SetValue(bundle);
+				}
 			}
 		}
 
@@ -529,20 +536,27 @@ namespace EpicGames.Horde.Storage.Bundles
 		/// <param name="packetInfo">The decoded block location and size</param>
 		/// <param name="payload">The bundle payload</param>
 		/// <returns>The decoded data</returns>
-		ReadOnlyMemory<byte> DecodePacket(BlobId blobId, PacketInfo packetInfo, ReadOnlyMemory<byte> payload)
+		ReadOnlyMemory<byte> DecodePacket(BlobId blobId, PacketInfo packetInfo, ReadOnlySequence<byte> payload)
 		{
-			string cacheKey = $"bundle-packet:{blobId}@{packetInfo.Offset}";
-			return _cache.GetOrCreate<ReadOnlyMemory<byte>>(cacheKey, entry =>
+			if (_cache == null)
 			{
-				ReadOnlyMemory<byte> decodedPacket = DecodePacketUncached(packetInfo, payload);
-				entry.SetSize(packetInfo.DecodedLength);
-				return decodedPacket;
-			});
+				return DecodePacketUncached(packetInfo, payload);
+			}
+			else
+			{
+				string cacheKey = $"bundle-packet:{blobId}@{packetInfo.Offset}";
+				return _cache.GetOrCreate<ReadOnlyMemory<byte>>(cacheKey, entry =>
+				{
+					ReadOnlyMemory<byte> decodedPacket = DecodePacketUncached(packetInfo, payload);
+					entry.SetSize(packetInfo.DecodedLength);
+					return decodedPacket;
+				});
+			}
 		}
 
-		static ReadOnlyMemory<byte> DecodePacketUncached(PacketInfo packetInfo, ReadOnlyMemory<byte> payload)
+		static ReadOnlyMemory<byte> DecodePacketUncached(PacketInfo packetInfo, ReadOnlySequence<byte> payload)
 		{
-			ReadOnlyMemory<byte> encodedPacket = payload.Slice(packetInfo.Offset, packetInfo.EncodedLength);
+			ReadOnlyMemory<byte> encodedPacket = payload.Slice(packetInfo.Offset, packetInfo.EncodedLength).AsSingleSegment();
 
 			byte[] decodedPacket = new byte[packetInfo.DecodedLength];
 			LZ4Codec.Decode(encodedPacket.Span, decodedPacket);
@@ -783,7 +797,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			}
 
 			// Preallocate data in the encoded buffer to reduce fragmentation if we have to resize
-			byte[] outputBuffer = new byte[_options.MaxBlobSize];
+			ByteArrayBuilder builder = new ByteArrayBuilder(_options.MinCompressionPacketSize * 2);
 
 			// Create the export list
 			List<BundleExport> exports = new List<BundleExport>();
@@ -793,7 +807,6 @@ namespace EpicGames.Horde.Storage.Bundles
 			int blockSize = 0;
 
 			// Compress all the nodes into the output buffer buffer
-			int outputOffset = 0;
 			foreach (NodeInfo node in nodes)
 			{
 				InMemoryNodeState nodeState = (InMemoryNodeState)node.State;
@@ -802,7 +815,7 @@ namespace EpicGames.Horde.Storage.Bundles
 				// If we can't fit this data into the current block, flush the contents of it first
 				if (blockSize > 0 && blockSize + nodeData.Length > _options.MinCompressionPacketSize)
 				{
-					FlushPacket(context.PacketBuffer.AsMemory(0, blockSize), ref outputBuffer, ref outputOffset, packets);
+					FlushPacket(context.PacketBuffer.AsMemory(0, blockSize), builder, packets);
 					blockSize = 0;
 				}
 
@@ -826,33 +839,30 @@ namespace EpicGames.Horde.Storage.Bundles
 				}
 				else
 				{
-					FlushPacket(nodeData.First, ref outputBuffer, ref outputOffset, packets);
+					FlushPacket(nodeData.First, builder, packets);
 				}
 			}
-			FlushPacket(context.PacketBuffer.AsMemory(0, blockSize), ref outputBuffer, ref outputOffset, packets);
+			FlushPacket(context.PacketBuffer.AsMemory(0, blockSize), builder, packets);
 
 			// Flush the data
 			BundleHeader header = new BundleHeader(imports, exports, packets);
-			ReadOnlyMemory<byte> payload = outputBuffer.AsMemory(0, packets.Sum(x => x.EncodedLength));
-			return new Bundle(header, payload);
+			return new Bundle(header, builder.AsSequence());
 		}
 
-		static void FlushPacket(ReadOnlyMemory<byte> inputData, ref byte[] outputBuffer, ref int outputOffset, List<BundlePacket> packets)
+		static void FlushPacket(ReadOnlyMemory<byte> inputData, ByteArrayBuilder builder, List<BundlePacket> packets)
 		{
 			if (inputData.Length > 0)
 			{
-				int minFreeSpace = LZ4Codec.MaximumOutputSize(inputData.Length);
-				CreateFreeSpace(ref outputBuffer, outputOffset, outputOffset + minFreeSpace);
+				int maxSize = LZ4Codec.MaximumOutputSize(inputData.Length);
 
 				ReadOnlySpan<byte> inputSpan = inputData.Span;
-				Span<byte> outputSpan = outputBuffer.AsSpan(outputOffset);
+				Span<byte> outputSpan = builder.GetMemory(maxSize).Span;
 
 				int encodedLength = LZ4Codec.Encode(inputSpan, outputSpan);
 				packets.Add(new BundlePacket(encodedLength, inputData.Length));
 
-				outputOffset += encodedLength;
-
 				Debug.Assert(encodedLength >= 0);
+				builder.Advance(encodedLength);
 			}
 		}
 
