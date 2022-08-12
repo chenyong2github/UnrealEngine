@@ -156,15 +156,15 @@ TSharedRef<SWidget> SMediaSourceManagerChannel::CreateAssignInputMenu()
 			FName ProviderName = DeviceProvider->GetFName();
 			MenuBuilder.BeginSection(ProviderName, FText::FromName(ProviderName));
 
-			// Go over all input configurations.
-			TArray<FMediaIOConfiguration> Configurations = DeviceProvider->GetConfigurations(true, false);
-			for (const FMediaIOConfiguration& Configuration : Configurations)
+			// Go over all devices.
+			TArray<FMediaIODevice> Devices = DeviceProvider->GetDevices();
+			for (const FMediaIODevice& Device : Devices)
 			{
 				// Add this device.
-				FName DeviceName = Configuration.MediaConnection.Device.DeviceName;
+				FName DeviceName = Device.DeviceName;
 
 				FUIAction AssignMediaIOInputAction(FExecuteAction::CreateSP(this,
-					&SMediaSourceManagerChannel::AssignMediaIOInput, DeviceProvider, Configuration));
+					&SMediaSourceManagerChannel::AssignMediaIOInput, DeviceProvider, Device));
 				MenuBuilder.AddMenuEntry(FText::FromName(DeviceName), FText(), FSlateIcon(),
 					AssignMediaIOInputAction);
 			}
@@ -258,13 +258,16 @@ void SMediaSourceManagerChannel::AssignMediaSourceInput(UMediaSource* MediaSourc
 }
 
 void SMediaSourceManagerChannel::AssignMediaIOInput(IMediaIOCoreDeviceProvider* DeviceProvider,
-	FMediaIOConfiguration Config)
+	FMediaIODevice Device)
 {
 	UMediaSourceManagerChannel* Channel = ChannelPtr.Get();
 	if (Channel != nullptr)
 	{
 		// Create media source.
-		UMediaSource* MediaSource = DeviceProvider->CreateMediaSource(Config, Channel);
+		FMediaIOConfiguration Configuration;
+		Configuration = DeviceProvider->GetDefaultConfiguration();
+		Configuration.MediaConnection.Device = Device;
+		UMediaSource* MediaSource = DeviceProvider->CreateMediaSource(Configuration, Channel);
 		if (MediaSource != nullptr)
 		{
 			AssignMediaSourceInput(MediaSource);
