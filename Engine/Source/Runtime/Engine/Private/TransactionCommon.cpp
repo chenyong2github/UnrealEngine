@@ -5,7 +5,10 @@
 #include "UObject/UnrealType.h"
 #include "Components/ActorComponent.h"
 
-FTransactionPersistentObjectRef::FTransactionPersistentObjectRef(UObject* InObject)
+namespace UE::Transaction
+{
+
+FPersistentObjectRef::FPersistentObjectRef(UObject* InObject)
 {
 	RootObject = InObject;
 	{
@@ -53,7 +56,7 @@ FTransactionPersistentObjectRef::FTransactionPersistentObjectRef(UObject* InObje
 	checkSlow(Get() == InObject);
 }
 
-UObject* FTransactionPersistentObjectRef::Get() const
+UObject* FPersistentObjectRef::Get() const
 {
 	if (ReferenceType == EReferenceType::SubObject)
 	{
@@ -116,7 +119,7 @@ UObject* FTransactionPersistentObjectRef::Get() const
 	return RootObject;
 }
 
-void FTransactionPersistentObjectRef::AddStructReferencedObjects(FReferenceCollector& Collector)
+void FPersistentObjectRef::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(RootObject);
 
@@ -136,17 +139,17 @@ void FTransactionPersistentObjectRef::AddStructReferencedObjects(FReferenceColle
 }
 
 
-FTransactionSerializedTaggedData FTransactionSerializedTaggedData::FromOffsetAndSize(const int64 InOffset, const int64 InSize)
+FSerializedTaggedData FSerializedTaggedData::FromOffsetAndSize(const int64 InOffset, const int64 InSize)
 {
-	return FTransactionSerializedTaggedData{ InOffset, InSize };
+	return FSerializedTaggedData{ InOffset, InSize };
 }
 
-FTransactionSerializedTaggedData FTransactionSerializedTaggedData::FromStartAndEnd(const int64 InStart, const int64 InEnd)
+FSerializedTaggedData FSerializedTaggedData::FromStartAndEnd(const int64 InStart, const int64 InEnd)
 {
-	return FTransactionSerializedTaggedData{ InStart, InEnd - InStart };
+	return FSerializedTaggedData{ InStart, InEnd - InStart };
 }
 
-void FTransactionSerializedTaggedData::AppendSerializedData(const int64 InOffset, const int64 InSize)
+void FSerializedTaggedData::AppendSerializedData(const int64 InOffset, const int64 InSize)
 {
 	if (DataOffset == INDEX_NONE)
 	{
@@ -160,7 +163,7 @@ void FTransactionSerializedTaggedData::AppendSerializedData(const int64 InOffset
 	}
 }
 
-void FTransactionSerializedTaggedData::AppendSerializedData(const FTransactionSerializedTaggedData& InData)
+void FSerializedTaggedData::AppendSerializedData(const FSerializedTaggedData& InData)
 {
 	if (InData.HasSerializedData())
 	{
@@ -168,19 +171,19 @@ void FTransactionSerializedTaggedData::AppendSerializedData(const FTransactionSe
 	}
 }
 
-bool FTransactionSerializedTaggedData::HasSerializedData() const
+bool FSerializedTaggedData::HasSerializedData() const
 {
 	return DataOffset != INDEX_NONE && DataSize != 0;
 }
 
 
-void FTransactionSerializedObjectData::Read(void* Dest, int64 Offset, int64 Num) const
+void FSerializedObjectData::Read(void* Dest, int64 Offset, int64 Num) const
 {
 	checkSlow(Offset + Num <= Data.Num());
 	FMemory::Memcpy(Dest, &Data[Offset], Num);
 }
 
-void FTransactionSerializedObjectData::Write(const void* Src, int64 Offset, int64 Num)
+void FSerializedObjectData::Write(const void* Src, int64 Offset, int64 Num)
 {
 	if (Offset == Data.Num())
 	{
@@ -190,13 +193,10 @@ void FTransactionSerializedObjectData::Write(const void* Src, int64 Offset, int6
 }
 
 
-namespace UE::Transaction
-{
-
 const FName TaggedDataKey_UnknownData = ".UnknownData";
 const FName TaggedDataKey_ScriptData = ".ScriptData";
 
-FSerializedObjectDataReader::FSerializedObjectDataReader(const FTransactionSerializedObject& InSerializedObject)
+FSerializedObjectDataReader::FSerializedObjectDataReader(const FSerializedObject& InSerializedObject)
 	: SerializedObject(InSerializedObject)
 {
 	SetIsLoading(true);
@@ -238,7 +238,7 @@ FArchive& FSerializedObjectDataReader::operator<<(UObject*& Res)
 namespace Internal
 {
 
-FSerializedObjectDataWriterCommon::FSerializedObjectDataWriterCommon(FTransactionSerializedObjectData& InSerializedData)
+FSerializedObjectDataWriterCommon::FSerializedObjectDataWriterCommon(FSerializedObjectData& InSerializedData)
 	: SerializedData(InSerializedData)
 {
 	SetIsSaving(true);
@@ -259,7 +259,7 @@ void FSerializedObjectDataWriterCommon::Serialize(void* SerData, int64 Num)
 } // namespace Internal
 
 
-FSerializedObjectDataWriter::FSerializedObjectDataWriter(FTransactionSerializedObject& InSerializedObject)
+FSerializedObjectDataWriter::FSerializedObjectDataWriter(FSerializedObject& InSerializedObject)
 	: Internal::FSerializedObjectDataWriterCommon(InSerializedObject.SerializedData)
 	, SerializedObject(InSerializedObject)
 {
@@ -301,7 +301,7 @@ FArchive& FSerializedObjectDataWriter::operator<<(UObject*& Res)
 	}
 	else if (Res)
 	{
-		ObjectIndex = SerializedObject.ReferencedObjects.Add(FTransactionPersistentObjectRef(Res));
+		ObjectIndex = SerializedObject.ReferencedObjects.Add(FPersistentObjectRef(Res));
 		ObjectMap.Add(Res, ObjectIndex);
 	}
 
@@ -309,7 +309,7 @@ FArchive& FSerializedObjectDataWriter::operator<<(UObject*& Res)
 }
 
 
-FDiffableObjectDataWriter::FDiffableObjectDataWriter(FTransactionDiffableObject& InDiffableObject, TArrayView<const FProperty*> InPropertiesToSerialize)
+FDiffableObjectDataWriter::FDiffableObjectDataWriter(FDiffableObject& InDiffableObject, TArrayView<const FProperty*> InPropertiesToSerialize)
 	: Internal::FSerializedObjectDataWriterCommon(InDiffableObject.SerializedData)
 	, DiffableObject(InDiffableObject)
 	, PropertiesToSerialize(InPropertiesToSerialize)
@@ -398,7 +398,7 @@ void FDiffableObjectDataWriter::OnDataSerialized(int64 InOffset, int64 InNum)
 	const FName SerializedTaggedDataKey = GetTaggedDataKey();
 	if (!SerializedTaggedDataKey.IsNone())
 	{
-		FTransactionSerializedTaggedData& SerializedTaggedData = DiffableObject.SerializedTaggedData.FindOrAdd(SerializedTaggedDataKey);
+		FSerializedTaggedData& SerializedTaggedData = DiffableObject.SerializedTaggedData.FindOrAdd(SerializedTaggedDataKey);
 		SerializedTaggedData.AppendSerializedData(InOffset, InNum);
 	}
 }
@@ -440,9 +440,9 @@ FName FDiffableObjectDataWriter::FCachedPropertyKey::SyncCache(const FArchiveSer
 namespace DiffUtil
 {
 
-void GenerateObjectDiff(const FTransactionDiffableObject& OldDiffableObject, const FTransactionDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff)
+void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff)
 {
-	auto IsTaggedDataBlockIdentical = [&OldDiffableObject, &NewDiffableObject, &OutDeltaChange](const FName TaggedDataKey, const FTransactionSerializedTaggedData& OldSerializedTaggedData, const FTransactionSerializedTaggedData& NewSerializedTaggedData) -> bool
+	auto IsTaggedDataBlockIdentical = [&OldDiffableObject, &NewDiffableObject, &OutDeltaChange](const FName TaggedDataKey, const FSerializedTaggedData& OldSerializedTaggedData, const FSerializedTaggedData& NewSerializedTaggedData) -> bool
 	{
 		// Binary compare the serialized data to see if something has changed for this property
 		bool bIsTaggedDataIdentical = OldSerializedTaggedData.DataSize == NewSerializedTaggedData.DataSize;
@@ -477,14 +477,14 @@ void GenerateObjectDiff(const FTransactionDiffableObject& OldDiffableObject, con
 		OutDeltaChange.bHasPendingKillChange |= OldDiffableObject.ObjectInfo.bIsPendingKill != NewDiffableObject.ObjectInfo.bIsPendingKill;
 	}
 
-	for (const TPair<FName, FTransactionSerializedTaggedData>& NewNamePropertyPair : NewDiffableObject.SerializedTaggedData)
+	for (const TPair<FName, FSerializedTaggedData>& NewNamePropertyPair : NewDiffableObject.SerializedTaggedData)
 	{
 		if (!ShouldCompareTaggedData(NewNamePropertyPair.Key))
 		{
 			continue;
 		}
 
-		const FTransactionSerializedTaggedData* OldSerializedTaggedData = OldDiffableObject.SerializedTaggedData.Find(NewNamePropertyPair.Key);
+		const FSerializedTaggedData* OldSerializedTaggedData = OldDiffableObject.SerializedTaggedData.Find(NewNamePropertyPair.Key);
 		if (ShouldCompareAsNonPropertyData(NewNamePropertyPair.Key))
 		{
 			if (bFullDiff && !OutDeltaChange.bHasNonPropertyChanges && (!OldSerializedTaggedData || !IsTaggedDataBlockIdentical(NewNamePropertyPair.Key, *OldSerializedTaggedData, NewNamePropertyPair.Value)))
@@ -508,7 +508,7 @@ void GenerateObjectDiff(const FTransactionDiffableObject& OldDiffableObject, con
 
 	if (bFullDiff)
 	{
-		for (const TPair<FName, FTransactionSerializedTaggedData>& OldNamePropertyPair : OldDiffableObject.SerializedTaggedData)
+		for (const TPair<FName, FSerializedTaggedData>& OldNamePropertyPair : OldDiffableObject.SerializedTaggedData)
 		{
 			if (!ShouldCompareTaggedData(OldNamePropertyPair.Key) || NewDiffableObject.SerializedTaggedData.Contains(OldNamePropertyPair.Key))
 			{

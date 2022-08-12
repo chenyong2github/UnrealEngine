@@ -7,10 +7,12 @@
 #include "UObject/WeakObjectPtr.h"
 #include "Serialization/ArchiveUObject.h"
 #include "Serialization/ArchiveSerializedPropertyChain.h"
-#include "TransactionCommon.generated.h"
 
 class FReferenceCollector;
 struct FTransactionObjectDeltaChange;
+
+namespace UE::Transaction
+{
 
 /**
 	This type is necessary because the blueprint system is destroying and creating
@@ -24,14 +26,11 @@ struct FTransactionObjectDeltaChange;
 	(rather than the CDO) to store editor data. The CDO can then be re-instanced (or not)
 	as runtime code requires.
 */
-USTRUCT()
-struct ENGINE_API FTransactionPersistentObjectRef
+struct ENGINE_API FPersistentObjectRef
 {
-	GENERATED_BODY()
-
 public:
-	FTransactionPersistentObjectRef() = default;
-	explicit FTransactionPersistentObjectRef(UObject* InObject);
+	FPersistentObjectRef() = default;
+	explicit FPersistentObjectRef(UObject* InObject);
 
 	bool Serialize(FArchive& Ar)
 	{
@@ -39,7 +38,7 @@ public:
 		return true;
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, FTransactionPersistentObjectRef& ReferencedObject)
+	friend FArchive& operator<<(FArchive& Ar, FPersistentObjectRef& ReferencedObject)
 	{
 		Ar << (std::underlying_type_t<EReferenceType>&)ReferencedObject.ReferenceType;
 		Ar << ReferencedObject.RootObject;
@@ -47,19 +46,19 @@ public:
 		return Ar;
 	}
 
-	friend bool operator==(const FTransactionPersistentObjectRef& LHS, const FTransactionPersistentObjectRef& RHS)
+	friend bool operator==(const FPersistentObjectRef& LHS, const FPersistentObjectRef& RHS)
 	{
 		return LHS.ReferenceType == RHS.ReferenceType
 			&& LHS.RootObject == RHS.RootObject
 			&& (LHS.ReferenceType != EReferenceType::SubObject || LHS.SubObjectHierarchyIDs == RHS.SubObjectHierarchyIDs);
 	}
 
-	friend bool operator!=(const FTransactionPersistentObjectRef& LHS, const FTransactionPersistentObjectRef& RHS)
+	friend bool operator!=(const FPersistentObjectRef& LHS, const FPersistentObjectRef& RHS)
 	{
 		return !(LHS == RHS);
 	}
 
-	friend uint32 GetTypeHash(const FTransactionPersistentObjectRef& InObjRef)
+	friend uint32 GetTypeHash(const FPersistentObjectRef& InObjRef)
 	{
 		return HashCombine(GetTypeHash(InObjRef.ReferenceType), GetTypeHash(InObjRef.RootObject));
 	}
@@ -76,7 +75,7 @@ public:
 
 	UObject* Get() const;
 	
-	void AddStructReferencedObjects(FReferenceCollector& Collector);
+	void AddReferencedObjects(FReferenceCollector& Collector);
 
 private:
 	/** This enum represents all of the different special cases we are handling with this type */
@@ -100,28 +99,14 @@ private:
 	mutable TArray<TWeakObjectPtr<UObject>, TInlineAllocator<4>> CachedSubObjectHierarchy;
 };
 
-template<>
-struct TStructOpsTypeTraits<FTransactionPersistentObjectRef> : public TStructOpsTypeTraitsBase2<FTransactionPersistentObjectRef>
+struct ENGINE_API FSerializedTaggedData
 {
-	enum
-	{
-		WithIdenticalViaEquality = true,
-		WithAddStructReferencedObjects = true,
-		WithSerializer = true,
-	};
-};
-
-USTRUCT()
-struct ENGINE_API FTransactionSerializedTaggedData
-{
-	GENERATED_BODY()
-
 public:
-	static FTransactionSerializedTaggedData FromOffsetAndSize(const int64 InOffset, const int64 InSize);
-	static FTransactionSerializedTaggedData FromStartAndEnd(const int64 InStart, const int64 InEnd);
+	static FSerializedTaggedData FromOffsetAndSize(const int64 InOffset, const int64 InSize);
+	static FSerializedTaggedData FromStartAndEnd(const int64 InStart, const int64 InEnd);
 
 	void AppendSerializedData(const int64 InOffset, const int64 InSize);
-	void AppendSerializedData(const FTransactionSerializedTaggedData& InData);
+	void AppendSerializedData(const FSerializedTaggedData& InData);
 
 	bool HasSerializedData() const;
 
@@ -135,31 +120,26 @@ public:
 		return DataOffset + DataSize;
 	}
 
-	friend bool operator==(const FTransactionSerializedTaggedData& LHS, const FTransactionSerializedTaggedData& RHS)
+	friend bool operator==(const FSerializedTaggedData& LHS, const FSerializedTaggedData& RHS)
 	{
 		return LHS.DataOffset == RHS.DataOffset
 			&& LHS.DataSize == RHS.DataSize;
 	}
 
-	friend bool operator!=(const FTransactionSerializedTaggedData& LHS, const FTransactionSerializedTaggedData& RHS)
+	friend bool operator!=(const FSerializedTaggedData& LHS, const FSerializedTaggedData& RHS)
 	{
 		return !(LHS == RHS);
 	}
 
 	/** Offset to the start of the tagged data within the serialized object */
-	UPROPERTY()
 	int64 DataOffset = INDEX_NONE;
 
 	/** Size (in bytes) of the tagged data within the serialized object */
-	UPROPERTY()
 	int64 DataSize = 0;
 };
 
-USTRUCT()
-struct ENGINE_API FTransactionSerializedObjectData
+struct ENGINE_API FSerializedObjectData
 {
-	GENERATED_BODY()
-
 public:
 	bool Serialize(FArchive& Ar)
 	{
@@ -167,18 +147,18 @@ public:
 		return true;
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, FTransactionSerializedObjectData& SerializedData)
+	friend FArchive& operator<<(FArchive& Ar, FSerializedObjectData& SerializedData)
 	{
 		Ar << SerializedData.Data;
 		return Ar;
 	}
 
-	friend bool operator==(const FTransactionSerializedObjectData& LHS, const FTransactionSerializedObjectData& RHS)
+	friend bool operator==(const FSerializedObjectData& LHS, const FSerializedObjectData& RHS)
 	{
 		return LHS.Data == RHS.Data;
 	}
 
-	friend bool operator!=(const FTransactionSerializedObjectData& LHS, const FTransactionSerializedObjectData& RHS)
+	friend bool operator!=(const FSerializedObjectData& LHS, const FSerializedObjectData& RHS)
 	{
 		return !(LHS == RHS);
 	}
@@ -205,31 +185,8 @@ private:
 	TArray64<uint8> Data;
 };
 
-template<>
-struct TStructOpsTypeTraits<FTransactionSerializedObjectData> : public TStructOpsTypeTraitsBase2<FTransactionSerializedObjectData>
+struct FSerializedObjectInfo
 {
-	enum
-	{
-		WithIdenticalViaEquality = true,
-		WithSerializer = true,
-	};
-};
-
-USTRUCT()
-struct FTransactionSerializedIndices
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY()
-	TArray<int32> Indices;
-};
-
-USTRUCT()
-struct FTransactionSerializedObjectInfo
-{
-	GENERATED_BODY()
-
 public:
 	void SetObject(const UObject* InObject)
 	{
@@ -253,7 +210,7 @@ public:
 		bIsPendingKill = false;
 	}
 
-	void Swap(FTransactionSerializedObjectInfo& Other)
+	void Swap(FSerializedObjectInfo& Other)
 	{
 		Exchange(ObjectPackageName, Other.ObjectPackageName);
 		Exchange(ObjectName, Other.ObjectName);
@@ -265,39 +222,29 @@ public:
 	}
 
 	/** The package name of the object when it was serialized, can be dictated either by outer chain or external package */
-	UPROPERTY()
 	FName ObjectPackageName;
 
 	/** The name of the object when it was serialized */
-	UPROPERTY()
 	FName ObjectName;
 
 	/** The path name of the object when it was serialized */
-	UPROPERTY()
 	FName ObjectPathName;
 
 	/** The outer path name of the object when it was serialized */
-	UPROPERTY()
 	FName ObjectOuterPathName;
 
 	/** The external package name of the object when it was serialized, if any */
-	UPROPERTY()
 	FName ObjectExternalPackageName;
 
 	/** The path name of the object's class. */
-	UPROPERTY()
 	FName ObjectClassPathName;
 
 	/** The pending kill state of the object when it was serialized */
-	UPROPERTY()
 	bool bIsPendingKill = false;
 };
 
-USTRUCT()
-struct FTransactionSerializedObject
+struct FSerializedObject
 {
-	GENERATED_BODY()
-
 public:
 	void Reset()
 	{
@@ -306,7 +253,7 @@ public:
 		ReferencedNames.Reset();
 	}
 
-	void Swap(FTransactionSerializedObject& Other)
+	void Swap(FSerializedObject& Other)
 	{
 		Exchange(SerializedData, Other.SerializedData);
 		Exchange(ReferencedObjects, Other.ReferencedObjects);
@@ -314,23 +261,17 @@ public:
 	}
 
 	/** The serialized data for the transacted object */
-	UPROPERTY()
-	FTransactionSerializedObjectData SerializedData;
+	FSerializedObjectData SerializedData;
 
 	/** External objects referenced by the transacted object */
-	UPROPERTY()
-	TArray<FTransactionPersistentObjectRef> ReferencedObjects;
+	TArray<FPersistentObjectRef> ReferencedObjects;
 	
 	/** Names referenced by the transacted object */
-	UPROPERTY()
 	TArray<FName> ReferencedNames;
 };
 
-USTRUCT()
-struct FTransactionDiffableObject
+struct FDiffableObject
 {
-	GENERATED_BODY()
-
 public:
 	void SetObject(const UObject* InObject)
 	{
@@ -344,7 +285,7 @@ public:
 		SerializedTaggedData.Reset();
 	}
 
-	void Swap(FTransactionDiffableObject& Other)
+	void Swap(FDiffableObject& Other)
 	{
 		ObjectInfo.Swap(Other.ObjectInfo);
 		Exchange(SerializedData, Other.SerializedData);
@@ -352,20 +293,14 @@ public:
 	}
 
 	/** Information about the object when it was serialized */
-	UPROPERTY()
-	FTransactionSerializedObjectInfo ObjectInfo;
+	FSerializedObjectInfo ObjectInfo;
 
 	/** The serialized data for the diffable object */
-	UPROPERTY()
-	FTransactionSerializedObjectData SerializedData;
+	FSerializedObjectData SerializedData;
 
 	/** Information about tagged data (mainly properties) that were serialized within this object */
-	UPROPERTY()
-	TMap<FName, FTransactionSerializedTaggedData> SerializedTaggedData;
+	TMap<FName, FSerializedTaggedData> SerializedTaggedData;
 };
-
-namespace UE::Transaction
-{
 
 ENGINE_API extern const FName TaggedDataKey_UnknownData;
 ENGINE_API extern const FName TaggedDataKey_ScriptData;
@@ -374,7 +309,7 @@ ENGINE_API extern const FName TaggedDataKey_ScriptData;
 class ENGINE_API FSerializedObjectDataReader : public FArchiveUObject
 {
 public:
-	FSerializedObjectDataReader(const FTransactionSerializedObject& InSerializedObject);
+	FSerializedObjectDataReader(const FSerializedObject& InSerializedObject);
 
 	virtual int64 Tell() override { return Offset; }
 	virtual void Seek(int64 InPos) override { Offset = InPos; }
@@ -387,7 +322,7 @@ protected:
 	virtual FArchive& operator<<(class FName& N) override;
 	virtual FArchive& operator<<(class UObject*& Res) override;
 
-	const FTransactionSerializedObject& SerializedObject;
+	const FSerializedObject& SerializedObject;
 	int64 Offset = 0;
 };
 
@@ -398,7 +333,7 @@ namespace Internal
 class ENGINE_API FSerializedObjectDataWriterCommon : public FArchiveUObject
 {
 public:
-	FSerializedObjectDataWriterCommon(FTransactionSerializedObjectData& InSerializedData);
+	FSerializedObjectDataWriterCommon(FSerializedObjectData& InSerializedData);
 
 	virtual int64 Tell() override { return Offset; }
 	virtual void Seek(int64 InPos) override { checkSlow(Offset <= SerializedData.Num()); Offset = InPos; }
@@ -409,7 +344,7 @@ protected:
 
 	virtual void OnDataSerialized(int64 InOffset, int64 InNum) {}
 
-	FTransactionSerializedObjectData& SerializedData;
+	FSerializedObjectData& SerializedData;
 	int64 Offset = 0;
 };
 
@@ -419,14 +354,14 @@ protected:
 class ENGINE_API FSerializedObjectDataWriter : public Internal::FSerializedObjectDataWriterCommon
 {
 public:
-	FSerializedObjectDataWriter(FTransactionSerializedObject& InSerializedObject);
+	FSerializedObjectDataWriter(FSerializedObject& InSerializedObject);
 
 protected:
 	using FArchiveUObject::operator<<;
 	virtual FArchive& operator<<(class FName& N) override;
 	virtual FArchive& operator<<(class UObject*& Res) override;
 
-	FTransactionSerializedObject& SerializedObject;
+	FSerializedObject& SerializedObject;
 	int64 Offset = 0;
 
 	TMap<UObject*, int32> ObjectMap;
@@ -437,7 +372,7 @@ protected:
 class ENGINE_API FDiffableObjectDataWriter : public Internal::FSerializedObjectDataWriterCommon
 {
 public:
-	FDiffableObjectDataWriter(FTransactionDiffableObject& InDiffableObject, TArrayView<const FProperty*> InPropertiesToSerialize = TArrayView<const FProperty*>());
+	FDiffableObjectDataWriter(FDiffableObject& InDiffableObject, TArrayView<const FProperty*> InPropertiesToSerialize = TArrayView<const FProperty*>());
 
 protected:
 	FName GetTaggedDataKey() const;
@@ -466,7 +401,7 @@ private:
 		uint32 LastUpdateCount = 0;
 	};
 
-	FTransactionDiffableObject& DiffableObject;
+	FDiffableObject& DiffableObject;
 	TArrayView<const FProperty*> PropertiesToSerialize;
 
 	bool bIsPerformingScriptSerialization = false;
@@ -481,7 +416,7 @@ private:
 namespace DiffUtil
 {
 
-ENGINE_API void GenerateObjectDiff(const FTransactionDiffableObject& OldDiffableObject, const FTransactionDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff = true);
+ENGINE_API void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff = true);
 
 } // namespace DiffUtil
 

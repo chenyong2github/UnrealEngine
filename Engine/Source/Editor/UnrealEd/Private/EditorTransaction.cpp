@@ -70,7 +70,7 @@ FTransaction::FObjectRecord::FObjectRecord(FTransaction* Owner, UObject* InObjec
 
 		if (!Array)
 		{
-			DiffableObject = MakeUnique<FTransactionDiffableObject>();
+			DiffableObject = MakeUnique<UE::Transaction::FDiffableObject>();
 			DiffableObject->SetObject(CurrentObject);
 			UE::Transaction::FDiffableObjectDataWriter Writer(*DiffableObject);
 			SerializeObject(Writer);
@@ -291,7 +291,7 @@ void FTransaction::FObjectRecord::Finalize( FTransaction* Owner, TSharedPtr<ITra
 				|| SerializedObject.ReferencedObjects != SerializedObjectFlip.ReferencedObjects;
 
 			// Serialize the object so we can diff it
-			FTransactionDiffableObject CurrentDiffableObject;
+			UE::Transaction::FDiffableObject CurrentDiffableObject;
 			{
 				CurrentDiffableObject.SetObject(CurrentObject);
 				UE::Transaction::FDiffableObjectDataWriter Writer(CurrentDiffableObject);
@@ -339,7 +339,7 @@ void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, TArrayView<cons
 	if (CurrentObject)
 	{
 		// Serialize the object so we can diff it
-		FTransactionDiffableObject CurrentDiffableObject;
+		UE::Transaction::FDiffableObject CurrentDiffableObject;
 		{
 			CurrentDiffableObject.SetObject(CurrentObject);
 			UE::Transaction::FDiffableObjectDataWriter Writer(CurrentDiffableObject, Properties);
@@ -349,14 +349,14 @@ void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, TArrayView<cons
 		}
 
 		// Diff against the correct serialized data depending on whether we already had a snapshot
-		const FTransactionDiffableObject& InitialDiffableObject = DiffableObjectSnapshot ? *DiffableObjectSnapshot : *DiffableObject;
+		const UE::Transaction::FDiffableObject& InitialDiffableObject = DiffableObjectSnapshot ? *DiffableObjectSnapshot : *DiffableObject;
 		FTransactionObjectDeltaChange SnapshotDeltaChange;
 		UE::Transaction::DiffUtil::GenerateObjectDiff(InitialDiffableObject, CurrentDiffableObject, SnapshotDeltaChange, /*bFullDiff*/false);
 
 		// Update the snapshot data for next time
 		if (!DiffableObjectSnapshot)
 		{
-			DiffableObjectSnapshot = MakeUnique<FTransactionDiffableObject>();
+			DiffableObjectSnapshot = MakeUnique<UE::Transaction::FDiffableObject>();
 		}
 		DiffableObjectSnapshot->Swap(CurrentDiffableObject);
 
@@ -484,13 +484,13 @@ FArchive& operator<<( FArchive& Ar, FTransaction::FObjectRecord& R )
 
 void FTransaction::FObjectRecord::AddReferencedObjects( FReferenceCollector& Collector )
 {
-	Object.AddStructReferencedObjects(Collector);
+	Object.AddReferencedObjects(Collector);
 
 	auto AddSerializedObjectReferences = [&Collector](FSerializedObject& InSerializedObject)
 	{
-		for (FPersistentObjectRef& ReferencedObject : InSerializedObject.ReferencedObjects)
+		for (UE::Transaction::FPersistentObjectRef& ReferencedObject : InSerializedObject.ReferencedObjects)
 		{
-			ReferencedObject.AddStructReferencedObjects(Collector);
+			ReferencedObject.AddReferencedObjects(Collector);
 		}
 
 		if (InSerializedObject.ObjectAnnotation.IsValid())
@@ -519,7 +519,7 @@ bool FTransaction::FObjectRecord::ContainsPieObject() const
 
 	auto SerializedObjectContainPieObjects = [](const FSerializedObject& InSerializedObject) -> bool
 	{
-		for (const FPersistentObjectRef& ReferencedObject : InSerializedObject.ReferencedObjects)
+		for (const UE::Transaction::FPersistentObjectRef& ReferencedObject : InSerializedObject.ReferencedObjects)
 		{
 			const UObject* Obj = ReferencedObject.Get();
 			if (Obj && Obj->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))
@@ -563,9 +563,9 @@ void FTransaction::AddReferencedObjects( FReferenceCollector& Collector )
 		ObjectRecord.AddReferencedObjects( Collector );
 	}
 
-	for (TTuple<FPersistentObjectRef, FObjectRecords>& ObjectRecordsPair : ObjectRecordsMap)
+	for (TTuple<UE::Transaction::FPersistentObjectRef, FObjectRecords>& ObjectRecordsPair : ObjectRecordsMap)
 	{
-		ObjectRecordsPair.Key.AddStructReferencedObjects(Collector);
+		ObjectRecordsPair.Key.AddReferencedObjects(Collector);
 	}
 }
 
@@ -574,7 +574,7 @@ void FTransaction::SaveObject( UObject* Object )
 	check(Object);
 	Object->CheckDefaultSubobjects();
 
-	FObjectRecords& ObjectRecords = ObjectRecordsMap.FindOrAdd(FPersistentObjectRef(Object));
+	FObjectRecords& ObjectRecords = ObjectRecordsMap.FindOrAdd(UE::Transaction::FPersistentObjectRef(Object));
 	if (ObjectRecords.Records.Num() == 0)
 	{
 		// Save the object.
@@ -613,7 +613,7 @@ void FTransaction::StoreUndo(UObject* Object, TUniquePtr<FChange> UndoChange)
 	Object->CheckDefaultSubobjects();
 
 	// Save the undo record
-	FObjectRecords& ObjectRecords = ObjectRecordsMap.FindOrAdd(FPersistentObjectRef(Object));
+	FObjectRecords& ObjectRecords = ObjectRecordsMap.FindOrAdd(UE::Transaction::FPersistentObjectRef(Object));
 	FObjectRecord* UndoRecord = ObjectRecords.Records.Add_GetRef(new FObjectRecord(this, Object, MoveTemp(UndoChange), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr));
 	Records.Add(UndoRecord);
 }
@@ -630,7 +630,7 @@ void FTransaction::SnapshotObject( UObject* InObject, TArrayView<const FProperty
 {
 	check(InObject);
 
-	if (const FObjectRecords* ObjectRecords = ObjectRecordsMap.Find(FPersistentObjectRef(InObject)))
+	if (const FObjectRecords* ObjectRecords = ObjectRecordsMap.Find(UE::Transaction::FPersistentObjectRef(InObject)))
 	{
 		for (FObjectRecord* Record : ObjectRecords->Records)
 		{
@@ -645,7 +645,7 @@ void FTransaction::SnapshotObject( UObject* InObject, TArrayView<const FProperty
 
 bool FTransaction::ContainsObject(const UObject* Object) const
 {
-	FPersistentObjectRef PersistentObjectRef(const_cast<UObject*>(Object));
+	UE::Transaction::FPersistentObjectRef PersistentObjectRef(const_cast<UObject*>(Object));
 	if (const FObjectRecords* ObjectRecords = ObjectRecordsMap.Find(PersistentObjectRef))
 	{
 		for (FObjectRecord* Record : ObjectRecords->Records)

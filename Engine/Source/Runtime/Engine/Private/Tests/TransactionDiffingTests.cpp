@@ -16,9 +16,9 @@ void UTransactionDiffingTestObject::Serialize(FStructuredArchive::FRecord Record
 namespace TransactionDiffingTests
 {
 
-FTransactionDiffableObject GetDiffableObject(UObject* Object)
+UE::Transaction::FDiffableObject GetDiffableObject(UObject* Object)
 {
-	FTransactionDiffableObject DiffableObject;
+	UE::Transaction::FDiffableObject DiffableObject;
 
 	UE::Transaction::FDiffableObjectDataWriter DiffWriter(DiffableObject);
 	Object->Serialize(DiffWriter);
@@ -26,7 +26,7 @@ FTransactionDiffableObject GetDiffableObject(UObject* Object)
 	return DiffableObject;
 }
 
-FTransactionObjectDeltaChange GenerateObjectDiff(const FTransactionDiffableObject& InitialObject, const FTransactionDiffableObject& ModifiedObject)
+FTransactionObjectDeltaChange GenerateObjectDiff(const UE::Transaction::FDiffableObject& InitialObject, const UE::Transaction::FDiffableObject& ModifiedObject)
 {
 	FTransactionObjectDeltaChange DeltaChange;
 	UE::Transaction::DiffUtil::GenerateObjectDiff(InitialObject, ModifiedObject, DeltaChange);
@@ -41,11 +41,11 @@ bool FEditPropertyDataTest::RunTest(const FString& Parameters)
 	UTransactionDiffingTestObject* DefaultObject = GetMutableDefault<UTransactionDiffingTestObject>();
 	UTransactionDiffingTestObject* ModifiedObject = NewObject<UTransactionDiffingTestObject>();
 	
-	const FTransactionDiffableObject DefaultDiffableObject = GetDiffableObject(DefaultObject);
+	const UE::Transaction::FDiffableObject DefaultDiffableObject = GetDiffableObject(DefaultObject);
 
 	ModifiedObject->PropertyData = 10;
 
-	const FTransactionDiffableObject ModifiedDiffableObject = GetDiffableObject(ModifiedObject);
+	const UE::Transaction::FDiffableObject ModifiedDiffableObject = GetDiffableObject(ModifiedObject);
 
 	{
 		const FTransactionObjectDeltaChange DeltaChange = GenerateObjectDiff(DefaultDiffableObject, ModifiedDiffableObject);
@@ -64,11 +64,11 @@ bool FEditNonPropertyDataTest::RunTest(const FString& Parameters)
 	UTransactionDiffingTestObject* DefaultObject = GetMutableDefault<UTransactionDiffingTestObject>();
 	UTransactionDiffingTestObject* ModifiedObject = NewObject<UTransactionDiffingTestObject>();
 
-	const FTransactionDiffableObject DefaultDiffableObject = GetDiffableObject(DefaultObject);
+	const UE::Transaction::FDiffableObject DefaultDiffableObject = GetDiffableObject(DefaultObject);
 
 	ModifiedObject->NonPropertyData = 10;
 
-	const FTransactionDiffableObject ModifiedDiffableObject = GetDiffableObject(ModifiedObject);
+	const UE::Transaction::FDiffableObject ModifiedDiffableObject = GetDiffableObject(ModifiedObject);
 
 	{
 		const FTransactionObjectDeltaChange DeltaChange = GenerateObjectDiff(DefaultDiffableObject, ModifiedDiffableObject);
@@ -86,11 +86,11 @@ bool FEditNamesTest::RunTest(const FString& Parameters)
 	UTransactionDiffingTestObject* DefaultObject = GetMutableDefault<UTransactionDiffingTestObject>();
 	UTransactionDiffingTestObject* ModifiedObject = NewObject<UTransactionDiffingTestObject>();
 
-	const FTransactionDiffableObject DefaultDiffableObject = GetDiffableObject(DefaultObject);
+	const UE::Transaction::FDiffableObject DefaultDiffableObject = GetDiffableObject(DefaultObject);
 
 	ModifiedObject->AdditionalName = "Test0";
 
-	const FTransactionDiffableObject ModifiedDiffableObject = GetDiffableObject(ModifiedObject);
+	const UE::Transaction::FDiffableObject ModifiedDiffableObject = GetDiffableObject(ModifiedObject);
 
 	{
 		const FTransactionObjectDeltaChange DeltaChange = GenerateObjectDiff(DefaultDiffableObject, ModifiedDiffableObject);
@@ -102,7 +102,7 @@ bool FEditNamesTest::RunTest(const FString& Parameters)
 
 	ModifiedObject->NamesArray.Add("Test1");
 
-	const FTransactionDiffableObject ModifiedDiffableObject2 = GetDiffableObject(ModifiedObject);
+	const UE::Transaction::FDiffableObject ModifiedDiffableObject2 = GetDiffableObject(ModifiedObject);
 
 	{
 		const FTransactionObjectDeltaChange DeltaChange = GenerateObjectDiff(DefaultDiffableObject, ModifiedDiffableObject2);
@@ -130,11 +130,11 @@ bool FEditObjectsTest::RunTest(const FString& Parameters)
 	UTransactionDiffingTestObject* DefaultObject = GetMutableDefault<UTransactionDiffingTestObject>();
 	UTransactionDiffingTestObject* ModifiedObject = NewObject<UTransactionDiffingTestObject>();
 
-	const FTransactionDiffableObject DefaultDiffableObject = GetDiffableObject(DefaultObject);
+	const UE::Transaction::FDiffableObject DefaultDiffableObject = GetDiffableObject(DefaultObject);
 
 	ModifiedObject->AdditionalObject = NewObject<UTransactionDiffingTestObject>();
 
-	const FTransactionDiffableObject ModifiedDiffableObject = GetDiffableObject(ModifiedObject);
+	const UE::Transaction::FDiffableObject ModifiedDiffableObject = GetDiffableObject(ModifiedObject);
 
 	{
 		const FTransactionObjectDeltaChange DeltaChange = GenerateObjectDiff(DefaultDiffableObject, ModifiedDiffableObject);
@@ -146,7 +146,7 @@ bool FEditObjectsTest::RunTest(const FString& Parameters)
 
 	ModifiedObject->ObjectsArray.Add(NewObject<UTransactionDiffingTestObject>());
 
-	const FTransactionDiffableObject ModifiedDiffableObject2 = GetDiffableObject(ModifiedObject);
+	const UE::Transaction::FDiffableObject ModifiedDiffableObject2 = GetDiffableObject(ModifiedObject);
 
 	{
 		const FTransactionObjectDeltaChange DeltaChange = GenerateObjectDiff(DefaultDiffableObject, ModifiedDiffableObject2);
@@ -174,11 +174,11 @@ bool FEditSoftObjectsTest::RunTest(const FString& Parameters)
 	UTransactionDiffingTestObject* DefaultObject = GetMutableDefault<UTransactionDiffingTestObject>();
 	UTransactionDiffingTestObject* ModifiedObject = NewObject<UTransactionDiffingTestObject>();
 
-	const FTransactionDiffableObject DefaultDiffableObject = GetDiffableObject(DefaultObject);
+	const UE::Transaction::FDiffableObject DefaultDiffableObject = GetDiffableObject(DefaultObject);
 
 	ModifiedObject->AdditionalSoftObject = NewObject<UTransactionDiffingTestObject>();
 
-	const FTransactionDiffableObject ModifiedDiffableObject = GetDiffableObject(ModifiedObject);
+	const UE::Transaction::FDiffableObject ModifiedDiffableObject = GetDiffableObject(ModifiedObject);
 
 	{
 		const FTransactionObjectDeltaChange DeltaChange = GenerateObjectDiff(DefaultDiffableObject, ModifiedDiffableObject);
@@ -190,7 +190,7 @@ bool FEditSoftObjectsTest::RunTest(const FString& Parameters)
 
 	ModifiedObject->SoftObjectsArray.Add(NewObject<UTransactionDiffingTestObject>());
 
-	const FTransactionDiffableObject ModifiedDiffableObject2 = GetDiffableObject(ModifiedObject);
+	const UE::Transaction::FDiffableObject ModifiedDiffableObject2 = GetDiffableObject(ModifiedObject);
 
 	{
 		const FTransactionObjectDeltaChange DeltaChange = GenerateObjectDiff(DefaultDiffableObject, ModifiedDiffableObject2);

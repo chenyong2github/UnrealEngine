@@ -38,13 +38,11 @@ class UNREALED_API FTransaction : public ITransaction
 	friend class FTransactionObjectEvent;
 
 protected:
-	using FPersistentObjectRef = FTransactionPersistentObjectRef;
-
 	// Record of an object.
 	class UNREALED_API FObjectRecord
 	{
 	public:
-		struct FSerializedObject : public FTransactionSerializedObject
+		struct FSerializedObject : public UE::Transaction::FSerializedObject
 		{
 			void SetObject(const UObject* InObject)
 			{
@@ -54,20 +52,20 @@ protected:
 
 			void Reset()
 			{
-				FTransactionSerializedObject::Reset();
+				UE::Transaction::FSerializedObject::Reset();
 				ObjectInfo.Reset();
 				ObjectAnnotation.Reset();
 			}
 
 			void Swap(FSerializedObject& Other)
 			{
-				FTransactionSerializedObject::Swap(Other);
+				UE::Transaction::FSerializedObject::Swap(Other);
 				ObjectInfo.Swap(Other.ObjectInfo);
 				Exchange(ObjectAnnotation, Other.ObjectAnnotation);
 			}
 
 			/** Information about the object when it was serialized */
-			FTransactionSerializedObjectInfo ObjectInfo;
+			UE::Transaction::FSerializedObjectInfo ObjectInfo;
 
 			/** Annotation data for the object stored externally */
 			TSharedPtr<ITransactionObjectAnnotation> ObjectAnnotation;
@@ -75,7 +73,7 @@ protected:
 
 		// Variables.
 		/** The object to track */
-		FPersistentObjectRef Object;
+		UE::Transaction::FPersistentObjectRef Object;
 		/** Custom change to apply to this object to undo this record.  Executing the undo will return an object that can be used to redo the change. */
 		TUniquePtr<FChange> CustomChange;
 		/** Array: If an array object, reference to script array */
@@ -110,9 +108,9 @@ protected:
 		/** The serialized object data that will be used when the transaction is flipped */
 		FSerializedObject	SerializedObjectFlip;
 		/** The diffable object data (always null once finalized) */
-		TUniquePtr<FTransactionDiffableObject> DiffableObject;
+		TUniquePtr<UE::Transaction::FDiffableObject> DiffableObject;
 		/** The diffable object data when it was last snapshot (always null once finalized) */
-		TUniquePtr<FTransactionDiffableObject> DiffableObjectSnapshot;
+		TUniquePtr<UE::Transaction::FDiffableObject> DiffableObjectSnapshot;
 		/** Delta change information between the diffable state of the object when the transaction started, and the diffable state of the object when the transaction ended */
 		FTransactionObjectDeltaChange DeltaChange;
 
@@ -168,7 +166,7 @@ protected:
 			{
 				if (Owner)
 				{
-					if (const FObjectRecords* ObjectRecords = Owner->ObjectRecordsMap.Find(FPersistentObjectRef(InObject)))
+					if (const FObjectRecords* ObjectRecords = Owner->ObjectRecordsMap.Find(UE::Transaction::FPersistentObjectRef(InObject)))
 					{
 						for (FObjectRecord* Record : ObjectRecords->Records)
 						{
@@ -226,7 +224,7 @@ protected:
 	TIndirectArray<FObjectRecord> Records;
 
 	/** Map of object records (non-array), for optimized look-up and to prevent an object being serialized to a transaction more than once. */
-	TMap<FPersistentObjectRef, FObjectRecords> ObjectRecordsMap;
+	TMap<UE::Transaction::FPersistentObjectRef, FObjectRecords> ObjectRecordsMap;
 
 	/** Unique identifier for this transaction, used to track it during its lifetime */
 	FGuid		Id;
