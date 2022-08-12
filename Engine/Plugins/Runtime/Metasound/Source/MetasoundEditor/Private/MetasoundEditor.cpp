@@ -957,12 +957,12 @@ namespace Metasound
 			{
 				if (UMetaSoundSource* MetaSoundSource = Cast<UMetaSoundSource>(Metasound))
 				{
-					return MetasoundStyle->GetColor("MetasoundSource.Color");
+					return MetasoundStyle->GetColor("MetaSoundSource.Color");
 				}
 
-				if (UMetaSound* MetaSound = Cast<UMetaSound>(Metasound))
+				if (UMetaSoundPatch* MetaSoundPatch = Cast<UMetaSoundPatch>(Metasound))
 				{
-					return MetasoundStyle->GetColor("Metasound.Color");
+					return MetasoundStyle->GetColor("MetaSoundPatch.Color");
 				}
 			}
 
@@ -987,12 +987,12 @@ namespace Metasound
 				{
 					if (UMetaSoundSource* MetaSoundSource = Cast<UMetaSoundSource>(Metasound))
 					{
-						return MetasoundStyle->GetColor("MetasoundSource.Color");
+						return MetasoundStyle->GetColor("MetaSoundSource.Color");
 					}
 
-					if (UMetaSound* MetaSound = Cast<UMetaSound>(Metasound))
+					if (UMetaSoundPatch* MetaSoundPatch = Cast<UMetaSoundPatch>(Metasound))
 					{
-						return MetasoundStyle->GetColor("Metasound.Color");
+						return MetasoundStyle->GetColor("MetaSoundPatch.Color");
 					}
 				}
 			}

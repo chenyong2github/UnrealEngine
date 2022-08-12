@@ -24,7 +24,7 @@
  *
  * In general, the workflow for editing a Metasound graph will be:
  * 1) Load or create a metasound asset.
- * 2) Call UMetaSound::GetDocumentHandle() to get a handle to the document for that asset.
+ * 2) Call UMetaSoundPatch::GetDocumentHandle() to get a handle to the document for that asset.
  * 
  * Typically the workflow for creating a Metasound subgraph will be
  * 1) Get a Metasound::Frontend::FGraphHandle (typically through the two steps described in the first paragraph)

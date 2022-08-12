@@ -101,8 +101,8 @@ namespace Metasound
 
 				// Metasound Editor
 				{
-					Set("Metasound.Color", FColor(13, 55, 13));
-					Set("MetasoundSource.Color", FColor(103, 214, 66));
+					Set("MetaSoundPatch.Color", FColor(13, 55, 13));
+					Set("MetaSoundSource.Color", FColor(103, 214, 66));
 
 					// Actions
 					Set("MetasoundEditor.Play", new IMAGE_BRUSH_SVG(TEXT("Icons/play"), Icon40x40));
@@ -176,7 +176,7 @@ namespace Metasound
 						Set(*FString::Printf(TEXT("ClassThumbnail.%s"), *ClassName), new IMAGE_BRUSH_SVG(IconFileName, InIcon64));
 					};
 
-					SetClassIcon(TEXT("Metasound"));
+					SetClassIcon(TEXT("MetasoundPatch"));
 					SetClassIcon(TEXT("MetasoundSource"));
 				}
 
@@ -684,14 +684,14 @@ namespace Metasound
 				// Register Metasound asset type actions
 				IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(AssetToolName).Get();
 
-				AddAssetAction<FAssetTypeActions_MetaSound>(AssetTools, AssetActions);
+				AddAssetAction<FAssetTypeActions_MetaSoundPatch>(AssetTools, AssetActions);
 				AddAssetAction<FAssetTypeActions_MetaSoundSource>(AssetTools, AssetActions);
 
 				FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 				
 				PropertyModule.RegisterCustomClassLayout(
-					UMetaSound::StaticClass()->GetFName(),
-					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundDetailCustomization>(UMetaSound::GetDocumentPropertyName()); }));
+					UMetaSoundPatch::StaticClass()->GetFName(),
+					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundDetailCustomization>(UMetaSoundPatch::GetDocumentPropertyName()); }));
 
 				PropertyModule.RegisterCustomClassLayout(
 					UMetaSoundSource::StaticClass()->GetFName(),
@@ -751,10 +751,10 @@ namespace Metasound
 					GetMutableDefault<UMetasoundEditorSettings>()
 				);
 
-				MetaSoundClassNames.Add(UMetaSound::StaticClass()->GetClassPathName());
+				MetaSoundClassNames.Add(UMetaSoundPatch::StaticClass()->GetClassPathName());
 				MetaSoundClassNames.Add(UMetaSoundSource::StaticClass()->GetClassPathName());
 
-				FAssetTypeActions_MetaSound::RegisterMenuActions();
+				FAssetTypeActions_MetaSoundPatch::RegisterMenuActions();
 				FAssetTypeActions_MetaSoundSource::RegisterMenuActions();
 
 				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");

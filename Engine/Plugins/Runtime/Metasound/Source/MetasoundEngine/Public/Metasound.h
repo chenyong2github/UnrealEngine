@@ -144,7 +144,7 @@ namespace Metasound
  * Because of this, they contain no required inputs or outputs.
  */
 UCLASS(hidecategories = object, BlueprintType)
-class METASOUNDENGINE_API UMetaSound : public UObject, public FMetasoundAssetBase
+class METASOUNDENGINE_API UMetaSoundPatch : public UObject, public FMetasoundAssetBase
 {
 	GENERATED_BODY()
 
@@ -158,7 +158,7 @@ protected:
 #endif // WITH_EDITORONLY_DATA
 
 public:
-	UMetaSound(const FObjectInitializer& ObjectInitializer);
+	UMetaSoundPatch(const FObjectInitializer& ObjectInitializer);
 
 	UPROPERTY()
 	TSet<FString> ReferencedAssetClassKeys;
@@ -189,7 +189,7 @@ public:
 	// while allowing editor to reference directly)
 	static FName GetDocumentPropertyName()
 	{
-		return GET_MEMBER_NAME_CHECKED(UMetaSound, RootMetaSoundDocument);
+		return GET_MEMBER_NAME_CHECKED(UMetaSoundPatch, RootMetaSoundDocument);
 	}
 
 	// Name to display in editors

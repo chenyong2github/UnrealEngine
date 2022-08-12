@@ -167,28 +167,28 @@ namespace Metasound
 			}
 		} // namespace AssetTypeActionsPrivate
 
-		UClass* FAssetTypeActions_MetaSound::GetSupportedClass() const
+		UClass* FAssetTypeActions_MetaSoundPatch::GetSupportedClass() const
 		{
-			return UMetaSound::StaticClass();
+			return UMetaSoundPatch::StaticClass();
 		}
 
-		FColor FAssetTypeActions_MetaSound::GetTypeColor() const
+		FColor FAssetTypeActions_MetaSoundPatch::GetTypeColor() const
 		{
 			if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
 			{
-				return MetasoundStyle->GetColor("Metasound.Color").ToFColorSRGB();
+				return MetasoundStyle->GetColor("MetaSoundPatch.Color").ToFColorSRGB();
 			}
 
 			return FColor::White;
 		}
 
-		void FAssetTypeActions_MetaSound::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> ToolkitHost)
+		void FAssetTypeActions_MetaSoundPatch::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> ToolkitHost)
 		{
 			const EToolkitMode::Type Mode = ToolkitHost.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
 
 			for (UObject* Object : InObjects)
 			{
-				if (UMetaSound* Metasound = Cast<UMetaSound>(Object))
+				if (UMetaSoundPatch* Metasound = Cast<UMetaSoundPatch>(Object))
 				{
 					TSharedRef<FEditor> NewEditor = MakeShared<FEditor>();
 					NewEditor->InitMetasoundEditor(Mode, ToolkitHost, Metasound);
@@ -196,13 +196,13 @@ namespace Metasound
 			}
 		}
 
-		void FAssetTypeActions_MetaSound::RegisterMenuActions()
+		void FAssetTypeActions_MetaSoundPatch::RegisterMenuActions()
 		{
 			using namespace AssetTypeActionsPrivate;
-			RegisterPresetAction<UMetaSound, UMetaSoundFactory>(PresetLabel, PresetToolTip);
+			RegisterPresetAction<UMetaSoundPatch, UMetaSoundFactory>(PresetLabel, PresetToolTip);
 		}
 
-		const TArray<FText>& FAssetTypeActions_MetaSound::GetSubMenus() const
+		const TArray<FText>& FAssetTypeActions_MetaSoundPatch::GetSubMenus() const
 		{
 			if (GetDefault<UMetasoundEditorSettings>()->bPinMetaSoundInAssetMenu)
 			{
@@ -227,7 +227,7 @@ namespace Metasound
 		{
 			if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
 			{
-				return MetasoundStyle->GetColor("MetasoundSource.Color").ToFColorSRGB();
+				return MetasoundStyle->GetColor("MetaSoundSource.Color").ToFColorSRGB();
 			}
 
 			return FColor::White;
@@ -257,7 +257,7 @@ namespace Metasound
 			// that introduces the concept of an interface "interface" (i.e. if the interface one graph subscribes to
 			// or contains all of the necessary inputs/outputs of another), so that the preset can "implement" the
 			// referenced graphs "interface."
-// 			RegisterPresetAction<UMetaSound, UMetaSoundFactory, UMetaSoundSource>(PresetLabel, PresetToolTip);
+// 			RegisterPresetAction<UMetaSoundPatch, UMetaSoundFactory, UMetaSoundSource>(PresetLabel, PresetToolTip);
 		}
 
 		const TArray<FText>& FAssetTypeActions_MetaSoundSource::GetSubMenus() const

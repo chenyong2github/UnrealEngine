@@ -8,7 +8,7 @@
 
 #include "MetasoundFactory.generated.h"
 
-class UMetaSound;
+class UMetaSoundPatch;
 class UMetaSoundSource;
 
 UCLASS(abstract)

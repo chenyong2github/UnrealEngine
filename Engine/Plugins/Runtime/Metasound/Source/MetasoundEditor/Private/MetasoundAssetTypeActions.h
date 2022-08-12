@@ -11,11 +11,11 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		class FAssetTypeActions_MetaSound : public FAssetTypeActions_Base
+		class FAssetTypeActions_MetaSoundPatch : public FAssetTypeActions_Base
 		{
 		public:
 			// IAssetTypeActions Implementation
-			virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_MetaSound", "MetaSound"); }
+			virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_MetaSoundPatch", "MetaSound Patch"); }
 			virtual FColor GetTypeColor() const override;
 			virtual UClass* GetSupportedClass() const override;
 			virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }

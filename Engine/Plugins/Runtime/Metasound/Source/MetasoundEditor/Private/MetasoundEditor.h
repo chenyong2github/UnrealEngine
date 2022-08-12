@@ -46,7 +46,7 @@ class IToolkitHost;
 class SVerticalBox;
 class UAudioComponent;
 class UEdGraphNode;
-class UMetaSound;
+class UMetaSoundPatch;
 class UMetasoundEditorGraph;
 class UMetasoundEditorGraphNode;
 
