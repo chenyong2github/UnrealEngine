@@ -7,7 +7,7 @@
 #include "SmartObjectDefinition.h"
 #include "MassSmartObjectBehaviorDefinition.generated.h"
 
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 class USmartObjectSubsystem;
 struct FMassExecutionContext;
 struct FTransformFragment;

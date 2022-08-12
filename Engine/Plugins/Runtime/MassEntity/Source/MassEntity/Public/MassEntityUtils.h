@@ -6,7 +6,7 @@
 #include "MassArchetypeTypes.h"
 
 class UWorld;
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 struct FMassEntityHandle;
 
 namespace UE::Mass::Utils
@@ -19,7 +19,7 @@ MASSENTITY_API extern EProcessorExecutionFlags GetProcessorExecutionFlagsForWold
  * Fills OutEntityCollections with per-archetype FMassArchetypeEntityCollection instances. 
  * @param DuplicatesHandling used to inform the function whether to expect duplicates.
  */
-MASSENTITY_API extern void CreateEntityCollections(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities
+MASSENTITY_API extern void CreateEntityCollections(const FMassEntityManager& EntitySubsystem, const TConstArrayView<FMassEntityHandle> Entities
 	, const FMassArchetypeEntityCollection::EDuplicatesHandling DuplicatesHandling, TArray<FMassArchetypeEntityCollection>& OutEntityCollections);
 
 /**
@@ -75,6 +75,8 @@ inline void AbstractSort(const int32 NumElements, TPred&& Predicate, TSwap&& Swa
 	}
 }
 
+MASSENTITY_API extern FMassEntityManager* GetEntityManager(const UWorld* World);
+MASSENTITY_API extern FMassEntityManager& GetEntityManagerChecked(const UWorld& World);
 
 } // namespace UE::Mass::Utils
 

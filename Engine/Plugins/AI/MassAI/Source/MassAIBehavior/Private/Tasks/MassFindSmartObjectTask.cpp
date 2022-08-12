@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tasks/MassFindSmartObjectTask.h"
 #include "ZoneGraphAnnotationSubsystem.h"
@@ -47,7 +47,7 @@ void FMassFindSmartObjectTask::ExitState(FStateTreeExecutionContext& Context, co
 		USmartObjectSubsystem& SmartObjectSubsystem = Context.GetExternalData(SmartObjectSubsystemHandle);
 		UMassSignalSubsystem& SignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
 		const FMassSmartObjectHandler MassSmartObjectHandler(
-			MassContext.GetEntitySubsystem(),
+			MassContext.GetEntityManager(),
 			MassContext.GetEntitySubsystemExecutionContext(),
 			SmartObjectSubsystem,
 			SignalSubsystem);
@@ -88,7 +88,7 @@ EStateTreeRunStatus FMassFindSmartObjectTask::Tick(FStateTreeExecutionContext& C
 	UMassSignalSubsystem& SignalSubsystem = Context.GetExternalData(MassSignalSubsystemHandle);
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 	const FMassSmartObjectHandler MassSmartObjectHandler(
-		MassContext.GetEntitySubsystem(),
+		MassContext.GetEntityManager(),
 		MassContext.GetEntitySubsystemExecutionContext(),
 		SmartObjectSubsystem,
 		SignalSubsystem);

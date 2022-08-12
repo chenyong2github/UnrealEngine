@@ -9,7 +9,7 @@
 
 #include "MassReplicationSubsystem.generated.h"
 
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 class AMassCrowdClientBubbleInfo;
 class UMassLODSubsystem;
 class AMassClientBubbleInfoBase;
@@ -283,13 +283,12 @@ protected:
 	bool SynchronizeClients(const TArray<FViewerInfo>& Viewers);
 	void SynchronizeClientViewers(const TArray<FViewerInfo>& Viewers);
 
-	static void DebugCheckArraysAreInSync();
+	void DebugCheckArraysAreInSync();
 
 protected:
 	static uint32 CurrentNetMassCounter;
 
-	UPROPERTY()
-	UMassEntitySubsystem* EntitySystem;
+	TSharedPtr<FMassEntityManager> EntityManager;
 
 	/** Clients free list FMassClientHandle manager, handles will to the indices of FMassClientReplicationData::ClientBubbles */
 	FMassClientHandleManager ClientHandleManager;

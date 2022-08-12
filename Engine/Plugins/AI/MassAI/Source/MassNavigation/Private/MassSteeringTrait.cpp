@@ -7,11 +7,12 @@
 #include "MassNavigationFragments.h"
 #include "Steering/MassSteeringFragments.h"
 #include "Engine/World.h"
+#include "MassEntityUtils.h"
+
 
 void UMassSteeringTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
-	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
-	check(EntitySubsystem);
+	FMassEntityManager& EntityManager = UE::Mass::Utils::GetEntityManagerChecked(World);
 
 	BuildContext.RequireFragment<FAgentRadiusFragment>();
 	BuildContext.RequireFragment<FTransformFragment>();
@@ -23,9 +24,9 @@ void UMassSteeringTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildCon
 	BuildContext.AddFragment<FMassStandingSteeringFragment>();
 	BuildContext.AddFragment<FMassGhostLocationFragment>();
 
-	const FConstSharedStruct MovingSteeringFragment = EntitySubsystem->GetOrCreateConstSharedFragment(UE::StructUtils::GetStructCrc32(FConstStructView::Make(MovingSteering)), MovingSteering);
+	const FConstSharedStruct MovingSteeringFragment = EntityManager.GetOrCreateConstSharedFragment(UE::StructUtils::GetStructCrc32(FConstStructView::Make(MovingSteering)), MovingSteering);
 	BuildContext.AddConstSharedFragment(MovingSteeringFragment);
 
-	const FConstSharedStruct StandingSteeringFragment = EntitySubsystem->GetOrCreateConstSharedFragment(UE::StructUtils::GetStructCrc32(FConstStructView::Make(StandingSteering)), StandingSteering);
+	const FConstSharedStruct StandingSteeringFragment = EntityManager.GetOrCreateConstSharedFragment(UE::StructUtils::GetStructCrc32(FConstStructView::Make(StandingSteering)), StandingSteering);
 	BuildContext.AddConstSharedFragment(StandingSteeringFragment);
 }

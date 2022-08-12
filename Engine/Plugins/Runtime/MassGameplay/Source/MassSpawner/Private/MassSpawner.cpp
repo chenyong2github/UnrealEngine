@@ -17,6 +17,7 @@
 #include "Engine/AssetManager.h"
 #include "MassSpawnLocationProcessor.h"
 #include "MassExecutor.h"
+#include "MassEntityUtils.h"
 #if WITH_EDITOR
 #include "Engine/Texture2D.h"
 #endif
@@ -470,12 +471,10 @@ void AMassSpawner::SpawnGeneratedEntities(TConstArrayView<FMassEntitySpawnDataGe
 		}
 	}
 
-	if (Processors.Num() > 0)
+	if (Processors.Num() > 0 && World)
 	{
-		UMassEntitySubsystem* EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
-		check(EntitySystem);
-
-		FMassProcessingContext ProcessingContext(*EntitySystem, /*TimeDelta=*/0.0f);
+		FMassEntityManager& EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World);
+		FMassProcessingContext ProcessingContext(EntityManager, /*TimeDelta=*/0.0f);
 		UE::Mass::Executor::RunProcessorsView(Processors, ProcessingContext);
 	}
 

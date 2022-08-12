@@ -18,7 +18,7 @@
 #include "MassClientBubbleHandler.generated.h"
 
 class UWorld;
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 
 namespace UE::Mass::Replication
 {
@@ -428,8 +428,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddHelper(const TAr
 {
 	TArray<FMassEntityHandle> EntitiesDestroy;
 
-	UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
-	check(EntitySystem);
+	FMassEntityManager& EntityManager = Serializer->GetEntityManagerChecked();
 
 	UMassReplicationSubsystem* ReplicationSubsystem = Serializer->GetReplicationSubsystem();
 	check(ReplicationSubsystem);
@@ -455,7 +454,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddHelper(const TAr
 			// If EntityData IsSet() it means we have had multiple Adds without a remove and we treat this add as modifying an existing agent.
 			if (EntityInfo->Entity.IsSet())
 			{
-				FMassEntityView EntityView(*EntitySystem, EntityInfo->Entity);
+				FMassEntityView EntityView(EntityManager, EntityInfo->Entity);
 
 				SetModifiedEntityData(EntityView, AddedItem.Agent);
 			}
@@ -507,8 +506,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 {
 	check(Serializer);
 
-	UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
-	check(EntitySystem);
+	FMassEntityManager& EntityManager = Serializer->GetEntityManagerChecked();
 
 	UMassSpawnerSubsystem* SpawnerSubsystem = Serializer->GetSpawnerSubsystem();
 	check(SpawnerSubsystem);
@@ -552,7 +550,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 		int32 AgentsSpawnIdx = 0;
 
 		Query.ForEachEntityChunk(FMassArchetypeEntityCollection(ArchetypeHandle, Entities, FMassArchetypeEntityCollection::NoDuplicates)
-								, *EntitySystem, ExecContext, [&AgentsSpawn, &AgentsSpawnIdx, this, ReplicationSubsystem, &ExecContext, &CacheFragmentViewsForSpawnQuery, &SetSpawnedEntityData, &EntitySystem](FMassExecutionContext& Context)
+								, EntityManager, ExecContext, [&AgentsSpawn, &AgentsSpawnIdx, this, ReplicationSubsystem, &ExecContext, &CacheFragmentViewsForSpawnQuery, &SetSpawnedEntityData, &EntityManager](FMassExecutionContext& Context)
 			{
 				CacheFragmentViewsForSpawnQuery(ExecContext);
 
@@ -568,7 +566,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 					NetIDFragment.NetID = AgentSpawn.GetNetID();
 					ReplicationSubsystem->SetEntity(NetIDFragment.NetID, Entity);
 
-					FMassEntityView EntityView(*EntitySystem, Entity);
+					FMassEntityView EntityView(EntityManager, Entity);
 					SetSpawnedEntityData(EntityView, AgentSpawn, i);
 
 					++AgentsSpawnIdx;
@@ -582,8 +580,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 template<typename AgentArrayItem>
 void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedChangeHelper(const TArrayView<int32> ChangedIndices, FSetModifiedEntityDataFunction SetModifiedEntityData)
 {
-	UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
-	check(EntitySystem);
+	FMassEntityManager& EntityManager = Serializer->GetEntityManagerChecked();
 
 	UMassReplicationSubsystem* ReplicationSubsystem = Serializer->GetReplicationSubsystem();
 	check(ReplicationSubsystem);
@@ -601,7 +598,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedChangeHelper(const 
 		// Currently we don't think this should be needed, but are leaving it in for bomb proofing.
 		if (ensure(EntityInfo->ReplicationID == ChangedItem.ReplicationID))
 		{
-			FMassEntityView EntityView(*EntitySystem, EntityInfo->Entity);
+			FMassEntityView EntityView(EntityManager, EntityInfo->Entity);
 			SetModifiedEntityData(EntityView, ChangedItem.Agent);
 		}
 	}
@@ -650,8 +647,7 @@ template<typename AgentArrayItem>
 void TClientBubbleHandlerBase<AgentArrayItem>::DebugValidateBubbleOnClient()
 {
 #if UE_ALLOW_DEBUG_REPLICATION
-	UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
-	check(EntitySystem);
+	const FMassEntityManager& EntityManager = Serializer->GetEntityManagerChecked();
 
 	UMassReplicationSubsystem* ReplicationSubsystem = Serializer->GetReplicationSubsystem();
 	check(ReplicationSubsystem);
@@ -671,12 +667,12 @@ void TClientBubbleHandlerBase<AgentArrayItem>::DebugValidateBubbleOnClient()
 		{
 			if (EntityInfo->ReplicationID == Item.ReplicationID)
 			{
-				const bool bIsEntityValid = EntitySystem->IsEntityValid(EntityInfo->Entity);
+				const bool bIsEntityValid = EntityManager.IsEntityValid(EntityInfo->Entity);
 				checkf(bIsEntityValid, TEXT("Must be valid entity if at latest ReplciationID"));
 
 				if (bIsEntityValid)
 				{
-					const FMassNetworkIDFragment& FragmentNetID = EntitySystem->GetFragmentDataChecked<FMassNetworkIDFragment>(EntityInfo->Entity);
+					const FMassNetworkIDFragment& FragmentNetID = EntityManager.GetFragmentDataChecked<FMassNetworkIDFragment>(EntityInfo->Entity);
 
 					checkf(FragmentNetID.NetID == Agent.GetNetID(), TEXT("Fragment and Agent NetID do not match!"));
 				}
@@ -713,8 +709,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::DebugValidateBubbleOnServer()
 #if UE_ALLOW_DEBUG_REPLICATION
 	using namespace UE::Mass::Replication;
 
-	UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
-	check(EntitySystem);
+	const FMassEntityManager& EntityManager = Serializer->GetEntityManagerChecked();
 
 	for (int32 OuterIdx = 0; OuterIdx < (*Agents).Num(); ++OuterIdx)
 	{
@@ -737,14 +732,14 @@ void TClientBubbleHandlerBase<AgentArrayItem>::DebugValidateBubbleOnServer()
 		const FMassAgentLookupData& LookupData = AgentLookupArray[OuterItem.GetHandle().GetIndex()];
 
 		checkf(LookupData.AgentsIdx == OuterIdx, TEXT("Agent index must match lookup data!"));
-		checkf(EntitySystem->IsEntityValid(LookupData.Entity), TEXT("Must be valid entity"));
+		checkf(EntityManager.IsEntityValid(LookupData.Entity), TEXT("Must be valid entity"));
 
-		const FMassNetworkIDFragment& FragmentNetID = EntitySystem->GetFragmentDataChecked<FMassNetworkIDFragment>(LookupData.Entity);
+		const FMassNetworkIDFragment& FragmentNetID = EntityManager.GetFragmentDataChecked<FMassNetworkIDFragment>(LookupData.Entity);
 
 		checkf(FragmentNetID.NetID == OuterItem.Agent.GetNetID(), TEXT("Fragment and Agent NetID do not match!"));
 		checkf(LookupData.NetID == OuterItem.Agent.GetNetID(), TEXT("LookupData and Agent NetID do not match!"));
 
-		const FReplicationTemplateIDFragment& FragmentTemplateID = EntitySystem->GetFragmentDataChecked<FReplicationTemplateIDFragment>(LookupData.Entity);
+		const FReplicationTemplateIDFragment& FragmentTemplateID = EntityManager.GetFragmentDataChecked<FReplicationTemplateIDFragment>(LookupData.Entity);
 		checkf(FragmentTemplateID.ID == OuterItem.Agent.GetTemplateID(), TEXT("Agent TemplateID different to Fragment!"));
 	}
 

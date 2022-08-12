@@ -6,11 +6,12 @@
 #include "MassNavigationFragments.h"
 #include "MassZoneGraphNavigationFragments.h"
 #include "Engine/World.h"
+#include "MassEntityUtils.h"
+
 
 void UMassZoneGraphNavigationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
-	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
-	check(EntitySubsystem);
+	FMassEntityManager& EntityManager = UE::Mass::Utils::GetEntityManagerChecked(World);
 
 	BuildContext.RequireFragment<FAgentRadiusFragment>();
 	BuildContext.RequireFragment<FTransformFragment>();
@@ -22,6 +23,6 @@ void UMassZoneGraphNavigationTrait::BuildTemplate(FMassEntityTemplateBuildContex
 	BuildContext.AddFragment<FMassZoneGraphShortPathFragment>();
 	BuildContext.AddFragment<FMassZoneGraphCachedLaneFragment>();
 
-	const FConstSharedStruct ZGMovementParamsFragment = EntitySubsystem->GetOrCreateConstSharedFragment(UE::StructUtils::GetStructCrc32(FConstStructView::Make(NavigationParameters)), NavigationParameters);
+	const FConstSharedStruct ZGMovementParamsFragment = EntityManager.GetOrCreateConstSharedFragment(UE::StructUtils::GetStructCrc32(FConstStructView::Make(NavigationParameters)), NavigationParameters);
 	BuildContext.AddConstSharedFragment(ZGMovementParamsFragment);
 }

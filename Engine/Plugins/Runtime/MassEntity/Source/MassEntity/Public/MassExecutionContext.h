@@ -333,7 +333,7 @@ public:
 		return FragmentType != nullptr && FragmentType == TFragment::StaticStruct();
 	}
 
-	void FlushDeferred(UMassEntitySubsystem& EntitySystem) const;
+	void FlushDeferred(FMassEntityManager& EntityManager) const;
 
 	void ClearExecutionData();
 	void SetCurrentArchetypesTagBitSet(const FMassTagBitSet& BitSet)

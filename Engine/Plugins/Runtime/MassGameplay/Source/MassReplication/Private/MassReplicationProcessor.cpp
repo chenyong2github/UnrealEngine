@@ -75,7 +75,7 @@ void UMassReplicationProcessor::Initialize(UObject& Owner)
 #endif //UE_REPLICATION_COMPILE_SERVER_CODE
 }
 
-void UMassReplicationProcessor::PrepareExecution(UMassEntitySubsystem& EntitySubsystem)
+void UMassReplicationProcessor::PrepareExecution(FMassEntityManager& EntityManager)
 {
 #if UE_REPLICATION_COMPILE_SERVER_CODE
 
@@ -84,7 +84,7 @@ void UMassReplicationProcessor::PrepareExecution(UMassEntitySubsystem& EntitySub
 	//first synchronize clients and viewers
 	ReplicationSubsystem->SynchronizeClientsAndViewers();
 
-	EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([this](FMassReplicationSharedFragment& RepSharedFragment)
+	EntityManager.ForEachSharedFragment<FMassReplicationSharedFragment>([this](FMassReplicationSharedFragment& RepSharedFragment)
 	{
 		if (!RepSharedFragment.bEntityQueryInitialized)
 		{
@@ -152,19 +152,19 @@ void UMassReplicationProcessor::PrepareExecution(UMassEntitySubsystem& EntitySub
 #endif //UE_REPLICATION_COMPILE_SERVER_CODE
 }
 
-void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassReplicationProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 #if UE_REPLICATION_COMPILE_SERVER_CODE
-	UWorld* World = EntitySubsystem.GetWorld();
+	UWorld* World = EntityManager.GetWorld();
 	check(World);
 	check(ReplicationSubsystem);
 
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(UMassReplicationProcessor_Preperation);
-		PrepareExecution(EntitySubsystem);
+		PrepareExecution(EntityManager);
 	}
 
-	const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>(EntitySubsystem.GetWorld());
+	const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>(EntityManager.GetWorld());
 	const TArray<FViewerInfo>& AllViewersInfo = LODSubsystem.GetViewers();
 	const TArray<FMassClientHandle>& ClientHandles = ReplicationSubsystem->GetClientReplicationHandles();
 	for (const FMassClientHandle ClientHandle : ClientHandles)
@@ -190,7 +190,7 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 		// Prepare LOD collector and calculator
 		// Remember the max LOD distance from each
 		float MaxLODDistance = 0.0f;
-		EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([&Viewers,&MaxLODDistance](FMassReplicationSharedFragment& RepSharedFragment)
+		EntityManager.ForEachSharedFragment<FMassReplicationSharedFragment>([&Viewers,&MaxLODDistance](FMassReplicationSharedFragment& RepSharedFragment)
 		{
 			RepSharedFragment.LODCollector.PrepareExecution(Viewers);
 			RepSharedFragment.LODCalculator.PrepareExecution(Viewers);
@@ -206,7 +206,7 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 			ReplicationSubsystem->GetGrid().Query(Bounds, EntitiesInRange);
 		}
 
-		EntityQuery.CacheArchetypes(EntitySubsystem);
+		EntityQuery.CacheArchetypes(EntityManager);
 		if (EntityQuery.GetArchetypes().Num() > 0)
 		{
 			// EntitySet stores array of entities per specified archetype, may contain duplicates.
@@ -228,13 +228,13 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 				Set.Archetype = Archetype;
 			}
 
-			auto BuildEntitySet = [&EntitySets, &EntitySubsystem](const TArray<FMassEntityHandle>& Entities)
+			auto BuildEntitySet = [&EntitySets, &EntityManager](const TArray<FMassEntityHandle>& Entities)
 			{
 				FEntitySet* PrevSet = Entities.Num() ? &EntitySets[0] : nullptr;
 				for (const FMassEntityHandle Entity : Entities)
 				{
 					// Add to set of supported archetypes. Dont process if we don't care about the type.
-					const FMassArchetypeHandle Archetype = EntitySubsystem.GetArchetypeForEntity(Entity);
+					const FMassArchetypeHandle Archetype = EntityManager.GetArchetypeForEntity(Entity);
 					FEntitySet* Set = PrevSet && PrevSet->Archetype == Archetype ? PrevSet : EntitySets.FindByPredicate([&Archetype](const FEntitySet& Set) { return Archetype == Set.Archetype; });
 					if (Set != nullptr)
 					{
@@ -259,7 +259,7 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(UMassReplicationProcessor_SyncToMass);
-					SyncClientData.ForEachEntityChunk(EntitySubsystem, Context, [&ClientReplicationInfo](FMassExecutionContext& Context)
+					SyncClientData.ForEachEntityChunk(EntityManager, Context, [&ClientReplicationInfo](FMassExecutionContext& Context)
 					{
 						const TArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetMutableFragmentView<FMassReplicationLODFragment>();
 						TArrayView<FMassReplicatedAgentFragment> ReplicatedAgentList = Context.GetMutableFragmentView<FMassReplicatedAgentFragment>();
@@ -287,7 +287,7 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(UMassReplicationProcessor_LODCollection);
-					CollectViewerInfoQuery.ForEachEntityChunk(EntitySubsystem, Context, [](FMassExecutionContext& Context)
+					CollectViewerInfoQuery.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
 					{
 						const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
 						const TArrayView<FMassReplicationViewerInfoFragment> ViewersInfoList = Context.GetMutableFragmentView<FMassReplicationViewerInfoFragment>();
@@ -298,7 +298,7 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(UMassReplicationProcessor_LODCaculation);
-					CalculateLODQuery.ForEachEntityChunk(EntitySubsystem, Context, [](FMassExecutionContext& Context)
+					CalculateLODQuery.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
 					{
 						const TConstArrayView<FMassReplicationViewerInfoFragment> ViewersInfoList = Context.GetFragmentView<FMassReplicationViewerInfoFragment>();
 						const TArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetMutableFragmentView<FMassReplicationLODFragment>();
@@ -311,7 +311,7 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(UMassReplicationProcessor_LODAdjustDistance);
-				EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([](FMassReplicationSharedFragment& RepSharedFragment)
+				EntityManager.ForEachSharedFragment<FMassReplicationSharedFragment>([](FMassReplicationSharedFragment& RepSharedFragment)
 				{
 					RepSharedFragment.bHasAdjustedDistancesFromCount = RepSharedFragment.LODCalculator.AdjustDistancesFromCount();
 				});
@@ -327,7 +327,7 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(UMassReplicationProcessor_LODAdjustLODFromCount);
-					AdjustLODDistancesQuery.ForEachEntityChunk(EntitySubsystem, Context, [](FMassExecutionContext& Context)
+					AdjustLODDistancesQuery.ForEachEntityChunk(EntityManager, Context, [](FMassExecutionContext& Context)
 					{
 						const TConstArrayView<FMassReplicationViewerInfoFragment> ViewersInfoList = Context.GetFragmentView<FMassReplicationViewerInfoFragment>();
 						const TArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetMutableFragmentView<FMassReplicationLODFragment>();
@@ -339,11 +339,11 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(UMassReplicationProcessor_ProcessClientReplication);
 					FMassReplicationContext ReplicationContext(*World, LODSubsystem, *ReplicationSubsystem);
-					EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([&EntitySubsystem, &Context, &ReplicationContext, &ClientHandle](FMassReplicationSharedFragment& RepSharedFragment)
+					EntityManager.ForEachSharedFragment<FMassReplicationSharedFragment>([&EntityManager, &Context, &ReplicationContext, &ClientHandle](FMassReplicationSharedFragment& RepSharedFragment)
 					{
 						RepSharedFragment.CurrentClientHandle = ClientHandle;
 
-						RepSharedFragment.EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&ReplicationContext, &RepSharedFragment](FMassExecutionContext& Context)
+						RepSharedFragment.EntityQuery.ForEachEntityChunk(EntityManager, Context, [&ReplicationContext, &RepSharedFragment](FMassExecutionContext& Context)
 						{
 							RepSharedFragment.CachedReplicator->ProcessClientReplication(Context, ReplicationContext);
 						});
@@ -352,7 +352,7 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(UMassReplicationProcessor_SyncFromMass);
-					SyncClientData.ForEachEntityChunk(EntitySubsystem, Context, [&ClientReplicationInfo](FMassExecutionContext& Context)
+					SyncClientData.ForEachEntityChunk(EntityManager, Context, [&ClientReplicationInfo](FMassExecutionContext& Context)
 					{
 						TArrayView<FMassReplicatedAgentFragment> ReplicatedAgentList = Context.GetMutableFragmentView<FMassReplicatedAgentFragment>();
 
@@ -369,9 +369,9 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 				// Optional debug display
 				if (UE::Mass::Replication::DebugClientReplicationLOD == ClientHandle.GetIndex())
 				{
-					EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([World, &EntitySubsystem, &Context](FMassReplicationSharedFragment& RepSharedFragment)
+					EntityManager.ForEachSharedFragment<FMassReplicationSharedFragment>([World, &EntityManager, &Context](FMassReplicationSharedFragment& RepSharedFragment)
 					{
-						RepSharedFragment.EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [World, &RepSharedFragment](FMassExecutionContext& Context)
+						RepSharedFragment.EntityQuery.ForEachEntityChunk(EntityManager, Context, [World, &RepSharedFragment](FMassExecutionContext& Context)
 						{
 							const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
 							const TConstArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetFragmentView<FMassReplicationLODFragment>();

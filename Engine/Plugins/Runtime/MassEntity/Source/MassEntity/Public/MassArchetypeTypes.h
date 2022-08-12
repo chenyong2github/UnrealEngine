@@ -8,7 +8,7 @@
 #include "Containers/UnrealString.h"
 #include "MassEntityTypes.h"
 
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 struct FMassArchetypeData;
 struct FMassExecutionContext;
 struct FMassFragment;
@@ -43,7 +43,7 @@ private:
 	TSharedPtr<FMassArchetypeData> DataPtr;
 
 	friend FMassArchetypeHelper;
-	friend UMassEntitySubsystem;
+	friend FMassEntityManager;
 };
 
 
@@ -136,7 +136,7 @@ struct MASSENTITY_API FMassArchetypeEntityCollectionWithPayload
 	{
 	}
 
-	static void CreateEntityRangesWithPayload(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities
+	static void CreateEntityRangesWithPayload(const FMassEntityManager& EntitySubsystem, const TConstArrayView<FMassEntityHandle> Entities
 		, const FMassArchetypeEntityCollection::EDuplicatesHandling DuplicatesHandling, FMassGenericPayloadView Payload
 		, TArray<FMassArchetypeEntityCollectionWithPayload>& OutEntityCollections);
 

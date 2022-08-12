@@ -23,7 +23,7 @@ struct FEntityCollectionTestBase : FEntityTestBase
 		FEntityTestBase::SetUp();
 
 		const int32 Count = 100;
-		EntitySubsystem->BatchCreateEntities(FloatsArchetype, Count, Entities);
+		EntityManager->BatchCreateEntities(FloatsArchetype, Count, Entities);
 		return true;
 	}
 
@@ -107,11 +107,11 @@ struct FEntityCollection_CreateCrossChunk : FEntityTestBase
 	{
 #if WITH_MASSENTITY_DEBUG
 		TArray<FMassEntityHandle> Entities;
-		const int32 EntitiesPerChunk = EntitySubsystem->DebugGetArchetypeEntitiesCountPerChunk(FloatsArchetype);
+		const int32 EntitiesPerChunk = EntityManager->DebugGetArchetypeEntitiesCountPerChunk(FloatsArchetype);
 
 		const int32 SpillOver = 10;
 		const int32 Count = EntitiesPerChunk + SpillOver;
-		EntitySubsystem->BatchCreateEntities(FloatsArchetype, Count, Entities);
+		EntityManager->BatchCreateEntities(FloatsArchetype, Count, Entities);
 		
 		TArray<FMassEntityHandle> EntitiesSubCollection;
 		EntitiesSubCollection.Add(Entities[EntitiesPerChunk]);
@@ -162,8 +162,8 @@ struct FEntityCollection_WithPayload : FEntityCollectionTestBase
 		// skipping FEntityCollectionTestBase::SetUp on purpose to manually create entities
 		FEntityTestBase::SetUp();
 
-		const int32 EntitiesPerChunk = EntitySubsystem->DebugGetArchetypeEntitiesCountPerChunk(FloatsArchetype);
-		EntitySubsystem->BatchCreateEntities(FloatsArchetype, EntitiesPerChunk * 2, Entities);
+		const int32 EntitiesPerChunk = EntityManager->DebugGetArchetypeEntitiesCountPerChunk(FloatsArchetype);
+		EntityManager->BatchCreateEntities(FloatsArchetype, EntitiesPerChunk * 2, Entities);
 		return true;
 	}
 
@@ -195,7 +195,7 @@ struct FEntityCollection_WithPayload : FEntityCollectionTestBase
 		// transform typed payload array into generic one for sorting purposes
 		FStructArrayView PaloadView(Payload);
 		TArray<FMassArchetypeEntityCollectionWithPayload> Result;
-		FMassArchetypeEntityCollectionWithPayload::CreateEntityRangesWithPayload(*EntitySubsystem, EntitiesSubSet, FMassArchetypeEntityCollection::FoldDuplicates
+		FMassArchetypeEntityCollectionWithPayload::CreateEntityRangesWithPayload(*EntityManager, EntitiesSubSet, FMassArchetypeEntityCollection::FoldDuplicates
 			, FMassGenericPayloadView(MakeArrayView(&PaloadView, 1)), Result);
 
 		// at this point Payload should be sorted ascending 

@@ -22,7 +22,7 @@ struct FExecution_Setup : FExecutionTestBase
 	virtual bool InstantTest() override
 	{
 		AITEST_NOT_NULL("World needs to exist for the test to be performed", World);
-		AITEST_NOT_NULL("EntitySubsystem needs to be created for the test to be performed", EntitySubsystem);
+		AITEST_NOT_NULL("EntitySubsystem needs to be created for the test to be performed", EntityManager.Get());
 
 		return true;
 	}
@@ -34,9 +34,9 @@ struct FExecution_EmptyArray : FExecutionTestBase
 {
 	virtual bool InstantTest() override
 	{
-		CA_ASSUME(EntitySubsystem); // if EntitySubsystem null InstantTest won't be called at all
+		CA_ASSUME(EntityManager); // if EntitySubsystem null InstantTest won't be called at all
 		const float DeltaSeconds = 0.f;
-		FMassProcessingContext ProcessingContext(*EntitySubsystem, DeltaSeconds);
+		FMassProcessingContext ProcessingContext(*EntityManager, DeltaSeconds);
 		// no test performed, let's just see if it results in errors/warnings
 		UE::Mass::Executor::RunProcessorsView(TArrayView<UMassProcessor*>(), ProcessingContext);
 		return true;
@@ -49,9 +49,9 @@ struct FExecution_EmptyPipeline : FExecutionTestBase
 {
 	virtual bool InstantTest() override
 	{
-		CA_ASSUME(EntitySubsystem); // if EntitySubsystem null InstantTest won't be called at all
+		CA_ASSUME(EntityManager); // if EntitySubsystem null InstantTest won't be called at all
 		const float DeltaSeconds = 0.f;
-		FMassProcessingContext ProcessingContext(*EntitySubsystem, DeltaSeconds);
+		FMassProcessingContext ProcessingContext(*EntityManager, DeltaSeconds);
 		FMassRuntimePipeline Pipeline;
 		// no test performed, let's just see if it results in errors/warnings
 		UE::Mass::Executor::Run(Pipeline, ProcessingContext);
@@ -65,13 +65,13 @@ struct FExecution_InvalidProcessingContext : FExecutionTestBase
 {
 	virtual bool InstantTest() override
 	{
-		CA_ASSUME(EntitySubsystem);
+		CA_ASSUME(EntityManager);
 		const float DeltaSeconds = 0.f;
 		FMassProcessingContext ProcessingContext;
 		// test assumption
-		AITEST_NULL("FMassProcessingContext\'s default constructor is expected to set FMassProcessingContext.EntitySubsystem to null", ProcessingContext.EntitySubsystem);
+		AITEST_NULL("FMassProcessingContext\'s default constructor is expected to set FMassProcessingContext.EntitySubsystem to null", ProcessingContext.EntityManager.Get());
 		
-		GetTestRunner().AddExpectedError(TEXT("ProcessingContext.EntitySubsystem is null"), EAutomationExpectedErrorFlags::Contains, 1);		
+		GetTestRunner().AddExpectedError(TEXT("ProcessingContext.EntityManager is null"), EAutomationExpectedErrorFlags::Contains, 1);		
 		// note that using RunProcessorsView is to bypass reasonable tests UE::Mass::Executor::Run(Pipeline,...) does that are 
 		// reported via ensures which are not handled by the automation framework
 		UE::Mass::Executor::RunProcessorsView(TArrayView<UMassProcessor*>(), ProcessingContext);
@@ -86,9 +86,9 @@ struct FExecution_SingleNullProcessor : FExecutionTestBase
 {
 	virtual bool InstantTest() override
 	{
-		CA_ASSUME(EntitySubsystem);
+		CA_ASSUME(EntityManager);
 		const float DeltaSeconds = 0.f;
-		FMassProcessingContext ProcessingContext(*EntitySubsystem, DeltaSeconds);
+		FMassProcessingContext ProcessingContext(EntityManager, DeltaSeconds);
 		TArray<UMassProcessor*> Processors;
 		Processors.Add(nullptr);
 		
@@ -107,10 +107,10 @@ struct FExecution_SingleValidProcessor : FExecutionTestBase
 {
 	virtual bool InstantTest() override
 	{
-		CA_ASSUME(EntitySubsystem);
+		CA_ASSUME(EntityManager);
 		const float DeltaSeconds = 0.f;
-		FMassProcessingContext ProcessingContext(*EntitySubsystem, DeltaSeconds);
-		UMassTestProcessorBase* Processor = NewObject<UMassTestProcessorBase>(EntitySubsystem);
+		FMassProcessingContext ProcessingContext(EntityManager, DeltaSeconds);
+		UMassTestProcessorBase* Processor = NewObject<UMassTestProcessorBase>();
 		check(Processor);
 
 		// nothing should break. The actual result of processing is getting tested in MassProcessorTests.cpp
@@ -125,9 +125,9 @@ struct FExecution_MultipleNullProcessors : FExecutionTestBase
 {
 	virtual bool InstantTest() override
 	{
-		CA_ASSUME(EntitySubsystem);
+		CA_ASSUME(EntityManager);
 		const float DeltaSeconds = 0.f;
-		FMassProcessingContext ProcessingContext(*EntitySubsystem, DeltaSeconds);
+		FMassProcessingContext ProcessingContext(EntityManager, DeltaSeconds);
 		TArray<UMassProcessor*> Processors;
 		Processors.Add(nullptr);
 		Processors.Add(nullptr);
@@ -148,10 +148,10 @@ struct FExecution_Sparse : FEntityTestBase
 {
 	virtual bool InstantTest() override
 	{
-		CA_ASSUME(EntitySubsystem);
+		CA_ASSUME(EntityManager);
 		const float DeltaSeconds = 0.f;
-		FMassProcessingContext ProcessingContext(*EntitySubsystem, DeltaSeconds);
-		UMassTestProcessorBase* Processor = NewObject<UMassTestProcessorBase>(EntitySubsystem);
+		FMassProcessingContext ProcessingContext(*EntityManager, DeltaSeconds);
+		UMassTestProcessorBase* Processor = NewObject<UMassTestProcessorBase>();
 		check(Processor);
 
 		FMassRuntimePipeline Pipeline;

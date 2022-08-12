@@ -6,7 +6,7 @@
 #include "MassObserverManager.generated.h"
 
 
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 struct FMassArchetypeEntityCollection;
 class UMassProcessor;
 struct FMassProcessingContext;
@@ -103,8 +103,8 @@ public:
 	void AddObserverInstance(const UScriptStruct& FragmentOrTagType, const EMassObservedOperation Operation, UMassProcessor& ObserverProcessor);
 
 protected:
-	friend UMassEntitySubsystem;
-	explicit FMassObserverManager(UMassEntitySubsystem& Owner);
+	friend FMassEntityManager;
+	explicit FMassObserverManager(FMassEntityManager& Owner);
 
 	void Initialize();
 	void HandleFragmentsImpl(FMassProcessingContext& ProcessingContext, const FMassArchetypeEntityCollection& EntityCollection
@@ -121,10 +121,10 @@ protected:
 	FMassObserversMap TagObservers[(uint8)EMassObservedOperation::MAX];
 
 	/** 
-	 * The owning EntitySubsystem. No need for it to be a UPROPERTY since by design we don't support creation of 
-	 * FMassObserverManager outside of an UMassEntitySubsystem instance 
+	 * The owning EntityManager. No need for it to be a UPROPERTY since by design we don't support creation of 
+	 * FMassObserverManager outside of an FMassEntityManager instance 
 	 */
-	UMassEntitySubsystem& EntitySubsystem;
+	FMassEntityManager& EntityManager;
 };
 
 template<>

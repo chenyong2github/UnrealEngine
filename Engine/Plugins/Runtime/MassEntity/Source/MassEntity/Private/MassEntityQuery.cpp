@@ -68,18 +68,18 @@ void FMassEntityQuery::ReadCommandlineParams()
 	}
 }
 
-void FMassEntityQuery::CacheArchetypes(const UMassEntitySubsystem& InEntitySubsystem)
+void FMassEntityQuery::CacheArchetypes(const FMassEntityManager& InEntityManager)
 {
-	const uint32 InEntitySubsystemHash = PointerHash(&InEntitySubsystem);
+	const uint32 InEntityManagerHash = PointerHash(&InEntityManager);
 
 	// Do an incremental update if the last updated archetype data version is different 
-    bool bUpdateArchetypes = InEntitySubsystem.GetArchetypeDataVersion() != LastUpdatedArchetypeDataVersion;
+    bool bUpdateArchetypes = InEntityManager.GetArchetypeDataVersion() != LastUpdatedArchetypeDataVersion;
 
 	// Force a full update if the entity system changed or if the requirements changed
-	if (EntitySubsystemHash != InEntitySubsystemHash || IncrementalChangesCount)
+	if (EntitySubsystemHash != InEntityManagerHash || IncrementalChangesCount)
 	{
 		bUpdateArchetypes = true;
-		EntitySubsystemHash = InEntitySubsystemHash;
+		EntitySubsystemHash = InEntityManagerHash;
 		ValidArchetypes.Reset();
 		LastUpdatedArchetypeDataVersion = 0;
 		ArchetypeFragmentMapping.Reset();
@@ -94,7 +94,7 @@ void FMassEntityQuery::CacheArchetypes(const UMassEntitySubsystem& InEntitySubsy
 			else
 			{
 				bUpdateArchetypes = false;
-				UE_VLOG_UELOG(&InEntitySubsystem, LogMass, Error, TEXT("FMassEntityQuery::CacheArchetypes: requirements not valid: %s"), *FMassDebugger::GetRequirementsDescription(*this));
+				UE_VLOG_UELOG(InEntityManager.GetOwner(), LogMass, Error, TEXT("FMassEntityQuery::CacheArchetypes: requirements not valid: %s"), *FMassDebugger::GetRequirementsDescription(*this));
 			}
 		}
 	}
@@ -103,8 +103,8 @@ void FMassEntityQuery::CacheArchetypes(const UMassEntitySubsystem& InEntitySubsy
 	if (bUpdateArchetypes)
 	{
 		TArray<FMassArchetypeHandle> NewValidArchetypes;
-		InEntitySubsystem.GetValidArchetypes(*this, NewValidArchetypes, LastUpdatedArchetypeDataVersion);
-		LastUpdatedArchetypeDataVersion = InEntitySubsystem.GetArchetypeDataVersion();
+		InEntityManager.GetValidArchetypes(*this, NewValidArchetypes, LastUpdatedArchetypeDataVersion);
+		LastUpdatedArchetypeDataVersion = InEntityManager.GetArchetypeDataVersion();
 		if (NewValidArchetypes.Num())
 		{
 			const int32 FirstNewArchetype = ValidArchetypes.Num();
@@ -134,15 +134,15 @@ void FMassEntityQuery::CacheArchetypes(const UMassEntitySubsystem& InEntitySubsy
 	}
 }
 
-void FMassEntityQuery::ForEachEntityChunk(const FMassArchetypeEntityCollection& Collection, UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction)
+void FMassEntityQuery::ForEachEntityChunk(const FMassArchetypeEntityCollection& Collection, FMassEntityManager& EntityManager, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction)
 {
 	// mz@todo I don't like that we're copying data here.
 	ExecutionContext.SetEntityCollection(Collection);
-	ForEachEntityChunk(EntitySubsystem, ExecutionContext, ExecuteFunction);
+	ForEachEntityChunk(EntityManager, ExecutionContext, ExecuteFunction);
 	ExecutionContext.ClearEntityCollection();
 }
 
-void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction)
+void FMassEntityQuery::ForEachEntityChunk(FMassEntityManager& EntityManager, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction)
 {
 #if WITH_MASSENTITY_DEBUG
 	int32 NumEntitiesToProcess = 0;
@@ -150,7 +150,7 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 	checkf(ExecutionContext.ExecutionType == ExpectedContextType && (ExpectedContextType == EMassExecutionContextType::Local || bRegistered)
 		, TEXT("ExecutionContextType mismatch, make sure all the queries run as part of processor execution are registered with some processor with a FMassEntityQuery::RegisterWithProcessor call"));
 
-	EntitySubsystem.GetRequirementAccessDetector().RequireAccess(*this);
+	EntityManager.GetRequirementAccessDetector().RequireAccess(*this);
 #endif
 
 	struct FScopedSubsystemRequirementsRestore
@@ -183,11 +183,11 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 		// verify the archetype matches requirements
 		if (DoesArchetypeMatchRequirements(ArchetypeHandle) == false)
 		{
-			UE_VLOG_UELOG(&EntitySubsystem, LogMass, Log, TEXT("Attempted to execute FMassEntityQuery with an incompatible Archetype: %s")
+			UE_VLOG_UELOG(EntityManager.GetOwner(), LogMass, Log, TEXT("Attempted to execute FMassEntityQuery with an incompatible Archetype: %s")
 				, *FMassDebugger::GetArchetypeRequirementCompatibilityDescription(*this, ArchetypeHandle));
 
 #if WITH_MASSENTITY_DEBUG
-			EntitySubsystem.GetRequirementAccessDetector().ReleaseAccess(*this);
+			EntityManager.GetRequirementAccessDetector().ReleaseAccess(*this);
 #endif // WITH_MASSENTITY_DEBUG
 			return;
 		}
@@ -203,7 +203,7 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 	}
 	else
 	{
-		CacheArchetypes(EntitySubsystem);
+		CacheArchetypes(EntityManager);
 		// it's important to set requirements after caching archetypes due to that call potentially sorting the requirements and the order is relevant here.
 		ExecutionContext.SetFragmentRequirements(*this);
 
@@ -224,16 +224,16 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 	UE_CLOG(!ExecutionContext.DebugGetExecutionDesc().IsEmpty(), LogMass, VeryVerbose,
 		TEXT("%s: %d entities sent for processing"), *ExecutionContext.DebugGetExecutionDesc(), NumEntitiesToProcess);
 
-	EntitySubsystem.GetRequirementAccessDetector().ReleaseAccess(*this);
+	EntityManager.GetRequirementAccessDetector().ReleaseAccess(*this);
 #endif
 
 	ExecutionContext.ClearExecutionData();
-	ExecutionContext.FlushDeferred(EntitySubsystem);
+	ExecutionContext.FlushDeferred(EntityManager);
 }
 
-int32 FMassEntityQuery::GetNumMatchingEntities(UMassEntitySubsystem& InEntitySubsystem)
+int32 FMassEntityQuery::GetNumMatchingEntities(FMassEntityManager& InEntityManager)
 {
-	CacheArchetypes(InEntitySubsystem);
+	CacheArchetypes(InEntityManager);
 	int32 TotalEntities = 0;
 	for (FMassArchetypeHandle& ArchetypeHandle : ValidArchetypes)
 	{
@@ -245,9 +245,9 @@ int32 FMassEntityQuery::GetNumMatchingEntities(UMassEntitySubsystem& InEntitySub
 	return TotalEntities;
 }
 
-bool FMassEntityQuery::HasMatchingEntities(UMassEntitySubsystem& InEntitySubsystem)
+bool FMassEntityQuery::HasMatchingEntities(FMassEntityManager& InEntityManager)
 {
-	CacheArchetypes(InEntitySubsystem);
+	CacheArchetypes(InEntityManager);
 
 	for (FMassArchetypeHandle& ArchetypeHandle : ValidArchetypes)
 	{

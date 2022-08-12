@@ -17,6 +17,8 @@
 #include "MassEntityView.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
+#include "MassEntityUtils.h"
+
 
 int16 UMassRepresentationSubsystem::FindOrAddStaticMeshDesc(const FStaticMeshInstanceVisualizationDesc& Desc)
 {
@@ -302,7 +304,8 @@ void UMassRepresentationSubsystem::Initialize(FSubsystemCollectionBase& Collecti
 
 	if (UWorld* World = GetWorld())
 	{
-		EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
+		EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World).AsShared();
+
 		ActorSpawnerSubsystem = World->GetSubsystem<UMassActorSpawnerSubsystem>();
 		WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
 
@@ -374,32 +377,32 @@ void UMassRepresentationSubsystem::OnProcessingPhaseStarted(const float DeltaSec
 
 void UMassRepresentationSubsystem::OnMassAgentComponentEntityAssociated(const UMassAgentComponent& AgentComponent)
 {
-	check(EntitySubsystem);
+	check(EntityManager);
 
 	const FMassEntityHandle MassAgent = AgentComponent.GetEntityHandle();
-	checkf(EntitySubsystem->IsEntityValid(MassAgent), TEXT("Expecting a valid mass entity"));
-	if (EntitySubsystem->IsEntityValid(MassAgent) && AgentComponent.IsNetSimulating())
+	checkf(EntityManager->IsEntityValid(MassAgent), TEXT("Expecting a valid mass entity"));
+	if (EntityManager->IsEntityValid(MassAgent) && AgentComponent.IsNetSimulating())
 	{
 		// Check if this mass agent already handled by this sub system, if yes than release any local spawned actor or cancel any spawn requests
 		if (HandledMassAgents.Find(MassAgent))
 		{
-			UMassRepresentationActorManagement::ReleaseAnyActorOrCancelAnySpawning(*EntitySubsystem, MassAgent);
+			UMassRepresentationActorManagement::ReleaseAnyActorOrCancelAnySpawning(*EntityManager.Get(), MassAgent);
 		}
 	}
 }
 
 void UMassRepresentationSubsystem::OnMassAgentComponentEntityDetaching(const UMassAgentComponent& AgentComponent)
 {
-	check(EntitySubsystem);
+	check(EntityManager);
 
 	AActor* ComponentOwner = AgentComponent.GetOwner();
 	check(ComponentOwner);
 
 	const FMassEntityHandle MassAgent = AgentComponent.GetEntityHandle();
-	checkf(EntitySubsystem->IsEntityValid(MassAgent), TEXT("Expecting a valid mass entity"));
-	if (EntitySubsystem->IsEntityValid(MassAgent) && AgentComponent.IsNetSimulating())
+	checkf(EntityManager->IsEntityValid(MassAgent), TEXT("Expecting a valid mass entity"));
+	if (EntityManager->IsEntityValid(MassAgent) && AgentComponent.IsNetSimulating())
 	{
-		const FMassEntityView EntityView(*EntitySubsystem, MassAgent);
+		const FMassEntityView EntityView(*EntityManager.Get(), MassAgent);
 		if (FMassRepresentationFragment* Representation = EntityView.GetFragmentDataPtr<FMassRepresentationFragment>())
 		{
 			// Force a reevaluate of the current representation

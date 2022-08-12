@@ -62,12 +62,12 @@ namespace UE::Mass::Debug
 			[](const TArray<FString>& Params, UWorld* World, FOutputDevice& Ar)
 			{
 				check(World);
-				if (UMassEntitySubsystem* EntitySystem = World->GetSubsystem<UMassEntitySubsystem>())
+				if (UMassEntitySubsystem* EntityManager = World->GetSubsystem<UMassEntitySubsystem>())
 				{
 					int32 Index = INDEX_NONE;
 					if (LexTryParseString<int32>(Index, *Params[0]))
 					{
-						FMassDebugger::OutputEntityDescription(Ar, *EntitySystem, Index);
+						FMassDebugger::OutputEntityDescription(Ar, EntityManager->GetEntityManager(), Index);
 					}
 					else
 					{
@@ -100,7 +100,7 @@ namespace UE::Mass::Debug
 						LexToString(World->WorldType),
 						*ToString(World->GetNetMode()));
 
-					if (UMassEntitySubsystem* EntitySystem = World->GetSubsystem<UMassEntitySubsystem>())
+					if (UMassEntitySubsystem* EntityManager = World->GetSubsystem<UMassEntitySubsystem>())
 					{
 						bool bIncludeEmpty = true;
 						if (Params.Num())
@@ -108,7 +108,7 @@ namespace UE::Mass::Debug
 							LexTryParseString(bIncludeEmpty, *Params[0]);
 						}
 						Ar.Logf(ELogVerbosity::Log, TEXT("Include empty archetypes: %s"), bIncludeEmpty ? TEXT("TRUE") : TEXT("FALSE"));
-						EntitySystem->DebugGetArchetypesStringDetails(Ar, bIncludeEmpty);
+						EntityManager->GetEntityManager().DebugGetArchetypesStringDetails(Ar, bIncludeEmpty);
 					}
 					else
 					{
@@ -130,7 +130,7 @@ namespace UE::Mass::Debug
 				check(InWorld);
 				if (UMassEntitySubsystem* System = InWorld->GetSubsystem<UMassEntitySubsystem>())
 				{
-					System->DebugForceArchetypeDataVersionBump();
+					System->GetMutableEntityManager().DebugForceArchetypeDataVersionBump();
 				}
 			}
 	));
@@ -207,13 +207,13 @@ TConstArrayView<FMassEntityQuery*> FMassDebugger::GetProcessorQueries(const UMas
 	return Processor.OwnedQueries;
 }
 
-TConstArrayView<FMassEntityQuery*> FMassDebugger::GetUpToDateProcessorQueries(const UMassEntitySubsystem& EntitySubsystem, UMassProcessor& Processor)
+TConstArrayView<FMassEntityQuery*> FMassDebugger::GetUpToDateProcessorQueries(const FMassEntityManager& EntityManager, UMassProcessor& Processor)
 {
 	for (FMassEntityQuery* Query : Processor.OwnedQueries)
 	{
 		if (Query)
 		{
-			Query->CacheArchetypes(EntitySubsystem);
+			Query->CacheArchetypes(EntityManager);
 		}
 	}
 
@@ -234,11 +234,11 @@ void FMassDebugger::GetQueryExecutionRequirements(const FMassEntityQuery& Query,
 	Query.ExportRequirements(OutExecutionRequirements);
 }
 
-TArray<FMassArchetypeHandle> FMassDebugger::GetAllArchetypes(const UMassEntitySubsystem& EntitySubsystem)
+TArray<FMassArchetypeHandle> FMassDebugger::GetAllArchetypes(const FMassEntityManager& EntityManager)
 {
 	TArray<FMassArchetypeHandle> Archetypes;
 
-	for (auto& KVP : EntitySubsystem.FragmentHashToArchetypeMap)
+	for (auto& KVP : EntityManager.FragmentHashToArchetypeMap)
 	{
 		for (const TSharedPtr<FMassArchetypeData>& Archetype : KVP.Value)
 		{
@@ -377,40 +377,40 @@ void FMassDebugger::OutputArchetypeDescription(FOutputDevice& Ar, const FMassArc
 	Ar.Logf(TEXT("%s"), ArchetypeHandle.IsValid() ? *FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ArchetypeHandle).DebugGetDescription() : TEXT("INVALID"));
 }
 
-void FMassDebugger::OutputEntityDescription(FOutputDevice& Ar, const UMassEntitySubsystem& EntitySubsystem, const int32 EntityIndex, const TCHAR* InPrefix)
+void FMassDebugger::OutputEntityDescription(FOutputDevice& Ar, const FMassEntityManager& EntityManager, const int32 EntityIndex, const TCHAR* InPrefix)
 {
-	if (EntityIndex >= EntitySubsystem.Entities.Num())
+	if (EntityIndex >= EntityManager.Entities.Num())
 	{
-		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list fragments values for out of range index in %s"), *GetPathNameSafe(&EntitySubsystem));
+		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list fragments values for out of range index in EntityManager owned by %s"), *GetPathNameSafe(EntityManager.GetOwner()));
 		return;
 	}
 
-	const UMassEntitySubsystem::FEntityData& EntityData = EntitySubsystem.Entities[EntityIndex];
+	const FMassEntityManager::FEntityData& EntityData = EntityManager.Entities[EntityIndex];
 	if (!EntityData.IsValid())
 	{
-		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list fragments values for invalid entity in %s"), *GetPathNameSafe(&EntitySubsystem));
+		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list fragments values for invalid entity in EntityManager owned by %s"), *GetPathNameSafe(EntityManager.GetOwner()));
 	}
 
 	FMassEntityHandle Entity;
 	Entity.Index = EntityIndex;
 	Entity.SerialNumber = EntityData.SerialNumber;
-	OutputEntityDescription(Ar, EntitySubsystem, Entity, InPrefix);
+	OutputEntityDescription(Ar, EntityManager, Entity, InPrefix);
 }
 
-void FMassDebugger::OutputEntityDescription(FOutputDevice& Ar, const UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle Entity, const TCHAR* InPrefix)
+void FMassDebugger::OutputEntityDescription(FOutputDevice& Ar, const FMassEntityManager& EntityManager, const FMassEntityHandle Entity, const TCHAR* InPrefix)
 {
-	if (!EntitySubsystem.IsEntityActive(Entity))
+	if (!EntityManager.IsEntityActive(Entity))
 	{
-		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list fragments values for invalid entity in %s"), *GetPathNameSafe(&EntitySubsystem));
+		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list fragments values for invalid entity in EntityManager owned by %s"), *GetPathNameSafe(EntityManager.GetOwner()));
 	}
 
-	Ar.Logf(ELogVerbosity::Log, TEXT("Listing fragments values for Entity[%s] in %s"), *Entity.DebugGetDescription(), *GetPathNameSafe(&EntitySubsystem));
+	Ar.Logf(ELogVerbosity::Log, TEXT("Listing fragments values for Entity[%s] in EntityManager owned by %s"), *Entity.DebugGetDescription(), *GetPathNameSafe(EntityManager.GetOwner()));
 
-	const UMassEntitySubsystem::FEntityData& EntityData = EntitySubsystem.Entities[Entity.Index];
+	const FMassEntityManager::FEntityData& EntityData = EntityManager.Entities[Entity.Index];
 	FMassArchetypeData* Archetype = EntityData.CurrentArchetype.Get();
 	if (Archetype == nullptr)
 	{
-		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list fragments values for invalid entity in %s"), *GetPathNameSafe(&EntitySubsystem));
+		Ar.Logf(ELogVerbosity::Log, TEXT("Unable to list fragments values for invalid entity in EntityManager owned by %s"), *GetPathNameSafe(EntityManager.GetOwner()));
 	}
 	else
 	{
@@ -418,9 +418,9 @@ void FMassDebugger::OutputEntityDescription(FOutputDevice& Ar, const UMassEntity
 	}
 }
 
-void FMassDebugger::SelectEntity(const UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle EntityHandle)
+void FMassDebugger::SelectEntity(const FMassEntityManager& EntityManager, const FMassEntityHandle EntityHandle)
 {
-	OnEntitySelectedDelegate.Broadcast(EntitySubsystem, EntityHandle);
+	OnEntitySelectedDelegate.Broadcast(EntityManager, EntityHandle);
 }
 
 #endif // WITH_MASSENTITY_DEBUG

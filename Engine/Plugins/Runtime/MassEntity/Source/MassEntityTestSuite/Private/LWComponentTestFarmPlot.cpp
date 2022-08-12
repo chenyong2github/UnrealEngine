@@ -4,6 +4,7 @@
 
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "MassEntityUtils.h"
 
 //@TODO: Can add a ReadyToHarvest tag Fragment on when things are ready to harvest, to stop them ticking and signal that we need to create an icon
 
@@ -20,11 +21,11 @@ void UFragmentUpdateSystem::PostInitProperties()
 //////////////////////////////////////////////////////////////////////////
 // UFarmHarvestTimerSetIcon
 
-void UFarmHarvestTimerSetIcon::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UFarmHarvestTimerSetIcon::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(SET_ICON_SET_ICON_SET_ICON);
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context) {
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context) {
 
 		const int32 NumEntities = Context.GetNumEntities();
 		TConstArrayView<FFarmGridCellData> GridCoordList = Context.GetFragmentView<FFarmGridCellData>();
@@ -64,25 +65,25 @@ ALWFragmentTestFarmPlot::ALWFragmentTestFarmPlot()
 	HarvestIconISMC->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 }
 
-void ALWFragmentTestFarmPlot::AddItemToGrid(UMassEntitySubsystem* EntitySystem, uint16 X, uint16 Y, FMassArchetypeHandle Archetype, uint16 VisualIndex)
+void ALWFragmentTestFarmPlot::AddItemToGrid(FMassEntityManager& EntityManager, uint16 X, uint16 Y, FMassArchetypeHandle Archetype, uint16 VisualIndex)
 {
-	FMassEntityHandle NewItem = EntitySystem->CreateEntity(Archetype);
+	FMassEntityHandle NewItem = EntityManager.CreateEntity(Archetype);
 	PlantedSquares[X + Y * GridWidth] = NewItem;
 
-	EntitySystem->GetFragmentDataChecked<FFarmWaterFragment>(NewItem).DeltaWaterPerSecond = FMath::FRandRange(-0.01f, -0.001f);
-	EntitySystem->GetFragmentDataChecked<FHarvestTimerFragment>(NewItem).NumSecondsLeft = 5 + (FMath::Rand() % 100);
+	EntityManager.GetFragmentDataChecked<FFarmWaterFragment>(NewItem).DeltaWaterPerSecond = FMath::FRandRange(-0.01f, -0.001f);
+	EntityManager.GetFragmentDataChecked<FHarvestTimerFragment>(NewItem).NumSecondsLeft = 5 + (FMath::Rand() % 100);
 
 	FFarmGridCellData GridCoords;
 	GridCoords.CellX = X;
 	GridCoords.CellY = Y;
-	EntitySystem->GetFragmentDataChecked<FFarmGridCellData>(NewItem) = GridCoords;
+	EntityManager.GetFragmentDataChecked<FFarmGridCellData>(NewItem) = GridCoords;
 
 	const FVector MeshPosition(X*GridCellWidth, Y*GridCellHeight, 0.0f);
 	const FRotator MeshRotation(0.0f, FMath::FRand()*360.0f, 0.0f);
 	const FVector MeshScale(1.0f, 1.0f, 1.0f); //@TODO: plumb in scale param?
 	const FTransform MeshTransform(MeshRotation, MeshPosition, MeshScale);
 
-	FFarmVisualFragment& VisualComp = EntitySystem->GetFragmentDataChecked<FFarmVisualFragment>(NewItem);
+	FFarmVisualFragment& VisualComp = EntityManager.GetFragmentDataChecked<FFarmVisualFragment>(NewItem);
 	VisualComp.VisualType = VisualIndex;
 	VisualComp.InstanceIndex = VisualDataISMCs[VisualComp.VisualType]->AddInstance(MeshTransform);
 }
@@ -91,10 +92,12 @@ void ALWFragmentTestFarmPlot::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UMassEntitySubsystem* EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
+	UWorld* World = GetWorld();
+	check(World);
+	FMassEntityManager& EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World);
 
-	FMassArchetypeHandle CropArchetype = EntitySystem->CreateArchetype(TArray<const UScriptStruct*>{ FFarmWaterFragment::StaticStruct(), FFarmCropFragment::StaticStruct(), FHarvestTimerFragment::StaticStruct(), FFarmVisualFragment::StaticStruct(), FFarmGridCellData::StaticStruct() });
-	FMassArchetypeHandle FlowerArchetype = EntitySystem->CreateArchetype(TArray<const UScriptStruct*>{ FFarmWaterFragment::StaticStruct(), FFarmFlowerFragment::StaticStruct(), FHarvestTimerFragment::StaticStruct(), FFarmVisualFragment::StaticStruct(), FFarmGridCellData::StaticStruct() });
+	FMassArchetypeHandle CropArchetype = EntityManager.CreateArchetype(TArray<const UScriptStruct*>{ FFarmWaterFragment::StaticStruct(), FFarmCropFragment::StaticStruct(), FHarvestTimerFragment::StaticStruct(), FFarmVisualFragment::StaticStruct(), FFarmGridCellData::StaticStruct() });
+	FMassArchetypeHandle FlowerArchetype = EntityManager.CreateArchetype(TArray<const UScriptStruct*>{ FFarmWaterFragment::StaticStruct(), FFarmFlowerFragment::StaticStruct(), FHarvestTimerFragment::StaticStruct(), FFarmVisualFragment::StaticStruct(), FFarmGridCellData::StaticStruct() });
 
 	PerFrameSystems.Add(NewObject<UFarmWaterUpdateSystem>(this));
 
@@ -139,7 +142,7 @@ void ALWFragmentTestFarmPlot::BeginPlay()
 			const bool bIsOdd = ((X + Y) & 1) != 0;
 			const uint16 VisualIndex = bIsOdd ? TestDataCropIndicies[FMath::RandRange(0, TestDataCropIndicies.Num() - 1)] : TestDataFlowerIndicies[FMath::RandRange(0, TestDataFlowerIndicies.Num() - 1)];
 
-			AddItemToGrid(EntitySystem, X, Y, bIsOdd ? CropArchetype : FlowerArchetype, VisualIndex);
+			AddItemToGrid(EntityManager, X, Y, bIsOdd ? CropArchetype : FlowerArchetype, VisualIndex);
 		}
 	}
 }
@@ -150,7 +153,9 @@ void ALWFragmentTestFarmPlot::TickActor(float DeltaTime, enum ELevelTick TickTyp
 
 	QUICK_SCOPE_CYCLE_COUNTER(HeyaTick);
 
-	UMassEntitySubsystem* EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
+	UWorld* World = GetWorld();
+	check(World);
+	FMassEntityManager& EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World);
 
 	// Run every frame systems
 	{
@@ -161,7 +166,7 @@ void ALWFragmentTestFarmPlot::TickActor(float DeltaTime, enum ELevelTick TickTyp
 		for (UFragmentUpdateSystem* System : PerFrameSystems)
 		{
 			check(System);
-			System->Execute(*EntitySystem, ExecContext);
+			System->Execute(EntityManager, ExecContext);
 		}
 	}
 
@@ -177,11 +182,11 @@ void ALWFragmentTestFarmPlot::TickActor(float DeltaTime, enum ELevelTick TickTyp
 		for (UFragmentUpdateSystem* System : PerSecondSystems)
 		{
 			check(System);
-			System->Execute(*EntitySystem, ExecContext);
+			System->Execute(EntityManager, ExecContext);
 		}
 	}
 
-#if 0
+#if 1
 	// Update visuals
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(FARM_BASE_MESHES);
@@ -191,9 +196,9 @@ void ALWFragmentTestFarmPlot::TickActor(float DeltaTime, enum ELevelTick TickTyp
 			for (int32 X = 0; X < GridWidth; ++X)
 			{
 				FMassEntityHandle GridEntity = PlantedSquares[X + Y * GridWidth];
-				if (EntitySystem->IsValidEntity(GridEntity))
+				if (EntityManager.IsEntityValid(GridEntity))
 				{
-					FFarmVisualFragment& VisualComp = EntitySystem->GetFragmentDataChecked<FFarmVisualFragment>(GridEntity);
+					FFarmVisualFragment& VisualComp = EntityManager.GetFragmentDataChecked<FFarmVisualFragment>(GridEntity);
 					if (VisualComp.InstanceIndex < 0)
 					{
 						const FVector MeshPosition(X*GridCellWidth, Y*GridCellHeight, 0.0f);
@@ -219,7 +224,7 @@ void ALWFragmentTestFarmPlot::TickActor(float DeltaTime, enum ELevelTick TickTyp
 	if (QQQZZZ == 1)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(FARM_HARVEST_ICONS);
-		EntitySystem->ForEachFragmentChunk<FHarvestTimerFragment>(
+		EntitySubsystem->ForEachFragmentChunk<FHarvestTimerFragment>(
 			[&](TArrayView<FHarvestTimerFragment> Timers)
 		{
 			for (FHarvestTimerFragment& Timer : Timers)
@@ -243,9 +248,9 @@ void ALWFragmentTestFarmPlot::TickActor(float DeltaTime, enum ELevelTick TickTyp
 			for (int32 X = 0; X < GridWidth; ++X)
 			{
 				FMassEntityHandle GridEntity = PlantedSquares[X + Y * GridWidth];
-				if (EntitySystem->IsValidEntity(GridEntity))
+				if (EntitySubsystem->IsValidEntity(GridEntity))
 				{
-					FHarvestTimerFragment& HarvestTimerData = EntitySystem->GetFragmentDataChecked<FHarvestTimerFragment>(GridEntity);
+					FHarvestTimerFragment& HarvestTimerData = EntitySubsystem->GetFragmentDataChecked<FHarvestTimerFragment>(GridEntity);
 					if ((HarvestTimerData.NumSecondsLeft == 0) && (HarvestTimerData.HarvestIconIndex < 0))
 					{
 						const FVector IconPosition(X*GridCellWidth, Y*GridCellHeight, HarvestIconHeight);

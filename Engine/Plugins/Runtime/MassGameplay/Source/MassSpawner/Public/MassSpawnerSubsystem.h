@@ -7,7 +7,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "MassSpawnerSubsystem.generated.h"
 
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 struct FMassEntityTemplate;
 class UMassEntityTemplateRegistry;
 struct FInstancedStruct;
@@ -52,8 +52,7 @@ protected:
 	UPROPERTY()
 	TArray<TObjectPtr<UMassProcessor>> SpawnDataInitializers;
 
-	UPROPERTY()
-	UMassEntitySubsystem* EntitySystem;
+	TSharedPtr<FMassEntityManager> EntityManager;
 
 	UPROPERTY()
 	UMassEntityTemplateRegistry* TemplateRegistryInstance;

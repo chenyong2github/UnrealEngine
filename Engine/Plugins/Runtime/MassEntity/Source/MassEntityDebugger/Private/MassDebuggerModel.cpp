@@ -58,13 +58,9 @@ FString FMassDebuggerEnvironment::GetDisplayName() const
 	return World.IsValid() ? World->GetPathName() : TEXT("Invalid");
 }
 
-const UMassEntitySubsystem* FMassDebuggerEnvironment::GetEntitySubsystem() const
+const FMassEntityManager* FMassDebuggerEnvironment::GetEntityManager() const
 {
-	if (World.IsValid())
-	{
-		return World->GetSubsystem<UMassEntitySubsystem>();
-	}
-	return nullptr;
+	return UE::Mass::Utils::GetEntityManager(World.Get());
 }
 
 //----------------------------------------------------------------------//
@@ -116,11 +112,11 @@ FMassDebuggerProcessorData::FMassDebuggerProcessorData(const UMassProcessor& InP
 #endif // WITH_MASSENTITY_DEBUG
 }
 
-FMassDebuggerProcessorData::FMassDebuggerProcessorData(const UMassEntitySubsystem& EntitySubsystem, UMassProcessor& InProcessor, const TMap<FMassArchetypeHandle, TSharedPtr<FMassDebuggerArchetypeData>>& InTransientArchetypesMap)
+FMassDebuggerProcessorData::FMassDebuggerProcessorData(const FMassEntityManager& EntityManager, UMassProcessor& InProcessor, const TMap<FMassArchetypeHandle, TSharedPtr<FMassDebuggerArchetypeData>>& InTransientArchetypesMap)
 {
 	SetProcessor(InProcessor);
 #if WITH_MASSENTITY_DEBUG
-	TConstArrayView<FMassEntityQuery*> ProcessorQueries = FMassDebugger::GetUpToDateProcessorQueries(EntitySubsystem, InProcessor);
+	TConstArrayView<FMassEntityQuery*> ProcessorQueries = FMassDebugger::GetUpToDateProcessorQueries(EntityManager, InProcessor);
 
 	ProcessorRequirements = MakeShareable(new FMassDebuggerQueryData(InProcessor.GetProcessorRequirements(), LOCTEXT("MassProcessorRequirementsLabel", "Processor Requirements")));
 
@@ -388,7 +384,7 @@ void FMassDebuggerModel::CacheProcessorsData(const TMap<FMassArchetypeHandle, TS
 	CachedProcessors.Reset();
 
 	UWorld* World = Environment ? Environment->World.Get() : nullptr;
-	const UMassEntitySubsystem* EntitySubsystem = Environment ? Environment->GetEntitySubsystem() : nullptr;
+	const FMassEntityManager* EntitySubsystem = Environment ? Environment->GetEntityManager() : nullptr;
 
 	if (EntitySubsystem)
 	{
@@ -446,7 +442,7 @@ void FMassDebuggerModel::CacheArchetypesData(TMap<FMassArchetypeHandle, TSharedP
 
 	if (Environment)
 	{
-		if (const UMassEntitySubsystem* EntitySubsystem = Environment->GetEntitySubsystem())
+		if (const FMassEntityManager* EntitySubsystem = Environment->GetEntityManager())
 		{
 			StoreArchetypes(*EntitySubsystem, OutTransientArchetypesMap);
 		}
@@ -463,10 +459,10 @@ float FMassDebuggerModel::MinDistanceToSelectedArchetypes(const TSharedPtr<FMass
 	return MinDistance;
 }
 
-void FMassDebuggerModel::StoreArchetypes(const UMassEntitySubsystem& EntitySubsystem, TMap<FMassArchetypeHandle, TSharedPtr<FMassDebuggerArchetypeData>>& OutTransientArchetypesMap)
+void FMassDebuggerModel::StoreArchetypes(const FMassEntityManager& EntityManager, TMap<FMassArchetypeHandle, TSharedPtr<FMassDebuggerArchetypeData>>& OutTransientArchetypesMap)
 {
 #if WITH_MASSENTITY_DEBUG
-	TArray<FMassArchetypeHandle> ArchetypeHandles = FMassDebugger::GetAllArchetypes(EntitySubsystem);
+	TArray<FMassArchetypeHandle> ArchetypeHandles = FMassDebugger::GetAllArchetypes(EntityManager);
 
 	CachedArchetypes.Reset(ArchetypeHandles.Num());
 

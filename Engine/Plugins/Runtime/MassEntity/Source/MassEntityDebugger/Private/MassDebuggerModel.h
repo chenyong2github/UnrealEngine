@@ -13,7 +13,7 @@
 class UMassProcessor;
 struct FMassArchetypeHandle;
 struct FMassDebuggerModel;
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 
 enum class EMassDebuggerSelectionMode : uint8
 {
@@ -100,7 +100,7 @@ struct FMassDebuggerArchetypeData
 struct FMassDebuggerProcessorData
 {
 	FMassDebuggerProcessorData(const UMassProcessor& InProcessor);
-	FMassDebuggerProcessorData(const UMassEntitySubsystem& EntitySubsystem, UMassProcessor& InProcessor, const TMap<FMassArchetypeHandle, TSharedPtr<FMassDebuggerArchetypeData>>& InTransientArchetypesMap);
+	FMassDebuggerProcessorData(const FMassEntityManager& EntitySubsystem, UMassProcessor& InProcessor, const TMap<FMassArchetypeHandle, TSharedPtr<FMassDebuggerArchetypeData>>& InTransientArchetypesMap);
 
 private:
 	void SetProcessor(const UMassProcessor& InProcessor);
@@ -146,7 +146,7 @@ struct FMassDebuggerEnvironment
 	bool operator==(const FMassDebuggerEnvironment& Other) const { return World == Other.World; }
 
 	FString GetDisplayName() const;
-	const UMassEntitySubsystem* GetEntitySubsystem() const;
+	const FMassEntityManager* GetEntityManager() const;
 	bool IsWorldValid() const { return World.IsValid(); }
 	
 	TWeakObjectPtr<UWorld> World;
@@ -186,7 +186,7 @@ struct FMassDebuggerModel
 	const TSharedPtr<FMassDebuggerProcessorData>& GetProcessorDataChecked(const UMassProcessor& Processor) const;
 
 protected:
-	void StoreArchetypes(const UMassEntitySubsystem& EntitySubsystem, TMap<FMassArchetypeHandle, TSharedPtr<FMassDebuggerArchetypeData>>& OutTransientArchetypesMap);
+	void StoreArchetypes(const FMassEntityManager& EntitySubsystem, TMap<FMassArchetypeHandle, TSharedPtr<FMassDebuggerArchetypeData>>& OutTransientArchetypesMap);
 
 	void ResetSelectedArchetypes();
 	void ResetSelectedProcessors();

@@ -10,6 +10,8 @@
 #include "MassEntityTypes.h"
 #include "MassEntityTraitBase.h"
 #include "Logging/MessageLog.h"
+#include "MassEntityUtils.h"
+
 
 #define LOCTEXT_NAMESPACE "Mass"
 
@@ -136,7 +138,7 @@ bool UMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuild
 		InitializeEntityTemplate(OutTemplate);
 
 		UE_VLOG(this, LogMassSpawner, Log, TEXT("Created entity template for %s:\n%s"), *GetNameSafe(StructInstance.GetScriptStruct())
-			, *OutTemplate.DebugGetDescription(UWorld::GetSubsystem<UMassEntitySubsystem>(World)));
+			, *OutTemplate.DebugGetDescription(UE::Mass::Utils::GetEntityManager(World)));
 
 		return true;
 	}
@@ -149,14 +151,14 @@ void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& 
 	check(!OutTemplate.IsEmpty());
 
 	UWorld* World = GetWorld();
+	check(World);
 	// find or create template
-	UMassEntitySubsystem* EntitySys = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
-	check(EntitySys);
+	FMassEntityManager& EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World);
 
 	// Sort anything there is to sort for later comparison purposes
 	OutTemplate.Sort();
 
-	const FMassArchetypeHandle ArchetypeHandle = EntitySys->CreateArchetype(OutTemplate.GetCompositionDescriptor(), FName(OutTemplate.GetTemplateName()));
+	const FMassArchetypeHandle ArchetypeHandle = EntityManager.CreateArchetype(OutTemplate.GetCompositionDescriptor(), FName(OutTemplate.GetTemplateName()));
 	OutTemplate.SetArchetype(ArchetypeHandle);
 }
 

@@ -8,11 +8,12 @@
 #include "VisualLogger/VisualLogger.h"
 #include "MassEntityTemplateRegistry.h"
 #include "Engine/World.h"
+#include "MassEntityUtils.h"
+
 
 void UMassStateTreeTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
-	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
-	check(EntitySubsystem);
+	FMassEntityManager& EntityManager = UE::Mass::Utils::GetEntityManagerChecked(World);
 
 	UMassStateTreeSubsystem* MassStateTreeSubsystem = World.GetSubsystem<UMassStateTreeSubsystem>();
 	if (!MassStateTreeSubsystem)
@@ -35,7 +36,7 @@ void UMassStateTreeTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildCo
 	FMassStateTreeSharedFragment SharedStateTree;
 	SharedStateTree.StateTree = StateTree;
 	
-	const FConstSharedStruct StateTreeFragment = EntitySubsystem->GetOrCreateConstSharedFragment(UE::StructUtils::GetStructCrc32(FConstStructView::Make(SharedStateTree)), SharedStateTree);
+	const FConstSharedStruct StateTreeFragment = EntityManager.GetOrCreateConstSharedFragment(UE::StructUtils::GetStructCrc32(FConstStructView::Make(SharedStateTree)), SharedStateTree);
 	BuildContext.AddConstSharedFragment(StateTreeFragment);
 
 	BuildContext.AddFragment<FMassStateTreeInstanceFragment>();

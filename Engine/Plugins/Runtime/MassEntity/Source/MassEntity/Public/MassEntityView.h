@@ -7,7 +7,7 @@
 #include "MassEntityView.generated.h"
 
 
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 struct FMassArchetypeData;
 struct FMassArchetypeHandle;
 
@@ -25,7 +25,7 @@ struct MASSENTITY_API FMassEntityView
 	/** 
 	 *  Resolves Entity against ArchetypeHandle. Note that this approach requires the caller to ensure that Entity
 	 *  indeed belongs to ArchetypeHandle. If not the call will fail a check. As a remedy calling the 
-	 *  UMassEntitySubsystem-flavored constructor is recommended since it will first find the appropriate archetype for
+	 *  FMassEntityManager-flavored constructor is recommended since it will first find the appropriate archetype for
 	 *  Entity. 
 	 */
 	FMassEntityView(const FMassArchetypeHandle& ArchetypeHandle, FMassEntityHandle Entity);
@@ -34,7 +34,7 @@ struct MASSENTITY_API FMassEntityView
 	 *  Finds the archetype Entity belongs to and then resolves against it. The caller is responsible for ensuring
 	 *  that the given Entity is in fact a valid ID tied to any of the archetypes 
 	 */
-	FMassEntityView(const UMassEntitySubsystem& EntitySubsystem, FMassEntityHandle Entity);
+	FMassEntityView(const FMassEntityManager& EntityManager, FMassEntityHandle Entity);
 
 	FMassEntityHandle GetEntity() const	{ return Entity; }
 

@@ -335,9 +335,9 @@ public:
 private:
 	friend class USmartObjectSubsystem;
 
-	FSmartObjectSlotView(const UMassEntitySubsystem& EntitySubsystem, const FSmartObjectSlotHandle SlotHandle) : EntityView(EntitySubsystem, SlotHandle.EntityHandle)
-	{
-	}
+	FSmartObjectSlotView(const FMassEntityManager& EntityManager, const FSmartObjectSlotHandle SlotHandle) 
+		: EntityView(EntityManager, SlotHandle.EntityHandle)
+	{}
 
 	FMassEntityView EntityView;
 };

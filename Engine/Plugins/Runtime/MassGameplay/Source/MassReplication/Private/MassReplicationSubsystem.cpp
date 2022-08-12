@@ -9,6 +9,7 @@
 #include "MassClientBubbleHandler.h"
 #include "MassClientBubbleInfoBase.h"
 #include "MassReplicationSettings.h"
+#include "MassEntityUtils.h"
 
 
 uint32 UMassReplicationSubsystem::CurrentNetMassCounter = 0;
@@ -18,14 +19,12 @@ void UMassReplicationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 	World = GetWorld();
-
 	check(World);
 
 	MassLODSubsystem = Collection.InitializeDependency<UMassLODSubsystem>();
-
 	check(MassLODSubsystem);
 
-	EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
+	EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World).AsShared();
 }
 
 void UMassReplicationSubsystem::Deinitialize()
@@ -48,7 +47,7 @@ void UMassReplicationSubsystem::Deinitialize()
 
 	World = nullptr;
 	MassLODSubsystem = nullptr;
-	EntitySystem = nullptr;
+	EntityManager.Reset();
 }
 
 UMassReplicationSubsystem::UMassReplicationSubsystem()
@@ -58,8 +57,8 @@ UMassReplicationSubsystem::UMassReplicationSubsystem()
 
 FMassNetworkID UMassReplicationSubsystem::GetNetIDFromHandle(const FMassEntityHandle Handle) const
 {
-	check(EntitySystem);
-	const FMassNetworkIDFragment& Data = EntitySystem->GetFragmentDataChecked<FMassNetworkIDFragment>(Handle);
+	check(EntityManager);
+	const FMassNetworkIDFragment& Data = EntityManager->GetFragmentDataChecked<FMassNetworkIDFragment>(Handle);
 	return Data.NetID;
 }
 

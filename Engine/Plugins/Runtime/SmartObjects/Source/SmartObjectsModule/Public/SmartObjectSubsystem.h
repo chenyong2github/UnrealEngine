@@ -10,7 +10,7 @@
 #include "SmartObjectSubsystem.generated.h"
 
 class USmartObjectComponent;
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 class ASmartObjectSubsystemRenderingActor;
 class FDebugRenderSceneProxy;
 
@@ -544,8 +544,7 @@ protected:
 	UPROPERTY()
 	TObjectPtr<ASmartObjectCollection> MainCollection;
 
-	UPROPERTY()
-	TObjectPtr<UMassEntitySubsystem> EntitySubsystem;
+	TSharedPtr<FMassEntityManager> EntityManager;
 
 	TMap<FSmartObjectHandle, FSmartObjectRuntime> RuntimeSmartObjects;
 	TMap<FSmartObjectSlotHandle, FSmartObjectSlotClaimState> RuntimeSlotStates;

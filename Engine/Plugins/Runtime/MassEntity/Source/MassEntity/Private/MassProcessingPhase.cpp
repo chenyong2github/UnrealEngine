@@ -53,11 +53,11 @@ void FMassProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENa
 		return;
 	}
 
-	checkf(Manager, TEXT("Manager is null which is not a supported case. Either this FMassProcessingPhase has not been initialized properly or it's been left dangling after the FMassProcessingPhase owner got destroyed."));
+	checkf(PhaseManager, TEXT("Manager is null which is not a supported case. Either this FMassProcessingPhase has not been initialized properly or it's been left dangling after the FMassProcessingPhase owner got destroyed."));
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR(*FString::Printf(TEXT("FMassProcessingPhase::ExecuteTick %s"), *UEnum::GetValueAsString(Phase)));
 
-	Manager->OnPhaseStart(*this);
+	PhaseManager->OnPhaseStart(*this);
 	{
 		LLM_SCOPE_BYNAME(TEXT("Mass/PhaseStartDelegate"));
 		OnPhaseStart.Broadcast(DeltaTime);
@@ -65,8 +65,8 @@ void FMassProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENa
 
 	check(PhaseProcessor);
 	
-	UMassEntitySubsystem& EntitySubsystem = Manager->GetEntitySubsystemRef();
-	FMassProcessingContext Context(EntitySubsystem, DeltaTime);
+	FMassEntityManager& EntityManager = PhaseManager->GetEntityManagerRef();
+	FMassProcessingContext Context(EntityManager, DeltaTime);
 
 	bIsDuringMassProcessing = true;
 
@@ -99,7 +99,7 @@ void FMassProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENa
 			LLM_SCOPE_BYNAME(TEXT("Mass/PhaseEndDelegate"));
 			OnPhaseEnd.Broadcast(DeltaTime);
 		}
-		Manager->OnPhaseEnd(*this);
+		PhaseManager->OnPhaseEnd(*this);
 		bIsDuringMassProcessing = false;
 	}
 }
@@ -111,18 +111,18 @@ void FMassProcessingPhase::OnParallelExecutionDone(const float DeltaTime)
 		LLM_SCOPE_BYNAME(TEXT("Mass/PhaseEndDelegate"));
 		OnPhaseEnd.Broadcast(DeltaTime);
 	}
-	check(Manager);
-	Manager->OnPhaseEnd(*this);
+	check(PhaseManager);
+	PhaseManager->OnPhaseEnd(*this);
 }
 
 FString FMassProcessingPhase::DiagnosticMessage()
 {
-	return (Manager ? Manager->GetFullName() : TEXT("NULL-MassProcessingPhaseManager")) + TEXT("[ProcessorTick]");
+	return (PhaseManager ? PhaseManager->GetFullName() : TEXT("NULL-MassProcessingPhaseManager")) + TEXT("[ProcessorTick]");
 }
 
 FName FMassProcessingPhase::DiagnosticContext(bool bDetailed)
 {
-	return Manager ? Manager->GetClass()->GetFName() : TEXT("NULL-MassProcessingPhaseManager");
+	return PhaseManager ? PhaseManager->GetClass()->GetFName() : TEXT("NULL-MassProcessingPhaseManager");
 }
 
 //----------------------------------------------------------------------//
@@ -202,10 +202,11 @@ void UMassProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
 
 void UMassProcessingPhaseManager::Start(UWorld& World)
 {
-	EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
+	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
 
 	if (ensure(EntitySubsystem))
 	{
+		EntityManager = EntitySubsystem->GetMutableEntityManager().AsShared();
 		EnableTickFunctions(World);
 	}
 	else
@@ -214,23 +215,23 @@ void UMassProcessingPhaseManager::Start(UWorld& World)
 	}
 }
 
-void UMassProcessingPhaseManager::Start(UMassEntitySubsystem& InEntitySubsystem)
+void UMassProcessingPhaseManager::Start(const TSharedPtr<FMassEntityManager>& InEntityManager)
 {
-	UWorld* World = InEntitySubsystem.GetWorld();
+	UWorld* World = InEntityManager->GetWorld();
 	check(World);
-	EntitySubsystem = &InEntitySubsystem;
+	EntityManager = InEntityManager;
 	EnableTickFunctions(*World);
 }
 
 void UMassProcessingPhaseManager::EnableTickFunctions(const UWorld& World)
 {
-	check(EntitySubsystem);
+	check(EntityManager);
 
 	const bool bIsGameWorld = World.IsGameWorld();
 
 	for (FMassProcessingPhase& Phase : ProcessingPhases)
 	{
-		Phase.Manager = this;
+		Phase.PhaseManager = this;
 		Phase.RegisterTickFunction(World.PersistentLevel);
 		Phase.SetTickFunctionEnable(true);
 #if WITH_MASSENTITY_DEBUG
@@ -255,7 +256,7 @@ void UMassProcessingPhaseManager::EnableTickFunctions(const UWorld& World)
 
 void UMassProcessingPhaseManager::Stop()
 {
-	EntitySubsystem = nullptr;
+	EntityManager.Reset();
 	
 	for (FMassProcessingPhase& Phase : ProcessingPhases)
 	{

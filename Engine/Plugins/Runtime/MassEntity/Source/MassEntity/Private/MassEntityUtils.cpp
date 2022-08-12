@@ -34,7 +34,7 @@ EProcessorExecutionFlags GetProcessorExecutionFlagsForWold(const UWorld& World)
 	return ExecutionFlags;
 }
 
-void CreateEntityCollections(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities
+void CreateEntityCollections(const FMassEntityManager& EntityManager, const TConstArrayView<FMassEntityHandle> Entities
 	, const FMassArchetypeEntityCollection::EDuplicatesHandling DuplicatesHandling, TArray<FMassArchetypeEntityCollection>& OutEntityCollections)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass_CreateSparseChunks");
@@ -43,9 +43,9 @@ void CreateEntityCollections(const UMassEntitySubsystem& EntitySystem, const TCo
 
 	for (const FMassEntityHandle& Entity : Entities)
 	{
-		if (EntitySystem.IsEntityValid(Entity))
+		if (EntityManager.IsEntityValid(Entity))
 		{
-			FMassArchetypeHandle Archetype = EntitySystem.GetArchetypeForEntityUnsafe(Entity);
+			FMassArchetypeHandle Archetype = EntityManager.GetArchetypeForEntityUnsafe(Entity);
 			TArray<FMassEntityHandle>& PerArchetypeEntities = ArchetypeToEntities.FindOrAdd(Archetype);
 			PerArchetypeEntities.Add(Entity);
 		}
@@ -55,6 +55,20 @@ void CreateEntityCollections(const UMassEntitySubsystem& EntitySystem, const TCo
 	{
 		OutEntityCollections.Add(FMassArchetypeEntityCollection(Pair.Key, Pair.Value, DuplicatesHandling));
 	}
+}
+
+FMassEntityManager* GetEntityManager(const UWorld* World)
+{
+	UMassEntitySubsystem* EntityManager = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
+	check(EntityManager);
+	return &EntityManager->GetMutableEntityManager();
+}
+
+FMassEntityManager& GetEntityManagerChecked(const UWorld& World)
+{
+	UMassEntitySubsystem* EntityManager = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
+	check(EntityManager);
+	return EntityManager->GetMutableEntityManager();
 }
 
 } // namespace UE::Mass::Utils

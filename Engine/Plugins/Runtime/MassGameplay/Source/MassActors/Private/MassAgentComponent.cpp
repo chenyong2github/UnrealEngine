@@ -161,11 +161,12 @@ void UMassAgentComponent::SetEntityHandleInternal(const FMassEntityHandle NewHan
 	ensureMsgf((AgentHandle.IsValid() && NewHandle.IsValid()) == false, TEXT("Overriding an existing entity ID might result in a dangling entity still affecting the simulation"));
 	AgentHandle = NewHandle;
 
+	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
 #if	UE_REPLICATION_COMPILE_SERVER_CODE
 	// Fetch NetID if it exist
-	if (const UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
+	if (EntitySubsystem)
 	{
-		if (const FMassNetworkIDFragment* NetIDFragment = EntitySubsystem->GetFragmentDataPtr<FMassNetworkIDFragment>(AgentHandle))
+		if (const FMassNetworkIDFragment* NetIDFragment = EntitySubsystem->GetEntityManager().GetFragmentDataPtr<FMassNetworkIDFragment>(AgentHandle))
 		{
 			if (!IsNetSimulating())
 			{
@@ -185,11 +186,11 @@ void UMassAgentComponent::SetEntityHandleInternal(const FMassEntityHandle NewHan
 	}
 
 	// Sync up with mass
-	if (const UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
+	if (EntitySubsystem)
 	{
 		if (IsNetSimulating())
 		{
-			const FMassEntityView EntityView(*EntitySubsystem, AgentHandle);
+			const FMassEntityView EntityView(EntitySubsystem->GetEntityManager(), AgentHandle);
 
 			// @todo Find a way to add these initialization into either translator initializer or adding new fragments
 			// Make sure to fetch the fragment after any release, as that action can move the entity around into new archetype and 
@@ -278,7 +279,7 @@ void UMassAgentComponent::ClearEntityHandleInternal()
 	{
 		if (IsNetSimulating())
 		{
-			const FMassEntityView EntityView(*EntitySubsystem, AgentHandle);
+			const FMassEntityView EntityView(EntitySubsystem->GetEntityManager(), AgentHandle);
 			if (FMassActorFragment* ActorInfo = EntityView.GetFragmentDataPtr<FMassActorFragment>())
 			{
 				checkf(!ActorInfo->IsValid() || ActorInfo->Get() == GetOwner(), TEXT("Expecting actor pointer to be the Component\'s owner"));
@@ -287,7 +288,7 @@ void UMassAgentComponent::ClearEntityHandleInternal()
 		}
 	}
 	
-	AgentHandle = UMassEntitySubsystem::InvalidEntity;
+	AgentHandle = FMassEntityManager::InvalidEntity;
 }
 
 void UMassAgentComponent::PuppetUnregistrationDone()
@@ -346,21 +347,22 @@ void UMassAgentComponent::DebugCheckStateConsistency()
 			MASSAGENT_CHECK(bValidAgentHandle, TEXT("Expecting a valid mass agent handle in state %s"), *UEnum::GetValueAsString(State));
 			if (bValidAgentHandle)
 			{
-				if (UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
+				if (const UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
 				{
-					const bool bIsValidEntity = EntitySubsystem->IsEntityValid(AgentHandle);
+					const FMassEntityManager& EntityManager = EntitySubsystem->GetEntityManager();
+					const bool bIsValidEntity = EntityManager.IsEntityValid(AgentHandle);
 					MASSAGENT_CHECK(bIsValidEntity, TEXT("Exepecting a valid entity in state"), *UEnum::GetValueAsString(State))
-						if (bIsValidEntity)
+					if (bIsValidEntity)
+					{
+						const bool bIsBuiltEntity = EntityManager.IsEntityBuilt(AgentHandle);
+						MASSAGENT_CHECK(bIsBuiltEntity, TEXT("Expecting a fully built entity in state %s"), *UEnum::GetValueAsString(State));
+						if (bIsBuiltEntity)
 						{
-							const bool bIsBuiltEntity = EntitySubsystem->IsEntityBuilt(AgentHandle);
-							MASSAGENT_CHECK(bIsBuiltEntity, TEXT("Expecting a fully built entity in state %s"), *UEnum::GetValueAsString(State));
-							if (bIsBuiltEntity)
-							{
-								AActor* Owner = GetOwner();
-								const AActor* Actor = EntitySubsystem->GetFragmentDataChecked<FMassActorFragment>(AgentHandle).Get();
-								MASSAGENT_CHECK(Actor == nullptr || Actor == Owner, TEXT("Mass Actor and Owner mismatched in state %s"), *UEnum::GetValueAsString(State));
-							}
+							AActor* Owner = GetOwner();
+							const AActor* Actor = EntityManager.GetFragmentDataChecked<FMassActorFragment>(AgentHandle).Get();
+							MASSAGENT_CHECK(Actor == nullptr || Actor == Owner, TEXT("Mass Actor and Owner mismatched in state %s"), *UEnum::GetValueAsString(State));
 						}
+					}
 				}
 			}
 			break;
@@ -412,8 +414,7 @@ void UMassAgentComponent::KillEntity(const bool bDestroyActor)
 
 	AActor* Owner = GetOwner();
 	UWorld* World = GetWorld();
-	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
-	if (Owner == nullptr || EntitySubsystem == nullptr)
+	if (Owner == nullptr)
 	{
 		return;
 	}

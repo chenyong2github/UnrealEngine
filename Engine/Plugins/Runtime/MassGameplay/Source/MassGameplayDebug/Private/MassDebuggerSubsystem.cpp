@@ -33,9 +33,9 @@ void UMassDebuggerSubsystem::Deinitialize()
 }
 
 #if WITH_MASSENTITY_DEBUG
-void UMassDebuggerSubsystem::OnEntitySelected(const UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle EntityHandle)
+void UMassDebuggerSubsystem::OnEntitySelected(const FMassEntityManager& EntityManager, const FMassEntityHandle EntityHandle)
 {
-	if (EntitySubsystem.GetWorld() == GetWorld())
+	if (EntityManager.GetWorld() == GetWorld())
 	{
 		SetSelectedEntity(EntityHandle);
 	}

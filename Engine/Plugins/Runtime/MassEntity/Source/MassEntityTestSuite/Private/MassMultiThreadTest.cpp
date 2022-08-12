@@ -41,7 +41,7 @@ struct FMTTestBase : FEntityTestBase
 			CompositeProcessor->SetGroupName(TEXT("Test"));
 			CompositeProcessor->SetProcessors(MakeArrayView<UMassProcessor*>((UMassProcessor**)Processors.GetData(), Processors.Num()));
 
-			FMassProcessingContext Context(*EntitySubsystem, /*DeltaTime=*/0);
+			FMassProcessingContext Context(*EntityManager, /*DeltaTime=*/0);
 			FinishEvent = UE::Mass::Executor::TriggerParallelTasks(*CompositeProcessor, Context, []() {});
 		}
 
@@ -70,14 +70,14 @@ struct FMTTrivial : FMTTestBase
 			return false;
 		}
 
-		EntitySubsystem->BatchCreateEntities(IntsArchetype, NumToCreate, Entities);
+		EntityManager->BatchCreateEntities(IntsArchetype, NumToCreate, Entities);
 
 		Processors.Reset();
 		{
 			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_A>());
 
 			Proc->TestGetQuery().AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadOnly);
-			Proc->ExecutionFunction = [this, Proc](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context)
+			Proc->ExecutionFunction = [this, Proc](FMassEntityManager& InEntitySubsystem, FMassExecutionContext& Context)
 			{
 				Proc->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [this](FMassExecutionContext& Context)
 					{
@@ -110,7 +110,7 @@ struct FMTBasic : FMTTestBase
 			return false;
 		}
 
-		EntitySubsystem->BatchCreateEntities(FloatsIntsArchetype, NumToCreate, Entities);
+		EntityManager->BatchCreateEntities(FloatsIntsArchetype, NumToCreate, Entities);
 
 		Processors.Reset();
 		{
@@ -118,7 +118,7 @@ struct FMTBasic : FMTTestBase
 			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(GetProcessorName<UMassTestProcessor_B>());
 			Proc->TestGetQuery().AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadOnly);
 			Proc->TestGetQuery().AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite);
-			Proc->ExecutionFunction = [this, Proc](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context)
+			Proc->ExecutionFunction = [this, Proc](FMassEntityManager& InEntitySubsystem, FMassExecutionContext& Context)
 			{
 				Proc->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [this](FMassExecutionContext& Context)
 					{
@@ -136,7 +136,7 @@ struct FMTBasic : FMTTestBase
 			Proc->GetMutableExecutionOrder().ExecuteAfter.Add(GetProcessorName<UMassTestProcessor_A>());
 			Proc->TestGetQuery().AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadOnly);
 			Proc->TestGetQuery().AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite);
-			Proc->ExecutionFunction = [this, Proc](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context)
+			Proc->ExecutionFunction = [this, Proc](FMassEntityManager& InEntitySubsystem, FMassExecutionContext& Context)
 			{
 				Proc->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [this](FMassExecutionContext& Context)
 					{
@@ -152,7 +152,7 @@ struct FMTBasic : FMTTestBase
 		{
 			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_A>());
 			Proc->TestGetQuery().AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite);
-			Proc->ExecutionFunction = [this, Proc](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context)
+			Proc->ExecutionFunction = [this, Proc](FMassEntityManager& InEntitySubsystem, FMassExecutionContext& Context)
 			{
 				int Index = 0;
 				Proc->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [this, &Index](FMassExecutionContext& Context)

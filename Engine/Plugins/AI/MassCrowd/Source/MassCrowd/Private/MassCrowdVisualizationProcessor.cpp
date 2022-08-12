@@ -73,7 +73,7 @@ void UMassDebugCrowdVisualizationProcessor::Initialize(UObject& Owner)
 	check(World);
 }
 
-void UMassDebugCrowdVisualizationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassDebugCrowdVisualizationProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	if (UE::MassCrowd::bDebugCrowdVisualType)
 	{
@@ -81,7 +81,7 @@ void UMassDebugCrowdVisualizationProcessor::Execute(UMassEntitySubsystem& Entity
 
 		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("DebugDisplayVisualType"))
 
-		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](const FMassExecutionContext& Context)
+		EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](const FMassExecutionContext& Context)
 		{
 			const TConstArrayView<FMassRepresentationFragment> VisualizationList = Context.GetFragmentView<FMassRepresentationFragment>();
 			const TConstArrayView<FMassActorFragment> ActorList = Context.GetFragmentView<FMassActorFragment>();

@@ -165,7 +165,7 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const
 		return nullptr;
 	}
 
-	if (!ensureMsgf(EntitySubsystem != nullptr, TEXT("Entity subsystem required to add a smartobject to the simulation")))
+	if (!ensureMsgf(EntityManager, TEXT("Entity subsystem required to add a smartobject to the simulation")))
 	{
 		return nullptr;
 	}
@@ -187,15 +187,15 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const
 		// Build our shared fragment
 		FMassArchetypeSharedFragmentValues SharedFragmentValues;
 		const uint32 DefinitionHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(SlotDefinition));
-		FConstSharedStruct& SharedFragment = EntitySubsystem->GetOrCreateConstSharedFragment(DefinitionHash, FSmartObjectSlotDefinitionFragment(Definition, SlotDefinition));
+		FConstSharedStruct& SharedFragment = EntityManager->GetOrCreateConstSharedFragment(DefinitionHash, FSmartObjectSlotDefinitionFragment(Definition, SlotDefinition));
 		SharedFragmentValues.AddConstSharedFragment(SharedFragment);
 
 		FSmartObjectSlotTransform TransformFragment;
 		TOptional<FTransform> OptionalTransform = Definition.GetSlotTransform(Transform, FSmartObjectSlotIndex(SlotIndex));
 		TransformFragment.SetTransform(OptionalTransform.Get(Transform));
 
-		const FMassEntityHandle EntityHandle = EntitySubsystem->ReserveEntity();
-		EntitySubsystem->Defer().PushCommand<FMassCommandBuildEntityWithSharedFragments>(EntityHandle, MoveTemp(SharedFragmentValues), TransformFragment);
+		const FMassEntityHandle EntityHandle = EntityManager->ReserveEntity();
+		EntityManager->Defer().PushCommand<FMassCommandBuildEntityWithSharedFragments>(EntityHandle, MoveTemp(SharedFragmentValues), TransformFragment);
 
 		FSmartObjectSlotHandle SlotHandle(EntityHandle);
 		RuntimeSlotStates.Add(SlotHandle, FSmartObjectSlotClaimState());
@@ -208,7 +208,7 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const
 	{
 		// This is the temporary way to force our commands to be processed until MassEntitySubsystem
 		// offers a threadsafe solution to push and flush commands in our own execution context.
-		EntitySubsystem->FlushCommands();
+		EntityManager->FlushCommands();
 	}
 
 	// Transfer spatial information to the runtime instance
@@ -231,7 +231,7 @@ void USmartObjectSubsystem::RemoveRuntimeInstanceFromSimulation(const FSmartObje
 		return;
 	}
 
-	if (!ensureMsgf(EntitySubsystem != nullptr, TEXT("Entity subsystem required to remove a smartobject from the simulation")))
+	if (!ensureMsgf(EntityManager, TEXT("Entity subsystem required to remove a smartobject from the simulation")))
 	{
 		return;
 	}
@@ -252,7 +252,7 @@ void USmartObjectSubsystem::RemoveRuntimeInstanceFromSimulation(const FSmartObje
 		EntitiesToDestroy.Add(SlotHandle);
 	}
 
-	EntitySubsystem->Defer().DestroyEntities(EntitiesToDestroy);
+	EntityManager->Defer().DestroyEntities(EntitiesToDestroy);
 
 	// Remove object runtime data
 	RuntimeSmartObjects.Remove(Handle);
@@ -683,9 +683,9 @@ TOptional<FTransform> USmartObjectSubsystem::GetSlotTransform(const FSmartObject
 
 	if (IsSlotValidVerbose(SlotHandle, ANSI_TO_TCHAR(__FUNCTION__)))
 	{
-		if (ensureMsgf(EntitySubsystem != nullptr, TEXT("Entity subsystem required to retrieve slot transform")))
+		if (ensureMsgf(EntityManager, TEXT("Entity subsystem required to retrieve slot transform")))
 		{
-			const FSmartObjectSlotView View(*EntitySubsystem, SlotHandle);
+			const FSmartObjectSlotView View(*EntityManager.Get(), SlotHandle);
 			const FSmartObjectSlotTransform& SlotTransform = View.GetStateData<FSmartObjectSlotTransform>();
 			Transform = SlotTransform.GetTransform();
 		}
@@ -821,12 +821,12 @@ void USmartObjectSubsystem::AddSlotDataDeferred(const FSmartObjectClaimHandle& C
 {
 	if (IsSlotValidVerbose(ClaimHandle.SlotHandle, ANSI_TO_TCHAR(__FUNCTION__)))
 	{
-		if (ensureMsgf(EntitySubsystem != nullptr, TEXT("Entity subsystem required to add slot data")) &&
+		if (ensureMsgf(EntityManager, TEXT("Entity subsystem required to add slot data")) &&
 			ensureMsgf(InData.GetScriptStruct()->IsChildOf(FSmartObjectSlotStateData::StaticStruct()),
 				TEXT("Given struct doesn't represent a valid runtime data type. Make sure to inherit from FSmartObjectSlotState or one of its child-types.")))
 		{
-			EntitySubsystem->Defer().PushCommand<FMassDeferredAddCommand>(
-			[EntityHandle = FMassEntityHandle(ClaimHandle.SlotHandle), DataView = InData](UMassEntitySubsystem& System)
+			EntityManager->Defer().PushCommand<FMassDeferredAddCommand>(
+			[EntityHandle = FMassEntityHandle(ClaimHandle.SlotHandle), DataView = InData](FMassEntityManager& System)
 			{
 				FInstancedStruct Struct = DataView;
 				System.AddFragmentInstanceListToEntity(EntityHandle, MakeArrayView(&Struct, 1));
@@ -839,9 +839,9 @@ FSmartObjectSlotView USmartObjectSubsystem::GetSlotView(const FSmartObjectSlotHa
 {
 	if (IsSlotValidVerbose(SlotHandle, ANSI_TO_TCHAR(__FUNCTION__)))
 	{
-		if (ensureMsgf(EntitySubsystem != nullptr, TEXT("Entity subsystem required to create slot view")))
+		if (ensureMsgf(EntityManager, TEXT("Entity subsystem required to create slot view")))
 		{
-			return FSmartObjectSlotView(*EntitySubsystem, SlotHandle);
+			return FSmartObjectSlotView(*EntityManager.Get(), SlotHandle);
 		}
 	}
 
@@ -1088,11 +1088,13 @@ USmartObjectComponent* USmartObjectSubsystem::GetSmartObjectComponent(const FSma
 void USmartObjectSubsystem::InitializeRuntime()
 {
 	const UWorld& World = GetWorldRef();
-	EntitySubsystem = World.GetSubsystem<UMassEntitySubsystem>();
+	UMassEntitySubsystem* EntitySubsystem = World.GetSubsystem<UMassEntitySubsystem>();
+
 	if (!ensureMsgf(EntitySubsystem != nullptr, TEXT("Entity subsystem required to use SmartObjects")))
 	{
 		return;
 	}
+	EntityManager = EntitySubsystem->GetMutableEntityManager().AsShared();
 
 	if (UE::SmartObject::bDisableRuntime)
 	{
@@ -1162,7 +1164,7 @@ void USmartObjectSubsystem::InitializeRuntime()
 	// Flush all entity subsystem commands pushed while adding collection entries to the simulation
 	// This is the temporary way to force our commands to be processed until MassEntitySubsystem
 	// offers a threadsafe solution to push and flush commands in our own execution context.
-	EntitySubsystem->FlushCommands();
+	EntityManager->FlushCommands();
 
 #if UE_ENABLE_DEBUG_DRAWING
 	// Refresh debug draw
@@ -1175,8 +1177,9 @@ void USmartObjectSubsystem::InitializeRuntime()
 
 void USmartObjectSubsystem::CleanupRuntime()
 {
-	EntitySubsystem = GetWorldRef().GetSubsystem<UMassEntitySubsystem>();
-	if (!ensureMsgf(EntitySubsystem != nullptr, TEXT("Entity subsystem required to use SmartObjects")))
+	EntityManager = UE::Mass::Utils::GetEntityManagerChecked(GetWorldRef()).AsShared();
+
+	if (!ensureMsgf(EntityManager, TEXT("Entity manager required to use SmartObjects")))
 	{
 		return;
 	}
@@ -1203,7 +1206,7 @@ void USmartObjectSubsystem::CleanupRuntime()
 	// Flush all entity subsystem commands pushed while stopping the simulation
 	// This is the temporary way to force our commands to be processed until MassEntitySubsystem
 	// offers a threadsafe solution to push and flush commands in our own execution context.
-	EntitySubsystem->FlushCommands();
+	EntityManager->FlushCommands();
 
 #if UE_ENABLE_DEBUG_DRAWING
 	// Refresh debug draw

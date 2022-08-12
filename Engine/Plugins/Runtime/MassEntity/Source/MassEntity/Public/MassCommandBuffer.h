@@ -121,7 +121,7 @@ public:
 	bool IsFlushing() const { return bIsFlushing; }
 
 private:
-	friend UMassEntitySubsystem;
+	friend FMassEntityManager;
 
 	template<typename T>
 	T& CreateOrAddCommand()
@@ -144,7 +144,7 @@ private:
 		return *NewCommandInstance;
 	}
 
-	void Flush(UMassEntitySubsystem& EntitySystem);
+	void Flush(FMassEntityManager& EntityManager);
 	void CleanUp();
 
 	FCriticalSection AppendingCommandsCS;

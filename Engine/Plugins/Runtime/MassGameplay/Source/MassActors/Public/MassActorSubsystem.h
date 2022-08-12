@@ -12,7 +12,7 @@
 
 struct FMassEntityHandle;
 class AActor;
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 
 /**
  * Fragment to save the actor pointer of a mass entity if it exist
@@ -107,8 +107,7 @@ protected:
 	TMap<TObjectKey<const AActor>, FMassEntityHandle> ActorHandleMap;
 	UE_MT_DECLARE_RW_ACCESS_DETECTOR(ActorHandleMapDetector);
 	
-	UPROPERTY()
-	UMassEntitySubsystem* EntitySystem;
+	TSharedPtr<FMassEntityManager> EntityManager;
 };
 
 template<>

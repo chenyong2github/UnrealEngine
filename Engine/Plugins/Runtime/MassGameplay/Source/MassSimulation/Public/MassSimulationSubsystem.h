@@ -9,7 +9,7 @@
 #include "MassSimulationSubsystem.generated.h"
 
 
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 class UMassProcessingPhaseManager;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMassSim, Log, All);
@@ -23,7 +23,6 @@ public:
 	
 	UMassSimulationSubsystem(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	//UMassEntitySubsystem* GetEntitySubsystem() const { return CachedEntitySubsystem; }
 	const UMassProcessingPhaseManager& GetPhaseManager() const { check(PhaseManager); return *PhaseManager; }
 
 	FMassProcessingPhase::FOnPhaseEvent& GetOnProcessingPhaseStarted(const EMassProcessingPhase Phase) const;
@@ -53,8 +52,7 @@ protected:
 
 protected:
 
-	UPROPERTY()
-	UMassEntitySubsystem* EntitySubsystem;
+	TSharedPtr<FMassEntityManager> EntityManager;
 
 	UPROPERTY()
 	UMassProcessingPhaseManager* PhaseManager;

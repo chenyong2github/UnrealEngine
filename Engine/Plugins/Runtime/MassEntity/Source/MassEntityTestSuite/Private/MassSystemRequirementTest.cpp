@@ -14,7 +14,7 @@
 PRAGMA_DISABLE_OPTIMIZATION
 
 //template<>
-//struct TMassExternalSystemGetter<UMassEntitySubsystem>
+//struct TMassExternalSystemGetter<FMassEntityManager>
 //{
 //	
 //};
@@ -22,8 +22,7 @@ PRAGMA_DISABLE_OPTIMIZATION
 namespace FMassSystemRequirementTest
 {
 
-//FEntityTestBase : FExecutionTestBase
-struct FSystemRequirementTestBase : FEntityTestBase//FExecutionTestBase
+struct FSystemRequirementTestBase : FEntityTestBase
 {
 	using Super = FEntityTestBase;
 	virtual bool SetUp() override
@@ -36,20 +35,19 @@ struct FMutableRequirement : FSystemRequirementTestBase
 {
 	virtual bool InstantTest() override
 	{
-		EntitySubsystem->CreateEntity(FloatsArchetype);
+		EntityManager->CreateEntity(FloatsArchetype);
 
 		FMassEntityQuery EntityQuery;
 		EntityQuery.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadOnly);
 		EntityQuery.AddSubsystemRequirement<UMassTestWorldSubsystem>(EMassFragmentAccess::ReadWrite);
 
-		check(EntitySubsystem->GetWorld());
-		UMassTestWorldSubsystem* TestSystemActual = EntitySubsystem->GetWorld()->GetSubsystem<UMassTestWorldSubsystem>();
+		check(World);
+		UMassTestWorldSubsystem* TestSystemActual = World->GetSubsystem<UMassTestWorldSubsystem>();
 		UMassTestWorldSubsystem* TestSystem = nullptr;
 		const UMassTestWorldSubsystem* TestSystem2 = nullptr;
 		FMassExecutionContext ExecutionContext;
-		EntityQuery.ForEachEntityChunk(*EntitySubsystem, ExecutionContext, [this, &TestSystem, &TestSystem2, World = EntitySubsystem->GetWorld()](FMassExecutionContext& Context)
+		EntityQuery.ForEachEntityChunk(*EntityManager, ExecutionContext, [this, &TestSystem, &TestSystem2](FMassExecutionContext& Context)
 		{
-			//UMassEntitySubsystem* NavSystem = Context.GetSubsystem<UMassEntitySubsystem>(World);
 			TestSystem = Context.GetMutableSubsystem<UMassTestWorldSubsystem>(World);
 			TestSystem2 = Context.GetSubsystem<UMassTestWorldSubsystem>(World);
 		});
@@ -67,20 +65,19 @@ struct FConstRequirement : FSystemRequirementTestBase
 {
 	virtual bool InstantTest() override
 	{
-		EntitySubsystem->CreateEntity(FloatsArchetype);
+		EntityManager->CreateEntity(FloatsArchetype);
 
 		FMassEntityQuery EntityQuery;
 		EntityQuery.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadOnly);
 		EntityQuery.AddSubsystemRequirement<UMassTestWorldSubsystem>(EMassFragmentAccess::ReadOnly);
 
-		check(EntitySubsystem->GetWorld());
+		check(World);
 		UMassTestWorldSubsystem* TestMutableSystem = nullptr;
 		const UMassTestWorldSubsystem* TestConstSystem = nullptr;
 		FMassExecutionContext ExecutionContext;
-		EntityQuery.ForEachEntityChunk(*EntitySubsystem, ExecutionContext, [this, &TestMutableSystem, &TestConstSystem, World = EntitySubsystem->GetWorld()](FMassExecutionContext& Context)
+		EntityQuery.ForEachEntityChunk(*EntityManager, ExecutionContext, [this, &TestMutableSystem, &TestConstSystem](FMassExecutionContext& Context)
 		{
 			// commented out since there's no way to seamlessly handle failed ensures, and the line below should cause that.
-			//TestMutableSystem = Context.GetMutableSubsystem<UMassTestWorldSubsystem>(World);
 			TestConstSystem = Context.GetSubsystem<UMassTestWorldSubsystem>(World);
 		});
 

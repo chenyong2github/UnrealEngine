@@ -37,11 +37,10 @@ struct FTagBaseOperation : FEntityTestBase
 	{
 		if (FEntityTestBase::SetUp())
 		{
-			//TArray<FMassEntityHandle>* ContainerPtr = &AffectedEntities;
-			TagObserver = NewObject<UMassTestProcessorBase>(EntitySubsystem);
+			TagObserver = NewObject<UMassTestProcessorBase>();
 			TagObserver->TestGetQuery().AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadOnly);
 			TagObserver->TestGetQuery().AddTagRequirement<FTestTag_A>(EMassFragmentPresence::All);
-			TagObserver->ExecutionFunction = [this](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context)
+			TagObserver->ExecutionFunction = [this](FMassEntityManager& InEntitySubsystem, FMassExecutionContext& Context)
 			{
 				TagObserver->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [this](FMassExecutionContext& Context)
 					{
@@ -56,15 +55,15 @@ struct FTagBaseOperation : FEntityTestBase
 
 	virtual bool InstantTest() override
 	{
-		FMassObserverManager& ObserverManager = EntitySubsystem->GetObserverManager();
+		FMassObserverManager& ObserverManager = EntityManager->GetObserverManager();
 		ObserverManager.AddObserverInstance(*FTestTag_A::StaticStruct(), OperationObserved, *TagObserver);
 
-		EntitySubsystem->BatchCreateEntities(IntsArchetype, 3, EntitiesInt);
-		EntitySubsystem->BatchCreateEntities(FloatsIntsArchetype, 3, EntitiesIntsFloat);
+		EntityManager->BatchCreateEntities(IntsArchetype, 3, EntitiesInt);
+		EntityManager->BatchCreateEntities(FloatsIntsArchetype, 3, EntitiesIntsFloat);
 
 		if (PerformOperation())
 		{
-			EntitySubsystem->FlushCommands();
+			EntityManager->FlushCommands();
 			AITEST_EQUAL(TEXT("The tag observer is expected to be run for predicted number of entities"), AffectedEntities.Num(), ExpectedEntities.Num());
 			
 			ExpectedEntities.Sort(EntityIndexSorted);
@@ -89,7 +88,7 @@ struct FTag_SingleEntitySingleArchetypeAdd : FTagBaseOperation
 	virtual bool PerformOperation() override 
 	{
 		ExpectedEntities = { EntitiesInt[1] };
-		EntitySubsystem->Defer().AddTag<FTestTag_A>(EntitiesInt[1]);
+		EntityManager->Defer().AddTag<FTestTag_A>(EntitiesInt[1]);
 		return true;
 	}
 };
@@ -102,11 +101,11 @@ struct FTag_SingleEntitySingleArchetypeRemove : FTagBaseOperation
 	{
 		ExpectedEntities = { EntitiesInt[1] };
 
-		EntitySubsystem->Defer().AddTag<FTestTag_A>(EntitiesInt[1]);
-		EntitySubsystem->FlushCommands();
+		EntityManager->Defer().AddTag<FTestTag_A>(EntitiesInt[1]);
+		EntityManager->FlushCommands();
 		// since we're only observing tag removal we don't expect AffectedEntities to contain any data at this point
 		AITEST_EQUAL(TEXT("Tag addition is not being observed and is not expected to produce results yet"), AffectedEntities.Num(), 0);
-		EntitySubsystem->Defer().RemoveTag<FTestTag_A>(EntitiesInt[1]);
+		EntityManager->Defer().RemoveTag<FTestTag_A>(EntitiesInt[1]);
 		return true;
 	}
 };
@@ -118,11 +117,11 @@ struct FTag_SingleEntitySingleArchetypeDestroy : FTagBaseOperation
 	virtual bool PerformOperation() override
 	{
 		ExpectedEntities = { EntitiesInt[1] };
-		EntitySubsystem->Defer().AddTag<FTestTag_A>(EntitiesInt[1]); 
-		EntitySubsystem->FlushCommands();
+		EntityManager->Defer().AddTag<FTestTag_A>(EntitiesInt[1]); 
+		EntityManager->FlushCommands();
 		// since we're only observing tag removal we don't expect AffectedEntities to contain any data at this point
 		AITEST_EQUAL(TEXT("Tag addition is not being observed and is not expected to produce results yet"), AffectedEntities.Num(), 0);
-		EntitySubsystem->Defer().DestroyEntity(EntitiesInt[1]);
+		EntityManager->Defer().DestroyEntity(EntitiesInt[1]);
 		return true;
 	}
 };
@@ -137,7 +136,7 @@ struct FTag_MultipleArchetypeAdd : FTagBaseOperation
 		ExpectedEntities = { EntitiesInt[0], EntitiesInt[2], EntitiesIntsFloat[1] };
 		for (const FMassEntityHandle& ModifiedEntity : ExpectedEntities)
 		{
-			EntitySubsystem->Defer().AddTag<FTestTag_A>(ModifiedEntity);
+			EntityManager->Defer().AddTag<FTestTag_A>(ModifiedEntity);
 		}
 		return true;
 	}
@@ -153,14 +152,14 @@ struct FTag_MultipleArchetypeRemove : FTagBaseOperation
 		ExpectedEntities = { EntitiesInt[0], EntitiesInt[2], EntitiesIntsFloat[1] };
 		for (const FMassEntityHandle& ModifiedEntity : ExpectedEntities)
 		{
-			EntitySubsystem->Defer().AddTag<FTestTag_A>(ModifiedEntity);
+			EntityManager->Defer().AddTag<FTestTag_A>(ModifiedEntity);
 		}
-		EntitySubsystem->FlushCommands();
+		EntityManager->FlushCommands();
 		// since we're only observing tag removal we don't expect AffectedEntities to contain any data at this point
 		AITEST_EQUAL(TEXT("Tag addition is not being observed and is not expected to produce results yet"), AffectedEntities.Num(), 0);
 		for (const FMassEntityHandle& ModifiedEntity : ExpectedEntities)
 		{
-			EntitySubsystem->Defer().RemoveTag<FTestTag_A>(ModifiedEntity);
+			EntityManager->Defer().RemoveTag<FTestTag_A>(ModifiedEntity);
 		}
 		return true;
 	}
@@ -176,14 +175,14 @@ struct FTag_MultipleArchetypeDestroy : FTagBaseOperation
 		ExpectedEntities = { EntitiesInt[0], EntitiesInt[2], EntitiesIntsFloat[1] };
 		for (const FMassEntityHandle& ModifiedEntity : ExpectedEntities)
 		{
-			EntitySubsystem->Defer().AddTag<FTestTag_A>(ModifiedEntity);
+			EntityManager->Defer().AddTag<FTestTag_A>(ModifiedEntity);
 		}
-		EntitySubsystem->FlushCommands();
+		EntityManager->FlushCommands();
 		// since we're only observing tag removal we don't expect AffectedEntities to contain any data at this point
 		AITEST_EQUAL(TEXT("Tag addition is not being observed and is not expected to produce results yet"), AffectedEntities.Num(), 0);
 		for (const FMassEntityHandle& ModifiedEntity : ExpectedEntities)
 		{
-			EntitySubsystem->Defer().DestroyEntity(ModifiedEntity);
+			EntityManager->Defer().DestroyEntity(ModifiedEntity);
 		}
 		return true;
 	}
@@ -199,14 +198,14 @@ struct FTag_MultipleArchetypeSwap : FTagBaseOperation
 		ExpectedEntities = { EntitiesIntsFloat[1], EntitiesInt[0], EntitiesInt[2] };
 		for (const FMassEntityHandle& ModifiedEntity : ExpectedEntities)
 		{
-			EntitySubsystem->Defer().AddTag<FTestTag_A>(ModifiedEntity);
+			EntityManager->Defer().AddTag<FTestTag_A>(ModifiedEntity);
 		}
-		EntitySubsystem->FlushCommands();
+		EntityManager->FlushCommands();
 		// since we're only observing tag removal we don't expect AffectedEntities to contain any data at this point
 		AITEST_EQUAL(TEXT("Tag addition is not being observed and is not expected to produce results yet"), AffectedEntities.Num(), 0);
 		for (const FMassEntityHandle& ModifiedEntity : ExpectedEntities)
 		{
-			EntitySubsystem->Defer().SwapTags<FTestTag_A, FTestTag_B>(ModifiedEntity);
+			EntityManager->Defer().SwapTags<FTestTag_A, FTestTag_B>(ModifiedEntity);
 		}
 		return true;
 	}

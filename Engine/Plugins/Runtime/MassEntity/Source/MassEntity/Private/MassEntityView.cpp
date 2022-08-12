@@ -14,10 +14,10 @@ FMassEntityView::FMassEntityView(const FMassArchetypeHandle& ArchetypeHandle, FM
 	EntityHandle = Archetype->MakeEntityHandle(Entity);
 }
 
-FMassEntityView::FMassEntityView(const UMassEntitySubsystem& EntitySubsystem, FMassEntityHandle InEntity)
+FMassEntityView::FMassEntityView(const FMassEntityManager& EntityManager, FMassEntityHandle InEntity)
 {
 	Entity = InEntity;
-	const FMassArchetypeHandle ArchetypeHandle = EntitySubsystem.GetArchetypeForEntity(Entity);
+	const FMassArchetypeHandle ArchetypeHandle = EntityManager.GetArchetypeForEntity(Entity);
 	Archetype = &FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ArchetypeHandle);
 	EntityHandle = Archetype->MakeEntityHandle(Entity);
 }

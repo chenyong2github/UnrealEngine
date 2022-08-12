@@ -114,13 +114,13 @@ void UMassLookAtProcessor::ConfigureQueries()
 	EntityQuery_Conditional.AddSubsystemRequirement<UZoneGraphSubsystem>(EMassFragmentAccess::ReadOnly);
 }
 
-void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassLookAtProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(LookAtProcessor_Run);
 
 	const float CurrentTime = GetWorld()->GetTimeSeconds();
 
-	EntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this, &EntitySubsystem, CurrentTime, World = EntitySubsystem.GetWorld()](FMassExecutionContext& Context)
+	EntityQuery_Conditional.ForEachEntityChunk(EntityManager, Context, [this, &EntityManager, CurrentTime, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
 		{
 			const UMassNavigationSubsystem& MassNavSystem = Context.GetSubsystemChecked<UMassNavigationSubsystem>(World);
 			const UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetSubsystemChecked<UZoneGraphSubsystem>(World);
@@ -154,7 +154,7 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassE
 					const float TimeSinceUpdate = CurrentTime - LookAt.GazeStartTime;
 					if (TimeSinceUpdate >= LookAt.GazeDuration)
 					{
-						FindNewGazeTarget(MassNavSystem, EntitySubsystem, CurrentTime, TransformFragment.GetTransform(), LookAt);
+						FindNewGazeTarget(MassNavSystem, EntityManager, CurrentTime, TransformFragment.GetTransform(), LookAt);
 					}
 				}
 
@@ -187,7 +187,7 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassE
 					break;
 
 				case EMassLookAtMode::LookAtEntity:
-					UpdateLookAtTrackedEntity(EntitySubsystem, TransformFragment.GetTransform(), bDisplayDebug, LookAt);
+					UpdateLookAtTrackedEntity(EntityManager, TransformFragment.GetTransform(), bDisplayDebug, LookAt);
 					break;
 					
 				default:
@@ -202,7 +202,7 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassE
 
 					if (GazeStrength > KINDA_SMALL_NUMBER)
 					{
-						const bool bHasTarget = UpdateGazeTrackedEntity(EntitySubsystem, TransformFragment.GetTransform(), bDisplayDebug, LookAt);
+						const bool bHasTarget = UpdateGazeTrackedEntity(EntityManager, TransformFragment.GetTransform(), bDisplayDebug, LookAt);
 
 						if (bHasTarget)
 						{
@@ -233,7 +233,7 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassE
 		});
 }
 
-void UMassLookAtProcessor::FindNewGazeTarget(const UMassNavigationSubsystem& MassNavSystem, const UMassEntitySubsystem& EntitySubsystem, const float CurrentTime, const FTransform& Transform, FMassLookAtFragment& LookAt) const
+void UMassLookAtProcessor::FindNewGazeTarget(const UMassNavigationSubsystem& MassNavSystem, const FMassEntityManager& EntityManager, const float CurrentTime, const FTransform& Transform, FMassLookAtFragment& LookAt) const
 {
 	const FNavigationObstacleHashGrid2D& ObstacleGrid = MassNavSystem.GetObstacleGrid();
 	const FMassEntityHandle LastTrackedEntity = LookAt.GazeTrackedEntity;
@@ -262,7 +262,7 @@ void UMassLookAtProcessor::FindNewGazeTarget(const UMassNavigationSubsystem& Mas
 		for (const FNavigationObstacleHashGrid2D::ItemIDType NearbyEntity : NearbyEntities)
 		{
 			// This can happen if we remove entities in the system.
-			if (!EntitySubsystem.IsEntityValid(NearbyEntity.Entity))
+			if (!EntityManager.IsEntityValid(NearbyEntity.Entity))
 			{
 				UE_LOG(LogMassBehavior, VeryVerbose, TEXT("Nearby entity is invalid, skipped."));
 				continue;
@@ -274,7 +274,7 @@ void UMassLookAtProcessor::FindNewGazeTarget(const UMassNavigationSubsystem& Mas
 				continue;
 			}
 
-			FMassEntityView EntityView(EntitySubsystem, NearbyEntity.Entity);
+			FMassEntityView EntityView(EntityManager, NearbyEntity.Entity);
 			if (!EntityView.HasTag<FMassLookAtTargetTag>())
 			{
 				continue;
@@ -350,12 +350,12 @@ void UMassLookAtProcessor::UpdateLookAtTrajectory(const FTransform& Transform, c
 	}
 }
 
-void UMassLookAtProcessor::UpdateLookAtTrackedEntity(const UMassEntitySubsystem& EntitySubsystem, const FTransform& Transform, const bool bDisplayDebug, FMassLookAtFragment& LookAt) const
+void UMassLookAtProcessor::UpdateLookAtTrackedEntity(const FMassEntityManager& EntityManager, const FTransform& Transform, const bool bDisplayDebug, FMassLookAtFragment& LookAt) const
 {
 	// Update direction toward target
-	if (EntitySubsystem.IsEntityValid(LookAt.TrackedEntity))
+	if (EntityManager.IsEntityValid(LookAt.TrackedEntity))
 	{
-		if (const FTransformFragment* TargetTransform = EntitySubsystem.GetFragmentDataPtr<FTransformFragment>(LookAt.TrackedEntity))
+		if (const FTransformFragment* TargetTransform = EntityManager.GetFragmentDataPtr<FTransformFragment>(LookAt.TrackedEntity))
 		{
 			const FVector AgentPosition = Transform.GetLocation();
 			const FVector NewGlobalDirection = (TargetTransform->GetTransform().GetLocation() - AgentPosition).GetSafeNormal();
@@ -372,14 +372,14 @@ void UMassLookAtProcessor::UpdateLookAtTrackedEntity(const UMassEntitySubsystem&
 	}
 }
 
-bool UMassLookAtProcessor::UpdateGazeTrackedEntity(const UMassEntitySubsystem& EntitySubsystem, const FTransform& Transform, const bool bDisplayDebug, FMassLookAtFragment& LookAt) const
+bool UMassLookAtProcessor::UpdateGazeTrackedEntity(const FMassEntityManager& EntityManager, const FTransform& Transform, const bool bDisplayDebug, FMassLookAtFragment& LookAt) const
 {
 	bool bHasTarget = false;
 	
 	// Update direction toward gaze target
-	if (LookAt.GazeTrackedEntity.IsSet() && EntitySubsystem.IsEntityValid(LookAt.GazeTrackedEntity))
+	if (LookAt.GazeTrackedEntity.IsSet() && EntityManager.IsEntityValid(LookAt.GazeTrackedEntity))
 	{
-		if (const FTransformFragment* TargetTransform = EntitySubsystem.GetFragmentDataPtr<FTransformFragment>(LookAt.GazeTrackedEntity))
+		if (const FTransformFragment* TargetTransform = EntityManager.GetFragmentDataPtr<FTransformFragment>(LookAt.GazeTrackedEntity))
 		{
 			const FVector AgentPosition = Transform.GetLocation();
 			const FVector NewGlobalDirection = (TargetTransform->GetTransform().GetLocation() - AgentPosition).GetSafeNormal();

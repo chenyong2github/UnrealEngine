@@ -10,7 +10,7 @@ namespace UE::Mass::Executor
 {
 void Run(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& ProcessingContext)
 {
-	if (!ensure(ProcessingContext.EntitySubsystem) || 
+	if (!ensure(ProcessingContext.EntityManager) || 
 		!ensure(ProcessingContext.DeltaSeconds >= 0.f) ||
 		!ensure(RuntimePipeline.Processors.Find(nullptr) == INDEX_NONE))
 	{
@@ -23,7 +23,7 @@ void Run(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Processi
 
 void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& ProcessingContext, FMassArchetypeHandle Archetype, TConstArrayView<FMassEntityHandle> Entities)
 {
-	if (!ensure(ProcessingContext.EntitySubsystem) ||
+	if (!ensure(ProcessingContext.EntityManager) ||
 		!ensure(RuntimePipeline.Processors.Find(nullptr) == INDEX_NONE) ||
 		RuntimePipeline.Processors.Num() == 0 ||
 		!ensureMsgf(Archetype.IsValid(), TEXT("The Archetype passed in to UE::Mass::Executor::RunSparse is invalid")))
@@ -39,7 +39,7 @@ void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Pr
 
 void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& ProcessingContext, const FMassArchetypeEntityCollection& EntityCollection)
 {
-	if (!ensure(ProcessingContext.EntitySubsystem) ||
+	if (!ensure(ProcessingContext.EntityManager) ||
 		!ensure(RuntimePipeline.Processors.Find(nullptr) == INDEX_NONE) ||
 		RuntimePipeline.Processors.Num() == 0 ||
 		!ensureMsgf(EntityCollection.GetArchetype().IsValid(), TEXT("The Archetype of EntityCollection passed in to UE::Mass::Executor::RunSparse is invalid")))
@@ -54,7 +54,7 @@ void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Pr
 
 void Run(UMassProcessor& Processor, FMassProcessingContext& ProcessingContext)
 {
-	if (!ensure(ProcessingContext.EntitySubsystem) || !ensure(ProcessingContext.DeltaSeconds >= 0.f))
+	if (!ensure(ProcessingContext.EntityManager) || !ensure(ProcessingContext.DeltaSeconds >= 0.f))
 	{
 		return;
 	}
@@ -69,9 +69,9 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RunProcessorsView);
 
-	if (ProcessingContext.EntitySubsystem == nullptr)
+	if (!ProcessingContext.EntityManager)
 	{
-		UE_LOG(LogMass, Error, TEXT("%s ProcessingContext.EntitySubsystem is null. Baling out."), ANSI_TO_TCHAR(__FUNCTION__));
+		UE_LOG(LogMass, Error, TEXT("%s ProcessingContext.EntityManager is null. Baling out."), ANSI_TO_TCHAR(__FUNCTION__));
 		return;
 	}
 #if WITH_MASSENTITY_DEBUG
@@ -99,14 +99,15 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 	ExecutionContext.SetAuxData(ProcessingContext.AuxData);
 	ExecutionContext.SetExecutionType(EMassExecutionContextType::Processor);
 
+	FMassEntityManager& EntityManager = *ProcessingContext.EntityManager.Get();
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Execute Processors")
 		
-		UMassEntitySubsystem::FScopedProcessing ProcessingScope = ProcessingContext.EntitySubsystem->NewProcessingScope();
+		FMassEntityManager::FScopedProcessing ProcessingScope = EntityManager.NewProcessingScope();
 
 		for (UMassProcessor* Proc : Processors)
 		{
-			Proc->CallExecute(*ProcessingContext.EntitySubsystem, ExecutionContext);
+			Proc->CallExecute(*ProcessingContext.EntityManager, ExecutionContext);
 		}
 	}
 	
@@ -116,31 +117,31 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 		
 		ExecutionContext.SetFlushDeferredCommands(true);
 		// append the commands added from other, non-processor sources (like MassAgentSubsystem)
-		ensure(!ProcessingContext.EntitySubsystem->Defer().IsFlushing());
+		ensure(!EntityManager.Defer().IsFlushing());
 		ensure(!ExecutionContext.Defer().IsFlushing());
-		ExecutionContext.Defer().MoveAppend(ProcessingContext.EntitySubsystem->Defer());
-		ExecutionContext.FlushDeferred(*ProcessingContext.EntitySubsystem);
+		ExecutionContext.Defer().MoveAppend(EntityManager.Defer());
+		ExecutionContext.FlushDeferred(*ProcessingContext.EntityManager);
 	}
 	// else make sure we don't just lose the commands. Append to the command buffer requested via
-	// ProcessingContext.CommandBuffer or to the default EntitySubsystem's command buffer.
+	// ProcessingContext.CommandBuffer or to the default EntityManager's command buffer.
 	else if (CommandBuffer != ProcessingContext.CommandBuffer)
 	{
 		if (ProcessingContext.CommandBuffer)
 		{
 			ProcessingContext.CommandBuffer->MoveAppend(*CommandBuffer.Get());
 		}
-		else if (CommandBuffer.Get() != &ProcessingContext.EntitySubsystem->Defer())
+		else if (CommandBuffer.Get() != &EntityManager.Defer())
 		{
-			ProcessingContext.EntitySubsystem->Defer().MoveAppend(*CommandBuffer.Get());
+			EntityManager.Defer().MoveAppend(*CommandBuffer.Get());
 		}
 	}
 }
 
 struct FMassExecutorDoneTask
 {
-	FMassExecutorDoneTask(const FMassExecutionContext& InExecutionContext, UMassEntitySubsystem& InEntitySubsystem, TFunction<void()> InOnDoneNotification, const FString& InDebugName)
+	FMassExecutorDoneTask(const FMassExecutionContext& InExecutionContext, const TSharedPtr<FMassEntityManager>& InEntityManager, TFunction<void()> InOnDoneNotification, const FString& InDebugName)
 		: ExecutionContext(InExecutionContext)
-		, EntitySubsystem(InEntitySubsystem)
+		, EntityManager(InEntityManager)
 		, OnDoneNotification(InOnDoneNotification)
 		, DebugName(InDebugName)
 	{
@@ -156,20 +157,23 @@ struct FMassExecutorDoneTask
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Flush Deferred Commands Parallel");
 
-		if (&ExecutionContext.Defer() != &EntitySubsystem.Defer())
+		check(EntityManager);
+		FMassEntityManager& EntityManagerRef = *EntityManager.Get();
+
+		if (&ExecutionContext.Defer() != &EntityManagerRef.Defer())
 		{
-			ExecutionContext.Defer().MoveAppend(EntitySubsystem.Defer());
+			ExecutionContext.Defer().MoveAppend(EntityManagerRef.Defer());
 		}
 
 		UE_LOG(LogMass, Verbose, TEXT("MassExecutor %s tasks DONE"), *DebugName);
 		ExecutionContext.SetFlushDeferredCommands(true);
-		ExecutionContext.FlushDeferred(EntitySubsystem);
+		ExecutionContext.FlushDeferred(EntityManagerRef);
 
 		OnDoneNotification();
 	}
 private:
 	FMassExecutionContext ExecutionContext;
-	UMassEntitySubsystem& EntitySubsystem;
+	TSharedPtr<FMassEntityManager> EntityManager;
 	TFunction<void()> OnDoneNotification;
 	FString DebugName;
 };
@@ -178,15 +182,15 @@ FGraphEventRef TriggerParallelTasks(UMassProcessor& Processor, FMassProcessingCo
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RunProcessorsView);
 
-	if (ProcessingContext.EntitySubsystem == nullptr)
+	if (!ProcessingContext.EntityManager)
 	{
-		UE_LOG(LogMass, Error, TEXT("%s ProcessingContext.EntitySubsystem is null. Baling out."), ANSI_TO_TCHAR(__FUNCTION__));
+		UE_LOG(LogMass, Error, TEXT("%s ProcessingContext.EntityManager is null. Baling out."), ANSI_TO_TCHAR(__FUNCTION__));
 		return FGraphEventRef();
 	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunParallel")
 
-	// not going through UMassEntitySubsystem::CreateExecutionContext on purpose - we do need a separate command buffer
+	// not going through FMassEntityManager::CreateExecutionContext on purpose - we do need a separate command buffer
 	FMassExecutionContext ExecutionContext(ProcessingContext.DeltaSeconds);
 	TSharedPtr<FMassCommandBuffer> CommandBuffer = ProcessingContext.CommandBuffer
 		? ProcessingContext.CommandBuffer : MakeShareable(new FMassCommandBuffer());
@@ -198,14 +202,14 @@ FGraphEventRef TriggerParallelTasks(UMassProcessor& Processor, FMassProcessingCo
 	FGraphEventRef CompletionEvent;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Dispatch Processors")
-		CompletionEvent = Processor.DispatchProcessorTasks(*ProcessingContext.EntitySubsystem, ExecutionContext, {});
+		CompletionEvent = Processor.DispatchProcessorTasks(ProcessingContext.EntityManager, ExecutionContext, {});
 	}
 
 	if (CompletionEvent.IsValid())
 	{
 		const FGraphEventArray Prerequisites = { CompletionEvent };
 		CompletionEvent = TGraphTask<FMassExecutorDoneTask>::CreateTask(&Prerequisites)
-			.ConstructAndDispatchWhenReady(ExecutionContext, *ProcessingContext.EntitySubsystem, OnDoneNotification, Processor.GetName());
+			.ConstructAndDispatchWhenReady(ExecutionContext, ProcessingContext.EntityManager, OnDoneNotification, Processor.GetName());
 	}
 
 	return CompletionEvent;

@@ -17,11 +17,11 @@ namespace FMassProcessorTest
 {
 
 template<typename TProcessor>
-int32 SimpleProcessorRun(UMassEntitySubsystem& EntitySubsystem)
+int32 SimpleProcessorRun(FMassEntityManager& EntityManager)
 {
 	int32 EntityProcessedCount = 0;
-	TProcessor* Processor = NewObject<TProcessor>(&EntitySubsystem);
-	Processor->ExecutionFunction = [Processor, &EntityProcessedCount](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context) {
+	TProcessor* Processor = NewObject<TProcessor>();
+	Processor->ExecutionFunction = [Processor, &EntityProcessedCount](FMassEntityManager& InEntitySubsystem, FMassExecutionContext& Context) {
 		check(Processor);
 		Processor->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [Processor, &EntityProcessedCount](FMassExecutionContext& Context)
 			{
@@ -29,7 +29,7 @@ int32 SimpleProcessorRun(UMassEntitySubsystem& EntitySubsystem)
 			});
 	};
 
-	FMassProcessingContext ProcessingContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
+	FMassProcessingContext ProcessingContext(EntityManager, /*DeltaSeconds=*/0.f);
 	UE::Mass::Executor::Run(*Processor, ProcessingContext);
 
 	return EntityProcessedCount;
@@ -39,9 +39,9 @@ struct FProcessorTest_NoEntities : FEntityTestBase
 {
 	virtual bool InstantTest() override
 	{
-		CA_ASSUME(EntitySubsystem);
+		CA_ASSUME(EntityManager);
 		
-		int32 EntityProcessedCount = SimpleProcessorRun<UMassTestProcessor_Floats>(*EntitySubsystem);
+		int32 EntityProcessedCount = SimpleProcessorRun<UMassTestProcessor_Floats>(*EntityManager);
 		AITEST_EQUAL("No entities have been created yet so the processor shouldn't do any work.", EntityProcessedCount, 0);
 				
 		return true;
@@ -54,11 +54,11 @@ struct FProcessorTest_NoMatchingEntities : FEntityTestBase
 {
 	virtual bool InstantTest() override
 	{
-		CA_ASSUME(EntitySubsystem);
+		CA_ASSUME(EntityManager);
 
 		TArray<FMassEntityHandle> EntitiesCreated;
-		EntitySubsystem->BatchCreateEntities(IntsArchetype, 100, EntitiesCreated);
-		int32 EntityProcessedCount = SimpleProcessorRun<UMassTestProcessor_Floats>(*EntitySubsystem);
+		EntityManager->BatchCreateEntities(IntsArchetype, 100, EntitiesCreated);
+		int32 EntityProcessedCount = SimpleProcessorRun<UMassTestProcessor_Floats>(*EntityManager);
 		AITEST_EQUAL("No matching entities have been created yet so the processor shouldn't do any work.", EntityProcessedCount, 0);
 
 		return true;
@@ -70,12 +70,12 @@ struct FProcessorTest_OneMatchingArchetype : FEntityTestBase
 {
 	virtual bool InstantTest() override
 	{
-		CA_ASSUME(EntitySubsystem);
+		CA_ASSUME(EntityManager);
 
 		const int32 EntitiesToCreate = 100;
 		TArray<FMassEntityHandle> EntitiesCreated;
-		EntitySubsystem->BatchCreateEntities(FloatsArchetype, EntitiesToCreate, EntitiesCreated);
-		int32 EntityProcessedCount = SimpleProcessorRun<UMassTestProcessor_Floats>(*EntitySubsystem);
+		EntityManager->BatchCreateEntities(FloatsArchetype, EntitiesToCreate, EntitiesCreated);
+		int32 EntityProcessedCount = SimpleProcessorRun<UMassTestProcessor_Floats>(*EntityManager);
 		AITEST_EQUAL("No matching entities have been created yet so the processor shouldn't do any work.", EntityProcessedCount, EntitiesToCreate);
 
 		return true;
@@ -88,15 +88,15 @@ struct FProcessorTest_MultipleMatchingArchetype : FEntityTestBase
 {
 	virtual bool InstantTest() override
 	{
-		CA_ASSUME(EntitySubsystem);
+		CA_ASSUME(EntityManager);
 
 		const int32 EntitiesToCreate = 100;
 		TArray<FMassEntityHandle> EntitiesCreated;
-		EntitySubsystem->BatchCreateEntities(FloatsArchetype, EntitiesToCreate, EntitiesCreated);
-		EntitySubsystem->BatchCreateEntities(FloatsIntsArchetype, EntitiesToCreate, EntitiesCreated);
-		EntitySubsystem->BatchCreateEntities(IntsArchetype, EntitiesToCreate, EntitiesCreated);
+		EntityManager->BatchCreateEntities(FloatsArchetype, EntitiesToCreate, EntitiesCreated);
+		EntityManager->BatchCreateEntities(FloatsIntsArchetype, EntitiesToCreate, EntitiesCreated);
+		EntityManager->BatchCreateEntities(IntsArchetype, EntitiesToCreate, EntitiesCreated);
 		// note that only two of these archetypes match 
-		int32 EntityProcessedCount = SimpleProcessorRun<UMassTestProcessor_Floats>(*EntitySubsystem);
+		int32 EntityProcessedCount = SimpleProcessorRun<UMassTestProcessor_Floats>(*EntityManager);
 		AITEST_EQUAL("Two of given three archetypes should match.", EntityProcessedCount, EntitiesToCreate * 2);
 
 		return true;

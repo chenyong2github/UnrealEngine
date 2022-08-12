@@ -376,7 +376,7 @@ void UMassMovingAvoidanceProcessor::Initialize(UObject& Owner)
 	NavigationSubsystem = UWorld::GetSubsystem<UMassNavigationSubsystem>(Owner.GetWorld());
 }
 
-void UMassMovingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassMovingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(UMassMovingAvoidanceProcessor);
 
@@ -385,7 +385,7 @@ void UMassMovingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsyste
 		return;
 	}
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, &EntitySubsystem](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, &EntityManager](FMassExecutionContext& Context)
 	{
 		const float DeltaTime = Context.GetDeltaTimeSeconds();
 		const float CurrentTime = World->GetTimeSeconds();
@@ -739,14 +739,14 @@ void UMassMovingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsyste
 				}
 
 				// Skip invalid entities.
-				if (!EntitySubsystem.IsEntityValid(OtherEntity.Entity))
+				if (!EntityManager.IsEntityValid(OtherEntity.Entity))
 				{
 					UE_LOG(LogAvoidanceObstacles, VeryVerbose, TEXT("Close entity is invalid, skipped."));
 					continue;
 				}
 				
 				// Skip too far
-				const FTransform& Transform = EntitySubsystem.GetFragmentDataChecked<FTransformFragment>(OtherEntity.Entity).GetTransform();
+				const FTransform& Transform = EntityManager.GetFragmentDataChecked<FTransformFragment>(OtherEntity.Entity).GetTransform();
 				const FVector OtherLocation = Transform.GetLocation();
 				
 				const float SqDist = FVector::DistSquared(AgentLocation, OtherLocation);
@@ -779,7 +779,7 @@ void UMassMovingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsyste
 				}
 
 				FSortedObstacle& Obstacle = ClosestObstacles[Index];
-				FMassEntityView OtherEntityView(EntitySubsystem, Obstacle.ObstacleItem.Entity);
+				FMassEntityView OtherEntityView(EntityManager, Obstacle.ObstacleItem.Entity);
 
 				const FMassVelocityFragment* OtherVelocityFragment = OtherEntityView.GetFragmentDataPtr<FMassVelocityFragment>();
 				const FVector OtherVelocity = OtherVelocityFragment != nullptr ? OtherVelocityFragment->Value : FVector::ZeroVector; // Get velocity from FAvoidanceComponent
@@ -1039,7 +1039,7 @@ void UMassStandingAvoidanceProcessor::Initialize(UObject& Owner)
 	NavigationSubsystem = UWorld::GetSubsystem<UMassNavigationSubsystem>(Owner.GetWorld());
 }
 
-void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassStandingAvoidanceProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(UMassStandingAvoidanceProcessor);
 
@@ -1049,7 +1049,7 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 	}
 
 	// Avoidance while standing
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, &EntitySubsystem](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, &EntityManager](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetNumEntities();
 		const float DeltaTime = Context.GetDeltaTimeSeconds();
@@ -1139,14 +1139,14 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 				}
 
 				// Skip invalid entities.
-				if (!EntitySubsystem.IsEntityValid(OtherEntity.Entity))
+				if (!EntityManager.IsEntityValid(OtherEntity.Entity))
 				{
 					UE_LOG(LogAvoidanceObstacles, VeryVerbose, TEXT("Close entity is invalid, skipped."));
 					continue;
 				}
 
 				// Skip too far
-				const FTransformFragment& OtherTransform = EntitySubsystem.GetFragmentDataChecked<FTransformFragment>(OtherEntity.Entity);
+				const FTransformFragment& OtherTransform = EntityManager.GetFragmentDataChecked<FTransformFragment>(OtherEntity.Entity);
 				const FVector OtherLocation = OtherTransform.GetTransform().GetLocation();
 				const float DistSq = FVector::DistSquared(AgentLocation, OtherLocation);
 				if (DistSq > DistanceCutOffSqr)
@@ -1166,7 +1166,7 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 			for (int32 Index = 0; Index < NumCloseObstacles; Index++)
 			{
 				FSortedObstacle& OtherAgent = ClosestObstacles[Index];
-				FMassEntityView OtherEntityView(EntitySubsystem, OtherAgent.Entity);
+				FMassEntityView OtherEntityView(EntityManager, OtherAgent.Entity);
 
 				const float OtherRadius = OtherEntityView.GetFragmentData<FAgentRadiusFragment>().Radius;
 				const float TotalRadius = GhostRadius + OtherRadius;

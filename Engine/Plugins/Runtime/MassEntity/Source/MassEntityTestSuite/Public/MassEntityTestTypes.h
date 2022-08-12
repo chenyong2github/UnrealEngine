@@ -14,7 +14,7 @@
 
 
 class UWorld;
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 
 USTRUCT()
 struct FTestFragment_Float : public FMassFragment
@@ -106,16 +106,16 @@ class MASSENTITYTESTSUITE_API UMassTestProcessorBase : public UMassProcessor
 public:
 	UMassTestProcessorBase();
 	FMassProcessorExecutionOrder& GetMutableExecutionOrder() { return ExecutionOrder; }
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override 
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override 
 	{
-		ExecutionFunction(EntitySubsystem, Context);
+		ExecutionFunction(EntityManager, Context);
 	}
 	virtual void ConfigureQueries() override
 	{
 		RequirementsFunction(EntityQuery);
 	}
 
-	TFunction<void(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)> ExecutionFunction;
+	TFunction<void(FMassEntityManager& EntityManager, FMassExecutionContext& Context)> ExecutionFunction;
 	TFunction<void(FMassEntityQuery& Query)> RequirementsFunction;
 
 	FMassEntityQuery& TestGetQuery() { return EntityQuery; }
@@ -190,7 +190,7 @@ public:
 
 struct MASSENTITYTESTSUITE_API FExecutionTestBase : FAITestBase
 {
-	UMassEntitySubsystem* EntitySubsystem = nullptr;
+	TSharedPtr<FMassEntityManager> EntityManager;
 	UWorld* World = nullptr;
 
 	virtual bool SetUp() override;

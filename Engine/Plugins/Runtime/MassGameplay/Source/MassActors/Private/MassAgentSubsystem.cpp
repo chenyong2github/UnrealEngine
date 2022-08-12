@@ -14,6 +14,7 @@
 #include "MassEntityView.h"
 #include "MassReplicationSubsystem.h"
 #include "Engine/NetDriver.h"
+#include "MassEntityUtils.h"
 
 
 namespace FMassAgentSubsystemHelper
@@ -46,7 +47,10 @@ void UMassAgentSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 	
 	UWorld* World = GetWorld();
-	EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
+	check(World);
+
+	EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World).AsShared();
+
 	SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(World);
 
 	SimulationSystem = UWorld::GetSubsystem<UMassSimulationSubsystem>(World);
@@ -63,7 +67,7 @@ void UMassAgentSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 FMassEntityTemplateID UMassAgentSubsystem::RegisterAgentComponent(UMassAgentComponent& AgentComp)
 {
-	check(EntitySystem);
+	check(EntityManager);
 	check(SpawnerSystem);
 
 	if (AgentComp.IsPuppet())
@@ -110,7 +114,7 @@ FMassEntityTemplateID UMassAgentSubsystem::RegisterAgentComponent(UMassAgentComp
 
 void UMassAgentSubsystem::UpdateAgentComponent(const UMassAgentComponent& AgentComp)
 {
-	check(EntitySystem);
+	check(EntityManager);
 	check(SpawnerSystem)
 
 	if (!ensureMsgf(AgentComp.GetEntityHandle().IsValid(), TEXT("Caling %s is valid only for already registered MassAgentComponents"), ANSI_TO_TCHAR(__FUNCTION__)))
@@ -129,7 +133,7 @@ void UMassAgentSubsystem::UpdateAgentComponent(const UMassAgentComponent& AgentC
 	const FMassEntityTemplate& EntityTemplate = EntityConfig.GetOrCreateEntityTemplate(*World, AgentComp);
 
 	const FMassEntityHandle Entity = AgentComp.GetEntityHandle();
-	const FMassArchetypeHandle CurrentArchetypeHandle = EntitySystem->GetArchetypeForEntity(Entity);
+	const FMassArchetypeHandle CurrentArchetypeHandle = EntityManager->GetArchetypeForEntity(Entity);
 	if (CurrentArchetypeHandle == EntityTemplate.GetArchetype())
 	{
 		UE_VLOG(this, LogMassActor, Log, TEXT("%s called for %s but no archetype changes have been found")
@@ -149,7 +153,7 @@ void UMassAgentSubsystem::UpdateAgentComponent(const UMassAgentComponent& AgentC
 
 void UMassAgentSubsystem::UnregisterAgentComponent(UMassAgentComponent& AgentComp)
 {
-	if (EntitySystem == nullptr || SpawnerSystem == nullptr || SimulationSystem == nullptr)
+	if (!EntityManager || SpawnerSystem == nullptr || SimulationSystem == nullptr)
 	{
 		return;
 	}
@@ -174,11 +178,11 @@ void UMassAgentSubsystem::UnregisterAgentComponent(UMassAgentComponent& AgentCom
 
 			    // remove fragments that have been added for the puppet agent
 			    if (SimulationSystem->GetPhaseManager().IsDuringMassProcessing()
-					|| EntitySystem->IsProcessing())
+					|| EntityManager->IsProcessing())
 			    {
 				    // need to request via command buffer since we can't move entities while processing is happening
 					FMassArchetypeCompositionDescriptor Composition = AgentComp.GetPuppetSpecificAddition();
-					EntitySystem->Defer().PushCommand<FMassDeferredRemoveCommand>([Entity, Composition](UMassEntitySubsystem& System)
+					EntityManager->Defer().PushCommand<FMassDeferredRemoveCommand>([Entity, Composition](FMassEntityManager& System)
 						{
 							if (System.IsEntityValid(Entity) == false)
 							{
@@ -189,7 +193,7 @@ void UMassAgentSubsystem::UnregisterAgentComponent(UMassAgentComponent& AgentCom
 			    }
 			    else
 			    {
-					EntitySystem->RemoveCompositionFromEntity(Entity, AgentComp.GetPuppetSpecificAddition());
+					EntityManager->RemoveCompositionFromEntity(Entity, AgentComp.GetPuppetSpecificAddition());
 			    }
 			}
 			AgentComp.PuppetUnregistrationDone();
@@ -215,10 +219,10 @@ void UMassAgentSubsystem::UnregisterAgentComponent(UMassAgentComponent& AgentCom
 
 			// Destroy the entity
 			if (SimulationSystem->GetPhaseManager().IsDuringMassProcessing()
-				|| EntitySystem->IsProcessing())
+				|| EntityManager->IsProcessing())
 			{
 				// need to request via command buffer since we can't move entities while processing is happening
-				EntitySystem->Defer().DestroyEntity(Entity);
+				EntityManager->Defer().DestroyEntity(Entity);
 			}
 			else if (ensure(EntityTemplate))
 			{
@@ -291,7 +295,7 @@ void UMassAgentSubsystem::OnProcessingPhaseStarted(const float DeltaSeconds, con
 
 void UMassAgentSubsystem::HandlePendingInitialization()
 {
-	check(EntitySystem);
+	check(EntityManager);
 	check(SpawnerSystem);
 	check(SimulationSystem);
 	check(SimulationSystem->GetPhaseManager().IsDuringMassProcessing() == false);
@@ -358,11 +362,11 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 
 			FMassArchetypeCompositionDescriptor& PuppetDescriptor = AgentComp->GetMutablePuppetSpecificAddition();
 			PuppetDescriptor = TemplateDescriptor;
-			EntitySystem->AddCompositionToEntity_GetDelta(PuppetEntity, PuppetDescriptor);
+			EntityManager->AddCompositionToEntity_GetDelta(PuppetEntity, PuppetDescriptor);
 			
 			if (EntityTemplate->GetObjectFragmentInitializers().Num())
 			{
-				const FMassArchetypeHandle ArchetypeHandle = EntitySystem->GetArchetypeForEntity(PuppetEntity);
+				const FMassArchetypeHandle ArchetypeHandle = EntityManager->GetArchetypeForEntity(PuppetEntity);
 				FMassEntityView EntityView(ArchetypeHandle, PuppetEntity);
 				FMassAgentSubsystemHelper::InitializeAgentComponentFragments(*AgentComp, EntityView, EMassTranslationDirection::MassToActor, EntityTemplate->GetObjectFragmentInitializers());
 			}

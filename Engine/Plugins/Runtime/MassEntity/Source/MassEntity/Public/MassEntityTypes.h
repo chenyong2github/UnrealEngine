@@ -47,7 +47,7 @@ struct FMassSharedFragment
 	FMassSharedFragment() {}
 };
 
-// A handle to a lightweight entity.  An entity is used in conjunction with the UMassEntitySubsystem
+// A handle to a lightweight entity.  An entity is used in conjunction with the FMassEntityManager
 // for the current world and can contain lightweight fragments.
 USTRUCT()
 struct FMassEntityHandle

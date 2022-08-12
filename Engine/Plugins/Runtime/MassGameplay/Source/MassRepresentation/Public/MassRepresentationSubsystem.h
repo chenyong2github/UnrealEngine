@@ -18,7 +18,7 @@ struct FMassInstancedStaticMeshInfo;
 struct FMassActorSpawnRequestHandle;
 class UMassActorSpawnerSubsystem;
 class UMassAgentComponent;
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 enum class EMassProcessingPhase : uint8;
 class UWorldPartitionSubsystem;
 
@@ -149,8 +149,7 @@ protected:
 	UPROPERTY(Transient)
 	UMassActorSpawnerSubsystem* ActorSpawnerSubsystem;
 
-	UPROPERTY(Transient)
-	UMassEntitySubsystem* EntitySubsystem;
+	TSharedPtr<FMassEntityManager> EntityManager;
 
 	UPROPERTY(Transient)
 	UWorldPartitionSubsystem* WorldPartitionSubsystem;

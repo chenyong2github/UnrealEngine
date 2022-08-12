@@ -32,7 +32,7 @@ void UMassApplyMovementProcessor::ConfigureQueries()
 	EntityQuery.AddConstSharedRequirement<FMassMovementParameters>(EMassFragmentPresence::All);
 }
 
-void UMassApplyMovementProcessor::Execute(UMassEntitySubsystem& EntitySubsystem,
+void UMassApplyMovementProcessor::Execute(FMassEntityManager& EntityManager,
 													FMassExecutionContext& Context)
 {
 	// Clamp max delta time to avoid force explosion on large time steps (i.e. during initialization).
@@ -40,7 +40,7 @@ void UMassApplyMovementProcessor::Execute(UMassEntitySubsystem& EntitySubsystem,
 
 	QUICK_SCOPE_CYCLE_COUNTER(HighRes);
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, DeltaTime](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, DeltaTime](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetNumEntities();
 

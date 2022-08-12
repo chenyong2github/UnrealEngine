@@ -31,7 +31,7 @@ struct MASSENTITY_API FMassBatchedCommand
 {
 	virtual ~FMassBatchedCommand() {}
 
-	virtual void Execute(UMassEntitySubsystem& System) const = 0;
+	virtual void Execute(FMassEntityManager& System) const = 0;
 	virtual void Reset()
 	{
 		bHasWork = false;
@@ -117,7 +117,7 @@ struct FMassCommandDestroyEntities : public FMassBatchedEntityCommand
 	}
 
 protected:
-	virtual void Execute(UMassEntitySubsystem& System) const override
+	virtual void Execute(FMassEntityManager& System) const override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandDestroyEntities_Execute);
 
@@ -142,7 +142,7 @@ struct FMassCommandAddFragments : public FMassBatchedEntityCommand
 		OperationType = EMassCommandOperationType::Add;
 	}
 protected:
-	virtual void Execute(UMassEntitySubsystem& System) const override
+	virtual void Execute(FMassEntityManager& System) const override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandAddFragments_Execute);
 		TArray<FMassArchetypeEntityCollection> EntityCollections;
@@ -161,7 +161,7 @@ struct FMassCommandRemoveFragments : public FMassBatchedEntityCommand
 		OperationType = EMassCommandOperationType::Remove;
 	}
 protected:
-	virtual void Execute(UMassEntitySubsystem& System) const override
+	virtual void Execute(FMassEntityManager& System) const override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandRemoveFragments_Execute);
 		TArray<FMassArchetypeEntityCollection> EntityCollections;
@@ -184,7 +184,7 @@ struct FMassCommandChangeTags : public FMassBatchedEntityCommand
 	}
 
 protected:
-	virtual void Execute(UMassEntitySubsystem& System) const override
+	virtual void Execute(FMassEntityManager& System) const override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandChangeTags_Execute);
 		TArray<FMassArchetypeEntityCollection> EntityCollections;
@@ -271,7 +271,7 @@ protected:
 		return Super::GetAllocatedSize() + Fragments.GetAllocatedSize() + FragmentsAffected.GetAllocatedSize();
 	}
 
-	virtual void Execute(UMassEntitySubsystem& System) const override
+	virtual void Execute(FMassEntityManager& System) const override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandAddFragmentInstances_Execute);
 
@@ -304,7 +304,7 @@ struct FMassCommandBuildEntity : public FMassCommandAddFragmentInstances<TOthers
 protected:
 	using Super = FMassCommandAddFragmentInstances<TOthers...>;
 
-	virtual void Execute(UMassEntitySubsystem& System) const override
+	virtual void Execute(FMassEntityManager& System) const override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandBuildEntity_Execute);
 
@@ -371,7 +371,7 @@ protected:
 		return TotalSize;
 	}
 
-	virtual void Execute(UMassEntitySubsystem& System) const 
+	virtual void Execute(FMassEntityManager& System) const 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MassCommandBuildEntityWithSharedFragments_Execute);
 
@@ -444,7 +444,7 @@ template<EMassCommandOperationType OpType>
 struct FMassDeferredCommand : public FMassBatchedCommand
 {
 	using Super = FMassBatchedCommand;
-	using FExecFunction = TFunction<void(UMassEntitySubsystem& System)>;
+	using FExecFunction = TFunction<void(FMassEntityManager& System)>;
 
 	FMassDeferredCommand()
 	{
@@ -472,7 +472,7 @@ protected:
 		return DeferredFunctions.GetAllocatedSize();
 	}
 
-	virtual void Execute(UMassEntitySubsystem& System) const override
+	virtual void Execute(FMassEntityManager& System) const override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MassDeferredCommand_Execute);
 

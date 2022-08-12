@@ -63,36 +63,36 @@ void UMassLODCollectorProcessor::CollectLODForChunk(FMassExecutionContext& Conte
 }
 
 template <bool bLocalViewersOnly>
-void UMassLODCollectorProcessor::ExecuteInternal(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassLODCollectorProcessor::ExecuteInternal(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("Close"));
-		EntityQuery_VisibleRangeAndOnLOD.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context) { CollectLODForChunk<bLocalViewersOnly>(Context); });
-		EntityQuery_VisibleRangeOnly.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context) { CollectLODForChunk<bLocalViewersOnly>(Context); });
-		EntityQuery_OnLODOnly.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context) { CollectLODForChunk<bLocalViewersOnly>(Context); });
+		EntityQuery_VisibleRangeAndOnLOD.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context) { CollectLODForChunk<bLocalViewersOnly>(Context); });
+		EntityQuery_VisibleRangeOnly.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context) { CollectLODForChunk<bLocalViewersOnly>(Context); });
+		EntityQuery_OnLODOnly.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context) { CollectLODForChunk<bLocalViewersOnly>(Context); });
 	}
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("Far"));
-		EntityQuery_NotVisibleRangeAndOffLOD.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context) { CollectLODForChunk<bLocalViewersOnly>(Context); });
+		EntityQuery_NotVisibleRangeAndOffLOD.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context) { CollectLODForChunk<bLocalViewersOnly>(Context); });
 	}
 }
 
-void UMassLODCollectorProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassLODCollectorProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>(EntitySubsystem.GetWorld());
+	const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>(EntityManager.GetWorld());
 	const TArray<FViewerInfo>& Viewers = LODSubsystem.GetViewers();
 	Collector.PrepareExecution(Viewers);
 
-	UWorld* World = EntitySubsystem.GetWorld();
+	UWorld* World = EntityManager.GetWorld();
 	check(World);
 	if (World->IsNetMode(NM_DedicatedServer))
 	{
-		ExecuteInternal<false/*bLocalViewersOnly*/>(EntitySubsystem, Context);
+		ExecuteInternal<false/*bLocalViewersOnly*/>(EntityManager, Context);
 	}
 	else
 	{
-		ExecuteInternal<true/*bLocalViewersOnly*/>(EntitySubsystem, Context);
+		ExecuteInternal<true/*bLocalViewersOnly*/>(EntityManager, Context);
 	}
 
 }

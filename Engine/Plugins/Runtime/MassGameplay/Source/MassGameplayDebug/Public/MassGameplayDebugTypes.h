@@ -26,8 +26,8 @@ namespace UE::Mass::Debug
 	 * Fetches entity handles and their locations for entities indicated by index range as set by
 	 * ai.debug.mass.SetDebugEntityRange or ai.debug.mass.DebugEntity console commands.
 	 */
-	MASSGAMEPLAYDEBUG_API extern void GetDebugEntitiesAndLocations(const UMassEntitySubsystem& EntitySystem, TArray<FMassEntityHandle>& OutEntities, TArray<FVector>& OutLocations);
-	MASSGAMEPLAYDEBUG_API extern FMassEntityHandle ConvertEntityIndexToHandle(const UMassEntitySubsystem& EntitySystem, const int32 EntityIndex);
+	MASSGAMEPLAYDEBUG_API extern void GetDebugEntitiesAndLocations(const FMassEntityManager& EntitySubsystem, TArray<FMassEntityHandle>& OutEntities, TArray<FVector>& OutLocations);
+	MASSGAMEPLAYDEBUG_API extern FMassEntityHandle ConvertEntityIndexToHandle(const FMassEntityManager& EntitySubsystem, const int32 EntityIndex);
 } // namespace UE::Mass::Debug
 #endif // WITH_MASSGAMEPLAY_DEBUG
 

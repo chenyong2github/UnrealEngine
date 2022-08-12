@@ -83,7 +83,7 @@ FMassCommandBuffer::~FMassCommandBuffer()
 	}
 }
 
-void FMassCommandBuffer::Flush(UMassEntitySubsystem& EntitySystem)
+void FMassCommandBuffer::Flush(FMassEntityManager& EntityManager)
 {
 	check(!bIsFlushing);
 	TGuardValue FlushingGuard(bIsFlushing, true);
@@ -150,7 +150,7 @@ void FMassCommandBuffer::Flush(UMassEntitySubsystem& EntitySystem)
 			FCsvProfiler::RecordCustomStat(*Name, CSV_CATEGORY_INDEX(MassEntitiesCounters), Command->GetNumOperationsStat(), ECsvCustomStatOp::Accumulate);
 #endif // CSV_PROFILER
 
-			Command->Execute(EntitySystem);
+			Command->Execute(EntityManager);
 			Command->Reset();
 		}
 	}

@@ -6,7 +6,7 @@
 
 struct FMassActorSpawnRequestHandle;
 struct FMassCommandBuffer;
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 enum class EMassActorSpawnRequestAction : uint8;
 enum class EMassActorEnabledType : uint8;
 struct FMassActorSpawnRequestHandle;
@@ -42,7 +42,7 @@ public:
 	 * @param Priority of this spawn request in comparison with the others, lower value means higher priority
 	 * @return the actor spawned
 	 */
-	virtual AActor* GetOrSpawnActor(UMassRepresentationSubsystem& RepresentationSubsystem, UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle MassAgent, FMassActorFragment& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority) const;
+	virtual AActor* GetOrSpawnActor(UMassRepresentationSubsystem& RepresentationSubsystem, FMassEntityManager& EntitySubsystem, const FMassEntityHandle MassAgent, FMassActorFragment& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority) const;
 
 	/**
 	 * Enable/disable a spawned actor for a mass entity
@@ -69,7 +69,7 @@ public:
 	 * @param SpawnRequest of the actor that is about to spawn
 	 * @param EntitySubsystem to use to retrieve the mass agent fragments
 	 */
-	virtual void OnPreActorSpawn(const FMassActorSpawnRequestHandle& SpawnRequestHandle, FConstStructView SpawnRequest, UMassEntitySubsystem* EntitySubsystem) const;
+	virtual void OnPreActorSpawn(const FMassActorSpawnRequestHandle& SpawnRequestHandle, FConstStructView SpawnRequest, FMassEntityManager* EntitySubsystem) const;
 
 	/**
 	 * Method that will be bound to a delegate used post-spawn to notify and let the requester configure the actor
@@ -78,7 +78,7 @@ public:
 	 * @param EntitySubsystem to use to retrieve the mass agent fragments
 	 * @return The action to take on the spawn request, either keep it there or remove it.
 	 */
-	virtual EMassActorSpawnRequestAction OnPostActorSpawn(const FMassActorSpawnRequestHandle& SpawnRequestHandle, FConstStructView SpawnRequest, UMassEntitySubsystem* EntitySubsystem) const;
+	virtual EMassActorSpawnRequestAction OnPostActorSpawn(const FMassActorSpawnRequestHandle& SpawnRequestHandle, FConstStructView SpawnRequest, FMassEntityManager* EntitySubsystem) const;
 
 	/**
 	 * Static methods to Release an actor or cancel its spawning (calls ReleaseAnyActorOrCancelAnySpawning)
@@ -88,7 +88,7 @@ public:
 	 * @param MassAgent is the handle to the associated mass agent
 	 * @return True if actor was release or spawning request was canceled
 	 */
-	static void ReleaseAnyActorOrCancelAnySpawning(UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle MassAgent);
+	static void ReleaseAnyActorOrCancelAnySpawning(FMassEntityManager& EntityManager, const FMassEntityHandle MassAgent);
 
 	/**
 	 * static Release an actor or cancel its spawning

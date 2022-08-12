@@ -16,7 +16,6 @@
 #include "MassEntitySubsystem.generated.h"
 
 
-class UMassEntitySubsystem;
 struct FMassEntityQuery;
 struct FMassExecutionContext;
 struct FMassArchetypeData;
@@ -27,11 +26,8 @@ struct FMassDebugger;
 enum class EMassFragmentAccess : uint8;
 
 //@TODO: Comment this
-UCLASS()
-class MASSENTITY_API UMassEntitySubsystem : public UWorldSubsystem
+struct MASSENTITY_API FMassEntityManager : public TSharedFromThis<FMassEntityManager>
 {
-	GENERATED_BODY()
-
 	friend FMassEntityQuery;
 	friend FMassDebugger;
 
@@ -73,18 +69,16 @@ public:
 
 	const static FMassEntityHandle InvalidEntity;
 
-	UMassEntitySubsystem();
+	explicit FMassEntityManager(UObject* InOwner = nullptr);
+	FMassEntityManager(const FMassEntityManager& Other) = delete;
 
-	//~UObject interface
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
-	//~End of UObject interface
+	void AddReferencedObjects(FReferenceCollector& Collector);
+	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize);
 
-	//~USubsystem interface
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void PostInitialize() override;
-	virtual void Deinitialize() override;
-	//~End of USubsystem interface
-	
+	void Initialize();
+	void PostInitialize();
+	void Deinitialize();
+
 	/** 
 	 * A special, relaxed but slower version of CreateArchetype functions that allows FragmentAngTagsList to contain 
 	 * both fragments and tags. 
@@ -157,7 +151,7 @@ public:
 
 		const FMassArchetypeEntityCollection& GetEntityCollection() const { return EntityCollection; }
 	private:
-		friend UMassEntitySubsystem;
+		friend FMassEntityManager;
 		int32 NumberSpawned;
 		FMassArchetypeEntityCollection EntityCollection;
 		TFunction<void(FEntityCreationContext&)> OnSpawningFinished;
@@ -359,9 +353,16 @@ public:
 
 	FMassObserverManager& GetObserverManager() { return ObserverManager; }
 
+	/** 
+	 * Fetches the world associated with the Owner. 
+	 * @note that it's ok for a given EntityManager to not have an owner or the owner not being part of a UWorld, depending on the use case
+	 */
+	UWorld* GetWorld() const { return Owner.IsValid() ? Owner->GetWorld() : nullptr; }
+	UObject* GetOwner() const { return Owner.Get(); }
+
 #if WITH_MASSENTITY_DEBUG
 	void DebugPrintArchetypes(FOutputDevice& Ar, const bool bIncludeEmpty = true) const;
-	void DebugGetArchetypesStringDetails(FOutputDevice& Ar, const bool bIncludeEmpty = true);
+	void DebugGetArchetypesStringDetails(FOutputDevice& Ar, const bool bIncludeEmpty = true) const;
 	void DebugGetArchetypeFragmentTypes(const FMassArchetypeHandle& Archetype, TArray<const UScriptStruct*>& InOutFragmentList) const;
 	int32 DebugGetArchetypeEntitiesCount(const FMassArchetypeHandle& Archetype) const;
 	int32 DebugGetArchetypeEntitiesCountPerChunk(const FMassArchetypeHandle& Archetype) const;
@@ -425,20 +426,52 @@ private:
 	TMap<const UScriptStruct*, TArray<TSharedPtr<FMassArchetypeData>>> FragmentTypeToArchetypeMap;
 
 	// Shared fragments
-	UPROPERTY(Transient)
 	TArray<FConstSharedStruct> ConstSharedFragments;
 	// Hash/Index in array pair
 	TMap<uint32, int32> ConstSharedFragmentsMap;
 
-	UPROPERTY(Transient)
 	TArray<FSharedStruct> SharedFragments;
 	// Hash/Index in array pair
 	TMap<uint32, int32> SharedFragmentsMap;
 
-	UPROPERTY(Transient)
 	FMassObserverManager ObserverManager;
 
 #if WITH_MASSENTITY_DEBUG
 	FMassRequirementAccessDetector RequirementAccessDetector;
 #endif // WITH_MASSENTITY_DEBUG
+
+	TWeakObjectPtr<UObject> Owner;
+};
+
+
+/** 
+ * The sole responsibility of this world subsystem class is to host the default instance of FMassEntityManager
+ * for a given UWorld. All the gameplay-related use cases of Mass (found in MassGameplay and related plugins) 
+ * use this by default. 
+ */
+UCLASS()
+class MASSENTITY_API UMassEntitySubsystem : public UWorldSubsystem
+{
+	GENERATED_BODY()
+
+	//~USubsystem interface
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void PostInitialize() override;
+	virtual void Deinitialize() override;
+	//~End of USubsystem interface
+
+public:
+	UMassEntitySubsystem();
+
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+
+	//~UObject interface
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	//~End of UObject interface
+
+	const FMassEntityManager& GetEntityManager() const { return EntityManager.Get(); }
+	FMassEntityManager& GetMutableEntityManager() { return EntityManager.Get(); }
+
+protected:
+	TSharedRef<FMassEntityManager> EntityManager;
 };

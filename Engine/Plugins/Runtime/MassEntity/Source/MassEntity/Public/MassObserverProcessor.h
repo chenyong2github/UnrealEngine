@@ -6,8 +6,6 @@
 #include "MassObserverProcessor.generated.h"
 
 
-class UMassEntitySubsystem;
-
 UCLASS(abstract)
 class MASSENTITY_API UMassObserverProcessor : public UMassProcessor
 {

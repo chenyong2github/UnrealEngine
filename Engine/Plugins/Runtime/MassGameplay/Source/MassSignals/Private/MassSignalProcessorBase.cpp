@@ -31,7 +31,7 @@ void UMassSignalProcessorBase::SubscribeToSignal(UMassSignalSubsystem& SignalSub
 	SignalSubsystem.GetSignalDelegateByName(SignalName).AddUObject(this, &UMassSignalProcessorBase::OnSignalReceived);
 }
 
-void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassSignalProcessorBase::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(SignalEntities);
 
@@ -47,7 +47,7 @@ void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FM
 		return;
 	}
 
-	EntityQuery.CacheArchetypes(EntitySubsystem);
+	EntityQuery.CacheArchetypes(EntityManager);
 	if (EntityQuery.GetArchetypes().Num() > 0)
 	{
 		// EntitySet stores unique array of entities per specified archetype.
@@ -97,7 +97,7 @@ void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FM
 				for (const FMassEntityHandle Entity : Entities)
 				{
 					// Add to set of supported archetypes. Dont process if we don't care about the type.
-					FMassArchetypeHandle Archetype = EntitySubsystem.GetArchetypeForEntity(Entity);
+					FMassArchetypeHandle Archetype = EntityManager.GetArchetypeForEntity(Entity);
 					FEntitySet* Set = PrevSet->Archetype == Archetype ? PrevSet : EntitySets.FindByPredicate([&Archetype](const FEntitySet& Set) { return Archetype == Set.Archetype; });
 					if (Set != nullptr)
 					{
@@ -118,7 +118,7 @@ void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FM
 				if (Set.Entities.Num() > 0)
 				{
 					Context.SetEntityCollection(FMassArchetypeEntityCollection(Set.Archetype, Set.Entities, FMassArchetypeEntityCollection::FoldDuplicates));
-					SignalEntities(EntitySubsystem, Context, SignalNameLookup);
+					SignalEntities(EntityManager, Context, SignalNameLookup);
 					Context.ClearEntityCollection();
 				}
 				Set.Reset();

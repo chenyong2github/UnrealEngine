@@ -9,7 +9,7 @@
 #include "MassAgentSubsystem.generated.h"
 
 class AActor;
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 class UMassSpawnerSubsystem;
 class UMassAgentComponent;
 class UMassSimulationSubsystem;
@@ -121,8 +121,7 @@ protected:
 	void OnMassAgentRemovedFromReplication(FMassNetworkID NetID, FMassEntityHandle Entity);
 
 protected:
-	UPROPERTY()
-	UMassEntitySubsystem* EntitySystem;
+	TSharedPtr<FMassEntityManager> EntityManager;
 
 	UPROPERTY()
 	UMassSpawnerSubsystem* SpawnerSystem;

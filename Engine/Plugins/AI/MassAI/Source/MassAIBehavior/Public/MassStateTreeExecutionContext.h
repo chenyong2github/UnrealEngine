@@ -7,7 +7,7 @@
 #include "MassStateTreeExecutionContext.generated.h"
 
 struct FMassExecutionContext;
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 class UMassSignalSubsystem;
 
 /**
@@ -20,9 +20,9 @@ struct MASSAIBEHAVIOR_API FMassStateTreeExecutionContext : public FStateTreeExec
 public:
 	/** Should never be used but has to be public for 'void UScriptStruct::TCppStructOps<FMassStateTreeExecutionContext>::ConstructForTests(void *)' */
 	FMassStateTreeExecutionContext() = default;
-	FMassStateTreeExecutionContext(UMassEntitySubsystem& InEntitySubsystem, UMassSignalSubsystem& InSignalSubsystem, FMassExecutionContext& InContext);
+	FMassStateTreeExecutionContext(FMassEntityManager& InEntityManager, UMassSignalSubsystem& InSignalSubsystem, FMassExecutionContext& InContext);
 
-	UMassEntitySubsystem& GetEntitySubsystem() const { return *EntitySubsystem; }
+	FMassEntityManager& GetEntityManager() const { check(EntityManager); return *EntityManager; }
 	FMassExecutionContext& GetEntitySubsystemExecutionContext() const { return *EntitySubsystemExecutionContext; }
 
 	FMassEntityHandle GetEntity() const { return Entity; }
@@ -35,7 +35,7 @@ protected:
 
 	virtual void BeginGatedTransition(const FStateTreeExecutionState& Exec) override;
 
-	UMassEntitySubsystem* EntitySubsystem = nullptr;
+	FMassEntityManager* EntityManager;
 	UMassSignalSubsystem* SignalSubsystem = nullptr;
 	FMassExecutionContext* EntitySubsystemExecutionContext = nullptr;
 	FMassEntityHandle Entity;

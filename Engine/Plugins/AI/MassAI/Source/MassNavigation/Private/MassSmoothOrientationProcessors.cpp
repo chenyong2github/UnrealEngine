@@ -39,7 +39,7 @@ void UMassSmoothOrientationProcessor::ConfigureQueries()
 	LowResEntityQuery_Conditional.SetChunkFilter(&FMassSimulationVariableTickChunkFragment::ShouldTickChunkThisFrame);
 }
 
-void UMassSmoothOrientationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem,
+void UMassSmoothOrientationProcessor::Execute(FMassEntityManager& EntityManager,
 													FMassExecutionContext& Context)
 {
 	// Clamp max delta time to avoid force explosion on large time steps (i.e. during initialization).
@@ -48,7 +48,7 @@ void UMassSmoothOrientationProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(HighRes);
 
-		HighResEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, DeltaTime](FMassExecutionContext& Context)
+		HighResEntityQuery.ForEachEntityChunk(EntityManager, Context, [this, DeltaTime](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetNumEntities();
 
@@ -117,7 +117,7 @@ void UMassSmoothOrientationProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(LowRes);
 
-		LowResEntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
+		LowResEntityQuery_Conditional.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetNumEntities();
 

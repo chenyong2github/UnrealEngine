@@ -13,7 +13,7 @@
 class UMassProcessingPhaseManager;
 class UMassProcessor;
 class UMassCompositeProcessor;
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 struct FMassCommandBuffer;
 
 USTRUCT()
@@ -48,7 +48,7 @@ protected:
 	UMassCompositeProcessor* PhaseProcessor = nullptr;
 
 	UPROPERTY()
-	UMassProcessingPhaseManager* Manager = nullptr;
+	UMassProcessingPhaseManager* PhaseManager = nullptr;
 
 	EMassProcessingPhase Phase = EMassProcessingPhase::MAX;
 	FOnPhaseEvent OnPhaseStart;
@@ -80,7 +80,7 @@ class MASSENTITY_API UMassProcessingPhaseManager : public UObject
 {
 	GENERATED_BODY()
 public:
-	UMassEntitySubsystem& GetEntitySubsystemRef() { check(EntitySubsystem); return *EntitySubsystem; }
+	FMassEntityManager& GetEntityManagerRef() { check(EntityManager); return *EntityManager.Get(); }
 
 	/** Retrieves OnPhaseStart multicast delegate's reference for a given Phase */
 	FMassProcessingPhase::FOnPhaseEvent& GetOnPhaseStart(const EMassProcessingPhase Phase) { return ProcessingPhases[uint8(Phase)].OnPhaseStart; }
@@ -98,9 +98,9 @@ public:
 	 *  at hand it's suggested to use that Start version, otherwise call the World-using one. 
 	 */
 	void Start(UWorld& World);
-	void Start(UMassEntitySubsystem& InEntitySubsystem);
+	void Start(const TSharedPtr<FMassEntityManager>& InEntityManager);
 	void Stop();
-	bool IsRunning() const { return EntitySubsystem != nullptr; }
+	bool IsRunning() const { return EntityManager.IsValid(); }
 
 	/** 
 	 *  returns true when called while any of the ProcessingPhases is actively executing its processors. Used to 
@@ -146,8 +146,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category=Mass)
 	FMassProcessingPhase ProcessingPhases[(uint8)EMassProcessingPhase::MAX];
 
-	UPROPERTY()
-	UMassEntitySubsystem* EntitySubsystem;
+	TSharedPtr<FMassEntityManager> EntityManager;
 
 	EMassProcessingPhase CurrentPhase = EMassProcessingPhase::MAX;
 

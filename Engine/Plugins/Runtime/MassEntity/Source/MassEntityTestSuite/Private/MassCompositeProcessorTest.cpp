@@ -20,11 +20,11 @@ struct FCompositeProcessorTest_Empty : FEntityTestBase
 {
 	virtual bool InstantTest() override
 	{
-		CA_ASSUME(EntitySubsystem);
+		CA_ASSUME(EntityManager);
 
-		UMassCompositeProcessor* CompositeProcessor = NewObject<UMassCompositeProcessor>(EntitySubsystem);
+		UMassCompositeProcessor* CompositeProcessor = NewObject<UMassCompositeProcessor>();
 		check(CompositeProcessor);
-		FMassProcessingContext ProcessingContext(*EntitySubsystem, /*DeltaSeconds=*/0.f);
+		FMassProcessingContext ProcessingContext(EntityManager, /*DeltaSeconds=*/0.f);
 		// it should just run, no warnings
 		UE::Mass::Executor::Run(*CompositeProcessor, ProcessingContext);
 		return true;
@@ -37,9 +37,9 @@ struct FCompositeProcessorTest_MultipleSubProcessors : FEntityTestBase
 {
 	virtual bool InstantTest() override
 	{
-		CA_ASSUME(EntitySubsystem);
+		CA_ASSUME(EntityManager);
 
-		UMassCompositeProcessor* CompositeProcessor = NewObject<UMassCompositeProcessor>(EntitySubsystem);
+		UMassCompositeProcessor* CompositeProcessor = NewObject<UMassCompositeProcessor>();
 		check(CompositeProcessor);
 
 		int Result = 0;
@@ -47,8 +47,8 @@ struct FCompositeProcessorTest_MultipleSubProcessors : FEntityTestBase
 			TArray<UMassProcessor*> Processors;
 			for (int i = 0; i < 3; ++i)
 			{
-				UMassTestProcessorBase* Processor = NewObject<UMassTestProcessorBase>(EntitySubsystem);
-				Processor->ExecutionFunction = [Processor, &Result, i](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context) {
+				UMassTestProcessorBase* Processor = NewObject<UMassTestProcessorBase>();
+				Processor->ExecutionFunction = [Processor, &Result, i](FMassEntityManager& InEntitySubsystem, FMassExecutionContext& Context) {
 						check(Processor);
 						Result += (int)FMath::Pow(10.f, float(i));
 					};
@@ -58,7 +58,7 @@ struct FCompositeProcessorTest_MultipleSubProcessors : FEntityTestBase
 			CompositeProcessor->SetChildProcessors(MoveTemp(Processors));
 		}
 
-		FMassProcessingContext ProcessingContext(*EntitySubsystem, /*DeltaSeconds=*/0.f);
+		FMassProcessingContext ProcessingContext(EntityManager, /*DeltaSeconds=*/0.f);
 		UE::Mass::Executor::Run(*CompositeProcessor, ProcessingContext);
 		AITEST_EQUAL("All of the child processors should get run", Result, 111);
 		return true;

@@ -181,7 +181,7 @@ bool FMassArchetypeEntityCollection::IsSame(const FMassArchetypeEntityCollection
 //////////////////////////////////////////////////////////////////////
 // FMassArchetypeEntityCollectionWithPayload
 
-void FMassArchetypeEntityCollectionWithPayload::CreateEntityRangesWithPayload(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities
+void FMassArchetypeEntityCollectionWithPayload::CreateEntityRangesWithPayload(const FMassEntityManager& EntityManager, const TConstArrayView<FMassEntityHandle> Entities
 	, const FMassArchetypeEntityCollection::EDuplicatesHandling DuplicatesHandling, FMassGenericPayloadView Payload
 	, TArray<FMassArchetypeEntityCollectionWithPayload>& OutEntityCollections)
 {
@@ -227,7 +227,7 @@ void FMassArchetypeEntityCollectionWithPayload::CreateEntityRangesWithPayload(co
 	for (int32 i = 0; i < Entities.Num(); ++i)
 	{
 		const FMassEntityHandle& Entity = Entities[i];
-		const FMassArchetypeHandle ArchetypeHandle = EntitySystem.GetArchetypeForEntity(Entity);
+		const FMassArchetypeHandle ArchetypeHandle = EntityManager.GetArchetypeForEntity(Entity);
 		const FMassArchetypeData* ArchetypePtr = FMassArchetypeHelper::ArchetypeDataFromHandle(ArchetypeHandle);
 		
 		// @todo if FMassArchetypeHandle used indices the look up would be a lot faster

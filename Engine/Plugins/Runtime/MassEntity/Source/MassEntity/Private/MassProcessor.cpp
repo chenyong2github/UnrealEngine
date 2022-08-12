@@ -34,8 +34,8 @@ namespace UE::Mass::Debug
 class FMassProcessorTask
 {
 public:
-	FMassProcessorTask(UMassEntitySubsystem& InEntitySubsystem, const FMassExecutionContext& InExecutionContext, UMassProcessor& InProc, bool bInManageCommandBuffer = true)
-		: EntitySubsystem(&InEntitySubsystem)
+	FMassProcessorTask(const TSharedPtr<FMassEntityManager>& InEntityManager, const FMassExecutionContext& InExecutionContext, UMassProcessor& InProc, bool bInManageCommandBuffer = true)
+		: EntityManager(InEntityManager)
 		, ExecutionContext(InExecutionContext)
 		, Processor(&InProc)
 		, bManageCommandBuffer(bInManageCommandBuffer)
@@ -56,11 +56,12 @@ public:
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		checkf(Processor, TEXT("Expecting a valid processor to execute"));
-		checkf(EntitySubsystem, TEXT("Expecting a valid entity subsystem to execute processor"));
 
 		PROCESSOR_TASK_LOG(TEXT("+--+ Task %s started on %u"), *Processor->GetProcessorName(), FPlatformTLS::GetCurrentThreadId());
 
-		UMassEntitySubsystem::FScopedProcessing ProcessingScope = EntitySubsystem->NewProcessingScope();
+		check(EntityManager);
+		FMassEntityManager& EntityManagerRef = *EntityManager.Get();
+		FMassEntityManager::FScopedProcessing ProcessingScope = EntityManagerRef.NewProcessingScope();
 
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass Processor Task");
 		
@@ -68,18 +69,18 @@ public:
 		{
 			TSharedPtr<FMassCommandBuffer> MainSharedPtr = ExecutionContext.GetSharedDeferredCommandBuffer();
 			ExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FMassCommandBuffer()));
-			Processor->CallExecute(*EntitySubsystem, ExecutionContext);
+			Processor->CallExecute(EntityManagerRef, ExecutionContext);
 			MainSharedPtr->MoveAppend(ExecutionContext.Defer());
 		}
 		else
 		{
-			Processor->CallExecute(*EntitySubsystem, ExecutionContext);
+			Processor->CallExecute(EntityManagerRef, ExecutionContext);
 		}
 		PROCESSOR_TASK_LOG(TEXT("+--+ Task %s finished"), *Processor->GetProcessorName());
 	}
 
 private:
-	UMassEntitySubsystem* EntitySubsystem = nullptr;
+	TSharedPtr<FMassEntityManager> EntityManager;
 	FMassExecutionContext ExecutionContext;
 	UMassProcessor* Processor = nullptr;
 	/** 
@@ -92,8 +93,8 @@ private:
 class FMassProcessorsTask_GameThread : public FMassProcessorTask
 {
 public:
-	FMassProcessorsTask_GameThread(UMassEntitySubsystem& InEntitySubsystem, const FMassExecutionContext& InExecutionContext, UMassProcessor& InProc)
-		: FMassProcessorTask(InEntitySubsystem, InExecutionContext, InProc)
+	FMassProcessorsTask_GameThread(const TSharedPtr<FMassEntityManager>& InEntityManager, const FMassExecutionContext& InExecutionContext, UMassProcessor& InProc)
+		: FMassProcessorTask(InEntityManager, InExecutionContext, InProc)
 	{}
 
 	static ENamedThreads::Type GetDesiredThread()
@@ -151,14 +152,14 @@ void UMassProcessor::PostInitProperties()
 #endif
 }
 
-void UMassProcessor::CallExecute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassProcessor::CallExecute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*StatId);
 	LLM_SCOPE_BYNAME(TEXT("Mass/ExecuteProcessor"));
 	// Not using a more specific scope by default (i.e. LLM_SCOPE_BYNAME(*StatId)) since LLM is more strict regarding the provided string (no spaces or '_')
 
 #if WITH_MASSENTITY_DEBUG
-	Context.DebugSetExecutionDesc(FString::Printf(TEXT("%s (%s)"), *GetProcessorName(), *ToString(EntitySubsystem.GetWorld()->GetNetMode())));
+	Context.DebugSetExecutionDesc(FString::Printf(TEXT("%s (%s)"), *GetProcessorName(), EntityManager.GetWorld() ? *ToString(EntityManager.GetWorld()->GetNetMode()) : TEXT("No World")));
 #endif
 	// CacheSubsystemRequirements will return true only if all requirements declared with ProcessorRequirements are met
 	// meaning if it fails there's no point in calling Execute.
@@ -166,7 +167,7 @@ void UMassProcessor::CallExecute(UMassEntitySubsystem& EntitySubsystem, FMassExe
 	// of their queries not having anything to do.
 	if (Context.CacheSubsystemRequirements(GetWorld(), ProcessorRequirements))
 	{
-		Execute(EntitySubsystem, Context);
+		Execute(EntityManager, Context);
 	}
 	else
 	{
@@ -202,16 +203,16 @@ void UMassProcessor::RegisterQuery(FMassEntityQuery& Query)
 	}
 }
 
-FGraphEventRef UMassProcessor::DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites)
+FGraphEventRef UMassProcessor::DispatchProcessorTasks(const TSharedPtr<FMassEntityManager>& EntityManager, FMassExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites)
 {
 	FGraphEventRef ReturnVal;
 	if (bRequiresGameThreadExecution)
 	{
-		ReturnVal = TGraphTask<FMassProcessorsTask_GameThread>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(EntitySubsystem, ExecutionContext, *this);
+		ReturnVal = TGraphTask<FMassProcessorsTask_GameThread>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(EntityManager, ExecutionContext, *this);
 	}
 	else
 	{
-		ReturnVal = TGraphTask<FMassProcessorTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(EntitySubsystem, ExecutionContext, *this);
+		ReturnVal = TGraphTask<FMassProcessorTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(EntityManager, ExecutionContext, *this);
 	}	
 	return ReturnVal;
 }
@@ -259,7 +260,7 @@ void UMassCompositeProcessor::ConfigureQueries()
 	// via their individual PostInitProperties call
 }
 
-FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FGraphEventArray& InPrerequisites)
+FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(const TSharedPtr<FMassEntityManager>& EntityManager, FMassExecutionContext& ExecutionContext, const FGraphEventArray& InPrerequisites)
 {
 	FGraphEventArray Events;
 	Events.Reserve(ProcessingFlatGraph.Num());
@@ -275,7 +276,7 @@ FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsys
 		// we don't expect any group nodes at this point. If we get any there's a bug in dependencies solving
 		if (ensure(ProcessingNode.Processor))
 		{
-			Events.Add(ProcessingNode.Processor->DispatchProcessorTasks(EntitySubsystem, ExecutionContext, Prerequisites));
+			Events.Add(ProcessingNode.Processor->DispatchProcessorTasks(EntityManager, ExecutionContext, Prerequisites));
 		}
 	}
 
@@ -305,12 +306,12 @@ FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsys
 	return CompletionEvent;
 }
 
-void UMassCompositeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassCompositeProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	for (UMassProcessor* Proc : ChildPipeline.Processors)
 	{
 		check(Proc);
-		Proc->CallExecute(EntitySubsystem, Context);
+		Proc->CallExecute(EntityManager, Context);
 	}
 }
 

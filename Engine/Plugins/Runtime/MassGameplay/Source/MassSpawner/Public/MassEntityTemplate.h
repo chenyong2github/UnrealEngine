@@ -200,8 +200,8 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		}
 	}
 
-	FString DebugGetDescription(UMassEntitySubsystem* EntitySubsystem = nullptr) const;
-	FString DebugGetArchetypeDescription(UMassEntitySubsystem& EntitySubsystem) const;
+	FString DebugGetDescription(FMassEntityManager* EntityManager = nullptr) const;
+	FString DebugGetArchetypeDescription(FMassEntityManager& EntityManager) const;
 
 	template<typename T>
 	bool HasFragment() const

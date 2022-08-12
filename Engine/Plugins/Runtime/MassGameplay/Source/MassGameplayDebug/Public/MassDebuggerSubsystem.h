@@ -52,7 +52,7 @@ protected:
 	
 	void OnProcessingPhaseStarted(const float DeltaSeconds);
 	void PreTickProcessors();
-	void OnEntitySelected(const UMassEntitySubsystem& EntitySubsystem, const FMassEntityHandle EntityHandle);
+	void OnEntitySelected(const FMassEntityManager& EntityManager, const FMassEntityHandle EntityHandle);
 
 protected:
 	bool bCollectingData = false;

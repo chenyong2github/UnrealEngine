@@ -5,7 +5,7 @@
 #include "MassSmartObjectRequest.h"
 #include "MassSmartObjectTypes.h"
 
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 class UMassSignalSubsystem;
 class USmartObjectSubsystem;
 struct FMassExecutionContext;
@@ -30,8 +30,8 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param InSmartObjectSubsystem is the smart object subsystem
 	 * @param InSignalSubsystem is the mass signal subsystem to use to send signal to affected entities
 	 */
-	FMassSmartObjectHandler(UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& InExecutionContext, USmartObjectSubsystem& InSmartObjectSubsystem, UMassSignalSubsystem& InSignalSubsystem)
-		: EntitySubsystem(InEntitySubsystem)
+	FMassSmartObjectHandler(FMassEntityManager& InEntityManager, FMassExecutionContext& InExecutionContext, USmartObjectSubsystem& InSmartObjectSubsystem, UMassSignalSubsystem& InSignalSubsystem)
+		: EntityManager(InEntityManager)
 		, ExecutionContext(InExecutionContext)
 		, SmartObjectSubsystem(InSmartObjectSubsystem)
 		, SignalSubsystem(InSignalSubsystem)
@@ -118,7 +118,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	void ReleaseSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectClaimHandle ClaimHandle) const;
 
 private:
-	UMassEntitySubsystem& EntitySubsystem;
+	FMassEntityManager& EntityManager;
 	FMassExecutionContext& ExecutionContext;
 	USmartObjectSubsystem& SmartObjectSubsystem;
 	UMassSignalSubsystem& SignalSubsystem;

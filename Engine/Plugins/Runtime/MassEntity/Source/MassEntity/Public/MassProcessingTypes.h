@@ -12,7 +12,7 @@
 
 #define WITH_MASSENTITY_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && WITH_STRUCTUTILS_DEBUG && 1)
 
-class UMassEntitySubsystem;
+struct FMassEntityManager;
 class UMassProcessor;
 class UMassCompositeProcessor;
 struct FMassCommandBuffer;
@@ -39,8 +39,7 @@ struct MASSENTITY_API FMassProcessingContext
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	UMassEntitySubsystem* EntitySubsystem = nullptr;
+	TSharedPtr<FMassEntityManager> EntityManager;
 	
 	UPROPERTY()
 	float DeltaSeconds = 0.f;
@@ -58,7 +57,8 @@ struct MASSENTITY_API FMassProcessingContext
 	TSharedPtr<FMassCommandBuffer> CommandBuffer;
 	
 	FMassProcessingContext() = default;
-	FMassProcessingContext(UMassEntitySubsystem& InEntitySubsystem, const float InDeltaSeconds);
+	FMassProcessingContext(FMassEntityManager& InEntityManager, const float InDeltaSeconds);
+	FMassProcessingContext(TSharedPtr<FMassEntityManager>& InEntityManager, const float InDeltaSeconds);
 	~FMassProcessingContext();
 };
 

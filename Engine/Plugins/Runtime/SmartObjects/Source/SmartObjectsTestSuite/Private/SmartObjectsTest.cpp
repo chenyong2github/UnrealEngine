@@ -9,6 +9,7 @@
 #include "SmartObjectSubsystem.h"
 #include "SmartObjectComponent.h"
 #include "SmartObjectTestTypes.h"
+#include "MassEntityUtils.h"
 
 #define LOCTEXT_NAMESPACE "AITestSuite_SmartObjectsTest"
 
@@ -117,9 +118,9 @@ struct FSmartObjectTestBase : FAITestBase
 		Subsystem->DebugInitializeRuntime();
 #endif
 
-		if (UMassEntitySubsystem* System = UWorld::GetSubsystem<UMassEntitySubsystem>(World))
+		if (FMassEntityManager* EntityManager = UE::Mass::Utils::GetEntityManager(World))
 		{
-			FMassProcessingContext ProcessingContext(*System, /* DeltaSeconds */ 0.f);
+			FMassProcessingContext ProcessingContext(*EntityManager, /* DeltaSeconds */ 0.f);
 			UE::Mass::Executor::RunProcessorsView(TArrayView<UMassProcessor*>(), ProcessingContext);
 		}
 
@@ -369,9 +370,9 @@ struct FSlotCustomData : FSmartObjectTestBase
 		Subsystem->AddSlotDataDeferred(ClaimHandle, FConstStructView::Make(NewRuntimeData));
 
 		// We need to run Mass to flush deferred commands
-		if (UMassEntitySubsystem* System = UWorld::GetSubsystem<UMassEntitySubsystem>(FAITestHelpers::GetWorld()))
+		if (FMassEntityManager* EntityManager = UE::Mass::Utils::GetEntityManager(FAITestHelpers::GetWorld()))
 		{
-			FMassProcessingContext ProcessingContext(*System, /* DeltaSeconds */ 0.f);
+			FMassProcessingContext ProcessingContext(*EntityManager, /* DeltaSeconds */ 0.f);
 			UE::Mass::Executor::RunProcessorsView(TArrayView<UMassProcessor*>(), ProcessingContext);
 		}
 

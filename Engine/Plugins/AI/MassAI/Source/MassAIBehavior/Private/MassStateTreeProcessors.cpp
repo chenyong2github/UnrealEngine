@@ -21,10 +21,10 @@ CSV_DEFINE_CATEGORY(StateTreeProcessor, true);
 namespace UE::MassBehavior
 {
 
-bool SetExternalFragments(FMassStateTreeExecutionContext& Context, const UMassEntitySubsystem& EntitySubsystem)
+bool SetExternalFragments(FMassStateTreeExecutionContext& Context, const FMassEntityManager& EntityManager)
 {
 	bool bFoundAllFragments = true;
-	const FMassEntityView EntityView(EntitySubsystem, Context.GetEntity());
+	const FMassEntityView EntityView(EntityManager, Context.GetEntity());
 	for (const FStateTreeExternalDataDesc& DataDesc : Context.GetExternalDataDescs())
 	{
 		if (DataDesc.Struct == nullptr)
@@ -142,7 +142,7 @@ void ForEachEntityInChunk(FMassExecutionContext& Context, FMassStateTreeExecutio
 		// Gather all required fragments.
 		{
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExternalFragments);
-			if (!ensureMsgf(UE::MassBehavior::SetExternalFragments(StateTreeContext, StateTreeContext.GetEntitySubsystem()), TEXT("StateTree will not execute due to missing required fragments.")))
+			if (!ensureMsgf(UE::MassBehavior::SetExternalFragments(StateTreeContext, StateTreeContext.GetEntityManager()), TEXT("StateTree will not execute due to missing required fragments.")))
 			{
 				break;
 			}
@@ -193,17 +193,17 @@ void UMassStateTreeFragmentDestructor::ConfigureQueries()
 	EntityQuery.AddSubsystemRequirement<UMassStateTreeSubsystem>(EMassFragmentAccess::ReadWrite);
 }
 
-void UMassStateTreeFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassStateTreeFragmentDestructor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	if (SignalSubsystem == nullptr)
 	{
 		return;
 	}
 		
-	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, *SignalSubsystem, Context);
+	FMassStateTreeExecutionContext StateTreeContext(EntityManager, *SignalSubsystem, Context);
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem,Context,
-		[this, &StateTreeContext, World = EntitySubsystem.GetWorld()](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntityManager,Context,
+		[this, &StateTreeContext, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
 		{
 			UMassStateTreeSubsystem& MassStateTreeSubsystem = Context.GetMutableSubsystemChecked<UMassStateTreeSubsystem>(World);
 			const TArrayView<FMassStateTreeInstanceFragment> StateTreeInstanceList = Context.GetMutableFragmentView<FMassStateTreeInstanceFragment>();
@@ -253,9 +253,9 @@ void UMassStateTreeActivationProcessor::ConfigureQueries()
 	ProcessorRequirements.AddSubsystemRequirement<UMassSignalSubsystem>(EMassFragmentAccess::ReadWrite);
 }
 
-void UMassStateTreeActivationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassStateTreeActivationProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
-	UMassSignalSubsystem& SignalSubsystem = Context.GetMutableSubsystemChecked<UMassSignalSubsystem>(EntitySubsystem.GetWorld());
+	UMassSignalSubsystem& SignalSubsystem = Context.GetMutableSubsystemChecked<UMassSignalSubsystem>(EntityManager.GetWorld());
 
 	const UMassBehaviorSettings* BehaviorSettings = GetDefault<UMassBehaviorSettings>();
 	check(BehaviorSettings);
@@ -263,15 +263,15 @@ void UMassStateTreeActivationProcessor::Execute(UMassEntitySubsystem& EntitySubs
 	// StateTree processor relies on signals to be ticked but we need an 'initial tick' to set the tree in the proper state.
 	// The initializer provides that by sending a signal to all new entities that use StateTree.
 
-	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, SignalSubsystem, Context);
+	FMassStateTreeExecutionContext StateTreeContext(EntityManager, SignalSubsystem, Context);
 
-	const float TimeInSeconds = EntitySubsystem.GetWorld()->GetTimeSeconds();
+	const float TimeInSeconds = EntityManager.GetWorld()->GetTimeSeconds();
 
 	TArray<FMassEntityHandle> EntitiesToSignal;
 	int32 ActivationCounts[EMassLOD::Max] {0,0,0,0};
 	
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context,
-		[&EntitiesToSignal, &ActivationCounts, MaxActivationsPerLOD = BehaviorSettings->MaxActivationsPerLOD, &StateTreeContext, TimeInSeconds, World = EntitySubsystem.GetWorld()](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntityManager, Context,
+		[&EntitiesToSignal, &ActivationCounts, MaxActivationsPerLOD = BehaviorSettings->MaxActivationsPerLOD, &StateTreeContext, TimeInSeconds, World = EntityManager.GetWorld()](FMassExecutionContext& Context)
 		{
 			UMassStateTreeSubsystem& MassStateTreeSubsystem = Context.GetMutableSubsystemChecked<UMassStateTreeSubsystem>(World);
 			const int32 NumEntities = Context.GetNumEntities();
@@ -379,20 +379,20 @@ void UMassStateTreeProcessor::ConfigureQueries()
 	ProcessorRequirements.AddSubsystemRequirement<UMassSignalSubsystem>(EMassFragmentAccess::ReadWrite);
 }
 
-void UMassStateTreeProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSignalNameLookup& EntitySignals)
+void UMassStateTreeProcessor::SignalEntities(FMassEntityManager& EntityManager, FMassExecutionContext& Context, FMassSignalNameLookup& EntitySignals)
 {
-	UWorld* World = EntitySubsystem.GetWorld();
+	UWorld* World = EntityManager.GetWorld();
 	UMassSignalSubsystem& SignalSubsystem = Context.GetMutableSubsystemChecked<UMassSignalSubsystem>(World);
 	
 	QUICK_SCOPE_CYCLE_COUNTER(StateTreeProcessor_Run);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExecute);
 
-	const float TimeInSeconds = EntitySubsystem.GetWorld()->GetTimeSeconds();
-	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, SignalSubsystem, Context);
+	const float TimeInSeconds = EntityManager.GetWorld()->GetTimeSeconds();
+	FMassStateTreeExecutionContext StateTreeContext(EntityManager, SignalSubsystem, Context);
 
 	TArray<FMassEntityHandle> EntitiesToSignal;
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context,
+	EntityQuery.ForEachEntityChunk(EntityManager, Context,
 		[this, &StateTreeContext, TimeInSeconds, &EntitiesToSignal, World, &EntitySignals](FMassExecutionContext& Context)
 		{
 			// Keep stats regarding the amount of tree instances ticked per frame

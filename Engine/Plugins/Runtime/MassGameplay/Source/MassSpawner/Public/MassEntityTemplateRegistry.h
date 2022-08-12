@@ -11,7 +11,6 @@
 
 
 class UWorld;
-class UMassEntitySubsystem;
 class UMassEntityTraitBase;
 
 enum class EFragmentInitialization : uint8

@@ -2,6 +2,8 @@
 
 #include "MassClientBubbleSerializerBase.h"
 #include "MassClientBubbleHandler.h"
+#include "MassEntityUtils.h"
+
 
 void FMassClientBubbleSerializerBase::InitializeForWorld(UWorld& InWorld)
 {
@@ -12,8 +14,7 @@ void FMassClientBubbleSerializerBase::InitializeForWorld(UWorld& InWorld)
 
 	ReplicationSubsystem = InWorld.GetSubsystem<UMassReplicationSubsystem>();
 
-	EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
-	check(EntitySystem);
+	EntityManager = UE::Mass::Utils::GetEntityManagerChecked(InWorld).AsShared();
 
 	checkf(ClientHandler, TEXT("ClientHandler must be setup! See SetClientHandler()"));
 }

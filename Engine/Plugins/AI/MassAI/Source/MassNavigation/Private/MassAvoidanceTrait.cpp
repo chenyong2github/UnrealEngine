@@ -7,11 +7,12 @@
 #include "MassCommonFragments.h"
 #include "MassNavigationFragments.h"
 #include "Engine/World.h"
+#include "MassEntityUtils.h"
+
 
 void UMassObstacleAvoidanceTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
-	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
-	check(EntitySubsystem);
+	FMassEntityManager& EntityManager = UE::Mass::Utils::GetEntityManagerChecked(World);
 
 	BuildContext.RequireFragment<FAgentRadiusFragment>();
 	BuildContext.AddFragment<FMassNavigationEdgesFragment>();
@@ -22,11 +23,11 @@ void UMassObstacleAvoidanceTrait::BuildTemplate(FMassEntityTemplateBuildContext&
 
 	const FMassMovingAvoidanceParameters MovingValidated = MovingParameters.GetValidated();
 	const uint32 MovingHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(MovingValidated));
-	const FConstSharedStruct MovingFragment = EntitySubsystem->GetOrCreateConstSharedFragment(MovingHash, MovingValidated);
+	const FConstSharedStruct MovingFragment = EntityManager.GetOrCreateConstSharedFragment(MovingHash, MovingValidated);
 	BuildContext.AddConstSharedFragment(MovingFragment);
 
 	const FMassStandingAvoidanceParameters StandingValidated = StandingParameters.GetValidated();
 	const uint32 StandingHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(StandingValidated));
-	const FConstSharedStruct StandingFragment = EntitySubsystem->GetOrCreateConstSharedFragment(StandingHash, StandingValidated);
+	const FConstSharedStruct StandingFragment = EntityManager.GetOrCreateConstSharedFragment(StandingHash, StandingValidated);
 	BuildContext.AddConstSharedFragment(StandingFragment);
 }

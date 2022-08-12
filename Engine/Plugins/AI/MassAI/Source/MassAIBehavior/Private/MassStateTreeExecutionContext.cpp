@@ -6,10 +6,10 @@
 #include "MassSignalSubsystem.h"
 #include "Engine/World.h"
 
-FMassStateTreeExecutionContext::FMassStateTreeExecutionContext(UMassEntitySubsystem& InEntitySubsystem,
+FMassStateTreeExecutionContext::FMassStateTreeExecutionContext(FMassEntityManager& InEntityManager,
                                                                UMassSignalSubsystem& InSignalSubsystem,
                                                                FMassExecutionContext& InContext):
-	EntitySubsystem(&InEntitySubsystem), SignalSubsystem(&InSignalSubsystem), EntitySubsystemExecutionContext(&InContext)
+	EntityManager(&InEntityManager), SignalSubsystem(&InSignalSubsystem), EntitySubsystemExecutionContext(&InContext)
 {
 }
 

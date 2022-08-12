@@ -29,13 +29,13 @@ public:
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
 
 	template <bool bLocalViewersOnly>
 	void CollectLODForChunk(FMassExecutionContext& Context);
 
 	template <bool bLocalViewersOnly>
-	void ExecuteInternal(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context);
+	void ExecuteInternal(FMassEntityManager& EntityManager, FMassExecutionContext& Context);
 
 	TMassLODCollector<FMassGenericCollectorLogic> Collector;
 

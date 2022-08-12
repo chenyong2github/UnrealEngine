@@ -22,17 +22,17 @@ void UMassNetworkIDFragmentInitializer::ConfigureQueries()
 	EntityQuery.AddSubsystemRequirement<UMassReplicationSubsystem>(EMassFragmentAccess::ReadWrite);
 }
 
-void UMassNetworkIDFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassNetworkIDFragmentInitializer::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(MassProcessor_InitNetworkID_Run);
 
-	const UWorld* World = EntitySubsystem.GetWorld();
+	const UWorld* World = EntityManager.GetWorld();
 	const ENetMode NetMode = World->GetNetMode();
 
 	if (NetMode != NM_Client)
 	{
 #if UE_REPLICATION_COMPILE_SERVER_CODE
-		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [World = EntitySubsystem.GetWorld()](FMassExecutionContext& Context)
+		EntityQuery.ForEachEntityChunk(EntityManager, Context, [World = EntityManager.GetWorld()](FMassExecutionContext& Context)
 			{
 				UMassReplicationSubsystem& ReplicationSubsystem = Context.GetMutableSubsystemChecked<UMassReplicationSubsystem>(World);
 

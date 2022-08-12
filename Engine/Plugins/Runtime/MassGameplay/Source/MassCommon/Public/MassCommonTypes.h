@@ -12,7 +12,6 @@
 
 class UStaticMesh;
 class UMaterialInterface;
-class UMassEntitySubsystem;
 
 #if WITH_MASSGAMEPLAY_DEBUG
 namespace UE::Mass::Debug

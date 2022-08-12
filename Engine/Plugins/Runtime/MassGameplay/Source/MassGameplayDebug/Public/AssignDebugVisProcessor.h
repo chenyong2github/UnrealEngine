@@ -16,7 +16,7 @@ class MASSGAMEPLAYDEBUG_API UAssignDebugVisProcessor : public UMassObserverProce
 public:
 	UAssignDebugVisProcessor();
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
 
 protected:
 	FMassEntityQuery EntityQuery;

@@ -37,7 +37,7 @@ protected:
 	 * @param EntitySubsystem is the system to execute the lambdas on each entity chunk
 	 * @param Context is the execution context to be passed when executing the lambdas
 	 */
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
 
 	/**
 	 * Release the actor to the subsystem, will only release it the actor or spawn request matches the template actor
@@ -62,8 +62,7 @@ protected:
 	UPROPERTY(Transient)
 	UWorld* World;
 
-	UPROPERTY(Transient)
-	UMassEntitySubsystem* CachedEntitySubsystem;
+	TSharedPtr<FMassEntityManager> EntityManager;
 
 	FMassEntityQuery EntityQuery;
 };
@@ -83,7 +82,7 @@ protected:
 	 * @param EntitySubsystem is the system to execute the lambdas on each entity chunk
 	 * @param Context is the execution context to be passed when executing the lambdas
 	 */
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
 
 	/**
 	 * Updates chunk visibility info for later chunk logic optimization
@@ -120,7 +119,7 @@ public:
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
 
 	FMassEntityQuery EntityQuery;
 };

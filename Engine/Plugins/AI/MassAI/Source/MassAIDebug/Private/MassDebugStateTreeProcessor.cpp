@@ -26,7 +26,7 @@ void UMassDebugStateTreeProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 }
 
-void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+void UMassDebugStateTreeProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 #if WITH_MASSGAMEPLAY_DEBUG
 	UWorld* World = GetWorld();
@@ -59,7 +59,7 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 	}
 	
 	QUICK_SCOPE_CYCLE_COUNTER(UMassDebugStateTreeProcessor_Run);	
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Debugger, MassStateTreeSubsystem, &EntitySubsystem, MassSignalSubsystem](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, Debugger, MassStateTreeSubsystem, &EntityManager, MassSignalSubsystem](FMassExecutionContext& Context)
 	{
 		const FMassEntityHandle SelectedEntity = Debugger->GetSelectedEntity();
 		const int32 NumEntities = Context.GetNumEntities();
@@ -94,7 +94,7 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 			
 			if (Entity == SelectedEntity)
 			{
-				FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, *MassSignalSubsystem, Context);
+				FMassStateTreeExecutionContext StateTreeContext(EntityManager, *MassSignalSubsystem, Context);
 				StateTreeContext.Init(*this, *StateTree, EStateTreeStorage::External);
 				StateTreeContext.SetEntity(Entity);
 				
@@ -112,7 +112,7 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 				const FVector ZOffset(0,0,50);
 				const FVector Position = Transform.GetTransform().GetLocation() + ZOffset;
 
-				FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, *MassSignalSubsystem, Context);
+				FMassStateTreeExecutionContext StateTreeContext(EntityManager, *MassSignalSubsystem, Context);
 				StateTreeContext.Init(*this, *StateTree, EStateTreeStorage::External);
 				StateTreeContext.SetEntity(Entity);
 
