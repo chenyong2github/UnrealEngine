@@ -60,7 +60,11 @@ void UReOrientRootBoneModifier::ReOrientRootBone_Internal(UAnimSequence* Animati
 	{
 		if (RefSkeleton.GetParentIndex(BoneIdx) == 0)
 		{
-			BonesTracks.Add(&Model->GetBoneTrackByIndex(BoneIdx));
+			const int32 BoneTrackIdx = Model->GetBoneTrackIndexByName(RefSkeleton.GetBoneName(BoneIdx));
+			if(BoneTrackIdx != INDEX_NONE)
+			{
+				BonesTracks.Add(&Model->GetBoneTrackByIndex(BoneTrackIdx));
+			}
 		}
 	}
 	
