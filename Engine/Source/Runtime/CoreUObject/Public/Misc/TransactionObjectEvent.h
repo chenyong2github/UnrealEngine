@@ -4,6 +4,8 @@
 
 #include "CoreTypes.h"
 #include "Misc/Guid.h"
+#include "UObject/NameTypes.h"
+#include "Templates/SharedPointer.h"
 
 class ITransactionObjectAnnotation;
 
