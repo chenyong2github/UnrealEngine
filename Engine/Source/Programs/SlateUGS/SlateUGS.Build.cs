@@ -10,6 +10,7 @@ public class SlateUGS : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"UGSCore",
 				"AppFramework",
 				"Core",
 				"ApplicationCore",
