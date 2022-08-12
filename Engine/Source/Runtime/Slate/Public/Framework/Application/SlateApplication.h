@@ -1037,7 +1037,7 @@ protected:
 	 */
 	TSharedRef<FSlateUser> GetOrCreateUser(FInputDeviceId DeviceId);
 	
-	FORCEINLINE TSharedRef<FSlateUser> GetOrCreateUser(const FInputEvent& InputEvent) { return GetOrCreateUser(InputEvent.GetUserIndex()); }
+	FORCEINLINE TSharedRef<FSlateUser> GetOrCreateUser(const FInputEvent& InputEvent) { return GetOrCreateUser(InputEvent.GetInputDeviceId()); }
 
 	friend class FEventRouter;
 
