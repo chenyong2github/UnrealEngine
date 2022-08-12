@@ -43,11 +43,18 @@ namespace BuildSettings
 	BUILDSETTINGS_API const TCHAR* GetBranchName();
 
 	/**
-	 * The timestamp of this build. Derived from the compiler's __DATE__ macro, so only updated when the BuildSettings module is rebuilt (ie. whenever CL changes, etc...)
+	 * The date timestamp of this build. Derived from the compiler's __DATE__ macro, so only updated when the BuildSettings module is rebuilt (ie. whenever CL changes, etc...)
 	 *
 	 * @return String representing the build timestamp
 	 */
 	BUILDSETTINGS_API const TCHAR* GetBuildDate();
+
+	/**
+	 * The time timestamp of this build. Derived from the compiler's __TIME__ macro, so only updated when the BuildSettings module is rebuilt (ie. whenever CL changes, etc...)
+	 *
+	 * @return String representing the build timestamp
+	 */
+	BUILDSETTINGS_API const TCHAR* GetBuildTime();
 
 	/**
 	 * Retrieves the user-defined build version for this application.

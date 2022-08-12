@@ -29,6 +29,11 @@ namespace BuildSettings
 		return TEXT(__DATE__);
 	}
 
+	const TCHAR* GetBuildTime()
+	{
+		return TEXT(__TIME__);
+	}
+
 	const TCHAR* GetBuildVersion()
 	{
 		return TEXT(BUILD_VERSION);
