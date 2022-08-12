@@ -361,7 +361,7 @@ struct CONTROLRIG_API FRigUnit_SpringInterpQuaternionV2 : public FRigUnit_SimBas
 	UPROPERTY(meta = (Output))
 	FVector AngularVelocity;
 
-	UPROPERTY(meta=(Output))
+	UPROPERTY()
 	FQuat SimulatedResult;
 
 	UPROPERTY()
