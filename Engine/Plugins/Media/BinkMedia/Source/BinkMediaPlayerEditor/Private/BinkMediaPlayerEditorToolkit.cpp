@@ -24,6 +24,8 @@ void FBinkMediaPlayerEditorToolkit::Initialize( UBinkMediaPlayer* InMediaPlayer,
 	MediaPlayer->SetFlags(RF_Transactional);
 	GEditor->RegisterForUndo(this);
 
+	FEditorDelegates::EndPIE.AddRaw(this, &FBinkMediaPlayerEditorToolkit::HandleEditorEndPIE);
+
 	const FBinkMediaPlayerEditorCommands& Commands = FBinkMediaPlayerEditorCommands::Get();
 
 	ToolkitCommands->MapAction(
@@ -83,6 +85,10 @@ void FBinkMediaPlayerEditorToolkit::Initialize( UBinkMediaPlayer* InMediaPlayer,
 
 	AddToolbarExtender(ToolbarExtender);
 	RegenerateMenusAndToolbars();
+}
+
+void FBinkMediaPlayerEditorToolkit::HandleEditorEndPIE(bool bIsSimulating) {
+	MediaPlayer->InitializePlayer();
 }
 
 void FBinkMediaPlayerEditorToolkit::RegisterTabSpawners( const TSharedRef<class FTabManager>& TabManagerParam ) 

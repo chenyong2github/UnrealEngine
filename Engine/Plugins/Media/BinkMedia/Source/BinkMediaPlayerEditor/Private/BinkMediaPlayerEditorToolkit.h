@@ -22,6 +22,7 @@ struct FBinkMediaPlayerEditorToolkit : public FAssetEditorToolkit, public FEdito
 		FReimportManager::Instance()->OnPostReimport().RemoveAll(this);
 
 		GEditor->UnregisterForUndo(this);
+		FEditorDelegates::EndPIE.RemoveAll(this);
 	}
 
 	void Initialize( UBinkMediaPlayer* InMediaPlayer, const EToolkitMode::Type InMode, const TSharedPtr<class IToolkitHost>& InToolkitHost );
@@ -60,6 +61,7 @@ private:
 	void HandlePlayMediaActionExecute() { MediaPlayer->Play(); }
 	bool HandleRewindMediaActionCanExecute() const { return MediaPlayer->CanPlay() && MediaPlayer->GetTime() > FTimespan::Zero(); }
 	void HandleRewindMediaActionExecute() { MediaPlayer->Rewind(); }
+	void HandleEditorEndPIE(bool bIsSimulating);
 
 	TSharedRef<SDockTab> HandleTabManagerSpawnTab( const FSpawnTabArgs& Args, FName TabIdentifier );
 	UBinkMediaPlayer* MediaPlayer;
