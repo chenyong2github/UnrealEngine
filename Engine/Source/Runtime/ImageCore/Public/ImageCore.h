@@ -591,6 +591,15 @@ IMAGECORE_API void TransposeImageRGBABGRA(const FImageView & Image);
 */
 IMAGECORE_API void SanitizeFloat16AndSetAlphaOpaqueForBC6H(const FImageView & InOutImage);
 
+
+/**
+ * Detects whether or not the image contains an alpha channel where at least one texel is != 255.
+ * 
+ * @param InImage - The image to look for alpha in.
+ * @return True if the image both supports and uses the alpha channel. False otherwise.
+ */
+IMAGECORE_API bool DetectAlphaChannel(const FImage & InImage);
+
 };
 
 
