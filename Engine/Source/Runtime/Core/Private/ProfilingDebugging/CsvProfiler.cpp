@@ -2712,6 +2712,7 @@ FCsvProfiler* FCsvProfiler::Get()
 FCsvProfiler::FCsvProfiler()
 	: NumFramesToCapture(-1)
 	, CaptureFrameNumber(0)
+	, CaptureFrameNumberRT(0)
 	, CaptureOnEventFrameCount(-1)
 	, bInsertEndFrameAtFrameStart(false)
 	, LastEndFrameTimestamp(0)
@@ -2868,6 +2869,7 @@ void FCsvProfiler::BeginFrame()
 					NumFramesToCapture = CurrentCommand.Value;
 					GCsvRepeatFrameCount = NumFramesToCapture;
 					CaptureFrameNumber = 0;
+					CaptureFrameNumberRT = 0;
 					LastEndFrameTimestamp = FPlatformTime::Cycles64();
 					CurrentFlags = CurrentCommand.Flags;
 
@@ -3142,6 +3144,10 @@ void FCsvProfiler::EndFrameRT()
 {
 	LLM_SCOPE(ELLMTag::CsvProfiler);
 	check(IsInRenderingThread());
+	if (GCsvProfilerIsCapturing)
+	{
+		CaptureFrameNumberRT++;
+	}
 }
 
 void FCsvProfiler::BeginCapture(int InNumFramesToCapture, 
@@ -3719,6 +3725,12 @@ int32 FCsvProfiler::GetCaptureFrameNumber()
 {
 	return CaptureFrameNumber;
 }
+
+int32 FCsvProfiler::GetCaptureFrameNumberRT()
+{
+	return CaptureFrameNumberRT;
+}
+
 
 //Get the total frame to capture when we are capturing on event. 
 //Example:  -csvStartOnEvent="My Event"
