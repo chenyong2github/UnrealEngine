@@ -63,10 +63,16 @@ private:
 				const FMovieSceneBlendChannelID& BlendID(BlendIDs[Index]);
 				ensureMsgf(BlendID.SystemID == BlenderSystemID, TEXT("Overriding the standard blender system of standard types isn't supported."));
 
+				if (!OutBlendResults.IsValidIndex(BlendID.ChannelID))
+				{
+					const bool bShrinkArray = false;
+					OutBlendResults.SetNum(BlendID.ChannelID + 1, bShrinkArray);
+				}
+
 				FBlendResult& Result = OutBlendResults[BlendID.ChannelID];
 
 				const float Weight = OptionalEasingAndWeights[Index];
-				Result.Total  += InResults[Index] * Weight;
+				Result.Total += InResults[Index] * Weight;
 				Result.Weight += Weight;
 			}
 		}
@@ -78,8 +84,14 @@ private:
 				const FMovieSceneBlendChannelID& BlendID(BlendIDs[Index]);
 				ensureMsgf(BlendID.SystemID == BlenderSystemID, TEXT("Overriding the standard blender system of standard types isn't supported."));
 
+				if (!OutBlendResults.IsValidIndex(BlendID.ChannelID))
+				{
+					const bool bShrinkArray = false;
+					OutBlendResults.SetNum(BlendID.ChannelID + 1, bShrinkArray);
+				}
+
 				FBlendResult& Result = OutBlendResults[BlendID.ChannelID];
-				Result.Total  += InResults[Index];
+				Result.Total += InResults[Index];
 				Result.Weight += 1.f;
 			}
 		}
