@@ -657,7 +657,7 @@ const UDataLayerInstance* AWorldDataLayers::GetDataLayerInstanceFromAssetName(co
 #if WITH_EDITOR	
 	for (UDataLayerInstance* DataLayerInstance : DataLayerInstances)
 	{
-		if (DataLayerInstance->GetDataLayerFullName().Compare(InDataLayerAssetFullName.ToString(), ESearchCase::IgnoreCase))
+		if (DataLayerInstance->GetDataLayerFullName().Equals(InDataLayerAssetFullName.ToString(), ESearchCase::IgnoreCase))
 		{
 			return DataLayerInstance;
 		}
