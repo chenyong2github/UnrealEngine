@@ -524,7 +524,7 @@ bool FGameplayCueTranslationManager::TranslateTag_Internal(FGameplayCueTranslato
 			{
 				if (TranslationLUT.IsValidIndex(NodeIndex) == false)
 				{
-					UE_LOG(LogGameplayCueTranslator, Error, TEXT("FGameplayCueTranslationManager::TranslateTag_Internal %s invalid index %d was returned from NodeLookup. NodeLookup.Num=%d. Tag %s"), *GetNameSafe(Link.RulesCDO), NodeIndex, TranslationLUT.Num(), *TagName.ToString());
+					UE_LOG(LogGameplayCueTranslator, Error, TEXT("FGameplayCueTranslationManager::TranslateTag_Internal %s invalid index %d was returned from NodeLookup. NodeLookup.Num=%d. Tag %s"), *GetNameSafe(Link.RulesCDO), NodeIndex.Index, TranslationLUT.Num(), *TagName.ToString());
 					continue;
 				}
 
