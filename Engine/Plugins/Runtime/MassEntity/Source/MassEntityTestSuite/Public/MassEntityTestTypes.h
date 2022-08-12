@@ -4,7 +4,7 @@
 
 #include "MassProcessor.h"
 #include "MassEntityTypes.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "AITestsCommon.h"
 #include "Math/RandomStream.h"
 #include "Subsystems/WorldSubsystem.h"

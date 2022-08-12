@@ -11,7 +11,7 @@
 #include "EnvironmentQuery/EnvQuery.h"
 #include "VisualLogger/VisualLogger.h"
 #include "MassEntityConfigAsset.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "EngineUtils.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"

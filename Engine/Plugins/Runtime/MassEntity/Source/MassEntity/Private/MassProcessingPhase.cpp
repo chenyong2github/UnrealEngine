@@ -6,6 +6,7 @@
 #include "MassEntitySettings.h"
 #include "MassProcessor.h"
 #include "MassExecutor.h"
+#include "MassEntityManager.h"
 #include "MassEntitySubsystem.h"
 #include "VisualLogger/VisualLogger.h"
 #include "Engine/World.h"

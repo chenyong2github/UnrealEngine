@@ -5,7 +5,7 @@
 #include "GameplayTagsManager.h"
 #include "Engine/World.h"
 #include "MassExecutor.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "SmartObjectSubsystem.h"
 #include "SmartObjectComponent.h"
 #include "SmartObjectTestTypes.h"

@@ -4,7 +4,7 @@
 #include "Logging/LogMacros.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "VisualLogger/VisualLogger.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassCommonTypes.h"
 #include "MassMovementFragments.h"
 #include "MassSpawnerTypes.h"

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassEntityTypes.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassCommonTypes.h"
 #include "MassRepresentationTypes.h"
 #include "MassLODFragments.h"

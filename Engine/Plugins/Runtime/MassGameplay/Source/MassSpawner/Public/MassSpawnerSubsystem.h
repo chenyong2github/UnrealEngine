@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "InstancedStruct.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "MassSpawnerSubsystem.generated.h"

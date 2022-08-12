@@ -6,6 +6,8 @@
 #include "SmartObjectCollection.h"
 #include "EngineUtils.h"
 #include "MassCommandBuffer.h"
+#include "MassEntityManager.h"
+#include "MassEntitySubsystem.h"
 #include "SmartObjectHashGrid.h"
 #include "VisualLogger/VisualLogger.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"

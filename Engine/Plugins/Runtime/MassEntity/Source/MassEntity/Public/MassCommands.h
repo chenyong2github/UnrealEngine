@@ -6,7 +6,7 @@
 #include "Misc/MTAccessDetector.h"
 #include "MassEntityTypes.h"
 #include "MassEntityUtils.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 
 /**
  * Enum used by MassBatchCommands to declare their "type". This data is later used to group commands so that command 

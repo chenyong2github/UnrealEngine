@@ -2,7 +2,7 @@
 
 #include "MassEntityQuery.h"
 #include "MassDebugger.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassArchetypeData.h"
 #include "MassCommandBuffer.h"
 #include "VisualLogger/VisualLogger.h"

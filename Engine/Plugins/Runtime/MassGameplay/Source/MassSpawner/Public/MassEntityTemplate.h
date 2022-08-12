@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MassProcessingTypes.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassCommonTypes.h"
 #include "MassTranslator.h"
 #include "MassEntityTemplate.generated.h"

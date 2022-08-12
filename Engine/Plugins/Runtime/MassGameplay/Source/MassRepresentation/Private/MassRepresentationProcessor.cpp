@@ -6,7 +6,7 @@
 #include "MassActorSubsystem.h"
 #include "MassCommonFragments.h"
 #include "MassCommandBuffer.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassEntityView.h"
 #include "Engine/World.h"
 #include "MassRepresentationActorManagement.h"

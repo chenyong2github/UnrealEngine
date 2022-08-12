@@ -3,7 +3,7 @@
 #include "SmartObjectRuntime.h"
 
 #include "SmartObjectSubsystem.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 
 const FSmartObjectClaimHandle FSmartObjectClaimHandle::InvalidHandle = {};
 

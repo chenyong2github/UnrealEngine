@@ -3,6 +3,7 @@
 #include "MassAgentComponent.h"
 #include "EngineUtils.h"
 #include "MassEntityView.h"
+#include "MassEntityManager.h"
 #include "MassEntitySubsystem.h"
 #include "MassCommonTypes.h"
 #include "MassAgentSubsystem.h"

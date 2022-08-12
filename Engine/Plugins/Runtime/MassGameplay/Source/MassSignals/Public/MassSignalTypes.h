@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Logging/LogMacros.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 //#include "MassSignalTypes.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMassSignals, Log, All)

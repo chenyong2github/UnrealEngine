@@ -9,7 +9,6 @@
 
 class UMassDebugVisualizationComponent;
 class AMassDebugVisualizer;
-class UMassEntitySubsystem;
 
 UCLASS()
 class MASSGAMEPLAYDEBUG_API UMassDebuggerSubsystem : public UWorldSubsystem

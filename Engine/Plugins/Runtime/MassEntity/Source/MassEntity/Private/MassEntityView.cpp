@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassEntityView.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassArchetypeData.h"
 
 

@@ -5,10 +5,10 @@
 #include "MassCommonTypes.h"
 #include "MassSimulationSubsystem.h"
 #include "MassDebugVisualizationComponent.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassDebugVisualizer.h"
 #include "MassDebugger.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 
 
 void UMassDebuggerSubsystem::Initialize(FSubsystemCollectionBase& Collection)

@@ -2,7 +2,7 @@
 
 #include "Translators/MassTranslators_BehaviorTree.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 
 UMassTranslator_BehaviorTree::UMassTranslator_BehaviorTree()
 	: EntityQuery(*this)

@@ -3,7 +3,7 @@
 #include "MassGameplayDebugTypes.h"
 #include "MassCommonTypes.h"
 #include "MassCommonFragments.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 
 
 #if WITH_MASSGAMEPLAY_DEBUG

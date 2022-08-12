@@ -2,7 +2,7 @@
 
 #include "Translators/MassCapsuleComponentTranslators.h"
 #include "MassCommonTypes.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "Components/CapsuleComponent.h"
 
 

@@ -2,7 +2,7 @@
 
 #include "MassDebuggerModel.h"
 #include "MassProcessor.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassEntityQuery.h"
 #include "Engine/Engine.h"
 #include "MassDebugger.h"

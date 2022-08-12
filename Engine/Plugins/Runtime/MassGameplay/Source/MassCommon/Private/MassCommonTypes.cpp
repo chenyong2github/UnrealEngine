@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassCommonTypes.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "Math/ColorList.h"
 #include "HAL/IConsoleManager.h"
 

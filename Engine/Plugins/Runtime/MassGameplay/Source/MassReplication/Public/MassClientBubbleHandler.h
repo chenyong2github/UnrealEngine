@@ -4,7 +4,7 @@
 
 #include "MassCommonTypes.h"
 #include "MassReplicationTypes.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "Containers/ArrayView.h"
 #include "MassClientBubbleSerializerBase.h"
 #include "MassSpawnerSubsystem.h"

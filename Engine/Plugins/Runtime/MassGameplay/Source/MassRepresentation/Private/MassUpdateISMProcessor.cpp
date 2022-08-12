@@ -3,7 +3,7 @@
 #include "MassUpdateISMProcessor.h"
 #include "MassVisualizationComponent.h"
 #include "MassRepresentationSubsystem.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassRepresentationFragments.h"
 #include "MassCommonFragments.h"
 #include "MassLODFragments.h"

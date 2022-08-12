@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "Subsystems/WorldSubsystem.h"
-#include "MassEntitySubsystem.h"
+#include "MassArchetypeTypes.h"
 #include "Async/TaskGraphInterfaces.h"
 
 

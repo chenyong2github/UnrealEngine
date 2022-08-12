@@ -3,6 +3,7 @@
 #include "MassEntityUtils.h"
 #include "MassEntityTypes.h"
 #include "MassArchetypeTypes.h"
+#include "MassEntityManager.h"
 #include "MassEntitySubsystem.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/World.h"

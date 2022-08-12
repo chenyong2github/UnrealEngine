@@ -2,7 +2,7 @@
 
 #include "MassStateTreeExecutionContext.h"
 #include "MassStateTreeTypes.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassSignalSubsystem.h"
 #include "Engine/World.h"
 

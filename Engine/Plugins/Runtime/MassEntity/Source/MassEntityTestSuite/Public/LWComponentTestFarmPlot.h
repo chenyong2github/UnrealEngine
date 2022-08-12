@@ -7,7 +7,7 @@
 #include "Engine/DataTable.h"
 
 #include "MassEntityTypes.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassCommandBuffer.h"
 
 #include "LWComponentTestFarmPlot.generated.h"

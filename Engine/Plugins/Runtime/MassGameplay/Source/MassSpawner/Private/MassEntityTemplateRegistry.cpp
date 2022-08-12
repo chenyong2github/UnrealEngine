@@ -2,7 +2,7 @@
 
 #include "MassEntityTemplateRegistry.h"
 #include "MassSpawnerTypes.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "Engine/World.h"
 #include "VisualLogger/VisualLogger.h"
 #include "HAL/IConsoleManager.h"

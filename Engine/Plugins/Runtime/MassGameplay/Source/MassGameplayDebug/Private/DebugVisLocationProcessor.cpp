@@ -5,7 +5,7 @@
 #include "MassDebugVisualizationComponent.h"
 #include "MassCommonFragments.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassMovementFragments.h"
 
 //----------------------------------------------------------------------//

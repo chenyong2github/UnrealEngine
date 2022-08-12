@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassEntityTestTypes.h"
 #include "Algo/RandomShuffle.h"
 

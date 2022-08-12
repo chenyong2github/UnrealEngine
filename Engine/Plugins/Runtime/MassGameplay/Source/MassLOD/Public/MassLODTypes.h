@@ -4,7 +4,7 @@
 
 #include "MassEntityTypes.h"
 #include "Containers/StaticArray.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 
 #include "MassLODTypes.generated.h"
 

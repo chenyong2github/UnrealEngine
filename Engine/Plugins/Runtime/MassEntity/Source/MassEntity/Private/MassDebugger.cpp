@@ -3,6 +3,7 @@
 #include "MassDebugger.h"
 #if WITH_MASSENTITY_DEBUG
 #include "MassProcessor.h"
+#include "MassEntityManager.h"
 #include "MassEntitySubsystem.h"
 #include "MassArchetypeTypes.h"
 #include "MassArchetypeData.h"

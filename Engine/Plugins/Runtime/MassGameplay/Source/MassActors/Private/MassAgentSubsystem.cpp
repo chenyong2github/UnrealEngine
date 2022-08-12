@@ -3,7 +3,7 @@
 #include "MassAgentSubsystem.h"
 #include "MassCommandBuffer.h"
 #include "Engine/World.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassCommonTypes.h"
 #include "MassSimulationSubsystem.h"
 #include "MassSpawnerSubsystem.h"

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassProcessor.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassSignalTypes.h"
 #include "Containers/StaticArray.h"
 #include "MassSignalProcessorBase.generated.h"

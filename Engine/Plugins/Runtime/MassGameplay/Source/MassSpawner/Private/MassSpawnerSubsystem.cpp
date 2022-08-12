@@ -3,7 +3,7 @@
 #include "MassSpawnerSubsystem.h"
 #include "MassSpawnerTypes.h"
 #include "MassEntityTemplate.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassEntityTemplateRegistry.h"
 #include "Engine/World.h"
 #include "MassExecutor.h"

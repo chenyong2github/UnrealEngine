@@ -3,6 +3,7 @@
 #include "MassActorSubsystem.h"
 #include "MassCommonTypes.h"
 #include "Engine/World.h"
+#include "MassEntityManager.h"
 #include "MassEntitySubsystem.h"
 #include "MassSimulationSubsystem.h"
 #include "VisualLogger/VisualLogger.h"

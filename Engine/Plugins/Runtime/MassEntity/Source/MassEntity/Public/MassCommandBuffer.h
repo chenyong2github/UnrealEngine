@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassEntityTypes.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "InstancedStructStream.h"
 #include "Misc/MTAccessDetector.h"
 #include "MassEntityUtils.h"

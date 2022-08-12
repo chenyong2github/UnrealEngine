@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassArchetypeTypes.h"
 
 struct FMassEntityQuery;

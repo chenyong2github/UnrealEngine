@@ -11,7 +11,7 @@
 #include "MassSimulationSettings.h"
 #include "MassAgentComponent.h"
 #include "MassAgentSubsystem.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassRepresentationFragments.h"
 #include "MassRepresentationActorManagement.h"
 #include "MassEntityView.h"

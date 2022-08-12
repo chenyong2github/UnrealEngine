@@ -5,7 +5,7 @@
 #include "Engine/ChildConnection.h"
 #include "GameFramework/GameModeBase.h"
 #include "MassCommonTypes.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassClientBubbleHandler.h"
 #include "MassClientBubbleInfoBase.h"
 #include "MassReplicationSettings.h"

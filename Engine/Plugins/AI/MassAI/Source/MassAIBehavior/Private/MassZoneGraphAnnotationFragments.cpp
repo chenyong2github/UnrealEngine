@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassZoneGraphAnnotationFragments.h"
-#include "MassEntitySubsystem.h"
+#include "MassEntityManager.h"
 #include "MassSimulationLOD.h"
 
 namespace UE::Mass::ZoneGraphAnnotations

@@ -12,6 +12,7 @@
 #include "MassActorSubsystem.h"
 #include "GameFramework/PlayerController.h"
 #include "MassAgentComponent.h"
+#include "MassEntityManager.h"
 #include "MassEntitySubsystem.h"
 #include "MassNavigationFragments.h"
 #include "Steering/MassSteeringFragments.h"
