@@ -23,7 +23,7 @@
 	[
 		{
 			"Name" : "DatasmithC4DTranslator",
-			"Type" : "Editor",
+			"Type" : "Runtime",
 			"LoadingPhase" : "PostDefault",
 			"PlatformAllowList" :
 			[

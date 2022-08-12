@@ -8,13 +8,16 @@
 #include "DatasmithSceneSource.h"
 #include "IDatasmithSceneElements.h"
 
-#include "Framework/Notifications/NotificationManager.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "Styling/AppStyle.h"
 #include "Templates/TypeHash.h"
+
+#if WITH_EDITOR
+#include "Framework/Notifications/NotificationManager.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "DatasmithC4DTranslator"
 
@@ -105,7 +108,9 @@ void FDatasmithC4DTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDat
 	{
 		FDatasmithC4DImportOptions C4DImportOptions;
 		C4DImportOptions.bImportEmptyMesh = ImportOptions->bImportEmptyMesh;
+#if WITH_EDITORONLY_DATA
 		C4DImportOptions.bExportToUDatasmith = ImportOptions->bExportToUDatasmith;
+#endif
 		C4DImportOptions.bAlwaysGenerateNormals = ImportOptions->bAlwaysGenerateNormals;
 		C4DImportOptions.ScaleVertices = ImportOptions->ScaleVertices;
 		C4DImportOptions.bOptimizeEmptySingleChildActors = ImportOptions->bOptimizeEmptySingleChildActors;
@@ -126,9 +131,17 @@ TStrongObjectPtr<UDatasmithC4DImportOptions>& FDatasmithC4DTranslator::GetOrCrea
 constexpr auto IMPROVED_IMPORTER_URL = TEXT("https://www.maxon.net/unreal");
 
 void NotifyImprovedImporter()
-{	
-	if (IsRunningCommandlet())
+{
+#if WITH_EDITOR
+	if (!IsInGameThread() && !IsInSlateThread() && !IsInAsyncLoadingThread())
+	{
 		return;
+	}
+
+	if (IsRunningCommandlet())
+	{
+		return;
+	}
 
 	UE_LOG(DatasmithC4DTranslatorLog, Warning, TEXT("Old DatasmithC4DTranslator loaded"));
 
@@ -147,6 +160,7 @@ void NotifyImprovedImporter()
 	Info.HyperlinkText = LOCTEXT("GoToMaxon", "Go to Maxon...");
 
 	FSlateNotificationManager::Get().AddNotification(Info);
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE

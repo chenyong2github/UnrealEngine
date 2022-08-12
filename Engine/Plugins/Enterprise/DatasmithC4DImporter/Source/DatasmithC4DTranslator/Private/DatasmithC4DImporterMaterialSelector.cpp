@@ -13,17 +13,17 @@
 
 FDatasmithC4DImporterMaterialSelector::FDatasmithC4DImporterMaterialSelector()
 {
-	MasterMaterial.FromSoftObjectPath( FSoftObjectPath("/DatasmithContent/Materials/C4DMaster.C4DMaster") );
+	BaseMaterial.FromSoftObjectPath( FSoftObjectPath("/DatasmithContent/Materials/C4DMaster.C4DMaster") );
 }
 
 bool FDatasmithC4DImporterMaterialSelector::IsValid() const
 {
-	return MasterMaterial.IsValid();
+	return BaseMaterial.IsValid();
 }
 
 const FDatasmithMasterMaterial& FDatasmithC4DImporterMaterialSelector::GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& /*InDatasmithMaterial*/ ) const
 {
-	return MasterMaterial;
+	return BaseMaterial;
 }
 
 void FDatasmithC4DImporterMaterialSelector::FinalizeMaterialInstance(const TSharedPtr<IDatasmithMasterMaterialElement>& InDatasmithMaterial, UMaterialInstanceConstant * MaterialInstance) const

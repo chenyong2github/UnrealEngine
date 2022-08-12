@@ -23,5 +23,5 @@ public:
 
 private:
 
-	FDatasmithMasterMaterial MasterMaterial;
+	FDatasmithMasterMaterial BaseMaterial;
 };

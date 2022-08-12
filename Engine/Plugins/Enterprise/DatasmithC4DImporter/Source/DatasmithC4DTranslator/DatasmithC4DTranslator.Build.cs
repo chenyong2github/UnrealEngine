@@ -19,10 +19,7 @@ namespace UnrealBuildTool.Rules
 					"DatasmithCore",
 					"Engine",
 					"MeshDescription",
-					"Slate",
-					"SlateCore",
 					"StaticMeshDescription",
-					"EditorStyle",
 					"Imath",
 				}
 			);
@@ -33,6 +30,9 @@ namespace UnrealBuildTool.Rules
 					new string[]
 					{
 						"DatasmithExporter",
+						"Slate",
+						"SlateCore",
+						"EditorStyle",
 					}
 				);
 			}
