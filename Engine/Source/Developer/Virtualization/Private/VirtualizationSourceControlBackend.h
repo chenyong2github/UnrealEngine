@@ -21,7 +21,7 @@ class FSemaphore;
  * backend, found in Utils::PayloadIdToPath.
  *
  * Ini file setup:
- * 'Name'=(Type=SourceControl, DepotRoot="//XXX/", UsePartitionedClient=X, SubmitFromTempDir=X)
+ * 'Name'=(Type=P4SourceControl, DepotRoot="//XXX/", UsePartitionedClient=X, SubmitFromTempDir=X)
  * Where 'Name' is the backend name in the hierarchy and 'XXX' is the path in the source control
  * depot where the payload files are being stored.
  * 
