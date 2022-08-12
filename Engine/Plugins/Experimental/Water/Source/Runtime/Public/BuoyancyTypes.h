@@ -184,6 +184,10 @@ struct FBuoyancyData
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Buoyancy)
 	TArray<FSphericalPontoon> Pontoons;
 
+	/** If true, center pontoons around center of mass when using relative locations
+		(not used when pontoon locations are specified via sockets) */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Buoyancy)
+	bool bCenterPontoonsOnCOM = true;
 
 	/** Increases buoyant force applied on each pontoon. */
 	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)

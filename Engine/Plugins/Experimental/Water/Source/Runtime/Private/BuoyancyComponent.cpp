@@ -377,31 +377,40 @@ void UBuoyancyComponent::ComputePontoonCoefficients()
 	TArray<float>& PontoonCoefficients = ConfiguredPontoonCoefficients.FindOrAdd(PontoonConfiguration);
 	if (PontoonCoefficients.Num() == 0)
 	{
-		TArray<FVector> LocalPontoonLocations;
-		if (!SimulatingComponent)
-		{
-			return;
-		}
-		for (int32 PontoonIndex = 0; PontoonIndex < BuoyancyData.Pontoons.Num(); ++PontoonIndex)
-		{
-			const FSphericalPontoon& Pontoon = BuoyancyData.Pontoons[PontoonIndex];
-			if (PontoonConfiguration & (1 << PontoonIndex))
-			{
-				if (Pontoon.bUseCenterSocket)
-				{
-					const FVector LocalPosition = SimulatingComponent->GetSocketTransform(Pontoon.CenterSocket, ERelativeTransformSpace::RTS_ParentBoneSpace).GetLocation();
-					LocalPontoonLocations.Add(LocalPosition);
-				}
-				else
-				{
-					LocalPontoonLocations.Add(Pontoon.RelativeLocation);
-				}
-			}
-		}
-		PontoonCoefficients.AddZeroed(LocalPontoonLocations.Num());
 		if (FBodyInstance* BodyInstance = SimulatingComponent->GetBodyInstance())
 		{
+			TArray<FVector> LocalPontoonLocations;
 			const FVector& LocalCOM = BodyInstance->GetMassSpaceLocal().GetLocation();
+
+			if (!SimulatingComponent)
+			{
+				return;
+			}
+
+			for (int32 PontoonIndex = 0; PontoonIndex < BuoyancyData.Pontoons.Num(); ++PontoonIndex)
+			{
+				const FSphericalPontoon& Pontoon = BuoyancyData.Pontoons[PontoonIndex];
+				if (PontoonConfiguration & (1 << PontoonIndex))
+				{
+					if (Pontoon.bUseCenterSocket)
+					{
+						const FVector LocalPosition = SimulatingComponent->GetSocketTransform(Pontoon.CenterSocket, ERelativeTransformSpace::RTS_ParentBoneSpace).GetLocation();
+						LocalPontoonLocations.Add(LocalPosition);
+					}
+					else
+					{
+						// If using the relative location for the pontoon and the buoyancydata indicates
+						// that we should center on COM, then shift the relative location to be centered.
+						const FVector PontoonRelativeLocation
+							= BuoyancyData.bCenterPontoonsOnCOM
+							? Pontoon.RelativeLocation - LocalCOM
+							: Pontoon.RelativeLocation;
+						LocalPontoonLocations.Add(PontoonRelativeLocation);
+					}
+				}
+			}
+
+			PontoonCoefficients.AddZeroed(LocalPontoonLocations.Num());
 			//Distribute a mass of 1 to each pontoon so that we get a scaling factor based on position relative to CoM
 			FString ErrMsg;
 			bool ComputeSuccess = FSimpleSuspensionHelpers::ComputeSprungMasses(LocalPontoonLocations, LocalCOM, 1.f, PontoonCoefficients, &ErrMsg);
