@@ -15,6 +15,12 @@ class UMediaSourceManagerInput;
 class UProxyMediaSource;
 class UTexture;
 
+#if WITH_EDITOR
+
+DECLARE_EVENT(UMediaSourceManagerChannel, FOnInputPropertyChanged);
+
+#endif
+
 /**
 * Handles a single channel for the MediaSourceManager.
 */
@@ -46,6 +52,11 @@ public:
 	/** Material that uses our texture. */
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceConstant> Material = nullptr;
+
+#if WITH_EDITOR
+	/** This is broadcast when something on the input is changed. */
+	FOnInputPropertyChanged OnInputPropertyChanged;
+#endif // WITH_EDITOR
 
 	/**
 	 * Call this to get the media player.

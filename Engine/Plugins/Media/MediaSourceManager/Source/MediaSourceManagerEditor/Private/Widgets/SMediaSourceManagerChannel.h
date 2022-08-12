@@ -62,6 +62,9 @@ private:
 	 */
 	TSharedRef<SWidget> BuildMediaSourcePickerWidget();
 
+	/** Caches if the input is valid or not. */
+	bool bIsInputValid;
+
 	/**
 	 * Callback to add a media source.
 	 */
@@ -96,6 +99,11 @@ private:
 	 * Called when the edit input button is pressed.
 	 */
 	FReply OnEditInput();
+
+	/**
+	 * Determines warning icon visibilty based on the validity of the input.
+	 */
+	EVisibility HandleInputWarningIconVisibility() const;
 
 	/**
 	 * Refreshes the widgets based on the current sstate.

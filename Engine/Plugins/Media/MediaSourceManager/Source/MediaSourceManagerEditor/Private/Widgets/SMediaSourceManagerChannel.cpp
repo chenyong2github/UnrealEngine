@@ -26,6 +26,11 @@
 
 SMediaSourceManagerChannel::~SMediaSourceManagerChannel()
 {
+	if (ChannelPtr != nullptr)
+	{
+		ChannelPtr->OnInputPropertyChanged.RemoveAll(this);
+	}
+
 	DismissErrorNotification();
 }
 
@@ -65,6 +70,20 @@ void SMediaSourceManagerChannel::Construct(const FArguments& InArgs,
 						]
 				]
 
+			// Input warning icon.
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(SImage)
+						.Image(FCoreStyle::Get().GetBrush("Icons.Warning"))
+						.ToolTipText(LOCTEXT("InputWarning", "Input has incorrect settings."))
+						.Visibility(this,
+							&SMediaSourceManagerChannel::HandleInputWarningIconVisibility)
+				]
+
 			// Edit input.
 			+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -92,6 +111,7 @@ void SMediaSourceManagerChannel::Construct(const FArguments& InArgs,
 	// Start playing.
 	if (ChannelPtr != nullptr)
 	{
+		ChannelPtr->OnInputPropertyChanged.AddSP(this, &SMediaSourceManagerChannel::Refresh);
 		ChannelPtr->Play();
 	}
 }
@@ -307,7 +327,6 @@ void SMediaSourceManagerChannel::DismissErrorNotification()
 	}
 }
 
-
 FReply SMediaSourceManagerChannel::OnEditInput()
 {
 	// Get our input.
@@ -335,6 +354,11 @@ FReply SMediaSourceManagerChannel::OnEditInput()
 	return FReply::Handled();
 }
 
+EVisibility SMediaSourceManagerChannel::HandleInputWarningIconVisibility() const
+{
+	return bIsInputValid ? EVisibility::Hidden : EVisibility::Visible;
+}
+
 void SMediaSourceManagerChannel::Refresh()
 {
 	// Get channel.
@@ -345,13 +369,22 @@ void SMediaSourceManagerChannel::Refresh()
 
 		// Get input.
 		UMediaSourceManagerInput* Input = Channel->Input;
+		UMediaSource* MediaSource = nullptr;
 		if (Input != nullptr)
 		{
 			InputName = FText::FromString(Input->GetDisplayName());
+			MediaSource = Input->GetMediaSource();;
 		}
 
 		// Update input widgets.
 		InputNameTextBlock->SetText(InputName);
+
+		// Is the input valid?
+		bIsInputValid = true;
+		if (MediaSource != nullptr)
+		{
+			bIsInputValid = MediaSource->Validate();
+		}
 	}
 }
 

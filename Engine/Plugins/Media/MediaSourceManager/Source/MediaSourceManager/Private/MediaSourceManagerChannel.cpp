@@ -115,6 +115,12 @@ void UMediaSourceManagerChannel::OnObjectPropertyChanged(UObject* ObjectBeingMod
 			{
 				// Restart playback.
 				Play();
+
+				// Inform everyone.
+				if (OnInputPropertyChanged.IsBound())
+				{
+					OnInputPropertyChanged.Broadcast();
+				}
 			}
 		}
 	}
