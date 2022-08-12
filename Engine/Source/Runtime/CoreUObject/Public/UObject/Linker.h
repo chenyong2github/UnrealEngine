@@ -697,7 +697,6 @@ COREUOBJECT_API void ResetLinkerExports(UPackage* InPackage);
  * Flushes async loading.
  */
 COREUOBJECT_API void ResetLoaders(UObject* InOuter);
-COREUOBJECT_API void ResetLoaders(TArrayView<UObject*> InOuters);
 
 /** Deletes all linkers that have finished loading */
 COREUOBJECT_API void DeleteLoaders();

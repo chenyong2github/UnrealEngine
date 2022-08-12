@@ -116,9 +116,6 @@ public:
 	/** Empty the loaders */
 	void ResetLoaders(UObject* InPkg);
 
-	/** Empty the loaders */
-	void ResetLoaders(TArrayView<UObject*> InPackages);
-
 	/** Empty the loaders from the specified set */
 	void ResetLoaders(const TSet<FLinkerLoad*>& InLinkerLoadSet);
 

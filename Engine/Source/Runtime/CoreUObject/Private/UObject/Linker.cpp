@@ -499,18 +499,6 @@ void ResetLoaders(UObject* InPkg)
 	FLinkerManager::Get().ResetLoaders(InPkg);
 }
 
-void ResetLoaders(TArrayView<UObject*> InOuters)
-{
-	if (IsAsyncLoading())
-	{
-		UE_LOG(LogLinker, Log, TEXT("ResetLoaders is flushing async loading"));
-	}
-
-	// Make sure we're not in the middle of loading something in the background.
-	FlushAsyncLoading();
-	FLinkerManager::Get().ResetLoaders(InOuters);
-}
-
 void DeleteLoaders()
 {
 	FLinkerManager::Get().DeleteLinkers();

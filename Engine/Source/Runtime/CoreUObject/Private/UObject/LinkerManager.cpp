@@ -167,25 +167,6 @@ void FLinkerManager::ResetLoaders(UObject* InPkg)
 	}
 }
 
-void FLinkerManager::ResetLoaders(TArrayView<UObject*> InPackages)
-{
-	TSet<FLinkerLoad*> LinkerLoads;
-	LinkerLoads.Reserve(InPackages.Num());
-
-	for (UObject* Object : InPackages)
-	{
-		if (UPackage* TopLevelPackage = Object->GetPackage())
-		{
-			if (FLinkerLoad* LinkerToReset = FLinkerLoad::FindExistingLinkerForPackage(TopLevelPackage))
-			{
-				LinkerLoads.Add(LinkerToReset);
-			}
-		}
-	}
-
-	ResetLoaders(LinkerLoads);
-}
-
 void FLinkerManager::ResetLoaders(const TSet<FLinkerLoad*>& InLinkerLoads)
 {
 	// Remove import references
