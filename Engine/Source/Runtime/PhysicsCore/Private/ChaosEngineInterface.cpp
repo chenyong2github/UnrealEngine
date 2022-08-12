@@ -659,7 +659,7 @@ FVector FChaosEngineInterface::GetWorldVelocityAtPoint_AssumesLocked(const FPhys
 	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
 	{
 		const Chaos::FRigidBodyHandle_External& Body_External = InActorReference->GetGameThreadAPI();
-		if(ensure(Body_External.CanTreatAsKinematic()))
+		if(Body_External.CanTreatAsKinematic())
 		{
 			const bool bIsRigid = Body_External.CanTreatAsRigid();
 			const Chaos::FVec3 COM = bIsRigid ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(&Body_External) : (Chaos::FVec3)Chaos::FParticleUtilitiesGT::GetActorWorldTransform(&Body_External).GetTranslation();
