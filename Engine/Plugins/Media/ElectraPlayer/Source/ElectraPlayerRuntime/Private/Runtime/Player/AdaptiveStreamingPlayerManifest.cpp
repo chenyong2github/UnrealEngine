@@ -25,6 +25,21 @@ static const FString MIMETypeDASH(TEXT("application/dash+xml"));
 
 
 /**
+ * Fix common mistakes in a file:// URL like backslashes instead of forward slashes
+ * and spaces that are not escaped.
+ */
+FString FixLocalFileSchemeURL(const FString& InURL)
+{
+	FString URL(InURL);
+	if (URL.StartsWith("file:", ESearchCase::IgnoreCase))
+	{
+		URL.ReplaceCharInline(TCHAR('\\'), TCHAR('/'));
+		URL.ReplaceInline(TEXT(" "), TEXT("%20"));
+	}
+	return URL;
+}
+
+/**
  * Returns the MIME type of the media playlist pointed to by the given URL.
  * This only parses the URL for known extensions or scheme.
  * If the MIME type cannot be precisely determined an empty string is returned.
@@ -33,7 +48,7 @@ static const FString MIMETypeDASH(TEXT("application/dash+xml"));
  *
  * @return MIME type or empty string if it cannot be determined
  */
-FString GetMIMETypeForURL(const FString &URL)
+FString GetMIMETypeForURL(const FString& URL)
 {
 	FString MimeType;
 	FURL_RFC3986 UrlParser;
@@ -139,8 +154,10 @@ void FAdaptiveStreamingPlayer::InternalCloseManifestReader()
  * @param URL
  * @param MimeType
  */
-void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& URL, const FString& MimeType)
+void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& InURL, const FString& MimeType)
 {
+	// Fix potential errors in a local file URL.
+	FString URL = Playlist::FixLocalFileSchemeURL(InURL);
 	// Remember the original request URL since we may lose the fragment part in requests.
 	ManifestURL = URL;
 	ManifestMimeTypeRequest.Reset();
