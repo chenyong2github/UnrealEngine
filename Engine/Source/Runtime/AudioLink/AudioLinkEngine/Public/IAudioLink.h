@@ -6,7 +6,7 @@
   *	Abstract interface for AudioLink instances. 
   *	Purely opaque.
   */
-class IAudioLink
+class AUDIOLINKENGINE_API IAudioLink
 {
 protected:
 	IAudioLink();
