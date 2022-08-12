@@ -244,7 +244,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		{
 			_blobStore = blobStore;
 			_options = options;
-			_cache = cache;
+			_cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 512 * 1024 * 1024 });
 			_readSema = new SemaphoreSlim(options.MaxConcurrentReads);
 		}
 
@@ -267,7 +267,11 @@ namespace EpicGames.Horde.Storage.Bundles
 		/// <param name="disposing"></param>
 		protected virtual void Dispose(bool disposing)
 		{
-			_readSema.Dispose();
+			if (disposing)
+			{
+				_readSema.Dispose();
+				_cache.Dispose();
+			}
 		}
 
 		/// <inheritdoc/>
