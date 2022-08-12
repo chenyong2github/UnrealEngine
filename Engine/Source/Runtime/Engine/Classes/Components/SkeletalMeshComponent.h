@@ -360,7 +360,7 @@ public:
 	 * Set the SkeletalMesh rendered for this mesh.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
-	void SetSkeletalMeshAsset(class USkeletalMesh* NewMesh) { SetSkeletalMesh(NewMesh, true); }
+	void SetSkeletalMeshAsset(class USkeletalMesh* NewMesh) { SetSkeletalMesh(NewMesh, false); }
 
 	/**
 	 * Get the SkeletalMesh rendered for this mesh.
@@ -1888,7 +1888,16 @@ public:
 	virtual void HideBone( int32 BoneIndex, EPhysBodyOp PhysBodyOption ) override;
 	virtual void UnHideBone( int32 BoneIndex ) override;
 	virtual void SetPhysicsAsset(class UPhysicsAsset* NewPhysicsAsset,bool bForceReInit = false) override;
-	virtual void SetSkeletalMesh(class USkeletalMesh* NewMesh, bool bReinitPose = true) override;
+	virtual void SetSkeletalMesh(class USkeletalMesh* NewMesh, bool bReinitPose = true) override;  // SetSkeletalMesh may remain and become a UFUNCTION but lose its virtual after it is removed from the SkinnedMeshComponent API
+
+	/**
+	 *  Set the new asset to render and update this component (this function is identical to SetSkeletalMesh).
+	 *  The USkinnedAsset pointer is first cast to a USkeletalMesh, therefore this function will only set assets of type USkeletalMesh.
+	 * 
+	 *  @param InSkinnedAsset The new asset.
+	 *  @param bReinitPose    Whether to re-initialize the animation.
+	 */
+	virtual void SetSkinnedAssetAndUpdate(class USkinnedAsset* InSkinnedAsset, bool bReinitPose = true) override;
 
 	// GetSkeletalMesh() is soon to be removed, use GetSkeletalMeshAsset() instead
 	class USkeletalMesh* GetSkeletalMesh() const { return GetSkeletalMeshAsset(); }
@@ -1900,6 +1909,7 @@ public:
 	static void GetSkinnedTangentBasis(USkeletalMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& Model, const FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix44f>& CachedRefToLocals, FVector3f& OutTangentX, FVector3f& OutTangentY, FVector3f& OutTangentZ);
 	static void ComputeSkinnedTangentBasis(USkeletalMeshComponent* Component, TArray<FVector3f>& OutTangenXYZ, TArray<FMatrix44f>& CachedRefToLocals, const FSkeletalMeshLODRenderData& Model, const FSkinWeightVertexBuffer& SkinWeightBuffer);
 
+	UE_DEPRECATED(5.1, "This method has been deprecated. Please use SetSkeletalMesh(NewMesh, false) instead.")
 	void SetSkeletalMeshWithoutResettingAnimation(class USkeletalMesh* NewMesh);
 
 	virtual bool IsPlayingRootMotion() const override;

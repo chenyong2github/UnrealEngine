@@ -2885,7 +2885,12 @@ void USkeletalMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRe
 
 	{
 		FRenderStateRecreator RenderStateRecreator(this);
-		SetSkinnedAsset(InSkelMesh, bReinitPose);
+
+		// The SetSkeletalMesh base implementation is being phased out of USkinnedMeshComponent, and SetSkinnedAssetAndUpdate replaces it,
+		// but the SetSkeletalMesh function will remain to provide continuity and a more convenient USkeletalMesh based API avoiding the uncertainty of the Cast to USkeletalMesh.
+		// Also, since USkeletalMeshComponent::SetSkinnedAssetAndUpdate now calls USkeletalMeshComponent::SetSkeletalMesh, and since SetSkinnedAssetAndUpdate is virtual,
+		// the Super keyword is necessary to make sure that the correct USkinnedMeshComponent base function is called and prevent a recursive call loop.
+		Super::SetSkinnedAssetAndUpdate(InSkelMesh, bReinitPose);
 		
 #if WITH_EDITOR
 		ValidateAnimation();
@@ -2920,6 +2925,11 @@ void USkeletalMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRe
 
 	// Update this component streaming data.
 	IStreamingManager::Get().NotifyPrimitiveUpdated(this);
+}
+
+void USkeletalMeshComponent::SetSkinnedAssetAndUpdate(USkinnedAsset* InSkinnedAsset, bool bReinitPose)
+{
+	SetSkeletalMesh(Cast<USkeletalMesh>(InSkinnedAsset), bReinitPose);
 }
 
 void USkeletalMeshComponent::SetSkeletalMeshWithoutResettingAnimation(USkeletalMesh* InSkelMesh)

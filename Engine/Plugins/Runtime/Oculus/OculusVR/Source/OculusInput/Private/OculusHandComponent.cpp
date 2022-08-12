@@ -51,7 +51,7 @@ void UOculusHandComponent::InitializeSkeletalMesh()
 	{
 		if (UOculusInputFunctionLibrary::GetHandSkeletalMesh(RuntimeSkeletalMesh, SkeletonType, MeshType))
 		{
-			SetSkinnedAsset(RuntimeSkeletalMesh, true);
+			SetSkinnedAssetAndUpdate(RuntimeSkeletalMesh, true);
 			if (MaterialOverride)
 			{
 				SetMaterial(0, MaterialOverride);

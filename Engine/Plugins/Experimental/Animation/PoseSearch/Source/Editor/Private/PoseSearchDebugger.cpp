@@ -2481,9 +2481,9 @@ void FDebuggerViewModel::UpdateFromTimeline()
 			USkeletalMesh* SkeletalMesh = TSoftObjectPtr<USkeletalMesh>(FSoftObjectPath(SkeletalMeshObjectInfo->PathName)).LoadSynchronous();
 			if (SkeletalMesh)
 			{
-				ActiveComponent->SetSkinnedAsset(SkeletalMesh, true);
-				SelectedComponent->SetSkinnedAsset(SkeletalMesh, true);
-				AssetComponent->SetSkinnedAsset(SkeletalMesh, true);
+				ActiveComponent->SetSkinnedAssetAndUpdate(SkeletalMesh, true);
+				SelectedComponent->SetSkinnedAssetAndUpdate(SkeletalMesh, true);
+				AssetComponent->SetSkinnedAssetAndUpdate(SkeletalMesh, true);
 			}
 			FTransform ComponentWorldTransform;
 			// Active skeleton is simply the traced bone transforms

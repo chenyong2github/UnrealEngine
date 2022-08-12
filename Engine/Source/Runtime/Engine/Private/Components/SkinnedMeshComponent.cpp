@@ -1823,7 +1823,7 @@ FTransform USkinnedMeshComponent::GetRefPoseTransform(int32 BoneIndex) const
 
 void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* NewMesh, bool bReinitPose)
 {
-	SetSkinnedAsset(NewMesh, bReinitPose);
+	SetSkinnedAssetAndUpdate(NewMesh, bReinitPose);
 }
 
 USkeletalMesh* USkinnedMeshComponent::GetSkeletalMesh_DEPRECATED() const
@@ -1831,7 +1831,7 @@ USkeletalMesh* USkinnedMeshComponent::GetSkeletalMesh_DEPRECATED() const
 	return Cast<class USkeletalMesh>(GetSkinnedAsset());
 }
 
-void USkinnedMeshComponent::SetSkinnedAsset(USkinnedAsset* InSkinnedAsset, bool /*bReinitPose*/)
+void USkinnedMeshComponent::SetSkinnedAssetAndUpdate(USkinnedAsset* InSkinnedAsset, bool /*bReinitPose*/)
 {
 	// NOTE: InSkinnedAsset may be nullptr (useful in the editor for removing the skeletal mesh associated with
 	//   this component on-the-fly)
