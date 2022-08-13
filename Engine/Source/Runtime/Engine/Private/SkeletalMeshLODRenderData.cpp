@@ -161,7 +161,10 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S)
 
 void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LODIndex, TArray<UMorphTarget*>& InMorphTargets, USkinnedAsset* Owner)
 {
-	IncrementMemoryStats(bNeedsVertexColors);
+	if (bStreamedDataInlined)
+	{
+		IncrementMemoryStats(bNeedsVertexColors);
+	}
 
 	MultiSizeIndexContainer.InitResources();
 

@@ -1315,7 +1315,10 @@ void FStaticMeshLODResources::UpdateVertexMemoryStats() const
 
 void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 {
-	UpdateIndexMemoryStats<true>();
+	if (bBuffersInlined)
+	{
+		UpdateIndexMemoryStats<true>();
+	}
 
 	BeginInitResource(&IndexBuffer);
 	if(bHasWireframeIndices)
@@ -1376,7 +1379,10 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 	ENQUEUE_RENDER_COMMAND(UpdateMemoryStats)(
 		[this](FRHICommandListImmediate&)
 	{
-		UpdateVertexMemoryStats<true>();
+		if (bBuffersInlined)
+		{
+			UpdateVertexMemoryStats<true>();
+		}
 	});
 #endif
 
