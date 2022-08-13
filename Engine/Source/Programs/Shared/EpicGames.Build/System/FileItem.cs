@@ -44,11 +44,19 @@ namespace UnrealBuildBase
 		private FileItem(FileReference Location, FileInfo Info)
 		{
 			this.Location = Location;
-			this.Info = new Lazy<FileInfo>(() =>
+			if (RuntimePlatform.IsWindows)
 			{
-				Info.Refresh();
-				return Info;
-			});
+				this.Info = new Lazy<FileInfo>(Info);
+			}
+			else
+			{
+				// For some reason we need to call an extra Refresh on linux/mac to not get wrong results from "Exists"
+				this.Info = new Lazy<FileInfo>(() =>
+				{
+					Info.Refresh();
+					return Info;
+				});
+			}			
 		}
 
 		/// <summary>
@@ -148,7 +156,11 @@ namespace UnrealBuildBase
 		public static FileItem GetItemByFileInfo(FileInfo Info)
 		{
 			FileReference Location = new FileReference(Info);
-			return UniqueSourceFileMap.GetOrAdd(Location, _ => new FileItem(Location, Info));
+			if (UniqueSourceFileMap.TryGetValue(Location, out FileItem? Result)) // 99.9% reads, so faster to front with a TryGet before GetOrAdd
+			{
+				return Result;
+			}
+			return UniqueSourceFileMap.GetOrAdd(Location, new FileItem(Location, Info));
 		}
 
 		/// <summary>
@@ -158,7 +170,11 @@ namespace UnrealBuildBase
 		/// <returns>The FileItem that represents the given a full file path.</returns>
 		public static FileItem GetItemByFileReference(FileReference Location)
 		{
-			return UniqueSourceFileMap.GetOrAdd(Location, _ => new FileItem(Location, Location.ToFileInfo()));
+			if (UniqueSourceFileMap.TryGetValue(Location, out FileItem? Result)) // 99.9% reads, so faster to front with a TryGet before GetOrAdd
+			{
+				return Result;
+			}
+			return UniqueSourceFileMap.GetOrAdd(Location, new FileItem(Location, Location.ToFileInfo()));
 		}
 
 		/// <summary>

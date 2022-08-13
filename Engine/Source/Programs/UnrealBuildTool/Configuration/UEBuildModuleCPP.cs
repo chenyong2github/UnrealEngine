@@ -1660,7 +1660,15 @@ namespace UnrealBuildTool
 		/// <param name="InputFiles">Collection of source files, categorized by type</param>
 		static void FindInputFilesFromDirectoryRecursive(DirectoryItem BaseDirectory, ReadOnlyHashSet<string> ExcludedNames, HashSet<DirectoryReference> SourceDirectories, Dictionary<DirectoryItem, FileItem[]> DirectoryToSourceFiles, InputFileCollection InputFiles)
 		{
-			foreach(DirectoryItem SubDirectory in BaseDirectory.EnumerateDirectories())
+			bool bIgnoreFileFound;
+			FileItem[] SourceFiles = FindInputFilesFromDirectory(BaseDirectory, InputFiles, out bIgnoreFileFound);
+
+			if (bIgnoreFileFound)
+			{
+				return;
+			}
+
+			foreach (DirectoryItem SubDirectory in BaseDirectory.EnumerateDirectories())
 			{
 				if (!ExcludedNames.Contains(SubDirectory.Name))
 				{
@@ -1668,7 +1676,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-			FileItem[] SourceFiles = FindInputFilesFromDirectory(BaseDirectory, InputFiles);
 			if(SourceFiles.Length > 0)
 			{
 				SourceDirectories.Add(BaseDirectory.Location);
@@ -1681,9 +1688,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="BaseDirectory"></param>
 		/// <param name="InputFiles"></param>
+		/// <param name="bIgnoreFileFound"></param>
 		/// <returns>Array of source files</returns>
-		static FileItem[] FindInputFilesFromDirectory(DirectoryItem BaseDirectory, InputFileCollection InputFiles)
+		static FileItem[] FindInputFilesFromDirectory(DirectoryItem BaseDirectory, InputFileCollection InputFiles, out bool bIgnoreFileFound)
 		{
+			bIgnoreFileFound = false;
 			List<FileItem> SourceFiles = new List<FileItem>();
 			foreach(FileItem InputFile in BaseDirectory.EnumerateFiles())
 			{
@@ -1730,6 +1739,10 @@ namespace UnrealBuildTool
 					SourceFiles.Add(InputFile);
 					InputFiles.ISPCFiles.Add(InputFile);
 				}
+				else if (InputFile.Name == ".ubtignore")
+				{
+					bIgnoreFileFound = true;
+				}
 			}
 			return SourceFiles.ToArray();
 		}
@@ -1741,7 +1754,13 @@ namespace UnrealBuildTool
 		/// <returns>Array of source files</returns>
 		public static FileItem[] GetSourceFiles(DirectoryItem Directory)
 		{
-			return FindInputFilesFromDirectory(Directory, new InputFileCollection());
+			bool bIgnoreFileFound;
+			FileItem[] Files = FindInputFilesFromDirectory(Directory, new InputFileCollection(), out bIgnoreFileFound);
+			if (bIgnoreFileFound)
+			{
+				return Array.Empty<FileItem>();
+			}
+			return Files;
 		}
 
 		/// <summary>

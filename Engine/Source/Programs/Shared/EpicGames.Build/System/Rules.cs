@@ -137,6 +137,10 @@ namespace UnrealBuildBase
 				}
 			}
 
+			foreach (DirectoryReference f in Folders)
+				if (f.FullName[0] == 'e')
+					System.Console.WriteLine("!LOWERCASE!!!!!!!!!!");
+
 			return FindAllRulesFiles(Folders, RulesFileType);
 		}
 
@@ -270,6 +274,8 @@ namespace UnrealBuildBase
 		{
 			// Scan all the files in this directory
 			bool bSearchSubFolders = true;
+			bool bIsPlugin = false;
+
 			foreach (FileItem File in Directory.EnumerateFiles())
 			{
 				if (File.HasExtension(".build.cs"))
@@ -302,6 +308,24 @@ namespace UnrealBuildBase
 						Cache.UbtPlugins.Add(File.Location);
 					}
 					bSearchSubFolders = false;
+				}
+				else if (File.HasExtension(".uplugin"))
+				{
+					bIsPlugin = true;
+					bSearchSubFolders = false;
+				}
+				else if (File.Name == ".ubtignore")
+				{
+					bSearchSubFolders = false;
+				}
+			}
+
+			if (bIsPlugin)
+			{
+				DirectoryItem? SourceDir;
+				if (Directory.TryGetDirectory("Source", out SourceDir))
+				{
+					Queue.Enqueue(() => FindAllRulesFilesRecursively(SourceDir, Cache, Queue));
 				}
 			}
 

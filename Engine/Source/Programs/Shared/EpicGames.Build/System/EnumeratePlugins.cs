@@ -98,6 +98,10 @@ namespace UnrealBuildBase
 						}
 						bSearchSubDirectories = false;
 					}
+					else if (PluginFile.Name == ".ubtignore")
+					{
+						bSearchSubDirectories = false;
+					}
 				}
 
 				if (bSearchSubDirectories)

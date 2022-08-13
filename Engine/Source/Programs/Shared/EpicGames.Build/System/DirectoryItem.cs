@@ -47,11 +47,19 @@ namespace UnrealBuildBase
 		private DirectoryItem(DirectoryReference Location, DirectoryInfo Info)
 		{
 			this.Location = Location;
-			this.Info = new Lazy<DirectoryInfo>(() =>
+			if (RuntimePlatform.IsWindows)
 			{
-				Info.Refresh();
-				return Info;
-			});
+				this.Info = new Lazy<DirectoryInfo>(Info);
+			}
+			else
+			{
+				// For some reason we need to call an extra Refresh on linux/mac to not get wrong results from "Exists"
+				this.Info = new Lazy<DirectoryInfo>(() =>
+				{
+					Info.Refresh();
+					return Info;
+				});
+			}
 		}
 
 		/// <summary>
@@ -117,7 +125,11 @@ namespace UnrealBuildBase
 		/// <returns>The directory item for this location</returns>
 		public static DirectoryItem GetItemByDirectoryReference(DirectoryReference Location)
 		{
-			return LocationToItem.GetOrAdd(Location, _ => new DirectoryItem(Location, new DirectoryInfo(Location.FullName)));
+			if (LocationToItem.TryGetValue(Location, out DirectoryItem? Result))
+			{
+				return Result;
+			}
+			return LocationToItem.GetOrAdd(Location, new DirectoryItem(Location, new DirectoryInfo(Location.FullName)));
 		}
 
 		/// <summary>
@@ -128,7 +140,11 @@ namespace UnrealBuildBase
 		public static DirectoryItem GetItemByDirectoryInfo(DirectoryInfo Info)
 		{
 			DirectoryReference Location = new DirectoryReference(Info);
-			return LocationToItem.GetOrAdd(Location, _ => new DirectoryItem(Location, Info));
+			if (LocationToItem.TryGetValue(Location, out DirectoryItem? Result))
+			{
+				return Result;
+			}
+			return LocationToItem.GetOrAdd(Location, new DirectoryItem(Location, Info));
 		}
 
 		/// <summary>
@@ -190,24 +206,19 @@ namespace UnrealBuildBase
 		{
 			if (Directories == null)
 			{
-				Dictionary<string, DirectoryItem> NewDirectories = new Dictionary<string, DirectoryItem>(DirectoryReference.Comparer);
+				Dictionary<string, DirectoryItem> NewDirectories;
 				if (Info.Value.Exists)
 				{
-					foreach (DirectoryInfo SubDirectoryInfo in Info.Value.EnumerateDirectories())
+					DirectoryInfo[] Directories = Info.Value.GetDirectories();
+					NewDirectories = new Dictionary<string, DirectoryItem>(Directories.Length, DirectoryReference.Comparer);
+					foreach (DirectoryInfo SubDirectoryInfo in Directories)
 					{
-						if (SubDirectoryInfo.Name.Length == 1 && SubDirectoryInfo.Name[0] == '.')
-						{
-							continue;
-						}
-						else if (SubDirectoryInfo.Name.Length == 2 && SubDirectoryInfo.Name[0] == '.' && SubDirectoryInfo.Name[1] == '.')
-						{
-							continue;
-						}
-						else
-						{
-							NewDirectories[SubDirectoryInfo.Name] = DirectoryItem.GetItemByDirectoryInfo(SubDirectoryInfo);
-						}
+						NewDirectories.Add(SubDirectoryInfo.Name, DirectoryItem.GetItemByDirectoryInfo(SubDirectoryInfo));
 					}
+				}
+				else
+				{
+					NewDirectories = new Dictionary<string, DirectoryItem>(DirectoryReference.Comparer);
 				}
 				Directories = NewDirectories;
 			}
@@ -256,15 +267,21 @@ namespace UnrealBuildBase
 		{
 			if (Files == null)
 			{
-				Dictionary<string, FileItem> NewFiles = new Dictionary<string, FileItem>(FileReference.Comparer);
+				Dictionary<string, FileItem> NewFiles;
 				if (Info.Value.Exists)
 				{
-					foreach (FileInfo FileInfo in Info.Value.EnumerateFiles())
+					FileInfo[] FileInfos = Info.Value.GetFiles();
+					NewFiles = new Dictionary<string, FileItem>(FileInfos.Length, FileReference.Comparer);
+					foreach (FileInfo FileInfo in FileInfos)
 					{
 						FileItem FileItem = FileItem.GetItemByFileInfo(FileInfo);
 						FileItem.UpdateCachedDirectory(this);
 						NewFiles[FileInfo.Name] = FileItem;
 					}
+				}
+				else
+				{
+					NewFiles = new Dictionary<string, FileItem>(FileReference.Comparer);
 				}
 				Files = NewFiles;
 			}
@@ -300,6 +317,25 @@ namespace UnrealBuildBase
 		public override string ToString()
 		{
 			return Location.FullName;
+		}
+
+		/// <summary>
+		/// Writes out all the enumerated files full names sorted to OutFile
+		/// </summary>
+		public static void WriteDebugFileWithAllEnumeratedFiles(string OutFile)
+		{
+			SortedSet<string> AllFiles = new SortedSet<string>();
+			foreach (DirectoryItem Item in DirectoryItem.LocationToItem.Values)
+			{
+				if (Item.Files != null)
+				{
+					foreach (FileItem File in Item.EnumerateFiles())
+					{
+						AllFiles.Add(File.FullName);
+					}
+				}
+			}
+			File.WriteAllLines(OutFile, AllFiles);
 		}
 	}
 

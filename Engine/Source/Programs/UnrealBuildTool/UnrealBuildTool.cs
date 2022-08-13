@@ -664,6 +664,10 @@ namespace UnrealBuildTool
 					FileMetadataPrefetch.Stop();
 				}
 
+				// Uncomment this to output a file that contains all files that UBT has scanned.
+				// Useful when investigating why UBT takes time.
+				//DirectoryItem.WriteDebugFileWithAllEnumeratedFiles(@"c:\temp\AllFiles.txt");
+
 				Utils.LogWriteFileIfChangedActivity(Logger);
 
 				// Print out all the performance info
