@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 /** IAudioLink
   *	Abstract interface for AudioLink instances. 
   *	Purely opaque.
