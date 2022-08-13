@@ -187,9 +187,6 @@ namespace UnrealBuildTool
 		protected StaticAnalyzer StaticAnalyzer = StaticAnalyzer.None;
 		protected StaticAnalyzerMode StaticAnalyzerMode = StaticAnalyzerMode.Deep;
 		protected StaticAnalyzerOutputType StaticAnalyzerOutputType = StaticAnalyzerOutputType.Text;
-		protected IReadOnlyList<string> StaticAnalyzerCheckers = new List<string>();
-		protected IReadOnlyList<string> StaticAnalyzerDisabledCheckers = new List<string>();
-		protected IReadOnlyList<string> StaticAnalyzerAdditionalCheckers = new List<string>();
 
 		static ClangToolChain()
 		{
@@ -216,9 +213,6 @@ namespace UnrealBuildTool
 			StaticAnalyzer = Target.StaticAnalyzer;
 			StaticAnalyzerMode = Target.StaticAnalyzerMode;
 			StaticAnalyzerOutputType = Target.StaticAnalyzerOutputType;
-			StaticAnalyzerCheckers = Target.StaticAnalyzerCheckers;
-			StaticAnalyzerDisabledCheckers = Target.StaticAnalyzerDisabledCheckers;
-			StaticAnalyzerAdditionalCheckers = Target.StaticAnalyzerAdditionalCheckers;
 		}
 
 		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefileBuilder MakefileBuilder)
@@ -747,13 +741,13 @@ namespace UnrealBuildTool
 			// Run shallow analyze if requested.
 			if (StaticAnalyzerMode == StaticAnalyzerMode.Shallow) Arguments.Add("-Xclang -analyzer-config -Xclang mode=shallow");
 
-			if (StaticAnalyzerCheckers.Count > 0)
+			if (CompileEnvironment.StaticAnalyzerCheckers.Count > 0)
 			{
 				// Disable all default checks
 				Arguments.Add("--analyzer-no-default-checks");
 
 				// Only enable specific checkers.
-				foreach (string Checker in StaticAnalyzerCheckers)
+				foreach (string Checker in CompileEnvironment.StaticAnalyzerCheckers)
 				{
 					Arguments.Add($"-Xclang -analyzer-checker -Xclang {Checker}");
 				}
@@ -761,12 +755,12 @@ namespace UnrealBuildTool
 			else
 			{
 				// Disable default checks.
-				foreach (string Checker in StaticAnalyzerDisabledCheckers)
+				foreach (string Checker in CompileEnvironment.StaticAnalyzerDisabledCheckers)
 				{
 					Arguments.Add($"-Xclang -analyzer-disable-checker -Xclang {Checker}");
 				}
 				// Enable additional non-default checks.
-				foreach (string Checker in StaticAnalyzerAdditionalCheckers)
+				foreach (string Checker in CompileEnvironment.StaticAnalyzerAdditionalCheckers)
 				{
 					Arguments.Add($"-Xclang -analyzer-checker -Xclang {Checker}");
 				}

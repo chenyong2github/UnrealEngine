@@ -1470,57 +1470,6 @@ namespace UnrealBuildTool
 		public StaticAnalyzerMode StaticAnalyzerMode = StaticAnalyzerMode.Deep;
 
 		/// <summary>
-		/// The static analyzer checkers that should be enabled rather than the defaults. This is only supported for Clang.
-		/// See https://clang.llvm.org/docs/analyzer/checkers.html for a full list. Or run:
-		///    'clang -Xclang -analyzer-checker-help' 
-		/// or: 
-		///    'clang -Xclang -analyzer-checker-help-alpha' 
-		/// for the list of experimental checkers.
-		/// </summary>
-		[CommandLine("-StaticAnalyzerChecker", ListSeparator = '+')]
-		public List<string> StaticAnalyzerCheckers = new List<string>();
-
-		/// <summary>
-		/// The static analyzer default checkers that should be disabled. Unused if StaticAnalyzerCheckers is set. This is only supported for Clang.
-		/// This overrides the default disabled checkers, which are deadcode.DeadStores and security.FloatLoopCounter
-		/// See https://clang.llvm.org/docs/analyzer/checkers.html for a full list. Or run:
-		///    'clang -Xclang -analyzer-checker-help' 
-		/// or: 
-		///    'clang -Xclang -analyzer-checker-help-alpha' 
-		/// for the list of experimental checkers.
-		/// </summary>
-		[CommandLine("-StaticAnalyzerDisableChecker", ListSeparator = '+')]
-		private List<string> StaticAnalyzerDisabledCheckersOverride = new List<string>();
-
-		/// <summary>
-		/// The static analyzer default checkers that should be disabled. Unused if StaticAnalyzerCheckers is set. This is only supported for Clang.
-		/// See https://clang.llvm.org/docs/analyzer/checkers.html for a full list. Or run:
-		///    'clang -Xclang -analyzer-checker-help' 
-		/// or: 
-		///    'clang -Xclang -analyzer-checker-help-alpha' 
-		/// for the list of experimental checkers.
-		/// </summary>
-		public List<string> StaticAnalyzerDisabledCheckers
-		{
-			get
-			{
-				return StaticAnalyzerDisabledCheckersOverride.Count > 0 ? StaticAnalyzerDisabledCheckersOverride : new List<string>() { "deadcode.DeadStores", "security.FloatLoopCounter" };
-			}
-			set { StaticAnalyzerDisabledCheckersOverride = value; }
-		}
-
-		/// <summary>
-		/// The static analyzer non-default checkers that should be enabled. Unused if StaticAnalyzerCheckers is set. This is only supported for Clang.
-		/// See https://clang.llvm.org/docs/analyzer/checkers.html for a full list. Or run:
-		///    'clang -Xclang -analyzer-checker-help' 
-		/// or: 
-		///    'clang -Xclang -analyzer-checker-help-alpha' 
-		/// for the list of experimental checkers.
-		/// </summary>
-		[CommandLine("-StaticAnalyzerAdditionalChecker", ListSeparator = '+')]
-		public List<string> StaticAnalyzerAdditionalCheckers = new List<string>();
-
-		/// <summary>
 		/// The minimum number of files that must use a pre-compiled header before it will be created and used.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
@@ -3135,21 +3084,6 @@ namespace UnrealBuildTool
 		public StaticAnalyzerMode StaticAnalyzerMode
 		{
 			get { return Inner.StaticAnalyzerMode; }
-		}
-
-		public IReadOnlyList<string> StaticAnalyzerCheckers
-		{
-			get { return Inner.StaticAnalyzerCheckers; }
-		}
-
-		public IReadOnlyList<string> StaticAnalyzerDisabledCheckers
-		{
-			get { return Inner.StaticAnalyzerDisabledCheckers; }
-		}
-
-		public IReadOnlyList<string> StaticAnalyzerAdditionalCheckers
-		{
-			get { return Inner.StaticAnalyzerAdditionalCheckers; }
 		}
 
 		public int MinFilesUsingPrecompiledHeader

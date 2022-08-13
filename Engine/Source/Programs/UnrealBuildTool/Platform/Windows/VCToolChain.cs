@@ -291,13 +291,13 @@ namespace UnrealBuildTool
 					// Run shallow analyze if requested.
 					if (Target.StaticAnalyzerMode == StaticAnalyzerMode.Shallow) Arguments.Add("-Xclang -analyzer-config -Xclang mode=shallow");
 
-					if (Target.StaticAnalyzerCheckers.Count > 0)
+					if (CompileEnvironment.StaticAnalyzerCheckers.Count > 0)
 					{
 						// Disable all default checks
 						Arguments.Add("--analyzer-no-default-checks");
 
 						// Only enable specific checks.
-						foreach (string Checker in Target.StaticAnalyzerCheckers)
+						foreach (string Checker in CompileEnvironment.StaticAnalyzerCheckers)
 						{
 							Arguments.Add($"-Xclang -analyzer-checker -Xclang {Checker}");
 						}
@@ -305,12 +305,12 @@ namespace UnrealBuildTool
 					else
 					{
 						// Disable default checks.
-						foreach (string Checker in Target.StaticAnalyzerDisabledCheckers)
+						foreach (string Checker in CompileEnvironment.StaticAnalyzerDisabledCheckers)
 						{
 							Arguments.Add($"-Xclang -analyzer-disable-checker -Xclang {Checker}");
 						}
 						// Enable additional non-default checks.
-						foreach (string Checker in Target.StaticAnalyzerAdditionalCheckers)
+						foreach (string Checker in CompileEnvironment.StaticAnalyzerAdditionalCheckers)
 						{
 							Arguments.Add($"-Xclang -analyzer-checker -Xclang {Checker}");
 						}

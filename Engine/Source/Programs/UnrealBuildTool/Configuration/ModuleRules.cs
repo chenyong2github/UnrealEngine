@@ -800,6 +800,37 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bEnableUndefinedIdentifierWarnings = true;
 
+		/// <summary>
+		/// The static analyzer checkers that should be enabled rather than the defaults. This is only supported for Clang.
+		/// See https://clang.llvm.org/docs/analyzer/checkers.html for a full list. Or run:
+		///    'clang -Xclang -analyzer-checker-help' 
+		/// or: 
+		///    'clang -Xclang -analyzer-checker-help-alpha' 
+		/// for the list of experimental checkers.
+		/// </summary>
+		public HashSet<string> StaticAnalyzerCheckers = new HashSet<string>();
+
+		/// <summary>
+		/// The static analyzer default checkers that should be disabled. Unused if StaticAnalyzerCheckers is populated. This is only supported for Clang.
+		/// This overrides the default disabled checkers, which are deadcode.DeadStores and security.FloatLoopCounter
+		/// See https://clang.llvm.org/docs/analyzer/checkers.html for a full list. Or run:
+		///    'clang -Xclang -analyzer-checker-help' 
+		/// or: 
+		///    'clang -Xclang -analyzer-checker-help-alpha' 
+		/// for the list of experimental checkers.
+		/// </summary>
+		public HashSet<string> StaticAnalyzerDisabledCheckers = new HashSet<string>() { "deadcode.DeadStores", "security.FloatLoopCounter" };
+
+		/// <summary>
+		/// The static analyzer non-default checkers that should be enabled. Unused if StaticAnalyzerCheckers is populated. This is only supported for Clang.
+		/// See https://clang.llvm.org/docs/analyzer/checkers.html for a full list. Or run:
+		///    'clang -Xclang -analyzer-checker-help' 
+		/// or: 
+		///    'clang -Xclang -analyzer-checker-help-alpha' 
+		/// for the list of experimental checkers.
+		/// </summary>
+		public HashSet<string> StaticAnalyzerAdditionalCheckers = new HashSet<string>();
+
 		private bool? bUseUnityOverride;
 		/// <summary>
 		/// If unity builds are enabled this can be used to override if this specific module will build using Unity.

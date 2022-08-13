@@ -264,6 +264,21 @@ namespace UnrealBuildTool
 		public bool bWarningsAsErrors = false;
 
 		/// <summary>
+		/// The static analyzer checkers that should be enabled rather than the defaults. This is only supported for Clang.
+		/// </summary>
+		public HashSet<string> StaticAnalyzerCheckers = new HashSet<string>();
+
+		/// <summary>
+		/// The static analyzer default checkers that should be disabled. Unused if StaticAnalyzerCheckers is populated. This is only supported for Clang.
+		/// </summary>
+		public HashSet<string> StaticAnalyzerDisabledCheckers = new HashSet<string>();
+
+		/// <summary>
+		/// The static analyzer non-default checkers that should be enabled. Unused if StaticAnalyzerCheckers is populated. This is only supported for Clang.
+		/// </summary>
+		public HashSet<string> StaticAnalyzerAdditionalCheckers = new HashSet<string>();
+
+		/// <summary>
 		/// True if compiler optimizations should be enabled. This setting is distinct from the configuration (see CPPTargetConfiguration).
 		/// </summary>
 		public bool bOptimizeCode = false;
@@ -508,6 +523,9 @@ namespace UnrealBuildTool
 			bUndefinedIdentifierWarningsAsErrors = Other.bUndefinedIdentifierWarningsAsErrors;
 			bEnableUndefinedIdentifierWarnings = Other.bEnableUndefinedIdentifierWarnings;
 			bWarningsAsErrors = Other.bWarningsAsErrors;
+			StaticAnalyzerCheckers = new HashSet<string>(Other.StaticAnalyzerCheckers);
+			StaticAnalyzerDisabledCheckers = new HashSet<string>(Other.StaticAnalyzerDisabledCheckers);
+			StaticAnalyzerAdditionalCheckers = new HashSet<string>(Other.StaticAnalyzerAdditionalCheckers);
 			bOptimizeCode = Other.bOptimizeCode;
 			bOptimizeForSize = Other.bOptimizeForSize;
 			bCreateDebugInfo = Other.bCreateDebugInfo;
