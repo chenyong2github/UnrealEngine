@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Buffers;
@@ -148,10 +148,8 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public static async Task FlushAsync(this ITreeWriter writer, TreeNode root, CancellationToken cancellationToken = default)
 		{
-			ITreeBlobRef rootBlobRef = await writer.WriteTreeAsync(root, cancellationToken);
-			ITreeBlob rootBlob = await rootBlobRef.GetTargetAsync(cancellationToken);
-
-			await writer.FlushAsync(rootBlob, cancellationToken);
+			ITreeBlob rootBlob = await writer.WriteTreeAsync(root, cancellationToken);
+			await writer.FlushAsync(rootBlob.Data, rootBlob.Refs, cancellationToken);
 		}
 
 		/// <summary>
@@ -161,7 +159,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="node">Root node to serialize</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Reference to the new tree of nodes</returns>
-		public static async Task<ITreeBlobRef> WriteTreeAsync(this ITreeWriter writer, TreeNode node, CancellationToken cancellationToken = default)
+		public static async Task<ITreeBlob> WriteTreeAsync(this ITreeWriter writer, TreeNode node, CancellationToken cancellationToken = default)
 		{
 			NewTreeBlob blob = node.Serialize();
 
@@ -171,7 +169,7 @@ namespace EpicGames.Horde.Storage
 				targetRefs.Add(await typedRef.CollapseAsync(writer, cancellationToken));
 			}
 
-			return await writer.WriteNodeAsync(blob.Data, targetRefs, cancellationToken);
+			return TreeBlob.Create(blob.Data, targetRefs);
 		}
 
 		/// <inheritdoc/>

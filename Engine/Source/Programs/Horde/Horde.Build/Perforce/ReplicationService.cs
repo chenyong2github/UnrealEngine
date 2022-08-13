@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -14,6 +15,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Bundles;
+using EpicGames.Horde.Storage.Git;
 using EpicGames.Horde.Storage.Nodes;
 using EpicGames.Perforce;
 using EpicGames.Redis;
@@ -33,6 +35,16 @@ namespace Horde.Build.Perforce
 {
 	using CommitId = ObjectId<ICommit>;
 	using StreamId = StringId<IStream>;
+
+	/// <summary>
+	/// Exception triggered during content replication
+	/// </summary>
+	public sealed class ReplicationException : Exception
+	{
+		internal ReplicationException(string message) : base(message)
+		{
+		}
+	}
 
 	/// <summary>
 	/// Options for the commit service
@@ -75,7 +87,7 @@ namespace Horde.Build.Perforce
 		/// Constructor
 		/// </summary>
 		public ReplicationNode()
-			: this(new DirectoryNode())
+			: this(new DirectoryNode(DirectoryFlags.WithGitHashes))
 		{
 		}
 
@@ -512,10 +524,59 @@ namespace Horde.Build.Perforce
 			return await WriteCommitTreeAsync(stream, change, baseChange, baseContents, stream.ReplicationFilter, revisionsOnly, cancellationToken);
 		}
 
+		[DebuggerDisplay("{_path}")]
 		class DirectoryToSync
 		{
-			public Utf8String _path;
+			public readonly Utf8String _path;
+			public readonly Dictionary<Utf8String, long> _fileNameToSize;
 			public long _size;
+
+			public DirectoryToSync(Utf8String path, Utf8StringComparer comparer)
+			{
+				_path = path;
+				_fileNameToSize = new Dictionary<Utf8String, long>(comparer);
+			}
+		}
+
+		class FileWriter : IDisposable
+		{
+			readonly FileEntry _entry;
+			readonly IncrementalHash _hash;
+			readonly long _size;
+
+			public FileWriter(FileEntry entry, long size)
+			{
+				_entry = entry;
+				_hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
+				_size = size;
+
+				GitObject.WriteHeader(GitObjectType.Blob, size, _hash);
+			}
+
+			public void Dispose() => _hash.Dispose();
+
+			public async Task AppendAsync(ReadOnlyMemory<byte> data, ChunkingOptions options, ITreeWriter writer, CancellationToken cancellationToken)
+			{
+				_hash.AppendData(data.Span);
+				await _entry.AppendAsync(data, options, writer, cancellationToken);
+			}
+
+			public async Task FinishAsync(ITreeWriter writer, CancellationToken cancellationToken)
+			{
+				if (_entry.Length != _size)
+				{
+					throw new ReplicationException($"Invalid size for replicated file '{_entry.Name}'. Expected {_size}, got {_entry.Length}.");
+				}
+				UpdateHash();
+				await _entry.CollapseAsync(writer, cancellationToken);
+			}
+
+			void UpdateHash()
+			{
+				Span<byte> buffer = stackalloc byte[20];
+				_hash.GetHashAndReset(buffer);
+				_entry.GitHash = new Sha1Hash(buffer);
+			}
 		}
 
 		/// <summary>
@@ -583,7 +644,7 @@ namespace Horde.Build.Perforce
 
 					using ReadOnlyMemoryStream dataStream = new ReadOnlyMemoryStream(data);
 
-					FileEntry entry = await root.AddFileByPathAsync(path, FileEntryFlags.PerforceDepotPathAndRevision, writer, cancellationToken);
+					FileEntry entry = await root.AddFileByPathAsync(path, FileEntryFlags.PerforceDepotPathAndRevision, cancellationToken);
 					await entry.AppendAsync(dataStream, Options.Chunking, writer, cancellationToken);
 				}
 			}
@@ -625,11 +686,11 @@ namespace Horde.Build.Perforce
 					DirectoryToSync? directory;
 					if (!pathToDirectory.TryGetValue(directoryPath, out directory))
 					{
-						directory = new DirectoryToSync();
-						directory._path = NormalizePathSeparators(directoryPath);
+						directory = new DirectoryToSync(NormalizePathSeparators(directoryPath), clientInfo.ServerInfo.Utf8PathComparer);
 						pathToDirectory.Add(directoryPath, directory);
 					}
 
+					directory._fileNameToSize.Add(path.Slice(fileIdx).Clone(), response.Data.FileSize);
 					directory._size += response.Data.FileSize;
 				}
 
@@ -678,52 +739,81 @@ namespace Horde.Build.Perforce
 					Stopwatch processTimer = new Stopwatch();
 					Stopwatch gcTimer = new Stopwatch();
 
-					Dictionary<int, FileEntry> handles = new Dictionary<int, FileEntry>();
-					await foreach (PerforceResponse response in perforce.StreamCommandAsync("sync", Array.Empty<string>(), new string[] { syncPath }, null, typeof(SyncRecord), true, default))
+					Dictionary<int, FileWriter> handles = new Dictionary<int, FileWriter>();
+					try
 					{
-						PerforceError? error = response.Error;
-						if (error != null)
+						await foreach (PerforceResponse response in perforce.StreamCommandAsync("sync", Array.Empty<string>(), new string[] { syncPath }, null, typeof(SyncRecord), true, default))
 						{
-							_logger.LogWarning("Perforce: {Message}", error.Data);
-							continue;
-						}
-
-						processTimer.Start();
-
-						PerforceIo? io = response.Io;
-						if (io != null)
-						{
-							if (io.Command == PerforceIoCommand.Open)
+							PerforceError? error = response.Error;
+							if (error != null)
 							{
-								Utf8String file = GetClientRelativePath(io.Payload, clientInfo.Client.Root);
-								handles[io.File] = await root.AddFileByPathAsync(file, FileEntryFlags.None, writer, cancellationToken);
+								throw new ReplicationException($"Perforce error while replicating content: {error.Data}");
 							}
-							else if (io.Command == PerforceIoCommand.Write)
+
+							processTimer.Start();
+
+							PerforceIo? io = response.Io;
+							if (io != null)
 							{
-								FileEntry entry = handles[io.File];
-								await entry.AppendAsync(io.Payload, Options.Chunking, writer, cancellationToken);
-								dataSize += io.Payload.Length;
-							}
-							else if (io.Command == PerforceIoCommand.Close)
-							{
-								FileEntry? entry;
-								if (handles.Remove(io.File, out entry))
+								if (io.Command == PerforceIoCommand.Open)
 								{
-									await entry.CollapseAsync(writer, cancellationToken);
+									Utf8String file = GetClientRelativePath(io.Payload, clientInfo.Client.Root);
+									int offset = GetFileOffset(file);
+
+									long fileSize = 0;
+									if (!pathToDirectory.TryGetValue(file.Substring(0, offset), out DirectoryToSync? directory))
+									{
+										throw new ReplicationException($"Unable to find directory for {file}");
+									}
+									if (!directory._fileNameToSize.TryGetValue(file.Substring(offset), out fileSize))
+									{
+										throw new ReplicationException($"Unable to find file entry for {file}");
+									}
+
+									FileEntry entry = await root.AddFileByPathAsync(file, FileEntryFlags.None, cancellationToken);
+									handles[io.File] = new FileWriter(entry, fileSize);
+								}
+								else if (io.Command == PerforceIoCommand.Write)
+								{
+									FileWriter file = handles[io.File];
+									await file.AppendAsync(io.Payload, Options.Chunking, writer, cancellationToken);
+									dataSize += io.Payload.Length;
+								}
+								else if (io.Command == PerforceIoCommand.Close)
+								{
+									FileWriter? file = null;
+									try
+									{
+										if (handles.Remove(io.File, out file))
+										{
+											await file.FinishAsync(writer, cancellationToken);
+										}
+									}
+									finally
+									{
+										file?.Dispose();
+									}
+								}
+								else if (io.Command == PerforceIoCommand.Unlink)
+								{
+									Utf8String file = GetClientRelativePath(io.Payload, clientInfo.Client.Root);
+									await root.DeleteFileByPathAsync(file, cancellationToken);
+								}
+								else
+								{
+									_logger.LogWarning("Unhandled command code {Code}", io.Command);
 								}
 							}
-							else if (io.Command == PerforceIoCommand.Unlink)
-							{
-								Utf8String file = GetClientRelativePath(io.Payload, clientInfo.Client.Root);
-								await root.DeleteFileByPathAsync(file, cancellationToken);
-							}
-							else
-							{
-								_logger.LogWarning("Unhandled command code {Code}", io.Command);
-							}
-						}
 
-						processTimer.Stop();
+							processTimer.Stop();
+						}
+					}
+					finally
+					{
+						foreach (FileWriter handle in handles.Values)
+						{
+							handle.Dispose();
+						}
 					}
 					_logger.LogInformation("Completed batch in {TimeSeconds:n1}s ({ProcessTimeSeconds:n1}s processing)", syncTimer.Elapsed.TotalSeconds, processTimer.Elapsed.TotalSeconds);
 
@@ -792,6 +882,16 @@ namespace Horde.Build.Perforce
 				await _treeStore.DeleteTreeAsync(incRefName, cancellationToken);
 			}
 			return syncNode;
+		}
+
+		static int GetFileOffset(Utf8String path)
+		{
+			int fileIdx = path.Length;
+			while (fileIdx > 0 && path[fileIdx - 1] != '/' && path[fileIdx - 1] != '\\')
+			{
+				fileIdx--;
+			}
+			return fileIdx;
 		}
 
 		static Utf8String NormalizePathSeparators(Utf8String path)

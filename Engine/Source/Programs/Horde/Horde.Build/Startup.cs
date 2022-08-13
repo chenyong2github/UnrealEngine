@@ -285,7 +285,7 @@ namespace Horde.Build
 		static ITreeStore CreateTreeStore(IServiceProvider sp, TreeStoreOptions options)
 		{
 			IBlobStore store = CreateBlobStore(sp, options);
-			return new BundleStore(store, options.Bundle, sp.GetRequiredService<IMemoryCache>());
+			return new BundleStore(store, options.Bundle);
 		}
 
 		public Startup(IConfiguration configuration)

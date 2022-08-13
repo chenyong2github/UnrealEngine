@@ -43,7 +43,7 @@ namespace Horde.Build.Commands.Bundles
 			ITreeStore store = serviceProvider.GetRequiredService<ITreeStore<CommitService>>();
 			ITreeWriter writer = store.CreateTreeWriter(RefName);
 
-			DirectoryNode node = new DirectoryNode();
+			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
 			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), writer, logger, CancellationToken.None);
 
 			TreeNodeRef<DirectoryNode> root = new TreeNodeRef<DirectoryNode>(null!, node);

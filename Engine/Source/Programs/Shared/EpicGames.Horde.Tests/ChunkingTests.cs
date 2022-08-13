@@ -8,6 +8,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.IO;
 using System.Threading;
+using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Backends;
+using EpicGames.Horde.Storage.Bundles;
 
 namespace EpicGames.Horde.Tests
 {
@@ -46,32 +49,35 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task BasicChunkingTests()
 		{
+			using BundleStore store = new BundleStore(new InMemoryBlobStore(), new BundleOptions());
+			ITreeWriter writer = store.CreateTreeWriter(new RefName("test"));
+
 			ChunkingOptions options = new ChunkingOptions();
 			options.LeafOptions = new ChunkingOptionsForNodeType(8, 8, 8);
 
 			FileNode node = new LeafFileNode();
-			node.Append(new byte[7], options);
+			await node.AppendAsync(new byte[7], options, writer, CancellationToken.None);
 			Assert.AreEqual(7, node.Length);
 			Assert.AreEqual(0, node.GetReferences().Count);
 			Assert.AreEqual(7, (await node.ToByteArrayAsync(CancellationToken.None)).Length);
 
 			node = new LeafFileNode();
-			node.Append(new byte[8], options);
+			await node.AppendAsync(new byte[8], options, writer, CancellationToken.None);
 			Assert.AreEqual(8, node.Length);
 			Assert.AreEqual(0, node.GetReferences().Count);
 			Assert.AreEqual(8, (await node.ToByteArrayAsync(CancellationToken.None)).Length);
 
 			node = new LeafFileNode();
-			node = node.Append(new byte[9], options);
+			node = await node.AppendAsync(new byte[9], options, writer, CancellationToken.None);
 			Assert.AreEqual(9, node.Length);
 			Assert.AreEqual(2, node.GetReferences().Count);
 
-			FileNode? childNode1 = (FileNode?)node.GetReferences()[0].Node;
+			FileNode? childNode1 = await ((TreeNodeRef<FileNode>)node.GetReferences()[0]).ExpandAsync();
 			Assert.IsNotNull(childNode1);
 			Assert.AreEqual(0, childNode1!.GetReferences().Count);
 			Assert.AreEqual(8, (await childNode1!.ToByteArrayAsync(CancellationToken.None)).Length);
 
-			FileNode? childNode2 = (FileNode?)node.GetReferences()[1].Node;
+			FileNode? childNode2 = await ((TreeNodeRef<FileNode>)node.GetReferences()[1]).ExpandAsync();
 			Assert.IsNotNull(childNode2);
 			Assert.AreEqual(0, childNode2!.GetReferences().Count);
 			Assert.AreEqual(1, (await childNode2!.ToByteArrayAsync(CancellationToken.None)).Length);
@@ -99,6 +105,9 @@ namespace EpicGames.Horde.Tests
 
 		static async Task TestChunkingAsync(ChunkingOptions options)
 		{
+			using BundleStore store = new BundleStore(new InMemoryBlobStore(), new BundleOptions());
+			ITreeWriter writer = store.CreateTreeWriter(new RefName("test"));
+
 			byte[] data = new byte[4096];
 			new Random(0).NextBytes(data);
 
@@ -112,7 +121,7 @@ namespace EpicGames.Horde.Tests
 			const int NumIterations = 100;
 			for (int idx = 0; idx < NumIterations; idx++)
 			{
-				root = root.Append(data, options);
+				root = await root.AppendAsync(data, options, writer, CancellationToken.None);
 			}
 
 			byte[] result;

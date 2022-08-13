@@ -90,7 +90,7 @@ namespace Horde.Build.Commands.Bundles
 			ReplicationNode baseContents;
 			if (BaseChange == 0)
 			{
-				baseContents = new ReplicationNode(new DirectoryNode());
+				baseContents = new ReplicationNode(new DirectoryNode(DirectoryFlags.WithGitHashes));
 			}
 			else
 			{

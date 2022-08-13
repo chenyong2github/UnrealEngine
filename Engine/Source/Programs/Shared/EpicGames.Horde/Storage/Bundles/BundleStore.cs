@@ -66,6 +66,8 @@ namespace EpicGames.Horde.Storage.Bundles
 			public readonly IoHash Hash;
 			public NodeState State { get; private set; }
 
+			IoHash ITreeBlobRef.Hash => Hash;
+
 			public NodeInfo(BundleStore owner, IoHash hash, NodeState state)
 			{
 				Owner = owner;
@@ -223,7 +225,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			}
 
 			/// <inheritdoc/>
-			public Task FlushAsync(ITreeBlob root, CancellationToken cancellationToken = default) => _owner.FlushAsync(this, root, cancellationToken);
+			public Task FlushAsync(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default) => _owner.FlushAsync(this, data, refs, cancellationToken);
 
 			/// <inheritdoc/>
 			public Task<ITreeBlobRef> WriteNodeAsync(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default) => _owner.WriteNodeAsync(this, data, refs, cancellationToken);
@@ -245,7 +247,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleStore(IBlobStore blobStore, BundleOptions options, IMemoryCache cache)
+		public BundleStore(IBlobStore blobStore, BundleOptions options)
 		{
 			_blobStore = blobStore;
 			_options = options;
@@ -608,7 +610,7 @@ namespace EpicGames.Horde.Storage.Bundles
 
 					// If this node pushes the current blob over the max size, queue it to be written now
 					long length = inMemoryState.Data.Length;
-					if (context.WriteLength + length > _options.MaxBlobSize)
+					if (context.WriteNodes.Count > 0 && context.WriteLength + length > _options.MaxBlobSize)
 					{
 						// Start the write, but don't wait for it to complete. Once we've copied the list of nodes they can be written asynchronously.
 						NodeInfo[] writeNodes = context.WriteNodes.ToArray();
@@ -686,11 +688,12 @@ namespace EpicGames.Horde.Storage.Bundles
 			}
 		}
 
-		async Task FlushAsync(BundleWriteContext context, ITreeBlob root, CancellationToken cancellationToken = default)
+		async Task FlushAsync(BundleWriteContext context, ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default)
 		{
 			// Create the root node, and add everything it references to the write buffer
-			IoHash rootHash = ComputeHash(root.Data, root.Refs.ConvertAll(x => (NodeInfo)x));
-			NodeInfo rootNode = new NodeInfo(this, rootHash, (InMemoryNodeState)root);
+			List<NodeInfo> typedRefs = refs.ConvertAll(x => (NodeInfo)x);
+			IoHash rootHash = ComputeHash(data, typedRefs);
+			NodeInfo rootNode = new NodeInfo(this, rootHash, new InMemoryNodeState(data, typedRefs));
 
 			// Flush all the nodes to bundles, and snapshot the remaining ref
 			Task task;

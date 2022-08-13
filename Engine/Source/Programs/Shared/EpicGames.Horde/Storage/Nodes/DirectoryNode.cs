@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Storage.Git;
 using EpicGames.Serialization;
 using Microsoft.Extensions.Logging;
 using System;
@@ -10,13 +11,14 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace EpicGames.Horde.Storage.Nodes
 {
 	/// <summary>
-	/// Flags for a directory entry
+	/// Flags for a file entry
 	/// </summary>
 	[Flags]
 	public enum FileEntryFlags
@@ -42,14 +44,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		Text = 16,
 
 		/// <summary>
-		/// The attached entry includes a Git SHA1 of the corresponding blob/tree contents.
-		/// </summary>
-		HasGitSha1 = 32,
-
-		/// <summary>
 		/// The data for this entry is a Perforce depot path and revision rather than the actual file contents.
 		/// </summary>
-		PerforceDepotPathAndRevision = 64,
+		PerforceDepotPathAndRevision = 32,
 	}
 
 	/// <summary>
@@ -65,12 +62,17 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Flags for this file
 		/// </summary>
-		public FileEntryFlags Flags { get; }
+		public FileEntryFlags Flags { get; set; }
 
 		/// <summary>
 		/// Length of this entry
 		/// </summary>
 		public long Length => (Node == null) ? _cachedLength : Node.Length;
+
+		/// <summary>
+		/// SHA1 hash of this file, with Git prefix
+		/// </summary>
+		public Sha1Hash GitHash { get; set; }
 
 		/// <summary>
 		/// Cached length of this node
@@ -160,6 +162,11 @@ namespace EpicGames.Horde.Storage.Nodes
 		public long Length => (Node == null) ? _cachedLength : Node.Length;
 
 		/// <summary>
+		/// Optional Git hash for the referenced directory object.
+		/// </summary>
+		public Sha1Hash GitHash { get; set; }
+
+		/// <summary>
 		/// Cached value for the length of this tree
 		/// </summary>
 		long _cachedLength;
@@ -188,10 +195,30 @@ namespace EpicGames.Horde.Storage.Nodes
 		protected override void OnCollapse()
 		{
 			_cachedLength = Node!.Length;
+			if (_owner is DirectoryNode directoryNode && (directoryNode.Flags & DirectoryFlags.WithGitHashes) != 0)
+			{
+				GitHash = Node!.AsGitTree().GetHash();
+			}
 		}
 
 		/// <inheritdoc/>
 		public override string ToString() => IsDirty() ? $"{Name} (*)" : Name.ToString();
+	}
+
+	/// <summary>
+	/// Flags for a directory node
+	/// </summary>
+	public enum DirectoryFlags
+	{
+		/// <summary>
+		/// No flags specified
+		/// </summary>
+		None = 0,
+
+		/// <summary>
+		/// Includes hashes for all entries
+		/// </summary>
+		WithGitHashes = 1,
 	}
 
 	/// <summary>
@@ -211,6 +238,11 @@ namespace EpicGames.Horde.Storage.Nodes
 		public long Length => Files.Sum(x => x.Length) + Directories.Sum(x => x.Length);
 
 		/// <summary>
+		/// Flags for this directory 
+		/// </summary>
+		public DirectoryFlags Flags { get; }
+
+		/// <summary>
 		/// All the files within this directory
 		/// </summary>
 		public IReadOnlyCollection<FileEntry> Files => _nameToFileEntry.Values;
@@ -219,6 +251,15 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// All the subdirectories within this directory
 		/// </summary>
 		public IReadOnlyCollection<DirectoryEntry> Directories => _nameToDirectoryEntry.Values;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="flags"></param>
+		public DirectoryNode(DirectoryFlags flags)
+		{
+			Flags = flags;
+		}
 
 		/// <summary>
 		/// Clear the contents of this directory
@@ -256,7 +297,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <returns>The new directory object</returns>
 		public FileEntry AddFile(Utf8String name, FileEntryFlags flags)
 		{
-			if(TryGetDirectoryEntry(name, out _))
+			if (TryGetDirectoryEntry(name, out _))
 			{
 				throw new ArgumentException($"A directory with the name {name} already exists");
 			}
@@ -292,10 +333,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="path">Path to the file</param>
 		/// <param name="flags">Flags for the new file</param>
-		/// <param name="writer">Writer for new node data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The new directory object</returns>
-		public async ValueTask<FileEntry> AddFileByPathAsync(Utf8String path, FileEntryFlags flags, ITreeWriter writer, CancellationToken cancellationToken = default)
+		public async ValueTask<FileEntry> AddFileByPathAsync(Utf8String path, FileEntryFlags flags, CancellationToken cancellationToken = default)
 		{
 			DirectoryNode directory = this;
 
@@ -369,7 +409,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		public async ValueTask<bool> DeleteFileByPathAsync(Utf8String path, CancellationToken cancellationToken)
 		{
 			Utf8String remainingPath = path;
-			for (DirectoryNode? directory = this; directory != null; )
+			for (DirectoryNode? directory = this; directory != null;)
 			{
 				int length = remainingPath.IndexOf('/');
 				if (length == -1)
@@ -401,7 +441,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				throw new ArgumentException($"A file with the name '{name}' already exists in this directory", nameof(name));
 			}
 
-			DirectoryNode node = new DirectoryNode();
+			DirectoryNode node = new DirectoryNode(Flags);
 
 			DirectoryEntry entry = new DirectoryEntry(this, name, node);
 			_nameToDirectoryEntry.Add(name, entry);
@@ -466,7 +506,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <returns>True if the entry was found, false otherwise</returns>
 		public bool DeleteDirectory(Utf8String name)
 		{
-			if(_nameToDirectoryEntry.Remove(name))
+			if (_nameToDirectoryEntry.Remove(name))
 			{
 				MarkAsDirty();
 				return true;
@@ -493,13 +533,14 @@ namespace EpicGames.Horde.Storage.Nodes
 				refs.Add(directoryEntry);
 			}
 
-			return new NewTreeBlob(SerializeData(fileEntries, directoryEntries), refs);
+			return new NewTreeBlob(SerializeData(Flags, fileEntries, directoryEntries), refs);
 		}
 
-		static ReadOnlySequence<byte> SerializeData(List<FileEntry> fileEntries, List<DirectoryEntry> directoryEntries)
+		static ReadOnlySequence<byte> SerializeData(DirectoryFlags flags, List<FileEntry> fileEntries, List<DirectoryEntry> directoryEntries)
 		{
 			// Measure the required size of the write buffer
 			int size = 1;
+			size += VarInt.MeasureUnsigned((ulong)flags);
 			size += VarInt.MeasureUnsigned(fileEntries.Count);
 			foreach (FileEntry fileEntry in fileEntries)
 			{
@@ -518,6 +559,9 @@ namespace EpicGames.Horde.Storage.Nodes
 			span[0] = TypeId;
 			span = span.Slice(1);
 
+			int directoryFlagBytes = VarInt.WriteUnsigned(span, (ulong)flags);
+			span = span.Slice(directoryFlagBytes);
+
 			int fileCountBytes = VarInt.WriteUnsigned(span, fileEntries.Count);
 			span = span.Slice(fileCountBytes);
 
@@ -531,6 +575,12 @@ namespace EpicGames.Horde.Storage.Nodes
 
 				int lengthBytes = VarInt.WriteUnsigned(span, fileEntry.Length);
 				span = span.Slice(lengthBytes);
+
+				if ((flags & DirectoryFlags.WithGitHashes) != 0)
+				{
+					fileEntry.GitHash.CopyTo(span);
+					span = span.Slice(Sha1Hash.NumBytes);
+				}
 			}
 
 			int directoryCountBytes = VarInt.WriteUnsigned(span, directoryEntries.Count);
@@ -543,6 +593,12 @@ namespace EpicGames.Horde.Storage.Nodes
 
 				int lengthBytes = VarInt.WriteUnsigned(span, directoryEntry.Length);
 				span = span.Slice(lengthBytes);
+
+				if ((flags & DirectoryFlags.WithGitHashes) != 0)
+				{
+					directoryEntry.GitHash.CopyTo(span);
+					span = span.Slice(Sha1Hash.NumBytes);
+				}
 			}
 
 			Debug.Assert(span.Length == 0);
@@ -557,14 +613,17 @@ namespace EpicGames.Horde.Storage.Nodes
 		public static DirectoryNode Deserialize(ITreeBlob source)
 		{
 			ReadOnlySpan<byte> span = source.Data.AsSingleSegment().Span;
-			if(span[0] != TypeId)
+			if (span[0] != TypeId)
 			{
 				throw new InvalidOperationException("Invalid signature byte for directory");
 			}
 
 			span = span.Slice(1);
 
-			DirectoryNode node = new DirectoryNode();
+			DirectoryFlags directoryFlags = (DirectoryFlags)VarInt.ReadUnsigned(span, out int directoryFlagBytes);
+			span = span.Slice(directoryFlagBytes);
+
+			DirectoryNode node = new DirectoryNode(directoryFlags);
 
 			int fileCount = (int)VarInt.ReadUnsigned(span, out int fileCountBytes);
 			span = span.Slice(fileCountBytes);
@@ -578,14 +637,22 @@ namespace EpicGames.Horde.Storage.Nodes
 				Utf8String name = new Utf8String(span.Slice(0, nameLen).ToArray());
 				span = span.Slice(nameLen + 1);
 
-				FileEntryFlags flags = (FileEntryFlags)span[0];
-				span = span.Slice(1);
+				FileEntryFlags flags = (FileEntryFlags)VarInt.ReadUnsigned(span, out int flagBytes);
+				span = span.Slice(flagBytes);
 
 				long length = (long)VarInt.ReadUnsigned(span, out int lengthBytes);
 				span = span.Slice(lengthBytes);
 
 				ITreeBlobRef child = source.Refs[childIdx++];
-				node._nameToFileEntry[name] = new FileEntry(node, name, flags, length, child);
+				FileEntry entry = new FileEntry(node, name, flags, length, child);
+
+				if ((directoryFlags & DirectoryFlags.WithGitHashes) != 0)
+				{
+					entry.GitHash = new Sha1Hash(span);
+					span = span.Slice(Sha1Hash.NumBytes);
+				}
+
+				node._nameToFileEntry[name] = entry;
 			}
 
 			int directoryCount = (int)VarInt.ReadUnsigned(span, out int directoryCountBytes);
@@ -602,7 +669,15 @@ namespace EpicGames.Horde.Storage.Nodes
 				span = span.Slice(lengthBytes);
 
 				ITreeBlobRef child = source.Refs[childIdx++];
-				node._nameToDirectoryEntry[name] = new DirectoryEntry(node, name, length, child);
+				DirectoryEntry entry = new DirectoryEntry(node, name, length, child);
+
+				if ((directoryFlags & DirectoryFlags.WithGitHashes) != 0)
+				{
+					entry.GitHash = new Sha1Hash(span);
+					span = span.Slice(Sha1Hash.NumBytes);
+				}
+
+				node._nameToDirectoryEntry[name] = entry;
 			}
 
 			Debug.Assert(span.Length == 0);
@@ -662,6 +737,25 @@ namespace EpicGames.Horde.Storage.Nodes
 			}
 
 			await Task.WhenAll(tasks);
+		}
+
+		/// <summary>
+		/// Creates a Git tree object for this directory
+		/// </summary>
+		/// <returns>Tree object</returns>
+		public GitTree AsGitTree()
+		{
+			GitTree tree = new GitTree();
+			foreach (FileEntry fileEntry in _nameToFileEntry.Values)
+			{
+				tree.Entries.Add(new GitTreeEntry(GitFileMode.File, fileEntry.Name, fileEntry.GitHash));
+			}
+			foreach (DirectoryEntry directoryEntry in _nameToDirectoryEntry.Values)
+			{
+				tree.Entries.Add(new GitTreeEntry(GitFileMode.Tree, directoryEntry.Name, directoryEntry.GitHash));
+			}
+			tree.Entries.SortBy(x => x.Name);
+			return tree;
 		}
 	}
 

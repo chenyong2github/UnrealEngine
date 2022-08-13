@@ -1,10 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 
 namespace EpicGames.Horde.Storage
 {
@@ -29,6 +30,11 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	public interface ITreeBlobRef
 	{
+		/// <summary>
+		/// Hash of the target
+		/// </summary>
+		IoHash Hash { get; }
+
 		/// <summary>
 		/// Gets the target of a reference
 		/// </summary>
@@ -94,11 +100,39 @@ namespace EpicGames.Horde.Storage
 		Task<ITreeBlobRef> WriteNodeAsync(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Flush the tree with the given root.
+		/// Flush the tree with the given data at the root.
 		/// </summary>
-		/// <param name="root">The root node</param>
+		/// <param name="data">Data for the node</param>
+		/// <param name="refs">References to other nodes</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		Task FlushAsync(ITreeBlob root, CancellationToken cancellationToken = default);
+		/// <returns>Reference to the node that was added</returns>
+		Task FlushAsync(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default);
+	}
+
+	/// <summary>
+	/// Utility class
+	/// </summary>
+	public static class TreeBlob
+	{
+		class TreeBlobImpl : ITreeBlob
+		{
+			public ReadOnlySequence<byte> Data { get; }
+			public IReadOnlyList<ITreeBlobRef> Refs { get; }
+
+			public TreeBlobImpl(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs)
+			{
+				Data = data;
+				Refs = refs;
+			}
+		}
+
+		/// <summary>
+		/// Create a blob from the given parameters
+		/// </summary>
+		public static ITreeBlob Create(ReadOnlySequence<byte> Data, IReadOnlyList<ITreeBlobRef> Refs)
+		{
+			return new TreeBlobImpl(Data, Refs);
+		}
 	}
 
 	/// <summary>
@@ -140,6 +174,17 @@ namespace EpicGames.Horde.Storage
 		public static ITreeStore<T> ForType<T>(this ITreeStore store)
 		{
 			return new TypedTreeStore<T>(store);
+		}
+
+		/// <summary>
+		/// Flush the root of a tree to the store
+		/// </summary>
+		/// <param name="writer">Writer for the nodes</param>
+		/// <param name="root">Root blob</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public static Task FlushAsync(this ITreeWriter writer, ITreeBlob root, CancellationToken cancellationToken = default)
+		{
+			return writer.FlushAsync(root.Data, root.Refs, cancellationToken);
 		}
 	}
 }
