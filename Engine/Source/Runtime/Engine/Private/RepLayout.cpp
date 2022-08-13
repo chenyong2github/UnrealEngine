@@ -2081,7 +2081,7 @@ bool FRepLayout::ReplicateProperties(
 	}
 
 	// Send the final merged change list
-	if (OwningChannel->Connection->IsInternalAck())
+	if (OwningChannel->Connection->IsInternalAck() && !RepFlags.bSerializePropertyNames)
 	{
 		// Remember all properties that have changed since this channel was first opened in case we need it (for bResendAllDataSinceOpen)
 		// We use UnfilteredChanged so LifetimeChangelist contains all properties, regardless of Active state.
