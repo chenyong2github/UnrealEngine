@@ -575,6 +575,8 @@ public:
 
 	ENGINE_API void FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, const FUniformExpressionCache& UniformExpressionCache, const FRHIUniformBufferLayout* UniformBufferLayout, uint8* TempBuffer, int TempBufferSize) const;
 
+	ENGINE_API void FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, TConstArrayView<IAllocatedVirtualTexture*> AllocatedVTs, const FRHIUniformBufferLayout* UniformBufferLayout, uint8* TempBuffer, int TempBufferSize) const;
+
 	// Get a combined hash of all referenced Texture2D's underlying RHI textures, going through TextureReferences. Can be used to tell if any texture has gone through texture streaming mip changes recently.
 	ENGINE_API uint32 GetReferencedTexture2DRHIHash(const FMaterialRenderContext& MaterialRenderContext) const;
 
@@ -2443,16 +2445,10 @@ struct FUniformExpressionCache
 	TArray<IAllocatedVirtualTexture*> OwnedAllocatedVTs;
 	/** Ids of parameter collections needed for rendering. */
 	TArray<FGuid> ParameterCollections;
-	/** True if the cache is up to date. */
-	bool bUpToDate;
-
 	/** Shader map that was used to cache uniform expressions on this material.  This is used for debugging and verifying correct behavior. */
-	const FMaterialShaderMap* CachedUniformExpressionShaderMap;
-
-	FUniformExpressionCache() :
-		bUpToDate(false),
-		CachedUniformExpressionShaderMap(NULL)
-	{}
+	const FMaterialShaderMap* CachedUniformExpressionShaderMap = nullptr;
+	/** True if the cache is up to date. */
+	bool bUpToDate = false;
 
 	/** Destructor. */
 	ENGINE_API ~FUniformExpressionCache();
@@ -2495,7 +2491,8 @@ private:
 	{
 		FItem() = default;
 		FItem(FUniformExpressionCache* InUniformExpressionCache, const FUniformExpressionSet* InUniformExpressionSet, const FRHIUniformBufferLayout* InUniformBufferLayout, const FMaterialRenderContext& Context)
-			: UniformExpressionCache(InUniformExpressionCache)
+			: UniformBuffer(InUniformExpressionCache->UniformBuffer)
+			, AllocatedVTs(InUniformExpressionCache->AllocatedVTs)
 			, UniformExpressionSet(InUniformExpressionSet)
 			, UniformBufferLayout(InUniformBufferLayout)
 			, MaterialRenderProxy(Context.MaterialRenderProxy)
@@ -2503,7 +2500,8 @@ private:
 			, bShowSelection(Context.bShowSelection)
 		{}
 
-		FUniformExpressionCache* UniformExpressionCache = nullptr;
+		TRefCountPtr<FRHIUniformBuffer> UniformBuffer;
+		TArray<IAllocatedVirtualTexture*, FConcurrentLinearArrayAllocator> AllocatedVTs;
 		const FUniformExpressionSet* UniformExpressionSet = nullptr;
 		const FRHIUniformBufferLayout* UniformBufferLayout = nullptr;
 		const FMaterialRenderProxy* MaterialRenderProxy = nullptr;
