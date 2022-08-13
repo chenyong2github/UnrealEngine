@@ -2601,10 +2601,14 @@ bool UNiagaraDataInterfaceStaticMesh::Equals(const UNiagaraDataInterface* Other)
 		return false;
 	}
 	const UNiagaraDataInterfaceStaticMesh* OtherTyped = CastChecked<const UNiagaraDataInterfaceStaticMesh>(Other);
-	return OtherTyped->SourceMode == SourceMode &&
+	return
+		OtherTyped->SourceMode == SourceMode &&
+#if WITH_EDITORONLY_DATA
+		OtherTyped->PreviewMesh == PreviewMesh &&
+#endif
+		OtherTyped->DefaultMesh == DefaultMesh &&
 		OtherTyped->SoftSourceActor == SoftSourceActor &&
 		OtherTyped->SourceComponent == SourceComponent &&
-		OtherTyped->DefaultMesh == DefaultMesh &&
 		OtherTyped->SectionFilter.AllowedMaterialSlots == SectionFilter.AllowedMaterialSlots &&
 		OtherTyped->bUsePhysicsBodyVelocity == bUsePhysicsBodyVelocity &&
 		OtherTyped->FilteredSockets == FilteredSockets;
@@ -2619,17 +2623,32 @@ bool UNiagaraDataInterfaceStaticMesh::CopyToInternal(UNiagaraDataInterface* Dest
 
 	UNiagaraDataInterfaceStaticMesh* OtherTyped = CastChecked<UNiagaraDataInterfaceStaticMesh>(Destination);
 	OtherTyped->SourceMode = SourceMode;
-	OtherTyped->SoftSourceActor = SoftSourceActor;
-	OtherTyped->SourceComponent = SourceComponent;
-	OtherTyped->DefaultMesh = DefaultMesh;
 #if WITH_EDITORONLY_DATA
 	OtherTyped->PreviewMesh = PreviewMesh;
 #endif
+	OtherTyped->DefaultMesh = DefaultMesh;
+	OtherTyped->SoftSourceActor = SoftSourceActor;
+	OtherTyped->SourceComponent = SourceComponent;
 	OtherTyped->SectionFilter = SectionFilter;
 	OtherTyped->bUsePhysicsBodyVelocity = bUsePhysicsBodyVelocity;
 	OtherTyped->FilteredSockets = FilteredSockets;
 	return true;
 }
+
+#if WITH_NIAGARA_DEBUGGER
+void UNiagaraDataInterfaceStaticMesh::DrawDebugHud(UCanvas* Canvas, FNiagaraSystemInstance* SystemInstance, FString& VariableDataString, bool bVerbose) const
+{
+	NDIStaticMeshLocal::FInstanceData_GameThread* InstanceData_GT = SystemInstance->FindTypedDataInterfaceInstanceData<NDIStaticMeshLocal::FInstanceData_GameThread>(this);
+	if (InstanceData_GT == nullptr)
+	{
+		return;
+	}
+
+	USceneComponent* SceneComponent = InstanceData_GT->SceneComponentWeakPtr.Get();
+	UStaticMesh* SkeletalMesh = InstanceData_GT->StaticMeshWeakPtr.Get();
+	VariableDataString = FString::Printf(TEXT("StaticMesh(%s) StaticMeshComp(%s)"), *GetNameSafe(SkeletalMesh), *GetNameSafe(SceneComponent));
+}
+#endif
 
 #if WITH_EDITOR
 void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo)
