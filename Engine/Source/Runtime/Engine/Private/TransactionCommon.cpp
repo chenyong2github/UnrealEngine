@@ -412,8 +412,14 @@ FArchive& FDiffableObjectDataWriter::operator<<(FName& N)
 
 FArchive& FDiffableObjectDataWriter::operator<<(UObject*& Res)
 {
-	PTRINT ResInt = (PTRINT)Res;
-	return *this << ResInt;
+	FName ResPathName;
+	if (Res)
+	{
+		FNameBuilder ResPathNameBuilder;
+		Res->GetPathName(nullptr, ResPathNameBuilder);
+		ResPathName = FName(ResPathNameBuilder);
+	}
+	return *this << ResPathName;
 }
 
 FName FDiffableObjectDataWriter::FCachedPropertyKey::SyncCache(const FArchiveSerializedPropertyChain* InPropertyChain)
