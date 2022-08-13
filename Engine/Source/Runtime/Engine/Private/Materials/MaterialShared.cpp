@@ -3926,7 +3926,7 @@ public:
 	{
 		if (Task)
 		{
-			Task->Wait(ENamedThreads::GetRenderThread_Local());
+			Task->Wait();
 			Task = nullptr;
 		}
 	}
