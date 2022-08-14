@@ -120,10 +120,10 @@ namespace Horde.Agent.Commands.Bundles
 			return _blobStore;
 		}
 
-		protected ITreeStore CreateTreeStore(ILogger logger, IMemoryCache cache)
+		protected ITreeStore CreateTreeStore(ILogger logger)
 		{
 			IBlobStore blobStore = CreateBlobStore(logger);
-			return new BundleStore(blobStore, new BundleOptions(), cache);
+			return new BundleStore(blobStore, new BundleOptions());
 		}
 	}
 
@@ -138,11 +138,10 @@ namespace Horde.Agent.Commands.Bundles
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-			using ITreeStore store = CreateTreeStore(logger, cache);
+			using ITreeStore store = CreateTreeStore(logger);
 			ITreeWriter writer = store.CreateTreeWriter(RefName);
 
-			DirectoryNode node = new DirectoryNode();
+			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
 			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), writer, logger, CancellationToken.None);
 
 			await writer.FlushAsync(node, CancellationToken.None);
