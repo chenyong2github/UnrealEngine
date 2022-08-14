@@ -2200,7 +2200,13 @@ const TArray<FMatrix44f>& FSkeletalMeshObjectGPUSkin::GetReferenceToLocalMatrice
 bool FSkeletalMeshObjectGPUSkin::GetCachedGeometry(FCachedGeometry& OutCachedGeometry) const
 {
 	OutCachedGeometry = FCachedGeometry();
-	
+
+	// Cached geometry is only available if we are using skin cache or a mesh deformer.	
+	if (DynamicData == nullptr || !(DynamicData->bIsSkinCacheAllowed || DynamicData->bHasMeshDeformer))
+	{
+		return false;
+	}
+
 	const int32 LodIndex = GetLOD();
 	if (SkeletalMeshRenderData == nullptr || !SkeletalMeshRenderData->LODRenderData.IsValidIndex(LodIndex))
 	{
