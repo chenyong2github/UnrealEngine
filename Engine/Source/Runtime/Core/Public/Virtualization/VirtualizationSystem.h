@@ -202,7 +202,7 @@ struct FPushRequest
 	}
 
 	/** Return the identifer used in the request */
-	FIoHash GetIdentifier() const
+	const FIoHash& GetIdentifier() const
 	{
 		return Identifier;
 	}

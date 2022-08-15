@@ -301,37 +301,6 @@ FVirtualizationManager::~FVirtualizationManager()
 	UE_LOG(LogVirtualization, Log, TEXT("Virtualization manager destroyed"));
 }
 
-#if ENABLE_FILTERING_HACK
-void FVirtualizationManager::FilterRequests(TArray<FPushRequest>& Requests) const
-{
-	// The same filtering code as in FVirtualizationManager::PushData, since this is a hack
-	// I do not want to make any changes to real code paths so it was safer to just duplicate
-	// the checks that we need.
-	for (FPushRequest& Request : Requests)
-	{
-		if (Request.GetIdentifier().IsZero() || Request.GetPayloadSize() == 0)
-		{
-			Request.SetStatus(FPushRequest::EStatus::Invalid);
-			continue;
-		}
-
-		if ((int64)Request.GetPayloadSize() < MinPayloadLength)
-		{
-			Request.SetStatus(FPushRequest::EStatus::BelowMinSize);
-			continue;
-		}
-
-		if (!ShouldVirtualize(Request.GetContext()))
-		{
-			Request.SetStatus(FPushRequest::EStatus::ExcludedByPackagPath);
-			continue;
-		}
-
-		Request.SetStatus(FPushRequest::EStatus::Success);
-	}
-}
-#endif //ENABLE_FILTERING_HACK
-
 bool FVirtualizationManager::Initialize(const FInitParams& InitParams)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::Initialize);

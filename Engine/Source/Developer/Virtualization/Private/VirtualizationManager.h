@@ -12,18 +12,6 @@
 class IConsoleObject;
 class FOutputDevice;
 
-// When enabled it will be possible to query push requests to see if they are filtered without actually pushing
-// anything. This is due to a bug with the filtering system, where a payload that should be filtered will be
-// virtualized by our process if the payload is already stored in persistent storage. This hack allows us to 
-// find which payloads should be filtered based on size and package path, then prevent them from being automatically
-// switched to being virtualized. Then when they are 'pushed' the usual filtering path will reject them.
-// The plan is to move this filtering to be done when the package trailer is created, on package save, in which
-// case everything will work just like asset filtering and will be much more robust. However we need to prevent 
-// some development branches from accidentally virtualizing packages which should not be virtualized so this hack
-// is a quick way to get the problem fixed and unblock workflows while the better fix is worked on. This hack
-// should be removed before 5.1 ships.
-#define ENABLE_FILTERING_HACK 1
-
 /**
  * Configuring the backend hierarchy
  * 
@@ -117,10 +105,6 @@ public:
 
 	FVirtualizationManager();
 	virtual ~FVirtualizationManager();
-
-#if ENABLE_FILTERING_HACK
-	void FilterRequests(TArray<FPushRequest>& Requests) const;
-#endif //ENABLE_FILTERING_HACK
 
 private:
 	/* IVirtualizationSystem implementation */
