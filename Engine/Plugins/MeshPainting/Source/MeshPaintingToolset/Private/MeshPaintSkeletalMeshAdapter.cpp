@@ -111,9 +111,9 @@ bool FMeshPaintSkeletalMeshComponentAdapter::Construct(UMeshComponent* InCompone
 	{
 		SkeletalMeshChangedHandle = SkeletalMeshComponent->RegisterOnSkeletalMeshPropertyChanged(USkeletalMeshComponent::FOnSkeletalMeshPropertyChanged::CreateSP(this, &FMeshPaintSkeletalMeshComponentAdapter::OnSkeletalMeshChanged));
 
-		if (SkeletalMeshComponent->GetSkeletalMesh() != nullptr)
+		if (SkeletalMeshComponent->GetSkeletalMeshAsset() != nullptr)
 		{
-			ReferencedSkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
+			ReferencedSkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
 			MeshLODIndex = InMeshLODIndex;
 			const bool bSuccess = Initialize();
 			return bSuccess;
@@ -140,8 +140,8 @@ void FMeshPaintSkeletalMeshComponentAdapter::OnSkeletalMeshChanged()
 	OnRemoved();
 	if (SkeletalMeshComponent.IsValid())
 	{
-		ReferencedSkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
-		if (SkeletalMeshComponent->GetSkeletalMesh() != nullptr)
+		ReferencedSkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
+		if (SkeletalMeshComponent->GetSkeletalMeshAsset() != nullptr)
 		{
 			Initialize();
 			OnAdded();
@@ -163,7 +163,7 @@ bool FMeshPaintSkeletalMeshComponentAdapter::Initialize()
 
 	if (SkeletalMeshComponent.IsValid())
 	{
-		check(ReferencedSkeletalMesh == SkeletalMeshComponent->GetSkeletalMesh());
+		check(ReferencedSkeletalMesh == SkeletalMeshComponent->GetSkeletalMeshAsset());
 
 		MeshResource = ReferencedSkeletalMesh->GetResourceForRendering();
 		if (MeshResource != nullptr)
@@ -230,7 +230,7 @@ void FMeshPaintSkeletalMeshComponentAdapter::OnAdded()
 	}
 
 	checkf(ReferencedSkeletalMesh, TEXT("Invalid reference to Skeletal Mesh"));
-	checkf(ReferencedSkeletalMesh == SkeletalMeshComponent->GetSkeletalMesh(), TEXT("Referenced Skeletal Mesh does not match one in Component"));
+	checkf(ReferencedSkeletalMesh == SkeletalMeshComponent->GetSkeletalMeshAsset(), TEXT("Referenced Skeletal Mesh does not match one in Component"));
 
 	SkeletalMeshComponent->bUseRefPoseOnInitAnim = true;
 	SkeletalMeshComponent->InitAnim(true);
@@ -476,7 +476,7 @@ TSharedPtr<IMeshPaintComponentAdapter> FMeshPaintSkeletalMeshComponentAdapterFac
 {
 	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InComponent))
 	{
-		if (SkeletalMeshComponent->GetSkeletalMesh() != nullptr)
+		if (SkeletalMeshComponent->GetSkeletalMeshAsset() != nullptr)
 		{
 			TSharedRef<FMeshPaintSkeletalMeshComponentAdapter> Result = MakeShareable(new FMeshPaintSkeletalMeshComponentAdapter());
 			if (Result->Construct(InComponent, InMeshLODIndex))

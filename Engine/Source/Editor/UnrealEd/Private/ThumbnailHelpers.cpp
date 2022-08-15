@@ -476,9 +476,9 @@ void FSkeletalMeshThumbnailScene::GetViewMatrixParameters(const float InFOVDegre
 	const float TargetDistance = HalfMeshSize / FMath::Tan(HalfFOVRadians);
 
 	USceneThumbnailInfo* ThumbnailInfo = nullptr;
-	if(PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMesh())
+	if(PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMeshAsset())
 	{
-		ThumbnailInfo = Cast<USceneThumbnailInfo>(PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMesh()->GetThumbnailInfo());
+		ThumbnailInfo = Cast<USceneThumbnailInfo>(PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMeshAsset()->GetThumbnailInfo());
 	}
 	
 	if ( ThumbnailInfo )
@@ -690,7 +690,7 @@ void FAnimationSequenceThumbnailScene::GetViewMatrixParameters(const float InFOV
 {
 	check(PreviewAnimation);
 	check(PreviewActor->GetSkeletalMeshComponent());
-	check(PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMesh());
+	check(PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMeshAsset());
 
 	const float HalfFOVRadians = FMath::DegreesToRadians<float>(InFOVDegrees) * 0.5f;
 	// No need to add extra size to view slightly outside of the sphere to compensate for perspective since skeletal meshes already buffer bounds.
@@ -824,7 +824,7 @@ void FBlendSpaceThumbnailScene::GetViewMatrixParameters(const float InFOVDegrees
 {
 	check(PreviewAnimation);
 	check(PreviewActor->GetSkeletalMeshComponent());
-	check(PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMesh());
+	check(PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMeshAsset());
 
 	const float HalfFOVRadians = FMath::DegreesToRadians<float>(InFOVDegrees) * 0.5f;
 	// No need to add extra size to view slightly outside of the sphere to compensate for perspective since skeletal meshes already buffer bounds.
@@ -945,7 +945,7 @@ void FAnimBlueprintThumbnailScene::GetViewMatrixParameters(const float InFOVDegr
 {
 	check(PreviewBlueprint);
 	check(PreviewActor->GetSkeletalMeshComponent());
-	check(PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMesh());
+	check(PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMeshAsset());
 
 	const float HalfFOVRadians = FMath::DegreesToRadians<float>(InFOVDegrees) * 0.5f;
 	// No need to add extra size to view slightly outside of the sphere to compensate for perspective since skeletal meshes already buffer bounds.
@@ -1029,9 +1029,9 @@ void FPhysicsAssetThumbnailScene::GetViewMatrixParameters(const float InFOVDegre
 	const float TargetDistance = HalfMeshSize / FMath::Tan(HalfFOVRadians);
 
 	USceneThumbnailInfo* ThumbnailInfo = USceneThumbnailInfo::StaticClass()->GetDefaultObject<USceneThumbnailInfo>();
-	if(PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMesh() && PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMesh()->GetPhysicsAsset())
+	if(PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMeshAsset() && PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMeshAsset()->GetPhysicsAsset())
 	{
-		if ( USceneThumbnailInfo* InteralThumbnailInfo = Cast<USceneThumbnailInfo>(PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMesh()->GetPhysicsAsset()->ThumbnailInfo) )
+		if ( USceneThumbnailInfo* InteralThumbnailInfo = Cast<USceneThumbnailInfo>(PreviewActor->GetSkeletalMeshComponent()->GetSkeletalMeshAsset()->GetPhysicsAsset()->ThumbnailInfo) )
 		{
 			ThumbnailInfo = InteralThumbnailInfo;
 			if ( TargetDistance + InteralThumbnailInfo->OrbitZoom < 0 )
@@ -1124,7 +1124,7 @@ bool FClassActorThumbnailScene::IsValidComponentForVisualization(UActorComponent
 		}
 
 		USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(Component);
-		if ( SkelMeshComp && SkelMeshComp->GetSkeletalMesh())
+		if ( SkelMeshComp && SkelMeshComp->GetSkeletalMeshAsset())
 		{
 			return true;
 		}

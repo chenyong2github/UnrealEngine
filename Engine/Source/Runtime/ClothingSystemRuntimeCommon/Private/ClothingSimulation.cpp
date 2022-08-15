@@ -60,7 +60,7 @@ void FClothingSimulationContextCommon::Fill(const USkeletalMeshComponent* InComp
 
 void FClothingSimulationContextCommon::FillBoneTransforms(const USkeletalMeshComponent* InComponent)
 {
-	const USkeletalMesh* const SkeletalMesh = InComponent->GetSkeletalMesh();
+	const USkeletalMesh* const SkeletalMesh = InComponent->GetSkeletalMeshAsset();
 
 	if (USkinnedMeshComponent* const LeaderComponent = InComponent->LeaderPoseComponent.Get())
 	{
@@ -122,7 +122,7 @@ void FClothingSimulationContextCommon::FillRefToLocals(const USkeletalMeshCompon
 	// Constraints are initialized using bone distances upon initialization, so fill out reference pose
 	if (bIsInitialization)
 	{
-		const USkeletalMesh* const SkeletalMesh = InComponent->GetSkeletalMesh();
+		const USkeletalMesh* const SkeletalMesh = InComponent->GetSkeletalMeshAsset();
 		if (SkeletalMesh)
 		{
 			const int32 NumBones = SkeletalMesh->GetRefSkeleton().GetNum();

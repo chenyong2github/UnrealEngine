@@ -106,7 +106,7 @@ void UNeuralMorphModel::PostMLDeformerComponentInit(UMLDeformerModelInstance* Mo
 
 	// Register the external morph targets buffer to the render data of the skeletal mesh.
 	USkeletalMeshComponent* SkelMeshComponent = ModelInstance->GetSkeletalMeshComponent();
-	if (SkelMeshComponent && SkelMeshComponent->GetSkeletalMesh())
+	if (SkelMeshComponent && SkelMeshComponent->GetSkeletalMeshAsset())
 	{
 		// Register the morph set. This overwrites the existing one for this model, if it already exists.
 		// Only add to LOD 0 for now.

@@ -58,7 +58,7 @@ bool UAdditiveControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FNam
 	{
 		if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(GetObjectBinding()->GetBoundObject()))
 		{
-			CreateRigElements(SkeletalMeshComponent->GetSkeletalMesh());
+			CreateRigElements(SkeletalMeshComponent->GetSkeletalMeshAsset());
 		}
 
 		// add units and initialize

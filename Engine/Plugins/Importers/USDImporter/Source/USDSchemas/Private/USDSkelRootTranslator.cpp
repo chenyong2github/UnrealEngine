@@ -278,17 +278,17 @@ namespace UsdSkelRootTranslatorImpl
 
 	void SetMorphTargetWeight( USkeletalMeshComponent& SkeletalMeshComponent, const FString& MorphTargetName, float Weight )
 	{
-		USkeletalMesh* SkeletalMesh = SkeletalMeshComponent.GetSkeletalMesh();
+		USkeletalMesh* SkeletalMesh = SkeletalMeshComponent.GetSkeletalMeshAsset();
 
 		// We try keeping a perfect correspondence between SkeletalMesh->GetMorphTargets() and SkeletalMeshComponent.ActiveMorphTargets
 		int32 IndexInSkeletalMesh = INDEX_NONE;
-		SkeletalMeshComponent.GetSkeletalMesh()->FindMorphTargetAndIndex( *MorphTargetName, IndexInSkeletalMesh );
+		SkeletalMeshComponent.GetSkeletalMeshAsset()->FindMorphTargetAndIndex( *MorphTargetName, IndexInSkeletalMesh );
 		if ( IndexInSkeletalMesh == INDEX_NONE )
 		{
 			return;
 		}
 
-		UMorphTarget* MorphTarget = SkeletalMeshComponent.GetSkeletalMesh()->GetMorphTargets()[ IndexInSkeletalMesh ];
+		UMorphTarget* MorphTarget = SkeletalMeshComponent.GetSkeletalMeshAsset()->GetMorphTargets()[ IndexInSkeletalMesh ];
 		if ( !MorphTarget )
 		{
 			return;
@@ -960,14 +960,14 @@ namespace UsdSkelRootTranslatorImpl
 
 	void UpdateLiveLinkProperties( const FUsdSchemaTranslationContext& Context, USkeletalMeshComponent* Component, const pxr::UsdPrim& Prim )
 	{
-		if ( !Component || !Component->GetSkeletalMesh() || !Prim )
+		if ( !Component || !Component->GetSkeletalMeshAsset() || !Prim )
 		{
 			return;
 		}
 
 		FString PrimName = UsdToUnreal::ConvertString( Prim.GetName() );
 
-		USkeleton* Skeleton = Component->GetSkeletalMesh()->GetSkeleton();
+		USkeleton* Skeleton = Component->GetSkeletalMeshAsset()->GetSkeleton();
 		if ( !Skeleton )
 		{
 			return;
@@ -1308,7 +1308,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 #if WITH_EDITOR
 	// Re-set the skeletal mesh if we created a new one (maybe the hash changed, a skinned UsdGeomMesh was hidden, etc.)
 	USkeletalMesh* TargetSkeletalMesh = Cast< USkeletalMesh >( Context->AssetCache->GetAssetForPrim( PrimPath.GetString() ) );
-	if ( SkeletalMeshComponent->GetSkeletalMesh() != TargetSkeletalMesh )
+	if ( SkeletalMeshComponent->GetSkeletalMeshAsset() != TargetSkeletalMesh )
 	{
 		SkeletalMeshComponent->SetSkeletalMesh(TargetSkeletalMesh);
 
@@ -1342,7 +1342,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 	// Update the animation state
 	// Don't try animating ourselves if the sequencer is animating as it will just overwrite the animation state on next
 	// tick anyway, and all this would do is lead to flickering and other issues
-	if ( !Context->bSequencerIsAnimating && SkeletalMeshComponent->GetSkeletalMesh() && !bPrimHasLiveLinkEnabled )
+	if ( !Context->bSequencerIsAnimating && SkeletalMeshComponent->GetSkeletalMeshAsset() && !bPrimHasLiveLinkEnabled )
 	{
 		if ( UAnimSequence* AnimSequence = Cast<UAnimSequence>( SkeletalMeshComponent->AnimationData.AnimToPlay.Get() ) )
 		{

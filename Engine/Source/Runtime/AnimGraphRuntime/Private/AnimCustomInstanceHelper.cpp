@@ -10,7 +10,7 @@
 
 bool FAnimCustomInstanceHelper::ShouldCreateCustomInstancePlayer(const USkeletalMeshComponent* SkeletalMeshComponent)
 {
-	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
+	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
 	const USkeleton*     Skeleton     = SkeletalMesh ? SkeletalMesh->GetSkeleton() : nullptr;
 
 	// create proper anim instance to animate

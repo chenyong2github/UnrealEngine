@@ -463,7 +463,7 @@ void RestartAnimations(const USkeleton* CurrentSkeleton)
 	for (FThreadSafeObjectIterator Iter(USkeletalMeshComponent::StaticClass()); Iter; ++Iter)
 	{
 		USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(*Iter);
-		if (SkeletalMeshComponent->GetSkeletalMesh() && SkeletalMeshComponent->GetSkeletalMesh()->GetSkeleton() == CurrentSkeleton)
+		if (SkeletalMeshComponent->GetSkeletalMeshAsset() && SkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton() == CurrentSkeleton)
 		{
 			SkeletalMeshComponent->InitAnim(true);
 		}

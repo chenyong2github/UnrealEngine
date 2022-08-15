@@ -833,7 +833,7 @@ void UClothingAssetCommon::ReregisterComponentsUsingClothing()
 		{
 			if(USkeletalMeshComponent* Component = *It)
 			{
-				if(Component->GetSkeletalMesh() == OwnerMesh)
+				if(Component->GetSkeletalMeshAsset() == OwnerMesh)
 				{
 					FComponentReregisterContext Context(Component);
 					// Context goes out of scope, causing Component to be re-registered
@@ -851,7 +851,7 @@ void UClothingAssetCommon::ForEachInteractorUsingClothing(TFunction<void(UClothi
 		{
 			if(USkeletalMeshComponent* Component = *It)
 			{
-				if(Component->GetSkeletalMesh() == OwnerMesh)
+				if(Component->GetSkeletalMeshAsset() == OwnerMesh)
 				{
 					if(UClothingSimulationInteractor* CurInteractor = Component->GetClothingSimulationInteractor())
 					{

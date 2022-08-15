@@ -366,7 +366,7 @@ void UAnimationSharingManager::RegisterActor(AActor* InActor, FUpdateActorHandle
 			const USkeleton* CurrentSkeleton = nullptr;
 			for (USkeletalMeshComponent* SkeletalMeshComponent : OwnedComponents)
 			{
-				const USkeletalMesh* Mesh = SkeletalMeshComponent->GetSkeletalMesh();
+				const USkeletalMesh* Mesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
 				const USkeleton* Skeleton = Mesh->GetSkeleton();
 
 				if (CurrentSkeleton == nullptr)

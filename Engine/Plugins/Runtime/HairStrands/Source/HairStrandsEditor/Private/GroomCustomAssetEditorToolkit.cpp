@@ -167,7 +167,7 @@ bool FGroomCustomAssetEditorToolkit::OnShouldFilterAnimAsset(const FAssetData& A
 	// Check the compatible skeletons.
 	if (PreviewSkeletalMeshComponent != nullptr)
 	{
-		USkeleton* Skeleton = PreviewSkeletalMeshComponent->GetSkeletalMesh()->GetSkeleton();
+		USkeleton* Skeleton = PreviewSkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton();
 		if (Skeleton && Skeleton->IsCompatibleSkeletonByAssetData(AssetData))
 		{
 			return false;
@@ -360,7 +360,7 @@ static UAnimationAsset* GetFirstCompatibleAnimAsset(const USkeletalMeshComponent
 		return nullptr;
 	}
 
-	USkeleton* InSkeleton = InComponent->GetSkeletalMesh()->GetSkeleton();
+	USkeleton* InSkeleton = InComponent->GetSkeletalMeshAsset()->GetSkeleton();
 	if (!InSkeleton)
 	{
 		return nullptr;

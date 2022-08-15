@@ -59,7 +59,7 @@ ECoordSystem FModifyBoneEditMode::GetWidgetCoordinateSystem() const
 FVector FModifyBoneEditMode::GetWidgetLocation() const
 {
 	USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
-	USkeleton* Skeleton = SkelComp->GetSkeletalMesh()->GetSkeleton();
+	USkeleton* Skeleton = SkelComp->GetSkeletalMeshAsset()->GetSkeleton();
 	FVector WidgetLoc = FVector::ZeroVector;
 
 	// if the current widget mode is translate, then shows the widget according to translation space

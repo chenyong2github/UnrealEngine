@@ -58,7 +58,7 @@ namespace UE::MLDeformer
 		// This will also calculate the skinned positions if the delta space is set to PostSkinning.
 		FMLDeformerSampler::Sample(InAnimFrameIndex);
 
-		USkeletalMesh* SkeletalMesh = SkeletalMeshComponent.Get() ? SkeletalMeshComponent->GetSkeletalMesh() : nullptr;
+		USkeletalMesh* SkeletalMesh = SkeletalMeshComponent.Get() ? SkeletalMeshComponent->GetSkeletalMeshAsset() : nullptr;
 		UGeometryCache* GeometryCache = GeometryCacheComponent->GetGeometryCache();
 		if (SkeletalMeshComponent && SkeletalMesh && GeometryCacheComponent && GeometryCache)
 		{

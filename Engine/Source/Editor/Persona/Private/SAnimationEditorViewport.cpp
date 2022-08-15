@@ -274,7 +274,7 @@ FText SAnimationEditorViewportTabBody::GetDisplayString() const
 				DefaultText = FText::Format(LOCTEXT("PreviewingAnimBP", "Previewing {0}"), FText::FromString(Component->AnimClass->GetName()));
 			}
 		}
-		else if (Component->GetSkeletalMesh() == NULL && TargetSkeletonName != NAME_None)
+		else if (Component->GetSkeletalMeshAsset() == NULL && TargetSkeletonName != NAME_None)
 		{
 			DefaultText = FText::Format(LOCTEXT("NoMeshFound", "No skeletal mesh found for skeleton '{0}'"), FText::FromName(TargetSkeletonName));
 		}
@@ -1159,9 +1159,9 @@ bool SAnimationEditorViewportTabBody::IsTurnTableModeSelected(int32 ModeIndex) c
 int32 SAnimationEditorViewportTabBody::GetLODModelCount() const
 {
 	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
-	if( PreviewComponent && PreviewComponent->GetSkeletalMesh())
+	if( PreviewComponent && PreviewComponent->GetSkeletalMeshAsset())
 	{
-		return PreviewComponent->GetSkeletalMesh()->GetResourceForRendering()->LODRenderData.Num();
+		return PreviewComponent->GetSkeletalMeshAsset()->GetResourceForRendering()->LODRenderData.Num();
 	}
 	return 0;
 }
@@ -1747,7 +1747,7 @@ void SAnimationEditorViewportTabBody::PopulateSkinWeightProfileNames()
 	// Retrieve all possible skin weight profiles from the component
 	if (UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent())
 	{
-		if (USkeletalMesh* Mesh = PreviewComponent->GetSkeletalMesh())
+		if (USkeletalMesh* Mesh = PreviewComponent->GetSkeletalMeshAsset())
 		{
 			for (const FSkinWeightProfileInfo& Profile : Mesh->GetSkinWeightProfiles())
 			{
@@ -2380,9 +2380,9 @@ void SAnimationEditorViewportTabBody::AddPostProcessNotification()
 	{
 		if (UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent())
 		{
-			if(PreviewComponent->GetSkeletalMesh() && PreviewComponent->GetSkeletalMesh()->GetPostProcessAnimBlueprint() && PreviewComponent->GetSkeletalMesh()->GetPostProcessAnimBlueprint()->ClassGeneratedBy)
+			if(PreviewComponent->GetSkeletalMeshAsset() && PreviewComponent->GetSkeletalMeshAsset()->GetPostProcessAnimBlueprint() && PreviewComponent->GetSkeletalMeshAsset()->GetPostProcessAnimBlueprint()->ClassGeneratedBy)
 			{
-				return FText::FromString(PreviewComponent->GetSkeletalMesh()->GetPostProcessAnimBlueprint()->ClassGeneratedBy->GetName());
+				return FText::FromString(PreviewComponent->GetSkeletalMeshAsset()->GetPostProcessAnimBlueprint()->ClassGeneratedBy->GetName());
 			}
 		}
 
@@ -2431,9 +2431,9 @@ void SAnimationEditorViewportTabBody::AddPostProcessNotification()
 	{
 		if (UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent())
 		{
-			if(PreviewComponent->GetSkeletalMesh() && PreviewComponent->GetSkeletalMesh()->GetPostProcessAnimBlueprint())
+			if(PreviewComponent->GetSkeletalMeshAsset() && PreviewComponent->GetSkeletalMeshAsset()->GetPostProcessAnimBlueprint())
 			{
-				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(TArray<UObject*>({ PreviewComponent->GetSkeletalMesh()->GetPostProcessAnimBlueprint()->ClassGeneratedBy }));
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(TArray<UObject*>({ PreviewComponent->GetSkeletalMeshAsset()->GetPostProcessAnimBlueprint()->ClassGeneratedBy }));
 			}
 		}
 

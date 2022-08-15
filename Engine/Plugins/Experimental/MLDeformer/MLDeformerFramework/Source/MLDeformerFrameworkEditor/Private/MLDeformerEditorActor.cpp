@@ -52,7 +52,7 @@ namespace UE::MLDeformer
 
 	bool FMLDeformerEditorActor::HasVisualMesh() const
 	{
-		if (SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMesh())
+		if (SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshAsset())
 		{
 			return true;
 		}

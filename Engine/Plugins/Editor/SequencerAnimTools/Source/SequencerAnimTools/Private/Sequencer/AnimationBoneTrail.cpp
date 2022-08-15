@@ -29,14 +29,14 @@ void FAnimTrajectoryCache::Evaluate(FTrajectoryCache* ParentTransformCache)
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	check(Sequencer);
 
-	if (!SkeletalMeshComponent.IsValid() || !SkeletalMeshComponent->GetSkeletalMesh() || !SkeletalMeshComponent->GetSkeletalMesh()->GetSkeleton())
+	if (!SkeletalMeshComponent.IsValid() || !SkeletalMeshComponent->GetSkeletalMeshAsset() || !SkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton())
 	{
 		return;
 	}
 
 	SkeletalMeshComponent->LeaderPoseComponent = nullptr;
 
-	CachedAnimSequence->SetSkeleton(SkeletalMeshComponent->GetSkeletalMesh()->GetSkeleton());
+	CachedAnimSequence->SetSkeleton(SkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton());
 
 	// TODO: for some reason SkeletalMeshComponent becomes invalid sometimes when evaluating, no clue why yet
 	FMovieSceneSequenceTransform MovieSceneSequenceTransform;

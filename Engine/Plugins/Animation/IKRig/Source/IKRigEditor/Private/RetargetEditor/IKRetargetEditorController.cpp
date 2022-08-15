@@ -519,7 +519,7 @@ void FIKRetargetEditorController::EditBoneSelection(
 {
 	// must have a skeletal mesh
 	UDebugSkelMeshComponent* DebugComponent = GetEditedSkeletalMesh();
-	if (!DebugComponent->GetSkeletalMesh())
+	if (!DebugComponent->GetSkeletalMeshAsset())
 	{
 		return;
 	}
@@ -553,7 +553,7 @@ void FIKRetargetEditorController::EditBoneSelection(
 	}
 
 	// convert to bone indices
-	const FReferenceSkeleton& RefSkeleton = DebugComponent->GetSkeletalMesh()->GetRefSkeleton();
+	const FReferenceSkeleton& RefSkeleton = DebugComponent->GetSkeletalMeshAsset()->GetRefSkeleton();
 	TArray<int32> SelectedBoneIndices;
 	for (const FName& Bone : SelectedBones)
 	{

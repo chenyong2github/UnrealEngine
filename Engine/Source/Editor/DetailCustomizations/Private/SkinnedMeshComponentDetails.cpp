@@ -183,7 +183,7 @@ void FSkinnedMeshComponentDetails::PopulateSkinWeightProfileNames()
 	// Retrieve all possible skin weight profiles from the component
 	if (USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(WeakSkinnedMeshComponent.Get()))
 	{
-		if (USkeletalMesh* Mesh = Component->GetSkeletalMesh())
+		if (USkeletalMesh* Mesh = Component->GetSkeletalMeshAsset())
 		{			
 			for (const FSkinWeightProfileInfo& Profile : Mesh->GetSkinWeightProfiles())
 			{

@@ -296,7 +296,7 @@ private:
 			}
 			else if( SkeletalMeshComponent )
 			{
-				USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
+				USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
 				if( SkeletalMesh )
 				{
 					SkeletalMeshes.Add(SkeletalMesh);

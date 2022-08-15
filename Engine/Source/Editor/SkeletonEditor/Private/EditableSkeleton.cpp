@@ -796,7 +796,7 @@ void FEditableSkeleton::HandleRemoveAllAssets(TSharedPtr<IPersonaPreviewScene> I
 
 	DeleteAttachedObjects(Skeleton->PreviewAttachedAssetContainer, InPreviewScene);
 
-	USkeletalMesh* SkeletalMesh = InPreviewScene->GetPreviewMeshComponent()->GetSkeletalMesh();
+	USkeletalMesh* SkeletalMesh = InPreviewScene->GetPreviewMeshComponent()->GetSkeletalMeshAsset();
 	if (SkeletalMesh)
 	{
 		SkeletalMesh->Modify();
@@ -910,7 +910,7 @@ void FEditableSkeleton::HandleAttachAssets(const TArray<UObject*>& InObjects, co
 
 		if (bAttachToMesh)
 		{
-			USkeletalMesh* SkeletalMesh = InPreviewScene->GetPreviewMeshComponent()->GetSkeletalMesh();
+			USkeletalMesh* SkeletalMesh = InPreviewScene->GetPreviewMeshComponent()->GetSkeletalMeshAsset();
 			if (SkeletalMesh != nullptr)
 			{
 				FScopedTransaction Transaction(LOCTEXT("DragDropAttachMeshUndo", "Attach Assets to Mesh"));
@@ -957,7 +957,7 @@ void FEditableSkeleton::HandleDeleteAttachedAssets(const TArray<FPreviewAttached
 	if (InAttachedObjects.Num() > 0)
 	{
 		Skeleton->Modify();
-		USkeletalMesh* SkeletalMesh = InPreviewScene->GetPreviewMeshComponent()->GetSkeletalMesh();
+		USkeletalMesh* SkeletalMesh = InPreviewScene->GetPreviewMeshComponent()->GetSkeletalMeshAsset();
 		if (SkeletalMesh != nullptr)
 		{
 			SkeletalMesh->Modify();
@@ -993,7 +993,7 @@ void FEditableSkeleton::HandleDeleteSockets(const TArray<FSelectedSocketInfo>& I
 		}
 		else
 		{
-			USkeletalMesh* SkeletalMesh = InPreviewScene->GetPreviewMeshComponent()->GetSkeletalMesh();
+			USkeletalMesh* SkeletalMesh = InPreviewScene->GetPreviewMeshComponent()->GetSkeletalMeshAsset();
 			if (SkeletalMesh != nullptr)
 			{
 				UObject* Object = SkeletalMesh->GetPreviewAttachedAssetContainer().GetAttachedObjectByAttachName(SocketName);

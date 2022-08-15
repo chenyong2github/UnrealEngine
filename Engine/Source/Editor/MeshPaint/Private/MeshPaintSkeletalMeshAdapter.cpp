@@ -108,9 +108,9 @@ bool FMeshPaintGeometryAdapterForSkeletalMeshes::Construct(UMeshComponent* InCom
 	{
 		SkeletalMeshChangedHandle = SkeletalMeshComponent->RegisterOnSkeletalMeshPropertyChanged(USkeletalMeshComponent::FOnSkeletalMeshPropertyChanged::CreateRaw(this, &FMeshPaintGeometryAdapterForSkeletalMeshes::OnSkeletalMeshChanged));
 
-		if (SkeletalMeshComponent->GetSkeletalMesh() != nullptr)
+		if (SkeletalMeshComponent->GetSkeletalMeshAsset() != nullptr)
 		{
-			ReferencedSkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
+			ReferencedSkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
 			MeshLODIndex = InMeshLODIndex;
 			const bool bSuccess = Initialize();
 			return bSuccess;
@@ -131,8 +131,8 @@ FMeshPaintGeometryAdapterForSkeletalMeshes::~FMeshPaintGeometryAdapterForSkeleta
 void FMeshPaintGeometryAdapterForSkeletalMeshes::OnSkeletalMeshChanged()
 {
 	OnRemoved();
-	ReferencedSkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
-	if (SkeletalMeshComponent->GetSkeletalMesh() != nullptr)
+	ReferencedSkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
+	if (SkeletalMeshComponent->GetSkeletalMeshAsset() != nullptr)
 	{	
 		Initialize();
 		OnAdded();
@@ -149,7 +149,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::OnPostMeshCached(USkeletalMesh*
 
 bool FMeshPaintGeometryAdapterForSkeletalMeshes::Initialize()
 {
-	check(ReferencedSkeletalMesh == SkeletalMeshComponent->GetSkeletalMesh());
+	check(ReferencedSkeletalMesh == SkeletalMeshComponent->GetSkeletalMeshAsset());
 
 	bool bInitializationResult = false;
 
@@ -212,7 +212,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::OnAdded()
 {
 	checkf(SkeletalMeshComponent, TEXT("Invalid SkeletalMesh Component"));
 	checkf(ReferencedSkeletalMesh, TEXT("Invalid reference to Skeletal Mesh"));
-	checkf(ReferencedSkeletalMesh == SkeletalMeshComponent->GetSkeletalMesh(), TEXT("Referenced Skeletal Mesh does not match one in Component"));
+	checkf(ReferencedSkeletalMesh == SkeletalMeshComponent->GetSkeletalMeshAsset(), TEXT("Referenced Skeletal Mesh does not match one in Component"));
 
 	FSkeletalMeshReferencers& SkeletalMeshReferencers = MeshToComponentMap.FindOrAdd(ReferencedSkeletalMesh);
 
@@ -515,7 +515,7 @@ TSharedPtr<IMeshPaintGeometryAdapter> FMeshPaintGeometryAdapterForSkeletalMeshes
 {
 	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InComponent))
 	{
-		if (SkeletalMeshComponent->GetSkeletalMesh() != nullptr)
+		if (SkeletalMeshComponent->GetSkeletalMeshAsset() != nullptr)
 		{
 			TSharedRef<FMeshPaintGeometryAdapterForSkeletalMeshes> Result = MakeShareable(new FMeshPaintGeometryAdapterForSkeletalMeshes());
 			if (Result->Construct(InComponent, InMeshLODIndex))

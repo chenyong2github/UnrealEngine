@@ -134,8 +134,8 @@ void FMovieScene3DTransformSectionRecorder::FinalizeSection(float CurrentTime)
 		{
 			USkeletalMesh* SkeletalMesh =
 				Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent) ?
-				Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent)->GetSkeletalMesh() :
-				SkeletalMeshComponent->GetSkeletalMesh();
+				Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent)->GetSkeletalMeshAsset() :
+				SkeletalMeshComponent->GetSkeletalMeshAsset();
 			if (AnimSequence && SkeletalMesh)
 			{
 				// find the root bone

@@ -190,7 +190,7 @@ void GetSkinnedVertices(USkeletalMeshComponent* MeshComponent, const int32 LODIn
 	}
 
 	// Get SkeletalMesh
-	USkeletalMesh* SkeletalMesh = MeshComponent->GetSkeletalMesh();
+	USkeletalMesh* SkeletalMesh = MeshComponent->GetSkeletalMeshAsset();
 	if (!SkeletalMesh)
 	{
 		return;

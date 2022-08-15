@@ -214,7 +214,7 @@ FTransform ComputeWorldSpaceTargetTM(const USkeletalMeshComponent& SkeletalMeshC
 
 FTransform ComputeLocalSpaceTargetTM(const USkeletalMeshComponent& SkeletalMeshComponent, const UPhysicsAsset& PhysAsset, const TArray<FTransform>& LocalTransforms, int32 BoneIndex)
 {
-	const FReferenceSkeleton& RefSkeleton = SkeletalMeshComponent.GetSkeletalMesh()->GetRefSkeleton();
+	const FReferenceSkeleton& RefSkeleton = SkeletalMeshComponent.GetSkeletalMeshAsset()->GetRefSkeleton();
 	FTransform AccumulatedDelta = LocalTransforms[BoneIndex];
 	int32 CurBoneIdx = BoneIndex;
 	while ((CurBoneIdx = RefSkeleton.GetParentIndex(CurBoneIdx)) != INDEX_NONE)
@@ -256,9 +256,9 @@ FTransform ComputeTargetTM(const FPhysicalAnimationData& PhysAnimData, const USk
 void UPhysicalAnimationComponent::UpdateTargetActors(ETeleportType TeleportType)
 {
 	UPhysicsAsset* PhysAsset = SkeletalMeshComponent ? SkeletalMeshComponent->GetPhysicsAsset() : nullptr;
-	if (PhysAsset && SkeletalMeshComponent->GetSkeletalMesh())
+	if (PhysAsset && SkeletalMeshComponent->GetSkeletalMeshAsset())
 	{
-		const FReferenceSkeleton& RefSkeleton = SkeletalMeshComponent->GetSkeletalMesh()->GetRefSkeleton();
+		const FReferenceSkeleton& RefSkeleton = SkeletalMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton();
 
 		// Note we use GetEditableComponentSpaceTransforms because we need to update target actors in the midst of the 
 		// various anim ticks, before buffers are flipped (which happens in the skel mesh component's post-physics tick)
@@ -357,7 +357,7 @@ void UPhysicalAnimationComponent::UpdatePhysicsEngineImp()
 {
 	bPhysicsEngineNeedsUpdating = false;
 	UPhysicsAsset* PhysAsset = SkeletalMeshComponent ? SkeletalMeshComponent->GetPhysicsAsset() : nullptr;
-	if(PhysAsset && SkeletalMeshComponent->GetSkeletalMesh())
+	if(PhysAsset && SkeletalMeshComponent->GetSkeletalMeshAsset())
 	{
 		//TODO: This is hacky and assumes constraints can only be added and not removed. True for now, but bad in general!
 		const int32 NumData = DriveData.Num();
@@ -368,7 +368,7 @@ void UPhysicalAnimationComponent::UpdatePhysicsEngineImp()
 		// Note we use GetEditableComponentSpaceTransforms because we need to update target actors in the midst of the 
 		// various anim ticks, before buffers are flipped (which happens in the skel mesh component's post-physics tick)
 		const TArray<FTransform>& SpaceBases = SkeletalMeshComponent->GetEditableComponentSpaceTransforms();
-		const FReferenceSkeleton& RefSkeleton = SkeletalMeshComponent->GetSkeletalMesh()->GetRefSkeleton();
+		const FReferenceSkeleton& RefSkeleton = SkeletalMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton();
 
 		FPhysicsCommand::ExecuteWrite(SkeletalMeshComponent, [&]()
 		{

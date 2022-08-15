@@ -466,12 +466,12 @@ void FPhysicsAssetEditor::OnAssetReimport(UObject* Object)
 	RefreshHierachyTree();
 	RefreshPreviewViewport();
 
-	if (SharedData->EditorSkelComp && SharedData->EditorSkelComp->GetSkeletalMesh())
+	if (SharedData->EditorSkelComp && SharedData->EditorSkelComp->GetSkeletalMeshAsset())
 	{
 		IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
 		// Update various infos based on the mesh
-		MeshUtilities.CalcBoneVertInfos(SharedData->EditorSkelComp->GetSkeletalMesh(), SharedData->DominantWeightBoneInfos, true);
-		MeshUtilities.CalcBoneVertInfos(SharedData->EditorSkelComp->GetSkeletalMesh(), SharedData->AnyWeightBoneInfos, false);
+		MeshUtilities.CalcBoneVertInfos(SharedData->EditorSkelComp->GetSkeletalMeshAsset(), SharedData->DominantWeightBoneInfos, true);
+		MeshUtilities.CalcBoneVertInfos(SharedData->EditorSkelComp->GetSkeletalMeshAsset(), SharedData->AnyWeightBoneInfos, false);
 	}
 }
 

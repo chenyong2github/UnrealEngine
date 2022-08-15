@@ -62,7 +62,7 @@ namespace UE::MLDeformer
 
 	void FMLDeformerSampler::UpdateSkeletalMeshComponent()
 	{
-		if (SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMesh())
+		if (SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshAsset())
 		{
 			// Sample the transforms at the frame time.
 			SkeletalMeshComponent->SetPosition(SampleTime);
@@ -95,7 +95,7 @@ namespace UE::MLDeformer
 		AnimFrameIndex = InAnimFrameIndex;
 		SampleTime = GetTimeAtFrame(InAnimFrameIndex);
 
-		const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
+		const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
 		if (SkeletalMeshComponent && SkeletalMesh)
 		{
 			UpdateSkeletalMeshComponent();
@@ -117,7 +117,7 @@ namespace UE::MLDeformer
 	FMatrix44f FMLDeformerSampler::CalcInverseSkinningTransform(int32 VertexIndex, const FSkeletalMeshLODRenderData& SkelMeshLODData, const FSkinWeightVertexBuffer& SkinWeightBuffer) const
 	{
 		check(SkeletalMeshComponent);
-		const USkeletalMesh* Mesh = SkeletalMeshComponent->GetSkeletalMesh();
+		const USkeletalMesh* Mesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
 		check(Mesh);
 
 		// Find the render section, which we need to find the right bone index.
@@ -158,7 +158,7 @@ namespace UE::MLDeformer
 			return;
 		}
 
-		USkeletalMesh* Mesh = SkeletalMeshComponent->GetSkeletalMesh();
+		USkeletalMesh* Mesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
 		if (Mesh == nullptr)
 		{
 			return;
@@ -193,7 +193,7 @@ namespace UE::MLDeformer
 			return;
 		}
 
-		USkeletalMesh* Mesh = SkeletalMeshComponent->GetSkeletalMesh();
+		USkeletalMesh* Mesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
 		if (Mesh == nullptr)
 		{
 			return;

@@ -94,7 +94,7 @@ bool UDEPRECATED_EditorSkeletalMeshLibrary::RemoveLODs(USkeletalMesh* SkeletalMe
 	for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
 	{
 		USkeletalMeshComponent* SkelComp = *It;
-		if (SkelComp->GetSkeletalMesh() == SkeletalMesh)
+		if (SkelComp->GetSkeletalMeshAsset() == SkeletalMesh)
 		{
 			UpdateContext.AssociatedComponents.Add(SkelComp);
 		}

@@ -119,7 +119,7 @@ bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Componen
 	FFrameRate SampleRate;
 	float MaximumLength;
 
-	if (!Component || !Component->GetSkeletalMesh() || !Component->GetSkeletalMesh()->GetSkeleton())
+	if (!Component || !Component->GetSkeletalMeshAsset() || !Component->GetSkeletalMeshAsset()->GetSkeleton())
 	{
 		return false;
 	}
@@ -136,7 +136,7 @@ bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Componen
 
 bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Component, const FString& InAssetPath, const FString& InAssetName)
 {
-	if (!Component || !Component->GetSkeletalMesh() || !Component->GetSkeletalMesh()->GetSkeleton())
+	if (!Component || !Component->GetSkeletalMeshAsset() || !Component->GetSkeletalMeshAsset()->GetSkeleton())
 	{
 		return false;
 	}
@@ -182,7 +182,7 @@ bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Componen
 	if (NewSeq)
 	{
 		// set skeleton
-		NewSeq->SetSkeleton(Component->GetSkeletalMesh()->GetSkeleton());
+		NewSeq->SetSkeleton(Component->GetSkeletalMeshAsset()->GetSkeleton());
 		// Notify the asset registry
 		FAssetRegistryModule::AssetCreated(NewSeq);
 		StartRecord(Component, NewSeq);
@@ -272,8 +272,8 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 		// verify if this bone exists in skeleton
 		const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(
 			Cast<USkeletalMeshComponent>(Component->LeaderPoseComponent) ?
-			Cast<USkeletalMeshComponent>(Component->LeaderPoseComponent)->GetSkeletalMesh() :
-			Component->GetSkeletalMesh(), BoneIndex);
+			Cast<USkeletalMeshComponent>(Component->LeaderPoseComponent)->GetSkeletalMeshAsset() :
+			Component->GetSkeletalMeshAsset(), BoneIndex);
 		if (BoneTreeIndex != INDEX_NONE)
 		{
 			// add tracks for the bone existing
@@ -283,10 +283,10 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 		}
 	}
 
-	AnimationObject->RetargetSource = Component->GetSkeletalMesh() ? AnimSkeleton->GetRetargetSourceForMesh(Component->GetSkeletalMesh()) : NAME_None;
+	AnimationObject->RetargetSource = Component->GetSkeletalMeshAsset() ? AnimSkeleton->GetRetargetSourceForMesh(Component->GetSkeletalMeshAsset()) : NAME_None;
 	if (AnimationObject->RetargetSource == NAME_None)
 	{
-		AnimationObject->RetargetSourceAsset = Component->GetSkeletalMesh();
+		AnimationObject->RetargetSourceAsset = Component->GetSkeletalMeshAsset();
 	}
 
 	// record the first frame
@@ -657,8 +657,8 @@ void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkel
 		{
 			const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(
 				Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent) ?
-				Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent)->GetSkeletalMesh() :
-				SkeletalMeshComponent->GetSkeletalMesh(), BoneIndex);
+				Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent)->GetSkeletalMeshAsset() :
+				SkeletalMeshComponent->GetSkeletalMeshAsset(), BoneIndex);
 			if (BoneTreeIndex != INDEX_NONE)
 			{
 				FName BoneTreeName = AnimSkeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
@@ -681,8 +681,8 @@ void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkel
 		// verify if this bone exists in skeleton
 		const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(
 			Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent) ?
-			Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent)->GetSkeletalMesh() :
-			SkeletalMeshComponent->GetSkeletalMesh(), BoneIndex);
+			Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent)->GetSkeletalMeshAsset() :
+			SkeletalMeshComponent->GetSkeletalMeshAsset(), BoneIndex);
 		if (BoneTreeIndex != INDEX_NONE)
 		{
 			// add tracks for the bone existing
@@ -837,8 +837,8 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 		IAnimationDataController& Controller = AnimationObject->GetController();
 		USkeletalMesh* SkeletalMesh =
 			Cast<USkeletalMeshComponent>(Component->LeaderPoseComponent) ?
-			Cast<USkeletalMeshComponent>(Component->LeaderPoseComponent)->GetSkeletalMesh() :
-			Component->GetSkeletalMesh();
+			Cast<USkeletalMeshComponent>(Component->LeaderPoseComponent)->GetSkeletalMeshAsset() :
+			Component->GetSkeletalMeshAsset();
 
 		const TArray<FBoneAnimationTrack>& BoneAnimationTracks = AnimationObject->GetDataModel()->GetBoneAnimationTracks();
 
@@ -932,7 +932,7 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 				{
 					if (FrameToAdd == 0)
 					{
-						const FTransform RefPose = Component->GetSkeletalMesh()->GetRefSkeleton().GetRefBonePose()[BoneIndex];
+						const FTransform RefPose = Component->GetSkeletalMeshAsset()->GetRefSkeleton().GetRefBonePose()[BoneIndex];
 						RawTrack.PosKeys.Add((FVector3f)RefPose.GetTranslation());
 						RawTrack.RotKeys.Add(FQuat4f(RefPose.GetRotation()));
 						RawTrack.ScaleKeys.Add((FVector3f)RefPose.GetScale3D());

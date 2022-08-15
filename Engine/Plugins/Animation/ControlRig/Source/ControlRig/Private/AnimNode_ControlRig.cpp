@@ -293,7 +293,7 @@ void FAnimNode_ControlRig::UpdateControlRigRefPoseIfNeeded(const FAnimInstancePr
 
 	if(InProxy->GetSkelMeshComponent())
 	{
-		ExpectedHash = HashCombine(ExpectedHash, (int32)reinterpret_cast<uintptr_t>(InProxy->GetSkelMeshComponent()->GetSkeletalMesh()));
+		ExpectedHash = HashCombine(ExpectedHash, (int32)reinterpret_cast<uintptr_t>(InProxy->GetSkelMeshComponent()->GetSkeletalMeshAsset()));
 	}
 
 	if(bIncludePoseInHash)

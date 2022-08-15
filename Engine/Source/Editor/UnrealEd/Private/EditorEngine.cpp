@@ -3573,7 +3573,7 @@ struct FConvertStaticMeshActorInfo
 		InternalGetFromActor(Actor);
 
 		// Copy over component properties.
-		SkeletalMesh			= MeshComp->GetSkeletalMesh();
+		SkeletalMesh			= MeshComp->GetSkeletalMeshAsset();
 		OverrideMaterials		= MeshComp->OverrideMaterials;
 		CachedMaxDrawDistance	= MeshComp->CachedMaxDrawDistance;
 		CastShadow				= MeshComp->CastShadow;

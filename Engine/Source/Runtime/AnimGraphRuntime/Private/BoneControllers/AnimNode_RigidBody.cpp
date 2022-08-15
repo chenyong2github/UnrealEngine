@@ -959,7 +959,7 @@ void ComputeBodyInsertionOrder(TArray<FBoneIndexType>& InsertionOrder, const USk
 
 	InsertionOrder.Reset();
 
-	if (SKC.GetSkeletalMesh() == nullptr)
+	if (SKC.GetSkeletalMeshAsset() == nullptr)
 	{
 		return;
 	}
@@ -972,7 +972,7 @@ void ComputeBodyInsertionOrder(TArray<FBoneIndexType>& InsertionOrder, const USk
 		SKC.ComputeRequiredBones(RequiredBones0, ComponentSpaceTMs0, 0, /*bIgnorePhysicsAsset=*/ true);
 
 		TArray<bool> InSortedOrder;
-		InSortedOrder.AddZeroed(SKC.GetSkeletalMesh()->GetRefSkeleton().GetNum());
+		InSortedOrder.AddZeroed(SKC.GetSkeletalMeshAsset()->GetRefSkeleton().GetNum());
 
 		auto MergeIndices = [&InsertionOrder, &InSortedOrder](const TArray<FBoneIndexType>& RequiredBones) -> void
 		{
@@ -1009,7 +1009,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 	DestroyPhysicsSimulation();
 
 	const USkeletalMeshComponent* SkeletalMeshComp = InAnimInstance->GetSkelMeshComponent();
-	const USkeletalMesh* SkeletalMeshAsset = SkeletalMeshComp->GetSkeletalMesh();
+	const USkeletalMesh* SkeletalMeshAsset = SkeletalMeshComp->GetSkeletalMeshAsset();
 	USkeleton* SkeletonAsset = InAnimInstance->CurrentSkeleton;
 
 	if(!SkeletalMeshAsset || !SkeletonAsset)

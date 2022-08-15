@@ -345,7 +345,7 @@ void FScopedSkeletalMeshPostEditChange::SetSkeletalMesh(USkeletalMesh* InSkeleta
 			for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
 			{
 				USkeletalMeshComponent* SkelComp = *It;
-				if (SkelComp->GetSkeletalMesh() == SkeletalMesh)
+				if (SkelComp->GetSkeletalMeshAsset() == SkeletalMesh)
 				{
 					ComponentReregisterContexts.Add(new FComponentReregisterContext(SkelComp));
 				}
@@ -1205,7 +1205,7 @@ void RefreshSkelMeshOnPhysicsAssetChange(const USkeletalMesh* InSkeletalMesh)
 		{
 			USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(*Iter);
 			// if PhysicsAssetOverride is NULL, it uses SkeletalMesh Physics Asset, so I'll need to update here
-			if  (SkeletalMeshComponent->GetSkeletalMesh() == InSkeletalMesh &&
+			if  (SkeletalMeshComponent->GetSkeletalMeshAsset() == InSkeletalMesh &&
 				 SkeletalMeshComponent->PhysicsAssetOverride == NULL)
 			{
 				// it needs to recreate IF it already has been created
@@ -1333,7 +1333,7 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		for(TObjectIterator<USkeletalMeshComponent> It; It; ++It)
 		{
 			USkeletalMeshComponent* MeshComponent = *It;
-			if(MeshComponent && !MeshComponent->IsTemplate() && MeshComponent->GetSkeletalMesh() == this)
+			if(MeshComponent && !MeshComponent->IsTemplate() && MeshComponent->GetSkeletalMeshAsset() == this)
 			{
 				ComponentsToReregister.Add(*It);
 			}
@@ -1396,7 +1396,7 @@ void USkeletalMesh::PostEditUndo()
 		USkeletalMeshComponent* MeshComponent = *It;
 		if( MeshComponent && 
 			!MeshComponent->IsTemplate() &&
-			MeshComponent->GetSkeletalMesh() == this )
+			MeshComponent->GetSkeletalMeshAsset() == this )
 		{
 			FComponentReregisterContext Context(MeshComponent);
 		}
@@ -3456,7 +3456,7 @@ void USkeletalMesh::InitMorphTargetsAndRebuildRenderData()
 		// reset all morphtarget for all components
 		for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
 		{
-			if (It->GetSkeletalMesh() == this)
+			if (It->GetSkeletalMeshAsset() == this)
 			{
 				It->RefreshMorphTargets();
 			}
@@ -6822,7 +6822,7 @@ FSkinnedMeshComponentRecreateRenderStateContext::FSkinnedMeshComponentRecreateRe
 	bool bRequireFlushRenderingCommands = false;
 	for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
 	{
-		if (It->GetSkeletalMesh() == InSkeletalMesh)
+		if (It->GetSkeletalMeshAsset() == InSkeletalMesh)
 		{
 			checkf(!It->IsUnreachable(), TEXT("%s"), *It->GetFullName());
 

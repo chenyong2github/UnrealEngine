@@ -471,7 +471,7 @@ FAnimNode_Base* FAnimNodeEditMode::GetActiveWidgetRuntimeAnimNode() const
 
 void FAnimNodeEditMode::ConvertToComponentSpaceTransform(const USkeletalMeshComponent* SkelComp, const FTransform & InTransform, FTransform & OutCSTransform, int32 BoneIndex, EBoneControlSpace Space)
 {
-	USkeletalMesh* SkelMesh = SkelComp->GetSkeletalMesh();
+	USkeletalMesh* SkelMesh = SkelComp->GetSkeletalMeshAsset();
 	USkeleton* Skeleton = SkelMesh->GetSkeleton();
 
 	switch (Space)
@@ -542,7 +542,7 @@ void FAnimNodeEditMode::ConvertToComponentSpaceTransform(const USkeletalMeshComp
 
 void FAnimNodeEditMode::ConvertToBoneSpaceTransform(const USkeletalMeshComponent* SkelComp, const FTransform & InCSTransform, FTransform & OutBSTransform, int32 BoneIndex, EBoneControlSpace Space)
 {
-	USkeletalMesh* SkelMesh = SkelComp->GetSkeletalMesh();
+	USkeletalMesh* SkelMesh = SkelComp->GetSkeletalMeshAsset();
 	USkeleton* Skeleton = SkelMesh->GetSkeleton();
 
 	switch(Space)
@@ -807,7 +807,7 @@ FVector FAnimNodeEditMode::ConvertWidgetLocation(const USkeletalMeshComponent* S
 	{
 		if (InMeshBases.GetPose().IsValid())
 		{
-			USkeleton* Skeleton = InSkelComp->GetSkeletalMesh()->GetSkeleton();
+			USkeleton* Skeleton = InSkelComp->GetSkeletalMeshAsset()->GetSkeleton();
 			const int32 MeshBoneIndex = InSkelComp->GetBoneIndex(InBoneName);
 			if (MeshBoneIndex != INDEX_NONE)
 			{

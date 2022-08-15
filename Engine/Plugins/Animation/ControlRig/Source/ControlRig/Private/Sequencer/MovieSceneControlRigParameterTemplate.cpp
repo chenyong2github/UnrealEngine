@@ -588,7 +588,7 @@ void FControlRigBindingHelper::BindToSequencerInstance(UControlRig* ControlRig)
 	check(ControlRig);
 	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
 	{
-		if(SkeletalMeshComponent->GetSkeletalMesh())
+		if(SkeletalMeshComponent->GetSkeletalMeshAsset())
 		{
 			bool bWasCreated = false;
 			if (UControlRigLayerInstance* AnimInstance = FAnimCustomInstanceHelper::BindToSkeletalMeshComponent<UControlRigLayerInstance>(SkeletalMeshComponent, bWasCreated))

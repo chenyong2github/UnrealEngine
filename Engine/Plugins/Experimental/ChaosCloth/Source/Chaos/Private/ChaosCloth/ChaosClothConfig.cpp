@@ -261,7 +261,7 @@ void UChaosClothSharedSimConfig::PostEditChangeChainProperty(FPropertyChangedCha
 			{
 				if (const USkeletalMeshComponent* const Component = *It)
 				{
-					if (Component->GetSkeletalMesh() == OwnerMesh)
+					if (Component->GetSkeletalMeshAsset() == OwnerMesh)
 					{
 						if (UClothingSimulationInteractor* const CurInteractor = Component->GetClothingSimulationInteractor())
 						{

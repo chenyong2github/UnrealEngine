@@ -38,14 +38,14 @@ bool FSkeletonSelectionEditMode::GetCameraTarget(FSphere& OutTarget) const
 
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
 
-	if(PreviewMeshComponent && PreviewMeshComponent->GetSkeletalMesh())
+	if(PreviewMeshComponent && PreviewMeshComponent->GetSkeletalMeshAsset())
 	{
 		if (GetAnimPreviewScene().GetSelectedBoneIndex() != INDEX_NONE)
 		{
 			const int32 FocusBoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
-			if (FocusBoneIndex != INDEX_NONE && PreviewMeshComponent->GetSkeletalMesh()->GetRefSkeleton().IsValidIndex(FocusBoneIndex))
+			if (FocusBoneIndex != INDEX_NONE && PreviewMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton().IsValidIndex(FocusBoneIndex))
 			{
-				const FName BoneName = PreviewMeshComponent->GetSkeletalMesh()->GetRefSkeleton().GetBoneName(FocusBoneIndex);
+				const FName BoneName = PreviewMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton().GetBoneName(FocusBoneIndex);
 				OutTarget.Center = PreviewMeshComponent->GetBoneLocation(BoneName);
 				OutTarget.W = 30.0f;
 				bHandled = true;
@@ -79,7 +79,7 @@ void FSkeletonSelectionEditMode::GetOnScreenDebugInfo(TArray<FText>& OutDebugInf
 
 FSelectedSocketInfo FSkeletonSelectionEditMode::DuplicateAndSelectSocket(const FSelectedSocketInfo& SocketInfoToDuplicate)
 {
-	USkeletalMesh* SkeletalMesh = GetAnimPreviewScene().GetPreviewMeshComponent()->GetSkeletalMesh();
+	USkeletalMesh* SkeletalMesh = GetAnimPreviewScene().GetPreviewMeshComponent()->GetSkeletalMeshAsset();
 	USkeletalMeshSocket* NewSocket = GetAnimPreviewScene().GetPersonaToolkit()->GetEditableSkeleton()->DuplicateSocket(SocketInfoToDuplicate, SocketInfoToDuplicate.Socket->BoneName, SkeletalMesh);
 
 	FSelectedSocketInfo NewSocketInfo(NewSocket, SocketInfoToDuplicate.bSocketIsOnSkeleton);
@@ -95,13 +95,13 @@ bool FSkeletonSelectionEditMode::StartTracking(FEditorViewportClient* InViewport
 	UE::Widget::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
 
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
-	if(PreviewMeshComponent != nullptr && PreviewMeshComponent->GetSkeletalMesh() != nullptr)
+	if(PreviewMeshComponent != nullptr && PreviewMeshComponent->GetSkeletalMeshAsset() != nullptr)
 	{
 		int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
 		USkeletalMeshSocket* SelectedSocket = GetAnimPreviewScene().GetSelectedSocket().Socket;
 		AActor* SelectedActor = GetAnimPreviewScene().GetSelectedActor();
 
-		if ((BoneIndex >= 0 && PreviewMeshComponent->GetSkeletalMesh()->GetRefSkeleton().IsValidIndex(BoneIndex)) || SelectedSocket != nullptr || SelectedActor != nullptr)
+		if ((BoneIndex >= 0 && PreviewMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton().IsValidIndex(BoneIndex)) || SelectedSocket != nullptr || SelectedActor != nullptr)
 		{
 			bool bValidAxis = false;
 			FVector WorldAxisDir;
@@ -157,7 +157,7 @@ bool FSkeletonSelectionEditMode::StartTracking(FEditorViewportClient* InViewport
 						bInTransaction = true;
 
 						// now modify the bone array
-						const FName BoneName = PreviewMeshComponent->GetSkeletalMesh()->GetRefSkeleton().GetBoneName(BoneIndex);
+						const FName BoneName = PreviewMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton().GetBoneName(BoneIndex);
 						PreviewMeshComponent->PreviewInstance->ModifyBone(BoneName);
 					}
 				}
@@ -216,7 +216,7 @@ bool FSkeletonSelectionEditMode::InputDelta(FEditorViewportClient* InViewportCli
 		if ( BoneIndex >= 0 )
 		{
 			//Get the skeleton control manipulating this bone
-			const FName BoneName = PreviewMeshComponent->GetSkeletalMesh()->GetRefSkeleton().GetBoneName(BoneIndex);
+			const FName BoneName = PreviewMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton().GetBoneName(BoneIndex);
 			SkelControl = &(PreviewMeshComponent->PreviewInstance->ModifyBone(BoneName));
 		}
 
@@ -339,12 +339,12 @@ FIntPoint FSkeletonSelectionEditMode::GetDPIUnscaledSize(FViewport* Viewport, FV
 void FSkeletonSelectionEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
 {
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
-	if (PreviewMeshComponent == nullptr || PreviewMeshComponent->GetSkeletalMesh() == nullptr)
+	if (PreviewMeshComponent == nullptr || PreviewMeshComponent->GetSkeletalMeshAsset() == nullptr)
 	{
 		return;
 	}
 
-	FReferenceSkeleton& RefSkeleton = PreviewMeshComponent->GetSkeletalMesh()->GetRefSkeleton();
+	FReferenceSkeleton& RefSkeleton = PreviewMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton();
 	int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
 
 	// Draw name of selected bone
@@ -354,7 +354,7 @@ void FSkeletonSelectionEditMode::DrawHUD(FEditorViewportClient* ViewportClient, 
 		const int32 HalfX = ViewPortSize.X / 2;
 		const int32 HalfY = ViewPortSize.Y / 2;
 
-		const FName BoneName = PreviewMeshComponent->GetSkeletalMesh()->GetRefSkeleton().GetBoneName(BoneIndex);
+		const FName BoneName = PreviewMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton().GetBoneName(BoneIndex);
 
 		FMatrix BoneMatrix = PreviewMeshComponent->GetBoneMatrix(BoneIndex);
 		const FPlane Proj = View->Project(BoneMatrix.GetOrigin());
@@ -446,10 +446,10 @@ bool FSkeletonSelectionEditMode::UsesTransformWidget(UE::Widget::EWidgetMode Che
 bool FSkeletonSelectionEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData)
 {
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
-	if(PreviewMeshComponent && PreviewMeshComponent->GetSkeletalMesh())
+	if(PreviewMeshComponent && PreviewMeshComponent->GetSkeletalMeshAsset())
 	{
 		int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
-		if (BoneIndex != INDEX_NONE && PreviewMeshComponent->GetSkeletalMesh()->GetRefSkeleton().IsValidIndex(BoneIndex))
+		if (BoneIndex != INDEX_NONE && PreviewMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton().IsValidIndex(BoneIndex))
 		{
 			FTransform BoneMatrix = PreviewMeshComponent->GetBoneTransform(BoneIndex);
 
@@ -487,9 +487,9 @@ FVector FSkeletonSelectionEditMode::GetWidgetLocation() const
 	int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
 	if (BoneIndex != INDEX_NONE)
 	{
-		if (PreviewMeshComponent && PreviewMeshComponent->GetSkeletalMesh() && PreviewMeshComponent->GetSkeletalMesh()->GetRefSkeleton().IsValidIndex(BoneIndex))
+		if (PreviewMeshComponent && PreviewMeshComponent->GetSkeletalMeshAsset() && PreviewMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton().IsValidIndex(BoneIndex))
 		{
-			const FName BoneName = PreviewMeshComponent->GetSkeletalMesh()->GetRefSkeleton().GetBoneName(BoneIndex);
+			const FName BoneName = PreviewMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton().GetBoneName(BoneIndex);
 
 			const FMatrix BoneMatrix = PreviewMeshComponent->GetBoneMatrix(BoneIndex);
 

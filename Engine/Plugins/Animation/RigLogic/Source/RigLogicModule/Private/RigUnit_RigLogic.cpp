@@ -345,14 +345,14 @@ FRigUnit_RigLogic_Execute()
 					// however, during unit testing we cannot fetch it from DataSourceRegistry 
 					// in that case, a mock version will be inserted into Data by unit test beforehand
 				}
-				if (!Data.SkelMeshComponent.IsValid() || Data.SkelMeshComponent->GetSkeletalMesh() == nullptr)
+				if (!Data.SkelMeshComponent.IsValid() || Data.SkelMeshComponent->GetSkeletalMeshAsset() == nullptr)
 				{
 					return;
 				}
 				Data.CurrentLOD = Data.SkelMeshComponent->GetPredictedLODLevel();
 
 				// Fetch shared runtime context of rig from DNAAsset
-				TSharedPtr<FSharedRigRuntimeContext> RigRuntimeContext = GetSharedRigRuntimeContext(Data.SkelMeshComponent->GetSkeletalMesh());
+				TSharedPtr<FSharedRigRuntimeContext> RigRuntimeContext = GetSharedRigRuntimeContext(Data.SkelMeshComponent->GetSkeletalMeshAsset());
 				// Context is initialized with a BehaviorReader, which can be imported into SkeletalMesh from DNA file
 				// or overwritten by GeneSplicer when making a new character
 				Data.InitializeRigLogic(Hierarchy, RigRuntimeContext);

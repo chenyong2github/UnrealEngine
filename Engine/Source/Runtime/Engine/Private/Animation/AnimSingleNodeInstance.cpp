@@ -40,7 +40,7 @@ void UAnimSingleNodeInstance::SetAnimationAsset(class UAnimationAsset* NewAsset,
 	USkeletalMeshComponent* MeshComponent = GetSkelMeshComponent();
 	if (MeshComponent)
 	{
-		if (MeshComponent->GetSkeletalMesh() == nullptr)
+		if (MeshComponent->GetSkeletalMeshAsset() == nullptr)
 		{
 			// if it does not have SkeletalMesh, we nullify it
 			CurrentAsset = nullptr;
@@ -48,7 +48,7 @@ void UAnimSingleNodeInstance::SetAnimationAsset(class UAnimationAsset* NewAsset,
 		else if (CurrentAsset != nullptr)
 		{
 			// if we have an asset, make sure their skeleton matches, otherwise, null it
-			if (!MeshComponent->GetSkeletalMesh()->GetSkeleton()->IsCompatible(CurrentAsset->GetSkeleton()))
+			if (!MeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->IsCompatible(CurrentAsset->GetSkeleton()))
 			{
 				// clear asset since we do not have matching skeleton
 				CurrentAsset = nullptr;

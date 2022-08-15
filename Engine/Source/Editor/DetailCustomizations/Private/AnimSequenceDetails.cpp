@@ -509,7 +509,7 @@ void SAnimationRefPoseViewport::InitSkeleton()
 		}();
 		
 		const bool bInvalidPreviewInstance = PreviewAnimInstance == nullptr || PreviewAnimInstance->GetCurrentAsset() != PreviewAnimationSequence;
-		const bool bPreviewMeshMismatch = PreviewComponent->GetSkeletalMesh() != PreviewSkeletalMesh;
+		const bool bPreviewMeshMismatch = PreviewComponent->GetSkeletalMeshAsset() != PreviewSkeletalMesh;
 		if(bInvalidPreviewInstance || bPreviewMeshMismatch)
 		{
 			PreviewComponent->SetSkeletalMesh(PreviewSkeletalMesh);
@@ -572,7 +572,7 @@ void SAnimationRefPoseViewport::Tick( const FGeometry& AllottedGeometry, const d
 		{
 			Description->SetText( FText::Format( LOCTEXT( "IncorrectSkeleton", "The preview asset doesn't work for the skeleton '{0}'" ), FText::FromString( TargetSkeletonName ) ) );
 		}
-		else if ( Component->GetSkeletalMesh() == NULL )
+		else if ( Component->GetSkeletalMeshAsset() == NULL )
 		{
 			Description->SetText( FText::Format( LOCTEXT( "NoMeshFound", "No skeletal mesh found for skeleton '{0}'" ), FText::FromString( TargetSkeletonName ) ) );
 		}

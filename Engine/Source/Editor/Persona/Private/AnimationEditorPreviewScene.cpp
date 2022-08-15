@@ -221,7 +221,7 @@ USkeletalMesh* FAnimationEditorPreviewScene::GetPreviewMesh() const
 
 void FAnimationEditorPreviewScene::SetPreviewMeshInternal(USkeletalMesh* NewPreviewMesh)
 {
-	USkeletalMesh* OldPreviewMesh = SkeletalMeshComponent->GetSkeletalMesh();
+	USkeletalMesh* OldPreviewMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
 
 	// Store off the old skel mesh we are debugging
 	USkeletalMeshComponent* DebuggedSkeletalMeshComponent = nullptr;
@@ -249,7 +249,7 @@ void FAnimationEditorPreviewScene::SetPreviewMeshInternal(USkeletalMesh* NewPrev
 
 	ValidatePreviewAttachedAssets(NewPreviewMesh);
 
-	if (NewPreviewMesh != SkeletalMeshComponent->GetSkeletalMesh())
+	if (NewPreviewMesh != SkeletalMeshComponent->GetSkeletalMeshAsset())
 	{
 		// setting skeletalmesh unregister/re-register, 
 		// so I have to save the animation settings and resetting after setting mesh
@@ -680,15 +680,15 @@ void FAnimationEditorPreviewScene::ShowReferencePose(bool bShowRefPose, bool bRe
 		SkeletalMeshComponent->ShowReferencePose(bShowRefPose);
 
 		// Also reset bone transforms
-		if(bResetBoneTransforms && SkeletalMeshComponent->GetSkeletalMesh() != nullptr)
+		if(bResetBoneTransforms && SkeletalMeshComponent->GetSkeletalMeshAsset() != nullptr)
 		{
 			bool bModified = false;
 			FScopedTransaction Transaction(LOCTEXT("ResetBoneTransforms", "Reset Bone Transforms"));
 
-			int32 NumBones = SkeletalMeshComponent->GetSkeletalMesh()->GetRefSkeleton().GetNum();
+			int32 NumBones = SkeletalMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton().GetNum();
 			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 			{
-				FName BoneName = SkeletalMeshComponent->GetSkeletalMesh()->GetRefSkeleton().GetBoneName(BoneIndex);
+				FName BoneName = SkeletalMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton().GetBoneName(BoneIndex);
 				const FAnimNode_ModifyBone* ModifiedBone = SkeletalMeshComponent->PreviewInstance->FindModifiedBone(BoneName);
 				if (ModifiedBone != nullptr)
 				{
@@ -898,7 +898,7 @@ void FAnimationEditorPreviewScene::DeselectAll()
 bool FAnimationEditorPreviewScene::IsRecordAvailable() const
 {
 	// make sure mesh exists
-	return (SkeletalMeshComponent->GetSkeletalMesh() != nullptr);
+	return (SkeletalMeshComponent->GetSkeletalMeshAsset() != nullptr);
 }
 
 FSlateIcon FAnimationEditorPreviewScene::GetRecordStatusImage() const

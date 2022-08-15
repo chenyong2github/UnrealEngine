@@ -1036,7 +1036,7 @@ UMeshComponent* FRemoteControlUIModule::GetSelectedMeshComponentToBeModified(UOb
 		}
 		else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InMeshComponent))
 		{
-			if (SkeletalMeshComponent->GetSkeletalMesh() == InOwnerObject)
+			if (SkeletalMeshComponent->GetSkeletalMeshAsset() == InOwnerObject)
 			{
 				ModifinedComponent = InMeshComponent;
 			}

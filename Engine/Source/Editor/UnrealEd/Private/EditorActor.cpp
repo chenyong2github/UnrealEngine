@@ -2370,7 +2370,7 @@ void UUnrealEdEngine::edactSelectMatchingSkeletalMesh(bool bAllClasses)
 		if(SkelMeshActor && SkelMeshActor->GetSkeletalMeshComponent())
 		{
 			bSelectSkelMeshActors = true;
-			SelectedMeshes.AddUnique(SkelMeshActor->GetSkeletalMeshComponent()->GetSkeletalMesh());
+			SelectedMeshes.AddUnique(SkelMeshActor->GetSkeletalMeshComponent()->GetSkeletalMeshAsset());
 			SelectedWorlds.AddUnique(Actor->GetWorld());			
 		}
 
@@ -2382,7 +2382,7 @@ void UUnrealEdEngine::edactSelectMatchingSkeletalMesh(bool bAllClasses)
 			if (PawnSkeletalMesh)
 			{
 				bSelectPawns = true;
-				SelectedMeshes.AddUnique(PawnSkeletalMesh->GetSkeletalMesh());
+				SelectedMeshes.AddUnique(PawnSkeletalMesh->GetSkeletalMeshAsset());
 				SelectedWorlds.AddUnique(Actor->GetWorld());
 			}
 		}
@@ -2418,7 +2418,7 @@ void UUnrealEdEngine::edactSelectMatchingSkeletalMesh(bool bAllClasses)
 				ASkeletalMeshActor* SkelMeshActor = Cast<ASkeletalMeshActor>(Actor);
 				if( SkelMeshActor && 
 					SkelMeshActor->GetSkeletalMeshComponent() && 
-					SelectedMeshes.Contains(SkelMeshActor->GetSkeletalMeshComponent()->GetSkeletalMesh()) )
+					SelectedMeshes.Contains(SkelMeshActor->GetSkeletalMeshComponent()->GetSkeletalMeshAsset()) )
 				{
 					bSelectActor = true;
 				}
@@ -2430,7 +2430,7 @@ void UUnrealEdEngine::edactSelectMatchingSkeletalMesh(bool bAllClasses)
 				if (Pawn)
 				{
 					USkeletalMeshComponent* PawnSkeletalMesh = Pawn->FindComponentByClass<USkeletalMeshComponent>();
-					if (PawnSkeletalMesh && SelectedMeshes.Contains(PawnSkeletalMesh->GetSkeletalMesh()) )
+					if (PawnSkeletalMesh && SelectedMeshes.Contains(PawnSkeletalMesh->GetSkeletalMeshAsset()) )
 					{
 						bSelectActor = true;
 					}

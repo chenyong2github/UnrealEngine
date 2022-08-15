@@ -534,7 +534,7 @@ void FAnimTrace::OutputSkeletalMeshComponent(const USkeletalMeshComponent* InCom
 	if(BoneCount > 0 || CurveCount > 0)
 	{
 		TRACE_OBJECT(InComponent);
-		TRACE_SKELETAL_MESH(InComponent->GetSkeletalMesh());
+		TRACE_SKELETAL_MESH(InComponent->GetSkeletalMeshAsset());
 
 		TArray<float>& CurveValues = FAnimTraceScratchBuffers::Get().CurveValues;
 		CurveValues.Reset();
@@ -561,7 +561,7 @@ void FAnimTrace::OutputSkeletalMeshComponent(const USkeletalMeshComponent* InCom
 			<< SkeletalMeshComponent3.Cycle(FPlatformTime::Cycles64())
 			<< SkeletalMeshComponent3.RecordingTime(FObjectTrace::GetWorldElapsedTime(InComponent->GetWorld()))
 			<< SkeletalMeshComponent3.ComponentId(FObjectTrace::GetObjectId(InComponent))
-			<< SkeletalMeshComponent3.MeshId(FObjectTrace::GetObjectId(InComponent->GetSkeletalMesh()))
+			<< SkeletalMeshComponent3.MeshId(FObjectTrace::GetObjectId(InComponent->GetSkeletalMeshAsset()))
 			<< SkeletalMeshComponent3.ComponentToWorld(reinterpret_cast<const float*>(&InComponent->GetComponentToWorld()), sizeof(FTransform) / sizeof(float))
 			<< SkeletalMeshComponent3.Pose(reinterpret_cast<const float*>(InComponent->GetComponentSpaceTransforms().GetData()), BoneCount * (sizeof(FTransform) / sizeof(float)))
 			<< SkeletalMeshComponent3.CurveIds(CurveIds.GetData(), CurveIds.Num())

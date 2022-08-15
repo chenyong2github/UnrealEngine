@@ -109,13 +109,13 @@ void FMeshMergeHelpers::ExtractSections(const UStaticMeshComponent* Component, i
 void FMeshMergeHelpers::ExtractSections(const USkeletalMeshComponent* Component, int32 LODIndex, TArray<FSectionInfo>& OutSections)
 {
 	static UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
-	FSkeletalMeshModel* Resource = Component->GetSkeletalMesh()->GetImportedModel();
+	FSkeletalMeshModel* Resource = Component->GetSkeletalMeshAsset()->GetImportedModel();
 
 	checkf(Resource->LODModels.IsValidIndex(LODIndex), TEXT("Invalid LOD Index"));
 
 	TArray<FName> MaterialSlotNames = Component->GetMaterialSlotNames();
 
-	const FSkeletalMeshLODInfo* LODInfoPtr = Component->GetSkeletalMesh()->GetLODInfo(LODIndex);
+	const FSkeletalMeshLODInfo* LODInfoPtr = Component->GetSkeletalMeshAsset()->GetLODInfo(LODIndex);
 	check(LODInfoPtr);
 	const FSkeletalMeshLODModel& Model = Resource->LODModels[LODIndex];
 	for (int32 SectionIndex = 0; SectionIndex < Model.Sections.Num(); ++SectionIndex)
@@ -422,10 +422,10 @@ void FMeshMergeHelpers::ExportStaticMeshLOD(const FStaticMeshLODResources& Stati
 
 void FMeshMergeHelpers::RetrieveMesh(const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex, FMeshDescription& OutMeshDescription, bool bPropagateVertexColours)
 {
-	FSkeletalMeshModel* Resource = SkeletalMeshComponent->GetSkeletalMesh()->GetImportedModel();
+	FSkeletalMeshModel* Resource = SkeletalMeshComponent->GetSkeletalMeshAsset()->GetImportedModel();
 	if (Resource->LODModels.IsValidIndex(LODIndex))
 	{
-		FSkeletalMeshLODInfo& SrcLODInfo = *(SkeletalMeshComponent->GetSkeletalMesh()->GetLODInfo(LODIndex));
+		FSkeletalMeshLODInfo& SrcLODInfo = *(SkeletalMeshComponent->GetSkeletalMeshAsset()->GetLODInfo(LODIndex));
 
 		// Get the CPU skinned verts for this LOD
 		TArray<FFinalSkinVertex> FinalVertices;
@@ -483,10 +483,10 @@ void FMeshMergeHelpers::RetrieveMesh(const USkeletalMeshComponent* SkeletalMeshC
 			// use the remapping of material indices if there is a valid value
 			if (SrcLODInfo.LODMaterialMap.IsValidIndex(SectionIndex) && SrcLODInfo.LODMaterialMap[SectionIndex] != INDEX_NONE)
 			{
-				MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SectionIndex], 0, SkeletalMeshComponent->GetSkeletalMesh()->GetMaterials().Num() - 1);
+				MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SectionIndex], 0, SkeletalMeshComponent->GetSkeletalMeshAsset()->GetMaterials().Num() - 1);
 			}
 
-			FName ImportedMaterialSlotName = SkeletalMeshComponent->GetSkeletalMesh()->GetMaterials()[MaterialIndex].ImportedMaterialSlotName;
+			FName ImportedMaterialSlotName = SkeletalMeshComponent->GetSkeletalMeshAsset()->GetMaterials()[MaterialIndex].ImportedMaterialSlotName;
 			const FPolygonGroupID SectionPolygonGroupID(SectionIndex);
 			if (!OutMeshDescription.IsPolygonGroupValid(SectionPolygonGroupID))
 			{

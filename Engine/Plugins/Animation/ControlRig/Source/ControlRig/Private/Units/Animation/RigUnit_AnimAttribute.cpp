@@ -67,7 +67,7 @@ FORCEINLINE_DEBUGGABLE static T* GetAnimAttributeValue(
 	const USkeletalMeshComponent* OwningComponent = Cast<USkeletalMeshComponent>(Context.OwningComponent);
 
 	if (!OwningComponent ||
-		!OwningComponent->GetSkeletalMesh())
+		!OwningComponent->GetSkeletalMeshAsset())
 	{
 		return nullptr;
 	}
@@ -82,7 +82,7 @@ FORCEINLINE_DEBUGGABLE static T* GetAnimAttributeValue(
 		// Invalidate cache if input changed
 		if (CachedBoneName != BoneName)
 		{
-			CachedBoneIndex = OwningComponent->GetSkeletalMesh()->GetRefSkeleton().FindBoneIndex(BoneName);
+			CachedBoneIndex = OwningComponent->GetSkeletalMeshAsset()->GetRefSkeleton().FindBoneIndex(BoneName);
 		}
 	}
 	

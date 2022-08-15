@@ -1259,7 +1259,7 @@ bool ULocalPlayer::HandleListSkelMeshesCommand( const TCHAR* Cmd, FOutputDevice&
 	for( TObjectIterator<USkeletalMeshComponent> It; It; ++It )
 	{
 		USkeletalMeshComponent* SkeletalMeshComponent = *It;
-		USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
+		USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
 
 		if( !SkeletalMeshComponent->IsTemplate() )
 		{

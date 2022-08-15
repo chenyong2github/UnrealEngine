@@ -256,7 +256,7 @@ namespace UsdLevelSequenceHelperImpl
 	)
 	{
 		UMovieScene* MovieScene = LevelSequence->GetMovieScene();
-		if ( !MovieScene || !SkeletalMeshComp || !SkeletalMeshComp->GetSkeletalMesh() || !SkeletalMeshComp->GetSkeletalMesh()->GetSkeleton())
+		if ( !MovieScene || !SkeletalMeshComp || !SkeletalMeshComp->GetSkeletalMeshAsset() || !SkeletalMeshComp->GetSkeletalMeshAsset()->GetSkeleton())
 		{
 			return false;
 		}
@@ -295,7 +295,7 @@ namespace UsdLevelSequenceHelperImpl
 		{
 			bCreatedTempSequence = true;
 			AnimSequence = NewObject<UAnimSequence>();
-			AnimSequence->SetSkeleton( SkeletalMeshComp->GetSkeletalMesh()->GetSkeleton());
+			AnimSequence->SetSkeleton( SkeletalMeshComp->GetSkeletalMeshAsset()->GetSkeleton());
 
 			FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
 			FMovieSceneSequenceTransform RootToLocalTransform;
@@ -2925,7 +2925,7 @@ void FUsdLevelSequenceHelperImpl::HandleControlRigSectionChange( UMovieSceneCont
 		return;
 	}
 
-	USkeleton* Skeleton = BoundComponent->GetSkeletalMesh() ? BoundComponent->GetSkeletalMesh()->GetSkeleton() : nullptr;
+	USkeleton* Skeleton = BoundComponent->GetSkeletalMeshAsset() ? BoundComponent->GetSkeletalMeshAsset()->GetSkeleton() : nullptr;
 	if ( !Skeleton )
 	{
 		return;

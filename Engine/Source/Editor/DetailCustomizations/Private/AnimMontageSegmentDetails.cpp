@@ -517,7 +517,7 @@ void SAnimationSegmentViewport::InitSkeleton()
 		if (Skeleton && PreviewMesh)
 		{
 			UAnimSingleNodeInstance* Preview = PreviewComponent->PreviewInstance;
-			if((Preview == nullptr || Preview->GetCurrentAsset() != AnimSequenceBase) || (PreviewComponent->GetSkeletalMesh() != PreviewMesh))
+			if((Preview == nullptr || Preview->GetCurrentAsset() != AnimSequenceBase) || (PreviewComponent->GetSkeletalMeshAsset() != PreviewMesh))
 			{
 				const float PlayRate = PlayRateAttribute.Get().Get(1.f);
 
@@ -565,7 +565,7 @@ void SAnimationSegmentViewport::Tick( const FGeometry& AllottedGeometry, const d
 		{
 			Description->SetText(FText::Format( LOCTEXT("Previewing", "Previewing {0}"), FText::FromString(Component->AnimClass->GetName()) ));
 		}
-		else if (Component->GetSkeletalMesh() == NULL)
+		else if (Component->GetSkeletalMeshAsset() == NULL)
 		{
 			Description->SetText(FText::Format( LOCTEXT("NoMeshFound", "No skeletal mesh found for skeleton '{0}'"), FText::FromString(TargetSkeletonName) ));
 		}

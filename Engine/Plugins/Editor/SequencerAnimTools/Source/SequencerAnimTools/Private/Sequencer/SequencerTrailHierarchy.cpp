@@ -412,7 +412,7 @@ void FSequencerTrailHierarchy::OnBoneVisibilityChanged(class USkeleton* Skeleton
 				BoundComponent = BoundActor->FindComponentByClass<USkeletalMeshComponent>();
 			}
 
-			if (!BoundComponent || !BoundComponent->GetSkeletalMesh() || !BoundComponent->GetSkeletalMesh()->GetSkeleton() || !(BoundComponent->GetSkeletalMesh()->GetSkeleton() == Skeleton) || !BonesTracked.Contains(BoundComponent))
+			if (!BoundComponent || !BoundComponent->GetSkeletalMeshAsset() || !BoundComponent->GetSkeletalMeshAsset()->GetSkeleton() || !(BoundComponent->GetSkeletalMeshAsset()->GetSkeleton() == Skeleton) || !BonesTracked.Contains(BoundComponent))
 			{
 				continue;
 			}
@@ -534,7 +534,7 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 					BoundComponent = BoundActor->FindComponentByClass<USkeletalMeshComponent>();
 				}
 
-				if (!BoundComponent || !BoundComponent->GetSkeletalMesh() || !BoundComponent->GetSkeletalMesh()->GetSkeleton())
+				if (!BoundComponent || !BoundComponent->GetSkeletalMeshAsset() || !BoundComponent->GetSkeletalMeshAsset()->GetSkeleton())
 				{
 					continue;
 				}
@@ -586,7 +586,7 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 					BoundComponent = BoundActor->FindComponentByClass<USkeletalMeshComponent>();
 				}
 
-				if (!BoundComponent || !BoundComponent->GetSkeletalMesh() || !BoundComponent->GetSkeletalMesh()->GetSkeleton())
+				if (!BoundComponent || !BoundComponent->GetSkeletalMeshAsset() || !BoundComponent->GetSkeletalMeshAsset()->GetSkeleton())
 				{
 					continue;
 				};
@@ -676,7 +676,7 @@ void FSequencerTrailHierarchy::AddSkeletonToHierarchy(class USkeletalMeshCompone
 	TSharedPtr<FAnimTrajectoryCache> AnimTrajectoryCache = MakeShared<FAnimTrajectoryCache>(CompToAdd, Sequencer);
 	TMap<FName, FGuid>& BoneMap = BonesTracked.Add(CompToAdd, TMap<FName, FGuid>());
 	
-	USkeleton* MySkeleton = CompToAdd->GetSkeletalMesh()->GetSkeleton();
+	USkeleton* MySkeleton = CompToAdd->GetSkeletalMeshAsset()->GetSkeleton();
 	const int32 NumBones = MySkeleton->GetReferenceSkeleton().GetNum();
 	for (int32 BoneIdx = 0; BoneIdx < NumBones; BoneIdx++)
 	{

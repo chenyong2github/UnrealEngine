@@ -1755,7 +1755,7 @@ void FLODUtilities::RefreshLODChange(const USkeletalMesh* SkeletalMesh)
 	for (FThreadSafeObjectIterator Iter(USkeletalMeshComponent::StaticClass()); Iter; ++Iter)
 	{
 		USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(*Iter);
-		if  (SkeletalMeshComponent->GetSkeletalMesh() == SkeletalMesh)
+		if  (SkeletalMeshComponent->GetSkeletalMeshAsset() == SkeletalMesh)
 		{
 			// it needs to recreate IF it already has been created
 			if (SkeletalMeshComponent->IsRegistered())

@@ -52,7 +52,7 @@ TOptional<FTransform> UIKRigBoneDetails::GetTransform(EIKRigTransformType::Type 
 			
 			USkeletalMeshComponent* SkeletalMeshComponent = AnimInstancePtr->GetSkelMeshComponent();
 			const bool IsSkelMeshValid = SkeletalMeshComponent != nullptr &&
-										SkeletalMeshComponent->GetSkeletalMesh() != nullptr;
+										SkeletalMeshComponent->GetSkeletalMeshAsset() != nullptr;
 			if (IsSkelMeshValid)
 			{
 				GlobalTransform = SkeletalMeshComponent->GetBoneTransform(BoneIndex);

@@ -48,7 +48,7 @@ namespace UE::NeuralMorphModel
 
 	bool FNeuralMorphEditorModelActor::HasVisualMesh() const
 	{
-		if (SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMesh())
+		if (SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshAsset())
 		{
 			return true;
 		}

@@ -28,7 +28,7 @@ void FAnimNode_RetargetPoseFromMesh::CacheBones_AnyThread(const FAnimationCacheB
 		return;
 	}
 	
-	if (!Context.AnimInstanceProxy->GetSkelMeshComponent()->GetSkeletalMesh())
+	if (!Context.AnimInstanceProxy->GetSkelMeshComponent()->GetSkeletalMeshAsset())
 	{
 		return;
 	}
@@ -37,7 +37,7 @@ void FAnimNode_RetargetPoseFromMesh::CacheBones_AnyThread(const FAnimationCacheB
 	RequiredToTargetBoneMapping.Reset();
 
 	const FReferenceSkeleton& RefSkeleton = RequiredBones.GetReferenceSkeleton();
-	const FReferenceSkeleton& TargetSkeleton = Context.AnimInstanceProxy->GetSkelMeshComponent()->GetSkeletalMesh()->GetRefSkeleton();
+	const FReferenceSkeleton& TargetSkeleton = Context.AnimInstanceProxy->GetSkelMeshComponent()->GetSkeletalMeshAsset()->GetRefSkeleton();
 	const TArray<FBoneIndexType>& RequiredBonesArray = RequiredBones.GetBoneIndicesArray();
 	for (int32 Index = 0; Index < RequiredBonesArray.Num(); ++Index)
 	{
@@ -83,8 +83,8 @@ void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 
 	// ensure processor was initialized with the currently used assets (source/target meshes and retarget asset)
 	// if processor is not ready this tick, it will be next tick as this state will trigger re-initialization
-	const TObjectPtr<USkeletalMesh> SourceMesh = SourceMeshComponent->GetSkeletalMesh();
-	const TObjectPtr<USkeletalMesh> TargetMesh = Output.AnimInstanceProxy->GetSkelMeshComponent()->GetSkeletalMesh();
+	const TObjectPtr<USkeletalMesh> SourceMesh = SourceMeshComponent->GetSkeletalMeshAsset();
+	const TObjectPtr<USkeletalMesh> TargetMesh = Output.AnimInstanceProxy->GetSkelMeshComponent()->GetSkeletalMeshAsset();
 	const bool bIsProcessorReady = Processor->WasInitializedWithTheseAssets(SourceMesh, TargetMesh, IKRetargeterAsset);
 
 	// if not ready to run, skip retarget and output the ref pose
@@ -239,8 +239,8 @@ bool FAnimNode_RetargetPoseFromMesh::EnsureProcessorIsInitialized(const TObjectP
 	}
 
 	// check that both a source and target mesh exist
-	const TObjectPtr<USkeletalMesh> SourceMesh = SourceMeshComponent->GetSkeletalMesh();
-	const TObjectPtr<USkeletalMesh> TargetMesh = TargetMeshComponent->GetSkeletalMesh();
+	const TObjectPtr<USkeletalMesh> SourceMesh = SourceMeshComponent->GetSkeletalMeshAsset();
+	const TObjectPtr<USkeletalMesh> TargetMesh = TargetMeshComponent->GetSkeletalMeshAsset();
 	if (SourceMesh.IsNull() || TargetMesh.IsNull())
 	{
 		return false; // cannot initialize if components are missing skeletal mesh references

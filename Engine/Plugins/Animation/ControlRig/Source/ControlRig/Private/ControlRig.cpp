@@ -3138,7 +3138,7 @@ void UControlRig::SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalMes
 	}
 	else
 	{
-		SetBoneInitialTransformsFromSkeletalMesh(InSkelMeshComp->GetSkeletalMesh());
+		SetBoneInitialTransformsFromSkeletalMesh(InSkelMeshComp->GetSkeletalMeshAsset());
 	}
 }
 

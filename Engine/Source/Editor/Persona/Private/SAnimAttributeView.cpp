@@ -270,7 +270,7 @@ void SAnimAttributeView::DisplayNewAttributeContainerSnapshots(
 	}
 	
 	// we need the SKM to look up bone names
-	if (!InOwningComponent || !InOwningComponent->GetSkeletalMesh())
+	if (!InOwningComponent || !InOwningComponent->GetSkeletalMeshAsset())
 	{
 		ClearListView();
 		return;
@@ -309,7 +309,7 @@ void SAnimAttributeView::DisplayNewAttributeContainerSnapshots(
 				for (int32 IdIndex = 0; IdIndex < Ids.Num(); IdIndex++)
 				{
 					const UE::Anim::FAttributeId& Id = Ids[IdIndex];
-					const FName BoneName = InOwningComponent->GetSkeletalMesh()->GetRefSkeleton().GetBoneName(Id.GetIndex());
+					const FName BoneName = InOwningComponent->GetSkeletalMeshAsset()->GetRefSkeleton().GetBoneName(Id.GetIndex());
 				
 					const FAnimationAttributeIdentifier Identifier(
 						Id.GetName(), Id.GetIndex() ,BoneName, Types[TypeIndex].Get());
@@ -397,7 +397,7 @@ bool SAnimAttributeView::ShouldInvalidateListViewCache(
 			for (int32 IdIndex = 0; IdIndex < Ids.Num(); IdIndex++)
 			{
 				const UE::Anim::FAttributeId& Id = Ids[IdIndex];
-				const FName BoneName = InOwningComponent->GetSkeletalMesh()->GetRefSkeleton().GetBoneName(Id.GetIndex());
+				const FName BoneName = InOwningComponent->GetSkeletalMeshAsset()->GetRefSkeleton().GetBoneName(Id.GetIndex());
 				
 				FAnimationAttributeIdentifier Identifier(
 					Id.GetName(), Id.GetIndex() ,BoneName, Types[TypeIndex].Get());

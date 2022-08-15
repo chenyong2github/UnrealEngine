@@ -146,14 +146,14 @@ void FGeometryCollectionConversion::CreateFromSelectedActorsCommand(UWorld * Wor
 			{
 				for (int Index = 0; Index < SkeletalMeshComponents.Num(); Index++)
 				{
-					if (SkeletalMeshComponents[Index]->GetSkeletalMesh())
+					if (SkeletalMeshComponents[Index]->GetSkeletalMeshAsset())
 					{
 						if (!GeometryCollectionAsset.IsCreated())
 						{
 							GeometryCollectionAsset.Create();
 						}
 						FGeometryCollectionEngineConversion::AppendSkeletalMesh(
-							SkeletalMeshComponents[Index]->GetSkeletalMesh(),
+							SkeletalMeshComponents[Index]->GetSkeletalMeshAsset(),
 							SkeletalMeshComponents[Index],
 							Actor->GetTransform(),
 							GeometryCollectionAsset.GeometryCollection);

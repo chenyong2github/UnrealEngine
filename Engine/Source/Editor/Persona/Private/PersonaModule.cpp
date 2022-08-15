@@ -1394,7 +1394,7 @@ bool FPersonaModule::CreateAnimation(const TArray<UObject*> NewAssets, const EPo
 				switch (Option)
 				{
 				case EPoseSourceOption::ReferencePose:
-					bResult &= NewAnimSequence->CreateAnimation(MeshComponent->GetSkeletalMesh());
+					bResult &= NewAnimSequence->CreateAnimation(MeshComponent->GetSkeletalMeshAsset());
 					break;
 				case EPoseSourceOption::CurrentPose:
 					bResult &= NewAnimSequence->CreateAnimation(MeshComponent);

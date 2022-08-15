@@ -48,7 +48,7 @@ namespace UE::VertexDeltaModel
 
 	bool FVertexDeltaEditorModelActor::HasVisualMesh() const
 	{
-		if (SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMesh())
+		if (SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshAsset())
 		{
 			return true;
 		}

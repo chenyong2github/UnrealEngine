@@ -68,11 +68,11 @@ void USkinWeightsPaintTool::Setup()
 
 	ToolProps = NewObject<USkinWeightsPaintToolProperties>(this);
 	ToolProps->RestoreProperties(this);
-	if (Component && Component->GetSkeletalMesh())
+	if (Component && Component->GetSkeletalMeshAsset())
 	{
 		// Get all non-virtual bones
 		// TArray<int32> BoneIndices;
-		USkeletalMesh& SkeletalMesh = *Component->GetSkeletalMesh();
+		USkeletalMesh& SkeletalMesh = *Component->GetSkeletalMeshAsset();
 		// SkeletalMesh.RefSkeleton.GetRawRefBoneInfo();
 		
 
@@ -84,11 +84,11 @@ void USkinWeightsPaintTool::Setup()
 				);
 		BoneContainer.InitializeTo(Component->RequiredBones, CurveEvalOption, SkeletalMesh);
 
-		ToolProps->SkeletalMesh = Component->GetSkeletalMesh();
+		ToolProps->SkeletalMesh = Component->GetSkeletalMeshAsset();
 		ToolProps->CurrentBone.Initialize(BoneContainer);
 
 		// Pick the first root bone as the initial selection.
-		PendingCurrentBone = Component->GetSkeletalMesh()->GetRefSkeleton().GetBoneName(0);
+		PendingCurrentBone = Component->GetSkeletalMeshAsset()->GetRefSkeleton().GetBoneName(0);
 		ToolProps->CurrentBone.BoneName = PendingCurrentBone.GetValue();
 
 		// Update the skeleton drawing information from the original bind pose

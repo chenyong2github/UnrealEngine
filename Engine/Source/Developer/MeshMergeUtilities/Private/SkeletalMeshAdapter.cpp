@@ -11,7 +11,7 @@
 #include "UObject/Package.h"
 
 FSkeletalMeshComponentAdapter::FSkeletalMeshComponentAdapter(USkeletalMeshComponent* InSkeletalMeshComponent)
-	: SkeletalMeshComponent(InSkeletalMeshComponent), SkeletalMesh(InSkeletalMeshComponent->GetSkeletalMesh())
+	: SkeletalMeshComponent(InSkeletalMeshComponent), SkeletalMesh(InSkeletalMeshComponent->GetSkeletalMeshAsset())
 {
 	checkf(SkeletalMesh != nullptr, TEXT("Invalid skeletal mesh in adapter"));
 	NumLODs = SkeletalMesh->GetLODNum();

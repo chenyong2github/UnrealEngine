@@ -15,7 +15,7 @@ void FAnimNode_PreviewRetargetPose::CacheBones_AnyThread(const FAnimationCacheBo
 		return;
 	}
 	
-	if (!Context.AnimInstanceProxy->GetSkelMeshComponent()->GetSkeletalMesh())
+	if (!Context.AnimInstanceProxy->GetSkelMeshComponent()->GetSkeletalMeshAsset())
 	{
 		return;
 	}
@@ -24,7 +24,7 @@ void FAnimNode_PreviewRetargetPose::CacheBones_AnyThread(const FAnimationCacheBo
 	RequiredBoneToMeshBoneMap.Reset();
 
 	const FReferenceSkeleton& RefSkeleton = RequiredBones.GetReferenceSkeleton();
-	const FReferenceSkeleton& TargetSkeleton = Context.AnimInstanceProxy->GetSkelMeshComponent()->GetSkeletalMesh()->GetRefSkeleton();
+	const FReferenceSkeleton& TargetSkeleton = Context.AnimInstanceProxy->GetSkelMeshComponent()->GetSkeletalMeshAsset()->GetRefSkeleton();
 	const TArray<FBoneIndexType>& RequiredBonesArray = RequiredBones.GetBoneIndicesArray();
 	for (int32 RequiredBoneIndex = 0; RequiredBoneIndex < RequiredBonesArray.Num(); ++RequiredBoneIndex)
 	{
@@ -65,7 +65,7 @@ void FAnimNode_PreviewRetargetPose::Evaluate_AnyThread(FPoseContext& Output)
 	
 	// generate full (no LOD) LOCAL retarget pose by applying the local rotation offsets from the stored retarget pose
 	// these poses are read back by the editor and need to be complete (not culled)
-	const FReferenceSkeleton& RefSkeleton = Output.AnimInstanceProxy->GetSkelMeshComponent()->GetSkeletalMesh()->GetRefSkeleton();
+	const FReferenceSkeleton& RefSkeleton = Output.AnimInstanceProxy->GetSkelMeshComponent()->GetSkeletalMeshAsset()->GetRefSkeleton();
 	const TArray<FTransform>& RefPose = RefSkeleton.GetRefBonePose(); 
 	RetargetLocalPose = RefPose;
 	for (const TTuple<FName, FQuat>& BoneDelta : RetargetPose->GetAllDeltaRotations())

@@ -710,7 +710,7 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 			if (Track)
 			{
 				USkeletalMeshComponent* SkelMeshComp = MeshActor->GetSkeletalMeshComponent();
-				USkeletalMesh* SkeletalMesh = SkelMeshComp->GetSkeletalMesh();
+				USkeletalMesh* SkeletalMesh = SkelMeshComp->GetSkeletalMeshAsset();
 
 				FString ObjectName = (ControlRigClass->GetName());
 				ObjectName.RemoveFromEnd(TEXT("_C"));

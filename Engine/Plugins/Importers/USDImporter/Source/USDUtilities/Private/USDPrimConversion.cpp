@@ -2840,7 +2840,7 @@ bool UnrealToUsd::CreateComponentPropertyBaker( UE::FUsdPrim& Prim, const UScene
 bool UnrealToUsd::CreateSkeletalAnimationBaker( UE::FUsdPrim& SkelRoot, UE::FUsdPrim& SkelAnimation, USkeletalMeshComponent& Component, FComponentBaker& OutBaker )
 {
 #if WITH_EDITOR
-	USkeletalMesh* SkeletalMesh = Component.GetSkeletalMesh();
+	USkeletalMesh* SkeletalMesh = Component.GetSkeletalMeshAsset();
 	if ( !SkeletalMesh )
 	{
 		return false;

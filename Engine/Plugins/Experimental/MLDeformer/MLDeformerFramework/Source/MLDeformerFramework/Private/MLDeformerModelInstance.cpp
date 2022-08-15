@@ -36,7 +36,7 @@ void UMLDeformerModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)
 		return;
 	}
 
-	USkeletalMesh* SkelMesh = SkelMeshComponent->GetSkeletalMesh();
+	USkeletalMesh* SkelMesh = SkelMeshComponent->GetSkeletalMeshAsset();
 	if (SkelMesh)
 	{
 		// Init the bone mapping table.
@@ -61,7 +61,7 @@ void UMLDeformerModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)
 
 void UMLDeformerModelInstance::UpdateCompatibilityStatus()
 {
-	bIsCompatible = SkeletalMeshComponent->GetSkeletalMesh() && CheckCompatibility(SkeletalMeshComponent, true).IsEmpty();
+	bIsCompatible = SkeletalMeshComponent->GetSkeletalMeshAsset() && CheckCompatibility(SkeletalMeshComponent, true).IsEmpty();
 }
 
 FString UMLDeformerModelInstance::CheckCompatibility(USkeletalMeshComponent* InSkelMeshComponent, bool LogIssues)
@@ -69,7 +69,7 @@ FString UMLDeformerModelInstance::CheckCompatibility(USkeletalMeshComponent* InS
 	ErrorText = FString();
 
 	// If we're not compatible, generate a compatibility string.
-	USkeletalMesh* SkelMesh = InSkelMeshComponent ? InSkelMeshComponent->GetSkeletalMesh() : nullptr;
+	USkeletalMesh* SkelMesh = InSkelMeshComponent ? InSkelMeshComponent->GetSkeletalMeshAsset() : nullptr;
 	UMLDeformerInputInfo* InputInfo = Model->GetInputInfo();
 	if (SkelMesh && !InputInfo->IsCompatible(SkelMesh) && Model->GetDeformerAsset())
 	{
@@ -296,7 +296,7 @@ bool UMLDeformerModelInstance::SetupNeuralNetworkForFrame()
 	// Some safety checks.
 	if (Model == nullptr ||
 		SkeletalMeshComponent == nullptr ||
-		SkeletalMeshComponent->GetSkeletalMesh() == nullptr ||
+		SkeletalMeshComponent->GetSkeletalMeshAsset() == nullptr ||
 		!bIsCompatible)
 	{
 		return false;

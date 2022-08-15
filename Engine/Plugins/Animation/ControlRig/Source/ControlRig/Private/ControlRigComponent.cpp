@@ -569,7 +569,7 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 	TArray<FControlRigComponentMappedBone> BonesToMap = Bones;
 	if (BonesToMap.Num() == 0)
 	{
-		if (const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh())
+		if (const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset())
 		{
 			if (const USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 			{
@@ -595,7 +595,7 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 	TArray<FControlRigComponentMappedCurve> CurvesToMap = Curves;
 	if (CurvesToMap.Num() == 0)
 	{
-		if (USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh())
+		if (USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset())
 		{
 			if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 			{
@@ -1278,7 +1278,7 @@ void UControlRigComponent::ValidateMappingData()
 				}
 				else if (!MappedElement.TransformName.IsNone())
 				{
-					if (USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh())
+					if (USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset())
 					{
 						if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 						{

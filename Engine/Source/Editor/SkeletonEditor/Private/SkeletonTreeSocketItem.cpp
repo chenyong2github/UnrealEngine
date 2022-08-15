@@ -147,7 +147,7 @@ bool FSkeletonTreeSocketItem::CanCustomizeSocket() const
 	if (GetSkeletonTree()->GetPreviewScene().IsValid())
 	{
 		UDebugSkelMeshComponent* PreviewComponent = GetSkeletonTree()->GetPreviewScene()->GetPreviewMeshComponent();
-		return PreviewComponent && PreviewComponent->GetSkeletalMesh() && !IsSocketCustomized();
+		return PreviewComponent && PreviewComponent->GetSkeletalMeshAsset() && !IsSocketCustomized();
 	}
 	return false;
 }
@@ -172,7 +172,7 @@ bool FSkeletonTreeSocketItem::OnVerifySocketNameChanged( const FText& InText, FT
 	}
 	else
 	{
-		USkeletalMesh* SkeletalMesh = GetSkeletonTree()->GetPreviewScene().IsValid() ? ToRawPtr(GetSkeletonTree()->GetPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMesh()) : nullptr;
+		USkeletalMesh* SkeletalMesh = GetSkeletonTree()->GetPreviewScene().IsValid() ? ToRawPtr(GetSkeletonTree()->GetPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMeshAsset()) : nullptr;
 		bVerifyName = !GetEditableSkeleton()->DoesSocketAlreadyExist( Socket, NewText, ParentType, SkeletalMesh );
 
 		// Needs to be checked on verify.
@@ -192,7 +192,7 @@ void FSkeletonTreeSocketItem::OnCommitSocketName( const FText& InText, ETextComm
 	FText NewText = FText::TrimPrecedingAndTrailing(InText);
 
 	// Notify skeleton tree of socket rename
-	USkeletalMesh* SkeletalMesh = GetSkeletonTree()->GetPreviewScene().IsValid() ? ToRawPtr(GetSkeletonTree()->GetPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMesh()) : nullptr;
+	USkeletalMesh* SkeletalMesh = GetSkeletonTree()->GetPreviewScene().IsValid() ? ToRawPtr(GetSkeletonTree()->GetPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMeshAsset()) : nullptr;
 	GetEditableSkeleton()->RenameSocket(Socket->SocketName, FName(*NewText.ToString()), SkeletalMesh);
 }
 

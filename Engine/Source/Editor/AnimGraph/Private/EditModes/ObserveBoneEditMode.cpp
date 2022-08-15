@@ -40,7 +40,7 @@ ECoordSystem FObserveBoneEditMode::GetWidgetCoordinateSystem() const
 FVector FObserveBoneEditMode::GetWidgetLocation() const
 {
 	USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
-	USkeleton* Skeleton = SkelComp->GetSkeletalMesh()->GetSkeleton();
+	USkeleton* Skeleton = SkelComp->GetSkeletalMeshAsset()->GetSkeleton();
 	FVector WidgetLoc = FVector::ZeroVector;
 
 	int32 MeshBoneIndex = SkelComp->GetBoneIndex(GraphNode->Node.BoneToObserve.BoneName);

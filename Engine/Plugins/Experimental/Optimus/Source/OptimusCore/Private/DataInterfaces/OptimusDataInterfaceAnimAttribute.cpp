@@ -553,11 +553,11 @@ void UOptimusAnimAttributeDataProvider::Init(
 	{
 		// Skip this step in case that there is no skeletal mesh, this can happen if
 		// the preview scene does not have a preview mesh assigned
-		if (SkeletalMesh && SkeletalMesh->GetSkeletalMesh())
+		if (SkeletalMesh && SkeletalMesh->GetSkeletalMeshAsset())
 		{
 			if (Attribute.BoneName != NAME_None)
 			{
-				Attribute.CachedBoneIndex = SkeletalMesh->GetSkeletalMesh()->GetRefSkeleton().FindBoneIndex(Attribute.BoneName);
+				Attribute.CachedBoneIndex = SkeletalMesh->GetSkeletalMeshAsset()->GetRefSkeleton().FindBoneIndex(Attribute.BoneName);
 			}
 			else
 			{

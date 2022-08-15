@@ -81,7 +81,7 @@ public:
 	{
 		if (USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(InComponent))
 		{
-			return SkelMeshComp->GetSkeletalMesh();
+			return SkelMeshComp->GetSkeletalMeshAsset();
 		}
 		return NULL;
 	}

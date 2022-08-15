@@ -39,7 +39,7 @@ void FAnimNode_ControlRigBase::OnInitializeAnimInstance(const FAnimInstanceProxy
 
 	USkeletalMeshComponent* Component = InAnimInstance->GetOwningComponent();
 	UControlRig* ControlRig = GetControlRig();
-	if (Component && Component->GetSkeletalMesh() && ControlRig)
+	if (Component && Component->GetSkeletalMeshAsset() && ControlRig)
 	{
 #if WITH_EDITORONLY_DATA
 		UBlueprintGeneratedClass* BlueprintClass = Cast<UBlueprintGeneratedClass>(ControlRig->GetClass());
@@ -47,7 +47,7 @@ void FAnimNode_ControlRigBase::OnInitializeAnimInstance(const FAnimInstanceProxy
 		{
 			UBlueprint* Blueprint = Cast<UBlueprint>(BlueprintClass->ClassGeneratedBy);
 			// node mapping container will be saved on the initialization part
-			NodeMappingContainer = Component->GetSkeletalMesh()->GetNodeMappingContainer(Blueprint);
+			NodeMappingContainer = Component->GetSkeletalMeshAsset()->GetNodeMappingContainer(Blueprint);
 		}
 #endif
 

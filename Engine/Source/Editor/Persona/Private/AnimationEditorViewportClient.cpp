@@ -149,7 +149,7 @@ FAnimationViewportClient::FAnimationViewportClient(const TSharedRef<IPersonaPrev
 	InPreviewScene->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateRaw(this, &FAnimationViewportClient::HandleSkeletalMeshChanged));
 	if (InPreviewScene->GetPreviewMeshComponent())
 	{
-		HandleSkeletalMeshChanged(nullptr, InPreviewScene->GetPreviewMeshComponent()->GetSkeletalMesh());
+		HandleSkeletalMeshChanged(nullptr, InPreviewScene->GetPreviewMeshComponent()->GetSkeletalMeshAsset());
 	}
 	InPreviewScene->RegisterOnInvalidateViews(FSimpleDelegate::CreateRaw(this, &FAnimationViewportClient::HandleInvalidateViews));
 	InPreviewScene->RegisterOnFocusViews(FSimpleDelegate::CreateRaw(this, &FAnimationViewportClient::HandleFocusViews));
@@ -185,7 +185,7 @@ FAnimationViewportClient::~FAnimationViewportClient()
 
 			if (OnMeshChangedDelegateHandle.IsValid())
 			{
-				if (USkeletalMesh* SkelMesh = PreviewMeshComponent->GetSkeletalMesh())
+				if (USkeletalMesh* SkelMesh = PreviewMeshComponent->GetSkeletalMeshAsset())
 				{
 					SkelMesh->GetOnMeshChanged().Remove(OnMeshChangedDelegateHandle);
 				}
@@ -376,7 +376,7 @@ void FAnimationViewportClient::JumpToDefaultCamera()
 
 void FAnimationViewportClient::SaveCameraAsDefault()
 {
-	USkeletalMesh* SkelMesh = GetAnimPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMesh();
+	USkeletalMesh* SkelMesh = GetAnimPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMeshAsset();
 	if (SkelMesh)
 	{
 		FScopedTransaction Transaction(LOCTEXT("SaveCameraAsDefault", "Save Camera As Default"));
@@ -404,7 +404,7 @@ bool FAnimationViewportClient::CanSaveCameraAsDefault() const
 
 void FAnimationViewportClient::ClearDefaultCamera()
 {
-	USkeletalMesh* SkelMesh = GetAnimPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMesh();
+	USkeletalMesh* SkelMesh = GetAnimPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMeshAsset();
 	if (SkelMesh)
 	{
 		FScopedTransaction Transaction(LOCTEXT("ClearDefaultCamera", "Clear Default Camera"));
@@ -422,7 +422,7 @@ void FAnimationViewportClient::ClearDefaultCamera()
 
 bool FAnimationViewportClient::HasDefaultCameraSet() const
 {
-	USkeletalMesh* SkelMesh = GetAnimPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMesh();
+	USkeletalMesh* SkelMesh = GetAnimPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMeshAsset();
 	return (SkelMesh && SkelMesh->GetHasCustomDefaultEditorCamera());
 }
 
@@ -510,7 +510,7 @@ void FAnimationViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterf
 	TArray<UDebugSkelMeshComponent*> PreviewMeshComponents = GetPreviewScene()->GetAllPreviewMeshComponents();
 	for (UDebugSkelMeshComponent* PreviewMeshComponent : PreviewMeshComponents)
 	{
-		if (!(PreviewMeshComponent && PreviewMeshComponent->GetSkeletalMesh()))
+		if (!(PreviewMeshComponent && PreviewMeshComponent->GetSkeletalMeshAsset()))
 		{
 			continue;
 		}
@@ -556,14 +556,14 @@ void FAnimationViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterf
 		// Display socket hit points
 		if (PreviewMeshComponent->bDrawSockets )
 		{
-			if (PreviewMeshComponent->bSkeletonSocketsVisible && PreviewMeshComponent->GetSkeletalMesh()->GetSkeleton() )
+			if (PreviewMeshComponent->bSkeletonSocketsVisible && PreviewMeshComponent->GetSkeletalMeshAsset()->GetSkeleton() )
 			{
-				DrawSockets(PreviewMeshComponent, PreviewMeshComponent->GetSkeletalMesh()->GetSkeleton()->Sockets, GetAnimPreviewScene()->GetSelectedSocket(), PDI, true);
+				DrawSockets(PreviewMeshComponent, PreviewMeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->Sockets, GetAnimPreviewScene()->GetSelectedSocket(), PDI, true);
 			}
 
 			if ( PreviewMeshComponent->bMeshSocketsVisible )
 			{
-				DrawSockets(PreviewMeshComponent, PreviewMeshComponent->GetSkeletalMesh()->GetMeshOnlySocketList(), GetAnimPreviewScene()->GetSelectedSocket(), PDI, false);
+				DrawSockets(PreviewMeshComponent, PreviewMeshComponent->GetSkeletalMeshAsset()->GetMeshOnlySocketList(), GetAnimPreviewScene()->GetSelectedSocket(), PDI, false);
 			}
 		}
 
@@ -645,7 +645,7 @@ void FAnimationViewportClient::DrawUVsForMesh(FViewport* InViewport, FCanvas* In
 	}
 	
 	//use the overridden LOD level
-	const uint32 LODLevel = FMath::Clamp(PreviewMeshComponent->GetForcedLOD() - 1, 0, PreviewMeshComponent->GetSkeletalMesh()->GetLODNum() - 1);
+	const uint32 LODLevel = FMath::Clamp(PreviewMeshComponent->GetForcedLOD() - 1, 0, PreviewMeshComponent->GetSkeletalMeshAsset()->GetLODNum() - 1);
 
 	TArray<FVector2D> SelectedEdgeTexCoords; //No functionality in Persona for this (yet?)
 
@@ -832,7 +832,7 @@ void FAnimationViewportClient::ShowBoneNames( FCanvas* Canvas, FSceneView* View,
 
 void FAnimationViewportClient::ShowAttributeNames(FCanvas* Canvas, FSceneView* View, UDebugSkelMeshComponent* MeshComponent) const
 {
-	if (!MeshComponent || !MeshComponent->GetSkeletalMesh())
+	if (!MeshComponent || !MeshComponent->GetSkeletalMeshAsset())
 	{
 		return;
 	}
@@ -906,7 +906,7 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 
 	// if not valid skeletalmesh
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetPreviewScene()->GetPreviewMeshComponent();
-	if (PreviewMeshComponent == nullptr || PreviewMeshComponent->GetSkeletalMesh() == nullptr)
+	if (PreviewMeshComponent == nullptr || PreviewMeshComponent->GetSkeletalMeshAsset() == nullptr)
 	{
 		return FText();
 	}
@@ -916,16 +916,16 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 		TextValue = ConcatenateLine(TextValue, LOCTEXT("AdditiveRefPoseWarning", "<AnimViewport.WarningText>Additive ref pose contains scales of 0.0, this can cause additive animations to not give the desired results</>"));
 	}
 
-	if (PreviewMeshComponent->GetSkeletalMesh()->GetMorphTargets().Num() > 0)
+	if (PreviewMeshComponent->GetSkeletalMeshAsset()->GetMorphTargets().Num() > 0)
 	{
 		TArray<UMaterial*> ProcessedMaterials;
 		TArray<UMaterial*> MaterialsThatNeedMorphFlagOn;
 		TArray<UMaterial*> MaterialsThatNeedSaving;
 
-		const TIndirectArray<FSkeletalMeshLODModel>& LODModels = PreviewMeshComponent->GetSkeletalMesh()->GetImportedModel()->LODModels;
+		const TIndirectArray<FSkeletalMeshLODModel>& LODModels = PreviewMeshComponent->GetSkeletalMeshAsset()->GetImportedModel()->LODModels;
 		int32 LodNumber = LODModels.Num();
 		TArray<UMaterialInterface*> MaterialUsingMorphTarget;
-		for (UMorphTarget *MorphTarget : PreviewMeshComponent->GetSkeletalMesh()->GetMorphTargets())
+		for (UMorphTarget *MorphTarget : PreviewMeshComponent->GetSkeletalMeshAsset()->GetMorphTargets())
 		{
 			if (MorphTarget == nullptr)
 			{
@@ -940,7 +940,7 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 						const FSkeletalMeshLODModel& LODModel = LODModels[LodIdx];
 						if (LODModel.Sections.IsValidIndex(SectionIndex))
 						{
-							MaterialUsingMorphTarget.AddUnique(PreviewMeshComponent->GetSkeletalMesh()->GetMaterials()[LODModel.Sections[SectionIndex].MaterialIndex].MaterialInterface);
+							MaterialUsingMorphTarget.AddUnique(PreviewMeshComponent->GetSkeletalMeshAsset()->GetMaterials()[LODModel.Sections[SectionIndex].MaterialIndex].MaterialInterface);
 						}
 					}
 				}
@@ -1447,7 +1447,7 @@ void FAnimationViewportClient::DrawBonesFromTransforms(
 	FLinearColor RootBoneColour) const
 {
 	if (Transforms.IsEmpty() ||
-		!MeshComponent->GetSkeletalMesh() ||
+		!MeshComponent->GetSkeletalMeshAsset() ||
 		MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::Hidden)
 	{
 		return;
@@ -1498,7 +1498,7 @@ void FAnimationViewportClient::DrawBonesFromCompactPose(
 {
 	if (Pose.GetNumBones() == 0 ||
 		!MeshComponent ||
-		!MeshComponent->GetSkeletalMesh() ||
+		!MeshComponent->GetSkeletalMeshAsset() ||
 		MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::Hidden)
 	{
 		return;
@@ -1548,7 +1548,7 @@ void FAnimationViewportClient::DrawBonesFromCompactPose(
 
 void FAnimationViewportClient::DrawMeshBonesUncompressedAnimation(UDebugSkelMeshComponent * MeshComponent, FPrimitiveDrawInterface* PDI) const
 {
-	if ( MeshComponent && MeshComponent->GetSkeletalMesh())
+	if ( MeshComponent && MeshComponent->GetSkeletalMeshAsset())
 	{
 		DrawBonesFromTransforms(MeshComponent->UncompressedSpaceBases, MeshComponent, PDI, FColor(255, 127, 39, 255), FColor(255, 127, 39, 255));
 	}
@@ -1556,7 +1556,7 @@ void FAnimationViewportClient::DrawMeshBonesUncompressedAnimation(UDebugSkelMesh
 
 void FAnimationViewportClient::DrawMeshBonesNonRetargetedAnimation(UDebugSkelMeshComponent * MeshComponent, FPrimitiveDrawInterface* PDI) const
 {
-	if ( MeshComponent && MeshComponent->GetSkeletalMesh())
+	if ( MeshComponent && MeshComponent->GetSkeletalMeshAsset())
 	{
 		DrawBonesFromTransforms(MeshComponent->NonRetargetedSpaceBases, MeshComponent, PDI, FColor(159, 159, 39, 255), FColor(159, 159, 39, 255));
 	}
@@ -1564,7 +1564,7 @@ void FAnimationViewportClient::DrawMeshBonesNonRetargetedAnimation(UDebugSkelMes
 
 void FAnimationViewportClient::DrawMeshBonesAdditiveBasePose(UDebugSkelMeshComponent * MeshComponent, FPrimitiveDrawInterface* PDI) const
 {
-	if ( MeshComponent && MeshComponent->GetSkeletalMesh())
+	if ( MeshComponent && MeshComponent->GetSkeletalMeshAsset())
 	{
 		DrawBonesFromTransforms(MeshComponent->AdditiveBasePoses, MeshComponent, PDI, FColor(0, 159, 0, 255), FColor(0, 159, 0, 255));
 	}
@@ -1572,7 +1572,7 @@ void FAnimationViewportClient::DrawMeshBonesAdditiveBasePose(UDebugSkelMeshCompo
 
 void FAnimationViewportClient::DrawMeshBonesSourceRawAnimation(UDebugSkelMeshComponent * MeshComponent, FPrimitiveDrawInterface* PDI) const
 {
-	if(MeshComponent && MeshComponent->GetSkeletalMesh())
+	if(MeshComponent && MeshComponent->GetSkeletalMeshAsset())
 	{
 		DrawBonesFromTransforms(MeshComponent->SourceAnimationPoses, MeshComponent, PDI, FColor(195, 195, 195, 255), FColor(195, 159, 195, 255));
 	}
@@ -1598,7 +1598,7 @@ void FAnimationViewportClient::DrawWatchedPoses(UDebugSkelMeshComponent * MeshCo
 
 void FAnimationViewportClient::DrawMeshBonesBakedAnimation(UDebugSkelMeshComponent * MeshComponent, FPrimitiveDrawInterface* PDI) const
 {
-	if(MeshComponent && MeshComponent->GetSkeletalMesh())
+	if(MeshComponent && MeshComponent->GetSkeletalMeshAsset())
 	{
 		DrawBonesFromTransforms(MeshComponent->BakedAnimationPoses, MeshComponent, PDI, FColor(0, 128, 192, 255), FColor(0, 128, 192, 255));
 	}
@@ -1607,7 +1607,7 @@ void FAnimationViewportClient::DrawMeshBonesBakedAnimation(UDebugSkelMeshCompone
 void FAnimationViewportClient::DrawMeshBones(UDebugSkelMeshComponent* MeshComponent, FPrimitiveDrawInterface* PDI) const
 {
 	if (!MeshComponent ||
-		!MeshComponent->GetSkeletalMesh() ||
+		!MeshComponent->GetSkeletalMeshAsset() ||
 		MeshComponent->GetNumDrawTransform() == 0 ||
 		MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::Hidden)
 	{
@@ -1705,7 +1705,7 @@ void FAnimationViewportClient::DrawMeshSubsetBones(const UDebugSkelMeshComponent
 {
 	// this BonesOfInterest has to be in MeshComponent base, not Skeleton 
 	if (!MeshComponent ||
-		!MeshComponent->GetSkeletalMesh() ||
+		!MeshComponent->GetSkeletalMeshAsset() ||
 		BonesOfInterest.IsEmpty() ||
 		MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::Hidden)
 	{
@@ -1781,7 +1781,7 @@ void FAnimationViewportClient::DrawMeshSubsetBones(const UDebugSkelMeshComponent
 
 void FAnimationViewportClient::DrawAttributes(UDebugSkelMeshComponent* MeshComponent, FPrimitiveDrawInterface* PDI) const
 {
-	if (MeshComponent && MeshComponent->GetSkeletalMesh())
+	if (MeshComponent && MeshComponent->GetSkeletalMeshAsset())
 	{
 		const UE::Anim::FMeshAttributeContainer& Attributes = MeshComponent->GetCustomAttributes();
 
@@ -1812,7 +1812,7 @@ void FAnimationViewportClient::DrawAttributes(UDebugSkelMeshComponent* MeshCompo
 
 void FAnimationViewportClient::DrawSockets(const UDebugSkelMeshComponent* InPreviewMeshComponent, TArray<USkeletalMeshSocket*>& InSockets, FSelectedSocketInfo InSelectedSocket, FPrimitiveDrawInterface* PDI, bool bUseSkeletonSocketColor)
 {
-	if (InPreviewMeshComponent && InPreviewMeshComponent->GetSkeletalMesh())
+	if (InPreviewMeshComponent && InPreviewMeshComponent->GetSkeletalMeshAsset())
 	{
 		ELocalAxesMode::Type LocalAxesMode = (ELocalAxesMode::Type)GetDefault<UPersonaOptions>()->DefaultLocalAxesSelection;
 
@@ -1905,7 +1905,7 @@ void FAnimationViewportClient::UpdateCameraSetup()
 {
 	static FRotator CustomOrbitRotation(-33.75, -135, 0);
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
-	if (PreviewMeshComponent != nullptr && PreviewMeshComponent->GetSkeletalMesh())
+	if (PreviewMeshComponent != nullptr && PreviewMeshComponent->GetSkeletalMeshAsset())
 	{
 		FSphere BoundSphere = GetCameraTarget();
 		FVector CustomOrbitZoom(0, BoundSphere.W / (75.0f * (float)PI / 360.0f), 0);
@@ -1974,7 +1974,7 @@ FBox FAnimationViewportClient::ComputeBoundingBoxForSelectedEditorSection() cons
 		return FBox(ForceInitToZero);
 	}
 
-	USkeletalMesh* const SkeletalMesh = PreviewMeshComponent->GetSkeletalMesh();
+	USkeletalMesh* const SkeletalMesh = PreviewMeshComponent->GetSkeletalMeshAsset();
 	FSkeletalMeshObject* const MeshObject = PreviewMeshComponent->MeshObject;
 	if ( !SkeletalMesh || !MeshObject )
 	{
@@ -2027,7 +2027,7 @@ void FAnimationViewportClient::FocusViewportOnPreviewMesh(bool bUseCustomCamera)
 
 	if (UDebugSkelMeshComponent* const PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent())
 	{
-		if (USkeletalMesh* const SkelMesh = PreviewMeshComponent->GetSkeletalMesh())
+		if (USkeletalMesh* const SkelMesh = PreviewMeshComponent->GetSkeletalMeshAsset())
 		{
 			if (bUseCustomCamera && SkelMesh->GetHasCustomDefaultEditorCamera())
 			{
@@ -2062,7 +2062,7 @@ void FAnimationViewportClient::FocusViewportOnPreviewMesh(bool bUseCustomCamera)
 
 float FAnimationViewportClient::GetFloorOffset() const
 {
-	USkeletalMesh* Mesh = GetPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMesh();
+	USkeletalMesh* Mesh = GetPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMeshAsset();
 	if ( Mesh )
 	{
 		return Mesh->GetFloorOffset();
@@ -2073,7 +2073,7 @@ float FAnimationViewportClient::GetFloorOffset() const
 
 void FAnimationViewportClient::SetFloorOffset( float NewValue )
 {
-	USkeletalMesh* Mesh = GetPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMesh();
+	USkeletalMesh* Mesh = GetPreviewScene()->GetPreviewMeshComponent()->GetSkeletalMeshAsset();
 
 	if ( Mesh )
 	{

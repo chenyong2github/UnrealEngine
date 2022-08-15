@@ -291,13 +291,13 @@ FRigUnit_HierarchyImportFromSkeleton_Execute()
 		
 		if(const USkeletalMeshComponent* SkelMeshComponent = Context.DataSourceRegistry->RequestSource<USkeletalMeshComponent>(UControlRig::OwnerComponent))
 		{
-			if(SkelMeshComponent->GetSkeletalMesh())
+			if(SkelMeshComponent->GetSkeletalMeshAsset())
 			{
-				const FReferenceSkeleton& ReferenceSkeleton = SkelMeshComponent->GetSkeletalMesh()->GetRefSkeleton();
+				const FReferenceSkeleton& ReferenceSkeleton = SkelMeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton();
 				Items = Controller->ImportBones(ReferenceSkeleton, NameSpace, false, false, false, false);
 				if(bIncludeCurves)
 				{
-					if(USkeleton* Skeleton = SkelMeshComponent->GetSkeletalMesh()->GetSkeleton())
+					if(USkeleton* Skeleton = SkelMeshComponent->GetSkeletalMeshAsset()->GetSkeleton())
 					{
 						Items.Append(Controller->ImportCurves(Skeleton, NameSpace, false, false, false));
 					}

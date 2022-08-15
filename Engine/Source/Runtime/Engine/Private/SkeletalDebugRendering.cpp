@@ -181,7 +181,7 @@ void DrawBonesFromPoseWatch(
 	if (Pose.GetNumBones() == 0 ||
 		Pose.GetBoneContainer().GetCompactPoseNumBones() == 0 ||
 		!MeshComponent ||
-		!MeshComponent->GetSkeletalMesh() ||
+		!MeshComponent->GetSkeletalMeshAsset() ||
 		!PoseWatchPoseElement
 		)
 	{
@@ -245,7 +245,7 @@ void DrawBonesFromPoseWatch(
 		PDI,
 		MeshComponent->GetComponentLocation() + RelativeOffset,
 		RequiredBones,
-		MeshComponent->GetSkeletalMesh()->GetRefSkeleton(),
+		MeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton(),
 		WorldTransforms,
 		/*SelectedBones*/TArray<int32>(),
 		/*BoneColors*/TArray<FLinearColor>(),

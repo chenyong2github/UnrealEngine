@@ -160,10 +160,10 @@ void USkeletalMeshComponent::CreateBodySetup()
 		BodySetup = NewObject<UBodySetup>(this);
 	}
 
-	if (GetSkeletalMesh())
+	if (GetSkeletalMeshAsset())
 	{
-		const USkeletalMesh* SkeletalMeshConst = GetSkeletalMesh();
-		GetSkeletalMesh()->CreateBodySetup();
+		const USkeletalMesh* SkeletalMeshConst = GetSkeletalMeshAsset();
+		GetSkeletalMeshAsset()->CreateBodySetup();
 		UBodySetup* OriginalBodySetup = SkeletalMeshConst->GetBodySetup();
 		BodySetup->CopyBodyPropertiesFrom(OriginalBodySetup);
 		BodySetup->CookedFormatDataOverride = &OriginalBodySetup->CookedFormatData;
@@ -184,11 +184,11 @@ UBodySetup* USkeletalMeshComponent::GetBodySetup()
 	if (bEnablePerPolyCollision == false)
 	{
 		UPhysicsAsset * const PhysicsAsset = GetPhysicsAsset();
-		if (GetSkeletalMesh() && PhysicsAsset)
+		if (GetSkeletalMeshAsset() && PhysicsAsset)
 		{
-			for (int32 i = 0; i < GetSkeletalMesh()->GetRefSkeleton().GetNum(); i++)
+			for (int32 i = 0; i < GetSkeletalMeshAsset()->GetRefSkeleton().GetNum(); i++)
 			{
-				int32 BodyIndex = PhysicsAsset->FindBodyIndex(GetSkeletalMesh()->GetRefSkeleton().GetBoneName(i));
+				int32 BodyIndex = PhysicsAsset->FindBodyIndex(GetSkeletalMeshAsset()->GetRefSkeleton().GetBoneName(i));
 				if (BodyIndex != INDEX_NONE)
 				{
 					return PhysicsAsset->SkeletalBodySetups[BodyIndex];
@@ -651,13 +651,13 @@ int32 USkeletalMeshComponent::FindRootBodyIndex() const
 {
 	// Find root physics body
 	int32 RootBodyIndex = RootBodyData.BodyIndex;
-	if(RootBodyIndex == INDEX_NONE && GetSkeletalMesh())
+	if(RootBodyIndex == INDEX_NONE && GetSkeletalMeshAsset())
 	{
 		if(const UPhysicsAsset* PhysicsAsset = GetPhysicsAsset())
 		{
-			for (int32 i = 0; i< GetSkeletalMesh()->GetRefSkeleton().GetNum(); i++)
+			for (int32 i = 0; i< GetSkeletalMeshAsset()->GetRefSkeleton().GetNum(); i++)
 			{
-				int32 BodyInstIndex = PhysicsAsset->FindBodyIndex(GetSkeletalMesh()->GetRefSkeleton().GetBoneName(i));
+				int32 BodyInstIndex = PhysicsAsset->FindBodyIndex(GetSkeletalMeshAsset()->GetRefSkeleton().GetBoneName(i));
 				if (BodyInstIndex != INDEX_NONE)
 				{
 					RootBodyIndex = BodyInstIndex;
@@ -684,7 +684,7 @@ void USkeletalMeshComponent::InitArticulated(FPhysScene* PhysScene)
 
 	UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset();
 
-	if (PhysScene == nullptr || PhysicsAsset == nullptr || GetSkeletalMesh() == nullptr || !ShouldCreatePhysicsState())
+	if (PhysScene == nullptr || PhysicsAsset == nullptr || GetSkeletalMeshAsset() == nullptr || !ShouldCreatePhysicsState())
 	{
 		return;
 	}
@@ -774,9 +774,9 @@ void USkeletalMeshComponent::InstantiatePhysicsAssetBodies(const UPhysicsAsset& 
 
 void USkeletalMeshComponent::InstantiatePhysicsAssetRefPose(const UPhysicsAsset& PhysAsset, const FVector& Scale3D, TArray<FBodyInstance*>& OutBodies, TArray<FConstraintInstance*>& OutConstraints, FPhysScene* PhysScene /*= nullptr*/, USkeletalMeshComponent* OwningComponent /*= nullptr*/, int32 UseRootBodyIndex /*= INDEX_NONE*/, const FPhysicsAggregateHandle& UseAggregate, bool bCreateBodiesInRefPose) const
 {
-	if(GetSkeletalMesh())
+	if(GetSkeletalMeshAsset())
 	{
-		const FReferenceSkeleton& RefSkeleton = GetSkeletalMesh()->GetRefSkeleton();
+		const FReferenceSkeleton& RefSkeleton = GetSkeletalMeshAsset()->GetRefSkeleton();
 
 		if (bCreateBodiesInRefPose)
 		{
@@ -1028,7 +1028,7 @@ void USkeletalMeshComponent::TermArticulated()
 void USkeletalMeshComponent::TermBodiesBelow(FName ParentBoneName)
 {
 	UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset();
-	if(PhysicsAsset && GetSkeletalMesh() && Bodies.Num() > 0)
+	if(PhysicsAsset && GetSkeletalMeshAsset() && Bodies.Num() > 0)
 	{
 		check(Bodies.Num() == PhysicsAsset->SkeletalBodySetups.Num());
 
@@ -1048,7 +1048,7 @@ void USkeletalMeshComponent::TermBodiesBelow(FName ParentBoneName)
 			int32 JointBoneIndex = GetBoneIndex(JointChildBoneName);
 
 			// If constraint has bone in mesh, and is either the parent or child of it, term it
-			if(	JointBoneIndex != INDEX_NONE && (JointChildBoneName == ParentBoneName || GetSkeletalMesh()->GetRefSkeleton().BoneIsChildOf(JointBoneIndex, ParentBoneIndex)) )
+			if(	JointBoneIndex != INDEX_NONE && (JointChildBoneName == ParentBoneName || GetSkeletalMeshAsset()->GetRefSkeleton().BoneIsChildOf(JointBoneIndex, ParentBoneIndex)) )
 			{
 				Constraints[i]->TermConstraint();
 			}
@@ -1064,7 +1064,7 @@ void USkeletalMeshComponent::TermBodiesBelow(FName ParentBoneName)
 				int32 BodyBoneIndex = GetBoneIndex(BodyName);
 
 				// If body has bone in mesh, and is either the parent or child of it, term it
-				if(	BodyBoneIndex != INDEX_NONE && (BodyName == ParentBoneName || GetSkeletalMesh()->GetRefSkeleton().BoneIsChildOf(BodyBoneIndex, ParentBoneIndex)) )
+				if(	BodyBoneIndex != INDEX_NONE && (BodyName == ParentBoneName || GetSkeletalMeshAsset()->GetRefSkeleton().BoneIsChildOf(BodyBoneIndex, ParentBoneIndex)) )
 				{
 					Bodies[i]->TermBody();
 				}
@@ -1655,7 +1655,7 @@ void USkeletalMeshComponent::UpdateMeshForBrokenConstraints()
 {
 	UPhysicsAsset * const PhysicsAsset = GetPhysicsAsset();
 	// Needs to have a SkeletalMesh, and PhysicsAsset.
-	if( !GetSkeletalMesh() || !PhysicsAsset )
+	if( !GetSkeletalMeshAsset() || !PhysicsAsset )
 	{
 		return;
 	}
@@ -1684,7 +1684,7 @@ void USkeletalMeshComponent::UpdateMeshForBrokenConstraints()
 				UBodySetup* PhysicsAssetBodySetup = PhysicsAsset->SkeletalBodySetups[BodySetupIndex];
 				int32 BoneIndex = GetBoneIndex(PhysicsAssetBodySetup->BoneName);
 				if( BoneIndex != INDEX_NONE && 
-					(BoneIndex == JointBoneIndex || GetSkeletalMesh()->GetRefSkeleton().BoneIsChildOf(BoneIndex, JointBoneIndex)) )
+					(BoneIndex == JointBoneIndex || GetSkeletalMeshAsset()->GetRefSkeleton().BoneIsChildOf(BoneIndex, JointBoneIndex)) )
 				{
 					DEBUGBROKENCONSTRAINTUPDATE(UE_LOG(LogSkeletalMesh, Log, TEXT("    Found Child Bone: (%d) %s"), BoneIndex, *PhysicsAssetBodySetup->BoneName.ToString());)
 
@@ -1825,7 +1825,7 @@ int32 USkeletalMeshComponent::ForEachBodyBelow(FName BoneName, bool bIncludeSelf
 	else
 	{
 		UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset();
-		if (!PhysicsAsset || !GetSkeletalMesh())
+		if (!PhysicsAsset || !GetSkeletalMeshAsset())
 		{
 			return 0;
 		}
@@ -1839,7 +1839,7 @@ int32 USkeletalMeshComponent::ForEachBodyBelow(FName BoneName, bool bIncludeSelf
 
 		TArray<int32> BodyIndices;
 		BodyIndices.Reserve(Bodies.Num());
-		PhysicsAsset->GetBodyIndicesBelow(BodyIndices, BoneName, GetSkeletalMesh(), bIncludeSelf);
+		PhysicsAsset->GetBodyIndicesBelow(BodyIndices, BoneName, GetSkeletalMeshAsset(), bIncludeSelf);
 
 		int32 NumBodiesFound = 0;
 		for (int32 BodyIdx : BodyIndices)
@@ -2062,12 +2062,12 @@ void USkeletalMeshComponent::SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset, bool
 		UpdateHasValidBodies();
 
 		// Component should be re-attached here, so create physics.
-		if(GetSkeletalMesh())
+		if(GetSkeletalMeshAsset())
 		{
 			// Because we don't know what bones the new PhysicsAsset might want, we have to force an update to _all_ bones in the skeleton.
-			RequiredBones.Reset(GetSkeletalMesh()->GetRefSkeleton().GetNum());
-			RequiredBones.AddUninitialized(GetSkeletalMesh()->GetRefSkeleton().GetNum() );
-			for(int32 i=0; i< GetSkeletalMesh()->GetRefSkeleton().GetNum(); i++)
+			RequiredBones.Reset(GetSkeletalMeshAsset()->GetRefSkeleton().GetNum());
+			RequiredBones.AddUninitialized(GetSkeletalMeshAsset()->GetRefSkeleton().GetNum() );
+			for(int32 i=0; i< GetSkeletalMeshAsset()->GetRefSkeleton().GetNum(); i++)
 			{
 				RequiredBones[i] = (FBoneIndexType)i;
 			}
@@ -2184,8 +2184,8 @@ FVector GetTypedSkinnedVertexPositionWithCloth(USkeletalMeshComponent* Component
 	const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIndex];
 
 	// only if this component has clothing and is showing simulated results	
-	if (Component->GetSkeletalMesh() &&
-		Component->GetSkeletalMesh()->GetMeshClothingAssets().Num() > 0 &&
+	if (Component->GetSkeletalMeshAsset() &&
+		Component->GetSkeletalMeshAsset()->GetMeshClothingAssets().Num() > 0 &&
 		!Component->bDisableClothSimulation &&
 		Component->ClothBlendWeight > 0.0f // if cloth blend weight is 0.0, only showing skinned vertices regardless of simulation positions
 		)
@@ -2240,12 +2240,12 @@ FVector3f USkeletalMeshComponent::GetSkinnedVertexPosition(USkeletalMeshComponen
 void USkeletalMeshComponent::ComputeSkinnedPositions(USkeletalMeshComponent* Component, TArray<FVector3f> & OutPositions, TArray<FMatrix44f>& CachedRefToLocals, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightBuffer)
 {
 	// Fail if no mesh
-	if (!Component->GetSkeletalMesh())
+	if (!Component->GetSkeletalMeshAsset())
 	{
 		return;
 	}
 
-	if (Component->GetSkeletalMesh()->GetMeshClothingAssets().Num() > 0 &&
+	if (Component->GetSkeletalMeshAsset()->GetMeshClothingAssets().Num() > 0 &&
 		!Component->bDisableClothSimulation &&
 		Component->ClothBlendWeight > 0.0f // if cloth blend weight is 0.0, only showing skinned vertices regardless of simulation positions
 		)
@@ -2280,7 +2280,7 @@ void USkeletalMeshComponent::ComputeSkinnedPositions(USkeletalMeshComponent* Com
 
 			if (bClothVertex)
 			{
-				int32 AssetIndex = Component->GetSkeletalMesh()->GetClothingAssetIndex(ClothAssetGuid);
+				int32 AssetIndex = Component->GetSkeletalMeshAsset()->GetClothingAssetIndex(ClothAssetGuid);
 				if (AssetIndex != INDEX_NONE)
 				{
 					const FClothSimulData* ActorData = ClothData.Find(AssetIndex);
@@ -2360,7 +2360,7 @@ void USkeletalMeshComponent::GetSkinnedTangentBasis(USkeletalMeshComponent* Comp
 void USkeletalMeshComponent::ComputeSkinnedTangentBasis(USkeletalMeshComponent* Component, TArray<FVector3f>& OutTangenXYZ, TArray<FMatrix44f>& CachedRefToLocals, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightBuffer)
 {
 	// Fail if no mesh
-	if (!Component->GetSkeletalMesh())
+	if (!Component->GetSkeletalMeshAsset())
 	{
 		return;
 	}
@@ -2454,7 +2454,7 @@ bool USkeletalMeshComponent::GetClosestPointOnPhysicsAsset(const FVector& WorldP
 
 	bool bSuccess = false;
 	const UPhysicsAsset* PhysicsAsset = GetPhysicsAsset();
-	const FReferenceSkeleton* RefSkeleton = GetSkeletalMesh() ? &GetSkeletalMesh()->GetRefSkeleton() : nullptr;
+	const FReferenceSkeleton* RefSkeleton = GetSkeletalMeshAsset() ? &GetSkeletalMeshAsset()->GetRefSkeleton() : nullptr;
 	if(PhysicsAsset && RefSkeleton)
 	{
 		const TArray<FTransform>& BoneTransforms = GetComponentSpaceTransforms();
@@ -2666,7 +2666,7 @@ void USkeletalMeshComponent::RecreateClothingActors()
 
 	ReleaseAllClothingResources();
 
-	USkeletalMesh* SkelMesh = GetSkeletalMesh();
+	USkeletalMesh* SkelMesh = GetSkeletalMeshAsset();
 	if(!bAllowClothActors || SkelMesh == nullptr || !IsRegistered())
 	{
 		return;
@@ -2826,7 +2826,7 @@ void USkeletalMeshComponent::ExtractCollisionsForCloth(
 {
 	// Extract collisions from this mesh 'raw', as this isn't a mesh that has cloth simulation
 	// (but we want it to affect other meshes with cloth simulation)
-	if(SourceComponent->GetSkeletalMesh() && PhysicsAsset)
+	if(SourceComponent->GetSkeletalMeshAsset() && PhysicsAsset)
 	{
 		FTransform ComponentToComponentTransform;
 		if(SourceComponent != DestClothComponent)
@@ -2837,12 +2837,12 @@ void USkeletalMeshComponent::ExtractCollisionsForCloth(
 		}
 
 		// Init cache on first copy
-		if(!ClothCollisionSource.bCached || ClothCollisionSource.CachedSkeletalMesh.Get() != SourceComponent->GetSkeletalMesh())
+		if(!ClothCollisionSource.bCached || ClothCollisionSource.CachedSkeletalMesh.Get() != SourceComponent->GetSkeletalMeshAsset())
 		{
 			for(const USkeletalBodySetup* SkeletalBodySetup : PhysicsAsset->SkeletalBodySetups)
 			{
 				// Cache bones
-				int32 MeshBoneIndex = SourceComponent->GetSkeletalMesh()->GetRefSkeleton().FindBoneIndex(SkeletalBodySetup->BoneName);
+				int32 MeshBoneIndex = SourceComponent->GetSkeletalMeshAsset()->GetRefSkeleton().FindBoneIndex(SkeletalBodySetup->BoneName);
 				if(MeshBoneIndex != INDEX_NONE)
 				{
 					// Cache spheres & capsules form physics asset
@@ -2904,7 +2904,7 @@ void USkeletalMeshComponent::ExtractCollisionsForCloth(
 				}
 			}
 
-			ClothCollisionSource.CachedSkeletalMesh = SourceComponent->GetSkeletalMesh();
+			ClothCollisionSource.CachedSkeletalMesh = SourceComponent->GetSkeletalMeshAsset();
 			ClothCollisionSource.bCached = true;
 		}
 
@@ -3337,7 +3337,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 				// Possibly a skeletal mesh, extract it's clothing collisions if necessary
 				USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Component.Get());
 
-				if(SkelComp && SkelComp->GetSkeletalMesh())
+				if(SkelComp && SkelComp->GetSkeletalMeshAsset())
 				{
 					if(SkelComp == this)
 					{
@@ -3602,7 +3602,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		FScopeCycleCounterUObject ContextScope(SkeletalMeshComponent.GetSkeletalMesh());
+		FScopeCycleCounterUObject ContextScope(SkeletalMeshComponent.GetSkeletalMeshAsset());
 		SCOPE_CYCLE_COUNTER(STAT_ClothTotalTime);
 		CSV_SCOPED_TIMING_STAT(Animation, Cloth);
 
@@ -3759,7 +3759,7 @@ DECLARE_CYCLE_STAT(TEXT("Cloth Sim"), STAT_ClothSimTime, STATGROUP_Physics);
 
 bool USkeletalMeshComponent::GetClothSimulatedPosition_GameThread(const FGuid& AssetGuid, int32 VertexIndex, FVector& OutSimulPos) const
 {
-	if(!GetSkeletalMesh())
+	if(!GetSkeletalMeshAsset())
 	{
 		// Can't proceed without a mesh
 		return false;
@@ -3767,7 +3767,7 @@ bool USkeletalMeshComponent::GetClothSimulatedPosition_GameThread(const FGuid& A
 		
 	bool bSucceed = false;
 
-	int32 AssetIndex = GetSkeletalMesh()->GetClothingAssetIndex(AssetGuid);
+	int32 AssetIndex = GetSkeletalMeshAsset()->GetClothingAssetIndex(AssetGuid);
 
 	if(AssetIndex != INDEX_NONE)
 	{
@@ -3785,7 +3785,7 @@ bool USkeletalMeshComponent::GetClothSimulatedPosition_GameThread(const FGuid& A
 
 void USkeletalMeshComponent::TickClothing(float DeltaTime, FTickFunction& ThisTickFunction)
 {
-	if (GetSkeletalMesh() == nullptr || !ClothingSimulation || CVarEnableClothPhysics.GetValueOnGameThread() == 0)
+	if (GetSkeletalMeshAsset() == nullptr || !ClothingSimulation || CVarEnableClothPhysics.GetValueOnGameThread() == 0)
 	{
 		return;
 	}

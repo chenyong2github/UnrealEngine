@@ -7894,7 +7894,7 @@ bool UEngine::HandleMergeMeshCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorl
 		if (PlayerController && PlayerController->GetCharacter() != NULL && PlayerController->GetCharacter()->GetMesh())
 		{
 			PlayerPawn = PlayerController->GetCharacter();
-			PlayerMesh = PlayerController->GetCharacter()->GetMesh()->GetSkeletalMesh();
+			PlayerMesh = PlayerController->GetCharacter()->GetMesh()->GetSkeletalMeshAsset();
 			break;
 		}
 	}

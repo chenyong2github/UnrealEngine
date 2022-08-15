@@ -74,7 +74,7 @@ void ASkeletalMeshActor::CheckForErrors()
 				->AddToken(FMapErrorToken::Create(FMapErrors::ActorLargeShadowCaster));
 		}
 
-		if (SkeletalMeshComponent->GetSkeletalMesh() == NULL)
+		if (SkeletalMeshComponent->GetSkeletalMeshAsset() == NULL)
 		{
 			FMessageLog("MapCheck").Warning()
 				->AddToken(FUObjectToken::Create(this))
@@ -116,7 +116,7 @@ void ASkeletalMeshActor::PostInitializeComponents()
 	// grab the current mesh for replication
 	if (GetLocalRole() == ROLE_Authority && SkeletalMeshComponent)
 	{
-		ReplicatedMesh = SkeletalMeshComponent->GetSkeletalMesh();
+		ReplicatedMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
 	}
 
 	// Unfix bodies flagged as 'full anim weight'
@@ -148,8 +148,8 @@ void ASkeletalMeshActor::OnRep_ReplicatedMaterial1()
 
 bool ASkeletalMeshActor::CanPlayAnimation(class UAnimSequenceBase* AnimAssetBase/*=NULL*/) const
 {
-	return (SkeletalMeshComponent->GetSkeletalMesh() && SkeletalMeshComponent->GetSkeletalMesh()->GetSkeleton() &&
-		(!AnimAssetBase || SkeletalMeshComponent->GetSkeletalMesh()->GetSkeleton()->IsCompatible(AnimAssetBase->GetSkeleton())));
+	return (SkeletalMeshComponent->GetSkeletalMeshAsset() && SkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton() &&
+		(!AnimAssetBase || SkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->IsCompatible(AnimAssetBase->GetSkeleton())));
 }
 
 #if WITH_EDITOR
@@ -158,9 +158,9 @@ bool ASkeletalMeshActor::GetReferencedContentObjects(TArray<UObject*>& Objects) 
 {
 	Super::GetReferencedContentObjects(Objects);
 
-	if (SkeletalMeshComponent->GetSkeletalMesh())
+	if (SkeletalMeshComponent->GetSkeletalMeshAsset())
 	{
-		Objects.Add(SkeletalMeshComponent->GetSkeletalMesh());
+		Objects.Add(SkeletalMeshComponent->GetSkeletalMeshAsset());
 	}
 
 	if (SkeletalMeshComponent->GetAnimationMode() == EAnimationMode::Type::AnimationSingleNode &&
@@ -180,9 +180,9 @@ void ASkeletalMeshActor::EditorReplacedActor(AActor* OldActor)
 	{
 		// if no skeletal mesh set, take one from previous actor
 		if (SkeletalMeshComponent && OldSkelMeshActor->SkeletalMeshComponent &&
-			SkeletalMeshComponent->GetSkeletalMesh() == NULL)
+			SkeletalMeshComponent->GetSkeletalMeshAsset() == NULL)
 		{
-			SkeletalMeshComponent->SetSkeletalMesh(OldSkelMeshActor->SkeletalMeshComponent->GetSkeletalMesh());
+			SkeletalMeshComponent->SetSkeletalMesh(OldSkelMeshActor->SkeletalMeshComponent->GetSkeletalMeshAsset());
 		}
 	}
 }

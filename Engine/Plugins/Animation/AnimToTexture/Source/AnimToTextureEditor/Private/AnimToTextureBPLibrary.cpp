@@ -192,15 +192,15 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	if (DataAsset->Mode == EAnimToTextureMode::Bone)
 	{
 		// Get Number of RawBones (no virtual)
-		NumBones = AnimToTexture_Private::GetNumBones(BaseMeshComponent->GetSkeletalMesh());
+		NumBones = AnimToTexture_Private::GetNumBones(BaseMeshComponent->GetSkeletalMeshAsset());
 
 		// Get Raw Ref Bone (no virtual)
 		TArray<FTransform> RefBoneTransforms;
-		AnimToTexture_Private::GetRefBoneTransforms(BaseMeshComponent->GetSkeletalMesh(), RefBoneTransforms);
+		AnimToTexture_Private::GetRefBoneTransforms(BaseMeshComponent->GetSkeletalMeshAsset(), RefBoneTransforms);
 		AnimToTexture_Private::DecomposeTransformations(RefBoneTransforms, BoneRefPositions, BoneRefRotations);
 
 		// Get Bone Names (no virtual)
-		AnimToTexture_Private::GetBoneNames(BaseMeshComponent->GetSkeletalMesh(), BoneNames);
+		AnimToTexture_Private::GetBoneNames(BaseMeshComponent->GetSkeletalMeshAsset(), BoneNames);
 
 		// Make sure array sizes are correct.
 		check(RefBoneTransforms.Num() == NumBones && BoneNames.Num() == NumBones);
@@ -238,9 +238,9 @@ void UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		}
 		
 		// Make sure SkelMesh and AnimSequence use same Skeleton
-		if (AnimSequence->GetSkeleton() != BaseMeshComponent->GetSkeletalMesh()->GetSkeleton())
+		if (AnimSequence->GetSkeleton() != BaseMeshComponent->GetSkeletalMeshAsset()->GetSkeleton())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Invalid AnimSequence: %s for given SkeletalMesh: %s"), *AnimSequence->GetFName().ToString(), *BaseMeshComponent->GetSkeletalMesh()->GetFName().ToString());
+			UE_LOG(LogTemp, Warning, TEXT("Invalid AnimSequence: %s for given SkeletalMesh: %s"), *AnimSequence->GetFName().ToString(), *BaseMeshComponent->GetSkeletalMeshAsset()->GetFName().ToString());
 			continue;
 		}
 		// Set AnimSequence

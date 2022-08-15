@@ -597,9 +597,9 @@ public:
 	 */
 	virtual const FReferenceSkeleton& GetReferenceSkeleton() const
 	{
-		if (GetSkeletalMesh())
+		if (GetSkeletalMeshAsset())
 		{
-			return GetSkeletalMesh()->GetRefSkeleton();
+			return GetSkeletalMeshAsset()->GetRefSkeleton();
 		}
 
 		static FReferenceSkeleton EmptySkeleton;
