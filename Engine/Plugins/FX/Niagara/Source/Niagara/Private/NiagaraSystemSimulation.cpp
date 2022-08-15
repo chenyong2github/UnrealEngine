@@ -1574,6 +1574,48 @@ void FNiagaraSystemSimulation::Spawn_Concurrent(FNiagaraSystemSimulationTickCont
 	bInSpawnPhase = false;
 }
 
+void FNiagaraSystemSimulation::SimCachePostTick_Concurrent(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent)
+{
+	check(GetIsSolo());
+	check(System != nullptr);
+
+	TArray<FNiagaraSystemInstance*>& SystemInstances = GetSystemInstances(ENiagaraSystemInstanceState::Running);
+	if (SystemInstances.Num() == 0)
+	{
+		return;
+	}
+
+	if (!bBindingsInitialized)
+	{
+		InitParameterDataSetBindings(SystemInstances[0]);
+	}
+
+	FNiagaraDataSetReaderInt32<ENiagaraExecutionState> SystemExecutionStateAccessor = System->GetSystemExecutionStateAccessor().GetReader(MainDataSet);
+	TConstArrayView<FNiagaraDataSetAccessor<ENiagaraExecutionState>> EmitterExecutionStateAccessors = System->GetEmitterExecutionStateAccessors();
+
+	for ( int32 iSystemInstance=0; iSystemInstance < SystemInstances.Num(); ++iSystemInstance )
+	{
+		FNiagaraSystemInstance& SystemInstance = *SystemInstances[iSystemInstance];
+
+		TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>>& Emitters = SystemInstance.GetEmitters();
+		for (int32 iEmitter=0; iEmitter < Emitters.Num(); ++iEmitter)
+		{
+			FNiagaraEmitterInstance& EmitterInstance = Emitters[iEmitter].Get();
+			if ( EmitterInstance.IsComplete() )
+			{
+				continue;
+			}
+
+			ENiagaraExecutionState State = EmitterExecutionStateAccessors[iEmitter].GetReader(MainDataSet).GetSafe(iSystemInstance, ENiagaraExecutionState::Disabled);
+			EmitterInstance.SetExecutionState(State);
+
+			//DataSetToEmitterSpawnParameters[iEmitter].DataSetToParameterStore(EmitterInstance.GetSpawnExecutionContext().Parameters, MainDataSet, iSystemInstance);
+			//DataSetToEmitterUpdateParameters[iEmitter].DataSetToParameterStore(EmitterInstance.GetUpdateExecutionContext().Parameters, MainDataSet, iSystemInstance);
+			DataSetToEmitterRendererParameters[iEmitter].DataSetToParameterStore(EmitterInstance.GetRendererBoundVariables(), MainDataSet, iSystemInstance);
+		}
+	}
+}
+
 void FNiagaraSystemSimulation::DumpStalledInfo()
 {
 	TStringBuilder<128> Builder;
@@ -2064,7 +2106,6 @@ void FNiagaraSystemSimulation::TransferSystemSimResults(FNiagaraSystemSimulation
 				}
 
 				DataSetToEmitterRendererParameters[EmitterIdx].DataSetToParameterStore(EmitterInst.GetRendererBoundVariables(), Context.DataSet, SystemIndex);
-
 			}
 		}
 	}

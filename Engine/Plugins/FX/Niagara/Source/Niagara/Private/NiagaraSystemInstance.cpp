@@ -2221,6 +2221,8 @@ void FNiagaraSystemInstance::SimCacheTick_GameThread(UNiagaraSimCache* SimCache,
 		SystemSimulation->SetInstanceState(this, ENiagaraSystemInstanceState::Running);
 	}
 
+	SystemSimulation->SimCachePostTick_Concurrent(DeltaSeconds, MyCompletionGraphEvent);
+
 	if (OnPostTickDelegate.IsBound())
 	{
 		OnPostTickDelegate.Execute();
