@@ -14,7 +14,7 @@ void URCControllerContainer::OnModifyPropertyValue(const FPropertyChangedEvent& 
 			{
 				if (URCController* Controller = Cast<URCController>(VirtualProperty))
 				{
-					Controller->ExecuteBehaviours();
+					Controller->OnModifyPropertyValue();
 				}
 			}
 		}

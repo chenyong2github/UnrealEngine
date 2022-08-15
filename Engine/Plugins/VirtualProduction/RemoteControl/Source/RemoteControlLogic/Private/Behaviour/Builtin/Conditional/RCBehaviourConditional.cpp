@@ -133,7 +133,7 @@ void URCBehaviourConditional::OnActionAdded(URCAction* Action, const ERCBehaviou
 	Conditions.Add(Action, MoveTemp(Condition));
 }
 
-URCAction* URCBehaviourConditional::AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField, const ERCBehaviourConditionType InConditionType, const TObjectPtr<URCVirtualPropertySelfContainer> InComparand)
+URCAction* URCBehaviourConditional::AddConditionalAction(const TSharedRef<const FRemoteControlField> InRemoteControlField, const ERCBehaviourConditionType InConditionType, const TObjectPtr<URCVirtualPropertySelfContainer> InComparand)
 {
 	TRCActionUniquenessTest UniquenessTest = [this, InRemoteControlField, InConditionType, InComparand](const TSet<TObjectPtr<URCAction>>& Actions)
 	{

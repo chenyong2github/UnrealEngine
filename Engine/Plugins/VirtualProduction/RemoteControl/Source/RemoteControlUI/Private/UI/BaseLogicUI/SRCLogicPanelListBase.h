@@ -3,10 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RCLogicModeBase.h"
+#include "SlateOptMacros.h"
+#include "UI/Action/Bind/RCActionBindModel.h"
+#include "UI/Action/Conditional/RCActionConditionalModel.h"
+#include "UI/Action/RCActionModel.h"
+#include "UI/Behaviour/RCBehaviourModel.h"
+#include "UI/Controller/RCControllerModel.h"
 #include "Widgets/SCompoundWidget.h"
-
-class FRCLogicModeBase;
-class URemoteControlPreset;
 
 /*
 * ~ SRCLogicPanelListBase ~
@@ -58,5 +62,37 @@ protected:
 	/** Helper function for handling common Delete Item functionality across all child panels (Actions/Behaviours/Controllers)
 	* Currently invoked from each Panel List child class with appropriate template class*/
 	template<class T>
-	void DeleteItemFromLogicPanel(TArray<TSharedPtr<T>>& ItemsSource, const TArray<TSharedPtr<T>>& SelectedItems);
+	void DeleteItemFromLogicPanel(TArray<TSharedPtr<T>>& ItemsSource, const TArray<TSharedPtr<T>>& SelectedItems)
+	{
+		bool bIsDeleted = false;
+		for (const TSharedPtr<T> SelectedItem : SelectedItems)
+		{
+			if (SelectedItem.IsValid())
+			{
+				// Remove Model from Data Container
+				const int32 RemoveCount = RemoveModel(SelectedItem);
+				if (ensure(RemoveCount > 0))
+				{
+					// Remove View Model from UI List
+					const int32 RemoveModelItemIndex = ItemsSource.IndexOfByPredicate([SelectedItem](TSharedPtr<T> InModel)
+						{
+							return SelectedItem == InModel;
+						});
+
+					if (RemoveModelItemIndex > INDEX_NONE)
+					{
+						ItemsSource.RemoveAt(RemoveModelItemIndex);
+
+						bIsDeleted = true;
+					}
+				}
+			}
+		}
+
+		if (bIsDeleted)
+		{
+			BroadcastOnItemRemoved();
+			Reset();
+		}
+	}
 };

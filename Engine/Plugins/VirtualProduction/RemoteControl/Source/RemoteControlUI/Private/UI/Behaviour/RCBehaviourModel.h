@@ -21,7 +21,7 @@ class URCBehaviour;
 class FRCBehaviourModel : public FRCLogicModeBase
 {
 public:
-	FRCBehaviourModel(URCBehaviour* InBehaviour);
+	FRCBehaviourModel(URCBehaviour* InBehaviour, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel = nullptr);
 
 	/** Add a Logic Action using a remote control field as input */
 	virtual URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField);

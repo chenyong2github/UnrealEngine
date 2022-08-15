@@ -42,6 +42,14 @@ public:
 	/** Adds an Action for the currently active Behaviour and broadcasts to parent panels */
 	URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField);
 
+	/** Whether this Actions panel can create an action for the given remote control field */
+	bool CanHaveActionForField(const FGuid& InRemoteControlFieldId);
+
+	void RequestRefreshForAddActionsMenu()
+	{
+		bAddActionMenuNeedsRefresh = true;
+	}
+
 protected:
 
 	/** Warns user before deleting all items in a panel. */
@@ -79,6 +87,12 @@ private:
 	/** Handles click event for Add All button; Adds all possible actions for the active Remote Control Preset*/
 	FReply OnAddAllFields();
 
+	/** Event invoked when a new remote control field has been added to the Remote Control Preset associated with this Action panel */
+	void OnRemoteControlFieldAdded(const FGuid& GroupId, const FGuid& FieldId, int32 FieldPosition);
+
+	/** Event invoked when a remote control field is removed from the Remote Control Preset associated with this Action panel */
+	void OnRemoteControlFieldDeleted(const FGuid& GroupId, const FGuid& FieldId, int32 FieldPosition);
+
 private:
 
 	/** The parent Behaviour that this Action panel is associated with */
@@ -95,4 +109,10 @@ private:
 
 	/** Panel Style reference. */
 	const FRCPanelStyle* RCPanelStyle;
+
+	/** Cached menu widget for Add New Action */
+	TSharedPtr<SWidget> AddNewActionMenuWidget;
+
+	/** Whether the Add Actions menu list is outdated and needs to be refreshed */
+	bool bAddActionMenuNeedsRefresh = false;
 };

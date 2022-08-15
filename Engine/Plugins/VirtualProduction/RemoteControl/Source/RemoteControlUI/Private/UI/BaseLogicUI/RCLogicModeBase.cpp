@@ -24,4 +24,9 @@ URemoteControlPreset* FRCLogicModeBase::GetPreset() const
 	return PanelWeakPtr.Pin()->GetPreset();
 }
 
+TSharedPtr< SRemoteControlPanel> FRCLogicModeBase::GetRemoteControlPanel() const
+{
+	return PanelWeakPtr.Pin();
+}
+
 #undef LOCTEXT_NAMESPACE

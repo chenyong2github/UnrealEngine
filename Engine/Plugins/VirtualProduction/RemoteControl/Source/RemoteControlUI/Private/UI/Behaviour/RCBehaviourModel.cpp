@@ -16,8 +16,10 @@
 
 #define LOCTEXT_NAMESPACE "FRCBehaviourModel"
 
-FRCBehaviourModel::FRCBehaviourModel(URCBehaviour* InBehaviour)
-	: BehaviourWeakPtr(InBehaviour)
+FRCBehaviourModel::FRCBehaviourModel(URCBehaviour* InBehaviour,
+	const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel /*= nullptr*/)
+	: FRCLogicModeBase(InRemoteControlPanel),
+	BehaviourWeakPtr(InBehaviour)
 {
 	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.BehaviourPanel");
 

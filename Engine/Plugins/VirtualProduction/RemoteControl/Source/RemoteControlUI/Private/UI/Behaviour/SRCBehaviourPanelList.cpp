@@ -2,6 +2,7 @@
 
 #include "SRCBehaviourPanelList.h"
 
+#include "Behaviour/Builtin/Bind/RCBehaviourBind.h"
 #include "Behaviour/Builtin/Conditional/RCBehaviourConditional.h"
 #include "Behaviour/RCSetAssetByPathBehaviour.h"
 #include "Controller/RCController.h"
@@ -10,6 +11,7 @@
 #include "SRCBehaviourPanel.h"
 #include "SlateOptMacros.h"
 #include "Styling/RemoteControlStyles.h"
+#include "UI/Behaviour/Builtin/Bind/RCBehaviourBindModel.h"
 #include "UI/Behaviour/Builtin/Conditional/RCBehaviourConditionalModel.h"
 #include "UI/Behaviour/Builtin/RCBehaviourIsEqualModel.h"
 #include "UI/Behaviour/Builtin/RCBehaviourSetAssetByPathModel.h"
@@ -81,6 +83,8 @@ void SRCBehaviourPanelList::Reset()
 {
 	BehaviourItems.Empty();
 
+	const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = BehaviourPanelWeakPtr.IsValid() ? BehaviourPanelWeakPtr.Pin()->GetRemoteControlPanel() : nullptr;
+
 	if (TSharedPtr<FRCControllerModel> ControllerItem = ControllerItemWeakPtr.Pin())
 	{
 		if (URCController* Controller = Cast<URCController>(ControllerItem->GetVirtualProperty()))
@@ -99,9 +103,13 @@ void SRCBehaviourPanelList::Reset()
 				{
 					BehaviourItems.Add(MakeShared<FRCSetAssetByPathBehaviourModel>(SetAssetByPathBehaviour));
 				}
+				else if (URCBehaviourBind* BindBehaviour = Cast<URCBehaviourBind>(Behaviour))
+				{
+					BehaviourItems.Add(MakeShared<FRCBehaviourBindModel>(BindBehaviour, RemoteControlPanel));
+				}
 				else
 				{
-					BehaviourItems.Add(MakeShared<FRCBehaviourModel>(Behaviour));
+					BehaviourItems.Add(MakeShared<FRCBehaviourModel>(Behaviour, RemoteControlPanel));
 				}
 			}
 		}

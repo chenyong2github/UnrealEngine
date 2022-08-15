@@ -31,6 +31,9 @@ public:
 	/** Returns the Remote Control Preset object associated with us*/
 	URemoteControlPreset* GetPreset() const;
 
+	/** Returns the Remote Control Preset object associated with us*/
+	TSharedPtr< SRemoteControlPanel> GetRemoteControlPanel() const;
+
 protected:
 	/** The parent Remote Control Panel widget*/
 	TWeakPtr<SRemoteControlPanel> PanelWeakPtr;

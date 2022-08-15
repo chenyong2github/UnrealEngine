@@ -2,6 +2,7 @@
 
 #include "Action/RCActionContainer.h"
 
+#include "Controller/RCController.h"
 #include "IRemoteControlModule.h"
 #include "RCVirtualProperty.h"
 #include "RemoteControlField.h"

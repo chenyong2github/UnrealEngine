@@ -9,8 +9,10 @@
 
 class URemoteControlPreset;
 class URCAction;
+class URCController;
 class URCFunctionAction;
 class URCPropertyAction;
+class URCPropertyBindAction;
 
 struct FRemoteControlField;
 struct FRemoteControlFunction;

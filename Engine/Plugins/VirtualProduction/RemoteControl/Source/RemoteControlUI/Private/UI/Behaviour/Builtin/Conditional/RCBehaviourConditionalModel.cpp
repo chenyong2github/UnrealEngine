@@ -13,6 +13,7 @@
 #include "UI/Action/Conditional/RCActionConditionalModel.h"
 #include "UI/Action/SRCActionPanel.h"
 #include "UI/Action/SRCActionPanelList.h"
+#include "UI/RCUIHelpers.h"
 #include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "FRCBehaviourConditionalModel"
@@ -21,10 +22,6 @@ FRCBehaviourConditionalModel::FRCBehaviourConditionalModel(URCBehaviourCondition
 	: FRCBehaviourModel(ConditionalBehaviour)
 	, ConditionalBehaviourWeakPtr(ConditionalBehaviour)
 {
-	FPropertyRowGeneratorArgs Args;
-	Args.bShouldShowHiddenProperties = true;
-	PropertyRowGenerator = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreatePropertyRowGenerator(Args);
-
 	CreateComparandInputField();
 }
 
@@ -39,7 +36,7 @@ URCAction* FRCBehaviourConditionalModel::AddAction(const TSharedRef<const FRemot
 
 	if (URCBehaviourConditional* ConditionalBehaviour = GetConditionalBehaviour())
 	{
-		NewAction = ConditionalBehaviour->AddAction(InRemoteControlField, Condition, ConditionalBehaviour->Comparand);
+		NewAction = ConditionalBehaviour->AddConditionalAction(InRemoteControlField, Condition, ConditionalBehaviour->Comparand);
 
 		OnActionAdded(NewAction);
 	}
@@ -70,17 +67,7 @@ void FRCBehaviourConditionalModel::CreateComparandInputField()
 			}
 
 			// UI widget (via Property Generator)
-			PropertyRowGenerator->SetStructure(Comparand->CreateStructOnScope());
-			for (const TSharedRef<IDetailTreeNode>& CategoryNode : PropertyRowGenerator->GetRootTreeNodes())
-			{
-				TArray<TSharedRef<IDetailTreeNode>> Children;
-				CategoryNode->GetChildren(Children);
-				for (const TSharedRef<IDetailTreeNode>& Child : Children)
-				{
-					DetailTreeNodeWeakPtr = Child;
-					break;
-				}
-			}
+			DetailTreeNodeWeakPtr = UE::RCUIHelpers::GetDetailTreeNodeForVirtualProperty(Comparand, PropertyRowGenerator);
 		}
 	}
 }
@@ -107,39 +94,7 @@ TSharedRef<SWidget> FRCBehaviourConditionalModel::GetComparandFieldWidget() cons
 {
 	if (const TSharedPtr<IDetailTreeNode> DetailTreeNode = DetailTreeNodeWeakPtr.Pin())
 	{
-		const FNodeWidgets NodeWidgets = DetailTreeNode->CreateNodeWidgets();
-
-		const TSharedRef<SHorizontalBox> FieldWidget = SNew(SHorizontalBox);
-
-		if (NodeWidgets.ValueWidget)
-		{
-			FieldWidget->AddSlot()
-				.Padding(FMargin(3.0f, 2.0f))
-				.HAlign(HAlign_Right)
-				.AutoWidth()
-				[
-					NodeWidgets.ValueWidget.ToSharedRef()
-				];
-		}
-		else if (NodeWidgets.WholeRowWidget)
-		{
-			FieldWidget->AddSlot()
-				.Padding(FMargin(3.0f, 2.0f))
-				.AutoWidth()
-				[
-					NodeWidgets.WholeRowWidget.ToSharedRef()
-				];
-		}
-
-		return SNew(SHorizontalBox)
-			.Clipping(EWidgetClipping::OnDemand)
-			// Property Value Widget
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				FieldWidget
-			];
+		return UE::RCUIHelpers::GetGenericFieldWidget(DetailTreeNode);
 	}
 
 	return SNullWidget::NullWidget;

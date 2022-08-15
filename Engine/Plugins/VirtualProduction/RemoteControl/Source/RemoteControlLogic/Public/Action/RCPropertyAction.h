@@ -5,6 +5,8 @@
 #include "RCAction.h"
 #include "RCPropertyAction.generated.h"
 
+struct FRemoteControlProperty;
+class URCController;
 class URCVirtualPropertySelfContainer;
 
 /**
@@ -26,4 +28,6 @@ public:
 	/** Virtual Property Container */
 	UPROPERTY()
 	TObjectPtr<URCVirtualPropertySelfContainer> PropertySelfContainer = nullptr;
+
+	TSharedPtr<FRemoteControlProperty> GetRemoteControlProperty() const;
 };

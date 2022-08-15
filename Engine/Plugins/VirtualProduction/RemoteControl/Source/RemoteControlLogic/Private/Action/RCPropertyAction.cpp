@@ -2,7 +2,9 @@
 
 #include "Action/RCPropertyAction.h"
 
+#include "Controller/RCController.h"
 #include "IRemoteControlModule.h"
+#include "IRemoteControlPropertyHandle.h"
 #include "IStructSerializerBackend.h"
 #include "RCVirtualProperty.h"
 #include "RemoteControlPreset.h"
@@ -69,4 +71,17 @@ FName URCAction::GetExposedFieldLabel() const
 	}
 
 	return NAME_None;
+}
+
+TSharedPtr<FRemoteControlProperty> URCPropertyAction::GetRemoteControlProperty() const
+{
+	if (URemoteControlPreset* Preset = PresetWeakPtr.Get())
+	{
+		if (TSharedPtr<FRemoteControlProperty> RemoteControlProperty = Preset->GetExposedEntity<FRemoteControlProperty>(ExposedFieldId).Pin())
+		{
+			return RemoteControlProperty;
+		}
+	}
+
+	return nullptr;
 }

@@ -65,6 +65,12 @@ void SRCActionPanel::Construct(const FArguments& InArgs, const TSharedRef<SRemot
 
 	// Register delegates
 	InPanel->OnBehaviourSelectionChanged.AddSP(this, &SRCActionPanel::OnBehaviourSelectionChanged);
+
+	if (URemoteControlPreset* Preset = GetPreset())
+	{
+		Preset->Layout.OnFieldAdded().AddSP(this, &SRCActionPanel::OnRemoteControlFieldAdded);
+		Preset->Layout.OnFieldDeleted().AddSP(this, &SRCActionPanel::OnRemoteControlFieldDeleted);
+	}
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -94,6 +100,8 @@ void SRCActionPanel::UpdateWrappedWidget(TSharedPtr<FRCBehaviourModel> InBehavio
 			];
 
 		// Add New Action Button
+		bAddActionMenuNeedsRefresh = true;
+
 		const TSharedRef<SWidget> AddNewActionButton = SNew(SComboButton)
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Add Action")))
 			.HAlign(HAlign_Center)
@@ -114,10 +122,7 @@ void SRCActionPanel::UpdateWrappedWidget(TSharedPtr<FRCBehaviourModel> InBehavio
 					.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
 				]
 			]
-			.MenuContent()
-			[
-				GetActionMenuContentWidget()
-			];
+			.OnGetMenuContent(this, &SRCActionPanel::GetActionMenuContentWidget);
 		
 		// Add All Button
 		TSharedRef<SWidget> AddAllActionsButton = SNew(SButton)
@@ -238,6 +243,15 @@ FReply SRCActionPanel::OnClickOverrideBlueprintButton()
 
 TSharedRef<SWidget> SRCActionPanel::GetActionMenuContentWidget()
 {
+	if (AddNewActionMenuWidget && !bAddActionMenuNeedsRefresh)
+	{
+		return AddNewActionMenuWidget.ToSharedRef();
+	}
+
+	// Either we are creating the menu the first time, or the list needs to be refreshed
+	// The latter can occur either when a remote control property is added or removed, or when a behaiour's CanHaveActionForField logic has changed
+	// For example, if the user sets the "Allow numeric input as Strings" flag for Bind Behaviour then we need to recalculate the list of eligible actions.
+
 	constexpr bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, nullptr);
 
@@ -274,7 +288,11 @@ TSharedRef<SWidget> SRCActionPanel::GetActionMenuContentWidget()
 		}
 	}
 
-	return MenuBuilder.MakeWidget();
+	bAddActionMenuNeedsRefresh = false; // reset
+
+	AddNewActionMenuWidget = MenuBuilder.MakeWidget();
+
+	return AddNewActionMenuWidget.ToSharedRef();
 }
 
 URCAction* SRCActionPanel::AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField)
@@ -293,6 +311,25 @@ URCAction* SRCActionPanel::AddAction(const TSharedRef<const FRemoteControlField>
 	}
 
 	return nullptr;
+}
+
+bool SRCActionPanel::CanHaveActionForField(const FGuid& InRemoteControlFieldId)
+{
+	if (URemoteControlPreset* Preset = GetPreset())
+	{
+		if (TSharedPtr<FRemoteControlField> RemoteControlField = Preset->GetExposedEntity<FRemoteControlField>(InRemoteControlFieldId).Pin())
+		{
+			if (const TSharedPtr<FRCBehaviourModel> BehaviourItem = SelectedBehaviourItemWeakPtr.Pin())
+			{
+				if (const URCBehaviour* Behaviour = BehaviourItem->GetBehaviour())
+				{
+					return Behaviour->CanHaveActionForField(RemoteControlField);
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 void SRCActionPanel::OnAddActionClicked(TSharedPtr<FRemoteControlField> InRemoteControlField)
@@ -341,13 +378,29 @@ FReply SRCActionPanel::OnAddAllFields()
 			{
 				if (const TSharedPtr<FRemoteControlField> RemoteControlField = RemoteControlFieldWeakPtr.Pin())
 				{
-					AddAction(RemoteControlField.ToSharedRef());
+					if (const URCBehaviour* Behaviour = BehaviourItem->GetBehaviour())
+					{
+						if (Behaviour->CanHaveActionForField(RemoteControlField))
+						{
+							AddAction(RemoteControlField.ToSharedRef());
+						}
+					}
 				}
 			}
 		}
 	}
 
 	return FReply::Handled();
+}
+
+void SRCActionPanel::OnRemoteControlFieldAdded(const FGuid& GroupId, const FGuid& FieldId, int32 FieldPosition)
+{
+	bAddActionMenuNeedsRefresh = true;
+}
+
+void SRCActionPanel::OnRemoteControlFieldDeleted(const FGuid& GroupId, const FGuid& FieldId, int32 FieldPosition)
+{
+	bAddActionMenuNeedsRefresh = true;
 }
 
 bool SRCActionPanel::IsListFocused() const

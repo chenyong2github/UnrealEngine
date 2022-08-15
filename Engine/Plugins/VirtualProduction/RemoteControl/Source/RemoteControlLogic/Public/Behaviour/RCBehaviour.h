@@ -42,7 +42,7 @@ public:
 	virtual void Execute();
 
 	/** Add a Logic action using a remote control field as input */
-	URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField);
+	virtual URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField);
 
 	/** Get number of action associated with behaviour */
 	int32 GetNumActions() const;
