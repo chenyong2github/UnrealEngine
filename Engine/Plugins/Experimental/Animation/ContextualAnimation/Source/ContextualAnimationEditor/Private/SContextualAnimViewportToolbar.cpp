@@ -37,6 +37,40 @@ TSharedRef<SWidget> SContextualAnimViewportToolBar::GenerateShowMenu() const
 					SubMenuBuilder.EndSection();
 				})
 		);
+
+		ShowMenuBuilder.AddSubMenu(
+			LOCTEXT("ShowMenu_SelectionCriteriaDrawSubMenu", "Selection Criteria"),
+			LOCTEXT("ShowMenu_SelectionCriteriaDrawSubMenuToolTip", "Selection Criteria Drawing Options"),
+			FNewMenuDelegate::CreateLambda([](FMenuBuilder& SubMenuBuilder)
+				{
+					const FContextualAnimAssetEditorCommands& Commands = FContextualAnimAssetEditorCommands::Get();
+
+					SubMenuBuilder.BeginSection("Selection Criteria", LOCTEXT("ShowMenu_SelectionCriteriaLabel", "Selection Criteria"));
+					{
+						SubMenuBuilder.AddMenuEntry(Commands.ShowSelectionCriteriaActiveSet);
+						SubMenuBuilder.AddMenuEntry(Commands.ShowSelectionCriteriaAllSets);
+						SubMenuBuilder.AddMenuEntry(Commands.ShowSelectionCriteriaNone);
+					}
+					SubMenuBuilder.EndSection();
+				})
+		);
+
+		ShowMenuBuilder.AddSubMenu(
+			LOCTEXT("ShowMenu_EntryPosesDrawSubMenu", "Entry Poses"),
+			LOCTEXT("ShowMenu_EntryPosesDrawSubMenuToolTip", "Entry Poses Drawing Options"),
+			FNewMenuDelegate::CreateLambda([](FMenuBuilder& SubMenuBuilder)
+				{
+					const FContextualAnimAssetEditorCommands& Commands = FContextualAnimAssetEditorCommands::Get();
+
+					SubMenuBuilder.BeginSection("Entry Poses", LOCTEXT("ShowMenu_EntryPosesLabel", "Entry Poses"));
+					{
+						SubMenuBuilder.AddMenuEntry(Commands.ShowEntryPosesActiveSet);
+						SubMenuBuilder.AddMenuEntry(Commands.ShowEntryPosesAllSets);
+						SubMenuBuilder.AddMenuEntry(Commands.ShowEntryPosesNone);
+					}
+					SubMenuBuilder.EndSection();
+				})
+		);
 	}
 
 	return ShowMenuBuilder.MakeWidget();

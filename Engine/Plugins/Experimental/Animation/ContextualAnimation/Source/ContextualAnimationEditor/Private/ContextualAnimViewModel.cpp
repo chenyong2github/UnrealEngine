@@ -112,6 +112,11 @@ void FContextualAnimViewModel::CreateSequencer()
 	Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Stopped);
 }
 
+float FContextualAnimViewModel::GetPlaybackTime() const
+{
+	return Sequencer->GetGlobalTime().AsSeconds();
+}
+
 void FContextualAnimViewModel::SetActiveSection(int32 SectionIdx)
 {
 	check(GetSceneAsset()->Sections.IsValidIndex(SectionIdx));

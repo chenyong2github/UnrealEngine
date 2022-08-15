@@ -72,6 +72,7 @@ public:
 
 	FORCEINLINE FName GetName() const { return Name; }
 	FORCEINLINE const TArray<FContextualAnimSetPivotDefinition>& GetAnimSetPivotDefinitions() const { return AnimSetPivotDefinitions; }
+	FORCEINLINE int32 GetNumAnimSets() const { return AnimSets.Num(); }
 
 protected:
 

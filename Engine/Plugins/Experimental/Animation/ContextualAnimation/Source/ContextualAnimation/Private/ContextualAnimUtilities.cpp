@@ -86,48 +86,79 @@ FTransform UContextualAnimUtilities::ExtractRootTransformFromAnimation(const UAn
 	return FTransform::Identity;
 }
 
-void UContextualAnimUtilities::DrawDebugPose(const UWorld* World, const UAnimSequenceBase* Animation, float Time, const FTransform& LocalToWorldTransform, const FColor& Color, float LifeTime, float Thickness)
-{ 
-	if(World)
+void UContextualAnimUtilities::BP_DrawDebugPose(const UObject* WorldContextObject, const UAnimSequenceBase* Animation, float Time, FTransform LocalToWorldTransform, FLinearColor Color, float LifeTime, float Thickness)
+{
+	if(GEngine)
 	{
-		FMemMark Mark(FMemStack::Get());
-
-		Time = FMath::Clamp(Time, 0.f, Animation->GetPlayLength());
-
-		const int32 TotalBones = Animation->GetSkeleton()->GetReferenceSkeleton().GetNum();
-		TArray<FBoneIndexType> RequiredBoneIndexArray;
-		RequiredBoneIndexArray.Reserve(TotalBones);
-		for (int32 Idx = 0; Idx < TotalBones; Idx++)
+		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 		{
-			RequiredBoneIndexArray.Add(Idx);
+			DrawPose(World, Animation, Time, LocalToWorldTransform, Color, LifeTime, Thickness);
+		}
+	}
+}
+
+void UContextualAnimUtilities::DrawPose(const UWorld* World, const UAnimSequenceBase* Animation, float Time, FTransform LocalToWorldTransform, FLinearColor Color, float LifeTime, float Thickness)
+{
+	if (World)
+	{
+		auto DrawFunction = [World](const FVector& LineStart, const FVector& LineEnd, const FColor& Color, float LifeTime, float Thickness) {
+			DrawDebugLine(World, LineStart, LineEnd, Color, false, LifeTime, 0, Thickness);
+		};
+
+		DrawPose(Animation, Time, LocalToWorldTransform, Color, LifeTime, Thickness, DrawFunction);
+	}
+}
+
+void UContextualAnimUtilities::DrawPose(FPrimitiveDrawInterface* PDI, const UAnimSequenceBase* Animation, float Time, FTransform LocalToWorldTransform, FLinearColor Color, float Thickness)
+{
+	if (PDI)
+	{
+		auto DrawFunction = [PDI](const FVector& LineStart, const FVector& LineEnd, const FColor& Color, float LifeTime, float Thickness) {
+			PDI->DrawLine(LineStart, LineEnd, Color, 0, Thickness);
+		};
+
+		DrawPose(Animation, Time, LocalToWorldTransform, Color, 0, Thickness, DrawFunction);
+	}
+}
+
+void UContextualAnimUtilities::DrawPose(const UAnimSequenceBase* Animation, float Time, FTransform LocalToWorldTransform, FLinearColor Color, float LifeTime, float Thickness, FDrawLineFunction DrawFunction)
+{
+	FMemMark Mark(FMemStack::Get());
+
+	Time = FMath::Clamp(Time, 0.f, Animation->GetPlayLength());
+
+	const int32 TotalBones = Animation->GetSkeleton()->GetReferenceSkeleton().GetNum();
+	TArray<FBoneIndexType> RequiredBoneIndexArray;
+	RequiredBoneIndexArray.Reserve(TotalBones);
+	for (int32 Idx = 0; Idx < TotalBones; Idx++)
+	{
+		RequiredBoneIndexArray.Add(Idx);
+	}
+
+	FBoneContainer BoneContainer(RequiredBoneIndexArray, FCurveEvaluationOption(false), *Animation->GetSkeleton());
+	FCSPose<FCompactPose> ComponentSpacePose;
+	UContextualAnimUtilities::ExtractComponentSpacePose(Animation, BoneContainer, Time, true, ComponentSpacePose);
+
+	for (int32 Index = 0; Index < ComponentSpacePose.GetPose().GetNumBones(); ++Index)
+	{
+		const FCompactPoseBoneIndex CompactPoseBoneIndex = FCompactPoseBoneIndex(Index);
+		const FCompactPoseBoneIndex ParentIndex = ComponentSpacePose.GetPose().GetParentBoneIndex(CompactPoseBoneIndex);
+		FVector Start, End;
+
+		const FTransform Transform = ComponentSpacePose.GetComponentSpaceTransform(CompactPoseBoneIndex) * LocalToWorldTransform;
+
+		if (ParentIndex.GetInt() >= 0)
+		{
+			Start = (ComponentSpacePose.GetComponentSpaceTransform(ParentIndex) * LocalToWorldTransform).GetLocation();
+			End = Transform.GetLocation();
+		}
+		else
+		{
+			Start = LocalToWorldTransform.GetLocation();
+			End = Transform.GetLocation();
 		}
 
-		FBoneContainer BoneContainer(RequiredBoneIndexArray, FCurveEvaluationOption(false), *Animation->GetSkeleton());
-		FCSPose<FCompactPose> ComponentSpacePose;
-		UContextualAnimUtilities::ExtractComponentSpacePose(Animation, BoneContainer, Time, true, ComponentSpacePose);
-
-		for (int32 Index = 0; Index < ComponentSpacePose.GetPose().GetNumBones(); ++Index)
-		{
-			const FCompactPoseBoneIndex CompactPoseBoneIndex = FCompactPoseBoneIndex(Index);
-			const FCompactPoseBoneIndex ParentIndex = ComponentSpacePose.GetPose().GetParentBoneIndex(CompactPoseBoneIndex);
-			FVector Start, End;
-
-			FLinearColor LineColor = FLinearColor::Red;
-			const FTransform Transform = ComponentSpacePose.GetComponentSpaceTransform(CompactPoseBoneIndex) * LocalToWorldTransform;
-
-			if (ParentIndex.GetInt() >= 0)
-			{
-				Start = (ComponentSpacePose.GetComponentSpaceTransform(ParentIndex) * LocalToWorldTransform).GetLocation();
-				End = Transform.GetLocation();
-			}
-			else
-			{
-				Start = LocalToWorldTransform.GetLocation();
-				End = Transform.GetLocation();
-			}
-
-			DrawDebugLine(World, Start, End, Color, false, LifeTime, 0, Thickness);
-		}
+		DrawFunction(Start, End, Color.ToFColor(false), LifeTime, Thickness);
 	}
 }
 
@@ -141,7 +172,7 @@ void UContextualAnimUtilities::DrawDebugAnimSet(const UWorld* World, const UCont
 
 			if (const UAnimSequenceBase* Animation = AnimTrack.Animation)
 			{
-				DrawDebugPose(World, Animation, Time, Transform, Color, LifeTime, Thickness);
+				DrawPose(World, Animation, Time, Transform, Color, LifeTime, Thickness);
 			}
 			else
 			{
@@ -212,7 +243,7 @@ float UContextualAnimUtilities::BP_Montage_GetSectionLength(const UAnimMontage* 
 	return Montage ? Montage->GetSectionLength(SectionIndex) : -1.f;
 }
 
-void UContextualAnimUtilities::DrawSector(FPrimitiveDrawInterface& PDI, const FVector& Origin, const FVector& Direction, float MinDistance, float MaxDistance, float MinAngle, float MaxAngle, const FLinearColor& Color, uint8 DepthPriority, float Thickness)
+void UContextualAnimUtilities::DrawSector(FPrimitiveDrawInterface& PDI, const FVector& Origin, const FVector& Direction, float MinDistance, float MaxDistance, float MinAngle, float MaxAngle, const FLinearColor& Color, uint8 DepthPriority, float Thickness, bool bDashedLine)
 {
 	if(MinAngle == 0 && MaxAngle == 0)
 	{
@@ -223,8 +254,17 @@ void UContextualAnimUtilities::DrawSector(FPrimitiveDrawInterface& PDI, const FV
 	// Draw Cone lines
 	const FVector LeftDirection = Direction.RotateAngleAxis(MinAngle, FVector::UpVector);
 	const FVector RightDirection = Direction.RotateAngleAxis(MaxAngle, FVector::UpVector);
-	PDI.DrawLine(Origin + (LeftDirection * MinDistance), Origin + (LeftDirection * MaxDistance), Color, DepthPriority, Thickness);
-	PDI.DrawLine(Origin + (RightDirection * MinDistance), Origin + (RightDirection * MaxDistance), Color, DepthPriority, Thickness);
+
+	if(bDashedLine)
+	{
+		DrawDashedLine(&PDI, Origin + (LeftDirection * MinDistance), Origin + (LeftDirection * MaxDistance), Color, 10.f, DepthPriority);
+		DrawDashedLine(&PDI, Origin + (RightDirection * MinDistance), Origin + (RightDirection * MaxDistance), Color, 10.f, DepthPriority);
+	}
+	else
+	{
+		PDI.DrawLine(Origin + (LeftDirection * MinDistance), Origin + (LeftDirection * MaxDistance), Color, DepthPriority, Thickness);
+		PDI.DrawLine(Origin + (RightDirection * MinDistance), Origin + (RightDirection * MaxDistance), Color, DepthPriority, Thickness);
+	}
 
 	// Draw Near Arc
 	FVector LastDirection = LeftDirection;
@@ -237,7 +277,16 @@ void UContextualAnimUtilities::DrawSector(FPrimitiveDrawInterface& PDI, const FV
 		const FVector NewDirection = Direction.RotateAngleAxis(Angle, FVector::UpVector);
 		const FVector LineStart = Origin + (LastDirection * Length);
 		const FVector LineEnd = Origin + (NewDirection * Length);
-		PDI.DrawLine(LineStart, LineEnd, Color, DepthPriority, Thickness);
+		
+		if (bDashedLine)
+		{
+			DrawDashedLine(&PDI, LineStart, LineEnd, Color, 10.f, DepthPriority);
+		}
+		else
+		{
+			PDI.DrawLine(LineStart, LineEnd, Color, DepthPriority, Thickness);
+		}
+		
 		LastDirection = NewDirection;
 	}
 
@@ -252,7 +301,16 @@ void UContextualAnimUtilities::DrawSector(FPrimitiveDrawInterface& PDI, const FV
 		const FVector NewDirection = Direction.RotateAngleAxis(Angle, FVector::UpVector);
 		const FVector LineStart = Origin + (LastDirection * Length);
 		const FVector LineEnd = Origin + (NewDirection * Length);
-		PDI.DrawLine(LineStart, LineEnd, Color, DepthPriority, Thickness);
+
+		if (bDashedLine)
+		{
+			DrawDashedLine(&PDI, LineStart, LineEnd, Color, 10.f, DepthPriority);
+		}
+		else
+		{
+			PDI.DrawLine(LineStart, LineEnd, Color, DepthPriority, Thickness);
+		}
+
 		LastDirection = NewDirection;
 	}
 }

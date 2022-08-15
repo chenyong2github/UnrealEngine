@@ -180,23 +180,68 @@ void SContextualAnimViewport::BindCommands()
 
 	TSharedRef<FContextualAnimViewportClient> ViewportClientRef = ViewportClient.ToSharedRef();
 
-	CommandList->MapAction(
-		Commands.ShowIKTargetsDrawAll,
-		FExecuteAction::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::OnSetIKTargetsDrawMode, EShowIKTargetsDrawMode::All),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::IsIKTargetsDrawModeSet, EShowIKTargetsDrawMode::All));
+	// Show IK Targets Options
+	{
+		CommandList->MapAction(
+			Commands.ShowIKTargetsDrawAll,
+			FExecuteAction::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::SetIKTargetsDrawMode, EMultiOptionDrawMode::All),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::IsIKTargetsDrawModeSet, EMultiOptionDrawMode::All));
 
-	CommandList->MapAction(
-		Commands.ShowIKTargetsDrawSelected,
-		FExecuteAction::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::OnSetIKTargetsDrawMode, EShowIKTargetsDrawMode::Selected),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::IsIKTargetsDrawModeSet, EShowIKTargetsDrawMode::Selected));
+		CommandList->MapAction(
+			Commands.ShowIKTargetsDrawSelected,
+			FExecuteAction::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::SetIKTargetsDrawMode, EMultiOptionDrawMode::Single),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::IsIKTargetsDrawModeSet, EMultiOptionDrawMode::Single));
 
-	CommandList->MapAction(
-		Commands.ShowIKTargetsDrawNone,
-		FExecuteAction::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::OnSetIKTargetsDrawMode, EShowIKTargetsDrawMode::None),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::IsIKTargetsDrawModeSet, EShowIKTargetsDrawMode::None));
+		CommandList->MapAction(
+			Commands.ShowIKTargetsDrawNone,
+			FExecuteAction::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::SetIKTargetsDrawMode, EMultiOptionDrawMode::None),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::IsIKTargetsDrawModeSet, EMultiOptionDrawMode::None));
+	}
+
+	// Show Selection Criteria Options
+	{
+		CommandList->MapAction(
+			Commands.ShowSelectionCriteriaAllSets,
+			FExecuteAction::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::SetSelectionCriteriaDrawMode, EMultiOptionDrawMode::All),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::IsSelectionCriteriaDrawModeSet, EMultiOptionDrawMode::All));
+
+		CommandList->MapAction(
+			Commands.ShowSelectionCriteriaActiveSet,
+			FExecuteAction::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::SetSelectionCriteriaDrawMode, EMultiOptionDrawMode::Single),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::IsSelectionCriteriaDrawModeSet, EMultiOptionDrawMode::Single));
+
+		CommandList->MapAction(
+			Commands.ShowSelectionCriteriaNone,
+			FExecuteAction::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::SetSelectionCriteriaDrawMode, EMultiOptionDrawMode::None),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::IsSelectionCriteriaDrawModeSet, EMultiOptionDrawMode::None));
+	}
+
+	// Show Entry Poses Options
+	{
+		CommandList->MapAction(
+			Commands.ShowEntryPosesAllSets,
+			FExecuteAction::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::SetEntryPosesDrawMode, EMultiOptionDrawMode::All),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::IsEntryPosesDrawModeSet, EMultiOptionDrawMode::All));
+
+		CommandList->MapAction(
+			Commands.ShowEntryPosesActiveSet,
+			FExecuteAction::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::SetEntryPosesDrawMode, EMultiOptionDrawMode::Single),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::IsEntryPosesDrawModeSet, EMultiOptionDrawMode::Single));
+
+		CommandList->MapAction(
+			Commands.ShowEntryPosesNone,
+			FExecuteAction::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::SetEntryPosesDrawMode, EMultiOptionDrawMode::None),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewportClientRef, &FContextualAnimViewportClient::IsEntryPosesDrawModeSet, EMultiOptionDrawMode::None));
+	}
 }
 
 TSharedRef<FEditorViewportClient> SContextualAnimViewport::MakeEditorViewportClient()

@@ -38,16 +38,3 @@ void FContextualAnimViewportClient::Draw(const FSceneView* View, FPrimitiveDrawI
 {
 	FEditorViewportClient::Draw(View, PDI);
 }
-
-void FContextualAnimViewportClient::OnSetIKTargetsDrawMode(EShowIKTargetsDrawMode Mode)
-{
-	if(ShowIKTargetsDrawMode != Mode)
-	{
-		ShowIKTargetsDrawMode = Mode;
-	}
-}
-
-bool FContextualAnimViewportClient::IsIKTargetsDrawModeSet(EShowIKTargetsDrawMode Mode) const
-{
-	return ShowIKTargetsDrawMode == Mode;
-}

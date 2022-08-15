@@ -23,10 +23,16 @@ public:
 	TSharedPtr<FUICommandInfo> NewAnimSet;
 
 	TSharedPtr<FUICommandInfo> ShowIKTargetsDrawSelected;
-
 	TSharedPtr<FUICommandInfo> ShowIKTargetsDrawAll;
-
 	TSharedPtr<FUICommandInfo> ShowIKTargetsDrawNone;
+
+	TSharedPtr<FUICommandInfo> ShowSelectionCriteriaActiveSet;
+	TSharedPtr<FUICommandInfo> ShowSelectionCriteriaAllSets;
+	TSharedPtr<FUICommandInfo> ShowSelectionCriteriaNone;
+
+	TSharedPtr<FUICommandInfo> ShowEntryPosesActiveSet;
+	TSharedPtr<FUICommandInfo> ShowEntryPosesAllSets;
+	TSharedPtr<FUICommandInfo> ShowEntryPosesNone;
 
 	TSharedPtr<FUICommandInfo> Simulate;
 };

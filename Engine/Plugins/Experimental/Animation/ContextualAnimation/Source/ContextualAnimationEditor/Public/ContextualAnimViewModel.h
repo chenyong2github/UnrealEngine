@@ -118,6 +118,8 @@ public:
 	void ApplyChangeToActorTransformInScene();
 	void DiscardChangeToActorTransformInScene();
 
+	float GetPlaybackTime() const;
+
 private:
 
 	struct FContextualAnimEdSelectionInfo

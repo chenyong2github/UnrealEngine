@@ -9,10 +9,10 @@ class FContextualAnimPreviewScene;
 class SContextualAnimViewport;
 class FContextualAnimAssetEditorToolkit;
 
-enum class EShowIKTargetsDrawMode : uint8
+enum class EMultiOptionDrawMode : uint8
 {
 	None,
-	Selected,
+	Single,
 	All
 };
 
@@ -34,9 +34,17 @@ public:
 
 	TSharedRef<FContextualAnimAssetEditorToolkit> GetAssetEditorToolkit() const { return AssetEditorToolkitPtr.Pin().ToSharedRef(); }
 
-	void OnSetIKTargetsDrawMode(EShowIKTargetsDrawMode Mode);
-	bool IsIKTargetsDrawModeSet(EShowIKTargetsDrawMode Mode) const;
-	EShowIKTargetsDrawMode GetShowIKTargetsDrawMode() const { return ShowIKTargetsDrawMode; }
+	void SetIKTargetsDrawMode(EMultiOptionDrawMode Mode) { IKTargetsDrawMode = Mode; }
+	bool IsIKTargetsDrawModeSet(EMultiOptionDrawMode Mode) const { return IKTargetsDrawMode == Mode; }
+	EMultiOptionDrawMode GetIKTargetsDrawMode() const { return IKTargetsDrawMode; }
+
+	void SetSelectionCriteriaDrawMode(EMultiOptionDrawMode Mode) { SelectionCriteriaDrawMode = Mode; }
+	bool IsSelectionCriteriaDrawModeSet(EMultiOptionDrawMode Mode) const { return SelectionCriteriaDrawMode == Mode; }
+	EMultiOptionDrawMode GetSelectionCriteriaDrawMode() const { return SelectionCriteriaDrawMode; }
+
+	void SetEntryPosesDrawMode(EMultiOptionDrawMode Mode) { EntryPosesDrawMode = Mode; }
+	bool IsEntryPosesDrawModeSet(EMultiOptionDrawMode Mode) const { return EntryPosesDrawMode == Mode; }
+	EMultiOptionDrawMode GetEntryPosesDrawMode() const { return EntryPosesDrawMode; }
 
 private:
 
@@ -46,5 +54,9 @@ private:
 	/** Asset editor toolkit we are embedded in */
 	TWeakPtr<FContextualAnimAssetEditorToolkit> AssetEditorToolkitPtr;
 
-	EShowIKTargetsDrawMode ShowIKTargetsDrawMode = EShowIKTargetsDrawMode::None;
+	EMultiOptionDrawMode IKTargetsDrawMode = EMultiOptionDrawMode::None;
+
+	EMultiOptionDrawMode SelectionCriteriaDrawMode = EMultiOptionDrawMode::All;
+
+	EMultiOptionDrawMode EntryPosesDrawMode = EMultiOptionDrawMode::All;
 };
