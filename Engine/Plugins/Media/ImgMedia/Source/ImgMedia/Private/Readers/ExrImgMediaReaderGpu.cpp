@@ -248,6 +248,11 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 					}
 
 					ReadResult = ReadTiles(MipDataPtr, BufferSize, ImagePath, FrameId, TileRegionsToRead, ConverterParams, CurrentMipLevel, BufferRegionsToCopy);
+
+					for (const FIntRect& Region : TileRegionsToRead)
+					{
+						OutFrame->NumTilesRead += Region.Area();
+					}
 				}
 				else
 				{
@@ -259,7 +264,9 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 					Viewports.Add(MoveTemp(Viewport));
 
 					ReadResult = ReadInChunks(MipDataPtr, ImagePath, FrameId, CurrentMipDim, BufferSize);
+					OutFrame->NumTilesRead++;
 				}
+
 				if (ReadResult == Success && CVarExrReaderUseUploadHeap.GetValueOnAnyThread())
 				{
 					TArray<int32> InMipLevels;

@@ -600,6 +600,11 @@ bool FImgMediaPlayer::Seek(const FTimespan& Time)
 	if (CurrentState == EMediaState::Stopped)
 	{
 		CurrentState = EMediaState::Paused;
+
+		if (Loader.IsValid())
+		{
+			Loader->HandlePause();
+		}
 	}
 
 #if IMG_MEDIA_PLAYER_VERSION == 1
@@ -682,6 +687,11 @@ bool FImgMediaPlayer::SetRate(float Rate)
 	{
 		CurrentRate = Rate;
 		CurrentState = EMediaState::Paused;
+
+		if (Loader.IsValid())
+		{
+			Loader->HandlePause();
+		}
 
 		EventSink.ReceiveMediaEvent(EMediaEvent::PlaybackSuspended);
 		return true;

@@ -17,6 +17,8 @@
 
 #define LOCTEXT_NAMESPACE "ImgMediaBandwidth"
 
+constexpr double SImgMediaBandwidth::BANDWIDTH_REFRESH_RATE;
+
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SImgMediaBandwidth::Construct(const FArguments& InArgs)
 {
@@ -60,35 +62,46 @@ void SImgMediaBandwidth::Tick(const FGeometry& AllottedGeometry, const double In
 	// Call parent.
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 
-	// Loop over all players.
-	for (const FPlayerInfo& PlayerInfo : PlayerInfos)
+	if (InCurrentTime - LastBandwidthUpdateTime >= BANDWIDTH_REFRESH_RATE)
 	{
-		TSharedPtr< FImgMediaPlayer> Player = PlayerInfo.Player.Pin();
-		if (Player != nullptr)
+		// Loop over all players.
+		for (const FPlayerInfo& PlayerInfo : PlayerInfos)
 		{
-			// Update widgets with info.
-			// Set URL.
-			PlayerInfo.UrlTextBlock->SetText(FText::Format(
-				LOCTEXT("Url", "URL: {0}"),
-				FText::FromString(Player->GetUrl())));
-
-			// Get the loader.
-			TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Loader = Player->GetLoader();
-			if (Loader.IsValid())
+			TSharedPtr< FImgMediaPlayer> Player = PlayerInfo.Player.Pin();
+			if (Player != nullptr)
 			{
-				// Set cuurrent bandwidth.
-				float Bandwidth = Loader->GetCurrentBandwidth() / (1024.0f * 1024.0f);
-				PlayerInfo.CurrentBandwidthTextBlock->SetText(FText::Format(
-					LOCTEXT("Current", "Current: {0} MB/s"),
-					FText::AsNumber(Bandwidth)));
+				// Update widgets with info.
+				// Set URL.
+				PlayerInfo.UrlTextBlock->SetText(FText::Format(
+					LOCTEXT("Url", "URL: {0}"),
+					FText::FromString(Player->GetUrl())));
 
-				// Set minimum bandwidth.
-				Bandwidth = Loader->GetMinBandwidthForMipLevel0() / (1024.0f * 1024.0f);
-				PlayerInfo.MinimumBandwidthTextBlock->SetText(FText::Format(
-					LOCTEXT("Minimum", "Minimum: {0} MB/s"),
-					FText::AsNumber(Bandwidth)));
+				// Get the loader.
+				TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Loader = Player->GetLoader();
+				if (Loader.IsValid())
+				{
+					// Set current bandwidth.
+					float Bandwidth = Loader->GetCurrentBandwidth() / (1000.0f * 1000.0f);
+					PlayerInfo.CurrentBandwidthTextBlock->SetText(FText::Format(
+						LOCTEXT("Current", "Current: {0} MB/s"),
+						FText::AsNumber(Bandwidth)));
+
+					// Set effective bandwidth.
+					Bandwidth = Loader->GetEffectiveBandwidth() / (1000.0f * 1000.0f);
+					PlayerInfo.EffectiveBandwidthTextBlock->SetText(FText::Format(
+						LOCTEXT("Effective", "Effective: {0} MB/s"),
+						FText::AsNumber(Bandwidth)));
+
+					// Set required bandwidth.
+					Bandwidth = Loader->GetRequiredBandwidth() / (1000.0f * 1000.0f);
+					PlayerInfo.RequiredBandwidthTextBlock->SetText(FText::Format(
+						LOCTEXT("Required", "Required: {0} MB/s"),
+						FText::AsNumber(Bandwidth)));
+				}
 			}
 		}
+
+		LastBandwidthUpdateTime = InCurrentTime;
 	}
 }
 
@@ -141,7 +154,13 @@ void SImgMediaBandwidth::RefreshPlayersContainer()
 								+ SHorizontalBox::Slot()
 									.FillWidth(1.0f)
 									[
-										SAssignNew(PlayerInfo.MinimumBandwidthTextBlock, STextBlock)
+										SAssignNew(PlayerInfo.EffectiveBandwidthTextBlock, STextBlock)
+									]
+
+								+ SHorizontalBox::Slot()
+									.FillWidth(1.0f)
+									[
+										SAssignNew(PlayerInfo.RequiredBandwidthTextBlock, STextBlock)
 									]
 							]
 

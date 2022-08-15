@@ -37,12 +37,16 @@ private:
 		TWeakPtr<FImgMediaPlayer> Player;
 		TSharedPtr<STextBlock> UrlTextBlock;
 		TSharedPtr<STextBlock> CurrentBandwidthTextBlock;
-		TSharedPtr<STextBlock> MinimumBandwidthTextBlock;
+		TSharedPtr<STextBlock> EffectiveBandwidthTextBlock;
+		TSharedPtr<STextBlock> RequiredBandwidthTextBlock;
 	};
 
 	/** Array of all players. */
 	TArray<FPlayerInfo> PlayerInfos;
 	/** Widget to hold all widgets for all the players. */
 	TSharedPtr<SVerticalBox> PlayersContainer;
-
+	/** Timestamp to slow down bandwidth updates. */
+	double LastBandwidthUpdateTime = 0.0;
+	/** Bandwidth refresh rate in seconds. */
+	static constexpr double BANDWIDTH_REFRESH_RATE = 0.25;
 };

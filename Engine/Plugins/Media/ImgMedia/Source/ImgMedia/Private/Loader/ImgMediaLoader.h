@@ -42,6 +42,34 @@ struct FImgMediaLoaderSmartCacheSettings
 };
 
 /**
+ * Sequence playback bandwidth requirements and estimates.
+ */
+struct FImgMediaLoaderBandwidth
+{
+	/** Number of bytes read per second from the last frame read. */
+	float Current;
+	/** Average bandwidth over time (including idle time). */
+	float Effective;
+	/** Minimum number of bytes per second needed to read all mip levels. */
+	float Required;
+
+	/** Constructor. */
+	FImgMediaLoaderBandwidth();
+
+	/** Updated calculated current and effective bandwidth numbers. */
+	void Update(const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame, double WorkTime);
+
+	/** Empty the read times cache and resets its index. */
+	void EmptyCache();
+
+private:
+	/** Work time cache for average bandwidth calculation. */
+	TArray<TPair<double, double>> ReadTimeCache;
+	/** Circular index for work time cache calculation. */
+	int32 ReadTimeCacheIndex;
+};
+
+/**
  * Loads image sequence frames from disk.
  */
 class FImgMediaLoader
@@ -74,10 +102,14 @@ public:
 	 */
 	uint64 GetBitRate() const;
 
+#if WITH_EDITOR
 	/** Get the number of bytes read per second from the last frame read. */
-	float GetCurrentBandwidth() const { return CurrentBandwidth; }
-	/** Get the minimum number of bytes per second needed to read mip level 0.. */
-	float GetMinBandwidthForMipLevel0() const { return MinBandwidthForMipLevel0; }
+	float GetCurrentBandwidth() const { return Bandwidth.Current; }
+	/** Get the effective bandwidth. */
+	float GetEffectiveBandwidth() const { return Bandwidth.Effective; }
+	/** Get the minimum number of bytes per second needed to read all mip levels. */
+	float GetRequiredBandwidth() const { return Bandwidth.Required; }
+#endif
 
 	/**
 	 * Get the time ranges of frames that are being loaded right now.
@@ -322,6 +354,11 @@ public:
 	 */
 	void ResetFetchLogic();
 
+	/**
+	 * Handler for when the (owning) player's state changes to EMediaState::Paused.
+	 */
+	void HandlePause();
+
 protected:
 
 	/**
@@ -556,8 +593,8 @@ private:
 	/** Settings for the smart cache. */
 	FImgMediaLoaderSmartCacheSettings SmartCacheSettings;
 
-	/** Number of bytes read per second from the last frame read. */
-	float CurrentBandwidth;
-	/** Minimum number of bytes per second needed to read mip level 0. */
-	float MinBandwidthForMipLevel0;
+#if WITH_EDITOR
+	/** Bandwidth estimation. */
+	FImgMediaLoaderBandwidth Bandwidth;
+#endif
 };

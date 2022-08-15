@@ -273,6 +273,11 @@ bool FExrImgMediaReader::ReadFrame(int32 FrameId, const TMap<int32, FImgMediaTil
 					if (ReadResult != Fail)
 					{
 						OutFrame->MipTilesPresent.Emplace(CurrentMipLevel, CurrentTileSelection);
+						
+						for (const FIntRect& Region : TileRegions)
+						{
+							OutFrame->NumTilesRead += Region.Area();
+						}
 					}
 					else
 					{
@@ -296,6 +301,7 @@ bool FExrImgMediaReader::ReadFrame(int32 FrameId, const TMap<int32, FImgMediaTil
 						InputFile.SetFrameBuffer(MipDataPtr, Dim);
 						InputFile.ReadPixels(0, Dim.Y - 1);
 						OutFrame->MipTilesPresent.Emplace(CurrentMipLevel, CurrentTileSelection);
+						OutFrame->NumTilesRead++;
 					}
 					else
 					{
@@ -415,6 +421,12 @@ bool FExrImgMediaReader::GetInfo(const FString& FilePath, FImgMediaFrameInfo& Ou
 		if (HeaderReader.ContainsMips())
 		{
 			OutInfo.NumMipLevels = HeaderReader.CalculateNumMipLevels(OutInfo.NumTiles);
+
+			SIZE_T SizeMip0 = OutInfo.UncompressedSize;
+			for (int32 Level = 1; Level < OutInfo.NumMipLevels; Level++)
+			{
+				OutInfo.UncompressedSize += SizeMip0 >> (2 * Level);
+			}
 		}
 	}
 	else

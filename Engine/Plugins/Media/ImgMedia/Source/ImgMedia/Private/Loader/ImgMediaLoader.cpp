@@ -79,6 +79,74 @@ namespace ImgMediaLoader
 	}
 }
 
+FImgMediaLoaderBandwidth::FImgMediaLoaderBandwidth()
+	: Current(0)
+	, Effective(0)
+	, Required(0)
+	, ReadTimeCache()
+	, ReadTimeCacheIndex(0)
+{
+
+}
+
+void FImgMediaLoaderBandwidth::Update(const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame, double WorkTime)
+{
+	static constexpr int32 READ_TIME_CACHE_MAX = 64;
+
+	// Calculate the current uncompressed bandwidth
+	SIZE_T BytesLoaded = Frame->Info.UncompressedSize;
+	Current = (float)BytesLoaded / WorkTime;
+
+	if (Frame->Info.bHasTiles)
+	{
+		int32 TotalNumTiles = 0;
+
+		for (int32 MipLevel = 0; MipLevel < Frame->Info.NumMipLevels; ++MipLevel)
+		{
+			const int32 MipLevelDiv = 1 << MipLevel;
+			int32 NumTilesX = FMath::Max(1, FMath::CeilToInt(float(Frame->Info.NumTiles.X) / MipLevelDiv));
+			int32 NumTilesY = FMath::Max(1, FMath::CeilToInt(float(Frame->Info.NumTiles.Y) / MipLevelDiv));
+			TotalNumTiles += NumTilesX * NumTilesY;
+		}
+
+		// Adjusted based on how many tiles were loaded
+		Current *= (float)Frame->NumTilesRead / FMath::Max(1, TotalNumTiles);
+	}
+
+	// Store read times with their respectivate timestamps...
+	if (ReadTimeCache.Num() == READ_TIME_CACHE_MAX)
+	{
+		ReadTimeCache[ReadTimeCacheIndex] = TPairInitializer(FPlatformTime::Seconds(), WorkTime);
+		ReadTimeCacheIndex = (ReadTimeCacheIndex + 1) % READ_TIME_CACHE_MAX;
+	}
+	else
+	{
+		ReadTimeCache.Emplace(FPlatformTime::Seconds(), WorkTime);
+	}
+
+	// Calculate the effective/utilized bandwidth as the fraction of the elapsed time spent reading.
+	double IntervalStart = TNumericLimits<double>::Max();
+	double IntervalEnd = TNumericLimits<double>::Lowest();
+	double TotalReadTime = 0.0;
+
+	for (const TPair<double, double>& Pair : ReadTimeCache)
+	{
+		double CachedTimestamp = Pair.Key;
+		double CachedReadTime = Pair.Value;
+		IntervalStart = FMath::Min(IntervalStart, CachedTimestamp - CachedReadTime);
+		IntervalEnd = FMath::Max(IntervalEnd, CachedTimestamp);
+		TotalReadTime += CachedReadTime;
+	}
+
+	Effective = (TotalReadTime / (IntervalEnd - IntervalStart)) * Current;
+}
+
+void FImgMediaLoaderBandwidth::EmptyCache()
+{
+	ReadTimeCache.Empty(ReadTimeCache.Max());
+	ReadTimeCacheIndex = 0;
+}
+
 /* FImgMediaLoader structors
  *****************************************************************************/
 
@@ -104,6 +172,9 @@ FImgMediaLoader::FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::T
 	, RetryCount(0)
 	, UseGlobalCache(false)
 	, SmartCacheSettings(InSmartCacheSettings)
+#if WITH_EDITOR
+	, Bandwidth()
+#endif
 {
 	ResetFetchLogic();
 	UE_LOG(LogImgMedia, Verbose, TEXT("Loader %p: Created"), this);
@@ -234,6 +305,12 @@ void FImgMediaLoader::ResetFetchLogic()
 	QueuedSampleFetch.CurrentSequenceIndex = 0;
 }
 
+void FImgMediaLoader::HandlePause()
+{
+#if WITH_EDITOR
+	Bandwidth.EmptyCache();
+#endif
+}
 
 float FImgMediaLoader::FindMaxOverlapInRange(int32 StartIndex, int32 EndIndex, FTimespan StartTime, FTimespan EndTime, int32 & MaxIdx) const
 {
@@ -836,20 +913,21 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 	SequenceDuration = FrameNumberToTime(GetNumImages());
 	SIZE_T UncompressedSize = FirstFrameInfo.UncompressedSize;
 
-	// Get minimum bandwidth needed for mip level 0.
-	MinBandwidthForMipLevel0 = UncompressedSize;
-	float FrameTime = SequenceFrameRate.AsInterval();
-	if (FrameTime > 0)
-	{
-		MinBandwidthForMipLevel0 /= FrameTime;
-	}
-
 	if (FirstFrameInfo.bHasTiles)
 	{
 		TilingDescription.TileBorderSize = FirstFrameInfo.TileBorder;
 		TilingDescription.TileNum = FirstFrameInfo.NumTiles;
 		TilingDescription.TileSize = FirstFrameInfo.TileDimensions;
 	}
+
+#if WITH_EDITOR
+	// Get required bandwidth needed for all mips and tiles.
+	float FrameTime = SequenceFrameRate.AsInterval();
+	if (FrameTime > 0)
+	{
+		Bandwidth.Required = UncompressedSize / FrameTime;
+	}
+#endif
 
 	// If we have no mips or tiles, then get rid of our MipMapInfoObject.
 	// Otherwise, set it up.
@@ -1275,12 +1353,13 @@ void FImgMediaLoader::NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int
 
 	WorkPool.Push(&CompletedWork);
 
+#if WITH_EDITOR
 	// Update bandwidth.
-	if ((Frame.IsValid()) && (WorkTime > 0.0f))
+	if (Frame.IsValid() && WorkTime > 0.0)
 	{
-		SIZE_T BytesLoaded = Frame->Info.UncompressedSize;
-		CurrentBandwidth = BytesLoaded / WorkTime;
+		Bandwidth.Update(Frame, WorkTime);
 	}
+#endif
 }
 
 void FImgMediaLoader::AddFrameToCache(int32 FrameNumber, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame)

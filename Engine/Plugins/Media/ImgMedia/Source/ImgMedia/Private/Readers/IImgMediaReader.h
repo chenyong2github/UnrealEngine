@@ -71,11 +71,11 @@ struct FImgMediaFrame
 	/** Tiles present per mip level. */
 	TMap<int32, FImgMediaTileSelection> MipTilesPresent;
 
+	/** Total number of tiles read. */
+	int32 NumTilesRead = 0;
+
 	/** The frame's horizontal stride (in bytes). */
 	uint32 Stride = 0;
-
-	/** Uncompressed EXR files are read faster via plain read and GPU swizzling. This value is used by ExrImgMediaReaderGpu.*/
-	FTexture2DRHIRef Texture;
 
 	/** Sample converter is used by Media Texture Resource to convert the texture or data. */
 	TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> SampleConverter;

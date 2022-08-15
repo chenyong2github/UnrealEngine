@@ -77,6 +77,7 @@ void FImgMediaLoaderWork::DoThreadedWork()
 		else
 		{
 			Frame = ExistingFrame;
+			Frame->NumTilesRead = 0;
 		}
 
 		double StartTime = FPlatformTime::Seconds();

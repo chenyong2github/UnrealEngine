@@ -162,6 +162,7 @@ bool FGenericImgMediaReader::ReadFrame(int32 FrameId, const TMap<int32, FImgMedi
 			// Copy data to our buffer
 			FMemory::Memcpy(Buffer, RawData.GetData(), RawNum);
 			OutFrame->MipTilesPresent.Emplace(CurrentMipLevel, CurrentSelection);
+			OutFrame->NumTilesRead++;
 		}
 
 		// Next level.
