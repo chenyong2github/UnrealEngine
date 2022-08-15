@@ -207,27 +207,19 @@ void UE::LevelSnapshots::Private::FApplySnapshotToEditorArchive::ApplyToEditorWo
 	FWorldSnapshotData& InSharedData,
 	FSnapshotDataCache& Cache,
 	UObject* InOriginalObject,
-	UObject* InDeserializedVersion,
 	const FPropertySelectionMap& InSelectionMapForResolvingSubobjects,
 	FClassDataIndex ClassIndex)
 {
 	FPropertySelection PropertiesThatWereSerialized;
 	auto TrackSerializedProperties = [&PropertiesThatWereSerialized](const FArchiveSerializedPropertyChain* Chain, const FProperty* Property) { PropertiesThatWereSerialized.AddProperty({ Chain, Property}); };
+
+	// 1. Serialize archetype first to handle the case were the archetype has changed properties since the snapshot was taken
+	const FSubobjectArchetypeFallbackInfo ClassFallbackInfo{ InOriginalObject->GetOuter(), InOriginalObject->GetFName(), InOriginalObject->GetFlags() };
+	SerializeClassDefaultsIntoSubobject(InOriginalObject, InSharedData, ClassIndex, Cache, ClassFallbackInfo);
 	
-	// Step 1: Serialise  properties that were different from CDO at time of snapshotting and that are still different from CDO
+	// Step 2: Apply the data that was different from CDO at time of snapshotting
 	FApplySnapshotToEditorArchive ApplySavedData(InObjectData, InSharedData, InOriginalObject, InSelectionMapForResolvingSubobjects, {}, TrackSerializedProperties, Cache);
 	InOriginalObject->Serialize(ApplySavedData);
-	
-	// Step 2: Serialise any remaining properties that were not covered: properties that were equal to the CDO value when the snapshot was taken but now are different from the CDO.
-	TSet<const FTextProperty*> TextProperties = Internal::CopyPastePropertiesDifferentInCDO(
-		[&PropertiesThatWereSerialized](const FArchiveSerializedPropertyChain* Chain, const FProperty* Property)
-		{
-			const bool bWasSerializedAlready = PropertiesThatWereSerialized.ShouldSerializeProperty(Chain, Property);
-			return !bWasSerializedAlready;
-		}, InOriginalObject, InDeserializedVersion);
-
-	// Step 3: Serialize FText properties that have changed in CDO since snapshot was taken. 
-	Internal::FixUpTextPropertiesDifferentInCDO(MoveTemp(TextProperties), InSharedData, ClassIndex, Cache, InOriginalObject);
 }
 
 bool UE::LevelSnapshots::Private::FApplySnapshotToEditorArchive::ShouldSkipProperty(const FProperty* InProperty) const

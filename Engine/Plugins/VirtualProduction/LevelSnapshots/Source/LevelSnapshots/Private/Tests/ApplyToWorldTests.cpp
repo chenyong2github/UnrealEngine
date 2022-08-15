@@ -276,11 +276,19 @@ namespace UE::LevelSnapshots::Private::Tests
 				TestEqual(TEXT("No other objects changed"), PropertySelection.GetKeyCount(), 1);
 				if (bRootComponentSelected)
 				{
-					TestEqual(TEXT("No other properties changed"), ComponentSelection->GetSelectedProperties().Num(), 1);
+					// 13 = AttachParent + Relative Loc & Rot & Scale + X & Y & Z of each of Loc & Rot & Scale
+					// See FAttachParentShowsTransformProperties for more info
+					TestEqual(TEXT("No other properties changed"), ComponentSelection->GetSelectedProperties().Num(), 13);
 
 					const FProperty* AttachParentProperty = USceneComponent::StaticClass()->FindPropertyByName(FName("AttachParent"));
-					ensureMsgf(AttachParentProperty, TEXT("Did property name change?"));
+					const FProperty* RelativeLocation = USceneComponent::StaticClass()->FindPropertyByName(USceneComponent::GetRelativeLocationPropertyName());
+					const FProperty* RelativeRotation = USceneComponent::StaticClass()->FindPropertyByName(USceneComponent::GetRelativeRotationPropertyName());
+					const FProperty* RelativeScale = USceneComponent::StaticClass()->FindPropertyByName(USceneComponent::GetRelativeScale3DPropertyName());
+					ensureMsgf(AttachParentProperty && RelativeLocation && RelativeRotation && RelativeScale, TEXT("Did property name change?"));
 					TestTrue(TEXT("AttachParent changed"), ComponentSelection->IsPropertySelected(nullptr, AttachParentProperty));
+					TestTrue(TEXT("RelativeLocation changed"), ComponentSelection->IsPropertySelected(nullptr, RelativeLocation));
+					TestTrue(TEXT("RelativeRotation changed"), ComponentSelection->IsPropertySelected(nullptr, RelativeRotation));
+					TestTrue(TEXT("RelativeScale changed"), ComponentSelection->IsPropertySelected(nullptr, RelativeScale));
 				}
 			})
 

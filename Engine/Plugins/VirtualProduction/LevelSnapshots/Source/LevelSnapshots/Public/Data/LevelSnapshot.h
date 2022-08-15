@@ -130,14 +130,18 @@ private:
 	/** Callback to when an object is modified. Clears FActorSnapshotData::bHasBeenDiffed */
 	FDelegateHandle OnObjectModifiedHandle;
 
-	
+
+#if WITH_EDITORONLY_DATA
+	/** Transient package that contains the world. Exists so calls to MarkPackageDirty, called e.g. by AActor::Modify, do not mark the snapshot dirty. */
+	UPROPERTY(Transient)
+	TObjectPtr<UPackage> TransientWorldPackage;
+#endif
 	/** The root world, equivalent to the persistent world, we will be adding temporary actors to */
 	UPROPERTY(Transient)
 	UWorld* RootSnapshotWorld;
 	/** Sublevels of RootSnapshotWorld */
 	UPROPERTY(Transient)
 	TArray<UWorld*> SnapshotSublevels;
-	
 	
 	/** The saved snapshot data */
 	UPROPERTY()

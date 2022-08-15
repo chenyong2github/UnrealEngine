@@ -215,6 +215,12 @@ bool UE::LevelSnapshots::Private::HasOriginalChangedPropertiesSinceSnapshotWasTa
 	return false;
 }
 
+namespace UE::LevelSnapshots::Private
+{
+	bool AreMapPropertiesEquivalent(ULevelSnapshot* Snapshot, const FMapProperty* MapProperty, void* SnapshotValuePtr, void* WorldValuePtr, AActor* SnapshotActor, AActor* WorldActor);
+	bool AreSetPropertiesEquivalent(ULevelSnapshot* Snapshot, const FSetProperty* SetProperty, void* SnapshotValuePtr, void* WorldValuePtr, AActor* SnapshotActor, AActor* WorldActor);
+}
+
 bool UE::LevelSnapshots::Private::AreSnapshotAndOriginalPropertiesEquivalent(ULevelSnapshot* Snapshot, const FProperty* LeafProperty, void* SnapshotContainer, void* WorldContainer, AActor* SnapshotActor, AActor* WorldActor)
 {
 	// Ensure that property's flags are allowed. Skip check collection properties, e.g. FArrayProperty::Inner, etc.: inner properties do not have the same flags.
@@ -280,12 +286,12 @@ bool UE::LevelSnapshots::Private::AreSnapshotAndOriginalPropertiesEquivalent(ULe
 		
 		if (const FMapProperty* MapProperty = CastField<FMapProperty>(LeafProperty))
 		{
-			// TODO: Use custom function. Need to do something similar to UE4MapProperty_Private::IsPermutation
+			return AreMapPropertiesEquivalent(Snapshot, MapProperty, SnapshotValuePtr, WorldValuePtr, SnapshotActor, WorldActor);
 		}
 
 		if (const FSetProperty* SetProperty = CastField<FSetProperty>(LeafProperty))
 		{
-			// TODO: Use custom function. Need to do something similar to UE4SetProperty_Private::IsPermutation
+			return AreSetPropertiesEquivalent(Snapshot, SetProperty, SnapshotValuePtr, WorldValuePtr, SnapshotActor, WorldActor);
 		}
 
 		if (const FTextProperty* TextProperty = CastField<FTextProperty>(LeafProperty))
@@ -297,6 +303,54 @@ bool UE::LevelSnapshots::Private::AreSnapshotAndOriginalPropertiesEquivalent(ULe
 		
 		// Use normal property comparison for all other properties
 		if (!LeafProperty->Identical_InContainer(SnapshotContainer, WorldContainer, i, PPF_DeepComparison | PPF_DeepCompareDSOsOnly))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+bool UE::LevelSnapshots::Private::AreMapPropertiesEquivalent(ULevelSnapshot* Snapshot, const FMapProperty* MapProperty, void* SnapshotValuePtr, void* WorldValuePtr, AActor* SnapshotActor, AActor* WorldActor)
+{
+	// Technically we need to check permutations like done in UE4MapProperty_Private::IsPermutation... 
+	FScriptMapHelper SnapshotMap(MapProperty, SnapshotValuePtr);
+	FScriptMapHelper WorldMap(MapProperty, WorldValuePtr);
+	if (SnapshotMap.Num() != WorldMap.Num())
+	{
+		return false;
+	}
+
+	for (int32 j = 0; j < SnapshotMap.Num(); ++j)
+	{
+		void* const SnapshotPairPtr = SnapshotMap.GetPairPtr(j);
+		void* const WorldPairPtr = WorldMap.GetPairPtr(j);
+
+		const bool bAreKeysEquivalent = AreSnapshotAndOriginalPropertiesEquivalent(Snapshot, SnapshotMap.KeyProp, SnapshotPairPtr, WorldPairPtr, SnapshotActor, WorldActor);
+		const bool bAreValuesEquivalent = AreSnapshotAndOriginalPropertiesEquivalent(Snapshot, SnapshotMap.ValueProp, SnapshotPairPtr, WorldPairPtr, SnapshotActor, WorldActor);
+		if (!bAreKeysEquivalent || !bAreValuesEquivalent)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+bool UE::LevelSnapshots::Private::AreSetPropertiesEquivalent(ULevelSnapshot* Snapshot, const FSetProperty* SetProperty, void* SnapshotValuePtr, void* WorldValuePtr, AActor* SnapshotActor, AActor* WorldActor)
+{
+	// Technically we need to check permutations like done in UE4SetProperty_Private::IsPermutation... 
+	FScriptSetHelper SnapshotMap(SetProperty, SnapshotValuePtr);
+	FScriptSetHelper WorldMap(SetProperty, WorldValuePtr);
+	if (SnapshotMap.Num() != WorldMap.Num())
+	{
+		return false;
+	}
+
+	for (int32 j = 0; j < SnapshotMap.Num(); ++j)
+	{
+		void* const SnapshotElemValuePtr = SnapshotMap.GetElementPtr(j);
+		void* const WorldElemValuePtr = WorldMap.GetElementPtr(j);
+
+		if (!AreSnapshotAndOriginalPropertiesEquivalent(Snapshot, SetProperty->ElementProp, SnapshotElemValuePtr, WorldElemValuePtr, SnapshotActor, WorldActor))
 		{
 			return false;
 		}

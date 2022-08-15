@@ -397,7 +397,11 @@ namespace UE::LevelSnapshots::Private::Internal
 					SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
 					// Overriable properties
 					SpawnParameters.Template = ActorCDO.GetValue();
-					SpawnParameters.ObjectFlags = ActorSnapshot->SerializedActorData.GetObjectFlags();
+					SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+					SpawnParameters.ObjectFlags = ActorSnapshot->SerializedActorData.GetObjectFlags()
+						// Was wrongly saved for some very old snapshots - if this causes trouble at some point ... consider just deprecating the old snapshots
+						// Note that non-transactional actors cannot be removed from the world (so if you recreate and then remove using Level Snapshots it won't work)
+						| RF_Transactional;
 					
 					Module.OnPreCreateActor(OwningLevelWorld, ActorClass, SpawnParameters);
 					ensureMsgf(SpawnParameters.bNoFail, TEXT("You cannot override bNoFail"));

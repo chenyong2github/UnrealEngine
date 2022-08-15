@@ -8,6 +8,7 @@
 
 class AActor;
 class UObject;
+struct FWorldSnapshotData;
 
 namespace UE::LevelSnapshots
 {
@@ -19,6 +20,8 @@ namespace UE::LevelSnapshots
 
 		UClass* Class;
 		FSoftObjectPath ActorPath;
+		EObjectFlags ObjectFlags;
+		const FWorldSnapshotData& WorldData;
 		
 		/** If you need access to the actor's data, you can call this function. */
 		FDeserializedActorGetter DeserializeFromSnapshotFunc;

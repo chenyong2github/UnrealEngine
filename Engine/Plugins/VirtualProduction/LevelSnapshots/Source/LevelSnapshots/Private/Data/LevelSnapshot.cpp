@@ -269,7 +269,7 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorConsumer HandleMatchedActor,
 			if (bWasRemovedFromWorld)
 			{
 				auto GetDeserializedActorFunc = [this, &OriginalActorPath](){ return GetDeserializedActor(OriginalActorPath); };
-				const UE::LevelSnapshots::FCanRecreateActorParams Params { World, ActorClass, OriginalActorPath, GetDeserializedActorFunc };
+				const UE::LevelSnapshots::FCanRecreateActorParams Params{ World, ActorClass, OriginalActorPath, SavedData.SerializedActorData.GetObjectFlags(), SerializedData, GetDeserializedActorFunc };
 				if (UE::LevelSnapshots::Restorability::ShouldConsiderRemovedActorForRecreation(Params))
 				{
 					HandleRemovedActor.Execute(OriginalActorPath);
@@ -340,15 +340,18 @@ void ULevelSnapshot::EnsureWorldInitialised()
 	
 	if (RootSnapshotWorld == nullptr)
 	{
+		TransientWorldPackage = CreatePackage(*FString::Printf(TEXT("/Temp/LevelSnapshots/%s/%s"), *GetName(), *FGuid::NewGuid().ToString()));
+		TransientWorldPackage->SetFlags(RF_Transient);
+		
 		const FName RootWorldName = *ExtractPathWithoutSubobjects(MapPath).GetAssetName();
-		RootSnapshotWorld = CreateWorld(this, RootWorldName);
+		RootSnapshotWorld = CreateWorld(TransientWorldPackage, RootWorldName);
 		
 		TSet<FName> Sublevels = ExtractLevelNames(SerializedData);
 		Sublevels.Remove(RootWorldName);
 		SnapshotSublevels.Reserve(Sublevels.Num());
 		for (const FName& SublevelName : Sublevels)
 		{
-			SnapshotSublevels.Add(CreateWorld(this, SublevelName));
+			SnapshotSublevels.Add(CreateWorld(TransientWorldPackage, SublevelName));
 		}
 		
 		// Destroy our temporary world when the editor (or game) world is destroyed. Reasons:
@@ -397,7 +400,7 @@ namespace UE::LevelSnapshots::Private
 	static UWorld* CreateWorld(UObject* Outer, FName WorldName)
 	{
 		UWorld* World = NewObject<UWorld>(Outer, WorldName);
-		World->WorldType = EWorldType::EditorPreview;
+		World->WorldType = EWorldType::Inactive;
 
 		// Note: Do NOT create a FWorldContext for this world.
 		// If you do, the render thread will send render commands every tick (and crash cuz we do not init the scene below).
@@ -428,6 +431,7 @@ void ULevelSnapshot::DestroyWorld()
 		}
 		
 		CleanUpWorld();
+		TransientWorldPackage = nullptr;
 		RootSnapshotWorld = nullptr;
 		SnapshotSublevels.Reset();
 	}
@@ -464,22 +468,8 @@ void ULevelSnapshot::RecreateSnapshotWorld()
 	if (RootSnapshotWorld)
 	{
 		DestroyWorld();
-
-		if (HasAnyFlags(RF_Standalone))
-		{
-			CollectGarbage(RF_Standalone);
-		}
-		else
-		{
-			SetFlags(RF_Standalone);
-			CollectGarbage(RF_Standalone);
-			ClearFlags(RF_Standalone);
-		}
 	}
-	else
-	{
-		EnsureWorldInitialised();
-	}
+	EnsureWorldInitialised();
 }
 
 namespace UE::LevelSnapshots::Private

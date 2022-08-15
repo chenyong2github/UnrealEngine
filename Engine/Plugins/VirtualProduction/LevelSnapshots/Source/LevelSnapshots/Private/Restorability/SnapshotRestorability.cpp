@@ -7,6 +7,8 @@
 #include "LandscapeGizmoActor.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
+#include "SnapshotCustomVersion.h"
+#include "WorldSnapshotData.h"
 
 #include "AI/NavigationSystemConfig.h"
 #include "Algo/AllOf.h"
@@ -116,7 +118,8 @@ bool UE::LevelSnapshots::Restorability::IsActorDesirableForCapture(const AActor*
 	}
 	
 	return !Actor->IsTemplate()								// Should never happen, but we never want CDOs
-			&& !Actor->HasAnyFlags(RF_Transient)				// Don't add transient actors in non-play worlds	
+			&& !Actor->HasAnyFlags(RF_Transient)				// Don't add transient actors in non-play worlds
+			&& Actor->HasAnyFlags(RF_Transactional)				// Non transactional actors are usually modified by some other system, e.g. UChildActorComponent's child actor is not transactional
 #if WITH_EDITOR
             && Actor->IsEditable()
             && Actor->IsListedInSceneOutliner() 				// Only add actors that are allowed to be selected and drawn in editor
@@ -217,7 +220,16 @@ bool UE::LevelSnapshots::Restorability::IsPropertyExplicitlySupportedForCapture(
 
 bool UE::LevelSnapshots::Restorability::ShouldConsiderRemovedActorForRecreation(const FCanRecreateActorParams& Params)
 {
-	return LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().CanRecreateActor(Params);
+	// Two reasons RF_Transactional is required:
+	// 1. It will not show up in Multiuser otherwise
+	// 2. If an actor is no RF_Transactional, it is usually because some system intentionally removed that flag, e.g. UChildActorComponent
+	const bool bTransacts = (Params.ObjectFlags& RF_Transactional) != 0;
+	const bool bWereFlagsSaved = Params.ObjectFlags != 0 // Objects usually have at least one flag so if it's 0 then it is very likely the flags were not saved...
+		// ... support for saving flags was added some time before ClassArchetypeRefactor. We check against ClassArchetypeRefactor for the unlikely case that in the future an object really has no flags.
+		|| Params.WorldData.SnapshotVersionInfo.GetSnapshotCustomVersion() >= LevelSnapshots::Private::FSnapshotCustomVersion::ClassArchetypeRefactor;
+	
+	return (bTransacts || !bWereFlagsSaved)
+		&& LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().CanRecreateActor(Params);
 }
 
 bool UE::LevelSnapshots::Restorability::ShouldConsiderNewActorForRemoval(const AActor* Actor)

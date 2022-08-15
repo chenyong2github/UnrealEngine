@@ -192,7 +192,7 @@ void UE::LevelSnapshots::Private::RestoreIntoRecreatedEditorWorldActor(AActor* O
 	{
 		const FRestoreObjectScope FinishRestore = PreSubobjectRestore_EditorWorld(Deserialized, Original, WorldData, Cache, SelectedProperties, InLocalisationSnapshotPackage);
 		// Components are not recreated with any archetype -> they must go through the full serialization process 
-		FApplySnapshotToEditorArchive::ApplyToEditorWorldObjectRecreatedWithoutArchetype(SerializedCompData, WorldData, Cache, Original, Deserialized, SelectedProperties, SerializedCompData.ClassIndex);
+		FApplySnapshotToEditorArchive::ApplyToEditorWorldObjectRecreatedWithoutArchetype(SerializedCompData, WorldData, Cache, Original, SelectedProperties, SerializedCompData.ClassIndex);
 		Internal::Restore::UpdateAttachParentAttachChildren(Original);
 	};
 	Internal::Restore::DeserializeIntoEditorWorldActor(OriginalActor, ActorData, WorldData, Cache, InLocalisationSnapshotPackage, DeserializeActor, DeserializeComponent);

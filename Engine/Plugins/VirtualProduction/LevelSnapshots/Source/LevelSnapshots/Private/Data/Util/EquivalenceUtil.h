@@ -44,6 +44,7 @@ namespace UE::LevelSnapshots::Private
 	 */
 	bool AreSnapshotAndOriginalPropertiesEquivalent(ULevelSnapshot* Snapshot, const FProperty* LeafProperty, void* SnapshotContainer, void* WorldContainer, AActor* SnapshotActor, AActor* WorldActor);
 
+	
 	/**
 	 * Two object properties are equivalent if they are
 	 *  - both null

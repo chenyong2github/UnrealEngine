@@ -53,7 +53,6 @@ namespace UE::LevelSnapshots::Private
 			FWorldSnapshotData& InSharedData,
 			FSnapshotDataCache& Cache,
 			UObject* InOriginalObject,
-			UObject* InDeserializedVersion,
 			const FPropertySelectionMap& InSelectionMapForResolvingSubobjects,
 			FClassDataIndex ClassIndex
 			);

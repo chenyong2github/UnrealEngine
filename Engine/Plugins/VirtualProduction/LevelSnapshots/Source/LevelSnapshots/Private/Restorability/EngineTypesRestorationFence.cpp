@@ -87,6 +87,14 @@ namespace UE::LevelSnapshots::Private::EngineTypesRestorationFence
 			Module.AddExplicitlyUnsupportedProperties({ ActorGuid });
 		}
 #endif
+
+		// Level Snapshots must spawn with AlwaysSpawn but since this is a property on the actor as well, they will show up as changed...
+		// We'll just not support this property
+		const FProperty* SpawnCollisionHandlingMethod = AActor::StaticClass()->FindPropertyByName(FName("SpawnCollisionHandlingMethod"));
+		if (ensure(SpawnCollisionHandlingMethod))
+		{
+			Module.AddExplicitlyUnsupportedProperties({ SpawnCollisionHandlingMethod });
+		}
 	}
 
 	static void DisableClothingSimulationFactory(UE::LevelSnapshots::Private::FLevelSnapshotsModule& Module)

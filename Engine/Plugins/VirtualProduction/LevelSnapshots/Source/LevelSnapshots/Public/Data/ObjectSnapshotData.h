@@ -16,7 +16,7 @@ struct LEVELSNAPSHOTS_API FObjectSnapshotData
 
 	/** Flags of the object that was serialized */
 	UPROPERTY()
-	uint64 ObjectFlags {};
+	uint64 ObjectFlags = RF_Transactional;
 
 	EObjectFlags GetObjectFlags() const { return static_cast<EObjectFlags>(ObjectFlags); }
 };
