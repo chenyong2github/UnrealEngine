@@ -500,7 +500,7 @@ protected:
 	// and stores an initialized VM per hash.
 	UPROPERTY(transient)
 	TMap<uint32, TObjectPtr<URigVM>> InitializedVMSnapshots;
-	uint32 CachedMemoryHash = INDEX_NONE;
+	uint32 CachedMemoryHash = 0;
 
 	// computes the hash used to store / find VM snapshots
 	uint32 GetHashForInitializeVMSnapShot();
