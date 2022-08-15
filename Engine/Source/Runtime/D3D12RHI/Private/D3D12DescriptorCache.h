@@ -327,7 +327,7 @@ public:
 	~FD3D12DescriptorCache();
 
 	inline bool IsViewHeapOverridden() const { return OverrideViewHeap != nullptr; }
-	inline bool IsSamplerHeapOverridden() const { return OverrideViewHeap != nullptr; }
+	inline bool IsSamplerHeapOverridden() const { return OverrideSamplerHeap != nullptr; }
 
 	inline FD3D12OnlineHeap* GetCurrentViewHeap() const { return CurrentViewHeap; }
 	inline FD3D12OnlineHeap* GetCurrentSamplerHeap() const { return CurrentSamplerHeap; }

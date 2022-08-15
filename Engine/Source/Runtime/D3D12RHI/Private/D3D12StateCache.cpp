@@ -516,7 +516,10 @@ void FD3D12StateCacheBase::ApplyState()
 	const bool bApplyResources = !bBindlessResources && PSOCommonData->RootSignature->HasResources();
 	const bool bApplySamplers = !bBindlessSamplers && PSOCommonData->RootSignature->HasSamplers();
 
-	if (bRootSignatureChanged)
+	const bool bBindlessResourcesAlreadyEnabled = DescriptorCache.IsViewHeapOverridden();
+	const bool bBindlessSamplersAlreadyEnabled = DescriptorCache.IsSamplerHeapOverridden();
+
+	if (bRootSignatureChanged || bBindlessResources != bBindlessResourcesAlreadyEnabled || bBindlessSamplers != bBindlessSamplersAlreadyEnabled)
 	{
 		FD3D12BindlessDescriptorManager& BindlessManager = GetParentDevice()->GetBindlessDescriptorManager();
 
