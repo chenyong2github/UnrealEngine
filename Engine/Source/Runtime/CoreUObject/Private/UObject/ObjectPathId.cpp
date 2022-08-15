@@ -231,7 +231,7 @@ FName FObjectPathId::MakeImportPathIdAndPackageName(const FObjectImport& Import,
 	return NamePathProducer.GetPackageName();
 }
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_LOW_LEVEL_TESTS
 template <typename CharType>
 struct TStringViewNamePathProducer
 {
