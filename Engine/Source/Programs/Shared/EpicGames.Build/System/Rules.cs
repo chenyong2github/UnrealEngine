@@ -137,10 +137,6 @@ namespace UnrealBuildBase
 				}
 			}
 
-			foreach (DirectoryReference f in Folders)
-				if (f.FullName[0] == 'e')
-					System.Console.WriteLine("!LOWERCASE!!!!!!!!!!");
-
 			return FindAllRulesFiles(Folders, RulesFileType);
 		}
 
