@@ -26,6 +26,10 @@
 			"Type" : "Editor"
 		},
 		{
+			"Name": "StructUtilsNodes",
+			"Type": "UncookedOnly"
+		},
+		{
 			"Name": "StructUtilsTestSuite",
 			"Type": "UncookedOnly"
 		}
