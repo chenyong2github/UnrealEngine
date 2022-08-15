@@ -85,7 +85,7 @@ namespace Metasound
 					1, // Major Version
 					0, // Minor Version
 					LOCTEXT("MetasoundWaveTableEnvelopeNode_Name", "WaveTable Envelope"),
-					LOCTEXT("MetasoundWaveTableEnvelopeNode_Description", "Reads through the given WaveTable at the provided frequency."),
+					LOCTEXT("MetasoundWaveTableEnvelopeNode_Description", "Reads through the given WaveTable over the given duration."),
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					GetDefaultInterface(),
