@@ -22,6 +22,39 @@ public:
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 };
 
+UCLASS(DisplayName = "Merge Selected", Category = "FractureTools")
+class UFractureToolMergeSelected : public UFractureActionTool
+{
+public:
+	GENERATED_BODY()
+
+	UFractureToolMergeSelected(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
+
+	// UFractureActionTool Interface
+	virtual FText GetDisplayText() const override;
+	virtual FText GetTooltipText() const override;
+	virtual FSlateIcon GetToolIcon() const override;
+	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
+	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
+};
+
+UCLASS(DisplayName = "Split Selected", Category = "FractureTools")
+class UFractureToolSplitSelected : public UFractureActionTool
+{
+public:
+	GENERATED_BODY()
+
+	UFractureToolSplitSelected(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
+
+	// UFractureActionTool Interface
+	virtual FText GetDisplayText() const override;
+	virtual FText GetTooltipText() const override;
+	virtual FSlateIcon GetToolIcon() const override;
+	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
+	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
+};
+
+
 
 UCLASS(DisplayName = "Hide", Category = "FractureTools")
 class UFractureToolHide : public UFractureActionTool

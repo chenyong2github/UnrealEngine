@@ -60,6 +60,8 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		TSharedPtr< FUICommandInfo > DeleteBranch;
 		TSharedPtr< FUICommandInfo > Hide;
 		TSharedPtr< FUICommandInfo > Unhide;
+		TSharedPtr< FUICommandInfo > MergeSelected;
+		TSharedPtr< FUICommandInfo > SplitSelected;
 		
 		// Generate Commands
 		TSharedPtr< FUICommandInfo > GenerateAsset;

@@ -195,6 +195,22 @@ int32 PLANARCUT_API CutMultipleWithPlanarCells(
 );
 
 /**
+ * Split the geometry at the given transforms into their connected components
+ *
+ * @param Collection		The collection to be cut
+ * @param TransformIndices	Which transform groups inside the collection to cut
+ * @param CollisionSampleSpacing	Target spacing between collision sample vertices
+ * @param Progress						Optionally tracks progress and supports early-cancel
+ * @return	index of first new geometry in the Output GeometryCollection, or -1 if no geometry was added
+ */
+int32 PLANARCUT_API SplitIslands(
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices,
+	double CollisionSampleSpacing,
+	FProgressCancel* Progress = nullptr
+);
+
+/**
  * Cut multiple Geometry groups inside a GeometryCollection with Planes, and add each cut cell back to the GeometryCollection as a new child of their source Geometry.  For geometries that would not be cut, nothing is added.
  *
  * @param Planes				Defines the cutting planes and division of space
@@ -303,6 +319,19 @@ int32 PLANARCUT_API MergeBones(
 	const TArrayView<const int32>& SmallTransformIndices,
 	bool bUnionJoinedPieces,
 	UE::PlanarCut::ENeighborSelectionMethod NeighborSelectionMethod
+);
+
+/**
+ * Merge all chosen nodes into a single node.  Unlike MergeBones(), does not account for proximity and will always only merge the selected bones.
+ *
+ * @param Collection				The collection to be processed
+ * @param TransformIndices			The transform indices to process, or empty if all should be processed
+ * @param bUnionJoinedPieces		Try to 'union' the merged pieces, removing internal triangles and connecting the shared cut boundary
+ */
+void PLANARCUT_API MergeAllSelectedBones(
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices,
+	bool bUnionJoinedPieces
 );
 
 /**

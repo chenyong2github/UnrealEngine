@@ -10,6 +10,8 @@
 #include "FractureToolContext.h"
 #include "ScopedTransaction.h"
 
+#include "PlanarCut.h"
+
 #define LOCTEXT_NAMESPACE "FractureToolEditing"
 
 
@@ -89,6 +91,119 @@ void UFractureToolDeleteBranch::Execute(TWeakPtr<FFractureEditorModeToolkit> InT
 			FGeometryCollectionClusteringUtility::RemoveDanglingClusters(GeometryCollection);
 
 			Context.GetGeometryCollectionComponent()->InitializeEmbeddedGeometry();
+
+			// Proximity is invalidated.
+			ClearProximity(Context.GetGeometryCollection().Get());
+
+			Refresh(Context, Toolkit, true);
+		}
+
+		SetOutlinerComponents(Contexts, Toolkit);
+	}
+}
+
+
+
+FText UFractureToolMergeSelected::GetDisplayText() const
+{
+	return FText(NSLOCTEXT("FractureToolEditingOps", "FractureToolMergeSelected", "Merge"));
+}
+
+FText UFractureToolMergeSelected::GetTooltipText() const
+{
+	return FText(NSLOCTEXT("FractureToolEditingOps", "FractureToolMergeSelectedTooltip", "Merge all selected nodes into one node."));
+}
+
+FSlateIcon UFractureToolMergeSelected::GetToolIcon() const
+{
+	return FSlateIcon("FractureEditorStyle", "FractureEditor.MergeSelected");
+}
+
+void UFractureToolMergeSelected::RegisterUICommand(FFractureEditorCommands* BindingContext)
+{
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "MergeSelected", "Merge", "Merge all selected nodes into one node.", EUserInterfaceActionType::Button, FInputChord());
+	BindingContext->MergeSelected = UICommandInfo;
+}
+
+void UFractureToolMergeSelected::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
+{
+	if (InToolkit.IsValid())
+	{
+		FScopedTransaction Transaction(LOCTEXT("MergeSelected", "Merge Selected"));
+
+		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
+
+		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+
+		for (FFractureToolContext& Context : Contexts)
+		{
+			FGeometryCollectionEdit Edit(Context.GetGeometryCollectionComponent(), GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+			FGeometryCollection* GeometryCollection = Context.GetGeometryCollection().Get();
+
+			Context.Sanitize();
+
+			const TArray<int32>& NodesForMerge = Context.GetSelection();
+
+			constexpr bool bBooleanUnion = false;
+			MergeAllSelectedBones(*GeometryCollection, NodesForMerge, bBooleanUnion);
+
+			// Proximity is invalidated.
+			ClearProximity(Context.GetGeometryCollection().Get());
+
+			Refresh(Context, Toolkit, true);
+		}
+
+		SetOutlinerComponents(Contexts, Toolkit);
+	}
+}
+
+
+FText UFractureToolSplitSelected::GetDisplayText() const
+{
+	return FText(NSLOCTEXT("FractureToolEditingOps", "FractureToolSplitSelected", "Split"));
+}
+
+FText UFractureToolSplitSelected::GetTooltipText() const
+{
+	return FText(NSLOCTEXT("FractureToolEditingOps", "FractureToolSplitSelectedTooltip", "Split all selected nodes into their connected component parts."));
+}
+
+FSlateIcon UFractureToolSplitSelected::GetToolIcon() const
+{
+	return FSlateIcon("FractureEditorStyle", "FractureEditor.SplitSelected");
+}
+
+void UFractureToolSplitSelected::RegisterUICommand(FFractureEditorCommands* BindingContext)
+{
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SplitSelected", "Split", "Split all selected nodes into their connected component parts.", EUserInterfaceActionType::Button, FInputChord());
+	BindingContext->SplitSelected = UICommandInfo;
+}
+
+void UFractureToolSplitSelected::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
+{
+	if (InToolkit.IsValid())
+	{
+		FScopedTransaction Transaction(LOCTEXT("SplitSelected", "Split Selected"));
+
+		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
+
+		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+
+		for (FFractureToolContext& Context : Contexts)
+		{
+			FGeometryCollectionEdit Edit(Context.GetGeometryCollectionComponent(), GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+			FGeometryCollection* GeometryCollection = Context.GetGeometryCollection().Get();
+
+			Context.Sanitize();
+
+			TArray<int32> NodesForSplit;
+
+			for (int32 Select : Context.GetSelection())
+			{
+				FGeometryCollectionClusteringUtility::GetLeafBones(GeometryCollection, Select, true, NodesForSplit);
+			}
+
+			SplitIslands(*GeometryCollection, NodesForSplit, 0, nullptr);
 
 			// Proximity is invalidated.
 			ClearProximity(Context.GetGeometryCollection().Get());

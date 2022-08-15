@@ -2477,6 +2477,64 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 }
 
 
+int32 FDynamicMeshCollection::SplitAllIslands(FGeometryCollection* Collection, double CollisionSampleSpacing)
+{
+	int32 FirstIdx = -1;
+	TArray<int32> GeometryForRemoval;
+
+	for (FMeshData& Surface : Meshes)
+	{
+		int32 SrcGeometryIdx = Collection->TransformToGeometryIndex[Surface.TransformIndex];
+		
+		int32 CreatedGeometryIdx = -1;
+		TArray<FDynamicMesh3> Islands;
+		if (SplitIslands(Surface.AugMesh, Islands))
+		{
+			for (int32 i = 0; i < Islands.Num(); i++)
+			{
+				FDynamicMesh3& Island = Islands[i];
+				FString BoneName = GetBoneName(*Collection, Surface.TransformIndex, i);
+				constexpr int32 InternalMaterialID = 0; // Note: there won't be new internal faces (to assign materials) from a split, so this value won't affect the output here
+				CreatedGeometryIdx = AppendToCollection(Surface.FromCollection, Island, CollisionSampleSpacing, Surface.TransformIndex, BoneName, *Collection, InternalMaterialID);
+
+				if (FirstIdx == -1)
+				{
+					FirstIdx = CreatedGeometryIdx;
+				}
+			}
+
+			GeometryForRemoval.Add(SrcGeometryIdx);
+		}
+	}
+
+	int32 NewFirstIdx = FirstIdx;
+
+	// remove or hide superfluous geometry
+	constexpr bool bRemoveOldGeometry = false; // if false, we just hide the geometry that we've replaced by fractured child geometry, rather than remove it
+	if (GeometryForRemoval.Num() > 0)
+	{
+		if (bRemoveOldGeometry)
+		{
+			GeometryForRemoval.Sort();
+			FManagedArrayCollection::FProcessingParameters ProcessingParams;
+#if !UE_BUILD_DEBUG
+			ProcessingParams.bDoValidation = false;
+#endif
+			Collection->RemoveElements(FGeometryCollection::GeometryGroup, GeometryForRemoval, ProcessingParams);
+			NewFirstIdx -= GeometryForRemoval.Num();
+		}
+		else
+		{
+			SetGeometryVisibility(Collection, GeometryForRemoval, false);
+		}
+	}
+
+
+	return NewFirstIdx;
+}
+
+
+
 int32 FDynamicMeshCollection::CutWithCellMeshes(const FInternalSurfaceMaterials& InternalSurfaceMaterials, const TArray<TPair<int32, int32>>& CellConnectivity, FCellMeshes& CellMeshes, FGeometryCollection* Collection, bool bSetDefaultInternalMaterialsFromCollection, double CollisionSampleSpacing)
 {
 	// TODO: should we do these cuts in parallel, and the appends sequentially below?

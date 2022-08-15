@@ -671,6 +671,41 @@ int32 CutMultipleWithPlanarCells(
 	return NewGeomStartIdx;
 }
 
+int32 SplitIslands(
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices,
+	double CollisionSampleSpacing,
+	FProgressCancel* Progress
+)
+{
+	FProgressCancel::FProgressScope CreateMeshCollectionScope = FProgressCancel::CreateScopeTo(Progress, .1);
+
+	FTransform CollectionToWorld = FTransform::Identity;
+
+	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CollectionToWorld);
+	CreateMeshCollectionScope.Done();
+
+	if (Progress && Progress->Cancelled())
+	{
+		return -1;
+	}
+
+	FProgressCancel::FProgressScope SplitScope = FProgressCancel::CreateScopeTo(Progress, .99);
+	int32 NewGeomStartIdx = -1;
+	NewGeomStartIdx = MeshCollection.SplitAllIslands(&Collection, CollisionSampleSpacing);
+	SplitScope.Done();
+
+	if (Progress && Progress->Cancelled())
+	{
+		return -1;
+	}
+
+	FProgressCancel::FProgressScope ReindexScope = FProgressCancel::CreateScopeTo(Progress, 1);
+	Collection.ReindexMaterials();
+	ReindexScope.Done();
+	return NewGeomStartIdx;
+}
+
 FDynamicMesh3 ConvertMeshDescriptionToCuttingDynamicMesh(const FMeshDescription* CuttingMesh, int32 NumUVLayers, FProgressCancel* Progress)
 {
 	// populate the BaseMesh with a conversion of the input mesh.
@@ -1317,6 +1352,150 @@ int32 MergeBones(
 	Collection.RemoveElements(FGeometryCollection::TransformGroup, AllRemoveIndices, ProcessingParams);
 
 	return INDEX_NONE; // TODO: consider tracking smallest index of updated groups?  but no reason to do so currently
+}
+
+namespace
+{
+	void AddAllChildrenExceptEmbedded(FGeometryCollection& Collection, TSet<int32>& NodesSet, int32 Node)
+	{
+		if (Collection.SimulationType[Node] != FGeometryCollection::ESimulationTypes::FST_None)
+		{
+			NodesSet.Add(Node);
+			for (int32 Child : Collection.Children[Node])
+			{
+				AddAllChildrenExceptEmbedded(Collection, NodesSet, Child);
+			}
+		}
+	}
+}
+
+void MergeAllSelectedBones(
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices,
+	bool bUnionJoinedPieces
+)
+{
+	if (TransformIndices.IsEmpty())
+	{
+		return;
+	}
+
+	if (!Collection.HasAttribute("Level", FGeometryCollection::TransformGroup))
+	{
+		FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(&Collection, -1);
+	}
+	const TManagedArray<int32>& Level = Collection.GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+	int32 TopLevelNode = TransformIndices[0];
+	int32 TopLevel = Level[TopLevelNode];
+
+	TSet<int32> AllNodesSet;
+	for (int32 Node : TransformIndices)
+	{
+		if (Level[Node] < TopLevel)
+		{
+			TopLevel = Level[Node];
+			TopLevelNode = Node;
+		}
+		AddAllChildrenExceptEmbedded(Collection, AllNodesSet, Node);
+	}
+	TArray<int32> AllNodes = AllNodesSet.Array();
+
+	if (AllNodes.Num() < 2)
+	{
+		return; // not enough pieces to need any merging
+	}
+
+	TArray<int32> AllUpdateIndices, AllRemoveIndices;
+	AllUpdateIndices.Add(TopLevelNode);
+	AllRemoveIndices.Reserve(AllNodes.Num() - 1);
+	for (int32 Node : AllNodes)
+	{
+		if (Node != TopLevelNode)
+		{
+			AllRemoveIndices.Add(Node);
+		}
+	}
+
+
+	AllRemoveIndices.Sort();
+	AllUpdateIndices.Sort();
+
+	FTransform CellsToWorld = FTransform::Identity;
+
+	FDynamicMeshCollection RemoveCollection(&Collection, AllRemoveIndices, CellsToWorld, true);
+	FDynamicMeshCollection UpdateCollection(&Collection, AllUpdateIndices, CellsToWorld, true);
+
+	using FMeshData = UE::PlanarCut::FDynamicMeshCollection::FMeshData;
+	bool bNeedAddGeometry = false;
+	if (UpdateCollection.Meshes.IsEmpty())
+	{
+		int32 NumUVLayers = Collection.NumUVLayers();
+		FMeshData* MeshData = new FMeshData(NumUVLayers);
+		MeshData->FromCollection = GeometryCollectionAlgo::GlobalMatrix(Collection.Transform, Collection.Parent, TopLevelNode);
+		MeshData->TransformIndex = TopLevelNode;
+		UpdateCollection.Meshes.Add(MeshData);
+
+		bNeedAddGeometry = true;
+	}
+	check(UpdateCollection.Meshes.Num() == 1);
+	FMeshData& UpMeshData = UpdateCollection.Meshes[0];
+	FDynamicMeshEditor MeshEditor(&UpMeshData.AugMesh);
+	for (int32 RmMeshIdx = 0; RmMeshIdx < RemoveCollection.Meshes.Num(); RmMeshIdx++)
+	{
+		FMeshData& RmMeshData = RemoveCollection.Meshes[RmMeshIdx];
+		if (bUnionJoinedPieces)
+		{
+			FMeshBoolean Boolean(&UpMeshData.AugMesh, &RmMeshData.AugMesh, &UpMeshData.AugMesh, FMeshBoolean::EBooleanOp::Union);
+			Boolean.bWeldSharedEdges = false;
+			Boolean.bSimplifyAlongNewEdges = true;
+			Boolean.Compute();
+		}
+		else
+		{
+			FMeshIndexMappings IndexMaps_Unused;
+			MeshEditor.AppendMesh(&RmMeshData.AugMesh, IndexMaps_Unused);
+		}
+	}
+
+	if (UpMeshData.AugMesh.TriangleCount() > 0)
+	{
+		if (bNeedAddGeometry)
+		{
+			if (Collection.TransformToGeometryIndex[TopLevelNode] == -1)
+			{
+				// Create a new geometry element to fill w/ the merged geometry
+				int32 GeometryIdx = Collection.AddElements(1, FGeometryCollection::GeometryGroup);
+				Collection.TransformToGeometryIndex[TopLevelNode] = GeometryIdx;
+				Collection.TransformIndex[GeometryIdx] = TopLevelNode;
+				Collection.FaceCount[GeometryIdx] = 0;
+				Collection.FaceStart[GeometryIdx] = Collection.Indices.Num();
+				Collection.VertexCount[GeometryIdx] = 0;
+				Collection.VertexStart[GeometryIdx] = Collection.Vertex.Num();
+			}
+		}
+		Collection.SimulationType[TopLevelNode] = FGeometryCollection::ESimulationTypes::FST_Rigid;
+		UpdateCollection.UpdateAllCollections(Collection);
+	}
+
+	TArray<int32> Children;
+	for (int32 RmTransformIdx : AllRemoveIndices)
+	{
+		for (int32 ChildIdx : Collection.Children[RmTransformIdx])
+		{
+			Children.Add(ChildIdx);
+		}
+	}
+	if (Children.Num())
+	{
+		GeometryCollectionAlgo::ParentTransforms(&Collection, TopLevelNode, Children);
+	}
+
+	// remove transforms for all geometry that was merged in
+	FManagedArrayCollection::FProcessingParameters ProcessingParams;
+#if !UE_BUILD_DEBUG
+	ProcessingParams.bDoValidation = false;
+#endif
+	Collection.RemoveElements(FGeometryCollection::TransformGroup, AllRemoveIndices, ProcessingParams);
 }
 
 
