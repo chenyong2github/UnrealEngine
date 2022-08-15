@@ -983,6 +983,8 @@ void FGPUScene::UploadGeneral(FRDGBuilder& GraphBuilder, FScene *Scene, FRDGExte
 				// 1. do (potentially) parallel work next
 				ParallelFor(NumPrimitiveDataUploads, [&UploadDataSourceAdapter, this](int32 ItemIndex)
 				{
+					FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
+
 					FPrimitiveUploadInfo UploadInfo;
 					UploadDataSourceAdapter.GetPrimitiveInfo(ItemIndex, UploadInfo);
 
