@@ -1336,6 +1336,8 @@ void SRigHierarchy::RefreshHierarchy(const FAssetData& InAssetData)
 		return;
 	}
 
+	ControlRigEditor.Pin()->ClearDetailObject();
+
 	URigHierarchy* Hierarchy = GetHierarchy();
 	USkeletalMesh* Mesh = Cast<USkeletalMesh>(InAssetData.GetAsset());
 	if (Mesh && Hierarchy)
