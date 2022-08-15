@@ -26,7 +26,7 @@ public:
 	 *
 	 * @param SaveGameObject	Object that contains data about the save game that we want to write out.
 	 * @param SlotName			Name of the save game slot to load from.
-	 * @param UserIndex			For some platforms, primary user index to identify the user doing the loading.
+	 * @param UserIndex			The platform user index that identifies the user doing the saving, ignored on some platforms.
 	 */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true", Category = "SaveGame",  WorldContext = "WorldContextObject"))
 	static UAsyncActionHandleSaveGame* AsyncSaveGameToSlot(UObject* WorldContextObject, USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex);
@@ -37,7 +37,7 @@ public:
 	 * Keep in mind that some platforms may not support trying to load and save at the same time.
 	 *
 	 * @param SlotName			Name of the save game slot to load from.
-	 * @param UserIndex			For some platforms, primary user index to identify the user doing the loading.
+	 * @param UserIndex			The platform user index that identifies the user doing the saving, ignored on some platforms.
 	 */
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", Category = "SaveGame", WorldContext = "WorldContextObject"))
 	static UAsyncActionHandleSaveGame* AsyncLoadGameFromSlot(UObject* WorldContextObject, const FString& SlotName, const int32 UserIndex);
