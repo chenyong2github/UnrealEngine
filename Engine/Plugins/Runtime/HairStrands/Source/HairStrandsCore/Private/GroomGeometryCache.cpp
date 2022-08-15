@@ -70,6 +70,8 @@ ENGINE_API void UpdatePreviousRefToLocalMatrices(TArray<FMatrix44f>& ReferenceTo
 	FSkeletalMeshObject* SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
 	if (!bOutputTriangleData || SkeletalMeshObject == nullptr)
 	{
+		// Fill out LODIndex for RunHairLODSelection() pass.
+		Out.LODIndex = SkeletalMeshObject->GetLOD();
 		return;
 	}
 
