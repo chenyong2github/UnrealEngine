@@ -348,7 +348,7 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 				MaxPendingTicks = FMath::Max<int32>(MaxPendingTicks, Proxy->PendingTicks.Num());
 			}
 		}
-		if (MaxPendingTicks < TickFlushMaxPendingTicks)
+		if (!bForceFlush && (MaxPendingTicks < TickFlushMaxPendingTicks))
 		{
 			return;
 		}
