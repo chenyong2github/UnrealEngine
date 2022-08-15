@@ -248,7 +248,7 @@ protected:
 	TSharedPtr<FTabManager> TabManager;
 
 	/** Tree of differences collected across all panels: */
-	TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> > MasterDifferencesList;
+	TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> > PrimaryDifferencesList;
 
 	/** List of all differences, cached so that we can iterate only the differences and not labels, etc: */
 	TArray< TSharedPtr<class FBlueprintDifferenceTreeEntry> > RealDifferences;
