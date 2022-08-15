@@ -162,9 +162,13 @@ namespace UE::MLDeformer
 
 		TargetMeshCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, AlignmentTransform), UMLDeformerModel::StaticClass());
 
-		// Input and output.
-		InputOutputCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, TrainingInputs), UMLDeformerModel::StaticClass());
+		InputOutputCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, bIncludeBones), UMLDeformerModel::StaticClass())
+			.Visibility(IsBonesFlagVisible() ? EVisibility::Visible : EVisibility::Collapsed);
 
+		InputOutputCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, bIncludeCurves), UMLDeformerModel::StaticClass())
+			.Visibility(IsCurvesFlagVisible() ? EVisibility::Visible : EVisibility::Collapsed);
+
+		AddTrainingInputFlags();
 		AddTrainingInputErrors();
 
 		const FText ErrorText = EditorModel->GetInputsErrorText();
@@ -185,36 +189,122 @@ namespace UE::MLDeformer
 		InputOutputCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, DeltaCutoffLength), UMLDeformerModel::StaticClass());
 
 		// Bone include list group.
-		IDetailGroup& BoneIncludeGroup = InputOutputCategoryBuilder->AddGroup("BoneIncludeGroup", LOCTEXT("BoneIncludeGroup", "Bones"), false, false);
-		BoneIncludeGroup.AddWidgetRow()
+		if (Model->DoesSupportBones())
+		{
+			const int NumBones = EditorModel->GetEditorInputInfo() ? EditorModel->GetEditorInputInfo()->GetNumBones() : 0;
+			const FText BonesText = FText::Format(FTextFormat(LOCTEXT("BonesGroupName", "Bones ({0})")), NumBones);;
+			FText AllBonesText;
+			if (Model->GetSkeletalMesh() && (Model->GetSkeletalMesh()->GetRefSkeleton().GetNum() == NumBones || NumBones == 0))
+			{
+				AllBonesText = LOCTEXT("BoneGroupValue", "All Bones Included");
+			}
+			IDetailGroup& BoneIncludeGroup = InputOutputCategoryBuilder->AddGroup("BoneIncludeGroup", FText(), false, false);
+			BoneIncludeGroup.HeaderRow()
+			.NameContent()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				[
+					SNew(STextBlock)
+					.Text(BonesText)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+			]
 			.ValueContent()
 			[
-				SNew(SButton)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Text(LOCTEXT("AnimatedBonesButton", "Animated Bones Only"))
-				.OnClicked(FOnClicked::CreateSP(this, &FMLDeformerModelDetails::OnFilterAnimatedBonesOnly))
-				.IsEnabled_Lambda([this](){ return (Model->GetTrainingInputs() == EMLDeformerTrainingInputFilter::BonesAndCurves) || (Model->GetTrainingInputs() == EMLDeformerTrainingInputFilter::BonesOnly); })
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				[
+					SNew(STextBlock)
+					.Text(AllBonesText)
+					.Font(IDetailLayoutBuilder::GetDetailFontItalic())
+				]
 			];
-		BoneIncludeGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, BoneIncludeList), UMLDeformerModel::StaticClass()));
+			BoneIncludeGroup.AddWidgetRow()
+				.ValueContent()
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Text(LOCTEXT("AnimatedBonesButton", "Animated Bones Only"))
+					.ToolTipText(LOCTEXT("AnimatedBonesButtonTooltip", "Initialize the bone include list to bones that are animated."))
+					.OnClicked(FOnClicked::CreateSP(this, &FMLDeformerModelDetails::OnFilterAnimatedBonesOnly))
+					.IsEnabled_Lambda([this](){ return Model->ShouldIncludeBonesInTraining(); })
+				];
+			BoneIncludeGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, BoneIncludeList), UMLDeformerModel::StaticClass()));
 
-		AddBoneInputErrors();
+			AddBoneInputErrors();
+		}
+		else
+		{
+			InputOutputCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, BoneIncludeList), UMLDeformerModel::StaticClass())
+				.Visibility(EVisibility::Collapsed);
+		}
 
 		// Curve include list group.
-		IDetailGroup& CurveIncludeGroup = InputOutputCategoryBuilder->AddGroup("CurveIncludeGroup", LOCTEXT("CurveIncludeGroup", "Curves"), false, false);
-		CurveIncludeGroup.AddWidgetRow()
+		if (Model->DoesSupportCurves())
+		{
+			const int NumCurves = EditorModel->GetEditorInputInfo() ? EditorModel->GetEditorInputInfo()->GetNumCurves() : 0;
+			const FText CurvesText = FText::Format(FTextFormat(LOCTEXT("CurvesGroupName", "Curves ({0})")), NumCurves);
+			FText AllCurvesText;
+			const int32 NumCurvesOnSkelMesh = EditorModel->GetNumCurvesOnSkeletalMesh(Model->GetSkeletalMesh());
+			if (NumCurvesOnSkelMesh == 0)
+			{
+				AllCurvesText = LOCTEXT("CurvesGroupValueNoCurves", "No Curves Found");
+			}
+			else if (NumCurves == NumCurvesOnSkelMesh)
+			{
+				AllCurvesText = LOCTEXT("CurvesGroupValue", "All Curves Included");
+			}
+			IDetailGroup& CurvesIncludeGroup = InputOutputCategoryBuilder->AddGroup("CurveIncludeGroup", LOCTEXT("CurveIncludeGroup", "Curves"), false, false);
+			CurvesIncludeGroup.HeaderRow()
+			.NameContent()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				[
+					SNew(STextBlock)
+					.Text(CurvesText)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+			]
 			.ValueContent()
 			[
-				SNew(SButton)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Text(LOCTEXT("AnimatedCurvesButton", "Animated Curves Only"))
-				.OnClicked(FOnClicked::CreateSP(this, &FMLDeformerModelDetails::OnFilterAnimatedCurvesOnly))
-				.IsEnabled_Lambda([this](){ return (Model->GetTrainingInputs() == EMLDeformerTrainingInputFilter::BonesAndCurves) || (Model->GetTrainingInputs() == EMLDeformerTrainingInputFilter::CurvesOnly); })
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				[
+					SNew(STextBlock)
+					.Text(AllCurvesText)
+					.Font(IDetailLayoutBuilder::GetDetailFontItalic())
+				]
 			];
-		CurveIncludeGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, CurveIncludeList), UMLDeformerModel::StaticClass()));
 
-		AddCurveInputErrors();
+			CurvesIncludeGroup.AddWidgetRow()
+				.ValueContent()
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Text(LOCTEXT("AnimatedCurvesButton", "Animated Curves Only"))
+					.ToolTipText(LOCTEXT("AnimatedCurvesButtonTooltip", "Initialize the curve include list to curves that are animated."))
+					.OnClicked(FOnClicked::CreateSP(this, &FMLDeformerModelDetails::OnFilterAnimatedCurvesOnly))
+					.IsEnabled_Lambda([this](){ return Model->ShouldIncludeCurvesInTraining() && EditorModel->GetNumCurvesOnSkeletalMesh(Model->GetSkeletalMesh()) > 0; })
+				];
+			CurvesIncludeGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, CurveIncludeList), UMLDeformerModel::StaticClass()));
+
+			AddCurveInputErrors();
+		}
+		else
+		{
+			InputOutputCategoryBuilder->AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerModel, CurveIncludeList), UMLDeformerModel::StaticClass())
+				.Visibility(EVisibility::Collapsed);
+		}
+
+		AddTrainingInputFilters();
 
 		// Show a warning when no neural network has been set.
 		{		
@@ -290,6 +380,15 @@ namespace UE::MLDeformer
 					.Message(MeshMappingError)
 				]
 			];
+	}
+	bool FMLDeformerModelDetails::IsBonesFlagVisible() const
+	{
+		return (Model->DoesSupportBones() && Model->DoesSupportCurves());
+	}
+
+	bool FMLDeformerModelDetails::IsCurvesFlagVisible() const
+	{
+		return (Model->DoesSupportBones() && Model->DoesSupportCurves() && EditorModel->GetNumCurvesOnSkeletalMesh(Model->GetSkeletalMesh()) > 0);
 	}
 }	// namespace UE::MLDeformer
 

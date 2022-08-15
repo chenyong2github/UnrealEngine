@@ -214,9 +214,9 @@ namespace UE::MLDeformer
 			int32 UnsortedModelIndex = -1;
 			for (int32 Index = 0; Index < ModelTypes.Num(); ++Index)
 			{
-				const UClass* Model = ModelTypes[ModelIndex];
+				const UClass* Model = ModelTypes[Index];
 				const UMLDeformerModel* DefaultModel = Cast<UMLDeformerModel>(Model->GetDefaultObject());
-				if (DefaultModel->GetDisplayName() == ModelNames[Index])
+				if (DefaultModel->GetDisplayName() == ModelNames[ModelIndex])
 				{
 					UnsortedModelIndex = Index;
 					break;

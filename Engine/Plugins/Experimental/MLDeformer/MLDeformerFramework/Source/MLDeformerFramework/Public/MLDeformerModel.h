@@ -35,16 +35,7 @@ namespace UE::MLDeformer
 	};
 }	// namespace UE::MLDeformer
 
-/** The training inputs. Specifies what data to include in training. */
-UENUM()
-enum class EMLDeformerTrainingInputFilter : uint8
-{
-	BonesAndCurves = 0, /** Include both bone rotations and curve values. */
-	BonesOnly,			/** Include only bone rotations. */
-	CurvesOnly			/** Include only curve values. */
-};
-
-DECLARE_DELEGATE_OneParam(FMLDeformerModelOnPostEditProperty, FPropertyChangedEvent&)
+DECLARE_EVENT_OneParam(UMLDeformerModel, FMLDeformerModelOnPostEditProperty, FPropertyChangedEvent&)
 
 /**
  * The ML Deformer runtime model base class.
@@ -67,6 +58,8 @@ public:
 	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component);
 	virtual FString GetDisplayName() const PURE_VIRTUAL(UMLDeformerModel::GetDisplayName, return FString(););
 	virtual void PostMLDeformerComponentInit(UMLDeformerModelInstance* ModelInstance) {}
+	virtual bool DoesSupportBones() const { return true; }
+	virtual bool DoesSupportCurves() const { return true; }
 	virtual bool IsNeuralNetworkOnGPU() const { return true; }	// GPU neural network.
 #if WITH_EDITORONLY_DATA
 	virtual bool HasTrainingGroundTruth() const { return false; }
@@ -91,7 +84,6 @@ public:
 	// ~END IBoneReferenceSkeletonProvider overrides.
 
 	UMLDeformerAsset* GetDeformerAsset() const;
-	EMLDeformerTrainingInputFilter GetTrainingInputs() const { return TrainingInputs; }
 	UMLDeformerInputInfo* GetInputInfo() const { return InputInfo.Get(); }
 
 	int32 GetNumBaseMeshVerts() const { return NumBaseMeshVerts; }
@@ -103,6 +95,7 @@ public:
 	UNeuralNetwork* GetNeuralNetwork() const { return NeuralNetwork.Get(); }
 	void SetNeuralNetwork(UNeuralNetwork* InNeuralNetwork);
 
+
 #if WITH_EDITORONLY_DATA
 	// UObject overrides.
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -110,7 +103,10 @@ public:
 
 	void InitVertexMap();
 
-	FMLDeformerModelOnPostEditProperty& OnPostEditChangeProperty() { return PostEditPropertyEvent; }
+	bool ShouldIncludeBonesInTraining() const { return bIncludeBones; }
+	bool ShouldIncludeCurvesInTraining() const { return bIncludeCurves; }
+
+	FMLDeformerModelOnPostEditProperty& OnPostEditChangeProperty() { return PostEditPropertyDelegate; }
 
 	UMLDeformerVizSettings* GetVizSettings() const { return VizSettings; }
 	const USkeletalMesh* GetSkeletalMesh() const { return SkeletalMesh;  }
@@ -128,7 +124,7 @@ public:
 
 protected:
 	TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;
-	FMLDeformerModelOnPostEditProperty PostEditPropertyEvent;
+	FMLDeformerModelOnPostEditProperty PostEditPropertyDelegate;
 
 	void SetInputInfo(UMLDeformerInputInfo* Input) { InputInfo = Input; }
 	void FloatArrayToVector3Array(const TArray<float>& FloatArray, TArray<FVector3f>& OutVectorArray);
@@ -141,10 +137,6 @@ public:
 	/** Cached number of target mesh vertices. */
 	UPROPERTY()
 	int32 NumTargetMeshVerts = 0;
-
-	/** Describes what inputs we should train the neural network on. */
-	UPROPERTY(EditAnywhere, Category = "Inputs and Output")
-	EMLDeformerTrainingInputFilter TrainingInputs = EMLDeformerTrainingInputFilter::BonesOnly;
 
 	/** 
 	 * The information about the neural network inputs. This contains things such as bone names and curve names.
@@ -174,6 +166,14 @@ public:
 	UPROPERTY()
 	TObjectPtr<UMLDeformerVizSettings> VizSettings = nullptr;
 
+	/** Include bones as inputs to training process? */
+	UPROPERTY(EditAnywhere, Category = "Inputs and Output")
+	bool bIncludeBones = true;
+
+	/** Include curves as inputs to the training process? */
+	UPROPERTY(EditAnywhere, Category = "Inputs and Output")
+	bool bIncludeCurves = false;
+
 	/** The skeletal mesh that represents the linear skinned mesh. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Base Mesh")
 	TObjectPtr<USkeletalMesh> SkeletalMesh = nullptr;
@@ -190,11 +190,11 @@ public:
 	FTransform AlignmentTransform = FTransform::Identity;
 
 	/** The bones to include during training. When none are provided, all bones of the Skeleton will be included. */
-	UPROPERTY(EditAnywhere, Category = "Inputs and Output", meta = (EditCondition = "TrainingInputs == EMLDeformerTrainingInputFilter::BonesAndCurves || TrainingInputs == EMLDeformerTrainingInputFilter::BonesOnly"))
+	UPROPERTY(EditAnywhere, Category = "Inputs and Output", meta = (EditCondition = "bIncludeBones"))
 	TArray<FBoneReference> BoneIncludeList;
 
 	/** The curves to include during training. When none are provided, all curves of the Skeleton will be included. */
-	UPROPERTY(EditAnywhere, Category = "Inputs and Output", meta = (EditCondition = "TrainingInputs == EMLDeformerTrainingInputFilter::BonesAndCurves || TrainingInputs == EMLDeformerTrainingInputFilter::CurvesOnly"))
+	UPROPERTY(EditAnywhere, Category = "Inputs and Output", meta = (EditCondition = "bIncludeCurves"))
 	TArray<FMLDeformerCurveReference> CurveIncludeList;
 
 	/** The maximum numer of training frames (samples) to train on. Use this to train on a sub-section of your full training data. */

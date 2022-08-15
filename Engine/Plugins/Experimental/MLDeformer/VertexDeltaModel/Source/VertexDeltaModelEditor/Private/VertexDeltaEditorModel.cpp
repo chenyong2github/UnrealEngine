@@ -23,11 +23,6 @@ namespace UE::VertexDeltaModel
 {
 	using namespace UE::MLDeformer;
 
-	FVertexDeltaEditorModel::~FVertexDeltaEditorModel()
-	{
-		Model->OnPostEditChangeProperty().Unbind();
-	}
-
 	FMLDeformerEditorModel* FVertexDeltaEditorModel::MakeInstance()
 	{
 		return new FVertexDeltaEditorModel();
@@ -43,12 +38,6 @@ namespace UE::VertexDeltaModel
 		FMLDeformerGeomCacheSampler* NewSampler = new FMLDeformerGeomCacheSampler();
 		NewSampler->OnGetGeometryCache().BindLambda([this] { return GetVertexDeltaModel()->GetGeometryCache(); });
 		return NewSampler;
-	}
-
-	void FVertexDeltaEditorModel::Init(const InitSettings& InitSettings)
-	{
-		FMLDeformerEditorModel::Init(InitSettings);
-		Model->OnPostEditChangeProperty().BindRaw(this, &FVertexDeltaEditorModel::OnPostEditChangeProperty);
 	}
 
 	void FVertexDeltaEditorModel::OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

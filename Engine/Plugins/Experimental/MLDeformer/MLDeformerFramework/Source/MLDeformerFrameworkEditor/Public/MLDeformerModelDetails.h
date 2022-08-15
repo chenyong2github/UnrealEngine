@@ -31,9 +31,13 @@ namespace UE::MLDeformer
 		virtual void AddTargetMesh() {}
 		virtual void AddBaseMeshErrors() {}
 		virtual void AddAnimSequenceErrors() {}
-		virtual void AddTrainingInputErrors() {}
 		virtual void AddBoneInputErrors() {}
 		virtual void AddCurveInputErrors() {}
+		virtual void AddTrainingInputFlags() {}
+		virtual void AddTrainingInputFilters() {}
+		virtual void AddTrainingInputErrors() {}
+		virtual bool IsBonesFlagVisible() const;
+		virtual bool IsCurvesFlagVisible() const;
 
 	protected:
 		bool FilterAnimSequences(const FAssetData& AssetData, USkeleton* Skeleton);

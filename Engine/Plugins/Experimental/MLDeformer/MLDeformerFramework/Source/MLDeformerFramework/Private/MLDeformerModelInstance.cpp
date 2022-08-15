@@ -36,22 +36,25 @@ void UMLDeformerModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)
 		return;
 	}
 
-	USkeletalMesh* SkelMesh = SkelMeshComponent->GetSkeletalMeshAsset();
-	if (SkelMesh)
+	if (Model->DoesSupportBones())
 	{
-		// Init the bone mapping table.
-		const UMLDeformerInputInfo* InputInfo = Model->GetInputInfo();
-		const int32 NumAssetBones = InputInfo->GetNumBones();
-		AssetBonesToSkelMeshMappings.Reset();
-		AssetBonesToSkelMeshMappings.AddUninitialized(NumAssetBones);
-		TrainingBoneTransforms.SetNumUninitialized(NumAssetBones);
-
-		// For each bone in the deformer asset, find the matching bone index inside the skeletal mesh component.
-		for (int32 Index = 0; Index < NumAssetBones; ++Index)
+		USkeletalMesh* SkelMesh = SkelMeshComponent->GetSkeletalMeshAsset();
+		if (SkelMesh)
 		{
-			const FName BoneName = InputInfo->GetBoneName(Index);
-			const int32 SkelMeshBoneIndex = SkeletalMeshComponent->GetBaseComponent()->GetBoneIndex(BoneName);
-			AssetBonesToSkelMeshMappings[Index] = SkelMeshBoneIndex;
+			// Init the bone mapping table.
+			const UMLDeformerInputInfo* InputInfo = Model->GetInputInfo();
+			const int32 NumAssetBones = InputInfo->GetNumBones();
+			AssetBonesToSkelMeshMappings.Reset();
+			AssetBonesToSkelMeshMappings.AddUninitialized(NumAssetBones);
+			TrainingBoneTransforms.SetNumUninitialized(NumAssetBones);
+
+			// For each bone in the deformer asset, find the matching bone index inside the skeletal mesh component.
+			for (int32 Index = 0; Index < NumAssetBones; ++Index)
+			{
+				const FName BoneName = InputInfo->GetBoneName(Index);
+				const int32 SkelMeshBoneIndex = SkeletalMeshComponent->GetBaseComponent()->GetBoneIndex(BoneName);
+				AssetBonesToSkelMeshMappings[Index] = SkelMeshBoneIndex;
+			}
 		}
 	}
 
@@ -234,8 +237,16 @@ int64 UMLDeformerModelInstance::SetNeuralNetworkInputValues(float* InputData, in
 
 	// Feed data to the network inputs.
 	int64 BufferOffset = 0;
-	BufferOffset = SetBoneTransforms(InputData, NumInputFloats, BufferOffset);
-	BufferOffset = SetCurveValues(InputData, NumInputFloats, BufferOffset);
+	if (Model->DoesSupportBones())
+	{
+		BufferOffset = SetBoneTransforms(InputData, NumInputFloats, BufferOffset);
+	}
+
+	if (Model->DoesSupportCurves())
+	{
+		BufferOffset = SetCurveValues(InputData, NumInputFloats, BufferOffset);
+	}
+
 	return BufferOffset;
 }
 

@@ -224,7 +224,7 @@ namespace UE::MLDeformer
 				} // If the track name matches the skeletal meshes internal mesh name.
 			} // For all meshes in the Skeletal Mesh.
 
-			if (!bFoundMatch)
+			if (Track && !bFoundMatch)
 			{
 				OutFailedImportedMeshNames.Add(Track->GetName());
 				UE_LOG(LogMLDeformer, Warning, TEXT("Geometry cache '%s' cannot be matched with a mesh inside the Skeletal Mesh."), *Track->GetName());

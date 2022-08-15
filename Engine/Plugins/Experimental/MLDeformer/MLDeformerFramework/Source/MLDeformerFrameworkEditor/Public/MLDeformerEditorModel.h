@@ -105,6 +105,7 @@ namespace UE::MLDeformer
 		virtual void OnPreTraining() {}
 		virtual void OnPostTraining(ETrainingResult TrainingResult, bool bUsePartiallyTrainedWhenAborted);
 		virtual void OnTrainingAborted(bool bUsePartiallyTrainedData) {}
+		virtual void OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) {}
 		virtual bool IsPlayingAnim() const;
 		virtual bool IsPlayingForward() const;
 		virtual double CalcTrainingTimelinePosition() const;
@@ -206,6 +207,7 @@ namespace UE::MLDeformer
 
 		void InitBoneIncludeListToAnimatedBonesOnly();
 		void InitCurveIncludeListToAnimatedCurvesOnly();
+		int32 GetNumCurvesOnSkeletalMesh(USkeletalMesh* SkelMesh) const;
 
 		UNeuralNetwork* LoadNeuralNetworkFromOnnx(const FString& Filename) const;
 		int32 GetCurrentTrainingFrame() const { return CurrentTrainingFrame; }
@@ -280,6 +282,9 @@ namespace UE::MLDeformer
 
 		/** The heatmap deformer graph. */
 		TObjectPtr<UMeshDeformer> HeatMapDeformerGraph = nullptr;
+
+		/** The delegate handle to the post edit property event. */
+		FDelegateHandle PostEditPropertyDelegateHandle;
 
 		/** The current training frame. */
 		int32 CurrentTrainingFrame = -1;

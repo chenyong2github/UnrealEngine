@@ -27,7 +27,7 @@ namespace UE::NeuralMorphModel
 
 	FNeuralMorphEditorModel::~FNeuralMorphEditorModel()
 	{
-		Model->OnPostEditChangeProperty().Unbind();
+		Model->OnPostEditChangeProperty().Remove(PostEditPropertyDelegateHandle);
 	}
 
 	FMLDeformerEditorModel* FNeuralMorphEditorModel::MakeInstance()
@@ -45,12 +45,6 @@ namespace UE::NeuralMorphModel
 		FMLDeformerGeomCacheSampler* NewSampler = new FMLDeformerGeomCacheSampler();
 		NewSampler->OnGetGeometryCache().BindLambda([this] { return GetNeuralMorphModel()->GetGeometryCache(); });
 		return NewSampler;
-	}
-
-	void FNeuralMorphEditorModel::Init(const InitSettings& InitSettings)
-	{
-		FMLDeformerEditorModel::Init(InitSettings);
-		Model->OnPostEditChangeProperty().BindRaw(this, &FNeuralMorphEditorModel::OnPostEditChangeProperty);
 	}
 
 	void FNeuralMorphEditorModel::OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

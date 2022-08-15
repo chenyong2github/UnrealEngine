@@ -26,8 +26,6 @@ namespace UE::LegacyVertexDeltaModel
 		: public UE::MLDeformer::FMLDeformerEditorModel
 	{
 	public:
-		virtual ~FLegacyVertexDeltaEditorModel() override;
-
 		// We need to implement this static MakeInstance method.
 		static FMLDeformerEditorModel* MakeInstance();
 
@@ -37,7 +35,6 @@ namespace UE::LegacyVertexDeltaModel
 		// ~END FGCObject overrides.
 	
 		// FMLDeformerEditorModel overrides.
-		virtual void Init(const InitSettings& Settings) override;
 		virtual FMLDeformerEditorActor* CreateEditorActor(const FMLDeformerEditorActor::FConstructSettings& Settings) const override;
 		virtual FMLDeformerSampler* CreateSampler() const;
 		virtual void CreateTrainingGroundTruthActor(UWorld* World) override;
@@ -52,7 +49,8 @@ namespace UE::LegacyVertexDeltaModel
 		virtual ETrainingResult Train() override;
 		virtual FString GetDefaultDeformerGraphAssetPath() const override;
 		virtual FString GetHeatMapDeformerGraphPath() const override;
-		FString GetTrainedNetworkOnnxFile() const override;
+		virtual FString GetTrainedNetworkOnnxFile() const override;
+		virtual void OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 		// ~END FMLDeformerEditorModel overrides.
 
 		// Some helpers that cast to this model's variants of some classes.
@@ -60,8 +58,6 @@ namespace UE::LegacyVertexDeltaModel
 		ULegacyVertexDeltaModelVizSettings* GetVertexDeltaModelVizSettings() const;
 		FLegacyVertexDeltaEditorModelActor* FindVertexDeltaModelEditorActor(int32 TypeID) const;
 		FMLDeformerGeomCacheSampler* GetGeomCacheSampler() const { return static_cast<FMLDeformerGeomCacheSampler*>(Sampler); }
-	
-		void OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
 
 	protected:
 		void CreateGeomCacheActor(UWorld* World, int32 ActorID, const FName& Name, UGeometryCache* GeomCache, FLinearColor LabelColor, FLinearColor WireframeColor, const FText& LabelText, bool bIsTrainingActor);

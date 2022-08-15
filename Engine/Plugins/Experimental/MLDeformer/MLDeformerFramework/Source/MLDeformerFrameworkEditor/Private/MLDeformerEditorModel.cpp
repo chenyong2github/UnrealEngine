@@ -39,6 +39,11 @@ namespace UE::MLDeformer
 {
 	FMLDeformerEditorModel::~FMLDeformerEditorModel()
 	{
+		if (PostEditPropertyDelegateHandle.IsValid())
+		{
+			Model->OnPostEditChangeProperty().Remove(PostEditPropertyDelegateHandle);
+		}
+
 		DeleteEditorActors();
 
 		FMLDeformerEditorModule& EditorModule = FModuleManager::GetModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
@@ -63,6 +68,8 @@ namespace UE::MLDeformer
 		ViewRange = TRange<double>(0.0, 100.0);
 		WorkingRange = TRange<double>(0.0, 100.0);
 		PlaybackRange = TRange<double>(0.0, 100.0);
+
+		PostEditPropertyDelegateHandle = Model->OnPostEditChangeProperty().AddRaw(this, &FMLDeformerEditorModel::OnPostEditChangeProperty);
 	}
 
 	void FMLDeformerEditorModel::UpdateEditorInputInfo()
@@ -607,7 +614,9 @@ namespace UE::MLDeformer
 		{
 			TriggerInputAssetChanged();
 		}
-		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, TrainingInputs))
+		else
+		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, bIncludeBones) ||
+			Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, bIncludeCurves))
 		{
 			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
 			{
@@ -621,6 +630,7 @@ namespace UE::MLDeformer
 			Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerModel, CurveIncludeList))
 		{
 			UpdateEditorInputInfo();
+			GetEditor()->GetModelDetailsView()->ForceRefresh();
 		}
 		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, AnimPlaySpeed))
 		{
@@ -883,13 +893,23 @@ namespace UE::MLDeformer
 	{
 		if (Model->SkeletalMesh && GetEditorInputInfo()->IsEmpty())
 		{
-			switch (Model->TrainingInputs)
+			FString ErrorString;
+			if (Model->DoesSupportBones() && Model->ShouldIncludeBonesInTraining())
 			{
-				case EMLDeformerTrainingInputFilter::BonesOnly:			return FText(LOCTEXT("InputsEmptyBonesErrorText", "Your base mesh has no bones to train on."));
-				case EMLDeformerTrainingInputFilter::CurvesOnly:		return FText(LOCTEXT("InputsEmptyCurvesErrorText", "Your base mesh has no curves to train on."));
-				case EMLDeformerTrainingInputFilter::BonesAndCurves:	return FText(LOCTEXT("InputsEmptyBonesCurvesErrorText", "Your base mesh has no bones or curves to train on."));
-				default: return FText(LOCTEXT("InputsEmptyDefaultErrorText", "There are no inputs to train on. There are no bones, curves or other inputs we can use."));
+				ErrorString += FText(LOCTEXT("InputsEmptyBonesErrorText", "Your base mesh has no bones to train on.\n")).ToString();
 			}
+			else
+			if (Model->DoesSupportCurves() && Model->ShouldIncludeCurvesInTraining())
+			{
+				ErrorString += FText(LOCTEXT("InputsEmptyCurvesErrorText", "Your base mesh has no curves to train on.\n")).ToString();
+			}
+			else
+			{
+				ErrorString += FText(LOCTEXT("InputsEmptyCurvesErrorText", "The training process needs inputs.\n")).ToString();
+			}
+
+			ErrorString.RemoveFromEnd("\n");
+			return FText::FromString(ErrorString);
 		}
 
 		return FText();
@@ -945,8 +965,8 @@ namespace UE::MLDeformer
 		InputInfo->SetNumBaseVertices(Model->GetNumBaseMeshVerts());
 		InputInfo->SetNumTargetVertices(Model->GetNumTargetMeshVerts());
 
-		const bool bIncludeBones = (Model->GetTrainingInputs() == EMLDeformerTrainingInputFilter::BonesAndCurves || Model->GetTrainingInputs() == EMLDeformerTrainingInputFilter::BonesOnly);
-		const bool bIncludeCurves = (Model->GetTrainingInputs() == EMLDeformerTrainingInputFilter::BonesAndCurves || Model->GetTrainingInputs() == EMLDeformerTrainingInputFilter::CurvesOnly);
+		const bool bIncludeBones = Model->DoesSupportBones() && Model->ShouldIncludeBonesInTraining();
+		const bool bIncludeCurves = Model->DoesSupportCurves() && Model->ShouldIncludeCurvesInTraining();
 		const USkeleton* Skeleton = Model->GetSkeletalMesh() ? Model->GetSkeletalMesh()->GetSkeleton() : nullptr;
 
 		// Handle bones.
@@ -1111,6 +1131,7 @@ namespace UE::MLDeformer
 			Model->BoneIncludeList.Empty();
 			UE_LOG(LogMLDeformer, Warning, TEXT("There are no animated bone rotations in Anim Sequence '%s'."), *(Model->AnimSequence->GetName()));
 		}
+		UpdateEditorInputInfo();
 	}
 
 	void FMLDeformerEditorModel::InitCurveIncludeListToAnimatedCurvesOnly()
@@ -1193,6 +1214,7 @@ namespace UE::MLDeformer
 			Model->CurveIncludeList.Empty();
 			UE_LOG(LogMLDeformer, Warning, TEXT("There are no animated curves in Anim Sequence '%s'."), *(Model->AnimSequence->GetName()));
 		}
+		UpdateEditorInputInfo();
 	}
 
 	void FMLDeformerEditorModel::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
@@ -1673,6 +1695,26 @@ namespace UE::MLDeformer
 				}
 			}
 		}
+	}
+
+	int32 FMLDeformerEditorModel::GetNumCurvesOnSkeletalMesh(USkeletalMesh* SkelMesh) const
+	{
+		if (SkelMesh)
+		{
+			const USkeleton* Skeleton = SkelMesh->GetSkeleton();
+			if (Skeleton)
+			{
+				const FSmartNameMapping* Mapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+				if (Mapping)
+				{
+					TArray<FName> SkeletonCurveNames;
+					Mapping->FillNameArray(SkeletonCurveNames);
+					return SkeletonCurveNames.Num();
+				}
+			}
+		}
+
+		return 0;
 	}
 
 	FString FMLDeformerEditorModel::GetHeatMapMaterialPath() const

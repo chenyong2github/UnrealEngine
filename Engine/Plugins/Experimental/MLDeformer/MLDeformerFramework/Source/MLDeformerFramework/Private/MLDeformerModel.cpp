@@ -140,6 +140,8 @@ USkeleton* UMLDeformerModel::GetSkeleton(bool& bInvalidSkeletonIsError, const IP
 
 void UMLDeformerModel::BeginDestroy()
 {
+	PostEditPropertyDelegate.RemoveAll(this);
+
 	BeginReleaseResource(&VertexMapBuffer);
 	RenderResourceDestroyFence.BeginFence();
 	Super::BeginDestroy();
@@ -184,7 +186,7 @@ void UMLDeformerModel::FloatArrayToVector3Array(const TArray<float>& FloatArray,
 			return;
 		}
 
-		OnPostEditChangeProperty().ExecuteIfBound(PropertyChangedEvent);
+		OnPostEditChangeProperty().Broadcast(PropertyChangedEvent);
 	}
 
 	void UMLDeformerModel::UpdateCachedNumVertices()
