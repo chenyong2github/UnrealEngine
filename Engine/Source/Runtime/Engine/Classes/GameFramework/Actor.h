@@ -2393,6 +2393,9 @@ public:
 	/** Similar to GetReferencedContentObjects, but for soft referenced objects */
 	virtual bool GetSoftReferencedContentObjects(TArray<FSoftObjectPath>& SoftObjects) const;
 
+	/** Used to allow actor classes to open an actor specific editor */
+	virtual bool OpenAssetEditor() { return false; }
+
 	/** Returns NumUncachedStaticLightingInteractions for this actor */
 	const int32 GetNumUncachedStaticLightingInteractions() const;
 

@@ -15,4 +15,5 @@ public:
 	virtual UClass* GetSupportedClass() const override { return AActor::StaticClass(); }
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::None; }
 	virtual FString GetObjectDisplayName(UObject* Object) const override { return CastChecked<AActor>(Object)->GetActorLabel(); }
+	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override;
 };

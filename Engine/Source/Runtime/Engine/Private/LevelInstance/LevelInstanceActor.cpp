@@ -250,6 +250,12 @@ bool ALevelInstance::IsLockLocation() const
 	return Super::IsLockLocation() || LevelInstanceActorImpl.IsLockLocation();
 }
 
+bool ALevelInstance::GetReferencedContentObjects(TArray<UObject*>& Objects) const
+{
+	Objects.Add(const_cast<ALevelInstance*>(this));
+	return true;
+}
+
 bool ALevelInstance::GetSoftReferencedContentObjects(TArray<FSoftObjectPath>& SoftObjects) const
 {
 	if (WorldAsset.ToSoftObjectPath().IsValid())
@@ -258,6 +264,11 @@ bool ALevelInstance::GetSoftReferencedContentObjects(TArray<FSoftObjectPath>& So
 		return true;
 	}
 	return false;
+}
+
+bool ALevelInstance::OpenAssetEditor()
+{
+	return CanEnterEdit() ? EnterEdit() : false;
 }
 
 FBox ALevelInstance::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
