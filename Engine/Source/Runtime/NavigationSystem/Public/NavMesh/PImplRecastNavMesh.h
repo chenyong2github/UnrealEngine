@@ -181,6 +181,8 @@ public:
 	bool GetClosestPointOnPoly(NavNodeRef PolyID, const FVector& TestPt, FVector& PointOnPoly) const;
 	/** Decode poly ID into tile index and poly index */
 	bool GetPolyTileIndex(NavNodeRef PolyID, uint32& PolyIndex, uint32& TileIndex) const;
+	/** Decode poly ID into FNavTileRef and poly index */
+	bool GetPolyTileRef(NavNodeRef PolyId, uint32& OutPolyIndex, FNavTileRef& OutTileRef) const;
 	/** Retrieves user ID for given offmesh link poly */
 	uint32 GetLinkUserId(NavNodeRef LinkPolyID) const;
 	/** Retrieves start and end point of offmesh link */

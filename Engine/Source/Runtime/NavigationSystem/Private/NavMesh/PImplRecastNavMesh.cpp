@@ -2381,6 +2381,22 @@ bool FPImplRecastNavMesh::GetPolyTileIndex(NavNodeRef PolyID, uint32& PolyIndex,
 	return false;
 }
 
+bool FPImplRecastNavMesh::GetPolyTileRef(NavNodeRef PolyId, uint32& OutPolyIndex, FNavTileRef& OutTileRef) const
+{
+	if (DetourNavMesh && PolyId)
+	{
+		// Similar to UE::NavMesh::Private::GetTileRefFromPolyRef
+		unsigned int Salt = 0;
+		unsigned int TileIndex = 0;
+		DetourNavMesh->decodePolyId(PolyId, Salt, TileIndex, OutPolyIndex);
+		const dtTileRef TileRef = DetourNavMesh->encodePolyId(Salt, TileIndex, 0);
+		OutTileRef = FNavTileRef(TileRef);
+		return true;
+	}
+
+	return false;
+}
+
 bool FPImplRecastNavMesh::GetClosestPointOnPoly(NavNodeRef PolyID, const FVector& TestPt, FVector& PointOnPoly) const
 {
 	if (DetourNavMesh && PolyID)
