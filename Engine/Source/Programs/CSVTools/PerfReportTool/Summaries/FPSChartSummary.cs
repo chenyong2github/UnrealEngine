@@ -259,6 +259,22 @@ namespace PerfSummaries
 					rowData.Add(SummaryTableElement.Type.SummaryTableMetric, columnName, column.Value, column.ColorThresholds);
 				}
 				rowData.Add(SummaryTableElement.Type.SummaryTableMetric, "TargetFPS", (double)fps);
+
+				// Write out gamethread histogram to the summary for 0.25x increments up to 2x
+				StatSamples gamethreadtimeStat = csvStats.GetStat("GameThreadtime");
+				if (gamethreadtimeStat != null)
+				{
+					float targetTimeInMS = 1000.0f / fps;
+					float redThreshold = 25.0f;
+					for (int i = 1; i <= 4; i++)
+					{
+						float targetTimeMultiplier = 1.0f + (0.25f * i);
+						float percentageOver = 100.0f * gamethreadtimeStat.GetRatioOfFramesOverBudget(targetTimeInMS * targetTimeMultiplier);
+						ColourThresholdList colorThresholdList = new ColourThresholdList(redThreshold, redThreshold * 0.66, redThreshold * 0.33, 0.0);
+
+						rowData.Add(SummaryTableElement.Type.SummaryTableMetric, "GT>" + targetTimeMultiplier + "x %", (double)percentageOver, colorThresholdList);
+					}
+				}
 			}
 
 			// Output HTML
