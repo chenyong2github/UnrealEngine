@@ -9,6 +9,7 @@
 #include "Interfaces/ISnapshotRestorabilityOverrider.h"
 #include "Interfaces/ICustomObjectSnapshotSerializer.h"
 #include "Interfaces/IActorSnapshotFilter.h"
+#include "Interfaces/ISnapshotFilterExtender.h"
 
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
@@ -98,6 +99,11 @@ namespace UE::LevelSnapshots
 		/** Registers an object that will receive callbacks when a snapshot is applied. */
 		virtual void RegisterRestorationListener(TSharedRef<IRestorationListener> Listener) = 0;
 		virtual void UnregisterRestorationListener(const TSharedRef<IRestorationListener>& Listener) = 0;
+
+
+		/** Registers an object that can decide to display additional properties to the user that default snapshot behaviour does not display. */
+		virtual void RegisterSnapshotFilterExtender(TSharedRef<ISnapshotFilterExtender> Extender) = 0;
+		virtual void UnregisterSnapshotFilterExtender(const TSharedRef<ISnapshotFilterExtender>& Listener) = 0;
 		
 		
 		/**

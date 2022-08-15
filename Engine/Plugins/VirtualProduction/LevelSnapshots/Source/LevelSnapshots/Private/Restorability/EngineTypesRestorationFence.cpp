@@ -3,6 +3,7 @@
 #include "EngineTypesRestorationFence.h"
 
 #include "ActorGroupRestoration.h"
+#include "AttachParentShowsTransformProperties.h"
 #include "Restorability/CollisionRestoration.h"
 #include "Restorability/GridPlacementRestoration.h"
 #include "SpecialActorPropertySupport.h"
@@ -114,5 +115,6 @@ namespace UE::LevelSnapshots::Private::EngineTypesRestorationFence
 		GridPlacementRestoration::Register(Module);
 		ActorGroupRestoration::Register(Module);
 		SpecialActorPropertySupport::Register(Module);
+		AttachParentShowsTransformPropertiesFix::Register(Module);
 	}
 }

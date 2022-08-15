@@ -160,7 +160,7 @@ void UE::LevelSnapshots::Private::FApplySnapshotToEditorArchive::ApplyToExisting
 	TOptional<FClassDataIndex> ClassIndex)
 {
 	const FPropertySelection* Selection = InSelectionMapForResolvingSubobjects.GetObjectSelection(InOriginalObject).GetPropertySelection();
-	if (Selection && Selection->IsEmpty())
+	if (!Selection || Selection->IsEmpty())
 	{
 		return;
 	}

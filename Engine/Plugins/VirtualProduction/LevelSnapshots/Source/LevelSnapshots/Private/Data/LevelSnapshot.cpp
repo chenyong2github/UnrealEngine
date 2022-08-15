@@ -268,7 +268,8 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorConsumer HandleMatchedActor,
 			const bool bWasRemovedFromWorld = ResolvedActor == nullptr || !AllActors.Contains(Cast<AActor>(ResolvedActor));
 			if (bWasRemovedFromWorld)
 			{
-				const UE::LevelSnapshots::FCanRecreateActorParams Params { World, ActorClass, OriginalActorPath, [this, &OriginalActorPath](){ return GetDeserializedActor(OriginalActorPath); } };
+				auto GetDeserializedActorFunc = [this, &OriginalActorPath](){ return GetDeserializedActor(OriginalActorPath); };
+				const UE::LevelSnapshots::FCanRecreateActorParams Params { World, ActorClass, OriginalActorPath, GetDeserializedActorFunc };
 				if (UE::LevelSnapshots::Restorability::ShouldConsiderRemovedActorForRecreation(Params))
 				{
 					HandleRemovedActor.Execute(OriginalActorPath);

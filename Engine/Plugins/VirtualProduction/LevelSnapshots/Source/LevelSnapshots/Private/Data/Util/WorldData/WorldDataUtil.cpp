@@ -455,6 +455,11 @@ namespace UE::LevelSnapshots::Private::Internal
 		// If it's not an actor nor component then it's possibly an UObjectRedirector
 		UActorComponent* AsComponent = Cast<UActorComponent>(FoundObject); // Unlikely
 		AActor* AsActor = AsComponent ? AsComponent->GetOwner() : Cast<AActor>(FoundObject);
+		if (!AsActor)
+		{
+			return false;
+		}
+		
 		const bool bShouldRename= AsActor != nullptr;
 		const bool bCanDestroy = IsValid(AsActor);
 		if (bCanDestroy)

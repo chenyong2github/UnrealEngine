@@ -623,16 +623,6 @@ const TArray<FLevelSnapshotsEditorResultsRowPtr>& FLevelSnapshotsEditorResultsRo
 	return ChildRows;
 }
 
-int32 FLevelSnapshotsEditorResultsRow::GetChildCount() const
-{
-	return ChildRows.Num();
-}
-
-void FLevelSnapshotsEditorResultsRow::SetChildRows(const TArray<FLevelSnapshotsEditorResultsRowPtr>& InChildRows)
-{
-	ChildRows = InChildRows;
-}
-
 void FLevelSnapshotsEditorResultsRow::AddToChildRows(const FLevelSnapshotsEditorResultsRowPtr& InRow)
 {
 	ChildRows.Add(InRow);

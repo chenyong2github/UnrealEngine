@@ -181,6 +181,7 @@ void UE::LevelSnapshots::Private::FApplySnapshotFilter::FilterActorPair(FPropert
 	
 	AnalyseRootProperties(ActorContext, DeserializedSnapshotActor, WorldActor);
 	const EFilterObjectPropertiesResult FilterResult = FindAndFilterCustomSubobjectPairs(MapToAddTo, DeserializedSnapshotActor, WorldActor);
+	ExtendAnalysedProperties(ActorContext, DeserializedSnapshotActor, WorldActor);
 	
 	ActorSelection.SetHasCustomSerializedSubobjects(FilterResult == EFilterObjectPropertiesResult::HasCustomSubobjects);
 	if (!ActorSelection.IsEmpty())
@@ -221,8 +222,9 @@ UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult UE::Lev
 	SubobjectSelection.SetHasCustomSerializedSubobjects(FilterResult == EFilterObjectPropertiesResult::HasCustomSubobjects);
 
 	// Non-component subobjects should always be added so when applying to world and resolving a subobject, we can tell whether it is referenced or just a dead object still existing in memory
-	const bool bAddedProperties = [&MapToAddTo, WorldSubobject, &SubobjectSelection]()
+	const bool bAddedProperties = [this, &MapToAddTo, &ComponentContext, SnapshotSubobject, WorldSubobject, &SubobjectSelection]()
 	{
+		ExtendAnalysedProperties(ComponentContext, SnapshotSubobject, WorldSubobject);
 		if (SubobjectSelection.IsEmpty())
 		{
 			// We don't track components because we can efficiently tell whether they're dead or not by asking the parent actor
@@ -319,7 +321,7 @@ UE::LevelSnapshots::Private::FApplySnapshotFilter::EFilterObjectPropertiesResult
 
 void UE::LevelSnapshots::Private::FApplySnapshotFilter::AnalyseRootProperties(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject)
 {
-	FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
+	FLevelSnapshotsModule& Module = FLevelSnapshotsModule::GetInternalModuleInstance();
 	const FPropertyComparerArray PropertyComparers = Module.GetPropertyComparerForClass(ContainerContext.RootClass);
 	
 	for (TFieldIterator<FProperty> FieldIt(ContainerContext.ContainerClass); FieldIt; ++FieldIt)
@@ -342,6 +344,34 @@ void UE::LevelSnapshots::Private::FApplySnapshotFilter::AnalyseRootProperties(FP
 		}
 		
 		AnalyseProperty(ContainerContext, *FieldIt, bSkipEqualityTest);
+	}
+}
+
+void UE::LevelSnapshots::Private::FApplySnapshotFilter::ExtendAnalysedProperties(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject)
+{
+	FLevelSnapshotsModule& Module = FLevelSnapshotsModule::GetInternalModuleInstance();
+
+	const FPostApplyFiltersResult FilterExtension = Module.PostApplyFilters({ ContainerContext.SelectionToAddTo, SnapshotObject, WorldObject });
+	for (const FLevelSnapshotPropertyChain& ToFilter : FilterExtension.AdditionalPropertiesToFilter)
+	{
+		TArray<FString> Path;
+		for (int32 i = 0; i < ToFilter.GetNumProperties(); ++i)
+		{
+			Path.Emplace(ToFilter.GetPropertyFromRoot(i)->GetAuthoredName());
+		}
+		
+		const bool bIsPropertyValid = EFilterResult::CanInclude(Filter->IsPropertyValid(
+			{ DeserializedSnapshotActor, WorldActor, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, ToFilter.GetPropertyFromRoot(ToFilter.GetNumProperties() - 1), Path }
+		));
+		if (bIsPropertyValid)
+		{
+			ContainerContext.SelectionToAddTo.AddProperty(ToFilter);
+		}
+	}
+
+	for (const FLevelSnapshotPropertyChain& ForceShow : FilterExtension.AdditionalPropertiesToForcefullyShow)
+	{
+		ContainerContext.SelectionToAddTo.AddProperty(ForceShow);
 	}
 }
 

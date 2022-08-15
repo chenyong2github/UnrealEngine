@@ -158,7 +158,7 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterCustomObjectS
 
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterGlobalActorFilter(TSharedRef<IActorSnapshotFilter> Filter)
 {
-	GlobalFilters.AddUnique(MoveTemp(Filter));
+	GlobalFilters.AddUnique(Filter);
 }
 
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterGlobalActorFilter(const TSharedRef<IActorSnapshotFilter>& Filter)
@@ -184,6 +184,16 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterRestorationList
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterRestorationListener(const TSharedRef<IRestorationListener>& Listener)
 {
 	RestorationListeners.RemoveSingle(Listener);
+}
+
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterSnapshotFilterExtender(TSharedRef<ISnapshotFilterExtender> Extender)
+{
+	FilterExtenders.AddUnique(Extender);
+}
+
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterSnapshotFilterExtender(const TSharedRef<ISnapshotFilterExtender>& Listener)
+{
+	FilterExtenders.RemoveSingle(Listener);
 }
 
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::AddExplicitilySupportedProperties(const TSet<const FProperty*>& Properties)
@@ -527,6 +537,16 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostRemoveComponent(c
 	{
 		Listener->PostRemoveComponent(Params);
 	}
+}
+
+UE::LevelSnapshots::FPostApplyFiltersResult UE::LevelSnapshots::Private::FLevelSnapshotsModule::PostApplyFilters(const FPostApplyFiltersParams& Params)
+{
+	FPostApplyFiltersResult Result;
+	for (const TSharedRef<ISnapshotFilterExtender>& Extender : FilterExtenders)
+	{
+		Result.Combine(Extender->PostApplyFilters(Params));
+	}
+	return Result;
 }
 
 IMPLEMENT_MODULE(UE::LevelSnapshots::Private::FLevelSnapshotsModule, LevelSnapshots)

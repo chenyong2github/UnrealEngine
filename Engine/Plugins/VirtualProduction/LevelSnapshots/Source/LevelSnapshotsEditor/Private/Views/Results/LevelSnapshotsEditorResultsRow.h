@@ -184,9 +184,6 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	
 	/* bHasGeneratedChildren must be true to get actual children. */
 	const TArray<FLevelSnapshotsEditorResultsRowPtr>& GetChildRows() const;
-	/* bHasGeneratedChildren must be true to get an accurate value. */
-	int32 GetChildCount() const;
-	void SetChildRows(const TArray<FLevelSnapshotsEditorResultsRowPtr>& InChildRows);
 	void AddToChildRows(const FLevelSnapshotsEditorResultsRowPtr& InRow);
 	void InsertChildRowAtIndex(const FLevelSnapshotsEditorResultsRowPtr& InRow, const int32 AtIndex = 0);
 
