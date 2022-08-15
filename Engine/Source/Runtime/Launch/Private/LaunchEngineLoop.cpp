@@ -1429,7 +1429,8 @@ static void UpdateCoreCsvStats_EndFrame()
 	    CSV_CUSTOM_STAT_GLOBAL(RenderThreadTime, FPlatformTime::ToMilliseconds(GRenderThreadTime), ECsvCustomStatOp::Set);
 	    CSV_CUSTOM_STAT_GLOBAL(GameThreadTime, FPlatformTime::ToMilliseconds(GGameThreadTime), ECsvCustomStatOp::Set);
 	    CSV_CUSTOM_STAT_GLOBAL(GPUTime, FPlatformTime::ToMilliseconds(GGPUFrameTime), ECsvCustomStatOp::Set);
-	    if (IsRunningRHIInSeparateThread())
+		CSV_CUSTOM_STAT_GLOBAL(RenderThreadTime_CriticalPath, FPlatformTime::ToMilliseconds(GRenderThreadTimeCriticalPath), ECsvCustomStatOp::Set);
+		if (IsRunningRHIInSeparateThread())
 	    {
 		    CSV_CUSTOM_STAT_GLOBAL(RHIThreadTime, FPlatformTime::ToMilliseconds(GRHIThreadTime), ECsvCustomStatOp::Set);
 	    }
@@ -5012,6 +5013,9 @@ static inline void BeginFrameRenderThread(FRHICommandListImmediate& RHICmdList, 
 #if CSV_PROFILER
 	FCsvProfiler::BeginExclusiveStat("RenderThreadOther");
 #endif
+
+	// Waits after this point but before BeginRenderingViewFamilies are not on the RT critical path (since we're waiting for the GT)
+	FThreadIdleStats::EndCriticalPath();
 }
 
 

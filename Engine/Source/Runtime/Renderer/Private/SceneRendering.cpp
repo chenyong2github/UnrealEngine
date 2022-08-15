@@ -4551,6 +4551,13 @@ void FRendererModule::BeginRenderingViewFamilies(FCanvas* Canvas, TArrayView<FSc
 		}
 	}
 
+	ENQUEUE_RENDER_COMMAND(SetRtWaitCriticalPath)(
+		[](FRHICommandList& RHICmdList)
+		{
+			// Rendering is up and running now, so waits are considered part of the RT critical path
+			FThreadIdleStats::BeginCriticalPath();
+		});
+
 	ENQUEUE_RENDER_COMMAND(UpdateDeferredCachedUniformExpressions)(
 		[](FRHICommandList& RHICmdList)
 		{

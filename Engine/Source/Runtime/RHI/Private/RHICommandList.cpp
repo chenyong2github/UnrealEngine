@@ -1033,6 +1033,9 @@ void FRHICommandListImmediate::QueueAsyncCompute(FRHIComputeCommandList& RHIComp
 	
 void FRHICommandListExecutor::WaitOnRHIThreadFence(FGraphEventRef& Fence)
 {
+	// Exclude RHIT waits from the RT critical path stat (these waits simply get longer if the RT is running faster, so we don't get useful results)
+	FThreadIdleStats::FScopeNonCriticalPath NonCriticalPathScope;
+
 	check(IsInRenderingThread());
 	if (Fence.GetReference() && !Fence->IsComplete())
 	{
@@ -1943,6 +1946,9 @@ FScopedCommandListWaitForTasks::~FScopedCommandListWaitForTasks()
 DECLARE_CYCLE_STAT(TEXT("Explicit wait for dispatch"), STAT_ExplicitWaitDispatch, STATGROUP_RHICMDLIST);
 void FRHICommandListBase::WaitForDispatch()
 {
+	// Exclude RHIT waits from the RT critical path stat (these waits simply get longer if the RT is running faster, so we don't get useful results)
+	FThreadIdleStats::FScopeNonCriticalPath NonCriticalPathScope;
+
 	check(IsImmediate() && IsInRenderingThread());
 	check(!AllOutstandingTasks.Num()); // dispatch before you get here
 	if (RenderThreadSublistDispatchTask.GetReference() && RenderThreadSublistDispatchTask->IsComplete())
@@ -2103,6 +2109,9 @@ void FRHICommandListImmediate::UnStallRHIThread()
 
 void FRHICommandListBase::WaitForRHIThreadTasks()
 {
+	// Exclude RHIT waits from the RT critical path stat (these waits simply get longer if the RT is running faster, so we don't get useful results)
+	FThreadIdleStats::FScopeNonCriticalPath NonCriticalPathScope;
+
 	check(IsImmediate() && IsInRenderingThread());
 	bool bAsyncSubmit = CVarRHICmdAsyncRHIThreadDispatch.GetValueOnRenderThread() > 0;
 	ENamedThreads::Type RenderThread_Local = ENamedThreads::GetRenderThread_Local();

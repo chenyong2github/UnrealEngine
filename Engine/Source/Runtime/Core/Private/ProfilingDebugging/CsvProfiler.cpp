@@ -25,6 +25,7 @@
 #include "HAL/Runnable.h"
 #include "Misc/EngineVersion.h"
 #include "Stats/Stats.h"
+#include "Stats/Stats2.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/Compression.h"
 #include "Misc/ConfigCacheIni.h"
@@ -3362,7 +3363,14 @@ void FCsvProfiler::BeginWait()
 #if CSV_PROFILER_SUPPORT_NAMED_EVENTS
 			if (UNLIKELY(GCsvProfilerNamedEventsExclusive))
 			{
-				CSV_PROFILER_BeginNamedEvent(FColor(255, 128, 128), "CsvEventWait");
+				if ( FThreadIdleStats::Get().IsCriticalPath() )
+				{
+					CSV_PROFILER_BeginNamedEvent(FColor(192, 96, 96), "CsvEventWait");
+				}
+				else
+				{
+					CSV_PROFILER_BeginNamedEvent(FColor(255, 128, 128), "CsvEventWait (Non-CP)");
+				}
 			}
 #endif
 			FCsvProfilerThreadData::Get().AddTimestampExclusiveBegin(WaitStatName);

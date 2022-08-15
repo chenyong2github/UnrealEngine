@@ -55,12 +55,55 @@ class CORE_API FThreadIdleStats : public TThreadSingleton<FThreadIdleStats>
 
 	FThreadIdleStats()
 		: Waits(0)
+		, WaitsCriticalPath(0)
+		, IsCriticalPathCounter(1)
 	{}
 
 public:
 
 	/** Total cycles we waited for sleep or event. **/
 	uint32 Waits;
+
+	/** Total cycles we waited for sleep or event on the critical path. **/
+	uint32 WaitsCriticalPath;
+
+	int IsCriticalPathCounter;
+
+	static void BeginCriticalPath()
+	{
+		FThreadIdleStats::Get().IsCriticalPathCounter++;
+	}
+
+	static void EndCriticalPath()
+	{
+		FThreadIdleStats::Get().IsCriticalPathCounter--;
+	}
+
+	struct FScopeNonCriticalPath
+	{
+		FScopeNonCriticalPath()
+		{
+			FThreadIdleStats::Get().IsCriticalPathCounter--;
+		}
+		~FScopeNonCriticalPath()
+		{
+			FThreadIdleStats::Get().IsCriticalPathCounter++;
+		}
+	};
+
+	bool IsCriticalPath() const 
+	{
+		return IsCriticalPathCounter > 0;
+	}
+
+	void Reset()
+	{
+		Waits = 0;
+		WaitsCriticalPath = 0;
+		IsCriticalPathCounter = 1;
+	}
+
+
 
 	struct FScopeIdle
 	{
@@ -87,7 +130,14 @@ public:
 		{
 			if( !bIgnore )
 			{
-				FThreadIdleStats::Get().Waits += FPlatformTime::Cycles() - Start;
+				FThreadIdleStats& IdleStats = FThreadIdleStats::Get();
+				uint32 CyclesElapsed = FPlatformTime::Cycles() - Start;
+				IdleStats.Waits += CyclesElapsed;
+
+				if (IdleStats.IsCriticalPath())
+				{
+					IdleStats.WaitsCriticalPath += CyclesElapsed;
+				}
 			}
 		}
 #endif

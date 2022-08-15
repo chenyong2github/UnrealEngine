@@ -1642,7 +1642,7 @@ void FViewport::Draw( bool bShouldPresent /*= true */)
 
 						LastFrameUpdated = GFrameCounter;
 						Lastimestamp		= CurrentTime;
-						GameThread.Waits = 0;
+						GameThread.Reset();
 					}
 				}
 

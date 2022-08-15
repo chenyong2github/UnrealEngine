@@ -40,6 +40,10 @@ DECLARE_CYCLE_STAT(TEXT("Slate RT: Rendering"), STAT_SlateRenderingRTTime, STATG
 
 DECLARE_CYCLE_STAT(TEXT("Slate RT: Draw Batches"), STAT_SlateRTDrawBatches, STATGROUP_Slate);
 
+DECLARE_CYCLE_STAT(TEXT("Total Render Thread time including dependent waits"), STAT_RenderThreadCriticalPath, STATGROUP_Threading);
+
+CSV_DEFINE_CATEGORY(RenderThreadIdle, true);
+
 DECLARE_GPU_DRAWCALL_STAT_NAMED(SlateUI, TEXT("Slate UI"));
 
 // Defines the maximum size that a slate viewport will create
@@ -88,6 +92,15 @@ TAutoConsoleVariable<int32> CVarShowSlateBatching(
 	ECVF_Default
 );
 #endif
+
+// RT stat including waits toggle. Off by default for historical tracking reasons
+TAutoConsoleVariable<int32> CVarRenderThreadTimeIncludesDependentWaits(
+	TEXT("r.RenderThreadTimeIncludesDependentWaits"),
+	0,
+	TEXT("0: RT stat only includes non-idle time, 1: RT stat includes dependent waits (matching RenderThreadTime_CriticalPath)"),
+	ECVF_Default
+);
+
 
 struct FSlateDrawWindowCommandParams
 {
@@ -1371,11 +1384,17 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 	GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForAllOtherSleep] = RenderThread.Waits;
 	GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUPresent] += GSwapBufferTime;
 	GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUPresent]++;
-	RenderThread.Waits = 0;
 
 	SET_CYCLE_COUNTER(STAT_RenderingIdleTime_RenderThreadSleepTime, GRenderThreadIdle[0]);
 	SET_CYCLE_COUNTER(STAT_RenderingIdleTime_WaitingForGPUQuery, GRenderThreadIdle[1]);
 	SET_CYCLE_COUNTER(STAT_RenderingIdleTime_WaitingForGPUPresent, GRenderThreadIdle[2]);
+
+	// Set the RenderThreadIdle CSV stats
+	CSV_CUSTOM_STAT(RenderThreadIdle, Total, FPlatformTime::ToMilliseconds(RenderThread.Waits), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(RenderThreadIdle, CriticalPath, FPlatformTime::ToMilliseconds(RenderThread.WaitsCriticalPath), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(RenderThreadIdle, SwapBuffer, FPlatformTime::ToMilliseconds(GSwapBufferTime), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(RenderThreadIdle, NonCriticalPath, FPlatformTime::ToMilliseconds(RenderThread.Waits - RenderThread.WaitsCriticalPath), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(RenderThreadIdle, GPUQuery, FPlatformTime::ToMilliseconds(GRenderThreadIdle[1]), ECsvCustomStatOp::Set);
 
 	for (int32 Index = 0; Index < ERenderThreadIdleTypes::Num; Index++)
 	{
@@ -1386,6 +1405,21 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 	SET_CYCLE_COUNTER(STAT_RenderingIdleTime, RenderThreadIdle);
 	GRenderThreadTime = (ThreadTime > RenderThreadIdle) ? (ThreadTime - RenderThreadIdle) : ThreadTime;
+
+	// Compute GRenderThreadTimeCriticalPath
+	uint32 RenderThreadNonCriticalPathIdle = RenderThreadIdle - RenderThread.WaitsCriticalPath;
+	GRenderThreadTimeCriticalPath = (ThreadTime > RenderThreadNonCriticalPathIdle) ? (ThreadTime - RenderThreadNonCriticalPathIdle) : ThreadTime;
+	SET_CYCLE_COUNTER(STAT_RenderThreadCriticalPath, GRenderThreadTimeCriticalPath);
+
+
+	if (CVarRenderThreadTimeIncludesDependentWaits.GetValueOnRenderThread())
+	{
+		// Optionally force the renderthread stat to include dependent waits
+		GRenderThreadTime = GRenderThreadTimeCriticalPath;
+	}
+
+	// Reset the idle stats
+	RenderThread.Reset();
 	
 	if (IsRunningRHIInSeparateThread())
 	{

@@ -295,6 +295,8 @@ uint32 GRenderThreadNumIdle[ERenderThreadIdleTypes::Num] = {0};
 uint32 GRenderThreadTime = 0;
 /** How many cycles the rhithread used (excluding idle time). */
 uint32 GRHIThreadTime = 0;
+/** How many cycles the renderthread used, including dependent wait time. */
+uint32 GRenderThreadTimeCriticalPath = 0;
 
 
 
