@@ -277,7 +277,7 @@ namespace UnrealBuildTool
 			// so now validate it
 			if (!string.IsNullOrEmpty(CandidateProjectPath))
 			{
-				FileReference? CandidateProjectFile = new FileReference(CandidateProjectPath);
+				FileReference? CandidateProjectFile = FileReference.FindCorrectCase(new FileReference(CandidateProjectPath));
 
 				// if the path doesn't exist then check native paths (ueprojectdirs)
 				if (!FileReference.Exists(CandidateProjectFile))
