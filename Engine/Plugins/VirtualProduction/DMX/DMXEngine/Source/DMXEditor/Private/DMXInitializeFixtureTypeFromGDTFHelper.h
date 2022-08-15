@@ -34,8 +34,8 @@ private:
 	/** Generates a Mode from specified Nodes. Returns true on success. */
 	bool GenerateMode(const FXmlNode& InFixtureTypeNode, const FXmlNode& InDMXModeNode, FDMXFixtureMode& OutMode) const;
 
-	/** Gets the properties of the channel node, as a fixture function. Does not set the starting channel. */
-	bool GetChannelPropertiesWithoutStartingChannel(const FXmlNode& DMXChannelNode, FDMXFixtureFunction& OutFunction) const;
+	/** Makes sure the mode can be used by the engine */
+	void CleanupMode(FDMXFixtureMode& InOutMode) const;
 
 	/** Makes sure that attributes are replaced with attributes specified in protocol settings where possible */
 	void CleanupAttributes(UDMXEntityFixtureType& InOutFixtureType) const;
