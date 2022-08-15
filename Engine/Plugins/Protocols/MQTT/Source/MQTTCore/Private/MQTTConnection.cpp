@@ -99,8 +99,8 @@ TSharedPtr<FMQTTConnection, ESPMode::ThreadSafe> FMQTTConnection::TryCreate(cons
 	
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 	FSocket* Socket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("MQTTConnection"), FNetworkProtocolTypes::IPv4);
-	Socket->SetReuseAddr(true);
 	check(Socket);
+	Socket->SetReuseAddr(true);
 
 	if (!Socket)
 	{
@@ -253,11 +253,8 @@ bool FMQTTConnection::UpdateConnection()
 
 void FMQTTConnection::ProcessMessages()
 {
-	UE_LOG(LogMQTTCore, Verbose, TEXT("BEEP: %s"), MQTT::GetMQTTStateName(GetState()));
-
 	if(GetState() == EMQTTState::Stopping)
 	{
-		UE_LOG(LogMQTTCore, Verbose, TEXT("BEEP was stopped."));
 		return;
 	}
 	
@@ -398,7 +395,7 @@ void FMQTTConnection::ProcessMessages()
 	}
 
 	// Wait until something to do
-	if (!Socket->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromSeconds(0.1f)))
+	if (Socket && !Socket->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromSeconds(0.1f)))
 	{
 		return;
 	}
@@ -433,8 +430,6 @@ void FMQTTConnection::ProcessMessages()
 			}
 		}
 	}
-
-	UE_LOG(LogMQTTCore, Verbose, TEXT("BOOP"));
 }
 
 void FMQTTConnection::OpenSocket()

@@ -24,7 +24,7 @@ public:
 	void Initialize(const TSharedPtr<FMQTTSubscription, ESPMode::ThreadSafe>& InSubscription);
 
 	UFUNCTION(BlueprintCallable, Category = "MQTT")
-	virtual void SetOnMessageHandler(const FOnMessageDelegate& OnMessageCallback);
+	void SetOnMessageHandler(const FOnMessageDelegate& OnMessageCallback);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MQTT")
 	bool IsValid() const { return MqttSubscriptionPtr.IsValid(); }
