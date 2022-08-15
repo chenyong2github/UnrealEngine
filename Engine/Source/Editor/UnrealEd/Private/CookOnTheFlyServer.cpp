@@ -10403,6 +10403,14 @@ uint32 UCookOnTheFlyServer::CookFullLoadAndSave()
 			}
 
 			FAssetCompilingManager::Get().ProcessAsyncTasks(true);
+			double CurrentTime = FPlatformTime::Seconds();
+			if (LastCookableObjectTickTime + TickCookableObjectsFrameTime <= CurrentTime)
+			{
+				UE_SCOPED_COOKTIMER(TickCookableObjects);
+				FTickableCookObject::TickObjects(CurrentTime - LastCookableObjectTickTime, false /* bTickComplete */);
+				LastCookableObjectTickTime = CurrentTime;
+			}
+
 			FPlatformProcess::Sleep(0.001f);
 		}
 
