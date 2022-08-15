@@ -116,7 +116,7 @@ namespace Audio
 		const FQuat GetListenerRotationForVoice() const;
 
 		// Sets the submix send levels
-		void SetSubmixSendInfo(FMixerSubmixWeakPtr Submix, const float SendLevel);
+		void SetSubmixSendInfo(FMixerSubmixWeakPtr Submix, const float SendLevel, const EMixerSourceSubmixSendStage SendStage = EMixerSourceSubmixSendStage::PostDistanceAttenuation);
 
 		// Clears the submix send to the given submix
 		void ClearSubmixSendInfo(FMixerSubmixWeakPtr Submix);

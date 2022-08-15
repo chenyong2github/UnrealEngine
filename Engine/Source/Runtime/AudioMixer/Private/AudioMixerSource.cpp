@@ -43,6 +43,21 @@ static FAutoConsoleCommand GSetAudioMixerSourceFadeMin(
 
 namespace Audio
 {
+	namespace MixerSourcePrivate
+	{
+		EMixerSourceSubmixSendStage SubmixSendStageToMixerSourceSubmixSendStage(ESubmixSendStage InSendStage)
+		{
+			switch(InSendStage)
+			{
+				case ESubmixSendStage::PreDistanceAttenuation:
+					return EMixerSourceSubmixSendStage::PreDistanceAttenuation;
+
+				case ESubmixSendStage::PostDistanceAttenuation:
+				default:
+					return EMixerSourceSubmixSendStage::PostDistanceAttenuation;
+			}
+		}
+	}
 	namespace ModulationUtils
 	{
 		static const FSoundModulationDestinationSettings DefaultDestination;
@@ -1488,8 +1503,9 @@ namespace Audio
 					}
 				}
 
-				// set the level for this send
-				MixerSourceVoice->SetSubmixSendInfo(SubmixInstance, SendLevel);
+				// set the level and stage for this send
+				EMixerSourceSubmixSendStage SendStage = MixerSourcePrivate::SubmixSendStageToMixerSourceSubmixSendStage(SendInfo.SendStage);
+				MixerSourceVoice->SetSubmixSendInfo(SubmixInstance, SendLevel, SendStage);
 			}
 		}
  		

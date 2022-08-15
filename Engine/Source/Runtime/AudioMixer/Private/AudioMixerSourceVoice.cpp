@@ -330,7 +330,7 @@ namespace Audio
 		return SourceManager->GetListenerRotation(SourceId);
 	}
 
-	void FMixerSourceVoice::SetSubmixSendInfo(FMixerSubmixWeakPtr Submix, const float SendLevel)
+	void FMixerSourceVoice::SetSubmixSendInfo(FMixerSubmixWeakPtr Submix, const float SendLevel, const EMixerSourceSubmixSendStage SendStage/* = EMixerSourceSubmixSendStage::PostDistanceAttenuation*/)
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
 
@@ -345,12 +345,15 @@ namespace Audio
 				NewSubmixSend.Submix = Submix;
 				NewSubmixSend.SendLevel = SendLevel;
 				NewSubmixSend.bIsMainSend = false;
+				NewSubmixSend.SubmixSendStage = SendStage;
+
 				SubmixSends.Add(SubmixPtr->GetId(), NewSubmixSend);
 				SourceManager->SetSubmixSendInfo(SourceId, NewSubmixSend);
 			}
-			else if (!FMath::IsNearlyEqual(SubmixSend->SendLevel, SendLevel))
+			else if (!FMath::IsNearlyEqual(SubmixSend->SendLevel, SendLevel) || SubmixSend->SubmixSendStage != SendStage)
 			{
 				SubmixSend->SendLevel = SendLevel;
+				SubmixSend->SubmixSendStage = SendStage;
 				SourceManager->SetSubmixSendInfo(SourceId, *SubmixSend);
 			}
 		}
