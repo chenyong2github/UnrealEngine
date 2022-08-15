@@ -2,7 +2,7 @@
 #include "NiagaraDataInterfaceGrid2DCollection.h"
 #include "NiagaraBatchedElements.h"
 #include "NiagaraConstants.h"
-#include "NiagaraGpuComputeDebug.h"
+#include "NiagaraGpuComputeDebugInterface.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraSettings.h"
@@ -2624,17 +2624,15 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostSimulate(const FNDIGpu
 #if NIAGARA_COMPUTEDEBUG_ENABLED && WITH_EDITORONLY_DATA
 	if (ProxyData->bPreviewGrid && ProxyData->CurrentData && ProxyData->CurrentData->IsValid())
 	{
-		if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.GetComputeDispatchInterface().GetGpuComputeDebug())
+		FNiagaraGpuComputeDebugInterface GpuComputeDebugInterface = Context.GetComputeDispatchInterface().GetGpuComputeDebugInterface();
+		FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+		if (ProxyData->PreviewAttribute[0] != INDEX_NONE)
 		{
-			FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
-			if (ProxyData->PreviewAttribute[0] != INDEX_NONE)
-			{
-				GpuComputeDebug->AddAttributeTexture(GraphBuilder, Context.GetSystemInstanceID(), SourceDIName, ProxyData->CurrentData->GetOrCreateTexture(GraphBuilder), FIntPoint::ZeroValue, ProxyData->PreviewAttribute);
-			}
-			else
-			{
-				GpuComputeDebug->AddTexture(GraphBuilder, Context.GetSystemInstanceID(), SourceDIName, ProxyData->CurrentData->GetOrCreateTexture(GraphBuilder));
-			}
+			GpuComputeDebugInterface.AddAttributeTexture(GraphBuilder, Context.GetSystemInstanceID(), SourceDIName, ProxyData->CurrentData->GetOrCreateTexture(GraphBuilder), FIntPoint::ZeroValue, ProxyData->PreviewAttribute);
+		}
+		else
+		{
+			GpuComputeDebugInterface.AddTexture(GraphBuilder, Context.GetSystemInstanceID(), SourceDIName, ProxyData->CurrentData->GetOrCreateTexture(GraphBuilder));
 		}
 	}
 #endif

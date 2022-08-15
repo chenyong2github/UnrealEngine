@@ -12,9 +12,6 @@
 #include "NiagaraConstants.h"
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraShaderParametersBuilder.h"
-#if WITH_EDITOR
-#include "NiagaraGpuComputeDebug.h"
-#endif
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceVolumeCache"
 

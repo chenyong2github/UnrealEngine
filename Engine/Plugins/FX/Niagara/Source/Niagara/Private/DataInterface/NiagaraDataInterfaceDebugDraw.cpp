@@ -3107,7 +3107,7 @@ bool UNiagaraDataInterfaceDebugDraw::InitPerInstanceData(void* PerInstanceData, 
 		{
 			check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(RT_InstanceID));
 			FNDIDebugDrawInstanceData_RenderThread* RT_InstanceData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(RT_InstanceID);
-			RT_InstanceData->GpuComputeDebug = RT_ComputeDispatchInterface->GetGpuComputeDebug();
+			RT_InstanceData->GpuComputeDebug = RT_ComputeDispatchInterface->GetGpuComputeDebugPrivate();
 			RT_InstanceData->OverrideMaxLineInstances = RT_OverrideMaxLineInstances;
 		}
 	);

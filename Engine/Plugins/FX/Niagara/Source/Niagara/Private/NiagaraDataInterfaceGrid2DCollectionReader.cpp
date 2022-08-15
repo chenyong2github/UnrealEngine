@@ -10,9 +10,6 @@
 #include "NiagaraSettings.h"
 #include "NiagaraConstants.h"
 #include "NiagaraComputeExecutionContext.h"
-#if WITH_EDITOR
-#include "NiagaraGpuComputeDebug.h"
-#endif
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceGrid2DCollectionReader"
 

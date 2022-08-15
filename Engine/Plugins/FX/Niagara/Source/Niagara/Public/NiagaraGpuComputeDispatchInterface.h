@@ -13,6 +13,7 @@ class FRDGExternalAccessQueue;
 class FNiagaraAsyncGpuTraceHelper;
 struct FNiagaraComputeExecutionContext;
 class FNiagaraGpuComputeDebug;
+class FNiagaraGpuComputeDebugInterface;
 class FNiagaraGPUInstanceCountManager;
 class FNiagaraGpuReadbackManager;
 class FNiagaraRayTracingHelper;
@@ -56,8 +57,11 @@ public:
 	FORCEINLINE const FNiagaraGPUInstanceCountManager& GetGPUInstanceCounterManager() const { check(IsInRenderingThread()); return GPUInstanceCounterManager; }
 
 #if NIAGARA_COMPUTEDEBUG_ENABLED
-	/** Get access to Niagara's GpuComputeDebug */
-	FNiagaraGpuComputeDebug* GetGpuComputeDebug() const { return GpuComputeDebugPtr.Get(); }
+	/** Public interface to Niagara compute debugging. */
+	FNiagaraGpuComputeDebugInterface GetGpuComputeDebugInterface() const;
+
+	/** Get access to Niagara's GpuComputeDebug this is for internal use */
+	FNiagaraGpuComputeDebug* GetGpuComputeDebugPrivate() const { return GpuComputeDebugPtr.Get(); }
 #endif
 
 #if WITH_NIAGARA_GPU_PROFILER

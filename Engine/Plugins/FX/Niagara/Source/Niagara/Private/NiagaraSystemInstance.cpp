@@ -575,7 +575,7 @@ void FNiagaraSystemInstance::SetGpuComputeDebug(bool bEnableDebug)
 		(
 			[RT_ComputeDispatchInterface=ComputeDispatchInterface, RT_InstanceID=GetId(), RT_SystemName=SystemName](FRHICommandListImmediate& RHICmdList)
 			{
-				if (FNiagaraGpuComputeDebug* GpuComputeDebug = RT_ComputeDispatchInterface->GetGpuComputeDebug())
+				if (FNiagaraGpuComputeDebug* GpuComputeDebug = RT_ComputeDispatchInterface->GetGpuComputeDebugPrivate())
 				{
 					GpuComputeDebug->AddSystemInstance(RT_InstanceID, RT_SystemName);
 				}
@@ -588,7 +588,7 @@ void FNiagaraSystemInstance::SetGpuComputeDebug(bool bEnableDebug)
 		(
 			[RT_ComputeDispatchInterface=ComputeDispatchInterface, RT_InstanceID=GetId()](FRHICommandListImmediate& RHICmdList)
 			{
-				if (FNiagaraGpuComputeDebug* GpuComputeDebug = RT_ComputeDispatchInterface->GetGpuComputeDebug())
+				if (FNiagaraGpuComputeDebug* GpuComputeDebug = RT_ComputeDispatchInterface->GetGpuComputeDebugPrivate())
 				{
 					GpuComputeDebug->RemoveSystemInstance(RT_InstanceID);
 				}

@@ -1641,7 +1641,7 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 
 	GpuReadbackManagerPtr->Tick();
 #if NIAGARA_COMPUTEDEBUG_ENABLED
-	if ( FNiagaraGpuComputeDebug* GpuComputeDebug = GetGpuComputeDebug() )
+	if ( FNiagaraGpuComputeDebug* GpuComputeDebug = GpuComputeDebugPtr.Get() )
 	{
 		GpuComputeDebug->Tick(GraphBuilder);
 	}

@@ -3,6 +3,7 @@
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraGpuComputeDebug.h"
+#include "NiagaraGpuComputeDebugInterface.h"
 #include "NiagaraGpuReadbackManager.h"
 
 #include "Engine/World.h"
@@ -36,6 +37,13 @@ FNiagaraGpuComputeDispatchInterface* FNiagaraGpuComputeDispatchInterface::Get(FF
 {
 	return FXSceneInterface ? static_cast<FNiagaraGpuComputeDispatchInterface*>(FXSceneInterface->GetInterface(FNiagaraGpuComputeDispatch::Name)) : nullptr;
 }
+
+#if NIAGARA_COMPUTEDEBUG_ENABLED
+FNiagaraGpuComputeDebugInterface FNiagaraGpuComputeDispatchInterface::GetGpuComputeDebugInterface() const
+{
+	return FNiagaraGpuComputeDebugInterface(GpuComputeDebugPtr.Get());
+}
+#endif
 
 FRDGTextureRef FNiagaraGpuComputeDispatchInterface::GetBlackTexture(FRDGBuilder& GraphBuilder, ETextureDimension TextureDimension) const
 {
