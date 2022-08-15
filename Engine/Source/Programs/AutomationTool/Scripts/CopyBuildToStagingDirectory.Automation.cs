@@ -3085,7 +3085,7 @@ namespace AutomationScripts
 					}
 				}
 
-				List<OrderFile> FinalOrderFiles = OrderFiles.FindAll(x => (x.OrderType != OrderFile.OrderFileType.Cooker));
+				List<OrderFile> FinalOrderFiles = OrderFiles.FindAll(x => (x.OrderType != OrderFile.OrderFileType.Cooker && x.OrderType != OrderFile.OrderFileType.Editor));
 				if (bUseSecondaryOrder && OrderFiles.Count >= 1)
 				{
 					FinalOrderFiles.AddRange(OrderFiles.FindAll(x => x.OrderType == OrderFile.OrderFileType.Cooker));
