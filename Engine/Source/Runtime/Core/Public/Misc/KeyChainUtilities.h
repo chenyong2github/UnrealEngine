@@ -53,6 +53,7 @@ public:
 		
 		Other.SetSigningKey(InvalidRSAKeyHandle);
 		Other.SetPrincipalEncryptionKey(nullptr);
+		Other.SetEncryptionKeys(TMap<FGuid, FNamedAESKey>());
 	}
 
 	FKeyChain& operator=(const FKeyChain& Other)
@@ -88,6 +89,7 @@ public:
 
 		Other.SetSigningKey(InvalidRSAKeyHandle);
 		Other.SetPrincipalEncryptionKey(nullptr);
+		Other.SetEncryptionKeys(TMap<FGuid, FNamedAESKey>());
 
 		return *this;
 	}
