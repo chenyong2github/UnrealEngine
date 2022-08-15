@@ -359,11 +359,12 @@ void PackStrataOut(
 		// * D. Hair   : Custom encoding	(use top layer normal)
 		// * E. Layout2: Complex encoding	(use basis)
 		const bool bHasFastEncoding = IsSimpleMaterial(StrataPixelHeader);
+		const bool bHasFastWaterEncoding = IsSingleLayerWater(StrataPixelHeader);
 		const bool bHasSingleEncoding = IsSingleMaterial(StrataPixelHeader);
 		const bool bCustomEncoding = IsHair(StrataPixelHeader) || IsEye(StrataPixelHeader);
 
 		// (Layout2)
-		if (!bHasFastEncoding && !bHasSingleEncoding && !bCustomEncoding)
+		if (!bHasFastEncoding && !bHasSingleEncoding && !bCustomEncoding && !bHasFastWaterEncoding)
 		{
 			// 1. the header (Regular/Complex encoding)
 			const uint PackedHeader = PackStrataHeader(BSDFVisibleCount, StrataPixelHeader);
@@ -476,11 +477,53 @@ void PackStrataOut(
 						Out = Out & HEADER_HAIRENCODING_MASK;
 						STRATA_STORE_UINT1(Out);
 
-						#if (HEADER_EYEENCODING_BIT_COUNT) > 32
+						#if (HEADER_HAIRENCODING_BIT_COUNT) > 32
 						#error Strata hair path header is > 32bits
 						#endif
 					}
-					// E. Layout2 - Weight for Regular/Complex path
+					// E. Layout X (SingleLayerWater)
+					else if (bHasFastWaterEncoding)
+					{
+						#if (HEADER_SLWENCODING_BIT_COUNT) > 16
+						#error Strata single layer water header is > 16bits
+						#endif
+
+						// Now we pack diffuse and F0 in a special way: both encoded as R7G7B6 with gamma 2.0. The low bit cound will be hidden by dithering and TAA.
+						// We pack 8 of the 32 bits in the first header uint and the remaining bits are pack is the lowest significant bit of the second uint.
+						const uint PackedBaseColor20Bits = PackR7G7B6Gamma2(SLW_BASECOLOR(BSDF), Dither);
+						const uint PackedBaseColor12Bits = PackedBaseColor20Bits & 0xFFF;
+						const uint PackedBaseColor8Bits = (PackedBaseColor20Bits >> 12) & 0xFF;
+
+						// Packed into the header
+						const bool bStoreSeparatedMainDirLight = SLW_SEPARATEDMAINDIRLIGHT(BSDF).x >= 0.0f;
+						const uint RoughnessAndUseSeparateDirLight8Bits = (PackR7(SLW_ROUGHNESS(BSDF), Dither) << 1) | (bStoreSeparatedMainDirLight ? 1 : 0);
+
+						const uint PackedOpacityMetalSpec20Bits = PackR7G7B6Linear(float3(SLW_TOPMATERIALOPACITY(BSDF), SLW_METALLIC(BSDF), SLW_SPECULAR(BSDF)), Dither);
+
+						// UINT0 (Header_State|Header_AO|BaseColor8bits|Roughness|bStoreSeparatedMainDirLight)
+						{
+							uint Out = 0;
+							HEADER_SETCOMMONSTATES(Out, StrataPixelHeader.State);
+
+							uint Packed16 = (PackedBaseColor8Bits << 8) | RoughnessAndUseSeparateDirLight8Bits;
+							Out = (Out & HEADER_SLWENCODING_MASK) | (Packed16 << HEADER_SLWENCODING_BIT_COUNT);
+							STRATA_STORE_UINT1(Out);
+						}
+						// UINT1 (BaseColor12bits|Opacity|Metallic|Specular)
+						{
+							uint Out = (PackedBaseColor12Bits << 20) | PackedOpacityMetalSpec20Bits;
+							STRATA_STORE_UINT1(Out);
+						}
+						// Optional UINT2
+						if (bStoreSeparatedMainDirLight)
+						{
+							STRATA_STORE_UINT1(PackR11G11B10F(SLW_SEPARATEDMAINDIRLIGHT(BSDF)));	// STRATA_TODO make this an optional load/store base on if DistanceFieldShadow are enabled
+						}
+						// Ensure the rest of the BSDF is not stored with the regular path
+						BSDF.State = 0;
+
+					}
+					// F. Layout2 - Weight for Regular/Complex path
 					else if (GreyScaleThroughputV > 0)
 					{
 						BSDF_SETWEIGHT10F(BSDF, Pack10F(BSDF.LuminanceWeightV.x));
@@ -493,7 +536,7 @@ void PackStrataOut(
 					}
 
 					// Layout1 & Layout2
-					if (!bFastEncodedBSDF)
+					if (!bFastEncodedBSDF && !bHasFastWaterEncoding)
 					{
 						const uint BSDFType = BSDF_GETTYPE(BSDF);
 						switch (BSDF_GETTYPE(BSDF))
@@ -596,13 +639,11 @@ void PackStrataOut(
 							}
 						}
 						break;
-						case STRATA_BSDF_TYPE_SINGLELAYERWATER:
-						{
-							STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SLW_BASECOLOR(BSDF), 0.0f)));
-							STRATA_STORE_UINT1(PackRGBA8(float4(SLW_METALLIC(BSDF), SLW_SPECULAR(BSDF), SLW_ROUGHNESS(BSDF), SLW_TOPMATERIALOPACITY(BSDF))));
-							STRATA_STORE_UINT1(PackR11G11B10F(SLW_SEPARATEDMAINDIRLIGHT(BSDF)));	// STRATA_TODO make this an optional load/store base on if DistanceFieldShadow are enabled
-						}
-						break;
+						//case STRATA_BSDF_TYPE_SINGLELAYERWATER: 
+						//{
+						//	// SLW always use the path defined by bHasFastWaterEncoding.
+						//}
+						//break;
 						}
 					}
 

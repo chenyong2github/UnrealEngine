@@ -1599,8 +1599,8 @@ void FPixelShaderInOut_MainPS(
 	// Except for water doing some specialised and simplified lighting during the base pass
 	Color = 0;
 #else
-	// Store the potential separated main dir light contribution into the water BSDF
-	SLW_SEPARATEDMAINDIRLIGHT(StrataPixelHeader.StrataTree.BSDFs[0]) = SeparatedWaterMainDirLightLuminance * View.PreExposure;
+	// Store the potential separated main dir light contribution into the water BSDF. -1 is used as a marked to specify unused (see PackStrataOut).
+	SLW_SEPARATEDMAINDIRLIGHT(StrataPixelHeader.StrataTree.BSDFs[0]) = bSeparateWaterMainDirLightLuminance ? SeparatedWaterMainDirLightLuminance * View.PreExposure : -1.0f;
 #endif
 
 	// STRATA_TODO GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION and ALLOW_STATIC_LIGHTING cases

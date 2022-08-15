@@ -157,7 +157,7 @@ struct FStrataBSDF
 // 
 // Layouts:
 // * LAYOUT 2 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-//  (Complex) HEADER        31 |  State | AO | BSDF Count | Basis count | Basis type |
+//  (Complex) HEADER        27 |  State | AO | BSDF Count | Basis count | Basis type |
 //                             |  8       8    4            3             4           
 //            BASIS(0)      32 |  Normal: Oct 16/16 | Tangent: 11/11/10
 //            BASIS(1)      32 |  Normal: Oct 16/16 | Tangent: 11/11/10
@@ -170,19 +170,19 @@ struct FStrataBSDF
 //            BSDF(1)       ?? |  Adaptive
 //                             |
 // * LAYOUT 1 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-//  (Single)  HEADER        30 |  State | AO | Aniso | TopLayer | SSS | SSSProfile | GreyWeighV | Haze | F90 | Simple vol. | MFP Plugged | Fuzz | Thin
+//  (Single)  HEADER        27 |  State | AO | Aniso | TopLayer | SSS | SSSProfile | GreyWeighV | Haze | F90 | Simple vol. | MFP Plugged | Fuzz | Thin
 //                             |  8       8    1       1          1     1            1            1      1     1             1             1      1            
 //            BASIS(0)       0 | (Use top layer normal)
 //            BSDF(0)       ?? |  Adaptive
 // * LAYOUT 0 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------          
-//  (Simple)  HEADER        29 | State | A0 | Roughness | DiffuseAbedo(8/20)
+//  (Simple)  HEADER        32 | State | A0 | Roughness | DiffuseAbedo(8/20)
 //   (Fast)                    | 8       8    8           8
 //            BASIS(0)       0 | (Use top layer normal)
 //            STATE(0)       0 | 
 //            BSDF(0)       32 | F0_RGB | DiffuseAbedo(12/20)
 //                             | 20       12
 // * LAYOUT X -------------------------------------------------------------------------------------------------------------------------------------------------------------------------          
-//   (Eye)    HEADER        29 | State | A0 | IrisMask | IrisMask
+//   (Eye)    HEADER        32 | State | A0 | IrisMask | IrisMask
 //                             | 8       8    8           8
 //            BASIS(0)       0 | (Use top layer normal)
 //            STATE(0)       0 | 
@@ -191,7 +191,7 @@ struct FStrataBSDF
 //                          32 | IrisNormal    | IrisPlaneNormal
 //                             | 16              16
 // * LAYOUT X -------------------------------------------------------------------------------------------------------------------------------------------------------------------------          
-//   (Hair)   HEADER        29 | State | A0 | Free | Free
+//   (Hair)   HEADER        32 | State | A0 | Free | Free
 //                             | 8       8    8           8
 //            BASIS(0)       0 | (Use top layer normal)
 //            STATE(0)       0 | 
@@ -199,6 +199,15 @@ struct FStrataBSDF
 //                             | 24              8
 //                          32 | Scatter | Specular | Backlit | ComplexTransmittance
 //                             | 8         8          8         8
+// * LAYOUT X -------------------------------------------------------------------------------------------------------------------------------------------------------------------------          
+//   (SLW)    HEADER        32 | State | A0 | bUseSeparateDirLIight | Roughness | BaseColor0
+//                             | 8       8    1           			7		  8
+//            BASIS(0)       0 | (Use top layer normal)
+//            STATE(0)       0 | 
+//            BSDF(0)       32 | BaseColor1 | Metallic | Specular | TopMaterialOpacity
+//                             | 12           8		  7		   7
+//                          32 | OPTIONAL SeparatedMainDirLightLuminance if bUseSeparateDirLIight=true
+//                             | 32 as R11G11B10F
 //            -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -254,6 +263,9 @@ struct FStrataBSDF
 // Layout Hair
 #define HEADER_HAIRENCODING_BIT_COUNT				(HEADER_BIT_COUNT_STATE + HEADER_BIT_COUNT_IRRADIANCE_AO)
 #define HEADER_HAIRENCODING_MASK					((1u<<HEADER_HAIRENCODING_BIT_COUNT)-1u)
+// Layout Eye
+#define HEADER_SLWENCODING_BIT_COUNT				(HEADER_BIT_COUNT_STATE + HEADER_BIT_COUNT_IRRADIANCE_AO)
+#define HEADER_SLWENCODING_MASK					((1u<<HEADER_SLWENCODING_BIT_COUNT)-1u)
 
 // Sanity check
 #if (HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE + HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE) > 32
@@ -1867,7 +1879,7 @@ float3x3 StrataGetBSDFSharedBasis_InlineShading(in FStrataPixelHeader StrataPixe
 float3x3 StrataGetBSDFSharedBasis_DeferredShading(in FStrataPixelHeader StrataPixelHeader, in FStrataBSDF BSDF, in FStrataAddressing StrataAddressing)
 {
 #if STRATA_DEFERRED_SHADING
-	if (IsSimpleMaterial(StrataPixelHeader) || IsSingleMaterial(StrataPixelHeader) || IsEye(StrataPixelHeader) || IsHair(StrataPixelHeader))
+	if (IsSimpleMaterial(StrataPixelHeader) || IsSingleMaterial(StrataPixelHeader) || IsEye(StrataPixelHeader) || IsHair(StrataPixelHeader) || IsSingleLayerWater(StrataPixelHeader))
 	{		
 		return GetTangentBasis(StrataUnpackTopLayerData(StrataPixelHeader.PackedTopLayerData).WorldNormal);
 	}
@@ -2566,6 +2578,11 @@ float3 DitherIfNonBlack(float3 Input, float3 Dither)
 		NewInput.y >= 0.0 && NewInput.y <= 1.0 ? NewInput.y : Input.y,
 		NewInput.z >= 0.0 && NewInput.z <= 1.0 ? NewInput.z : Input.z);
 }
+float DitherIfNonBlack(float Input, float Dither)
+{
+	float NewInput = Input + Dither;
+	return NewInput.x >= 0.0 && NewInput.x <= 1.0 ? NewInput.x : Input.x;
+}
 
 void StrataDitherBSDF(inout FStrataBSDF BSDF, in float Dither)
 {
@@ -2979,6 +2996,46 @@ float3 UnpackR7G7B6Gamma2(uint rgb)
 	Out.g = float((rgb >> 7)  & 0x7F) * (1.0f / 127.0f);
 	Out.b = float((rgb >> 14) & 0x3F) * (1.0f /  63.0f);
 	return Out * Out;
+}
+
+uint PackR7G7B6Linear(float3 rgb, float Dither)
+{
+	// We execute a dither that can go in positive/negative direction to avoid surfaces to looks overall brighter.
+	const float CenteredDither = Dither - 0.5f;
+	const float Dither8bits = CenteredDither * 1.0f / 255.0f;
+	const float Dither7bits = CenteredDither * 1.0f / 127.0f;
+	const float Dither6bits = CenteredDither * 1.0f / 63.0f;
+	const float3 Dither776 = float3(Dither7bits, Dither7bits, Dither6bits);
+
+	// Dither value to hide more aggressive bit reduction.
+	const float3 dithered_rgb = DitherIfNonBlack(saturate(rgb), Dither776);
+
+	uint r = (uint(dithered_rgb.r * 127.0f) << 0);
+	uint g = (uint(dithered_rgb.g * 127.0f) << 7);
+	uint b = (uint(dithered_rgb.b *  63.0f) << 14);
+	return r | g | b;
+}
+
+float3 UnpackR7G7B6Linear(uint rgb)
+{
+	float3 Out;
+	Out.r = float((rgb >> 0)  & 0x7F) * (1.0f / 127.0f);
+	Out.g = float((rgb >> 7)  & 0x7F) * (1.0f / 127.0f);
+	Out.b = float((rgb >> 14) & 0x3F) * (1.0f /  63.0f);
+	return Out;
+}
+
+uint PackR7(float Value, float Dither)
+{
+	const float CenteredDither = Dither - 0.5f;
+	const float Dither7bits = CenteredDither * 1.0f / 127.0f;
+	const float DitheredValue = DitherIfNonBlack(saturate(Value), Dither7bits);
+	return DitheredValue * 127.0f;
+}
+
+float UnpackR7(uint Value)
+{
+	return float(Value & 0x7F) * (1.0f / 127.0f);
 }
 
 // Simple Octahedral from "A Survey of Efficient Representations for Independent Unit Vectors" http://jcgt.org/published/0003/02/01/
@@ -3409,7 +3466,7 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 
 	// Use simple or single layout for decoding data
 	BRANCH
-	if (IsSimpleMaterial(Out) || IsSingleMaterial(Out) || IsEye(Out) || IsHair(Out))
+	if (IsSimpleMaterial(Out) || IsSingleMaterial(Out) || IsEye(Out) || IsHair(Out) || IsSingleLayerWater(Out))
 	{
 		// Within a tile classified as simple or single, some pixel might be invalid (e.g., sky pixels). 
 		// This ensures that invalid pixels are not processed, and keep these tiles as single/simple instead of complex
@@ -3513,6 +3570,54 @@ FStrataBSDF UnpackFastPathStrataBSDFIn(FStrataMaterialContainer StrataBuffer, in
 	return OutBSDF;
 }
 
+FStrataBSDF UnpackFastWaterPathStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing, FStrataPixelHeader StrataPixelHeader)
+{
+	FStrataBSDF OutBSDF = (FStrataBSDF)0;
+
+#if STRATA_DEFERRED_SHADING
+	uint Data0 = StrataPixelHeader.SharedLocalBasesTypes_PackedHeader;
+	uint Data1 = StrataLoadUint1(StrataBuffer, StrataAddressing);
+	OutBSDF.State = 0;
+	OutBSDF.LuminanceWeightV = 1.0f;
+	OutBSDF.TransmittanceAboveAlongN = 1.0f;
+
+	const uint PackedBaseColor8Bits					= 0xFF   & (Data0 >> (HEADER_FASTENCODING_BIT_COUNT + 8));
+	const uint RoughnessAndUseSeparateDirLight8Bits	= 0xFF   & (Data0 >> HEADER_SLWENCODING_BIT_COUNT);
+	
+	const uint PackedBaseColor12Bits				= 0xFFF  & (Data1 >> 20);
+	const uint PackedOpacityMetalSpec20Bits			= 0xFFFF & Data1;
+	const uint PackedBaseColor20Bits				= PackedBaseColor12Bits | (PackedBaseColor8Bits << 12);
+
+	const bool bStoreSeparatedMainDirLight			= RoughnessAndUseSeparateDirLight8Bits & 0x1;
+	if (bStoreSeparatedMainDirLight)
+	{
+		StrataLoad_R11G11B10F(StrataBuffer, StrataAddressing, SLW_SEPARATEDMAINDIRLIGHT(OutBSDF));
+	}
+
+	SLW_ROUGHNESS(OutBSDF)							= UnpackR7(RoughnessAndUseSeparateDirLight8Bits >> 1);
+	SLW_BASECOLOR(OutBSDF)							= UnpackR7G7B6Gamma2(PackedBaseColor20Bits);
+
+	const float3 OpacityMetalSpec					= UnpackR7G7B6Linear(PackedOpacityMetalSpec20Bits);
+	SLW_TOPMATERIALOPACITY(OutBSDF)					= OpacityMetalSpec.x;
+	SLW_METALLIC(OutBSDF)							= OpacityMetalSpec.y;
+	SLW_SPECULAR(OutBSDF)							= OpacityMetalSpec.z;
+#endif
+
+	// Force a BSDF state to be a single layer on top.
+	BSDF_SETTYPE(OutBSDF, STRATA_BSDF_TYPE_SINGLELAYERWATER);
+	BSDF_SETHASGREYWEIGHT_V(OutBSDF, 1);
+	BSDF_SETHASF90(OutBSDF, 0);
+	BSDF_SETHASANISOTROPY(OutBSDF, 0);
+	BSDF_SETISTOPLAYER(OutBSDF, 1);
+	BSDF_SETSSSTYPE(OutBSDF, SSS_TYPE_INVALID);
+	BSDF_SETHASHAZINESS(OutBSDF, 0);
+	BSDF_SETISSIMPLEVOLUME(OutBSDF, 0);
+	BSDF_SETHASFUZZ(OutBSDF, 0);
+	BSDF_SETHASTRANSABOVE(OutBSDF, 0);
+
+	return OutBSDF;
+}
+
 // Unpack a single BSDF
 // Note: All BSDF lobes needs to be unpack in a sequential manner since each BSDF has a variable footprint.
 // If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
@@ -3522,6 +3627,10 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 	if (IsSimpleMaterial(StrataHeader))
 	{
 		return UnpackFastPathStrataBSDFIn(StrataBuffer, StrataAddressing, StrataHeader);
+	}
+	else if (IsSingleLayerWater(StrataHeader))
+	{
+		return UnpackFastWaterPathStrataBSDFIn(StrataBuffer, StrataAddressing, StrataHeader);
 	}
 
 	FStrataBSDF OutBSDF = (FStrataBSDF)0;
@@ -3702,18 +3811,11 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 		// 8 bytes
 	}
 	break;
-	case STRATA_BSDF_TYPE_SINGLELAYERWATER:
-	{
-		StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, StrataAddressing, SLW_BASECOLOR(OutBSDF), DummyFloat);
-		float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
-		SLW_METALLIC(OutBSDF) = Data.x;
-		SLW_SPECULAR(OutBSDF) = Data.y;
-		SLW_ROUGHNESS(OutBSDF) = Data.z;
-		SLW_TOPMATERIALOPACITY(OutBSDF) = Data.w;
-		StrataLoad_R11G11B10F(StrataBuffer, StrataAddressing, SLW_SEPARATEDMAINDIRLIGHT(OutBSDF));
-		// 12 bytes
-	}
-	break;
+	//case STRATA_BSDF_TYPE_SINGLELAYERWATER: 
+	//{
+	//	// SLW always use the fast UnpackFastWaterPathStrataBSDFIn path.
+	//}
+	//break;
 	}
 
 	return OutBSDF;
