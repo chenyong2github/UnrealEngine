@@ -104,6 +104,9 @@ public:
 	/** Sets up a wireframe FMeshBatch for a specific LOD. */
 	virtual bool GetWireframeMeshElement(int32 LODIndex, int32 BatchIndex, const FMaterialRenderProxy* WireframeRenderProxy, uint8 InDepthPriorityGroup, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const override;
 
+	/** Sets up a collision FMeshBatch for a specific LOD and element. */
+	virtual bool GetCollisionMeshElement(int32 LODIndex, int32 BatchIndex, int32 ElementIndex, uint8 InDepthPriorityGroup, const FMaterialRenderProxy* RenderProxy, FMeshBatch& OutMeshBatch) const override;
+
 #if RHI_RAYTRACING
 	virtual bool HasRayTracingRepresentation() const override { return false; }
 	virtual bool IsRayTracingRelevant() const override final { return false; }
@@ -117,6 +120,10 @@ public:
 
 	// 	  virtual uint32 GetMemoryFootprint( void ) const { return 0; }
 
+private:
+	void SetupMeshBatchForSpline(int32 InLODIndex, FMeshBatch& OutMeshBatch) const;
+
+public:
 	/** Parameters that define the spline, used to deform mesh */
 	FSplineMeshParams SplineParams;
 	/** Axis (in component space) that is used to determine X axis for co-ordinates along spline */
