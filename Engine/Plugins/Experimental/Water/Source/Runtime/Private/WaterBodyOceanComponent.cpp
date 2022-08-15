@@ -154,7 +154,7 @@ void UWaterBodyOceanComponent::GenerateWaterBodyMesh()
 	}
 
 	FVector OceanLocation = GetComponentLocation();
-	FPolygon2d OceanBoundingPolygon = FPolygon2d::MakeRectangle(FVector2d(OceanLocation.X, OceanLocation.Y), VisualExtents.X, VisualExtents.Y);
+	FPolygon2d OceanBoundingPolygon = FPolygon2d::MakeRectangle(FVector2d(0, 0), VisualExtents.X, VisualExtents.Y);
 
 	FConstrainedDelaunay2d Triangulation;
 	Triangulation.FillRule = FConstrainedDelaunay2d::EFillRule::Positive;
