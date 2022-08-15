@@ -11,7 +11,8 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"Core"
+					"Core",
+					"SequencerWidgets"
 				}
 			);
 
@@ -33,7 +34,10 @@ namespace UnrealBuildTool.Rules
 					"AnimationEditMode",
 					"AnimGraph",
 					"ToolWidgets",
+					"EditorWidgets",
 					"GeometryCache",
+					"SequencerWidgets",
+					"TimeManagement",
 					"NeuralNetworkInference",
 					"RenderCore",
 					"RHI"

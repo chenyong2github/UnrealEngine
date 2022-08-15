@@ -40,6 +40,8 @@ namespace UE::MLDeformer
 		virtual void SetPlayPosition(float TimeInSeconds, bool bAutoPause=true);
 		virtual float GetPlayPosition() const;
 		virtual void SetPlaySpeed(float PlaySpeed);
+		virtual float GetPlaySpeed();
+
 		virtual FBox GetBoundingBox() const;
 		virtual void Pause(bool bPaused);
 		virtual bool IsGroundTruthActor() const;

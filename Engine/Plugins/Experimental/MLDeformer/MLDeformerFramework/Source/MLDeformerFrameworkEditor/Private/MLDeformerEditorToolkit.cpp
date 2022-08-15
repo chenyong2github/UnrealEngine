@@ -22,6 +22,7 @@
 #include "Preferences/PersonaOptions.h"
 #include "UObject/Object.h"
 #include "SSimpleTimeSlider.h"
+#include "SMLDeformerTimeline.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Misc/MessageDialog.h"
@@ -303,6 +304,12 @@ namespace UE::MLDeformer
 		{
 			VizSettingsDetailsView->SetObject(Model->GetVizSettings());
 			VizSettingsDetailsView->ForceRefresh();
+		}
+
+		if (TimeSlider)
+		{
+			TWeakPtr<FMLDeformerEditorModel> WeakModel = ActiveModel; 
+			TimeSlider->SetModel(WeakModel);
 		}
 
 		GEngine->ForceGarbageCollection(true);
@@ -686,9 +693,9 @@ namespace UE::MLDeformer
 
 				ActiveModel->SetHeatMapMaterialEnabled(VizSettings->GetShowHeatMap());
 				ActiveModel->UpdateDeformerGraph();
+				ActiveModel->HandleVizModeChanged(VizSettings->GetVisualizationMode());
 			}
 		}
-
 		ZoomOnActors();
 	}
 
@@ -747,12 +754,12 @@ namespace UE::MLDeformer
 		return VizSettingsDetailsView.Get();
 	}
 
-	void FMLDeformerEditorToolkit::SetTimeSlider(TSharedPtr<SSimpleTimeSlider> InTimeSlider)
+	void FMLDeformerEditorToolkit::SetTimeSlider(TSharedPtr<SMLDeformerTimeline> InTimeSlider)
 	{
 		TimeSlider = InTimeSlider;
 	}
 
-	SSimpleTimeSlider* FMLDeformerEditorToolkit::GetTimeSlider() const
+	SMLDeformerTimeline* FMLDeformerEditorToolkit::GetTimeSlider() const
 	{
 		return TimeSlider.Get();
 	}
@@ -811,12 +818,13 @@ namespace UE::MLDeformer
 
 	void FMLDeformerEditorToolkit::SetTimeSliderRange(double StartTime, double EndTime)
 	{
-		SSimpleTimeSlider* Slider = GetTimeSlider();
-		if (Slider)
+		TRange<double> ViewRange(StartTime, EndTime); 
+		if (ActiveModel.IsValid())
 		{
-			Slider->SetTimeRange(StartTime, EndTime);
-			Slider->SetClampRange(StartTime, EndTime);
+			ActiveModel->SetViewRange(ViewRange);
+
 		}
+
 	}
 }	// namespace UE::MLDeformer
 

@@ -88,7 +88,11 @@ namespace UE::VertexDeltaModel
 
 		if (GeomCacheComponent)
 		{
-			return GeomCacheComponent->GetAnimationTime();
+			float Duration = GeomCacheComponent->GetDuration(); 
+			float AnimTime =  GeomCacheComponent->GetAnimationTime();
+			float StartTime = GeomCacheComponent->GetStartTimeOffset();
+			float DeltaTime = AnimTime - StartTime; 
+			return DeltaTime > Duration ? FMath::Fmod(DeltaTime, Duration) : DeltaTime;
 		}
 
 		return 0.0f;

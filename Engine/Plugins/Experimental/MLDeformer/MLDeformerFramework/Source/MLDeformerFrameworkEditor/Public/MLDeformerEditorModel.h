@@ -7,6 +7,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
 #include "MLDeformerEditorActor.h"
+#include "Misc/FrameTime.h"
+#include "MLDeformerVizSettings.h"
 
 class UMLDeformerModel;
 class UMLDeformerInputInfo;
@@ -15,6 +17,7 @@ class IPersonaPreviewScene;
 class FEditorViewportClient;
 class FSceneView;
 class FViewport;
+
 class FPrimitiveDrawInterface;
 class UWorld;
 class UMeshDeformer;
@@ -54,7 +57,7 @@ namespace UE::MLDeformer
 
 	/** The base class for the editor side of an UMLDeformerModel. */
 	class MLDEFORMERFRAMEWORKEDITOR_API FMLDeformerEditorModel
-		: public FGCObject
+		: public TSharedFromThis<FMLDeformerEditorModel>, public FGCObject
 	{
 	public:
 		/** 
@@ -98,11 +101,12 @@ namespace UE::MLDeformer
 		virtual void OnInputAssetsChanged();
 		virtual void OnPostInputAssetChanged();
 		virtual void HandleDefaultPropertyChanges(FPropertyChangedEvent& PropertyChangedEvent);
-		virtual void OnPlayButtonPressed();
+		virtual void OnPlayPressed();
 		virtual void OnPreTraining() {}
 		virtual void OnPostTraining(ETrainingResult TrainingResult, bool bUsePartiallyTrainedWhenAborted);
 		virtual void OnTrainingAborted(bool bUsePartiallyTrainedData) {}
 		virtual bool IsPlayingAnim() const;
+		virtual bool IsPlayingForward() const;
 		virtual double CalcTrainingTimelinePosition() const;
 		virtual double CalcTestTimelinePosition() const;
 		virtual void OnTimeSliderScrubPositionChanged(double NewScrubTime, bool bIsScrubbing);
@@ -132,6 +136,51 @@ namespace UE::MLDeformer
 		virtual FString GetHeatMapDeformerGraphPath() const;
 		virtual FString GetDefaultDeformerGraphAssetPath() const;
 		virtual FString GetTrainedNetworkOnnxFile() const;
+
+		/** Get the current view range */
+		TRange<double> GetViewRange() const;
+
+		/** Set the current view range */
+		void SetViewRange(TRange<double> InRange);
+
+		/** Get the working range of the model's data */
+		TRange<double> GetWorkingRange() const;
+
+		/** Get the playback range of the model's data */
+		TRange<FFrameNumber> GetPlaybackRange() const;
+
+		/** Get the current scrub position */
+		FFrameNumber GetTickResScrubPosition() const;
+
+		int32 GetTicksPerFrame() const;
+		/** Get the current scrub time */
+		float GetScrubTime() const;
+
+		/** Set the current scrub position */
+		void SetScrubPosition(FFrameTime NewScrubPostion);
+
+		/** Set the current scrub position */
+		void SetScrubPosition(FFrameNumber NewScrubPostion);
+
+		/** Set if frames are displayed */
+		void SetDisplayFrames(bool bDisplayFrames);
+
+		bool IsDisplayingFrames() const;
+
+		void HandleModelChanged();
+		void HandleVizModeChanged(EMLDeformerVizMode Mode);
+
+		/** Handle the view range being changed */
+		void HandleViewRangeChanged(TRange<double> InRange);
+
+		/** Handle the working range being changed */
+		void HandleWorkingRangeChanged(TRange<double> InRange);
+
+		/** Get the framerate specified by the anim sequence */
+		double GetFrameRate() const;
+
+		/** Get the tick resolution we are displaying at */
+		int32 GetTickResolution() const;
 
 		FMLDeformerEditorToolkit* GetEditor() const { return Editor; }
 		UMLDeformerModel* GetModel() const { return Model.Get(); }
@@ -200,6 +249,13 @@ namespace UE::MLDeformer
 		 */
 		void CompressEngineMorphTargets(FMorphTargetVertexInfoBuffers& OutMorphBuffers, const TArray<UMorphTarget*>& MorphTargets, int32 LOD = 0, float MorphErrorTolerance = 0.01f);
 
+		FMLDeformerEditorActor* GetVisualizationModeBaseActor() const;
+
+		const UAnimSequence* GetAnimSequence() const;
+
+		double CalcTimelinePosition() const;
+
+		void UpdateRanges();
 	protected:
 		/** The runtime model associated with this editor model. */
 		TObjectPtr<UMLDeformerModel> Model = nullptr;
@@ -236,6 +292,19 @@ namespace UE::MLDeformer
 
 		/** Do we need to resample all input/output data? */
 		bool bNeedToResampleInputOutputs = true;
+
+		/** The range we are currently viewing */
+		TRange<double> ViewRange;
+
+		/** The working range of this model, encompassing the view range */
+		TRange<double> WorkingRange;
+
+		/** The playback range of this model for each timeframe */
+		TRange<double> PlaybackRange;
+
+		FFrameTime ScrubPosition;
+
+		bool bDisplayFrames = true;
 	};
 
 	template<class TrainingModelClass>

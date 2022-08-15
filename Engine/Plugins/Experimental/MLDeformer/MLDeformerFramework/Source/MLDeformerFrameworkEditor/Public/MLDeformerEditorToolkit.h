@@ -20,6 +20,8 @@ class SSimpleTimeSlider;
 
 namespace UE::MLDeformer
 {
+	class SMLDeformerTimeline;
+
 	namespace MLDeformerEditorModes
 	{
 		extern const FName Editor;
@@ -73,11 +75,14 @@ namespace UE::MLDeformer
 		IDetailsView* GetModelDetailsView() const;
 		IDetailsView* GetVizSettingsDetailsView() const;
 
-		void SetTimeSlider(TSharedPtr<SSimpleTimeSlider> InTimeSlider);
-		SSimpleTimeSlider* GetTimeSlider() const;
+		void SetTimeSlider(TSharedPtr<SMLDeformerTimeline> InTimeSlider);
+		SMLDeformerTimeline* GetTimeSlider() const;
 
 		UMLDeformerAsset* GetDeformerAsset() const { return DeformerAsset.Get(); }
 		FMLDeformerEditorModel* GetActiveModel() { return ActiveModel.Get(); }
+
+		TWeakPtr<FMLDeformerEditorModel> GetActiveModelPointer(){ return TWeakPtr<FMLDeformerEditorModel>(ActiveModel); }
+		const FMLDeformerEditorModel* GetActiveModel() const { return ActiveModel.Get(); }
 
 		double CalcTimelinePosition() const;
 		void OnTimeSliderScrubPositionChanged(double NewScrubTime, bool bIsScrubbing);
@@ -122,7 +127,8 @@ namespace UE::MLDeformer
 		TSharedPtr<IDetailsView> VizSettingsDetailsView = nullptr;
 
 		/** The timeline slider widget. */
-		TSharedPtr<SSimpleTimeSlider> TimeSlider = nullptr;
+		TSharedPtr<SMLDeformerTimeline> TimeSlider = nullptr;
+
 
 		/** The currently active editor model. */
 		TSharedPtr<FMLDeformerEditorModel> ActiveModel = nullptr;

@@ -8,9 +8,11 @@
 
 #include "IDocumentation.h"
 #include "SSimpleTimeSlider.h"
+
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
+#include "SMLDeformerTimeline.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerTimelineTabSummoner"
 
@@ -40,74 +42,15 @@ namespace UE::MLDeformer
 
 	TSharedRef<SWidget> FMLDeformerTimelineTabSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 	{
-		// Create and setup the time slider widget.
-		TSharedRef<SSimpleTimeSlider> TimeSlider = SNew(SSimpleTimeSlider)
-			.ScrubPosition_Raw(Editor, &FMLDeformerEditorToolkit::CalcTimelinePosition)
-			.OnScrubPositionChanged_Raw(Editor, &FMLDeformerEditorToolkit::OnTimeSliderScrubPositionChanged);
+		TSharedRef<SMLDeformerTimeline> TimeSlider = SNew(SMLDeformerTimeline, Editor);
 
 		Editor->SetTimeSlider(TimeSlider);
-
 		// Add the time slider.
 		TSharedRef<SHorizontalBox> Content = SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
 			.VAlign(EVerticalAlignment::VAlign_Top)
 			[
 				TimeSlider
-			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(EHorizontalAlignment::HAlign_Right)
-			.VAlign(EVerticalAlignment::VAlign_Top)
-			[
-				SNew(SBox)
-				.WidthOverride(25)
-				.HeightOverride(25)
-				.Padding(FMargin(0.0f))
-				.Visibility_Lambda
-				(
-					[this]()
-					{
-						using namespace UE::MLDeformer;
-						const FMLDeformerEditorModel* ActiveModel = Editor->GetActiveModel();
-						if (ActiveModel)
-						{
-							return (Editor->GetActiveModel()->GetModel()->GetVizSettings()->GetVisualizationMode() == EMLDeformerVizMode::TestData) ? EVisibility::Visible : EVisibility::Collapsed; 
-						}
-						return EVisibility::Collapsed;
-					} 
-				)
-				[
-					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-					.HAlign(EHorizontalAlignment::HAlign_Center)
-					.VAlign(EVerticalAlignment::VAlign_Center)
-					.ToolTipText(LOCTEXT("PlayButtonToolTip", "Play or pause the test animation sequence"))
-					.ContentPadding(FMargin(0.0f))
-					.OnClicked_Lambda([this]()
-					{ 
-							using namespace UE::MLDeformer;
-							FMLDeformerEditorModel* EditorModel = Editor->GetActiveModel();
-							if (EditorModel)
-							{ 
-								EditorModel->OnPlayButtonPressed(); 
-							} 
-							return FReply::Handled(); 
-					})
-					[
-						SNew(SImage)
-						.Image_Lambda
-						(
-							[this]()
-							{
-								using namespace UE::MLDeformer;
-								const FMLDeformerEditorModel* EditorModel = Editor->GetActiveModel();
-								return (EditorModel != nullptr && EditorModel->IsPlayingAnim())
-									? FMLDeformerEditorStyle::Get().GetBrush("MLDeformer.Timeline.PauseIcon")
-									: FMLDeformerEditorStyle::Get().GetBrush("MLDeformer.Timeline.PlayIcon");
-							}
-						)
-					]
-				]
 			];
 
 		return Content;

@@ -106,6 +106,15 @@ namespace UE::MLDeformer
 		}
 	}
 
+	float FMLDeformerEditorActor::GetPlaySpeed()
+	{
+		if (SkeletalMeshComponent)
+		{
+			return SkeletalMeshComponent->GetPlayRate();
+		}
+		return 0.0f;
+	}
+
 	void FMLDeformerEditorActor::Pause(bool bPaused)
 	{
 		if (SkeletalMeshComponent)
