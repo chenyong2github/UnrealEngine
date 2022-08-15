@@ -469,6 +469,11 @@ UGSTabManager* UGSTab::GetTabManager()
 	return TabManager;
 }
 
+TSharedPtr<UGSCore::FUserSettings> UGSTab::GetUserSettings() const
+{
+	return UserSettings;
+}
+
 // This is getting called on a thread, lock our stuff up
 void UGSTab::OnWorkspaceSyncComplete(TSharedRef<UGSCore::FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext, UGSCore::EWorkspaceUpdateResult SyncResult, const FString& StatusMessage)
 {

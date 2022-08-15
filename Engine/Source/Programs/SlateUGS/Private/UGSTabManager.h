@@ -22,10 +22,12 @@ public:
 	void ActivateTab();
 	FName GetTabId(int TabIndex) const;
 
-private:
+	// Will setup a schedule sync, as well as tear down an existing one and make a new one
 	void SetupScheduledSync();
-	void StartScheduledSyncTimer();
 	void StopScheduledSyncTimer();
+
+private:
+	void StartScheduledSyncTimer();
 	void ScheduleTimerElapsed();
 
 	static constexpr int MaxTabs = 10;

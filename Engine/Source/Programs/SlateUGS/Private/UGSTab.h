@@ -64,6 +64,7 @@ public:
 	TArray<UGSCore::FWorkspaceSyncCategory> GetSyncCategories(SyncCategoryType CategoryType) const;
 	TArray<FString> GetSyncViews(SyncCategoryType CategoryType) const;
 	UGSTabManager* GetTabManager();
+	TSharedPtr<UGSCore::FUserSettings> GetUserSettings() const;
 
 private:
 	void OnWorkspaceSyncComplete(

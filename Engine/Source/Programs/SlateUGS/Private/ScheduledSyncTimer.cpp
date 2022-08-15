@@ -63,10 +63,10 @@ uint32 ScheduledSyncTimer::Run()
 				*(ScheduledTime - Now).ToString(TEXT("%h hours and %m minutes")));
 		}
 
-		// lets check every second to avoid spinning this thread to hard, while still be responsive when requesting to exit
+		// lets check every 100ms to avoid spinning this thread to hard, while still be responsive when requesting to exit
 		// the ideal option would be to create a wait event tied to the bFinished bool, and sleep for longer chunks *unless* that bool
 		// is flipped, but this is just simple for now
-		FPlatformProcess::Sleep(1.0f);
+		FPlatformProcess::Sleep(0.1f);
 	}
 
 	return 0;
