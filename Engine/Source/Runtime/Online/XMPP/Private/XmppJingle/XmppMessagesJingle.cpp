@@ -314,7 +314,7 @@ bool FXmppMessagesJingle::SendMessage(const FXmppUserJid& RecipientId, const FSt
 {
 	FString SerializedPayload;
 	auto JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&SerializedPayload);
-	check(FJsonSerializer::Serialize(Payload, JsonWriter));
+	verify(FJsonSerializer::Serialize(Payload, JsonWriter));
 
 	return SendMessage(RecipientId, Type, SerializedPayload, true);
 }

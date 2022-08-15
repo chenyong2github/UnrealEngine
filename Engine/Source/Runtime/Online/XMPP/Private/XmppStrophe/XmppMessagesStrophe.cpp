@@ -188,7 +188,7 @@ bool FXmppMessagesStrophe::SendMessage(const FXmppUserJid& RecipientId, const FS
 {
 	FString SerializedPayload;
 	auto JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&SerializedPayload);
-	check(FJsonSerializer::Serialize(Payload, JsonWriter));
+	verify(FJsonSerializer::Serialize(Payload, JsonWriter));
 
 	return SendMessage(RecipientId, Type, SerializedPayload, true);
 }

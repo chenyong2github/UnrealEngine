@@ -35,7 +35,7 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( InputString );
 
 		TSharedPtr<FJsonObject> Object;
-		check( FJsonSerializer::Deserialize( Reader, Object ) == false );
+		verify( FJsonSerializer::Deserialize( Reader, Object ) == false );
 		check( !Object.IsValid() );
 	}
 
@@ -45,12 +45,12 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( InputString );
 
 		TSharedPtr<FJsonObject> Object;
-		check( FJsonSerializer::Deserialize( Reader, Object ) );
+		verify( FJsonSerializer::Deserialize( Reader, Object ) );
 		check( Object.IsValid() );
 
 		FString OutputString;
 		TSharedRef< FCondensedJsonStringWriter > Writer = FCondensedJsonStringWriterFactory::Create( &OutputString );
-		check( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
+		verify( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
 		check( InputString == OutputString );
 	}
 
@@ -60,12 +60,12 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( InputString );
 
 		TArray< TSharedPtr<FJsonValue> > Array;
-		check( FJsonSerializer::Deserialize( Reader, Array ) );
+		verify( FJsonSerializer::Deserialize( Reader, Array ) );
 		check( Array.Num() == 0 );
 
 		FString OutputString;
 		TSharedRef< FCondensedJsonStringWriter > Writer = FCondensedJsonStringWriterFactory::Create( &OutputString );
-		check( FJsonSerializer::Serialize( Array, Writer ) );
+		verify( FJsonSerializer::Serialize( Array, Writer ) );
 		check( InputString == OutputString );
 	}
 
@@ -94,7 +94,7 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 
 		FString OutputString;
 		TSharedRef< FCondensedJsonStringWriter > Writer = FCondensedJsonStringWriterFactory::Create( &OutputString );
-		check( FJsonSerializer::Serialize( Array, Writer ) );
+		verify( FJsonSerializer::Serialize( Array, Writer ) );
 		check( InputString == OutputString );
 	}
 
@@ -312,7 +312,7 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 
 		FString OutputString;
 		TSharedRef< FCondensedJsonStringWriter > Writer = FCondensedJsonStringWriterFactory::Create( &OutputString );
-		check( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
+		verify( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
 
 		const FString TestOutput =
 			TEXT(
@@ -353,7 +353,7 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 
 		FString OutputString;
 		TSharedRef< FCondensedJsonStringWriter > Writer = FCondensedJsonStringWriterFactory::Create( &OutputString );
-		check( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
+		verify( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
 
 		// %g isn't standardized, so we use the same %g format that is used inside PrintJson instead of hardcoding the values here
 		const FString TestOutput = FString::Printf(
@@ -409,7 +409,7 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 
 		FString OutputString;
 		TSharedRef< FCondensedJsonStringWriter > Writer = FCondensedJsonStringWriterFactory::Create( &OutputString );
-		check( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
+		verify( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
 
 		const FString TestOutput =
 			TEXT(
@@ -488,7 +488,7 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 
 		FString OutputString;
 		TSharedRef< FCondensedJsonStringWriter > Writer = FCondensedJsonStringWriterFactory::Create( &OutputString );
-		check( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
+		verify( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
 		check(OutputString == InputString);
 	}
 
@@ -547,7 +547,7 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 
 		FString OutputString;
 		TSharedRef< FCondensedJsonStringWriter > Writer = FCondensedJsonStringWriterFactory::Create( &OutputString );
-		check( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
+		verify( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
 		check(OutputString == InputString);
 	}
 
@@ -577,12 +577,12 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( InputString );
 
 		TSharedPtr<FJsonObject> Object;
-		check( FJsonSerializer::Deserialize( Reader, Object ) );
+		verify( FJsonSerializer::Deserialize( Reader, Object ) );
 		check( Object.IsValid() );
 
 		FString OutputString;
 		TSharedRef< FPrettyJsonStringWriter > Writer = FPrettyJsonStringWriterFactory::Create( &OutputString );
-		check( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
+		verify( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
 		check(OutputString == InputString);
 	}
 	  
@@ -605,19 +605,19 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( InputString );
 
 		EJsonNotation Notation = EJsonNotation::Null;
-		check( Reader->ReadNext( Notation ) && Notation == EJsonNotation::ObjectStart );
+		verify( Reader->ReadNext( Notation ) && Notation == EJsonNotation::ObjectStart );
 		check( Reader->GetLineNumber() == 1 && Reader->GetCharacterNumber() == 1 );
 
-		check( Reader->ReadNext( Notation ) && Notation == EJsonNotation::String );
+		verify( Reader->ReadNext( Notation ) && Notation == EJsonNotation::String );
 		check( Reader->GetLineNumber() == 2 && Reader->GetCharacterNumber() == 17 );
 
-		check( Reader->ReadNext( Notation ) && Notation == EJsonNotation::ArrayStart );
+		verify( Reader->ReadNext( Notation ) && Notation == EJsonNotation::ArrayStart );
 		check( Reader->GetLineNumber() == 4 && Reader->GetCharacterNumber() == 2 );
 
-		check( Reader->ReadNext( Notation ) && Notation == EJsonNotation::Number );
+		verify( Reader->ReadNext( Notation ) && Notation == EJsonNotation::Number );
 		check( Reader->GetLineNumber() == 5 && Reader->GetCharacterNumber() == 7 );
 
-		check( Reader->ReadNext( Notation ) && Notation == EJsonNotation::Boolean );
+		verify( Reader->ReadNext( Notation ) && Notation == EJsonNotation::Boolean );
 		check( Reader->GetLineNumber() == 6 && Reader->GetCharacterNumber() == 6 );
 	}
 
@@ -742,7 +742,7 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create( FailureInputs[i] );
 
 		TSharedPtr<FJsonObject> Object;
-		check( FJsonSerializer::Deserialize( Reader, Object ) == false );
+		verify( FJsonSerializer::Deserialize( Reader, Object ) == false );
 		check( !Object.IsValid() );
 	}
 

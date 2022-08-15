@@ -199,8 +199,8 @@ void FVirtualScoutingOpenXRExtension::AddActions(XrInstance InInstance, FCreateA
 	}
 
 	XrPath LeftHand, RightHand;
-	check(XR_SUCCEEDED(xrStringToPath(Instance, "/user/hand/left", &LeftHand)));
-	check(XR_SUCCEEDED(xrStringToPath(Instance, "/user/hand/right", &RightHand)));
+	verify(XR_SUCCEEDED(xrStringToPath(Instance, "/user/hand/left", &LeftHand)));
+	verify(XR_SUCCEEDED(xrStringToPath(Instance, "/user/hand/right", &RightHand)));
 
 	FActionParams ActionParams;
 	ActionParams.Set = ActionSet;

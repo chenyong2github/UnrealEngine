@@ -3262,7 +3262,7 @@ void UControlRigBlueprint::RebuildGraphFromModel()
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	TGuardValue<bool> SelfGuard(bSuspendModelNotificationsForSelf, true);
-	check(GetOrCreateController());
+	verify(GetOrCreateController());
 
 	TArray<UEdGraph*> EdGraphs;
 	GetAllGraphs(EdGraphs);

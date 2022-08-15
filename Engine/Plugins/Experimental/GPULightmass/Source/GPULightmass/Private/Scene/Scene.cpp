@@ -2304,7 +2304,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 									{
 										// Non-zero LODs derive their MapBuildDataId from LOD0. In this case also regenerate LOD0 GUID
 										StaticMeshComponent->LODData[0].MapBuildDataId.Invalidate();
-										check(StaticMeshComponent->LODData[0].CreateMapBuildDataId(0));
+										verify(StaticMeshComponent->LODData[0].CreateMapBuildDataId(0));
 									}
 								}
 

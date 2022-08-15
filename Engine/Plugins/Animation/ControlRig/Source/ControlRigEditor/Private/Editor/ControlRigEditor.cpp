@@ -4511,7 +4511,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 					}
 					else
 					{
-						check(PropertyPath.RemoveFromStart(CurrentString));
+						verify(PropertyPath.RemoveFromStart(CurrentString));
 						TransformType = ERigTransformType::MakeCurrent(TransformType);
 					}
 
@@ -4521,7 +4521,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 					}
 					else
 					{
-						check(PropertyPath.RemoveFromStart(LocalString));
+						verify(PropertyPath.RemoveFromStart(LocalString));
 						TransformType = ERigTransformType::MakeLocal(TransformType);
 					}
 

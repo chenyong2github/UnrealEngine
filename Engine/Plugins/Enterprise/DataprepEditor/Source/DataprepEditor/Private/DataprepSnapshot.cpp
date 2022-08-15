@@ -865,7 +865,7 @@ void FDataprepEditor::RestoreFromSnapshot(bool bUpdateViewport)
 
 		// Load the text file to a string
 		FString FileBuffer;
-		check( FFileHelper::LoadFileToString(FileBuffer, *PackageFilePath) );
+		verify( FFileHelper::LoadFileToString(FileBuffer, *PackageFilePath) );
 
 		// Set the GWorld to the preview world since ULevelFactory::FactoryCreateText uses GWorld
 		UWorld* PrevGWorld = GWorld;
