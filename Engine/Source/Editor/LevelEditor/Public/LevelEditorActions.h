@@ -132,6 +132,9 @@ public:
 	/** Copy the file path where the actor is saved. */
 	TSharedPtr< FUICommandInfo > CopyActorFilePathtoClipboard;
 
+	/** Save the selected actor. */
+	TSharedPtr< FUICommandInfo > SaveActor;
+
 	/** Opens the source control panel. */
 	TSharedPtr< FUICommandInfo > OpenSourceControl;
 
@@ -1253,13 +1256,24 @@ public:
 	static void CopyActorFilePathtoClipboard_Clicked();
 
 	/**
+	* Save the actor.
+	*/
+	static void SaveActor_Clicked();
+
+	/**
+	 * Checks whether SaveActor can be executed on the selected actors.
+	 * @return 	True if SaveActor can be executed on the selected actors.
+	 */
+	static bool SaveActor_CanExecute();
+
+	/**
 	* Shows the history of the file containing the actor.
 	*/
 	static void ShowActorHistory_Clicked();
 
 	/**
 	 * Checks whether ShowActorHistory can be executed on the selected actors.
-	 * @return 	True if ShowActorHistory can be executer on the selected actors.
+	 * @return 	True if ShowActorHistory can be executed on the selected actors.
 	 */
 	static bool ShowActorHistory_CanExecute();
 

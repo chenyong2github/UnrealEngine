@@ -752,6 +752,12 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		);
 
 	ActionList.MapAction(
+		Commands.SaveActor,
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SaveActor_Clicked),
+		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SaveActor_CanExecute)
+		);
+
+	ActionList.MapAction(
 		Commands.ShowActorHistory,
 		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ShowActorHistory_Clicked),
 		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ShowActorHistory_CanExecute)

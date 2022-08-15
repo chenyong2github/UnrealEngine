@@ -345,6 +345,13 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 				FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCommands.Copy")
 			);
 
+			Section.AddMenuEntry(
+				FLevelEditorCommands::Get().SaveActor,
+				TAttribute<FText>(), // use command's label
+				TAttribute<FText>(), // use command's tooltip
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Save")
+			);
+
 			LevelEditorCreateActorMenu::FillAddReplaceContextMenuSections(Section, LevelEditorContext);
 		}
 

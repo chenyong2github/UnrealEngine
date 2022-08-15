@@ -2734,6 +2734,38 @@ void FLevelEditorActionCallbacks::CopyActorFilePathtoClipboard_Clicked()
 	}
 }
 
+void FLevelEditorActionCallbacks::SaveActor_Clicked()
+{
+	TSet<UPackage*> PackagesToSave;
+	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	{
+		AActor* Actor = Cast<AActor>(*It);
+		if (Actor->IsPackageExternal())
+		{
+			PackagesToSave.Add(Actor->GetPackage());
+		}
+	}
+
+	if (PackagesToSave.Num())
+	{
+		FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave.Array(), /*bCheckDirty*/false, /*bPromptToSave*/false);
+	}
+}
+
+bool FLevelEditorActionCallbacks::SaveActor_CanExecute()
+{
+	TSet<UPackage*> PackagesToSave;
+	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	{
+		AActor* Actor = Cast<AActor>(*It);
+		if (Actor->IsPackageExternal())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 static TArray<FString> GetSelectedActorsPackageFullpath()
 {
 	TArray<FString> PackageFullpaths;
@@ -3436,8 +3468,9 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( SnapCameraToObject, "Snap View to Object", "Snaps the view to the selected object", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( SnapObjectToCamera, "Snap Object to View", "Snaps the selected object to the view", EUserInterfaceActionType::Button, FInputChord() );
 
-	UI_COMMAND(CopyActorFilePathtoClipboard, "Copy Actor File Path", "Copy the file path where this actor is saved", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(ShowActorHistory, "Show Actor History", "Shows the history of the file containing the actor.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(CopyActorFilePathtoClipboard, "Copy Selected Actor(s) File Path", "Copy the file path of the seledcted actors", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SaveActor, "Save Selected Actor(s)", "Save the selected actors", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ShowActorHistory, "Show Actor History", "Shows the history of the file containing the actor.", EUserInterfaceActionType::Button, FInputChord());	
 
 	UI_COMMAND( GoToCodeForActor, "Go to C++ Code for Actor", "Opens a code editing IDE and navigates to the source file associated with the seleced actor", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( GoToDocsForActor, "Go to Documentation for Actor", "Opens documentation for the Actor in the default web browser", EUserInterfaceActionType::Button, FInputChord() );
