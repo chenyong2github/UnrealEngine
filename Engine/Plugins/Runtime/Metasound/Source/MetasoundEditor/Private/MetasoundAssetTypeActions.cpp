@@ -32,8 +32,8 @@ namespace Metasound
 	{
 		namespace AssetTypeActionsPrivate
 		{
-			static const FText PresetLabel = LOCTEXT("MetaSound_CreatePreset", "Create MetaSound Preset");
-			static const FText PresetToolTip = LOCTEXT("MetaSound_CreatePresetToolTip", "Creates a MetaSound Preset using the selected MetaSound's root graph as a reference.");
+			static const FText PresetLabel = LOCTEXT("MetaSoundPatch_CreatePreset", "Create MetaSound Patch Preset");
+			static const FText PresetToolTip = LOCTEXT("MetaSoundPatch_CreatePresetToolTip", "Creates a MetaSoundPatch Preset using the selected MetaSound's root graph as a reference.");
 			static const FText SourcePresetLabel = LOCTEXT("MetaSoundSource_CreatePreset", "Create MetaSound Source Preset");
 			static const FText SourcePresetToolTip = LOCTEXT("MetaSoundSource_CreatePresetToolTip", "Creates a MetaSoundSource Preset using the selected MetaSound's root graph as a reference.");
 
