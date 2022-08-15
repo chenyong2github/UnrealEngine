@@ -4,9 +4,11 @@
 
 #include "CoreTypes.h"
 
-namespace UE {
-namespace Net {
-namespace Private {
+namespace UE::Net
+{
+
+namespace Private
+{
 	struct FReplicationStateHeaderAccessor;
 }
 
@@ -21,7 +23,7 @@ struct FReplicationStateHeader
 	bool IsBound() const { return ReplicationIndex != 0U; }
 
 private:
-	friend struct Private::FReplicationStateHeaderAccessor;
+	friend Private::FReplicationStateHeaderAccessor;
 
 	// All replication states that are bound by a instance protocol as assigned an index used for dirty state tracking
 	uint32 ReplicationIndex : 24;
@@ -35,7 +37,8 @@ private:
 
 static_assert(sizeof(FReplicationStateHeader) == sizeof(uint32) && alignof(FReplicationStateHeader) == alignof(uint32), "FReplicationStateHeader must currently have the same size and alignment as uint32");
 
-namespace Private {
+namespace Private
+{
 
 /** 
  * Internal access, should only be used by internal code
@@ -52,4 +55,6 @@ struct FReplicationStateHeaderAccessor
 	static void SetReplicationIndex(FReplicationStateHeader& Header, uint32 Index, uint32 ReplicationSystemId) { Header.ReplicationIndex = Index; Header.ReplicationSystemId = ReplicationSystemId; }
 };
 
-}}}
+}
+
+}

@@ -86,7 +86,7 @@ public:
 	void NotifyAddedDependentObject(uint32 ObjectIndex);
 	void NotifyRemovedDependentObject(uint32 ObjectIndex);
 	
-	// SubOjectFilter status
+	// SubObjectFilter status
 	void AddSubObjectFilter(FNetObjectGroupHandle GroupHandle);
 	void RemoveSubObjectFilter(FNetObjectGroupHandle GroupHandle);
 	bool IsSubObjectFilterGroup(FNetObjectGroupHandle GroupHandle) const { return GroupHandle && SubObjectFilterGroups.GetBit(GroupHandle); }
@@ -154,7 +154,7 @@ private:
 
 	bool HasDynamicFilters() const;
 
-	// Helper to update and reset group filter effects if objects are removed from a filter or after a filter status change, returns true of the group filter was changed
+	// Helper to update and reset group filter effects if objects are removed from a filter or after a filter status change, returns true if the group filter was changed
 	bool UpdateGroupFilterEffectsForObject(uint32 ObjectIndex, uint32 ConnectionId, const FNetBitArray& ScopableObjects);
 	bool HasOwnerFilter(uint32 ObjectIndex) const;
 	bool HasConnectionFilter(uint32 ObjectIndex) const;
@@ -243,7 +243,6 @@ private:
 	FNetBitArray DynamicFilterEnabledObjects;
 	FNetBitArray ObjectsRequiringDynamicFilterUpdate;
 
-	//
 	uint32 bHasNewConnection : 1;
 	uint32 bHasRemovedConnection : 1;
 	uint32 bHasDirtyConnectionFilter: 1;

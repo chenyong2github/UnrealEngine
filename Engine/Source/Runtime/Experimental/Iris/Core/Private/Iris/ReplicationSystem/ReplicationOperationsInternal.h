@@ -50,7 +50,7 @@ struct FReplicationStateOperationsInternal
 	/** Free the dynamic state from a state for a single replication state */
 	static IRISCORE_API void FreeDynamicState(uint8* ObjectStateBuffer, const FReplicationStateDescriptor* Descriptor);
 
-	/** Clone a qauntized state, Note: DstInternalBuffer is expected to be uninitialized */
+	/** Clone a quantized state, Note: DstInternalBuffer is expected to be uninitialized */
 	static IRISCORE_API void CloneQuantizedState(FNetSerializationContext& Context, uint8* RESTRICT DstInternalBuffer, const uint8* RESTRICT SrcInternalBuffer, const FReplicationStateDescriptor* Descriptor);
 	
 	/** Collect references from a state that does not have any changemask information */

@@ -1,18 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Iris/Serialization/ObjectNetSerializer.h"
-
 #include "Iris/Core/NetObjectReference.h"
 #include "Iris/Core/IrisLog.h"
-
 #include "Net/Core/Trace/NetTrace.h"
-
 #include "Iris/Serialization/InternalNetSerializer.h"
 #include "Iris/Serialization/NetBitStreamReader.h"
 #include "Iris/Serialization/NetBitStreamWriter.h"
-#include "Iris/Serialization/ObjectNetSerializer.h"
 #include "Iris/Serialization/InternalNetSerializationContext.h"
-
 #include "Iris/ReplicationSystem/NetHandleManager.h"
 #include "Iris/ReplicationSystem/ObjectReferenceCache.h"
 #include "Iris/Serialization/NetBitStreamUtil.h"

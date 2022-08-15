@@ -72,7 +72,7 @@ uint32 FNetHandleManager::InternalCreateNetObject(const FNetHandle NetHandle, co
 	// verify that the handle is free
 	if (HandleMap.Contains(NetHandle))
 	{
-		ensureAlwaysMsgf(false, TEXT("NetHandleManager::InternalCreateNetHandleHandle %s already exists"), *NetHandle.ToString());
+		ensureAlwaysMsgf(false, TEXT("NetHandleManager::InternalCreateNetObject %s already exists"), *NetHandle.ToString());
 		return InvalidInternalIndex;
 	}
 
@@ -195,7 +195,7 @@ FNetHandle FNetHandleManager::CreateNetObject(FNetHandle WantedHandle, const FRe
 // Create NetHandle not owned by us
 FNetHandle FNetHandleManager::CreateNetObjectFromRemote(FNetHandle WantedHandle, const FReplicationProtocol* ReplicationProtocol)
 {
-	if (!ensureAlwaysMsgf(WantedHandle.IsValid() && !WantedHandle.IsCompleteHandle(), TEXT("FNetHandleManager::CreateNetHandleFromRemote Expected WantedHandle %s to be valid and incomplete"), *WantedHandle.ToString()))
+	if (!ensureAlwaysMsgf(WantedHandle.IsValid() && !WantedHandle.IsCompleteHandle(), TEXT("FNetHandleManager::CreateNetObjectFromRemote Expected WantedHandle %s to be valid and incomplete"), *WantedHandle.ToString()))
 	{
 		return FNetHandle();
 	}

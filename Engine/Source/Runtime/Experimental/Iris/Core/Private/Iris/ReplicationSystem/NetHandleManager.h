@@ -162,10 +162,10 @@ public:
 	// Verify a handle against internal handle, A handle is valid if it matches internal storage
 	inline bool IsValidNetHandle(FNetHandle Handle) const;
 
-	// Returns true of the handle is for local replicated object
+	// Returns true if the handle is for local replicated object
 	inline bool IsLocalNetHandle(FNetHandle Handle) const;
 
-	// Returns true of the handle is for a remote replicated object
+	// Returns true if the handle is for a remote replicated object
 	inline bool IsRemoteNetHandle(FNetHandle Handle) const;
 
 	// Extract an Full handle from an incomplete one, a incomplete handle is a handle with only an index
@@ -377,19 +377,17 @@ bool FNetHandleManager::IsValidNetHandle(FNetHandle Handle) const
 	return HandleMap.Contains(Handle);
 }
 
-// Returns true of the handle is a local handle
 bool FNetHandleManager::IsLocalNetHandle(FNetHandle Handle) const
 {
 	if (const uint32 InternalIndex = GetInternalIndex(Handle))
 	{
-		// For the time being only replicated objects owned by this peer has a state buffer`1
+		// For the time being only replicated objects owned by this peer has a state buffer
 		return ReplicatedObjectStateBuffers[InternalIndex] != nullptr;
 	}
 
 	return false;
 }
 
-// Returns true of the handle is a remote handle
 bool FNetHandleManager::IsRemoteNetHandle(FNetHandle Handle) const
 {
 	if (const uint32 InternalIndex = GetInternalIndex(Handle))

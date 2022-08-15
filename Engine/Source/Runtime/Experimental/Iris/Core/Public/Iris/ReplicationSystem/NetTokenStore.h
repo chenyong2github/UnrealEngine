@@ -49,8 +49,6 @@ class FNetTokenStore
 {
 	UE_NONCOPYABLE(FNetTokenStore);
 public:
-	using FNetTokenStoreState = UE::Net::FNetTokenStoreState;
-
 	FNetTokenStore();
 	~FNetTokenStore();
 

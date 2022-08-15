@@ -340,7 +340,7 @@ public:
 	 * @param FilterName The name of the filter. Names of valid filters are configured in UNetObjectFilterDefinitions.
 	 * @return A valid handle if a filter with the given name has been successfully created in this system or InvalidNetObjectFilterHandle if not.
 	 * @see SetFilter
-	 * @ee UNetObjectFilterDefinitions
+	 * @see UNetObjectFilterDefinitions
 	 */
 	IRISCORE_API UE::Net::FNetObjectFilterHandle GetFilterHandle(const FName FilterName) const;
 
@@ -348,7 +348,7 @@ public:
 	 * Gets the filter with a given name.
 	 * @param FilterName The name of the filter. Names of valid filters are configured in UNetObjectFilterDefinitions.
 	 * @return A pointer to the filter if it exists, nullptr if not.
-	 * @ee UNetObjectFilterDefinitions
+	 * @see UNetObjectFilterDefinitions
 	 */
 	IRISCORE_API UNetObjectFilter* GetFilter(const FName FilterName) const;
 

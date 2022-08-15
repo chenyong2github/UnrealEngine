@@ -78,7 +78,7 @@ struct FNetObjectFilteringParams
 	/** ID of the connection that the filtering applies to. */
 	uint32 ConnectionId;
 
-	/** The view associated with the connection and its sub-sconnections that objects are filtered for. */
+	/** The view associated with the connection and its sub-connections that objects are filtered for. */
 	UE::Net::FReplicationView View;
 };
 
@@ -182,10 +182,10 @@ public:
 	/** A new object want to use this filter. Opportunity to cache some information for it. The info struct passed has been zeroed. Must be overriden. */
 	IRISCORE_API virtual bool AddObject(uint32 ObjectIndex, FNetObjectFilterAddObjectParams&) PURE_VIRTUAL(AddObject, return false;)
 
-	/** An object do no longer want to use this filter. */
+	/** An object no longer wants to use this filter. */
 	IRISCORE_API virtual void RemoveObject(uint32 ObjectIndex, const FNetObjectFilteringInfo&) PURE_VIRTUAL(RemoveObject,)
 
-	/** A set of objects ususing this filter has been updated. An opportunity for the filter to update cached data. */
+	/** A set of objects using this filter has been updated. An opportunity for the filter to update cached data. */
 	IRISCORE_API virtual void UpdateObjects(FNetObjectFilterUpdateParams&) PURE_VIRTUAL(UpdateObjects,)
 
 	/**

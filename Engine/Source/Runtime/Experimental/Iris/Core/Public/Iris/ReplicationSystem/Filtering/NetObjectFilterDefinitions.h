@@ -9,7 +9,7 @@
 USTRUCT()
 struct FNetObjectFilterDefinition
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	/** Filter identifier. Used to uniquely identify a filter. */
 	UPROPERTY()
@@ -38,7 +38,7 @@ class UNetObjectFilterDefinitions final : public UObject
 	GENERATED_BODY()
 
 public:
-	/** Returns the filter definitions exactly as configured. May contain invalid defintions, such as ClassNames not inheriting from UNetObjectFilter. */
+	/** Returns the filter definitions exactly as configured. May contain invalid definitions, such as ClassNames not inheriting from UNetObjectFilter. */
 	IRISCORE_API TConstArrayView<FNetObjectFilterDefinition> GetFilterDefinitions() const;
 
 private:

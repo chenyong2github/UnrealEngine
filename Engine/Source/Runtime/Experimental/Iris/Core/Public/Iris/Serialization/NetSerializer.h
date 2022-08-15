@@ -68,7 +68,7 @@ struct FExampleNetSerializer
 
 	/** Required. Serialize is responsible for writing the quantized data to a bit stream provided by the serialization context. */
 	static void Serialize(FNetSerializationContext&, const FNetSerializeArgs&);
-	/** Required. Serialize is responsible for reading the quantized data from a bit stream provided by the serialization context. */
+	/** Required. Deserialize is responsible for reading the quantized data from a bit stream provided by the serialization context. */
 	static void Deserialize(FNetSerializationContext&, const FNetDeserializeArgs&);
 
 	/**
