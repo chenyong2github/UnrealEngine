@@ -65,7 +65,7 @@ uint32 FRayTracingSkinnedGeometryUpdateQueue::ComputeScratchBufferSize() const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRayTracingSkinnedGeometryUpdateQueue::ComputeScratchBufferSize);
 
-	const uint64 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
+	const uint64 ScratchAlignment = GRHIRayTracingScratchBufferAlignment;
 	uint32 ScratchBLASSize = 0;
 
 	if (ToUpdate.Num() && GRayTracingUseTransientForScratch > 0)
@@ -150,7 +150,7 @@ void FRayTracingSkinnedGeometryUpdateQueue::Commit(FRHICommandListImmediate & RH
 			PrimitivesToUpdates = 0;
 		};
 
-		const uint64 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
+		const uint64 ScratchAlignment = GRHIRayTracingScratchBufferAlignment;
 		uint32 ScratchBLASCurrentOffset = 0;
 		uint32 ScratchBLASNextOffset = 0;
 
@@ -211,7 +211,7 @@ void FRayTracingSkinnedGeometryUpdateQueue::Commit(FRDGBuilder& GraphBuilder)
 	const uint32 BLASScratchSize = ComputeScratchBufferSize();
 	if (BLASScratchSize > 0)
 	{
-		const uint32 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
+		const uint32 ScratchAlignment = GRHIRayTracingScratchBufferAlignment;
 		
 		FRDGBufferDesc ScratchBufferDesc;
 		ScratchBufferDesc.Usage = EBufferUsageFlags::RayTracingScratch | EBufferUsageFlags::StructuredBuffer;

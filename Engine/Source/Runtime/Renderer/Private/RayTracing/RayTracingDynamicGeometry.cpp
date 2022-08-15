@@ -568,7 +568,7 @@ uint32 FRayTracingDynamicGeometryCollection::ComputeScratchBufferSize()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRayTracingDynamicGeometryCollection::ComputeScratchBufferSize);
 
-	const uint64 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
+	const uint64 ScratchAlignment = GRHIRayTracingScratchBufferAlignment;
 
 	uint32 BLASScratchSize = 0;
 
