@@ -85,6 +85,7 @@ class FWmfMediaTracks
 		bool Protected;
 		int32 SelectedFormat;
 		DWORD StreamIndex;
+		bool bNoDirectXOutput;
 	};
 
 public:
@@ -300,9 +301,6 @@ private:
 	void HandleMediaSamplerVideoSample(const uint8* Buffer, uint32 Size, FTimespan Duration, FTimespan Time);
 
 private:
-
-	/** HW accelerated or not. */
-	bool bHardwareAccelerated;
 
 	/** Audio sample object pool. */
 	FWmfMediaAudioSamplePool* AudioSamplePool;

@@ -845,10 +845,10 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 	}
 
 	DWORD cBuffers = 0;
-	IMFMediaBuffer* pBuffer = nullptr;
-	IMFDXGIBuffer* pDXGIBuffer = nullptr;
+	TComPtr<IMFMediaBuffer> pBuffer;
+	TComPtr<IMFDXGIBuffer> pDXGIBuffer;
 	UINT dwViewIndex = 0;
-	ID3D11Texture2D* pTexture2D = nullptr;
+	TComPtr<ID3D11Texture2D> pTexture2D;
 
 	HRESULT Result = pSample->GetBufferCount(&cBuffers);
 	if (FAILED(Result))
@@ -862,23 +862,6 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 		{
 			return;
 		}
-	}
-	Result = pBuffer->QueryInterface(__uuidof(IMFDXGIBuffer), (LPVOID*)&pDXGIBuffer);
-	if (FAILED(Result))
-	{
-		return;
-	}
-
-	Result = pDXGIBuffer->GetResource(__uuidof(ID3D11Texture2D), (LPVOID*)&pTexture2D);
-	if (FAILED(Result))
-	{
-		return;
-	}
-
-	Result = pDXGIBuffer->GetSubresourceIndex(&dwViewIndex);
-	if (FAILED(Result))
-	{
-		return;
 	}
 
 	UINT32 DimX;
@@ -895,6 +878,12 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 	if (SUCCEEDED(CurrentMediaType->GetGUID(MF_MT_SUBTYPE, &Guid)))
 	{
 		const TSharedRef<FWmfMediaHardwareVideoDecodingTextureSample, ESPMode::ThreadSafe> TextureSample = VideoSamplePool->AcquireShared();
+
+		GUID WrappedFormatGuid;
+		if (SUCCEEDED(CurrentMediaType->GetGUID(UE_WMF_PrivateFormatGUID, &WrappedFormatGuid)))
+		{
+			Guid = WrappedFormatGuid;
+		}
 
 		EPixelFormat PixelFormat = PF_Unknown;
 		EPixelFormat AlphaPixelFormat = PF_Unknown;
@@ -988,6 +977,24 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 		}
 		else
 		{
+			Result = pBuffer->QueryInterface(__uuidof(IMFDXGIBuffer), (LPVOID*)&pDXGIBuffer);
+			if (FAILED(Result))
+			{
+				return;
+			}
+
+			Result = pDXGIBuffer->GetResource(__uuidof(ID3D11Texture2D), (LPVOID*)&pTexture2D);
+			if (FAILED(Result))
+			{
+				return;
+			}
+
+			Result = pDXGIBuffer->GetSubresourceIndex(&dwViewIndex);
+			if (FAILED(Result))
+			{
+				return;
+			}
+
 			check(TextureSample->GetMediaTextureSampleConverter() != nullptr);
 			ID3D11Texture2D* SharedTexture = TextureSample->InitializeSourceTexture(
 				Owner->GetDevice(),
@@ -998,7 +1005,9 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 				MediaTextureSampleFormat);
 
 			if (!SharedTexture)
+			{
 				return;
+			}
 
 			D3D11_BOX SrcBox;
 			SrcBox.left = 0;
@@ -1036,19 +1045,6 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 			UE_LOG(LogWmfMedia, Log, TEXT("StreamSink %p: Unable to query MF_MT_SUBTYPE GUID of current media type"), this);
 			bShowSubTypeErrorMessage = false;
 		}
-	}
-
-	if (pTexture2D)
-	{
-		pTexture2D->Release();
-	}
-	if (pDXGIBuffer)
-	{
-		pDXGIBuffer->Release();
-	}
-	if (pBuffer)
-	{
-		pBuffer->Release();
 	}
 }
 

@@ -43,8 +43,7 @@ private:
 protected:
 	
 	PRDecoderRef Decoder;
-
-	TComPtr<ID3D11Texture2D> OutputTexture;
+	TComPtr<IMFMediaBuffer> MediaBuffer;
 };
 
 #endif // WMFMEDIA_SUPPORTED_PLATFORM

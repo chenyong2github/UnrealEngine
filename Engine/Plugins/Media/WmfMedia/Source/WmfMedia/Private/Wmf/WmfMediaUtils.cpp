@@ -8,6 +8,9 @@
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformProcess.h"
 
+#include "RHI.h"
+#include "DynamicRHI.h"
+
 #include "IWmfMediaModule.h"
 #include "Math/NumericLimits.h"
 #include "Misc/FileHelper.h"
@@ -355,7 +358,7 @@ namespace WmfMedia
 		return FMemory::Memcmp(&lhs.Data2, &rhs.Data2, 12) == 0; //-V512
 	}
 
-	TComPtr<IMFMediaType> CreateOutputType(IMFMediaType& InputType, bool AllowNonStandardCodecs, bool IsVideoDevice)
+	TComPtr<IMFMediaType> CreateOutputType(IMFMediaType& InputType, bool& bNoDirectXOutput, bool AllowNonStandardCodecs, bool IsVideoDevice)
 	{
 		GUID MajorType;
 		{
@@ -397,6 +400,8 @@ namespace WmfMedia
 				return NULL;
 			}
 		}
+
+		bNoDirectXOutput = false;
 
 		if (MajorType == MFMediaType_Audio)
 		{
@@ -504,6 +509,9 @@ namespace WmfMedia
 					UE_LOG(LogWmfMedia, Warning, TEXT("H264 video type requires Windows 8 or newer (your version is %s)"), *FPlatformMisc::GetOSVersion());
 					return NULL;
 				}
+
+				// Is this D3D11? Only then we can output directly into a texture
+				bNoDirectXOutput = (RHIGetInterfaceType() != ERHIInterfaceType::D3D11);
 			}
 
 			if ((SubType == MFVideoFormat_HEVC) || (SubType == MFVideoFormat_HEVC_ES))
@@ -518,6 +526,9 @@ namespace WmfMedia
 
 					UE_LOG(LogWmfMedia, Warning, TEXT("HEVC video type requires Windows 10 or newer (your version is %s), and game must be manifested for Windows 10"), *FPlatformMisc::GetOSVersion());
 				}
+
+				// Is this D3D11? Only then we can output directly into a texture
+				bNoDirectXOutput = (RHIGetInterfaceType() != ERHIInterfaceType::D3D11);
 			}
 
 			// configure video output

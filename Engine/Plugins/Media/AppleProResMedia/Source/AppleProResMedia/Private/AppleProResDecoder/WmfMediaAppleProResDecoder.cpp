@@ -12,8 +12,6 @@
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 
-#include <d3d11.h>
-
 const GUID DecoderGUID_AppleProRes_422_Proxy = { 0x6170636F, 0x767A, 0x494D, { 0xB4, 0x78, 0xF2, 0x9D, 0x25, 0xDC, 0x90, 0x37 } };
 const GUID DecoderGUID_AppleProRes_422_LT = { 0x61706373, 0x767A, 0x494D, { 0xB4, 0x78, 0xF2, 0x9D, 0x25, 0xDC, 0x90, 0x37 } };
 const GUID DecoderGUID_AppleProRes_422 = { 0x6170636E, 0x767A, 0x494D, { 0xB4, 0x78, 0xF2, 0x9D, 0x25, 0xDC, 0x90, 0x37 } };
@@ -185,36 +183,12 @@ HRESULT WmfMediaAppleProResDecoder::ProcessMessage(MFT_MESSAGE_TYPE eMessage, UL
 		hr = OnDiscontinuity();
 		break;
 
-	case MFT_MESSAGE_SET_D3D_MANAGER:
-	{
-		IMFDXGIDeviceManager *pDeviceManager = (IMFDXGIDeviceManager*)ulParam;
-		DXGIManager = TComPtr<IMFDXGIDeviceManager>(pDeviceManager);
-
-		if (DXGIManager.IsValid())
-		{
-			HANDLE DeviceHandle = 0;
-			if (DXGIManager->OpenDeviceHandle(&DeviceHandle) == S_OK)
-			{
-				DXGIManager->GetVideoService(DeviceHandle, __uuidof(ID3D11Device), (void**)&D3D11Device);
-				if (D3D11Device.IsValid())
-				{
-					D3D11Device->GetImmediateContext(&D3DImmediateContext);
-					if (D3DImmediateContext.IsValid())
-					{
-						UE_LOG(LogAppleProResMedia, Verbose, TEXT("D3D11Device from Device manager: %p"), D3D11Device.Get());
-					}
-				}
-			}
-		}
-	}
-		break;
 	default:
 		break;
 	}
 
 	return hr;
 }
-	
 
 
 HRESULT WmfMediaAppleProResDecoder::ProcessOutput(DWORD dwFlags, DWORD cOutputBufferCount, MFT_OUTPUT_DATA_BUFFER* pOutputSamples, DWORD* pdwStatus)
@@ -239,31 +213,9 @@ HRESULT WmfMediaAppleProResDecoder::ProcessOutput(DWORD dwFlags, DWORD cOutputBu
 		return MF_E_TRANSFORM_NEED_MORE_INPUT;
 	}
 
-	if (!OutputTexture.IsValid())
-	{
-		D3D11_TEXTURE2D_DESC TextureDesc;
-		memset(&TextureDesc, 0, sizeof(TextureDesc));
-		TextureDesc.Width = ImageWidthInPixels;
-		TextureDesc.Height = ImageHeightInPixels;
-		TextureDesc.MipLevels = 1;
-		TextureDesc.ArraySize = 1;
-		TextureDesc.Format = DXGI_FORMAT_R16G16B16A16_UNORM;
-		TextureDesc.SampleDesc.Count = 1;
-		TextureDesc.SampleDesc.Quality = 0;
-		TextureDesc.Usage = D3D11_USAGE_DYNAMIC;
-		TextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		TextureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		TextureDesc.MiscFlags = 0;
-		HRESULT Result = D3D11Device->CreateTexture2D(&TextureDesc, nullptr, &OutputTexture);
-		printf("%ld", Result);
-	}
-
-
 	FScopeLock Lock(&CriticalSection);
 
 	HRESULT hr = S_OK;
-
-	TComPtr<IMFMediaBuffer> pOutput;
 
 	if (SUCCEEDED(hr))
 	{
@@ -274,18 +226,14 @@ HRESULT WmfMediaAppleProResDecoder::ProcessOutput(DWORD dwFlags, DWORD cOutputBu
 		pOutputSamples[0].pSample = Sample.Get();
 		Sample->AddRef();
 
-		TComPtr<IMFMediaBuffer> MediaBuffer;
-		MFCreateDXGISurfaceBuffer(__uuidof(ID3D11Texture2D), OutputTexture, 0, FALSE, &MediaBuffer);
+		// If used with DX11 we need a (dummy, but amply sized!) memory buffer attached to the sample to make WMF happy
+		if (!MediaBuffer.IsValid())
+		{
+			MFCreateMemoryBuffer(OutputImageSize, &MediaBuffer);
+			MediaBuffer->SetCurrentLength(OutputImageSize);
+		}
 
 		Sample->AddBuffer(MediaBuffer);
-	}
-
-
-	hr = pOutputSamples[0].pSample->GetBufferByIndex(0, &pOutput);
-
-	if (pOutput == nullptr)
-	{
-		return S_OK;
 	}
 
 	if (SUCCEEDED(hr))
@@ -311,87 +259,27 @@ HRESULT WmfMediaAppleProResDecoder::InternalProcessOutput(IMFSample* InSample)
 		return MF_E_TRANSFORM_NEED_MORE_INPUT;
 	}
 
-	HRESULT hr = S_OK;
-
-	BYTE *pbData = NULL;
-
-	DWORD dwTimeCode = 0;
-	LONGLONG rt = 0;
-
-	DWORD cBuffers = 0;
-	TComPtr<IMFMediaBuffer> pBuffer = nullptr;
-	TComPtr<IMFDXGIBuffer> pDXGIBuffer = nullptr;
-	UINT dwViewIndex = 0;
-	TComPtr<ID3D11Texture2D> TextureNV12_Y = nullptr;
-
-	HRESULT Result = S_OK;
-	if (bIsExternalBufferEnabled == false)
-	{
-		Result = InSample->GetBufferCount(&cBuffers);
-		if (FAILED(Result))
-		{
-			return Result;
-		}
-		if (1 == cBuffers)
-		{
-			Result = InSample->GetBufferByIndex(0, &pBuffer);
-			if (FAILED(Result))
-			{
-				return Result;
-			}
-		}
-		Result = pBuffer->QueryInterface(__uuidof(IMFDXGIBuffer), (LPVOID*)&pDXGIBuffer);
-		if (FAILED(Result))
-		{
-			return Result;
-		}
-
-		Result = pDXGIBuffer->GetResource(__uuidof(ID3D11Texture2D), (LPVOID*)&TextureNV12_Y);
-		if (FAILED(Result))
-		{
-			return Result;
-		}
-
-		Result = pDXGIBuffer->GetSubresourceIndex(&dwViewIndex);
-		if (FAILED(Result))
-		{
-			return Result;
-		}
-
-	}
-
 	DataBuffer OuputDataBuffer;
 	OutputQueue.Dequeue(OuputDataBuffer);
 
 	LONGLONG TimeStamp = OuputDataBuffer.TimeStamp;
 
-	if (bIsExternalBufferEnabled == false)
+	check(bIsExternalBufferEnabled);
+
+	// Get buffer.
+	TArray<uint8>* pExternalBuffer = AllocateExternalBuffer(TimeStamp, OuputDataBuffer.Color.Num());
+	if (pExternalBuffer == nullptr)
 	{
-		D3D11_MAPPED_SUBRESOURCE MappedResourceColor;
-		Result = D3DImmediateContext->Map(OutputTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResourceColor);
-		memcpy(MappedResourceColor.pData, OuputDataBuffer.Color.GetData(), MappedResourceColor.DepthPitch);
-		D3DImmediateContext->Unmap(OutputTexture, 0);
+		return 0;
 	}
-	else
-	{
-		// Get buffer.
-		TArray<uint8>* pExternalBuffer = AllocateExternalBuffer(TimeStamp, OuputDataBuffer.Color.Num());
-		if (pExternalBuffer == nullptr)
-		{
-			return 0;
-		}
 		
-		// Copy to buffer.
-		pExternalBuffer->SetNum(OuputDataBuffer.Color.Num());
-		FMemory::Memcpy(pExternalBuffer->GetData(), OuputDataBuffer.Color.GetData(), OuputDataBuffer.Color.Num());
-	}
+	// Copy to buffer.
+	pExternalBuffer->SetNum(OuputDataBuffer.Color.Num());
+	FMemory::Memcpy(pExternalBuffer->GetData(), OuputDataBuffer.Color.GetData(), OuputDataBuffer.Color.Num());
 
 	InputQueue.Enqueue(MoveTemp(OuputDataBuffer));
 
-	if (SUCCEEDED(hr))
-	{
-		hr = InSample->SetUINT32(MFSampleExtension_CleanPoint, TRUE);
-	}
+	HRESULT hr = InSample->SetUINT32(MFSampleExtension_CleanPoint, TRUE);
 
 	if (SUCCEEDED(hr))
 	{
@@ -490,7 +378,7 @@ HRESULT WmfMediaAppleProResDecoder::OnSetInputType(IMFMediaType* InMediaType)
 	if (SUCCEEDED(hr))
 	{
 		InputImageSize = ImageWidthInPixels * ImageHeightInPixels * 8;
-		OutputImageSize = ImageWidthInPixels * ImageHeightInPixels * 4;
+		OutputImageSize = ImageWidthInPixels * ImageHeightInPixels * 8; // Y416 (4.4.4 - 16-bit - aligned)
 
 		InputType = InMediaType;
 		InputType->AddRef();
@@ -550,4 +438,3 @@ HRESULT WmfMediaAppleProResDecoder::InternalProcessInput(LONGLONG InTimeStamp, B
 #include "Windows/HideWindowsPlatformTypes.h"
 
 #endif // WMFMEDIA_SUPPORTED_PLATFORM
-

@@ -16,7 +16,6 @@
 
 #if WITH_ENGINE
 	#include "Engine/Engine.h"
-	#include "HardwareInfo.h"
 #endif
 
 #include "Player/WmfMediaTextureSample.h"
@@ -45,8 +44,7 @@
  *****************************************************************************/
 
 FWmfMediaTracks::FWmfMediaTracks()
-	: bHardwareAccelerated(false)
-	, AudioSamplePool(new FWmfMediaAudioSamplePool)
+	: AudioSamplePool(new FWmfMediaAudioSamplePool)
 	, MediaSourceChanged(false)
 	, SelectedAudioTrack(INDEX_NONE)
 	, SelectedCaptionTrack(INDEX_NONE)
@@ -183,22 +181,13 @@ TComPtr<IMFTopology> FWmfMediaTracks::CreateTopology()
 
 	UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Created playback topology %p (media source %p)"), this, Topology.Get(), MediaSource.Get());
 
-	bHardwareAccelerated = false;
-
 	const UWmfMediaSettings* WmfMediaSettings = GetDefault<UWmfMediaSettings>();
 	if (WmfMediaSettings->HardwareAcceleratedVideoDecoding ||
 		WmfMediaSettings->bAreHardwareAcceleratedCodecRegistered)
 	{
-#if WITH_ENGINE
-		if (FHardwareInfo::GetHardwareInfo(NAME_RHI) == "D3D11")
-#else
-		if (1)
-#endif
-		{
-			WmfMediaTopologyLoader MediaTopologyLoader;
-			bHardwareAccelerated = MediaTopologyLoader.EnableHardwareAcceleration(Topology);
-			bHardwareAccelerated = bHardwareAccelerated || bVideoTrackRequestedHardwareAcceleration;
-		}
+		WmfMediaTopologyLoader MediaTopologyLoader;
+		bool bHardwareAccelerated = MediaTopologyLoader.EnableHardwareAcceleration(Topology) || bVideoTrackRequestedHardwareAcceleration;
+
 		UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Video (media source %p) will be decoded on %s"), this, MediaSource.Get(), bHardwareAccelerated ? TEXT("GPU") : TEXT("CPU"));
 		Info += FString::Printf(TEXT("Video decoded on %s\n"), bHardwareAccelerated ? TEXT("GPU") : TEXT("CPU"));
 	}
@@ -1279,8 +1268,17 @@ bool FWmfMediaTracks::AddTrackToTopology(const FTrack& Track, IMFTopology& Topol
 	TComPtr<FWmfMediaStreamSink> MediaStreamSink;
 
 	const UWmfMediaSettings* WmfMediaSettings = GetDefault<UWmfMediaSettings>();
-	if ((GEngine != nullptr) && 
-		bHardwareAccelerated &&
+
+	if (VideoSamplePool)
+	{
+		delete VideoSamplePool;
+		VideoSamplePool = nullptr;
+	}
+
+#if WITH_ENGINE
+	if ((GEngine != nullptr) &&
+		!Track.bNoDirectXOutput &&
+		(WmfMediaSettings->HardwareAcceleratedVideoDecoding || WmfMediaSettings->bAreHardwareAcceleratedCodecRegistered) &&
 		MajorType == MFMediaType_Video &&
 		FPlatformMisc::VerifyWindowsVersion(6, 2) && // Windows 8
 		FWmfMediaStreamSink::Create(MFMediaType_Video, MediaStreamSink))
@@ -1301,12 +1299,14 @@ bool FWmfMediaTracks::AddTrackToTopology(const FTrack& Track, IMFTopology& Topol
 		bVideoTrackRequestedHardwareAcceleration = true;
 	}
 	else
+#endif
 	{
-		if (VideoSamplePool)
-		{
-			delete VideoSamplePool;
-		}
 		VideoSamplePool = new FWmfMediaTextureSamplePool();
+		if (!VideoSamplePool)
+		{
+			UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Failed to configure output node for stream (no memory) %i"), this, Track.StreamIndex);
+			return false;
+		}
 
 		if (FAILED(::MFCreateTopologyNode(MF_TOPOLOGY_OUTPUT_NODE, &OutputNode)) ||
 			FAILED(OutputNode->SetObject(OutputActivator)) ||
@@ -1581,7 +1581,8 @@ bool FWmfMediaTracks::AddStreamToTracks(uint32 StreamIndex, bool IsVideoDevice, 
 		OutInfo += FString::Printf(TEXT("\t\tCodec: %s\n"), *TypeName);
 
 		// create output type
-		TComPtr<IMFMediaType> OutputType = WmfMedia::CreateOutputType(*MediaType, AllowNonStandardCodecs, IsVideoDevice);
+		bool bNoDirectXOutput;
+		TComPtr<IMFMediaType> OutputType = WmfMedia::CreateOutputType(*MediaType, bNoDirectXOutput, AllowNonStandardCodecs, IsVideoDevice);
 
 		if (!OutputType.IsValid())
 		{
@@ -1589,6 +1590,8 @@ bool FWmfMediaTracks::AddStreamToTracks(uint32 StreamIndex, bool IsVideoDevice, 
 
 			continue;
 		}
+
+		Track->bNoDirectXOutput = bNoDirectXOutput;
 
 		// add format details
 		int32 FormatIndex = INDEX_NONE;

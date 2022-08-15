@@ -194,8 +194,19 @@ void FWmfMediaPlayer::Tick()
 			Session->Initialize(Settings->LowLatency);
 			Tracks->ReInitialize();
 		}
-	
-		if (!Tracks->IsInitialized() || !Session->SetTopology(Tracks->CreateTopology(), Tracks->GetDuration()))
+
+		bool bOK = false;
+		if (Tracks->IsInitialized())
+		{
+			auto Topo = Tracks->CreateTopology();
+
+			if (Session->SetTopology(Topo, Tracks->GetDuration()))
+			{
+				bOK = true;
+			}
+		}
+
+		if (!bOK)
 		{
 			Session->Shutdown();
 			EventSink.ReceiveMediaEvent(EMediaEvent::MediaOpenFailed);
