@@ -497,6 +497,15 @@ public:
 		return TPlatformProperties::GetMemoryMappingAlignment();
 	}
 
+	virtual bool UsesRayTracing() const override
+	{
+		if (TPlatformProperties::SupportsRayTracing())
+		{
+			return FTargetPlatformBase::UsesRayTracing();
+		}
+		return false;
+	}
+
 
 #if WITH_ENGINE
 	virtual FName GetPhysicsFormat( class UBodySetup* Body ) const override

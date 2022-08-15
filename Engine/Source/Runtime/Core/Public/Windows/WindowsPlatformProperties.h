@@ -93,6 +93,11 @@ struct FWindowsPlatformProperties
 		return !IsServerOnly() && !HasEditorOnlyData();
 	}
 
+	static FORCEINLINE bool SupportsRayTracing()
+	{
+		return true;
+	}
+
 	static FORCEINLINE bool SupportsGrayscaleSRGB()
 	{
 		return false; // Requires expand from G8 to RGBA

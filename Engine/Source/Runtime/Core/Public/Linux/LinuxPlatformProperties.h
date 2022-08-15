@@ -120,6 +120,11 @@ struct FLinuxPlatformProperties
 		return true;
 	}
 
+	static FORCEINLINE bool SupportsRayTracing()
+	{
+		return true;
+	}
+
 	static FORCEINLINE bool SupportsQuit()
 	{
 		return true;
