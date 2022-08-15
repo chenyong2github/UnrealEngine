@@ -5,6 +5,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "MediaPlateComponent.h"
 #include "MediaPlateModule.h"
 #include "MediaTexture.h"
@@ -86,33 +87,58 @@ void AMediaPlate::BeginDestroy()
 
 void AMediaPlate::UseDefaultMaterial()
 {
-	// Get material.
-	UMaterial* Material = LoadObject<UMaterial>(NULL, TEXT("/MediaPlate/M_MediaPlate"), NULL, LOAD_None, NULL);
-	if (Material != nullptr)
-	{
-		// Change M_ to MI_ in material name and then generate a unique one.
-		FString MaterialName = Material->GetName();
-		if (MaterialName.StartsWith(TEXT("M_")))
-		{
-			MaterialName.InsertAt(1, TEXT("I"));
-		}
-		FName MaterialUniqueName = MakeUniqueObjectName(this, UMaterialInstanceConstant::StaticClass(),
-			FName(*MaterialName));
+	UMaterial* DefaultMaterial = LoadObject<UMaterial>(NULL, TEXT("/MediaPlate/M_MediaPlate"), NULL, LOAD_None, NULL);
+	
+	ApplyMaterial(DefaultMaterial);
+}
 
-		// Create instance.
-		UMaterialInstanceConstant* MaterialInstance =
-			NewObject<UMaterialInstanceConstant>(this, MaterialUniqueName);
-		MaterialInstance->SetParentEditorOnly(Material);
-		MaterialInstance->SetTextureParameterValueEditorOnly(
-			FMaterialParameterInfo(MediaTextureName),
-			MediaPlateComponent->GetMediaTexture());
-		MaterialInstance->PostEditChange();
+void AMediaPlate::ApplyMaterial(UMaterialInterface* Material)
+{
+	if (Material != nullptr && StaticMeshComponent != nullptr)
+	{
+		UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Material);
+		UMaterialInterface* Result = nullptr;
+
+		if (MID != nullptr)
+		{
+			MID->SetTextureParameterValue(MediaTextureName, MediaPlateComponent->GetMediaTexture());
+
+			Result = MID;
+		}
+		else
+		{
+			// Change M_ to MI_ in material name and then generate a unique one.
+			FString MaterialName = Material->GetName();
+			if (MaterialName.StartsWith(TEXT("M_")))
+			{
+				MaterialName.InsertAt(1, TEXT("I"));
+			}
+			FName MaterialUniqueName = MakeUniqueObjectName(StaticMeshComponent, UMaterialInstanceConstant::StaticClass(),
+				FName(*MaterialName));
+
+			// Create instance.
+			UMaterialInstanceConstant* MaterialInstance =
+				NewObject<UMaterialInstanceConstant>(StaticMeshComponent, MaterialUniqueName);
+			MaterialInstance->SetParentEditorOnly(Material);
+			MaterialInstance->CopyMaterialUniformParametersEditorOnly(Material);
+			MaterialInstance->SetTextureParameterValueEditorOnly(
+				FMaterialParameterInfo(MediaTextureName),
+				MediaPlateComponent->GetMediaTexture());
+			MaterialInstance->PostEditChange();
+
+			// We force call post-load to indirectly call UpdateParameters() (for integration with VPUtilities plugin).
+			MaterialInstance->PostLoad();
+
+			Result = MaterialInstance;
+		}
 
 		// Update static mesh.
-		if (StaticMeshComponent != nullptr)
+		if (Result != nullptr)
 		{
 			StaticMeshComponent->Modify();
-			StaticMeshComponent->SetMaterial(0, MaterialInstance);
+			StaticMeshComponent->SetMaterial(0, Result);
+
+			LastMaterial = Result;
 		}
 	}
 }

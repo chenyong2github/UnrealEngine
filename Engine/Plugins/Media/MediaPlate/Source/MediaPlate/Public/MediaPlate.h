@@ -36,7 +36,8 @@ public:
 	 * Call this to change the static mesh to use the default media plate material.
 	 */
 	void UseDefaultMaterial();
-
+	void ApplyMaterial(UMaterialInterface* InMaterial);
+	UMaterialInterface* GetLastMaterial() const { return LastMaterial; }
 #endif
 
 private:
@@ -44,4 +45,8 @@ private:
 	static FLazyName MediaPlateComponentName;
 	/** Name for the media texture parameter in the material. */
 	static FLazyName MediaTextureName;
+
+#if WITH_EDITOR
+	UMaterialInterface* LastMaterial = nullptr;
+#endif
 };
