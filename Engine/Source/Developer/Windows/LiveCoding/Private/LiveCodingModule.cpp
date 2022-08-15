@@ -20,6 +20,7 @@
 #include "Windows/WindowsHWrapper.h"
 #include "Algo/Sort.h"
 #include "Algo/BinarySearch.h"
+#include "HAL/LowLevelMemTracker.h"
 #if WITH_EDITOR
 	#include "Editor.h"
 	#include "Kismet2/ReloadUtilities.h"
@@ -44,6 +45,8 @@
 IMPLEMENT_MODULE(FLiveCodingModule, LiveCoding)
 
 #define LOCTEXT_NAMESPACE "LiveCodingModule"
+
+LLM_DEFINE_TAG(LiveCoding);
 
 bool GIsCompileActive = false;
 bool GTriggerReload = false;
@@ -179,6 +182,8 @@ FLiveCodingModule::~FLiveCodingModule()
 
 void FLiveCodingModule::StartupModule()
 {
+	LLM_SCOPE_BYTAG(LiveCoding);
+
 	// Register with NT to get dll nitrifications
 	FNtDllFunction RegisterFunc("LdrRegisterDllNotification");
 	RegisterFunc(0, OnDllNotification, this, &CallbackCookie);

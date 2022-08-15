@@ -3,10 +3,13 @@
 #include "VisualStudioSourceCodeAccessModule.h"
 #include "Features/IModularFeatures.h"
 #include "Modules/ModuleManager.h"
+#include "HAL/LowLevelMemTracker.h"
 
 IMPLEMENT_MODULE( FVisualStudioSourceCodeAccessModule, VisualStudioSourceCodeAccess );
 
 #define LOCTEXT_NAMESPACE "VisualStudioSourceCodeAccessor"
+
+LLM_DEFINE_TAG(VisualStudioSourceCodeAccess);
 
 FVisualStudioSourceCodeAccessModule::FVisualStudioSourceCodeAccessModule()
 	: VisualStudioSourceCodeAccessor(MakeShareable(new FVisualStudioSourceCodeAccessor()))
@@ -15,6 +18,8 @@ FVisualStudioSourceCodeAccessModule::FVisualStudioSourceCodeAccessModule()
 
 void FVisualStudioSourceCodeAccessModule::StartupModule()
 {
+	LLM_SCOPE_BYTAG(VisualStudioSourceCodeAccess);
+
 	VisualStudioSourceCodeAccessor->Startup();
 
 	// Add all the explicit version wrappers. If one of these is selected, UBT will generate project files in the appropriate format. Editor behavior is still to detect which version to use

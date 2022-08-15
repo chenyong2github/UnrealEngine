@@ -3,6 +3,9 @@
 #include "VisualStudioCodeSourceCodeAccessModule.h"
 #include "Features/IModularFeatures.h"
 #include "Modules/ModuleManager.h"
+#include "HAL/LowLevelMemTracker.h"
+
+LLM_DEFINE_TAG(VisualStudioCodeSourceCodeAccess);
 
 IMPLEMENT_MODULE( FVisualStudioCodeSourceCodeAccessModule, VisualStudioCodeSourceCodeAccess );
 
@@ -15,6 +18,8 @@ FVisualStudioCodeSourceCodeAccessModule::FVisualStudioCodeSourceCodeAccessModule
 
 void FVisualStudioCodeSourceCodeAccessModule::StartupModule()
 {
+	LLM_SCOPE_BYTAG(VisualStudioCodeSourceCodeAccess);
+
 	VisualStudioCodeSourceCodeAccessor->Startup();
 
 	// Bind our source control provider to the editor

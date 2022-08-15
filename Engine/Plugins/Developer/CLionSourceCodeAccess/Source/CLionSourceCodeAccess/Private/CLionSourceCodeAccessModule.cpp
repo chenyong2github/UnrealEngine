@@ -3,8 +3,11 @@
 #include "CLionSourceCodeAccessModule.h"
 #include "Modules/ModuleManager.h"
 #include "Features/IModularFeatures.h"
+#include "HAL/LowLevelMemTracker.h"
 
 #define LOCTEXT_NAMESPACE "CLionSourceCodeAccessor"
+
+LLM_DEFINE_TAG(CLionSourceCodeAccess);
 
 IMPLEMENT_MODULE(FCLionSourceCodeAccessModule, CLionSourceCodeAccess);
 
@@ -16,6 +19,8 @@ void FCLionSourceCodeAccessModule::ShutdownModule()
 
 void FCLionSourceCodeAccessModule::StartupModule()
 {
+	LLM_SCOPE_BYTAG(CLionSourceCodeAccess);
+
 	// Quick forced check of availability before anyone touches the module
 	CLionSourceCodeAccessor.RefreshAvailability();
 

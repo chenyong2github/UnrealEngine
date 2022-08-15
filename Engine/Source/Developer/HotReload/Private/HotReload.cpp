@@ -33,6 +33,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Interfaces/IPluginManager.h"
 #include "DesktopPlatformModule.h"
+#include "HAL/LowLevelMemTracker.h"
 #if WITH_ENGINE
 #include "Engine/Engine.h"
 #include "EngineAnalytics.h"
@@ -56,6 +57,8 @@
 DEFINE_LOG_CATEGORY(LogHotReload);
 
 #define LOCTEXT_NAMESPACE "HotReload"
+
+LLM_DEFINE_TAG(HotReload);
 
 namespace EThreeStateBool
 {
@@ -380,13 +383,13 @@ IMPLEMENT_MODULE(FHotReloadModule, HotReload);
 
 namespace HotReloadDefs
 {
-	const static FString CompilationInfoConfigSection("ModuleFileTracking");
+	static const TCHAR* CompilationInfoConfigSection = TEXT("ModuleFileTracking");
 
 	// These strings should match the values of the enum EModuleCompileMethod in ModuleManager.h
 	// and should be handled in ReadModuleCompilationInfoFromConfig() & WriteModuleCompilationInfoToConfig() below
-	const static FString CompileMethodRuntime("Runtime");
-	const static FString CompileMethodExternal("External");
-	const static FString CompileMethodUnknown("Unknown");
+	static const TCHAR* CompileMethodRuntime = TEXT("Runtime");
+	static const TCHAR* CompileMethodExternal = TEXT("External");
+	static const TCHAR* CompileMethodUnknown = TEXT("Unknown");
 
 	// Add one minute epsilon to timestamp comparision
 	const static FTimespan TimeStampEpsilon(0, 1, 0);
@@ -534,6 +537,8 @@ namespace UEHotReload_Private
 
 void FHotReloadModule::StartupModule()
 {
+	LLM_SCOPE_BYTAG(HotReload);
+
 	UEHotReload_Private::CreateFileThatIndicatesEditorRunIfNeeded();
 
 	bIsHotReloadingFromEditor = false;
@@ -605,6 +610,8 @@ void FHotReloadModule::SaveConfig()
 
 FString FHotReloadModule::GetModuleCompileMethod(FName InModuleName)
 {
+	LLM_SCOPE_BYTAG(HotReload);
+
 	if (!ModuleCompileData.Contains(InModuleName))
 	{
 		UpdateModuleCompileData(InModuleName);
@@ -1736,7 +1743,7 @@ void FHotReloadModule::UpdateModuleCompileData(FName ModuleName)
 void FHotReloadModule::ReadModuleCompilationInfoFromConfig(FName ModuleName, FModuleCompilationData& CompileData)
 {
 	FString DateTimeString;
-	if (GConfig->GetString(*HotReloadDefs::CompilationInfoConfigSection, *FString::Printf(TEXT("%s.TimeStamp"), *ModuleName.ToString()), DateTimeString, GEditorPerProjectIni))
+	if (GConfig->GetString(HotReloadDefs::CompilationInfoConfigSection, *FString::Printf(TEXT("%s.TimeStamp"), *ModuleName.ToString()), DateTimeString, GEditorPerProjectIni))
 	{
 		FDateTime TimeStamp;
 		if (!DateTimeString.IsEmpty() && FDateTime::Parse(DateTimeString, TimeStamp))
@@ -1745,13 +1752,13 @@ void FHotReloadModule::ReadModuleCompilationInfoFromConfig(FName ModuleName, FMo
 			CompileData.FileTimeStamp = TimeStamp;
 
 			FString CompileMethodString;
-			if (GConfig->GetString(*HotReloadDefs::CompilationInfoConfigSection, *FString::Printf(TEXT("%s.LastCompileMethod"), *ModuleName.ToString()), CompileMethodString, GEditorPerProjectIni))
+			if (GConfig->GetString(HotReloadDefs::CompilationInfoConfigSection, *FString::Printf(TEXT("%s.LastCompileMethod"), *ModuleName.ToString()), CompileMethodString, GEditorPerProjectIni))
 			{
-				if (CompileMethodString.Equals(HotReloadDefs::CompileMethodRuntime, ESearchCase::IgnoreCase))
+				if (FCString::Stricmp(*CompileMethodString, HotReloadDefs::CompileMethodRuntime) == 0)
 				{
 					CompileData.CompileMethod = EModuleCompileMethod::Runtime;
 				}
-				else if (CompileMethodString.Equals(HotReloadDefs::CompileMethodExternal, ESearchCase::IgnoreCase))
+				else if (FCString::Stricmp(*CompileMethodString, HotReloadDefs::CompileMethodExternal) == 0)
 				{
 					CompileData.CompileMethod = EModuleCompileMethod::External;
 				}
@@ -1768,9 +1775,9 @@ void FHotReloadModule::WriteModuleCompilationInfoToConfig(FName ModuleName, cons
 		DateTimeString = CompileData.FileTimeStamp.ToString();
 	}
 
-	GConfig->SetString(*HotReloadDefs::CompilationInfoConfigSection, *FString::Printf(TEXT("%s.TimeStamp"), *ModuleName.ToString()), *DateTimeString, GEditorPerProjectIni);
+	GConfig->SetString(HotReloadDefs::CompilationInfoConfigSection, *FString::Printf(TEXT("%s.TimeStamp"), *ModuleName.ToString()), *DateTimeString, GEditorPerProjectIni);
 
-	FString CompileMethodString = HotReloadDefs::CompileMethodUnknown;
+	const TCHAR* CompileMethodString = HotReloadDefs::CompileMethodUnknown;
 	if (CompileData.CompileMethod == EModuleCompileMethod::Runtime)
 	{
 		CompileMethodString = HotReloadDefs::CompileMethodRuntime;
@@ -1780,7 +1787,7 @@ void FHotReloadModule::WriteModuleCompilationInfoToConfig(FName ModuleName, cons
 		CompileMethodString = HotReloadDefs::CompileMethodExternal;
 	}
 
-	GConfig->SetString(*HotReloadDefs::CompilationInfoConfigSection, *FString::Printf(TEXT("%s.LastCompileMethod"), *ModuleName.ToString()), *CompileMethodString, GEditorPerProjectIni);
+	GConfig->SetString(HotReloadDefs::CompilationInfoConfigSection, *FString::Printf(TEXT("%s.LastCompileMethod"), *ModuleName.ToString()), CompileMethodString, GEditorPerProjectIni);
 }
 
 bool FHotReloadModule::GetModuleFileTimeStamp(FName ModuleName, FDateTime& OutFileTimeStamp) const

@@ -6,11 +6,14 @@
 #include "Features/IModularFeatures.h"
 #include "ISettingsModule.h"
 #include "SourceCodeAccessSettings.h"
+#include "HAL/LowLevelMemTracker.h"
 
 
 IMPLEMENT_MODULE( FSourceCodeAccessModule, SourceCodeAccess );
 
 #define LOCTEXT_NAMESPACE "SourceCodeAccessModule"
+
+LLM_DEFINE_TAG(SourceCodeAccess);
 
 static FName SourceCodeAccessorFeatureName(TEXT("SourceCodeAccessor"));
 
@@ -22,6 +25,8 @@ FSourceCodeAccessModule::FSourceCodeAccessModule()
 
 void FSourceCodeAccessModule::StartupModule()
 {
+	LLM_SCOPE_BYTAG(SourceCodeAccess);
+
 	GetMutableDefault<USourceCodeAccessSettings>()->LoadConfig();
 
 	// Register to check for source control features
