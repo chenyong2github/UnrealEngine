@@ -262,7 +262,7 @@ namespace Metasound
 
 	int32 FMetasoundGenerator::GetNumChannels() const
 	{
-		return GraphOutputAudio.Num();
+		return NumChannels;
 	}
 
 	int32 FMetasoundGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamplesRemaining)
@@ -351,8 +351,7 @@ namespace Metasound
 
 	int32 FMetasoundGenerator::GetDesiredNumSamplesToRenderPerCallback() const
 	{
-		// TODO: may improve performance if this number is increased. 
-		return NumFramesPerExecute;
+		return NumFramesPerExecute * NumChannels;
 	}
 
 	bool FMetasoundGenerator::IsFinished() const

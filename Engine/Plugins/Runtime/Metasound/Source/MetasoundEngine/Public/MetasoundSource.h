@@ -22,11 +22,12 @@
 UENUM()
 enum class EMetasoundSourceAudioFormat : uint8
 {
-	// Mono audio output
 	Mono,
-
-	// Stereo audio output
 	Stereo,
+	Quad,
+	FiveDotZero UMETA(DisplayName="5.0"),
+	FiveDotOne UMETA(DisplayName="5.1"),
+	SevenDotOne UMETA(DisplayName="7.1"),
 
 	COUNT UMETA(Hidden)
 };
@@ -132,6 +133,11 @@ public:
 	virtual void PostDuplicate(EDuplicateMode::Type InDuplicateMode) override;
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& InEvent) override;
+
+private:
+	void PostEditChangeOutputFormat();
+public:
+
 #endif // WITH_EDITOR
 
 	virtual const TSet<FString>& GetReferencedAssetClassKeys() const override
@@ -200,9 +206,10 @@ protected:
 	}
 
 private:
+
 	Metasound::FOperatorSettings GetOperatorSettings(Metasound::FSampleRate InSampleRate) const;
 	Metasound::FMetasoundEnvironment CreateEnvironment() const;
 	Metasound::FMetasoundEnvironment CreateEnvironment(const FSoundGeneratorInitParams& InParams) const;
 	Metasound::FMetasoundEnvironment CreateEnvironment(const Audio::FParameterTransmitterInitParams& InParams) const;
-	const TArray<Metasound::FVertexName>& GetAudioOutputVertexKeys() const;
+	const TArray<Metasound::FVertexName>& GetOutputAudioChannelOrder() const;
 };

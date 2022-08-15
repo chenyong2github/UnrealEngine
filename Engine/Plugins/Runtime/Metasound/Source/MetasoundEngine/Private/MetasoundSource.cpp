@@ -43,35 +43,107 @@ namespace Metasound
 {
 	namespace SourcePrivate
 	{
-		using FFormatOutputVertexKeyMap = TMap<EMetasoundSourceAudioFormat, TArray<Metasound::FVertexName>>;
-
-		const FFormatOutputVertexKeyMap& GetFormatOutputVertexKeys()
+		// Contains information on output audio formats
+		struct FOutputFormatInfo
 		{
-			auto CreateVertexKeyMap = []()
+			FMetasoundFrontendVersion InterfaceVersion;
+			TArray<Metasound::FVertexName> OutputVertexChannelOrder;
+		};
+
+		using FFormatInfoMap = TMap<EMetasoundSourceAudioFormat, FOutputFormatInfo>;
+		using FFormatInfoPair = TPair<EMetasoundSourceAudioFormat, FOutputFormatInfo>;
+
+		// Return a map containing all the supported audio formats for a MetaSound
+		// Source. 
+		const FFormatInfoMap& GetFormatInfoMap()
+		{
+			auto CreateFormatInfoMap = []()
 			{
 				using namespace Metasound::Frontend;
 
-				return FFormatOutputVertexKeyMap
+				return FFormatInfoMap
 				{
 					{
 						EMetasoundSourceAudioFormat::Mono,
 						{
-							OutputFormatMonoInterface::Outputs::MonoOut
+							OutputFormatMonoInterface::GetVersion(),
+							{
+								OutputFormatMonoInterface::Outputs::MonoOut
+							}
 						}
 					},
 					{
 						EMetasoundSourceAudioFormat::Stereo,
 						{
-							OutputFormatStereoInterface::Outputs::LeftOut,
-							OutputFormatStereoInterface::Outputs::RightOut,
+							OutputFormatStereoInterface::GetVersion(),
+							{
+								OutputFormatStereoInterface::Outputs::LeftOut,
+								OutputFormatStereoInterface::Outputs::RightOut
+							}
+						}
+					},
+					{
+						EMetasoundSourceAudioFormat::Quad,
+						{
+							OutputFormatQuadInterface::GetVersion(),
+							{
+								OutputFormatQuadInterface::Outputs::FrontLeftOut,
+								OutputFormatQuadInterface::Outputs::FrontRightOut,
+								OutputFormatQuadInterface::Outputs::SideLeftOut,
+								OutputFormatQuadInterface::Outputs::SideRightOut
+							}
+						}
+					},
+					{
+						EMetasoundSourceAudioFormat::FiveDotZero,
+						{
+							OutputFormatFiveDotZeroInterface::GetVersion(),
+							{
+								OutputFormatFiveDotZeroInterface::Outputs::FrontLeftOut,
+								OutputFormatFiveDotZeroInterface::Outputs::FrontRightOut,
+								OutputFormatFiveDotZeroInterface::Outputs::FrontCenterOut,
+								OutputFormatFiveDotZeroInterface::Outputs::SideLeftOut,
+								OutputFormatFiveDotZeroInterface::Outputs::SideRightOut
+							}
+						}
+					},
+					{
+						EMetasoundSourceAudioFormat::FiveDotOne,
+						{
+							OutputFormatFiveDotOneInterface::GetVersion(),
+							{
+								OutputFormatFiveDotOneInterface::Outputs::FrontLeftOut,
+								OutputFormatFiveDotOneInterface::Outputs::FrontRightOut,
+								OutputFormatFiveDotOneInterface::Outputs::FrontCenterOut,
+								OutputFormatFiveDotOneInterface::Outputs::LowFrequencyOut,
+								OutputFormatFiveDotOneInterface::Outputs::SideLeftOut,
+								OutputFormatFiveDotOneInterface::Outputs::SideRightOut
+							}
+						}
+					},
+					{
+						EMetasoundSourceAudioFormat::SevenDotOne,
+						{
+							OutputFormatSevenDotOneInterface::GetVersion(),
+							{
+								OutputFormatSevenDotOneInterface::Outputs::FrontLeftOut,
+								OutputFormatSevenDotOneInterface::Outputs::FrontRightOut,
+								OutputFormatSevenDotOneInterface::Outputs::FrontCenterOut,
+								OutputFormatSevenDotOneInterface::Outputs::LowFrequencyOut,
+								OutputFormatSevenDotOneInterface::Outputs::SideLeftOut,
+								OutputFormatSevenDotOneInterface::Outputs::SideRightOut,
+								OutputFormatSevenDotOneInterface::Outputs::BackLeftOut,
+								OutputFormatSevenDotOneInterface::Outputs::BackRightOut
+							}
 						}
 					}
 				};
 			};
-			static const FFormatOutputVertexKeyMap Map = CreateVertexKeyMap();
+
+			static const FFormatInfoMap Map = CreateFormatInfoMap();
 			return Map;
 		}
-
+		
 		Frontend::FMetaSoundAssetRegistrationOptions GetInitRegistrationOptions()
 		{
 			Frontend::FMetaSoundAssetRegistrationOptions RegOptions;
@@ -83,6 +155,25 @@ namespace Metasound
 
 			return RegOptions;
 		}
+
+		// Return an array of all the audio format versions.
+		const TArray<FMetasoundFrontendVersion>& GetFormatInterfaceVersions()
+		{
+			auto CreateFormatInterfaceVersions = []() -> TArray<FMetasoundFrontendVersion>
+			{
+				TArray<FMetasoundFrontendVersion> FormatVersions;
+				const FFormatInfoMap& FormatMap = GetFormatInfoMap();
+				for (const auto& Pair : FormatMap)
+				{
+					FormatVersions.Add(Pair.Value.InterfaceVersion);
+				}
+				return FormatVersions;
+			};
+
+			static const TArray<FMetasoundFrontendVersion> Versions = CreateFormatInterfaceVersions();
+			return Versions;
+		}
+
 	} // namespace SourcePrivate
 } // namespace Metasound
 
@@ -96,7 +187,6 @@ UMetaSoundSource::UMetaSoundSource(const FObjectInitializer& ObjectInitializer)
 
 	// todo: ensure that we have a method so that the audio engine can be authoritative over the sample rate the UMetaSoundSource runs at.
 	SampleRate = 48000.f;
-
 }
 
 #if WITH_EDITOR
@@ -121,85 +211,87 @@ void UMetaSoundSource::PostDuplicate(EDuplicateMode::Type InDuplicateMode)
 
 void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 {
-	using namespace Metasound;
-	using namespace Metasound::Engine;
-	using namespace Metasound::Frontend;
-
 	Super::PostEditChangeProperty(InEvent);
 
 	if (InEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMetaSoundSource, OutputFormat))
 	{
-		ConvertFromPreset();
+		PostEditChangeOutputFormat();
+	}
+}
 
-		bool bDidModifyDocument = false;
-		switch (OutputFormat)
+void UMetaSoundSource::PostEditChangeOutputFormat()
+{
+	using namespace Metasound::SourcePrivate;
+	using namespace Metasound::Frontend;
+
+	// If this is a preset, convert to normal metasound source since it is being
+	// altered. 
+	ConvertFromPreset();
+
+	// Determine which interfaces to add and remove from the document due to the
+	// output format being changed.
+	TArray<FMetasoundFrontendVersion> OutputFormatsToAdd;
+	if (const FOutputFormatInfo* FormatInfo = GetFormatInfoMap().Find(OutputFormat))
+	{
+		OutputFormatsToAdd.Add(FormatInfo->InterfaceVersion);
+	}
+
+	TArray<FMetasoundFrontendVersion> OutputFormatsToRemove;
+	for (const FMetasoundFrontendVersion& FormatVersion : GetFormatInterfaceVersions())
+	{
+		if (RootMetasoundDocument.Interfaces.Contains(FormatVersion))
 		{
-			case EMetasoundSourceAudioFormat::Mono:
+			if (!OutputFormatsToAdd.Contains(FormatVersion))
 			{
-				bDidModifyDocument = FModifyRootGraphInterfaces(
-					{ OutputFormatStereoInterface::GetVersion() },
-					{ OutputFormatMonoInterface::GetVersion() }
-				).Transform(GetDocumentHandle());
+				OutputFormatsToRemove.Add(FormatVersion);
 			}
-			break;
-
-			case EMetasoundSourceAudioFormat::Stereo:
-			{
-				bDidModifyDocument = FModifyRootGraphInterfaces(
-					{ OutputFormatMonoInterface::GetVersion() },
-					{ OutputFormatStereoInterface::GetVersion() }
-				).Transform(GetDocumentHandle());
-			}
-			break;
-
-			default:
-			{
-				static_assert(static_cast<int32>(EMetasoundSourceAudioFormat::COUNT) == 2, "Possible missing format switch case coverage.");
-			}
-			break;
 		}
+	}
 
-		if (bDidModifyDocument)
+	// Add and/or remove interfaces from the root document.
+	const bool bDidModifyDocument = FModifyRootGraphInterfaces(OutputFormatsToRemove, OutputFormatsToAdd).Transform(GetDocumentHandle());
+
+	if (bDidModifyDocument)
+	{
+		// Update the data in this UMetaSoundSource to reflect what is in the metasound document.
+		ConformObjectDataToInterfaces();
+
+		// Use the editor form of register to ensure other editors'
+		// MetaSounds are auto-updated if they are referencing this graph.
+		if (Graph)
 		{
-			ConformObjectDataToInterfaces();
-
-			// Use the editor form of register to ensure other editors'
-			// MetaSounds are auto-updated if they are referencing this graph.
-			if (Graph)
-			{
-				Graph->RegisterGraphWithFrontend();
-			}
-			MarkMetasoundDocumentDirty();
+			Graph->RegisterGraphWithFrontend();
 		}
+		MarkMetasoundDocumentDirty();
 	}
 }
 #endif // WITH_EDITOR
 
 bool UMetaSoundSource::ConformObjectDataToInterfaces()
 {
-	using namespace Metasound::Frontend;
+	using namespace Metasound::SourcePrivate;
 
-	if (IsInterfaceDeclared(OutputFormatMonoInterface::GetVersion()))
+	bool bDidAlterObjectData = false;
+
+	// Update the OutputFormat and NumChannels to match the audio format interface
+	// on the root document.
+	const FFormatInfoMap& FormatInfo = GetFormatInfoMap();
+	for (const FFormatInfoPair& Pair : FormatInfo)
 	{
-		if (OutputFormat != EMetasoundSourceAudioFormat::Mono || NumChannels != 1)
+		if (RootMetasoundDocument.Interfaces.Contains(Pair.Value.InterfaceVersion))
 		{
-			OutputFormat = EMetasoundSourceAudioFormat::Mono;
-			NumChannels = 1;
-			return true;
+			if ((OutputFormat != Pair.Key) || (NumChannels != Pair.Value.OutputVertexChannelOrder.Num()))
+			{
+				OutputFormat = Pair.Key;
+				NumChannels = Pair.Value.OutputVertexChannelOrder.Num();
+				bDidAlterObjectData = true;
+			}
+
+			break;
 		}
 	}
 
-	if (IsInterfaceDeclared(OutputFormatStereoInterface::GetVersion()))
-	{
-		if (OutputFormat != EMetasoundSourceAudioFormat::Stereo || NumChannels != 2)
-		{
-			OutputFormat = EMetasoundSourceAudioFormat::Stereo;
-			NumChannels = 2;
-			return true;
-		}
-	}
-
-	return false;
+	return bDidAlterObjectData;
 }
 
 
@@ -547,7 +639,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 		MetasoundGraph,
 		Environment,
 		GetName(),
-		GetAudioOutputVertexKeys()
+		GetOutputAudioChannelOrder()
 	};
 
 	return ISoundGeneratorPtr(new FMetasoundGenerator(MoveTemp(InitParams)));
@@ -873,13 +965,13 @@ Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment(const Audio
 	return Environment;
 }
 
-const TArray<Metasound::FVertexName>& UMetaSoundSource::GetAudioOutputVertexKeys() const
+const TArray<Metasound::FVertexName>& UMetaSoundSource::GetOutputAudioChannelOrder() const
 {
 	using namespace Metasound::SourcePrivate;
 
-	if (const TArray<Metasound::FVertexName>* ArrayKeys = GetFormatOutputVertexKeys().Find(OutputFormat))
+	if (const FOutputFormatInfo* FormatInfo = GetFormatInfoMap().Find(OutputFormat))
 	{
-		return *ArrayKeys;
+		return FormatInfo->OutputVertexChannelOrder;
 	}
 	else
 	{
