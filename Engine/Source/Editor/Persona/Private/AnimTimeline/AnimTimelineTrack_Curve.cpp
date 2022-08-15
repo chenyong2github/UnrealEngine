@@ -20,7 +20,9 @@
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimPreviewInstance.h"
+#include "AnimTimelineClipboard.h"
 #include "SAnimSequenceCurveEditor.h"
+#include "Framework/Commands/GenericCommands.h"
 
 #define LOCTEXT_NAMESPACE "FAnimTimelineTrack_Curve"
 
@@ -320,15 +322,57 @@ void FAnimTimelineTrack_Curve::AddToContextMenu(FMenuBuilder& InMenuBuilder, TSe
 {
 	if(!InOutExistingMenuTypes.Contains(FAnimTimelineTrack_Curve::GetTypeName()))
 	{
-		InMenuBuilder.BeginSection("Curve", LOCTEXT("CurveMenuSection", "Curve"));
+		InMenuBuilder.BeginSection("EditCurve", LOCTEXT("CurveEditMenuSection", "Curve Edit"));
 		{
+			InMenuBuilder.AddMenuEntry(FAnimSequenceTimelineCommands::Get().PasteDataIntoCurve);
+		}
+		InMenuBuilder.EndSection();
+		
+		InMenuBuilder.BeginSection("EditSelection", LOCTEXT("CurveSelectionEditMenuSection", "Selection Edit"));
+		{
+			InMenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
+			InMenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
+			InMenuBuilder.AddMenuEntry(FGenericCommands::Get().Paste);
+			InMenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
+
+			InMenuBuilder.AddSeparator();
+			
 			InMenuBuilder.AddMenuEntry(FAnimSequenceTimelineCommands::Get().EditSelectedCurves);
-			InMenuBuilder.AddMenuEntry(FAnimSequenceTimelineCommands::Get().RemoveSelectedCurves);
 			InMenuBuilder.AddMenuEntry(FAnimSequenceTimelineCommands::Get().CopySelectedCurveNames);
 		}
 		InMenuBuilder.EndSection();
-
+		
 		InOutExistingMenuTypes.Add(FAnimTimelineTrack_Curve::GetTypeName());
+	}
+}
+
+void FAnimTimelineTrack_Curve::Copy(UAnimTimelineClipboardContent* InOutClipboard) const
+{
+	check(InOutClipboard != nullptr)
+	
+	if (Curves.Num() == 1)
+	{
+		UFloatCurveCopyObject * CopyableCurve = UAnimCurveBaseCopyObject::Create<UFloatCurveCopyObject>();
+		const FRichCurve* InCurve = Curves[0];
+
+		// Copy raw curve data
+		CopyableCurve->Curve.Name = { FName(FullCurveName.ToString()), SmartName::MaxUID };
+		CopyableCurve->Curve.FloatCurve = *InCurve;
+		CopyableCurve->Curve.SetCurveTypeFlags(AACF_Editable);
+
+		// Copy curve identifier data
+		CopyableCurve->DisplayName = CopyableCurve->Curve.Name.DisplayName;
+		CopyableCurve->UID = CopyableCurve->Curve.Name.UID;
+		CopyableCurve->CurveType = ERawCurveTrackTypes::RCT_Float;
+
+		// Origin data
+		CopyableCurve->OriginName = GetModel()->GetAnimSequenceBase()->GetFName();
+			
+		InOutClipboard->Curves.Add(CopyableCurve);
+	}
+	else
+	{
+		UE_LOG(LogAnimation, Warning, TEXT("Copying multiple curves from a FAnimTimelineTrack_Curve not supported. Curve: %s"), *FullCurveName.ToString())
 	}
 }
 

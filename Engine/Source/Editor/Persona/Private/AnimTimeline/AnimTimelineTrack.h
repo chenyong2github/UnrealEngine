@@ -13,6 +13,7 @@ class FAnimModel;
 class FMenuBuilder;
 class SBorder;
 class SHorizontalBox;
+class UAnimTimelineClipboardContent;
 
 /**
  * Structure used to define padding for a track
@@ -183,6 +184,12 @@ public:
 	/** Get whether this track supports filtering in the outliner */
 	virtual bool SupportsFiltering() const { return true; }
 
+	/** Get whether this track supports copying to the clipboard */
+	virtual bool SupportsCopy() const { return false; }
+
+	/** Copy track information to clipboard */
+	virtual void Copy(UAnimTimelineClipboardContent* InOutClipboard) const {};
+	
 	/** Get whether this track can be renamed */
 	virtual bool CanRename() const { return false; }
 

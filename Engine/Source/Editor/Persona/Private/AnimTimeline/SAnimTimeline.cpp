@@ -6,6 +6,7 @@
 #include "AnimModel.h"
 #include "SAnimOutliner.h"
 #include "SAnimTrackArea.h"
+#include "SAnimTrack.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "SAnimTimelineOverlay.h"
 #include "SAnimTimelineSplitterOverlay.h"
@@ -30,12 +31,14 @@
 #include "ScopedTransaction.h"
 #include "Widgets/Input/STextEntryPopup.h"
 #include "AnimSequenceTimelineCommands.h"
+#include "AnimTimelineTrack_Curve.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "SAnimTimelineTransportControls.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Runtime/Engine/Classes/Animation/AnimSequenceHelpers.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Framework/Commands/GenericCommands.h"
 
 #define LOCTEXT_NAMESPACE "SAnimTimeline"
 
@@ -359,7 +362,13 @@ FReply SAnimTimeline::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointe
 
 		const bool bCloseAfterSelection = true;
 		FMenuBuilder MenuBuilder(bCloseAfterSelection, Model.Pin()->GetCommandList());
-
+		
+		MenuBuilder.BeginSection("SelectionEdit", LOCTEXT("TimelineSelectionEditSection", "Selection Edit"));
+		{
+			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Paste);
+		}
+		MenuBuilder.EndSection();
+		
 		MenuBuilder.BeginSection("SnapOptions", LOCTEXT("SnapOptions", "Snapping"));
 		{
 			MenuBuilder.AddMenuEntry(FAnimSequenceTimelineCommands::Get().SnapToFrames);

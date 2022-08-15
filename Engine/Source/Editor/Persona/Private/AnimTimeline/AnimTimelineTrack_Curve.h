@@ -28,13 +28,15 @@ public:
 	virtual TSharedRef<SWidget> GenerateContainerWidgetForOutliner(const TSharedRef<SAnimOutlinerItem>& InRow) override;
 	virtual bool SupportsSelection() const override { return true; }
 	virtual void AddToContextMenu(FMenuBuilder& InMenuBuilder, TSet<FName>& InOutExistingMenuTypes) const override;
+	virtual bool SupportsCopy() const override { return true; }
+	virtual void Copy(UAnimTimelineClipboardContent* InOutClipboard) const override;
 	
 	/** FEditorUndoClient interface */
 	virtual void PostUndo(bool bSuccess) override { PostUndoRedo(); }
 	virtual void PostRedo(bool bSuccess) override { PostUndoRedo(); }
 
 	/** Access the curve we are editing */
-	const TArray<const FRichCurve*>& GetCurves() { return Curves; }
+	const TArray<const FRichCurve*>& GetCurves() const { return Curves; }
 
 	/** Get a color for the curve widget (and edited curves) */
 	virtual FLinearColor GetCurveColor(int32 InCurveIndex) const;

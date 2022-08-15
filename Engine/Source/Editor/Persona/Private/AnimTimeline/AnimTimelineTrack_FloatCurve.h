@@ -26,7 +26,9 @@ public:
 	virtual void AddCurveTrackButton(TSharedPtr<SHorizontalBox> InnerHorizontalBox) override;
 	virtual FLinearColor GetCurveColor(int32 InCurveIndex) const override;
 	virtual void GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const override;
-
+	virtual bool SupportsCopy() const override { return true; }
+	virtual void Copy(UAnimTimelineClipboardContent* InOutClipboard) const override;
+	
 	/** Access the curve we are editing */
 	const FFloatCurve* GetFloatCurve() { return FloatCurve; }
 

@@ -22,9 +22,10 @@
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimPreviewInstance.h"
+#include "AnimTimelineClipboard.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "ScopedTransaction.h"
-
+#include "Animation/AnimCurveTypes.h"
 
 #define LOCTEXT_NAMESPACE "FAnimModel_AnimSequence"
 
@@ -76,10 +77,6 @@ void FAnimModel_AnimSequenceBase::Initialize()
 		Commands.EditSelectedCurves,
 		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::EditSelectedCurves),
 		FCanExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::CanEditSelectedCurves));
-
-	CommandList->MapAction(
-		Commands.RemoveSelectedCurves,
-		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::RemoveSelectedCurves));
 
 	CommandList->MapAction(
 		Commands.CopySelectedCurveNames,
@@ -136,6 +133,30 @@ void FAnimModel_AnimSequenceBase::Initialize()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FAnimModel_AnimSequenceBase::IsSnapChecked, FAnimModel::FSnapType::MontageSection.Type),
 		FIsActionButtonVisible::CreateSP(this, &FAnimModel_AnimSequenceBase::IsSnapAvailable, FAnimModel::FSnapType::MontageSection.Type));
+
+	CommandList->MapAction(
+		FGenericCommands::Get().Copy,
+		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::CopyToClipboard),
+		FCanExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::CanCopyToClipboard));
+
+	CommandList->MapAction(
+		Commands.PasteDataIntoCurve,
+		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::PasteDataFromClipboardToSelectedCurve),
+		FCanExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::CanPasteDataFromClipboardToSelectedCurve));
+
+	CommandList->MapAction(
+		FGenericCommands::Get().Paste,
+		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::PasteFromClipboard),
+		FCanExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::CanPasteFromClipboard));
+	
+	CommandList->MapAction(
+		FGenericCommands::Get().Cut,
+		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::CutToClipboard),
+		FCanExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::CanCutToClipboard));
+
+	CommandList->MapAction(
+		FGenericCommands::Get().Delete,
+		FExecuteAction::CreateSP(this, &FAnimModel_AnimSequenceBase::RemoveSelectedCurves));
 }
 
 
@@ -318,6 +339,7 @@ void FAnimModel_AnimSequenceBase::OnDataModelChanged(const EAnimDataModelNotifyT
 	switch(NotifyType)
 	{ 
 		case EAnimDataModelNotifyType::CurveAdded:
+		case EAnimDataModelNotifyType::CurveChanged:
 		case EAnimDataModelNotifyType::CurveRemoved:
 		case EAnimDataModelNotifyType::TrackAdded:
 		case EAnimDataModelNotifyType::TrackChanged:
@@ -511,6 +533,96 @@ void FAnimModel_AnimSequenceBase::ToggleDisplaySecondary()
 bool FAnimModel_AnimSequenceBase::IsDisplaySecondaryChecked() const
 {
 	return GetDefault<UPersonaOptions>()->bTimelineDisplayFormatSecondary;
+}
+
+void FAnimModel_AnimSequenceBase::CopyToClipboard() const
+{
+	if (SelectedTracks.Num() > 0)
+	{
+		if (UAnimTimelineClipboardContent * ClipboardContent = UAnimTimelineClipboardContent::Create())
+		{
+			FAnimTimelineClipboardUtilities::CopySelectedTracksToClipboard(SelectedTracks, ClipboardContent);
+			FAnimTimelineClipboardUtilities::CopyContentToClipboard(ClipboardContent);
+		}
+		else
+		{
+			UE_LOG(LogAnimation, Warning, TEXT("Failed to get create valid clipboard object for Animation Timeline while attempting to copy data"));
+		}
+	}
+}
+
+bool FAnimModel_AnimSequenceBase::CanCopyToClipboard()
+{
+	if (!SelectedTracks.IsEmpty())
+	{
+		for (const auto & Track : SelectedTracks)
+		{
+			if (!Track->SupportsCopy())
+			{
+				return false;
+			}
+		}
+	}
+	
+	return true;
+}
+
+void FAnimModel_AnimSequenceBase::PasteDataFromClipboardToSelectedCurve()
+{
+	if (const UAnimTimelineClipboardContent* ClipboardContent = FAnimTimelineClipboardUtilities::GetContentFromClipboard())
+	{
+		// Setup for modifying animation sequence 
+		const FScopedTransaction Transaction(LOCTEXT("AnimSequenceBase_PasteCurveData", "Paste Data To Selected Curve"));
+		AnimSequenceBase->Modify();
+
+		// Paste data
+		FAnimTimelineClipboardUtilities::OverwriteSelectedCurveDataFromClipboard(ClipboardContent, SelectedTracks, AnimSequenceBase);
+	}
+	else
+	{
+		UE_LOG(LogAnimation, Warning, TEXT("Failed to get valid clipboard for Animation Timeline while attempting to paste data"));
+	}
+}
+
+bool FAnimModel_AnimSequenceBase::CanPasteDataFromClipboardToSelectedCurve()
+{
+	return FAnimTimelineClipboardUtilities::CanOverwriteSelectedCurveDataFromClipboard(SelectedTracks);
+}
+
+void FAnimModel_AnimSequenceBase::PasteFromClipboard()
+{
+	if (const UAnimTimelineClipboardContent* ClipboardContent = FAnimTimelineClipboardUtilities::GetContentFromClipboard())
+	{
+		// Setup for modifying animation sequence 
+		const FScopedTransaction Transaction(LOCTEXT("AnimSequenceBase_PasteCurves", "Paste"));
+		AnimSequenceBase->Modify();
+
+		// Paste curves from clipboard
+		FAnimTimelineClipboardUtilities::OverwriteOrAddCurvesFromClipboardContent(ClipboardContent, AnimSequenceBase);
+	}
+	else
+	{
+		UE_LOG(LogAnimation, Warning, TEXT("Failed to get valid clipboard for Animation Timeline while attempting to paste data"));
+	}
+}
+
+bool FAnimModel_AnimSequenceBase::CanPasteFromClipboard()
+{
+	const UAnimTimelineClipboardContent* ClipboardContent = FAnimTimelineClipboardUtilities::GetContentFromClipboard();
+	return ClipboardContent && !ClipboardContent->IsEmpty();
+}
+
+void FAnimModel_AnimSequenceBase::CutToClipboard()
+{
+	const FScopedTransaction Transaction(LOCTEXT("AnimSequenceBase_CutCurveSelection", "Cut Selection"));
+	
+	CopyToClipboard();
+	RemoveSelectedCurves();
+}
+
+bool FAnimModel_AnimSequenceBase::CanCutToClipboard()
+{
+	return CanCopyToClipboard();
 }
 
 void FAnimModel_AnimSequenceBase::UpdateRange()

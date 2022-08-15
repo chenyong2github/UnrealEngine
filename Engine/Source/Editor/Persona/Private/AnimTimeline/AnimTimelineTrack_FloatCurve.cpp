@@ -19,6 +19,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "AnimModel_AnimSequenceBase.h"
+#include "AnimTimelineClipboard.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "SAnimOutlinerItem.h"
 
@@ -262,6 +263,30 @@ void FAnimTimelineTrack_FloatCurve::OnCommitCurveName(const FText& InText, EText
 FText FAnimTimelineTrack_FloatCurve::GetLabel() const
 {
 	return FAnimTimelineTrack_FloatCurve::GetFloatCurveName(GetModel(), FloatCurve->Name);
+}
+
+void FAnimTimelineTrack_FloatCurve::Copy(UAnimTimelineClipboardContent* InOutClipboard) const
+{
+	check(InOutClipboard != nullptr)
+	
+	UFloatCurveCopyObject * CopyableCurve = UAnimCurveBaseCopyObject::Create<UFloatCurveCopyObject>();
+
+	// Copy raw curve data
+	CopyableCurve->Curve.Name = FloatCurve->Name;
+	CopyableCurve->Curve.SetCurveTypeFlags(FloatCurve->GetCurveTypeFlags());
+	CopyableCurve->Curve.CopyCurve(*FloatCurve);
+
+	// Copy curve identifier data
+	CopyableCurve->DisplayName = CurveName.DisplayName;
+	CopyableCurve->UID = CurveName.UID;
+	CopyableCurve->CurveType = ERawCurveTrackTypes::RCT_Float;
+	CopyableCurve->Channel = CurveId.Channel;
+	CopyableCurve->Axis = CurveId.Axis;
+
+	// Origin data
+	CopyableCurve->OriginName = GetModel()->GetAnimSequenceBase()->GetFName();
+	
+	InOutClipboard->Curves.Add(CopyableCurve);
 }
 
 FText FAnimTimelineTrack_FloatCurve::GetFloatCurveName(const TSharedRef<FAnimModel>& InModel, const FSmartName& InSmartName)

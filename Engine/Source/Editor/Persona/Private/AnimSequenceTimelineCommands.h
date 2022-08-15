@@ -24,9 +24,10 @@ public:
 	}
 
 	TSharedPtr<FUICommandInfo> EditSelectedCurves;
-
-	TSharedPtr<FUICommandInfo> RemoveSelectedCurves;
+	
 	TSharedPtr<FUICommandInfo> AddNotifyTrack;
+	
+	TSharedPtr<FUICommandInfo> PasteDataIntoCurve;
 
 	TSharedPtr<FUICommandInfo> InsertNotifyTrack;
 

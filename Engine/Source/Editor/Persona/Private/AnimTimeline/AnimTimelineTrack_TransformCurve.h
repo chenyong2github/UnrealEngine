@@ -21,7 +21,9 @@ public:
 	virtual TSharedRef<SWidget> BuildCurveTrackMenu() override;
 	virtual bool CanEditCurve(int32 InCurveIndex) const override { return true; }
 	virtual void GetCurveEditInfo(int32 InCurveIndex, FSmartName& OutName, ERawCurveTrackTypes& OutType, int32& OutCurveIndex) const override;
-
+	virtual bool SupportsCopy() const override { return true; }
+	virtual void Copy(UAnimTimelineClipboardContent* InOutClipboard) const override;
+	
 	/** Access the curve we are editing */
 	const FTransformCurve& GetTransformCurve() { return *TransformCurve; }
 

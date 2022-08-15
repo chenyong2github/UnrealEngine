@@ -74,6 +74,22 @@ private:
 	bool IsDisplayPercentageChecked() const;
 	void ToggleDisplaySecondary();
 	bool IsDisplaySecondaryChecked() const;
+	
+	/** Copy selected curves to clipboard */
+	void CopyToClipboard() const;
+	bool CanCopyToClipboard();
+
+	/** Paste curve data into selected curve. Only modifies curves, does not add any new curves. */
+	void PasteDataFromClipboardToSelectedCurve();
+	bool CanPasteDataFromClipboardToSelectedCurve();
+
+	/** Paste curves from clipboard. Adds or overwrites curves (if identifiers collide) */
+	void PasteFromClipboard();
+	bool CanPasteFromClipboard();
+
+	/** Cut selected curves to clipboard */
+	void CutToClipboard();
+	bool CanCutToClipboard();
 
 private:
 	/** The anim sequence base we wrap */
