@@ -813,6 +813,7 @@ namespace Gauntlet
 
 						try
 						{
+							Log.Info("Starting {0} on {1}", InstallRoleKV.Value, CurrentInstall.Device);
 							IAppInstance Instance = CurrentInstall.Run();
 							IDeviceUsageReporter.RecordStart(Instance.Device.Name, Instance.Device.Platform, IDeviceUsageReporter.EventType.Test);
 
