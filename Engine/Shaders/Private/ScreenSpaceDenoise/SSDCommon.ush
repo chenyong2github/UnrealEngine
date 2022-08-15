@@ -259,7 +259,7 @@ FSSDCompressedSceneInfos SampleCompressedSceneMetadata(
 
 	// STRATA_TODO: Manage bPrevFrame
 	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0)));
-	return MaterialToCompressedSceneMetadata(SceneDepth, TopLayerData.WorldNormal, TopLayerData.Roughness, TopLayerData.bIsValid ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT);
+	return MaterialToCompressedSceneMetadata(SceneDepth, TopLayerData.WorldNormal, TopLayerData.Roughness, IsStrataMaterial(TopLayerData) ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT);
   #else // STRATA_ENABLED
 	FGBufferData GBufferData;
 	if (bPrevFrame)

@@ -526,6 +526,8 @@ uint   StrataPackNormal(in float3 Normal);
 float3 StrataUnpackNormal(uint PackedNormal);
 uint   StrataPackNormal24(in float3 Normal);
 float3 StrataUnpackNormal24(uint PackedNormal);
+uint   StrataPackNormal22(in float3 Normal);
+float3 StrataUnpackNormal22(uint PackedNormal);
 bool   IsStrataSlabFastPathCompatible(in FStrataBSDF BSDF);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -627,32 +629,43 @@ FStrataIrradianceAndOcclusion StrataUnpackIrradianceAndOcclusion(uint In /*8bits
 
 ///////////////////////////////////////////////////////////////////////////////
 // Top layer
+
+#define TOP_LAYER_MATERIAL_NONE		0
+#define TOP_LAYER_MATERIAL_VALID	1
+#define TOP_LAYER_MATERIAL_SLWATER	2
+// Available #define TOP_LAYER_MATERIAL_xxx	3
+
 struct FStrataTopLayerData
 {
 	float3 BaseColor; // This data is only available during the base pass. It is not packed/stored otherwise.
 	float3 WorldNormal;
 	float  Roughness;
-	bool   bIsValid;
+	uint   Material;
 };
 
 uint StrataPackTopLayerData(FStrataTopLayerData In)
 {
 	// Output is min. by 1 to flag data has valid. This creates a small bias for one particular orientation with a mirror roughness.
-	return max((StrataPackNormal24(In.WorldNormal)<<8) | PackR8(In.Roughness), 1u);
+	return (StrataPackNormal22(In.WorldNormal)<<10) | (PackR8(In.Roughness) << 2) | (In.Material);
 }
 
 FStrataTopLayerData StrataUnpackTopLayerData(uint In)
 {
 	FStrataTopLayerData Out = (FStrataTopLayerData)0;
-	Out.bIsValid = In > 0;
-	Out.WorldNormal = StrataUnpackNormal24(In>>8);
+	Out.Material = (In & 0x3);
+	Out.WorldNormal = StrataUnpackNormal22(In>>10);
 	Out.Roughness = UnpackR8(In);
 	return Out;
 }
 
 bool IsStrataMaterial(FStrataTopLayerData In)
 {
-	return In.bIsValid;
+	return In.Material > TOP_LAYER_MATERIAL_NONE;
+}
+
+bool IsSingleLayerWaterMaterial(FStrataTopLayerData In)
+{
+	return In.Material == TOP_LAYER_MATERIAL_SLWATER;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -3071,6 +3084,20 @@ float3 StrataUnpackNormal24(uint PackedNormal)
 {
 	const int2 XY12Bits = int2(0xFFF & PackedNormal, 0xFFF & (PackedNormal >> 12));
 	const float2 xy = float2(XY12Bits - 2048) / 2047.0f;
+	return OctahedronToUnitVector(xy);
+}
+
+uint StrataPackNormal22(in float3 Normal)
+{
+	const float2 Result = UnitVectorToOctahedron(Normal);
+	const uint2 PackedXY = uint2(clamp(Result * 1023.0f + 1024.0f, 0.0f, 2047.0f));
+	return PackedXY.x | (PackedXY.y << 11);
+}
+
+float3 StrataUnpackNormal22(uint PackedNormal)
+{
+	const int2 XY11Bits = int2(0x7FF & PackedNormal, 0x7FF & (PackedNormal >> 11));
+	const float2 xy = float2(XY11Bits - 1024) / 1023.0f;
 	return OctahedronToUnitVector(xy);
 }
 

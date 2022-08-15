@@ -90,7 +90,7 @@ RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 
 	#if STRATA_ENABLED
 	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0)));
-	const bool bIsValid = TopLayerData.bIsValid;
+	const bool bIsValid = IsStrataMaterial(TopLayerData);
 	const bool bReconstructGeometryNormal = true; // STRATA_TODO: legacy avoids this on foliage, how do we do that?
 	const float3 WorldNormal = TopLayerData.WorldNormal;
 	#else

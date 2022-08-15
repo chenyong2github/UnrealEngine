@@ -212,6 +212,7 @@ void PackStrataOut(
 						TopLayerData.Roughness += TopLayerRoughnessContribution;
 						TopLayerData.BaseColor += TopLayerBaseColorContribution;
 
+						TopLayerData.Material = TOP_LAYER_MATERIAL_VALID;
 
 						const bool bHasSSS = BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID;
 						const bool bIsThin = BSDF_GETISTHIN(BSDF);
@@ -234,6 +235,8 @@ void PackStrataOut(
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * FullyRough;
 						TopLayerData.BaseColor += BSDF.TopLayerDataWeight * StrataGetBSDFBaseColor(BSDF);
 
+						TopLayerData.Material = TOP_LAYER_MATERIAL_VALID;
+
 						SetMaterialMode(StrataPixelHeader, HEADER_MATERIALMODE_HAIR);
 						break;
 					}
@@ -246,6 +249,8 @@ void PackStrataOut(
 
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * FullyRough;
+
+						TopLayerData.Material = TOP_LAYER_MATERIAL_VALID;
 
 						const bool bHasSSS = BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE;
 						SetHasSubsurface(StrataPixelHeader, bHasSSS);
@@ -264,11 +269,12 @@ void PackStrataOut(
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * SLW_ROUGHNESS(BSDF);
 						TopLayerData.BaseColor += BSDF.TopLayerDataWeight * StrataGetBSDFBaseColor(BSDF);
 
+						TopLayerData.Material = TOP_LAYER_MATERIAL_SLWATER;
+
 						SetMaterialMode(StrataPixelHeader, HEADER_MATERIALMODE_SLWATER);
 						break;
 					}
 					}
-
 
 					float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, BSDF, StrataAddressing);
 					float3 N = TangentBasis[2];

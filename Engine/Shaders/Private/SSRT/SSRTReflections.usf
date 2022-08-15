@@ -133,31 +133,13 @@ void ScreenSpaceReflections(
 	float3 N = 0;
 	float Roughness = 0.0;
 	bool bNoMaterial = true;
-	BRANCH
-	if (ShouldReflectOnlyWater)
-	{
-		// We do not rerun material classification after the Strata material buffer has been patched with SLW material.
-		// So in this case we simply load the Header and water BSDF directly because we know there can only be a single one.
-		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
-		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
-		if (StrataPixelHeader.BSDFCount > 0 && IsSingleLayerWater(StrataPixelHeader))
-		{
-			const FStrataBSDF SLWaterBSDF = UnpackStrataBSDFIn(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader);
-			N = StrataGetBSDFSharedBasis(StrataPixelHeader, SLWaterBSDF, StrataAddressing)[2];
-			Roughness = SLW_ROUGHNESS(SLWaterBSDF);
-			bNoMaterial = false;
-		}
-	}
-	else
-	{
-		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0)));
 
-		// For now, SSR is only used to trace the top material layer.
-		// STRATA_TODO try stochastic selection
-		N = TopLayerData.WorldNormal;
-		Roughness = TopLayerData.Roughness;
-		bNoMaterial = !IsStrataMaterial(TopLayerData);
-	}
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0)));
+
+	// For now, SSR is only used to trace the top material layer.
+	N = TopLayerData.WorldNormal;
+	Roughness = TopLayerData.Roughness;
+	bNoMaterial = ShouldReflectOnlyWater ? !IsSingleLayerWaterMaterial(TopLayerData) : !IsStrataMaterial(TopLayerData);
 
 	float DeviceZ = SampleDeviceZFromSceneTextures(UV);
 	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
@@ -165,8 +147,8 @@ void ScreenSpaceReflections(
 	const float3 PositionTranslatedWorld = mul(float4(ScreenPos * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 	const float3 V = normalize(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld);
 
-	// STRATA_TODO Handle anisotrpoy using ModifyGGXAnisotropicNormalRoughness or similar approach
-
+	// STRATA_TODO Handle anisotropy using ModifyGGXAnisotropicNormalRoughness or similar approach. 
+	// Although the pass will be more expenssive if reading the material data itself, so this will need to be carefully measured on console.
 
 #else // STRATA_ENABLED
 
