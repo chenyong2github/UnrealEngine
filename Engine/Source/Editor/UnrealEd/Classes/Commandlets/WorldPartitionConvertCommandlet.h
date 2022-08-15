@@ -123,6 +123,9 @@ protected:
 	FString DefaultHLODLayerName;
 
 	UPROPERTY(Config)
+	FString DefaultHLODLayerAsset;
+
+	UPROPERTY(Config)
 	FString FoliageTypePath;
 
 	UPROPERTY(Config)

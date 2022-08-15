@@ -235,7 +235,15 @@ UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSe
 	{
 		WorldPartition->EditorHash->LoadConfig(*EditorHashClass, *LevelConfigFilename);
 		WorldPartition->RuntimeHash->LoadConfig(*RuntimeHashClass, *LevelConfigFilename);
-		WorldPartition->DefaultHLODLayer = HLODLayers.FindRef(DefaultHLODLayerName);
+		// Use specified existing default HLOD layer if valid 
+		if (UHLODLayer* ExistingHLODLayer = LoadObject<UHLODLayer>(NULL, *DefaultHLODLayerAsset))
+		{
+			WorldPartition->DefaultHLODLayer = ExistingHLODLayer;
+		}
+		else
+		{
+			WorldPartition->DefaultHLODLayer = HLODLayers.FindRef(DefaultHLODLayerName);
+		}
 	}
 
 	if ((WorldPartition->DefaultHLODLayer == UHLODLayer::GetEngineDefaultHLODLayersSetup()) && !bDisableStreaming)
