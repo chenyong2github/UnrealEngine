@@ -332,7 +332,7 @@ bool UPoseWatchFolder::HasPoseWatchDescendents() const
 
 FText UPoseWatchElement::GetDefaultLabel() const
 {
-	return LOCTEXT("NewPoseWatchElement", "NewPoseWatchElement");
+	return LOCTEXT("NewPoseWatchElement", "Pose Watch");
 }
 
 FText UPoseWatchElement::GetLabel() const
@@ -475,6 +475,9 @@ UPoseWatchPoseElement::UPoseWatchPoseElement(const FObjectInitializer& ObjectIni
 	bInvertViewportMask = false;
 	BlendScaleThreshold = 0.f;
 	ViewportOffset = FVector3d::ZeroVector;
+
+	Label = GetDefaultLabel();
+	SetIconName("ClassIcon.PoseAsset");
 #endif
 }
 
@@ -494,7 +497,6 @@ UPoseWatch::UPoseWatch(const FObjectInitializer& ObjectInitializer)
 {
 #if WITH_EDITOR
 	Label = GetDefaultLabel();
-	SetColor(PoseWatchUtil::ChoosePoseWatchColor());
 #endif
 }
 
@@ -559,7 +561,7 @@ bool UPoseWatch::GetIsEnabled() const
 
 FColor UPoseWatch::GetColor() const
 {
-	return Color;
+	return Color_DEPRECATED;
 }
 
 bool UPoseWatch::GetShouldDeleteOnDeselect() const
@@ -655,7 +657,7 @@ void UPoseWatch::SetIsVisible(bool bInIsVisible)
 
 void UPoseWatch::SetColor(const FColor& InColor)
 {
-	Color = InColor;
+	Color_DEPRECATED = InColor;
 
 	for (TObjectPtr<UPoseWatchElement> PoseWatchElement : Elements)
 	{
@@ -758,19 +760,15 @@ void UPoseWatch::Serialize(FArchive& Ar)
 
 	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::PoseWatchMigrateSkeletonDrawParametersToPoseElement)
 	{
-		// Initialize all PoseWatchElement's Skeleton Draw Parameters from those defined in the parent Pose Watch.
-		for (TObjectPtr<UPoseWatchElement> PoseWatchElement : Elements)
-		{
-			UPoseWatchPoseElement* const PoseWatchPoseElement = Cast<UPoseWatchPoseElement>(PoseWatchElement.Get());
-
-			if (PoseWatchPoseElement)
-			{
-				PoseWatchPoseElement->ViewportMask = ViewportMask_DEPRECATED;
-				PoseWatchPoseElement->bInvertViewportMask = bInvertViewportMask_DEPRECATED;
-				PoseWatchPoseElement->BlendScaleThreshold = BlendScaleThreshold_DEPRECATED;
-				PoseWatchPoseElement->ViewportOffset = ViewportOffset_DEPRECATED;
-			}
-		}
+		// Transfer pose watch skeleton draw parameters to a new pose watch pose element.
+		TObjectPtr<UPoseWatchPoseElement> NewPoseWatchElement = NewObject<UPoseWatchPoseElement>(this);
+		NewPoseWatchElement->SetParent(this);
+		NewPoseWatchElement->SetColor(Color_DEPRECATED);
+		NewPoseWatchElement->ViewportMask = ViewportMask_DEPRECATED;
+		NewPoseWatchElement->bInvertViewportMask = bInvertViewportMask_DEPRECATED;
+		NewPoseWatchElement->BlendScaleThreshold = BlendScaleThreshold_DEPRECATED;
+		NewPoseWatchElement->ViewportOffset = ViewportOffset_DEPRECATED;
+		Elements.Add(NewPoseWatchElement);
 	}
 }
 #endif // WITH_EDITORONLY_DATA

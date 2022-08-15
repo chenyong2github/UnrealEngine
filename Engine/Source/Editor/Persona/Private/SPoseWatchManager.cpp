@@ -700,20 +700,13 @@ void SPoseWatchManager::OnManagerTreeSelectionChanged(FPoseWatchManagerTreeItemP
 	{
 		TGuardValue<bool> ReentrantGuard(bIsReentrant, true);
 
+		BlueprintEditor->GetInspector()->ShowDetailsForSingleObject(nullptr);
 		if (TreeItem.IsValid())
 		{
-			if (const FPoseWatchManagerPoseWatchTreeItem* PoseWatchItem = TreeItem.Get()->CastTo<FPoseWatchManagerPoseWatchTreeItem>())
+			if (const FPoseWatchManagerElementTreeItem* ElementItem = TreeItem->CastTo<FPoseWatchManagerElementTreeItem>())
 			{
-				BlueprintEditor->GetInspector()->ShowDetailsForSingleObject(PoseWatchItem->PoseWatch.Get());
+				BlueprintEditor->GetInspector()->ShowDetailsForSingleObject(ElementItem->PoseWatchElement.Get());
 			}
-			else
-			{
-				BlueprintEditor->GetInspector()->ShowDetailsForSingleObject(nullptr);
-			}
-		}
-		else
-		{
-			BlueprintEditor->GetInspector()->ShowDetailsForSingleObject(nullptr);
 		}
 		OnItemSelectionChanged.Broadcast(TreeItem, SelectInfo);
 	}

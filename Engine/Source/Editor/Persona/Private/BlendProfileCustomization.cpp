@@ -111,6 +111,13 @@ USkeleton* FBlendProfileCustomization::GetSkeletonFromOuter(const UObject* Outer
 	{
 		AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(OuterPoseWatch->Node.Get()));
 	}
+	else if (const UPoseWatchPoseElement* OuterPoseElement = Cast<UPoseWatchPoseElement>(Outer))
+	{
+		if (const UPoseWatch* OuterPoseElementParent = OuterPoseElement->GetParent())
+		{
+			AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(OuterPoseElementParent->Node.Get()));
+		}
+	}
 
 	// If outer belongs to an anim blueprint, grab its skeleton.
 	if (AnimBlueprint)

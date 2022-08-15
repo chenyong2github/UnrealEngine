@@ -47,9 +47,13 @@ FSlateColor SPoseWatchOverlay::GetPoseViewColor() const
 	UPoseWatch* CurPoseWatch = PoseWatch.Get();
 	if (CurPoseWatch)
 	{
-		FLinearColor OutColor = CurPoseWatch->GetColor();
-		OutColor.A = CurPoseWatch->GetShouldDeleteOnDeselect() ? AlphaTemporary : AlphaPermanent;
-		return FSlateColor(OutColor);
+		TObjectPtr<UPoseWatchPoseElement> PoseElement = CurPoseWatch->GetFirstElementOfType<UPoseWatchPoseElement>();
+		if (PoseElement)
+		{
+			FLinearColor OutColor = PoseElement->GetColor();
+			OutColor.A = CurPoseWatch->GetShouldDeleteOnDeselect() ? AlphaTemporary : AlphaPermanent;
+			return FSlateColor(OutColor);
+		}
 	}
 	return FSlateColor(FColor::Black);
 }

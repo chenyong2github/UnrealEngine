@@ -295,6 +295,7 @@ public:
 	bool GetIsNodeEnabled() const;
 
 	/** Returns the color to display the pose watch using */
+	UE_DEPRECATED(5.1, "Node watchs no longer have colors, use the color of its elements instead.")
 	FColor GetColor() const;
 
 	/** Set whether this should display its children in the pose watch manager window */
@@ -327,6 +328,7 @@ public:
 	void SetIsVisible(bool bInIsVisible);
 
 	/** Sets the display color of this pose watch in the UI and viewport */
+	UE_DEPRECATED(5.1, "Node watches no longer have colors, use the color of its elements instead.")
 	void SetColor(const FColor& InColor);
 
 	/** Sets whether this pose watch should delete after deselecting it's assigned node (Editor preference) */
@@ -371,6 +373,20 @@ public:
 	/** Returns true if this pose watch contains the specified element */
 	bool Contains(const TObjectPtr<UPoseWatchElement> InElement) { return Elements.Contains(InElement); }
 	bool Contains(const UPoseWatchElement* const InElement) { return Elements.ContainsByPredicate([InElement](const TObjectPtr<UPoseWatchElement>& ContainedElement) { return InElement == ContainedElement.Get(); }); }
+
+	/** Returns the first element with the matching type */
+	template< class TElementType > TObjectPtr<TElementType> GetFirstElementOfType()
+	{
+		for (UPoseWatchElement* Element : Elements)
+		{
+			if (TElementType* FoundElement = Cast<TElementType>(Element))
+			{
+				return FoundElement;
+			}
+		}
+		return nullptr;
+	}
+
 	
 private:
 	/** Returns a unique name for a new pose watch placed within InParent */
@@ -413,7 +429,7 @@ protected:
 	bool bIsExpanded = true;
 
 	UPROPERTY()
-	FColor Color;
+	FColor Color_DEPRECATED;
 
 	UPROPERTY()
 	FText Label;
@@ -435,7 +451,7 @@ template< class TElementType > TObjectPtr<TElementType> UPoseWatch::AddElement(c
 	PoseWatchElement->SetParent(this);
 	PoseWatchElement->SetUniqueLabel(InLabel);
 	PoseWatchElement->SetIconName(InIconName);
-	PoseWatchElement->SetColor(GetColor());
+	PoseWatchElement->SetColor(FColor::MakeRandomColor());
 	Elements.Add(PoseWatchElement);
 
 	return PoseWatchElement;

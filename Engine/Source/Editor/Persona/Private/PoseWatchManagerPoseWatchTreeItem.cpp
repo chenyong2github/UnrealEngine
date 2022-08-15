@@ -222,14 +222,4 @@ bool FPoseWatchManagerPoseWatchTreeItem::IsExpanded() const
 	return PoseWatch->GetIsExpanded();
 }
 
-FColor FPoseWatchManagerPoseWatchTreeItem::GetColor() const
-{
-	return PoseWatch->GetColor();
-}
-
-void FPoseWatchManagerPoseWatchTreeItem::SetColor(const FColor& InColor)
-{
-	PoseWatch->SetColor(InColor);
-}
-
 #undef LOCTEXT_NAMESPACE
