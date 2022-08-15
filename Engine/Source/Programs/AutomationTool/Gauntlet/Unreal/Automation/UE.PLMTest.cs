@@ -15,7 +15,7 @@ namespace UE
 	{
 		/// How long to wait before starting
 		[AutoParam]
-		public int InitialWait = 30;
+		public int InitialWait = 45;
 
 		/// How long to wait between loops
 		[AutoParam]
