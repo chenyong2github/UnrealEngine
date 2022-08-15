@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "MeshDescriptionToDynamicMesh.h"
+
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicMeshOverlay.h"
 #include "DynamicMesh/DynamicVertexAttribute.h"
@@ -9,8 +10,8 @@
 #include "MeshDescriptionBuilder.h"
 #include "StaticMeshAttributes.h"
 #include "SkeletalMeshAttributes.h"
+#include "Tasks/Task.h"
 #include "Util/ColorConstants.h"
-#include "Async/Async.h"
 
 using namespace UE::Geometry;
 
@@ -171,6 +172,8 @@ struct FSkinWeightsAttribCopyInfo
 
 void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDynamicMesh3& MeshOut, bool bCopyTangents )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(MeshDescriptionToDynamicMesh);
+
 	TriIDMap.Reset();
 	VertIDMap.Reset();
 
@@ -494,7 +497,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		bool bFoundNonDefaultVertexInstanceColor = false;
 
 		// we will weld/populate all the attributes simultaneously, hold on to futures in this array and then Wait for them at the end
-		TArray<TFuture<void>> Pending;
+		TArray<UE::Tasks::FTask> Pending;
 
 		if (PolygroupAttribs.Num() > 0)
 		{
@@ -505,7 +508,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 
 		for (int UVLayerIndex = 0; UVLayerIndex < NumUVLayers; UVLayerIndex++)
 		{
-			auto UVFuture = Async(EAsyncExecution::ThreadPool, [&, UVLayerIndex, bUseSharedUVs]() // must copy UVLayerIndex here!
+			UE::Tasks::FTask UVTask = UE::Tasks::Launch(UE_SOURCE_LOCATION, [&, UVLayerIndex, bUseSharedUVs]() // must copy UVLayerIndex here!
 			{
 				// the overlay to fill.
 				FDynamicMeshUVOverlay* UVOverlay = MeshOut.Attributes()->GetUVLayer(UVLayerIndex);
@@ -669,13 +672,13 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 					}
 				}
 			});
-			Pending.Add(MoveTemp(UVFuture));
+			Pending.Add(MoveTemp(UVTask));
 		}
 
 
 		if (NormalOverlay != nullptr)
 		{
-			auto NormalFuture = Async(EAsyncExecution::ThreadPool, [&]()
+			UE::Tasks::FTask NormalTask = UE::Tasks::Launch(UE_SOURCE_LOCATION, [&]()
 			{
 				FNormalWelder NormalWelder;
 				NormalWelder.NormalOverlay = NormalOverlay;
@@ -692,13 +695,13 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 					NormalOverlay->SetTriangle(TriangleID, TriNormals);
 				}
 			});
-			Pending.Add(MoveTemp(NormalFuture));
+			Pending.Add(MoveTemp(NormalTask));
 		}
 
 
 		if (TangentOverlay != nullptr)
 		{
-			auto TangentFuture = Async(EAsyncExecution::ThreadPool, [&]()
+			auto TangentTask = UE::Tasks::Launch(UE_SOURCE_LOCATION, [&]()
 			{
 				FNormalWelder TangentWelder;
 				TangentWelder.NormalOverlay = TangentOverlay;
@@ -715,12 +718,12 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 					TangentOverlay->SetTriangle(TriangleID, TriVector);
 				}
 			});
-			Pending.Add(MoveTemp(TangentFuture));
+			Pending.Add(MoveTemp(TangentTask));
 		}
 
 		if (BiTangentOverlay != nullptr)
 		{
-			auto BiTangentFuture = Async(EAsyncExecution::ThreadPool, [&]()
+			auto BiTangentTask = UE::Tasks::Launch(UE_SOURCE_LOCATION, [&]()
 			{
 				FNormalWelder BiTangentWelder;
 				BiTangentWelder.NormalOverlay = BiTangentOverlay;
@@ -745,12 +748,12 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 					BiTangentOverlay->SetTriangle(TriangleID, TriVector);
 				}
 			});
-			Pending.Add(MoveTemp(BiTangentFuture));
+			Pending.Add(MoveTemp(BiTangentTask));
 		}
 
 		if (ColorOverlay != nullptr)
 		{
-			auto ColorFuture = Async(EAsyncExecution::ThreadPool, [&]()
+			auto ColorTask = UE::Tasks::Launch(UE_SOURCE_LOCATION, [&]()
 			{
 				const FVector4f DefaultColor4 = InstanceColors.GetDefaultValue();
 
@@ -774,12 +777,12 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 					ColorOverlay->SetTriangle(TriangleID, TriVector);
 				}
 			});
-			Pending.Add(MoveTemp(ColorFuture));
+			Pending.Add(MoveTemp(ColorTask));
 		}
 
 		if (MaterialIDAttrib != nullptr)
 		{
-			auto MaterialFuture = Async(EAsyncExecution::ThreadPool, [&]()
+			auto MaterialTask = UE::Tasks::Launch(UE_SOURCE_LOCATION, [&]()
 			{
 				for (int32 TriangleID : MeshOut.TriangleIndicesItr())
 				{
@@ -787,12 +790,12 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 					MaterialIDAttrib->SetValue(TriangleID, &TriData.PolygonGroupID);
 				}
 			});
-			Pending.Add(MoveTemp(MaterialFuture));
+			Pending.Add(MoveTemp(MaterialTask));
 		}
 
 		for (const FSkinWeightsAttribCopyInfo& SkinWeightAttribInfo: SkinWeightAttribs)
 		{
-			auto SkinWeightsFuture = Async(EAsyncExecution::ThreadPool, [&, SkinWeightAttribInfo]() -> void
+			auto SkinWeightsTask = UE::Tasks::Launch(UE_SOURCE_LOCATION, [&, SkinWeightAttribInfo]() -> void
             {
                 for (int32 VertexID: MeshOut.VertexIndicesItr())
                 {
@@ -800,13 +803,13 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
                 }
 				
             });
-			Pending.Add(MoveTemp(SkinWeightsFuture));
+			Pending.Add(MoveTemp(SkinWeightsTask));
 		}
 		
 		// initialize polygroup layers
 		for (int32 GroupLayerIdx = 0; GroupLayerIdx < PolygroupAttribs.Num(); GroupLayerIdx++)
 		{
-			auto PolygroupFuture = Async(EAsyncExecution::ThreadPool, [&,Index=GroupLayerIdx]()
+			auto PolygroupTask = UE::Tasks::Launch(UE_SOURCE_LOCATION, [&,Index=GroupLayerIdx]()
 			{
 				TTriangleAttributesConstRef<int32> InputGroupSet = PolygroupAttribs[Index];
 				FDynamicMeshPolygroupAttribute* OutputGroupSet = MeshOut.Attributes()->GetPolygroupLayer(Index);
@@ -821,13 +824,13 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 					}
 				}
 			});
-			Pending.Add(MoveTemp(PolygroupFuture));
+			Pending.Add(MoveTemp(PolygroupTask));
 		}
 
 		// initialize weight layers
 		for (int32 WeightLayerIdx = 0; WeightLayerIdx < WeightAttribs.Num(); WeightLayerIdx++)
 		{
-			auto WeightFuture = Async(EAsyncExecution::ThreadPool, [this, &WeightAttribs, &WeightAttribNames, &MeshOut, WeightLayerIdx]()
+			auto WeightTask = UE::Tasks::Launch(UE_SOURCE_LOCATION, [this, &WeightAttribs, &WeightAttribNames, &MeshOut, WeightLayerIdx]()
 			{
 				TVertexAttributesConstRef<float> InputWeights = WeightAttribs[WeightLayerIdx];
 				FDynamicMeshWeightAttribute* OutputWeights = MeshOut.Attributes()->GetWeightLayer(WeightLayerIdx);
@@ -842,14 +845,11 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 					}
 				}
 			});
-			Pending.Add(MoveTemp(WeightFuture));
+			Pending.Add(MoveTemp(WeightTask));
 		}
 
 		// wait for all work to be done
-		for (TFuture<void>& Future : Pending)
-		{
-			Future.Wait();
-		}
+		UE::Tasks::Wait(Pending);
 
 		if (!bFoundNonDefaultVertexInstanceColor)
 		{

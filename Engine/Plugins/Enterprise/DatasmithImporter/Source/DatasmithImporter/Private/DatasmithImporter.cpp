@@ -35,8 +35,6 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
-#include "Async/Async.h"
-#include "Async/AsyncWork.h"
 #include "CineCameraComponent.h"
 #include "ComponentReregisterContext.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
@@ -75,6 +73,7 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "SkinnedAssetCompiler.h"
 #include "SourceControlOperations.h"
+#include "Tasks/Task.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
@@ -264,7 +263,7 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 		ProgressPtr->MakeDialog(true);
 	}
 
-	TMap<TSharedRef<IDatasmithMeshElement>, TFuture<FDatasmithMeshElementPayload*>> MeshElementPayloads;
+	TMap<TSharedRef<IDatasmithMeshElement>, UE::Tasks::TTask<FDatasmithMeshElementPayload*>> MeshElementPayloads;
 
 	FDatasmithTranslatorCapabilities TranslatorCapabilities;
 	ImportContext.SceneTranslator->Initialize(TranslatorCapabilities);
@@ -289,8 +288,7 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 				// Parallel loading from the translator using futures
 				MeshElementPayloads.Add(
 					MeshElement,
-					Async(
-						EAsyncExecution::LargeThreadPool,
+					UE::Tasks::Launch(UE_SOURCE_LOCATION,
 						[&ImportContext, MeshElement]() -> FDatasmithMeshElementPayload*
 						{
 							if (ImportContext.bUserCancelled)
@@ -338,11 +336,11 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 		//  - GetDestination (find or create StaticMesh, duplicate, flags and context etc)
 		//  - Import (Import data in simple memory repr (eg. TArray<FMeshDescription>)
 		//  - Set (fill UStaticMesh with imported data)
-		TFuture<FDatasmithMeshElementPayload*> MeshPayload;
+		UE::Tasks::TTask<FDatasmithMeshElementPayload*> MeshPayload;
 		if (MeshElementPayloads.RemoveAndCopyValue(MeshElement, MeshPayload))
 		{
-			TUniquePtr<FDatasmithMeshElementPayload> MeshPayloadPtr(MeshPayload.Get());
-			if (MeshPayloadPtr.IsValid())
+			TUniquePtr<FDatasmithMeshElementPayload> MeshPayloadPtr(MeshPayload.GetResult());
+			if (MeshPayloadPtr)
 			{
 				ImportStaticMesh(ImportContext, MeshElement, ExistingStaticMesh, MeshPayloadPtr.Get());
 			}
@@ -356,10 +354,10 @@ void FDatasmithImporter::ImportStaticMeshes( FDatasmithImportContext& ImportCont
 	}
 
 	//Just make sure there is no async task left running in case of a cancellation
-	for ( const TPair<TSharedRef<IDatasmithMeshElement>, TFuture<FDatasmithMeshElementPayload*>> & Kvp : MeshElementPayloads)
+	for (TPair<TSharedRef<IDatasmithMeshElement>, UE::Tasks::TTask<FDatasmithMeshElementPayload*>>& Kvp : MeshElementPayloads)
 	{
 		// Wait for the result and delete it when getting out of scope
-		TUniquePtr<FDatasmithMeshElementPayload> MeshPayloadPtr(Kvp.Value.Get());
+		TUniquePtr<FDatasmithMeshElementPayload> MeshPayloadPtr(Kvp.Value.GetResult());
 	}
 
 	TMap< TSharedRef< IDatasmithMeshElement >, float > LightmapWeights = FDatasmithStaticMeshImporter::CalculateMeshesLightmapWeights( ImportContext.Scene.ToSharedRef() );
@@ -695,9 +693,10 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 		{
 			FString       Extension;
 			TArray<uint8> TextureData;
-			TFuture<bool> Result;
+			UE::Tasks::TTask<bool> Result;
 		};
 		TArray<FAsyncData> AsyncData;
+
 		AsyncData.SetNum(FilteredTextureElements.Num());
 
 		for ( int32 TextureIndex = 0; TextureIndex < FilteredTextureElements.Num(); TextureIndex++ )
@@ -713,8 +712,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 			}
 
 			AsyncData[TextureIndex].Result =
-				Async(
-					EAsyncExecution::LargeThreadPool,
+				UE::Tasks::Launch(UE_SOURCE_LOCATION,
 					[&ImportContext, &AsyncData, &FilteredTextureElements, &DatasmithTextureImporter, TextureIndex]()
 					{
 						if (ImportContext.bUserCancelled)
@@ -770,7 +768,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 					}
 				}
 
-				if (AsyncData[TextureIndex].Result.Get())
+				if (AsyncData[TextureIndex].Result.GetResult())
 				{
 					ImportTexture( ImportContext, DatasmithTextureImporter, TextureElement.ToSharedRef(), ExistingTexture, AsyncData[TextureIndex].TextureData, AsyncData[TextureIndex].Extension );
 				}
