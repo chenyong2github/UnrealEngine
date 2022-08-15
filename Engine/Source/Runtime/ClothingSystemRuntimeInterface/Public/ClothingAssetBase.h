@@ -125,7 +125,9 @@ protected:
 
 	/** The asset factory should have access, as it will assign the asset guid when building assets */
 	friend class UClothingAssetFactory;
-	friend class UClothEditorMode;
+
+	/* TODO: Remove this temporary access (JIRA UE-159698) */
+	friend class UChaosClothAssetEditorMode;	
 
 	/** Guid to identify this asset. Will be embedded into chunks that are created using this asset */
 	UPROPERTY()
