@@ -137,7 +137,7 @@ void UAbilityTask_WaitTargetData::InitializeTargetActor(AGameplayAbilityTargetAc
 	check(SpawnedActor);
 	check(Ability);
 
-	SpawnedActor->MasterPC = Ability->GetCurrentActorInfo()->PlayerController.Get();
+	SpawnedActor->PrimaryPC = Ability->GetCurrentActorInfo()->PlayerController.Get();
 
 	// If we spawned the target actor, always register the callbacks for when the data is ready.
 	SpawnedActor->TargetDataReadyDelegate.AddUObject(const_cast<UAbilityTask_WaitTargetData*>(this), &UAbilityTask_WaitTargetData::OnTargetDataReadyCallback);

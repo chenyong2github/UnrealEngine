@@ -135,7 +135,7 @@ void UAbilityTask_VisualizeTargeting::InitializeTargetActor(AGameplayAbilityTarg
 	check(SpawnedActor);
 	check(Ability);
 
-	SpawnedActor->MasterPC = Ability->GetCurrentActorInfo()->PlayerController.Get();
+	SpawnedActor->PrimaryPC = Ability->GetCurrentActorInfo()->PlayerController.Get();
 }
 
 void UAbilityTask_VisualizeTargeting::FinalizeTargetActor(AGameplayAbilityTargetActor* SpawnedActor) const

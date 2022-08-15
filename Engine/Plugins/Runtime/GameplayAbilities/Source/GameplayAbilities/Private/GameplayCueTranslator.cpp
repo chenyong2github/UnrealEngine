@@ -279,7 +279,7 @@ bool FGameplayCueTranslationManager::BuildTagTranslationTable_r(const FName& Tag
 							SwappedNames = SplitNames;
 
 							// Remove the "To Names" from the SwappedNames array, replace with the single "From Name"
-							// E.g, GC.{Steel.Master} -> GC.{Hero}
+							// E.g, GC.{Steel.Primary} -> GC.{Hero}
 							int32 NumRemoves = SwapRule.ToNames.Num(); // We are going to remove as many tags 
 							int32 RemoveAtIdx = TagIdx - (SwapRule.ToNames.Num() - 1);
 							check(SwappedNames.IsValidIndex(RemoveAtIdx));

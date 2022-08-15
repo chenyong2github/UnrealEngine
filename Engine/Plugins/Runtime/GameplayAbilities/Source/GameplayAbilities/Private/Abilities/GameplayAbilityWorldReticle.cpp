@@ -31,7 +31,7 @@ void AGameplayAbilityWorldReticle::InitializeReticle(AActor* InTargetingActor, A
 {
 	check(InTargetingActor);
 	TargetingActor = InTargetingActor;
-	MasterPC = PlayerController;
+	PrimaryPC = PlayerController;
 	AddTickPrerequisiteActor(TargetingActor);		//We want the reticle to tick after the targeting actor so that designers have the final say on the position
 	Parameters = InParameters;
 	OnParametersInitialized();
@@ -40,7 +40,7 @@ void AGameplayAbilityWorldReticle::InitializeReticle(AActor* InTargetingActor, A
 bool AGameplayAbilityWorldReticle::IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const
 {
 	//The player who created the ability doesn't need to be updated about it - there should be local prediction in place.
-	if (RealViewer == MasterPC)
+	if (RealViewer == PrimaryPC)
 	{
 		return false;
 	}

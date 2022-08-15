@@ -69,8 +69,13 @@ public:
 
 	virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Targeting")
+#if WITH_EDITOR
+	UE_DEPRECATED(5.1, "This property is deprecated. Please use PrimaryPC instead.")
 	APlayerController* MasterPC;
+#endif // WITH_EDITOR
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Targeting")
+	APlayerController* PrimaryPC;
 
 	UPROPERTY()
 	UGameplayAbility* OwningAbility;

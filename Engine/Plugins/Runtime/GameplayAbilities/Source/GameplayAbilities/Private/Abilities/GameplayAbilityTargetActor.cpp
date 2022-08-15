@@ -121,7 +121,7 @@ void AGameplayAbilityTargetActor::CancelTargeting()
 bool AGameplayAbilityTargetActor::IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const
 {
 	//The player who created the ability doesn't need to be updated about it - there should be local prediction in place.
-	if (RealViewer == MasterPC)
+	if (RealViewer == PrimaryPC)
 	{
 		return false;
 	}
@@ -145,7 +145,7 @@ bool AGameplayAbilityTargetActor::OnReplicatedTargetDataReceived(FGameplayAbilit
 bool AGameplayAbilityTargetActor::ShouldProduceTargetData() const
 {
 	// return true if we are locally owned, or (we are the server and this is a gameplaytarget ability that can produce target data server side)
-	return (MasterPC && MasterPC->IsLocalController()) || ShouldProduceTargetDataOnServer;
+	return (PrimaryPC && PrimaryPC->IsLocalController()) || ShouldProduceTargetDataOnServer;
 }
 
 void AGameplayAbilityTargetActor::BindToConfirmCancelInputs()
