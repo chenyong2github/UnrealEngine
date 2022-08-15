@@ -162,17 +162,18 @@ void FRewindDebuggerModule::StartupModule()
 
 			LevelEditorTabManager->RegisterTabSpawner(
 				MainTabName, FOnSpawnTab::CreateRaw(this, &FRewindDebuggerModule::SpawnRewindDebuggerTab))
-				.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
 				.SetDisplayName(LOCTEXT("TabTitle", "Rewind Debugger"))
 				.SetIcon(FSlateIcon("RewindDebuggerStyle", "RewindDebugger.RewindIcon"))
-				.SetTooltipText(LOCTEXT("TooltipText", "Opens Rewind Debugger."));
+				.SetTooltipText(LOCTEXT("TooltipText", "Opens Rewind Debugger."))
+				.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory());
 
 			LevelEditorTabManager->RegisterTabSpawner(
 				DetailsTabName, FOnSpawnTab::CreateRaw(this, &FRewindDebuggerModule::SpawnRewindDebuggerDetailsTab))
-				.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
 				.SetDisplayName(LOCTEXT("DetailsTabTitle", "Rewind Debugger Details"))
 				.SetIcon(FSlateIcon("RewindDebuggerStyle", "RewindDebugger.RewindDetailsIcon"))
-				.SetTooltipText(LOCTEXT("DetailsWindowTooltipText", "Opens Rewind Debugger Details Window."));
+				.SetTooltipText(LOCTEXT("DetailsWindowTooltipText", "Opens Rewind Debugger Details Window."))
+				.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory());
+			
 		});
 
 	/*LevelEditorLayoutExtensionHandle = */ LevelEditorModule.OnRegisterLayoutExtensions().AddLambda(

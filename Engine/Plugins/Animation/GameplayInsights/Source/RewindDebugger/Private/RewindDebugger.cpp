@@ -1057,11 +1057,19 @@ TSharedPtr<FDebugObjectInfo> FRewindDebugger::GetSelectedComponent() const
 {
 	if (!SelectedComponent.IsValid())
 	{
-		SelectedComponent = MakeShared<FDebugObjectInfo>(0,"");
+		SelectedComponent = MakeShared<FDebugObjectInfo>(0, "");
 	}
-	SelectedComponent->ObjectId = SelectedTrack->GetObjectId();
-	SelectedComponent->ObjectName = SelectedTrack->GetDisplayName().ToString();
-	return SelectedComponent;
+	
+	if (SelectedTrack.IsValid())
+	{
+		SelectedComponent->ObjectId = SelectedTrack->GetObjectId();
+		SelectedComponent->ObjectName = SelectedTrack->GetDisplayName().ToString();
+		return SelectedComponent;
+	}
+	else
+	{
+		return TSharedPtr<FDebugObjectInfo>();
+	}
 }
 
 // build a component tree that's compatible with the public api from 5.0 for GetDebugComponents.
