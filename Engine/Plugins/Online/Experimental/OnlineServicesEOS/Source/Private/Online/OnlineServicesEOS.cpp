@@ -7,6 +7,7 @@
 #include "Online/FriendsEOS.h"
 #include "Online/PresenceEOS.h"
 #include "Online/UserInfoEOS.h"
+#include "Online/CommerceEOS.h"
 
 namespace UE::Online {
 
@@ -22,6 +23,7 @@ void FOnlineServicesEOS::RegisterComponents()
 	Components.Register<FFriendsEOS>(*this);
 	Components.Register<FPresenceEOS>(*this);
 	Components.Register<FUserInfoEOS>(*this);
+	Components.Register<FCommerceEOS>(*this);
 
 	Super::RegisterComponents();
 }
