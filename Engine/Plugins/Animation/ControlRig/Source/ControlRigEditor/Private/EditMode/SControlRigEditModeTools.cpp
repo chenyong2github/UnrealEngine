@@ -921,7 +921,6 @@ FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 				FFrameNumber CurrentTime = FrameTime.GetFrame();
 				FMovieSceneControlRigSpaceBaseKey Value;
 				using namespace UE::MovieScene;
-				URigHierarchy* RigHierarchy = SpacePickerWidget->GetHierarchy();
 				Settings.TargetSpace = URigHierarchy::GetDefaultParentKey();
 
 				TRange<FFrameNumber> Range = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();

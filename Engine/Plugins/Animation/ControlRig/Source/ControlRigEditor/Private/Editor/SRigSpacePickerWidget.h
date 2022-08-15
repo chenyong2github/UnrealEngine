@@ -71,8 +71,16 @@ public:
 	virtual bool SupportsKeyboardFocus() const override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-	URigHierarchy* GetHierarchy() const { return Hierarchy; }
-	const URigHierarchy* GetHierarchyConst() const { return Hierarchy; }
+	URigHierarchy* GetHierarchy() const
+	{
+		if (Hierarchy.IsValid())
+		{
+			return Hierarchy.Get();
+		}
+		return nullptr;
+	}
+	const URigHierarchy* GetHierarchyConst() const { return GetHierarchy(); }
+	
 	const TArray<FRigElementKey>& GetControls() const { return ControlKeys; }
 	const TArray<FRigElementKey>& GetActiveSpaces() const;
 	TArray<FRigElementKey> GetDefaultSpaces() const;
@@ -135,7 +143,7 @@ private:
 	FRigSpacePickerActiveSpaceChanged ActiveSpaceChangedEvent;
 	FRigSpacePickerSpaceListChanged SpaceListChangedEvent;
 
-	URigHierarchy* Hierarchy;
+	TWeakObjectPtr<URigHierarchy> Hierarchy;
 	TArray<FRigElementKey> ControlKeys;
 	TArray<FRigElementKey> CurrentSpaceKeys;
 	TArray<FRigElementKey> ActiveSpaceKeys;
