@@ -741,7 +741,12 @@ namespace UnrealBuildTool
 			// Run shallow analyze if requested.
 			if (StaticAnalyzerMode == StaticAnalyzerMode.Shallow) Arguments.Add("-Xclang -analyzer-config -Xclang mode=shallow");
 
-			if (CompileEnvironment.StaticAnalyzerCheckers.Count > 0)
+			if (CompileEnvironment.StaticAnalyzerDisabledCheckers.Contains("all"))
+			{
+				// Force disable all checks if "all" is found in disabled checkers
+				Arguments.Add("--analyzer-no-default-checks");
+			}
+			else if (CompileEnvironment.StaticAnalyzerCheckers.Count > 0)
 			{
 				// Disable all default checks
 				Arguments.Add("--analyzer-no-default-checks");

@@ -151,5 +151,8 @@ public class ONNXRuntime : ModuleRules
 			PublicDefinitions.Add("DML_TARGET_VERSION_USE_LATEST");
 			PublicDefinitions.Add("USE_DML = 1");
 		}
+
+		// Disable all static analysis checkers for this module
+		StaticAnalyzerDisabledCheckers.Add("all");
 	}
 }
