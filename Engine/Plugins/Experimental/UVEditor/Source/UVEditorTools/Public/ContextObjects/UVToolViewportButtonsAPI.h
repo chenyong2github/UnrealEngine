@@ -23,6 +23,14 @@ public:
 		Transform
 	};
 
+	enum class ESnapTypeFlag : uint8
+	{
+		NoSnap = 0,
+		Location = 1 << 0,
+		Rotation = 1 << 1,
+		Scale = 1 << 2
+	};
+
 	using ESelectionMode = UUVToolSelectionAPI::EUVEditorSelectionMode;
 
 	void SetGizmoButtonsEnabled(bool bOn)
@@ -93,8 +101,58 @@ public:
 		OnGizmoModeChange.RemoveAll(DeadTool);
 		OnSelectionModeChange.RemoveAll(DeadTool);
 	}
+	
+	void ToggleSnapEnabled(ESnapTypeFlag SnapMode)
+	{
+		SnapEnabled ^= (uint8)SnapMode;
+	}
+
+	bool GetSnapEnabled(ESnapTypeFlag SnapMode) const
+	{
+		return SnapEnabled & (uint8)SnapMode;
+	}
+
+	void SetSnapValue(ESnapTypeFlag SnapMode, float SnapValue)
+	{
+		switch (SnapMode)
+		{
+		case ESnapTypeFlag::Location:
+			LocationSnap = SnapValue;
+			break;
+		case ESnapTypeFlag::Rotation:
+			RotationSnap = SnapValue;
+			break;
+		case ESnapTypeFlag::Scale:
+			ScaleSnap = SnapValue;
+			break;
+		default:
+			ensure(false);
+		}
+	}
+
+	float GetSnapValue(ESnapTypeFlag SnapMode) const 
+	{
+		switch (SnapMode)
+		{
+		case ESnapTypeFlag::Location:
+			return LocationSnap;			
+		case ESnapTypeFlag::Rotation:
+			return RotationSnap;
+		case ESnapTypeFlag::Scale:
+			return ScaleSnap;
+		default:
+			ensure(false);
+			return 0.0;
+		}
+	}
+
 
 protected:
+
+	int32 SnapEnabled = (uint8)ESnapTypeFlag::NoSnap;
+	float LocationSnap = 1.0;
+	float RotationSnap = 5.0;
+	float ScaleSnap = 1.0;
 
 	bool bGizmoButtonsEnabled = false;
 	EGizmoMode GizmoMode = EGizmoMode::Select;

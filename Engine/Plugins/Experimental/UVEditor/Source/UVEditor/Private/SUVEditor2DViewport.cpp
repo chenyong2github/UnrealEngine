@@ -91,7 +91,8 @@ void SUVEditor2DViewport::RemoveOverlayWidget(TSharedRef<SWidget> OverlaidWidget
 TSharedPtr<SWidget> SUVEditor2DViewport::MakeViewportToolbar()
 {
 	return SNew(SUVEditor2DViewportToolBar)
-		.CommandList(CommandList);
+		.CommandList(CommandList)
+		.Viewport2DClient(StaticCastSharedPtr<FUVEditor2DViewportClient>(Client));
 }
 
 bool SUVEditor2DViewport::IsWidgetModeActive(UE::Widget::EWidgetMode Mode) const

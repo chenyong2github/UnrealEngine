@@ -3,6 +3,8 @@
 #include "UVEditorUXSettings.h"
 #include "Math/Color.h"
 
+#define LOCTEXT_NAMESPACE "UVEditorUXSettings"
+
 const float FUVEditorUXSettings::UVMeshScalingFactor(1000.0);
 const float FUVEditorUXSettings::CameraFarPlaneWorldZ(-10.0);
 const float FUVEditorUXSettings::CameraNearPlaneProportionZ(0.8); // Top layer, equivalent to depth bias 80
@@ -136,3 +138,30 @@ FVector2f FUVEditorUXSettings::VertPositionToUV(const FVector3d& VertPosition)
 {
 	return FVector2f(VertPosition.Y / UVMeshScalingFactor, 1 - (VertPosition.X / UVMeshScalingFactor));
 };
+
+float FUVEditorUXSettings::LocationSnapValue(int32 LocationSnapMenuIndex)
+{
+	switch (LocationSnapMenuIndex)
+	{
+	case 0:
+		return 1.0;
+	case 1:
+		return 0.5;
+	case 2:
+		return 0.25;
+	case 3:
+		return 0.125;
+	case 4:
+		return 0.0625;
+	default:
+		ensure(false);
+		return 0;
+	}
+}
+
+int32 FUVEditorUXSettings::MaxLocationSnapValue()
+{
+	return 5;
+}
+
+#undef LOCTEXT_NAMESPACE 

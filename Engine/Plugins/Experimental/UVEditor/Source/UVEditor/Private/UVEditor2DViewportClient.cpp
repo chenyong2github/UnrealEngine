@@ -314,6 +314,66 @@ bool FUVEditor2DViewportClient::AreWidgetButtonsEnabled() const
 	return ViewportButtonsAPI && ViewportButtonsAPI->AreGizmoButtonsEnabled();
 }
 
+void FUVEditor2DViewportClient::SetLocationGridSnapEnabled(bool bEnabled)
+{
+	ViewportButtonsAPI->ToggleSnapEnabled(UUVToolViewportButtonsAPI::ESnapTypeFlag::Location);
+}
+
+bool FUVEditor2DViewportClient::GetLocationGridSnapEnabled()
+{
+	return ViewportButtonsAPI->GetSnapEnabled(UUVToolViewportButtonsAPI::ESnapTypeFlag::Location);
+}
+
+void FUVEditor2DViewportClient::SetLocationGridSnapValue(float SnapValue)
+{
+	ViewportButtonsAPI->SetSnapValue(UUVToolViewportButtonsAPI::ESnapTypeFlag::Location, SnapValue);
+}
+
+float FUVEditor2DViewportClient::GetLocationGridSnapValue()
+{
+	return 	ViewportButtonsAPI->GetSnapValue(UUVToolViewportButtonsAPI::ESnapTypeFlag::Location);
+}
+
+void FUVEditor2DViewportClient::SetRotationGridSnapEnabled(bool bEnabled)
+{
+	ViewportButtonsAPI->ToggleSnapEnabled(UUVToolViewportButtonsAPI::ESnapTypeFlag::Rotation);
+}
+
+bool FUVEditor2DViewportClient::GetRotationGridSnapEnabled()
+{
+	return ViewportButtonsAPI->GetSnapEnabled(UUVToolViewportButtonsAPI::ESnapTypeFlag::Rotation);
+}
+
+void FUVEditor2DViewportClient::SetRotationGridSnapValue(float SnapValue)
+{
+	ViewportButtonsAPI->SetSnapValue(UUVToolViewportButtonsAPI::ESnapTypeFlag::Rotation, SnapValue);
+}
+
+float FUVEditor2DViewportClient::GetRotationGridSnapValue()
+{
+	return ViewportButtonsAPI->GetSnapValue(UUVToolViewportButtonsAPI::ESnapTypeFlag::Rotation);
+}
+
+void FUVEditor2DViewportClient::SetScaleGridSnapEnabled(bool bEnabled)
+{
+	ViewportButtonsAPI->ToggleSnapEnabled(UUVToolViewportButtonsAPI::ESnapTypeFlag::Scale);
+}
+
+bool FUVEditor2DViewportClient::GetScaleGridSnapEnabled()
+{
+	return ViewportButtonsAPI->GetSnapEnabled(UUVToolViewportButtonsAPI::ESnapTypeFlag::Scale);
+}
+
+void FUVEditor2DViewportClient::SetScaleGridSnapValue(float SnapValue)
+{
+	ViewportButtonsAPI->SetSnapValue(UUVToolViewportButtonsAPI::ESnapTypeFlag::Scale, SnapValue);
+}
+
+float FUVEditor2DViewportClient::GetScaleGridSnapValue()
+{
+	return ViewportButtonsAPI->GetSnapValue(UUVToolViewportButtonsAPI::ESnapTypeFlag::Scale);
+}
+
 bool FUVEditor2DViewportClient::CanSetWidgetMode(UE::Widget::EWidgetMode NewMode) const
 {
 	if (!AreWidgetButtonsEnabled())

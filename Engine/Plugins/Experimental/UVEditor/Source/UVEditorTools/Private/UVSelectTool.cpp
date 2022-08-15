@@ -486,8 +486,65 @@ void UUVSelectTool::GizmoTransformChanged(UTransformProxy* Proxy, FTransform Tra
 
 	if (!DeltaTransform.GetTranslation().IsNearlyZero() || !DeltaTransform.GetRotation().IsIdentity() || Transform.GetScale3D() != FVector::One())
 	{
-		UnappliedGizmoTransform = Transform;
-		bGizmoTransformNeedsApplication = true;
+	
+		FTransform SnappedDeltaTransform = DeltaTransform;		
+		bool bSnapExecuted = false;
+
+		if (!DeltaTransform.GetTranslation().IsNearlyZero() && 
+			ViewportButtonsAPI->GetSnapEnabled(UUVToolViewportButtonsAPI::ESnapTypeFlag::Location))
+		{
+			float SnapValue = ViewportButtonsAPI->GetSnapValue(UUVToolViewportButtonsAPI::ESnapTypeFlag::Location);
+			FVector Translation = DeltaTransform.GetTranslation();
+			Translation = Translation.GridSnap(SnapValue * FUVEditorUXSettings::UVMeshScalingFactor);
+			Translation = Transform.GetRotation() * Translation; // Apply the current rotated frame, so we translate in local coordinates.
+			SnappedDeltaTransform.SetTranslation(Translation);
+			bSnapExecuted = true;
+		}
+
+		if (!DeltaTransform.GetRotation().IsIdentity() &&
+			ViewportButtonsAPI->GetSnapEnabled(UUVToolViewportButtonsAPI::ESnapTypeFlag::Rotation))
+		{
+			float SnapValue = ViewportButtonsAPI->GetSnapValue(UUVToolViewportButtonsAPI::ESnapTypeFlag::Rotation);
+			FQuat DeltaRotation = DeltaTransform.GetRotation();
+			FVector DeltaPosition = InitialGizmoFrame.Origin;
+
+			FRotator Rotator(DeltaTransform.GetRotation());
+			FRotator RotGrid(SnapValue, SnapValue, SnapValue);
+			Rotator = Rotator.GridSnap(RotGrid);
+			DeltaPosition = ( Rotator.Quaternion() * -DeltaPosition ) + DeltaPosition;
+
+			SnappedDeltaTransform.SetRotation(Rotator.Quaternion());
+			SnappedDeltaTransform.SetLocation(DeltaPosition);
+			bSnapExecuted = true;
+		}
+
+		if (Transform.GetScale3D() != FVector::One() &&
+			ViewportButtonsAPI->GetSnapEnabled(UUVToolViewportButtonsAPI::ESnapTypeFlag::Scale))
+		{
+			float SnapValue = ViewportButtonsAPI->GetSnapValue(UUVToolViewportButtonsAPI::ESnapTypeFlag::Scale);
+			FVector DeltaScale = DeltaTransform.GetScale3D();
+			FVector DeltaPosition = InitialGizmoFrame.Origin;			
+			DeltaScale = DeltaScale.GridSnap(SnapValue);
+			DeltaPosition = (DeltaScale * -DeltaPosition) + DeltaPosition;
+
+			SnappedDeltaTransform.SetScale3D(DeltaScale);
+			SnappedDeltaTransform.SetLocation(DeltaPosition);
+			bSnapExecuted = true;
+		}
+
+
+		FTransform SnappedTransform = InitialGizmoFrame.ToFTransform() * SnappedDeltaTransform;
+		
+		if (bSnapExecuted)
+		{
+			UnappliedGizmoTransform = SnappedTransform;
+			TransformGizmo->ReinitializeGizmoTransform(SnappedTransform);
+		}
+		else
+		{
+			UnappliedGizmoTransform = Transform;
+		}
+		bGizmoTransformNeedsApplication = true;		
 	}	
 }
 
@@ -553,7 +610,12 @@ void UUVSelectTool::ApplyGizmoTransform()
 	// easier to zoom in and out without running into issues, the measure of the distance across which we typically
 	// drag the handles is too high to be convenient. Until we make the scaling invariant to units/distance from
 	// target, we use this hack.
-	TransformToApply.SetScale(FVector::One() + (UnappliedGizmoTransform.GetScale3D() - FVector::One()) / 10);
+	// Note: If we're using the snapping feature we don't want to mess with the values on scale here, since the
+	// snapping has already been performed. If we use the hack, we won't have the exact snapped scale the user expects.
+	if (!ViewportButtonsAPI->GetSnapEnabled(UUVToolViewportButtonsAPI::ESnapTypeFlag::Scale))
+	{
+		TransformToApply.SetScale(FVector::One() + (UnappliedGizmoTransform.GetScale3D() - FVector::One()) / 10);
+	}
 
 	for (int32 SelectionIndex = 0; SelectionIndex < CurrentSelections.Num(); ++SelectionIndex)
 	{

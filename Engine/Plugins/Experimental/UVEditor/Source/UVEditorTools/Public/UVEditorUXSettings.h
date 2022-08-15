@@ -131,6 +131,12 @@ public:
 
 	static TAutoConsoleVariable<int32> CVarEnablePrototypeUDIMSupport;
 
+	//--------------------------------
+	// Values for Snapping
+	//--------------------------------
+	static float LocationSnapValue(int32 LocationSnapMenuIndex);
+	static int32 MaxLocationSnapValue();
+
 private:
 
 	FUVEditorUXSettings();

@@ -29,6 +29,19 @@ public:
 	UUVToolViewportButtonsAPI::ESelectionMode GetSelectionMode() const;
 	bool AreWidgetButtonsEnabled() const;
 
+	void SetLocationGridSnapEnabled(bool bEnabled);
+	bool GetLocationGridSnapEnabled();
+	void SetLocationGridSnapValue(float SnapValue);
+	float GetLocationGridSnapValue();
+	void SetRotationGridSnapEnabled(bool bEnabled);
+	bool GetRotationGridSnapEnabled();
+	void SetRotationGridSnapValue(float SnapValue);
+	float GetRotationGridSnapValue();
+	void SetScaleGridSnapEnabled(bool bEnabled);
+	bool GetScaleGridSnapEnabled();
+	void SetScaleGridSnapValue(float SnapValue);
+	float GetScaleGridSnapValue();
+
 	// FEditorViewportClient
 	virtual bool InputKey(const FInputKeyEventArgs& EventArgs) override;
 
