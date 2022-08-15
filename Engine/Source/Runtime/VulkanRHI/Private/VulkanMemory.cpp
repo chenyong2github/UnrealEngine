@@ -2626,7 +2626,7 @@ namespace VulkanRHI
 		VULKAN_FREE_TRACK_INFO(Track);
 	}
 
-	uint32 FMemoryManager::CalculateBufferAlignment(FVulkanDevice& InDevice, const VkBufferUsageFlags BufferUsageFlags)
+	static uint32 CalculateBufferAlignmentFromVKUsageFlags(FVulkanDevice& InDevice, const VkBufferUsageFlags BufferUsageFlags)
 	{
 		const VkPhysicalDeviceLimits& Limits = InDevice.GetLimits();
 
@@ -2660,6 +2660,21 @@ namespace VulkanRHI
 			checkf(false, TEXT("Unknown buffer alignment for VkBufferUsageFlags combination: 0x%x"), VK_FLAGS_TO_STRING(VkBufferUsageFlags, BufferUsageFlags));
 		}
 
+		return Alignment;
+	}
+
+	uint32 FMemoryManager::CalculateBufferAlignment(FVulkanDevice& InDevice, EBufferUsageFlags InUEUsage, bool bZeroSize)
+	{
+		const VkBufferUsageFlags VulkanBufferUsage = FVulkanResourceMultiBuffer::UEToVKBufferUsageFlags(&InDevice, InUEUsage, bZeroSize);
+
+		uint32 Alignment = CalculateBufferAlignmentFromVKUsageFlags(InDevice, VulkanBufferUsage);
+
+#if VULKAN_RHI_RAYTRACING
+		if (EnumHasAnyFlags(InUEUsage, BUF_RayTracingScratch))
+		{
+			Alignment = GRHIRayTracingScratchBufferAlignment;
+		}
+#endif
 		return Alignment;
 	}
 
@@ -2700,12 +2715,12 @@ namespace VulkanRHI
 		return Priority;
 	}
 
-	bool FMemoryManager::AllocateBufferPooled(FVulkanAllocation& OutAllocation, FVulkanEvictable* AllocationOwner, uint32 Size, VkBufferUsageFlags BufferUsageFlags, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, const char* File, uint32 Line)
+	bool FMemoryManager::AllocateBufferPooled(FVulkanAllocation& OutAllocation, FVulkanEvictable* AllocationOwner, uint32 Size, uint32 MinAlignment, VkBufferUsageFlags BufferUsageFlags, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, const char* File, uint32 Line)
 	{
 		SCOPED_NAMED_EVENT(FResourceHeapManager_AllocateBufferPooled, FColor::Cyan);
 		check(OutAllocation.Type == EVulkanAllocationEmpty);
 
-		uint32 Alignment = CalculateBufferAlignment(*Device, BufferUsageFlags);
+		uint32 Alignment = FMath::Max(MinAlignment, CalculateBufferAlignmentFromVKUsageFlags(*Device, BufferUsageFlags));
 		const float Priority = CalculateBufferPriority(BufferUsageFlags);
 
 		const int32 PoolSize = (int32)GetPoolTypeForAlloc(Size, Alignment);
@@ -3556,7 +3571,7 @@ namespace VulkanRHI
 
 	void FMemoryManager::AllocUniformBuffer(FVulkanAllocation& OutAllocation, uint32 Size, const void* Contents)
 	{
-		if(!AllocateBufferPooled(OutAllocation, nullptr, Size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, EVulkanAllocationMetaUniformBuffer, __FILE__, __LINE__))
+		if(!AllocateBufferPooled(OutAllocation, nullptr, Size, 0, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, EVulkanAllocationMetaUniformBuffer, __FILE__, __LINE__))
 		{
 			HandleOOM(false);
 			checkNoEntry();
@@ -4806,7 +4821,7 @@ namespace VulkanRHI
 		PeakUsed = 0;
 		FMemoryManager& ResourceHeapManager = InDevice->GetMemoryManager();
 		check(Allocation.Type == EVulkanAllocationEmpty);
-		if(ResourceHeapManager.AllocateBufferPooled(Allocation, nullptr, InSize,
+		if(ResourceHeapManager.AllocateBufferPooled(Allocation, nullptr, InSize, 0,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
 			VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
 			VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,

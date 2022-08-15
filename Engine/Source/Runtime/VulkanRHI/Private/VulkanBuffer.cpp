@@ -167,10 +167,10 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 			check(NumBuffers <= UE_ARRAY_COUNT(Buffers));
 
 			const bool bUnifiedMem = InDevice->HasUnifiedMemory();
+			const uint32 BufferAlignment = FMemoryManager::CalculateBufferAlignment(*InDevice, InUEUsage, bZeroSize);
 
 			if (InTransientHeapAllocation != nullptr)
 			{
-				const uint32 BufferAlignment = FMemoryManager::CalculateBufferAlignment(*InDevice, BufferUsageFlags);
 				const uint32 AlignedSize = Align(InSize, BufferAlignment);
 
 				Buffers[0] = FVulkanTransientHeap::GetVulkanAllocation(*InTransientHeapAllocation);
@@ -196,7 +196,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 
 				for (uint32 Index = 0; Index < NumBuffers; ++Index)
 				{
-					if (!InDevice->GetMemoryManager().AllocateBufferPooled(Buffers[Index], this, InSize, BufferUsageFlags, BufferMemFlags, EVulkanAllocationMetaMultiBuffer, __FILE__, __LINE__))
+					if (!InDevice->GetMemoryManager().AllocateBufferPooled(Buffers[Index], this, InSize, BufferAlignment, BufferUsageFlags, BufferMemFlags, EVulkanAllocationMetaMultiBuffer, __FILE__, __LINE__))
 					{
 						InDevice->GetMemoryManager().HandleOOM();
 					}
