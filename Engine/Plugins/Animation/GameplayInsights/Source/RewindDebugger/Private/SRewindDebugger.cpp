@@ -32,6 +32,7 @@
 SRewindDebugger::SRewindDebugger() 
 	: SCompoundWidget()
 	, ViewRange(0,10)
+	, Commands(FRewindDebuggerCommands::Get())
 	, DebugComponents(nullptr)
 	, Settings(URewindDebuggerSettings::Get())
 { 
@@ -97,6 +98,26 @@ void SRewindDebugger::ToggleDisplayEmptyTracks()
 bool SRewindDebugger::ShouldDisplayEmptyTracks() const
 {
 	return Settings.bShowEmptyObjectTracks;
+}
+
+FReply SRewindDebugger::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	const FInputChord KeyEventAsInputChord = FInputChord(InKeyEvent.GetKey(), EModifierKey::FromBools(InKeyEvent.IsControlDown(), InKeyEvent.IsAltDown(), InKeyEvent.IsShiftDown(), InKeyEvent.IsCommandDown()));
+	FReply bReply = FReply::Unhandled();
+
+	// Handle Rewind Debugger VCR Commands
+	if (CommandList->ProcessCommandBindings(InKeyEvent))
+	{
+		bReply = FReply::Handled();
+	}
+
+	// Prevent bubbling up shortcut for "ReversePlay"
+	if (Commands.ReversePlay->HasDefaultChord(KeyEventAsInputChord) && !IsPIESimulating.Get())
+	{
+		bReply = FReply::Handled();
+	}
+
+	return bReply;
 }
 
 void SRewindDebugger::SetDebugTargetActor(AActor* Actor)
@@ -199,7 +220,7 @@ TSharedRef<SWidget> SRewindDebugger::MakeSelectActorMenu()
 	return MenuBuilder.MakeWidget();
 }
 
-void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandList> CommandList, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
+void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandList> InCommandList, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
 {
 	OnScrubPositionChanged = InArgs._OnScrubPositionChanged;
 	OnViewRangeChanged = InArgs._OnViewRangeChanged;
@@ -210,7 +231,8 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 	TraceTime.Initialize(InArgs._TraceTime);
 	RecordingDuration.Initialize(InArgs._RecordingDuration);
 	DebugTargetActor.Initialize(InArgs._DebugTargetActor);
-
+	IsPIESimulating = InArgs._IsPIESimulating;
+	CommandList = InCommandList;
 	
 	TrackFilterBox = SNew(SSearchBox).HintText(LOCTEXT("Filter Tracks","Filter Tracks")).OnTextChanged_Lambda([this](const FText&)
 	{
@@ -218,17 +240,15 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 	});
 	
 	FSlimHorizontalToolBarBuilder ToolBarBuilder(CommandList, FMultiBoxCustomization::None, nullptr, true);
-
-	const FRewindDebuggerCommands& Commands = FRewindDebuggerCommands::Get();
-
+	
 	ToolBarBuilder.SetStyle(&FAppStyle::Get(), "PaletteToolBar");
 	ToolBarBuilder.BeginSection("Debugger");
 	{
 		ToolBarBuilder.AddToolBarButton(Commands.FirstFrame);
 		ToolBarBuilder.AddToolBarButton(Commands.PreviousFrame);
 		ToolBarBuilder.AddToolBarButton(Commands.ReversePlay);
-		ToolBarBuilder.AddToolBarButton(Commands.Pause);
-		ToolBarBuilder.AddToolBarButton(Commands.Play);
+		ToolBarBuilder.AddToolBarButton(Commands.Pause, NAME_None, {}, FText::Format(LOCTEXT("PauseButtonTooltip", "{0} ({1})"), Commands.Pause->GetDescription(), Commands.PauseOrPlay->GetInputText()));
+		ToolBarBuilder.AddToolBarButton(Commands.Play, NAME_None, {}, FText::Format(LOCTEXT("PlayButtonTooltip", "{0} ({1}) or"), Commands.Play->GetDescription(), Commands.PauseOrPlay->GetInputText(), Commands.Play->GetInputText()));
 		ToolBarBuilder.AddToolBarButton(Commands.NextFrame);
 		ToolBarBuilder.AddToolBarButton(Commands.LastFrame);
 		ToolBarBuilder.AddToolBarButton(Commands.StartRecording);

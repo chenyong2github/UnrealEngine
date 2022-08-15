@@ -20,6 +20,7 @@
 #include "PropertyTraceMenu.h"
 #include "ToolMenus.h"
 #include "LevelEditor.h"
+#include "Kismet2/DebuggerCommands.h"
 
 #define LOCTEXT_NAMESPACE "RewindDebuggerModule"
 
@@ -79,6 +80,25 @@ TSharedRef<SDockTab> FRewindDebuggerModule::SpawnRewindDebuggerTab(const FSpawnT
 							FIsActionChecked(),
 							FIsActionButtonVisible());
 
+	CommandList->MapAction(Commands.PauseOrPlay,
+							FExecuteAction::CreateLambda([DebuggerInstance]()
+							{
+								if (DebuggerInstance->CanPause())
+								{
+									DebuggerInstance->Pause();
+								}
+								else if (DebuggerInstance->CanPlay())
+								{
+									DebuggerInstance->Play();
+								}
+							}), 
+							FCanExecuteAction::CreateLambda([DebuggerInstance]()
+							{
+								return DebuggerInstance->CanPause() || DebuggerInstance->CanPlay();
+							}),
+							FIsActionChecked(),
+							FIsActionButtonVisible());
+	
 	CommandList->MapAction(Commands.ReversePlay,
 							FExecuteAction::CreateRaw(DebuggerInstance, &FRewindDebugger::PlayReverse), 
 							FCanExecuteAction::CreateRaw(DebuggerInstance, &FRewindDebugger::CanPlayReverse),
@@ -122,7 +142,24 @@ TSharedRef<SDockTab> FRewindDebuggerModule::SpawnRewindDebuggerTab(const FSpawnT
 							 FIsActionChecked(),
 							 FIsActionButtonVisible::CreateRaw(DebuggerInstance, &FRewindDebugger::CanStopRecording));
 
+	// Register PIE Rewind Debugger Commands
+	if (GEditor != nullptr)
+	{
+		check(FPlayWorldCommands::GlobalPlayWorldActions.IsValid());
 
+		FPlayWorldCommands::GlobalPlayWorldActions->MapAction(Commands.StartRecording, 
+							FExecuteAction::CreateRaw(DebuggerInstance, &FRewindDebugger::StartRecording), 
+							FCanExecuteAction::CreateRaw(DebuggerInstance, &FRewindDebugger::CanStartRecording),
+							FIsActionChecked(),
+							FIsActionButtonVisible::CreateLambda([]() { return !FRewindDebugger::Instance()->IsRecording();}));
+
+		FPlayWorldCommands::GlobalPlayWorldActions->MapAction(Commands.StopRecording,
+							 FExecuteAction::CreateRaw(DebuggerInstance, &FRewindDebugger::StopRecording),
+							 FCanExecuteAction::CreateRaw(DebuggerInstance, &FRewindDebugger::CanStopRecording),
+							 FIsActionChecked(),
+							 FIsActionButtonVisible::CreateRaw(DebuggerInstance, &FRewindDebugger::CanStopRecording));
+	}
+	
 	RewindDebuggerWidget = SNew(SRewindDebugger, CommandList.ToSharedRef(), MajorTab, SpawnTabArgs.GetOwnerWindow())
 								.DebugTargetActor(DebuggerInstance->GetDebugTargetActorProperty())
 								.RecordingDuration(DebuggerInstance->GetRecordingDurationProperty())

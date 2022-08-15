@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Framework/Commands/UICommandList.h"
 #include "IRewindDebuggerView.h"
+#include "RewindDebuggerCommands.h"
 #include "SRewindDebuggerComponentTree.h"
 #include "SRewindDebuggerTimelines.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -12,6 +13,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "RewindDebuggerSettings.h"
 
+class FRewindDebuggerModule;
 class SDockTab;
 
 class SSearchBox;
@@ -35,6 +37,7 @@ public:
 		SLATE_ARGUMENT(TBindablePropertyInitializer<double>, TraceTime);
 		SLATE_ARGUMENT(TBindablePropertyInitializer<float>, RecordingDuration);
 		SLATE_ATTRIBUTE(double, ScrubTime);
+		SLATE_ATTRIBUTE(bool, IsPIESimulating);
 		SLATE_EVENT( FOnScrubPositionChanged, OnScrubPositionChanged);
 		SLATE_EVENT( FOnViewRangeChanged, OnViewRangeChanged);
 		SLATE_EVENT( FBuildComponentContextMenu, BuildComponentContextMenu );
@@ -69,9 +72,13 @@ private:
 
 	void ToggleDisplayEmptyTracks();
 	bool ShouldDisplayEmptyTracks() const;
-
+	
+	virtual FReply OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual bool SupportsKeyboardFocus() const override { return true; }
+	
 	// Time Slider
 	TAttribute<double> ScrubTimeAttribute;
+	TAttribute<bool> IsPIESimulating;
 	TAttribute<bool> TrackScrubbingAttribute;
 	FOnScrubPositionChanged OnScrubPositionChanged;
 	FOnViewRangeChanged OnViewRangeChanged;
@@ -79,6 +86,9 @@ private:
 	TBindableProperty<double> TraceTime;
 	TBindableProperty<float> RecordingDuration;
 
+	TSharedPtr<FUICommandList> CommandList;
+	const FRewindDebuggerCommands & Commands;
+	
 	// debug actor selector
 	TSharedRef<SWidget> MakeSelectActorMenu();
 	void SetDebugTargetActor(AActor* Actor);
