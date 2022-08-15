@@ -12,6 +12,7 @@ struct IConsoleCommand;
 class IConsoleVariable;
 class ISettingsSection;
 class ULiveCodingSettings;
+class FOutputDevice;
 
 #if WITH_EDITOR
 class FReload;
@@ -98,6 +99,8 @@ private:
 #else
 	TUniquePtr<FNullReload> Reload;
 #endif
+
+	void EnableConsoleCommand(FOutputDevice& out);
 
 	bool StartLiveCoding();
 

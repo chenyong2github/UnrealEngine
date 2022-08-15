@@ -261,7 +261,7 @@ void FLiveCodingModule::StartupModule()
 	EnableCommand = ConsoleManager.RegisterConsoleCommand(
 		TEXT("LiveCoding"),
 		TEXT("Enables live coding support"),
-		FConsoleCommandDelegate::CreateRaw(this, &FLiveCodingModule::EnableForSession, true),
+		FConsoleCommandWithOutputDeviceDelegate::CreateRaw(this, &FLiveCodingModule::EnableConsoleCommand),
 		ECVF_Cheat
 	);
 
@@ -374,6 +374,18 @@ void FLiveCodingModule::EnableByDefault(bool bEnable)
 bool FLiveCodingModule::IsEnabledByDefault() const
 {
 	return Settings->bEnabled;
+}
+
+void FLiveCodingModule::EnableConsoleCommand(FOutputDevice& out)
+{
+	EnableForSession(true);
+
+	// For packaged builds, by default it is unlikely that UE_LOG messages will be seen in the console.
+	// So log any error directly.
+	if (!EnableErrorText.IsEmpty())
+	{
+		out.Log(EnableErrorText);
+	}
 }
 
 void FLiveCodingModule::EnableForSession(bool bEnable)
