@@ -1973,7 +1973,7 @@ inline void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(c
 	else
 	{
 		MeshElement.NumPrimitives = GeneratedData.CPUTriangleCount;
-		MeshElement.MaxVertexIndex = SourceParticleData->GetNumInstances();
+		MeshElement.MaxVertexIndex = SourceParticleData->GetNumInstances() == 0 ? 0 : SourceParticleData->GetNumInstances() - 1;
 		check(MeshElement.NumPrimitives > 0);
 	}	
 	
