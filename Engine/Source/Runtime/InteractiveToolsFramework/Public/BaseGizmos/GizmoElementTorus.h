@@ -14,9 +14,9 @@ class FMaterialRenderProxy;
 /**
  * Simple object intended to be used as part of 3D Gizmos.
  * Draws a torus based on parameters.
- * Note: Ray-torus hit testing is not supported! LineTrace() will never return a hit nor will CalcBounds() calculate box-sphere bounds.
- *       Use a hidden GizmoElementCircle with circle primitive object with DrawLines set to true to approximate 
- *       torus intersection for hit-testing purposes.
+ * 
+ * Note: the LineTrace method does not perform a true ray-torus intersection!
+ * See comment above LineTrace method below for details of how this intersection is approximated.
  */
 UCLASS(Transient)
 class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementTorus : public UGizmoElementBase
@@ -27,6 +27,11 @@ public:
 
 	//~ Begin UGizmoElementBase Interface.
 	virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
+
+	// LineTrace approximates ray-torus intersection by intersecting the ray with the plane in which the torus 
+	// lies, then determining a hit point closest to the linear circle defined by torus center and torus outer radius.
+	// If the torus lies at a glancing angle, the ray-torus intersection is performed against cylinders approximating
+	// the shape of the torus.
 	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End UGizmoElementBase Interface.
@@ -63,10 +68,6 @@ public:
 	virtual void SetPartial(bool InPartial);
 	virtual bool GetPartial() const;
 
-	// True when the partial torus arc should be screen aligned.
-	virtual void SetScreenAlignPartial(bool InScreenAlignPartial);
-	virtual bool GetScreenAlignPartial() const;
-
 	// If partial, arc angle of partial torus in radians.
 	virtual void SetAngle(float InAngle);
 	virtual float GetAngle() const;
@@ -95,7 +96,7 @@ protected:
 
 	// Torus inner radius.
 	UPROPERTY()
-	float InnerRadius = 100.0f;
+	float InnerRadius = 5.0f;
 
 	// Number of segments for rendering torus.
 	UPROPERTY()
