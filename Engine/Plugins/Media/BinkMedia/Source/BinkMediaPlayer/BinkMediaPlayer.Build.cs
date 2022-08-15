@@ -23,6 +23,7 @@ public class BinkMediaPlayer : ModuleRules
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "BinkMediaPlayerSDK");
 
+		PCHUsage = PCHUsageMode.UseSharedPCHs;
         PrivatePCHHeaderFile = "Private/BinkMediaPlayerPCH.h";
 
         if (Target.bBuildEditor == true)
