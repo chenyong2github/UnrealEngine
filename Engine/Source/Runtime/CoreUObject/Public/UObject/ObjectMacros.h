@@ -1441,6 +1441,9 @@ namespace UM
 
 		/// [PropertyMetadata] Used for enum properties to define the subset of valid values as a comma-separated string; values outside of this subset are not made available.
 		ValidEnumValues,
+
+	    /// [PropertyMetadata] Used for enum properties to define the subset of invalid values as a comma-separated string; values within this subset are not made available.
+        InvalidEnumValues,
 	};
 
 	// Metadata usable in UPROPERTY for customizing the behavior of Persona and UMG
