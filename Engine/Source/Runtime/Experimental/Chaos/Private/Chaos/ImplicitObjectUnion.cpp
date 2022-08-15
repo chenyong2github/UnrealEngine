@@ -240,7 +240,7 @@ FImplicitObjectUnionClustered::FImplicitObjectUnionClustered(
 {
 	Type = ImplicitObjectType::UnionClustered;
 	check(MOriginalParticleLookupHack.Num() == 0 || MOriginalParticleLookupHack.Num() == MObjects.Num());
-	MCollisionParticleLookupHack.Reserve(FMath::Min(MOriginalParticleLookupHack.Num(), Objects.Num()));
+	MCollisionParticleLookupHack.Reserve(FMath::Min(MOriginalParticleLookupHack.Num(), MObjects.Num()));
 	for (int32 i = 0; MOriginalParticleLookupHack.Num() > 0 && i < MObjects.Num(); ++i)
 	{
 		// This whole part sucks, only needed because of how we get union 
