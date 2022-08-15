@@ -93,20 +93,20 @@ void FDMXMVRFixtureListItem::SetFixturePatchName(const FString& InDesiredName, F
 	}
 }
 
-int32 FDMXMVRFixtureListItem::GetUnitNumber() const
+FString FDMXMVRFixtureListItem::GetFixtureID() const
 {
-	return MVRFixtureNode->UnitNumber;
+	return MVRFixtureNode->FixtureID;
 }
 
-void FDMXMVRFixtureListItem::SetUnitNumber(int32 InUnitNumber)
+void FDMXMVRFixtureListItem::SetFixtureID(int32 InFixtureID)
 {
 	UDMXLibrary* DMXLibrary = GetDMXLibrary();
 	if (MVRFixtureNode && DMXLibrary)
 	{
-		const FScopedTransaction SetMVRFixtureUnitNumberTransaction(LOCTEXT("SetMVRFixtureUnitNumberTransaction", "Set MVR Fixture UnitNumber"));
+		const FScopedTransaction SetMVRFixtureFixtureIDTransaction(LOCTEXT("SetMVRFixtureFixtureIDTransaction", "Set MVR Fixture ID"));
 		DMXLibrary->PreEditChange(UDMXLibrary::StaticClass()->FindPropertyByName(UDMXLibrary::GetGeneralSceneDescriptionPropertyName()));
 
-		MVRFixtureNode->UnitNumber = InUnitNumber;
+		MVRFixtureNode->FixtureID = FString::FromInt(InFixtureID);
 
 		DMXLibrary->PostEditChange();
 	}

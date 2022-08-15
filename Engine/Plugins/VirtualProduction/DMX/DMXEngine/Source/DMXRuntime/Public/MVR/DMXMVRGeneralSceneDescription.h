@@ -63,8 +63,8 @@ private:
 	void ParseGeneralSceneDescriptionXml(const TSharedRef<FXmlFile>& GeneralSceneDescriptionXml);
 #endif
 
-	/** Returns the Unit Numbers currently in use, sorted from lowest to highest */
-	TArray<int32> GetUnitNumbersInUse(const UDMXLibrary& DMXLibrary);
+	/** Returns the Fixture IDs currently in use, as number, sorted from lowest to highest */
+	TArray<int32> GetNumericalFixtureIDsInUse(const UDMXLibrary& DMXLibrary);
 
 	/** The Root Node of the General Scene Description */
 	UPROPERTY()

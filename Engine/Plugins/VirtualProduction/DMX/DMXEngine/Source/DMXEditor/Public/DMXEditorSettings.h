@@ -15,9 +15,9 @@ struct FDMXMVRFixtureListSettings
 {
 	GENERATED_BODY()
 
-	/** Width of the Unit Number column */
+	/** Width of the Fixture ID column */
 	UPROPERTY()
-	float UnitNumberColumnWidth = 0.f;
+	float FixtureIDColumnWidth = 0.f;
 
 	/** Width of the Name column */
 	UPROPERTY()

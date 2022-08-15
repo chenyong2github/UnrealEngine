@@ -37,11 +37,11 @@ public:
 	/** Sets the Name of the Fixture Patch */
 	void SetFixturePatchName(const FString& InDesiredName, FString& OutNewName);
 
-	/** Returns the Unit Number */
-	int32 GetUnitNumber() const;
+	/** Returns the Fixture ID */
+	FString GetFixtureID() const;
 
-	/** Sets the Unit Number */
-	void SetUnitNumber(int32 InUnitNumber);
+	/** Sets the Fixture ID. Note, as other hard- and software, we allow to set integer values only. */
+	void SetFixtureID(int32 InFixtureID);
 
 	/** Returns the Name of the MVR Fixture */
 	const FString& GetMVRFixtureName() const;

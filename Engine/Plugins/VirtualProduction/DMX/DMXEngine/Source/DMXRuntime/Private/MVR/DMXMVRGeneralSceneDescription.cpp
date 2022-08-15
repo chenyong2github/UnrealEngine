@@ -144,14 +144,12 @@ void UDMXMVRGeneralSceneDescription::WriteFixturePatchToGeneralSceneDescription(
 		UDMXMVRChildListNode& AnyChildList = RootNode->GetOrCreateFirstChildListNode();
 		MVRFixtureNode = AnyChildList.CreateParametricObject<UDMXMVRFixtureNode>();
 
-		const TArray<int32> UnitNumbersInUse = GetUnitNumbersInUse(*DMXLibrary);
-		const int32 UnitNumber = UnitNumbersInUse.Num() > 0 ? UnitNumbersInUse.Last() + 1 : 1;
+		const TArray<int32> FixtureIDsInUse = GetNumericalFixtureIDsInUse(*DMXLibrary);
+		const int32 FixtureID = FixtureIDsInUse.Num() > 0 ? FixtureIDsInUse.Last() + 1 : 1;
 
 		MVRFixtureNode->Name = FixturePatch.Name;
 		MVRFixtureNode->UUID = MVRFixtureUUID;
-
-		// Create a new Unit Number and add it to the array of Unit Numbers in use
-		MVRFixtureNode->UnitNumber = UnitNumber;
+		MVRFixtureNode->FixtureID = FString::FromInt(FixtureID);
 	}
 	check(MVRFixtureNode);
 
@@ -200,7 +198,7 @@ void UDMXMVRGeneralSceneDescription::ParseGeneralSceneDescriptionXml(const TShar
 }
 #endif // WITH_EDITOR
 
-TArray<int32> UDMXMVRGeneralSceneDescription::GetUnitNumbersInUse(const UDMXLibrary& DMXLibrary)
+TArray<int32> UDMXMVRGeneralSceneDescription::GetNumericalFixtureIDsInUse(const UDMXLibrary& DMXLibrary)
 {
 	checkf(RootNode, TEXT("Unexpected: MVR General Scene Description Root Node is invalid."));
 
@@ -212,22 +210,26 @@ TArray<int32> UDMXMVRGeneralSceneDescription::GetUnitNumbersInUse(const UDMXLibr
 		MVRFixtureUUIDsInUse.Add(FixturePatch->GetMVRFixtureUUID());
 	}
 
-	TArray<int32> UnitNumbersInUse;
+	TArray<int32> FixtureIDsInUse;
 	for (const FGuid& MVRFixtureUUID : MVRFixtureUUIDsInUse)
 	{
 		if (UDMXMVRParametricObjectNodeBase** ObjectNodePtr = RootNode->FindParametricObjectNodeByUUID(MVRFixtureUUID))
 		{
 			if (UDMXMVRFixtureNode* FixtureNode = Cast<UDMXMVRFixtureNode>(*ObjectNodePtr))
 			{
-				UnitNumbersInUse.Add(FixtureNode->UnitNumber);
+				int32 FixtureIDNumerical;
+				if (LexTryParseString(FixtureIDNumerical, *FixtureNode->FixtureID))
+				{
+					FixtureIDsInUse.Add(FixtureIDNumerical);
+				}
 			}
 		}
 	}
 
-	UnitNumbersInUse.Sort([](int32 UnitNumberA, int32 UnitNumberB)
+	FixtureIDsInUse.Sort([](int32 FixtureIDA, int32 FixtureIDB)
 		{
-			return UnitNumberA < UnitNumberB;
+			return FixtureIDA < FixtureIDB;
 		});
 
-	return UnitNumbersInUse;
+	return FixtureIDsInUse;
 }

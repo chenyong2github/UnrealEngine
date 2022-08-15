@@ -107,14 +107,14 @@ namespace UE::DMXRuntime::SDMXMVRFixtureListToolbar::Private
 		return false;
 	}
 
-	UE_NODISCARD bool ParseUnitNumber(const FString& InputString, int32& OutUnitNumber)
+	UE_NODISCARD bool ParseFixtureID(const FString& InputString, int32& OutFixtureID)
 	{
-		if (LexTryParseString<int32>(OutUnitNumber, *InputString))
+		if (LexTryParseString<int32>(OutFixtureID, *InputString))
 		{
 			return true;
 		}
 
-		OutUnitNumber = -1;
+		OutFixtureID = -1;
 		return false;
 	}
 }
@@ -235,18 +235,23 @@ TArray<TSharedPtr<FDMXMVRFixtureListItem>> SDMXMVRFixtureListToolbar::FilterItem
 		return Result;
 	}
 	
-	int32 UnitNumber;
-	if (ParseUnitNumber(SearchString, UnitNumber))
+	int32 FixtureIDNumerical;
+	if (ParseFixtureID(SearchString, FixtureIDNumerical))
 	{
-		TArray<TSharedPtr<FDMXMVRFixtureListItem>> UnitNumbersOnlyResult = Result;
-		UnitNumbersOnlyResult.RemoveAll([UnitNumber](const TSharedPtr<FDMXMVRFixtureListItem>& Item)
+		TArray<TSharedPtr<FDMXMVRFixtureListItem>> FixtureIDsOnlyResult = Result;
+		FixtureIDsOnlyResult.RemoveAll([FixtureIDNumerical](const TSharedPtr<FDMXMVRFixtureListItem>& Item)
 			{
-				return Item->GetUnitNumber() != UnitNumber;
+				int32 OtherFixtureIDNumerical;
+				if (ParseFixtureID(Item->GetFixtureID(), OtherFixtureIDNumerical))
+				{
+					return OtherFixtureIDNumerical != FixtureIDNumerical;
+				}
+				return true;
 			});
 
-		if (UnitNumbersOnlyResult.Num() > 0)
+		if (FixtureIDsOnlyResult.Num() > 0)
 		{
-			return UnitNumbersOnlyResult;
+			return FixtureIDsOnlyResult;
 		}
 	}
 

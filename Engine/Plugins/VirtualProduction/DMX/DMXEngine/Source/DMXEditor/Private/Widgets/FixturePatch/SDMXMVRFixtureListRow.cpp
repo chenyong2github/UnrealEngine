@@ -380,9 +380,9 @@ TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateWidgetForColumn(const FName& 
 	{
 		return GenerateStatusRow();
 	}
-	else if (ColumnName == FDMXMVRFixtureListCollumnIDs::UnitNumber)
+	else if (ColumnName == FDMXMVRFixtureListCollumnIDs::FixtureID)
 	{
-		return GenerateUnitNumberRow();
+		return GenerateFixtureIDRow();
 	}
 	else if (ColumnName == FDMXMVRFixtureListCollumnIDs::MVRFixtureName)
 	{
@@ -496,7 +496,7 @@ TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateStatusRow()
 		];
 }
 
-TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateUnitNumberRow()
+TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateFixtureIDRow()
 {
 	return
 		SNew(SBorder)
@@ -504,49 +504,48 @@ TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateUnitNumberRow()
 		.VAlign(VAlign_Center)
 		.Padding(4.f)
 		.BorderImage(FAppStyle::GetBrush("NoBorder"))
-		.OnMouseDoubleClick(this, &SDMXMVRFixtureListRow::OnUnitNumberBorderDoubleClicked)
+		.OnMouseDoubleClick(this, &SDMXMVRFixtureListRow::OnFixtureIDBorderDoubleClicked)
 		[
 			SNew(SBorder)
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Center)
 			.BorderImage(FDMXEditorStyle::Get().GetBrush("DMXEditor.RoundedPropertyBorder"))
 			[
-				SAssignNew(UnitNumberTextBlocK, SInlineEditableTextBlock)
+				SAssignNew(FixtureIDTextBlocK, SInlineEditableTextBlock)
 				.Text_Lambda([this]()
 				{
-					const int32 UnitNumber = Item->GetUnitNumber();
-					return FText::AsNumber(UnitNumber);
+					return FText::FromString(Item->GetFixtureID());
 				})
 				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
-				.OnTextCommitted(this, &SDMXMVRFixtureListRow::OnUnitNumberCommitted)
+				.OnTextCommitted(this, &SDMXMVRFixtureListRow::OnFixtureIDCommitted)
 				.IsSelected(IsSelected)
 			]
 		];
 }
 
-FReply SDMXMVRFixtureListRow::OnUnitNumberBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+FReply SDMXMVRFixtureListRow::OnFixtureIDBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		if (UnitNumberTextBlocK.IsValid())
+		if (FixtureIDTextBlocK.IsValid())
 		{
-			UnitNumberTextBlocK->EnterEditingMode();
+			FixtureIDTextBlocK->EnterEditingMode();
 		}
 	}
 
 	return FReply::Handled();
 }
 
-void SDMXMVRFixtureListRow::OnUnitNumberCommitted(const FText& InNewText, ETextCommit::Type InTextCommit)
+void SDMXMVRFixtureListRow::OnFixtureIDCommitted(const FText& InNewText, ETextCommit::Type InTextCommit)
 {
 	const FString StringValue = InNewText.ToString();
-	int32 NewUnitNumber;
-	if (LexTryParseString<int32>(NewUnitNumber, *StringValue))
+	int32 NewFixtureID;
+	if (LexTryParseString<int32>(NewFixtureID, *StringValue))
 	{
-		Item->SetUnitNumber(NewUnitNumber);
+		Item->SetFixtureID(NewFixtureID);
 
-		const FString ParsedUnitNumberString = FString::FromInt(NewUnitNumber);
-		UnitNumberTextBlocK->SetText(FText::FromString(ParsedUnitNumberString));
+		const FString ParsedFixtureIDString = FString::FromInt(NewFixtureID);
+		FixtureIDTextBlocK->SetText(FText::FromString(ParsedFixtureIDString));
 
 		OnRowRequestsStatusRefresh.ExecuteIfBound();
 	}

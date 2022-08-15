@@ -44,8 +44,11 @@ public:
 		TMap<TSharedPtr<FDMXMVRFixtureListItem>, FText> FixtureTypeIssues = GetFixtureTypeIssues();
 		AppendConflictTexts(FixtureTypeIssues, AccumulatedConflicts);
 
-		TMap<TSharedPtr<FDMXMVRFixtureListItem>, FText> UnitNumberConflicts = GetUnitNumberConflicts();
-		AppendConflictTexts(UnitNumberConflicts, AccumulatedConflicts);
+		TMap<TSharedPtr<FDMXMVRFixtureListItem>, FText> FixtureIDIssues = GetFixtureIDIssues();
+		AppendConflictTexts(FixtureIDIssues, AccumulatedConflicts);
+
+		TMap<TSharedPtr<FDMXMVRFixtureListItem>, FText> FixtureIDConflicts = GetFixtureIDConflicts();
+		AppendConflictTexts(FixtureIDConflicts, AccumulatedConflicts);
 
 		TMap<TSharedPtr<FDMXMVRFixtureListItem>, FText> ChannelExcessConflicts = GetChannelExcessConflicts();
 		AppendConflictTexts(ChannelExcessConflicts, AccumulatedConflicts);
@@ -75,7 +78,7 @@ private:
 
 	}
 
-	/** The patch of an item */
+	/** The patch of an item. Useful to Get Conflicts with Other */
 	struct FItemPatch
 	{
 		FItemPatch(const TSharedPtr<FDMXMVRFixtureListItem>& InItem)
@@ -85,6 +88,7 @@ private:
 			AddressRange = TRange<int32>(Item->GetAddress(), Item->GetAddress() + Item->GetNumChannels());
 		}
 
+		/** Returns a conflict text if this item conflicts with Other */
 		FText GetConfictsWithOther(const FItemPatch& Other) const
 		{
 			// No conflict with self
@@ -119,30 +123,29 @@ private:
 				return FText::GetEmpty();
 			}
 
-			const FText UnitNumberText = MakeBeautifulItemText(Item);
-			const FText OtherUnitNumberText = MakeBeautifulItemText(Other.Item);
+			const FText FixtureIDText = MakeBeautifulItemText(Item);
+			const FText OtherFixtureIDText = MakeBeautifulItemText(Other.Item);
 			if (AddressRange.GetLowerBound() == Other.AddressRange.GetLowerBound() &&
 				Item->GetFixtureType() == Other.Item->GetFixtureType())
 			{
 				// Modes confict
 				check(Item->GetModeIndex() != Other.Item->GetModeIndex());
-				return FText::Format(LOCTEXT("ModeConflict", "Uses same Address and Fixture Type as Fixture {1}, but Modes differ."), UnitNumberText, OtherUnitNumberText);
+				return FText::Format(LOCTEXT("ModeConflict", "Uses same Address and Fixture Type as Fixture {1}, but Modes differ."), FixtureIDText, OtherFixtureIDText);
 			}
 			else if (AddressRange.GetLowerBound() == Other.AddressRange.GetLowerBound())
 			{
 				// Fixture Types conflict
 				check(Item->GetFixtureType() != Other.Item->GetFixtureType());
-				return FText::Format(LOCTEXT("FixtureTypeConflict", "Uses same Address as Fixture {1}, but Fixture Types differ."), UnitNumberText, OtherUnitNumberText);
+				return FText::Format(LOCTEXT("FixtureTypeConflict", "Uses same Address as Fixture {1}, but Fixture Types differ."), FixtureIDText, OtherFixtureIDText);
 			}
 			else
 			{
 				// Addresses conflict
-				return FText::Format(LOCTEXT("AddressConflict", "Overlaps Addresses with Fixture {1}"), UnitNumberText, OtherUnitNumberText);
+				return FText::Format(LOCTEXT("AddressConflict", "Overlaps Addresses with Fixture {1}"), FixtureIDText, OtherFixtureIDText);
 			}
 		}
 
 		FORCEINLINE const TSharedPtr<FDMXMVRFixtureListItem>& GetItem() const { return Item; };
-
 
 	private:
 		int32 Universe = -1;
@@ -240,35 +243,50 @@ private:
 		return ItemToConflictMap;
 	}
 
-	/** Returns an Map of Items to Unit Number conflict Texts */
-	TMap<TSharedPtr<FDMXMVRFixtureListItem>, FText> GetUnitNumberConflicts() const
+	/** Returns an Map of Items to Fixture IDs issues Texts */
+	TMap<TSharedPtr<FDMXMVRFixtureListItem>, FText> GetFixtureIDIssues() const
 	{
-		TMap<int32, TArray<TSharedPtr<FDMXMVRFixtureListItem>>> UnitNumberMap;
-		UnitNumberMap.Reserve(Items.Num());
+		TMap<TSharedPtr<FDMXMVRFixtureListItem>, FText> Result;
 		for (const TSharedPtr<FDMXMVRFixtureListItem>& Item : Items)
 		{
-			UnitNumberMap.FindOrAdd(Item->GetUnitNumber()).Add(Item);
+			int32 FixtureIDNumerical;
+			if (!LexTryParseString(FixtureIDNumerical, *Item->GetFixtureID()))
+			{
+				Result.Add(Item, LOCTEXT("FixtureIDNotNumericalIssueText", "FID has to be a number."));
+			}
 		}
-		TArray<TArray<TSharedPtr<FDMXMVRFixtureListItem>>> UnitNumberConflicts;
-		UnitNumberMap.GenerateValueArray(UnitNumberConflicts);
-		UnitNumberConflicts.RemoveAll([](const TArray<TSharedPtr<FDMXMVRFixtureListItem>>& ConflictingItems)
+		return Result;
+	}
+
+	/** Returns an Map of Items to Fixture IDs conflict Texts */
+	TMap<TSharedPtr<FDMXMVRFixtureListItem>, FText> GetFixtureIDConflicts() const
+	{
+		TMap<FString, TArray<TSharedPtr<FDMXMVRFixtureListItem>>> FixtureIDMap;
+		FixtureIDMap.Reserve(Items.Num());
+		for (const TSharedPtr<FDMXMVRFixtureListItem>& Item : Items)
+		{
+			FixtureIDMap.FindOrAdd(Item->GetFixtureID()).Add(Item);
+		}
+		TArray<TArray<TSharedPtr<FDMXMVRFixtureListItem>>> FixtureIDConflicts;
+		FixtureIDMap.GenerateValueArray(FixtureIDConflicts);
+		FixtureIDConflicts.RemoveAll([](const TArray<TSharedPtr<FDMXMVRFixtureListItem>>& ConflictingItems)
 			{
 				return ConflictingItems.Num() < 2;
 			});
 		
 		TMap<TSharedPtr<FDMXMVRFixtureListItem>, FText> ItemToConflictMap;
-		for (TArray<TSharedPtr<FDMXMVRFixtureListItem>>& ConflictingItems : UnitNumberConflicts)
+		for (TArray<TSharedPtr<FDMXMVRFixtureListItem>>& ConflictingItems : FixtureIDConflicts)
 		{
 			ConflictingItems.Sort([](const TSharedPtr<FDMXMVRFixtureListItem>& ItemA, const TSharedPtr<FDMXMVRFixtureListItem>& ItemB)
 				{
-					return ItemA->GetUnitNumber() < ItemB->GetUnitNumber();
+					return ItemA->GetFixtureID() < ItemB->GetFixtureID();
 				});
 
 			check(ConflictingItems.Num() > 0);
-			FText ConflictText = FText::Format(LOCTEXT("BaseUnitNumberConflictText", "Ambiguous IDs in {0}"), MakeBeautifulItemText(ConflictingItems[0]));
+			FText ConflictText = FText::Format(LOCTEXT("BaseFixtureIDConflictText", "Ambiguous FIDs in {0}"), MakeBeautifulItemText(ConflictingItems[0]));
 			for (int32 ConflictingItemIndex = 1; ConflictingItemIndex < ConflictingItems.Num(); ConflictingItemIndex++)
 			{
-				ConflictText = FText::Format(LOCTEXT("AppendUnitNumberConflictText", "{0}, {1}"), ConflictText, MakeBeautifulItemText(ConflictingItems[ConflictingItemIndex]));
+				ConflictText = FText::Format(LOCTEXT("AppendFixtureIDConflictText", "{0}, {1}"), ConflictText, MakeBeautifulItemText(ConflictingItems[ConflictingItemIndex]));
 			}
 			
 			for (const TSharedPtr<FDMXMVRFixtureListItem>& Item : ConflictingItems)
@@ -295,7 +313,7 @@ private:
 
 const FName FDMXMVRFixtureListCollumnIDs::Status = "Status";
 const FName FDMXMVRFixtureListCollumnIDs::FixturePatchName = "FixturePatchName";
-const FName FDMXMVRFixtureListCollumnIDs::UnitNumber = "UnitNumber";
+const FName FDMXMVRFixtureListCollumnIDs::FixtureID = "FixtureID";
 const FName FDMXMVRFixtureListCollumnIDs::MVRFixtureName = "MVRFixtureName";
 const FName FDMXMVRFixtureListCollumnIDs::FixtureType = "FixtureType";
 const FName FDMXMVRFixtureListCollumnIDs::Mode = "Mode";
@@ -738,10 +756,10 @@ TSharedRef<SHeaderRow> SDMXMVRFixtureList::GenerateHeaderRow()
 
 	HeaderRow->AddColumn(
 		SHeaderRow::FColumn::FArguments()
-		.ColumnId(FDMXMVRFixtureListCollumnIDs::UnitNumber)
-		.SortMode(this, &SDMXMVRFixtureList::GetColumnSortMode, FDMXMVRFixtureListCollumnIDs::UnitNumber)
+		.ColumnId(FDMXMVRFixtureListCollumnIDs::FixtureID)
+		.SortMode(this, &SDMXMVRFixtureList::GetColumnSortMode, FDMXMVRFixtureListCollumnIDs::FixtureID)
 		.OnSort(this, &SDMXMVRFixtureList::SortByColumnID)
-		.DefaultLabel(LOCTEXT("UnitNumberColumnLabel", "ID"))
+		.DefaultLabel(LOCTEXT("FixtureIDColumnLabel", "FID"))
 		.FillWidth(0.1f)
 	);
 
@@ -788,9 +806,9 @@ void SDMXMVRFixtureList::SaveHeaderRowSettings()
 	{
 		for (const SHeaderRow::FColumn& Column : HeaderRow->GetColumns())
 		{
-			if (Column.ColumnId == FDMXMVRFixtureListCollumnIDs::UnitNumber)
+			if (Column.ColumnId == FDMXMVRFixtureListCollumnIDs::FixtureID)
 			{
-				EditorSettings->MVRFixtureListSettings.UnitNumberColumnWidth = Column.Width.Get();
+				EditorSettings->MVRFixtureListSettings.FixtureIDColumnWidth = Column.Width.Get();
 			}
 			if (Column.ColumnId == FDMXMVRFixtureListCollumnIDs::MVRFixtureName)
 			{
@@ -818,10 +836,10 @@ void SDMXMVRFixtureList::RestoresHeaderRowSettings()
 {
 	if (const UDMXEditorSettings* EditorSettings = GetDefault<UDMXEditorSettings>())
 	{
-		const float UnitNumberColumnWidth = EditorSettings->MVRFixtureListSettings.UnitNumberColumnWidth;
-		if (UnitNumberColumnWidth > 20.f)
+		const float FixtureIDColumnWidth = EditorSettings->MVRFixtureListSettings.FixtureIDColumnWidth;
+		if (FixtureIDColumnWidth > 20.f)
 		{
-			HeaderRow->SetColumnWidth(FDMXMVRFixtureListCollumnIDs::UnitNumber, UnitNumberColumnWidth);
+			HeaderRow->SetColumnWidth(FDMXMVRFixtureListCollumnIDs::FixtureID, FixtureIDColumnWidth);
 		}
 
 		const float NameColumnWidth = EditorSettings->MVRFixtureListSettings.NameColumnWidth;
@@ -865,20 +883,20 @@ void SDMXMVRFixtureList::SortByColumnID(const EColumnSortPriority::Type SortPrio
 	SortMode = InSortMode;
 	SortedByColumnID = ColumnId;
 
-	if (ColumnId == FDMXMVRFixtureListCollumnIDs::UnitNumber)
+	if (ColumnId == FDMXMVRFixtureListCollumnIDs::FixtureID)
 	{
 		if (InSortMode == EColumnSortMode::Descending)
 		{
 			ListSource.Sort([](const TSharedPtr<FDMXMVRFixtureListItem>& ItemA, const TSharedPtr<FDMXMVRFixtureListItem>& ItemB)
 				{
-					return !(ItemA->GetUnitNumber() <= ItemB->GetUnitNumber());
+					return !(ItemA->GetFixtureID() <= ItemB->GetFixtureID());
 				});
 		}
 		else if (InSortMode == EColumnSortMode::Ascending)
 		{
 			ListSource.Sort([](const TSharedPtr<FDMXMVRFixtureListItem>& ItemA, const TSharedPtr<FDMXMVRFixtureListItem>& ItemB)
 				{
-					return !(ItemA->GetUnitNumber() >= ItemB->GetUnitNumber());
+					return !(ItemA->GetFixtureID() >= ItemB->GetFixtureID());
 				});
 		}
 	}

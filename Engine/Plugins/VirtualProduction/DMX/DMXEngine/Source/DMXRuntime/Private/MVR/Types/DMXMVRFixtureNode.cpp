@@ -132,11 +132,11 @@ namespace UE::DMXRuntime::DMXMVRFixture::Private
 	}
 
 	/** Parses the Fixture Id from the MVR Fixture Node, returns true on success. */
-	bool ParseFixtureId(const FXmlNode& InFixtureNode, FString& OutFixtureId)
+	bool ParseFixtureID(const FXmlNode& InFixtureNode, FString& OutFixtureId)
 	{
 		OutFixtureId.Reset();
 
-		constexpr TCHAR FixtureIdTag[] = TEXT("FixtureId");
+		constexpr TCHAR FixtureIdTag[] = TEXT("FixtureID");
 		const FXmlNode* FixtureIdNode = InFixtureNode.FindChildNode(FixtureIdTag);
 		if (FixtureIdNode)
 		{
@@ -151,7 +151,7 @@ namespace UE::DMXRuntime::DMXMVRFixture::Private
 	bool ParseUnitNumber(const FXmlNode& InFixtureNode, int32& OutUnitNumber)
 	{
 		// @todo: Temp fix for the larger fixture id/unit number mismatch
-		constexpr TCHAR UnitNumberTag[] = TEXT("FixtureId");
+		constexpr TCHAR UnitNumberTag[] = TEXT("UnitNumber");
 		const FXmlNode* UnitNumberNode = InFixtureNode.FindChildNode(UnitNumberTag);
 		if (UnitNumberNode)
 		{
@@ -524,7 +524,7 @@ bool UDMXMVRFixtureNode::InitializeFromFixtureXmlNode(const FXmlNode& FixtureXml
 	ParseCastShadow(FixtureXmlNode, CastShadow);
 	ParsePosition(FixtureXmlNode, Position);
 	
-	if (!ParseFixtureId(FixtureXmlNode, FixtureID))
+	if (!ParseFixtureID(FixtureXmlNode, FixtureID))
 	{
 		// Non-optional, mend with empty string
 		UE_LOG(LogDMXRuntime, Warning, TEXT("Imported Fixture '%s' from MVR. No valid Fixture Id specified. Fixture Id set to Fixture Name."), *Name);

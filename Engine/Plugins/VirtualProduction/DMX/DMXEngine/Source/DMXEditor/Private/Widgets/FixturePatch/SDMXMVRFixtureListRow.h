@@ -59,14 +59,14 @@ private:
 	/** Generates the row that displays the Status */
 	TSharedRef<SWidget> GenerateStatusRow();
 
-	/** Generates the row that displays the Unit Number */
-	TSharedRef<SWidget> GenerateUnitNumberRow();
+	/** Generates the row that displays the Fixture ID */
+	TSharedRef<SWidget> GenerateFixtureIDRow();
 
-	/** Called when the Unit Number Border was double-clicked */
-	FReply OnUnitNumberBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
+	/** Called when the Fixture ID Border was double-clicked */
+	FReply OnFixtureIDBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
 
-	/** Called when a Unit Number was committed */
-	void OnUnitNumberCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
+	/** Called when a Fixture ID was committed */
+	void OnFixtureIDCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
 
 	/** Generates the row that displays the MVR Fixture Name */
 	TSharedRef<SWidget> GenerateMVRFixtureNameRow();
@@ -107,8 +107,8 @@ private:
 	/** The text block to edit the Fixture Patch Name */
 	TSharedPtr<SInlineEditableTextBlock> FixturePatchNameTextBlock;
 
-	/** The text block to edit the Unit Number */
-	TSharedPtr<SInlineEditableTextBlock> UnitNumberTextBlocK;
+	/** The text block to edit the Fixture ID */
+	TSharedPtr<SInlineEditableTextBlock> FixtureIDTextBlocK;
 
 	/** The text block to edit the Name */
 	TSharedPtr<SInlineEditableTextBlock> NameTextBlock;
