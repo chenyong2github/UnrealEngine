@@ -20,7 +20,6 @@ constexpr float DrawDebugPointSize = 2.0f;
 constexpr float DrawDebugVelocityScale = 0.08f;
 constexpr float DrawDebugSphereSize = 2.0f;
 constexpr int32 DrawDebugSphereSegments = 8;
-constexpr float DrawDebugGradientStrength = 0.8f;
 constexpr float DrawDebugSampleLabelFontScale = 1.5f;
 static const FVector DrawDebugSampleLabelOffset = FVector(0.0f, 0.0f, 5.0f);
 
@@ -408,8 +407,7 @@ void UPoseSearchFeatureChannel_Position::DebugDraw(const UE::PoseSearch::FDebugD
 	int32 DataOffset = ChannelDataOffset;
 	const FVector BonePos = DrawParams.RootTransform.TransformPosition(FFeatureVectorHelper::DecodeVector(PoseVector, DataOffset));
 
-	const FLinearColor LinearColor = DrawParams.GetColor(this);
-	const FColor Color = LinearColor.ToFColor(true);
+	const FColor Color = DrawParams.GetColor(ColorPresetIndex);
 
 	if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast | EDebugDrawFlags::DrawSearchIndex))
 	{
@@ -550,8 +548,7 @@ void UPoseSearchFeatureChannel_Heading::DebugDraw(const UE::PoseSearch::FDebugDr
 	const FVector BoneHeading = DrawParams.RootTransform.TransformPosition(FFeatureVectorHelper::DecodeVector(PoseVector, DataOffset));
 	check(DataOffset == ChannelDataOffset + ChannelCardinality);
 
-	const FLinearColor LinearColor = DrawParams.GetColor(this);
-	const FColor Color = LinearColor.ToFColor(true);
+	const FColor Color = DrawParams.GetColor(ColorPresetIndex);
 
 	if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
 	{
@@ -1102,8 +1099,8 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 			{
 				BonePos[SubsampleIdx] = FFeatureVectorHelper::DecodeVector(PoseVector, DataOffset);
 
-				const FLinearColor LinearColor = DrawParams.GetColor(this);
-				const FColor Color = LinearColor.ToFColor(true);
+				const float GradientPercentage = NumSubsamples > 1 ? float(SubsampleIdx) / float(NumSubsamples - 1) : 0.f;
+				const FColor Color = DrawParams.GetColor(SampledBone.ColorPresetIndex, GradientPercentage);
 
 				BonePos[SubsampleIdx] = DrawParams.RootTransform.TransformPosition(BonePos[SubsampleIdx]);
 				if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast | EDebugDrawFlags::DrawSearchIndex))
@@ -1149,8 +1146,7 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 			{
 				FVector BoneVel = FFeatureVectorHelper::DecodeVector(PoseVector, DataOffset);
 
-				const FLinearColor LinearColor = DrawParams.GetColor(this);
-				const FColor Color = LinearColor.ToFColor(true);
+				const FColor Color = DrawParams.GetColor(SampledBone.ColorPresetIndex);
 
 				BoneVel *= DrawDebugVelocityScale;
 				BoneVel = DrawParams.RootTransform.TransformVector(BoneVel);
@@ -1183,8 +1179,8 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 			{
 				const FVector2D Phase = FFeatureVectorHelper::DecodeVector2D(PoseVector, DataOffset);
 
-				const FLinearColor LinearColor = DrawParams.GetColor(this);
-				const FColor Color = LinearColor.ToFColor(true);
+				const float GradientPercentage = NumSubsamples > 1 ? float(SubsampleIdx) / float(NumSubsamples - 1) : 0.f;
+				const FColor Color = DrawParams.GetColor(SampledBone.ColorPresetIndex, GradientPercentage);
 
 				static float ScaleFactor = 1.f;
 
@@ -1579,17 +1575,6 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 		return;
 	}
 
-	auto GetGradientColor = [](const FLinearColor& OriginalColor, int SampleIdx, int NumSamples, EDebugDrawFlags Flags) -> FLinearColor
-	{
-		int Denominator = NumSamples - 1;
-		if (Denominator <= 0 || !EnumHasAnyFlags(Flags, EDebugDrawFlags::DrawSamplesWithColorGradient))
-		{
-			return OriginalColor;
-		}
-
-		return OriginalColor * (1.0f - DrawDebugGradientStrength * (SampleIdx / (float)Denominator));
-	};
-
 	int32 DataOffset = ChannelDataOffset;
 	int32 SampleIdx = 0;
 	TrajectoryPositionReconstructor TrajectoryPositionReconstructor;
@@ -1605,9 +1590,8 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 			// validating TrajectoryPositionReconstructor
 			check((TrajectoryPositionReconstructor.GetReconstructedTrajectoryPos(*this, PoseVector, DrawParams.RootTransform, Sample.Offset) - TrajectoryPos).IsNearlyZero());
 
-			FLinearColor LinearColor = DrawParams.GetColor(this);
-			FLinearColor GradientColor = GetGradientColor(LinearColor, SampleIdx, NumSamples, DrawParams.Flags);
-			FColor Color = GradientColor.ToFColor(true);
+			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
 
 			if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast | EDebugDrawFlags::DrawSearchIndex))
 			{
@@ -1627,9 +1611,8 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 		{
 			FVector TrajectoryVel = FFeatureVectorHelper::DecodeVector(PoseVector, DataOffset);
 
-			const FLinearColor LinearColor = DrawParams.GetColor(this);
-			const FLinearColor GradientColor = GetGradientColor(LinearColor, SampleIdx, NumSamples, DrawParams.Flags);
-			const FColor Color = GradientColor.ToFColor(true);
+			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
 
 			TrajectoryVel *= DrawDebugVelocityScale;
 			TrajectoryVel = DrawParams.RootTransform.TransformVector(TrajectoryVel);
@@ -1660,9 +1643,8 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 		{
 			FVector TrajectoryForward = FFeatureVectorHelper::DecodeVector(PoseVector, DataOffset);
 
-			const FLinearColor LinearColor = DrawParams.GetColor(this);
-			const FLinearColor GradientColor = GetGradientColor(LinearColor, SampleIdx, NumSamples, DrawParams.Flags);
-			const FColor Color = GradientColor.ToFColor(true);
+			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
 
 			TrajectoryForward = DrawParams.RootTransform.TransformVector(TrajectoryForward);
 
@@ -1689,19 +1671,11 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 
 		if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSampleLabels))
 		{
-			const FLinearColor LinearColor = DrawParams.GetColor(this);
-			const FLinearColor GradientColor = GetGradientColor(LinearColor, SampleIdx, NumSamples, DrawParams.Flags);
-			const FColor Color = GradientColor.ToFColor(true);
+			const float GradientPercentage = NumSamples > 1 ? float(SampleIdx) / float(NumSamples - 1) : 0.f;
+			const FColor Color = DrawParams.GetColor(Sample.ColorPresetIndex, GradientPercentage);
 
-			FString SampleLabel;
-			if (DrawParams.LabelPrefix.IsEmpty())
-			{
-				SampleLabel = FString::Format(TEXT("{0}"), { SampleIdx });
-			}
-			else
-			{
-				SampleLabel = FString::Format(TEXT("{1}[{0}]"), { SampleIdx, DrawParams.LabelPrefix.GetData() });
-			}
+			const FString SampleLabel = FString::Format(TEXT("{0}"), { SampleIdx });
+
 			DrawDebugString(
 				DrawParams.World,
 				TrajectoryPos + DrawDebugSampleLabelOffset,

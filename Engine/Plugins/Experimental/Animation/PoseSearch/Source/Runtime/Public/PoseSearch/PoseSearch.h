@@ -228,6 +228,9 @@ struct POSESEARCH_API FPoseSearchBone
 	// @todo: temporary location for the channel bone weight to help the weights refactoring
 	UPROPERTY(EditAnywhere, Category = Config)
 	float Weight = 1.f;
+
+	UPROPERTY(EditAnywhere, Category = Config)
+	int32 ColorPresetIndex = 0;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -426,8 +429,21 @@ private:
 	TArray<FBoneReference> BoneReferences;
 };
 
+
+
 } // namespace UE::PoseSearch
 
+USTRUCT()
+struct FPoseSearchSchemaColorPreset
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Colors")
+	FLinearColor Query = FLinearColor::Blue;
+
+	UPROPERTY(EditAnywhere, Category = "Colors")
+	FLinearColor Result = FLinearColor::Yellow;
+};
 
 /**
 * Specifies the format of a pose search index. At runtime, queries are built according to the schema for searching.
@@ -476,7 +492,6 @@ public:
 	TArray<float> TrajectorySampleDistances_DEPRECATED;
 #endif // WITH_EDITOR
 
-
 	// If set, this schema will support mirroring pose search databases
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	TObjectPtr<UMirrorDataTable> MirrorDataTable;
@@ -515,6 +530,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	float MirrorMismatchCostBias = 0.f;
 
+	UPROPERTY(EditAnywhere, Category = "Schema")
+	TArray<FPoseSearchSchemaColorPreset> ColorPresets;
+	
 	bool IsValid () const;
 
 	int32 GetNumBones () const { return BoneIndices.Num(); }
@@ -952,32 +970,26 @@ enum class EDebugDrawFlags : uint32
 	// Draw the entire search index as a point cloud
 	DrawSearchIndex     = 1 << 0,
 
-	// Draw pose features for each pose vector
-	IncludePose         = 1 << 1,
-
-	// Draw trajectory features for each pose vector
-	IncludeTrajectory   = 1 << 2,
-
-	// Draw all pose vector features
-	IncludeAllFeatures  = IncludePose | IncludeTrajectory,
+	// Draw using Query colors form the schema / config
+	DrawQuery = 1 << 1,
 
 	/**
 	 * Keep rendered data until the next call to FlushPersistentDebugLines().
 	 * Combine with DrawSearchIndex to draw the search index only once.
 	 */
-	Persistent = 1 << 3,
+	Persistent = 1 << 2,
 	
 	// Label samples with their indices
-	DrawSampleLabels = 1 << 4,
+	DrawSampleLabels = 1 << 3,
 
 	// Fade colors
-	DrawSamplesWithColorGradient = 1 << 5,
+	DrawSamplesWithColorGradient = 1 << 4,
 
 	// Draw Bone Names
-	DrawBoneNames = 1 << 6,
+	DrawBoneNames = 1 << 5,
 
 	// Draws simpler shapes to improve performance
-	DrawFast = 1 << 7,
+	DrawFast = 1 << 6,
 };
 ENUM_CLASS_FLAGS(EDebugDrawFlags);
 
@@ -986,36 +998,19 @@ struct POSESEARCH_API FDebugDrawParams
 	const UWorld* World = nullptr;
 	const UPoseSearchDatabase* Database = nullptr;
 	const UPoseSearchSequenceMetaData* SequenceMetaData = nullptr;
-	EDebugDrawFlags Flags = EDebugDrawFlags::DrawBoneNames;
+	EDebugDrawFlags Flags = EDebugDrawFlags::None;
 	uint32 ChannelMask = (uint32)-1;
 
-	float DefaultLifeTime = 5.0f;
-	float PointSize = 1.0f;
+	float DefaultLifeTime = 5.f;
+	float PointSize = 1.f;
 
 	FTransform RootTransform = FTransform::Identity;
-
-	// If set, draw the corresponding pose from the search index
-	int32 PoseIdx = INDEX_NONE;
-
-	// If set, draw using this uniform color instead of feature-based coloring
-	const FLinearColor* Color = nullptr;
-
-	// If set, interpret the buffer as a pose vector and draw it
-	TArrayView<const float> PoseVector;
-
-	// Optional prefix for sample labels
-	FStringView LabelPrefix;
-
-#if WITH_EDITORONLY_DATA
-	FDebugFloatHistory* SearchCostHistoryBruteForce = nullptr;
-	FDebugFloatHistory* SearchCostHistoryKDTree = nullptr;
-#endif
 
 	// Optional Mesh for gathering SocketTransform(s)
 	TWeakObjectPtr<const USkinnedMeshComponent> Mesh = nullptr;
 
 	bool CanDraw() const;
-	FLinearColor GetColor(const UPoseSearchFeatureChannel* channel) const;
+	FColor GetColor(int32 ColorPreset, float GradientPercentage = 0.f) const;
 	const FPoseSearchIndex* GetSearchIndex() const;
 	const UPoseSearchSchema* GetSchema() const;
 };
@@ -1054,6 +1049,9 @@ struct FSearchResult
 #if WITH_EDITOR
 	FIoHash SearchIndexHash = FIoHash::Zero;
 #endif // WITH_EDITOR
+#if WITH_EDITORONLY_DATA
+	FPoseSearchCost BruteForcePoseCost;
+#endif // WITH_EDITORONLY_DATA
 
 	// Attempts to set the internal state to match the provided asset time including updating the internal DbPoseIdx. 
 	// If the provided asset time is out of bounds for the currently playing asset then this function will reset the 
@@ -1495,13 +1493,9 @@ public:
 //////////////////////////////////////////////////////////////////////////
 // Main PoseSearch API
 
-/**
-* Visualize pose search debug information
-*
-* @param DrawParams		Visualization options
-*/
-POSESEARCH_API void Draw(const FDebugDrawParams& DrawParams);
-
+POSESEARCH_API void DrawFeatureVector(const FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector);
+POSESEARCH_API void DrawFeatureVector(const FDebugDrawParams& DrawParams, int32 PoseIdx);
+POSESEARCH_API void DrawSearchIndex(const FDebugDrawParams& DrawParams);
 
 /**
 * Creates a pose search index for an animation sequence

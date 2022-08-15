@@ -882,9 +882,10 @@ UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(UE::PoseSearch
 	Result.AssetTime = SearchIndex.GetAssetTime(BestPoseIdx, Result.SearchIndexAsset);
 	Result.Database = nullptr;
 
-	SearchContext.DebugDrawParams.PoseVector = NormalizedQueryValues;
-	SearchContext.DebugDrawParams.PoseIdx = Result.PoseIdx;
-	Draw(SearchContext.DebugDrawParams);
+	DrawFeatureVector(SearchContext.DebugDrawParams, Result.PoseIdx);
+	
+	EnumAddFlags(SearchContext.DebugDrawParams.Flags, EDebugDrawFlags::DrawQuery);
+	DrawFeatureVector(SearchContext.DebugDrawParams, NormalizedQueryValues);
 
 	return Result;
 }
@@ -2031,45 +2032,24 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(UE::PoseSearch::FSearc
 		return Result;
 	}
 
-
-	if (PoseSearchMode != EPoseSearchMode::BruteForce)
-	{
-		Result = SearchPCAKDTree(SearchContext);
-
-#if WITH_EDITORONLY_DATA
-		if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare && SearchContext.DebugDrawParams.SearchCostHistoryKDTree && Result.IsValid())
-		{
-			SearchContext.DebugDrawParams.SearchCostHistoryKDTree->AddSample(Result.PoseCost.GetTotalCost());
-		}
-#endif
-	}
-
 	if (PoseSearchMode == EPoseSearchMode::BruteForce || PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
 	{
 		Result = SearchBruteForce(SearchContext);
-
-#if WITH_EDITORONLY_DATA
-		if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare && SearchContext.DebugDrawParams.SearchCostHistoryBruteForce && Result.IsValid())
-		{
-			SearchContext.DebugDrawParams.SearchCostHistoryBruteForce->AddSample(Result.PoseCost.GetTotalCost());
-
-			// making SearchCostHistoryKDTree and SearchCostHistoryBruteForce min max consistent
-			if (SearchContext.DebugDrawParams.SearchCostHistoryKDTree)
-			{
-				SearchContext.DebugDrawParams.SearchCostHistoryKDTree->MinValue = FMath::Min(SearchContext.DebugDrawParams.SearchCostHistoryKDTree->MinValue, SearchContext.DebugDrawParams.SearchCostHistoryBruteForce->MinValue);
-				SearchContext.DebugDrawParams.SearchCostHistoryKDTree->MaxValue = FMath::Max(SearchContext.DebugDrawParams.SearchCostHistoryKDTree->MaxValue, SearchContext.DebugDrawParams.SearchCostHistoryBruteForce->MaxValue);
-
-				SearchContext.DebugDrawParams.SearchCostHistoryBruteForce->MinValue = SearchContext.DebugDrawParams.SearchCostHistoryKDTree->MinValue;
-				SearchContext.DebugDrawParams.SearchCostHistoryBruteForce->MaxValue = SearchContext.DebugDrawParams.SearchCostHistoryKDTree->MaxValue;
-			}
-		}
-#endif
 	}
 
-	SearchContext.DebugDrawParams.PoseVector = Result.ComposedQuery.GetNormalizedValues();
-	SearchContext.DebugDrawParams.PoseIdx = Result.PoseIdx;
-	Draw(SearchContext.DebugDrawParams);
+	if (PoseSearchMode != EPoseSearchMode::BruteForce)
+	{
+#if WITH_EDITORONLY_DATA
+		FPoseSearchCost BruteForcePoseCost = Result.BruteForcePoseCost;
+#endif
 
+		Result = SearchPCAKDTree(SearchContext);
+
+#if WITH_EDITORONLY_DATA
+		Result.BruteForcePoseCost = BruteForcePoseCost;
+#endif
+	}
+	
 	return Result;
 }
 
@@ -2363,6 +2343,10 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 #endif // WITH_EDITOR
 	}
 
+#if WITH_EDITORONLY_DATA
+	Result.BruteForcePoseCost = Result.PoseCost; 
+#endif
+
 	return Result;
 }
 
@@ -2379,6 +2363,9 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(UE::PoseSearch::FSe
 
 	FSearchResult Result;
 	FPoseSearchCost ContinuingCost;
+#if WITH_EDITOR
+	FPoseSearchCost BruteForcePoseCost;
+#endif
 
 	// evaluating the continuing pose before all the active entries
 	if (bEvaluateContinuingPoseFirst && 
@@ -2428,39 +2415,38 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(UE::PoseSearch::FSe
 		if (bSearchEntry)
 		{
 			FSearchResult EntryResult = Entry.Searchable->Search(SearchContext);
-			if (EntryResult.IsValid())
+
+			if (EntryResult.PoseCost.GetTotalCost() < Result.PoseCost.GetTotalCost())
 			{
-				if (!Result.IsValid() || EntryResult.PoseCost.GetTotalCost() < Result.PoseCost.GetTotalCost())
-				{
-					Result = EntryResult;
-				}
+				Result = EntryResult;
+			}
 
-				if (EntryResult.ContinuingPoseCost.IsValid())
-				{
-					if (!ContinuingCost.IsValid() || EntryResult.ContinuingPoseCost.GetTotalCost() < ContinuingCost.GetTotalCost())
-					{
-						ContinuingCost = EntryResult.ContinuingPoseCost;
-					}
-				}
-
-				if (Entry.PostSearchStatus == EPoseSearchPostSearchStatus::Stop)
-				{
-					break;
-				}
+			if (EntryResult.ContinuingPoseCost.GetTotalCost() < ContinuingCost.GetTotalCost())
+			{
+				ContinuingCost = EntryResult.ContinuingPoseCost;
+			}
+#if WITH_EDITOR
+			if (EntryResult.BruteForcePoseCost.GetTotalCost() < BruteForcePoseCost.GetTotalCost())
+			{
+				BruteForcePoseCost = EntryResult.BruteForcePoseCost;
+			}
+#endif
+			if (Entry.PostSearchStatus == EPoseSearchPostSearchStatus::Stop)
+			{
+				break;
 			}
 		}
 	}
 
-	if (Result.IsValid())
+	Result.ContinuingPoseCost = ContinuingCost;
+
+#if WITH_EDITOR
+	Result.BruteForcePoseCost = BruteForcePoseCost;
+#endif
+
+	if (!Result.IsValid())
 	{
-		Result.ContinuingPoseCost = ContinuingCost;
-	}
-	else
-	{
-		UE_LOG(
-			LogPoseSearch, 
-			Warning, 
-			TEXT("Invalid result searching %s"), *GetName());
+		UE_LOG(LogPoseSearch, Warning, TEXT("Invalid result searching %s"), *GetName());
 	}
 
 	return Result;
@@ -3040,29 +3026,45 @@ bool FDebugDrawParams::CanDraw() const
 	return SearchIndex->IsValid() && !SearchIndex->IsEmpty();
 }
 
-FLinearColor FDebugDrawParams::GetColor(const UPoseSearchFeatureChannel* channel) const
+FColor FDebugDrawParams::GetColor(int32 ColorPreset, float GradientPercentage) const
 {
-	if (Color)
-	{
-		return *Color;
-	}
+	FLinearColor Color = FLinearColor::Red;
 
 	const UPoseSearchSchema* Schema = GetSchema();
 	if (!Schema || Schema->SchemaCardinality <= 0)
 	{
-		return FLinearColor::Red;
+		Color = FLinearColor::Red;
+	}
+	else if (ColorPreset < 0 || ColorPreset >= Schema->ColorPresets.Num())
+	{
+		if (EnumHasAnyFlags(Flags, EDebugDrawFlags::DrawQuery))
+		{
+			Color = FLinearColor::Blue;
+		}
+		else
+		{
+			Color = FLinearColor::Green;
+		}
+	}
+	else
+	{
+		if (EnumHasAnyFlags(Flags, EDebugDrawFlags::DrawQuery))
+		{
+			Color = Schema->ColorPresets[ColorPreset].Query;
+		}
+		else
+		{
+			Color = Schema->ColorPresets[ColorPreset].Result;
+		}
 	}
 
-	const float TotalData = Schema->SchemaCardinality;
-	const float ChannelData = channel->GetChannelDataOffset();
-	const float HalfData = TotalData * 0.5f;
+	if (EnumHasAnyFlags(Flags, EDebugDrawFlags::DrawSamplesWithColorGradient))
+	{
+		constexpr float DrawDebugGradientStrength = 0.8f;
+		Color = Color * (1.0f - DrawDebugGradientStrength * GradientPercentage);
+	}
 
-	const float Hue = ChannelData < HalfData
-		? FMath::GetMappedRangeValueUnclamped({ 0.f, HalfData }, FVector2f(60.f, 0.f), ChannelData)
-		: FMath::GetMappedRangeValueUnclamped({ HalfData, TotalData }, FVector2f(280.f, 220.f), ChannelData);
-
-	const FLinearColor ColorHSV(Hue, 1.f, 1.f);
-	return ColorHSV.HSVToLinearRGB();
+	return Color.ToFColor(true);
 }
 
 const FPoseSearchIndex* FDebugDrawParams::GetSearchIndex() const
@@ -4554,80 +4556,53 @@ FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float Or
 //////////////////////////////////////////////////////////////////////////
 // PoseSearch API
 
-static void DrawFeatureVector(const FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector)
+void DrawFeatureVector(const FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector)
 {
-	const UPoseSearchSchema* Schema = DrawParams.GetSchema();
-	check(Schema)
-
-	if (PoseVector.Num() != Schema->SchemaCardinality)
+	if (DrawParams.CanDraw())
 	{
-		return;
-	}
+		const UPoseSearchSchema* Schema = DrawParams.GetSchema();
+		check(Schema);
 
-	for (int32 ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
-	{
-		if (DrawParams.ChannelMask & (1 << ChannelIdx))
+		if (PoseVector.Num() == Schema->SchemaCardinality)
 		{
-			Schema->Channels[ChannelIdx]->DebugDraw(DrawParams, PoseVector);
+			for (int32 ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
+			{
+				if (DrawParams.ChannelMask & (1 << ChannelIdx))
+				{
+					Schema->Channels[ChannelIdx]->DebugDraw(DrawParams, PoseVector);
+				}
+			}
 		}
 	}
 }
 
-static void DrawSearchIndex(const FDebugDrawParams& DrawParams)
+void DrawFeatureVector(const FDebugDrawParams& DrawParams, int32 PoseIdx)
 {
-	const FPoseSearchIndex* SearchIndex = DrawParams.GetSearchIndex();
-	check(SearchIndex);
-
-	const int32 LastPoseIdx = SearchIndex->NumPoses;
-
-	TArray<float> PoseVector;
-	for (int32 PoseIdx = 0; PoseIdx != LastPoseIdx; ++PoseIdx)
+	if (PoseIdx != INDEX_NONE && DrawParams.CanDraw())
 	{
-		PoseVector = SearchIndex->GetPoseValues(PoseIdx);
-		SearchIndex->InverseNormalize(PoseVector);
-		DrawFeatureVector(DrawParams, PoseVector);
+		const FPoseSearchIndex* SearchIndex = DrawParams.GetSearchIndex();
+		// PreprocessInfo happens to be invalid when updating the database
+		if (SearchIndex->PreprocessInfo.IsValid())
+		{
+			// @todo: embed normalization into the weights to remove the InverseNormalize step and avoid the copy here, using the TArrayView instead of the TArray for the PoseVector
+			TArray<float> PoseVector;
+			PoseVector = SearchIndex->GetPoseValues(PoseIdx);
+			SearchIndex->InverseNormalize(PoseVector);
+			DrawFeatureVector(DrawParams, PoseVector);
+		}
 	}
 }
 
-void Draw(const FDebugDrawParams& DebugDrawParams)
+void DrawSearchIndex(const FDebugDrawParams& DrawParams)
 {
-	if (DebugDrawParams.CanDraw())
+	if (DrawParams.CanDraw())
 	{
-		if (DebugDrawParams.PoseIdx != INDEX_NONE)
+		const FPoseSearchIndex* SearchIndex = DrawParams.GetSearchIndex();
+		const int32 LastPoseIdx = SearchIndex->NumPoses;
+		for (int32 PoseIdx = 0; PoseIdx != LastPoseIdx; ++PoseIdx)
 		{
-			const FPoseSearchIndex* SearchIndex = DebugDrawParams.GetSearchIndex();
-			check(SearchIndex);
-
-			// PreprocessInfo happens to be invalid when updating the database
-			if (SearchIndex->PreprocessInfo.IsValid())
-			{
-				TArray<float> PoseVector;
-				PoseVector = SearchIndex->GetPoseValues(DebugDrawParams.PoseIdx);
-				SearchIndex->InverseNormalize(PoseVector);
-				DrawFeatureVector(DebugDrawParams, PoseVector);
-			}
+			DrawFeatureVector(DrawParams, PoseIdx);
 		}
-		if (!DebugDrawParams.PoseVector.IsEmpty())
-		{
-			DrawFeatureVector(DebugDrawParams, DebugDrawParams.PoseVector);
-		}
-		if (EnumHasAnyFlags(DebugDrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
-		{
-			DrawSearchIndex(DebugDrawParams);
-		}
-
-#if WITH_EDITORONLY_DATA
-		if (DebugDrawParams.Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
-		{
-			if (DebugDrawParams.SearchCostHistoryKDTree && DebugDrawParams.SearchCostHistoryBruteForce)
-			{
-				const FTransform OffsetTransform(FRotator(0.f, 90.f, 0.f), FVector(-50.f, 0.f, 100.f));
-				FVector2D DrawSize(150.f, 50.f);
-				DrawDebugFloatHistory(*DebugDrawParams.World, *DebugDrawParams.SearchCostHistoryKDTree, OffsetTransform * DebugDrawParams.RootTransform, DrawSize, FColor::Red);
-				DrawDebugFloatHistory(*DebugDrawParams.World, *DebugDrawParams.SearchCostHistoryBruteForce, OffsetTransform * DebugDrawParams.RootTransform, DrawSize, FColor::Blue);
-			}
-		}
-#endif
 	}
 }
 

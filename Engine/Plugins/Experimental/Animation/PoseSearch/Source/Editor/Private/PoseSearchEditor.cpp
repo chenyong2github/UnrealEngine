@@ -26,18 +26,17 @@ DEFINE_LOG_CATEGORY(LogPoseSearchEditor);
 //////////////////////////////////////////////////////////////////////////
 // FEditorCommands
 
-namespace UE::PoseSearch {
-
-struct FEditorCommands
+namespace UE::PoseSearch
 {
-	static void DrawSearchIndex();
-};
 
-void FEditorCommands::DrawSearchIndex()
+namespace FEditorCommands
+{
+
+void DrawSearchIndex()
 {
 	FDebugDrawParams DrawParams;
 	DrawParams.DefaultLifeTime = 60.0f;
-	DrawParams.Flags = EDebugDrawFlags::DrawSearchIndex;
+	EnumAddFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex);
 
 	TArray<UObject*> EditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
 	for (UObject* EditedAsset : EditedAssets)
@@ -56,13 +55,14 @@ void FEditorCommands::DrawSearchIndex()
 					TSharedRef<IPersonaPreviewScene> Scene = Toolkit->GetPreviewScene();
 
 					DrawParams.World = Scene->GetWorld();
-					Draw(DrawParams);
+					DrawSearchIndex(DrawParams);
 				}
 			}
 		}
 	}
 }
 
+} // namespace FEditorCommands
 
 //////////////////////////////////////////////////////////////////////////
 // FPoseSearchEditorModule

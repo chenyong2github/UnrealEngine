@@ -28,6 +28,9 @@ public:
 	UPROPERTY()
 	int8 SchemaBoneIdx;
 
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	int32 ColorPresetIndex = 0;
+
 	// reuse continuing pose database feature values if available
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bUseFeaturesFromContinuingPose = true;
@@ -80,6 +83,9 @@ public:
 
 	UPROPERTY()
 	int8 SchemaBoneIdx;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	int32 ColorPresetIndex = 0;
 
 	// reuse continuing pose database feature values if available
 	UPROPERTY(EditAnywhere, Category = "Settings")
@@ -169,6 +175,9 @@ struct POSESEARCH_API FPoseSearchTrajectorySample
 
 	UPROPERTY(EditAnywhere, Category = Config)
 	float Weight = 1.f;
+
+	UPROPERTY(EditAnywhere, Category = Config)
+	int32 ColorPresetIndex = 0;
 };
 
 UCLASS(BlueprintType, EditInlineNew)

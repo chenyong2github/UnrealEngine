@@ -257,12 +257,6 @@ void UpdateMotionMatchingState(
 		SearchContext.BoneContainer = &Context.AnimInstanceProxy->GetRequiredBones();
 		SearchContext.bForceInterrupt = bForceInterrupt;
 		SearchContext.bCanAdvance = bCanAdvance;
-
-#if WITH_EDITORONLY_DATA
-		SearchContext.DebugDrawParams.SearchCostHistoryBruteForce = &InOutMotionMatchingState.SearchCostHistoryBruteForce;
-		SearchContext.DebugDrawParams.SearchCostHistoryKDTree = &InOutMotionMatchingState.SearchCostHistoryKDTree;
-#endif
-
 		SearchContext.CurrentResult = InOutMotionMatchingState.CurrentSearchResult;
 		SearchContext.PoseJumpThresholdTime = Settings.PoseJumpThresholdTime;
 		SearchContext.PoseIndicesHistory = &InOutMotionMatchingState.PoseIndicesHistory;
@@ -284,12 +278,16 @@ void UpdateMotionMatchingState(
 		// Search the database for the nearest match to the updated query vector
 		FSearchResult SearchResult = Searchable->Search(SearchContext);
 		const float ContinuingPoseCost = bCanAdvance && SearchResult.ContinuingPoseCost.IsValid() ? SearchResult.ContinuingPoseCost.GetTotalCost() : MAX_flt;
-		const float PoseCost = SearchResult.PoseCost.IsValid()  ? SearchResult.PoseCost.GetTotalCost() : MAX_flt;
-
+		const float PoseCost = SearchResult.PoseCost.IsValid() ? SearchResult.PoseCost.GetTotalCost() : MAX_flt;
+		
 		if (PoseCost < ContinuingPoseCost)
 		{
 			InOutMotionMatchingState.JumpToPose(Context, Settings, SearchResult);
 		}
+
+#if WITH_EDITOR
+		InOutMotionMatchingState.CurrentSearchResult.BruteForcePoseCost = SearchResult.BruteForcePoseCost;
+#endif
 
 		// todo: cache the queries into TraceState, one per TraceState.DatabaseEntries or
 		InOutMotionMatchingState.CurrentSearchResult.ComposedQuery = SearchResult.ComposedQuery;

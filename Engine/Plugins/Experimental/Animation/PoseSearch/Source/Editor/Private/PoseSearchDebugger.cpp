@@ -1742,7 +1742,6 @@ void SDebuggerView::DrawFeatures(
 	// Set shared state
 	FDebugDrawParams DrawParams;
 	DrawParams.Database = &Database;
-	DrawParams.PoseVector = State.QueryVector;
 	DrawParams.World = &DebuggerWorld;
 	DrawParams.RootTransform = Transform;
 	// Single frame render
@@ -1753,47 +1752,41 @@ void SDebuggerView::DrawFeatures(
 	auto SetDrawFlags = [](FDebugDrawParams& InDrawParams, const FPoseSearchDebuggerFeatureDrawOptions& Options)
 	{
 		InDrawParams.Flags = EDebugDrawFlags::None;
-		if (Options.bDisable)
+		if (!Options.bDisable)
 		{
-			return;
-		}
+			if (Options.bDrawBoneNames)
+			{
+				EnumAddFlags(InDrawParams.Flags, EDebugDrawFlags::DrawBoneNames);
+			}
+			
+			if (Options.bDrawSampleLabels)
+			{
+				EnumAddFlags(InDrawParams.Flags, EDebugDrawFlags::DrawSampleLabels);
+			}
 
-		if (Options.bDrawBoneNames)
-		{
-			InDrawParams.Flags |= EDebugDrawFlags::DrawBoneNames;
-		}
-
-		if (Options.bDrawSampleLabels)
-		{
-			InDrawParams.Flags |= EDebugDrawFlags::DrawSampleLabels;
-		}
-
-		if (Options.bDrawSamplesWithColorGradient)
-		{
-			InDrawParams.Flags |= EDebugDrawFlags::DrawSamplesWithColorGradient;
+			if (Options.bDrawSamplesWithColorGradient)
+			{
+				EnumAddFlags(InDrawParams.Flags, EDebugDrawFlags::DrawSamplesWithColorGradient);
+			}
 		}
 	};
 
 	// Draw query vector
-	DrawParams.Color = &FLinearColor::Blue;
 	SetDrawFlags(DrawParams, Reflection->QueryDrawOptions);
-	DrawParams.LabelPrefix = TEXT("Q");
-	Draw(DrawParams);
-	DrawParams.PoseVector = {};
+	EnumAddFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
+	DrawFeatureVector(DrawParams, State.QueryVector);
+	EnumRemoveFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
 
 	const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& DatabaseRows = DatabaseView->GetDatabaseRows();
 	TArray<TSharedRef<FDebuggerDatabaseRowData>> Selected = DatabaseRows->GetSelectedItems();
-
+	
 	// Red for non-active database view
-	DrawParams.Color = &FLinearColor::Red;
-	DrawParams.LabelPrefix = TEXT("S");
 	SetDrawFlags(DrawParams, Reflection->SelectedPoseDrawOptions);
 
 	// Draw any selected database vectors
 	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : Selected)
 	{
-		DrawParams.PoseIdx = Row->PoseIdx;
-		Draw(DrawParams);
+		DrawFeatureVector(DrawParams, Row->PoseIdx);
 	}
 
 	Selected = DatabaseView->GetActiveRow()->GetSelectedItems();
@@ -1803,13 +1796,8 @@ void SDebuggerView::DrawFeatures(
 
 	if (!Selected.IsEmpty())
 	{
-		// Green for the active view
-		DrawParams.Color = &FLinearColor::Green;
-		
 		// Use the motion-matching state's pose idx, as the active row may be update-throttled at this point
-		DrawParams.PoseIdx = State.DbPoseIdx;
-		DrawParams.LabelPrefix = TEXT("A");
-		Draw(DrawParams);
+		DrawFeatureVector(DrawParams, State.DbPoseIdx);
 	}
 
 	Selected = DatabaseView->GetContinuingPoseRow()->GetSelectedItems();
@@ -1819,13 +1807,8 @@ void SDebuggerView::DrawFeatures(
 
 	if (!Selected.IsEmpty())
 	{
-		// Green for the ContinuingPose view
-		DrawParams.Color = &FLinearColor::Gray;
-
 		// Use the motion-matching state's pose idx, as the ContinuingPose row may be update-throttled at this point
-		DrawParams.PoseIdx = (*Selected.begin())->PoseIdx;
-		DrawParams.LabelPrefix = TEXT("C");
-		Draw(DrawParams);
+		DrawFeatureVector(DrawParams, (*Selected.begin())->PoseIdx);
 	}
 
 	FSkeletonDrawParams SkeletonDrawParams;

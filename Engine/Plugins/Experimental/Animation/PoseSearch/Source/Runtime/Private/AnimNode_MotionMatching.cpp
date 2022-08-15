@@ -136,6 +136,8 @@ bool FAnimNode_MotionMatching::HasPreUpdate() const
 void FAnimNode_MotionMatching::PreUpdate(const UAnimInstance* InAnimInstance)
 {
 #if WITH_EDITORONLY_DATA
+	using namespace UE::PoseSearch;
+
 	if (bWasEvaluated && bDebugDraw)
 	{
 		USkeletalMeshComponent* SkeletalMeshComponent = InAnimInstance->GetSkelMeshComponent();
@@ -147,20 +149,40 @@ void FAnimNode_MotionMatching::PreUpdate(const UAnimInstance* InAnimInstance)
 		DrawParams.World = SkeletalMeshComponent->GetWorld();
 		DrawParams.DefaultLifeTime = 0.0f;
 
-		if (bDebugDrawMatch)
+		if (DrawParams.CanDraw())
 		{
-			DrawParams.PoseIdx = MotionMatchingState.CurrentSearchResult.PoseIdx;
+			if (bDebugDrawMatch)
+			{
+				DrawFeatureVector(DrawParams, MotionMatchingState.CurrentSearchResult.PoseIdx);
+			}
+
+			if (bDebugDrawQuery)
+			{
+				EnumAddFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
+				DrawFeatureVector(DrawParams, MotionMatchingState.CurrentSearchResult.ComposedQuery.GetValues());
+			}
+
+			if (DrawParams.Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
+			{
+				const float TotalCostKDTree = MotionMatchingState.CurrentSearchResult.IsValid() ? MotionMatchingState.CurrentSearchResult.PoseCost.GetTotalCost() : 0.f;
+				const float TotalCostBruteForce = MotionMatchingState.CurrentSearchResult.IsValid() ? MotionMatchingState.CurrentSearchResult.BruteForcePoseCost.GetTotalCost() : 0.f;
+
+				MotionMatchingState.SearchCostHistoryKDTree.AddSample(TotalCostKDTree);
+				MotionMatchingState.SearchCostHistoryBruteForce.AddSample(TotalCostBruteForce);
+
+				// making SearchCostHistoryKDTree and SearchCostHistoryBruteForce min max consistent
+				MotionMatchingState.SearchCostHistoryKDTree.MinValue = FMath::Min(MotionMatchingState.SearchCostHistoryKDTree.MinValue, MotionMatchingState.SearchCostHistoryBruteForce.MinValue);
+				MotionMatchingState.SearchCostHistoryKDTree.MaxValue = FMath::Max(MotionMatchingState.SearchCostHistoryKDTree.MaxValue, MotionMatchingState.SearchCostHistoryBruteForce.MaxValue);
+
+				MotionMatchingState.SearchCostHistoryBruteForce.MinValue = MotionMatchingState.SearchCostHistoryKDTree.MinValue;
+				MotionMatchingState.SearchCostHistoryBruteForce.MaxValue = MotionMatchingState.SearchCostHistoryKDTree.MaxValue;
+
+				const FTransform OffsetTransform(FRotator(0.f, 0.f, 0.f), FVector(-50.f, -75.f, 100.f));
+				FVector2D DrawSize(150.f, 50.f);
+				DrawDebugFloatHistory(*DrawParams.World, MotionMatchingState.SearchCostHistoryKDTree, OffsetTransform * DrawParams.RootTransform, DrawSize, FColor(255,192,203,150)); // pink
+				DrawDebugFloatHistory(*DrawParams.World, MotionMatchingState.SearchCostHistoryBruteForce, OffsetTransform * DrawParams.RootTransform, DrawSize, FColor(0,0,255,150)); // blue
+			}
 		}
-
-		if (bDebugDrawQuery)
-		{
-			DrawParams.PoseVector = MotionMatchingState.CurrentSearchResult.ComposedQuery.GetValues();
-		}
-
-		DrawParams.SearchCostHistoryKDTree = &MotionMatchingState.SearchCostHistoryKDTree;
-		DrawParams.SearchCostHistoryBruteForce = &MotionMatchingState.SearchCostHistoryBruteForce;
-
-		UE::PoseSearch::Draw(DrawParams);
 	}
 
 	bWasEvaluated = false;

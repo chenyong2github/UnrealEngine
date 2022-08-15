@@ -69,14 +69,12 @@ namespace UE::PoseSearch
 					DrawParams.RootTransform = PreviewActor.Mesh->GetComponentTransform();
 					DrawParams.Database = ViewModel->GetPoseSearchDatabase();
 					DrawParams.World = GetWorld();
-					DrawParams.DefaultLifeTime = 0.0f;
-					DrawParams.PoseIdx = PreviewActor.CurrentPoseIndex;
-					DrawParams.PointSize = 5.0f;
+					DrawParams.DefaultLifeTime = 0.f;
+					DrawParams.PointSize = 5.f;
 					DrawParams.Mesh = PreviewActor.Mesh;
 
 					EnumAddFlags(DrawParams.Flags, UE::PoseSearch::EDebugDrawFlags::DrawFast);
-
-					UE::PoseSearch::Draw(DrawParams);
+					DrawFeatureVector(DrawParams, PreviewActor.CurrentPoseIndex);
 				}
 			}
 		}
