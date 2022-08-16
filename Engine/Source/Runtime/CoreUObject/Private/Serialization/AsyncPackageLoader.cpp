@@ -41,9 +41,9 @@ public:
 		RecordedEvents.Reserve(16388);
 	}
 
-	void NotifyRegistrationEvent(const TCHAR* PackageName, const TCHAR* Name, ENotifyRegistrationType NotifyRegistrationType, ENotifyRegistrationPhase NotifyRegistrationPhase, UObject* (*RegisterFunc)(), bool bDynamic)
+	void NotifyRegistrationEvent(const TCHAR* PackageName, const TCHAR* Name, ENotifyRegistrationType NotifyRegistrationType, ENotifyRegistrationPhase NotifyRegistrationPhase, UObject* (*RegisterFunc)(), bool bDynamic, UObject* FinishedObject)
 	{
-		RecordedEvents.Add({ PackageName, Name, NotifyRegistrationType, NotifyRegistrationPhase, RegisterFunc, bDynamic });
+		RecordedEvents.Add({ PackageName, Name, NotifyRegistrationType, NotifyRegistrationPhase, RegisterFunc, FinishedObject, bDynamic });
 	}
 
 	void Replay(IAsyncPackageLoader& PackageLoader)
@@ -51,7 +51,7 @@ public:
 		UE_LOG(LogStreaming, Log, TEXT("NotifyRegistrationEvent: Replay %d entries"), RecordedEvents.Num());
 		for (const FRecordedEvent& Event : RecordedEvents)
 		{
-			PackageLoader.NotifyRegistrationEvent(*Event.PackageName, *Event.Name, Event.NotifyRegistrationType, Event.NotifyRegistrationPhase, Event.RegisterFunc, Event.bDynamic);
+			PackageLoader.NotifyRegistrationEvent(*Event.PackageName, *Event.Name, Event.NotifyRegistrationType, Event.NotifyRegistrationPhase, Event.RegisterFunc, Event.bDynamic, Event.FinishedObject);
 		}
 		RecordedEvents.Empty();
 	}
@@ -64,6 +64,7 @@ private:
 		ENotifyRegistrationType NotifyRegistrationType;
 		ENotifyRegistrationPhase NotifyRegistrationPhase;
 		UObject* (*RegisterFunc)();
+		UObject* FinishedObject;
 		bool bDynamic;
 	};
 
@@ -639,22 +640,23 @@ float GetAsyncLoadPercentage(const FName& PackageName)
 	return GetAsyncPackageLoader().GetAsyncLoadPercentage(PackageName);
 }
 
-void NotifyRegistrationEvent(const TCHAR* PackageName, const TCHAR* Name, ENotifyRegistrationType NotifyRegistrationType, ENotifyRegistrationPhase NotifyRegistrationPhase, UObject *(*InRegister)(), bool InbDynamic)
+void NotifyRegistrationEvent(const TCHAR* PackageName, const TCHAR* Name, ENotifyRegistrationType NotifyRegistrationType, ENotifyRegistrationPhase NotifyRegistrationPhase, UObject *(*InRegister)(), bool InbDynamic, UObject* FinishedObject)
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 
 	if (GPackageLoader)
 	{
-		GPackageLoader->NotifyRegistrationEvent(PackageName, Name, NotifyRegistrationType, NotifyRegistrationPhase, InRegister, InbDynamic);
+		GPackageLoader->NotifyRegistrationEvent(PackageName, Name, NotifyRegistrationType, NotifyRegistrationPhase, InRegister, InbDynamic, FinishedObject);
 	}
 	else
 	{
-		GetEarlyRegistrationEventsRecorder().NotifyRegistrationEvent(PackageName, Name, NotifyRegistrationType, NotifyRegistrationPhase, InRegister, InbDynamic);
+		GetEarlyRegistrationEventsRecorder().NotifyRegistrationEvent(PackageName, Name, NotifyRegistrationType, NotifyRegistrationPhase, InRegister, InbDynamic, FinishedObject);
 	}
 }
 
 void NotifyRegistrationComplete()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(NotifyRegistrationComplete);
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 	GPackageLoader->NotifyRegistrationComplete();
 	FlushAsyncLoading();

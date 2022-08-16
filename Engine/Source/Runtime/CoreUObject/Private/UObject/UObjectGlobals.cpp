@@ -5496,7 +5496,7 @@ namespace UECodeGen_Private
 				// Notify loader of new top level noexport objects like UScriptStruct, UDelegateFunction and USparseDelegateFunction
 				TCHAR ObjectName[FName::StringBufferSize];
 				Object->GetFName().ToString(ObjectName);
-				NotifyRegistrationEvent(PackageName, ObjectName, ENotifyRegistrationType::NRT_NoExportObject, ENotifyRegistrationPhase::NRP_Finished);
+				NotifyRegistrationEvent(PackageName, ObjectName, ENotifyRegistrationType::NRT_NoExportObject, ENotifyRegistrationPhase::NRP_Finished, nullptr, false, Object);
 			}
 		}
 #if WITH_RELOAD

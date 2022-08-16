@@ -1108,34 +1108,18 @@ public:
 		ObjectIndexToPublicExport.Add(ObjectIndex, Key);
 	}
 
-	void FindAllScriptObjects();
+	void RegistrationComplete();
 
-	void AddScriptObject(FStringView PackageName, FStringView Name)
+	void AddScriptObject(FStringView PackageName, FStringView Name, UObject* Object)
 	{
 		TStringBuilder<FName::StringBufferSize> FullName;
 		FPathViews::Append(FullName, PackageName);
 		FPathViews::Append(FullName, Name);
 		FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex::FromScriptPath(FullName);
 
-		UObject* Package = StaticFindObjectFastInternal(UPackage::StaticClass(), nullptr, FName(PackageName), true);
-		// check(Package);
-		if (!ensureMsgf(Package, TEXT("Failed to find package when registering script object '%.*s/%.*s'"),
-			PackageName.Len(), PackageName.GetData(), Name.Len(), Name.GetData()))
-		{
-			return;
-		}
-
-		UObject* Object = StaticFindObjectFastInternal(nullptr, Package, FName(Name));
-		// check(Object);
-		if (!ensureMsgf(Object, TEXT("Failed to find object when registering script object '%.*s/%.*s'"),
-			PackageName.Len(), PackageName.GetData(), Name.Len(), Name.GetData()))
-		{
-			return;
-		}
-
 #if WITH_EDITOR
 		FPackageObjectIndex PackageGlobalImportIndex = FPackageObjectIndex::FromScriptPath(PackageName);
-		ScriptObjects.Add(PackageGlobalImportIndex, Package);
+		ScriptObjects.Add(PackageGlobalImportIndex, Object->GetOutermost());
 #endif
 		ScriptObjects.Add(GlobalImportIndex, Object);
 
@@ -2383,7 +2367,7 @@ public:
 
 	virtual void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects) override;
 
-	virtual void NotifyRegistrationEvent(const TCHAR* PackageName, const TCHAR* Name, ENotifyRegistrationType NotifyRegistrationType, ENotifyRegistrationPhase NotifyRegistrationPhase, UObject* (*InRegister)(), bool InbDynamic) override;
+	virtual void NotifyRegistrationEvent(const TCHAR* PackageName, const TCHAR* Name, ENotifyRegistrationType NotifyRegistrationType, ENotifyRegistrationPhase NotifyRegistrationPhase, UObject* (*InRegister)(), bool InbDynamic, UObject* FinishedObject) override;
 
 	virtual void NotifyRegistrationComplete() override;
 
@@ -2539,8 +2523,6 @@ public:
 private:
 
 	void OnLeakedPackageRename(UPackage* Package);
-
-	void FinalizeInitialLoad();
 
 	void RemoveUnreachableObjects(FUnreachableObjects& ObjectsToRemove);
 
@@ -3404,44 +3386,51 @@ void FAsyncPackage2::SetupScriptDependencies()
 }
 
 
-void FGlobalImportStore::FindAllScriptObjects()
+void FGlobalImportStore::RegistrationComplete()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FindAllScriptObjects);
-	TStringBuilder<FName::StringBufferSize> Name;
-	TArray<UPackage*> ScriptPackages;
-	TArray<UObject*> Objects;
-	FindAllRuntimeScriptPackages(ScriptPackages);
-
-	for (UPackage* Package : ScriptPackages)
+#if DO_CHECK
 	{
-#if WITH_EDITOR
-		Name.Reset();
-		Package->GetPathName(nullptr, Name);
-		FPackageObjectIndex PackageGlobalImportIndex = FPackageObjectIndex::FromScriptPath(Name);
-		ScriptObjects.Add(PackageGlobalImportIndex, Package);
-#endif
+		TRACE_CPUPROFILER_EVENT_SCOPE(FindAllScriptObjectsDebug);
+		TStringBuilder<FName::StringBufferSize> Name;
+		TArray<UPackage*> ScriptPackages;
+		TArray<UObject*> Objects;
+		FindAllRuntimeScriptPackages(ScriptPackages);
 
-		Objects.Reset();
-		GetObjectsWithOuter(Package, Objects, /*bIncludeNestedObjects*/true);
-		for (UObject* Object : Objects)
+		for (UPackage* Package : ScriptPackages)
 		{
-			if (Object->HasAnyFlags(RF_Public))
+#if WITH_EDITOR
+			Name.Reset();
+			Package->GetPathName(nullptr, Name);
+			FPackageObjectIndex PackageGlobalImportIndex = FPackageObjectIndex::FromScriptPath(Name);
+			if (!ScriptObjects.Contains(PackageGlobalImportIndex))
 			{
-				Name.Reset();
-				Object->GetPathName(nullptr, Name);
-				FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex::FromScriptPath(Name);
-				if (!ScriptObjects.Contains(GlobalImportIndex))
-				{
-					ScriptObjects.Add(GlobalImportIndex, Object);
-#if !WITH_EDITOR
-					UE_LOG(LogStreaming, Warning, TEXT("Found additional public script object 0x%016llX: %s\r\n"),
-						GlobalImportIndex.Value(),
-						*Object->GetFullName());
+				ScriptObjects.Add(PackageGlobalImportIndex, Package);
+				ensureMsgf(false, TEXT("Script package %s (0x%016llX) is missing a NotifyRegistrationEvent from the initial load phase."),
+					*Package->GetFullName(),
+					PackageGlobalImportIndex.Value());
+			}
 #endif
+			Objects.Reset();
+			GetObjectsWithOuter(Package, Objects, /*bIncludeNestedObjects*/true);
+			for (UObject* Object : Objects)
+			{
+				if (Object->HasAnyFlags(RF_Public))
+				{
+					Name.Reset();
+					Object->GetPathName(nullptr, Name);
+					FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex::FromScriptPath(Name);
+					if (!ScriptObjects.Contains(GlobalImportIndex))
+					{
+						ScriptObjects.Add(GlobalImportIndex, Object);
+						ensureMsgf(false, TEXT("Script object %s (0x%016llX) is missing a NotifyRegistrationEvent from the initial load phase."),
+							*Object->GetFullName(),
+							GlobalImportIndex.Value());
+					}
 				}
 			}
 		}
 	}
+#endif
 	ScriptObjects.Shrink();
 }
 
@@ -5415,11 +5404,7 @@ void FAsyncLoadingThread2::StartThread()
 	check(PendingCDOsRecursiveStack.Num() == 0);
 	PendingCDOsRecursiveStack.Empty();
 
-	if (!FAsyncLoadingThreadSettings::Get().bAsyncLoadingThreadEnabled)
-	{
-		FinalizeInitialLoad();
-	}
-	else if (!Thread)
+	if (!Thread)
 	{
 		UE_LOG(LogStreaming, Log, TEXT("Starting Async Loading Thread."));
 		bThreadStarted = true;
@@ -5439,17 +5424,6 @@ bool FAsyncLoadingThread2::Init()
 	return true;
 }
 
-void FAsyncLoadingThread2::FinalizeInitialLoad()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FinalizeInitialLoad);
-	GlobalImportStore.FindAllScriptObjects(); // for verification only
-	bHasRegisteredAllScriptObjects = true;
-
-	UE_LOG(LogStreaming, Display,
-		TEXT("AsyncLoading2 - InitialLoad Finalized: Registered %d public script object entries (%.2f KB)"),
-		GlobalImportStore.GetStoredScriptObjectsCount(), (float)GlobalImportStore.GetStoredScriptObjectsAllocatedSize() / 1024.f);
-}
-
 uint32 FAsyncLoadingThread2::Run()
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
@@ -5465,8 +5439,6 @@ uint32 FAsyncLoadingThread2::Run()
 
 	FAsyncLoadingThreadState2& ThreadState = *FAsyncLoadingThreadState2::Get();
 	
-	FinalizeInitialLoad();
-
 	FZenaphoreWaiter Waiter(AltZenaphore, TEXT("WaitForEvents"));
 	enum class EMainState : uint8
 	{
@@ -5928,17 +5900,24 @@ void FAsyncLoadingThread2::NotifyRegistrationEvent(
 	ENotifyRegistrationType NotifyRegistrationType,
 	ENotifyRegistrationPhase NotifyRegistrationPhase,
 	UObject* (*InRegister)(),
-	bool InbDynamic)
+	bool InbDynamic,
+	UObject* FinishedObject)
 {
 	if (NotifyRegistrationPhase == ENotifyRegistrationPhase::NRP_Finished)
 	{
-		GlobalImportStore.AddScriptObject(PackageName, Name);
+		ensureMsgf(FinishedObject, TEXT("FinishedObject was not provided by NotifyRegistrationEvent when called with ENotifyRegistrationPhase::NRP_Finished, see call stack for offending code."));
+		GlobalImportStore.AddScriptObject(PackageName, Name, FinishedObject);
 	}
 }
 
 void FAsyncLoadingThread2::NotifyRegistrationComplete()
 {
+	GlobalImportStore.RegistrationComplete();
+	bHasRegisteredAllScriptObjects = true;
 
+	UE_LOG(LogStreaming, Display,
+		TEXT("AsyncLoading2 - NotifyRegistrationComplete: Registered %d public script object entries (%.2f KB)"),
+		GlobalImportStore.GetStoredScriptObjectsCount(), (float)GlobalImportStore.GetStoredScriptObjectsAllocatedSize() / 1024.f);
 }
 
 /*-----------------------------------------------------------------------------

@@ -199,15 +199,16 @@ public:
 		ENotifyRegistrationType NotifyRegistrationType,
 		ENotifyRegistrationPhase NotifyRegistrationPhase,
 		UObject* (*InRegister)(),
-		bool InbDynamic) override
+		bool InbDynamic,
+		UObject* FinishedObject) override
 	{
 		if (UncookedPackageLoader)
 		{
-			UncookedPackageLoader->NotifyRegistrationEvent(PackageName, Name, NotifyRegistrationType, NotifyRegistrationPhase, InRegister, InbDynamic);
+			UncookedPackageLoader->NotifyRegistrationEvent(PackageName, Name, NotifyRegistrationType, NotifyRegistrationPhase, InRegister, InbDynamic, FinishedObject);
 		}
 		if (CookedPackageLoader)
 		{
-			CookedPackageLoader->NotifyRegistrationEvent(PackageName, Name, NotifyRegistrationType, NotifyRegistrationPhase, InRegister, InbDynamic);
+			CookedPackageLoader->NotifyRegistrationEvent(PackageName, Name, NotifyRegistrationType, NotifyRegistrationPhase, InRegister, InbDynamic, FinishedObject);
 		}
 	}
 

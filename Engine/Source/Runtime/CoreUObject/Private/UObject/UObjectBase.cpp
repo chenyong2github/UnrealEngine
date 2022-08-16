@@ -590,7 +590,7 @@ void UObjectCompiledInDeferStruct(class UScriptStruct* (*InRegister)(), const TC
 class UScriptStruct *GetStaticStruct(class UScriptStruct *(*InRegister)(), UObject* StructOuter, const TCHAR* StructName)
 {
 	UScriptStruct *Result = (*InRegister)();
-	NotifyRegistrationEvent(*StructOuter->GetOutermost()->GetName(), StructName, ENotifyRegistrationType::NRT_Struct, ENotifyRegistrationPhase::NRP_Finished);
+	NotifyRegistrationEvent(*StructOuter->GetOutermost()->GetName(), StructName, ENotifyRegistrationType::NRT_Struct, ENotifyRegistrationPhase::NRP_Finished, nullptr, false, Result);
 	return Result;
 }
 
@@ -614,7 +614,7 @@ void UObjectCompiledInDeferEnum(class UEnum* (*InRegister)(), const TCHAR* Packa
 class UEnum *GetStaticEnum(class UEnum *(*InRegister)(), UObject* EnumOuter, const TCHAR* EnumName)
 {
 	UEnum *Result = (*InRegister)();
-	NotifyRegistrationEvent(*EnumOuter->GetOutermost()->GetName(), EnumName, ENotifyRegistrationType::NRT_Enum, ENotifyRegistrationPhase::NRP_Finished);
+	NotifyRegistrationEvent(*EnumOuter->GetOutermost()->GetName(), EnumName, ENotifyRegistrationType::NRT_Enum, ENotifyRegistrationPhase::NRP_Finished, nullptr, false, Result);
 	return Result;
 }
 
@@ -822,10 +822,6 @@ static void UObjectLoadAllCompiledInDefaultProperties()
 			{
 				UE_LOG(LogUObjectBootstrap, Verbose, TEXT("UObjectLoadAllCompiledInDefaultProperties After Registrant %s %s"), PackageName, *Class.GetName());
 
-				TCHAR ClassName[FName::StringBufferSize];
-				Class.GetFName().ToString(ClassName);
-				NotifyRegistrationEvent(PackageName, ClassName, ENotifyRegistrationType::NRT_Class, ENotifyRegistrationPhase::NRP_Finished);
-
 				if (Class.GetOutermost()->GetFName() == GLongCoreUObjectPackageName)
 				{
 					NewClassesInCoreUObject.Add(&Class);
@@ -839,6 +835,27 @@ static void UObjectLoadAllCompiledInDefaultProperties()
 					NewClasses.Add(&Class);
 				}
 			}); 
+
+		auto NotifyClassFinishedRegistrationEvents = [](TArray<UClass*>& Classes)
+		{
+			for (UClass* Class : Classes)
+			{
+				TCHAR PackageName[FName::StringBufferSize];
+				TCHAR ClassName[FName::StringBufferSize];
+				Class->GetOutermost()->GetFName().ToString(PackageName);
+				Class->GetFName().ToString(ClassName);
+				NotifyRegistrationEvent(PackageName, ClassName, ENotifyRegistrationType::NRT_Class, ENotifyRegistrationPhase::NRP_Finished, nullptr, false, Class);
+			}
+		};
+
+		// notify async loader of all new classes before creating the class default objects
+		{
+			SCOPED_BOOT_TIMING("NotifyClassFinishedRegistrationEvents");
+			NotifyClassFinishedRegistrationEvents(NewClassesInCoreUObject);
+			NotifyClassFinishedRegistrationEvents(NewClassesInEngine);
+			NotifyClassFinishedRegistrationEvents(NewClasses);
+		}
+
 		{
 			SCOPED_BOOT_TIMING("CoreUObject Classes");
 			for (UClass* Class : NewClassesInCoreUObject) // we do these first because we assume these never trigger loads

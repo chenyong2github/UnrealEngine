@@ -4140,7 +4140,7 @@ UObject* UClass::CreateDefaultObject()
 					TCHAR CDOName[FName::StringBufferSize];
 					GetOutermost()->GetFName().ToString(PackageName);
 					GetDefaultObjectName().ToString(CDOName);
-					NotifyRegistrationEvent(PackageName, CDOName, ENotifyRegistrationType::NRT_ClassCDO, ENotifyRegistrationPhase::NRP_Finished);
+					NotifyRegistrationEvent(PackageName, CDOName, ENotifyRegistrationType::NRT_ClassCDO, ENotifyRegistrationPhase::NRP_Finished, nullptr, false, ClassDefaultObject);
 				}
 				ClassDefaultObject->PostCDOContruct();
 			}
