@@ -482,6 +482,20 @@ void UPCGGraph::EnableNotificationsForEditor()
 	}
 }
 
+void UPCGGraph::ToggleUserPausedNotificationsForEditor()
+{
+	if (bUserPausedNotificationsInGraphEditor)
+	{
+		EnableNotificationsForEditor();
+	}
+	else
+	{
+		DisableNotificationsForEditor();
+	}
+
+	bUserPausedNotificationsInGraphEditor = !bUserPausedNotificationsInGraphEditor;
+}
+
 void UPCGGraph::SetExtraEditorNodes(const TArray<TObjectPtr<const UObject>>& InNodes)
 {
 	ExtraEditorNodes.Empty();
@@ -529,7 +543,7 @@ void UPCGGraph::NotifyGraphChanged(bool bIsStructural)
 	}
 
 	// Skip recursive cases which can happen either through direct recursivity (A -> A) or indirectly (A -> B -> A)
-	if (bSubsystemNotificationDisabled || bIsNotifying)
+	if (bIsNotifying)
 	{
 		return;
 	}

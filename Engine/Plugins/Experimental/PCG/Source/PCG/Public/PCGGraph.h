@@ -82,13 +82,13 @@ public:
 #if WITH_EDITOR
 	void DisableNotificationsForEditor();
 	void EnableNotificationsForEditor();
+	void ToggleUserPausedNotificationsForEditor();
+	bool NotificationsForEditorArePausedByUser() const { return bUserPausedNotificationsInGraphEditor; }
 	void PreNodeUndo(UPCGNode* InPCGNode);
 	void PostNodeUndo(UPCGNode* InPCGNode);
 
 	const TArray<TObjectPtr<UObject>>& GetExtraEditorNodes() const { return ExtraEditorNodes; }
 	void SetExtraEditorNodes(const TArray<TObjectPtr<const UObject>>& InNodes);
-	void ToggleSubsystemNotifications() { bSubsystemNotificationDisabled = !bSubsystemNotificationDisabled; }
-	bool SubsystemNotificationsAreDisabled() const { return bSubsystemNotificationDisabled; }
 #endif
 
 #if WITH_EDITOR
@@ -129,6 +129,6 @@ private:
 	bool bDelayedChangeNotification = false;
 	bool bDelayedChangeNotificationStructural = false;
 	bool bIsNotifying = false;
-	bool bSubsystemNotificationDisabled = false;
+	bool bUserPausedNotificationsInGraphEditor = false;
 #endif // WITH_EDITOR
 };

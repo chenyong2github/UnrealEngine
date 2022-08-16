@@ -385,17 +385,12 @@ void FPCGEditor::OnPauseAutomaticRegeneration_Clicked()
 		return;
 	}
 
-	PCGGraphBeingEdited->ToggleSubsystemNotifications();
-
-	if (!PCGGraphBeingEdited->SubsystemNotificationsAreDisabled())
-	{
-		PCGGraphBeingEdited->NotifyGraphChanged(/*bIsStructural=*/true);
-	}
+	PCGGraphBeingEdited->ToggleUserPausedNotificationsForEditor();
 }
 
 bool FPCGEditor::IsAutomaticRegenerationPaused() const
 {
-	return PCGGraphBeingEdited && PCGGraphBeingEdited->SubsystemNotificationsAreDisabled();
+	return PCGGraphBeingEdited && PCGGraphBeingEdited->NotificationsForEditorArePausedByUser();
 }
 
 bool FPCGEditor::CanRunDeterminismTests() const
@@ -1449,6 +1444,11 @@ void FPCGEditor::OnClose()
 	ReplicateExtraNodes();
 
 	FAssetEditorToolkit::OnClose();
+
+	if (PCGGraphBeingEdited && PCGGraphBeingEdited->NotificationsForEditorArePausedByUser())
+	{
+		PCGGraphBeingEdited->ToggleUserPausedNotificationsForEditor();
+	}
 }
 
 void FPCGEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
