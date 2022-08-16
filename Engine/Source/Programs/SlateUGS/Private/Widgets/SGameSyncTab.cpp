@@ -94,6 +94,15 @@ TSharedRef<SWidget> SBuildDataRow::GenerateWidgetForColumn(const FName& ColumnId
 		TextItem->SetText(FText::FromString(Description));
 	}
 
+	if (CurrentItem->bCurrentlySynced)
+	{
+		// Lets make the font white and bold when we are the currently synced CL
+		FSlateFontInfo FontInfo = FAppStyle::Get().GetFontStyle("NormalFontBold");
+
+		TextItem->SetFont(FontInfo);
+		TextItem->SetColorAndOpacity(FLinearColor::White);
+	}
+
 	return SNew(SBox)
 		.VAlign(VAlign_Center)
 		.Padding(5.0f, 2.5f)
@@ -423,10 +432,10 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					.FixedWidth(35.0f)
 					+SHeaderRow::Column(HordeTableColumnChange)
 					.DefaultLabel(LOCTEXT("HordeHeaderChange", "Change"))
-					.FixedWidth(70.0f)
+					.FixedWidth(75.0f)
 					+SHeaderRow::Column(HordeTableColumnTime)
 					.DefaultLabel(LOCTEXT("HordeHeaderTime", "Time"))
-					.FixedWidth(65.0f)
+					.FixedWidth(70.0f)
 					+SHeaderRow::Column(HordeTableColumnAuthor)
 					.DefaultLabel(LOCTEXT("HordeHeaderAuthor", "Author"))
 					.FillWidth(0.15f)

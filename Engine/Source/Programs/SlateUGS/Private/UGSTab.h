@@ -107,4 +107,6 @@ private:
 	// Queue for handling callbacks from multiple threads that need to be called on the main thread
 	TArray<TFunction<void()>> MessageQueue;
 	std::atomic<bool> bHasQueuedMessages;
+
+	bool bNeedUpdateGameTabBuildList = false;
 };

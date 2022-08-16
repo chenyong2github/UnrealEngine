@@ -312,6 +312,13 @@ void UGSTab::Tick()
 
 		MessageQueue.Empty();
 	}
+
+	if (bNeedUpdateGameTabBuildList)
+	{
+		bNeedUpdateGameTabBuildList = false;
+
+		UpdateGameTabBuildList();
+	}
 }
 
 namespace
@@ -421,12 +428,15 @@ void UGSTab::UpdateGameTabBuildList()
 					ChangeInfos.Add(HeaderRow);
 				}
 
+				bool bCurrentSyncedChange = Change.Number == WorkspaceSettings->CurrentChangeNumber;
+
 				ChangeInfos.Add(MakeShareable(new FChangeInfo
 				{
 					DisplayTime,
 					false,
 					Status,
 					Change.Number,
+					bCurrentSyncedChange,
 					FText::FromString(FormatUserName(Change.User)),
 					Change.Description
 				}));
@@ -516,6 +526,9 @@ void UGSTab::OnWorkspaceSyncComplete(TSharedRef<UGSCore::FWorkspaceUpdateContext
 	});
 
 	UserSettings->Save();
+
+	// TODO hacky, but allows us to highlight which CL we have synced to in the list
+	bNeedUpdateGameTabBuildList = true;
 }
 
 void UGSTab::SetupWorkspace()

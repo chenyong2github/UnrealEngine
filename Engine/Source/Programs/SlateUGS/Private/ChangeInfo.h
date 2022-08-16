@@ -11,6 +11,7 @@ struct FChangeInfo
 
 	UGSCore::EReviewVerdict ReviewStatus = UGSCore::EReviewVerdict::Unknown;
 	int Changelist = 0;
+	bool bCurrentlySynced = false;
 	FText Author;
 	FString Description;
 
