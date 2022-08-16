@@ -82,6 +82,11 @@ ENGINE_API void UpdatePreviousRefToLocalMatrices(TArray<FMatrix44f>& ReferenceTo
 	}
 
 	FSkeletalMeshLODRenderData& LODData = SkeletalMeshObject->GetSkeletalMeshRenderData().LODRenderData[LODIndex];
+	if (LODData.RenderSections.Num() == 0)
+	{
+		return;
+	}
+
 
 	const bool bNeedPreviousPosition = IsHairStrandContinuousDecimationReorderingEnabled();
 
