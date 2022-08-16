@@ -10575,10 +10575,10 @@ int32 FHLSLMaterialTranslator::StrataUnlitBSDF(int32 EmissiveColor, int32 Transm
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 EmissiveColor, int32 Tangent, const FString& SharedLocalBasisIndexMacro)
+int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 EmissiveColor, int32 Tangent, const FString& SharedLocalBasisIndexMacro, FStrataOperator* PromoteToOperator)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataHairBSDF(%s, %s, %s, %s, %s, %s, %s) /* %s */"),
+		MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataHairBSDF(%s, %s, %s, %s, %s, %s, %s), Parameters.StrataTree, %u, %u, %u, %u) /* Tangent:%s */"),
 		*StrataGetCastParameterCode(BaseColor,			MCT_Float3),
 		*StrataGetCastParameterCode(Scatter,			MCT_Float),
 		*StrataGetCastParameterCode(Specular,			MCT_Float),
@@ -10586,14 +10586,18 @@ int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, in
 		*StrataGetCastParameterCode(Backlit,			MCT_Float),
 		*StrataGetCastParameterCode(EmissiveColor,		MCT_Float3),
 		*SharedLocalBasisIndexMacro,
+		PromoteToOperator->Index,
+		PromoteToOperator->BSDFIndex,
+		PromoteToOperator->LayerDepth,
+		PromoteToOperator->bIsBottom ? 1 : 0,
 		*GetParameterCode(Tangent)
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataEyeBSDF(int32 DiffuseAlbedo, int32 Roughness, int32 IrisMask, int32 IrisDistance, int32 EmissiveColor, int32 CorneaNormal, int32 IrisNormal, int32 IrisPlaneNormal, int32 SSSProfileId, const FString& SharedLocalBasisIndexMacro)
+int32 FHLSLMaterialTranslator::StrataEyeBSDF(int32 DiffuseAlbedo, int32 Roughness, int32 IrisMask, int32 IrisDistance, int32 EmissiveColor, int32 CorneaNormal, int32 IrisNormal, int32 IrisPlaneNormal, int32 SSSProfileId, const FString& SharedLocalBasisIndexMacro, FStrataOperator* PromoteToOperator)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataEyeBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s) /* Cornea:%s Iris:%s */"),
+		MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataEyeBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s), Parameters.StrataTree, %u, %u, %u, %u) /* Cornea:%s Iris:%s */"),
 		*StrataGetCastParameterCode(DiffuseAlbedo, MCT_Float3),
 		*StrataGetCastParameterCode(Roughness, MCT_Float),
 		*StrataGetCastParameterCode(IrisMask, MCT_Float),
@@ -10603,6 +10607,10 @@ int32 FHLSLMaterialTranslator::StrataEyeBSDF(int32 DiffuseAlbedo, int32 Roughnes
 		*StrataGetCastParameterCode(SSSProfileId, MCT_Float),
 		*StrataGetCastParameterCode(EmissiveColor, MCT_Float3),
 		*SharedLocalBasisIndexMacro,
+		PromoteToOperator->Index,
+		PromoteToOperator->BSDFIndex,
+		PromoteToOperator->LayerDepth,
+		PromoteToOperator->bIsBottom ? 1 : 0,
 		*GetParameterCode(CorneaNormal),
 		*GetParameterCode(IrisNormal)
 	);
@@ -10614,7 +10622,7 @@ int32 FHLSLMaterialTranslator::StrataSingleLayerWaterBSDF(
 	FStrataOperator* PromoteToOperator)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataSingleLayerWaterBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s), Parameters.StrataTree, %u, %u, %u, %u) /* %s */"),
+		MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataSingleLayerWaterBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s), Parameters.StrataTree, %u, %u, %u, %u) /* Normal:%s */"),
 		*StrataGetCastParameterCode(BaseColor,				MCT_Float3),
 		*StrataGetCastParameterCode(Metallic,				MCT_Float),
 		*StrataGetCastParameterCode(Specular,				MCT_Float),
