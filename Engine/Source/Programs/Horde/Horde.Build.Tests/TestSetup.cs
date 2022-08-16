@@ -58,6 +58,7 @@ using Horde.Build.Tasks;
 using Horde.Build.Auditing;
 using Horde.Build.Storage.Backends;
 using EpicGames.Horde.Storage.Bundles;
+using Horde.Build.Compute;
 using Horde.Build.Devices;
 
 namespace Horde.Build.Tests
@@ -96,6 +97,7 @@ namespace Horde.Build.Tests
 		public AclService AclService => ServiceProvider.GetRequiredService<AclService>();
 		public AgentSoftwareService AgentSoftwareService => ServiceProvider.GetRequiredService<AgentSoftwareService>();
 		public AgentService AgentService => ServiceProvider.GetRequiredService<AgentService>();
+		public ComputeService ComputeService => ServiceProvider.GetRequiredService<ComputeService>();
 		public MongoService MongoService => ServiceProvider.GetRequiredService<MongoService>();
 		public ITemplateCollection TemplateCollection => ServiceProvider.GetRequiredService<ITemplateCollection>();
 		internal PerforceServiceStub PerforceService => (PerforceServiceStub)ServiceProvider.GetRequiredService<IPerforceService>();
@@ -200,6 +202,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<AwsReuseFleetManager, AwsReuseFleetManager>();
 			services.AddSingleton<ConsistencyService>();
 			services.AddSingleton<ConfigCollection>();
+			services.AddSingleton<ComputeService>();
 			services.AddSingleton<RequestTrackerService>();
 			services.AddSingleton<CredentialService>();
 			services.AddSingleton<JobTaskSource>();

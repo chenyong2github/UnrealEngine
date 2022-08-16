@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -54,6 +53,15 @@ namespace Horde.Build.Compute
 		/// </summary>
 		/// <returns></returns>
 		Task<List<TQueueId>> GetInactiveQueuesAsync();
+		
+		/// <summary>
+		/// Get number of tasks that a given pool/agent can execute
+		/// A read-only operation and will not affect any queue.
+		/// </summary>
+		/// <param name="predicate">Predicate for determining which queues to read</param>
+		/// <param name="token">Cancellation token for the operation</param>
+		/// <returns>Number of tasks matching the supplied predicate</returns>
+		Task<int> GetNumQueuedTasksAsync(Func<TQueueId, ValueTask<bool>> predicate, CancellationToken token = default);
 	}
 
 	/// <summary>
@@ -373,6 +381,21 @@ namespace Horde.Build.Compute
 			}
 
 			return keys.ToList();
+		}
+
+		public async Task<int> GetNumQueuedTasksAsync(Func<TQueueId, ValueTask<bool>> predicate, CancellationToken token = default)
+		{
+			HashSet<TQueueId> queueIds = new (await _queueIndex.MembersAsync());
+			long totalTaskCount = 0;
+			foreach (TQueueId queueId in queueIds)
+			{
+				if (await predicate(queueId))
+				{
+					totalTaskCount += await GetQueue(queueId).LengthAsync();
+				}
+			}
+
+			return (int)totalTaskCount;
 		}
 
 		async Task UpdateQueuesAsync(CancellationToken cancellationToken)

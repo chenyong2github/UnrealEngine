@@ -14,6 +14,7 @@ using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using Horde.Build.Agents;
 using Horde.Build.Agents.Leases;
+using Horde.Build.Agents.Pools;
 using Horde.Build.Server;
 using Horde.Build.Tasks;
 using Horde.Build.Utilities;
@@ -333,6 +334,18 @@ namespace Horde.Build.Compute
 		{
 			return await _messageQueue.ReadMessagesAsync(GetMessageQueueId(clusterId, channelId));
 		}
+		
+		/// <summary>
+		/// Get number of queued tasks that are compatible for a given pool
+		/// </summary>
+		/// <param name="clusterId">Cluster to query</param>
+		/// <param name="pool">Pool to check for compatibility</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param> 
+		/// <returns>Number of tasks in queue</returns>
+		public async Task<int> GetNumQueuedTasksForPool(ClusterId clusterId, IPool pool, CancellationToken cancellationToken = default)
+		{
+			return await _taskScheduler.GetNumQueuedTasksAsync(queueKey => CheckRequirements(pool, queueKey), cancellationToken);
+		}
 
 		/// <summary>
 		/// Dequeue completed items from a queue
@@ -411,6 +424,22 @@ namespace Horde.Build.Compute
 				return false;
 			}
 			return agent.MeetsRequirements(requirements);
+		}
+		
+		/// <summary>
+		/// Checks that a pool matches the necessary criteria to execute a task
+		/// </summary>
+		/// <param name="pool"></param>
+		/// <param name="queueKey"></param>
+		/// <returns></returns>
+		async ValueTask<bool> CheckRequirements(IPool pool, QueueKey queueKey)
+		{
+			Requirements? requirements = await GetCachedRequirementsAsync(queueKey);
+			if (requirements == null)
+			{
+				return false;
+			}
+			return pool.MeetsRequirements(requirements);
 		}
 
 		/// <summary>

@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using EpicGames.Horde.Common;
+using EpicGames.Horde.Compute;
 using Horde.Build.Agents.Fleet;
 using Horde.Build.Utilities;
 
@@ -104,5 +105,48 @@ namespace Horde.Build.Agents.Pools
 		/// Update index for this document
 		/// </summary>
 		public int UpdateIndex { get; }
+	}
+
+	/// <summary>
+	/// Extension methods for IPool
+	/// </summary>
+	public static class PoolExtensions
+	{
+		/// <summary>
+		/// Evaluates a condition against a pool
+		/// </summary>
+		/// <param name="pool">The pool to evaluate</param>
+		/// <param name="condition">The condition to evaluate</param>
+		/// <returns>True if the pool satisfies the condition</returns>
+		public static bool SatisfiesCondition(this IPool pool, Condition condition)
+		{
+			return condition.Evaluate(propKey =>
+			{
+				if (pool.Properties.TryGetValue(propKey, out string? propValue))
+				{
+					return new[] { propValue };
+				}
+
+				return Array.Empty<string>();
+			});
+		}
+
+		/// <summary>
+		/// Determine whether a pool offers agents that are compatible with the given requirements.
+		/// Since a pool does not have beforehand knowledge of what type of agents will be created, their expected
+		/// properties must be specified on the IPool. 
+		/// </summary>
+		/// <param name="pool">The pool to verify</param>
+		/// <param name="requirements">Requirements</param>
+		/// <returns>True if the pool satisfies the requirements</returns>
+		public static bool MeetsRequirements(this IPool pool, Requirements requirements)
+		{
+			if (requirements.Condition != null && !pool.SatisfiesCondition(requirements.Condition))
+			{
+				return false;
+			}
+
+			return true;
+		}
 	}
 }
