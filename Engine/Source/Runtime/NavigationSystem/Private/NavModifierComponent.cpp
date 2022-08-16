@@ -36,7 +36,7 @@ void UNavModifierComponent::CalcAndCacheBounds() const
 		for (UActorComponent* Component : MyOwner->GetComponents())
 		{
 			UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Component);
-			if (PrimComp && PrimComp->IsRegistered() && PrimComp->IsCollisionEnabled())
+			if (PrimComp && PrimComp->IsRegistered() && PrimComp->IsCollisionEnabled() && PrimComp->CanEverAffectNavigation())
 			{
 				UBodySetup* BodySetup = PrimComp->GetBodySetup();
 				if (BodySetup)
