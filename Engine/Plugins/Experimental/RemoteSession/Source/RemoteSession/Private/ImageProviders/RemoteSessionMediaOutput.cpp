@@ -43,15 +43,7 @@ void URemoteSessionMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureB
 	}
 }
 
-bool URemoteSessionMediaCapture::CaptureSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport)
-{
-	CacheValues();
-
-	SetState(EMediaCaptureState::Capturing);
-	return true;
-}
-
-bool URemoteSessionMediaCapture::CaptureRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget)
+bool URemoteSessionMediaCapture::InitializeCapture()
 {
 	CacheValues();
 

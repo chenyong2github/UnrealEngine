@@ -16,19 +16,16 @@ void UPixelStreamingMediaCapture::OnRHIResourceCaptured_RenderingThread(
 	}
 }
 
-bool UPixelStreamingMediaCapture::CaptureSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport)
+bool UPixelStreamingMediaCapture::InitializeCapture()
 {
-	Viewport = InSceneViewport;
 	SetupVideoInput();
 	SetState(EMediaCaptureState::Capturing);
 	return true;
 }
 
-bool UPixelStreamingMediaCapture::CaptureRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget)
+bool UPixelStreamingMediaCapture::PostInitializeCaptureViewport(TSharedPtr<FSceneViewport>& InSceneViewport)
 {
-	Viewport = nullptr;
-	SetupVideoInput();
-	SetState(EMediaCaptureState::Capturing);
+	Viewport = InSceneViewport;
 	return true;
 }
 

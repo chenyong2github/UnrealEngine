@@ -235,31 +235,23 @@ bool UAjaMediaCapture::ValidateMediaOutput() const
 	return true;
 }
 
-bool UAjaMediaCapture::CaptureSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport)
+bool UAjaMediaCapture::InitializeCapture()
 {
 	UAjaMediaOutput* AjaMediaSource = CastChecked<UAjaMediaOutput>(MediaOutput);
 	const bool bResult = InitAJA(AjaMediaSource);
 	if (bResult)
 	{
-		ApplyViewportTextureAlpha(InSceneViewport);
 #if WITH_EDITOR
-		AjaMediaCaptureAnalytics::SendCaptureEvent(AjaMediaSource->GetRequestedSize(), FrameRate, TEXT("SceneViewport"));
+		AjaMediaCaptureAnalytics::SendCaptureEvent(AjaMediaSource->GetRequestedSize(), FrameRate, GetCaptureSourceType());
 #endif
 	}
 	return bResult;
 }
 
-bool UAjaMediaCapture::CaptureRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget)
+bool UAjaMediaCapture::PostInitializeCaptureViewport(TSharedPtr<FSceneViewport>& InSceneViewport)
 {
-	UAjaMediaOutput* AjaMediaSource = CastChecked<UAjaMediaOutput>(MediaOutput);
-	bool bResult = InitAJA(AjaMediaSource);
-#if WITH_EDITOR
-	if (bResult)
-	{
-		AjaMediaCaptureAnalytics::SendCaptureEvent(AjaMediaSource->GetRequestedSize(), FrameRate, TEXT("RenderTarget"));
-	}
-#endif
-	return bResult;
+	ApplyViewportTextureAlpha(InSceneViewport);
+	return true;
 }
 
 bool UAjaMediaCapture::UpdateSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport)

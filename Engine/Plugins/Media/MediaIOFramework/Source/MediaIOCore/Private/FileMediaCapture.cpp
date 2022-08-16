@@ -136,31 +136,19 @@ void UFileMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& 
 	}
 }
 
-bool UFileMediaCapture::CaptureSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport)
+bool UFileMediaCapture::InitializeCapture()
 {
 	FModuleManager::Get().LoadModuleChecked<IImageWriteQueueModule>("ImageWriteQueue");
 	CacheMediaOutputValues();
 
 	SetState(EMediaCaptureState::Capturing);
+
 #if WITH_EDITOR
-	FileMediaCaptureAnalytics::SendCaptureEvent(ImageFormat, CompressionQuality, TEXT("SceneViewport"));
+	FileMediaCaptureAnalytics::SendCaptureEvent(ImageFormat, CompressionQuality, GetCaptureSourceType());
 #endif
+
 	return true;
 }
-
-
-bool UFileMediaCapture::CaptureRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget)
-{
-	FModuleManager::Get().LoadModuleChecked<IImageWriteQueueModule>("ImageWriteQueue");
-	CacheMediaOutputValues();
-
-	SetState(EMediaCaptureState::Capturing);
-#if WITH_EDITOR
-	FileMediaCaptureAnalytics::SendCaptureEvent(ImageFormat, CompressionQuality, TEXT("RenderTarget"));
-#endif
-	return true;
-}
-
 
 void UFileMediaCapture::CacheMediaOutputValues()
 {

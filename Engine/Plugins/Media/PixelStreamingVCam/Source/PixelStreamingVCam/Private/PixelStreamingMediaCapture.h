@@ -18,8 +18,8 @@ public:
 		TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData,
 		FTextureRHIRef InTexture) override;
 
-	virtual bool CaptureSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport) override;
-	virtual bool CaptureRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget) override;
+	virtual bool InitializeCapture() override;
+	virtual bool PostInitializeCaptureViewport(TSharedPtr<FSceneViewport>& InSceneViewport) override;
 	virtual bool ShouldCaptureRHIResource() const { return true; }
 	virtual void StopCaptureImpl(bool bAllowPendingFrameToBeProcess) override {}
 	//~ End UMediaCapture interface

@@ -347,30 +347,25 @@ bool UBlackmagicMediaCapture::ValidateMediaOutput() const
 	return true;
 }
 
-bool UBlackmagicMediaCapture::CaptureSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport)
+bool UBlackmagicMediaCapture::InitializeCapture()
 {
 	UBlackmagicMediaOutput* BlackmagicMediaOutput = CastChecked<UBlackmagicMediaOutput>(MediaOutput);
-	bool bResult = InitBlackmagic(BlackmagicMediaOutput);
-	if (bResult)
+	BlackmagicMediaOutputPixelFormat = BlackmagicMediaOutput->PixelFormat;
+	bool bInitialized = InitBlackmagic(BlackmagicMediaOutput);
+	if(bInitialized)
 	{
-		ApplyViewportTextureAlpha(InSceneViewport);
-		BlackmagicMediaOutputPixelFormat = BlackmagicMediaOutput->PixelFormat;
 #if WITH_EDITOR
-		BlackmagicMediaCaptureAnalytics::SendCaptureEvent(BlackmagicMediaOutput->GetRequestedSize(), FrameRate, TEXT("SceneViewport"));
+		BlackmagicMediaCaptureAnalytics::SendCaptureEvent(BlackmagicMediaOutput->GetRequestedSize(), FrameRate, GetCaptureSourceType());
 #endif
 	}
-	return bResult;
+
+	return bInitialized;
 }
 
-bool UBlackmagicMediaCapture::CaptureRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget)
+bool UBlackmagicMediaCapture::PostInitializeCaptureViewport(TSharedPtr<FSceneViewport>& InSceneViewport)
 {
-	UBlackmagicMediaOutput* BlackmagicMediaOutput = CastChecked<UBlackmagicMediaOutput>(MediaOutput);
-	bool bResult = InitBlackmagic(BlackmagicMediaOutput);
-	BlackmagicMediaOutputPixelFormat = BlackmagicMediaOutput->PixelFormat;
-#if WITH_EDITOR
-	BlackmagicMediaCaptureAnalytics::SendCaptureEvent(BlackmagicMediaOutput->GetRequestedSize(), FrameRate, TEXT("RenderTarget"));
-#endif
-	return bResult;
+	ApplyViewportTextureAlpha(InSceneViewport);
+	return true;
 }
 
 bool UBlackmagicMediaCapture::UpdateSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport)
