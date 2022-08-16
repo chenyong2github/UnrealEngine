@@ -26,7 +26,8 @@ UGSTab::UGSTab() : TabArgs(nullptr, FTabId()),
 				   TabWidget(SNew(SDockTab)),
 				   EmptyTabView(SNew(SEmptyTab).Tab(this)),
 				   GameSyncTabView(SNew(SGameSyncTab).Tab(this)),
-				   bHasQueuedMessages(false)
+				   bHasQueuedMessages(false),
+				   bNeedUpdateGameTabBuildList(false)
 {
 	Initialize(nullptr);
 }
@@ -200,6 +201,14 @@ bool UGSTab::OnWorkspaceChosen(const FString& Project)
 	}
 
 	return false;
+}
+
+void UGSTab::CancelSync()
+{
+	if (Workspace->IsBusy())
+	{
+		Workspace->CancelUpdate();
+	}
 }
 
 void UGSTab::OnSyncChangelist(int Changelist)
@@ -512,23 +521,28 @@ void UGSTab::OnWorkspaceSyncComplete(TSharedRef<UGSCore::FWorkspaceUpdateContext
 {
 	FScopeLock Lock(&CriticalSection);
 
-	WorkspaceSettings->CurrentChangeNumber     = Workspace->GetCurrentChangeNumber();
-	WorkspaceSettings->LastBuiltChangeNumber   = Workspace->GetLastBuiltChangeNumber();
-	WorkspaceSettings->LastSyncResult          = SyncResult;
-	WorkspaceSettings->LastSyncResultMessage   = StatusMessage;
-	WorkspaceSettings->LastSyncTime            = WorkspaceContext->StartTime;
+	if (SyncResult == UGSCore::EWorkspaceUpdateResult::Success)
+	{
+		WorkspaceSettings->CurrentChangeNumber   = Workspace->GetCurrentChangeNumber();
+		WorkspaceSettings->LastBuiltChangeNumber = Workspace->GetLastBuiltChangeNumber();
+
+		// Queue up setting the changelist text on the main thread
+		QueueMessageForMainThread([this] {
+			GameSyncTabView->SetChangelistText(WorkspaceSettings->CurrentChangeNumber);
+		});
+
+		// TODO hacky, but allows us to highlight which CL we have synced to in the list
+		bNeedUpdateGameTabBuildList = true;
+	}
+
+	WorkspaceSettings->LastSyncResult        = SyncResult;
+	WorkspaceSettings->LastSyncResultMessage = StatusMessage;
+	WorkspaceSettings->LastSyncTime          = WorkspaceContext->StartTime;
+
 	// TODO check this is valid, may be off
 	WorkspaceSettings->LastSyncDurationSeconds = (FDateTime::UtcNow() - WorkspaceContext->StartTime).GetSeconds();
 
-	// Queue up setting the changelist text on the main thread
-	QueueMessageForMainThread([this] {
-		GameSyncTabView->SetChangelistText(WorkspaceSettings->CurrentChangeNumber);
-	});
-
 	UserSettings->Save();
-
-	// TODO hacky, but allows us to highlight which CL we have synced to in the list
-	bNeedUpdateGameTabBuildList = true;
 }
 
 void UGSTab::SetupWorkspace()

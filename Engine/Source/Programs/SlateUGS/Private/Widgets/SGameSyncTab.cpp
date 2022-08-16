@@ -182,7 +182,6 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 		.Padding(10.0f, 5.0f)
 		[
 			SNew(SBorder)
-			.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
 			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 			[
 				SNew(SHorizontalBox)
@@ -201,6 +200,16 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						[
 							MakeSyncButtonDropdown()
 						]
+						.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
+					]
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SSimpleButton)
+						.Text(LOCTEXT("CancelSync", "Cancel"))
+						.Icon(FAppStyle::Get().GetBrush("Icons.X"))
+						.OnClicked_Lambda([this] { Tab->CancelSync(); return FReply::Handled(); })
+						.IsEnabled_Lambda([this] { return Tab->IsSyncing(); })
 					]
 					+SHorizontalBox::Slot()
 					.AutoWidth()
@@ -214,6 +223,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					[
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("Build", "Build"))
+						.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
 						.IsEnabled(false) // Todo: enable after adding this functionality
 					]
 					+SHorizontalBox::Slot()
@@ -223,6 +233,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						.Text(LOCTEXT("RunUnrealEditor", "Run Unreal Editor"))
 						.Icon(FAppStyle::Get().GetBrush("Icons.Launch"))
 						.HasDownArrow(true)
+						.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
 						.IsEnabled(false) // Todo: enable after adding this functionality
 					]
 					+SHorizontalBox::Slot()
@@ -231,6 +242,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("OpenSolution", "OpenSolution"))
 						.Icon(FAppStyle::Get().GetBrush("MainFrame.OpenVisualStudio")) // Todo: shouldn't use this icon (repurposing, also could use other IDEs)
+						.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
 						.IsEnabled(false) // Todo: enable after adding this functionality
 					]
 				]
@@ -267,6 +279,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("CleanSolution", "Clean Solution"))
 						.Icon(FAppStyle::Get().GetBrush("GraphEditor.Clean")) // Todo: shouldn't use this icon (repurposing)
+						.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
 						.IsEnabled(false) // Todo: enable after adding this functionality
 					]
 					+SHorizontalBox::Slot()

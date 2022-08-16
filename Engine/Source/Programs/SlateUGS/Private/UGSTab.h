@@ -66,6 +66,8 @@ public:
 	UGSTabManager* GetTabManager();
 	TSharedPtr<UGSCore::FUserSettings> GetUserSettings() const;
 
+	void CancelSync();
+
 private:
 	void OnWorkspaceSyncComplete(
 		TSharedRef<UGSCore::FWorkspaceUpdateContext, ESPMode::ThreadSafe> WorkspaceContext,
@@ -108,5 +110,5 @@ private:
 	TArray<TFunction<void()>> MessageQueue;
 	std::atomic<bool> bHasQueuedMessages;
 
-	bool bNeedUpdateGameTabBuildList = false;
+	std::atomic<bool> bNeedUpdateGameTabBuildList;
 };

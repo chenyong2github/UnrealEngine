@@ -84,7 +84,7 @@ struct FPerforceExe
 		return ExecutablePath;
 	}
 
-	inline int InnerRunCommand(const FString& CommandLine, TArray<FString>& OutLines)
+	inline int InnerRunCommand(const FString& CommandLine, TArray<FString>& OutLines, FEvent* AbortEvent)
 	{
 		uint32 ProcId;
 		void* ReadPipe = nullptr;
@@ -99,7 +99,12 @@ struct FPerforceExe
 		{
 			P4Output += LatestOutput;
 			LatestOutput = FPlatformProcess::ReadPipe(ReadPipe);
-			FPlatformProcess::Sleep(0);
+
+			if (AbortEvent->Wait(FTimespan::Zero()))
+			{
+				FPlatformProcess::TerminateProc(P4Proc);
+				return -1;
+			}
 		}
 
 		FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
@@ -117,11 +122,11 @@ struct FPerforceExe
 		return -1;
 	}
 
-	int RunCommand(const FString& CommandLine, TArray<FString>& OutLines)
+	int RunCommand(const FString& CommandLine, TArray<FString>& OutLines, FEvent* AbortEvent)
 	{
 		if (bValidP4)
 		{
-			return InnerRunCommand(CommandLine, OutLines);
+			return InnerRunCommand(CommandLine, OutLines, AbortEvent);
 		}
 
 		return -1;
@@ -1123,7 +1128,7 @@ bool FPerforceConnection::RunCommand(const FString& CommandLine, EPerforceOutput
 
 	TArray<FString> RawOutputLines;
 
-	int ExitCode = GPerforceExe.RunCommand(FullCommandLine, RawOutputLines);
+	int ExitCode = GPerforceExe.RunCommand(FullCommandLine, RawOutputLines, AbortEvent);
 	if (ExitCode != 0 && !EnumHasAnyFlags(Options, ECommandOptions::IgnoreExitCode))
 	{
 		return false;
@@ -1153,7 +1158,7 @@ bool FPerforceConnection::RunCommand(const FString& CommandLine, const TCHAR* In
 
 	TArray<FString> RawOutputLines;
 
-	int ExitCode = GPerforceExe.RunCommand(FullCommandLine, RawOutputLines);
+	int ExitCode = GPerforceExe.RunCommand(FullCommandLine, RawOutputLines, AbortEvent);
 
 	// TODO check this vs the old way as things *may* have changed. Before they were handling each line as it was coming
 	// back from the process. here we just spin + collect all the output. Then try to process all the output, then if the
@@ -1408,8 +1413,8 @@ bool FPerforceConnection::RunCommandWithBinaryOutput(const FString& CommandLine,
 
 	uint32 ProcId;
 	void* ReadPipe = nullptr;
-    void* WritePipe = nullptr;
-    FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
+	void* WritePipe = nullptr;
+	FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
 
 	FProcHandle P4Proc = FPlatformProcess::CreateProc(*GPerforceExe.GetPerforceExe(), *FullCommandLine, false, true, true, &ProcId, 0, nullptr, WritePipe, ReadPipe);
 
@@ -1425,6 +1430,7 @@ bool FPerforceConnection::RunCommandWithBinaryOutput(const FString& CommandLine,
 		// Check that we don't have an abort event
 		if (AbortEvent->Wait(FTimespan::Zero()))
 		{
+			FPlatformProcess::TerminateProc(P4Proc);
 			return false;
 			//throw FAbortException();
 		}
@@ -1446,6 +1452,7 @@ bool FPerforceConnection::RunCommandWithBinaryOutput(const FString& CommandLine,
 			}
 			else if(AbortEvent->Wait(FTimespan::FromMilliseconds(50)))
 			{
+				FPlatformProcess::TerminateProc(P4Proc);
 				return false;
 				//throw FAbortException();
 			}
@@ -1480,7 +1487,7 @@ bool FPerforceConnection::RunCommandWithBinaryOutput(const FString& CommandLine,
 		}
 	}
 
-    FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
+	FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
 
 	int ExitCode = -1;
 

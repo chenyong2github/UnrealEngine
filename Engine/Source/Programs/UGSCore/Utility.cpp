@@ -115,21 +115,26 @@ int FUtility::ExecuteProcess(const TCHAR* FileName, const TCHAR* CommandLine, co
 {
 	uint32 ProcId;
 	void* ReadPipe = nullptr;
-    void* WritePipe = nullptr;
-    FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
+	void* WritePipe = nullptr;
+	FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
 
 	FProcHandle Proc = FPlatformProcess::CreateProc(FileName, CommandLine, false, true, true, &ProcId, 0, nullptr, WritePipe, ReadPipe);
 
 	FString Output;
-    FString LatestOutput = FPlatformProcess::ReadPipe(ReadPipe);
-    while (FPlatformProcess::IsProcRunning(Proc) || !LatestOutput.IsEmpty())
-    {
-        Output += LatestOutput;
-        LatestOutput = FPlatformProcess::ReadPipe(ReadPipe);
-		FPlatformProcess::Sleep(0);
-    }
+	FString LatestOutput = FPlatformProcess::ReadPipe(ReadPipe);
+	while (FPlatformProcess::IsProcRunning(Proc) || !LatestOutput.IsEmpty())
+	{
+		Output += LatestOutput;
+		LatestOutput = FPlatformProcess::ReadPipe(ReadPipe);
 
-    FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
+		if (AbortEvent->Wait(FTimespan::Zero()))
+		{
+			FPlatformProcess::TerminateProc(Proc);
+			return -1;
+		}
+	}
+
+	FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
 
 	// TODO worried this may not always work for say p4 servers sending out only \n on Windows host
 	Output.ParseIntoArray(OutLines, LINE_TERMINATOR);
@@ -149,14 +154,14 @@ int FUtility::ExecuteProcess(const TCHAR* FileName, const TCHAR* CommandLine, co
 {
 	uint32 ProcId;
 	void* ReadPipe = nullptr;
-    void* WritePipe = nullptr;
-    FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
+	void* WritePipe = nullptr;
+	FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
 
 	FProcHandle Proc = FPlatformProcess::CreateProc(FileName, CommandLine, false, true, true, &ProcId, 0, nullptr, WritePipe, ReadPipe);
 
-    FString LatestOutput = FPlatformProcess::ReadPipe(ReadPipe);
-    while (FPlatformProcess::IsProcRunning(Proc) || !LatestOutput.IsEmpty())
-    {
+	FString LatestOutput = FPlatformProcess::ReadPipe(ReadPipe);
+	while (FPlatformProcess::IsProcRunning(Proc) || !LatestOutput.IsEmpty())
+	{
 		// Check if we end up having a perfect data blob, with a perfect amount of lines
 		bool bEndsWithLineTerminator = LatestOutput.EndsWith(LINE_TERMINATOR);
 
@@ -180,10 +185,15 @@ int FUtility::ExecuteProcess(const TCHAR* FileName, const TCHAR* CommandLine, co
 		}
 
 		LatestOutput = LeftOverLine + FPlatformProcess::ReadPipe(ReadPipe);
-		FPlatformProcess::Sleep(0);
-    }
 
-    FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
+		if (AbortEvent->Wait(FTimespan::Zero()))
+		{
+			FPlatformProcess::TerminateProc(Proc);
+			return -1;
+		}
+	}
+
+	FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
 
 	int ExitCode = -1;
 	bool GotReturnCode = FPlatformProcess::GetProcReturnCode(Proc, &ExitCode);
