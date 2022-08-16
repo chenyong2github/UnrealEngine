@@ -575,16 +575,8 @@ void UObjectForceRegistration(UObjectBase* Object, bool bCheckForModuleRelease)
 void RegisterCompiledInInfo(class UScriptStruct* (*InOuterRegister)(), const TCHAR* InPackageName, const TCHAR* InName, FStructRegistrationInfo& InInfo, const FStructReloadVersionInfo& InVersionInfo)
 {
 	check(InOuterRegister);
-	FStructDeferredRegistry::Get().AddRegistration(InOuterRegister, nullptr, InPackageName, InName, InInfo, InVersionInfo, nullptr);
+	FStructDeferredRegistry::Get().AddRegistration(InOuterRegister, nullptr, InPackageName, InName, InInfo, InVersionInfo);
 	NotifyRegistrationEvent(InPackageName, InName, ENotifyRegistrationType::NRT_Struct, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InOuterRegister), false);
-}
-
-// [DEPRECATED] - Legacy implementation that will be removed later. Also note that dynamic struct types are no longer supported here.
-void UObjectCompiledInDeferStruct(class UScriptStruct* (*InRegister)(), const TCHAR* PackageName, const TCHAR* ObjectName, bool /*bDynamic*/, const TCHAR* /*DynamicPathName*/)
-{
-	FStructDeferredRegistry& Registry = FStructDeferredRegistry::Get();
-	FStructRegistrationInfo& Info = Registry.MakeDeprecatedInfo(PackageName, ObjectName);
-	Registry.AddRegistration(nullptr, InRegister, PackageName, ObjectName, Info, FStructReloadVersionInfo{}, nullptr);
 }
 
 class UScriptStruct *GetStaticStruct(class UScriptStruct *(*InRegister)(), UObject* StructOuter, const TCHAR* StructName)
@@ -599,16 +591,8 @@ class UScriptStruct *GetStaticStruct(class UScriptStruct *(*InRegister)(), UObje
 void RegisterCompiledInInfo(class UEnum* (*InOuterRegister)(), const TCHAR* InPackageName, const TCHAR* InName, FEnumRegistrationInfo& InInfo, const FEnumReloadVersionInfo& InVersionInfo)
 {
 	check(InOuterRegister);
-	FEnumDeferredRegistry::Get().AddRegistration(InOuterRegister, nullptr, InPackageName, InName, InInfo, InVersionInfo, nullptr);
+	FEnumDeferredRegistry::Get().AddRegistration(InOuterRegister, nullptr, InPackageName, InName, InInfo, InVersionInfo);
 	NotifyRegistrationEvent(InPackageName, InName, ENotifyRegistrationType::NRT_Enum, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InOuterRegister), false);
-}
-
-// [DEPRECATED] - Legacy implementation that will be removed later. Also note that dynamic enum types are no longer supported here.
-void UObjectCompiledInDeferEnum(class UEnum* (*InRegister)(), const TCHAR* PackageName, const TCHAR* ObjectName, bool /*bDynamic*/, const TCHAR* /*DynamicPathName*/)
-{
-	FEnumDeferredRegistry& Registry = FEnumDeferredRegistry::Get();
-	FEnumRegistrationInfo& Info = Registry.MakeDeprecatedInfo(PackageName, ObjectName);
-	Registry.AddRegistration(InRegister, InRegister, PackageName, ObjectName, Info, FEnumReloadVersionInfo{}, nullptr);
 }
 
 class UEnum *GetStaticEnum(class UEnum *(*InRegister)(), UObject* EnumOuter, const TCHAR* EnumName)
@@ -652,7 +636,7 @@ void RegisterCompiledInInfo(class UClass* (*InOuterRegister)(), class UClass* (*
 {
 	check(InOuterRegister);
 	check(InInnerRegister);
-	FClassDeferredRegistry::AddResult result = FClassDeferredRegistry::Get().AddRegistration(InOuterRegister, InInnerRegister, InPackageName, InName, InInfo, InVersionInfo, nullptr);
+	FClassDeferredRegistry::AddResult result = FClassDeferredRegistry::Get().AddRegistration(InOuterRegister, InInnerRegister, InPackageName, InName, InInfo, InVersionInfo);
 #if WITH_RELOAD
 	if (result == FClassDeferredRegistry::AddResult::ExistingChanged && !IsReloadActive())
 	{
@@ -665,49 +649,13 @@ void RegisterCompiledInInfo(class UClass* (*InOuterRegister)(), class UClass* (*
 	NotifyRegistrationEvent(InPackageName, *(FString(DEFAULT_OBJECT_PREFIX) + NoPrefix), ENotifyRegistrationType::NRT_ClassCDO, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InOuterRegister), false);
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-void UClassCompiledInDefer(FFieldCompiledInInfo* ClassInfo, const TCHAR* Name, SIZE_T ClassSize, uint32 Crc)
-{
-	FClassDeferredRegistry& Registry = FClassDeferredRegistry::Get();
-	FClassRegistrationInfo& Info = Registry.MakeDeprecatedInfo(ClassInfo->ClassPackage(), Name);
-	Registry.AddRegistration(nullptr, nullptr, ClassInfo->ClassPackage(), Name, Info, CONSTRUCT_RELOAD_VERSION_INFO(FClassReloadVersionInfo, ClassSize, Crc), ClassInfo);
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-// [DEPRECATED] - Legacy implementation that will be removed later. Also note that dynamic class types are no longer supported here.
-void UObjectCompiledInDefer(UClass *(*InRegister)(), UClass *(*InStaticClass)(), const TCHAR* Name, const TCHAR* PackageName, bool /*bDynamic*/, const TCHAR* /*DynamicPathName*/, void (*InInitSearchableValues)(TMap<FName, FName>&))
-{
-	// Either add all classes if not hot-reloading, or those which have changed
-	FClassDeferredRegistry& ClassRegistry = FClassDeferredRegistry::Get();
-	FClassRegistrationInfo& Info = ClassRegistry.MakeDeprecatedInfo(PackageName, Name);
-
-	// This is slow, but is deprecated.
-	for (FClassDeferredRegistry::FRegistrant& Registrant : ClassRegistry.GetRegistrations())
-	{
-		if (Registrant.Info == &Info)
-		{
-#if WITH_RELOAD
-			if (Registrant.bHasChanged)
-#endif
-			{
-				// This will probably need to be moved
-				FString NoPrefix(UObjectBase::RemoveClassPrefix(Name));
-				NotifyRegistrationEvent(PackageName, *NoPrefix, ENotifyRegistrationType::NRT_Class, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InRegister), false);
-				NotifyRegistrationEvent(PackageName, *(FString(DEFAULT_OBJECT_PREFIX) + NoPrefix), ENotifyRegistrationType::NRT_ClassCDO, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InRegister), false);
-			}
-			Registrant.OuterRegisterFn = InRegister;
-			break;
-		}
-	}
-}
-
 // UPackage registration
 
 void RegisterCompiledInInfo(UPackage* (*InOuterRegister)(), const TCHAR* InPackageName, FPackageRegistrationInfo& InInfo, const FPackageReloadVersionInfo& InVersionInfo)
 {
 #if WITH_RELOAD
 	check(InOuterRegister);
-	FPackageDeferredRegistry::Get().AddRegistration(reinterpret_cast<class UPackage* (*)()>(InOuterRegister), nullptr, TEXT(""), InPackageName, InInfo, InVersionInfo, nullptr);
+	FPackageDeferredRegistry::Get().AddRegistration(reinterpret_cast<class UPackage* (*)()>(InOuterRegister), nullptr, TEXT(""), InPackageName, InInfo, InVersionInfo);
 #endif
 }
 

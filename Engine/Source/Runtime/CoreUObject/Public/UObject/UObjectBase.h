@@ -368,12 +368,6 @@ COREUOBJECT_API void RegisterCompiledInInfo(class UScriptStruct* (*InOuterRegist
  */
 COREUOBJECT_API class UScriptStruct* GetStaticStruct(class UScriptStruct* (*InRegister)(), UObject* StructOuter, const TCHAR* StructName);
 
-UE_DEPRECATED(5.0, "GetStaticStruct with size and hash has been deprecated, use the version without the size and hash.")
-inline class UScriptStruct* GetStaticStruct(class UScriptStruct* (*InRegister)(), UObject* StructOuter, const TCHAR* StructName, SIZE_T Size, uint32 Hash)
-{
-	return GetStaticStruct(InRegister, StructOuter, StructName);
-}
-
 /**
  * Reload version information for enumerations
  */
@@ -436,115 +430,6 @@ COREUOBJECT_API void RegisterCompiledInInfo(UPackage* (*InOuterRegister)(), cons
  * Register compiled in information for multiple classes, structures, and enumerations
  */
 COREUOBJECT_API void RegisterCompiledInInfo(const TCHAR* PackageName, const FClassRegisterCompiledInInfo* ClassInfo, size_t NumClassInfo, const FStructRegisterCompiledInInfo* StructInfo, size_t NumStructInfo, const FEnumRegisterCompiledInInfo* EnumInfo, size_t NumEnumInfo);
-
-/**
- * Base class for deferred native class registration
- */
-struct UE_DEPRECATED(5.0, "FFieldCompiledInInfo has been deprecated, use the RegistrationInfo structures below.") FFieldCompiledInInfo
-{
-	FFieldCompiledInInfo(SIZE_T InClassSize, uint32 InCrc)
-		: Size(InClassSize)
-		, Crc(InCrc)
-		, OldClass(nullptr)
-		, bHasChanged(false)
-	{
-	}
-
-	/** Registers the native class (constructs a UClass object) */
-	virtual UClass* Register() const = 0;
-
-	/** Return the package the class belongs in */
-	virtual const TCHAR* ClassPackage() const = 0;
-
-	/** Size of the class */
-	SIZE_T Size;
-	/** CRC of the generated code for this class */
-	uint32 Crc;
-	/** Old UClass object */
-	UClass* OldClass;
-	/** True if this class has changed after hot-reload (or new class) */
-	bool bHasChanged;
-};
-
-/**
-* Adds a class to deferred registration queue.
-*/
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-UE_DEPRECATED(5.0, "UClassCompiledInDefer has been deprecated, use RegisterCompiledInInfo.")
-COREUOBJECT_API void UClassCompiledInDefer(FFieldCompiledInInfo* Class, const TCHAR* Name, SIZE_T ClassSize, uint32 Crc);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-/**
- * Specialized version of the deferred class registration structure.
- */
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-template <typename TClass>
-struct UE_DEPRECATED(5.0, "TClassCompiledInDefer has been deprecated, use FRegisterCompiledInInfo.") TClassCompiledInDefer : public FFieldCompiledInInfo
-{
-	TClassCompiledInDefer(const TCHAR* InName, SIZE_T InClassSize, uint32 InCrc)
-	: FFieldCompiledInInfo(InClassSize, InCrc)
-	{
-		UClassCompiledInDefer(this, InName, InClassSize, InCrc);
-	}
-	virtual UClass* Register() const override
-	{
-        LLM_SCOPE(ELLMTag::UObject);
-		return TClass::StaticClass();
-	}
-	virtual const TCHAR* ClassPackage() const override
-	{
-		return TClass::StaticPackage();
-	}
-};
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-/**
- * Stashes the singleton function that builds a compiled in class. Later, this is executed.
- */
-UE_DEPRECATED(5.0, "UObjectCompiledInDefer has been deprecated, use RegisterCompiledInInfo.")
-COREUOBJECT_API void UObjectCompiledInDefer(class UClass *(*InRegister)(), class UClass *(*InStaticClass)(), const TCHAR* Name, const TCHAR* PackageName, bool bDynamic, const TCHAR* DynamicPathName, void (*InInitSearchableValues)(TMap<FName, FName>&));
-
-struct UE_DEPRECATED(5.0, "FCompiledInDefer has been deprecated, use FRegisterCompiledInInfo.") FCompiledInDefer
-{
-	FCompiledInDefer(class UClass *(*InRegister)(), class UClass *(*InStaticClass)(), const TCHAR* PackageName, const TCHAR* Name, bool bDynamic, const TCHAR* DynamicPackageName = nullptr, const TCHAR* DynamicPathName = nullptr, void (*InInitSearchableValues)(TMap<FName, FName>&) = nullptr)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		UObjectCompiledInDefer(InRegister, InStaticClass, Name, PackageName, bDynamic, DynamicPathName, InInitSearchableValues);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-};
-
-/**
- * Stashes the singleton function that builds a compiled in struct (StaticStruct). Later, this is executed.
- */
-UE_DEPRECATED(5.0, "UObjectCompiledInDeferStruct has been deprecated, use RegisterCompiledInInfo.")
-COREUOBJECT_API void UObjectCompiledInDeferStruct(class UScriptStruct *(*InRegister)(), const TCHAR* PackageName, const TCHAR* ObjectName, bool bDynamic, const TCHAR* DynamicPathName);
-
-struct UE_DEPRECATED(5.0, "FCompiledInDeferStruct has been deprecated, use FRegisterCompiledInInfo.") FCompiledInDeferStruct
-{
-	FCompiledInDeferStruct(class UScriptStruct *(*InRegister)(), const TCHAR* PackageName, const TCHAR* Name, bool bDynamic, const TCHAR* DynamicPackageName, const TCHAR* DynamicPathName)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		UObjectCompiledInDeferStruct(InRegister, PackageName, Name, bDynamic, DynamicPathName);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-};
-
-/**
- * Stashes the singleton function that builds a compiled in enum. Later, this is executed.
- */
-UE_DEPRECATED(5.0, "UObjectCompiledInDeferEnum has been deprecated, use RegisterCompiledInInfo.")
-COREUOBJECT_API void UObjectCompiledInDeferEnum(class UEnum *(*InRegister)(), const TCHAR* PackageName, const TCHAR* ObjectName, bool bDynamic, const TCHAR* DynamicPathName);
-
-struct UE_DEPRECATED(5.0, "FCompiledInDeferEnum has been deprecated, use FRegisterCompiledInInfo.") FCompiledInDeferEnum
-{
-	FCompiledInDeferEnum(class UEnum *(*InRegister)(), const TCHAR* PackageName, const TCHAR* Name, bool bDynamic, const TCHAR* DynamicPackageName, const TCHAR* DynamicPathName)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		UObjectCompiledInDeferEnum(InRegister, PackageName, Name, bDynamic, DynamicPathName);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-};
 
 // @todo: BP2CPP_remove
 /** Called during HotReload to hook up an existing structure */
