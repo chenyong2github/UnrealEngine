@@ -402,8 +402,14 @@ bool ULevelSequenceEditorSubsystem::PasteTracks(const FString& InTextToImport, F
 
 void ULevelSequenceEditorSubsystem::CopyBindings(const TArray<FMovieSceneBindingProxy>& Bindings, FString& ExportedText)
 {
+	TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
+	if (Sequencer == nullptr)
+	{
+		return;
+	}
+
 	TArray<UMovieSceneFolder*> Folders;
-	FSequencerUtilities::CopyBindings(Bindings, Folders, ExportedText);
+	FSequencerUtilities::CopyBindings(Sequencer.ToSharedRef(), Bindings, Folders, ExportedText);
 	FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
 }
 

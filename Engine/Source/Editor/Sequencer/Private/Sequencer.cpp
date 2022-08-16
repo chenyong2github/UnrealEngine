@@ -7842,7 +7842,7 @@ void FSequencer::CopySelectedObjects(TArray<TSharedPtr<UE::Sequencer::FObjectBin
 		}
 	}
 
-	FSequencerUtilities::CopyBindings(Bindings, Folders, ExportedText);
+	FSequencerUtilities::CopyBindings(AsShared(), Bindings, Folders, ExportedText);
 		
 	// Make sure to clear the clipboard for the keys
 	GClipboardStack.Empty();

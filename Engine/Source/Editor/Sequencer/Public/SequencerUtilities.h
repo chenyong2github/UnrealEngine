@@ -169,7 +169,7 @@ struct SEQUENCER_API FSequencerUtilities
 	static bool CanPasteSections(const FString& TextToImport);
 
 	/** Copy/paste object bindings */
-	static void CopyBindings(const TArray<FMovieSceneBindingProxy>& Bindings, const TArray<UMovieSceneFolder*>& InFolders, FString& ExportedText);
+	static void CopyBindings(TSharedRef<ISequencer> Sequencer, const TArray<FMovieSceneBindingProxy>& Bindings, const TArray<UMovieSceneFolder*>& InFolders, FString& ExportedText);
 	static bool PasteBindings(const FString& TextToImport, TSharedRef<ISequencer> Sequencer, FMovieScenePasteBindingsParams PasteBindingsParams, TArray<FMovieSceneBindingProxy>& OutBindings, TArray<FNotificationInfo>& OutErrors);
 	static bool CanPasteBindings(TSharedRef<ISequencer> Sequencer, const FString& TextToImport);
 

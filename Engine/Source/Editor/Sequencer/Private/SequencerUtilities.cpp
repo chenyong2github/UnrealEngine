@@ -1852,7 +1852,7 @@ void ExportObjectBindingsToText(const TArray<UMovieSceneCopyableBinding*>& Objec
 	ExportedText = Archive;
 }
 
-void FSequencerUtilities::CopyBindings(const TArray<FMovieSceneBindingProxy>& Bindings, const TArray<UMovieSceneFolder*>& InFolders, FString& ExportedText)
+void FSequencerUtilities::CopyBindings(TSharedRef<ISequencer> Sequencer, const TArray<FMovieSceneBindingProxy>& Bindings, const TArray<UMovieSceneFolder*>& InFolders, FString& ExportedText)
 {
 	TArray<UMovieSceneCopyableBinding*> Objects;
 	for (const FMovieSceneBindingProxy& ObjectBinding : Bindings)
@@ -1870,6 +1870,15 @@ void FSequencerUtilities::CopyBindings(const TArray<FMovieSceneBindingProxy>& Bi
 		if (Possessable)
 		{
 			CopyableBinding->Possessable = *Possessable;
+
+			// Store the names of the bound objects so that they can be found on paste
+			for (TWeakObjectPtr<> RuntimeObject : Sequencer->FindBoundObjects(CopyableBinding->Possessable.GetGuid(), Sequencer->GetFocusedTemplateID()))
+			{
+				if (AActor* Actor = Cast<AActor>(RuntimeObject.Get()))
+				{
+					CopyableBinding->BoundObjectNames.Add(Actor->GetName());
+				}
+			}
 		}
 		else
 		{
@@ -2008,6 +2017,7 @@ bool FSequencerUtilities::PasteBindings(const FString& TextToImport, TSharedRef<
 
 	TMap<FGuid, FGuid> OldToNewGuidMap;
 	TArray<FGuid> PossessableGuids;
+	TArray<TArray<FString> > PossessableObjectNames;
 	TArray<FGuid> SpawnableGuids;
 	TMap<FGuid, UMovieSceneFolder*> GuidToFolderMap;
 
@@ -2075,12 +2085,13 @@ bool FSequencerUtilities::PasteBindings(const FString& TextToImport, TSharedRef<
 				}
 
 				TArray<AActor*> ActorsToDuplicate;
-				for (auto RuntimeObject : Sequencer->FindBoundObjects(CopyableBinding->Possessable.GetGuid(), Sequencer->GetFocusedTemplateID()))
+				for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
 				{
-					AActor* Actor = Cast<AActor>(RuntimeObject.Get());
-					if (Actor)
+					AActor* Actor = *ActorItr;
+					if (Actor && CopyableBinding->BoundObjectNames.Contains(Actor->GetName()))
 					{
 						ActorsToDuplicate.Add(Actor);
+						CopyableBinding->BoundObjectNames.Remove(Actor->GetName());
 					}
 				}
 
@@ -2109,15 +2120,19 @@ bool FSequencerUtilities::PasteBindings(const FString& TextToImport, TSharedRef<
 						if (Actor)
 						{
 							DuplicatedActors.Add(Actor);
+
+							CopyableBinding->BoundObjectNames.Add(Actor->GetName());
 						}
 					}
 
 					// Bind the duplicated actors
 					if (DuplicatedActors.Num())
 					{
-						ReplaceBindingWithActors(Sequencer, DuplicatedActors, FMovieSceneBindingProxy(NewGuid, Sequence));
+						AddActorsToBinding(Sequencer, DuplicatedActors, FMovieSceneBindingProxy(NewGuid, Sequence));
 					}
 				}
+
+				PossessableObjectNames.Add(CopyableBinding->BoundObjectNames);
 			}
 			else if (CopyableBinding->Spawnable.GetGuid().IsValid())
 			{
@@ -2197,7 +2212,7 @@ bool FSequencerUtilities::PasteBindings(const FString& TextToImport, TSharedRef<
 			for (TActorIterator<AActor> ActorItr(PlaybackContext); ActorItr; ++ActorItr)
 			{
 				AActor* Actor = *ActorItr;
-				if (Actor && Actor->GetActorLabel() == *Possessable->GetName())
+				if (Actor && PossessableGuidIndex < PossessableObjectNames.Num() && PossessableObjectNames[PossessableGuidIndex].Contains(Actor->GetName()))
 				{
 					FGuid ExistingGuid = Sequencer->FindObjectId(*Actor, Sequencer->GetFocusedTemplateID());
 

@@ -44,5 +44,8 @@ public:
 	FMovieScenePossessable Possessable;
 
 	UPROPERTY()
+	TArray<FString> BoundObjectNames;
+
+	UPROPERTY()
 	TArray<FName> FolderPath;
 };
