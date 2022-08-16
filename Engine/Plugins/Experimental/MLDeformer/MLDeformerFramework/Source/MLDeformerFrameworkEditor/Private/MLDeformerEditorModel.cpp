@@ -901,11 +901,11 @@ namespace UE::MLDeformer
 			else
 			if (Model->DoesSupportCurves() && Model->ShouldIncludeCurvesInTraining())
 			{
-				ErrorString += FText(LOCTEXT("InputsEmptyCurvesErrorText", "Your base mesh has no curves to train on.\n")).ToString();
+				ErrorString += FText(LOCTEXT("InputsNoCurvesToTrainText", "Your base mesh has no curves to train on.\n")).ToString();
 			}
 			else
 			{
-				ErrorString += FText(LOCTEXT("InputsEmptyCurvesErrorText", "The training process needs inputs.\n")).ToString();
+				ErrorString += FText(LOCTEXT("InputsNeededErrorText", "The training process needs inputs.\n")).ToString();
 			}
 
 			ErrorString.RemoveFromEnd("\n");
