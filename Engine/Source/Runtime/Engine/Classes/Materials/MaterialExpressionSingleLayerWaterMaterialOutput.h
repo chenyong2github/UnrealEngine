@@ -13,11 +13,11 @@ class UMaterialExpressionSingleLayerWaterMaterialOutput : public UMaterialExpres
 {
 	GENERATED_UCLASS_BODY()
 
-	/** Input for scattering coefficient describing how light scatter around and is absorbed. Valid range is [0,+inf[. */
+	/** Input for scattering coefficient describing how light scatter around and is absorbed. Valid range is [0,+inf[. Unit is 1/cm. */
 	UPROPERTY()
 	FExpressionInput ScatteringCoefficients;
 
-	/** Input for scattering coefficient describing how light bounce is absorbed. Valid range is [0,+inf[. */
+	/** Input for scattering coefficient describing how light bounce is absorbed. Valid range is [0,+inf[. Unit is 1/cm. */
 	UPROPERTY()
 	FExpressionInput AbsorptionCoefficients;
 		
