@@ -299,13 +299,22 @@ void FEnvironmentQueryEditor::OnSelectedNodesChanged(const TSet<class UObject*>&
 		}
 	}
 
-	if (Selection.Num() == 1)
+	TSharedPtr<FTabManager> TabManagerPtr = GetTabManager();
+	if (TabManagerPtr)
 	{
-		DetailsView->SetObjects(Selection);
+		TabManagerPtr->TryInvokeTab(EQSPropertiesTabId);
 	}
-	else
+	
+	if (DetailsView)
 	{
-		DetailsView->SetObject(NULL);
+		if (Selection.Num() == 1)
+		{
+			DetailsView->SetObjects(Selection);
+		}
+		else
+		{
+			DetailsView->SetObject(NULL);
+		}
 	}
 }
 
