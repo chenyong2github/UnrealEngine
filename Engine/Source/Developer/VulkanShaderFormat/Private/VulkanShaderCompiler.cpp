@@ -2055,7 +2055,6 @@ static bool CompileWithShaderConductor(
 
 	// Inject additional macro definitions to circumvent missing features: external textures
 	FShaderCompilerDefinitions AdditionalDefines;
-	AdditionalDefines.SetDefine(TEXT("TextureExternal"), TEXT("Texture2D"));
 
 	if (bDebugDump)
 	{

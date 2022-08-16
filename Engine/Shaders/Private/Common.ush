@@ -122,7 +122,7 @@ const static float3 Max111110BitsFloat3 = float3(Max11BitsFloat, Max11BitsFloat,
 #define SetSceneColorLayoutToFloat4(dest,value) dest.rgb = (value).rgb
 #endif
 
-#define SUPPORTS_TEXTURE_EXTERNAL		(COMPILER_GLSL_ES3_1 || COMPILER_VULKAN)
+#define SUPPORTS_TEXTURE_EXTERNAL		(COMPILER_GLSL_ES3_1)
 
 #if !SUPPORTS_TEXTURE_EXTERNAL
 #define TextureExternal Texture2D
