@@ -121,7 +121,7 @@ FSlateIcon UFractureToolMergeSelected::GetToolIcon() const
 
 void UFractureToolMergeSelected::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "MergeSelected", "Merge", "Merge all selected nodes into one node.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "MergeSelected", "GeoMrg", "Merge all selected nodes into one node.", EUserInterfaceActionType::Button, FInputChord());
 	BindingContext->MergeSelected = UICommandInfo;
 }
 
