@@ -630,7 +630,7 @@ void SCinematicLevelViewport::Setup(FLevelSequenceEditorToolkit& NewToolkit)
 
 		if (TimeRangeContainer.IsValid())
 		{
-			const bool bShowWorkingRange = true, bShowViewRange = false, bShowPlaybackRange = true;
+			const bool bShowWorkingRange = false, bShowViewRange = true, bShowPlaybackRange = true;
 			TimeRangeContainer->SetContent(Sequencer->MakeTimeRange(DecoratedTransportControls.ToSharedRef(), bShowWorkingRange, bShowViewRange, bShowPlaybackRange));
 		}
 	}
