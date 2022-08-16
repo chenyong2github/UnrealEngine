@@ -392,7 +392,7 @@ SIZE_T FAnimationStreamingManager::GetMemorySizeForAnim(const UAnimStreamable* A
 
 void FAnimationStreamingManager::UpdateResourceStreaming(float DeltaTime, bool bProcessEverything /*= false*/)
 {
-	LLM_SCOPE(ELLMTag::Audio);
+	LLM_SCOPE(ELLMTag::Animation);
 
 	FScopeLock Lock(&CriticalSection);
 
