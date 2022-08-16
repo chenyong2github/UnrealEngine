@@ -20,6 +20,7 @@ namespace ShewchukExactPredicates
 	double orient3dfast(double* pa, double* pb, double* pc, double* pd);
 	double orient3d(double* pa, double* pb, double* pc, double* pd);
 	double facing3d(double* pa, double* pb, double* pc, double* dir);
+	double facing2d(double* pa, double* pb, double* dir);
 	double incirclefast(double* pa, double* pb, double* pc, double* pd);
 	double incircle(double* pa, double* pb, double* pc, double* pd);
 	double inspherefast(double* pa, double* pb, double* pc, double* pd, double* pe);
@@ -39,6 +40,7 @@ namespace ShewchukExactPredicatesFloat
 	float orient3dfast(float* pa, float* pb, float* pc, float* pd);
 	float orient3d(float* pa, float* pb, float* pc, float* pd);
 	float facing3d(float* pa, float* pb, float* pc, float* dir);
+	float facing2d(float* pa, float* pb, float* dir);
 	float incirclefast(float* pa, float* pb, float* pc, float* pd);
 	float incircle(float* pa, float* pb, float* pc, float* pd);
 	float inspherefast(float* pa, float* pb, float* pc, float* pd, float* pe);

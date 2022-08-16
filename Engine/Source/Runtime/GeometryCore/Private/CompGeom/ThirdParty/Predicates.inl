@@ -1578,6 +1578,123 @@ REAL orient2d(REAL *pa, REAL *pb, REAL *pc)
   return orient2dadapt(pa, pb, pc, detsum);
 }
 
+REAL facing2dadapt(REAL* pa, REAL* pc, REAL* dir, REAL detsum)
+{
+	INEXACT REAL acx, acy, bcx, bcy;
+	REAL acxtail, acytail, bcxtail, bcytail;
+	INEXACT REAL detleft, detright;
+	REAL detlefttail, detrighttail;
+	REAL det, errbound;
+	REAL B[4], C1[8], C2[12], D[16];
+	INEXACT REAL B3;
+	int C1length, C2length, Dlength;
+	REAL u[4];
+	INEXACT REAL u3;
+	INEXACT REAL s1, t1;
+	REAL s0, t0;
+
+	INEXACT REAL bvirt;
+	REAL avirt, bround, around;
+	INEXACT REAL c;
+	INEXACT REAL abig;
+	REAL ahi, alo, bhi, blo;
+	REAL err1, err2, err3;
+	INEXACT REAL _i, _j;
+	REAL _0;
+
+	acx = (REAL)(pa[0] - pc[0]);
+	bcx = (REAL)(-dir[0]);
+	acy = (REAL)(pa[1] - pc[1]);
+	bcy = (REAL)(-dir[1]);
+
+	Two_Product(acx, bcy, detleft, detlefttail);
+	Two_Product(acy, bcx, detright, detrighttail);
+
+	Two_Two_Diff(detleft, detlefttail, detright, detrighttail,
+		B3, B[2], B[1], B[0]);
+	B[3] = B3;
+
+	det = estimate(4, B);
+	errbound = ccwerrboundB * detsum;
+	if ((det >= errbound) || (-det >= errbound)) {
+		return det;
+	}
+
+	Two_Diff_Tail(pa[0], pc[0], acx, acxtail);
+	bcxtail = (REAL)0; // Note, equivalent to: Two_Diff_Tail(-dir[0], (REAL)0, bcx, bcxtail);
+	Two_Diff_Tail(pa[1], pc[1], acy, acytail);
+	bcytail = (REAL)0; // Note, equivalent to: Two_Diff_Tail(-dir[1], (REAL)0, bcy, bcytail);
+
+	if ((acxtail == 0.0) && (acytail == 0.0)
+		&& (bcxtail == 0.0) && (bcytail == 0.0)) {
+		return det;
+	}
+
+	errbound = ccwerrboundC * detsum + resulterrbound * Absolute(det);
+	det += (acx * bcytail + bcy * acxtail)
+		- (acy * bcxtail + bcx * acytail);
+	if ((det >= errbound) || (-det >= errbound)) {
+		return det;
+	}
+
+	Two_Product(acxtail, bcy, s1, s0);
+	Two_Product(acytail, bcx, t1, t0);
+	Two_Two_Diff(s1, s0, t1, t0, u3, u[2], u[1], u[0]);
+	u[3] = u3;
+	C1length = fast_expansion_sum_zeroelim(4, B, 4, u, C1);
+
+	Two_Product(acx, bcytail, s1, s0);
+	Two_Product(acy, bcxtail, t1, t0);
+	Two_Two_Diff(s1, s0, t1, t0, u3, u[2], u[1], u[0]);
+	u[3] = u3;
+	C2length = fast_expansion_sum_zeroelim(C1length, C1, 4, u, C2);
+
+	Two_Product(acxtail, bcytail, s1, s0);
+	Two_Product(acytail, bcxtail, t1, t0);
+	Two_Two_Diff(s1, s0, t1, t0, u3, u[2], u[1], u[0]);
+	u[3] = u3;
+	Dlength = fast_expansion_sum_zeroelim(C2length, C2, 4, u, D);
+
+	return(D[Dlength - 1]);
+}
+
+REAL facing2d(REAL* pa, REAL* pc, REAL* dir)
+{
+	REAL detleft, detright, det;
+	REAL detsum, errbound;
+
+	detleft = (pa[0] - pc[0]) * (-dir[1]);
+	detright = (pa[1] - pc[1]) * (-dir[0]);
+	det = detleft - detright;
+
+	if (detleft > 0.0) {
+		if (detright <= 0.0) {
+			return det;
+		}
+		else {
+			detsum = detleft + detright;
+		}
+	}
+	else if (detleft < 0.0) {
+		if (detright >= 0.0) {
+			return det;
+		}
+		else {
+			detsum = -detleft - detright;
+		}
+	}
+	else {
+		return det;
+	}
+
+	errbound = ccwerrboundA * detsum;
+	if ((det >= errbound) || (-det >= errbound)) {
+		return det;
+	}
+
+	return facing2dadapt(pa, pc, dir, detsum);
+}
+
 /*****************************************************************************/
 /*                                                                           */
 /*  orient3dfast()   Approximate 3D orientation test.  Nonrobust.            */

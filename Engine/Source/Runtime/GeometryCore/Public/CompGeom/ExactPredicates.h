@@ -30,6 +30,7 @@ double GEOMETRYCORE_API Orient3DInexact(double* PA, double* PB, double* PC, doub
 double GEOMETRYCORE_API Orient3D(double* PA, double* PB, double* PC, double* PD);
 
 double GEOMETRYCORE_API Facing3D(double* PA, double* PB, double* PC, double* Direction);
+double GEOMETRYCORE_API Facing2D(double* PA, double* PB, double* Direction);
 
 double GEOMETRYCORE_API InCircleInexact(double* PA, double* PB, double* PC, double* PD);
 double GEOMETRYCORE_API InCircle(double* PA, double* PB, double* PC, double* PD);
@@ -41,6 +42,7 @@ float GEOMETRYCORE_API Orient3DInexact(float* PA, float* PB, float* PC, float* P
 float GEOMETRYCORE_API Orient3D(float* PA, float* PB, float* PC, float* PD);
 
 float GEOMETRYCORE_API Facing3D(float* PA, float* PB, float* PC, float* Direction);
+float GEOMETRYCORE_API Facing2D(float* PA, float* PB, float* PC);
 
 float GEOMETRYCORE_API InCircleInexact(float* PA, float* PB, float* PC, float* PD);
 float GEOMETRYCORE_API InCircle(float* PA, float* PB, float* PC, float* PD);
@@ -101,6 +103,19 @@ RealType Orient3(const TVector<RealType>& A, const TVector<RealType>& B, const T
 	RealType PC[3]{ C.X, C.Y, C.Z };
 	RealType PD[3]{ D.X, D.Y, D.Z };
 	return Orient3D(PA, PB, PC, PD);
+}
+
+/**
+ * @return value w/ sign indicating whether the normal of line AB is facing Direction (and 0 if parallel)
+ *  (i.e. the sign of -PerpCW(B-A) dot Dir)
+ */
+template<typename RealType>
+RealType Facing2(const TVector2<RealType>& A, const TVector2<RealType>& B, const TVector2<RealType>& Direction)
+{
+	RealType PA[2]{ A.X, A.Y };
+	RealType PB[2]{ B.X, B.Y };
+	RealType Dir[2]{ Direction.X, Direction.Y };
+	return Facing2D(PA, PB, Dir);
 }
 
 /**
