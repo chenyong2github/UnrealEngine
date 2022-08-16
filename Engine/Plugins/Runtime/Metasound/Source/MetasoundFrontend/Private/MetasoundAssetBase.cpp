@@ -27,6 +27,7 @@
 #include "MetasoundParameterTransmitter.h"
 #include "MetasoundTrace.h"
 #include "MetasoundVertex.h"
+#include "NodeTemplates/MetasoundFrontendDocumentTemplatePreprocessor.h"
 #include "StructSerializer.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/MetaData.h"
@@ -58,90 +59,6 @@ namespace Metasound
 						Visited.Add(CurrentNode);
 					}
 				}
-			}
-
-			// Takes in document from asset and builds all template nodes and removes template classes from document dependencies list.
-			void PreBuildDocument(FMetasoundFrontendDocument& InOutDoc)
-			{
-				using namespace Frontend;
-
-				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::Frontend::AssetBase::PreBuildDocument);
-
-				FMetasoundFrontendGraph& Graph = InOutDoc.RootGraph.Graph;
-				TArray<FMetasoundFrontendClass>& Dependencies = InOutDoc.Dependencies;
-				const TArray<FMetasoundFrontendEdge>& GraphEdges = Graph.Edges;
-
-				TMap<FGuid, const FMetasoundFrontendClass*> TemplateClassMap;
-				Algo::TransformIf(Dependencies, TemplateClassMap,
-					[](const FMetasoundFrontendClass& Class) { return Class.Metadata.GetType() == EMetasoundFrontendClassType::Template; },
-					[](const FMetasoundFrontendClass& Class) { return TPair<FGuid, const FMetasoundFrontendClass*> { Class.ID, & Class }; }
-				);
-
-				TSet<const FMetasoundFrontendNode*> NodesToRemove;
-				TSet<TPair<FGuid, FGuid>> VerticesRemoved;
-
-				INodeTemplateRegistry& TemplateReg = INodeTemplateRegistry::Get();
-				for (FMetasoundFrontendNode& Node : Graph.Nodes)
-				{
-					const FMetasoundFrontendClass* NodeClass = TemplateClassMap.FindRef(Node.ClassID);
-					if (NodeClass)
-					{
-						if (NodeClass->Metadata.GetType() == EMetasoundFrontendClassType::Template)
-						{
-							const FNodeRegistryKey Key = NodeRegistryKey::CreateKey(NodeClass->Metadata);
-							const INodeTemplate* Template = TemplateReg.FindTemplate(Key);
-							if (ensure(Template))
-							{
-								const bool bTemplateBuilt = Template->BuildTemplate(InOutDoc, Graph, Node);
-								if (bTemplateBuilt)
-								{
-									NodesToRemove.Add(&Node);
-
-									auto GetNodeVertexGuidPair = [NodeID = Node.GetID()](const FMetasoundFrontendVertex& Vertex) { return TPair<FGuid, FGuid> { NodeID, Vertex.VertexID }; };
-									Algo::Transform(Node.Interface.Inputs, VerticesRemoved, GetNodeVertexGuidPair);
-									Algo::Transform(Node.Interface.Outputs, VerticesRemoved, GetNodeVertexGuidPair);
-								}
-							}
-						}
-					}
-				}
-
-				constexpr bool bAllowShrinking = false;
-				for (int32 i = Dependencies.Num() - 1; i >= 0; --i)
-				{
-					if (TemplateClassMap.Contains(Dependencies[i].ID))
-					{
-						Dependencies.RemoveAtSwap(i, 1, bAllowShrinking);
-					}
-				}
-				Dependencies.Shrink();
-
-				for (int32 i = Graph.Nodes.Num() - 1; i >= 0; --i)
-				{
-					if (NodesToRemove.Contains(&Graph.Nodes[i]))
-					{
-						Graph.Nodes.RemoveAtSwap(i, 1, bAllowShrinking);
-					}
-				}
-				Graph.Nodes.Shrink();
-
-				for (int32 i = Graph.Edges.Num() - 1; i >= 0; --i)
-				{
-					const TPair<FGuid, FGuid> FromNodeVertexPair{ Graph.Edges[i].FromNodeID, Graph.Edges[i].FromVertexID };
-					if (VerticesRemoved.Contains(FromNodeVertexPair))
-					{
-						Graph.Edges.RemoveAtSwap(i, 1, bAllowShrinking);
-					}
-					else
-					{
-						const TPair<FGuid, FGuid> ToNodeVertexPair{ Graph.Edges[i].ToNodeID, Graph.Edges[i].ToVertexID };
-						if (VerticesRemoved.Contains(ToNodeVertexPair))
-						{
-							Graph.Edges.RemoveAtSwap(i, 1, bAllowShrinking);
-						}
-					}
-				}
-				Graph.Edges.Shrink();
 			}
 		} // namespace AssetBasePrivate
 
@@ -240,15 +157,15 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 	class FNodeRegistryEntry : public INodeRegistryEntry
 	{
 	public:
-		FNodeRegistryEntry(const FString& InName, TSharedPtr<FMetasoundFrontendDocument> InPreBuiltDocument, FName InAssetPath)
+		FNodeRegistryEntry(const FString& InName, TSharedPtr<FMetasoundFrontendDocument> InPreprocessedDoc, FName InAssetPath)
 		: Name(InName)
-		, PreBuiltDocument(InPreBuiltDocument)
+		, PreprocessedDoc(InPreprocessedDoc)
 		{
 			// Copy FrontendClass to preserve original document.
-			FrontendClass = PreBuiltDocument->RootGraph;
+			FrontendClass = PreprocessedDoc->RootGraph;
 			FrontendClass.Metadata.SetType(EMetasoundFrontendClassType::External);
 
-			ClassInfo = FNodeClassInfo(PreBuiltDocument->RootGraph, InAssetPath);
+			ClassInfo = FNodeClassInfo(PreprocessedDoc->RootGraph, InAssetPath);
 		}
 
 		virtual ~FNodeRegistryEntry() = default;
@@ -260,7 +177,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 
 		virtual TUniquePtr<INode> CreateNode(const FNodeInitData&) const override
 		{
-			return FFrontendGraphBuilder().CreateGraph(*PreBuiltDocument, Name);
+			return FFrontendGraphBuilder().CreateGraph(*PreprocessedDoc, Name);
 		}
 
 		virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&&) const override
@@ -285,7 +202,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 
 		virtual TUniquePtr<INodeRegistryEntry> Clone() const override
 		{
-			return MakeUnique<FNodeRegistryEntry>(Name, PreBuiltDocument, ClassInfo.AssetPath);
+			return MakeUnique<FNodeRegistryEntry>(Name, PreprocessedDoc, ClassInfo.AssetPath);
 		}
 
 		virtual bool IsNative() const override
@@ -295,7 +212,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 
 	private:
 		FString Name;
-		TSharedPtr<FMetasoundFrontendDocument> PreBuiltDocument;
+		TSharedPtr<FMetasoundFrontendDocument> PreprocessedDoc;
 		FMetasoundFrontendClass FrontendClass;
 		FNodeClassInfo ClassInfo;
 	};
@@ -312,10 +229,11 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 	}
 
 	FNodeClassInfo AssetClassInfo = GetAssetClassInfo();
-	TSharedPtr<FMetasoundFrontendDocument> PreBuiltDoc = MakeShared<FMetasoundFrontendDocument>(GetDocumentChecked());
-	AssetBasePrivate::PreBuildDocument(*PreBuiltDoc);
+	TSharedPtr<FMetasoundFrontendDocument> PreprocessedDocument = MakeShared<FMetasoundFrontendDocument>(GetDocumentChecked());
+	FDocumentTemplatePreprocessTransform TemplatePreprocessor;
+	TemplatePreprocessor.Transform(*PreprocessedDocument);
 
-	TUniquePtr<INodeRegistryEntry> RegistryEntry = MakeUnique<FNodeRegistryEntry>(AssetName, PreBuiltDoc, AssetClassInfo.AssetPath);
+	TUniquePtr<INodeRegistryEntry> RegistryEntry = MakeUnique<FNodeRegistryEntry>(AssetName, PreprocessedDocument, AssetClassInfo.AssetPath);
 	RegistryKey = FMetasoundFrontendRegistryContainer::Get()->RegisterNode(MoveTemp(RegistryEntry));
 
 	if (NodeRegistryKey::IsValid(RegistryKey) && FMetasoundFrontendRegistryContainer::Get()->IsNodeRegistered(RegistryKey))
@@ -354,7 +272,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 
 	// Triggers the existing runtime data to be out-of-date.
 	CurrentCachedRuntimeDataChangeID = FGuid::NewGuid();
-	CacheRuntimeData(*PreBuiltDoc);
+	CacheRuntimeData(*PreprocessedDocument);
 }
 
 void FMetasoundAssetBase::UnregisterGraphWithFrontend()
@@ -642,7 +560,7 @@ void FMetasoundAssetBase::ResetSynchronizationState()
 }
 #endif // WITH_EDITOR
 
-TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::BuildMetasoundDocument(const FMetasoundFrontendDocument& InPreBuiltDoc, const TArray<FMetasoundFrontendClassInput>& InTransmittableInputs) const
+TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::BuildMetasoundDocument(const FMetasoundFrontendDocument& InPreprocessedDoc, const TArray<FMetasoundFrontendClassInput>& InTransmittableInputs) const
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
@@ -650,7 +568,7 @@ TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::BuildMet
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::BuildMetasoundDocument);
 
 	// Create graph which can spawn instances. 
-	TUniquePtr<FFrontendGraph> FrontendGraph = FFrontendGraphBuilder::CreateGraph(InPreBuiltDoc, GetOwningAssetName());
+	TUniquePtr<FFrontendGraph> FrontendGraph = FFrontendGraphBuilder::CreateGraph(InPreprocessedDoc, GetOwningAssetName());
 	if (FrontendGraph.IsValid())
 	{
 		TSet<FVertexName> TransmittableInputNames;
@@ -976,7 +894,7 @@ void FMetasoundAssetBase::RebuildReferencedAssetClassKeys()
 	SetReferencedAssetClassKeys(MoveTemp(ReferencedKeys));
 }
 
-const FMetasoundAssetBase::FRuntimeData& FMetasoundAssetBase::CacheRuntimeData(const FMetasoundFrontendDocument& InPreBuiltDoc)
+const FMetasoundAssetBase::FRuntimeData& FMetasoundAssetBase::CacheRuntimeData(const FMetasoundFrontendDocument& InPreprocessedDoc)
 {
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::CacheRuntimeData);
 
@@ -991,7 +909,7 @@ const FMetasoundAssetBase::FRuntimeData& FMetasoundAssetBase::CacheRuntimeData(c
 	{
 		// Update CachedRuntimeData.
 		TArray<FMetasoundFrontendClassInput> ClassInputs = GetTransmittableClassInputs();
-		TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> Graph = BuildMetasoundDocument(InPreBuiltDoc, ClassInputs);
+		TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> Graph = BuildMetasoundDocument(InPreprocessedDoc, ClassInputs);
 
 		CachedRuntimeData =
 		{

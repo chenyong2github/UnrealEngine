@@ -17,8 +17,6 @@ namespace Metasound
 		class FNodeTemplateRegistry : public INodeTemplateRegistry
 		{
 		public:
-			static FNodeTemplateRegistry& Get();
-
 			FNodeTemplateRegistry() = default;
 			virtual ~FNodeTemplateRegistry() = default;
 

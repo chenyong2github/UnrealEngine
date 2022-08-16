@@ -26,21 +26,50 @@ namespace Metasound
 		}
 
 		/** Interface for transforms applied to documents. */
-		class IDocumentTransform
+		class METASOUNDFRONTEND_API IDocumentTransform
 		{
 		public:
 			virtual ~IDocumentTransform() = default;
+
 			/** Return true if InDocument was modified, false otherwise. */
 			virtual bool Transform(FDocumentHandle InDocument) const = 0;
+
+			/** Return true if InDocument was modified, false otherwise.
+			  * This function is soft deprecated.  It is not pure virtual
+			  * to grandfather in old transform implementation. Old transforms
+			  * should be deprecated and rewritten to use the Controller-less
+			  * API in the interest of better performance and simplicity.
+			  */
+			virtual bool Transform(FMetasoundFrontendDocument& InOutDocument) const;
 		};
 
 		/** Interface for transforms applied to a graph. */
-		class IGraphTransform
+		class METASOUNDFRONTEND_API IGraphTransform
 		{
 		public:
 			virtual ~IGraphTransform() = default;
-			/** Return true if InGraph was modified, false otherwise. */
-			virtual bool Transform(FGraphHandle InGraph) const = 0;
+
+			// Returns reference to the node's owning document.
+			virtual FMetasoundFrontendDocument& GetOwningDocument() const = 0;
+
+			/** Return true if the graph was modified, false otherwise. */
+			virtual bool Transform(FMetasoundFrontendGraph& InOutGraph) const = 0;
+		};
+
+		/** Interface for transforming a node. */
+		class METASOUNDFRONTEND_API INodeTransform
+		{
+		public:
+			virtual ~INodeTransform() = default;
+
+			// Returns reference to the node's owning document.
+			virtual FMetasoundFrontendDocument& GetOwningDocument() const = 0;
+
+			// Returns reference to the node's owning graph.
+			virtual FMetasoundFrontendGraph& GetOwningGraph() const = 0;
+
+			/** Return true if the node was modified, false otherwise. */
+			virtual bool Transform(FMetasoundFrontendNode& InOutNode) const = 0;
 		};
 
 		/** Adds or swaps document members (inputs, outputs) and removing any document members where necessary and adding those missing. */

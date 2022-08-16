@@ -2,15 +2,18 @@
 #include "MetasoundFrontendTransform.h"
 
 #include "Algo/Transform.h"
+#include "MetasoundAccessPtr.h"
 #include "MetasoundArchetype.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendDocumentController.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundLog.h"
 #include "MetasoundTrace.h"
 #include "Misc/App.h"
+
 
 namespace Metasound
 {
@@ -33,6 +36,11 @@ namespace Metasound
 #endif // WITH_EDITOR
 		} // namespace DocumentTransform
 
+		bool IDocumentTransform::Transform(FMetasoundFrontendDocument& InOutDocument) const
+		{
+			FDocumentAccessPtr DocAccessPtr = MakeAccessPtr<FDocumentAccessPtr>(InOutDocument.AccessPoint, InOutDocument);
+			return Transform(FDocumentController::CreateDocumentHandle(DocAccessPtr));
+		}
 
 		FModifyRootGraphInterfaces::FModifyRootGraphInterfaces(const TArray<FMetasoundFrontendInterface>& InInterfacesToRemove, const TArray<FMetasoundFrontendInterface>& InInterfacesToAdd)
 			: InterfacesToRemove(InInterfacesToRemove)

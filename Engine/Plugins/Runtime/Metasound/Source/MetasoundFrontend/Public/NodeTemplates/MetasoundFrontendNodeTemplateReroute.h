@@ -4,8 +4,10 @@
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendNodeTemplateRegistry.h"
+#include "MetasoundFrontendTransform.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NoExportTypes.h"
+
 
 namespace Metasound
 {
@@ -23,7 +25,7 @@ namespace Metasound
 
 			virtual ~FRerouteNodeTemplate() = default;
 
-			virtual bool BuildTemplate(FMetasoundFrontendDocument& InOutDocument, FMetasoundFrontendGraph& InOutGraph, FMetasoundFrontendNode& InOutNode) const override;
+			virtual TUniquePtr<INodeTransform> GenerateNodeTransform(FMetasoundFrontendDocument& InPreprocessedDocument) const override;
 			virtual const FMetasoundFrontendClass& GetFrontendClass() const override;
 			virtual const FMetasoundFrontendVersion& GetVersion() const override;
 			virtual bool IsValidNodeInterface(const FMetasoundFrontendNodeInterface& InNodeInterface) const override;
