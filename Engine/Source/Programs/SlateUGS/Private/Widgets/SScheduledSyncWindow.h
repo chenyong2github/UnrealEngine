@@ -35,7 +35,7 @@ private:
 	void HandleScheduleSyncChanged(ECheckBoxState InCheck);
 	ECheckBoxState HandleGetScheduleSyncChecked() const;
 
-	FReply OnOKClicked();
+	FReply OnOkClicked();
 	FReply OnCancelClicked();
 
 	bool bInputValid = false;

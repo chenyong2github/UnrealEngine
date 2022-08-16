@@ -204,6 +204,29 @@ bool UGSTab::OnWorkspaceChosen(const FString& Project)
 
 void UGSTab::OnSyncChangelist(int Changelist)
 {
+	// Options on what to do with workspace when updating it
+	UGSCore::EWorkspaceUpdateOptions Options = UGSCore::EWorkspaceUpdateOptions::Sync | UGSCore::EWorkspaceUpdateOptions::SyncArchives | UGSCore::EWorkspaceUpdateOptions::GenerateProjectFiles;
+	if (UserSettings->bAutoResolveConflicts)
+	{
+		Options |= UGSCore::EWorkspaceUpdateOptions::AutoResolveChanges;
+	}
+	if (UserSettings->bUseIncrementalBuilds)
+	{
+		Options |= UGSCore::EWorkspaceUpdateOptions::UseIncrementalBuilds;
+	}
+	if (UserSettings->bBuildAfterSync)
+	{
+		Options |= UGSCore::EWorkspaceUpdateOptions::Build;
+	}
+	if (UserSettings->bBuildAfterSync && UserSettings->bRunAfterSync)
+	{
+		Options |= UGSCore::EWorkspaceUpdateOptions::RunAfterSync;
+	}
+	if (UserSettings->bOpenSolutionAfterSync)
+	{
+		Options |= UGSCore::EWorkspaceUpdateOptions::OpenSolutionAfterSync;
+	}
+
 	TSharedRef<UGSCore::FWorkspaceUpdateContext, ESPMode::ThreadSafe> Context = MakeShared<UGSCore::FWorkspaceUpdateContext, ESPMode::ThreadSafe>(
 		Changelist,
 		Options,
@@ -563,29 +586,6 @@ void UGSTab::SetupWorkspace()
 		UserSettings->SyncExcludedCategories,
 		WorkspaceSettings->SyncView,
 		WorkspaceSettings->SyncExcludedCategories);
-
-	// Options on what to do with workspace when updating it
-	Options = UGSCore::EWorkspaceUpdateOptions::Sync | UGSCore::EWorkspaceUpdateOptions::SyncArchives | UGSCore::EWorkspaceUpdateOptions::GenerateProjectFiles;
-	if (UserSettings->bAutoResolveConflicts)
-	{
-		Options |= UGSCore::EWorkspaceUpdateOptions::AutoResolveChanges;
-	}
-	if (UserSettings->bUseIncrementalBuilds)
-	{
-		Options |= UGSCore::EWorkspaceUpdateOptions::UseIncrementalBuilds;
-	}
-	if (UserSettings->bBuildAfterSync)
-	{
-		Options |= UGSCore::EWorkspaceUpdateOptions::Build;
-	}
-	if (UserSettings->bBuildAfterSync && UserSettings->bRunAfterSync)
-	{
-		Options |= UGSCore::EWorkspaceUpdateOptions::RunAfterSync;
-	}
-	if (UserSettings->bOpenSolutionAfterSync)
-	{
-		Options |= UGSCore::EWorkspaceUpdateOptions::OpenSolutionAfterSync;
-	}
 
 	// Setup our Perforce and Event monitoring threads
 	FString BranchClientPath = DetectSettings->BranchDirectoryName;

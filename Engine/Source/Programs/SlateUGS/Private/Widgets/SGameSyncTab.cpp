@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGameSyncTab.h"
+#include "SSyncFilterWindow.h"
+#include "SSettingsWindow.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -9,7 +11,6 @@
 #include "SScheduledSyncWindow.h"
 #include "SSimpleComboButton.h"
 #include "SSimpleButton.h"
-#include "SSyncFilterWindow.h"
 #include "Widgets/SLogWidget.h"
 #include "Widgets/Layout/SHeader.h"
 #include "Widgets/Testing/STestSuite.h"
@@ -275,7 +276,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("Settings", "Settings"))
 						.Icon(FAppStyle::Get().GetBrush("Icons.Settings"))
-						.IsEnabled(false) // Todo: enable after adding this functionality
+						.OnClicked_Lambda([this] { FSlateApplication::Get().AddModalWindow(SNew(SSettingsWindow).Tab(Tab), Tab->GetTabArgs().GetOwnerWindow(), false); return FReply::Handled(); })
 					]
 				]
 			]

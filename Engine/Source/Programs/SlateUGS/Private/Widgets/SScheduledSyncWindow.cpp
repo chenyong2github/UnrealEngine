@@ -86,8 +86,8 @@ void SScheduledSyncWindow::Construct(const FArguments& InArgs)
 				+SUniformGridPanel::Slot(0, 0)
 				[
 					SNew(SPrimaryButton)
-					.Text(LOCTEXT("OKButtonText", "OK"))
-					.OnClicked(this, &SScheduledSyncWindow::OnOKClicked)
+					.Text(LOCTEXT("OkButtonText", "Ok"))
+					.OnClicked(this, &SScheduledSyncWindow::OnOkClicked)
 				]
 				+SUniformGridPanel::Slot(1, 0)
 				[
@@ -191,7 +191,7 @@ ECheckBoxState SScheduledSyncWindow::HandleGetScheduleSyncChecked() const
 	return UserSettings->bScheduleEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-FReply SScheduledSyncWindow::OnOKClicked()
+FReply SScheduledSyncWindow::OnOkClicked()
 {
 	FSlateApplication::Get().FindWidgetWindow(AsShared())->RequestDestroyWindow();
 

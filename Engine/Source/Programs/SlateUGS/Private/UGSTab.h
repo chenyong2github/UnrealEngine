@@ -96,7 +96,6 @@ private:
 	TSharedPtr<UGSCore::FPerforceConnection> PerforceClient;
 	TSharedPtr<UGSCore::FUserWorkspaceSettings> WorkspaceSettings;
 	TSharedPtr<UGSCore::FUserProjectSettings> ProjectSettings;
-	UGSCore::EWorkspaceUpdateOptions Options;
 	TSharedPtr<UGSCore::FDetectProjectSettingsTask> DetectSettings;
 	TArray<FString> CombinedSyncFilter;
 	TSharedPtr<UGSCore::FUserSettings> UserSettings;
