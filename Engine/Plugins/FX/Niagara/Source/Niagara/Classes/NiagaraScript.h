@@ -1268,8 +1268,8 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UObject>> ActiveCompileRoots;
 
-	/* Flag set on load based on whether the serialized data includes editor only data */
-	bool IsCooked;
+	/* Flag set on load based on whether we're loading from a cooked package. */
+	bool IsCooked = false;
 #endif
 
 	/** Compiled VM bytecode and data necessary to run this script.*/
