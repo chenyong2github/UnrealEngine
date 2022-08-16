@@ -7,23 +7,20 @@
 #include "Math/NumericLimits.h"
 #include "Memory/MemoryFwd.h"
 #include "Memory/MemoryView.h"
-#include "Memory/SharedBuffer.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/Function.h"
 #include "Templates/PimplPtr.h"
-
-class FCompositeBuffer;
 
 #define UE_API COREUOBJECT_API
 
 class FArchive;
 class FCompressedBuffer;
 class UObject;
+struct FIoHash;
+
 namespace UE::DerivedData { struct FCacheKey; }
 namespace UE::DerivedData { struct FValueId; }
 namespace UE::DerivedData { template <typename CharType> class TSharedString; }
-struct FIoHash;
-
 namespace UE::DerivedData { using FSharedString = TSharedString<TCHAR>; }
 namespace UE::DerivedData::Private { class FEditorData; }
 namespace UE::DerivedData::Private { class FIoResponse; }
