@@ -7,6 +7,7 @@
 
 #pragma once
 #include "Commandlets/Commandlet.h"
+#include "TraceServices/Model/Counters.h"
 #include "SummarizeTraceCommandlet.generated.h"
 
 UCLASS(config=Editor)
@@ -18,6 +19,17 @@ public:
 	//~ Begin UCommandlet Interface
 
 	virtual int32 Main(const FString& CmdLineParams) override;
-	
+
 	//~ End UCommandlet Interface
+private:
+	void WriteAsUTF8String(IFileHandle* Handle, const FString& String);
+	TUniquePtr<IFileHandle> OpenCSVFile(const FString& Name);
+	bool GenerateScopesCSV(const TArray<struct FSummarizeScope>& SortedScopes);
+	bool GenerateCountersCSV(const class FSummarizeCountersProvider& CountersProvider);
+	bool GenerateBookmarksCSV(const class FSummarizeBookmarksProvider& BookmarksProvider);
+	bool GenerateTelemetryCSV(const FString& TestName, bool bAllTelemetry, const TArray<FSummarizeScope>& SortedScopes, const
+	                          FSummarizeCountersProvider& CountersProvider, const FSummarizeBookmarksProvider& BookmarksProvider, bool SkipBaseline);
+
+	FString TracePath;
+	FString TraceFileBasename;
 };
