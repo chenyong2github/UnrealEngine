@@ -25,6 +25,7 @@ DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnBeforePopupDelegate, FString, FString
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCreateWindowDelegate, const TWeakPtr<IWebBrowserWindow>&, const TWeakPtr<IWebBrowserPopupFeatures>&);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCloseWindowDelegate, const TWeakPtr<IWebBrowserWindow>&);
 DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<IToolTip>, FOnCreateToolTip, const FText&);
+DECLARE_DELEGATE_FourParams(FOnConsoleMessageDelegate, const FString& /*Message*/, const FString& /*Source*/, int32 /*Line*/, EWebBrowserConsoleLogSeverity /*Severity*/);
 
 #if WITH_CEF3
 typedef SViewport SWebBrowserWidget;
@@ -44,6 +45,7 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnUnhandledKeyDown, const FKeyEvent& /*KeyEvent*/);
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnUnhandledKeyUp, const FKeyEvent& /*KeyEvent*/);
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnUnhandledKeyChar, const FCharacterEvent& /*CharacterEvent*/);
+
 
 	SLATE_BEGIN_ARGS(SWebBrowserView)
 		: _InitialURL(TEXT("https://www.google.com"))
@@ -151,6 +153,9 @@ public:
 
 		/** Called to allow the handling of any key char events not handled by the browser. */
 		SLATE_EVENT(FOnUnhandledKeyChar, OnUnhandledKeyChar)
+		
+		/** Called for each console message */
+		SLATE_EVENT(FOnConsoleMessageDelegate, OnConsoleMessage)
 
 	SLATE_END_ARGS()
 
@@ -356,6 +361,7 @@ private:
 	bool UnhandledKeyChar(const FCharacterEvent& CharacterEvent);
 
 	bool HandleDrag(const FPointerEvent& MouseEvent);
+	void HandleConsoleMessage(const FString& Message, const FString& Source, int32 Line, EWebBrowserConsoleLogSeverity Serverity);
 
 	TOptional<FSlateRenderTransform> GetPopupRenderTransform() const;
 private:
@@ -429,7 +435,7 @@ private:
 	/** A delegate that is invoked when the browser detects drag event in within drag region */
 	FOnDragWindow OnDragWindow;
 	
-		/** A delegate for handling key down events not handled by browser. */
+	/** A delegate for handling key down events not handled by browser. */
 	FOnUnhandledKeyDown OnUnhandledKeyDown;
 
 	/** A delegate for handling key up events not handled by browser. */
@@ -437,6 +443,9 @@ private:
 
 	/** A delegate for handling key char events not handled by browser. */
 	FOnUnhandledKeyChar OnUnhandledKeyChar;
+	
+	/** A delegate that is invoked for each console message */
+	FOnConsoleMessageDelegate OnConsoleMessage;
 
 protected:
 	bool HandleSuppressContextMenu();

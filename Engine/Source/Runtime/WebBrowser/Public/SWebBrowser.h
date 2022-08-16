@@ -121,6 +121,8 @@ public:
 		/** Called when drag is detected in a web page area tagged as a drag region. */
 		SLATE_EVENT(FOnDragWindow, OnDragWindow);
 
+		/** Called for each console message */
+		SLATE_EVENT(FOnConsoleMessageDelegate, OnConsoleMessage);
 
 	SLATE_END_ARGS()
 
@@ -200,7 +202,7 @@ public:
 	 * Properties and Functions will be accessible from JavaScript side.
 	 * As all communication with the rendering procesis asynchronous, return values (both for properties and function results) are wrapped into JS Future objects.
 	 *
-	 * @param Name The name of the object. The object will show up as window.ue4.{Name} on the javascript side. Note: All object names, function names, and property names will be converted to lower case when bound on the javascript side.  If there is an existing object of the same name, this object will replace it. If bIsPermanent is false and there is an existing permanent binding, the permanent binding will be restored when the temporary one is removed.
+	 * @param Name The name of the object. The object will show up as window.ue.{Name} on the javascript side. Note: All object names, function names, and property names will be converted to lower case when bound on the javascript side.  If there is an existing object of the same name, this object will replace it. If bIsPermanent is false and there is an existing permanent binding, the permanent binding will be restored when the temporary one is removed.
 	 * @param Object The object instance.
 	 * @param bIsPermanent If true, the object will be visible to all pages loaded through this browser widget, otherwise, it will be deleted when navigating away from the current page. Non-permanent bindings should be registered from inside an OnLoadStarted event handler in order to be available before JS code starts loading.
 	 */
@@ -286,6 +288,9 @@ private:
 
 	/** A delegate that is invoked when the browser attempts to pop up a new window */
 	FOnBeforePopupDelegate OnBeforePopup;
+
+	/** A delegate that is invoked when the browser writes console output */
+	FOnConsoleMessageDelegate OnConsoleMessage;
 
 	/** A delegate that is invoked when the browser requests a UI window for another browser it spawned */
 	FOnCreateWindowDelegate OnCreateWindow;

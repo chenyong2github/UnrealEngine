@@ -28,6 +28,7 @@ void SWebBrowser::Construct(const FArguments& InArgs, const TSharedPtr<IWebBrows
 	OnShowDialog = InArgs._OnShowDialog;
 	OnDismissAllDialogs = InArgs._OnDismissAllDialogs;
 	OnBeforePopup = InArgs._OnBeforePopup;
+	OnConsoleMessage = InArgs._OnConsoleMessage;
 	OnCreateWindow = InArgs._OnCreateWindow;
 	OnCloseWindow = InArgs._OnCloseWindow;
 	bShowInitialThrobber = InArgs._ShowInitialThrobber;
@@ -126,6 +127,7 @@ void SWebBrowser::Construct(const FArguments& InArgs, const TSharedPtr<IWebBrows
 				.Visibility(this, &SWebBrowser::GetViewportVisibility)
 				.OnSuppressContextMenu(InArgs._OnSuppressContextMenu)
 				.OnDragWindow(InArgs._OnDragWindow)
+				.OnConsoleMessage(OnConsoleMessage)
 				.BrowserFrameRate(InArgs._BrowserFrameRate)
 			]
 			+ SOverlay::Slot()

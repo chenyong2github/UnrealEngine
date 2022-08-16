@@ -342,7 +342,7 @@ public:
 		return ResourceLoadCompleteDelegate;
 	}
 
-	DECLARE_DELEGATE_FiveParams(FOnConsoleMessageDelegate, CefRefPtr<CefBrowser> /*Browser*/, cef_log_severity_t /*level*/, const CefString& /*Message*/, const CefString& /*Source*/, int /*Line*/);
+	DECLARE_DELEGATE_FiveParams(FOnConsoleMessageDelegate, CefRefPtr<CefBrowser> /*Browser*/, cef_log_severity_t /*level*/, const CefString& /*Message*/, const CefString& /*Source*/, int32 /*Line*/);
 	FOnConsoleMessageDelegate& OnConsoleMessage()
 	{
 		return ConsoleMessageDelegate;

@@ -6,6 +6,7 @@
 
 #include "WebBrowser.generated.h"
 
+enum class EWebBrowserConsoleLogSeverity;
 
 /**
  * 
@@ -18,6 +19,7 @@ class WEBBROWSERWIDGET_API UWebBrowser : public UWidget
 public:
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUrlChanged, const FText&, Text);
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBeforePopup, FString, URL, FString, Frame);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnConsoleMessage, const FString&, Message, const FString&, Source, int32, Line);
 
 	/**
 	 * Load the specified URL
@@ -66,6 +68,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Web Browser|Event")
 	FOnBeforePopup OnBeforePopup;
 
+	/** Called when the browser has console spew to print */
+	UPROPERTY(BlueprintAssignable, Category = "Web Browser|Event")
+	FOnConsoleMessage OnConsoleMessage;
+
 public:
 
 	//~ Begin UWidget interface
@@ -95,6 +101,7 @@ protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 
+	void HandleOnConsoleMessage(const FString& Message, const FString& Source, int32 Line, EWebBrowserConsoleLogSeverity Severity);
 	void HandleOnUrlChanged(const FText& Text);
 	bool HandleOnBeforePopup(FString URL, FString Frame);
 };

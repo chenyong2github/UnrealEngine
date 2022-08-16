@@ -399,7 +399,7 @@ private:
 
 	void HandleOnBeforeResourceLoad(const CefString& URL, CefRequest::ResourceType Type, FRequestHeaders& AdditionalHeaders, const bool AllowUserCredentials);
 	void HandleOnResourceLoadComplete(const CefString& URL, CefRequest::ResourceType Type, CefResourceRequestHandler::URLRequestStatus Status, int64 ContentLength);
-	void HandleOnConsoleMessage(CefRefPtr<CefBrowser> Browser, cef_log_severity_t Level, const CefString& Message, const CefString& Source, int Line);
+	void HandleOnConsoleMessage(CefRefPtr<CefBrowser> Browser, cef_log_severity_t Level, const CefString& Message, const CefString& Source, int32 Line);
 
 	/**
 	 * Called before loading a resource to allow overriding the content for a request.
@@ -589,7 +589,7 @@ private:
 	/** Used to let us correctly render the web texture for the accelerated render path */
 	TOptional<FSlateRenderTransform> GetWebBrowserRenderTransform() const;
 
-	bool IsInDirectHwndMode() const;
+	bool BlockInputInDirectHwndMode() const;
 
 #if PLATFORM_WINDOWS
 	/** manually load cursor icons from the CEF3 dll if needed, working around a CEF3 bug */
@@ -620,6 +620,9 @@ private:
 
 	/** Current size of this window. */
 	FIntPoint ViewportSize;
+
+	/** Current position of this window. */
+	FIntPoint ViewportPos;
 
 	/** Current DPI scale factor of this window. */
 	float ViewportDPIScaleFactor;
@@ -772,7 +775,7 @@ private:
 	TWeakPtr<SWindow> ParentWindow;
 	FCEFWebBrowserWindowRHIHelper* RHIRenderHelper;
 	
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_MAC
 	bool bInDirectHwndMode;
 #endif
 };

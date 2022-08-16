@@ -492,8 +492,14 @@ CefResourceRequestHandler::ReturnValue FCEFBrowserHandler::OnBeforeResourceLoad(
 			}
 		}
 
-		Request->SetHeaderMap(HeaderMap);
-
+		if (Request->IsReadOnly())
+		{
+			LOG_CEF_LOAD("FCEFBrowserHandler::OnBeforeResourceLoad - readonly");
+		}
+		else
+		{
+			Request->SetHeaderMap(HeaderMap);
+		}
 		Callback->Continue(true);
 	}));
 

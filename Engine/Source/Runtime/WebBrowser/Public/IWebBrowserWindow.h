@@ -33,11 +33,49 @@ enum class EWebBrowserConsoleLogSeverity
 	Fatal
 };
 
+
+enum class EWebTransitionSource
+{
+	Unknown,
+	/** Source is a link click or the JavaScript window.open function. */
+	Link,
+	/** Source is some other "explicit" navigation action such as creating a new browser or using the LoadURL function. */
+	Explicit,
+	/** Source is a subframe navigation. */
+	AutoSubframe,
+	/** Source is a subframe navigation explicitly requested by the user. */
+	ManualSubframe,
+	/** Source is a form submission by the user. */
+	FormSubmit,
+	/** Source is a "reload" of the page via the Reload function */
+	Reload
+};
+
+enum class EWebTransitionSourceQualifier
+{
+	Unknown,
+	/** Attempted to visit a URL but was blocked. */
+	Blocked,
+	/** Used the Forward or Back function to navigate among browsing history. */
+	ForwardBack,
+	/** The beginning of a navigation chain. */
+	ChainStart,
+	/** The last transition in a redirect chain. */
+	ChainEnd,
+	/** Redirects caused by JavaScript or a meta refresh tag on the page. */
+	ClientRedirect,
+	/** Used to test whether a transition involves a redirect. */
+	ServerRedirect
+};
+
+
 struct FWebNavigationRequest
 {
 	bool bIsRedirect;
 	bool bIsMainFrame;
 	bool bIsExplicitTransition;
+	EWebTransitionSource TransitionSource;
+	EWebTransitionSourceQualifier TransitionSourceQualifier;
 };
 
 /**
@@ -375,7 +413,7 @@ public:
 	virtual FOnResourceLoadCompleteDelegate& OnResourceLoadComplete() = 0;
 
 	/** A delegate that is invoked for each console message */
-	DECLARE_DELEGATE_FourParams(FOnConsoleMessageDelegate, const FString& /*Message*/, const FString& /*Source*/, int /*Line*/, EWebBrowserConsoleLogSeverity /*severity*/);
+	DECLARE_DELEGATE_FourParams(FOnConsoleMessageDelegate, const FString& /*Message*/, const FString& /*Source*/, int32 /*Line*/, EWebBrowserConsoleLogSeverity /*severity*/);
 	virtual FOnConsoleMessageDelegate& OnConsoleMessage() = 0;
 
 	/** A delegate that is invoked when an existing browser requests creation of a new browser window. */

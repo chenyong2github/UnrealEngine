@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebBrowser.h"
 #include "SWebBrowser.h"
@@ -99,7 +99,8 @@ TSharedRef<SWidget> UWebBrowser::RebuildWidget()
 			.ShowControls(false)
 			.SupportsTransparency(bSupportsTransparency)
 			.OnUrlChanged(BIND_UOBJECT_DELEGATE(FOnTextChanged, HandleOnUrlChanged))
-			.OnBeforePopup(BIND_UOBJECT_DELEGATE(FOnBeforePopupDelegate, HandleOnBeforePopup));
+			.OnBeforePopup(BIND_UOBJECT_DELEGATE(FOnBeforePopupDelegate, HandleOnBeforePopup))
+			.OnConsoleMessage(BIND_UOBJECT_DELEGATE(FOnConsoleMessageDelegate, HandleOnConsoleMessage));
 
 		return WebBrowserWidget.ToSharedRef();
 	}
@@ -118,6 +119,11 @@ void UWebBrowser::SynchronizeProperties()
 void UWebBrowser::HandleOnUrlChanged(const FText& InText)
 {
 	OnUrlChanged.Broadcast(InText);
+}
+
+void UWebBrowser::HandleOnConsoleMessage(const FString& Message, const FString& Source, int32 Line, EWebBrowserConsoleLogSeverity Severity)
+{
+	OnConsoleMessage.Broadcast(Message, Source, Line);
 }
 
 bool UWebBrowser::HandleOnBeforePopup(FString URL, FString Frame)
