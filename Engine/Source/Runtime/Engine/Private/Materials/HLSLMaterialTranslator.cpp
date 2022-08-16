@@ -9058,7 +9058,7 @@ int32 FHLSLMaterialTranslator::DistanceFieldGradient(int32 PositionArg)
 	return AddCodeChunk(MCT_Float3, TEXT("GetDistanceFieldGradientGlobal(%s)"), *CoerceParameter(PositionArg, MCT_Float3));
 }
 
-int32 FHLSLMaterialTranslator::DistanceFieldApproxAO(int32 PositionArg, int32 NormalArg, int32 RadiusArg, uint32 NumSteps, float StepScale)
+int32 FHLSLMaterialTranslator::DistanceFieldApproxAO(int32 PositionArg, int32 NormalArg, int32 BaseDistanceArg, int32 RadiusArg, uint32 NumSteps, float StepScale)
 {
 	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 	{
@@ -9075,6 +9075,11 @@ int32 FHLSLMaterialTranslator::DistanceFieldApproxAO(int32 PositionArg, int32 No
 		return INDEX_NONE;
 	}
 
+	if (BaseDistanceArg == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
 	if (RadiusArg == INDEX_NONE)
 	{
 		return INDEX_NONE;
@@ -9085,12 +9090,26 @@ int32 FHLSLMaterialTranslator::DistanceFieldApproxAO(int32 PositionArg, int32 No
 	NumSteps = FMath::Clamp(NumSteps, 1, 4);
 	StepScale = FMath::Max(StepScale, 1.0f);
 
-	int32 NumStepsConst = Constant(NumSteps);
-	int32 NumStepsMinus1Const = Constant(NumSteps - 1);
-	int32 StepScaleConst = Constant(StepScale);
+	const int32 NumStepsConst = Constant(NumSteps);
+	const int32 NumStepsMinus1Const = Constant(NumSteps - 1);
+	const int32 StepScaleConst = Constant(StepScale);
 
-	int32 StepDistance = Div(RadiusArg, Power(StepScaleConst, NumStepsMinus1Const));
-	int32 DistanceBiasConst = Constant(0);
+	int32 StepDistance;
+	int32 DistanceBias;
+	int32 MaxDistance;
+
+	if (NumSteps == 1)
+	{
+		StepDistance = Constant(0);
+		DistanceBias = BaseDistanceArg;
+		MaxDistance = BaseDistanceArg;
+	}
+	else
+	{
+		StepDistance = Div(Sub(RadiusArg, BaseDistanceArg), Sub(Power(StepScaleConst, NumStepsMinus1Const), Constant(1)));
+		DistanceBias = Sub(BaseDistanceArg, StepDistance);
+		MaxDistance = RadiusArg;
+	}
 
 	// LWC_TODO: update for LWC position
 	return AddCodeChunk(MCT_Float,
@@ -9100,8 +9119,8 @@ int32 FHLSLMaterialTranslator::DistanceFieldApproxAO(int32 PositionArg, int32 No
 		*GetParameterCode(NumStepsConst),
 		*CoerceParameter(StepDistance, MCT_Float),
 		*GetParameterCode(StepScaleConst),
-		*GetParameterCode(DistanceBiasConst),
-		*CoerceParameter(RadiusArg, MCT_Float));
+		*CoerceParameter(DistanceBias, MCT_Float),
+		*CoerceParameter(MaxDistance, MCT_Float));
 }
 
 int32 FHLSLMaterialTranslator::SamplePhysicsField(int32 PositionArg, const int32 OutputType, const int32 TargetIndex)

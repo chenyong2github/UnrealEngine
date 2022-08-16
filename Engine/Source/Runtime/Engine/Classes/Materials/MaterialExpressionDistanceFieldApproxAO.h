@@ -21,9 +21,16 @@ class UMaterialExpressionDistanceFieldApproxAO : public UMaterialExpression
 	FExpressionInput Normal;
 
 	UPROPERTY(meta = (RequiredInput = "false"))
+	FExpressionInput BaseDistance;
+
+	/** only used if BaseDistance is not hooked up */
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionDistanceFieldApproxAO, meta=(OverridingInputProperty = "BaseDistance"))
+	float BaseDistanceDefault;
+
+	UPROPERTY(meta = (RequiredInput = "false"))
 	FExpressionInput Radius;
 
-	/** only used if TextureSize is not hooked up */
+	/** only used if Radius is not hooked up */
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionDistanceFieldApproxAO, meta=(OverridingInputProperty = "Radius"))
 	float RadiusDefault;
 

@@ -18415,6 +18415,7 @@ UMaterialExpressionDistanceFieldApproxAO::UMaterialExpressionDistanceFieldApprox
 #endif
 
 	NumSteps = 1;
+	BaseDistanceDefault = 15;
 	RadiusDefault = 150;
 	StepScaleDefault = 3.0f;
 }
@@ -18444,9 +18445,10 @@ int32 UMaterialExpressionDistanceFieldApproxAO::Compile(class FMaterialCompiler*
 		NormalArg = Compiler->VertexNormal();
 	}
 
+	int32 BaseDistanceArg = BaseDistance.GetTracedInput().Expression ? BaseDistance.Compile(Compiler) : Compiler->Constant(BaseDistanceDefault);
 	int32 RadiusArg = Radius.GetTracedInput().Expression ? Radius.Compile(Compiler) : Compiler->Constant(RadiusDefault);
 
-	return Compiler->DistanceFieldApproxAO(PositionArg, NormalArg, RadiusArg, NumSteps, StepScaleDefault);
+	return Compiler->DistanceFieldApproxAO(PositionArg, NormalArg, BaseDistanceArg, RadiusArg, NumSteps, StepScaleDefault);
 }
 
 void UMaterialExpressionDistanceFieldApproxAO::GetCaption(TArray<FString>& OutCaptions) const
