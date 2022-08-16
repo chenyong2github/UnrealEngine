@@ -285,19 +285,19 @@ static FBlueprintActionFilter BlueprintActionMenuUtilsImpl::MakeCallOnMemberFilt
 	FBlueprintActionFilter CallOnMemberFilter;
 	CallOnMemberFilter.Context = MainMenuFilter.Context;
 	CallOnMemberFilter.PermittedNodeTypes.Add(UK2Node_CallFunction::StaticClass());
-	CallOnMemberFilter.AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsUnBoundSpawner)->WithFlags(EActionFilterTestFlags::CacheResults));
-	
+	CallOnMemberFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(IsUnBoundSpawner));
+
 	const UBlueprintEditorSettings* BlueprintSettings = GetDefault<UBlueprintEditorSettings>();
 	// instead of looking for "ExposeFunctionCategories" on component properties,
 	// we just expose functions for all components, but we still need to check
 	// for "ExposeFunctionCategories" on any non-component properties... 
 	if (BlueprintSettings->bExposeAllMemberComponentFunctions)
 	{
-		CallOnMemberFilter.AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsUnexposedNonComponentAction)->WithFlags(EActionFilterTestFlags::CacheResults));
+		CallOnMemberFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(IsUnexposedNonComponentAction));
 	}
 	else
 	{
-		CallOnMemberFilter.AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsUnexposedMemberAction)->WithFlags(EActionFilterTestFlags::CacheResults));
+		CallOnMemberFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(IsUnexposedMemberAction));
 	}
 
 	bool bForceAddComponents = ((ContextTargetMask & EContextTargetFlags::TARGET_SubComponents) != 0);
@@ -393,9 +393,7 @@ static void BlueprintActionMenuUtilsImpl::AddFavoritesSection(FBlueprintActionFi
 	if (BlueprintSettings->bShowContextualFavorites)
 	{
 		FBlueprintActionFilter FavoritesFilter = MainMenuFilter;
-
-		// make this action filter uncached because favorites can change on a moments notice
-		FavoritesFilter.AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsNonFavoritedAction));
+		FavoritesFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(IsNonFavoritedAction));
 		
 		uint32 SectionFlags = 0x00;
 		FText  SectionHeading = LOCTEXT("ContextMenuFavoritesTitle", "Favorites");
@@ -480,18 +478,18 @@ void FBlueprintActionMenuUtils::MakeContextMenu(FBlueprintActionContext const& C
 	FBlueprintActionFilter ComponentsFilter;
 	ComponentsFilter.Context = Context;
 	// only want bound actions for this menu section
-	ComponentsFilter.AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsUnBoundSpawner)->WithFlags(EActionFilterTestFlags::CacheResults));
+	ComponentsFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(IsUnBoundSpawner));
 	// @TODO: don't know exactly why we can only bind non-pure/const functions;
 	//        this is mirrored after FK2ActionMenuBuilder::GetFunctionCallsOnSelectedActors()
 	//        and FK2ActionMenuBuilder::GetFunctionCallsOnSelectedComponents(),
 	//        where we make the same stipulation
-	ComponentsFilter.AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsPureNonConstAction)->WithFlags(EActionFilterTestFlags::CacheResults));
+	ComponentsFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(IsPureNonConstAction));
 	
 
 	FBlueprintActionFilter LevelActorsFilter;
 	LevelActorsFilter.Context = Context;
 	// only want bound actions for this menu section
-	LevelActorsFilter.AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsUnBoundSpawner)->WithFlags(EActionFilterTestFlags::CacheResults));
+	LevelActorsFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(IsUnBoundSpawner));
 
 	// Build asset reference filter
 	FAssetReferenceFilterContext AssetReferenceFilterContext;
@@ -643,7 +641,7 @@ void FBlueprintActionMenuUtils::MakeContextMenu(FBlueprintActionContext const& C
 	FBlueprintActionFilter AddComponentFilter;
 	AddComponentFilter.Context = MainMenuFilter.Context;
 	AddComponentFilter.PermittedNodeTypes.Add(UK2Node_AddComponent::StaticClass());
-	LevelActorsFilter.AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsUnBoundSpawner)->WithFlags(EActionFilterTestFlags::CacheResults));
+	AddComponentFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(IsUnBoundSpawner));
 
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
@@ -746,7 +744,7 @@ void FBlueprintActionMenuUtils::MakeFavoritesMenu(FBlueprintActionContext const&
 
 	FBlueprintActionFilter MenuFilter;
 	MenuFilter.Context = Context;
-	MenuFilter.AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(BlueprintActionMenuUtilsImpl::IsNonFavoritedAction));
+	MenuFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(BlueprintActionMenuUtilsImpl::IsNonFavoritedAction));
 
 	uint32 SectionFlags = 0x00;
 	const UBlueprintEditorSettings* BlueprintSettings = GetDefault<UBlueprintEditorSettings>();

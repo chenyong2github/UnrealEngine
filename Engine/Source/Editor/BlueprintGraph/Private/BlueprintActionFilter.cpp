@@ -1961,7 +1961,7 @@ FBlueprintActionInfo::FBlueprintActionInfo(FBlueprintActionInfo const& Rhs, IBlu
 }
 
 //------------------------------------------------------------------------------
-UObject const* FBlueprintActionInfo::GetActionOwner() const
+UObject const* FBlueprintActionInfo::GetActionOwner()
 {
 	return ActionOwner.Get();
 }
@@ -2072,318 +2072,6 @@ UFunction const* FBlueprintActionInfo::GetAssociatedFunction()
 	return CachedActionFunction;
 }
 
-bool FBlueprintActionInfo::operator==(const FBlueprintActionInfo& other) const
-{
-	if (NodeSpawner != other.NodeSpawner || ActionOwner != other.ActionOwner)
-	{
-		return false;
-	}
-	
-	for (const FBindingObject &Binding : Bindings)
-	{
-		if (!other.Bindings.Contains(Binding))
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-/*******************************************************************************
- * FActionFilterCacheNode
- ******************************************************************************/
-
-uint32 GetTypeHash(const FBlueprintActionInfo& BlueprintActionInfo)
-{
-	uint32 Hash = GetTypeHash(BlueprintActionInfo.NodeSpawner);
-	Hash = HashCombine(Hash,GetTypeHash(BlueprintActionInfo.GetActionOwner()));
-	Hash = HashCombine(Hash,BlueprintActionInfo.GetBindings().Num());
-	
-	return Hash;
-}
-
-/*******************************************************************************
- * TActionFilterCacheKeyNode
- ******************************************************************************/
-
-template<typename TKeyType>
-class TActionFilterCacheKeyNode : public FActionFilterCacheNode
-{
-public:
-	explicit TActionFilterCacheKeyNode(const TKeyType& Key, TDelegate<bool(const TKeyType&, const TKeyType&)> Comparison = nullptr) :
-		Key(MakeShared<TKeyType>(Key)),
-		Comparison(Comparison)
-	{}
-	
-	virtual ~TActionFilterCacheKeyNode() override = default;
-
-	virtual void UnCacheSelf() override
-	{
-		if (Parent.IsValid())
-		{
-			const FSharedNode SharedParent = Parent.Pin();
-
-			// remove this node from parent
-			SharedParent->Children.RemoveSingleSwap(this->AsShared(), false);
-
-			if (SharedParent->Children.IsEmpty())
-			{
-				SharedParent->UnCacheSelf();
-			}
-		}
-	}
-	
-	TSharedPtr<TKeyType> Key = nullptr;
-protected:
-	virtual bool KeysMatch(const void* RawKey) const override
-	{
-		if (Comparison.IsBound())
-		{
-			return Comparison.Execute(*Key, *StaticCast<const TKeyType*>(RawKey));
-		}
-		return *Key == *StaticCast<const TKeyType*>(RawKey);
-	}
-
-	TDelegate<bool(const TKeyType&, const TKeyType&)> Comparison = nullptr;
-};
-
-/*******************************************************************************
- * TActionFilterCacheLeaf
- ******************************************************************************/
-
-template<typename TKeyType>
-class TActionFilterCacheLeaf : public TActionFilterCacheKeyNode<TKeyType>
-{
-public:
-	explicit TActionFilterCacheLeaf(const TKeyType& Key, TDelegate<bool(const TKeyType&, const TKeyType&)> Comparison = nullptr) :
-		TActionFilterCacheKeyNode<TKeyType>(Key, Comparison),
-		CachedFilterResults(MakeShared<TMap<FBlueprintActionInfo, bool>>())
-	{}
-	
-	virtual ~TActionFilterCacheLeaf() override = default;
-
-	virtual uint32 GetLeafAccessCount() const override
-	{
-		return AccessCount;
-	}
-
-
-	virtual void DecrementLeafAccessCount() override
-	{
-		if (AccessCount > 0)
-		{
-			--AccessCount;
-		}
-	}
-
-	uint32 AccessCount = 1;
-	TSharedPtr<TMap<FBlueprintActionInfo, bool>> CachedFilterResults;
-};
-
-/*******************************************************************************
- * FActionFilterCache
- ******************************************************************************/
-
-FActionFilterCache::FActionFilterCache()
-{
-	if (!ReloadCompleteDelegate.IsValid())
-	{
-		ReloadCompleteDelegate = FCoreUObjectDelegates::ReloadCompleteDelegate.AddStatic(&FActionFilterCache::OnReloadComplete);
-	}
-	if (!ModuleChangedDelegate.IsValid())
-	{
-		ModuleChangedDelegate = FModuleManager::Get().OnModulesChanged().AddStatic(&FActionFilterCache::OnModuleChanged);
-	}
-}
-
-void FActionFilterCache::OnReloadComplete(EReloadCompleteReason Reason)
-{
-	ClearAllCache();
-}
-
-void FActionFilterCache::OnModuleChanged(FName ModuleName, EModuleChangeReason ChangeReason)
-{
-	ClearAllCache();
-}
-
-void FActionFilterCache::ClearAllCache()
-{
-	SharedCache = MakeShared<FActionFilterCacheNode>();
-	CacheLeafs.Empty();
-}
-
-TSharedPtr<TMap<FBlueprintActionInfo, bool>> FActionFilterCache::GetCachedFilterResults(const FBlueprintActionFilter &Filter)
-{
-	// if the leaf for this context has already been looked up, just grab it rather than researching the tree
-	if (CachedFilterResults.IsValid())
-	{
-		return CachedFilterResults;
-	}
-	
-	TSharedPtr<FActionFilterCacheNode> Current = SharedCache;
-
-/** update Current to it's child that matches Key. Create one if neccesary */
-#define LOOKUP_CACHE_KEY(Key) \
-	FindOrCacheChildNode(Current, Key, #Key)
-	
-/** update Current to it's child that matches Key as a leaf. Create one if neccesary */
-#define LOOKUP_CACHE_KEY_LEAF(Key) \
-	FindOrCacheLeaf(Current, Key, #Key)
-
-/** update Current to it's child that matches Key as a leaf. Create one if neccesary
- *  uses Comparison lambda to check for key "equality"
- */
-#define LOOKUP_CACHE_KEY_PREDICATE(Key, Comparison) \
-	FindOrCacheChildNode<decltype(Key)>(Current, Key, #Key, TDelegate<bool(const decltype(Key)&, const decltype(Key)&)>::CreateLambda(Comparison))
-
-/** update Current to it's child that matches Key as a leaf. Create one if neccesary
- *  uses Comparison lambda to check for key "equality"
- */
-#define LOOKUP_CACHE_KEY_LEAF_PREDICATE(Key, Comparison) \
-	FindOrCacheLeaf<decltype(Key)>(Current, Key, #Key, TDelegate<bool(const decltype(Key)&, const decltype(Key)&)>::CreateLambda(Comparison))
-
-	// traverse/build the cache tree looking for the cached results
-
-	// cache based on what filter tests are being applied
-	LOOKUP_CACHE_KEY(Filter.FilterTests);
-
-	// cache based on which blueprints/graphs/editor we're generating actions for
-	LOOKUP_CACHE_KEY(Filter.Context.Blueprints);
-	LOOKUP_CACHE_KEY(Filter.Context.Graphs);
-	LOOKUP_CACHE_KEY(Filter.Context.EditorPtr);
-
-	// cache based on the filter's target classes
-	LOOKUP_CACHE_KEY(Filter.TargetClasses);
-
-	// cache based on what node types are permitted or rejected
-	LOOKUP_CACHE_KEY(Filter.RejectedNodeTypes);
-	LOOKUP_CACHE_KEY(Filter.PermittedNodeTypes);
-
-	// cache based on what flags are active
-	LOOKUP_CACHE_KEY(Filter.FilterFlags);
-	
-	// cache based on the relevant pin types and directions
-	LOOKUP_CACHE_KEY_LEAF_PREDICATE(Filter.Context.Pins, [](const TArray<UEdGraphPin*>& A, const TArray<UEdGraphPin*>& B)
-	{
-		if (A.Num() != B.Num())
-		{
-			return false;
-		}
-		for (int32 Index = 0; Index < A.Num(); ++Index)
-		{
-			if (A[Index]->Direction != B[Index]->Direction)
-			{
-				return false;
-			}
-			if (A[Index]->PinType != B[Index]->PinType)
-			{
-				return false;
-			}
-		}
-		return true;
-	});
-
-	// at this point, IsFilteredByThisCache has been updated to a shared memory space that can be retrieved again
-	// by following the above procedure with the same keys values.
-	return CachedFilterResults;
-}
-
-void FActionFilterCache::PopCache()
-{
-	int32 MinIndex = 0;
-	uint32 MinAccessCount = TNumericLimits<uint32>::Max();
-	for (int32 LeafIndex = 0; LeafIndex < CacheLeafs.Num(); ++LeafIndex)
-	{
-		TWeakPtr<FActionFilterCacheNode>& Leaf = CacheLeafs[LeafIndex];
-		// if there's invalid cache, remove it first
-		if (!Leaf.IsValid())
-		{
-			MinIndex = LeafIndex;
-			break;
-		}
-
-		const uint32 AccessCount = Leaf.Pin()->GetLeafAccessCount();
-		if (AccessCount < MinAccessCount)
-		{
-			MinAccessCount = AccessCount;
-			MinIndex = LeafIndex;
-		}
-
-		// decrement access count of all leafs so that recently used leafs get prioritized more
-		Leaf.Pin()->DecrementLeafAccessCount();
-	}
-
-	TWeakPtr<FActionFilterCacheNode> RemovedElement = CacheLeafs[MinIndex];
-	if (RemovedElement.IsValid())
-	{
-		RemovedElement.Pin()->UnCacheSelf();
-	}
-
-	CacheLeafs.RemoveAt(MinIndex, 1, false);
-}
-
-TSharedPtr<FActionFilterCacheNode> FActionFilterCache::SharedCache = MakeShared<FActionFilterCacheNode>();
-
-TAutoConsoleVariable<int32> FActionFilterCache::CVarCacheLeafCapacity{
-	TEXT("BP.ActionMenuFilterCacheLeafCapacity"),
-	32,
-	TEXT("The number of action menu contexts to cache simultaniously. raising this number will increase the memory footprint but decrease how often the cache is blown")
-};
-
-TArray<TWeakPtr<FActionFilterCacheNode>> FActionFilterCache::CacheLeafs;
-
-FDelegateHandle FActionFilterCache::ReloadCompleteDelegate;
-FDelegateHandle FActionFilterCache::ModuleChangedDelegate;
-
-/*******************************************************************************
- * FActionFilterTest
- ******************************************************************************/
-
-TAutoConsoleVariable<bool> FActionFilterTest::CVarEnableCaching{
-		TEXT("BP.EnableActionMenuFilterCaching"),
-		false,
-		TEXT("If enabled, action filter tests with the CacheResults flag set will have their results cached")
-	};
-
-FActionFilterTest::FActionFilterTest(const FRejectionDelegate Delegate, FString Name, EActionFilterTestFlags Flags) :
-	RejectionDelegate(Delegate),
-	Name(Name),
-	Flags(Flags)
-{
-}
-
-bool FActionFilterTest::Call(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& ActionInfo,
-                             TMap<FString, uint32>* FilterTestToCpuSpecIds)
-{
-	check(RejectionDelegate.IsBound());
-
-#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-	checkf(FilterTestToCpuSpecIds, TEXT("If Action Filter Profiling is enabled, FilterTestToCpuSpecIds must be provided"));
-	uint32& CpuSpecId = FilterTestToCpuSpecIds->FindOrAdd(Name);
-	FCpuProfilerTrace::FEventScope ProfilerEvent(CpuSpecId, *FString::Printf(TEXT("IsFiltered_%s"), *Name), true, __FILE__, __LINE__);
-
-	const double StartTime = FPlatformTime::Seconds();
-#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-
-	const bool bIsFiltered = RejectionDelegate.Execute(Filter, ActionInfo);
-
-#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-	ProfileRecord.NumIterations += 1;
-	ProfileRecord.TotalTimeMs += (FPlatformTime::Seconds() - StartTime) * 1000.0f;
-	if (bIsFiltered)
-	{
-		ProfileRecord.NumFilteredOut += 1;
-	}
-#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-	
-	return bIsFiltered;
-}
-
-bool FActionFilterTest::operator==(const FActionFilterTest& other) const
-{
-	return Name == other.Name && Flags == other.Flags;
-}
-
 /*******************************************************************************
  * FBlueprintActionFilter
  ******************************************************************************/
@@ -2417,64 +2105,62 @@ FBlueprintActionFilter::FBlueprintActionFilter(const EFlags InFlags /*= BPFILTER
 	//       here are ran last)
 	//
 
+#define ADD_REJECTION_TEST(TestFunc, ...) \
+	AddRejectionTest(FRejectionTestDelegate::CreateStatic(TestFunc, ##__VA_ARGS__), TEXT(#TestFunc))
+
 	// add first the most expensive tests (they will be ran last, and therefore
 	// should be operating on a smaller subset of node-spawners)
 	//
 	// this test in-particular spawns a template-node and then calls 
 	// AllocateDefaultPins() which is costly, so it should be very last!
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsNodeTemplateSelfFiltered)); // since this is virtual, we'll avoid caching it.
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsIncompatibleAnimNotification)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsAssetPermissionNotGranted)); // since this depends on other filters, we'll avoid caching it
-
-	// TODO: blow cache when the results of the following might change:
-	//   - K2Schema->FunctionHasParamOfType
-	//   - K2Schema->ArePinTypesCompatible
-	//   - K2Schema->ConvertPropertyToPinType
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsMissingMatchingPinParam)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsMissmatchedPropertyType)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsFunctionMissingPinParam)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsIncompatibleLatentNode)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsIncompatibleImpureNode)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsPropertyAccessorNode)->WithFlags(EActionFilterTestFlags::CacheResults));
+	ADD_REJECTION_TEST(IsNodeTemplateSelfFiltered);
+	ADD_REJECTION_TEST(IsIncompatibleAnimNotification);
+	ADD_REJECTION_TEST(IsAssetPermissionNotGranted);
+	ADD_REJECTION_TEST(IsMissingMatchingPinParam);
+	ADD_REJECTION_TEST(IsMissmatchedPropertyType);
+	ADD_REJECTION_TEST(IsFunctionMissingPinParam);
+	ADD_REJECTION_TEST(IsIncompatibleLatentNode);
+	ADD_REJECTION_TEST(IsIncompatibleImpureNode);
+	ADD_REJECTION_TEST(IsPropertyAccessorNode);
 	if (HasAnyFlags(BPFILTER_RejectIncompatibleThreadSafety))
 	{
-		AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsThreadSafetyIncompatible)->WithFlags(EActionFilterTestFlags::CacheResults));
+		ADD_REJECTION_TEST(IsThreadSafetyIncompatible);
 	}
 	
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsActionHiddenByConfig)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsFieldCategoryHidden)->WithFlags(EActionFilterTestFlags::CacheResults));
+	ADD_REJECTION_TEST(IsActionHiddenByConfig);
+	ADD_REJECTION_TEST(IsFieldCategoryHidden);
 	if (HasAnyFlags(BPFILTER_RejectGlobalFields | BPFILTER_RejectNonImportedFields))
 	{
-		AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsRejectedGlobalField)->WithFlags(EActionFilterTestFlags::CacheResults));
+		ADD_REJECTION_TEST(IsRejectedGlobalField);
 	}
 	
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsFieldInaccessible)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsNotSubClassCast)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsEventUnimplementable)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsPermissionNotGranted)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsRestrictedClassMember)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsIncompatibleWithGraphType)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsSchemaIncompatible)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsExtraneousInterfaceCall)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsIncompatibleMacroInstance)->WithFlags(EActionFilterTestFlags::CacheResults));
+	ADD_REJECTION_TEST(IsFieldInaccessible);
+	ADD_REJECTION_TEST(IsNotSubClassCast);
+	ADD_REJECTION_TEST(IsEventUnimplementable);
+	ADD_REJECTION_TEST(IsPermissionNotGranted);
+	ADD_REJECTION_TEST(IsRestrictedClassMember);
+	ADD_REJECTION_TEST(IsIncompatibleWithGraphType);
+	ADD_REJECTION_TEST(IsSchemaIncompatible);
+	ADD_REJECTION_TEST(IsExtraneousInterfaceCall);
+	ADD_REJECTION_TEST(IsIncompatibleMacroInstance);
 
 	if (!HasAnyFlags(BPFILTER_PermitDeprecated))
 	{
-		AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsDeprecated)->WithFlags(EActionFilterTestFlags::CacheResults));
+		ADD_REJECTION_TEST(IsDeprecated);
 	}
 
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsFilteredNodeType)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsNonTargetMember)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsUnBoundBindingSpawner)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsOutOfScopeLocalVariable)->WithFlags(EActionFilterTestFlags::CacheResults));
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsLevelScriptActionValid)->WithFlags(EActionFilterTestFlags::CacheResults));
+	ADD_REJECTION_TEST(IsFilteredNodeType);
+	ADD_REJECTION_TEST(IsNonTargetMember);
+	ADD_REJECTION_TEST(IsUnBoundBindingSpawner);
+	ADD_REJECTION_TEST(IsOutOfScopeLocalVariable);
+	ADD_REJECTION_TEST(IsLevelScriptActionValid);
 
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsHiddenInNonEditorBlueprint)->WithFlags(EActionFilterTestFlags::CacheResults));
+	ADD_REJECTION_TEST(IsHiddenInNonEditorBlueprint);
 
 
 	// added as the first rejection test, so that we don't operate on stale 
 	// (TRASH/REINST) class fields
-	AddRejectionTest(MAKE_ACTION_FILTER_REJECTION_TEST(IsStaleFieldAction));
+	ADD_REJECTION_TEST(IsStaleFieldAction);
 }
 
 //------------------------------------------------------------------------------
@@ -2500,10 +2186,24 @@ void FBlueprintActionFilter::Add(TArray<FTargetClassFilterData>& ToArray, UClass
 }
 
 //------------------------------------------------------------------------------
-void FBlueprintActionFilter::AddRejectionTest(TSharedRef<FActionFilterTest> RejectionTest)
+void FBlueprintActionFilter::AddRejectionTest(FRejectionTestDelegate RejectionTestDelegate, const TCHAR* RejectionTestName)
 {
-	checkf(RejectionTest->RejectionDelegate.IsBound(), TEXT("Cannot add a rejection test without a bound delegate"));
-	FilterTests.Add(RejectionTest);
+	if (RejectionTestDelegate.IsBound())
+	{
+		FilterTests.Add(RejectionTestDelegate);
+
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+		FFilterTestProfileRecord FilterTestProfileRecord;
+		
+		FilterTestProfileRecord.TestName = RejectionTestName ? FString(RejectionTestName) : RejectionTestDelegate.TryGetBoundFunctionName().ToString();
+		if (FilterTestProfileRecord.TestName.IsEmpty())
+		{
+			FilterTestProfileRecord.TestName = FString::Printf(TEXT("[FuncPtr:0x%016x]"), RejectionTestDelegate.GetBoundProgramCounterForTimerManager());
+		}
+
+		FilterTestProfiles.Add(FilterTests.Num() - 1, MoveTemp(FilterTestProfileRecord));
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+	}
 }
 
 //------------------------------------------------------------------------------
@@ -2553,24 +2253,8 @@ FBlueprintActionFilter const& FBlueprintActionFilter::operator&=(FBlueprintActio
 }
 
 //------------------------------------------------------------------------------
-TSharedPtr<TMap<FBlueprintActionInfo, bool>> FBlueprintActionFilter::GetCachedFilterResults()
+bool FBlueprintActionFilter::IsFilteredByThis(FBlueprintActionInfo& BlueprintAction) const
 {
-	return ActionFilterCache.GetCachedFilterResults(*this);
-}
-
-const TArray<TSharedRef<FActionFilterTest>> &FBlueprintActionFilter::GetFilterTests() const
-{
-	return FilterTests;
-}
-
-//------------------------------------------------------------------------------
-bool FBlueprintActionFilter::IsFilteredByThis(FBlueprintActionInfo& BlueprintAction)
-{
-	if (IsFilteredByCachedFilters(BlueprintAction))
-	{
-		return true;
-	}
-	
 	FBlueprintActionFilter const& FilterRef = *this;
 
 	// for debugging purposes:
@@ -2590,20 +2274,28 @@ bool FBlueprintActionFilter::IsFilteredByThis(FBlueprintActionInfo& BlueprintAct
 	// internal tests are ran last).
 	for (int32 TestIndex = FilterTests.Num()-1; TestIndex >= 0; --TestIndex)
 	{
-		TSharedRef<FActionFilterTest> RejectionTest = FilterTests[TestIndex];
-
-		// cached tests have already been ran. we can skip them.
-		if (EnumHasAllFlags(RejectionTest->Flags, EActionFilterTestFlags::CacheResults))
-		{
-			continue;
-		}
+		FRejectionTestDelegate const& RejectionTestDelegate = FilterTests[TestIndex];
+		check(RejectionTestDelegate.IsBound());
 
 #if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-		bIsFiltered = RejectionTest.Call(FilterRef, BlueprintAction, &FilterTestToCpuSpecIds);
-#else
-		bIsFiltered = RejectionTest->Call(FilterRef, BlueprintAction);
-#endif
-		
+		FFilterTestProfileRecord& FilterTestProfileRecord = FilterTestProfiles.FindOrAdd(TestIndex);
+		uint32& CpuSpecId = FilterTestToCpuSpecIds.FindOrAdd(FilterTestProfileRecord.TestName);
+		FCpuProfilerTrace::FEventScope ProfilerEvent(CpuSpecId, *FString::Printf(TEXT("IsFiltered_%s"), *FilterTestProfileRecord.TestName), true, __FILE__, __LINE__);
+
+		const double StartTime = FPlatformTime::Seconds();
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
+		bIsFiltered = RejectionTestDelegate.Execute(FilterRef, BlueprintAction);
+
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+		FilterTestProfileRecord.NumIterations += 1;
+		FilterTestProfileRecord.TotalTimeMs += (FPlatformTime::Seconds() - StartTime) * 1000.0f;
+		if (bIsFiltered)
+		{
+			FilterTestProfileRecord.NumFilteredOut += 1;
+		}
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
 		if (bIsFiltered)
 		{
 			break;
@@ -2612,9 +2304,39 @@ bool FBlueprintActionFilter::IsFilteredByThis(FBlueprintActionInfo& BlueprintAct
 
 	if (!bIsFiltered)
 	{
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+		int32 ExtraTestProfileRecordIndex = FilterTests.Num();
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
 		for (const FBlueprintGraphModule::FActionMenuRejectionTest& ExtraRejectionTest : BluprintGraphModule->GetExtendedActionMenuFilters())
 		{
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+			FFilterTestProfileRecord& ExtraTestProfileRecord = FilterTestProfiles.FindOrAdd(ExtraTestProfileRecordIndex++);
+			if (ExtraTestProfileRecord.TestName.IsEmpty())
+			{
+				ExtraTestProfileRecord.TestName = ExtraRejectionTest.TryGetBoundFunctionName().ToString();
+				if (ExtraTestProfileRecord.TestName.IsEmpty())
+				{
+					ExtraTestProfileRecord.TestName = FString::Printf(TEXT("[FuncPtr:0x%016x]"), ExtraRejectionTest.GetBoundProgramCounterForTimerManager());
+				}
+			}
+			uint32& CpuSpecId = FilterTestToCpuSpecIds.FindOrAdd(ExtraTestProfileRecord.TestName);
+			FCpuProfilerTrace::FEventScope ProfilerEvent(CpuSpecId, *FString::Printf(TEXT("Extended_IsFiltered_%s"), *ExtraTestProfileRecord.TestName), true, __FILE__, __LINE__);
+
+			const double StartTime = FPlatformTime::Seconds();
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
 			bIsFiltered = ExtraRejectionTest.Execute(FilterRef, BlueprintAction);
+
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+			ExtraTestProfileRecord.NumIterations += 1;
+			ExtraTestProfileRecord.TotalTimeMs += (FPlatformTime::Seconds() - StartTime) * 1000.0f;
+			if (bIsFiltered)
+			{
+				ExtraTestProfileRecord.NumFilteredOut += 1;
+			}
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
 			if (bIsFiltered)
 			{
 				break;
@@ -2625,94 +2347,19 @@ bool FBlueprintActionFilter::IsFilteredByThis(FBlueprintActionInfo& BlueprintAct
 	return bIsFiltered;
 }
 
-bool FBlueprintActionFilter::IsFilteredByCachedFilters(FBlueprintActionInfo& BlueprintAction)
-{
-	
-#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionFilter::IsFilteredByCachedFilters);
-#endif
-	
-	const TSharedPtr<TMap<FBlueprintActionInfo, bool>> Cache = GetCachedFilterResults();
-	FBlueprintActionFilter const& FilterRef = *this;
-		
-	if (BlueprintActionFilterImpl::IsStaleFieldAction(FilterRef, BlueprintAction))
-	{
-		// if BlueprintAction is stale, immediately filter the action
-		if (FActionFilterTest::CVarEnableCaching.GetValueOnGameThread())
-		{
-			Cache->FindOrAdd(BlueprintAction) = true;
-		}
-		return true;
-	}
-
-	if (FActionFilterTest::CVarEnableCaching.GetValueOnGameThread())
-	{
-		if (const bool* Result = Cache->Find(BlueprintAction))
-		{
-			return *Result;
-		}
-	}
-
-#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-	static TMap<FString, uint32> FilterTestToCpuSpecIds;
-#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-	
-	bool bIsFiltered = false;
-	// iterate backwards so that custom user test are ran first (and the slow
-	// internal tests are ran last).
-	for (int32 TestIndex = FilterTests.Num()-1; TestIndex >= 0; --TestIndex)
-	{
-		TSharedRef<FActionFilterTest> RejectionTest = FilterTests[TestIndex];
-		
-		// this method only checks cached rejection tests
-		if (!EnumHasAllFlags(RejectionTest->Flags, EActionFilterTestFlags::CacheResults))
-		{
-			continue;
-		}
-		
-#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
-		bIsFiltered = RejectionTest.Call(FilterRef, BlueprintAction, &FilterTestToCpuSpecIds);
-#else
-		bIsFiltered = RejectionTest->Call(FilterRef, BlueprintAction);
-#endif
-		
-		if (bIsFiltered)
-		{
-			break;
-		}
-	}
-	
-	if (FActionFilterTest::CVarEnableCaching.GetValueOnGameThread())
-	{
-		Cache->Add(BlueprintAction, bIsFiltered);
-	}
-	
-	return bIsFiltered;
-}
-
 //------------------------------------------------------------------------------
 #if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 TArray<FString> FBlueprintActionFilter::GetFilterTestProfile()
 {
 	TArray<FString> Result;
 
+	int32 TestIdx = 0;
 	for (int32 TestIndex = FilterTests.Num() - 1; TestIndex >= 0; --TestIndex)
 	{
-		FActionFilterTest& RejectionTest = FilterTests[TestIndex];
-		FActionFilterTest::FFilterTestProfileRecord& ProfileRecord = RejectionTest.ProfileRecord;
-		
-		Result.Add(FString::Printf(TEXT("[%02d]: %s | %d tested | %d failed | %.02f ms | %.02f us (per test)"),
-			FilterTests.Num() - TestIndex,
-			*RejectionTest.Name,
-			ProfileRecord.NumIterations,
-			ProfileRecord.NumFilteredOut,
-			ProfileRecord.TotalTimeMs,
-			ProfileRecord.TotalTimeMs / ProfileRecord.NumIterations * 1000.0f
-		));
-
-		// reset record
-		ProfileRecord = FActionFilterTest::FFilterTestProfileRecord();
+		Result.Add(FString::Printf(TEXT("[%02d]: %s | %d tested | %d failed | %.02f ms | %.02f us (per test)"), FilterTests.Num() - TestIndex, *FilterTestProfiles[TestIndex].TestName, FilterTestProfiles[TestIndex].NumIterations, FilterTestProfiles[TestIndex].NumFilteredOut, FilterTestProfiles[TestIndex].TotalTimeMs, FilterTestProfiles[TestIndex].TotalTimeMs / FilterTestProfiles[TestIndex].NumIterations * 1000.0f));
 	}
+
+	FilterTestProfiles.Reset();
 
 	return Result;
 }
