@@ -12696,12 +12696,14 @@ TArray<UScriptStruct*> URigVMController::GetRegisteredUnitStructs()
 		{
 			continue;
 		}
-		UScriptStruct* Struct = Function.Struct;
-		if (!Struct->IsChildOf(FRigVMStruct::StaticStruct()))
+		if(UScriptStruct* Struct = Function.Struct)
 		{
-			continue;
+			if (!Struct->IsChildOf(FRigVMStruct::StaticStruct()))
+			{
+				continue;
+			}
+			UnitStructs.Add(Struct);
 		}
-		UnitStructs.Add(Struct);
 	}
 	
 	return UnitStructs; 
