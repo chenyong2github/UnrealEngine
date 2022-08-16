@@ -4531,9 +4531,7 @@ void FRendererModule::BeginRenderingViewFamilies(FCanvas* Canvas, TArrayView<FSc
 	for (FSceneViewFamily* ViewFamily : ViewFamilies)
 	{
 		check(ViewFamily);
-		check(ViewFamily->Scene);
 		check(ViewFamily->Scene == ViewFamilies[0]->Scene);
-		check(ViewFamily->GetScreenPercentageInterface());
 	}
 
 	UWorld* World = nullptr;
