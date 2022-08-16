@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Capture/DisplayClusterMediaCaptureBase.h"
 
-class FRHICommandListImmediate;
+class FRDGBuilder;
 class FSceneViewFamily;
 class IDisplayClusterViewportProxy;
 
@@ -28,8 +28,12 @@ public:
 		return ViewportId;
 	}
 
+protected:
+	
+	virtual FIntPoint GetCaptureSize() const override;
+
 private:
-	void OnPostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneViewFamily& ViewFamily, const IDisplayClusterViewportProxy* ViewportProxy);
+	void OnPostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, const IDisplayClusterViewportProxy* ViewportProxy);
 
 private:
 	const FString ViewportId;

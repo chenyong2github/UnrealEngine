@@ -2,9 +2,12 @@
 
 #include "Capture/DisplayClusterMediaCaptureNode.h"
 
+#include "Config/IDisplayClusterConfigManager.h"
+#include "DisplayClusterConfigurationTypes.h"
 #include "IDisplayCluster.h"
 #include "IDisplayClusterCallbacks.h"
 
+#include "RenderGraphBuilder.h"
 #include "Render/Viewport/IDisplayClusterViewportManagerProxy.h"
 #include "RHICommandList.h"
 #include "RHIResources.h"
@@ -38,6 +41,17 @@ void FDisplayClusterMediaCaptureNode::StopCapture()
 	FDisplayClusterMediaCaptureBase::StopCapture();
 }
 
+FIntPoint FDisplayClusterMediaCaptureNode::GetCaptureSize() const
+{
+	if (IDisplayCluster::Get().GetConfigMgr() && IDisplayCluster::Get().GetConfigMgr()->GetLocalNode())
+	{
+		const FDisplayClusterConfigurationRectangle& Window = IDisplayCluster::Get().GetConfigMgr()->GetLocalNode()->WindowRect;
+		return { Window.W, Window.H };
+	}
+
+	return FIntPoint();
+}
+
 void FDisplayClusterMediaCaptureNode::OnPostFrameRender_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* ViewportManagerProxy, FViewport* Viewport)
 {
 	ensure(ViewportManagerProxy);
@@ -50,7 +64,10 @@ void FDisplayClusterMediaCaptureNode::OnPostFrameRender_RenderThread(FRHICommand
 		if (Textures.Num() > 0 && Regions.Num() > 0 && Textures[0])
 		{
 			FMediaTextureInfo TextureInfo{ Textures[0], FIntRect(Regions[0], Regions[0] + Textures[0]->GetDesc().Extent) };
-			ExportMediaData(RHICmdList, TextureInfo);
+
+			FRDGBuilder Builder(RHICmdList);
+			ExportMediaData(Builder, TextureInfo);
+			Builder.Execute();
 		}
 	}
 }

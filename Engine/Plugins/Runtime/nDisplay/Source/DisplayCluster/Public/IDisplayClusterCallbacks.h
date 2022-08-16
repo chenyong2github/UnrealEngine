@@ -7,6 +7,7 @@
 class IDisplayClusterViewportProxy;
 class IDisplayClusterViewportManagerProxy;
 class FRHICommandListImmediate;
+class FRDGBuilder;
 class FSceneViewFamily;
 class FViewport;
 
@@ -73,7 +74,7 @@ public:
 	virtual FDisplayClusterFailoverNodeDown& OnDisplayClusterFailoverNodeDown() = 0;
 
 	/** Called once the ViewFamily of this viewport is rendered **/
-	DECLARE_EVENT_ThreeParams(IDisplayClusterCallbacks, FDisplayClusterPostRenderViewFamily_RenderThread, FRHICommandListImmediate&, const FSceneViewFamily&, const IDisplayClusterViewportProxy*);
+	DECLARE_EVENT_ThreeParams(IDisplayClusterCallbacks, FDisplayClusterPostRenderViewFamily_RenderThread, FRDGBuilder&, const FSceneViewFamily&, const IDisplayClusterViewportProxy*);
 	virtual FDisplayClusterPostRenderViewFamily_RenderThread& OnDisplayClusterPostRenderViewFamily_RenderThread() = 0;
 
 	/** Called once before warping all available viewports **/

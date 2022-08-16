@@ -15,6 +15,7 @@
 #include "Cluster/IDisplayClusterClusterManager.h"
 #include "Game/IDisplayClusterGameManager.h"
 
+#include "Capture/DisplayClusterMediaCaptureCamera.h"
 #include "Capture/DisplayClusterMediaCaptureNode.h"
 #include "Capture/DisplayClusterMediaCaptureViewport.h"
 #include "Input/DisplayClusterMediaInputNode.h"
@@ -186,9 +187,9 @@ void FDisplayClusterMediaModule::InitializeMedia()
 								{
 									UE_LOG(LogDisplayClusterMedia, Log, TEXT("Initializing ICVFX in-cluster capture for camera '%s' (in-cluster shared)..."), *ICVFXCameraName);
 
-									TUniquePtr<FDisplayClusterMediaCaptureViewport> NewICVFXCapture = MakeUnique<FDisplayClusterMediaCaptureViewport>(
+									TUniquePtr<FDisplayClusterMediaCaptureViewport> NewICVFXCapture = MakeUnique<FDisplayClusterMediaCaptureCamera>(
 										MediaCaptureId, ClusterNodeId,
-										ICVFXViewportId,
+										ICVFXCameraName, ICVFXViewportId,
 										MediaSettings.MediaOutput.MediaOutput, MediaSettings.MediaOutput.RenderTarget);
 
 									AllCaptures.Add(NewICVFXCapture.Get());
@@ -226,9 +227,9 @@ void FDisplayClusterMediaModule::InitializeMedia()
 							{
 								UE_LOG(LogDisplayClusterMedia, Log, TEXT("Initializing ICVFX capture for camera '%s'..."), *ICVFXCameraName);
 
-								TUniquePtr<FDisplayClusterMediaCaptureViewport> NewICVFXCapture = MakeUnique<FDisplayClusterMediaCaptureViewport>(
+								TUniquePtr<FDisplayClusterMediaCaptureViewport> NewICVFXCapture = MakeUnique<FDisplayClusterMediaCaptureCamera>(
 									MediaCaptureId, ClusterNodeId,
-									ICVFXViewportId,
+									ICVFXCameraName, ICVFXViewportId,
 									MediaSettings.MediaOutput.MediaOutput, MediaSettings.MediaOutput.RenderTarget);
 
 								AllCaptures.Add(NewICVFXCapture.Get());

@@ -55,8 +55,8 @@ void FDisplayClusterViewportManagerViewExtension::PostRenderViewFamily_RenderThr
 			const TArrayView<IDisplayClusterViewportProxy*> ViewportProxies = ViewportMgrPoxy->GetViewports_RenderThread();
 
 			// Filter those viewports that refer to the RenderTarget used in the ViewFamily
-			TArray<IDisplayClusterViewportProxy*> FoundViewportProxies = ViewportProxies.FilterByPredicate([&InViewFamily](const IDisplayClusterViewportProxy* ViewportProxy)
-			{
+			const TArray<IDisplayClusterViewportProxy*> FoundViewportProxies = ViewportProxies.FilterByPredicate([&InViewFamily](const IDisplayClusterViewportProxy* ViewportProxy)
+			{	
 				TArray<FRHITexture*> RenderTargets;
 				if (ViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::InternalRenderTargetResource, RenderTargets))
 				{
@@ -68,15 +68,12 @@ void FDisplayClusterViewportManagerViewExtension::PostRenderViewFamily_RenderThr
 
 				return false;
 			});
-
-			AddPass(GraphBuilder, RDG_EVENT_NAME("ViewportProxy_PostRenderViewFamily"), [&InViewFamily, FoundViewportProxies = MoveTemp(FoundViewportProxies)] (FRHICommandListImmediate& RHICmdList)
+			
+			// Now we can perform per-viewport notification
+			for (const IDisplayClusterViewportProxy* ViewportProxy : FoundViewportProxies)
 			{
-				// Now we can perform per-viewport notification
-				for (const IDisplayClusterViewportProxy* ViewportProxy : FoundViewportProxies)
-				{
-					IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostRenderViewFamily_RenderThread().Broadcast(RHICmdList, InViewFamily, ViewportProxy);
-				}
-			});
+				IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostRenderViewFamily_RenderThread().Broadcast(GraphBuilder, InViewFamily, ViewportProxy);
+			}
 		}
 	}
 }

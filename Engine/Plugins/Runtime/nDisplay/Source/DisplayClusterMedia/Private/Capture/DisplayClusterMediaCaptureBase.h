@@ -6,6 +6,7 @@
 #include "DisplayClusterMediaBase.h"
 #include "UObject/GCObject.h"
 
+class FRDGBuilder;
 class FRHICommandListImmediate;
 class UMediaCapture;
 class UMediaOutput;
@@ -42,9 +43,11 @@ public:
 	}
 
 protected:
-	void ExportMediaData(FRHICommandListImmediate& RHICmdList, const FMediaTextureInfo& TextureInfo);
+	void ExportMediaData(FRDGBuilder& GraphBuilder, const FMediaTextureInfo& TextureInfo);
 	void OnPostClusterTick();
 	bool StartMediaCapture();
+
+	virtual FIntPoint GetCaptureSize() const = 0;
 
 private:
 	//~ Begin GC by AddReferencedObjects

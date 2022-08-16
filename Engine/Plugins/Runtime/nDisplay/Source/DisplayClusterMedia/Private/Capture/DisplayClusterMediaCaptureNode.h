@@ -22,6 +22,9 @@ public:
 	virtual bool StartCapture() override;
 	virtual void StopCapture() override;
 
+protected:
+	virtual FIntPoint GetCaptureSize() const override;
+
 private:
 	void OnPostFrameRender_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* ViewportManagerProxy, FViewport* Viewport);
 };
