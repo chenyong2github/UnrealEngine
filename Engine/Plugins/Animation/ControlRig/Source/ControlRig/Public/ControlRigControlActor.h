@@ -35,27 +35,30 @@ public:
 	virtual bool IsSelectable() const override { return bIsSelectable; }
 #endif
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Control Actor")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Interp, Category = "Control Actor")
 	TObjectPtr<class AActor> ActorToTrack;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Control Actor")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Interp, Category = "Control Actor")
 	TSubclassOf<UControlRig> ControlRigClass;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Control Actor")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Interp, Category = "Control Actor")
 	bool bRefreshOnTick;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Control Actor")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Interp, Category = "Control Actor")
 	bool bIsSelectable;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Materials")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Interp, Category = "Materials")
 	TObjectPtr<UMaterialInterface> MaterialOverride;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Materials")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Interp, Category = "Materials")
 	FString ColorParameter;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Materials")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Interp, Category = "Materials")
 	bool bCastShadows;
 
+	UFUNCTION(BlueprintCallable, Category = "Control Actor", DisplayName="Reset")
+	void ResetControlActor();
+	
 	UFUNCTION(BlueprintCallable, Category = "Control Actor")
 	void Clear();
 
@@ -86,6 +89,7 @@ private:
 	FName ColorParameterName;
 
 private:
-	void RemoveUnbindDelegate();
-	FDelegateHandle OnUnbindDelegate;
+	void RemoveUnbindDelegate() const;
+	
+	void HandleControlRigUnbind();
 };
