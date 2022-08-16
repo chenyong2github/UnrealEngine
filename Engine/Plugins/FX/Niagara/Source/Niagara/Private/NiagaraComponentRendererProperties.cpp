@@ -451,11 +451,17 @@ void UNiagaraComponentRendererProperties::PostDuplicate(bool bDuplicateForPIE)
 	TemplateComponent = DuplicateObject(TemplateComponent, this);
 }
 
-void UNiagaraComponentRendererProperties::InitCDOPropertiesAfterModuleStartup()
+void UNiagaraComponentRendererProperties::InitBindings()
 {
-	UNiagaraComponentRendererProperties* CDO = CastChecked<UNiagaraComponentRendererProperties>(UNiagaraComponentRendererProperties::StaticClass()->GetDefaultObject());
-	CDO->EnabledBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED);
-	CDO->RendererVisibilityTagBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
+	Super::InitBindings();
+
+	EnabledBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED);
+	RendererVisibilityTagBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
+}
+
+void UNiagaraComponentRendererProperties::InitCDOPropertiesAfterModuleStartupInternal()
+{
+	Super::InitCDOPropertiesAfterModuleStartupInternal();
 
 	for (TWeakObjectPtr<UNiagaraComponentRendererProperties>& WeakComponentRendererProperties : ComponentRendererPropertiesToDeferredInit)
 	{

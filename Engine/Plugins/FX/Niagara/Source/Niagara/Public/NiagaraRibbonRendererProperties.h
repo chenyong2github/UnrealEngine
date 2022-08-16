@@ -207,8 +207,6 @@ public:
 #endif
 	//UObject Interface END
 
-	static void InitCDOPropertiesAfterModuleStartup();
-
 	//UNiagaraRendererProperties Interface
 	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController) override;
 	virtual class FNiagaraBoundsCalculator* CreateBoundsCalculator() override;
@@ -481,9 +479,10 @@ public:
 	FNiagaraRendererLayout RendererLayout;
 
 protected:
-	void InitBindings();
+	virtual void InitBindings() override;
 	void SetPreviousBindings(const FVersionedNiagaraEmitter& SrcEmitter);
 
+	virtual void InitCDOPropertiesAfterModuleStartupInternal() override;
 	void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit);
 
 	virtual bool NeedsMIDsForMaterials() const { return MaterialParameters.HasAnyBindings(); }

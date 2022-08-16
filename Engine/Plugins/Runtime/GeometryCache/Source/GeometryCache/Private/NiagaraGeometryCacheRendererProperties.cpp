@@ -63,6 +63,8 @@ FNiagaraVariableAttributeBinding CreateDefaultBinding(FNiagaraVariable DefaultVa
 
 void UNiagaraGeometryCacheRendererProperties::InitBindings()
 {
+	Super::InitBindings();
+
 	if (!PositionBinding.IsValid())
 	{
 		PositionBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_POSITION);
@@ -142,18 +144,19 @@ void UNiagaraGeometryCacheRendererProperties::PostInitProperties()
 	}
 }
 
-void UNiagaraGeometryCacheRendererProperties::InitCDOPropertiesAfterModuleStartup()
+void UNiagaraGeometryCacheRendererProperties::InitCDOPropertiesAfterModuleStartupInternal()
 {
 	InitDefaultAttributes();
 	
-	UNiagaraGeometryCacheRendererProperties* CDO = CastChecked<UNiagaraGeometryCacheRendererProperties>(StaticClass()->GetDefaultObject());
-	CDO->PositionBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_POSITION);
-	CDO->ScaleBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_SCALE);
-	CDO->RendererVisibilityTagBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
-	CDO->RotationBinding = CreateDefaultBinding(Particles_GeoCacheRotation, FVector3f(0, 0, 0));
-	CDO->ElapsedTimeBinding = CreateDefaultBinding(Particles_Age, 0.0f);
-	CDO->EnabledBinding = CreateDefaultBinding(Particles_GeoCacheIsEnabled, false);
-	CDO->ArrayIndexBinding = CreateDefaultBinding(Particles_ArrayIndex, 0);
+	Super::InitCDOPropertiesAfterModuleStartupInternal();
+	
+	PositionBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_POSITION);
+	ScaleBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_SCALE);
+	RendererVisibilityTagBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
+	RotationBinding = CreateDefaultBinding(Particles_GeoCacheRotation, FVector3f(0, 0, 0));
+	ElapsedTimeBinding = CreateDefaultBinding(Particles_Age, 0.0f);
+	EnabledBinding = CreateDefaultBinding(Particles_GeoCacheIsEnabled, false);
+	ArrayIndexBinding = CreateDefaultBinding(Particles_ArrayIndex, 0);
 
 	for (TWeakObjectPtr<UNiagaraGeometryCacheRendererProperties>& WeakGeometryCacheRendererProperties : GeometryCacheRendererPropertiesToDeferredInit)
 	{

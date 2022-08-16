@@ -227,11 +227,10 @@ void UNiagaraRibbonRendererProperties::PostInitProperties()
 }
 
 /** The bindings depend on variables that are created during the NiagaraModule startup. However, the CDO's are build prior to this being initialized, so we defer setting these values until later.*/
-void UNiagaraRibbonRendererProperties::InitCDOPropertiesAfterModuleStartup()
+void UNiagaraRibbonRendererProperties::InitCDOPropertiesAfterModuleStartupInternal()
 {
-	UNiagaraRibbonRendererProperties* CDO = CastChecked<UNiagaraRibbonRendererProperties>(UNiagaraRibbonRendererProperties::StaticClass()->GetDefaultObject());
-	CDO->InitBindings();
-
+	Super::InitCDOPropertiesAfterModuleStartupInternal();
+	
 	for (TWeakObjectPtr<UNiagaraRibbonRendererProperties>& WeakRibbonRendererProperties : RibbonRendererPropertiesToDeferredInit)
 	{
 		if (WeakRibbonRendererProperties.Get())
@@ -243,6 +242,8 @@ void UNiagaraRibbonRendererProperties::InitCDOPropertiesAfterModuleStartup()
 
 void UNiagaraRibbonRendererProperties::InitBindings()
 {
+	Super::InitBindings();
+
 	if (!PositionBinding.IsValid())
 	{
 		PositionBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_POSITION);

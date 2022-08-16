@@ -59,9 +59,7 @@ public:
 	virtual void PostInitProperties() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	//UObject Interface END
-
-	static void InitCDOPropertiesAfterModuleStartup();
-
+	
 	//~ UNiagaraRendererProperties interface
 	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController) override;
 	virtual class FNiagaraBoundsCalculator* CreateBoundsCalculator() override { return nullptr; }
@@ -160,6 +158,8 @@ public:
 	virtual bool NeedsSystemCompletion() const override { return true; }
 
 protected:
+	virtual void InitBindings() override;
+	virtual void InitCDOPropertiesAfterModuleStartupInternal() override;
 	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false) override;
 
 private:
