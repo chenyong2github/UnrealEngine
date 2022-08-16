@@ -273,7 +273,7 @@ public:
 	/**
 	 * Removes a previously-added widget from the Slate viewport, in the player's section.
 	 *
-	 * @param	Player The player to remove the widget's viewport from.
+	 * @param	Player The player to remove the widget's viewport from. Null will remove the widget regardless of which player it was added for.
 	 * @param	ViewportContent  The widget to remove.  Must be valid.
 	 */
 	virtual void RemoveViewportWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWidget> ViewportContent);

@@ -1030,11 +1030,11 @@ void UUserWidget::RemoveFromParent()
 					TSharedRef<SWidget> WidgetHostRef = WidgetHost.ToSharedRef();
 
 					ViewportClient->RemoveViewportWidgetContent(WidgetHostRef);
-
-					if (ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
-					{
-						ViewportClient->RemoveViewportWidgetForPlayer(LocalPlayer, WidgetHostRef);
-					}
+					
+					// We may no longer have access to our owning player if the player controller was destroyed
+					// Passing nullptr to RemoveViewportWidgetForPlayer will search all player layers for this widget
+					ULocalPlayer* MaybeOwningLocalPlayer = GetOwningLocalPlayer();
+					ViewportClient->RemoveViewportWidgetForPlayer(MaybeOwningLocalPlayer, WidgetHostRef);
 
 					FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
 				}
