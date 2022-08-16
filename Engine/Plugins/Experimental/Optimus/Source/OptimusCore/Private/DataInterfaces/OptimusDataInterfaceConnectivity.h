@@ -9,7 +9,7 @@
 class FRDGBuffer;
 class FRDGBufferSRV;
 class FSkeletalMeshObject;
-class USkeletalMeshComponent;
+class USkinnedMeshComponent;
 
 
 /** Compute Framework Data Interface for reading skeletal mesh. */

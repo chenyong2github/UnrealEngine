@@ -8,7 +8,7 @@
 class FRDGBuffer;
 class FRDGBufferSRV;
 class FSkeletalMeshObject;
-class USkeletalMeshComponent;
+class USkinnedMeshComponent;
 
 /** 
 * User modifyable jiggle spring attributes. These attributes appear in the Optimus 
@@ -104,7 +104,6 @@ public:
 class FOptimusJiggleSpringDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	//FOptimusClothDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
 	FOptimusJiggleSpringDataProviderProxy(
 		USkinnedMeshComponent* SkeletalMeshComponent,
 		FOptimusJiggleSpringParameters const& InJiggleSpringParameters);
