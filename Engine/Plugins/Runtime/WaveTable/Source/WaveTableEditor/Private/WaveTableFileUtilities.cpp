@@ -44,7 +44,7 @@ namespace WaveTable
 								OutPCMData.Empty();
 								OutPCMData.AddZeroed(NumFrames);
 								const int16* RawDataPtr = (const int16*)(RawPCMData.GetData());
-								const int32 ChannelOffset = (InChannelIndex % NumChannels) * sizeof(int16);
+								const int32 ChannelOffset = (InChannelIndex % NumChannels);
 								constexpr float Max16BitAsFloat = static_cast<float>(TNumericLimits<int16>::Max());
 								for (int32 i = 0; i < OutPCMData.Num(); ++i)
 								{
