@@ -2123,6 +2123,16 @@ void UActorComponent::RemoveReplicatedSubObject(UObject* SubObject)
 	}
 }
 
+bool UActorComponent::IsReplicatedSubObjectRegistered(const UObject* SubObject) const
+{
+	if (AActor* MyOwner=GetOwner())
+	{
+		return MyOwner->IsActorComponentReplicatedSubObjectRegistered(this, SubObject);
+	}
+
+	return false;
+}
+
 bool UActorComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags)
 {
 	UActorChannel::SetCurrentSubObjectOwner(this);

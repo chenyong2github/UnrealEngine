@@ -523,6 +523,11 @@ public:
 	*/
 	void RemoveReplicatedSubObject(UObject* SubObject);
 
+	/**
+	* Tells if the object is registered to be replicated by this actor component.
+	*/
+	bool IsReplicatedSubObjectRegistered(const UObject* SubObject) const;
+
 #if WITH_EDITORONLY_DATA
 	/** Returns whether this component is an editor-only object or not */
 	virtual bool IsEditorOnly() const override { return bIsEditorOnly; }

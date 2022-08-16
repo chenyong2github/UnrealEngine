@@ -678,12 +678,52 @@ void AActor::RemoveActorComponentReplicatedSubObject(UActorComponent* OwnerCompo
 	if (FReplicatedComponentInfo* ComponentInfo = ReplicatedComponentsInfo.FindByKey(OwnerComponent))
 	{
 		bool bWasRemoved = ComponentInfo->SubObjects.RemoveSubObject(SubObject);
-		
+
 		UE_CLOG(bWasRemoved, LogNetSubObject, Verbose, TEXT("%s::%s (0x%p) removed replicated subobject %s (0x%p)"), *GetName(), *OwnerComponent->GetName(), OwnerComponent, *SubObject->GetName(), SubObject);
 
 #if UE_WITH_IRIS
 		UE::Net::FReplicationSystemUtil::EndReplicationForActorComponentSubObject(OwnerComponent, SubObject);
 #endif // UE_WITH_IRIS
+	}
+}
+
+bool AActor::IsReplicatedSubObjectRegistered(const UObject* SubObject) const
+{
+	return ReplicatedSubObjects.IsSubObjectInRegistry(SubObject);
+}
+
+bool AActor::IsReplicatedActorComponentRegistered(const UActorComponent* ReplicatedComponent) const
+{
+	return ReplicatedComponentsInfo.FindByKey(ReplicatedComponent) != nullptr;
+}
+
+bool AActor::IsActorComponentReplicatedSubObjectRegistered(const UActorComponent* OwnerComponent, const UObject* SubObject) const
+{
+	check(OwnerComponent);
+
+	if (const FReplicatedComponentInfo* ComponentInfo = ReplicatedComponentsInfo.FindByKey(OwnerComponent))
+	{
+		return ComponentInfo->SubObjects.IsSubObjectInRegistry(SubObject);
+	}
+	return false;
+}
+
+void AActor::BuildReplicatedComponentsInfo()
+{
+	checkf(HasActorBegunPlay() == false, TEXT("BuildReplicatedComponentsInfo can only be called before BeginPlay."));
+
+	for (UActorComponent* ReplicatedComponent : ReplicatedComponents)
+	{
+		// Ask the actor if they want to override the replicated component
+		const ELifetimeCondition NetCondition = AllowActorComponentToReplicate(ReplicatedComponent);
+
+		const int32 Index = ReplicatedComponentsInfo.AddUnique(UE::Net::FReplicatedComponentInfo(ReplicatedComponent));
+		ReplicatedComponentsInfo[Index].NetCondition = NetCondition;
+
+		if (!ReplicatedComponent->IsReadyForReplication())
+		{
+			ReplicatedComponent->ReadyForReplication();
+		}
 	}
 }
 

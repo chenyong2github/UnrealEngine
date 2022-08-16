@@ -4012,19 +4012,7 @@ void AActor::DispatchBeginPlay(bool bFromLevelStreaming)
 		bActorBeginningPlayFromLevelStreaming = bFromLevelStreaming;
 		ActorHasBegunPlay = EActorBeginPlayState::BeginningPlay;
 
-		// Ask the actor class if they want to override any replicated components
-		for (UActorComponent* ReplicatedComponent : ReplicatedComponents)
-		{
-			const ELifetimeCondition NetCondition = AllowActorComponentToReplicate(ReplicatedComponent);
-
-			const int32 Index = ReplicatedComponentsInfo.AddUnique(UE::Net::FReplicatedComponentInfo(ReplicatedComponent));
-			ReplicatedComponentsInfo[Index].NetCondition = NetCondition;
-
-			if (!ReplicatedComponent->IsReadyForReplication())
-			{
-				ReplicatedComponent->ReadyForReplication();
-			}
-		}
+		BuildReplicatedComponentsInfo();
 
 #if UE_WITH_IRIS
 		BeginReplication();

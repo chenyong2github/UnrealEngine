@@ -63,14 +63,14 @@ public:
 		}
 
 		bool operator==(const FEntry& rhs) const { return Key == rhs.Key; }
-		bool operator==(UObject* rhs) const { return SubObject == rhs; }
+		bool operator==(const UObject* rhs) const { return SubObject == rhs; }
 	};
 
 	/** Returns the list of registered subobjects */
 	const TArray<FSubObjectRegistry::FEntry>& GetRegistryList() const { return Registry; }
 
 	/** Returns true if the subobject is contained in this list */
-	bool IsSubObjectInRegistry(UObject* SubObject) const;
+	bool IsSubObjectInRegistry(const UObject* SubObject) const;
 
 private:
 

@@ -3679,6 +3679,15 @@ public:
 	*/
 	void RemoveActorComponentReplicatedSubObject(UActorComponent* OwnerComponent, UObject* SubObject);
 
+	/** Tells if the object has been registered as a replicated subobject of this actor */
+	bool IsReplicatedSubObjectRegistered(const UObject* SubObject) const;
+
+	/** Tells if the component has been registered as a replicated component */
+	bool IsReplicatedActorComponentRegistered(const UActorComponent* ReplicatedComponent) const;
+
+	/** Tells if an object owned by a component has been registered as a replicated subobject of the component */
+	bool IsActorComponentReplicatedSubObjectRegistered(const UActorComponent* OwnerComponent, const UObject* SubObject) const;
+
 private:
 	/** Collection of SubObjects that get replicated when this actor gets replicated. */
 	UE::Net::FSubObjectRegistry ReplicatedSubObjects;
@@ -3692,6 +3701,9 @@ private:
 
 	/** Remove a component from the replicated list */
 	void RemoveReplicatedComponent(UActorComponent* Component);
+
+	/** Constructs the list of replicated components and their netcondition */
+	void BuildReplicatedComponentsInfo();
 
 protected:
 	/** Set of replicated components, stored as an array to save space as this is generally not very large */

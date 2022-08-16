@@ -45,7 +45,7 @@ bool FSubObjectRegistry::RemoveSubObject(UObject* InSubObject)
 	return false;
 }
 
-bool FSubObjectRegistry::IsSubObjectInRegistry(UObject* SubObject) const
+bool FSubObjectRegistry::IsSubObjectInRegistry(const UObject* SubObject) const
 {
 	return Registry.FindByKey(SubObject) != nullptr;
 }
