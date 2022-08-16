@@ -5,6 +5,12 @@
 #include "Engine/InputDelegateBinding.h"
 
 
+AVRTool::AVRTool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// We don't want VR "game view" to hide the tools.
+	SetActorHiddenInGame(false);
+}
 
 void AVRTool::OnConstruction(const FTransform& Transform)
 {

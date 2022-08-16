@@ -693,6 +693,28 @@ SLevelViewport& UVREditorMode::GetLevelViewportPossessedForVR()
 	return *VREditorLevelViewportWeakPtr.Pin();
 }
 
+void UVREditorMode::SetGameView(bool bGameView)
+{
+	if (TSharedPtr<SLevelViewport> Viewport = VREditorLevelViewportWeakPtr.Pin())
+	{
+		// We can't actually set the viewport to game view, because AVREditorAvatarActor::IsEditorOnly is
+		// overridden to return true, and so its owned components (including the interactors) get hidden.
+		// However, clearing the "editor" flag turns out to get us close to what we'd want.
+		FLevelEditorViewportClient& ViewportClient = Viewport->GetLevelViewportClient();
+		ViewportClient.EngineShowFlags.SetEditor(!bGameView);
+	}
+}
+
+bool UVREditorMode::IsInGameView() const
+{
+	if (TSharedPtr<SLevelViewport> Viewport = VREditorLevelViewportWeakPtr.Pin())
+	{
+		FLevelEditorViewportClient& ViewportClient = Viewport->GetLevelViewportClient();
+		return ViewportClient.EngineShowFlags.Editor == 0;
+	}
+
+	return false;
+}
 
 float UVREditorMode::GetWorldScaleFactor() const
 {

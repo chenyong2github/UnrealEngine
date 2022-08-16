@@ -207,6 +207,14 @@ public:
 	/** Mutable version of above. */
 	class SLevelViewport& GetLevelViewportPossessedForVR();
 
+	/** Display the scene more closely to how it would appear at runtime (as opposed to edit time). */
+	UFUNCTION(BlueprintCallable, Category="VREditorMode")
+	void SetGameView(bool bGameView);
+
+	/** Returns whether game view is currently active. */
+	UFUNCTION(BlueprintCallable, Category="VREditorMode")
+	bool IsInGameView() const;
+
 	/** Gets the world scale factor, which can be multiplied by a scale vector to convert to room space */
 	UFUNCTION( BlueprintCallable, Category = "VREditorMode" )
 	float GetWorldScaleFactor() const;

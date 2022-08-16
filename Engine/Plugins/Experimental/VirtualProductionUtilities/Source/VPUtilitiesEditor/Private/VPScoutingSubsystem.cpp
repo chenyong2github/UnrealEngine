@@ -372,6 +372,23 @@ void UVPScoutingSubsystem::SetIsHelperSystemEnabled(const bool bInIsHelperSystem
 	VPUtilitiesEditorSettings->SaveConfig();
 }
 
+UVREditorMode* UVPScoutingSubsystem::GetVREditorMode()
+{
+	return IVREditorModule::Get().GetVRMode();
+}
+
+bool UVPScoutingSubsystem::EnterVRMode()
+{
+	IVREditorModule& VREditorModule = IVREditorModule::Get();
+	if (VREditorModule.IsVREditorAvailable())
+	{
+		VREditorModule.EnableVREditor(true);
+		return true;
+	}
+
+	return false;
+}
+
 void UVPScoutingSubsystem::ExitVRMode()
 {
 	IVREditorModule& VREditorModule = IVREditorModule::Get();

@@ -210,7 +210,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static void SetIsHelperSystemEnabled(const bool bInIsHelperSystemEnabled);
 
-	/** Exit VR Mode  */
+	/** Get VR Editor Mode object */
+	UFUNCTION(BlueprintPure, Category = "Virtual Production")
+	static UVREditorMode* GetVREditorMode();
+
+	/** Enter VR Mode */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
+	static bool EnterVRMode();
+
+	/** Exit VR Mode */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static void ExitVRMode();
 
@@ -224,11 +232,11 @@ public:
 
 	/** Whether rotation grid snapping is enabled */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
-		static bool IsRotationGridSnappingEnabled();
+	static bool IsRotationGridSnappingEnabled();
 
 	/** Toggle rotation grid snapping */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
-		static void ToggleRotationGridSnapping();
+	static void ToggleRotationGridSnapping();
 
 private:
 
