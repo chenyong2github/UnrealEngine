@@ -106,7 +106,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 			if (UseSeparatedMainDirLightTexture > 0.0f)
 			{
 				// Also compose the separated main direction light luminance (separated to be able to combine it with DistanceFieldShadow)
-				SeparatedMainDirLightContribution = SLW_SEPARATEDMAINDIRLIGHT(SLWaterBSDF) * SeparatedMainDirLightTexture[PixelPos].rgb;
+				SeparatedMainDirLightContribution = SeparatedMainDirLightTexture[PixelPos].rgb;
 			}
 
 			// Compute the sky reflection contribution

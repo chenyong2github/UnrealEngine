@@ -325,12 +325,6 @@ static FSceneWithoutWaterTextures AddCopySceneWithoutWaterPass(
 
 	const FRDGTextureDesc SeparatedMainDirLightDesc(FRDGTextureDesc::Create2D(SceneColorDesc.Extent, PF_FloatR11G11B10, FClearValueBinding(FLinearColor::White), TexCreate_ShaderResource | TexCreate_RenderTargetable));
 	FRDGTextureRef SeparatedMainDirLightTexture = GraphBuilder.CreateTexture(SeparatedMainDirLightDesc, TEXT("SLW.SeparatedMainDirLight"));
-	if (IsWaterDistanceFieldShadowEnabled_Runtime(ShaderPlatform) && Strata::IsStrataEnabled())
-	{
-		// This clear is needed with strata because that texture will be modulated by DFShadows.
-		// STRATA_TODO: when strata is enabled, we can change RenderRayTracedDistanceFieldProjection to have a bForceNoBlending instead if bForceRGBModulation and remove that clear.
-		AddClearRenderTargetPass(GraphBuilder, SeparatedMainDirLightTexture);
-	}
 
 	FSceneWithoutWaterTextures Textures;
 	Textures.RefractionDownsampleFactor = float(RefractionDownsampleFactor);
@@ -890,8 +884,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 
 	TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets> BasePassTextures;
 	uint32 BasePassTextureCount = SceneTextures.GetGBufferRenderTargets(BasePassTextures);
-	if(IsWaterDistanceFieldShadowEnabled_Runtime(Scene->GetShaderPlatform()) 
-		&& !Strata::IsStrataEnabled())	// We do not bind that texture if Strata is enabled as the data will go through the Strata material buffer.
+	if(IsWaterDistanceFieldShadowEnabled_Runtime(Scene->GetShaderPlatform()))
 	{
 		const bool bNeverClear = true;
 		BasePassTextures[BasePassTextureCount++] = FTextureRenderTargetBinding(SceneWithoutWaterTextures.SeparatedMainDirLightTexture, bNeverClear);

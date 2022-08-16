@@ -1598,9 +1598,6 @@ void FPixelShaderInOut_MainPS(
 	// Need to reset color to make sure strata material are only lit using Strata lighting passes.
 	// Except for water doing some specialised and simplified lighting during the base pass
 	Color = 0;
-#else
-	// Store the potential separated main dir light contribution into the water BSDF. -1 is used as a marked to specify unused (see PackStrataOut).
-	SLW_SEPARATEDMAINDIRLIGHT(StrataPixelHeader.StrataTree.BSDFs[0]) = bSeparateWaterMainDirLightLuminance ? SeparatedWaterMainDirLightLuminance * View.PreExposure : -1.0f;
 #endif
 
 	// STRATA_TODO GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION and ALLOW_STATIC_LIGHTING cases
@@ -1947,13 +1944,18 @@ void FPixelShaderInOut_MainPS(
 				Out.MRT[GBUFFER_HAS_VELOCITY ? 6 : 5] = 0;
 			}
 
-		#if SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT && !STRATA_ENABLED
+		#if SINGLE_LAYER_WATER_SEPARATED_MAIN_LIGHT
+			// In deferred, we always output the directional light in a separated buffer.
+			// This is used to apply distance field shadows or light function to the main directional light.
+			// Strata also writes it through MRT because this is faster than through UAV.
+			#if STRATA_ENABLED && STRATA_INLINE_SINGLELAYERWATER
+				Out.MRT[(GBUFFER_HAS_VELOCITY ? 2 : 1) + (GBUFFER_HAS_PRECSHADOWFACTOR ? 1 : 0)] = float4(SeparatedWaterMainDirLightLuminance * View.PreExposure, 1.0f);
+			#else
 			if (GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
 			{
-				// In deferred, we always output the directional light in a separated buffer.
-				// This is used to apply distance field shadows or light function to the main directional light.
 				Out.MRT[(GBUFFER_HAS_VELOCITY ? 6 : 5) + (GBUFFER_HAS_PRECSHADOWFACTOR ? 1 : 0)] = float4(SeparatedWaterMainDirLightLuminance * View.PreExposure, 1.0f);
 			}
+			#endif
 		#endif
 		}
 		#else

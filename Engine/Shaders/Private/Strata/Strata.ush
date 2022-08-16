@@ -495,7 +495,6 @@ struct FStrataBSDF
 #define SLW_SPECULAR(X)					X.VGPRs[1].y
 #define SLW_ROUGHNESS(X)				X.VGPRs[1].z
 #define SLW_TOPMATERIALOPACITY(X)		X.VGPRs[1].w
-#define SLW_SEPARATEDMAINDIRLIGHT(X)	X.VGPRs[2].xyz
 #if STRATA_INLINE_SINGLELAYERWATER
 #define SLW_WATERALBEDO(X)				X.InlineVGPRs[0].xyz
 #define SLW_WATEREXTINCTION(X)			X.InlineVGPRs[1].xyz
@@ -1554,7 +1553,6 @@ FStrataData GetStrataSingleLayerWaterBSDF(
 	SLW_SPECULAR					(StrataData.InlinedBSDF) = Specular;
 	SLW_ROUGHNESS					(StrataData.InlinedBSDF) = Roughness;
 	SLW_TOPMATERIALOPACITY			(StrataData.InlinedBSDF) = TopMaterialOpacity;
-	SLW_SEPARATEDMAINDIRLIGHT		(StrataData.InlinedBSDF) = float3(0.0f, 0.0f, 0.0f);
 #if STRATA_INLINE_SINGLELAYERWATER
 	SLW_WATERALBEDO					(StrataData.InlinedBSDF) = WaterAlbedo;
 	SLW_WATEREXTINCTION				(StrataData.InlinedBSDF) = WaterExtinction;
@@ -3616,10 +3614,6 @@ FStrataBSDF UnpackFastWaterPathStrataBSDFIn(FStrataMaterialContainer StrataBuffe
 	const uint PackedBaseColor20Bits				= PackedBaseColor12Bits | (PackedBaseColor8Bits << 12);
 
 	const bool bStoreSeparatedMainDirLight			= RoughnessAndUseSeparateDirLight8Bits & 0x1;
-	if (bStoreSeparatedMainDirLight)
-	{
-		StrataLoad_R11G11B10F(StrataBuffer, StrataAddressing, SLW_SEPARATEDMAINDIRLIGHT(OutBSDF));
-	}
 
 	SLW_ROUGHNESS(OutBSDF)							= UnpackR7(RoughnessAndUseSeparateDirLight8Bits >> 1);
 	SLW_BASECOLOR(OutBSDF)							= UnpackR7G7B6Gamma2(PackedBaseColor20Bits);

@@ -255,6 +255,10 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 		{
 			TargetGBufferE = Info.NumTargets++;
 		}
+		if (Params.bHasSingleLayerWaterSeparatedMainLight)
+		{
+			TargetSeparatedMainDirLight = Info.NumTargets++;
+		}
 
 		// this value isn't correct, becuase it doesn't resepect the scene color format cvar, but it's ignored anyways
 		// so it's ok for now
@@ -288,7 +292,14 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 			Info.Slots[GBS_PrecomputedShadowFactor].Packing[3] = FGBufferPacking(TargetGBufferE, 3, 3);
 		}
 
-		// We do not setup GBS_SeparatedMainDirLight as the data will flow through the Strata material buffer.
+		// Special water output
+		if (Params.bHasSingleLayerWaterSeparatedMainLight)
+		{
+			Info.Slots[GBS_SeparatedMainDirLight] = FGBufferItem(GBS_SeparatedMainDirLight, GBC_Raw_Float_11_11_10, GBCH_Both);
+			Info.Slots[GBS_SeparatedMainDirLight].Packing[0] = FGBufferPacking(TargetSeparatedMainDirLight, 0, 0);
+			Info.Slots[GBS_SeparatedMainDirLight].Packing[1] = FGBufferPacking(TargetSeparatedMainDirLight, 1, 1);
+			Info.Slots[GBS_SeparatedMainDirLight].Packing[2] = FGBufferPacking(TargetSeparatedMainDirLight, 2, 2);
+		}
 
 		return Info;
 	}

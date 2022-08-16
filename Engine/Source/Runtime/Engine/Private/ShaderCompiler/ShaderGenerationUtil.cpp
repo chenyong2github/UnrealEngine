@@ -1785,7 +1785,7 @@ static void DetermineUsedMaterialSlots(
 		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
 		if (Mat.SINGLE_LAYER_WATER_DF_SHADOW_ENABLED)
 		{
-			Slots[GBS_SeparatedMainDirLight] = !bIsStrataMaterial; // This is stored in the Strata material buffer, not in a separate RT.
+			Slots[GBS_SeparatedMainDirLight] = true;
 		}
 	}
 

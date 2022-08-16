@@ -501,17 +501,15 @@ void PackStrataOut(
 						const uint PackedBaseColor8Bits = (PackedBaseColor20Bits >> 12) & 0xFF;
 
 						// Packed into the header
-						const bool bStoreSeparatedMainDirLight = SLW_SEPARATEDMAINDIRLIGHT(BSDF).x >= 0.0f;
-						const uint RoughnessAndUseSeparateDirLight8Bits = (PackR7(SLW_ROUGHNESS(BSDF), Dither) << 1) | (bStoreSeparatedMainDirLight ? 1 : 0);
-
+						const uint Roughness8Bits = PackR8(SLW_ROUGHNESS(BSDF));
 						const uint PackedOpacityMetalSpec20Bits = PackR7G7B6Linear(float3(SLW_TOPMATERIALOPACITY(BSDF), SLW_METALLIC(BSDF), SLW_SPECULAR(BSDF)), Dither);
 
-						// UINT0 (Header_State|Header_AO|BaseColor8bits|Roughness|bStoreSeparatedMainDirLight)
+						// UINT0 (Header_State|Header_AO|BaseColor8bits|Roughness)
 						{
 							uint Out = 0;
 							HEADER_SETCOMMONSTATES(Out, StrataPixelHeader.State);
 
-							uint Packed16 = (PackedBaseColor8Bits << 8) | RoughnessAndUseSeparateDirLight8Bits;
+							uint Packed16 = (PackedBaseColor8Bits << 8) | Roughness8Bits;
 							Out = (Out & HEADER_SLWENCODING_MASK) | (Packed16 << HEADER_SLWENCODING_BIT_COUNT);
 							STRATA_STORE_UINT1(Out);
 						}
@@ -519,11 +517,6 @@ void PackStrataOut(
 						{
 							uint Out = (PackedBaseColor12Bits << 20) | PackedOpacityMetalSpec20Bits;
 							STRATA_STORE_UINT1(Out);
-						}
-						// Optional UINT2
-						if (bStoreSeparatedMainDirLight)
-						{
-							STRATA_STORE_UINT1(PackR11G11B10F(SLW_SEPARATEDMAINDIRLIGHT(BSDF)));	// STRATA_TODO make this an optional load/store base on if DistanceFieldShadow are enabled
 						}
 						// Ensure the rest of the BSDF is not stored with the regular path
 						BSDF.State = 0;

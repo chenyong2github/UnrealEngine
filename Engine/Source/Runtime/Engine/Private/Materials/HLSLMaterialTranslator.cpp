@@ -10162,8 +10162,6 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 						// Header + Data
 						StrataMaterialRequestedSizeByte += UintByteSize;
 						// Data
-						StrataMaterialRequestedSizeByte += UintByteSize;	
-						// Optional separted dir light luminance
 						StrataMaterialRequestedSizeByte += UintByteSize;
 						break; // Stop here
 					}

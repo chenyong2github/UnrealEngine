@@ -89,14 +89,22 @@ void MainPS
 		, out float4 OutTarget2 : SV_Target2
 #endif
 
+#if PIXELSHADEROUTPUT_MRT3
+		, out float4 OutTarget3 : SV_Target3
+#endif
+
 #if STRATA_OPAQUE_DEFERRED
 #if STRATA_BASE_PASS_MRT_OUTPUT_COUNT != 2
 #error Strata STRATA_BASE_PASS_MRT_OUTPUT_COUNT has been update but not the uint MRTs
 #endif
-#if PIXELSHADEROUTPUT_MRT3
+#if PIXELSHADEROUTPUT_MRT4
 #error Strata cannot map to such a case
 #endif
-#if PIXELSHADEROUTPUT_MRT2
+#if PIXELSHADEROUTPUT_MRT3
+		, out uint StrataOutput4 : SV_Target4
+		, out uint StrataOutput5 : SV_Target5
+		, out uint StrataOutput6 : SV_Target6
+#elif PIXELSHADEROUTPUT_MRT2
 		, out uint StrataOutput3 : SV_Target3
 		, out uint StrataOutput4 : SV_Target4
 		, out uint StrataOutput5 : SV_Target5
@@ -110,10 +118,6 @@ void MainPS
 		, out uint StrataOutput3 : SV_Target3
 #endif
 #else // STRATA_OPAQUE_DEFERRED
-
-#if PIXELSHADEROUTPUT_MRT3
-		, out float4 OutTarget3 : SV_Target3
-#endif
 
 #if PIXELSHADEROUTPUT_MRT4
 		, out float4 OutTarget4 : SV_Target4
@@ -195,7 +199,11 @@ void MainPS
 	// MRT2 is precomputed shadow if both velocity and prec shadow are enabled.
 	// After, Strata output are appended (3 uint output)
 
-#if PIXELSHADEROUTPUT_MRT2
+#if PIXELSHADEROUTPUT_MRT3
+	StrataOutput4 = PixelShaderOut.StrataOutput[0];
+	StrataOutput5 = PixelShaderOut.StrataOutput[1];
+	StrataOutput6 = PixelShaderOut.StrataOutput[2];
+#elif PIXELSHADEROUTPUT_MRT2
 	StrataOutput3 = PixelShaderOut.StrataOutput[0];
 	StrataOutput4 = PixelShaderOut.StrataOutput[1];
 	StrataOutput5 = PixelShaderOut.StrataOutput[2];
