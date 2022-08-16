@@ -123,7 +123,7 @@ void FPBDAxialSpringConstraints::Apply(FSolverParticles& Particles, const FSolve
 				{
 					const int32 ColorStart = ConstraintsPerColorStartIndex[ConstraintColorIndex];
 					const int32 ColorSize = ConstraintsPerColorStartIndex[ConstraintColorIndex + 1] - ColorStart;
-					PhysicsParallelFor(ColorSize, [&](const int32 Index)
+					PhysicsParallelFor(ColorSize, [this, &Particles, Dt, ColorStart, ExpStiffnessValue](const int32 Index)
 					{
 						const int32 ConstraintIndex = ColorStart + Index;
 						ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
@@ -157,7 +157,7 @@ void FPBDAxialSpringConstraints::Apply(FSolverParticles& Particles, const FSolve
 				{
 					const int32 ColorStart = ConstraintsPerColorStartIndex[ConstraintColorIndex];
 					const int32 ColorSize = ConstraintsPerColorStartIndex[ConstraintColorIndex + 1] - ColorStart;
-					PhysicsParallelFor(ColorSize, [&](const int32 Index)
+					PhysicsParallelFor(ColorSize, [this, &Particles, Dt, ColorStart](const int32 Index)
 					{
 						const int32 ConstraintIndex = ColorStart + Index;
 						const FSolverReal ExpStiffnessValue = Stiffness[ConstraintIndex];
