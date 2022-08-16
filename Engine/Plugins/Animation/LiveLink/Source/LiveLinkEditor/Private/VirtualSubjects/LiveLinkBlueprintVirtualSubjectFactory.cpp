@@ -219,13 +219,13 @@ bool ULiveLinkBlueprintVirtualSubjectFactory::ConfigureProperties()
 	return Role != nullptr;
 }
 
-UObject* ULiveLinkBlueprintVirtualSubjectFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+UObject* ULiveLinkBlueprintVirtualSubjectFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn, FName CallingContext)
 {
 	UBlueprint* VirtualSubject = nullptr;
 	if (Role && ensure(SupportedClass == Class))
 	{
 		ensure(0 != (RF_Public & Flags));
-		VirtualSubject = FKismetEditorUtilities::CreateBlueprint(ParentClass, InParent, Name, BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), NAME_None);
+		VirtualSubject = FKismetEditorUtilities::CreateBlueprint(ParentClass, InParent, Name, BlueprintType, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), CallingContext);
 		if (TSubclassOf<UObject> GeneratedClass = VirtualSubject->GeneratedClass)
 		{
 			if (ULiveLinkBlueprintVirtualSubject* DefaultSubject = GeneratedClass->GetDefaultObject<ULiveLinkBlueprintVirtualSubject>())

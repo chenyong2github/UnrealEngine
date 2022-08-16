@@ -15,7 +15,7 @@
 #include "AssetRegistry/ARFilter.h"
 #include "IAssetTools.generated.h"
 
-
+enum EBlueprintType;
 struct FAssetData;
 class IAssetTypeActions;
 class IClassTypeActions;
@@ -477,6 +477,9 @@ public:
 
 	/** Get asset class permission list for content browser and other systems */
 	virtual TSharedRef<FPathPermissionList>& GetAssetClassPathPermissionList(EAssetClassAction AssetClassAction) = 0;
+
+	/** Which BlueprintTypes are allowed to be created. An empty list should allow everything. */
+	virtual TSet<EBlueprintType>& GetAllowedBlueprintTypes() = 0;
 
 	/** Get folder permission list for content browser and other systems */
 	virtual TSharedRef<FPathPermissionList>& GetFolderPermissionList() = 0;

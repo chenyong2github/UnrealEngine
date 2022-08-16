@@ -10,6 +10,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Templates/SubclassOf.h"
 #include "Factories/Factory.h"
+#include "Engine/Blueprint.h"
 #include "BlueprintFactory.generated.h"
 
 class FClassViewerInitializationOptions;
@@ -22,6 +23,10 @@ class UNREALED_API UBlueprintFactory : public UFactory
 	// The parent class of the created blueprint
 	UPROPERTY(EditAnywhere, Category=BlueprintFactory, meta=(AllowAbstract = "", BlueprintBaseOnly = ""))
 	TSubclassOf<class UObject> ParentClass;
+
+	// The type of Blueprint to create in FactoryCreateNew
+	UPROPERTY()
+	TEnumAsByte<EBlueprintType> BlueprintType = EBlueprintType::BPTYPE_Normal;
 
 	// Skips the class choosing dialog and uses the ParentClass as the blueprint base class
 	UPROPERTY()
@@ -36,10 +41,6 @@ class UNREALED_API UBlueprintFactory : public UFactory
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn, FName CallingContext) override;
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	// End of UFactory Interface
-
-protected:
-	// Hook for derived classes to indicate if they want to skip some filtering that is unnecessary for macro libraries
-	virtual bool IsMacroFactory() const { return false; }
 };
 
 

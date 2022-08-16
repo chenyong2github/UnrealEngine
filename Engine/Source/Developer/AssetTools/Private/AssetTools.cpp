@@ -2,6 +2,7 @@
 
 #include "AssetTools.h"
 #include "Factories/Factory.h"
+#include "Factories/BlueprintFactory.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
@@ -29,6 +30,8 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"
 #include "IClassTypeActions.h"
+#include "ClassViewerModule.h"
+#include "ClassViewerFilter.h"
 #include "AssetTypeActions/AssetTypeActions_Actor.h"
 #include "AssetTypeActions/AssetTypeActions_ActorFolder.h"
 #include "AssetTypeActions/AssetTypeActions_Blueprint.h"
@@ -3980,18 +3983,44 @@ TArray<UFactory*> UAssetToolsImpl::GetNewAssetFactories() const
 	for (TObjectIterator<UClass> It; It; ++It)
 	{
 		UClass* Class = *It;
-		if (Class->IsChildOf(UFactory::StaticClass()) &&
-			!Class->HasAnyClassFlags(CLASS_Abstract))
+		if (!Class->IsChildOf(UFactory::StaticClass()) || Class->HasAnyClassFlags(CLASS_Abstract))
 		{
-			UFactory* Factory = Class->GetDefaultObject<UFactory>();
+			continue;
+		}
 
-			if (Factory->ShouldShowInNewMenu() &&
-				ensure(!Factory->GetDisplayName().IsEmpty()) &&
-				IsAssetClassSupported(Factory->GetSupportedClass()))
+		UFactory* Factory = Class->GetDefaultObject<UFactory>();
+		if (!Factory->ShouldShowInNewMenu() || !ensure(!Factory->GetDisplayName().IsEmpty()) || !IsAssetClassSupported(Factory->GetSupportedClass()))
+		{
+			continue;
+		}
+
+		// For Blueprints, add sub-type filtering using the BP Editor's allow list
+		// Otherwise, there's no way to distinguish between generic BP Actors vs BlueprintFunctionLibraries, etc.
+		if (UBlueprintFactory* BPFactory = Cast<UBlueprintFactory>(Factory))
+		{
+			// Restrict BP factories based on their BlueprintType
+			if (AllowedBlueprintTypes.Num() > 0 && !AllowedBlueprintTypes.Contains(BPFactory->BlueprintType))
 			{
-				Factories.Add(Factory);
+				continue;
+			}
+
+			// BPFactor->ParentClass is stored as a UObject instead of a class... most things should be UClass but we'll just skip it if not
+			if (UClass* BPParentClass = Cast<UClass>(BPFactory->ParentClass))
+			{
+				FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
+				if (const TSharedPtr<IClassViewerFilter>& GlobalClassFilter = ClassViewerModule.GetGlobalClassViewerFilter())
+				{
+					TSharedRef<FClassViewerFilterFuncs> ClassFilterFuncs = ClassViewerModule.CreateFilterFuncs();
+					FClassViewerInitializationOptions ClassViewerOptions = {};
+					if (!GlobalClassFilter->IsClassAllowed(ClassViewerOptions, BPParentClass, ClassFilterFuncs))
+					{
+						continue;
+					}
+				}
 			}
 		}
+
+		Factories.Add(Factory);
 	}
 
 	return MoveTemp(Factories);
@@ -4060,6 +4089,11 @@ TSharedRef<FPathPermissionList>& UAssetToolsImpl::GetAssetClassPathPermissionLis
 
 	static TSharedRef<FPathPermissionList> Empty = MakeShared<FPathPermissionList>();
 	return Empty;
+}
+
+TSet<EBlueprintType>& UAssetToolsImpl::GetAllowedBlueprintTypes()
+{
+	return AllowedBlueprintTypes;
 }
 
 void UAssetToolsImpl::AssetClassPermissionListChanged(EAssetClassAction AssetClassAction)
