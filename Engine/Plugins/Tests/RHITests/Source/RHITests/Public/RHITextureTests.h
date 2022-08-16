@@ -758,7 +758,8 @@ public:
 			}
 		};
 
-		const auto DumpTestData = [](const void* Ptr, int32 Stride, FIntPoint Size, FIntPoint Offset = FIntPoint::ZeroValue)
+		// Temp: FIntPoint::ZeroValue replaced with UE::Math::TIntPoint<int32>::ZeroValue to work around msvc lambda compiler bug
+		const auto DumpTestData = [](const void* Ptr, int32 Stride, FIntPoint Size, FIntPoint Offset = UE::Math::TIntPoint<int32>::ZeroValue)
 		{
 			FString DataString;
 			uint8* Bytes = (uint8*)Ptr;

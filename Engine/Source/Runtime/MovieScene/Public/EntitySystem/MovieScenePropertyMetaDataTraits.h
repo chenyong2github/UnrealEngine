@@ -51,6 +51,10 @@ struct TPropertyMetaDataComponents<TPropertyMetaData<>>
 	{
 		return TArrayView<const FComponentTypeID>();
 	}
+
+	template<int Index> void GetType() const
+	{
+	}
 };
 
 

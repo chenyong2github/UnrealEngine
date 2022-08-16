@@ -1098,7 +1098,7 @@ public:
 		FOnCachePutComplete&& OnComplete) final
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_Put);
-		return Backend->GetRoot().Put(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : [](auto&&){});
+		return Backend->GetRoot().Put(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : FOnCachePutComplete([](auto&&) {}));
 	}
 
 	void Get(
@@ -1107,7 +1107,7 @@ public:
 		FOnCacheGetComplete&& OnComplete) final
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_Get);
-		return Backend->GetRoot().Get(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : [](auto&&){});
+		return Backend->GetRoot().Get(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : FOnCacheGetComplete([](auto&&) {}));
 	}
 
 	void PutValue(
@@ -1116,7 +1116,7 @@ public:
 		FOnCachePutValueComplete&& OnComplete) final
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_PutValue);
-		return Backend->GetRoot().PutValue(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : [](auto&&){});
+		return Backend->GetRoot().PutValue(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : FOnCachePutValueComplete([](auto&&) {}));
 	}
 
 	void GetValue(
@@ -1125,7 +1125,7 @@ public:
 		FOnCacheGetValueComplete&& OnComplete) final
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_GetValue);
-		return Backend->GetRoot().GetValue(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : [](auto&&){});
+		return Backend->GetRoot().GetValue(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : FOnCacheGetValueComplete([](auto&&) {}));
 	}
 
 	void GetChunks(
@@ -1134,7 +1134,7 @@ public:
 		FOnCacheGetChunkComplete&& OnComplete) final
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_GetChunks);
-		return Backend->GetRoot().GetChunks(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : [](auto&&){});
+		return Backend->GetRoot().GetChunks(Requests, Owner, OnComplete ? MoveTemp(OnComplete) : FOnCacheGetChunkComplete([](auto&&) {}));
 	}
 
 	ICacheStoreMaintainer& GetMaintainer() final
