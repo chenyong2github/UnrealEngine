@@ -150,6 +150,8 @@ namespace UE::LevelSnapshots::Private::Internal
 		UObject* SnapshotVersion = SubobjectCache->SnapshotObject.Get();
 		if (ResolvedObject)
 		{
+			SubobjectCache->EditorObject = ResolvedObject;
+			
 			// We can't tell whether ResolvedObject is 1: a normal referenced object or 2: a dead object that just has not been collected yet
 			// If it is referenced from somewhere (case 1), we expect it to be in the selection map.
 			// Otherwise we'll treat it as a dead object that we fully restore.
@@ -189,12 +191,12 @@ namespace UE::LevelSnapshots::Private::Internal
 			ResolvedObject = NewObject<UObject>(Outer, ExpectedClass, *ExtractLastSubobjectName(OriginalObjectPath), SubobjectData.GetObjectFlags() | RF_Transactional, Archetype.GetValue());
 			if (ensureMsgf(ResolvedObject, TEXT("Failed to allocate '%s'"), *OriginalObjectPath.ToString()))
 			{
+				SubobjectCache->EditorObject = ResolvedObject;
 				ResolvedObject->SetFlags(SubobjectData.GetObjectFlags());
 				FApplySnapshotToEditorArchive::ApplyToEditorWorldObjectRecreatedWithArchetype(SubobjectData, WorldData, Cache, ResolvedObject, SelectionMap);
 			}
 		}
 		
-		SubobjectCache->EditorObject = ResolvedObject;
 		return ResolvedObject;
 	}
 

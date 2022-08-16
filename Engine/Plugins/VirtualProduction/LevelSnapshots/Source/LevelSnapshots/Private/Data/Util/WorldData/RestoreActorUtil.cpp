@@ -52,7 +52,7 @@ namespace UE::LevelSnapshots::Private::Internal::Restore
 			}
 		}
 	}
-	
+
 	static void DeserializeIntoEditorWorldActor(AActor* OriginalActor, FActorSnapshotData& ActorData, FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UPackage* InLocalisationSnapshotPackage, FSerializeActor SerializeActor, FSerializeComponent SerializeComponent)
 	{
 		const TOptional<TNonNullPtr<AActor>> Deserialized = UE::LevelSnapshots::Private::GetDeserializedActor(OriginalActor, WorldData, Cache, InLocalisationSnapshotPackage);
@@ -139,7 +139,7 @@ namespace UE::LevelSnapshots::Private::Internal::Restore
 		{
 			// Hacky way of updating AttachChildren since there is no direct way...
 			Component->UnregisterComponent();
-			Component->SetupAttachment(Component->GetAttachParent());
+			Component->SetupAttachment(Component->GetAttachParent(), Component->GetAttachSocketName());
 			// ReregisterAllComponents will be called after the actor is done restoring which will fix up everything
 		}
 	}
@@ -198,17 +198,6 @@ void UE::LevelSnapshots::Private::RestoreIntoRecreatedEditorWorldActor(AActor* O
 	Internal::Restore::DeserializeIntoEditorWorldActor(OriginalActor, ActorData, WorldData, Cache, InLocalisationSnapshotPackage, DeserializeActor, DeserializeComponent);
 
 #if WITH_EDITOR
-	// Otherwise actor will show up with internal object name, e.g. actor previously called Cube will be StaticMeshActor1
-	if (ActorData.ActorLabel.IsEmpty()) 
-	{
-		// This might be an old snapshot in which this data was not yet saved
-		OriginalActor->SetActorLabel(OriginalActor->GetName());
-	}
-	else
-	{
-		OriginalActor->SetActorLabel(ActorData.ActorLabel);
-	}
-	
 	// Recreated actors have invalid lightning cache... e.g. recreated point lights will show error image (S_LightError)
 	OriginalActor->InvalidateLightingCacheDetailed(false);
 #endif

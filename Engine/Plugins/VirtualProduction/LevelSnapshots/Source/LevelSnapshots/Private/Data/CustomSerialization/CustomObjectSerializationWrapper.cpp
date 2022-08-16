@@ -122,7 +122,9 @@ namespace UE::LevelSnapshots::Private::Internal
 				}
 
 				const FCustomSubobjectRestorationInfo* RestorationInfo = SelectionMap.GetObjectSelection(EditorObject).GetCustomSubobjectSelection();
-				if (RestorationInfo && RestorationInfo->CustomSnapshotSubobjectsToRestore.Contains(SnapshotSubobject))
+				const bool bWasMissingFromExistingActor = RestorationInfo && RestorationInfo->CustomSnapshotSubobjectsToRestore.Contains(SnapshotSubobject);
+				const bool bWasActorRecreated = SelectionMap.GetDeletedActorsToRespawn().Contains(EditorSubobject->GetTypedOuter<AActor>());
+				if (bWasMissingFromExistingActor || bWasActorRecreated)
 				{
 					// Recursively check whether subobjects also have a registered ICustomObjectSnapshotSerializer
 					const FRestoreObjectScope FinishRestore = PreObjectRestore_EditorWorld(SnapshotSubobject, EditorSubobject, WorldData, Cache, SelectionMap, LocalisationSnapshotPackage,

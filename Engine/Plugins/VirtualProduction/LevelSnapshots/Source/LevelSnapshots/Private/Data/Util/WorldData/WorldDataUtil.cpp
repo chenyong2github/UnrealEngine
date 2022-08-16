@@ -395,6 +395,7 @@ namespace UE::LevelSnapshots::Private::Internal
 					SpawnParameters.Name = ActorFName;
 					SpawnParameters.OverrideLevel = OverrideLevel;
 					SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
+					SpawnParameters.bDeferConstruction = true;
 					// Overriable properties
 					SpawnParameters.Template = ActorCDO.GetValue();
 					SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -404,17 +405,33 @@ namespace UE::LevelSnapshots::Private::Internal
 						| RF_Transactional;
 					
 					Module.OnPreCreateActor(OwningLevelWorld, ActorClass, SpawnParameters);
-					ensureMsgf(SpawnParameters.bNoFail, TEXT("You cannot override bNoFail"));
-					ensureMsgf(SpawnParameters.Name == ActorFName, TEXT("You cannot override the actor's name"));
-					ensureMsgf(SpawnParameters.OverrideLevel == OverrideLevel, TEXT("You cannot override the actor's level"));
-					ensureMsgf(SpawnParameters.NameMode == FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull, TEXT("You cannot override the actor's NameMode"));
+					ensureMsgf(SpawnParameters.bNoFail
+						&& SpawnParameters.Name == ActorFName
+						&& SpawnParameters.OverrideLevel == OverrideLevel
+						&& SpawnParameters.NameMode == FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull
+						&& SpawnParameters.bDeferConstruction, TEXT("You cannot override these properties!"));
 					SpawnParameters.bNoFail = true;
 					SpawnParameters.Name = ActorFName;
 					SpawnParameters.OverrideLevel = OverrideLevel;
 					SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
+					SpawnParameters.bDeferConstruction = true;
 					
 					if (AActor* RecreatedActor = OwningLevelWorld->SpawnActor(ActorClass, nullptr, SpawnParameters))
 					{
+						// The label is set while the actor is still in construction to avoid any side-effects to PostEditChangeProperty.
+#if WITH_EDITOR
+						// Otherwise actor will show up with internal object name, e.g. actor previously called Cube will be StaticMeshActor1
+						if (ActorSnapshot->ActorLabel.IsEmpty()) 
+						{
+							// This might be an old snapshot in which this data was not yet saved
+							RecreatedActor->SetActorLabel(RecreatedActor->GetName());
+						}
+						else
+						{
+							RecreatedActor->SetActorLabel(ActorSnapshot->ActorLabel);
+						}
+#endif
+						RecreatedActor->FinishSpawning(RecreatedActor->GetActorTransform());
 						Module.OnPostRecreateActor(RecreatedActor);
 						RecreatedActors.Add(OriginalRemovedActorPath, RecreatedActor);
 					}

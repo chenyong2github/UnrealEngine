@@ -62,10 +62,11 @@ void FConditionalSortedScopedLog::FFormatCSV::operator()(FOutputDevice& OutputDe
 	OutputDevice.Logf(ELogVerbosity::Log, TEXT("%s"), *Result);
 }
 
-FConditionalSortedScopedLog::FConditionalSortedScopedLog(bool bCondition, FString Title, FLogFormatter Formatter, FOutputDevice* OutputDevice, bool bLargeTimesFirst, EScopeLogTimeUnits Units)
+FConditionalSortedScopedLog::FConditionalSortedScopedLog(bool bCondition, FString Title, FLogFormatter Formatter, FOutputDevice* OutputDevice, bool bLargeTimesFirst, bool bLogTotalTime, EScopeLogTimeUnits Units)
 	: bCondition(bCondition)
 	, LogTitle(Title)
 	, bLargeTimesFirst(bLargeTimesFirst)
+	, StartTime(bLogTotalTime ? FPlatformTime::Seconds() : 0.f)
 	, Units(Units)
 	, Formatter(Formatter)
 	, Output(OutputDevice)
@@ -84,6 +85,12 @@ FConditionalSortedScopedLog::~FConditionalSortedScopedLog()
 			LoggedItems.Sort(TLess<FLoggedItem>());
 		}
 
+		const bool bLogTotalTime = StartTime != 0.0;
+		if (bLogTotalTime)
+		{
+			AddCustomMeasuredLogItem(TEXT("Total Time"), FPlatformTime::Seconds() - StartTime);
+		}
+		
 		Formatter(Output ? *Output : *GLog, GetDisplayUnitsString(), LogTitle, LoggedItems);
 	}
 }

@@ -58,11 +58,19 @@ public:
 	 * @param bCondition Determines whether anything will be printed or not. Typical use case: this condition depends on a console variable.
 	 * @param Title This will be printed before the sorted list of items
 	 * @param bLargeTimesFirst Whether to sort descending or ascending
+	 * @param bLogTotalTime Whether to log the total time taken when this log is destroyed
 	 * @param Units Whether to use seconds or milliseconds when printing time information
 	 * @param Formatter Receives the final data and logs it. Useful for logging in a special format, such as
 	 * @param OutputDevice Where to print to
 	 */
-	FConditionalSortedScopedLog(bool bCondition, FString Title = FString(), FLogFormatter Formatter = FFormatLog(), FOutputDevice* OutputDevice = GLog, bool bLargeTimesFirst = true, EScopeLogTimeUnits Units = EScopeLogTimeUnits::Milliseconds);
+	FConditionalSortedScopedLog(
+		bool bCondition,
+		FString Title = FString(),
+		FLogFormatter Formatter = FFormatLog(),
+		FOutputDevice* OutputDevice = GLog,
+		bool bLargeTimesFirst = true,
+		bool bLogTotalTime = true,
+		EScopeLogTimeUnits Units = EScopeLogTimeUnits::Milliseconds);
 	~FConditionalSortedScopedLog();
 
 	
@@ -82,6 +90,7 @@ private:
 	
 	FString LogTitle;
 	bool bLargeTimesFirst;
+	const double StartTime; 
 	EScopeLogTimeUnits Units;
 	FLogFormatter Formatter;
 	FOutputDevice* Output;
@@ -116,7 +125,13 @@ class FSortedScopedLog : public FConditionalSortedScopedLog
 {
 public:
 
-	FSortedScopedLog(FString Name = FString(), FLogFormatter Formatter = FFormatLog(), FOutputDevice* OutputDevice = GLog, bool bLargeTimesFirst = true, EScopeLogTimeUnits Units = EScopeLogTimeUnits::Milliseconds)
-		: FConditionalSortedScopedLog(true, Name, Formatter, OutputDevice, bLargeTimesFirst, Units)
+	FSortedScopedLog(FString Name = FString(),
+		FLogFormatter Formatter = FFormatLog(),
+		FOutputDevice* OutputDevice = GLog,
+		bool bLargeTimesFirst = true, 
+		bool bLogTotalTime = true,
+		EScopeLogTimeUnits Units = EScopeLogTimeUnits::Milliseconds
+		)
+		: FConditionalSortedScopedLog(true, Name, Formatter, OutputDevice, bLargeTimesFirst, bLogTotalTime, Units)
 	{}
 };
