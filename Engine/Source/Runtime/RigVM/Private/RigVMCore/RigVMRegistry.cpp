@@ -265,12 +265,6 @@ TRigVMTypeIndex FRigVMRegistry::FindOrAddType_Internal(const FRigVMTemplateArgum
 
 		if (!bIsExecute)
 		{
-			Types[Indices[1]].BaseTypeIndex = Indices[0];
-			Types[Indices[2]].BaseTypeIndex = Indices[1];
-		}
-
-		if (!bIsExecute)
-		{
 			Types[Indices[2]].BaseTypeIndex = Indices[1];
 			Types[Indices[1]].ArrayTypeIndex = Indices[2];
 		}
