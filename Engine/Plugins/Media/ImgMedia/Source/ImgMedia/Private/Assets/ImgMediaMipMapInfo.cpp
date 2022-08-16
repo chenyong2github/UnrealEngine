@@ -341,7 +341,6 @@ namespace {
 			}
 
 			const FIntPoint& SequenceTileNum = InSequenceInfo.TilingDescription.TileNum;
-			const FVector2f SequencePartialTileNum = FVector2f(InSequenceInfo.Dim) / FVector2f(InSequenceInfo.TilingDescription.TileSize);
 
 			// To avoid calculating tile corner mip levels multiple times over, we cache them in this array.
 			CornerMipLevelsCached.SetNum((SequenceTileNum.X + 1) * (SequenceTileNum.Y + 1));
@@ -397,7 +396,7 @@ namespace {
 					CurrentNumTiles.X = FMath::Max(1, FMath::CeilToInt(float(SequenceTileNum.X) / MipLevelDiv));
 					CurrentNumTiles.Y = FMath::Max(1, FMath::CeilToInt(float(SequenceTileNum.Y) / MipLevelDiv));
 
-					FVector2f CurrentPartialTileNum = SequencePartialTileNum / (float)MipLevelDiv;
+					FVector2f CurrentPartialTileNum = InSequenceInfo.GetPartialTileNum(CurrentMipLevel);
 
 					// Exclude subdivided tiles (enqueued below) that are not present (i.e. mipped sequences with odd number of tiles)
 					if (Tile.X >= CurrentNumTiles.X || Tile.Y >= CurrentNumTiles.Y)
@@ -567,7 +566,7 @@ namespace {
 
 			// Include all tiles containted in the visible UV region
 			const FIntPoint& SequenceTileNum = InSequenceInfo.TilingDescription.TileNum;
-			const FVector2f SequencePartialTileNum = FVector2f(InSequenceInfo.Dim) / FVector2f(InSequenceInfo.TilingDescription.TileSize);
+			const FVector2f SequencePartialTileNum = InSequenceInfo.GetPartialTileNum();
 
 			float PixelDimX = 1.0f / InSequenceInfo.Dim.X;
 			float PixelDimY = 1.0f / InSequenceInfo.Dim.Y;

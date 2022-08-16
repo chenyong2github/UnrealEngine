@@ -38,6 +38,17 @@ struct FSequenceInfo
 	{
 		return (TilingDescription.TileNum.X > 1) || (TilingDescription.TileNum.Y > 1);
 	}
+	/** Get the fractional number of tiles, optionally at a specified mip level.*/
+	FORCEINLINE FVector2f GetPartialTileNum(const int32 MipLevel = 0) const
+	{
+		if (IsTiled())
+		{
+			ensure(MipLevel >= 0);
+			return (FVector2f(Dim) / FVector2f(TilingDescription.TileSize)) / float(1 << MipLevel);
+		}
+
+		return FVector2f::One();
+	}
 };
 
 /**
