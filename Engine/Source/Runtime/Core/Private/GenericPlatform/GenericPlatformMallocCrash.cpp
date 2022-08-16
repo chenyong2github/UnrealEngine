@@ -521,12 +521,9 @@ uint32 FGenericPlatformMallocCrash::CalculateBookkeepingPoolTotalSize() const
 
 void FGenericPlatformMallocCrash::InitializeSmallPools()
 {
-	uint32 MallocCrashOverhead = 0;
-
 	for( uint32 Index = 0; Index < NUM_POOLS; ++Index )
 	{
 		FMallocCrashPool* NewPool = new (&FMallocCrashPool::GetPool(Index)) FMallocCrashPool(GetPoolDesc(Index), *this);
-		MallocCrashOverhead += NewPool->AllocatedMemory;
 	}
 
 	check(SmallMemoryPoolOffset<=CalculateSmallPoolTotalSize());

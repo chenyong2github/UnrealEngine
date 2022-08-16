@@ -961,17 +961,6 @@ public:
 	 */
 	int64 ToInt() const
 	{
-		int64 Result;
-		if (!IsNegative())
-		{
-			Result = (int64)Bits[0] + ((int64)Bits[1] << BitsPerWord);
-		}
-		else
-		{
-			BigInt Positive(*this);
-			Positive.Negate();
-			Result = (int64)Positive.Bits[0] + ((int64)Positive.Bits[1] << BitsPerWord);
-		}
 		return (int64)Bits[0] + ((int64)Bits[1] << BitsPerWord);
 	}
 

@@ -712,7 +712,6 @@ void FArchive::SerializeCompressedNew(void* V, int64 Length, FName CompressionFo
 		//	assume it was CompressionFormatToDecodeOldV1Files (usually Zlib)
 		FName CompressionFormatToDecode = CompressionFormatToDecodeOldV1Files;
 
-		bool bHeaderWasValid=false;
 		bool bWasByteSwapped=false;
 		bool bReadCompressionFormat=false;
 		
@@ -725,20 +724,17 @@ void FArchive::SerializeCompressedNew(void* V, int64 Length, FName CompressionFo
 		if ( PackageFileTag.CompressedSize == PACKAGE_FILE_TAG )
 		{
 			// v1 header, not swapped
-			bHeaderWasValid = true;
 		}
 		else if ( PackageFileTag.CompressedSize == PACKAGE_FILE_TAG_SWAPPED ||
 			PackageFileTag.CompressedSize == BYTESWAP_ORDER64((uint64)PACKAGE_FILE_TAG) )
 		{
 			// v1 header, swapped
-			bHeaderWasValid = true;
 			bWasByteSwapped = true;
 		}
 		else if ( PackageFileTag.CompressedSize == ARCHIVE_V2_HEADER_TAG ||
 			PackageFileTag.CompressedSize == BYTESWAP_ORDER64((uint64)ARCHIVE_V2_HEADER_TAG) )
 		{
 			// v2 header
-			bHeaderWasValid = true;
 			bWasByteSwapped = ( PackageFileTag.CompressedSize != ARCHIVE_V2_HEADER_TAG );
 			bReadCompressionFormat = true;
 
