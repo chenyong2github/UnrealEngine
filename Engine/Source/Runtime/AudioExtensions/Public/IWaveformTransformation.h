@@ -22,6 +22,8 @@ namespace Audio
 		float SampleRate = 0.f;
 		int32 NumChannels = 0;
 		Audio::FAlignedFloatBuffer* Audio = nullptr;
+		uint32 StartFrameOffset = 0;
+		uint32 NumEditedSamples = 0;
 	};
 
 	/*
