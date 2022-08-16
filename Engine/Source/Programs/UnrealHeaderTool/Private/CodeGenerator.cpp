@@ -3199,7 +3199,7 @@ void ExportEnhancedConstructorsMacro(FOutputDevice& Out, FUnrealClassDefinitionI
  *
  * @returns Inclusion path.
  */
-FString GetBuildPath(FUnrealSourceFile& SourceFile)
+FString GetBuildPath(const FUnrealSourceFile& SourceFile)
 {
 	FString Out = SourceFile.GetFilename();
 
@@ -5466,16 +5466,34 @@ void FNativeClassHeaderGenerator::ApplyAlternatePropertyExportText(FUnrealProper
 	}
 }
 
+static void AddIncludeForType(const FUnrealTypeDefinitionInfo* PropertyTypeDef, TArray<FString>& RelativeIncludes)
+{
+	if (UHTCast<FUnrealScriptStructDefinitionInfo>(PropertyTypeDef) != nullptr)
+	{
+		if (PropertyTypeDef->HasSource() && !PropertyTypeDef->GetUnrealSourceFile().IsNoExportTypes())
+		{
+			FString Header = GetBuildPath(PropertyTypeDef->GetUnrealSourceFile());
+			RelativeIncludes.AddUnique(MoveTemp(Header));
+		}
+	}
+}
+
+static void AddIncludeForProperty(const TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef, TArray<FString>& RelativeIncludes)
+{
+	const FPropertyBase& PropertyBase = PropertyDef->GetPropertyBase();
+	AddIncludeForType(PropertyBase.TypeDef, RelativeIncludes);
+	if (PropertyBase.MapKeyProp != nullptr)
+	{
+		AddIncludeForType(PropertyBase.MapKeyProp->TypeDef, RelativeIncludes);
+	}
+}
+
 bool FNativeClassHeaderGenerator::WriteSource(const FManifestModule& Module, FGeneratedFileInfo& FileInfo, const FString& InBodyText, FUnrealSourceFile* InSourceFile, const TSet<FString>& InCrossModuleReferences, const EExportClassOutFlags& ExportFlags)
 {
 	// Collect the includes if this is from a source file
 	TArray<FString> RelativeIncludes;
 	if (InSourceFile)
 	{
-		FString ModuleRelativeFilename = InSourceFile->GetFilename();
-		ConvertToBuildIncludePath(Module, ModuleRelativeFilename);
-		RelativeIncludes.Add(MoveTemp(ModuleRelativeFilename));
-
 		if (EnumHasAnyFlags(ExportFlags, EExportClassOutFlags::NeedsFastArrayHeaders))
 		{
 			RelativeIncludes.Add(FString(TEXT("Net/Serialization/FastArraySerializerImplementation.h")));
@@ -5483,28 +5501,60 @@ bool FNativeClassHeaderGenerator::WriteSource(const FManifestModule& Module, FGe
 
 		bool bAddedStructuredArchiveFromArchiveHeader = false;
 		bool bAddedArchiveUObjectFromStructuredArchiveHeader = false;
-		for (const TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : InSourceFile->GetDefinedClasses())
+
+		// We need to include the headers that declare any types that aren't pointers.
+		// We can't rely on the original header that generates this cpp to include the 
+		// headers because it could be forward declaring the types.
+		for (const TSharedRef<FUnrealTypeDefinitionInfo>& TypeDef : InSourceFile->GetDefinedTypes())
 		{
-			FUnrealClassDefinitionInfo& ClassDef = TypeDef->AsClassChecked();
-			FUnrealClassDefinitionInfo* ClassWithin = ClassDef.GetClassWithin();
-			if (ClassWithin && ClassWithin->HasSource() && !ClassWithin->GetUnrealSourceFile().IsNoExportTypes())
+			if (FUnrealStructDefinitionInfo* Struct = TypeDef->AsStruct())
 			{
-				FString Header = GetBuildPath(ClassWithin->GetUnrealSourceFile());
-				RelativeIncludes.AddUnique(MoveTemp(Header));
+				// Functions
+				for (const TSharedRef<FUnrealStructDefinitionInfo>& FunctionDef : Struct->GetFunctions())
+				{
+					for (const TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef : FunctionDef->GetProperties())
+					{
+						AddIncludeForProperty(PropertyDef, RelativeIncludes);
+					}
+				}
+
+				// Properties
+				for (const TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef : Struct->GetProperties())
+				{
+					AddIncludeForProperty(PropertyDef, RelativeIncludes);
+				}
 			}
 
-			if (!bAddedStructuredArchiveFromArchiveHeader && ClassDef.GetArchiveType() == ESerializerArchiveType::StructuredArchiveRecord)
+			if (FUnrealClassDefinitionInfo* ClassDef = TypeDef->AsClass())
 			{
-				RelativeIncludes.AddUnique(TEXT("Serialization/StructuredArchive.h"));
-				bAddedStructuredArchiveFromArchiveHeader = true;
-			}
+				FUnrealClassDefinitionInfo* ClassWithin = ClassDef->GetClassWithin();
+				if (ClassWithin && ClassWithin->HasSource() && !ClassWithin->GetUnrealSourceFile().IsNoExportTypes())
+				{
+					FString Header = GetBuildPath(ClassWithin->GetUnrealSourceFile());
+					RelativeIncludes.AddUnique(MoveTemp(Header));
+				}
 
-			if (!bAddedArchiveUObjectFromStructuredArchiveHeader && ClassDef.GetArchiveType() == ESerializerArchiveType::Archive)
-			{
-				RelativeIncludes.AddUnique(TEXT("Serialization/ArchiveUObjectFromStructuredArchive.h"));
-				bAddedArchiveUObjectFromStructuredArchiveHeader = true;
+				if (!bAddedStructuredArchiveFromArchiveHeader && ClassDef->GetArchiveType() == ESerializerArchiveType::StructuredArchiveRecord)
+				{
+					RelativeIncludes.AddUnique(TEXT("Serialization/StructuredArchive.h"));
+					bAddedStructuredArchiveFromArchiveHeader = true;
+				}
+
+				if (!bAddedArchiveUObjectFromStructuredArchiveHeader && ClassDef->GetArchiveType() == ESerializerArchiveType::Archive)
+				{
+					RelativeIncludes.AddUnique(TEXT("Serialization/ArchiveUObjectFromStructuredArchive.h"));
+					bAddedArchiveUObjectFromStructuredArchiveHeader = true;
+				}
 			}
 		}
+
+		RelativeIncludes.Sort();
+
+		// Add the source header file to the top of the list
+		FString ModuleRelativeFilename = InSourceFile->GetFilename();
+		ConvertToBuildIncludePath(Module, ModuleRelativeFilename);
+		RelativeIncludes.Remove(ModuleRelativeFilename);
+		RelativeIncludes.EmplaceAt(0, MoveTemp(ModuleRelativeFilename));
 	}
 
 	FUHTStringBuilder FileText;

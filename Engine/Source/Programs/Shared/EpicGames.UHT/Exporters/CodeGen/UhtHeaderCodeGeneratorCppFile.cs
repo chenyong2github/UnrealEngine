@@ -38,24 +38,45 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append(HeaderCopyright);
 				builder.Append(RequiredCPPIncludes);
 				builder.Append("#include \"").Append(headerInfo.IncludePath).Append("\"\r\n");
-				if (headerInfo.NeedsFastArrayHeaders)
-				{
-					builder.Append("#include \"Net/Serialization/FastArraySerializerImplementation.h\"\r\n");
-				}
 
 				bool addedStructuredArchiveFromArchiveHeader = false;
 				bool addedArchiveUObjectFromStructuredArchiveHeader = false;
 				HashSet<UhtHeaderFile> addedIncludes = new();
-				addedIncludes.Add(HeaderFile);
-				foreach (UhtType type in HeaderFile.Children)
+				List<string> includesToAdd = new();
+				addedIncludes.Add(this.HeaderFile);
+
+				if (headerInfo.NeedsFastArrayHeaders)
 				{
+					includesToAdd.Add("Net/Serialization/FastArraySerializerImplementation.h");
+				}
+
+				foreach (UhtType type in this.HeaderFile.Children)
+				{
+					if (type is UhtStruct structObj)
+					{
+						// Functions
+						foreach (UhtFunction function in structObj.Functions)
+						{
+							foreach (UhtProperty property in function.Properties)
+							{
+								AddIncludeForProperty(property, addedIncludes, includesToAdd);
+							}
+						}
+
+						// Properties
+						foreach (UhtProperty property in structObj.Properties)
+						{
+							AddIncludeForProperty(property, addedIncludes, includesToAdd);
+						}
+					}
+
 					if (type is UhtClass classObj)
 					{
 						if (classObj.ClassWithin != Session.UObject && !classObj.ClassWithin.HeaderFile.IsNoExportTypes)
 						{
 							if (addedIncludes.Add(classObj.ClassWithin.HeaderFile))
 							{
-								builder.Append("#include \"").Append(HeaderInfos[classObj.ClassWithin.HeaderFile.HeaderFileTypeIndex].IncludePath).Append("\"\r\n");
+								includesToAdd.Add(HeaderInfos[classObj.ClassWithin.HeaderFile.HeaderFileTypeIndex].IncludePath);
 							}
 						}
 
@@ -67,7 +88,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							case UhtSerializerArchiveType.Archive:
 								if (!addedArchiveUObjectFromStructuredArchiveHeader)
 								{
-									builder.Append("#include \"Serialization/ArchiveUObjectFromStructuredArchive.h\"\r\n");
+									includesToAdd.Add("Serialization/ArchiveUObjectFromStructuredArchive.h");
 									addedArchiveUObjectFromStructuredArchiveHeader = true;
 								}
 								break;
@@ -75,12 +96,25 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							case UhtSerializerArchiveType.StructuredArchiveRecord:
 								if (!addedStructuredArchiveFromArchiveHeader)
 								{
-									builder.Append("#include \"Serialization/StructuredArchive.h\"\r\n");
+									includesToAdd.Add("Serialization/StructuredArchive.h");
 									addedStructuredArchiveFromArchiveHeader = true;
 								}
 								break;
 						}
 					}
+					else
+					{
+						if (!type.HeaderFile.IsNoExportTypes && addedIncludes.Add(type.HeaderFile))
+						{
+							includesToAdd.Add(this.HeaderInfos[type.HeaderFile.HeaderFileTypeIndex].IncludePath);
+						}
+					}
+				}
+
+				includesToAdd.Sort(StringComparerUE.OrdinalIgnoreCase);
+				foreach (string include in includesToAdd)
+				{
+					builder.Append("#include \"").Append(include).Append("\"\r\n");
 				}
 
 				builder.Append(DisableDeprecationWarnings).Append("\r\n");
@@ -304,6 +338,33 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					// Save the hash of the generated body 
 					HeaderInfos[HeaderFile.HeaderFileTypeIndex].BodyHash = UhtHash.GenenerateTextHash(generatedBody.Span[generatedBodyStart..generatedBodyEnd]);
 				}
+			}
+		}
+
+		private void AddIncludeForType(UhtProperty uhtProperty, HashSet<UhtHeaderFile> addedIncludes, IList<string> includesToAdd)
+		{
+			if (uhtProperty is UhtStructProperty structProperty)
+			{
+				UhtScriptStruct scriptStruct = structProperty.ScriptStruct;
+				if (!scriptStruct.HeaderFile.IsNoExportTypes && addedIncludes.Add(scriptStruct.HeaderFile))
+				{
+					includesToAdd.Add(HeaderInfos[scriptStruct.HeaderFile.HeaderFileTypeIndex].IncludePath);
+				}
+			}
+		}
+
+		private void AddIncludeForProperty(UhtProperty property, HashSet<UhtHeaderFile> addedIncludes, IList<string> includesToAdd)
+		{
+			AddIncludeForType(property, addedIncludes, includesToAdd);
+
+			if (property is UhtContainerBaseProperty containerProperty)
+			{
+				AddIncludeForType(containerProperty.ValueProperty, addedIncludes, includesToAdd);
+			}
+
+			if (property is UhtMapProperty mapProperty)
+			{
+				AddIncludeForType(mapProperty.KeyProperty, addedIncludes, includesToAdd);
 			}
 		}
 
