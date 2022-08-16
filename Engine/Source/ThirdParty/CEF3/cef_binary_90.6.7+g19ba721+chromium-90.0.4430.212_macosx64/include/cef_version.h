@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Marshall A. Greenblatt. All rights reserved.
+// Copyright (c) 2022 Marshall A. Greenblatt. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -41,7 +41,7 @@
 #define CEF_VERSION_PATCH 7
 #define CEF_COMMIT_NUMBER 2358
 #define CEF_COMMIT_HASH "19ba7216a0d852845bda0d13578435f53458e65a"
-#define COPYRIGHT_YEAR 2021
+#define COPYRIGHT_YEAR 2022
 
 #define CHROME_VERSION_MAJOR 90
 #define CHROME_VERSION_MINOR 0
