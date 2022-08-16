@@ -8,6 +8,9 @@ UDataflowSettings::UDataflowSettings(const FObjectInitializer& ObjectInitlaizer)
 	ManagedArrayCollectionPinTypeColor = FLinearColor(0.353393f, 0.454175f, 1.0f, 1.0f);
 	ArrayPinTypeColor = FLinearColor(1.0f, 0.172585f, 0.0f, 1.0f);
 	BoxPinTypeColor = FLinearColor(0.013575f, 0.770000f, 0.429609f, 1.0f);
+
+	GeometryCollectionCategoryNodeTitleColor = FLinearColor(0.55f, 0.0f, 1.f);
+	GeometryCollectionCategoryNodeBodyTintColor = FLinearColor(0.55f, 0.0f, 1.f);
 }
 
 FName UDataflowSettings::GetCategoryName() const

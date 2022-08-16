@@ -4,6 +4,7 @@
 
 #include "Engine/DeveloperSettings.h"
 #include "InputCoreTypes.h"
+
 #include "DataflowSettings.generated.h"
 
 UCLASS(config = Dataflow, defaultconfig, meta = (DisplayName = "Dataflow"))
@@ -22,6 +23,14 @@ class DATAFLOWEDITOR_API UDataflowSettings : public UDeveloperSettings
 	/** FBox pin type color. The other pin colors are defined in the general editor settings. */
 	UPROPERTY(config, EditAnywhere, Category = PinColors)
 	FLinearColor BoxPinTypeColor;
+
+	/** GeometryCollection category NodeTitle color. */
+	UPROPERTY(config, EditAnywhere, Category = NodeColors)
+	FLinearColor GeometryCollectionCategoryNodeTitleColor;
+
+	/** GeometryCollection category NodeBodyTint color. */
+	UPROPERTY(config, EditAnywhere, Category = NodeColors)
+	FLinearColor GeometryCollectionCategoryNodeBodyTintColor;
 
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;
