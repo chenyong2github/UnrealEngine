@@ -55,6 +55,7 @@ FDeltaCompressionBaselineManager::FDeltaCompressionBaselineManager()
 {
 	// If alignment of storage type for FPerObjectInfo is too small then it's totally unsafe to cast such pointers to FPerObjectInfo.
 	static_assert(InvalidObjectInfoIndex == 0, "InvalidObjectInfoIndex needs to be zero in order for current code to function properly.");
+	static_assert(InvalidInternalIndex == FNetHandleManager::InvalidInternalIndex, "InvalidInternalIndex differs from FNetHandleManager::InvalidInternalIndex");
 }
 
 FDeltaCompressionBaselineManager::~FDeltaCompressionBaselineManager()

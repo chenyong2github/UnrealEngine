@@ -521,7 +521,7 @@ void FReplicationFiltering::InitNewConnections()
 		// Everything enabled by default in groups, i.e. not filtered out.
 		ConnectionInfo.GroupFilteredOutObjects.Init(MaxObjectCount);
 
-		// The combined result of scoped objects, connection filteirng and group filtering.
+		// The combined result of scoped objects, connection filtering and group filtering.
 		ConnectionInfo.ObjectsInScopeBeforeDynamicFiltering.Init(MaxObjectCount);
 
 		// The final result of all filtering.
@@ -1368,7 +1368,7 @@ void FReplicationFiltering::SetSubObjectFilterStatus(FNetObjectGroupHandle Group
 
 	if (IsReservedNetObjectGroupHandle(GroupHandle))
 	{
-		UE_LOG(LogIrisFiltering, Warning, TEXT("FReplicationFiltering::SetSubObjectFilterStatus - Trying to set filter for reserved GroupHandle: %u which is not allowed."), GroupHandle);
+		UE_LOG(LogIrisFiltering, Warning, TEXT("FReplicationFiltering::SetSubObjectFilterStatus - Trying to set filter for reserved GroupIndex: %u which is not allowed."), GroupHandle);
 		return;
 	}
 
@@ -1396,7 +1396,7 @@ void FReplicationFiltering::SetSubObjectFilterStatus(FNetObjectGroupHandle Group
 
 	if (IsReservedNetObjectGroupHandle(GroupHandle))
 	{
-		UE_LOG(LogIrisFiltering, Warning, TEXT("FReplicationFiltering::SetSubObjectFilterStatus - Trying to set filter for reserved GroupHandle: %u which is not allowed."), GroupHandle);
+		UE_LOG(LogIrisFiltering, Warning, TEXT("FReplicationFiltering::SetSubObjectFilterStatus - Trying to set filter for reserved GroupIndex: %u which is not allowed."), GroupHandle);
 		return;
 	}
 
@@ -1428,7 +1428,7 @@ void FReplicationFiltering::SetSubObjectFilterStatus(FNetObjectGroupHandle Group
 {
 	if (IsReservedNetObjectGroupHandle(GroupHandle))
 	{
-		UE_LOG(LogIrisFiltering, Warning, TEXT("FReplicationFiltering::SetSubObjectFilterStatus - Trying to set filter for reserved GroupHandle: %u which is not allowed."), GroupHandle);
+		UE_LOG(LogIrisFiltering, Warning, TEXT("FReplicationFiltering::SetSubObjectFilterStatus - Trying to set filter for reserved GroupIndex: %u which is not allowed."), GroupHandle);
 		return;
 	}
 
@@ -1501,7 +1501,7 @@ void FReplicationFiltering::SetGroupFilterStatus(FNetObjectGroupHandle GroupHand
 
 	if (IsReservedNetObjectGroupHandle(GroupHandle))
 	{
-		UE_LOG(LogIrisFiltering, Warning, TEXT("FReplicationFiltering::SetGroupFilterStatus - Trying to set filter for reserer NetObjectGroupHandle: %u which is not allowed."), GroupHandle);
+		UE_LOG(LogIrisFiltering, Warning, TEXT("FReplicationFiltering::SetGroupFilterStatus - Trying to set filter for reserved GroupIndex: %u which is not allowed."), GroupHandle);
 		return;
 	}
 
@@ -1524,7 +1524,7 @@ void FReplicationFiltering::SetGroupFilterStatus(FNetObjectGroupHandle GroupHand
 		
 	if (IsReservedNetObjectGroupHandle(GroupHandle))
 	{
-		UE_LOG(LogIrisFiltering, Warning, TEXT("FReplicationFiltering::SetGroupFilterStatus - Trying to set filter for reserer NetObjectGroupHandle: %u which is not allowed."), GroupHandle);		
+		UE_LOG(LogIrisFiltering, Warning, TEXT("FReplicationFiltering::SetGroupFilterStatus - Trying to set filter for reserved GroupIndex: %u which is not allowed."), GroupHandle);		
 		return;
 	}
 
@@ -1558,7 +1558,7 @@ void FReplicationFiltering::SetGroupFilterStatus(FNetObjectGroupHandle GroupHand
 
 	if (IsReservedNetObjectGroupHandle(GroupHandle))
 	{
-		UE_LOG(LogIrisFiltering, Warning, TEXT("FReplicationFiltering::SetGroupFilterStatus - Trying to set filter for reserer NetObjectGroupHandle: %u which is not allowed."), GroupHandle);
+		UE_LOG(LogIrisFiltering, Warning, TEXT("FReplicationFiltering::SetGroupFilterStatus - Trying to set filter for reserved GroupIndex: %u which is not allowed."), GroupHandle);
 		return;
 	}
 

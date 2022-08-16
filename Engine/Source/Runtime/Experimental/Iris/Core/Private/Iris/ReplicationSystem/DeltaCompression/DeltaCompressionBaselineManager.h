@@ -103,6 +103,9 @@ private:
 		InvalidObjectInfoIndex = 0,
 		InvalidBaselineStateInfoIndex = 0,
 
+		// Must match NetHandleManager::InvalidInternalIndex
+		InvalidInternalIndex = 0,
+
 		ObjectInfoGrowCount = 128,
 	};
 
@@ -264,6 +267,9 @@ inline const FDeltaCompressionBaselineManager::FPerObjectInfo* FDeltaCompression
 
 inline FDeltaCompressionBaselineManager::FPerObjectInfo* FDeltaCompressionBaselineManager::GetPerObjectInfoForObject(uint32 ObjectIndex)
 {
+	checkSlow(ObjectIndex != InvalidInternalIndex);
+	checkSlow(ObjectIndex < (uint32)ObjectIndexToObjectInfoIndex.Num());
+
 	const ObjectInfoIndexType InfoIndex = ObjectIndexToObjectInfoIndex[ObjectIndex];
 	if (InfoIndex != InvalidObjectInfoIndex)
 	{
@@ -275,6 +281,9 @@ inline FDeltaCompressionBaselineManager::FPerObjectInfo* FDeltaCompressionBaseli
 
 inline const FDeltaCompressionBaselineManager::FPerObjectInfo* FDeltaCompressionBaselineManager::GetPerObjectInfoForObject(uint32 ObjectIndex) const
 {
+	checkSlow(ObjectIndex != InvalidInternalIndex);
+	checkSlow(ObjectIndex < (uint32)ObjectIndexToObjectInfoIndex.Num());
+
 	const ObjectInfoIndexType InfoIndex = ObjectIndexToObjectInfoIndex[ObjectIndex];
 	if (InfoIndex != InvalidObjectInfoIndex)
 	{
