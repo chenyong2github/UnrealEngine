@@ -92,16 +92,16 @@ void FLiveLinkComponentDetailCustomization::CustomizeDetails(IDetailLayoutBuilde
 				FText ControllerName = FText::Format(LOCTEXT("No Controller", "{0}"), FText::FromName(NAME_None));
 
 				//Map value is a pointer to the Controller. Can be null so it could be empty
+				TArray<UObject*> ExternalObjects;
 				UObject* ControllerPtr = nullptr;
 				EntryHandle->GetValue(ControllerPtr);
 				if (ControllerPtr != nullptr)
 				{
 					ControllerName = ControllerPtr->GetClass()->GetDisplayNameText();
+					ExternalObjects.Add(ControllerPtr);
 				}
 
 				//Since we're displaying properties of another object, add it as external to the current one being edited. 
-				TArray<UObject*> ExternalObjects;
-				ExternalObjects.Add(ControllerPtr);
 				IDetailPropertyRow* ThisRoleRow = DetailBuilder.EditCategory(TEXT("Role Controllers")).AddExternalObjects(ExternalObjects);
 
 				//As external objects, each map entry will generate a custom widget for its detail property row like this: 
