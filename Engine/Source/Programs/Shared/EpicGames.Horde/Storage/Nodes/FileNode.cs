@@ -343,43 +343,37 @@ namespace EpicGames.Horde.Storage.Nodes
 			uint newRollingHash = _rollingHash;
 			uint rollingHashThreshold = (uint)((1L << 32) / options.LeafOptions.TargetSize);
 
-			// Length of the data taken from the input span, updated as we step through it.
-			int length = 0;
+			// Offset within the head span, updated as we step through it.
+			int offset = 0;
 
 			// Step the window through the tail end of the existing payload window. In this state, update the hash to remove data from the current payload, and add data from the new payload.
-			int splitLength = Math.Min(headSpan.Length, windowSize);
-			ReadOnlySequence<byte> tailSequence = _writtenSequence.Slice(_writtenSequence.Length - windowSize, splitLength);
+			int tailLength = Math.Min(headSpan.Length, windowSize);
+			ReadOnlySequence<byte> tailSequence = _writtenSequence.Slice(_writtenSequence.Length - windowSize, tailLength);
 
 			foreach (ReadOnlyMemory<byte> tailSegment in tailSequence)
 			{
-				int baseLength = length;
-				int spanLength = length + tailSegment.Length;
-
-				ReadOnlySpan<byte> tailSpan = tailSegment.Span;
-				for (; length < spanLength; length++)
+				int count = BuzHash.Update(tailSegment.Span, headSpan.Slice(offset, tailSegment.Length), rollingHashThreshold, ref newRollingHash);
+				if (count != -1)
 				{
-					newRollingHash = BuzHash.Add(newRollingHash, headSpan[length]);
-					if (newRollingHash < rollingHashThreshold)
-					{
-						AppendLeafData(headSpan.Slice(0, length), newRollingHash);
-						_isReadOnly = true;
-						return length;
-					}
-					newRollingHash = BuzHash.Sub(newRollingHash, tailSpan[length - baseLength], windowSize);
+					offset += count;
+					AppendLeafData(headSpan.Slice(0, offset), newRollingHash);
+					_isReadOnly = true;
+					return offset;
 				}
+				offset += tailSegment.Length;
 			}
 
 			// Step through the new window until we get to a chunk boundary.
-			for (; length < headSpan.Length; length++)
+			if (offset < headSpan.Length)
 			{
-				newRollingHash = BuzHash.Add(newRollingHash, headSpan[length]);
-				if (newRollingHash < rollingHashThreshold)
+				int count = BuzHash.Update(headSpan.Slice(offset - windowSize, headSpan.Length - offset), headSpan.Slice(offset), rollingHashThreshold, ref newRollingHash);
+				if (count != -1)
 				{
-					AppendLeafData(headSpan.Slice(0, length), newRollingHash);
+					offset += count;
+					AppendLeafData(headSpan.Slice(0, offset), newRollingHash);
 					_isReadOnly = true;
-					return length;
+					return offset;
 				}
-				newRollingHash = BuzHash.Sub(newRollingHash, headSpan[length - windowSize], windowSize);
 			}
 
 			// Otherwise just append all the data.

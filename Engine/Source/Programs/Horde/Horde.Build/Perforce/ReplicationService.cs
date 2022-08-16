@@ -658,8 +658,15 @@ namespace Horde.Build.Perforce
 					await perforce.SyncQuietAsync(SyncOptions.Force | SyncOptions.KeepWorkspaceFiles, -1, flushPath, cancellationToken);
 				}
 
-				// Do a sync preview to find everything that's left, and sort the remaining list of paths
+				// Add the root directory from the filter to the list of files to sync. This prevents traversing above it.
 				Dictionary<Utf8String, DirectoryToSync> pathToDirectory = new Dictionary<Utf8String, DirectoryToSync>(clientInfo.ServerInfo.Utf8PathComparer);
+				if (filter != null)
+				{
+					string rootPath = filter.Substring(0, filter.LastIndexOf('/') + 1);
+					pathToDirectory.Add(rootPath.Replace('/', Path.DirectorySeparatorChar), new DirectoryToSync(rootPath, clientInfo.ServerInfo.Utf8PathComparer));
+				}
+
+				// Do a sync preview to find everything that's left, and sort the remaining list of paths
 				await foreach (PerforceResponse<SyncRecord> response in perforce.StreamCommandAsync<SyncRecord>("sync", new[] { "-n" }, new string[] { $"{queryPath}@{change}" }, null, cancellationToken))
 				{
 					PerforceError? error = response.Error;
@@ -683,13 +690,7 @@ namespace Horde.Build.Perforce
 
 					Utf8String directoryPath = path.Slice(clientRoot.Length, fileIdx - clientRoot.Length);
 
-					DirectoryToSync? directory;
-					if (!pathToDirectory.TryGetValue(directoryPath, out directory))
-					{
-						directory = new DirectoryToSync(NormalizePathSeparators(directoryPath), clientInfo.ServerInfo.Utf8PathComparer);
-						pathToDirectory.Add(directoryPath, directory);
-					}
-
+					DirectoryToSync directory = FindOrAddDirectoryTree(pathToDirectory, directoryPath, clientInfo.ServerInfo.Utf8PathComparer);
 					directory._fileNameToSize.Add(path.Slice(fileIdx).Clone(), response.Data.FileSize);
 					directory._size += response.Data.FileSize;
 				}
@@ -711,29 +712,48 @@ namespace Horde.Build.Perforce
 					// Save the incremental state
 					if (syncedSize > 0)
 					{
+						Stopwatch flushTimer = Stopwatch.StartNew();
 						await writer.FlushAsync(syncNode, cancellationToken);
+						flushTimer.Stop();
 						deleteIncRef = true;
 					}
 
-					// Find the next path to sync
-					const long MaxBatchSize = 10L * 1024 * 1024 * 1024;
-					(int dirIdx, Utf8String path, long size) = GetSyncBatch(directories, MaxBatchSize, clientInfo.ServerInfo.Utf8PathComparer, _logger);
-					syncedSize += size;
+					// Find the next paths to sync
+					const long MaxBatchSize = 1L * 1024 * 1024 * 1024;
 
-					// If we're syncing the entire view, use the given filter instead. It will be tighter than the base path from all files.
-					if (filter != null && path.Equals("..."))
+					int dirIdx = directories.Count - 1;
+					long size = directories[dirIdx]._size;
+
+					for (; dirIdx > 0; dirIdx--)
 					{
-						path = filter;
+						long nextSize = size + directories[dirIdx - 1]._size;
+						if (size > 0 && nextSize > MaxBatchSize)
+						{
+							break;
+						}
+						size = nextSize;
 					}
 
-					const long FlushInterval = 1024 * 1024 * 256;
-
-					long dataSize = 0;
-					long flushDataSize = FlushInterval;
-
-					string syncPath = $"//{clientInfo.Client.Name}/{path}@{change}";
+					syncedSize += size;
 					double syncPct = (totalSize == 0) ? 100.0 : (syncedSize * 100.0) / totalSize;
-					_logger.LogInformation("Syncing {StreamId} to {Change} [{SyncPct:n1}%]: {Path} ({Size:n1}mb)", stream.Id, change, syncPct, path, size / (1024.0 * 1024.0));
+					_logger.LogInformation("Syncing {StreamId} to {Change} [{SyncPct:n1}%] ({Size:n1}mb)", stream.Id, change, syncPct, size / (1024.0 * 1024.0));
+
+					// Copy them to a separate list and remove any redundant paths
+					List<string> syncPaths = new List<string>();
+					for (int idx = dirIdx; idx < directories.Count; idx++)
+					{
+						Utf8String basePath = directories[idx]._path;
+						syncPaths.Add($"//{clientInfo.Client.Name}/{basePath}...@{change}");
+
+						long dirSize = directories[idx]._size;
+						while (idx + 1 < directories.Count && directories[idx + 1]._path.StartsWith(basePath, clientInfo.ServerInfo.Utf8PathComparer))
+						{
+							dirSize += directories[idx + 1]._size;
+							idx++;
+						}
+
+						_logger.LogInformation("  {Directory} ({Size:n1}mb)", directories[idx]._path + "...", dirSize / (1024.0 * 1024.0));
+					}
 
 					Stopwatch syncTimer = Stopwatch.StartNew();
 					Stopwatch processTimer = new Stopwatch();
@@ -742,7 +762,7 @@ namespace Horde.Build.Perforce
 					Dictionary<int, FileWriter> handles = new Dictionary<int, FileWriter>();
 					try
 					{
-						await foreach (PerforceResponse response in perforce.StreamCommandAsync("sync", Array.Empty<string>(), new string[] { syncPath }, null, typeof(SyncRecord), true, default))
+						await foreach (PerforceResponse response in perforce.StreamCommandAsync("sync", Array.Empty<string>(), syncPaths, null, typeof(SyncRecord), true, default))
 						{
 							PerforceError? error = response.Error;
 							if (error != null)
@@ -777,7 +797,6 @@ namespace Horde.Build.Perforce
 								{
 									FileWriter file = handles[io.File];
 									await file.AppendAsync(io.Payload, Options.Chunking, writer, cancellationToken);
-									dataSize += io.Payload.Length;
 								}
 								else if (io.Command == PerforceIoCommand.Close)
 								{
@@ -815,57 +834,40 @@ namespace Horde.Build.Perforce
 							handle.Dispose();
 						}
 					}
-					_logger.LogInformation("Completed batch in {TimeSeconds:n1}s ({ProcessTimeSeconds:n1}s processing)", syncTimer.Elapsed.TotalSeconds, processTimer.Elapsed.TotalSeconds);
+
+					TimeSpan stallTime = (perforce as NativePerforceConnection)?.StallTime ?? TimeSpan.Zero;
+					_logger.LogInformation("Completed batch in {TimeSeconds:n1}s ({ProcessTimeSeconds:n1}s processing, {StallTimeSeconds:n1}s stalled, {Throughput:n1}mb/s)", syncTimer.Elapsed.TotalSeconds, processTimer.Elapsed.TotalSeconds, stallTime.TotalSeconds, size / (1024.0 * 1024.0 * syncTimer.Elapsed.TotalSeconds));
 
 					// Combine all the existing sync paths together with a new wildcard.
-					List<Utf8String> paths = syncNode.Paths;
-					if (paths.Count > 0)
+					while (directories.Count > dirIdx)
 					{
-						Utf8String lastPath = syncNode.Paths[^1];
-						for (int endIdx = 0; endIdx < lastPath.Length; endIdx++)
+						Utf8String nextPath = directories[^1]._path;
+						if (syncNode.Paths.Count > 0)
 						{
-							if (lastPath[endIdx] == '/')
+							Utf8String lastPath = syncNode.Paths[^1];
+							for (int endIdx = 0; endIdx < lastPath.Length; endIdx++)
 							{
-								Utf8String prefix = lastPath.Substring(0, endIdx + 1);
-								if (!path.StartsWith(prefix, clientInfo.ServerInfo.Utf8PathComparer))
+								if (lastPath[endIdx] == '/')
 								{
-									// Find all the paths that start with this prefix
-									int pathIdx = paths.Count - 1;
-									while (pathIdx > 0 && paths[pathIdx - 1].StartsWith(prefix, clientInfo.ServerInfo.Utf8PathComparer))
+									Utf8String prefix = lastPath.Substring(0, endIdx + 1);
+									if (!nextPath.StartsWith(prefix, clientInfo.ServerInfo.Utf8PathComparer))
 									{
-										pathIdx--;
-									}
+										// Remove any paths that start with this prefix
+										while (syncNode.Paths.Count > 0 && syncNode.Paths[^1].StartsWith(prefix, clientInfo.ServerInfo.Utf8PathComparer))
+										{
+											syncNode.Paths.RemoveAt(syncNode.Paths.Count - 1);
+										}
 
-									// Replace the paths with a wildcard
-									paths.RemoveRange(pathIdx, paths.Count - pathIdx);
-									paths.Add(prefix + "...");
-									break;
+										// Replace it with a wildcard
+										syncNode.Paths.Add(prefix + "...");
+										break;
+									}
 								}
 							}
 						}
+						syncNode.Paths.Add(nextPath + "...");
+						directories.RemoveAt(directories.Count - 1);
 					}
-					paths.Add(path);
-
-					// Print the new state
-					if (dataSize > flushDataSize)
-					{
-						_logger.LogInformation("Queuing flush of working set after receiving {Size:n1}mb.", dataSize / (1024 * 1024));
-						foreach (Utf8String nextPath in paths)
-						{
-							_logger.LogInformation("Filter: {Path}", nextPath);
-						}
-
-						Stopwatch flushTimer = Stopwatch.StartNew();
-						await flushTask;
-						flushTask = writer.FlushAsync(syncNode, cancellationToken);
-						flushTimer.Stop();
-
-						flushDataSize = dataSize + FlushInterval;
-						_logger.LogInformation("Flush took {Time:n1}s. Next flush at {Size:n1}mb.", flushTimer.Elapsed.TotalSeconds, flushDataSize / (1024 * 1024));
-					}
-
-					// Remove the paths we've synced
-					directories.RemoveRange(dirIdx, directories.Count - dirIdx);
 				}
 				await flushTask;
 			}
@@ -894,6 +896,36 @@ namespace Horde.Build.Perforce
 			return fileIdx;
 		}
 
+		static DirectoryToSync FindOrAddDirectoryTree(Dictionary<Utf8String, DirectoryToSync> pathToDirectory, Utf8String directoryPath, Utf8StringComparer comparer)
+		{
+			DirectoryToSync? directory;
+			if (!pathToDirectory.TryGetValue(directoryPath, out directory))
+			{
+				// Add a new path
+				Utf8String normalizedPath = NormalizePathSeparators(directoryPath);
+				directory = new DirectoryToSync(normalizedPath, comparer);
+				pathToDirectory.Add(directoryPath, directory);
+
+				// Also add all the parent directories. This makes the logic for combining wildcards simpler.
+				for (int idx = normalizedPath.Length - 2; idx > 0; idx--)
+				{
+					if (normalizedPath[idx] == '/')
+					{
+						Utf8String parentDirectoryPath = directoryPath.Substring(0, idx + 1);
+						if (pathToDirectory.ContainsKey(parentDirectoryPath))
+						{
+							break;
+						}
+						else
+						{
+							pathToDirectory.Add(parentDirectoryPath, new DirectoryToSync(normalizedPath.Substring(0, idx + 1), comparer));
+						}
+					}
+				}
+			}
+			return directory;
+		}
+
 		static Utf8String NormalizePathSeparators(Utf8String path)
 		{
 			byte[] newPath = new byte[path.Length];
@@ -902,47 +934,6 @@ namespace Horde.Build.Perforce
 				newPath[idx] = (path[idx] == '\\') ? (byte)'/' : path[idx];
 			}
 			return new Utf8String(newPath);
-		}
-
-		static (int, Utf8String, long) GetSyncBatch(List<DirectoryToSync> directories, long maxSize, Utf8StringComparer comparer, ILogger logger)
-		{
-			int idx = directories.Count - 1;
-			long size = directories[idx]._size;
-
-			Utf8String prefix = directories[idx]._path;
-			while (prefix.Length > 0)
-			{
-				// Get the length of the parent directory
-				int endIdx = prefix.Length - 1;
-				while (endIdx > 0 && prefix[endIdx - 1] != (byte)'/' && prefix[endIdx - 1] != (byte)'\\')
-				{
-					endIdx--;
-				}
-
-				// Get the parent directory prefix, ending with a slash
-				Utf8String nextPrefix = prefix.Substring(0, endIdx);
-
-				// Include all files with this prefix
-				int nextIdx = idx;
-				long nextSize = size;
-				while (nextIdx > 0 && directories[nextIdx - 1]._path.StartsWith(nextPrefix, comparer))
-				{
-					nextSize += directories[nextIdx - 1]._size;
-					nextIdx--;
-				}
-				if (nextSize > maxSize)
-				{
-					logger.LogInformation("Next filter {NextFilter} would exceed max size ({NextSize:n1}mb > {MaxSize:n1}mb); using {Filter} ({Size:n1}mb) instead.", nextPrefix + "...", nextSize / (1024.0 * 1024.0), maxSize / (1024.0 * 1024.0), prefix, size / (1024.0 * 1024.0));
-					return (idx, prefix + "...", size);
-				}
-				size = nextSize;
-				idx = nextIdx;
-
-				// Update the prefix
-				prefix = nextPrefix;
-			}
-
-			return (idx, prefix + "...", size);
 		}
 
 		async Task FlushWorkspaceAsync(ReplicationClient clientInfo, IPerforceConnection perforce, int change)

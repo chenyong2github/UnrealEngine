@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace EpicGames.Core
 {
@@ -37,25 +40,22 @@ namespace EpicGames.Core
 			0xf9c18d66, 0x593ade65, 0xd95ddf11,
 		};
 
-		int _count;
 		uint _state;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		public BuzHash()
-			: this(0, 0)
+			: this(0)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="count"></param>
 		/// <param name="state"></param>
-		public BuzHash(int count, uint state)
+		public BuzHash(uint state)
 		{
-			_count = count;
 			_state = state;
 		}
 
@@ -64,7 +64,6 @@ namespace EpicGames.Core
 		/// </summary>
 		public void Reset()
 		{ 
-			_count = 0; 
 			_state = 0; 
 		}
 
@@ -75,7 +74,6 @@ namespace EpicGames.Core
 		public void Add(byte value)
 		{
 			_state = Add(_state, value);
-			_count++;
 		}
 
 		/// <summary>
@@ -85,7 +83,6 @@ namespace EpicGames.Core
 		public void Add(ReadOnlySpan<byte> span)
 		{
 			_state = Add(_state, span);
-			_count += span.Length;
 		}
 
 		/// <summary>
@@ -105,11 +102,15 @@ namespace EpicGames.Core
 		/// <param name="state">The current hash value</param>
 		/// <param name="data">Data to append to the hash</param>
 		/// <returns>New hash value</returns>
-		public static uint Add(uint state, ReadOnlySpan<byte> data)
+		public static unsafe uint Add(uint state, ReadOnlySpan<byte> data)
 		{
-			for (int idx = 0; idx < data.Length; idx++)
+			fixed (uint* table = s_table)
+			fixed (byte* dataPtr = data)
 			{
-				state = Add(state, data[idx]);
+				for (int idx = 0; idx < data.Length; idx++)
+				{
+					state = Rol32(state, 1) ^ table[dataPtr[idx]];
+				}
 			}
 			return state;
 		}
@@ -118,10 +119,10 @@ namespace EpicGames.Core
 		/// Removes a byte from the start of the hash window
 		/// </summary>
 		/// <param name="value">Value at the start of the window</param>
-		public void Sub(byte value)
+		/// <param name="count">Number of items in the hash</param>
+		public void Sub(byte value, int count)
 		{
-			_state ^= Rol32(s_table[value], (int)(_count - 1));
-			_count--;
+			_state ^= Rol32(s_table[value], (int)(count - 1));
 		}
 
 		/// <summary>
@@ -145,6 +146,38 @@ namespace EpicGames.Core
 			{
 				Add(data[idx]);
 			}
+		}
+
+		/// <summary>
+		/// Consume data from a source until the hash is below a certain threshold 
+		/// </summary>
+		/// <param name="prev">Previous data added to the hash</param>
+		/// <param name="next">Next data to be added to the hash</param>
+		/// <param name="threshold">Threshold for hash below which to terminate the scan</param>
+		/// <returns>Number of bytes consumed from next</returns>
+		public static unsafe int Update(ReadOnlySpan<byte> prev, ReadOnlySpan<byte> next, uint threshold, ref uint state)
+		{
+			Debug.Assert(prev.Length == next.Length);
+
+			fixed (uint* table = s_table)
+			fixed (byte* prevPtr = prev)
+			fixed (byte* nextPtr = next)
+			{
+				uint hash = state;
+				for (int idx = 0; idx < prev.Length; idx++)
+				{
+					hash = Rol32(hash, 1) ^ table[nextPtr[idx]];
+					if (hash < threshold)
+					{
+						state = hash;
+						return idx;
+					}
+					hash = hash ^ Rol32(table[prevPtr[idx]], prev.Length - 1);
+				}
+				state = hash;
+			}
+
+			return -1;
 		}
 
 		/// <summary>

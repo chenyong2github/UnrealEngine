@@ -551,6 +551,10 @@ namespace EpicGames.Horde.Storage.Nodes
 			{
 				size += (directoryEntry.Name.Length + 1) + VarInt.MeasureUnsigned((ulong)directoryEntry.Length);
 			}
+			if ((flags & DirectoryFlags.WithGitHashes) != 0)
+			{
+				size += (directoryEntries.Count + fileEntries.Count) * IoHash.NumBytes;
+			}
 
 			// Allocate the buffer and copy the node to it
 			byte[] data = new byte[size];

@@ -268,6 +268,7 @@ namespace EpicGames.Perforce
 		readonly BlockingCollection<PinnedBuffer> _writeBuffers = new BlockingCollection<PinnedBuffer>();
 		Response? _currentResponse;
 		readonly ManualResetEvent _responseCompleteEvent;
+		readonly Stopwatch _stallTimer = new Stopwatch();
 
 		/// <inheritdoc/>
 		public IPerforceSettings Settings { get; }
@@ -335,6 +336,8 @@ namespace EpicGames.Perforce
 
 		void GetNextWriteBuffer(NativeWriteBuffer nativeWriteBuffer, int minSize)
 		{
+			_stallTimer.Start();
+
 			PinnedBuffer buffer = _writeBuffers.Take();
 			if (buffer.MaxLength < minSize)
 			{
@@ -344,6 +347,8 @@ namespace EpicGames.Perforce
 			nativeWriteBuffer._data = buffer.BasePtr;
 			nativeWriteBuffer._maxLength = buffer.Data.Length;
 			nativeWriteBuffer._maxCount = Int32.MaxValue;
+
+			_stallTimer.Stop();
 		}
 
 		/// <summary>
@@ -393,6 +398,11 @@ namespace EpicGames.Perforce
 				pinnedBuffer.Dispose();
 			}
 		}
+
+		/// <summary>
+		/// Gets the amount of time stalled waiting for an output buffer in the last command
+		/// </summary>
+		public TimeSpan StallTime => _stallTimer.Elapsed;
 
 		/// <summary>
 		/// Initializes the connection, throwing an error on failure
@@ -469,6 +479,7 @@ namespace EpicGames.Perforce
 				_currentResponse = request.Value.Response;
 				_responseCompleteEvent.Reset();
 
+				_stallTimer.Reset();
 				request.Value.Action();
 
 				_currentResponse._readBuffers.Writer.TryComplete();
