@@ -269,6 +269,9 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 	GUnrealEd->GetSelectedActors()->SetElementSelectionSet(SelectedElements);
 	GUnrealEd->GetSelectedComponents()->SetElementSelectionSet(SelectedElements);
 
+	// Setup a callback to deselect instances of Instanced Static Meshes so there are no lingering references.
+	FSMInstanceElementIdMap::Get().OnInstancePreRemoval().AddSP(this, &SLevelEditor::OnIsmInstanceRemoving);
+
 	CommonActions = NewObject<UTypedElementCommonActions>();
 	CommonActions->AddToRoot();
 
@@ -1939,6 +1942,12 @@ void SLevelEditor::HandleAssetsDeleted(const TArray<UClass*>& DeletedClasses)
 		GetWorld()->InvalidateModelSurface(false);
 		GetWorld()->CommitModelSurfaces();
 	}
+}
+
+void SLevelEditor::OnIsmInstanceRemoving(const FSMInstanceElementId& SMInstanceElementId, [[maybe_unused]] int32 InstanceIndex)
+{
+	SelectedElements->DeselectElement(
+		UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(SMInstanceElementId), FTypedElementSelectionOptions{});
 }
 
 void SLevelEditor::OnElementSelectionChanged(const UTypedElementSelectionSet* SelectionSet, bool bForceRefresh)

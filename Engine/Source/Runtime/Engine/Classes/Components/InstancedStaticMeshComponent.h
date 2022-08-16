@@ -315,6 +315,19 @@ public:
 
 	/** Indicates that the user has purposedly chosen to show the instance list in the details panel, despite the performance warning. */
 	bool bForceShowAllInstancesDetails = false;
+
+	/** The reason why a deletion operation is currently happening. */
+	enum class EInstanceDeletionReason : uint8
+	{
+		NotDeleting, /** There is currently no deletion in progress. */
+		EntryAlreadyRemoved, /** The instance has been deleted externally. Data synchronization in progress. */
+		EntryRemoval, /** The instance is being removed. */
+		Clearing /** All instances are being removed. */
+	};
+	/** This will be set to the appropriate state when one or more instances are in the process of being
+	 *  deleted. This is primarily used for functions that round trip to this class, such as callbacks
+	 *  for deselecting instances. */
+	EInstanceDeletionReason DeletionState = EInstanceDeletionReason::NotDeleting;
 #endif
 	/** Physics representation of the instance bodies. */
 	TArray<FBodyInstance*> InstanceBodies;

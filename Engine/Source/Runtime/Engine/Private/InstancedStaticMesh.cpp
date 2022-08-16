@@ -3240,6 +3240,10 @@ bool UInstancedStaticMeshComponent::SetCustomData(int32 InstanceIndex, const TAr
 
 bool UInstancedStaticMeshComponent::RemoveInstanceInternal(int32 InstanceIndex, bool InstanceAlreadyRemoved)
 {
+#if WITH_EDITOR
+	DeletionState = InstanceAlreadyRemoved ? EInstanceDeletionReason::EntryAlreadyRemoved : EInstanceDeletionReason::EntryRemoval;
+#endif
+
 	// remove instance
 	if (!InstanceAlreadyRemoved && PerInstanceSMData.IsValidIndex(InstanceIndex))
 	{
@@ -3305,6 +3309,9 @@ bool UInstancedStaticMeshComponent::RemoveInstanceInternal(int32 InstanceIndex, 
 	// Force recreation of the render data
 	InstanceUpdateCmdBuffer.Edit();
 	MarkRenderStateDirty();
+#if WITH_EDITOR
+	DeletionState = EInstanceDeletionReason::NotDeleting;
+#endif
 	return true;
 }
 
@@ -4004,6 +4011,10 @@ void UInstancedStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextur
 
 void UInstancedStaticMeshComponent::ClearInstances()
 {
+#if WITH_EDITOR
+	DeletionState = EInstanceDeletionReason::Clearing;
+#endif
+
 	const int32 PrevNumInstances = GetInstanceCount();
 
 	// Clear all the per-instance data
@@ -4030,6 +4041,10 @@ void UInstancedStaticMeshComponent::ClearInstances()
 	}
 
 	FNavigationSystem::UpdateComponentData(*this);
+
+#if WITH_EDITOR
+	DeletionState = EInstanceDeletionReason::NotDeleting;
+#endif
 }
 
 int32 UInstancedStaticMeshComponent::GetInstanceCount() const
@@ -4657,7 +4672,7 @@ bool UInstancedStaticMeshComponent::IsInstanceSelected(int32 InInstanceIndex) co
 void UInstancedStaticMeshComponent::SelectInstance(bool bInSelected, int32 InInstanceIndex, int32 InInstanceCount)
 {
 #if WITH_EDITOR
-	if (InInstanceCount > 0)
+	if (InInstanceCount > 0 && DeletionState == EInstanceDeletionReason::NotDeleting)
 	{
 		if (PerInstanceSMData.Num() != SelectedInstances.Num())
 		{

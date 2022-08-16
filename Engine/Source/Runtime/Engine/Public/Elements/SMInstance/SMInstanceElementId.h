@@ -120,6 +120,15 @@ public:
 	}
 
 	/**
+	 * Delegate called when a static mesh instance is about to be removed from the instances array on its component, and the associated ID for a SMInstance element will be unmapped.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnInstancePreRemoval, const FSMInstanceElementId& /*SMInstanceElementId*/, int32 /*InstanceIndex*/);
+	FOnInstancePreRemoval& OnInstancePreRemoval()
+	{
+		return OnInstancePreRemovalDelegate;
+	}
+
+	/**
 	 * Delegate called when a static mesh instance has been removed from the instances array on its component, and the associated ID for a SMInstance element has been unmapped.
 	 */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnInstanceRemoved, const FSMInstanceElementId& /*SMInstanceElementId*/, int32 /*InstanceIndex*/);
@@ -177,6 +186,7 @@ private:
 
 	FOnInstanceRemapped OnInstanceRemappedDelegate;
 
+	FOnInstancePreRemoval OnInstancePreRemovalDelegate;
 	FOnInstanceRemoved OnInstanceRemovedDelegate;
 
 	FDelegateHandle OnInstanceIndexUpdatedHandle;
