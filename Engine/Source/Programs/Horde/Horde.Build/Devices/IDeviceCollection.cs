@@ -174,18 +174,19 @@ namespace Horde.Build.Devices
         /// <returns></returns>
         Task CheckoutDeviceAsync(DeviceId deviceId, UserId? checkedOutByUserId);
 
-        // RESERVATIONS
+		// RESERVATIONS
 
-        /// <summary>
-        /// Create a new reseveration in the pool with the specified devices
-        /// </summary>
-        /// <param name="poolId">The pool of devices to use for the new reservation</param>
-        /// <param name="request">The requested devices for the reservation</param>
-        /// <param name="hostname">The hostname of the machine making the reservation</param>
-        /// <param name="reservationDetails">The details of the reservation</param>
-        /// <param name="jobId">The Job Id associated with the job</param>
-        /// <param name="stepId">The Step Id associated with the job</param>
-        Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId poolId, List<DeviceRequestData> request, string? hostname, string? reservationDetails, string? jobId, string? stepId);
+		/// <summary>
+		/// Create a new reseveration in the pool with the specified devices
+		/// </summary>
+		/// <param name="poolId">The pool of devices to use for the new reservation</param>
+		/// <param name="request">The requested devices for the reservation</param>
+		/// <param name="hostname">The hostname of the machine making the reservation</param>
+		/// <param name="reservationDetails">The details of the reservation</param>
+		/// <param name="streamId">The Stream Id associated with the job</param>
+		/// <param name="jobId">The Job Id associated with the job</param>
+		/// <param name="stepId">The Step Id associated with the job</param>
+		Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId poolId, List<DeviceRequestData> request, string? hostname, string? reservationDetails, string? streamId, string? jobId, string? stepId);
 
 		/// <summary>
 		/// Gets a reservation by guid for legacy clients

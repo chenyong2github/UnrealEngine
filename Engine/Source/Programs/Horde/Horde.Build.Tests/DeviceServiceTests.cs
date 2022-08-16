@@ -153,6 +153,7 @@ namespace Horde.Build.Tests
 			List<GetDeviceTelemetryResponse> telemetry = (await DeviceController!.GetDeviceTelemetry()).Value!;
 			Assert.AreEqual(telemetry.Count, 1);
 			Assert.AreEqual(telemetry[0].Telemetry.Count, 1);
+			Assert.AreEqual(telemetry[0].Telemetry[0].StreamId, "ue5-main");
 			Assert.AreEqual(telemetry[0].Telemetry[0].StepId, "abcd");
 		}
 
@@ -208,6 +209,8 @@ namespace Horde.Build.Tests
 			Assert.AreEqual(1, reservation.DeviceNames.Length);
 			Assert.AreNotSame(maintenanceDevice!.Name, reservation.DeviceNames[0]);
 
+			GetLegacyDeviceResponse reservedDevice = ResultToValue(await DeviceController!.GetDeviceV1Async(reservation.DeviceNames[0]));
+
 			await DeviceService.TickForTestingAsync();
 
 			List<GetDevicePoolTelemetryResponse> telemetry = (await DeviceController!.GetDevicePoolTelemetry()).Value!;
@@ -219,6 +222,10 @@ namespace Horde.Build.Tests
 					Assert.AreEqual(0, t.Available);
 					Assert.AreEqual(1, t.Reserved);
 					Assert.AreEqual(1, t.Maintenance);
+
+					Assert.IsTrue(t.StreamDevices.ContainsKey("ue5-main"));
+					Assert.AreEqual(t.StreamDevices["ue5-main"].Count, 1);
+					Assert.AreEqual(t.StreamDevices["ue5-main"][0], reservedDevice.Id);
 				}
 				else if (t.PlatformId == "testdeviceplatform3")
 				{

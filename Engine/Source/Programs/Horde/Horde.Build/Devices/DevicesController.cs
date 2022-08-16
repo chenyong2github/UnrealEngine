@@ -524,7 +524,12 @@ namespace Horde.Build.Devices
 
 					foreach (IDevicePlatformTelemetry telemetry in pool.Value)
 					{
-						platformTelemetry.Add(new GetDevicePlatformTelemetryResponse(telemetry.PlatformId.ToString(), telemetry.Available, telemetry.Reserved, telemetry.Maintenance, telemetry.Problem, telemetry.Disabled));
+						Dictionary<string, List<string>> streamDevices = new Dictionary<string, List<string>>();
+						foreach(KeyValuePair<StringId<Streams.IStream>, IReadOnlyList<DeviceId>> kvp in telemetry.StreamDevices)
+						{
+							streamDevices[kvp.Key.ToString()] = kvp.Value.Select(x => x.ToString()).ToList();
+						}
+						platformTelemetry.Add(new GetDevicePlatformTelemetryResponse(telemetry.PlatformId.ToString(), telemetry.Available, telemetry.Reserved, telemetry.Maintenance, telemetry.Problem, telemetry.Disabled, streamDevices));
 					}
 
 					poolData[pool.Key.ToString()] = platformTelemetry;
@@ -1069,6 +1074,7 @@ namespace Horde.Build.Devices
 
 			GetLegacyDeviceResponse response = new GetLegacyDeviceResponse();
 
+			response.Id = device.Id.ToString();
 			response.Name = device.Name;
 			response.Type = platformName;
 			response.IPOrHostName = device.Address ?? "";

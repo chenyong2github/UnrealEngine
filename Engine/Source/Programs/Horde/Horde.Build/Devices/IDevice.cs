@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using Horde.Build.Acls;
 using Horde.Build.Projects;
+using Horde.Build.Streams;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
@@ -16,6 +17,7 @@ namespace Horde.Build.Devices
 	using DevicePoolId = StringId<IDevicePool>;
 	using ProjectId = StringId<IProject>;
 	using UserId = ObjectId<IUser>;
+	using StreamId = StringId<IStream>;
 
 	/// <summary>
 	/// A reservation containing one or more devices
@@ -31,6 +33,11 @@ namespace Horde.Build.Devices
 		/// Which device pool the reservation is in
 		/// </summary>
 		public DevicePoolId PoolId { get; }
+
+		/// <summary>
+		/// Strwam id holding reservation
+		/// </summary>
+		public string? StreamId { get; }
 
 		/// <summary>
 		/// JobID holding reservation
@@ -210,6 +217,11 @@ namespace Horde.Build.Devices
 		public DeviceId DeviceId { get; }
 
 		/// <summary>
+		/// The stream id which utilized device
+		/// </summary>
+		public string? StreamId { get; }
+
+		/// <summary>
 		/// The job id which utilized device
 		/// </summary>
 		public string? JobId { get; }
@@ -357,6 +369,11 @@ namespace Horde.Build.Devices
 		/// Number of devices in disabled state
 		/// </summary>
 		public int Disabled { get; }
+
+		/// <summary>
+		/// Devices reserved in streams
+		/// </summary>
+		public IReadOnlyDictionary<StreamId, IReadOnlyList<DeviceId>> StreamDevices { get; }
 
 	}
 

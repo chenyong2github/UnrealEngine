@@ -131,7 +131,7 @@ namespace Horde.Build.Devices
 		/// </summary>
 		readonly IDeviceCollection _devices;
 		readonly ITicker _ticker;		
-		static readonly int _poolTelemetryMinutes = 15;
+		const int _poolTelemetryMinutes = 10;
 		int _poolTelemetryTick = _poolTelemetryMinutes;
 
 		/// <summary>
@@ -388,9 +388,20 @@ namespace Horde.Build.Devices
 		/// <summary>
 		/// Try to create a reservation satisfying the specified device platforms and models
 		/// </summary>
-		public Task<IDeviceReservation?> TryCreateReservationAsync(DevicePoolId pool, List<DeviceRequestData> request, string? hostname = null, string? reservationDetails = null, string? jobId = null, string? stepId = null)
+		public async Task<IDeviceReservation?> TryCreateReservationAsync(DevicePoolId pool, List<DeviceRequestData> request, string? hostname = null, string? reservationDetails = null, string? jobId = null, string? stepId = null)
 		{
-			return _devices.TryAddReservationAsync(pool, request, hostname, reservationDetails, jobId, stepId);
+			string? streamId = null;
+
+			if (jobId != null)
+			{
+				IJob? job = await _jobService.GetJobAsync(new JobId(jobId));
+				if (job != null)
+				{
+					streamId = job.StreamId.ToString();
+				}
+			}
+
+			return await _devices.TryAddReservationAsync(pool, request, hostname, reservationDetails, streamId, jobId, stepId);
 		}
 
 		/// <summary>

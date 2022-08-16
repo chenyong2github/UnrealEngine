@@ -558,6 +558,11 @@ namespace Horde.Build.Devices
 		public DateTime CreateTimeUtc { get; set; }
 
 		/// <summary>
+		/// The stream id which utilized device
+		/// </summary>
+		public string? StreamId { get; set; }
+
+		/// <summary>
 		/// The job id which utilized device
 		/// </summary>
 		public string? JobId { get; set; }
@@ -589,6 +594,7 @@ namespace Horde.Build.Devices
 		public GetTelemetryInfoResponse(IDeviceTelemetry data)
 		{
 			CreateTimeUtc = data.CreateTimeUtc;
+			StreamId = data.StreamId;
 			JobId = data.JobId;
 			StepId = data.StepId;
 			ReservationStartUtc = data.ReservationStartUtc;
@@ -664,9 +670,14 @@ namespace Horde.Build.Devices
 		public int Disabled { get; set; }
 
 		/// <summary>
+		/// StreamId to reserved device ids
+		/// </summary>
+		public Dictionary<string, List<string>> StreamDevices { get; set; } = null!;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		public GetDevicePlatformTelemetryResponse(string platformId, int available, int reserved, int maintenance, int problem, int disabled)
+		public GetDevicePlatformTelemetryResponse(string platformId, int available, int reserved, int maintenance, int problem, int disabled, Dictionary<string, List<string>> streamDevices)
 		{
 			PlatformId = platformId;
 			Available = available;
@@ -674,6 +685,7 @@ namespace Horde.Build.Devices
 			Maintenance = maintenance;
 			Problem = problem;
 			Disabled = disabled;
+			StreamDevices = streamDevices;
 		}
 	}
 
@@ -814,6 +826,12 @@ namespace Horde.Build.Devices
 	/// </summary>
 	public class GetLegacyDeviceResponse
 	{
+		/// <summary>
+		/// The  id of the reserved device
+		/// </summary>
+		[Required]
+		public string Id { get; set; } = null!;
+
 		/// <summary>
 		/// The  name of the reserved device
 		/// </summary>

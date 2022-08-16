@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Projects;
 using Horde.Build.Server;
+using Horde.Build.Streams;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
@@ -20,6 +21,7 @@ namespace Horde.Build.Devices
 	using DevicePoolId = StringId<IDevicePool>;
 	using ProjectId = StringId<IProject>;
 	using UserId = ObjectId<IUser>;
+	using StreamId = StringId<IStream>;
 
 	/// <summary>
 	/// Collection of device documents
@@ -103,6 +105,9 @@ namespace Horde.Build.Devices
 			public DevicePoolId PoolId { get; set; }
 
 			[BsonIgnoreIfNull]
+			public string? StreamId { get; set; }
+
+			[BsonIgnoreIfNull]
 			public string? JobId { get; set; }
 
 			[BsonIgnoreIfNull]
@@ -146,7 +151,7 @@ namespace Horde.Build.Devices
 
 			}
 
-			public DeviceReservationDocument(ObjectId id, DevicePoolId poolId, List<DeviceId> devices, List<string> requestedDevicePlatforms, DateTime createTimeUtc, string? hostname, string? reservationDetails, string? jobId, string? stepId)
+			public DeviceReservationDocument(ObjectId id, DevicePoolId poolId, List<DeviceId> devices, List<string> requestedDevicePlatforms, DateTime createTimeUtc, string? hostname, string? reservationDetails, string? streamId, string? jobId, string? stepId)
 			{
 				Id = id;
 				PoolId = poolId;
@@ -156,6 +161,7 @@ namespace Horde.Build.Devices
 				UpdateTimeUtc = createTimeUtc;
 				Hostname = hostname;
 				ReservationDetails = reservationDetails;
+				StreamId = streamId;
 				JobId = jobId;
 				StepId = stepId;
 
@@ -264,6 +270,12 @@ namespace Horde.Build.Devices
 			public DateTime CreateTimeUtc { get; set; }
 
 			/// <summary>
+			/// The stream id which utilized device
+			/// </summary>
+			[BsonIgnoreIfNull]
+			public string? StreamId { get; set; }
+
+			/// <summary>
 			/// The job id which utilized device
 			/// </summary>
 			[BsonIgnoreIfNull]
@@ -304,7 +316,7 @@ namespace Horde.Build.Devices
 			{
 			}
 
-			public DeviceTelemetryDocument(DeviceId deviceId, ObjectId? reservationId = null, DateTime? reservationStartTime = null, string? jobId = null, string? stepId = null)
+			public DeviceTelemetryDocument(DeviceId deviceId, ObjectId? reservationId = null, DateTime? reservationStartTime = null, string? streamId = null, string? jobId = null, string? stepId = null)
 			{
 				TelemetryId = ObjectId.GenerateNewId();
 				CreateTimeUtc = DateTime.UtcNow;
@@ -313,6 +325,7 @@ namespace Horde.Build.Devices
 				ReservationId = reservationId;
 				ReservationStartUtc = reservationStartTime;
 
+				StreamId = streamId;
 				JobId = jobId;
 				StepId = stepId;
 			}
@@ -369,13 +382,19 @@ namespace Horde.Build.Devices
 			[BsonRequired]
 			public int Disabled { get; set; } = 0;
 
+			/// <summary>
+			/// Stream devices that are reserved
+			/// </summary>
+			[BsonIgnoreIfNull]
+			public Dictionary<StreamId, List<DeviceId>>? StreamDevices { get; set; } = new Dictionary<StreamId, List<DeviceId>>();
+			IReadOnlyDictionary<StreamId, IReadOnlyList<DeviceId>> IDevicePlatformTelemetry.StreamDevices => StreamDevices?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value as IReadOnlyList<DeviceId>) ?? new Dictionary<StreamId, IReadOnlyList<DeviceId>>();
 
 			[BsonConstructor]
 			private DevicePlatformTelemetryDocument()
 			{
 			}
 
-			public DevicePlatformTelemetryDocument(DevicePlatformId platformId, int available, int reserved, int maintenance, int problem, int disabled)
+			public DevicePlatformTelemetryDocument(DevicePlatformId platformId, int available, int reserved, int maintenance, int problem, int disabled, Dictionary<StreamId, List<DeviceId>> streamDevices)
 			{
 				TelemetryId = ObjectId.GenerateNewId();
 				CreateTimeUtc = DateTime.UtcNow;
@@ -385,6 +404,7 @@ namespace Horde.Build.Devices
 				Maintenance = maintenance;	
 				Problem = problem;
 				Disabled = disabled;
+				StreamDevices = streamDevices;
 			}
 
 		}
@@ -742,7 +762,7 @@ namespace Horde.Build.Devices
 		}
 
 		/// <inheritdoc/>
-		public async Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId poolId, List<DeviceRequestData> request, string? hostname, string? reservationDetails, string? jobId, string? stepId)
+		public async Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId poolId, List<DeviceRequestData> request, string? hostname, string? reservationDetails, string? streamId, string? jobId, string? stepId)
 		{
 
 			if (request.Count == 0)
@@ -868,14 +888,14 @@ namespace Horde.Build.Devices
 			List<string> requestedPlatforms = deviceIds.Select(x => platformRequestMap[x]).ToList();
 
 			// Create new reservation
-			DeviceReservationDocument newReservation = new DeviceReservationDocument(ObjectId.GenerateNewId(), poolId, deviceIds, requestedPlatforms, reservationTimeUtc, hostname, reservationDetails, jobId, stepId);
+			DeviceReservationDocument newReservation = new DeviceReservationDocument(ObjectId.GenerateNewId(), poolId, deviceIds, requestedPlatforms, reservationTimeUtc, hostname, reservationDetails, streamId, jobId, stepId);
 			await _reservations.InsertOneAsync(newReservation);
 
 			// Create device telemetry data for reservation
 			List<DeviceTelemetryDocument> telemetry = new List<DeviceTelemetryDocument>();
 			foreach (DeviceId deviceId in deviceIds)
 			{
-				telemetry.Add(new DeviceTelemetryDocument(deviceId, newReservation.Id, newReservation.CreateTimeUtc, jobId, stepId));
+				telemetry.Add(new DeviceTelemetryDocument(deviceId, newReservation.Id, newReservation.CreateTimeUtc, streamId, jobId, stepId));
 			}
 
 			if (telemetry.Count > 0)
@@ -1052,6 +1072,7 @@ namespace Horde.Build.Devices
 			public int maintenance = 0;
 			public int problem = 0;
 			public int disabled = 0;
+			public Dictionary<StreamId, List<DeviceId>> streamDevices = new Dictionary<StreamId, List<DeviceId>>();
 
 		}
 
@@ -1103,6 +1124,18 @@ namespace Horde.Build.Devices
 					if (reservedDevices.Contains(device))
 					{
 						helper.reserved++;
+						IDeviceReservation? reservation = reservations.FirstOrDefault(x => x.Devices.Contains(device.Id));
+						if (reservation != null && reservation.StreamId != null)
+						{
+							StreamId streamId = new StreamId(reservation.StreamId);
+							List<DeviceId>? deviceIds;
+							if (!helper.streamDevices.TryGetValue(streamId, out deviceIds))
+							{
+								deviceIds = new List<DeviceId>();
+								helper.streamDevices[streamId] = deviceIds;
+							}
+							deviceIds.Add(device.Id);
+						}
 						continue;
 					}
 
@@ -1131,7 +1164,7 @@ namespace Horde.Build.Devices
 				foreach (KeyValuePair<DevicePlatformId, DevicePoolTelemetryHelper> platform in helpers)
 				{
 					DevicePoolTelemetryHelper helper = platform.Value;
-					platformTelemtry.Add(new DevicePlatformTelemetryDocument(platform.Key, helper.available, helper.reserved, helper.maintenance, helper.problem, helper.disabled));
+					platformTelemtry.Add(new DevicePlatformTelemetryDocument(platform.Key, helper.available, helper.reserved, helper.maintenance, helper.problem, helper.disabled, helper.streamDevices));
 				}
 
 				poolTelemetry[pool.Id] = platformTelemtry;
