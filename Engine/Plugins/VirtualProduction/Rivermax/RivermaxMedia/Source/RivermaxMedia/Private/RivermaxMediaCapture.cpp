@@ -111,27 +111,14 @@ bool URivermaxMediaCapture::ValidateMediaOutput() const
 	return true;
 }
 
-bool URivermaxMediaCapture::CaptureSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport)
-{
-	URivermaxMediaOutput* RivermaxOutput = CastChecked<URivermaxMediaOutput>(MediaOutput);
-	const bool bResult = Initialize(RivermaxOutput);
-	if (bResult)
-	{
-#if WITH_EDITOR
-		RivermaxMediaCaptureAnalytics::SendCaptureEvent(RivermaxOutput->GetRequestedSize(), RivermaxOutput->FrameRate, TEXT("SceneViewport"));
-#endif
-	}
-	return bResult;
-}
-
-bool URivermaxMediaCapture::CaptureRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget)
+bool URivermaxMediaCapture::InitializeCapture()
 {
 	URivermaxMediaOutput* RivermaxOutput = CastChecked<URivermaxMediaOutput>(MediaOutput);
 	bool bResult = Initialize(RivermaxOutput);
 #if WITH_EDITOR
 	if (bResult)
 	{
-		RivermaxMediaCaptureAnalytics::SendCaptureEvent(RivermaxOutput->GetRequestedSize(), RivermaxOutput->FrameRate, TEXT("RenderTarget"));
+		RivermaxMediaCaptureAnalytics::SendCaptureEvent(GetDesiredSize(), RivermaxOutput->FrameRate, GetCaptureSourceType());
 	}
 #endif
 	return bResult;

@@ -27,6 +27,7 @@ enum class EMediaCaptureSourceType : int8
 {
 	RENDER_TARGET,
 	SCENE_VIEWPORT,
+	RHI_RESOURCE,
 };
 
 /**
