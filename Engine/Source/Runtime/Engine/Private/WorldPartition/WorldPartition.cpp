@@ -282,16 +282,6 @@ void UWorldPartition::OnPackageDirtyStateChanged(UPackage* Package)
 				{
 					DirtyActors.Add(ActorHandle.ToReference(), Actor);
 				}
-				else
-				{
-					// If we hold the last reference to that actor (or no reference are held at all), pin it to avoid unloading
-					if (PinnedActors && (ActorHandle->GetHardRefCount() <= 1))
-					{
-						PinnedActors->AddActors({ ActorHandle });
-					}
-
-					DirtyActors.Remove(ActorHandle.ToReference());
-				}
 			}
 		}
 	}
@@ -1105,6 +1095,26 @@ void UWorldPartition::Tick(float DeltaSeconds)
 	if (EditorHash)
 	{
 		EditorHash->Tick(DeltaSeconds);
+	}
+
+	if (DirtyActors.Num())
+	{
+		for (auto DirtyActorIt = DirtyActors.CreateIterator(); DirtyActorIt; ++DirtyActorIt)
+		{
+			const FWorldPartitionReference& ActorReference = DirtyActorIt->Key;
+			const AActor* Actor = DirtyActorIt->Value;
+
+			if (!Actor->GetPackage()->IsDirty())
+			{
+				// If we hold the last reference to that actor (or no reference are held at all), pin it to avoid unloading
+				if (PinnedActors && ActorReference->GetHardRefCount() <= 1)
+				{
+					PinnedActors->AddActors({ ActorReference.ToHandle() });
+				}
+
+				DirtyActorIt.RemoveCurrent();
+			}
+		}
 	}
 
 	if (bForceGarbageCollection)
