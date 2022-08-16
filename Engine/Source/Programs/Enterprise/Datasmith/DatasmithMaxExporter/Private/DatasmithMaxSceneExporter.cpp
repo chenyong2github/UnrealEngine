@@ -2146,7 +2146,7 @@ bool FDatasmithMaxSceneExporter::ExportCameraActor(TSharedRef< IDatasmithScene >
 
 	TSharedRef< IDatasmithCameraActorElement > CameraActor = FDatasmithSceneFactory::CreateCameraActor(Name);
 
-	if ( !FDatasmithMaxCameraExporter::ExportCamera( *Parent, CameraActor ) )
+	if ( !FDatasmithMaxCameraExporter::ExportCamera( GetCOREInterface()->GetTime(), *Parent, CameraActor ) )
 	{
 		return false;
 	}

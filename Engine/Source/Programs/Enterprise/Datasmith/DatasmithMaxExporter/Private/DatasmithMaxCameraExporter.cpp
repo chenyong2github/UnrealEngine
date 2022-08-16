@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "DatasmithMaxCameraExporter.h"
 
+#include "DatasmithMaxDirectLink.h"
 #include "DatasmithMaxExporterDefines.h"
 #include "DatasmithMaxHelper.h"
 #include "DatasmithMaxSceneParser.h"
@@ -392,7 +393,7 @@ namespace DatasmithMaxCameraExporterImpl
 	}
 }
 
-bool FDatasmithMaxCameraExporter::ExportCamera(INode& Node, TSharedRef< IDatasmithCameraActorElement > Camera)
+bool FDatasmithMaxCameraExporter::ExportCamera(TimeValue CurrentTime, INode& Node, TSharedRef< IDatasmithCameraActorElement > Camera)
 {
 	ObjectState ObjState = Node.EvalWorldState(0);
 	CameraObject* CamObj = (CameraObject*)ObjState.obj;
@@ -403,21 +404,34 @@ bool FDatasmithMaxCameraExporter::ExportCamera(INode& Node, TSharedRef< IDatasmi
 
 	Camera->SetSensorWidth( GetCOREInterface()->GetRendApertureWidth() );
 	Camera->SetSensorAspectRatio( (float)GetCOREInterface()->GetRendWidth() / (float)GetCOREInterface()->GetRendHeight() );
-	Camera->SetFocalLength( GetCOREInterface()->GetRendApertureWidth() / (2.f * FMath::Tan(CamObj->GetFOV(GetCOREInterface()->GetTime()) * 0.5f)) );
+	Camera->SetFocalLength( GetCOREInterface()->GetRendApertureWidth() / (2.f * FMath::Tan(CamObj->GetFOV(CurrentTime) * 0.5f)) );
 
 	int NumParamBlocks = CamObj->NumParamBlocks();
 	float CustomUnit = FMath::Abs((float)GetSystemUnitScale(UNITS_CENTIMETERS));
 
-	DatasmithMaxCameraExporterImpl::FMaxCameraParameters MaxCameraParameters = DatasmithMaxCameraExporterImpl::ParseCameraParameters( *CamObj );
+	Class_ID ClassID = CamObj->ClassID();
 
-	Camera->SetFocusDistance( MaxCameraParameters.TargetDistance );
-	Camera->SetSensorWidth( MaxCameraParameters.FilmWidth );
-	Camera->SetFocalLength( MaxCameraParameters.FocalLength );
-	Camera->SetEnableDepthOfField( MaxCameraParameters.bUseDepthOfField );
-
-	if ( MaxCameraParameters.bUseVignette )
+	if ((ClassID == Class_ID(LOOKAT_CAM_CLASS_ID, 0)) || (ClassID == Class_ID(SIMPLE_CAM_CLASS_ID, 0)))
 	{
-		Camera->GetPostProcess()->SetVignette( MaxCameraParameters.VignettingAmount );
+		GenCamera* GenCam = (GenCamera*)CamObj;
+
+		float FocusDistance = GenCam->GetTDist(CurrentTime) * DatasmithMaxDirectLink::FDatasmithConverter().UnitToCentimeter;
+		Camera->SetFocusDistance( FocusDistance );
+		Camera->SetEnableDepthOfField( GenCam->GetDOFEnable(CurrentTime) );
+		// SensorWidth defaulted from GetRendApertureWidth above
+	}
+	else
+	{
+		DatasmithMaxCameraExporterImpl::FMaxCameraParameters MaxCameraParameters = DatasmithMaxCameraExporterImpl::ParseCameraParameters( *CamObj );
+		Camera->SetFocusDistance( MaxCameraParameters.TargetDistance );
+		Camera->SetSensorWidth( MaxCameraParameters.FilmWidth );
+		Camera->SetFocalLength( MaxCameraParameters.FocalLength );
+		Camera->SetEnableDepthOfField( MaxCameraParameters.bUseDepthOfField );
+
+		if ( MaxCameraParameters.bUseVignette )
+		{
+			Camera->GetPostProcess()->SetVignette( MaxCameraParameters.VignettingAmount );
+		}
 	}
 
 	// It's sufficient to check for the node's target to see if the camera has a look-at behavior
@@ -427,11 +441,11 @@ bool FDatasmithMaxCameraExporter::ExportCamera(INode& Node, TSharedRef< IDatasmi
 		Camera->SetLookAtActor( *FString::FromInt( CameraTargetNode->GetHandle() ) );
 	}
 
-	if ( CamObj->ClassID() == PHYSICALCAMERA_CLASS )
+	if ( ClassID == PHYSICALCAMERA_CLASS )
 	{
 		ExportPhysicalCamera( *CamObj, Camera );
 	}
-	else if ( CamObj->ClassID() == VRAY_PHYSICALCAMERA_CLASS )
+	else if ( ClassID == VRAY_PHYSICALCAMERA_CLASS )
 	{
 		ExportVRayPhysicalCamera( *CamObj, Camera );
 	}

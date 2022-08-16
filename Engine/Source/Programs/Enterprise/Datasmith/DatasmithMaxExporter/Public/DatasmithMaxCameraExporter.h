@@ -5,6 +5,15 @@
 #include "CoreMinimal.h"
 #include "Templates/SharedPointer.h"
 
+
+#include "DatasmithMaxHelper.h"
+
+#include "Windows/AllowWindowsPlatformTypes.h"
+MAX_INCLUDES_START
+	#include "maxtypes.h"
+MAX_INCLUDES_END
+#include "Windows/HideWindowsPlatformTypes.h"
+
 class CameraObject;
 class IDatasmithCameraActorElement;
 class IDatasmithPostProcessVolumeElement;
@@ -17,7 +26,7 @@ class ToneOperator;
 class FDatasmithMaxCameraExporter
 {
 public:
-	static bool ExportCamera( INode& Node, TSharedRef< IDatasmithCameraActorElement > CameraElement );
+	static bool ExportCamera( TimeValue CurrentTime, INode& Node, TSharedRef< IDatasmithCameraActorElement > CameraElement );
 	static bool ExportToneOperator( ToneOperator& ToneOp, TSharedRef< IDatasmithPostProcessVolumeElement > PostProcessVolumeElement );
 
 private:

@@ -49,7 +49,7 @@ void FCameraNodeConverter::ConvertToDatasmith(ISceneTracker& SceneTracker, FNode
 	FString UniqueName = FString::FromInt(NodeTracker.Node->GetHandle());
 	NodeTracker.CreateConverted().DatasmithActorElement = FDatasmithSceneFactory::CreateCameraActor((const TCHAR*)*UniqueName);
 
-	FDatasmithMaxCameraExporter::ExportCamera(*NodeTracker.Node, StaticCastSharedPtr<IDatasmithCameraActorElement>(NodeTracker.GetConverted().DatasmithActorElement).ToSharedRef());
+	FDatasmithMaxCameraExporter::ExportCamera(SceneTracker.CurrentSyncPoint.Time, *NodeTracker.Node, StaticCastSharedPtr<IDatasmithCameraActorElement>(NodeTracker.GetConverted().DatasmithActorElement).ToSharedRef());
 
 	SceneTracker.SetupActor(NodeTracker);
 
