@@ -288,20 +288,16 @@ namespace UsdSkelRootTranslatorImpl
 			return;
 		}
 
-		UMorphTarget* MorphTarget = SkeletalMeshComponent.GetSkeletalMeshAsset()->GetMorphTargets()[ IndexInSkeletalMesh ];
+		const UMorphTarget* MorphTarget = SkeletalMeshComponent.GetSkeletalMeshAsset()->GetMorphTargets()[ IndexInSkeletalMesh ];
 		if ( !MorphTarget )
 		{
 			return;
 		}
 
 		int32 WeightIndex = INDEX_NONE;
-		if ( SkeletalMeshComponent.ActiveMorphTargets.IsValidIndex( IndexInSkeletalMesh ) )
+		if ( SkeletalMeshComponent.ActiveMorphTargets.Contains( MorphTarget ) )
 		{
-			FActiveMorphTarget& ActiveMorphTarget = SkeletalMeshComponent.ActiveMorphTargets[ IndexInSkeletalMesh ];
-			if ( ActiveMorphTarget.MorphTarget == MorphTarget )
-			{
-				WeightIndex = ActiveMorphTarget.WeightIndex;
-			}
+			WeightIndex = SkeletalMeshComponent.ActiveMorphTargets[ MorphTarget ];
 		}
 
 		// Morph target is not at expected location (i.e. after CreateComponents, duplicate for PIE or undo/redo) --> Rebuild ActiveMorphTargets
@@ -313,11 +309,7 @@ namespace UsdSkelRootTranslatorImpl
 			TArray<UMorphTarget*>& MorphTargets = SkeletalMesh->GetMorphTargets();
 			for ( int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargets.Num(); ++MorphTargetIndex )
 			{
-				FActiveMorphTarget ActiveMorphTarget;
-				ActiveMorphTarget.MorphTarget = MorphTargets[ MorphTargetIndex ];
-				ActiveMorphTarget.WeightIndex = MorphTargetIndex;
-
-				SkeletalMeshComponent.ActiveMorphTargets.Add( ActiveMorphTarget );
+				SkeletalMeshComponent.ActiveMorphTargets.Add( MorphTargets[ MorphTargetIndex ], MorphTargetIndex );
 				SkeletalMeshComponent.MorphTargetWeights.Add( 0.0f ); // We'll update these right afterwards when we call UpdateComponents
 			}
 

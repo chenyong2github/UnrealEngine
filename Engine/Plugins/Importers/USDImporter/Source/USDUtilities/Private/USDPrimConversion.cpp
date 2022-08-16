@@ -2878,11 +2878,7 @@ bool UnrealToUsd::CreateSkeletalAnimationBaker( UE::FUsdPrim& SkelRoot, UE::FUsd
 	{
 		for ( int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargets.Num(); ++MorphTargetIndex )
 		{
-			FActiveMorphTarget ActiveMorphTarget;
-			ActiveMorphTarget.MorphTarget = MorphTargets[ MorphTargetIndex ];
-			ActiveMorphTarget.WeightIndex = MorphTargetIndex;
-
-			Component.ActiveMorphTargets.Add( ActiveMorphTarget );
+			Component.ActiveMorphTargets.Add( MorphTargets[ MorphTargetIndex ], MorphTargetIndex );
 		}
 	}
 
@@ -2898,19 +2894,19 @@ bool UnrealToUsd::CreateSkeletalAnimationBaker( UE::FUsdPrim& SkelRoot, UE::FUsd
 		BlendShapeWeightsAttr = UsdSkelAnimation.CreateBlendShapeWeightsAttr();
 		BlendShapesAttr = UsdSkelAnimation.CreateBlendShapesAttr();
 
-		TArray<FActiveMorphTarget> SortedMorphTargets = Component.ActiveMorphTargets;
-		SortedMorphTargets.Sort([](const FActiveMorphTarget& Left, const FActiveMorphTarget& Right)
+		TArray<FMorphTargetWeightMap::ElementType> SortedMorphTargets = Component.ActiveMorphTargets.Array();
+		SortedMorphTargets.Sort([](const FMorphTargetWeightMap::ElementType& Left, const FMorphTargetWeightMap::ElementType& Right)
 		{
-			return Left.WeightIndex < Right.WeightIndex;
+			return Left.Value < Right.Value;
 		});
 
 		pxr::VtArray< pxr::TfToken > BlendShapeNames;
 		BlendShapeNames.reserve(SortedMorphTargets.Num());
 
-		for ( const FActiveMorphTarget& ActiveMorphTarget : SortedMorphTargets )
+		for ( const FMorphTargetWeightMap::ElementType& ActiveMorphTarget : SortedMorphTargets )
 		{
 			FString BlendShapeName;
-			if ( UMorphTarget* MorphTarget = ActiveMorphTarget.MorphTarget )
+			if ( const UMorphTarget* MorphTarget = ActiveMorphTarget.Key )
 			{
 				BlendShapeName = MorphTarget->GetFName().ToString();
 			}
