@@ -54,7 +54,7 @@ public:
 		bool PassDataLayersFilter(const FWorldPartitionHandle& Actor) const;
 		void RefreshLoadedState();
 
-		void PostLoadedStateChanged(bool bUnloadedActors);
+		void PostLoadedStateChanged(int32 NumLoads, int32 NumUnloads);
 		void AddReferenceToActor(FWorldPartitionHandle& Actor);
 		void RemoveReferenceToActor(FWorldPartitionHandle& Actor);
 		void OnActorDataLayersEditorLoadingStateChanged(bool bFromUserOperation);		

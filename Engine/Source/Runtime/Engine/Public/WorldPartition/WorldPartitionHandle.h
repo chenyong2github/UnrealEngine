@@ -51,6 +51,9 @@ public:
 	public:
 		~FDeferred();
 
+		int32 GetNumRegistrations() const { return NumRegistrations; }
+		int32 GetNumUnregistrations() const { return NumUnregistrations; }
+
 	private:
 		virtual void RegisterActor(FWorldPartitionActorDesc* ActorDesc) override;
 		virtual void UnregisterActor(FWorldPartitionActorDesc* ActorDesc) override;
@@ -62,6 +65,9 @@ public:
 		};
 
 		TMap<UActorDescContainer*, FContainerOps> ContainerOps;
+
+		int32 NumRegistrations = 0;
+		int32 NumUnregistrations = 0;
 	};
 
 	static void LoadAndRegisterActor(FWorldPartitionActorDesc* ActorDesc);

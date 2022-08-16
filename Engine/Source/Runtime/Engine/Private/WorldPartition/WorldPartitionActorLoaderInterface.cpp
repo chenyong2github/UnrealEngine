@@ -59,22 +59,19 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::Unload()
 	{
 		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 		{
-			TArray<FWorldPartitionHandle> ActorsToUnload;
-			for (const TPair<FGuid, TMap<FGuid, FWorldPartitionReference>>& ActorRefToUnload : ActorReferences)
-			{
-				ActorsToUnload.Emplace(WorldPartition, ActorRefToUnload.Key);
-			}
-			
 			UnregisterDelegates();
 
 			FScopedSlowTask SlowTask(1, LOCTEXT("UpdatingLoading", "Updating loading..."));
 			SlowTask.MakeDialogDelayed(1.0f);
 
+			int32 NumUnloads = 0;
 			{
 				FWorldPartitionLoadingContext::FDeferred LoadingContext;
 				ActorReferences.Empty();
-				SlowTask.EnterProgressFrame(1);
+				NumUnloads = LoadingContext.GetNumUnregistrations();
 			}
+
+			SlowTask.EnterProgressFrame(1);
 
 			bLoaded = false;
 
@@ -83,7 +80,10 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::Unload()
 				WorldPartition->OnUserCreatedRegionUnloaded();
 			}
 
-			PostLoadedStateChanged(true);
+			if (NumUnloads)
+			{
+				PostLoadedStateChanged(0, NumUnloads);
+			}
 		}
 	}
 }
@@ -172,35 +172,45 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
 
 			if (ActorsToLoad.Num() || ActorsToUnload.Num())
 			{
-				FWorldPartitionLoadingContext::FDeferred LoadingContext;
-
-				if (ActorsToLoad.Num())
+				int32 NumLoads = 0;
+				int32 NumUnloads = 0;
 				{
-					FScopedSlowTask SlowTask(ActorsToLoad.Num(), LOCTEXT("ActorsLoading", "Loading actors..."));
-					SlowTask.MakeDialogDelayed(1.0f);
+					FWorldPartitionLoadingContext::FDeferred LoadingContext;
 
-					for (FWorldPartitionHandle& ActorToLoad : ActorsToLoad)
+					if (ActorsToLoad.Num())
 					{
-						FWorldPartitionHandle ActorHandle(WorldPartition, ActorToLoad->GetGuid());
-						AddReferenceToActor(ActorHandle);
-						SlowTask.EnterProgressFrame(1);
+						FScopedSlowTask SlowTask(ActorsToLoad.Num(), LOCTEXT("ActorsLoading", "Loading actors..."));
+						SlowTask.MakeDialogDelayed(1.0f);
+
+						for (FWorldPartitionHandle& ActorToLoad : ActorsToLoad)
+						{
+							FWorldPartitionHandle ActorHandle(WorldPartition, ActorToLoad->GetGuid());
+							AddReferenceToActor(ActorHandle);
+							SlowTask.EnterProgressFrame(1);
+						}
 					}
+
+					if (ActorsToUnload.Num())
+					{
+						FScopedSlowTask SlowTask(ActorsToUnload.Num(), LOCTEXT("ActorsUnoading", "Unloading actors..."));
+						SlowTask.MakeDialogDelayed(1.0f);
+
+						for (FWorldPartitionHandle& ActorToUnload : ActorsToUnload)
+						{
+							RemoveReferenceToActor(ActorToUnload);
+							SlowTask.EnterProgressFrame(1);
+						}
+					}
+
+					NumLoads = LoadingContext.GetNumRegistrations();
+					NumUnloads = LoadingContext.GetNumUnregistrations();
 				}
 
-				if (ActorsToUnload.Num())
+				if (NumLoads || NumUnloads)
 				{
-					FScopedSlowTask SlowTask(ActorsToUnload.Num(), LOCTEXT("ActorsUnoading", "Unloading actors..."));
-					SlowTask.MakeDialogDelayed(1.0f);
-
-					for (FWorldPartitionHandle& ActorToUnload : ActorsToUnload)
-					{
-						RemoveReferenceToActor(ActorToUnload);
-						SlowTask.EnterProgressFrame(1);
-					}
+					PostLoadedStateChanged(NumLoads, NumUnloads);
 				}
 			}
-
-			PostLoadedStateChanged(ActorsToUnload.Num() > 0);
 		}
 	}
 }
@@ -211,11 +221,13 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::ShouldActorBeLoaded(co
 	return PassActorDescFilter(Actor) && PassDataLayersFilter(Actor);
 };
 
-void IWorldPartitionActorLoaderInterface::ILoaderAdapter::PostLoadedStateChanged(bool bUnloadedActors)
+void IWorldPartitionActorLoaderInterface::ILoaderAdapter::PostLoadedStateChanged(int32 NumLoads, int32 NumUnloads)
 {
+	check(NumLoads || NumUnloads);
+
 	if (!IsRunningCommandlet())
 	{
-		if (bUnloadedActors)
+		if (NumUnloads)
 		{
 			GEditor->SelectNone(true, true);
 		}
@@ -225,7 +237,7 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::PostLoadedStateChanged
 
 		GEditor->ResetTransaction(LOCTEXT("LoadingEditorActorResetTrans", "Editor Actors Loading State Changed"));
 
-		if (bUnloadedActors)
+		if (NumUnloads)
 		{
 			GEngine->ForceGarbageCollection(true);
 		}

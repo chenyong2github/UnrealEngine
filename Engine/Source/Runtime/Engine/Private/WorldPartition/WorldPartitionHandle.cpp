@@ -174,6 +174,7 @@ void FWorldPartitionLoadingContext::FDeferred::RegisterActor(FWorldPartitionActo
 		bool bIsAlreadyInSetPtr;
 		ContainerOps.FindOrAdd(Container).Registrations.Add(ActorDesc, &bIsAlreadyInSetPtr);
 		check(!bIsAlreadyInSetPtr);
+		NumRegistrations++;
 
 		check(!ContainerOps.FindChecked(Container).Unregistrations.Contains(ActorDesc));
 	}
@@ -190,6 +191,7 @@ void FWorldPartitionLoadingContext::FDeferred::UnregisterActor(FWorldPartitionAc
 		bool bIsAlreadyInSetPtr;
 		ContainerOps.FindOrAdd(Container).Unregistrations.Add(ActorDesc, &bIsAlreadyInSetPtr);
 		check(!bIsAlreadyInSetPtr);
+		NumUnregistrations++;
 
 		check(!ContainerOps.FindChecked(Container).Registrations.Contains(ActorDesc));
 	}
