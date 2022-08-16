@@ -200,6 +200,9 @@ protected:
 
 	// Pointer to the device detection handler that grabs device ids in another thread
 	IAndroidDeviceDetection* DeviceDetection;
+
+	// r.Mobile.ShadingPath value
+	int32 MobileShadingPath;
 	
 	// true if DistanceField is enabled
 	bool bDistanceField;

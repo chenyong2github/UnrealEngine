@@ -131,6 +131,9 @@ private:
 	// Holds the message endpoint used for communicating with the LaunchDaemon.
 	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
 
+	// r.Mobile.ShadingPath value
+	int32 MobileShadingPath;
+
 	// true if DistanceField is enabled
 	bool bDistanceField;
 
