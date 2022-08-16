@@ -17,7 +17,7 @@ using FDataProviderTableRowDataPtr = TSharedPtr<FDataProviderTableRowData>;
 
 
 /**
- *	
+ *
  */
 class SDataProviderTableRow : public SMultiColumnTableRow<FDataProviderTableRowDataPtr>
 {
@@ -38,6 +38,8 @@ private:
 	/** Getters to populate the UI */
 	FText GetStateGlyphs() const;
 	FSlateColor GetStateColorAndOpacity() const;
+	FText GetStatus() const;
+	FText GetStatusToolTip() const;
 	FText GetTimecode() const;
 	FText GetMachineName() const;
 	FText GetProcessId() const;
@@ -48,11 +50,13 @@ private:
 	FText GetGameThreadTiming() const;
 	FText GetRenderThreadTiming() const;
 	FText GetGPUTiming() const;
+	FText GetShadersLeftToCompile() const;
+
 private:
 
 	/** Item to display */
 	FDataProviderTableRowDataPtr Item;
-	
+
 	/** Last time we refreshed the UI */
 	double LastRefreshTime = 0.0;
 };
@@ -84,10 +88,10 @@ private:
 
 	/** Generate a new row for the listview using the Item data */
 	TSharedRef<ITableRow> OnGenerateRow(FDataProviderTableRowDataPtr Item, const TSharedRef<STableViewBase>& OwnerTable);
-	
+
 	/** Callback triggered when provider list changed */
 	void OnStageMonitoringMachineListChanged();
-	
+
 	/** Rebuild provider list from scratch */
 	void RebuildDataProviderList();
 
@@ -104,7 +108,7 @@ private:
 	void SortProviderList();
 
 private:
-	
+
 	/** Widget and data containing info about what's shown in the listview */
 	TArray<FDataProviderTableRowDataPtr> ListItemsSource;
 	TArray<TWeakPtr<SDataProviderTableRow>> ListRowWidgets;
@@ -120,7 +124,7 @@ private:
 
 	/** Currently sorted column name */
 	FName SortedColumnName;
-	
+
 	/** Sort mode for the currently sorted column */
 	EColumnSortMode::Type SortMode = EColumnSortMode::Ascending;
 

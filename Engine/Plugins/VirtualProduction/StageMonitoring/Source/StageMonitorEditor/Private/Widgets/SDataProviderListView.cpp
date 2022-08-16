@@ -15,6 +15,7 @@
 namespace DataProviderListView
 {
 	const FName HeaderIdName_State = TEXT("State");
+	const FName HeaderIdName_Status = TEXT("Status");
 	const FName HeaderIdName_Timecode = TEXT("Timecode");
 	const FName HeaderIdName_MachineName = TEXT("MachineName");
 	const FName HeaderIdName_ProcessId = TEXT("ProcessId");
@@ -25,6 +26,7 @@ namespace DataProviderListView
 	const FName HeaderIdName_GameThreadTiming = TEXT("GameThreadTiming");
 	const FName HeaderIdName_RenderThreadTiming = TEXT("RenderThreadTiming");
 	const FName HeaderIdName_GPUTiming = TEXT("GPUTiming");
+	const FName HeaderIdName_ShadersToCompile = TEXT("ShadersToCompile");
 }
 
 /**
@@ -58,7 +60,7 @@ struct FDataProviderTableRowData : TSharedFromThis<FDataProviderTableRowData>
 	}
 
 public:
-	
+
 	/** Identifier and descriptor associated to this list entry */
 	FGuid Identifier;
 	FStageInstanceDescriptor Descriptor;
@@ -95,6 +97,19 @@ TSharedRef<SWidget> SDataProviderTableRow::GenerateWidgetForColumn(const FName& 
 			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
 			.Text(this, &SDataProviderTableRow::GetStateGlyphs)
 			.ColorAndOpacity(this, &SDataProviderTableRow::GetStateColorAndOpacity);
+	}
+	if (DataProviderListView::HeaderIdName_Status == ColumnName)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(this, &SDataProviderTableRow::GetStatus)
+				.ToolTipText(this, &SDataProviderTableRow::GetStatusToolTip)
+			];
 	}
 	if (DataProviderListView::HeaderIdName_Timecode == ColumnName)
 	{
@@ -216,17 +231,64 @@ TSharedRef<SWidget> SDataProviderTableRow::GenerateWidgetForColumn(const FName& 
 				.Text(MakeAttributeSP(this, &SDataProviderTableRow::GetGPUTiming))
 			];
 	}
+	if (DataProviderListView::HeaderIdName_ShadersToCompile == ColumnName)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(MakeAttributeSP(this, &SDataProviderTableRow::GetShadersLeftToCompile))
+			];
+	}
 
 	return SNullWidget::NullWidget;
 }
 
 FText SDataProviderTableRow::GetStateGlyphs() const
 {
+	if (Item->CachedPerformanceData.Status !=  EStageMonitorNodeStatus::Ready)
+	{
+		return FEditorFontGlyphs::Exclamation_Triangle;
+	}
 	return FEditorFontGlyphs::Circle;
+}
+
+FText SDataProviderTableRow::GetStatusToolTip() const
+{
+	return FText::AsCultureInvariant(Item->CachedPerformanceData.AssetInStatus);
+}
+
+FText SDataProviderTableRow::GetStatus() const
+{
+	switch(Item->CachedPerformanceData.Status)
+	{
+	case EStageMonitorNodeStatus::LoadingMap:
+		return LOCTEXT("Status_LoadingMap", "Loading");
+	case EStageMonitorNodeStatus::Ready:
+		return LOCTEXT("Status_Ready", "Ready");
+	case EStageMonitorNodeStatus::HotReload:
+		return LOCTEXT("Status_HotReload", "Reloading");
+	case EStageMonitorNodeStatus::ShaderCompiling:
+		return LOCTEXT("Status_ShaderCompiling", "Compiling");
+	case EStageMonitorNodeStatus::Unknown:
+		return LOCTEXT("Status_Unknown", "Unknown");
+	default:
+		break;
+	};
+
+	return LOCTEXT("Status_Undefined", "Undefined");
 }
 
 FSlateColor SDataProviderTableRow::GetStateColorAndOpacity() const
 {
+	if (Item->CachedState != EStageDataProviderState::Closed && Item->CachedPerformanceData.Status !=  EStageMonitorNodeStatus::Ready)
+	{
+		return FLinearColor::Yellow;
+	}
+
 	switch (Item->CachedState)
 	{
 		case EStageDataProviderState::Active:
@@ -296,6 +358,10 @@ FText SDataProviderTableRow::GetGPUTiming() const
 	return FText::AsNumber(Item->CachedPerformanceData.GPU_MS);
 }
 
+FText SDataProviderTableRow::GetShadersLeftToCompile() const
+{
+	return FText::AsNumber(Item->CachedPerformanceData.ShadersToCompile);
+}
 /**
  * SDataProviderListView
  */
@@ -323,6 +389,14 @@ void SDataProviderListView::Construct(const FArguments& InArgs, const TWeakPtr<I
 			.HAlignCell(HAlign_Center)
 			.DefaultLabel(LOCTEXT("HeaderName_State", "State"))
 			.SortMode(this, &SDataProviderListView::GetColumnSortMode, DataProviderListView::HeaderIdName_State)
+			.OnSort(this, &SDataProviderListView::OnColumnSortModeChanged)
+
+			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_Status)
+			.FixedWidth(55.f)
+			.HAlignHeader(HAlign_Center)
+			.HAlignCell(HAlign_Center)
+			.DefaultLabel(LOCTEXT("HeaderName_Status", "Status"))
+			.SortMode(this, &SDataProviderListView::GetColumnSortMode, DataProviderListView::HeaderIdName_Status)
 			.OnSort(this, &SDataProviderListView::OnColumnSortModeChanged)
 
 			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_Timecode)
@@ -373,6 +447,10 @@ void SDataProviderListView::Construct(const FArguments& InArgs, const TWeakPtr<I
 			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_GPUTiming)
 			.FillWidth(.2f)
 			.DefaultLabel(LOCTEXT("HeaderName_GPU", "GPU (ms)"))
+
+			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_ShadersToCompile)
+			.FillWidth(.2f)
+			.DefaultLabel(LOCTEXT("HeaderName_Shaders", "Shaders To Compile"))
 		)
 	);
 
@@ -498,6 +576,11 @@ void SDataProviderListView::SortProviderList()
 		if (ColumnName == DataProviderListView::HeaderIdName_State)
 		{
 			return CurrentSortMode == EColumnSortMode::Ascending ? Lhs->CachedState < Rhs->CachedState : Lhs->CachedState > Rhs->CachedState;
+		}
+		if (ColumnName == DataProviderListView::HeaderIdName_Status)
+		{
+			const int32 CompareResult = Lhs->CachedPerformanceData.Status < Rhs->CachedPerformanceData.Status;
+			return CurrentSortMode == EColumnSortMode::Ascending ? CompareResult < 0 : CompareResult > 0;
 		}
 		else if (ColumnName == DataProviderListView::HeaderIdName_MachineName)
 		{

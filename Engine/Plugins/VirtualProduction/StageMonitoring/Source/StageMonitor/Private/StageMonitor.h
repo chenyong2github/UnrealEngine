@@ -11,6 +11,8 @@
 #include "UObject/ObjectMacros.h"
 #include "Containers/Ticker.h"
 
+#include "Templates/Tuple.h"
+
 class FMessageEndpoint;
 struct FStageDataBaseMessage;
 class IMessageContext;
@@ -55,7 +57,7 @@ private:
 
 	/** Handles Close message from a provider shutting down */
 	void HandleProviderCloseMessage(const FStageProviderCloseMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
-	
+
 	/**  */
 	bool Tick(float DeltaTime);
 
@@ -74,8 +76,18 @@ private:
 	{
 #if ENABLE_STAGEMONITOR_LOGGING
 		static_assert(TIsDerivedFrom<MessageType, FStageMonitorBaseMessage>::IsDerived, "MessageType must be a FStageMonitorBaseMessage derived UStruct.");
-		MessageType TempObj = MessageType(Forward<Args>(MoveTempIfPossible(args))...);
-		return SendMessageInternal(&TempObj, MessageType::StaticStruct(), Flags);
+		if constexpr(sizeof...(Args) == 1 && std::is_same<MessageType,TTupleElement<0,TTuple<Args...>>>::value)
+		{
+			MessageType TempObj = Forward<MessageType>(MoveTempIfPossible(TTuple<Args...>::Get<0>(Tie(args...))));
+			return SendMessageInternal(&TempObj, MessageType::StaticStruct(), Flags);
+		}
+		else
+		{
+			MessageType TempObj = MessageType(Forward<Args>(MoveTempIfPossible(args))...);
+			return SendMessageInternal(&TempObj, MessageType::StaticStruct(), Flags);
+		}
+
+
 #endif
 		return false;
 	}

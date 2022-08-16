@@ -40,3 +40,19 @@ FString FCriticalStateProviderMessage::ToString() const
 	}
 }
 
+FString FAssetLoadingStateProviderMessage::ToString() const
+{
+	switch (LoadingState)
+	{
+		case EStageLoadingState::PreLoad:
+		{
+			return FString::Printf(TEXT("Started loading asset: %s"), *AssetName);
+		}
+		case EStageLoadingState::PostLoad:
+		default:
+		{
+			return FString::Printf(TEXT("Finished loading asset: %s"), *AssetName);
+		}
+	}
+}
+

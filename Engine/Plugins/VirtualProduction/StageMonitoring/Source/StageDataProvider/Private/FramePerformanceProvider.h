@@ -7,7 +7,11 @@
 #include "StageMessages.h"
 #include "StageMonitoringSettings.h"
 
+#include "Templates/UniquePtr.h"
+
 #include "FramePerformanceProvider.generated.h"
+
+class FFrameProviderRunner;
 
 /**
  * Message sent when a hitch was detected on a provider machine.
@@ -59,8 +63,8 @@ public:
 
 	/** FPS correspondent to the timing that triggered the hitch (game or render thread) */
 	UPROPERTY(VisibleAnywhere, Category = "Hitch")
-	float HitchedTimeFPS = 0.f;	
-	
+	float HitchedTimeFPS = 0.f;
+
 	/** Average FPS when hitch occured */
 	UPROPERTY(VisibleAnywhere, Category = "Hitch")
 	float AverageFPS = 0.f;
@@ -77,14 +81,9 @@ public:
 	~FFramePerformanceProvider();
 
 private:
-	/** At end of frame, send a message, if interval met, about this frame data */
-	void OnEndFrame();
 
 	/** Callback by the stat module to detect if a hitch happened */
 	void CheckHitches(int64 Frame);
-
-	/** Sends a message containing information about the frame performane */
-	void UpdateFramePerformance();
 
 	/** Triggered when a stage monitor settings has changed */
 #if WITH_EDITOR
@@ -96,11 +95,19 @@ private:
 
 private:
 
-	/** Timestamp when last frame performance message was sent */
-	double LastFramePerformanceSent = 0.0;
+	/** Delegate for when package reload occurs. */
+	void HandleAssetReload(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
+
+	/** Delegate for pre-load map */
+	void HandlePreLoadMap(const FString& MapName);
+
+	/** Delegate for post load of map. */
+	void HandlePostLoadMap(UWorld* /*unused*/);
 
 	/** Cached settings for hitch detection since it's called on another thread, we can't access UObject */
 	FStageHitchDetectionSettings CachedHitchSettings;
 
 	bool bIsHitchDetectionEnabled = false;
+
+	TUniquePtr<FFrameProviderRunner> ProviderThread;
 };

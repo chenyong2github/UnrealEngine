@@ -53,6 +53,16 @@ enum class EStageCriticalStateEvent : uint8
 	Exit,
 };
 
+/** Different events associated with stage critical state */
+UENUM()
+enum class EStageLoadingState : uint8
+{
+	/** Asset loading has started. */
+	PreLoad,
+	/** Asset loading has finished. */
+	PostLoad
+};
+
 /**
  * Holds descriptive information about that data providers. 
  * Information that won't change for a session
@@ -252,4 +262,30 @@ public:
 	/** Source of the critical state. i.e. TakeName, CustomRecorder, etc... */
 	UPROPERTY(VisibleAnywhere, Category = "CriticalState")
 	FName SourceName;
+};
+
+/**
+ * Message sent to indicate that the node has entered or exited a loading state.
+ */
+USTRUCT()
+struct STAGEDATACORE_API FAssetLoadingStateProviderMessage : public FStageProviderEventMessage
+{
+	GENERATED_BODY()
+
+public:
+	FAssetLoadingStateProviderMessage() = default;
+
+	FAssetLoadingStateProviderMessage(EStageLoadingState InState, const FString& InAssetName)
+		: LoadingState(InState), AssetName(InAssetName)
+	{}
+
+	virtual FString ToString() const override;
+
+	/** Event for this critical state */
+	UPROPERTY(VisibleAnywhere, Category = "AssetLoading")
+	EStageLoadingState LoadingState;
+
+	/** Name of the asset currently loading. */
+	UPROPERTY(VisibleAnywhere, Category = "AssetLoading")
+	FString AssetName;
 };
