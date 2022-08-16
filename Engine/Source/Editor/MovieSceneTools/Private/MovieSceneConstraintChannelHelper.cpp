@@ -1,4 +1,6 @@
-﻿#include "MovieSceneConstraintChannelHelper.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MovieSceneConstraintChannelHelper.h"
 #include "ConstraintChannelHelper.inl"
 
 #include "ISequencer.h"
