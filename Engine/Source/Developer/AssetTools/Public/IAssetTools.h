@@ -13,9 +13,9 @@
 #include "IAssetTypeActions.h"
 #include "AutomatedAssetImportData.h"
 #include "AssetRegistry/ARFilter.h"
+#include "Engine/Blueprint.h"
 #include "IAssetTools.generated.h"
 
-enum EBlueprintType;
 struct FAssetData;
 class IAssetTypeActions;
 class IClassTypeActions;
