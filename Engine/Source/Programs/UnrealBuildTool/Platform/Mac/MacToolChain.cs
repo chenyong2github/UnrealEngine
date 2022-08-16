@@ -231,6 +231,16 @@ namespace UnrealBuildTool
 				Result += " -fno-delete-null-pointer-checks";
 			}
 
+			// Xcode 13.3 / Apple Clang 13.1.6 new flags
+			// Apple Clang binary releases are proprietary closed source different from open source clang versions
+			// See also ClangToolChain.cs in UE5
+			if (GetClangVersion() >= new Version(13, 1, 6))
+			{
+				Result += " -Wno-unused-but-set-variable";
+				Result += " -Wno-unused-but-set-parameter";
+				Result += " -Wno-ordered-compare-function-pointers";
+			}
+
 			//Result += " -Wsign-compare"; // fed up of not seeing the signed/unsigned warnings we get on Windows - lets enable them here too.
 
 			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)

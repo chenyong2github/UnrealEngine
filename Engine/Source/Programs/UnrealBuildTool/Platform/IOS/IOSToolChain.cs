@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 using System;
@@ -250,6 +250,16 @@ namespace UnrealBuildTool
 
 				// We have 'this' vs nullptr comparisons that get optimized away for newer versions of Clang
 				Result += " -fno-delete-null-pointer-checks";
+			}
+
+			// Xcode 13.3 / Apple Clang 13.1.6 new flags
+			// Apple Clang binary releases are proprietary closed source different from open source clang versions
+			// See also ClangToolChain.cs in UE5
+			if (GetClangVersion() >= new Version(13, 1, 6))
+			{
+				Result += " -Wno-unused-but-set-variable";
+				Result += " -Wno-unused-but-set-parameter";
+				Result += " -Wno-ordered-compare-function-pointers";
 			}
 
 			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
