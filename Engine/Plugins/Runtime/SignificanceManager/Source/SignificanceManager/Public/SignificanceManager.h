@@ -227,23 +227,26 @@ protected:
 
 private:
 
-	uint32 ManagedObjectsWithSequentialPostWork;
-
 	// All objects being managed organized by Tag
 	TMap<FName, TArray<FManagedObjectInfo*>> ManagedObjectsByTag;
 
 	// Reverse lookup map to find the tag for a given object
 	TMap<UObject*, FManagedObjectInfo*> ManagedObjects;
 
-	// Arrays used for ::Update. To avoid memory allocations, making them members
+	// Array of all managed objects that we use for iteration during update. This is kept in sync with the ManagedObjects map.
 	TArray<FManagedObjectInfo*> ObjArray;
+	// We copy ObjArray to this before running update to avoid mutations during the update. To avoid memory allocations, making it a member.
+	TArray<FManagedObjectInfo*> ObjArrayCopy;
 
 	struct FSequentialPostWorkPair
 	{
 		FManagedObjectInfo* ObjectInfo;
 		float OldSignificance;
 	};
+	// Array of all managed objects requiring sequential work that we use for iteration during update. This is kept in sync with the ManagedObjects map.
 	TArray<FSequentialPostWorkPair> ObjWithSequentialPostWork;
+	// We copy ObjWithSequentialPostWork to this before running update to avoid mutations during the update. To avoid memory allocations, making it a member.
+	TArray<FSequentialPostWorkPair> ObjWithSequentialPostWorkCopy;
 
 	// Game specific significance class to instantiate
 	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="/Script/SignificanceManager.SignificanceManager", DisplayName="Significance Manager Class"))
