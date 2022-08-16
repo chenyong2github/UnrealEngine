@@ -83,7 +83,10 @@ enum class EPatternToolAxisSpacingMode : uint8
 	ByCount = 0,
 
 	/** Place Pattern Elements at regular increments along the Pattern Geometry (on-center) */
-	StepSize = 1
+	StepSize = 1,
+
+	/** Pack in as many Pattern Elements as fits in the available space */
+	Packed = 2
 };
 
 
@@ -449,7 +452,8 @@ protected:
 		UDynamicMesh* SourceDynamicMesh = nullptr;
 		UStaticMesh* SourceStaticMesh = nullptr;
 
-		UE::Geometry::FAxisAlignedBox3d Bounds = UE::Geometry::FAxisAlignedBox3d::Empty();
+		UE::Geometry::FAxisAlignedBox3d LocalBounds = UE::Geometry::FAxisAlignedBox3d::Empty();
+		UE::Geometry::FAxisAlignedBox3d PatternBounds = UE::Geometry::FAxisAlignedBox3d::Empty();
 	};
 	TArray<FPatternElement> Elements;
 
