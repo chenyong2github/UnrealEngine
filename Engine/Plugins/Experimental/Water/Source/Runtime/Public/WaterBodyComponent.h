@@ -551,10 +551,10 @@ protected:
 	UMaterialInstanceDynamic* WaterInfoMID;
 
 	/** Islands in this water body*/
-	UPROPERTY(Category = Water, EditInstanceOnly, AdvancedDisplay)
+	UPROPERTY(Category = Water, VisibleAnywhere, AdvancedDisplay)
 	TArray<TLazyObjectPtr<AWaterBodyIsland>> Islands;
 
-	UPROPERTY(Category = Water, EditInstanceOnly, AdvancedDisplay)
+	UPROPERTY(Category = Water, VisibleAnywhere, AdvancedDisplay)
 	TArray<TLazyObjectPtr<AWaterBodyExclusionVolume>> ExclusionVolumes;
 
 	UPROPERTY(Transient)

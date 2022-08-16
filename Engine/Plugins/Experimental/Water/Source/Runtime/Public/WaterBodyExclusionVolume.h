@@ -38,13 +38,19 @@ protected:
 public:
 	/** If checked, all water bodies overlapping with this exclusion volumes will be affected. */
 	UPROPERTY(EditAnywhere, Category = Water)
-	bool bIgnoreAllOverlappingWaterBodies = false;
+	bool bExcludeAllOverlappingWaterBodies = true;
 
 	/** List of water bodies that will be affected by this exclusion volume */
-	UPROPERTY(EditInstanceOnly, Category = Water, meta = (EditCondition = "!bIgnoreAllOverlappingWaterBodies"))
-	TArray<AWaterBody*> WaterBodiesToIgnore;
+	UPROPERTY(EditInstanceOnly, Category = Water, meta = (EditCondition = "!bExcludeAllOverlappingWaterBodies"))
+	TArray<AWaterBody*> WaterBodiesToExclude;
 
 #if WITH_EDITORONLY_DATA
+	UPROPERTY(meta = (DeprecationMessage = "Property renamed to bExcludeAllOverlapping"))
+	bool bIgnoreAllOverlappingWaterBodies_DEPRECATED = false;
+
+	UPROPERTY(meta = (DeprecationMessage = "Property renamed to WaterBodiesToExclude"))
+	TArray<AWaterBody*> WaterBodiesToIgnore_DEPRECATED;
+
 	UPROPERTY(meta = (DeprecatedProperty))
 	AWaterBody* WaterBodyToIgnore_DEPRECATED;
 

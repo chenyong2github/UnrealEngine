@@ -232,6 +232,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Moved parameters affecting Skeleton pose rendering from the PoseWatch class to the PoseWatchPoseElement class.
 		PoseWatchMigrateSkeletonDrawParametersToPoseElement,
 
+		// Reset default value for Water exclusion volumes to make them more intuitive and support the "it just works" philosophy.
+		WaterExclusionVolumeExcludeAllDefault,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -50,7 +50,7 @@ void AWaterBodyExclusionVolume::UpdateOverlappingWaterBodies()
 	for (const FOverlapResult& Result : Overlaps)
 	{
 		AWaterBody* WaterBody = Result.OverlapObjectHandle.FetchActor<AWaterBody>();
-		if (WaterBody && (bIgnoreAllOverlappingWaterBodies || WaterBodiesToIgnore.Contains(WaterBody)))
+		if (WaterBody && (bExcludeAllOverlappingWaterBodies || WaterBodiesToExclude.Contains(WaterBody)))
 		{
 			UWaterBodyComponent* WaterBodyComponent = WaterBody->GetWaterBodyComponent();
 			NewOverlappingBodies.Add(WaterBodyComponent);
@@ -89,17 +89,28 @@ void AWaterBodyExclusionVolume::PostLoad()
 {
 	Super::PostLoad();
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	// Perform data deprecation: 
 	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::SupportMultipleWaterBodiesPerExclusionVolume)
 	{
 		if (WaterBodyToIgnore_DEPRECATED != nullptr)
 		{
-			WaterBodiesToIgnore.Add(WaterBodyToIgnore_DEPRECATED);
+			WaterBodiesToIgnore_DEPRECATED.Add(WaterBodyToIgnore_DEPRECATED);
 			WaterBodyToIgnore_DEPRECATED = nullptr;
 		}
 	}
-#endif // WITH_EDITOR
+
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterExclusionVolumeExcludeAllDefault)
+	{
+		WaterBodiesToExclude = MoveTemp(WaterBodiesToIgnore_DEPRECATED);
+
+		// If the existing actor had selected specific water bodies to exclude then we set the new value to false by default.
+		if (!bIgnoreAllOverlappingWaterBodies_DEPRECATED && WaterBodiesToExclude.Num() > 0)
+		{
+			bExcludeAllOverlappingWaterBodies = false;
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
 
 	UpdateOverlappingWaterBodies();
 }
