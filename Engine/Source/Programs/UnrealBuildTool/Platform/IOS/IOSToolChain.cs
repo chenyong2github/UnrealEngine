@@ -336,29 +336,40 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		static string GetCompileArguments_CPP()
+		static string GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment)
+		{
+			var Mapping = new Dictionary<CppStandardVersion, string>
+			{
+				{ CppStandardVersion.Cpp14, " -std=c++14" },
+				{ CppStandardVersion.Cpp17, " -std=c++17" },
+				{ CppStandardVersion.Latest, " -std=c++17" },
+				{ CppStandardVersion.Default, " -std=c++14" }
+			};
+			return Mapping[CompileEnvironment.CppStandard];
+		}
+
+		static string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment)
 		{
 			string Result = "";
 			Result += " -x objective-c++";
-			Result += " -std=c++14";
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
 			Result += " -stdlib=libc++";
 			return Result;
 		}
 
-		static string GetCompileArguments_MM()
+		static string GetCompileArguments_MM(CppCompileEnvironment CompileEnvironment)
 		{
 			string Result = "";
 			Result += " -x objective-c++";
-			Result += " -std=c++14";
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
 			Result += " -stdlib=libc++";
 			return Result;
 		}
 
-		static string GetCompileArguments_M()
+		static string GetCompileArguments_M(CppCompileEnvironment CompileEnvironment)
 		{
 			string Result = "";
 			Result += " -x objective-c";
-			Result += " -std=c++14";
 			Result += " -stdlib=libc++";
 			return Result;
 		}
@@ -370,11 +381,11 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		static string GetCompileArguments_PCH()
+		static string GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment)
 		{
 			string Result = "";
 			Result += " -x objective-c++-header";
-			Result += " -std=c++14";
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
 			Result += " -stdlib=libc++";
 			return Result;
 		}
@@ -616,7 +627,7 @@ namespace UnrealBuildTool
 				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
 				{
 					// Compile the file as a C++ PCH.
-					FileArguments += GetCompileArguments_PCH();
+					FileArguments += GetCompileArguments_PCH(CompileEnvironment);
 					FileArguments += GetRTTIFlag(CompileEnvironment);
 					FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
 				}
@@ -628,20 +639,20 @@ namespace UnrealBuildTool
 				else if (Extension == ".MM")
 				{
 					// Compile the file as Objective-C++ code.
-					FileArguments += GetCompileArguments_MM();
+					FileArguments += GetCompileArguments_MM(CompileEnvironment);
 					FileArguments += GetRTTIFlag(CompileEnvironment);
 					FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
 				}
 				else if (Extension == ".M")
 				{
 					// Compile the file as Objective-C code.
-					FileArguments += GetCompileArguments_M();
+					FileArguments += GetCompileArguments_M(CompileEnvironment);
 					FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
 				}
 				else
 				{
 					// Compile the file as C++ code.
-					FileArguments += GetCompileArguments_CPP();
+					FileArguments += GetCompileArguments_CPP(CompileEnvironment);
 					FileArguments += GetRTTIFlag(CompileEnvironment);
 					FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
 
