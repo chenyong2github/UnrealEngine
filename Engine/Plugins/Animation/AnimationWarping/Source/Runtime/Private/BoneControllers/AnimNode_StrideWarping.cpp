@@ -29,7 +29,7 @@ void FAnimNode_StrideWarping::GatherDebugData(FNodeDebugData& DebugData)
 			DebugLine += FString::Printf(TEXT("\n - Root Motion Direction: (%s)"), *(CachedRootMotionDeltaTranslation.GetSafeNormal().ToCompactString()));
 			DebugLine += FString::Printf(TEXT("\n - Root Motion Speed: (%.3fd)"), CachedRootMotionDeltaSpeed);
 #endif
-			DebugLine += FString::Printf(TEXT("\n - Min Locomotion Speed Threshold: (%.3fd)"), MinLocomotionSpeedThreshold);
+			DebugLine += FString::Printf(TEXT("\n - Min Locomotion Speed Threshold: (%.3fd)"), MinRootMotionSpeedThreshold);
 		}
 		DebugLine += FString::Printf(TEXT("\n - Floor Normal: (%s)"), *(FloorNormalDirection.Value.ToCompactString()));
 		DebugLine += FString::Printf(TEXT("\n - Gravity Direction: (%s)"), *(GravityDirection.Value.ToCompactString()));
@@ -68,6 +68,7 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	SCOPE_CYCLE_COUNTER(STAT_StrideWarping_Eval);
 	check(OutBoneTransforms.IsEmpty());
 
+	const FVector PreviousStrideDirection = ActualStrideDirection;
 	ActualStrideDirection = StrideDirection;
 	ActualStrideScale = StrideScale;
 
@@ -93,7 +94,8 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		if (bGraphDrivenWarping)
 		{
 			CachedRootMotionDeltaTranslation = RootMotionTransformDelta.GetTranslation();
-			ActualStrideDirection = CachedRootMotionDeltaTranslation.GetSafeNormal();
+			// If there's no root motion delta, keep the previous stride direction
+			ActualStrideDirection = CachedRootMotionDeltaTranslation.GetSafeNormal(UE_SMALL_NUMBER, PreviousStrideDirection);
 #if WITH_EDITORONLY_DATA
 			// Graph driven Stride Warping expects a root motion delta to be present in the attribute stream.
 			bFoundRootMotionAttribute = true;
@@ -159,10 +161,19 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 #else
 		const float CachedRootMotionDeltaSpeed = CachedRootMotionDeltaTranslation.Size() / CachedDeltaTime;
 #endif
-		// Graph driven stride scale factor will be determined by the ratio of the
-		// locomotion (capsule/physics) speed against the animation root motion speed
-		// If there's (almost) no extracted root motion, we don't want impossibly large strides.
-		ActualStrideScale = FMath::IsNearlyEqual(CachedRootMotionDeltaSpeed, 0.f, KINDA_SMALL_NUMBER) ? 1.0f : LocomotionSpeed / CachedRootMotionDeltaSpeed;
+
+		if (CachedRootMotionDeltaSpeed <= MinRootMotionSpeedThreshold)
+		{
+			// If root motion speed is under the threshold, snap back to no stride adjustment.
+			// If interpolation is on, it will blend the result
+			ActualStrideScale = 1.0f;
+		}
+		else
+		{
+			// Graph driven stride scale factor will be determined by the ratio of the
+			// locomotion (capsule/physics) speed against the animation root motion speed
+			ActualStrideScale = LocomotionSpeed / CachedRootMotionDeltaSpeed;
+		}
 	}
 
 	// Allow the opportunity for stride scale clamping and interpolation regardless of evaluation mode
@@ -370,18 +381,6 @@ bool FAnimNode_StrideWarping::IsValidToEvaluate(const USkeleton* Skeleton, const
 				return false;
 			}
 		}
-	}
-
-	if (Mode == EWarpingEvaluationMode::Manual)
-	{
-		if (FMath::IsNearlyEqual(StrideScaleModifierState.ApplyTo(StrideScaleModifier, StrideScale, CachedDeltaTime), 1.f, KINDA_SMALL_NUMBER))
-		{
-			return false;
-		}
-	}
-	else if (LocomotionSpeed <= MinLocomotionSpeedThreshold)
-	{
-		return false;
 	}
 
 	return true;

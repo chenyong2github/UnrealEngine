@@ -54,9 +54,11 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_StrideWarping : public FAnimNode_Sk
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Evaluation, meta=(ClampMin="0.0", PinShownByDefault))
 	float LocomotionSpeed = 0.f;
 
-	// Minimum locomotion speed required to apply stride warping
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Evaluation, meta=(ClampMin="0.0", PinHiddenByDefault))
-	float MinLocomotionSpeedThreshold = 10.f;
+	// Minimum root motion speed required to apply stride warping
+	// This is useful to prevent unnatural strides when the animation has a portion with no root motion (i.e starts/stops)
+	// When this value is greater than 0, it's recommended to enable interpolation in StrideScaleModifier
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Evaluation, meta=(ClampMin="0.0001", PinHiddenByDefault))
+	float MinRootMotionSpeedThreshold = 10.0f;
 
 	// Pevlis Bone definition
 	UPROPERTY(EditAnywhere, Category=Settings)

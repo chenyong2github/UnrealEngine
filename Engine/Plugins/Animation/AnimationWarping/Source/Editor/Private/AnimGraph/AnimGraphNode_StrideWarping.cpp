@@ -53,7 +53,7 @@ void UAnimGraphNode_StrideWarping::CustomizePinData(UEdGraphPin* Pin, FName Sour
 		Pin->bHidden = (Node.Mode == EWarpingEvaluationMode::Manual);
 	}
 
-	if (Pin->PinName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_StrideWarping, MinLocomotionSpeedThreshold))
+	if (Pin->PinName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_StrideWarping, MinRootMotionSpeedThreshold))
 	{
 		Pin->bHidden = (Node.Mode == EWarpingEvaluationMode::Manual);
 	}
@@ -115,7 +115,7 @@ void UAnimGraphNode_StrideWarping::CustomizeDetails(IDetailLayoutBuilder& Detail
 	if (Node.Mode == EWarpingEvaluationMode::Manual)
 	{
 		DetailBuilder.HideProperty(NodeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimNode_StrideWarping, LocomotionSpeed)));
-		DetailBuilder.HideProperty(NodeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimNode_StrideWarping, MinLocomotionSpeedThreshold)));
+		DetailBuilder.HideProperty(NodeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimNode_StrideWarping, MinRootMotionSpeedThreshold)));
 	}
 }
 
@@ -175,7 +175,7 @@ void UAnimGraphNode_StrideWarping::PostEditChangeProperty(struct FPropertyChange
 						Pin->BreakAllPinLinks();
 					}
 				}
-				else if (Pin->PinName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_StrideWarping, MinLocomotionSpeedThreshold))
+				else if (Pin->PinName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_StrideWarping, MinRootMotionSpeedThreshold))
 				{
 					if (Node.Mode == EWarpingEvaluationMode::Manual)
 					{
