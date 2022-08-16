@@ -243,6 +243,7 @@ TOptional<FMeshDescription> ExtractToMeshDescription(FDatasmithMeshSourceModel& 
 	return MeshDescription;
 }
 
+// Reads previous format of meshes (RawMesh based)
 TArray<FDatasmithMeshModels> GetDatasmithMeshFromMeshPath_Legacy(FArchive* Archive, int32 LeagacyNumMeshesCount)
 {
 	TArray< FDatasmithMeshModels > Result;
@@ -317,7 +318,7 @@ FDatasmithPackedMeshes GetDatasmithMeshFromFile(const FString& MeshPath)
 	return Result;
 }
 
-DATASMITHCORE_API FDatasmithPackedMeshes GetDatasmithClothFromFile(const FString& Path)
+FDatasmithPackedMeshes GetDatasmithClothFromFile(const FString& Path)
 {
 	// #ue_ds_cloth_note: asset serialization
 	FDatasmithPackedMeshes Result;

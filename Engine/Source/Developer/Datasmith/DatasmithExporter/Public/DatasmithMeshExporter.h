@@ -13,8 +13,7 @@ class IDatasmithMeshElement;
 class DATASMITHEXPORTER_API FDatasmithMeshExporter
 {
 public:
-	FDatasmithMeshExporter(bool bAllowOldSerialization);
-	FDatasmithMeshExporter() : FDatasmithMeshExporter(false) {}
+	FDatasmithMeshExporter();
 	virtual ~FDatasmithMeshExporter();
 
 	/**
@@ -28,7 +27,7 @@ public:
 	 *
 	 * @return				A IDatasmithMeshElement that refers to the exported file
 	 */
-	TSharedPtr< IDatasmithMeshElement > ExportToUObject( const TCHAR* Filepath, const TCHAR* Filename, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV, bool NewFormat=true );
+	TSharedPtr<IDatasmithMeshElement> ExportToUObject(const TCHAR* Filepath, const TCHAR* Filename, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV);
 
 	/**
 	 * Exports a FDatasmithMesh as a UObject and link it to the given IDatasmithMeshElementElement.
@@ -41,7 +40,7 @@ public:
 	 *
 	 * @return				True if export was successful.
 	 */
-	bool ExportToUObject( TSharedPtr< IDatasmithMeshElement >& MeshElement, const TCHAR* Filepath, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV, bool NewFormat=true );
+	bool ExportToUObject(TSharedPtr<IDatasmithMeshElement>& MeshElement, const TCHAR* Filepath, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV);
 
 	/**
 	 * @return The error that happened during the last export, if any
@@ -49,7 +48,6 @@ public:
 	FString GetLastError() const;
 
 private:
-	TUniquePtr<class FDatasmithMeshExporterLegacyImpl> LegacyImpl;
 	TUniquePtr<class FDatasmithMeshExporterImpl> Impl;
 	bool bAllowOldSerialization = false;
 };
