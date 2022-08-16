@@ -294,9 +294,13 @@ void FLiveCodingModule::StartupModule()
 #else
 	FString SourceProject = FPaths::IsProjectFilePathSet() ? FPaths::GetProjectFilePath() : TEXT("");
 #endif
+	if (SourceProject.Len() > 0)
+	{
+		SourceProject = FPaths::ConvertRelativePathToFull(SourceProject);
+	}
 	SourceProjectVariable = ConsoleManager.RegisterConsoleVariable(
 		TEXT("LiveCoding.SourceProject"),
-		FPaths::ConvertRelativePathToFull(SourceProject),
+		SourceProject,
 		TEXT("Path to the project that this target was built from"),
 		ECVF_Cheat
 	);
