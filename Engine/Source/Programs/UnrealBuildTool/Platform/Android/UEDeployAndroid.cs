@@ -1526,7 +1526,7 @@ namespace UnrealBuildTool
 					LibName = "ubsan_minimal";
 					break;
 				case AndroidToolChain.ClangSanitizer.Thread:
-					LibName = "thread";
+					LibName = "tsan";
 					break;
 			}
 			
