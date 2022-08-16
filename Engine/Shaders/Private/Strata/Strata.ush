@@ -2,7 +2,7 @@
 
 #pragma once
 
-// Sanity guard. 
+// Sanity guard.
 #ifndef STRATA_ENABLED
 	#define STRATA_ENABLED 1
 	#error STRATA_ENABLED needs to be defined
