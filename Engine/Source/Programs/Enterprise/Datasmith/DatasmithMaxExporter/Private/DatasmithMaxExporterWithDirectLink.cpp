@@ -1302,6 +1302,53 @@ public:
 		}
 	}
 
+	void UpdateHideByCategory(bool& bChangeEncountered)
+	{
+		DWORD HideByCategoryFlagsNew = GetCOREInterface()->GetHideByCategoryFlags();
+		if (bHideByCategoryChanged)
+		{
+			DWORD HideByCategoryFlagsChanged = HideByCategoryFlags ^ HideByCategoryFlagsNew;
+
+			for (TPair<FNodeKey, FNodeTrackerHandle> NodeKeyAndNodeTracker: NodeTrackers)
+			{
+				// Excluded ProgressCounter/Cancel handling from this loop - the code is simple, running quickly even for lots of nodes.
+
+				bool bNeedInvalidate = false;
+				FNodeTracker* NodeTracker = NodeKeyAndNodeTracker.Value.GetNodeTracker();
+				switch (NodeTracker->GetConverterType())
+				{
+				case FNodeConverter::Unknown:
+					bNeedInvalidate = true;
+					break;
+				case FNodeConverter::MeshNode:
+					bNeedInvalidate = (HideByCategoryFlagsChanged & (HIDE_OBJECTS|HIDE_SHAPES)) != 0;
+					break;
+				case FNodeConverter::HismNode: 
+					bNeedInvalidate = (HideByCategoryFlagsChanged & HIDE_OBJECTS) != 0;
+					break;
+				case FNodeConverter::LightNode:
+					bNeedInvalidate = (HideByCategoryFlagsChanged & HIDE_LIGHTS) != 0;
+					break;
+				case FNodeConverter::CameraNode: 
+					bNeedInvalidate = (HideByCategoryFlagsChanged & HIDE_CAMERAS) != 0;
+					break;
+				case FNodeConverter::HelperNode: 
+					bNeedInvalidate = (HideByCategoryFlagsChanged & HIDE_HELPERS) != 0;
+					break;
+				default: ;
+				}
+				if (bNeedInvalidate)
+				{
+					InvalidateNode(*NodeTracker, false);
+					bChangeEncountered = true;
+				}
+			}
+			
+			bHideByCategoryChanged = false;
+		}
+		HideByCategoryFlags = HideByCategoryFlagsNew;
+	}
+
 	 // returns if any change in scene was encountered and scene update completed(i.e. DirectLink Sync can be run)
 	bool UpdateInternal(FUpdateProgress::FStage& MainStage)
 	{
@@ -1333,6 +1380,11 @@ public:
 			};
 
 			bChangeEncountered |= InvalidatedNodeTrackers.PurgeDeletedNodeTrackers(*this);
+		}
+
+		{
+			PROGRESS_STAGE("Check Hide By Category")
+			UpdateHideByCategory(bChangeEncountered);
 		}
 
 		{
@@ -3051,11 +3103,19 @@ public:
 		}
 	}
 
+	virtual void HideByCategoryChanged()
+	{
+		bHideByCategoryChanged = true;
+	}
+
 	virtual void NodeNameChanged(FNodeKey NodeKey) override
 	{
 		if (FNodeTracker* NodeTracker =  GetNodeTracker(NodeKey))
 		{
-			NodeTrackersNames.Update(*NodeTracker);
+			if (!NodeTracker->bDeleted)
+			{
+				NodeTrackersNames.Update(*NodeTracker);
+			}
 			InvalidateNode(*NodeTracker);
 		}
 	}
@@ -3140,6 +3200,9 @@ public:
 	FIesTexturesCollection IesTextures;
 
 	TMap<FNodeTracker*, TSharedPtr<IDatasmithMetaDataElement>> NodeDatasmithMetadata; // All scene nodes
+
+	bool bHideByCategoryChanged = false;
+	DWORD HideByCategoryFlags = 0;
 
 	// Nodes/instances that need to be rebuilt
 	FInvalidatedNodeTrackers InvalidatedNodeTrackers;

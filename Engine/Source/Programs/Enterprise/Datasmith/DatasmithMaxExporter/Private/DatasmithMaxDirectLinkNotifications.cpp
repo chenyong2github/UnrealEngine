@@ -458,6 +458,10 @@ public:
 			SceneTracker.NodeMaterialGraphModified(&Node);
 		break;
 
+		// Sadly, this event only sent for node when it's being hidden by using Display/Hide Byt Category. Unhiding it using that option doesn't send meaningful message per node
+		// At least NOTIFY_BY_CATEGORY_DISPLAY_FILTER_CHANGED is sent(handled elsewhere)
+		// case REFMSG_NODE_DISPLAY_PROP_CHANGED: break;
+
 		case REFMSG_SUBANIM_STRUCTURE_CHANGED:
 			if (Node.GetMtl() == TargetHandle)
 			{
@@ -689,6 +693,10 @@ void FNotifications::On3dsMaxNotification(void* param, NotifyInfo* info)
 		ISceneTracker& SceneTracker = Exporter->GetSceneTracker();
 		switch (info->intcode)
 		{
+		case NOTIFY_BY_CATEGORY_DISPLAY_FILTER_CHANGED:
+			SceneTracker.HideByCategoryChanged();
+			break;
+
 		case NOTIFY_NODE_POST_MTL:
 			// Event - node got a new material
 			break;

@@ -383,6 +383,8 @@ public:
 
 	virtual void MaterialGraphModified(Mtl* Material) = 0;
 
+	virtual void HideByCategoryChanged() = 0;
+
 	virtual bool IsUpdateInProgress() = 0;
 
 	// Scene modification
@@ -394,7 +396,7 @@ public:
 	virtual void RemoveTexture(const TSharedPtr<IDatasmithTextureElement>&) = 0;
 	virtual void NodeXRefMerged(INode* Node) = 0;
 	virtual void RemapConvertedMaterialUVChannels(Mtl* ActualMaterial, const TSharedPtr<IDatasmithBaseMaterialElement>& DatasmithMaterial) = 0;
-
+	
 	// Sync/Update
 	FSyncPoint CurrentSyncPoint;
 
