@@ -221,6 +221,11 @@ namespace EpicGames.Core
 		public static EventId Systemic_LogEventMatcher { get; } = new EventId(763);
 
 		/// <summary>
+		/// Host is down during I/O operation, usually meaning a share isn't accessible.
+		/// </summary>
+		public static EventId Systemic_HostDownIOException { get; } = new EventId(764);
+
+		/// <summary>
 		/// Maximum code for systemic events. Add new events in the 700-799 range.
 		/// </summary>
 		public static EventId Systemic_Max { get; } = new EventId(799);

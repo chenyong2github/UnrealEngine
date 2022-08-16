@@ -17,6 +17,8 @@ namespace AutomationUtils.Matchers
 
 		static readonly Regex s_roboMerge = new Regex(@"RoboMerge\/gates.*already locked on Commit Server by buildmachine");
 
+		static readonly Regex s_hostDown = new Regex(@"ERROR: System\.IO\.IOException: Host is down");
+
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
 			if (cursor.IsMatch(s_ddc))
@@ -35,6 +37,10 @@ namespace AutomationUtils.Matchers
 			if (cursor.IsMatch(s_roboMerge))
 			{
 				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.Low, LogLevel.Information, KnownLogEvents.Systemic_RoboMergeGateLocked);
+			}
+			if (cursor.IsMatch(s_hostDown))
+			{
+				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.Low, LogLevel.Information, KnownLogEvents.Systemic_HostDownIOException);
 			}
 			if (cursor.Contains("LogXGEController: Warning: XGEControlWorker.exe does not exist"))
 			{
