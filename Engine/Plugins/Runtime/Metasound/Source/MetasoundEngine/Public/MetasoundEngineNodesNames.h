@@ -12,5 +12,9 @@ namespace Metasound
 
 		extern const FName MonoVariant;
 		extern const FName StereoVariant;
+		extern const FName QuadVariant;
+		extern const FName FiveDotZeroVariant;
+		extern const FName FiveDotOneVariant;
+		extern const FName SevenDotOneVariant;
 	}
 }
