@@ -2567,7 +2567,7 @@ ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryRecastTimeSliced(FNa
 {
 	TArray<FVector::FReal> RealCoords;
 
-	RealCoords = LWC::ConvertArrayType<FVector::FReal>(Coords);
+	RealCoords = UE::LWC::ConvertArrayType<FVector::FReal>(Coords);
 
 	return RasterizeGeometryRecastTimeSliced(BuildContext, RealCoords, Indices, RasterizationFlags, RasterContext);
 }
@@ -2606,7 +2606,7 @@ void FRecastTileGenerator::RasterizeGeometryRecast(FNavMeshBuildContext& BuildCo
 {
 	TArray<FVector::FReal> RealCoords;
 
-	RealCoords = LWC::ConvertArrayType<FVector::FReal>(Coords);
+	RealCoords = UE::LWC::ConvertArrayType<FVector::FReal>(Coords);
 
 	RasterizeGeometryRecast(BuildContext, RealCoords, Indices, RasterizationFlags, RasterContext);
 }
@@ -2635,7 +2635,7 @@ void FRecastTileGenerator::RasterizeGeometryTransformCoords(const TArray<float>&
 {
 	TArray<FVector::FReal> RealCoords;
 
-	RealCoords = LWC::ConvertArrayType<FVector::FReal>(Coords);
+	RealCoords = UE::LWC::ConvertArrayType<FVector::FReal>(Coords);
 
 	RasterizeGeometryTransformCoords(RealCoords, LocalToWorld);
 }
@@ -2687,7 +2687,7 @@ ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryTimeSliced(FNavMeshB
 {
 	TArray<FVector::FReal> RealCoords;
 
-	RealCoords = LWC::ConvertArrayType<FVector::FReal>(Coords);
+	RealCoords = UE::LWC::ConvertArrayType<FVector::FReal>(Coords);
 
 	return RasterizeGeometryTimeSliced(BuildContext, RealCoords, Indices, LocalToWorld, RasterizationFlags, RasterContext);
 }
@@ -2704,7 +2704,7 @@ void FRecastTileGenerator::RasterizeGeometry(FNavMeshBuildContext& BuildContext,
 {
 	TArray<FVector::FReal> RealCoords;
 
-	RealCoords = LWC::ConvertArrayType<FVector::FReal>(Coords);
+	RealCoords = UE::LWC::ConvertArrayType<FVector::FReal>(Coords);
 
 	return RasterizeGeometry(BuildContext, RealCoords, Indices, LocalToWorld, RasterizationFlags, RasterContext);
 }
@@ -4102,7 +4102,7 @@ void FRecastTileGenerator::MarkRasterizationMask(rcContext* /*BuildContext*/, rc
 		TArray<FVector> ConvexVerts;
 		const FVector::FReal Expand = 0.f;
 
-		const TArray<FVector> Points = LWC::ConvertArrayType<FVector>(ConvexData.Points);
+		const TArray<FVector> Points = UE::LWC::ConvertArrayType<FVector>(ConvexData.Points);
 		GrowConvexHull(Expand, Points, ConvexVerts);
 
 		if (ConvexVerts.Num())
@@ -4225,7 +4225,7 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 
 			TArray<FVector> ConvexVerts;
 
-			const TArray<FVector> Points = LWC::ConvertArrayType<FVector>(ConvexData.Points);
+			const TArray<FVector> Points = UE::LWC::ConvertArrayType<FVector>(ConvexData.Points);
 			GrowConvexHull(ExpandBy, Points, ConvexVerts);
 			ConvexData.MinZ -= OffsetZMin;
 			ConvexData.MaxZ += OffsetZMax;
@@ -6693,7 +6693,7 @@ void FRecastNavMeshGenerator::GrabDebugSnapshot(struct FVisualLogEntry* Snapshot
 							{
 								Verts.Reset();
 
-								const TArray<FVector> Points = LWC::ConvertArrayType<FVector>(InConvexNavAreaData.Points);
+								const TArray<FVector> Points = UE::LWC::ConvertArrayType<FVector>(InConvexNavAreaData.Points);
 								GrowConvexHull(NavData->AgentRadius, Points, Verts);
 
 								if (Verts.Num())
@@ -6827,14 +6827,14 @@ void FRecastNavMeshGenerator::ExportNavigationData(const FString& FileName) cons
 							{
 								TArray<FVector> ConvexVerts;
 
-								const TArray<FVector> Points = LWC::ConvertArrayType<FVector>(ExportInfo.Convex.Points);
+								const TArray<FVector> Points = UE::LWC::ConvertArrayType<FVector>(ExportInfo.Convex.Points);
 								GrowConvexHull(NavData->AgentRadius, Points, ConvexVerts);
 								if (ConvexVerts.Num())
 								{
 									ExportInfo.Convex.MinZ -= NavData->CellHeight;
 									ExportInfo.Convex.MaxZ += NavData->CellHeight;
 
-									ExportInfo.Convex.Points = LWC::ConvertArrayType<FVector>(ConvexVerts);
+									ExportInfo.Convex.Points = UE::LWC::ConvertArrayType<FVector>(ConvexVerts);
 
 									AreaExport.Add(ExportInfo);
 								}								

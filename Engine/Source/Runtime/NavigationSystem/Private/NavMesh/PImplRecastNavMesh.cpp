@@ -2054,7 +2054,7 @@ bool FPImplRecastNavMesh::FindPolysAroundCircle(const FVector& CenterPos, const 
 
 		if (OutPolysCost)
 		{
-			*OutPolysCost = LWC::ConvertArrayTypeClampMax<float>(PolysCost);
+			*OutPolysCost = UE::LWC::ConvertArrayTypeClampMax<float>(PolysCost);
 		}
 
 		if (dtStatusSucceed(Status))

@@ -579,7 +579,7 @@ bool StaticMeshImportUtils::AddConvexGeomFromVertices( const TArray<FVector3f>& 
 	}
 
 	FKConvexElem* ConvexElem = new(AggGeom->ConvexElems) FKConvexElem();
-	ConvexElem->VertexData = LWC::ConvertArrayType<FVector>(Verts);	// LWC_TODO: Perf pessimization
+	ConvexElem->VertexData = UE::LWC::ConvertArrayType<FVector>(Verts);	// LWC_TODO: Perf pessimization
 	ConvexElem->UpdateElemBox();
 
 	return true;
