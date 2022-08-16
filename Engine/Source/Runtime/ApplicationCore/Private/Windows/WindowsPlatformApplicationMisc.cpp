@@ -175,14 +175,14 @@ void FWindowsPlatformApplicationMisc::PreventScreenSaver()
 FLinearColor FWindowsPlatformApplicationMisc::GetScreenPixelColor(const FVector2D& InScreenPos, float /*InGamma*/)
 {
 	HDC TempDC = GetDC(HWND_DESKTOP);
-	COLORREF PixelColorRef = GetPixel(TempDC, InScreenPos.X, InScreenPos.Y);
+	COLORREF PixelColorRef = GetPixel(TempDC, (int)InScreenPos.X, (int)InScreenPos.Y);
 
 	ReleaseDC(HWND_DESKTOP, TempDC);
 
 	FColor sRGBScreenColor(
-		(PixelColorRef & 0xFF),
-		((PixelColorRef & 0xFF00) >> 8),
-		((PixelColorRef & 0xFF0000) >> 16),
+		(uint8)(PixelColorRef & 0xFF),
+		(uint8)((PixelColorRef & 0xFF00) >> 8),
+		(uint8)((PixelColorRef & 0xFF0000) >> 16),
 		255);
 
 	// Assume the screen color is coming in as sRGB space

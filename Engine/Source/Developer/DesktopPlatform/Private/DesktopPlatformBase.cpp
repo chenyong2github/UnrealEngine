@@ -235,7 +235,7 @@ bool FDesktopPlatformBase::TryGetEngineVersion(const FString& RootDir, FEngineVe
 				}
 
 				int EncodedChangelist = (IsLicenseeVersion == 0)? Changelist : FEngineVersionBase::EncodeLicenseeChangelist(Changelist);
-				OutVersion = FEngineVersion(MajorVersion, MinorVersion, PatchVersion, EncodedChangelist, BranchName);
+				OutVersion = FEngineVersion(IntCastChecked<uint16>(MajorVersion), IntCastChecked<uint16>(MinorVersion), IntCastChecked<uint16>(PatchVersion), EncodedChangelist, BranchName);
 				return true;
 			}
 		}
@@ -276,14 +276,14 @@ bool FDesktopPlatformBase::TryGetEngineVersion(const FString& RootDir, FEngineVe
 					// Parse an identifier. Exact C rules for an identifier don't really matter; we just need alphanumeric sequences.
 					const TCHAR* TokenStart = TextPos++;
 					while(FChar::IsIdentifier(*TextPos)) TextPos++;
-					Tokens.Add(FString(TextPos - TokenStart, TokenStart));
+					Tokens.Add(FString(UE_PTRDIFF_TO_INT32(TextPos - TokenStart), TokenStart));
 				}
 				else if(*TextPos == '\"')
 				{
 					// Parse a string
 					const TCHAR* TokenStart = TextPos++;
 					while(*TextPos != 0 && (TextPos == TokenStart + 1 || *(TextPos - 1) != '\"')) TextPos++;
-					Tokens.Add(FString(TextPos - TokenStart, TokenStart));
+					Tokens.Add(FString(UE_PTRDIFF_TO_INT32(TextPos - TokenStart), TokenStart));
 				}
 				else if(*TextPos == '/' && *(TextPos + 1) == '/')
 				{
@@ -345,7 +345,7 @@ bool FDesktopPlatformBase::TryGetEngineVersion(const FString& RootDir, FEngineVe
 		if(MajorVersion != -1 && MinorVersion != -1 && PatchVersion != -1)
 		{
 			int EncodedChangelist = (IsLicenseeVersion == 0)? Changelist : FEngineVersionBase::EncodeLicenseeChangelist(Changelist);
-			OutVersion = FEngineVersion(MajorVersion, MinorVersion, PatchVersion, EncodedChangelist, BranchName);
+			OutVersion = FEngineVersion(IntCastChecked<uint16>(MajorVersion), IntCastChecked<uint16>(MinorVersion), IntCastChecked<uint16>(PatchVersion), EncodedChangelist, BranchName);
 			return true;
 		}
 	}
@@ -375,7 +375,7 @@ bool FDesktopPlatformBase::TryParseStockEngineVersion(const FString& Identifier,
 		return false;
 	}
 
-	OutVersion = FEngineVersion(Major, Minor, 0, 0, TEXT(""));
+	OutVersion = FEngineVersion(IntCastChecked<uint16>(Major), IntCastChecked<uint16>(Minor), 0, 0, TEXT(""));
 	return true;
 }
 
@@ -1231,7 +1231,7 @@ void FDesktopPlatformBase::CheckForLauncherEngineInstallation(const FString &App
 	}
 }
 
-int32 FDesktopPlatformBase::ParseReleaseVersion(const FString &Version)
+int32 FDesktopPlatformBase::ParseReleaseVersion(const FString& Version)
 {
 	TCHAR *End;
 
@@ -1247,7 +1247,7 @@ int32 FDesktopPlatformBase::ParseReleaseVersion(const FString &Version)
 		return INDEX_NONE;
 	}
 
-	return (Major << 16) + Minor;
+	return IntCastChecked<int32>((Major << 16) + Minor);
 }
 
 TSharedPtr<FJsonObject> FDesktopPlatformBase::LoadProjectFile(const FString &FileName)

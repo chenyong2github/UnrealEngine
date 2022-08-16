@@ -207,8 +207,8 @@ void* FWindowsCursor::CreateCursorFromRGBABuffer(const FColor* Pixels, int32 Wid
 
 	ICONINFO IconInfo = { 0 };
 	IconInfo.fIcon = Windows::FALSE;
-	IconInfo.xHotspot = FMath::RoundToInt(InHotSpot.X * Width);
-	IconInfo.yHotspot = FMath::RoundToInt(InHotSpot.Y * Height);
+	IconInfo.xHotspot = IntCastChecked<DWORD>(FMath::RoundToInt(InHotSpot.X * Width));
+	IconInfo.yHotspot = IntCastChecked<DWORD>(FMath::RoundToInt(InHotSpot.Y * Height));
 	IconInfo.hbmColor = CursorColor;
 	IconInfo.hbmMask = CursorColor;
 

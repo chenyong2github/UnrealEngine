@@ -604,7 +604,8 @@ bool FSocketBSD::SetLinger(bool bShouldLinger,int32 Timeout)
 	linger ling;
 
 	ling.l_onoff = bShouldLinger;
-	ling.l_linger = Timeout;
+	// The type of l_linger varies by platform.
+	ling.l_linger = IntCastChecked<decltype(ling.l_linger)>(Timeout);
 
 	return setsockopt(Socket,SOL_SOCKET,SO_LINGER,(char*)&ling,sizeof(ling)) == 0;
 }
@@ -765,15 +766,15 @@ ESocketBSDReturn FSocketBSD::HasState(ESocketBSDParam State, FTimespan WaitTime)
 	switch (State)
 	{
 	case ESocketBSDParam::CanRead:
-		SelectStatus = select(Socket + 1, &SocketSet, NULL, NULL, TimePointer);
+		SelectStatus = select(IntCastChecked<int>(Socket + 1), &SocketSet, NULL, NULL, TimePointer);
 		break;
 
 	case ESocketBSDParam::CanWrite:
-		SelectStatus = select(Socket + 1, NULL, &SocketSet, NULL, TimePointer);
+		SelectStatus = select(IntCastChecked<int>(Socket + 1), NULL, &SocketSet, NULL, TimePointer);
 		break;
 
 	case ESocketBSDParam::HasError:
-		SelectStatus = select(Socket + 1, NULL, NULL, &SocketSet, TimePointer);
+		SelectStatus = select(IntCastChecked<int>(Socket + 1), NULL, NULL, &SocketSet, TimePointer);
 		break;
 	}
 

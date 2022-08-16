@@ -316,12 +316,12 @@ void FInternetAddrBSD::SetPort(int32 InPort)
 #if PLATFORM_HAS_BSD_IPV6_SOCKETS
 	if (GetProtocolType() == FNetworkProtocolTypes::IPv6)
 	{
-		((sockaddr_in6*)&Addr)->sin6_port = htons(InPort);
+		((sockaddr_in6*)&Addr)->sin6_port = htons(IntCastChecked<uint16>(InPort));
 		return;
 	}
 #endif
 
-	((sockaddr_in*)&Addr)->sin_port = htons(InPort);
+	((sockaddr_in*)&Addr)->sin_port = htons(IntCastChecked<uint16>(InPort));
 }
 
 int32 FInternetAddrBSD::GetPort() const

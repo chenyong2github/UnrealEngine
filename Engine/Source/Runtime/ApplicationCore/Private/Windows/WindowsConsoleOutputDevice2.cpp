@@ -683,7 +683,7 @@ public:
 
 	void UpdateTime(uint64 seconds)
 	{
-		FTimespan span = FTimespan::FromSeconds(seconds);
+		FTimespan span = FTimespan::FromSeconds((double)seconds);
 		FString Res;
 		if (int32 days = span.GetDays())
 			Res = FString::Printf(TEXT("%i."), FMath::Abs(days));
@@ -707,7 +707,7 @@ public:
 				return -1;
 		AddedEntryLogVirtualIndex = LogVirtualIndex;
 		const TCHAR* Empty = TEXT("");
-		int32 ItemIndex = SendMessageW(LogHwnd, LB_ADDSTRING, 0, (LPARAM)Empty);
+		int32 ItemIndex = IntCastChecked<int32>(SendMessageW(LogHwnd, LB_ADDSTRING, 0, (LPARAM)Empty));
 		SendMessageW(LogHwnd, LB_SETITEMDATA, ItemIndex, LogVirtualIndex);
 		AddedEntryLogVirtualIndex = -1;
 		return ItemIndex;
@@ -721,8 +721,8 @@ public:
 		{
 			int32 SelectedItemIndex = -1;
 			SendMessageW(LogHwnd, LB_GETSELITEMS, 1, (LPARAM)&SelectedItemIndex);
-			SelectedLogIndex = SendMessageW(LogHwnd, LB_GETITEMDATA, SelectedItemIndex, 0) - LogIndexOffset;
-			SelectedItemOffsetFromTop = SelectedItemIndex - SendMessageW(LogHwnd, LB_GETTOPINDEX, 0, 0);
+			SelectedLogIndex = IntCastChecked<int32>(SendMessageW(LogHwnd, LB_GETITEMDATA, SelectedItemIndex, 0) - LogIndexOffset);
+			SelectedItemOffsetFromTop = IntCastChecked<int32>(SelectedItemIndex - SendMessageW(LogHwnd, LB_GETTOPINDEX, 0, 0));
 		}
 
 		LogIndexOffset = 0;
@@ -831,7 +831,7 @@ public:
 		if (TotalScrollCount <= 0)
 			return;
 
-		int32 TopVisible = SendMessageW(LogHwnd, LB_GETTOPINDEX, 0, 0);
+		int32 TopVisible = IntCastChecked<int32>(SendMessageW(LogHwnd, LB_GETTOPINDEX, 0, 0));
 
 		int32 ThumbHeight = FMath::Max((PageSize * ScrollHeight) / TotalCount, int32(ButtonHeight));
 
@@ -874,7 +874,7 @@ public:
 	void MoveTopVisible(const RECT& Rect, int32 Offset)
 	{
 		bAutoScrollLog = false;
-		int32 TopVisible = SendMessageW(LogHwnd, LB_GETTOPINDEX, 0, 0);
+		int32 TopVisible = IntCastChecked<int32>(SendMessageW(LogHwnd, LB_GETTOPINDEX, 0, 0));
 		int32 PageSize = Rect.bottom / LogFontHeight;
 		TopVisible = FMath::Max(0, TopVisible + Offset);
 		SetTopVisible(TopVisible, false);
@@ -1148,7 +1148,7 @@ public:
 
 	int32 GetSelectedItems(TArray<int>& OutSelectedItems)
 	{
-		int32 SelectionCount = SendMessageW(LogHwnd, LB_GETSELCOUNT, 0, 0);
+		int32 SelectionCount = IntCastChecked<int32>(SendMessageW(LogHwnd, LB_GETSELCOUNT, 0, 0));
 		OutSelectedItems.SetNum(SelectionCount);
 		SendMessageW(LogHwnd, LB_GETSELITEMS, SelectionCount, (LPARAM)OutSelectedItems.GetData());
 		return SelectionCount;
@@ -1165,7 +1165,7 @@ public:
 		for (int32 I = 0; I != SelectionCount; ++I)
 		{
 			int32 Index = SelectedItems[I];
-			int32 LogIndex = SendMessageW(LogHwnd, LB_GETITEMDATA, Index, 0) - LogIndexOffset;
+			int32 LogIndex = IntCastChecked<int32>(SendMessageW(LogHwnd, LB_GETITEMDATA, Index, 0) - LogIndexOffset);
 			StringBuilder.Append(Log[LogIndex].String);
 			StringBuilder.Append(TEXT("\r\n"));
 		}
@@ -1222,7 +1222,7 @@ public:
 		{
 			bAutoScrollLog = false;
 			SuspendAddingEntries();
-			RightClickedItem = SendMessageW(hWnd, LB_ITEMFROMPOINT, 0, lParam);
+			RightClickedItem = IntCastChecked<int32>(SendMessageW(hWnd, LB_ITEMFROMPOINT, 0, lParam));
 
 			bool AlreadySelected = false;
 			TArray<int> SelectedItems;
@@ -1243,7 +1243,7 @@ public:
 			POINT MousePos{ ((int)(short)LOWORD(lParam)), ((int)(short)HIWORD(lParam)) };
 			TStringBuilder<1024> OutString;
 
-			int32 LogIndex = SendMessageW(LogHwnd, LB_GETITEMDATA, RightClickedItem, 0) - LogIndexOffset;
+			int32 LogIndex = IntCastChecked<int32>(SendMessageW(LogHwnd, LB_GETITEMDATA, RightClickedItem, 0) - LogIndexOffset);
 			RightClickedItem = -1;
 			if (LogIndex < 0)
 			{
@@ -1267,14 +1267,14 @@ public:
 				Info.fType = MFT_STRING;
 				Info.dwTypeData = (TCHAR*)Str;
 				Info.wID = id;
-				InsertMenuItem(Menu, Info.dwItemData++, 1, &Info);
+				InsertMenuItem(Menu, IntCastChecked<UINT>(Info.dwItemData++), 1, &Info);
 			};
 
 			auto AddSeparator = [&]()
 			{
 				Info.fMask = 0;
 				Info.fType = MFT_SEPARATOR;
-				InsertMenuItem(Menu, Info.dwItemData++, 1, &Info);
+				InsertMenuItem(Menu, IntCastChecked<UINT>(Info.dwItemData++), 1, &Info);
 			};
 
 			AddItem(TEXT("Activate auto scroll"), 101);
@@ -1316,7 +1316,7 @@ public:
 				}
 				if (Start != End)
 				{
-					SelectedWord = FStringView(Start, End - Start);
+					SelectedWord = FStringView(Start, UE_PTRDIFF_TO_INT32(End - Start));
 
 					AddSeparator();
 					AddItem(*TStringBuilder<64>().Append("Copy word '").Append(SelectedWord).Append("'"), 120);
@@ -1352,7 +1352,7 @@ public:
 				int32 SelectedItemIndex = -1;
 				if (SendMessageW(LogHwnd, LB_GETSELITEMS, 1, (LPARAM)&SelectedItemIndex) != 1)
 					break;
-				int32 LogIndex = SendMessageW(LogHwnd, LB_GETITEMDATA, SelectedItemIndex, 0) - LogIndexOffset;
+				int32 LogIndex = IntCastChecked<int32>(SendMessageW(LogHwnd, LB_GETITEMDATA, SelectedItemIndex, 0) - LogIndexOffset);
 				LogIndexOffset += LogIndex;
 				Log.PopFront(LogIndex);
 				RefreshLogHwnd();
@@ -1415,9 +1415,9 @@ public:
 			{
 				POINT MousePos{ ((int)(short)LOWORD(lParam)), ((int)(short)HIWORD(lParam)) };
 				TipPosition = MousePos;
-				int32 Res = SendMessageW(hWnd, LB_ITEMFROMPOINT, 0, lParam);
+				int32 Res = IntCastChecked<int32>(SendMessageW(hWnd, LB_ITEMFROMPOINT, 0, lParam));
 				int32 ItemIndex = LOWORD(Res);
-				int32 LogIndex = SendMessageW(hWnd, LB_GETITEMDATA, ItemIndex, 0) - LogIndexOffset;
+				int32 LogIndex = IntCastChecked<int32>(SendMessageW(hWnd, LB_GETITEMDATA, ItemIndex, 0) - LogIndexOffset);
 				if (LogIndex <= 0 || LogIndex >= Log.Num())
 					break;
 				TStringBuilder<1024> OutString;
@@ -1608,7 +1608,7 @@ public:
 			{
 				if (const TCHAR* LineBreak = FCString::Strchr(SearchStr, '\n'))
 				{
-					int32 Len = LineBreak - SearchStr;
+					int32 Len = UE_PTRDIFF_TO_INT32(LineBreak - SearchStr);
 					if (LineBreak > SearchStr && *(LineBreak - 1) == '\r')
 						--Len;
 					Log.Add({ FString(Len, SearchStr), E.Verbosity, E.Category, E.Time, E.TextAttribute, 1 });
@@ -1643,9 +1643,9 @@ public:
 			int32 ToRemoveFromHwnd = ToChangeInHwnd;
 			if (!bAutoScrollLog)
 			{
-				int32 TopIndex = SendMessageW(LogHwnd, LB_GETTOPINDEX, 0, 0);
+				int32 TopIndex = IntCastChecked<int32>(SendMessageW(LogHwnd, LB_GETTOPINDEX, 0, 0));
 				NewTopIndex = FMath::Max(TopIndex - ToRemoveFromHwnd, 0);
-				int32 CaretIndex = SendMessageW(LogHwnd, LB_GETCARETINDEX, 0, 0);
+				int32 CaretIndex = IntCastChecked<int32>(SendMessageW(LogHwnd, LB_GETCARETINDEX, 0, 0));
 				NewCaretIndex = FMath::Max(CaretIndex - ToRemoveFromHwnd, 0);
 			}
 
@@ -1771,7 +1771,7 @@ public:
 				RECT Rect;
 				GetClientRect(LogHwnd, &Rect);
 				int32 VisibleCount = FMath::CeilToInt(float(Rect.bottom) / LogFontHeight);
-				int32 TopIndex = SendMessageW(LogHwnd, LB_GETTOPINDEX, 0, 0);
+				int32 TopIndex = IntCastChecked<int32>(SendMessageW(LogHwnd, LB_GETTOPINDEX, 0, 0));
 				if (ItemCount - TopIndex < VisibleCount)
 				{
 					Rect.top = (ItemCount - TopIndex) * LogFontHeight;
@@ -1800,7 +1800,7 @@ public:
 			case ID_ADDCHECKPOINTBUTTON:
 			{
 				NMCUSTOMDRAW& nmcd = *(NMCUSTOMDRAW*)hdr;
-				uint32 CtlId = hdr->idFrom;
+				uint32 CtlId = IntCastChecked<uint32>(hdr->idFrom);
 				int32 ItemState = nmcd.uItemState;
 				TCHAR Str[32];
 				int32 StrLen = GetDlgItemText(hWnd, CtlId, Str, 32);
@@ -1895,7 +1895,7 @@ public:
 			case ODA_SELECT:
 			case ODA_DRAWENTIRE:
 			{
-				uint32 LogVirtualIndex = pdis->itemData;
+				uint32 LogVirtualIndex = IntCastChecked<uint32>(pdis->itemData);
 				LogEntry& Entry = Log[LogVirtualIndex - LogIndexOffset];
 
 
@@ -1970,7 +1970,7 @@ public:
 						for (int32 I = 0; I != SelectionCount; ++I)
 						{
 							int32 Index = SelectedItems[I];
-							int32 LogIndex = SendMessageW(LogHwnd, LB_GETITEMDATA, Index, 0) - LogIndexOffset;
+							int32 LogIndex = IntCastChecked<int32>(SendMessageW(LogHwnd, LB_GETITEMDATA, Index, 0) - LogIndexOffset);
 							StringBuilder.Append(Log[LogIndex].String);
 							StringBuilder.Append(TEXT("\r\n"));
 						}

@@ -4,6 +4,7 @@
 #include "Async/Async.h"
 #include "Containers/StringView.h"
 #include "HAL/Event.h"
+#include "Math/UnrealMathUtility.h"
 #include "Memory/MemoryView.h"
 #include "Misc/StringBuilder.h"
 #include "ProfilingDebugging/CountersTrace.h"
@@ -26,8 +27,9 @@ bool SendData(FSocket& Socket, FMemoryView Data)
 {
 	while (Data.IsEmpty() == false)
 	{
+		const int32 BytesToSend = (int32)FMath::Clamp<uint64>(Data.GetSize(), 0, MAX_int32);
 		int32 BytesSent = 0;
-		if (Socket.Send(reinterpret_cast<const uint8*>(Data.GetData()), Data.GetSize(), BytesSent) == false)
+		if (Socket.Send((const uint8*)Data.GetData(), BytesToSend, BytesSent) == false)
 		{
 			return false;
 		}

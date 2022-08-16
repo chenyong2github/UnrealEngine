@@ -646,7 +646,7 @@ bool FDesktopPlatformMac::IsUnrealBuildToolRunning()
 				const TCHAR* Delim = FCString::Strchr(*Filename, '_');
 				if (Delim != nullptr)
 				{
-					FString Pid(*Filename, Delim - *Filename);
+					FString Pid(*Filename, UE_PTRDIFF_TO_INT32(Delim - *Filename));
 					int ProcessId = 0;
 					LexFromString(ProcessId, *Pid);
 					const FString EntryFullPath = FPlatformProcess::GetApplicationName(ProcessId);

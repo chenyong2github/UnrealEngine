@@ -473,10 +473,10 @@ STDAPI FTextStoreACP::GetTextExt(TsViewCookie vcView, LONG acpStart, LONG acpEnd
 	FVector2D Position;
 	FVector2D Size;
 	*pfClipped	=	TextContext->GetTextBounds(acpStart, acpEnd - acpStart, Position, Size);
-	prc->left	=	Position.X;
-	prc->top	=	Position.Y;
-	prc->right	=	Position.X + Size.X;
-	prc->bottom	=	Position.Y + Size.Y;
+	prc->left	=	(LONG)Position.X;
+	prc->top	=	(LONG)Position.Y;
+	prc->right	=	(LONG)(Position.X + Size.X);
+	prc->bottom	=	(LONG)(Position.Y + Size.Y);
 
 	return S_OK;
 }
@@ -494,10 +494,10 @@ STDAPI FTextStoreACP::GetScreenExt(TsViewCookie vcView, __RPC__out RECT *prc)
 	FVector2D Position;
 	FVector2D Size;
 	TextContext->GetScreenBounds(Position, Size);
-	prc->left	=	Position.X;
-	prc->top	=	Position.Y;
-	prc->right	=	Position.X + Size.X;
-	prc->bottom	=	Position.Y + Size.Y;
+	prc->left	=	(LONG)Position.X;
+	prc->top	=	(LONG)Position.Y;
+	prc->right	=	(LONG)(Position.X + Size.X);
+	prc->bottom	=	(LONG)(Position.Y + Size.Y);
 
 	return S_OK;
 }

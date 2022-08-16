@@ -87,8 +87,8 @@ static bool DomainLessThan(const FString& DomainA, const FString& DomainB)
 		if (bDomainAIncludesSubdomains)
 		{
 			// both start with '.', sort by number of '.'s
-			const int32 DomainAPeriods = Algo::Count(DomainA, TEXT('.'));
-			const int32 DomainBPeriods = Algo::Count(DomainB, TEXT('.'));
+			const SIZE_T DomainAPeriods = Algo::Count(DomainA, TEXT('.'));
+			const SIZE_T DomainBPeriods = Algo::Count(DomainB, TEXT('.'));
 			if (DomainAPeriods == DomainBPeriods)
 			{
 				// sort alphabetically

@@ -841,7 +841,7 @@ struct WorkerUpdateLock
 
 	bool TimedOut()
 	{
-		uint64 WaitTime = GetTime() - StartSeconds;
+		const double WaitTime = GetTime() - StartSeconds;
 		return WaitTime > MaxWaitSeconds;
 	}
 

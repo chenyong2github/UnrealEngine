@@ -13,8 +13,8 @@ static FAutoConsoleCommand CFramePace(
 {
 	if (Args.Num() > 0)
 	{
-		uint32 RequestFramePace = FCString::Atod(*Args[0]);
-		uint32 ResultFramePace = FPlatformRHIFramePacer::SetFramePace(RequestFramePace);
+		int32 RequestFramePace = (int32)FCString::Atod(*Args[0]);
+		int32 ResultFramePace = FPlatformRHIFramePacer::SetFramePace(RequestFramePace);
 		UE_LOG(LogFramePacer, Display, TEXT("r.FramePace : requesting %d, set as %d"), RequestFramePace, ResultFramePace);
 	}
 	else

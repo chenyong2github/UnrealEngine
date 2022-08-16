@@ -90,7 +90,8 @@ static bool GetLocalHostAddrViaConnect(TSharedRef<FInternetAddr>& IO)
 	Addr.sin_port = 0x0100;
 	socklen_t AddrSize = sizeof(Addr);
 
-	int Socket = socket(AF_INET, SOCK_DGRAM, 0);
+	// The type returned by socket varies by platform.
+	auto Socket = socket(AF_INET, SOCK_DGRAM, 0);
 
 	if ( connect(Socket, (struct sockaddr*)&Addr, sizeof(Addr)) != 0 )
 	{

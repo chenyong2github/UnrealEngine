@@ -670,7 +670,7 @@ bool FModuleDescriptor::IsLoadedInCurrentConfiguration() const
 
 void FModuleDescriptor::LoadModulesForPhase(ELoadingPhase::Type LoadingPhase, const TArray<FModuleDescriptor>& Modules, TMap<FName, EModuleLoadResult>& ModuleLoadErrors)
 {
-	FScopedSlowTask SlowTask(Modules.Num());
+	FScopedSlowTask SlowTask((float)Modules.Num());
 	for (int Idx = 0; Idx < Modules.Num(); Idx++)
 	{
 		SlowTask.EnterProgressFrame(1);

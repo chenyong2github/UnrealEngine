@@ -54,7 +54,7 @@ static FControlCommands	GControlCommands;
 static UPTRINT			GControlListen		= 0;
 static UPTRINT			GControlSocket		= 0;
 static EControlState	GControlState;		// = EControlState::Closed;
-static uint32			GControlPort		= 1985;
+static uint16			GControlPort		= 1985;
 
 ////////////////////////////////////////////////////////////////////////////////
 static uint32 Writer_ControlHash(const ANSICHAR* Word)
@@ -114,7 +114,7 @@ static bool Writer_ControlListen()
 		uint32 Seed = uint32(TimeGetTimestamp());
 		for (uint32 i = 0; i < 10 && !GControlListen; Seed *= 13, ++i)
 		{
-			uint32 Port = (Seed & 0x1fff) + 0x8000;
+			uint16 Port((Seed & 0x1fff) + 0x8000);
 			GControlListen = TcpSocketListen(Port);
 			if (GControlListen)
 			{

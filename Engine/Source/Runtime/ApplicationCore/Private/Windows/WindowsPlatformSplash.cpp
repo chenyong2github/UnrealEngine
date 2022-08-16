@@ -564,11 +564,11 @@ uint32 WINAPI StartSplashScreenThread( LPVOID unused )
 					// Set window to fully transparent to start out
 					const float TimeSinceFadeStart = (float)( FPlatformTime::Seconds() - FadeStartTime );
 					const float FadeAmount = FMath::Clamp( TimeSinceFadeStart / FadeDuration, 0.0f, 1.0f );
-					const int32 NewOpacityByte = 255 * FadeAmount;
+					const int32 NewOpacityByte = (int32)(255 * FadeAmount);
 					if( NewOpacityByte != CurrentOpacityByte )
 					{
 						CurrentOpacityByte = NewOpacityByte;
-						SetLayeredWindowAttributes( GSplashScreenWnd, 0, CurrentOpacityByte, LWA_ALPHA );
+						SetLayeredWindowAttributes( GSplashScreenWnd, 0, (BYTE)CurrentOpacityByte, LWA_ALPHA );
 					}
 
 					// We're still fading, but still yield a timeslice

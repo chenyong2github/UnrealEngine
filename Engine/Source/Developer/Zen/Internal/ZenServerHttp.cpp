@@ -129,7 +129,7 @@ namespace UE::Zen {
 
 	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingPut(const TCHAR* Uri, const FCompositeBuffer& Buffer, EContentType ContentType)
 	{
-		uint32 ContentLength = 0u;
+		uint64 ContentLength = 0u;
 
 		ContentLength = Buffer.GetSize();
 		curl_easy_setopt(Curl, CURLOPT_UPLOAD, 1L);
@@ -289,7 +289,7 @@ namespace UE::Zen {
 
 	static std::atomic<int> RequestId{1};
 
-	FZenHttpRequest::Result FZenHttpRequest::PerformBlocking(FStringView Uri, RequestVerb Verb, uint32 ContentLength)
+	FZenHttpRequest::Result FZenHttpRequest::PerformBlocking(FStringView Uri, RequestVerb Verb, uint64 ContentLength)
 	{
 		LLM_SCOPE_BYTAG(ZenDDC);
 		// Strip any leading slashes because we compose the prefix and the suffix with a separating slash below
@@ -324,7 +324,7 @@ namespace UE::Zen {
 
 		if ((Verb != RequestVerb::Delete) && (Verb != RequestVerb::Get))
 		{
-			Headers.Add(FString::Printf(TEXT("Content-Length: %d"), ContentLength));
+			Headers.Add(FString::Printf(TEXT("Content-Length: %" UINT64_FMT), ContentLength));
 		}
 
 		// Build headers list
@@ -465,7 +465,7 @@ namespace UE::Zen {
 	FString FZenHttpRequest::GetAnsiBufferAsString(const TArray64<uint8>& Buffer)
 	{
 		// Content is NOT null-terminated; we need to specify lengths here
-		FUTF8ToTCHAR TCHARData(reinterpret_cast<const ANSICHAR*>(Buffer.GetData()), Buffer.Num());
+		FUTF8ToTCHAR TCHARData(reinterpret_cast<const ANSICHAR*>(Buffer.GetData()), IntCastChecked<int32>(Buffer.Num()));
 		return FString(TCHARData.Length(), TCHARData.Get());
 	}
 

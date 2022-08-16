@@ -182,7 +182,8 @@ TSharedPtr<FInternetAddr> FSocketSubsystemBSD::GetAddressFromString(const FStrin
 		UniversalNetBufferPtr = &(((sockaddr_in*)&NetworkBuffer)->sin_addr);
 	}
 
-	NetworkBuffer.ss_family = AddrFamily;
+	// The type of ss_family varies by platform.
+	NetworkBuffer.ss_family = IntCastChecked<decltype(NetworkBuffer.ss_family)>(AddrFamily);
 
 	if (inet_pton(AddrFamily, TCHAR_TO_ANSI(*InAddress), UniversalNetBufferPtr))
 	{

@@ -936,7 +936,7 @@ HRESULT STDCALL FWindowsUIAWindowProvider::ElementProviderFromPoint(double x, do
 		[this, &ReturnValue, &pRetVal, &x, &y]() {
 		if (IsValid())
 		{
-			TSharedPtr<IAccessibleWidget> Child = Widget->AsWindow()->GetChildAtPosition(x, y);
+			TSharedPtr<IAccessibleWidget> Child = Widget->AsWindow()->GetChildAtPosition((int32)x, (int32)y);
 			if (Child.IsValid())
 			{
 				*pRetVal = static_cast<IRawElementProviderFragment*>(&UIAManager->GetWidgetProvider(Child.ToSharedRef()));

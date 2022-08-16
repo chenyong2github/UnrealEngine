@@ -1099,10 +1099,10 @@ FZenServiceInstance::GetStats(FZenStats& Stats)
 	Stats = LastStats;
 
 	const uint64 CurrentTime = FPlatformTime::Cycles64();
-	const float MinTimeBetweenRequestsInSeconds = 0.5f;
-	const float DeltaTimeInSeconds = FPlatformTime::ToSeconds(CurrentTime - LastStatsTime);
+	constexpr double MinTimeBetweenRequestsInSeconds = 0.5;
+	const double DeltaTimeInSeconds = FPlatformTime::ToSeconds64(CurrentTime - LastStatsTime);
 
-	if ( StatsRequest.IsValid()==false && DeltaTimeInSeconds > MinTimeBetweenRequestsInSeconds)
+	if (!StatsRequest.IsValid() && DeltaTimeInSeconds > MinTimeBetweenRequestsInSeconds)
 	{
 #if WITH_EDITOR
 		EAsyncExecution ThreadPool = EAsyncExecution::LargeThreadPool;

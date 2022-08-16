@@ -983,7 +983,7 @@ void FWindowsWindow::SetWindowFocus()
  */
 void FWindowsWindow::SetOpacity( const float InOpacity )
 {
-	SetLayeredWindowAttributes( HWnd, 0, FMath::TruncToInt( InOpacity * 255.0f ), LWA_ALPHA );
+	SetLayeredWindowAttributes( HWnd, 0, (BYTE)FMath::TruncToInt( InOpacity * 255.0f ), LWA_ALPHA );
 }
 
 /**

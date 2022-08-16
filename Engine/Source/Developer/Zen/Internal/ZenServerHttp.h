@@ -245,7 +245,7 @@ private:
 		* @param Buffer Optional buffer to directly receive the result of the request.
 		* If unset the response body will be stored in the request.
 		*/
-	Result PerformBlocking(FStringView Uri, RequestVerb Verb, uint32 ContentLength);
+	Result PerformBlocking(FStringView Uri, RequestVerb Verb, uint64 ContentLength);
 
 	FZenHttpRequest::Result ParseRpcResponse(FZenHttpRequest::Result ResultFromPost, FCbPackage& OutResponse);
 

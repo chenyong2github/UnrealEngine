@@ -2071,7 +2071,7 @@ bool FPluginManager::LoadModulesForEnabledPlugins( const ELoadingPhase::Type Loa
 	}
 	else
 	{
-		FScopedSlowTask SlowTask(AllPlugins.Num());
+		FScopedSlowTask SlowTask((float)AllPlugins.Num());
 
 		// Load plugins!
 		for (const FDiscoveredPluginMap::ElementType& PluginPair : AllPlugins)

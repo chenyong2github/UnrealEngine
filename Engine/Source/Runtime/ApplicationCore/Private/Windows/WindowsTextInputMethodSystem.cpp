@@ -417,19 +417,19 @@ void FWindowsTextInputMethodSystem::UpdateIMMWindowPositions(HIMC IMMContext)
 		CANDIDATEFORM CandidateForm;
 		CandidateForm.dwIndex = 0;
 		CandidateForm.dwStyle = CFS_EXCLUDE;
-		CandidateForm.ptCurrentPos.x = Position.X;
-		CandidateForm.ptCurrentPos.y = Position.Y;
+		CandidateForm.ptCurrentPos.x = (LONG)Position.X;
+		CandidateForm.ptCurrentPos.y = (LONG)Position.Y;
 		CandidateForm.rcArea.left = CandidateForm.ptCurrentPos.x;
 		CandidateForm.rcArea.right = CandidateForm.ptCurrentPos.x;
 		CandidateForm.rcArea.top = CandidateForm.ptCurrentPos.y;
-		CandidateForm.rcArea.bottom = CandidateForm.ptCurrentPos.y + Size.Y;
+		CandidateForm.rcArea.bottom = CandidateForm.ptCurrentPos.y + (LONG)Size.Y;
 		::ImmSetCandidateWindow(IMMContext, &CandidateForm);
 
 		// Update composition window position.
 		COMPOSITIONFORM CompositionForm;
 		CompositionForm.dwStyle = CFS_POINT;
-		CompositionForm.ptCurrentPos.x = Position.X;
-		CompositionForm.ptCurrentPos.y = Position.Y + Size.Y;
+		CompositionForm.ptCurrentPos.x = (LONG)Position.X;
+		CompositionForm.ptCurrentPos.y = (LONG)(Position.Y + Size.Y);
 		::ImmSetCompositionWindow(IMMContext, &CompositionForm);
 	}
 }
@@ -962,7 +962,7 @@ int32 FWindowsTextInputMethodSystem::ProcessMessage(HWND hwnd, uint32 msg, WPARA
 	SCOPE_CYCLE_COUNTER(STAT_IMEWindowsProcessMessage);
 	if(CurrentAPI != EAPI::IMM)
 	{
-		return DefWindowProc(hwnd, msg, wParam, lParam);
+		return IntCastChecked<int32>(DefWindowProc(hwnd, msg, wParam, lParam));
 	}
 
 	switch(msg)
@@ -974,7 +974,7 @@ int32 FWindowsTextInputMethodSystem::ProcessMessage(HWND hwnd, uint32 msg, WPARA
 
 			UpdateIMMProperty(KeyboardLayoutHandle);
 
-			return DefWindowProc(hwnd, msg, wParam, lParam);
+			return IntCastChecked<int32>(DefWindowProc(hwnd, msg, wParam, lParam));
 		}
 		break;
 	case WM_IME_SETCONTEXT:
@@ -990,17 +990,17 @@ int32 FWindowsTextInputMethodSystem::ProcessMessage(HWND hwnd, uint32 msg, WPARA
 				UE_LOG(LogWindowsTextInputMethodSystem, Verbose, TEXT("Setting IMM context."));
 			}
 
-			return DefWindowProc(hwnd, msg, wParam, lParam);
+			return IntCastChecked<int32>(DefWindowProc(hwnd, msg, wParam, lParam));
 		}
 		break;
 	case WM_IME_NOTIFY:
 		{
-			return DefWindowProc(hwnd, msg, wParam, lParam);
+			return IntCastChecked<int32>(DefWindowProc(hwnd, msg, wParam, lParam));
 		}
 		break;
 	case WM_IME_REQUEST:
 		{
-			return DefWindowProc(hwnd, msg, wParam, lParam);
+			return IntCastChecked<int32>(DefWindowProc(hwnd, msg, wParam, lParam));
 		}
 		break;
 	case WM_IME_STARTCOMPOSITION:
@@ -1012,7 +1012,7 @@ int32 FWindowsTextInputMethodSystem::ProcessMessage(HWND hwnd, uint32 msg, WPARA
 				UE_LOG(LogWindowsTextInputMethodSystem, Verbose, TEXT("Beginning IMM composition."));
 			}
 
-			return DefWindowProc(hwnd, msg, wParam, lParam);
+			return IntCastChecked<int32>(DefWindowProc(hwnd, msg, wParam, lParam));
 		}
 		break;
 	case WM_IME_COMPOSITION:
@@ -1131,7 +1131,7 @@ int32 FWindowsTextInputMethodSystem::ProcessMessage(HWND hwnd, uint32 msg, WPARA
 				UE_LOG(LogWindowsTextInputMethodSystem, Verbose, TEXT("Updating IMM composition."));
 			}
 
-			return DefWindowProc(hwnd, msg, wParam, lParam);
+			return IntCastChecked<int32>(DefWindowProc(hwnd, msg, wParam, lParam));
 		}
 		break;
 	case WM_IME_ENDCOMPOSITION:
@@ -1144,7 +1144,7 @@ int32 FWindowsTextInputMethodSystem::ProcessMessage(HWND hwnd, uint32 msg, WPARA
 				UE_LOG(LogWindowsTextInputMethodSystem, Verbose, TEXT("Ending IMM composition."));
 			}
 
-			return DefWindowProc(hwnd, msg, wParam, lParam);
+			return IntCastChecked<int32>(DefWindowProc(hwnd, msg, wParam, lParam));
 		}
 		break;
 	case WM_IME_CHAR:
@@ -1158,7 +1158,7 @@ int32 FWindowsTextInputMethodSystem::ProcessMessage(HWND hwnd, uint32 msg, WPARA
 		{
 			UE_LOG(LogWindowsTextInputMethodSystem, Warning, TEXT("Unexpected windows message received for processing."));
 
-			return DefWindowProc(hwnd, msg, wParam, lParam);
+			return IntCastChecked<int32>(DefWindowProc(hwnd, msg, wParam, lParam));
 		}
 		break;
 	}
