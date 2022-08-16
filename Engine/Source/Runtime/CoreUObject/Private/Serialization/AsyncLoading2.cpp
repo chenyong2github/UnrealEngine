@@ -5404,7 +5404,7 @@ void FAsyncLoadingThread2::StartThread()
 	check(PendingCDOsRecursiveStack.Num() == 0);
 	PendingCDOsRecursiveStack.Empty();
 
-	if (!Thread)
+	if (FAsyncLoadingThreadSettings::Get().bAsyncLoadingThreadEnabled && !Thread)
 	{
 		UE_LOG(LogStreaming, Log, TEXT("Starting Async Loading Thread."));
 		bThreadStarted = true;
