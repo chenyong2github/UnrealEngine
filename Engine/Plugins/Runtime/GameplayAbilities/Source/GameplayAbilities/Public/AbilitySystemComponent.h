@@ -418,6 +418,9 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	/** Returns const pointer to the actual active gameplay effect structure */
 	const FActiveGameplayEffect* GetActiveGameplayEffect(const FActiveGameplayEffectHandle Handle) const;
 
+	/** Returns all active gameplay effects on this ASC */
+	const FActiveGameplayEffectsContainer& GetActiveGameplayEffects() const;
+
 	/** Returns a const pointer to the gameplay effect CDO associated with an active handle. */
 	const UGameplayEffect* GetGameplayEffectCDO(const FActiveGameplayEffectHandle Handle) const;
 

@@ -270,6 +270,11 @@ const FActiveGameplayEffect* UAbilitySystemComponent::GetActiveGameplayEffect(co
 	return ActiveGameplayEffects.GetActiveGameplayEffect(Handle);
 }
 
+const FActiveGameplayEffectsContainer& UAbilitySystemComponent::GetActiveGameplayEffects() const
+{
+	return ActiveGameplayEffects;
+}
+
 const UGameplayEffect* UAbilitySystemComponent::GetGameplayEffectCDO(const FActiveGameplayEffectHandle Handle) const
 {
 	// get the active gameplay effect struct
