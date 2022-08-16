@@ -2220,10 +2220,18 @@ void FWidgetBlueprintEditor::ReplaceTrackWithWidgets(TArray<FWidgetReference> Wi
 
 	// Remove everything from the track
 	RemoveAllWidgetsFromTrack(ObjectId);
+	
+	// Create a new guid for the first object
+	FGuid NewGuid = ActiveSequencer->GetHandleToObject(Widgets[0].GetPreview());
 
-	AddWidgetsToTrack(Widgets, ObjectId);
+	// Move binding contents and remove possessable
+	MovieScene->MoveBindingContents(ObjectId, NewGuid);
+	MovieScene->RemovePossessable(ObjectId);
 
-	UpdateTrackName(ObjectId);
+	// Add all the remaining widgets to the new binding
+	AddWidgetsToTrack(Widgets, NewGuid);
+
+	UpdateTrackName(NewGuid);
 	SyncSequencersMovieSceneData();
 }
 
