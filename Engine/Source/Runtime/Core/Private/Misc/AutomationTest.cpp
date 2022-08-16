@@ -1409,7 +1409,7 @@ bool FAutomationTestBase::TestEqual(const TCHAR* What, const FColor Actual, cons
 	return true;
 }
 
-bool FAutomationTestBase::TestEqual(const TCHAR* What, FLinearColor Actual, FLinearColor Expected)
+bool FAutomationTestBase::TestEqual(const TCHAR* What, const FLinearColor Actual, const FLinearColor Expected)
 {
 	if (Expected != Actual)
 	{
