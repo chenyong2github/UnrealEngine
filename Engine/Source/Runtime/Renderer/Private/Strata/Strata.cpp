@@ -11,6 +11,7 @@
 #include "SceneTextureParameters.h"
 #include "ShaderCompiler.h"
 #include "Lumen/Lumen.h"
+#include "RendererUtils.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -48,8 +49,8 @@ static TAutoConsoleVariable<int32> CVarMaterialRoughDiffuse(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 // STRATA_TODO we keep this for now and can remove it once battletested.
-static TAutoConsoleVariable<int32> CVarClearDuringCategorization(
-	TEXT("r.Strata.ClearDuringCategorization"),
+static TAutoConsoleVariable<int32> CVarUseCmaskClear(
+	TEXT("r.Strata.UseCmaskClear"),
 	1,
 	TEXT("TEST."),
 	ECVF_RenderThreadSafe);
@@ -98,21 +99,13 @@ const TCHAR* ToString(EStrataTileType Type)
 	return TEXT("Unknown");
 }
 
-FORCEINLINE bool ClearDuringCategorization()
+FORCEINLINE bool SupportsCMask(const FStaticShaderPlatform InPlatform)
 {
-	return CVarClearDuringCategorization.GetValueOnRenderThread() > 0;
+	return CVarUseCmaskClear.GetValueOnRenderThread() > 0 && FDataDrivenShaderPlatformInfo::GetSupportsRenderTargetWriteMask(InPlatform);
 }
 
 namespace Strata
 {
-
-// Forward declaration
-static void AddStrataClearMaterialBufferPass(
-	FRDGBuilder& GraphBuilder, 
-	FRDGTextureUAVRef MaterialTextureArrayUAV,
-	FRDGTextureUAVRef SSSTextureUAV,
-	uint32 MaxBytesPerPixel, 
-	FIntPoint TiledViewBufferResolution);
 
 bool IsStrataEnabled()
 {
@@ -360,16 +353,6 @@ void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& S
 	Out.PeelLayersAboveDepth = FMath::Max(CVarStrataDebugPeelLayersAboveDepth.GetValueOnRenderThread(), 0);
 	Out.SliceStoringDebugStrataTree = SliceCount - 1 - STRATA_BASE_PASS_MRT_OUTPUT_COUNT;	// The UAV skips the first slices set as render target
 
-	if (IsStrataEnabled())
-	{
-		AddStrataClearMaterialBufferPass(
-			GraphBuilder, 
-			GraphBuilder.CreateUAV(FRDGTextureUAVDesc(Out.MaterialTextureArray, 0)),
-			Out.SSSTextureUAV,
-			Out.MaxBytesPerPixel, 
-			MaterialBufferSizeXY);
-	}
-
 	// Initialized view data
 	for (int32 ViewIndex = 0; ViewIndex < SceneRenderer.Views.Num(); ViewIndex++)
 	{
@@ -500,35 +483,6 @@ TRDGUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformPara
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FStrataClearMaterialBufferCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FStrataClearMaterialBufferCS);
-	SHADER_USE_PARAMETER_STRUCT(FStrataClearMaterialBufferCS, FGlobalShader);
-
-	using FPermutationDomain = TShaderPermutationDomain<>;
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<uint>, MaterialTextureArrayUAV)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<uint>, SSSTextureUAV)
-		SHADER_PARAMETER(uint32, MaxBytesPerPixel)
-		SHADER_PARAMETER(FIntPoint, TiledViewBufferResolution)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5 && Strata::IsStrataEnabled();
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_CLEAR_MATERIAL_BUFFER"), 1);
-	}
-};
-IMPLEMENT_GLOBAL_SHADER(FStrataClearMaterialBufferCS, "/Engine/Private/Strata/StrataMaterialClassification.usf", "ClearMaterialBufferMainCS", SF_Compute);
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class FStrataBSDFTilePassCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FStrataBSDFTilePassCS);
@@ -590,9 +544,9 @@ class FStrataMaterialTileClassificationPassCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FStrataMaterialTileClassificationPassCS);
 	SHADER_USE_PARAMETER_STRUCT(FStrataMaterialTileClassificationPassCS, FGlobalShader);
 
-	class FStrataClearDuringCategorization : SHADER_PERMUTATION_BOOL("PERMUTATION_STRATA_CLEAR_DURING_CATEGORIZATION");
+	class FCmask : SHADER_PERMUTATION_BOOL("PERMUTATION_CMASK");
 	class FWaveOps : SHADER_PERMUTATION_BOOL("PERMUTATION_WAVE_OPS");
-	using FPermutationDomain = TShaderPermutationDomain<FWaveOps, FStrataClearDuringCategorization>;
+	using FPermutationDomain = TShaderPermutationDomain<FWaveOps, FCmask>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -600,6 +554,7 @@ class FStrataMaterialTileClassificationPassCS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, ViewResolution)
 		SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TopLayerTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TopLayerCmaskTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2DArray<uint>, MaterialTextureArray)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileDrawIndirectDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, SimpleTileListDataBuffer)
@@ -607,6 +562,7 @@ class FStrataMaterialTileClassificationPassCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, ComplexTileListDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OpaqueRoughRefractionTileListDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, SSSWithoutOpaqueRoughRefractionTileListDataBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, MaterialHeaderTextureUAV)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<uint>, SSSTextureUAV)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, OpaqueRoughRefractionTexture)
 	END_SHADER_PARAMETER_STRUCT()
@@ -961,9 +917,10 @@ void AppendStrataMRTs(const FSceneRenderer& SceneRenderer, uint32& RenderTargetC
 			RenderTargets[RenderTargetCount] = FTextureRenderTargetBinding(SceneRenderer.Scene->StrataSceneData.MaterialTextureArray, StrataMaterialArraySlice, bNeverClear);
 			RenderTargetCount++;
 		};
+		const bool bSupportCMask = SupportsCMask(GMaxRHIShaderPlatform);
 		for (int i = 0; i < STRATA_BASE_PASS_MRT_OUTPUT_COUNT; ++i)
 		{
-			const bool bNeverClear = i != 0; // Only allow clearing the first slice containing the header
+			const bool bNeverClear = bSupportCMask || i != 0; // Only allow clearing the first slice containing the header
 			AddStrataOutputTarget(i, bNeverClear);
 		}
 
@@ -993,6 +950,8 @@ void SetBasePassRenderTargetOutputFormat(const EShaderPlatform Platform, FShader
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+//#include "RendererUtils.h"
+
 void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const TArray<FViewInfo>& Views)
 {
 	RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, IsStrataEnabled() && Views.Num() > 0, "Strata::MaterialClassification");
@@ -1016,9 +975,19 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 
 		// Tile reduction
 		{
-			const bool bClear = ClearDuringCategorization();
+			// When the platform support explicit CMask texture, we disable material data bufferclear. Material buffer buffer clear (the header part) is done during the classification pass.  
+			// To reduce the reading bandwidth, we rely on TopLayerData CMask to 'drive' the clearing process. This allows to clear quickly empty tiles.
+			const bool bSupportCMask = SupportsCMask(View.GetShaderPlatform());
+			FRDGTextureRef TopLayerCmaskTexture = StrataSceneData->TopLayerTexture;			
+			if (bSupportCMask)
+			{
+				// Combine DBuffer RTWriteMasks; will end up in one texture we can load from in the base pass PS and decide whether to do the actual work or not.
+				FRDGTextureRef SourceCMaskTextures[] = { StrataSceneData->TopLayerTexture };
+				FRenderTargetWriteMask::Decode(GraphBuilder, View.ShaderMap, MakeArrayView(SourceCMaskTextures), TopLayerCmaskTexture, GFastVRamConfig.DBufferMask, TEXT("Strata::TopLayerCmask"));
+			}
+
 			FStrataMaterialTileClassificationPassCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set< FStrataMaterialTileClassificationPassCS::FStrataClearDuringCategorization >(bClear);
+			PermutationVector.Set< FStrataMaterialTileClassificationPassCS::FCmask >(bSupportCMask);
 			PermutationVector.Set< FStrataMaterialTileClassificationPassCS::FWaveOps >(bWaveOps);
 			TShaderMapRef<FStrataMaterialTileClassificationPassCS> ComputeShader(View.ShaderMap, PermutationVector);
 			FStrataMaterialTileClassificationPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStrataMaterialTileClassificationPassCS::FParameters>();
@@ -1027,7 +996,9 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 			PassParameters->ViewResolution = View.ViewRect.Size();
 			PassParameters->MaxBytesPerPixel = StrataSceneData->MaxBytesPerPixel;
 			PassParameters->TopLayerTexture = StrataSceneData->TopLayerTexture;
+			PassParameters->TopLayerCmaskTexture = TopLayerCmaskTexture;
 			PassParameters->MaterialTextureArray = StrataSceneData->MaterialTextureArraySRV;
+			PassParameters->MaterialHeaderTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(StrataSceneData->MaterialTextureArray, 0, PF_R32_UINT, 0, 1));
 			PassParameters->SSSTextureUAV = StrataSceneData->SSSTextureUAV;
 			PassParameters->OpaqueRoughRefractionTexture = StrataSceneData->OpaqueRoughRefractionTexture;
 			PassParameters->TileDrawIndirectDataBuffer = StrataViewData->ClassificationTileDrawIndirectBufferUAV;
@@ -1040,7 +1011,7 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 			const uint32 GroupSize = 8;
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("Strata::MaterialTileClassification(%s%s)", bWaveOps ? TEXT("Wave") : TEXT("SharedMemory"), bClear ? TEXT(", Clear") : TEXT("")),
+				RDG_EVENT_NAME("Strata::MaterialTileClassification(%s%s)", bWaveOps ? TEXT("Wave") : TEXT("SharedMemory"), bSupportCMask ? TEXT(", CMask") : TEXT("")),
 				PassFlags,
 				ComputeShader,
 				PassParameters,
@@ -1122,34 +1093,6 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 				FIntVector(1, 1, 1));
 		}
 	}
-}
-
-static void AddStrataClearMaterialBufferPass(
-	FRDGBuilder& GraphBuilder,
-	FRDGTextureUAVRef MaterialTextureArrayUAV,
-	FRDGTextureUAVRef SSSTextureUAV,
-	uint32 MaxBytesPerPixel,
-	FIntPoint TiledViewBufferResolution)
-{
-	if (ClearDuringCategorization())
-	{
-		return;
-	}
-
-	TShaderMapRef<FStrataClearMaterialBufferCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
-	FStrataClearMaterialBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStrataClearMaterialBufferCS::FParameters>();
-	PassParameters->MaterialTextureArrayUAV = MaterialTextureArrayUAV;
-	PassParameters->SSSTextureUAV = SSSTextureUAV;
-	PassParameters->MaxBytesPerPixel = MaxBytesPerPixel;
-	PassParameters->TiledViewBufferResolution = TiledViewBufferResolution;
-
-	const uint32 GroupSize = 8;
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("Strata::ClearMaterialBuffer"),
-		ComputeShader,
-		PassParameters,
-		FComputeShaderUtils::GetGroupCount(TiledViewBufferResolution, GroupSize));
 }
 
 } // namespace Strata

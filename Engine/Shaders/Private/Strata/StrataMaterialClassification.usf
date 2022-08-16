@@ -16,7 +16,12 @@ int bRectPrimitive;
 int2 ViewResolution;
 uint MaxBytesPerPixel;
 Texture2D<uint> TopLayerTexture;
+#if PERMUTATION_CMASK
+Texture2D<uint> TopLayerCmaskTexture;
+RWTexture2D<uint> MaterialHeaderTextureUAV;
+#else
 Texture2DArray<uint> MaterialTextureArray;
+#endif
 
 // Indirect draw data buffer for all tile types
 RWBuffer<uint> TileDrawIndirectDataBuffer;
@@ -35,9 +40,7 @@ Texture2D<float3> OpaqueRoughRefractionTexture;
 groupshared uint s_TileFlags[GROUP_THREAD_COUNT];
 #endif
 
-#if PERMUTATION_STRATA_CLEAR_DURING_CATEGORIZATION
 RWTexture2DArray<uint> SSSTextureUAV;
-#endif
 
 [numthreads(STRATA_TILE_SIZE, STRATA_TILE_SIZE, 1)]
 void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID)
@@ -54,7 +57,25 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 
 	const uint2 PixelCoord = DispatchThreadId.xy + View.ViewRectMin.xy;
 	const bool bIsValid = all(DispatchThreadId.xy < View.ViewSizeAndInvSize.xy);
-	
+
+	// If CMask data are available, we use it as a coarse evaluation to know if a tile contains any data. 
+	// * If the tile is entirely empty: we clear the header & SSS data
+	// * If the data contains any data: we do fine grain checking, and clear header & SSS data only for needed pixels. The top layer data texture is used 
+	//   to know if a pixel is valid or not (since the material header is not cleared when the Cmask permutation is used).
+
+#if PERMUTATION_CMASK
+	// Coarse test for clearing header (& SSS data) based on CMask data
+	const uint CMask = TopLayerCmaskTexture.Load(uint3(GroupId.xy, 0));
+	BRANCH
+	if (CMask == 0x0)
+	{
+		MaterialHeaderTextureUAV[PixelCoord] = 0u;
+		SSSTextureUAV[uint3(PixelCoord, 0)] = 0; // This is a good clear for FStrataSubsurfaceHeader, and we only need to clear the header.
+	}
+	else
+	{
+#endif
+
 	// Pixels outside of the view area are considered simple to enable screen borders to receive the simple permutation when not aligned to shader group size.
 	bool bContainsComplexMaterial = false;
 	bool bContainsSimpleMaterial  = false;
@@ -66,7 +87,14 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	if (bIsValid)
 	{
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(View.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
+	#if PERMUTATION_CMASK
+		FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
+		const uint PackedHeader		= MaterialHeaderTextureUAV[PixelCoord];
+		StrataPixelHeader.State		= HEADER_GETCOMMONSTATES(PackedHeader);
+		StrataPixelHeader.BSDFCount = HEADER_GETBSDFCOUNT(PackedHeader);
+	#else
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(MaterialTextureArray, StrataAddressing, TopLayerTexture);
+	#endif
 
 		const bool bIsSimple =  IsSimpleMaterial(StrataPixelHeader) || StrataPixelHeader.BSDFCount == 0; // BSDFCount == 0 ensures that non-strata pixel, like sky pixels, won't make a simple tile flagged as complex
 		const bool bIsSingle = !IsSimpleMaterial(StrataPixelHeader) && IsSingleMaterial(StrataPixelHeader);
@@ -76,20 +104,36 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		bContainsComplexMaterial = !bIsSingle & !bIsSimple;
 		bContainsScreenSpaceSubsurfaceScattering = HasSubsurface(StrataPixelHeader);
 
-#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+	#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
 		OpaqueRoughRefractionData = StrataUnpackOpaqueRoughRefractionData(OpaqueRoughRefractionTexture[PixelCoord]);
 		bContainsOpaqueRoughRefraction = OpaqueRoughRefractionData.OpaqueRoughRefractionEnabled > 0.0f;
-#endif
-	}
+	#endif
 
-#if PERMUTATION_STRATA_CLEAR_DURING_CATEGORIZATION
+		// Fine grain test for clearing based on CMask data
+	#if PERMUTATION_CMASK
+		// Fine grain check if clear is needed
+		bool bClearHeader = false;
+		BRANCH
+		if (CMask > 0u && CMask < 0xF)
+		{
+			bClearHeader = TopLayerTexture.Load(uint3(PixelCoord,0)) == 0;
+		}
+
+		// Header clear
+		BRANCH
+		if (bClearHeader)
+		{
+			MaterialHeaderTextureUAV[PixelCoord] = 0u;
+		}
+	#endif
+	}
+	
 	BRANCH
 	if (!bContainsScreenSpaceSubsurfaceScattering)
 	{
 		// We must fill all the pixel which does not have subsurface scattering by default so that the SSS code is not executed where it should not.
 		SSSTextureUAV[uint3(PixelCoord, 0)] = 0; // This is a good clear for FStrataSubsurfaceHeader, and we only need to clear the header.
 	}
-#endif
 
 #if PERMUTATION_WAVE_OPS
 	const bool bTileContainsStrata							= WaveActiveAnyTrue(bContainsStrataMaterial);
@@ -184,6 +228,10 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		}
 	#endif
 	}
+
+#if PERMUTATION_CMASK
+	}
+#endif
 }
 #endif // SHADER_TILE_CATEGORIZATION
 
@@ -257,38 +305,6 @@ void ArgsMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 }
 
 #endif // SHADER_BSDF_TILE_PREPARE_ARGS
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#if SHADER_CLEAR_MATERIAL_BUFFER
-
-RWTexture2DArray<uint> MaterialTextureArrayUAV;
-RWTexture2DArray<uint> SSSTextureUAV;
-uint MaxBytesPerPixel;
-int2 TiledViewBufferResolution;
-
-[numthreads(8, 8, 1)]
-void ClearMaterialBufferMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
-{
-	if (any(int2(DispatchThreadId.xy) >= TiledViewBufferResolution))
-	{
-		return;
-	}
-
-	// Custom clear of the Strata material buffer.
-	// The first layer of tiled uints contains the header that we need to clear so we only write a single uint per pixel instead of clearing the entire buffer which would be too slow.
-
-	FStrataPixelHeader StrataHeader = InitialiseStrataPixelHeader();
-	uint BSDFCount = 0;
-	uint PackedStrataHeader = PackStrataHeader(BSDFCount, StrataHeader);
-
-	const uint FirstSlice = 0;
-	MaterialTextureArrayUAV[uint3(DispatchThreadId.xy, FirstSlice)] = PackedStrataHeader;
-
-	SSSTextureUAV[uint3(DispatchThreadId.xy, 0)] = 0; // This is a good clear for FStrataSubsurfaceHeader, and we only need to clear the header.
-}
-
-#endif // SHADER_CLEAR_MATERIAL_BUFFER
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
