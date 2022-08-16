@@ -4,6 +4,7 @@
 
 #include "Misc/ConfigCacheIni.h"
 #include "Online/OnlineMeta.h"
+#include "Algo/Transform.h"
 
 namespace UE::Online {
 
@@ -69,6 +70,26 @@ public:
 		if (GetValue(Section, Key, StringValue))
 		{
 			return FTextStringHelper::ReadFromBuffer(*StringValue, Value, Section) != nullptr;
+		}
+		return false;
+	}
+
+	/**
+	 * Get an FName value
+	 *
+	 * @param Section Section to read the value from
+	 * @param Key Key in the section for the value
+	 * @param Value FName value read from the config. Will be unchanged if not present
+	 *
+	 * @return true if a value was read
+	 */
+	virtual bool GetValue(const TCHAR* Section, const TCHAR* Key, FName& Value)
+	{
+		FString StringValue;
+		if (GetValue(Section, Key, StringValue))
+		{
+			Value = FName(*StringValue);
+			return true;
 		}
 		return false;
 	}
@@ -209,12 +230,38 @@ public:
 		if (GetValue(Section, Key, StringArray) > 0)
 		{
 			Value.Reserve(StringArray.Num());
-			for (const FString& StringValue : StringArray)
-			{
-				FText TextValue;
-				FTextStringHelper::ReadFromBuffer(*StringValue, TextValue, Section);
-				Value.Emplace(TextValue);
-			}
+			Algo::Transform(StringArray, Value,
+				[Section](const FString& StringValue) -> FText
+				{
+					FText TextValue;
+					FTextStringHelper::ReadFromBuffer(*StringValue, TextValue, Section);
+					return TextValue;
+				});
+		}
+		return Value.Num();
+	}
+
+	/**
+	 * Get a value consisting of a TArray of FName
+	 *
+	 * @param Section Section to read the value from
+	 * @param Key Key in the section for the value
+	 * @param Value Array of FName values read from the config. Will be empty if not present
+	 *
+	 * @return number of values in the array
+	 */
+	virtual int32 GetValue(const TCHAR* Section, const TCHAR* Key, TArray<FName>& Value)
+	{
+		Value.Empty();
+		TArray<FString> StringArray;
+		if (GetValue(Section, Key, StringArray) > 0)
+		{
+			Value.Reserve(StringArray.Num());
+			Algo::Transform(StringArray, Value,
+				[](const FString& StringValue) -> const TCHAR*
+				{
+					return *StringValue;
+				});
 		}
 		return Value.Num();
 	}
@@ -235,10 +282,11 @@ public:
 		if (GetValue(Section, Key, StringArray) > 0)
 		{
 			Value.Reserve(StringArray.Num());
-			for (const FString& StringValue : StringArray)
-			{
-				Value.Emplace(FCString::ToBool(*StringValue));
-			}
+			Algo::Transform(StringArray, Value,
+				[](const FString& StringValue) -> bool
+				{
+					return FCString::ToBool(*StringValue);
+				});
 		}
 		return Value.Num();
 	}
@@ -259,10 +307,11 @@ public:
 		if (GetValue(Section, Key, StringArray) > 0)
 		{
 			Value.Reserve(StringArray.Num());
-			for (const FString& StringValue : StringArray)
-			{
-				Value.Emplace(FCString::Strtoi(*StringValue, nullptr, 10));
-			}
+			Algo::Transform(StringArray, Value,
+				[](const FString& StringValue) -> int32
+				{
+					return FCString::Strtoi(*StringValue, nullptr, 10);
+				});
 		}
 		return Value.Num();
 	}
@@ -283,10 +332,11 @@ public:
 		if (GetValue(Section, Key, StringArray) > 0)
 		{
 			Value.Reserve(StringArray.Num());
-			for (const FString& StringValue : StringArray)
-			{
-				Value.Emplace(FCString::Strtoi64(*StringValue, nullptr, 10));
-			}
+			Algo::Transform(StringArray, Value,
+				[](const FString& StringValue) -> int64
+				{
+					return FCString::Strtoi64(*StringValue, nullptr, 10);
+				});
 		}
 		return Value.Num();
 	}
@@ -307,10 +357,11 @@ public:
 		if (GetValue(Section, Key, StringArray) > 0)
 		{
 			Value.Reserve(StringArray.Num());
-			for (const FString& StringValue : StringArray)
-			{
-				Value.Emplace(FCString::Strtoui64(*StringValue, nullptr, 10));
-			}
+			Algo::Transform(StringArray, Value,
+				[](const FString& StringValue) -> uint64
+				{
+					return FCString::Strtoui64(*StringValue, nullptr, 10);
+				});
 		}
 		return Value.Num();
 	}
@@ -331,10 +382,11 @@ public:
 		if (GetValue(Section, Key, StringArray) > 0)
 		{
 			Value.Reserve(StringArray.Num());
-			for (const FString& StringValue : StringArray)
-			{
-				Value.Emplace(FCString::Atof(*StringValue));
-			}
+			Algo::Transform(StringArray, Value,
+				[](const FString& StringValue) -> float
+				{
+					return FCString::Atof(*StringValue);
+				});
 		}
 		return Value.Num();
 	}
@@ -355,13 +407,20 @@ public:
 		if (GetValue(Section, Key, StringArray) > 0)
 		{
 			Value.Reserve(StringArray.Num());
-			for (const FString& StringValue : StringArray)
-			{
-				Value.Emplace(FCString::Atod(*StringValue));
-			}
+			Algo::Transform(StringArray, Value,
+				[](const FString& StringValue) -> double
+				{
+					return FCString::Atod(*StringValue);
+				});
 		}
 		return Value.Num();
 	}
+
+	template <typename T>
+	std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, bool> GetValue(const TCHAR* Section, const TCHAR* Key, T& Value);
+
+	template <typename T>
+	std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, int32> GetValue(const TCHAR* Section, const TCHAR* Key, TArray<T>& Value);
 };
 
 /**
@@ -420,6 +479,27 @@ auto LoadConfigValue(IOnlineConfigProvider& Provider, const TCHAR* Section, cons
 	return false;
 }
 
+template <typename T>
+auto LoadConfigValue(IOnlineConfigProvider& Provider, const TCHAR* Section, const TCHAR* Key, TArray<T>& Value)
+	-> std::enable_if_t<std::is_enum_v<T>, int32>
+{
+	Value.Empty();
+	TArray<FString> StringArray;
+	if (Provider.GetValue(Section, Key, StringArray))
+	{
+		Value.Reserve(StringArray.Num());
+		Algo::Transform(StringArray, Value,
+			[](const FString& StringValue) -> T
+			{
+				T EnumValue;
+				using ::LexFromString;
+				LexFromString(EnumValue, *StringValue);
+				return EnumValue;
+			});
+	}
+	return Value.Num();
+}
+
 /* Private */ }
 
 /**
@@ -445,14 +525,66 @@ bool LoadConfig(IOnlineConfigProvider& Provider, const FString& Section, StructT
 }
 
 template <typename StructType>
-bool LoadConfig(IOnlineConfigProvider& Provider, const TArray<FString>& SectionHeiarchy, StructType& Struct)
+bool LoadConfig(IOnlineConfigProvider& Provider, const TArray<FString>& SectionHeiarchy, StructType& OutValue)
 {
 	bool bLoadedValue = false;
 	for (const FString& Section : SectionHeiarchy)
 	{
-		LoadConfig(Provider, Section, Struct);
+		StructType Value;
+		if (LoadConfig(Provider, Section, Value))
+		{
+			bLoadedValue = true;
+			OutValue = MoveTemp(Value);
+		}
 	}
 	return bLoadedValue;
+}
+
+template <typename T>
+std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, bool> IOnlineConfigProvider::GetValue(const TCHAR* Section, const TCHAR* Key, T& OutValue)
+{
+	const FString AggregateSection = FString::Printf(TEXT("%s.%s"), Section, Key);
+	bool bLoadedValue = false;
+	T Value;
+	Meta::VisitFields(Value,
+		[this, &AggregateSection, &bLoadedValue](const TCHAR* FieldName, auto& Field)
+		{
+			bLoadedValue |= Private::LoadConfigValue(*this, *AggregateSection, FieldName, Field);
+		});
+
+	if (bLoadedValue)
+	{
+		OutValue = MoveTemp(Value);
+	}
+
+	return bLoadedValue;
+}
+
+template <typename T>
+std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, int32> IOnlineConfigProvider::GetValue(const TCHAR* Section, const TCHAR* Key, TArray<T>& Value)
+{
+	Value.Empty();
+	TArray<FString> StringArray;
+	if (GetValue(Section, Key, StringArray) > 0)
+	{
+		Value.Reserve(StringArray.Num());
+		for (const FString& StringValue : StringArray)
+		{
+			FString PrecedingToken;
+			const TCHAR* OldValue = *StringValue;
+
+			if (FParse::Token(OldValue, PrecedingToken, true))
+			{
+				const FString AggregateSection = FString::Printf(TEXT("%s.%s.%s"), Section, Key, *StringValue);
+				Meta::VisitFields(Value.Emplace_GetRef(),
+					[this, &AggregateSection](const TCHAR* FieldName, auto& Field)
+					{
+						Private::LoadConfigValue(*this, *AggregateSection, FieldName, Field);
+					});
+			}
+		}
+	}
+	return Value.Num();
 }
 
 /* UE::Online */ }

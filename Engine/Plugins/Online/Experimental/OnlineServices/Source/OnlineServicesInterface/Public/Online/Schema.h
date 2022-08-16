@@ -3,59 +3,58 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/TVariant.h"
+#include "Online/SchemaTypes.h"
 
 namespace UE::Online {
 
-using FSchemaId = FName;
-using FSchemaAttributeId = FName;
+class FSchemaRegistry;
 
-class ONLINESERVICESINTERFACE_API FSchemaVariant final
+class ONLINESERVICESINTERFACE_API FSchemaCategoryInstance
 {
 public:
-	using FVariantType = TVariant<FString, int64, double, bool>;
-	FSchemaVariant() = default;
-	FSchemaVariant(const FSchemaVariant& InOther) = default;
-	FSchemaVariant(FSchemaVariant&& InOther) = default;
-	FSchemaVariant& operator=(FSchemaVariant&&) = default;
-	FSchemaVariant& operator=(const FSchemaVariant&) = default;
+	FSchemaCategoryInstance(
+		const FSchemaId& SchemaId,
+		const FSchemaId& BaseSchemaId,
+		const FSchemaCategoryId& CategoryId,
+		const TSharedRef<const FSchemaRegistry>& Registry);
 
-	template<typename ValueType>
-	FSchemaVariant(const ValueType& InData) { Set(InData); }
-	template<typename ValueType>
-	FSchemaVariant(ValueType&& InData) { Set(MoveTemp(InData)); }
-	void Set(const TCHAR* AsString) { VariantData.Emplace<FString>(AsString); }
-	void Set(const FString& AsString) { VariantData.Emplace<FString>(AsString); }
-	void Set(FString&& AsString) { VariantData.Emplace<FString>(MoveTemp(AsString)); }
-	void Set(int64 AsInt) { VariantData.Emplace<int64>(AsInt); }
-	void Set(double AsDouble) { VariantData.Emplace<double>(AsDouble); }
-	void Set(bool bAsBool) { VariantData.Emplace<bool>(bAsBool); }
-	int64 GetInt64() const;
-	double GetDouble() const;
-	bool GetBoolean() const;
-	FString GetString() const;
+#if 0 // todo
+	TOnlineResult<FSchemaCategoryInstanceChangeSchema> ChangeSchema(FSchemaCategoryInstanceChangeSchema::Params&& Params);
+#endif
+	TOnlineResult<FSchemaCategoryInstanceApplyApplicationChanges> ApplyChanges(FSchemaCategoryInstanceApplyApplicationChanges::Params&& Changes);
+	TOnlineResult<FSchemaCategoryInstanceApplyServiceChanges> ApplyChanges(FSchemaCategoryInstanceApplyServiceChanges::Params&& Changes);
 
-	bool operator==(const FSchemaVariant& Other) const;
-	bool operator!=(const FSchemaVariant& Other) const { return !(*this == Other); }
-public:
-	FVariantType VariantData;
+	TSharedPtr<const FSchemaDefinition> GetDefinition() const { return SchemaDefinition; };
+
+	// Check whether the category instance initialized successfully.
+	bool IsValid() const;
+
+	// Check whether an application attribute is valid in the schema category.
+	// Intended to verify attributes when there is no backing service for a schema.
+	bool IsValidAttributeData(const FSchemaAttributeId& Id, const FSchemaVariant& Data);
+
+private:
+	TSharedPtr<const FSchemaDefinition> SchemaDefinition;
+	const FSchemaCategoryDefinition* SchemaCategoryDefinition = nullptr;
+
+	// Cache of data in application form. Updates from the application may only be part of a
+	// service field, so the values need to be cached so that the service field can rebuilt when
+	// changes occur.
+	TMap<FSchemaAttributeId, FSchemaVariant> AppDataSnapshot;
 };
 
-// Don't allow implicit conversion to FSchemaVariant when calling LexToString.
-template <typename T> class FLexToStringAdaptor;
-template <>
-class FLexToStringAdaptor<FSchemaVariant>
+class ONLINESERVICESINTERFACE_API FSchemaRegistry
 {
 public:
-	FLexToStringAdaptor(const FSchemaVariant& SchemaVariant)
-		: SchemaVariant(SchemaVariant)
-	{
-	}
+	// Parse the loaded config structures.
+	bool ParseConfig(const FSchemaRegistryDescriptorConfig& Config);
 
-	const FSchemaVariant& SchemaVariant;
+	TSharedPtr<const FSchemaDefinition> GetDefinition(const FSchemaId& SchemaId) const;
+	bool IsSchemaChildOf(const FSchemaId& SchemaId, const FSchemaId& ParentSchemaId) const;
+
+private:
+
+	TMap<FSchemaId, TSharedRef<const FSchemaDefinition>> SchemaDefinitions;
 };
-
-ONLINESERVICESINTERFACE_API const FString LexToString(const FLexToStringAdaptor<FSchemaVariant>& Adaptor);
-ONLINESERVICESINTERFACE_API void LexFromString(FSchemaVariant& Variant, const TCHAR* InStr);
 
 /* UE::Online */ }
