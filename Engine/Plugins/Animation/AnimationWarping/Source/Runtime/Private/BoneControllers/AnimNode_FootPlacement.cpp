@@ -544,9 +544,12 @@ void FAnimNode_FootPlacement::DeterminePlantType(
 			CurrentBoneTransformWS.GetLocation() - FKTransformWS.GetLocation();
 
 		// TODO: Test along approach direction
+		// Don't consider the limits to be exceeded if replant radius == unplant radius.
 		const bool bPlantTranslationExceeded =
+			PlantSettings.ReplantMaxLinearErrorRatio < 1.0f &&
 			PlantTranslationWS.SizeSquared2D() > PlantRuntimeSettings.MaxLinearErrorSqrd;
 		const bool bPlantRotationExceeded =
+			PlantSettings.ReplantMaxRotationErrorRatio < 1.0f &&
 			FMath::Abs(InOutPlantData.TwistCorrection.W) <
 			PlantRuntimeSettings.CosHalfMaxRotationError;
 
@@ -875,12 +878,15 @@ void FAnimNode_FootPlacement::DrawDebug(
 		PlantCenter, UnplantRadius, 24, PlantedColor,
 		LegData.Plant.PlantPlaneWS.GetNormal(), false, -1.0f, SDPG_Foreground, 0.5f);
 
-	const float ReplantRadius =
-		PlantSettings.MaxLinearError *
-		PlantSettings.ReplantMaxLinearErrorRatio;
-	Context.CSPContext.AnimInstanceProxy->AnimDrawDebugCircle(
-		PlantCenter, ReplantRadius, 24, ReplantedColor,
-		LegData.Plant.PlantPlaneWS.GetNormal(), false, -1.0f, SDPG_Foreground, 0.5f);
+	if (PlantSettings.ReplantMaxLinearErrorRatio < 1.0f)
+	{
+		const float ReplantRadius =
+			PlantSettings.MaxLinearError *
+			PlantSettings.ReplantMaxLinearErrorRatio;
+		Context.CSPContext.AnimInstanceProxy->AnimDrawDebugCircle(
+			PlantCenter, ReplantRadius, 24, ReplantedColor,
+			LegData.Plant.PlantPlaneWS.GetNormal(), false, -1.0f, SDPG_Foreground, 0.5f);
+	}
 
 	
 	FString InputPoseMessage = FString::Format(
@@ -1374,6 +1380,32 @@ void FAnimNode_FootPlacement::ProcessFootAlignment(
 		{
 			Plant.TimeSinceFullyUnaligned += Context.UpdateDeltaTime;
 		}
+	}
+
+	// If replant radius is the same as unplant radius, clamp the location and slide
+	if (PlantSettings.ReplantMaxLinearErrorRatio >= 1.0f)
+	{
+		const FVector ClampedTransltionOffset = Interpolation.UnalignedFootOffsetCS.GetLocation().GetClampedToMaxSize(PlantSettings.MaxLinearError);
+		Interpolation.UnalignedFootOffsetCS.SetLocation(ClampedTransltionOffset);
+	}
+
+	// If replant angle is the same as unplant angle, clamp the angle and slide
+	if (PlantSettings.ReplantMaxRotationErrorRatio >= 1.0f)
+	{
+		FQuat ClampedRotationOffset = Interpolation.UnalignedFootOffsetCS.GetRotation();
+		ClampedRotationOffset.Normalize();
+		ClampedRotationOffset = ClampedRotationOffset.W < 0.0 ? -ClampedRotationOffset : ClampedRotationOffset;
+
+		FVector OffsetAxis;
+		float OffsetAngle;
+		ClampedRotationOffset.ToAxisAndAngle(OffsetAxis, OffsetAngle);
+
+		const float MaxAngle = FMath::DegreesToRadians(PlantSettings.MaxRotationError);
+		if (FMath::Abs(OffsetAngle) > MaxAngle)
+		{
+			ClampedRotationOffset = FQuat(OffsetAxis, MaxAngle);
+		}
+		Interpolation.UnalignedFootOffsetCS.SetRotation(ClampedRotationOffset);
 	}
 
 	const FTransform IKUnalignedTransformCS = InputPose.IKTransformCS * Interpolation.UnalignedFootOffsetCS;

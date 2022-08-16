@@ -337,11 +337,11 @@ public:
 	float SpeedThreshold = 60.0f;
 
 	// Max extension ratio of the chain, calculated from the remaining length between current pose and full limb extension
-	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	float MaxExtensionRatio = 0.5f;
 
 	// Min extension ratio of the chain, calculated from the total limb length, and adjusted along the approach direction
-	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	float MinExtensionRatio = 0.2f;
 
 	// How much linear deviation causes the constraint to be released
@@ -349,7 +349,7 @@ public:
 	float MaxLinearError = 35.0f;
 
 	// Below this value, proportional to MaxLinearError, the bone will replant
-	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	float ReplantMaxLinearErrorRatio = 0.35f;
 
 	UPROPERTY(EditAnywhere, Category = "Plant Settings")
@@ -360,7 +360,7 @@ public:
 	float MaxRotationError = 45.0;
 
 	// Below this value, proportional to MaxRotationError, the bone will replant
-	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	float ReplantMaxRotationErrorRatio = 0.5f;
 
 	// Speed at which we transition to fully unplanted.
@@ -369,9 +369,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Plant Settings")
 	float UnalignmentSpeedThreshold = 200.0f;
 
-	// Speed at which we transition to fully unplanted.
-	// The range between SpeedThreshold and UnalignmentSpeedThreshold should roughly represent the roll-phase of the foot
-	// TODO: This feels innaccurate most of the time, and varies depending on anim speed. Improve this
+	// How much we reduce the procedural ankle twist adjustment used to align the foot to the ground slope.
 	UPROPERTY(EditAnywhere, Category = "Plant Settings")
 	float AnkleTwistReduction = 0.75f;
 
