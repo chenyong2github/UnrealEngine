@@ -253,11 +253,11 @@ bool FControlRigEditModeToolkit::CanChangeAnimSliderTool() const
 	return (TweenWidgetParent && TweenWidget);
 }
 
-void FControlRigEditModeToolkit::DragAnimSliderTool(double IncrementVal)
+void FControlRigEditModeToolkit::DragAnimSliderTool(double Val)
 {
 	if (TweenWidgetParent && TweenWidget)
 	{
-		TweenWidget->DragAnimSliderTool(IncrementVal);
+		TweenWidget->DragAnimSliderTool(Val);
 	}
 }
 void FControlRigEditModeToolkit::ResetAnimSlider()

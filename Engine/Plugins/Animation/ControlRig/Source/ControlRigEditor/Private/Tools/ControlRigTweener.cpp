@@ -387,6 +387,10 @@ bool FAnimSliderObjectSelection::Setup(const TArray<UControlRig*>& SelectedContr
 							KeyTimes.SetNum(0);
 							Handles.SetNum(0);
 							FChannelMapInfo* pChannelIndex = Section->ControlChannelMap.Find(ControlElement->GetName());
+							if (pChannelIndex == nullptr)
+							{
+								continue;
+							}
 							int NumChannels = 0;
 							switch (ControlElement->Settings.ControlType)
 							{

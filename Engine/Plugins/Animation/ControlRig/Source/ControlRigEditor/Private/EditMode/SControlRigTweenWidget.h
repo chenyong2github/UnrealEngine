@@ -32,7 +32,7 @@ class SControlRigTweenSlider : public SCompoundWidget
 
 	void Construct(const FArguments& InArgs);
 	void SetAnimSlider(TSharedPtr<FBaseAnimSlider>& InAnimSlider) { AnimSlider = InAnimSlider; }
-	void DragAnimSliderTool(double IncrementVal);
+	void DragAnimSliderTool(double Val);
 	void ResetAnimSlider();
 private:
 
@@ -71,7 +71,7 @@ class SControlRigTweenWidget : public SCompoundWidget
 	void Construct(const FArguments& InArgs);
 
 	void GetToNextActiveSlider();
-	void DragAnimSliderTool(double IncrementVal);
+	void DragAnimSliderTool(double Val);
 	void ResetAnimSlider();
 
 private:

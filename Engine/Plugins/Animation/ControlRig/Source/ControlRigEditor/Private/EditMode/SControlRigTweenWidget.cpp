@@ -29,10 +29,8 @@ void SControlRigTweenSlider::Construct(const FArguments& InArgs)
 	bIsBlending = false;
 	bSliderStartedTransaction = false;
 	AnimSlider = InArgs._InAnimSlider;
-	FText Text = AnimSlider->GetText();
-	FText TooltipText = AnimSlider->GetTooltipText();
 	ChildSlot
-[
+	[
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
 		.AutoHeight()
@@ -47,7 +45,11 @@ void SControlRigTweenSlider::Construct(const FArguments& InArgs)
 					SAssignNew(SpinBox,SSpinBox<double>)
 					.PreventThrottling(true)
 					.Value(this, &SControlRigTweenSlider::OnGetPoseBlendValue)
-					.ToolTipText(LOCTEXT("TweenTooltip", "Key at current frame between previous(-1.0) and next(1.0) poses. Use Ctrl drag for under and over shoot."))
+					.ToolTipText_Lambda([this]()
+						{
+							FText TooltipText = AnimSlider->GetTooltipText();
+							return TooltipText;
+						})
 					.MinValue(-2.0)
 					.MaxValue(2.0)
 					.MinSliderValue(-1.0)
@@ -88,7 +90,7 @@ void SControlRigTweenSlider::ResetAnimSlider()
 	}
 }
 
-void SControlRigTweenSlider::DragAnimSliderTool(double IncrementVal)
+void SControlRigTweenSlider::DragAnimSliderTool(double Val)
 {
 	if (SpinBox.IsValid())
 	{
@@ -97,7 +99,7 @@ void SControlRigTweenSlider::DragAnimSliderTool(double IncrementVal)
 		const double MinSliderVal = bCtrlDown ? SpinBox->GetMinValue() : SpinBox->GetMinSliderValue();
 		const double MaxSliderVal = bCtrlDown ? SpinBox->GetMaxValue() : SpinBox->GetMaxSliderValue();
 
-		double NewVal = SpinBox->GetValue() + IncrementVal;
+		double NewVal = Val;
 		if (NewVal > MaxSliderVal)
 		{
 			NewVal = MaxSliderVal;
@@ -191,20 +193,24 @@ void SControlRigTweenWidget::FinishDraggingWidget(const FVector2D InLocation)
 
 void SControlRigTweenSlider::OnPoseBlendCommited(double ChangedVal, ETextCommit::Type Type)
 {
-	if (bIsBlending == false)
+	if (SpinBox.IsValid() && SpinBox->HasKeyboardFocus())
 	{
-		bIsBlending = Setup();
+		if (bIsBlending == false)
+		{
+			bIsBlending = Setup();
 
-	}
-	if(bIsBlending)
-	{
-		FScopedTransaction ScopedTransaction(LOCTEXT("TweenTransaction", "Tween"));
-		PoseBlendValue = ChangedVal;
-		OnPoseBlendChanged(ChangedVal);
-		bIsBlending = false;
-		PoseBlendValue = 0.0f;
+		}
+		if (bIsBlending)
+		{
+			FScopedTransaction ScopedTransaction(LOCTEXT("TweenTransaction", "Tween"));
+			PoseBlendValue = ChangedVal;
+			OnPoseBlendChanged(ChangedVal);
+			bIsBlending = false;
+			PoseBlendValue = 0.0f;
+		}
 	}
 }
+
 
 void SControlRigTweenWidget::OnSelectSliderTool(int32 Index)
 {
@@ -337,11 +343,11 @@ void SControlRigTweenWidget::GetToNextActiveSlider()
 	OnSelectSliderTool(Index);
 }
 
-void SControlRigTweenWidget::DragAnimSliderTool(double IncrementVal)
+void SControlRigTweenWidget::DragAnimSliderTool(double Val)
 {
 	if (SliderWidget.IsValid())
 	{
-		SliderWidget->DragAnimSliderTool(IncrementVal);
+		SliderWidget->DragAnimSliderTool(Val);
 	}
 }
 

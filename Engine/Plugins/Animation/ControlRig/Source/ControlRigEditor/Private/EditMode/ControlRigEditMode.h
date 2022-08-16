@@ -217,7 +217,7 @@ protected:
 	bool CanChangeAnimSliderTool() const;
 
 	/** If Anim Slider is open, drag the tool*/
-	void DragAnimSliderTool(double IncrementVal);
+	void DragAnimSliderTool(double Val);
 
 	/** Reset and stop user the anim slider tool*/
 	void ResetAnimSlider();
@@ -344,6 +344,7 @@ protected:
 	bool bisTrackingAnimToolDrag = false;
 	/** Starting X Value*/
 	TOptional<int32> StartXValue;
+
 	
 public: 
 	/** Clear all selected RigElements */

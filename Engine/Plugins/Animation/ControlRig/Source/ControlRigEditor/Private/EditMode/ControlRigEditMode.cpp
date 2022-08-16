@@ -977,7 +977,6 @@ bool FControlRigEditMode::ProcessCapturedMouseMoves(FEditorViewportClient* InVie
 						const double ViewDiff = (double)(Diff) / ViewPortSize;
 						DragAnimSliderTool(ViewDiff);
 					}
-					StartXValue = X;
 				}
 			}
 		}

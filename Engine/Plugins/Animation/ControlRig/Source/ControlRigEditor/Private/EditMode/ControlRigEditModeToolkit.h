@@ -55,7 +55,7 @@ public:
 	/** For updating tween values via hot keys*/
 	void GetToNextActiveSlider();
 	bool CanChangeAnimSliderTool() const;
-	void DragAnimSliderTool(double IncrementVal);
+	void DragAnimSliderTool(double Val);
 	void ResetAnimSlider();
 
 public:
