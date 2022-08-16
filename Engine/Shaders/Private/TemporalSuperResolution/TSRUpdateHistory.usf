@@ -300,9 +300,9 @@ T BilinearSampleColorHistory(Texture2D<T> Texture, float2 SampleUV)
 //------------------------------------------------------- ENTRY POINT
 
 #if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
-	[numthreads(TILE_SIZE, TILE_SIZE / 2, 1)]
+	[numthreads(TILE_SIZE * TILE_SIZE / 2, 1, 1)]
 #else
-	[numthreads(TILE_SIZE, TILE_SIZE, 1)]
+	[numthreads(TILE_SIZE * TILE_SIZE, 1, 1)]
 #endif
 void MainCS(
 	uint2 GroupId : SV_GroupID,

@@ -30,7 +30,7 @@ tsr_half2 SampleAntiAliasing(tsr_short2 KernelCenter, tsr_short2 Offset)
 
 //------------------------------------------------------- ENTRY POINT
 
-[numthreads(TILE_SIZE, TILE_SIZE, 1)]
+[numthreads(TILE_SIZE * TILE_SIZE, 1, 1)]
 void MainCS(
 	uint2 GroupId : SV_GroupID,
 	uint GroupThreadIndex : SV_GroupIndex)
