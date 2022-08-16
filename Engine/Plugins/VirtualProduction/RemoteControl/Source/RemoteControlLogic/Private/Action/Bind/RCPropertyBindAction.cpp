@@ -73,8 +73,12 @@ void URCPropertyBindAction::Execute() const
 	{
 		const FProperty* ControllerAsProperty = Controller->GetProperty();
 		FProperty* RemoteControlProperty = RemoteControlEntityAsProperty->GetProperty();
+		if (RemoteControlProperty == nullptr)
+		{
+			return;
+		}
 
-		TSharedPtr<IRemoteControlPropertyHandle> Handle = RemoteControlProperty ? RemoteControlEntityAsProperty->GetPropertyHandle() : nullptr;
+		TSharedPtr<IRemoteControlPropertyHandle> Handle = RemoteControlEntityAsProperty->GetPropertyHandle();
 		if (!ensure(Handle))
 		{
 			return;
