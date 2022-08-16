@@ -197,7 +197,7 @@ private:
 	struct FNode
 	{
 
-		FNode() : WaterBodyIndex(0), TransitionWaterBodyIndex(0), ParentIndex(INVALID_PARENT), HasCompleteSubtree(1), IsSubtreeSameWaterBody(1) {}
+		FNode() : WaterBodyIndex(0), TransitionWaterBodyIndex(0), ParentIndex(INVALID_PARENT), HasCompleteSubtree(1), IsSubtreeSameWaterBody(1), HasMaterial(0) {}
 
 		/** If this node is allowed to be rendered, it means it can be rendered in place of all leaf nodes in its subtree. */
 		bool CanRender(int32 InDensityLevel, int32 InForceCollapseDensityLevel, const FWaterBodyRenderData& InWaterBodyRenderData) const;
@@ -241,7 +241,10 @@ private:
 		/** If all descendant nodes are from the same waterbody. We can safely collapse this even if HasCompleteSubtree is false */
 		uint32 IsSubtreeSameWaterBody : 1;
 
-		// 2 spare bits here in the bit field with ParentIndex
+		/** Cached value to avoid having to visit this node's FWaterBodyRenderData */
+		uint32 HasMaterial : 1;
+
+		// 1 spare bits here in the bit field with ParentIndex
 
 		/** Children, 0 means invalid */
 		uint32 Children[4] = { 0, 0, 0, 0 };

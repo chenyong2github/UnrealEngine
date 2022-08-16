@@ -260,19 +260,23 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 		// Assign material instance
 		UMaterialInstanceDynamic* WaterMaterial = WaterBodyComponent->GetWaterMaterialInstance();
 		RenderData.Material = WaterMaterial;
-		if (!IsMaterialUsedWithWater(RenderData.Material))
+
+		if (RenderData.Material)
 		{
-			RenderData.Material = UMaterial::GetDefaultMaterial(MD_Surface);
-		}
-		else
-		{
-			// Add ocean height as a scalar parameter
-			WaterBodyComponent->SetDynamicParametersOnMID(WaterMaterial);
+			if (!IsMaterialUsedWithWater(RenderData.Material))
+			{
+				RenderData.Material = UMaterial::GetDefaultMaterial(MD_Surface);
+			}
+			else
+			{
+				// Add ocean height as a scalar parameter
+				WaterBodyComponent->SetDynamicParametersOnMID(WaterMaterial);
+			}
+
+			// Add material so that the component keeps track of all potential materials used
+			UsedMaterials.Add(RenderData.Material);
 		}
 
-		// Add material so that the component keeps track of all potential materials used
-		UsedMaterials.Add(RenderData.Material);
-		
 		// Min and max user defined priority range. (Input also clamped on OverlapMaterialPriority in AWaterBody)
 		const int32 MinPriority = -8192;
 		const int32 MaxPriority = 8191;

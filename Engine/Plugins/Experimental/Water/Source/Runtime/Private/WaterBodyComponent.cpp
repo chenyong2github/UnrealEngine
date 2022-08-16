@@ -286,7 +286,8 @@ void UWaterBodyComponent::SetWaterAndUnderWaterPostProcessMaterial(UMaterialInte
 
 bool UWaterBodyComponent::ShouldGenerateWaterMeshTile() const
 {
-	return ((GetWaterBodyType() != EWaterBodyType::Transition)
+	return bAlwaysGenerateWaterMeshTiles
+		|| ((GetWaterBodyType() != EWaterBodyType::Transition)
 		&& (GetWaterMeshOverride() == nullptr)
 		&& (GetWaterMaterial() != nullptr));
 }

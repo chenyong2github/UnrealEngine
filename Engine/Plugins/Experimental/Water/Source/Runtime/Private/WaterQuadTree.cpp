@@ -287,6 +287,9 @@ void FWaterQuadTree::FNode::AddNodes(FNodeData& InNodeData, const FBox& InMeshBo
 	if (InWaterBody.Priority >= ThisWaterBody.Priority)
 	{
 		WaterBodyIndex = InWaterBodyIndex;
+
+		// Cache whether or not this node has a material
+		HasMaterial = InNodeData.WaterBodyRenderData[WaterBodyIndex].Material != nullptr;
 	}
 
 	// Reset the flags before going through the children. These flags will be turned off by recursion if the state changes
@@ -473,6 +476,32 @@ void FWaterQuadTree::Unlock(bool bPruneRedundantNodes)
 
 	if (bPruneRedundantNodes)
 	{
+		auto SwapRemove = [&](int32 NodeIndex, int32 EndIndex)
+		{
+			if (NodeIndex != EndIndex)
+			{
+				// Swap to back. All the children of this node would have already been removed (or didn't exist to begin with), so don't care about those
+				NodeData.Nodes.SwapMemory(NodeIndex, EndIndex);
+
+				// Patch up the newly moved good node (parent and children)
+				FNode& MovedNode = NodeData.Nodes[NodeIndex];
+				FNode& MovedNodeParent = NodeData.Nodes[MovedNode.ParentIndex];
+
+				for (int32 i = 0; i < 4; i++)
+				{
+					if (MovedNode.Children[i] > 0)
+					{
+						NodeData.Nodes[MovedNode.Children[i]].ParentIndex = NodeIndex;
+					}
+
+					if (MovedNodeParent.Children[i] == EndIndex)
+					{
+						MovedNodeParent.Children[i] = NodeIndex;
+					}
+				}
+			}
+		};
+
 		// Remove redundant nodes
 		// Remove from the back, since all removalbe children are further back than their parent in the node list and we want to remove bottom-up
 		int32 EndIndex = NodeData.Nodes.Num() - 1;
@@ -486,28 +515,22 @@ void FWaterQuadTree::Unlock(bool bPruneRedundantNodes)
 				// Delete all children (not strictly necessary, but now we don't leave any dangling/incorrect child pointers around)
 				FMemory::Memzero(&ParentNode.Children, sizeof(uint32) * 4);
 
-				if (NodeIndex != EndIndex)
+				SwapRemove(NodeIndex, EndIndex);
+
+				// Move back one step down
+				EndIndex--;
+			}
+			else if (!NodeData.Nodes[NodeIndex].HasMaterial && NodeData.Nodes[NodeIndex].HasCompleteSubtree && NodeData.Nodes[NodeIndex].IsSubtreeSameWaterBody)
+			{
+				for (int32 i = 0; i < 4; i++)
 				{
-					// Swap to back. All the children of this node would have already been removed (or didn't exist to begin with), so don't care about those
-					NodeData.Nodes.SwapMemory(NodeIndex, EndIndex);
-
-					// Patch up the newly moved good node (parent and children)
-					FNode& MovedNode = NodeData.Nodes[NodeIndex];
-					FNode& MovedNodeParent = NodeData.Nodes[MovedNode.ParentIndex];
-
-					for (int32 i = 0; i < 4; i++)
+					if (ParentNode.Children[i] == NodeIndex)
 					{
-						if (MovedNode.Children[i] > 0)
-						{
-							NodeData.Nodes[MovedNode.Children[i]].ParentIndex = NodeIndex;
-						}
-
-						if (MovedNodeParent.Children[i] == EndIndex)
-						{
-							MovedNodeParent.Children[i] = NodeIndex;
-						}
+						ParentNode.Children[i] = 0;
 					}
 				}
+
+				SwapRemove(NodeIndex, EndIndex);
 
 				// Move back one step down
 				EndIndex--;
