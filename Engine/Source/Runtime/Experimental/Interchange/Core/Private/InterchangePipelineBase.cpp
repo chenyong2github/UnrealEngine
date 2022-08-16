@@ -2,11 +2,19 @@
 
 #include "InterchangePipelineBase.h"
 
-#include "CoreMinimal.h"
+#include "HAL/IConsoleManager.h"
 #include "InterchangeLogPrivate.h"
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+
+INTERCHANGECORE_API bool GInterchangeEnableCustomPipelines = true;
+
+static FAutoConsoleVariableRef CCvarInterchangeEnableCustomPipelines(
+	TEXT("Interchange.FeatureFlags.CustomPipelines"),
+	GInterchangeEnableCustomPipelines,
+	TEXT("Whether custom pipelines support is enabled."),
+	ECVF_Default);
 
 namespace UE
 {

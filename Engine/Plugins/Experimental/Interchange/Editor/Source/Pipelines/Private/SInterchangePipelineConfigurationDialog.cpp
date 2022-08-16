@@ -28,6 +28,8 @@
 
 #define LOCTEXT_NAMESPACE "InterchangePipelineConfiguration"
 
+extern INTERCHANGECORE_API bool GInterchangeEnableCustomPipelines;
+
 namespace UE::Interchange::Private
 {
 	const FInterchangeImportSettings& GetDefaultImportSettings(const bool bIsSceneImport)
@@ -150,6 +152,15 @@ void SInterchangePipelineStacksTreeView::Construct(const FArguments& InArgs)
 		.OnContextMenuOpening(this, &SInterchangePipelineStacksTreeView::OnOpenContextMenu)
 		.OnSelectionChanged(this, &SInterchangePipelineStacksTreeView::OnTreeViewSelectionChanged)
 	);
+}
+
+void SInterchangePipelineStacksTreeView::SelectDefaultItem()
+{
+	if (!RootNodeArray.IsEmpty() && !RootNodeArray[0]->Childrens.IsEmpty())
+	{
+		SetItemExpansion(RootNodeArray[0], true);
+		SetSelection(RootNodeArray[0]->Childrens[0]);
+	}
 }
 
 /** The item used for visualizing the class in the tree. */
@@ -411,13 +422,16 @@ TSharedRef<SBox> SInterchangePipelineConfigurationDialog::SpawnPipelineConfigura
 		.bReimport(bReimport)
 		.PipelineStack(PipelineStack);
 
+	const float PipelineStackTreeViewWidth = GInterchangeEnableCustomPipelines ? 0.4f : 0.f;
+
 	TSharedPtr<SBox> InspectorBox;
 	TSharedRef<SBox> PipelineConfigurationPanelBox = SNew(SBox)
 	[
 		SNew(SSplitter)
 		.Orientation(Orient_Horizontal)
 		+ SSplitter::Slot()
-		.Value(0.4f)
+		.Value(PipelineStackTreeViewWidth)
+		.Resizable(GInterchangeEnableCustomPipelines)
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
@@ -451,7 +465,7 @@ TSharedRef<SBox> SInterchangePipelineConfigurationDialog::SpawnPipelineConfigura
 			]
 		]
 		+ SSplitter::Slot()
-		.Value(0.6f)
+		.Value(1.f - PipelineStackTreeViewWidth)
 		[
 			SAssignNew(InspectorBox, SBox)
 		]
@@ -584,6 +598,8 @@ void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs
 			]
 		]
 	];
+
+	PipelineConfigurationTreeView->SelectDefaultItem();
 }
 
 void SInterchangePipelineConfigurationDialog::OnSelectionChanged(TSharedPtr<FInterchangePipelineStacksTreeNodeItem> Item, ESelectInfo::Type SelectionType)
