@@ -99,14 +99,14 @@ TSharedPtr<FMQTTConnection, ESPMode::ThreadSafe> FMQTTConnection::TryCreate(cons
 	
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 	FSocket* Socket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("MQTTConnection"), FNetworkProtocolTypes::IPv4);
-	check(Socket);
-	Socket->SetReuseAddr(true);
 
 	if (!Socket)
 	{
 		UE_LOG(LogMQTTCore, Error, TEXT("Cannot create MQTTConnection: Error creating Socket for: %s: %s"), *InAddr->ToString(true), SocketSubsystem->GetSocketError(SocketSubsystem->GetLastErrorCode()));
 		return nullptr;
 	}
+
+	Socket->SetReuseAddr(true);
 
 	TSharedPtr<FMQTTConnection, ESPMode::ThreadSafe> Runnable = MakeShared<FMQTTConnection, ESPMode::ThreadSafe>(*Socket, InAddr.ToSharedRef());
 	return Runnable;
