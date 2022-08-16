@@ -26,6 +26,7 @@ public class LevelSequenceEditor : ModuleRules
                 "LevelSequence",
 				"BlueprintGraph",
                 "CinematicCamera",
+				"ClassViewer",
 				"Core",
 				"CoreUObject",
 				"CurveEditor",

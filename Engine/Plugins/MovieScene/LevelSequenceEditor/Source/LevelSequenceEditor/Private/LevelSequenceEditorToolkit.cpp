@@ -53,6 +53,8 @@
 #include "MovieScene.h"
 #include "UnrealEdMisc.h"
 #include "ToolMenus.h"
+#include "ClassViewerFilter.h"
+#include "ClassViewerModule.h"
 
 // @todo sequencer: hack: setting defaults for transform tracks
 
@@ -880,6 +882,11 @@ void FLevelSequenceEditorToolkit::HandleTrackMenuExtensionAddTrack(FMenuBuilder&
 	{
 		return;
 	}
+	
+	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
+	const TSharedPtr<IClassViewerFilter>& GlobalClassFilter = ClassViewerModule.GetGlobalClassViewerFilter();
+	TSharedRef<FClassViewerFilterFuncs> ClassFilterFuncs = ClassViewerModule.CreateFilterFuncs();
+	FClassViewerInitializationOptions ClassViewerOptions = {};
 
 	AActor* Actor = Cast<AActor>(ContextObjects[0]);
 	if (Actor != nullptr)
@@ -889,7 +896,7 @@ void FLevelSequenceEditorToolkit::HandleTrackMenuExtensionAddTrack(FMenuBuilder&
 			TMap<FString, UActorComponent*> SortedComponents;
 			for (UActorComponent* Component : Actor->GetComponents())
 			{
-				if (Component)
+				if (Component && !Component->IsVisualizationComponent() && GlobalClassFilter.IsValid() && GlobalClassFilter->IsClassAllowed(ClassViewerOptions, Component->GetClass(), ClassFilterFuncs))
 				{
 					SortedComponents.Add(Component->GetName(), Component);
 				}
