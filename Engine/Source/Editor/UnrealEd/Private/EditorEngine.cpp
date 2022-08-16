@@ -6288,7 +6288,11 @@ bool UEditorEngine::IsAnyViewportRealtime()
 
 bool UEditorEngine::ShouldThrottleCPUUsage() const
 {
-	if (IsRunningCommandlet() || FApp::IsBenchmarking())
+	// Don't throttle here. Benchmarking, automation, and terminal shouldn't throttle 
+	if (IsRunningCommandlet() 
+		|| FApp::IsBenchmarking()
+		|| FApp::IsUnattended()
+		|| !FApp::CanEverRender())
 	{
 		return false;
 	}
