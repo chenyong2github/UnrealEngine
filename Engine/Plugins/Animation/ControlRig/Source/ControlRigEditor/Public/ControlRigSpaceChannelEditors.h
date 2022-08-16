@@ -59,11 +59,6 @@ struct FControlRigSpaceChannelHelpers
 	static FLinearColor GetColor(const FMovieSceneControlRigSpaceBaseKey& Key);
 	static FReply OpenBakeDialog(ISequencer* Sequencer, FMovieSceneControlRigSpaceChannel* Channel, int32 KeyIndex, UMovieSceneSection* SectionToKey);
 	static TArray<FKeyBarCurveModel::FBarRange> FindRanges(FMovieSceneControlRigSpaceChannel* Channel, const UMovieSceneSection* Section);
-
-	// evaluates the tangent by central difference at a specific time. (return the closest key tangent if within an acceptable tolerance) 
-	static void EvaluateTangentAtThisTime(int32 ChannelIndex, int32 NumChannels, bool bFloatChannels, UMovieSceneSection* Section,  FFrameNumber Time, TArray<FMovieSceneTangentData>& OutTangents);
-	// set the tangent at a specific time. (if there's a key to set at this time)
-	static void SetTangentsAtThisTime(int32 ChannelIndex, int32 NumChannels,bool bFloatChannels, UMovieSceneSection* Section, FFrameNumber Time, const TArray<FMovieSceneTangentData>& InTangents);
 	// retrieve the control and the channel infos for that ControlRig/Section.
 	static TPair<FRigControlElement*, FChannelMapInfo*> GetControlAndChannelInfo(UControlRig* ControlRig, UMovieSceneControlRigParameterSection* Section, FName ControlName);
 	// retrieve the number of float channels based on the control type.

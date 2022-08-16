@@ -2,11 +2,15 @@
 
 
 #include "TransformableHandle.h"
-
+#include "ConstraintsManager.h"
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
 #include "Engine/Engine.h"
-
+#include "MovieSceneSection.h"
+#include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneDoubleChannel.h"
+#include "Channels/MovieSceneChannelProxy.h"
+#include "Channels/MovieSceneDoubleChannel.h"
 /**
  * UTransformableHandle
  */
@@ -40,9 +44,15 @@ bool UTransformableComponentHandle::IsValid() const
 
 void UTransformableComponentHandle::SetGlobalTransform(const FTransform& InGlobal) const
 {
-	if(Component.IsValid())
+	if (Component.IsValid())
 	{
 		Component->SetWorldTransform(InGlobal);
+		UWorld* World = Component->GetWorld();
+		if (World)
+		{
+			FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+			Controller.OnSceneComponentConstrained().Broadcast(Component.Get());
+		}
 	}
 }
 
@@ -51,6 +61,12 @@ void UTransformableComponentHandle::SetLocalTransform(const FTransform& InLocal)
 	if(Component.IsValid())
 	{
 		Component->SetRelativeTransform(InLocal);
+		UWorld* World = Component->GetWorld();
+		if (World)
+		{
+			FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+			Controller.OnSceneComponentConstrained().Broadcast(Component.Get());
+		}
 	}
 }
 
@@ -165,6 +181,154 @@ void UTransformableComponentHandle::OnPostPropertyChanged(
 		OnHandleModified.Broadcast(this, true);
 	}
 }
+
+TArrayView<FMovieSceneFloatChannel*>  UTransformableComponentHandle::GetFloatChannels(const UMovieSceneSection* InSection) const
+{
+	// no floats for transform sections
+	static const TArrayView<FMovieSceneFloatChannel*> EmptyChannelsView;
+	return EmptyChannelsView;
+}
+
+TArrayView<FMovieSceneDoubleChannel*>  UTransformableComponentHandle::GetDoubleChannels(const UMovieSceneSection* InSection) const
+{
+	static const TArrayView<FMovieSceneDoubleChannel*> EmptyChannelsView;
+	if (InSection)
+	{
+		return InSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+	}
+	return EmptyChannelsView;
+}
+
+bool UTransformableComponentHandle::AddTransformKeys(const TArray<FFrameNumber>& Frames,
+	const TArray<FTransform>& InLocalTransforms,
+	const EMovieSceneTransformChannel& InChannels,
+	const FFrameRate& InTickResolution,
+	UMovieSceneSection* InTransformSection,
+	const bool bLocal) const
+{
+	//todo 
+	//note this is the same as MOvieSceneToolHelpers::AddTransformKeys but that's in the editor code, need to find a place in the runtime someewhere
+	if (!InTransformSection)
+	{
+		return false;
+	}
+
+	if (Frames.IsEmpty() || Frames.Num() != InLocalTransforms.Num())
+	{
+		return false;
+	}
+
+	auto GetValue = [](const uint32 Index, const FVector& InLocation, const FRotator& InRotation, const FVector& InScale)
+	{
+		switch (Index)
+		{
+		case 0:
+			return InLocation.X;
+		case 1:
+			return InLocation.Y;
+		case 2:
+			return InLocation.Z;
+		case 3:
+			return InRotation.Roll;
+		case 4:
+			return InRotation.Pitch;
+		case 5:
+			return InRotation.Yaw;
+		case 6:
+			return InScale.X;
+		case 7:
+			return InScale.Y;
+		case 8:
+			return InScale.Z;
+		default:
+			ensure(false);
+			break;
+		}
+		return 0.0;
+	};
+
+	const bool bKeyTranslation = EnumHasAllFlags(InChannels, EMovieSceneTransformChannel::Translation);
+	const bool bKeyRotation = EnumHasAllFlags(InChannels, EMovieSceneTransformChannel::Rotation);
+	const bool bKeyScale = EnumHasAllFlags(InChannels, EMovieSceneTransformChannel::Scale);
+
+	TArray<uint32> ChannelsIndexToKey;
+	if (bKeyTranslation)
+	{
+		ChannelsIndexToKey.Append({ 0,1,2 });
+	}
+	if (bKeyRotation)
+	{
+		ChannelsIndexToKey.Append({ 3,4,5 });
+	}
+	if (bKeyScale)
+	{
+		ChannelsIndexToKey.Append({ 6,7,8 });
+	}
+
+	const TArrayView<FMovieSceneDoubleChannel*> Channels =
+		InTransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+
+	// set default
+	const FTransform& LocalTransform0 = InLocalTransforms[0];
+	const FVector Location0 = LocalTransform0.GetLocation();
+	const FRotator Rotation0 = LocalTransform0.GetRotation().Rotator();
+	const FVector Scale3D0 = LocalTransform0.GetScale3D();
+
+	for (int32 ChannelIndex = 0; ChannelIndex < 9; ChannelIndex++)
+	{
+		if (!Channels[ChannelIndex]->GetDefault().IsSet())
+		{
+			const double Value = GetValue(ChannelIndex, Location0, Rotation0, Scale3D0);
+			Channels[ChannelIndex]->SetDefault(Value);
+		}
+	}
+
+	// add keys
+	for (int32 Index = 0; Index < Frames.Num(); ++Index)
+	{
+		const FFrameNumber& Frame = Frames[Index];
+		const FTransform& LocalTransform = InLocalTransforms[Index];
+
+		const FVector Location = LocalTransform.GetLocation();
+		const FRotator Rotation = LocalTransform.GetRotation().Rotator();
+		const FVector Scale3D = LocalTransform.GetScale3D();
+
+		for (const int32 ChannelIndex : ChannelsIndexToKey)
+		{
+			const double Value = GetValue(ChannelIndex, Location, Rotation, Scale3D);
+			TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = Channels[ChannelIndex]->GetData();
+			{
+				int32 ExistingIndex = ChannelData.FindKey(Frame);
+				if (ExistingIndex != INDEX_NONE)
+				{
+					FMovieSceneDoubleValue& DoubleValue = ChannelData.GetValues()[ExistingIndex]; //-V758
+					DoubleValue.Value = Value;
+				}
+				else
+				{
+					FMovieSceneDoubleValue NewKey(Value);
+					ERichCurveTangentWeightMode WeightedMode = RCTWM_WeightedNone;
+					NewKey.InterpMode = ERichCurveInterpMode::RCIM_Cubic;
+					NewKey.TangentMode = ERichCurveTangentMode::RCTM_Auto;
+					NewKey.Tangent.ArriveTangent = 0.0f;
+					NewKey.Tangent.LeaveTangent = 0.0f;
+					NewKey.Tangent.TangentWeightMode = WeightedMode;
+					NewKey.Tangent.ArriveTangentWeight = 0.0f;
+					NewKey.Tangent.LeaveTangentWeight = 0.0f;
+					ChannelData.AddKey(Frame, NewKey);
+				}
+			}
+		}
+	}
+
+	//now we need to set auto tangents
+	for (const int32 ChannelIndex : ChannelsIndexToKey)
+	{
+		Channels[ChannelIndex]->AutoSetTangents();
+	}
+	return true;
+}
+
 
 #if WITH_EDITOR
 FString UTransformableComponentHandle::GetLabel() const

@@ -664,6 +664,10 @@ protected:
 			for (const FMovieSceneChannelValueSetter& GeneratedKey : Keys)
 			{
 				KeyPropertyResult.bKeyCreated |= GeneratedKey->Apply(Section, Proxy, KeyTime, InterpolationMode, bKeyEvenIfUnchanged, bKeyEvenIfEmpty);
+				if (KeyPropertyResult.bKeyCreated)
+				{
+					KeyPropertyResult.SectionsKeyed.Add(Section);
+				}
 			}
 		}
 			

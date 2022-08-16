@@ -5,6 +5,7 @@
 #include "ConstraintsManager.h"
 #include "TransformableRegistry.h"
 #include "GameFramework/Actor.h"
+#include "MovieSceneSection.h"
 
 /** 
  * UTickableTransformConstraint
@@ -13,6 +14,24 @@
 int64 UTickableTransformConstraint::GetType() const
 {
 	return static_cast<int64>(Type);
+}
+EMovieSceneTransformChannel UTickableTransformConstraint::GetChannelsToKey() const
+{
+	static const TMap< ETransformConstraintType, EMovieSceneTransformChannel > ConstraintToChannels({
+	{ETransformConstraintType::Translation, EMovieSceneTransformChannel::Translation},
+	{ETransformConstraintType::Rotation, EMovieSceneTransformChannel::Rotation},
+	{ETransformConstraintType::Scale, EMovieSceneTransformChannel::Scale},
+	{ETransformConstraintType::Parent, EMovieSceneTransformChannel::AllTransform},
+	{ETransformConstraintType::LookAt, EMovieSceneTransformChannel::Rotation}
+		});
+
+	const ETransformConstraintType ConstType = static_cast<ETransformConstraintType>(GetType());
+	if (const EMovieSceneTransformChannel* Channel = ConstraintToChannels.Find(ConstType))
+	{
+		return *Channel;;
+	}
+
+	return EMovieSceneTransformChannel::AllTransform;
 }
 
 #if WITH_EDITOR

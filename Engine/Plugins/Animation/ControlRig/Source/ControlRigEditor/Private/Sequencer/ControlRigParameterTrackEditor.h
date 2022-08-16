@@ -147,17 +147,17 @@ private:
 
 	/** ConstraintChannel Delegates*/
 	void HandleOnConstraintAdded(
-		UMovieSceneControlRigParameterSection* InSection,
+		IMovieSceneConstrainedSection* InSection,
 		FMovieSceneConstraintChannel* InConstraintChannel);
 	void HandleConstraintKeyDeleted(
-		const UMovieSceneControlRigParameterSection* InSection,
+		IMovieSceneConstrainedSection* InSection,
 		const FMovieSceneConstraintChannel* InConstraintChannel,
 		const TArray<FKeyAddOrDeleteEventItem>& InDeletedItems) const;
 	static void HandleConstraintKeyMoved(
-		const UMovieSceneControlRigParameterSection* InSection,
+		IMovieSceneConstrainedSection* InSection,
 		const FMovieSceneConstraintChannel* InConstraintChannel,
 		const TArray<FKeyMoveEventItem>& InMovedItems);
-	void HandleConstraintRemoved(UMovieSceneControlRigParameterSection* InSection) const;
+	void HandleConstraintRemoved(IMovieSceneConstrainedSection* InSection) const;
 
 	/** Select control rig if not selected, select controls from key areas */
 	void SelectRigsAndControls(UControlRig* Subject, const TArray<const IKeyArea*>& KeyAreas);

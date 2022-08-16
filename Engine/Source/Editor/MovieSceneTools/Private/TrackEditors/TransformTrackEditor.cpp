@@ -34,6 +34,13 @@
 #include "Tracks/IMovieSceneTransformOrigin.h"
 #include "IMovieScenePlaybackClient.h"
 
+#include "Editor.h"
+#include "LevelEditorViewport.h"
+#include "TransformConstraint.h"
+#include "MovieSceneConstraintChannelHelper.h"
+#include "Misc/TransactionObjectEvent.h"
+#include "Engine/Selection.h"
+
 #define LOCTEXT_NAMESPACE "MovieScene_TransformTrack"
 
 void GetActorAndSceneComponentFromObject( UObject* Object, AActor*& OutActor, USceneComponent*& OutSceneComponent )
@@ -72,8 +79,17 @@ F3DTransformTrackEditor::~F3DTransformTrackEditor()
 
 void F3DTransformTrackEditor::OnRelease()
 {
+	ClearOutConstraintDelegates();
 	FCoreUObjectDelegates::OnPreObjectPropertyChanged.RemoveAll(this);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+
+	if (OnSceneComponentConstrainedHandle.IsValid())
+	{
+		UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
+		FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+		Controller.OnSceneComponentConstrained().Remove(OnSceneComponentConstrainedHandle);
+		OnSceneComponentConstrainedHandle.Reset();
+	}
 
 	for(FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
 	{
@@ -140,6 +156,11 @@ void F3DTransformTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilder, 
 TSharedRef<ISequencerSection> F3DTransformTrackEditor::MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding)
 {
 	check(SupportsType(SectionObject.GetOuter()->GetClass()));
+	UMovieScene3DTransformSection* Section = Cast<UMovieScene3DTransformSection>(&SectionObject);
+	if (Section)
+	{
+		Section->ConstraintChannelAdded().AddRaw(this, &F3DTransformTrackEditor::HandleOnConstraintAdded);
+	}
 	return MakeShared<FTransformSection>(SectionObject, GetSequencer());
 }
 
@@ -830,7 +851,20 @@ void F3DTransformTrackEditor::AddTransformKeys( UObject* ObjectToKey, const TOpt
 	};
 	auto OnKeyProperty = [=](FFrameNumber Time) -> FKeyPropertyResult
 	{
-		return this->AddKeysToObjects(MakeArrayView(&ObjectToKey, 1), Time,  KeyMode, UMovieScene3DTransformTrack::StaticClass(), TransformPropertyName, InitializeNewTrack, GenerateKeys);
+		FKeyPropertyResult KeyPropertyResult = this->AddKeysToObjects(MakeArrayView(&ObjectToKey, 1), Time,  KeyMode, UMovieScene3DTransformTrack::StaticClass(), TransformPropertyName, InitializeNewTrack, GenerateKeys);
+		if (KeyPropertyResult.SectionsKeyed.Num() > 0)
+		{
+			for (TWeakObjectPtr<UMovieSceneSection>& WeakSection : KeyPropertyResult.SectionsKeyed)
+			{
+				
+				if (UMovieScene3DTransformSection* Section = Cast< UMovieScene3DTransformSection>(WeakSection.Get()))
+				{
+					FMovieSceneConstraintChannelHelper::CompensateIfNeeded(GetSequencer(), Section, Time);
+				}
+			}
+		}
+		
+		return KeyPropertyResult;
 	};
 
 	AnimatablePropertyChanged( FOnKeyProperty::CreateLambda(OnKeyProperty) );
@@ -1209,5 +1243,240 @@ void F3DTransformTrackEditor::ImportAnimSequenceTransformsEnterPressed(const TAr
 		ImportAnimSequenceTransforms(Asset[0].GetAsset(), Sequencer, TransformTrack);
 	}
 }
+
+bool F3DTransformTrackEditor::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjects) const
+{
+	SectionsGettingUndone.SetNum(0);
+	// Check if we care about the undo/redo
+	bool bGettingUndone = false;
+	for (const TPair<UObject*, FTransactionObjectEvent>& TransactionObjectPair : TransactionObjects)
+	{
+
+		UObject* Object = TransactionObjectPair.Key;
+		while (Object != nullptr)
+		{
+			const UClass* ObjectClass = Object->GetClass();
+			if (ObjectClass && ObjectClass->IsChildOf(UMovieScene3DTransformSection::StaticClass()))
+			{
+				UMovieScene3DTransformSection* Section = Cast< UMovieScene3DTransformSection>(Object);
+				if (Section)
+				{
+					SectionsGettingUndone.Add(Section);
+				}
+				bGettingUndone = true;
+				break;
+			}
+			Object = Object->GetOuter();
+		}
+	}
+
+	return bGettingUndone;
+}
+
+void F3DTransformTrackEditor::PostUndo(bool bSuccess)
+{
+	for (UMovieScene3DTransformSection* Section : SectionsGettingUndone)
+	{
+		if (Section)
+		{
+			TArray<FConstraintAndActiveChannel>& ConstraintChannels = Section->GetConstraintsChannels();
+			for (FConstraintAndActiveChannel& Channel : ConstraintChannels)
+			{
+				HandleOnConstraintAdded(Section, &(Channel.ActiveChannel));
+			}
+		}
+	}
+}
+
+
+void F3DTransformTrackEditor::HandleOnConstraintAdded(IMovieSceneConstrainedSection* InSection, FMovieSceneConstraintChannel* InConstraintChannel)
+{
+	if (!InConstraintChannel)
+	{
+		return;
+	}
+	// handle scene component changes so we can update the gizmo location when it changes
+	UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
+	FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+	if (!Controller.OnSceneComponentConstrained().IsBoundToObject(this))
+	{
+		OnSceneComponentConstrainedHandle =
+			Controller.OnSceneComponentConstrained().AddLambda([](USceneComponent* InSceneComponent)
+				{
+					//only update gizmo if it or it's actor is seleced, otherwise can be wasteful
+					GUnrealEd->UpdatePivotLocationForSelection();
+					AActor* Actor = InSceneComponent->GetTypedOuter<AActor>();
+					if (USelection* SelectedActors = GEditor->GetSelectedActors())
+					{
+						if (SelectedActors->IsSelected(Actor))
+						{
+							GUnrealEd->UpdatePivotLocationForSelection();
+							return;
+						}
+					}
+					else if (USelection* SelectedComponents = GEditor->GetSelectedComponents())
+					{
+						if (SelectedComponents->IsSelected(InSceneComponent))
+						{
+							GUnrealEd->UpdatePivotLocationForSelection();
+						}
+					}
+				});
+	}
+	// handle key moved
+	InConstraintChannel->OnKeyMovedEvent().AddLambda([this, InSection](
+		FMovieSceneChannel* InChannel, const TArray<FKeyMoveEventItem>& InMovedItems)
+		{
+			const FMovieSceneConstraintChannel* ConstraintChannel = static_cast<FMovieSceneConstraintChannel*>(InChannel);
+			HandleConstraintKeyMoved(InSection, ConstraintChannel, InMovedItems);
+		});
+
+	// handle key deleted
+	InConstraintChannel->OnKeyDeletedEvent().AddLambda([this, InSection](
+		FMovieSceneChannel* InChannel, const TArray<FKeyAddOrDeleteEventItem>& InDeletedItems)
+		{
+			const FMovieSceneConstraintChannel* ConstraintChannel = static_cast<FMovieSceneConstraintChannel*>(InChannel);
+			HandleConstraintKeyDeleted(InSection, ConstraintChannel, InDeletedItems);
+		});
+
+	// handle constraint deleted
+	if (InSection)
+	{
+		HandleConstraintRemoved(InSection);
+	}
+}
+
+static UTickableTransformConstraint* GetTickableTransformConstraint(IMovieSceneConstrainedSection* InSection, const FMovieSceneConstraintChannel* InConstraintChannel)
+{
+	UTickableTransformConstraint* Constraint = nullptr;
+	// get constraint channel
+	TArray<FConstraintAndActiveChannel>& ConstraintChannels = InSection->GetConstraintsChannels();
+	const int32 Index = ConstraintChannels.IndexOfByPredicate([InConstraintChannel](const FConstraintAndActiveChannel& InChannel)
+		{
+			return &(InChannel.ActiveChannel) == InConstraintChannel;
+		});
+
+	if (Index != INDEX_NONE)
+	{
+		Constraint = Cast<UTickableTransformConstraint>(ConstraintChannels[Index].Constraint.Get());
+	}
+	return Constraint;
+}
+
+void F3DTransformTrackEditor::HandleConstraintKeyDeleted(IMovieSceneConstrainedSection* InSection, const FMovieSceneConstraintChannel* InConstraintChannel,
+	const TArray<FKeyAddOrDeleteEventItem>& InDeletedItems) const
+{
+	if (!InConstraintChannel)
+	{
+		return;
+	}
+	UTickableTransformConstraint* Constraint = GetTickableTransformConstraint(InSection, InConstraintChannel);
+	if (!Constraint)
+	{
+		return;
+	}
+    if(UTickableTransformConstraint* Constrain = GetTickableTransformConstraint(InSection,InConstraintChannel))
+	{
+		for (const FKeyAddOrDeleteEventItem& EventItem : InDeletedItems)
+		{
+			UMovieSceneSection* Section = Cast<UMovieSceneSection>(InSection);
+			FMovieSceneConstraintChannelHelper::HandleConstraintKeyDeleted(
+				Constraint, InConstraintChannel,
+				GetSequencer(), Section,
+				EventItem.Frame);
+			
+		}
+	}
+}
+void F3DTransformTrackEditor::HandleConstraintKeyMoved(IMovieSceneConstrainedSection* InSection, const FMovieSceneConstraintChannel* InConstraintChannel,
+	const TArray<FKeyMoveEventItem>& InMovedItems)
+{
+
+	if (!InConstraintChannel)
+	{
+		return;
+	}
+	UTickableTransformConstraint* Constraint = GetTickableTransformConstraint(InSection, InConstraintChannel);
+	if (!Constraint)
+	{
+		return;
+	}
+	UMovieSceneSection* Section = Cast<UMovieSceneSection>(InSection);
+
+	for (const FKeyMoveEventItem& MoveEventItem : InMovedItems)
+	{
+		FMovieSceneConstraintChannelHelper::HandleConstraintKeyMoved(
+			Constraint, InConstraintChannel, Section,
+			MoveEventItem.Frame, MoveEventItem.NewFrame);
+	}
+}
+
+void F3DTransformTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSection* InSection) const
+{
+	UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
+	UMovieSceneSection* Section = Cast<UMovieSceneSection>(InSection);
+
+	FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+	if (!Controller.OnConstraintRemoved().IsBoundToObject(InSection))
+	{
+		InSection->OnConstraintRemovedHandle =
+			Controller.OnConstraintRemoved().AddLambda([InSection,Section, this](FName InConstraintName)
+				{
+					const FConstraintAndActiveChannel* ConstraintChannel = InSection->GetConstraintChannel(InConstraintName);
+					if (!ConstraintChannel)
+					{
+						return;
+					}
+
+					if (ConstraintChannel->Constraint.IsValid())
+					{
+						FMovieSceneConstraintChannelHelper::HandleConstraintRemoved(
+							ConstraintChannel->Constraint.Get(),
+							&ConstraintChannel->ActiveChannel,
+							GetSequencer(),
+							Section);
+					}
+
+					InSection->RemoveConstraintChannel(InConstraintName);
+				});
+	}
+	
+}
+
+
+void F3DTransformTrackEditor::ClearOutConstraintDelegates() const
+{
+	if (GetSequencer().IsValid())
+	{
+		const UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
+		const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+		for (const FMovieSceneBinding& Binding : Bindings)
+		{
+			const UMovieSceneTrack* Track = MovieScene->FindTrack(
+				UMovieScene3DTransformTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None);
+			if (const UMovieScene3DTransformTrack* CRTrack = Cast<UMovieScene3DTransformTrack>(Track))
+			{
+
+				for (UMovieSceneSection* Section : Track->GetAllSections())
+				{
+					if (UMovieScene3DTransformSection* CRSection = Cast<UMovieScene3DTransformSection>(Section))
+					{
+						// clear constraint channels
+						TArray<FConstraintAndActiveChannel>& ConstraintChannels = CRSection->GetConstraintsChannels();
+						for (FConstraintAndActiveChannel& Channel : ConstraintChannels)
+						{
+							Channel.ActiveChannel.OnKeyMovedEvent().Clear();
+							Channel.ActiveChannel.OnKeyDeletedEvent().Clear();
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+
+
+	
 
 #undef LOCTEXT_NAMESPACE

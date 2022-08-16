@@ -15,6 +15,7 @@
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Sections/MovieScene3DTransformSection.h"
 #include "SequencerKeyParams.h"
+#include "EditorUndoClient.h"
 
 class AActor;
 struct FAssetData;
@@ -26,7 +27,7 @@ namespace UE { namespace MovieScene { struct FIntermediate3DTransform; } }
  * Tools for animatable transforms
  */
 class F3DTransformTrackEditor
-	: public FKeyframeTrackEditor<UMovieScene3DTransformTrack>
+	: public FKeyframeTrackEditor<UMovieScene3DTransformTrack>, public FEditorUndoClient
 {
 public:
 
@@ -63,6 +64,11 @@ public:
 	virtual void OnAddTransformKeysForSelectedObjects(EMovieSceneTransformChannel Channel) override;
 	virtual void OnPreSaveWorld(UWorld* World) override;
 	virtual void OnPostSaveWorld(UWorld* World) override;
+
+	//FEditorUndoClient Interface
+	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjects) const override;
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 
 private:
 
@@ -173,6 +179,15 @@ private:
 	/** Import an animation sequence's root transforms into a transform section */
 	static void ImportAnimSequenceTransformsEnterPressed(const TArray<FAssetData>& Asset, TSharedRef<class ISequencer> Sequencer, UMovieScene3DTransformTrack* TransformTrack);
 
+	/** ConstraintChannel Delegates*/
+	FDelegateHandle OnSceneComponentConstrainedHandle;
+	void HandleOnConstraintAdded(IMovieSceneConstrainedSection* InSection, FMovieSceneConstraintChannel* InConstraintChannel);
+	void HandleConstraintKeyDeleted(IMovieSceneConstrainedSection* InSection, const FMovieSceneConstraintChannel* InConstraintChannel,
+		const TArray<FKeyAddOrDeleteEventItem>& InDeletedItems) const;
+	void HandleConstraintKeyMoved(IMovieSceneConstrainedSection* InSection, const FMovieSceneConstraintChannel* InConstraintChannel,
+		const TArray<FKeyMoveEventItem>& InMovedItems);
+	void HandleConstraintRemoved(IMovieSceneConstrainedSection* InSection) const;
+	void ClearOutConstraintDelegates() const;
 private:
 
 	static FName TransformPropertyName;
@@ -185,4 +200,7 @@ private:
 
 	/** List of locked cameras to restore after save */
 	TArray<FGuid> LockedCameraBindings;
+
+	/** Array of sections that are getting undone, we need to recreate any constraint channel add, move key delegates to them*/
+	mutable TArray<UMovieScene3DTransformSection*> SectionsGettingUndone;
 };

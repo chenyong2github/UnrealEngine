@@ -70,7 +70,6 @@
 #include "Animation/SkeletalMeshActor.h"
 #include "TimerManager.h"
 #include "BakeToControlRigSettings.h"
-#include "ConstraintChannelHelper.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Toolkits/IToolkitHost.h"
@@ -79,6 +78,8 @@
 #include "TransformConstraint.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/TransactionObjectEvent.h"
+#include "ConstraintChannelHelper.h"
+#include "MovieSceneConstraintChannelHelper.h"
 
 #define LOCTEXT_NAMESPACE "FControlRigParameterTrackEditor"
 
@@ -2455,7 +2456,7 @@ namespace
 }
 
 void FControlRigParameterTrackEditor::HandleOnConstraintAdded(
-	UMovieSceneControlRigParameterSection* InSection,
+	IMovieSceneConstrainedSection* InSection,
 	FMovieSceneConstraintChannel* InConstraintChannel)
 {
 	if (!InConstraintChannel)
@@ -2487,60 +2488,67 @@ void FControlRigParameterTrackEditor::HandleOnConstraintAdded(
 }
 
 void FControlRigParameterTrackEditor::HandleConstraintKeyDeleted(
-	const UMovieSceneControlRigParameterSection* InSection,
+	IMovieSceneConstrainedSection* InSection,
 	const FMovieSceneConstraintChannel* InConstraintChannel,
 	const TArray<FKeyAddOrDeleteEventItem>& InDeletedItems) const
 {
-	const UControlRig* ControlRig = InSection ? InSection->GetControlRig() : nullptr;
+	UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(InSection);
+
+	const UControlRig* ControlRig = Section ? Section->GetControlRig() : nullptr;
 	if (!ControlRig || !InConstraintChannel)
 	{
 		return;
 	}
 	
 	const FConstraintAndControlData ConstraintAndControlData =
-		FConstraintAndControlData::CreateFromSection(InSection, InConstraintChannel);
+		FConstraintAndControlData::CreateFromSection(Section, InConstraintChannel);
 	if (ConstraintAndControlData.IsValid())
 	{
+
 		UTickableTransformConstraint* Constraint = ConstraintAndControlData.Constraint.Get();
 		for (const FKeyAddOrDeleteEventItem& EventItem: InDeletedItems)
 		{
-			FConstraintChannelHelper::HandleConstraintKeyDeleted(
+			FMovieSceneConstraintChannelHelper::HandleConstraintKeyDeleted(
 				Constraint, InConstraintChannel,
-				GetSequencer(), InSection,
+				GetSequencer(), Section,
 				EventItem.Frame);
 		}
 	}
 }
 
 void FControlRigParameterTrackEditor::HandleConstraintKeyMoved(
-	const UMovieSceneControlRigParameterSection* InSection,
+	IMovieSceneConstrainedSection* InSection,
 	const FMovieSceneConstraintChannel* InConstraintChannel,
 	const TArray<FKeyMoveEventItem>& InMovedItems)
 {
+	UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(InSection);
+
 	const FConstraintAndControlData ConstraintAndControlData =
-	FConstraintAndControlData::CreateFromSection(InSection, InConstraintChannel);
+	FConstraintAndControlData::CreateFromSection(Section, InConstraintChannel);
 
 	if (ConstraintAndControlData.IsValid())
 	{
 		const UTickableTransformConstraint* Constraint = ConstraintAndControlData.Constraint.Get();
 		for (const FKeyMoveEventItem& MoveEventItem : InMovedItems)
 		{
-			FConstraintChannelHelper::HandleConstraintKeyMoved(
-				Constraint, InConstraintChannel, InSection,
+			FMovieSceneConstraintChannelHelper::HandleConstraintKeyMoved(
+				Constraint, InConstraintChannel, Section,
 				MoveEventItem.Frame, MoveEventItem.NewFrame);
 		}
 	}
 }
 
-void FControlRigParameterTrackEditor::HandleConstraintRemoved(UMovieSceneControlRigParameterSection* InSection) const
+void FControlRigParameterTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSection* InSection) const
 {
-	if (const UControlRig* ControlRig = InSection->GetControlRig())
+	UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(InSection);
+
+	if (const UControlRig* ControlRig = Section->GetControlRig())
 	{
 		FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
 		if (!Controller.OnConstraintRemoved().IsBoundToObject(InSection))
 		{
 			InSection->OnConstraintRemovedHandle =
-			Controller.OnConstraintRemoved().AddLambda([InSection, this](FName InConstraintName)
+			Controller.OnConstraintRemoved().AddLambda([InSection, Section, this](FName InConstraintName)
 			{
 				const FConstraintAndActiveChannel* ConstraintChannel = InSection->GetConstraintChannel(InConstraintName);
 				if (!ConstraintChannel)
@@ -2550,11 +2558,11 @@ void FControlRigParameterTrackEditor::HandleConstraintRemoved(UMovieSceneControl
 				
 				if (ConstraintChannel->Constraint.IsValid())
 				{
-					FConstraintChannelHelper::HandleConstraintRemoved(
+					FMovieSceneConstraintChannelHelper::HandleConstraintRemoved(
 						ConstraintChannel->Constraint.Get(),
 						&ConstraintChannel->ActiveChannel,
 						GetSequencer(),
-						InSection);
+						Section);
 				}
 
 				InSection->RemoveConstraintChannel(InConstraintName);

@@ -6,6 +6,9 @@
 #include "ControlRig.h"
 #include "IControlRigObjectBinding.h"
 #include "Rigs/RigHierarchyElements.h"
+#include "Channels/MovieSceneChannelProxy.h"
+#include "Sequencer/MovieSceneControlRigParameterSection.h"
+#include "Sections/MovieScene3DTransformSection.h"
 
 /**
  * UTransformableControlHandle
@@ -259,6 +262,111 @@ void UTransformableControlHandle::OnControlModified(
 		}
 	}
 }
+
+static TPair<const FChannelMapInfo*, int32> GetInfoAndNumFloatChannels(
+	const UControlRig* InControlRig,
+	const FName& InControlName,
+	const UMovieSceneControlRigParameterSection* InSection)
+{
+	const FRigControlElement* ControlElement = InControlRig ? InControlRig->FindControl(InControlName) : nullptr;
+	auto GetNumFloatChannels = [](const ERigControlType& InControlType)
+	{
+		switch (InControlType)
+		{
+		case ERigControlType::Position:
+		case ERigControlType::Scale:
+		case ERigControlType::Rotator:
+			return 3;
+		case ERigControlType::TransformNoScale:
+			return 6;
+		case ERigControlType::Transform:
+		case ERigControlType::EulerTransform:
+			return 9;
+		default:
+			break;
+		}
+		return 0;
+	};
+
+	const int32 NumFloatChannels = ControlElement ? GetNumFloatChannels(ControlElement->Settings.ControlType) : 0;
+	const FChannelMapInfo* ChannelInfo = InSection ? InSection->ControlChannelMap.Find(InControlName) : nullptr;
+
+	return { ChannelInfo, NumFloatChannels };
+}
+TArrayView<FMovieSceneFloatChannel*>  UTransformableControlHandle::GetFloatChannels(const UMovieSceneSection* InSection) const
+{
+	// no floats for transform sections
+	static const TArrayView<FMovieSceneFloatChannel*> EmptyChannelsView;
+
+	const FChannelMapInfo* ChannelInfo = nullptr;
+	int32 NumChannels = 0;
+	const UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(InSection);
+	if (CRSection == nullptr)
+	{
+		return EmptyChannelsView;
+	}
+
+	Tie(ChannelInfo, NumChannels) = GetInfoAndNumFloatChannels(ControlRig.Get(),ControlName, CRSection);
+
+	if (ChannelInfo == nullptr || NumChannels == 0)
+	{
+		return EmptyChannelsView;
+	}
+
+	// return a sub view that just represents the control's channels
+	const TArrayView<FMovieSceneFloatChannel*> FloatChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	const int32 ChannelStartIndex = ChannelInfo->ChannelIndex;
+	return FloatChannels.Slice(ChannelStartIndex, NumChannels);
+}
+
+TArrayView<FMovieSceneDoubleChannel*>  UTransformableControlHandle::GetDoubleChannels(const UMovieSceneSection* InSection) const
+{
+	static const TArrayView<FMovieSceneDoubleChannel*> EmptyChannelsView;
+	return EmptyChannelsView;
+}
+
+bool UTransformableControlHandle::AddTransformKeys(const TArray<FFrameNumber>& InFrames,
+	const TArray<FTransform>& InTransforms,
+	const EMovieSceneTransformChannel& InChannels,
+	const FFrameRate& InTickResolution,
+	UMovieSceneSection*,
+	const bool bLocal) const
+{
+	if (!ControlRig.IsValid() || ControlName == NAME_None || InFrames.IsEmpty() || InFrames.Num() != InTransforms.Num())
+	{
+		return false;
+	}
+	auto KeyframeFunc = [this, bLocal](const FTransform& InTransform, const FRigControlModifiedContext& InKeyframeContext)
+	{
+		UControlRig* InControlRig = ControlRig.Get();
+		static constexpr bool bNotify = true;
+		static constexpr bool bUndo = false;
+		static constexpr bool bFixEuler = true;
+
+		if (bLocal)
+		{
+			return InControlRig->SetControlLocalTransform(ControlName, InTransform, bNotify, InKeyframeContext, bUndo, bFixEuler);
+		}
+		InControlRig->SetControlGlobalTransform(ControlName, InTransform, bNotify, InKeyframeContext, bUndo, bFixEuler);
+	};
+
+	FRigControlModifiedContext KeyframeContext;
+	KeyframeContext.SetKey = EControlRigSetKey::Always;
+	KeyframeContext.KeyMask = static_cast<uint32>(InChannels);
+
+	for (int32 Index = 0; Index < InFrames.Num(); ++Index)
+	{
+		const FFrameNumber& Frame = InFrames[Index];
+		KeyframeContext.LocalTime = InTickResolution.AsSeconds(FFrameTime(Frame));
+
+		KeyframeFunc(InTransforms[Index], KeyframeContext);
+	}
+
+	return true;
+}
+
+
+
 
 #if WITH_EDITOR
 

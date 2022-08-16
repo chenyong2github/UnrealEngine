@@ -20,6 +20,7 @@
 #include "PropertyEditorModule.h"
 #include "DetailsViewArgs.h"
 #include "Tools/ConstraintBaker.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "SConstraintsWidget"
 
@@ -285,6 +286,7 @@ void SDroppableConstraintItem::CreateConstraint(
 	{
 		if (Child != InParent)
 		{
+			FScopedTransaction Transaction(LOCTEXT("CreateConstraintKey", "Create Constraint Key"));
 			UTickableTransformConstraint* Constraint =
 				FTransformConstraintUtils::CreateAndAddFromActors(World, InParent, Child, InConstraintType);
 			if (Constraint)
@@ -484,6 +486,7 @@ void SEditableConstraintItem::Construct(
 			{
 				if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
 				{
+					FScopedTransaction Transaction(LOCTEXT("CreateConstraintKey", "Create Constraint Key"));
 					FConstraintChannelHelper::SmartConstraintKey(TransformConstraint);
 				}
 				return FReply::Handled();
@@ -729,6 +732,7 @@ void SConstraintsEditionWidget::MoveItemDown(const TSharedPtr<FEditableConstrain
 
 void SConstraintsEditionWidget::RemoveItem(const TSharedPtr<FEditableConstraintItem>& Item)
 {
+	FScopedTransaction Transaction(LOCTEXT("RemoveConstraint", "Remove Constraint"));
 	UWorld* World = GCurrentLevelEditingViewportClient->GetWorld();
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
 		
@@ -873,7 +877,8 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 		{
 			if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
 			{
-				FConstraintChannelHelper::AddConstraintKey(TransformConstraint);
+				FScopedTransaction Transaction(LOCTEXT("CreateConstraintKey", "Create Constraint Key"));
+				FConstraintChannelHelper::SmartConstraintKey(TransformConstraint);
 			}
 		})),
 		NAME_None,

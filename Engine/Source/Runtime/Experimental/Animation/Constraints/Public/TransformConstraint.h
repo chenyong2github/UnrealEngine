@@ -11,6 +11,7 @@
 class UTransformableHandle;
 class UTransformableComponentHandle;
 class USceneComponent;
+enum class EMovieSceneTransformChannel : uint32;
 
 using SetTransformFunc = TFunction<void(const FTransform&)>;
 using GetTransformFunc = TFunction<FTransform()>;
@@ -75,6 +76,9 @@ public:
 	
 	/** Get the current parent's local transform. */
 	FTransform GetParentLocalTransform() const;
+
+	/** Returns the channels to key based on the constraint's type. */
+	EMovieSceneTransformChannel GetChannelsToKey() const;
 	
 protected:
 

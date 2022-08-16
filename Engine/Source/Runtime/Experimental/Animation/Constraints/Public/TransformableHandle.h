@@ -8,6 +8,12 @@
 
 struct FTickFunction;
 class USceneComponent;
+struct FMovieSceneFloatChannel;
+struct FMovieSceneDoubleChannel;
+class UMovieSceneSection;
+struct FFRameNumber;
+struct FFrameRate;
+enum class EMovieSceneTransformChannel : uint32;
 
 /**
  * UTransformableHandle
@@ -37,6 +43,18 @@ public:
 	virtual FTransform GetGlobalTransform() const PURE_VIRTUAL(GetGlobalTransform, return FTransform::Identity;);
 	/** Gets the local transform of the underlying transformable object in it's parent space. */
 	virtual FTransform GetLocalTransform() const PURE_VIRTUAL(GetLocalTransform, return FTransform::Identity;);
+
+	/** Get the array of float channels for the specified section*/
+	virtual TArrayView<FMovieSceneFloatChannel*>  GetFloatChannels(const UMovieSceneSection* InSection) const PURE_VIRTUAL(GetFloatChannels, return TArrayView<FMovieSceneFloatChannel*>(); );
+	/** Get the array of double channels for the specified section*/
+	virtual TArrayView<FMovieSceneDoubleChannel*>  GetDoubleChannels(const UMovieSceneSection * InSection) const PURE_VIRTUAL(GetDoubleChannels, return TArrayView<FMovieSceneDoubleChannel*>(); );
+	/** Add Transform Keys at the specified times*/
+	virtual bool AddTransformKeys(const TArray<FFrameNumber>& InFrames,
+		const TArray<FTransform>& InTransforms,
+		const EMovieSceneTransformChannel& InChannels,
+		const FFrameRate& InTickResolution,
+		UMovieSceneSection* InSection,
+		const bool bLocal = true) const PURE_VIRTUAL(AddTransformKeys, return false;);
 
 	/**
 	 * Returns the target object containing the tick function (returned in GetTickFunction).
@@ -102,6 +120,17 @@ public:
 	/** @todo document */
 	virtual TWeakObjectPtr<UObject> GetTarget() const override;
 
+	/** Get the array of float channels for the specified section*/
+	virtual TArrayView<FMovieSceneFloatChannel*>  GetFloatChannels(const UMovieSceneSection* InSection) const override;
+	/** Get the array of double channels for the specified section*/
+	virtual TArrayView<FMovieSceneDoubleChannel*>  GetDoubleChannels(const UMovieSceneSection* InSection) const override;
+	/** Add Transform Keys at the specified times*/
+	virtual bool AddTransformKeys(const TArray<FFrameNumber>& InFrames,
+		const TArray<FTransform>& InTransforms,
+		const EMovieSceneTransformChannel& InChannels,
+		const FFrameRate& InTickResolution,
+		UMovieSceneSection* InSection,
+		const bool bLocal = true) const override;
 #if WITH_EDITOR
 	virtual FString GetLabel() const override;
 	virtual FString GetFullLabel() const override;

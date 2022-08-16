@@ -37,6 +37,8 @@ template<typename ChannelType> struct TMovieSceneChannelData;
 enum class EVisibilityBasedAnimTickOption : uint8;
 class ACameraActor;
 struct FActorForWorldTransforms;
+class UMovieScene3DTransformSection;
+enum class EMovieSceneTransformChannel : uint32;
 
 namespace fbxsdk
 {
@@ -557,6 +559,26 @@ public:
 	 * Return whether this asset is valid for the given sequence
 	 */
 	static bool IsValidAsset(UMovieSceneSequence* Sequence, const FAssetData& InAssetData);
+
+	/** Returns the frame numbers between start and end. */
+	static void CalculateFramesBetween(
+		const UMovieScene* MovieScene,
+		FFrameNumber StartFrame,
+		FFrameNumber EndFrame,
+		TArray<FFrameNumber>& OutFrames);
+
+	/** Returns the transform section for that guid. */
+	static UMovieScene3DTransformSection* GetTransformSection(
+		const ISequencer* InSequencer,
+		const FGuid& InGuid,
+		const FTransform& InDefaultTransform = FTransform::Identity);
+
+	/** Adds transform keys to the section based on the channels filters. */
+	static bool AddTransformKeys(
+		const UMovieScene3DTransformSection* InTransformSection,
+		const TArray<FFrameNumber>& Frames,
+		const TArray<FTransform>& InLocalTransforms,
+		const EMovieSceneTransformChannel& InChannels);
 };
 
 // Helper to make spawnables persist throughout the export process and then restore properly afterwards

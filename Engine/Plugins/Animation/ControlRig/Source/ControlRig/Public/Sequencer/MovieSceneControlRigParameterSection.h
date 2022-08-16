@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ConstraintsManager.h"
 #include "Sections/MovieSceneParameterSection.h"
+#include "Sections/MovieSceneConstrainedSection.h"
 #include "UObject/ObjectMacros.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Sections/MovieSceneSubSection.h"
@@ -175,7 +176,7 @@ struct FMovieSceneControlRigSpaceChannel;
  * Movie scene section that controls animation controller animation
  */
 UCLASS()
-class CONTROLRIG_API UMovieSceneControlRigParameterSection : public UMovieSceneParameterSection
+class CONTROLRIG_API UMovieSceneControlRigParameterSection : public UMovieSceneParameterSection, public IMovieSceneConstrainedSection
 {
 	GENERATED_BODY()
 
@@ -183,7 +184,6 @@ public:
 
 	/** Bindable events for when we add space or constraint channels. */
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FSpaceChannelAddedEvent, UMovieSceneControlRigParameterSection*, const FName&, FMovieSceneControlRigSpaceChannel*);
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FConstraintChannelAddedEvent, UMovieSceneControlRigParameterSection*, FMovieSceneConstraintChannel*);
 
 	void AddEnumParameterKey(FName InParameterName, FFrameNumber InTime, uint8 InValue);
 	void AddIntegerParameterKey(FName InParameterName, FFrameNumber InTime, int32 InValue);
@@ -205,18 +205,12 @@ public:
 	
 	FSpaceChannelAddedEvent& SpaceChannelAdded() { return OnSpaceChannelAdded; }
 
-	TArray<FConstraintAndActiveChannel>& GetConstraintsChannels();
-	const TArray<FConstraintAndActiveChannel>& GetConstraintsChannels() const;
 	const FName& FindControlNameFromConstraintChannel(const FMovieSceneConstraintChannel* InConstraintChannel) const;
-	
-	FConstraintChannelAddedEvent& ConstraintChannelAdded() { return OnConstraintChannelAdded; }
-	
+		
 	bool RenameParameterName(const FName& OldParameterName, const FName& NewParameterName);
 private:
 
 	FSpaceChannelAddedEvent OnSpaceChannelAdded;
-	FConstraintChannelAddedEvent OnConstraintChannelAdded;
-
 	/** Control Rig that controls us*/
 	UPROPERTY()
 	TObjectPtr<UControlRig> ControlRig;
@@ -267,6 +261,34 @@ public:
 	//UMovieSceneSection virtuals
 	virtual void SetBlendType(EMovieSceneBlendType InBlendType) override;
 	virtual UObject* GetImplicitObjectOwner() override;
+	// IMovieSceneConstrainedSection overrides
+	/*
+	* Whether it has that channel
+	*/
+	virtual bool HasConstraintChannel(const FName& InConstraintName) const override;
+
+	/*
+	* Get constraint with that name
+	*/
+	virtual FConstraintAndActiveChannel* GetConstraintChannel(const FName& InConstraintName) override;
+
+	/*
+	*  Add Constraint channel
+	*/
+	virtual void AddConstraintChannel(UTickableConstraint* InConstraint) override;
+
+	/*
+	*  Remove Constraint channel
+	*/
+	virtual void RemoveConstraintChannel(const FName& InConstraintName) override;
+
+	/*
+	*  Get The channels
+	*/
+	virtual TArray<FConstraintAndActiveChannel>& GetConstraintsChannels()  override;
+
+	//not override but needed
+	const TArray<FConstraintAndActiveChannel>& GetConstraintsChannels() const;
 
 #if WITH_EDITOR
 	//Function to save control rig key when recording.
@@ -404,12 +426,6 @@ public:
 	/** Add Space Parameter for a specified Control, no Default since that is Parent space*/
 	void AddSpaceChannel(FName InControlName, bool bReconstructChannel);
 
-	/** todo */
-	FDelegateHandle OnConstraintRemovedHandle;
-	bool HasConstraintChannel(const FName& InConstraintName) const;
-	FConstraintAndActiveChannel* GetConstraintChannel(const FName& InConstraintName);
-	void AddConstraintChannel(UTickableConstraint* InConstraint, bool bReconstructChannel);
-	void RemoveConstraintChannel(const FName& InConstraintName);
 
 	/** Clear Everything Out*/
 	void ClearAllParameters();

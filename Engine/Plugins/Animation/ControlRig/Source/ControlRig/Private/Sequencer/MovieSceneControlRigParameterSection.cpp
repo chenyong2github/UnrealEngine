@@ -1293,7 +1293,7 @@ FConstraintAndActiveChannel* UMovieSceneControlRigParameterSection::GetConstrain
 	return (Index != INDEX_NONE) ? &ConstraintsChannels[Index] : nullptr;	
 }
 
-void UMovieSceneControlRigParameterSection::AddConstraintChannel(UTickableConstraint* InConstraint, bool bReconstructChannel)
+void UMovieSceneControlRigParameterSection::AddConstraintChannel(UTickableConstraint* InConstraint)
 {
 	if (!HasConstraintChannel(InConstraint->GetFName()))
 	{
@@ -1308,11 +1308,9 @@ void UMovieSceneControlRigParameterSection::AddConstraintChannel(UTickableConstr
 		{
 			OnConstraintChannelAdded.Broadcast(this, ExistingChannel);
 		}
-		
-		if (bReconstructChannel)
-		{
-			ReconstructChannelProxy();
-		}
+		//todo got rid of the if(bReconstructChannel) flag since it was always true but it may need to be false from undo, in which case we need to change
+		//change this virtual functions signature
+		ReconstructChannelProxy();
 	}
 }
 
@@ -1331,12 +1329,12 @@ void UMovieSceneControlRigParameterSection::RemoveConstraintChannel(const FName&
 	}
 }
 
-const TArray<FConstraintAndActiveChannel>& UMovieSceneControlRigParameterSection::GetConstraintsChannels() const
+TArray<FConstraintAndActiveChannel>& UMovieSceneControlRigParameterSection::GetConstraintsChannels() 
 {
 	return ConstraintsChannels;
 }
 
-TArray<FConstraintAndActiveChannel>& UMovieSceneControlRigParameterSection::GetConstraintsChannels()
+const TArray<FConstraintAndActiveChannel>& UMovieSceneControlRigParameterSection::GetConstraintsChannels() const
 {
 	return ConstraintsChannels;
 }

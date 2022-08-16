@@ -51,6 +51,9 @@ struct FKeyPropertyResult
 
 	/* Was a section created */
 	TArray<TWeakObjectPtr<UMovieSceneSection> > SectionsCreated;
+
+	/* Was a section keyed */
+	TArray<TWeakObjectPtr<UMovieSceneSection> > SectionsKeyed;
 };
 
 /** Delegate for adding keys for a property

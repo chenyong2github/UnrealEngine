@@ -190,7 +190,7 @@ struct FGuidAndActor
 		const TArray<FTransform>& WorldTransformsToSnapTo, const UControlRigSnapSettings* SnapSettings) const
 	{
 		// get section
-		const UMovieScene3DTransformSection* TransformSection = FBakingHelper::GetTransformSection(Sequencer, Guid);
+		const UMovieScene3DTransformSection* TransformSection = MovieSceneToolHelpers::GetTransformSection(Sequencer, Guid);
 		if (!TransformSection)
 		{
 			return false;
@@ -240,7 +240,7 @@ struct FGuidAndActor
 		}
 
 		// add keys
-		FBakingHelper::AddTransformKeys(TransformSection, Frames, LocalTransforms, Channels);
+		MovieSceneToolHelpers::AddTransformKeys(TransformSection, Frames, LocalTransforms, Channels);
 
 		// notify
 		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
@@ -320,7 +320,7 @@ bool FControlRigSnapper::SnapIt(FFrameNumber StartFrame, FFrameNumber EndFrame,c
 		MovieScene->Modify();
 		
 		TArray<FFrameNumber> Frames;
-		FBakingHelper::CalculateFramesBetween(MovieScene, StartFrame, EndFrame, Frames);
+		MovieSceneToolHelpers::CalculateFramesBetween(MovieScene, StartFrame, EndFrame, Frames);
 
 		TArray<FTransform> WorldTransformToSnap;
 		bool bSnapToFirstFrameNotParents = !CalculateWorldTransformsFromParents(Sequencer, ParentToSnap, Frames, WorldTransformToSnap);
@@ -329,11 +329,10 @@ bool FControlRigSnapper::SnapIt(FFrameNumber StartFrame, FFrameNumber EndFrame,c
 			UE_LOG(LogControlRig, Error, TEXT("Number of Frames %d to Snap different than Parent Frames %d"), Frames.Num(),WorldTransformToSnap.Num());
 			return false;
 		}
-		// If we are snapping from the current time there are some assumptions to not re-calcuate values so we need to make sure sequencer is up to date
-		if (StartFrame == Sequencer->GetLocalTime().Time.RoundToFrame())
-		{
-			Sequencer->ForceEvaluate();
-		}
+
+		//need to make sure binding is setup
+		Sequencer->ForceEvaluate();
+		
 		TArray<FGuidAndActor > ActorsToSnap;
 		//There may be Actors here not in Sequencer so we add them to sequencer also
 		for (const FActorForWorldTransforms& ActorSelection : ActorToSnap.Actors)

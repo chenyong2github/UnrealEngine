@@ -838,46 +838,53 @@ FConstraintAndActiveChannel* UMovieScene3DTransformSection::GetConstraintChannel
 	return nullptr;
 }
 
-void UMovieScene3DTransformSection::SetUpConstraintRemovedHandle()
+TArray<FConstraintAndActiveChannel>& UMovieScene3DTransformSection::GetConstraintsChannels() 
 {
+	static TArray< FConstraintAndActiveChannel> EmptyChannels;
 	if (Constraints)
 	{
-		if (Constraints->ConstraintsChannels.Num() > 0 && !Constraints->OnConstraintRemovedHandle.IsValid())
-		{
-			FConstraintsManagerController& Controller = FConstraintsManagerController::Get(GetWorld());
-			Constraints->OnConstraintRemovedHandle = Controller.OnConstraintRemoved().AddLambda([this](FName InConstraintName)
-			{
-				Modify();
-				const int32 NumRemoved = Constraints->ConstraintsChannels.RemoveAll([InConstraintName](const FConstraintAndActiveChannel& InChannel)
-					{
-						return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : false;
-					});
-				if (NumRemoved > 0)
-				{
-					CacheChannelProxy();
-				}
-			});
-		}
+		return Constraints->ConstraintsChannels;
 	}
+	return EmptyChannels;
 }
 
 void UMovieScene3DTransformSection::AddConstraintChannel(UTickableConstraint* InConstraint)
 {
+	Modify();
 	if (!Constraints)
 	{
 		Constraints = NewObject<UMovieScene3dTransformSectionConstraints>(this, NAME_None, RF_Transactional);
 	}
 	if (!HasConstraintChannel(InConstraint->GetFName()))
 	{
-		Modify();
-
 		const int32 NewIndex = Constraints->ConstraintsChannels.Add(FConstraintAndActiveChannel(InConstraint));
 
 		FMovieSceneConstraintChannel* ExistingChannel = &Constraints->ConstraintsChannels[NewIndex].ActiveChannel;
 		ExistingChannel->SetDefault(false);
 
-		SetUpConstraintRemovedHandle();
 		CacheChannelProxy();
+
+		if (OnConstraintChannelAdded.IsBound())
+		{
+			OnConstraintChannelAdded.Broadcast(this, ExistingChannel);
+		}
 	}
 }
 
+void UMovieScene3DTransformSection::RemoveConstraintChannel(const FName& InConstraintName)
+{
+	if (Constraints)
+	{
+		const int32 Index = Constraints->ConstraintsChannels.IndexOfByPredicate([InConstraintName](const FConstraintAndActiveChannel& InChannel)
+			{
+				return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : false;
+			});
+
+		if (Constraints->ConstraintsChannels.IsValidIndex(Index))
+		{
+			Modify();
+			Constraints->ConstraintsChannels.RemoveAt(Index);
+			CacheChannelProxy();
+		}
+	}
+}

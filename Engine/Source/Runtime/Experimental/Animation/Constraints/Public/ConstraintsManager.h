@@ -240,6 +240,9 @@ public:
 		const FName& InNameToTickAfter) const;
 	
 private:
+	/** Delegeate that's fired when a scene component is constrained, this is needed to make sure things like gizmo's get updated after the constraint tick happens*/
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSceneComponentConstrained, USceneComponent* /*InSceneComponent*/);
+	FOnSceneComponentConstrained SceneComponentConstrained;
 
 	/** @todo document */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnConstraintRemoved, FName /*InConstraintName*/);
@@ -258,7 +261,8 @@ private:
 	UWorld* World = nullptr;
 
 public:
-
+	/** Delegate that's fired when a scene component is constrained, this is needed to make sure things like gizmo's get updated after the constraint tick happens*/
+	FOnSceneComponentConstrained& OnSceneComponentConstrained() { return SceneComponentConstrained; }
 	/** @todo document */
 	FOnConstraintRemoved& OnConstraintRemoved(){ return ConstraintRemoved; };
 };

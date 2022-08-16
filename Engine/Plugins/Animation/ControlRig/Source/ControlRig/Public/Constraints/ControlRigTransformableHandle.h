@@ -51,6 +51,17 @@ public:
 	/** @todo document */
 	virtual TWeakObjectPtr<UObject> GetTarget() const override;
 
+	/** Get the array of float channels for the specified section*/
+	virtual TArrayView<FMovieSceneFloatChannel*>  GetFloatChannels(const UMovieSceneSection* InSection) const override;
+	/** Get the array of double channels for the specified section*/
+	virtual TArrayView<FMovieSceneDoubleChannel*>  GetDoubleChannels(const UMovieSceneSection* InSection) const override;
+	virtual bool AddTransformKeys(const TArray<FFrameNumber>& InFrames,
+		const TArray<FTransform>& InTransforms,
+		const EMovieSceneTransformChannel& InChannels,
+		const FFrameRate& InTickResolution,
+		UMovieSceneSection* InSection,
+		const bool bLocal = true) const override;
+
 	/** Returns the skeletal mesh bound to ControlRig. */
 	USkeletalMeshComponent* GetSkeletalMesh() const;
 

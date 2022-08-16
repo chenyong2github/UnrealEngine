@@ -21,78 +21,75 @@
 
 namespace
 {
-	
-UMovieScene3DTransformSection* GetTransformSection(
-	const TSharedPtr<ISequencer>& InSequencer,
-	AActor* InActor,
-	const FTransform& InTransform0)
-{
-	if (!InSequencer || !InSequencer->GetFocusedMovieSceneSequence())
+
+	UMovieScene3DTransformSection* GetTransformSection(
+		const TSharedPtr<ISequencer>& InSequencer,
+		AActor* InActor,
+		const FTransform& InTransform0)
 	{
-		return nullptr;
+		if (!InSequencer || !InSequencer->GetFocusedMovieSceneSequence())
+		{
+			return nullptr;
+		}
+
+		const FGuid Guid = InSequencer->GetHandleToObject(InActor, true);
+		if (!Guid.IsValid())
+		{
+			return nullptr;
+		}
+
+		return MovieSceneToolHelpers::GetTransformSection(InSequencer.Get(), Guid, InTransform0);
 	}
-	
-	const FGuid Guid = InSequencer->GetHandleToObject(InActor,true);
-	if (!Guid.IsValid())
+
+	void BakeComponent(
+		const TSharedPtr<ISequencer>& InSequencer,
+		const UTransformableComponentHandle* InComponentHandle,
+		const TArray<FFrameNumber>& InFrames,
+		const TArray<FTransform>& InTransforms,
+		const EMovieSceneTransformChannel& InChannels)
 	{
-		return nullptr;
+		ensure(InTransforms.Num());
+
+		if (!InComponentHandle->IsValid())
+		{
+			return;
+		}
+		AActor* Actor = InComponentHandle->Component->GetOwner();
+		if (!Actor)
+		{
+			return;
+		}
+		UMovieScene3DTransformSection* TransformSection = GetTransformSection(InSequencer, Actor, InTransforms[0]);
+		if (!TransformSection)
+		{
+			return;
+		}
+		TransformSection->Modify();
+		const UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+		InComponentHandle->AddTransformKeys(InFrames, InTransforms, InChannels, MovieScene->GetTickResolution(), TransformSection, true);
+
 	}
-	
-	return FBakingHelper::GetTransformSection(InSequencer.Get(), Guid, InTransform0);
+
+	void BakeControl(
+		const TSharedPtr<ISequencer>& InSequencer,
+		const UTransformableControlHandle* InControlHandle,
+		const TArray<FFrameNumber>& InFrames,
+		const TArray<FTransform>& InLocalTransforms,
+		const EMovieSceneTransformChannel& InChannels)
+	{
+		ensure(InLocalTransforms.Num());
+
+		if (!InControlHandle->IsValid())
+		{
+			return;
+		}
+
+		const UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+		UMovieSceneSection* Section = nullptr; //cnntrol rig doesn't need section it instead
+		InControlHandle->AddTransformKeys(InFrames, InLocalTransforms, InChannels, MovieScene->GetTickResolution(), Section, true);
+
+	}
 }
-
-void BakeComponent(
-	const TSharedPtr<ISequencer>& InSequencer,
-	const UTransformableComponentHandle* InComponentHandle,
-	const TArray<FFrameNumber>& InFrames,
-	const TArray<FTransform>& InTransforms,
-	const EMovieSceneTransformChannel& InChannels)
-{
-	ensure(InTransforms.Num());
-	
-	if (!InComponentHandle->IsValid())
-	{
-		return;
-	}
-	AActor* Actor = InComponentHandle->Component->GetOwner();
-	if (!Actor)
-	{
-		return;
-	}
-	const UMovieScene3DTransformSection* TransformSection = GetTransformSection(InSequencer, Actor, InTransforms[0]);
-	if (!TransformSection)
-	{
-		return;
-	}
-
-	FBakingHelper::AddTransformKeys(TransformSection, InFrames, InTransforms, InChannels);
-}
-
-void BakeControl(
-	const TSharedPtr<ISequencer>& InSequencer,
-	const UTransformableControlHandle* InControlHandle,
-	const TArray<FFrameNumber>& InFrames,
-	const TArray<FTransform>& InLocalTransforms,
-	const EMovieSceneTransformChannel& InChannels)
-{
-	if (!InControlHandle->IsValid())
-	{
-		return;
-	}
-
-	const UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
-
-	FBakingHelper::AddTransformKeys(
-		InControlHandle->ControlRig.Get(),
-		InControlHandle->ControlName,
-		InFrames,
-		InLocalTransforms,
-		InChannels,
-		MovieScene->GetTickResolution());
-}
-
-}
-
 void FConstraintBaker::DoIt(UTickableTransformConstraint* InConstraint)
 {
 	const TWeakPtr<ISequencer> WeakSequencer = FBakingHelper::GetSequencer();
@@ -111,7 +108,7 @@ void FConstraintBaker::DoIt(UTickableTransformConstraint* InConstraint)
 	const FFrameNumber StartFrame = MovieScene->GetPlaybackRange().GetLowerBoundValue();
 	const FFrameNumber EndFrame = MovieScene->GetPlaybackRange().GetUpperBoundValue();
 	TArray<FFrameNumber> Frames;
-	FBakingHelper::CalculateFramesBetween(MovieScene, StartFrame, EndFrame, Frames);
+	MovieSceneToolHelpers::CalculateFramesBetween(MovieScene, StartFrame, EndFrame, Frames);
 
 	if (Frames.IsEmpty())
 	{
@@ -128,7 +125,7 @@ void FConstraintBaker::DoIt(UTickableTransformConstraint* InConstraint)
 	}
 
 	// bake to channel curves
-	const EMovieSceneTransformChannel Channels = GetChannelsToKey(InConstraint);
+	const EMovieSceneTransformChannel Channels = InConstraint->GetChannelsToKey();
 	AddTransformKeys(Sequencer, InConstraint->ChildTRSHandle, Frames, Transforms, Channels);
 
 	// disable constraint
@@ -220,25 +217,6 @@ void FConstraintBaker::AddTransformKeys(
 	{
 		return BakeControl(InSequencer, ControlHandle, InFrames, InTransforms, InChannels); 
 	}
-}
-
-EMovieSceneTransformChannel FConstraintBaker::GetChannelsToKey(const UTickableTransformConstraint* InConstraint)
-{
-	static const TMap< ETransformConstraintType, EMovieSceneTransformChannel > ConstraintToChannels({
-	{ETransformConstraintType::Translation, EMovieSceneTransformChannel::Translation},
-	{ETransformConstraintType::Rotation, EMovieSceneTransformChannel::Rotation},
-	{ETransformConstraintType::Scale, EMovieSceneTransformChannel::Scale},
-	{ETransformConstraintType::Parent, EMovieSceneTransformChannel::AllTransform},
-	{ETransformConstraintType::LookAt, EMovieSceneTransformChannel::Rotation}
-	});
-
-	const ETransformConstraintType ConstType = static_cast<ETransformConstraintType>(InConstraint->GetType());
-	if (const EMovieSceneTransformChannel* Channel = ConstraintToChannels.Find(ConstType))
-	{
-		return *Channel;; 
-	}
-	
-	return EMovieSceneTransformChannel::AllTransform;
 }
 
 #undef LOCTEXT_NAMESPACE

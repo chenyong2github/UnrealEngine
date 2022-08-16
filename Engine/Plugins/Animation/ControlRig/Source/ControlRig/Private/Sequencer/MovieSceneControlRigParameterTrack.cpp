@@ -94,7 +94,7 @@ void UMovieSceneControlRigParameterTrack::HandleOnSpaceNoLongerUsed(FMovieSceneC
 }
 
 void UMovieSceneControlRigParameterTrack::HandleOnConstraintAdded(
-	UMovieSceneControlRigParameterSection* InSection,
+	IMovieSceneConstrainedSection* InSection,
 	FMovieSceneConstraintChannel* InChannel) const
 {
 	OnConstraintChannelAdded.Broadcast(InSection, InChannel);

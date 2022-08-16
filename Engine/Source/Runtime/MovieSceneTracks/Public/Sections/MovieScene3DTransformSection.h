@@ -7,6 +7,7 @@
 #include "Components/SceneComponent.h"
 #include "Curves/KeyHandle.h"
 #include "MovieSceneSection.h"
+#include "MovieSceneConstrainedSection.h"
 #include "MovieSceneKeyStruct.h"
 #include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneFloatChannel.h"
@@ -132,31 +133,7 @@ struct FMovieScene3DTransformKeyStruct
 };
 template<> struct TStructOpsTypeTraits<FMovieScene3DTransformKeyStruct> : public TStructOpsTypeTraitsBase2<FMovieScene3DTransformKeyStruct> { enum { WithCopy = false }; };
 
-enum class EMovieSceneTransformChannel : uint32
-{
-	None			= 0x000,
 
-	TranslationX 	= 0x001,
-	TranslationY 	= 0x002,
-	TranslationZ 	= 0x004,
-	Translation 	= TranslationX | TranslationY | TranslationZ,
-
-	RotationX 		= 0x008,
-	RotationY 		= 0x010,
-	RotationZ 		= 0x020,
-	Rotation 		= RotationX | RotationY | RotationZ,
-
-	ScaleX 			= 0x040,
-	ScaleY 			= 0x080,
-	ScaleZ 			= 0x100,
-	Scale 			= ScaleX | ScaleY | ScaleZ,
-
-	AllTransform	= Translation | Rotation | Scale,
-
-	Weight 			= 0x200,
-
-	All				= Translation | Rotation | Scale | Weight,
-};
 ENUM_CLASS_FLAGS(EMovieSceneTransformChannel)
 
 USTRUCT()
@@ -224,9 +201,7 @@ public:
 	UPROPERTY()
 	TArray<FConstraintAndActiveChannel> ConstraintsChannels;
 
-	FDelegateHandle OnConstraintRemovedHandle;
 };
-
 
 /**
  * A 3D transform section
@@ -234,6 +209,7 @@ public:
 UCLASS(MinimalAPI)
 class UMovieScene3DTransformSection
 	: public UMovieSceneSection
+	, public IMovieSceneConstrainedSection
 	, public IMovieSceneEntityProvider
 {
 	GENERATED_UCLASS_BODY()
@@ -322,25 +298,35 @@ private:
 	bool bUseQuaternionInterpolation;
 
 public:
+	//IMovieSceneConstrainedSection overrides
 
 	/*
 	* If it has that constraint with that Name
 	*/
-	MOVIESCENETRACKS_API bool HasConstraintChannel(const FName& InConstraintName) const;
+	virtual  bool HasConstraintChannel(const FName& InConstraintName) const override;
 
 	/*
 	* Get constraint with that name
 	*/
-	MOVIESCENETRACKS_API FConstraintAndActiveChannel* GetConstraintChannel(const FName& InConstraintName);
+	virtual FConstraintAndActiveChannel* GetConstraintChannel(const FName& InConstraintName) override;
 
 	/*
-	*  Add Cosntraint channel
+	*  Add Constraint channel
 	*/
-	MOVIESCENETRACKS_API void AddConstraintChannel(UTickableConstraint* InConstraint);
+	virtual void AddConstraintChannel(UTickableConstraint* InConstraint) override;
+	
+	/*
+	*  Remove Constraint channel
+	*/
+	virtual void RemoveConstraintChannel(const FName& InConstraintName) override;
+
+	/*
+	*  Get The channels by value
+	*/
+	virtual TArray<FConstraintAndActiveChannel>& GetConstraintsChannels()  override;
+
 
 private:
-
-	void SetUpConstraintRemovedHandle();
 
 #if WITH_EDITORONLY_DATA
 

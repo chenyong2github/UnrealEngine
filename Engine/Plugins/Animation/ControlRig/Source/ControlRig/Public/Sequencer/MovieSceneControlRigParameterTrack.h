@@ -119,7 +119,7 @@ public:
 	CONTROLRIG_API void SetTrackName(FName InName) { TrackName = InName; }
 
 	UMovieSceneControlRigParameterSection::FSpaceChannelAddedEvent& SpaceChannelAdded() { return OnSpaceChannelAdded; }
-	UMovieSceneControlRigParameterSection::FConstraintChannelAddedEvent& ConstraintChannelAdded() { return OnConstraintChannelAdded; }
+	IMovieSceneConstrainedSection::FConstraintChannelAddedEvent& ConstraintChannelAdded() { return OnConstraintChannelAdded; }
 
 private:
 
@@ -131,9 +131,9 @@ private:
 	UMovieSceneControlRigParameterSection::FSpaceChannelAddedEvent OnSpaceChannelAdded;
 
 	void HandleOnConstraintAdded(
-		UMovieSceneControlRigParameterSection* InSection,
+		IMovieSceneConstrainedSection* InSection,
 		FMovieSceneConstraintChannel* InChannel) const;
-	UMovieSceneControlRigParameterSection::FConstraintChannelAddedEvent OnConstraintChannelAdded;
+	IMovieSceneConstrainedSection::FConstraintChannelAddedEvent OnConstraintChannelAdded;
 
 
 	void ReconstructControlRig();

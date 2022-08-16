@@ -25,9 +25,6 @@ public:
 		const bool bLocal,
 		TArray<FTransform>& OutTransforms);
 	
-	/** Returns the channels to key based on the constraint's type. */
-	static EMovieSceneTransformChannel GetChannelsToKey(const UTickableTransformConstraint* InConstraint);
-
 	/** Add InTransforms keys at InFrames into the InHandle transform animation channels. */
 	static void AddTransformKeys(
 		const TSharedPtr<ISequencer>& InSequencer,
