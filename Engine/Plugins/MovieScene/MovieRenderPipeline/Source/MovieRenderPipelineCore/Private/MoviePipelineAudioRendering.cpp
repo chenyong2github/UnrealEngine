@@ -120,8 +120,6 @@ void UMoviePipeline::StopAudioRecording()
 
 void UMoviePipeline::ProcessAudioTick()
 {
-	return; /// HACK HACK HACK to unblock for now
-
 	// Only supported on the new audio mixer (with the non-realtime device, windows only).
 	Audio::FMixerDevice* MixerDevice = GetAudioMixerDeviceFromWorldContext(this);
 	if (!MixerDevice)
