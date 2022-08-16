@@ -293,10 +293,19 @@ bool FDatasmithMeshUtils::ToRawMesh(const FDatasmithMesh& Mesh, FRawMesh& RawMes
 	return true;
 }
 
-bool FDatasmithMeshUtils::ToMeshDescription(const FDatasmithMesh& DsMesh, FMeshDescription& MeshDescription)
+bool FDatasmithMeshUtils::ToMeshDescription(FDatasmithMesh& DsMesh, FMeshDescription& MeshDescription, EUvGenerationPolicy UvGen)
 {
 	FRawMesh RawMesh;
-	ToRawMesh(DsMesh, RawMesh);
+	bool bGenerateDefaultUvs = DsMesh.GetUVChannelsCount() == 0 && UvGen != EUvGenerationPolicy::Ignore;
+	if (bGenerateDefaultUvs)
+	{
+		DsMesh.AddUVChannel();
+	}
+
+	if (!ToRawMesh(DsMesh, RawMesh))
+	{
+		return false;
+	}
 	TMap<int32, FName> MaterialMap;
 	TSet<int32> MaterialIds{RawMesh.FaceMaterialIndices};
 	for (int32 MaterialId : MaterialIds)
@@ -308,6 +317,19 @@ bool FDatasmithMeshUtils::ToMeshDescription(const FDatasmithMesh& DsMesh, FMeshD
 	Attributes.Register();
 	FStaticMeshOperations::ConvertFromRawMesh(RawMesh, MeshDescription, MaterialMap);
 
+	if (bGenerateDefaultUvs)
+	{
+		FBox MeshBoundingBox = MeshDescription.ComputeBoundingBox();
+		FUVMapParameters UVParameters(MeshBoundingBox.GetCenter(), FQuat::Identity, MeshBoundingBox.GetSize(), FVector::OneVector, FVector2D::UnitVector);
+		TMap<FVertexInstanceID, FVector2D> TexCoords;
+		FStaticMeshOperations::GenerateBoxUV(MeshDescription, UVParameters, TexCoords);
+
+		TVertexInstanceAttributesRef<FVector2f> UVs = FStaticMeshAttributes(MeshDescription).GetVertexInstanceUVs();
+		for (const auto& Pair : TexCoords)
+		{
+			UVs.Set(Pair.Key, 0, (FVector2f)Pair.Value);
+		}
+	}
 	return true;
 }
 
@@ -346,7 +368,7 @@ void CreateDefaultUVs( FDatasmithMesh& Mesh )
 	// Get the mesh description to generate BoxUV.
 	FMeshDescription MeshDescription;
 	FStaticMeshAttributes(MeshDescription).Register();
-	FDatasmithMeshUtils::ToMeshDescription(Mesh, MeshDescription);
+	FDatasmithMeshUtils::ToMeshDescription(Mesh, MeshDescription, FDatasmithMeshUtils::Ignore);
 	FUVMapParameters UVParameters(
 		FVector(Mesh.GetExtents().GetCenter()),
 		FQuat::Identity,

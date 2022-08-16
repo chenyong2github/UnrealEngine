@@ -148,7 +148,13 @@ public:
 	 * For example a collision mesh don't need to have a valid raw mesh
 	 */
 	static bool ToRawMesh(const FDatasmithMesh& Mesh, FRawMesh& RawMesh, bool bValidateRawMesh = true);
-	static bool ToMeshDescription(const FDatasmithMesh& DsMesh, FMeshDescription& MeshDescription);
+
+	enum EUvGenerationPolicy
+	{
+		Ignore, // do not generate a default UV. Conversion fails when no UV is available
+		GenerateBox, // generate a Box UV mapping on the resulting MeshDescription (see also FStaticMeshOperations::GenerateBoxUV)
+	};
+	static bool ToMeshDescription(FDatasmithMesh& DsMesh, FMeshDescription& MeshDescription, EUvGenerationPolicy UvGen=EUvGenerationPolicy::Ignore);
 
 	/**
 	 * Validates that the given UV Channel does not contain a degenerated triangle.

@@ -53,10 +53,6 @@ bool FDatasmithMeshExporterImpl::DoExport(TSharedPtr<IDatasmithMeshElement>& Mes
 	{
 		Mesh.SetName(*FPaths::GetBaseFilename(ExportOptions.MeshFullPath));
 	}
-
-	// make sure we have at least one UV channels on each source models
-	FDatasmithMeshUtils::CreateDefaultUVsWithLOD(Mesh);
-
 	FMD5Hash Hash;
 	if (WriteMeshFile(ExportOptions, Hash))
 	{
@@ -120,14 +116,14 @@ bool FDatasmithMeshExporterImpl::WriteMeshFile(const FDatasmithMeshExporterOptio
 
 		Models.SourceModels.Reserve(Mesh.GetLODsCount() + 1);
 		FMeshDescription& BaseMeshDescription = Models.SourceModels.AddDefaulted_GetRef();
-		FDatasmithMeshUtils::ToMeshDescription(Mesh, BaseMeshDescription);
+		FDatasmithMeshUtils::ToMeshDescription(Mesh, BaseMeshDescription, FDatasmithMeshUtils::GenerateBox);
 
 		for (int32 LodIndex = 0; LodIndex < Mesh.GetLODsCount(); ++LodIndex)
 		{
-			if (const FDatasmithMesh* LodMesh = Mesh.GetLOD(LodIndex))
+			if (FDatasmithMesh* LodMesh = Mesh.GetLOD(LodIndex))
 			{
 				FMeshDescription& LodMeshDescription = Models.SourceModels.AddDefaulted_GetRef();
-				FDatasmithMeshUtils::ToMeshDescription(*LodMesh, LodMeshDescription);
+				FDatasmithMeshUtils::ToMeshDescription(*LodMesh, LodMeshDescription, FDatasmithMeshUtils::GenerateBox);
 			}
 		}
 
