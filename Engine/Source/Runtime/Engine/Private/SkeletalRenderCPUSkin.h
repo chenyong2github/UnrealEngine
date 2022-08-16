@@ -40,7 +40,7 @@ public:
 		USkinnedMeshComponent* InMeshComponent,
 		FSkeletalMeshRenderData* InSkelMeshRenderData,
 		int32 InLODIndex,
-		const TArray<FActiveMorphTarget>& InActiveMorphTargets,
+		const FMorphTargetWeightMap& InActiveMorphTargets,
 		const TArray<float>& InMorphTargetWeights
 		);
 
@@ -61,7 +61,7 @@ public:
 	/** currently LOD for bones being updated */
 	int32 LODIndex;
 	/** Morphs to blend when skinning verts */
-	TArray<FActiveMorphTarget> ActiveMorphTargets;
+	FMorphTargetWeightMap ActiveMorphTargets;
 	/** Morph Weights to blend when skinning verts */
 	TArray<float> MorphTargetWeights;
 
@@ -98,7 +98,7 @@ public:
 	//~ Begin FSkeletalMeshObject Interface
 	virtual void InitResources(USkinnedMeshComponent* InMeshComponent) override;
 	virtual void ReleaseResources() override;
-	virtual void Update(int32 LODIndex,USkinnedMeshComponent* InMeshComponent,const TArray<FActiveMorphTarget>& ActiveMorphTargets, const TArray<float>& MorphTargetsWeights, EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode, const FExternalMorphWeightData& InExternalMorphWeightData) override;
+	virtual void Update(int32 LODIndex,USkinnedMeshComponent* InMeshComponent,const FMorphTargetWeightMap& InActiveMorphTargets, const TArray<float>& MorphTargetsWeights, EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode, const FExternalMorphWeightData& InExternalMorphWeightData) override;
 	void UpdateDynamicData_RenderThread(FRHICommandListImmediate& RHICmdList, FDynamicSkelMeshObjectDataCPUSkin* InDynamicData, uint32 FrameNumberToPrepare, uint32 RevisionNumber);
 	virtual void EnableOverlayRendering(bool bEnabled, const TArray<int32>* InBonesOfInterest, const TArray<UMorphTarget*>* InMorphTargetOfInterest) override;
 	virtual void CacheVertices(int32 LODIndex, bool bForce) const override;

@@ -2410,21 +2410,12 @@ void FAnimationRuntime::FillUpComponentSpaceTransformsRetargetBasePose(const USk
 }
 #endif // WITH_EDITOR
 
-/** See if an array of ActiveMorphTargets already contains the supplied anim */
-static int32 FindMorphTarget(const TArray<FActiveMorphTarget>& ActiveMorphTargets, UMorphTarget* InMorphTarget)
-{
-	for(int32 i=0; i<ActiveMorphTargets.Num(); i++)
-	{
-		if(ActiveMorphTargets[i].MorphTarget == InMorphTarget)
-		{
-			return i;
-		}
-	}
-
-	return INDEX_NONE;
-}
-
-void FAnimationRuntime::AppendActiveMorphTargets(const USkeletalMesh* InSkeletalMesh, const TMap<FName, float>& MorphCurveAnims, TArray<FActiveMorphTarget>& InOutActiveMorphTargets, TArray<float>& InOutMorphTargetWeights)
+void FAnimationRuntime::AppendActiveMorphTargets(
+	const USkeletalMesh* InSkeletalMesh,
+	const TMap<FName, float>& MorphCurveAnims,
+	FMorphTargetWeightMap& InOutActiveMorphTargets,
+	TArray<float>& InOutMorphTargetWeights
+	)
 {
 	if (!InSkeletalMesh)
 	{
@@ -2443,52 +2434,54 @@ void FAnimationRuntime::AppendActiveMorphTargets(const USkeletalMesh* InSkeletal
 	//
 	// if somehow it gets rendered without going through these places, there will be crash. Renderer expect the buffer size being same. 
 
-	if(MorphCurveAnims.Num() > 0)
+	if(MorphCurveAnims.IsEmpty())
 	{
-		const int32 NumMorphTargets = InSkeletalMesh->GetMorphTargets().Num();
-		InOutMorphTargetWeights.SetNumZeroed(NumMorphTargets);
+		return;
+	}
+	
+	const int32 NumMorphTargets = InSkeletalMesh->GetMorphTargets().Num();
+	InOutMorphTargetWeights.SetNumZeroed(NumMorphTargets);
 
-		if(NumMorphTargets > 0)
+	if(NumMorphTargets == 0)
+	{
+		return;
+	}
+	
+	// Then go over the CurveKeys finding morph targets by name
+	for(const TPair<FName, float>& MorphCurveAnim : MorphCurveAnims)
+	{
+		const FName& CurveName = MorphCurveAnim.Key;
+		const float Weight = MorphCurveAnim.Value;
+
+		// Find morph reference
+		int32 SkeletalMorphIndex = INDEX_NONE;
+		const UMorphTarget* Target = InSkeletalMesh->FindMorphTargetAndIndex(CurveName, SkeletalMorphIndex);
+		if (Target != nullptr)
 		{
-			// Then go over the CurveKeys finding morph targets by name
-			for(const TPair<FName, float>& MorphCurveAnim : MorphCurveAnims)
+			// See if this morph target already has an entry
+			const int32* FoundMorphIndex = InOutActiveMorphTargets.Find(Target);
+			
+			// If it has a valid weight
+			if (FMath::Abs(Weight) > MinMorphTargetBlendWeight)
 			{
-				const FName& CurveName = MorphCurveAnim.Key;
-				const float Weight = MorphCurveAnim.Value;
-
-				// Find morph reference
-				int32 SkeletalMorphIndex = INDEX_NONE;
-				UMorphTarget* Target = InSkeletalMesh->FindMorphTargetAndIndex(CurveName, SkeletalMorphIndex);
-				if (Target != nullptr)
+				// If not, add it
+				if (FoundMorphIndex == nullptr)
 				{
-					// If it has a valid weight
-					if (FMath::Abs(Weight) > MinMorphTargetBlendWeight)
-					{
-						// See if this morph target already has an entry
-						int32 MorphIndex = FindMorphTarget(InOutActiveMorphTargets, Target);
-						// If not, add it
-						if (MorphIndex == INDEX_NONE)
-						{
-							InOutActiveMorphTargets.Add(FActiveMorphTarget(Target, SkeletalMorphIndex));
-							InOutMorphTargetWeights[SkeletalMorphIndex] = Weight;
-						}
-						else
-						{
-							// If it does, use the max weight
-							check(SkeletalMorphIndex == InOutActiveMorphTargets[MorphIndex].WeightIndex);
-							InOutMorphTargetWeights[SkeletalMorphIndex] = Weight;
-						}
-					}
-					else
-					{
-						int32 MorphIndex = FindMorphTarget(InOutActiveMorphTargets, Target);
-						if (MorphIndex != INDEX_NONE)
-						{
-							// clear weight
-							InOutMorphTargetWeights[SkeletalMorphIndex] = 0.f;
-						}
-					}
+					InOutActiveMorphTargets.Add(Target, SkeletalMorphIndex);
+					InOutMorphTargetWeights[SkeletalMorphIndex] = Weight;
 				}
+				else
+				{
+					// If it does, use the max weight
+					check(SkeletalMorphIndex == *FoundMorphIndex);
+					InOutMorphTargetWeights[SkeletalMorphIndex] = Weight;
+				}
+			}
+			else if (FoundMorphIndex != nullptr)
+			{
+				// The target weight is below the minimum. Force to zero.
+				check(SkeletalMorphIndex == *FoundMorphIndex);
+				InOutMorphTargetWeights[SkeletalMorphIndex] = 0.f;
 			}
 		}
 	}

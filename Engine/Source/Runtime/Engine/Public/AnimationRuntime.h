@@ -597,7 +597,7 @@ public:
 	/**
 	* Combine CurveKeys (that reference morph targets by name) and ActiveAnims (that reference morphs by reference) into the ActiveMorphTargets array.
 	*/
- 	static void AppendActiveMorphTargets(const USkeletalMesh* InSkeletalMesh, const TMap<FName, float>& InMorphCurveAnims, TArray<FActiveMorphTarget>& InOutActiveMorphTargets, TArray<float>& InOutMorphTargetWeights);
+ 	static void AppendActiveMorphTargets(const USkeletalMesh* InSkeletalMesh, const TMap<FName, float>& InMorphCurveAnims, FMorphTargetWeightMap& InOutActiveMorphTargets, TArray<float>& InOutMorphTargetWeights);
 
 	/**
 	* Retarget a single bone transform, to apply right after extraction.

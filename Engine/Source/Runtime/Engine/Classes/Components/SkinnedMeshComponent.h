@@ -112,34 +112,10 @@ namespace EBoneSpaces
 }
 
 /** Struct used to indicate one active morph target that should be applied to this USkeletalMesh when rendered. */
-struct FActiveMorphTarget
-{
-	/** The Morph Target that we want to apply. */
-	class UMorphTarget* MorphTarget;
 
-	/** Index into the array of weights for the Morph target, between 0.0 and 1.0. */
-	int32 WeightIndex;
+/** WeightIndex is an into the MorphTargetWeights array */
+using FMorphTargetWeightMap = TMap<const UMorphTarget* /* MorphTarget */, int32 /* WeightIndex */>;
 
-	FActiveMorphTarget()
-		: MorphTarget(nullptr)
-		, WeightIndex(-1)
-	{
-	}
-
-	FActiveMorphTarget(class UMorphTarget* InTarget, int32 InWeightIndex)
-	:	MorphTarget(InTarget)
-	,	WeightIndex(InWeightIndex)
-	{
-	}
-
-	bool operator==(const FActiveMorphTarget& Other) const
-	{
-		// if target is same, we consider same 
-		// any equal operator to check if it's same, 
-		// we just check if this is same anim
-		return MorphTarget == Other.MorphTarget;
-	}
-};
 
 /** An external morph target set. External morph targets are managed by systems outside of the skinned meshes. */
 struct ENGINE_API FExternalMorphSet
@@ -488,8 +464,8 @@ public:
 	void SetDebugDrawColor(const FLinearColor& InColor) { DebugDrawColor = InColor; }
 #endif
 
-	/** Array indicating all active morph targets. This array is updated inside RefreshBoneTransforms based on the Anim Blueprint. */
-	TArray<FActiveMorphTarget> ActiveMorphTargets;
+	/** Array indicating all active morph targets. This map is updated inside RefreshBoneTransforms based on the Anim Blueprint. */
+	FMorphTargetWeightMap ActiveMorphTargets;
 
 	/** Array of weights for all morph targets. This array is updated inside RefreshBoneTransforms based on the Anim Blueprint. */
 	TArray<float> MorphTargetWeights;

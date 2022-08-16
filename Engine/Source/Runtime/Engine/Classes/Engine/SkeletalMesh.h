@@ -1824,7 +1824,7 @@ public:
 	}
 
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetMorphTargets() or USkeletalMesh::SetMorphTargets().")
-	UPROPERTY(BlueprintGetter = GetMorphTargets, BlueprintSetter = SetMorphTargets, Category = Mesh)
+	UPROPERTY(BlueprintGetter = GetMorphTargetsPtrConv, BlueprintSetter = SetMorphTargets, Category = Mesh)
 	TArray<TObjectPtr<UMorphTarget>> MorphTargets;
 
 	static FName GetMorphTargetsMemberName()
@@ -1844,8 +1844,19 @@ public:
 	}
 
 	/** USkinnedAsset interface. */
+	virtual const TArray<TObjectPtr<UMorphTarget>>& GetMorphTargets() const override
+	{
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MorphTargets, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MorphTargets;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	// NOTE: BP compiler doesn't support TObjectPtr as an argument type for UFUNCTION so this converting call is
+	// required. For many morphs, this can be expensive, since it needs to resolve _all_ TObjectPtrs and construct a new
+	// array for it.
 	UFUNCTION(BlueprintGetter)
-	virtual const TArray<UMorphTarget*>& GetMorphTargets() const override
+	TArray<UMorphTarget*> GetMorphTargetsPtrConv() const
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MorphTargets, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS

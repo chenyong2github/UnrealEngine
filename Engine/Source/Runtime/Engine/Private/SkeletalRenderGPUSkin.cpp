@@ -407,18 +407,18 @@ void FSkeletalMeshObjectGPUSkin::ReleaseMorphResources()
 void FSkeletalMeshObjectGPUSkin::Update(
 	int32 LODIndex,
 	USkinnedMeshComponent* InMeshComponent,
-	const TArray<FActiveMorphTarget>& ActiveMorphTargets,
-	const TArray<float>& MorphTargetWeights,
+	const FMorphTargetWeightMap& InActiveMorphTargets,
+	const TArray<float>& InMorphTargetWeights,
 	EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode,
 	const FExternalMorphWeightData& InExternalMorphWeightData)
 {
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 
 	// make sure morph data has been initialized for each LOD
-	if(InMeshComponent && !bMorphResourcesInitialized && (ActiveMorphTargets.Num() > 0 || !InExternalMorphWeightData.MorphSets.IsEmpty()))
+	if(InMeshComponent && !bMorphResourcesInitialized && (!InActiveMorphTargets.IsEmpty() || !InExternalMorphWeightData.MorphSets.IsEmpty()))
 	{
 		// initialized on-the-fly in order to avoid creating extra vertex streams for each skel mesh instance
-		InitMorphResources(InMeshComponent->bPerBoneMotionBlur, MorphTargetWeights);		
+		InitMorphResources(InMeshComponent->bPerBoneMotionBlur, InMorphTargetWeights);		
 	}
 
 	// create the new dynamic data for use by the rendering thread
@@ -429,8 +429,8 @@ void FSkeletalMeshObjectGPUSkin::Update(
 		SkeletalMeshRenderData,
 		this,
 		LODIndex,
-		ActiveMorphTargets,
-		MorphTargetWeights,
+		InActiveMorphTargets,
+		InMorphTargetWeights,
 		PreviousBoneTransformUpdateMode,
 		InExternalMorphWeightData);
 
@@ -1301,7 +1301,7 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateSkinWeights(FSkel
 	FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];	
 	if (CompLODInfo)
 	{
-		FSkinWeightVertexBuffer* NewMeshObjectWeightBuffer = nullptr;
+		FSkinWeightVertexBuffer* NewMeshObjectWeightBuffer;
 
 		if (CompLODInfo->OverrideSkinWeights &&
 			CompLODInfo->OverrideSkinWeights->GetNumVertices() == LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices())
@@ -1327,7 +1327,7 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateSkinWeights(FSkel
 			FVertexFactoryBuffers VertexBuffers;
 			GetVertexBuffers(VertexBuffers, LODData);
 
-			FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD* Self = this;
+			FSkeletalMeshObjectLOD* Self = this;
 			ENQUEUE_RENDER_COMMAND(UpdateSkinWeightsGPUSkin)(
 				[NewMeshObjectWeightBuffer, VertexBuffers, Self](FRHICommandListImmediate& RHICmdList)
 			{
@@ -1338,7 +1338,7 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateSkinWeights(FSkel
 	
 }
 
-void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBufferCPU(const TArray<FActiveMorphTarget>& ActiveMorphTargets, const TArray<float>& MorphTargetWeights, 
+void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBufferCPU(const FMorphTargetWeightMap& InActiveMorphTargets, const TArray<float>& MorphTargetWeights, 
 																					const TArray<int32>& SectionIdsUseByActiveMorphTargets, bool bGPUSkinCacheEnabled, FMorphVertexBuffer& MorphVertexBuffer)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MorphVertexBuffer_Update);
@@ -1400,19 +1400,20 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 			SCOPE_CYCLE_COUNTER(STAT_MorphVertexBuffer_ApplyDelta);
 
 			// iterate over all active morph targets and accumulate their vertex deltas
-			for (int32 AnimIdx = 0; AnimIdx < ActiveMorphTargets.Num(); AnimIdx++)
+			for(const TTuple<const UMorphTarget*, int32>& MorphItem: InActiveMorphTargets)
 			{
-				const FActiveMorphTarget& MorphTarget = ActiveMorphTargets[AnimIdx];
-				checkSlow(MorphTarget.MorphTarget != NULL);
-				checkSlow(MorphTarget.MorphTarget->HasDataForLOD(LODIndex));
-				const float MorphTargetWeight = MorphTargetWeights.IsValidIndex(MorphTarget.WeightIndex) ? MorphTargetWeights[MorphTarget.WeightIndex] : 0.0f;
+				const UMorphTarget* MorphTarget = MorphItem.Key;
+				const int32 WeightIndex = MorphItem.Value;
+				checkSlow(MorphTarget != nullptr);
+				checkSlow(MorphTarget->HasDataForLOD(LODIndex));
+				const float MorphTargetWeight = MorphTargetWeights.IsValidIndex(WeightIndex) ? MorphTargetWeights[WeightIndex] : 0.0f;
 				const float MorphAbsWeight = FMath::Abs(MorphTargetWeight);
 				checkSlow(MorphAbsWeight >= MinMorphTargetBlendWeight && MorphAbsWeight <= MaxMorphTargetBlendWeight);
 
 
 				// Get deltas
 				int32 NumDeltas;
-				const FMorphTargetDelta* Deltas = MorphTarget.MorphTarget->GetMorphTargetDelta(LODIndex, NumDeltas);
+				const FMorphTargetDelta* Deltas = MorphTarget->GetMorphTargetDelta(LODIndex, NumDeltas);
 
 				// iterate over the vertices that this lod model has changed
 				for (int32 MorphVertIdx = 0; MorphVertIdx < NumDeltas; MorphVertIdx++)
@@ -1534,9 +1535,10 @@ FGPUBaseSkinVertexFactory const* FSkeletalMeshObjectGPUSkin::GetBaseSkinVertexFa
 	// use the morph enabled vertex factory if any active morphs are set
 	if (DynamicData->NumWeightedActiveMorphTargets > 0)
 	{
-		for (FActiveMorphTarget& ActiveMorphTarget : DynamicData->ActiveMorphTargets)
+		for(const TTuple<const UMorphTarget*, int32>& MorphItem: DynamicData->ActiveMorphTargets)
 		{
-			if (ActiveMorphTarget.MorphTarget->HasDataForSection(LODIndex, ChunkIdx))
+			const UMorphTarget* MorphTarget = MorphItem.Key;
+			if (MorphTarget->HasDataForSection(LODIndex, ChunkIdx))
 			{
 				return LOD.GPUSkinVertexFactories.MorphVertexFactories[ChunkIdx].Get();
 			}
@@ -2388,7 +2390,7 @@ void FDynamicSkelMeshObjectDataGPUSkin::InitDynamicSkelMeshObjectDataGPUSkin(
 	FSkeletalMeshRenderData* InSkeletalMeshRenderData,
 	FSkeletalMeshObjectGPUSkin* InMeshObject,
 	int32 InLODIndex,
-	const TArray<FActiveMorphTarget>& InActiveMorphTargets,
+	const FMorphTargetWeightMap& InActiveMorphTargets,
 	const TArray<float>& InMorphTargetWeights, 
 	EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode,
 	const FExternalMorphWeightData& InExternalMorphWeightData)
@@ -2397,7 +2399,6 @@ void FDynamicSkelMeshObjectDataGPUSkin::InitDynamicSkelMeshObjectDataGPUSkin(
 	check(!ActiveMorphTargets.Num() && !ReferenceToLocal.Num() && !ClothingSimData.Num() && !MorphTargetWeights.Num());
 
 	// append instead of equals to avoid alloc
-	ActiveMorphTargets.Append(InActiveMorphTargets);
 	MorphTargetWeights.Append(InMorphTargetWeights);
 	NumWeightedActiveMorphTargets = 0;
 
@@ -2460,28 +2461,29 @@ void FDynamicSkelMeshObjectDataGPUSkin::InitDynamicSkelMeshObjectDataGPUSkin(
 	}	
 #endif
 	SectionIdsUseByActiveMorphTargets.Empty();
+
 	// find number of morphs that are currently weighted and will affect the mesh
-	for( int32 MorphIdx=ActiveMorphTargets.Num()-1; MorphIdx >= 0; MorphIdx-- )
+	ActiveMorphTargets.Reserve(InActiveMorphTargets.Num());
+	for(const TTuple<const UMorphTarget*, int32>& MorphItem: InActiveMorphTargets)
 	{
-		const FActiveMorphTarget& Morph = ActiveMorphTargets[MorphIdx];
-		const float MorphTargetWeight = MorphTargetWeights[Morph.WeightIndex];
+		const UMorphTarget* MorphTarget = MorphItem.Key;
+		const int32 WeightIndex = MorphItem.Value;
+		const float MorphTargetWeight = MorphTargetWeights[WeightIndex];
 		const float MorphAbsWeight = FMath::Abs(MorphTargetWeight);
 
-		if( Morph.MorphTarget != NULL && 
+		if( MorphTarget != nullptr && 
 			MorphAbsWeight >= MinMorphTargetBlendWeight &&
 			MorphAbsWeight <= MaxMorphTargetBlendWeight &&
-			Morph.MorphTarget->HasDataForLOD(LODIndex) ) 
+			MorphTarget->HasDataForLOD(LODIndex) ) 
 		{
 			NumWeightedActiveMorphTargets++;
-			const TArray<int32>& MorphSectionIndices = Morph.MorphTarget->GetMorphLODModels()[LODIndex].SectionIndices;
+			const TArray<int32>& MorphSectionIndices = MorphTarget->GetMorphLODModels()[LODIndex].SectionIndices;
 			for (int32 SecId = 0; SecId < MorphSectionIndices.Num(); ++SecId)
 			{
 				SectionIdsUseByActiveMorphTargets.AddUnique(MorphSectionIndices[SecId]);
 			}
-		}
-		else
-		{
-			ActiveMorphTargets.RemoveAt(MorphIdx, 1, false);
+
+			ActiveMorphTargets.Add(MorphTarget, WeightIndex);
 		}
 	}
 
@@ -2511,29 +2513,32 @@ void FDynamicSkelMeshObjectDataGPUSkin::InitDynamicSkelMeshObjectDataGPUSkin(
 #endif
 }
 
-bool FDynamicSkelMeshObjectDataGPUSkin::ActiveMorphTargetsEqual( const TArray<FActiveMorphTarget>& CompareActiveMorphTargets, const TArray<float>& CompareMorphTargetWeights)
+bool FDynamicSkelMeshObjectDataGPUSkin::ActiveMorphTargetsEqual(
+	const FMorphTargetWeightMap& InCompareActiveMorphTargets,
+	const TArray<float>& CompareMorphTargetWeights
+	)
 {
-	bool Result=true;
-	if( CompareActiveMorphTargets.Num() == ActiveMorphTargets.Num() )
+	if (InCompareActiveMorphTargets.Num() != ActiveMorphTargets.Num())
 	{
-		for( int32 MorphIdx=0; MorphIdx < ActiveMorphTargets.Num(); MorphIdx++ )
-		{
-			const FActiveMorphTarget& Morph = ActiveMorphTargets[MorphIdx];
-			const FActiveMorphTarget& CompMorph = CompareActiveMorphTargets[MorphIdx];
+		return false;
+	}
 
-			if( Morph.MorphTarget != CompMorph.MorphTarget ||
-				FMath::Abs(MorphTargetWeights[Morph.WeightIndex] - CompareMorphTargetWeights[CompMorph.WeightIndex]) >= GMorphTargetWeightThreshold)
-			{
-				Result=false;
-				break;
-			}
+	for(const TTuple<const UMorphTarget*, int32>& MorphItem: ActiveMorphTargets)
+	{
+		const UMorphTarget* MorphTarget = MorphItem.Key;
+		const int32 WeightIndex = MorphItem.Value;
+		const int32* CompareWeightIndex = InCompareActiveMorphTargets.Find(MorphTarget);
+		if (CompareWeightIndex == nullptr)
+		{
+			return false;
+		}
+
+		if( FMath::Abs(MorphTargetWeights[WeightIndex] - CompareMorphTargetWeights[*CompareWeightIndex]) >= GMorphTargetWeightThreshold)
+		{
+			return false;
 		}
 	}
-	else
-	{
-		Result = false;
-	}
-	return Result;
+	return true;
 }
 
 bool FDynamicSkelMeshObjectDataGPUSkin::UpdateClothSimulationData(USkinnedMeshComponent* InMeshComponent)

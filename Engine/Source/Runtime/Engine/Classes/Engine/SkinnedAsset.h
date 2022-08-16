@@ -180,7 +180,7 @@ public:
 	/** Return the morph targets. */
 	virtual TArray<TObjectPtr<UMorphTarget>>& GetMorphTargets()
 	{ static TArray<TObjectPtr<UMorphTarget>> Dummy; return Dummy; }
-	virtual const TArray<UMorphTarget*>& GetMorphTargets() const
+	virtual const TArray<TObjectPtr<UMorphTarget>>& GetMorphTargets() const
 	{ static const TArray<TObjectPtr<UMorphTarget>> Dummy; return Dummy; }
 
 	/**Find a named MorphTarget from the morph targets */
