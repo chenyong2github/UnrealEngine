@@ -49,27 +49,27 @@ FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStatePoseEntry& Entry)
 {
 	Ar << Entry.DbPoseIdx;
 	Ar << Entry.Cost;
+	Ar << Entry.Flags;
 	return Ar;
 }
 
 FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStateDatabaseEntry& Entry)
 {
 	Ar << Entry.DatabaseId;
+	Ar << Entry.Flags;
 	Ar << Entry.PoseEntries;
 	return Ar;
 }
 
 FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingState& State)
 {
+	Ar << State.SearchableAssetId;
 	Ar << State.ElapsedPoseJumpTime;
 	Ar << State.Flags;
 	Ar << State.QueryVector;
 	Ar << State.QueryVectorNormalized;
 	Ar << State.DatabaseSequenceFilter;
 	Ar << State.DatabaseBlendSpaceFilter;
-	Ar << State.DbPoseIdx;
-	Ar << State.DatabaseId;
-	Ar << State.ContinuingPoseIdx;
 	Ar << State.AssetPlayerTime;
 	Ar << State.DeltaTime;
 	Ar << State.SimLinearVelocity;
@@ -77,6 +77,8 @@ FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingState& State)
 	Ar << State.AnimLinearVelocity;
 	Ar << State.AnimAngularVelocity;
 	Ar << State.DatabaseEntries;
+	Ar << State.CurrentDbEntryIdx;
+	Ar << State.CurrentPoseEntryIdx;
 	return Ar;
 }
 
@@ -106,6 +108,30 @@ void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext)
 
 	UE_TRACE_LOG(PoseSearch, MotionMatchingState, PoseSearchChannel)
 		<< MotionMatchingState.Data(ArchiveData.GetData(), ArchiveData.Num());
+}
+
+const UPoseSearchDatabase* FTraceMotionMatchingState::GetCurrentDatabase() const
+{
+	if (CurrentDbEntryIdx == INDEX_NONE)
+	{
+		return nullptr;
+	}
+
+	const FTraceMotionMatchingStateDatabaseEntry& DbEntry = DatabaseEntries[CurrentDbEntryIdx];
+	const UPoseSearchDatabase* Database = GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
+	return Database;
+}
+
+int32 FTraceMotionMatchingState::GetCurrentDatabasePoseIndex() const
+{
+	if ((CurrentDbEntryIdx == INDEX_NONE) || (CurrentPoseEntryIdx == INDEX_NONE))
+	{
+		return INDEX_NONE;
+	}
+
+	const FTraceMotionMatchingStateDatabaseEntry& DbEntry = DatabaseEntries[CurrentDbEntryIdx];
+	const FTraceMotionMatchingStatePoseEntry& PoseEntry = DbEntry.PoseEntries[CurrentPoseEntryIdx];
+	return PoseEntry.DbPoseIdx;
 }
 
 }}

@@ -181,7 +181,7 @@ struct FSkeletonDrawParams
 };
 
 /** Sets model selection data on row selection */
-DECLARE_DELEGATE_TwoParams(FOnPoseSelectionChanged, int32, float)
+DECLARE_DELEGATE_ThreeParams(FOnPoseSelectionChanged, const UPoseSearchDatabase*, int32, float)
 class FDebuggerViewModel;
 
 /**
@@ -196,7 +196,7 @@ class SDebuggerDatabaseView : public SCompoundWidget
 	SLATE_END_ARGS()
 	
 	void Construct(const FArguments& InArgs);
-	void Update(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database);
+	void Update(const FTraceMotionMatchingStateMessage& State);
 
 	const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& GetActiveRow() const { return ActiveView.ListView; }
 	const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& GetContinuingPoseRow() const { return ContinuingPoseView.ListView; }
@@ -217,7 +217,7 @@ private:
 	const FColumnMap* GetColumnMap() const { return &Columns; }
 
 	/** Creates widgets for every pose in the database, initializing the static data in the process */
-	void CreateRows(const UPoseSearchDatabase& Database);
+	void CreateRows(const FTraceMotionMatchingStateMessage& State);
 
 	/** Sorts the database by the current sort predicate, updating the view order */
 	void SortDatabaseRows();
@@ -225,9 +225,6 @@ private:
 	void FilterDatabaseRows();
 
 	void ComputeFilteredDatabaseRowsColors();
-
-	/** Sets dynamic data for each row, such as score at the current time */
-	void UpdateRows(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database);
 
 	/** Acquires sort predicate for the given column */
 	EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;
@@ -307,7 +304,6 @@ private:
 	/** All database poses */
 	TArray<TSharedRef<FDebuggerDatabaseRowData>> UnfilteredDatabaseRows;
 
-	TWeakObjectPtr<const UPoseSearchDatabase> RowsSourceDatabase = nullptr;
 	TArrayView<const bool> DatabaseSequenceFilter;
 	TArrayView<const bool> DatabaseBlendSpaceFilter;
 
@@ -337,14 +333,14 @@ class SDebuggerDetailsView : public SCompoundWidget
 	virtual ~SDebuggerDetailsView() override;
 	
 	void Construct(const FArguments& InArgs);
-	void Update(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database) const;
+	void Update(const FTraceMotionMatchingStateMessage& State) const;
 
 	/** Get a const version of our reflection object */
 	const TObjectPtr<UPoseSearchDebuggerReflection>& GetReflection() const { return Reflection; }
 	
 private:
 	/** Update our details view object with new state information */
-	void UpdateReflection(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database) const;
+	void UpdateReflection(const FTraceMotionMatchingStateMessage& State) const;
 	
 	TWeakPtr<SDebuggerView> ParentDebuggerViewPtr;
 
@@ -376,15 +372,16 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual FName GetName() const override;
 	virtual uint64 GetObjectId() const override;
+
+	TSharedPtr<FDebuggerViewModel> GetViewModel() const { return ViewModel.Get(); }
 	TArray<TSharedRef<FDebuggerDatabaseRowData>> GetSelectedDatabaseRows() const;
-	const TSharedRef<FDebuggerDatabaseRowData>& GetPoseIdxDatabaseRow(int32 PoseIdx) const;
 
 private:
 	/** Called each frame to draw features of the query vector & database selections */
-	void DrawFeatures(const UWorld& DebuggerWorld, const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database, const FTransform& Transform, const USkinnedMeshComponent* Mesh) const;
+	void DrawFeatures(const UWorld& DebuggerWorld, const FTraceMotionMatchingStateMessage& State, const FTransform& Transform, const USkinnedMeshComponent* Mesh) const;
 	
 	/** Check if a node selection was made, true if a node is selected */
-	bool UpdateSelection();
+	bool UpdateNodeSelection();
 
 	/** Update the database and details views */
 	void UpdateViews() const;
@@ -397,7 +394,7 @@ private:
 	/** Callback when a button in the selection view is clicked */
 	FReply OnUpdateNodeSelection(int32 InSelectedNodeId);
 
-	void OnPoseSelectionChanged(int32 PoseIdx, float Time);
+	void OnPoseSelectionChanged(const UPoseSearchDatabase* Database, int32 PoseIdx, float Time);
 
 	/** Button interaction to toggle play / stop of the asset */
 	FReply TogglePlaySelectedAssets() const;
@@ -478,13 +475,14 @@ public:
 
 	// Used for view callbacks
     const FTraceMotionMatchingStateMessage* GetMotionMatchingState() const;
-    const UPoseSearchDatabase* GetPoseSearchDatabase() const;
+	const UPoseSearchDatabase* GetCurrentDatabase() const;
+	const UPoseSearchSearchableAsset* GetSearchableAsset() const;
 	const TArray<int32>* GetNodeIds() const;
 	int32 GetNodesNum() const;
 	const FTransform* GetRootTransform() const;
 
 	/** Checks if Update must be called */
-	bool NeedsUpdate() const;
+	bool HasSearchableAssetChanged() const;
 
 	/** Update motion matching states for frame */
 	void OnUpdate();
@@ -502,7 +500,7 @@ public:
 	const FPoseSearchDatabaseBlendSpace* GetBlendSpace(int32 BlendSpaceIdx) const;
 
 	/** Sets the selected pose skeleton*/
-	void ShowSelectedSkeleton(int32 PoseIdx, float Time);
+	void ShowSelectedSkeleton(const UPoseSearchDatabase* Database, int32 DbPoseIdx, float Time);
 	
 	/** Clears the selected pose skeleton */
 	void ClearSelectedSkeleton();
@@ -546,7 +544,8 @@ private:
 	/** Currently active motion matching state based on node selection in the view */
 	const FTraceMotionMatchingStateMessage* ActiveMotionMatchingState = nullptr;
 
-	TWeakObjectPtr<const UPoseSearchDatabase> CurrentDatabase = nullptr;
+	/** Active motion matching state's searchable asset */
+	uint64 SearchableAssetId = 0;
 
 	/** Current Skeletal Mesh Component Id for the AnimInstance */
 	uint64 SkeletalMeshComponentId = 0;
@@ -578,7 +577,10 @@ private:
 		/** Type of the asset being played */
 		ESearchIndexAssetType Type = ESearchIndexAssetType::Invalid;
 
-		/** Active asset index being used for this setting this skeleton */
+		/** Source database for this skeleton  */
+		TWeakObjectPtr<const UPoseSearchDatabase> SourceDatabase = nullptr;
+
+		/** Source asset for this skeleton */
 		int32 AssetIdx = 0;
 		
 		/** Time in the sequence this skeleton is accessing */
@@ -589,6 +591,9 @@ private:
 
 		/** Blend Parameters if asset is a BlendSpace */
 		FVector BlendParameters = FVector::Zero();
+
+		const FPoseSearchDatabaseSequence* GetAnimSequence() const;
+		const FPoseSearchDatabaseBlendSpace* GetBlendSpace() const;
 	};
 	
 	/** Index for each type of skeleton we store for debug visualization */

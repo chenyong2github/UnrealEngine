@@ -39,18 +39,39 @@ POSESEARCH_API FArchive& operator<<(FArchive& Ar, FTraceMessage& State);
 
 struct POSESEARCH_API FTraceMotionMatchingStatePoseEntry
 {
-	int32 DbPoseIdx = 0;
+	enum class EFlags : uint8
+	{
+		None			= 0,
+		ContinuingPose	= 1 << 0,
+		CurrentPose		= 1 << 1,
+	};
+
+	int32 DbPoseIdx = INDEX_NONE;
 	float Cost = 0.f;
+	EFlags Flags = EFlags::None;
+
+	bool operator==(const FTraceMotionMatchingStatePoseEntry& Other) const { return DbPoseIdx == Other.DbPoseIdx; }
 };
+ENUM_CLASS_FLAGS(FTraceMotionMatchingStatePoseEntry::EFlags);
 POSESEARCH_API FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStatePoseEntry& Entry);
 
 struct POSESEARCH_API FTraceMotionMatchingStateDatabaseEntry
 {
+	enum class EFlags : uint8
+	{
+		None			= 0,
+		CurrentDatabase	= 1 << 0,
+	};
+
 	// @todo: can we use UPoseSearchDatabase* instead of DatabaseId?
 	//UPoseSearchDatabase const* Database = nullptr;
 	uint64 DatabaseId = 0;
+	EFlags Flags = EFlags::None;
 	TArray<FTraceMotionMatchingStatePoseEntry> PoseEntries;
+
+	bool operator==(const FTraceMotionMatchingStateDatabaseEntry& Other) const { return DatabaseId == Other.DatabaseId; }
 };
+ENUM_CLASS_FLAGS(FTraceMotionMatchingStateDatabaseEntry::EFlags);
 POSESEARCH_API FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStateDatabaseEntry& Entry);
 
 /**
@@ -66,6 +87,9 @@ struct POSESEARCH_API FTraceMotionMatchingState
 		/** Whether the last animation was a forced follow-up animation due to expended animation runway */
 		FollowupAnimation = 1u << 0
 	};
+
+	/** ObjectId of active searchable asset */
+	uint64 SearchableAssetId = 0;
 	
 	/** Amount of time since the last pose switch */
 	float ElapsedPoseJumpTime = 0.0f;
@@ -83,15 +107,6 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	/** If true, groups are being filtered by DatabaseGroupQuery */
 	TArray<bool> DatabaseBlendSpaceFilter;
 
-	/** Index of the pose in our database */
-	int32 DbPoseIdx = 0;
-
-	/** Object Id of the database asset */
-	uint64 DatabaseId = 0;
-
-	/** Index of the continuing pose in our database */
-	int32 ContinuingPoseIdx = 0;
-
 	float AssetPlayerTime = 0.0f;
 	float DeltaTime = 0.0f;
 	float SimLinearVelocity = 0.0f;
@@ -101,41 +116,36 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	
 	TArray<FTraceMotionMatchingStateDatabaseEntry> DatabaseEntries;
 
+	/** Index of the current database in DatabaseEntries */
+	int32 CurrentDbEntryIdx = INDEX_NONE;
+
+	/** Index of the current pose in DatabaseEntries[CurrentDbEntryIdx].PoseEntries */
+	int32 CurrentPoseEntryIdx = INDEX_NONE;
+
 	/** Output the current state info to the logger */
 	void Output(const FAnimationBaseContext& InContext);
 
-	static const UPoseSearchDatabase* GetDatabaseFromId(uint64 DatabaseId)
+	const UPoseSearchDatabase* GetCurrentDatabase() const;
+	int32 GetCurrentDatabasePoseIndex() const;
+
+	template<typename T>
+	static const T* GetObjectFromId(uint64 ObjectId)
 	{
-		if (DatabaseId == 0)
+		if (ObjectId)
 		{
-			return nullptr;
+			UObject* Object = FObjectTrace::GetObjectFromId(ObjectId);
+			if (Object)
+			{
+				return CastChecked<T>(Object);
+			}
 		}
 
-		UObject* DatabaseObject = FObjectTrace::GetObjectFromId(DatabaseId);
-		// @TODO: Load the object if unloaded
-		if (DatabaseObject == nullptr)
-		{
-			return nullptr;
-		}
-		check(DatabaseObject->IsA<UPoseSearchDatabase>());
-
-		const UPoseSearchDatabase* Database = Cast<UPoseSearchDatabase>(DatabaseObject);
-		return Database;
+		return nullptr;
 	}
 
-	static uint64 GetIdFromDatabase(const UPoseSearchDatabase* Database)
+	static uint64 GetIdFromObject(const UObject* Object)
 	{
-		return FObjectTrace::GetObjectId(Database);
-	}
-
-	void SetDatabase(const UPoseSearchDatabase* Database)
-	{
-		DatabaseId = GetIdFromDatabase(Database);
-	}
-
-	const UPoseSearchDatabase* GetPoseSearchDatabase() const
-	{
-		return GetDatabaseFromId(DatabaseId);
+		return FObjectTrace::GetObjectId(Object);
 	}
 	
 	static const FName Name;

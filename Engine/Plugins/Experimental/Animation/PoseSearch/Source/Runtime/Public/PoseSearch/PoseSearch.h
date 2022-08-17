@@ -965,11 +965,11 @@ namespace UE::PoseSearch
 
 enum class EDebugDrawFlags : uint32
 {
-	None			    = 0,
+	None = 0,
 
 	// Draw the entire search index as a point cloud
-	DrawSearchIndex     = 1 << 0,
-
+	DrawSearchIndex = 1 << 0,
+	
 	// Draw using Query colors form the schema / config
 	DrawQuery = 1 << 1,
 
@@ -1453,6 +1453,7 @@ public:
 		const UPoseSearchDatabase* Database = nullptr;
 
 		bool operator<(const FPoseCandidate& Other) const { return Cost > Other.Cost; }
+		bool operator==(const FSearchResult& SearchResult) const { return (PoseIdx == SearchResult.PoseIdx) && (Database == SearchResult.Database.Get()); }
 	};
 
 	struct FBestPoseCandidates : private TArray<FPoseCandidate>
