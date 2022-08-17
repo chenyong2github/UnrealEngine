@@ -16,6 +16,7 @@
 #include "UI/Behaviour/Builtin/RCBehaviourIsEqualModel.h"
 #include "UI/Behaviour/Builtin/RCBehaviourSetAssetByPathModel.h"
 #include "UI/Controller/RCControllerModel.h"
+#include "UI/Behaviour/Builtin/RangeMap/RCBehaviourRangeMapModel.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRemoteControlPanel.h"
 #include "Widgets/Views/SHeaderRow.h"
@@ -106,6 +107,10 @@ void SRCBehaviourPanelList::Reset()
 				else if (URCBehaviourBind* BindBehaviour = Cast<URCBehaviourBind>(Behaviour))
 				{
 					BehaviourItems.Add(MakeShared<FRCBehaviourBindModel>(BindBehaviour, RemoteControlPanel));
+				}
+				else if (URCRangeMapBehaviour* RangeMapBehaviour = Cast<URCRangeMapBehaviour>(Behaviour))
+				{
+					BehaviourItems.Add(MakeShared<FRCRangeMapBehaviourModel>(RangeMapBehaviour));
 				}
 				else
 				{

@@ -52,7 +52,7 @@ namespace UE::RCActionPanelList
 
 			if (ColumnName == UE::RCActionPanelList::Columns::VariableColor)
 			{
-				return ActionItem->GetVariableColorWidget();
+				return ActionItem->GetTypeColorTagWidget();
 			}
 			else if (ColumnName == UE::RCActionPanelList::Columns::Description)
 			{
@@ -108,11 +108,11 @@ TSharedRef<SWidget> FRCActionModel::GetWidget() const
 	return SNullWidget::NullWidget;
 }
 
-TSharedRef<SWidget> FRCActionModel::GetVariableColorWidget() const
+TSharedRef<SWidget> FRCActionModel::GetTypeColorTagWidget() const
 {
 	const FLinearColor TypeColor = GetActionTypeColor();
 
-	// Variable Color Bar
+	// Type Color Bar
 	return SNew(SBox)
 		.HeightOverride(5.f)
 		[

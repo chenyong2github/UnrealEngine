@@ -378,12 +378,12 @@ FReply SRCActionPanel::OnAddAllFields()
 			{
 				if (const TSharedPtr<FRemoteControlField> RemoteControlField = RemoteControlFieldWeakPtr.Pin())
 				{
-					if (const URCBehaviour* Behaviour = BehaviourItem->GetBehaviour())
+					URCBehaviour* Behaviour = BehaviourItem->GetBehaviour();
+					
+					// Only add the Behaviour if it's listed as addable.
+					if (Behaviour && Behaviour->CanHaveActionForField(RemoteControlField))
 					{
-						if (Behaviour->CanHaveActionForField(RemoteControlField))
-						{
-							AddAction(RemoteControlField.ToSharedRef());
-						}
+						AddAction(RemoteControlField.ToSharedRef());
 					}
 				}
 			}

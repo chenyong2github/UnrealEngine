@@ -45,7 +45,7 @@ namespace UE::RCActionPanelBindList
 		
 			if (ColumnName == UE::RCActionPanelBindList::Columns::VariableColor)
 			{
-				return ActionItem->GetVariableColorWidget();
+				return ActionItem->GetTypeColorTagWidget();
 			}
 			else if (ColumnName == UE::RCActionPanelBindList::Columns::Description)
 			{

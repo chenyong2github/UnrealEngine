@@ -28,7 +28,7 @@ namespace UE::RCActionPanelConditionalList
 {
 	namespace Columns
 	{
-		const FName VariableColor = TEXT("VariableColor");
+		const FName TypeColorTag = TEXT("TypeColorTag");
 		const FName DragDropHandle = TEXT("DragDropHandle");
 		const FName Condition = TEXT("Condition");
 		const FName Description = TEXT("Description");
@@ -49,9 +49,9 @@ namespace UE::RCActionPanelConditionalList
 			if (!ensure(ActionItem.IsValid()))
 				return SNullWidget::NullWidget;
 
-			if (ColumnName == UE::RCActionPanelConditionalList::Columns::VariableColor)
+			if (ColumnName == UE::RCActionPanelConditionalList::Columns::TypeColorTag)
 			{
-				return ActionItem->GetVariableColorWidget();
+				return ActionItem->GetTypeColorTagWidget();
 			}
 			else if (ColumnName == UE::RCActionPanelConditionalList::Columns::Condition)
 			{
@@ -83,8 +83,8 @@ TSharedPtr<SHeaderRow> FRCActionConditionalModel::GetHeaderRow()
 	return SNew(SHeaderRow)
 		.Style(&RCPanelStyle->HeaderRowStyle)
 
-		+ SHeaderRow::Column(UE::RCActionPanelConditionalList::Columns::VariableColor)
-		.DefaultLabel(LOCTEXT("RCActionVariableColorColumnHeader", ""))
+		+ SHeaderRow::Column(UE::RCActionPanelConditionalList::Columns::TypeColorTag)
+		.DefaultLabel(LOCTEXT("RCActionTypeColorColumnHeader", ""))
 		.FixedWidth(5.f)
 		.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 

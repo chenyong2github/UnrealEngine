@@ -44,7 +44,7 @@ public:
 	virtual TSharedRef<SWidget> GetWidget() const override;
 
 	/** Widget representing Color Coding for the Action Type*/
-	virtual TSharedRef<SWidget> GetVariableColorWidget() const;
+	virtual TSharedRef<SWidget> GetTypeColorTagWidget() const;
 
 	/** Color code for this Action. Customized per action type*/
 	virtual FLinearColor GetActionTypeColor() const = 0;
