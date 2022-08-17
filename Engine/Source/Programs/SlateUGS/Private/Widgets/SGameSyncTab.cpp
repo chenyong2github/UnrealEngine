@@ -8,9 +8,10 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "SPositiveActionButton.h"
-#include "SScheduledSyncWindow.h"
 #include "SSimpleComboButton.h"
 #include "SSimpleButton.h"
+#include "Widgets/SHordeBadge.h"
+#include "Widgets/SScheduledSyncWindow.h"
 #include "Widgets/SLogWidget.h"
 #include "Widgets/Layout/SHeader.h"
 #include "Widgets/Testing/STestSuite.h"
@@ -19,7 +20,7 @@
 #include "Widgets/Images/SThrobber.h"
 #include "Widgets/Layout/SSeparator.h"
 
-#include "Styling/AppStyle.h"
+#include "SlateUGSStyle.h"
 
 #include "UGSTab.h"
 #include "UGSTabManager.h"
@@ -33,6 +34,7 @@ namespace
 	const FName HordeTableColumnTime(TEXT("Time"));
 	const FName HordeTableColumnAuthor(TEXT("Author"));
 	const FName HordeTableColumnDescription(TEXT("Description"));
+	const FName HordeTableColumnEditor(TEXT("Editor"));
 }
 
 void SBuildDataRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const TSharedPtr<FChangeInfo>& Item)
@@ -43,24 +45,56 @@ void SBuildDataRow::Construct(const FArguments& InArgs, const TSharedRef<STableV
 
 TSharedRef<SWidget> SBuildDataRow::GenerateWidgetForColumn(const FName& ColumnId) // Todo: maybe can refactor some of this code so there's less duplication by using the root SWidget class on different types
 {
+	if (ColumnId == HordeTableColumnEditor)
+	{
+		// Todo: replace this dummy badge data with the real thing
+		return SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			[
+				SNew(SHordeBadge)
+				.Text(FText::FromString("Editor Win64"))
+				.BadgeState(static_cast<EBadgeState>(FMath::RandRange(0, 4)))
+			]
+			+SHorizontalBox::Slot()
+			.Padding(2.0f, 0.0f)
+			[
+				SNew(SHordeBadge)
+				.Text(FText::FromString("Editor Mac"))
+				.BadgeState(static_cast<EBadgeState>(FMath::RandRange(0, 4)))
+			]
+			+SHorizontalBox::Slot()
+			[
+				SNew(SHordeBadge)
+				.Text(FText::FromString("Editor Linux"))
+				.BadgeState(static_cast<EBadgeState>(FMath::RandRange(0, 4)))
+			];
+	}
+
 	if (ColumnId == HordeTableColumnStatus)
 	{
-		TSharedRef<SImage> StatusCircle = SNew(SImage).Image(FAppStyle::Get().GetBrush("Icons.FilledCircle"));
+		TSharedRef<SImage> StatusCircle = SNew(SImage).Image(FSlateUGSStyle::Get().GetBrush("Icons.FilledCircle"));
 
-		switch (CurrentItem->ReviewStatus)
+		// Todo: switch to using CurrentItem->ReviewStatus when that variable actually gets filled
+		UGSCore::EReviewVerdict Verdict = UGSCore::EReviewVerdict::Unknown;
+		if (FMath::RandRange(0, 10) > 6)
+		{
+			Verdict = static_cast<UGSCore::EReviewVerdict>(FMath::RandRange(1, 3));
+		}
+		switch (Verdict)
+		// switch (CurrentItem->ReviewStatus)
 		{
 			case UGSCore::EReviewVerdict::Good:
-				StatusCircle->SetColorAndOpacity(FLinearColor::Green);
+				StatusCircle->SetColorAndOpacity(FSlateUGSStyle::Get().GetColor("HordeBadge.Color.Success"));
 				break;
 			case UGSCore::EReviewVerdict::Bad:
-				StatusCircle->SetColorAndOpacity(FLinearColor::Red);
+				StatusCircle->SetColorAndOpacity(FSlateUGSStyle::Get().GetColor("HordeBadge.Color.Error"));
 				break;
 			case UGSCore::EReviewVerdict::Mixed:
-				StatusCircle->SetColorAndOpacity(FLinearColor::Yellow);
+				StatusCircle->SetColorAndOpacity(FSlateUGSStyle::Get().GetColor("HordeBadge.Color.Warning"));
 				break;
 			case UGSCore::EReviewVerdict::Unknown:
-			default:
-				StatusCircle->SetColorAndOpacity(FLinearColor::Gray);
+			default: // Fall through
+				StatusCircle->SetColorAndOpacity(FSlateUGSStyle::Get().GetColor("HordeBadge.Color.Unknown"));
 				break;
 		}
 
@@ -97,7 +131,7 @@ TSharedRef<SWidget> SBuildDataRow::GenerateWidgetForColumn(const FName& ColumnId
 	if (CurrentItem->bCurrentlySynced)
 	{
 		// Lets make the font white and bold when we are the currently synced CL
-		FSlateFontInfo FontInfo = FAppStyle::Get().GetFontStyle("NormalFontBold");
+		FSlateFontInfo FontInfo = FSlateUGSStyle::Get().GetFontStyle("NormalFontBold");
 
 		TextItem->SetFont(FontInfo);
 		TextItem->SetColorAndOpacity(FLinearColor::White);
@@ -126,7 +160,7 @@ TSharedRef<ITableRow> SGameSyncTab::GenerateHordeBuildTableRow(TSharedPtr<FChang
 				.AutoHeight()
 				[
 					SNew(STextBlock)
-					.Font(FAppStyle::Get().GetFontStyle("Font.Large.Bold"))
+					.Font(FSlateUGSStyle::Get().GetFontStyle("Font.Large.Bold"))
 					.ColorAndOpacity(FLinearColor::White)
 					.Text(FText::FromString(InItem->Time.ToFormattedString(TEXT("%A, %B %e, %Y"))))
 				]
@@ -134,7 +168,7 @@ TSharedRef<ITableRow> SGameSyncTab::GenerateHordeBuildTableRow(TSharedPtr<FChang
 				.VAlign(VAlign_Bottom)
 				[
 					SNew(SSeparator)
-					.SeparatorImage(FAppStyle::GetBrush("Header.Post"))
+					.SeparatorImage(FSlateUGSStyle::Get().GetBrush("Header.Post"))
 				]
 			]
 		];
@@ -182,7 +216,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 		.Padding(10.0f, 5.0f)
 		[
 			SNew(SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
+			.BorderImage(FSlateUGSStyle::Get().GetBrush("Brushes.Panel"))
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -194,7 +228,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					[
 						SNew(SSimpleComboButton)
 						.Text(LOCTEXT("Sync", "Sync"))
-						.Icon(FAppStyle::Get().GetBrush("Icons.Refresh"))
+						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.Refresh"))
 						.HasDownArrow(true)
 						.MenuContent()
 						[
@@ -207,7 +241,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					[
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("CancelSync", "Cancel"))
-						.Icon(FAppStyle::Get().GetBrush("Icons.X"))
+						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.X"))
 						.OnClicked_Lambda([this] { Tab->CancelSync(); return FReply::Handled(); })
 						.IsEnabled_Lambda([this] { return Tab->IsSyncing(); })
 					]
@@ -231,7 +265,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					[
 						SNew(SSimpleComboButton)
 						.Text(LOCTEXT("RunUnrealEditor", "Run Unreal Editor"))
-						.Icon(FAppStyle::Get().GetBrush("Icons.Launch"))
+						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.Launch"))
 						.HasDownArrow(true)
 						.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
 						.IsEnabled(false) // Todo: enable after adding this functionality
@@ -241,7 +275,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					[
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("OpenSolution", "OpenSolution"))
-						.Icon(FAppStyle::Get().GetBrush("MainFrame.OpenVisualStudio")) // Todo: shouldn't use this icon (repurposing, also could use other IDEs)
+						.Icon(FSlateUGSStyle::Get().GetBrush("MainFrame.OpenVisualStudio")) // Todo: shouldn't use this icon (repurposing, also could use other IDEs)
 						.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
 						.IsEnabled(false) // Todo: enable after adding this functionality
 					]
@@ -262,7 +296,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					[
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("SDKInfo", "SDK Info"))
-						.Icon(FAppStyle::Get().GetBrush("Icons.Settings")) // Todo: What icon?
+						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.Settings")) // Todo: What icon?
 						.IsEnabled(false) // Todo: enable after adding this functionality
 					]
 					+SHorizontalBox::Slot()
@@ -270,7 +304,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					[
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("OpenPerforce", "Open Perforce"))
-						.Icon(FAppStyle::Get().GetBrush("Icons.Blueprints")) // Todo: shouldn't use this icon (repurposing)
+						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.Blueprints")) // Todo: shouldn't use this icon (repurposing)
 						.OnClicked_Lambda([this] { Tab->OnOpenPerforceClicked(); return FReply::Handled(); })
 					]
 					+SHorizontalBox::Slot()
@@ -278,7 +312,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					[
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("CleanSolution", "Clean Solution"))
-						.Icon(FAppStyle::Get().GetBrush("GraphEditor.Clean")) // Todo: shouldn't use this icon (repurposing)
+						.Icon(FSlateUGSStyle::Get().GetBrush("GraphEditor.Clean")) // Todo: shouldn't use this icon (repurposing)
 						.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
 						.IsEnabled(false) // Todo: enable after adding this functionality
 					]
@@ -287,7 +321,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					[
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("Filter", "Filter"))
-						.Icon(FAppStyle::Get().GetBrush("Icons.Filter"))
+						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.Filter"))
 						// Todo: this is probably the wrong "Filter" button. The functionality below should probably be in the settings dropdown
 						.OnClicked_Lambda([this] { FSlateApplication::Get().AddModalWindow(SNew(SSyncFilterWindow).Tab(Tab), Tab->GetTabArgs().GetOwnerWindow(), false); return FReply::Handled(); })
 					]
@@ -297,7 +331,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					[
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("Settings", "Settings"))
-						.Icon(FAppStyle::Get().GetBrush("Icons.Settings"))
+						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.Settings"))
 						.OnClicked_Lambda([this] { FSlateApplication::Get().AddModalWindow(SNew(SSettingsWindow).Tab(Tab), Tab->GetTabArgs().GetOwnerWindow(), false); return FReply::Handled(); })
 					]
 				]
@@ -327,7 +361,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("StreamLogoText", "Fortnite Stream Logo")) // Todo: replace with logo image
-					.TextStyle(FAppStyle::Get(), TEXT("Menu.Heading"))
+					.TextStyle(FSlateUGSStyle::Get(), TEXT("Menu.Heading"))
 				]
 				// Stream and uproject path
 				+SHorizontalBox::Slot()
@@ -345,7 +379,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("StreamText", "STREAM"))
-							.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+							.Font(FSlateUGSStyle::Get().GetFontStyle("NormalFontBold"))
 							.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f))
 						]
 						+SHorizontalBox::Slot()
@@ -366,7 +400,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("ChangelistText", "CHANGELIST"))
-							.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+							.Font(FSlateUGSStyle::Get().GetFontStyle("NormalFontBold"))
 							.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f))
 						]
 						+SHorizontalBox::Slot()
@@ -387,7 +421,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("ProjectText", "PROJECT"))
-							.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+							.Font(FSlateUGSStyle::Get().GetFontStyle("NormalFontBold"))
 							.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f))
 						]
 						+SHorizontalBox::Slot()
@@ -454,6 +488,9 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					.FillWidth(0.15f)
 					+SHeaderRow::Column(HordeTableColumnDescription)
 					.DefaultLabel(LOCTEXT("HordeHeaderDescription", "Description"))
+					+SHeaderRow::Column(HordeTableColumnEditor)
+					.DefaultLabel(LOCTEXT("HordeHeaderEditor", "Editor"))
+					.FillWidth(0.45f)
 				)
 			]
 			// Log

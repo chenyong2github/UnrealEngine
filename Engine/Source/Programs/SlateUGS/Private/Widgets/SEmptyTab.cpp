@@ -3,7 +3,7 @@
 #include "SEmptyTab.h"
 
 #include "SWorkspaceWindow.h"
-#include "Styling/AppStyle.h"
+#include "SlateUGSStyle.h"
 
 #include "UGSTab.h"
 
@@ -29,7 +29,7 @@ void SEmptyTab::Construct(const FArguments& InArgs)
 			.Padding(10.0f, 0.0f)
 			[
 				SNew(SImage)
-				.Image(FAppStyle::Get().GetBrush("AppIcon.Small"))
+				.Image(FSlateUGSStyle::Get().GetBrush("AppIcon.Small"))
 				.DesiredSizeOverride(CoreStyleConstants::Icon64x64)
 			]
 			+SHorizontalBox::Slot()
