@@ -2112,13 +2112,16 @@ void FPixelShaderInOut_MainPS(
 //		- DEPTHSTENCIL_EARLYTEST_LATEWRITE does not help in this case due to UAV writes we need to skip.
 //		- In order to avoid UAV writes, we will run in shader manual depth tests.
 #if !OUTPUT_PIXEL_DEPTH_OFFSET
-#define PIXELSHADER_EARLYDEPTHSTENCIL EARLYDEPTHSTENCIL
+	#define PIXELSHADER_EARLYDEPTHSTENCIL EARLYDEPTHSTENCIL
+#elif COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE
+	// If we support early depth test with late write behaviour then use it since we may be using discard, or modifying depth
+	#define PIXELSHADER_EARLYDEPTHSTENCIL DEPTHSTENCIL_EARLYTEST_LATEWRITE
 #endif
 
 #else // STRATA_OPAQUE_DEFERRED
 
 // If virtual texture is enabled then use early depth test so that UAV feedback buffer writes respect the depth test
-#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED || STRATA_OPAQUE_DEFERRED || OIT_ENABLED
+#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED || OIT_ENABLED
 	#if COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE
 		// If we support early depth test with late write behaviour then use it since we may be using discard, or modifying depth
 		#define PIXELSHADER_EARLYDEPTHSTENCIL DEPTHSTENCIL_EARLYTEST_LATEWRITE
