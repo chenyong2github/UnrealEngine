@@ -23,10 +23,15 @@ protected:
 
 private:
 	/** IDetailCustomization interface */
-	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailBuilder) override;
 
 	// Callback for changes in the world partition enable streaming.
-	void HandleWorldPartitionEnableStreamingChanged(ECheckBoxState CheckState);
+	void HandleWorldPartitionEnableStreamingChanged(ECheckBoxState InCheckState);
 
+	// Callback for changes in the world partition runtime hash class.
+	void HandleWorldPartitionRuntimeHashClassChanged(const UClass* InRuntimeHashClass);
+
+	IDetailLayoutBuilder* DetailBuilder;
 	TWeakObjectPtr<UWorldPartition> WorldPartition;
+	const UClass* RuntimeHashClass;
 };
