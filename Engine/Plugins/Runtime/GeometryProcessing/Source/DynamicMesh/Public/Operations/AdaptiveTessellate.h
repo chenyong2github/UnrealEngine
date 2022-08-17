@@ -373,7 +373,35 @@ public:
                                                                                      const TFunctionRef<int(const int TriangleID)> InTriFunc);
 
     
-    //TODO: add methods for automatic selection of triangles based on Material or Polygroup IDs.
+    /** 
+     * Tessellate only triangles that belong to a given triangle group id. Triangle groups are defined by the 
+     * FDynamicMesh3::GetTriangleGroup().
+     */
+    static TUniquePtr<FTessellationPattern> CreateConcentricRingsPatternFromTriangleGroup(const FDynamicMesh3* InMesh,
+                                                                                          const int InTessellationLevel,
+                                                                                          const int InPolygroupID);
+
+
+    /** 
+     * Tessellate only triangles that belong to a given polygroup id within the polygroup layer attribute 
+     * (FDynamicMeshPolygroupAttribute) specified by its name. 
+     * 
+     * @return nullptr if InMesh has no attributes or if no polygroup layer attribute with the given name or id exists.
+     */
+    static TUniquePtr<FTessellationPattern> CreateConcentricRingsPatternFromPolyGroup(const FDynamicMesh3* InMesh,
+                                                                                      const int InTessellationLevel,
+                                                                                      const FString& InLayerName,
+                                                                                      const int InPolygroupID);
+
+
+    /** 
+     * Tessellate only triangles that belong to a given material (FDynamicMeshMaterialAttribute). 
+     * 
+     * @return nullptr if InMesh has no attributes, no material attribute or if no material attribute with the given id exists.
+     */
+	static TUniquePtr<FTessellationPattern> CreateConcentricRingsPatternFromMaterial(const FDynamicMesh3* InMesh,
+																				 	 const int InTessellationLevel,
+																					 const int MaterialID);
 
 
 

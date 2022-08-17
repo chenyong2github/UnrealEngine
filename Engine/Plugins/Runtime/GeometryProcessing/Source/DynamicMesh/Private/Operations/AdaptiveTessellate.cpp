@@ -1756,7 +1756,7 @@ TUniquePtr<FTessellationPattern> FAdaptiveTessellate::CreateConcentricRingsTesse
 
 
 TUniquePtr<FTessellationPattern> FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(const TFunctionRef<int(const int EdgeID)> InEdgeFunc, 
-                                                               					    const TFunctionRef<int(const int TriangleID)> InTriFunc) 
+                                                               					    		   const TFunctionRef<int(const int TriangleID)> InTriFunc) 
 {
 
 	// TODO: not implemented yet
@@ -1765,7 +1765,98 @@ TUniquePtr<FTessellationPattern> FAdaptiveTessellate::CreateConcentricRingsTesse
 }
 
 
+TUniquePtr<FTessellationPattern> FAdaptiveTessellate::CreateConcentricRingsPatternFromTriangleGroup(const FDynamicMesh3* InMesh,
+																					 			    const int InTessellationLevel,
+                                                                                     			    const int InPolygroupID) 
+{
+	if (InMesh->HasTriangleGroups() == false)
+	{
+		return nullptr;
+	}
 
+	TArray<int> TriangleList;
+	for (const int TID : InMesh->TriangleIndicesItr()) 
+	{
+		const int PolygroupID = InMesh->GetTriangleGroup(TID);
+		
+		if (PolygroupID == InPolygroupID) 
+		{
+			TriangleList.Add(TID);
+		}
+	}
+
+	return FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(InMesh, InTessellationLevel, TriangleList);
+}
+
+
+TUniquePtr<FTessellationPattern> FAdaptiveTessellate::CreateConcentricRingsPatternFromPolyGroup(const FDynamicMesh3* InMesh,
+                                                                           						const int InTessellationLevel,
+                                                                           						const FString& InLayerName,
+                                                                           						const int InPolygroupID) 
+{
+	if (InMesh->HasAttributes() == false)
+	{
+		return nullptr;
+	}
+
+	const FDynamicMeshPolygroupAttribute* PolygroupAttribute = nullptr;
+
+	for (int Idx = 0; Idx < InMesh->Attributes()->NumPolygroupLayers(); ++Idx) 
+	{
+		if (InMesh->Attributes()->GetPolygroupLayer(Idx)->GetName().ToString() == InLayerName) 
+		{
+			PolygroupAttribute = InMesh->Attributes()->GetPolygroupLayer(Idx);
+			break;
+		}
+	}
+
+	if (PolygroupAttribute == nullptr) 
+	{
+		return nullptr;
+	}
+
+	TArray<int> TriangleList;
+	for (const int TID : InMesh->TriangleIndicesItr()) 
+	{
+		const int TrianglePolygroupID = PolygroupAttribute->GetValue(TID);
+		
+		if (TrianglePolygroupID == InPolygroupID) 
+		{
+			TriangleList.Add(TID);
+		}
+	}
+
+	return FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(InMesh, InTessellationLevel, TriangleList);
+}
+
+
+TUniquePtr<FTessellationPattern> FAdaptiveTessellate::CreateConcentricRingsPatternFromMaterial(const FDynamicMesh3* InMesh,
+																					 		   const int InTessellationLevel,
+                                                                                     		   const int MaterialID) 
+{
+	if (InMesh->HasAttributes() == false)
+	{
+		return nullptr;
+	}
+
+	if (InMesh->Attributes()->HasMaterialID() == false)
+	{
+		return nullptr;
+	}
+
+	TArray<int> TriangleList;
+	for (const int TID : InMesh->TriangleIndicesItr()) 
+	{
+		const int TriangleMaterialID = InMesh->Attributes()->GetMaterialID()->GetValue(TID);
+		
+		if (TriangleMaterialID == MaterialID) 
+		{
+			TriangleList.Add(TID);
+		}
+	}
+
+	return FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(InMesh, InTessellationLevel, TriangleList);
+}
 
 //
 // Inner uniform pattern

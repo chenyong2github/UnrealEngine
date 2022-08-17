@@ -53,7 +53,17 @@ enum class EDisplaceMeshToolSubdivisionType : uint8
 		retriangulated into a number of small subtriangles. The geometry of a PN triangle is defined as one cubic Bezier 
 		patch using control points. The patch matches the point and normal information at the vertices of the original 
 		flat triangle.*/
-	PNTriangles UMETA(DisplayName = "PN Triangles"),
+	PNTriangles UMETA(DisplayName = "PN Triangles")
+};
+
+UENUM()
+enum class EDisplaceMeshToolTriangleSelectionType : uint8
+{	
+	/** Tessellate the whole mesh */
+	None UMETA(DisplayName = "None"),
+
+	/** Tessellate only triangles assigned to the chosen material */
+	Material UMETA(DisplayName = "Material")
 };
 
 UENUM() 
@@ -115,6 +125,28 @@ public:
 	bool bDisableSizeWarning = false;
 };
 
+/** PropertySet for properties affecting the selective tessellation. */
+UCLASS()
+class MESHMODELINGTOOLSEXP_API USelectiveTessellationProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+			
+public:
+
+	/** Optionally, restrict tessellation to a subset of the triangles. */
+	UPROPERTY(EditAnywhere, Category = SelectiveTessellationOptions)
+	EDisplaceMeshToolTriangleSelectionType SelectionType = EDisplaceMeshToolTriangleSelectionType::None;
+
+	/** Name of the selected material. */
+	UPROPERTY(EditAnywhere, Category = SelectiveTessellationOptions, meta = (EditCondition = "SelectionType == EDisplaceMeshToolTriangleSelectionType::Material", EditConditionHides, GetOptions = GetMaterialIDsFunc))
+	FName ActiveMaterial;
+
+	UFUNCTION()
+	TArray<FString> GetMaterialIDsFunc() { return MaterialIDList; }
+
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> MaterialIDList;	
+};
 
 
 /** PropertySet for properties affecting the Image Map displacement type. */
@@ -301,6 +333,10 @@ public:
 	/** Sine wave parameters and direction of displacement */
 	UPROPERTY()
 	TObjectPtr<UDisplaceMeshSineWaveProperties> SineWaveProperties;
+
+	/** Selective tessellation properties */
+	UPROPERTY()
+	TObjectPtr<USelectiveTessellationProperties> SelectiveTessellationProperties;
 
 	/** Contrast Curve we are actively listening to */
 	UPROPERTY()
