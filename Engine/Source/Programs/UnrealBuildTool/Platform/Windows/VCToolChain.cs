@@ -930,6 +930,10 @@ namespace UnrealBuildTool
 					Arguments.Add("-Wno-unused-but-set-variable");
 					Arguments.Add("-Wno-unused-but-set-parameter");
 				}
+				if (EnvVars.CompilerVersion >= new VersionNumber(14))
+				{
+					Arguments.Add("-Wno-bitwise-instead-of-logical");
+				}
 				Arguments.Add("-Wno-unused-local-typedefs");
 				Arguments.Add("-Wno-unused-function");
 				Arguments.Add("-Wno-unused-private-field");

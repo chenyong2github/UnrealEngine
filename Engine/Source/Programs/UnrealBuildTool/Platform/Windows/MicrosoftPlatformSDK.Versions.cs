@@ -21,12 +21,9 @@ namespace UnrealBuildTool
 		static readonly VersionNumberRange[] PreferredClangVersions =
 		{
 			VersionNumberRange.Parse("13.0.0", "13.999"),
-			VersionNumberRange.Parse("12.0.0", "12.999"),
-			VersionNumberRange.Parse("11.0.0", "11.999"),
-			VersionNumberRange.Parse("10.0.0", "10.999")
 		};
 
-		static readonly VersionNumber MinimumClangVersion = new VersionNumber(10, 0, 0);
+		static readonly VersionNumber MinimumClangVersion = new VersionNumber(13, 0, 0);
 
 		/// <summary>
 		/// Ranges of tested compiler toolchains to be used, in order of preference. If multiple toolchains in a range are present, the latest version will be preferred.
@@ -39,7 +36,7 @@ namespace UnrealBuildTool
 		};
 
 		/// <summary>
-		/// Tested compiler toolchanges that should not be allowed.
+		/// Tested compiler toolchains that should not be allowed.
 		/// </summary>
 		static readonly VersionNumberRange[] BannedVisualCppVersions = new VersionNumberRange[]
 		{
