@@ -1452,6 +1452,21 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 					TemplateNode->InvalidateCache();
 					TemplateNode->PostLoad();
 
+					// Remove preferred types that do not match the pin type
+					{
+						TemplateNode->PreferredPermutationPairs.RemoveAll([TemplateNode](const FRigVMTemplatePreferredType& PreferredType)
+						{
+							if (URigVMPin* Pin = TemplateNode->FindPin(PreferredType.GetArgument().ToString()))
+							{
+								if (Pin->GetTypeIndex() == PreferredType.GetTypeIndex())
+								{
+									return false;
+								}
+							}
+							return true;
+						});						
+					}
+
 					if(!TemplateNode->HasWildCardPin() &&
 						!TemplateNode->IsSingleton() &&
 						TemplateNode->PreferredPermutationPairs.IsEmpty())
