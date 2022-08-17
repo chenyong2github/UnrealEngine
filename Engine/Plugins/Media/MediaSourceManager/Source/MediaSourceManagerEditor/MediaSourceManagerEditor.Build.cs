@@ -17,6 +17,7 @@ public class MediaSourceManagerEditor : ModuleRules
 				"InputCore",
 				"MediaAssets",
 				"MediaIOCore",
+				"MediaIOEditor",
 				"MediaPlayerEditor",
 				"MediaSourceManager",
 				"PropertyEditor",

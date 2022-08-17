@@ -12,7 +12,7 @@ class UMediaSource;
 class UMediaSourceManagerChannel;
 
 struct FAssetData;
-struct FMediaIODevice;
+struct FMediaIOConnection;
 
 /**
  * Implements a single channel.
@@ -86,9 +86,9 @@ private:
 	 * Assigns a MediaIO input to this channel.
 	 *
 	 * @param DeviceProvider	MediaIO device provider to get the input from.
-	 * @param Device			Device to pass to the device provider.
+	 * @param Connection		Connection to pass to the device provider.
 	 */
-	void AssignMediaIOInput(IMediaIOCoreDeviceProvider* DeviceProvider, FMediaIODevice Device);
+	void AssignMediaIOInput(IMediaIOCoreDeviceProvider* DeviceProvider, FMediaIOConnection Connection);
 
 	/**
 	 * Call this to remove the error notification.
