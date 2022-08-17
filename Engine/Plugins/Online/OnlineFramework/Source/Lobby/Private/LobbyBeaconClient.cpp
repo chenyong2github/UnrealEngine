@@ -29,6 +29,24 @@ void ALobbyBeaconClient::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > 
 	DOREPLIFETIME(ALobbyBeaconClient, PlayerState);
 }
 
+void ALobbyBeaconClient::EndPlay(EEndPlayReason::Type Reason)
+{
+	Super::EndPlay(Reason);
+
+	if (PlayerState)
+	{
+		if (PlayerState->ClientActor == this)
+		{
+			PlayerState->ClientActor = nullptr;
+		}
+
+		if (PlayerState->GetOwner() == this)
+		{
+			PlayerState->SetOwner(nullptr);
+		}
+	}
+}
+
 void ALobbyBeaconClient::OnConnected()
 {
 	UE_LOG(LogLobbyBeacon, Verbose, TEXT("Lobby beacon connection established."));

@@ -65,6 +65,9 @@ class LOBBY_API ALobbyBeaconClient : public AOnlineBeaconClient
 	/** Player state associated with this beacon (@todo not splitscreen safe) */
 	UPROPERTY(Replicated)
 	ALobbyBeaconPlayerState* PlayerState;
+
+	/** Clear out any references to this in PlayerState */
+	virtual void EndPlay(EEndPlayReason::Type Reason) override;
 	
 	//~ Begin AOnlineBeaconClient Interface
 	virtual void OnConnected() override;
