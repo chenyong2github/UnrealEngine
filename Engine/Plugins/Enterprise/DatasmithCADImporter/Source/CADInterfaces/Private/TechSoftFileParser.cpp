@@ -525,7 +525,7 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 
 			// Save body unit and default color and material attributes in a json string
 			// This will be used when the file is reloaded
-			JsonObject->SetNumberField(JSON_ENTRY_BODY_UNIT, Body.BodyUnit);
+			JsonObject->SetNumberField(JSON_ENTRY_BODY_UNIT, Body.Unit);
 
 			if(Body.ColorUId)
 			{

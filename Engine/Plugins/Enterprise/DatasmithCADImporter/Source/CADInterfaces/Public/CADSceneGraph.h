@@ -123,7 +123,6 @@ public:
 public:
 	FCadId ParentId = 0;
 	FCadUuid MeshActorUId = 0;
-	double BodyUnit = 1.;
 
 	TSet<FMaterialUId> MaterialFaceSet;
 	TSet<FMaterialUId> ColorFaceSet;

@@ -63,7 +63,6 @@ FArchive& operator<<(FArchive& Ar, FArchiveBody& Body)
 	Ar << Body.ColorFaceSet;
 	Ar << Body.ParentId;
 	Ar << Body.MeshActorUId;
-	Ar << Body.BodyUnit;
 
 	return Ar;
 }
