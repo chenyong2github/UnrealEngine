@@ -7,7 +7,6 @@
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Misc/Guid.h"
-#include "TickableEditorObject.h"
 #include "WorldFoldersImplementation.h"
 #include "WorldPersistentFolders.h"
 #include "WorldTransientFolders.h"
@@ -68,7 +67,7 @@ struct FActorPlacementFolder
 
 /** Per-World Actor Folders UObject (used to support undo/redo reliably) */
 UCLASS()
-class UNREALED_API UWorldFolders : public UObject, public FTickableEditorObject
+class UNREALED_API UWorldFolders : public UObject
 {
 public:
 	GENERATED_BODY()
@@ -94,13 +93,6 @@ public:
 	//~ Begin UObject
 	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject
-
-	//~ Begin FTickableEditorObject interface
-	virtual void Tick(float DeltaTime) override;
-	virtual ETickableTickType GetTickableTickType() const override;
-	virtual bool IsTickable() const override;
-	virtual TStatId GetStatId() const override;
-	//~ End FTickableEditorObject interface
 
 	//~ Begin Deprecated
 	FActorFolderProps* GetFolderProperties(const FFolder& InFolder);
@@ -129,8 +121,6 @@ private:
 	FActorPlacementFolder CurrentFolder;
 
 	TArray<FActorPlacementFolder> CurrentFolderStack;
-
-	bool bNeedRebuildList = false;
 
 	friend class FWorldFoldersImplementation;
 	friend class FWorldPersistentFolders;
