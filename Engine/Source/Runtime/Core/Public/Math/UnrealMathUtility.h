@@ -2490,5 +2490,44 @@ namespace LWC
 		}
 	}
 
+	/*
+	 * Floating point to integer conversions
+	 */
+
+	// Generic float type to int type, to enable specializations below.
+	template<typename OutIntType, typename InFloatType>
+	FORCEINLINE OutIntType FloatToIntCastChecked(InFloatType FloatValue)
+	{
+		return (OutIntType)(FloatValue);
+	}
+
+	// float->int32
+	template<>
+	FORCEINLINE int32 FloatToIntCastChecked(float FloatValue)
+	{
+		return FMath::TruncToInt32(FloatValue);
+	}
+
+	// float->int64
+	template<>
+	FORCEINLINE int64 FloatToIntCastChecked(float FloatValue)
+	{
+		return FMath::TruncToInt64(FloatValue);
+	}
+
+	// double->int32
+	template<>
+	FORCEINLINE int32 FloatToIntCastChecked(double FloatValue)
+	{
+		return FMath::TruncToInt32(FloatValue);
+	}
+
+	// double->int64
+	template<>
+	FORCEINLINE int64 FloatToIntCastChecked(double FloatValue)
+	{
+		return FMath::TruncToInt64(FloatValue);
+	}
+
 } // namespace LWC
 } // namespace UE

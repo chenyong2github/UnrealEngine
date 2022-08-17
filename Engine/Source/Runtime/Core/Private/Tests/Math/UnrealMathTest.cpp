@@ -3244,6 +3244,32 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		Big3 = FMath::Clamp(I1, Big1, I2);
 		I = FMath::Clamp<int32>(Big1, I1, I2);
 #endif
+
+		I = UE::LWC::FloatToIntCastChecked<int32>(F1);
+		I = UE::LWC::FloatToIntCastChecked<int32>(D1);
+
+		Big1 = UE::LWC::FloatToIntCastChecked<int64>(F1);
+		Big1 = UE::LWC::FloatToIntCastChecked<int64>(D1);
+
+		// Valid (implicit int32->int64)
+		Big1 = UE::LWC::FloatToIntCastChecked<int32>(F1);
+		Big1 = UE::LWC::FloatToIntCastChecked<int32>(D1);
+
+		// Valid (implicit int32->float then int32->int64
+		Big1 = UE::LWC::FloatToIntCastChecked<int32>(I);
+
+#if MATHTEST_CHECK_INVALID_OVERLOAD_VARIANTS
+		// Shouldn't match a function
+		I = UE::LWC::FloatToIntCastChecked(F1);
+		I = UE::LWC::FloatToIntCastChecked(D1);
+		Big1 = UE::LWC::FloatToIntCastChecked(F1);
+		Big1 = UE::LWC::FloatToIntCastChecked(D1);
+		I = UE::LWC::FloatToIntCastChecked(I);
+		Big1 = UE::LWC::FloatToIntCastChecked(Big1);
+		// Truncation warnings
+		I = UE::LWC::FloatToIntCastChecked<int64>(F1);
+		I = UE::LWC::FloatToIntCastChecked<int64>(D1);
+#endif
 	}
 
 	// Sin, Cos, Tan tests
