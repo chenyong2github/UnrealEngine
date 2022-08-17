@@ -210,6 +210,7 @@ namespace Metasound
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
 			Info.CategoryHierarchy.Emplace(NodeCategories::Trigger);
+			Info.Keywords = { METASOUND_LOCTEXT("TriggerControlGateKeyword", "Gate") };
 
 			return Info;
 		};

@@ -1078,6 +1078,9 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = DeclareVertexInterface();
+				Info.Keywords = { METASOUND_LOCTEXT("WavePlayerSoundKeyword", "Sound"),
+				                  METASOUND_LOCTEXT("WavePlayerCueKeyword", "Cue")
+				};
 
 				return Info;
 			};

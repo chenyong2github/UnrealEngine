@@ -34,7 +34,7 @@ namespace Metasound
 	namespace BasicFilterParameterNames
 	{
 		// inputs
-		METASOUND_PARAM(ParamAudioInput, "In", "Audio to be processed by the filter.");	
+		METASOUND_PARAM(ParamAudioInput, "In", "Audio to be processed by the filter.");
 		METASOUND_PARAM(ParamCutoffFrequency, "Cutoff Frequency", "Controls cutoff frequency.");
 		METASOUND_PARAM(ParamResonance, "Resonance", "Controls filter resonance.");
 		METASOUND_PARAM(ParamBandwidth, "Bandwidth", "Controls bandwidth when applicable to the current filter type.");
@@ -54,6 +54,15 @@ namespace Metasound
 	using namespace BasicFilterParameterNames;
 #pragma endregion
 
+	static const TArray<FText> LowPassKeywords = { METASOUND_LOCTEXT("LowPassKeyword", "Lowpass"), METASOUND_LOCTEXT("LowPassSpaceKeyword", "Low Pass"), METASOUND_LOCTEXT("LowPassDashKeyword", "Low-pass"), METASOUND_LOCTEXT("LPFKeyword", "lpf")};
+	static const TArray<FText> HighPassKeywords = { METASOUND_LOCTEXT("HighPassKeyword", "Highpass"), METASOUND_LOCTEXT("HighPassSpaceKeyword", "High Pass"), METASOUND_LOCTEXT("HighPassDashKeyword", "High-pass"), METASOUND_LOCTEXT("HPFKeyword", "hpf") };
+	static const TArray<FText> BandPassKeywords = { METASOUND_LOCTEXT("BandPassKeyword", "Bandpass"), METASOUND_LOCTEXT("BandPassSpaceKeyword", "Band Pass"), METASOUND_LOCTEXT("BandPassDashKeyword", "Band-pass"), METASOUND_LOCTEXT("BPFKeyword", "bpf") };
+	static const TArray<FText> NotchKeywords = { METASOUND_LOCTEXT("NotchKeyword", "Notch"), METASOUND_LOCTEXT("NFKeyword", "nf"), METASOUND_LOCTEXT("BandStopKeyword", "BandStop"), METASOUND_LOCTEXT("BandStopSpaceKeyword", "Band Stop"), METASOUND_LOCTEXT("BandStopDashKeyword", "Band-stop"), METASOUND_LOCTEXT("BSFKeyword", "bsf") };
+	static const TArray<FText> ParametricEQKeywords = { METASOUND_LOCTEXT("EQKeyword", "EQ"), METASOUND_LOCTEXT("ParametricKeyword", "Parametric") };
+	static const TArray<FText> LowShelfKeywords = { METASOUND_LOCTEXT("LowShelfSpaceKeyword", "Low Shelf"), METASOUND_LOCTEXT("LowShelfDashKeyword", "Low-shelf"), METASOUND_LOCTEXT("LSFKeyword", "lsf") };
+	static const TArray<FText> HighShelfKeywords = { METASOUND_LOCTEXT("HighShelfSpaceKeyword", "High Shelf"), METASOUND_LOCTEXT("HighShelfDashKeyword", "High-shelf"), METASOUND_LOCTEXT("HSFKeyword", "hsf") };
+	static const TArray<FText> AllPassKeywords = { METASOUND_LOCTEXT("AllPassKeyword", "Allpass"), METASOUND_LOCTEXT("AllPassSpaceKeyword", "All Pass"), METASOUND_LOCTEXT("AllPassDashKeyword", "All-pass"), METASOUND_LOCTEXT("APFKeyword", "apf") };
+	static const TArray<FText> ButterworthKeywords = { METASOUND_LOCTEXT("ButterworthKeyword", "Butterworth") };
 
 #pragma region Biquad Filter Enum
 	DECLARE_METASOUND_ENUM(Audio::EBiquadFilter::Type, Audio::EBiquadFilter::Lowpass,
@@ -169,6 +178,7 @@ namespace Metasound
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
 			Info.CategoryHierarchy.Emplace(NodeCategories::Filters);
+			Info.Keywords = LowPassKeywords;
 
 			return Info;
 		};
@@ -351,6 +361,10 @@ namespace Metasound
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
 			Info.CategoryHierarchy.Emplace(NodeCategories::Filters);
+			Info.Keywords.Append(LowPassKeywords);
+			Info.Keywords.Append(HighPassKeywords); 
+			Info.Keywords.Append(BandPassKeywords);
+			Info.Keywords.Append(NotchKeywords);
 
 			return Info;
 		};
@@ -523,6 +537,7 @@ namespace Metasound
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
 			Info.CategoryHierarchy.Emplace(NodeCategories::Filters);
+			Info.Keywords = LowPassKeywords;
 
 			return Info;
 		};
@@ -660,6 +675,7 @@ namespace Metasound
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
 			Info.CategoryHierarchy.Emplace(NodeCategories::Filters);
+			Info.Keywords = HighPassKeywords;
 
 			return Info;
 		};
@@ -718,6 +734,7 @@ namespace Metasound
 	{
 	private:
 		static constexpr float InvalidValue = -1.f;
+		
 	public:
 		static const FNodeClassMetadata& GetNodeInfo();
 
@@ -816,6 +833,15 @@ namespace Metasound
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
 			Info.CategoryHierarchy.Emplace(NodeCategories::Filters);
+			Info.Keywords.Append(LowPassKeywords);
+			Info.Keywords.Append(HighPassKeywords);
+			Info.Keywords.Append(BandPassKeywords);
+			Info.Keywords.Append(NotchKeywords);
+			Info.Keywords.Append(ParametricEQKeywords);
+			Info.Keywords.Append(AllPassKeywords);
+			Info.Keywords.Append(LowShelfKeywords);
+			Info.Keywords.Append(HighShelfKeywords);
+			Info.Keywords.Append(ButterworthKeywords);
 
 			return Info;
 		};

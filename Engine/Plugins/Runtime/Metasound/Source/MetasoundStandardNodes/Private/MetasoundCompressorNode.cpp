@@ -132,7 +132,7 @@ namespace Metasound
 					PluginNodeMissingPrompt,
 					NodeInterface,
 					{ NodeCategories::Dynamics },
-					{ },
+					{ METASOUND_LOCTEXT("SidechainKeyword", "Sidechain"), METASOUND_LOCTEXT("UpwardsKeyword", "Upwards Compressor")},
 					FNodeDisplayStyle()
 				};
 

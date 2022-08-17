@@ -205,6 +205,7 @@ namespace Metasound
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
 			Info.CategoryHierarchy.Emplace(NodeCategories::Trigger);
+			Info.Keywords = { METASOUND_LOCTEXT("TriggerFilterRandomKeyword", "Random"), METASOUND_LOCTEXT("TriggerFilterProbabilityKeyword", "Probability"), METASOUND_LOCTEXT("TriggerFilterCoinKeyword", "Coin"), METASOUND_LOCTEXT("TriggerFilterBernoulliKeyword", "Bernoulli Gate")};
 
 			return Info;
 		};

@@ -9,6 +9,7 @@
 #include "MetasoundPrimitives.h"
 #include "MetasoundSourceInterface.h"
 #include "MetasoundStandardNodesNames.h"
+#include "MetasoundStandardNodesCategories.h"
 #include "MetasoundTime.h"
 #include "MetasoundTrace.h"
 #include "MetasoundTrigger.h"
@@ -89,8 +90,8 @@ namespace Metasound
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					GetDefaultInterface(),
-					{ },
-					{ },
+					{ NodeCategories::Envelopes },
+					{ METASOUND_LOCTEXT("WaveTableEnvelopeSynthesisKeyword", "Synthesis")},
 					{ }
 				};
 

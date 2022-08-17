@@ -46,6 +46,7 @@ namespace Metasound
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
 				Info.CategoryHierarchy.Emplace(NodeCategories::Math);
+				Info.Keywords.Add(METASOUND_LOCTEXT("LinearToLogPitchKeyword", "Pitch"));
 
 				return Info;
 			};

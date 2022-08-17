@@ -157,6 +157,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
+			Info.Keywords.Add(METASOUND_LOCTEXT("LerpKeyword", "Lerp"));
 
 			return Info;
 		};

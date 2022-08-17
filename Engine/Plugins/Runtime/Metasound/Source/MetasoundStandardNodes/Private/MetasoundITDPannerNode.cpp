@@ -259,6 +259,7 @@ namespace Metasound
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
 			Info.CategoryHierarchy.Emplace(NodeCategories::Spatialization);
+			Info.Keywords = { METASOUND_LOCTEXT("ITDBinauralKeyword", "Binaural"), METASOUND_LOCTEXT("ITDInterauralKeyword", "Interaural Time Delay")};
 			return Info;
 		};
 
