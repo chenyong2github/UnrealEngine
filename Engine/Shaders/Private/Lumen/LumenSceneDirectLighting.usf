@@ -78,7 +78,8 @@ void LumenCardDirectLightingPS(
 		float3 LightColor = DeferredLightUniforms.Color;
 		float3 L = LightData.Direction;
 		float3 ToLight = L;
-	
+		float3 AreaLightFalloffColor = 1;
+
 #if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
 		float CombinedAttenuation = 1;
 #else
@@ -88,12 +89,21 @@ void LumenCardDirectLightingPS(
 			LightMask = GetLocalLightAttenuation(TranslatedWorldPosition, LightData, ToLight, L);
 		}
 
-		float Attenuation;
+		float3 Attenuation;
 
 		if (LightData.bRectLight)
 		{
 			FRect Rect = GetRect(ToLight, LightData);
-			Attenuation = IntegrateLight(Rect );
+			Attenuation = IntegrateLight(Rect);
+
+			if (IsRectVisible(Rect))
+			{
+				float Roughness = 1;
+				float3 V = float3(1, 0, 0);
+				const FRectTexture SourceTexture = InitRectTexture(LightData);
+				FAreaLightIntegrateContext Context = CreateRectIntegrateContext(Roughness, WorldNormal, V, Rect, SourceTexture);
+				AreaLightFalloffColor = Context.AreaLight.FalloffColor;
+			}
 		}
 		else
 		{
@@ -128,7 +138,7 @@ void LumenCardDirectLightingPS(
 				}
 
 				float NoL = saturate(dot(WorldNormal, L));
-				Irradiance = LightColor * (CombinedAttenuation * NoL * ShadowMaskRay.ShadowFactor);
+				Irradiance = LightColor * AreaLightFalloffColor * (CombinedAttenuation * NoL * ShadowMaskRay.ShadowFactor);
 				//Irradiance = bShadowFactorValid ? float3(0, 1, 0) : float3(0.2f, 0.0f, 0.0f);
 			}
 		}
