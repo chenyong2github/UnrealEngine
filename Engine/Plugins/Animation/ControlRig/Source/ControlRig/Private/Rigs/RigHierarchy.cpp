@@ -2762,7 +2762,7 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 			if(const UWorld* World = GetWorld())
 			{
 				// only fire these notes if we are inside the asset editor
-				if(GetWorld()->WorldType == EWorldType::EditorPreview)
+				if(World->WorldType == EWorldType::EditorPreview)
 				{
 					const FRigBaseElementChildrenArray& Children = GetChildren(InTransformElement);
 					for (FRigBaseElement* Child : Children)
