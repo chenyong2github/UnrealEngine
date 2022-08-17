@@ -379,7 +379,7 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 					Arguments.Emplace(IndexFName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Int32);
 					Arguments.Emplace(CountFName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Int32);
 					Arguments.Emplace(RatioFName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Float);
-					Arguments.Emplace(ContinueFName, ERigVMPinDirection::Hidden, ExecuteTypeIndex);
+					Arguments.Emplace(ContinueFName, ERigVMPinDirection::Hidden, RigVMTypeUtils::TypeIndex::Bool);
 					Arguments.Emplace(CompletedFName, ERigVMPinDirection::Output, ExecuteTypeIndex);
 					break;
 				}
@@ -525,7 +525,7 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 					case ERigVMOpCode::ArrayIterator:
 					{
 						Types.Add(ExecuteFName, ExecuteTypeIndex);
-						Types.Add(ContinueFName, ExecuteTypeIndex);
+						Types.Add(ContinueFName, RigVMTypeUtils::TypeIndex::Bool);
 						Types.Add(CompletedFName, ExecuteTypeIndex);
 						Types.Add(IndexFName, RigVMTypeUtils::TypeIndex::Int32);
 						Types.Add(CountFName, RigVMTypeUtils::TypeIndex::Int32);

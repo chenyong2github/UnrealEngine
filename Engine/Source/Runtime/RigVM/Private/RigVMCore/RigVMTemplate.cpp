@@ -9,6 +9,39 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
+static void EnsureValidExecuteType_Internal(TRigVMTypeIndex& InTypeIndex)
+{
+	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+	if(InTypeIndex == INDEX_NONE)
+	{
+		return;
+	}
+		
+	if(InTypeIndex == RigVMTypeUtils::TypeIndex::Execute) 
+	{
+		return;
+	}
+
+	if(!Registry.IsExecuteType(InTypeIndex))
+	{
+		return;
+	}
+
+	// execute arguments can have various execute context types. but we always
+	// convert them to the base execute type to make matching types easier later.
+	// this means that the execute argument in every permutations shares 
+	// the same type index of RigVMTypeUtils::TypeIndex::Execute
+	if(Registry.IsArrayType(InTypeIndex))
+	{
+		InTypeIndex = Registry.GetArrayTypeFromBaseTypeIndex(RigVMTypeUtils::TypeIndex::Execute);
+	}
+	else
+	{
+		InTypeIndex = RigVMTypeUtils::TypeIndex::Execute;
+	}	
+}
+
+
 FRigVMTemplateArgument::FRigVMTemplateArgument()
 	: Index(INDEX_NONE)
 	, Name(NAME_None)
@@ -93,39 +126,6 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDir
 	UpdateTypeToPermutations();
 }
 
-void FRigVMTemplateArgument::EnsureValidExecuteType()
-{
-	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
-	for(TRigVMTypeIndex& TypeIndex : TypeIndices)
-	{
-		if(TypeIndex == INDEX_NONE)
-		{
-			continue;
-		}
-		
-		if(TypeIndex == RigVMTypeUtils::TypeIndex::Execute) 
-		{
-			continue;
-		}
-
-		if(!Registry.IsExecuteType(TypeIndex))
-		{
-			continue;
-		}
-
-		// execute arguments are converted to the base type to make
-		// matching types easier later
-		if(Registry.IsArrayType(TypeIndex))
-		{
-			TypeIndex = Registry.GetArrayTypeFromBaseTypeIndex(RigVMTypeUtils::TypeIndex::Execute);
-		}
-		else
-		{
-			TypeIndex = RigVMTypeUtils::TypeIndex::Execute;
-		}
-	}
-}
-
 void FRigVMTemplateArgument::Serialize(FArchive& Ar)
 {
 	Ar << Index;
@@ -198,6 +198,14 @@ void FRigVMTemplateArgument::Serialize(FArchive& Ar)
 			TypeCategories[i] = (FRigVMTemplateArgument::ETypeCategory) CategoryIndex;
 		}
 	}	
+}
+
+void FRigVMTemplateArgument::EnsureValidExecuteType()
+{
+	for(TRigVMTypeIndex& TypeIndex : TypeIndices)
+	{
+		EnsureValidExecuteType_Internal(TypeIndex);
+	}
 }
 
 void FRigVMTemplateArgument::UpdateTypeToPermutations()
@@ -1431,9 +1439,15 @@ bool FRigVMTemplate::AddTypeForArgument(const FName& InArgumentName, TRigVMTypeI
 {
 	if(OnNewArgumentType().IsBound())
 	{
-		const FRigVMTemplateTypeMap Types = OnNewArgumentType().Execute(this, InArgumentName, InTypeIndex);
+		FRigVMTemplateTypeMap Types = OnNewArgumentType().Execute(this, InArgumentName, InTypeIndex);
 		if(Types.Num() == Arguments.Num())
 		{
+			for (TPair<FName, TRigVMTypeIndex>& ArgumentAndType : Types)
+			{
+				// similar to FRigVMTemplateArgument::EnsureValidExecuteType
+				EnsureValidExecuteType_Internal(ArgumentAndType.Value);
+			}
+			
 			// make sure this permutation doesn't exist yet
 			FRigVMTemplateTypeMap TempTypes = Types;
 			TArray<int32> ExistingPermutations;
