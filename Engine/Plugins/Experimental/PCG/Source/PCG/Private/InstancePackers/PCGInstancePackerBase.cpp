@@ -7,11 +7,6 @@
 #include "Metadata/PCGMetadataAttributeTraits.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 
-void UPCGInstancePackerBase::PackInstances_Implementation(FPCGContext& Context, const UPCGSpatialData* InSpatialData, const FPCGMeshInstanceList& InstanceList, FPCGPackedCustomData& OutPackedCustomData) const
-{
-	PCGE_LOG_C(Error, &Context, "Invalid use of abstract InstancePackerBase class. Please use an already existing class or implement the PackInstances method");
-}
-
 bool UPCGInstancePackerBase::AddTypeToPacking(int TypeId, FPCGPackedCustomData& OutPackedCustomData) const
 {
 	if (TypeId == PCG::Private::MetadataTypes<float>::Id)

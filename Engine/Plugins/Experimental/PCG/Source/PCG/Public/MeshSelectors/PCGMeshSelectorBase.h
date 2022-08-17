@@ -63,7 +63,7 @@ public:
 		const UPCGStaticMeshSpawnerSettings* Settings,
 		const UPCGSpatialData* InSpatialData,
 		TArray<FPCGMeshInstanceList>& OutMeshInstances,
-		UPCGPointData* OutPointData) const;
+		UPCGPointData* OutPointData) const PURE_VIRTUAL(UPCGMeshSelectorBase::SelectInstances_Implementation);
 
 	/** Searches OutInstanceLists for an InstanceList matching the given parameters. If nothing is found, creates a new InstanceList and adds to OutInstanceLists. Returns true if added. */
 	UFUNCTION(BlueprintCallable, Category = MeshSelection)

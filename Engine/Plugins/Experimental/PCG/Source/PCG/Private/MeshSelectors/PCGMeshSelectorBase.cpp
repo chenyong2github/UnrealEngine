@@ -4,16 +4,6 @@
 
 #include "Elements/PCGStaticMeshSpawner.h"
 
-void UPCGMeshSelectorBase::SelectInstances_Implementation(
-	FPCGContext& Context, 
-	const UPCGStaticMeshSpawnerSettings* Settings, 
-	const UPCGSpatialData* InSpatialData,
-	TArray<FPCGMeshInstanceList>& OutMeshInstances,
-	UPCGPointData* OutPointData) const
-{
-	PCGE_LOG_C(Error, &Context, "Invalid use of abstract MeshSelectorBase class. Please use an already existing class or implement the SelectInstances method");
-}
-
 bool UPCGMeshSelectorBase::FindOrAddInstanceList(
 	TArray<FPCGMeshInstanceList>& OutInstanceLists,
 	const TSoftObjectPtr<UStaticMesh>& Mesh,
