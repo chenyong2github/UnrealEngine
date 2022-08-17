@@ -8,8 +8,6 @@ public class OnlineServicesInterface : ModuleRules
     {
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		bUseUnity = false; // set false to catch non-unity compile issues while prototyping
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"CoreOnline",
