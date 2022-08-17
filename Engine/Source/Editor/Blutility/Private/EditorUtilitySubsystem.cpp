@@ -193,7 +193,7 @@ void UEditorUtilitySubsystem::RegisterTabAndGetID(class UEditorUtilityWidgetBlue
 	if (InBlueprint && !IsRunningCommandlet())
 	{
 		FName RegistrationName = NewTabID.IsNone() ? FName(*(InBlueprint->GetPathName() + LOCTEXT("ActiveTabSuffix", "_ActiveTab").ToString())) : FName(*(InBlueprint->GetPathName() + NewTabID.ToString()));
-		FText DisplayName = FText::FromString(InBlueprint->GetName());
+		FText DisplayName = FText::FromString(FName::NameToDisplayString(InBlueprint->GetName(), false));
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 		if (!LevelEditorTabManager->HasTabSpawner(RegistrationName))
