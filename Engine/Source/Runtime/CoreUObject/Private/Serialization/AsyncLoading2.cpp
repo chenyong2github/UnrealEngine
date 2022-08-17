@@ -5787,13 +5787,21 @@ void FAsyncLoadingThread2::OnLeakedPackageRename(UPackage* Package)
 		FlushAsyncLoading(); 
 	}
 
-	FLoadedPackageRef* PackageRef = LoadedPackageStore.FindPackageRef(Package->GetPackageId());
-	if (PackageRef == nullptr) 
+	// We don't care about levelstreaming /Temp/ packages that are never imported by other packages
+	if (!Package->CanBeImported())
 	{
 		return;
 	}
 
-	// Code such as LoadMap or LevelStreaming has renamed a loaded package which was detected as leaking so that we can load another copy of it.
+	// If a package that can be imported was leaked and renamed,
+	// then it must exist in the loaded package store at this point since it is normally only trimmed during GC.
+	FLoadedPackageRef* PackageRef = LoadedPackageStore.FindPackageRef(Package->GetPackageId());
+	if (!ensureAlwaysMsgf(PackageRef, TEXT("Package %s (0x%llX)"), *Package->GetName(), Package->GetPackageId().ValueForDebugging())) 
+	{
+		return;
+	}
+
+	// Code such as LoadMap or LevelStreaming is about to rename a loaded package which was detected as leaking so that we can load another copy of it.
 	// We should not have any loading happening at present, so we can remove these objects from our stores 
 	TArray<FUObjectItem*> LeakedObjectItems;
 	LeakedObjectItems.Emplace(GUObjectArray.ObjectToObjectItem(Package));
@@ -5804,6 +5812,10 @@ void FAsyncLoadingThread2::OnLeakedPackageRename(UPackage* Package)
 	FUnreachableObjects LeakedUnreachableObjects;
 	FilterUnreachableObjects(LeakedObjectItems, LeakedUnreachableObjects);
 	RemoveUnreachableObjects(LeakedUnreachableObjects);
+
+	// Clear the CanBeImportedFlag so that this package is only removed once,
+	// else we would try and remove it again during GC, which would instead remove the reloaded package if it exists
+	Package->SetCanBeImportedFlag(false);
 }
 
 void FAsyncLoadingThread2::RemoveUnreachableObjects(FUnreachableObjects& ObjectsToRemove)
