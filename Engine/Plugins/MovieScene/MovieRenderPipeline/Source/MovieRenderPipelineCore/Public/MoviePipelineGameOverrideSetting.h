@@ -36,7 +36,8 @@ public:
 		, bOverrideViewDistanceScale(true)
 		, ViewDistanceScale(50)
 		, bFlushGrassStreaming(true)
-		, bDisableGPUTimeout(true) 
+		, bFlushStreamingManagers(true)
+		, bDisableGPUTimeout(true)
 	{
 	}
 
@@ -100,6 +101,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
 	bool bFlushGrassStreaming;
 
+	/** Experimental. If true flush the streaming managers (Texture Streaming) each frame. Allows Texture Streaming to not have visible pop-in in final frames. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
+	bool bFlushStreamingManagers;
+
 	/** Should we disable the GPU Timeout? Currently only applicable when using D3D12 renderer. */
 	bool bDisableGPUTimeout;
 
@@ -124,6 +129,7 @@ private:
 	int32 PreviousSkyLightRealTimeReflectionCaptureTimeSlice;
 	int32 PreviousVolumetricRenderTarget;
 	int32 PreviousIgnoreStreamingPerformance;
+	int32 PreviousStreamingManagerSyncState;
 #if WITH_EDITOR
 	int32 PreviousGeoCacheStreamerShowNotification;
 	int32 PreviousGeoCacheStreamerBlockTillFinish;

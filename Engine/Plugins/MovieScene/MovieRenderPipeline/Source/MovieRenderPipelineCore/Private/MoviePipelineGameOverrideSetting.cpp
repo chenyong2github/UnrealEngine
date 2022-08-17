@@ -92,6 +92,11 @@ void UMoviePipelineGameOverrideSetting::ApplyCVarSettings(const bool bOverrideVa
 		// This CVAR only exists if the D3D12RHI module is loaded
 		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT_IF_EXIST(PreviousGPUTimeout, TEXT("r.D3D12.GPUTimeout"), 0, bOverrideValues);
 	}
+
+	if (bFlushStreamingManagers)
+	{
+		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PreviousStreamingManagerSyncState, TEXT("r.Streaming.SyncStatesWhenBlocking"), 1, bOverrideValues);
+	}
 	
 #if WITH_EDITOR
 	// To make sure the GeometryCache streamer doesn't skip frames and doesn't pop up notification during rendering
@@ -186,6 +191,11 @@ void UMoviePipelineGameOverrideSetting::BuildNewProcessCommandLineArgsImpl(TArra
 	if (bDisableGPUTimeout)
 	{
 		InOutDeviceProfileCvars.Add(TEXT("r.D3D12.GPUTimeout=0"));
+	}
+
+	if (bFlushStreamingManagers)
+	{
+		InOutDeviceProfileCvars.Add(TEXT("r.Streaming.SyncStatesWhenBlocking=1"));
 	}
 	
 #if WITH_EDITOR

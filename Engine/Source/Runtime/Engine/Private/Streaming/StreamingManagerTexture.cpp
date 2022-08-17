@@ -69,6 +69,12 @@ static FAutoConsoleVariableRef CVarStreamingParallelRenderAssetsNumWorkgroups(
 	TEXT("Though adds overhead to GameThread if too high."),
 	ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarSyncStatesWhenBlocking(
+	TEXT("r.Streaming.SyncStatesWhenBlocking"),
+	0,
+	TEXT("If true, SyncStates will be called to fully update async states before flushing outstanding streaming requests. Used by Movie Render Queue to ensure all streaming requests are handled each frame to avoid pop-in."),
+	ECVF_Default);
+
 bool TrackRenderAsset( const FString& AssetName );
 bool UntrackRenderAsset( const FString& AssetName );
 void ListTrackedRenderAssets( FOutputDevice& Ar, int32 NumTextures );
@@ -1789,6 +1795,12 @@ int32 FRenderAssetStreamingManager::BlockTillAllRequestsFinished( float TimeLimi
 
 	while (ensure(!IsAssetStreamingSuspended()))
 	{
+		// Optionally synchronize the states of async work before we wait for outstanding work to be completed.
+		if (CVarSyncStatesWhenBlocking.GetValueOnGameThread() != 0)
+		{
+			SyncStates(true);
+		}
+
 		int32 NumOfInFlights = 0;
 
 		for (FStreamingRenderAsset& StreamingRenderAsset : StreamingRenderAssets)

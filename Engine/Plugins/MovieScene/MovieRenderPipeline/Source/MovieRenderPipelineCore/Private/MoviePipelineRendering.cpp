@@ -37,6 +37,7 @@
 #include "ShaderCompiler.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInterface.h"
+#include "ContentStreaming.h"
 
 
 #define LOCTEXT_NAMESPACE "MoviePipeline"
@@ -542,6 +543,17 @@ void UMoviePipeline::FlushAsyncEngineSystems()
 	// Flush all assets still being compiled asynchronously.
 	// A progressbar is already in place so the user can get feedback while waiting for everything to settle.
 	FAssetCompilingManager::Get().FinishAllCompilation();
+
+	// Flush streaming managers
+	{
+		UMoviePipelineGameOverrideSetting* GameOverrideSettings = FindOrAddSettingForShot<UMoviePipelineGameOverrideSetting>(ActiveShotList[CurrentShotIndex]);
+		if (GameOverrideSettings && GameOverrideSettings->bFlushStreamingManagers)
+		{
+			FStreamingManagerCollection& StreamingManagers = IStreamingManager::Get();
+			StreamingManagers.UpdateResourceStreaming(GetWorld()->GetDeltaSeconds(), /* bProcessEverything */ true);
+			StreamingManagers.BlockTillAllRequestsFinished();
+		}
+	}
 
 	// Flush grass
 	if (CurrentShotIndex < ActiveShotList.Num())
