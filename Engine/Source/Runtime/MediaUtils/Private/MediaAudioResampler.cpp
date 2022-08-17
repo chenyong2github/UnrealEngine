@@ -518,7 +518,7 @@ bool FMediaAudioResampler::SetInput(const TSharedPtr<IMediaAudioSample, ESPMode:
 		else
 		{
 			// down-mix channels
-			Input.AddUninitialized(NumSamples);
+			Input.AddUninitialized(NumFrames * OutputChannels);
 
 			if (!MediaAudioResampler::Downmix((float*)Buffer, NumChannels, NumFrames, Input.GetData(), OutputChannels))
 			{
