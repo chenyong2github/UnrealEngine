@@ -460,7 +460,7 @@ FFrustumCullData BoxCullFrustum( float3 Center, float3 Extent, float4x4 LocalToW
 	// NOTE: We assume here that if near clipping is disabled the projection is orthographic, as disabling near clipping is
 	// a feature for directional light shadows, and disabling near clipping for a perspective projection doesn't make much sense.
 	// Checking both also serves to help out DCE when either is a compile-time constant.
-	check(bIsOrtho || bNearClip);
+	checkSlow(bIsOrtho || bNearClip);
 	
 	if (bIsOrtho || !bNearClip)
 	{

@@ -1201,9 +1201,9 @@ float ConvertFromDeviceZ(float DeviceZ)
 }
 
 // Returns whether or not the given projection matrix is orthographic
-bool IsOrthoProjection(float4x4 ProjectionMatrix)
+bool IsOrthoProjection(float4x4 ViewToClip)
 {
-	return ProjectionMatrix[3][3] >= 1.0f;
+	return ViewToClip[3][3] >= 1.0f;
 }
 
 // inverse operation of ConvertFromDeviceZ()
