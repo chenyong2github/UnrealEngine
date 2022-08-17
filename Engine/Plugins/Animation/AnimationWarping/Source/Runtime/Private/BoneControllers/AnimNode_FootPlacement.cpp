@@ -546,12 +546,12 @@ void FAnimNode_FootPlacement::DeterminePlantType(
 		// TODO: Test along approach direction
 		// Don't consider the limits to be exceeded if replant radius == unplant radius.
 		const bool bPlantTranslationExceeded =
-			PlantSettings.ReplantMaxLinearErrorRatio < 1.0f &&
-			PlantTranslationWS.SizeSquared2D() > PlantRuntimeSettings.MaxLinearErrorSqrd;
+			PlantSettings.ReplantRadiusRatio < 1.0f &&
+			PlantTranslationWS.SizeSquared2D() > PlantRuntimeSettings.UnplantRadiusSqrd;
 		const bool bPlantRotationExceeded =
-			PlantSettings.ReplantMaxRotationErrorRatio < 1.0f &&
+			PlantSettings.ReplantAngleRatio < 1.0f &&
 			FMath::Abs(InOutPlantData.TwistCorrection.W) <
-			PlantRuntimeSettings.CosHalfMaxRotationError;
+			PlantRuntimeSettings.CosHalfUnplantAngle;
 
 		if (!bPlantTranslationExceeded && !bPlantRotationExceeded)
 		{
@@ -573,10 +573,10 @@ void FAnimNode_FootPlacement::DeterminePlantType(
 		const float LocationDeltaSizeSqrd = PlantLocationDelta.SizeSquared2D();
 
 		const bool bLocationWithinBounds =
-			LocationDeltaSizeSqrd <= PlantRuntimeSettings.ReplantMaxLinearErrorSqrd;
+			LocationDeltaSizeSqrd <= PlantRuntimeSettings.ReplantRadiusSqrd;
 		const bool bTwistWithinBounds =
 			FMath::Abs(InOutPlantData.TwistCorrection.W) >=
-			PlantRuntimeSettings.CosHalfReplantMaxRotationError;
+			PlantRuntimeSettings.CosHalfReplantAngle;
 
 		if (bLocationWithinBounds && bTwistWithinBounds)
 		{
@@ -617,7 +617,7 @@ bool FAnimNode_FootPlacement::WantsToPlant(
 		return false;
 	}
 
-	const bool bPassesPlantDistanceCheck = LegInputPose.DistanceToPlant < PlantSettings.FKPlantDistance;
+	const bool bPassesPlantDistanceCheck = LegInputPose.DistanceToPlant < PlantSettings.DistanceToGround;
 	const bool bPassesSpeedCheck = LegInputPose.Speed < PlantSettings.SpeedThreshold;
 	return bPassesPlantDistanceCheck && bPassesSpeedCheck;
 }
@@ -869,7 +869,7 @@ void FAnimNode_FootPlacement::DrawDebug(
 		CurrentPlantColor,
 		false, -1.0f, 1.0f, SDPG_Foreground);
 
-	const float UnplantRadius = PlantSettings.MaxLinearError;
+	const float UnplantRadius = PlantSettings.UnplantRadius;
 	const FVector PlantCenter = FMath::LinePlaneIntersection(
 		IKBoneTransformWS.GetLocation(),
 		IKBoneTransformWS.GetLocation() + Context.ApproachDirWS,
@@ -878,30 +878,29 @@ void FAnimNode_FootPlacement::DrawDebug(
 		PlantCenter, UnplantRadius, 24, PlantedColor,
 		LegData.Plant.PlantPlaneWS.GetNormal(), false, -1.0f, SDPG_Foreground, 0.5f);
 
-	if (PlantSettings.ReplantMaxLinearErrorRatio < 1.0f)
+	if (PlantSettings.ReplantRadiusRatio < 1.0f)
 	{
 		const float ReplantRadius =
-			PlantSettings.MaxLinearError *
-			PlantSettings.ReplantMaxLinearErrorRatio;
+			PlantSettings.UnplantRadius *
+			PlantSettings.ReplantRadiusRatio;
 		Context.CSPContext.AnimInstanceProxy->AnimDrawDebugCircle(
 			PlantCenter, ReplantRadius, 24, ReplantedColor,
 			LegData.Plant.PlantPlaneWS.GetNormal(), false, -1.0f, SDPG_Foreground, 0.5f);
 	}
 
-	
-	FString InputPoseMessage = FString::Format(
-		TEXT("{0}\n\t - InputPose [ AlignmentAlpha = {1}, Speed = {2}, DistanceToPlant = {3}]"), 
-		{	*LegDefinitions[LegData.Idx].FKFootBone.BoneName.ToString(),
+	FString InputPoseMessage = FString::Printf(
+		TEXT("%s\n\t - InputPose [ AlignmentAlpha = %.2f, Speed = %.2f, DistanceToPlant = %.2f]"), 
+			*LegDefinitions[LegData.Idx].FKFootBone.BoneName.ToString(),
 			LegData.InputPose.AlignmentAlpha,
 			LegData.InputPose.Speed,
-			LegData.InputPose.DistanceToPlant });
+			LegData.InputPose.DistanceToPlant );
 	Context.CSPContext.AnimInstanceProxy->AnimDrawDebugOnScreenMessage(InputPoseMessage, FColor::White);
 	
-	FString ExtensionMessage = FString::Format(
-		TEXT("\t - HyperExtension[ Amount = {1}, Roll = {2}, Pull {3}]"),
-		{	 DebugData.LegsExtension[LegData.Idx].HyperExtensionAmount,
+	FString ExtensionMessage = FString::Printf(
+		TEXT("\t - HyperExtension[ Amount = %.2f, Roll = %.2f, Pull %.2f]"),
+			DebugData.LegsExtension[LegData.Idx].HyperExtensionAmount,
 			DebugData.LegsExtension[LegData.Idx].RollAmount,
-			DebugData.LegsExtension[LegData.Idx].PullAmount });
+			DebugData.LegsExtension[LegData.Idx].PullAmount);
 	Context.CSPContext.AnimInstanceProxy->AnimDrawDebugOnScreenMessage(ExtensionMessage,
 		(DebugData.LegsExtension[LegData.Idx].HyperExtensionAmount <= 0.0f) ? FColor::Green : FColor::Red);
 
@@ -988,14 +987,14 @@ void FAnimNode_FootPlacement::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		// will keep this for now. If needed, change to lazy update.
 		PlantRuntimeSettings.MaxExtensionRatioSqrd = PlantSettings.MaxExtensionRatio * PlantSettings.MaxExtensionRatio;
 		PlantRuntimeSettings.MinExtensionRatioSqrd = PlantSettings.MinExtensionRatio * PlantSettings.MinExtensionRatio;
-		PlantRuntimeSettings.MaxLinearErrorSqrd = PlantSettings.MaxLinearError * PlantSettings.MaxLinearError;
-		PlantRuntimeSettings.ReplantMaxLinearErrorSqrd =
-			PlantRuntimeSettings.MaxLinearErrorSqrd *
-			PlantSettings.ReplantMaxLinearErrorRatio * PlantSettings.ReplantMaxLinearErrorRatio;
-		PlantRuntimeSettings.CosHalfMaxRotationError = FMath::Cos(FMath::DegreesToRadians(PlantSettings.MaxRotationError / 2.0f));
-		PlantRuntimeSettings.CosHalfReplantMaxRotationError
+		PlantRuntimeSettings.UnplantRadiusSqrd = PlantSettings.UnplantRadius * PlantSettings.UnplantRadius;
+		PlantRuntimeSettings.ReplantRadiusSqrd =
+			PlantRuntimeSettings.UnplantRadiusSqrd *
+			PlantSettings.ReplantRadiusRatio * PlantSettings.ReplantRadiusRatio;
+		PlantRuntimeSettings.CosHalfUnplantAngle = FMath::Cos(FMath::DegreesToRadians(PlantSettings.UnplantAngle / 2.0f));
+		PlantRuntimeSettings.CosHalfReplantAngle
 			= FMath::Cos(FMath::DegreesToRadians(
-				(PlantSettings.MaxRotationError * PlantSettings.ReplantMaxRotationErrorRatio) / 2.0f));
+				(PlantSettings.UnplantAngle * PlantSettings.ReplantAngleRatio) / 2.0f));
 	}
 
 	ProcessCharacterState(FootPlacementContext);
@@ -1010,6 +1009,10 @@ void FAnimNode_FootPlacement::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	PelvisTransformCS = UpdatePelvisInterpolation(FootPlacementContext, PelvisTransformCS);
 	OutBoneTransforms.Add(FBoneTransform(PelvisData.Bones.FkBoneIndex, PelvisTransformCS));
 
+#if ENABLE_ANIM_DEBUG
+	FString HeaderMessage = FString::Printf(TEXT("FOOT PLACEMENT DEBUG"));
+	FootPlacementContext.CSPContext.AnimInstanceProxy->AnimDrawDebugOnScreenMessage(HeaderMessage, FColor::Cyan);
+#endif
 
 	for (int32 FootIndex = 0; FootIndex < LegsData.Num(); ++FootIndex)
 	{
@@ -1383,14 +1386,14 @@ void FAnimNode_FootPlacement::ProcessFootAlignment(
 	}
 
 	// If replant radius is the same as unplant radius, clamp the location and slide
-	if (PlantSettings.ReplantMaxLinearErrorRatio >= 1.0f)
+	if (PlantSettings.ReplantRadiusRatio >= 1.0f)
 	{
-		const FVector ClampedTransltionOffset = Interpolation.UnalignedFootOffsetCS.GetLocation().GetClampedToMaxSize(PlantSettings.MaxLinearError);
+		const FVector ClampedTransltionOffset = Interpolation.UnalignedFootOffsetCS.GetLocation().GetClampedToMaxSize(PlantSettings.UnplantRadius);
 		Interpolation.UnalignedFootOffsetCS.SetLocation(ClampedTransltionOffset);
 	}
 
 	// If replant angle is the same as unplant angle, clamp the angle and slide
-	if (PlantSettings.ReplantMaxRotationErrorRatio >= 1.0f)
+	if (PlantSettings.ReplantAngleRatio >= 1.0f)
 	{
 		FQuat ClampedRotationOffset = Interpolation.UnalignedFootOffsetCS.GetRotation();
 		ClampedRotationOffset.Normalize();
@@ -1400,7 +1403,7 @@ void FAnimNode_FootPlacement::ProcessFootAlignment(
 		float OffsetAngle;
 		ClampedRotationOffset.ToAxisAndAngle(OffsetAxis, OffsetAngle);
 
-		const float MaxAngle = FMath::DegreesToRadians(PlantSettings.MaxRotationError);
+		const float MaxAngle = FMath::DegreesToRadians(PlantSettings.UnplantAngle);
 		if (FMath::Abs(OffsetAngle) > MaxAngle)
 		{
 			ClampedRotationOffset = FQuat(OffsetAxis, MaxAngle);

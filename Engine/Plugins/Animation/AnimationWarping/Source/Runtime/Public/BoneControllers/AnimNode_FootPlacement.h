@@ -88,10 +88,10 @@ namespace UE::Anim::FootPlacement
 	{
 		float MaxExtensionRatioSqrd = 0.0f;
 		float MinExtensionRatioSqrd = 0.0f;
-		float MaxLinearErrorSqrd = 0.0f;
-		float ReplantMaxLinearErrorSqrd = 0.0f;
-		float CosHalfMaxRotationError = 0.0f;
-		float CosHalfReplantMaxRotationError = 0.0f;
+		float UnplantRadiusSqrd = 0.0f;
+		float ReplantRadiusSqrd = 0.0f;
+		float CosHalfUnplantAngle = 0.0f;
+		float CosHalfReplantAngle = 0.0f;
 	};
 
 	struct FPelvisRuntimeData
@@ -328,13 +328,32 @@ struct FFootPlacementPlantSettings
 
 public:
 	
-	// At this distance from the planting plane the bone is considered planted and will be fully aligned.
-	UPROPERTY(EditAnywhere, Category = "Plant Settings")
-	float FKPlantDistance = 10.0f;
-
 	// Bone is considered planted below this speed. Value is obtained from FKSpeedCurveName
 	UPROPERTY(EditAnywhere, Category = "Plant Settings")
 	float SpeedThreshold = 60.0f;
+
+	// At this distance from the planting plane the bone is considered planted and will be fully aligned.
+	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	float DistanceToGround = 10.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	EFootPlacementLockType LockType = EFootPlacementLockType::PivotAroundBall;
+
+	// How much linear deviation causes the constraint to be released
+	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	float UnplantRadius = 35.0f;
+
+	// Below this value, proportional to UnplantRadius, the bone will replant
+	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
+	float ReplantRadiusRatio = 0.35f;
+
+	// How much angular deviation (in degrees) causes the constraint to be released for replant
+	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	float UnplantAngle = 45.0;
+
+	// Below this value, proportional to UnplantAngle, the bone will replant
+	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
+	float ReplantAngleRatio = 0.5f;
 
 	// Max extension ratio of the chain, calculated from the remaining length between current pose and full limb extension
 	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
@@ -344,25 +363,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	float MinExtensionRatio = 0.2f;
 
-	// How much linear deviation causes the constraint to be released
-	UPROPERTY(EditAnywhere, Category = "Plant Settings")
-	float MaxLinearError = 35.0f;
-
-	// Below this value, proportional to MaxLinearError, the bone will replant
-	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
-	float ReplantMaxLinearErrorRatio = 0.35f;
-
-	UPROPERTY(EditAnywhere, Category = "Plant Settings")
-	EFootPlacementLockType LockType = EFootPlacementLockType::PivotAroundBall;
-
-	// How much angular deviation (in degrees) causes the constraint to be released for replant
-	UPROPERTY(EditAnywhere, Category = "Plant Settings")
-	float MaxRotationError = 45.0;
-
-	// Below this value, proportional to MaxRotationError, the bone will replant
-	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
-	float ReplantMaxRotationErrorRatio = 0.5f;
-
 	// Speed at which we transition to fully unplanted.
 	// The range between SpeedThreshold and UnalignmentSpeedThreshold should roughly represent the roll-phase of the foot
 	// TODO: This feels innaccurate most of the time, and varies depending on anim speed. Improve this
@@ -370,7 +370,7 @@ public:
 	float UnalignmentSpeedThreshold = 200.0f;
 
 	// How much we reduce the procedural ankle twist adjustment used to align the foot to the ground slope.
-	UPROPERTY(EditAnywhere, Category = "Plant Settings")
+	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	float AnkleTwistReduction = 0.75f;
 
 	// How much we can pull the the foot towards the hip to prevent hyperextension
@@ -396,27 +396,27 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	EWarpingEvaluationMode PlantSpeedMode = EWarpingEvaluationMode::Manual;
 
+	// TODO: This wont work well when the animation doesn't have a single plant plane, i.e. a walking upstairs anim
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FBoneReference IKFootRootBone;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FBoneReference PelvisBone;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (PinHiddenByDefault))
+	FFootPlacementPelvisSettings PelvisSettings;
+
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	TArray<FFootPlacemenLegDefinition> LegDefinitions;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Plant", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (PinHiddenByDefault))
 	FFootPlacementPlantSettings PlantSettings;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interpolation", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (PinHiddenByDefault))
 	FFootPlacementInterpolationSettings InterpolationSettings;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trace", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (PinHiddenByDefault))
 	FFootPlacementTraceSettings TraceSettings;
-
-	// TODO: This wont work well when the animation doesn't have a single plant plane, i.e. a walking upstairs anim
-	UPROPERTY(EditAnywhere, Category = "Plant")
-	FBoneReference IKFootRootBone;
-
-	UPROPERTY(EditAnywhere, Category = "Pelvis")
-	FBoneReference PelvisBone;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pelvis", meta = (PinHiddenByDefault))
-	FFootPlacementPelvisSettings PelvisSettings;
 
 public:
 	FAnimNode_FootPlacement();
