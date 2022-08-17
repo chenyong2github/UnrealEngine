@@ -99,7 +99,7 @@ private:
 	// Allocate the max Float4s usage when compressed transform is used.
 	// TODO: Temporary PrevVelocityHack (last float4s when compressed)
 	static constexpr uint32 CompressedTransformDataStrideInFloat4s = 5;
-	static constexpr uint32 UnCompressedTransformDataStrideInFloat4s = 4;
+	static constexpr uint32 UnCompressedTransformDataStrideInFloat4s = 7;
 
 public:
 
@@ -159,5 +159,5 @@ public:
 		const FRenderTransform& PrevLocalToWorld // Assumes shear has been removed already // TODO: Temporary PrevVelocityHack
 	);
 
-	TStaticArray<FVector4f, CompressedTransformDataStrideInFloat4s> Data;
+	TStaticArray<FVector4f, UnCompressedTransformDataStrideInFloat4s> Data;
 };

@@ -91,5 +91,6 @@ void FInstanceSceneShaderData::BuildInternal
 	{
 		// Note: writes 3x float4s
 		LocalToWorld.To3x4MatrixTranspose((float*)&Data[1]);
+		PrevLocalToWorld.To3x4MatrixTranspose((float*)&Data[4]);
 	}
 }
