@@ -131,13 +131,6 @@ TAutoConsoleVariable<int32> CVarPostProcessingForceAsyncDispatch(
 	ECVF_RenderThreadSafe);
 #endif
 
-TAutoConsoleVariable<bool> CVarAllowDownsampleSceneColorInTAA(
-	TEXT("r.PostProcessing.AllowDownsampleSceneColorInTAA"),
-	true,
-	TEXT("Allow TAA to output scene color in half resolution.\n")
-	TEXT(" (default: true)"),
-	ECVF_RenderThreadSafe);
-
 } //! namespace
 
 EDownsampleQuality GetDownsampleQuality(const TAutoConsoleVariable<int32>& CVar)
@@ -635,8 +628,7 @@ void AddPostProcessingPasses(
 			{
 				UpscalerPassInputs.bAllowDownsampleSceneColor =
 					(bNeedPostMotionBlurHalfRes || bNeedPostMotionBlurQuarterRes) &&
-					DownsampleQuality == EDownsampleQuality::Low &&
-					CVarAllowDownsampleSceneColorInTAA.GetValueOnRenderThread() == true;
+					DownsampleQuality == EDownsampleQuality::Low;;
 			}
 			UpscalerPassInputs.DownsampleOverrideFormat = DownsampleOverrideFormat;
 			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
