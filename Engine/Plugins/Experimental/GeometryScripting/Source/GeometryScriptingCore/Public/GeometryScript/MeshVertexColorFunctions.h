@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GeometryScript/GeometryScriptTypes.h"
+#include "GeometryScript/GeometryScriptSelectionTypes.h"
 #include "MeshVertexColorFunctions.generated.h"
 
 class UDynamicMesh;
@@ -30,6 +31,26 @@ public:
 		FGeometryScriptColorFlags Flags,
 		bool bClearExisting = false,
 		UGeometryScriptDebug* Debug = nullptr);
+
+
+	/**
+	 * Set the colors in the TargetMesh VertexColor Overlay identified by the Selection to a constant value.
+	 * For a Vertex Selection, each existing VertexColor Overlay Element for the vertex is updated.
+	 * For a Triangle or Polygroup Selection, all Overlay Elements in the identified Triangles are updated.
+	 * @param Color the constant color to set
+	 * @param Flags specify which RGBA channels to set (default all channels)
+	 * @param bCreateColorSeam if true, a "hard edge" in the vertex colors is created, by creating new Elements for all the triangles in the selection. If enabled, Vertex selections are converted to Triangle selections, and Flags is ignored. 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|VertexColor", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
+	SetMeshSelectionVertexColor(
+		UDynamicMesh* TargetMesh,
+		FGeometryScriptMeshSelection Selection,
+		FLinearColor Color,
+		FGeometryScriptColorFlags Flags,
+		bool bCreateColorSeam = false,
+		UGeometryScriptDebug* Debug = nullptr);
+
 
 	/**
 	 * Set all vertex colors in the TargetMesh VertexColor Overlay to the specified per-vertex colors
