@@ -337,7 +337,7 @@ float3 GetFacePlaneHZB( float3 ViewOriginLocal, float4x4 ClipToLocal, float3 Bou
 	return PlaneHZB;
 }
 
-FFrustumCullData BoxCullFrustumOrtho(float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bNearClip, bool bSkipFrustumCull)
+FFrustumCullData BoxCullFrustumOrthoNoClip(float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bSkipFrustumCull)
 {
 	FFrustumCullData Cull;
 
@@ -347,14 +347,9 @@ FFrustumCullData BoxCullFrustumOrtho(float3 Center, float3 Extent, float4x4 Loca
 	Cull.RectMin = CenterClip - ClipDelta;
 	Cull.RectMax = CenterClip + ClipDelta;
 
-	Cull.bCrossesFarPlane = Cull.RectMin.z < 0.0f;
-	Cull.bCrossesNearPlane = Cull.RectMax.z > 1.0f;
-	Cull.bIsVisible = Cull.RectMax.z > 0.0f; // Far clip
-
-	if (bNearClip)
-	{
-		Cull.bIsVisible = Cull.bIsVisible && Cull.RectMin.z < 1.0f;
-	}
+	Cull.bCrossesFarPlane = Cull.RectMin.z < 0;
+	Cull.bCrossesNearPlane = false;
+	Cull.bIsVisible = true;
 	
 	if (!bSkipFrustumCull) // for debugging, will compile out
 	{
@@ -366,7 +361,7 @@ FFrustumCullData BoxCullFrustumOrtho(float3 Center, float3 Extent, float4x4 Loca
 	return Cull;
 }
 
-FFrustumCullData BoxCullFrustumPerspective(float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bSkipFrustumCull)
+FFrustumCullData BoxCullFrustumGeneral(float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bNearClip, bool bSkipFrustumCull)
 {
     FFrustumCullData Cull;
 
@@ -427,29 +422,36 @@ FFrustumCullData BoxCullFrustumPerspective(float3 Center, float3 Extent, float4x
 
     #undef EVAL_POINTS
 
-	Cull.bCrossesFarPlane = Cull.RectMin.z < 0;
-	Cull.bIsVisible = Cull.RectMax.z > 0; // Far clip
+    Cull.bCrossesFarPlane = Cull.RectMin.z < 0;
+    Cull.bIsVisible = Cull.RectMax.z > 0;
 
-	// Near clip
-	if (MinW <= 0.0f && MaxW > 0.0f)
-	{
-		Cull.bCrossesNearPlane = true;
-		Cull.bIsVisible = true;
-		Cull.RectMin = float3(-1, -1, -1);
-		Cull.RectMax = float3( 1, 1, 1);
-	}
-	else
-	{
-		Cull.bCrossesNearPlane = MinW <= 0.0;
-		Cull.bIsVisible = MaxW > 0.0 && Cull.bIsVisible;
-	}
+    if (bNearClip)
+    {
+        if (MinW <= 0.0f && MaxW > 0.0f)
+        {
+            Cull.bCrossesNearPlane = true;
+            Cull.bIsVisible = true;
+            Cull.RectMin = float3(-1, -1, -1);
+            Cull.RectMax = float3( 1, 1, 1);
+        }
+        else
+        {
+            Cull.bCrossesNearPlane = MinW <= 0.0;
+            Cull.bIsVisible = MaxW > 0.0 && Cull.bIsVisible;
+        }
+    }
+    else
+    {
+        Cull.bCrossesNearPlane = false;
+        Cull.bIsVisible = true;
+    }
 
-	if (!bSkipFrustumCull)
-	{
-		const bool bFrustumCull = any(PlanesMin > 0.0f);
-		Cull.bFrustumSideCulled = Cull.bIsVisible && bFrustumCull;
-		Cull.bIsVisible = Cull.bIsVisible && !bFrustumCull;
-	}
+    if (!bSkipFrustumCull)
+    {
+        const bool bFrustumCull = any(PlanesMin > 0.0f);
+        Cull.bFrustumSideCulled = Cull.bIsVisible && bFrustumCull;
+        Cull.bIsVisible = Cull.bIsVisible && !bFrustumCull;
+    }
 
     return Cull;
 }
@@ -457,21 +459,10 @@ FFrustumCullData BoxCullFrustumPerspective(float3 Center, float3 Extent, float4x
 // Splitting the transform in two generates much better code on DXC when WorldToClip is scalar.
 FFrustumCullData BoxCullFrustum( float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bNearClip, bool bSkipFrustumCull )
 {
-	const bool bIsOrtho = IsOrthoProjection(WorldToClip);
-
-	// NOTE: We assume here that if near clipping is disabled the projection is orthographic, as disabling near clipping is
-	// a feature for directional light shadows, and disabling near clipping for a perspective projection doesn't make much sense.
-	// Checking both also serves to help out DCE when either is a compile-time constant.
-	check(bIsOrtho || bNearClip);
-	
-	if (bIsOrtho || !bNearClip)
-	{
-		return BoxCullFrustumOrtho( Center, Extent, LocalToWorld, WorldToClip, bNearClip, bSkipFrustumCull );
-	}
+	if( !bNearClip )
+		return BoxCullFrustumOrthoNoClip( Center, Extent, LocalToWorld, WorldToClip, bSkipFrustumCull );	// Disabling near clip only makes sense with orthographic projection, so assume orthographic.
 	else
-	{
-		return BoxCullFrustumPerspective( Center, Extent, LocalToWorld, WorldToClip, bSkipFrustumCull );
-	}
+		return BoxCullFrustumGeneral( Center, Extent, LocalToWorld, WorldToClip, bNearClip, bSkipFrustumCull );
 }
 
 FFrustumCullData BoxCullFrustum(float3 Center, float3 Extent, float4x4 LocalToClip, bool bNearClip, bool bSkipFrustumCull)
