@@ -417,7 +417,7 @@ namespace UnrealBuildTool
 				
 				Arguments.Add("/permissive-");
 				Arguments.Add("/Zc:strictStrings-"); // Have to disable strict const char* semantics due to Windows headers not being compliant.
-				if (EnvVars.CompilerVersion >= new VersionNumber(14, 32))
+				if (EnvVars.CompilerVersion >= new VersionNumber(14, 32) && EnvVars.CompilerVersion < new VersionNumber(14, 33))
 				{
 					Arguments.Add("/Zc:lambda-");
 				}
