@@ -25,7 +25,7 @@ struct FWaterFalloffSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FalloffSettings)
 	float FalloffAngle;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FalloffSettings)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FalloffSettings, meta = (ClampMin = "0.1"))
 	float FalloffWidth;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FalloffSettings)

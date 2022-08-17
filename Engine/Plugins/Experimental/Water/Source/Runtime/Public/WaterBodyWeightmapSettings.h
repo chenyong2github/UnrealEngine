@@ -24,7 +24,7 @@ struct FWaterBodyWeightmapSettings
 		, FinalOpacity(1.0f)
 	{}
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= WaterBodyWeightmapSettings)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= WaterBodyWeightmapSettings, meta = (ClampMin = "0.1"))
 	float FalloffWidth;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WaterBodyWeightmapSettings)
