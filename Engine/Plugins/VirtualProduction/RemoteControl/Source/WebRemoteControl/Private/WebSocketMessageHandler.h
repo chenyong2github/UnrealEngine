@@ -82,8 +82,8 @@ private:
 	/** Register a WebSocket route */
 	void RegisterRoute(FWebRemoteControlModule* WebRemoteControl, TUniquePtr<FRemoteControlWebsocketRoute> Route);
 
-	/** Register handlers for actors being added/deleted (must happen after engine init). */
-	void RegisterActorHandlers();
+	/** Registers events that require the engine to be initialized first. */
+	void RegisterEngineEvents();
 	
 	/** Handles registration to callbacks to a given preset */
 	void HandleWebSocketPresetRegister(const FRemoteControlWebSocketMessage& WebSocketMessage);

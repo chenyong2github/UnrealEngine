@@ -18,6 +18,7 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "Editor/TransBuffer.h"
 #endif
 
 #define DEBUG_STAGEAPP_NORMALS false
@@ -180,6 +181,15 @@ void FStageAppRouteHandler::RegisterRoutes(IWebRemoteControlModule& WebRemoteCon
 
 	ImageWrapperModule = &FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
 
+	if (GEngine)
+	{
+		RegisterEngineEvents();
+	}
+	else
+	{
+		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FStageAppRouteHandler::RegisterEngineEvents);
+	}
+
 	RegisterRoute(MakeUnique<FRemoteControlWebsocketRoute>(
 		TEXT("Create a preview renderer for a specific nDisplay cluster"),
 		TEXT("ndisplay.preview.renderer.create"),
@@ -223,6 +233,19 @@ void FStageAppRouteHandler::RegisterRoutes(IWebRemoteControlModule& WebRemoteCon
 	));
 }
 
+void FStageAppRouteHandler::RegisterEngineEvents()
+{
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		if (UTransBuffer* TransBuffer = Cast<UTransBuffer>(GEditor->Trans))
+		{
+			TransBuffer->OnTransactionStateChanged().AddRaw(this, &FStageAppRouteHandler::OnTransactionStateChanged);
+		}
+	}
+#endif
+}
+
 void FStageAppRouteHandler::UnregisterRoutes(IWebRemoteControlModule& WebRemoteControl)
 {
 	if (RemoteControlModule == &WebRemoteControl)
@@ -238,6 +261,21 @@ void FStageAppRouteHandler::UnregisterRoutes(IWebRemoteControlModule& WebRemoteC
 		FTSTicker::GetCoreTicker().RemoveTicker(DragTimeoutTickerHandle);
 		DragTimeoutTickerHandle.Reset();
 	}
+
+	UnregisterEngineEvents();
+}
+
+void FStageAppRouteHandler::UnregisterEngineEvents()
+{
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		if (UTransBuffer* TransBuffer = Cast<UTransBuffer>(GEditor->Trans))
+		{
+			TransBuffer->OnTransactionStateChanged().RemoveAll(this);
+		}
+	}
+#endif
 }
 
 void FStageAppRouteHandler::RegisterRoute(TUniquePtr<FRemoteControlWebsocketRoute> Route)
@@ -487,7 +525,18 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardDragBegin(con
 	}
 
 #if WITH_EDITOR
-	GEditor->BeginTransaction(LOCTEXT("DragLightcardsTransaction", "Drag Light Cards with Stage App"));
+	PerRendererData->TransactionId.Invalidate();
+	if (GEditor && GEditor->Trans)
+	{
+		if (GEditor->BeginTransaction(LOCTEXT("DragLightcardsTransaction", "Drag Light Cards with Stage App")) != INDEX_NONE)
+		{
+			const FTransaction* Transaction = GEditor->Trans->GetTransaction(GEditor->Trans->GetQueueLength() - 1);
+			if (ensure(Transaction))
+			{
+				PerRendererData->TransactionId = Transaction->GetId();
+			}
+		}
+	}
 #endif
 
 	PerRendererData->UpdateDragSequenceNumber(Body.SequenceNumber);
@@ -514,6 +563,30 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardDragBegin(con
 		);
 	}
 }
+
+#if WITH_EDITOR
+void FStageAppRouteHandler::OnTransactionStateChanged(const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState)
+{
+	if (InTransactionState != ETransactionStateEventType::TransactionCanceled && InTransactionState != ETransactionStateEventType::TransactionFinalized)
+	{
+		return;
+	}
+
+	for (TPair<FGuid, TClientIdToPerRendererDataMap>& ClientPair : PerRendererDataMapsByClientId)
+	{
+		for (TClientIdToPerRendererDataMap::ElementType& PerRendererDataPair : ClientPair.Value)
+		{
+			FPerRendererData& PerRendererData = PerRendererDataPair.Value;
+			if (PerRendererData.TransactionId == InTransactionContext.TransactionId)
+			{
+				// Invalidate the transaction ID first so we don't try to end it a second time in EndLightCardDrag
+				PerRendererData.TransactionId.Invalidate();
+				EndLightCardDrag(PerRendererData, ClientPair.Key, PerRendererDataPair.Key, false);
+			}
+		}
+	}
+}
+#endif
 
 void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewLightCardDragMove(const FRemoteControlWebSocketMessage& WebSocketMessage)
 {
@@ -664,7 +737,11 @@ void FStageAppRouteHandler::EndLightCardDrag(FPerRendererData& PerRendererData, 
 	PerRendererData.bHasDragMovedRecently = false;
 
 #if WITH_EDITOR
-	GEditor->EndTransaction();
+	if (PerRendererData.TransactionId.IsValid())
+	{
+		PerRendererData.TransactionId.Invalidate(); // Invalidate this first so we don't try to re-handle the end event
+		GEditor->EndTransaction();
+	}
 #endif
 
 	if (!bEndedByClient)

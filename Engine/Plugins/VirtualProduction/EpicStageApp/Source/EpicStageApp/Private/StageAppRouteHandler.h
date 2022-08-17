@@ -7,6 +7,7 @@
 #include "DisplayClusterLightCardEditorHelper.h"
 #include "UObject/ObjectMacros.h"
 #include "IWebRemoteControlModule.h"
+#include "Misc/ITransaction.h"
 #include "RemoteControlWebsocketRoute.h"
 #include "StageAppRequest.h"
 
@@ -33,6 +34,11 @@ private:
 
 		/** If true, the dragged lightcards have moved since the last timeout check. */
 		bool bHasDragMovedRecently;
+
+#if WITH_EDITOR
+		/** The GUID of the current drag transaction. */
+		FGuid TransactionId;
+#endif		
 
 	public:
 		/** Get or create a FDisplayClusterLightCardEditorHelper for this client preview renderer. */
@@ -84,6 +90,12 @@ public:
 	/** Unregisters the WebSocket routes with the provided WebRemoteControl module. */
 	void UnregisterRoutes(IWebRemoteControlModule& WebRemoteControl);
 
+	/** Registers events that require the engine to be initialized first. */
+	void RegisterEngineEvents();
+
+	/** Unregisters events that required the engine to be initialized first. */
+	void UnregisterEngineEvents();
+
 private:
 	/** Register a WebSocket route with the WebRemoteControl module. */
 	void RegisterRoute(TUniquePtr<FRemoteControlWebsocketRoute> Route);
@@ -114,6 +126,13 @@ private:
 
 	/** Called when a client disconnects from the WebSocket server. */
 	void HandleClientDisconnected(FGuid ClientId);
+
+#if WITH_EDITOR
+	/**
+	 * Called when the state of an editor transaction changes.
+	 */
+	void OnTransactionStateChanged(const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState);
+#endif
 
 	/** Change the settings for a client's preview renderer. */
 	void ChangePreviewRendererSettings(const FGuid& ClientId, int32 RendererId, const FRCWebSocketNDisplayPreviewRendererSettings& NewSettings);

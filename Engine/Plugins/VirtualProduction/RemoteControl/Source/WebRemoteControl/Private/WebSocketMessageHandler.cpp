@@ -273,24 +273,16 @@ void FWebSocketMessageHandler::RegisterRoutes(FWebRemoteControlModule* WebRemote
 	FCoreUObjectDelegates::OnObjectTransacted.AddRaw(this, &FWebSocketMessageHandler::OnObjectTransacted);
 
 	Server->OnConnectionClosed().AddRaw(this, &FWebSocketMessageHandler::OnConnectionClosedCallback);
+#endif
 
 	if (GEngine)
 	{
-		RegisterActorHandlers();
+		RegisterEngineEvents();
 	}
 	else
 	{
-		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FWebSocketMessageHandler::RegisterActorHandlers);
+		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FWebSocketMessageHandler::RegisterEngineEvents);
 	}
-
-	if (GEditor)
-	{
-		if (UTransBuffer* TransBuffer = Cast<UTransBuffer>(GEditor->Trans))
-		{
-			TransBuffer->OnTransactionStateChanged().AddRaw(this, &FWebSocketMessageHandler::HandleTransactionStateChanged);
-		}
-	}
-#endif
 	
 	// WebSocket routes
 	RegisterRoute(WebRemoteControl, MakeUnique<FRemoteControlWebsocketRoute>(
@@ -388,9 +380,17 @@ void FWebSocketMessageHandler::RegisterRoute(FWebRemoteControlModule* WebRemoteC
 	Routes.Emplace(MoveTemp(Route));
 }
 
-void FWebSocketMessageHandler::RegisterActorHandlers()
+void FWebSocketMessageHandler::RegisterEngineEvents()
 {
 #if WITH_EDITOR
+	if (GEditor)
+	{
+		if (UTransBuffer* TransBuffer = Cast<UTransBuffer>(GEditor->Trans))
+		{
+			TransBuffer->OnTransactionStateChanged().AddRaw(this, &FWebSocketMessageHandler::HandleTransactionStateChanged);
+		}
+	}
+
 	if (GEngine)
 	{
 		OnActorAddedHandle = GEngine->OnLevelActorAdded().AddRaw(this, &FWebSocketMessageHandler::OnActorAdded);
