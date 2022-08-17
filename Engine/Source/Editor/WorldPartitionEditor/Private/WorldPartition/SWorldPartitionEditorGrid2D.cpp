@@ -658,7 +658,7 @@ void SWorldPartitionEditorGrid2D::Tick(const FGeometry& AllottedGeometry, const 
 
 	ShownActorGuids.Reset();
 	DirtyActorGuids.Reset();
-	ShownLoaderInterfaces.Reset();
+	ShownLoaderInterfaces.Reset(); 
 	HighlightedLoaderInterfaces.Reset();
 	
 	for (UWorldPartitionEditorLoaderAdapter* EditorLoaderAdapter : WorldPartition->GetRegisteredEditorLoaderAdapters())
@@ -709,7 +709,7 @@ void SWorldPartitionEditorGrid2D::Tick(const FGeometry& AllottedGeometry, const 
 				}
 			}
 
-			if(Actor->GetPackage()->IsDirty())
+			if(Actor->IsSelected() || Actor->GetPackage()->IsDirty())
 			{
 				DirtyActorGuids.Add(Actor->GetActorGuid());
 			}
