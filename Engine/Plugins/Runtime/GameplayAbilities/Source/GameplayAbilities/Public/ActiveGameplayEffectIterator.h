@@ -54,10 +54,10 @@ public:
 		return *Current;
 	}
 
-	ElementType& operator->() const
+	ElementType* operator->() const
 	{
 		check(Current);
-		return *Current;
+		return Current;
 	}
 
 	explicit operator bool() const
