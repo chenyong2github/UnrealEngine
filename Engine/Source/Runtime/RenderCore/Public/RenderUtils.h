@@ -498,7 +498,7 @@ RENDERCORE_API bool AllowPerPixelShadingModels(const FStaticShaderPlatform Platf
 
 RENDERCORE_API int32 EnabledShadingModelsMask(const FStaticShaderPlatform Platform);
 
-RENDERCORE_API bool UseMobileAmbientOcclusion(const FStaticShaderPlatform Platform);
+RENDERCORE_API bool IsMobileAmbientOcclusionEnabled(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool IsMobileDistanceFieldEnabled(const FStaticShaderPlatform Platform);
 

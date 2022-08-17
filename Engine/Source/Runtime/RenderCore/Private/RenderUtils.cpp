@@ -1130,7 +1130,7 @@ RENDERCORE_API int32 EnabledShadingModelsMask(const FStaticShaderPlatform Platfo
 RENDERCORE_API uint64 GMobileAmbientOcclusionPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GMobileAmbientOcclusionPlatformMask) * 8, "GMobileAmbientOcclusionPlatformMask must be large enough to support all shader platforms");
 
-RENDERCORE_API bool UseMobileAmbientOcclusion(const FStaticShaderPlatform Platform)
+RENDERCORE_API bool IsMobileAmbientOcclusionEnabled(const FStaticShaderPlatform Platform)
 {
 	return (IsMobilePlatform(Platform) && !!(GMobileAmbientOcclusionPlatformMask & (1ull << Platform)));
 }

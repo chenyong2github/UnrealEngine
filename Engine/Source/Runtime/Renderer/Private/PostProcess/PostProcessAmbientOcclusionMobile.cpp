@@ -74,11 +74,6 @@ DECLARE_GPU_STAT_NAMED(MobileSSAO, TEXT("SSAO"));
 
 // --------------------------------------------------------------------------------------------------------------------
 
-bool IsMobileAmbientOcclusionEnabled(EShaderPlatform ShaderPlatform)
-{
-	return UseMobileAmbientOcclusion(ShaderPlatform) && IsMobileHDR();
-}
-
 bool IsUsingMobileAmbientOcclusion(EShaderPlatform ShaderPlatform)
 {
 	static const auto MobileAmbientOcclusionQualityCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AmbientOcclusionQuality"));

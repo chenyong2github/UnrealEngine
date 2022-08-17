@@ -150,7 +150,7 @@ ENGINE_API uint32 GetDefaultMSAACount(const FStaticFeatureLevel InFeatureLevel, 
 				bool bMobilePixelProjectedReflection = IsUsingMobilePixelProjectedReflection(ShaderPlatform);
 				
 				static const auto MobileEarlyZPassCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EarlyZPass"));
-				const bool bMobileAmbientOcclusion = UseMobileAmbientOcclusion(ShaderPlatform) && IsMobileHDR();
+				const bool bMobileAmbientOcclusion = IsMobileAmbientOcclusionEnabled(ShaderPlatform);
 				const bool bMobileUsesShadowMaskTexture = MobileUsesShadowMaskTexture(ShaderPlatform);
 				bool bIsFullDepthPrepassEnabled = bMobileAmbientOcclusion || bMobileUsesShadowMaskTexture || MobileEarlyZPassCVar->GetValueOnAnyThread() > 0;
 

@@ -10,5 +10,4 @@
 
 FRDGTextureRef CreateMobileScreenSpaceAOTexture(FRDGBuilder& GraphBuilder, const struct FSceneTexturesConfig& Config);
 
-bool IsMobileAmbientOcclusionEnabled(EShaderPlatform ShaderPlatform);
 bool IsUsingMobileAmbientOcclusion(EShaderPlatform ShaderPlatform);
