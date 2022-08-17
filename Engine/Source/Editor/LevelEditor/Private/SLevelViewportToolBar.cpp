@@ -255,6 +255,7 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 				]
 				+ SHorizontalBox::Slot()
 				.Padding(ToolbarSlotPadding)
+				.AutoWidth()
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Fill)
 				[
