@@ -162,7 +162,8 @@ public:
 #endif
 
 	/** Return if we are currently generating the graph for this component */
-	bool IsGenerating() const { return bIsGenerating; }
+	bool IsGenerating() const { return CurrentGenerationTask != InvalidPCGTaskId; }
+	bool IsCleaningUp() const { return CurrentCleanupTask != InvalidPCGTaskId; }
 
 #if WITH_EDITOR
 	void Refresh();
@@ -180,6 +181,7 @@ public:
 #endif
 
 	bool IsPartitioned() const;
+	bool IsLocalComponent() const;
 
 	/** Updates internal properties from other component, dirties as required but does not trigger Refresh */
 	void SetPropertiesFromOriginal(const UPCGComponent* Original);
@@ -203,10 +205,18 @@ private:
 
 	bool ShouldGenerate(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger) const;
 	void GenerateLocal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger);
+
+	/* Internal call to create tasks to generate the component. If there is nothing to do, an invalid task id will be returned. */
 	FPCGTaskId GenerateInternal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger, const TArray<FPCGTaskId>& Dependencies);
-	void CleanupInternal(bool bRemoveComponents);
-	void CleanupInternal(bool bRemoveComponents, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete);
+
+	/* Internal call to create tacks to cleanup the component. If there is nothing to do, an invalid task id will be returned. */
+	FPCGTaskId CleanupInternal(bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies);
+
+	/* Same as CleanupInternal, but without any delayed tasks. All is done immediately. */
+	void CleanupInternalImmediate(bool bRemoveComponents);
+
 	void PostProcessGraph(const FBox& InNewBounds, bool bInGenerated);
+	void PostCleanupGraph();
 	void OnProcessGraphAborted();
 	void CleanupUnusedManagedResources();
 	bool MoveResourcesToNewActor(AActor* InNewActor, bool bCreateChild);
@@ -285,7 +295,8 @@ private:
 	UPROPERTY()
 	FBox LastGeneratedBounds = FBox(EForceInit::ForceInit);
 
-	bool bIsGenerating = false;
+	FPCGTaskId CurrentGenerationTask = InvalidPCGTaskId;
+	FPCGTaskId CurrentCleanupTask = InvalidPCGTaskId;
 
 #if WITH_EDITOR
 	bool bIsInspecting = false;

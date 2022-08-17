@@ -94,7 +94,7 @@ public:
 	FPCGTaskId DelayGenerateGraph(UPCGComponent* Component, bool bSave);
 
 	/** Schedules an operation to cleanup the graph in the given bounds */
-	void CleanupGraph(UPCGComponent* Component, const FBox& InBounds, bool bRemoveComponents, bool bSave);
+	FPCGTaskId CleanupGraph(UPCGComponent* Component, const FBox& InBounds, bool bRemoveComponents, bool bSave);
 
 	/** Immediately dirties the partition actors in the given bounds */
 	void DirtyGraph(UPCGComponent* Component, const FBox& InBounds, EPCGComponentDirtyFlag DirtyFlag);

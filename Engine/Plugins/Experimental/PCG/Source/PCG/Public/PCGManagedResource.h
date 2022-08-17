@@ -27,6 +27,7 @@ public:
 	virtual bool ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete);
 
 	virtual void MarkAsUsed() { bIsMarkedUnused = false; }
+	bool IsMarkedUnused() const { return bIsMarkedUnused; }
 
 	/** Move the given resource to a new actor. Return true if it has succeeded */
 	virtual bool MoveResourceToNewActor(AActor* NewActor) { return false; };

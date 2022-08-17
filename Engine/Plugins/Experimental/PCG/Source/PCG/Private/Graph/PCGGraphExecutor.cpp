@@ -560,7 +560,11 @@ void FPCGGraphExecutor::ClearResults()
 {
 	ScheduleLock.Lock();
 
-	NextTaskId = 0;
+	// Only reset if we have no more scheduled tasks, to avoid breaking dependencies
+	if (ScheduledTasks.IsEmpty())
+	{
+		NextTaskId = 0;
+	}
 	OutputData.Reset();
 
 	ResultsRootSet.Clear();

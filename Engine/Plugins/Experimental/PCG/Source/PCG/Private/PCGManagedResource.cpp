@@ -15,6 +15,7 @@ bool UPCGManagedResource::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>
 		return false;
 	}
 
+	bIsMarkedUnused = false;
 	return true;
 }
 
@@ -39,6 +40,8 @@ void UPCGManagedActors::PostEditImport()
 
 bool UPCGManagedActors::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGManagedActors::Release);
+
 	if (!Super::Release(bHardRelease, OutActorsToDelete))
 	{
 		return false;
@@ -57,7 +60,9 @@ bool UPCGManagedActors::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>&
 
 			for (UPCGComponent* Component : ComponentsToCleanup)
 			{
-				Component->CleanupInternal(/*bRemoveComponents=*/false, OutActorsToDelete);
+				// It is more complicated to handled a non-immediate cleanup when doing it recursively in the managed actors.
+				// Do it all immediate then.
+				Component->CleanupInternalImmediate(/*bRemoveComponents=*/bHardRelease);
 			}
 
 			ComponentsToCleanup.Reset();
@@ -133,6 +138,8 @@ void UPCGManagedComponent::PostEditImport()
 
 bool UPCGManagedComponent::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& /*OutActorsToDelete*/)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGManagedComponent::Release);
+
 	const bool bSupportsComponentReset = SupportsComponentReset();
 	const bool bDeleteComponent = bHardRelease || !bSupportsComponentReset;
 
