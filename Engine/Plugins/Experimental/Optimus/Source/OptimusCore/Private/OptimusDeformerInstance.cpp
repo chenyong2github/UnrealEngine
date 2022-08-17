@@ -138,7 +138,7 @@ void UOptimusDeformerInstanceSettings::RefreshComponentBindings(
 			}
 			
 			// If not, try to find a component owned by this actor that matches the tag and class.
-			if (!BoundComponent && !Binding->ComponentTags.IsEmpty())
+			if (!BoundComponent && Actor != nullptr && !Binding->ComponentTags.IsEmpty())
 			{
 				TSet<UActorComponent*> TaggedComponents;
 				for (FName Tag: Binding->ComponentTags)
@@ -171,7 +171,7 @@ void UOptimusDeformerInstanceSettings::RefreshComponentBindings(
 			}
 
 			// Otherwise just use class matching on components owned by the actor.
-			if (!BoundComponent)
+			if (!BoundComponent && Actor != nullptr)
 			{
 				TArray<UActorComponent*> Components;
 				Actor->GetComponents(Binding->GetComponentSource()->GetComponentClass(), Components);
