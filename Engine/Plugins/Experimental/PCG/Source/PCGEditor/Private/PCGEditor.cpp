@@ -453,7 +453,7 @@ void FPCGEditor::OnDeterminismTests()
 				if (PCGNode->DefaultSettings->DeterminismSettings.bNativeTests)
 				{
 					// If the settings has a native test suite
-					if (TFunction<bool()> NativeTestSuite = PCGDeterminismTests::GetNativeTestIfExists(PCGNode->DefaultSettings))
+					if (TFunction<bool()> NativeTestSuite = PCGDeterminismTests::FNativeTestRegistry::GetNativeTestFunction(PCGNode->DefaultSettings))
 					{
 						FName NodeName(PCGNode->GetName());
 

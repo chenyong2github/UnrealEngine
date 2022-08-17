@@ -4,32 +4,47 @@
 
 #include "PCGSettings.h"
 
-#include "Elements/PCGDifferenceElement.h"
-#include "Tests/Determinism/PCGDifferenceDeterminismTest.h"
-
 namespace PCGDeterminismTests
 {
-	TFunction<bool()> GetNativeTestIfExists(const UPCGSettings* PCGSettings)
+	FNativeTestRegistry* FNativeTestRegistry::RegistryPtr = nullptr;
+
+	void FNativeTestRegistry::Create()
 	{
-		// This way we only build it if we ever need it
-		static TMap<UClass*, TFunction<bool()>> NativeTestMapping;
+		check(!RegistryPtr);
+		RegistryPtr = new FNativeTestRegistry;
+	}
 
-		if (NativeTestMapping.IsEmpty())
+	void FNativeTestRegistry::Destroy()
+	{
+		check(RegistryPtr);
+		delete RegistryPtr;
+		RegistryPtr = nullptr;
+	}
+
+	void FNativeTestRegistry::RegisterTestFunction(UClass* SettingsStaticClass, TFunction<bool()> TestFunction)
+	{
+		check(RegistryPtr && SettingsStaticClass);
+		RegistryPtr->NativeTestMapping.Emplace(SettingsStaticClass, TestFunction);
+	}
+
+	void FNativeTestRegistry::DeregisterTestFunction(const UClass* SettingsStaticClass)
+	{
+		check(RegistryPtr && SettingsStaticClass);
+		if (RegistryPtr->NativeTestMapping.Contains(SettingsStaticClass))
 		{
-			NativeTestMapping =
-			{
-				{UPCGDifferenceSettings::StaticClass(), PCGDeterminismTests::DifferenceElement::RunTestSuite}
-				// TODO: Append other native tests here
-			};
+			RegistryPtr->NativeTestMapping.Remove(SettingsStaticClass);
 		}
+	}
 
-		if (TFunction<bool()>* TestFunction = NativeTestMapping.Find(PCGSettings->GetClass()))
+	TFunction<bool()> FNativeTestRegistry::GetNativeTestFunction(const UPCGSettings* PCGSettings)
+	{
+		check(RegistryPtr);
+		if (TFunction<bool()>* TestFunction = RegistryPtr->NativeTestMapping.Find(PCGSettings->GetClass()))
 		{
 			return *TestFunction;
 		}
 
-		return nullptr;
+		return {};
 	}
 }
-
 #endif
