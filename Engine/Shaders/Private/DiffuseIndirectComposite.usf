@@ -43,6 +43,9 @@
 	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_SSGI_HISTORY_R11G11B10
 	#define CONFIG_INPUT_TEXTURE_COUNT 3
 
+	// UE-155845: Enables an energy preservation term to prevent hair from emitting light when Lumen is enabled.
+	#define HAIR_KK_ENERGY_PRESERVATION 1
+
 #else // !DIM_APPLY_DIFFUSE_INDIRECT
 	// NOP
 #endif // !DIM_APPLY_DIFFUSE_INDIRECT

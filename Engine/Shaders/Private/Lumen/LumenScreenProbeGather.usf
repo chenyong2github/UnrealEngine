@@ -2,6 +2,9 @@
 
 #define USE_HAIR_COMPLEX_TRANSMITTANCE 1
 
+// UE-155845: Enables an energy preservation term to prevent hair from emitting light when Lumen is enabled.
+#define HAIR_KK_ENERGY_PRESERVATION 1
+
 #include "../Common.ush"
 #include "LumenMaterial.ush"
 #include "../DeferredShadingCommon.ush"

@@ -4,6 +4,11 @@
 
 #include "HairShadingCommon.ush"
 
+// Applies a correction factor to the result of KajiyaKayDiffuseAttenuation() to fix that function not being energy conservative.
+#ifndef HAIR_KK_ENERGY_PRESERVATION 
+#define HAIR_KK_ENERGY_PRESERVATION 0
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Transmittance functions
 
@@ -317,10 +322,19 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 	//const float3 DiffuseN	= OctahedronToUnitVector( GBuffer.CustomData.xy * 2 - 1 );
 	const float Backlit	= min(InBacklit, HairTransmittance.bUseBacklit ? GBuffer.CustomData.z : 1);
 
+#if HAIR_KK_ENERGY_PRESERVATION
+	// UE-155845: KajiyaKayDiffuseAttenuation() is not energy conservative, so we define a correction factor to prevent it from adding light.
+	// This is not actually physically correct and simply a hack to prevent certain objects with hair materials from glowing when Lumen is enabled.
+	float KajiyaKayDiffuseFactor = 1.0f;
+#endif // HAIR_KK_ENERGY_PRESERVATION
+
 #if HAIR_REFERENCE
 	// todo: ClampedRoughness is missing for this code path
 	float3 S = HairShadingRef( GBuffer, L, V, N, Random );
 	//float3 S = HairShadingMarschner( GBuffer, L, V, N );
+#if HAIR_KK_ENERGY_PRESERVATION
+	KajiyaKayDiffuseFactor -= Luminance(S);
+#endif // HAIR_KK_ENERGY_PRESERVATION
 #else
 	// N is the vector parallel to hair pointing toward root
 
@@ -366,6 +380,10 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 		float Np = 0.25 * CosHalfPhi;
 		float Fp = Hair_F(sqrt(saturate(0.5 + 0.5 * VoL)));
 		S += Mp * Np * Fp * (GBuffer.Specular * 2) * lerp(1, Backlit, saturate(-VoL));
+
+#if HAIR_KK_ENERGY_PRESERVATION
+		KajiyaKayDiffuseFactor -= Fp;
+#endif
 	}
 
 	// TT
@@ -406,6 +424,10 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 		float Np = exp( -3.65 * CosPhi - 3.98 );
 
 		S += Mp * Np * Fp * Tp * Backlit;
+
+#if HAIR_KK_ENERGY_PRESERVATION
+		KajiyaKayDiffuseFactor -= Fp;
+#endif
 	}
 
 	// TRT
@@ -424,13 +446,21 @@ float3 HairShading( FGBufferData GBuffer, float3 L, float3 V, half3 N, float Sha
 		float Np = exp( 17 * CosPhi - 16.78 );
 
 		S += Mp * Np * Fp * Tp;
+
+#if HAIR_KK_ENERGY_PRESERVATION
+		KajiyaKayDiffuseFactor -= Fp;
+#endif
 	}
 #endif
 
 	if (HairTransmittance.ScatteringComponent & HAIR_COMPONENT_MULTISCATTER)
 	{
 		S  = EvaluateHairMultipleScattering(HairTransmittance, ClampedRoughness, S);
+#if HAIR_KK_ENERGY_PRESERVATION
+		S += KajiyaKayDiffuseAttenuation(GBuffer, L, V, N, Shadow) * saturate(KajiyaKayDiffuseFactor);
+#else
 		S += KajiyaKayDiffuseAttenuation(GBuffer, L, V, N, Shadow);
+#endif
 	}
 
 	S = -min(-S, 0.0);
