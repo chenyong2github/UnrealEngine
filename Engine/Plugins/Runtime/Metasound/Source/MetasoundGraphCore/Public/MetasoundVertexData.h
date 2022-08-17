@@ -180,6 +180,22 @@ namespace Metasound
 				return nullptr;
 			}
 
+			// Gets the value of the bound data reference if it exists. Otherwise
+			// create and return a value by constructing one using the Vertex's 
+			// default literal.
+			template<typename DataType>
+			DataType GetOrCreateDefaultValue(const FOperatorSettings& InSettings) const
+			{
+				if (Data.IsSet())
+				{
+					if (const DataType* Value = Data->GetValue<DataType>())
+					{
+						return *Value;
+					}
+				}
+				return TDataTypeLiteralFactory<DataType>::CreateExplicitArgs(InSettings, Vertex.GetDefaultLiteral());
+			}
+
 			// Set the value with a constant value reference.
 			template<typename DataType>
 			void SetValue(const DataType& InValue)
@@ -305,6 +321,16 @@ namespace Metasound
 		{
 			const FBinding* Binding = FindChecked(InVertexName);
 			return Binding->GetValue<DataType>();
+		}
+
+		/**  Gets the value of the bound data reference if it exists. Otherwise
+		 * create and return a value by constructing one using the Vertex's 
+		 * default literal. */
+		template<typename DataType>
+		DataType GetOrCreateDefaultValue(const FVertexName& InVertexName, const FOperatorSettings& InSettings) const
+		{
+			const FBinding* Binding = FindChecked(InVertexName);
+			return Binding->GetOrCreateDefaultValue<DataType>(InSettings);
 		}
 
 		/** Set the value of a vertex. */

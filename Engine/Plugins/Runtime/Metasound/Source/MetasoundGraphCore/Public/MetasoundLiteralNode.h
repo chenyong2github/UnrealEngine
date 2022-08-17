@@ -24,18 +24,21 @@ namespace Metasound
 	template<typename DataType>
 	class TLiteralOperator : public IOperator
 	{
-	public:
-		using FDataWriteReference = TDataWriteReference<DataType>;
+		static_assert(!TExecutableDataType<DataType>::bIsExecutable, "TLiteralOperator is only suitable for non-executable data types");
 
-		TLiteralOperator(FDataWriteReference InDataReference)
-			// Executable DataTypes require a copy of the output to operate on whereas non-executable
-			// types do not. Avoid copy by assigning to reference for non-executable types.
-			: InputValue(InDataReference)
-			, OutputValue(TExecutableDataType<DataType>::bIsExecutable ? FDataWriteReference::CreateNew(*InDataReference) : InDataReference)
+	public:
+		TLiteralOperator(TDataValueReference<DataType> InValue)
+		: Value (InValue)
 		{
 		}
 
 		virtual ~TLiteralOperator() = default;
+
+		virtual void Bind(FVertexInterfaceData& InVertexData) const
+		{
+			using namespace LiteralNodeNames;
+			InVertexData.GetOutputs().BindValueVertex(METASOUND_GET_PARAM_NAME(OutputValue), Value);
+		}
 
 		virtual FDataReferenceCollection GetInputs() const override
 		{
@@ -46,7 +49,58 @@ namespace Metasound
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
 			using namespace LiteralNodeNames;
+			FDataReferenceCollection Outputs;
+			Outputs.AddDataReference(METASOUND_GET_PARAM_NAME(OutputValue), FAnyDataReference{Value});
+			return Outputs;
+		}
 
+		virtual FExecuteFunction GetExecuteFunction() override
+		{
+			return nullptr;
+		}
+
+	private:
+		TDataValueReference<DataType> Value;
+	};
+
+	/** TExecutableLiteralOperator is used for executable types. The majority of literals
+	 * are constant values, but executable data types cannot be constant values.
+	 * 
+	 * Note: this is supporting for FTrigger literals which are deprecated.
+	 */
+	template<typename DataType>
+	class TExecutableLiteralOperator : public IOperator
+	{
+		static_assert(TExecutableDataType<DataType>::bIsExecutable, "TExecutableLiteralOperator is only suitable for executable data types");
+
+	public:
+		using FDataWriteReference = TDataWriteReference<DataType>;
+
+		TExecutableLiteralOperator(FDataWriteReference InDataReference)
+			// Executable DataTypes require a copy of the output to operate on whereas non-executable
+			// types do not. Avoid copy by assigning to reference for non-executable types.
+			: InputValue(InDataReference)
+			, OutputValue(FDataWriteReference::CreateNew(*InDataReference))
+		{
+		}
+
+		virtual ~TExecutableLiteralOperator() = default;
+
+		virtual void Bind(FVertexInterfaceData& InVertexData) const
+		{
+			using namespace LiteralNodeNames;
+			InVertexData.GetOutputs().BindReadVertex(METASOUND_GET_PARAM_NAME(OutputValue), OutputValue);
+		}
+
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			FDataReferenceCollection Inputs;
+			return Inputs;
+		}
+
+		virtual FDataReferenceCollection GetOutputs() const override
+		{
+			using namespace LiteralNodeNames;
 			FDataReferenceCollection Outputs;
 			Outputs.AddDataReadReference<DataType>(METASOUND_GET_PARAM_NAME(OutputValue), OutputValue);
 			return Outputs;
@@ -59,16 +113,12 @@ namespace Metasound
 
 		static void ExecuteFunction(IOperator* InOperator)
 		{
-			static_cast<TLiteralOperator<DataType>*>(InOperator)->Execute();
+			static_cast<TExecutableLiteralOperator<DataType>*>(InOperator)->Execute();
 		}
 
 		virtual FExecuteFunction GetExecuteFunction() override
 		{
-			if (TExecutableDataType<DataType>::bIsExecutable)
-			{
-				return &TLiteralOperator<DataType>::ExecuteFunction;
-			}
-			return nullptr;
+			return &TExecutableLiteralOperator<DataType>::ExecuteFunction;
 		}
 
 	private:
@@ -100,6 +150,10 @@ namespace Metasound
 	template<typename DataType>
 	class TLiteralNode : public FNode
 	{
+		// Executable data types handle Triggers which need to be advanced every
+		// block.
+		static constexpr bool bIsExecutableDataType = TExecutableDataType<DataType>::bIsExecutable;
+
 	public:
 
 		static FVertexInterface DeclareVertexInterface()
@@ -110,12 +164,27 @@ namespace Metasound
 				  FText::GetEmpty() // description
 				, METASOUND_GET_PARAM_DISPLAYNAME(OutputValue) // display name
 			};
-			return FVertexInterface(
-				FInputVertexInterface(),
-				FOutputVertexInterface(
-					TOutputDataVertex<DataType>(METASOUND_GET_PARAM_NAME(OutputValue), OutputMetadata)
-				)
-			);
+
+			if constexpr (bIsExecutableDataType)
+			{
+				return FVertexInterface(
+					FInputVertexInterface(),
+					FOutputVertexInterface(
+						TOutputDataVertex<DataType>(METASOUND_GET_PARAM_NAME(OutputValue), OutputMetadata)
+					)
+				);
+			}
+			else
+			{
+				// If the data type is not executable, we treat it as a constructor
+				// vertex to produce a constant value.
+				return FVertexInterface(
+					FInputVertexInterface(),
+					FOutputVertexInterface(
+						TOutputConstructorVertex<DataType>(METASOUND_GET_PARAM_NAME(OutputValue), OutputMetadata)
+					)
+				);
+			}
 		}
 
 		static FNodeClassMetadata GetNodeInfo()
@@ -175,10 +244,20 @@ namespace Metasound
 	{
 		using FLiteralNodeType = TLiteralNode<DataType>;
 
-		// Create write reference by calling compatible constructor with literal.
-		FDataWriteReference DataRef = TDataWriteReferenceLiteralFactory<DataType>::CreateExplicitArgs(InParams.OperatorSettings, InitParam);
+		static constexpr bool bIsExecutableDataType = TExecutableDataType<DataType>::bIsExecutable;
 
-		return MakeUnique<TLiteralOperator<DataType>>(DataRef);
+		if constexpr (bIsExecutableDataType)
+		{
+			// Create write reference by calling compatible constructor with literal.
+			TDataWriteReference<DataType> DataRef = TDataWriteReferenceLiteralFactory<DataType>::CreateExplicitArgs(InParams.OperatorSettings, InitParam);
+			return MakeUnique<TExecutableLiteralOperator<DataType>>(DataRef);
+		}
+		else
+		{
+			// Create value reference by calling compatible constructor with literal.
+			TDataValueReference DataRef = TDataValueReferenceLiteralFactory<DataType>::CreateExplicitArgs(InParams.OperatorSettings, InitParam);
+			return MakeUnique<TLiteralOperator<DataType>>(DataRef);
+		}
 	}
 
 } // namespace Metasound

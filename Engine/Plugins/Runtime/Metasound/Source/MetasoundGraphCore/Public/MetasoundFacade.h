@@ -23,6 +23,10 @@ namespace Metasound
 			template<typename T>
 			static uint8 Check(Helper<TUniquePtr<IOperator>(*)(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors), &T::CreateOperator>*);
 
+			// Check for "static TUniquePtr<IOperator> U::CreateOperator(const FBuildOperatorParams& Inparams, FBuildErrorArray& OutErrors)"
+			template<typename T>
+			static uint8 Check(Helper<TUniquePtr<IOperator>(*)(const FBuildOperatorParams& InParams, FBuildResults& OutResults), &T::CreateOperator>*);
+
 			template<typename T> static uint16 Check(...);
 
 		public:
@@ -94,14 +98,19 @@ namespace Metasound
 			// the signature of the CreateOperator function.
 			class METASOUNDGRAPHCORE_API FFactory : public IOperatorFactory
 			{
-				using FCreateOperatorFunction = TFunction<TUniquePtr<IOperator>(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)>;
+				using FCreateOperatorFunction = TFunction<TUniquePtr<IOperator>(const FBuildOperatorParams& InParams, FBuildResults& OutResults)>;
+				using FOriginalCreateOperatorFunction = TFunction<TUniquePtr<IOperator>(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)>;
 
 				public:
 					FFactory(FCreateOperatorFunction InCreateFunc);
+					FFactory(FOriginalCreateOperatorFunction InCreateFunc);
 
 					virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override;
 
 				private:
+					// Wrap the prior version of CreateOperator with the new version of CreateOperator
+					static FCreateOperatorFunction WrapOriginalCreateOperatorFunction(FOriginalCreateOperatorFunction InCreateFunc);
+
 					FCreateOperatorFunction CreateFunc;
 			};
 
