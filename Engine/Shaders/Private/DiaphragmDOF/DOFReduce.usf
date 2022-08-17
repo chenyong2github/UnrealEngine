@@ -478,7 +478,7 @@ void ReduceCS(
 		
 		// Intensity loss factor caused by the area of confusion.
 		// TODO: no need min()
-		float IntensityLossFactor = min(1, SafeRcp(PI * CocRadius * CocRadius, 1.0));
+		float IntensityLossFactor = min(1, SafeRcp(PI * CocRadius * CocRadius, 1.0) * CocSqueeze);
 
 		// Enqueue scattering group in foreground scatter draw list.
 		BRANCH

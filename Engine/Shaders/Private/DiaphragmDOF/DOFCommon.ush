@@ -145,6 +145,18 @@ static const int2 kOffsetsSquare3x3[9] = {
 };
 
 
+//------------------------------------------------------- PARAMETERS
+
+float CocInfinityRadius;
+float CocMinRadius;
+float CocMaxRadius;
+float CocSqueeze;
+float CocInvSqueeze;
+
+float DepthBlurRadius;
+float DepthBlurExponent;
+
+
 //------------------------------------------------------- DEBUG OUTPUT
 
 #if DEBUG_OUTPUT
@@ -154,29 +166,20 @@ RWTexture2D<float4> DebugOutput;
 
 //------------------------------------------------------- COMMON API.
 
-// is wrapping the DepthToCoc() function in this file for faster iteration
-// @return half res pixel radius
-float DepthToHalfResCocRadius(float4 CocModelParameters, float2 DepthBlurParameters, float SceneDepth)
+// Returns the coc radius
+float SceneDepthToCocRadius(float SceneDepth)
 {
 	const float Focus = View.DepthOfFieldFocalDistance; // TODO: rename this to DepthOfFieldFocusDistance.
-	const float InfinityCocRadius = CocModelParameters.x;
-	const float MinCocRadius = CocModelParameters.y;
-	const float MaxCocRadius = CocModelParameters.z;
 	
 	// Radius from the circle of confusion.
-	float CocRadius = ((SceneDepth - Focus) / SceneDepth) * InfinityCocRadius;
+	float CocRadius = ((SceneDepth - Focus) / SceneDepth) * CocInfinityRadius;
 
 	// Depth blur's radius.
-	float DepthBlurAbsRadius = (1.0 - exp2(-SceneDepth * DepthBlurParameters.x)) * DepthBlurParameters.y;
+	float DepthBlurAbsRadius = (1.0 - exp2(-SceneDepth * DepthBlurExponent)) * DepthBlurRadius;
 
-	float ReturnCoc = max(abs(CocRadius), DepthBlurAbsRadius);
-	if(CocRadius < 0.0) 
-	{
-		// Near CoC is using negative values.
-		ReturnCoc = -ReturnCoc;
-	}
+	float ReturnCoc = max(abs(CocRadius), DepthBlurAbsRadius) * sign(CocRadius);
 
-	return clamp(ReturnCoc, MinCocRadius, MaxCocRadius);
+	return clamp(ReturnCoc, CocMinRadius, CocMaxRadius);
 }
 
 // Return whether this is front element from CocRadius.

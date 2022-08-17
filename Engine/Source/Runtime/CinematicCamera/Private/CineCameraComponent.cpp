@@ -43,10 +43,11 @@ UCineCameraComponent::UCineCameraComponent()
 	// Null check here because CDO has no Archetype
 	if (Template)
 	{
-		// default filmback
+		// default filmback, lens and crop
 		SetFilmbackPresetByNameInternal(Template->DefaultFilmbackPreset, Filmback);
 		SetFilmbackPresetByNameInternal(Template->DefaultFilmbackPresetName_DEPRECATED, FilmbackSettings_DEPRECATED);
 		SetLensPresetByNameInternal(Template->DefaultLensPresetName);
+		SetCropPresetByNameInternal(Template->DefaultCropPresetName);
 		// other lens defaults
 		CurrentAperture = Template->DefaultLensFStop;
 		CurrentFocalLength = Template->DefaultLensFocalLength;
@@ -249,7 +250,17 @@ void UCineCameraComponent::SetFieldOfView(float InFieldOfView)
 {
 	Super::SetFieldOfView(InFieldOfView);
 
-	CurrentFocalLength = (Filmback.SensorWidth / 2.f) / FMath::Tan(FMath::DegreesToRadians(InFieldOfView / 2.f));
+	float CropedSensorWidth = Filmback.SensorWidth * LensSettings.SqueezeFactor;
+	if (CropSettings.AspectRatio > 0.0f)
+	{
+		float DesqueezeAspectRatio = Filmback.SensorWidth * LensSettings.SqueezeFactor / Filmback.SensorHeight;
+		if (CropSettings.AspectRatio < DesqueezeAspectRatio)
+		{
+			CropedSensorWidth *= CropSettings.AspectRatio / DesqueezeAspectRatio;
+		}
+	}
+
+	CurrentFocalLength = (CropedSensorWidth / 2.f) / FMath::Tan(FMath::DegreesToRadians(InFieldOfView / 2.f));
 }
 
 void UCineCameraComponent::SetCurrentFocalLength(float InFocalLength)
@@ -260,16 +271,42 @@ void UCineCameraComponent::SetCurrentFocalLength(float InFocalLength)
 
 float UCineCameraComponent::GetHorizontalFieldOfView() const
 {
-	return (CurrentFocalLength > 0.f)
-		? FMath::RadiansToDegrees(2.f * FMath::Atan(Filmback.SensorWidth / (2.f * CurrentFocalLength)))
-		: 0.f;
+	if (CurrentFocalLength > 0.f)
+	{
+		float CropedSensorWidth = Filmback.SensorWidth * LensSettings.SqueezeFactor;
+		if (CropSettings.AspectRatio > 0.0f)
+		{
+			float DesqueezeAspectRatio = Filmback.SensorWidth * LensSettings.SqueezeFactor / Filmback.SensorHeight;
+			if (CropSettings.AspectRatio < DesqueezeAspectRatio)
+			{
+				CropedSensorWidth *= CropSettings.AspectRatio / DesqueezeAspectRatio;
+			}
+		}
+
+		return FMath::RadiansToDegrees(2.f * FMath::Atan(CropedSensorWidth / (2.f * CurrentFocalLength)));
+	}
+
+	return 0.f;
 }
 
 float UCineCameraComponent::GetVerticalFieldOfView() const
 {
-	return (CurrentFocalLength > 0.f)
-		? FMath::RadiansToDegrees(2.f * FMath::Atan(Filmback.SensorHeight / (2.f * CurrentFocalLength)))
-		: 0.f;
+	if (CurrentFocalLength > 0.f)
+	{
+		float CropedSensorHeight = Filmback.SensorHeight;
+		if (CropSettings.AspectRatio > 0.0f)
+		{
+			float DesqueezeAspectRatio = Filmback.SensorWidth * LensSettings.SqueezeFactor / Filmback.SensorHeight;
+			if (DesqueezeAspectRatio < CropSettings.AspectRatio)
+			{
+				CropedSensorHeight *= DesqueezeAspectRatio / CropSettings.AspectRatio;
+			}
+		}
+
+		return FMath::RadiansToDegrees(2.f * FMath::Atan(CropedSensorHeight / (2.f * CurrentFocalLength)));
+	}
+
+	return 0.f;
 }
 
 FString UCineCameraComponent::GetFilmbackPresetName() const
@@ -348,6 +385,44 @@ void UCineCameraComponent::SetLensPresetByNameInternal(const FString& InPresetNa
 	}
 }
 
+FString UCineCameraComponent::GetCropPresetName() const
+{
+	TArray<FNamedPlateCropPreset> const& Presets = UCineCameraComponent::GetCropPresets();
+	int32 const NumPresets = Presets.Num();
+	for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
+	{
+		FNamedPlateCropPreset const& P = Presets[PresetIdx];
+		if (P.CropSettings == CropSettings)
+		{
+			return P.Name;
+		}
+	}
+
+	return FString();
+}
+
+void UCineCameraComponent::SetCropPresetByName(const FString& InPresetName)
+{
+	SetCropPresetByNameInternal(InPresetName);
+	// Explicitely call RecalcDerivedData() when invoked via Blueprint, since no other method (incl. PostEditChangeProperty) will trigger
+	RecalcDerivedData();
+}
+
+void UCineCameraComponent::SetCropPresetByNameInternal(const FString& InPresetName)
+{
+	TArray<FNamedPlateCropPreset> const& Presets = UCineCameraComponent::GetCropPresets();
+	int32 const NumPresets = Presets.Num();
+	for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
+	{
+		FNamedPlateCropPreset const& P = Presets[PresetIdx];
+		if (P.Name == InPresetName)
+		{
+			CropSettings = P.CropSettings;
+			break;
+		}
+	}
+}
+
 float UCineCameraComponent::GetWorldToMetersScale() const
 {
 	UWorld const* const World = GetWorld();
@@ -379,6 +454,12 @@ TArray<FNamedLensPreset> const& UCineCameraComponent::GetLensPresets()
 	return GetDefault<UCineCameraComponent>()->LensPresets;
 }
 
+// static
+TArray<FNamedPlateCropPreset> const& UCineCameraComponent::GetCropPresets()
+{
+	return GetDefault<UCineCameraComponent>()->CropPresets;
+}
+
 void UCineCameraComponent::RecalcDerivedData()
 {
 	// validate incorrect values
@@ -393,7 +474,11 @@ void UCineCameraComponent::RecalcDerivedData()
 
 	FieldOfView = GetHorizontalFieldOfView();
 	Filmback.SensorAspectRatio = (Filmback.SensorHeight > 0.f) ? (Filmback.SensorWidth / Filmback.SensorHeight) : 0.f;
-	AspectRatio = Filmback.SensorAspectRatio;
+	AspectRatio = Filmback.SensorAspectRatio * LensSettings.SqueezeFactor;
+	if (CropSettings.AspectRatio > 0.0f)
+	{
+		AspectRatio = CropSettings.AspectRatio;
+	}
 
 #if WITH_EDITORONLY_DATA
 	CurrentHorizontalFOV = FieldOfView;			// informational variable only, for editor users
@@ -477,22 +562,23 @@ FText UCineCameraComponent::GetFilmbackText() const
 	if (Preset)
 	{
 		return FText::Format(
-			LOCTEXT("PresetFormat","FilmbackPreset: {0} | Zoom: {1}mm | Av: {2}"),
+			LOCTEXT("PresetFormat","FilmbackPreset: {0} | Zoom: {1}mm | Av: {2} | Squeeze: {3}"),
 			FText::FromString(Preset->Name),
 			FText::AsNumber(CurrentFocalLength),
-			FText::AsNumber(CurrentAperture)
+			FText::AsNumber(CurrentAperture),
+			FText::AsNumber(LensSettings.SqueezeFactor)
 		);
 	}
 	else
 	{
 		FNumberFormattingOptions Opts = FNumberFormattingOptions().SetMaximumFractionalDigits(1);
 		return FText::Format(
-			LOCTEXT("CustomFilmbackFormat", "Custom ({0}mm x {1}mm) | Zoom: {2}mm | Av: {3}"),
+			LOCTEXT("CustomFilmbackFormat", "Custom ({0}mm x {1}mm) | Zoom: {2}mm | Av: {3} | Squeeze: {4}"),
 			FText::AsNumber(SensorWidth, &Opts),
 			FText::AsNumber(SensorHeight, &Opts),
 			FText::AsNumber(CurrentFocalLength),
-			FText::AsNumber(CurrentAperture)
-
+			FText::AsNumber(CurrentAperture),
+			FText::AsNumber(LensSettings.SqueezeFactor)
 		);
 	}
 }
@@ -524,6 +610,7 @@ void UCineCameraComponent::UpdateCameraLens(float DeltaTime, FMinimalViewInfo& D
 		DesiredView.PostProcessSettings.bOverride_DepthOfFieldBladeCount = false;
 		DesiredView.PostProcessSettings.bOverride_DepthOfFieldFocalDistance = false;
 		DesiredView.PostProcessSettings.bOverride_DepthOfFieldSensorWidth = false;
+		DesiredView.PostProcessSettings.bOverride_DepthOfFieldSqueezeFactor = false;
 	}
 	else if (FocusSettings.FocusMethod == ECameraFocusMethod::Disable)
 	{
@@ -566,6 +653,9 @@ void UCineCameraComponent::UpdateCameraLens(float DeltaTime, FMinimalViewInfo& D
 
 		DesiredView.PostProcessSettings.bOverride_DepthOfFieldSensorWidth = true;
 		DesiredView.PostProcessSettings.DepthOfFieldSensorWidth = Filmback.SensorWidth;
+
+		DesiredView.PostProcessSettings.bOverride_DepthOfFieldSqueezeFactor = true;
+		DesiredView.PostProcessSettings.DepthOfFieldSqueezeFactor = LensSettings.SqueezeFactor;
 	}
 }
 

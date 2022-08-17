@@ -462,6 +462,7 @@ void GatherRingSamples(
 				};
 				
 				SamplePosOffset[0] = KernelScope.SampleCountToSamplePosition * BokehLUT.SampleLevel(GlobalBilinearWrappedSampler, LookUpUV[0], 0).xy;
+				SamplePosOffset[0].x *= CocInvSqueeze;
 
 				#if DIM_BOKEH_SIMULATION == BOKEH_SIMULATION_SIMMETRIC && 0
 					SamplePosOffset[1] = -SamplePosOffset[0];
@@ -484,19 +485,22 @@ void GatherRingSamples(
 				}
 
 				SamplePosOffset[1] = -SamplePosOffset[0];
-				SampleDistance = length(SamplePosOffset[0]);
+				SampleDistance = length(SamplePosOffset[0] * float2(CocSqueeze, 1.0));
 			}
 			#elif CONFIG_KERNEL_LAYOUT == KERNEL_LAYOUT_SCALABLE_DISK
 			{
 				// Always keep a disk shaped kernel.
 				SamplePosOffset[0] = CircleSamplePosOffset;
-				SamplePosOffset[1] = -CircleSamplePosOffset;
+				SamplePosOffset[0].x *= CocInvSqueeze;
+
+				SamplePosOffset[1] = -SamplePosOffset[0];
 				SampleDistance = RingRadius;
 			}
 			#else
 				#error Unknown gathering kernel layout.
 
 			#endif
+
 			
 			// Fetches the mirrored samples.
 			FGatherSample Sample[2];

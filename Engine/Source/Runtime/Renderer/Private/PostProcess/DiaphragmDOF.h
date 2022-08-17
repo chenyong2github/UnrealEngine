@@ -40,6 +40,9 @@ struct FPhysicalCocModel
 	// Focus distance.
 	float FocusDistance;
 
+	// SqueezeFactor = VerticalFocalDistance / HorizontalFocalDistance
+	float Squeeze;
+
 	// The maximum radius of depth blur.
 	float MaxDepthBlurRadius;
 	float DepthBlurExponent;
@@ -49,17 +52,17 @@ struct FPhysicalCocModel
 	
 	/** Returns the CocRadius in half res pixels for given scene depth (in world unit).
 	 *
-	 * Notes: Matches Engine/Shaders/Private/DiaphragmDOF/Common.ush's DepthToHalfResCocRadius().
+	 * Notes: Matches Engine/Shaders/Private/DiaphragmDOF/Common.ush's SceneDepthToCocRadius().
 	 */
 	float DepthToResCocRadius(float SceneDepth, float HorizontalResolution) const;
 
-	/** Returns limit(DepthToHalfResCocRadius) for SceneDepth -> Infinity. */
+	/** Returns limit(SceneDepthToCocRadius) for SceneDepth -> Infinity. */
 	FORCEINLINE float ComputeViewMaxBackgroundCocRadius(float HorizontalResolution) const
 	{
 		return FMath::Min(FMath::Max(InfinityBackgroundCocRadius, MaxDepthBlurRadius), MaxBackgroundCocRadius) * HorizontalResolution;
 	}
 	
-	/** Returns limit(DepthToHalfResCocRadius) for SceneDepth -> 0.
+	/** Returns limit(SceneDepthToCocRadius) for SceneDepth -> 0.
 	 *
 	 * Note: this return negative or null value since this is foreground.
 	 */

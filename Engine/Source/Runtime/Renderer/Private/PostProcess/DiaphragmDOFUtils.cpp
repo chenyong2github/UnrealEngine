@@ -102,6 +102,7 @@ void DiaphragmDOF::FPhysicalCocModel::Compile(const FViewInfo& View)
 	// Fetches DOF settings.
 	{
 		FocusDistance = View.FinalPostProcessSettings.DepthOfFieldFocalDistance;
+		Squeeze = FMath::Clamp(View.FinalPostProcessSettings.DepthOfFieldSqueezeFactor, 1.0f, 2.0f);
 
 		// -because foreground Coc are negative.
 		MinForegroundCocRadius = -CVarMaxForegroundRadius.GetValueOnRenderThread();

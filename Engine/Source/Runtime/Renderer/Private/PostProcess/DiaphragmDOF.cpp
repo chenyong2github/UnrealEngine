@@ -617,8 +617,13 @@ END_SHADER_PARAMETER_STRUCT()
 
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDOFCocModelShaderParameters, )
-	SHADER_PARAMETER(FVector4f, CocModelParameters)
-	SHADER_PARAMETER(FVector2f, DepthBlurParameters)
+	SHADER_PARAMETER(float, CocInfinityRadius)
+	SHADER_PARAMETER(float, CocMinRadius)
+	SHADER_PARAMETER(float, CocMaxRadius)
+	SHADER_PARAMETER(float, CocSqueeze)
+	SHADER_PARAMETER(float, CocInvSqueeze)
+	SHADER_PARAMETER(float, DepthBlurRadius)
+	SHADER_PARAMETER(float, DepthBlurExponent)
 END_SHADER_PARAMETER_STRUCT()
 
 void SetCocModelParameters(
@@ -626,11 +631,13 @@ void SetCocModelParameters(
 	const DiaphragmDOF::FPhysicalCocModel& CocModel,
 	float CocRadiusBasis = 1.0f)
 {
-	OutParameters->CocModelParameters.X = CocRadiusBasis * CocModel.InfinityBackgroundCocRadius;
-	OutParameters->CocModelParameters.Y = CocRadiusBasis * CocModel.MinForegroundCocRadius;
-	OutParameters->CocModelParameters.Z = CocRadiusBasis * CocModel.MaxBackgroundCocRadius;
-	OutParameters->DepthBlurParameters.X = CocModel.DepthBlurExponent;
-	OutParameters->DepthBlurParameters.Y = CocRadiusBasis * CocModel.MaxDepthBlurRadius;
+	OutParameters->CocInfinityRadius = CocRadiusBasis * CocModel.InfinityBackgroundCocRadius;
+	OutParameters->CocMinRadius = CocRadiusBasis * CocModel.MinForegroundCocRadius;
+	OutParameters->CocMaxRadius = CocRadiusBasis * CocModel.MaxBackgroundCocRadius;
+	OutParameters->CocSqueeze = CocModel.Squeeze;
+	OutParameters->CocInvSqueeze = 1.0f / CocModel.Squeeze;
+	OutParameters->DepthBlurRadius = CocRadiusBasis * CocModel.MaxDepthBlurRadius;
+	OutParameters->DepthBlurExponent = CocModel.DepthBlurExponent;
 }
 
 
@@ -861,6 +868,7 @@ class FDiaphragmDOFReduceCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER(float, PreProcessingToProcessingCocRadiusFactor)
 		SHADER_PARAMETER(float, MinScatteringCocRadius)
 		SHADER_PARAMETER(float, NeighborCompareMaxColor)
+		SHADER_PARAMETER(float, CocSqueeze)
 		
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCommonShaderParameters, CommonParameters)
@@ -1082,6 +1090,8 @@ class FDiaphragmDOFGatherCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER(FVector2f, InputBufferUVToOutputPixel)
 		SHADER_PARAMETER(float, MipBias)
 		SHADER_PARAMETER(float, MaxRecombineAbsCocRadius)
+		SHADER_PARAMETER(float, CocSqueeze)
+		SHADER_PARAMETER(float, CocInvSqueeze)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFTileDecisionParameters, TileDecisionParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCommonShaderParameters, CommonParameters)
@@ -1147,6 +1157,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDOFHybridScatterParameters, )
 	SHADER_PARAMETER(FVector4f, ViewportSize)
 	SHADER_PARAMETER(float, CocRadiusToCircumscribedRadius)
 	SHADER_PARAMETER(float, ScatteringScaling)
+	SHADER_PARAMETER(float, CocSqueeze)
+	SHADER_PARAMETER(float, CocInvSqueeze)
 	
 	SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCommonShaderParameters, CommonParameters)
 	
@@ -1949,6 +1961,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->PreProcessingToProcessingCocRadiusFactor = PreProcessingToProcessingCocRadiusFactor;
 			PassParameters->MinScatteringCocRadius = MinScatteringCocRadius;
 			PassParameters->NeighborCompareMaxColor = CVarScatterNeighborCompareMaxColor.GetValueOnRenderThread();
+			PassParameters->CocSqueeze = CocModel.Squeeze;
 			
 			PassParameters->EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
 			PassParameters->CommonParameters = CommonParameters;
@@ -2280,6 +2293,8 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				float(SrcSize.Y * GatheringViewSize.Y) / float(PreprocessViewSize.Y));
 			PassParameters->MipBias = FMath::Log2(float(PreprocessViewSize.X) / float(GatheringViewSize.X));
 			PassParameters->MaxRecombineAbsCocRadius = float(kMaxSlightOutOfFocusCocRadius) / PreProcessingToProcessingCocRadiusFactor;
+			PassParameters->CocSqueeze = CocModel.Squeeze;
+			PassParameters->CocInvSqueeze = 1.0f / CocModel.Squeeze;
 
 			PassParameters->TileDecisionParameters.MinGatherRadius = PassParameters->MaxRecombineAbsCocRadius - 1;
 			PassParameters->TileDecisionParameters.SlightOutOfFocusRadiusBoundary = float(kMaxSlightOutOfFocusCocRadius) / PreProcessingToProcessingCocRadiusFactor;
@@ -2424,6 +2439,8 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->ViewportSize = FVector4f(GatheringViewSize.X, GatheringViewSize.Y, 1.0f / GatheringViewSize.X, 1.0f / GatheringViewSize.Y);
 			PassParameters->CocRadiusToCircumscribedRadius = BokehModel.CocRadiusToCircumscribedRadius;
 			PassParameters->ScatteringScaling = float(GatheringViewSize.X) / float(PreprocessViewSize.X);
+			PassParameters->CocSqueeze = CocModel.Squeeze;
+			PassParameters->CocInvSqueeze = 1.0 / CocModel.Squeeze;
 			PassParameters->CommonParameters = CommonParameters;
 			if (bEnableScatterBokehSettings)
 				PassParameters->BokehLUT = ScatteringBokehLUT;

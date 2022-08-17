@@ -135,8 +135,6 @@ float4 ViewportSize;
 uint4 ViewportRect;
 
 float2 TemporalJitterPixels;
-float4 CocModelParameters;
-float2 DepthBlurParameters;
 float2 DOFBufferUVMax;
 
 float4 SeparateTranslucencyBilinearUVMinMax;
@@ -214,11 +212,6 @@ float NoizNorm(float2 N, float X)
 float2 RotVec(float Radius, float Radians)
 {
 	return Radius * float2(cos(Radians), sin(Radians));
-}
-
-float DepthToHalfResCocRadius(float WorldDepth)
-{
-	return DepthToHalfResCocRadius(CocModelParameters, DepthBlurParameters, WorldDepth);
 }
 
 void AmendAdditiveColorWithMaxTranslucency(inout float4 Color, inout float Translucency, float MaxTranslucency)
@@ -604,7 +597,7 @@ void FetchAndAccumulateSamplePair(
 			Sample[k].CocRadius = Sample[k].Color.a;
 		#else
 			Sample[k].Color = SceneColorInput.SampleLevel(GlobalPointClampedSampler, BufferUV, 0);
-			Sample[k].CocRadius = DepthToHalfResCocRadius(SampleWorldDepth(BufferUV));
+			Sample[k].CocRadius = SceneDepthToCocRadius(SampleWorldDepth(BufferUV));
 		#endif
 		
 		// Convert scene color alpha from translucency to opacity.
@@ -754,7 +747,7 @@ void RecombineMainCS(
 	#if CONFIG_FETCH_FULLRES_COC_FROM_ALPHA
 		CenterSample.CocRadius = CenterSample.Color.a;
 	#else
-		CenterSample.CocRadius = DepthToHalfResCocRadius(SampleWorldDepth(InputParameters.SceneBufferUV));
+		CenterSample.CocRadius = SceneDepthToCocRadius(SampleWorldDepth(InputParameters.SceneBufferUV));
 	#endif
 	
 	// Convert scene color alpha from translucency to opacity.
@@ -798,7 +791,7 @@ void RecombineMainCS(
 				#if CONFIG_FETCH_FULLRES_COC_FROM_ALPHA
 					float SampleCocRadius = SceneColorInput.SampleLevel(GlobalPointClampedSampler, SampleUV, 0).a;
 				#else
-					float SampleCocRadius = DepthToHalfResCocRadius(SampleWorldDepth(SampleUV));
+					float SampleCocRadius = SceneDepthToCocRadius(SampleWorldDepth(SampleUV));
 				#endif
 
 				float SampleAbsCocRadius = abs(SampleCocRadius);

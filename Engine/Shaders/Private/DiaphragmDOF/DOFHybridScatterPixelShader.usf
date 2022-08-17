@@ -83,6 +83,7 @@ void ScatterMainPS(
 	{
 		// Pixel coordinate of the center of the bokeh.
 		float2 PixelOffset = PixelOffset0 - ScatteringScaling * kSquare2x2[i];
+		PixelOffset.x *= rcp(CocInvSqueeze);
 
 		float Intersection;
 		#if DIM_BOKEH_SIMULATION

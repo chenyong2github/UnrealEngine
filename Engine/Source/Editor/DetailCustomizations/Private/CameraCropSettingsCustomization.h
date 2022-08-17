@@ -10,10 +10,10 @@
 class FDetailWidgetRow;
 class IPropertyHandle;
 
-class FCameraLensSettingsCustomization : public IPropertyTypeCustomization
+class FCameraCropSettingsCustomization : public IPropertyTypeCustomization
 {
 public:
-	FCameraLensSettingsCustomization();
+	FCameraCropSettingsCustomization();
 
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
@@ -23,13 +23,7 @@ public:
 
 protected:
 
-	TSharedPtr<IPropertyHandle> MinFocalLengthHandle;
-	TSharedPtr<IPropertyHandle> MaxFocalLengthHandle;
-	TSharedPtr<IPropertyHandle> MinFStopHandle;
-	TSharedPtr<IPropertyHandle> MaxFStopHandle;
-	TSharedPtr<IPropertyHandle> MinFocusDistanceHandle;
-	TSharedPtr<IPropertyHandle> SqueezeFactorHandle;
-	TSharedPtr<IPropertyHandle> DiaphragmBladeCountHandle;
+	TSharedPtr<IPropertyHandle> AspectRatioHandle;
 
 	TSharedPtr<class SComboBox< TSharedPtr<FString> > > PresetComboBox;
 	TArray< TSharedPtr< FString > >						PresetComboList;

@@ -103,6 +103,10 @@ struct FCameraLensSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens", meta = (ForceUnits = mm))
 	float MinimumFocusDistance = 0.f;
 
+	/** Squeeze factor for anamorphic lenses. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens", meta = (ClampMin = "1", ClampMax = "2"))
+	float SqueezeFactor = 1.f;
+
 	/** Number of blades of diaphragm. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens", meta = (ClampMin = "4", ClampMax = "16"))
 	int32 DiaphragmBladeCount = 0;
@@ -114,6 +118,7 @@ struct FCameraLensSettings
 			&& (MinFStop == Other.MinFStop)
 			&& (MaxFStop == Other.MaxFStop)
 			&& (MinimumFocusDistance == Other.MinimumFocusDistance)
+			&& (SqueezeFactor == Other.SqueezeFactor)
 			&& (DiaphragmBladeCount == Other.DiaphragmBladeCount);
 	}
 };
@@ -130,6 +135,37 @@ struct FNamedLensPreset
 
 	UPROPERTY(BlueprintReadWrite, Category = "Lens")
 	FCameraLensSettings LensSettings;
+};
+
+/** 
+ * #note, this struct has a details customization in CameraCropSettingsCustomization.cpp/h
+ */
+USTRUCT(BlueprintType)
+struct FPlateCropSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crop", meta=(DisplayName = "Cropped Aspect Ratio"))
+	float AspectRatio = 0.f;
+
+	bool operator==(const FPlateCropSettings& Other) const
+	{
+		return (AspectRatio == Other.AspectRatio);
+	}
+};
+
+/** A named bundle of crop settings used to implement crop presets. */
+USTRUCT(BlueprintType)
+struct FNamedPlateCropPreset
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Name for the preset. */
+	UPROPERTY(BlueprintReadWrite, Category = "Crop")
+	FString Name;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Crop")
+	FPlateCropSettings CropSettings;
 };
 
 /** Supported methods for focusing the camera. */
@@ -260,6 +296,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Current Camera Settings")
 	FCameraFocusSettings FocusSettings;
 
+	/** Controls the crop settings. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Current Camera Settings")
+	FPlateCropSettings CropSettings;
+
 	/** Current focal length of the camera (i.e. controls FoV, zoom) */
 	UPROPERTY(Interp, BlueprintSetter = SetCurrentFocalLength, EditAnywhere, BlueprintReadWrite, Category = "Current Camera Settings")
 	float CurrentFocalLength;
@@ -318,6 +358,14 @@ public:
 	/** Set the current lens settings by preset name. */
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
 	void SetLensPresetByName(const FString& InPresetName);
+	
+	/** Returns the lens name of the camera with the current settings. */
+	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
+	FString GetCropPresetName() const;
+
+	/** Set the current lens settings by preset name. */
+	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
+	void SetCropPresetByName(const FString& InPresetName);
 
 	/** Returns a copy of the list of available filmback presets. */
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
@@ -332,6 +380,9 @@ public:
 	
 	/** Returns a list of available lens presets. */
 	static TArray<FNamedLensPreset> const& GetLensPresets();
+
+	/** Returns a list of available crop presets. */
+	static TArray<FNamedPlateCropPreset> const& GetCropPresets();
 
 #if WITH_EDITOR
 	/** Update the debug focus plane position and orientation. */
@@ -392,6 +443,10 @@ protected:
 	/** List of available lens presets */
 	UPROPERTY(config)
 	TArray<FNamedLensPreset> LensPresets;
+	
+	/** List of available lens presets */
+	UPROPERTY(config)
+	TArray<FNamedPlateCropPreset> CropPresets;
 
 	/** Deprecated. See DefaultFilmbackPreset */
 	UPROPERTY(config)
@@ -404,7 +459,11 @@ protected:
 	/** Name of the default lens preset */
 	UPROPERTY(config)
 	FString DefaultLensPresetName;
-	
+
+	/** Name of the default crop preset */
+	UPROPERTY(config)
+	FString DefaultCropPresetName;
+
 	/** Default focal length (will be constrained by default lens) */
 	UPROPERTY(config)
 	float DefaultLensFocalLength;
@@ -423,6 +482,7 @@ private:
 	float GetDesiredFocusDistance(const FVector& InLocation) const;
 	void SetLensPresetByNameInternal(const FString& InPresetName);
 	void SetFilmbackPresetByNameInternal(const FString& InPresetName, FCameraFilmbackSettings& InOutFilmbackSettings);
+	void SetCropPresetByNameInternal(const FString& InPresetName);
 
 #if WITH_EDITORONLY_DATA
 	void CreateDebugFocusPlane();

@@ -22,9 +22,6 @@
 
 uint4 ViewportRect;
 
-float4 CocModelParameters;
-float2 DepthBlurParameters;
-
 // x: full res basis; y: half res basis.
 float2 CocRadiusBasis;
 
@@ -83,7 +80,7 @@ void SetupCS(
 
 	float4 SceneColor = SceneColorTexture.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0);
 	float DeviceZ = SceneDepthTexture.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).r;
-	float CocRadius = DepthToHalfResCocRadius(CocModelParameters, DepthBlurParameters, ConvertFromDeviceZ(DeviceZ));
+	float CocRadius = SceneDepthToCocRadius(ConvertFromDeviceZ(DeviceZ));
 	
 	// Convert from translucency to opacity.
 	SceneColor.a = 1 - SceneColor.a;
@@ -184,7 +181,7 @@ void SetupCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	float4 OutColor = SceneColorTexture.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0);
 	
 	float DeviceZ = SceneDepthTexture.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).r;
-	float OutCocRadius = CocRadiusBasis.x * DepthToHalfResCocRadius(CocModelParameters, DepthBlurParameters, ConvertFromDeviceZ(DeviceZ));
+	float OutCocRadius = CocRadiusBasis.x * SceneDepthToCocRadius(ConvertFromDeviceZ(DeviceZ));
 
 	if (all(DispatchThreadId < ViewportRect.zw))
 	{
@@ -224,10 +221,10 @@ void SetupCS(
 		// Fetch Coc
 		float4 SceneDepthGather = SceneDepthTexture.Gather(GlobalPointClampedSampler, SceneBufferUV);
 		float CocRadii[4];
-		CocRadii[0] = DepthToHalfResCocRadius(CocModelParameters, DepthBlurParameters, ConvertFromDeviceZ(SceneDepthGather.w));
-		CocRadii[1] = DepthToHalfResCocRadius(CocModelParameters, DepthBlurParameters, ConvertFromDeviceZ(SceneDepthGather.z));
-		CocRadii[2] = DepthToHalfResCocRadius(CocModelParameters, DepthBlurParameters, ConvertFromDeviceZ(SceneDepthGather.x));
-		CocRadii[3] = DepthToHalfResCocRadius(CocModelParameters, DepthBlurParameters, ConvertFromDeviceZ(SceneDepthGather.y));
+		CocRadii[0] = SceneDepthToCocRadius(ConvertFromDeviceZ(SceneDepthGather.w));
+		CocRadii[1] = SceneDepthToCocRadius(ConvertFromDeviceZ(SceneDepthGather.z));
+		CocRadii[2] = SceneDepthToCocRadius(ConvertFromDeviceZ(SceneDepthGather.x));
+		CocRadii[3] = SceneDepthToCocRadius(ConvertFromDeviceZ(SceneDepthGather.y));
 
 		// Fetch color.
 		float4 SceneColors[4];
@@ -276,7 +273,7 @@ void SetupCS(
 			SceneColors[i].a = 1 - SceneColors[i].a;
 
 			float SampleDeviceZ = SceneDepthTexture.SampleLevel(GlobalPointClampedSampler, SampleUV, 0).r;
-			CocRadii[i] = DepthToHalfResCocRadius(CocModelParameters, DepthBlurParameters, ConvertFromDeviceZ(SampleDeviceZ));
+			CocRadii[i] = SceneDepthToCocRadius(ConvertFromDeviceZ(SampleDeviceZ));
 		}
 
 		// Downsample.

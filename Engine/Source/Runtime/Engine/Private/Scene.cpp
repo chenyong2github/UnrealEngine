@@ -548,6 +548,7 @@ FPostProcessSettings::FPostProcessSettings()
 	DepthOfFieldMinFstop = 1.2f;
 	DepthOfFieldBladeCount = FPostProcessSettings::kDefaultDepthOfFieldBladeCount;
 	DepthOfFieldSensorWidth = 24.576f;			// APS-C
+	DepthOfFieldSqueezeFactor = 1.0f;
 	DepthOfFieldDepthBlurAmount = 1.0f;
 	DepthOfFieldDepthBlurRadius = 0.0f;
 	DepthOfFieldFocalRegion = 0.0f;
@@ -752,6 +753,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_DepthOfFieldMinFstop(Settings.bOverride_DepthOfFieldMinFstop)
 	, bOverride_DepthOfFieldBladeCount(Settings.bOverride_DepthOfFieldBladeCount)
 	, bOverride_DepthOfFieldSensorWidth(Settings.bOverride_DepthOfFieldSensorWidth)
+	, bOverride_DepthOfFieldSqueezeFactor(Settings.bOverride_DepthOfFieldSqueezeFactor)
 	, bOverride_DepthOfFieldDepthBlurRadius(Settings.bOverride_DepthOfFieldDepthBlurRadius)
 	, bOverride_DepthOfFieldDepthBlurAmount(Settings.bOverride_DepthOfFieldDepthBlurAmount)
 	, bOverride_DepthOfFieldFocalRegion(Settings.bOverride_DepthOfFieldFocalRegion)
@@ -965,6 +967,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, ColorGradingIntensity(Settings.ColorGradingIntensity)
 	, ColorGradingLUT(Settings.ColorGradingLUT)
 	, DepthOfFieldSensorWidth(Settings.DepthOfFieldSensorWidth)
+	, DepthOfFieldSqueezeFactor(Settings.DepthOfFieldSqueezeFactor)
 	, DepthOfFieldFocalDistance(Settings.DepthOfFieldFocalDistance)
 	, DepthOfFieldDepthBlurAmount(Settings.DepthOfFieldDepthBlurAmount)
 	, DepthOfFieldDepthBlurRadius(Settings.DepthOfFieldDepthBlurRadius)

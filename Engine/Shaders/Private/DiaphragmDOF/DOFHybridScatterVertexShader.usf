@@ -135,7 +135,7 @@ void ScatterMainVS(
 	// The center of the pixel group is 0.5 south east of BokehCenter0.
 	const float HalfPixelShift = 0.5;
 
-	float2 ViewportUV = ((MaxAbsCocRadius * CocRadiusToCircumscribedRadius + (HalfPixelShift + ANTI_ALIASING_FEATHER_OFFSET)) * VertexPos + BokehCenter0 + HalfPixelShift) * ViewportSize.zw; 
+	float2 ViewportUV = ((MaxAbsCocRadius * CocRadiusToCircumscribedRadius * float2(CocInvSqueeze, 1.0) + (HalfPixelShift + ANTI_ALIASING_FEATHER_OFFSET)) * VertexPos + BokehCenter0 + HalfPixelShift) * ViewportSize.zw; 
 
 	OutPosition = float4(ViewportUV.x * 2.0 - 1.0, 1.0 - ViewportUV.y * 2.0, 0.0, 1.0);
 }
