@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
 using EpicGames.Core;
 
 namespace EpicGames.Horde.Storage.Git
@@ -20,6 +23,11 @@ namespace EpicGames.Horde.Storage.Git
 		/// Tree objects
 		/// </summary>
 		public static Utf8String Tree { get; } = "tree";
+
+		/// <summary>
+		/// Commit objects
+		/// </summary>
+		public static Utf8String Commit { get; } = "commit";
 	}
 
 	/// <summary>
@@ -27,6 +35,21 @@ namespace EpicGames.Horde.Storage.Git
 	/// </summary>
 	public static class GitObject
 	{
+		/// <summary>
+		/// Writes the header for an object to a stream
+		/// </summary>
+		/// <param name="stream"></param>
+		/// <param name="type">Type of the object</param>
+		/// <param name="size">Size of the object</param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		public static async Task WriteHeaderAsync(Stream stream, Utf8String type, long size, CancellationToken cancellationToken = default)
+		{
+			byte[] header = new byte[32];
+			int length = GitObject.WriteHeader(type, size, header).Length;
+			await stream.WriteAsync(header.AsMemory(0, length), cancellationToken);
+		}
+
 		/// <summary>
 		/// Appends data for a header to the hash
 		/// </summary>

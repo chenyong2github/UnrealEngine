@@ -107,10 +107,10 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>
-		public override NewTreeBlob Serialize()
+		public override async Task<ITreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken)
 		{
-			List<TreeNodeRef> references = new List<TreeNodeRef>();
-			references.Add(Contents);
+			List<ITreeBlobRef> references = new List<ITreeBlobRef>();
+			references.Add(await Contents.CollapseAsync(writer, cancellationToken));
 
 			ByteArrayBuilder builder = new ByteArrayBuilder();
 			builder.WriteVariableLengthArray(Paths, x => builder.WriteUtf8String(x));

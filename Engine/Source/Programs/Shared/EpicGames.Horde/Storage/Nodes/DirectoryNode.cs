@@ -517,23 +517,24 @@ namespace EpicGames.Horde.Storage.Nodes
 		#endregion
 
 		/// <inheritdoc/>
-		public override NewTreeBlob Serialize()
+		public override async Task<ITreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken)
 		{
-			List<TreeNodeRef> refs = new List<TreeNodeRef>();
+			List<ITreeBlobRef> refs = new List<ITreeBlobRef>();
 
 			List<FileEntry> fileEntries = _nameToFileEntry.Values.OrderBy(x => x.Name).ToList();
 			foreach (FileEntry fileEntry in fileEntries)
 			{
-				refs.Add(fileEntry);
+				refs.Add(await fileEntry.CollapseAsync(writer, cancellationToken));
 			}
 
 			List<DirectoryEntry> directoryEntries = _nameToDirectoryEntry.Values.OrderBy(x => x.Name).ToList();
 			foreach (DirectoryEntry directoryEntry in directoryEntries)
 			{
-				refs.Add(directoryEntry);
+				refs.Add(await directoryEntry.CollapseAsync(writer, cancellationToken));
 			}
 
-			return new NewTreeBlob(SerializeData(Flags, fileEntries, directoryEntries), refs);
+			ReadOnlySequence<byte> data = SerializeData(Flags, fileEntries, directoryEntries);
+			return new NewTreeBlob(data, refs);
 		}
 
 		static ReadOnlySequence<byte> SerializeData(DirectoryFlags flags, List<FileEntry> fileEntries, List<DirectoryEntry> directoryEntries)

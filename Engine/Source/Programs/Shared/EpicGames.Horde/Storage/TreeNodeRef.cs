@@ -181,15 +181,8 @@ namespace EpicGames.Horde.Storage
 			ITreeBlobRef? target = _target;
 			if (target == null)
 			{
-				NewTreeBlob blob = Node!.Serialize();
-
-				List<ITreeBlobRef> targetRefs = new List<ITreeBlobRef>();
-				foreach (TreeNodeRef typedRef in blob.Refs)
-				{
-					targetRefs.Add(await typedRef.CollapseAsync(writer, cancellationToken));
-				}
-
-				target = await writer.WriteNodeAsync(blob.Data, targetRefs, cancellationToken);
+				ITreeBlob blob = await Node!.SerializeAsync(writer, cancellationToken);
+				target = await writer.WriteNodeAsync(blob.Data, blob.Refs, cancellationToken);
 				MarkAsClean(target);
 			}
 			return target;

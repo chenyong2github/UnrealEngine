@@ -52,7 +52,7 @@ namespace EpicGames.Horde.Storage
 		/// Serialize a node to a block of memory
 		/// </summary>
 		/// <returns>New data to be stored into a blob</returns>
-		public abstract NewTreeBlob Serialize();
+		public abstract Task<ITreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Deserialize a node from data
@@ -69,7 +69,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Data to be stored in a tree blob
 	/// </summary>
-	public struct NewTreeBlob
+	public struct NewTreeBlob : ITreeBlob
 	{
 		/// <summary>
 		/// The opaque data payload
@@ -79,14 +79,14 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// References to other tree nodes
 		/// </summary>
-		public IReadOnlyList<TreeNodeRef> Refs { get; }
+		public IReadOnlyList<ITreeBlobRef> Refs { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="data">Data payload</param>
 		/// <param name="refs">References to other nodes</param>
-		public NewTreeBlob(ReadOnlyMemory<byte> data, IReadOnlyList<TreeNodeRef> refs)
+		public NewTreeBlob(ReadOnlyMemory<byte> data, IReadOnlyList<ITreeBlobRef> refs)
 		{
 			Data = new ReadOnlySequence<byte>(data);
 			Refs = refs;
@@ -97,7 +97,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="data">Data payload</param>
 		/// <param name="refs">References to other nodes</param>
-		public NewTreeBlob(ReadOnlySequence<byte> data, IReadOnlyList<TreeNodeRef> refs)
+		public NewTreeBlob(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs)
 		{
 			Data = data;
 			Refs = refs;
@@ -148,28 +148,8 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public static async Task FlushAsync(this ITreeWriter writer, TreeNode root, CancellationToken cancellationToken = default)
 		{
-			ITreeBlob rootBlob = await writer.WriteTreeAsync(root, cancellationToken);
+			ITreeBlob rootBlob = await root.SerializeAsync(writer, cancellationToken);
 			await writer.FlushAsync(rootBlob.Data, rootBlob.Refs, cancellationToken);
-		}
-
-		/// <summary>
-		/// Write a tree of nodes to an <see cref="ITreeWriter"/>
-		/// </summary>
-		/// <param name="writer">Writer to output the nodes to</param>
-		/// <param name="node">Root node to serialize</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Reference to the new tree of nodes</returns>
-		public static async Task<ITreeBlob> WriteTreeAsync(this ITreeWriter writer, TreeNode node, CancellationToken cancellationToken = default)
-		{
-			NewTreeBlob blob = node.Serialize();
-
-			List<ITreeBlobRef> targetRefs = new List<ITreeBlobRef>();
-			foreach (TreeNodeRef typedRef in blob.Refs)
-			{
-				targetRefs.Add(await typedRef.CollapseAsync(writer, cancellationToken));
-			}
-
-			return TreeBlob.Create(blob.Data, targetRefs);
 		}
 
 		/// <inheritdoc/>

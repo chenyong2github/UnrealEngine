@@ -293,7 +293,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		public override IReadOnlyList<TreeNodeRef> GetReferences() => Array.Empty<TreeNodeRef>();
 
 		/// <inheritdoc/>
-		public override NewTreeBlob Serialize() => new NewTreeBlob(_writtenSequence, Array.Empty<TreeNodeRef>());
+		public override Task<ITreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken) => Task.FromResult<ITreeBlob>(new NewTreeBlob(_writtenSequence, Array.Empty<ITreeBlobRef>()));
 
 		/// <inheritdoc/>
 		public override ValueTask<ReadOnlyMemory<byte>> AppendDataAsync(ReadOnlyMemory<byte> newData, ChunkingOptions options, ITreeWriter writer, CancellationToken cancellationToken)
@@ -478,7 +478,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		public override IReadOnlyList<TreeNodeRef> GetReferences() => _children;
 
 		/// <inheritdoc/>
-		public override NewTreeBlob Serialize()
+		public override async Task<ITreeBlob> SerializeAsync(ITreeWriter writer, CancellationToken cancellationToken)
 		{
 			byte[] data = new byte[1 + sizeof(uint) + VarInt.MeasureUnsigned((ulong)_length) + 1];
 			data[0] = TypeId;
@@ -495,7 +495,14 @@ namespace EpicGames.Horde.Storage.Nodes
 			pos++;
 
 			Debug.Assert(pos == data.Length);
-			return new NewTreeBlob(data, _children);
+
+			List<ITreeBlobRef> childRefs = new List<ITreeBlobRef>();
+			foreach (TreeNodeRef typedRef in _children)
+			{
+				childRefs.Add(await typedRef.CollapseAsync(writer, cancellationToken));
+			}
+
+			return new NewTreeBlob(data, childRefs);
 		}
 
 		/// <inheritdoc/>
