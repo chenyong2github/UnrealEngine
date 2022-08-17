@@ -1515,25 +1515,29 @@ void FDisplayClusterLightCardEditorHelper::PostEditChangePropertiesForMovedLight
 
 	LightCard.Modify();
 
-	TArray<const FProperty*> ChangedProperties;
 	auto ModifyLightCardProperty = [&](const FName& PropertyName)
 	{
 		FProperty* Property = FindFProperty<FProperty>(LightCard.GetClass(), PropertyName);
-		FPropertyChangedEvent PropertyEvent(Property);
-		LightCard.PostEditChangeProperty(PropertyEvent);
 
-		ChangedProperties.Add(Property);
+		// Broadcast the event directly instead of PostEditChangeProperty on the object itself, which would attempt to create unnecessary snapshots for each call
+		FPropertyChangedEvent PropertyChangedEvent(Property, EPropertyChangeType::Interactive);
+		FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(&LightCard, PropertyChangedEvent);
+
+		return Property;
 	};
 
-	ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Longitude));
-	ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Latitude));
-	ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, DistanceFromCenter));
-	ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Spin));
-	ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Pitch));
-	ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Yaw));
-	ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Scale));
-	ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, UVCoordinates));
+	const FProperty* ChangedProperties[] =
+	{
+		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Longitude)),
+		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Latitude)),
+		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, DistanceFromCenter)),
+		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Spin)),
+		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Pitch)),
+		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Yaw)),
+		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Scale)),
+		ModifyLightCardProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, UVCoordinates)),
+	};
 
-	SnapshotTransactionBuffer(&LightCard, MakeArrayView(ChangedProperties));
+	SnapshotTransactionBuffer(&LightCard, ChangedProperties);
 }
 #endif

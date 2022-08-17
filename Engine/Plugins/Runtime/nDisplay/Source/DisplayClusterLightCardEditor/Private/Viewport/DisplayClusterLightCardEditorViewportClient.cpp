@@ -1319,6 +1319,16 @@ void FDisplayClusterLightCardEditorViewportClient::UpdateProxyTransforms()
 				LightCardProxy.Proxy->SetActorLocation(LightCardProxy.LevelInstance->GetActorLocation() - RootActorLevelInstance->GetActorLocation());
 				LightCardProxy.Proxy->SetActorRotation(LightCardProxy.LevelInstance->GetActorRotation() - RootActorLevelInstance->GetActorRotation());
 				LightCardProxy.Proxy->SetActorScale3D(LightCardProxy.LevelInstance->GetActorScale3D());
+
+				// Need to update these manually or the proxy's position will be out of sync next update
+				LightCardProxy.Proxy->Longitude = LightCardProxy.LevelInstance->Longitude;
+				LightCardProxy.Proxy->Latitude = LightCardProxy.LevelInstance->Latitude;
+				LightCardProxy.Proxy->DistanceFromCenter = LightCardProxy.LevelInstance->DistanceFromCenter;
+				LightCardProxy.Proxy->Spin = LightCardProxy.LevelInstance->Spin;
+				LightCardProxy.Proxy->Pitch = LightCardProxy.LevelInstance->Pitch;
+				LightCardProxy.Proxy->Yaw = LightCardProxy.LevelInstance->Yaw;
+				LightCardProxy.Proxy->Scale = LightCardProxy.LevelInstance->Scale;
+				LightCardProxy.Proxy->UVCoordinates = LightCardProxy.LevelInstance->UVCoordinates;
 			}
 		}
 	}
