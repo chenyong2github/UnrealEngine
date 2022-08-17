@@ -244,10 +244,11 @@ void UNiagaraMeshRendererProperties::Serialize(FArchive& Ar)
 }
 
 /** The bindings depend on variables that are created during the NiagaraModule startup. However, the CDO's are build prior to this being initialized, so we defer setting these values until later.*/
-void UNiagaraMeshRendererProperties::InitCDOPropertiesAfterModuleStartupInternal()
+void UNiagaraMeshRendererProperties::InitCDOPropertiesAfterModuleStartup()
 {
-	Super::InitCDOPropertiesAfterModuleStartupInternal();
-	
+	UNiagaraMeshRendererProperties* CDO = CastChecked<UNiagaraMeshRendererProperties>(UNiagaraMeshRendererProperties::StaticClass()->GetDefaultObject());
+	CDO->InitBindings();
+
 	for (TWeakObjectPtr<UNiagaraMeshRendererProperties>& WeakMeshRendererProperties : MeshRendererPropertiesToDeferredInit)
 	{
 		if (WeakMeshRendererProperties.Get())
@@ -259,8 +260,6 @@ void UNiagaraMeshRendererProperties::InitCDOPropertiesAfterModuleStartupInternal
 
 void UNiagaraMeshRendererProperties::InitBindings()
 {
-	Super::InitBindings();
-	
 	if (!PositionBinding.IsValid())
 	{
 		PositionBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_POSITION);

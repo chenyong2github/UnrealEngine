@@ -492,28 +492,10 @@ void UNiagaraRendererProperties::PostLoad()
 	{
 		MotionVectorSetting = ENiagaraRendererMotionVectorSetting::Disable;
 	}
-
-	// it was possible to revert the enabled binding's type to "none" when the revert arrow is used
-	if(!RendererEnabledBinding.GetType().IsValid())
-	{
-		FNiagaraVariableBase EnabledDefaultVariable(FNiagaraTypeDefinition::GetBoolDef(), NAME_None);
-		RendererEnabledBinding.Setup(EnabledDefaultVariable, EnabledDefaultVariable, ENiagaraRendererSourceDataMode::Emitter);
-	}
-}
-
-void UNiagaraRendererProperties::InitBindings()
-{
-	FNiagaraVariableBase EnabledDefaultVariable(FNiagaraTypeDefinition::GetBoolDef(), NAME_None);
-	RendererEnabledBinding.Setup(EnabledDefaultVariable, EnabledDefaultVariable, ENiagaraRendererSourceDataMode::Emitter);
-}
-
-void UNiagaraRendererProperties::InitCDOPropertiesAfterModuleStartup(TSubclassOf<UNiagaraRendererProperties> Class)
-{
-	UNiagaraRendererProperties* CDO = CastChecked<UNiagaraRendererProperties>(Class->GetDefaultObject());
-	CDO->InitCDOPropertiesAfterModuleStartupInternal();
 }
 
 #if WITH_EDITORONLY_DATA
+
 void UNiagaraRendererProperties::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);

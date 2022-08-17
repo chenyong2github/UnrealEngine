@@ -25,7 +25,6 @@
 #include "NiagaraGpuComputeDispatch.h"
 #include "Misc/CoreDelegates.h"
 #include "NiagaraDebuggerClient.h"
-#include "NiagaraSimulationStageBase.h"
 #include "Particles/FXBudget.h"
 #include "Engine/StaticMesh.h"
 #include "UObject/UObjectGlobals.h"
@@ -342,14 +341,12 @@ void INiagaraModule::StartupModule()
 	Translator_CallID = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Translator.CallID"));
 
 	FNiagaraConstants::Init();
-	UNiagaraRendererProperties::InitCDOPropertiesAfterModuleStartup(UNiagaraLightRendererProperties::StaticClass());
-	UNiagaraRendererProperties::InitCDOPropertiesAfterModuleStartup(UNiagaraSpriteRendererProperties::StaticClass());
-	UNiagaraRendererProperties::InitCDOPropertiesAfterModuleStartup(UNiagaraRibbonRendererProperties::StaticClass());
-	UNiagaraRendererProperties::InitCDOPropertiesAfterModuleStartup(UNiagaraMeshRendererProperties::StaticClass());
-	UNiagaraRendererProperties::InitCDOPropertiesAfterModuleStartup(UNiagaraComponentRendererProperties::StaticClass());
+	UNiagaraLightRendererProperties::InitCDOPropertiesAfterModuleStartup();
+	UNiagaraSpriteRendererProperties::InitCDOPropertiesAfterModuleStartup();
+	UNiagaraRibbonRendererProperties::InitCDOPropertiesAfterModuleStartup();
+	UNiagaraMeshRendererProperties::InitCDOPropertiesAfterModuleStartup();
+	UNiagaraComponentRendererProperties::InitCDOPropertiesAfterModuleStartup();
 
-	UNiagaraSimulationStageGeneric::InitCDOPropertiesAfterModuleStartup();
-	
 	// Register the data interface CDO finder with the shader module..
 	INiagaraShaderModule& NiagaraShaderModule = FModuleManager::LoadModuleChecked<INiagaraShaderModule>("NiagaraShader");
 	NiagaraShaderModule.SetOnRequestDefaultDataInterfaceHandler(INiagaraShaderModule::FOnRequestDefaultDataInterface::CreateLambda([](const FString& DIClassName) -> UNiagaraDataInterfaceBase*
