@@ -153,6 +153,9 @@ public:
 		int& NumDeleted,
 		bool bDeferChangeNotifications = false );
 
+	/**
+	 * Apply AppendTransform to AppendMesh and then add it's geometry to the TargetMesh
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendMesh( 
@@ -162,6 +165,27 @@ public:
 		bool bDeferChangeNotifications = false,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	 * For each transform in AppendTransforms, apply the transform to AppendMesh and then add it's geometry to the TargetMesh.
+	 * @param ConstantTransform the Constant transform will be applied after each Append transform
+	 * @param bConstantTransformIsRelative if true, the Constant transform is applied "in the frame" of the Append Transform, otherwise it is applied as a second transform in local coordinates (ie rotate around the AppendTransform X axis, vs around the local X axis)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	AppendMeshTransformed( 
+		UDynamicMesh* TargetMesh, 
+		UDynamicMesh* AppendMesh, 
+		const TArray<FTransform>& AppendTransforms, 
+		FTransform ConstantTransform,
+		bool bConstantTransformIsRelative = true,
+		bool bDeferChangeNotifications = false,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	 * Repeatedly apply AppendTransform to the AppendMesh, each time adding the geometry to TargetMesh.
+	 * @param RepeatCount number of times to repeat the transform-append cycle
+	 * @param bApplyTransformToFirstInstance if true, the AppendTransform is applied before the first mesh append, otherwise it is applied after
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendMeshRepeated( 

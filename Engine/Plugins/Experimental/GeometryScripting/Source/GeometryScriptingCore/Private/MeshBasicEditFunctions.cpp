@@ -7,6 +7,7 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/MeshTransforms.h"
 #include "DynamicMeshEditor.h"
+#include "TransformSequence.h"
 
 using namespace UE::Geometry;
 
@@ -363,6 +364,79 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(
 			Editor.AppendMesh(UseOtherMesh, TmpMappings,
 				[&](int, const FVector3d& Position) { return XForm.TransformPosition(Position); },
 				[&](int, const FVector3d& Normal) { return XForm.TransformNormal(Normal); });
+		});
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
+
+	return TargetMesh;
+}
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMeshTransformed(
+	UDynamicMesh* TargetMesh,
+	UDynamicMesh* AppendMesh,
+	const TArray<FTransform>& AppendTransforms, 
+	FTransform ConstantTransform,
+	bool bConstantTransformIsRelative,
+	bool bDeferChangeNotifications,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendMeshTransformed_InvalidInput1", "AppendMeshTransformed: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (AppendMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendMeshTransformed_InvalidInput2", "AppendMeshTransformed: AppendMesh is Null"));
+		return TargetMesh;
+	}
+	if (AppendTransforms.IsEmpty())
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendMeshTransformed_NoTransforms", "AppendMeshTransformed: AppendTransforms array is empty"));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& AppendToMesh)
+	{
+		AppendMesh->ProcessMesh([&](const FDynamicMesh3& OtherMesh)
+		{
+			FMeshIndexMappings TmpMappings;
+			FDynamicMeshEditor Editor(&AppendToMesh);
+			const FDynamicMesh3* UseOtherMesh = &OtherMesh;
+			FDynamicMesh3 TmpMesh;
+			if (UseOtherMesh == &AppendToMesh)
+			{
+				TmpMesh = OtherMesh;	// need  to make a copy if we are appending to ourself
+				UseOtherMesh = &TmpMesh;
+			}
+			for (FTransform AppendTransform : AppendTransforms)
+			{
+				FTransformSequence3d TransformSequence;
+
+				if (bConstantTransformIsRelative)
+				{
+					TransformSequence.Append(ConstantTransform);
+					TransformSequence.Append(AppendTransform);
+				}
+				else
+				{
+					// want to apply the constant transform's rotate/scale after
+					// the main transform rotate/scale, so the main positioning 
+					// translation has to be deferred until after that
+					FVector Translation = AppendTransform.GetLocation();
+					AppendTransform.SetTranslation(FVector::Zero());
+
+					TransformSequence.Append(AppendTransform);
+					TransformSequence.Append(ConstantTransform);
+					TransformSequence.Append(FTransform(Translation));
+				}
+
+				Editor.AppendMesh(UseOtherMesh, TmpMappings,
+					[&](int, const FVector3d& Position) { return TransformSequence.TransformPosition(Position); },
+					[&](int, const FVector3d& Normal) { return TransformSequence.TransformNormal(Normal); });
+				TmpMappings.Reset();
+			}
 		});
 	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
 
