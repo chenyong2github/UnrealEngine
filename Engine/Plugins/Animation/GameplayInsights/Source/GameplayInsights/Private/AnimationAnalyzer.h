@@ -49,6 +49,7 @@ private:
 		RouteId_Montage,
 		RouteId_Montage2,
 		RouteId_Sync,
+		RouteId_PoseWatch
 	};
 
 	TraceServices::IAnalysisSession& Session;

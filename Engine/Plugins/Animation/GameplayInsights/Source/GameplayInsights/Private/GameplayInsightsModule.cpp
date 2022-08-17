@@ -22,6 +22,7 @@
 #include "BlendWeightsTrack.h"
 #include "MontagesTrack.h"
 #include "NotifiesTrack.h"
+#include "PoseWatchTrack.h"
 
 #if WITH_EDITOR
 #include "IAnimationBlueprintEditorModule.h"
@@ -85,6 +86,8 @@ void FGameplayInsightsModule::StartupModule()
 	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &MontagesTrackCreator);
 	static RewindDebugger::FNotifiesTrackCreator NotifiesTrackCreator;
 	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &NotifiesTrackCreator);
+	static RewindDebugger::FPoseWatchesTrackCreator PoseWatchesTrackCreator;
+	IModularFeatures::Get().RegisterModularFeature(RewindDebugger::IRewindDebuggerTrackCreator::ModularFeatureName, &PoseWatchesTrackCreator);
 
 
 	if (!IsRunningCommandlet())

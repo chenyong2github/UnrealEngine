@@ -23,6 +23,7 @@
 #include "RewindDebuggerSettings.h"
 #include "LevelEditor.h"
 #include "RewindDebuggerModule.h"
+#include "Engine/PoseWatch.h"
 
 static void IterateExtensions(TFunction<void(IRewindDebuggerExtension* Extension)> IteratorFunction)
 {
@@ -804,6 +805,14 @@ void FRewindDebugger::Tick(float DeltaTime)
 															TRACE_CPUPROFILER_EVENT_SCOPE(ResetNodeVisitStates);
 															DebugData.ResetNodeVisitSites();
 														}
+
+														for (FAnimNodePoseWatch& PoseWatchNode : DebugData.AnimNodePoseWatch)
+														{
+															if (PoseWatchNode.PoseWatch.IsValid())
+															{
+																PoseWatchNode.PoseWatch->SetIsNodeEnabled(false);
+															}
+														}
 							
 														AnimGraphTimeline.EnumerateEvents(Frame.StartTime, Frame.EndTime, [Id, AnimationProvider, GameplayProvider, &DebugData, NodeCount](double InGraphStartTime, double InGraphEndTime, uint32 InDepth, const FAnimGraphMessage& InMessage)
 														{
@@ -896,6 +905,31 @@ void FRewindDebugger::Tick(float DeltaTime)
 																			return TraceServices::EEventEnumerate::Continue;
 																		});
 																	});
+
+																	
+																	AnimationProvider->ReadPoseWatchTimeline(Id, [InGraphStartTime, InGraphEndTime, AnimationProvider, &DebugData](const IAnimationProvider::PoseWatchTimeline& InPoseWatchTimeline)
+																		{
+																			InPoseWatchTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [AnimationProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FPoseWatchMessage& InMessage)
+																				{
+																					for (FAnimNodePoseWatch& PoseWatch : DebugData.AnimNodePoseWatch)
+																					{
+																						if (PoseWatch.NodeID == InMessage.PoseWatchId)
+																						{
+																							TArray<FBoneIndexType> RequiredBones;
+																							TArray<FTransform> BoneTransforms;
+																							AnimationProvider->GetPoseWatchData(InMessage, BoneTransforms, RequiredBones);
+
+																							PoseWatch.SetPose(RequiredBones, BoneTransforms);
+																							PoseWatch.SetWorldTransform(InMessage.WorldTransform);
+
+																							PoseWatch.PoseWatch->SetIsNodeEnabled(true);
+																							break;
+																						}
+																					}
+																					return TraceServices::EEventEnumerate::Continue;
+																				});
+																		});
+
 																}
 							
 																// Anim node values can come from all phases

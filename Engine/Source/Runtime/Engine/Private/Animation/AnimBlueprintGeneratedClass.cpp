@@ -247,7 +247,6 @@ void FAnimBlueprintDebugData::AddPoseWatch(int32 NodeID, UPoseWatchPoseElement* 
 	NewAnimNodePoseWatch.NodeID = NodeID;
 	NewAnimNodePoseWatch.PoseWatch = InPoseWatchPoseElement->GetParent();
 	NewAnimNodePoseWatch.PoseWatchPoseElement = InPoseWatchPoseElement;
-	NewAnimNodePoseWatch.PoseInfo = MakeShareable(new FCompactHeapPose());
 	NewAnimNodePoseWatch.Object = nullptr;
 }
 
@@ -263,7 +262,7 @@ void FAnimBlueprintDebugData::RemovePoseWatch(int32 NodeID)
 	}
 }
 
-void FAnimBlueprintDebugData::ForEachActiveVisiblePoseWatchPoseElement(const TFunctionRef<void(FPoseWatchDebugData&)>& InFunction) const
+void FAnimBlueprintDebugData::ForEachActiveVisiblePoseWatchPoseElement(const TFunctionRef<void(const FAnimNodePoseWatch&)>& InFunction) const
 {
 	for (const FAnimNodePoseWatch& PoseWatchNode : AnimNodePoseWatch)
 	{
@@ -271,11 +270,7 @@ void FAnimBlueprintDebugData::ForEachActiveVisiblePoseWatchPoseElement(const TFu
 		{
 			if (PoseWatchPoseElement->GetIsEnabled() && PoseWatchPoseElement->GetIsVisible())
 			{
-				FPoseWatchDebugData DrawData;
-				DrawData.PoseWatchPoseElement = PoseWatchPoseElement;
-				DrawData.PoseInfo = PoseWatchNode.PoseInfo;
-
-				InFunction(DrawData);
+				InFunction(PoseWatchNode);
 			}
 		}
 	}

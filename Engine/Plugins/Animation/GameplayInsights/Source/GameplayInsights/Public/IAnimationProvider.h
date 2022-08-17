@@ -36,6 +36,19 @@ struct FSkeletalMeshPoseMessage
 	uint16 LodIndex = 0;
 };
 
+struct FPoseWatchMessage
+{
+	double RecordingTime = 0.0;
+	uint64 AnimInstanceId = 0;
+	uint64 PoseWatchId = 0;
+	uint64 BoneTransformsStartIndex = 0;
+	uint16 NumBoneTransforms = 0;
+	FTransform WorldTransform;
+	uint64 RequiredBonesStartIndex = 0;
+	uint16 NumRequiredBones = 0;
+	bool bIsEnabled = false;
+};
+
 struct FSkeletalMeshFrameMessage
 {
 	uint64 ComponentId = 0;
@@ -265,11 +278,13 @@ public:
 	typedef TraceServices::ITimeline<FAnimMontageMessage> AnimMontageTimeline;
 	typedef TraceServices::ITimeline<FAnimAttributeMessage> AnimAttributeTimeline;
 	typedef TraceServices::ITimeline<FAnimSyncMessage> AnimSyncTimeline;
+	typedef TraceServices::ITimeline<FPoseWatchMessage> PoseWatchTimeline;
 
 	virtual void EnumerateSkeletalMeshPoseTimelines(TFunctionRef<void(uint64 ObjectId, const SkeletalMeshPoseTimeline&)> Callback) const =0;
 	virtual bool ReadSkeletalMeshPoseTimeline(uint64 InObjectId, TFunctionRef<void(const SkeletalMeshPoseTimeline&, bool)> Callback) const = 0;
 	virtual void GetSkeletalMeshComponentSpacePose(const FSkeletalMeshPoseMessage& InMessage, const FSkeletalMeshInfo& InMeshInfo, FTransform& OutComponentToWorld, TArray<FTransform>& OutTransforms) const = 0;
 	virtual void EnumerateSkeletalMeshCurveIds(uint64 InObjectId, TFunctionRef<void(uint32)> Callback) const = 0;
+	virtual void GetPoseWatchData(const FPoseWatchMessage& InMessage, TArray<FTransform>& BoneTransforms, TArray<uint16>& RequiredBones) const = 0;
 	virtual void EnumerateSkeletalMeshCurves(const FSkeletalMeshPoseMessage& InMessage, TFunctionRef<void(const FSkeletalMeshNamedCurve&)> Callback) const = 0;
 	virtual bool ReadTickRecordTimeline(uint64 InObjectId, TFunctionRef<void(const TickRecordTimeline&)> Callback) const = 0;
 	virtual void EnumerateTickRecordIds(uint64 InObjectId, TFunctionRef<void(uint64, int32)> Callback) const = 0;
@@ -286,6 +301,7 @@ public:
 	virtual bool ReadMontageTimeline(uint64 InObjectId, TFunctionRef<void(const AnimMontageTimeline&)> Callback) const = 0;
 	virtual void EnumerateMontageIds(uint64 InObjectId, TFunctionRef<void(uint64)> Callback) const = 0;
 	virtual bool ReadAnimSyncTimeline(uint64 InObjectId, TFunctionRef<void(const AnimSyncTimeline&)> Callback) const = 0;
+	virtual bool ReadPoseWatchTimeline(uint64 InObjectId, TFunctionRef<void(const PoseWatchTimeline&)> Callback) const = 0;
 	virtual const FSkeletalMeshInfo* FindSkeletalMeshInfo(uint64 InObjectId) const = 0;
 	virtual const TCHAR* GetName(uint32 InId) const = 0;
 	virtual FText FormatNodeKeyValue(const FAnimNodeValueMessage& InMessage) const = 0;

@@ -7,7 +7,7 @@
 #include "IAnimationProvider.h"
 #include "RewindDebuggerViewCreators.h"
 #include "RewindDebuggerTrackCreators.h"
-#include "SObjectTimelineView.h"
+#include "SSegmentedTimelineView.h"
 #include "Styling/SlateIconFinder.h"
 #include "ObjectTrace.h"
 
@@ -16,10 +16,10 @@ namespace RewindDebugger
 
 TSharedPtr<SWidget> FRewindDebuggerObjectTrack::GetTimelineViewInternal()
 {
-	return SNew(SObjectTimelineView)
+	return SNew(SSegmentedTimelineView)
 		.ViewRange_Lambda([]() { return IRewindDebugger::Instance()->GetCurrentViewRange(); })
 		.FillColor(FLinearColor(0.02f, 0.02f, 0.02f, 0.5f))
-		.ExistenceRange_Raw(this, &FRewindDebuggerObjectTrack::GetExistenceRange);
+		.SegmentData_Raw(this, &FRewindDebuggerObjectTrack::GetExistenceRange);
 
 }
 
@@ -64,7 +64,8 @@ bool FRewindDebuggerObjectTrack::UpdateInternal()
 
 	bool bChanged = false;
 
-	ExistenceRange = GameplayProvider->GetObjectRecordingLifetime(ObjectId);
+	check(ExistenceRange->Segments.Num() == 1);
+	ExistenceRange->Segments[0] = GameplayProvider->GetObjectRecordingLifetime(ObjectId);
 
 	if (!Icon.IsSet())
 	{

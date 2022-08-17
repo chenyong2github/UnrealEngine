@@ -5,21 +5,61 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "BoneIndices.h"
 #include "PoseWatch.generated.h"
 
 
 struct FCompactHeapPose;
 class UAnimBlueprint;
 class UBlendProfile;
+struct FSlateIcon;
 
 struct FAnimNodePoseWatch
 {
+public:
 	// Object (anim instance) that this pose came from
 	TWeakObjectPtr<const UObject>			Object;
 	TWeakObjectPtr<UPoseWatch>				PoseWatch;
 	TWeakObjectPtr<UPoseWatchPoseElement>	PoseWatchPoseElement;
-	TSharedPtr<FCompactHeapPose>			PoseInfo;
 	int32									NodeID;
+
+	template<class TAllocator>
+	bool SetPose(const TArray<FBoneIndexType>& InRequiredBones, const TArray<FTransform, TAllocator>& InBoneTransforms)
+	{
+		RequiredBones = InRequiredBones;
+		BoneTransforms = InBoneTransforms;
+		return true;
+	}
+
+	void SetWorldTransform(const FTransform& InWorldTransform)
+	{
+		WorldTransform = InWorldTransform;
+	}
+
+	const TArray<FBoneIndexType>& GetRequiredBones() const
+	{
+		return RequiredBones;
+	}
+
+	const TArray<FTransform>& GetBoneTransforms() const
+	{
+		return BoneTransforms;
+	}
+
+	const FTransform& GetWorldTransform() const
+	{
+		return WorldTransform;
+	}
+
+	bool IsValid() const
+	{
+		return Object.IsValid() && PoseWatch.IsValid();
+	}
+
+private:
+	FTransform WorldTransform;
+	TArray<FBoneIndexType> RequiredBones;
+	TArray<FTransform> BoneTransforms;
 };
 
 namespace PoseWatchUtil
@@ -247,6 +287,8 @@ public:
 
 	virtual bool GetIsEnabled() const;
 
+	static FSlateIcon StaticGetIcon();
+
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
@@ -295,7 +337,7 @@ public:
 	bool GetIsNodeEnabled() const;
 
 	/** Returns the color to display the pose watch using */
-	UE_DEPRECATED(5.1, "Node watchs no longer have colors, use the color of its elements instead.")
+	UE_DEPRECATED(5.1, "Node watches no longer have colors, use the color of its elements instead.")
 	FColor GetColor() const;
 
 	/** Set whether this should display its children in the pose watch manager window */

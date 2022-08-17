@@ -48,6 +48,7 @@ void FAnimationAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_Montage, "Animation", "Montage");
 	Builder.RouteEvent(RouteId_Montage2, "Animation", "Montage2");
 	Builder.RouteEvent(RouteId_Sync, "Animation", "Sync");
+	Builder.RouteEvent(RouteId_PoseWatch, "Animation", "PoseWatch");
 }
 
 bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
@@ -411,6 +412,19 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		int32 SourceNodeId = EventData.GetValue<int32>("SourceNodeId");
 		uint32 GroupNameId = EventData.GetValue<uint32>("GroupNameId");
 		AnimationProvider.AppendSync(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), SourceNodeId, GroupNameId);
+		break;
+	}
+	case RouteId_PoseWatch:
+	{
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		double RecordingTime = EventData.GetValue<double>("RecordingTime");
+		uint64 AnimInstanceId = EventData.GetValue<uint64>("AnimInstanceId");
+		uint64 PoseWatchId = EventData.GetValue<uint64>("PoseWatchId");
+		bool bIsEnabled = EventData.GetValue<bool>("bIsEnabled");
+		TArrayView<const float> WorldTransformFloatArray = EventData.GetArrayView<float>("WorldTransform");
+		TArrayView<const uint16> RequiredBonesIntArray = EventData.GetArrayView<uint16>("RequiredBones");
+		TArrayView<const float> BoneTransformsFloatArray = EventData.GetArrayView<float>("BoneTransforms");
+		AnimationProvider.AppendPoseWatch(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), RecordingTime, PoseWatchId, BoneTransformsFloatArray, RequiredBonesIntArray, WorldTransformFloatArray, bIsEnabled);
 		break;
 	}
 	}

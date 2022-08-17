@@ -4578,11 +4578,14 @@ void USkeletalMeshComponent::DebugDrawPoseWatches(FPrimitiveDrawInterface* PDI)
 			UAnimBlueprintGeneratedClass* AnimBPGenClass = CastChecked<UAnimBlueprintGeneratedClass>(AnimInstance->GetClass());
 			if (AnimBPGenClass)
 			{
-				const FAnimBlueprintDebugData& DebugData = AnimBPGenClass->GetAnimBlueprintDebugData();
-				DebugData.ForEachActiveVisiblePoseWatchPoseElement([this, PDI](const FPoseWatchDebugData& PoseWatchDebugData)
+				if (USkeletalMesh* TmpSkeletalMesh = GetSkeletalMeshAsset())
 				{
-					SkeletalDebugRendering::DrawBonesFromPoseWatch(*PoseWatchDebugData.PoseInfo.Get(), this, PDI, PoseWatchDebugData.PoseWatchPoseElement);
-				});
+					const FAnimBlueprintDebugData& DebugData = AnimBPGenClass->GetAnimBlueprintDebugData();
+					DebugData.ForEachActiveVisiblePoseWatchPoseElement([PDI, TmpSkeletalMesh](const FAnimNodePoseWatch& PoseWatch)
+					{
+						SkeletalDebugRendering::DrawBonesFromPoseWatch(PDI, PoseWatch, TmpSkeletalMesh->GetRefSkeleton(), /*bUseWorldTransform*/true);
+					});
+				}
 			}
 		}
 	}

@@ -143,11 +143,6 @@ struct FAnimBlueprintDebugData_NodeVisit
 	}
 };
 
-struct FPoseWatchDebugData
-{
-	const UPoseWatchPoseElement* PoseWatchPoseElement;
-	TSharedPtr<FCompactHeapPose> PoseInfo;
-};
 
 struct FAnimBlueprintDebugData_AttributeRecord
 {
@@ -319,7 +314,7 @@ public:
 
 	void AddPoseWatch(int32 NodeID, UPoseWatchPoseElement* const InPoseWatchPoseElement);
 	void RemovePoseWatch(int32 NodeID);
-	void ForEachActiveVisiblePoseWatchPoseElement(const TFunctionRef<void(FPoseWatchDebugData&)>& InFunction) const;
+	void ForEachActiveVisiblePoseWatchPoseElement(const TFunctionRef<void(const FAnimNodePoseWatch&)>& InFunction) const;
 
 	TArrayView<const FName> GetNodeAttributes(TWeakObjectPtr<UAnimGraphNode_Base> InAnimGraphNode) const;
 #endif

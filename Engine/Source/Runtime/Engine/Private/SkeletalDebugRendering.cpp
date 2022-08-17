@@ -4,7 +4,6 @@
 #include "DrawDebugHelpers.h"
 #include "SceneManagement.h"
 #include "Engine/PoseWatch.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "BonePose.h"
 #include "Animation/BlendProfile.h"
 #include "HitProxies.h"
@@ -172,63 +171,67 @@ void DrawRootCone(
 }
 
 void DrawBonesFromPoseWatch(
-	const FCompactHeapPose& Pose,
-	USkeletalMeshComponent* MeshComponent,
 	FPrimitiveDrawInterface* PDI,
-	const UPoseWatchPoseElement* PoseWatchPoseElement)
+	const FAnimNodePoseWatch& PoseWatch,
+	const FReferenceSkeleton& RefSkeleton,
+	const bool bUseWorldTransform
+)
 {
 #if WITH_EDITOR
-	if (Pose.GetNumBones() == 0 ||
-		Pose.GetBoneContainer().GetCompactPoseNumBones() == 0 ||
-		!MeshComponent ||
-		!MeshComponent->GetSkeletalMeshAsset() ||
-		!PoseWatchPoseElement
-		)
+	if (!PoseWatch.PoseWatchPoseElement.IsValid())
+	{
+		return;
+	}
+	const FLinearColor BoneColor = FLinearColor(PoseWatch.PoseWatchPoseElement->GetColor());
+
+	const TArray<FTransform>& InBoneTransforms = PoseWatch.GetBoneTransforms();
+	const TArray<FBoneIndexType>& InRequiredBones = PoseWatch.GetRequiredBones();
+	if (InRequiredBones.Num() == 0 || InBoneTransforms.Num() < InRequiredBones.Num())
 	{
 		return;
 	}
 
-	// optionally override draw color
-	const FLinearColor BoneColor = FLinearColor(PoseWatchPoseElement->GetColor());
+	const UBlendProfile* ViewportMask = PoseWatch.PoseWatchPoseElement->ViewportMask;
+	const FTransform WorldTransform = bUseWorldTransform ? PoseWatch.GetWorldTransform() : FTransform::Identity;
+	const FVector RelativeOffset = WorldTransform.GetRotation().RotateVector(PoseWatch.PoseWatchPoseElement->ViewportOffset);
 
-	TArray<FTransform> WorldTransforms;
-	WorldTransforms.AddUninitialized(Pose.GetBoneContainer().GetNumBones());
-
-	TArray<uint16> RequiredBones;
-	const UBlendProfile* ViewportMask = PoseWatchPoseElement->ViewportMask;
-
-	const FVector RelativeOffset = MeshComponent->GetComponentRotation().RotateVector(PoseWatchPoseElement->ViewportOffset);
-
-	// we could cache parent bones as we calculate, but right now I'm not worried about perf issue of this
-	for (FCompactPoseBoneIndex BoneIndex : Pose.ForEachBoneIndex())
+	TArray<FTransform> UseWorldTransforms;
+	UseWorldTransforms.AddDefaulted(RefSkeleton.GetNum());
+	
+	TArray<FBoneIndexType> UseRequiredBones;
+	UseRequiredBones.Reserve(InRequiredBones.Num());
+	
+	for (int32 Index = 0; Index < InRequiredBones.Num(); ++Index)
 	{
-		FMeshPoseBoneIndex MeshBoneIndex = Pose.GetBoneContainer().MakeMeshPoseIndex(BoneIndex);
-
-		int32 ParentIndex = Pose.GetBoneContainer().GetParentBoneIndex(MeshBoneIndex.GetInt());
-
-		if (ParentIndex == INDEX_NONE)
+		const FBoneIndexType& BoneIndex = InRequiredBones[Index];
+		if (!RefSkeleton.IsValidIndex(BoneIndex))
 		{
-			WorldTransforms[MeshBoneIndex.GetInt()] = Pose[BoneIndex] * MeshComponent->GetComponentTransform();
-			WorldTransforms[MeshBoneIndex.GetInt()].AddToTranslation(RelativeOffset);
+			continue;
+		}
+
+		const int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex);
+		if (!RefSkeleton.IsValidIndex(ParentIndex))
+		{
+			UseWorldTransforms[BoneIndex] = InBoneTransforms[Index] * WorldTransform;
+			UseWorldTransforms[BoneIndex].AddToTranslation(RelativeOffset);
 		}
 		else
 		{
-			WorldTransforms[MeshBoneIndex.GetInt()] = Pose[BoneIndex] * WorldTransforms[ParentIndex];
+			UseWorldTransforms[BoneIndex] = InBoneTransforms[Index] * UseWorldTransforms[ParentIndex];
 		}
 
-		if (ViewportMask == nullptr)
+		if (ViewportMask)
 		{
-			RequiredBones.Add(MeshBoneIndex.GetInt());
-		}
-		else
-		{
-			const FName& BoneName = MeshComponent->GetBoneName(MeshBoneIndex.GetInt());
-			const bool bBoneBlendScaleMeetsThreshold = ViewportMask->GetBoneBlendScale(BoneName) > PoseWatchPoseElement->BlendScaleThreshold;
-			if ((!PoseWatchPoseElement->bInvertViewportMask && bBoneBlendScaleMeetsThreshold) || (PoseWatchPoseElement->bInvertViewportMask && !bBoneBlendScaleMeetsThreshold))
+			const FName& BoneName = RefSkeleton.GetBoneName(BoneIndex);
+			const bool bBoneBlendScaleMeetsThreshold = ViewportMask->GetBoneBlendScale(BoneName) > PoseWatch.PoseWatchPoseElement->BlendScaleThreshold;
+			const bool bBoneRequired = (!PoseWatch.PoseWatchPoseElement->bInvertViewportMask && bBoneBlendScaleMeetsThreshold) || (PoseWatch.PoseWatchPoseElement->bInvertViewportMask && !bBoneBlendScaleMeetsThreshold);
+			if (!bBoneRequired)
 			{
-				RequiredBones.Add(MeshBoneIndex.GetInt());
+				continue;
 			}
 		}
+
+		UseRequiredBones.Add(BoneIndex);
 	}
 
 	FSkelDebugDrawConfig DrawConfig;
@@ -243,10 +246,10 @@ void DrawBonesFromPoseWatch(
 
 	SkeletalDebugRendering::DrawBones(
 		PDI,
-		MeshComponent->GetComponentLocation() + RelativeOffset,
-		RequiredBones,
-		MeshComponent->GetSkeletalMeshAsset()->GetRefSkeleton(),
-		WorldTransforms,
+		WorldTransform.GetLocation() + RelativeOffset,
+		UseRequiredBones,
+		RefSkeleton,
+		UseWorldTransforms,
 		/*SelectedBones*/TArray<int32>(),
 		/*BoneColors*/TArray<FLinearColor>(),
 		/*HitProxies*/TArray<HHitProxy*>(),

@@ -6,12 +6,10 @@
 #include "Engine/EngineTypes.h"
 #include "BoneIndices.h"
 
-class UPoseWatch;
-class UPoseWatchPoseElement;
+struct FAnimNodePoseWatch;
 class FPrimitiveDrawInterface;
 struct FCompactHeapPose;
 struct FReferenceSkeleton;
-class USkeletalMeshComponent;
 class HHitProxy;
 
 namespace EBoneDrawMode
@@ -114,10 +112,10 @@ ENGINE_API	void DrawRootCone(
 
 
 ENGINE_API void DrawBonesFromPoseWatch(
-	const FCompactHeapPose& Pose,
-	USkeletalMeshComponent* MeshComponent,
 	FPrimitiveDrawInterface* PDI,
-	const UPoseWatchPoseElement* PoseWatch);
+	const FAnimNodePoseWatch& PoseWatch,
+	const FReferenceSkeleton& RefSkeleton,
+	const bool bUseWorldTransform);
 
 
 /**

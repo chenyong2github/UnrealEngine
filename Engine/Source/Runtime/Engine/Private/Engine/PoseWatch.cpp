@@ -488,6 +488,12 @@ bool UPoseWatchPoseElement::GetIsEnabled() const
 	return Parent.Get() && Parent->GetIsNodeEnabled();
 }
 
+FSlateIcon UPoseWatchPoseElement::StaticGetIcon()
+{
+	static FSlateIcon Icon(FAppStyle::GetAppStyleSetName(), "ClassIcon.PoseAsset");
+	return Icon;
+}
+
 #endif // WITH_EDITOR
 
 // UPoseWatch

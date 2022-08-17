@@ -2,6 +2,7 @@
 #pragma once
 
 #include "RewindDebuggerTrack.h"
+#include "SSegmentedTimelineView.h"
 
 namespace RewindDebugger
 {
@@ -15,9 +16,11 @@ public:
 		, ObjectId(InObjectId)
 		, bAddController(bInAddController)
 	{
+		ExistenceRange = MakeShared<SSegmentedTimelineView::FSegmentData>();
+		ExistenceRange->Segments.SetNumUninitialized(1);
 	}
 
-	TRange<double> GetExistenceRange() const { return ExistenceRange; }
+	TSharedPtr<SSegmentedTimelineView::FSegmentData> GetExistenceRange() const { return ExistenceRange; }
 
 private:
 	virtual TSharedPtr<SWidget> GetTimelineViewInternal() override;
@@ -32,7 +35,7 @@ private:
 	
 	FString ObjectName;
 	FSlateIcon Icon;
-	TRange<double> ExistenceRange;
+	TSharedPtr<SSegmentedTimelineView::FSegmentData> ExistenceRange;
 	uint64 ObjectId;
 	TArray<TSharedPtr<FRewindDebuggerTrack>> Children;
 

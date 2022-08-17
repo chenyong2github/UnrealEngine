@@ -186,6 +186,9 @@ struct FAnimTrace
 
 	/** Helper function to output a sync record */
 	ENGINE_API static void OutputSync(const FAnimInstanceProxy& InSourceProxy, int32 InSourceNodeId, FName InGroupName);
+
+	/** Helper function to output a pose watch record */
+	ENGINE_API static void OutputPoseWatch(const FAnimInstanceProxy& InSourceProxy, int32 InPoseWatchId, const TArray<FTransform>& BoneTransforms, const TArray<FBoneIndexType>& RequiredBones, const FTransform& WorldTransform, const bool bIsEnabled);
 };
 
 #define TRACE_ANIM_TICK_RECORD(Context, TickRecord) \
@@ -239,6 +242,9 @@ struct FAnimTrace
 #define TRACE_ANIM_NODE_SYNC(SourceProxy, SourceNodeId, GroupName) \
 	FAnimTrace::OutputSync(SourceProxy, SourceNodeId, GroupName);
 
+#define TRACE_ANIM_POSE_WATCH(SourceProxy, PoseWatchId, BoneTransforms, RequiredBones, WorldTransform, bIsEnabled) \
+	FAnimTrace::OutputPoseWatch(SourceProxy, PoseWatchId, BoneTransforms, RequiredBones, WorldTransform, bIsEnabled);
+
 #else
 
 #define TRACE_ANIM_TICK_RECORD(Context, TickRecord)
@@ -258,5 +264,6 @@ struct FAnimTrace
 #define TRACE_ANIM_SYNC_MARKER(AnimInstance, SyncMarker)
 #define TRACE_ANIM_MONTAGE(AnimInstance, MontageInstance)
 #define TRACE_ANIM_NODE_SYNC(SourceProxy, SourceNodeId, GroupName)
+#define TRACE_ANIM_POSE_WATCH(SourceProxy, PoseWatchId, BoneTransforms, RequiredBones, WorldTransform, bIsEnabled)
 
 #endif

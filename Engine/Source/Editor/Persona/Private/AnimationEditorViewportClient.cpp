@@ -1580,17 +1580,21 @@ void FAnimationViewportClient::DrawMeshBonesSourceRawAnimation(UDebugSkelMeshCom
 
 void FAnimationViewportClient::DrawWatchedPoses(UDebugSkelMeshComponent * MeshComponent, FPrimitiveDrawInterface* PDI)
 {
-	if (UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = Cast<UAnimBlueprintGeneratedClass>(MeshComponent->AnimClass))
+	if (UAnimBlueprintGeneratedClass* AnimBPGenClass = Cast<UAnimBlueprintGeneratedClass>(MeshComponent->AnimClass))
 	{
-		if (UAnimBlueprint* Blueprint = Cast<UAnimBlueprint>(AnimBlueprintGeneratedClass->ClassGeneratedBy))
+		USkeleton* TargetSkeleton = AnimBPGenClass->GetTargetSkeleton();
+		if (TargetSkeleton)
 		{
-			if (Blueprint->GetObjectBeingDebugged())
+			if (UAnimBlueprint* Blueprint = Cast<UAnimBlueprint>(AnimBPGenClass->ClassGeneratedBy))
 			{
-				const FAnimBlueprintDebugData& DebugData = AnimBlueprintGeneratedClass->GetAnimBlueprintDebugData();
-				DebugData.ForEachActiveVisiblePoseWatchPoseElement([MeshComponent, PDI](const FPoseWatchDebugData& PoseWatchDebugData)
+				if (Blueprint->GetObjectBeingDebugged() && MeshComponent)
 				{
-					SkeletalDebugRendering::DrawBonesFromPoseWatch(*PoseWatchDebugData.PoseInfo.Get(), MeshComponent, PDI, PoseWatchDebugData.PoseWatchPoseElement);
-				});
+					const FAnimBlueprintDebugData& DebugData = AnimBPGenClass->GetAnimBlueprintDebugData();
+					DebugData.ForEachActiveVisiblePoseWatchPoseElement([PDI, MeshComponent](const FAnimNodePoseWatch& PoseWatch)
+					{
+						SkeletalDebugRendering::DrawBonesFromPoseWatch(PDI, PoseWatch, MeshComponent->GetReferenceSkeleton(), /*bUseWorldTransform*/false);
+					});
+				}
 			}
 		}
 	}

@@ -241,6 +241,17 @@ UE_TRACE_EVENT_BEGIN(Animation, Sync)
 	UE_TRACE_EVENT_FIELD(uint32, GroupNameId)
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN(Animation, PoseWatch)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(double, RecordingTime)
+	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
+	UE_TRACE_EVENT_FIELD(uint64, PoseWatchId)
+	UE_TRACE_EVENT_FIELD(float[], WorldTransform)
+	UE_TRACE_EVENT_FIELD(float[], BoneTransforms)
+	UE_TRACE_EVENT_FIELD(uint16[], RequiredBones)
+	UE_TRACE_EVENT_FIELD(bool, bIsEnabled)
+UE_TRACE_EVENT_END()
+
 // Object annotations used for tracing
 FUObjectAnnotationSparseBool GSkeletalMeshTraceAnnotations;
 
@@ -1167,6 +1178,34 @@ void FAnimTrace::OutputSync(const FAnimInstanceProxy& InSourceProxy, int32 InSou
 		<< Sync.AnimInstanceId(FObjectTrace::GetObjectId(InSourceProxy.GetAnimInstanceObject()))
 		<< Sync.SourceNodeId(InSourceNodeId)
 		<< Sync.GroupNameId(GroupNameId);
+}
+
+void FAnimTrace::OutputPoseWatch(const FAnimInstanceProxy& InSourceProxy, int32 InPoseWatchId, const TArray<FTransform>& BoneTransforms, const TArray<FBoneIndexType>& RequiredBones, const FTransform& WorldTransform, const bool bIsEnabled)
+{
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
+	{
+		return;
+	}
+
+	if (CANNOT_TRACE_OBJECT(InSourceProxy.GetSkelMeshComponent()))
+	{
+		return;
+	}
+
+	const UAnimInstance* AnimInstance = CastChecked<UAnimInstance>(InSourceProxy.GetAnimInstanceObject());
+
+	TRACE_OBJECT(InSourceProxy.GetAnimInstanceObject());
+
+	UE_TRACE_LOG(Animation, PoseWatch, AnimationChannel)
+		<< PoseWatch.Cycle(FPlatformTime::Cycles64())
+		<< PoseWatch.RecordingTime(FObjectTrace::GetWorldElapsedTime(AnimInstance->GetWorld()))
+		<< PoseWatch.AnimInstanceId(FObjectTrace::GetObjectId(InSourceProxy.GetAnimInstanceObject()))
+		<< PoseWatch.PoseWatchId(InPoseWatchId)
+		<< PoseWatch.WorldTransform(reinterpret_cast<const float*>(&WorldTransform), sizeof(FTransform) / sizeof(float))
+		<< PoseWatch.BoneTransforms(reinterpret_cast<const float*>(BoneTransforms.GetData()), BoneTransforms.Num() * (sizeof(FTransform) / sizeof(float)))
+		<< PoseWatch.RequiredBones(RequiredBones.GetData(), RequiredBones.Num())
+		<< PoseWatch.bIsEnabled(bIsEnabled);
 }
 
 #endif

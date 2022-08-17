@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "TraceServices/Model/AnalysisSession.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
@@ -13,10 +12,16 @@ class FTimeSliderController;
 
 
 // a timeline view which renders a block for in the timeline where the object exists
-class SObjectTimelineView : public SCompoundWidget
+class TOOLWIDGETS_API SSegmentedTimelineView : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SObjectTimelineView)
+	struct FSegmentData
+	{
+	public:
+		TArray<TRange<double>> Segments;
+	};
+
+	SLATE_BEGIN_ARGS(SSegmentedTimelineView)
 		: _ViewRange(TRange<double>(0,10))
 		, _DesiredSize(FVector2D(100.f,20.f))
 	{}
@@ -24,7 +29,7 @@ public:
     	SLATE_ATTRIBUTE(TRange<double>, ViewRange);
 	
 		/** Existence Time Range */
-		SLATE_ATTRIBUTE(TRange<double>, ExistenceRange);
+		SLATE_ATTRIBUTE(TSharedPtr<FSegmentData>, SegmentData);
 
 		/** Desired widget size */
 		SLATE_ATTRIBUTE(FVector2D, DesiredSize);
@@ -50,7 +55,7 @@ protected:
 	int32 PaintBlock(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const;
 	
 	TAttribute<TRange<double>> ViewRange;
-	TAttribute<TRange<double>> ExistenceRange;
+	TAttribute<TSharedPtr<FSegmentData>> SegmentData;
 	TAttribute<FVector2D> DesiredSize;
 	TAttribute<FLinearColor> FillColor;
 	
