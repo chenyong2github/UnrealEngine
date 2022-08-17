@@ -232,7 +232,7 @@ UNORM float4 DilateWithValidityMask(RWTexture3D<UNORM float4> Texture, Texture3D
 	return Value / max(AccumulatedWeight, 0.00001f);
 }
 
-UNORM float4 DilateWithValidityMask(RWTexture3D<UNORM float> Texture, Texture3D<float4> CoverageMask, float3 UVW)
+UNORM float DilateWithValidityMask(RWTexture3D<UNORM float> Texture, Texture3D<float4> CoverageMask, float3 UVW)
 {
 	int3 Coord = UVW;
 	float3 CoordinateFraction = frac(UVW);
@@ -374,7 +374,7 @@ void StitchBorderCS(uint3 BrickID : SV_GroupID, uint3 CellPosInBrick : SV_GroupT
 		OutSkyBentNormal[VoxelPos] = DilateWithValidityMask(OutSkyBentNormal, AmbientVector, IndirectionTextureUVW);
 		OutDirectionalLightShadowing[VoxelPos] = DilateWithValidityMask(OutDirectionalLightShadowing, AmbientVector, IndirectionTextureUVW);
 	}
-	
+
 	for (int dx = -1; dx <= 1; dx++)
 	{
 		for (int dy = -1; dy <= 1; dy++)

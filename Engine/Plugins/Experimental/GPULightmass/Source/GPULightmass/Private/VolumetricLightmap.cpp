@@ -735,7 +735,18 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					FStitchBorderCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStitchBorderCS::FParameters>();
 					PassParameters->BrickDataDimensions = VolumetricLightmapData.BrickDataDimensions;
 					PassParameters->IndirectionTextureDim = IndirectionTextureDimensions;
-					PassParameters->FrameNumber = FrameNumber / NumFramesOneRound;
+
+					int32 EffectiveRenderPassIndex = FrameNumber / NumFramesOneRound;
+
+					if (Scene->Settings->bUseIrradianceCaching)
+					{
+						if (EffectiveRenderPassIndex >= Scene->Settings->IrradianceCacheQuality * Scene->Settings->VolumetricLightmapQualityMultiplier)
+						{
+							EffectiveRenderPassIndex -= Scene->Settings->IrradianceCacheQuality * Scene->Settings->VolumetricLightmapQualityMultiplier;
+						}
+					}
+					
+					PassParameters->FrameNumber = EffectiveRenderPassIndex;
 					PassParameters->NumTotalBricks = NumTotalBricks;
 					PassParameters->BrickBatchOffset = BrickBatchOffset;
 					PassParameters->IndirectionTexture = IndirectionTextureUAV;
