@@ -41,22 +41,31 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				bool addedStructuredArchiveFromArchiveHeader = false;
 				bool addedArchiveUObjectFromStructuredArchiveHeader = false;
+				bool addedCoreNetHeader = false;
 				HashSet<UhtHeaderFile> addedIncludes = new();
 				List<string> includesToAdd = new();
-				addedIncludes.Add(this.HeaderFile);
+				addedIncludes.Add(HeaderFile);
 
 				if (headerInfo.NeedsFastArrayHeaders)
 				{
 					includesToAdd.Add("Net/Serialization/FastArraySerializerImplementation.h");
 				}
 
-				foreach (UhtType type in this.HeaderFile.Children)
+				foreach (UhtType type in HeaderFile.Children)
 				{
 					if (type is UhtStruct structObj)
 					{
 						// Functions
 						foreach (UhtFunction function in structObj.Functions)
 						{
+							if (!function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.CppStatic) && function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetValidate))
+							{
+								if (!addedCoreNetHeader)
+								{
+									includesToAdd.Add("UObject/CoreNet.h");
+									addedCoreNetHeader = true;
+								}
+							}
 							foreach (UhtProperty property in function.Properties)
 							{
 								AddIncludeForProperty(property, addedIncludes, includesToAdd);
@@ -106,7 +115,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					{
 						if (!type.HeaderFile.IsNoExportTypes && addedIncludes.Add(type.HeaderFile))
 						{
-							includesToAdd.Add(this.HeaderInfos[type.HeaderFile.HeaderFileTypeIndex].IncludePath);
+							includesToAdd.Add(HeaderInfos[type.HeaderFile.HeaderFileTypeIndex].IncludePath);
 						}
 					}
 				}

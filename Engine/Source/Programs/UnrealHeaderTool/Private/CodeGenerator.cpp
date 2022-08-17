@@ -5501,6 +5501,7 @@ bool FNativeClassHeaderGenerator::WriteSource(const FManifestModule& Module, FGe
 
 		bool bAddedStructuredArchiveFromArchiveHeader = false;
 		bool bAddedArchiveUObjectFromStructuredArchiveHeader = false;
+		bool bAddedCoreNetHeader = false;
 
 		// We need to include the headers that declare any types that aren't pointers.
 		// We can't rely on the original header that generates this cpp to include the 
@@ -5512,6 +5513,14 @@ bool FNativeClassHeaderGenerator::WriteSource(const FManifestModule& Module, FGe
 				// Functions
 				for (const TSharedRef<FUnrealFunctionDefinitionInfo>& FunctionDef : Struct->GetFunctions())
 				{
+					if (!(FunctionDef->GetFunctionData().FunctionExportFlags & FUNCEXPORT_CppStatic) && FunctionDef->HasAnyFunctionFlags(FUNC_NetValidate))
+					{
+						if (!bAddedCoreNetHeader)
+						{
+							RelativeIncludes.AddUnique(TEXT("UObject/CoreNet.h"));
+							bAddedCoreNetHeader = true;
+						}
+					}
 					for (const TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef : FunctionDef->GetProperties())
 					{
 						AddIncludeForProperty(PropertyDef, RelativeIncludes);
