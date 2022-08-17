@@ -90,7 +90,8 @@ Lumen::EHardwareRayTracingLightingMode Lumen::GetHardwareRayTracingLightingMode(
 		
 	int32 LightingModeInt = CVarLumenHardwareRayTracingLightingMode.GetValueOnRenderThread();
 
-	if (View.FinalPostProcessSettings.LumenRayLightingMode == ELumenRayLightingModeOverride::SurfaceCache)
+	// Without ray tracing shaders support we can only use Surface Cache mode.
+	if (View.FinalPostProcessSettings.LumenRayLightingMode == ELumenRayLightingModeOverride::SurfaceCache || !GRHISupportsRayTracingShaders)
 	{
 		LightingModeInt = static_cast<int32>(Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache);
 	}
