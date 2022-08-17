@@ -434,6 +434,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
 	bool GetLinearColorAttribute(const FName& NodeAttributeKey, FLinearColor& OutValue) const;
 
+	/**
+	 * Add a Vector2 attribute to this node. Return false if the attribute do not exist or if we cannot add it
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool AddVector2Attribute(const FName& NodeAttributeKey, const FVector2f& Value);
+
+	/**
+	 * Get a Vector2 attribute from this node. Return false if the attribute do not exist
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool GetVector2Attribute(const FName& NodeAttributeKey, FVector2f& OutValue) const;
+
 	template<typename AttributeType>
 	AttributeType GetAttributeChecked(const FName& NodeAttributeKey) const
 	{

@@ -268,6 +268,16 @@ bool UInterchangeBaseNode::GetLinearColorAttribute(const FName& NodeAttributeKey
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(FLinearColor);
 }
 
+bool UInterchangeBaseNode::AddVector2Attribute(const FName& NodeAttributeKey, const FVector2f& Value)
+{
+	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(FVector2f);
+}
+
+bool UInterchangeBaseNode::GetVector2Attribute(const FName& NodeAttributeKey, FVector2f& OutValue) const
+{
+	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(FVector2f);
+}
+
 FString UInterchangeBaseNode::GetUniqueID() const
 {
 	ensure(bIsInitialized);
