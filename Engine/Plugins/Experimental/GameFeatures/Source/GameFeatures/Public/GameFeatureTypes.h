@@ -8,12 +8,14 @@
 	XSTATE(Uninitialized,				NSLOCTEXT("GameFeatures", "UninitializedStateDisplayName", "Uninitialized"))								/* Unset. Not yet been set up. */ \
 	XSTATE(Terminal,					NSLOCTEXT("GameFeatures", "TerminalStateDisplayName", "Terminal"))											/* Final State before removal of the state machine. */ \
 	XSTATE(UnknownStatus,				NSLOCTEXT("GameFeatures", "UnknownStatusStateDisplayName", "UnknownStatus"))								/* Initialized, but the only thing known is the URL to query status. */ \
+	XSTATE(Uninstalling,				NSLOCTEXT("GameFeatures", "UninstallingStateDisplayName", "Uninstalling"))									/* Transition state between StatusKnown -> Terminal for any plugin that can have data that needs to have local datat uninstalled. */ \
+	XSTATE(ErrorUninstalling,			NSLOCTEXT("GameFeatures", "ErrorUninstallingStateDisplayName", "ErrorUninstalling"))						/* Error state for Uninstalling -> Terminal transition. */  \
 	XSTATE(CheckingStatus,				NSLOCTEXT("GameFeatures", "CheckingStatusStateDisplayName", "CheckingStatus"))								/* Transition state UnknownStatus -> StatusKnown. The status is in the process of being queried. */ \
 	XSTATE(ErrorCheckingStatus,			NSLOCTEXT("GameFeatures", "ErrorCheckingStatusStateDisplayName", "ErrorCheckingStatus"))					/* Error state for UnknownStatus -> StatusKnown transition. */ \
 	XSTATE(ErrorUnavailable,			NSLOCTEXT("GameFeatures", "ErrorUnavailableStateDisplayName", "ErrorUnavailable"))							/* Error state for UnknownStatus -> StatusKnown transition. */ \
 	XSTATE(StatusKnown,					NSLOCTEXT("GameFeatures", "StatusKnownStateDisplayName", "StatusKnown"))									/* The plugin's information is known, but no action has taken place yet. */ \
-	XSTATE(ErrorInstalling,				NSLOCTEXT("GameFeatures", "ErrorInstallingStateDisplayName", "ErrorInstalling"))							/* Error state for Installed -> StatusKnown and StatusKnown -> Installed transitions. */ \
-	XSTATE(Uninstalling,				NSLOCTEXT("GameFeatures", "UninstallingStateDisplayName", "Uninstalling"))									/* Transition state Installed -> StatusKnown. In the process of removing from local storage. */ \
+	XSTATE(Releasing,					NSLOCTEXT("GameFeatures", "ReleasingStateDisplayName", "Releasing"))										/* Transition State for Installed -> StatusKnown. Releases local data from any relevant caches. */ \
+	XSTATE(ErrorManagingData,			NSLOCTEXT("GameFeatures", "ErrorManagingDataStateDisplayName", "ErrorManagingData"))						/* Error state for Installed -> StatusKnown and StatusKnown -> Installed transitions. */ \
 	XSTATE(Downloading,					NSLOCTEXT("GameFeatures", "DownloadingStateDisplayName", "Downloading"))									/* Transition state StatusKnown -> Installed. In the process of adding to local storage. */ \
 	XSTATE(Installed,					NSLOCTEXT("GameFeatures", "InstalledStateDisplayName", "Installed"))										/* The plugin is in local storage (i.e. it is on the hard drive) */ \
 	XSTATE(ErrorMounting,				NSLOCTEXT("GameFeatures", "ErrorMountingStateDisplayName", "ErrorMounting"))								/* Error state for Installed -> Registered and Registered -> Installed transitions. */ \
@@ -40,6 +42,9 @@ namespace GameFeaturePluginStatePrivate
 		GAME_FEATURE_PLUGIN_STATE_LIST(GAME_FEATURE_PLUGIN_STATE_ENUM)
 		MAX
 	};
+
+	//defined in GameFeaturesSubsystem.cpp
+	FString LexToString(EGameFeaturePluginState InEnum);
 }
 typedef GameFeaturePluginStatePrivate::EGameFeaturePluginState EGameFeaturePluginState;
 #undef GAME_FEATURE_PLUGIN_STATE_ENUM

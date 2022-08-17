@@ -48,12 +48,6 @@ namespace UE::GameFeatures
 		false,
 		TEXT("Dump reference chains for any detected plugin asset leaks."),
 		ECVF_Default);
-
-	FString ToString(const UE::GameFeatures::FResult& Result)
-	{
-		return Result.HasValue() ? FString(TEXT("Success")) : (FString(TEXT("Failure, ErrorCode=")) + Result.GetError());
-	}
-
 	#define GAME_FEATURE_PLUGIN_STATE_TO_STRING(inEnum, inText) case EGameFeaturePluginState::inEnum: return TEXT(#inEnum);
 	FString ToString(EGameFeaturePluginState InType)
 	{
@@ -143,11 +137,227 @@ namespace UE::GameFeatures
 		return nullptr;
 	}
 #undef GAME_FEATURE_PLUGIN_PROTOCOL_PREFIX
+
+	namespace CommonErrorCodes
+	{
+		const FText Generic_FatalError = NSLOCTEXT("GameFeatures", "ErrorCodes.GenericFatalError", "A fatal error has occurred installing the game feature. An update to the application may be needed. Please check for updates and restart the application.");
+		const FText Generic_ConnectionError = NSLOCTEXT("GameFeatures", "ErrorCodes.ConnectionGenericError", "An internet connection error has occurred. Please try again later.");
+		const FText Generic_MountError = NSLOCTEXT("GameFeatures", "ErrorCodes.MountGenericError", "An error has occurred loading data for this game feature. Please try again later.");
+
+		const FText BundleResult_NeedsUpdate = NSLOCTEXT("GameFeatures", "ErrorCodes.BundleResult.NeedsUpdate", "An application update is required to install this game feature. Please restart the application after downloading any required updates.");
+		const FText BundleResult_NeedsDiskSpace = NSLOCTEXT("GameFeatures", "ErrorCodes.BundleResult.NeedsDiskSpace", "You do not have enough disk space to install this game feature. Please try again after clearing up disk space.");
+		const FText BundleResult_DownloadCancelled = NSLOCTEXT("GameFeatures", "ErrorCodes.BundleResult.DownloadCancelled", "This game feature download was canceled.");
+
+		const FText ReleaseResult_Generic = NSLOCTEXT("GameFeatures", "ErrorCodes.ReleaseResult.Generic", "There was an error uninstalling the content for this game feature. Please restart the application and try again.");
+		const FText ReleaseResult_Cancelled = NSLOCTEXT("GameFeatures", "ErrorCodes.ReleaseResult.Cancelled", "This game feature uninstall was canceled.");
+
+		static const FText& GetErrorTextForBundleResult(EInstallBundleResult ErrorResult)
+		{
+			switch (ErrorResult)
+			{
+				//These errors mean an app update is available that we either don't have or failed to get.
+				case EInstallBundleResult::FailedPrereqRequiresLatestClient:
+				case EInstallBundleResult::FailedPrereqRequiresLatestContent:
+				{
+					return BundleResult_NeedsUpdate;
+				}
+
+
+				//These are generally unrecoverable and mean something is seriously wrong with the data for this build
+				case EInstallBundleResult::InitializationError:
+				case EInstallBundleResult::FailedCacheReserve:
+				{
+					return Generic_FatalError;
+				}
+
+				//All of these are indicative of not having enough space to install the required files
+				case EInstallBundleResult::InstallerOutOfDiskSpaceError:
+				case EInstallBundleResult::ManifestArchiveError:
+				{
+					return BundleResult_NeedsDiskSpace;
+				}
+
+				case EInstallBundleResult::UserCancelledError:
+				{
+					return BundleResult_DownloadCancelled;
+				}
+
+				//Intentionally just show generic error for all these cases
+				case EInstallBundleResult::InstallError:
+				case EInstallBundleResult::ConnectivityError:
+				case EInstallBundleResult::InitializationPending:
+				{
+					return Generic_ConnectionError;
+				}
+
+				//Show generic error for anything missing but log an error
+				default:
+				{
+					UE_LOG(LogGameFeatures, Error, TEXT("Missing error text for EInstallBundleResult %s"), *LexToString(ErrorResult));
+					return Generic_ConnectionError;
+				}
+			}
+		}
+
+		static const FText& GetErrorTextForReleaseResult(EInstallBundleReleaseResult ErrorResult)
+		{
+			switch (ErrorResult)
+			{
+				case (EInstallBundleReleaseResult::UserCancelledError):
+				{
+					return ReleaseResult_Cancelled;
+				}
+			
+				case (EInstallBundleReleaseResult::ManifestArchiveError):
+				{
+					return ReleaseResult_Generic;
+				}
+
+				default:
+				{
+					//Show generic error for anything missing but log an error
+					UE_LOG(LogGameFeatures, Error, TEXT("Missing error text for EInstallBundleReleaseResult %s"), *LexToString(ErrorResult));
+					return ReleaseResult_Generic;
+				}
+			}
+		}
+	};
 }
+
+//Enum describing the options for what data can be inside the InstallBundle protocol URL's metadata
+//Used to aid in parsing / creating the URL for InstallBundle protocol GameFeaturePlugins
+#define INSTALL_BUNDLE_PROTOCOL_URL_OPTIONS_LIST(XOPTION)					\
+	XOPTION(Bundles,					TEXT("Bundles"))					\
+	XOPTION(Version,					TEXT("V"))							\
+	XOPTION(Flags,						TEXT("Flags"))						\
+	XOPTION(UninstallBeforeTerminate,	TEXT("UninstallBeforeTerminate"))	\
+	XOPTION(UserPauseDownload,			TEXT("Paused"))
+
+#define INSTALL_BUNDLE_PROTOCOL_URL_OPTIONS_ENUM(inEnum, inString) inEnum,
+enum class EGameFeatureInstallBundleProtocolOptions : uint8
+{
+	INSTALL_BUNDLE_PROTOCOL_URL_OPTIONS_LIST(INSTALL_BUNDLE_PROTOCOL_URL_OPTIONS_ENUM)
+	Count,
+};
+#undef INSTALL_BUNDLE_PROTOCOL_URL_OPTIONS_ENUM
+
+#define INSTALL_BUNDLE_PROTOCOL_URL_OPTIONS_LEX_TO_STRING(inEnum, inString) \
+    case(EGameFeatureInstallBundleProtocolOptions::inEnum):                 \
+    {                                                                       \
+        return inString;                                                    \
+    }                                                                       
+
+FString LexToString(EGameFeatureInstallBundleProtocolOptions FeatureIn)
+{
+	switch (FeatureIn)
+	{
+		INSTALL_BUNDLE_PROTOCOL_URL_OPTIONS_LIST(INSTALL_BUNDLE_PROTOCOL_URL_OPTIONS_LEX_TO_STRING)
+		
+		default:
+		{
+			ensureAlwaysMsgf(false, TEXT("Logic error causing a missing LexToString value for EGameFeatureInstallBundleProtocolOptions:%d"), static_cast<uint8>(FeatureIn));
+			return ("ERROR_UNSUPPORTED_ENUM");
+		}
+	}
+}
+#undef INSTALL_BUNDLE_PROTOCOL_URL_OPTIONS_LEX_TO_STRING
+#undef INSTALL_BUNDLE_PROTOCOL_URL_OPTIONS_LIST
+
+void FGameFeaturePluginStateStatus::SetTransition(EGameFeaturePluginState InTransitionToState)
+{
+	TransitionToState = InTransitionToState;
+	TransitionResult.ErrorCode = MakeValue();
+	TransitionResult.OptionalErrorText = FText();
+}
+
+void FGameFeaturePluginStateStatus::SetTransitionError(EGameFeaturePluginState TransitionToErrorState, UE::GameFeatures::FResult TransitionResultIn)
+{
+	TransitionToState = TransitionToErrorState;
+	if (ensureAlwaysMsgf(TransitionResultIn.HasError(), TEXT("Invalid call to SetTransitionError with an FResult that isn't an error! TransitionToErrorState: %s"), *LexToString(TransitionToErrorState)))
+	{
+		TransitionResult = MoveTemp(TransitionResultIn);
+	}
+	else
+	{
+		//Logic error using a non-error FResult, so just generate a general error to keep the SetTransitionError intent
+		TransitionResult = MakeError(TEXT("Invalid_Transition_Error"));
+	}
+}
+
+EGameFeatureInstallBundleProtocolOptions LexFromString(const FString& StringIn)
+{
+	if (StringIn.IsEmpty())
+	{
+		return EGameFeatureInstallBundleProtocolOptions::Count;
+	}
+
+	for (uint8 EnumIndex = 0; EnumIndex < static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count); ++EnumIndex)
+	{
+		EGameFeatureInstallBundleProtocolOptions GameFeatureToCheck = static_cast<EGameFeatureInstallBundleProtocolOptions>(EnumIndex);
+		if (StringIn.Equals(LexToString(GameFeatureToCheck)))
+		{
+			return GameFeatureToCheck;
+		}
+	}
+
+	return  EGameFeatureInstallBundleProtocolOptions::Count;
+}
+
+UE::GameFeatures::FResult FGameFeaturePluginState::GetErrorResult(const FString& ErrorCode, const FText OptionalErrorText/*= FText()*/) const
+{
+	return GetErrorResult(TEXT(""), ErrorCode, OptionalErrorText);
+}
+
+UE::GameFeatures::FResult FGameFeaturePluginState::GetErrorResult(const FString& ErrorNamespaceAddition, const FString& ErrorCode, const FText OptionalErrorText/*= FText()*/) const
+{
+	const FString StateName = LexToString(UGameFeaturesSubsystem::Get().GetPluginState(StateProperties.PluginIdentifier.GetFullPluginURL()));
+	const FString ErrorCodeEnding = ErrorNamespaceAddition.IsEmpty() ? ErrorCode : ErrorNamespaceAddition + ErrorCode;
+	const FString CompleteErrorCode = (UE::GameFeatures::StateMachineErrorNamespace + StateName + ErrorCodeEnding);
+	return UE::GameFeatures::FResult(MakeError(CompleteErrorCode), OptionalErrorText);
+}
+
+UE::GameFeatures::FResult FGameFeaturePluginState::GetErrorResult(const FString& ErrorNamespaceAddition, const EInstallBundleResult ErrorResult) const
+{
+	UE::GameFeatures::FResult BaseResult = GetErrorResult(ErrorNamespaceAddition, LexToString(ErrorResult));
+	BaseResult.OptionalErrorText = UE::GameFeatures::CommonErrorCodes::GetErrorTextForBundleResult(ErrorResult);
+	return MoveTemp(BaseResult);
+}
+
+UE::GameFeatures::FResult FGameFeaturePluginState::GetErrorResult(const FString& ErrorNamespaceAddition, const EInstallBundleReleaseResult ErrorResult) const
+{
+	UE::GameFeatures::FResult BaseResult = GetErrorResult(ErrorNamespaceAddition, LexToString(ErrorResult));
+	BaseResult.OptionalErrorText = UE::GameFeatures::CommonErrorCodes::GetErrorTextForReleaseResult(ErrorResult);
+	return MoveTemp(BaseResult);
+}
+
 
 FGameFeaturePluginState::~FGameFeaturePluginState()
 {
 	CleanupDeferredUpdateCallbacks();
+}
+
+bool FGameFeaturePluginState::TryUpdateURLData(const FString& NewPluginURL)
+{
+	//Early out without any update if we already fully match the new URL
+	if (StateProperties.PluginIdentifier.ExactMatchesURL(NewPluginURL))
+	{
+		return false;
+	}
+
+	//Create copied StateMachineProperties data and try and reset it by parsing the new data
+	FGameFeaturePluginIdentifier NewIdentifier = FGameFeaturePluginIdentifier(NewPluginURL);
+	FGameFeaturePluginStateMachineProperties NewProperties = StateProperties;
+	NewProperties.PluginIdentifier = NewIdentifier;
+
+	if (!NewProperties.ParseURL() || !NewProperties.ValidateURLUpdate(StateProperties))
+	{
+		return false;
+	}
+
+	//Parse was successful so transfer to the newly parsed properties
+	StateProperties = MoveTemp(NewProperties);
+
+	return true;
 }
 
 FDestinationGameFeaturePluginState* FGameFeaturePluginState::AsDestinationState()
@@ -217,6 +427,24 @@ void FGameFeaturePluginState::CleanupDeferredUpdateCallbacks() const
 	FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
 }
 
+bool FGameFeaturePluginState::ShouldVisitUninstallStateBeforeTerminal() const
+{
+	switch (StateProperties.GetPluginProtocol())
+	{
+		case (EGameFeaturePluginProtocol::InstallBundle):
+		{
+			//InstallBundleProtocol's have a MetaData that controlls if they uninstall currently
+			return StateProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>().bUninstallBeforeTerminate;
+		}
+
+		//Default behavior is to just Terminate
+		default:
+		{
+			return false;
+		}
+	}
+}
+
 /*
 =========================================================
   States
@@ -241,10 +469,10 @@ struct FGameFeaturePluginState_Terminal : public FDestinationGameFeaturePluginSt
 
 	virtual void BeginState() override
 	{
-		checkf(!bEnteredTerminalState, TEXT("Plugin entered terminal state more than once! %s"), *StateProperties.PluginURL);
+		checkf(!bEnteredTerminalState, TEXT("Plugin entered terminal state more than once! %s"), *StateProperties.PluginIdentifier.GetFullPluginURL());
 		bEnteredTerminalState = true;
 
-		UGameFeaturesSubsystem::Get().OnGameFeatureTerminating(StateProperties.PluginName, StateProperties.PluginURL);
+		UGameFeaturesSubsystem::Get().OnGameFeatureTerminating(StateProperties.PluginName, StateProperties.PluginIdentifier.GetFullPluginURL());
 	}
 };
 
@@ -262,7 +490,7 @@ struct FGameFeaturePluginState_UnknownStatus : public FDestinationGameFeaturePlu
 		{
 			StateStatus.SetTransition(EGameFeaturePluginState::CheckingStatus);
 
-			UGameFeaturesSubsystem::Get().OnGameFeatureCheckingStatus(StateProperties.PluginURL);
+			UGameFeaturesSubsystem::Get().OnGameFeatureCheckingStatus(StateProperties.PluginIdentifier.GetFullPluginURL());
 		}
 	}
 };
@@ -287,7 +515,7 @@ struct FGameFeaturePluginState_CheckingStatus : public FGameFeaturePluginState
 			bParsedURL = StateProperties.ParseURL();
 			if (!bParsedURL)
 			{
-				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorCheckingStatus, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Bad_PluginURL"));
+				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorCheckingStatus, GetErrorResult(TEXT("Bad_PluginURL")));
 				return;
 			}
 		}
@@ -301,13 +529,13 @@ struct FGameFeaturePluginState_CheckingStatus : public FGameFeaturePluginState
 			TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 			if (BundleManager == nullptr)
 			{
-				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorCheckingStatus, UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Was_Null"));
+				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorCheckingStatus, GetErrorResult(TEXT("BundleManager_Null")));
 				return;
 			}
 
 			if (BundleManager->GetInitState() == EInstallBundleManagerInitState::Failed)
 			{
-				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorCheckingStatus, UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Failed_Init"));
+				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorCheckingStatus, GetErrorResult(TEXT("BundleManager_Failed_Init")));
 				return;
 			}
 
@@ -318,12 +546,12 @@ struct FGameFeaturePluginState_CheckingStatus : public FGameFeaturePluginState
 				return;
 			}
 
-			const TArray<FName>& InstallBundles = StateProperties.ProtocolMetadata.GetSubtype<UE::GameFeatures::FInstallBundlePluginProtocolMetaData>().InstallBundles;
+			const TArray<FName>& InstallBundles = StateProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>().InstallBundles;
 
 			TValueOrError<FInstallBundleCombinedInstallState, EInstallBundleResult> MaybeInstallState = BundleManager->GetInstallStateSynchronous(InstallBundles, false);
 			if (MaybeInstallState.HasError())
 			{
-				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorCheckingStatus, UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Failed_GetInstallState"));
+				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorCheckingStatus, GetErrorResult(TEXT("BundleManager_Failed_GetInstallState")));
 				return;
 			}
 
@@ -332,17 +560,17 @@ struct FGameFeaturePluginState_CheckingStatus : public FGameFeaturePluginState
 		}
 		else
 		{
-			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorCheckingStatus, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Unknown_Protocol"));
+			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorCheckingStatus, GetErrorResult(TEXT("Unknown_Protocol")));
 			return;
 		}
 
 		if (!bIsAvailable)
 		{
-			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorUnavailable, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Plugin_Unavailable"));
+			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorUnavailable, GetErrorResult(TEXT("Plugin_Unavailable")));
 			return;
 		}
 
-		UGameFeaturesSubsystem::Get().OnGameFeatureStatusKnown(StateProperties.PluginName, StateProperties.PluginURL);
+		UGameFeaturesSubsystem::Get().OnGameFeatureStatusKnown(StateProperties.PluginName, StateProperties.PluginIdentifier.GetFullPluginURL());
 		StateStatus.SetTransition(EGameFeaturePluginState::StatusKnown);
 	}
 };
@@ -389,7 +617,14 @@ struct FGameFeaturePluginState_StatusKnown : public FDestinationGameFeaturePlugi
 	{
 		if (StateProperties.Destination < EGameFeaturePluginState::StatusKnown)
 		{
-			StateStatus.SetTransition(EGameFeaturePluginState::Terminal);
+			if (ShouldVisitUninstallStateBeforeTerminal())
+			{
+				StateStatus.SetTransition(EGameFeaturePluginState::Uninstalling);	
+			}
+			else
+			{
+				StateStatus.SetTransition(EGameFeaturePluginState::Terminal);
+			}
 		}
 		else if (StateProperties.Destination > EGameFeaturePluginState::StatusKnown)
 		{
@@ -405,28 +640,56 @@ struct FGameFeaturePluginState_StatusKnown : public FDestinationGameFeaturePlugi
 	}
 };
 
-struct FGameFeaturePluginState_ErrorInstalling : public FErrorGameFeaturePluginState
+struct FGameFeaturePluginState_ErrorManagingData : public FErrorGameFeaturePluginState
 {
-	FGameFeaturePluginState_ErrorInstalling(FGameFeaturePluginStateMachineProperties& InStateProperties) : FErrorGameFeaturePluginState(InStateProperties) {}
+	FGameFeaturePluginState_ErrorManagingData(FGameFeaturePluginStateMachineProperties& InStateProperties) : FErrorGameFeaturePluginState(InStateProperties) {}
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
-		if (StateProperties.Destination < EGameFeaturePluginState::ErrorInstalling)
-		{
-			StateStatus.SetTransition(EGameFeaturePluginState::Uninstalling);
+		if (StateProperties.Destination < EGameFeaturePluginState::ErrorManagingData)
+		{			
+			StateStatus.SetTransition(EGameFeaturePluginState::Releasing);
 		}
-		else if (StateProperties.Destination > EGameFeaturePluginState::ErrorInstalling)
+		else if (StateProperties.Destination > EGameFeaturePluginState::ErrorManagingData)
 		{
 			StateStatus.SetTransition(EGameFeaturePluginState::Downloading);
 		}
 	}
 };
 
-struct FGameFeaturePluginState_Uninstalling : public FGameFeaturePluginState
+struct FGameFeaturePluginState_ErrorUninstalling : public FErrorGameFeaturePluginState
 {
-	FGameFeaturePluginState_Uninstalling(FGameFeaturePluginStateMachineProperties& InStateProperties)
-		: FGameFeaturePluginState(InStateProperties)
+	FGameFeaturePluginState_ErrorUninstalling(FGameFeaturePluginStateMachineProperties& InStateProperties) : FErrorGameFeaturePluginState(InStateProperties) {}
+
+	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
+	{
+		if (StateProperties.Destination < EGameFeaturePluginState::ErrorUninstalling)
+		{
+			if (ShouldVisitUninstallStateBeforeTerminal())
+			{
+				StateStatus.SetTransition(EGameFeaturePluginState::Uninstalling);
+			}
+			else
+			{
+				StateStatus.SetTransition(EGameFeaturePluginState::Terminal);
+			}
+		}
+		else if (StateProperties.Destination > EGameFeaturePluginState::ErrorUninstalling)
+		{
+			StateStatus.SetTransition(EGameFeaturePluginState::StatusKnown);
+		}
+	}
+};
+
+//Base class for our states that want to request to release data from InstallBundleManager
+struct FBaseDataReleaseGameFeaturePluginState : public FGameFeaturePluginState
+{
+	FBaseDataReleaseGameFeaturePluginState(FGameFeaturePluginStateMachineProperties& InStateProperties) 
+		: FGameFeaturePluginState(InStateProperties) 
 		, Result(MakeValue())
+	{}
+
+	virtual ~FBaseDataReleaseGameFeaturePluginState()
 	{}
 
 	UE::GameFeatures::FResult Result;
@@ -444,7 +707,7 @@ struct FGameFeaturePluginState_Uninstalling : public FGameFeaturePluginState
 
 		if (!Result.HasError() && BundleResult.Result != EInstallBundleReleaseResult::OK)
 		{
-			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Uninstall_Failure_") + LexToString(BundleResult.Result));
+			Result = GetErrorResult(TEXT("BundleManager.OnRemove_Failed."), BundleResult.Result);
 		}
 
 		if (PendingBundles.Num() > 0)
@@ -462,26 +725,35 @@ struct FGameFeaturePluginState_Uninstalling : public FGameFeaturePluginState
 
 	virtual void BeginState() override
 	{
+		BeginRemoveRequest();
+	}
+
+	virtual void BeginRemoveRequest()
+	{
+		CleanUp();
+
 		Result = MakeValue();
 		bWasDeleted = false;
 
-		if (StateProperties.GetPluginProtocol() != EGameFeaturePluginProtocol::InstallBundle)
+		if (!ShouldReleaseContent())
 		{
 			bWasDeleted = true;
 			return;
 		}
 
 		TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
+		check(BundleManager.IsValid());
 
-		const TArray<FName>& InstallBundles = StateProperties.ProtocolMetadata.GetSubtype<UE::GameFeatures::FInstallBundlePluginProtocolMetaData>().InstallBundles;
+		const TArray<FName>& InstallBundles = StateProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>().InstallBundles;
 
-		EInstallBundleReleaseRequestFlags ReleaseFlags = EInstallBundleReleaseRequestFlags::RemoveFilesIfPossible;
+		EInstallBundleReleaseRequestFlags ReleaseFlags = GetReleaseRequestFlags();
 		TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> MaybeRequestInfo = BundleManager->RequestReleaseContent(InstallBundles, ReleaseFlags);
 
-		if (!MaybeRequestInfo.IsValid())
+		if (MaybeRequestInfo.HasError())
 		{
-			ensureMsgf(false, TEXT("Unable to enqueue uninstall for the PluginURL(%s) because %s"), *StateProperties.PluginURL, LexToString(MaybeRequestInfo.GetError()));
-			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Cannot_Uninstall"));
+			ensureMsgf(false, TEXT("Unable to enqueue uninstall for the PluginURL(%s) because %s"), *StateProperties.PluginIdentifier.GetFullPluginURL(), LexToString(MaybeRequestInfo.GetError()));
+			Result = GetErrorResult(TEXT("BundleManager.Begin."), MaybeRequestInfo.GetError());
+
 			return;
 		}
 
@@ -489,8 +761,9 @@ struct FGameFeaturePluginState_Uninstalling : public FGameFeaturePluginState
 
 		if (EnumHasAnyFlags(RequestInfo.InfoFlags, EInstallBundleRequestInfoFlags::SkippedUnknownBundles))
 		{
-			ensureMsgf(false, TEXT("Unable to enqueue uninstall for the PluginURL(%s) because failed to resolve install bundles!"), *StateProperties.PluginURL);
-			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Cannot_Resolve_InstallBundles_For_Release"));
+			ensureMsgf(false, TEXT("Unable to enqueue uninstall for the PluginURL(%s) because failed to resolve install bundles!"), *StateProperties.PluginIdentifier.GetFullPluginURL());
+			Result = GetErrorResult(TEXT("BundleManager.Begin."), TEXT("Resolve_Failed"), UE::GameFeatures::CommonErrorCodes::ReleaseResult_Generic);
+
 			return;
 		}
 
@@ -501,7 +774,7 @@ struct FGameFeaturePluginState_Uninstalling : public FGameFeaturePluginState
 		else
 		{
 			PendingBundles = MoveTemp(RequestInfo.BundlesEnqueued);
-			IInstallBundleManager::ReleasedDelegate.AddRaw(this, &FGameFeaturePluginState_Uninstalling::OnContentRemoved);
+			IInstallBundleManager::ReleasedDelegate.AddRaw(this, &FBaseDataReleaseGameFeaturePluginState::OnContentRemoved);
 		}
 	}
 
@@ -509,7 +782,7 @@ struct FGameFeaturePluginState_Uninstalling : public FGameFeaturePluginState
 	{
 		if (!Result.HasValue())
 		{
-			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorInstalling, Result.StealError());
+			StateStatus.SetTransitionError(GetFailureTransitionState(), Result);
 			return;
 		}
 
@@ -518,12 +791,114 @@ struct FGameFeaturePluginState_Uninstalling : public FGameFeaturePluginState
 			return;
 		}
 
-		StateStatus.SetTransition(EGameFeaturePluginState::StatusKnown);
+		StateStatus.SetTransition(GetSuccessTransitionState());
+	}
+
+	void CleanUp()
+	{
+		PendingBundles.Empty();
+		IInstallBundleManager::ReleasedDelegate.RemoveAll(this);
 	}
 
 	virtual void EndState() override
 	{
-		IInstallBundleManager::ReleasedDelegate.RemoveAll(this);
+		CleanUp();
+	}
+
+	/** Controls what check is done to determine if this state should run or not */
+	virtual bool ShouldReleaseContent() const
+	{
+		switch (StateProperties.GetPluginProtocol())
+		{
+			case (EGameFeaturePluginProtocol::InstallBundle):
+			{
+				return true;
+			}
+
+			default:
+			{
+				return false;
+			}
+		}
+	}
+
+	/** Determines what state you transition to in the event of a success or failure to release content */
+	virtual EGameFeaturePluginState GetSuccessTransitionState() const = 0;
+	virtual EGameFeaturePluginState GetFailureTransitionState() const = 0;
+
+	/** Determine what kind of release request flags we submit */
+	virtual EInstallBundleReleaseRequestFlags GetReleaseRequestFlags() const = 0;
+};
+
+struct FGameFeaturePluginState_Uninstalling : public FBaseDataReleaseGameFeaturePluginState
+{
+	FGameFeaturePluginState_Uninstalling(FGameFeaturePluginStateMachineProperties& InStateProperties)
+		: FBaseDataReleaseGameFeaturePluginState(InStateProperties)
+	{}
+
+	virtual EGameFeaturePluginState GetSuccessTransitionState() const override
+	{
+		return EGameFeaturePluginState::Terminal;
+	}
+	
+	virtual EGameFeaturePluginState GetFailureTransitionState() const override
+	{
+		return EGameFeaturePluginState::ErrorUninstalling;
+	}
+
+	//Must be overridden to determine what kind of release request we submit
+	virtual EInstallBundleReleaseRequestFlags GetReleaseRequestFlags() const override
+	{
+		return EInstallBundleReleaseRequestFlags::RemoveFilesIfPossible;
+	}
+
+	virtual bool TryUpdateURLData(const FString& NewPluginURL) override
+	{
+		//Use base functionality to update our metadata
+		if (!FGameFeaturePluginState::TryUpdateURLData(NewPluginURL))
+		{
+			return false;
+		}
+
+		//If we are no longer uninstalling before terminate, just exit now as a success immediately
+		if (!ShouldVisitUninstallStateBeforeTerminal())
+		{
+			FBaseDataReleaseGameFeaturePluginState::CleanUp();
+
+			Result = MakeValue();
+			bWasDeleted = true;
+			UpdateStateMachineImmediate();
+
+			return true;
+		}		
+		
+		//Restart our remove request to handle other changes
+		BeginRemoveRequest();
+
+		return true;
+	}
+};
+
+struct FGameFeaturePluginState_Releasing : public FBaseDataReleaseGameFeaturePluginState
+{
+	FGameFeaturePluginState_Releasing(FGameFeaturePluginStateMachineProperties& InStateProperties)
+		: FBaseDataReleaseGameFeaturePluginState(InStateProperties)
+	{}
+
+	virtual EGameFeaturePluginState GetSuccessTransitionState() const override
+	{
+		return EGameFeaturePluginState::StatusKnown;
+	}
+
+	virtual EGameFeaturePluginState GetFailureTransitionState() const override
+	{
+		return EGameFeaturePluginState::ErrorManagingData;
+	}
+
+	//Must be overridden to determine what kind of release request we submit
+	virtual EInstallBundleReleaseRequestFlags GetReleaseRequestFlags() const override
+	{
+		return EInstallBundleReleaseRequestFlags::None;
 	}
 };
 
@@ -584,17 +959,21 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 			UpdateStateMachineImmediate();
 			return;
 		}
-
-		const TArray<FName>& InstallBundles = StateProperties.ProtocolMetadata.GetSubtype<UE::GameFeatures::FInstallBundlePluginProtocolMetaData>().InstallBundles;
-
-		EInstallBundleRequestFlags InstallFlags = EInstallBundleRequestFlags::None;
+		
+		FInstallBundlePluginProtocolMetaData& Metadata = StateProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>();
+		const TArray<FName>& InstallBundles = Metadata.InstallBundles;
+		
+		//Pull our InstallFlags from the Metadata, but also make sure SkipMount is set as there is a separate mounting step that will re-request this
+		//without SkipMount and then mount the data, this allows us to pre-download data without mounting it
+		EInstallBundleRequestFlags InstallFlags = Metadata.InstallBundleFlags;
 		InstallFlags |= EInstallBundleRequestFlags::SkipMount;
+
 		TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> MaybeRequestInfo = BundleManager->RequestUpdateContent(InstallBundles, InstallFlags);
 
-		if (!MaybeRequestInfo.IsValid())
+		if (MaybeRequestInfo.HasError())
 		{
-			ensureMsgf(false, TEXT("Unable to enqueue download for the PluginURL(%s) because %s"), *StateProperties.PluginURL, LexToString(MaybeRequestInfo.GetError()));
-			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Cannot_Start_Download"));
+			ensureMsgf(false, TEXT("Unable to enqueue download for the PluginURL(%s) because %s"), *StateProperties.PluginIdentifier.GetFullPluginURL(), LexToString(MaybeRequestInfo.GetError()));
+			Result = GetErrorResult(TEXT("BundleManager.GotState."), LexToString(MaybeRequestInfo.GetError()));
 			UpdateStateMachineImmediate();
 			return;
 		}
@@ -603,8 +982,9 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 
 		if (EnumHasAnyFlags(RequestInfo.InfoFlags, EInstallBundleRequestInfoFlags::SkippedUnknownBundles))
 		{
-			ensureMsgf(false, TEXT("Unable to enqueue download for the PluginURL(%s) because failed to resolve install bundles!"), *StateProperties.PluginURL);
-			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Cannot_Resolve_InstallBundles_For_Download"));
+			ensureMsgf(false, TEXT("Unable to enqueue download for the PluginURL(%s) because failed to resolve install bundles!"), *StateProperties.PluginIdentifier.GetFullPluginURL());
+			Result = GetErrorResult(TEXT("BundleManager.GotState."), TEXT("Resolve_Failed"), UE::GameFeatures::CommonErrorCodes::Generic_ConnectionError);
+			
 			UpdateStateMachineImmediate();
 			return;
 		}
@@ -619,12 +999,20 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 		{
 			PendingBundleDownloads = MoveTemp(RequestInfo.BundlesEnqueued);
 			IInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FGameFeaturePluginState_Downloading::OnInstallBundleCompleted);
+			IInstallBundleManager::PausedBundleDelegate.AddRaw(this, &FGameFeaturePluginState_Downloading::OnInstallBundlePaused);
 
 			ProgressTracker = MakeUnique<FInstallBundleCombinedProgressTracker>(false);
 			ProgressTracker->SetBundlesToTrackFromContentState(BundleContentState, PendingBundleDownloads);
 
 			ProgressUpdateHandle = FTSTicker::GetCoreTicker().AddTicker(
 				FTickerDelegate::CreateRaw(this, &FGameFeaturePluginState_Downloading::OnUpdateProgress)/*, 0.1f*/);
+
+			//If this setting is flipped then we should immediately request to pause downloads.
+			//We still generate the downloads so that we have an accurate PendingBundleDownloads list
+			if (Metadata.bUserPauseDownload)
+			{
+				ChangePauseState(true);
+			}
 		}
 	}
 
@@ -639,15 +1027,12 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 
 		if (!Result.HasError() && BundleResult.Result != EInstallBundleResult::OK)
 		{
-			if (BundleResult.OptionalErrorCode.IsEmpty())
-			{
-				Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Download_Failure_") + LexToString(BundleResult.Result));
-			}
-			else
-			{
-				Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Download_Failure_") + BundleResult.OptionalErrorCode);
-			}
-
+			//Use OptionalErrorCode and/or OptionalErrorText if available
+			const FString ErrorCodeEnding = (BundleResult.OptionalErrorCode.IsEmpty()) ? LexToString(BundleResult.Result) : BundleResult.OptionalErrorCode;
+			const FText ErrorText = BundleResult.OptionalErrorCode.IsEmpty() ? UE::GameFeatures::CommonErrorCodes::GetErrorTextForBundleResult(BundleResult.Result) : BundleResult.OptionalErrorText;
+			
+			Result = GetErrorResult(TEXT("BundleManager.OnComplete."), ErrorCodeEnding, ErrorText);
+			
 			if(BundleResult.Result != EInstallBundleResult::UserCancelledError)
 			{
 				TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
@@ -679,10 +1064,50 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 			float Progress = ProgressTracker->GetCurrentCombinedProgress().ProgressPercent;
 			UpdateProgress(Progress);
 
-			//UE_LOG(LogGameFeatures, Display, TEXT("Download Progress: %f for PluginURL(%s)"), Progress, *StateProperties.PluginURL);
+			UE_LOG(LogGameFeatures, VeryVerbose, TEXT("Download Progress: %f for PluginURL(%s)"), Progress, *StateProperties.PluginIdentifier.GetFullPluginURL());
 		}
 
 		return true;
+	}
+
+	void ChangePauseState(bool bPause)
+	{
+		if (PendingBundleDownloads.Num() > 0)
+		{
+			TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
+
+			if (bPause)
+			{
+				BundleManager->PauseUpdateContent(PendingBundleDownloads);
+			}
+			else
+			{
+				BundleManager->ResumeUpdateContent(PendingBundleDownloads);
+			}
+			BundleManager->RequestPausedBundleCallback();
+
+			//Use same text we use for InstallBundleManager's UserPaused as this was also a user pause
+			const TCHAR* PauseReason = InstallBundleUtil::GetInstallBundlePauseReason(EInstallBundlePauseFlags::UserPaused);
+
+			NotifyPauseChange(bPause, PauseReason);
+		}
+	}
+
+	void OnInstallBundlePaused(FInstallBundlePauseInfo InPauseBundleInfo)
+	{
+		if (PendingBundleDownloads.Contains(InPauseBundleInfo.BundleName))
+		{
+			const bool bIsPaused = (InPauseBundleInfo.PauseFlags != EInstallBundlePauseFlags::None);
+			const TCHAR* PauseReason = InstallBundleUtil::GetInstallBundlePauseReason(InPauseBundleInfo.PauseFlags);
+			
+			NotifyPauseChange(bIsPaused, PauseReason);
+		}
+	}
+
+	void NotifyPauseChange(bool bIsPaused, FString PauseReason)
+	{
+		FGameFeaturePauseStateChangeContext Context(LexToString(EGameFeaturePluginState::Downloading), PauseReason, bIsPaused);
+		UGameFeaturesSubsystem::Get().OnGameFeaturePauseChange(StateProperties.PluginIdentifier.GetFullPluginURL(), StateProperties.PluginName, Context);
 	}
 
 	virtual void BeginState() override
@@ -692,7 +1117,7 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 		check(StateProperties.GetPluginProtocol() == EGameFeaturePluginProtocol::InstallBundle);
 
 		TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
-		const TArray<FName>& InstallBundles = StateProperties.ProtocolMetadata.GetSubtype<UE::GameFeatures::FInstallBundlePluginProtocolMetaData>().InstallBundles;
+		const TArray<FName>& InstallBundles = StateProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>().InstallBundles;
 
 		GotContentStateHandle = BundleManager->GetContentState(InstallBundles, EInstallBundleGetContentStateFlags::None, true, FInstallBundleGetContentStateDelegate::CreateRaw(this, &FGameFeaturePluginState_Downloading::OnGotContentState));
 	}
@@ -701,7 +1126,7 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 	{
 		if (!Result.HasValue())
 		{
-			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorInstalling, Result.StealError());
+			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorManagingData, Result);
 			return;
 		}
 
@@ -722,6 +1147,52 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 		}
 	}
 
+	virtual bool TryUpdateURLData(const FString& NewPluginURL) override
+	{
+		//if we don't have any in-progress downloads the default behavior is all we need
+		if (PendingBundleDownloads.Num() == 0)
+		{
+			return FGameFeaturePluginState::TryUpdateURLData(NewPluginURL);
+		}
+		
+		//Need to update our BundleFlags for any bundles we are downloading
+		FInstallBundlePluginProtocolMetaData& OldMetaData = StateProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>();
+		EInstallBundleRequestFlags OldRequestFlags = OldMetaData.InstallBundleFlags;
+		const bool OldUserPausedFlag = OldMetaData.bUserPauseDownload;
+
+		if (!FGameFeaturePluginState::TryUpdateURLData(NewPluginURL))
+		{
+			return false;
+		}
+		FInstallBundlePluginProtocolMetaData& UpdatedMetaData = StateProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>();
+		
+		//Update our InstallBundleRequestFlags
+		{
+			EInstallBundleRequestFlags UpdatedRequestFlags = OldMetaData.InstallBundleFlags;
+						
+			EInstallBundleRequestFlags AddFlags = (UpdatedRequestFlags & (~OldRequestFlags));
+			EInstallBundleRequestFlags RemoveFlags = ((~UpdatedRequestFlags) & OldRequestFlags);
+
+			if ((AddFlags != EInstallBundleRequestFlags::None) || (RemoveFlags != EInstallBundleRequestFlags::None))
+			{
+				TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
+				BundleManager->UpdateContentRequestFlags(PendingBundleDownloads, AddFlags, RemoveFlags);
+			}
+		}
+
+		//Handle pausing or resuming the download if the bUserPauseDownload flag has changed
+		{
+			if (UpdatedMetaData.bUserPauseDownload != OldUserPausedFlag)
+			{
+				ChangePauseState(UpdatedMetaData.bUserPauseDownload);
+			}
+		}
+
+		//Return true at this point even if we don't change anything explicitly for this state as the 
+		//default FGameFeaturePluginState returned true above and thus changed things
+		return true;
+	}
+
 	virtual void EndState() override
 	{
 		Cleanup();
@@ -740,7 +1211,7 @@ struct FGameFeaturePluginState_Installed : public FDestinationGameFeaturePluginS
 		}
 		else if (StateProperties.Destination < EGameFeaturePluginState::Installed)
 		{
-			StateStatus.SetTransition(EGameFeaturePluginState::Uninstalling);
+			StateStatus.SetTransition(EGameFeaturePluginState::Releasing);
 		}
 	}
 };
@@ -801,7 +1272,7 @@ struct FGameFeaturePluginState_Unmounting : public FGameFeaturePluginState
 {
 	FGameFeaturePluginState_Unmounting(FGameFeaturePluginStateMachineProperties& InStateProperties) : FGameFeaturePluginState(InStateProperties) {}
 
-	UE::GameFeatures::FResult Result{ MakeValue() };
+	UE::GameFeatures::FResult Result = MakeValue();
 	TArray<FName> PendingBundles;
 	bool bUnmounted = false;
 
@@ -816,7 +1287,7 @@ struct FGameFeaturePluginState_Unmounting : public FGameFeaturePluginState
 
 		if (!Result.HasError() && BundleResult.Result != EInstallBundleReleaseResult::OK)
 		{
-			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Unmount_Error_") + LexToString(BundleResult.Result));
+			Result = GetErrorResult(TEXT("BundleManager.OnReleased."), BundleResult.Result);
 		}
 
 		if (PendingBundles.Num() > 0)
@@ -848,8 +1319,8 @@ struct FGameFeaturePluginState_Unmounting : public FGameFeaturePluginState
 			FText FailureReason;
 			if (!IPluginManager::Get().UnmountExplicitlyLoadedPlugin(StateProperties.PluginName, &FailureReason))
 			{
-				ensureMsgf(false, TEXT("Failed to explicitly unmount the PluginURL(%s) because %s"), *StateProperties.PluginURL, *FailureReason.ToString());
-				Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("Plugin_Cannot_Explicitly_Unmount"));
+				ensureMsgf(false, TEXT("Failed to explicitly unmount the PluginURL(%s) because %s"), *StateProperties.PluginIdentifier.GetFullPluginURL(), *FailureReason.ToString());
+				Result = GetErrorResult(TEXT("Plugin_Cannot_Explicitly_Unmount"));
 				return;
 			}
 		}
@@ -868,15 +1339,15 @@ struct FGameFeaturePluginState_Unmounting : public FGameFeaturePluginState
 
 		TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 
-		const TArray<FName>& InstallBundles = StateProperties.ProtocolMetadata.GetSubtype<UE::GameFeatures::FInstallBundlePluginProtocolMetaData>().InstallBundles;
+		const TArray<FName>& InstallBundles = StateProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>().InstallBundles;
 
 		EInstallBundleReleaseRequestFlags ReleaseFlags = EInstallBundleReleaseRequestFlags::None;
 		TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> MaybeRequestInfo = BundleManager->RequestReleaseContent(InstallBundles, ReleaseFlags);
 
-		if (!MaybeRequestInfo.IsValid())
+		if (MaybeRequestInfo.HasError())
 		{
-			ensureMsgf(false, TEXT("Unable to enqueue unmount for the PluginURL(%s) because %s"), *StateProperties.PluginURL, LexToString(MaybeRequestInfo.GetError()));
-			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Cannot_Start_Unmount"));
+			ensureMsgf(false, TEXT("Unable to enqueue unmount for the PluginURL(%s) because %s"), *StateProperties.PluginIdentifier.GetFullPluginURL(), LexToString(MaybeRequestInfo.GetError()));
+			Result = GetErrorResult(TEXT("BundleManager.Begin."), MaybeRequestInfo.GetError());
 			return;
 		}
 
@@ -884,8 +1355,8 @@ struct FGameFeaturePluginState_Unmounting : public FGameFeaturePluginState
 
 		if (EnumHasAnyFlags(RequestInfo.InfoFlags, EInstallBundleRequestInfoFlags::SkippedUnknownBundles))
 		{
-			ensureMsgf(false, TEXT("Unable to enqueue unmount for the PluginURL(%s) because failed to resolve install bundles!"), *StateProperties.PluginURL);
-			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Cannot_Resolve_InstallBundles_For_Unmount"));
+			ensureMsgf(false, TEXT("Unable to enqueue unmount for the PluginURL(%s) because failed to resolve install bundles!"), *StateProperties.PluginIdentifier.GetFullPluginURL());
+			Result = GetErrorResult(TEXT("BundleManager.Begin."), TEXT("Cannot_Resolve"), UE::GameFeatures::CommonErrorCodes::Generic_ConnectionError);
 			return;
 		}
 
@@ -904,7 +1375,7 @@ struct FGameFeaturePluginState_Unmounting : public FGameFeaturePluginState
 	{
 		if (!Result.HasValue())
 		{
-			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorMounting, Result.StealError());
+			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorMounting, Result);
 			return;
 		}
 
@@ -946,11 +1417,11 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 		{
 			if (BundleResult.OptionalErrorCode.IsEmpty())
 			{
-				Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Mount_Error_") + LexToString(BundleResult.Result));
+				Result = GetErrorResult(TEXT("BundleManager.OnComplete."), BundleResult.Result);
 			}
 			else
 			{
-				Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Mount_Error_") + BundleResult.OptionalErrorCode);
+				Result = GetErrorResult(TEXT("BundleManager.OnComplete."), BundleResult.OptionalErrorCode, BundleResult.OptionalErrorText);
 			}
 		}
 
@@ -971,7 +1442,7 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 	{
 		if (FPakFile* Pak = (FPakFile*)(&PakFile))
 		{
-			UE_LOG(LogGameFeatures, Display, TEXT("Mounted Pak File for (%s) with following files:"), *StateProperties.PluginURL);
+			UE_LOG(LogGameFeatures, Display, TEXT("Mounted Pak File for (%s) with following files:"), *StateProperties.PluginIdentifier.GetFullPluginURL());
 			TArray<FString> OutFileList;
 			Pak->GetPrunedFilenames(OutFileList);
 			for (const FString& FileName : OutFileList)
@@ -995,20 +1466,19 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 		
 		TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 
-		const TArray<FName>& InstallBundles = StateProperties.ProtocolMetadata.GetSubtype<UE::GameFeatures::FInstallBundlePluginProtocolMetaData>().InstallBundles;
-		
-		// JMarcus TODO: Async Mounting?
-		EInstallBundleRequestFlags InstallFlags = EInstallBundleRequestFlags::None;
+		FInstallBundlePluginProtocolMetaData MetaData = StateProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>();
+		const TArray<FName>& InstallBundles = MetaData.InstallBundles;
+		EInstallBundleRequestFlags InstallFlags = MetaData.InstallBundleFlags;
 
 		// Make bundle manager use verbose log level for most logs.
 		// We are already done with downloading, so we don't care about logging too much here unless mounting fails.
 		const ELogVerbosity::Type InstallBundleManagerVerbosityOverride = ELogVerbosity::Verbose;
 		TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> MaybeRequestInfo = BundleManager->RequestUpdateContent(InstallBundles, InstallFlags, InstallBundleManagerVerbosityOverride);
 
-		if (!MaybeRequestInfo.IsValid())
+		if (MaybeRequestInfo.HasError())
 		{
-			ensureMsgf(false, TEXT("Unable to enqueue mount for the PluginURL(%s) because %s"), *StateProperties.PluginURL, LexToString(MaybeRequestInfo.GetError()));
-			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Cannot_Start_Mount"));
+			ensureMsgf(false, TEXT("Unable to enqueue mount for the PluginURL(%s) because %s"), *StateProperties.PluginIdentifier.GetFullPluginURL(), LexToString(MaybeRequestInfo.GetError()));
+			Result = GetErrorResult(TEXT("BundleManager.Begin.CannotStart."), MaybeRequestInfo.GetError());
 			return;
 		}
 
@@ -1016,8 +1486,8 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 
 		if (EnumHasAnyFlags(RequestInfo.InfoFlags, EInstallBundleRequestInfoFlags::SkippedUnknownBundles))
 		{
-			ensureMsgf(false, TEXT("Unable to enqueue mount for the PluginURL(%s) because failed to resolve install bundles!"), *StateProperties.PluginURL);
-			Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Cannot_Resolve_InstallBundles_For_Mount"));
+			ensureMsgf(false, TEXT("Unable to enqueue mount for the PluginURL(%s) because failed to resolve install bundles!"), *StateProperties.PluginIdentifier.GetFullPluginURL());
+			Result = GetErrorResult(TEXT("BundleManager.Begin."), TEXT("Resolve_Failed"));
 			return;
 		}
 
@@ -1040,7 +1510,7 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 	{
 		if (!Result.HasValue())
 		{
-			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorMounting, Result.StealError());
+			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorMounting, Result);
 			return;
 		}
 		if (!bMounted)
@@ -1048,8 +1518,8 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 			return;
 		}
 
-		checkf(!StateProperties.PluginInstalledFilename.IsEmpty(), TEXT("PluginInstalledFilename must be set by the Mounting. PluginURL: %s"), *StateProperties.PluginURL);
-		checkf(FPaths::GetExtension(StateProperties.PluginInstalledFilename) == TEXT("uplugin"), TEXT("PluginInstalledFilename must have a uplugin extension. PluginURL: %s"), *StateProperties.PluginURL);
+		checkf(!StateProperties.PluginInstalledFilename.IsEmpty(), TEXT("PluginInstalledFilename must be set by the Mounting. PluginURL: %s"), *StateProperties.PluginIdentifier.GetFullPluginURL());
+		checkf(FPaths::GetExtension(StateProperties.PluginInstalledFilename) == TEXT("uplugin"), TEXT("PluginInstalledFilename must have a uplugin extension. PluginURL: %s"), *StateProperties.PluginIdentifier.GetFullPluginURL());
 
 		// refresh the plugins list to let the plugin manager know about it
 		const TSharedPtr<IPlugin> MaybePlugin = IPluginManager::Get().FindPlugin(StateProperties.PluginName);
@@ -1059,7 +1529,7 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 		{
 			if (!FPaths::IsSamePath(MaybePlugin->GetDescriptorFileName(), StateProperties.PluginInstalledFilename))
 			{
-				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorMounting, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Plugin_Name_Already_In_Use"));
+				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorMounting, GetErrorResult(TEXT("Plugin_Name_Already_In_Use")));
 				return;
 			}
 		}
@@ -1068,7 +1538,7 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 			const bool bAddedPlugin = IPluginManager::Get().AddToPluginsList(StateProperties.PluginInstalledFilename);
 			if (!bAddedPlugin)
 			{
-				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorMounting, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Failed_To_Register_Plugin"));
+				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorMounting, GetErrorResult(TEXT("Failed_To_Register_Plugin")));
 				return;
 			}
 
@@ -1083,21 +1553,16 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 		// After the new plugin is mounted add the asset registry for that plugin.
 		if (StateProperties.GetPluginProtocol() == EGameFeaturePluginProtocol::InstallBundle)
 		{
+			const FString PluginFolder = FPaths::GetPath(StateProperties.PluginInstalledFilename);
+			const FString PluginAssetRegistry = PluginFolder / TEXT("AssetRegistry.bin");
+
 			TSharedPtr<IPlugin> NewlyMountedPlugin = IPluginManager::Get().FindPlugin(StateProperties.PluginName);
-			if (NewlyMountedPlugin.IsValid() && NewlyMountedPlugin->CanContainContent())
+			if (NewlyMountedPlugin.IsValid() && NewlyMountedPlugin->CanContainContent() && IFileManager::Get().FileExists(*PluginAssetRegistry))
 			{
 				TArray<uint8> SerializedAssetData;
-				const FString PluginFolder = FPaths::GetPath(StateProperties.PluginInstalledFilename);
-				const FString PluginAssetRegistry = PluginFolder / TEXT("AssetRegistry.bin");
-				if (!ensure(IFileManager::Get().FileExists(*PluginAssetRegistry)))
-				{
-					StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorMounting, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Plugin_AssetRegistry_Not_Found"));
-					return;
-				}
-
 				if (!FFileHelper::LoadFileToArray(SerializedAssetData, *PluginAssetRegistry))
 				{
-					StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorMounting, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Failed_To_Load_Plugin_AssetRegistry"));
+					StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorMounting, GetErrorResult(TEXT("Failed_To_Load_Plugin_AssetRegistry")));
 					return;
 				}
 
@@ -1116,6 +1581,7 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 	virtual void EndState() override
 	{
 		IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+		IInstallBundleManager::PausedBundleDelegate.RemoveAll(this);
 		FCoreDelegates::OnPakFileMounted2.RemoveAll(this);
 	}
 };
@@ -1144,8 +1610,8 @@ struct FGameFeaturePluginState_WaitingForDependencies : public FGameFeaturePlugi
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
-		checkf(!StateProperties.PluginInstalledFilename.IsEmpty(), TEXT("PluginInstalledFilename must be set by the loading dependencies phase. PluginURL: %s"), *StateProperties.PluginURL);
-		checkf(FPaths::GetExtension(StateProperties.PluginInstalledFilename) == TEXT("uplugin"), TEXT("PluginInstalledFilename must have a uplugin extension. PluginURL: %s"), *StateProperties.PluginURL);
+		checkf(!StateProperties.PluginInstalledFilename.IsEmpty(), TEXT("PluginInstalledFilename must be set by the loading dependencies phase. PluginURL: %s"), *StateProperties.PluginIdentifier.GetFullPluginURL());
+		checkf(FPaths::GetExtension(StateProperties.PluginInstalledFilename) == TEXT("uplugin"), TEXT("PluginInstalledFilename must have a uplugin extension. PluginURL: %s"), *StateProperties.PluginIdentifier.GetFullPluginURL());
 
 		if (!bRequestedDependencies)
 		{
@@ -1155,7 +1621,7 @@ struct FGameFeaturePluginState_WaitingForDependencies : public FGameFeaturePlugi
 			if (!GameFeaturesSubsystem.FindOrCreatePluginDependencyStateMachines(StateProperties.PluginInstalledFilename, Dependencies))
 			{
 				// Failed to query dependencies
-				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorWaitingForDependencies, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Failed_Dependency_Query"));
+				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorWaitingForDependencies, GetErrorResult(TEXT("Failed_Dependency_Query")));
 				return;
 			}
 			
@@ -1175,13 +1641,13 @@ struct FGameFeaturePluginState_WaitingForDependencies : public FGameFeaturePlugi
 			if (!RemainingDependency)
 			{
 				// One of the dependency state machines was destroyed before finishing
-				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorWaitingForDependencies, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Dependency_Destroyed_Before_Finish"));
+				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorWaitingForDependencies, GetErrorResult(TEXT("Dependency_Destroyed_Before_Finish")));
 				return;
 			}
 
 			if (Pair.Value.HasError())
 			{
-				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorWaitingForDependencies, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Failed_Dependency_Register"));
+				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorWaitingForDependencies, GetErrorResult(TEXT("Failed_Dependency_Register")));
 				return;
 			}
 		}
@@ -1208,7 +1674,7 @@ struct FGameFeaturePluginState_WaitingForDependencies : public FGameFeaturePlugi
 				FGameFeatureStateTransitionCanceled::CreateRaw(this, &FGameFeaturePluginState_WaitingForDependencies::OnDependencyTransitionCanceled));
 			if (!ensure(bCancelPending))
 			{
-				OnDependencyTransitionComplete(Dependency, MakeError(TEXT("Failed_Dependency_Register")));
+				OnDependencyTransitionComplete(Dependency, GetErrorResult(UE::GameFeatures::CommonErrorCodes::DependencyFailedRegister));
 			}
 		}
 	}
@@ -1242,7 +1708,7 @@ struct FGameFeaturePluginState_WaitingForDependencies : public FGameFeaturePlugi
 
 		if (!ensure(bSetDestination))
 		{
-			OnDependencyTransitionComplete(Dependency, MakeError(TEXT("Failed_Dependency_Register")));
+			OnDependencyTransitionComplete(Dependency, GetErrorResult(UE::GameFeatures::CommonErrorCodes::DependencyFailedRegister));
 		}
 	}
 
@@ -1314,7 +1780,7 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 
 		if (StateProperties.GameFeatureData)
 		{
-			UGameFeaturesSubsystem::Get().OnGameFeatureUnregistering(StateProperties.GameFeatureData, StateProperties.PluginName, StateProperties.PluginURL);
+			UGameFeaturesSubsystem::Get().OnGameFeatureUnregistering(StateProperties.GameFeatureData, StateProperties.PluginName, StateProperties.PluginIdentifier.GetFullPluginURL());
 
 			UGameFeaturesSubsystem::Get().RemoveGameFeatureFromAssetManager(StateProperties.GameFeatureData, StateProperties.PluginName, StateProperties.AddedPrimaryAssetTypes);
 			StateProperties.AddedPrimaryAssetTypes.Empty();
@@ -1396,12 +1862,12 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 			check(StateProperties.AddedPrimaryAssetTypes.Num() == 0);
 			UGameFeaturesSubsystem::Get().AddGameFeatureToAssetManager(StateProperties.GameFeatureData, StateProperties.PluginName, StateProperties.AddedPrimaryAssetTypes);
 
-			UGameFeaturesSubsystem::Get().OnGameFeatureRegistering(StateProperties.GameFeatureData, StateProperties.PluginName, StateProperties.PluginURL);
+			UGameFeaturesSubsystem::Get().OnGameFeatureRegistering(StateProperties.GameFeatureData, StateProperties.PluginName, StateProperties.PluginIdentifier.GetFullPluginURL());
 		}
 		else
 		{
 			// The gamefeaturedata does not exist. The pak file may not be openable or this is a builtin plugin where the pak file does not exist.
-			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorRegistering, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Plugin_Missing_GameFeatureData"));
+			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorRegistering, GetErrorResult(TEXT("Plugin_Missing_GameFeatureData")));
 		}
 	}
 };
@@ -1502,7 +1968,7 @@ struct FGameFeaturePluginState_Loading : public FGameFeaturePluginState
 			BundleHandle->WaitUntilComplete(0.0f, false);
 		}
 
-		UGameFeaturesSubsystem::Get().OnGameFeatureLoading(StateProperties.GameFeatureData, StateProperties.PluginURL);
+		UGameFeaturesSubsystem::Get().OnGameFeatureLoading(StateProperties.GameFeatureData, StateProperties.PluginIdentifier.GetFullPluginURL());
 
 		StateStatus.SetTransition(EGameFeaturePluginState::Loaded);
 	}
@@ -1596,12 +2062,26 @@ struct FGameFeaturePluginState_Deactivating : public FGameFeaturePluginState
 
 			// Deactivate
 			FGameFeatureDeactivatingContext Context(FSimpleDelegate::CreateRaw(this, &FGameFeaturePluginState_Deactivating::OnPauserCompleted));
-			UGameFeaturesSubsystem::Get().OnGameFeatureDeactivating(StateProperties.GameFeatureData, StateProperties.PluginName, Context, StateProperties.PluginURL);
+			UGameFeaturesSubsystem::Get().OnGameFeatureDeactivating(StateProperties.GameFeatureData, StateProperties.PluginName, Context, StateProperties.PluginIdentifier.GetFullPluginURL());
 			NumExpectedPausers = Context.NumPausers;
+
+			// Since we are pausing work during this deactivation, also notify the OnGameFeaturePauseChange delegate
+			if (NumExpectedPausers > 0)
+			{
+				FGameFeaturePauseStateChangeContext PauseContext(LexToString(EGameFeaturePluginState::Deactivating), TEXT("PendingDeactivationCallbacks"), true);
+				UGameFeaturesSubsystem::Get().OnGameFeaturePauseChange(StateProperties.PluginIdentifier.GetFullPluginURL(), StateProperties.PluginName, PauseContext);
+			}
 		}
 
 		if (NumExpectedPausers == NumObservedPausers)
 		{
+			//If we previously sent an OnGameFeaturePauseChange delegate we need to send that work is now unpaused
+			if (NumExpectedPausers > 0)
+			{
+				FGameFeaturePauseStateChangeContext PauseContext(LexToString(EGameFeaturePluginState::Deactivating), TEXT(""), false);
+				UGameFeaturesSubsystem::Get().OnGameFeaturePauseChange(StateProperties.PluginIdentifier.GetFullPluginURL(), StateProperties.PluginName, PauseContext);
+			}
+
 			if (!bRequestedGC && StateProperties.Destination.MaxState == EGameFeaturePluginState::Loaded)
 			{
 				// If we aren't going farther than Loaded, GC now
@@ -1634,7 +2114,7 @@ struct FGameFeaturePluginState_Activating : public FGameFeaturePluginState
 
 		StateProperties.GameFeatureData->InitializeHierarchicalPluginIniFiles(StateProperties.PluginInstalledFilename);
 
-		UGameFeaturesSubsystem::Get().OnGameFeatureActivating(StateProperties.GameFeatureData, StateProperties.PluginName, Context, StateProperties.PluginURL);
+		UGameFeaturesSubsystem::Get().OnGameFeatureActivating(StateProperties.GameFeatureData, StateProperties.PluginName, Context, StateProperties.PluginIdentifier.GetFullPluginURL());
 
 		StateStatus.SetTransition(EGameFeaturePluginState::Active);
 	}
@@ -1819,6 +2299,19 @@ bool UGameFeaturePluginStateMachine::TryCancel(FGameFeatureStateTransitionCancel
 	return true;
 }
 
+bool UGameFeaturePluginStateMachine::TryUpdatePluginURLData(const FString& InPluginURL)
+{
+	//Check if our current PluginURL information matches this new URL
+	//and early out if no update is needed
+	if (StateProperties.PluginIdentifier.ExactMatchesURL(InPluginURL))
+	{
+		return false;
+	}
+
+	const EGameFeaturePluginState CurrentState = GetCurrentState();
+	return AllStates[CurrentState]->TryUpdateURLData(InPluginURL);
+}
+
 void UGameFeaturePluginStateMachine::RemovePendingTransitionCallback(FDelegateHandle InHandle)
 {
 	for (std::underlying_type<EGameFeaturePluginState>::type iState = 0;
@@ -1870,13 +2363,13 @@ const FString& UGameFeaturePluginStateMachine::GetGameFeatureName() const
 	}
 	else
 	{
-		return StateProperties.PluginURL;
+		return StateProperties.PluginIdentifier.GetFullPluginURL();
 	}
 }
 
 const FString& UGameFeaturePluginStateMachine::GetPluginURL() const
 {
-	return StateProperties.PluginURL;
+	return StateProperties.PluginIdentifier.GetFullPluginURL();
 }
 
 const FString& UGameFeaturePluginStateMachine::GetPluginName() const
@@ -1912,7 +2405,10 @@ bool UGameFeaturePluginStateMachine::IsRunning() const
 
 bool UGameFeaturePluginStateMachine::IsStatusKnown() const
 {
-	return GetCurrentState() == EGameFeaturePluginState::ErrorUnavailable || GetCurrentState() >= EGameFeaturePluginState::StatusKnown;
+	return GetCurrentState() == EGameFeaturePluginState::ErrorUnavailable || 
+		   GetCurrentState() == EGameFeaturePluginState::Uninstalling || 
+		   GetCurrentState() == EGameFeaturePluginState::ErrorUninstalling ||
+		   GetCurrentState() >= EGameFeaturePluginState::StatusKnown;
 }
 
 bool UGameFeaturePluginStateMachine::IsAvailable() const
@@ -2094,7 +2590,7 @@ FGameFeaturePluginStateMachineProperties::FGameFeaturePluginStateMachineProperti
 	const FGameFeaturePluginStateRange& DesiredDestination,
 	const FGameFeaturePluginRequestUpdateStateMachine& RequestUpdateStateMachineDelegate,
 	const FGameFeatureStateProgressUpdate& FeatureStateProgressUpdateDelegate)
-	: PluginURL(InPluginURL)
+	: PluginIdentifier(InPluginURL)
 	, Destination(DesiredDestination)
 	, OnRequestUpdateStateMachine(RequestUpdateStateMachineDelegate)
 	, OnFeatureStateProgressUpdate(FeatureStateProgressUpdateDelegate)
@@ -2103,71 +2599,265 @@ FGameFeaturePluginStateMachineProperties::FGameFeaturePluginStateMachineProperti
 
 EGameFeaturePluginProtocol FGameFeaturePluginStateMachineProperties::GetPluginProtocol() const
 {
-	if (CachedPluginProtocol != EGameFeaturePluginProtocol::Unknown)
+	if (PluginIdentifier.PluginProtocol != EGameFeaturePluginProtocol::Unknown)
 	{
-		return CachedPluginProtocol;
+		return PluginIdentifier.PluginProtocol;
+	}
+	else
+	{
+		ensureAlwaysMsgf(false, TEXT("No cached valid EGameFeaturePluginProtocol in our PluginIdentifier!"));
+		return UGameFeaturesSubsystem::GetPluginURLProtocol(PluginIdentifier.GetFullPluginURL());
+	}
+}
+
+FInstallBundlePluginProtocolMetaData::FInstallBundlePluginProtocolMetaData()
+{
+	ResetToDefaults();
+}
+
+void FInstallBundlePluginProtocolMetaData::ResetToDefaults()
+{
+	InstallBundles.Reset();
+	VersionNum = FDefaultValues::CurrentVersionNum;
+	bUninstallBeforeTerminate = FDefaultValues::Default_bUninstallBeforeTerminate;
+	bUserPauseDownload = FDefaultValues::Default_bUserPauseDownload;
+	InstallBundleFlags = FDefaultValues::Default_InstallBundleFlags;
+}
+
+FString FInstallBundlePluginProtocolMetaData::ToString() const
+{
+	FString ReturnedString;
+
+	//Always encode InstallBundles
+	ReturnedString = LexToString(EGameFeatureInstallBundleProtocolOptions::Bundles) + UE::GameFeatures::PluginURLStructureInfo::OptionAssignOperator;
+	for (const FName& BundleName : InstallBundles)
+	{
+		ReturnedString.Append(BundleName.ToString());
 	}
 
-	for (EGameFeaturePluginProtocol Proto : TEnumRange<EGameFeaturePluginProtocol>())
+	//Always encode version
+	ReturnedString.Append(FString::Printf(TEXT("%s%s%s%d"), UE::GameFeatures::PluginURLStructureInfo::OptionSeperator, *LexToString(EGameFeatureInstallBundleProtocolOptions::Version), UE::GameFeatures::PluginURLStructureInfo::OptionAssignOperator, VersionNum));
+
+	//Encode InstallBundleFlags if not the default
+	if (InstallBundleFlags != FDefaultValues::Default_InstallBundleFlags)
 	{
-		const TCHAR* Prefix = UE::GameFeatures::GameFeaturePluginProtocolPrefix(Proto);
-		if (Prefix && *Prefix && PluginURL.StartsWith(Prefix))
+		ReturnedString.Append(FString::Printf(TEXT("%s%s%s%d"), UE::GameFeatures::PluginURLStructureInfo::OptionSeperator, *LexToString(EGameFeatureInstallBundleProtocolOptions::Flags), UE::GameFeatures::PluginURLStructureInfo::OptionAssignOperator, static_cast<uint32>(InstallBundleFlags)));
+	}
+
+	//Encode bUninstallBeforeTerminate if not the default
+	if (bUninstallBeforeTerminate != FDefaultValues::Default_bUninstallBeforeTerminate)
+	{
+		ReturnedString.Append(FString::Printf(TEXT("%s%s%s%s"), UE::GameFeatures::PluginURLStructureInfo::OptionSeperator, *LexToString(EGameFeatureInstallBundleProtocolOptions::UninstallBeforeTerminate), UE::GameFeatures::PluginURLStructureInfo::OptionAssignOperator, *LexToString(bUninstallBeforeTerminate)));
+	}
+
+	//Encode bUserPauseDownload if not the default
+	if (bUserPauseDownload != FDefaultValues::Default_bUserPauseDownload)
+	{
+		ReturnedString.Append(FString::Printf(TEXT("%s%s%s%s"), UE::GameFeatures::PluginURLStructureInfo::OptionSeperator, *LexToString(EGameFeatureInstallBundleProtocolOptions::UserPauseDownload), UE::GameFeatures::PluginURLStructureInfo::OptionAssignOperator, *LexToString(bUserPauseDownload)));
+	}
+
+	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 5, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
+
+	return ReturnedString;
+}
+
+bool FInstallBundlePluginProtocolMetaData::FromString(const FString& URLString, FInstallBundlePluginProtocolMetaData& Metadata)
+{
+	bool bParseSuccess = true;
+	TArray<FString> URLOptions;
+	URLString.ParseIntoArray(URLOptions, UE::GameFeatures::PluginURLStructureInfo::OptionSeperator);
+
+	Metadata.ResetToDefaults();
+
+	if (URLOptions.Num() > 0)
+	{
+		ensureAlwaysMsgf(URLOptions[0].StartsWith(UE::GameFeatures::GameFeaturePluginProtocolPrefix(EGameFeaturePluginProtocol::InstallBundle)), TEXT("Unexpected URL Format! Expected Protocol and uplugin information at the beginning of the URL %s"), *URLString);
+
+		//Parse through our URLOptions. Start at ParsingIndex 1 as option 0 should always be the .uplugin path that doesn't contain metadata
+		for (int ParsingIndex = 1; ParsingIndex < URLOptions.Num(); ++ParsingIndex)
 		{
-			CachedPluginProtocol = Proto;
-			break;
+			const FString& URLOption = URLOptions[ParsingIndex];
+	
+			TArray<FString> OptionStrings;
+			URLOption.ParseIntoArray(OptionStrings, UE::GameFeatures::PluginURLStructureInfo::OptionAssignOperator);
+
+			if (OptionStrings.Num() > 0)
+			{
+				EGameFeatureInstallBundleProtocolOptions OptionEnum = LexFromString(OptionStrings[0]);
+
+				switch (OptionEnum)
+				{
+					case EGameFeatureInstallBundleProtocolOptions::Bundles:
+					{
+						if (OptionStrings.Num() != 2)
+						{
+							bParseSuccess = false;
+							UE_LOG(LogGameFeatures, Error, TEXT("Error parsing InstallBundle protocol options URL %s . No Valid Bundle List Found!"), *URLString);
+						}
+						else
+						{
+							TArray<FString> BundleNames;
+							OptionStrings[1].ParseIntoArray(BundleNames, TEXT(","));
+
+							Metadata.InstallBundles.Reserve(BundleNames.Num());
+							for (FString& BundleNameString : BundleNames)
+		{
+								Metadata.InstallBundles.Add(*BundleNameString);
+							}
+						}
+
+						break;
+					}
+
+					case EGameFeatureInstallBundleProtocolOptions::Version:
+					{
+						if (OptionStrings.Num() != 2)
+						{
+							bParseSuccess = false;
+							UE_LOG(LogGameFeatures, Warning, TEXT("Error parsing InstallBundle protocol options URL %s . Invalid Version Option!"), *URLString);
+						}
+						else
+						{
+							Metadata.VersionNum = FCString::Strtoi(*OptionStrings[1], nullptr, 10);
+							if (Metadata.VersionNum != FDefaultValues::CurrentVersionNum)
+							{
+								ensureAlwaysMsgf(false, TEXT("Mismatched version number for URL %s ! URL was generated on a previous version and might be missing data!"));
+							}
+						}
+
+						break;
+					}
+
+					case EGameFeatureInstallBundleProtocolOptions::Flags:
+					{
+						if (OptionStrings.Num() != 2)
+						{
+							bParseSuccess = false;
+							UE_LOG(LogGameFeatures, Warning, TEXT("Error parsing InstallBundle protocol options URL %s . Invalid Flags Option!"), *URLString);
+						}
+						//Expect to parse uint32 flag version of this as a 2nd parameter
+						else
+						{
+							Metadata.InstallBundleFlags = static_cast<EInstallBundleRequestFlags>(FCString::Strtoi(*OptionStrings[1], nullptr, 10));
+						}
+
+						break;
+					}
+
+					case EGameFeatureInstallBundleProtocolOptions::UninstallBeforeTerminate:
+					{
+						if (OptionStrings.Num() != 2)
+						{
+							bParseSuccess = false;
+							UE_LOG(LogGameFeatures, Warning, TEXT("Error parsing InstallBundle protocol options URL %s . Invalid UninstallBeforeTerminate Option!"), *URLString);
+						}
+						else
+						{
+							Metadata.bUninstallBeforeTerminate = OptionStrings[1].ToBool();
+						}
+
+						break;
+					}
+
+					case EGameFeatureInstallBundleProtocolOptions::UserPauseDownload:
+					{
+						if (OptionStrings.Num() != 2)
+						{
+							bParseSuccess = false;
+							UE_LOG(LogGameFeatures, Warning, TEXT("Error parsing InstallBundle protocol options URL %s . Invalid UserPauseDownload Option!"), *URLString);
+						}
+						else
+						{
+							Metadata.bUserPauseDownload = OptionStrings[1].ToBool();
+						}
+
+						break;
+					}
+
+					case EGameFeatureInstallBundleProtocolOptions::Count:
+					default:
+					{
+						bParseSuccess = false;
+						UE_LOG(LogGameFeatures, Error, TEXT("Error parsing InstallBundle protocol options for URL %s . Unknown Option %s"), *URLString, *URLOption);
+
+						break;
+					}
+				}
+			}
 		}
 	}
+	//We require to have InstallBundle names for this URL parse to be correct
+	if (Metadata.InstallBundles.Num() == 0)
+	{
+		bParseSuccess = false;
+		UE_LOG(LogGameFeatures, Error, TEXT("Error parsing InstallBundle protocol options URL %s . No Bundle List Found!"), *URLString);
+	}
 
-	return CachedPluginProtocol;
+	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 5, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
+
+	return bParseSuccess;
 }
 
 bool FGameFeaturePluginStateMachineProperties::ParseURL()
 {
-	if (GetPluginProtocol() == EGameFeaturePluginProtocol::File)
+	if (!ensureMsgf(!PluginIdentifier.IdentifyingURLSubset.IsEmpty(), TEXT("Unexpected empty IdentifyingURLSubset while parsing URL!")))
 	{
-		PluginInstalledFilename = PluginURL.RightChop(
-			FCString::Strlen(UE::GameFeatures::GameFeaturePluginProtocolPrefix(EGameFeaturePluginProtocol::File)));
-	}
-	else if (GetPluginProtocol() == EGameFeaturePluginProtocol::InstallBundle)
-	{
-		int32 CursorIdx = FCString::Strlen(UE::GameFeatures::GameFeaturePluginProtocolPrefix(EGameFeaturePluginProtocol::InstallBundle));
-		int32 QueryIdx = PluginURL.Find(TEXT("?"), ESearchCase::IgnoreCase, ESearchDir::FromStart, CursorIdx);
-		if (QueryIdx == INDEX_NONE)
-		{
-			return false;
-		}
-		
-		PluginInstalledFilename = PluginURL.Mid(CursorIdx, QueryIdx - CursorIdx);
-		CursorIdx = QueryIdx + 1;
-		
-		FString BundleNamesString = PluginURL.Mid(CursorIdx);
-		TArray<FString> BundleNames;
-		BundleNamesString.ParseIntoArray(BundleNames, TEXT(","));
-		if (BundleNames.Num() == 0)
-		{
-			return false;
-		}
-
-		UE::GameFeatures::FInstallBundlePluginProtocolMetaData& MetaData = *ProtocolMetadata.SetSubtype<UE::GameFeatures::FInstallBundlePluginProtocolMetaData>();
-		MetaData.InstallBundles.Reserve(BundleNames.Num());
-		for (FString& BundleNameString : BundleNames)
-		{
-			MetaData.InstallBundles.Add(*BundleNameString);
-		}
-	}
-	else
-	{
-		ensureMsgf(false, TEXT("Unknown protocol for PluginURL: %s"), *PluginURL);
 		return false;
 	}
 
+	//The current IdentifyingURLSubset IS the same as the PluginInstalledFilename, so just use the already parsed version
+	PluginInstalledFilename = PluginIdentifier.IdentifyingURLSubset;
 	PluginName = FPaths::GetBaseFilename(PluginInstalledFilename);
 
 	if (PluginInstalledFilename.IsEmpty() || !PluginInstalledFilename.EndsWith(TEXT(".uplugin")))
 	{
-		ensureMsgf(false, TEXT("PluginInstalledFilename must have a uplugin extension. PluginURL: %s"), *PluginURL);
+		ensureMsgf(false, TEXT("PluginInstalledFilename must have a uplugin extension. PluginInstalledFilename: %s"), *PluginInstalledFilename);
 		return false;
 	}
 
+	//Do additional parsing of our Metadata from the options on our remaining URL
+	if (GetPluginProtocol() == EGameFeaturePluginProtocol::InstallBundle)
+	{
+		FInstallBundlePluginProtocolMetaData& MetaData = *ProtocolMetadata.SetSubtype<FInstallBundlePluginProtocolMetaData>();
+		if (!FInstallBundlePluginProtocolMetaData::FromString(PluginIdentifier.GetFullPluginURL(), MetaData))
+		{
+			ensureMsgf(false, TEXT("Failure to parse URL %s into a valid FInstallBundlePluginProtocolMetaData"), *PluginIdentifier.GetFullPluginURL());
+			return false;
+		}
+	}
+
+	static_assert(static_cast<uint8>(EGameFeaturePluginProtocol::Count) == 3, "Update FGameFeaturePluginStateMachineProperties::ParseURL to handle any new Metadata parsing required for new EGameFeaturePluginProtocol. If no metadata is required just increment this counter.");
+
 	return true;
+}
+
+bool FGameFeaturePluginStateMachineProperties::ValidateURLUpdate(const FGameFeaturePluginStateMachineProperties& OldProperties) const
+{
+	bool bIsValidUpdate = false;
+
+	//Should never change our Identifier or PluginProtocol
+	bIsValidUpdate = ((PluginIdentifier == OldProperties.PluginIdentifier) &&
+						(GetPluginProtocol() == OldProperties.GetPluginProtocol()));
+
+	if (bIsValidUpdate && (GetPluginProtocol() == EGameFeaturePluginProtocol::InstallBundle))
+	{
+		if (!ensureAlwaysMsgf((ProtocolMetadata.HasSubtype<FInstallBundlePluginProtocolMetaData>() && 
+								OldProperties.ProtocolMetadata.HasSubtype<FInstallBundlePluginProtocolMetaData>())
+								,TEXT("Error with InstallBundle protocol FGameFeaturePluginStateMachineProperties having an invalid ProtocolMetadata. URL: %s")
+								,*PluginIdentifier.GetFullPluginURL()))
+		{
+			
+			return false;
+		}
+
+		const FInstallBundlePluginProtocolMetaData& NewMetaData = ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>();
+		const FInstallBundlePluginProtocolMetaData& OldMetaData = OldProperties.ProtocolMetadata.GetSubtype<FInstallBundlePluginProtocolMetaData>();
+
+		if (!ensureMsgf((NewMetaData.InstallBundles == OldMetaData.InstallBundles), TEXT("Unexpected change in InstallBundles when updating URL: %s to %s"), *PluginIdentifier.GetFullPluginURL(), *OldProperties.PluginIdentifier.GetFullPluginURL()))
+		{
+			bIsValidUpdate = false;
+		}
+	}
+
+	return bIsValidUpdate;
 }

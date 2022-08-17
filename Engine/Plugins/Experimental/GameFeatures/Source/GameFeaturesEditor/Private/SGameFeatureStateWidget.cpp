@@ -68,7 +68,7 @@ FText SGameFeatureStateWidget::GetDisplayNameOfState(EGameFeaturePluginState Sta
 
 FText SGameFeatureStateWidget::GetTooltipOfState(EGameFeaturePluginState State)
 {
-	static_assert((int32)EGameFeaturePluginState::MAX == 26, "");
+	static_assert((int32)EGameFeaturePluginState::MAX == 28, "");
 
 	switch (State)
 	{
@@ -78,6 +78,10 @@ FText SGameFeatureStateWidget::GetTooltipOfState(EGameFeaturePluginState State)
 		return LOCTEXT("StateTooltip_Terminal", "Final State before removal of the state machine");
 	case EGameFeaturePluginState::UnknownStatus:
 		return LOCTEXT("StateTooltip_UnknownStatus", "Initialized, but the only thing known is the URL to query status.");
+	case EGameFeaturePluginState::Uninstalling:
+		return LOCTEXT("StateTooltip_Uninstalling", "Transition state between StatusKnown -> Terminal for any plugin that can have data that needs to have local datat uninstalled.");
+	case EGameFeaturePluginState::ErrorUninstalling:
+		return LOCTEXT("StateTooltip_Error Uninstalling", "Error state for Uninstalling -> Terminal transition.");
 	case EGameFeaturePluginState::CheckingStatus:
 		return LOCTEXT("StateTooltip_CheckingStatus", "Transition state UnknownStatus -> StatusKnown. The status is in the process of being queried.");
 	case EGameFeaturePluginState::ErrorCheckingStatus:
@@ -86,10 +90,10 @@ FText SGameFeatureStateWidget::GetTooltipOfState(EGameFeaturePluginState State)
 		return LOCTEXT("StateTooltip_ErrorUnavailable", "Error state for UnknownStatus -> StatusKnown transition.");
 	case EGameFeaturePluginState::StatusKnown:
 		return LOCTEXT("StateTooltip_StatusKnown", "The plugin's information is known, but no action has taken place yet.");
-	case EGameFeaturePluginState::ErrorInstalling:
-		return LOCTEXT("StateTooltip_ErrorInstalling", "Error state for Installed -> StatusKnown and StatusKnown -> Installed transitions.");
-	case EGameFeaturePluginState::Uninstalling:
-		return LOCTEXT("StateTooltip_Uninstalling", "Transition state Installed -> StatusKnown. In the process of removing from local storage.");
+	case EGameFeaturePluginState::Releasing:
+		return LOCTEXT("StateTooltip_Releasing", "Transition State for Installed -> StatusKnown. Releases local data from any relevant caches.");
+	case EGameFeaturePluginState::ErrorManagingData:
+		return LOCTEXT("StateTooltip_ErrorManagingData", "Error state for Installed -> StatusKnown and StatusKnown -> Installed transitions.");
 	case EGameFeaturePluginState::Downloading:
 		return LOCTEXT("StateTooltip_Downloading", "Transition state StatusKnown -> Installed. In the process of adding to local storage.");
 	case EGameFeaturePluginState::Installed:
