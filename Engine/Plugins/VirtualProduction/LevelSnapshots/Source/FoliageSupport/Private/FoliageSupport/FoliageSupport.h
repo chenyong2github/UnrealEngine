@@ -21,17 +21,10 @@ namespace UE::LevelSnapshots::Foliage::Private
 	{
 		/** Just used to verify snapshots is in a valid state */
 		TWeakObjectPtr<AInstancedFoliageActor> CurrentFoliageActor;
-
-		/** Holds the verionn info of the last serialized foliage actor. Set by PostApplySnapshotProperties. */
-		FCustomVersionContainer CurrentVersionInfo;
-		/** Holds the foliage data serialized foliage actor. Set by PostApplySnapshotProperties. */
-		FInstancedFoliageActorData CurrentFoliageData;
-
-		TArray<UFoliageType*> FoliageTypesToRemove;
 		
 	public:
 
-		using ICustomObjectSnapshotSerializer::PreApplySnapshotProperties; 
+		using ICustomObjectSnapshotSerializer::PreApplyToSnapshotObject; 
 		
 		static void Register(ILevelSnapshotsModule& Module);
 
@@ -44,7 +37,7 @@ namespace UE::LevelSnapshots::Foliage::Private
 		virtual UObject* FindOrRecreateSubobjectInSnapshotWorld(UObject* SnapshotObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override { checkNoEntry(); return nullptr; }
 		virtual UObject* FindOrRecreateSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override { checkNoEntry(); return nullptr; }
 		virtual UObject* FindSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override { checkNoEntry(); return nullptr; }
-		virtual void PostApplySnapshotProperties(UObject* Object, const ICustomSnapshotSerializationData& DataStorage) override;
+		virtual void PostApplyToEditorObject(UObject* Object, const ICustomSnapshotSerializationData& DataStorage, const FPropertySelectionMap& SelectionMap) override;
 		//~ End ICustomObjectSnapshotSerializer Interface
 		
 		//~ Begin IRestorationListener Interface

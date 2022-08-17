@@ -192,7 +192,7 @@ namespace UE::LevelSnapshots::Private::Internal
 bool FWorldSnapshotData::Serialize(FArchive& Ar)
 {
 	using namespace UE::LevelSnapshots::Private;
-	Ar.UsingCustomVersion(FSnapshotCustomVersion::GUID);
+	Ar.UsingCustomVersion(UE::LevelSnapshots::FSnapshotCustomVersion::GUID);
 
 	// When this struct is saved, the save algorithm collects references. It's faster if we just give it the info directly.
 	if (Ar.IsObjectReferenceCollector())
@@ -213,7 +213,7 @@ bool FWorldSnapshotData::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
-		if (Ar.CustomVer(FSnapshotCustomVersion::GUID) >= FSnapshotCustomVersion::OoddleCompression)
+		if (Ar.CustomVer(UE::LevelSnapshots::FSnapshotCustomVersion::GUID) >= UE::LevelSnapshots::FSnapshotCustomVersion::OoddleCompression)
 		{
 			UE::LevelSnapshots::Decompress(Ar, *this);
 			return true;
@@ -242,7 +242,7 @@ void FWorldSnapshotData::PostSerialize(const FArchive& Ar)
 	}
 	
 	if (Ar.IsLoading()
-		&& Ar.CustomVer(FSnapshotCustomVersion::GUID) < FSnapshotCustomVersion::ClassArchetypeRefactor)
+		&& Ar.CustomVer(UE::LevelSnapshots::FSnapshotCustomVersion::GUID) < UE::LevelSnapshots::FSnapshotCustomVersion::ClassArchetypeRefactor)
 	{
 		MigrateClassDefaultData(*this);
 	}

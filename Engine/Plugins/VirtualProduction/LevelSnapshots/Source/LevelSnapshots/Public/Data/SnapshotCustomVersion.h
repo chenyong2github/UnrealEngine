@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
 
-namespace UE::LevelSnapshots::Private
+namespace UE::LevelSnapshots
 {
 	struct LEVELSNAPSHOTS_API FSnapshotCustomVersion
 	{
@@ -25,6 +25,9 @@ namespace UE::LevelSnapshots::Private
 
 			/** FWorldSnapshotData now compresses data using oodle before it is saved to disk */
 			OoddleCompression = 4,
+
+			/** Before this soft object references were saved by FCustomSerializationDataWriter using FObjectAndNameAsStringProxyArchive - if you moved the asset our data would get corrupted. */
+			CustomSubobjectSoftObjectPathRefactor = 5,
 
 			// -----<new versions can be added above this line>-------------------------------------------------
 			VersionPlusOne,

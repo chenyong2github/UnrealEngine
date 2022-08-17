@@ -40,7 +40,7 @@ namespace UE::LevelSnapshots::Private::Internal
 		}
 
 		FCustomSerializationDataReader SerializationDataReader = FCustomSerializationDataReader(FCustomSerializationDataGetter_ReadOnly::CreateLambda([SerializationDataGetter](){ return SerializationDataGetter();}), WorldData);
-		CustomSerializer->PreApplySnapshotProperties(SnapshotObject, SerializationDataReader);
+		CustomSerializer->PreApplyToSnapshotObject(SnapshotObject, SerializationDataReader);
 		return FRestoreObjectScope([SnapshotObject, SerializationDataGetter, &WorldData, &Cache, &ProcessObjectDependency, LocalisationSnapshotPackage, SerializationDataReader, CustomSerializer]()
 		{
 			for (int32 i = 0; i < SerializationDataReader.GetNumSubobjects(); ++i)
@@ -60,7 +60,7 @@ namespace UE::LevelSnapshots::Private::Internal
 				CustomSerializer->OnPostSerializeSnapshotSubobject(SnapshotSubobject, *MetaData, SerializationDataReader);
 			}
 
-			CustomSerializer->PostApplySnapshotProperties(SnapshotObject, SerializationDataReader);
+			CustomSerializer->PostApplyToSnapshotObject(SnapshotObject, SerializationDataReader);
 		});	
 	}
 
@@ -84,7 +84,7 @@ namespace UE::LevelSnapshots::Private::Internal
 		}
 		
 		FCustomSerializationDataReader SerializationDataReader = FCustomSerializationDataReader(FCustomSerializationDataGetter_ReadOnly::CreateLambda([SerializationDataGetter](){ return SerializationDataGetter(); }), WorldData);
-		CustomSerializer->PreApplySnapshotProperties(EditorObject, SerializationDataReader);
+		CustomSerializer->PreApplyToEditorObject(EditorObject, SerializationDataReader, SelectionMap);
 		return FRestoreObjectScope([SnapshotObject, EditorObject, &WorldData, &Cache, &SelectionMap, LocalisationSnapshotPackage, SerializationDataGetter, SerializationDataReader, CustomSerializer]()
 		{
 			for (int32 i = 0; i < SerializationDataReader.GetNumSubobjects(); ++i)
@@ -139,7 +139,7 @@ namespace UE::LevelSnapshots::Private::Internal
 				UE_LOG(LogLevelSnapshots, Warning, TEXT("Editor subobject %s was not restored"), *EditorSubobject->GetPathName());	
 			}
 
-			CustomSerializer->PostApplySnapshotProperties(EditorObject, SerializationDataReader);
+			CustomSerializer->PostApplyToEditorObject(EditorObject, SerializationDataReader, SelectionMap);
 		});	
 	}
 }

@@ -11,11 +11,6 @@
 
 namespace UE::LevelSnapshots::Private
 {
-	namespace Internal
-	{
-		class FSnapshotSubobjectMetaDataManager;
-	}
-	
 	DECLARE_DELEGATE_RetVal(const FCustomSerializationData*, FCustomSerializationDataGetter_ReadOnly);
 	DECLARE_DELEGATE_RetVal(FCustomSerializationData*, FCustomSerializationDataGetter_ReadWrite);
 
@@ -35,7 +30,7 @@ namespace UE::LevelSnapshots::Private
 	protected:
 		
 		/** To avoid dynamically allocating memory every time GetSubobjectMetaData is called, we cache the results here. Just to improve heap memory footprint a tiny bit. */
-		TArray<TSharedPtr<Internal::FSnapshotSubobjectMetaDataManager>> CachedSubobjectMetaData;
+		TArray<TSharedPtr<ISnapshotSubobjectMetaData>> CachedSubobjectMetaData;
 		
 		/** Looks up actor or subobject  serialization data. Used instead of reference because some functions, like TakeSubobjectSnapshot, cause FWorldSnapshotData::CustomSubobjectSerializationData to reallocate. */
 		FCustomSerializationDataGetter_ReadOnly SerializationDataGetter_ReadOnly;

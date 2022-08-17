@@ -12,6 +12,7 @@
 #include "FoliageHelper.h"
 #include "ILevelSnapshotsModule.h"
 #include "InstancedFoliageActor.h"
+#include "SnapshotCustomVersion.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #if WITH_EDITOR
 #include "FoliageEditModule.h"
@@ -77,30 +78,13 @@ void UE::LevelSnapshots::Foliage::Private::FFoliageSupport::OnTakeSnapshot(UObje
 	AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(EditorObject);
 	check(FoliageActor);
 
-	FInstancedFoliageActorData FoliageData;
-	DataStorage.WriteObjectAnnotation(FObjectAnnotator::CreateLambda([&FoliageData, FoliageActor](FArchive& Archive)
+	DataStorage.WriteObjectAnnotation(FObjectAnnotator::CreateLambda([FoliageActor](FArchive& Archive)
 	{
-		FoliageData.Save(Archive.GetCustomVersions(), FoliageActor);
-		Archive << FoliageData;
+		FInstancedFoliageActorData FoliageData;
+		FoliageData.Save(Archive, FoliageActor);
 	}));
 }
 
-void UE::LevelSnapshots::Foliage::Private::FFoliageSupport::PostApplySnapshotProperties(UObject* Object, const ICustomSnapshotSerializationData& DataStorage)
-{
-	AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(Object);
-	check(FoliageActor);
-	
-	// Track this actor for safety so we know for sure that the functions were called in the order we expected them to
-	CurrentFoliageActor = FoliageActor;
-	DataStorage.ReadObjectAnnotation(FObjectAnnotator::CreateLambda([this](FArchive& Archive)
-	{
-		// "Archive" uses versioning information stored in the snapshot: it can just be reused 
-		CurrentVersionInfo = Archive.GetCustomVersions();
-		Archive << CurrentFoliageData;
-	}));
-
-	// Rest is done in PostApplySnapshotToActor (need access to the property selection map)
-}
 
 namespace UE::LevelSnapshots::FoliageSupport::Internal
 {
@@ -145,6 +129,36 @@ namespace UE::LevelSnapshots::FoliageSupport::Internal
 	}
 }
 
+void UE::LevelSnapshots::Foliage::Private::FFoliageSupport::PostApplyToEditorObject(UObject* Object, const ICustomSnapshotSerializationData& DataStorage, const FPropertySelectionMap& SelectionMap)
+{
+	AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(Object);
+	check(FoliageActor);
+	
+	// Track this actor for safety so we know for sure that the functions were called in the order we expected them to
+	CurrentFoliageActor = FoliageActor;
+	DataStorage.ReadObjectAnnotation(FObjectAnnotator::CreateLambda([this, &SelectionMap, FoliageActor](FArchive& Archive)
+	{
+		FInstancedFoliageActorData CurrentFoliageData;
+		if (Archive.CustomVer(FSnapshotCustomVersion::GUID) < FSnapshotCustomVersion::CustomSubobjectSoftObjectPathRefactor)
+		{
+			Archive << CurrentFoliageData;
+		}
+		
+#if WITH_EDITOR
+		// Actor might not have been modified because none of its uproperties were changed
+		FoliageActor->Modify();
+#endif
+
+		const bool bWasRecreated = SelectionMap.GetDeletedActorsToRespawn().Contains(FoliageActor);
+		CurrentFoliageData.ApplyTo(Archive, FoliageActor, SelectionMap, bWasRecreated);
+		FoliageSupport::Internal::RebuildChangedFoliageComponents(FoliageActor, SelectionMap, bWasRecreated);
+
+		FoliageSupport::Internal::UpdateFoliageUI();
+	}));
+
+	// Rest is done in PostApplySnapshotToActor (need access to the property selection map)
+}
+
 void UE::LevelSnapshots::Foliage::Private::FFoliageSupport::PostApplySnapshotToActor(const FApplySnapshotToActorParams& Params)
 {
 	// This is the order of operations up until now
@@ -158,16 +172,6 @@ void UE::LevelSnapshots::Foliage::Private::FFoliageSupport::PostApplySnapshotToA
 	{
 		checkf(FoliageActor == CurrentFoliageActor.Get(), TEXT("PostApplySnapshotToActor was not directly followed by PostApplySnapshotProperties. Investigate."));
 		CurrentFoliageActor.Reset();
-#if WITH_EDITOR
-		// Actor might not have been modified because none of its uproperties were changed
-		FoliageActor->Modify();
-#endif
-
-		CurrentFoliageData.ApplyTo(CurrentVersionInfo, FoliageActor, Params.SelectedProperties, Params.bWasRecreated);
-		UE::LevelSnapshots::FoliageSupport::Internal::RebuildChangedFoliageComponents(FoliageActor, Params.SelectedProperties, Params.bWasRecreated);
-
-		FoliageTypesToRemove.Reset();
-		UE::LevelSnapshots::FoliageSupport::Internal::UpdateFoliageUI();
 	}
 }
 

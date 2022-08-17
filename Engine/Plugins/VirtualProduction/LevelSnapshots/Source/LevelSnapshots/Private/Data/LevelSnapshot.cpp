@@ -2,8 +2,6 @@
 
 #include "Data/LevelSnapshot.h"
 
-#include "CustomSerialization/CustomSerializationDataManager.h"
-#include "Data/SnapshotCustomVersion.h"
 #include "Data/Util/ActorHashUtil.h"
 #include "Data/Util/EquivalenceUtil.h"
 #include "Data/Util/SnapshotUtil.h"
@@ -13,6 +11,7 @@
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "Restorability/SnapshotRestorability.h"
+#include "SnapshotCustomVersion.h"
 #include "SnapshotConsoleVariables.h"
 #include "Util/SortedScopedLog.h"
 
@@ -126,7 +125,7 @@ bool ULevelSnapshot::HasChangedSinceSnapshotWasTaken(AActor* WorldActor)
 	const bool bHasChanged = [&]()
 	{
 		// Do not slow down old snapshots by computing hash if they had none saved
-		const bool bHasHashInfo = SerializedData.SnapshotVersionInfo.GetSnapshotCustomVersion() >= UE::LevelSnapshots::Private::FSnapshotCustomVersion::ActorHash;
+		const bool bHasHashInfo = SerializedData.SnapshotVersionInfo.GetSnapshotCustomVersion() >= UE::LevelSnapshots::FSnapshotCustomVersion::ActorHash;
 		// If the object is already loaded, there is no point in wasting time and computing the hash
 		const bool bNeedsHash = Cache.ActorCache.Find(WorldActor) == nullptr;
 		

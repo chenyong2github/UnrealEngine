@@ -49,7 +49,7 @@ void FSnapshotVersionInfo::Initialize(bool bWithoutSnapshotVersion)
 	for (const FCustomVersion& EngineCustomVersion : AllCurrentVersions.GetAllVersions())
 	{
 		FSnapshotCustomVersionInfo& CustomVersion = CustomVersions.AddDefaulted_GetRef();
-		if (!bWithoutSnapshotVersion || (bWithoutSnapshotVersion && CustomVersion.Key != UE::LevelSnapshots::Private::FSnapshotCustomVersion::GUID))
+		if (!bWithoutSnapshotVersion || (bWithoutSnapshotVersion && CustomVersion.Key != UE::LevelSnapshots::FSnapshotCustomVersion::GUID))
 		{
 			CustomVersion.Initialize(EngineCustomVersion);
 		}
@@ -86,7 +86,7 @@ int32 FSnapshotVersionInfo::GetSnapshotCustomVersion() const
 {
 	for (const FSnapshotCustomVersionInfo& CustomVersion : CustomVersions)
 	{
-		if (CustomVersion.Key == UE::LevelSnapshots::Private::FSnapshotCustomVersion::GUID)
+		if (CustomVersion.Key == UE::LevelSnapshots::FSnapshotCustomVersion::GUID)
 		{
 			return CustomVersion.Version;
 		}

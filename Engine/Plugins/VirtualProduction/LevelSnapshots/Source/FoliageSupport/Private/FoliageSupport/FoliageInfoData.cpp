@@ -4,6 +4,7 @@
 
 #include "InstancedFoliageActor.h"
 #include "LevelSnapshotsLog.h"
+#include "SnapshotCustomVersion.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
@@ -34,34 +35,46 @@ FArchive& UE::LevelSnapshots::Foliage::Private::FFoliageInfoData::SerializeInter
 {
 	Ar << ImplType;
 	Ar << ComponentName;
-	Ar << SerializedData;
+	if (Ar.CustomVer(FSnapshotCustomVersion::GUID) < FSnapshotCustomVersion::CustomSubobjectSoftObjectPathRefactor)
+	{
+		Ar << SerializedData_DEPRECATED;
+	}
+	else
+	{
+		Ar << FoliageInfoArchiveSize;
+	}
 	return Ar;
 }
 
-void UE::LevelSnapshots::Foliage::Private::FFoliageInfoData::Save(FFoliageInfo& DataToReadFrom, const FCustomVersionContainer& VersionInfo)
+void UE::LevelSnapshots::Foliage::Private::FFoliageInfoData::Save(FArchive& Archive, FFoliageInfo& DataToReadFrom)
 {
-	FMemoryWriter MemoryWriter(SerializedData, true);
-	FObjectAndNameAsStringProxyArchive RootArchive(MemoryWriter, false);
-	RootArchive.SetCustomVersions(VersionInfo);
-	
 	ImplType = DataToReadFrom.Type;
 	
 	const bool bIsComponentValid = DataToReadFrom.GetComponent() != nullptr; 
 	ComponentName = bIsComponentValid ? DataToReadFrom.GetComponent()->GetFName() : FName(NAME_None);
 	UE_CLOG(!bIsComponentValid, LogLevelSnapshots, Warning, TEXT("Could not save component for ImplType %s"), *AsName(ImplType));
 
-	RootArchive << DataToReadFrom;
+	int64 ArchivePos = Archive.Tell();
+	Archive << DataToReadFrom;
+	FoliageInfoArchiveSize = Archive.Tell() - ArchivePos;
 }
 
-void UE::LevelSnapshots::Foliage::Private::FFoliageInfoData::ApplyTo(FFoliageInfo& DataToWriteInto, const FCustomVersionContainer& VersionInfo) const
+void UE::LevelSnapshots::Foliage::Private::FFoliageInfoData::ApplyTo(FArchive& Archive, FFoliageInfo& DataToWriteInto) const
 {
-	FMemoryReader MemoryReader(SerializedData, true);
-	FObjectAndNameAsStringProxyArchive RootArchive(MemoryReader, false);
-	RootArchive.SetCustomVersions(VersionInfo);
-	
 	// Avoid foliage internal checks
 	DataToWriteInto.Implementation.Reset();
 	
-	RootArchive << DataToWriteInto;
+	if (Archive.CustomVer(FSnapshotCustomVersion::GUID) >= FSnapshotCustomVersion::CustomSubobjectSoftObjectPathRefactor)
+	{
+		Archive << DataToWriteInto;
+	}
+	else
+	{
+		FMemoryReader MemoryReader(SerializedData_DEPRECATED, true);
+		FObjectAndNameAsStringProxyArchive RootArchive(MemoryReader, false);
+		RootArchive.SetCustomVersions(Archive.GetCustomVersions());
+		RootArchive << DataToWriteInto;
+	}
+	
 	DataToWriteInto.RecomputeHash();
 }

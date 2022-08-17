@@ -220,7 +220,7 @@ namespace UE::LevelSnapshots::Private::ActorGroupRestoration
 
 				// Hacky way of forcing GroupActor to reconsider whether it should exist...
 				// References can fail to restore ... possibly there are no children
-				GroupActor->Remove(*GroupActor);
+				GroupActor->Remove(*Cast<AGroupActor>(Params.Actor)); // Silly cast used here to fix silly static analysis warning...
 			}
 		}
 

@@ -117,11 +117,19 @@ namespace UE::LevelSnapshots::Private::Tests
 				CallOrder.Add(EFunctionCall::OnPostSerializeEditorSubobject);
 			}
 		
-			virtual void PreApplySnapshotProperties(UObject* OriginalObject, const ICustomSnapshotSerializationData& DataStorage) override
+			virtual void PreApplyToSnapshotObject(UObject* OriginalObject, const ICustomSnapshotSerializationData& DataStorage) override
 			{
 				CallOrder.Add(EFunctionCall::PreApplySnapshotProperties);
 			}
-			virtual void PostApplySnapshotProperties(UObject* OriginalObject, const ICustomSnapshotSerializationData& DataStorage) override
+			virtual void PostApplyToSnapshotObject(UObject* OriginalObject, const ICustomSnapshotSerializationData& DataStorage) override
+			{
+				CallOrder.Add(EFunctionCall::PostApplySnapshotProperties);
+			}
+			virtual void PreApplyToEditorObject(UObject* OriginalObject, const ICustomSnapshotSerializationData& DataStorage, const FPropertySelectionMap& SelectionMap) override
+			{
+				CallOrder.Add(EFunctionCall::PreApplySnapshotProperties);
+			}
+			virtual void PostApplyToEditorObject(UObject* OriginalObject, const ICustomSnapshotSerializationData& DataStorage, const FPropertySelectionMap& SelectionMap) override
 			{
 				CallOrder.Add(EFunctionCall::PostApplySnapshotProperties);
 			}
@@ -244,7 +252,7 @@ namespace UE::LevelSnapshots::Private::Tests
 				return Actor->NonReflectedSubobject.Get();
 			}
 
-			virtual void PostApplySnapshotProperties(UObject* OriginalObject, const ICustomSnapshotSerializationData& DataStorage) override
+			virtual void PostApplyToSnapshotObject(UObject* OriginalObject, const ICustomSnapshotSerializationData& DataStorage) override
 			{
 				ASnapshotTestActor* Actor = Cast<ASnapshotTestActor>(OriginalObject);
 				DataStorage.ReadObjectAnnotation(FObjectAnnotator::CreateLambda([Actor](FArchive& Archive)

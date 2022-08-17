@@ -17,17 +17,23 @@ namespace UE::LevelSnapshots::Foliage::Private
 	{
 		TSubclassOf<UFoliageType> Class;
 		FName SubobjectName;
-		TArray<uint8> SerializedSubobjectData;
+		
+		/** Used before FSnapshotCustomVersion::CustomSubobjectSoftObjectPathRefactor*/
+		TArray<uint8> SerializedSubobjectData_DEPRECATED;
+		/** Added after FSnapshotCustomVersion::CustomSubobjectSoftObjectPathRefactor */
+		int64 FoliageTypeArchiveSize = 0;
 
 		FArchive& SerializeInternal(FArchive& Ar);
 	
 	public:
 
-		void Save(UFoliageType* FoliageSubobject, FFoliageInfo& FoliageInfo, const FCustomVersionContainer& VersionInfo);
+		void Save(FArchive& Archive, UFoliageType* FoliageSubobject, FFoliageInfo& FoliageInfo);
 	
 		UFoliageType* FindOrRecreateSubobject(AInstancedFoliageActor* Outer) const;
-		void ApplyTo(UFoliageType* FoliageSubobject, const FCustomVersionContainer& VersionInfo) const;
-		void ApplyTo(FFoliageInfo& DataToWriteInto, const FCustomVersionContainer& VersionInfo) const;
+		bool ApplyToFoliageType(FArchive& Archive, UFoliageType* FoliageSubobject) const;
+		void ApplyToFoliageInfo(FArchive& Archive, FFoliageInfo& DataToWriteInto) const;
+
+		int64 GetFoliageTypeArchiveSize() const { return FoliageTypeArchiveSize; }
 		
 		friend FArchive& operator<<(FArchive& Ar, FSubobjectFoliageInfoData& Data)
 		{

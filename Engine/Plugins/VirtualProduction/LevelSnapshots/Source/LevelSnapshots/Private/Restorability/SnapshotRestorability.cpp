@@ -226,7 +226,7 @@ bool UE::LevelSnapshots::Restorability::ShouldConsiderRemovedActorForRecreation(
 	const bool bTransacts = (Params.ObjectFlags& RF_Transactional) != 0;
 	const bool bWereFlagsSaved = Params.ObjectFlags != 0 // Objects usually have at least one flag so if it's 0 then it is very likely the flags were not saved...
 		// ... support for saving flags was added some time before ClassArchetypeRefactor. We check against ClassArchetypeRefactor for the unlikely case that in the future an object really has no flags.
-		|| Params.WorldData.SnapshotVersionInfo.GetSnapshotCustomVersion() >= LevelSnapshots::Private::FSnapshotCustomVersion::ClassArchetypeRefactor;
+		|| Params.WorldData.SnapshotVersionInfo.GetSnapshotCustomVersion() >= FSnapshotCustomVersion::ClassArchetypeRefactor;
 	
 	return (bTransacts || !bWereFlagsSaved)
 		&& LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().CanRecreateActor(Params);

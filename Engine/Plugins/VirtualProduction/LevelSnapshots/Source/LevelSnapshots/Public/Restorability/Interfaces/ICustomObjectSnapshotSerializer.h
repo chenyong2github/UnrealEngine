@@ -91,12 +91,27 @@ namespace UE::LevelSnapshots
 
 
 		
-		/** Optional. Called before properties are applied to an object for which this interface was registered. Called on both snapshot and editor world versions. */
-		virtual void PreApplySnapshotProperties(UObject* Object, const ICustomSnapshotSerializationData& DataStorage) {}
+		/** Optional. Called before properties are applied to anobject for which this interface was registered. Called on the object in the transient snapshot world. */
+		virtual void PreApplyToSnapshotObject(UObject* Object, const ICustomSnapshotSerializationData& DataStorage) {}
 		
-		/** Optional. Called after properties are applied to an object for which this interface was registered. Called on both snapshot and editor world versions. */
-		virtual void PostApplySnapshotProperties(UObject* Object, const ICustomSnapshotSerializationData& DataStorage) {}
+		/** Optional. Called after properties are applied to an object for which this interface was registered. Called on the object in the transient snapshot world. */
+		virtual void PostApplyToSnapshotObject(UObject* Object, const ICustomSnapshotSerializationData& DataStorage) {}
 
+
+		
+		/** Optional. Called before properties are applied to anobject for which this interface was registered. Called on the object in the editor world. */
+		virtual void PreApplyToEditorObject(UObject* Object, const ICustomSnapshotSerializationData& DataStorage, const FPropertySelectionMap& SelectionMap)
+		{
+			// Calling it for convenience... usually the implementation is equal
+			PreApplyToSnapshotObject(Object, DataStorage);
+		}
+		
+		/** Optional. Called after properties are applied to an object for which this interface was registered. Called on the object in the editor world. */
+		virtual void PostApplyToEditorObject(UObject* Object, const ICustomSnapshotSerializationData& DataStorage, const FPropertySelectionMap& SelectionMap)
+		{
+			// Calling it for convenience... usually the implementation is equal
+			PostApplyToSnapshotObject(Object, DataStorage);
+		}
 
 		
 		virtual ~ICustomObjectSnapshotSerializer() = default;

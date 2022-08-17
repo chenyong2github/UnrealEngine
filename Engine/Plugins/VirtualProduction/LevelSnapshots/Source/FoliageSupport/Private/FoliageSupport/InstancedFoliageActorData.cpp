@@ -2,6 +2,7 @@
 
 #include "FoliageSupport/InstancedFoliageActorData.h"
 
+#include "FoliageType.h"
 #include "FoliageRestorationInfo.h"
 #include "LevelSnapshotsLog.h"
 #include "Selection/PropertySelectionMap.h"
@@ -10,15 +11,16 @@
 
 namespace UE::LevelSnapshots::Foliage::Private::Internal
 {
-	static void SaveAsset(UFoliageType* FoliageType, FFoliageInfo& FoliageInfo, TMap<TSoftObjectPtr<UFoliageType>, FFoliageInfoData>& FoliageAssets, const FCustomVersionContainer& VersionInfo)
+	static void SaveAsset(FArchive& Archive, UFoliageType* FoliageType, FFoliageInfo& FoliageInfo, TMap<TSoftObjectPtr<UFoliageType>, FFoliageInfoData>& FoliageAssets)
 	{
-		FoliageAssets.Add(FoliageType).Save(FoliageInfo, VersionInfo);
+		FFoliageInfoData& InfoData = FoliageAssets.Add(FoliageType);
+		InfoData.Save(Archive, FoliageInfo);
 	}
 	
-	static void SaveSubobject(UFoliageType* FoliageType, FFoliageInfo& FoliageInfo,TArray<FSubobjectFoliageInfoData>& SubobjectData, const FCustomVersionContainer& VersionInfo)
+	static void SaveSubobject(FArchive& Archive, UFoliageType* FoliageType, FFoliageInfo& FoliageInfo,TArray<FSubobjectFoliageInfoData>& SubobjectData)
 	{
 		FSubobjectFoliageInfoData Data;
-		Data.Save(FoliageType, FoliageInfo, VersionInfo);
+		Data.Save(Archive, FoliageType, FoliageInfo);
 		SubobjectData.Emplace(Data);
 	}
 }
@@ -31,9 +33,9 @@ FArchive& UE::LevelSnapshots::Foliage::Private::FInstancedFoliageActorData::Seri
 	return Ar;
 }
 
-void UE::LevelSnapshots::Foliage::Private::FInstancedFoliageActorData::Save(const FCustomVersionContainer& VersionInfo, AInstancedFoliageActor* FoliageActor)
+void UE::LevelSnapshots::Foliage::Private::FInstancedFoliageActorData::Save(FArchive& Archive, AInstancedFoliageActor* FoliageActor)
 {
-	FoliageActor->ForEachFoliageInfo([this, &VersionInfo, FoliageActor](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
+	FoliageActor->ForEachFoliageInfo([this, &Archive, FoliageActor](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 	{
 		FFoliageImpl* Impl = FoliageInfo.Implementation.Get();
 		if (!FoliageType || !Impl)
@@ -44,11 +46,11 @@ void UE::LevelSnapshots::Foliage::Private::FInstancedFoliageActorData::Save(cons
 		const bool bIsSubobject = FoliageType->IsIn(FoliageActor);
 		if (bIsSubobject)
 		{
-			Internal::SaveSubobject(FoliageType, FoliageInfo, SubobjectData, VersionInfo);
+			Internal::SaveSubobject(Archive, FoliageType, FoliageInfo, SubobjectData);
 		}
 		else
 		{
-			Internal::SaveAsset(FoliageType, FoliageInfo, FoliageAssets, VersionInfo);
+			Internal::SaveAsset(Archive, FoliageType, FoliageInfo, FoliageAssets);
 		}
 		
 		return true;
@@ -103,56 +105,93 @@ namespace UE::LevelSnapshots::Foliage::Private::Internal
 	}
 	
 	static void ApplyAssets(
-		const FCustomVersionContainer& VersionInfo,
+		FArchive& Archive,
 		AInstancedFoliageActor* FoliageActor,
 		const FFoliageRestorationInfo& RestorationInfo,
 		const TMap<TSoftObjectPtr<UFoliageType>, FFoliageInfoData>& FoliageAssets,
 		const TMap<FName, UFoliageType*> PreexistingComponentToFoliageType)
 	{
+		// Some objects may not want to be restored (either due to errors or because user deselected them) ...
+		int64 DataToSkip = 0;
+		
 		for (auto AssetIt = FoliageAssets.CreateConstIterator(); AssetIt; ++AssetIt)
 		{
 			const FFoliageInfoData& FoliageInfoData = AssetIt->Value;
+			
+			bool bWasRestored = false;
+			ON_SCOPE_EXIT
+			{
+				if (!bWasRestored)
+				{
+					// Standard component restoration has already recreated the component. Remove it again.
+					RemoveRecreatedComponent(FoliageActor, FoliageInfoData.GetComponentName());
+					DataToSkip += FoliageInfoData.GetFoliageInfoArchiveSize();
+					// TODO: Remove the foliage info from FoliageActor ... it was already serialized into FoliageInfos
+				}
+			};
+			
 			UFoliageType* FoliageType = AssetIt->Key.LoadSynchronous();
 			if (!FoliageType)
 			{
 				UE_LOG(LogLevelSnapshots, Warning, TEXT("Foliage type %s is missing. Component %s will not be restored."), *AssetIt->Key.ToString(), *FoliageInfoData.GetComponentName().Get(NAME_None).ToString());
-
-				// Standard component restoration has already recreated the component. Remove it again.
-				RemoveRecreatedComponent(FoliageActor, FoliageInfoData.GetComponentName());
 				continue;
 			}
 
-			if (RestorationInfo.ShouldSkipFoliageType(FoliageInfoData))
+			if (RestorationInfo.ShouldSkipFoliageType(FoliageInfoData) || !RestorationInfo.ShouldSerializeFoliageType(FoliageInfoData))
 			{
 				continue;
 			}
 
-			if (RestorationInfo.ShouldSerializeFoliageType(FoliageInfoData))
+			FFoliageInfo* FoliageInfo = FindOrAddFoliageInfo(FoliageType, FoliageActor);
+			if (FoliageInfo)
 			{
-				FFoliageInfo* FoliageInfo = FindOrAddFoliageInfo(FoliageType, FoliageActor);
-				if (FoliageInfo)
+				// If there were no instances, no component existed, hence no component name could be saved
+				const bool bHadAtLeastOneInstanceWhenSaved = FoliageInfoData.GetComponentName().IsSet();
+				if (bHadAtLeastOneInstanceWhenSaved)
 				{
-					// If there were no instances, no component existed, hence no component name could be saved
-					const bool bHadAtLeastOneInstanceWhenSaved = FoliageInfoData.GetComponentName().IsSet();
-					if (bHadAtLeastOneInstanceWhenSaved)
-					{
-						HandleExistingFoliageUsingRequiredComponent(FoliageActor, *FoliageInfoData.GetComponentName(), PreexistingComponentToFoliageType, FoliageType);
-					}
-					FoliageInfoData.ApplyTo(*FoliageInfo, VersionInfo);
+					HandleExistingFoliageUsingRequiredComponent(FoliageActor, *FoliageInfoData.GetComponentName(), PreexistingComponentToFoliageType, FoliageType);
 				}
+
+				// ... since Archive data is sequential we must account for possibly having skipped some data
+				Archive.Seek(Archive.Tell() + DataToSkip);
+				DataToSkip = 0;
+				
+				FoliageInfoData.ApplyTo(Archive, *FoliageInfo);
+				bWasRestored = true;
 			}
 		}
 	}
 
 	static void ApplySubobjects(
-		const FCustomVersionContainer& VersionInfo,
+		FArchive& Archive,
 		AInstancedFoliageActor* FoliageActor,
 		const FFoliageRestorationInfo& RestorationInfo,
 		const TArray<FSubobjectFoliageInfoData>& SubobjectData, 
 		const TMap<FName, UFoliageType*> PreexistingComponentToFoliageType)
 	{
+		// Some objects may not want to be restored (either due to errors or because user deselected them) ...
+		int64 DataToSkip = 0;
+		
 		for (const FSubobjectFoliageInfoData& InstanceData : SubobjectData)
 		{
+			bool bWasRestored = false;
+			bool bWasPartiallyRestored = false;
+			ON_SCOPE_EXIT
+			{
+				if (!bWasRestored)
+				{
+					// Standard component restoration has already recreated the component. Remove it again.
+					RemoveRecreatedComponent(FoliageActor, InstanceData.GetComponentName());
+					DataToSkip += static_cast<uint64>(bWasPartiallyRestored) * InstanceData.GetFoliageTypeArchiveSize() + InstanceData.GetFoliageInfoArchiveSize();
+					// TODO: Remove the foliage info from FoliageActor ... it was already serialized into FoliageInfos
+				}
+			};
+			
+			if (RestorationInfo.ShouldSkipFoliageType(InstanceData) || !RestorationInfo.ShouldSerializeFoliageType(InstanceData))
+			{
+				continue;
+			}
+
 			UFoliageType* FoliageType = InstanceData.FindOrRecreateSubobject(FoliageActor);
 			if (!FoliageType)
 			{
@@ -160,22 +199,24 @@ namespace UE::LevelSnapshots::Foliage::Private::Internal
 				continue;
 			}
 
-			if (RestorationInfo.ShouldSkipFoliageType(InstanceData))
+			// ... since Archive data is sequential we must account for possibly having skipped some data
+			Archive.Seek(Archive.Tell() + DataToSkip);
+			DataToSkip = 0;
+
+			bWasPartiallyRestored = true;
+			if (!InstanceData.ApplyToFoliageType(Archive, FoliageType))
 			{
+				UE_LOG(LogLevelSnapshots, Warning, TEXT("Skipping restoration of foliage item due to errors."));
 				continue;
 			}
-
-			if (RestorationInfo.ShouldSerializeFoliageType(InstanceData))
+				
+			FFoliageInfo* FoliageInfo = FindOrAddFoliageInfo(FoliageType, FoliageActor);
+			if (FoliageInfo
+				&& ensureAlwaysMsgf(InstanceData.GetComponentName(), TEXT("ComponentName is supposed to have been saved. Investigate. Maybe you used an unsupported foliage type (only EFoliageImplType::StaticMesh is supported)?")))
 			{
-				FFoliageInfo* FoliageInfo = FindOrAddFoliageInfo(FoliageType, FoliageActor);
-				if (FoliageInfo
-					&& ensureAlwaysMsgf(InstanceData.GetComponentName(), TEXT("ComponentName is supposed to have been saved. Investigate. Maybe you used an unsupported foliage type (only EFoliageImplType::StaticMesh is supported)?")))
-				{
-					HandleExistingFoliageUsingRequiredComponent(FoliageActor, *InstanceData.GetComponentName(), PreexistingComponentToFoliageType, FoliageType);
-
-					InstanceData.ApplyTo(FoliageType, VersionInfo);
-					InstanceData.ApplyTo(*FoliageInfo, VersionInfo);
-				}
+				HandleExistingFoliageUsingRequiredComponent(FoliageActor, *InstanceData.GetComponentName(), PreexistingComponentToFoliageType, FoliageType);
+				InstanceData.ApplyToFoliageInfo(Archive, *FoliageInfo);
+				bWasRestored = true;
 			}
 		}
 	}
@@ -194,10 +235,10 @@ namespace UE::LevelSnapshots::Foliage::Private::Internal
 	}
 }
 
-void UE::LevelSnapshots::Foliage::Private::FInstancedFoliageActorData::ApplyTo(const FCustomVersionContainer& VersionInfo, AInstancedFoliageActor* FoliageActor, const FPropertySelectionMap& SelectedProperties, bool bWasRecreated) const
+void UE::LevelSnapshots::Foliage::Private::FInstancedFoliageActorData::ApplyTo(FArchive& Archive, AInstancedFoliageActor* FoliageActor, const FPropertySelectionMap& SelectedProperties, bool bWasRecreated) const
 {
 	const FFoliageRestorationInfo RestorationInfo = FFoliageRestorationInfo::From(FoliageActor, SelectedProperties, bWasRecreated);
 	const TMap<FName, UFoliageType*> PreexistingComponentToFoliageType = Internal::BuildComponentToFoliageType(FoliageActor);
-	Internal::ApplyAssets(VersionInfo, FoliageActor, RestorationInfo, FoliageAssets, PreexistingComponentToFoliageType);
-	Internal::ApplySubobjects(VersionInfo, FoliageActor, RestorationInfo, SubobjectData, PreexistingComponentToFoliageType);
+	Internal::ApplyAssets(Archive, FoliageActor, RestorationInfo, FoliageAssets, PreexistingComponentToFoliageType);
+	Internal::ApplySubobjects(Archive, FoliageActor, RestorationInfo, SubobjectData, PreexistingComponentToFoliageType);
 }

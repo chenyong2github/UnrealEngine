@@ -12,18 +12,22 @@ namespace UE::LevelSnapshots::Foliage::Private
 	{
 		EFoliageImplType ImplType = EFoliageImplType::Unknown;
 		FName ComponentName;
-	
-		TArray<uint8> SerializedData;
+		
+		/** Used before FSnapshotCustomVersion::CustomSubobjectSoftObjectPathRefactor */
+		TArray<uint8> SerializedData_DEPRECATED;
+		/** Added after FSnapshotCustomVersion::CustomSubobjectSoftObjectPathRefactor */
+		int64 FoliageInfoArchiveSize = 0;
 
 		FArchive& SerializeInternal(FArchive& Ar);
 	
 	public:
 
-		void Save(FFoliageInfo& DataToReadFrom, const FCustomVersionContainer& VersionInfo);
-		void ApplyTo(FFoliageInfo& DataToWriteInto, const FCustomVersionContainer& VersionInfo) const;
+		void Save(FArchive& Archive, FFoliageInfo& DataToReadFrom);
+		void ApplyTo(FArchive& Archive, FFoliageInfo& DataToWriteInto) const;
 
 		EFoliageImplType GetImplType() const { return ImplType; }
 		TOptional<FName> GetComponentName() const { return ImplType == EFoliageImplType::StaticMesh && !ComponentName.IsNone() ? TOptional<FName>(ComponentName) : TOptional<FName>(); }
+		int64 GetFoliageInfoArchiveSize() const { return FoliageInfoArchiveSize; }
 	
 		friend FArchive& operator<<(FArchive& Ar, FFoliageInfoData& MeshInfo)
 		{
