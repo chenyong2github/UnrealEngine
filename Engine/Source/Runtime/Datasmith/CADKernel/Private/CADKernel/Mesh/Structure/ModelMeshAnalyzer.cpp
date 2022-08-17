@@ -53,7 +53,7 @@ void FModelMeshAnalyzer::BuildMesh()
 	{
 		TArray<int32>& TrianglesVerticesIndex = FaceMesh->TrianglesVerticesIndex;
 		TArray<int32>& VerticesGlobalIndex = FaceMesh->VerticesGlobalIndex;
-		TArray<FVector>& FaceNormals = FaceMesh->Normals;
+		TArray<FVector3f>& FaceNormals = FaceMesh->Normals;
 
 		for (int32 Index = 0; Index < FaceMesh->TrianglesVerticesIndex.Num(); Index += 3)
 		{
@@ -67,7 +67,7 @@ void FModelMeshAnalyzer::BuildMesh()
 			TriangleEdges[1] = FindOrBuildEdge(Vertices[1], Vertices[2]);
 			TriangleEdges[2] = FindOrBuildEdge(Vertices[2], Vertices[0]);
 
-			FVector Normals[3];
+			FVector3f Normals[3];
 			for (uint32 NormalI = 0; NormalI < 3; ++NormalI)
 			{
 				Normals[NormalI] = FaceNormals[TrianglesVerticesIndex[Index + NormalI]];

@@ -1699,46 +1699,4 @@ FTransform FDatasmithUtils::ConvertTransform(EModelCoordSystem SourceCoordSystem
 }
 
 
-FMatrix FDatasmithUtils::GetSymmetricMatrix(const FVector& Origin, const FVector& Normal)
-{
-	//Calculate symmetry matrix
-	//(Px, Py, Pz) = normal
-	// -Px² + Pz² + Py²  |  - 2 * Px * Py     |  - 2 * Px * Pz
-	// - 2 * Py * Px     |  - Py² + Px² + Pz² |  - 2 * Py * Pz
-	// - 2 * Pz * Px     |  - 2 * Pz * Py     |  - Pz² + Py² + Px²
-
-	FVector LocOrigin = Origin;
-
-	float NormalXSqr, NormalYSqr, NormalZSqr;
-	NormalXSqr = Normal.X * Normal.X;
-	NormalYSqr = Normal.Y * Normal.Y;
-	NormalZSqr = Normal.Z * Normal.Z;
-
-	FMatrix OSymmetricMatrix;
-	OSymmetricMatrix.SetIdentity();
-	FVector Axis0(-NormalXSqr + NormalZSqr + NormalYSqr, -2 * Normal.X * Normal.Y, -2 * Normal.X * Normal.Z);
-	FVector Axis1(-2 * Normal.Y * Normal.X, -NormalYSqr + NormalXSqr + NormalZSqr, -2 * Normal.Y * Normal.Z);
-	FVector Axis2(-2 * Normal.Z * Normal.X, -2 * Normal.Z * Normal.Y, -NormalZSqr + NormalYSqr + NormalXSqr);
-	OSymmetricMatrix.SetAxes(&Axis0, &Axis1, &Axis2);
-
-	FMatrix SymmetricMatrix;
-	SymmetricMatrix.SetIdentity();
-
-	//Translate to 0, 0, 0
-	LocOrigin *= -1.;
-	SymmetricMatrix.SetOrigin(LocOrigin);
-
-	//// Apply Symmetric
-	SymmetricMatrix *= OSymmetricMatrix;
-
-	//Translate to original position
-	LocOrigin *= -1.;
-	FMatrix OrigTranslation;
-	OrigTranslation.SetIdentity();
-	OrigTranslation.SetOrigin(LocOrigin);
-	SymmetricMatrix *= OrigTranslation;
-
-	return SymmetricMatrix;
-}
-
 

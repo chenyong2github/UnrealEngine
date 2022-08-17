@@ -62,7 +62,7 @@ void FFaceMesh::InverseOrientation()
 		Swap(TrianglesVerticesIndex[Index], TrianglesVerticesIndex[Index+1]);
 	}
 
-	for (FVector& Normal : Normals)
+	for (FVector3f& Normal : Normals)
 	{
 		Normal *= -1.;
 	}

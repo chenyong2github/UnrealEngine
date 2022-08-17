@@ -20,12 +20,12 @@ struct FEdge;
 struct FTriangle
 {
 	uint32 Vertices[3];
-	FVector Normals[3];
+	FVector3f Normals[3];
 	FEdge* Edges[3];
 	const FFaceMesh* FaceMesh;
 
 
-	FTriangle(uint32* InVertices, FEdge** InEdges, FVector* InNormals, const FFaceMesh* InFaceMesh)
+	FTriangle(uint32* InVertices, FEdge** InEdges, FVector3f* InNormals, const FFaceMesh* InFaceMesh)
 	: FaceMesh(InFaceMesh)
 	{
 		for (int32 Index = 0; Index < 3; ++Index)

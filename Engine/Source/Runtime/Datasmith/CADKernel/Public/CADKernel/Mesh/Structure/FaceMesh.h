@@ -30,10 +30,10 @@ namespace CADKernel
 		TArray<int32> VerticesGlobalIndex;
 
 		/** Normals of the surface mesh vertices*/
-		TArray<FVector> Normals;
+		TArray<FVector3f> Normals;
 
 		/** UV coordinates of the surface mesh vertices*/
-		TArray<FVector2D> UVMap;
+		TArray<FVector2f> UVMap;
 
 	public:
 		FFaceMesh(FModelMesh& InMeshModel, FTopologicalEntity& InTopologicalEntity)

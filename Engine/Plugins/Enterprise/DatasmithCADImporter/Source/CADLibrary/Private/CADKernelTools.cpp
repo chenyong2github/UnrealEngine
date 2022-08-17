@@ -48,10 +48,10 @@ namespace CADLibrary
 
 	static void FillVertexPosition(FMeshConversionContext& Context, const TSharedRef<CADKernel::FModelMesh>& ModelMesh, FMeshDescription& MeshDescription)
 	{
-		TArray<FVector> VertexArray;
+		TArray<FVector3f> VertexArray;
 		ModelMesh->GetNodeCoordinates(VertexArray);
 
-		for (FVector& Vertex : VertexArray)
+		for (FVector3f& Vertex : VertexArray)
 		{
 			Vertex *= 0.1; // mm (CADKernel unit) to cm (UE unit)
 		}
@@ -65,28 +65,28 @@ namespace CADLibrary
 
 		// Make MeshDescription.VertexPositions and VertexID
 		int32 VertexIndex = -1;
-		for (const FVector& Vertex : VertexArray)
+		for (const FVector3f& Vertex : VertexArray)
 		{
 			VertexIndex++;
 
 			FVertexID VertexID = MeshDescription.CreateVertex();
-			VertexPositions[VertexID] = (FVector3f)FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) Context.ImportParams.GetModelCoordSys(), Vertex);
+			VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) Context.ImportParams.GetModelCoordSys(), Vertex);
 			Context.VertexIds[VertexIndex] = VertexID;
 		}
 
 		// if Symmetric mesh, the symmetric side of the mesh have to be generated
 		if (Context.MeshParameters.bIsSymmetric)
 		{
-			FMatrix SymmetricMatrix = FDatasmithUtils::GetSymmetricMatrix(Context.MeshParameters.SymmetricOrigin, Context.MeshParameters.SymmetricNormal);
+			FMatrix44f SymmetricMatrix = FDatasmithUtils::GetSymmetricMatrix(Context.MeshParameters.SymmetricOrigin, Context.MeshParameters.SymmetricNormal);
 
 			Context.SymmetricVertexIds.SetNum(VertexArray.Num());
 
 			VertexIndex = 0;
-			for (const FVector& Vertex : VertexArray)
+			for (const FVector3f& Vertex : VertexArray)
 			{
 				FVertexID VertexID = MeshDescription.CreateVertex();
-				VertexPositions[VertexID] = (FVector3f)FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) Context.ImportParams.GetModelCoordSys(), Vertex);
-				VertexPositions[VertexID] = FVector4f(SymmetricMatrix.TransformPosition((FVector)VertexPositions[VertexID]));
+				VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) Context.ImportParams.GetModelCoordSys(), Vertex);
+				VertexPositions[VertexID] = SymmetricMatrix.TransformPosition(VertexPositions[VertexID]);
 				Context.SymmetricVertexIds[VertexIndex++] = VertexID;
 			}
 		}
@@ -227,7 +227,7 @@ namespace CADLibrary
 				if (!Step)
 				{
 					FDatasmithUtils::ConvertVectorArray(Context.ImportParams.GetModelCoordSys(), FaceMesh->Normals);
-					for (FVector& Normal : FaceMesh->Normals)
+					for (FVector3f& Normal : FaceMesh->Normals)
 					{
 						Normal = Normal.GetSafeNormal();
 					}
@@ -246,11 +246,10 @@ namespace CADLibrary
 				if (Step)
 				{
 					// compute normals of Symmetric vertex
-					FMatrix SymmetricMatrix;
-					SymmetricMatrix = FDatasmithUtils::GetSymmetricMatrix(Context.MeshParameters.SymmetricOrigin, Context.MeshParameters.SymmetricNormal);
+					FMatrix44f SymmetricMatrix = FDatasmithUtils::GetSymmetricMatrix(Context.MeshParameters.SymmetricOrigin, Context.MeshParameters.SymmetricNormal);
 					for (const FVertexInstanceID& VertexInstanceID : MeshVertexInstanceIDs)
 					{
-						VertexInstanceNormals[VertexInstanceID] = FVector4f(SymmetricMatrix.TransformVector((FVector)VertexInstanceNormals[VertexInstanceID]));
+						VertexInstanceNormals[VertexInstanceID] = SymmetricMatrix.TransformVector(VertexInstanceNormals[VertexInstanceID]);
 					}
 				}
 			}
@@ -346,9 +345,9 @@ namespace CADLibrary
 	{
 		ModelMesh.GetNodeCoordinates(OutBodyMesh.VertexArray);
 
-		for (FVector& Vertex : OutBodyMesh.VertexArray)
+		for (FVector3f& Vertex : OutBodyMesh.VertexArray)
 		{
-			Vertex *= 0.1;
+			Vertex *= 0.1f;
 		}
 
 		uint32 FaceSize = Body.FaceCount();

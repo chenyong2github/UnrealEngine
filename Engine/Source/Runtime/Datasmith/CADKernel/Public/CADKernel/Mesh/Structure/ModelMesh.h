@@ -150,7 +150,7 @@ namespace CADKernel
 		const TSharedPtr<FVertexMesh> GetMeshOfVertexNodeId(const int32 Id) const;
 
 		void GetNodeCoordinates(TArray<FPoint>& NodeCoordinates) const;
-		void GetNodeCoordinates(TArray<FVector>& NodeCoordinates) const;
+		void GetNodeCoordinates(TArray<FVector3f>& NodeCoordinates) const;
 
 		const TArray<TSharedPtr<FMesh>>& GetMeshes() const;
 

@@ -53,8 +53,8 @@ struct PARAMETRICSURFACE_API FParametricMeshParameters
 
 		Parameters.bNeedSwapOrientation = bNeedSwapOrientation;
 		Parameters.bIsSymmetric = bIsSymmetric;
-		Parameters.SymmetricNormal = SymmetricNormal;
-		Parameters.SymmetricOrigin = SymmetricOrigin;
+		Parameters.SymmetricNormal = (FVector3f) SymmetricNormal;
+		Parameters.SymmetricOrigin = (FVector3f) SymmetricOrigin;
 
 		return Parameters;
 	}

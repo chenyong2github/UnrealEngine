@@ -32,8 +32,8 @@ void UParametricSurfaceData::SetMeshParameters(const CADLibrary::FMeshParameters
 {
 	MeshParameters.bNeedSwapOrientation = InMeshParameters.bNeedSwapOrientation;
 	MeshParameters.bIsSymmetric = InMeshParameters.bIsSymmetric;
-	MeshParameters.SymmetricNormal = InMeshParameters.SymmetricNormal;
-	MeshParameters.SymmetricOrigin = InMeshParameters.SymmetricOrigin;
+	MeshParameters.SymmetricNormal = (FVector) InMeshParameters.SymmetricNormal;
+	MeshParameters.SymmetricOrigin = (FVector) InMeshParameters.SymmetricOrigin;
 }
 
 void UParametricSurfaceData::Serialize(FArchive& Ar)

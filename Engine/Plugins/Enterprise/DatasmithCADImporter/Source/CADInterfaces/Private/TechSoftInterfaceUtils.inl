@@ -68,7 +68,7 @@ public:
 	}
 
 private:
-	void FillVertexArray(TArray<FVector>& VertexArray)
+	void FillVertexArray(TArray<FVector3f>& VertexArray)
 	{
 		using namespace CADLibrary;
 
@@ -355,7 +355,7 @@ private:
 		return true;
 	};
 
-	void AddNormals(const A3DDouble* Normals, const int32 Indices[3], TArray<FVector>& NormalsArray)
+	void AddNormals(const A3DDouble* Normals, const int32 Indices[3], TArray<FVector3f>& NormalsArray)
 	{
 		for (int32 Index = 0; Index < 3; ++Index)
 		{
@@ -364,7 +364,7 @@ private:
 		}
 	};
 
-	void AddTextureCoordinates(const A3DDouble* TextureCoords, const int32 Indices[3], TArray<FVector2D>& TessellationTextures)
+	void AddTextureCoordinates(const A3DDouble* TextureCoords, const int32 Indices[3], TArray<FVector2f>& TessellationTextures)
 	{
 		for (int32 Index = 0; Index < 3; ++Index)
 		{
@@ -791,7 +791,7 @@ private:
 		}
 	}
 
-	void ScaleUV(const A3DTopoFace* TopoFace, TArray<FVector2D>& TexCoordArray)
+	void ScaleUV(const A3DTopoFace* TopoFace, TArray<FVector2f>& TexCoordArray)
 	{
 		CADLibrary::TUniqueTSObj<A3DTopoFaceData> TopoFaceData(TopoFace);
 		if (!TopoFaceData.IsValid())
@@ -875,10 +875,10 @@ private:
 
 		// Texture unit is meter, Coord unit from TechSoft is mm, so TextureScale = 0.001 to convert mm into m
 		const double TextureScale = 0.01;
-		const double UScale = TextureUnit * TextureScale * LengthUMed / (Domain->m_sMax.m_dX - Domain->m_sMin.m_dX);
-		const double VScale = TextureUnit * TextureScale * LengthVMed / (Domain->m_sMax.m_dY - Domain->m_sMin.m_dY);
+		const float UScale = TextureUnit * TextureScale * LengthUMed / (Domain->m_sMax.m_dX - Domain->m_sMin.m_dX);
+		const float VScale = TextureUnit * TextureScale * LengthVMed / (Domain->m_sMax.m_dY - Domain->m_sMin.m_dY);
 
-		for (FVector2D& TexCoord : TexCoordArray)
+		for (FVector2f& TexCoord : TexCoordArray)
 		{
 			TexCoord[0] *= UScale;
 			TexCoord[1] *= VScale;

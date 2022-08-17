@@ -23,7 +23,7 @@ struct FVertexData
 {
 	float Z;
 	int32 Index;
-	FVector Coordinates;
+	FVector3f Coordinates;
 	bool bIsMerged;
 	FVertexID VertexID;
 	FVertexID SymVertexID;
@@ -32,7 +32,7 @@ struct FVertexData
 	FVertexData() {}
 
 	/** Initialization constructor. */
-	FVertexData(int32 InIndex, const FVector& V)
+	FVertexData(int32 InIndex, const FVector3f& V)
 	{
 		//Z = V.X + V.Y + V.Z;
 		Z = 0.30f * V.X + 0.33f * V.Y + 0.37f * V.Z;
@@ -64,7 +64,7 @@ bool IsTriangleDegenerated(const int32_t* Indices, const TArray<FVertexID>& Rema
 	return (VertexIDs[0] == VertexIDs[1] || VertexIDs[0] == VertexIDs[2] || VertexIDs[1] == VertexIDs[2]);
 }
 
-void MergeCoincidentVertices(TArray<FVector>& VertexArray, TArray<int32>& VertexIdSet)
+void MergeCoincidentVertices(TArray<FVector3f>& VertexArray, TArray<int32>& VertexIdSet)
 {
 	const double CoincidenceTolerance = 0.001;
 
@@ -72,7 +72,7 @@ void MergeCoincidentVertices(TArray<FVector>& VertexArray, TArray<int32>& Vertex
 	TArray<FVertexData> VertexDataSet;
 	VertexDataSet.Reserve(VertexArray.Num());
 
-	const FVector* Position = VertexArray.GetData();
+	const FVector3f* Position = VertexArray.GetData();
 	const int32* VertexId = VertexIdSet.GetData();
 	for (int32 Index = 0; Index < VertexArray.Num(); ++Index, ++Position, ++VertexId)
 	{
@@ -93,7 +93,7 @@ void MergeCoincidentVertices(TArray<FVector>& VertexArray, TArray<int32>& Vertex
 		VertexDataSet[Index].bIsMerged = true;
 		int32 NewIndex = VertexDataSet[Index].Index;
 
-		const FVector& PositionA = VertexDataSet[Index].Coordinates;
+		const FVector3f& PositionA = VertexDataSet[Index].Coordinates;
 
 		// only need to search forward, since we add pairs both ways
 		for (int32 Andex = Index + 1; Andex < VertexDataSet.Num(); Andex++)
@@ -103,7 +103,7 @@ void MergeCoincidentVertices(TArray<FVector>& VertexArray, TArray<int32>& Vertex
 				break; // can't be any more duplicated
 			}
 
-			const FVector& PositionB = VertexDataSet[Andex].Coordinates;
+			const FVector3f& PositionB = VertexDataSet[Andex].Coordinates;
 			if (PositionA.Equals(PositionB, CoincidenceTolerance))
 			{
 				VertexDataSet[Andex].bIsMerged = true;
@@ -120,7 +120,7 @@ void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParame
 
 	TVertexAttributesRef<FVector3f> VertexPositions = MeshDescription.GetVertexPositions();
 
-	TArray<FVector>& VertexArray = Body.VertexArray;
+	TArray<FVector3f>& VertexArray = Body.VertexArray;
 	TArray<int32>& VertexIdSet = Body.VertexIds;
 	int32 VertexCount = VertexArray.Num();
 	VertexIdSet.SetNumZeroed(VertexCount);
@@ -129,7 +129,7 @@ void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParame
 	MeshDescription.ReserveNewVertices(MeshParameters.bIsSymmetric ? VertexCount * 2 : VertexCount);
 
 	int32 VertexIndex = -1;
-	for (const FVector& Vertex : VertexArray)
+	for (const FVector3f& Vertex : VertexArray)
 	{
 		VertexIndex++;
 
@@ -149,13 +149,13 @@ void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParame
 	// if Symmetric mesh, the symmetric side of the mesh have to be generated
 	if (MeshParameters.bIsSymmetric)
 	{
-		FMatrix SymmetricMatrix = FDatasmithUtils::GetSymmetricMatrix(MeshParameters.SymmetricOrigin, MeshParameters.SymmetricNormal);
+		FMatrix44f SymmetricMatrix = (FMatrix44f) FDatasmithUtils::GetSymmetricMatrix(MeshParameters.SymmetricOrigin, MeshParameters.SymmetricNormal);
 
 		TArray<int32>& SymmetricVertexIds = Body.SymmetricVertexIds;
 		SymmetricVertexIds.SetNum(VertexArray.Num());
 
 		VertexIndex = 0;
-		for (const FVector& Vertex : VertexArray)
+		for (const FVector3f& Vertex : VertexArray)
 		{
 			if (VertexIdSet[VertexIndex] == INDEX_NONE)
 			{
@@ -164,7 +164,7 @@ void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParame
 			}
 
 			FVertexID VertexID = MeshDescription.CreateVertex();
-			const FVector VertexPosition = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem)ImportParams.GetModelCoordSys(), Vertex);
+			const FVector3f VertexPosition = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem)ImportParams.GetModelCoordSys(), Vertex);
 			const FVector4f SymmetricPosition = FVector4f(SymmetricMatrix.TransformPosition(VertexPosition));
 			VertexPositions[VertexID] = FVector3f(SymmetricPosition);
 			SymmetricVertexIds[VertexIndex++] = VertexID;
@@ -409,7 +409,7 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 			if (!Step)
 			{
 				FDatasmithUtils::ConvertVectorArray(ImportParams.GetModelCoordSys(), Tessellation.NormalArray);
-				for (FVector& Normal : Tessellation.NormalArray)
+				for (FVector3f& Normal : Tessellation.NormalArray)
 				{
 					Normal = Normal.GetSafeNormal();
 				}
@@ -417,7 +417,7 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 
 			if (Tessellation.NormalArray.Num() == 1)
 			{
-				const FVector& Normal = Tessellation.NormalArray[0];
+				const FVector3f& Normal = Tessellation.NormalArray[0];
 				for (int32 Index = 0; Index < NewFaceIndex.Num(); Index++)
 				{
 					const FVertexInstanceID VertexInstanceID = MeshVertexInstanceIDs[Index];
@@ -431,7 +431,7 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 					for (int32 Index = 0; Index < 3; Index++)
 					{
 						const FVertexInstanceID VertexInstanceID = MeshVertexInstanceIDs[IndexFace + Orientation[Index]];
-						VertexInstanceNormals[VertexInstanceID] = (FVector3f)Tessellation.NormalArray[NewFaceIndex[IndexFace + Orientation[Index]]];
+						VertexInstanceNormals[VertexInstanceID] = Tessellation.NormalArray[NewFaceIndex[IndexFace + Orientation[Index]]];
 					}
 				}
 			}
@@ -440,11 +440,10 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 			if (Step)
 			{
 				// compute normals of Symmetric vertex
-				FMatrix SymmetricMatrix;
-				SymmetricMatrix = FDatasmithUtils::GetSymmetricMatrix(MeshParameters.SymmetricOrigin, MeshParameters.SymmetricNormal);
+				FMatrix44f SymmetricMatrix = FDatasmithUtils::GetSymmetricMatrix(MeshParameters.SymmetricOrigin, MeshParameters.SymmetricNormal);
 				for (const FVertexInstanceID& VertexInstanceID : MeshVertexInstanceIDs)
 				{
-					VertexInstanceNormals[VertexInstanceID] = FVector4f(SymmetricMatrix.TransformVector((FVector)VertexInstanceNormals[VertexInstanceID]));
+					VertexInstanceNormals[VertexInstanceID] = SymmetricMatrix.TransformVector(VertexInstanceNormals[VertexInstanceID]);
 				}
 			}
 

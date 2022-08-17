@@ -242,26 +242,26 @@ namespace DatasmithOpenNurbsTranslatorUtils
 		{ }
 
 		FNode(float x, float y, float z)
-			: Vertex(FVector(x, y, z))
+			: Vertex(x, y, z)
 		{ }
 
 		void SetVertex(float x, float y, float z)
 		{
-			Vertex = FVector(x, y, z);
+			Vertex = FVector3f(x, y, z);
 		}
 
 		void SetNormal(float x, float y, float z)
 		{
-			Normal = FVector(x, y, z);
+			Normal = FVector3f(x, y, z);
 		}
 
 		void SetNormal(const ON_3fVector& InNormal)
 		{
-			Normal = FVector(InNormal[0], InNormal[1], InNormal[2]);
+			Normal = FVector3f(InNormal[0], InNormal[1], InNormal[2]);
 		}
 
-		FVector Vertex;
-		FVector Normal;
+		FVector3f Vertex;
+		FVector3f Normal;
 	};
 
 	struct FFace
@@ -281,7 +281,7 @@ namespace DatasmithOpenNurbsTranslatorUtils
 		}
 
 		const FNode* Nodes[3];
-		FVector2D UVCoords[3];
+		FVector2f UVCoords[3];
 	};
 
 	bool TranslateMesh(const ON_Mesh** Meshes, int MeshCount, FMeshDescription& MeshDescription, bool& bHasNormal, double ScalingFactor, const ON_3dVector& Offset, bool bHasFaceMaterialChannel, int32* FaceMaterialChannel)
@@ -416,7 +416,7 @@ namespace DatasmithOpenNurbsTranslatorUtils
 					FFace& Face = Faces[Index];
 					for (int iTriangleNode = 0; iTriangleNode < 3; ++iTriangleNode)
 					{
-						Face.UVCoords[iTriangleNode] = FVector2D(UvCoords[iTriangleNode + 3 * Index][0], UvCoords[iTriangleNode + 3 * Index][1]);
+						Face.UVCoords[iTriangleNode] = FVector2f(UvCoords[iTriangleNode + 3 * Index][0], UvCoords[iTriangleNode + 3 * Index][1]);
 					}
 				}
 			}
@@ -450,7 +450,7 @@ namespace DatasmithOpenNurbsTranslatorUtils
 			for (int Index = 0; Index < VertexCount; ++Index)
 			{
 				const FNode& Node = Nodes[Index];
-				const FVector& Pos = Node.Vertex;
+				const FVector3f& Pos = Node.Vertex;
 				NodeToIndex.Add(&Node, VertexIndexBase + Index);
 
 				// Fill the vertex array
@@ -495,7 +495,7 @@ namespace DatasmithOpenNurbsTranslatorUtils
 					const FNode& FaceNode = *Face.Nodes[CornerIndex];
 
 					// Set the normal
-					FVector UENormal = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, FaceNode.Normal);
+					FVector3f UENormal = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, FaceNode.Normal);
 					UENormal = UENormal.GetSafeNormal();
 
 					// Check to see if normal is correct. If not replace by face's normal
@@ -511,7 +511,7 @@ namespace DatasmithOpenNurbsTranslatorUtils
 					// Set the UV
 					if (bHasUVData)
 					{
-						const FVector2D& UVValues = Face.UVCoords[CornerIndex];
+						const FVector2f& UVValues = Face.UVCoords[CornerIndex];
 						if (!UVValues.ContainsNaN())
 						{
 							// Convert UVs - bottom-left Rhino's texture origin to Unreal's top-left
@@ -2065,7 +2065,8 @@ TSharedPtr<IDatasmithMeshActorElement> FOpenNurbsTranslatorImpl::GetMeshActorEle
 	if (ComputeObjectGeometryCenter(Object, GeometryCenter))
 	{
 		MeshElementToGeometryCenter.Add(MeshElement.ToSharedRef(), GeometryCenter);
-		FVector ActorOffset = GetScaleFactor() * FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, GeometryCenter);
+		FVector ActorOffset(GeometryCenter.x, GeometryCenter.y, GeometryCenter.z);
+		ActorOffset = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, ActorOffset) * GetScaleFactor();
 		ActorElement->SetTranslation(ActorOffset);
 	}
 

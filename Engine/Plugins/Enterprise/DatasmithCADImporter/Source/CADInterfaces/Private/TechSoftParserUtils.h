@@ -51,7 +51,7 @@ namespace TechSoftParserUtils
 		return true;
 	};
 
-	inline void AddNormals(const A3DDouble* Normals, const int32 Indices[3], TArray<FVector>& TessellationNormals)
+	inline void AddNormals(const A3DDouble* Normals, const int32 Indices[3], TArray<FVector3f>& TessellationNormals)
 	{
 		for (int32 Index = 0; Index < 3; ++Index)
 		{
@@ -60,7 +60,7 @@ namespace TechSoftParserUtils
 		}
 	};
 
-	inline void AddTextureCoordinates(const A3DDouble* TextureCoords, const int32 Indices[3], TArray<FVector2D>& TessellationTextures)
+	inline void AddTextureCoordinates(const A3DDouble* TextureCoords, const int32 Indices[3], TArray<FVector2f>& TessellationTextures)
 	{
 		for (int32 Index = 0; Index < 3; ++Index)
 		{

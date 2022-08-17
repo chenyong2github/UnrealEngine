@@ -91,7 +91,7 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, co
 	}
 
 	int32 NbStep = 1;
-	FMatrix SymmetricMatrix;
+	FMatrix44f SymmetricMatrix;
 	bool bIsSymmetricMesh = MeshParameters.bIsSymmetric;
 	if (bIsSymmetricMesh)
 	{
@@ -165,7 +165,7 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, co
 				const float* CurVertex = AlVertices + 3 * Index;
 				*VertexPositionIDPtr = MeshDescription.CreateVertex();
 				// ConvertVector_ZUp_RightHanded
-				VertexPositions[*VertexPositionIDPtr] = FVector4f(SymmetricMatrix.TransformPosition(FVector(-CurVertex[0], CurVertex[1], CurVertex[2])));
+				VertexPositions[*VertexPositionIDPtr] = SymmetricMatrix.TransformPosition(FVector3f(-CurVertex[0], CurVertex[1], CurVertex[2]));
 			}
 		}
 
@@ -195,7 +195,7 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, co
 					// Set the normal
 					const float* CurNormal = &AlNormals[3 * Triangles[TIndex]];
 					// ConvertVector_ZUp_RightHanded
-					FVector UENormal(-CurNormal[0], CurNormal[1], CurNormal[2]);
+					FVector3f UENormal(-CurNormal[0], CurNormal[1], CurNormal[2]);
 					UENormal = UENormal.GetSafeNormal();
 					if (Step > 0)
 					{
@@ -205,7 +205,7 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, co
 					{
 						UENormal *= -1.;
 					}
-					VertexInstanceNormals[CornerVertexInstanceIDs[VertexIndex]] = (FVector3f)UENormal;
+					VertexInstanceNormals[CornerVertexInstanceIDs[VertexIndex]] = UENormal;
 				}
 				if (CornerVertexIDs[0] == CornerVertexIDs[1] || CornerVertexIDs[0] == CornerVertexIDs[2] || CornerVertexIDs[1] == CornerVertexIDs[2])
 				{
@@ -242,7 +242,7 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, co
 					const float* CurNormal = &AlNormals[3 * Triangles[VertexIndex]];
 
 					// ConvertVector_ZUp_RightHanded
-					FVector UENormal(-CurNormal[0], CurNormal[1], CurNormal[2]);
+					FVector3f UENormal(-CurNormal[0], CurNormal[1], CurNormal[2]);
 					UENormal = UENormal.GetSafeNormal();
 					if (Step > 0)
 					{

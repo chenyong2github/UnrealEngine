@@ -41,8 +41,8 @@ bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const 
 	CADLibrary::FMeshParameters CadMeshParameters;
 	CadMeshParameters.bNeedSwapOrientation = MeshParameters.bNeedSwapOrientation;
 	CadMeshParameters.bIsSymmetric = MeshParameters.bIsSymmetric;
-	CadMeshParameters.SymmetricNormal = MeshParameters.SymmetricNormal;
-	CadMeshParameters.SymmetricOrigin = MeshParameters.SymmetricOrigin;
+	CadMeshParameters.SymmetricNormal = (FVector3f) MeshParameters.SymmetricNormal;
+	CadMeshParameters.SymmetricOrigin = (FVector3f) MeshParameters.SymmetricOrigin;
 
 	// Previous MeshDescription is get to be able to create a new one with the same order of PolygonGroup (the matching of color and partition is currently based on their order)
 	if (FMeshDescription* DestinationMeshDescription = StaticMesh.GetMeshDescription(0))

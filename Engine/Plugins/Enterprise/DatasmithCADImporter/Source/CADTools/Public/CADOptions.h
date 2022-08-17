@@ -144,7 +144,7 @@ namespace CADLibrary
 	{
 		bool bNeedSwapOrientation = false;
 		bool bIsSymmetric = false;
-		FVector SymmetricOrigin;
-		FVector SymmetricNormal;
+		FVector3f SymmetricOrigin;
+		FVector3f SymmetricNormal;
 	};
 }

@@ -74,33 +74,34 @@ public:
 		ZUp_RightHanded_FBXLegacy,
 	};
 
-	static void ConvertVectorArray(EModelCoordSystem ModelCoordSys, TArray<FVector>& Array)
+	template<typename VecType>
+	static void ConvertVectorArray(EModelCoordSystem ModelCoordSys, TArray<VecType>& Array)
 	{
 		switch (ModelCoordSys)
 		{
 		case EModelCoordSystem::YUp_LeftHanded:
-			for (FVector& Vector : Array)
+			for (VecType& Vector : Array)
 			{
 				Vector.Set(Vector[2], Vector[0], Vector[1]);
 			}
 			break;
 
 		case EModelCoordSystem::YUp_RightHanded:
-			for (FVector& Vector : Array)
+			for (VecType& Vector : Array)
 			{
 				Vector.Set(-Vector[2], Vector[0], Vector[1]);
 			}
 			break;
 
 		case EModelCoordSystem::ZUp_RightHanded:
-			for (FVector& Vector : Array)
+			for (VecType& Vector : Array)
 			{
 				Vector.Set(-Vector[0], Vector[1], Vector[2]);
 			}
 			break;
 
 		case EModelCoordSystem::ZUp_RightHanded_FBXLegacy:
-			for (FVector& Vector : Array)
+			for (VecType& Vector : Array)
 			{
 				Vector.Set(Vector[0], -Vector[1], Vector[2]);
 			}
@@ -113,31 +114,72 @@ public:
 	}
 
 	template<typename VecType>
-	static FVector ConvertVector(EModelCoordSystem ModelCoordSys, const VecType& V)
+	static VecType ConvertVector(EModelCoordSystem ModelCoordSys, const VecType& V)
 	{
 		switch (ModelCoordSys)
 		{
 		case EModelCoordSystem::YUp_LeftHanded:
-			return FVector(V[2], V[0], V[1]);
+			return VecType(V[2], V[0], V[1]);
 
 		case EModelCoordSystem::YUp_RightHanded:
-			return FVector(-V[2], V[0], V[1]);
+			return VecType(-V[2], V[0], V[1]);
 
 		case EModelCoordSystem::ZUp_RightHanded:
-			return FVector(-V[0], V[1], V[2]);
+			return VecType(-V[0], V[1], V[2]);
 
 		case EModelCoordSystem::ZUp_RightHanded_FBXLegacy:
-			return FVector(V[0], -V[1], V[2]);
+			return VecType(V[0], -V[1], V[2]);
 
 		case EModelCoordSystem::ZUp_LeftHanded:
 		default:
-			return FVector(V[0], V[1], V[2]);
+			return VecType(V[0], V[1], V[2]);
 		}
 	}
 
 	FTransform static ConvertTransform(EModelCoordSystem SourceCoordSystem, const FTransform& LocalTransform);
 
-	FMatrix static GetSymmetricMatrix(const FVector& Origin, const FVector& Normal);
+	template<typename Type>
+	static UE::Math::TMatrix<Type> GetSymmetricMatrix(const UE::Math::TVector<Type>& Origin, const UE::Math::TVector<Type>& Normal)
+	{
+		using namespace UE::Math;
+		//Calculate symmetry matrix
+		//(Px, Py, Pz) = normal
+		// -Px*Px + Pz*Pz + Py*Py  |  - 2 * Px * Py           |  - 2 * Px * Pz
+		// - 2 * Py * Px           |  - Py*Py + Px*Px + Pz*Pz |  - 2 * Py * Pz
+		// - 2 * Pz * Px           |  - 2 * Pz * Py           |  - Pz*Pz + Py*Py + Px*Px
+
+		TVector<Type> LocOrigin = Origin;
+
+		Type NormalXSqr = Normal.X * Normal.X;
+		Type NormalYSqr = Normal.Y * Normal.Y;
+		Type NormalZSqr = Normal.Z * Normal.Z;
+
+		TMatrix<Type> OSymmetricMatrix;
+		OSymmetricMatrix.SetIdentity();
+		TVector<Type> Axis0(-NormalXSqr + NormalZSqr + NormalYSqr, -2 * Normal.X * Normal.Y, -2 * Normal.X * Normal.Z);
+		TVector<Type> Axis1(-2 * Normal.Y * Normal.X, -NormalYSqr + NormalXSqr + NormalZSqr, -2 * Normal.Y * Normal.Z);
+		TVector<Type> Axis2(-2 * Normal.Z * Normal.X, -2 * Normal.Z * Normal.Y, -NormalZSqr + NormalYSqr + NormalXSqr);
+		OSymmetricMatrix.SetAxes(&Axis0, &Axis1, &Axis2);
+
+		TMatrix<Type> SymmetricMatrix;
+		SymmetricMatrix.SetIdentity();
+
+		//Translate to 0, 0, 0
+		LocOrigin *= -1.;
+		SymmetricMatrix.SetOrigin(LocOrigin);
+
+		//// Apply Symmetric
+		SymmetricMatrix *= OSymmetricMatrix;
+
+		//Translate to original position
+		LocOrigin *= -1.;
+		TMatrix<Type> OrigTranslation;
+		OrigTranslation.SetIdentity();
+		OrigTranslation.SetOrigin(LocOrigin);
+		SymmetricMatrix *= OrigTranslation;
+
+		return SymmetricMatrix;
+	}
 };
 
 class DATASMITHCORE_API FDatasmithMeshUtils

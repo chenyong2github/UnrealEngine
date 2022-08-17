@@ -295,7 +295,7 @@ struct CADTOOLS_API FTessellationData : public FArchiveGraphicProperties
 	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FTessellationData& Tessellation);
 
 	/** Empty with CADKernel as set in FBodyMesh, Set by CoreTech (this is only the vertices of the face) */
-	TArray<FVector> PositionArray;
+	TArray<FVector3f> PositionArray;
 
 	/** Index of each vertex in FBody::VertexArray. Empty with CoreTech and filled by FillKioVertexPosition */
 	TArray<int32> PositionIndices;
@@ -304,10 +304,10 @@ struct CADTOOLS_API FTessellationData : public FArchiveGraphicProperties
 	TArray<int32> VertexIndices;
 
 	/** Normal of each vertex */
-	TArray<FVector> NormalArray;
+	TArray<FVector3f> NormalArray;
 
 	/** UV coordinates of each vertex */
-	TArray<FVector2D> TexCoordArray;
+	TArray<FVector2f> TexCoordArray;
 
 	int32 PatchId;
 };
@@ -336,7 +336,7 @@ public:
 		}
 	}
 
-	TArray<FVector> VertexArray; // set by CADKernel, filled by FillKioVertexPosition that merges coincident vertices (CoreTechHelper)
+	TArray<FVector3f> VertexArray; // set by CADKernel, filled by FillKioVertexPosition that merges coincident vertices (CoreTechHelper)
 	TArray<FTessellationData> Faces;
 	FBox BBox;
 
@@ -358,91 +358,6 @@ CADTOOLS_API FMaterialUId BuildMaterialUId(const FCADMaterial& Material);
 
 CADTOOLS_API void SerializeBodyMeshSet(const TCHAR* Filename, TArray<FBodyMesh>& InBodySet);
 CADTOOLS_API void DeserializeBodyMeshFile(const TCHAR* Filename, TArray<FBodyMesh>& OutBodySet);
-
-inline void CopyValue(const uint8* Source, int Offset, uint8 Size, bool bIs3D, FVector& Dest, const FMatrix* Matrix = nullptr)
-{
-	if (Source == nullptr)
-	{
-		return;
-	}
-
-	switch (Size)
-	{
-		case sizeof(uint8) :
-		{
-			Dest[0] = ((uint8*)Source)[Offset + 0] / 255.;
-			Dest[1] = ((uint8*)Source)[Offset + 1] / 255.;
-			Dest[2] = bIs3D ? ((uint8*)Source)[Offset + 2] / 255. : 0.;
-			break;
-		}
-		case sizeof(float) :
-		{
-			Dest[0] = ((float*)Source)[Offset + 0];
-			Dest[1] = ((float*)Source)[Offset + 1];
-			Dest[2] = bIs3D ? ((float*)Source)[Offset + 2] : 0.;
-			break;
-		}
-		case sizeof(double) :
-		{
-			Dest[0] = ((double*)Source)[Offset + 0];
-			Dest[1] = ((double*)Source)[Offset + 1];
-			Dest[2] = bIs3D ? ((double*)Source)[Offset + 2] : 0.;
-			break;
-		}
-		default:
-		{
-			Dest[0] = 0.;
-			Dest[1] = 0.;
-			Dest[2] = 0.;
-			break;
-		}
-	}
-
-	if (bIs3D && Matrix != nullptr)
-	{
-		Dest = Matrix->TransformPosition(Dest);
-	}
-}
-
-inline void CopyValue(const void* Source, int Offset, uint8 Size, int32 Dest[3])
-{
-	if (Source == nullptr)
-	{
-		return;
-	}
-
-	switch (Size)
-	{
-		case sizeof(uint8) :
-		{
-			Dest[0] = ((uint8*)Source)[Offset + 0];
-			Dest[1] = ((uint8*)Source)[Offset + 1];
-			Dest[2] = ((uint8*)Source)[Offset + 2];
-			break;
-		}
-		case sizeof(uint16) :
-		{
-			Dest[0] = ((uint16*)Source)[Offset + 0];
-			Dest[1] = ((uint16*)Source)[Offset + 1];
-			Dest[2] = ((uint16*)Source)[Offset + 2];
-			break;
-		}
-		case sizeof(uint32) :
-		{
-			Dest[0] = ((uint32*)Source)[Offset + 0];
-			Dest[1] = ((uint32*)Source)[Offset + 1];
-			Dest[2] = ((uint32*)Source)[Offset + 2];
-			break;
-		}
-		default:
-		{
-			Dest[0] = 0.;
-			Dest[1] = 0.;
-			Dest[2] = 0.;
-			break;
-		}
-	}
-}
 
 }
 
