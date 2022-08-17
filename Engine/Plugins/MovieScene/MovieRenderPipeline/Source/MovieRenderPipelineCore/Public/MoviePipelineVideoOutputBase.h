@@ -57,8 +57,8 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineVideoOutputBase : public UMovieP
 {
 	GENERATED_BODY()
 
-protected:
-
+public:
+	UMoviePipelineVideoOutputBase();
 
 protected:
 	// UMoviePipelineOutputBase Interface
@@ -84,6 +84,7 @@ protected:
 
 private:
 	TArray<FMoviePipelineCodecWriter> AllWriters;
+	bool bHasError;
 
 	FGraphEventArray OutstandingTasks;
 };
