@@ -84,10 +84,6 @@ void UPCGSubsystem::Tick(float DeltaSeconds)
 
 	// If we have any tasks to execute, schedule some
 	GraphExecutor->Execute();
-
-#if WITH_EDITOR
-	GraphExecutor->UpdateGenerationNotification();
-#endif
 }
 
 APCGWorldActor* UPCGSubsystem::GetPCGWorldActor()
