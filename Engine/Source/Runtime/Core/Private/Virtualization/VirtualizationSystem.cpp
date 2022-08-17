@@ -162,11 +162,18 @@ void Initialize(const FInitParams& InitParams)
 	FName SystemName;
 
 #if UE_DISABLE_VIRTUALIZATION_SYSTEM == 0
-	FString RawSystemName;
-	if (InitParams.ConfigFile.GetString(TEXT("Core.ContentVirtualization"), TEXT("SystemName"), RawSystemName))
+	if (FParse::Param(FCommandLine::Get(), TEXT("VA-Disable")))
 	{
-		SystemName = FName(RawSystemName);
-		UE_LOG(LogVirtualization, Display, TEXT("VirtualizationSystem name found in ini file: %s"), *RawSystemName);
+		UE_LOG(LogVirtualization, Display, TEXT("The virtualization system has been disabled by the command line"));
+	}
+	else
+	{
+		FString RawSystemName;
+		if (InitParams.ConfigFile.GetString(TEXT("Core.ContentVirtualization"), TEXT("SystemName"), RawSystemName))
+		{
+			SystemName = FName(RawSystemName);
+			UE_LOG(LogVirtualization, Display, TEXT("VirtualizationSystem name found in ini file: %s"), *RawSystemName);
+		}
 	}
 #else
 	UE_LOG(LogVirtualization, Display, TEXT("The virtualization system has been disabled by code"));
