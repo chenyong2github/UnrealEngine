@@ -636,6 +636,8 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 
 #if WITH_EDITOR
 
+			static const FText LoopMessage = LOCTEXT("LinkingLoopNotRecommended", "Linking a function return within a loop is not recommended.\nAre you sure?");
+			
 			// check if we are trying to connect a loop iteration pin to a return
 			if(URigVMGraph* Graph = Controller->GetGraph())
 			{
@@ -698,7 +700,7 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 
 						if(bIsInLoopIteration)
 						{
-							const EAppReturnType::Type Answer = FMessageDialog::Open( EAppMsgType::YesNo, FText::FromString( TEXT("Linking a function return within a loop is not recommended.\nAre you sure?") ) );
+							const EAppReturnType::Type Answer = FMessageDialog::Open( EAppMsgType::YesNo, LoopMessage );
 							if(Answer == EAppReturnType::No)
 							{
 								return false;

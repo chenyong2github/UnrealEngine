@@ -93,11 +93,13 @@ void FControlRigBlueprintActions::PerformAssetDiff(UObject* OldAsset, UObject* N
 	UBlueprint* OldBlueprint = CastChecked<UBlueprint>(OldAsset);
 	UBlueprint* NewBlueprint = CastChecked<UBlueprint>(NewAsset);
 
+	static const FText DiffWindowMessage = LOCTEXT("ControlRigDiffWindow", "Opening a diff window will close the control rig editor. {0}.\nAre you sure?");
+	
 	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 	for (IAssetEditorInstance* Editor : AssetEditorSubsystem->FindEditorsForAsset(OldAsset))
 	{
 		const EAppReturnType::Type Answer = FMessageDialog::Open( EAppMsgType::YesNo,
-				FText::FromString(FString::Printf(TEXT("Opening a diff window will close the control rig editor. %s.\nAre you sure?"),  *OldBlueprint->GetName() )));
+				FText::Format(DiffWindowMessage, FText::FromString(OldBlueprint->GetName())));
 		if(Answer == EAppReturnType::No)
 		{
 		   return;
@@ -106,7 +108,7 @@ void FControlRigBlueprintActions::PerformAssetDiff(UObject* OldAsset, UObject* N
 	for (IAssetEditorInstance* Editor : AssetEditorSubsystem->FindEditorsForAsset(NewAsset))
 	{
 		const EAppReturnType::Type Answer = FMessageDialog::Open( EAppMsgType::YesNo,
-				FText::FromString(FString::Printf(TEXT("Opening a diff window will close the control rig editor. %s.\nAre you sure?"),  *NewBlueprint->GetName() )));
+				FText::Format(DiffWindowMessage, FText::FromString(NewBlueprint->GetName())));
 		if(Answer == EAppReturnType::No)
 		{
 			return;
