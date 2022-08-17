@@ -792,7 +792,9 @@ void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRender
 	{
 		const bool bAnySegmentUsesWorldPositionOffset = DynamicData != nullptr ? DynamicData->bAnySegmentUsesWorldPositionOffset : false;
 
-		bool bRequireRecreatingRayTracingGeometry = (LODIndex != RayTracingGeometry.LODIndex || bHiddenMaterialVisibilityDirtyForRayTracing);
+		bool bRequireRecreatingRayTracingGeometry = LODIndex != RayTracingGeometry.LODIndex
+			|| bHiddenMaterialVisibilityDirtyForRayTracing
+			|| RayTracingGeometry.Initializer.Segments.Num() == 0;
 		if (!bRequireRecreatingRayTracingGeometry)
 		{
 			for (FRayTracingGeometrySegment& Segment : RayTracingGeometry.Initializer.Segments)
@@ -892,6 +894,8 @@ void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRender
 		}
 		else if (!bAnySegmentUsesWorldPositionOffset)
 		{
+			check(LODModel.RenderSections.Num() == RayTracingGeometry.Initializer.Segments.Num());
+
 			// Refit BLAS with new vertex buffer data
 			for (int32 SectionIndex = 0; SectionIndex < LODModel.RenderSections.Num(); ++SectionIndex)
 			{
