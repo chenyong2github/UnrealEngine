@@ -120,7 +120,7 @@ struct ENGINE_API FActorFolderSet
 
 public:
 
-	void Add(UActorFolder* InActorFolder) { ActorFolders.Add(InActorFolder); }
+	void Add(UActorFolder* InActorFolder);
 	int32 Remove(UActorFolder* InActorFolder) { return ActorFolders.Remove(InActorFolder); }
 	bool IsEmpty() const { return ActorFolders.IsEmpty(); }
 	const TSet<TObjectPtr<UActorFolder>>& GetActorFolders() const { return ActorFolders; }

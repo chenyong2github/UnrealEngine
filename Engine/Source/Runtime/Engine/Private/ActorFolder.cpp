@@ -191,7 +191,7 @@ void UActorFolder::MarkAsDeleted()
 			}
 		}
 		return true;
-	}, /*bSkipDeleted*/ false);
+	}, /*bSkipDeleted*/ true);
 
 	// Sort in descending order so children will be deleted before parents
 	FoldersToDelete.Sort([](const UActorFolder& FolderA, const UActorFolder& FolderB)
