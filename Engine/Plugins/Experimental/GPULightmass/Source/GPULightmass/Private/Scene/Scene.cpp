@@ -1627,8 +1627,10 @@ void FSceneRenderState::BackgroundTick()
 
 		{
 			int32 NumCellsPerBrick = 5 * 5 * 5;
-			SamplesTaken += VolumetricLightmapRenderer->SamplesTaken;
-			TotalSamples += (uint64)VolumetricLightmapRenderer->NumTotalBricks * NumCellsPerBrick * VolumetricLightmapRenderer->NumTotalPassesToRender;
+			// VLM traces 2 paths samples per pass
+			// Multiply by 2 to get a more linear progress
+			SamplesTaken += 2 * VolumetricLightmapRenderer->SamplesTaken;
+			TotalSamples += 2 * (uint64)VolumetricLightmapRenderer->NumTotalBricks * NumCellsPerBrick * VolumetricLightmapRenderer->NumTotalPassesToRender;
 		}
 
 		int32 IntPercentage = FMath::FloorToInt(SamplesTaken * 100.0 / TotalSamples);

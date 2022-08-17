@@ -84,14 +84,12 @@ FVolumetricLightmapRenderer::FVolumetricLightmapRenderer(FSceneRenderState* Scen
 {
 	VolumetricLightmap.Data = &VolumetricLightmapData;
 	
-	NumTotalPassesToRender = Scene->Settings->GISamples;
+	NumTotalPassesToRender = Scene->Settings->GISamples * Scene->Settings->VolumetricLightmapQualityMultiplier;
 	
 	if (Scene->Settings->bUseIrradianceCaching)
 	{
 		NumTotalPassesToRender += Scene->Settings->IrradianceCacheQuality;	
 	}
-
-	NumTotalPassesToRender *= Scene->Settings->VolumetricLightmapQualityMultiplier;
 }
 
 FPrecomputedVolumetricLightmap* FVolumetricLightmapRenderer::GetPrecomputedVolumetricLightmapForPreview()
@@ -586,7 +584,6 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					PassParameters->BrickRequests = BrickRequests.SRV;
 					PassParameters->NumTotalBricks = NumTotalBricks;
 					PassParameters->BrickBatchOffset = BrickBatchOffset;
-					PassParameters->VolumetricLightmapQualityMultiplier = Scene->Settings->VolumetricLightmapQualityMultiplier;
 					PassParameters->AmbientVector = AccumulationBrickData.AmbientVector.UAV;
 					PassParameters->SHCoefficients0R = AccumulationBrickData.SHCoefficients[0].UAV;
 					PassParameters->SHCoefficients1R = AccumulationBrickData.SHCoefficients[1].UAV;
@@ -740,9 +737,9 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 					if (Scene->Settings->bUseIrradianceCaching)
 					{
-						if (EffectiveRenderPassIndex >= Scene->Settings->IrradianceCacheQuality * Scene->Settings->VolumetricLightmapQualityMultiplier)
+						if (EffectiveRenderPassIndex >= Scene->Settings->IrradianceCacheQuality)
 						{
-							EffectiveRenderPassIndex -= Scene->Settings->IrradianceCacheQuality * Scene->Settings->VolumetricLightmapQualityMultiplier;
+							EffectiveRenderPassIndex -= Scene->Settings->IrradianceCacheQuality;
 						}
 					}
 					

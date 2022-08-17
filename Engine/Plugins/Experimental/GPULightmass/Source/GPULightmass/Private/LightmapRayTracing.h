@@ -132,7 +132,6 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 		SHADER_PARAMETER(FIntVector, IndirectionTextureDim)
 		SHADER_PARAMETER(int32, NumTotalBricks)
 		SHADER_PARAMETER(int32, BrickBatchOffset)
-		SHADER_PARAMETER(int32, VolumetricLightmapQualityMultiplier)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_SRV(Buffer<uint4>, BrickRequests)
 		SHADER_PARAMETER_UAV(RWTexture3D<float3>, AmbientVector)

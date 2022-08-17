@@ -253,9 +253,5 @@ void EmitGeometryHitPoint(FFinalGatherHitPoint HitPoint, uint Size)
 
 int GetIrradianceCachingQuality()
 {
-#ifdef VOLUMETRIC_LIGHTMAP_PATH_TRACING_MAIN_RG
-	return IrradianceCachingParameters.Quality * VolumetricLightmapQualityMultiplier;
-#endif
-	
 	return IrradianceCachingParameters.Quality;
 }
