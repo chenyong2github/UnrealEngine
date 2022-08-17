@@ -494,15 +494,11 @@ void UFKControlRig::ToggleApplyMode()
 		Context.SetKey = EControlRigSetKey::Never;
 		const bool bSetupUndo = false;
 
-		FTransform ZeroScale = FTransform::Identity;
-		ZeroScale.SetScale3D(FVector::ZeroVector);
-		const FEulerTransform EulerZero(ZeroScale);
-
 		GetHierarchy()->ForEach<FRigControlElement>([&](FRigControlElement* ControlElement) -> bool
         {
             if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 			{
-				SetControlValue<FEulerTransform>(ControlElement->GetName(), EulerZero, true, Context, bSetupUndo);
+				SetControlValue<FEulerTransform>(ControlElement->GetName(), FEulerTransform::Identity, true, Context, bSetupUndo);
 			}
 			else if (ControlElement->Settings.ControlType == ERigControlType::Float)
 			{
