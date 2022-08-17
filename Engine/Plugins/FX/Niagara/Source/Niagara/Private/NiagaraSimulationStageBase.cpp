@@ -121,29 +121,17 @@ bool UNiagaraSimulationStageGeneric::FillCompilationData(TArray<FNiagaraSimulati
 }
 #endif //WITH_EDITORONLY_DATA
 
-void UNiagaraSimulationStageGeneric::InitBindings()
-{
-	using namespace NiagaraSimulationStageLocal;
-	EnabledBinding.Setup(GetDefaultEnabledBinding(), GetDefaultEnabledBinding(), ENiagaraRendererSourceDataMode::Emitter);
-	ElementCountBinding.Setup(GetDefaultElementCountBinding(), GetDefaultElementCountBinding(), ENiagaraRendererSourceDataMode::Emitter);
-	NumIterationsBinding.Setup(GetDefaultNumIterationsBinding(), GetDefaultNumIterationsBinding(), ENiagaraRendererSourceDataMode::Emitter);
-	ParticleIterationStateBinding.Setup(GetDefaultParticleStateBinding(), GetDefaultParticleStateBinding(), ENiagaraRendererSourceDataMode::Particles);
-}
-
-void UNiagaraSimulationStageGeneric::InitCDOPropertiesAfterModuleStartup()
-{
-	UNiagaraSimulationStageGeneric* CDO = GetMutableDefault<UNiagaraSimulationStageGeneric>();
-	CDO->InitBindings();
-}
-
 void UNiagaraSimulationStageGeneric::PostInitProperties()
 {
 	Super::PostInitProperties();
 
-	// the type registry isn't live at this point for the CDO so we defer the bindings initialization for it
-	if(!HasAnyFlags(RF_ClassDefaultObject))
+	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
-		InitBindings();
+		using namespace NiagaraSimulationStageLocal;
+		EnabledBinding.Setup(GetDefaultEnabledBinding(), GetDefaultEnabledBinding(), ENiagaraRendererSourceDataMode::Emitter);
+		ElementCountBinding.Setup(GetDefaultElementCountBinding(), GetDefaultElementCountBinding(), ENiagaraRendererSourceDataMode::Emitter);
+		NumIterationsBinding.Setup(GetDefaultNumIterationsBinding(), GetDefaultNumIterationsBinding(), ENiagaraRendererSourceDataMode::Emitter);
+		ParticleIterationStateBinding.Setup(GetDefaultParticleStateBinding(), GetDefaultParticleStateBinding(), ENiagaraRendererSourceDataMode::Particles);
 	}
 }
 

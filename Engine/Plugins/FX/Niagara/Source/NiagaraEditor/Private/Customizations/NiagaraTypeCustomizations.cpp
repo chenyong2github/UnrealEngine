@@ -368,7 +368,12 @@ void FNiagaraVariableAttributeBindingCustomization::ChangeSource(FName InVarName
 	PropertyHandle->NotifyFinishedChangingProperties();
 }
 
-bool FNiagaraVariableAttributeBindingCustomization::IsResetToDefaultsVisible(TSharedPtr<IPropertyHandle> InPropertyHandle) const
+void FNiagaraVariableAttributeBindingCustomization::ResetToDefault()
+{
+	UE_LOG(LogNiagaraEditor, Warning, TEXT("Reset to default!"));
+}
+
+EVisibility FNiagaraVariableAttributeBindingCustomization::IsResetToDefaultsVisible() const
 {
 	check(BaseEmitter.Emitter);
 	check(RenderProps || SimulationStage);
@@ -376,10 +381,10 @@ bool FNiagaraVariableAttributeBindingCustomization::IsResetToDefaultsVisible(TSh
 	check(DefaultVariableBinding);
 
 	const ENiagaraRendererSourceDataMode BindingSourceMode = RenderProps ? RenderProps->GetCurrentSourceMode() : ENiagaraRendererSourceDataMode::Emitter;
-	return !TargetVariableBinding->MatchesDefault(*DefaultVariableBinding, BindingSourceMode);
+	return TargetVariableBinding->MatchesDefault(*DefaultVariableBinding, BindingSourceMode) ? EVisibility::Hidden : EVisibility::Visible;
 }
 
-void FNiagaraVariableAttributeBindingCustomization::OnResetToDefaultsClicked(TSharedPtr<IPropertyHandle> InPropertyHandle)
+FReply FNiagaraVariableAttributeBindingCustomization::OnResetToDefaultsClicked()
 {
 	FScopedTransaction Transaction(LOCTEXT("ResetBindingParam", "Reset binding"));
 	TArray<UObject*> Objects;
@@ -398,6 +403,7 @@ void FNiagaraVariableAttributeBindingCustomization::OnResetToDefaultsClicked(TSh
 	TargetVariableBinding->ResetToDefault(*DefaultVariableBinding, BaseEmitter, BindingSourceMode);
 	PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	PropertyHandle->NotifyFinishedChangingProperties();
+	return FReply::Handled();
 }
 
 void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
@@ -409,6 +415,17 @@ void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<I
 	TArray<UObject*> Objects;
 	PropertyHandle->GetOuterObjects(Objects);
 	bool bAddDefault = true;
+
+	InPropertyHandle->SetOnPropertyResetToDefault(FSimpleDelegate::CreateLambda([this]() { ResetToDefault(); }));
+	//InPropertyHandle->ExecuteCustomResetToDefault
+
+	/*FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(
+		FIsResetToDefaultVisible::CreateSP(this, &FMotionControllerDetails::IsSourceValueModified),
+		FResetToDefaultHandler::CreateSP(this, &FMotionControllerDetails::OnResetSourceValue)
+	);
+
+	PropertyRow.OverrideResetToDefault(ResetOverride); */
+	InPropertyHandle->MarkResetToDefaultCustomized(true);
 	
 	if (Objects.Num() == 1)
 	{
@@ -428,15 +445,7 @@ void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<I
 		{
 			TargetVariableBinding = (FNiagaraVariableAttributeBinding*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[0]);
 			DefaultVariableBinding = (FNiagaraVariableAttributeBinding*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[0]->GetClass()->GetDefaultObject());
-
-			FResetToDefaultOverride OverrideReset = FResetToDefaultOverride::Create
-			(
-				FIsResetToDefaultVisible::CreateSP(this, &FNiagaraVariableAttributeBindingCustomization::IsResetToDefaultsVisible),
-				FResetToDefaultHandler::CreateSP(this, &FNiagaraVariableAttributeBindingCustomization::OnResetToDefaultsClicked)
-			);
-			
-			HeaderRow.OverrideResetToDefault(OverrideReset);
-			
+				
 			HeaderRow
 				.NameContent()
 				[
@@ -454,10 +463,34 @@ void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<I
 						.ContentPadding(1)
 						.ToolTipText(this, &FNiagaraVariableAttributeBindingCustomization::GetTooltipText)
 						.ButtonContent()
-						[							
+						[
+							/*SNew(STextBlock)
+							.Text(this, &FNiagaraVariableAttributeBindingCustomization::GetCurrentText)
+							.Font(IDetailLayoutBuilder::GetDetailFont())*/
 							SNew(SNiagaraParameterName)
 							.ParameterName(this, &FNiagaraVariableAttributeBindingCustomization::GetVariableName)
 							.IsReadOnly(true)
+							//SNew(STextBlock)
+							//.Text(InCreateData->Action->GetMenuDescription())
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(2, 1)
+					[
+						SNew(SButton)
+						.IsFocusable(false)
+						.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
+						.ButtonStyle(FAppStyle::Get(), "NoBorder")
+						.ContentPadding(0)
+						.Visibility(this, &FNiagaraVariableAttributeBindingCustomization::IsResetToDefaultsVisible)
+						.OnClicked(this, &FNiagaraVariableAttributeBindingCustomization::OnResetToDefaultsClicked)
+						.Content()
+						[
+							SNew(SImage)
+							.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+							.ColorAndOpacity(FSlateColor::UseForeground())
 						]
 					]
 				];
