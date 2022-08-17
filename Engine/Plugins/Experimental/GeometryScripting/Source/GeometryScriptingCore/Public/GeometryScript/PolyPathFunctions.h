@@ -94,8 +94,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath")
 	static UPARAM(DisplayName = "Poly Path") FGeometryScriptPolyPath CreateArcPath2D(FVector2D Center = FVector2D(0, 0), float Radius = 10, int NumPoints = 10, float StartAngle = 0, float EndAngle = 90);
 
+	/**
+	 * Sample positions from a USplineComponent into a PolyPath, based on the given SamplingOptions
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath")
 	static void ConvertSplineToPolyPath(const USplineComponent* Spline, FGeometryScriptPolyPath& PolyPath, FGeometryScriptSplineSamplingOptions SamplingOptions);
+
+	/**
+	 * Sample a USplineComponent into a list of FTransforms, based on the given SamplingOptions.
+	 * @param Frames Transforms are returned here, with X axis oriented along spline Tangent and Z as the 'Up' vector.
+	 * @param FrameTimes the spline Time value used for each Frame
+	 * @param RelativeTransform a constant Transform applied to each sample Transform in its local frame of reference. So, eg, an X Rotation will rotate each frame around the local spline Tangent vector
+	 * @param bIncludeScale if true, the Scale of each FTransform is taken from the Spline, otherwise the Transforms have unit scale
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath")
+	static void SampleSplineToTransforms(
+		const USplineComponent* Spline, 
+		TArray<FTransform>& Frames, 
+		TArray<double>& FrameTimes,
+		FGeometryScriptSplineSamplingOptions SamplingOptions,
+		FTransform RelativeTransform,
+		bool bIncludeScale = true);
+
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath", meta=(ScriptMethod))
 	static void ConvertPolyPathToArray(FGeometryScriptPolyPath PolyPath, TArray<FVector>& VertexArray);

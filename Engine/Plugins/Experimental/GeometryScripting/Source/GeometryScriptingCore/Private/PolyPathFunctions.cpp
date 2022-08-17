@@ -224,6 +224,52 @@ void UGeometryScriptLibrary_PolyPathFunctions::ConvertSplineToPolyPath(const USp
 	}
 }
 
+
+void UGeometryScriptLibrary_PolyPathFunctions::SampleSplineToTransforms(
+	const USplineComponent* Spline, 
+	TArray<FTransform>& Frames, 
+	TArray<double>& FrameTimes,
+	FGeometryScriptSplineSamplingOptions SamplingOptions,
+	FTransform RelativeTransform,
+	bool bIncludeScale)
+{
+	Frames.Reset();
+	FrameTimes.Reset();
+
+	// Currently ErrorTolerance sampling can only be done via Spline->ConvertSplineToPolyLine, which only returns a list of points.
+	// To convert to Transforms we would have to reverse-engineer the Time at each Point which could be very expensive...
+	if (SamplingOptions.SampleSpacing == EGeometryScriptSampleSpacing::ErrorTolerance)
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("SampleSplineToTransforms: ErrorTolerance sampling mode is currently not supported, falling back to UniformDistance"));
+		SamplingOptions.SampleSpacing = EGeometryScriptSampleSpacing::UniformDistance;
+	}
+
+	if (Spline != nullptr )
+	{
+		bool bIsLoop = Spline->IsClosedLoop();
+
+		float Duration = Spline->Duration;
+
+		bool bUseConstantVelocity = SamplingOptions.SampleSpacing == EGeometryScriptSampleSpacing::UniformDistance;
+		int32 UseSamples = FMath::Max(2, SamplingOptions.NumSamples); // Always use at least 2 samples
+																		// In non-loops, we adjust DivNum so we exactly sample the end of the spline
+																		// In loops we don't sample the endpoint, by convention, as it's the same as the start
+		float DivNum = float(UseSamples - (int32)!bIsLoop);
+		Frames.Reserve(UseSamples);
+		FrameTimes.Reserve(UseSamples);
+		for (int32 Idx = 0; Idx < UseSamples; Idx++)
+		{
+			float Time = Duration * ((float)Idx / DivNum);
+			FTransform Transform = Spline->GetTransformAtTime(Time, SamplingOptions.CoordinateSpace, bUseConstantVelocity, bIncludeScale);
+			FTransform::Multiply(&Transform, &RelativeTransform, &Transform);
+			Frames.Add(Transform);
+			FrameTimes.Add(Time);
+		}
+	}
+}
+
+
+
 TArray<FVector> UGeometryScriptLibrary_PolyPathFunctions::Conv_GeometryScriptPolyPathToArray(FGeometryScriptPolyPath PolyPath)
 {
 	TArray<FVector> PathVertices;
