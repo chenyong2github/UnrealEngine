@@ -355,7 +355,7 @@ void FDisplayClusterSpec::Define()
 			DisplayClusterTestUtils::AddClusterNodeToCluster(ClusterAsset, AssetRootCluster);
 
 			TestEqual(TEXT("instance key count (compared to CDO key count)"), InstancedRootCluster->Nodes.Num(), AssetRootCluster->Nodes.Num());
-			for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& Pair : AssetRootCluster->Nodes)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& Pair : AssetRootCluster->Nodes)
 			{
 				if (TestTrue("Instance has entry corresponding to CDO key", InstancedRootCluster->Nodes.Contains(Pair.Key)))
 				{
@@ -647,17 +647,17 @@ void FDisplayClusterSpec::RegisterPropagationTests(TFunction<void()> BeforeTestA
 
 		if (TestEqual(TEXT("Both nodes are present in asset's cluster"), AssetRootCluster->Nodes.Num(), 2))
 		{
-			for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& Pair : AssetRootCluster->Nodes)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& Pair : AssetRootCluster->Nodes)
 			{
-				TestNotNull(TEXT("All asset nodes are valid"), Pair.Value);
+				TestNotNull(TEXT("All asset nodes are valid"), ToRawPtr(Pair.Value));
 			}
 		}
 		
 		if (TestEqual(TEXT("Both nodes are present in instanced cluster"), InstancedRootCluster->Nodes.Num(), 2))
 		{
-			for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& Pair : AssetRootCluster->Nodes)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& Pair : AssetRootCluster->Nodes)
 			{
-				TestNotNull(TEXT("All instance nodes are valid"), Pair.Value);
+				TestNotNull(TEXT("All instance nodes are valid"), ToRawPtr(Pair.Value));
 			}
 		}
 	});
@@ -670,17 +670,17 @@ void FDisplayClusterSpec::RegisterPropagationTests(TFunction<void()> BeforeTestA
 
 		if (TestEqual(TEXT("Both viewports are present in asset's node"), AssetClusterNode->Viewports.Num(), 2))
 		{
-			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& Pair : AssetClusterNode->Viewports)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& Pair : AssetClusterNode->Viewports)
 			{
-				TestNotNull(TEXT("All asset viewports are valid"), Pair.Value);
+				TestNotNull(TEXT("All asset viewports are valid"), ToRawPtr(Pair.Value));
 			}
 		}
 		
 		if (TestEqual(TEXT("Both viewports are present in instanced node"), InstancedClusterNode->Viewports.Num(), 2))
 		{
-			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& Pair : AssetClusterNode->Viewports)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& Pair : AssetClusterNode->Viewports)
 			{
-				TestNotNull(TEXT("All instanced viewports are valid"), Pair.Value);
+				TestNotNull(TEXT("All instanced viewports are valid"), ToRawPtr(Pair.Value));
 			}
 		}
 	});

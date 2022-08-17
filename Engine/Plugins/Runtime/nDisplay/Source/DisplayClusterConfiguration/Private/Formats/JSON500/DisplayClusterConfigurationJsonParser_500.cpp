@@ -311,7 +311,7 @@ namespace JSON500
 		// Scene
 		{
 			// Cameras
-			for (const TPair<FString, UDisplayClusterConfigurationSceneComponentCamera*>& Comp : Config->Scene->Cameras)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationSceneComponentCamera)& Comp : Config->Scene->Cameras)
 			{
 				FDisplayClusterConfigurationJsonSceneComponentCamera_500 CfgComp;
 
@@ -328,7 +328,7 @@ namespace JSON500
 			}
 
 			// Screens
-			for (const TPair<FString, UDisplayClusterConfigurationSceneComponentScreen*>& Comp : Config->Scene->Screens)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationSceneComponentScreen)& Comp : Config->Scene->Screens)
 			{
 				FDisplayClusterConfigurationJsonSceneComponentScreen_500 CfgComp;
 
@@ -343,7 +343,7 @@ namespace JSON500
 			}
 
 			// Xforms
-			for (const TPair<FString, UDisplayClusterConfigurationSceneComponentXform*>& Comp : Config->Scene->Xforms)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationSceneComponentXform)& Comp : Config->Scene->Xforms)
 			{
 				FDisplayClusterConfigurationJsonSceneComponentScreen_500 CfgComp;
 
@@ -404,7 +404,7 @@ namespace JSON500
 			}
 
 			// Cluster nodes
-			for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& CfgNode : Config->Cluster->Nodes)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& CfgNode : Config->Cluster->Nodes)
 			{
 				FDisplayClusterConfigurationJsonClusterNode_500 Node;
 
@@ -415,7 +415,7 @@ namespace JSON500
 				Node.Window = FDisplayClusterConfigurationJsonRectangle_500(CfgNode.Value->WindowRect.X, CfgNode.Value->WindowRect.Y, CfgNode.Value->WindowRect.W, CfgNode.Value->WindowRect.H);
 
 				// Viewports
-				for (const TPair<FString, UDisplayClusterConfigurationViewport*>& CfgViewport : CfgNode.Value->Viewports)
+				for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& CfgViewport : CfgNode.Value->Viewports)
 				{
 					FDisplayClusterConfigurationJsonViewport_500 Viewport;
 

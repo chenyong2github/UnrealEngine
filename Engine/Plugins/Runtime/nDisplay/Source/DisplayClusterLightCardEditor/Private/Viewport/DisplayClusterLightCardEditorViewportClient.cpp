@@ -178,10 +178,10 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 		// Pass the preview render targets from the level instance root actor to the preview root actor
 		UDisplayClusterConfigurationData* Config = RootActorLevelInstance->GetConfigData();
 
-		for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodePair : Config->Cluster->Nodes)
+		for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& NodePair : Config->Cluster->Nodes)
 		{
 			const UDisplayClusterConfigurationClusterNode* Node = NodePair.Value;
-			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportPair : Node->Viewports)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& ViewportPair : Node->Viewports)
 			{
 				UDisplayClusterPreviewComponent* LevelInstancePreviewComp = RootActorLevelInstance->GetPreviewComponent(NodePair.Key, ViewportPair.Key);
 				UDisplayClusterPreviewComponent* PreviewComp = RootActorProxy->GetPreviewComponent(NodePair.Key, ViewportPair.Key);
@@ -1644,10 +1644,10 @@ UDisplayClusterConfigurationViewport* FDisplayClusterLightCardEditorViewportClie
 		const FString PrimitiveComponentName = PrimitiveComponent->GetName();
 		UDisplayClusterConfigurationData* Config = RootActorProxy->GetConfigData();
 		
-		for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodePair : Config->Cluster->Nodes)
+		for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& NodePair : Config->Cluster->Nodes)
 		{
 			const UDisplayClusterConfigurationClusterNode* Node = NodePair.Value;
-			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportPair : Node->Viewports)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& ViewportPair : Node->Viewports)
 			{
 				UDisplayClusterConfigurationViewport* CfgViewport = ViewportPair.Value;
 

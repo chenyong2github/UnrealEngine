@@ -484,7 +484,7 @@ struct FUsdStageActorImpl
 				Component->SetHiddenInGame( !bPrimIsVisible, bPropagateToChildren );
 			}
 
-			for ( const TPair<FString, UUsdPrimTwin*>& ChildPair : PrimTwin.GetChildren() )
+			for ( const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UUsdPrimTwin)& ChildPair : PrimTwin.GetChildren() )
 			{
 				if ( UUsdPrimTwin* ChildTwin = ChildPair.Value )
 				{
@@ -1517,7 +1517,7 @@ TArray<UObject*> AUsdStageActor::GetGeneratedAssets( const FString& PrimPath )
 
 	// Collect any other asset that claims they came from the same prim (e.g. also return the skeleton if we query
 	// the SkelRoot, or return textures if we query a material prim that used them, etc.)
-	for ( const TPair<FString, UObject*>& HashToAsset : AssetCache->GetCachedAssets() )
+	for ( const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UObject)& HashToAsset : AssetCache->GetCachedAssets() )
 	{
 		if ( UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData( HashToAsset.Value ) )
 		{
@@ -1551,7 +1551,7 @@ FString AUsdStageActor::GetSourcePrimPath( UObject* Object )
 			}
 		}
 
-		for ( const TPair<FString, UObject*>& HashToAsset : AssetCache->GetCachedAssets() )
+		for ( const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UObject)& HashToAsset : AssetCache->GetCachedAssets() )
 		{
 			if ( HashToAsset.Value == Object )
 			{

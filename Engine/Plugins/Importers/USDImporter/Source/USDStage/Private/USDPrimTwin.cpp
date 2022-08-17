@@ -53,7 +53,7 @@ void UUsdPrimTwin::Clear()
 
 	Modify();
 
-	for (const TPair< FString, UUsdPrimTwin* >& Pair : Children)
+	for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UUsdPrimTwin)& Pair : Children)
 	{
 		// Apparently when changing levels it is possible for these objects to already be nullptr by the time we try clearing them,
 		// so its safer to check
@@ -160,7 +160,7 @@ UUsdPrimTwin* UUsdPrimTwin::Find( const USceneComponent* InSceneComponent )
 		return this;
 	}
 
-	for ( const TPair< FString, UUsdPrimTwin* >& Child : Children )
+	for ( const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UUsdPrimTwin)& Child : Children )
 	{
 		UUsdPrimTwin* FoundPrimTwin = Child.Value->Find( InSceneComponent );
 		if ( FoundPrimTwin )

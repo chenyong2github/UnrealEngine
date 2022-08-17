@@ -1010,7 +1010,7 @@ static void PropagateDataFromDefaultConfig(UDisplayClusterConfigurationData* InD
 	
 	PropagateDefaultMapToInstancedMap(ClusterNodesMapProperty, InDefaultConfigData->Cluster, InInstanceConfigData->Cluster);
 	
-	for (const TTuple<FString, UDisplayClusterConfigurationClusterNode*>& ClusterKeyVal : InDefaultConfigData->Cluster->Nodes)
+	for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TTuple, FString, UDisplayClusterConfigurationClusterNode)& ClusterKeyVal : InDefaultConfigData->Cluster->Nodes)
 	{
 		UDisplayClusterConfigurationClusterNode* DestinationValue = InInstanceConfigData->Cluster->Nodes.FindChecked(
 			ClusterKeyVal.Key);
@@ -1056,14 +1056,14 @@ USceneComponent* ADisplayClusterRootActor::GetCommonViewPoint() const
 			TMap<FString, int32> ViewPointCounts;
 
 			// Get all the camera names used by viewports in this cluster
-			for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodePair : ConfigData->Cluster->Nodes)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& NodePair : ConfigData->Cluster->Nodes)
 			{
 				if (!NodePair.Value)
 				{
 					continue;
 				}
 
-				for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportPair : NodePair.Value->Viewports)
+				for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& ViewportPair : NodePair.Value->Viewports)
 				{
 					if (!ViewportPair.Value)
 					{
@@ -1150,7 +1150,7 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 	{
 		check(Node != nullptr);
 
-		for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : Node->Viewports)
+		for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& ViewportItem : Node->Viewports)
 		{
 			if (ViewportItem.Value)
 			{
@@ -1158,14 +1158,14 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 			}
 		}
 
-		for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodeItem : ConfigData->Cluster->Nodes)
+		for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& NodeItem : ConfigData->Cluster->Nodes)
 		{
 			if (!NodeItem.Value)
 			{
 				continue;
 			}
 
-			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : NodeItem.Value->Viewports)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& ViewportItem : NodeItem.Value->Viewports)
 			{
 				if (ViewportItem.Value)
 				{

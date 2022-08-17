@@ -141,7 +141,7 @@ void ADisplayClusterTestPatternsActor::InitializeInternals()
 		if (Node)
 		{
 			// For each local viewport create a PP settings structure with no PP material assigned
-			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& it : Node->Viewports)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& it : Node->Viewports)
 			{
 				ViewportPPSettings.Emplace(it.Key, CreatePPSettings(nullptr));
 			}

@@ -80,7 +80,7 @@ void UDisplayClusterConfiguratorGraph::RebuildGraph()
 				UDisplayClusterConfiguratorWindowNode* WindowNode = BuildWindowNode(HostNode, ClusterNodePair.Key, WindowIndex, ClusterNodePair.Value);
 				++WindowIndex;
 
-				for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportPair : ClusterNodePair.Value->Viewports)
+				for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& ViewportPair : ClusterNodePair.Value->Viewports)
 				{
 					BuildViewportNode(WindowNode, ViewportPair.Key, ViewportIndex, ViewportPair.Value);
 					++ViewportIndex;

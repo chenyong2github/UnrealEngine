@@ -312,10 +312,10 @@ bool FDisplayClusterScenePreviewModule::InternalRenderImmediate(FRendererConfig&
 	{
 		UDisplayClusterConfigurationData* Config = RendererConfig.RootActor->GetConfigData();
 
-		for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodePair : Config->Cluster->Nodes)
+		for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& NodePair : Config->Cluster->Nodes)
 		{
 			const UDisplayClusterConfigurationClusterNode* Node = NodePair.Value;
-			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportPair : Node->Viewports)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& ViewportPair : Node->Viewports)
 			{
 				UDisplayClusterPreviewComponent* PreviewComp = RendererConfig.RootActor->GetPreviewComponent(NodePair.Key, ViewportPair.Key);
 				if (PreviewComp)

@@ -35,12 +35,12 @@ bool UDisplayClusterMoviePipelineSettings::GetViewports(const UWorld* InWorld, T
 		{
 			if (const UDisplayClusterConfigurationCluster* InClusterCfg =  InConfigurationData->Cluster)
 			{
-				for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodeIt : InClusterCfg->Nodes)
+				for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& NodeIt : InClusterCfg->Nodes)
 				{
 					if (const UDisplayClusterConfigurationClusterNode* InConfigurationClusterNode = NodeIt.Value)
 					{
 						const FString& InClusterNodeId = NodeIt.Key;
-						for (const TPair<FString, UDisplayClusterConfigurationViewport*>& InConfigurationViewportIt : InConfigurationClusterNode->Viewports)
+						for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& InConfigurationViewportIt : InConfigurationClusterNode->Viewports)
 						{
 							if (const UDisplayClusterConfigurationViewport* InConfigurationViewport = InConfigurationViewportIt.Value)
 							{

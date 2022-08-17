@@ -393,7 +393,7 @@ UDisplayClusterConfigurationViewport* UDisplayClusterConfigurationClusterNode::G
 
 void UDisplayClusterConfigurationClusterNode::GetReferencedMeshNames(TArray<FString>& OutMeshNames) const
 {
-	for (const TPair<FString, UDisplayClusterConfigurationViewport*>& It : Viewports)
+	for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& It : Viewports)
 	{
 		if (It.Value == nullptr)
 		{
@@ -417,7 +417,7 @@ UDisplayClusterConfigurationClusterNode* UDisplayClusterConfigurationCluster::Ge
 
 void UDisplayClusterConfigurationCluster::GetReferencedMeshNames(TArray<FString>& OutMeshNames) const
 {
-	for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& It : Nodes)
+	for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& It : Nodes)
 	{
 		if (It.Value == nullptr)
 		{

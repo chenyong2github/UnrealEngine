@@ -112,7 +112,7 @@ void FDisplayClusterMediaModule::InitializeMedia()
 
 			///////////////////////////////
 			// Viewports media setup
-			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportIt : ClusterNode->Viewports)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& ViewportIt : ClusterNode->Viewports)
 			{
 				if (const UDisplayClusterConfigurationViewport* const Viewport = ViewportIt.Value)
 				{

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MQTTClientObject.h"
 
@@ -156,7 +156,7 @@ UMQTTSubscriptionObject* UMQTTClientObject::Subscribe(const FString& InTopic, EM
 	if (const TSharedPtr<IMQTTClient, ESPMode::ThreadSafe> MQTTClient = MqttClientPtr)
 	{
 		UMQTTSubscriptionObject* SubscriptionObject = NewObject<UMQTTSubscriptionObject>(this);
-		UMQTTSubscriptionObject*& SubscriptionObjectRef = this->Subscriptions.Add_GetRef(SubscriptionObject);
+		UE_TRANSITIONAL_OBJECT_PTR(UMQTTSubscriptionObject)& SubscriptionObjectRef = this->Subscriptions.Add_GetRef(SubscriptionObject);
 
 		MQTTClient->Subscribe({MakeTuple(InTopic, InQoS)})
 		.Next([&](TArray<FMQTTSubscribeResult> InSubscribeResults)

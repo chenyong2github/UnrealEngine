@@ -28,7 +28,7 @@ void FDisplayClusterViewportConfigurationBase::Update(const FString& ClusterNode
 	const UDisplayClusterConfigurationClusterNode* ClusterNodeConfiguration = ConfigurationData.Cluster->GetNode(ClusterNodeId);
 	if (ClusterNodeConfiguration)
 	{
-		for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportIt : ClusterNodeConfiguration->Viewports)
+		for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& ViewportIt : ClusterNodeConfiguration->Viewports)
 		{
 			if (ViewportIt.Key.Len() && ViewportIt.Value)
 			{
@@ -114,11 +114,11 @@ void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InV
 	}
 
 	// Update and Create new viewports
-	for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& ClusterNodeConfigurationIt : ConfigurationData.Cluster->Nodes)
+	for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& ClusterNodeConfigurationIt : ConfigurationData.Cluster->Nodes)
 	{
 		if (const UDisplayClusterConfigurationClusterNode* ClusterNodeConfiguration = ClusterNodeConfigurationIt.Value)
 		{
-			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportIt : ClusterNodeConfiguration->Viewports)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationViewport)& ViewportIt : ClusterNodeConfiguration->Viewports)
 			{
 				if (ViewportIt.Key.Len() && ViewportIt.Value && InViewportNames.Find(ViewportIt.Key) != INDEX_NONE)
 				{

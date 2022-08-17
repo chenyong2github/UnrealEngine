@@ -158,14 +158,14 @@ void FDisplayClusterConfiguratorNodeSelection::ResetOptions()
 	Options.Reset();
 	if (UDisplayClusterConfigurationData* ConfigData = GetConfigData())
 	{
-		for (const TTuple<FString, UDisplayClusterConfigurationClusterNode*>& Node : ConfigData->Cluster->Nodes)
+		for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TTuple, FString, UDisplayClusterConfigurationClusterNode)& Node : ConfigData->Cluster->Nodes)
 		{
 			if (OperationMode == ClusterNodes)
 			{
 				Options.Add(MakeShared<FString>(Node.Value->GetName()));
 				continue;
 			}
-			for (const TTuple<FString, UDisplayClusterConfigurationViewport*>& Viewport : Node.Value->Viewports)
+			for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TTuple, FString, UDisplayClusterConfigurationViewport)& Viewport : Node.Value->Viewports)
 			{
 				Options.Add(MakeShared<FString>(Viewport.Value->GetName()));
 			}
