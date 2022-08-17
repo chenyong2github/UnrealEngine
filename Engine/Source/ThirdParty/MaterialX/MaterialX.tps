@@ -3,7 +3,7 @@
   <Name>MaterialX</Name>
   <Location>Engine/Source/ThirdParty/MaterialX</Location>
   <Function>MaterialX is an open standard for transfer of rich material and look-development content between applications and renderers.</Function>
-  <Eula>https://github.com/materialx/MaterialX/blob/v1.38.1/LICENSE.txt</Eula>
+  <Eula>https://github.com/AcademySoftwareFoundation/MaterialX/blob/v1.38.5/LICENSE</Eula>
   <RedistributeTo>
     <EndUserGroup>Licensees</EndUserGroup>
     <EndUserGroup>Git</EndUserGroup>
