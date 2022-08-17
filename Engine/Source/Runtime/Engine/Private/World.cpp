@@ -366,6 +366,7 @@ FWorldDelegates::FWorldCleanupEvent FWorldDelegates::OnWorldCleanup;
 FWorldDelegates::FWorldCleanupEvent FWorldDelegates::OnPostWorldCleanup;
 FWorldDelegates::FWorldEvent FWorldDelegates::OnPreWorldFinishDestroy;
 FWorldDelegates::FOnLevelChanged FWorldDelegates::LevelAddedToWorld;
+FWorldDelegates::FOnLevelChanged FWorldDelegates::PreLevelRemovedFromWorld;
 FWorldDelegates::FOnLevelChanged FWorldDelegates::LevelRemovedFromWorld;
 FWorldDelegates::FLevelOffsetEvent FWorldDelegates::PostApplyLevelOffset;
 FWorldDelegates::FWorldGetAssetTags FWorldDelegates::GetAssetTags;
@@ -3115,6 +3116,7 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval, FNet
 
 	auto BeginRemoval = [Level, this]()
 	{
+		FWorldDelegates::PreLevelRemovedFromWorld.Broadcast(Level, this);
 		Level->bIsBeingRemoved = true;
 
 		if (Level->bRequireFullVisibilityToRender && Level->bIsVisible)
@@ -7628,6 +7630,7 @@ bool UWorld::RemoveLevel( ULevel* InLevel )
 	bool bRemovedLevel = false;
 	if(ContainsLevel( InLevel ) == true )
 	{
+		FWorldDelegates::PreLevelRemovedFromWorld.Broadcast(InLevel, this);
 		bRemovedLevel = true;
 		
 #if WITH_EDITOR

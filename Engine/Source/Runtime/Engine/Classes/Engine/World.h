@@ -4245,6 +4245,11 @@ public:
 	// Sent when a ULevel is added to the world via UWorld::AddToWorld
 	static FOnLevelChanged			LevelAddedToWorld;
 
+	// Sent before a ULevel is removed from the world via UWorld::RemoveFromWorld or 
+	// LoadMap (a NULL object means the LoadMap case, because all levels will be 
+	// removed from the world without a RemoveFromWorld call for each)
+	static FOnLevelChanged			PreLevelRemovedFromWorld;
+
 	// Sent when a ULevel is removed from the world via UWorld::RemoveFromWorld or 
 	// LoadMap (a NULL object means the LoadMap case, because all levels will be 
 	// removed from the world without a RemoveFromWorld call for each)
