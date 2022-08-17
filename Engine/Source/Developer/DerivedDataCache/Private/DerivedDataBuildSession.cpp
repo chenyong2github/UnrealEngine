@@ -68,7 +68,7 @@ void FBuildSessionInternal::Build(
 	FOnBuildComplete&& OnComplete)
 {
 	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner}, Key, Policy,
-		OnComplete ? MoveTemp(OnComplete) : [](FBuildCompleteParams&&){});
+		OnComplete ? MoveTemp(OnComplete) : FOnBuildComplete([](FBuildCompleteParams&&){}));
 }
 
 void FBuildSessionInternal::Build(
@@ -79,7 +79,7 @@ void FBuildSessionInternal::Build(
 	FOnBuildComplete&& OnComplete)
 {
 	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner}, Definition, Inputs, Policy,
-		OnComplete ? MoveTemp(OnComplete) : [](FBuildCompleteParams&&){});
+		OnComplete ? MoveTemp(OnComplete) : FOnBuildComplete([](FBuildCompleteParams&&){}));
 }
 
 void FBuildSessionInternal::Build(
@@ -90,7 +90,7 @@ void FBuildSessionInternal::Build(
 	FOnBuildComplete&& OnComplete)
 {
 	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner}, Action, Inputs, Policy,
-		OnComplete ? MoveTemp(OnComplete) : [](FBuildCompleteParams&&){});
+		OnComplete ? MoveTemp(OnComplete) : FOnBuildComplete([](FBuildCompleteParams&&){}));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
