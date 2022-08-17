@@ -43,11 +43,11 @@ void FDirectoryPathStructCustomization::CustomizeHeader( TSharedRef<IPropertyHan
 			PickerWidget = SAssignNew(PickerButton, SButton)
 			.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 			.ToolTipText( LOCTEXT( "FolderComboToolTipText", "Choose a content directory") )
-			.OnClicked(FOnClicked::CreateSP(this, &FDirectoryPathStructCustomization::OnPickContent, PathProperty.ToSharedRef()))
+			.OnClicked( this, &FDirectoryPathStructCustomization::OnPickContent, PathProperty.ToSharedRef() )
 			.ContentPadding(2.0f)
 			.ForegroundColor( FSlateColor::UseForeground() )
 			.IsFocusable(false)
-			.IsEnabled(StructPropertyHandle->IsEditable())
+			.IsEnabled(this, &FDirectoryPathStructCustomization::IsBrowseEnabled, StructPropertyHandle)
 			[
 				SNew(SImage)
 				.Image(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
@@ -60,11 +60,11 @@ void FDirectoryPathStructCustomization::CustomizeHeader( TSharedRef<IPropertyHan
 			PickerWidget = SAssignNew(BrowseButton, SButton)
 			.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
 			.ToolTipText( LOCTEXT( "FolderButtonToolTipText", "Choose a directory from this computer") )
-			.OnClicked( FOnClicked::CreateSP(this, &FDirectoryPathStructCustomization::OnPickDirectory, PathProperty.ToSharedRef(), bRelativeToGameContentDir, bUseRelativePath) )
+			.OnClicked( this, &FDirectoryPathStructCustomization::OnPickDirectory, PathProperty.ToSharedRef(), bRelativeToGameContentDir, bUseRelativePath )
 			.ContentPadding( 2.0f )
 			.ForegroundColor( FSlateColor::UseForeground() )
 			.IsFocusable( false )
-			.IsEnabled(StructPropertyHandle->IsEditable())
+			.IsEnabled( this, &FDirectoryPathStructCustomization::IsBrowseEnabled, StructPropertyHandle )
 			[
 				SNew( SImage )
 				.Image( FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis") )
@@ -205,6 +205,11 @@ void FDirectoryPathStructCustomization::OnPathPicked(const FString& Path, TShare
 	}
 
 	PropertyHandle->SetValue(Path);
+}
+
+bool FDirectoryPathStructCustomization::IsBrowseEnabled(TSharedRef<IPropertyHandle> PropertyHandle) const
+{
+	return PropertyHandle->IsEditable();
 }
 
 #undef LOCTEXT_NAMESPACE
