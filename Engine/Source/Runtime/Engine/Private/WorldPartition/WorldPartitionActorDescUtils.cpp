@@ -22,6 +22,10 @@ UClass* FWorldPartitionActorDescUtils::GetActorNativeClassFromAssetData(const FA
 	FString ActorMetaDataClass;
 	if (InAssetData.GetTagValue(NAME_ActorMetaDataClass, ActorMetaDataClass))
 	{
+		// Avoid an assert when calling StaticFindObject during save to retrieve the actor's class.
+		// Since we are only looking for a native class, the call to StaticFindObject is legit.
+		TGuardValue<bool> GIsSavingPackageGuard(GIsSavingPackage, false);
+
 		FString ActorClassName;
 		FString ActorPackageName;
 		if (!ActorMetaDataClass.Split(TEXT("."), &ActorPackageName, &ActorClassName))
@@ -75,20 +79,20 @@ TUniquePtr<FWorldPartitionActorDesc> FWorldPartitionActorDescUtils::GetActorDesc
 	return nullptr;
 }
 
-void FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(const AActor* Actor, TArray<UObject::FAssetRegistryTag>& OutTags)
+void FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(const AActor* InActor, TArray<UObject::FAssetRegistryTag>& OutTags)
 {
-	check(Actor->IsPackageExternal());
+	check(InActor->IsPackageExternal());
 	
-	TUniquePtr<FWorldPartitionActorDesc> ActorDesc(Actor->CreateActorDesc());
+	TUniquePtr<FWorldPartitionActorDesc> ActorDesc(InActor->CreateActorDesc());
 
 	// If the actor is not added to a world, we can't retrieve its bounding volume, so try to get the existing one
-	if (ULevel* Level = Actor->GetLevel(); !Level || !Level->Actors.Contains(Actor))
+	if (ULevel* Level = InActor->GetLevel(); !Level || !Level->Actors.Contains(InActor))
 	{
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 
 		FARFilter Filter;
 		Filter.bIncludeOnlyOnDiskAssets = true;
-		Filter.PackageNames.Add(Actor->GetPackage()->GetFName());
+		Filter.PackageNames.Add(InActor->GetPackage()->GetFName());
 
 		TArray<FAssetData> Assets;
 		AssetRegistry.GetAssets(Filter, Assets);
@@ -102,7 +106,7 @@ void FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(const AActor* A
 		}
 	}
 
-	const FString ActorMetaDataClass = GetParentNativeClass(Actor->GetClass())->GetPathName();
+	const FString ActorMetaDataClass = GetParentNativeClass(InActor->GetClass())->GetPathName();
 	OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaDataClass, ActorMetaDataClass, UObject::FAssetRegistryTag::TT_Hidden));
 
 	TArray<uint8> SerializedData;
@@ -111,18 +115,18 @@ void FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(const AActor* A
 	OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaData, ActorMetaData, UObject::FAssetRegistryTag::TT_Hidden));
 }
 
-void FWorldPartitionActorDescUtils::UpdateActorDescriptorFomActor(const AActor* Actor, TUniquePtr<FWorldPartitionActorDesc>& ActorDesc)
+void FWorldPartitionActorDescUtils::UpdateActorDescriptorFomActor(const AActor* InActor, TUniquePtr<FWorldPartitionActorDesc>& ActorDesc)
 {
-	TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(Actor->CreateActorDesc());
+	TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(InActor->CreateActorDesc());
 	NewActorDesc->TransferFrom(ActorDesc.Get());
 	ActorDesc = MoveTemp(NewActorDesc);
 }
 
-void FWorldPartitionActorDescUtils::ReplaceActorDescriptorPointerFromActor(const AActor* OldActor, AActor* NewActor, FWorldPartitionActorDesc* ActorDesc)
+void FWorldPartitionActorDescUtils::ReplaceActorDescriptorPointerFromActor(const AActor* InOldActor, AActor* InNewActor, FWorldPartitionActorDesc* InActorDesc)
 {
-	check(!NewActor || (OldActor->GetActorGuid() == NewActor->GetActorGuid()));
-	check(!NewActor || (NewActor->GetActorGuid() == ActorDesc->GetGuid()));
-	check(!ActorDesc->ActorPtr.IsValid() || (ActorDesc->ActorPtr == OldActor));
-	ActorDesc->ActorPtr = NewActor;
+	check(!InNewActor || (InOldActor->GetActorGuid() == InNewActor->GetActorGuid()));
+	check(!InNewActor || (InNewActor->GetActorGuid() == InActorDesc->GetGuid()));
+	check(!InActorDesc->ActorPtr.IsValid() || (InActorDesc->ActorPtr == InOldActor));
+	InActorDesc->ActorPtr = InNewActor;
 }
 #endif
