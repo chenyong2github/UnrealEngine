@@ -1297,7 +1297,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 			// If the user of a change is robomerge or this is a change submitted via swarm on behalf of someone
 			// don't process the change for a minute to give the change owner command time to be processed
-			if ((Date.now() - ((change.time || 0) * 1000)) < 60000) {
+			/*if ((Date.now() - ((change.time || 0) * 1000)) < 60000) {
 				if (change.user === "robomerge") {
 					this.nodeBotLogger.info(`Delaying processing of ${change.change} while robomerge changes owner.  Now: ${Date.now()} Change time: ${change.time}`)
 					return
@@ -1310,7 +1310,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 			if (change.user === "robomerge") {
 				this.nodeBotLogger.warn(`Processing change ${change.change} by user robomerge. Now: ${Date.now()} Change time: ${change.time}`)
-            }
+            }*/
 
 			const changeResult = await this._processAndMergeCl(availableEdges, change, false)
 
