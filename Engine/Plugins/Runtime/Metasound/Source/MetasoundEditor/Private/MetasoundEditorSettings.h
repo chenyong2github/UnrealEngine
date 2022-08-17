@@ -55,10 +55,6 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=PinColors)
 	FLinearColor BooleanPinTypeColor;
 
-	/** Double pin type color */
-	//UPROPERTY(EditAnywhere, config, Category = PinColors)
-	//FLinearColor DoublePinTypeColor;
-
 	/** Floating-point pin type color */
 	UPROPERTY(EditAnywhere, config, Category=PinColors)
 	FLinearColor FloatPinTypeColor;
@@ -66,10 +62,6 @@ public:
 	/** Integer pin type color */
 	UPROPERTY(EditAnywhere, config, Category=PinColors)
 	FLinearColor IntPinTypeColor;
-
-	/** Integer64 pin type color */
-	//UPROPERTY(EditAnywhere, config, Category = PinColors)
-	//FLinearColor Int64PinTypeColor;
 
 	/** Object pin type color */
 	UPROPERTY(EditAnywhere, config, Category=PinColors)
@@ -86,6 +78,10 @@ public:
 	/** Trigger pin type color */
 	UPROPERTY(EditAnywhere, config, Category=PinColors)
 	FLinearColor TriggerPinTypeColor;
+
+	/** WaveTable pin type color */
+	UPROPERTY(EditAnywhere, config, Category = PinColors)
+	FLinearColor WaveTablePinTypeColor;
 
 	/** Native node class title color */
 	UPROPERTY(EditAnywhere, config, Category = NodeTitleColors)

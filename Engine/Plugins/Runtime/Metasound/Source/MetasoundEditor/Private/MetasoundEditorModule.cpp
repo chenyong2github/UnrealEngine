@@ -469,19 +469,11 @@ namespace Metasound
 						FName PinCategory = DataTypeName;
 						FName PinSubCategory;
 
-						// Execution path triggers are specialized
-						if (DataTypeName == GetMetasoundDataTypeName<FTrigger>())
+						// Types like triggers & AudioBuffer are specialized, so ignore their preferred
+						// literal types to classify the category.
+						if (!FGraphBuilder::IsPinCategoryMetaSoundCustomDataType(PinCategory))
 						{
-							PinCategory = FGraphBuilder::PinCategoryTrigger;
-						}
-						// Audio type is ubiquitous, so connections are stylized (i.e. wire color & animation)
-						else if (DataTypeName == GetMetasoundDataTypeName<FAudioBuffer>())
-						{
-							PinCategory = FGraphBuilder::PinCategoryAudio;
-						}
-						// Primitives
-						else
-						{
+							// Primitives
 							switch (RegistryInfo.PreferredLiteralType)
 							{
 								case ELiteralType::Boolean:
@@ -494,12 +486,6 @@ namespace Metasound
 								case ELiteralType::Float:
 								{
 									PinCategory = FGraphBuilder::PinCategoryFloat;
-
-									if (DataTypeName == GetMetasoundDataTypeName<FTime>() ||
-										DataTypeName == CreateArrayTypeNameFromElementTypeName(GetMetasoundDataTypeName<FTime>()))
-									{
-										PinSubCategory = FGraphBuilder::PinSubCategoryTime;
-									}
 								}
 								break;
 
@@ -508,10 +494,6 @@ namespace Metasound
 									if (RegistryInfo.bIsArrayType)
 									{
 										PinCategory = FGraphBuilder::PinCategoryFloat;
-									}
-									else
-									{
-										PinCategory = FGraphBuilder::PinCategoryObject;
 									}
 								}
 								break;
@@ -528,10 +510,6 @@ namespace Metasound
 									{
 										PinCategory = FGraphBuilder::PinCategoryInt32;
 									}
-									else
-									{
-										PinCategory = FGraphBuilder::PinCategoryObject;
-									}
 								}
 								break;
 
@@ -547,21 +525,21 @@ namespace Metasound
 									{
 										PinCategory = FGraphBuilder::PinCategoryString;
 									}
-									else
-									{
-										PinCategory = FGraphBuilder::PinCategoryObject;
-									}
 								}
 								break;
 
 								case ELiteralType::UObjectProxy:
 								case ELiteralType::UObjectProxyArray:
+								{
+									PinCategory = FGraphBuilder::PinCategoryObject;
+								}
+								break;
+
 								case ELiteralType::None:
 								case ELiteralType::NoneArray:
 								case ELiteralType::Invalid:
 								default:
 								{
-									PinCategory = FGraphBuilder::PinCategoryObject;
 									static_assert(static_cast<int32>(ELiteralType::Invalid) == 12, "Possible missing binding of pin category to primitive type");
 								}
 								break;

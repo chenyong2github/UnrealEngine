@@ -13,6 +13,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Metasound.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundAudioBuffer.h"
 #include "MetasoundEditor.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
@@ -31,13 +32,16 @@
 #include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundLiteral.h"
+#include "MetasoundTime.h"
 #include "MetasoundUObjectRegistry.h"
 #include "MetasoundVariableNodes.h"
 #include "MetasoundVertex.h"
+#include "MetasoundWaveTable.h"
 #include "Modules/ModuleManager.h"
 #include "NodeTemplates/MetasoundFrontendNodeTemplateReroute.h"
 #include "Templates/Tuple.h"
 #include "Toolkits/ToolkitManager.h"
+#include "WaveTable.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
@@ -47,18 +51,6 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		const FName FGraphBuilder::PinCategoryAudio = "audio";
-		const FName FGraphBuilder::PinCategoryBoolean = "bool";
-		//const FName FGraphBuilder::PinCategoryDouble = "double";
-		const FName FGraphBuilder::PinCategoryFloat = "float";
-		const FName FGraphBuilder::PinCategoryInt32 = "int";
-		//const FName FGraphBuilder::PinCategoryInt64 = "int64";
-		const FName FGraphBuilder::PinCategoryObject = "object";
-		const FName FGraphBuilder::PinCategoryString = "string";
-		const FName FGraphBuilder::PinCategoryTrigger = "trigger";
-
-		const FName FGraphBuilder::PinSubCategoryTime = "time";
-
 		namespace GraphBuilderPrivate
 		{
 			void DeleteNode(UObject& InMetaSound, Frontend::FNodeHandle InNodeHandle)
@@ -87,6 +79,29 @@ namespace Metasound
 				return FName(*NewName);
 			}
 		} // namespace GraphBuilderPrivate
+
+		// Categories corresponding with POD DataTypes
+		const FName FGraphBuilder::PinCategoryObject = "object"; // Basket for all UObject proxy types (corresponds to multiple DataTypes)
+		const FName FGraphBuilder::PinCategoryBoolean = GetMetasoundDataTypeName<bool>();
+		const FName FGraphBuilder::PinCategoryFloat = GetMetasoundDataTypeName<float>();
+		const FName FGraphBuilder::PinCategoryInt32 = GetMetasoundDataTypeName<int32>();
+		const FName FGraphBuilder::PinCategoryString = GetMetasoundDataTypeName<FString>();
+
+		// Categories corresponding with MetaSound DataTypes with custom visualization
+		const FName FGraphBuilder::PinCategoryAudio = GetMetasoundDataTypeName<FAudioBuffer>();
+		const FName FGraphBuilder::PinCategoryTime = GetMetasoundDataTypeName<FTime>();
+		const FName FGraphBuilder::PinCategoryTimeArray = GetMetasoundDataTypeName<TArray<FTime>>();
+		const FName FGraphBuilder::PinCategoryTrigger = GetMetasoundDataTypeName<FTrigger>();
+		const FName FGraphBuilder::PinCategoryWaveTable = GetMetasoundDataTypeName<WaveTable::FWaveTable>();
+
+		bool FGraphBuilder::IsPinCategoryMetaSoundCustomDataType(FName InPinCategoryName)
+		{
+			return InPinCategoryName == PinCategoryAudio
+				|| InPinCategoryName == PinCategoryTime
+				|| InPinCategoryName == PinCategoryTimeArray
+				|| InPinCategoryName == PinCategoryTrigger
+				|| InPinCategoryName == PinCategoryWaveTable;
+		}
 
 		bool FGraphBuilder::CanInspectPin(const UEdGraphPin* InPin)
 		{
@@ -618,11 +633,6 @@ namespace Metasound
 				return Settings->AudioPinTypeColor;
 			}
 
-			if (PinType.PinCategory == PinCategoryTrigger)
-			{
-				return Settings->TriggerPinTypeColor;
-			}
-
 			if (PinType.PinCategory == PinCategoryBoolean)
 			{
 				return Settings->BooleanPinTypeColor;
@@ -630,10 +640,6 @@ namespace Metasound
 
 			if (PinType.PinCategory == PinCategoryFloat)
 			{
-				if (PinType.PinSubCategory == PinSubCategoryTime)
-				{
-					return Settings->TimePinTypeColor;
-				}
 				return Settings->FloatPinTypeColor;
 			}
 
@@ -642,24 +648,29 @@ namespace Metasound
 				return Settings->IntPinTypeColor;
 			}
 
-			//if (PinType.PinCategory == PinCategoryInt64)
-			//{
-			//	return Settings->Int64PinTypeColor;
-			//}
+			if (PinType.PinCategory == PinCategoryObject)
+			{
+				return Settings->ObjectPinTypeColor;
+			}
 
 			if (PinType.PinCategory == PinCategoryString)
 			{
 				return Settings->StringPinTypeColor;
 			}
 
-			//if (PinType.PinCategory == PinCategoryDouble)
-			//{
-			//	return Settings->DoublePinTypeColor;
-			//}
-
-			if (PinType.PinCategory == PinCategoryObject)
+			if (PinType.PinCategory == PinCategoryTime || PinType.PinCategory == PinCategoryTimeArray)
 			{
-				return Settings->ObjectPinTypeColor;
+				return Settings->TimePinTypeColor;
+			}
+
+			if (PinType.PinCategory == PinCategoryTrigger)
+			{
+				return Settings->TriggerPinTypeColor;
+			}
+
+			if (PinType.PinCategory == PinCategoryWaveTable)
+			{
+				return Settings->WaveTablePinTypeColor;
 			}
 
 			return Settings->DefaultPinTypeColor;

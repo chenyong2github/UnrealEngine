@@ -47,16 +47,15 @@ namespace Metasound
 		public:
 			static const FName PinCategoryAudio;
 			static const FName PinCategoryBoolean;
-			//static const FName PinCategoryDouble;
 			static const FName PinCategoryFloat;
 			static const FName PinCategoryInt32;
-			//static const FName PinCategoryInt64;
 			static const FName PinCategoryObject;
 			static const FName PinCategoryString;
+			static const FName PinCategoryTime;
+			static const FName PinCategoryTimeArray;
 			static const FName PinCategoryTrigger;
+			static const FName PinCategoryWaveTable;
 
-			// Custom pin-related styles for non-literal types (ex. wire color, pin heads, etc.)
-			static const FName PinSubCategoryTime; // Time type
 
 			static const FText FunctionMenuName;
 			static const FText GraphMenuName;
@@ -81,6 +80,9 @@ namespace Metasound
 
 			// Wraps RegisterGraphWithFrontend logic in Frontend with any additional logic required to refresh editor & respective editor object state.
 			static void UnregisterGraphWithFrontend(UObject& InMetaSound);
+
+			// Returns whether pin category is a custom MetaSound DataType
+			static bool IsPinCategoryMetaSoundCustomDataType(FName InPinCategoryName);
 
 			// Determines if pin supports inspection/probe view.
 			static bool CanInspectPin(const UEdGraphPin* InPin);
