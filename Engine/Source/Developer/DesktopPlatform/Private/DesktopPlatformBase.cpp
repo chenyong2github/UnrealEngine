@@ -12,10 +12,12 @@
 #include "Serialization/JsonTypes.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "String/LexFromString.h"
 #include "Modules/ModuleManager.h"
 #include "DesktopPlatformPrivate.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/SecureHash.h"
 
 #define LOCTEXT_NAMESPACE "DesktopPlatform"
 
@@ -749,6 +751,58 @@ bool FDesktopPlatformBase::RunUnrealBuildTool(const FText& Description, const FS
 {
 	int32 ExitCode;
 	return static_cast<IDesktopPlatform*>(this)->RunUnrealBuildTool(Description, RootDir, Arguments, Warn, ExitCode);
+}
+
+bool FDesktopPlatformBase::IsUnrealBuildToolRunning()
+{
+	FString RunsDir = FPaths::Combine(FPaths::EngineIntermediateDir(), TEXT("UbtRuns"));
+	if (!FPaths::DirectoryExists(RunsDir))
+	{
+		return false;
+	}
+
+	bool bIsRunning = false;
+	IFileManager::Get().IterateDirectory(*RunsDir, [&bIsRunning](const TCHAR* Pathname, bool bIsDirectory)
+		{
+			if (!bIsDirectory)
+			{
+				bool bDeleteFile = true;
+
+				FString Filename = FPaths::GetBaseFilename(FString(Pathname));
+				const TCHAR* Delim = FCString::Strchr(*Filename, '_');
+				if (Delim != nullptr)
+				{
+					FStringView Pid(*Filename, UE_PTRDIFF_TO_INT32(Delim - *Filename));
+					int ProcessId = 0;
+					LexFromString(ProcessId, Pid);
+					FString EntryFullPath = FPlatformProcess::GetApplicationName(ProcessId);
+					if (!EntryFullPath.IsEmpty())
+					{
+						EntryFullPath.ToUpperInline();
+						const auto Utf8String = StringCast<UTF8CHAR>(*EntryFullPath);
+						FMD5Hash Hash;
+						LexFromString(Hash, Delim + 1);
+
+						FMD5 Md5Gen;
+						Md5Gen.Update(reinterpret_cast<const uint8*>(Utf8String.Get()), Utf8String.Length());
+						FMD5Hash TestHash;
+						TestHash.Set(Md5Gen);
+						if (Hash == TestHash)
+						{
+							bDeleteFile = false;
+							bIsRunning = true;
+						}
+					}
+					if (bDeleteFile)
+					{
+						IFileManager::Get().Delete(Pathname);
+					}
+				}
+			}
+			return true;
+		});
+
+	return bIsRunning;
 }
 
 bool FDesktopPlatformBase::GetOidcAccessToken(const FString& RootDir, const FString& ProjectFileName, const FString& ProviderIdentifier, bool Unattended, FFeedbackContext* Warn, FString& OutToken, FDateTime& OutTokenExpiresAt)
