@@ -176,8 +176,6 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 			ColorScaleBehindWater,	// ColorScaleBehindWater
 			SharedLocalBasisIndex);
 
-		FStrataLegacyParameters Bot = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
-
 		return StrataWeight(Top_SLW , 1.0, StrataTree,					/*OperatorIndex*/1, /*MaxDistanceFromLeaves*/1);
 		// Out maps to LegacyUpdateBSDFsOperators
 	}
@@ -185,16 +183,23 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 	#if MATERIAL_SHADINGMODEL_HAIR
 	if (ShadingModel == SHADINGMODELID_HAIR)
 	{
-		return GetStrataHairBSDF(
-			BaseColor,	   // BaseColor
-			Metallic,	   // Scatter
-			Specular,	   // Specular
-			Roughness,	   // Roughness
-			ClearCoat,	   // Backlit
-			Emissive,	   // EmissiveColor
-			SharedLocalBasisIndex);
+		FStrataData Top_Hair = PromoteParameterBlendedBSDFToOperator(
+			GetStrataHairBSDF(
+				BaseColor,	   // BaseColor
+				Metallic,	   // Scatter
+				Specular,	   // Specular
+				Roughness,	   // Roughness
+				ClearCoat,	   // Backlit
+				Emissive,	   // EmissiveColor
+				SharedLocalBasisIndex),
+			StrataTree,
+			0		/*OperatorIndex*/,
+			0		/*BSDFIndex*/,
+			0		/*int LayerDepth*/,
+			1		/*int bIsBottom*/);
 
-		// No need to take into account opacity weighting for translucent material, as the coverage is assumed to be 1
+		return StrataWeight(Top_Hair, 1.0, StrataTree,					/*OperatorIndex*/1, /*MaxDistanceFromLeaves*/1);
+		// Out maps to LegacyUpdateBSDFsOperators
 	}
 	#endif
 	#if MATERIAL_SHADINGMODEL_EYE
