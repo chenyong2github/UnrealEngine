@@ -28,6 +28,10 @@ UMassReplicationProcessor::UMassReplicationProcessor()
 #endif // UE_ALLOW_DEBUG_REPLICATION_BUBBLES_STANDALONE
 
 	ProcessingPhase = EMassProcessingPhase::PostPhysics;
+
+	// Processor might need to create UObjects when synchronizing clients and viewers
+	// (e.g. SpawnActor from UMassReplicationSubsystem::SynchronizeClientsAndViewers())
+	bRequiresGameThreadExecution = true;
 }
 
 void UMassReplicationProcessor::ConfigureQueries()
