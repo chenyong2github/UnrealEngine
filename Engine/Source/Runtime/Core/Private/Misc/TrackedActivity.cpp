@@ -32,6 +32,7 @@ public:
 		FString Name;
 		TArray<FInfo> Stack;
 		EType Type;
+		int32 SortValue;
 		uint32 Id;
 	};
 
@@ -41,11 +42,12 @@ public:
 	uint32 EventFuncMaxDepth = ~0u;
 	uint32 IdCounter = 1u;
 
-	FActivity* Create(const TCHAR* Name, const TCHAR* Status, ELight Light, EType Type)
+	FActivity* Create(const TCHAR* Name, const TCHAR* Status, ELight Light, EType Type, int32 SortValue)
 	{
 		FActivity* Activity = new FActivity();
 		Activity->Name = Name;
 		Activity->Type = Type;
+		Activity->SortValue = SortValue;
 		Activity->Stack.Add({ Status, Light, false });
 
 		FScopeLock _(&ActivitiesCs);
@@ -132,7 +134,7 @@ public:
 			Light = Activity.Stack[--StackIndex].Light;
 		}
 
-		return { *Activity.Name, Status, Light, Activity.Type, Activity.Id };
+		return { *Activity.Name, Status, Light, Activity.Type, Activity.SortValue, Activity.Id };
 	}
 
 	void TraverseActivities(const TFunction<void(const FTrackedActivity::FInfo& Info)>& Func)
@@ -165,9 +167,9 @@ public:
 };
 
 
-FTrackedActivity::FTrackedActivity(const TCHAR* Name, const TCHAR* Status, ELight Light, EType Type)
+FTrackedActivity::FTrackedActivity(const TCHAR* Name, const TCHAR* Status, ELight Light, EType Type, int32 SortValue)
 {
-	Internal = FTrackedActivityManager::Get().Create(Name, Status, Light, Type);
+	Internal = FTrackedActivityManager::Get().Create(Name, Status, Light, Type, SortValue);
 }
 
 FTrackedActivity::~FTrackedActivity()
@@ -202,15 +204,13 @@ void FTrackedActivity::Update(ELight Light, uint32 Index)
 
 FTrackedActivity& FTrackedActivity::GetEngineActivity()
 {
-	static TSharedPtr<FTrackedActivity> A(MakeShared<FTrackedActivity>(TEXT("Status"), TEXT("Unknown")));
+	static TSharedPtr<FTrackedActivity> A(MakeShared<FTrackedActivity>(TEXT("Status"), TEXT("Unknown"), ELight::None, EType::Activity, 0));
 	return *A;
 }
 
 FTrackedActivity& FTrackedActivity::GetIOActivity()
 {
-	GetEngineActivity(); // Ugly, but just to make sure Status show first
-
-	static TSharedPtr<FTrackedActivity> A(MakeShared<FTrackedActivity>(TEXT("I/O"), TEXT("Idle")));
+	static TSharedPtr<FTrackedActivity> A(MakeShared<FTrackedActivity>(TEXT("I/O"), TEXT("Idle"), ELight::None, EType::Activity, 1));
 	return *A;
 }
 

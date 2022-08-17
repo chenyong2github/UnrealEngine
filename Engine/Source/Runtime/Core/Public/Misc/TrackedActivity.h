@@ -40,8 +40,16 @@ public:
 		Debug,
 	};
 
-	/** Ctor/Dtor */
-	FTrackedActivity(const TCHAR* Name, const TCHAR* Status, ELight Light = ELight::Inherit, EType Type = EType::Activity);
+	/** Ctor
+	* @param Name Name of tracked activity
+	* @param Status Initial status of tracked activity
+	* @param Light for the activity. Will show as a dot in front of activity in console
+	* @param Type Decides where activity information show in console. Activity is to the left, Info to the right
+	* @param SortValue Decides in what order within type the activity will show in console. Lower value means earlier
+	*/
+	FTrackedActivity(const TCHAR* Name, const TCHAR* Status = TEXT(""), ELight Light = ELight::None, EType Type = EType::Activity, int32 SortValue = 100);
+
+	/** Dtor */
 	~FTrackedActivity();
 
 
@@ -75,6 +83,7 @@ public:
 		const TCHAR* Status;
 		ELight Light; // Can not be "Inherit"
 		EType Type;
+		int32 SortValue;
 		uint32 Id; // Unique Id for Activity (Is thread safe counter starting at 1)
 	};
 
