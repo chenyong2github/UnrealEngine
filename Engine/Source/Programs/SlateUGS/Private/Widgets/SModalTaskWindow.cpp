@@ -35,7 +35,7 @@ void SModalTaskWindow::Construct(const FArguments& InArgs)
 		.HasCloseButton(false)
 		.SupportsMinimize(false)
 		.SupportsMaximize(false)
-		.MaxHeight(140.0f)
+		.MaxHeight(160.0f)
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
