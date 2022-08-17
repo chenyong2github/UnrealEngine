@@ -405,7 +405,8 @@ class BuildParameters {
 
          let value = (this.values[this.paramKey(p)] as string)?.trim();
 
-         value = value ? value : param.default;
+         // default already populated in text entry
+         // value = value ? value : param.default;
 
          if (!value) {
             return;
