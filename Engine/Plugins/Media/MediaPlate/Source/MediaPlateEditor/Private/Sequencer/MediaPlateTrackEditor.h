@@ -3,12 +3,15 @@
 #pragma once
 
 #include "AnimatedPropertyKey.h"
+#include "Containers/Map.h"
 #include "MovieSceneTrackEditor.h"
 #include "Templates/SharedPointer.h"
 
 class AActor;
 class ISequencer;
 class UMediaPlateComponent;
+class UMediaPlayer;
+class UMediaSource;
 
 /**
  * Track editor for media plate.
@@ -54,6 +57,7 @@ public:
 	virtual void BuildObjectBindingContextMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
 	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneTrack> TrackClass) const override;
+	virtual void Tick(float DeltaTime) override;
 	//~ ISequencerTrackEditor interface
 	virtual void OnRelease() override;
 
@@ -76,6 +80,31 @@ private:
 	 */
 	void ImportObjectBinding(const TArray<FGuid> ObjectBindings);
 
+	/**
+	 * Starts the process to get the duration of the media.
+	 * It might take a frame or more.
+	 * 
+	 * @param MediaSource		Media to inspect.
+	 * @param Section			Will set this sequencer section to the length of the media.
+	*/
+	void StartGetDuration(UMediaSource* MediaSource, UMovieSceneSection* Section);
+
+	/**
+	 * Call this after StartGetDuration to try and get the duration of the media.
+	 *
+	 * @param MediaPlayer		Player that is opening the media.
+	 * @param NewSection		Movie section this is for.
+	 * @return True if it is done and the player can be removed.
+	 */
+	bool GetDuration(TStrongObjectPtr<UMediaPlayer>& MediaPlayer,
+		TWeakObjectPtr<UMovieSceneSection>& NewSection);
+
 	/** Handle to our delegate. */
 	FDelegateHandle OnActorAddedToSequencerHandle;
+
+	/** List of players that are we are trying to get durations from for the corresponding sections. */
+	TArray<TPair<TStrongObjectPtr<UMediaPlayer>, TWeakObjectPtr<UMovieSceneSection>>> NewSections;
+
+	/** If true then don't check for the duration this frame. */
+	bool bGetDurationDelay;
 };
