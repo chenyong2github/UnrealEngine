@@ -32,7 +32,11 @@ float DecalCommonOutput(
 #endif
 #elif DECAL_RENDERSTAGE == DECAL_RENDERSTAGE_AO
 	// Replace color with AO for AO decals.
-	Color = lerp(1, StrataGetAO(InHeader), DBuffer.Coverage);
+#if STRATA_INLINE_SHADING
+	Color = lerp(1, InHeader.IrradianceAO.MaterialAO, DBuffer.Coverage);
+#else
+#error Strata - Decals must be evaluated inline.
+#endif
 #endif
 
 #if DECAL_RENDERTARGETMODE == DECAL_RENDERTARGETMODE_SCENECOLOR

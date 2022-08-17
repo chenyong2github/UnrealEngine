@@ -6156,7 +6156,8 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	{
 		if (bStrataEnabled)
 		{
-			return InProperty == MP_FrontMaterial;
+			return InProperty == MP_FrontMaterial
+				|| InProperty == MP_AmbientOcclusion;
 		}
 		else if (InProperty >= MP_CustomizedUVs0 && InProperty <= MP_CustomizedUVs7)
 		{

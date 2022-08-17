@@ -1848,6 +1848,11 @@ bool FMaterialResource::HasMaterialPropertyConnected(EMaterialProperty In) const
 
 	if (Engine_IsStrataEnabled() && bIsStrataSupportedDomain)
 	{
+		if (In == MP_AmbientOcclusion)
+		{
+			// AO is specified on the root node so use the regular accessor.
+			return Material->HasAmbientOcclusionConnected();
+		}
 		// Strata material traversal is cached as this is an expensive operation
 		return FStrataMaterialInfo::HasPropertyConnected(Material->CachedConnectedInputs, In);
 	}
