@@ -122,7 +122,13 @@ void UMassProcessor::SetShouldAutoRegisterWithGlobalList(const bool bAutoRegiste
 	{
 		bAutoRegisterWithProcessingPhases = bAutoRegister;
 #if WITH_EDITOR
-		SaveConfig(CPF_Config, *GetDefaultConfigFilename());
+		if (UClass* Class = GetClass())
+		{
+			if (FProperty* AutoRegisterProperty = Class->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMassProcessor, bAutoRegisterWithProcessingPhases)))
+			{
+				UpdateSinglePropertyInConfigFile(AutoRegisterProperty, *GetDefaultConfigFilename());
+			}
+		}
 #endif // WITH_EDITOR
 	}
 }
@@ -223,19 +229,6 @@ void UMassProcessor::DebugOutputDescription(FOutputDevice& Ar, int32 Indent) con
 	Ar.Logf(TEXT("%*s%s"), Indent, TEXT(""), *GetProcessorName());
 #endif // WITH_MASSENTITY_DEBUG
 }
-
-#if WITH_EDITOR
-void UMassProcessor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	if (HasAnyFlags(RF_ClassDefaultObject))
-	{
-		// this is here to make sure all the changes to CDOs we do via MassSettings gets serialized to the ini file
-		SaveConfig(CPF_Config, *GetDefaultConfigFilename());
-	}
-}
-#endif // WITH_EDITOR
 
 //----------------------------------------------------------------------//
 //  UMassCompositeProcessor

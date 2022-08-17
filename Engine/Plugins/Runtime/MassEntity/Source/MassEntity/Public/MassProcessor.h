@@ -40,7 +40,7 @@ struct FMassProcessorExecutionOrder
 };
 
 
-UCLASS(abstract, EditInlineNew, CollapseCategories, config = Mass, defaultconfig)
+UCLASS(abstract, EditInlineNew, CollapseCategories, config = Mass, defaultconfig, ConfigDoNotCheckDefaults)
 class MASSENTITY_API UMassProcessor : public UObject
 {
 	GENERATED_BODY()
@@ -100,9 +100,6 @@ protected:
 	virtual void ConfigureQueries() PURE_VIRTUAL(UMassProcessor::ConfigureQueries);
 	virtual void PostInitProperties() override;
 	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) PURE_VIRTUAL(UMassProcessor::Execute);
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif // WITH_EDITOR
 
 protected:
 	/** Whether this processor should be executed on StandAlone or Server or Client */
