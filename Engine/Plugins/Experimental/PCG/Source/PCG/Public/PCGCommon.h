@@ -13,9 +13,10 @@ enum class EPCGChangeType : uint8
 	None = 0,
 	Cosmetic = 1 << 0,
 	Settings = 1 << 1,
-	Edge = 1 << 2,
-	Node = 1 << 3,
-	Structural = 1 << 4
+	Input = 1 << 2,
+	Edge = 1 << 3,
+	Node = 1 << 4,
+	Structural = 1 << 5
 };
 ENUM_CLASS_FLAGS(EPCGChangeType);
 

@@ -88,7 +88,7 @@ void UPCGComponent::SetGraphLocal(UPCGGraph* InGraph)
 	}
 #endif
 
-	OnGraphChanged(Graph, true, true);
+	RefreshAfterGraphChanged(Graph, /*bIsStructural=*/true, /*bDirtyInputs=*/true);
 }
 
 void UPCGComponent::AddToManagedResources(UPCGManagedResource* InResource)
@@ -806,12 +806,15 @@ void UPCGComponent::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural)
+void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, EPCGChangeType ChangeType)
 {
-	OnGraphChanged(InGraph, bIsStructural, true);
+	const bool bIsStructural = ((ChangeType & (EPCGChangeType::Edge | EPCGChangeType::Structural)) != EPCGChangeType::None);
+	const bool bDirtyInputs = bIsStructural || ((ChangeType & EPCGChangeType::Input) != EPCGChangeType::None);
+
+	RefreshAfterGraphChanged(InGraph, bIsStructural, bDirtyInputs);
 }
 
-void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool bShouldRefresh)
+void UPCGComponent::RefreshAfterGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool bDirtyInputs)
 {
 	if (InGraph != Graph)
 	{
@@ -832,8 +835,8 @@ void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool 
 			UpdateTrackedLandscape();
 		}
 
-		DirtyGenerated();
-		if (InGraph && bShouldRefresh)
+		DirtyGenerated(bDirtyInputs ? (EPCGComponentDirtyFlag::Actor | EPCGComponentDirtyFlag::Landscape) : EPCGComponentDirtyFlag::None);
+		if (InGraph)
 		{
 			Refresh();
 		}
@@ -947,7 +950,7 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 			Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
 		}
 
-		OnGraphChanged(Graph, /*bIsStructural=*/true, /*bShouldRefresh=*/true);
+		RefreshAfterGraphChanged(Graph, /*bIsStructural=*/true, /*bDirtyInputs=*/true);
 	}
 	else if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, InputType))
 	{
@@ -1538,7 +1541,6 @@ UPCGData* UPCGComponent::GetLandscapePCGData()
 
 UPCGData* UPCGComponent::GetLandscapeHeightPCGData()
 {
-
 	if (!CachedLandscapeHeightData || IsLandscapeCachedDataDirty(CachedLandscapeHeightData))
 	{
 		CachedLandscapeHeightData = CreateLandscapePCGData(/*bHeightOnly=*/true);

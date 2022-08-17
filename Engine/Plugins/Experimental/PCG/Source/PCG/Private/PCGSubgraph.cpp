@@ -64,11 +64,11 @@ void UPCGBaseSubgraphSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagT
 	}
 }
 
-void UPCGBaseSubgraphSettings::OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStructural)
+void UPCGBaseSubgraphSettings::OnSubgraphChanged(UPCGGraph* InGraph, EPCGChangeType ChangeType)
 {
 	if (InGraph == GetSubgraph())
 	{
-		OnSettingsChangedDelegate.Broadcast(this, ((bIsStructural ? EPCGChangeType::Structural : EPCGChangeType::None) | EPCGChangeType::Settings));
+		OnSettingsChangedDelegate.Broadcast(this, (ChangeType | EPCGChangeType::Settings));
 	}
 }
 #endif // WITH_EDITOR

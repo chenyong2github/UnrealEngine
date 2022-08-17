@@ -229,7 +229,7 @@ void UPCGGraph::OnNodeAdded(UPCGNode* InNode)
 {
 #if WITH_EDITOR
 	InNode->OnNodeChangedDelegate.AddUObject(this, &UPCGGraph::OnNodeChanged);
-	NotifyGraphChanged(/*bIsStructural=*/true);
+	NotifyGraphChanged(EPCGChangeType::Structural);
 #endif
 }
 
@@ -239,7 +239,7 @@ void UPCGGraph::OnNodeRemoved(UPCGNode* InNode)
 	if (InNode)
 	{
 		InNode->OnNodeChangedDelegate.RemoveAll(this);
-		NotifyGraphChanged(/*bIsStructural=*/true);
+		NotifyGraphChanged(EPCGChangeType::Structural);
 	}
 #endif
 }
@@ -277,7 +277,7 @@ UPCGNode* UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, U
 	FromPin->AddEdgeTo(ToPin);
 	
 #if WITH_EDITOR
-	NotifyGraphChanged(/*bIsStructural=*/true);
+	NotifyGraphChanged(EPCGChangeType::Structural);
 #endif
 
 	return To;
@@ -358,7 +358,7 @@ bool UPCGGraph::RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To,
 #if WITH_EDITOR
 	if (bChanged)
 	{
-		NotifyGraphChanged(/*bIsStructural=*/true);
+		NotifyGraphChanged(EPCGChangeType::Structural);
 	}
 #endif
 
@@ -378,7 +378,7 @@ bool UPCGGraph::RemoveAllInboundEdges(UPCGNode* InNode)
 #if WITH_EDITOR
 	if (bChanged)
 	{
-		NotifyGraphChanged(/*bIsStructural=*/true);
+		NotifyGraphChanged(EPCGChangeType::Structural);
 	}
 #endif
 
@@ -397,7 +397,7 @@ bool UPCGGraph::RemoveAllOutboundEdges(UPCGNode* InNode)
 #if WITH_EDITOR
 	if (bChanged)
 	{
-		NotifyGraphChanged(/*bIsStructural=*/true);
+		NotifyGraphChanged(EPCGChangeType::Structural);
 	}
 #endif
 
@@ -417,7 +417,7 @@ bool UPCGGraph::RemoveInboundEdges(UPCGNode* InNode, const FName& InboundLabel)
 #if WITH_EDITOR
 	if (bChanged)
 	{
-		NotifyGraphChanged(/*bIsStructural=*/true);
+		NotifyGraphChanged(EPCGChangeType::Structural);
 	}
 #endif
 
@@ -437,7 +437,7 @@ bool UPCGGraph::RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel
 #if WITH_EDITOR
 	if (bChanged)
 	{
-		NotifyGraphChanged(/*bIsStructural=*/true);
+		NotifyGraphChanged(EPCGChangeType::Structural);
 	}
 #endif
 
@@ -476,9 +476,9 @@ void UPCGGraph::EnableNotificationsForEditor()
 
 	if (GraphChangeNotificationsDisableCounter == 0 && bDelayedChangeNotification)
 	{
-		NotifyGraphChanged(bDelayedChangeNotificationStructural);
+		NotifyGraphChanged(DelayedChangeType);
 		bDelayedChangeNotification = false;
-		bDelayedChangeNotificationStructural = false;
+		DelayedChangeType = EPCGChangeType::None;
 	}
 }
 
@@ -533,12 +533,12 @@ void UPCGGraph::GetTrackedTagsToSettings(FPCGTagToSettingsMap& OutTagsToSettings
 	}
 }
 
-void UPCGGraph::NotifyGraphChanged(bool bIsStructural)
+void UPCGGraph::NotifyGraphChanged(EPCGChangeType ChangeType)
 {
 	if(GraphChangeNotificationsDisableCounter > 0)
 	{
 		bDelayedChangeNotification = true;
-		bDelayedChangeNotificationStructural |= bIsStructural;
+		DelayedChangeType |= ChangeType;
 		return;
 	}
 
@@ -551,7 +551,8 @@ void UPCGGraph::NotifyGraphChanged(bool bIsStructural)
 	bIsNotifying = true;
 
 	// Notify the subsystem/compiler cache before so it gets recompiled properly
-	if (bIsStructural && GEditor)
+	const bool bNotifySubsystem = ((ChangeType & (EPCGChangeType::Structural | EPCGChangeType::Edge)) != EPCGChangeType::None);
+	if (bNotifySubsystem && GEditor)
 	{
 		UWorld* World = GEditor->GetEditorWorldContext().World();
 		UPCGSubsystem* PCGSubsystem = World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
@@ -561,7 +562,7 @@ void UPCGGraph::NotifyGraphChanged(bool bIsStructural)
 		}
 	}
 
-	OnGraphChangedDelegate.Broadcast(this, /*bIsStructural=*/bIsStructural);
+	OnGraphChangedDelegate.Broadcast(this, ChangeType);
 
 	bIsNotifying = false;
 }
@@ -570,7 +571,17 @@ void UPCGGraph::OnNodeChanged(UPCGNode* InNode, EPCGChangeType ChangeType)
 {
 	if((ChangeType & ~EPCGChangeType::Cosmetic) != EPCGChangeType::None)
 	{
-		NotifyGraphChanged(/*bIsStructural=*/(ChangeType & (EPCGChangeType::Structural | EPCGChangeType::Edge)) != EPCGChangeType::None);
+		NotifyGraphChanged(ChangeType);
+	}
+}
+
+void UPCGGraph::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(UPCGGraph, bLandscapeUsesMetadata))
+	{
+		NotifyGraphChanged(EPCGChangeType::Input);
 	}
 }
 #endif // WITH_EDITOR

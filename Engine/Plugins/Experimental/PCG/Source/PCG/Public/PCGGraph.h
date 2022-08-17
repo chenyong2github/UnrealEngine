@@ -10,7 +10,7 @@
 #include "PCGGraph.generated.h"
 
 #if WITH_EDITOR
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPCGGraphChanged, UPCGGraph* /*Graph*/, bool /*bIsStructural*/);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPCGGraphChanged, UPCGGraph* /*Graph*/, EPCGChangeType /*ChangeType*/);
 #endif // WITH_EDITOR
 
 UCLASS(BlueprintType, ClassGroup = (Procedural), hidecategories=(Object))
@@ -27,6 +27,10 @@ public:
 	/** ~Begin UObject interface */
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	/** ~End UObject interface */
 
 #if WITH_EDITORONLY_DATA
@@ -122,12 +126,12 @@ protected:
 
 #if WITH_EDITOR
 private:
-	void NotifyGraphChanged(bool bIsStructural);
+	void NotifyGraphChanged(EPCGChangeType ChangeType);
 	void OnNodeChanged(UPCGNode* InNode, EPCGChangeType ChangeType);
 
 	int32 GraphChangeNotificationsDisableCounter = 0;
 	bool bDelayedChangeNotification = false;
-	bool bDelayedChangeNotificationStructural = false;
+	EPCGChangeType DelayedChangeType = EPCGChangeType::None;
 	bool bIsNotifying = false;
 	bool bUserPausedNotificationsInGraphEditor = false;
 #endif // WITH_EDITOR

@@ -34,7 +34,7 @@ protected:
 	//~End UPCGSettings interface
 
 #if WITH_EDITOR
-	void OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStructural);
+	void OnSubgraphChanged(UPCGGraph* InGraph, EPCGChangeType ChangeType);
 
 	virtual bool IsStructuralProperty(const FName& InPropertyName) const { return false; }
 #endif

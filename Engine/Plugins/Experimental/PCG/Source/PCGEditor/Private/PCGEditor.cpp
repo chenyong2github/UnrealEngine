@@ -243,7 +243,7 @@ void FPCGEditor::PostUndo(bool bSuccess)
 	{
 		if (PCGGraphBeingEdited)
 		{
-			PCGGraphBeingEdited->NotifyGraphChanged(true);
+			PCGGraphBeingEdited->NotifyGraphChanged(EPCGChangeType::Structural);
 		}
 
 		if (GraphEditorWidget.IsValid())
@@ -880,8 +880,8 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 
 	// And notify everyone
 	GraphEditorWidget->NotifyGraphChanged();
-	PCGGraph->NotifyGraphChanged(true);
-	NewPCGGraph->NotifyGraphChanged(true);
+	PCGGraph->NotifyGraphChanged(EPCGChangeType::Structural);
+	NewPCGGraph->NotifyGraphChanged(EPCGChangeType::Structural);
 }
 
 void FPCGEditor::OnStartInspectNode()
@@ -1055,7 +1055,7 @@ void FPCGEditor::DeleteSelectedNodes()
 		{
 			GraphEditorWidget->ClearSelectionSet();
 			GraphEditorWidget->NotifyGraphChanged();
-			PCGGraphBeingEdited->NotifyGraphChanged(true);
+			PCGGraphBeingEdited->NotifyGraphChanged(EPCGChangeType::Structural);
 		}
 	}
 }

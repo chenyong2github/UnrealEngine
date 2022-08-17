@@ -223,8 +223,8 @@ private:
 
 	bool GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors, bool bCullAgainstLocalBounds);
 
-	void OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool bShouldRefresh);
-	void OnGraphChanged(UPCGGraph* InGraph, bool bIsStructural);
+	void RefreshAfterGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool bDirtyInputs);
+	void OnGraphChanged(UPCGGraph* InGraph, EPCGChangeType ChangeType);
 
 #if WITH_EDITOR
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
