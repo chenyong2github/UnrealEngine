@@ -1343,7 +1343,7 @@ bool FHLSLMaterialTranslator::Translate()
 			EStrataBlendMode StrataBlendMode = Material->GetStrataBlendMode();
 			bMaterialIsStrata = true;
 
-			if (!bStrataUsesConversionFromLegacy && StrataMaterialRootOperator)
+			if (StrataMaterialRootOperator)
 			{
 				// Now implement the functions needed to process the material topology
 
@@ -1524,7 +1524,7 @@ bool FHLSLMaterialTranslator::Translate()
 		else
 		{
 			MaterialCompilationOutput.StrataMaterialDescription = "";
-			ResourcesString += "// No Strata material provided, or using legacy material conversion \r\n";
+			ResourcesString += "// No Strata material provided\r\n";
 			
 			// Adde default strata functions
 			ResourcesString += "#if TEMPLATE_USES_STRATA\n";
@@ -10464,7 +10464,8 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
 			PromoteToOperator->LayerDepth,
-			PromoteToOperator->bIsBottom ? 1 : 0);
+			PromoteToOperator->bIsBottom ? 1 : 0
+		);
 	}
 	
 	return AddCodeChunk(
@@ -10510,7 +10511,8 @@ int32 FHLSLMaterialTranslator::StrataConversionFromLegacy(
 	int32 ShadingModel,
 	int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro,
 	int32 ClearCoat_Normal, int32 ClearCoat_Tangent, const FString& ClearCoat_SharedLocalBasisIndexMacro,
-	int32 CustomTangent_Tangent)
+	int32 CustomTangent_Tangent,
+	FStrataOperator* PromoteToOperator)
 {
 	const FString NormalCode = GetParameterCode(Normal);
 	const FString TangentCode = Tangent != INDEX_NONE ? *GetParameterCode(Tangent) : TEXT("NONE");
@@ -10518,6 +10520,54 @@ int32 FHLSLMaterialTranslator::StrataConversionFromLegacy(
 
 	const FString ClearCoat_NormalCode = GetParameterCode(ClearCoat_Normal);
 	const FString ClearCoat_TangentCode = Tangent != INDEX_NONE ? *GetParameterCode(ClearCoat_Tangent) : TEXT("NONE");
+
+	if (PromoteToOperator)
+	{
+		if (PromoteToOperator->Index == INDEX_NONE || PromoteToOperator->BSDFIndex == INDEX_NONE)
+		{
+			Errorf(TEXT("Invalid StrataSlabBSDF operator and BSDF indices during promotion in Material %s (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
+			return INDEX_NONE;
+		}
+
+		return AddCodeChunk(
+			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(StrataConvertLegacyMaterial%s(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types, Parameters.StrataTree) /* Normal = %s ; Tangent = %s ; ClearCoat_Normal = %s ; ClearCoat_Tangent = %s */, Parameters.StrataTree, %u, %u, %u, %u)"),
+			bHasDynamicShadingModels ? TEXT("Dynamic") : TEXT("Static"),
+			*StrataGetCastParameterCode(BaseColor,						MCT_Float3),
+			*StrataGetCastParameterCode(Specular,						MCT_Float),
+			*StrataGetCastParameterCode(Metallic,						MCT_Float),
+			*StrataGetCastParameterCode(Roughness,						MCT_Float),
+			*StrataGetCastParameterCode(Anisotropy,						MCT_Float),
+			*StrataGetCastParameterCode(SubSurfaceColor,				MCT_Float3),
+			*StrataGetCastParameterCode(SubSurfaceProfileId,			MCT_Float),
+			*StrataGetCastParameterCode(ClearCoat,						MCT_Float),
+			*StrataGetCastParameterCode(ClearCoatRoughness,				MCT_Float),
+			*StrataGetCastParameterCode(EmissiveColor,					MCT_Float3),
+			*StrataGetCastParameterCode(Opacity,						MCT_Float),
+			*StrataGetCastParameterCode(TransmittanceColor,				MCT_Float3),
+			*StrataGetCastParameterCode(WaterScatteringCoefficients,	MCT_Float3),
+			*StrataGetCastParameterCode(WaterAbsorptionCoefficients,	MCT_Float3),
+			*StrataGetCastParameterCode(WaterPhaseG,					MCT_Float),
+			*StrataGetCastParameterCode(ColorScaleBehindWater,			MCT_Float3),
+			*GetParameterCode(ShadingModel),
+			// Raw access to Normal/Tangent/ClearCoatNormal/CustomTangent for conversion purpose
+			*StrataGetCastParameterCode(Normal,							MCT_Float3),
+			*StrataGetCastParameterCode(RawTangent,						MCT_Float3),
+			*StrataGetCastParameterCode(ClearCoat_Normal,				MCT_Float3),
+			*StrataGetCastParameterCode(CustomTangent_Tangent,			MCT_Float3),
+			*SharedLocalBasisIndexMacro,
+			*ClearCoat_SharedLocalBasisIndexMacro,
+			// Regular normal basis
+			*NormalCode,
+			*TangentCode,
+			// Clear coat bottom layer normal basis
+			*ClearCoat_NormalCode,
+			*ClearCoat_TangentCode,
+			PromoteToOperator->Index,
+			PromoteToOperator->BSDFIndex,
+			PromoteToOperator->LayerDepth,
+			PromoteToOperator->bIsBottom ? 1 : 0
+		);
+	}
 
 	return AddCodeChunk(
 		MCT_Strata, TEXT("StrataConvertLegacyMaterial%s(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types, Parameters.StrataTree) /* Normal = %s ; Tangent = %s ; ClearCoat_Normal = %s ; ClearCoat_Tangent = %s */"),

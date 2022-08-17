@@ -3337,12 +3337,8 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			check(ConvertNode->ConvertedStrataMaterialInfo.CountShadingModels() == 1);
 
 			// Now pass through the convert to decal node, which flag the material as SSM_Decal, which will set the domain to Decal.
-			// This node doesn't apply parameter blending unlike when used on non-legacy material. This is because the legacy conversion 
-			// node does not support parameter blending. Coverage is also left to default (1.0), as the opacity is managed within the 
-			// legacy node. The first BSDF of the legacy node is used as the decal material.
 			UMaterialExpressionStrataConvertToDecal* ConvertToDecalNode= NewObject<UMaterialExpressionStrataConvertToDecal>(this);
 			ConvertToDecalNode->DecalMaterial.Connect(0, ConvertNode);
-			ConvertToDecalNode->bUseParameterBlending = 0;
 
 			EditorOnly->FrontMaterial.Connect(0, ConvertToDecalNode);
 			bInvalidateShader = true;

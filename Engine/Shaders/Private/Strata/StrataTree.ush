@@ -451,26 +451,3 @@ void PreUpdateAllBSDFWithBottomUpOperatorVisit_ThinFilm(
 #undef Op
 
 
-
-///////////////////////////////////////////////////////////////////////////////
-// Legacy materials conversion
-
-void LegacyUpdateBSDFsOperators(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V)
-{
-	// This must match what is done in StrataConvertLegacyMaterialDynamic
-	UpdateSingleBSDFOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, StrataTree.BSDFs[0], Settings, NullStrataAddressing, V);
-
-	// MaxDistanceFromLeaves = 1 
-	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/1);
-#if STRATA_LEGACY_MATERIAL_APPLIES_FINAL_WEIGHT
-	// MaxDistanceFromLeaves = 2 
-	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/2);
-#endif
-
-	UpdateAllBSDFWithBottomUpOperatorVisit_Weight	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/1, /*PreviousIsInputA*/1);
-#if STRATA_LEGACY_MATERIAL_APPLIES_FINAL_WEIGHT
-	UpdateAllBSDFWithBottomUpOperatorVisit_Weight	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/2, /*PreviousIsInputA*/1);
-#endif
-}
-
-

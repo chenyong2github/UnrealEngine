@@ -3395,14 +3395,10 @@ FStrataIntegrationSettings InitStrataIntegrationSettings()
 #if STRATA_INLINE_SHADING && STRATA_CLAMPED_BSDF_COUNT > 0
 
 // Forward declaration
-#if STRATA_USES_CONVERSION_FROM_LEGACY==0
 void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V);
 void UpdateAllOperatorsCoverageTransmittance(inout FStrataTree StrataTree);
 void UpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataTree StrataTree);
 void PreUpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V);
-#else
-void LegacyUpdateBSDFsOperators(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V);
-#endif
 
 // Update all Coverage/Transmittance/Weights for all BSDFs based on material topology
 void StrataUpdateTree(
@@ -3412,7 +3408,6 @@ void StrataUpdateTree(
 	float3 V,
 	FStrataIntegrationSettings Settings)
 {
-#if STRATA_USES_CONVERSION_FROM_LEGACY==0
 	//
 	// Pre-Update the BSDF by traversing up the strata tree until the root node. This allows to modify BSDF's parameters based on operators (i.e., thin-film coating)
 	//
@@ -3432,9 +3427,6 @@ void StrataUpdateTree(
 	// Update the luminance weight of each BSDF according to the operators it has to traverse up to the strata tree root node.
 	//
 	UpdateAllBSDFWithBottomUpOperatorVisit(StrataTree);
-#else
-	LegacyUpdateBSDFsOperators(StrataPixelHeader, StrataTree, Settings, StrataAddressing, V);
-#endif
 }
 
 void StrataUpdateTree(

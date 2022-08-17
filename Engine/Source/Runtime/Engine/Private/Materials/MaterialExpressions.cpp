@@ -21786,6 +21786,9 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 		SSSProfileCodeChunk = Compiler->ForceCast(Compiler->ScalarParameter(GetSubsurfaceProfileParameterName(), 1.0f), MCT_Float1);
 	}
 
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationGetOperator(this);
+	StrataOperator.BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
+
 	const bool bHasDynamicShadingModels = ConvertedStrataMaterialInfo.CountShadingModels() > 1;
 	// We probably need to do something along these line as well :::
 	int32 OutputCodeChunk = Compiler->StrataConversionFromLegacy(
@@ -21820,50 +21823,8 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 		ClearCoat_NormalCodeChunk,
 		ClearCoat_TangentCodeChunk,
 		ClearCoat_BasisIndexMacro,
-		CustomTangent_TangentCodeChunk);
-
-	// Now update the local shared basis
-
-	// The legacy node can only be added once and we know the worst shape it can take so we hard code it here, 
-	// with fake addresses for BSDF defined in shader code.
-	UMaterialExpression* ChildTopExpression = reinterpret_cast<UMaterialExpression*>(1);
-	UMaterialExpression* ChildBottomExpression = reinterpret_cast<UMaterialExpression*>(2);
-	if (ConvertedStrataMaterialInfo.CountShadingModels() > 1 || ConvertedStrataMaterialInfo.HasShadingModelFromExpression())
-	{
-		Compiler->StrataCompilationGetOperator(ChildTopExpression).BSDFRegisteredSharedLocalBasis = ClearCoat_NewRegisteredSharedLocalBasis;
-		Compiler->StrataCompilationGetOperator(ChildBottomExpression).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
-	}
-	else
-	{
-		check(ConvertedStrataMaterialInfo.CountShadingModels() == 1);
-
-		if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Unlit))
-		{
-			Compiler->StrataCompilationGetOperator(this).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
-		}
-		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_DefaultLit))
-		{
-			Compiler->StrataCompilationGetOperator(ChildTopExpression).BSDFRegisteredSharedLocalBasis = ClearCoat_NewRegisteredSharedLocalBasis;
-			Compiler->StrataCompilationGetOperator(ChildBottomExpression).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
-		}
-		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_SubsurfaceLit))
-		{
-			Compiler->StrataCompilationGetOperator(ChildTopExpression).BSDFRegisteredSharedLocalBasis = ClearCoat_NewRegisteredSharedLocalBasis;
-			Compiler->StrataCompilationGetOperator(ChildBottomExpression).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
-		}
-		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Hair))
-		{
-			Compiler->StrataCompilationGetOperator(this).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
-		}
-		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_Eye))
-		{
-			Compiler->StrataCompilationGetOperator(this).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
-		}
-		else if (ConvertedStrataMaterialInfo.HasShadingModel(SSM_SingleLayerWater))
-		{
-			Compiler->StrataCompilationGetOperator(this).BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
-		}
-	}
+		CustomTangent_TangentCodeChunk,
+		!StrataOperator.bUseParameterBlending || (StrataOperator.bUseParameterBlending && StrataOperator.bRootOfParameterBlendingSubTree) ? &StrataOperator : nullptr);
 
 	return OutputCodeChunk;
 }
@@ -22010,22 +21971,15 @@ void UMaterialExpressionStrataLegacyConversion::GatherStrataMaterialInfo(FStrata
 
 FStrataOperator* UMaterialExpressionStrataLegacyConversion::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
 {
-	// Legacy conversion now requires a single slab
-	UMaterialExpression* ChildSlabExpression = reinterpret_cast<UMaterialExpression*>(1);
-
 	auto AddDefaultWorstCase = [&](bool bSSS)
 	{
-		FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_WEIGHT, this, Parent);
-
-		FStrataOperator& SlabOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, ChildSlabExpression, this);
+		FStrataOperator& SlabOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF_LEGACY, this, Parent);
 		SlabOperator.BSDFType = STRATA_BSDF_TYPE_SLAB;
 		SlabOperator.bBSDFHasSSS = true;
 		SlabOperator.bBSDFHasMFPPluggedIn = true;
 		SlabOperator.bBSDFHasFuzz = true;
 
-		AssignOperatorIndexIfNotNull(StrataOperator.LeftIndex, &SlabOperator);
-
-		return &StrataOperator;
+		return &SlabOperator;
 	};
 
 	// Logic about shading models and complexity should match UMaterialExpressionStrataLegacyConversion::Compile.

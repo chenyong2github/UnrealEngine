@@ -83,46 +83,37 @@ FStrataLegacyParameters InitStrataLegacyParameters(FStrataPixelFootprint InPixel
 }
 
 FStrataData CreateLegacySlab(
-	FStrataLegacyParameters In, inout uint SharedLocalBasisTypes,
-	inout FStrataTree StrataTree,
-	int OperatorIndex, int BSDFIndex)
+	FStrataLegacyParameters In, inout uint SharedLocalBasisTypes, inout FStrataTree StrataTree)
 {
 	const float3 Zeros = float3(0, 0, 0);
 	const float3 Ones  = float3(1, 1, 1);
 
 	// Fixed layer structure for helping compiler to unroll and optimize shader
-	return PromoteParameterBlendedBSDFToOperator(
-		GetStrataSlabBSDF(
-			In.PixelFootprint,
-			In.UseMetalness,									// UseMetalness
-			In.BaseColor,										// BaseColor		-  Metalness workflow
-			Ones,												// EdgeColor		-  Metalness workflow
-			In.Specular,										// Specular			-  Metalness workflow
-			In.Metallic,										// Metallic			-  Metalness workflow
-			In.DiffuseAlbedo,									// DiffuseAlbedo	- !Metalness workflow
-			In.F0,												// F0				- !Metalness workflow
-			In.F90,												// F90				- !Metalness workflow
-			In.Roughness,										// Roughness
-			In.Anisotropy,										// Anisotropy
-			In.SSSProfileID,									// SSSProfileID
-			In.SSSMFP,											// SSSMFP
-			In.SSSMFPScale,										// SSSMFPScale
-			In.SSSPhaseAniso,									// SSSPhaseAniso
-			In.UseSSSDiffusion,									// UseSSSDiffusion
-			In.Emissive,										// Emissive
-			In.SecondRoughness,									// SecondRoughness
-			In.SecondRoughnessWeight,							// SecondRoughnessWeight
-			In.SecondRoughnessAsSimpleClearCoat ? 1.0f: 0.0f,	// SecondRoughnessAsSimpleClearCoat
-			In.FuzzAmount,										// FuzzAmount
-			In.FuzzColor,										// FuzzColor
-			In.Thickness,
-			In.SharedLocalBasisIndex, SharedLocalBasisTypes),
-		StrataTree,
-		OperatorIndex,
-		BSDFIndex,
-		0,														//LayerDepth,
-		1														//bIsBottom
-		);
+	return GetStrataSlabBSDF(
+		In.PixelFootprint,
+		In.UseMetalness,									// UseMetalness
+		In.BaseColor,										// BaseColor		-  Metalness workflow
+		Ones,												// EdgeColor		-  Metalness workflow
+		In.Specular,										// Specular			-  Metalness workflow
+		In.Metallic,										// Metallic			-  Metalness workflow
+		In.DiffuseAlbedo,									// DiffuseAlbedo	- !Metalness workflow
+		In.F0,												// F0				- !Metalness workflow
+		In.F90,												// F90				- !Metalness workflow
+		In.Roughness,										// Roughness
+		In.Anisotropy,										// Anisotropy
+		In.SSSProfileID,									// SSSProfileID
+		In.SSSMFP,											// SSSMFP
+		In.SSSMFPScale,										// SSSMFPScale
+		In.SSSPhaseAniso,									// SSSPhaseAniso
+		In.UseSSSDiffusion,									// UseSSSDiffusion
+		In.Emissive,										// Emissive
+		In.SecondRoughness,									// SecondRoughness
+		In.SecondRoughnessWeight,							// SecondRoughnessWeight
+		In.SecondRoughnessAsSimpleClearCoat ? 1.0f : 0.0f,	// SecondRoughnessAsSimpleClearCoat
+		In.FuzzAmount,										// FuzzAmount
+		In.FuzzColor,										// FuzzColor
+		In.Thickness,
+		In.SharedLocalBasisIndex, SharedLocalBasisTypes);
 }
 
 // Convert legacy shading models - Dynamic
@@ -163,7 +154,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		const float3 WaterExtinction = WaterScatteringCoefficients + WaterAbsorptionCoefficients;
 		const float3 WaterAlbedo = WaterScatteringCoefficients / WaterExtinction;
 
-		FStrataData Top_SLW = GetStrataSingleLayerWaterBSDF(
+		return GetStrataSingleLayerWaterBSDF(
 			BaseColor, 				// BaseColor
 			Metallic, 				// Metallic 
 			Specular, 				// Specular
@@ -175,31 +166,19 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 			WaterPhaseG, 			// WaterPhaseG
 			ColorScaleBehindWater,	// ColorScaleBehindWater
 			SharedLocalBasisIndex);
-
-		return StrataWeight(Top_SLW , 1.0, StrataTree,					/*OperatorIndex*/1, /*MaxDistanceFromLeaves*/1);
-		// Out maps to LegacyUpdateBSDFsOperators
 	}
 	#endif
 	#if MATERIAL_SHADINGMODEL_HAIR
 	if (ShadingModel == SHADINGMODELID_HAIR)
 	{
-		FStrataData Top_Hair = PromoteParameterBlendedBSDFToOperator(
-			GetStrataHairBSDF(
-				BaseColor,	   // BaseColor
-				Metallic,	   // Scatter
-				Specular,	   // Specular
-				Roughness,	   // Roughness
-				ClearCoat,	   // Backlit
-				Emissive,	   // EmissiveColor
-				SharedLocalBasisIndex),
-			StrataTree,
-			0		/*OperatorIndex*/,
-			0		/*BSDFIndex*/,
-			0		/*int LayerDepth*/,
-			1		/*int bIsBottom*/);
-
-		return StrataWeight(Top_Hair, 1.0, StrataTree,					/*OperatorIndex*/1, /*MaxDistanceFromLeaves*/1);
-		// Out maps to LegacyUpdateBSDFsOperators
+		return GetStrataHairBSDF(
+			BaseColor,	   // BaseColor
+			Metallic,	   // Scatter
+			Specular,	   // Specular
+			Roughness,	   // Roughness
+			ClearCoat,	   // Backlit
+			Emissive,	   // EmissiveColor
+			SharedLocalBasisIndex);
 	}
 	#endif
 	#if MATERIAL_SHADINGMODEL_EYE
@@ -212,8 +191,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		float3 IrisPlaneNormal = RawNormal;
 		GetEyeNormals(IrisMask, IrisDistance, RawNormal, RawClearCoatNormal, RawCustomTangent, IrisNormal, IrisPlaneNormal);
 
-		FStrataData EyeMat = PromoteParameterBlendedBSDFToOperator(
-			GetStrataEyeBSDF(
+		return GetStrataEyeBSDF(
 				BaseColor,	         // DiffuseAlbedo
 				Roughness,	         // Roughness
 				IrisMask,	         // IrisMask
@@ -222,15 +200,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 				IrisPlaneNormal,	 // IrisPlaneNormal
 				SubSurfaceProfileId, // SSS profile
 				Emissive,	         // EmissiveColor
-				SharedLocalBasisIndex),
-			StrataTree,
-			0		/*OperatorIndex*/,
-			0		/*BSDFIndex*/,
-			0		/*int LayerDepth*/,
-			1		/*int bIsBottom*/);
-
-		return StrataWeight(EyeMat, 1.0, StrataTree, /*OperatorIndex*/1, /*MaxDistanceFromLeaves*/1);
-		// Out maps to LegacyUpdateBSDFsOperators
+				SharedLocalBasisIndex);
 	}
 	#endif
 
@@ -356,7 +326,6 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		LegacySlab.SecondRoughness = ClearCoatRoughness;
 		LegacySlab.SecondRoughnessAsSimpleClearCoat = ClearCoat > 0.0f; // Haziness as simple clear coat layer.
 		LegacySlab.Emissive = Zeros;
-		LegacySlab.SharedLocalBasisIndex = ClearCoatBottomNormal_SharedLocalBasisIndex;
 		LegacySlab.Weight = 1.f;
 
 		FinalWeight = 1.0f;
@@ -453,32 +422,16 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 	}
 
 	// Fixed layer structure for helping compiler to unroll and optimize shader
-	// This must match what is done in PackStrataOut
-	FStrataData Slab = CreateLegacySlab(LegacySlab, SharedLocalBasisTypes, StrataTree,	/*OperatorIndex*/0, /*BSDFIndex*/0);
-	FStrataData Out  = StrataWeight(Slab, LegacySlab.Weight, StrataTree,				/*OperatorIndex*/1, /*MaxDistanceFromLeaves*/1);
-
-	// Take in account the legacy opacity weighting for translucent material
-	#if STRATA_LEGACY_MATERIAL_APPLIES_FINAL_WEIGHT
-	{
-		Out = StrataWeight(Out, FinalWeight, StrataTree,								/*OperatorIndex*/2, /*MaxDistanceFromLeaves*/2);
-	}
-	#endif
-
-	#if STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE
-	Out.PreMultipliedAlphaOverrideCoverage = Opacity;
-	#endif
-
-	// We also evaluate the inlined BSDF resulting from parameter blending in case it is used later.
-	// For instance, this is used for deferred decals. We only evaluate the top material as this is enough for decals.
-	FStrataData ParamBlendVertical = StrataWeightParameterBlending(Slab, LegacySlab.Weight);
-#if STRATA_LEGACY_MATERIAL_APPLIES_FINAL_WEIGHT
-	Out.InlinedBSDF = StrataWeightParameterBlending(ParamBlendVertical, FinalWeight).InlinedBSDF;
-#else
-	Out.InlinedBSDF = ParamBlendVertical.InlinedBSDF;
+	FStrataData Slab = CreateLegacySlab(LegacySlab, SharedLocalBasisTypes, StrataTree);
+#if STRATA_INLINE_SHADING
+	Slab.InlinedBSDF.Coverage = LegacySlab.Weight * FinalWeight;	//////////////////// Remove FinalWeight? Do that in CreateLegacySlab?
 #endif
 
-	// Out maps to LegacyUpdateBSDFsOperators
-	return Out;
+	#if STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE
+	Slab.PreMultipliedAlphaOverrideCoverage = Opacity;
+	#endif
+
+	return Slab;
 }
 
 // Convert legacy shading models - Static
@@ -544,23 +497,14 @@ FStrataData StrataConvertLegacyMaterialStatic(
 	}
 	else if (ShadingModel == SHADINGMODELID_HAIR)
 	{
-		FStrataData HairMat = PromoteParameterBlendedBSDFToOperator(
-			GetStrataHairBSDF(
+		Out = GetStrataHairBSDF(
 				BaseColor,	   // BaseColor
 				Metallic,	   // Scatter
 				Specular,	   // Specular
 				Roughness,	   // Roughness
 				ClearCoat,	   // Backlit
 				Emissive,	   // EmissiveColor
-				SharedLocalBasisIndex),
-			StrataTree,
-			0		/*OperatorIndex*/,
-			0		/*BSDFIndex*/,
-			0		/*int LayerDepth*/,
-			1		/*int bIsBottom*/);
-
-		Out = StrataWeight(HairMat, 1.0, StrataTree, /*OperatorIndex*/1, /*MaxDistanceFromLeaves*/1);
-		// Out maps to LegacyUpdateBSDFsOperators
+				SharedLocalBasisIndex);
 	}
 	else if (ShadingModel == SHADINGMODELID_EYE)
 	{
@@ -571,8 +515,7 @@ FStrataData StrataConvertLegacyMaterialStatic(
 		float3 IrisPlaneNormal = RawNormal;
 		GetEyeNormals(IrisMask, IrisDistance, RawNormal, RawClearCoatNormal, RawCustomTangent, IrisNormal, IrisPlaneNormal);
 
-		FStrataData EyeMat = PromoteParameterBlendedBSDFToOperator(
-			GetStrataEyeBSDF(
+		Out = GetStrataEyeBSDF(
 				BaseColor,	         // DiffuseAlbedo
 				Roughness,	         // Roughness
 				IrisMask,	         // IrisMask
@@ -581,23 +524,14 @@ FStrataData StrataConvertLegacyMaterialStatic(
 				IrisPlaneNormal,	 // IrisPlaneNormal
 				SubSurfaceProfileId, // SSS profile
 				Emissive,	         // EmissiveColor
-				SharedLocalBasisIndex),
-			StrataTree,
-			0		/*OperatorIndex*/,
-			0		/*BSDFIndex*/,
-			0		/*int LayerDepth*/,
-			1		/*int bIsBottom*/);
-
-		Out = StrataWeight(EyeMat, 1.0, StrataTree, /*OperatorIndex*/1, /*MaxDistanceFromLeaves*/1);
-		// Out maps to LegacyUpdateBSDFsOperators
+				SharedLocalBasisIndex);
 	}
 	else if (ShadingModel == SHADINGMODELID_SINGLELAYERWATER)
 	{
-		const float3 WaterExtinction = WaterScatteringCoefficients + WaterAbsorptionCoefficients;
-		const float3 WaterAlbedo = WaterScatteringCoefficients / WaterExtinction;
+		const float3 WaterExtinction= WaterScatteringCoefficients + WaterAbsorptionCoefficients;
+		const float3 WaterAlbedo	= WaterScatteringCoefficients / WaterExtinction;
 
-		FStrataData SLW = PromoteParameterBlendedBSDFToOperator(
-			GetStrataSingleLayerWaterBSDF(
+		Out = GetStrataSingleLayerWaterBSDF(
 				BaseColor, 				// BaseColor
 				Metallic, 				// Metallic 
 				Specular, 				// Specular
@@ -608,15 +542,7 @@ FStrataData StrataConvertLegacyMaterialStatic(
 				WaterExtinction, 		// WaterExtinction
 				WaterPhaseG, 			// WaterPhaseG
 				ColorScaleBehindWater,	// ColorScaleBehindWater
-				SharedLocalBasisIndex),
-			StrataTree,
-			0		/*OperatorIndex*/,
-			0		/*BSDFIndex*/,
-			0		/*int LayerDepth*/,
-			1		/*int bIsBottom*/);
-
-		Out = StrataWeight(SLW, 1.0, StrataTree, /*OperatorIndex*/1, /*MaxDistanceFromLeaves*/1);
-		// Out maps to LegacyUpdateBSDFsOperators
+				SharedLocalBasisIndex);
 	}
 	else
 	{
