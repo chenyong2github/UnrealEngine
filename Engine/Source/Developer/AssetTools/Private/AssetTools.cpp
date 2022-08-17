@@ -1220,10 +1220,13 @@ void UAssetToolsImpl::ImportAssetTasks(const TArray<UAssetImportTask*>& ImportTa
 		SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("Import_ImportingFile", "Importing \"{0}\"..."), FText::FromString(FPaths::GetBaseFilename(ImportTask->Filename))));
 
 		Params.AssetImportTask = ImportTask;
+		Params.bAllowAsyncImport = ImportTask->bAsync;
 		Params.bForceOverrideExisting = ImportTask->bReplaceExisting;
 		Params.bAutomated = ImportTask->bAutomated;
 		Params.SpecifiedFactory = TStrongObjectPtr<UFactory>(ImportTask->Factory);
 		Filenames[0] = ImportTask->Filename;
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ImportTask->Result = ImportAssetsInternal(Filenames, ImportTask->DestinationPath, nullptr, Params);
 
 		PackagesToSave.Reset(ImportTask->Result.Num());
@@ -1235,8 +1238,11 @@ void UAssetToolsImpl::ImportAssetTasks(const TArray<UAssetImportTask*>& ImportTa
 				PackagesToSave.AddUnique(Object->GetOutermost());
 			}
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-		if (ImportTask->bSave)
+		// If this wasn't an async import through Interchange (and hence does not have valid AsyncResults),
+		// save imported packages here if required.
+		if (!ImportTask->AsyncResults.IsValid() && ImportTask->bSave)
 		{
 			UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, true);
 		}
@@ -1749,14 +1755,14 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 	}
 	TMap< FString, TArray<UFactory*> > ExtensionToFactoriesMap;
 
-	FScopedSlowTask SlowTask(ValidFiles.Num(), LOCTEXT("ImportSlowTask", "Importing"));
-
 	bool bUseInterchangeFramework = false;
 	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
 #if WITH_EDITOR
 	const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
 	bUseInterchangeFramework = EditorExperimentalSettings->bEnableInterchangeFramework;
 #endif
+
+	FScopedSlowTask SlowTask(ValidFiles.Num(), LOCTEXT("ImportSlowTask", "Importing"), !bUseInterchangeFramework);
 
 	if (!bUseInterchangeFramework && ValidFiles.Num() > 1)
 	{	
@@ -1984,11 +1990,23 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 
 				TFunction<void(UE::Interchange::FImportResult&)> AppendImportResult =
 					// Note: ImportStatus captured by value so that the lambda keeps the shared ptr alive
-					[ImportStatus](UE::Interchange::FImportResult& Result)
+					[ImportStatus, ImportTask = Params.AssetImportTask](UE::Interchange::FImportResult& Result)
 					{
 						ImportStatus->InterchangeResultsContainer->Append(Result.GetResults());
 						ImportStatus->ImportedObjects.Append(Result.GetImportedObjects());
 
+						// If imported through an AssetImportTask object, and it's set to save after import, do this here.
+						if (ImportTask && ImportTask->bSave)
+						{
+							TArray<UPackage*> PackagesToSave;
+							for (UObject* Object : Result.GetImportedObjects())
+							{
+								PackagesToSave.Add(Object->GetOutermost());
+							}
+
+							constexpr bool bDirtyOnly = true;
+							UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, bDirtyOnly);
+						}
 					};
 
 				TFunction<void(UE::Interchange::FImportResult&)> AppendAndBroadcastImportResultIfNeeded =
@@ -2023,6 +2041,12 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 					TPair<UE::Interchange::FAssetImportResultRef, UE::Interchange::FSceneImportResultRef> InterchangeResults =
 						InterchangeManager.ImportSceneAsync(DestinationPath, ScopedSourceData.GetSourceData(), ImportAssetParameters);
 
+					// If we have an ImportTask, fill out the asynchronous results object here so the caller can see when the results are ready
+					if ( Params.AssetImportTask)
+					{
+						 Params.AssetImportTask->AsyncResults = InterchangeResults.Get<0>();
+					}
+
 					InterchangeResults.Get<0>()->OnDone(AppendImportResult);;
 					InterchangeResults.Get<1>()->OnDone(AppendAndBroadcastImportResultIfNeeded);
 
@@ -2035,6 +2059,13 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 				else
 				{
 					UE::Interchange::FAssetImportResultRef InterchangeResult = (InterchangeManager.ImportAssetAsync(DestinationPath, ScopedSourceData.GetSourceData(), ImportAssetParameters));
+
+					// If we have an ImportTask, fill out the asynchronous results object here so the caller can see when the results are ready
+					if ( Params.AssetImportTask)
+					{
+						 Params.AssetImportTask->AsyncResults = InterchangeResult;
+					}
+
 					InterchangeResult->OnDone(AppendAndBroadcastImportResultIfNeeded);
 
 					if (!Params.bAllowAsyncImport)

@@ -64,18 +64,19 @@ UObject* UFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName I
 
 	if (ScriptFactoryCreateFile(Task))
 	{
-		if (Task->Result.Num() == 0)
+		TArray<UObject*> TaskResults = Task->GetObjects();
+		if (TaskResults.Num() == 0)
 		{
 			return nullptr;
 		}
 		else
 		{
-			for (int32 ResultIndex = 1; ResultIndex < Task->Result.Num(); ++ResultIndex)
+			for (int32 ResultIndex = 1; ResultIndex < TaskResults.Num(); ++ResultIndex)
 			{
-				AdditionalImportedObjects.Add(Task->Result[ResultIndex]);
+				AdditionalImportedObjects.Add(TaskResults[ResultIndex]);
 			}
 
-			return Task->Result[0];
+			return TaskResults[0];
 		}
 	}
 
