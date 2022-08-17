@@ -27,6 +27,7 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#include "DetailWidgetRow.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
@@ -955,78 +956,90 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 		UNiagaraStackPropertyRow* PropertyRow = CastChecked<UNiagaraStackPropertyRow>(Item);
 		FNodeWidgets PropertyRowWidgets = PropertyRow->GetDetailTreeNode()->CreateNodeWidgets();
 
+		TSharedPtr<SWidget> TmpNameWidget;
+		TSharedPtr<SWidget> TmpValueWidget;
+		FDetailWidgetRow WidgetRow;
+
+		TOptional<FResetToDefaultOverride> ResetToDefaultOverride;
+		if(TSharedPtr<IDetailPropertyRow> Row = PropertyRow->GetDetailTreeNode()->GetRow())
+		{
+			// we override the name & value widgets here as the previous ones won't be valid anymore but we require the widget row to access additional data like the custom reset override.
+			PropertyRow->GetDetailTreeNode()->GetRow()->GetDefaultWidgets(PropertyRowWidgets.NameWidget, PropertyRowWidgets.ValueWidget, WidgetRow);
+			ResetToDefaultOverride = WidgetRow.CustomResetToDefault;
+		}
+
 		TAttribute<bool> IsEnabled;
 		IsEnabled.BindUObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled);
 
 		Container->AddFillRowContextMenuHandler(FNiagaraStackPropertyRowUtilities::CreateOnFillRowContextMenu(PropertyRow->GetDetailTreeNode()->CreatePropertyHandle(), PropertyRowWidgets.Actions));
-
-		if (PropertyRowWidgets.WholeRowWidget.IsValid())
-		{
-			Container->SetOverrideNameWidth(PropertyRowWidgets.WholeRowWidgetLayoutData.MinWidth, PropertyRowWidgets.WholeRowWidgetLayoutData.MaxWidth);
-			Container->SetOverrideNameAlignment(PropertyRowWidgets.WholeRowWidgetLayoutData.HorizontalAlignment, PropertyRowWidgets.WholeRowWidgetLayoutData.VerticalAlignment);
-			PropertyRowWidgets.WholeRowWidget->SetEnabled(IsEnabled);
-			TSharedRef<SHorizontalBox> RowBox = SNew(SHorizontalBox);
-			if (PropertyRowWidgets.EditConditionWidget.IsValid())
-			{
-				RowBox->AddSlot()
-				.AutoWidth()
-				.Padding(0, 0, 3, 0)
-				[
-					PropertyRowWidgets.EditConditionWidget.ToSharedRef()
-				];
-			}
-			RowBox->AddSlot()
-			[
-				PropertyRowWidgets.WholeRowWidget.ToSharedRef()
-			];
-			RowBox->AddSlot()
-			.AutoWidth()
-			.Padding(3, 0, 0, 0)
-			[
-				SNew(SResetToDefaultPropertyEditor, PropertyRow->GetDetailTreeNode()->CreatePropertyHandle())
-			];
-			return FRowWidgets(RowBox); 
-		}
-		else
-		{
-			Container->SetOverrideNameWidth(PropertyRowWidgets.NameWidgetLayoutData.MinWidth, PropertyRowWidgets.NameWidgetLayoutData.MaxWidth);
-			Container->SetOverrideValueWidth(PropertyRowWidgets.ValueWidgetLayoutData.MinWidth, PropertyRowWidgets.ValueWidgetLayoutData.MaxWidth);
-			Container->SetOverrideNameAlignment(HAlign_Left, VAlign_Center);
-			PropertyRowWidgets.NameWidget->SetEnabled(IsEnabled);
-			PropertyRowWidgets.ValueWidget->SetEnabled(IsEnabled);
-
-			TSharedPtr<SWidget> NameWidget;
-			if (PropertyRowWidgets.EditConditionWidget.IsValid())
-			{
-				NameWidget = SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(0, 0, 3, 0)
-				[
-					PropertyRowWidgets.EditConditionWidget.ToSharedRef()
-				]
-				+ SHorizontalBox::Slot()
-				[
-					PropertyRowWidgets.NameWidget.ToSharedRef()
-				];
-			}
-			else
-			{
-				NameWidget = PropertyRowWidgets.NameWidget;
-			}
-
-			TSharedRef<SWidget> ValueWidget = SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			[
-				PropertyRowWidgets.ValueWidget.ToSharedRef()
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(3, 0, 0, 0)
-			[
-				SNew(SResetToDefaultPropertyEditor, PropertyRow->GetDetailTreeNode()->CreatePropertyHandle())
-			];
+		
+		 if (PropertyRowWidgets.WholeRowWidget.IsValid())
+		 {
+		 	Container->SetOverrideNameWidth(PropertyRowWidgets.WholeRowWidgetLayoutData.MinWidth, PropertyRowWidgets.WholeRowWidgetLayoutData.MaxWidth);
+		 	Container->SetOverrideNameAlignment(PropertyRowWidgets.WholeRowWidgetLayoutData.HorizontalAlignment, PropertyRowWidgets.WholeRowWidgetLayoutData.VerticalAlignment);
+		 	PropertyRowWidgets.WholeRowWidget->SetEnabled(IsEnabled);
+		 	TSharedRef<SHorizontalBox> RowBox = SNew(SHorizontalBox);
+		 	if (PropertyRowWidgets.EditConditionWidget.IsValid())
+		 	{
+		 		RowBox->AddSlot()
+		 		.AutoWidth()
+		 		.Padding(0, 0, 3, 0)
+		 		[
+		 			PropertyRowWidgets.EditConditionWidget.ToSharedRef()
+		 		];
+		 	}
+		 	RowBox->AddSlot()
+		 	[
+		 		PropertyRowWidgets.WholeRowWidget.ToSharedRef()
+		 	];
+		 	RowBox->AddSlot()
+		 	.AutoWidth()
+		 	.Padding(3, 0, 0, 0)
+		 	[
+		 		SNew(SResetToDefaultPropertyEditor, PropertyRow->GetDetailTreeNode()->CreatePropertyHandle()).CustomResetToDefault(ResetToDefaultOverride)
+		 	];
+		 	return FRowWidgets(RowBox); 
+		 }
+		 else
+		 {
+		 	Container->SetOverrideNameWidth(PropertyRowWidgets.NameWidgetLayoutData.MinWidth, PropertyRowWidgets.NameWidgetLayoutData.MaxWidth);
+		 	Container->SetOverrideValueWidth(PropertyRowWidgets.ValueWidgetLayoutData.MinWidth, PropertyRowWidgets.ValueWidgetLayoutData.MaxWidth);
+		 	Container->SetOverrideNameAlignment(HAlign_Left, VAlign_Center);
+		 	PropertyRowWidgets.NameWidget->SetEnabled(IsEnabled);
+		 	PropertyRowWidgets.ValueWidget->SetEnabled(IsEnabled);
+		
+		 	TSharedPtr<SWidget> NameWidget;
+		 	if (PropertyRowWidgets.EditConditionWidget.IsValid())
+		 	{
+		 		NameWidget = SNew(SHorizontalBox)
+		 		+ SHorizontalBox::Slot()
+		 		.AutoWidth()
+		 		.Padding(0, 0, 3, 0)
+		 		[
+		 			PropertyRowWidgets.EditConditionWidget.ToSharedRef()
+		 		]
+		 		+ SHorizontalBox::Slot()
+		 		[
+		 			PropertyRowWidgets.NameWidget.ToSharedRef()
+		 		];
+		 	}
+		 	else
+		 	{
+		 		NameWidget = PropertyRowWidgets.NameWidget;
+		 	}
+		
+		 	TSharedRef<SWidget> ValueWidget = SNew(SHorizontalBox)
+		 	+ SHorizontalBox::Slot()
+		 	[
+		 		PropertyRowWidgets.ValueWidget.ToSharedRef()
+		 	]
+		 	+ SHorizontalBox::Slot()
+		 	.AutoWidth()
+		 	.VAlign(VAlign_Center)
+		 	.Padding(3, 0, 0, 0)
+		 	[
+		 		SNew(SResetToDefaultPropertyEditor, PropertyRow->GetDetailTreeNode()->CreatePropertyHandle()).CustomResetToDefault(ResetToDefaultOverride)
+		 	];
 
 			return FRowWidgets(NameWidget.ToSharedRef(), ValueWidget);
 		}

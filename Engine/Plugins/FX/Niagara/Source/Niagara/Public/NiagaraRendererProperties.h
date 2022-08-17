@@ -254,6 +254,9 @@ public:
 	//UObject Interface Begin
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
+	virtual void InitBindings();
+
+	static void InitCDOPropertiesAfterModuleStartup(TSubclassOf<UNiagaraRendererProperties> Class);
 #if WITH_EDITORONLY_DATA
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
@@ -377,7 +380,7 @@ protected:
 
 	virtual void PostLoadBindings(ENiagaraRendererSourceDataMode InSourceMode);
 	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false);
-
+	virtual void InitCDOPropertiesAfterModuleStartupInternal() { check(HasAnyFlags(RF_ClassDefaultObject)); InitBindings(); }
 #if WITH_EDITORONLY_DATA
 	/** returns the variable associated with the supplied binding if it should be bound given the current settings of the RendererProperties. */
 	virtual FNiagaraVariable GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const;

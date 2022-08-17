@@ -200,11 +200,10 @@ void UNiagaraSpriteRendererProperties::Serialize(FStructuredArchive::FRecord Rec
 }
 
 /** The bindings depend on variables that are created during the NiagaraModule startup. However, the CDO's are build prior to this being initialized, so we defer setting these values until later.*/
-void UNiagaraSpriteRendererProperties::InitCDOPropertiesAfterModuleStartup()
+void UNiagaraSpriteRendererProperties::InitCDOPropertiesAfterModuleStartupInternal()
 {
-	UNiagaraSpriteRendererProperties* CDO = CastChecked<UNiagaraSpriteRendererProperties>(UNiagaraSpriteRendererProperties::StaticClass()->GetDefaultObject());
-	CDO->InitBindings();
-
+	Super::InitCDOPropertiesAfterModuleStartupInternal();
+	
 	for (TWeakObjectPtr<UNiagaraSpriteRendererProperties>& WeakSpriteRendererProperties : SpriteRendererPropertiesToDeferredInit)
 	{
 		if (WeakSpriteRendererProperties.Get())
@@ -216,6 +215,8 @@ void UNiagaraSpriteRendererProperties::InitCDOPropertiesAfterModuleStartup()
 
 void UNiagaraSpriteRendererProperties::InitBindings()
 {
+	Super::InitBindings();
+	
 	if (PositionBinding.GetParamMapBindableVariable().GetName() == NAME_None)
 	{
 		PositionBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_POSITION);

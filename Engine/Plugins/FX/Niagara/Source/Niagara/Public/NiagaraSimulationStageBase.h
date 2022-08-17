@@ -139,6 +139,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	FIntVector OverrideGpuDispatchNumThreads = FIntVector(64, 1, 1);
 
+	void InitBindings();
+	static void InitCDOPropertiesAfterModuleStartup();
+
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;

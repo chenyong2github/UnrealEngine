@@ -168,9 +168,8 @@ public:
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override {};
 	/** IPropertyTypeCustomization interface end */
 private:
-	EVisibility IsResetToDefaultsVisible() const;
-	FReply OnResetToDefaultsClicked();
-	void ResetToDefault();
+	bool IsResetToDefaultsVisible(TSharedPtr<IPropertyHandle> InPropertyHandle) const;
+	void OnResetToDefaultsClicked(TSharedPtr<IPropertyHandle> InPropertyHandle);
 	FName GetVariableName() const;
 	FText GetCurrentText() const;
 	FText GetTooltipText() const;

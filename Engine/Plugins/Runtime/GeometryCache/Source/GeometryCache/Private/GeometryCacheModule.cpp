@@ -20,7 +20,7 @@ void FGeometryCacheModule::StartupModule()
 
 	FCodecV1Decoder::InitLUT();
 
-	UNiagaraGeometryCacheRendererProperties::InitCDOPropertiesAfterModuleStartup();
+	UNiagaraRendererProperties::InitCDOPropertiesAfterModuleStartup(UNiagaraGeometryCacheRendererProperties::StaticClass());
 }
 
 void FGeometryCacheModule::ShutdownModule()
