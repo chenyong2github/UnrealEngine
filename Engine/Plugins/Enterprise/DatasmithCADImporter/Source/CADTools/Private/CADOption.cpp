@@ -79,6 +79,17 @@ This welding is performed respecting the ds.CADTranslator.StitchingTolerance\n\
 Default value is true\n"),
 ECVF_Default);
 
+bool FImportParameters::bGRemoveDuplicatedTriangle = false;
+FAutoConsoleVariableRef GCADTranslatorRemoveDuplicatedTriangle(
+	TEXT("ds.CADTranslator.RemoveDuplicatedTriangle"),
+	FImportParameters::bGRemoveDuplicatedTriangle,
+	TEXT("Avoid duplicated triangles in a mesh (i.e. two triangle with the same triplet of vertices)\n\
+This problem appears when a surface patch is duplicated. Due to the two identical mesh of the patches, the global mesh has duplicated triangles\n\
+The time cost of this process is about 20% for 10e6 triangles with a complexity in nlog(n) due to the use of a map\n\
+As this problem is rare, and to avoid the cost of the process, this option is disable by default. To fix StaticMesh with duplicated triangles, the StaticMesh can be remesh with this option.\n\
+Default value is false. \n"),
+ECVF_Default);
+
 float FImportParameters::GMeshingParameterFactor = 1;
 FAutoConsoleVariableRef GCADTranslatorMeshingParameterFactor(
 	TEXT("ds.CADTranslator.MeshingParameterFactor"),

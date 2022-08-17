@@ -53,7 +53,7 @@ namespace CADLibrary
 
 		for (FVector3f& Vertex : VertexArray)
 		{
-			Vertex *= 0.1; // mm (CADKernel unit) to cm (UE unit)
+			Vertex *= 0.1f; // mm (CADKernel unit) to cm (UE unit)
 		}
 
 		int32 VertexCount = VertexArray.Num();

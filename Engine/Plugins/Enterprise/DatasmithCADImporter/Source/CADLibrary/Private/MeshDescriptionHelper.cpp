@@ -66,6 +66,8 @@ bool IsTriangleDegenerated(const int32_t* Indices, const TArray<FVertexID>& Rema
 
 void MergeCoincidentVertices(TArray<FVector3f>& VertexArray, TArray<int32>& VertexIdSet)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithMeshBuilder::MergeCoincidentVertices);
+
 	const double CoincidenceTolerance = 0.001;
 
 	// Create a list of vertex Z/index pairs
@@ -115,6 +117,8 @@ void MergeCoincidentVertices(TArray<FVector3f>& VertexArray, TArray<int32>& Vert
 
 void FillVertexPosition(const FImportParameters& ImportParams, const FMeshParameters& MeshParameters, FBodyMesh& Body, FMeshDescription& MeshDescription)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CADLibrary::FillVertexPosition);
+
 	int32 TriangleCount = Body.TriangleCount;
 	TArray<FTessellationData>& FaceTessellationSet = Body.Faces;
 
@@ -258,6 +262,8 @@ void CopyMaterialSlotNames(FMeshDescription& MeshSource, FMeshDescription& MeshD
 
 bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& ImportParams, FBodyMesh& BodyTessellation, FMeshDescription& MeshDescription)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CADLibrary::FillMesh);
+
 	const int32 UVChannel = 0;
 	const int32 VertexCountPerFace = 3;
 	const TriangleIndex Clockwise = { 0, 1, 2 };
@@ -282,6 +288,9 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 	{
 		return false;
 	}
+
+	// To avoid duplicated triangle
+	TSet<TTuple<FVertexInstanceID, FVertexInstanceID, FVertexInstanceID>> VertexIdsToTriangle;
 
 	// Find all the materials used
 	TMap<uint32, FPolygonGroupID> MaterialToPolygonGroupMapping;
@@ -380,8 +389,19 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 				MeshVertexInstanceIDs.Add(TriangleVertexInstanceIDs[1] = MeshDescription.CreateVertexInstance((FVertexID)FaceVertexIDs[1]));
 				MeshVertexInstanceIDs.Add(TriangleVertexInstanceIDs[2] = MeshDescription.CreateVertexInstance((FVertexID)FaceVertexIDs[2]));
 
+				if(FImportParameters::bGRemoveDuplicatedTriangle)
+				{
+					Sort(FaceVertexIDs, 3);
+					bool bIsAlreadyInSet;
+					VertexIdsToTriangle.Emplace(TTuple<FVertexInstanceID, FVertexInstanceID, FVertexInstanceID>(FaceVertexIDs[0], FaceVertexIDs[1], FaceVertexIDs[2]), &bIsAlreadyInSet);
+					if (bIsAlreadyInSet)
+					{
+						continue;
+					}
+				}
+
 				// Add the triangle as a polygon to the mesh description
-				const FPolygonID PolygonID = MeshDescription.CreatePolygon(*PolygonGroupID, TriangleVertexInstanceIDs);
+				FPolygonID PolygonID = MeshDescription.CreatePolygon(*PolygonGroupID, TriangleVertexInstanceIDs);
 
 				// Set patch id attribute
 				PatchGroups[PolygonID] = Tessellation.PatchId;
@@ -461,6 +481,8 @@ bool FillMesh(const FMeshParameters& MeshParameters, const FImportParameters& Im
 
 bool ConvertBodyMeshToMeshDescription(const FImportParameters& ImportParams, const FMeshParameters& MeshParameters, FBodyMesh& Body, FMeshDescription& MeshDescription)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CADLibrary::ConvertBodyMeshToMeshDescription);
+
 	// in a closed big mesh VertexCount ~ TriangleCount / 2, EdgeCount ~ 1.5* TriangleCount
 	MeshDescription.ReserveNewVertexInstances(Body.VertexArray.Num());
 	MeshDescription.ReserveNewPolygons(Body.TriangleCount);
