@@ -85,5 +85,5 @@ namespace Metasound
 		}
 	} // namespace Frontend
 
-	DEFINE_METASOUND_DATA_TYPE(Frontend::FAnalyzerAddress, "AnalyzerAddress");
+	REGISTER_METASOUND_DATATYPE(Frontend::FAnalyzerAddress, "AnalyzerAddress");
 } // namespace Metasound
