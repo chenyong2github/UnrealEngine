@@ -23,8 +23,8 @@ namespace Metasound
 			// Sender in charge of supplying expected vertex analyzers currently being analyzed.
 			TUniquePtr<ISender> ActiveAnalyzerSender;
 
-			// Set of active keys used for what senders should be active on the instance graph
-			TSet<FString> ActiveAnalyzerKeys;
+			// Set of active analyzer addresses used for what analyzers should be active on the associated graph instance
+			TSet<FAnalyzerAddress> ActiveAnalyzers;
 
 			const FMetasoundAssetBase& GetMetaSoundAssetChecked() const;
 

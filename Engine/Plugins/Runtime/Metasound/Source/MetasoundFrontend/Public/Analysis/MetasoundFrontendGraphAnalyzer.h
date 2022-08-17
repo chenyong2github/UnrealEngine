@@ -15,6 +15,55 @@ namespace Metasound
 	{
 		using FNodeVertexDataReferenceMap = TMap<FGuid, FDataReferenceCollection>;
 
+		class METASOUNDFRONTEND_API FGraphAnalyzerAddress : public FTransmissionAddress
+		{
+			uint64 InstanceID = INDEX_NONE;
+
+		public:
+			FGraphAnalyzerAddress(uint64 InInstanceID)
+				: InstanceID(InInstanceID)
+			{
+			}
+
+			virtual ~FGraphAnalyzerAddress() = default;
+
+			virtual FName GetAddressType() const override
+			{
+				return "GraphAnalyzer";
+			}
+
+			virtual FName GetDataType() const override
+			{
+				return GetMetasoundDataTypeName<TArray<FAnalyzerAddress>>();
+			}
+
+			virtual TUniquePtr<FTransmissionAddress> Clone() const override
+			{
+				return TUniquePtr<FTransmissionAddress>(new FGraphAnalyzerAddress(*this));
+			}
+
+			virtual FString ToString() const override
+			{
+				return FString::Printf(TEXT("%s%s%lld"), *GetAddressType().ToString(), * FAnalyzerAddress::PathSeparator, InstanceID);
+			}
+
+			virtual uint32 GetHash() const override
+			{
+				return static_cast<uint32>(InstanceID);
+			}
+
+			virtual bool IsEqual(const FTransmissionAddress& InOther) const override
+			{
+				if (InOther.GetAddressType() != GetAddressType())
+				{
+					return false;
+				}
+
+				const FGraphAnalyzerAddress& OtherAddr = static_cast<const FGraphAnalyzerAddress&>(InOther);
+				return OtherAddr.InstanceID == InstanceID;
+			}
+		};
+
 		// Handles intrinsic analysis operations within a given graph
 		// should the graph's operator be enabled for analysis.
 		class METASOUNDFRONTEND_API FGraphAnalyzer
@@ -29,14 +78,6 @@ namespace Metasound
 		public:
 			FGraphAnalyzer(const FOperatorSettings& InSettings, uint64 InInstanceID, FNodeVertexDataReferenceMap&& InGraphReferences);
 			~FGraphAnalyzer() = default;
-
-			// Creates a send channel name unique for the given sound instance used to send array of analyzer
-			// addresses to the profiler of what analyzers are expected to be active for a given instance.
-			static const FName GetAnalyzerArraySendChannelName(uint64 InInstanceID)
-			{
-				const FString ChannelName = FString::Printf(TEXT("AnalyzerArray%s%lld"), *FAnalyzerAddress::PathSeparator, InInstanceID);
-				return *ChannelName;
-			}
 
 			// Execute analysis for the current block
 			void Execute();

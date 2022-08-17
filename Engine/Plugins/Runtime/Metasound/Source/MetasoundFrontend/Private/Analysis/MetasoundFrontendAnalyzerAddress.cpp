@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Analysis/MetasoundFrontendAnalyzerAddress.h"
+#include "MetasoundDataTypeRegistrationMacro.h"
+#include "Misc/AssertionMacros.h"
 
 
 namespace Metasound
@@ -7,6 +10,65 @@ namespace Metasound
 	namespace Frontend
 	{
 		const FString FAnalyzerAddress::PathSeparator = TEXT("/");
+
+		FAnalyzerAddress::FAnalyzerAddress(const FString& InAddressString)
+		{
+			TArray<FString> Tokens;
+			if (ensureAlwaysMsgf(InAddressString.ParseIntoArray(Tokens, *PathSeparator) == 7, TEXT("Invalid Analyzer Address String Format")))
+			{
+				InstanceID = static_cast<uint64>(FCString::Atoi64(*Tokens[0]));
+				NodeID = FGuid(Tokens[1]);
+				OutputName = *Tokens[2];
+				DataType = *Tokens[3];
+				AnalyzerName = *Tokens[4];
+				AnalyzerInstanceID = FGuid(Tokens[5]);
+				AnalyzerMemberName = *Tokens[6];
+			}
+		}
+
+		FName FAnalyzerAddress::GetAddressType() const
+		{
+			return "Analyzer";
+		}
+
+		FName FAnalyzerAddress::GetDataType() const
+		{
+			return DataType;
+		}
+
+		TUniquePtr<FTransmissionAddress> FAnalyzerAddress::Clone() const
+		{
+			return TUniquePtr<FTransmissionAddress>(new FAnalyzerAddress(*this));
+		}
+
+		uint32 FAnalyzerAddress::GetHash() const
+		{
+			uint32 AddressHash = HashCombineFast(AnalyzerInstanceID.A, ::GetTypeHash(AnalyzerMemberName));
+			AddressHash = HashCombineFast(AddressHash, ::GetTypeHash(AnalyzerName));
+			AddressHash = HashCombineFast(AddressHash, ::GetTypeHash(DataType));
+			AddressHash = HashCombineFast(AddressHash, ::GetTypeHash(InstanceID));
+			AddressHash = HashCombineFast(AddressHash, NodeID.A);
+			AddressHash = HashCombineFast(AddressHash, ::GetTypeHash(OutputName));
+
+			return AddressHash;
+		}
+
+		bool FAnalyzerAddress::IsEqual(const FTransmissionAddress& InOther) const
+		{
+			if (InOther.GetAddressType() != GetAddressType())
+			{
+				return false;
+			}
+
+			const FAnalyzerAddress& OtherAddr = static_cast<const FAnalyzerAddress&>(InOther);
+			return OtherAddr.AnalyzerInstanceID == AnalyzerInstanceID
+				&& OtherAddr.AnalyzerMemberName == AnalyzerMemberName
+				&& OtherAddr.AnalyzerName == AnalyzerName
+				&& OtherAddr.DataType == DataType
+				&& OtherAddr.InstanceID == InstanceID
+				&& OtherAddr.NodeID == NodeID
+				&& OtherAddr.OutputName == OutputName;
+		}
 
 		FString FAnalyzerAddress::ToString() const
 		{
@@ -21,41 +83,7 @@ namespace Metasound
 				*AnalyzerMemberName.ToString()
 			}, *PathSeparator);
 		}
-
-		FSendAddress FAnalyzerAddress::ToSendAddress() const
-		{
-			const TArray<FString> ChannelTokens
-			{
-				NodeID.ToString(),
-				OutputName.ToString(),
-				AnalyzerName.ToString(),
-				AnalyzerInstanceID.ToString(),
-				AnalyzerMemberName.ToString()
-			};
-
-			// TODO: This is bad as its generating FNames like crazy. One idea was to include guid support in FSendAddresses to avoid FName generation,
-			// which would enable this factory to map analyzer keys to send guid.
-			const FName Channel = FName(*FString::Join(ChannelTokens, *PathSeparator));
-			return FSendAddress { Channel, DataType, InstanceID };
-		}
-
-		bool FAnalyzerAddress::ParseKey(const FString& InAnalyzerKey, FAnalyzerAddress& OutAddress)
-		{
-			TArray<FString> Tokens;
-			if (InAnalyzerKey.ParseIntoArray(Tokens, *PathSeparator) == 7)
-			{
-				OutAddress.InstanceID = static_cast<uint64>(FCString::Atoi64(*Tokens[0]));
-				OutAddress.NodeID = FGuid(Tokens[1]);
-				OutAddress.OutputName = *Tokens[2];
-				OutAddress.DataType = *Tokens[3];
-				OutAddress.AnalyzerName = *Tokens[4];
-				OutAddress.AnalyzerInstanceID = FGuid(Tokens[5]);
-				OutAddress.AnalyzerMemberName = *Tokens[6];
-
-				return true;
-			}
-
-			return false;
-		}
 	} // namespace Frontend
+
+	DEFINE_METASOUND_DATA_TYPE(Frontend::FAnalyzerAddress, "AnalyzerAddress");
 } // namespace Metasound

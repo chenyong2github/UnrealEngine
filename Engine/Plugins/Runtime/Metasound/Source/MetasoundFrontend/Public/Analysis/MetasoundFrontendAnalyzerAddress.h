@@ -3,9 +3,11 @@
 
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
+#include "MetasoundDataReferenceMacro.h"
 #include "MetasoundRouter.h"
 #include "MetasoundVertex.h"
 #include "Misc/Guid.h"
+#include "UObject/NameTypes.h"
 
 
 namespace Metasound
@@ -14,9 +16,28 @@ namespace Metasound
 	{
 		// String serializable (as key) channel of analyzer or its internal members
 		// that can be written to or read from using the Transmission System.
-		struct METASOUNDFRONTEND_API FAnalyzerAddress
+		class METASOUNDFRONTEND_API FAnalyzerAddress : public FTransmissionAddress
 		{
+		public:
 			static const FString PathSeparator;
+
+			FAnalyzerAddress(const FString& InAddressString);
+			FAnalyzerAddress() = default;
+
+			virtual ~FAnalyzerAddress() = default;
+
+			virtual FName GetAddressType() const override;
+
+			virtual FName GetDataType() const override;
+
+			virtual TUniquePtr<FTransmissionAddress> Clone() const override;
+
+			// Converts AnalyzerAddress to String representation using the PathSeparator
+			virtual FString ToString() const override;
+
+			virtual uint32 GetHash() const override;
+
+			virtual bool IsEqual(const FTransmissionAddress& InOther) const override;
 
 			// Active Instance ID to monitor
 			uint64 InstanceID = TNumericLimits<uint64>::Max();
@@ -43,14 +64,8 @@ namespace Metasound
 			// the same name. Useful if the analyzer requires outputting multiple analysis values.
 			// Can potentially be used as an input as well to modify analyzer settings.
 			FName AnalyzerMemberName;
-
-			// Converts AnalyzerAddress to String representation using the PathSeparator
-			FString ToString() const;
-
-			// Converts AnalyzerAddress to SendAddress
-			FSendAddress ToSendAddress() const;
-
-			static bool ParseKey(const FString& InAnalyzerKey, FAnalyzerAddress& OutAnalyzer);
 		};
 	} // namespace Frontend
+
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(Frontend::FAnalyzerAddress, METASOUNDFRONTEND_API, FAnalyzerAddressTypeInfo, FAnalyzerAddressReadRef, FAnalyzerAddressWriteRef)
 } // namespace Metasound

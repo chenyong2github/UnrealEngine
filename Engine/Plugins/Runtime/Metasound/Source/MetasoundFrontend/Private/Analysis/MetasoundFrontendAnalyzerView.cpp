@@ -32,9 +32,8 @@ namespace Metasound
 					FAnalyzerAddress OutputAddress = AnalyzerAddress;
 					OutputAddress.AnalyzerMemberName = Output.Name;
 					OutputAddress.DataType = Output.DataType;
-					const FSendAddress SendAddress = OutputAddress.ToSendAddress();
 					const FReceiverInitParams ReceiverParams { InOperatorSettings };
-					IReceiver* Receiver = FDataTransmissionCenter::Get().RegisterNewReceiver(SendAddress, ReceiverParams).Release();
+					IReceiver* Receiver = FDataTransmissionCenter::Get().RegisterNewReceiver(OutputAddress, ReceiverParams).Release();
 					OutputReceivers.Add({ Output.Name, TSharedPtr<IReceiver>(Receiver) });
 				}
 			}

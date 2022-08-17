@@ -18,68 +18,62 @@ namespace Metasound
 			, InternalDataReferences(MoveTemp(InReferences))
 		{
 			using namespace Frontend;
-			FSendAddress ActiveAnalyzerAddr(GetAnalyzerArraySendChannelName(InInstanceID), GetMetasoundDataTypeName<TArray<FString>>(), InInstanceID);
-			ActiveAnalyzerReceiver = FDataTransmissionCenter::Get().RegisterNewReceiver<TArray<FString>>(ActiveAnalyzerAddr, FReceiverInitParams { InSettings });
+			FGraphAnalyzerAddress GraphAddress(InstanceID);
+			ActiveAnalyzerReceiver = FDataTransmissionCenter::Get().RegisterNewReceiver(GraphAddress, FReceiverInitParams { InSettings });
 		}
 
 		void FGraphAnalyzer::Execute()
 		{
 			// 1. Check if any message has been received that determines what analyzers are active.
-			TSet<FString> ReceiverKeys;
+			TSet<FAnalyzerAddress> ReceiverAddresses;
 			bool bUpdateReceivers = false;
 			if (ActiveAnalyzerReceiver.IsValid())
 			{
-				TReceiver<TArray<FString>>& AnalyzerReceiver = ActiveAnalyzerReceiver->GetAs<TReceiver<TArray<FString>>>();
+				TReceiver<TArray<FAnalyzerAddress>>& AnalyzerReceiver = ActiveAnalyzerReceiver->GetAs<TReceiver<TArray<FAnalyzerAddress>>>();
 				if (AnalyzerReceiver.CanPop())
 				{
 					bUpdateReceivers = true;
-					TArray<FString> AnalyzerAddresses;
+					TArray<FAnalyzerAddress> AnalyzerAddresses;
 					AnalyzerReceiver.Pop(AnalyzerAddresses);
-					ReceiverKeys.Append(AnalyzerAddresses);
+					ReceiverAddresses.Append(AnalyzerAddresses);
 				}
 			}
 
 			// 2. Check if any message has been received that determines what analyzers are active and remove stale analyzers.
-			for (int32 i = Analyzers.Num() - 1; i >= 0; --i)
+			if (bUpdateReceivers)
 			{
-				TUniquePtr<IVertexAnalyzer>& Analyzer = Analyzers[i];
-				check(Analyzer.IsValid());
-				if (bUpdateReceivers)
+				for (int32 i = Analyzers.Num() - 1; i >= 0; --i)
 				{
-					const FString AnalyzerKey = Analyzer->GetAnalyzerAddress().ToString();
-					if (!ReceiverKeys.Contains(AnalyzerKey))
+					TUniquePtr<IVertexAnalyzer>& Analyzer = Analyzers[i];
+					check(Analyzer.IsValid());
+					const FAnalyzerAddress& AnalyzerAddress = Analyzer->GetAnalyzerAddress();
+					if (ReceiverAddresses.Contains(AnalyzerAddress))
 					{
-						constexpr bool bAllowShrinking = false;
-						Analyzers.RemoveAtSwap(i, 1, bAllowShrinking);
-						continue;
+						ReceiverAddresses.Remove(AnalyzerAddress);
 					}
 
-					ReceiverKeys.Remove(AnalyzerKey);
+					constexpr bool bAllowShrinking = false;
+					Analyzers.RemoveAtSwap(i, 1, bAllowShrinking);
 				}
 			}
 
 			// 3. If message received to update analyzers, create missing analyzers
 			if (bUpdateReceivers)
 			{
-				for (const FString& AnalyzerKey : ReceiverKeys)
+				for (const FAnalyzerAddress& AnalyzerAddress : ReceiverAddresses)
 				{
-					FAnalyzerAddress AnalyzerAddress;
-					const bool bAnalyzerKeyValid = FAnalyzerAddress::ParseKey(AnalyzerKey, AnalyzerAddress);
-					if (ensureMsgf(bAnalyzerKeyValid, TEXT("Failed to create MetaSoundAnalyzer: AnalyzerKey '%s' invalid."), *AnalyzerKey))
-					{
-						const FDataReferenceCollection* Collection = InternalDataReferences.Find(AnalyzerAddress.NodeID);
-						// TODO: This currently fails for composed graphs.  Figure out how to differentiate addresses for composed graphs or refactor to only support parent graph analysis.
+					const FDataReferenceCollection* Collection = InternalDataReferences.Find(AnalyzerAddress.NodeID);
+					// TODO: This currently fails for composed graphs.  Figure out how to differentiate addresses for composed graphs or refactor to only support parent graph analysis.
 // 						if (ensureMsgf(Collection != nullptr, TEXT("Failed to create MetaSoundAnalyzer: DataReferenceCollection for node analyzer at address '%s' not found."), *AnalyzerKey))
-						if (Collection)
+					if (Collection)
+					{
+						if (const IVertexAnalyzerFactory* Factory = IVertexAnalyzerRegistry::Get().FindAnalyzerFactory(AnalyzerAddress.AnalyzerName))
 						{
-							if (const IVertexAnalyzerFactory* Factory = IVertexAnalyzerRegistry::Get().FindAnalyzerFactory(AnalyzerAddress.AnalyzerName))
+							if (const FAnyDataReference* DataRef = Collection->FindDataReference(AnalyzerAddress.OutputName))
 							{
-								if (const FAnyDataReference* DataRef = Collection->FindDataReference(AnalyzerAddress.OutputName))
-								{
-									FCreateAnalyzerParams Params{ AnalyzerAddress, OperatorSettings, *DataRef };
-									TUniquePtr<IVertexAnalyzer> NewAnalyzer = Factory->CreateAnalyzer(Params);
-									Analyzers.Add(MoveTemp(NewAnalyzer));
-								}
+								FCreateAnalyzerParams Params{ AnalyzerAddress, OperatorSettings, *DataRef };
+								TUniquePtr<IVertexAnalyzer> NewAnalyzer = Factory->CreateAnalyzer(Params);
+								Analyzers.Add(MoveTemp(NewAnalyzer));
 							}
 						}
 					}

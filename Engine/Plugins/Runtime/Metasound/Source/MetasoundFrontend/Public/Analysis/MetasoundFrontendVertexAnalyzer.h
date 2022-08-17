@@ -75,7 +75,7 @@ namespace Metasound
 			TBoundAnalyzerOutput(const FAnalyzerAddress& InAnalyzerOutputAddress, const FOperatorSettings& InOperatorSettings, TDataReadReference<DataType>&& InData)
 				: DataRef(MoveTemp(InData))
 			{
-				Sender = FDataTransmissionCenter::Get().RegisterNewSender<DataType>(InAnalyzerOutputAddress.ToSendAddress(), FSenderInitParams { InOperatorSettings, 0 });
+				Sender = FDataTransmissionCenter::Get().RegisterNewSender<DataType>(InAnalyzerOutputAddress, FSenderInitParams { InOperatorSettings, 0 });
 				ensure(Sender);
 			}
 

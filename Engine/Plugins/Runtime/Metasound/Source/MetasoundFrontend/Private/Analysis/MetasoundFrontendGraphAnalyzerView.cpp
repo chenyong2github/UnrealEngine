@@ -60,10 +60,10 @@ namespace Metasound
 		{
 			// TODO: Mirrored from FMetaSoundParameterTransmitter. Fix here when this is refactored.
 			const float DelayTimeInSeconds = 0.1f;
-			FSendAddress ActiveAnalyzerAddr(FGraphAnalyzer::GetAnalyzerArraySendChannelName(InInstanceID), GetMetasoundDataTypeName<TArray<FString>>(), InstanceID);
-			FSenderInitParams SenderParams{ OperatorSettings, DelayTimeInSeconds };
+			FSenderInitParams SenderParams { OperatorSettings, DelayTimeInSeconds };
 
-			ActiveAnalyzerSender = FDataTransmissionCenter::Get().RegisterNewSender<TArray<FString>>(ActiveAnalyzerAddr, SenderParams);
+			const FGraphAnalyzerAddress AnalyzerAddress(InInstanceID);
+			ActiveAnalyzerSender = FDataTransmissionCenter::Get().RegisterNewSender(AnalyzerAddress, SenderParams);
 		}
 
 		void FMetasoundGraphAnalyzerView::AddAnalyzerForAllSupportedOutputs(FName InAnalyzerName, bool bInRequiresConnection)
@@ -79,8 +79,7 @@ namespace Metasound
 
 			IterateOutputsSupportingAnalyzer(GraphHandle, InstanceID, InAnalyzerName, bInRequiresConnection, [this, &Factory, &InAnalyzerName](FConstOutputHandle OutputHandle, const FAnalyzerAddress& AnalyzerAddress)
 			{
-				FString AnalyzerKey = AnalyzerAddress.ToString();
-				ActiveAnalyzerKeys.Add(MoveTemp(AnalyzerKey));
+				ActiveAnalyzers.Add(AnalyzerAddress);
 
 				const TArray<FAnalyzerOutput>& AnalyzerOutputs = Factory->GetAnalyzerOutputs();
 				for (const FAnalyzerOutput& AnalyzerOutput : AnalyzerOutputs)
@@ -95,7 +94,10 @@ namespace Metasound
 					AnalyzerViews.FindOrAdd(OutputKey).Add(MoveTemp(NewView));
 				}
 			});
-			ActiveAnalyzerSender->PushLiteral(ActiveAnalyzerKeys.Array());
+
+			TArray<FString> ActiveAnalyzerStrings;
+			Algo::Transform(ActiveAnalyzers, ActiveAnalyzerStrings, [](const FAnalyzerAddress& Address) { return Address.ToString(); });
+			ActiveAnalyzerSender->PushLiteral(MoveTemp(ActiveAnalyzerStrings));
 		}
 
 		TArray<FMetasoundAnalyzerView*> FMetasoundGraphAnalyzerView::GetAnalyzerViews(FName InAnalyzerName)
@@ -194,19 +196,19 @@ namespace Metasound
 				AnalyzerViews.Remove(Key);
 			}
 
-			TArray<FString> KeyArray = ActiveAnalyzerKeys.Array();
-			for (FString& AnalyzerKey : KeyArray)
+			TArray<FAnalyzerAddress> AnalyzerAddresses = ActiveAnalyzers.Array();
+			for (const FAnalyzerAddress& AnalyzerAddress : AnalyzerAddresses)
 			{
-				FAnalyzerAddress AnalyzerAddress;
-				if (ensureAlways(FAnalyzerAddress::ParseKey(AnalyzerKey, AnalyzerAddress)))
+				if (AnalyzerAddress.AnalyzerName == InAnalyzerName)
 				{
-					if (AnalyzerAddress.AnalyzerName == InAnalyzerName)
-					{
-						ActiveAnalyzerKeys.Remove(AnalyzerKey);
-					}
+					ActiveAnalyzers.Remove(AnalyzerAddress);
+					break;
 				}
 			}
-			ActiveAnalyzerSender->PushLiteral(ActiveAnalyzerKeys.Array());
+
+			TArray<FString> ActiveAnalyzerStrings;
+			Algo::Transform(ActiveAnalyzers, ActiveAnalyzerStrings, [] (const FAnalyzerAddress& Address) { return Address.ToString(); });
+			ActiveAnalyzerSender->PushLiteral(MoveTemp(ActiveAnalyzerStrings));
 		}
 
 		const FMetasoundAssetBase& FMetasoundGraphAnalyzerView::GetMetaSoundAssetChecked() const
