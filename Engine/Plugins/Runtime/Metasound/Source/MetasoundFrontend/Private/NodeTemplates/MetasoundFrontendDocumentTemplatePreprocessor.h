@@ -23,7 +23,7 @@ namespace Metasound
 		// Base implementation for preprocessing a given template node
 		class FNodeTemplatePreprocessTransformBase : public INodeTransform
 		{
-		private:
+		protected:
 			FMetasoundFrontendDocument& Document;
 			FMetasoundFrontendGraph& Graph;
 

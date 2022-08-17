@@ -77,7 +77,7 @@ namespace Metasound
 				FRerouteNodeTemplatePreprocessTransform(FMetasoundFrontendDocument& InDocument)
 					: FNodeTemplatePreprocessTransformBase(InDocument)
 				{
-					TArray<FMetasoundFrontendEdge>& Edges = GetOwningGraph().Edges;
+					TArray<FMetasoundFrontendEdge>& Edges = Graph.Edges;
 					for (int32 i = 0; i < Edges.Num(); ++i)
 					{
 						FMetasoundFrontendEdge& Edge = Edges[i];
