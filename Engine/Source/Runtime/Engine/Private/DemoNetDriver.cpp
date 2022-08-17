@@ -5053,7 +5053,7 @@ void UDemoNetDriver::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel)
 
 void UDemoNetDriver::NotifyActorTornOff(AActor* Actor)
 {
-	if (IsRecording())
+	if (IsRecording() && IsValid(Actor))
 	{
 		// Replicate one last time to the replay stream
 		ReplayHelper.ReplicateActor(Actor, ClientConnections[0], true);
