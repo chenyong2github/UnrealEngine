@@ -13,7 +13,7 @@ FLoaderAdapterActor::FLoaderAdapterActor(AActor* InActor)
 
 TOptional<FBox> FLoaderAdapterActor::GetBoundingBox() const
 {
-	return Actor->GetComponentsBoundingBox();
+	return Actor->GetComponentsBoundingBox(/*bNonColliding*/true);
 }
 
 TOptional<FString> FLoaderAdapterActor::GetLabel() const
