@@ -10,16 +10,18 @@ type Props = {
   label?: React.ReactNode;
   min?: number;
   max?: number;
+  proportionally?: boolean;
   value?: any;
   
-  onChange?: (widget: ICustomStackProperty, axis?: string, axisValue?: number, locked?: boolean) => any;
+  onChange?: (widget: ICustomStackProperty, axis?: string, axisValue?: number, proportionally?: boolean, min?: number, max?: number) => any;
   onPrecisionModal?: (property: string) => void;
+  onProportionallyToggle?: (property: string, value: string) => void;
 }
 
 export class SlidersWidget extends React.Component<Props> {
 
   render() {   
-    const { widget, label = '', min, max, value } = this.props;
+    const { widget, label = '', min, max, proportionally, value } = this.props;
 
     const propertyType = widget?.propertyType;
     const properties = WidgetUtilities.getPropertyKeys(propertyType);
@@ -40,7 +42,7 @@ export class SlidersWidget extends React.Component<Props> {
                             max={max}
                             precision={precision}
                             value={value?.[property]}
-                            onChange={value => this.props.onChange?.(widget, property, value) || null} />
+                            onChange={value => this.props.onChange?.(widget, property, value, proportionally, min, max) || null} />
                 {isSlider &&
                   <>
                     <div className="limits">{min?.toFixed(1)}</div>
@@ -48,7 +50,7 @@ export class SlidersWidget extends React.Component<Props> {
                             min={min}
                             max={max}
                             showLabel={false}
-                            onChange={value => this.props.onChange?.(widget, property, value) || null} />
+                            onChange={value => this.props.onChange?.(widget, property, value, proportionally, min, max) || null} />
                     <div className="limits">{max?.toFixed(1)}</div>
                   </>
                 }
@@ -56,6 +58,9 @@ export class SlidersWidget extends React.Component<Props> {
             }
           </React.Fragment>
         )}
+        <FontAwesomeIcon icon={['fas', (proportionally) ? 'lock' : 'lock-open']}
+                         className='proportional icon'
+                         onClick={() => this.props.onProportionallyToggle(widget.property, proportionally ? '0' : '1')} />
         <FontAwesomeIcon icon={['fas', 'undo']} className="reset-sliders" onClick={() => this.props.onChange?.(widget)} />
       </div>
     );

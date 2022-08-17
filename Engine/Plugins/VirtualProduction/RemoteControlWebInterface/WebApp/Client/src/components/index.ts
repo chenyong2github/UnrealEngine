@@ -6,3 +6,5 @@ export * from './modals';
 export * from './Screen';
 export * from './Login';
 export * from './Tabs';
+export * from './SignalIcon';
+export * from './EmptyTab';

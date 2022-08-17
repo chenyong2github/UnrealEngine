@@ -158,7 +158,8 @@ export class WidgetUtilities {
     if (propertyType && (propertyType.startsWith('TEnum') || propertyType.startsWith('E')))
       return [WidgetTypes.Dropdown];
 
-    return [];
+    // Unknown Property, show as a Asset
+    return [WidgetTypes.Asset];
   }
 
   static colorToRgb(color: ColorProperty | VectorProperty, max: number) {

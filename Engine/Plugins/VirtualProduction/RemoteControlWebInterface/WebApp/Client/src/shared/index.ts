@@ -1,25 +1,31 @@
 export enum PropertyType {
-  Boolean =     'bool',
-  Int8 =        'int8',
-  Int16 =       'int16',
-  Int32 =       'int32',
-  Int64 =       'int64',
-  Uint8 =       'uint8',
-  Uint16 =      'uint16',
-  Uint32 =      'uint32',
-  Uint64 =      'uint64',
-  Float =       'float',
-  Double =      'double',
-  Vector =      'FVector',
-  Vector2D =    'FVector2D',
-  Vector4 =     'FVector4',
-  Rotator =     'FRotator',
-  Color =       'FColor',
-  LinearColor = 'FLinearColor',
-  String =      'FString',
-  Text =        'FText',
+  Boolean =         'bool',
+  Int8 =            'int8',
+  Int16 =           'int16',
+  Int32 =           'int32',
+  Int64 =           'int64',
+  Uint8 =           'uint8',
+  Uint16 =          'uint16',
+  Uint32 =          'uint32',
+  Uint64 =          'uint64',
+  Float =           'float',
+  Double =          'double',
+  Vector =          'FVector',
+  Vector2D =        'FVector2D',
+  Vector4 =         'FVector4',
+  Rotator =         'FRotator',
+  Color =           'FColor',
+  LinearColor =     'FLinearColor',
+  String =          'FString',
+  Text =            'FText',
 
-  Function =    'Function',
+  Function =        'Function',
+}
+
+export enum ConnectionSignal {
+  Good =   'GOOD',
+  Normal = 'NORMAL',
+  Bad =    'BAD',
 }
 
 export interface ColorProperty {
@@ -33,6 +39,7 @@ export interface VectorProperty {
   X: number;
   Y: number;
   Z: number;
+  W?: number;
 }
 
 export interface RotatorProperty {
@@ -121,6 +128,7 @@ export interface IPreset {
   ExposedProperties?: IExposedProperty[];
   ExposedFunctions?: IExposedFunction[];
   Exposed?: Record<string, IExposedProperty | IExposedFunction>;
+  IsFavorite?: boolean;
 }
 
 export type IPresets = { [preset: string]: IPreset };
@@ -140,6 +148,7 @@ export type IPayload = { [property: string]: PropertyValue | IPayload };
 export type IPayloads = { [preset: string]: IPayload };
 
 export enum WidgetTypes {
+  Asset =           'Asset',
   Dial =            'Dial',
   Dials =           'Dials',
   Slider =          'Slider',
@@ -193,11 +202,16 @@ export interface IColorPickerList {
 export enum TabLayout {
   Stack =    'Stack',
   Screen =   'Screen',
+  Empty =    'Empty',
 }
 
 export enum ScreenType {
-  Snapshot =      'Snapshot',
-  Sequencer =     'Sequencer',
+  Stack =           'Stack',
+  Playlist =        'Playlist',
+  Snapshot =        'Snapshot',
+  Sequencer =       'Sequencer',
+  ColorCorrection = 'ColorCorrection',
+  LightCards =      'LightCards',
 }
 
 export interface IScreen {
@@ -263,4 +277,10 @@ export interface ITab {
   layout: TabLayout;
   panels?: IPanel[];
   screen?: IScreen;
+}
+
+export interface IHistory {
+  property: string;
+  value: any;
+  time: Date;
 }

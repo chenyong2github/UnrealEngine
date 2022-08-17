@@ -38,6 +38,15 @@ export class Screen extends React.Component<Props & PropsFromState> {
 
       case ScreenType.Sequencer:
         return <Screens.Sequencer {...props} />;
+
+      case ScreenType.Playlist:
+        return <Screens.Playlist {...props} />;
+      
+      case ScreenType.ColorCorrection:
+        return <Screens.ColorCorrection {...props} />;
+      
+      case ScreenType.LightCards:
+        return <Screens.LightCards {...props} />;
     }
 
     return null;

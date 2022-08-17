@@ -2,7 +2,7 @@ import { Dispatch } from 'redux';
 import { createAction, createReducer } from 'redux-act';
 import dotProp from 'dot-prop-immutable';
 import io from 'socket.io-client';
-import { IAsset, IPayload, IPayloads, IPreset, IView, PropertyValue, TabLayout } from '../shared';
+import { IAsset, IPayload, IPayloads, IPreset, IView, PropertyValue, TabLayout, IHistory, ConnectionSignal } from '../shared';
 import _ from 'lodash';
 
 
@@ -17,24 +17,35 @@ export type ApiState = {
     keyCorrect?: boolean;
     loading?: boolean;
     isOpen?: boolean;
+    signal?: ConnectionSignal;
   },
+  lockedUI: boolean;
+  undo: IHistory[],
+  redo: IHistory[],
 };
 
 
 let _preset;
 let _dispatch: Dispatch;
+let _getState: () => { api: ApiState };
 let _socket: SocketIOClient.Socket;
 let _passphrase: string;
+let _pingInterval: NodeJS.Timeout;
+
 const _host = (process.env.NODE_ENV === 'development' ? `http://${window.location.hostname}:7001` : '');
 
 function _initialize(dispatch: Dispatch, getState: () => { api: ApiState }) {
   _dispatch = dispatch;
+  _getState = getState;
   _passphrase = localStorage.getItem('passphrase'); 
 
   _socket = io(`${_host}/`, { path: '/api/io' });
 
   _socket
-    .on('disconnect', () => dispatch(API.STATUS({ connected: false, isOpen: false, keyCorrect: false, version: undefined })))
+    .on('disconnect', () => {
+      dispatch(API.STATUS({ connected: false, isOpen: false, keyCorrect: false, version: undefined }));
+      clearInterval(_pingInterval);
+    })
     .on('presets', (presets: IPreset[]) => dispatch(API.PRESETS(presets)))
     .on('payloads', (payloads: IPayloads) => {
       dispatch(API.PAYLOADS(payloads));
@@ -62,18 +73,19 @@ function _initialize(dispatch: Dispatch, getState: () => { api: ApiState }) {
     })
     .on('connected', (connected: boolean, version: string) => {
       dispatch(API.STATUS({ connected, version }));
-
+      if (_pingInterval)
+        clearInterval(_pingInterval);
+      
+      _pingInterval = null;
       if (_passphrase !== null)
         _api.passphrase.login(_passphrase);
-          
-      _api.presets.get();
-      _api.payload.all();
     })
     .on('opened', (isOpen: boolean) => {
       dispatch(API.STATUS({ isOpen, loading: false }));
 
       _api.presets.get();
       _api.payload.all();
+      _pingInterval = setInterval(_api.ping, 1000);
     })
     .on('passphrase', (wrongPassphrase: string) => {
       const isLoginStillCorrect = _passphrase !== wrongPassphrase && _passphrase !== undefined;
@@ -83,6 +95,18 @@ function _initialize(dispatch: Dispatch, getState: () => { api: ApiState }) {
     })
     .on('loading', (loading: boolean) => {
       dispatch(API.STATUS({ loading }));
+    })
+    .on('pong', (pingTime: number, pongTime: number) => {
+      let signal = ConnectionSignal.Good;
+      const diff = pongTime - pingTime;
+
+      if (diff > 50)
+        signal = ConnectionSignal.Bad;
+      else if (diff > 15)
+        signal = ConnectionSignal.Normal;
+
+
+      dispatch(API.STATUS({ signal }));
     });
 }
 
@@ -127,18 +151,49 @@ const API = {
   PAYLOAD: createAction<IPayload>('API_PAYLOAD'),
   PAYLOADS: createAction<IPayloads>('API_PAYLOADS'),
   PAYLOADS_VALUE: createAction<IPayloads>('API_PAYLOADS_VALUE'),
+  LOCK_UI: createAction<boolean>('LOCK_UI'),
+  HISTORY_UPDATE: createAction<{ undo: IHistory[], redo: IHistory[] }>('HISTORY_UPDATE'),
 };
 
 
 export const _api = {
   initialize: () => _initialize.bind(null),
+  ping: () => _socket.emit('client', new Date().getTime()),
+  lockUI: (locked: boolean) => _dispatch(API.LOCK_UI(locked)),
+  undoHistory: () => {
+    const { undo, redo, payload } = _getState().api;
+    const action = undo.shift();
+
+    if (!action)
+      return;
+    
+    redo.push({ property: action.property, value: payload[action.property], time: new Date() });
+
+    _dispatch(API.HISTORY_UPDATE({ undo, redo }));
+    _api.payload.set(action.property, action.value, false);
+  },
+  redoHistory: () => {
+    const { undo, redo, payload } = _getState().api;
+    const action = redo.pop();
+
+    if (!action)
+      return;
+
+    undo.unshift({ property: action.property, value: payload[action.property], time: new Date() });
+
+    _dispatch(API.HISTORY_UPDATE({ undo, redo }));
+    _api.payload.set(action.property, action.value, false);
+  },
 
   presets: {
     get: (): Promise<IPreset[]> => _get('/api/presets', API.PRESETS),
     load: (id: string): Promise<IPreset> => _get(`/api/presets/${id}/load`),
+    favorite: (id: string, value: boolean): Promise<IPreset> => _put(`/api/presets/${id}/favorite`, { value }),
     select: (preset?: IPreset) => {
       _api.presets.load(preset?.ID);
+
       _dispatch(API.PRESET_SELECT(preset?.ID));
+      _dispatch(API.HISTORY_UPDATE({ undo: [], redo: [] }));
     },
   },
   views: {
@@ -146,7 +201,7 @@ export const _api = {
       let view = await _get(`/api/presets/view?preset=${preset}`);
       if (typeof(view) !== 'object' || !view?.tabs?.length) {
         view = {
-          tabs: [{ name: 'Tab 1', layout: TabLayout.Stack, panels: [] }]
+          tabs: [{ name: 'Tab 1', layout: TabLayout.Empty }]
         };
       }
 
@@ -174,7 +229,27 @@ export const _api = {
   payload: {
     get: (preset: string): Promise<IPayload> => _get(`/api/presets/payload?preset=${preset}`, API.PAYLOAD),
     all: (): Promise<IPayloads> => _get('/api/payloads', API.PAYLOADS),
-    set: (property: string, value: PropertyValue) => {
+    set: (property: string, value: PropertyValue, historyPush = true) => {
+      let { undo, redo, payloads } = _getState().api;
+
+      if (historyPush) {
+        if (undo.length > 50)
+          undo.shift();
+
+        if (redo.length > 0)
+          redo = [];
+
+        const lastUndo = _.last(undo);
+        const time = new Date();
+
+        if (lastUndo?.property === property && (time.valueOf() - lastUndo?.time?.valueOf()) < 60 * 1000)
+          lastUndo.value = payloads[_preset][property];
+        else
+          undo.unshift({ property, value: payloads[_preset][property], time });
+
+          _dispatch(API.HISTORY_UPDATE({ undo, redo }));
+      }
+
       _socket.emit('value', _preset, property, value);
     },
     execute: (func: string, args?: Record<string, any>) => {
@@ -197,11 +272,12 @@ export const _api = {
     get: (url: string) => _put('/api/proxy', { method: 'GET', url }),
     put: (url: string, body: any) => _put('/api/proxy', { method: 'PUT', url, body }),
     function: (objectPath: string, functionName: string, parameters: Record<string, any> = {}): Promise<any> => {
-      const body = { objectPath, functionName, parameters };
-      return _api.proxy.put('/remote/object/call', body);
+      const body = { objectPath, functionName, parameters, generateTransaction: true };
+      return _api.proxy.put('/remote/object/call', body)
+                        .then(ret => ret?.ReturnValue);
     },
     property: {
-      get: (objectPath: string, propertyName: string) => {
+      get: <T = {}>(objectPath: string, propertyName?: string): Promise<T> => {
         const body = { 
           objectPath,
           propertyName,
@@ -229,9 +305,13 @@ const initialState: ApiState = {
   view: { tabs: null },
   status: {
     connected: false,
+    signal: ConnectionSignal.Good,
     keyCorrect: false,
     isOpen: false,
   },
+  lockedUI: false,
+  undo: [],
+  redo: [],
 };
 
 const reducer = createReducer<ApiState>({}, initialState);
@@ -306,6 +386,12 @@ reducer
     _api.views.get(preset);
     _api.payload.get(preset);
     return { ...state, preset, view: { tabs: [] }, payload: {} };
+  })
+  .on(API.LOCK_UI, (state, lockedUI) => {
+    return { ...state, lockedUI };
+  })
+  .on(API.HISTORY_UPDATE, (state, { undo, redo }) => {
+    return { ...state, undo, redo };
   });
 
 export default reducer;

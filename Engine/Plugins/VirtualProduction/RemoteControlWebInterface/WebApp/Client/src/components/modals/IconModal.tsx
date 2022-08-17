@@ -128,7 +128,7 @@ export class IconModal extends React.Component<Props, State> {
           <div className="search-wrapper search-position">
             <FontAwesomeIcon icon={['fas', 'search']} />
             <input value={filterText}
-                    className="icon-search"
+                    className="icon-search search-input"
                     placeholder="Search icon" 
                     onChange={e => this.onFilterTextChange(e.target.value)}
                     autoFocus={true}

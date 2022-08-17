@@ -24,7 +24,6 @@ class Program {
         case '--dev':
           this.dev = true;
           this.port = 7001;
-          this.logger = true;
           break;
 
         case '--monitor':

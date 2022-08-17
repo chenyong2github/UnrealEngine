@@ -1,39 +1,8 @@
 import React from 'react';
-import crypto from 'crypto';
 import { ReactComponent as Logo } from '../assets/ue_logo.svg';
-import { _api } from '../reducers';
 
 
-type Props = {
-
-}
-
-type State = {
-  passphrase: string;
-  error: boolean;
-}
-
-export class Login extends React.Component<Props, State> {
-  state: State = {
-    passphrase: '',
-    error: false,
-  }
-
-  onChange = (passphrase: string) => {
-    this.setState({ passphrase });
-  }
-
-  onKeyPress = async (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== "Enter")
-      return;
-
-    const { passphrase } = this.state;
-    const secured = crypto.createHash('md5')
-                          .update(passphrase).digest('hex');
-
-    const error = await _api.passphrase.login(secured);
-    this.setState({ error });
-  }
+export class Login extends React.Component {
 
   render() {
     return (
@@ -46,13 +15,9 @@ export class Login extends React.Component<Props, State> {
         </div>
         <div className='form'>
           Password
-          <input onChange={e => this.onChange(e.target.value)}
-                  onKeyPress={this.onKeyPress}
-                  type='password' />
-
-          {this.state.error &&
-            <label className='login-status'>Incorrect Password</label>
-          }
+          <input type='password'/>
+          <div className='hint'>Configure the password in: <span className="breadcrumb">Project Settings / Authentication / Password</span></div>
+          <label className='login-status'>Incorrect Password</label>
         </div>
      </div>
     );

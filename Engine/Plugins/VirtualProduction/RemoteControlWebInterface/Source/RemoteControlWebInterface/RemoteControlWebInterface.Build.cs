@@ -20,7 +20,7 @@ public class RemoteControlWebInterface : ModuleRules
 				"RemoteControl",
 				"Sockets",
 				"WebRemoteControl",
-				"WebSocketNetworking"
+				"WebSocketNetworking",
 			}
 		);
 
@@ -28,6 +28,7 @@ public class RemoteControlWebInterface : ModuleRules
 			new string[] 
 			{
 				"RemoteControlCommon",
+				"Serialization",
 			}
 		);
 

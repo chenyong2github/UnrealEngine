@@ -2,6 +2,7 @@ import React from 'react';
 import { Dial, DialMode } from '.';
 import { WidgetUtilities } from 'src/utilities';
 import { JoystickValue, PropertyType } from 'src/shared';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 
 type Props = {
@@ -15,7 +16,11 @@ type Props = {
   type?: PropertyType;
   hidePrecision?: boolean;
   label?: React.ReactNode;
+  proportionally?: boolean;
+  property?: string;
+
   onChange?: (res:  number | JoystickValue) => void;
+  onProportionallyToggle?: (property: string, value: string) => void;
 };
 
 export class DialsWrapper extends React.Component<Props> {
@@ -31,20 +36,46 @@ export class DialsWrapper extends React.Component<Props> {
   }
 
   onChange = (res: number, key?: string) => {
-    const { onChange } = this.props;
-    let { value } = this.props;
+    let { value, proportionally, min, max } = this.props;
     if (value === undefined) {
       const dials = this.getProperties();
       value = dials.length ? {} : 0;
     }
 
-    if (key) {
-      value[key] = res;
-    } else {
-      value = res;
+    let prev = value[key];
+    if (prev === 0 || prev === undefined)
+      prev = 1;
+
+    const ratio = Math.max(0.001, res) / prev;
+
+    if (proportionally && !isNaN(ratio)) {
+      for (const key of Object.keys(value)) {
+        let val = value[key] * ratio;
+        if (!isNaN(min) && !isNaN(max))
+          val = Math.min(max, Math.max(min, val));
+
+        value[key] = val;
+      }
+    }
+    else {
+      if (key)
+        value[key] = res;
+      else
+        value = res;
     }
 
-    onChange?.(value);
+    this.props.onChange?.(value);
+  }
+
+  renderProportionallyIcon = () => {
+    const { proportionally, property } = this.props;
+
+    if (proportionally === undefined)
+      return null;
+
+    return <FontAwesomeIcon icon={['fas', (proportionally) ? 'lock' : 'lock-open']}
+                            className='proportional icon'
+                            onClick={() => this.props.onProportionallyToggle(property, proportionally ? '0' : '1')} />;
   }
 
   render() {
@@ -73,6 +104,7 @@ export class DialsWrapper extends React.Component<Props> {
     return (
       <div className="dial-wrapper-container">
         {label}
+        {this.renderProportionallyIcon()}
         <div className="dial-wrapper-block">
           {!!dials.length &&
             dials.map(key => {

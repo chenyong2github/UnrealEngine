@@ -11,14 +11,15 @@ type Props = {
   label?: React.ReactNode;
   value?: any;
   vector?: ICustomStackProperty;
-  locked?: string[];
   min?: number;
   max?: number;
+  proportionally?: boolean;
 
-  onAxisChange?: (widget: ICustomStackProperty, axis: string, axisValue: number, locked?: boolean) => void;
+  onAxisChange?: (widget: ICustomStackProperty, axis: string, axisValue: number, proportionally?: boolean, min?: number, max?: number) => void;
   onToggleWidgetLock?: (key: string) => void;
   onToggleVectorDrawer?: (vector: ICustomStackProperty) => void;
   onSetVector?: (vector: ICustomStackProperty) => void;
+  onProportionallyToggle?: (property: string, value: string) => void;  
 }
 
 const modes = [WidgetTypes.Joystick, WidgetTypes.Dial, WidgetTypes.Sliders];
@@ -38,7 +39,7 @@ export class VectorWidget extends React.Component<Props> {
   }
   
   render() {
-    const { widget, label = '', value, locked, vector, min, max } = this.props;
+    const { widget, label = '', value, vector, min, max, proportionally } = this.props;
     const key = widget.id;
     const keys = WidgetUtilities.getPropertyKeys(widget.propertyType);
     const widgets = _.compact(modes.map(k => widget.widgets?.find(w => w === k))) || [];
@@ -54,9 +55,13 @@ export class VectorWidget extends React.Component<Props> {
                         max={max}
                         precision={WidgetUtilities.getPropertyPrecision(widget.propertyType)}
                         value={value?.[property]}
-                        onChange={value => this.props.onAxisChange?.(widget, property, value, locked?.includes(key))} />
+                        onChange={value => this.props.onAxisChange?.(widget, property, value, proportionally, min, max)} />
           </div>
         )}
+        { }
+        <FontAwesomeIcon icon={['fas', (proportionally) ? 'lock' : 'lock-open' ]}
+                         className={`proportional ${vector?.id === key ? 'selected' : ''}`}
+                         onClick={() => this.props.onProportionallyToggle(widget.property, proportionally ? '0' : '1')} />
 
         {widget.propertyType && widgets.length > 0 &&
           <FontAwesomeIcon icon={['fas', 'gamepad']}

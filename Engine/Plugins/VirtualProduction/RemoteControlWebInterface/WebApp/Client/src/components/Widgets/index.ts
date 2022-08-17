@@ -1,3 +1,4 @@
+export * from './AssetWidget';
 export * from './DropdownWidget';
 export * from './ImageSelectorWidget';
 export * from './SlidersWidget';

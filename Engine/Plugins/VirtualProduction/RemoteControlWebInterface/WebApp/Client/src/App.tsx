@@ -1,8 +1,8 @@
 import React from 'react';
 import { connect } from 'react-redux';
 import { _api, ReduxState } from './reducers';
-import { ConnectionStatus, Tabs, Screen, Stack, RenameModal, AlertModal, IconModal, PropertiesDrawer, Login } from './components';
-import { IPreset, IView, ITab, TabLayout, WidgetTypes, ICustomStackProperty, IPanelType, ScreenType, IPanel, ICustomStackListItem } from './shared';
+import { ConnectionStatus, Tabs, Screen, Stack, RenameModal, AlertModal, IconModal, PropertiesDrawer, Login, SignalIcon, EmptyTab } from './components';
+import { IPreset, IView, ITab, TabLayout, WidgetTypes, ICustomStackProperty, IPanelType, ScreenType, IPanel, ICustomStackListItem, IHistory, ConnectionSignal } from './shared';
 import { fas, IconName } from '@fortawesome/free-solid-svg-icons';
 import { BeforeCapture, DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -19,7 +19,10 @@ type PropsFromState = Partial<{
   view: IView;
   presets: IPreset[]
   preset: IPreset;
-
+  signal?: ConnectionSignal;
+  lockedUI: boolean,
+  undo: IHistory[],
+  redo: IHistory[],
   initialize?: () => void;
 }>;
 
@@ -31,6 +34,10 @@ const mapStateToProps = (state: ReduxState): PropsFromState => ({
   presets: _.values(state.api.presets),
   preset: state.api.presets[state.api.preset],
   view: state.api.view,
+  lockedUI: state.api.lockedUI,
+  signal: state.api.status.signal,
+  undo: state.api.undo,
+  redo: state.api.redo,
 });
 
 const mapDispatchToProps = (dispatch): PropsFromState => ({
@@ -269,8 +276,8 @@ export class App extends React.Component<PropsFromState, State> {
 
   onNewTab = (panels: IPanel[] = []) => {
     const { view } = this.props;
-    
-    this.createNewTabInternal(panels);
+
+    this.createNewTabInternal(panels, null, TabLayout.Empty);
     _api.views.set(view);
 
     this.onTabChange(view.tabs.length - 1);
@@ -289,13 +296,13 @@ export class App extends React.Component<PropsFromState, State> {
     this.setState({ editable: true });
   }
 
-  createNewTabInternal = (panels: IPanel[] = [], name?: string) => {
+  createNewTabInternal = (panels: IPanel[] = [], name?: string, layout = TabLayout.Stack) => {
     const { view } = this.props;
 
     view.tabs.push({
       name: name ?? this.getNewTabName(),
       icon: this.getRandomIcon(),
-      layout: TabLayout.Stack,
+      layout,
       panels
     });
   }
@@ -315,32 +322,40 @@ export class App extends React.Component<PropsFromState, State> {
     this.setState({ editable: true });
   }
 
-  onAddSnapshotTab = () => {
+  onScreenAdd = (type: ScreenType) => {
     const { view } = this.props;
+    let tab = view.tabs[this.state.tab];
 
-    view.tabs.push({
-      name: 'Snapshot',
-      icon: 'save',
-      layout: TabLayout.Screen,
-      screen: { type: ScreenType.Snapshot },
-    });
+    delete tab.panels;
 
+    switch (type) {
+      case ScreenType.ColorCorrection:
+        tab = { ...tab, name: 'Color Correction', icon: 'palette', layout: TabLayout.Screen, screen: { type: ScreenType.ColorCorrection }, };
+        break;
+
+      case ScreenType.LightCards:
+        tab = { ...tab, name: 'Light Cards', icon: 'adjust', layout: TabLayout.Screen, screen: { type: ScreenType.LightCards }, };
+        break;
+
+      case ScreenType.Playlist:
+        tab = { ...tab, name: 'Playlists', icon: 'play', layout: TabLayout.Screen, screen: { type: ScreenType.Playlist }, };
+        break;
+
+      case ScreenType.Sequencer:
+        tab = { ...tab, name: 'Sequences', icon: 'play', layout: TabLayout.Screen, screen: { type: ScreenType.Sequencer }, };
+        break;
+
+      case ScreenType.Snapshot:
+        tab = { ...tab, name: 'Snapshot', icon: 'save', layout: TabLayout.Screen, screen: { type: ScreenType.Snapshot }, };
+        break;
+
+      case ScreenType.Stack:
+        tab = { ...tab, panels: [], layout: TabLayout.Stack };
+        break;
+    }
+
+    view.tabs[this.state.tab] = tab;
     _api.views.set(view);
-    this.onTabChange(view.tabs.length - 1);
-  }
-
-  onAddSequencerTab = () => {
-    const { view } = this.props;
-
-    view.tabs.push({
-      name: 'Sequences',
-      icon: 'play',
-      layout: TabLayout.Screen,
-      screen: { type: ScreenType.Sequencer },
-    });
-
-    _api.views.set(view);
-    this.onTabChange(view.tabs.length - 1);
   }
 
   onSetTabsDrawer = (editable: boolean) => {
@@ -521,6 +536,8 @@ export class App extends React.Component<PropsFromState, State> {
 
     const index = this.state.tab;
     const tab = view.tabs[index];
+    if (!tab)
+      return null;
 
     let visible = true;
     const style: React.CSSProperties = {};
@@ -530,7 +547,7 @@ export class App extends React.Component<PropsFromState, State> {
     }
 
     let content = null;
-    switch (tab?.layout) {
+    switch (tab.layout) {
       case TabLayout.Stack:
         content = this.renderStack(tab, visible, index);
         break;
@@ -538,6 +555,9 @@ export class App extends React.Component<PropsFromState, State> {
       case TabLayout.Screen:
         content = this.renderScreen(tab, visible);
         break;
+
+      case TabLayout.Empty:
+        content = <EmptyTab onAddScreen={this.onScreenAdd} />;
     }
 
     return (
@@ -586,6 +606,11 @@ export class App extends React.Component<PropsFromState, State> {
     _api.views.set(view);
   }
 
+  onLockedChange = () => {
+    const { lockedUI } = this.props;
+    _api.lockUI(!lockedUI);
+  }
+
   checkPassphrase = async (passphrase: string): Promise<boolean> => {
     return await _api.passphrase.login(passphrase);
   }
@@ -598,6 +623,7 @@ export class App extends React.Component<PropsFromState, State> {
 
     if (!keyCorrect && !isOpen)
       return <Login />;
+
     if (loading) {
       return (
         <div className="fullscreen">
@@ -616,24 +642,35 @@ export class App extends React.Component<PropsFromState, State> {
   }
 
   render() {
-    const { view, preset, presets } = this.props;
+    const { view, preset, presets, lockedUI, undo, redo, signal } = this.props;
     const { tab, editable, selected } = this.state;
+
+    let appClassName = 'tabs-closed ';
+
+    if (editable)
+      appClassName = appClassName.replace('closed', 'open');
+
+    if (lockedUI)
+      appClassName += 'locked ';  
 
     return (
       <DragDropContext onBeforeCapture={this.onBeforeCapture}
                        onDragEnd={this.onDragEnd}>
         <div id="app"
-             className={`${editable ? 'tabs-open' : ''} `}
+             className={appClassName}
              tabIndex={1}
              ref={this.appRef}
              onKeyDown={this.onKeyDown} >
-
           {this.renderStatus()}
 
+          {lockedUI && 
+            <div className='locked-layer' />
+          }
           <nav id="top-bar">
             <div className="app-icon">
               <img src="/images/favicon/32x32.png" alt="Unreal Engine" />
             </div>
+           
             <div className="tab edit-tab mode-toggle">
               <label className="switch toggle-mode">
                 <input type="checkbox" checked={!!editable} onChange={() => this.onSetTabsDrawer(!editable)} />
@@ -647,7 +684,11 @@ export class App extends React.Component<PropsFromState, State> {
                   onChange={this.onTabChange}
                   onNewTab={this.onNewTab}
                   editable={editable}
-                  onDeleteTab={this.onTabDelete} />
+                  locked={lockedUI}
+                  undo={!!undo.length}
+                  redo={!!redo.length}
+                  onDeleteTab={this.onTabDelete}
+                  onLockedChange={this.onLockedChange} />
           </nav>
 
           {!!preset &&
@@ -660,9 +701,7 @@ export class App extends React.Component<PropsFromState, State> {
                               selected={selected}
                               onChangeIcon={this.onTabIconChange}
                               onRenameTabModal={this.onTabRename}
-                              onDuplicateTab={this.onDuplicateTab}
-                              onAddSnapshotTab={this.onAddSnapshotTab}
-                              onAddSequencerTab={this.onAddSequencerTab}
+                              onDuplicateTab={this.onDuplicateTab}                              
                               onPresetChange={this.onPresetChanged}
                               onUpdateView={this.onUpdateView}
                               onSelected={this.onSelected}
@@ -670,6 +709,7 @@ export class App extends React.Component<PropsFromState, State> {
                               lockWidget={widget => this.widget = widget} />
           }
           {this.renderTab()}
+          <SignalIcon signal={signal} />
         </div>
       </DragDropContext>
     );

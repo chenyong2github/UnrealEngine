@@ -35,6 +35,8 @@ type Props = {
   parts?: ColorPickerParts[];
   widget?: string;
   alpha?: boolean;
+  max?: number;
+  reset?: boolean;
 
   onChange?: (value?: ColorPickerValue) => void;
   onPrecisionModal?: () => void;
@@ -59,6 +61,7 @@ export class ColorPicker extends React.Component<Props, State> {
     ],
     widget: WidgetTypes.ColorPicker,
     mode: ColorMode.Rgb,
+    reset: true,
   };
 
   state: State = {
@@ -77,10 +80,16 @@ export class ColorPicker extends React.Component<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props) {
-    const { value, type } = this.props;
+    const { value, type, max } = this.props;
 
     if (prevProps.value !== value || type !== prevProps.type)
       this.updateValues();
+
+    if (prevProps.max !== max)
+      this.setState({ max });
+
+    if (this.props.mode !== prevProps.mode)
+      this.forceUpdate();
   }
 
   updateValues = () => {
@@ -96,7 +105,7 @@ export class ColorPicker extends React.Component<Props, State> {
 
     let rgb = color;
     if (type === PropertyType.Vector4 || type === PropertyType.LinearColor) {
-      max = 1;
+      max = this.props.max ?? 1;
 
       for (const key in color)
         if (color[key] > max)
@@ -170,7 +179,7 @@ export class ColorPicker extends React.Component<Props, State> {
     const y = e.clientY - yCenter;
 
     const radius = Math.sqrt(x * x + y * y);
-    const maxRadius = this.circleRef.current.clientHeight / 2;    
+    const maxRadius = this.circleRef.current.clientHeight / 2;
 
     const radians = Math.atan2(x, y);
     const h = this.normalize(-1 * radians * (180 / Math.PI) - 90) / 360;
@@ -280,11 +289,9 @@ export class ColorPicker extends React.Component<Props, State> {
     const { type } = this.props;
 
     let rgb = color as ColorProperty;
+
     if (property === 'v')
       v = value;
-
-    if (property === 's')
-      value = Math.max(value, 0.01);
 
     if (property === 'a' && type === PropertyType.Color)
       value *= 255;
@@ -294,8 +301,8 @@ export class ColorPicker extends React.Component<Props, State> {
 
     const hsv = WidgetUtilities.rgb2Hsv(rgb);
 
+    value = Math.max(value, 0.00001);
     hsv[property] = value;
-    hsv.v = Math.max(v, 0.00001);
 
     rgb = WidgetUtilities.hsv2rgb(hsv);
     color = rgb;
@@ -361,9 +368,9 @@ export class ColorPicker extends React.Component<Props, State> {
     return { background: `rgba(${rgb?.R}, ${rgb?.G}, ${rgb?.B}, ${rgb?.A ?? 1})` };
   }
 
-  getPointerPosition = (): { circleX: number, circleY: number, rectangleX: number, rectangleY: number } => {
+  getPointerPosition = (): { circleX?: number, circleY?: number, rectangleX?: number, rectangleY?: number } => {
     const { color, max } = this.state;
-    const { type } = this.props;
+    const { type, mode } = this.props;
 
     let rgb: ColorProperty = null;
 
@@ -381,13 +388,24 @@ export class ColorPicker extends React.Component<Props, State> {
     const hsv = WidgetUtilities.rgb2Hsv(rgb);
     const radian = (hsv.h - 0.25) * Math.PI * 2;
 
-    const circleX = Math.sin(radian) * Math.max(0, Math.min(hsv.s, 1)) * 90;
-    const circleY = -Math.cos(radian) * Math.max(0, Math.min(hsv.s, 1)) * 90;
+    if (mode === ColorMode.Rgb) {
+      const maxCircleRadius = this.circleRef.current?.clientHeight / 2;
 
-    const rectangleX = Math.max(0, Math.min(hsv.s, 1)) * (210 - 19);
-    const rectangleY = (1 - Math.max(0, hsv.v)) * (220 - 19);
+      const circleX = Math.sin(radian) * Math.max(0, Math.min(hsv.s, 1)) * (maxCircleRadius - 10);
+      const circleY = -Math.cos(radian) * Math.max(0, Math.min(hsv.s, 1)) * (maxCircleRadius - 10);
 
-    return { circleX, circleY, rectangleX, rectangleY };
+      return { circleX, circleY };
+    }
+
+    const rectangleRef = this.rectangleRef.current;
+
+    const rectangleWidth = rectangleRef?.clientWidth ?? 0;
+    const rectangleHeight = rectangleRef?.clientHeight ?? 0;
+
+    const rectangleX = Math.max(0, Math.min(hsv.s, 1)) * (rectangleWidth - 19);
+    const rectangleY = Math.max(0, (1 - Math.max(0, hsv.v)) * (rectangleHeight - 19));
+  
+    return { rectangleX, rectangleY };
   }
 
   getVisibleParts = () => {
@@ -472,7 +490,7 @@ export class ColorPicker extends React.Component<Props, State> {
     const { mode, type } = this.props;
     const { color, max } = this.state;
     const pos = this.getPointerPosition();
-    const style: React.CSSProperties = { transform: `translate(${pos.circleX}px, ${pos.circleY}px)` };    
+    const style: React.CSSProperties = { transform: `translate(${pos.circleX}px, ${pos.circleY}px)` };
 
     if (mode === ColorMode.Rgb)
       return (
@@ -499,7 +517,7 @@ export class ColorPicker extends React.Component<Props, State> {
     if (rgb?.A && type === PropertyType.Color)
       rgb.A /= 255;      
 
-    const rectangleStyle: React.CSSProperties = { backgroundColor: `rgba(${rgb.R}, ${rgb.G}, ${rgb.B}, ${rgb?.A ?? 1})`, width: '210px', height: '220px' };
+    const rectangleStyle: React.CSSProperties = { backgroundColor: `rgba(${rgb.R}, ${rgb.G}, ${rgb.B}, ${rgb?.A ?? 1})` };
     const rectanglePointerStyle: React.CSSProperties = { transform: `translate(${pos.rectangleX}px, ${pos.rectangleY}px)` };    
 
     return (
@@ -515,7 +533,7 @@ export class ColorPicker extends React.Component<Props, State> {
   }
 
   render() {
-    const { label, type, widget, value, alpha } = this.props;
+    const { label, type, widget, value, alpha, reset } = this.props;
     const { color, max } = this.state;
 
     const visible = this.getVisibleParts();
@@ -536,44 +554,47 @@ export class ColorPicker extends React.Component<Props, State> {
         <div className="color-picker-wheel">
           <div>{label}</div>
           {!!visible[ColorPickerParts.Circle] && this.rendeCircleRectangle()}
-          {!!visible[ColorPickerParts.Wheel] && (
-            <div className="slider-wheel-container">
-              {widget === WidgetTypes.ColorPicker && (
-                <div className="slider-wheel-top">
-                  <span className="title">Hue</span>
-                  <span className="value">{(hsv.h * 360).toFixed(1)}°</span>
+          <div className='color-picker-controls'>
+            {!!visible[ColorPickerParts.Wheel] && (
+              <div className="slider-wheel-container">
+                {widget === WidgetTypes.ColorPicker && (
+                  <div className="slider-wheel-top">
+                    <span className="title">Hue</span>
+                    <span className="value">{(hsv.h * 360).toFixed(1)}°</span>
+                  </div>
+                )}
+                <SliderWheel onWheelMove={this.onHsvWheelMove} />
+              </div>
+            )}
+            {!!visible[ColorPickerParts.Saturation] && (
+              <ColorPickerSlider value={hsv.s}
+                                 label="Saturation"
+                                 onChange={this.onValueSliderChange.bind(this, 's')} />
+            )}
+            {!!visible[ColorPickerParts.Value] && (
+              <ColorPickerSlider value={hsv.v}
+                                 label="Value"
+                                 onChange={this.onValueSliderChange.bind(this, 'v')} />
+            )}
+            {!!alpha && !!visible[ColorPickerParts.Alpha] && (
+              <ColorPickerSlider value={a}
+                                 label="Alpha"
+                                 onChange={this.onValueSliderChange.bind(this, 'a')} />
+            )}
+            
+            <div className="color-picker-inputs">
+              {!!visible[ColorPickerParts.Inputs] && (
+                <div className='rgb-inputs'>
+                  {this.renderRgbInput(SliderType.R)}
+                  {this.renderRgbInput(SliderType.G)}
+                  {this.renderRgbInput(SliderType.B)}
                 </div>
               )}
-              <SliderWheel onWheelMove={this.onHsvWheelMove} />
-            </div>
-          )}
-          {!!visible[ColorPickerParts.Saturation] && (
-            <ColorPickerSlider value={hsv.s}
-                               label="Saturation"
-                               onChange={this.onValueSliderChange.bind(this, 's')} />
-          )}
-          {!!visible[ColorPickerParts.Value] && (
-            <ColorPickerSlider value={hsv.v}
-                               label="Value"
-                               onChange={this.onValueSliderChange.bind(this, 'v')} />
-          )}
-          {!!alpha && !!visible[ColorPickerParts.Alpha] && (
-            <ColorPickerSlider value={a}
-                               label="Alpha"
-                               onChange={this.onValueSliderChange.bind(this, 'a')} />
-          )}
-          <div className="color-picker-inputs">
-            {!!visible[ColorPickerParts.Inputs] && (
-              <>
-                {this.renderRgbInput(SliderType.R)}
-                {this.renderRgbInput(SliderType.G)}
-                {this.renderRgbInput(SliderType.B)}
-              </>
-            )}
-            {widget === WidgetTypes.ColorPicker && !!value && <div className="color" style={this.getPreviewColorStyles()} />}
+              {widget === WidgetTypes.ColorPicker && !!value && <div className="color" style={this.getPreviewColorStyles()} />}
+            </div>  
           </div>
         </div>
-        <FontAwesomeIcon icon={['fas', 'undo']} onClick={() => this.props.onChange?.()} />
+        {reset && <FontAwesomeIcon icon={['fas', 'undo']} onClick={() => this.props.onChange?.()} />}
       </div>
     );
   }

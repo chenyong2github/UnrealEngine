@@ -31,6 +31,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "RemoteControlWebInterface")
 	static void RebindProperties(const FString& PresetId, const TArray<FString>& PropertyIds, AActor* NewOwner);
 
+	/**
+	 * Shortcut function to find all actors of a class
+	 */
+	UFUNCTION(BlueprintCallable, Category = "RemoteControlWebInterface")
+	static TMap<AActor*, FString> FindAllActorsOfClass(UClass* Class);
+
+	/**
+	 * Shortcut function to spawn an actor of a class
+	 */
+	UFUNCTION(BlueprintCallable, Category = "RemoteControlWebInterface")
+	static AActor* SpawnActor(UClass* Class);
+
+	/**
+	 * Gets all properties values (as a json) of all actors of type Class
+	 */
+	UFUNCTION(BlueprintCallable, Category = "RemoteControlWebInterface")
+	static TMap<AActor*, FString> GetValuesOfActorsByClass(UClass* Class);
+
 private:
 	static class URemoteControlPreset* GetPreset(const FString& PresetId);
 

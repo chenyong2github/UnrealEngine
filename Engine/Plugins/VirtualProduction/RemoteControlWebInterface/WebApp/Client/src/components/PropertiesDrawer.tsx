@@ -1,11 +1,11 @@
 import React, { Component } from 'react';
 import { _api } from 'src/reducers';
 import { IPreset, IGroup, IExposedProperty, WidgetTypes, ICustomStackProperty, IPanel, ICustomStackTabs, IExposedFunction, 
-        PropertyType, IView, ITab, TabLayout, ICustomStackWidget, WidgetType, IColorPickerList, ICustomStackItem, ICustomStackListItem } from 'src/shared';
+        PropertyType, IView, ITab, TabLayout, ICustomStackWidget, WidgetType, IColorPickerList, ICustomStackListItem } from 'src/shared';
 import { Draggable, Droppable, DraggableStateSnapshot } from 'react-beautiful-dnd';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { AlertModal } from '.';
-import { SlidersWidget, SliderWidget, DropdownWidget, ImageSelectorWidget, ToggleWidget, VectorWidget } from './Widgets';
+import { SlidersWidget, SliderWidget, DropdownWidget, ImageSelectorWidget, ToggleWidget, VectorWidget, AssetWidget } from './Widgets';
 import * as Tabs from './Properties';
 import { ColorPicker, Button, Text, Dial, JoysticksWrapper, DialsWrapper } from './controls';
 import { WidgetUtilities } from 'src/utilities';
@@ -51,8 +51,6 @@ type Props = {
   onDuplicateTab: () => void;
   onUpdateView: (update?: boolean) => void;
   onPresetChange: (preset: IPreset) => void;
-  onAddSnapshotTab: () => void;
-  onAddSequencerTab: () => void;
   onSelected: (selected: string) => void;
   onNewTabs: (items: ICustomStackListItem[]) => void;
 };
@@ -368,6 +366,9 @@ export class PropertiesDrawer extends Component<Props, State> {
       case WidgetTypes.Dials:
         return <DialsWrapper type={widget.propertyType} />;
 
+      case WidgetTypes.Asset:
+        return <AssetWidget />;
+
       default:
         return null;
     }
@@ -478,7 +479,7 @@ export class PropertiesDrawer extends Component<Props, State> {
     let checked = false;
 
     if (exposed?.Metadata?.Alpha === '1')
-      checked = true;    
+      checked = true;
 
     return (
       <>
@@ -678,8 +679,15 @@ export class PropertiesDrawer extends Component<Props, State> {
   }
 
   renderVectorEdit = (available: boolean) => {
+    const { preset } = this.props;
     const widget = this.state.widget as ICustomStackProperty;
     const vectorModes = widget?.widgets || [];
+
+    const exposed = preset?.Exposed[widget?.property] as IExposedProperty;
+    let checked = false;
+
+    if (exposed?.Metadata?.Proportionally === '1')
+      checked = true;
 
     return (
       <>
@@ -694,14 +702,18 @@ export class PropertiesDrawer extends Component<Props, State> {
               <label>Modes</label>
               <div className="btn-group vector-btn-group">
                 {widget.propertyType !== PropertyType.Rotator &&
-                  <button className={`btn ${vectorModes.includes(WidgetTypes.Joystick) ? 'btn-primary' : 'btn-secondary'}`} 
+                  <button className={`btn ${vectorModes.includes(WidgetTypes.Joystick) ? 'btn-primary' : 'btn-secondary'}`}
                           onClick={() => this.onVectorModeChange(widget, WidgetTypes.Joystick)}>Joystick</button>
                 }
-                <button className={`btn ${vectorModes.includes(WidgetTypes.Dial) ? 'btn-primary' : 'btn-secondary'}`} 
+                <button className={`btn ${vectorModes.includes(WidgetTypes.Dial) ? 'btn-primary' : 'btn-secondary'}`}
                         onClick={() => this.onVectorModeChange(widget, WidgetTypes.Dial)}>Dial</button>
-                <button className={`btn ${vectorModes.includes(WidgetTypes.Sliders) ? 'btn-primary' : 'btn-secondary'}`} 
+                <button className={`btn ${vectorModes.includes(WidgetTypes.Sliders) ? 'btn-primary' : 'btn-secondary'}`}
                         onClick={() => this.onVectorModeChange(widget, WidgetTypes.Sliders)}>Sliders</button>
               </div>
+            </div>
+            <div className="properties-field">
+              <label>Proportionally</label>
+              <input className="checkbox" type="checkbox" onChange={e => this.onMetadataChange(widget, 'Proportionally', e.target.checked ? '1' : '0')} checked={checked} />
             </div>
           </div>
         }
@@ -715,9 +727,16 @@ export class PropertiesDrawer extends Component<Props, State> {
   }
 
   renderSlidersEdit = (available: boolean) => {
+    const { preset } = this.props;
     const widget = this.state.widget as ICustomStackProperty;
     const keys = WidgetUtilities.getPropertyKeys(widget?.propertyType);
     const vectorModes = widget?.widgets || [];
+
+    const exposed = preset?.Exposed[widget?.property] as IExposedProperty;
+    let checked = false;
+
+    if (exposed?.Metadata?.Proportionally === '1')
+      checked = true;
 
     return (
       <>
@@ -734,6 +753,10 @@ export class PropertiesDrawer extends Component<Props, State> {
                                          onClick={() => this.onVectorModeChange(widget, key, keys)}>{key}</button>
                 )}
               </div>
+            </div>
+            <div className="properties-field">
+              <label>Proportionally</label>
+              <input className="checkbox" type="checkbox" onChange={e => this.onMetadataChange(widget, 'Proportionally', e.target.checked ? '1' : '0')} checked={checked} />
             </div>
           </div>
         }
@@ -1077,9 +1100,7 @@ export class PropertiesDrawer extends Component<Props, State> {
       case TabType.Tab:
         return <Tabs.Tab onChangeIcon={this.props.onChangeIcon}
                          onRenameTabModal={this.props.onRenameTabModal}
-                         onDuplicateTab={this.props.onDuplicateTab}
-                         onAddSnapshotTab={this.props.onAddSnapshotTab}
-                         onAddSequencerTab={this.props.onAddSequencerTab} />;
+                         onDuplicateTab={this.props.onDuplicateTab} />;
 
       case TabType.Widgets:
         return <Tabs.Widgets widgets={filteredWidgets}

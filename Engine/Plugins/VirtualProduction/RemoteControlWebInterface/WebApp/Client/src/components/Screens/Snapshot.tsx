@@ -45,15 +45,14 @@ export class Snapshot extends React.Component<Props, State> {
 
     if (!map) {
 	    const editorSubsystem = await _api.proxy.function('/Script/UnrealEd.Default__EditorSubsystemBlueprintLibrary', 'GetEditorSubsystem', { Class: '/Script/UnrealEd.UnrealEditorSubsystem' });
-      const world = await _api.proxy.function(editorSubsystem.ReturnValue, 'GetEditorWorld', {});
-      map = world.ReturnValue;
+      map = await _api.proxy.function(editorSubsystem, 'GetEditorWorld', {});
     }
 
     const nativeFilters = await _api.assets.search('', ['LevelSnapshotFilter'], '/Game', {}, 50);
 
     const filterArgs = {
       EnableBlueprintNativeClassFiltering: true,
-      NativeParentClasses: ['LevelSnapshotFilter'],        
+      NativeParentClasses: ['LevelSnapshotFilter'],
     };
     const bpFilters = _.filter(await _api.assets.search('', ['Blueprint'], '/Game', filterArgs, 50), f => !!f.Metadata['GeneratedClass']);
 
@@ -218,18 +217,17 @@ class SnapshotPreview extends React.Component<SnapshotPreviewProps, SnapshotPrev
 
         switch (filterAsset?.Class) {
           case 'Blueprint':
-            const createdFilter = await _api.proxy.function(
+            filterInstance  = await _api.proxy.function(
               '/Script/LevelSnapshotFilters.Default__FilterBlueprintFunctionLibrary', 
               'CreateFilterByClass',
               { 
                 Class: filterAsset.Metadata['GeneratedClass']
               }
             );
-            filterInstance = createdFilter?.ReturnValue;
             break;
 
-	  default: //'LevelSnapshotFilter'
-	    filterInstance = filterAsset.Path;
+          case 'LevelSnapshotFilter':
+            filterInstance = filterAsset.Path;
             break;
         }
       }
@@ -358,7 +356,7 @@ class SaveModal extends React.Component<SaveModalProps, SaveModalState> {
       const PathFormatted = await _api.proxy.function(editor, 'ParseLevelSnapshotsTokensInText', { InTextToParse: path, InWorldName });
       const NameFormatted = await _api.proxy.function(editor, 'ParseLevelSnapshotsTokensInText', { InTextToParse: DefaultLevelSnapshotName, InWorldName });
 
-      this.setState({ path: PathFormatted.ReturnValue, name: NameFormatted.ReturnValue });
+      this.setState({ path: PathFormatted, name: NameFormatted });
     } catch {
 
     }

@@ -7,14 +7,21 @@ type Props = {
   max?: number;
   size?: number;
   value?: number;
-  onChange?: (value: number) => void;
   showGrid?: boolean;
   showLimits?: boolean;
   showLabel?: boolean;
   precision?: number;
+  touchMode?: boolean;
+  style?: React.CSSProperties;
+  
+  onChange?: (value: number) => void;
 };
 
 export class Slider extends React.Component<Props> {
+
+  static defaultProps: Props = {
+    style: {},
+  };
 
   ref = React.createRef<HTMLDivElement>();
   circleRef = React.createRef<HTMLDivElement>();
@@ -23,6 +30,12 @@ export class Slider extends React.Component<Props> {
   dragOffset: number = null;
 
   onDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const { touchMode } = this.props;
+    const target = e.target as HTMLDivElement;
+
+    if (touchMode && !target.classList.contains('circle'))
+      return;
+
     this.monitoring = true;
     this.ref.current.setPointerCapture(e.pointerId);
 
@@ -87,10 +100,15 @@ export class Slider extends React.Component<Props> {
   }
 
   render()  {
-    const { min, max, showGrid, showLimits, showLabel, precision } = this.props;
+    const { min, max, showGrid, showLimits, showLabel, precision, touchMode, style } = this.props;
     const value = this.dragValue ?? this.props.value;
 
     let percent = 0;
+    let className = 'slider ';
+
+    if (touchMode)
+      className += 'touch-mode';
+
     if (!isNaN(value)) {
       percent = (value - min) / (max - min) * 100;
       percent = Math.max(0, Math.min(percent, 100));
@@ -122,10 +140,11 @@ export class Slider extends React.Component<Props> {
                 onPointerUp={this.onUp}
                 onPointerMove={this.onMove}>
             <div className="slider-block">
-              <div className="slider" />
+              <div className={className} style={style} />
               <div className="range-fill" style={{ width: `${percent}%` }} />
-              <div className='circle-wrapper' style={{ transform: `translateX(${percent}%)` }}>
-                <div className="circle" ref={this.circleRef} />
+              <div className="circle-wrapper" style={{ transform: `translateX(${percent}%)` }}>
+                <div className="circle" 
+                     ref={this.circleRef} />
               </div>
             </div>
 

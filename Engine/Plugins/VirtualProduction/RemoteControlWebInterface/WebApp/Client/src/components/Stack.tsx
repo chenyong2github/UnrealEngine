@@ -2,7 +2,7 @@ import React from 'react';
 import { connect } from 'react-redux';
 import { _api, ReduxState } from 'src/reducers';
 import { ColorProperty, ICustomStackProperty, ICustomStackTabs, ICustomStackWidget, IPanel, IPanelType, IPreset,
-        IPayload, PropertyType, PropertyValue, VectorProperty, WidgetTypes, IExposedProperty, IExposedFunction, IColorPickerList, ICustomStackListItem, IProperty } from 'src/shared';
+        IPayload, PropertyType, PropertyValue, VectorProperty, WidgetTypes, IExposedProperty, IExposedFunction, IColorPickerList, ICustomStackListItem } from 'src/shared';
 import { ColorPicker, ColorPickerList, Button, Text, VectorDrawer, Dial, JoysticksWrapper, DialMode, DialsWrapper } from './controls';
 import { PrecisionModal } from '../components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -214,8 +214,11 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
     const type = property?.Type;
     const precision = WidgetUtilities.getPropertyPrecision(type);
     const alpha = !!this.getMetadata(property, 'Alpha');
+    const proportionally = !!this.getMetadata(property, 'Proportionally');
+
     let min = this.getMetadata(property, 'Min');
     let max = this.getMetadata(property, 'Max');
+
     if (type === PropertyType.Rotator) {
       if (min === undefined)
         min = -180;
@@ -223,7 +226,7 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
         max = 180;
     }
 
-    return { type, min, max, precision, alpha };
+    return { type, min, max, precision, alpha, proportionally };
   }
 
   getAlpha = (property: string) => {
@@ -269,7 +272,7 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
                       type={type}
                       value={value}
                       onChange={onChange}
-                      onMetadataChange={(key, value) => _api.payload.metadata(widget.property, key, value)}
+                      onMetadataChange={(key, value) => this.onMetadataChange(widget.property, key, value)}
                       onClose={() => this.setState({ precisionModal: null })} />
     );
   }
@@ -321,18 +324,20 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
                        selected={this.props.selected === selection}
                        isDragDisabled={!this.props.editable}>
         <Widgets.SlidersWidget widget={widget}
-                                label={this.getLabel(widget)}
-                                min={meta.min}
-                                max={meta.max}
-                                value={this.getValue(widget)}
-                                onChange={this.onPropertyAxisValueChange}
-                                onPrecisionModal={property => this.setState({ precisionModal: { widget, property } })} />
+                               label={this.getLabel(widget)}
+                               min={meta.min}
+                               max={meta.max}
+                               proportionally={meta.proportionally}
+                               value={this.getValue(widget)}
+                               onChange={this.onPropertyAxisValueChange}
+                               onPrecisionModal={property => this.setState({ precisionModal: { widget, property } })}
+                               onProportionallyToggle={this.onProportionallyToggle} />
       </DraggableWidget>
     );
   }
 
   renderColorPickerList = (widget: IColorPickerList, index: number, path: string) => {
-    const { droppable, selected, editable, dragging, preset } = this.props;
+    const { droppable, selected, editable, dragging } = this.props;
 
     const selection = `${path}_${index}_${WidgetTypes.ColorPickerList}`;
     const draggableId = `${widget.id}_${WidgetTypes.ColorPickerList}` || tempId;
@@ -740,12 +745,37 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
     );
   }
 
-  renderDialsWidget = (widget: ICustomStackProperty, index: number, path: string) => {    
+  renderAssetWidget = (widget: ICustomStackProperty, index: number, path: string) => {
+    const { preset } = this.props;
+    const id = this.getWidgetId(widget, index);
+    const selection = `${path}_${index}_${widget.property}`;
+
+    const exposed = preset?.Exposed[widget.property] as IExposedProperty;
+
+    return (
+      <DraggableWidget className="asset-row"
+                       key={id}
+                       index={index}
+                       draggableId={id}
+                       onPointerChange={this.onDragChange}
+                       onSelect={this.props.onSelected.bind(this, selection)}
+                       selected={this.props.selected === selection}
+                       isDragDisabled={!this.props.editable}>
+        <Widgets.AssetWidget label={this.getLabel(widget)}
+                             value={this.getValue(widget)}
+                             type={exposed?.Type ?? 'Object'}
+                             onChange={value => this.onPropertyValueChange(widget, value)}
+                             browse />
+      </DraggableWidget>
+    );
+  }
+
+  renderDialsWidget = (widget: ICustomStackProperty, index: number, path: string) => {
     const id = this.getWidgetId(widget, index);    
     const selection = `${path}_${index}_${widget.property}`;
 
     const rotator = widget.propertyType === PropertyType.Rotator;
-    const { min, max } = this.getWidgetMetadata(widget);
+    const { min, max, proportionally } = this.getWidgetMetadata(widget);
 
     let dialMode = DialMode.Endless;
 
@@ -767,12 +797,15 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
         <DialsWrapper type={widget.propertyType}
                       min={min}
                       max={max}
+                      proportionally={proportionally}
+                      property={widget.property}
                       mode={dialMode}
                       hidePrecision={true}
                       properties={widget?.widgets}
                       value={this.getValue(widget)}
                       label={this.getLabel(widget)}
-                      onChange={value => this.onThrottledPropertyValueChange(widget, value)} />
+                      onChange={value => this.onThrottledPropertyValueChange(widget, value)}
+                      onProportionallyToggle={this.onProportionallyToggle} />
       </DraggableWidget>
     );
   }
@@ -832,8 +865,8 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
     );
   }
 
-  onPropertyAxisValueChange = (widget: ICustomStackProperty, axis: string, axisValue: number, locked?: boolean) => {
-    const value = this.getValue(widget) ?? {};
+  onPropertyAxisValueChange = (widget: ICustomStackProperty, axis: string, axisValue: number, proportionally?: boolean, min?: number, max?: number) => {
+    const value = { ...this.getValue(widget) } ?? {};
 
     // Reset
     if (axis === undefined || axisValue === undefined)
@@ -843,15 +876,18 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
     if (prev === 0 || prev === undefined)
       prev = 1;
 
-    let ratio = Math.max(0.001, axisValue) / prev;
+    const ratio = Math.max(0.001, axisValue) / prev;
 
-    if (locked && !isNaN(ratio)) {
-      const keys = Object.keys(value);
-      for (const key of keys)
-        value[key] *= ratio;
-    } else {
+    if (proportionally && !isNaN(ratio))
+      for (const key of Object.keys(value)) {
+        let val = value[key] * ratio;
+        if (!isNaN(min) && !isNaN(max))
+          val = Math.min(max, Math.max(min, val));
+
+        value[key] = val;
+      }
+    else
       value[axis] = axisValue;
-    }
 
     this.onThrottledPropertyValueChange(widget, value);
   }
@@ -861,6 +897,14 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
       vector = null;
 
     this.props.onSetVectorDrawer(vector);
+  }
+
+  onMetadataChange = (property: string, key: string, value: string) => {
+    _api.payload.metadata(property, key, value);
+  }
+
+  onProportionallyToggle = (property: string, value: string) => {
+    this.onMetadataChange(property, 'Proportionally', value);
   }
 
   renderVectorWidget = (widget: ICustomStackProperty, index: number, path: string) => {
@@ -884,9 +928,11 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
                               vector={vector}
                               min={meta.min}
                               max={meta.max}
+                              proportionally={meta.proportionally}
                               onAxisChange={this.onPropertyAxisValueChange}
                               onToggleVectorDrawer={this.onToggleVectorDrawer}
-                              onSetVector={this.props.onSetVectorDrawer} />
+                              onSetVector={this.props.onSetVectorDrawer}
+                              onProportionallyToggle={this.onProportionallyToggle} />
       </DraggableWidget>
     );
   }
@@ -999,6 +1045,7 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
       widget.widget = widgetType;
 
       let element = null;
+
       switch (widgetType) {
         case WidgetTypes.Tabs:
           element = this.renderTabs(widgets[index] as ICustomStackTabs, index, path);
@@ -1042,6 +1089,10 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
 
         case WidgetTypes.Dials:
           element = this.renderDialsWidget(widget, index, path);
+          break;
+
+        case WidgetTypes.Asset:
+          element = this.renderAssetWidget(widget, index, path);
           break;
 
         case WidgetTypes.Dial:
@@ -1160,7 +1211,7 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
 
 
     const templates = { ...this.state.templates };
-    templates[panel.id] = { matching: matching?.ReturnValue, selected: selected?.ReturnValue };
+    templates[panel.id] = { matching, selected };
 
     this.setState({ templates });
     sessionStorage.setItem('templates', JSON.stringify(templates));
@@ -1229,7 +1280,8 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
                              isDropDisabled={isDropDisabled}>
               {!!panel?.title && <div className="title">{panel.title}</div>}
               {!!panel.isTemplate && (
-                <div className="title">
+                <div className="title template-property-select-wrapper">
+                  <div className='template-property-select-inner-wrapper'>
                     <select className="dropdown template-property-select" 
                             tabIndex={-1}
                             onFocus={this.isIos ? null : () => this.onRefreshPanelOptions(panel)}
@@ -1239,6 +1291,7 @@ export class Stack extends React.Component<Props & PropsFromState, State> {
                         <option key={match} value={match}>{match}</option>
                       )}
                     </select>
+                  </div>
                     {this.isIos && 
                       <button onClick={() => this.onRefreshPanelOptions(panel)}><FontAwesomeIcon icon={['fas', 'sync-alt']} /></button>
                     }

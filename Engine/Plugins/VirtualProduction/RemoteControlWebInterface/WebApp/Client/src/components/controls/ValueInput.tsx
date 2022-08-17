@@ -3,11 +3,13 @@ import React from 'react';
 
 type Props = {
   value?: number | string;
-  onChange: (value: number) => void;
   draggable?: boolean;
   min?: number;
   max?: number;
   precision?: number;
+  disabled?: boolean;
+
+  onChange: (value: number) => void;
 };
 
 type State = {
@@ -56,7 +58,7 @@ export class ValueInput extends React.Component<Props, State> {
   }
 
   onClick = () => {
-    this.input.current.focus();
+    this.input.current.select();
   }
 
   onDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -156,18 +158,24 @@ export class ValueInput extends React.Component<Props, State> {
 
   render() {
     const { value } = this.state;
+    const { disabled } = this.props;
 
     return (
       <span ref={this.ref}
             className="input-field-container"
             onClick={this.onClick}
+            onDoubleClick={this.onClick}
             onPointerDown={this.onDown}
             onPointerMove={this.onMove}
             onPointerUp={this.onUp}
             onLostPointerCapture={this.onUp}>
         <input ref={this.input}
+               disabled={disabled}
                className="input-field"
                value={value ?? ''}
+               type="number"
+               inputMode="numeric"
+               pattern="[0-9]*"
                onChange={this.onManualChange}
                onKeyDown={this.onKeyDown}
                onBlur={this.onChangeValue}

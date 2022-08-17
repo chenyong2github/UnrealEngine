@@ -12,6 +12,7 @@ export namespace Notify {
 
     io.sockets.on('connection', (socket: socketio.Socket) => {
       socket
+        .on('client', onPing)
         .on('view', onViewChange)
         .on('value', UnrealEngine.setPayloadValue)
         .on('execute', UnrealEngine.executeFunction)
@@ -49,5 +50,9 @@ export namespace Notify {
 
   export function emitPassphraseChanged(wrongPassphrase: string) {
     io.emit('passphrase', wrongPassphrase);
+  }
+
+  export function onPing(time: number) {
+    io.emit('pong', time, new Date().getTime());
   }
 }

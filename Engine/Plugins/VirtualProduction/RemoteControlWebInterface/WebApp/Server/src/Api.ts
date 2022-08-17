@@ -54,6 +54,11 @@ export class Api {
     this.send(res, UnrealEngine.getView(req.query.preset?.toString()));
   }
 
+  @Put('presets/:preset/favorite')
+  private favorite(req: Request, res: Response) {
+    this.send(res, UnrealEngine.favoritePreset(req.params.preset, !!req.body?.value));
+  }
+
   @Put('proxy')
   private proxy(req: Request, res: Response) {
     this.send(res, UnrealEngine.proxy(req.body?.method, req.body?.url, req.body?.body));

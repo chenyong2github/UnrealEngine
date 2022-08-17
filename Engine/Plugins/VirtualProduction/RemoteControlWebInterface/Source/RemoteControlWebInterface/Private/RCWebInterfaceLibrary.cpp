@@ -8,6 +8,10 @@
 #include "RCWebInterfacePrivate.h"
 #include "RemoteControlBinding.h"
 #include "RemoteControlPreset.h"
+#include "StructSerializer.h"
+#include "IStructSerializerBackend.h"
+#include "Backends/JsonStructSerializerBackend.h"
+
 
 #define LOCTEXT_NAMESPACE "RemoteControlWebInterface"
 
@@ -20,12 +24,12 @@ TMap<FString, AActor*> URCWebInterfaceBlueprintLibrary::FindMatchingActorsToRebi
 		for (const FString& PropertyId : PropertyIds)
 		{
 			const FGuid PropertyGuid(PropertyId);
-			TWeakPtr<FRemoteControlProperty> ExposedEntity = RCPreset->GetExposedEntity<FRemoteControlProperty>(PropertyGuid);
+			TWeakPtr<FRemoteControlField> ExposedEntity = RCPreset->GetExposedEntity<FRemoteControlField>(PropertyGuid);
 
 			TSet<AActor*> MatchingActorsForProperty;
-			if (TSharedPtr<FRemoteControlProperty> RemoteControlProperty = ExposedEntity.Pin())
+			if (TSharedPtr<FRemoteControlField> RemoteControlField = ExposedEntity.Pin())
 			{
-				TArray<UObject*> BoundObjects = RemoteControlProperty->GetBoundObjects();
+				TArray<UObject*> BoundObjects = RemoteControlField->GetBoundObjects();
 				if (BoundObjects.Num() >= 1)
 				{
 					UObject* OwnerObject = BoundObjects[0];
@@ -50,7 +54,7 @@ TMap<FString, AActor*> URCWebInterfaceBlueprintLibrary::FindMatchingActorsToRebi
 						}
 					}
 				}
-				else if (UClass* SupportedBindingClass = RemoteControlProperty->GetSupportedBindingClass())
+				else if (UClass* SupportedBindingClass = RemoteControlField->GetSupportedBindingClass())
 				{
 					constexpr bool bAllowPIE = false;
 					UWorld* World = RCPreset->GetWorld(bAllowPIE);
@@ -74,7 +78,7 @@ TMap<FString, AActor*> URCWebInterfaceBlueprintLibrary::FindMatchingActorsToRebi
 					}
 				}
 			}
-		
+
 			if (MatchesIntersection.Num() == 0)
 			{
 				MatchesIntersection = MatchingActorsForProperty;
@@ -110,10 +114,10 @@ FString URCWebInterfaceBlueprintLibrary::GetOwnerActorLabel(const FString& Prese
 		for (const FString& PropertyId : PropertyIds)
 		{
 			const FGuid PropertyGuid(PropertyId);
-			TWeakPtr<FRemoteControlProperty> ExposedEntity = RCPreset->GetExposedEntity<FRemoteControlProperty>(PropertyGuid);
-			if (TSharedPtr<FRemoteControlProperty> RemoteControlProperty = ExposedEntity.Pin())
+			TWeakPtr<FRemoteControlField> ExposedEntity = RCPreset->GetExposedEntity<FRemoteControlField>(PropertyGuid);
+			if (TSharedPtr<FRemoteControlField> RemoteControlField = ExposedEntity.Pin())
 			{
-				TArray<UObject*> BoundObjects = RemoteControlProperty->GetBoundObjects();
+				TArray<UObject*> BoundObjects = RemoteControlField->GetBoundObjects();
 				if (BoundObjects.Num() >= 1)
 				{
 					UObject* OwnerObject = BoundObjects[0];
@@ -151,10 +155,10 @@ void URCWebInterfaceBlueprintLibrary::RebindProperties(const FString& PresetId, 
 		for (const FString& PropertyId : PropertyIds)
 		{
 			const FGuid PropertyGuid(PropertyId);
-			TWeakPtr<FRemoteControlProperty> ExposedEntity = RCPreset->GetExposedEntity<FRemoteControlProperty>(PropertyGuid);
-			if (TSharedPtr<FRemoteControlProperty> RemoteControlProperty = ExposedEntity.Pin())
+			TWeakPtr<FRemoteControlField> ExposedEntity = RCPreset->GetExposedEntity<FRemoteControlField>(PropertyGuid);
+			if (TSharedPtr<FRemoteControlField> RemoteControlField = ExposedEntity.Pin())
 			{
-				RemoteControlProperty->BindObject(NewOwner);
+				RemoteControlField->BindObject(NewOwner);
 			}
 		}
 	}
@@ -182,5 +186,67 @@ FString URCWebInterfaceBlueprintLibrary::GetActorNameOrLabel(const AActor* Actor
 	return Actor->GetName();
 #endif
 }
+
+TMap<AActor*, FString> URCWebInterfaceBlueprintLibrary::FindAllActorsOfClass(UClass* Class)
+{
+	UWorld* World = URemoteControlPreset::GetWorld(nullptr, false);
+	if (!World || !Class)
+	{
+		return {};
+	}
+
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(World, Class, FoundActors);
+
+	TMap<AActor*, FString> Results;
+	for (AActor* Actor : FoundActors)
+	{
+		Results.Add(Actor, GetActorNameOrLabel(Actor));
+	}
+
+	return Results;
+}
+
+AActor* URCWebInterfaceBlueprintLibrary::SpawnActor(UClass* Class)
+{
+	UWorld* World = URemoteControlPreset::GetWorld(nullptr, false);
+	if (!World || !Class)
+	{
+		return nullptr;
+	}
+
+	return World->SpawnActor<AActor>(Class, FActorSpawnParameters());
+}
+
+TMap<AActor*, FString> URCWebInterfaceBlueprintLibrary::GetValuesOfActorsByClass(UClass* Class)
+{
+	UWorld* World = URemoteControlPreset::GetWorld(nullptr, false);
+	if (!World || !Class)
+	{
+		return {};
+	}
+
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(World, Class, FoundActors);
+
+	TMap<AActor*, FString> Values;
+	Values.Reserve(FoundActors.Num());
+
+	for (AActor* Actor : FoundActors)
+	{
+		TArray<uint8> WorkingBuffer;
+		FMemoryWriter Writer(WorkingBuffer);
+		FJsonStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+
+		FStructSerializer::Serialize(Actor, *Class, SerializerBackend, FStructSerializerPolicies());
+
+		// Add 16bit \0
+		WorkingBuffer.AddDefaulted(2);
+		Values.Add(Actor, TCHAR_TO_UTF8(WorkingBuffer.GetData()));
+	}
+
+	return Values;
+}
+
 
 #undef LOCTEXT_NAMESPACE

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ITab, IPreset } from '../shared';
+import { _api } from '../reducers';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { IconName } from '@fortawesome/fontawesome-svg-core';
 import { Droppable, Draggable, DraggableStateSnapshot } from 'react-beautiful-dnd';
@@ -14,7 +15,11 @@ type Props = {
   tabs: ITab[];
   selected: number;
   editable?: boolean;
+  locked: boolean;
+  undo: boolean;
+  redo: boolean;
 
+  onLockedChange: () => void;
   onChange: (index: number) => void;
   onNewTab: () => void;
   onDeleteTab: (tab: number) => Promise<void>;
@@ -124,7 +129,7 @@ export class Tabs extends React.Component<Props> {
   }
 
   render() {
-    const { tabs, selected, editable, preset } = this.props;
+    const { tabs, selected, editable, preset, locked, undo, redo } = this.props;
     const { allTabsVisible } = this.state;
 
     let leftTabClassName = 'arrow left ';
@@ -134,6 +139,14 @@ export class Tabs extends React.Component<Props> {
     let rightTabClassName = 'arrow right ';
     if (selected === tabs?.length - 1 || allTabsVisible)
       rightTabClassName += 'disabled ';
+
+    let iconUndoClassName = 'icon ';
+    if (!undo)
+      iconUndoClassName += 'disabled';
+      
+    let iconRedoClassName = 'icon ';
+    if (!redo)
+      iconRedoClassName += 'disabled';
 
     return (
       <div className="tabs-wrapper">
@@ -158,8 +171,19 @@ export class Tabs extends React.Component<Props> {
           }
           <div className={leftTabClassName} onClick={() => this.onTabChange(selected - 1)}><FontAwesomeIcon icon={['fas', 'caret-left']} /></div>
           <div className={rightTabClassName} onClick={() => this.onTabChange(selected + 1)}><FontAwesomeIcon icon={['fas', 'caret-right']} /></div>
+          <div className="preset-undo-redo">
+            <span className={iconUndoClassName} onClick={_api.undoHistory}><FontAwesomeIcon icon={['fas', 'undo']} /></span>
+            <span className={iconRedoClassName} onClick={_api.redoHistory}><FontAwesomeIcon icon={['fas', 'redo']} /></span>
+          </div>
           <div className="preset-name">{preset?.Name}</div>
+          <div className="tab edit-tab locked-toggle">
+            <label className="switch toggle-mode locked-mode">
+              <input type="checkbox" checked={!!locked} onChange={() => this.props.onLockedChange()} />
+              <span className="slider inline"></span>
+            </label>
+          </div>
         </div>
+        
       </div>
     );
   }
