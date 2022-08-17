@@ -282,6 +282,7 @@ void InstanceCull(
 			FNaniteView NaniteView = GetNaniteView(ViewId);
 
 			// Depth clipping should only be disabled with orthographic projections
+			const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
 			const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
 			const bool bUseViewRangeDistanceCull = (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u;
 
@@ -312,7 +313,7 @@ void InstanceCull(
 			BRANCH
 			if( bIsVisible )
 			{
-				Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum);
+				Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum);
 				bIsVisible = Cull.bIsVisible;
 			}
 #endif
@@ -336,7 +337,7 @@ void InstanceCull(
 			BRANCH
 			if( bIsVisible )
 			{
-				Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum);
+				Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum);
 
 				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 				TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipBoxCullHZB, bIsVisible, bWasOccluded);
@@ -550,7 +551,8 @@ void InstanceCullVSM(
 			
 			// Depth clipping should only be disabled with orthographic projections
 			FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-			FFrustumCullData Cull = BoxCullFrustum( InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum );
+			const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
+			FFrustumCullData Cull = BoxCullFrustum( InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum );
 
 			const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);
 			const bool bUseViewRangeDistanceCull = (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u;
@@ -585,7 +587,8 @@ void InstanceCullVSM(
 				BRANCH
 				if( bViewHZB && bVisible )
 				{
-					FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, MipView.PrevTranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum);
+					const bool bPrevIsOrtho = IsOrthoProjection(NaniteView.PrevViewToClip);
+					FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, MipView.PrevTranslatedWorldToClip, bPrevIsOrtho, bNearClip, bSkipBoxCullFrustum);
 
 					BRANCH
 					if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane && !bSkipBoxCullHZB)

@@ -19,8 +19,9 @@ void TestPrevHZB(FNaniteView NaniteView, float3 BoxBoundsCenter, float3 BoxBound
 	BRANCH
 	if( bViewHZB && bVisible && !bSkipBoxCullHZB)
 	{
-		FFrustumCullData PrevCull = BoxCullFrustum( BoxBoundsCenter, BoxBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum );
-		
+		const bool bPrevIsOrtho = IsOrthoProjection(NaniteView.PrevViewToClip);
+		FFrustumCullData PrevCull = BoxCullFrustum( BoxBoundsCenter, BoxBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToClip, bPrevIsOrtho, bNearClip, bSkipBoxCullFrustum );
+
 #if VIRTUAL_TEXTURE_TARGET
 		BRANCH
 		if (PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane)

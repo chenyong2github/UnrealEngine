@@ -27,7 +27,8 @@ void HZBTestPS(in float4 SvPosition : SV_Position, out float4 OutColor : SV_Targ
 	}
 #endif
 
-	FFrustumCullData Cull = BoxCullFrustum(BoundsCenter.xyz, BoundsExtent.xyz, View.TranslatedWorldToClip, true /* depth clip */, false /* skip culling */);
+	const bool bIsOrtho = IsOrthoProjection(View.ViewToClip);
+	FFrustumCullData Cull = BoxCullFrustum(BoundsCenter.xyz, BoundsExtent.xyz, View.TranslatedWorldToClip, bIsOrtho, true /* near clip */, false /* skip culling */);
 	
 	BRANCH
 	if( Cull.bIsVisible && !Cull.bCrossesNearPlane )

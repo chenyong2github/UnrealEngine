@@ -215,6 +215,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	const uint HWClusterCounterIndex = GetHWClusterCounterIndex(RenderFlags);
 
 	// Near depth clipping should only be disabled with orthographic projections
+	const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
 	const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
 	const bool bViewHZB  = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0u;
 	const bool bUseViewRangeDistanceCull = (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u;
@@ -273,7 +274,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	BRANCH
 	if( bVisible )
 	{
-		Cull = BoxCullFrustum( Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum );
+		Cull = BoxCullFrustum( Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum );
 		Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 
 		bVisible = Cull.bIsVisible && ( Rect.bOverlapsPixelCenter || Cull.bCrossesNearPlane );	// Rect from box isn't valid if crossing near plane
@@ -508,6 +509,7 @@ void ProcessNodeBatch(uint BatchSize, uint GroupIndex)
 #endif
 
 	// Depth clipping should only be disabled with orthographic projections
+	const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
 	const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
 	const bool bViewHZB  = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0u;
 	const bool bUseViewRangeDistanceCull = (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u;
@@ -564,7 +566,7 @@ void ProcessNodeBatch(uint BatchSize, uint GroupIndex)
 		BRANCH
 		if (bVisible)
 		{
-			FFrustumCullData Cull = BoxCullFrustum( HierarchyNodeSlice.BoxBoundsCenter, HierarchyNodeSlice.BoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum );
+			FFrustumCullData Cull = BoxCullFrustum( HierarchyNodeSlice.BoxBoundsCenter, HierarchyNodeSlice.BoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum );
 			FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 
 			bVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;

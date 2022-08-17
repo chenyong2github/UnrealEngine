@@ -170,7 +170,9 @@ void VirtualSmInvalidateInstancePagesCS(
 
 				float4x4 LocalToClip = mul(LocalToTranslatedWorld, mul(ProjectionData.TranslatedWorldToShadowUVMatrix, UVToClip));
 
-				FFrustumCullData Cull = BoxCullFrustum(InstanceSceneData.LocalBoundsCenter, InstanceSceneData.LocalBoundsExtent, LocalToClip, !bDirectionalLight, false);
+				const bool bIsOrtho = bDirectionalLight;
+				const bool bNearClip = !bDirectionalLight;
+				FFrustumCullData Cull = BoxCullFrustum(InstanceSceneData.LocalBoundsCenter, InstanceSceneData.LocalBoundsExtent, LocalToClip, bIsOrtho, bNearClip, false);
 
 				if (Cull.bIsVisible)
 				{

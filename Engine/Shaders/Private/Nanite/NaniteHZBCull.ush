@@ -337,7 +337,7 @@ float3 GetFacePlaneHZB( float3 ViewOriginLocal, float4x4 ClipToLocal, float3 Bou
 	return PlaneHZB;
 }
 
-FFrustumCullData BoxCullFrustumOrthoNoClip(float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bSkipFrustumCull)
+FFrustumCullData BoxCullFrustumOrtho(float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bNearClip, bool bSkipFrustumCull)
 {
 	FFrustumCullData Cull;
 
@@ -347,9 +347,14 @@ FFrustumCullData BoxCullFrustumOrthoNoClip(float3 Center, float3 Extent, float4x
 	Cull.RectMin = CenterClip - ClipDelta;
 	Cull.RectMax = CenterClip + ClipDelta;
 
-	Cull.bCrossesFarPlane = Cull.RectMin.z < 0;
-	Cull.bCrossesNearPlane = false;
-	Cull.bIsVisible = true;
+	Cull.bCrossesFarPlane = Cull.RectMin.z < 0.0f;
+	Cull.bCrossesNearPlane = Cull.RectMax.z > 1.0f;
+	Cull.bIsVisible = Cull.RectMax.z > 0.0f; // Far clip
+
+	if (bNearClip)
+	{
+		Cull.bIsVisible = Cull.bIsVisible && Cull.RectMin.z < 1.0f;
+	}
 	
 	if (!bSkipFrustumCull) // for debugging, will compile out
 	{
@@ -361,7 +366,7 @@ FFrustumCullData BoxCullFrustumOrthoNoClip(float3 Center, float3 Extent, float4x
 	return Cull;
 }
 
-FFrustumCullData BoxCullFrustumGeneral(float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bNearClip, bool bSkipFrustumCull)
+FFrustumCullData BoxCullFrustumPerspective(float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bSkipFrustumCull)
 {
     FFrustumCullData Cull;
 
@@ -422,52 +427,54 @@ FFrustumCullData BoxCullFrustumGeneral(float3 Center, float3 Extent, float4x4 Lo
 
     #undef EVAL_POINTS
 
-    Cull.bCrossesFarPlane = Cull.RectMin.z < 0;
-    Cull.bIsVisible = Cull.RectMax.z > 0;
+	Cull.bCrossesFarPlane = Cull.RectMin.z < 0;
+	Cull.bIsVisible = Cull.RectMax.z > 0; // Far clip
 
-    if (bNearClip)
-    {
-        if (MinW <= 0.0f && MaxW > 0.0f)
-        {
-            Cull.bCrossesNearPlane = true;
-            Cull.bIsVisible = true;
-            Cull.RectMin = float3(-1, -1, -1);
-            Cull.RectMax = float3( 1, 1, 1);
-        }
-        else
-        {
-            Cull.bCrossesNearPlane = MinW <= 0.0;
-            Cull.bIsVisible = MaxW > 0.0 && Cull.bIsVisible;
-        }
-    }
-    else
-    {
-        Cull.bCrossesNearPlane = false;
-        Cull.bIsVisible = true;
-    }
+	// Near clip
+	if (MinW <= 0.0f && MaxW > 0.0f)
+	{
+		Cull.bCrossesNearPlane = true;
+		Cull.bIsVisible = true;
+		Cull.RectMin = float3(-1, -1, -1);
+		Cull.RectMax = float3( 1, 1, 1);
+	}
+	else
+	{
+		Cull.bCrossesNearPlane = MinW <= 0.0;
+		Cull.bIsVisible = MaxW > 0.0 && Cull.bIsVisible;
+	}
 
-    if (!bSkipFrustumCull)
-    {
-        const bool bFrustumCull = any(PlanesMin > 0.0f);
-        Cull.bFrustumSideCulled = Cull.bIsVisible && bFrustumCull;
-        Cull.bIsVisible = Cull.bIsVisible && !bFrustumCull;
-    }
+	if (!bSkipFrustumCull)
+	{
+		const bool bFrustumCull = any(PlanesMin > 0.0f);
+		Cull.bFrustumSideCulled = Cull.bIsVisible && bFrustumCull;
+		Cull.bIsVisible = Cull.bIsVisible && !bFrustumCull;
+	}
 
     return Cull;
 }
 
 // Splitting the transform in two generates much better code on DXC when WorldToClip is scalar.
-FFrustumCullData BoxCullFrustum( float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bNearClip, bool bSkipFrustumCull )
+FFrustumCullData BoxCullFrustum( float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bIsOrtho, bool bNearClip, bool bSkipFrustumCull )
 {
-	if( !bNearClip )
-		return BoxCullFrustumOrthoNoClip( Center, Extent, LocalToWorld, WorldToClip, bSkipFrustumCull );	// Disabling near clip only makes sense with orthographic projection, so assume orthographic.
+	// NOTE: We assume here that if near clipping is disabled the projection is orthographic, as disabling near clipping is
+	// a feature for directional light shadows, and disabling near clipping for a perspective projection doesn't make much sense.
+	// Checking both also serves to help out DCE when either is a compile-time constant.
+	check(bIsOrtho || bNearClip);
+	
+	if (bIsOrtho || !bNearClip)
+	{
+		return BoxCullFrustumOrtho( Center, Extent, LocalToWorld, WorldToClip, bNearClip, bSkipFrustumCull );
+	}
 	else
-		return BoxCullFrustumGeneral( Center, Extent, LocalToWorld, WorldToClip, bNearClip, bSkipFrustumCull );
+	{
+		return BoxCullFrustumPerspective( Center, Extent, LocalToWorld, WorldToClip, bSkipFrustumCull );
+	}
 }
 
-FFrustumCullData BoxCullFrustum(float3 Center, float3 Extent, float4x4 LocalToClip, bool bNearClip, bool bSkipFrustumCull)
+FFrustumCullData BoxCullFrustum(float3 Center, float3 Extent, float4x4 LocalToClip, bool bIsOrtho, bool bNearClip, bool bSkipFrustumCull)
 {
-	return BoxCullFrustum(Center, Extent, float4x4(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1), LocalToClip, bNearClip, bSkipFrustumCull);
+	return BoxCullFrustum(Center, Extent, float4x4(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1), LocalToClip, bIsOrtho, bNearClip, bSkipFrustumCull);
 }
 
 float2 ProjectSphere( float x, float z, float r, float ResultScale )

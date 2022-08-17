@@ -1200,21 +1200,27 @@ float ConvertFromDeviceZ(float DeviceZ)
 	return DeviceZ * View.InvDeviceZToWorldZTransform[0] + View.InvDeviceZToWorldZTransform[1] + 1.0f / (DeviceZ * View.InvDeviceZToWorldZTransform[2] - View.InvDeviceZToWorldZTransform[3]);
 }
 
+// Returns whether or not the given projection matrix is orthographic
+bool IsOrthoProjection(float4x4 ProjectionMatrix)
+{
+	return ProjectionMatrix[3][3] >= 1.0f;
+}
+
 // inverse operation of ConvertFromDeviceZ()
 // @param SceneDepth (linear in world units, W)
 // @return DeviceZ (Z/W)
 float ConvertToDeviceZ(float SceneDepth)
 {
 	FLATTEN
-	if (View.ViewToClip[3][3] < 1.0f)
-	{
-		// Perspective
-		return 1.0f / ((SceneDepth + View.InvDeviceZToWorldZTransform[3]) * View.InvDeviceZToWorldZTransform[2]);
-	}
-	else
+	if (IsOrthoProjection(View.ViewToClip))
 	{
 		// Ortho
 		return SceneDepth * View.ViewToClip[2][2] + View.ViewToClip[3][2];
+	}
+	else
+	{
+		// Perspective
+		return 1.0f / ((SceneDepth + View.InvDeviceZToWorldZTransform[3]) * View.InvDeviceZToWorldZTransform[2]);
 	}
 }
 
