@@ -254,3 +254,5 @@ FReply SWaveformEditorTimeRuler::OnMouseMove(const FGeometry& MyGeometry, const 
 {
 	return TransportCoordinator->ReceiveMouseMove(*this, MyGeometry, MouseEvent);
 }
+
+#undef LOCTEXT_NAMESPACE
