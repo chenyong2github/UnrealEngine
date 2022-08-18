@@ -18,6 +18,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorUtilityBlueprint.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Templates/SubclassOf.h"
 
 #include "BlueprintEditorModule.h"
 #include "BlutilityMenuExtensions.h"
@@ -67,10 +68,18 @@ public:
 						bool bPassesClassFilter = false;
 						if (bIsActionForBlueprints)
 						{
-							if (UBlueprint* AssetAsBlueprint = Cast<UBlueprint>(Asset.GetAsset()))
+							if (TSubclassOf<UBlueprint> AssetClass = Asset.GetClass())
 							{
-								// It's a blueprint, but is it the right kind?
-								bPassesClassFilter = AssetAsBlueprint->ParentClass && AssetAsBlueprint->ParentClass->IsChildOf(SupportedClass);
+								if (UBlueprint* AssetAsBlueprint = Cast<UBlueprint>(Asset.GetAsset()))
+								{
+									// It's a blueprint, but is it the right kind?
+									bPassesClassFilter = AssetAsBlueprint->ParentClass && AssetAsBlueprint->ParentClass->IsChildOf(SupportedClass);
+								}
+								else
+								{
+									// Not a blueprint
+									bPassesClassFilter = false;
+								}
 							}
 							else
 							{

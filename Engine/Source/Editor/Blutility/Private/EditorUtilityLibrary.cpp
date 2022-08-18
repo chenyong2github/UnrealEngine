@@ -11,7 +11,7 @@
 #include "IAssetTools.h"
 #include "EditorUtilitySubsystem.h"
 #include "Kismet/KismetSystemLibrary.h"
-
+#include "Templates/SubclassOf.h"
 
 #define LOCTEXT_NAMESPACE "BlutilityLevelEditorExtensions"
 
@@ -263,9 +263,12 @@ TArray<UClass*> UEditorUtilityLibrary::GetSelectedBlueprintClasses()
 	TArray<UClass*> Result;
 	for (FAssetData& AssetData : SelectedAssets)
 	{
-		if (UBlueprint* Blueprint = Cast<UBlueprint>(AssetData.GetAsset()))
+		if (TSubclassOf<UBlueprint> AssetClass = AssetData.GetClass())
 		{
-			Result.Add(Blueprint->GeneratedClass);
+			if (UBlueprint* Blueprint = Cast<UBlueprint>(AssetData.GetAsset()))
+			{
+				Result.Add(Blueprint->GeneratedClass);
+			}
 		}
 	}
 
