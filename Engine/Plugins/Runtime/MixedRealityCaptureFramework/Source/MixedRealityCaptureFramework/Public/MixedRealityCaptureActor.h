@@ -22,7 +22,7 @@ class MIXEDREALITYCAPTUREFRAMEWORK_API AMixedRealityCaptureActor : public AActor
 
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=MixedRealityCapture, meta=(AllowPrivateAccess="true"))
-	UMixedRealityCaptureComponent* CaptureComponent;
+	TObjectPtr<UMixedRealityCaptureComponent> CaptureComponent;
 
 	UPROPERTY(EditAnywhere, config, BlueprintReadOnly, Category=Tracking)
 	bool bAutoAttachToVRPlayer;
@@ -84,5 +84,5 @@ private:
 	FCastingModeRestore BroadcastManager;
 
 	UPROPERTY(Transient)
-	UStaticMesh* DebugVisualizerMesh;
+	TObjectPtr<UStaticMesh> DebugVisualizerMesh;
 };

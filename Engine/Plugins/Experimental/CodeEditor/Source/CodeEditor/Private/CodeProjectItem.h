@@ -47,7 +47,7 @@ public:
 	FString Path;
 
 	UPROPERTY(Transient)
-	TArray<UCodeProjectItem*> Children;
+	TArray<TObjectPtr<UCodeProjectItem>> Children;
 
 	/** Delegate handle for directory watcher */
 	FDelegateHandle OnDirectoryChangedHandle;

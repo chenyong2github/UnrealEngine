@@ -25,5 +25,5 @@ public:
 private:
 	/** The cube map of the reflected environment */
 	UPROPERTY()
-	UAppleARKitEnvironmentCaptureProbeTexture* ARKitEnvironmentTexture;
+	TObjectPtr<UAppleARKitEnvironmentCaptureProbeTexture> ARKitEnvironmentTexture;
 };

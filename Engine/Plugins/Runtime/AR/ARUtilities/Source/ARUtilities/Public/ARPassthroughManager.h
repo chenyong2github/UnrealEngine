@@ -37,5 +37,5 @@ private:
 		
 private:
 	UPROPERTY()
-	UPassthroughMaterialUpdateComponent* PassthroughUpdateComponent;
+	TObjectPtr<UPassthroughMaterialUpdateComponent> PassthroughUpdateComponent;
 };

@@ -146,13 +146,13 @@ class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationScene
 
 public:
 	UPROPERTY()
-	TMap<FString, UDisplayClusterConfigurationSceneComponentXform*> Xforms;
+	TMap<FString, TObjectPtr<UDisplayClusterConfigurationSceneComponentXform>> Xforms;
 
 	UPROPERTY()
-	TMap<FString, UDisplayClusterConfigurationSceneComponentScreen*> Screens;
+	TMap<FString, TObjectPtr<UDisplayClusterConfigurationSceneComponentScreen>> Screens;
 
 	UPROPERTY()
-	TMap<FString, UDisplayClusterConfigurationSceneComponentCamera*> Cameras;
+	TMap<FString, TObjectPtr<UDisplayClusterConfigurationSceneComponentCamera>> Cameras;
 
 protected:
 	virtual void GetObjectsToExport(TArray<UObject*>& OutObjects) override;
@@ -345,7 +345,7 @@ public:
 #endif
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, EditFixedSize, Instanced, Category = "Configuration", meta = (DisplayThumbnail = false))
-	TMap<FString, UDisplayClusterConfigurationViewport*> Viewports;
+	TMap<FString, TObjectPtr<UDisplayClusterConfigurationViewport>> Viewports;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration", meta = (DisplayName = "Custom Output Settings", DisplayThumbnail = false, ShowInnerProperties))
 	TMap<FString, FDisplayClusterConfigurationPostprocess> Postprocess;
@@ -446,11 +446,11 @@ public:
 	FDisplayClusterConfigurationFailoverSettings Failover;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, EditFixedSize, Instanced, Category = NDisplay, meta = (DisplayThumbnail = false, HideProperty))
-	TMap<FString, UDisplayClusterConfigurationClusterNode*> Nodes;
+	TMap<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>> Nodes;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Instanced)
-	TMap<FString, UDisplayClusterConfigurationHostDisplayData*> HostDisplayData;
+	TMap<FString, TObjectPtr<UDisplayClusterConfigurationHostDisplayData>> HostDisplayData;
 #endif
 
 protected:
@@ -540,10 +540,10 @@ public:
 	FDisplayClusterConfigurationInfo Info;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category = NDisplay, meta = (HideProperty))
-	UDisplayClusterConfigurationScene* Scene;
+	TObjectPtr<UDisplayClusterConfigurationScene> Scene;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Instanced, Category = NDisplay)
-	UDisplayClusterConfigurationCluster* Cluster;
+	TObjectPtr<UDisplayClusterConfigurationCluster> Cluster;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Configuration, meta = (DisplayAfter = "Diagnostics"))
 	TMap<FString, FString> CustomParameters;

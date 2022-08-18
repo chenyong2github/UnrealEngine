@@ -204,13 +204,13 @@ private:
 	 * @see UpdatedComponent
 	 */
 	UPROPERTY(Transient, DuplicateTransient)
-	USceneComponent* RootUpdatedComponent;
+	TObjectPtr<USceneComponent> RootUpdatedComponent;
 
 	/**
 	 * RootUpdatedComponent, cast as a UPrimitiveComponent. May be invalid if RootUpdatedComponent was null or not a UPrimitiveComponent.
 	 */
 	UPROPERTY(Transient, DuplicateTransient)
-	UPrimitiveComponent* RootUpdatedPrimitive;
+	TObjectPtr<UPrimitiveComponent> RootUpdatedPrimitive;
 
 	/**
 	 * Applies relative axis filtering based on locks for location.

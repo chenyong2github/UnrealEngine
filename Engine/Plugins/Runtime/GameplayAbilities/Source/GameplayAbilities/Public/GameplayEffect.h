@@ -1092,7 +1092,7 @@ public:
 
 	/** GameplayEfect definition. The static data that this spec points to. */
 	UPROPERTY()
-	const UGameplayEffect* Def;
+	TObjectPtr<const UGameplayEffect> Def;
 	
 	/** A list of attributes that were modified during the application of this spec */
 	UPROPERTY()
@@ -1190,7 +1190,7 @@ struct GAMEPLAYABILITIES_API FGameplayEffectSpecForRPC
 
 	/** GameplayEfect definition. The static data that this spec points to. */
 	UPROPERTY()
-	const UGameplayEffect* Def;
+	TObjectPtr<const UGameplayEffect> Def;
 
 	UPROPERTY()
 	TArray<FGameplayEffectModifiedAttribute> ModifiedAttributes;
@@ -1393,7 +1393,7 @@ public:
 
 	/** Matches on GameplayEffects which come from this source */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Query)
-	const UObject* EffectSource;
+	TObjectPtr<const UObject> EffectSource;
 
 	/** Matches on GameplayEffects with this definition */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Query)
@@ -1856,7 +1856,7 @@ private:
 
 	/** Active GEs that have immunity queries. This is an acceleration list to avoid searching through the Active GameplayEffect list frequetly. (We only search for the active GE if immunity procs) */
 	UPROPERTY(NotReplicated)
-	TArray<const UGameplayEffect*> ApplicationImmunityQueryEffects;
+	TArray<TObjectPtr<const UGameplayEffect>> ApplicationImmunityQueryEffects;
 
 	FAggregatorRef& FindOrCreateAttributeAggregator(FGameplayAttribute Attribute);
 
@@ -2045,7 +2045,7 @@ public:
 
 	/** Data for the UI representation of this effect. This should include things like text, icons, etc. Not available in server-only builds. */
 	UPROPERTY(EditDefaultsOnly, Instanced, BlueprintReadOnly, Category = Display)
-	class UGameplayEffectUIData* UIData;
+	TObjectPtr<class UGameplayEffectUIData> UIData;
 
 	// ----------------------------------------------------------------------
 	//	Tag Containers

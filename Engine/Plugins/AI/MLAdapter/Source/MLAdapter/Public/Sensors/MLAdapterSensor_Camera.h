@@ -44,13 +44,13 @@ protected:
 	uint32 bShowUI : 1;
 
 	UPROPERTY(Transient)
-	USceneCaptureComponent2D* CaptureComp;
+	TObjectPtr<USceneCaptureComponent2D> CaptureComp;
 
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* RenderTarget2D;
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget2D;
 
 	UPROPERTY()
-	UGameViewportClient* CachedViewportClient;
+	TObjectPtr<UGameViewportClient> CachedViewportClient;
 
 	ETextureRenderTargetFormat RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA16f;
 	ESceneCaptureSource CaptureSource = SCS_FinalColorLDR;

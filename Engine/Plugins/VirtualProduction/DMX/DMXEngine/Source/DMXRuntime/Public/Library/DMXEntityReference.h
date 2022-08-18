@@ -29,7 +29,7 @@ public:
 	 * Automatically set when calling SetEntity with a valid Entity.
 	 */
 	UPROPERTY(EditAnywhere, Category = "DMX")
-	UDMXLibrary* DMXLibrary;
+	TObjectPtr<UDMXLibrary> DMXLibrary;
 
 	/** Display the DMX Library asset picker. True by default, for Blueprint variables */
 	UPROPERTY() 

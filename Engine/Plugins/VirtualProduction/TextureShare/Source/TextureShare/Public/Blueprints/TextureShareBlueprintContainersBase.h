@@ -21,7 +21,7 @@ public:
 
 	// Resource to send
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TextureShare")
-	UTexture* Texture;
+	TObjectPtr<UTexture> Texture;
 };
 
 /**
@@ -39,7 +39,7 @@ public:
 
 	// Resource to receive
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TextureShare")
-	UTextureRenderTarget* Texture;
+	TObjectPtr<UTextureRenderTarget> Texture;
 };
 
 /**

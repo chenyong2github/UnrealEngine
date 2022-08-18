@@ -26,7 +26,7 @@ public:
 
 	// Media Output configuration asset
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
-	UMediaOutput* OutputConfig;
+	TObjectPtr<UMediaOutput> OutputConfig;
 
 	// If using the output from a Composure Output Provider, specify it here
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
@@ -34,7 +34,7 @@ public:
 
 protected:
 	UPROPERTY(Transient)
-	UMediaCapture* MediaCapture = nullptr;
+	TObjectPtr<UMediaCapture> MediaCapture = nullptr;
 
 private:
 	void StartCapturing();

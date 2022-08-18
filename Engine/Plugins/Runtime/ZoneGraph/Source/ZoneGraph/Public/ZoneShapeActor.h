@@ -26,5 +26,5 @@ public:
 protected:
 
 	UPROPERTY(Category = Zone, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UZoneShapeComponent* ShapeComponent;
+	TObjectPtr<UZoneShapeComponent> ShapeComponent;
 };

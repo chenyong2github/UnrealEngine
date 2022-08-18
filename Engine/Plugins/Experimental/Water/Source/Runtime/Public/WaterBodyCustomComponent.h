@@ -40,5 +40,5 @@ protected:
 
 protected:
 	UPROPERTY(NonPIEDuplicateTransient)
-	UStaticMeshComponent* MeshComp;
+	TObjectPtr<UStaticMeshComponent> MeshComp;
 };

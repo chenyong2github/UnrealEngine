@@ -67,7 +67,7 @@ struct CONTEXTUALANIMATION_API FContextualAnimTrack
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	UAnimSequenceBase* Animation = nullptr;
+	TObjectPtr<UAnimSequenceBase> Animation = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	float AnimMaxStartTime = 0.f;
@@ -84,7 +84,7 @@ struct CONTEXTUALANIMATION_API FContextualAnimTrack
 	FContextualAnimAlignmentTrackContainer IKTargetData;
 
 	UPROPERTY(EditAnywhere, Instanced, Category = "Defaults")
-	TArray<UContextualAnimSelectionCriterion*> SelectionCriteria;
+	TArray<TObjectPtr<UContextualAnimSelectionCriterion>> SelectionCriteria;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	FTransform MeshToScene;

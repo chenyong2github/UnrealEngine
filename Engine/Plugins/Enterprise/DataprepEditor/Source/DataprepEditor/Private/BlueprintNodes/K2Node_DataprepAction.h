@@ -49,7 +49,7 @@ protected:
 	FString ActionTitle;
 
 	UPROPERTY()
-	UDataprepActionAsset* DataprepAction_DEPRECATED;
+	TObjectPtr<UDataprepActionAsset> DataprepAction_DEPRECATED;
 
 	static const FName ThenPinName;
 	static const FName InObjectsPinName;

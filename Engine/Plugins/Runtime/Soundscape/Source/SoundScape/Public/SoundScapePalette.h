@@ -19,7 +19,7 @@ struct SOUNDSCAPE_API FSoundscapePaletteColor
 
 	// Soundscape Color to Play
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Soundscape|Palette")
-	USoundscapeColor* SoundscapeColor = nullptr;
+	TObjectPtr<USoundscapeColor> SoundscapeColor = nullptr;
 
 	// Base Volume Scalar
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Soundscape|Palette", meta = (ClampMin = "0.0", ClampMax = "4.0", UIMin = "0.0", UIMax = "4.0", SliderExponent = "6.0"))
@@ -77,9 +77,9 @@ public:
 
 private:
 	UPROPERTY()
-	UWorld* World;
+	TObjectPtr<UWorld> World;
 
 	UPROPERTY()
-	TArray<UActiveSoundscapeColor*> ActiveSoundscapeColors;
+	TArray<TObjectPtr<UActiveSoundscapeColor>> ActiveSoundscapeColors;
 
 };

@@ -82,14 +82,14 @@ private:
 	FGameplayTagContainer PlatformTraitContainer;
 
 	UPROPERTY(Transient)
-	UObject* DefaultImageResourceObjectInstance;
+	TObjectPtr<UObject> DefaultImageResourceObjectInstance;
 
 	UPROPERTY(Transient)
-	UMaterialInterface* DefaultThrobberMaterialInstance;
+	TObjectPtr<UMaterialInterface> DefaultThrobberMaterialInstance;
 
 	UPROPERTY(Transient)
 	FSlateBrush DefaultThrobberBrush;
 
 	UPROPERTY(Transient)
-	UCommonUIRichTextData* RichTextDataInstance;
+	TObjectPtr<UCommonUIRichTextData> RichTextDataInstance;
 };

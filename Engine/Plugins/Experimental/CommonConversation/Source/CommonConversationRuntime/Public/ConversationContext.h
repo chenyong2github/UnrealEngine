@@ -213,16 +213,16 @@ public:
 
 private:
 	UPROPERTY()
-	UConversationRegistry* ConversationRegistry = nullptr;
+	TObjectPtr<UConversationRegistry> ConversationRegistry = nullptr;
 
 	UPROPERTY()
-	UConversationInstance* ActiveConversation = nullptr;
+	TObjectPtr<UConversationInstance> ActiveConversation = nullptr;
 
 	UPROPERTY()
-	UConversationParticipantComponent* ClientParticipant = nullptr;
+	TObjectPtr<UConversationParticipantComponent> ClientParticipant = nullptr;
 
 	UPROPERTY()
-	const UConversationTaskNode* TaskBeingConsidered = nullptr;
+	TObjectPtr<const UConversationTaskNode> TaskBeingConsidered = nullptr;
 
 	UPROPERTY()
 	TArray<FConversationNodeHandle> ReturnScopeStack;

@@ -30,7 +30,7 @@ struct STATETREEEDITORMODULE_API FStateTreeCompilerLogMessage
 
 	/** (optional) The StateTree state the message refers to. */
 	UPROPERTY()
-	const UStateTreeState* State = nullptr;
+	TObjectPtr<const UStateTreeState> State = nullptr;
 
 	/** (optional) The State tee item (condition/evaluator/task) the message refers to. */
 	UPROPERTY()
@@ -97,7 +97,7 @@ struct STATETREEEDITORMODULE_API FStateTreeCompilerLog
 	
 protected:
 	UPROPERTY()
-	TArray<const UStateTreeState*> StateStack;
+	TArray<TObjectPtr<const UStateTreeState>> StateStack;
 	
 	UPROPERTY()
 	TArray<FStateTreeCompilerLogMessage> Messages;

@@ -103,7 +103,7 @@ public:
 	 * OpacityFromTexture [Scalar]
 	 */
 	UPROPERTY(EditAnywhere, Category = PostProcess)
-	UMaterialInterface* PostProcessMaterial;
+	TObjectPtr<UMaterialInterface> PostProcessMaterial;
 
 	/** Tint color and opacity for this component. */
 	UPROPERTY(EditAnywhere, Category = PostProcess)
@@ -143,11 +143,11 @@ public:
 
 	/** List of composure layers that are expecting to use the WidgetRenderTarget. */
 	UPROPERTY(EditAnywhere, Category= PostProcess)
-    TArray<ACompositingElement*> ComposureLayerTargets;
+    TArray<TObjectPtr<ACompositingElement>> ComposureLayerTargets;
 
 	/** The target to which the user widget is rendered. */
 	UPROPERTY(Transient)
-    UTextureRenderTarget2D* WidgetRenderTarget;
+    TObjectPtr<UTextureRenderTarget2D> WidgetRenderTarget;
 
 #if WITH_EDITOR
 	/** If set, use this viewport instead of GetFirstActiveLevelViewport() */
@@ -156,11 +156,11 @@ public:
 private:
 	/** Post process component used to add the material to the post process chain. */
 	UPROPERTY(Transient)
-	UPostProcessComponent* PostProcessComponent;
+	TObjectPtr<UPostProcessComponent> PostProcessComponent;
 
 	/** The dynamic instance of the material that the render target is attached to. */
 	UPROPERTY(Transient)
-	UMaterialInstanceDynamic* PostProcessMaterialInstance;
+	TObjectPtr<UMaterialInstanceDynamic> PostProcessMaterialInstance;
 
 	/** The slate window that contains the user widget content. */
 	TSharedPtr<SVirtualWindow> SlateWindow;
@@ -264,7 +264,7 @@ public:
 private:
 	/** The User Widget object displayed and managed by this component */
 	UPROPERTY(Transient, DuplicateTransient)
-	UUserWidget* Widget;
+	TObjectPtr<UUserWidget> Widget;
 
 	/** The world the widget is attached to. */
 	TWeakObjectPtr<UWorld> World;

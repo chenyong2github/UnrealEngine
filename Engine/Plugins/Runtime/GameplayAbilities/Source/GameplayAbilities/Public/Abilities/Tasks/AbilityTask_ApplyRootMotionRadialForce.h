@@ -47,7 +47,7 @@ protected:
 	FVector Location;
 
 	UPROPERTY(Replicated)
-	AActor* LocationActor;
+	TObjectPtr<AActor> LocationActor;
 
 	UPROPERTY(Replicated)
 	float Strength;
@@ -73,7 +73,7 @@ protected:
 	 *  Curve X is 0 to 1 normalized distance (0 = 0cm, 1 = what Strength % at Radius units out)
 	 */
 	UPROPERTY(Replicated)
-	UCurveFloat* StrengthDistanceFalloff;
+	TObjectPtr<UCurveFloat> StrengthDistanceFalloff;
 
 	/** 
 	 *  Strength of the force over time
@@ -82,7 +82,7 @@ protected:
 	 *          is in units of seconds if this force has unlimited duration (Duration < 0)
 	 */
 	UPROPERTY(Replicated)
-	UCurveFloat* StrengthOverTime;
+	TObjectPtr<UCurveFloat> StrengthOverTime;
 
 	UPROPERTY(Replicated)
 	bool bUseFixedWorldDirection;

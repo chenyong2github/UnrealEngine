@@ -101,7 +101,7 @@ public:
 	 * BA channels are expected to have distortion map (from undistorted (CG) to distorted)
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
-	UTexture* DistortionMap = nullptr;
+	TObjectPtr<UTexture> DistortionMap = nullptr;
 };
 
 /**

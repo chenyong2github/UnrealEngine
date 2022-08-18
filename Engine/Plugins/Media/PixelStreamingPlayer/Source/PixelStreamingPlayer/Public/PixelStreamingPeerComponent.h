@@ -66,7 +66,7 @@ public:
 	 * A sink for the video data received once this connection has finished negotiating.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = "Properties", META = (DisplayName = "Pixel Streaming Video Sink", AllowPrivateAccess = true))
-	UPixelStreamingMediaTexture* VideoSink = nullptr;
+	TObjectPtr<UPixelStreamingMediaTexture> VideoSink = nullptr;
 
 private:
 	TUniquePtr<FPixelStreamingPeerConnection> PeerConnection;

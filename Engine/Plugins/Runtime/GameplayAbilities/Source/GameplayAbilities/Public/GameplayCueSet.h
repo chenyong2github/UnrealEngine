@@ -28,7 +28,7 @@ struct FGameplayCueNotifyData
 	FSoftObjectPath GameplayCueNotifyObj;
 
 	UPROPERTY(transient)
-	UClass* LoadedGameplayCueClass;
+	TObjectPtr<UClass> LoadedGameplayCueClass;
 
 	int32 ParentDataIdx;
 };

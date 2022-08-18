@@ -114,7 +114,7 @@ public:
 	 * across multiple components depending on the settings for that component.
 	 */
 	UPROPERTY(EditInstanceOnly, Category = "Caching")
-	UChaosCacheCollection* CacheCollection;
+	TObjectPtr<UChaosCacheCollection> CacheCollection;
 
 	/** How to use the cache - playback or record */
 	UPROPERTY(EditAnywhere, Category = "Caching")

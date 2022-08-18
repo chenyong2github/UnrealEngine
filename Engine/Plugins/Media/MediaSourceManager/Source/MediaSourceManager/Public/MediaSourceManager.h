@@ -20,7 +20,7 @@ class MEDIASOURCEMANAGER_API UMediaSourceManager : public UObject
 public:
 	/** Our channels. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Channels")
-	TArray<UMediaSourceManagerChannel*> Channels;
+	TArray<TObjectPtr<UMediaSourceManagerChannel>> Channels;
 
 	/**
 	 * Call this to make sure everything is set up.

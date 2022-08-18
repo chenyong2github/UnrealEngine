@@ -42,7 +42,7 @@ private:
 protected:
 	/** */
 	UPROPERTY(VisibleAnywhere, Instanced, NoClear, Category = "User Interface", meta = (ShowOnlyInnerProperties))
-	UVPFullScreenUserWidget* ScreenUserWidget;
+	TObjectPtr<UVPFullScreenUserWidget> ScreenUserWidget;
 
 #if WITH_EDITORONLY_DATA
 	/** Display requested and will be executed on the first frame because we can't call BP function in the loading phase */

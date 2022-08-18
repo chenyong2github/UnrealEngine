@@ -56,8 +56,8 @@ public:
 	TSubclassOf<UMoviePipelinePythonHostExecutor> ExecutorClass;
 	
 	UPROPERTY(BlueprintReadWrite, Transient, Category = "Movie Render Pipeline")
-	UMoviePipelineQueue* PipelineQueue;
+	TObjectPtr<UMoviePipelineQueue> PipelineQueue;
 private:
 	UPROPERTY(Transient)
-	UWorld* LastLoadedWorld;
+	TObjectPtr<UWorld> LastLoadedWorld;
 };

@@ -99,7 +99,7 @@ class GAMEPLAYABILITIES_API UAbilityTask : public UGameplayTask
 
 	/** GameplayAbility that created us */
 	UPROPERTY()
-	UGameplayAbility* Ability;
+	TObjectPtr<UGameplayAbility> Ability;
 
 	UPROPERTY()
 	TWeakObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;

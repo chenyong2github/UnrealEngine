@@ -14,12 +14,12 @@ class AVirtualHeightfieldMesh : public AActor
 private:
 	/** Component for rendering the big mesh. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (AllowPrivateAccess = "true"))
-	class UVirtualHeightfieldMeshComponent* VirtualHeightfieldMeshComponent;
+	TObjectPtr<class UVirtualHeightfieldMeshComponent> VirtualHeightfieldMeshComponent;
 
 #if WITH_EDITORONLY_DATA
 	/** Box for visualizing virtual texture extents. */
 	UPROPERTY(Transient)
-	class UBoxComponent* Box = nullptr;
+	TObjectPtr<class UBoxComponent> Box = nullptr;
 #endif // WITH_EDITORONLY_DATA
 
 protected:

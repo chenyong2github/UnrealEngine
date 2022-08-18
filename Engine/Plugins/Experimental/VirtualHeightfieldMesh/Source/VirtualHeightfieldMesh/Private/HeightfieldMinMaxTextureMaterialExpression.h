@@ -17,7 +17,7 @@ class UMaterialExpressionHeightfieldMinMaxTexture : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialExpressionTexture)
-	UHeightfieldMinMaxTexture* MinMaxTexture;
+	TObjectPtr<UHeightfieldMinMaxTexture> MinMaxTexture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialExpressionTexture)
 	TEnumAsByte<enum EMaterialSamplerType> SamplerType;

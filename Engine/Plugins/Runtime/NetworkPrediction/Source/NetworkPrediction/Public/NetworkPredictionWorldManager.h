@@ -31,7 +31,7 @@ public:
 
 	// Server created, replicated manager (only used for centralized/system wide data replication)
 	UPROPERTY()
-	ANetworkPredictionReplicatedManager* ReplicatedManager = nullptr;
+	TObjectPtr<ANetworkPredictionReplicatedManager> ReplicatedManager = nullptr;
 
 	// Subsystem Init/Deinit
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;

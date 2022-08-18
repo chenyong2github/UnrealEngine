@@ -70,7 +70,7 @@ public:
 protected:
 	/** Properties of the tool are stored here */
 	UPROPERTY()
-	URectangleSelectProperties* Properties;
+	TObjectPtr<URectangleSelectProperties> Properties;
 
 	/** Cached last end point to optimize comparisons */
 	FVector2D PrevSelectionEndPoint;

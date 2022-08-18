@@ -293,7 +293,7 @@ private:
 	TArray<FProperty*> LoadedProperties;
 
 	UPROPERTY(Transient)
-	TArray<UFunction*> LoadedFunctions;
+	TArray<TObjectPtr<UFunction>> LoadedFunctions;
 
 	TArray<UE::FieldNotification::FFieldId> LoadedFieldIds;
 

@@ -65,15 +65,15 @@ public:
 private:
 	// Current player camera manager the target is bind on.
 	UPROPERTY(Transient)
-	APlayerCameraManager* PlayerCameraManager;
+	TObjectPtr<APlayerCameraManager> PlayerCameraManager;
 
 	// Underlying player camera modifier
 	UPROPERTY(Transient)
-	class UComposurePlayerCompositingCameraModifier* PlayerCameraModifier;
+	TObjectPtr<class UComposurePlayerCompositingCameraModifier> PlayerCameraModifier;
 	
 	// Post process material that replaces the tonemapper to dump the player's render target.
 	UPROPERTY(Transient)
-	class UMaterialInstanceDynamic* ReplaceTonemapperMID;
+	TObjectPtr<class UMaterialInstanceDynamic> ReplaceTonemapperMID;
 
 	// Backup of the engine showflags to restore when unbinding the compositing target from the camera manager.
 	FEngineShowFlags EngineShowFlagsBackup;
@@ -132,11 +132,11 @@ public:
 
 private:
 	UPROPERTY(Transient)
-	UTexture* DisplayTexture;
+	TObjectPtr<UTexture> DisplayTexture;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
-	UTexture* CompilerErrImage;
+	TObjectPtr<UTexture> CompilerErrImage;
 
 	int32 PreviewCount = 0;
 	bool bUseImplicitGammaOnPreview = true;

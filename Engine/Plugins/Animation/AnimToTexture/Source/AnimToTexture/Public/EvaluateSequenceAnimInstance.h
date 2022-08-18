@@ -19,7 +19,7 @@ public:
 	UEvaluateSequenceAnimInstance(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UPROPERTY(Transient, EditAnywhere, Category = Default, BlueprintReadOnly)
-	UAnimSequence* SequenceToEvaluate = nullptr;
+	TObjectPtr<UAnimSequence> SequenceToEvaluate = nullptr;
 
 	UPROPERTY(Transient, EditAnywhere, Category = Default, BlueprintReadOnly)
 	float TimeToEvaluate = 0.0f;

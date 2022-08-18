@@ -196,7 +196,7 @@ class UDataprepSetMaterialOperation : public UDataprepOperation
 public:
 	// Material to use as a substitute
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation, meta = (ToolTip = "Material to use as a substitute"))
-	UMaterialInterface* Material;
+	TObjectPtr<UMaterialInterface> Material;
 
 	//~ Begin UDataprepOperation Interface
 public:
@@ -233,7 +233,7 @@ public:
 
 	// Material to use as a substitute
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation, meta = (ToolTip = "Material to use as a substitute"))
-	UMaterialInterface* MaterialSubstitute;
+	TObjectPtr<UMaterialInterface> MaterialSubstitute;
 
 	//~ Begin UDataprepOperation Interface
 public:
@@ -260,7 +260,7 @@ class UDataprepSubstituteMaterialByTableOperation : public UDataprepOperation
 public:
 	// Data table to use for the substitution
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation, meta = (ToolTip = "Data table to use for the substitution"))
-	UDataTable* MaterialDataTable;
+	TObjectPtr<UDataTable> MaterialDataTable;
 
 	//~ Begin UDataprepOperation Interface
 public:
@@ -312,7 +312,7 @@ class UDataprepSetMeshOperation : public UDataprepOperation
 public:
 	// Mesh to use as a substitute
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation, meta = (ToolTip = "Mesh to use as a substitute"))
-	UStaticMesh* StaticMesh;
+	TObjectPtr<UStaticMesh> StaticMesh;
 
 	//~ Begin UDataprepOperation Interface
 public:

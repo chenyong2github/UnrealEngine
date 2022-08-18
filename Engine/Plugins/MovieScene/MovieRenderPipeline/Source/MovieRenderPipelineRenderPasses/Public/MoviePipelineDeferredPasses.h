@@ -128,13 +128,13 @@ public:
 protected:
 	/** While rendering, store an array of the non-null valid materials loaded from AdditionalPostProcessMaterials. Cleared on teardown. */
 	UPROPERTY(Transient, DuplicateTransient)
-	TArray<UMaterialInterface*> ActivePostProcessMaterials;
+	TArray<TObjectPtr<UMaterialInterface>> ActivePostProcessMaterials;
 
 	UPROPERTY(Transient, DuplicateTransient)
-	UMaterialInterface* StencilLayerMaterial;
+	TObjectPtr<UMaterialInterface> StencilLayerMaterial;
 
 	UPROPERTY(Transient, DuplicateTransient)
-	TArray<UTextureRenderTarget2D*> TileRenderTargets;
+	TArray<TObjectPtr<UTextureRenderTarget2D>> TileRenderTargets;
 
 	struct FMultiCameraViewStateData
 	{

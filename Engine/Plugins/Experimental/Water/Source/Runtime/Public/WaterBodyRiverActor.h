@@ -18,7 +18,7 @@ class UDEPRECATED_RiverGenerator : public UDEPRECATED_WaterBodyGenerator
 	GENERATED_UCLASS_BODY()
 public:
 	UPROPERTY(NonPIEDuplicateTransient)
-	TArray<USplineMeshComponent*> SplineMeshComponents;
+	TArray<TObjectPtr<USplineMeshComponent>> SplineMeshComponents;
 };
 
 // ----------------------------------------------------------------------------------
@@ -32,20 +32,20 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UDEPRECATED_RiverGenerator* RiverGenerator_DEPRECATED;
+	TObjectPtr<UDEPRECATED_RiverGenerator> RiverGenerator_DEPRECATED;
 	
 	/** Material used when a river is overlapping a lake. */
 	UPROPERTY()
-	UMaterialInterface* LakeTransitionMaterial_DEPRECATED;
+	TObjectPtr<UMaterialInterface> LakeTransitionMaterial_DEPRECATED;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* LakeTransitionMID_DEPRECATED;
+	TObjectPtr<UMaterialInstanceDynamic> LakeTransitionMID_DEPRECATED;
 
 	/** This is the material used when a river is overlapping the ocean. */
 	UPROPERTY()
-	UMaterialInterface* OceanTransitionMaterial_DEPRECATED;
+	TObjectPtr<UMaterialInterface> OceanTransitionMaterial_DEPRECATED;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* OceanTransitionMID_DEPRECATED;
+	TObjectPtr<UMaterialInstanceDynamic> OceanTransitionMID_DEPRECATED;
 #endif // WITH_EDITORONLY_DATA
 };

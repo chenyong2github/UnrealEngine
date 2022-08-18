@@ -32,7 +32,7 @@ struct FDataprepAssetProducer
 	{}
 
 	UPROPERTY()
-	UDataprepContentProducer* Producer = nullptr;
+	TObjectPtr<UDataprepContentProducer> Producer = nullptr;
 
 	UPROPERTY()
 	bool bIsEnabled = true;

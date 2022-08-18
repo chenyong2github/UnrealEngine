@@ -108,10 +108,10 @@ protected:
 	float TransitionDuration = 0.4f;
 
 	UPROPERTY(Transient)
-	TArray<UCommonActivatableWidget*> WidgetList;
+	TArray<TObjectPtr<UCommonActivatableWidget>> WidgetList;
 
 	UPROPERTY(Transient)
-	UCommonActivatableWidget* DisplayedWidget;
+	TObjectPtr<UCommonActivatableWidget> DisplayedWidget;
 
 	UPROPERTY(Transient)
 	FUserWidgetPool GeneratedWidgetsPool;
@@ -195,7 +195,7 @@ private:
 	TSubclassOf<UCommonActivatableWidget> RootContentWidgetClass;
 
 	UPROPERTY(Transient)
-	UCommonActivatableWidget* RootContentWidget;
+	TObjectPtr<UCommonActivatableWidget> RootContentWidget;
 };
 
 //////////////////////////////////////////////////////////////////////////

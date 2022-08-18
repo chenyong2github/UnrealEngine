@@ -20,7 +20,7 @@ struct FSequencerTrackInstanceInput
 	{}
 
 	UPROPERTY(Category="Sequencer", BlueprintReadOnly)
-	USequencerSectionBP* Section;
+	TObjectPtr<USequencerSectionBP> Section;
 
 	FMovieSceneContext Context;
 };

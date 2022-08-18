@@ -45,6 +45,6 @@ public:
 
 private:
 	UPROPERTY()
-	USmartObjectSubsystemRenderingComponent* RenderingComponent;
+	TObjectPtr<USmartObjectSubsystemRenderingComponent> RenderingComponent;
 };
 

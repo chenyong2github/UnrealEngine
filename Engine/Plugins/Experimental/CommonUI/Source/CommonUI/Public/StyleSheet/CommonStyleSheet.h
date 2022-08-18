@@ -36,7 +36,7 @@ private:
 	TArray<TObjectPtr<UCommonStyleSheetTypeBase>> Properties;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Import")
-	TArray<UCommonStyleSheet*> ImportedStyleSheets;
+	TArray<TObjectPtr<UCommonStyleSheet>> ImportedStyleSheets;
 
 	bool bIsApplying = false;
 };

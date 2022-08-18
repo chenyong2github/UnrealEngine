@@ -45,10 +45,10 @@ protected:
 	friend UMassProcessingPhaseManager;
 
 	UPROPERTY(EditAnywhere, Category=Mass)
-	UMassCompositeProcessor* PhaseProcessor = nullptr;
+	TObjectPtr<UMassCompositeProcessor> PhaseProcessor = nullptr;
 
 	UPROPERTY()
-	UMassProcessingPhaseManager* PhaseManager = nullptr;
+	TObjectPtr<UMassProcessingPhaseManager> PhaseManager = nullptr;
 
 	EMassProcessingPhase Phase = EMassProcessingPhase::MAX;
 	FOnPhaseEvent OnPhaseStart;

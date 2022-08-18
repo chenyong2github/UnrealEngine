@@ -96,7 +96,7 @@ private: // Compiled Data
 
 	// Compiled: Reachable nodes
 	UPROPERTY()
-	TMap<FGuid, UConversationNode*> ReachableNodeMap;
+	TMap<FGuid, TObjectPtr<UConversationNode>> ReachableNodeMap;
 
 	// Compiled: Entry points
 	UPROPERTY(AssetRegistrySearchable)
@@ -124,11 +124,11 @@ private:
 #if WITH_EDITORONLY_DATA
 	// All nodes
 	UPROPERTY()
-	TMap<FGuid, UConversationNode*> FullNodeMap;
+	TMap<FGuid, TObjectPtr<UConversationNode>> FullNodeMap;
 
 	// 'Source code' graphs (of type UConversationGraph)
 	UPROPERTY()
-	TArray<UEdGraph*> SourceGraphs;
+	TArray<TObjectPtr<UEdGraph>> SourceGraphs;
 
 public:
 	// Info about the graphs we last edited

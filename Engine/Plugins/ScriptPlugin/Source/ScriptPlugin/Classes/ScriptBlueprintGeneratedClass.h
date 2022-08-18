@@ -148,7 +148,7 @@ public:
 
 	/** Script-generated properties */
 	UPROPERTY()
-	TArray<UProperty*> ScriptProperties_DEPRECATED;
+	TArray<TObjectPtr<UProperty>> ScriptProperties_DEPRECATED;
 	TArray<TFieldPath<FProperty>> ScriptProperties;
 
 	virtual void PurgeClass(bool bRecompilingOnLoad) override;

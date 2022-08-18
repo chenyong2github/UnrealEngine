@@ -54,5 +54,5 @@ public:
 private:
 	/** A list of geometrical representation objects that are part of the object. */
 	UPROPERTY()
-	TArray<UDMXMVRParametricObjectNodeBase*> ParametricObjectNodes;
+	TArray<TObjectPtr<UDMXMVRParametricObjectNodeBase>> ParametricObjectNodes;
 };

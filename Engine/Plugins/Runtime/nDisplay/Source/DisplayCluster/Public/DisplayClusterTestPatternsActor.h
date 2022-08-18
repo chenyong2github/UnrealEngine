@@ -64,10 +64,10 @@ protected:
 protected:
 	/** Postprocess component */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NDisplay")
-	UPostProcessComponent* PostProcessComponent;
+	TObjectPtr<UPostProcessComponent> PostProcessComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay")
-	TMap<FString, UMaterial*> CalibrationPatterns;
+	TMap<FString, TObjectPtr<UMaterial>> CalibrationPatterns;
 
 private:
 	void InitializeMaterials();

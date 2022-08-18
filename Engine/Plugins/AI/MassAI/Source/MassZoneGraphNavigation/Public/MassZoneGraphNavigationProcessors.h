@@ -45,7 +45,7 @@ protected:
 	FMassEntityQuery EntityQuery_Conditional;
 
 	UPROPERTY(Transient)
-	UMassSignalSubsystem* SignalSubsystem = nullptr;
+	TObjectPtr<UMassSignalSubsystem> SignalSubsystem = nullptr;
 };
 
 /** ZoneGraph lane cache boundary processor */

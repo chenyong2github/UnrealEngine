@@ -135,7 +135,7 @@ protected:
 #endif
 
 	UPROPERTY(Transient)
-	UVPFullScreenUserWidget* UMGWidget = nullptr;
+	TObjectPtr<UVPFullScreenUserWidget> UMGWidget = nullptr;
 
 private:
 	bool IsOuterComponentEnabled() const;

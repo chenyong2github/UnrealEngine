@@ -55,9 +55,9 @@ protected:
 	TSharedPtr<FMassEntityManager> EntityManager;
 
 	UPROPERTY()
-	UMassEntityTemplateRegistry* TemplateRegistryInstance;
+	TObjectPtr<UMassEntityTemplateRegistry> TemplateRegistryInstance;
 
 	UPROPERTY()
-	UMassSimulationSubsystem* SimulationSystem;
+	TObjectPtr<UMassSimulationSubsystem> SimulationSystem;
 };
 

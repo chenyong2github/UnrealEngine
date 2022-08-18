@@ -18,7 +18,7 @@ public:
 
 public:
 	UPROPERTY(EditAnywhere, Category="General")
-	URemoteControlPreset* Preset;
+	TObjectPtr<URemoteControlPreset> Preset;
 
 private:
 	/** Delegate handle for actor deletion callback. */

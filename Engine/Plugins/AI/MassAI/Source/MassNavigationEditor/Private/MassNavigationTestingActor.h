@@ -65,7 +65,7 @@ protected:
 	FDelegateHandle OnDataRemovedHandle;
 
 	UPROPERTY(Transient)
-	UZoneGraphSubsystem* ZoneGraph;
+	TObjectPtr<UZoneGraphSubsystem> ZoneGraph;
 
 	UPROPERTY(Transient)
 	FZoneGraphLaneLocation LaneLocation;
@@ -117,5 +117,5 @@ public:
 
 protected:
 	UPROPERTY(Category = Default, VisibleAnywhere, meta = (AllowPrivateAccess = "true"))
-	UMassNavigationTestingComponent* DebugComp;
+	TObjectPtr<UMassNavigationTestingComponent> DebugComp;
 };

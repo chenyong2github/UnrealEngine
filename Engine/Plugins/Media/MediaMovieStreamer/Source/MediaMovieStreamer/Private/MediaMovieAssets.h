@@ -66,19 +66,19 @@ private:
 
 	/** Holds the player we are using. */
 	UPROPERTY()
-	UMediaPlayer* MediaPlayer;
+	TObjectPtr<UMediaPlayer> MediaPlayer;
 
 	/** Holds the media sound component we are using. */
 	UPROPERTY()
-	UMediaSoundComponent* MediaSoundComponent;
+	TObjectPtr<UMediaSoundComponent> MediaSoundComponent;
 
 	/** Holds the media source we are using. */
 	UPROPERTY()
-	UMediaSource* MediaSource;
+	TObjectPtr<UMediaSource> MediaSource;
 
 	/** Holds the media texture we are using. */
 	UPROPERTY()
-	UMediaTexture* MediaTexture;
+	TObjectPtr<UMediaTexture> MediaTexture;
 
 	/** Holds the movie streamer. */
 	FMediaMovieStreamer* MovieStreamer;

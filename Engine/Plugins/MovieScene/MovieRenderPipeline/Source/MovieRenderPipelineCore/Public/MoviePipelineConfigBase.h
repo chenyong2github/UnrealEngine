@@ -158,7 +158,7 @@ public:
 protected:
 	/** Array of settings classes that affect various parts of the output pipeline. */
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "Movie Pipeline")
-	TArray<UMoviePipelineSetting*> Settings;
+	TArray<TObjectPtr<UMoviePipelineSetting>> Settings;
 
 private:
 	int32 SettingsSerialNumber;

@@ -554,7 +554,7 @@ protected:
 
 	/** List of registered components. */
 	UPROPERTY(Transient)
-	TArray<USmartObjectComponent*> RegisteredSOComponents;
+	TArray<TObjectPtr<USmartObjectComponent>> RegisteredSOComponents;
 
 	uint32 NextFreeUserID = 1;
 

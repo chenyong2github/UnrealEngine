@@ -32,18 +32,18 @@ class GOOGLEARCORERENDERING_API UGoogleARCoreCameraOverlayMaterialLoader : publi
 public:
 	/** A pointer to the camera overlay material that will be used to render the passthrough camera texture as background. */
 	UPROPERTY()
-	UMaterialInterface* RegularOverlayMaterial;
+	TObjectPtr<UMaterialInterface> RegularOverlayMaterial;
 	
 	/** A pointer to the camera overlay material that will be used to render the passthrough camera texture as background. */
 	UPROPERTY()
-	UMaterialInterface* DebugOverlayMaterial;
+	TObjectPtr<UMaterialInterface> DebugOverlayMaterial;
 	
 	UPROPERTY()
-	UMaterialInterface* DepthOcclusionMaterial;
+	TObjectPtr<UMaterialInterface> DepthOcclusionMaterial;
 	
 	/** Material used for rendering the coloration of the depth map. */
 	UPROPERTY()
-	UMaterialInterface* DepthColorationMaterial;
+	TObjectPtr<UMaterialInterface> DepthColorationMaterial;
 
 	UGoogleARCoreCameraOverlayMaterialLoader()
 	{

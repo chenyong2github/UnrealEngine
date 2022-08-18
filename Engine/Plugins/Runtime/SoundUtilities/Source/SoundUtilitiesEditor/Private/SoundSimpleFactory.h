@@ -20,6 +20,6 @@ class USoundSimpleFactory : public UFactory
 
 	/** Sound waves to create the simple sound with */
 	UPROPERTY()
-	TArray<USoundWave*> SoundWaves;
+	TArray<TObjectPtr<USoundWave>> SoundWaves;
 };
 

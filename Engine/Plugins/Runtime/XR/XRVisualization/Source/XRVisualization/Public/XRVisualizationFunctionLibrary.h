@@ -18,13 +18,13 @@ class UXRVisualizationLoadHelper : public UObject
 
 public:
 	UPROPERTY()
-	class UStaticMesh* GenericHMD;
+	TObjectPtr<class UStaticMesh> GenericHMD;
 	UPROPERTY()
-	class UStaticMesh* OculusControllerMesh;
+	TObjectPtr<class UStaticMesh> OculusControllerMesh;
 	UPROPERTY()
-	class UStaticMesh* ViveControllerMesh;
+	TObjectPtr<class UStaticMesh> ViveControllerMesh;
 	UPROPERTY()
-	class UStaticMesh* STEMControllerMesh;
+	TObjectPtr<class UStaticMesh> STEMControllerMesh;
 };
 
 UCLASS()
@@ -56,5 +56,5 @@ private:
 	static void RenderFinger(const FXRMotionControllerData& XRData, int32 FingerStart, int32 FingerEnd);
 
 	UPROPERTY()
-	UXRVisualizationLoadHelper* LoadHelper;
+	TObjectPtr<UXRVisualizationLoadHelper> LoadHelper;
 };

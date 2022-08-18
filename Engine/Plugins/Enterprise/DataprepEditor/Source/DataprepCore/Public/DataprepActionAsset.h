@@ -87,7 +87,7 @@ private:
 
 	// The actual object of the step
 	UPROPERTY()
-	UDataprepParameterizableObject* StepObject;
+	TObjectPtr<UDataprepParameterizableObject> StepObject;
 
 	// Will be used for future error message if the step object can't be loaded
 	UPROPERTY()
@@ -95,12 +95,12 @@ private:
 
 	// The operation will only be not null if the step is a operation
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use the step and step type instead."))
-	UDataprepOperation* Operation_DEPRECATED;
+	TObjectPtr<UDataprepOperation> Operation_DEPRECATED;
 
 	
 	// The Filter will only be not null if the step is a Filter/Selector
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use the step and step type instead."))
-	UDataprepFilter* Filter_DEPRECATED;
+	TObjectPtr<UDataprepFilter> Filter_DEPRECATED;
 };
 
 /** Structure to pass execution context to action */
@@ -463,10 +463,10 @@ private:
 
 	/** Array of operations and/or filters constituting this action */
 	UPROPERTY()
-	TArray<UDataprepActionStep*> Steps;
+	TArray<TObjectPtr<UDataprepActionStep>> Steps;
 
 	UPROPERTY()
-	UDataprepActionAppearance* Appearance;
+	TObjectPtr<UDataprepActionAppearance> Appearance;
 
 	/** Broadcasts any change to the stack of steps */
 	FOnStepsOrderChanged OnStepsOrderChanged;

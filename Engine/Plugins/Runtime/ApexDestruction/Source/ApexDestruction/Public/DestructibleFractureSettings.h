@@ -167,7 +167,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** APEX references materials by name, but we'll bypass that mechanism and use of UE materials instead. */
 	UPROPERTY()
-	TArray<UMaterialInterface*>				Materials;
+	TArray<TObjectPtr<UMaterialInterface>>				Materials;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Per-chunk authoring parameters, which should be made writable when a chunk selection GUI is in place. */

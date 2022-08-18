@@ -151,10 +151,10 @@ protected:
 	float GizmoScaleMultiplier;
 
 	UPROPERTY(Transient)
-	UBillboardComponent* SpriteComponent;
+	TObjectPtr<UBillboardComponent> SpriteComponent;
 
 	UPROPERTY()
-	UTexture2D* SpriteTexture;
+	TObjectPtr<UTexture2D> SpriteTexture;
 #endif
 
 private:

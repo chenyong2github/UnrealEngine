@@ -49,5 +49,5 @@ private:
 	FSoftObjectPath AssetLastSavedOrLoaded = nullptr;
 
 	UPROPERTY()
-	ULevelSnapshotsFilterPreset* AssetBeingEdited;
+	TObjectPtr<ULevelSnapshotsFilterPreset> AssetBeingEdited;
 };

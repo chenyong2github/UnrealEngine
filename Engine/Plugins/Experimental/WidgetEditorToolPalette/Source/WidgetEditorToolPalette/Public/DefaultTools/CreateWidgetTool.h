@@ -69,7 +69,7 @@ public:
 
 protected:
 	UPROPERTY()
-	UCreateWidgetToolProperties* Properties;
+	TObjectPtr<UCreateWidgetToolProperties> Properties;
 
 protected:
 

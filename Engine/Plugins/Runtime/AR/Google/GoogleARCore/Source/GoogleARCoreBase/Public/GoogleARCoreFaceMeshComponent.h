@@ -82,7 +82,7 @@ public:
 
 	/** Used when rendering the face mesh (mostly debug reasons) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components|ARFaceMesh")
-	class UMaterialInterface* FaceMaterial;
+	TObjectPtr<class UMaterialInterface> FaceMaterial;
 
 private:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;

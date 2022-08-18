@@ -90,13 +90,13 @@ private:
 	FDelegateHandle TrackedFilterModifiedHandle;
 	
 	UPROPERTY()
-	UFavoriteFilterContainer* FavoriteFilters;
+	TObjectPtr<UFavoriteFilterContainer> FavoriteFilters;
 	/* Stores user-defined filters in chain of ORs of ANDs. */
 	UPROPERTY()
-	ULevelSnapshotsFilterPreset* UserDefinedFilters;
+	TObjectPtr<ULevelSnapshotsFilterPreset> UserDefinedFilters;
 	/* Handles save & load requests for exchanging UserDefinedFilters. */
 	UPROPERTY()
-	UFilterLoader* FilterLoader;
+	TObjectPtr<UFilterLoader> FilterLoader;
 	
 	/* Used for determining whether the filter state has changed since it was last refreshed. */
 	UPROPERTY()
@@ -104,7 +104,7 @@ private:
 
 	/* Converts UserDefinedFilters into ULevelSnapshotsSelectionSet display in results view. */
 	UPROPERTY()
-	UFilteredResults* FilterResults;
+	TObjectPtr<UFilteredResults> FilterResults;
 
 	/* Snapshot selected by user */
 	TOptional<TStrongObjectPtr<ULevelSnapshot>> ActiveSnapshot;

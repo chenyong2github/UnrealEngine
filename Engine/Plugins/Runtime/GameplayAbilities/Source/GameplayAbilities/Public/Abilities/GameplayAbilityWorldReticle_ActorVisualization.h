@@ -22,11 +22,11 @@ public:
 private:
 	/** Hardcoded collision component, so other objects don't think they can collide with the visualization actor */
 	UPROPERTY()
-	class UCapsuleComponent* CollisionComponent;
+	TObjectPtr<class UCapsuleComponent> CollisionComponent;
 public:
 
 	UPROPERTY()
-	TArray<UActorComponent*> VisualizationComponents;
+	TArray<TObjectPtr<UActorComponent>> VisualizationComponents;
 
 	/** Overridable function called whenever this actor is being removed from a level */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

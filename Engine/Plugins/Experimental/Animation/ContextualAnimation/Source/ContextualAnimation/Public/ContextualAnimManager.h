@@ -69,10 +69,10 @@ protected:
 
 	/** Container for all SceneActorComps in the world */
 	UPROPERTY()
-	TSet<UContextualAnimSceneActorComponent*> SceneActorCompContainer;
+	TSet<TObjectPtr<UContextualAnimSceneActorComponent>> SceneActorCompContainer;
 
 	UPROPERTY()
-	TArray<UContextualAnimSceneInstance*> Instances;
+	TArray<TObjectPtr<UContextualAnimSceneInstance>> Instances;
 
 	UFUNCTION()
 	void OnSceneInstanceEnded(UContextualAnimSceneInstance* SceneInstance);

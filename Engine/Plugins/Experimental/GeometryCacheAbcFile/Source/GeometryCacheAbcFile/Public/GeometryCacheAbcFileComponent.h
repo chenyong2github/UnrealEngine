@@ -57,5 +57,5 @@ protected:
 	void InitializeGeometryCache();
 
 	UPROPERTY(Transient)
-	UAbcImportSettings* AbcSettings;
+	TObjectPtr<UAbcImportSettings> AbcSettings;
 };

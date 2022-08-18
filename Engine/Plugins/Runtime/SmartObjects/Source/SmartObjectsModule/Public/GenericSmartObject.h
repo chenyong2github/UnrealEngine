@@ -22,10 +22,10 @@ public:
 
 protected:
 	UPROPERTY(EditAnywhere, Category = SmartObject, NoClear)
-	USmartObjectComponent* SOComponent;
+	TObjectPtr<USmartObjectComponent> SOComponent;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(NoClear)
-	USmartObjectRenderingComponent* RenderingComponent;
+	TObjectPtr<USmartObjectRenderingComponent> RenderingComponent;
 #endif // WITH_EDITORONLY_DATA
 };

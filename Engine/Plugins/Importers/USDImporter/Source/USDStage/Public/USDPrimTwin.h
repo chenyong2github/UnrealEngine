@@ -68,7 +68,7 @@ public:
 
 private:
 	UPROPERTY( Transient )
-	TMap< FString, UUsdPrimTwin* > Children;
+	TMap< FString, TObjectPtr<UUsdPrimTwin> > Children;
 
 	UPROPERTY( Transient )
 	TWeakObjectPtr< UUsdPrimTwin > Parent;

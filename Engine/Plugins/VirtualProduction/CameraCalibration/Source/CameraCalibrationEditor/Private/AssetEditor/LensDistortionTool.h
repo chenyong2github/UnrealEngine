@@ -64,7 +64,7 @@ private:
 
 	/** The currently selected algorithm */
 	UPROPERTY(Transient)
-	UCameraLensDistortionAlgo* CurrentAlgo;
+	TObjectPtr<UCameraLensDistortionAlgo> CurrentAlgo;
 
 	/** Holds the registered camera lens distortion algos */
 	UPROPERTY(Transient)

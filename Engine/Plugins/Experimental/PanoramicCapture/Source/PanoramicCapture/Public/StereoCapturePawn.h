@@ -60,10 +60,10 @@ public:
     void UpdateStereoAtlas(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo);
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Pawn)
-    UTexture2D* LeftEyeAtlas;
+    TObjectPtr<UTexture2D> LeftEyeAtlas;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Pawn)
-    UTexture2D* RightEyeAtlas;
+    TObjectPtr<UTexture2D> RightEyeAtlas;
 
 
     FStereoCaptureDoneAction* StereoCaptureDoneAction;

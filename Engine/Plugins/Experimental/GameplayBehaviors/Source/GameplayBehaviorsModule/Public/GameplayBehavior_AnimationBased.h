@@ -19,13 +19,13 @@ struct FMontagePlaybackData
 	GENERATED_BODY()
 
 	UPROPERTY()
-	AActor* Avatar;
+	TObjectPtr<AActor> Avatar;
 
 	UPROPERTY()
-	UAnimMontage* AnimMontage;
+	TObjectPtr<UAnimMontage> AnimMontage;
 
 	UPROPERTY()
-	UAbilitySystemComponent* AbilityComponent;
+	TObjectPtr<UAbilitySystemComponent> AbilityComponent;
 
 	float PlayRate;
 	FName SectionName;

@@ -67,7 +67,7 @@ struct FUnderwaterPostProcessSettings
 
 	/** This is the parent post process material for the PostProcessSettings */
 	UPROPERTY()
-	UMaterialInterface* UnderwaterPostProcessMaterial_DEPRECATED;
+	TObjectPtr<UMaterialInterface> UnderwaterPostProcessMaterial_DEPRECATED;
 };
 
 // ----------------------------------------------------------------------------------
@@ -468,7 +468,7 @@ public:
 	static const FName GroundZMinParamName;
 
 	UPROPERTY(EditDefaultsOnly, Category = Collision, meta = (EditCondition = "bGenerateCollisions"))
-	UPhysicalMaterial* PhysicalMaterial;
+	TObjectPtr<UPhysicalMaterial> PhysicalMaterial;
 
 	/** Water depth at which waves start being attenuated. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Wave, DisplayName = "Wave Attenuation Water Depth", meta = (UIMin = 0, ClampMin = 0, UIMax = 10000.0))
@@ -487,17 +487,17 @@ public:
 	FWaterCurveSettings CurveSettings;
 
 	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly)
-	UMaterialInterface* WaterMaterial;
+	TObjectPtr<UMaterialInterface> WaterMaterial;
 
 	UPROPERTY(Category = HLOD, EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Water HLOD Material"))
-	UMaterialInterface* WaterHLODMaterial;
+	TObjectPtr<UMaterialInterface> WaterHLODMaterial;
 
 	/** Post process material to apply when the camera goes underwater (only available when bGenerateCollisions is true because collisions are needed to detect if it's under water). */
 	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly, meta = (EditCondition = "bGenerateCollisions", DisplayAfter = "WaterMaterial"))
-	UMaterialInterface* UnderwaterPostProcessMaterial;
+	TObjectPtr<UMaterialInterface> UnderwaterPostProcessMaterial;
 
 	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly, meta = (DisplayAfter = "WaterMaterial"))
-	UMaterialInterface* WaterInfoMaterial;
+	TObjectPtr<UMaterialInterface> WaterInfoMaterial;
 	
 	UPROPERTY(Category = Terrain, EditAnywhere, BlueprintReadWrite)
 	FWaterBodyHeightmapSettings WaterHeightmapSettings;
@@ -525,7 +525,7 @@ protected:
 	int32 WaterBodyIndex = INDEX_NONE;
 
 	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly)
-	UStaticMesh* WaterMeshOverride;
+	TObjectPtr<UStaticMesh> WaterMeshOverride;
 
 	/** 
 	 * When this is set to true, the water mesh will always generate tiles for this water body. 
@@ -539,16 +539,16 @@ protected:
 	int32 OverlapMaterialPriority = 0;
 
 	UPROPERTY(Transient)
-	UWaterSplineMetadata* WaterSplineMetadata;
+	TObjectPtr<UWaterSplineMetadata> WaterSplineMetadata;
 
 	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "WaterMaterial"))
-	UMaterialInstanceDynamic* WaterMID;
+	TObjectPtr<UMaterialInstanceDynamic> WaterMID;
 
 	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "UnderwaterPostProcessMaterial"))
-	UMaterialInstanceDynamic* UnderwaterPostProcessMID;
+	TObjectPtr<UMaterialInstanceDynamic> UnderwaterPostProcessMID;
 	
 	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "WaterInfoMaterial"))
-	UMaterialInstanceDynamic* WaterInfoMID;
+	TObjectPtr<UMaterialInstanceDynamic> WaterInfoMID;
 
 	/** Islands in this water body*/
 	UPROPERTY(Category = Water, VisibleAnywhere, AdvancedDisplay)

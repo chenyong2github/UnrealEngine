@@ -69,7 +69,7 @@ struct FBrushEffectCurves
 	bool bUseCurveChannel;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BrushEffects)
-	UCurveFloat* ElevationCurveAsset;
+	TObjectPtr<UCurveFloat> ElevationCurveAsset;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BrushEffects)
 	float ChannelEdgeOffset;
@@ -103,7 +103,7 @@ struct FBrushEffectDisplacement
 	float DisplacementTiling;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BrushEffects)
-	UTexture2D* Texture;
+	TObjectPtr<UTexture2D> Texture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BrushEffects)
 	float Midpoint;

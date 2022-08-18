@@ -19,13 +19,13 @@ struct FContextualAnimStateTreeTaskInstanceData
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
-	UContextualAnimSceneAsset* ContextualAnimAsset = nullptr;
+	TObjectPtr<UContextualAnimSceneAsset> ContextualAnimAsset = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
-	AActor* InteractableObject = nullptr;
+	TObjectPtr<AActor> InteractableObject = nullptr;
 
 	UPROPERTY()
-	UGameplayTask_PlayContextualAnim* Task = nullptr;
+	TObjectPtr<UGameplayTask_PlayContextualAnim> Task = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	float Duration = 0.0f;

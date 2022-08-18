@@ -101,5 +101,5 @@ public:
 	void Initialize(UTexture2D* InTexture, const FTransform& InTransform);
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Properties)
-	UTexture2D* Texture = nullptr;
+	TObjectPtr<UTexture2D> Texture = nullptr;
 };

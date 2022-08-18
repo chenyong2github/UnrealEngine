@@ -60,7 +60,7 @@ protected:
 	FMassEntityQuery EntityQuery_Conditional;
 
 	UPROPERTY(Transient)
-	UZoneGraphAnnotationSubsystem* ZoneGraphAnnotationSubsystem;
+	TObjectPtr<UZoneGraphAnnotationSubsystem> ZoneGraphAnnotationSubsystem;
 };
 
 
@@ -94,7 +94,7 @@ protected:
 	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
 
 	UPROPERTY(Transient)
-	UZoneGraphAnnotationSubsystem* ZoneGraphAnnotationSubsystem;
+	TObjectPtr<UZoneGraphAnnotationSubsystem> ZoneGraphAnnotationSubsystem;
 
 	FMassEntityQuery EntityQuery;
 };

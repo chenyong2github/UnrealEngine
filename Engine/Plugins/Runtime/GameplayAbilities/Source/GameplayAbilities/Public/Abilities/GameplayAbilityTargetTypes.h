@@ -341,15 +341,15 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityTargetingLocationInfo
 
 	/** A source actor is needed for Actor-based targeting, but not for Socket-based targeting. */
 	UPROPERTY(BlueprintReadWrite, meta = (ExposeOnSpawn = true), Category = Targeting)
-	AActor* SourceActor;
+	TObjectPtr<AActor> SourceActor;
 
 	/** Socket-based targeting requires a skeletal mesh component to check for the named socket. */
 	UPROPERTY(BlueprintReadWrite, meta = (ExposeOnSpawn = true), Category = Targeting)
-	UMeshComponent* SourceComponent;
+	TObjectPtr<UMeshComponent> SourceComponent;
 
 	/** Ability that will be using the targeting data */
 	UPROPERTY(BlueprintReadWrite, meta = (ExposeOnSpawn = true), Category = Targeting)
-	UGameplayAbility* SourceAbility;
+	TObjectPtr<UGameplayAbility> SourceAbility;
 
 	/** If SourceComponent is valid, this is the name of the socket transform that will be used. If no Socket is provided, SourceComponent's transform will be used. */
 	UPROPERTY(BlueprintReadWrite, meta = (ExposeOnSpawn = true), Category = Targeting)

@@ -25,10 +25,10 @@ public:
 	// Ideally these would be FSoftObjectPaths, but FPropertyEditorModule doesn't support generating
 	// widgets for those properties yet
 	UPROPERTY( EditAnywhere, Transient, Category = Dummy, meta = ( AllowedClasses = "/Script/Engine.AnimBlueprint" ) )
-	UObject* AnimBPProperty;
+	TObjectPtr<UObject> AnimBPProperty;
 
 	UPROPERTY( EditAnywhere, Transient, Category = Dummy, meta = ( AllowedClasses = "/Script/ControlRigDeveloper.ControlRigBlueprint" ) )
-	UObject* ControlRigProperty;
+	TObjectPtr<UObject> ControlRigProperty;
 };
 
 #if USE_USD_SDK

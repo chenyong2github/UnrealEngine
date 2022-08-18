@@ -316,5 +316,5 @@ private:
 private:
 	/** Strongly references all libraries at all times */
 	UPROPERTY(Transient)
-	TArray<UDMXLibrary*> LoadedDMXLibraries;
+	TArray<TObjectPtr<UDMXLibrary>> LoadedDMXLibraries;
 };

@@ -42,7 +42,7 @@ protected:
 	bool bMatchedComparisonLastAttributeChange;
 
 	UPROPERTY()
-	UAbilitySystemComponent* ExternalOwner;
+	TObjectPtr<UAbilitySystemComponent> ExternalOwner;
 
 	UAbilitySystemComponent* GetFocusedASC();
 

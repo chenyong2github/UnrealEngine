@@ -23,11 +23,11 @@ public:
 	
 	/** The actual button widget that represents this tab on-screen */
 	UPROPERTY()
-	UCommonButtonBase* TabButton;
+	TObjectPtr<UCommonButtonBase> TabButton;
 
 	/** The actual instance of the content widget to display when this tab is selected. Can be null if a load is required. */
 	UPROPERTY()
-	UWidget* ContentInstance;
+	TObjectPtr<UWidget> ContentInstance;
 
 	FCommonRegisteredTabInfo()
 		: TabIndex(INDEX_NONE)
@@ -206,7 +206,7 @@ protected:
 	
 	/** The button group that manages all the created tab buttons */
 	UPROPERTY(Transient)
-	UCommonButtonGroupBase* TabButtonGroup;
+	TObjectPtr<UCommonButtonGroupBase> TabButtonGroup;
 
 	/** Is the tab list currently listening for tab input actions? */
 	bool bIsListeningForInput = false;

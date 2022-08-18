@@ -26,7 +26,7 @@ public:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* OwnerInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
 	UPROPERTY(EditDefaultsOnly, Category = MontageAbility)
-	UAnimMontage *	MontageToPlay;
+	TObjectPtr<UAnimMontage> 	MontageToPlay;
 
 	UPROPERTY(EditDefaultsOnly, Category = MontageAbility)
 	float	PlayRate;
@@ -40,7 +40,7 @@ public:
 
 	/** Deprecated. Use GameplayEffectClassesWhileAnimating instead. */
 	UPROPERTY(VisibleDefaultsOnly, Category = Deprecated)
-	TArray<const UGameplayEffect*>	GameplayEffectsWhileAnimating;
+	TArray<TObjectPtr<const UGameplayEffect>>	GameplayEffectsWhileAnimating;
 
 	void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted, TWeakObjectPtr<UAbilitySystemComponent> AbilitySystemComponent, TArray<struct FActiveGameplayEffectHandle>	AppliedEffects);
 

@@ -61,10 +61,10 @@ class LOBBY_API ALobbyBeaconClient : public AOnlineBeaconClient
 
 	/** Client view of the lobby state */
 	UPROPERTY(Replicated)
-	ALobbyBeaconState* LobbyState;
+	TObjectPtr<ALobbyBeaconState> LobbyState;
 	/** Player state associated with this beacon (@todo not splitscreen safe) */
 	UPROPERTY(Replicated)
-	ALobbyBeaconPlayerState* PlayerState;
+	TObjectPtr<ALobbyBeaconPlayerState> PlayerState;
 
 	/** Clear out any references to this in PlayerState */
 	virtual void EndPlay(EEndPlayReason::Type Reason) override;

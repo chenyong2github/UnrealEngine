@@ -43,7 +43,7 @@ protected:
 	float FinishClampVelocity;
 
 	UPROPERTY()
-	UCharacterMovementComponent* MovementComponent; 
+	TObjectPtr<UCharacterMovementComponent> MovementComponent; 
 	
 	uint16 RootMotionSourceID;
 

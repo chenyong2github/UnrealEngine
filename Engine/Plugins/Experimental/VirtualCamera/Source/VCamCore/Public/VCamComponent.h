@@ -252,7 +252,7 @@ public:
 
 	// List of Output Providers (executed in order)
 	UPROPERTY(EditAnywhere, Instanced, Category="VirtualCamera")
-	TArray<UVCamOutputProviderBase*> OutputProviders;
+	TArray<TObjectPtr<UVCamOutputProviderBase>> OutputProviders;
 
 	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
 	void GetLiveLinkDataForCurrentFrame(FLiveLinkCameraBlueprintData& LiveLinkData);
@@ -366,7 +366,7 @@ private:
 
 	// Modifier Context object that can be accessed by the Modifier Stack
 	UPROPERTY(EditAnywhere, Instanced, Category = "VirtualCamera")
-	UVCamModifierContext* ModifierContext;
+	TObjectPtr<UVCamModifierContext> ModifierContext;
 
 	// List of Modifiers (executed in order)
 	UPROPERTY(EditAnywhere, Category = "VirtualCamera")

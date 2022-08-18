@@ -14,8 +14,8 @@ class DATAPREPEDITOR_API UDataprepEditorContextMenuContext : public UObject
 public:
 
 	UPROPERTY()
-	TArray< UObject* > SelectedObjects;
+	TArray< TObjectPtr<UObject> > SelectedObjects;
 
 	UPROPERTY()
-	class UDataprepAssetInterface* DataprepAsset;
+	TObjectPtr<class UDataprepAssetInterface> DataprepAsset;
 };

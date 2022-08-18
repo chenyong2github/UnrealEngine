@@ -81,7 +81,7 @@ public:
 
 	/** The pointer to the actor once it is spawned */
 	UPROPERTY(Transient)
-	AActor* SpawnedActor = nullptr;
+	TObjectPtr<AActor> SpawnedActor = nullptr;
 
 	/** Internal request serial number (used to cycle through next spawning request) */
 	uint32 SerialNumber = 0;
@@ -223,10 +223,10 @@ protected:
 	TArray<FInstancedStruct> SpawnRequests;
 
 	UPROPERTY()
-	TArray<AActor*> ActorsToDestroy;
+	TArray<TObjectPtr<AActor>> ActorsToDestroy;
 
 	UPROPERTY()
-	TArray<AActor*> DeactivatedActorsToDestroy;
+	TArray<TObjectPtr<AActor>> DeactivatedActorsToDestroy;
 
 	bool bActorPoolingEnabled = true;
 

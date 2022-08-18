@@ -20,7 +20,7 @@ class UReimportScriptFactory : public UScriptFactory, public FReimportHandler
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class UScriptBlueprint* OriginalScript;
+	TObjectPtr<class UScriptBlueprint> OriginalScript;
 
 	virtual bool ConfigureProperties() override;
 

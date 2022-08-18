@@ -65,5 +65,5 @@ private:
 	bool bIgnoreFilter = false;
 	
 	UPROPERTY(Instanced)
-	ULevelSnapshotFilter* ChildFilter;
+	TObjectPtr<ULevelSnapshotFilter> ChildFilter;
 };

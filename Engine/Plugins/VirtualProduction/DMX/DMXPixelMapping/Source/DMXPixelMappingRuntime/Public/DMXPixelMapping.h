@@ -138,13 +138,13 @@ public:
 public:
 	/** Holds the reference to root component */
 	UPROPERTY()
-	UDMXPixelMappingRootComponent* RootComponent;
+	TObjectPtr<UDMXPixelMappingRootComponent> RootComponent;
 
 
 #if WITH_EDITORONLY_DATA
 	/** Holds the Thumbnail for asset */
 	UPROPERTY()
-	UTexture* ThumbnailImage;
+	TObjectPtr<UTexture> ThumbnailImage;
 
 	/** DEPRECATED 4.27. Use FDMXPixelMappingMatrixComponent::GetOnMatrixChanged() instead */
 	FOnEditorRebuildChildrenComponentsDelegate OnEditorRebuildChildrenComponentsDelegate_DEPRECATED;

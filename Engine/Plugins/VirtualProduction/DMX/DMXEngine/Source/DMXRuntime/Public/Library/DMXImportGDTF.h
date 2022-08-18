@@ -207,7 +207,7 @@ struct FDMXImportGDTFWheelSlot
     FDMXImportGDTFFilter Filter;
 
     UPROPERTY(VisibleAnywhere, Category = "Fixture Type")
-    UTexture2D* MediaFileName = nullptr;
+    TObjectPtr<UTexture2D> MediaFileName = nullptr;
 };
 
 USTRUCT(BlueprintType)
@@ -713,7 +713,7 @@ public:
     FString FixtureTypeID;
 
     UPROPERTY(VisibleAnywhere, Category = "Fixture Type")
-    UTexture2D* Thumbnail = nullptr;
+    TObjectPtr<UTexture2D> Thumbnail = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Type")
     FString RefFT;
@@ -857,6 +857,6 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** The Asset Import Data used to generate the GDTF asset or nullptr, if not generated from a GDTF file */
 	UPROPERTY()
-	UDMXGDTFAssetImportData* GDTFAssetImportData;
+	TObjectPtr<UDMXGDTFAssetImportData> GDTFAssetImportData;
 #endif
 };

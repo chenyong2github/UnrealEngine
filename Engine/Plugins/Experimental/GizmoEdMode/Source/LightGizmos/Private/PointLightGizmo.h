@@ -59,18 +59,18 @@ private:
 
 	/** The Gizmo that is used to scale the attenuation */
 	UPROPERTY()
-	UScalableSphereGizmo* AttenuationGizmo;
+	TObjectPtr<UScalableSphereGizmo> AttenuationGizmo;
 
 	/** The target Point Light */
 	UPROPERTY()
-	APointLight* LightActor;
+	TObjectPtr<APointLight> LightActor;
 
 	UPROPERTY()
-	UWorld* World;
+	TObjectPtr<UWorld> World;
 
 	/** A transform proxy to represent the light actor in gizmos */
 	UPROPERTY()
-	USubTransformProxy* TransformProxy;
+	TObjectPtr<USubTransformProxy> TransformProxy;
 	
 	/**
 	 * Function that is called when the radius of the sphere is changed

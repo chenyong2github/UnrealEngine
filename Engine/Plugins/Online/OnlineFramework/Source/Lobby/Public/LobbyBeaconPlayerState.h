@@ -46,7 +46,7 @@ class LOBBY_API ALobbyBeaconPlayerState : public AInfo
 
 	/** Reference to the beacon actor related to this player */
 	UPROPERTY(Replicated)
-	AOnlineBeaconClient* ClientActor;
+	TObjectPtr<AOnlineBeaconClient> ClientActor;
 
 	/**
 	 * Delegate fired when this player state has changed in some way

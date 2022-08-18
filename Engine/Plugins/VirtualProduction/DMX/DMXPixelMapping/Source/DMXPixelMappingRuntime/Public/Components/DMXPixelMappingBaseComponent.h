@@ -235,7 +235,7 @@ public:
 
 	/** Array of children belong to this component */
 	UPROPERTY()
-	TArray<UDMXPixelMappingBaseComponent*> Children;
+	TArray<TObjectPtr<UDMXPixelMappingBaseComponent>> Children;
 
 	/** Returns the parent. May be nullptr when the the component is creating or destroying */
 	FORCEINLINE UDMXPixelMappingBaseComponent* GetParent() const { return WeakParent.Get(); }
@@ -250,7 +250,7 @@ public:
 
 	/** Parent component */
 	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Leads to entangled references. Use GetParent() or WeakParent instead."))
-	UDMXPixelMappingBaseComponent* Parent_DEPRECATED;
+	TObjectPtr<UDMXPixelMappingBaseComponent> Parent_DEPRECATED;
 
 protected:
 	/** Called when the component was added to a parent */

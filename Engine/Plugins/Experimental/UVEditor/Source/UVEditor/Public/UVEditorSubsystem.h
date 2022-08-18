@@ -64,7 +64,7 @@ protected:
 	 * added here in Initialize() as they are developed.
 	 */
 	UPROPERTY()
-	UToolTargetManager* ToolTargetManager = nullptr;
+	TObjectPtr<UToolTargetManager> ToolTargetManager = nullptr;
 
 	TMap<TObjectPtr<UObject>, TObjectPtr<UUVEditor>> OpenedEditorInstances;
 };

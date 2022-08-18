@@ -64,19 +64,19 @@ public:
 protected:
 	// Underlying scene capture.
 	UPROPERTY(Transient, NonTransactional)
-	USceneCaptureComponent2D* SceneCapture;
+	TObjectPtr<USceneCaptureComponent2D> SceneCapture;
 
 	// Blendable interface to intercept the OverrideBlendableSettings.
 	UPROPERTY(Transient, NonTransactional)
-	UComposurePostProcessBlendable* BlendableInterface;
+	TObjectPtr<UComposurePostProcessBlendable> BlendableInterface;
 
 	// Setup post process material.
 	UPROPERTY(Transient, NonTransactional)
-	UMaterialInterface* SetupMaterial;
+	TObjectPtr<UMaterialInterface> SetupMaterial;
 
 	// Internal material that replace the tonemapper to output linear color space.
 	UPROPERTY(Transient, NonTransactional)
-	UMaterialInterface* TonemapperReplacement;
+	TObjectPtr<UMaterialInterface> TonemapperReplacement;
 
 	// Called by UComposurePostProcessBlendable::OverrideBlendableSettings.
 	void OverrideBlendableSettings(class FSceneView& View, float Weight) const;

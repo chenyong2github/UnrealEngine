@@ -66,19 +66,19 @@ private:
 
 private:
 	UPROPERTY(EditAnywhere, Category = VideoPlayer)
-	UMediaSource* Video;
+	TObjectPtr<UMediaSource> Video;
 
 	UPROPERTY(Transient)
-	UMediaPlayer* MediaPlayer;
+	TObjectPtr<UMediaPlayer> MediaPlayer;
 
 	UPROPERTY(Transient)
-	UMediaTexture* MediaTexture;
+	TObjectPtr<UMediaTexture> MediaTexture;
 
 	UPROPERTY(Transient)
-	UMaterial* VideoMaterial;
+	TObjectPtr<UMaterial> VideoMaterial;
 
 	UPROPERTY(Transient)
-	UMediaSoundComponent* SoundComponent;
+	TObjectPtr<UMediaSoundComponent> SoundComponent;
 
 	UPROPERTY(Transient)
 	FSlateBrush VideoBrush;

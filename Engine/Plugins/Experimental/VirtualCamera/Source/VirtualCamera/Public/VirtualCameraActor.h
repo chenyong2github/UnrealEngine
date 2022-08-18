@@ -46,16 +46,16 @@ public:
 	~AVirtualCameraActor();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "VirtualCamera | Component")
-	USceneCaptureComponent2D* SceneCaptureComponent;
+	TObjectPtr<USceneCaptureComponent2D> SceneCaptureComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VirtualCamera | Movement")
 	FLiveLinkSubjectRepresentation LiveLinkSubject;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "VirtualCamera | Movement")
-	UVirtualCameraMovement* MovementComponent;
+	TObjectPtr<UVirtualCameraMovement> MovementComponent;
 
 	UPROPERTY(Transient, EditDefaultsOnly, Category = "VirtualCamera | MediaOutput")
-	URemoteSessionMediaOutput* MediaOutput;
+	TObjectPtr<URemoteSessionMediaOutput> MediaOutput;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VirtualCamera | UMG")
 	TSubclassOf<UUserWidget> CameraUMGClass;
@@ -69,16 +69,16 @@ public:
 protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "VirtualCamera | UMG")
-	UVPFullScreenUserWidget* CameraScreenWidget;
+	TObjectPtr<UVPFullScreenUserWidget> CameraScreenWidget;
 
 	UPROPERTY(Transient, EditDefaultsOnly, Category = "VirtualCamera | MediaOutput")
-	URemoteSessionMediaCapture* MediaCapture;
+	TObjectPtr<URemoteSessionMediaCapture> MediaCapture;
 
 	UPROPERTY(Transient)
-	UWorld* ActorWorld;
+	TObjectPtr<UWorld> ActorWorld;
 
 	UPROPERTY(Transient)
-	AActor* PreviousViewTarget;
+	TObjectPtr<AActor> PreviousViewTarget;
 
 	/** Should focus plane be shown on all touch focus events */
 	UPROPERTY(BlueprintReadOnly, Category = "VirtualCamera | Focus")
@@ -196,7 +196,7 @@ private:
 private:
 
 	UPROPERTY(BlueprintGetter = GetCineCameraComponent, Category = "VirtualCamera | Component")
-	UCineCameraComponent* StreamedCamera;
+	TObjectPtr<UCineCameraComponent> StreamedCamera;
 	bool bIsStreaming;
 	TUniquePtr<FVirtualCameraViewportSettings> ViewportSettingsBackup;
 	FHitResult LastViewportTouchResult;

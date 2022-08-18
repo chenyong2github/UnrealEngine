@@ -39,7 +39,7 @@ public:
 
 	/** DMX Library to record Patches' Fixture Functions from */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Source", meta = (DisplayName = "DMX Library"))
-	UDMXLibrary* DMXLibrary;
+	TObjectPtr<UDMXLibrary> DMXLibrary;
 
 	/**
 	 * Dummy property to be replaced with the "Add all patches" button.
@@ -99,7 +99,7 @@ private:
 
 	/** Track recorder used by this source */
 	UPROPERTY()
-	UMovieSceneDMXLibraryTrackRecorder* TrackRecorder;
+	TObjectPtr<UMovieSceneDMXLibraryTrackRecorder> TrackRecorder;
 
 	/**
 	 * Stores an existing DMX Library track in the Sequence to be recorded or

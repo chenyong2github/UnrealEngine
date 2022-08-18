@@ -38,7 +38,7 @@ public:
 	 * The parent of the of the instance to create
 	 */
 	UPROPERTY(EditAnywhere, Category="Settings")
-	class UDataprepAsset* Parent;
+	TObjectPtr<class UDataprepAsset> Parent;
 
 	//~ Begin UFactory Interface
 	virtual UObject* FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;

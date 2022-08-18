@@ -21,7 +21,7 @@ public:
 	//@TODO: Prevent notify callbacks and add comments explaining why we don't use those here.
 
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Config")
-	URootMotionModifier* RootMotionModifier;
+	TObjectPtr<URootMotionModifier> RootMotionModifier;
 
 	UAnimNotifyState_MotionWarping(const FObjectInitializer& ObjectInitializer);
 

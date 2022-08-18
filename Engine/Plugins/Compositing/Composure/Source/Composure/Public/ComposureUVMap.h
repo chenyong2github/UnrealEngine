@@ -33,7 +33,7 @@ struct COMPOSURE_API FComposureUVMapSettings
 
 	/** Displacement texture to use. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UV Mapping")
-	class UTexture* DisplacementTexture;
+	TObjectPtr<class UTexture> DisplacementTexture;
 
 	/** Whether to use blue and alpha channel instead of red and green channel in computation of DeltaUV. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UV Mapping")

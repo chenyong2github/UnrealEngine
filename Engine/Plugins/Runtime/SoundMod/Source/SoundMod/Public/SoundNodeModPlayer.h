@@ -29,7 +29,7 @@ private:
 	TSoftObjectPtr<USoundMod> SoundModAssetPtr;
 
 	UPROPERTY(transient)
-	USoundMod* SoundMod;
+	TObjectPtr<USoundMod> SoundMod;
 
 	UPROPERTY(EditAnywhere, Category=ModPlayer)
 	uint32 bLooping:1;

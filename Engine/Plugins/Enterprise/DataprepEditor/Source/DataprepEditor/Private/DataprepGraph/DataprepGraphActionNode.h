@@ -51,7 +51,7 @@ public:
 
 protected:
 	UPROPERTY()
-	UDataprepActionAsset* DataprepActionAsset;
+	TObjectPtr<UDataprepActionAsset> DataprepActionAsset;
 
 	UPROPERTY()
 	int32 StepIndex;
@@ -94,7 +94,7 @@ protected:
 	FString ActionTitle;
 
 	UPROPERTY()
-	UDataprepActionAsset* DataprepActionAsset;
+	TObjectPtr<UDataprepActionAsset> DataprepActionAsset;
 
 	UPROPERTY()
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
@@ -150,7 +150,7 @@ protected:
 	FString NodeTitle;
 
 	UPROPERTY()
-	TArray<UDataprepActionAsset*> Actions;
+	TArray<TObjectPtr<UDataprepActionAsset>> Actions;
 
 	UPROPERTY()
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;

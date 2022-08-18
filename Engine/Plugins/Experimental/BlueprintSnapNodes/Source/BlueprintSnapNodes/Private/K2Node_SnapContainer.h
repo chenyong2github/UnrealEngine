@@ -20,7 +20,7 @@ class UK2Node_SnapContainer : public UK2Node_Composite
 
 public:
 	UPROPERTY()
-	UK2Node* RootNode;
+	TObjectPtr<UK2Node> RootNode;
 
 public:
 	UK2Node_SnapContainer(const FObjectInitializer& ObjectInitializer);

@@ -146,7 +146,7 @@ public:
 public:
 
 	UPROPERTY()
-	UOpenColorIOConfiguration* ConfigurationOwner;
+	TObjectPtr<UOpenColorIOConfiguration> ConfigurationOwner;
 
 	UPROPERTY(VisibleAnywhere, Category = "ColorSpace")
 	FString SourceColorSpace;
@@ -159,7 +159,7 @@ private:
 	/** If the color space requires a 3dLUT, this will contains the data to do the transform */
 	/** Note: This will be serialized when cooking. Otherwhise, it relies on raw data of the library and what's on DDC */
 	UPROPERTY(Transient)
-	UVolumeTexture* Lut3dTexture = nullptr;
+	TObjectPtr<UVolumeTexture> Lut3dTexture = nullptr;
 	
 	/** Inline ColorTransform resources serialized from disk. To be processed on game thread in PostLoad. */
 	TArray<FOpenColorIOTransformResource> LoadedTransformResources;

@@ -35,6 +35,6 @@ protected:
 	TArray<FAgentDebugVisualization> VisualDataTable;
 
 	UPROPERTY(Transient)
-	TArray<UHierarchicalInstancedStaticMeshComponent*> VisualDataISMCs;
+	TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> VisualDataISMCs;
 #endif // WITH_EDITORONLY_DATA
 };

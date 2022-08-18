@@ -17,7 +17,7 @@ struct FWaterCurveSettings
 	bool bUseCurveChannel = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Water)
-	UCurveFloat* ElevationCurveAsset = nullptr;
+	TObjectPtr<UCurveFloat> ElevationCurveAsset = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Water)
 	float ChannelEdgeOffset = 0.0f;

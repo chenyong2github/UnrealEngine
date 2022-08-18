@@ -26,7 +26,7 @@ protected:
 protected:
 	/** Determines which Fragment or Tag type this given UMassObserverProcessor will be observing */
 	UPROPERTY()
-	UScriptStruct* ObservedType = nullptr;
+	TObjectPtr<UScriptStruct> ObservedType = nullptr;
 
 	EMassObservedOperation Operation = EMassObservedOperation::MAX;
 };

@@ -90,22 +90,22 @@ private:
 
 	/** The current target light the gizmo is attached to*/
 	UPROPERTY()
-	ASpotLight* LightActor;
+	TObjectPtr<ASpotLight> LightActor;
 
 	UPROPERTY()
-	UWorld* World;
+	TObjectPtr<UWorld> World;
 
 	/** A transform proxy to use with other gizmos*/
 	UPROPERTY()
-	USubTransformProxy* TransformProxy;
+	TObjectPtr<USubTransformProxy> TransformProxy;
 
 	/** The gizmo to change the outer angle of the spotlight */
 	UPROPERTY()
-	UScalableConeGizmo* OuterAngleGizmo;
+	TObjectPtr<UScalableConeGizmo> OuterAngleGizmo;
 
 	/** The gizmo to change the inner angle of the spotlight */
 	UPROPERTY()
-	UScalableConeGizmo* InnerAngleGizmo;
+	TObjectPtr<UScalableConeGizmo> InnerAngleGizmo;
 
 	/** The internal gizmo actor that is used by the gizmo 
 	 *  We need a GizmoActor separate from the 2 UScalableConeGizmo's
@@ -113,11 +113,11 @@ private:
 	 *  both of them simultaneously
 	 */
 	UPROPERTY()
-	ASpotLightGizmoActor* GizmoActor;
+	TObjectPtr<ASpotLightGizmoActor> GizmoActor;
 
 	/** Used to properly render the handle gizmo. */
 	UPROPERTY()
-	UGizmoViewContext* GizmoViewContext;
+	TObjectPtr<UGizmoViewContext> GizmoViewContext;
 
 	UPROPERTY()
 	FVector DragStartWorldPosition;

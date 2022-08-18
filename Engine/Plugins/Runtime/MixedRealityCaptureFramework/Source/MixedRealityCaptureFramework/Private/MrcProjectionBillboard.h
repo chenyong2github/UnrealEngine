@@ -45,7 +45,7 @@ class AMrcProjectionActor : public AActor
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	UMixedRealityCaptureBillboard* ProjectionComponent;
+	TObjectPtr<UMixedRealityCaptureBillboard> ProjectionComponent;
 
 public:
 	//~ AActor interface

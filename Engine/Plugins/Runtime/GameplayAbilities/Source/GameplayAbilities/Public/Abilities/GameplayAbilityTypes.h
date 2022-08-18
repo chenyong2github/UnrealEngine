@@ -212,7 +212,7 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityRepAnimMontage
 
 	/** AnimMontage ref */
 	UPROPERTY()
-	UAnimMontage* AnimMontage;
+	TObjectPtr<UAnimMontage> AnimMontage;
 
 	/** Play Rate */
 	UPROPERTY()
@@ -300,7 +300,7 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityLocalAnimMontage
 
 	/** What montage is being played */
 	UPROPERTY()
-	UAnimMontage* AnimMontage;
+	TObjectPtr<UAnimMontage> AnimMontage;
 
 	/** ID tied to a particular play of a montage, used to trigger replication when the same montage is played multiple times. This ID wraps around when it reaches its max value.  */
 	UPROPERTY()
@@ -312,7 +312,7 @@ struct GAMEPLAYABILITIES_API FGameplayAbilityLocalAnimMontage
 
 	/** The ability, if any, that instigated this montage */
 	UPROPERTY()
-	UGameplayAbility* AnimatingAbility;
+	TObjectPtr<UGameplayAbility> AnimatingAbility;
 };
 
 
@@ -337,19 +337,19 @@ struct GAMEPLAYABILITIES_API FGameplayEventData
 
 	/** The instigator of the event */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayAbilityTriggerPayload)
-	const AActor* Instigator;
+	TObjectPtr<const AActor> Instigator;
 
 	/** The target of the event */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayAbilityTriggerPayload)
-	const AActor* Target;
+	TObjectPtr<const AActor> Target;
 
 	/** An optional ability-specific object to be passed though the event */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayAbilityTriggerPayload)
-	const UObject* OptionalObject;
+	TObjectPtr<const UObject> OptionalObject;
 
 	/** A second optional ability-specific object to be passed though the event */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayAbilityTriggerPayload)
-	const UObject* OptionalObject2;
+	TObjectPtr<const UObject> OptionalObject2;
 
 	/** Polymorphic context information */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayAbilityTriggerPayload)
@@ -402,7 +402,7 @@ struct FAbilityEndedData
 
 	/** Ability that ended, normally instance but could be CDO */
 	UPROPERTY()
-	UGameplayAbility* AbilityThatEnded;
+	TObjectPtr<UGameplayAbility> AbilityThatEnded;
 
 	/** Specific ability spec that ended */
 	UPROPERTY()
@@ -507,7 +507,7 @@ struct GAMEPLAYABILITIES_API FAttributeDefaults
 	TSubclassOf<UAttributeSet> Attributes;
 
 	UPROPERTY(EditAnywhere, Category = "AttributeTest")
-	UDataTable* DefaultStartingTable;
+	TObjectPtr<UDataTable> DefaultStartingTable;
 };
 
 
@@ -522,7 +522,7 @@ struct GAMEPLAYABILITIES_API FAbilityTaskDebugMessage
 	{ }
 
 	UPROPERTY()
-	UGameplayTask*	FromTask;
+	TObjectPtr<UGameplayTask>	FromTask;
 
 	UPROPERTY()
 	FString Message;

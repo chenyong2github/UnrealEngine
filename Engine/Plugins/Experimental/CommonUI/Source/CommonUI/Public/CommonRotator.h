@@ -78,7 +78,7 @@ protected:
 
 	/** The displayed text */
 	UPROPERTY(BlueprintReadOnly, Category = CommonRotator, Meta = (BindWidget))
-	UCommonTextBlock* MyText;
+	TObjectPtr<UCommonTextBlock> MyText;
 
 	// Holds the array of display texts
 	TArray<FText> TextLabels;

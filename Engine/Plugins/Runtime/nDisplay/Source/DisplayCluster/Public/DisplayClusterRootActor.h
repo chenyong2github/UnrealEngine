@@ -244,19 +244,19 @@ private:
 	 * nDisplay details panel will hide this from actually being visible.
 	 */
 	UPROPERTY(EditAnywhere, Category = "NDisplay", meta = (HideProperty))
-	USceneComponent* DisplayClusterRootComponent;
+	TObjectPtr<USceneComponent> DisplayClusterRootComponent;
 
 	/**
 	 * Default camera component. It's an outer camera in VP/ICVFX terminology. Always exists on a DCRA instance.
 	 */
 	UPROPERTY(VisibleAnywhere, BlueprintGetter=GetDefaultCamera, Category = "NDisplay|Components")
-	UDisplayClusterCameraComponent* DefaultViewPoint;
+	TObjectPtr<UDisplayClusterCameraComponent> DefaultViewPoint;
 
 	/**
 	 * Helper sync component. Performs sync procedure during Tick phase.
 	 */
 	UPROPERTY()
-	UDisplayClusterSyncTickComponent* SyncTickComponent;
+	TObjectPtr<UDisplayClusterSyncTickComponent> SyncTickComponent;
 
 private:
 	// Current operation mode
@@ -277,7 +277,7 @@ public:
 	 * If set from the DisplayCluster BP Compiler it will be loaded from the class default subobjects in run-time.
 	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Instanced, Category = "NDisplay", meta = (AllowPrivateAccess = "true"))
-	UDisplayClusterConfigurationData* CurrentConfigData;
+	TObjectPtr<UDisplayClusterConfigurationData> CurrentConfigData;
 
 public:
 	// UObject interface
@@ -346,7 +346,7 @@ public:
 
 private:
 	UPROPERTY(Transient)
-	TMap<FString, UDisplayClusterPreviewComponent*> PreviewComponents;
+	TMap<FString, TObjectPtr<UDisplayClusterPreviewComponent>> PreviewComponents;
 
 	UPROPERTY(Transient)
 	bool bDeferPreviewGeneration;

@@ -25,5 +25,5 @@ public:
 
 protected:
 	UPROPERTY()
-	class UMassVisualizationComponent* VisComponent;
+	TObjectPtr<class UMassVisualizationComponent> VisComponent;
 };

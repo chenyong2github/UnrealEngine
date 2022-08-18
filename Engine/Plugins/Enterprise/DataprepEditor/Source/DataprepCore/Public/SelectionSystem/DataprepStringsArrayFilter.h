@@ -50,12 +50,12 @@ private:
 	FString UserString;
 
 	UPROPERTY(EditAnywhere, Category = Filter)
-	UDataprepStringFilterMatchingArray* UserStringArray;
+	TObjectPtr<UDataprepStringFilterMatchingArray> UserStringArray;
 
 	UPROPERTY(EditAnywhere, Category = Filter)
 	bool bMatchInArray;
 
 	// The source of string selected by the user
 	UPROPERTY()
-	UDataprepStringsArrayFetcher* StringsArrayFetcher;
+	TObjectPtr<UDataprepStringsArrayFetcher> StringsArrayFetcher;
 };

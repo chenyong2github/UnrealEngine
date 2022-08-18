@@ -95,5 +95,5 @@ public:
 
 private:
 	UPROPERTY(Transient)
-	UMVVMViewModelCollectionObject* GlobalViewModelCollection;
+	TObjectPtr<UMVVMViewModelCollectionObject> GlobalViewModelCollection;
 };

@@ -86,7 +86,7 @@ struct FDataprepParameterizationBinding
 	bool operator==(const FDataprepParameterizationBinding& Other) const;
 
 	UPROPERTY()
-	UDataprepParameterizableObject* ObjectBinded = nullptr;
+	TObjectPtr<UDataprepParameterizableObject> ObjectBinded = nullptr;
 
 	UPROPERTY()
 	TArray<FDataprepPropertyLink> PropertyChain;
@@ -346,7 +346,7 @@ public:
 private:
 	// The containers for the bindings
 	UPROPERTY()
-	UDataprepParameterizationBindings* BindingsContainer;
+	TObjectPtr<UDataprepParameterizationBindings> BindingsContainer;
 
 	/**
 	* Mapping of the observed object to their delegate handle
@@ -359,10 +359,10 @@ private:
 	TMap<FName, FProperty*> NameToParameterizationProperty;
 
 	UPROPERTY(Transient, NonTransactional)
-	UClass* CustomContainerClass;
+	TObjectPtr<UClass> CustomContainerClass;
 
 	UPROPERTY(Transient, NonTransactional)
-	UDataprepParameterizableObject* DefaultParameterisation;
+	TObjectPtr<UDataprepParameterizableObject> DefaultParameterisation;
 
 	/** 
 	 * This is used only to store a serialization of the values of the parameterization since we can't save our custom container class
@@ -440,11 +440,11 @@ private:
 
 	// The parameterization from which this instance was constructed
 	UPROPERTY()
-	UDataprepParameterization* SourceParameterization;
+	TObjectPtr<UDataprepParameterization> SourceParameterization;
 
 	// The actual object on which the parameterization data is stored
 	UPROPERTY(Transient, NonTransactional)
-	UObject* ParameterizationInstance;
+	TObjectPtr<UObject> ParameterizationInstance;
 
 	// This is used only to store a serialization of the values of the parameterization since we can't save the custom class
 	UPROPERTY()

@@ -31,7 +31,7 @@ protected:
 	virtual void OnOwnerSet() {}
 
 	UPROPERTY()
-	UZoneGraphTestingComponent* OwnerComponent;
+	TObjectPtr<UZoneGraphTestingComponent> OwnerComponent;
 };
 
 /** Actor for testing ZoneGraph functionality. */
@@ -84,7 +84,7 @@ protected:
 	FDelegateHandle OnDataRemovedHandle;
 
 	UPROPERTY(Transient)
-	UZoneGraphSubsystem* ZoneGraph;
+	TObjectPtr<UZoneGraphSubsystem> ZoneGraph;
 
 	UPROPERTY(Transient)
 	FZoneGraphLaneLocation LaneLocation;
@@ -124,13 +124,13 @@ protected:
 	bool bDrawLanePath = false;
 
 	UPROPERTY(EditAnywhere, Category = Test)
-	AZoneGraphTestingActor* OtherActor;
+	TObjectPtr<AZoneGraphTestingActor> OtherActor;
 
 	TArray<FZoneGraphLinkedLane> LinkedLanes;
 	FZoneGraphLanePath LanePath;
 
 	UPROPERTY(EditAnywhere, Category = Test, Instanced)
-	TArray<UZoneLaneTest*> CustomTests;
+	TArray<TObjectPtr<UZoneLaneTest>> CustomTests;
 
 private:
 	void ExecuteOnEachCustomTest(TFunctionRef<void(UZoneLaneTest&)> ExecFunc);
@@ -161,5 +161,5 @@ public:
 
 protected:
 	UPROPERTY(Category = Default, VisibleAnywhere, meta = (AllowPrivateAccess = "true"))
-	UZoneGraphTestingComponent* DebugComp;
+	TObjectPtr<UZoneGraphTestingComponent> DebugComp;
 };

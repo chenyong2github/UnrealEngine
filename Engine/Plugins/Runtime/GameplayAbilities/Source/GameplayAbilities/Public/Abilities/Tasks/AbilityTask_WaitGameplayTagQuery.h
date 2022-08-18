@@ -78,7 +78,7 @@ protected:
 	
 	/** This is the optional external target to use when getting the ASC to get tags from. */
 	UPROPERTY()
-	UAbilitySystemComponent* OptionalExternalTarget = nullptr;
+	TObjectPtr<UAbilitySystemComponent> OptionalExternalTarget = nullptr;
 
 	/** This indicates when to Trigger the Triggered output for this node. */
 	EWaitGameplayTagQueryTriggerCondition TriggerCondition = EWaitGameplayTagQueryTriggerCondition::WhenTrue;

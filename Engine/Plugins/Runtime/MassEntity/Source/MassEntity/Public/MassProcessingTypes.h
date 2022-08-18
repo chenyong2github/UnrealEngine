@@ -71,7 +71,7 @@ struct MASSENTITY_API FMassRuntimePipeline
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TArray<UMassProcessor*> Processors;
+	TArray<TObjectPtr<UMassProcessor>> Processors;
 
 	void Reset();
 	void Initialize(UObject& Owner);

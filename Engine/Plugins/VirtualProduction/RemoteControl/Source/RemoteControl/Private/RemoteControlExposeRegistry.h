@@ -218,5 +218,5 @@ private:
 
 	/** Holds the types of entities exposed in the registry. */
 	UPROPERTY()
-	TSet<UScriptStruct*> ExposedTypes;
+	TSet<TObjectPtr<UScriptStruct>> ExposedTypes;
 };

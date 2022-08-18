@@ -56,7 +56,7 @@ public:
 	float GetGroundZMin() const { return GroundZMin; }
 
 	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, BlueprintReadOnly, Category = Texture)
-	UTextureRenderTarget2D* WaterInfoTexture;
+	TObjectPtr<UTextureRenderTarget2D> WaterInfoTexture;
 private:
 
 	bool UpdateWaterInfoTexture();
@@ -82,7 +82,7 @@ private:
 
 	/** The water mesh component */
 	UPROPERTY(VisibleAnywhere, Category = Water, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UWaterMeshComponent* WaterMesh;
+	TObjectPtr<UWaterMeshComponent> WaterMesh;
 
 	/** Radius of the zone bounding box */
 	UPROPERTY(Category = Shape, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
@@ -108,15 +108,15 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** A manipulatable box for visualizing/editing the water zone bounds */
 	UPROPERTY(Transient)
-	UBoxComponent* BoundsComponent;
+	TObjectPtr<UBoxComponent> BoundsComponent;
 
 	UPROPERTY(Transient)
 	TArray<TWeakObjectPtr<AWaterBody>> SelectedWaterBodies;
 
 	UPROPERTY(Transient)
-	UBillboardComponent* ActorIcon;
+	TObjectPtr<UBillboardComponent> ActorIcon;
 
 	UPROPERTY(Transient)
-	UTexture2D* WaterVelocityTexture_DEPRECATED;
+	TObjectPtr<UTexture2D> WaterVelocityTexture_DEPRECATED;
 #endif // WITH_EDITORONLY_DATA
 };

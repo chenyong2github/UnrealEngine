@@ -18,7 +18,7 @@ class UDEPRECATED_CustomMeshGenerator : public UDEPRECATED_WaterBodyGenerator
 
 public:
 	UPROPERTY(NonPIEDuplicateTransient)
-	UStaticMeshComponent* MeshComp;
+	TObjectPtr<UStaticMeshComponent> MeshComp;
 };
 
 // ----------------------------------------------------------------------------------
@@ -32,6 +32,6 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(NonPIEDuplicateTransient)
-	UDEPRECATED_CustomMeshGenerator* CustomGenerator_DEPRECATED;
+	TObjectPtr<UDEPRECATED_CustomMeshGenerator> CustomGenerator_DEPRECATED;
 #endif
 };

@@ -155,7 +155,7 @@ struct COMMONCONVERSATIONRUNTIME_API FConversationParticipantEntry
 public:
 
 	UPROPERTY(BlueprintReadWrite, Category=Conversation)
-	AActor* Actor = nullptr;
+	TObjectPtr<AActor> Actor = nullptr;
 
 	UPROPERTY(BlueprintReadWrite, Category=Conversation)
 	FGameplayTag ParticipantID;

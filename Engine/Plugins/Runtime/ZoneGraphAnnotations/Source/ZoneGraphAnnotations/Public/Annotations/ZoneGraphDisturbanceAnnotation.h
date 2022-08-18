@@ -225,7 +225,7 @@ protected:
 
 	/** Cached ZoneGraphSubsystem */
 	UPROPERTY(Transient)
-	UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;
+	TObjectPtr<UZoneGraphSubsystem> ZoneGraphSubsystem = nullptr;
 };
 
 /**

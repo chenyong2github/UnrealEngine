@@ -52,7 +52,7 @@ public:
 	FName InteractorRole = FName();
 
 	UPROPERTY()
-	AActor* InteractableObject = nullptr;
+	TObjectPtr<AActor> InteractableObject = nullptr;
 
 	UPROPERTY()
 	FName InteractableObjectRole = FName();
@@ -64,10 +64,10 @@ public:
 	FName ExitSectionName = FName();
 	
 	UPROPERTY()
-	const UContextualAnimSceneAsset* SceneAsset = nullptr;
+	TObjectPtr<const UContextualAnimSceneAsset> SceneAsset = nullptr;
 
 	UPROPERTY()
-	UContextualAnimSceneInstance* SceneInstance = nullptr;
+	TObjectPtr<UContextualAnimSceneInstance> SceneInstance = nullptr;
 };
 
 
@@ -185,13 +185,13 @@ protected:
 	TArray<FTransform> Pivots;
 
 	UPROPERTY(Replicated)
-	const UContextualAnimSceneAsset* SceneAsset = nullptr;
+	TObjectPtr<const UContextualAnimSceneAsset> SceneAsset = nullptr;
 
 	UPROPERTY(Replicated)
 	FName InteractorRole = FName();
 
 	UPROPERTY(Replicated)
-	AActor* InteractableObject = nullptr;
+	TObjectPtr<AActor> InteractableObject = nullptr;
 
 	UPROPERTY(Replicated)
 	FName InteractableObjectRole = FName();
@@ -200,10 +200,10 @@ protected:
 	FName ExitSectionName = FName();
 
 	UPROPERTY()
-	UContextualAnimSceneInstance* SceneInstance = nullptr;
+	TObjectPtr<UContextualAnimSceneInstance> SceneInstance = nullptr;
 
 	UPROPERTY()
-	const UGameplayActuationComponent* ActuationComponent = nullptr;
+	TObjectPtr<const UGameplayActuationComponent> ActuationComponent = nullptr;
 
 	/** Rebuilt locally from replicated data */
 	UPROPERTY()

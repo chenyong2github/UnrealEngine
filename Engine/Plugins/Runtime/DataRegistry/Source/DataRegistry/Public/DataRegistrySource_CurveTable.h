@@ -29,11 +29,11 @@ public:
 protected:
 	/** Hard ref to loaded table */
 	UPROPERTY(Transient)
-	UCurveTable* CachedTable;
+	TObjectPtr<UCurveTable> CachedTable;
 
 	/** Preload table ref, will be set if this is a hard source */
 	UPROPERTY()
-	UCurveTable* PreloadTable;
+	TObjectPtr<UCurveTable> PreloadTable;
 
 	/** Last time this was accessed */
 	mutable float LastAccessTime;

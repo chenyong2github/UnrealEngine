@@ -20,5 +20,5 @@ public:
 
 private:
 	UPROPERTY(EditAnywhere, Category = "VirtualCamera")
-	UVCamComponent* VCamComponent = nullptr;
+	TObjectPtr<UVCamComponent> VCamComponent = nullptr;
 };

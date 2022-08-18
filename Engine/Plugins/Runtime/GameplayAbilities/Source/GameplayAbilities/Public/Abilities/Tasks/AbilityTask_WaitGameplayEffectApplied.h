@@ -46,7 +46,7 @@ protected:
 	bool UseExternalOwner;
 
 	UPROPERTY()
-	UAbilitySystemComponent* ExternalOwner;
+	TObjectPtr<UAbilitySystemComponent> ExternalOwner;
 
 	// If we are in the process of broadcasting and should not accept additional GE callbacks
 	bool Locked;

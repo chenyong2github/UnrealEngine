@@ -44,5 +44,5 @@ protected:
 	bool bForceOFFLOD = false;
 
 	UPROPERTY(Transient)
-	const UScriptStruct* FilterTag = nullptr;
+	TObjectPtr<const UScriptStruct> FilterTag = nullptr;
 };

@@ -59,7 +59,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.1, "This property has been deprecated. Use StateTreeReference instead.")
 	UPROPERTY()
-	UStateTree* StateTree_DEPRECATED;
+	TObjectPtr<UStateTree> StateTree_DEPRECATED;
 #endif
 
 	UPROPERTY(EditAnywhere, Category = AI, meta=(Schema="/Script/GameplayStateTreeModule.StateTreeComponentSchema"))

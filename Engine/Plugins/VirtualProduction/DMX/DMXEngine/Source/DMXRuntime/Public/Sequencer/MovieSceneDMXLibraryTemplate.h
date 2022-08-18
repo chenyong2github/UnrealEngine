@@ -37,5 +37,5 @@ private:
 
 private:
 	UPROPERTY()
-	const UMovieSceneDMXLibrarySection* Section;
+	TObjectPtr<const UMovieSceneDMXLibrarySection> Section;
 };

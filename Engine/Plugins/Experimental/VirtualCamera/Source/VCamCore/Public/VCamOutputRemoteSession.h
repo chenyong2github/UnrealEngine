@@ -44,10 +44,10 @@ public:
 protected:
 
 	UPROPERTY(Transient)
-	URemoteSessionMediaOutput* MediaOutput = nullptr;
+	TObjectPtr<URemoteSessionMediaOutput> MediaOutput = nullptr;
 
 	UPROPERTY(Transient)
-	URemoteSessionMediaCapture* MediaCapture = nullptr;
+	TObjectPtr<URemoteSessionMediaCapture> MediaCapture = nullptr;
 
 private:
 	TSharedPtr<IRemoteSessionUnmanagedRole> RemoteSessionHost;

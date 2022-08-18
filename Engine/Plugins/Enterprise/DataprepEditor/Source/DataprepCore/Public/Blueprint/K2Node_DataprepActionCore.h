@@ -25,7 +25,7 @@ public:
 
 protected:
 	UPROPERTY()
-	UDataprepActionAsset* DataprepActionAsset;
+	TObjectPtr<UDataprepActionAsset> DataprepActionAsset;
 };
 
 

@@ -40,13 +40,13 @@ public:
 
 public:
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Materials"))
-	UMaterialInterface* JumpStepMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> JumpStepMaterial = nullptr;
 
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Materials"))
-	UMaterialInterface* FindEdgesMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> FindEdgesMaterial = nullptr;
 
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Materials"))
-	UMaterialInterface* BlurEdgesMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> BlurEdgesMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta=(Category="Default"))
 	bool UseBlur = false;
@@ -56,20 +56,20 @@ public:
 
 private:
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, meta = (Category = "Default"))
-	UTextureRenderTarget2D* RTA;
+	TObjectPtr<UTextureRenderTarget2D> RTA;
 
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, meta = (Category = "Default"))
-	UTextureRenderTarget2D* RTB;
+	TObjectPtr<UTextureRenderTarget2D> RTB;
 
 	// Transient properties (exposed only for debugging reasons) :
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Transient, meta = (Category = "Debug"))
-	UMaterialInstanceDynamic* JumpStepMID;
+	TObjectPtr<UMaterialInstanceDynamic> JumpStepMID;
 
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Transient, meta = (Category = "Debug"))
-	UMaterialInstanceDynamic* FindEdgesMID;
+	TObjectPtr<UMaterialInstanceDynamic> FindEdgesMID;
 
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Transient, meta = (Category = "Debug"))
-	UMaterialInstanceDynamic* BlurEdgesMID;
+	TObjectPtr<UMaterialInstanceDynamic> BlurEdgesMID;
 
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Transient, meta = (Category = "Debug"))
 	int32 RequiredPasses = 0;

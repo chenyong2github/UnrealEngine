@@ -40,10 +40,10 @@ public:
 	float FloatProperty;
 
 	UPROPERTY(EditAnywhere, Instanced, Category = "Level Snapshots")
-	USubSubobject* NestedChild;
+	TObjectPtr<USubSubobject> NestedChild;
 
 	UPROPERTY(Instanced)
-	USubSubobject* UneditableNestedChild;
+	TObjectPtr<USubSubobject> UneditableNestedChild;
 
 	FName NonReflectedName;
 	UObject* NonReflectedObjectProperty;
@@ -65,7 +65,7 @@ public:
 	float FloatProperty;
 
 	UPROPERTY(Instanced)
-	USubobject* Subobject;
+	TObjectPtr<USubobject> Subobject;
 };
 
 UCLASS()
@@ -111,16 +111,16 @@ public:
 	/******************** Raw references  ********************/
 	
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UObject* ObjectReference;
+	TObjectPtr<UObject> ObjectReference;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	TArray<UObject*> ObjectArray;
+	TArray<TObjectPtr<UObject>> ObjectArray;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	TSet<UObject*> ObjectSet;
+	TSet<TObjectPtr<UObject>> ObjectSet;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	TMap<FName, UObject*> ObjectMap;
+	TMap<FName, TObjectPtr<UObject>> ObjectMap;
 
 
 
@@ -177,10 +177,10 @@ public:
 	/******************** External component references  ********************/
 	
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UActorComponent* ExternalComponentReference;
+	TObjectPtr<UActorComponent> ExternalComponentReference;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UObject* ExternalComponentReferenceAsUObject;
+	TObjectPtr<UObject> ExternalComponentReferenceAsUObject;
 
 
 
@@ -188,16 +188,16 @@ public:
 	/******************** External references  ********************/
 	
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UMaterialInterface* GradientLinearMaterial;
+	TObjectPtr<UMaterialInterface> GradientLinearMaterial;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UMaterialInterface* GradientRadialMaterial;
+	TObjectPtr<UMaterialInterface> GradientRadialMaterial;
 	
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UStaticMesh* CubeMesh;
+	TObjectPtr<UStaticMesh> CubeMesh;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UStaticMesh* CylinderMesh;
+	TObjectPtr<UStaticMesh> CylinderMesh;
 
 
 
@@ -205,44 +205,44 @@ public:
 	/******************** Subobject Component references  ********************/
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UStaticMeshComponent* StaticMeshComponent;
+	TObjectPtr<UStaticMeshComponent> StaticMeshComponent;
 	
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UInstancedStaticMeshComponent* InstancedMeshComponent;
+	TObjectPtr<UInstancedStaticMeshComponent> InstancedMeshComponent;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UPointLightComponent* PointLightComponent;
+	TObjectPtr<UPointLightComponent> PointLightComponent;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	USnapshotTestComponent* TestComponent;
+	TObjectPtr<USnapshotTestComponent> TestComponent;
 
 	
 	/******************** Subobject references  ********************/
 
 	UPROPERTY(EditAnywhere, Instanced, Category = "Level Snapshots")
-	USubobject* EditableInstancedSubobject_DefaultSubobject;
+	TObjectPtr<USubobject> EditableInstancedSubobject_DefaultSubobject;
 
 	UPROPERTY(Instanced)
-	USubobject* InstancedOnlySubobject_DefaultSubobject;
+	TObjectPtr<USubobject> InstancedOnlySubobject_DefaultSubobject;
 
 	UPROPERTY()
-	USubobject* NakedSubobject_DefaultSubobject;
+	TObjectPtr<USubobject> NakedSubobject_DefaultSubobject;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	USubobject* EditOnlySubobject_OptionalSubobject;
+	TObjectPtr<USubobject> EditOnlySubobject_OptionalSubobject;
 	
 	
 	UPROPERTY(EditAnywhere, Instanced, Category = "Level Snapshots")
-	TArray<USubobject*> EditableInstancedSubobjectArray_OptionalSubobject;
+	TArray<TObjectPtr<USubobject>> EditableInstancedSubobjectArray_OptionalSubobject;
 
 	UPROPERTY(EditAnywhere, Instanced, Category = "Level Snapshots")
-	TMap<FName, USubobject*> EditableInstancedSubobjectMap_OptionalSubobject;
+	TMap<FName, TObjectPtr<USubobject>> EditableInstancedSubobjectMap_OptionalSubobject;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	TArray<USubobject*> EditOnlySubobjectArray_OptionalSubobject;
+	TArray<TObjectPtr<USubobject>> EditOnlySubobjectArray_OptionalSubobject;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	TMap<FName, USubobject*> EditOnlySubobjectMap_OptionalSubobject;
+	TMap<FName, TObjectPtr<USubobject>> EditOnlySubobjectMap_OptionalSubobject;
 	
 	TStrongObjectPtr<USubobject> NonReflectedSubobject;
 

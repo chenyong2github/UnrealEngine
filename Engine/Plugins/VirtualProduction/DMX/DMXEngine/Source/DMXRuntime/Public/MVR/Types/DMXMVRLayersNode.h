@@ -46,5 +46,5 @@ public:
 private:
 	/** A[n array of] layer representation[s]. */
 	UPROPERTY()
-	TArray<UDMXMVRLayerNode*> LayerNodes;
+	TArray<TObjectPtr<UDMXMVRLayerNode>> LayerNodes;
 };

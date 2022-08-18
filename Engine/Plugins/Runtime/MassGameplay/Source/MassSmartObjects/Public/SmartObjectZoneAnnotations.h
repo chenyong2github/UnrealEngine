@@ -141,5 +141,5 @@ protected:
 
 	/** Cached SmartObjectSubsystem */
 	UPROPERTY(Transient)
-	USmartObjectSubsystem* SmartObjectSubsystem = nullptr;
+	TObjectPtr<USmartObjectSubsystem> SmartObjectSubsystem = nullptr;
 };

@@ -43,7 +43,7 @@ class COMMONCONVERSATIONRUNTIME_API UConversationTaskNode : public UConversation
 public:
 	// Requirements and side effects
 	UPROPERTY()
-	TArray<UConversationSubNode*> SubNodes;
+	TArray<TObjectPtr<UConversationSubNode>> SubNodes;
 
 #if WITH_EDITORONLY_DATA
 	/* EDITOR ONLY VISUALS: Does this task internally have requirements? */

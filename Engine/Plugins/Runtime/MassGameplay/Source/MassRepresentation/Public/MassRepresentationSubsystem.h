@@ -140,19 +140,19 @@ protected:
 
 	/** The component that handles all the static mesh instances */
 	UPROPERTY(Transient)
-	UMassVisualizationComponent* VisualizationComponent;
+	TObjectPtr<UMassVisualizationComponent> VisualizationComponent;
 
 	/** The actor owning the above visualization component */
 	UPROPERTY(Transient)
-	AMassVisualizer* Visualizer;
+	TObjectPtr<AMassVisualizer> Visualizer;
 
 	UPROPERTY(Transient)
-	UMassActorSpawnerSubsystem* ActorSpawnerSubsystem;
+	TObjectPtr<UMassActorSpawnerSubsystem> ActorSpawnerSubsystem;
 
 	TSharedPtr<FMassEntityManager> EntityManager;
 
 	UPROPERTY(Transient)
-	UWorldPartitionSubsystem* WorldPartitionSubsystem;
+	TObjectPtr<UWorldPartitionSubsystem> WorldPartitionSubsystem;
 
 	/** The time to wait before retrying a to spawn actor that failed */
 	float RetryMovedDistanceSq = 1000000.0f;

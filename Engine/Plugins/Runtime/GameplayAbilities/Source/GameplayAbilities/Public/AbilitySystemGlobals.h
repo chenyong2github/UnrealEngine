@@ -34,7 +34,7 @@ struct FNetSerializeScriptStructCache
 	bool NetSerialize(FArchive& Ar, UScriptStruct*& Struct);
 
 	UPROPERTY()
-	TArray<UScriptStruct*> ScriptStructs;
+	TArray<TObjectPtr<UScriptStruct>> ScriptStructs;
 };
 
 
@@ -344,14 +344,14 @@ protected:
 	FSoftObjectPath GlobalCurveTableName;
 
 	UPROPERTY()
-	UCurveTable* GlobalCurveTable;
+	TObjectPtr<UCurveTable> GlobalCurveTable;
 
 	/** Holds information about the valid attributes' min and max values and stacking rules */
 	UPROPERTY(config)
 	FSoftObjectPath GlobalAttributeMetaDataTableName;
 
 	UPROPERTY()
-	UDataTable* GlobalAttributeMetaDataTable;
+	TObjectPtr<UDataTable> GlobalAttributeMetaDataTable;
 
 	/** Holds default values for attribute sets, keyed off of Name/Levels. NOTE: Preserved for backwards compatibility, should use the array version below now */
 	UPROPERTY(config)
@@ -363,7 +363,7 @@ protected:
 
 	/** Curve tables containing default values for attribute sets, keyed off of Name/Levels */
 	UPROPERTY()
-	TArray<UCurveTable*> GlobalAttributeDefaultsTables;
+	TArray<TObjectPtr<UCurveTable>> GlobalAttributeDefaultsTables;
 
 	/** Class reference to gameplay cue manager. Use this if you want to just instantiate a class for your gameplay cue manager without having to create an asset. */
 	UPROPERTY(config)
@@ -382,7 +382,7 @@ protected:
 	FSoftObjectPath GameplayTagResponseTableName;
 
 	UPROPERTY()
-	UGameplayTagReponseTable* GameplayTagResponseTable;
+	TObjectPtr<UGameplayTagReponseTable> GameplayTagResponseTable;
 
 	/** Set to true if you want clients to try to predict gameplay effects done to targets. If false it will only predict self effects */
 	UPROPERTY(config)
@@ -397,7 +397,7 @@ protected:
 
 	/** Manager for all gameplay cues */
 	UPROPERTY()
-	UGameplayCueManager* GlobalGameplayCueManager;
+	TObjectPtr<UGameplayCueManager> GlobalGameplayCueManager;
 
 	/** Used to initialize attribute sets */
 	TSharedPtr<FAttributeSetInitter> GlobalAttributeSetInitter;

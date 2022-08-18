@@ -266,10 +266,10 @@ private:
 	static TMap<TWeakObjectPtr<UGameInstance>, TWeakObjectPtr<USocialManager>> AllManagersByGameInstance;
 
 	UPROPERTY()
-	TArray<USocialToolkit*> SocialToolkits;
+	TArray<TObjectPtr<USocialToolkit>> SocialToolkits;
 
 	UPROPERTY()
-	USocialDebugTools* SocialDebugTools;
+	TObjectPtr<USocialDebugTools> SocialDebugTools;
 
 	bool bIsConnectedToPartyService = false;
 	

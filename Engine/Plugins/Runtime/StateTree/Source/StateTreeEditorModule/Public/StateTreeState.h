@@ -211,11 +211,11 @@ public:
 	TArray<FStateTreeTransition> Transitions;
 
 	UPROPERTY()
-	TArray<UStateTreeState*> Children;
+	TArray<TObjectPtr<UStateTreeState>> Children;
 
 	UPROPERTY(meta = (ExcludeFromHash))
 	bool bExpanded = true;
 
 	UPROPERTY(meta = (ExcludeFromHash))
-	UStateTreeState* Parent = nullptr;
+	TObjectPtr<UStateTreeState> Parent = nullptr;
 };

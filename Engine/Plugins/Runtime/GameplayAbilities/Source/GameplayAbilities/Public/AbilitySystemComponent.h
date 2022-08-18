@@ -1315,7 +1315,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 
 	/** List of currently active targeting actors */
 	UPROPERTY()
-	TArray<AGameplayAbilityTargetActor*> SpawnedTargetActors;
+	TArray<TObjectPtr<AGameplayAbilityTargetActor>> SpawnedTargetActors;
 
 	/** Bind to an input component with some default action names */
 	virtual void BindToInputComponent(UInputComponent* InputComponent);
@@ -1442,11 +1442,11 @@ private:
 
 	/** The actor that owns this component logically */
 	UPROPERTY(ReplicatedUsing = OnRep_OwningActor)
-	AActor* OwnerActor;
+	TObjectPtr<AActor> OwnerActor;
 
 	/** The actor that is the physical representation used for abilities. Can be NULL */
 	UPROPERTY(ReplicatedUsing = OnRep_OwningActor)
-	AActor* AvatarActor;
+	TObjectPtr<AActor> AvatarActor;
 
 public:
 
@@ -1627,7 +1627,7 @@ protected:
 	/** Full list of all instance-per-execution gameplay abilities associated with this component */
 	UE_DEPRECATED(5.1, "This array will be made private. Use GetReplicatedInstancedAbilities, AddReplicatedInstancedAbility or RemoveReplicatedInstancedAbility instead.")
 	UPROPERTY()
-	TArray<UGameplayAbility*>	AllReplicatedInstancedAbilities;
+	TArray<TObjectPtr<UGameplayAbility>>	AllReplicatedInstancedAbilities;
 
 	/** Full list of all instance-per-execution gameplay abilities associated with this component */
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1869,7 +1869,7 @@ private:
 
 	/** List of attribute sets */
 	UPROPERTY(Replicated, ReplicatedUsing=OnRep_SpawnedAttributes)
-	TArray<UAttributeSet*>	SpawnedAttributes;
+	TArray<TObjectPtr<UAttributeSet>>	SpawnedAttributes;
 
 	UFUNCTION()
 	void OnRep_SpawnedAttributes(const TArray<UAttributeSet*>& PreviousSpawnedAttributes);

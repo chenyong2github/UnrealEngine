@@ -370,7 +370,7 @@ private:
 
 	// The list of pins. Non-transactional for the same reason as above. 
 	UPROPERTY(NonTransactional)
-	TArray<UOptimusNodePin *> Pins;
+	TArray<TObjectPtr<UOptimusNodePin> > Pins;
 
 	// The list of pins that should be shown as expanded in the graph view.
 	UPROPERTY(NonTransactional)

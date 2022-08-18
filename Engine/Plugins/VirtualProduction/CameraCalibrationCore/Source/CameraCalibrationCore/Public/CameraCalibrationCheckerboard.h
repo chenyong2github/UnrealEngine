@@ -41,27 +41,27 @@ public:
 
 	/** Root component, gives the Actor a transform */
 	UPROPERTY()
-	USceneComponent* Root;
+	TObjectPtr<USceneComponent> Root;
 
 	/** TopLeft calibration point */
 	UPROPERTY(EditAnywhere, Category = "Calibration")
-	UCalibrationPointComponent* TopLeft;
+	TObjectPtr<UCalibrationPointComponent> TopLeft;
 
 	/** TopRight calibration point */
 	UPROPERTY(EditAnywhere, Category = "Calibration")
-	UCalibrationPointComponent* TopRight;
+	TObjectPtr<UCalibrationPointComponent> TopRight;
 
 	/** BottomLeft calibration point */
 	UPROPERTY(EditAnywhere, Category = "Calibration")
-	UCalibrationPointComponent* BottomLeft;
+	TObjectPtr<UCalibrationPointComponent> BottomLeft;
 
 	/** BottomRight calibration point */
 	UPROPERTY(EditAnywhere, Category = "Calibration")
-	UCalibrationPointComponent* BottomRight;
+	TObjectPtr<UCalibrationPointComponent> BottomRight;
 
 	/** Center calibration point */
 	UPROPERTY(EditAnywhere, Category = "Calibration")
-	UCalibrationPointComponent* Center;
+	TObjectPtr<UCalibrationPointComponent> Center;
 
 
 	/** Number of rows. It is one of the parameters cv::findChessboardCorners needs */
@@ -82,13 +82,13 @@ public:
 
 	/** The static mesh that we are going to use for all the cubes */
 	UPROPERTY(EditAnywhere, Category = "Calibration")
-	UStaticMesh* CubeMesh;
+	TObjectPtr<UStaticMesh> CubeMesh;
 
 	/** The material that we are going to use for all the odd cubes */
 	UPROPERTY(EditAnywhere, Category = "Calibration")
-	UMaterialInterface* OddCubeMaterial;
+	TObjectPtr<UMaterialInterface> OddCubeMaterial;
 
 	/** The material that we are going to use for all the even cubes */
 	UPROPERTY(EditAnywhere, Category = "Calibration")
-	UMaterialInterface* EvenCubeMaterial;
+	TObjectPtr<UMaterialInterface> EvenCubeMaterial;
 };

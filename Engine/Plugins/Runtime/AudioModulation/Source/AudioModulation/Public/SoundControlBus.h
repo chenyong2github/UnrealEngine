@@ -41,10 +41,10 @@ public:
 	FString Address;
 
 	UPROPERTY(EditAnywhere, Category = Generators, BlueprintReadWrite)
-	TArray<USoundModulationGenerator*> Generators;
+	TArray<TObjectPtr<USoundModulationGenerator>> Generators;
 
 	UPROPERTY(EditAnywhere, Category = General, BlueprintReadOnly)
-	USoundModulationParameter* Parameter;
+	TObjectPtr<USoundModulationParameter> Parameter;
 
 	/* UObject Implementation */
 #if WITH_EDITOR

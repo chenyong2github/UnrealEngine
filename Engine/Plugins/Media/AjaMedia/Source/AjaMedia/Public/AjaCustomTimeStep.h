@@ -93,7 +93,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** Engine used to initialize the CustomTimeStep */
 	UPROPERTY(Transient)
-	UEngine* InitializedEngine;
+	TObjectPtr<UEngine> InitializedEngine;
 
 	/** When Auto synchronize is enabled, the time the last attempt was triggered. */
 	double LastAutoSynchronizeInEditorAppTime;

@@ -124,7 +124,7 @@ public:
 
 	// Component used for visualization.
 	UPROPERTY()
-	class UPhononProbeComponent* PhononProbeComponent;
+	TObjectPtr<class UPhononProbeComponent> PhononProbeComponent;
 
 	// Current filename where probe box data is stored. Used to maintain connection if volume is renamed.
 	UPROPERTY()

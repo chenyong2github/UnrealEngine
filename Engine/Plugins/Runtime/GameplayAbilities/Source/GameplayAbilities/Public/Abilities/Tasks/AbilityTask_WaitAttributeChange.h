@@ -62,7 +62,7 @@ class GAMEPLAYABILITIES_API UAbilityTask_WaitAttributeChange : public UAbilityTa
 protected:
 
 	UPROPERTY()
-	UAbilitySystemComponent* ExternalOwner;
+	TObjectPtr<UAbilitySystemComponent> ExternalOwner;
 
 	UAbilitySystemComponent* GetFocusedASC();
 

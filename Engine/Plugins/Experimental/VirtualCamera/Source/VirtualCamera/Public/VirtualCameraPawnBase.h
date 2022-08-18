@@ -30,7 +30,7 @@ public:
 
 	/** Cinematic camera used for view */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Cinematic Camera")
-	UVirtualCameraCineCameraComponent* CineCamera;
+	TObjectPtr<UVirtualCameraCineCameraComponent> CineCamera;
 
 	/** Movement Component to handle the motion input for the camera */
 	UVirtualCameraMovementComponent* MovementComponent;

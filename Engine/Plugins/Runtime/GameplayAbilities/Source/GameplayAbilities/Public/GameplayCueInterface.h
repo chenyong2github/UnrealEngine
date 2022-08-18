@@ -153,7 +153,7 @@ private:
 	int32 GetGameStateTime(const UWorld* World) const;
 
 	UPROPERTY(NotReplicated)
-	class UAbilitySystemComponent*	Owner = nullptr;
+	TObjectPtr<class UAbilitySystemComponent>	Owner = nullptr;
 	
 	friend struct FActiveGameplayCue;
 };
@@ -229,7 +229,7 @@ private:
 	TBitArray< TInlineAllocator<NumInlineTags> >			LocalBitMask;
 
 	UPROPERTY()
-	UAbilitySystemComponent* Owner = nullptr;
+	TObjectPtr<UAbilitySystemComponent> Owner = nullptr;
 
 	int32 LastSourceArrayReplicationKey = -1;
 

@@ -46,7 +46,7 @@ public:
 	 * image tracking.
 	 */
 	UPROPERTY(EditAnywhere, Category = "google arcore augmentedimages")
-	UGoogleARCoreAugmentedImageDatabase *AugmentedImageDatabase;
+	TObjectPtr<UGoogleARCoreAugmentedImageDatabase> AugmentedImageDatabase;
 
 	/** Configure which camera will be used to in the AR session. */
 	UPROPERTY(EditAnywhere, Category = "ARCore Settings")

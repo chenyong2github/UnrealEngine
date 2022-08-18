@@ -61,7 +61,7 @@ protected:
 	bool bEnableDrawing;
 
 	UPROPERTY(transient, duplicatetransient)
-	UZoneGraphRenderingComponent* RenderingComp;
+	TObjectPtr<UZoneGraphRenderingComponent> RenderingComp;
 
 	UPROPERTY()
 	FZoneGraphStorage ZoneStorage;

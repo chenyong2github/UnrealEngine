@@ -72,23 +72,23 @@ public:
 
 	/** Material for the front part */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetFrontMaterial, Category = "Text3D")
-	class UMaterialInterface* FrontMaterial;
+	TObjectPtr<class UMaterialInterface> FrontMaterial;
 
 	/** Material for the bevel part */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevelMaterial, Category = "Text3D", Meta = (EditCondition = "!bOutline"))
-	class UMaterialInterface* BevelMaterial;
+	TObjectPtr<class UMaterialInterface> BevelMaterial;
 
 	/** Material for the extruded part */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetExtrudeMaterial, Category = "Text3D")
-	class UMaterialInterface* ExtrudeMaterial;
+	TObjectPtr<class UMaterialInterface> ExtrudeMaterial;
 
 	/** Material for the back part */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBackMaterial, Category = "Text3D")
-	class UMaterialInterface* BackMaterial;
+	TObjectPtr<class UMaterialInterface> BackMaterial;
 
 	/** Text font */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetFont, Category = "Text3D")
-	class UFont* Font;
+	TObjectPtr<class UFont> Font;
 
 	/** Horizontal text alignment */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetHorizontalAlignment, Category = "Text3D")
@@ -275,7 +275,7 @@ protected:
 
 private:
 	UPROPERTY(Transient)
-	class USceneComponent* TextRoot;
+	TObjectPtr<class USceneComponent> TextRoot;
 
 	UPROPERTY(BlueprintAssignable, Category = Events, meta = (AllowPrivateAccess = true, DisplayName = "On Text Generated"))
 	FTextGenerated TextGeneratedDelegate;
@@ -294,10 +294,10 @@ private:
 	TArray<TSharedPtr<int32>> CachedCounterReferences;
 
 	UPROPERTY(Transient)
-	TArray<USceneComponent*> CharacterKernings;
+	TArray<TObjectPtr<USceneComponent>> CharacterKernings;
 
 	UPROPERTY(Transient)
-	TArray<UStaticMeshComponent*> CharacterMeshes;
+	TArray<TObjectPtr<UStaticMeshComponent>> CharacterMeshes;
 
 	/** Allocates, or shrinks existing components to match the input number. Returns false if nothing modified. */
 	bool AllocateGlyphs(int32 Num);

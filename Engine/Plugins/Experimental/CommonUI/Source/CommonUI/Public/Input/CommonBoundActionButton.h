@@ -28,7 +28,7 @@ protected:
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Text Block")
-	UCommonTextBlock* Text_ActionName;
+	TObjectPtr<UCommonTextBlock> Text_ActionName;
 
 private:
 	FUIActionBindingHandle BindingHandle;

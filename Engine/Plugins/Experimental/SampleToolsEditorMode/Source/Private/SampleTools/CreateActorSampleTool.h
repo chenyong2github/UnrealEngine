@@ -68,7 +68,7 @@ public:
 
 protected:
 	UPROPERTY()
-	UCreateActorSampleToolProperties* Properties;
+	TObjectPtr<UCreateActorSampleToolProperties> Properties;
 
 
 protected:

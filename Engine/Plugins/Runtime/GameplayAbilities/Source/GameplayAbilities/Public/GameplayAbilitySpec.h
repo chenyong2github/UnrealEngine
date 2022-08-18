@@ -236,7 +236,7 @@ struct GAMEPLAYABILITIES_API FGameplayAbilitySpec : public FFastArraySerializerI
 	
 	/** Ability of the spec (Always the CDO. This should be const but too many things modify it currently) */
 	UPROPERTY()
-	UGameplayAbility* Ability;
+	TObjectPtr<UGameplayAbility> Ability;
 	
 	/** Level of Ability */
 	UPROPERTY()
@@ -280,11 +280,11 @@ struct GAMEPLAYABILITIES_API FGameplayAbilitySpec : public FFastArraySerializerI
 
 	/** Non replicating instances of this ability. */
 	UPROPERTY(NotReplicated)
-	TArray<UGameplayAbility*> NonReplicatedInstances;
+	TArray<TObjectPtr<UGameplayAbility>> NonReplicatedInstances;
 
 	/** Replicated instances of this ability.. */
 	UPROPERTY()
-	TArray<UGameplayAbility*> ReplicatedInstances;
+	TArray<TObjectPtr<UGameplayAbility>> ReplicatedInstances;
 
 	/** Handle to GE that granted us (usually invalid) */
 	UPROPERTY(NotReplicated)
@@ -334,7 +334,7 @@ struct GAMEPLAYABILITIES_API FGameplayAbilitySpecContainer : public FFastArraySe
 
 	/** Component that owns this list */
 	UPROPERTY(NotReplicated)
-	UAbilitySystemComponent* Owner;
+	TObjectPtr<UAbilitySystemComponent> Owner;
 
 	/** Initializes Owner variable */
 	void RegisterWithOwner(UAbilitySystemComponent* Owner);

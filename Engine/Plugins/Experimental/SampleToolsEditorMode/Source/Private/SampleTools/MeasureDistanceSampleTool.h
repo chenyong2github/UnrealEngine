@@ -84,7 +84,7 @@ public:
 protected:
 	/** Properties of the tool are stored here */
 	UPROPERTY()
-	UMeasureDistanceProperties* Properties;
+	TObjectPtr<UMeasureDistanceProperties> Properties;
 
 
 protected:

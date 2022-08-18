@@ -32,7 +32,7 @@ protected:
 	void BindAttributes(AActor& Actor);
 protected:
 	UPROPERTY()
-	UAttributeSet* AttributeSet;
+	TObjectPtr<UAttributeSet> AttributeSet;
 
 	TArray<FName> AttributeNames;
 	// valid only as long as AttributeSet != nullptr

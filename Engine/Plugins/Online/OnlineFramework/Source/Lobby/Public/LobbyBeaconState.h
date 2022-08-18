@@ -56,7 +56,7 @@ public:
 
 	/** Actual player state actor */
 	UPROPERTY()
-	ALobbyBeaconPlayerState* LobbyPlayerState;
+	TObjectPtr<ALobbyBeaconPlayerState> LobbyPlayerState;
 
 	/** Player state removal */
 	void PreReplicatedRemove(const FLobbyPlayerStateInfoArray& InArraySerializer);
@@ -148,7 +148,7 @@ private:
 
 	/** Owning lobby beacon for this array of players */
 	UPROPERTY(NotReplicated)
-	ALobbyBeaconState* ParentState = nullptr;
+	TObjectPtr<ALobbyBeaconState> ParentState = nullptr;
 
 	friend ALobbyBeaconState;
 	friend FLobbyPlayerStateActorInfo;

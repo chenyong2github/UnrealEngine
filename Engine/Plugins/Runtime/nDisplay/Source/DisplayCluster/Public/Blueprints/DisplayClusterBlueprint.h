@@ -68,7 +68,7 @@ private:
 
 protected:
 	UPROPERTY()
-	UDisplayClusterConfigurationData* ConfigData;
+	TObjectPtr<UDisplayClusterConfigurationData> ConfigData;
 
 private:
 	friend class FDisplayClusterConfiguratorVersionUtils;

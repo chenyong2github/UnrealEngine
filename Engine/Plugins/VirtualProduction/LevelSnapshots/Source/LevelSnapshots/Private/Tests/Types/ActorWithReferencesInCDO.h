@@ -15,7 +15,7 @@ struct FExternalReferenceDummy
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UObject* Object;
+	TObjectPtr<UObject> Object;
 
 	friend uint32 GetTypeHash(const FExternalReferenceDummy& Struct)
 	{
@@ -65,8 +65,8 @@ public:
 	/******************** External references  ********************/
 	
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UStaticMesh* CubeMesh = nullptr;
+	TObjectPtr<UStaticMesh> CubeMesh = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	UStaticMesh* CylinderMesh = nullptr;
+	TObjectPtr<UStaticMesh> CylinderMesh = nullptr;
 };

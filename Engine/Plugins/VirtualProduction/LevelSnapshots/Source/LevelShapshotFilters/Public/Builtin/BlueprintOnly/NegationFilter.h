@@ -51,8 +51,8 @@ public:
 private:
 	
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	ULevelSnapshotFilter* Child;
+	TObjectPtr<ULevelSnapshotFilter> Child;
 
 	UPROPERTY(EditAnywhere, Instanced, Category = "Level Snapshots")
-	ULevelSnapshotFilter* InstancedChild;
+	TObjectPtr<ULevelSnapshotFilter> InstancedChild;
 };

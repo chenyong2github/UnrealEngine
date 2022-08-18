@@ -65,5 +65,5 @@ public:
 private:
 	/** A list of graphic objects that are part of the group. */
 	UPROPERTY()
-	UDMXMVRChildListNode* ChildListNode;
+	TObjectPtr<UDMXMVRChildListNode> ChildListNode;
 };

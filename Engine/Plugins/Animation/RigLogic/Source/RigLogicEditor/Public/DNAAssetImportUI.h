@@ -22,7 +22,7 @@ public:
 
 	/** Skeletal mesh to use for imported DNA asset. When importing DNA, leaving this as "None" will generate new skeletal mesh. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Mesh, meta = (ImportType = "DNAAsset"))
-		class USkeletalMesh* SkeletalMesh;
+		TObjectPtr<class USkeletalMesh> SkeletalMesh;
 
 	UFUNCTION(BlueprintCallable, Category = Miscellaneous)
 		void ResetToDefault();

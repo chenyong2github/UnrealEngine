@@ -65,10 +65,10 @@ protected:
 
 	/** Proxy mesh to render */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Gizmo", meta = (EditCondition = "bEnableGizmo"))
-	UStaticMesh* ProxyMesh;
+	TObjectPtr<UStaticMesh> ProxyMesh;
 
 	/** Proxy mesh component */
 	UPROPERTY(Transient)
-	UStaticMeshComponent* ProxyMeshComponent;
+	TObjectPtr<UStaticMeshComponent> ProxyMeshComponent;
 #endif
 };

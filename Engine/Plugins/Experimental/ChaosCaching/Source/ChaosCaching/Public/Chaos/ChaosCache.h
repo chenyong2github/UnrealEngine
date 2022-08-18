@@ -98,7 +98,7 @@ struct FCacheSpawnableTemplate
 	{}
 
 	UPROPERTY(VisibleAnywhere, Category = "Caching")
-	UObject* DuplicatedTemplate;
+	TObjectPtr<UObject> DuplicatedTemplate;
 
 	UPROPERTY(VisibleAnywhere, Category = "Caching")
 	FTransform InitialTransform;

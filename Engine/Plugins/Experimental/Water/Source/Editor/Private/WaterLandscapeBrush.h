@@ -105,7 +105,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
-	UBillboardComponent* ActorIcon;
+	TObjectPtr<UBillboardComponent> ActorIcon;
 #endif // WITH_EDITORONLY_DATA
 
 protected:
@@ -142,7 +142,7 @@ private:
 #endif // WITH_EDITOR
 
 	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, AdvancedDisplay, meta = (Category = "Debug"))
-	TMap<TWeakObjectPtr<AActor>, UObject*> Cache;
+	TMap<TWeakObjectPtr<AActor>, TObjectPtr<UObject>> Cache;
 
 	bool bRenderTargetsDirty = false;
 };

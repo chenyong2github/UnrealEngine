@@ -28,7 +28,7 @@ public:
 private:
 	// Current player camera manager the target is bind on.
 	UPROPERTY(Transient)
-	class UComposurePostProcessPass* Target;
+	TObjectPtr<class UComposurePostProcessPass> Target;
 	
 	friend class UComposurePostProcessPass;
 };

@@ -80,7 +80,7 @@ public:
 
 protected:
 	UPROPERTY()
-	UDrawCurveOnMeshSampleToolProperties* Settings;
+	TObjectPtr<UDrawCurveOnMeshSampleToolProperties> Settings;
 
 	UPROPERTY()
 	TArray<FVector> Positions;

@@ -24,11 +24,11 @@ struct CAMERACALIBRATIONCORE_API FDerivedDistortionData
 
 	/** Computed displacement map based on undistortion data */
 	UPROPERTY(Transient, VisibleAnywhere, Category = "Distortion")
-	UTextureRenderTarget2D* UndistortionDisplacementMap = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> UndistortionDisplacementMap = nullptr;
 
 	/** Computed displacement map based on distortion data */
 	UPROPERTY(Transient, VisibleAnywhere, Category = "Distortion")
-	UTextureRenderTarget2D* DistortionDisplacementMap = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> DistortionDisplacementMap = nullptr;
 
 	/** When dirty, derived data needs to be recomputed */
 	bool bIsDirty = true;

@@ -302,7 +302,7 @@ struct GAMEPLAYABILITIES_API FPredictionKey
 	/** On the server, what network connection this was serialized on. */
 	UE_DEPRECATED(5.0, "No longer used in favor of GetPredictiveConnectionKey, to avoid holding a direct object reference.")
 	UPROPERTY(NotReplicated)
-	UPackageMap* PredictiveConnection = nullptr;
+	TObjectPtr<UPackageMap> PredictiveConnection = nullptr;
 
 	/** The unique ID of this prediction key */
 	UPROPERTY()

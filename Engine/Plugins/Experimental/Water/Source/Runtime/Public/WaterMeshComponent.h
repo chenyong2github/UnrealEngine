@@ -72,7 +72,7 @@ public:
 	int32 ForceCollapseDensityLevel = -1;
 
 	UPROPERTY(EditAnywhere, Category = "Mesh|FarDistance")
-	UMaterialInterface* FarDistanceMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> FarDistanceMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "Mesh|FarDistance", meta = (ClampMin = "0"))
 	float FarDistanceMeshExtent = 0.0f;
@@ -100,7 +100,7 @@ private:
 
 	/** Unique list of materials used by this component */
 	UPROPERTY(Transient, NonPIEDuplicateTransient, TextExportTransient)
-	TSet<UMaterialInterface*> UsedMaterials;
+	TSet<TObjectPtr<UMaterialInterface>> UsedMaterials;
 
 	/** Dirty flag which will make sure the water mesh is updated properly */
 	bool bNeedsRebuild = true;

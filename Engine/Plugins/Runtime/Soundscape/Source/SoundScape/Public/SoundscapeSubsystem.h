@@ -33,7 +33,7 @@ struct SOUNDSCAPE_API FSoundscapePaletteCollectionLoaded
 
 	// Soundscape Palette Collection
 	UPROPERTY(EditAnywhere, Category = "Soundscape|Palette")
-	TSet<USoundscapePalette*> SoundscapePaletteCollection;
+	TSet<TObjectPtr<USoundscapePalette>> SoundscapePaletteCollection;
 };
 
 // Struct
@@ -104,7 +104,7 @@ protected:
 private:
 	// Color Point Hash Map
 	UPROPERTY()
-	TMap<FGameplayTag, USoundscapeColorPointHashCellDensity*> ColorPointHashMap;
+	TMap<FGameplayTag, TObjectPtr<USoundscapeColorPointHashCellDensity>> ColorPointHashMap;
 
 	// Cubic Root of the Max Value of int64 rounded down to the nearest million
 	static const int32 MaxGridWidth = 2000000;
@@ -169,11 +169,11 @@ private:
 
 	// Color Point Hash Maps
 	UPROPERTY()
-	USoundscapeColorPointHashMap* ColorPointHashMapLOD1;
+	TObjectPtr<USoundscapeColorPointHashMap> ColorPointHashMapLOD1;
 	UPROPERTY()
-	USoundscapeColorPointHashMap* ColorPointHashMapLOD2;
+	TObjectPtr<USoundscapeColorPointHashMap> ColorPointHashMapLOD2;
 	UPROPERTY()
-	USoundscapeColorPointHashMap* ColorPointHashMapLOD3;
+	TObjectPtr<USoundscapeColorPointHashMap> ColorPointHashMapLOD3;
 
 	// Hash Cell Width for LOD1
 	UPROPERTY()
@@ -235,7 +235,7 @@ public:
 
 private:
 	UPROPERTY()
-	TSet<USoundscapePalette*> LoadedPaletteCollectionSet;
+	TSet<TObjectPtr<USoundscapePalette>> LoadedPaletteCollectionSet;
 
 	UPROPERTY()
 	TMap<FName, FSoundscapePaletteCollection> UnloadedPaletteCollections;
@@ -243,7 +243,7 @@ private:
 	FGameplayTagContainer SubsystemState;
 
 	UPROPERTY()
-	TMap<USoundscapePalette*, UActiveSoundscapePalette*> ActivePalettes;
+	TMap<TObjectPtr<USoundscapePalette>, TObjectPtr<UActiveSoundscapePalette>> ActivePalettes;
 
 	bool LoadPaletteCollection(FName PaletteCollectionName);
 
@@ -290,7 +290,7 @@ public:
 private:
 	// Stored Hash Map Collections
 	UPROPERTY(Transient)
-	TArray<USoundscapeColorPointHashMapCollection*> ColorPointHashMapCollections;
+	TArray<TObjectPtr<USoundscapeColorPointHashMapCollection>> ColorPointHashMapCollections;
 
 	// Stored Color Point Collections
 	TMap<FName, FSoundscapeColorPointCollection> ColorPointCollections;
@@ -300,14 +300,14 @@ private:
 
 	// Color Point Hash Maps
 	UPROPERTY()
-	USoundscapeColorPointHashMap* ColorPointHashMapLOD1;
+	TObjectPtr<USoundscapeColorPointHashMap> ColorPointHashMapLOD1;
 	UPROPERTY()
-	USoundscapeColorPointHashMap* ColorPointHashMapLOD2;
+	TObjectPtr<USoundscapeColorPointHashMap> ColorPointHashMapLOD2;
 	UPROPERTY()
-	USoundscapeColorPointHashMap* ColorPointHashMapLOD3;
+	TObjectPtr<USoundscapeColorPointHashMap> ColorPointHashMapLOD3;
 
 	UPROPERTY()
-	USoundscapeColorPointHashMap* ActiveColorPointHashMap;
+	TObjectPtr<USoundscapeColorPointHashMap> ActiveColorPointHashMap;
 
 	// Hash Cell Width for LOD1
 	float LOD1ColorPointHashWidth = 500.0f;

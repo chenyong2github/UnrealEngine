@@ -1342,7 +1342,7 @@ protected:
 	TUniquePtr<UChaosVehicleSimulation> VehicleSimulationPT;	/* simulation code running on the physics thread async callback */
 
 	UPROPERTY(transient, Replicated)
-	AController* OverrideController;
+	TObjectPtr<AController> OverrideController;
 
 	const Chaos::FSimpleAerodynamicsConfig& GetAerodynamicsConfig()
 	{

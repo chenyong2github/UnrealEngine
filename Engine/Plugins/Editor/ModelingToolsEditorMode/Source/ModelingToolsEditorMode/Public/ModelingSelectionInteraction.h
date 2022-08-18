@@ -60,11 +60,11 @@ public:
 public:
 	// click-to-select behavior
 	UPROPERTY()
-	USingleClickInputBehavior* ClickBehavior;
+	TObjectPtr<USingleClickInputBehavior> ClickBehavior;
 
 	// set of all behaviors, will be passed up to UInputRouter
 	UPROPERTY()
-	UInputBehaviorSet* BehaviorSet;
+	TObjectPtr<UInputBehaviorSet> BehaviorSet;
 
 public:
 	//

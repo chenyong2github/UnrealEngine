@@ -655,7 +655,7 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 
 	// Our instanced wheels
 	UPROPERTY(transient, duplicatetransient, BlueprintReadOnly, Category = Vehicle)
-	TArray<class UChaosVehicleWheel*> Wheels;
+	TArray<TObjectPtr<class UChaosVehicleWheel>> Wheels;
 
 	/** Get current engine's rotation speed */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")

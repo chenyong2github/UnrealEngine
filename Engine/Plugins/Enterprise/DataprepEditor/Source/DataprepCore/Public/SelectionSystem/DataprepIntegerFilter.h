@@ -58,7 +58,7 @@ public:
 private:
 	// The source of int selected by the user
 	UPROPERTY()
-	UDataprepIntegerFetcher* IntFetcher;
+	TObjectPtr<UDataprepIntegerFetcher> IntFetcher;
 
 	// The matching criteria used when checking if a fetched value can pass the filter
 	UPROPERTY(EditAnywhere, Category = Filter)

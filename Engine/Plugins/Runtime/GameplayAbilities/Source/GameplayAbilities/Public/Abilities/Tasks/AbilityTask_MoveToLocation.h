@@ -69,10 +69,10 @@ protected:
 	float TimeMoveWillEnd;
 
 	UPROPERTY(Replicated)
-	UCurveFloat* LerpCurve;
+	TObjectPtr<UCurveFloat> LerpCurve;
 
 	UPROPERTY(Replicated)
-	UCurveVector* LerpCurveVector;
+	TObjectPtr<UCurveVector> LerpCurveVector;
 
 	
 };

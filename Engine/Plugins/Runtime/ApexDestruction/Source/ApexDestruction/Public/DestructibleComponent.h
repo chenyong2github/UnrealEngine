@@ -56,7 +56,7 @@ class APEXDESTRUCTION_API UDestructibleComponent : public USkinnedMeshComponent,
 #if WITH_EDITORONLY_DATA
 	/** Provide a blueprint interface for setting the destructible mesh */
 	UPROPERTY(Transient, BlueprintSetter=SetDestructibleMesh, BlueprintGetter=GetDestructibleMesh, Category = "Components|Destructible", meta = (DeprecatedProperty, DeprecatedMessage = "Destructible mesh is now deprected, use UGeometryCollection instead"))
-	class UDestructibleMesh* DestructibleMesh_DEPRECATED;
+	TObjectPtr<class UDestructibleMesh> DestructibleMesh_DEPRECATED;
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR

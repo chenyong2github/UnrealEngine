@@ -35,12 +35,12 @@ public:
 	virtual UTexture2D* GetErrorSprite() const override { return ErrorSprite; }
 private:
 	UPROPERTY()
-	UMaterialParameterCollection* LandscapeMaterialParameterCollection;
+	TObjectPtr<UMaterialParameterCollection> LandscapeMaterialParameterCollection;
 
 	UPROPERTY()
-	TMap<UClass*, UTexture2D*> WaterActorSprites;
+	TMap<TObjectPtr<UClass>, TObjectPtr<UTexture2D>> WaterActorSprites;
 	UPROPERTY()
-	UTexture2D* DefaultWaterActorSprite;
+	TObjectPtr<UTexture2D> DefaultWaterActorSprite;
 	UPROPERTY()
-	UTexture2D* ErrorSprite;
+	TObjectPtr<UTexture2D> ErrorSprite;
 };

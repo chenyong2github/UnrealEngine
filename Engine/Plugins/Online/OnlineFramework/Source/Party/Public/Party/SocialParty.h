@@ -370,7 +370,7 @@ private:
 	FUniqueNetIdRepl CurrentLeaderId;
 
 	UPROPERTY()
-	TMap<FUniqueNetIdRepl, UPartyMember*> PartyMembersById;
+	TMap<FUniqueNetIdRepl, TObjectPtr<UPartyMember>> PartyMembersById;
 
 	UPROPERTY(config)
 	bool bEnableAutomaticPartyRejoin = true;
@@ -431,7 +431,7 @@ private:
 	
 	/** Spectator beacon client instance while getting approval for spectator*/
 	UPROPERTY()
-	ASpectatorBeaconClient* SpectatorBeaconClient = nullptr;
+	TObjectPtr<ASpectatorBeaconClient> SpectatorBeaconClient = nullptr;
 
 	/**
 	 * True when we have limited functionality due to lacking an xmpp connection.

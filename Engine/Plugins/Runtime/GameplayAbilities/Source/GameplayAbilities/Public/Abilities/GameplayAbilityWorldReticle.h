@@ -90,9 +90,9 @@ protected:
 	
 	/** This is used in the process of determining whether we should replicate to a specific client. */
 	UPROPERTY(BlueprintReadOnly, Category = "Network")
-	APlayerController* PrimaryPC;
+	TObjectPtr<APlayerController> PrimaryPC;
 
 	/** In the future, we may want to grab things like sockets off of this. */
 	UPROPERTY(BlueprintReadOnly, Category = "Network")
-	AActor* TargetingActor;
+	TObjectPtr<AActor> TargetingActor;
 };

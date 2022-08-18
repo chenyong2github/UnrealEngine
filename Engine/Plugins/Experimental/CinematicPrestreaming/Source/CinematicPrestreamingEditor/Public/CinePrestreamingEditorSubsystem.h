@@ -66,7 +66,7 @@ private:
 	// UMoviePipelineQueue* OriginalQueue;
 
 	UPROPERTY(Transient)
-	UMoviePipelineExecutorBase* ActiveExecutor;
+	TObjectPtr<UMoviePipelineExecutorBase> ActiveExecutor;
 
 	TOptional<FCinePrestreamingGenerateAssetArgs> ActiveAssetArgs;
 };

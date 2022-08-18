@@ -65,7 +65,7 @@ class UChaosWheeledVehicleMovementComponent;
 			* (if empty, sphere will be added as wheel shape, check bDontCreateShape flag)
 			*/
 		UPROPERTY(EditDefaultsOnly, Category = Shape)
-		class UStaticMesh* CollisionMesh;
+		TObjectPtr<class UStaticMesh> CollisionMesh;
 
 		/** If left undefined then the bAffectedByEngine value is used, if defined then bAffectedByEngine is ignored and the differential setup on the vehicle defines which wheels get power from the engine */
 		UPROPERTY(EditAnywhere, Category = Wheel)
@@ -203,7 +203,7 @@ class UChaosWheeledVehicleMovementComponent;
 
 		/** The vehicle that owns us */
 		UPROPERTY(transient)
-		class UChaosWheeledVehicleMovementComponent* VehicleComponent;
+		TObjectPtr<class UChaosWheeledVehicleMovementComponent> VehicleComponent;
 
 		// Our index in the vehicle's (and setup's) wheels array
 		UPROPERTY(transient)

@@ -60,15 +60,15 @@ private:
 	int32 ActiveOverrideIndex = INDEX_NONE;
 
 	UPROPERTY(Transient, DuplicateTransient, SkipSerialization)
-	UPlayerCompOutputCameraModifier* ActiveCamModifier;
+	TObjectPtr<UPlayerCompOutputCameraModifier> ActiveCamModifier;
 
 	UPROPERTY(Transient)
-	UMaterialInterface* TonemapperBaseMat;
+	TObjectPtr<UMaterialInterface> TonemapperBaseMat;
 	UPROPERTY(Transient)
-	UMaterialInterface* PreTonemapBaseMat;
+	TObjectPtr<UMaterialInterface> PreTonemapBaseMat;
 
 	UPROPERTY(Transient, DuplicateTransient, SkipSerialization)
-	UMaterialInstanceDynamic* ViewportOverrideMID;
+	TObjectPtr<UMaterialInstanceDynamic> ViewportOverrideMID;
 
 	TWeakObjectPtr<APlayerController> TargetedPlayerController;
 };
@@ -90,6 +90,6 @@ public:
 
 private:
 	UPROPERTY(Transient)
-	UPlayerViewportCompositingOutput* Owner;
+	TObjectPtr<UPlayerViewportCompositingOutput> Owner;
 };
 

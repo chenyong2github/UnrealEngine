@@ -55,7 +55,7 @@ struct FRegisteredZoneGraphAnnotation
 	}
 
 	UPROPERTY()
-	UZoneGraphAnnotationComponent* AnnotationComponent = nullptr;
+	TObjectPtr<UZoneGraphAnnotationComponent> AnnotationComponent = nullptr;
 
 	FZoneGraphTagMask AnnotationTags = FZoneGraphTagMask::None;	// Combination of all registered Annotation tag masks.
 };
@@ -133,7 +133,7 @@ protected:
 
 	/** Lookup table from tag index to Annotation */
 	UPROPERTY(Transient)
-	TArray<UZoneGraphAnnotationComponent*> TagToAnnotationLookup;
+	TArray<TObjectPtr<UZoneGraphAnnotationComponent>> TagToAnnotationLookup;
 	
 	/** Combined tags for each ZoneGraphData. Each ZoneGraphData is indexed by it's data handle index, so there can be gaps in the array. */
 	FZoneGraphAnnotationTagContainer AnnotationTagContainer;

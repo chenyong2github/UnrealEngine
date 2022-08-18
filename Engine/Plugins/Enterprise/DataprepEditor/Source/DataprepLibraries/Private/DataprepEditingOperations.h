@@ -176,7 +176,7 @@ public:
 	void SetAsset(UObject* Asset);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ActorOperation)
-	UObject* SelectedAsset;
+	TObjectPtr<UObject> SelectedAsset;
 
 protected:
 	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;

@@ -86,11 +86,11 @@ public:
 
 	/** Subsystems can't have any Blueprint implementations, so we attach this class for any BP logic that we to provide. */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Virtual Production")
-	UVPScoutingSubsystemHelpersBase* VPSubsystemHelpers;
+	TObjectPtr<UVPScoutingSubsystemHelpersBase> VPSubsystemHelpers;
 
 	/** GestureManager that manage some user input in VR editor. */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Virtual Production")
-	UVPScoutingSubsystemGestureManagerBase* GestureManager;
+	TObjectPtr<UVPScoutingSubsystemGestureManagerBase> GestureManager;
 
 	/** bool to keep track of whether the settings menu panel in the main menu is open*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Main Menu")

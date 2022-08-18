@@ -174,7 +174,7 @@ protected:
 
 	/** The sequence to play back */
 	UPROPERTY(Transient)
-	ULevelSequence* ActiveLevelSequence;
+	TObjectPtr<ULevelSequence> ActiveLevelSequence;
 
 #if WITH_EDITORONLY_DATA
 	/** Weak reference to Sequencer associated with the active LevelSequence */

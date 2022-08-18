@@ -20,7 +20,7 @@ class MEDIAFRAMEWORKUTILITIES_API UMediaBundleTimeSynchronizationSource : public
 public:
 	/* Media bundle asset of this input*/
 	UPROPERTY(EditAnywhere, Category=Player)
-	UMediaBundle* MediaBundle;
+	TObjectPtr<UMediaBundle> MediaBundle;
 
 public:
 

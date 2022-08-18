@@ -611,7 +611,7 @@ struct STATETREEMODULE_API FStateTreeExternalDataDesc
 	
 	/** Class or struct of the external data. */
 	UPROPERTY();
-	const UStruct* Struct = nullptr;
+	TObjectPtr<const UStruct> Struct = nullptr;
 
 	/**
 	 * Name of the external data. Used only for bindable external data (enforced by the schema).

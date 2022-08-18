@@ -51,7 +51,7 @@ protected:
 	FTimerHandle CheckAttributeTimer;
 
 	UPROPERTY()
-	UAbilitySystemComponent* ExternalOwner;
+	TObjectPtr<UAbilitySystemComponent> ExternalOwner;
 
 	UAbilitySystemComponent* GetFocusedASC();
 

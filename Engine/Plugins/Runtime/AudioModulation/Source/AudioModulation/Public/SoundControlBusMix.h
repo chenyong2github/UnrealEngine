@@ -24,7 +24,7 @@ struct AUDIOMODULATION_API FSoundControlBusMixStage
 
 	/* Bus controlled by stage. */
 	UPROPERTY(EditAnywhere, Category = Stage, BlueprintReadWrite)
-	USoundControlBus* Bus;
+	TObjectPtr<USoundControlBus> Bus;
 
 	/* Value mix is set to. */
 	UPROPERTY(EditAnywhere, Category = Stage, BlueprintReadWrite)

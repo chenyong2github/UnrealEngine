@@ -25,7 +25,7 @@ public:
 	//UHierarchicalInstancedStaticMeshComponent* CausticParticlesGridHISMC;
 
 	UPROPERTY(BlueprintReadWrite, NonTransactional, meta = (Category = "Default"))
-	USceneComponent* DefaultSceneRoot;
+	TObjectPtr<USceneComponent> DefaultSceneRoot;
 
 
 	UFUNCTION(BlueprintNativeEvent, CallInEditor, BlueprintCallable, Category = "Tick")

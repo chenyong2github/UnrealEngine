@@ -190,7 +190,7 @@ protected:
 	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OCIOSceneViewExtension;
 
 	UPROPERTY(Transient, DuplicateTransient)
-	UTextureRenderTarget2D* CanvasReadbackTexture;
+	TObjectPtr<UTextureRenderTarget2D> CanvasReadbackTexture;
 
 	TSharedPtr<MoviePipeline::IMoviePipelineOutputMerger> PanoramicOutputBlender;
 	bool bHasWarnedSettings;

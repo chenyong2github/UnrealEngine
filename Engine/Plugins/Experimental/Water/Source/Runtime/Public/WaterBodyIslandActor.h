@@ -61,7 +61,7 @@ public:
 	TMap<FName, FWaterBodyWeightmapSettings> WaterWeightmapSettings;
 
 	UPROPERTY(Transient)
-	UBillboardComponent* ActorIcon;
+	TObjectPtr<UBillboardComponent> ActorIcon;
 #endif
 
 protected:
@@ -82,5 +82,5 @@ protected:
 	 * The spline data attached to this water type.
 	 */
 	UPROPERTY(VisibleAnywhere, Category = Water, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UWaterSplineComponent* SplineComp;
+	TObjectPtr<UWaterSplineComponent> SplineComp;
 };

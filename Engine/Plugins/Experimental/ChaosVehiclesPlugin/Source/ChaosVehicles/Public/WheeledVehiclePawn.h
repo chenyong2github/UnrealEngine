@@ -24,11 +24,11 @@ class CHAOSVEHICLES_API AWheeledVehiclePawn : public APawn
 private:
 	/**  The main skeletal mesh associated with this Vehicle */
 	UPROPERTY(Category = Vehicle, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class USkeletalMeshComponent* Mesh;
+	TObjectPtr<class USkeletalMeshComponent> Mesh;
 
 	/** vehicle simulation component */
 	UPROPERTY(Category = Vehicle, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class UChaosVehicleMovementComponent* VehicleMovementComponent;
+	TObjectPtr<class UChaosVehicleMovementComponent> VehicleMovementComponent;
 public:
 
 	/** Name of the MeshComponent. Use this name if you want to prevent creation of the component (with ObjectInitializer.DoNotCreateDefaultSubobject). */

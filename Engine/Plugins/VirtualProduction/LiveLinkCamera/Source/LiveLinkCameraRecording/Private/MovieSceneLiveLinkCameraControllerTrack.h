@@ -33,5 +33,5 @@ public:
 protected:
 	/** Array of movie scene sections managed by this track */
 	UPROPERTY()
-	TArray<UMovieSceneSection*> Sections;
+	TArray<TObjectPtr<UMovieSceneSection>> Sections;
 };

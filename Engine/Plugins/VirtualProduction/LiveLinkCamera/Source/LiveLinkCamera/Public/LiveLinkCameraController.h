@@ -150,7 +150,7 @@ protected:
 
 	UE_DEPRECATED(5.1, "This property has been deprecated. The LiveLink camera controller no longer evaluated distortion.")
 	UPROPERTY(Transient)
-	ULensDistortionModelHandlerBase* LensDistortionHandler_DEPRECATED = nullptr;
+	TObjectPtr<ULensDistortionModelHandlerBase> LensDistortionHandler_DEPRECATED = nullptr;
 
 	UE_DEPRECATED(5.1, "This property has been deprecated. The LiveLink camera controller no longer evaluated distortion.")
 	UPROPERTY(DuplicateTransient)

@@ -28,7 +28,7 @@ private:
 
 	// A representation of this volume for the audio thread
 	UPROPERTY()
-	UAudioGameplayVolumeComponent* AGVComponent = nullptr;
+	TObjectPtr<UAudioGameplayVolumeComponent> AGVComponent = nullptr;
 
 	// Whether this volume is currently enabled.  Disabled volumes will not have a volume proxy, 
 	// and therefore will not be considered for intersection checks.

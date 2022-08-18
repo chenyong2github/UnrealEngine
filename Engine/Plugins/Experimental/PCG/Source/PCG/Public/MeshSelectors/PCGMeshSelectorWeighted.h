@@ -30,7 +30,7 @@ struct PCG_API FPCGMeshSelectorWeightedEntry
 	bool bOverrideMaterials = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TArray<UMaterialInterface*> MaterialOverrides;
+	TArray<TObjectPtr<UMaterialInterface>> MaterialOverrides;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ClampMin = "0"))
 	int Weight = 1;

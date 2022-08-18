@@ -17,7 +17,7 @@ class WAVEFUNCTIONCOLLAPSE_API UWaveFunctionCollapseSubsystem : public UEditorSu
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WFCSettings")
-	UWaveFunctionCollapseModel* WFCModel;
+	TObjectPtr<UWaveFunctionCollapseModel> WFCModel;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WFCSettings")
 	FIntVector Resolution;

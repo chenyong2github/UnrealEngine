@@ -21,11 +21,11 @@ class AGameplayAbilityTargetActor_ActorPlacement : public AGameplayAbilityTarget
 
 	/** Actor we intend to place. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (ExposeOnSpawn = true), Category = Targeting)
-	UClass* PlacedActorClass;		//Using a special class for replication purposes. (Not implemented yet)
+	TObjectPtr<UClass> PlacedActorClass;		//Using a special class for replication purposes. (Not implemented yet)
 	
 	/** Override Material 0 on our placed actor's meshes with this material for visualization. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (ExposeOnSpawn = true), Category = Projectile)
-	UMaterialInterface *PlacedActorMaterial;
+	TObjectPtr<UMaterialInterface> PlacedActorMaterial;
 
 	/** Visualization for the intended location of the placed actor. */
 	TWeakObjectPtr<AGameplayAbilityWorldReticle_ActorVisualization> ActorVisualizationReticle;

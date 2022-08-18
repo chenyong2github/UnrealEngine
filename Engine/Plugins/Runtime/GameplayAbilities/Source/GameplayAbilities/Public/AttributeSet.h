@@ -157,7 +157,7 @@ private:
 	//FProperty*	Attribute;
 
 	UPROPERTY(Category = GameplayAttribute, VisibleAnywhere)
-	UStruct* AttributeOwner;
+	TObjectPtr<UStruct> AttributeOwner;
 };
 
 #if WITH_EDITORONLY_DATA

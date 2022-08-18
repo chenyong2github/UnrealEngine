@@ -39,8 +39,8 @@ protected:
 #endif // WITH_EDITOR
 
 	UPROPERTY(NonPIEDuplicateTransient)
-	UStaticMeshComponent* LakeMeshComp;
+	TObjectPtr<UStaticMeshComponent> LakeMeshComp;
 
 	UPROPERTY(NonPIEDuplicateTransient)
-	ULakeCollisionComponent* LakeCollision;
+	TObjectPtr<ULakeCollisionComponent> LakeCollision;
 };

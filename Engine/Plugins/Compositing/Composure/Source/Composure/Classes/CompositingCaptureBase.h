@@ -24,7 +24,7 @@ class COMPOSURE_API ACompositingCaptureBase : public ACompositingElement
 public:
 	/** Component used to generate the scene capture for this CG Layer */
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "SceneCapture")
-	USceneCaptureComponent2D* SceneCaptureComponent2D = nullptr;
+	TObjectPtr<USceneCaptureComponent2D> SceneCaptureComponent2D = nullptr;
 
 protected:
 	/** Whether to apply distortion as a post-process effect on this CG Layer */
@@ -45,7 +45,7 @@ protected:
 
 	/** Cached distortion MID produced by the Lens Distortion Handler, used to clean up the post-process materials in the case that the the MID changes */
 	UPROPERTY()
-	UMaterialInstanceDynamic* LastDistortionMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> LastDistortionMID = nullptr;
 
 #if WITH_EDITORONLY_DATA
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

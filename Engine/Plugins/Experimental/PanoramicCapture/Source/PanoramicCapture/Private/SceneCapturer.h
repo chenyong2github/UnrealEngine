@@ -29,7 +29,7 @@ struct FPostProcessVolumeData
 	GENERATED_BODY()
 	
 	UPROPERTY()
-	APostProcessVolume* Object;
+	TObjectPtr<APostProcessVolume> Object;
 
 	bool WasEnabled;
 };
@@ -176,7 +176,7 @@ public:
 	
 	// CaptureSceneComponent will be used as parent of capturecomponents to provide world location and rotation.
 	UPROPERTY(Transient)
-	USceneComponent* CaptureSceneComponent;
+	TObjectPtr<USceneComponent> CaptureSceneComponent;
 
 	bool GetComponentSteps( int32 Step, int32& CurrentHorizontalStep, int32& CurrentVerticalStep )
 	{

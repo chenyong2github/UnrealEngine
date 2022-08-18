@@ -39,12 +39,12 @@ protected:
 protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movie Pipeline")
-	UMoviePipelineQueue* QueuePreset;
+	TObjectPtr<UMoviePipelineQueue> QueuePreset;
 
 protected:
 	UPROPERTY(Transient)
-	UMoviePipeline* ActiveMoviePipeline;
+	TObjectPtr<UMoviePipeline> ActiveMoviePipeline;
 
 	UPROPERTY(Transient)
-	UMoviePipelineQueue* ActiveQueue;
+	TObjectPtr<UMoviePipelineQueue> ActiveQueue;
 };

@@ -22,7 +22,7 @@ class VPUTILITIES_API AVPGameMode : public AGameMode
 
 private:
 	UPROPERTY(transient, BlueprintGetter = "GetRootActor", Category = "Virtual Production")
-	AVPRootActor* RootActor;
+	TObjectPtr<AVPRootActor> RootActor;
 
 public:
 	UFUNCTION(BlueprintGetter, Category = "Virtual Production")

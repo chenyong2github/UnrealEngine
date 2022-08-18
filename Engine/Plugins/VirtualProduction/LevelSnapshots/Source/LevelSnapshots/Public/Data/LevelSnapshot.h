@@ -138,10 +138,10 @@ private:
 #endif
 	/** The root world, equivalent to the persistent world, we will be adding temporary actors to */
 	UPROPERTY(Transient)
-	UWorld* RootSnapshotWorld;
+	TObjectPtr<UWorld> RootSnapshotWorld;
 	/** Sublevels of RootSnapshotWorld */
 	UPROPERTY(Transient)
-	TArray<UWorld*> SnapshotSublevels;
+	TArray<TObjectPtr<UWorld>> SnapshotSublevels;
 	
 	/** The saved snapshot data */
 	UPROPERTY()

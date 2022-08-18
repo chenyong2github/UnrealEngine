@@ -22,7 +22,7 @@ struct ZONEGRAPH_API FZoneGraphBuilderRegisteredComponent
 	FZoneGraphBuilderRegisteredComponent(UZoneShapeComponent* InComponent) : Component(InComponent) {}
 
 	UPROPERTY()
-	UZoneShapeComponent* Component = nullptr;
+	TObjectPtr<UZoneShapeComponent> Component = nullptr;
 
 	UPROPERTY()
 	uint32 ShapeHash = 0;
@@ -55,7 +55,7 @@ struct ZONEGRAPH_API FZoneGraphBuildData
 	}
 
 	UPROPERTY()
-	TMap<const UZoneShapeComponent*, FZoneShapeComponentBuildData> ZoneShapeComponentBuildData;
+	TMap<TObjectPtr<const UZoneShapeComponent>, FZoneShapeComponentBuildData> ZoneShapeComponentBuildData;
 };
 
 USTRUCT()
@@ -101,7 +101,7 @@ protected:
 	TArray<int32> ShapeComponentsFreeList;
 
 	UPROPERTY(Transient)
-	TMap<UZoneShapeComponent*, int32> ShapeComponentToIndex;
+	TMap<TObjectPtr<UZoneShapeComponent>, int32> ShapeComponentToIndex;
 
 	UPROPERTY(Transient)
 	FZoneGraphBuildData BuildData;

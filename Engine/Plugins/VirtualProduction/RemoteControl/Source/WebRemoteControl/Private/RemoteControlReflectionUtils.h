@@ -48,7 +48,7 @@ private:
 private:
 	/** Map of cached structs. */
 	UPROPERTY(Transient)
-	TMap<FName, UScriptStruct*> CachedStructs;
+	TMap<FName, TObjectPtr<UScriptStruct>> CachedStructs;
 };
 
 namespace UE

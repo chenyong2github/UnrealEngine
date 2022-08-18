@@ -51,7 +51,7 @@ public:
 	
 	// FIXME: Move to private and add accessor function.
 	UPROPERTY()
-	UOptimusNode *ModelNode = nullptr;
+	TObjectPtr<UOptimusNode> ModelNode = nullptr;
 
 protected:
 	friend class UOptimusEditorGraph;

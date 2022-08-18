@@ -65,7 +65,7 @@ struct FDMXFixturePatchChannel
 
 	/** The outer library of the channel */
 	UPROPERTY()
-	UDMXLibrary* DMXLibrary;
+	TObjectPtr<UDMXLibrary> DMXLibrary;
 
 	/** Points to the Fixture Patch */
 	UPROPERTY()

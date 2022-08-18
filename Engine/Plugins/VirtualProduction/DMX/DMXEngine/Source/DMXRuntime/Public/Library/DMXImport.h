@@ -113,26 +113,26 @@ public:
 
 public:
 	UPROPERTY(VisibleAnywhere, Category = "Fixture Type", meta = (EditInline))
-	UDMXImportFixtureType* FixtureType;
+	TObjectPtr<UDMXImportFixtureType> FixtureType;
 
     UPROPERTY(VisibleAnywhere, Category = "Attribute Definitions", meta = (EditInline))
-    UDMXImportAttributeDefinitions* AttributeDefinitions;
+    TObjectPtr<UDMXImportAttributeDefinitions> AttributeDefinitions;
 
     UPROPERTY(VisibleAnywhere, Category = "Wheels", meta = (EditInline))
-    UDMXImportWheels* Wheels;
+    TObjectPtr<UDMXImportWheels> Wheels;
 
     UPROPERTY(VisibleAnywhere, Category = "Physical Descriptions", meta = (EditInline))
-    UDMXImportPhysicalDescriptions* PhysicalDescriptions;
+    TObjectPtr<UDMXImportPhysicalDescriptions> PhysicalDescriptions;
 
     UPROPERTY(VisibleAnywhere, Category = "Models", meta = (EditInline))
-    UDMXImportModels* Models;
+    TObjectPtr<UDMXImportModels> Models;
 
     UPROPERTY(VisibleAnywhere, Category = "Geometries", meta = (EditInline))
-    UDMXImportGeometries* Geometries;
+    TObjectPtr<UDMXImportGeometries> Geometries;
 
     UPROPERTY(VisibleAnywhere, Category = "DMXModes", meta = (EditInline))
-    UDMXImportDMXModes* DMXModes;
+    TObjectPtr<UDMXImportDMXModes> DMXModes;
 
     UPROPERTY(VisibleAnywhere, Category = "Protocols", meta = (EditInline))
-    UDMXImportProtocols* Protocols;
+    TObjectPtr<UDMXImportProtocols> Protocols;
 };

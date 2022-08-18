@@ -25,5 +25,5 @@ public:
 protected:
 
 	UPROPERTY(Category=ImagePlate, VisibleAnywhere, BlueprintReadOnly, meta=(ExposeFunctionCategories="Mesh,Rendering,Physics,Components|StaticMesh"))
-	UImagePlateComponent* ImagePlate;
+	TObjectPtr<UImagePlateComponent> ImagePlate;
 };

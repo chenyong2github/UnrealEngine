@@ -26,7 +26,7 @@ struct FMediaFrameworkCaptureCurrentViewportOutputInfo
 	FMediaFrameworkCaptureCurrentViewportOutputInfo();
 
 	UPROPERTY(EditAnywhere, Category="MediaViewportCapture")
-	UMediaOutput* MediaOutput;
+	TObjectPtr<UMediaOutput> MediaOutput;
 
 	UPROPERTY(EditAnywhere, Category="MediaViewportCapture")
 	FMediaCaptureOptions CaptureOptions;
@@ -49,7 +49,7 @@ struct FMediaFrameworkCaptureCameraViewportCameraOutputInfo
 	TArray<TLazyObjectPtr<AActor>> LockedActors;
 
 	UPROPERTY(EditAnywhere, Category="MediaViewportCapture")
-	UMediaOutput* MediaOutput;
+	TObjectPtr<UMediaOutput> MediaOutput;
 
 	UPROPERTY(EditAnywhere, Category="MediaViewportCapture")
 	FMediaCaptureOptions CaptureOptions;
@@ -60,7 +60,7 @@ struct FMediaFrameworkCaptureCameraViewportCameraOutputInfo
 private:
 	//DEPRECATED 4.21 The type of LockedCameraActors has changed and will be removed from the code base in a future release. Use LockedActors.
 	UPROPERTY()
-	TArray<AActor*> LockedCameraActors_DEPRECATED;
+	TArray<TObjectPtr<AActor>> LockedCameraActors_DEPRECATED;
 	friend UMediaFrameworkWorldSettingsAssetUserData;
 };
 
@@ -76,10 +76,10 @@ struct FMediaFrameworkCaptureRenderTargetCameraOutputInfo
 	FMediaFrameworkCaptureRenderTargetCameraOutputInfo();
 
 	UPROPERTY(EditAnywhere, Category="MediaRenderTargetCapture")
-	UTextureRenderTarget2D* RenderTarget;
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
 
 	UPROPERTY(EditAnywhere, Category="MediaRenderTargetCapture")
-	UMediaOutput* MediaOutput;
+	TObjectPtr<UMediaOutput> MediaOutput;
 
 	UPROPERTY(EditAnywhere, Category="MediaRenderTargetCapture")
 	FMediaCaptureOptions CaptureOptions;

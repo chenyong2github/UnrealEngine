@@ -24,11 +24,11 @@ protected:
 	
 	/** UObject ref resolved from VirtualTexture weak ref. */
 	UPROPERTY(Transient)
-	ARuntimeVirtualTextureVolume* VirtualTextureRef;
+	TObjectPtr<ARuntimeVirtualTextureVolume> VirtualTextureRef;
 
 	/** Placeholder for details customization image. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = Heightfield)
-	UObject* VirtualTextureThumbnail = nullptr;
+	TObjectPtr<UObject> VirtualTextureThumbnail = nullptr;
 
 	/** Placeholder for details customization button. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = Heightfield)
@@ -36,7 +36,7 @@ protected:
 
 	/** Texture object containing minimum and maximum height values. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = HeightfieldBuild, meta = (DisplayName = "MinMax Texture"))
-	UHeightfieldMinMaxTexture* MinMaxTexture = nullptr;
+	TObjectPtr<UHeightfieldMinMaxTexture> MinMaxTexture = nullptr;
 
 	/** Number of levels to build in the MinMax Texture. A default value of 0 will build all levels from the heightfield. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = HeightfieldBuild, meta = (DisplayName = "MinMax Build Levels", UIMin = "0"))
@@ -48,7 +48,7 @@ protected:
 
 	/** The material to apply. */
 	UPROPERTY(EditAnywhere, Category = Rendering)
-	UMaterialInterface* Material = nullptr;
+	TObjectPtr<UMaterialInterface> Material = nullptr;
 
 	/** Target screen size for a LOD 0 tile. A smaller value uniformly increases the geometry resolution on screen. */
 	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "LOD 0 Screen Size", ClampMin = "0.1", UIMin = "0.1"))

@@ -68,7 +68,7 @@ protected:
 	bool bRestrictSpeedToExpected = false;
 
 	UPROPERTY(Replicated)
-	UCurveVector* PathOffsetCurve = nullptr;
+	TObjectPtr<UCurveVector> PathOffsetCurve = nullptr;
 
 	EMovementMode PreviousMovementMode = EMovementMode::MOVE_None;
 	uint8 PreviousCustomMovementMode = 0;

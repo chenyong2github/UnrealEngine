@@ -25,7 +25,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 public:
 	/** CineCameraComponent with which the desired distortion handler is associated */
 	UPROPERTY(BlueprintReadWrite, Category = "Distortion", Transient)
-	UCineCameraComponent* TargetCameraComponent = nullptr;
+	TObjectPtr<UCineCameraComponent> TargetCameraComponent = nullptr;
 
 	/** UObject that produces the distortion state for the desired distortion handler */
 	UPROPERTY(BlueprintReadWrite, Category = "Distortion")

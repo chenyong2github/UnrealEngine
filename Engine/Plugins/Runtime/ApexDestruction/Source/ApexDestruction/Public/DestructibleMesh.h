@@ -421,11 +421,11 @@ class UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be sup
 #if WITH_EDITORONLY_DATA
 	/** Information used to author an NxDestructibleAsset*/
 	UPROPERTY(instanced)
-	class UDestructibleFractureSettings* FractureSettings;
+	TObjectPtr<class UDestructibleFractureSettings> FractureSettings;
 	
 	/** Static mesh this destructible mesh is created from. Is nullptr if not created from a static mesh */
 	UPROPERTY()
-	UStaticMesh* SourceStaticMesh;
+	TObjectPtr<UStaticMesh> SourceStaticMesh;
 	
 	/** Timestamp of the source static meshes last import at the time this destruction mesh has been generated. */
 	UPROPERTY()
@@ -433,7 +433,7 @@ class UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be sup
 
 	/** Array of static meshes to build the fracture chunks from */
 	UPROPERTY(Transient)
-	TArray<UStaticMesh*> FractureChunkMeshes;
+	TArray<TObjectPtr<UStaticMesh>> FractureChunkMeshes;
 #endif // WITH_EDITORONLY_DATA
 
 public:

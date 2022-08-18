@@ -41,10 +41,10 @@ protected:
 	virtual void PhysicsVolumeChanged(class APhysicsVolume* NewVolume);	
 
 	UPROPERTY()
-	USceneComponent* UpdatedComponent = nullptr;
+	TObjectPtr<USceneComponent> UpdatedComponent = nullptr;
 
 	UPROPERTY()
-	UPrimitiveComponent* UpdatedPrimitive = nullptr;
+	TObjectPtr<UPrimitiveComponent> UpdatedPrimitive = nullptr;
 
 private:
 

@@ -202,7 +202,7 @@ private:
 	TFunction<void(FNetworkPredictionProxy* const, FNetworkPredictionID NewID, EConfigAction Action)>	ConfigFunc;
 
 	UPROPERTY()
-	UNetworkPredictionWorldManager* WorldManager = nullptr;
+	TObjectPtr<UNetworkPredictionWorldManager> WorldManager = nullptr;
 };
 
 template<>

@@ -716,7 +716,7 @@ private:
 
 	/** The dynamic material instance of the material set by the single material style, if specified. */
 	UPROPERTY(Transient)
-	UMaterialInstanceDynamic* SingleMaterialStyleMID;
+	TObjectPtr<UMaterialInstanceDynamic> SingleMaterialStyleMID;
 
 	/** Internally managed and applied style to use when not selected */
 	UPROPERTY()
@@ -758,5 +758,5 @@ protected:
 	 * Visualize the default click action while hovered
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = Input, meta = (BindWidget, OptionalWidget = true, AllowPrivateAccess = true))
-	UCommonActionWidget* InputActionWidget;
+	TObjectPtr<UCommonActionWidget> InputActionWidget;
 };

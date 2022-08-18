@@ -38,7 +38,7 @@ protected:
 	void CreateOceanBodySetupIfNeeded();
 private:
 	UPROPERTY(NonPIEDuplicateTransient)
-	class UBodySetup* CachedBodySetup;
+	TObjectPtr<class UBodySetup> CachedBodySetup;
 
 	FBox BoundingBox;
 };

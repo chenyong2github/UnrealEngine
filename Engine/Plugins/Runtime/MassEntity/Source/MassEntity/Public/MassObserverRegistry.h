@@ -42,7 +42,7 @@ struct FMassEntityObserverClassesMap
 
 private:
 	UPROPERTY()
-	TMap<const UScriptStruct*, FMassProcessorClassCollection> Container;
+	TMap<TObjectPtr<const UScriptStruct>, FMassProcessorClassCollection> Container;
 };
 
 UCLASS()

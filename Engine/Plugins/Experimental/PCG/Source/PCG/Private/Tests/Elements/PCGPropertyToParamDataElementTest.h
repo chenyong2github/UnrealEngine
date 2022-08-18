@@ -71,7 +71,7 @@ public:
 	TSubclassOf<AActor> ClassProperty = AActor::StaticClass();
 
 	UPROPERTY()
-	UObject* ObjectProperty = nullptr;
+	TObjectPtr<UObject> ObjectProperty = nullptr;
 
 	UPROPERTY()
 	FVector2D Vector2Property;

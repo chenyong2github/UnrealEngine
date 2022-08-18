@@ -153,7 +153,7 @@ private:
 	FOnlinePartyMemberConstPtr OssPartyMember;
 
 	UPROPERTY()
-	USocialUser* SocialUser = nullptr;
+	TObjectPtr<USocialUser> SocialUser = nullptr;
 
 	bool bHasReceivedInitialData = false;
 	mutable FOnPartyMemberStateChanged OnMemberConnectionStatusChangedEvent;

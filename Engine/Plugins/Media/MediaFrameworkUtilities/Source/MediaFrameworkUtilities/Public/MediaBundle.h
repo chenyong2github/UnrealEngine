@@ -82,7 +82,7 @@ public:
 
 	/* MediaBundle internal MediaSource */
 	UPROPERTY(EditAnywhere, Instanced, NoClear, Category="MediaBundle")
-	UMediaSource* MediaSource;
+	TObjectPtr<UMediaSource> MediaSource;
 	
 	/** Controls MediaPlayer looping option */
 	UPROPERTY(EditAnywhere, Category="MediaBundle")
@@ -101,15 +101,15 @@ public:
 protected:
 	/* MediaBundle default MediaPlayer */
 	UPROPERTY(Instanced)
-	UMediaPlayer* MediaPlayer;
+	TObjectPtr<UMediaPlayer> MediaPlayer;
 
 	/* MediaBundle default MediaTexture */
 	UPROPERTY(Instanced)
-	UMediaTexture* MediaTexture;
+	TObjectPtr<UMediaTexture> MediaTexture;
 
 	/* MediaBundle default Material */
 	UPROPERTY(Instanced)
-	UMaterialInterface* Material;
+	TObjectPtr<UMaterialInterface> Material;
 
 	/* Lens parameters of the source */
 	UPROPERTY(EditAnywhere, Category = "LensParameters")
@@ -125,7 +125,7 @@ protected:
 
 	/* Destination of lens distortion result */
 	UPROPERTY(Instanced)
-	UTextureRenderTarget2D* LensDisplacementMap;
+	TObjectPtr<UTextureRenderTarget2D> LensDisplacementMap;
 
 private:
 	/* Internal reference counter of active media player */
@@ -135,11 +135,11 @@ private:
 #if WITH_EDITORONLY_DATA
 	/* Default Material from the plugin*/
 	UPROPERTY(transient)
-	UMaterial* DefaultMaterial;
+	TObjectPtr<UMaterial> DefaultMaterial;
 
 	/* Default Texture from the plugin*/
 	UPROPERTY(transient)
-	UTexture* DefaultFailedTexture;
+	TObjectPtr<UTexture> DefaultFailedTexture;
 
 	/* Default Actor Class from the plugin*/
 	UPROPERTY(transient)

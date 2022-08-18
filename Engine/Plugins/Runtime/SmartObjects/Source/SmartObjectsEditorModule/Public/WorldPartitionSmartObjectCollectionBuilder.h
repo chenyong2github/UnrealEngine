@@ -24,7 +24,7 @@ protected:
 	virtual bool PostRun(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess) override;
 
 	UPROPERTY(Transient)
-	ASmartObjectCollection* MainCollection;
+	TObjectPtr<ASmartObjectCollection> MainCollection;
 
 	uint32 NumSmartObjectsBefore = 0;
 	uint32 NumSmartObjectsTotal = 0;

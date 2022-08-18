@@ -155,7 +155,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 private:
 	UPROPERTY()
-	UBillboardComponent* SpriteComponent;
+	TObjectPtr<UBillboardComponent> SpriteComponent;
 #endif // WITH_EDITORONLY_DATA
  };
 

@@ -55,7 +55,7 @@ protected:
 	TSharedPtr<FMassEntityManager> EntityManager;
 
 	UPROPERTY()
-	UMassProcessingPhaseManager* PhaseManager;
+	TObjectPtr<UMassProcessingPhaseManager> PhaseManager;
 
 	inline static FOnSimulationStarted OnSimulationStarted={};
 

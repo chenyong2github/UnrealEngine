@@ -29,5 +29,5 @@ public:
 
 public:
 	UPROPERTY(VisibleAnywhere, Category = "Mass", NoClear, EditFixedSize, meta = (EditInline))
-	TMap<FName, UMassModuleSettings*> ModuleSettings;
+	TMap<FName, TObjectPtr<UMassModuleSettings>> ModuleSettings;
 };

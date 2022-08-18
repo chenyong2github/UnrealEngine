@@ -36,6 +36,6 @@ struct STATETREEMODULE_API FStateTreeAnyEnum
 
 	/** The enum class associated with this enum. */
 	UPROPERTY(EditAnywhere, Category = Enum)
-	UEnum* Enum = nullptr;
+	TObjectPtr<UEnum> Enum = nullptr;
 };
 

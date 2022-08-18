@@ -42,7 +42,7 @@ public:
 
 	/** The Static Mesh reference to use for output remapping when the Data Source is set to Static Mesh */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NDisplay OutputRemap", meta = (EditCondition = "DataSource == EDisplayClusterConfigurationFramePostProcess_OutputRemapSource::StaticMesh && bEnable"))
-	class UStaticMesh* StaticMesh = nullptr;
+	TObjectPtr<class UStaticMesh> StaticMesh = nullptr;
 
 	/** The MeshComponent reference (ProceduralMeshComponent or StaticMeshComponent) to use for output remapping when the Data Source is set to Mesh Component */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NDisplay OutputRemap", meta = (EditCondition = "DataSource == EDisplayClusterConfigurationFramePostProcess_OutputRemapSource::MeshComponent && bEnable"))

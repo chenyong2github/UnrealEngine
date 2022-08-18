@@ -181,7 +181,7 @@ struct STATETREEMODULE_API FStateTreeBindableStructDesc
 
 	/** The type of the struct or class. */
 	UPROPERTY()
-	const UStruct* Struct = nullptr;
+	TObjectPtr<const UStruct> Struct = nullptr;
 
 	/** Name of the container (cosmetic). */
 	UPROPERTY()

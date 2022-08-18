@@ -198,5 +198,5 @@ class HAIRSTRANDSCORE_API UGroomBindingAssetList : public UObject
 	GENERATED_BODY()
 public:
 	UPROPERTY(EditAnywhere, Transient, EditFixedSize, Category = "Bindings")
-	TArray<UGroomBindingAsset*> Bindings;
+	TArray<TObjectPtr<UGroomBindingAsset>> Bindings;
 };

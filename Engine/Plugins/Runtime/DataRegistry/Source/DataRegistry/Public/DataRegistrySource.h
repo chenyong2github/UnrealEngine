@@ -92,7 +92,7 @@ protected:
 
 	/** What data source we were created from, if this is a transient source */
 	UPROPERTY()
-	UDataRegistrySource* ParentSource = nullptr;
+	TObjectPtr<UDataRegistrySource> ParentSource = nullptr;
 };
 
 
@@ -159,7 +159,7 @@ protected:
 
 	/** Map from source identifier such as package name to registered child */
 	UPROPERTY(Transient)
-	TMap<FName, UDataRegistrySource*> RuntimeChildren;
+	TMap<FName, TObjectPtr<UDataRegistrySource>> RuntimeChildren;
 
 	/** List of desired source ids, in order */
 	TArray<FName> RuntimeNames;

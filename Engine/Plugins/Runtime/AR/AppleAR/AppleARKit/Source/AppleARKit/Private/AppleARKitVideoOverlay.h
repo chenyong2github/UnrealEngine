@@ -32,19 +32,19 @@ class UARKitCameraOverlayMaterialLoader : public UObject
 	
 public:
 	UPROPERTY()
-	UMaterialInterface* DefaultCameraOverlayMaterial;
+	TObjectPtr<UMaterialInterface> DefaultCameraOverlayMaterial;
 	
 	UPROPERTY()
-	UMaterialInterface* DepthOcclusionOverlayMaterial;
+	TObjectPtr<UMaterialInterface> DepthOcclusionOverlayMaterial;
 	
 	UPROPERTY()
-	UMaterialInterface* MatteOcclusionOverlayMaterial;
+	TObjectPtr<UMaterialInterface> MatteOcclusionOverlayMaterial;
 	
 	UPROPERTY()
-	UMaterialInterface* SceneDepthOcclusionMaterial;
+	TObjectPtr<UMaterialInterface> SceneDepthOcclusionMaterial;
 	
 	UPROPERTY()
-	UMaterialInterface* SceneDepthColorationMaterial;
+	TObjectPtr<UMaterialInterface> SceneDepthColorationMaterial;
 	
 	UARKitCameraOverlayMaterialLoader()
 	{

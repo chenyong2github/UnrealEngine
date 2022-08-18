@@ -288,11 +288,11 @@ protected:
 
 	/** Texture used to store temporary undistortion displacement map when using map blending */
 	UPROPERTY(Transient)
-	TArray<UTextureRenderTarget2D*> UndistortionDisplacementMapHolders;
+	TArray<TObjectPtr<UTextureRenderTarget2D>> UndistortionDisplacementMapHolders;
 
 	/** Texture used to store temporary distortion displacement map when using map blending */
 	UPROPERTY(Transient)
-	TArray<UTextureRenderTarget2D*> DistortionDisplacementMapHolders;
+	TArray<TObjectPtr<UTextureRenderTarget2D>> DistortionDisplacementMapHolders;
 
 	/** The number of intermediate displacement maps needed to do map blending */
 	static constexpr int32 DisplacementMapHolderCount = 4;
@@ -322,7 +322,7 @@ public:
 
 	/** LensFile asset to use if DefaultLensFile is not desired */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens File", Meta = (EditCondition = "!bUseDefaultLensFile"))
-	ULensFile* LensFile = nullptr;
+	TObjectPtr<ULensFile> LensFile = nullptr;
 };
 
 /** Structure that caches the inputs (and other useful bits) used when evaluating the Lens File */

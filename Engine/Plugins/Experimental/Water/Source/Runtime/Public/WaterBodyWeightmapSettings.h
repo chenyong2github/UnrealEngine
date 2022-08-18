@@ -31,7 +31,7 @@ struct FWaterBodyWeightmapSettings
 	float EdgeOffset;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WaterBodyWeightmapSettings)
-	UTexture2D* ModulationTexture;
+	TObjectPtr<UTexture2D> ModulationTexture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WaterBodyWeightmapSettings)
 	float TextureTiling;

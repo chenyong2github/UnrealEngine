@@ -98,22 +98,22 @@ private:
 
 	/** A transform proxy of the LightActor */
 	UPROPERTY()
-	USubTransformProxy* TransformProxy;
+	TObjectPtr<USubTransformProxy> TransformProxy;
 
 	UPROPERTY()
-	UWorld* World;
+	TObjectPtr<UWorld> World;
 
 	/** The internal actor used by the light gizmo */
 	UPROPERTY()
-	ADirectionalLightGizmoActor* GizmoActor;
+	TObjectPtr<ADirectionalLightGizmoActor> GizmoActor;
 
 	/** Used to properly render the handle gizmo. */
 	UPROPERTY()
-	UGizmoViewContext* GizmoViewContext;
+	TObjectPtr<UGizmoViewContext> GizmoViewContext;
 
 	/** The current target of the gizmo */
 	UPROPERTY()
-	ADirectionalLight* LightActor;
+	TObjectPtr<ADirectionalLight> LightActor;
 
 	UPROPERTY()
 	bool bIsHovering{ false };
@@ -141,7 +141,7 @@ private:
 	FVector RotationPlaneZ;
 
 	UPROPERTY()
-	UGizmoBaseComponent* HitComponent;
+	TObjectPtr<UGizmoBaseComponent> HitComponent;
 
 	UPROPERTY()
 	float ArrowLength{ 120.f };

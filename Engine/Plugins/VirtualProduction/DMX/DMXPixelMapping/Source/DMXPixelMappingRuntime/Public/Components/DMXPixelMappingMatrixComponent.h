@@ -143,7 +143,7 @@ public:
 
 	/** The actual modulator instances */
 	UPROPERTY()
-	TArray<UDMXModulator*> Modulators;
+	TArray<TObjectPtr<UDMXModulator>> Modulators;
 
 	UPROPERTY()
 	FIntPoint CoordinateGrid;

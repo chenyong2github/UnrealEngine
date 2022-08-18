@@ -198,10 +198,10 @@ protected:
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Instanced, BlueprintReadOnly, Category = MLAdapter)
-	TArray<UMLAdapterSensor*> Sensors;
+	TArray<TObjectPtr<UMLAdapterSensor>> Sensors;
 
 	UPROPERTY(EditDefaultsOnly, Instanced, BlueprintReadOnly, Category = MLAdapter)
-	TArray<UMLAdapterActuator*> Actuators;
+	TArray<TObjectPtr<UMLAdapterActuator>> Actuators;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = MLAdapter)
 	TSubclassOf<AActor> AvatarClass;
@@ -225,13 +225,13 @@ protected:
 
 private:
 	UPROPERTY()
-	AActor* Avatar;
+	TObjectPtr<AActor> Avatar;
 
 	UPROPERTY()
-	AController* Controller;
+	TObjectPtr<AController> Controller;
 
 	UPROPERTY()
-	APawn* Pawn;
+	TObjectPtr<APawn> Pawn;
 
 	FMLAdapter::FAgentID AgentID;
 

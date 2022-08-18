@@ -161,10 +161,10 @@ protected:
 	friend struct FMLAdapterConsoleCommands::FHelper;
 
 	UPROPERTY()
-	UMLAdapterSession* Session;
+	TObjectPtr<UMLAdapterSession> Session;
 
 	UPROPERTY()
-	UWorld* LastActiveWorld;
+	TObjectPtr<UWorld> LastActiveWorld;
 
 	UPROPERTY()
 	FMLAdapterLibrarian Librarian;

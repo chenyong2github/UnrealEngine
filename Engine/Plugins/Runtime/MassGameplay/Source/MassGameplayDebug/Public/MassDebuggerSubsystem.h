@@ -63,10 +63,10 @@ protected:
 	FString SelectedEntityDetails;
 
 	UPROPERTY(Transient)
-	UMassDebugVisualizationComponent* VisualizationComponent;
+	TObjectPtr<UMassDebugVisualizationComponent> VisualizationComponent;
 
 	UPROPERTY(Transient)
-	AMassDebugVisualizer* DebugVisualizer;
+	TObjectPtr<AMassDebugVisualizer> DebugVisualizer;
 
 	FDelegateHandle OnEntitySelectedHandle;
 };

@@ -146,7 +146,7 @@ class GPULIGHTMASS_API AGPULightmassSettingsActor : public AInfo
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	UGPULightmassSettings* Settings;
+	TObjectPtr<UGPULightmassSettings> Settings;
 };
 
 UCLASS()

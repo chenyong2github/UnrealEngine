@@ -29,7 +29,7 @@ struct FViewerInfo
 	GENERATED_BODY()
 
 	UPROPERTY(transient)
-	APlayerController* PlayerController = nullptr;
+	TObjectPtr<APlayerController> PlayerController = nullptr;
 	
 	FName StreamingSourceName;
 

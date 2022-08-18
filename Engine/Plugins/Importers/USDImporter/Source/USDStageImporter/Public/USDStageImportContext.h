@@ -34,7 +34,7 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 
 	/** Spawned actor that contains the imported scene as a child hierarchy */
 	UPROPERTY()
-	AActor* SceneActor;
+	TObjectPtr<AActor> SceneActor;
 
 	/** Name to use when importing a single mesh */
 	UPROPERTY()
@@ -48,17 +48,17 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 	FString FilePath;
 
 	UPROPERTY()
-	UUsdStageImportOptions* ImportOptions;
+	TObjectPtr<UUsdStageImportOptions> ImportOptions;
 
 	/** Keep track of the last imported object so that we have something valid to return to upstream code that calls the import factories */
 	UPROPERTY()
-	UObject* ImportedAsset;
+	TObjectPtr<UObject> ImportedAsset;
 
 	/** Level sequence that will contain the animation data during the import process */
 	FUsdLevelSequenceHelper LevelSequenceHelper;
 
 	UPROPERTY()
-	UUsdAssetCache* AssetCache;
+	TObjectPtr<UUsdAssetCache> AssetCache;
 
 	/** Caches various information about prims that are expensive to query */
 	TSharedPtr<FUsdInfoCache> InfoCache;

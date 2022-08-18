@@ -26,9 +26,9 @@ class GAMEPLAYABILITIES_API UGameplayCueNotify_HitImpact : public UGameplayCueNo
 	virtual void HandleGameplayCue(AActor* MyTarget, EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayCue)
-	USoundBase* Sound;
+	TObjectPtr<USoundBase> Sound;
 
 	/** Effects to play for weapon attacks against specific surfaces */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayCue)
-	UParticleSystem* ParticleSystem;
+	TObjectPtr<UParticleSystem> ParticleSystem;
 };

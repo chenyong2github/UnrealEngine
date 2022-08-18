@@ -382,29 +382,29 @@ private:
 private:
 	/** Custom TimeStep used to drive the engine while rendering. */
 	UPROPERTY(Transient, Instanced)
-	UMoviePipelineCustomTimeStep* CustomTimeStep;
+	TObjectPtr<UMoviePipelineCustomTimeStep> CustomTimeStep;
 
 	/** Custom Time Controller for the Sequence Player, used to match Custom TimeStep without any floating point accumulation errors. */
 	TSharedPtr<FMoviePipelineTimeController> CustomSequenceTimeController;
 
 	/** Hold a reference to the existing custom time step (if any) so we can restore it after we're done using our custom one. */
 	UPROPERTY(Transient)
-	UEngineCustomTimeStep* CachedPrevCustomTimeStep;
+	TObjectPtr<UEngineCustomTimeStep> CachedPrevCustomTimeStep;
 
 	/** This is our duplicated sequence that we're rendering. This will get modified throughout the rendering process. */
 	UPROPERTY(Transient)
-	ULevelSequence* TargetSequence;
+	TObjectPtr<ULevelSequence> TargetSequence;
 
 	/** The Level Sequence Actor we spawned to play our TargetSequence. */
 	UPROPERTY(Transient)
-	ALevelSequenceActor* LevelSequenceActor;
+	TObjectPtr<ALevelSequenceActor> LevelSequenceActor;
 
 	/** The Debug UI Widget that is spawned and placed on the player UI */
 	UPROPERTY(Transient)
-	UMovieRenderDebugWidget* DebugWidget;
+	TObjectPtr<UMovieRenderDebugWidget> DebugWidget;
 
 	UPROPERTY(Transient)
-	UTexture* PreviewTexture;
+	TObjectPtr<UTexture> PreviewTexture;
 
 	/** A list of all of the shots we are going to render out from this sequence. */
 	TArray<UMoviePipelineExecutorShot*> ActiveShotList;
@@ -478,7 +478,7 @@ public:
 private:
 	/** Keep track of which job we're working on. This holds our Configuration + which shots we're supposed to render from it. */
 	UPROPERTY(Transient)
-	UMoviePipelineExecutorJob* CurrentJob;
+	TObjectPtr<UMoviePipelineExecutorJob> CurrentJob;
 
 #if WITH_EDITOR
 	/** Keep track of clips we've exported, for building FCPXML and other project files */

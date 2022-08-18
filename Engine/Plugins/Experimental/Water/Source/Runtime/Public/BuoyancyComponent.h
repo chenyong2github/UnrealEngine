@@ -109,11 +109,11 @@ protected:
 	void ComputePontoonCoefficients();
 
 	UPROPERTY(Transient)
-	TArray<UWaterBodyComponent*> CurrentWaterBodyComponents;
+	TArray<TObjectPtr<UWaterBodyComponent>> CurrentWaterBodyComponents;
 
 	// Primitive component that will be used for physics simulation.
 	UPROPERTY()
-	UPrimitiveComponent* SimulatingComponent;
+	TObjectPtr<UPrimitiveComponent> SimulatingComponent;
 
 	// async data
 

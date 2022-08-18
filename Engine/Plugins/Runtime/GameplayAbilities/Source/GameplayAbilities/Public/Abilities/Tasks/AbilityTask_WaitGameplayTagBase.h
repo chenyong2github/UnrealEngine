@@ -32,7 +32,7 @@ protected:
 	bool RegisteredCallback;
 	
 	UPROPERTY()
-	UAbilitySystemComponent* OptionalExternalTarget;
+	TObjectPtr<UAbilitySystemComponent> OptionalExternalTarget;
 
 	bool UseExternalTarget;	
 	bool OnlyTriggerOnce;

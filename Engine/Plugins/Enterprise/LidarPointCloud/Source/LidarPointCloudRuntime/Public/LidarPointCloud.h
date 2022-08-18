@@ -156,9 +156,9 @@ private:
 
 	/** Description of collision */
 	UPROPERTY(transient, duplicatetransient)
-	UBodySetup* BodySetup;
+	TObjectPtr<UBodySetup> BodySetup;
 	UPROPERTY(transient, duplicatetransient)
-	UBodySetup* NewBodySetup;
+	TObjectPtr<UBodySetup> NewBodySetup;
 
 	/** Used for collision building */
 	FThreadSafeBool bCollisionBuildInProgress;
@@ -712,10 +712,10 @@ struct FLidarPointCloudTraceHit
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision")
-	ALidarPointCloudActor* Actor = nullptr;
+	TObjectPtr<ALidarPointCloudActor> Actor = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision")
-	ULidarPointCloudComponent* Component = nullptr;
+	TObjectPtr<ULidarPointCloudComponent> Component = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision")
 	TArray<FLidarPointCloudPoint> Points;

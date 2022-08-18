@@ -39,7 +39,7 @@ protected:
 protected:
 
 	UPROPERTY(Transient)
-	UMassReplicationSubsystem* ReplicationSubsystem = nullptr;
+	TObjectPtr<UMassReplicationSubsystem> ReplicationSubsystem = nullptr;
 
 	FMassEntityQuery SyncClientData;
 	FMassEntityQuery CollectViewerInfoQuery;

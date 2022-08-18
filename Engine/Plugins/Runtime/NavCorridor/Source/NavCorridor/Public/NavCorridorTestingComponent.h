@@ -102,5 +102,5 @@ public:
 
 protected:
 	UPROPERTY(Category = Default, VisibleAnywhere, meta = (AllowPrivateAccess = "true"))
-	UNavCorridorTestingComponent* DebugComp;
+	TObjectPtr<UNavCorridorTestingComponent> DebugComp;
 };

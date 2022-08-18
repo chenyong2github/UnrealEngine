@@ -94,7 +94,7 @@ public:
 	 * If this media source is set we will use its supplied URL instead of the Url parameter on the connect call.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = "Properties", META = (DisplayName = "Stream Media Source", AllowPrivateAccess = true))
-	UStreamMediaSource* MediaSource = nullptr;
+	TObjectPtr<UStreamMediaSource> MediaSource = nullptr;
 
 protected:
 	//

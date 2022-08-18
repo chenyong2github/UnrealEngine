@@ -146,10 +146,10 @@ private:
 
 private:
 	UPROPERTY()
-	UConversationInstance* Auth_CurrentConversation;
+	TObjectPtr<UConversationInstance> Auth_CurrentConversation;
 
 	UPROPERTY()
-	TArray<UConversationInstance*> Auth_Conversations;
+	TArray<TObjectPtr<UConversationInstance>> Auth_Conversations;
 	
 	UPROPERTY()
     FClientConversationMessagePayload LastMessage;

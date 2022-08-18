@@ -253,7 +253,7 @@ public:
 	 */
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	mutable UFunction* Function_DEPRECATED = nullptr;
+	mutable TObjectPtr<UFunction> Function_DEPRECATED = nullptr;
 #endif
 
 	/**

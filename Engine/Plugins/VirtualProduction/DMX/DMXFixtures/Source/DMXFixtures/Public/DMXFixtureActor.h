@@ -73,13 +73,13 @@ public:
 
 	// HIERARCHY---------------------------------
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DMX Light Fixture")
-	USceneComponent* Base;
+	TObjectPtr<USceneComponent> Base;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DMX Light Fixture")
-	USceneComponent* Yoke;
+	TObjectPtr<USceneComponent> Yoke;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DMX Light Fixture")
-	USceneComponent* Head;
+	TObjectPtr<USceneComponent> Head;
 
 	// FUNCTIONS---------------------------------
 
@@ -153,47 +153,47 @@ public:
 	// DMX COMPONENT -----------------------------
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DMX Light Fixture")
-	class UDMXComponent* DMX;
+	TObjectPtr<class UDMXComponent> DMX;
 
 	// COMPONENTS ---------------------------------
 
 	UPROPERTY(BlueprintReadOnly, Category = "DMX Light Fixture")
-	TArray<UStaticMeshComponent*> StaticMeshComponents;
+	TArray<TObjectPtr<UStaticMeshComponent>> StaticMeshComponents;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DMX Light Fixture")
-	class USpotLightComponent* SpotLight;
+	TObjectPtr<class USpotLightComponent> SpotLight;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DMX Light Fixture")
-	class UPointLightComponent* PointLight;
+	TObjectPtr<class UPointLightComponent> PointLight;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DMX Light Fixture")
-	class UArrowComponent* OcclusionDirection;
+	TObjectPtr<class UArrowComponent> OcclusionDirection;
 
 
 	// MATERIALS ---------------------------------
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "DMX Light Fixture")
-	UMaterialInstance* LensMaterialInstance;
+	TObjectPtr<UMaterialInstance> LensMaterialInstance;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "DMX Light Fixture")
-	UMaterialInstance* BeamMaterialInstance;
+	TObjectPtr<UMaterialInstance> BeamMaterialInstance;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "DMX Light Fixture")
-	UMaterialInstance* SpotLightMaterialInstance;
+	TObjectPtr<UMaterialInstance> SpotLightMaterialInstance;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "DMX Light Fixture")
-	UMaterialInstance* PointLightMaterialInstance;
+	TObjectPtr<UMaterialInstance> PointLightMaterialInstance;
 
 	UPROPERTY(BlueprintReadOnly, Category = "DMX Light Fixture")
-	UMaterialInstanceDynamic* DynamicMaterialLens;
+	TObjectPtr<UMaterialInstanceDynamic> DynamicMaterialLens;
 
 	UPROPERTY(BlueprintReadOnly, Category = "DMX Light Fixture")
-	UMaterialInstanceDynamic* DynamicMaterialBeam;
+	TObjectPtr<UMaterialInstanceDynamic> DynamicMaterialBeam;
 
 	UPROPERTY(BlueprintReadOnly, Category = "DMX Light Fixture")
-	UMaterialInstanceDynamic* DynamicMaterialSpotLight;
+	TObjectPtr<UMaterialInstanceDynamic> DynamicMaterialSpotLight;
 
 	UPROPERTY(BlueprintReadOnly, Category = "DMX Light Fixture")
-	UMaterialInstanceDynamic* DynamicMaterialPointLight;
+	TObjectPtr<UMaterialInstanceDynamic> DynamicMaterialPointLight;
 
 };

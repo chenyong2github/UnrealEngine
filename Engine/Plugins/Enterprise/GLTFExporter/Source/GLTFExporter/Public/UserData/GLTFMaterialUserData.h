@@ -96,7 +96,7 @@ public:
 
 	/** If assigned, export will use the proxy instead of the original material. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "General")
-	UMaterialInterface* Proxy;
+	TObjectPtr<UMaterialInterface> Proxy;
 
 	/** Default bake settings for this material in general. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Override Bake Settings", meta = (ShowOnlyInnerProperties))

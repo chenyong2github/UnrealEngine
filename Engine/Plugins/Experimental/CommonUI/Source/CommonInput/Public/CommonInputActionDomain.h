@@ -65,5 +65,5 @@ class COMMONINPUT_API UCommonInputActionDomainTable : public UDataAsset
 public:
 	// Domains will receive events in ascending index order
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Default")
-	TArray<UCommonInputActionDomain*> ActionDomains;
+	TArray<TObjectPtr<UCommonInputActionDomain>> ActionDomains;
 };

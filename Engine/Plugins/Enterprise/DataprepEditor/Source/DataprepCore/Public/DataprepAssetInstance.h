@@ -58,10 +58,10 @@ public:
 protected:
 	/** Parent Dataprep asset's interface */
 	UPROPERTY()
-	UDataprepAssetInterface* Parent;
+	TObjectPtr<UDataprepAssetInterface> Parent;
 
 	UPROPERTY()
-	UDataprepParameterizationInstance* Parameterization;
+	TObjectPtr<UDataprepParameterizationInstance> Parameterization;
 
 	/** Delegate broadcasted when the consumer or one of the producers has changed */
 	FOnDataprepAssetInstanceChanged OnParentChanged;
@@ -72,5 +72,5 @@ private:
 
 private:
 	UPROPERTY()
-	TArray<UDataprepActionAsset*> ActionsFromDataprepAsset;
+	TArray<TObjectPtr<UDataprepActionAsset>> ActionsFromDataprepAsset;
 };

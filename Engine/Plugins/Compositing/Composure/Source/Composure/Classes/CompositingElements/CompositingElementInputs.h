@@ -40,11 +40,11 @@ private:
 	virtual UTexture* GetMediaTexture() const PURE_VIRTUAL(UCompositingMediaInput::GetMediaTexture, return nullptr;);
 
 	UPROPERTY(Transient)
-	UMaterialInterface* DefaultMaterial;
+	TObjectPtr<UMaterialInterface> DefaultMaterial;
 	UPROPERTY(Transient)
-	UMaterialInterface* DefaultTestPlateMaterial;
+	TObjectPtr<UMaterialInterface> DefaultTestPlateMaterial;
 	UPROPERTY(Transient, DuplicateTransient, SkipSerialization)
-	UMaterialInstanceDynamic* FallbackMID;
+	TObjectPtr<UMaterialInstanceDynamic> FallbackMID;
 };
 
 /* UMediaBundleCompositingInput
@@ -80,7 +80,7 @@ public:
 	UMediaTextureCompositingInput();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Compositing Pass", meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
-	UMediaTexture* MediaSource;
+	TObjectPtr<UMediaTexture> MediaSource;
 
 private:
 	//~ UCompositingMediaInput interface	

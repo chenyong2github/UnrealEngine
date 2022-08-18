@@ -43,11 +43,11 @@ public:
 protected:
 	/** Hard ref to loaded table */
 	UPROPERTY(Transient)
-	UDataTable* CachedTable;
+	TObjectPtr<UDataTable> CachedTable;
 
 	/** Preload table ref, will be set if this is a hard source */
 	UPROPERTY()
-	UDataTable* PreloadTable;
+	TObjectPtr<UDataTable> PreloadTable;
 
 	/** Last time this was accessed */
 	mutable float LastAccessTime;

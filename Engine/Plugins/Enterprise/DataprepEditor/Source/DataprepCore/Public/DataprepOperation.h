@@ -76,7 +76,7 @@ struct FDataprepContext
 	 * This is the objects on which an operation can operate
 	 */
 	UPROPERTY( BlueprintReadOnly, Category = "Dataprep")
-	TArray<UObject*> Objects;
+	TArray<TObjectPtr<UObject>> Objects;
 };
 
 /**

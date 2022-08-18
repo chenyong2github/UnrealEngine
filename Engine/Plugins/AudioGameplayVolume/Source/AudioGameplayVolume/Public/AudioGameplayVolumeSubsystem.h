@@ -167,7 +167,7 @@ protected:
 
 	// Components in our system
 	UPROPERTY(Transient)
-	TMap<uint32, const UAudioGameplayVolumeComponent*> AGVComponents;
+	TMap<uint32, TObjectPtr<const UAudioGameplayVolumeComponent>> AGVComponents;
 
 	// Audio thread representation of Listeners
 	TArray<FAudioGameplayVolumeListener> AGVListeners;

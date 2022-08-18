@@ -65,7 +65,7 @@ private:
 
 	/** The currently selected nodal offset algorithm */
 	UPROPERTY()
-	UCameraNodalOffsetAlgo* NodalOffsetAlgo;
+	TObjectPtr<UCameraNodalOffsetAlgo> NodalOffsetAlgo;
 
 	/** Map of algo names to overlay MIDs used by those algos */
 	UPROPERTY(Transient)

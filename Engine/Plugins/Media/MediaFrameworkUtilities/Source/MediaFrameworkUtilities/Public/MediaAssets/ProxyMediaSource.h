@@ -22,11 +22,11 @@ private:
 
 	/** Cached media source proxy. */
 	UPROPERTY(Transient, DuplicateTransient)
-	UMediaSource* DynamicProxy;
+	TObjectPtr<UMediaSource> DynamicProxy;
 
 	/** Media source proxy. */
 	UPROPERTY(EditAnywhere, Category="Media Proxy")
-	UMediaSource* Proxy;
+	TObjectPtr<UMediaSource> Proxy;
 
 public:
 

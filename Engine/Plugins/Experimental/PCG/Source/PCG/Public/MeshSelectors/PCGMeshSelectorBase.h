@@ -38,7 +38,7 @@ struct FPCGMeshInstanceList
 	bool bOverrideMaterials = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TArray<UMaterialInterface*> MaterialOverrides;
+	TArray<TObjectPtr<UMaterialInterface>> MaterialOverrides;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
     TArray<FPCGPoint> Instances;

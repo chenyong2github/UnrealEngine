@@ -68,11 +68,11 @@ private:
 
 	/** The Root Node of the General Scene Description */
 	UPROPERTY()
-	UDMXMVRRootNode* RootNode;
+	TObjectPtr<UDMXMVRRootNode> RootNode;
 
 #if WITH_EDITORONLY_DATA
 	/** Import Data for this asset */
 	UPROPERTY()
-	UDMXMVRAssetImportData* MVRAssetImportData;
+	TObjectPtr<UDMXMVRAssetImportData> MVRAssetImportData;
 #endif
 };

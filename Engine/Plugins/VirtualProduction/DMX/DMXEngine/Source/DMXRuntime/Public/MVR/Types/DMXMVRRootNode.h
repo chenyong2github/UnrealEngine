@@ -59,9 +59,9 @@ public:
 private:
 	/** This node contains a collection of user data nodes defined and used by provider applications if required. */
 	UPROPERTY()
-	UDMXMVRUserDataNode* UserDataNode;
+	TObjectPtr<UDMXMVRUserDataNode> UserDataNode;
 
 	/** This node contains information about the scene. */
 	UPROPERTY()
-	UDMXMVRSceneNode* SceneNode;
+	TObjectPtr<UDMXMVRSceneNode> SceneNode;
 };

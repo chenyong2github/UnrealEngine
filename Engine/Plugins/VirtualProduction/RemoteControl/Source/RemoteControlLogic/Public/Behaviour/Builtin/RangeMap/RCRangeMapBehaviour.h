@@ -50,7 +50,7 @@ public:
 
 	/** Container holding all FRCRangeMapSteps correlating to each Action in the ActionContainer. */
 	UPROPERTY()
-	TMap<URCAction*, FRCRangeMapStep> RangeMapActionContainer;
+	TMap<TObjectPtr<URCAction>, FRCRangeMapStep> RangeMapActionContainer;
 
 public:
 	URCRangeMapBehaviour();

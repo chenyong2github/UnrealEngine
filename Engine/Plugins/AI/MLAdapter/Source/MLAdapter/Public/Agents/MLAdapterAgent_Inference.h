@@ -29,5 +29,5 @@ public:
 
 	/** The neural network controlling this agent. */
 	UPROPERTY()
-	UNeuralNetwork* Brain;
+	TObjectPtr<UNeuralNetwork> Brain;
 };

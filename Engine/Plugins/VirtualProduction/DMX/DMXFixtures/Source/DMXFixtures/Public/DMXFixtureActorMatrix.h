@@ -38,7 +38,7 @@ public:
 	FUpdateTextureRegion2D* TextureRegion;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DMX Matrix Fixture")
-	UProceduralMeshComponent* MatrixHead;
+	TObjectPtr<UProceduralMeshComponent> MatrixHead;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Matrix Fixture")
 	float MatrixWidth;

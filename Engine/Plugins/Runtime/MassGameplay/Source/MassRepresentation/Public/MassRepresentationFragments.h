@@ -61,7 +61,7 @@ struct FMassRepresentationSubsystemSharedFragment : public FMassSharedFragment
 	GENERATED_BODY()
 
 	UPROPERTY(Transient)
-	UMassRepresentationSubsystem* RepresentationSubsystem = nullptr;
+	TObjectPtr<UMassRepresentationSubsystem> RepresentationSubsystem = nullptr;
 };
 
 template<>
@@ -116,7 +116,7 @@ struct FMassRepresentationParameters : public FMassSharedFragment
 	mutable EMassRepresentationType CachedDefaultRepresentationType = EMassRepresentationType::None;
 
 	UPROPERTY(Transient)
-	mutable UMassRepresentationActorManagement* CachedRepresentationActorManagement = nullptr;
+	mutable TObjectPtr<UMassRepresentationActorManagement> CachedRepresentationActorManagement = nullptr;
 };
 
 template<>
@@ -179,7 +179,7 @@ struct FMassVisualizationLODParameters : public FMassSharedFragment
 
 	/** Filter these settings with specified tag */
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (BaseStruct = "MassTag"))
-	UScriptStruct* FilterTag = nullptr;
+	TObjectPtr<UScriptStruct> FilterTag = nullptr;
 };
 
 USTRUCT()
@@ -194,5 +194,5 @@ struct FMassVisualizationLODSharedFragment : public FMassSharedFragment
 	bool bHasAdjustedDistancesFromCount = false;
 
 	UPROPERTY(Transient)
-	const UScriptStruct* FilterTag = nullptr;
+	TObjectPtr<const UScriptStruct> FilterTag = nullptr;
 };

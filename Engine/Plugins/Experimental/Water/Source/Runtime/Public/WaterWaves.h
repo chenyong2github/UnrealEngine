@@ -87,7 +87,7 @@ public:
 
 private:
 	UPROPERTY(EditAnywhere, Category = "Water Waves", Instanced, DisplayName = "Waves Source")
-	UWaterWaves* WaterWaves = nullptr;
+	TObjectPtr<UWaterWaves> WaterWaves = nullptr;
 };
 
 UCLASS(BlueprintType, NotBlueprintable, AutoExpandCategories = "Water Waves Asset")
@@ -102,7 +102,7 @@ public:
 
 private:
 	UPROPERTY(EditAnywhere, Category = "Water Waves Asset")
-	UWaterWavesAsset* WaterWavesAsset;
+	TObjectPtr<UWaterWavesAsset> WaterWavesAsset;
 
 public:
 	virtual const UWaterWaves* GetWaterWaves() const override { return WaterWavesAsset ? WaterWavesAsset->GetWaterWaves() : nullptr; }

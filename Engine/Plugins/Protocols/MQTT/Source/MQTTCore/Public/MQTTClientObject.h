@@ -122,7 +122,7 @@ protected:
 	FOnMessageDelegate OnMessageDelegate;
 
 	UPROPERTY()
-	TArray<UMQTTSubscriptionObject*> Subscriptions; 
+	TArray<TObjectPtr<UMQTTSubscriptionObject>> Subscriptions; 
 
 private:
 	TSharedPtr<IMQTTClient, ESPMode::ThreadSafe> MqttClientPtr;

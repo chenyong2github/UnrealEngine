@@ -25,10 +25,10 @@ protected:
 	void OnTimerTick();
 
 	UPROPERTY()
-	UBehaviorTree* PreviousBT;
+	TObjectPtr<UBehaviorTree> PreviousBT;
 
 	UPROPERTY()
-	AAIController* AIController;
+	TObjectPtr<AAIController> AIController;
 
 	/** Indicates if BehaviorTree should run only once or in loop. */
 	UPROPERTY(EditAnywhere, Category = SmartObject)

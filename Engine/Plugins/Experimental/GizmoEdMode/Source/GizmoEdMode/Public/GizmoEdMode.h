@@ -49,7 +49,7 @@ private:
 	IAssetEditorGizmoFactory* LastFactory = nullptr;
 
 	UPROPERTY()
-	TArray<UInteractiveGizmo*> InteractiveGizmos;
+	TArray<TObjectPtr<UInteractiveGizmo>> InteractiveGizmos;
 
 	FDelegateHandle WidgetModeChangedHandle;
 

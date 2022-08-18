@@ -29,7 +29,7 @@ protected:
 	FMassEntityQuery EntityQuery;
 
 	UPROPERTY(Transient)
-	UMassSignalSubsystem* SignalSubsystem = nullptr;
+	TObjectPtr<UMassSignalSubsystem> SignalSubsystem = nullptr;
 };
 
 /**

@@ -45,10 +45,10 @@ protected:
 #endif
 protected:
 	UPROPERTY(NonPIEDuplicateTransient)
-	TArray<UOceanBoxCollisionComponent*> CollisionBoxes;
+	TArray<TObjectPtr<UOceanBoxCollisionComponent>> CollisionBoxes;
 
 	UPROPERTY(NonPIEDuplicateTransient)
-	TArray<UOceanCollisionComponent*> CollisionHullSets;
+	TArray<TObjectPtr<UOceanCollisionComponent>> CollisionHullSets;
 
 	/** The area over which the ocean should be displayed, centered on the actor */
 	UPROPERTY(Category = Water, EditAnywhere, BlueprintReadOnly)

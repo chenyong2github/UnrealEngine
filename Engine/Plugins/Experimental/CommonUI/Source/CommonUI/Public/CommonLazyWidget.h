@@ -60,7 +60,7 @@ private:
 	FSlateBrush LoadingBackgroundBrush;
 
 	UPROPERTY(Transient)
-	UUserWidget* Content;
+	TObjectPtr<UUserWidget> Content;
 
 	TSharedPtr<FStreamableHandle> StreamingHandle;
 	FSoftObjectPath StreamingObjectPath;

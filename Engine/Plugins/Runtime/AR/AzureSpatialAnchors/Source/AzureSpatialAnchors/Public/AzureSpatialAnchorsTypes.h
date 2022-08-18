@@ -158,7 +158,7 @@ struct FAzureSpatialAnchorsLocateCriteria
 	 * Specify (optionally) an anchor around which to locate anchors.
 	 */
 	UPROPERTY(BlueprintReadWrite, Category = "AzureSpatialAnchors | NearAnchor")
-	class UAzureCloudSpatialAnchor* NearAnchor = nullptr;
+	TObjectPtr<class UAzureCloudSpatialAnchor> NearAnchor = nullptr;
 
 	/**
 	 * Specify the distance at which to locate anchors near the NearAnchor, in cm.

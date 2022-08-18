@@ -55,10 +55,10 @@ public:
 
 protected:
 	UPROPERTY(Transient)
-	UPixelStreamingMediaOutput* MediaOutput = nullptr;
+	TObjectPtr<UPixelStreamingMediaOutput> MediaOutput = nullptr;
 
 	UPROPERTY(Transient)
-	UPixelStreamingMediaCapture* MediaCapture = nullptr;
+	TObjectPtr<UPixelStreamingMediaCapture> MediaCapture = nullptr;
 
 private:
 	void StopSignallingServer();

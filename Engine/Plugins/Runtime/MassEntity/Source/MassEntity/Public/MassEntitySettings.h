@@ -28,13 +28,13 @@ struct FMassProcessingPhaseConfig
 	TSubclassOf<UMassCompositeProcessor> PhaseGroupClass = UMassCompositeProcessor::StaticClass();
 
 	UPROPERTY(Transient)
-	TArray<UMassProcessor*> ProcessorCDOs;
+	TArray<TObjectPtr<UMassProcessor>> ProcessorCDOs;
 
 #if WITH_EDITORONLY_DATA
 	// this processor is available only in editor since it's used to present the user the order in which processors
 	// will be executed when given processing phase gets triggered
 	UPROPERTY(Transient)
-	UMassCompositeProcessor* PhaseProcessor = nullptr;
+	TObjectPtr<UMassCompositeProcessor> PhaseProcessor = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Category = Mass, Transient)
 	FText Description;
@@ -89,7 +89,7 @@ public:
 
 	/** This list contains all the processors available in the given binary (including plugins). The contents are sorted by display name.*/
 	UPROPERTY(VisibleAnywhere, Category = Mass, Transient, Instanced, EditFixedSize)
-	TArray<UMassProcessor*> ProcessorCDOs;
+	TArray<TObjectPtr<UMassProcessor>> ProcessorCDOs;
 
 #if WITH_EDITORONLY_DATA
 protected:

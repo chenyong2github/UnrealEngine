@@ -20,11 +20,11 @@ class MEDIAFRAMEWORKUTILITIES_API UMediaPlayerTimeSynchronizationSource : public
 public:
 	/* Media source asset of this input*/
 	UPROPERTY(EditAnywhere, Category=Player)
-	UMediaSource* MediaSource;
+	TObjectPtr<UMediaSource> MediaSource;
 
 	/* Texture linked to the media player*/
 	UPROPERTY(EditAnywhere, Category = Player)
-	UMediaTexture* MediaTexture;
+	TObjectPtr<UMediaTexture> MediaTexture;
 
 public:
 

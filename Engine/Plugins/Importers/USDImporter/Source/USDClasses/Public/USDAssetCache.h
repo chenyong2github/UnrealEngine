@@ -66,10 +66,10 @@ private:
 	// it will need to reload the stage anyway to rebuild its prim links to components and assets, so there is no point in duplicating
 	// the properties here just yet. Obviously we want to duplicate these properties
 	UPROPERTY( NonPIEDuplicateTransient, Transient, VisibleAnywhere, Category = "Assets" )
-	TMap< FString, UObject* > TransientStorage;
+	TMap< FString, TObjectPtr<UObject> > TransientStorage;
 
 	UPROPERTY( NonPIEDuplicateTransient, VisibleAnywhere, Category = "Assets" )
-	TMap< FString, UObject* > PersistentStorage;
+	TMap< FString, TObjectPtr<UObject> > PersistentStorage;
 
 	UPROPERTY( EditAnywhere, Category = "Assets", AdvancedDisplay )
 	bool bAllowPersistentStorage;

@@ -28,17 +28,17 @@ struct DATASMITHIMPORTER_API FDatasmithImportFactoryCreateFileResult
 
 	/** List of all created actors if user requires to use multiple actors. The root actor will be the first element of the array. */
 	UPROPERTY(BlueprintReadWrite, Transient, Category = Imported)
-	TArray<class AActor*> ImportedActors;
+	TArray<TObjectPtr<class AActor>> ImportedActors;
 
 	/** Meshes created during the import process */
 	UPROPERTY(BlueprintReadWrite, Transient, Category = Imported)
-	TArray<class UObject*> ImportedMeshes;
+	TArray<TObjectPtr<class UObject>> ImportedMeshes;
 
 	UPROPERTY(BlueprintReadWrite, Transient, Category = Result)
 	bool bImportSucceed;
 
 	UPROPERTY(BlueprintReadWrite, Transient, Category = Result)
-	UDatasmithScene* Scene;
+	TObjectPtr<UDatasmithScene> Scene;
 };
 
 

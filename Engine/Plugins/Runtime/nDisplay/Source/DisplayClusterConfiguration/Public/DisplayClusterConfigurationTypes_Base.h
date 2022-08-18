@@ -135,7 +135,7 @@ protected:
 
 private:
 	UPROPERTY(Export)
-	TArray<UObject*> ExportedObjects;
+	TArray<TObjectPtr<UObject>> ExportedObjects;
 };
 
 USTRUCT(Blueprintable)

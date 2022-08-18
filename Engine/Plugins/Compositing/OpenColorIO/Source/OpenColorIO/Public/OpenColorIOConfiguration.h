@@ -92,7 +92,7 @@ public:
 private:
 
 	UPROPERTY()
-	TArray<UOpenColorIOColorTransform*> ColorTransforms;
+	TArray<TObjectPtr<UOpenColorIOColorTransform>> ColorTransforms;
 
 #if WITH_EDITORONLY_DATA && WITH_OCIO
 	OCIO_NAMESPACE::ConstConfigRcPtr LoadedConfig;

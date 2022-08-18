@@ -178,7 +178,7 @@ protected:
 
 	/** List of root motion modifiers */
 	UPROPERTY(Transient)
-	TArray<URootMotionModifier*> Modifiers;
+	TArray<TObjectPtr<URootMotionModifier>> Modifiers;
 
 	UPROPERTY(Transient, Replicated)
 	TArray<FMotionWarpingTarget> WarpTargets;

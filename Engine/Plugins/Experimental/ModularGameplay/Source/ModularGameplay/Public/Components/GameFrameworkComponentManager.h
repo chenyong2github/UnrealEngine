@@ -75,7 +75,7 @@ struct FActorInitStateChangedParams
 
 	/** The actor owning the feature that changed */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Default)
-	AActor* OwningActor;
+	TObjectPtr<AActor> OwningActor;
 
 	/** Name of the feature that changed */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Default)
@@ -83,7 +83,7 @@ struct FActorInitStateChangedParams
 
 	/** The object (often a component) that implements the feature */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Default)
-	UObject* Implementer;
+	TObjectPtr<UObject> Implementer;
 
 	/** The new state of the feature */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Default)

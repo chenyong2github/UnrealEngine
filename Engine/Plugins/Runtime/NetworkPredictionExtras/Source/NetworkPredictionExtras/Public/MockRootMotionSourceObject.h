@@ -141,7 +141,7 @@ class UMockRootMotionSource_Montage : public UMockRootMotionSource
 protected:
 
 	UPROPERTY(EditAnywhere, Category=RootMotion)
-	UAnimMontage* Montage;
+	TObjectPtr<UAnimMontage> Montage;
 
 	UPROPERTY(EditAnywhere, Category=RootMotion)
 	float PlayRate = 1.f;
@@ -170,7 +170,7 @@ class UMockRootMotionSource_Curve : public UMockRootMotionSource
 protected:
 
 	UPROPERTY(EditAnywhere, Category=RootMotion)
-	UCurveVector* Curve;
+	TObjectPtr<UCurveVector> Curve;
 
 	UPROPERTY(EditAnywhere, Category=RootMotion)
 	float PlayRate = 1.f;

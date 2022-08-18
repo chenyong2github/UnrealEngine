@@ -40,5 +40,5 @@ public:
 
 private:
 	UPROPERTY(EditDefaultsOnly, Category = "Inline Icons", meta = (RowType = "/Script/CommonUI.RichTextIconData"))
-	UDataTable* InlineIconSet;
+	TObjectPtr<UDataTable> InlineIconSet;
 };

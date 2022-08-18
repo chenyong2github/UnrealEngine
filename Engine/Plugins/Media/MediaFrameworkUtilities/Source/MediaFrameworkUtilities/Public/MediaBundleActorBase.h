@@ -57,13 +57,13 @@ public:
 
 	/** Texture containging 2D garbage matte mask */
 	UPROPERTY(EditAnywhere, Category="Compositing")
-	UTextureRenderTarget2D* GarbageMatteMask;
+	TObjectPtr<UTextureRenderTarget2D> GarbageMatteMask;
 	
 protected:
 
 	/** Associated MediaBundle */
 	UPROPERTY(EditAnywhere, NoClear, Category="MediaBundle")
-	UMediaBundle* MediaBundle;
+	TObjectPtr<UMediaBundle> MediaBundle;
 
 	/** Wheter to auto start the MediaPlayer */
 	UPROPERTY(EditDefaultsOnly, Category="MediaBundle")
@@ -75,15 +75,15 @@ protected:
 
 	/** PrimitiveComponent on which to attach our Material */
 	UPROPERTY(EditDefaultsOnly, Category="MediaBundle")
-	UPrimitiveComponent* PrimitiveCmp;
+	TObjectPtr<UPrimitiveComponent> PrimitiveCmp;
 
 	/** MediaSoundComponent associated to play sound of our MediaSource */
 	UPROPERTY(EditDefaultsOnly, NoClear, Category = "MediaBundle")
-	UMediaSoundComponent* MediaSoundCmp;
+	TObjectPtr<UMediaSoundComponent> MediaSoundCmp;
 	
 	/** Dynamic instance of the associated MediaBundle base Material */
 	UPROPERTY(EditDefaultsOnly, Category="MediaBundle")
-	UMaterialInstanceDynamic* Material;
+	TObjectPtr<UMaterialInstanceDynamic> Material;
 
 	/** Index of the Material on the primitive */
 	UPROPERTY(AdvancedDisplay, EditAnywhere, Category="MediaBundle")

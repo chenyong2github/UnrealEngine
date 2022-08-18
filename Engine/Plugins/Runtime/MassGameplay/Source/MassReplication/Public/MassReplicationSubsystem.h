@@ -73,7 +73,7 @@ struct FMassClientBubbleInfoData
 
 	/** A free list array of AMassClientBubbleInfos. This is organised so the index is that of the client FMassClientHandle */
 	UPROPERTY(Transient)
-	TArray<AMassClientBubbleInfoBase*> Bubbles;
+	TArray<TObjectPtr<AMassClientBubbleInfoBase>> Bubbles;
 
 	UPROPERTY(Transient)
 	TSubclassOf<AMassClientBubbleInfoBase> BubbleClass;
@@ -313,10 +313,10 @@ protected:
 	TArray<FViewerClientPair> ClientToViewerHandleArray;
 
 	UPROPERTY()
-	UWorld* World;
+	TObjectPtr<UWorld> World;
 
 	UPROPERTY()
-	UMassLODSubsystem* MassLODSubsystem;
+	TObjectPtr<UMassLODSubsystem> MassLODSubsystem;
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 	TMap<FMassNetworkID, FMassReplicationEntityInfo> EntityInfoMap;

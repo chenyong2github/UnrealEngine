@@ -22,10 +22,10 @@ struct FFarmVisualDataRow : public FTableRowBase
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category=Farm)
-	UStaticMesh* Mesh = nullptr;
+	TObjectPtr<UStaticMesh> Mesh = nullptr;
 
 	UPROPERTY(EditAnywhere, Category=Farm)
-	UMaterialInterface* MaterialOverride = nullptr;
+	TObjectPtr<UMaterialInterface> MaterialOverride = nullptr;
 };
 
 USTRUCT()
@@ -300,15 +300,15 @@ public:
 	TArray<FFarmVisualDataRow> VisualDataTable;
 
 	UPROPERTY(Transient)
-	TArray<UHierarchicalInstancedStaticMeshComponent*> VisualDataISMCs;
+	TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> VisualDataISMCs;
 
 	float NextSecondTimer = 0.0f;
 
 	UPROPERTY(Transient)
-	TArray<UFragmentUpdateSystem*> PerFrameSystems;
+	TArray<TObjectPtr<UFragmentUpdateSystem>> PerFrameSystems;
 
 	UPROPERTY(Transient)
-	TArray<UFragmentUpdateSystem*> PerSecondSystems;
+	TArray<TObjectPtr<UFragmentUpdateSystem>> PerSecondSystems;
 
 	// Indicies into VisualDataTable for flowers
 	UPROPERTY(EditAnywhere, Category=Farm)
@@ -332,7 +332,7 @@ public:
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"), Category=Farm)
-	UHierarchicalInstancedStaticMeshComponent* HarvestIconISMC;
+	TObjectPtr<UHierarchicalInstancedStaticMeshComponent> HarvestIconISMC;
 
 	TArray<int32> FreeHarvestIconIndicies;
 

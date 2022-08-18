@@ -29,7 +29,7 @@ struct MASSACTORS_API FMassAgentInitializationQueue
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TArray<UMassAgentComponent*> AgentComponents;
+	TArray<TObjectPtr<UMassAgentComponent>> AgentComponents;
 };
 
 /**
@@ -124,10 +124,10 @@ protected:
 	TSharedPtr<FMassEntityManager> EntityManager;
 
 	UPROPERTY()
-	UMassSpawnerSubsystem* SpawnerSystem;
+	TObjectPtr<UMassSpawnerSubsystem> SpawnerSystem;
 
 	UPROPERTY()
-	UMassSimulationSubsystem* SimulationSystem;
+	TObjectPtr<UMassSimulationSubsystem> SimulationSystem;
 
 	UPROPERTY()
 	TMap<FMassEntityTemplateID, FMassAgentInitializationQueue> PendingAgentEntities;
@@ -136,10 +136,10 @@ protected:
 	TMap<FMassEntityTemplateID, FMassAgentInitializationQueue> PendingPuppets;
 
 	UPROPERTY()
-	UMassReplicationSubsystem* ReplicationSubsystem;
+	TObjectPtr<UMassReplicationSubsystem> ReplicationSubsystem;
 
 	UPROPERTY()
-	TMap<FMassNetworkID, UMassAgentComponent*> ReplicatedAgentComponents;
+	TMap<FMassNetworkID, TObjectPtr<UMassAgentComponent>> ReplicatedAgentComponents;
 
 	UE::MassActor::FMassAgentComponentDelegate OnMassAgentComponentEntityAssociated;
 	UE::MassActor::FMassAgentComponentDelegate OnMassAgentComponentEntityDetaching;

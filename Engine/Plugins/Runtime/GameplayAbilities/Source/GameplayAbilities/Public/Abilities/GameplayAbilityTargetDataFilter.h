@@ -65,7 +65,7 @@ struct GAMEPLAYABILITIES_API FGameplayTargetDataFilter
 
 	/** Actor we're comparing against. */
 	UPROPERTY()
-	AActor* SelfActor = nullptr;
+	TObjectPtr<AActor> SelfActor = nullptr;
 
 	/** Subclass actors must be to pass the filter. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta = (ExposeOnSpawn = true), Category = Filter)

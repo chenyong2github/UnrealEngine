@@ -37,12 +37,12 @@ struct FSocialChatChannelConfig
 	}
 
 	UPROPERTY()
-	USocialUser* SocialUser;
+	TObjectPtr<USocialUser> SocialUser;
 
 	FString RoomId;
 
 	UPROPERTY()
-	TArray<USocialChatChannel*> ListenChannels;
+	TArray<TObjectPtr<USocialChatChannel>> ListenChannels;
 	FText DisplayName;
 };
 
@@ -174,19 +174,19 @@ private:
 
 private:
 	UPROPERTY()
-	TMap<TWeakObjectPtr<USocialUser>, USocialPrivateMessageChannel*> DirectChannelsByTargetUser;
+	TMap<TWeakObjectPtr<USocialUser>, TObjectPtr<USocialPrivateMessageChannel>> DirectChannelsByTargetUser;
 
 	UPROPERTY()
-	TMap<FString, USocialChatRoom*> ChatRoomsById;
+	TMap<FString, TObjectPtr<USocialChatRoom>> ChatRoomsById;
 
 	UPROPERTY()
-	TMap<FString, USocialReadOnlyChatChannel*> ReadOnlyChannelsByDisplayName;
+	TMap<FString, TObjectPtr<USocialReadOnlyChatChannel>> ReadOnlyChannelsByDisplayName;
 
 	UPROPERTY(config)
 	bool bEnableChatSlashCommands = true;
 	
 	UPROPERTY()
-	TMap<FUniqueNetIdRepl, USocialGroupChannel*> GroupChannels;
+	TMap<FUniqueNetIdRepl, TObjectPtr<USocialGroupChannel>> GroupChannels;
 
 	mutable FOnChatChannelCreated OnChannelCreatedEvent;
 	mutable FOnChatChannelLeft OnChannelLeftEvent;

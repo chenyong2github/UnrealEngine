@@ -24,5 +24,5 @@ private:
 
 	/** The recipient of the current user's messages */
 	UPROPERTY()
-	USocialUser* TargetUser;
+	TObjectPtr<USocialUser> TargetUser;
 };

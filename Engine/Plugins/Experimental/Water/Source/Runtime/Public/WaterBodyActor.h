@@ -105,13 +105,13 @@ protected:
 
 	/** The spline data attached to this water type. */
 	UPROPERTY(Category = Water, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UWaterSplineComponent* SplineComp;
+	TObjectPtr<UWaterSplineComponent> SplineComp;
 
 	UPROPERTY(Instanced)
-	UWaterSplineMetadata* WaterSplineMetadata;
+	TObjectPtr<UWaterSplineMetadata> WaterSplineMetadata;
 
 	UPROPERTY(Category = Water, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Water,Wave,Rendering,Terrain,Navigation,Physics,Collision,Debug", AllowPrivateAccess = "true"))
-	UWaterBodyComponent* WaterBodyComponent;
+	TObjectPtr<UWaterBodyComponent> WaterBodyComponent;
 
 	/** Unique Id for accessing (wave, ... ) data in GPU buffers */
 	UPROPERTY(Transient, DuplicateTransient, NonTransactional, BlueprintReadOnly, Category = Water, meta = (AllowPrivateAccess = "true"))
@@ -122,7 +122,7 @@ protected:
 
 	// #todo_water: This should be moved to the component when component subobjects are supported
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Instanced, Category = Wave, DisplayName = "Waves Source", meta = (Tooltip = ""))
-	UWaterWavesBase* WaterWaves = nullptr;
+	TObjectPtr<UWaterWavesBase> WaterWaves = nullptr;
 
 #if WITH_EDITOR
 	virtual void PostEditMove(bool bFinished) override;
@@ -185,7 +185,7 @@ protected:
 	friend class UWaterBodyComponent;
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UPhysicalMaterial* PhysicalMaterial_DEPRECATED;
+	TObjectPtr<UPhysicalMaterial> PhysicalMaterial_DEPRECATED;
 
 	UPROPERTY()
 	float TargetWaveMaskDepth_DEPRECATED;
@@ -203,10 +203,10 @@ protected:
 	FWaterCurveSettings CurveSettings_DEPRECATED;
 
 	UPROPERTY()
-	UMaterialInterface* WaterMaterial_DEPRECATED;
+	TObjectPtr<UMaterialInterface> WaterMaterial_DEPRECATED;
 
 	UPROPERTY()
-	UMaterialInterface* UnderwaterPostProcessMaterial_DEPRECATED;
+	TObjectPtr<UMaterialInterface> UnderwaterPostProcessMaterial_DEPRECATED;
 
 	UPROPERTY()
 	FLandmassTerrainCarvingSettings TerrainCarvingSettings_DEPRECATED;
@@ -227,7 +227,7 @@ protected:
 	bool bOverrideWaterMesh_DEPRECATED;
 
 	UPROPERTY()
-	UStaticMesh* WaterMeshOverride_DEPRECATED;
+	TObjectPtr<UStaticMesh> WaterMeshOverride_DEPRECATED;
 
 	UPROPERTY()
 	int32 OverlapMaterialPriority_DEPRECATED = 0;
@@ -236,10 +236,10 @@ protected:
 	FName CollisionProfileName_DEPRECATED;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* WaterMID_DEPRECATED;
+	TObjectPtr<UMaterialInstanceDynamic> WaterMID_DEPRECATED;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* UnderwaterPostProcessMID_DEPRECATED;
+	TObjectPtr<UMaterialInstanceDynamic> UnderwaterPostProcessMID_DEPRECATED;
 
 	UPROPERTY()
 	TArray<TLazyObjectPtr<AWaterBodyIsland>> Islands_DEPRECATED;

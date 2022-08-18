@@ -38,7 +38,7 @@ struct WAVETABLE_API FWaveTableTransform
 
 	/** Asset curve reference to apply if output curve type is set to 'Shared.' */
 	UPROPERTY(EditAnywhere, meta = (DisplayName = "Asset"), Category = Curve, BlueprintReadWrite)
-	UCurveFloat* CurveShared = nullptr;
+	TObjectPtr<UCurveFloat> CurveShared = nullptr;
 
 	UPROPERTY()
 	TArray<float> WaveTable;

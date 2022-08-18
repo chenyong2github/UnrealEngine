@@ -40,9 +40,9 @@ private:
 
 	/** Transient media output pointer to keep the media output alive while this protocol is in use */
 	UPROPERTY(Transient)
-	UAjaMediaOutput* TransientMediaOutputPtr;
+	TObjectPtr<UAjaMediaOutput> TransientMediaOutputPtr;
 
 	/** Transient media capture pointer that will capture the viewport */
 	UPROPERTY(Transient)
-	UAjaMediaCapture* TransientMediaCapturePtr;
+	TObjectPtr<UAjaMediaCapture> TransientMediaCapturePtr;
 };

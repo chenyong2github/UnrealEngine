@@ -18,5 +18,5 @@ class AGeometryCacheAbcFileActor : public AActor
 
 private:
 	UPROPERTY(Category = GeometryCacheAbcFileActor, VisibleAnywhere)
-	UGeometryCacheAbcFileComponent* GeometryCacheAbcFileComponent;
+	TObjectPtr<UGeometryCacheAbcFileComponent> GeometryCacheAbcFileComponent;
 };

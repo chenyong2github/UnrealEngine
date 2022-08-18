@@ -39,5 +39,5 @@ public:
 private:
 	/** Saved duplicate of the LensFile asset used by the recorded LiveLink Camera Controller at the time of recording */
 	UPROPERTY(VisibleAnywhere, Category="Camera Calibration")
-	ULensFile* CachedLensFile = nullptr;
+	TObjectPtr<ULensFile> CachedLensFile = nullptr;
 };

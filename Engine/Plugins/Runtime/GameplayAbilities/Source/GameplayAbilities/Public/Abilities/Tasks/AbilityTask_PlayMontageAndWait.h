@@ -74,7 +74,7 @@ protected:
 	FDelegateHandle InterruptedHandle;
 
 	UPROPERTY()
-	UAnimMontage* MontageToPlay;
+	TObjectPtr<UAnimMontage> MontageToPlay;
 
 	UPROPERTY()
 	float Rate;

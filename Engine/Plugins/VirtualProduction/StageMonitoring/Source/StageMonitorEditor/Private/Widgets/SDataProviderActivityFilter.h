@@ -31,11 +31,11 @@ struct FDataProviderActivityFilterSettings
 	 * Used to detect new types that would be filtered out automatically
 	 */
 	UPROPERTY()
-	TArray<UScriptStruct*> ExistingPeriodicTypes;
+	TArray<TObjectPtr<UScriptStruct>> ExistingPeriodicTypes;
 
 	/** Message types that are filtered */
 	UPROPERTY()
-	TArray<UScriptStruct*> RestrictedTypes;
+	TArray<TObjectPtr<UScriptStruct>> RestrictedTypes;
 
 	/** Providers that are filtered using their friendly name */
 	UPROPERTY()

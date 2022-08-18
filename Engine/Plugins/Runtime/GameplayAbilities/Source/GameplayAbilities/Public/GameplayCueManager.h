@@ -73,15 +73,15 @@ struct FGameplayCueObjectLibrary
 
 	/** Object library for actor based notifies */
 	UPROPERTY()
-	UObjectLibrary* ActorObjectLibrary;
+	TObjectPtr<UObjectLibrary> ActorObjectLibrary;
 
 	/** Object library for object based notifies */
 	UPROPERTY()
-	UObjectLibrary* StaticObjectLibrary;
+	TObjectPtr<UObjectLibrary> StaticObjectLibrary;
 
 	/** Set to put the loaded asset data into. If null we will use the global set (RuntimeGameplayCueObjectLibrary.CueSet) */
 	UPROPERTY()
-	UGameplayCueSet* CueSet;
+	TObjectPtr<UGameplayCueSet> CueSet;
 
 	/** Priority to use if async loading */
 	TAsyncLoadPriority AsyncPriority;
@@ -380,7 +380,7 @@ protected:
 
 	/** Hardref to the gameplaycue notify classes we have async loaded*/
 	UPROPERTY(transient)
-	TArray<UClass*> LoadedGameplayCueNotifyClasses;
+	TArray<TObjectPtr<UClass>> LoadedGameplayCueNotifyClasses;
 
 	/** Classes that we need to preallocate instances for */
 	UPROPERTY(transient)

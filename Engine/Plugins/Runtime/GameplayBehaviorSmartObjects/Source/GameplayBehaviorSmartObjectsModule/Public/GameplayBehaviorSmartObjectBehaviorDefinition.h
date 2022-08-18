@@ -17,5 +17,5 @@ class GAMEPLAYBEHAVIORSMARTOBJECTSMODULE_API UGameplayBehaviorSmartObjectBehavio
 
 public:
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject, Instanced)
-	UGameplayBehaviorConfig* GameplayBehaviorConfig;
+	TObjectPtr<UGameplayBehaviorConfig> GameplayBehaviorConfig;
 };

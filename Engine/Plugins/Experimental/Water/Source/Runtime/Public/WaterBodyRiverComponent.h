@@ -53,19 +53,19 @@ protected:
 
 protected:
 	UPROPERTY(NonPIEDuplicateTransient)
-	TArray<USplineMeshComponent*> SplineMeshComponents;
+	TArray<TObjectPtr<USplineMeshComponent>> SplineMeshComponents;
 
 	/** Material used when a river is overlapping a lake. */
 	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "River to Lake Transition"))
-	UMaterialInterface* LakeTransitionMaterial;
+	TObjectPtr<UMaterialInterface> LakeTransitionMaterial;
 
 	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "LakeTransitionMaterial"))
-	UMaterialInstanceDynamic* LakeTransitionMID;
+	TObjectPtr<UMaterialInstanceDynamic> LakeTransitionMID;
 
 	/** This is the material used when a river is overlapping the ocean. */
 	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "River to Ocean Transition"))
-	UMaterialInterface* OceanTransitionMaterial;
+	TObjectPtr<UMaterialInterface> OceanTransitionMaterial;
 
 	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "OceanTransitionMaterial"))
-	UMaterialInstanceDynamic* OceanTransitionMID;
+	TObjectPtr<UMaterialInstanceDynamic> OceanTransitionMID;
 };

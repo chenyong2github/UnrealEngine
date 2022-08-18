@@ -82,7 +82,7 @@ protected:
 
 	/** The TargetActor that we spawned */
 	UPROPERTY()
-	AGameplayAbilityTargetActor* TargetActor;
+	TObjectPtr<AGameplayAbilityTargetActor> TargetActor;
 
 	TEnumAsByte<EGameplayTargetingConfirmation::Type> ConfirmationType;
 

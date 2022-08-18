@@ -106,7 +106,7 @@ private:
 	FVehicleAnimationInstanceProxy AnimInstanceProxy;
 
 	UPROPERTY(transient)
-	const UChaosWheeledVehicleMovementComponent* WheeledVehicleComponent;
+	TObjectPtr<const UChaosWheeledVehicleMovementComponent> WheeledVehicleComponent;
 };
 
 

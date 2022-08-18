@@ -126,7 +126,7 @@ public:
 	//TODO review if we need to have this as a UPROPERTY at all and also if we can make this use a TInlineAllocator
 	//Can not use TInlineAllocator with UPROPERTY()
 	UPROPERTY(Transient)
-	TArray<AMassClientBubbleInfoBase*> BubbleInfos;
+	TArray<TObjectPtr<AMassClientBubbleInfoBase>> BubbleInfos;
 
 	TMassLODCollector<FReplicationLODLogic> LODCollector;
 	TMassLODCalculator<FReplicationLODLogic> LODCalculator;
@@ -136,7 +136,7 @@ public:
 	FMassEntityQuery EntityQuery;
 
 	UPROPERTY(Transient)
-	mutable UMassReplicatorBase* CachedReplicator = nullptr;
+	mutable TObjectPtr<UMassReplicatorBase> CachedReplicator = nullptr;
 
 	template<typename T>
 	T& GetTypedClientBubbleInfoChecked(FMassClientHandle Handle)

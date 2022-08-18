@@ -34,7 +34,7 @@ struct FGoogleARCoreAugmentedImageDatabaseEntry
 	 * BGRA8.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GoogleARCore|AugmentedImages")
-	UTexture2D *ImageAsset;
+	TObjectPtr<UTexture2D> ImageAsset;
 
 	/**
 	 * Width of the image in meters.

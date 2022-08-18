@@ -343,7 +343,7 @@ public:
 	    const FString& InNewName) override;
 	
 	UPROPERTY(EditAnywhere, Category=Preview)
-	USkeletalMesh *Mesh = nullptr;
+	TObjectPtr<USkeletalMesh> Mesh = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Category="Container", meta=(EditInline));
 	TObjectPtr<UTestContainment> Container = nullptr;

@@ -48,7 +48,7 @@ protected:
 
 	// A representation of this volume for the audio thread
 	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category = "AudioGameplay", Meta = (ShowOnlyInnerProperties, AllowPrivateAccess = "true"))
-	UAudioGameplayVolumeProxy* Proxy = nullptr;
+	TObjectPtr<UAudioGameplayVolumeProxy> Proxy = nullptr;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

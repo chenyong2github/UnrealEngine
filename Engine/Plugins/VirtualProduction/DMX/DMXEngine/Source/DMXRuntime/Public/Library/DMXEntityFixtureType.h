@@ -264,7 +264,7 @@ struct DMXRUNTIME_API FDMXEntityFixtureTypeConstructionParams
 
 	/** The DMX Library in which the Fixture Type will be constructed */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fixture Type")
-	UDMXLibrary* ParentDMXLibrary = nullptr;
+	TObjectPtr<UDMXLibrary> ParentDMXLibrary = nullptr;
 
 	/** The Category of the Fixture, useful for Filtering */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fixture Type")
@@ -322,7 +322,7 @@ public:
 
 	/** The GDTF file from which the Fixture Type was setup */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings")
-	UDMXImport* DMXImport;
+	TObjectPtr<UDMXImport> DMXImport;
 
 	/** The Category of the Fixture, useful for Filtering */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings", meta = (DisplayName = "DMX Category"))
@@ -336,7 +336,7 @@ public:
 	 * NOTE: Modulators only affect the patch's normalized values! Untouched values are still available when accesing raw values. 
 	 */
 	UPROPERTY(EditAnywhere, Instanced, Category = "Mode Settings", meta = (DisplayPriority = "50"))
-	TArray<UDMXModulator*> InputModulators;
+	TArray<TObjectPtr<UDMXModulator>> InputModulators;
 
 private:
 	/** Delegate that should be broadcast whenever a fixture type changed */

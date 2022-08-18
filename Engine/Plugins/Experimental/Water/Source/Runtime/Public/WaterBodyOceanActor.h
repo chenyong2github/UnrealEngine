@@ -17,10 +17,10 @@ class UDEPRECATED_OceanGenerator : public UDEPRECATED_WaterBodyGenerator
 	GENERATED_UCLASS_BODY()
 public:
 	UPROPERTY(NonPIEDuplicateTransient)
-	TArray<UOceanBoxCollisionComponent*> CollisionBoxes;
+	TArray<TObjectPtr<UOceanBoxCollisionComponent>> CollisionBoxes;
 
 	UPROPERTY(NonPIEDuplicateTransient)
-	TArray<UOceanCollisionComponent*> CollisionHullSets;
+	TArray<TObjectPtr<UOceanCollisionComponent>> CollisionHullSets;
 };
 
 // ----------------------------------------------------------------------------------
@@ -34,7 +34,7 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UDEPRECATED_OceanGenerator* OceanGenerator_DEPRECATED;
+	TObjectPtr<UDEPRECATED_OceanGenerator> OceanGenerator_DEPRECATED;
 	
 	UPROPERTY()
 	FVector CollisionExtents_DEPRECATED;

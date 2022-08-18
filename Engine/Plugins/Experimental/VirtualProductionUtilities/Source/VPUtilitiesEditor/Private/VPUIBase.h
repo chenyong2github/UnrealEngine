@@ -21,7 +21,7 @@ class UVPUIBase : public UEditorUtilityWidget
 
 public:
 	UPROPERTY(BlueprintReadOnly, Transient, Category = "Virtual Production")
-	AActor* SelectedActor;
+	TObjectPtr<AActor> SelectedActor;
 	
 	UFUNCTION(BlueprintCallable, Category = "VirtualProduction")
 	void AppendVirtualProductionLog(FString NewMessage);

@@ -33,7 +33,7 @@ private:
 
 private:
 	UPROPERTY()
-	USocialUser* SocialUser;
+	TObjectPtr<USocialUser> SocialUser;
 
 	UPROPERTY()
 	FUniqueNetIdRepl GroupId;
@@ -42,7 +42,7 @@ private:
 	FText DisplayName;
 
 	UPROPERTY()
-	TArray<USocialUser*> Members;
+	TArray<TObjectPtr<USocialUser>> Members;
 
 	TWeakPtr<IOnlineGroups, ESPMode::ThreadSafe> GroupInterfacePtr;
 };

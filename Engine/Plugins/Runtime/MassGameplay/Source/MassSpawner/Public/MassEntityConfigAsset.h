@@ -57,11 +57,11 @@ protected:
 
 	/** Reference to parent config asset */
 	UPROPERTY(Category = "Derived Traits", EditAnywhere)
-	UMassEntityConfigAsset* Parent = nullptr;
+	TObjectPtr<UMassEntityConfigAsset> Parent = nullptr;
 
 	/** Array of unique traits of this config */
 	UPROPERTY(Category = "Traits", EditAnywhere, Instanced)
-	TArray<UMassEntityTraitBase*> Traits;
+	TArray<TObjectPtr<UMassEntityTraitBase>> Traits;
 
 private:
 	const FMassEntityTemplate* GetEntityTemplateInternal(const UWorld& World, const UObject& ConfigOwner, uint32& HashOut, FMassEntityTemplateID& TemplateIDOut, TArray<UMassEntityTraitBase*>& CombinedTraitsOut) const;

@@ -26,7 +26,7 @@ class APEXDESTRUCTION_API ADestructibleActor : public AActor
 private:
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Destruction, meta = (ExposeFunctionCategories = "Destruction,Components|Destructible", AllowPrivateAccess = "true"))
-	UDestructibleComponent* DestructibleComponent;
+	TObjectPtr<UDestructibleComponent> DestructibleComponent;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 public:
 

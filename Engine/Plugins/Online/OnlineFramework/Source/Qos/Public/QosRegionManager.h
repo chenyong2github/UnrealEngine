@@ -673,7 +673,7 @@ private:
 
 	/** Reference to the evaluator for making datacenter determinations (null when not active) */
 	UPROPERTY()
-	UQosEvaluator* Evaluator;
+	TObjectPtr<UQosEvaluator> Evaluator;
 	/** Result of the last datacenter test */
 	UPROPERTY()
 	EQosCompletionResult QosEvalResult;

@@ -50,7 +50,7 @@ struct STATETREEEDITORMODULE_API FStateTreeEditorNode
 	FInstancedStruct Instance;
 
 	UPROPERTY(EditDefaultsOnly, Instanced, Category = Node)
-	UObject* InstanceObject = nullptr;
+	TObjectPtr<UObject> InstanceObject = nullptr;
 	
 	UPROPERTY(EditDefaultsOnly, Category = Node)
 	FGuid ID;

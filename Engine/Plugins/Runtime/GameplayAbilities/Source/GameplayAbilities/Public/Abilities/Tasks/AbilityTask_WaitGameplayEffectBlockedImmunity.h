@@ -48,7 +48,7 @@ protected:
 	bool UseExternalOwner;
 
 	UPROPERTY()
-	UAbilitySystemComponent* ExternalOwner;
+	TObjectPtr<UAbilitySystemComponent> ExternalOwner;
 
 	FDelegateHandle DelegateHandle;
 };

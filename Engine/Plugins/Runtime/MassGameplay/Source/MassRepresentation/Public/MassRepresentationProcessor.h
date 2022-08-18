@@ -60,7 +60,7 @@ protected:
 
 	/** Caching ptr to our associated world */
 	UPROPERTY(Transient)
-	UWorld* World;
+	TObjectPtr<UWorld> World;
 
 	TSharedPtr<FMassEntityManager> EntityManager;
 

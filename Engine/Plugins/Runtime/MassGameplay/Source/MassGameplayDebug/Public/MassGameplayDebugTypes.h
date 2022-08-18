@@ -37,10 +37,10 @@ struct FSimDebugDataRow : public FTableRowBase
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = Debug)
-	UStaticMesh* Mesh = nullptr;
+	TObjectPtr<UStaticMesh> Mesh = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = Debug)
-	UMaterialInterface* MaterialOverride = nullptr;
+	TObjectPtr<UMaterialInterface> MaterialOverride = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = Debug)
 	float Scale = 1.f;
@@ -84,10 +84,10 @@ struct FAgentDebugVisualization : public FTableRowBase
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "Mass|Debug")
-	UStaticMesh* Mesh = nullptr;
+	TObjectPtr<UStaticMesh> Mesh = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "Mass|Debug")
-	UMaterialInterface* MaterialOverride = nullptr;
+	TObjectPtr<UMaterialInterface> MaterialOverride = nullptr;
 
 	/** Near cull distance to override default value for that agent type */
 	UPROPERTY(EditAnywhere, Category = "Mass|Debug")

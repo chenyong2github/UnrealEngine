@@ -32,7 +32,7 @@ class LINEARTIMECODE_API ULinearTimecodeComponent
 public:
 	/** The media player asset associated with this component. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Media")
-	UMediaPlayer* MediaPlayer;
+	TObjectPtr<UMediaPlayer> MediaPlayer;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Media")
 	FDropTimecode DropTimecode;

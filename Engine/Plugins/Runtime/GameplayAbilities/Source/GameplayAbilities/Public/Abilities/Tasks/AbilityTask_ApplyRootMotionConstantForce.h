@@ -74,7 +74,7 @@ protected:
 	 *          is in units of seconds if this force has unlimited duration (Duration < 0)
 	 */
 	UPROPERTY(Replicated)
-	UCurveFloat* StrengthOverTime;
+	TObjectPtr<UCurveFloat> StrengthOverTime;
 
 	UPROPERTY(Replicated)
 	bool bEnableGravity;

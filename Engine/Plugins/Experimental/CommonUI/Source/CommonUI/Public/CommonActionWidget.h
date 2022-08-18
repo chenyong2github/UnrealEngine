@@ -109,7 +109,7 @@ protected:
 	void HandleInputMethodChanged(ECommonInputType InInputType);
 
 	UPROPERTY(Transient)
-	UMaterialInstanceDynamic* ProgressDynamicMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> ProgressDynamicMaterial;
 	
 	TSharedPtr<SBox> MyKeyBox;
 

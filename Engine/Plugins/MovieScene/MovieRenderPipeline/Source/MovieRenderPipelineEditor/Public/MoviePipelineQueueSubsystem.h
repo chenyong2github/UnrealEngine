@@ -72,8 +72,8 @@ private:
 
 private:
 	UPROPERTY(Transient)
-	UMoviePipelineExecutorBase* ActiveExecutor;
+	TObjectPtr<UMoviePipelineExecutorBase> ActiveExecutor;
 
 	UPROPERTY(Transient, Instanced)
-	UMoviePipelineQueue* CurrentQueue;
+	TObjectPtr<UMoviePipelineQueue> CurrentQueue;
 };

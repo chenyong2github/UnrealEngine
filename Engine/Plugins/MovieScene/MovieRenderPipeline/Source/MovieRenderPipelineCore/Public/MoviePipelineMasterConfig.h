@@ -82,13 +82,13 @@ protected:
 public:	
 	/** A mapping of Shot Name -> Shot Config to use for rendering specific shots with specific configs. */
 	UPROPERTY(Instanced)
-	TMap<FString, UMoviePipelineShotConfig*> PerShotConfigMapping;
+	TMap<FString, TObjectPtr<UMoviePipelineShotConfig>> PerShotConfigMapping;
 
 private:
 	UPROPERTY(Instanced)
-	UMoviePipelineOutputSetting* OutputSetting;
+	TObjectPtr<UMoviePipelineOutputSetting> OutputSetting;
 
 	/** An array of settings that are available in the engine and have not been edited by the user. */
 	UPROPERTY(Transient)
-	TArray<UMoviePipelineSetting*> TransientSettings;
+	TArray<TObjectPtr<UMoviePipelineSetting>> TransientSettings;
 };

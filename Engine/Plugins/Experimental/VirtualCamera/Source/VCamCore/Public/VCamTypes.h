@@ -28,7 +28,7 @@ struct FModifierStackEntry
 
 	// The current generated modifier instance
 	UPROPERTY(EditAnywhere, Instanced, Category="Modifier")
-    UVCamModifier* GeneratedModifier = nullptr;
+    TObjectPtr<UVCamModifier> GeneratedModifier = nullptr;
 
 #if WITH_EDITOR
 	// GUID used in the editor to identify specific stack entries during editor operations

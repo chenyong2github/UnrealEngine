@@ -23,7 +23,7 @@ class GAMEPLAYABILITIES_API AAbilitySystemTestPawn : public ADefaultPawn, public
 private:
 	/** DefaultPawn collision component */
 	UPROPERTY(Category = AbilitySystem, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class UAbilitySystemComponent* AbilitySystemComponent;
+	TObjectPtr<class UAbilitySystemComponent> AbilitySystemComponent;
 public:
 
 	//UPROPERTY(EditDefaultsOnly, Category=GameplayEffects)

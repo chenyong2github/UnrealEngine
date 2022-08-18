@@ -50,9 +50,9 @@ private:
 	void InternalOnCancel();
 
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* PickerTarget;
+	TObjectPtr<UTextureRenderTarget2D> PickerTarget;
 	UPROPERTY(Transient)
-	UTexture* PickerDisplayImage;
+	TObjectPtr<UTexture> PickerDisplayImage;
 
 	bool bUseImplicitGamma = true;
 };

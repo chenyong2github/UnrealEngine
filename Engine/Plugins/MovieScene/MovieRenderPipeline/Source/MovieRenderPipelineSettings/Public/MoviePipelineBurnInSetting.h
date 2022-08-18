@@ -54,10 +54,10 @@ private:
 	TSharedPtr<SVirtualWindow> VirtualWindow;
 
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* RenderTarget;
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
 
 	UPROPERTY(Transient)
-	TArray<UMoviePipelineBurnInWidget*> BurnInWidgetInstances;
+	TArray<TObjectPtr<UMoviePipelineBurnInWidget>> BurnInWidgetInstances;
 public:
 	static FString DefaultBurnInWidgetAsset;
 };

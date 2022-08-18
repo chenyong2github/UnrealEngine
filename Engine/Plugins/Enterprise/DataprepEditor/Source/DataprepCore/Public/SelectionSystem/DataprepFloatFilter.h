@@ -53,7 +53,7 @@ public:
 private:
 	// The source of float selected by the user
 	UPROPERTY()
-	UDataprepFloatFetcher* FloatFetcher;
+	TObjectPtr<UDataprepFloatFetcher> FloatFetcher;
 
 	// The matching criteria used when checking if a fetched value can pass the filter
 	UPROPERTY(EditAnywhere, Category = "Filter")

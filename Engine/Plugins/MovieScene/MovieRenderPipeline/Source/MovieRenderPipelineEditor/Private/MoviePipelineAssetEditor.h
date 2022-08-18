@@ -19,5 +19,5 @@ public:
 	void SetObjectToEdit(UObject* InObject);
 private:
 	UPROPERTY(Transient)
-	UObject* ObjectToEdit;
+	TObjectPtr<UObject> ObjectToEdit;
 };

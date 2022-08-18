@@ -87,11 +87,11 @@ class POINTCLOUD_API UPointCloudComponent :
 
 	/** The material to render with */
 	UPROPERTY()
-	UMaterialInterface* PointCloudMaterial;
+	TObjectPtr<UMaterialInterface> PointCloudMaterial;
 	
 	/** An optional sprite texture to render the point with */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Point Cloud")
-	UTexture* SpriteTexture;
+	TObjectPtr<UTexture> SpriteTexture;
 	
 private:
 	virtual void BeginPlay() override;

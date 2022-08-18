@@ -15,7 +15,7 @@ struct SOUNDUTILITIES_API FSoundVariation
 
 	// The sound wave asset to use for this variation
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SoundVariation")
-	USoundWave* SoundWave;
+	TObjectPtr<USoundWave> SoundWave;
 
 	// The probability weight to use for this variation
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth|Preset")
@@ -68,7 +68,7 @@ protected:
 
 	// The current chosen sound wave
 	UPROPERTY(transient)
-	USoundWave* SoundWave;
+	TObjectPtr<USoundWave> SoundWave;
 };
 
 

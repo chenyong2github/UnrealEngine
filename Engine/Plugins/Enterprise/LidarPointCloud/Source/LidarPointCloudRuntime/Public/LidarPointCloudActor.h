@@ -15,7 +15,7 @@ class LIDARPOINTCLOUDRUNTIME_API ALidarPointCloudActor : public AActor
 
 private:
 	UPROPERTY(Category = PointCloudActor, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Rendering,Components|LidarPointCloud", AllowPrivateAccess = "true"))
-	ULidarPointCloudComponent* PointCloudComponent;
+	TObjectPtr<ULidarPointCloudComponent> PointCloudComponent;
 
 public:
 #if WITH_EDITOR

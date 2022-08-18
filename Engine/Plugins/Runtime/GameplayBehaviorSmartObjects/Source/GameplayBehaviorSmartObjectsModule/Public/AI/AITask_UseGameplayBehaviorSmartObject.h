@@ -51,10 +51,10 @@ protected:
 	FGenericGameplayTaskDelegate OnFinished;
 
 	UPROPERTY()
-	UAITask_MoveTo* MoveToTask;
+	TObjectPtr<UAITask_MoveTo> MoveToTask;
 
 	UPROPERTY()
-	UGameplayBehavior* GameplayBehavior;
+	TObjectPtr<UGameplayBehavior> GameplayBehavior;
 
 	FSmartObjectClaimHandle ClaimedHandle;
 	FDelegateHandle OnBehaviorFinishedNotifyHandle;

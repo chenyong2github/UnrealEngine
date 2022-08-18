@@ -49,11 +49,11 @@ protected:
 	
 	/** List of Pipeline Configs we've been asked to execute. */
 	UPROPERTY(Transient)
-	UMoviePipelineQueue* Queue;
+	TObjectPtr<UMoviePipelineQueue> Queue;
 
 	/** A Movie Pipeline that has been spawned and is running (if any) */
 	UPROPERTY(Transient)
-	UMoviePipeline* ActiveMoviePipeline;
+	TObjectPtr<UMoviePipeline> ActiveMoviePipeline;
 
 	/** Which Pipeline Config are we currently working on. */
 	int32 CurrentPipelineIndex;

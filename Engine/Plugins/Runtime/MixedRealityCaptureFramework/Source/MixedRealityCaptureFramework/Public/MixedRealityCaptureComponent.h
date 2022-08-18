@@ -38,10 +38,10 @@ class MIXEDREALITYCAPTUREFRAMEWORK_API UMixedRealityCaptureComponent : public US
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=VideoCapture)
-	UMediaPlayer* MediaSource;
+	TObjectPtr<UMediaPlayer> MediaSource;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetVidProjectionMat, Category=Composition)
-	UMaterialInterface* VideoProcessingMaterial;
+	TObjectPtr<UMaterialInterface> VideoProcessingMaterial;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetVidProcessingParams, Category=Composition)
 	FMrcVideoProcessingParams VideoProcessingParams;
@@ -56,7 +56,7 @@ public:
 	FName TrackingSourceName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Composition)
-	UTextureRenderTarget2D* GarbageMatteCaptureTextureTarget;
+	TObjectPtr<UTextureRenderTarget2D> GarbageMatteCaptureTextureTarget;
 
 	/** Millisecond delay to apply to motion controller components when rendering to the capture view (to better align with latent camera feeds) */
 	UPROPERTY(BlueprintReadWrite, Config, BlueprintGetter=GetTrackingDelay, BlueprintSetter=SetTrackingDelay, Category=Composition, meta=(ClampMin="0", UIMin="0"))
@@ -230,28 +230,28 @@ private:
 private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
-	UStaticMesh* ProxyMesh;
+	TObjectPtr<UStaticMesh> ProxyMesh;
 
 	UPROPERTY(Transient)
-	UStaticMeshComponent* ProxyMeshComponent;
+	TObjectPtr<UStaticMeshComponent> ProxyMeshComponent;
 #endif
 
 	UPROPERTY(Transient)
-	UChildActorComponent* ProjectionActor;
+	TObjectPtr<UChildActorComponent> ProjectionActor;
 
 	UPROPERTY(Transient)
-	UMotionControllerComponent* PairedTracker;
+	TObjectPtr<UMotionControllerComponent> PairedTracker;
 
 	UPROPERTY(Transient)
-	USceneComponent* TrackingOriginOffset;
+	TObjectPtr<USceneComponent> TrackingOriginOffset;
 
 	EHMDTrackingOrigin::Type RelativeOriginType;
 
 	UPROPERTY(Transient)
-	UMrcGarbageMatteCaptureComponent* GarbageMatteCaptureComponent;
+	TObjectPtr<UMrcGarbageMatteCaptureComponent> GarbageMatteCaptureComponent;
 
 	UPROPERTY(Transient)
-	UTexture2D* DistortionDisplacementMap;
+	TObjectPtr<UTexture2D> DistortionDisplacementMap;
 
 	float CalibratedFOV;
 	FOpenCVCameraViewInfo UndistortedCameraInfo;

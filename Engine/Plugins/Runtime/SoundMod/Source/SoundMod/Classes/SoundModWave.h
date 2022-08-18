@@ -18,7 +18,7 @@ class USoundModWave : public USoundWaveProcedural
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	class USoundMod* SoundMod;
+	TObjectPtr<class USoundMod> SoundMod;
 
 	xmp_context xmpContext;
 

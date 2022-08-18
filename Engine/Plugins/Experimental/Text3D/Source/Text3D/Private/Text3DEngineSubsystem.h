@@ -60,7 +60,7 @@ public:
 	TSharedPtr<int32> GetCacheCounter();
 
 	UPROPERTY()
-	TMap<uint32, class UStaticMesh*> Glyphs;
+	TMap<uint32, TObjectPtr<class UStaticMesh>> Glyphs;
 
 private:
 	TSharedPtr<int32> CacheCounter;
@@ -91,7 +91,7 @@ public:
 	TSharedContourNode GetGlyphContours(uint32 GlyphIndex);
 
 	UPROPERTY()
-	class UFont* Font;
+	TObjectPtr<class UFont> Font;
 
 	UPROPERTY()
 	TMap<uint32, FCachedFontMeshes> Meshes;
@@ -122,7 +122,7 @@ public:
 	FCachedFontData& GetCachedFontData(class UFont* Font);
 
 	UPROPERTY()
-	class UMaterial* DefaultMaterial;
+	TObjectPtr<class UMaterial> DefaultMaterial;
 
 private:
 	bool CleanupTimerCallback(float DeltaTime);

@@ -88,5 +88,5 @@ public:
 
 	// Objects for sharing
 	UPROPERTY(Transient)
-	TArray<UTextureShareObject*> TextureShareObjects;
+	TArray<TObjectPtr<UTextureShareObject>> TextureShareObjects;
 };

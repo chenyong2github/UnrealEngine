@@ -82,7 +82,7 @@ protected:
 	bool bFinishOnLanded;
 
 	UPROPERTY(Replicated)
-	UCurveVector* PathOffsetCurve;
+	TObjectPtr<UCurveVector> PathOffsetCurve;
 
 	/** 
 	 *  Maps real time to movement fraction curve to affect the speed of the
@@ -92,7 +92,7 @@ protected:
 	 *  Default if unset is a 1:1 correspondence
 	 */
 	UPROPERTY(Replicated)
-	UCurveFloat* TimeMappingCurve;
+	TObjectPtr<UCurveFloat> TimeMappingCurve;
 
 	bool bHasLanded;
 };

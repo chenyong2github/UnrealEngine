@@ -38,7 +38,7 @@ struct LEVELSNAPSHOTS_API FWorldSnapshotData
 	TWeakObjectPtr<UWorld> SnapshotWorld;
 	/** Sublevels of SnapshotWorld; excludes SnapshotWorld->PersistentLevel */
 	UPROPERTY(Transient)
-	TArray<UWorld*> SnapshotSublevels;
+	TArray<TObjectPtr<UWorld>> SnapshotSublevels;
 
 	/**
 	 * Stores versioning information we inject into archives.

@@ -83,7 +83,7 @@ protected:
 	void CleanUp();
 
 	UPROPERTY()
-	UMediaPlayer* MediaPlayer;
+	TObjectPtr<UMediaPlayer> MediaPlayer;
 	
 private:
 	friend struct FLatentPlayMrcCaptureFeedAction;

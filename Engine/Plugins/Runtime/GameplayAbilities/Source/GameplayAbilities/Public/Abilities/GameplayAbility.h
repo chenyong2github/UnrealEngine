@@ -798,7 +798,7 @@ protected:
 
 	/** List of currently active tasks, do not modify directly */
 	UPROPERTY()
-	TArray<UGameplayTask*>	ActiveTasks;
+	TArray<TObjectPtr<UGameplayTask>>	ActiveTasks;
 
 	/** Tasks can emit debug messages throughout their life for debugging purposes. Saved on the ability so that they persist after task is finished */
 	TArray<FAbilityTaskDebugMessage> TaskDebugMessages;
@@ -825,7 +825,7 @@ protected:
 
 	/** Active montage being played by this ability */
 	UPROPERTY()
-	class UAnimMontage* CurrentMontage;
+	TObjectPtr<class UAnimMontage> CurrentMontage;
 
 	// ----------------------------------------------------------------------------------------------------------------
 	//	Target Data

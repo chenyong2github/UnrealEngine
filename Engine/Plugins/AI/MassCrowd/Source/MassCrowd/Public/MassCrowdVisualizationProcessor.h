@@ -47,7 +47,7 @@ protected:
 	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
 
 	UPROPERTY(Transient)
-	UWorld* World;
+	TObjectPtr<UWorld> World;
 
 	FMassEntityQuery EntityQuery;
 };

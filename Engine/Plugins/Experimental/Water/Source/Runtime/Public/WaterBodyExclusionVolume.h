@@ -42,19 +42,19 @@ public:
 
 	/** List of water bodies that will be affected by this exclusion volume */
 	UPROPERTY(EditInstanceOnly, Category = Water, meta = (EditCondition = "!bExcludeAllOverlappingWaterBodies"))
-	TArray<AWaterBody*> WaterBodiesToExclude;
+	TArray<TObjectPtr<AWaterBody>> WaterBodiesToExclude;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(meta = (DeprecationMessage = "Property renamed to bExcludeAllOverlapping"))
 	bool bIgnoreAllOverlappingWaterBodies_DEPRECATED = false;
 
 	UPROPERTY(meta = (DeprecationMessage = "Property renamed to WaterBodiesToExclude"))
-	TArray<AWaterBody*> WaterBodiesToIgnore_DEPRECATED;
+	TArray<TObjectPtr<AWaterBody>> WaterBodiesToIgnore_DEPRECATED;
 
 	UPROPERTY(meta = (DeprecatedProperty))
-	AWaterBody* WaterBodyToIgnore_DEPRECATED;
+	TObjectPtr<AWaterBody> WaterBodyToIgnore_DEPRECATED;
 
 	UPROPERTY(Transient)
-	class UBillboardComponent* ActorIcon;
+	TObjectPtr<class UBillboardComponent> ActorIcon;
 #endif // WITH_EDITORONLY_DATA
 };

@@ -28,10 +28,10 @@ struct COMMONCONVERSATIONRUNTIME_API FNetSerializeScriptStructCache_ConvVersion
 	bool NetSerialize(FArchive& Ar, UScriptStruct*& Struct);
 
 	UPROPERTY()
-	TMap<UScriptStruct*, int32> ScriptStructsToIndex;
+	TMap<TObjectPtr<UScriptStruct>, int32> ScriptStructsToIndex;
 
 	UPROPERTY()
-	TArray<UScriptStruct*> IndexToScriptStructs;
+	TArray<TObjectPtr<UScriptStruct>> IndexToScriptStructs;
 };
 
 /**

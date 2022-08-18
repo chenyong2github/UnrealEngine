@@ -30,5 +30,5 @@ struct MASSAIBEHAVIOR_API FMassStateTreeSharedFragment : public FMassSharedFragm
 	FMassStateTreeSharedFragment() = default;
 
 	UPROPERTY()
-	UStateTree* StateTree = nullptr;
+	TObjectPtr<UStateTree> StateTree = nullptr;
 };

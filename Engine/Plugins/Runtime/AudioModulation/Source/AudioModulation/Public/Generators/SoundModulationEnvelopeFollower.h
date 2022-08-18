@@ -35,7 +35,7 @@ struct FEnvelopeFollowerGeneratorParams
 
 	/** AudioBus to follow amplitude of and generate modulation control signal from. */
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (EditCondition = "!bBypass"))
-	UAudioBus* AudioBus = nullptr;
+	TObjectPtr<UAudioBus> AudioBus = nullptr;
 
 	/** Gain to apply to amplitude signal. */
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (EditCondition = "!bBypass", ClampMin = 0.0f))

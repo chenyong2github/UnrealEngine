@@ -52,7 +52,7 @@ protected:
 
 	/** List of actions to perform as this game feature is loaded/activated/deactivated/unloaded */
 	UPROPERTY(EditDefaultsOnly, Instanced, Category="Actions")
-	TArray<UGameFeatureAction*> Actions;
+	TArray<TObjectPtr<UGameFeatureAction>> Actions;
 
 	/** List of asset types to scan at startup */
 	UPROPERTY(EditAnywhere, Category="Game Feature | Asset Manager", meta=(TitleProperty="PrimaryAssetType"))

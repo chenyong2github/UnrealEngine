@@ -52,7 +52,7 @@ public:
 	//~ End UDMXPixelMappingOutputComponent implementation
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture List")
-	UDMXLibrary* DMXLibrary;
+	TObjectPtr<UDMXLibrary> DMXLibrary;
 
 private:
 	/** Handles changes in position */

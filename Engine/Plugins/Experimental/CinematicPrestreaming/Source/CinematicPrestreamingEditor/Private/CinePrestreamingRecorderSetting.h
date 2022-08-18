@@ -15,10 +15,10 @@ struct FMoviePipelineCinePrestreamingGeneratedData
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cinematic Prestreaming")
-	UCinePrestreamingData* StreamingData;
+	TObjectPtr<UCinePrestreamingData> StreamingData;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cinematic Prestreaming")
-	UMovieScene* MovieScene;
+	TObjectPtr<UMovieScene> MovieScene;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cinematic Prestreaming")
 	FString PackagePath;

@@ -57,10 +57,10 @@ private:
 	TSubclassOf<AMrcGarbageMatteActor> GarbageMatteActorClass;
 
 	UPROPERTY(Transient)
-	AMrcGarbageMatteActor* GarbageMatteActor;
+	TObjectPtr<AMrcGarbageMatteActor> GarbageMatteActor;
 
 	UPROPERTY(Transient)
-	TArray<AMrcGarbageMatteActor*> SpawnedActors;
+	TArray<TObjectPtr<AMrcGarbageMatteActor>> SpawnedActors;
 
 	UPROPERTY(Transient)
 	TWeakObjectPtr<USceneComponent> TrackingOriginPtr;
@@ -96,11 +96,11 @@ public:
 
 private:
 	UPROPERTY(Transient)
-	UStaticMesh* GarbageMatteMesh;
+	TObjectPtr<UStaticMesh> GarbageMatteMesh;
 
 	UPROPERTY(Transient)
-	UMaterial* GarbageMatteMaterial;
+	TObjectPtr<UMaterial> GarbageMatteMaterial;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "MixedRealityCapture|GarbageMatting", meta=(AllowPrivateAccess="true"))
-	TArray<UPrimitiveComponent*> GarbageMattes;
+	TArray<TObjectPtr<UPrimitiveComponent>> GarbageMattes;
 };

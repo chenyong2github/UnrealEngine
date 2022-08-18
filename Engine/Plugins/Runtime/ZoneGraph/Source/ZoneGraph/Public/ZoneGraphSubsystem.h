@@ -28,7 +28,7 @@ struct FRegisteredZoneGraphData
 	}
 
 	UPROPERTY()
-	AZoneGraphData* ZoneGraphData = nullptr;
+	TObjectPtr<AZoneGraphData> ZoneGraphData = nullptr;
 
 	int32 Generation = 1;	// Starting at generation 1 so that 0 can be invalid.
 	bool bInUse = false;	// Extra bit indicating that the data is in meant to be in use. This tried to capture the case where ZoneGraphData might get nullified without notifying.

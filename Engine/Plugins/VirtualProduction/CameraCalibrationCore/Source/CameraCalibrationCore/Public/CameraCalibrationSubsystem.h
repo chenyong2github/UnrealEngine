@@ -136,7 +136,7 @@ public:
 private:
 	/** Default lens file to use when no override has been provided */
 	UPROPERTY(Transient)
-	ULensFile* DefaultLensFile = nullptr;
+	TObjectPtr<ULensFile> DefaultLensFile = nullptr;
 
 	/** Map of model names to ULensModel subclasses */
 	UPROPERTY(Transient)

@@ -42,15 +42,15 @@ public:
 
 private:
 	UPROPERTY(Transient)
-	UWorld* World = nullptr;
+	TObjectPtr<UWorld> World = nullptr;
 
 	UPROPERTY(Transient)
-	UMassSpawnerSubsystem* SpawnerSubsystem = nullptr;
+	TObjectPtr<UMassSpawnerSubsystem> SpawnerSubsystem = nullptr;
 
 	TSharedPtr<FMassEntityManager> EntityManager;
 
 	UPROPERTY(Transient)
-	UMassReplicationSubsystem* ReplicationSubsystem = nullptr;
+	TObjectPtr<UMassReplicationSubsystem> ReplicationSubsystem = nullptr;
 
 	/** Pointer to the IClientBubbleHandlerInterface derived class in the class derived from this one */
 	IClientBubbleHandlerInterface* ClientHandler = nullptr;

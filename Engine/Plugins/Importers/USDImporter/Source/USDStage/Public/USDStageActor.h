@@ -147,7 +147,7 @@ public:
 
 private:
 	UPROPERTY(Category = UsdStageActor, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Mesh,Rendering,Physics,Components|StaticMesh", AllowPrivateAccess = "true"))
-	class USceneComponent* SceneComponent;
+	TObjectPtr<class USceneComponent> SceneComponent;
 
 	/* TimeCode to evaluate the USD stage at */
 	UPROPERTY(EditAnywhere, Category = "USD")
@@ -163,7 +163,7 @@ private:
 	float TimeCodesPerSecond_DEPRECATED;
 
 	UPROPERTY(VisibleAnywhere, Category = "USD", Transient)
-	ULevelSequence* LevelSequence;
+	TObjectPtr<ULevelSequence> LevelSequence;
 
 public:
 	DECLARE_EVENT_OneParam( AUsdStageActor, FOnActorLoaded, AUsdStageActor* );
@@ -243,19 +243,19 @@ private:
 private:
 	// Note: This cannot be instanced: Read the comment in the constructor
 	UPROPERTY( Transient )
-	UUsdPrimTwin* RootUsdTwin;
+	TObjectPtr<UUsdPrimTwin> RootUsdTwin;
 
 	UPROPERTY( Transient )
 	TSet< FString > PrimsToAnimate;
 
 	UPROPERTY( Transient )
-	TMap< UObject*, FString > ObjectsToWatch;
+	TMap< TObjectPtr<UObject>, FString > ObjectsToWatch;
 
 	UPROPERTY( VisibleAnywhere, Category = "USD", AdvancedDisplay )
-	UUsdAssetCache* AssetCache;
+	TObjectPtr<UUsdAssetCache> AssetCache;
 
 	UPROPERTY( Transient )
-	UUsdTransactor* Transactor;
+	TObjectPtr<UUsdTransactor> Transactor;
 
 public:
 	UE_DEPRECATED( 4.27, "Use the const version if you don't wish to load the stage on-demand, or use GetOrLoadUsdStage if you do" )

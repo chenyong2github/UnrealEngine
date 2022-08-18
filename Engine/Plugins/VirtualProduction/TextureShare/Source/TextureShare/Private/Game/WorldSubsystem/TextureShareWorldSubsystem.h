@@ -53,7 +53,7 @@ public:
 public:
 	// This UObject implements configuration and API
 	UPROPERTY(Transient)
-	UTextureShare* TextureShare;
+	TObjectPtr<UTextureShare> TextureShare;
 
 private:
 	// Release objects and resources

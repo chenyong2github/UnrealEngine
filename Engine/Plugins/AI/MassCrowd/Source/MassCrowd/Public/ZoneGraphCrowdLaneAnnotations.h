@@ -62,5 +62,5 @@ protected:
 
 	/** Cached ZoneGraphSubsystem */
 	UPROPERTY(Transient)
-	UMassCrowdSubsystem* CrowdSubsystem = nullptr;
+	TObjectPtr<UMassCrowdSubsystem> CrowdSubsystem = nullptr;
 };

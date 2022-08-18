@@ -94,7 +94,7 @@ public:
 	FVirtualCameraResetOffsetsDelegate OnOffsetReset;
 
 	UPROPERTY(transient, BlueprintReadOnly, Category = "VirtualCamera")
-	AVPRootActor* RootActor;
+	TObjectPtr<AVPRootActor> RootActor;
 
 	/**
 	 * Overridable function to allow user to get tracker data from blueprints.
@@ -182,11 +182,11 @@ protected:
 
 	/** Controller for level sequence playback */
 	UPROPERTY(Transient)
-	ULevelSequencePlaybackController* LevelSequencePlaybackController;
+	TObjectPtr<ULevelSequencePlaybackController> LevelSequencePlaybackController;
 	
 	/** Target camera that is spawned or possessed on begin play for the sequence controller */
 	UPROPERTY(Transient)
-	ACineCameraActor* TargetCameraActor;
+	TObjectPtr<ACineCameraActor> TargetCameraActor;
 
 	/** Cached value for IsVirtualCameraControlledByRemoteSession() */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "VirtualCamera")

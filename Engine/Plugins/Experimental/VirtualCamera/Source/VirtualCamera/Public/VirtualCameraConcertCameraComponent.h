@@ -43,7 +43,7 @@ public:
 
 	/** The camera component that will be tracked. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VirtualCamera")
-	UCineCameraComponent* ComponentToTrack;
+	TObjectPtr<UCineCameraComponent> ComponentToTrack;
 
 public:
 	virtual void BeginPlay() override;

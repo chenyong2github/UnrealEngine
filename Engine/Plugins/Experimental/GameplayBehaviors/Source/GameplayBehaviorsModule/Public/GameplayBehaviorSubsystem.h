@@ -17,7 +17,7 @@ struct FAgentGameplayBehaviors
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TArray<UGameplayBehavior*> Behaviors;
+	TArray<TObjectPtr<UGameplayBehavior>> Behaviors;
 };
 
 UCLASS(config = Game, defaultconfig, Transient)
@@ -36,5 +36,5 @@ protected:
 	virtual bool TriggerBehaviorImpl(UGameplayBehavior& Behavior, AActor& Avatar, const UGameplayBehaviorConfig* Config, AActor* SmartObjectOwner = nullptr);
 
 	UPROPERTY()
-	TMap<AActor*, FAgentGameplayBehaviors> AgentGameplayBehaviors;
+	TMap<TObjectPtr<AActor>, FAgentGameplayBehaviors> AgentGameplayBehaviors;
 };

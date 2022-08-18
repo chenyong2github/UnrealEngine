@@ -216,7 +216,7 @@ public:
 
 	/** Used when rendering the face mesh (mostly debug reasons) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components|ARFaceMesh")
-	class UMaterialInterface* FaceMaterial;
+	TObjectPtr<class UMaterialInterface> FaceMaterial;
 
 	/** Used to identify this component's face ar data uniquely as part of the LiveLink animation pipeline */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components|ARFaceMesh")

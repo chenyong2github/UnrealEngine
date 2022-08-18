@@ -266,22 +266,22 @@ private:
 	FBox GetGridBounds(AActor* InActor) const;
 
 	UPROPERTY(Transient, NonPIEDuplicateTransient)
-	UPCGData* CachedPCGData = nullptr;
+	TObjectPtr<UPCGData> CachedPCGData = nullptr;
 
 	UPROPERTY(Transient, NonPIEDuplicateTransient)
-	UPCGData* CachedInputData = nullptr;
+	TObjectPtr<UPCGData> CachedInputData = nullptr;
 
 	UPROPERTY(Transient, NonPIEDuplicateTransient)
-	UPCGData* CachedActorData = nullptr;
+	TObjectPtr<UPCGData> CachedActorData = nullptr;
 
 	UPROPERTY(Transient, NonPIEDuplicateTransient)
-	UPCGData* CachedLandscapeData = nullptr;
+	TObjectPtr<UPCGData> CachedLandscapeData = nullptr;
 
 	UPROPERTY(Transient, NonPIEDuplicateTransient)
-	UPCGData* CachedLandscapeHeightData = nullptr;
+	TObjectPtr<UPCGData> CachedLandscapeHeightData = nullptr;
 
 	UPROPERTY(Transient, NonPIEDuplicateTransient)
-	TMap<AActor*, UPCGData*> CachedExclusionData;
+	TMap<TObjectPtr<AActor>, TObjectPtr<UPCGData>> CachedExclusionData;
 
 	// Cached excluded actors list is serialized because we can't get it at postload time
 	UPROPERTY()
@@ -333,7 +333,7 @@ private:
 	bool bActorToTagsMapPopulated = false;
 
 	UPROPERTY(Transient)
-	TMap<const UPCGNode*, FPCGDataCollection> InspectionCache;
+	TMap<TObjectPtr<const UPCGNode>, FPCGDataCollection> InspectionCache;
 #endif
 
 	FCriticalSection GeneratedResourcesLock;

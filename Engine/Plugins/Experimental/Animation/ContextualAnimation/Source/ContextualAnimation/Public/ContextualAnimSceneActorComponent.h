@@ -33,7 +33,7 @@ public:
 	FContextualAnimSceneActorCompDelegate OnLeftSceneDelegate;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
-	class UContextualAnimSceneAsset* SceneAsset;
+	TObjectPtr<class UContextualAnimSceneAsset> SceneAsset;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
 	bool bEnableDebug;

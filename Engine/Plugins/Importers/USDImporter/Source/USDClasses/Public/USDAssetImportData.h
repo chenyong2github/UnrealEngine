@@ -19,7 +19,7 @@ public:
 	// Likely a UUSDStageImportOptions, but we don't declare it here
 	// to prevent an unnecessary module dependency on USDStageImporter
 	UPROPERTY()
-	class UObject* ImportOptions;
+	TObjectPtr<class UObject> ImportOptions;
 };
 
 UCLASS(config = EditorPerProjectUserSettings, AutoExpandCategories = (Options), MinimalAPI)

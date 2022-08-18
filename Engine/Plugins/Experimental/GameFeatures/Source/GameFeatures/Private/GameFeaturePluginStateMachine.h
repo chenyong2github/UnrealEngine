@@ -263,7 +263,7 @@ struct FGameFeaturePluginStateMachineProperties
 
 	/** The data asset describing this game feature */
 	UPROPERTY(Transient)
-	UGameFeatureData* GameFeatureData = nullptr;
+	TObjectPtr<UGameFeatureData> GameFeatureData = nullptr;
 
 	/** Callbacks for when the current state transition is cancelled */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnTransitionCanceled, UGameFeaturePluginStateMachine* /*Machine*/);

@@ -22,5 +22,5 @@ protected:
 	virtual void ValidateTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
 
 	UPROPERTY(Category="StateTree", EditAnywhere, meta=(RequiredAssetDataTags="Schema=MassStateTreeSchema"))
-	UStateTree* StateTree;
+	TObjectPtr<UStateTree> StateTree;
 };

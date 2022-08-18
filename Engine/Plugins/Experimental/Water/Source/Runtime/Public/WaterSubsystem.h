@@ -211,7 +211,7 @@ private:
 
 public:
 	UPROPERTY(Transient)
-	ABuoyancyManager* BuoyancyManager;
+	TObjectPtr<ABuoyancyManager> BuoyancyManager;
 
 	DECLARE_EVENT_OneParam(UWaterSubsystem, FOnWaterSubsystemInitialized, UWaterSubsystem*)
 	static FOnWaterSubsystemInitialized OnWaterSubsystemInitialized;
@@ -223,10 +223,10 @@ public:
 	FOnWaterScalabilityChanged OnWaterScalabilityChanged;
 
 	UPROPERTY()
-	UStaticMesh* DefaultRiverMesh;
+	TObjectPtr<UStaticMesh> DefaultRiverMesh;
 
 	UPROPERTY()
-	UStaticMesh* DefaultLakeMesh;
+	TObjectPtr<UStaticMesh> DefaultLakeMesh;
 
 private:
 
@@ -247,7 +247,7 @@ private:
 
 	/** The parameter collection asset that holds the global parameters that are updated by this actor */
 	UPROPERTY()
-	UMaterialParameterCollection* MaterialParameterCollection;
+	TObjectPtr<UMaterialParameterCollection> MaterialParameterCollection;
 
 	FUnderwaterPostProcessVolume UnderwaterPostProcessVolume;
 

@@ -134,7 +134,7 @@ protected:
 
 public:
 	UPROPERTY(Transient, DuplicateTransient)
-	mutable UObject* EvalWorldContextObj;
+	mutable TObjectPtr<UObject> EvalWorldContextObj;
 
 protected:
 	/** node name */
@@ -160,7 +160,7 @@ protected:
 private:
 	/** parent node */
 	UPROPERTY()
-	UConversationNode* ParentNode;
+	TObjectPtr<UConversationNode> ParentNode;
 
 private:
 	friend class FConversationCompiler;

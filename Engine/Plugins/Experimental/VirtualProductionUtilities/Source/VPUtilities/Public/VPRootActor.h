@@ -30,11 +30,11 @@ public:
 public:
 	/** Actor used to show the size of the scene. */
 	UPROPERTY(EditDefaultsOnly, Category = "Virtual Production")
-	UMeshComponent* RealWorldSceneRepresentation;
+	TObjectPtr<UMeshComponent> RealWorldSceneRepresentation;
 
 	/** Actor used to show the size of the scene. */
 	UPROPERTY(EditAnywhere, Category = "Virtual Production")
-	ACineCameraActor* CinematicCamera;
+	TObjectPtr<ACineCameraActor> CinematicCamera;
 
 private:
 	UPROPERTY()
@@ -44,11 +44,11 @@ private:
 protected:
 	/** Billboard used to see the scene in the editor */
 	UPROPERTY()
-	UBillboardComponent* SpriteComponent;
+	TObjectPtr<UBillboardComponent> SpriteComponent;
 
 	/** Arrow used to see the orientation of the scene in the editor */
 	UPROPERTY()
-	UArrowComponent* ArrowComponent;
+	TObjectPtr<UArrowComponent> ArrowComponent;
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Virtual Production")

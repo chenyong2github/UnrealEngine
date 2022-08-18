@@ -16,11 +16,11 @@ struct LEVELSNAPSHOTFILTERS_API FIsActorValidParams
 
 	/** The actor saved in the snapshot */
 	UPROPERTY(BlueprintReadWrite, Category = "Level Snapshots")
-	AActor* SnapshotActor = nullptr;
+	TObjectPtr<AActor> SnapshotActor = nullptr;
 	
 	/** The actor equivalent to LevelActor: it exists in the world */
 	UPROPERTY(BlueprintReadWrite, Category = "Level Snapshots")
-	AActor* LevelActor = nullptr;
+	TObjectPtr<AActor> LevelActor = nullptr;
 
 	FIsActorValidParams() = default;
 	FIsActorValidParams(AActor* InSnapshotActor, AActor* InLevelActor)
@@ -36,11 +36,11 @@ struct LEVELSNAPSHOTFILTERS_API FIsPropertyValidParams
 
 	/** The actor saved in the snapshot */
 	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
-	AActor* SnapshotActor = nullptr;
+	TObjectPtr<AActor> SnapshotActor = nullptr;
 	
 	/** The actor equivalent to LevelActor: it exists in the world */
 	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
-	AActor* LevelActor = nullptr;
+	TObjectPtr<AActor> LevelActor = nullptr;
 
 	/** For passing to FProperty::ContainerPtrToValuePtr. This is either SnapshotActor or a subobject thereof. */
 	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
@@ -106,7 +106,7 @@ struct LEVELSNAPSHOTFILTERS_API FIsAddedActorValidParams
 
 	/** This actor was added to the level since the snapshot was taken. */
 	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
-	AActor* NewActor = nullptr;
+	TObjectPtr<AActor> NewActor = nullptr;
 
 	FIsAddedActorValidParams() = default;
 	explicit FIsAddedActorValidParams(AActor* NewActor)
@@ -121,11 +121,11 @@ struct LEVELSNAPSHOTFILTERS_API FIsDeletedComponentValidParams
 
 	/** This component was removed from the actor. This instance exists in a transient snapshot world; it does not exist in the editor world. */
 	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
-	UActorComponent* DeletedComponent = nullptr;
+	TObjectPtr<UActorComponent> DeletedComponent = nullptr;
 
 	/** The actor the component was removed from; This instance exists in the editor world. */
 	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
-	AActor* EditorActor = nullptr;
+	TObjectPtr<AActor> EditorActor = nullptr;
 
 	FIsDeletedComponentValidParams() = default;
 	explicit FIsDeletedComponentValidParams(UActorComponent* DeletedComponent, AActor* EditorActor)
@@ -141,7 +141,7 @@ struct LEVELSNAPSHOTFILTERS_API FIsAddedComponentValidParams
 
 	/** This component was added to the actor. This is an instance in the editor world. */
 	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
-	UActorComponent* AddedComponent = nullptr;
+	TObjectPtr<UActorComponent> AddedComponent = nullptr;
 
 	FIsAddedComponentValidParams() = default;
 	explicit FIsAddedComponentValidParams(UActorComponent* AddedComponent)

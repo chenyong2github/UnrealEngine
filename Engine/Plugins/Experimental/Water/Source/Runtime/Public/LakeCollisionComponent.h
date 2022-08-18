@@ -35,7 +35,7 @@ protected:
 	void CreateLakeBodySetupIfNeeded();
 private:
 	UPROPERTY(NonPIEDuplicateTransient)
-	class UBodySetup* CachedBodySetup;
+	TObjectPtr<class UBodySetup> CachedBodySetup;
 
 	UPROPERTY()
 	FVector BoxExtent;

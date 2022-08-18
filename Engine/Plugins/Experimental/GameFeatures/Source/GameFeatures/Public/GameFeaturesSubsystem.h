@@ -577,19 +577,19 @@ private:
 private:
 	/** The list of all game feature plugin state machine objects */
 	UPROPERTY(Transient)
-	TMap<FGameFeaturePluginIdentifier, UGameFeaturePluginStateMachine*> GameFeaturePluginStateMachines;
+	TMap<FGameFeaturePluginIdentifier, TObjectPtr<UGameFeaturePluginStateMachine>> GameFeaturePluginStateMachines;
 
 	/** Game feature plugin state machine objects that are being terminated. Used to prevent GC until termination is complete. */
 	UPROPERTY(Transient)
-	TArray<UGameFeaturePluginStateMachine*> TerminalGameFeaturePluginStateMachines;
+	TArray<TObjectPtr<UGameFeaturePluginStateMachine>> TerminalGameFeaturePluginStateMachines;
 
 	TMap<FString, FString> GameFeaturePluginNameToPathMap;
 
 	UPROPERTY()
-	TArray<UObject*> Observers;
+	TArray<TObjectPtr<UObject>> Observers;
 
 	UPROPERTY(Transient)
-	UGameFeaturesProjectPolicies* GameSpecificPolicies;
+	TObjectPtr<UGameFeaturesProjectPolicies> GameSpecificPolicies;
 
 	bool bInitializedPolicyManager = false;
 };

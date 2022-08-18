@@ -73,7 +73,7 @@ public:
 	FVector2D Size;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Remote Session")
-	UTextureRenderTarget2D* RenderTarget;
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Remote Session")
 	int16 Port;

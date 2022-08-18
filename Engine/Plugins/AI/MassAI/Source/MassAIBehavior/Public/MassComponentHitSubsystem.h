@@ -38,17 +38,17 @@ protected:
 	void OnHitCallback(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 	UPROPERTY()
-	UMassSignalSubsystem* SignalSubsystem;
+	TObjectPtr<UMassSignalSubsystem> SignalSubsystem;
 
 	UPROPERTY()
-    UMassAgentSubsystem* AgentSubsystem;
+    TObjectPtr<UMassAgentSubsystem> AgentSubsystem;
 
 	UPROPERTY()
 	TMap<FMassEntityHandle, FMassHitResult> HitResults;
 
 	UPROPERTY()
-	TMap<UActorComponent*, FMassEntityHandle> ComponentToEntityMap;
+	TMap<TObjectPtr<UActorComponent>, FMassEntityHandle> ComponentToEntityMap;
 
 	UPROPERTY()
-	TMap<FMassEntityHandle, UActorComponent*> EntityToComponentMap;
+	TMap<FMassEntityHandle, TObjectPtr<UActorComponent>> EntityToComponentMap;
 };

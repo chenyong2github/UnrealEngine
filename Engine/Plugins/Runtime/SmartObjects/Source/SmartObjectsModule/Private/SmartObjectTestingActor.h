@@ -83,7 +83,7 @@ protected:
 
 private:
 	UPROPERTY(Transient)
-	ASmartObjectTestingActor* SmartObjectTestingActor;
+	TObjectPtr<ASmartObjectTestingActor> SmartObjectTestingActor;
 };
 
 
@@ -167,13 +167,13 @@ protected:
 	void ResetTests();
 
 	UPROPERTY(EditAnywhere, Category = Test, Instanced)
-	TArray<USmartObjectTest*> Tests;
+	TArray<TObjectPtr<USmartObjectTest>> Tests;
 
 	UPROPERTY(Transient)
-	USmartObjectTestRenderingComponent* RenderingComponent;
+	TObjectPtr<USmartObjectTestRenderingComponent> RenderingComponent;
 
 	UPROPERTY(Transient)
-	USmartObjectSubsystem* SmartObjectSubsystem = nullptr;
+	TObjectPtr<USmartObjectSubsystem> SmartObjectSubsystem = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = Test)
 	bool bRunTestsEachFrame = false;

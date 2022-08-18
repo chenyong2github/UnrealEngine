@@ -21,7 +21,7 @@ struct IMAGEPLATE_API FImagePlateParameters
 
 	/** The material that the image plate is rendered with. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category="Image Plate")
-	UMaterialInterface* Material;
+	TObjectPtr<UMaterialInterface> Material;
 
 	/** Name of a texture parameter inside the material to patch the render target texture to */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category="Image Plate")
@@ -41,11 +41,11 @@ struct IMAGEPLATE_API FImagePlateParameters
 
 	/** Transient texture that receives image frames */
 	UPROPERTY(transient, BlueprintReadOnly, Category="Image Plate")
-	UTexture* RenderTexture;
+	TObjectPtr<UTexture> RenderTexture;
 
 	/** Transient MID to hold the material with the render texture patched in */
 	UPROPERTY(transient)
-	UMaterialInstanceDynamic* DynamicMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
 };
 
 /** 
@@ -141,6 +141,6 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
-	UImagePlateFrustumComponent* EditorFrustum;
+	TObjectPtr<UImagePlateFrustumComponent> EditorFrustum;
 #endif
 };

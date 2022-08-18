@@ -32,7 +32,7 @@ protected:
 	virtual void OnOwnerSet() {}
 
 	UPROPERTY()
-	UZoneGraphAnnotationTestingComponent* OwnerComponent;
+	TObjectPtr<UZoneGraphAnnotationTestingComponent> OwnerComponent;
 };
 
 
@@ -67,7 +67,7 @@ protected:
 #endif
 
 	UPROPERTY(EditAnywhere, Category = "Test", Instanced)
-	TArray<UZoneGraphAnnotationTest*> Tests;
+	TArray<TObjectPtr<UZoneGraphAnnotationTest>> Tests;
 };
 
 
@@ -92,5 +92,5 @@ protected:
 #endif
 
 	UPROPERTY(Category = Default, VisibleAnywhere, meta = (AllowPrivateAccess = "true"))
-	UZoneGraphAnnotationTestingComponent* TestingComp;
+	TObjectPtr<UZoneGraphAnnotationTestingComponent> TestingComp;
 };

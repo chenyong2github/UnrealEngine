@@ -118,7 +118,7 @@ public:
 	TArray<TSubclassOf<UDMXModulator>> ModulatorClasses;
 
 	UPROPERTY()
-	TArray<UDMXModulator*> Modulators;
+	TArray<TObjectPtr<UDMXModulator>> Modulators;
 
 	/** Index of the cell pixel in downsample target buffer */
 	int32 DownsamplePixelIndex;

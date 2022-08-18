@@ -42,7 +42,7 @@ class GAMEPLAYABILITIES_API UAbilityTask_WaitGameplayEvent : public UAbilityTask
 	FGameplayTag Tag;
 
 	UPROPERTY()
-	UAbilitySystemComponent* OptionalExternalTarget;
+	TObjectPtr<UAbilitySystemComponent> OptionalExternalTarget;
 
 	bool UseExternalTarget;	
 	bool OnlyTriggerOnce;

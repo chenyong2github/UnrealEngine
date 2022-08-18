@@ -33,122 +33,122 @@ public:
 	GENERATED_BODY()
 	
  	UPROPERTY()
-	USceneCaptureComponent2D* SceneCaptureComponent2D = nullptr;
+	TObjectPtr<USceneCaptureComponent2D> SceneCaptureComponent2D = nullptr;
 
 	UPROPERTY()
-	UJumpFloodComponent2D* JumpFloodComponent2D = nullptr;
+	TObjectPtr<UJumpFloodComponent2D> JumpFloodComponent2D = nullptr;
 
 	// RTs
 	UPROPERTY(VisibleAnywhere, Transient, meta = (Category = "Render Targets"))
-	UTextureRenderTarget2D* HeightmapRTA = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> HeightmapRTA = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Transient, meta=(Category="Render Targets"))
-	UTextureRenderTarget2D* HeightmapRTB = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> HeightmapRTB = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Transient, meta=(Category="Render Targets"))
-	UTextureRenderTarget2D* JumpFloodRTA;
+	TObjectPtr<UTextureRenderTarget2D> JumpFloodRTA;
 
 	UPROPERTY(VisibleAnywhere, Transient, meta=(Category="Render Targets"))
-	UTextureRenderTarget2D* JumpFloodRTB = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> JumpFloodRTB = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Transient, meta=(Category="Render Targets"))
-	UTextureRenderTarget2D* DepthAndShapeRT = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> DepthAndShapeRT = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Transient, meta=(Category="Render Targets"))
-	UTextureRenderTarget2D* WaterDepthAndVelocityRT = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> WaterDepthAndVelocityRT = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Transient, meta=(Category="Render Targets"))
-	UTextureRenderTarget2D* CombinedVelocityAndHeightRTA = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> CombinedVelocityAndHeightRTA = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Transient, meta=(Category="Render Targets"))
-	UTextureRenderTarget2D* CombinedVelocityAndHeightRTB = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> CombinedVelocityAndHeightRTB = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Transient, meta=(Category="Render Targets"))
-	UTextureRenderTarget2D* LandscapeRTRef = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> LandscapeRTRef = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Transient, meta=(Category="Render Targets"))
-	UTextureRenderTarget2D* WeightmapRTA = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> WeightmapRTA = nullptr;
 	
 	UPROPERTY(VisibleAnywhere, Transient, meta=(Category="Render Targets"))
-	UTextureRenderTarget2D* WeightmapRTB = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> WeightmapRTB = nullptr;
 	// RTs End
 
 	// Brush materials
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
-	UMaterialInterface* BrushAngleFalloffMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> BrushAngleFalloffMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
-	UMaterialInterface* BrushWidthFalloffMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> BrushWidthFalloffMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
-	UMaterialInterface* DistanceFieldCacheMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> DistanceFieldCacheMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
-	UMaterialInterface* RenderRiverSplineDepthMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> RenderRiverSplineDepthMaterial = nullptr;
 
 	// TODO [jonathan.bard] : rename to DebugDistanceFieldMaterial and make it work : 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
-	UMaterialInterface* DebugDistanceFieldMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> DebugDistanceFieldMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
-	UMaterialInterface* WeightmapMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> WeightmapMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
-	UMaterialInterface* DrawCanvasMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> DrawCanvasMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
-	UMaterialInterface* CompositeWaterBodyTextureMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> CompositeWaterBodyTextureMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
-	UMaterialInterface* IslandFalloffMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> IslandFalloffMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
-	UMaterialInterface* FinalizeVelocityHeightMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> FinalizeVelocityHeightMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
-	UMaterialInterface* JumpStepMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> JumpStepMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
-	UMaterialInterface* FindEdgesMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> FindEdgesMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
-	UMaterialInterface* BlurEdgesMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> BlurEdgesMaterial = nullptr;
 	// Brush materials end
 
 	// MIDs
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta=(Category="Debug MIDs"))
-	UMaterialInstanceDynamic* BrushAngleFalloffMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> BrushAngleFalloffMID = nullptr;
 
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta=(Category="Debug MIDs"))
-	UMaterialInstanceDynamic* BrushWidthFalloffMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> BrushWidthFalloffMID = nullptr;
 
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta=(Category="Debug MIDs"))
-	UMaterialInstanceDynamic* DistanceFieldCacheMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> DistanceFieldCacheMID = nullptr;
 
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
-	TArray<UMaterialInstanceDynamic*> RiverSplineMIDs;
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> RiverSplineMIDs;
 
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
-	UMaterialInstanceDynamic* DebugDistanceFieldMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> DebugDistanceFieldMID = nullptr;
 
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
-	UMaterialInstanceDynamic* WeightmapMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> WeightmapMID = nullptr;
 
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
-	UMaterialInstanceDynamic* DrawCanvasMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> DrawCanvasMID = nullptr;
 
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
-	UMaterialInstanceDynamic* CompositeWaterBodyTextureMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> CompositeWaterBodyTextureMID = nullptr;
 
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
-	UMaterialInstanceDynamic* IslandFalloffMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> IslandFalloffMID = nullptr;
 
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
-	UMaterialInstanceDynamic* FinalizeVelocityHeightMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> FinalizeVelocityHeightMID = nullptr;
 	// MIDs End
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Transient, meta=(Category="Debug"))
-	TMap<UCurveFloat*,FWaterBodyBrushCache> BrushCurveRTCache;
+	TMap<TObjectPtr<UCurveFloat>,FWaterBodyBrushCache> BrushCurveRTCache;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(Category="Debug"))
 	FVector WorldSize;

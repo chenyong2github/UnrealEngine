@@ -217,7 +217,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	/** DEPRECATED: Pointer to data preparation pipeline blueprint previously used to process input data */
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Using directly ActionAssets property instead of Blueprint to manage actions."))
-	UBlueprint* DataprepRecipeBP_DEPRECATED;
+	TObjectPtr<UBlueprint> DataprepRecipeBP_DEPRECATED;
 	// end of temp code for nodes development
 
 	/** DEPRECATED: List of producers referenced by the asset */
@@ -226,7 +226,7 @@ protected:
 
 	/** DEPRECATED: COnsumer referenced by the asset */
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Property moved to UDataprepAssetInterface as Output."))
-	UDataprepContentConsumer* Consumer_DEPRECATED;
+	TObjectPtr<UDataprepContentConsumer> Consumer_DEPRECATED;
 #endif
 
 private:
@@ -239,13 +239,13 @@ private:
 private:
 	/** DEPRECATED: Pointer to the entry node of the pipeline blueprint previously used to process input data */
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Using directly ActionAssets property instead of Blueprint to manage actions."))
-	UEdGraphNode* StartNode_DEPRECATED;
+	TObjectPtr<UEdGraphNode> StartNode_DEPRECATED;
 
 	UPROPERTY()
-	UDataprepParameterization* Parameterization;
+	TObjectPtr<UDataprepParameterization> Parameterization;
 
 	UPROPERTY()
-	TArray<UDataprepActionAsset*> ActionAssets;
+	TArray<TObjectPtr<UDataprepActionAsset>> ActionAssets;
 
 	FOnDataprepActionAssetChange OnActionChanged;
 

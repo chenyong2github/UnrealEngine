@@ -178,7 +178,7 @@ protected:
 	TWeakObjectPtr<UDisplayClusterConfiguratorBaseNode> Parent;
 
 	UPROPERTY(Transient, NonTransactional)
-	TArray<UDisplayClusterConfiguratorBaseNode*> Children;
+	TArray<TObjectPtr<UDisplayClusterConfiguratorBaseNode>> Children;
 
 	FString NodeName;
 	int32 NodeZIndex;

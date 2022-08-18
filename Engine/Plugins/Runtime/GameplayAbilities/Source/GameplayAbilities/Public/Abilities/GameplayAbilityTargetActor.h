@@ -75,16 +75,16 @@ public:
 #endif // WITH_EDITOR
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Targeting")
-	APlayerController* PrimaryPC;
+	TObjectPtr<APlayerController> PrimaryPC;
 
 	UPROPERTY()
-	UGameplayAbility* OwningAbility;
+	TObjectPtr<UGameplayAbility> OwningAbility;
 
 	UPROPERTY(BlueprintReadOnly, Replicated, Category = Targeting)
 	bool bDestroyOnConfirmation;
 
 	UPROPERTY(BlueprintReadOnly, Replicated, Category = Targeting)
-	AActor* SourceActor;
+	TObjectPtr<AActor> SourceActor;
 
 	/** Parameters for world reticle. Usage of these parameters is dependent on the reticle. */
 	UPROPERTY(BlueprintReadWrite, meta = (ExposeOnSpawn = true), Category = Targeting)
@@ -105,5 +105,5 @@ public:
 	FDelegateHandle GenericCancelHandle;
 
 	UPROPERTY()
-	UAbilitySystemComponent* GenericDelegateBoundASC;
+	TObjectPtr<UAbilitySystemComponent> GenericDelegateBoundASC;
 };

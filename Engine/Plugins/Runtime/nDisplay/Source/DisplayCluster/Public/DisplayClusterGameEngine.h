@@ -27,7 +27,7 @@ class DISPLAYCLUSTER_API UDisplayClusterGameEngine
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UObject* WorldContextObject = nullptr;
+	TObjectPtr<UObject> WorldContextObject = nullptr;
 
 public:
 	virtual void Init(class IEngineLoop* InEngineLoop) override;

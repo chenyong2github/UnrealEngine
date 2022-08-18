@@ -422,11 +422,11 @@ private:
 		) const;
 
 	UPROPERTY(NonTransactional)
-	TArray<UOptimusNode*> Nodes;
+	TArray<TObjectPtr<UOptimusNode>> Nodes;
 
 	// FIXME: Use a map.
 	UPROPERTY(NonTransactional)
-	TArray<UOptimusNodeLink*> Links;
+	TArray<TObjectPtr<UOptimusNodeLink>> Links;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UOptimusNodeGraph>> SubGraphs;

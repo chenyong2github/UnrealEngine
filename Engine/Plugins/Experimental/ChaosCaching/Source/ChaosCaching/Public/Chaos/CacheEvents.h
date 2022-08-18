@@ -61,7 +61,7 @@ struct FCacheEventTrack
 
 	/** Type of the event stored in this track. Must inherit FCacheEventBase */
 	UPROPERTY()
-	UScriptStruct* Struct;
+	TObjectPtr<UScriptStruct> Struct;
 
 	UPROPERTY()
 	TArray<float> TimeStamps;

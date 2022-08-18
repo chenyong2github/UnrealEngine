@@ -22,11 +22,11 @@ private:
 
 	/** Dynamic media output proxy. */
 	UPROPERTY(Transient, DuplicateTransient)
-	UMediaOutput* DynamicProxy;
+	TObjectPtr<UMediaOutput> DynamicProxy;
 
 	/** Media output proxy. */
 	UPROPERTY(EditAnywhere, Category = "Media Proxy")
-	UMediaOutput* Proxy;
+	TObjectPtr<UMediaOutput> Proxy;
 
 public:
 

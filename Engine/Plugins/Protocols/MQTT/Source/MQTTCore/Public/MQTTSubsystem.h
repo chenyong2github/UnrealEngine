@@ -37,5 +37,5 @@ public:
 
 private:
 	UPROPERTY(Transient)
-	TMap<FGuid, UMQTTClientObject*> Clients;
+	TMap<FGuid, TObjectPtr<UMQTTClientObject>> Clients;
 };

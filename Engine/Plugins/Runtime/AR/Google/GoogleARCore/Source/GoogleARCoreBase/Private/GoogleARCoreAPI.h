@@ -190,7 +190,7 @@ class UGoogleARCoreUObjectManager : public UObject
 	
 public:
 	UPROPERTY()
-	UGoogleARCorePointCloud* LatestPointCloud;
+	TObjectPtr<UGoogleARCorePointCloud> LatestPointCloud;
 	
 	// pointer type is ArTrackable*
 	UPROPERTY()
@@ -198,7 +198,7 @@ public:
 	
 	// pointer type is ArAnchor*
 	UPROPERTY()
-	TMap<FARCorePointer, UARPin*> HandleToAnchorMap;
+	TMap<FARCorePointer, TObjectPtr<UARPin>> HandleToAnchorMap;
 	
 	void ClearTrackables();
 	

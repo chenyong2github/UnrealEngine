@@ -82,7 +82,7 @@ protected:
 	void ProduceInput(const int32 DeltaMS, FFlyingMovementInputCmd& Cmd);
 
 	UPROPERTY(Category=Movement, VisibleAnywhere)
-	UFlyingMovementComponent* FlyingMovementComponent;
+	TObjectPtr<UFlyingMovementComponent> FlyingMovementComponent;
 
 private:
 

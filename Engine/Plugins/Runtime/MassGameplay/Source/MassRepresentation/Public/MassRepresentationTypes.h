@@ -41,7 +41,7 @@ struct FStaticMeshInstanceVisualizationMeshDesc
 	
 	/** The static mesh visual representation */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
-	UStaticMesh* Mesh = nullptr;
+	TObjectPtr<UStaticMesh> Mesh = nullptr;
 
 	/**
 	 * Material overrides for the static mesh visual representation. 
@@ -49,7 +49,7 @@ struct FStaticMeshInstanceVisualizationMeshDesc
 	 * Array indices correspond to material slot indices on the static mesh.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
-	TArray<UMaterialInterface*> MaterialOverrides;
+	TArray<TObjectPtr<UMaterialInterface>> MaterialOverrides;
 
 	/** The minimum inclusive LOD significance to start using this static mesh */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
@@ -322,7 +322,7 @@ protected:
 
 	/** The component handling these instances */
 	UPROPERTY()
-		TArray<UInstancedStaticMeshComponent*> InstancedStaticMeshComponents;
+		TArray<TObjectPtr<UInstancedStaticMeshComponent>> InstancedStaticMeshComponents;
 
 	UPROPERTY()
 		TArray<FMassLODSignificanceRange> LODSignificanceRanges;

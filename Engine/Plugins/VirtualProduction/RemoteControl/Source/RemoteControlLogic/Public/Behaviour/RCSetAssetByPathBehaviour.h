@@ -53,7 +53,7 @@ public:
 	TObjectPtr<URCVirtualPropertyContainerBase> PropertyInContainer;
 
 	UPROPERTY()
-	UClass* AssetClass;
+	TObjectPtr<UClass> AssetClass;
 
 	UPROPERTY()
 	FRCSetAssetPath PathStruct;

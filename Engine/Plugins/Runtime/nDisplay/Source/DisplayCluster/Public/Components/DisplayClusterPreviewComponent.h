@@ -121,11 +121,11 @@ protected:
 protected:
 	// Texture for preview material
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Preview", meta = (DisplayName = "Render Target"))
-	UTextureRenderTarget2D* RenderTarget;
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
 
 	// Texture when DCRA has post process disabled but is requesting a post process render target.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Preview")
-	UTextureRenderTarget2D* RenderTargetPostProcess;
+	TObjectPtr<UTextureRenderTarget2D> RenderTargetPostProcess;
 	
 private:
 	// Saved mesh policy params
@@ -133,7 +133,7 @@ private:
 	FDisplayClusterConfigurationProjection WarpMeshSavedProjectionPolicy;
 
 	UPROPERTY()
-	ADisplayClusterRootActor* RootActor = nullptr;
+	TObjectPtr<ADisplayClusterRootActor> RootActor = nullptr;
 
 	UPROPERTY()
 	FString ViewportId;
@@ -142,25 +142,25 @@ private:
 	FString ClusterNodeId;
 
 	UPROPERTY()
-	UDisplayClusterConfigurationViewport* ViewportConfig = nullptr;
+	TObjectPtr<UDisplayClusterConfigurationViewport> ViewportConfig = nullptr;
 
 	UPROPERTY()
-	UMeshComponent* PreviewMesh = nullptr;
+	TObjectPtr<UMeshComponent> PreviewMesh = nullptr;
 
 	UPROPERTY()
 	bool bIsRootActorPreviewMesh = false;
 
 	UPROPERTY()
-	UMaterial* OriginalMaterial = nullptr;
+	TObjectPtr<UMaterial> OriginalMaterial = nullptr;
 
 	UPROPERTY()
-	UMaterial* PreviewMaterial = nullptr;
+	TObjectPtr<UMaterial> PreviewMaterial = nullptr;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* PreviewMaterialInstance = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> PreviewMaterialInstance = nullptr;
 
 	UPROPERTY(Transient)
-	UTexture* OverrideTexture = nullptr;
+	TObjectPtr<UTexture> OverrideTexture = nullptr;
 
 #endif /*WITH_EDITORONLY_DATA*/
 };

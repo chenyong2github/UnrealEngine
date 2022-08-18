@@ -611,7 +611,7 @@ public:
 
 	/** This preset's list of objects that are exposed or that have exposed fields. */
 	UPROPERTY(EditAnywhere, Category = "Remote Control Preset")
-	TArray<URemoteControlBinding*> Bindings;
+	TArray<TObjectPtr<URemoteControlBinding>> Bindings;
 
 	/** ~~~Virtual Property Wrapper Functions ~~~
 	* 
@@ -768,7 +768,7 @@ private:
 
 	UPROPERTY(Instanced)
 	/** Holds exposed entities on the preset. */
-	URemoteControlExposeRegistry* Registry = nullptr;
+	TObjectPtr<URemoteControlExposeRegistry> Registry = nullptr;
 
 	/** Delegate triggered when an entity is exposed. */
 	FOnPresetEntityEvent OnEntityExposedDelegate;

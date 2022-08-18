@@ -26,5 +26,5 @@ public:
 	
 private:
 	UPROPERTY(Transient)
-	UTexture* FallbackCompositingTextureObj;
+	TObjectPtr<UTexture> FallbackCompositingTextureObj;
 };

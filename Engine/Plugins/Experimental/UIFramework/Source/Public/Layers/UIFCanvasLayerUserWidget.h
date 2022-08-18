@@ -60,5 +60,5 @@ private:
 
 private:
 	UPROPERTY(BlueprintReadOnly, Category="UIFramework", meta = (BindWidget, AllowPrivateAccess))
-	UCanvasPanel* Canvas = nullptr;
+	TObjectPtr<UCanvasPanel> Canvas = nullptr;
 };

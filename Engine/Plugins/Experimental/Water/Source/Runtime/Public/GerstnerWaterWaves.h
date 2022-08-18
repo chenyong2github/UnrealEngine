@@ -187,7 +187,7 @@ public:
 	virtual float GetWaveAttenuationFactor(const FVector& InPosition, float InWaterDepth, float InTargetWaveMaskDepth) const override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Instanced, Category = Waves)
-	UGerstnerWaterWaveGeneratorBase* GerstnerWaveGenerator;
+	TObjectPtr<UGerstnerWaterWaveGeneratorBase> GerstnerWaveGenerator;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Wave")

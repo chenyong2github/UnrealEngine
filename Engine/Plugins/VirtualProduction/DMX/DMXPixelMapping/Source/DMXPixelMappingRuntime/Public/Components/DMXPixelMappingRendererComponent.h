@@ -170,11 +170,11 @@ public:
 
 	/** Texture to Downsampling */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings")
-	UTexture* InputTexture;
+	TObjectPtr<UTexture> InputTexture;
 
 	/** Material to Downsampling */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings", meta = (DisplayName = "User Interface Material"))
-	UMaterialInterface* InputMaterial;
+	TObjectPtr<UMaterialInterface> InputMaterial;
 
 	/** UMG to Downsampling */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings")
@@ -196,19 +196,19 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** Editor preview output target */
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* PreviewRenderTarget;
+	TObjectPtr<UTextureRenderTarget2D> PreviewRenderTarget;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Material of UMG texture to downsample */
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* InputRenderTarget;
+	TObjectPtr<UTextureRenderTarget2D> InputRenderTarget;
 
 	/** Reference to renderer */
 	TSharedPtr<IDMXPixelMappingRenderer> PixelMappingRenderer;
 
 	/** UMG widget for downsampling */
 	UPROPERTY(Transient)
-	UUserWidget* UserWidget;
+	TObjectPtr<UUserWidget> UserWidget;
 
 #if WITH_EDITORONLY_DATA
 	/** Canvas for all UI downsamping component widgets */
@@ -226,7 +226,7 @@ private:
 
 	/** GPU downsample pixel buffer target texture */
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* DownsampleBufferTarget;
+	TObjectPtr<UTextureRenderTarget2D> DownsampleBufferTarget;
 
 	/** CPU downsample pixel buffer */
 	TArray<FLinearColor> DownsampleBuffer;

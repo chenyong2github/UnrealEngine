@@ -28,7 +28,7 @@ public:
 
 public:
 	UPROPERTY(Transient)
-	class UDisplayClusterConfigurationData* nDisplayConfig;
+	TObjectPtr<class UDisplayClusterConfigurationData> nDisplayConfig;
 
 	UPROPERTY()
 	FString PathToConfig;

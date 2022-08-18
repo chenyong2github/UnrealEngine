@@ -20,7 +20,7 @@ public:
 	FString SourceFilePath_DEPRECATED;
 
 	UPROPERTY()
-	class UAssetImportData* AssetImportData;
+	TObjectPtr<class UAssetImportData> AssetImportData;
 #endif
 
 public:

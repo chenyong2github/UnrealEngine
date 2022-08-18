@@ -60,11 +60,11 @@ protected:
 	TSharedPtr<SHorizontalBox> MyContainer;
 	
 	UPROPERTY()
-	UCommonWidgetCarousel* LinkedCarousel;
+	TObjectPtr<UCommonWidgetCarousel> LinkedCarousel;
 
 	UPROPERTY()
-	UCommonButtonGroupBase* ButtonGroup;
+	TObjectPtr<UCommonButtonGroupBase> ButtonGroup;
 
 	UPROPERTY()
-	TArray<UCommonButtonBase*> Buttons;
+	TArray<TObjectPtr<UCommonButtonBase>> Buttons;
 };

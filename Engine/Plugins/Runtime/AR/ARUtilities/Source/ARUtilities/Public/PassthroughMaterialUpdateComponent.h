@@ -44,11 +44,11 @@ protected:
 	
 	/** Which material to use for a regular camera texture */
 	UPROPERTY(EditAnywhere, Category = "Passthrough")
-	UMaterialInterface* PassthroughMaterial;
+	TObjectPtr<UMaterialInterface> PassthroughMaterial;
 	
 	/** Which material to use for an external camera texture */
 	UPROPERTY(EditAnywhere, Category = "Passthrough")
-	UMaterialInterface* PassthroughMaterialExternalTexture;
+	TObjectPtr<UMaterialInterface> PassthroughMaterialExternalTexture;
 	
 	/**
 	 * The debug color used to modulate the passthrough material.
@@ -59,8 +59,8 @@ protected:
 	
 private:
 	UPROPERTY(Transient)
-	TArray<UPrimitiveComponent*> AffectedComponents;
+	TArray<TObjectPtr<UPrimitiveComponent>> AffectedComponents;
 	
 	UPROPERTY(Transient)
-	TArray<UPrimitiveComponent*> PendingComponents;
+	TArray<TObjectPtr<UPrimitiveComponent>> PendingComponents;
 };

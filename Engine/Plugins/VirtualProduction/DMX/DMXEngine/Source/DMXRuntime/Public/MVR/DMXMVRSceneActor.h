@@ -113,7 +113,7 @@ private:
 
 	/** The root component to which all actors are attached initially */
 	UPROPERTY(VisibleAnywhere, Category = "Actor", AdvancedDisplay, Meta = (AllowPrivateAccess = true))
-	USceneComponent* MVRSceneRoot;
+	TObjectPtr<USceneComponent> MVRSceneRoot;
 
 private:
 	/** Gets the Fixture Patch of an Actor, or nullptr if the Fixture Patch cannot be retrieved anymore */

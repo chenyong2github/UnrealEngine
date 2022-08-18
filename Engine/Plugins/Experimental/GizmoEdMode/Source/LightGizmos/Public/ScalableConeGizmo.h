@@ -102,7 +102,7 @@ private:
 	bool bIsDragging{ false };
 
 	UPROPERTY()
-	UTransformProxy* ActiveTarget;
+	TObjectPtr<UTransformProxy> ActiveTarget;
 
 	/** Used for calculations when moving the handles*/
 

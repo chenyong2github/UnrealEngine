@@ -20,11 +20,11 @@ class UDNAAssetImportFactory: public UFactory
 
 public:
 	UPROPERTY()
-		class UDNAAssetImportUI* ImportUI;
+		TObjectPtr<class UDNAAssetImportUI> ImportUI;
 
 	/** Prevent garbage collection of original when overriding ImportUI property */
 	UPROPERTY()
-		class UDNAAssetImportUI* OriginalImportUI;
+		TObjectPtr<class UDNAAssetImportUI> OriginalImportUI;
 
 	/** UObject properties */
 	virtual void PostInitProperties() override;

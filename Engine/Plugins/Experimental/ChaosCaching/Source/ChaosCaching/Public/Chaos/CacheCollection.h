@@ -24,5 +24,5 @@ public:
 	const TArray<UChaosCache*> GetCaches() const;
 
 	UPROPERTY(EditAnywhere, Instanced, Category="Caching", meta=(EditFixedOrder))
-	TArray<UChaosCache*> Caches;
+	TArray<TObjectPtr<UChaosCache>> Caches;
 };

@@ -233,5 +233,5 @@ private:
 	FOptimusDataTypeRef DataType;
 
 	UPROPERTY()
-	TArray<UOptimusNodePin*> SubPins;
+	TArray<TObjectPtr<UOptimusNodePin>> SubPins;
 };

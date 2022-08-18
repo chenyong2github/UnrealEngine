@@ -48,7 +48,7 @@ private:
 	TSubclassOf<class ADisplayClusterRootActor> ParentClass;
 
 	UPROPERTY(Transient)
-	UDisplayClusterBlueprint* BlueprintToCopy;
+	TObjectPtr<UDisplayClusterBlueprint> BlueprintToCopy;
 
 	FDelegateHandle OnConfigureNewAssetRequestHandle;
 	bool bIsConfigureNewAssetRequest;

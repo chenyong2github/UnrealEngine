@@ -182,16 +182,16 @@ protected:
 
 	/** Structure type of all for items in this registry */
 	UPROPERTY(EditDefaultsOnly, Category = DataRegistry, AssetRegistrySearchable, meta = (DisplayThumbnail = "false"))
-	const UScriptStruct* ItemStruct;
+	TObjectPtr<const UScriptStruct> ItemStruct;
 
 	/** List of data sources to search for items */
 	UPROPERTY(EditDefaultsOnly, Instanced, Category = DataRegistry)
-	TArray<UDataRegistrySource*> DataSources;
+	TArray<TObjectPtr<UDataRegistrySource>> DataSources;
 
 	// TODO remove VisibleDefaultsOnly or figure out how to stop it from letting you edit the instance properties
 	/** Runtime list of data sources, created from above list and includes sources added at runtime */
 	UPROPERTY(VisibleDefaultsOnly, Instanced, Transient, Category = DataRegistry)
-	TArray<UDataRegistrySource*> RuntimeSources;
+	TArray<TObjectPtr<UDataRegistrySource>> RuntimeSources;
 
 	/** How often to check for cache updates */
 	UPROPERTY(EditDefaultsOnly, Category = Cache)

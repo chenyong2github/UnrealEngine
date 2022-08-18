@@ -188,7 +188,7 @@ private:
 
 	/** Associated smart object definition */
 	UPROPERTY()
-	const USmartObjectDefinition* Definition = nullptr;
+	TObjectPtr<const USmartObjectDefinition> Definition = nullptr;
 
 	/** Instance specific transform */
 	FTransform Transform;

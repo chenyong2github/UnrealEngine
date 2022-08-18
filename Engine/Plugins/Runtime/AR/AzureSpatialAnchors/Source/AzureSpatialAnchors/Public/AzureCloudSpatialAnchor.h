@@ -28,7 +28,7 @@ public:
 	 * The ARPin with which this cloud anchor is associated, or null.  Null could mean we are still trying to load the anchor or have not yet located it.
 	 */
 	UPROPERTY(BlueprintReadOnly, Transient, Category = "AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
-	UARPin* ARPin;
+	TObjectPtr<UARPin> ARPin;
 
 	/**
 	 * The Azure Cloud identifier of the spatial anchor is the persistent identifier by which a cloud anchor can be requested from the azure cloud service.  Empty if the anchor has not been saved or loaded yet.

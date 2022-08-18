@@ -37,7 +37,7 @@ public:
 	ECustomSequencerTrackType TrackType;
 
 	UPROPERTY(Category="Sequencer", EditDefaultsOnly, AssetRegistrySearchable, meta=(EditCondition="TrackType==ECustomSequencerTrackType::ObjectTrack"))
-	UClass* SupportedObjectType;
+	TObjectPtr<UClass> SupportedObjectType;
 
 	UPROPERTY(Category="Sequencer", EditDefaultsOnly, AssetRegistrySearchable)
 	TSubclassOf<USequencerSectionBP> DefaultSectionType;
@@ -70,5 +70,5 @@ public:
 private:
 
 	UPROPERTY(Instanced)
-	TArray<UMovieSceneSection*> Sections;
+	TArray<TObjectPtr<UMovieSceneSection>> Sections;
 };

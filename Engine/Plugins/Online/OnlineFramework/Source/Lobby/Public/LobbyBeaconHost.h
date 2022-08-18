@@ -98,7 +98,7 @@ protected:
 
 	/** Actor representing the state of the lobby (similar to AGameState) */
 	UPROPERTY()
-	ALobbyBeaconState* LobbyState;
+	TObjectPtr<ALobbyBeaconState> LobbyState;
 
 
 	virtual bool PreLogin(const FUniqueNetIdRepl& InUniqueId, const FString& Options);

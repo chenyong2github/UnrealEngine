@@ -23,7 +23,7 @@ class COMPOSURE_API UColorConverterOutputPass : public UCompositingElementOutput
 
 public:
 	UPROPERTY(EditAnywhere, Instanced, Category="Compositing Pass", meta=(DisplayName="Color Conversion", DisplayAfter = "PassName", EditCondition = "bEnabled", ShowOnlyInnerProperties))
-	UCompositingElementTransform* ColorConverter;
+	TObjectPtr<UCompositingElementTransform> ColorConverter;
 
 public:
 	//~ Begin UObject interface
@@ -53,7 +53,7 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
-	UTexture* PreviewResult = nullptr;
+	TObjectPtr<UTexture> PreviewResult = nullptr;
 #endif
 
 private:
@@ -77,7 +77,7 @@ public:
 	UCompositingMediaCaptureOutput();
 
 	UPROPERTY(EditAnywhere, Category="Compositing Pass", BlueprintReadWrite, meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
-	UMediaOutput* CaptureOutput;
+	TObjectPtr<UMediaOutput> CaptureOutput;
 
 	/** */
 	bool IsCapturing() const;
@@ -102,7 +102,7 @@ protected:
 
 private:
 	UPROPERTY(Transient, DuplicateTransient, SkipSerialization)
-	UMediaCapture* ActiveCapture = nullptr;
+	TObjectPtr<UMediaCapture> ActiveCapture = nullptr;
 };
 
 /* URenderTargetCompositingOutput
@@ -117,7 +117,7 @@ class COMPOSURE_API URenderTargetCompositingOutput : public UCompositingElementO
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Compositing Pass", meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
-	UTextureRenderTarget2D* RenderTarget;
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
 
 public:
 	//~ UCompositingElementOutput interface

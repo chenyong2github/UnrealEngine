@@ -89,7 +89,7 @@ struct FSphericalPontoon
 	uint8 bUseCenterSocket : 1;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = Buoyancy)
-	UWaterBodyComponent* CurrentWaterBodyComponent;
+	TObjectPtr<UWaterBodyComponent> CurrentWaterBodyComponent;
 
 	FSolverSafeWaterBodyData* SolverWaterBody;
 

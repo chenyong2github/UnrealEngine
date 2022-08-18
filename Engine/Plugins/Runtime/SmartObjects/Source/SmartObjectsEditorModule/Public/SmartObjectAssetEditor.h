@@ -20,6 +20,6 @@ protected:
 
 private:
 	UPROPERTY(Transient)
-	UObject* ObjectToEdit;
+	TObjectPtr<UObject> ObjectToEdit;
 };
 

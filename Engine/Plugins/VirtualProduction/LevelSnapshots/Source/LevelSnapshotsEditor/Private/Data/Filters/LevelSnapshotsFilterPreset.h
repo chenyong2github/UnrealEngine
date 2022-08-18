@@ -65,7 +65,7 @@ public:
 private:
 	
 	UPROPERTY(Instanced)
-	TArray<UConjunctionFilter*> Children;
+	TArray<TObjectPtr<UConjunctionFilter>> Children;
 
 	bool bHasJustCreatedNewChild = false;
 	

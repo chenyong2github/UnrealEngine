@@ -184,7 +184,7 @@ protected:
 
 private:
 	UPROPERTY()
-	UMoviePipelineShotConfig* ShotOverrideConfig;
+	TObjectPtr<UMoviePipelineShotConfig> ShotOverrideConfig;
 
 	UPROPERTY()
 	TSoftObjectPtr<UMoviePipelineShotConfig> ShotOverridePresetOrigin;
@@ -395,7 +395,7 @@ public:
 
 	/** (Optional) Shot specific information. If a shot is missing from this list it will assume to be enabled and will be rendered. */
 	UPROPERTY(BlueprintReadWrite, Instanced, Category = "Movie Render Pipeline")
-	TArray<UMoviePipelineExecutorShot*> ShotInfo;
+	TArray<TObjectPtr<UMoviePipelineExecutorShot>> ShotInfo;
 
 	/** 
 	* Arbitrary data that can be associated with the job. Not used by default implementations, nor read.
@@ -415,7 +415,7 @@ private:
 	/** 
 	*/
 	UPROPERTY(Instanced)
-	UMoviePipelineMasterConfig* Configuration;
+	TObjectPtr<UMoviePipelineMasterConfig> Configuration;
 
 	/**
 	*/
@@ -516,7 +516,7 @@ public:
 
 private:
 	UPROPERTY(Instanced)
-	TArray<UMoviePipelineExecutorJob*> Jobs;
+	TArray<TObjectPtr<UMoviePipelineExecutorJob>> Jobs;
 	
 private:
 	int32 QueueSerialNumber;

@@ -272,15 +272,15 @@ public:
 
 	// List of FX components spawned.  There may be null pointers here as it matches the defined order.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
-	TArray<UFXSystemComponent*> FxSystemComponents;
+	TArray<TObjectPtr<UFXSystemComponent>> FxSystemComponents;
 
 	// List of audio components spawned.  There may be null pointers here as it matches the defined order.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
-	TArray<UAudioComponent*> AudioComponents;
+	TArray<TObjectPtr<UAudioComponent>> AudioComponents;
 
 	// List of camera shakes played.  There will be one camera shake per local player controller if shake is played in world.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
-	TArray<UCameraShakeBase*> CameraShakes;
+	TArray<TObjectPtr<UCameraShakeBase>> CameraShakes;
 
 	// List of camera len effects spawned.  There will be one camera lens effect per local player controller if the effect is played in world.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
@@ -288,15 +288,15 @@ public:
 
 	// Force feedback component that was spawned.  This is only valid when force feedback is set to play in world.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
-	UForceFeedbackComponent* ForceFeedbackComponent;
+	TObjectPtr<UForceFeedbackComponent> ForceFeedbackComponent;
 
 	// Player controller used to play the force feedback effect.  Used to stop the effect later.
 	UPROPERTY(Transient)
-	APlayerController* ForceFeedbackTargetPC;
+	TObjectPtr<APlayerController> ForceFeedbackTargetPC;
 
 	// Spawned decal component.  This may be null.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
-	UDecalComponent* DecalComponent;
+	TObjectPtr<UDecalComponent> DecalComponent;
 };
 
 
@@ -330,7 +330,7 @@ public:
 
 	// Niagara FX system to spawn.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	UNiagaraSystem* NiagaraSystem;
+	TObjectPtr<UNiagaraSystem> NiagaraSystem;
 
 	// If enabled, use the spawn condition override and not the default one.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (InlineEditConditionToggle))
@@ -394,10 +394,10 @@ public:
 
 	// Sound to play.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	USoundBase* Sound;
+	TObjectPtr<USoundBase> Sound;
 
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "5.0 - SoundCue is deprecated. Instead use the Sound property. The type is USoundBase not USoundCue."))
-	USoundBase* SoundCue;
+	TObjectPtr<USoundBase> SoundCue;
 
 	// How long it should take to fade out.  Only used on looping gameplay cues.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
@@ -578,7 +578,7 @@ public:
 
 	// Force feedback effect to play.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	UForceFeedbackEffect* ForceFeedbackEffect;
+	TObjectPtr<UForceFeedbackEffect> ForceFeedbackEffect;
 
 	// Tag used to identify the force feedback effect so it can later be canceled.
 	// Warning: If this is "None" it will stop ALL force feedback effects if it is canceled.
@@ -607,7 +607,7 @@ public:
 
 	// How the force feedback is attenuated over distance when played in world.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (EditCondition = "bPlayInWorld"))
-	UForceFeedbackAttenuation* WorldAttenuation;
+	TObjectPtr<UForceFeedbackAttenuation> WorldAttenuation;
 };
 
 
@@ -639,7 +639,7 @@ public:
 
 	// Decal material to spawn.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	UMaterialInterface* DecalMaterial;
+	TObjectPtr<UMaterialInterface> DecalMaterial;
 
 	// Decal size in local space (does not include the component scale).
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, meta = (AllowPreserveRatio = "true"))

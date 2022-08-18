@@ -23,5 +23,5 @@ public:
 	void Initialize(UTextureRenderTarget2D* InRenderTarget, const FTransform& InTransform);
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Properties)
-	UTextureRenderTarget2D* RenderTarget = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget = nullptr;
 };

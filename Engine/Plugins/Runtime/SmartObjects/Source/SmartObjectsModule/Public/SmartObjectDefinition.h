@@ -68,7 +68,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 	 * Note that there should be only one definition of each type since the first one will be selected.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject, Instanced)
-	TArray<USmartObjectBehaviorDefinition*> BehaviorDefinitions;
+	TArray<TObjectPtr<USmartObjectBehaviorDefinition>> BehaviorDefinitions;
 };
 
 /**
@@ -227,7 +227,7 @@ private:
 
 	/** List of behavior definitions of different types provided to SO's user if the slot does not provide one. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject, Instanced)
-	TArray<USmartObjectBehaviorDefinition*> DefaultBehaviorDefinitions;
+	TArray<TObjectPtr<USmartObjectBehaviorDefinition>> DefaultBehaviorDefinitions;
 
 	/** This object is available if user tags match this query; always available if query is empty. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
@@ -266,7 +266,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinitionFragment : public FMassS
 
 	/** Pointer to the parent object definition to preserve slot definition pointer validity. */
 	UPROPERTY(Transient)
-	const USmartObjectDefinition* SmartObjectDefinition = nullptr;
+	TObjectPtr<const USmartObjectDefinition> SmartObjectDefinition = nullptr;
 
 	/** Pointer to the slot definition contained by the SmartObject definition. */
 	const FSmartObjectSlotDefinition* SlotDefinition = nullptr;

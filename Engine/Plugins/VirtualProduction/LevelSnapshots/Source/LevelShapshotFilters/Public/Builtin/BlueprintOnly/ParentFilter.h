@@ -49,8 +49,8 @@ protected:
 private:
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
-	TArray<ULevelSnapshotFilter*> Children;
+	TArray<TObjectPtr<ULevelSnapshotFilter>> Children;
 
 	UPROPERTY(EditAnywhere, Instanced, Category = "Level Snapshots")
-	TArray<ULevelSnapshotFilter*> InstancedChildren;
+	TArray<TObjectPtr<ULevelSnapshotFilter>> InstancedChildren;
 };

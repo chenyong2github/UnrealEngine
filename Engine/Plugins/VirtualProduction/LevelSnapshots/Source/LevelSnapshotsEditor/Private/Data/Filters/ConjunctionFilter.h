@@ -50,7 +50,7 @@ public:
 private:
 
 	UPROPERTY(Instanced)
-	TArray<UNegatableFilter*> Children;
+	TArray<TObjectPtr<UNegatableFilter>> Children;
 
 	UPROPERTY()
 	bool bIgnoreFilter = false;

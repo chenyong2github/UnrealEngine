@@ -355,7 +355,7 @@ public:
 	/** Array of objects that we're forcing to remain resident because we've applied live hotfixes and won't get an
 	    opportunity to reapply changes if the object is evicted from memory. */
 	UPROPERTY(Transient)
-	TArray<UObject*> AssetsHotfixedFromIniFiles;
+	TArray<TObjectPtr<UObject>> AssetsHotfixedFromIniFiles;
 	
 
 	/** 

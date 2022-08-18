@@ -46,5 +46,5 @@ private:
 	TSharedPtr<FWidgetRenderer> WidgetRenderer;
 
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* RenderTarget;
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
 };

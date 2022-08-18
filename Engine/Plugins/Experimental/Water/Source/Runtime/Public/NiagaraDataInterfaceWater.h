@@ -41,5 +41,5 @@ public:
 	void SetWaterBodyComponent(UWaterBodyComponent* InWaterBodyComponent) { SourceBodyComponent = InWaterBodyComponent; }
 private:
 	UPROPERTY(EditAnywhere, Category = "Water") 
-	UWaterBodyComponent* SourceBodyComponent;
+	TObjectPtr<UWaterBodyComponent> SourceBodyComponent;
 };

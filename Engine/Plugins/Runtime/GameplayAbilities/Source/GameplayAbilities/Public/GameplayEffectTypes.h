@@ -1693,7 +1693,7 @@ struct GAMEPLAYABILITIES_API FMinimalReplicationTagCountMap
 	TMap<FGameplayTag, int32>	TagMap;
 
 	UPROPERTY()
-	class UAbilitySystemComponent* Owner;
+	TObjectPtr<class UAbilitySystemComponent> Owner;
 
 	/** Comparison operator */
 	bool operator==(FMinimalReplicationTagCountMap const& Other) const

@@ -30,7 +30,7 @@ class GAMEPLAYABILITIES_API UAbilityTask_WaitVelocityChange: public UAbilityTask
 protected:
 
 	UPROPERTY()
-	UMovementComponent*	CachedMovementComponent;
+	TObjectPtr<UMovementComponent>	CachedMovementComponent;
 
 	float	MinimumMagnitude;
 	FVector Direction;

@@ -27,7 +27,7 @@ struct FMassObserversMap
 
 private:
 	UPROPERTY()
-	TMap<const UScriptStruct*, FMassRuntimePipeline> Container;
+	TMap<TObjectPtr<const UScriptStruct>, FMassRuntimePipeline> Container;
 };
 
 /** 

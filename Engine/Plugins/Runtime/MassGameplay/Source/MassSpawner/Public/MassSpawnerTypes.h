@@ -51,7 +51,7 @@ struct FMassSpawnedEntityType
 
 private:
 	UPROPERTY(Transient)
-	mutable UMassEntityConfigAsset* EntityConfigPtr = nullptr;
+	mutable TObjectPtr<UMassEntityConfigAsset> EntityConfigPtr = nullptr;
 };
 
 USTRUCT(BlueprintType)

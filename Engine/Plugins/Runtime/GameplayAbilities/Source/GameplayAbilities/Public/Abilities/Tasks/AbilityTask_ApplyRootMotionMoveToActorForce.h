@@ -82,7 +82,7 @@ protected:
 	FVector TargetLocation;
 
 	UPROPERTY(Replicated)
-	AActor* TargetActor;
+	TObjectPtr<AActor> TargetActor;
 
 	UPROPERTY(Replicated)
 	FVector TargetLocationOffset;
@@ -111,7 +111,7 @@ protected:
 	bool bRestrictSpeedToExpected;
 
 	UPROPERTY(Replicated)
-	UCurveVector* PathOffsetCurve;
+	TObjectPtr<UCurveVector> PathOffsetCurve;
 
 	/** 
 	 *  Maps real time to movement fraction curve to affect the speed of the
@@ -121,13 +121,13 @@ protected:
 	 *  Default if unset is a 1:1 correspondence
 	 */
 	UPROPERTY(Replicated)
-	UCurveFloat* TimeMappingCurve;
+	TObjectPtr<UCurveFloat> TimeMappingCurve;
 
 	UPROPERTY(Replicated)
-	UCurveFloat* TargetLerpSpeedHorizontalCurve;
+	TObjectPtr<UCurveFloat> TargetLerpSpeedHorizontalCurve;
 
 	UPROPERTY(Replicated)
-	UCurveFloat* TargetLerpSpeedVerticalCurve;
+	TObjectPtr<UCurveFloat> TargetLerpSpeedVerticalCurve;
 
 	EMovementMode PreviousMovementMode;
 	uint8 PreviousCustomMode;

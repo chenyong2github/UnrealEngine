@@ -266,7 +266,7 @@ public:
 
 	// Sound to Play
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Soundscape|Color")
-	USoundBase* Sound;
+	TObjectPtr<USoundBase> Sound;
 
 	// Base Volume Scalar
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Soundscape|Color", meta = (ClampMin = "0.0", ClampMax = "4.0", UIMin = "0.0", UIMax = "4.0", SliderExponent = "6.0"))
@@ -306,7 +306,7 @@ public:
 	//~UObject Interface End
 
 	UPROPERTY(EditAnywhere, Category = "Soundscape|Color")
-	UAudioComponent* AudioComponent = nullptr;
+	TObjectPtr<UAudioComponent> AudioComponent = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "Soundscape|Color")
 	FTimerHandle TimerHandle;
@@ -354,7 +354,7 @@ public:
 private:
 	// Sound to Play
 	UPROPERTY()
-	USoundBase* Sound;
+	TObjectPtr<USoundBase> Sound;
 
 	// Base Volume Scalar
 	float VolumeBase = 1.0f;
@@ -443,7 +443,7 @@ private:
 
 	// Audio Component Pool
 	UPROPERTY()
-	TArray<UActiveSoundscapeColorVoice*> SoundscapeColorVoicePool;
+	TArray<TObjectPtr<UActiveSoundscapeColorVoice>> SoundscapeColorVoicePool;
 
 	// Is Playing Bool
 	bool bIsPlaying = false;

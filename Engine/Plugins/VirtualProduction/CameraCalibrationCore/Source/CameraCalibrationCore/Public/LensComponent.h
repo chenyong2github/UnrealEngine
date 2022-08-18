@@ -330,11 +330,11 @@ protected:
 
 	/** Cached MID last applied to the target camera */
 	UPROPERTY()
-	UMaterialInstanceDynamic* LastDistortionMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> LastDistortionMID = nullptr;
 
 	/** Cached most recent target camera, used to clean up the old camera when the user changes the target */
 	UPROPERTY()
-	UCineCameraComponent* LastCameraComponent = nullptr;
+	TObjectPtr<UCineCameraComponent> LastCameraComponent = nullptr;
 
 	/** Map of lens models to handlers */
 	UPROPERTY(Transient)
@@ -363,7 +363,7 @@ protected:
 
 	UE_DEPRECATED(5.1, "This property has been deprecated. Use the LensDistortionHandlerMap to get a handler for the current LensModel.")
 	UPROPERTY(Transient)
-	ULensDistortionModelHandlerBase* LensDistortionHandler_DEPRECATED = nullptr;
+	TObjectPtr<ULensDistortionModelHandlerBase> LensDistortionHandler_DEPRECATED = nullptr;
 
 	UE_DEPRECATED(5.1, "This property has been deprecated. Producer GUIDs are no longer used to identify distortion handlers. Use the LensDistortionHandlerMap to get a handler for the current LensModel.")
 	UPROPERTY(DuplicateTransient)

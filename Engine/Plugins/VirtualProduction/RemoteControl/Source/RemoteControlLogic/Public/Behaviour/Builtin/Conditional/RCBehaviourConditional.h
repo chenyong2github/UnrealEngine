@@ -90,7 +90,7 @@ public:
 	/** Data storage for Actions and related Conditions; stored as a mapping of Action object and associated condition data
 	*  Each Action is associated with a unique condition (for the Conditional Behaviour) */
 	UPROPERTY()
-	TMap<URCAction*, FRCBehaviourCondition> Conditions;
+	TMap<TObjectPtr<URCAction>, FRCBehaviourCondition> Conditions;
 
 	/** Virtual property used to build the Comparand - i.e. the property with which the Controller will be compared for a given condition*/
 	UPROPERTY()

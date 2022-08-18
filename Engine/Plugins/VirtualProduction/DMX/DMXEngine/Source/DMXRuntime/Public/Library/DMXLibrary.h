@@ -252,11 +252,11 @@ protected:
 private:
 	/** All Fixture Types and Fixture Patches in the Library */
 	UPROPERTY()
-	TArray<UDMXEntity*> Entities;
+	TArray<TObjectPtr<UDMXEntity>> Entities;
 
 	/** The General Scene Description of this Library */
 	UPROPERTY()
-	UDMXMVRGeneralSceneDescription* GeneralSceneDescription;
+	TObjectPtr<UDMXMVRGeneralSceneDescription> GeneralSceneDescription;
 
 	/** The entity that was added last to the Library */
 	TWeakObjectPtr<UDMXEntity> LastAddedEntity;

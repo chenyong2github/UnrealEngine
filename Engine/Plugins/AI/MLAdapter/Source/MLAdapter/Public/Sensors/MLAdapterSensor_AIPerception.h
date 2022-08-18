@@ -74,7 +74,7 @@ protected:
 
 protected:
 	UPROPERTY()
-	UAIPerceptionComponent* PerceptionComponent;
+	TObjectPtr<UAIPerceptionComponent> PerceptionComponent;
 
 	/**
 	 *	When set to true will only gather perception "delta" meaning consecutive

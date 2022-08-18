@@ -25,11 +25,11 @@ protected:
 
 	/** Media sources. */
 	UPROPERTY(EditAnywhere, Instanced, Category="Inputs", EditFixedSize, meta=(EditFixedOrder))
-	TArray<UMediaSource*> MediaSources;
+	TArray<TObjectPtr<UMediaSource>> MediaSources;
 
 	/** Media outputs. */
 	UPROPERTY(EditAnywhere, Instanced, Category="Outputs", EditFixedSize, meta=(EditFixedOrder))
-	TArray<UMediaOutput*> MediaOutputs;
+	TArray<TObjectPtr<UMediaOutput>> MediaOutputs;
 
 	/** Override the Engine's Timecode provider defined in the project settings. */
 	UPROPERTY(EditAnywhere, Category="Timecode Provider", meta=(DisplayName="Override Project Settings"))
@@ -37,7 +37,7 @@ protected:
 
 	/** Timecode provider. */
 	UPROPERTY(EditAnywhere, Instanced, Category="Timecode Provider", meta=(EditCondition="bOverrideTimecodeProvider"))
-	UTimecodeProvider* TimecodeProvider;
+	TObjectPtr<UTimecodeProvider> TimecodeProvider;
 
 	/** Override the Engine's Custom time step defined in the project settings. */
 	UPROPERTY(EditAnywhere, Category="Genlock", meta=(DisplayName="Override Project Settings"))
@@ -45,7 +45,7 @@ protected:
 
 	/** Custom time step */
 	UPROPERTY(EditAnywhere, Instanced, Category="Genlock", meta=(EditCondition="bOverrideCustomTimeStep"))
-	UEngineCustomTimeStep* CustomTimeStep;
+	TObjectPtr<UEngineCustomTimeStep> CustomTimeStep;
 
 public:
 #if WITH_EDITORONLY_DATA
@@ -133,14 +133,14 @@ private:
 	/** Applied Timecode provider, cached to reset the previous value. */
 	bool bTimecodeProvideWasApplied;
 	UPROPERTY(Transient)
-	UTimecodeProvider* AppliedTimecodeProvider;
+	TObjectPtr<UTimecodeProvider> AppliedTimecodeProvider;
 	UPROPERTY(Transient)
-	UTimecodeProvider* PreviousTimecodeProvider;
+	TObjectPtr<UTimecodeProvider> PreviousTimecodeProvider;
 
 	/** Applied Custom time step, cached to reset the previous value. */
 	bool bCustomTimeStepWasApplied;
 	UPROPERTY(Transient)
-	UEngineCustomTimeStep* AppliedCustomTimeStep;
+	TObjectPtr<UEngineCustomTimeStep> AppliedCustomTimeStep;
 	UPROPERTY(Transient)
-	UEngineCustomTimeStep* PreviousCustomTimeStep;
+	TObjectPtr<UEngineCustomTimeStep> PreviousCustomTimeStep;
 };

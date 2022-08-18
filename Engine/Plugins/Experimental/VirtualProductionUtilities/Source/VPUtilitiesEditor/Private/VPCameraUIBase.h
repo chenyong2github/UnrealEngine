@@ -18,10 +18,10 @@ class UVPCameraUIBase : public UUserWidget
 
 protected:
 	UPROPERTY(Transient)
-	ACameraActor* SelectedCamera;
+	TObjectPtr<ACameraActor> SelectedCamera;
 
 	UPROPERTY(BlueprintReadOnly, Transient, Category = "Camera")
-	UCameraComponent* SelectedCameraComponent;
+	TObjectPtr<UCameraComponent> SelectedCameraComponent;
 
 protected:
 	virtual bool Initialize() override;

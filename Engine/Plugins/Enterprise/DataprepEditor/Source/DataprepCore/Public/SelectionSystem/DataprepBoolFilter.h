@@ -34,5 +34,5 @@ private:
 	//~ Begin UDataprepFilter Interface
 
 	UPROPERTY()
-	UDataprepBoolFetcher* BoolFetcher;
+	TObjectPtr<UDataprepBoolFetcher> BoolFetcher;
 };

@@ -29,5 +29,5 @@ public:
 private:
 	/** UE Specific: The UE's proprietary data node */
 	UPROPERTY()
-	UDMXMVRUnrealEngineDataNode* UnrealEngineDataNode;
+	TObjectPtr<UDMXMVRUnrealEngineDataNode> UnrealEngineDataNode;
 };

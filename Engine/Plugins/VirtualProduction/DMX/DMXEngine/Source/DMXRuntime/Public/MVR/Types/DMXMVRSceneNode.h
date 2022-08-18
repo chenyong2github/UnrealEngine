@@ -38,5 +38,5 @@ public:
 private:
 	/** This node defines a list of layers inside the scene. The layer is a container of graphical objects defining a local coordinate system. */
 	UPROPERTY()
-	UDMXMVRLayersNode* LayersNode;
+	TObjectPtr<UDMXMVRLayersNode> LayersNode;
 };

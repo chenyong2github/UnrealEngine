@@ -43,9 +43,9 @@ public:
 private:
 	/** The sections owned by this track .*/
 	UPROPERTY()
-	TArray<UMovieSceneSection*> Sections;
+	TArray<TObjectPtr<UMovieSceneSection>> Sections;
 
 	/** The DMX Library to manipulate */
 	UPROPERTY()
-	UDMXLibrary* Library;
+	TObjectPtr<UDMXLibrary> Library;
 };

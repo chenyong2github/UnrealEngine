@@ -222,13 +222,13 @@ protected:
 	void CreateWaitSlots(const int32 CrossingLaneIndex, FCrowdWaitAreaData& WaitArea, const FZoneGraphStorage& ZoneGraphStorage);
 
 	UPROPERTY(Transient)
-	UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;
+	TObjectPtr<UZoneGraphSubsystem> ZoneGraphSubsystem = nullptr;
 
 	UPROPERTY(Transient)
-	UZoneGraphAnnotationSubsystem* ZoneGraphAnnotationSubsystem = nullptr;
+	TObjectPtr<UZoneGraphAnnotationSubsystem> ZoneGraphAnnotationSubsystem = nullptr;
 
 	UPROPERTY(Transient)
-	const UMassCrowdSettings* MassCrowdSettings = nullptr;
+	TObjectPtr<const UMassCrowdSettings> MassCrowdSettings = nullptr;
 
 	FDelegateHandle OnPostZoneGraphDataAddedHandle;
 	FDelegateHandle OnPreZoneGraphDataRemovedHandle;

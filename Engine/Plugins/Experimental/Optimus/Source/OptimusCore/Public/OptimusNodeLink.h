@@ -26,8 +26,8 @@ protected:
 	friend class UOptimusNodeGraph;
 
 	UPROPERTY()
-	UOptimusNodePin* NodeOutputPin;
+	TObjectPtr<UOptimusNodePin> NodeOutputPin;
 
 	UPROPERTY()
-	UOptimusNodePin* NodeInputPin;
+	TObjectPtr<UOptimusNodePin> NodeInputPin;
 };

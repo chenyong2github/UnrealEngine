@@ -57,7 +57,7 @@ public:
 	bool bLooping;
 
 	UPROPERTY(EditAnywhere, Category = "Variation")
-	TSet<USoundWave*> Variations;
+	TSet<TObjectPtr<USoundWave>> Variations;
 
 	UPROPERTY(EditAnywhere, Category = "Modulation")
 	FVector2D PitchModulation;

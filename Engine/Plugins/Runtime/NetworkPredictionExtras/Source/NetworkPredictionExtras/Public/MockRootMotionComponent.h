@@ -18,7 +18,7 @@ struct FRootMotionSourceCache
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UMockRootMotionSource* Instance = nullptr;
+	TObjectPtr<UMockRootMotionSource> Instance = nullptr;
 
 	int32 ClassID = 0;
 };

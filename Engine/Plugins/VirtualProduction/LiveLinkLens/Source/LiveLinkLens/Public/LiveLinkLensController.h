@@ -38,7 +38,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.1, "This property has been deprecated. Distortion is handled directly by controlled Lens Component.")
  	UPROPERTY(Transient)
- 	ULensDistortionModelHandlerBase* LensDistortionHandler_DEPRECATED = nullptr;
+ 	TObjectPtr<ULensDistortionModelHandlerBase> LensDistortionHandler_DEPRECATED = nullptr;
 
 	UE_DEPRECATED(5.1, "This property has been deprecated and is no longer used.")
 	UPROPERTY(DuplicateTransient)

@@ -17,13 +17,13 @@ class UDEPRECATED_LakeGenerator : public UDEPRECATED_WaterBodyGenerator
 	GENERATED_UCLASS_BODY()
 public:
 	UPROPERTY(NonPIEDuplicateTransient)
-	UStaticMeshComponent* LakeMeshComp;
+	TObjectPtr<UStaticMeshComponent> LakeMeshComp;
 
 	UPROPERTY()
-	UBoxComponent* LakeCollisionComp_DEPRECATED;
+	TObjectPtr<UBoxComponent> LakeCollisionComp_DEPRECATED;
 
 	UPROPERTY(NonPIEDuplicateTransient)
-	ULakeCollisionComponent* LakeCollision;
+	TObjectPtr<ULakeCollisionComponent> LakeCollision;
 };
 
 // ----------------------------------------------------------------------------------
@@ -37,6 +37,6 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UDEPRECATED_LakeGenerator* LakeGenerator_DEPRECATED;
+	TObjectPtr<UDEPRECATED_LakeGenerator> LakeGenerator_DEPRECATED;
 #endif
 };

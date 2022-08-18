@@ -187,20 +187,20 @@ protected:
 	}
 
 	UPROPERTY()
-	AGameModeBase* CachedGameMode;
+	TObjectPtr<AGameModeBase> CachedGameMode;
 
 	UPROPERTY()
-	UWorld* CachedWorld;
+	TObjectPtr<UWorld> CachedWorld;
 
 	/** @see HashAvatar */
 	UPROPERTY()
-	TMap<uint32, UMLAdapterAgent*> AvatarToAgent;
+	TMap<uint32, TObjectPtr<UMLAdapterAgent>> AvatarToAgent;
 
 	UPROPERTY()
-	TArray<UMLAdapterAgent*> Agents;
+	TArray<TObjectPtr<UMLAdapterAgent>> Agents;
 
 	UPROPERTY()
-	TArray<UMLAdapterAgent*> AwaitingAvatar;
+	TArray<TObjectPtr<UMLAdapterAgent>> AwaitingAvatar;
 
 	FOnAgentAvatarChangedDelegate OnAgentAvatarChanged;
 	FOnBeginAgentRemove OnBeginAgentRemove;

@@ -34,7 +34,7 @@ public:
 	* This curve must be kept in the 0 to 1 range on both axes.
 	*/
 	UPROPERTY(EditAnywhere, Category = "FlyToLocation")
-	UCurveFloat* AltitudeProfileCurve;
+	TObjectPtr<UCurveFloat> AltitudeProfileCurve;
 
 	/**
 	* This curve is used to pick up a reference the maximum altitude when flying to a location. 
@@ -43,7 +43,7 @@ public:
 	* Y Axis is the maximum altitude to be used for this flight (meters)
 	*/
 	UPROPERTY(EditAnywhere, Category = "FlyToLocation")
-	UCurveFloat* MaximumAltitudeCurve;
+	TObjectPtr<UCurveFloat> MaximumAltitudeCurve;
 
 	/**
 	* In case MaximumAltitudeCurve is not defined, the AltitudeProfileCurve will use this Maximum altitude value for the flight, whatever the travel distance. 
@@ -60,7 +60,7 @@ public:
 	* A linear curve will give a constant progress speed whereas a easein//easeout one will slow down the speed at beginning/end of motion. 
 	*/
 	UPROPERTY(EditAnywhere, Category = "FlyToLocation")
-	UCurveFloat* ProgressCurve;
+	TObjectPtr<UCurveFloat> ProgressCurve;
 
 	/**
 	* Fly to Location duration (in seconds)
@@ -124,7 +124,7 @@ public:
 	* ActualMaxSpeed = BaseSpeedKmh * SpeedScalar * AltitudeSpeedModifierCurve(Altitude)
 	*/
 	UPROPERTY(EditAnywhere, Category = "Movement")
-	UCurveFloat* SpeedByHATModifierCurve;
+	TObjectPtr<UCurveFloat> SpeedByHATModifierCurve;
 
 	/**
 	* Height Above Terrain. The distance between the ground and the pawn
@@ -231,7 +231,7 @@ public:
 
 protected:
 	UPROPERTY()
-	AGeoReferencingSystem* GeoReferencingSystem;
+	TObjectPtr<AGeoReferencingSystem> GeoReferencingSystem;
 
 private:
 	/**

@@ -145,7 +145,7 @@ protected:
 
 	/** Dynamically created post-process material instance for the currently specified lens model */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Distortion")
-	UMaterialInstanceDynamic* DistortionPostProcessMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> DistortionPostProcessMID = nullptr;
 
 	/** Current state as set by the most recent call to Update() */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Distortion", meta = (ShowOnlyInnerProperties))
@@ -161,19 +161,19 @@ protected:
 
 	/** MID used to draw the undistortion displacement map */
 	UPROPERTY(Transient)
-	UMaterialInstanceDynamic* UndistortionDisplacementMapMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> UndistortionDisplacementMapMID = nullptr;
 
 	/** MID used to draw the distortion displacement map */
 	UPROPERTY(Transient)
-	UMaterialInstanceDynamic* DistortionDisplacementMapMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> DistortionDisplacementMapMID = nullptr;
 
 	/** UV displacement map used to undistort a distorted image */
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* UndistortionDisplacementMapRT = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> UndistortionDisplacementMapRT = nullptr;
 
 	/** UV displacement map used to distort an undistorted image */
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* DistortionDisplacementMapRT = nullptr;
+	TObjectPtr<UTextureRenderTarget2D> DistortionDisplacementMapRT = nullptr;
 
 	/** UObject that is producing the distortion state for this handler */
 	UPROPERTY()

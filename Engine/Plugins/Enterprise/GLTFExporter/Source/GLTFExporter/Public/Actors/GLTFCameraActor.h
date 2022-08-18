@@ -71,7 +71,7 @@ public:
 
 	/* Actor which the camera will focus on and subsequently orbit when using Orbital mode. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor", meta=(EditCondition="Mode == EGLTFCameraControlMode::Orbital"))
-	AActor* Target;
+	TObjectPtr<AActor> Target;
 
 	/* Minimum pitch angle (in degrees) for the camera. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor")

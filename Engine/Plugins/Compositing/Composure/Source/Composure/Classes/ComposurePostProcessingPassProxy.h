@@ -48,5 +48,5 @@ public:
 
 private:
 	UPROPERTY(Transient, DuplicateTransient, SkipSerialization)
-	UMaterialInstanceDynamic* SetupMID;
+	TObjectPtr<UMaterialInstanceDynamic> SetupMID;
 };

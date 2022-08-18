@@ -22,7 +22,7 @@ struct FUIFLayerEntry : public FFastArraySerializerItem
 	FUIFLayerEntry() = default;
 
 	UPROPERTY()
-	UUIFLayer* Layer = nullptr;
+	TObjectPtr<UUIFLayer> Layer = nullptr;
 
 	//~ In the LayerEntry instead of UILayer because it is needed for the correct initialization and cannot changed at runtime
 	UPROPERTY()
@@ -74,7 +74,7 @@ private:
 	TArray<FUIFLayerEntry> Entries;
 
 	UPROPERTY()
-	UActorComponent* OwnerComponent = nullptr;
+	TObjectPtr<UActorComponent> OwnerComponent = nullptr;
 };
 
 template<>

@@ -777,7 +777,7 @@ struct FMoviePipelineFormatArgs
 
 	/** Which job is this for? Some settings are specific to the level sequence being rendered. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	class UMoviePipelineExecutorJob* InJob;
+	TObjectPtr<class UMoviePipelineExecutorJob> InJob;
 };
 
 USTRUCT(BlueprintType)
@@ -858,14 +858,14 @@ struct FMoviePipelineFilenameResolveParams
 
 	/** Required. This is the job all of the settings should be pulled from.*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	UMoviePipelineExecutorJob* Job;
+	TObjectPtr<UMoviePipelineExecutorJob> Job;
 
 	/** If this shot has multiple cameras in the sidecar array, which camera is this for? -1 will return the InnerName/Main camera for the shot. */
 	int32 CameraIndex;
 
 	/** Optional. If specified, settings will be pulled from this shot (if overriden by the shot). If null, always use the master configuration in the job. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	UMoviePipelineExecutorShot* ShotOverride;
+	TObjectPtr<UMoviePipelineExecutorShot> ShotOverride;
 
 	/** Additional offset added onto the offset provided by the Output Settings in the Job. Required for some internal things (FCPXML). */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
@@ -1294,11 +1294,11 @@ struct FMoviePipelineOutputData
 	* Provided here for backwards compatibility.
 	*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movie Pipeline")
-	UMoviePipeline* Pipeline;
+	TObjectPtr<UMoviePipeline> Pipeline;
 	
 	/** Job the data is for. Job may still be in progress (if a shot callback) so be careful about modifying properties on it */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movie Pipeline")
-	UMoviePipelineExecutorJob* Job;
+	TObjectPtr<UMoviePipelineExecutorJob> Job;
 	
 	/** Did the job succeed, or was it canceled early due to an error (such as failure to write file to disk)? */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movie Pipeline")

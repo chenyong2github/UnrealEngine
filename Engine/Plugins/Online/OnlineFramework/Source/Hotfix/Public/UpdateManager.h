@@ -448,9 +448,9 @@ private:
 
 	/** String output */
 	UPROPERTY()
-	UEnum* UpdateStateEnum;
+	TObjectPtr<UEnum> UpdateStateEnum;
 	UPROPERTY()
-	UEnum* UpdateCompletionEnum;
+	TObjectPtr<UEnum> UpdateCompletionEnum;
 
 	/** Fire a delegate after a given amount of time */
 	typedef TFunction<void(void)> DelayCb;

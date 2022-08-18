@@ -41,15 +41,15 @@ public:
 	
     /* We run IsActorValid on this filter. IsPropertyValid uses one of the below filters depending on this filter. */
 	UPROPERTY(EditAnywhere, Instanced, Category = "Config")
-	ULevelSnapshotFilter* ActorFilter;
+	TObjectPtr<ULevelSnapshotFilter> ActorFilter;
 
     /* Used by IsPropertyValid when ActorFilter->IsActorValid returns Include */
 	UPROPERTY(EditAnywhere, Instanced, Category = "Config")
-	ULevelSnapshotFilter* IncludePropertyFilter;
+	TObjectPtr<ULevelSnapshotFilter> IncludePropertyFilter;
 
 	/* Used by IsPropertyValid when ActorFilter->IsActorValid returns Exclude */
 	UPROPERTY(EditAnywhere, Instanced, Category = "Config")
-	ULevelSnapshotFilter* ExcludePropertyFilter;
+	TObjectPtr<ULevelSnapshotFilter> ExcludePropertyFilter;
 
 	/* Determines what filter IsPropertyValid is supposed to use when IsActorValid returns DoNotCare. */
 	UPROPERTY(EditAnywhere, Category = "Config")
@@ -57,5 +57,5 @@ public:
 	
 	/* Used by IsPropertyValid when ActorFilter->IsActorValid returns DoNotCare and DoNotCareHandling == UseDoNotCareFilter. */
 	UPROPERTY(EditAnywhere, Instanced, Category = "Config")
-	ULevelSnapshotFilter* DoNotCarePropertyFilter;
+	TObjectPtr<ULevelSnapshotFilter> DoNotCarePropertyFilter;
 };

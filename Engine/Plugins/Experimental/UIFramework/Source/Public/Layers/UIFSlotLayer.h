@@ -115,5 +115,5 @@ private:
 	FUIFSlotWidgetList WidgetList;
 
 	UPROPERTY(Transient)
-	TMap<FName, UUIFWidget*> LocalSlotContents;
+	TMap<FName, TObjectPtr<UUIFWidget>> LocalSlotContents;
 };

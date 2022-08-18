@@ -38,7 +38,7 @@ struct AUDIOMODULATION_API FSoundControlModulationInput
 
 	/** The input bus */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input)
-	USoundControlBus* Bus = nullptr;
+	TObjectPtr<USoundControlBus> Bus = nullptr;
 
 	const USoundControlBus* GetBus() const;
 	const USoundControlBus& GetBusChecked() const;
@@ -54,7 +54,7 @@ struct AUDIOMODULATION_API FSoundControlModulationPatch
 	bool bBypass = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Output, meta = (DisplayName = "Parameter"))
-	USoundModulationParameter* OutputParameter = nullptr;
+	TObjectPtr<USoundModulationParameter> OutputParameter = nullptr;
 
 	/** Modulation inputs */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Inputs)

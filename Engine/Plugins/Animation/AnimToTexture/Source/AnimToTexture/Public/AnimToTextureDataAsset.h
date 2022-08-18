@@ -133,7 +133,7 @@ struct FAnimSequenceInfo
 	bool bEnabled = true;
 
 	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite)
-	UAnimSequence* AnimSequence = nullptr;
+	TObjectPtr<UAnimSequence> AnimSequence = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite)
 	bool bLooping = true;

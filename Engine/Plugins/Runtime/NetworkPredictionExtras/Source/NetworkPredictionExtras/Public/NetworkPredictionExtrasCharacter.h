@@ -82,7 +82,7 @@ protected:
 	void ProduceInput(const int32 DeltaMS, FCharacterMotionInputCmd& Cmd);
 
 	UPROPERTY(Category=Movement, VisibleAnywhere)
-	UCharacterMotionComponent* CharacterMotionComponent;
+	TObjectPtr<UCharacterMotionComponent> CharacterMotionComponent;
 
 private:
 

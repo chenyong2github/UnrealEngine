@@ -23,7 +23,7 @@ private:
 	FZoneGraphLaneLocation LaneLocation;
 
 	UPROPERTY(Transient)
-	UMassCrowdSubsystem* CrowdSubsystem;
+	TObjectPtr<UMassCrowdSubsystem> CrowdSubsystem;
 
 	UPROPERTY(EditAnywhere, Category = Test)
 	ECrowdLaneState LaneState = ECrowdLaneState::Closed;

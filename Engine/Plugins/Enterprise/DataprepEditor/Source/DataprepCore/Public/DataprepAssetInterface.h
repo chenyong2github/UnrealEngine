@@ -139,15 +139,15 @@ protected:
 
 	/** Recipe associated to the Dataprep asset */
 	UPROPERTY()
-	UDataprepRecipeInterface* Recipe;
+	TObjectPtr<UDataprepRecipeInterface> Recipe;
 
 	/** Producers associated to the Dataprep asset */
 	UPROPERTY()
-	UDataprepAssetProducers* Inputs;
+	TObjectPtr<UDataprepAssetProducers> Inputs;
 
 	/** Consumer associated to the Dataprep asset */
 	UPROPERTY()
-	UDataprepContentConsumer* Output;
+	TObjectPtr<UDataprepContentConsumer> Output;
 #endif
 
 protected:

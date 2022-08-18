@@ -303,17 +303,17 @@ private:
 	static TMap<TWeakObjectPtr<const ULocalPlayer>, TWeakObjectPtr<USocialToolkit>> AllToolkitsByOwningPlayer;
 
 	UPROPERTY()
-	USocialUser* LocalUser;
+	TObjectPtr<USocialUser> LocalUser;
 
 	UPROPERTY()
-	TArray<USocialUser*> AllUsers;
+	TArray<TObjectPtr<USocialUser>> AllUsers;
 	TMap<FUniqueNetIdRepl, TWeakObjectPtr<USocialUser>> UsersBySubsystemIds;
 
 	UPROPERTY()
 	TWeakObjectPtr<ULocalPlayer> LocalPlayerOwner = nullptr;
 
 	UPROPERTY()
-	USocialChatManager* SocialChatManager;
+	TObjectPtr<USocialChatManager> SocialChatManager;
 
 	TSet<IOnlinePartyJoinInfoConstRef> PartyInvitations;
 	mutable TArray<TWeakPtr<FSocialUserList>> CachedSocialUserLists;

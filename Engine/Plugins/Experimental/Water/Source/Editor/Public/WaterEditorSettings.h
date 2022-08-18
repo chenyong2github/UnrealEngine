@@ -121,7 +121,7 @@ struct WATEREDITOR_API FWaterBodyLakeDefaults : public FWaterBodyDefaults
 	FWaterBrushActorDefaults BrushDefaults;
 
 	UPROPERTY(EditAnywhere, Instanced, Category = Wave)
-	UWaterWavesBase* WaterWaves = nullptr;
+	TObjectPtr<UWaterWavesBase> WaterWaves = nullptr;
 };
 
 
@@ -136,7 +136,7 @@ struct WATEREDITOR_API FWaterBodyOceanDefaults : public FWaterBodyDefaults
 	FWaterBrushActorDefaults BrushDefaults;
 
 	UPROPERTY(EditAnywhere, Instanced, Category = Wave)
-	UWaterWavesBase* WaterWaves = nullptr;
+	TObjectPtr<UWaterWavesBase> WaterWaves = nullptr;
 };
 
 

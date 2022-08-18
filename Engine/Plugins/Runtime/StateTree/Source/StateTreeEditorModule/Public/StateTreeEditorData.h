@@ -138,5 +138,5 @@ public:
 
 	/** Top level States. */
 	UPROPERTY()
-	TArray<UStateTreeState*> SubTrees;
+	TArray<TObjectPtr<UStateTreeState>> SubTrees;
 };

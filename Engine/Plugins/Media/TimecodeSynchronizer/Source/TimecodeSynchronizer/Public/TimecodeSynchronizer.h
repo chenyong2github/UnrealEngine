@@ -222,7 +222,7 @@ private:
 
 	/* Associated source pointers */
 	UPROPERTY(VisibleAnywhere, Transient, Category = Debug, Meta=(DisplayName="Input Source"))
-	UTimeSynchronizationSource* InputSource;
+	TObjectPtr<UTimeSynchronizationSource> InputSource;
 
 	FTimecodeSynchronizerActiveTimecodedInputSource(const FTimecodeSynchronizerActiveTimecodedInputSource&) = delete;
 	FTimecodeSynchronizerActiveTimecodedInputSource& operator=(const FTimecodeSynchronizerActiveTimecodedInputSource&) = delete;
@@ -470,7 +470,7 @@ public:
 
 	/** Custom strategy to tick in a interval. */
 	UPROPERTY(EditAnywhere, Instanced, Category="Timecode Provider", Meta=(DisplayName="Timecode Source"))
-	UTimecodeProvider* TimecodeProvider;
+	TObjectPtr<UTimecodeProvider> TimecodeProvider;
 
 	/**
 	 * Index of the source that drives the synchronized Timecode.
@@ -501,12 +501,12 @@ public:
 	//! ONLY MODIFY THESE IN EDITOR
 	//! TODO: Deprecate this and make it private.
 	UPROPERTY(EditAnywhere, Instanced, Category="Input")
-	TArray<UTimeSynchronizationSource*> TimeSynchronizationInputSources;
+	TArray<TObjectPtr<UTimeSynchronizationSource>> TimeSynchronizationInputSources;
 
 private:
 
 	UPROPERTY(Transient)
-	TArray<UTimeSynchronizationSource*> DynamicSources;
+	TArray<TObjectPtr<UTimeSynchronizationSource>> DynamicSources;
 
 	/** What mode will be used for synchronization. */
 	UPROPERTY(EditAnywhere, Category = "Synchronization")
@@ -540,13 +540,13 @@ private:
 	TArray<FTimecodeSynchronizerActiveTimecodedInputSource> NonSynchronizedSources;
 
 	UPROPERTY(Transient)
-	UFixedFrameRateCustomTimeStep* RegisteredCustomTimeStep;
+	TObjectPtr<UFixedFrameRateCustomTimeStep> RegisteredCustomTimeStep;
 
 	UPROPERTY(Transient)
-	UTimecodeProvider* CachedPreviousTimecodeProvider;
+	TObjectPtr<UTimecodeProvider> CachedPreviousTimecodeProvider;
 
 	UPROPERTY(Transient)
-	UTimecodeProvider* CachedProxiedTimecodeProvider;
+	TObjectPtr<UTimecodeProvider> CachedProxiedTimecodeProvider;
 
 	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, Category = "Synchronization")
 	int32 ActualFrameOffset;

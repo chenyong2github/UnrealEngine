@@ -73,7 +73,7 @@ class BINKMEDIAPLAYER_API UBinkMediaTexture : public UTexture
 
 	/** The MediaPlayer asset to stream video from. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MediaPlayer)
-	UBinkMediaPlayer *MediaPlayer;
+	TObjectPtr<UBinkMediaPlayer> MediaPlayer;
 
 	/** The Pixel Format for the texture. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MediaPlayer)

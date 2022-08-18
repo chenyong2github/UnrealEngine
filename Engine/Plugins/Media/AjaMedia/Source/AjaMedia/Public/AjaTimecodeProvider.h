@@ -116,7 +116,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** Engine used to initialize the Provider */
 	UPROPERTY(Transient)
-	UEngine* InitializedEngine;
+	TObjectPtr<UEngine> InitializedEngine;
 
 	/** The time the last attempt to auto synchronize was triggered. */
 	double LastAutoSynchronizeInEditorAppTime;

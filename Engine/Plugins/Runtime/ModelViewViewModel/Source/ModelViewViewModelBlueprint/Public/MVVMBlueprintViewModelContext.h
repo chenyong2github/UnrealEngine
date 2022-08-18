@@ -80,7 +80,7 @@ private:
 	FGuid ViewModelContextId;
 
 	UPROPERTY(VisibleAnywhere, Category = "MVVM", NoClear, meta = (AllowedClasses = "/Script/UMG.NotifyFieldValueChanged", DisallowedClasses = "/Script/UMG.Widget"))
-	UClass* NotifyFieldValueClass = nullptr;
+	TObjectPtr<UClass> NotifyFieldValueClass = nullptr;
 
 	UPROPERTY()
 	TSubclassOf<UMVVMViewModelBase> ViewModelClass_DEPRECATED;

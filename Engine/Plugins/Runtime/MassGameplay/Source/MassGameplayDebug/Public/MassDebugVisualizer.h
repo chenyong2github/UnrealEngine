@@ -19,6 +19,6 @@ public:
 
 protected:
 	UPROPERTY()
-	class UMassDebugVisualizationComponent* DebugVisComponent;
+	TObjectPtr<class UMassDebugVisualizationComponent> DebugVisComponent;
 #endif // WITH_EDITORONLY_DATA
 };

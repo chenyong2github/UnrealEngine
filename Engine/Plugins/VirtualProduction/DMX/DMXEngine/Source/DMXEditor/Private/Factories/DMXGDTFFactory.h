@@ -54,5 +54,5 @@ private:
 	bool bOperationCanceled;
 
 	UPROPERTY(transient)
-	UDMXGDTFImportUI* ImportUI;
+	TObjectPtr<UDMXGDTFImportUI> ImportUI;
 };

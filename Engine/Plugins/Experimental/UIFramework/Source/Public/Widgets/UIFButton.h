@@ -20,10 +20,10 @@ class UUIFButtonUserWidget : public UUserWidget
 
 public:
 	UPROPERTY(BlueprintReadOnly, Category = "UI Framework", meta = (BindWidget))
-	UTextBlock* TextBlock = nullptr;
+	TObjectPtr<UTextBlock> TextBlock = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, Category = "UI Framework", meta = (BindWidget))
-	UButton* Button = nullptr;
+	TObjectPtr<UButton> Button = nullptr;
 };
 
 

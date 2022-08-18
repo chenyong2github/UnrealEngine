@@ -44,7 +44,7 @@ public:
 	void SetVirtualCameraController(TScriptInterface<IVirtualCameraController> VirtualCamera);
 
 	UPROPERTY(BlueprintReadOnly, Category = "VirtualCamera")
-	ULevelSequencePlaybackController* SequencePlaybackController;
+	TObjectPtr<ULevelSequencePlaybackController> SequencePlaybackController;
 
 	UPROPERTY(BlueprintAssignable, Category = "VirtualCamera | Streaming")
 	FOnStreamStarted OnStreamStartedDelegate;

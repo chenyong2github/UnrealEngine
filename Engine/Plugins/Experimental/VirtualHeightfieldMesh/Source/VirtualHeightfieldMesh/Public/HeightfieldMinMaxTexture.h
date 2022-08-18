@@ -30,15 +30,15 @@ public:
 
 	/** The Height MinMax texture. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Texture, meta = (DisplayName = "Height MinMax Texture"))
-	class UTexture2D* Texture = nullptr;
+	TObjectPtr<class UTexture2D> Texture = nullptr;
 
 	/** A LodBias texture derived from the Height MinMax texture*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Texture, meta = (DisplayName = "LodBias Texture"))
-	class UTexture2D* LodBiasTexture = nullptr;
+	TObjectPtr<class UTexture2D> LodBiasTexture = nullptr;
 
 	/** A LodBias MinMax texture derived from the LodBias texture*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Texture, meta = (DisplayName = "LodBias MinMax Texture"))
-	class UTexture2D* LodBiasMinMaxTexture = nullptr;
+	TObjectPtr<class UTexture2D> LodBiasMinMaxTexture = nullptr;
 
 protected:
 	/** The number of mip levels to clone for CPU access. */

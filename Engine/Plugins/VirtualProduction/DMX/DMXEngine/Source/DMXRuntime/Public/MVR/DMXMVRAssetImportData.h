@@ -35,7 +35,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** The Asset Import Data used to generate the GDTF asset or nullptr, if not generated from a GDTF file */
 	UPROPERTY()
-	UAssetImportData* AssetImportData;
+	TObjectPtr<UAssetImportData> AssetImportData;
 
 	/** The raw source file as byte array, as it was imported */
 	UPROPERTY()

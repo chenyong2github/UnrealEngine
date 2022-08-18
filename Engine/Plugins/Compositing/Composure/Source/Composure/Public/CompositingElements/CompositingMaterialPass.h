@@ -98,7 +98,7 @@ public:
 	FCompositingMaterial();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CompositingMaterial")
-	UMaterialInterface* Material;
+	TObjectPtr<UMaterialInterface> Material;
 
 	/** Maps material texture param names to prior passes/elements. Overrides the element's param mapping list above. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CompositingMaterial", meta = (ReadOnlyKeys, DisplayName = "Input Elements"))
@@ -164,6 +164,6 @@ private:
 	bool bParamsModified = true;
 
 	UPROPERTY(Transient, SkipSerialization)
-	UMaterialInstanceDynamic* CachedMID;
+	TObjectPtr<UMaterialInstanceDynamic> CachedMID;
 };
 

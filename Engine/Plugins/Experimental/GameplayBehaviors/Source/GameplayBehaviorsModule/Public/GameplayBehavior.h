@@ -163,11 +163,11 @@ protected:
 	 * Can be used as patrol points, investigation location, etc.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GameplayBehavior)
-	TArray<AActor*> RelevantActors;
+	TArray<TObjectPtr<AActor>> RelevantActors;
 
 	/* SmartObject Actor Owner, can be null */
 	UPROPERTY(Transient)
-	AActor* TransientSmartObjectOwner = nullptr;
+	TObjectPtr<AActor> TransientSmartObjectOwner = nullptr;
 
 	/**
 	 * Used mostly as world context for IGameplayTaskOwnerInterface function.
@@ -175,10 +175,10 @@ protected:
 	 *	Set automatically as part of Trigger call
 	 */
 	UPROPERTY()
-	AActor* TransientAvatar = nullptr;
+	TObjectPtr<AActor> TransientAvatar = nullptr;
 
 private:
 	/** List of currently active tasks, do not modify directly */
 	UPROPERTY()
-	TArray<UGameplayTask*> ActiveTasks;
+	TArray<TObjectPtr<UGameplayTask>> ActiveTasks;
 };
