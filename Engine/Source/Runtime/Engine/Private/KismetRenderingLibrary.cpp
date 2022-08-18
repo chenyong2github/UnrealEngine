@@ -3,6 +3,7 @@
 #include "Kismet/KismetRenderingLibrary.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Serialization/BufferArchive.h"
 #include "EngineGlobals.h"
 #include "RenderingThread.h"
@@ -149,6 +150,8 @@ void UKismetRenderingLibrary::ResizeRenderTarget2D(UTextureRenderTarget2D* Textu
 
 void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextObject, UTextureRenderTarget2D* TextureRenderTarget, UMaterialInterface* Material)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(DrawMaterialToRenderTarget);
+
 	if (!FApp::CanEverRender())
 	{
 		// Returning early to avoid warnings about missing resources that are expected when CanEverRender is false.
@@ -175,6 +178,13 @@ void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextOb
 	}
 	else
 	{
+		if (!Material->IsComplete())
+		{
+			FScopedSlowTask SlowTask(0.0f, NSLOCTEXT("KismetRenderingLibrary", "CacheShaders", "Caching Shaders..."));
+			SlowTask.MakeDialog();
+			Material->CacheShaders(EMaterialShaderPrecompileMode::Synchronous);
+		}
+
 		World->FlushDeferredParameterCollectionInstanceUpdates();
 
 		FTextureRenderTargetResource* RenderTargetResource = TextureRenderTarget->GameThread_GetRenderTargetResource();
