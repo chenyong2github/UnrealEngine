@@ -21,8 +21,8 @@ class FShaderFormatVulkan : public IShaderFormat
 {
 	enum 
 	{
-		UE_SHADER_VULKAN_ES3_1_VER	= 34,
-		UE_SHADER_VULKAN_SM5_VER 	= 34,
+		UE_SHADER_VULKAN_ES3_1_VER	= 35,
+		UE_SHADER_VULKAN_SM5_VER 	= 35,
 	};
 
 	int32 InternalGetVersion(FName Format) const
