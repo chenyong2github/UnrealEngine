@@ -845,8 +845,8 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 		ToolbarBuilder.AddToolBarButton(Commands.DeleteBranch);
 		ToolbarBuilder.AddToolBarButton(Commands.Hide);
 		ToolbarBuilder.AddToolBarButton(Commands.Unhide);
-		//ToolbarBuilder.AddToolBarButton(Commands.MergeSelected);
-		//ToolbarBuilder.AddToolBarButton(Commands.SplitSelected);
+		ToolbarBuilder.AddToolBarButton(Commands.MergeSelected);
+		//ToolbarBuilder.AddToolBarButton(Commands.SplitSelected); // Split tool intentionally disabled; prefer the 'split' option on import instead.
 	}
 	else if (PaletteIndex == TEXT("Cluster"))
 	{
