@@ -145,6 +145,11 @@ public:
 		const FVector& ScaleNudge,
 		TArray<FAnimPerturbationError>& InducedErrors);
 
+#if WITH_EDITOR
+	/** Preload the bone, curve and recorder compression settings */
+	ENGINE_API static void PreloadCompressionSettings();
+#endif
+	
 	/** Returns the default animation bone compression settings, can never by null. */
 	ENGINE_API static UAnimBoneCompressionSettings* GetDefaultAnimationBoneCompressionSettings();
 

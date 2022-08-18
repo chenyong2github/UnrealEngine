@@ -874,6 +874,8 @@ static void EnsureDependenciesAreLoaded(UObject* Object)
 	}
 }
 
+
+
 UObject* GetDefaultAnimationCompressionSettings(const TCHAR* IniValueName)
 {
 	FConfigSection* AnimDefaultObjectSettingsSection = GConfig->GetSectionPrivate(TEXT("Animation.DefaultObjectSettings"), false, true, GEngineIni);
@@ -900,6 +902,17 @@ UObject* GetDefaultAnimationCompressionSettings(const TCHAR* IniValueName)
 
 	return DefaultCompressionSettings;
 }
+
+#if WITH_EDITOR
+
+void FAnimationUtils::PreloadCompressionSettings()
+{
+	GetDefaultAnimationBoneCompressionSettings();
+	GetDefaultAnimationRecorderBoneCompressionSettings();
+	GetDefaultAnimationCurveCompressionSettings();
+}
+
+#endif
 
 UAnimBoneCompressionSettings* FAnimationUtils::GetDefaultAnimationBoneCompressionSettings()
 {

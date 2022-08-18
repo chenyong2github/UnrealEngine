@@ -110,6 +110,7 @@
 	#include "Serialization/BulkDataRegistry.h"
 	#include "ShaderCompiler.h"
 	#include "Virtualization/VirtualizationSystem.h"
+	#include "AnimationUtils.h"
 
 	#if PLATFORM_WINDOWS
 		#include "Windows/AllowWindowsPlatformTypes.h"
@@ -3526,8 +3527,11 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 #if WITH_EDITOR
 	// We need to mount the shared resources for templates (if there are any) before we try and load and game classes
 	FUnrealEdMisc::Get().MountTemplateSharedPaths();
-#endif
 
+	// We need to load any animation compression settings before we load game classes
+	FAnimationUtils::PreloadCompressionSettings();
+#endif
+	
 	{
 		SCOPED_BOOT_TIMING("LoadStartupModules");
 		if (!LoadStartupModules())
