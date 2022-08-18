@@ -66,7 +66,7 @@ protected:
 
 	/** if set, other actions with the same priority will be aborted when path is changed */
 	UPROPERTY()
-	uint32 bAbortChildActionOnPathChange : 1;
+	uint32 bAbortSubActionOnPathChange : 1;
 
 public:
 	virtual void BeginDestroy() override;
@@ -87,9 +87,12 @@ public:
 	void EnableStrafing(bool bNewStrafing) { bAllowStrafe = bNewStrafing; }
 	void EnablePathUpdateOnMoveGoalLocationChange(bool bEnable) { bUpdatePathToGoal = bEnable; }
 	void EnableGoalLocationProjectionToNavigation(bool bEnable) { bProjectGoalToNavigation = bEnable; }
-	void EnableChildAbortionOnPathUpdate(bool bEnable) { bAbortChildActionOnPathChange = bEnable; }
+	void SetAbortSubActionOnPathUpdate(bool bEnable) { bAbortSubActionOnPathChange = bEnable; }
 	void SetFilterClass(TSubclassOf<UNavigationQueryFilter> NewFilterClass) { FilterClass = NewFilterClass; }
 	void SetAllowPartialPath(bool bEnable) { bAllowPartialPath = bEnable; }
+
+	UE_DEPRECATED(5.1, "Use SetAbortSubActionOnPathUpdate instead.")
+	void EnableChildAbortionOnPathUpdate(bool bEnable) { SetAbortSubActionOnPathUpdate(bEnable); }
 
 protected:
 	/** currently followed path */
