@@ -8,9 +8,8 @@ public class SoundFields : ModuleRules
 	public SoundFields(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-        OptimizeCode = CodeOptimization.Never;
 
-        PublicDependencyModuleNames.AddRange(
+		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core"
