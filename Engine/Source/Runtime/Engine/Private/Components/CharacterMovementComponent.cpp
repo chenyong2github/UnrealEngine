@@ -11574,6 +11574,8 @@ void FSavedMove_Character::Clear()
 
 	RootMotionMontage = NULL;
 	RootMotionTrackPosition = 0.f;
+	RootMotionPreviousTrackPosition = 0.f;
+	RootMotionPlayRateWithScale = 1.f;
 	RootMotionMovement.Clear();
 
 	SavedRootMotion.Clear();
@@ -11730,6 +11732,8 @@ void FSavedMove_Character::PostUpdate(ACharacter* Character, FSavedMove_Characte
 			{
 				RootMotionMontage = RootMotionMontageInstance->Montage;
 				RootMotionTrackPosition = RootMotionMontageInstance->GetPosition();
+				RootMotionPreviousTrackPosition = RootMotionMontageInstance->GetPreviousPosition();
+				RootMotionPlayRateWithScale = RootMotionMontageInstance->GetPlayRate() * RootMotionMontage->RateScale;
 				RootMotionMovement = Character->ClientRootMotionParams;
 			}
 
@@ -12119,6 +12123,8 @@ void FSavedMove_Character::PrepMoveFor(ACharacter* Character)
 			{
 				RootMotionMovement.Clear();
 				RootMotionTrackPosition = RootMotionMontageInstance->GetPosition();
+				RootMotionPreviousTrackPosition = RootMotionTrackPosition;
+				RootMotionPlayRateWithScale = RootMotionMontageInstance->GetPlayRate() * RootMotionMontage->RateScale;
 				RootMotionMontageInstance->SimulateAdvance(DeltaTime, RootMotionTrackPosition, RootMotionMovement);
 				RootMotionMontageInstance->SetPosition(RootMotionTrackPosition);
 				RootMotionMovement.ScaleRootMotionTranslation(Character->GetAnimRootMotionTranslationScale());

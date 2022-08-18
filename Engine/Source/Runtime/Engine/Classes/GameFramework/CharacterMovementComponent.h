@@ -2849,6 +2849,8 @@ public:
 
 	TWeakObjectPtr<class UAnimMontage> RootMotionMontage;
 	float RootMotionTrackPosition;
+	float RootMotionPreviousTrackPosition;
+	float RootMotionPlayRateWithScale;
 	FRootMotionMovementParams RootMotionMovement;
 
 	FRootMotionSourceGroup SavedRootMotion;
