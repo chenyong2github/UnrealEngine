@@ -23,10 +23,10 @@ struct FCinePrestreamingGenerateAssetArgs
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Cinematic Prestreaming|Editor")
 	FDirectoryPath OutputDirectoryOverride;
 	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Cinematic Prestreaming|Editor", meta = (AllowedClasses = "LevelSequence"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Cinematic Prestreaming|Editor", meta = (AllowedClasses = "/Script/LevelSequence.LevelSequence"))
 	FSoftObjectPath Sequence;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Cinematic Prestreaming|Editor", meta = (AllowedClasses = "World"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Cinematic Prestreaming|Editor", meta = (AllowedClasses = "/Script/Engine.World"))
 	FSoftObjectPath Map;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Cinematic Prestreaming|Editor")
