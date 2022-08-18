@@ -45,7 +45,12 @@ FPCGGraphExecutor::FPCGGraphExecutor(UObject* InOwner)
 {
 }
 
-FPCGGraphExecutor::~FPCGGraphExecutor() = default;
+FPCGGraphExecutor::~FPCGGraphExecutor()
+{
+#if WITH_EDITOR
+	EndGenerationNotification();
+#endif
+}
 
 void FPCGGraphExecutor::Compile(UPCGGraph* Graph)
 {

@@ -2,6 +2,7 @@
 
 #include "Elements/PCGDebugElement.h"
 
+#include "PCGComponent.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGActorHelpers.h"
@@ -16,6 +17,12 @@ namespace PCGDebugElement
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PCGDebugElement::ExecuteDebugDisplay);
 #if WITH_EDITORONLY_DATA
+		// Early validation: if we don't have a valid PCG component, we're not going to add the debug display info
+		if (!Context->SourceComponent || !IsValid(Context->SourceComponent))
+		{
+			return;
+		}
+
 		const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
 
 		if (!Settings)
@@ -140,6 +147,7 @@ namespace PCGDebugElement
 			Params.CollisionProfile = UCollisionProfile::NoCollision_ProfileName;
 
 			UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Params);
+			check(ISMC);
 			
 			ISMC->ComponentTags.AddUnique(PCGHelpers::DefaultPCGDebugTag);
 			ISMC->NumCustomDataFloats = NumCustomData;

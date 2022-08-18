@@ -736,6 +736,12 @@ void UPCGComponent::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+TStructOnScope<FActorComponentInstanceData> UPCGComponent::GetComponentInstanceData() const
+{
+	TStructOnScope<FActorComponentInstanceData> InstanceData = MakeStructOnScope<FActorComponentInstanceData, FPCGComponentInstanceData>(this);
+	return InstanceData;
+}
+
 void UPCGComponent::OnGraphChanged(UPCGGraph* InGraph, EPCGChangeType ChangeType)
 {
 	const bool bIsStructural = ((ChangeType & (EPCGChangeType::Edge | EPCGChangeType::Structural)) != EPCGChangeType::None);
@@ -816,7 +822,7 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (!PropertyChangedEvent.Property)
+	if (!PropertyChangedEvent.Property || !IsValid(this))
 	{
 		return;
 	}
@@ -1392,6 +1398,8 @@ void UPCGComponent::Refresh()
 		return;
 	}
 #endif
+
+	//check(IsValid(this));
 
 	// Following a change in some properties or in some spatial information related to this component,
 	// We need to regenerate the graph, depending of the state in the editor.
@@ -2084,5 +2092,56 @@ bool UPCGComponent::GraphUsesLandscapePin() const
 }
 
 #endif // WITH_EDITOR
+
+void UPCGComponent::SetManagedResources(const TArray<TObjectPtr<UPCGManagedResource>>& Resources)
+{
+	FScopeLock ResourcesLock(&GeneratedResourcesLock);
+	check(GeneratedResources.IsEmpty());
+	GeneratedResources = Resources;
+}
+
+void UPCGComponent::GetManagedResources(TArray<TObjectPtr<UPCGManagedResource>>& Resources) const
+{
+	FScopeLock ResourcesLock(&GeneratedResourcesLock);
+	Resources = GeneratedResources;
+}
+
+FPCGComponentInstanceData::FPCGComponentInstanceData(const UPCGComponent* SourceComponent)
+	: FActorComponentInstanceData(SourceComponent)
+{
+	if (SourceComponent)
+	{
+		SourceComponent->GetManagedResources(GeneratedResources);
+	}
+}
+
+bool FPCGComponentInstanceData::ContainsData() const
+{
+	return GeneratedResources.Num() > 0 || Super::ContainsData();
+}
+
+void FPCGComponentInstanceData::ApplyToComponent(UActorComponent* Component, const ECacheApplyPhase CacheApplyPhase)
+{
+	Super::ApplyToComponent(Component, CacheApplyPhase);
+
+	if (CacheApplyPhase == ECacheApplyPhase::PostUserConstructionScript)
+	{
+		UPCGComponent* PCGComponent = CastChecked<UPCGComponent>(Component);
+
+		// Duplicate generated resources + retarget them
+		TArray<TObjectPtr<UPCGManagedResource>> DuplicatedResources;
+		for (TObjectPtr<UPCGManagedResource> Resource : GeneratedResources)
+		{
+			UPCGManagedResource* DuplicatedResource = CastChecked<UPCGManagedResource>(StaticDuplicateObject(Resource, PCGComponent, FName()));
+			DuplicatedResource->PostEditImport();
+			DuplicatedResources.Add(DuplicatedResource);
+		}
+
+		if (DuplicatedResources.Num() > 0)
+		{
+			PCGComponent->SetManagedResources(DuplicatedResources);
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

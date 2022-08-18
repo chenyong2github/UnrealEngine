@@ -72,8 +72,13 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void OnComponentCreated() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+
+protected:
+	friend struct FPCGComponentInstanceData;
+	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
 	//~End UActorComponent Interface
 
+public:
 	UPCGData* GetPCGData();
 	UPCGData* GetInputPCGData();
 	UPCGData* GetActorPCGData();
@@ -224,6 +229,10 @@ private:
 	void CleanupUnusedManagedResources();
 	bool MoveResourcesToNewActor(AActor* InNewActor, bool bCreateChild);
 
+	/* Called as part of the RerunConstructionScript, just takes resources as-is, assumes current state is empty + the resources have been retargeted if needed */
+	void GetManagedResources(TArray<TObjectPtr<UPCGManagedResource>>& Resources) const;
+	void SetManagedResources(const TArray<TObjectPtr<UPCGManagedResource>>& Resources);
+
 	bool GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors, bool bCullAgainstLocalBounds);
 
 	void RefreshAfterGraphChanged(UPCGGraph* InGraph, bool bIsStructural, bool bDirtyInputs);
@@ -336,5 +345,22 @@ private:
 	TMap<TObjectPtr<const UPCGNode>, FPCGDataCollection> InspectionCache;
 #endif
 
-	FCriticalSection GeneratedResourcesLock;
+	mutable FCriticalSection GeneratedResourcesLock;
+};
+
+/** Used to store generated resources data during RerunConstructionScripts */
+USTRUCT()
+struct FPCGComponentInstanceData : public FActorComponentInstanceData
+{
+	GENERATED_BODY()
+public:
+	FPCGComponentInstanceData() = default;
+	explicit FPCGComponentInstanceData(const UPCGComponent* SourceComponent);
+
+protected:
+	virtual bool ContainsData() const override;
+	virtual void ApplyToComponent(UActorComponent* Component, const ECacheApplyPhase CacheApplyPhase) override;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UPCGManagedResource>> GeneratedResources;
 };

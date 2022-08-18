@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGElement.h"
+#include "PCGComponent.h"
 #include "PCGContext.h"
 #include "PCGModule.h"
 #include "PCGSettings.h"
@@ -12,7 +13,7 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::Execute);
 	// Early out to stop execution
-	if (Context->InputData.bCancelExecution)
+	if (Context->InputData.bCancelExecution || (Context->SourceComponent && !IsValid(Context->SourceComponent)))
 	{
 		Context->OutputData.bCancelExecution = true;
 
