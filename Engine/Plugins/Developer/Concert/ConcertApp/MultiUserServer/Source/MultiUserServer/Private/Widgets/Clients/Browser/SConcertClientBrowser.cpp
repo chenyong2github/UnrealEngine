@@ -380,9 +380,13 @@ TSharedPtr<SWidget> UE::MultiUserServer::SConcertClientBrowser::OnGetContextMenu
 		LOCTEXT("DisplayMode.NetworkGraph.Title", "Network graph"),
 		LOCTEXT("DisplayMode.NetworkGraph.Tooltip", "Show the up and down stream network traffic on a graph")
 		);
-	AddDisplayModeEntry(MenuBuilder, EClientDisplayMode::SegementTable,
-		LOCTEXT("DisplayMode.SegementTable.Title", "Segment table"),
-		LOCTEXT("DisplayMode.SegementTable.Tooltip", "A table displaying the messaging protocol's segments MessageId, Sent, Acked and Size in realtime.")
+	AddDisplayModeEntry(MenuBuilder, EClientDisplayMode::OutboundSegementTable,
+		LOCTEXT("DisplayMode.OutboundSegementTable.Title", "Outbound segment table"),
+		LOCTEXT("DisplayMode.SegementTable.Tooltip", "A table displaying the messaging protocol's outbound segments' MessageId, Sent, Acked and Size data in realtime.")
+		);
+	AddDisplayModeEntry(MenuBuilder, EClientDisplayMode::InboundSegmentTable,
+		LOCTEXT("DisplayMode.InboundSegementTable.Title", "Inbound Segment table"),
+		LOCTEXT("DisplayMode.SegementTable.Tooltip", "A table displaying the messaging protocol's inbound segments' MessageId, Received and Size data in realtime.")
 		);
 	return MenuBuilder.MakeWidget();
 }

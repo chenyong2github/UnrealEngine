@@ -21,8 +21,10 @@ namespace UE::MultiUserServer
 	{
 		/** Displays the sent and read packets */
 		NetworkGraph = 0,
-		/** Displays a table showing MessageId, Sent, Acked, and Size updated in realtime. */
-		SegementTable
+		/** Displays a table showing MessageId, Sent, Acked, and Size updated in realtime for outbound UDP segments. */
+		OutboundSegementTable = 1,
+		/** Displays a table showing MessageId, Received, and Size updated in realtime for inbound UDP segments. */
+		InboundSegmentTable = 2
 	};
 	
 	class SConcertClientBrowserItem : public SCompoundWidget

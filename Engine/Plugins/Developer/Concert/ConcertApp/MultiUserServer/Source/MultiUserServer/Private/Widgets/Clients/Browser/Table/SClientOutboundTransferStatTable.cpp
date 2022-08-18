@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SClientTransferStatTable.h"
+#include "SClientOutboundTransferStatTable.h"
 
 #include "INetworkMessagingExtension.h"
-#include "Models/IClientTransferStatisticsModel.h"
+#include "Widgets/Clients/Browser/Models/IClientTransferStatisticsModel.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/Text/STextBlock.h"
@@ -23,12 +23,12 @@ namespace UE::MultiUserServer
 		const FName HeaderIdName_DataRate     = TEXT("DataRate");
 	}
 
-	class SClientTransferStatTableRow : public SMultiColumnTableRow<TSharedRef<FOutboundTransferStatistics>>
+	class SClientOutboundTransferStatTableRow : public SMultiColumnTableRow<TSharedRef<FOutboundTransferStatistics>>
 	{
 		using Super = SMultiColumnTableRow<TSharedRef<FOutboundTransferStatistics>>;
 	public:
 		
-		SLATE_BEGIN_ARGS(SClientTransferStatTableRow) { }
+		SLATE_BEGIN_ARGS(SClientOutboundTransferStatTableRow) { }
 			SLATE_ARGUMENT(TSharedPtr<FOutboundTransferStatistics>, Stats)
 		SLATE_END_ARGS()
 		
@@ -97,17 +97,17 @@ namespace UE::MultiUserServer
 		}
 	};
 	
-	void SClientTransferStatTable::Construct(const FArguments& InArgs, TSharedRef<IClientTransferStatisticsModel> InStatsModel)
+	void SClientOutboundTransferStatTable::Construct(const FArguments& InArgs, TSharedRef<IClientTransferStatisticsModel> InStatsModel)
 	{
 		StatsModel = InStatsModel;
 
-		StatsModel->OnOutboundTransferGroupsUpdated().AddSP(this, &SClientTransferStatTable::OnTransferStatisticsUpdated);
+		StatsModel->OnOutboundTransferGroupsUpdated().AddSP(this, &SClientOutboundTransferStatTable::OnTransferStatisticsUpdated);
 
 		ChildSlot
 		[
 			SAssignNew(SegmenterListView, SListView<TSharedPtr<FOutboundTransferStatistics>>)
 			.ListItemsSource(&InStatsModel->GetOutboundTransferStatsGroupedById())
-			.OnGenerateRow(this, &SClientTransferStatTable::OnGenerateActivityRowWidget)
+			.OnGenerateRow(this, &SClientOutboundTransferStatTable::OnGenerateActivityRowWidget)
 			.SelectionMode(ESelectionMode::Multi)
 			.HeaderRow
 			(
@@ -128,13 +128,13 @@ namespace UE::MultiUserServer
 		];
 	}
 
-	TSharedRef<ITableRow> SClientTransferStatTable::OnGenerateActivityRowWidget(TSharedPtr<FOutboundTransferStatistics> InStats, const TSharedRef<STableViewBase>& OwnerTable) const
+	TSharedRef<ITableRow> SClientOutboundTransferStatTable::OnGenerateActivityRowWidget(TSharedPtr<FOutboundTransferStatistics> InStats, const TSharedRef<STableViewBase>& OwnerTable) const
 	{
-		return SNew(SClientTransferStatTableRow, OwnerTable)
+		return SNew(SClientOutboundTransferStatTableRow, OwnerTable)
 			.Stats(InStats);;
 	}
 
-	void SClientTransferStatTable::OnTransferStatisticsUpdated() const
+	void SClientOutboundTransferStatTable::OnTransferStatisticsUpdated() const
 	{
 		SegmenterListView->RequestListRefresh();
 	}

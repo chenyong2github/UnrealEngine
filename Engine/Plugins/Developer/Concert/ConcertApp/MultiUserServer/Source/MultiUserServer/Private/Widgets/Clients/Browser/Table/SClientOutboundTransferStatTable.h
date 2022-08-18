@@ -17,11 +17,11 @@ namespace UE::MultiUserServer
 	/**
 	 * Displays FOutboundTransferStatistics as they are updated by INetworkMessagingExtension.
 	 */
-	class SClientTransferStatTable : public SCompoundWidget
+	class SClientOutboundTransferStatTable : public SCompoundWidget
 	{
 	public:
 
-		SLATE_BEGIN_ARGS(SClientTransferStatTable)
+		SLATE_BEGIN_ARGS(SClientOutboundTransferStatTable)
 		{}
 		SLATE_END_ARGS()
 

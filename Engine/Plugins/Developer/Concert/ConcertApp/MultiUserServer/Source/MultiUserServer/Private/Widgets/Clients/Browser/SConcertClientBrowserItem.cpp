@@ -6,10 +6,12 @@
 #include "ConcertServerStyle.h"
 #include "INetworkMessagingExtension.h"
 #include "SClientNetworkStats.h"
-#include "SClientTransferStatTable.h"
 #include "Graph/SClientNetworkGraphs.h"
 #include "Models/ClientTransferStatisticsModel.h"
 #include "Models/IClientNetworkStatisticsModel.h"
+#include "Table/SClientOutboundTransferStatTable.h"
+#include "Table/SClientInboundTransferStatTable.h"
+
 #include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/LayerManager/STooltipPresenter.h"
@@ -18,7 +20,6 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/SNullWidget.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertClientBrowserItem"
 
@@ -26,7 +27,7 @@ void UE::MultiUserServer::SConcertClientBrowserItem::Construct(const FArguments&
 {
 	Item = MoveTemp(InClientItem);
 	StatModel = MoveTemp(InStatModel);
-	TransferStatsModel = MakeShared<FClientTransferStatisticsModel>(InClientItem->ClientAddress);
+	TransferStatsModel = MakeShared<FClientTransferStatisticsModel>(Item->ClientAddress);
 	HighlightText = InArgs._HighlightText;
 
 	ChildSlot
@@ -143,8 +144,13 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowserItem::CreateConten
 		]
 		+SOverlay::Slot().Padding(4.f, 0.f)
 		[
-			SNew(SClientTransferStatTable, TransferStatsModel.ToSharedRef())
-			.Visibility_Lambda([this](){ return GetDisplayMode() == EClientDisplayMode::SegementTable ? EVisibility::Visible : EVisibility::Collapsed; })
+			SNew(SClientOutboundTransferStatTable, TransferStatsModel.ToSharedRef())
+			.Visibility_Lambda([this](){ return GetDisplayMode() == EClientDisplayMode::OutboundSegementTable ? EVisibility::Visible : EVisibility::Collapsed; })
+		]
+		+SOverlay::Slot().Padding(4.f, 0.f)
+		[
+			SNew(SClientInboundTransferStatTable, TransferStatsModel.ToSharedRef())
+			.Visibility_Lambda([this](){ return GetDisplayMode() == EClientDisplayMode::InboundSegmentTable ? EVisibility::Visible : EVisibility::Collapsed; })
 		];
 }
 
