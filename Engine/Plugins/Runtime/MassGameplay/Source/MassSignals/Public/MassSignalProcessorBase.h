@@ -6,6 +6,7 @@
 #include "MassEntityManager.h"
 #include "MassSignalTypes.h"
 #include "Containers/StaticArray.h"
+#include "Misc/SpinLock.h"
 #include "MassSignalProcessorBase.generated.h"
 
 class UMassSignalSubsystem;
@@ -89,5 +90,8 @@ private:
 
 	/** List of all the registered signal names*/
 	TArray<FName> RegisteredSignals;
+
+	UE_MT_DECLARE_RW_ACCESS_DETECTOR(ReceivedSignalAccessDetector);
+	UE::FSpinLock ReceivedSignalLock;
 };
 
