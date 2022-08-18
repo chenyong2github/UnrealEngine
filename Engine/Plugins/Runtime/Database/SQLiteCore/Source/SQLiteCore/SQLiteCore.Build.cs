@@ -56,9 +56,6 @@ namespace UnrealBuildTool.Rules
 				PrivateDefinitions.Add("SQLITE_MUTEX_NOOP");			// We provide our own mutex implementation
 				PrivateDefinitions.Add("SQLITE_OMIT_LOAD_EXTENSION");	// We disable extension loading
 			}
-
-			bEnableUndefinedIdentifierWarnings = false; // The embedded SQLite implementation generates a lot of these warnings
-			bUseUnity = false; // Ensure the embedded SQLite implementation is always compiled in isolation
 		}
 	}
 }

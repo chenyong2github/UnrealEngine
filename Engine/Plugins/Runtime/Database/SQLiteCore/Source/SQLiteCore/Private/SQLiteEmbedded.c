@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /** Needed to define USING_CODE_ANALYSIS, and allow direct access to the SQLite API from outside this module */
-#if PLATFORM_WINDOWS
+#if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformCodeAnalysis.h"
 #define DLLEXPORT __declspec(dllexport)
 #define DLLIMPORT __declspec(dllimport)
@@ -12,7 +12,7 @@
 #endif
 
 /** Include SQLite, but not if we're building for analysis as the code emits warnings */
-#if !USING_CODE_ANALYSIS
+#if !defined(USING_CODE_ANALYSIS) || !USING_CODE_ANALYSIS
 #include "HAL/PreprocessorHelpers.h"
 #include COMPILED_PLATFORM_HEADER(PlatformCompilerPreSetup.h)
 THIRD_PARTY_INCLUDES_START
