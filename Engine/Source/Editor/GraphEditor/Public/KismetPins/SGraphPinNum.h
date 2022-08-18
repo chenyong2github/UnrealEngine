@@ -50,17 +50,18 @@ protected:
 
 	void SetNumericValue(NumericType InValue, ETextCommit::Type CommitType)
 	{
-		if (GraphPinObj->IsPendingKill())
+		if(GraphPinObj->IsPendingKill())
 		{
 			return;
 		}
 
-		TOptional<NumericType> OldValue = TDefaultNumericTypeInterface<NumericType>{}.FromString(GraphPinObj->GetDefaultAsString(), InValue);
-		if (OldValue && InValue != *OldValue)
+		const FString TypeValueString = LexToString(InValue);
+		if (GraphPinObj->GetDefaultAsString() != TypeValueString)
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("GraphEditor", "ChangeNumberPinValue", "Change Number Pin Value"));
 			GraphPinObj->Modify();
-			GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, *TDefaultNumericTypeInterface<NumericType>{}.ToString(InValue));
+
+			GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, *TypeValueString);
 		}
 	}
 };
