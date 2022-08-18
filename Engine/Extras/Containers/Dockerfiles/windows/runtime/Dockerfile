@@ -5,19 +5,24 @@ FROM ${DLL_IMAGE}:${BASETAG} AS full
 
 # Gather the system DLLs that we need from the full Windows base image
 RUN xcopy /y C:\Windows\System32\avicap32.dll C:\GatheredDlls\ && `
+	xcopy /y C:\Windows\System32\avifil32.dll C:\GatheredDlls\ && `
 	xcopy /y C:\Windows\System32\avrt.dll C:\GatheredDlls\ && `
 	xcopy /y C:\Windows\System32\d3d10warp.dll C:\GatheredDlls\ && `
 	xcopy /y C:\Windows\System32\D3DSCache.dll C:\GatheredDlls\ && `
 	xcopy /y C:\Windows\System32\dsound.dll C:\GatheredDlls\ && `
 	xcopy /y C:\Windows\System32\dxva2.dll C:\GatheredDlls\ && `
 	xcopy /y C:\Windows\System32\glu32.dll C:\GatheredDlls\ && `
+	xcopy /y C:\Windows\System32\ksuser.dll C:\GatheredDlls\ && `
 	xcopy /y C:\Windows\System32\mf.dll C:\GatheredDlls\ && `
+	xcopy /y C:\Windows\System32\mfcore.dll C:\GatheredDlls\ && `
 	xcopy /y C:\Windows\System32\mfplat.dll C:\GatheredDlls\ && `
 	xcopy /y C:\Windows\System32\mfplay.dll C:\GatheredDlls\ && `
 	xcopy /y C:\Windows\System32\mfreadwrite.dll C:\GatheredDlls\ && `
+	xcopy /y C:\Windows\System32\msacm32.dll C:\GatheredDlls\ && `
 	xcopy /y C:\Windows\System32\msdmo.dll C:\GatheredDlls\ && `
 	xcopy /y C:\Windows\System32\msvfw32.dll C:\GatheredDlls\ && `
 	xcopy /y C:\Windows\System32\opengl32.dll C:\GatheredDlls\ && `
+	xcopy /y C:\Windows\System32\ResampleDMO.dll C:\GatheredDlls\ && `
 	xcopy /y C:\Windows\System32\ResourcePolicyClient.dll C:\GatheredDlls\
 
 # Retrieve the DirectX runtime files required by the Unreal Engine, since even the full Windows base image does not include them
