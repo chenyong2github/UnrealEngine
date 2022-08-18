@@ -263,12 +263,13 @@ void UMotionWarpingComponent::DisableAllRootMotionModifiers()
 	}
 }
 
-void UMotionWarpingComponent::Update()
+void UMotionWarpingComponent::Update(float DeltaSeconds)
 {
 	const ACharacter* Character = GetCharacterOwner();
 	check(Character);
 
 	FMotionWarpingUpdateContext Context;
+	Context.DeltaSeconds = DeltaSeconds;
 
 	// When replaying saved moves we need to look at the contributor to root motion back then.
 	if (Character->bClientUpdating)
@@ -283,7 +284,8 @@ void UMotionWarpingComponent::Update()
 		{
 			Context.Animation = SavedMove->RootMotionMontage.Get();
 			Context.CurrentPosition = SavedMove->RootMotionTrackPosition;
-			Context.PreviousPosition = FMath::Max(Context.CurrentPosition - SavedMove->DeltaTime * SavedMove->RootMotionMontage->RateScale, 0.f);
+			Context.PreviousPosition = SavedMove->RootMotionPreviousTrackPosition;
+			Context.PlayRate = SavedMove->RootMotionPlayRateWithScale;
 		}
 	}
 	else // If we are not replaying a move, just use the current root motion montage
@@ -297,6 +299,7 @@ void UMotionWarpingComponent::Update()
 			Context.CurrentPosition = RootMotionMontageInstance->GetPosition();
 			Context.PreviousPosition = RootMotionMontageInstance->GetPreviousPosition();
 			Context.Weight = RootMotionMontageInstance->GetWeight();
+			Context.PlayRate = RootMotionMontageInstance->Montage->RateScale * RootMotionMontageInstance->GetPlayRate();
 		}
 	}
 
@@ -415,7 +418,7 @@ FTransform UMotionWarpingComponent::ProcessRootMotionPreConvertToWorld(const FTr
 #endif
 
 	// Check for warping windows and update modifier states
-	Update();
+	Update(DeltaSeconds);
 
 	FTransform FinalRootMotion = InRootMotion;
 

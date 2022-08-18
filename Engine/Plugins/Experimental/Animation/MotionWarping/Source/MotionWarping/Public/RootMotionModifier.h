@@ -32,6 +32,12 @@ struct FMotionWarpingUpdateContext
 
 	UPROPERTY()
 	float Weight = 0.f;
+
+	UPROPERTY()
+	float PlayRate = 1.f;
+
+	UPROPERTY()
+	float DeltaSeconds = 0.f;
 };
 
 /** The possible states of a Root Motion Modifier */

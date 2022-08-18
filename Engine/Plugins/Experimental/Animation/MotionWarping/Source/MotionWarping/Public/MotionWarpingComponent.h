@@ -188,7 +188,7 @@ protected:
 	TOptional<FVector> WarpedRootMotionAccum;
 #endif
 
-	void Update();
+	void Update(float DeltaSeconds);
 
 	bool FindAndUpdateWarpTarget(const FMotionWarpingTarget& WarpTarget);
 

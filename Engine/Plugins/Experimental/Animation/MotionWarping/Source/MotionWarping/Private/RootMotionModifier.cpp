@@ -126,6 +126,21 @@ void URootMotionModifier::Update(const FMotionWarpingUpdateContext& Context)
 		return;
 	}
 
+	// Mark for removal if we jumped to a position outside the warping window
+	if (State == ERootMotionModifierState::Active && PreviousPosition < EndTime && (CurrentPosition > EndTime || CurrentPosition < StartTime))
+	{
+		const float ExpectedDelta = Context.DeltaSeconds * Context.PlayRate;
+		const float ActualDelta = CurrentPosition - PreviousPosition;
+		if (!FMath::IsNearlyZero(FMath::Abs(ActualDelta - ExpectedDelta), KINDA_SMALL_NUMBER))
+		{
+			UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: Marking RootMotionModifier for removal. Reason: CurrentPosition manually changed. PrevPos: %f CurrPos: %f DeltaTime: %f ExpectedDelta: %f ActualDelta: %f"),
+				PreviousPosition, CurrentPosition, Context.DeltaSeconds, ExpectedDelta, ActualDelta);
+
+			SetState(ERootMotionModifierState::MarkedForRemoval);
+			return;
+		}
+	}
+
 	// Check if we are inside the warping window
 	if (PreviousPosition >= StartTime && PreviousPosition < EndTime)
 	{
