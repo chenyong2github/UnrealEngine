@@ -34,7 +34,8 @@ public:
 	virtual void SampleGroundTruthPositions(float SampleTime, TArray<FVector3f>& OutPositions) override;
 #endif
 #if WITH_EDITOR
-	virtual void UpdateNumTargetMeshVertices();
+	virtual void UpdateNumTargetMeshVertices() override;
+	virtual void SetAssetEditorOnlyFlags() override;
 #endif
 	// ~END UMLDeformerModel overrides.
 

@@ -60,6 +60,28 @@ UMLDeformerModelInstance* UNeuralMorphModel::CreateModelInstance(UMLDeformerComp
 	{
 		NumTargetMeshVerts = UE::MLDeformer::ExtractNumImportedGeomCacheVertices(GeometryCache);
 	}
+
+	void UNeuralMorphModel::SetAssetEditorOnlyFlags()
+	{
+		// Set the flags for the base class, which filters out the training anim sequence.
+		UMLDeformerModel::SetAssetEditorOnlyFlags();
+
+		// The training geometry cache is something we don't want to package.
+		if (GeometryCache)
+		{
+			GeometryCache->GetPackage()->SetPackageFlags(PKG_EditorOnly);
+		}
+
+		// Filter the viz settings specific assets.
+		UNeuralMorphModelVizSettings* NeuralVizSettings = Cast<UNeuralMorphModelVizSettings>(VizSettings);
+		if (NeuralVizSettings)
+		{
+			if (NeuralVizSettings->GetTestGroundTruth())
+			{
+				NeuralVizSettings->GetTestGroundTruth()->GetPackage()->SetPackageFlags(PKG_EditorOnly);
+			}
+		}
+	}
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA

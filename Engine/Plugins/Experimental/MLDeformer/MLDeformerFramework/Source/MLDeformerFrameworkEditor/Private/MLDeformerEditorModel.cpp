@@ -1547,6 +1547,7 @@ namespace UE::MLDeformer
 	{
 		OnInputAssetsChanged();
 		OnPostInputAssetChanged();
+		Model->SetAssetEditorOnlyFlags();
 		GetEditor()->GetModelDetailsView()->ForceRefresh();
 		if (RefreshVizSettings)
 		{

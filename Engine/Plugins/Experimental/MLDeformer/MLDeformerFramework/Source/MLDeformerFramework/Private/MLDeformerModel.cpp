@@ -13,6 +13,7 @@
 #include "GeometryCacheMeshData.h"
 #include "GeometryCacheTrack.h"
 #include "NeuralNetwork.h"
+#include "Animation/AnimSequence.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace UE::MLDeformer
@@ -117,6 +118,10 @@ void UMLDeformerModel::PostLoad()
 			NeuralNetwork->SetDeviceType(ENeuralDeviceType::CPU, ENeuralDeviceType::CPU, ENeuralDeviceType::CPU);
 		}
 	}
+
+#if WITH_EDITOR
+	SetAssetEditorOnlyFlags();
+#endif
 }
 
 void UMLDeformerModel::SetNeuralNetwork(UNeuralNetwork* InNeuralNetwork)
@@ -198,6 +203,14 @@ void UMLDeformerModel::FloatArrayToVector3Array(const TArray<float>& FloatArray,
 	int32 UMLDeformerModel::ExtractNumImportedSkinnedVertices(const USkeletalMesh* SkeletalMesh)
 	{
 		return SkeletalMesh ? SkeletalMesh->GetNumImportedVertices() : 0;
+	}
+
+	void UMLDeformerModel::SetAssetEditorOnlyFlags()
+	{
+		if (AnimSequence)
+		{
+			AnimSequence->GetPackage()->SetPackageFlags(PKG_EditorOnly);
+		}
 	}
 #endif	// #if WITH_EDITOR
 

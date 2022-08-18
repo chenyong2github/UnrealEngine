@@ -69,6 +69,7 @@ public:
 	virtual void UpdateNumBaseMeshVertices();
 	virtual void UpdateCachedNumVertices();
 	virtual void UpdateNumTargetMeshVertices() PURE_VIRTUAL(UMLDeformerModel::GetNumTargetMeshVertices; mTargetMeshVerts = 0;);
+	virtual void SetAssetEditorOnlyFlags();
 	static int32 ExtractNumImportedSkinnedVertices(const USkeletalMesh* SkeletalMesh);
 #endif
 

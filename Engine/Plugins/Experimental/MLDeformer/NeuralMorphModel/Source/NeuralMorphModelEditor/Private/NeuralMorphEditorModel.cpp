@@ -73,6 +73,21 @@ namespace UE::NeuralMorphModel
 				SampleDeltas();
 			}
 		}
+		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNeuralMorphModel, Mode))
+		{
+			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+			{
+				SetResamplingInputOutputsNeeded(true);	// Needed as local mode doesn't support curves, while the global mode does.
+				GetEditor()->GetModelDetailsView()->ForceRefresh();
+			}
+		}
+		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNeuralMorphModelVizSettings, MorphTargetNumber))
+		{
+			UNeuralMorphModel* NeuralModel = GetNeuralMorphModel();
+			UNeuralMorphModelVizSettings* NeuralViz = GetNeuralMorphModelVizSettings();
+			const int32 NumMorphTargets = NeuralModel->MorphTargetSet.IsValid() ? NeuralModel->MorphTargetSet->MorphBuffers.GetNumMorphs() : 0;
+			NeuralViz->MorphTargetNumber = (NumMorphTargets > 0) ? FMath::Min<int32>(NeuralViz->MorphTargetNumber, NumMorphTargets - 1) : 0;
+		}
 	}
 
 	void FNeuralMorphEditorModel::OnInputAssetsChanged()

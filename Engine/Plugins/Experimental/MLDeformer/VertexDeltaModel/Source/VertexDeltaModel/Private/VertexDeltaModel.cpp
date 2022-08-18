@@ -3,6 +3,7 @@
 #include "VertexDeltaModel.h"
 #include "VertexDeltaModelVizSettings.h"
 #include "MLDeformerGeomCacheHelpers.h"
+#include "GeometryCache.h"
 #include "UObject/Object.h"
 
 #define LOCTEXT_NAMESPACE "UVertexDeltaModel"
@@ -19,6 +20,28 @@ UVertexDeltaModel::UVertexDeltaModel(const FObjectInitializer& ObjectInitializer
 	void UVertexDeltaModel::UpdateNumTargetMeshVertices()
 	{
 		NumTargetMeshVerts = UE::MLDeformer::ExtractNumImportedGeomCacheVertices(GeometryCache);
+	}
+
+	void UVertexDeltaModel::SetAssetEditorOnlyFlags()
+	{
+		// Set the flags for the base class, which filters out the training anim sequence.
+		UMLDeformerModel::SetAssetEditorOnlyFlags();
+
+		// The training geometry cache is something we don't want to package.
+		if (GeometryCache)
+		{
+			GeometryCache->GetPackage()->SetPackageFlags(PKG_EditorOnly);
+		}
+
+		// Filter the viz settings specific assets.
+		UVertexDeltaModelVizSettings* VertexDeltaVizSettings = Cast<UVertexDeltaModelVizSettings>(VizSettings);
+		if (VertexDeltaVizSettings)
+		{
+			if (VertexDeltaVizSettings->GetTestGroundTruth())
+			{
+				VertexDeltaVizSettings->GetTestGroundTruth()->GetPackage()->SetPackageFlags(PKG_EditorOnly);
+			}
+		}
 	}
 #endif // WITH_EDITOR
 
