@@ -435,8 +435,7 @@ bool IsHairStrandsVisibleInShadows(const FViewInfo& View, const FHairStrandsInst
 	bool bIsVisibleInShadow = false;
 	if (const FHairGroupPublicData* HairData = Instance.GetHairData())
 	{
-		const int32 LODIndex = HairData->LODIndex;
-		const bool bIsStrands = LODIndex >= 0 && HairData->IsVisible(LODIndex) && HairData->GetGeometryType(LODIndex) == EHairGeometryType::Strands;
+		const bool bIsStrands = HairData->LODIndex >= 0 && Instance.GetHairGeometry() == EHairGeometryType::Strands;
 		if (!bIsStrands)
 		{
 			return false;

@@ -293,6 +293,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 	virtual const FBoxSphereBounds& GetBounds() const override { return Debug.Proxy->GetBounds(); }
 	virtual const FBoxSphereBounds& GetLocalBounds() const { return Debug.Proxy->GetLocalBounds(); }
 	virtual const FHairGroupPublicData* GetHairData() const { return HairGroupPublicData; }
+	virtual const EHairGeometryType GetHairGeometry() const { return GeometryType; }
 
 	/** Get the current local to world transform according to the internal binding type */
 	FORCEINLINE const FTransform& GetCurrentLocalToWorld() const

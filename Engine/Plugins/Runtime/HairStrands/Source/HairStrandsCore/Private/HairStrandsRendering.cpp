@@ -1029,6 +1029,13 @@ static void AddHairCardsDeformationPass(
 	FRDGImportedBuffer CardsDeformedPositionBuffer_Curr = Register(GraphBuilder, LOD.DeformedResource->GetBuffer(FHairCardsDeformedResource::Current), ERDGImportedBufferFlags::CreateViews);
 	FRDGImportedBuffer CardsDeformedPositionBuffer_Prev = Register(GraphBuilder, LOD.DeformedResource->GetBuffer(FHairCardsDeformedResource::Previous), ERDGImportedBufferFlags::CreateViews);
 
+	FRDGImportedBuffer CardsDeformedNormalBuffer = Register(GraphBuilder, LOD.DeformedResource->DeformedNormalBuffer, ERDGImportedBufferFlags::CreateViews);
+	GraphBuilder.UseInternalAccessMode({
+		CardsDeformedPositionBuffer_Curr.Buffer,
+		CardsDeformedPositionBuffer_Prev.Buffer,
+		CardsDeformedNormalBuffer.Buffer
+	});
+
 	// If LOD hasn't switched, copy the current buffer into previous buffer to have correct motion vectors
 	const bool bHasLODSwitch = Instance->HairGroupPublicData->VFInput.bHasLODSwitch;
 	if (!bHasLODSwitch)
@@ -1036,14 +1043,6 @@ static void AddHairCardsDeformationPass(
 		AddCopyBufferPass(GraphBuilder, CardsDeformedPositionBuffer_Prev.Buffer, CardsDeformedPositionBuffer_Curr.Buffer);
 	}
 	
-	FRDGImportedBuffer CardsDeformedNormalBuffer = Register(GraphBuilder, LOD.DeformedResource->DeformedNormalBuffer, ERDGImportedBufferFlags::CreateViews);
-	
-	GraphBuilder.UseInternalAccessMode({
-		CardsDeformedPositionBuffer_Curr.Buffer,
-		CardsDeformedPositionBuffer_Prev.Buffer,
-		CardsDeformedNormalBuffer.Buffer
-	});
-
 	FHairCardsDeformationCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairCardsDeformationCS::FParameters>();
 	Parameters->LocalToWorld				= FMatrix44f(Instance->GetCurrentLocalToWorld().ToMatrixWithScale());		// LWC_TODO: Precision loss
 	Parameters->GuideVertexCount			= LOD.Guides.RestResource->GetVertexCount();

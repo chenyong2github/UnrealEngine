@@ -146,6 +146,7 @@ struct RENDERER_API FHairStrandsInstance
 	virtual const FBoxSphereBounds& GetBounds() const = 0;
 	virtual const FBoxSphereBounds& GetLocalBounds() const = 0;
 	virtual const FHairGroupPublicData* GetHairData() const { return nullptr; }
+	virtual const EHairGeometryType GetHairGeometry() const { return EHairGeometryType::NoneGeometry; }
 protected:
 	mutable uint32 RefCount = 0;
 };
