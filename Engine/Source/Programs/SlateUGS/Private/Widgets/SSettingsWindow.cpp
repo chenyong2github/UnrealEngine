@@ -12,6 +12,8 @@
 
 #define LOCTEXT_NAMESPACE "SSettingsWindow"
 
+// Todo: Make settings only save when the positive action button is hit
+
 void SSettingsWindow::Construct(const FArguments& InArgs)
 {
 	Tab = InArgs._Tab;
@@ -42,6 +44,7 @@ void SSettingsWindow::Construct(const FArguments& InArgs)
 			[
 				SNew(SVerticalBox)
 				+SVerticalBox::Slot()
+				.AutoHeight()
 				.VAlign(VAlign_Top)
 				.Padding(0.0f, 10.0f)
 				[
@@ -52,6 +55,10 @@ void SSettingsWindow::Construct(const FArguments& InArgs)
 					]
 				]
 				+SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Top)
+				.HAlign(HAlign_Center)
+				.Padding(0.0f, 10.0f)
 				[
 					SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
@@ -72,6 +79,7 @@ void SSettingsWindow::Construct(const FArguments& InArgs)
 						]
 					]
 					+SHorizontalBox::Slot()
+					.Padding(200.0f, 0.0f)
 					[
 						SNew(SCheckBox)
 						.ForegroundColor(FSlateColor::UseForeground())

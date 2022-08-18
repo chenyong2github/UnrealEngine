@@ -17,6 +17,9 @@
 
 #define LOCTEXT_NAMESPACE "SScheduledSyncWindow"
 
+// Todo: remove checkbox and make the positive action button the thing that schedules the sync
+// Todo: show UI if a scheduled sync already exists and provide the ability to cancel it
+
 void SScheduledSyncWindow::Construct(const FArguments& InArgs)
 {
 	Tab = InArgs._Tab;
@@ -24,49 +27,67 @@ void SScheduledSyncWindow::Construct(const FArguments& InArgs)
 
 	SWindow::Construct(SWindow::FArguments()
 	.Title(LOCTEXT("WindowTitle", "Schedule Sync"))
-	.SizingRule(ESizingRule::FixedSize)
-	.ClientSize(FVector2D(400, 300))
+	.SizingRule(ESizingRule::Autosized)
 	[
 		SNew(SVerticalBox)
 		// Hint text
-		// TODO check box to enable ScheduleSync
 		+SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(10.0f, 5.0f)
+		.Padding(20.0f, 20.0f)
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("ScheduleSync", "Set a time for a sync to go off on all or some project."))
+			.Text(LOCTEXT("ScheduleSync", "Select a time of day to sync all or some projects."))
 		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()  
-		.Padding(10.0f, 0.0f, 0.0f, 0.0f)
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(20.0f, 0.0f)
 		[
-			SNew(SCheckBox)
-			.ForegroundColor(FSlateColor::UseForeground())
-			.ToolTipText(LOCTEXT("EnableDisableScheudleSyncCheckbox", "Enable or disable Schedule Sync"))
-			.IsChecked(this, &SScheduledSyncWindow::HandleGetScheduleSyncChecked)
-			.OnCheckStateChanged(this, &SScheduledSyncWindow::HandleScheduleSyncChanged)
+			SNew(SBox)
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
 			[
-				SNew(SBox)
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				.Padding(FMargin(4.0, 2.0))
+				SNew(SUniformGridPanel)
+				.SlotPadding(FMargin(10.0f, 0.0f))
+				+SUniformGridPanel::Slot(0, 0)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("EnableDisableScheudleSync", "Enable Schedule Sync"))
+					.Text(LOCTEXT("EnableDisableScheudleSync", "Enable Schedule Sync:"))
+				]
+				+SUniformGridPanel::Slot(1, 0)
+				[
+					SNew(SCheckBox)
+					.ForegroundColor(FSlateColor::UseForeground())
+					.ToolTipText(LOCTEXT("EnableDisableScheudleSyncCheckbox", "Enable or disable Schedule Sync"))
+					.IsChecked(this, &SScheduledSyncWindow::HandleGetScheduleSyncChecked)
+					.OnCheckStateChanged(this, &SScheduledSyncWindow::HandleScheduleSyncChanged)
 				]
 			]
 		]
-
 		+SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(10.0f, 5.0f)
+		.Padding(20.0f, 10.0f)
 		[
-			SNew(SEditableTextBox)
-			.ClearKeyboardFocusOnCommit(false)
-			.OnTextCommitted(this, &SScheduledSyncWindow::HandleTextBoxTextCommited)
-			.SelectAllTextOnCommit(true)
-			.Text(this, &SScheduledSyncWindow::HandleTextBoxText)
+			SNew(SBox)
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SUniformGridPanel)
+				.SlotPadding(FMargin(10.0f, 0.0f))
+				+SUniformGridPanel::Slot(0, 0)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("SyncTimeTextBoxLabel", "Scheduled Sync Time:"))
+				]
+				+SUniformGridPanel::Slot(1, 0)
+				[
+					SNew(SEditableTextBox)
+					.ClearKeyboardFocusOnCommit(false)
+					.OnTextCommitted(this, &SScheduledSyncWindow::HandleTextBoxTextCommited)
+					.SelectAllTextOnCommit(true)
+					.Text(this, &SScheduledSyncWindow::HandleTextBoxText)
+					.Justification(ETextJustify::Center)
+				]
+			]
 		]
 		// TODO widget to enter a time of day
 		// TODO check box to enable it for all projects
@@ -74,11 +95,11 @@ void SScheduledSyncWindow::Construct(const FArguments& InArgs)
 		// Buttons
 		+SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0.0f, 20.0f)
+		.Padding(20.0f, 10.0f, 20.0f, 0.0f)
+		.VAlign(VAlign_Bottom)
 		[
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
-			.Padding(0.0f, 0.0f, 10.0f, 0.0f)
 			.HAlign(HAlign_Right)
 			[
 				SNew(SUniformGridPanel)
@@ -119,7 +140,7 @@ void SScheduledSyncWindow::HandleTextBoxTextCommited(const FText& NewText, EText
 	// turn our am/pm into a 1/0 to use to see if we need to add 12 hours when creating the FDateTime::Parse format
 	NewTime.ReplaceInline(TEXT("am"), TEXT(" 1"));
 	NewTime.ReplaceInline(TEXT("pm"), TEXT(" 0"));
-	
+
 	NewTime.ReplaceInline(TEXT(":"), TEXT(" "));
 
 	// split up on a single delimiter
@@ -170,7 +191,7 @@ void SScheduledSyncWindow::HandleTextBoxTextCommited(const FText& NewText, EText
 void SScheduledSyncWindow::HandleScheduleSyncChanged(ECheckBoxState InCheck)
 {
 	bool bNewValue = InCheck == ECheckBoxState::Checked;
-	if (UserSettings->bScheduleEnabled != bNewValue)  
+	if (UserSettings->bScheduleEnabled != bNewValue)
 	{
 		UserSettings->bScheduleEnabled = bNewValue;
 		UserSettings->Save();

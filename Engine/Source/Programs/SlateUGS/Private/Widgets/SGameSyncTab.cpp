@@ -364,27 +364,29 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 				SNew(SHorizontalBox)
 				// Stream logo
 				+SHorizontalBox::Slot()
-				.Padding(20.0f, 10.0f)
+				.Padding(35.0f, 0.0f)
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Center)
 				.AutoWidth()
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("StreamLogoText", "Fortnite Stream Logo")) // Todo: replace with logo image
-					.TextStyle(FSlateUGSStyle::Get(), TEXT("Menu.Heading"))
+					SNew(SImage)
+					.Image(FSlateUGSStyle::Get().GetBrush("UnrealCircle.Thin"))
+					.DesiredSizeOverride(CoreStyleConstants::Icon128x128)
 				]
-				// Stream and uproject path
+				// Stream, CL, and uproject path
 				+SHorizontalBox::Slot()
+				.Padding(0.0f, 35.0f)
 				.VAlign(VAlign_Center)
-				.AutoWidth()
 				[
-					SNew(SVerticalBox) // Todo: Add buttons/dropdowns to each option here
-					+SVerticalBox::Slot()
-					.Padding(10.0f, 25.0f)
+					SNew(SHorizontalBox)
+					// Labels
+					+SHorizontalBox::Slot()
+					.HAlign(HAlign_Left)
+					.AutoWidth()
+					.Padding(10.0f, 0.0f)
 					[
-						SNew(SHorizontalBox)
-						+SHorizontalBox::Slot()
-						.Padding(5.0f, 0.0f)
+						SNew(SVerticalBox)
+						+SVerticalBox::Slot()
 						.HAlign(HAlign_Right)
 						[
 							SNew(STextBlock)
@@ -392,41 +394,16 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 							.Font(FSlateUGSStyle::Get().GetFontStyle("NormalFontBold"))
 							.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f))
 						]
-						+SHorizontalBox::Slot()
-						.HAlign(HAlign_Left)
-						[
-							SAssignNew(StreamPathText, STextBlock)
-							.Text(LOCTEXT("StreamTextValue", "No stream path found"))
-							.ColorAndOpacity(FLinearColor::White)
-						]
-					]
-					+SVerticalBox::Slot()
-					.Padding(10.0f, 12.5f)
-					[
-						SNew(SHorizontalBox)
-						+SHorizontalBox::Slot()
-						.Padding(5.0f, 0.0f)
+						+SVerticalBox::Slot()
 						.HAlign(HAlign_Right)
+						.Padding(0.0f, 35.0f)
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("ChangelistText", "CHANGELIST"))
 							.Font(FSlateUGSStyle::Get().GetFontStyle("NormalFontBold"))
 							.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f))
 						]
-						+SHorizontalBox::Slot()
-						.HAlign(HAlign_Left)
-						[
-							SAssignNew(ChangelistText, STextBlock)
-							.Text(LOCTEXT("ChangelistTextValue", "No changelist found"))
-							.ColorAndOpacity(FLinearColor::White)
-						]
-					]
-					+SVerticalBox::Slot()
-					.Padding(10.0f, 25.0f)
-					[
-						SNew(SHorizontalBox)
-						+SHorizontalBox::Slot()
-						.Padding(5.0f, 0.0f)
+						+SVerticalBox::Slot()
 						.HAlign(HAlign_Right)
 						[
 							SNew(STextBlock)
@@ -434,7 +411,28 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 							.Font(FSlateUGSStyle::Get().GetFontStyle("NormalFontBold"))
 							.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f))
 						]
-						+SHorizontalBox::Slot()
+					]
+					// Data
+					+SHorizontalBox::Slot()
+					.HAlign(HAlign_Left)
+					[
+						SNew(SVerticalBox)
+						+SVerticalBox::Slot()
+						.HAlign(HAlign_Left)
+						[
+							SAssignNew(StreamPathText, STextBlock)
+							.Text(LOCTEXT("StreamTextValue", "No stream path found"))
+							.ColorAndOpacity(FLinearColor::White)
+						]
+						+SVerticalBox::Slot()
+						.HAlign(HAlign_Left)
+						.Padding(0.0f, 35.0f)
+						[
+							SAssignNew(ChangelistText, STextBlock)
+							.Text(LOCTEXT("ChangelistTextValue", "No changelist found"))
+							.ColorAndOpacity(FLinearColor::White)
+						]
+						+SVerticalBox::Slot()
 						.HAlign(HAlign_Left)
 						[
 							SAssignNew(ProjectPathText, STextBlock)

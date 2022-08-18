@@ -3,9 +3,13 @@
 #include "SEmptyTab.h"
 
 #include "SWorkspaceWindow.h"
+#include "SPrimaryButton.h"
 #include "SlateUGSStyle.h"
 
 #include "UGSTab.h"
+
+// Todo: delete
+#include "Widgets/Colors/SSimpleGradient.h"
 
 #define LOCTEXT_NAMESPACE "UGSEmptyTab"
 
@@ -55,9 +59,7 @@ void SEmptyTab::Construct(const FArguments& InArgs)
 					+SHorizontalBox::Slot()
 					.AutoWidth()
 					[
-						SNew(SButton)
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
+						SNew(SPrimaryButton)
 						.Text(LOCTEXT("OpenProject", "Open Project"))
 						.OnClicked(this, &SEmptyTab::OnOpenProjectClicked)
 					]

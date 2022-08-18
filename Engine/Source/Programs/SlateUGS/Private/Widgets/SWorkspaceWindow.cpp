@@ -8,6 +8,7 @@
 #include "UGSTab.h"
 #include "SGameSyncTab.h"
 #include "SPopupTextWindow.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "UGSWorkspaceWindow"
 
@@ -185,8 +186,7 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Fill)
 				.FillWidth(2)
 				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
+					SNew(SPrimaryButton)
 					.Text(LOCTEXT("OkText", "Ok"))
 					.OnClicked(this, &SWorkspaceWindow::OnOkClicked)
 				]
