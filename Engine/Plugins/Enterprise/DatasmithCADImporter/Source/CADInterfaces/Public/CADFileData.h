@@ -141,6 +141,7 @@ public:
 	{
 		FBodyMesh& BodyMesh = BodyMeshes.Emplace_GetRef(BodyId);
 		BodyMesh.MeshActorUId = GetStaticMeshHash(BodyId);
+		BodyMesh.bIsFromCad = Body.bIsFromCad;
 		Body.MeshActorUId = BodyMesh.MeshActorUId;
 		return BodyMesh;
 	}
