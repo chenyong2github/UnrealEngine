@@ -65,12 +65,8 @@ struct FMassDebuggerArchetypeData
 	/** Combined hash of composition and shared fragments. */
 	uint32 FullHash = 0;
 
-	/** Number of active entities of the archetype. */
-	int32 EntitiesCount = 0;
-	/** Number of entities that fit per chunk. */
-	int32 EntitiesCountPerChunk = 0;
-	/** Number of allocated chunks. */
-	int32 ChunksCount = 0;
+	/** Archetype statistics */
+	FMassDebugger::FArchetypeStats ArchetypeStats;
 
 	/** Child debugger data (same as parent, but changed in some way) */
 	TArray<TSharedPtr<FMassDebuggerArchetypeData>> Children;

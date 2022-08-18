@@ -54,7 +54,18 @@ struct MASSENTITY_API FMassDebugger
 	static TArray<FMassArchetypeHandle> GetAllArchetypes(const FMassEntityManager& EntitySubsystem);
 	static const FMassArchetypeCompositionDescriptor& GetArchetypeComposition(const FMassArchetypeHandle& ArchetypeHandle);
 
-	static void GetArchetypeEntityStats(const FMassArchetypeHandle& ArchetypeHandle, int32& OutEntitiesCount, int32& OutNumEntitiesPerChunk, int32& OutChunksCount);
+	struct FArchetypeStats
+	{
+		/** Number of active entities of the archetype. */
+		int32 EntitiesCount = 0;
+		/** Number of entities that fit per chunk. */
+		int32 EntitiesCountPerChunk = 0;
+		/** Number of allocated chunks. */
+		int32 ChunksCount = 0;
+		/** Total amount of memory taken by this archetype */
+		SIZE_T AllocatedSize = 0;
+	};
+	static void GetArchetypeEntityStats(const FMassArchetypeHandle& ArchetypeHandle, FArchetypeStats& OutStats);
 	static const TConstArrayView<FName> GetArchetypeDebugNames(const FMassArchetypeHandle& ArchetypeHandle);
 
 	static TConstArrayView<UMassCompositeProcessor::FDependencyNode> GetProcessingGraph(const UMassCompositeProcessor& GraphOwner);

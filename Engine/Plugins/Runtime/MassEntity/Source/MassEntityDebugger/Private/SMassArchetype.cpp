@@ -55,17 +55,18 @@ void SMassArchetype::Construct(const FArguments& InArgs, TSharedPtr<FMassDebugge
 		.Font(FCoreStyle::GetDefaultFontStyle("Mono", 9))
 	];
 	
-	FString ArchetypeDescription = FString::Printf(TEXT("EntitiesCount: %d\nEntitiesCountPerChunk: %d\nChunksCount: %d")
-		, ArchetypeDebugData.EntitiesCount
-		, ArchetypeDebugData.EntitiesCountPerChunk
-		, ArchetypeDebugData.ChunksCount);
+	FText ArchetypeDescription = FText::Format(LOCTEXT("ArchetypeDescrption", "EntitiesCount: {0}\nEntitiesCountPerChunk: {1}\nChunksCount: {2}\nAllocated memory: {3}")
+		, FText::AsNumber(ArchetypeDebugData.ArchetypeStats.EntitiesCount)
+		, FText::AsNumber(ArchetypeDebugData.ArchetypeStats.EntitiesCountPerChunk)
+		, FText::AsNumber(ArchetypeDebugData.ArchetypeStats.ChunksCount)
+		, FText::AsMemory(ArchetypeDebugData.ArchetypeStats.AllocatedSize));
 	
 	Box->AddSlot()
 	.AutoHeight()
 	.Padding(0, 4)
 	[
 		SNew(STextBlock)
-		.Text(FText::FromString(ArchetypeDescription))
+		.Text(ArchetypeDescription)
 	];
 
 	const FMassArchetypeCompositionDescriptor& Composition = ArchetypeData->Composition;

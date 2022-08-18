@@ -256,13 +256,13 @@ const FMassArchetypeCompositionDescriptor& FMassDebugger::GetArchetypeCompositio
 	return ArchetypeData.CompositionDescriptor;
 }
 
-void FMassDebugger::GetArchetypeEntityStats(const FMassArchetypeHandle& ArchetypeHandle
-	, int32& OutEntitiesCount, int32& OutNumEntitiesPerChunk, int32& OutChunksCount)
+void FMassDebugger::GetArchetypeEntityStats(const FMassArchetypeHandle& ArchetypeHandle, FArchetypeStats& OutStats)
 {
 	const FMassArchetypeData& ArchetypeData = FMassArchetypeHelper::ArchetypeDataFromHandleChecked(ArchetypeHandle);
-	OutEntitiesCount = ArchetypeData.GetNumEntities();
-	OutNumEntitiesPerChunk = ArchetypeData.GetNumEntitiesPerChunk();
-	OutChunksCount = ArchetypeData.GetChunkCount();
+	OutStats.EntitiesCount = ArchetypeData.GetNumEntities();
+	OutStats.EntitiesCountPerChunk = ArchetypeData.GetNumEntitiesPerChunk();
+	OutStats.ChunksCount = ArchetypeData.GetChunkCount();
+	OutStats.AllocatedSize = ArchetypeData.GetAllocatedSize();
 }
 
 const TConstArrayView<FName> FMassDebugger::GetArchetypeDebugNames(const FMassArchetypeHandle& ArchetypeHandle)

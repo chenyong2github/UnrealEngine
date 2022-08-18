@@ -73,7 +73,7 @@ public:
 				{
 					const float DistanceToSelected = DebuggerModel->MinDistanceToSelectedArchetypes(Item);
 					Color = UE::Mass::Debugger::UI::Private::GetArchetypeDistanceColor(DistanceToSelected);
-					if (Item->EntitiesCount == 0)
+					if (Item->ArchetypeStats.EntitiesCount == 0)
 					{
 						Color.A *= 0.5f;
 					}
@@ -82,7 +82,7 @@ public:
 			else
 			{
 				Color = FLinearColor::White;
-				if (Item->EntitiesCount == 0)
+				if (Item->ArchetypeStats.EntitiesCount == 0)
 				{
 					Color.A *= 0.5f;
 				}
@@ -130,7 +130,7 @@ public:
 				.Padding(5, 0)
 				[
 					SNew(STextBlock)
-					.Text(FText::FromString(FString::Printf(TEXT("%d"), Item->EntitiesCount)))
+					.Text(FText::FromString(FString::Printf(TEXT("%d"), Item->ArchetypeStats.EntitiesCount)))
 					.Justification(ETextJustify::Right)
 				];
 		}
@@ -201,7 +201,7 @@ void SMassArchetypesView::Construct(const FArguments& InArgs, TSharedRef<FMassDe
 						for (const TSharedPtr<FMassDebuggerArchetypeData>& ArchetypeData : DebuggerModel->CachedArchetypes)
 						{
 							TotalCount++;
-							if (ArchetypeData->EntitiesCount > 0)
+							if (ArchetypeData->ArchetypeStats.EntitiesCount > 0)
 							{
 								ActiveCount++;
 							}
@@ -209,7 +209,7 @@ void SMassArchetypesView::Construct(const FArguments& InArgs, TSharedRef<FMassDe
 							for (const TSharedPtr<FMassDebuggerArchetypeData>& ChildArchetypeData : ArchetypeData->Children)
 							{
 								TotalCount++;
-								if (ChildArchetypeData->EntitiesCount > 0)
+								if (ChildArchetypeData->ArchetypeStats.EntitiesCount > 0)
 								{
 									ActiveCount++;
 								}
