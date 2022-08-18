@@ -234,28 +234,31 @@ public:
 		*/
 		const uint32_t CorrelationMask = MultiviewMask;
 
-#if VULKAN_SUPPORTS_RENDERPASS2
-		if (RTLayout.GetIsMultiView())
-		{
-			CreateInfo.SetCorrelationMask(&CorrelationMask);
-		}
-#else
 		VkRenderPassMultiviewCreateInfo MultiviewInfo;
 		if (RTLayout.GetIsMultiView())
 		{
-			FMemory::Memzero(MultiviewInfo);
-			MultiviewInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_CREATE_INFO;
-			MultiviewInfo.pNext = nullptr;
-			MultiviewInfo.subpassCount = NumSubpasses;
-			MultiviewInfo.pViewMasks = ViewMask;
-			MultiviewInfo.dependencyCount = 0;
-			MultiviewInfo.pViewOffsets = nullptr;
-			MultiviewInfo.correlationMaskCount = 1;
-			MultiviewInfo.pCorrelationMasks = &CorrelationMask;
-
-			CreateInfo.pNext = &MultiviewInfo;
-		}
+#if VULKAN_SUPPORTS_RENDERPASS2
+			if (Device.GetOptionalExtensions().HasKHRRenderPass2)
+			{
+				CreateInfo.SetCorrelationMask(&CorrelationMask);
+			}
+			else
 #endif
+			{
+				checkf(Device.GetOptionalExtensions().HasKHRMultiview, TEXT("Layout is multiview but extension is not supported!"))
+				ZeroVulkanStruct(MultiviewInfo, VK_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_CREATE_INFO);
+				MultiviewInfo.subpassCount = NumSubpasses;
+				MultiviewInfo.pViewMasks = ViewMask;
+				MultiviewInfo.dependencyCount = 0;
+				MultiviewInfo.pViewOffsets = nullptr;
+				MultiviewInfo.correlationMaskCount = 1;
+				MultiviewInfo.pCorrelationMasks = &CorrelationMask;
+
+				MultiviewInfo.pNext = CreateInfo.pNext;
+				CreateInfo.pNext = &MultiviewInfo;
+			}
+		}
+
 
 		VkRenderPassFragmentDensityMapCreateInfoEXT FragDensityCreateInfo;
 		if (Device.GetOptionalExtensions().HasEXTFragmentDensityMap && RTLayout.GetHasFragmentDensityAttachment())
