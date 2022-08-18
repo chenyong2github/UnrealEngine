@@ -1087,11 +1087,18 @@ void SControlRigOutliner::HandleSelectionChanged(TSharedPtr<FMultiRigTreeElement
 		}
 	}
 	TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+	FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName));
+	bool bEndTransaction = false;
+	if (GEditor && EditMode && EditMode->IsInLevelEditor())
+	{
+		GEditor->BeginTransaction(LOCTEXT("SelectControl", "Select Control"));
+		bEndTransaction = true;
+	}
 	//due to how Sequencer Tree View will redo selection on next tick if we aren't keeping or toggling selection we need to clear it out
 	if (FSlateApplication::Get().GetModifierKeys().IsShiftDown() == false || FSlateApplication::Get().GetModifierKeys().IsControlDown() == false)
 	{
-		if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
-		{
+		if (EditMode)
+		{		
 			TMap<UControlRig*, TArray<FRigElementKey>> SelectedControls;
 			EditMode->GetAllSelectedControls(SelectedControls);
 			for (TPair<UControlRig*, TArray<FRigElementKey>>& CurrentSelection : SelectedControls)
@@ -1113,9 +1120,17 @@ void SControlRigOutliner::HandleSelectionChanged(TSharedPtr<FMultiRigTreeElement
 			check(Controller);
 			if (!Controller->SetSelection(RigAndKeys.Value))
 			{
+				if (bEndTransaction)
+				{
+					GEditor->EndTransaction();
+				}
 				return;
 			}
 		}
+	}
+	if (bEndTransaction)
+	{
+		GEditor->EndTransaction();
 	}
 }
 

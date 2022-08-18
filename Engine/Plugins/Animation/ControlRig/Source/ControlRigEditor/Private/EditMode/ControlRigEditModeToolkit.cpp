@@ -267,6 +267,14 @@ void FControlRigEditModeToolkit::ResetAnimSlider()
 		TweenWidget->ResetAnimSlider();
 	}
 }
+
+void FControlRigEditModeToolkit::StartAnimSliderTool()
+{
+	if (TweenWidgetParent && TweenWidget)
+	{
+		TweenWidget->StartAnimSliderTool();
+	}
+}
 void FControlRigEditModeToolkit::TryShowTweenOverlay()
 {
 	if (TweenWidgetParent)

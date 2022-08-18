@@ -1962,8 +1962,6 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 	TArray<const IKeyArea*> KeyAreas;
 	const bool UseSelectedKeys = CVarSelectedKeysSelectControls.GetValueOnGameThread();
 	GetSequencer()->GetSelectedKeyAreas(KeyAreas, UseSelectedKeys);
-	FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), !GIsTransacting);
-
 	if (KeyAreas.Num() <= 0)
 	{
 		if (ControlRigEditMode)
@@ -1973,8 +1971,9 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 			for (TPair<UControlRig*, TArray<FRigElementKey>>& SelectedControl : AllSelectedControls)
 			{
 				ControlRig = SelectedControl.Key;
-				if (ControlRig)
+				if (ControlRig && ControlRig->CurrentControlSelection().Num() > 0)
 				{
+					FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), !GIsTransacting);
 					ControlRig->ClearControlSelection();
 				}
 			}
@@ -2008,7 +2007,6 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 		}
 		return;
 	}
-
 	SelectRigsAndControls(ControlRig, KeyAreas);
 	
 }
@@ -2018,6 +2016,7 @@ void FControlRigParameterTrackEditor::SelectRigsAndControls(UControlRig* Control
 	FControlRigEditMode* ControlRigEditMode = GetEditMode();
 
 	TArray<FString> StringArray;
+	//we have two sets here one to see if selection has really changed that contains the attirbutes, the other to select just the parent
 	TMap<UControlRig*, TSet<FName>> RigsAndControls;
 	for (const IKeyArea* KeyArea : KeyAreas)
 	{
@@ -2062,32 +2061,41 @@ void FControlRigParameterTrackEditor::SelectRigsAndControls(UControlRig* Control
 					// skip nested controls which have the shape enabled flag turned on
 					if(const URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
 					{
+
 						if(const FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control)))
 						{
-							if(ControlElement->IsAnimationChannel())
+						
+							if (ControlElement->Settings.ControlType == ERigControlType::Bool ||
+								ControlElement->Settings.ControlType == ERigControlType::Float ||
+								ControlElement->Settings.ControlType == ERigControlType::Integer)
 							{
-								if(const FRigControlElement* ParentControlElement = Cast<FRigControlElement>(Hierarchy->GetFirstParent(ControlElement)))
+								if (ControlElement->Settings.SupportsShape() || !Hierarchy->IsAnimatable(ControlElement))
 								{
-									if(const TSet<FName>* Controls = RigsAndControls.Find(ControlRig))
+
+									if (const FRigControlElement* ParentControlElement = Cast<FRigControlElement>(Hierarchy->GetFirstParent(ControlElement)))
 									{
-										if(Controls->Contains(ParentControlElement->GetName()))
+										if (const TSet<FName>* Controls = RigsAndControls.Find(ControlRig))
 										{
-											continue;
+											if (Controls->Contains(ParentControlElement->GetName()))
+											{
+												continue;
+											}
 										}
 									}
 								}
 							}
+							RigsAndControls.FindOrAdd(ControlRig).Add(ControlName);
 						}
 					}
-					
-					RigsAndControls.FindOrAdd(ControlRig).Add(ControlName);
 				}
 			}
 		}
 	}
-
-	ControlRig = nullptr;
-	//Always clear the control rig(s) in the edit mode.
+	//only create transaction if selection is really different.
+	bool bEndTransaction = false;
+	
+	TMap<UControlRig*, TArray<FName>> ControlRigsToClearSelection;
+	//get current selection which we will clear if different
 	if (ControlRigEditMode)
 	{
 		TMap<UControlRig*, TArray<FRigElementKey>> SelectedControls;
@@ -2097,20 +2105,88 @@ void FControlRigParameterTrackEditor::SelectRigsAndControls(UControlRig* Control
 			ControlRig = Selection.Key;
 			if (ControlRig)
 			{
-				ControlRig->ClearControlSelection();
+				TArray<FName> SelectedControlNames = ControlRig->CurrentControlSelection();
+				ControlRigsToClearSelection.Add(ControlRig, SelectedControlNames);
 			}
 		}
 	}
-	for (TPair<UControlRig*, TSet<FName>> Pair : RigsAndControls)
+
+	for (TPair<UControlRig*, TSet<FName>>& Pair : RigsAndControls)
 	{
-		if (Pair.Key != ControlRig)
+		//check to see if new selection is same als old selection
+		bool bIsSame = true;
+		if (TArray<FName>* SelectedNames = ControlRigsToClearSelection.Find(Pair.Key))
 		{
-			Pair.Key->ClearControlSelection();
+			TSet<FName>* FullNames = RigsAndControls.Find(Pair.Key);
+			if (!FullNames)
+			{
+				continue; // should never happen
+			}
+			if (SelectedNames->Num() != FullNames->Num())
+			{ 
+				bIsSame = false;
+				if (bEndTransaction == false)
+				{
+					bEndTransaction = true;
+					GEditor->BeginTransaction(LOCTEXT("SelectControl", "Select Control"));
+				}
+				Pair.Key->ClearControlSelection();
+				ControlRigsToClearSelection.Remove(Pair.Key); //remove it
+			}
+			else//okay if same check and see if equal...
+			{
+				for (const FName& Name : (*SelectedNames))
+				{
+					if (FullNames->Contains(Name) == false)
+					{
+						bIsSame = false;
+						if (bEndTransaction == false)
+						{
+							bEndTransaction = true;
+							GEditor->BeginTransaction(LOCTEXT("SelectControl", "Select Control"));
+						}
+						Pair.Key->ClearControlSelection();
+						ControlRigsToClearSelection.Remove(Pair.Key); //remove it
+						break; //break out
+					}
+				}
+			}
+			if (bIsSame == true)
+			{
+				ControlRigsToClearSelection.Remove(Pair.Key); //remove it
+			}
 		}
-		for (const FName& Name : Pair.Value)
+		else
 		{
-			Pair.Key->SelectControl(Name, true);
+			bIsSame = false;
 		}
+		if (bIsSame == false)
+		{
+			for (const FName& Name : Pair.Value)
+			{
+				if (bEndTransaction == false)
+				{
+					bEndTransaction = true;
+					GEditor->BeginTransaction(LOCTEXT("SelectControl", "Select Control"));
+				}
+				Pair.Key->SelectControl(Name, true);
+			}
+		}
+	}
+	//go through and clear those still not cleared
+	for (TPair<UControlRig*, TArray<FName>>& SelectedPairs : ControlRigsToClearSelection)
+	{
+		if (bEndTransaction == false)
+		{
+			bEndTransaction = true;
+			GEditor->BeginTransaction(LOCTEXT("SelectControl", "Select Control"));
+		}
+		SelectedPairs.Key->ClearControlSelection();
+	}
+
+	if (bEndTransaction)
+	{
+		GEditor->EndTransaction();
 	}
 }
 

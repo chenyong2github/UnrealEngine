@@ -962,9 +962,7 @@ bool FControlRigEditMode::ProcessCapturedMouseMoves(FEditorViewportClient* InVie
 				int32 X = CapturedMouseMoves[Index].X;
 				if (StartXValue.IsSet() == false)
 				{
-					bisTrackingAnimToolDrag = true;
-					GEditor->BeginTransaction(LOCTEXT("AnimSliderBlend", "AnimSlider Blend"));
-					StartXValue = X;
+					StartAnimSliderTool(X);
 				}
 				else
 				{
@@ -973,7 +971,7 @@ bool FControlRigEditMode::ProcessCapturedMouseMoves(FEditorViewportClient* InVie
 					{
 						FIntPoint Origin, Size;
 						InViewportClient->GetViewportDimensions(Origin, Size);
-						const double ViewPortSize = (double)Size.X * 0.25; // 1/4 screen drag should do full blend, todo perhaps expose this as a sensitivity
+						const double ViewPortSize = (double)Size.X * 0.125; // 1/8 screen drag should do full blend, todo perhaps expose this as a sensitivity
 						const double ViewDiff = (double)(Diff) / ViewPortSize;
 						DragAnimSliderTool(ViewDiff);
 					}
@@ -1283,7 +1281,6 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 						{
 							if (GEditor && GEditor->GetSelectedActorCount())
 							{
-								const FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "UpdatingActorComponentSelectionNone", "Select None"), !GIsTransacting);
 								GEditor->SelectNone(false, true);
 								GEditor->NoteSelectionChange();
 							}
@@ -2566,6 +2563,14 @@ void FControlRigEditMode::DragAnimSliderTool(double IncrementVal)
 	StaticCastSharedPtr<FControlRigEditModeToolkit>(Toolkit)->DragAnimSliderTool(IncrementVal);
 }
 
+void FControlRigEditMode::StartAnimSliderTool(int32 InX)
+{
+	bisTrackingAnimToolDrag = true;
+	GEditor->BeginTransaction(LOCTEXT("AnimSliderBlend", "AnimSlider Blend"));
+	StartXValue = InX;
+	StaticCastSharedPtr<FControlRigEditModeToolkit>(Toolkit)->StartAnimSliderTool();
+}
+
 /** Reset and stop user the anim slider tool*/
 void FControlRigEditMode::ResetAnimSlider()
 {
@@ -3458,7 +3463,6 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 					// if it's control
 					if (Key.Type == ERigElementType::Control)
 					{
-						FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() && !GIsTransacting);	
 						if (IsInLevelEditor())
 						{
 							ControlProxy->Modify();

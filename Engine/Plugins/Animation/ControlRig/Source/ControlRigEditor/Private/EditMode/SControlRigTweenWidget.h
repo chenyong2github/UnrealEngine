@@ -33,6 +33,8 @@ class SControlRigTweenSlider : public SCompoundWidget
 	void Construct(const FArguments& InArgs);
 	void SetAnimSlider(TSharedPtr<FBaseAnimSlider>& InAnimSlider) { AnimSlider = InAnimSlider; }
 	void DragAnimSliderTool(double Val);
+	bool Setup();
+
 	void ResetAnimSlider();
 private:
 
@@ -46,7 +48,6 @@ private:
 	void OnEndSliderMovement(double NewValue);
 	double OnGetPoseBlendValue() const { return PoseBlendValue; }
 
-	bool Setup();
 	double PoseBlendValue;
 	bool bIsBlending;
 	bool bSliderStartedTransaction;
@@ -73,7 +74,7 @@ class SControlRigTweenWidget : public SCompoundWidget
 	void GetToNextActiveSlider();
 	void DragAnimSliderTool(double Val);
 	void ResetAnimSlider();
-
+	void StartAnimSliderTool();
 private:
 
 	void OnSelectSliderTool(int32 Index);

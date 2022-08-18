@@ -215,10 +215,10 @@ protected:
 
 	/** If Anim Slider is open, then can drag*/
 	bool CanChangeAnimSliderTool() const;
-
+	/** Start Slider Tool*/
+	void StartAnimSliderTool(int32 InX);
 	/** If Anim Slider is open, drag the tool*/
 	void DragAnimSliderTool(double Val);
-
 	/** Reset and stop user the anim slider tool*/
 	void ResetAnimSlider();
 

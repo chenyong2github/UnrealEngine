@@ -359,5 +359,12 @@ void SControlRigTweenWidget::ResetAnimSlider()
 	}
 }
 
+void SControlRigTweenWidget::StartAnimSliderTool()
+{
+	if (SliderWidget.IsValid())
+	{
+		SliderWidget->Setup();
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

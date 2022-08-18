@@ -57,7 +57,7 @@ public:
 	bool CanChangeAnimSliderTool() const;
 	void DragAnimSliderTool(double Val);
 	void ResetAnimSlider();
-
+	void StartAnimSliderTool();
 public:
 	static const FName PoseTabName;
 	static const FName MotionTrailTabName;
