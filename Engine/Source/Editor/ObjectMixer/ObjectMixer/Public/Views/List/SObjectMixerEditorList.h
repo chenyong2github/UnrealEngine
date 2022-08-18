@@ -113,23 +113,13 @@ public:
 		return TreeViewRootObjects.Num();
 	}
 	
-	TWeakPtr<FObjectMixerEditorListRow> GetSoloRow()
-	{
-		return GetListModelPtr().Pin()->GetSoloRow();
-	}
+	TWeakPtr<FObjectMixerEditorListRow> GetSoloRow();
 
-	void SetSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow)
-	{
-		GetListModelPtr().Pin()->SetSoloRow(InRow);
-	}
+	void SetSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow);
 
-	void ClearSoloRow()
-	{
-		GetListModelPtr().Pin()->ClearSoloRow();
-	}
+	void ClearSoloRow();
 
 	FString GetSearchStringFromSearchInputField() const;
-	void SetSearchStringInSearchInputField(const FString InSearchString) const;
 	void ExecuteListViewSearchOnAllRows(const FString& SearchString, const bool bShouldRefreshAfterward = true);
 
 	bool DoesTreeViewHaveVisibleChildren() const;
@@ -141,12 +131,8 @@ public:
 	 * Determines the style of the tree (flat list or hierarchy)
 	 */
 	EObjectMixerTreeViewMode GetTreeViewMode();
-	/**
-	 * Determine the style of the tree (flat list or hierarchy)
-	 */
-	void SetTreeViewMode(EObjectMixerTreeViewMode InViewMode);
-
-	void ToggleFilterActive(const FString& FilterName);
+	
+	const TArray<TSharedRef<IObjectMixerEditorListFilter>>& GetShowFilters();
 	void EvaluateIfRowsPassFilters(const bool bShouldRefreshAfterward = true);
 
 	// Sorting
@@ -182,7 +168,7 @@ public:
 		);
 	};
 
-private:
+protected:
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
@@ -195,9 +181,6 @@ private:
 	
 	TSharedPtr<SHeaderRow> HeaderRow;
 	TSharedRef<SWidget> GenerateHeaderRowContextMenu() const;
-
-	TSharedRef<SWidget> GenerateToolbar();
-	TSharedRef<SWidget> OnGenerateAddObjectButtonMenu() const;
 
 	bool bShouldRebuild = false;
 	
@@ -219,24 +202,10 @@ private:
 	void AddBuiltinColumnsToHeaderRow();
 	TSharedPtr<SHeaderRow> GenerateHeaderRow();
 	ECheckBoxState HeaderCheckBoxState = ECheckBoxState::Checked;
-
-	void SetupFilters();
-
-	TSharedRef<SWidget> OnGenerateFilterClassMenu();
-	TSharedRef<SWidget> BuildShowOptionsMenu();
 	
 	void FlushMemory(const bool bShouldKeepMemoryAllocated);
 	
 	void SetAllGroupsCollapsed();
-
-	// Search
-	
-	void OnListViewSearchTextChanged(const FText& Text);
-
-	TSharedPtr<SSearchBox> ListSearchBoxPtr;
-	TSharedPtr<SComboButton> ViewOptionsComboButton;
-	
-	TSharedPtr<SBox> ListBoxContainerPtr;
 
 	//  Tree View Implementation
 
@@ -252,8 +221,6 @@ private:
 	void OnRowChildExpansionChange(FObjectMixerEditorListRowPtr Row, const bool bIsExpanded, const bool bIsRecursive = false) const;
 
 	void SetChildExpansionRecursively(const FObjectMixerEditorListRowPtr& InRow, const bool bNewIsExpanded) const;
-
-	TArray<TSharedRef<IObjectMixerEditorListFilter>> ShowFilters;
 
 	TSharedPtr<STreeView<FObjectMixerEditorListRowPtr>> TreeViewPtr;
 

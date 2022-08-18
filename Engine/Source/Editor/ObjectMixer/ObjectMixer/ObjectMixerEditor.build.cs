@@ -34,6 +34,7 @@ public class ObjectMixerEditor : ModuleRules
 				"InputCore",
 				"Kismet",
 				"Projects",
+				"SceneOutliner",
 				"Slate",
 				"SlateCore",
 				"ToolMenus", 

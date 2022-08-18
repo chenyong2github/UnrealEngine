@@ -4,16 +4,9 @@
 
 #include "Views/List/SObjectMixerEditorList.h"
 
-#include "UObject/UObjectGlobals.h"
-
 FObjectMixerEditorList::~FObjectMixerEditorList()
 {
-	ListWidget.Reset();
-
-	if (ObjectFilterPtr.IsValid())
-	{
-		ObjectFilterPtr.Reset();
-	}
+	FlushWidget();
 }
 
 void FObjectMixerEditorList::FlushWidget()
@@ -31,34 +24,6 @@ TSharedRef<SWidget> FObjectMixerEditorList::GetOrCreateWidget()
 	RequestRebuildList();
 
 	return ListWidget.ToSharedRef();
-}
-
-UObjectMixerObjectFilter* FObjectMixerEditorList::GetObjectFilter()
-{
-	if (!ObjectFilterPtr.IsValid())
-	{
-		CacheObjectFilterObject();
-	}
-
-	return ObjectFilterPtr.Get();
-}
-
-void FObjectMixerEditorList::CacheObjectFilterObject()
-{
-	if (ObjectFilterPtr.IsValid())
-	{
-		ObjectFilterPtr.Reset();
-	}
-	
-	if (const UClass* Class = GetObjectFilterClass())
-	{
-		ObjectFilterPtr = TStrongObjectPtr(NewObject<UObjectMixerObjectFilter>(GetTransientPackage(), Class));
-	}
-}
-
-void FObjectMixerEditorList::SetSearchString(const FString& SearchString)
-{
-	ListWidget->SetSearchStringInSearchInputField(SearchString);
 }
 
 void FObjectMixerEditorList::ClearList() const
@@ -85,7 +50,33 @@ void FObjectMixerEditorList::RefreshList() const
 	}
 }
 
-bool FObjectMixerEditorList::IsClassSelected(UClass* InNewClass) const
+void FObjectMixerEditorList::ExecuteListViewSearchOnAllRows(const FString& SearchString,
+	const bool bShouldRefreshAfterward)
 {
-	return InNewClass == GetObjectFilterClass();
+	ListWidget->ExecuteListViewSearchOnAllRows(SearchString, bShouldRefreshAfterward);
+}
+
+void FObjectMixerEditorList::EvaluateIfRowsPassFilters(const bool bShouldRefreshAfterward) const
+{
+	ListWidget->EvaluateIfRowsPassFilters();
+}
+
+TWeakPtr<FObjectMixerEditorMainPanel> FObjectMixerEditorList::GetMainPanelModel()
+{
+	return MainPanelModelPtr;
+}
+
+TWeakPtr<FObjectMixerEditorListRow> FObjectMixerEditorList::GetSoloRow()
+{
+	return GetMainPanelModel().Pin()->GetSoloRow();
+}
+
+void FObjectMixerEditorList::SetSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow)
+{
+	GetMainPanelModel().Pin()->SetSoloRow(InRow);
+}
+
+void FObjectMixerEditorList::ClearSoloRow()
+{
+	GetMainPanelModel().Pin()->ClearSoloRow();
 }

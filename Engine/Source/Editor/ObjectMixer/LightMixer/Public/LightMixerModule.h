@@ -17,6 +17,7 @@ public:
 	
 	//~ Begin FObjectMixerEditorModule overrides
 	virtual void Initialize() override;
+	virtual FName GetModuleName() override;
 	virtual void SetupMenuItemVariables() override;
 	virtual FName GetTabSpawnerId() override;
 	virtual void RegisterProjectSettings() const override;

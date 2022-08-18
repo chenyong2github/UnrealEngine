@@ -28,9 +28,12 @@ UObjectMixerObjectFilter* FObjectMixerEditorListRow::GetObjectFilter() const
 	{
 		if (const TSharedPtr<FObjectMixerEditorList> PinnedListModel = PinnedListView->GetListModelPtr().Pin())
 		{
-			if (UObjectMixerObjectFilter* Filter = PinnedListModel->GetObjectFilter())
+			if (const TSharedPtr<FObjectMixerEditorMainPanel> PinnedMainPanel = PinnedListModel->GetMainPanelModel().Pin())
 			{
-				return Filter;
+				if (UObjectMixerObjectFilter* Filter = PinnedMainPanel->GetObjectFilter())
+				{
+					return Filter;
+				}
 			}
 		}
 	}
@@ -38,19 +41,37 @@ UObjectMixerObjectFilter* FObjectMixerEditorListRow::GetObjectFilter() const
 	return nullptr;
 }
 
+bool FObjectMixerEditorListRow::IsObjectRefInSelectedCategories() const
+{
+	check (ListViewPtr.IsValid());
+	
+	if (RowType != EObjectMixerEditorListRowType::None && RowType != EObjectMixerEditorListRowType::Folder)
+	{
+		if (const TSharedPtr<FObjectMixerEditorList> ListModel = ListViewPtr.Pin()->GetListModelPtr().Pin())
+		{
+			if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanel = ListModel->GetMainPanelModel().Pin())
+			{
+				const TSet<FName>& CategorySelection = MainPanel->GetCurrentCategorySelection();
+
+				if (CategorySelection.Num() == 0)
+				{
+					return true;
+				}
+
+				const TSet<FName>& ObjectAssignedCategories = MainPanel->GetCategoriesForObject(GetObject());
+
+				const TSet<FName> Intersection = CategorySelection.Intersect(ObjectAssignedCategories);
+
+				return Intersection.Num() > 0;
+			}
+		}
+	}
+	return false;
+}
+
 FObjectMixerEditorListRow::EObjectMixerEditorListRowType FObjectMixerEditorListRow::GetRowType() const
 {
 	return RowType;
-}
-
-int32 FObjectMixerEditorListRow::GetChildDepth() const
-{
-	return ChildDepth;
-}
-
-void FObjectMixerEditorListRow::SetChildDepth(const int32 InDepth)
-{
-	ChildDepth = InDepth;
 }
 
 int32 FObjectMixerEditorListRow::GetSortOrder() const
@@ -127,41 +148,41 @@ bool FObjectMixerEditorListRow::MatchSearchTokensToSearchTerms(
 {
 	// If the search is cleared we'll consider the row to pass search
 	bool bMatchFound = true;
-
-	if (const TObjectPtr<UObject> Object = GetObject())
+	
+	if (CachedSearchTerms.IsEmpty())
 	{
-		if (CachedSearchTerms.IsEmpty())
-		{
-			CachedSearchTerms = Object->GetName();
+		CachedSearchTerms = GetDisplayNameOverride().ToString() + " ";
 
+		if (const TObjectPtr<UObject> Object = GetObject())
+		{			
 			if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
 			{
-				CachedSearchTerms = Filter->GetRowDisplayName(Object, GetTreeViewMode()).ToString();
+				CachedSearchTerms += Filter->GetRowDisplayName(Object, GetTreeViewMode()).ToString();
 			}
 		}
+	}
 
-		// Match any
-		for (const FString& Token : InTokens)
+	// Match any
+	for (const FString& Token : InTokens)
+	{
+		// Match all of these
+		const FString SpaceDelimiter = " ";
+		TArray<FString> OutSpacedArray;
+		if (Token.Contains(SpaceDelimiter) && Token.ParseIntoArray(OutSpacedArray, *SpaceDelimiter, true) > 1)
 		{
-			// Match all of these
-			const FString SpaceDelimiter = " ";
-			TArray<FString> OutSpacedArray;
-			if (Token.Contains(SpaceDelimiter) && Token.ParseIntoArray(OutSpacedArray, *SpaceDelimiter, true) > 1)
+			bMatchFound = Algo::AllOf(OutSpacedArray, [this, InSearchCase](const FString& Comparator)
 			{
-				bMatchFound = Algo::AllOf(OutSpacedArray, [this, InSearchCase](const FString& Comparator)
-				{
-					return CachedSearchTerms.Contains(Comparator, InSearchCase);
-				});
-			}
-			else
-			{
-				bMatchFound = CachedSearchTerms.Contains(Token, InSearchCase);
-			}
+				return CachedSearchTerms.Contains(Comparator, InSearchCase);
+			});
+		}
+		else
+		{
+			bMatchFound = CachedSearchTerms.Contains(Token, InSearchCase);
+		}
 
-			if (bMatchFound)
-			{
-				break;
-			}
+		if (bMatchFound)
+		{
+			break;
 		}
 	}
 
@@ -188,9 +209,11 @@ void FObjectMixerEditorListRow::ExecuteSearchOnChildNodes(const TArray<FString>&
 			continue;
 		}
 
-		if (ChildRow->GetRowType() == EObjectMixerEditorListRowType::Folder)
+		const bool bMatch = ChildRow->MatchSearchTokensToSearchTerms(Tokens);;
+
+		if (ChildRow->GetChildCount() > 0)
 		{
-			if (ChildRow->MatchSearchTokensToSearchTerms(Tokens))
+			if (bMatch)
 			{
 				// If the group name matches then we pass an empty string to search child nodes since we want them all to be visible
 				ChildRow->ExecuteSearchOnChildNodes("");
@@ -200,10 +223,6 @@ void FObjectMixerEditorListRow::ExecuteSearchOnChildNodes(const TArray<FString>&
 				// Otherwise we iterate over all child nodes to determine which should and should not be visible
 				ChildRow->ExecuteSearchOnChildNodes(Tokens);
 			}
-		}
-		else
-		{
-			ChildRow->MatchSearchTokensToSearchTerms(Tokens);
 		}
 	}
 }
@@ -235,6 +254,24 @@ EVisibility FObjectMixerEditorListRow::GetDesiredRowWidgetVisibility() const
 	return ShouldRowWidgetBeVisible() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
+bool FObjectMixerEditorListRow::HasVisibleChildRowWidgets() const
+{
+	if (ChildRows.Num() == 0)
+	{
+		return false;
+	}
+
+	for (const auto& ChildRow : ChildRows)
+	{
+		if (ChildRow->ShouldRowWidgetBeVisible())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 FText FObjectMixerEditorListRow::GetDisplayName()
 {
 	if (!GetDisplayNameOverride().IsEmpty())
@@ -259,14 +296,6 @@ EObjectMixerTreeViewMode FObjectMixerEditorListRow::GetTreeViewMode()
 	check(PinnedListModel);
 	
 	return PinnedListModel->GetTreeViewMode();
-}
-
-void FObjectMixerEditorListRow::SetTreeViewMode(EObjectMixerTreeViewMode InViewMode)
-{
-	if (TSharedPtr<SObjectMixerEditorList> PinnedListModel = GetListViewPtr().Pin())
-	{
-		PinnedListModel->SetTreeViewMode(InViewMode);
-	}
 }
 
 TArray<FObjectMixerEditorListRowPtr> FObjectMixerEditorListRow::GetSelectedTreeViewItems() const

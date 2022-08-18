@@ -53,10 +53,9 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 
 	UObjectMixerObjectFilter* GetObjectFilter() const;
 
-	[[nodiscard]] EObjectMixerEditorListRowType GetRowType() const;
+	bool IsObjectRefInSelectedCategories() const;
 
-	[[nodiscard]] int32 GetChildDepth() const;
-	void SetChildDepth(const int32 InDepth);
+	[[nodiscard]] EObjectMixerEditorListRowType GetRowType() const;
 
 	[[nodiscard]] int32 GetSortOrder() const;
 	void SetSortOrder(const int32 InNewOrder);
@@ -97,10 +96,7 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 	[[nodiscard]] bool ShouldRowWidgetBeVisible() const;
 	[[nodiscard]] EVisibility GetDesiredRowWidgetVisibility() const;
 
-	[[nodiscard]] bool HasVisibleChildRowWidgets() const
-	{
-		return false;
-	}
+	[[nodiscard]] bool HasVisibleChildRowWidgets() const;
 
 	[[nodiscard]] FText GetDisplayName();
 
@@ -123,10 +119,6 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 	 * Determines the style of the tree (flat list or hierarchy)
 	 */
 	EObjectMixerTreeViewMode GetTreeViewMode();
-	/**
-	 * Determine the style of the tree (flat list or hierarchy)
-	 */
-	void SetTreeViewMode(EObjectMixerTreeViewMode InViewMode);
 
 	[[nodiscard]] TArray<FObjectMixerEditorListRowPtr> GetSelectedTreeViewItems() const;
 
@@ -151,10 +143,6 @@ private:
 	TWeakPtr<SObjectMixerEditorList> ListViewPtr;
 
 	FText DisplayNameOverride;
-	
-	bool bIsTreeViewItemExpanded = false;
-
-	int32 ChildDepth = 0;
 
 	int32 SortOrder = -1;
 

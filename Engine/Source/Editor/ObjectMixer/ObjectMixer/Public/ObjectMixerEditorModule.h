@@ -23,6 +23,8 @@ public:
 	void AddOnComponentEditedDelegate(const FDelegateHandle& InOnComponentEditedHandle);
 
 	static FObjectMixerEditorModule& Get();
+
+	virtual FName GetModuleName();
 	
 	virtual TSharedPtr<SWidget> MakeObjectMixerDialog() const;
 
@@ -56,6 +58,8 @@ public:
 	virtual TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args);
 
 	TSharedPtr<FWorkspaceItem> GetWorkspaceGroup();
+
+	const static FName BaseObjectMixerModuleName;
 
 protected:
 

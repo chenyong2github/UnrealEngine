@@ -2,14 +2,13 @@
 
 #include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 
-#include "ObjectMixerEditorModule.h"
 #include "ObjectMixerEditorProjectSettings.h"
 #include "Views/List/ObjectMixerEditorList.h"
 #include "Views/MainPanel/SObjectMixerEditorMainPanel.h"
 
-FObjectMixerEditorMainPanel::FObjectMixerEditorMainPanel()
+void FObjectMixerEditorMainPanel::Init()
 {
-	EditorList = MakeShared<FObjectMixerEditorList>();
+	RegenerateListModel();
 }
 
 TSharedRef<SWidget> FObjectMixerEditorMainPanel::GetOrCreateWidget()
@@ -22,41 +21,161 @@ TSharedRef<SWidget> FObjectMixerEditorMainPanel::GetOrCreateWidget()
 	return MainPanelWidget.ToSharedRef();
 }
 
+void FObjectMixerEditorMainPanel::RegenerateListModel()
+{
+	EditorListModel.Reset();
+	
+	EditorListModel = MakeShared<FObjectMixerEditorList>(SharedThis(this));
+}
+
 void FObjectMixerEditorMainPanel::RequestRebuildList() const
 {
-	if (EditorList.IsValid())
+	if (EditorListModel.IsValid())
 	{
-		EditorList->RequestRebuildList();
+		EditorListModel->RequestRebuildList();
 	}
 }
 
 void FObjectMixerEditorMainPanel::RefreshList() const
 {
-	if (EditorList.IsValid())
+	if (EditorListModel.IsValid())
 	{
-		EditorList->RefreshList();
+		EditorListModel->RefreshList();
 	}
 }
 
-void FObjectMixerEditorMainPanel::OnClassSelectionChanged(UClass* InNewClass) const
+void FObjectMixerEditorMainPanel::RebuildCategorySelector()
 {
-	if (TSharedPtr<FObjectMixerEditorList, ESPMode::ThreadSafe> PinnedList = GetEditorList().Pin())
-	{
-		PinnedList->SetObjectFilterClass(InNewClass);
-	}
+	MainPanelWidget->RebuildCategorySelector();
+}
+
+FString FObjectMixerEditorMainPanel::GetSearchStringFromSearchInputField() const
+{
+	return MainPanelWidget->GetSearchStringFromSearchInputField();
+}
+
+void FObjectMixerEditorMainPanel::OnClassSelectionChanged(UClass* InNewClass)
+{
+	SetObjectFilterClass(InNewClass);
 }
 
 TObjectPtr<UClass> FObjectMixerEditorMainPanel::GetClassSelection() const
 {
-	if (TSharedPtr<FObjectMixerEditorList, ESPMode::ThreadSafe> PinnedList = GetEditorList().Pin())
-	{
-		return PinnedList->GetObjectFilterClass();
-	}
-
-	return nullptr;
+	return GetObjectFilterClass();
 }
 
 bool FObjectMixerEditorMainPanel::IsClassSelected(UClass* InNewClass) const
 {
 	return InNewClass == GetClassSelection();
+}
+
+UObjectMixerObjectFilter* FObjectMixerEditorMainPanel::GetObjectFilter()
+{
+	if (!ObjectFilterPtr.IsValid())
+	{
+		CacheObjectFilterObject();
+	}
+
+	return ObjectFilterPtr.Get();
+}
+
+void FObjectMixerEditorMainPanel::CacheObjectFilterObject()
+{
+	if (ObjectFilterPtr.IsValid())
+	{
+		ObjectFilterPtr.Reset();
+	}
+	
+	if (const UClass* Class = GetObjectFilterClass())
+	{
+		ObjectFilterPtr = TStrongObjectPtr(NewObject<UObjectMixerObjectFilter>(GetTransientPackage(), Class));
+	}
+}
+
+const TArray<TSharedRef<IObjectMixerEditorListFilter>>& FObjectMixerEditorMainPanel::GetShowFilters() const
+{
+	return MainPanelWidget->GetShowFilters();	
+}
+
+void FObjectMixerEditorMainPanel::AddObjectsToCategory(const FName& CategoryName, const TSet<FSoftObjectPath>& ObjectsToAdd) const
+{
+	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
+	{
+		if (UObjectMixerEditorProjectSettings* Settings = GetMutableDefault<UObjectMixerEditorProjectSettings>())
+		{
+			Settings->AddObjectsToCategory(Filter->GetFName(), CategoryName, ObjectsToAdd);
+
+			OnObjectMixerCategoryMapChanged.Broadcast();
+		}
+	}
+}
+
+void FObjectMixerEditorMainPanel::RemoveObjectsFromCategory(const FName& CategoryName, const TSet<FSoftObjectPath>& ObjectsToRemove) const
+{
+	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
+	{
+		if (UObjectMixerEditorProjectSettings* Settings = GetMutableDefault<UObjectMixerEditorProjectSettings>())
+		{
+			Settings->RemoveObjectsFromCategory(Filter->GetFName(), CategoryName, ObjectsToRemove);
+
+			OnObjectMixerCategoryMapChanged.Broadcast();
+		}
+	}
+}
+
+void FObjectMixerEditorMainPanel::RemoveCategory(const FName& CategoryName) const
+{
+	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
+	{
+		if (UObjectMixerEditorProjectSettings* Settings = GetMutableDefault<UObjectMixerEditorProjectSettings>())
+		{
+			Settings->RemoveCategory(Filter->GetFName(), CategoryName);
+
+			OnObjectMixerCategoryMapChanged.Broadcast();
+		}
+	}
+}
+
+bool FObjectMixerEditorMainPanel::IsObjectInCategory(const FName& CategoryName, const FSoftObjectPath& InObject) const
+{
+	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
+	{
+		if (UObjectMixerEditorProjectSettings* Settings = GetMutableDefault<UObjectMixerEditorProjectSettings>())
+		{
+			return Settings->IsObjectInCategory(Filter->GetFName(), CategoryName, InObject);
+		}
+	}
+
+	return false;
+}
+
+TSet<FName> FObjectMixerEditorMainPanel::GetCategoriesForObject(const FSoftObjectPath& InObject) const
+{
+	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
+	{
+		if (UObjectMixerEditorProjectSettings* Settings = GetMutableDefault<UObjectMixerEditorProjectSettings>())
+		{
+			return Settings->GetCategoriesForObject(Filter->GetFName(), InObject);
+		}
+	}
+
+	return {};
+}
+
+TSet<FName> FObjectMixerEditorMainPanel::GetAllCategories() const
+{
+	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
+	{
+		if (UObjectMixerEditorProjectSettings* Settings = GetMutableDefault<UObjectMixerEditorProjectSettings>())
+		{
+			return Settings->GetAllCategories(Filter->GetFName());
+		}
+	}
+
+	return {};
+}
+
+const TSet<FName>& FObjectMixerEditorMainPanel::GetCurrentCategorySelection() const
+{
+	return MainPanelWidget->GetCurrentCategorySelection();
 }

@@ -40,6 +40,11 @@ void FLightMixerModule::Initialize()
 	DefaultFilterClass = ULightMixerObjectFilter::StaticClass();	
 }
 
+FName FLightMixerModule::GetModuleName()
+{
+	return "LightMixer";
+}
+
 void FLightMixerModule::SetupMenuItemVariables()
 {
 	TabLabel = LOCTEXT("LightMixerTabLabel", "Light Mixer");

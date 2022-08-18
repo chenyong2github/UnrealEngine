@@ -8,13 +8,15 @@
 #include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 
 #include "Editor.h"
-#include "Misc/TransactionObjectEvent.h"
 #include "Framework/Docking/TabManager.h"
 #include "ISettingsModule.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Modules/ModuleManager.h"
 #include "ToolMenus.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+
+const FName FObjectMixerEditorModule::BaseObjectMixerModuleName("ObjectMixerEditor");
 
 #define LOCTEXT_NAMESPACE "FObjectMixerEditorModule"
 
@@ -94,6 +96,11 @@ void FObjectMixerEditorModule::AddOnComponentEditedDelegate(const FDelegateHandl
 FObjectMixerEditorModule& FObjectMixerEditorModule::Get()
 {
 	return FModuleManager::LoadModuleChecked< FObjectMixerEditorModule >("ObjectMixerEditor");
+}
+
+FName FObjectMixerEditorModule::GetModuleName()
+{
+	return "ObjectMixerEditor";
 }
 
 TSharedPtr<SWidget> FObjectMixerEditorModule::MakeObjectMixerDialog() const
@@ -231,7 +238,8 @@ TSharedPtr<FWorkspaceItem> FObjectMixerEditorModule::GetWorkspaceGroup()
 
 TSharedRef<SDockTab> FObjectMixerEditorModule::SpawnMainPanelTab()
 {
-	MainPanel = MakeShared<FObjectMixerEditorMainPanel>();
+	MainPanel = MakeShared<FObjectMixerEditorMainPanel>(GetModuleName());
+	MainPanel->Init();
 	
 	const TSharedRef<SDockTab> DockTab =
 		SNew(SDockTab)

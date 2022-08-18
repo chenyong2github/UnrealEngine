@@ -18,12 +18,15 @@ public:
 	
 	virtual ~IObjectMixerEditorListFilter() = default;
 
-	virtual FString GetFilterName() = 0;
+	virtual FString GetFilterName() const = 0;
+
+	/** Return true if the filter should be able to be toggled on/off in the Show Options. */
+	virtual bool IsToggleable() const = 0;
 
 	/** Returns localized text to display for when this filter' active state is defined by a toggle button. */
-	virtual FText GetFilterButtonLabel() = 0;
+	virtual FText GetFilterButtonLabel() const = 0;
 	/** Returns localized text to display when the user mouses over a toggle button that defines whether this filter is active. */
-	virtual FText GetFilterButtonToolTip() = 0;
+	virtual FText GetFilterButtonToolTip() const = 0;
 	
 	void SetFilterActive(const bool bNewEnabled)
 	{
@@ -37,7 +40,7 @@ public:
 
 	bool GetIsFilterActive() const
 	{
-		return bIsFilterActive;
+		return !IsToggleable() || bIsFilterActive;
 	}
 
 	void SetFilterMatchType(const EObjectMixerEditorListFilterMatchType InType)
@@ -50,7 +53,7 @@ public:
 		return FilterMatchType;
 	}
 
-	virtual bool DoesItemPassFilter(const FObjectMixerEditorListRowPtr& InItem)
+	virtual bool DoesItemPassFilter(const FObjectMixerEditorListRowPtr& InItem) const
 	{
 		return false;
 	}

@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
+#include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 
-#include "UObject/StrongObjectPtr.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/SWidget.h"
-
-struct FObjectMixerEditorListRow;
-typedef TSharedPtr<FObjectMixerEditorListRow> FObjectMixerEditorListRowPtr;
 
 class SObjectMixerEditorList;
 
@@ -16,86 +13,15 @@ class OBJECTMIXEREDITOR_API FObjectMixerEditorList : public TSharedFromThis<FObj
 {
 public:
 
-	FObjectMixerEditorList() = default;
+	FObjectMixerEditorList(TSharedRef<FObjectMixerEditorMainPanel, ESPMode::ThreadSafe> InMainPanel)
+	: MainPanelModelPtr(InMainPanel)
+	{}
 
 	virtual ~FObjectMixerEditorList();
 
 	void FlushWidget();
+	
 	TSharedRef<SWidget> GetOrCreateWidget();
-
-	UObjectMixerObjectFilter* GetObjectFilter();
-
-	void CacheObjectFilterObject();
-
-	/**
-	 * Get the style of the tree (flat list or hierarchy)
-	 */
-	EObjectMixerTreeViewMode GetTreeViewMode()
-	{
-		return TreeViewMode;
-	}
-	/**
-	 * Set the style of the tree (flat list or hierarchy)
-	 */
-	void SetTreeViewMode(EObjectMixerTreeViewMode InViewMode)
-	{
-		TreeViewMode = InViewMode;
-		RequestRebuildList();
-	}
-
-	/**
-	 * Returns result from Filter->GetObjectClassesToFilter.
-	 */
-	TSet<UClass*> GetObjectClassesToFilter()
-	{
-		if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
-		{
-			return Filter->GetObjectClassesToFilter();
-		}
-		
-		return {};
-	}
-
-	/**
-	 * Returns result from Filter->GetObjectClassesToPlace.
-	 */
-	TSet<TSubclassOf<AActor>> GetObjectClassesToPlace()
-	{
-		TSet<TSubclassOf<AActor>> ReturnValue;
-
-		if (const UObjectMixerObjectFilter* Filter = GetObjectFilter())
-		{
-			ReturnValue = Filter->GetObjectClassesToPlace();
-		}
-		
-		return ReturnValue;
-	}
-
-	/**
-	 * Get the row that has solo visibility. All other rows should be set to temporarily invisible in editor.
-	 */
-	TWeakPtr<FObjectMixerEditorListRow> GetSoloRow()
-	{
-		return SoloRow;
-	}
-
-	/**
-	 * Set the row that has solo visibility. This does not set temporary editor invisibility for other rows.
-	 */
-	void SetSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow)
-	{
-		SoloRow = InRow;
-	}
-
-	/**
-	 * Clear the row that has solo visibility. This does not remove temporary editor invisibility for other rows.
-	 */
-	void ClearSoloRow()
-	{
-		SoloRow = nullptr;
-	}
-
-	void SetSearchString(const FString& SearchString);
 
 	void ClearList() const;
 
@@ -110,46 +36,21 @@ public:
 	 */
 	void RefreshList() const;
 
-	bool IsClassSelected(UClass* InNewClass) const;
+	void ExecuteListViewSearchOnAllRows(const FString& SearchString, const bool bShouldRefreshAfterward = true);
 
-	TSubclassOf<UObjectMixerObjectFilter> GetObjectFilterClass() const
-	{
-		return ObjectFilterClass;
-	}
+	void EvaluateIfRowsPassFilters(const bool bShouldRefreshAfterward = true) const;
 
-	void SetObjectFilterClass(UClass* InObjectFilterClass)
-	{
-		if (ensureAlwaysMsgf(InObjectFilterClass->IsChildOf(UObjectMixerObjectFilter::StaticClass()), TEXT("%hs: Class '%s' is not a child of UObjectMixerObjectFilter."), __FUNCTION__, *InObjectFilterClass->GetName()))
-		{
-			ObjectFilterClass = InObjectFilterClass;
-			CacheObjectFilterObject();
-			RequestRebuildList();
-		}
-	}
+	TWeakPtr<FObjectMixerEditorMainPanel> GetMainPanelModel();
+
+	TWeakPtr<FObjectMixerEditorListRow> GetSoloRow();
+
+	void SetSoloRow(TSharedRef<FObjectMixerEditorListRow> InRow);
+
+	void ClearSoloRow();
 
 private:
 
-	/**
-	 * The class used to generate property edit columns
-	 */
-	TSubclassOf<UObjectMixerObjectFilter> ObjectFilterClass;
-
-	/**
-	 * Determines the style of the tree (flat list or hierarchy)
-	 */
-	EObjectMixerTreeViewMode TreeViewMode = EObjectMixerTreeViewMode::FolderObjectSubObject;
+	TWeakPtr<FObjectMixerEditorMainPanel> MainPanelModelPtr;
 
 	TSharedPtr<SObjectMixerEditorList> ListWidget;
-
-	TStrongObjectPtr<UObjectMixerObjectFilter> ObjectFilterPtr;
-
-	TWeakPtr<FObjectMixerEditorListRow> SoloRow = nullptr;
-
-	// Delegates
-	TFunction<void()> RebuildDelegate = [this]()
-	{
-		RequestRebuildList();
-	};
-	
-	TSet<FDelegateHandle> DelegateHandles;
 };
