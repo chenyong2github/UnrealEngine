@@ -32,6 +32,14 @@ UGSTab::UGSTab() : TabArgs(nullptr, FTabId()),
 	Initialize(nullptr);
 }
 
+UGSTab::~UGSTab()
+{
+	if (Workspace)
+	{
+		Workspace->CancelUpdate();
+	}
+}
+
 void UGSTab::Initialize(TSharedPtr<UGSCore::FUserSettings> InUserSettings)
 {
 	UserSettings = InUserSettings;

@@ -30,6 +30,8 @@ class UGSTab
 {
 public:
 	UGSTab();
+	~UGSTab();
+
 	void Initialize(TSharedPtr<UGSCore::FUserSettings> UserSettings);
 
 	const TSharedRef<SDockTab> GetTabWidget();
