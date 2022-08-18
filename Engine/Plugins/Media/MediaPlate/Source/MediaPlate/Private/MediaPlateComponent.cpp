@@ -120,7 +120,7 @@ void UMediaPlateComponent::BeginPlay()
 	// Start playing?
 	if (bAutoPlay)
 	{
-		Play();
+		Open();
 	}
 }
 
@@ -180,7 +180,7 @@ UMediaTexture* UMediaPlateComponent::GetMediaTexture()
 	return MediaTexture;
 }
 
-void UMediaPlateComponent::Play()
+void UMediaPlateComponent::Open()
 {
 	if ((bPlayOnlyWhenVisible == false) || (IsVisible()))
 	{
@@ -223,6 +223,15 @@ void UMediaPlateComponent::Play()
 	{
 		bWantsToPlayWhenVisible = true;
 		TimeWhenPlaybackPaused = FApp::GetGameTime();
+	}
+}
+
+
+void UMediaPlateComponent::Play()
+{
+	if (MediaPlayer != nullptr)
+	{
+		MediaPlayer->Play();
 	}
 }
 
@@ -318,7 +327,8 @@ bool UMediaPlateComponent::PlayMediaSource(UMediaSource* InMediaSource)
 			// Play the source.
 			FMediaPlayerOptions Options;
 			Options.SeekTime = FTimespan::FromSeconds(StartTime);
-			Options.PlayOnOpen = EMediaPlayerOptionBooleanOverride::Enabled;
+			Options.PlayOnOpen = bPlayOnOpen ? EMediaPlayerOptionBooleanOverride::Enabled :
+				EMediaPlayerOptionBooleanOverride::Disabled;
 			Options.Loop = bLoop ? EMediaPlayerOptionBooleanOverride::Enabled :
 				EMediaPlayerOptionBooleanOverride::Disabled;
 			bIsPlaying = MediaPlayer->OpenSourceWithOptions(InMediaSource, Options);
@@ -441,7 +451,7 @@ void UMediaPlateComponent::ResumeWhenVisible()
 		}
 		else if (bWantsToPlayWhenVisible)
 		{
-			Play();
+			Open();
 			FTimespan PlayTime = GetResumeTime();
 			MediaPlayer->Seek(PlayTime);
 		}
@@ -573,7 +583,7 @@ void UMediaPlateComponent::OnVisibleMipsTilesCalculationsChange()
 			if (MediaPlayer->IsPlaying())
 			{
 				MediaPlayer->Close();
-				Play();
+				Open();
 			}
 		}
 	}

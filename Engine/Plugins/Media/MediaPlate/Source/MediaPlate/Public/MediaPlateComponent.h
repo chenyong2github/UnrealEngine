@@ -51,7 +51,14 @@ public:
 	UMediaTexture* GetMediaTexture();
 
 	/**
+	 * Call this to open the media.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")
+	void Open();
+
+	/**
 	 * Call this to start playing.
+	 * Open must be called before this.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")
 	void Play();
@@ -74,7 +81,11 @@ public:
 	UFUNCTION(BlueprintSetter)
 	void SetLoop(bool bInLoop);
 
-	/** If set then start playing right away. */
+	/** If set then play when opening the media. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MediaPlate")
+	bool bPlayOnOpen = true;
+
+	/** If set then start playing when this object is active. */
 	UPROPERTY(EditAnywhere, Category = "MediaPlate")
 	bool bAutoPlay;
 

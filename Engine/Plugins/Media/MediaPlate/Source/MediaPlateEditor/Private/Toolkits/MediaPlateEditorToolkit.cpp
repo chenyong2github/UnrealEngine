@@ -268,7 +268,7 @@ void FMediaPlateEditorToolkit::BindCommands()
 
 	ToolkitCommands->MapAction(
 		Commands.OpenMedia,
-		FExecuteAction::CreateLambda([this] { MediaPlate->Play(); }),
+		FExecuteAction::CreateLambda([this] { MediaPlate->Open(); }),
 		FCanExecuteAction::CreateLambda([this] { return true; })
 	);
 

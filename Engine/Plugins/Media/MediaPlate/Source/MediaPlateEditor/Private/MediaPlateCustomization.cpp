@@ -259,7 +259,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 										((MediaPlayer->IsPaused()) || 
 											(MediaPlayer->IsPlaying() && (MediaPlayer->GetRate() != 1.0f))))
 									{
-										MediaPlayer->Play();
+										MediaPlate->Play();
 									}
 									else
 									{
@@ -271,7 +271,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 										}
 
 										// Play the media.
-										MediaPlate->Play();
+										MediaPlate->Open();
 									}
 								}
 							}
