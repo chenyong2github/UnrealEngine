@@ -801,6 +801,12 @@ public:
 		: RequestedOffset(InOffset)
 		, RequestedSize(InSize)
 	{ }
+	
+	FIoReadOptions(uint64 InOffset, uint64 InSize, void* InTargetVa)
+		: RequestedOffset(InOffset)
+		, RequestedSize(InSize)
+		, TargetVa(InTargetVa)
+	{ }
 
 	~FIoReadOptions() = default;
 

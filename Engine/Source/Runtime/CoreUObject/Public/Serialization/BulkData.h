@@ -28,6 +28,7 @@
 #include "Templates/Function.h"
 #include "Templates/IsPODType.h"
 #include "Templates/UniquePtr.h"
+#include "Templates/PimplPtr.h"
 #include "UObject/NameTypes.h"
 
 class FLinkerLoad;
@@ -35,6 +36,7 @@ class FOutputDevice;
 class IAsyncReadFileHandle;
 class IAsyncReadRequest;
 class UObject;
+struct FTimespan;
 namespace UE { namespace Serialization { class FEditorBulkData; } }
 
 #if WITH_EDITOR == 0 && WITH_EDITORONLY_DATA == 0
@@ -499,17 +501,17 @@ class FBulkDataChunkId
 public:
 	COREUOBJECT_API FBulkDataChunkId();
 
-	FBulkDataChunkId(const FBulkDataChunkId& Other);
+	COREUOBJECT_API FBulkDataChunkId(const FBulkDataChunkId& Other);
 
-	FBulkDataChunkId(FBulkDataChunkId&&) = default;
+	COREUOBJECT_API FBulkDataChunkId(FBulkDataChunkId&&) = default;
 
 	COREUOBJECT_API ~FBulkDataChunkId();
 
-	FBulkDataChunkId& operator=(const FBulkDataChunkId& Other);
+	COREUOBJECT_API FBulkDataChunkId& operator=(const FBulkDataChunkId& Other);
 
-	FBulkDataChunkId& operator=(FBulkDataChunkId&&) = default;
+	COREUOBJECT_API FBulkDataChunkId& operator=(FBulkDataChunkId&&) = default;
 	
-	bool IsValid() const { return ImplPtr.IsValid(); }
+	bool IsValid() const { return Impl.IsValid(); }
 
 	FPackageId GetPackageId() const;
 	
@@ -526,9 +528,9 @@ public:
 private:
 	struct FImpl;
 
-	FBulkDataChunkId(TUniquePtr<FImpl>&& InImplPtr);
+	FBulkDataChunkId(TPimplPtr<FImpl>&& InImpl);
 
-	TUniquePtr<FImpl> ImplPtr;
+	TPimplPtr<FImpl> Impl;
 };
 
 /** Returns an I/O chunk ID to be used when loading from I/O store. */
@@ -585,6 +587,7 @@ public:
 	friend class FLinkerLoad;
 	friend class FExportArchive;
 	friend class UE::Serialization::FEditorBulkData; // To allow access to AttachedAr
+	friend class FBulkDataRequest;
 
 	using BulkDataRangeArray = TArray<FBulkData*, TInlineAllocator<8>>;
 
@@ -911,6 +914,7 @@ public:
 	* @return True if an asynchronous loading operation is in progress by the time that the method returns
 	* and false if the data is already loaded or cannot be loaded from disk.
 	*/
+	UE_DEPRECATED(5.1, "Use FBulkDataRequest or CreateStreamingRequest instead")
 	bool StartAsyncLoading();
 	
 	/**
@@ -1039,6 +1043,7 @@ public:
 	 * @param CompleteCallback	Called from an arbitrary thread when the request is complete. Can be nullptr, if non-null, must remain valid until it is called. It will always be called.
 	 * @return					A request for the read. This is owned by the caller and must be deleted by the caller.
 	**/
+	UE_DEPRECATED(5.1, "Use FBulkDataRequest instead")
 	static IBulkDataIORequest* CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
 
 	/** Enable the given flags in the given accumulator variable. */
@@ -1325,4 +1330,140 @@ public:
 	}
 	COREUOBJECT_API void Serialize(FArchive& Ar, UObject* Owner, const TArray<FName>* FormatsToSave = nullptr, bool bSingleUse = true, uint16 InAlignment = DEFAULT_ALIGNMENT, bool bInline = true, bool bMapped = false);
 	COREUOBJECT_API void SerializeAttemptMappedLoad(FArchive& Ar, UObject* Owner);
+};
+
+/** Handle to a bulk data I/O request. */
+class COREUOBJECT_API FBulkDataRequest
+{
+	class FBase;
+	class FReadChunk;
+	class FReadFile;
+
+	struct FReadRequest
+	{
+		UE::BulkData::Private::FBulkMetaData BulkMeta;
+		UE::BulkData::Private::FBulkDataChunkId BulkChunkId;
+		uint64 Offset = 0;
+		uint64 Size = ~uint64(0);
+		void* TargetVa = nullptr;
+	};
+
+public:
+
+	/** Bulk data request status. */
+	enum class EStatus : uint32
+	{
+		/** The request hasn't been issued. */
+		None,
+		/** The request is pending. */
+		Pending,
+		/** The request has been completed successfully. */
+		Ok,
+		/** The request was cancelled. */
+		Cancelled,
+		/** An error occured while issuing the request. */
+		Error
+	};
+
+	/** Completion callback. */
+	using FCompletionCallback = TFunction<void(EStatus)>;
+
+	/** Constructs a new handle to bulk data request. */
+	FBulkDataRequest() = default;
+
+	/** Destructor, cancels and waits for any pending requests. */
+	~FBulkDataRequest() = default;
+
+	/** Moves ownership from an invalid or pending request. */
+	FBulkDataRequest(FBulkDataRequest&&) = default;
+
+	/** Moves ownership from an invalid or pending request. */
+	FBulkDataRequest& operator=(FBulkDataRequest&&) = default;
+
+	/** Returns current status of the request. */
+	EStatus GetStatus() const;
+
+	/** Returns whether the request is associated with a pending or completed request. */
+	bool IsNone() const;
+
+	/** Returns whether the request is pending. */
+	bool IsPending() const;
+
+	/** Returns whether the request completed successfully. */
+	bool IsOk() const;
+
+	/** Returns whether the request has been completed. */
+	bool IsCompleted() const;
+
+	/** Blocks the calling thread until the request is completed. */
+	void Wait();
+
+	/** Waits the specified amount of time in milliseconds for the request to be completed. */
+	bool WaitFor(uint32 Milliseconds);
+
+	/** Waits the specified amount of time for the request to be completed. */
+	bool WaitFor(const FTimespan& WaitTime);
+
+	/** Cancel the pending request. */
+	void Cancel();
+
+	/** Base class for building bulk data I/O requests. */
+	class COREUOBJECT_API FRequestBuilder
+	{
+	protected:
+		FRequestBuilder() = default;
+
+		void AddRequest(
+			const UE::BulkData::Private::FBulkMetaData& BulkMeta,
+			const UE::BulkData::Private::FBulkDataChunkId& BulkChunkId,
+			uint64 Offset,
+			uint64 Size,
+			void* TargetVa);
+
+		TArray<FReadRequest> Requests;
+		uint64 TotalRequestSize = 0;
+	};
+
+	/** Scatter/gather bulk data I/O reads into a single I/O buffer. */
+	class COREUOBJECT_API FScatterGather : public FRequestBuilder
+	{
+	public:
+		FScatterGather& Read(FBulkData& BulkData, uint64 Offset = 0, uint64 Size = MAX_uint64);
+		FBulkDataRequest Issue(FIoBuffer& Dst, FCompletionCallback&& Callback, EAsyncIOPriorityAndFlags Priority = AIOP_BelowNormal);
+	};
+
+	/** Read the entire bulk data and copy the result into the bulk data instances. */
+	class COREUOBJECT_API FStreamToInstance : public FRequestBuilder
+	{
+	public:
+		FStreamToInstance& Read(FBulkData& BulkData);
+		FBulkDataRequest Issue(EAsyncIOPriorityAndFlags Priority = AIOP_BelowNormal);
+
+	private:
+		TArray<FBulkData*> Instances;
+	};
+
+	/** Returns a request builder that reads one or more bulk data into a single I/O buffer. */
+	static FScatterGather ScatterGather();
+
+	/** Returns a request builder that reads and copies the I/O result into one or more bulk data instances. */
+	static FStreamToInstance StreamToInstance();
+
+private:
+
+	static FBulkDataRequest Issue(TArrayView<FReadRequest> Requests, EAsyncIOPriorityAndFlags Priority, FBulkDataRequest::FCompletionCallback&& Callback);
+
+	struct FDeleter
+	{
+		void operator()(FBase* Impl);
+	};
+
+	using FBasePtr = TUniquePtr<FBase, FDeleter>;
+
+	FBulkDataRequest(const FBulkDataRequest&) = delete;
+	FBulkDataRequest& operator=(const FBulkDataRequest&) = delete;
+
+	FBulkDataRequest(FBasePtr&& InImpl);
+
+	FBasePtr Impl;
 };

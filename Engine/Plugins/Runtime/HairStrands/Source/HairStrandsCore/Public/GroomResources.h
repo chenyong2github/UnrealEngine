@@ -177,8 +177,14 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 	/* Store the hair projection information for each mesh LOD */
 	TArray<FLOD> LODs;
 
+	/* LOD bulk data requests */
+	TArray<FBulkDataRequest> LODRequests;
+
 	/* Store CPU data for root info & root binding */
 	FHairStrandsRootBulkData& BulkData;
+
+	/* Bulk data request handle */
+	FBulkDataRequest BulkDataRequest;
 
 	/* Type of curves */
 	const EHairStrandsResourcesType CurveType;
@@ -338,6 +344,9 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	/* Reference to the hair strands render data */
 	FHairStrandsBulkData& BulkData;
 
+	/* Handle to bulk data request */
+	FBulkDataRequest BulkDataRequest;
+
 	/* Type of curves */
 	const EHairStrandsResourcesType CurveType;
 
@@ -446,6 +455,9 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 	FRDGExternalBuffer ClusterVertexIdBuffer;
 
 	FHairStrandsClusterCullingBulkData& BulkData;
+
+	/* Handle to bulk data request */
+	FBulkDataRequest BulkDataRequest;
 };
 
 struct FHairStrandsInterpolationResource : public FHairCommonResource
@@ -481,6 +493,9 @@ struct FHairStrandsInterpolationResource : public FHairCommonResource
 
 	/* Reference to the hair strands interpolation render data */
 	FHairStrandsInterpolationBulkData& BulkData;
+
+	/* Handle to bulk data request */
+	FBulkDataRequest BulkDataRequest;
 };
 
 #if RHI_RAYTRACING

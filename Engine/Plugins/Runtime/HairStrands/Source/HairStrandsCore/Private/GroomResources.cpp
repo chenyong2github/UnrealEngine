@@ -14,6 +14,7 @@
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Serialization/BulkData.h"
 #include "UObject/PhysicsObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "NiagaraSystem.h"
@@ -540,11 +541,6 @@ void FHairCommonResource::StreamInLODData(int32 LODIndex)
 	}
 }
 
-void AsyncLoadHairBulkData(FByteBulkData& InData, bool& bIsLoading)
-{
-	bIsLoading = InData.StartAsyncLoading() || bIsLoading;
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////
 
 void FHairCardIndexBuffer::InitRHI()
@@ -785,22 +781,28 @@ FHairStrandsRestResource::FHairStrandsRestResource(FHairStrandsBulkData& InBulkD
 
 bool FHairStrandsRestResource::InternalIsDataLoaded()
 {
-	bool bIsLoading = false;
-
-	AsyncLoadHairBulkData(BulkData.Positions, bIsLoading);
-	AsyncLoadHairBulkData(BulkData.Attributes0, bIsLoading);
-	AsyncLoadHairBulkData(BulkData.Attributes1, bIsLoading);
-
-	if (!!(BulkData.Flags & FHairStrandsBulkData::DataFlags_HasMaterialData))
+	if (BulkDataRequest.IsNone())
 	{
-		AsyncLoadHairBulkData(BulkData.Materials, bIsLoading);
-	}
+		auto Builder = FBulkDataRequest::StreamToInstance();
+		Builder.Read(BulkData.Positions);
+		Builder.Read(BulkData.Attributes0);
+		Builder.Read(BulkData.Attributes1);
 
-	return !bIsLoading;
+		if (!!(BulkData.Flags & FHairStrandsBulkData::DataFlags_HasMaterialData))
+		{
+			Builder.Read(BulkData.Materials);
+		}
+
+		BulkDataRequest = Builder.Issue();
+	}
+	
+	return BulkDataRequest.IsCompleted();
 }
 
 void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
+	BulkDataRequest = FBulkDataRequest();
+
 	const uint32 PointCount = BulkData.PointCount;
 
 	// 1. Lock data, which force the loading data from files (on non-editor build/cooked data). These data are then uploaded to the GPU
@@ -1018,16 +1020,24 @@ FHairStrandsClusterCullingResource::FHairStrandsClusterCullingResource(FHairStra
 
 bool FHairStrandsClusterCullingResource::InternalIsDataLoaded()
 {
-	bool bIsLoading = false;
-	AsyncLoadHairBulkData(BulkData.PackedClusterInfos, bIsLoading);
-	AsyncLoadHairBulkData(BulkData.ClusterLODInfos, bIsLoading);
-	AsyncLoadHairBulkData(BulkData.VertexToClusterIds, bIsLoading);
-	AsyncLoadHairBulkData(BulkData.ClusterVertexIds, bIsLoading);
-	return !bIsLoading;
+	if (BulkDataRequest.IsNone())
+	{
+		BulkDataRequest = FBulkDataRequest::StreamToInstance()
+			.Read(BulkData.PackedClusterInfos)
+			.Read(BulkData.ClusterLODInfos)
+			.Read(BulkData.VertexToClusterIds)
+			.Read(BulkData.ClusterVertexIds)
+			.Issue();
+	}
+
+	return BulkDataRequest.IsCompleted();
 }
 
 void FHairStrandsClusterCullingResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
+	check(BulkDataRequest.IsNone() == false)
+	BulkDataRequest = FBulkDataRequest();
+
 	if (GHairStrandsBulkData_Validation > 0)
 	{
 		BulkData.Validate(false);
@@ -1046,6 +1056,7 @@ void FHairStrandsClusterCullingResource::InternalRelease()
 	ClusterLODInfoBuffer.Release();
 	ClusterVertexIdBuffer.Release();
 	VertexToClusterIdBuffer.Release();
+	BulkDataRequest = FBulkDataRequest();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -1069,16 +1080,24 @@ void FHairStrandsRestRootResource::PopulateFromRootData()
 		LOD.Status = FLOD::EStatus::Invalid;
 		LOD.SampleCount = MeshProjectionLOD.SampleCount;
 	}
+	LODRequests.SetNum(BulkData.MeshProjectionLODs.Num());
 }
 
 bool FHairStrandsRestRootResource::InternalIsDataLoaded()
 {
-	bool bIsLoading = false;
-	if (BulkData.PointCount > 0)
+	if (BulkData.PointCount == 0)
 	{
-		AsyncLoadHairBulkData(BulkData.VertexToCurveIndexBuffer, bIsLoading);
+		return true;
 	}
-	return !bIsLoading;
+
+	if (BulkDataRequest.IsNone())
+	{
+		BulkDataRequest = FBulkDataRequest::StreamToInstance()
+			.Read(BulkData.VertexToCurveIndexBuffer)
+			.Issue();
+	}
+
+	return BulkDataRequest.IsCompleted();
 }
 
 bool FHairStrandsRestRootResource::InternalIsLODDataLoaded(int32 LODIndex)
@@ -1088,26 +1107,38 @@ bool FHairStrandsRestRootResource::InternalIsLODDataLoaded(int32 LODIndex)
 	check(LODs.Num() == BulkData.MeshProjectionLODs.Num());
 	if (LODIndex >= 0 && LODIndex < LODs.Num())
 	{
-		FHairStrandsRootBulkData::FMeshProjectionLOD& CPUData = BulkData.MeshProjectionLODs[LODIndex];
-		const bool bHasValidCPUData = CPUData.RootBarycentricBuffer.GetBulkDataSize() > 0;
-		if (bHasValidCPUData)
+		FBulkDataRequest& LODRequest = LODRequests[LODIndex];
+		if (LODRequest.IsNone())
 		{
-			AsyncLoadHairBulkData(CPUData.RootBarycentricBuffer, bIsLoading);
-			AsyncLoadHairBulkData(CPUData.RootToUniqueTriangleIndexBuffer, bIsLoading);
-			AsyncLoadHairBulkData(CPUData.UniqueTriangleIndexBuffer, bIsLoading);
+			auto NewRequest = FBulkDataRequest::StreamToInstance();
+			FHairStrandsRootBulkData::FMeshProjectionLOD& CPUData = BulkData.MeshProjectionLODs[LODIndex];
+			const bool bHasValidCPUData = CPUData.RootBarycentricBuffer.GetBulkDataSize() > 0;
+			if (bHasValidCPUData)
+			{
+				NewRequest.Read(CPUData.RootBarycentricBuffer);
+				NewRequest.Read(CPUData.RootToUniqueTriangleIndexBuffer);
+				NewRequest.Read(CPUData.UniqueTriangleIndexBuffer);
 
-			AsyncLoadHairBulkData(CPUData.RestUniqueTrianglePosition0Buffer, bIsLoading);
-			AsyncLoadHairBulkData(CPUData.RestUniqueTrianglePosition1Buffer, bIsLoading);
-			AsyncLoadHairBulkData(CPUData.RestUniqueTrianglePosition2Buffer, bIsLoading);
+				NewRequest.Read(CPUData.RestUniqueTrianglePosition0Buffer);
+				NewRequest.Read(CPUData.RestUniqueTrianglePosition1Buffer);
+				NewRequest.Read(CPUData.RestUniqueTrianglePosition2Buffer);
+			}
+			
+			const bool bHasValidCPUWeights = CPUData.MeshSampleIndicesBuffer.GetBulkDataSize() > 0;
+			if (bHasValidCPUWeights)
+			{
+				NewRequest.Read(CPUData.MeshInterpolationWeightsBuffer);
+				NewRequest.Read(CPUData.MeshSampleIndicesBuffer);
+				NewRequest.Read(CPUData.RestSamplePositionsBuffer);
+			}
+			
+			if (bHasValidCPUData || bHasValidCPUWeights)
+			{
+				LODRequest = NewRequest.Issue();
+			}
 		}
 
-		const bool bHasValidCPUWeights = CPUData.MeshSampleIndicesBuffer.GetBulkDataSize() > 0;
-		if (bHasValidCPUWeights)
-		{
-			AsyncLoadHairBulkData(CPUData.MeshInterpolationWeightsBuffer, bIsLoading);
-			AsyncLoadHairBulkData(CPUData.MeshSampleIndicesBuffer, bIsLoading);
-			AsyncLoadHairBulkData(CPUData.RestSamplePositionsBuffer, bIsLoading);
-		}		
+		bIsLoading = LODRequest.IsCompleted() == false;
 	}
 
 	return !bIsLoading;
@@ -1142,6 +1173,8 @@ void FHairStrandsRestRootResource::InternalAllocateLOD(FRDGBuilder& GraphBuilder
 		{
 			return;
 		}
+		
+		LODRequests[LODIndex] = FBulkDataRequest();
 
 		FHairStrandsRootBulkData::FMeshProjectionLOD& CPUData = BulkData.MeshProjectionLODs[LODIndex];
 		const bool bHasValidCPUData = CPUData.RootBarycentricBuffer.GetBulkDataSize() > 0;
@@ -1209,6 +1242,7 @@ void FHairStrandsRestRootResource::InternalRelease()
 		GPUData.RestSamplePositionsBuffer.Release();
 	}
 	LODs.Empty();
+	LODRequests.Empty();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -1476,20 +1510,23 @@ FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(FHairStrand
 
 bool FHairStrandsInterpolationResource::InternalIsDataLoaded()
 {
-	bool bIsLoading = false;
-	const bool bUseSingleGuide = !!(BulkData.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData);
-	if (bUseSingleGuide)
+	if (BulkDataRequest.IsNone())
 	{
-		AsyncLoadHairBulkData(BulkData.Interpolation, bIsLoading);
+		auto NewRequest = FBulkDataRequest::StreamToInstance();
+		const bool bUseSingleGuide = !!(BulkData.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData);
+		if (bUseSingleGuide)
+		{
+			NewRequest.Read(BulkData.Interpolation);
+		}
+		else
+		{
+			NewRequest.Read(BulkData.Interpolation0);
+			NewRequest.Read(BulkData.Interpolation1);
+		}
+		BulkDataRequest = NewRequest.Read(BulkData.SimRootPointIndex).Issue();
 	}
-	else
-	{
-		AsyncLoadHairBulkData(BulkData.Interpolation0, bIsLoading);
-		AsyncLoadHairBulkData(BulkData.Interpolation1, bIsLoading);
-	}
-	AsyncLoadHairBulkData(BulkData.SimRootPointIndex, bIsLoading);
 
-	return !bIsLoading;
+	return BulkDataRequest.IsCompleted();
 }
 
 void FHairStrandsInterpolationResource::InternalAllocate(FRDGBuilder& GraphBuilder)
@@ -1513,6 +1550,7 @@ void FHairStrandsInterpolationResource::InternalRelease()
 	Interpolation0Buffer.Release();
 	Interpolation1Buffer.Release();
 	SimRootPointIndexBuffer.Release();
+	BulkDataRequest = FBulkDataRequest();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

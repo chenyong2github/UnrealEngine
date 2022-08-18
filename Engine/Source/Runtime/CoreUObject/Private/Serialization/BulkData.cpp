@@ -241,8 +241,8 @@ FBulkDataChunkId::FBulkDataChunkId()
 {
 }
 
-FBulkDataChunkId::FBulkDataChunkId(TUniquePtr<FImpl>&& InImplPtr)
-	: ImplPtr(MoveTemp(InImplPtr))
+FBulkDataChunkId::FBulkDataChunkId(TPimplPtr<FImpl>&& InImpl)
+	: Impl(MoveTemp(InImpl))
 {
 }
 
@@ -257,11 +257,11 @@ FBulkDataChunkId::FBulkDataChunkId(const FBulkDataChunkId& Other)
 
 FBulkDataChunkId& FBulkDataChunkId::operator=(const FBulkDataChunkId& Other)
 {
-	ImplPtr.Reset();
+	Impl.Reset();
 
-	if (Other.ImplPtr)
+	if (Other.Impl)
 	{
-		ImplPtr = MakeUnique<FImpl>(Other.ImplPtr->PathOrId);
+		Impl = MakePimpl<FImpl>(Other.Impl->PathOrId);
 	}
 
 	return *this;
@@ -269,9 +269,9 @@ FBulkDataChunkId& FBulkDataChunkId::operator=(const FBulkDataChunkId& Other)
 
 FPackageId FBulkDataChunkId::GetPackageId() const
 {
-	if (ImplPtr)
+	if (Impl)
 	{
-		if (const FPackageId* Id = ImplPtr->PathOrId.TryGet<FPackageId>())
+		if (const FPackageId* Id = Impl->PathOrId.TryGet<FPackageId>())
 		{
 			return *Id;
 		}
@@ -282,9 +282,9 @@ FPackageId FBulkDataChunkId::GetPackageId() const
 
 const FPackagePath& FBulkDataChunkId::GetPackagePath() const
 {
-	if (ImplPtr)
+	if (Impl)
 	{
-		if (const FPackagePath* Path = ImplPtr->PathOrId.TryGet<FPackagePath>())
+		if (const FPackagePath* Path = Impl->PathOrId.TryGet<FPackagePath>())
 		{
 			return *Path;
 		}
@@ -296,14 +296,14 @@ const FPackagePath& FBulkDataChunkId::GetPackagePath() const
 
 FIoFilenameHash FBulkDataChunkId::GetIoFilenameHash(EBulkDataFlags BulkDataFlags) const
 {
-	if (ImplPtr)
+	if (Impl)
 	{
-		if (const FPackageId* Id = ImplPtr->PathOrId.TryGet<FPackageId>())
+		if (const FPackageId* Id = Impl->PathOrId.TryGet<FPackageId>())
 		{
 			return MakeIoFilenameHash(CreateBulkDataIoChunkId(UE::BulkData::Private::FBulkMetaData(BulkDataFlags), *Id));
 		}
 
-		if (const FPackagePath* PackagePath = ImplPtr->PathOrId.TryGet<FPackagePath>())
+		if (const FPackagePath* PackagePath = Impl->PathOrId.TryGet<FPackagePath>())
 		{
 			return MakeIoFilenameHash(*PackagePath);
 		}
@@ -314,14 +314,14 @@ FIoFilenameHash FBulkDataChunkId::GetIoFilenameHash(EBulkDataFlags BulkDataFlags
 
 FString FBulkDataChunkId::ToDebugString() const
 {
-	if (ImplPtr)
+	if (Impl)
 	{
-		if (const FPackageId* Id = ImplPtr->PathOrId.TryGet<FPackageId>())
+		if (const FPackageId* Id = Impl->PathOrId.TryGet<FPackageId>())
 		{
 			return FString::Printf(TEXT("0x%llX"), Id->Value());
 		}
 
-		if (const FPackagePath* PackagePath = ImplPtr->PathOrId.TryGet<FPackagePath>())
+		if (const FPackagePath* PackagePath = Impl->PathOrId.TryGet<FPackagePath>())
 		{
 			return PackagePath->GetDebugName();
 		}
@@ -332,12 +332,12 @@ FString FBulkDataChunkId::ToDebugString() const
 
 FBulkDataChunkId FBulkDataChunkId::FromPackagePath(const FPackagePath& PackagePath)
 {
-	return FBulkDataChunkId(MakeUnique<FImpl>(PackagePath));
+	return FBulkDataChunkId(MakePimpl<FImpl>(PackagePath));
 }
 
 FBulkDataChunkId FBulkDataChunkId::FromPackageId(const FPackageId& PackageId)
 {
-	return FBulkDataChunkId(MakeUnique<FImpl>(PackageId));
+	return FBulkDataChunkId(MakePimpl<FImpl>(PackageId));
 }
 
 } // namespace UE::BulkData
