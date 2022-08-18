@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Render/Viewport/IDisplayClusterViewportLightCardManager.h"
+#include "UObject/GCObject.h"
 
 #include "RenderResource.h"
 #include "UnrealClient.h"
@@ -12,6 +13,7 @@ class ADisplayClusterLightCardActor;
 class FDisplayClusterViewportManager;
 class FPreviewScene;
 class FSceneInterface;
+class UWorld;
 
 /** A render targetable texture resource used to render the UV light cards to */
 class FDisplayClusterLightCardMap : public FTexture, public FRenderTarget
@@ -36,13 +38,18 @@ private:
 };
 
 /** Manages the rendering of UV light cards for the viewport manager */
-class FDisplayClusterViewportLightCardManager : public IDisplayClusterViewportLightCardManager
+class FDisplayClusterViewportLightCardManager : public IDisplayClusterViewportLightCardManager, public FGCObject
 {
 public:
 	FDisplayClusterViewportLightCardManager(FDisplayClusterViewportManager& InViewportManager);
 	virtual ~FDisplayClusterViewportLightCardManager();
 
 	void Release();
+
+	//~ Begin FGCObject interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override { return TEXT("FDisplayClusterViewportLightCardManager"); }
+	//~ End FGCObject interface
 
 public:
 	//~ Begin IDisplayClusterViewportLightCardManager interface
@@ -58,6 +65,12 @@ public:
 	void RenderFrame();
 
 private:
+	/** Initializes the preview world used to render the UV light cards*/
+	void InitializePreviewWorld();
+
+	/** Destroys the preview world used to render the UV light cards */
+	void DestroyPreviewWorld();
+
 	/** Initializes the UV light card map texture */
 	void InitializeUVLightCardMap();
 
@@ -68,8 +81,8 @@ private:
 	/** A reference to the owning viewport manager */
 	FDisplayClusterViewportManager& ViewportManager;
 
-	/** The preview scene the UV light card proxies live in for rendering */
-	TSharedPtr<FPreviewScene> PreviewScene = nullptr;
+	/** The preview world the UV light card proxies live in for rendering */
+	UWorld* PreviewWorld = nullptr;
 
 	/** The list of UV light card actors that are referenced by the root actor */
 	TArray<ADisplayClusterLightCardActor*> UVLightCards;

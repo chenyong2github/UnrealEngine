@@ -57,13 +57,18 @@ void FDisplayClusterViewportLightCardManager::Release()
 {
 	// The destructor is usually called from the rendering thread, so Release() must be called first from the game thread.
 	const bool bIsInRenderingThread = IsInRenderingThread();
-	check(!bIsInRenderingThread || (bIsInRenderingThread && PreviewScene.IsValid() == false));
+	check(!bIsInRenderingThread || (bIsInRenderingThread && PreviewWorld == nullptr));
 
 	// Deleting PreviewScene is only called from the game thread
-	PreviewScene.Reset();
+	DestroyPreviewWorld();
 
 	UVLightCards.Empty();
 	ReleaseUVLightCardMap();
+}
+
+void FDisplayClusterViewportLightCardManager::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(PreviewWorld);
 }
 
 FRHITexture* FDisplayClusterViewportLightCardManager::GetUVLightCardMap_RenderThread() const
@@ -94,22 +99,19 @@ void FDisplayClusterViewportLightCardManager::UpdateConfiguration()
 
 void FDisplayClusterViewportLightCardManager::HandleStartScene()
 {
-	PreviewScene = MakeShared<FPreviewScene>(FPreviewScene::ConstructionValues()
-		.SetEditor(false)
-		.SetCreatePhysicsScene(false)
-		.SetCreateDefaultLighting(false));
+	InitializePreviewWorld();
 }
 
 void FDisplayClusterViewportLightCardManager::HandleEndScene()
 {
-	PreviewScene.Reset();
+	DestroyPreviewWorld();
 }
 
 void FDisplayClusterViewportLightCardManager::RenderFrame()
 {
-	if (PreviewScene.IsValid() && ProxyData.IsValid())
+	if (PreviewWorld && ProxyData.IsValid())
 	{
-		if (FSceneInterface* SceneInterface = PreviewScene->GetScene())
+		if (FSceneInterface* SceneInterface = PreviewWorld->Scene)
 		{
 			InitializeUVLightCardMap();
 
@@ -140,6 +142,44 @@ void FDisplayClusterViewportLightCardManager::RenderFrame()
 				SceneInterface->RemovePrimitive(LoadedComponent);
 			}
 		}
+	}
+}
+
+void FDisplayClusterViewportLightCardManager::InitializePreviewWorld()
+{
+	if (!PreviewWorld)
+	{
+		FName UniqueWorldName = MakeUniqueObjectName(GetTransientPackage(), UWorld::StaticClass(), FName(TEXT("DisplayClusterLightCardManager_PreviewWorld")));
+		PreviewWorld = NewObject<UWorld>(GetTransientPackage(), UniqueWorldName);
+		PreviewWorld->WorldType = EWorldType::GamePreview;
+
+		FWorldContext& WorldContext = GEngine->CreateNewWorldContext(PreviewWorld->WorldType);
+		WorldContext.SetCurrentWorld(PreviewWorld);
+
+		PreviewWorld->InitializeNewWorld(UWorld::InitializationValues()
+			.AllowAudioPlayback(false)
+			.CreatePhysicsScene(false)
+			.RequiresHitProxies(false)
+			.CreateNavigation(false)
+			.CreateAISystem(false)
+			.ShouldSimulatePhysics(false)
+			.SetTransactional(false));
+	}
+}
+
+void FDisplayClusterViewportLightCardManager::DestroyPreviewWorld()
+{
+	if (PreviewWorld)
+	{
+		// Hack to avoid issue where the engine considers this world a leaked object; When UEngine loads a new map, it checks to see if there are any UWorlds
+		// still in memory that aren't what it considers "persistent" worlds, worlds with type Inactive or EditorPreview. Eeven if the UWorld object has been marked for
+		// GC and has no references to it, UEngine will still flag it as "leaked" unless it is one of these two types.
+		PreviewWorld->WorldType = EWorldType::Inactive;
+
+		GEngine->DestroyWorldContext(PreviewWorld);
+		PreviewWorld->DestroyWorld(true);
+		PreviewWorld->MarkObjectsPendingKill();
+		PreviewWorld = nullptr;
 	}
 }
 
