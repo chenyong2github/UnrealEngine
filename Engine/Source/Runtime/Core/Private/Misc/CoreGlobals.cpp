@@ -7,6 +7,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/CoreStats.h"
+#include "Misc/TrackedActivity.h"
 #include "Misc/Compression.h"
 #include "Misc/LazySingleton.h"
 #include "Misc/CommandLine.h"
@@ -450,6 +451,25 @@ static struct FBootTimingStart
 	}
 } GBootTimingStart;
 
+FEngineTrackedActivityScope::FEngineTrackedActivityScope(const TCHAR* Fmt, ...)
+{
+	va_list Args;
+	va_start(Args, Fmt);
+	TCHAR Str[4096];
+	FCString::GetVarArgs(Str, UE_ARRAY_COUNT(Str), Fmt, Args);
+	FTrackedActivity::GetEngineActivity().Push(Str);
+	va_end(Args);
+}
+
+FEngineTrackedActivityScope::FEngineTrackedActivityScope(const FString& Text)
+{
+	FTrackedActivity::GetEngineActivity().Push(*Text);
+}
+
+FEngineTrackedActivityScope::~FEngineTrackedActivityScope()
+{
+	FTrackedActivity::GetEngineActivity().Pop();
+}
 
 #define USE_BOOT_PROFILING 0
 
