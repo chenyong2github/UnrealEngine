@@ -64,10 +64,11 @@ bool FWaveformEditorInstantiator::CanSoundWaveBeOpenedInEditor(const USoundWave*
 {
 	if (SoundWaveToEdit == nullptr)
 	{
-		UE_LOG(LogWaveformEditor, Warning, TEXT("Could not open waveform editor for soundwave %s, soundwave is null"), *(SoundWaveToEdit->GetName()))
+		UE_LOG(LogWaveformEditor, Warning, TEXT("Could not open waveform editor from null SoundWave"))
 		return false;
 	}
-	else if (SoundWaveToEdit->GetDuration() == 0.f)
+	
+	if (SoundWaveToEdit->GetDuration() == 0.f)
 	{
 		UE_LOG(LogWaveformEditor, Warning, TEXT("Could not open waveform editor for soundwave %s, duration is 0"), *(SoundWaveToEdit->GetName()))
 		return false;

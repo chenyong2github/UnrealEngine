@@ -84,6 +84,11 @@ bool FWaveformEditor::SetupAudioComponent()
 				AudioComponent = FAudioDevice::CreateComponent(SoundBase);
 			}
 		}
+
+		if (AudioComponent == nullptr)
+		{
+			return false;
+		}
 	}
 
 	AudioComponent->bAutoDestroy = false;
@@ -93,7 +98,7 @@ bool FWaveformEditor::SetupAudioComponent()
 	AudioComponent->bCenterChannelOnly = false;
 	AudioComponent->bIsPreviewSound = true;
 
-	return AudioComponent != nullptr;
+	return true;
 }
 
 bool FWaveformEditor::SetUpTransportController()
