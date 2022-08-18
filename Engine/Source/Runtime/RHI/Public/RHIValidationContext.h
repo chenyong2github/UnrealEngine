@@ -814,6 +814,8 @@ public:
 	*/
 	virtual void RHISetDepthBounds(float MinDepth, float MaxDepth) override final
 	{
+		checkf(MinDepth >= 0.f && MinDepth <= 1.f, TEXT("Depth bounds min of %f is outside allowed range of [0, 1]"), MinDepth);
+		checkf(MaxDepth >= 0.f && MaxDepth <= 1.f, TEXT("Depth bounds max of %f is outside allowed range of [0, 1]"), MaxDepth);
 		RHIContext->RHISetDepthBounds(MinDepth, MaxDepth);
 	}
 

@@ -331,6 +331,7 @@ static void RenderViewFog(
 		FVector ViewSpaceStartFogPoint(0.0f, 0.0f, FogStartDistance * Ratio);
 		FVector4f ClipSpaceMaxDistance = (FVector4f)View.ViewMatrices.GetProjectionMatrix().TransformPosition(ViewSpaceStartFogPoint); // LWC_TODO: precision loss
 		float FogClipSpaceZ = ClipSpaceMaxDistance.Z / ClipSpaceMaxDistance.W;
+		FogClipSpaceZ = FMath::Clamp(FogClipSpaceZ, 0.f, 1.f);
 
 		if (bool(ERHIZBuffer::IsInverted))
 		{
