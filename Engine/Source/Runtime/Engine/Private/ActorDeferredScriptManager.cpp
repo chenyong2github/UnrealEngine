@@ -74,9 +74,9 @@ void FActorDeferredScriptManager::ProcessAsyncTasks(bool bLimitExecutionTime)
 		GIsEditorLoadingPackage = true;
 		while (!PendingConstructionScriptActors.IsEmpty() && bHasTimeLeft)
 		{
-			TWeakObjectPtr<AActor> WeakActor = PendingConstructionScriptActors.First();
-			PendingConstructionScriptActors.PopFirst();
-			if (AActor* Actor = WeakActor.Get())
+			TWeakObjectPtr<AActor> WeakActor = PendingConstructionScriptActors.Last();
+			PendingConstructionScriptActors.PopLast();
+			if (AActor* Actor = WeakActor.Get(); Actor && Actor->GetWorld())
 			{
 				Actor->RerunConstructionScripts();
 			}

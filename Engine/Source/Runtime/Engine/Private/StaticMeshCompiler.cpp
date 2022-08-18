@@ -482,8 +482,7 @@ void FStaticMeshCompilingManager::FinishCompilationsForGame()
 				{
 					for (const UStaticMeshComponent* Component : ObjectCacheScope.GetContext().GetStaticMeshComponents(StaticMesh))
 					{
-						if (Component->IsRegistered() &&
-							PIEWorlds.Contains(Component->GetWorld()) &&
+						if (PIEWorlds.Contains(Component->GetWorld()) &&
 							(PlayInEditorMode == 0 || Component->GetCollisionEnabled() != ECollisionEnabled::NoCollision || Component->IsNavigationRelevant() || Component->bAlwaysCreatePhysicsState || Component->CanCharacterStepUpOn != ECB_No))
 						{
 							if (PlayInEditorMode == 2)
