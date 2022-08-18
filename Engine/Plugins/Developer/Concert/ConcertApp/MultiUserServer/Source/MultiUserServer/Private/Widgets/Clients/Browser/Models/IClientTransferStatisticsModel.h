@@ -43,12 +43,16 @@ namespace UE::MultiUserServer
 		/** @return Contains the transfer statistics over time. Used for graphs. */
 		virtual const TArray<FConcertTransferSamplePoint>& GetTransferStatTimeline(EConcertTransferStatistic StatisticType) const = 0;
 		/** @return Sorted descending by message ID. Every message ID is unique. Used for list views. */
-		virtual const TArray<TSharedPtr<FOutboundTransferStatistics>>& GetTransferStatsGroupedById() const = 0;
+		virtual const TArray<TSharedPtr<FOutboundTransferStatistics>>& GetOutboundTransferStatsGroupedById() const = 0;
+		/** @return Sorted descending by message ID. Every message ID is unique. Used for list views. */
+		virtual const TArray<TSharedPtr<FInboundTransferStatistics>>& GetInboundTransferStatsGroupedById() const = 0;
 
-		/** Called when GetTransferStatisticsGroupedById changes */
+		/** Called when GetTransferStatTimeline changes */
 		virtual FOnTransferTimelineUpdated& OnTransferTimelineUpdated(EConcertTransferStatistic StatisticType) = 0;
-		/** Called when GetTransferStatisticsGroupedById changes */
-		virtual FOnTransferGroupsUpdated& OnTransferGroupsUpdated() = 0;
+		/** Called when GetTransferStatsGroupedById changes */
+		virtual FOnTransferGroupsUpdated& OnOutboundTransferGroupsUpdated() = 0;
+		/** Called when GetTransferStatsGroupedById changes */
+		virtual FOnTransferGroupsUpdated& OnInboundTransferGroupsUpdated() = 0;
 
 		virtual ~IClientTransferStatisticsModel() = default;
 	};

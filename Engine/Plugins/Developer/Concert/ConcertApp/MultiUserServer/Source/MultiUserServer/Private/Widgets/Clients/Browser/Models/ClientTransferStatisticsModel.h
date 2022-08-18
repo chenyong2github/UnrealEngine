@@ -10,14 +10,168 @@
 
 namespace UE::MultiUserServer
 {
-	struct FTransferStatItem : FOutboundTransferStatistics
+	template<typename TStatBase>
+	class TClientTransferStatTracker
 	{
-		FDateTime LocalTime;
+		struct FIncompleteMessageData
+		{
+			uint64 BytesTransferredSoFar;
+			FDateTime LastUpdate;
+		};
+		
+		struct TStatItem : TStatBase
+		{
+			FDateTime LocalTime;
 
-		FTransferStatItem(const FDateTime& LocalTime, const FOutboundTransferStatistics& Data)
-			: FOutboundTransferStatistics(Data)
-			, LocalTime(LocalTime)
+			TStatItem(const FDateTime& LocalTime, TStatBase Data)
+				: TStatBase(Data)
+				, LocalTime(LocalTime)
+			{}
+		};
+
+		using FMessageId = decltype(FOutboundTransferStatistics::MessageId);
+		
+	public:
+
+		using FShouldInclude = TFunction<bool(const TStatBase&)>;
+		using FStatGetter = TFunction<uint64(const TStatBase&)>;
+
+		TClientTransferStatTracker(FShouldInclude ShouldIncludeFunc, FStatGetter StatGetterFunc)
+			: ShouldIncludeFunc(MoveTemp(ShouldIncludeFunc))
+			, StatGetterFunc(MoveTemp(StatGetterFunc))
 		{}
+
+		void OnTransferUpdatedFromThread(TStatBase TransferStatistics)
+		{
+			if (ShouldIncludeFunc(TransferStatistics))
+			{
+				AsyncStatQueue.Enqueue(TStatItem{ FDateTime::Now(), TransferStatistics });
+			}
+		}
+
+		void Tick()
+		{
+			const bool bRemovedOldStats = RemoveOldStatTimelines();
+			const bool bRemovedAnyGroups = RemoveOldGroupedStats();
+			const bool bUpdatedAnyTimeline = !AsyncStatQueue.IsEmpty();
+			
+			const FDateTime Now = FDateTime::Now();
+			FConcertTransferSamplePoint SamplingThisTick{ Now };
+			while (const TOptional<TStatItem> TransferStatistics = AsyncStatQueue.Dequeue())
+			{
+				UpdateStatTimeline(TransferStatistics.GetValue(), SamplingThisTick);
+				UpdateGroupedStats(TransferStatistics.GetValue());
+			}
+
+			if (bRemovedOldStats || bUpdatedAnyTimeline || bRemovedAnyGroups)
+			{
+				TransferStatisticsTimeline.Add(SamplingThisTick);
+				OnTimelineUpdatedDelegates.Broadcast();
+				
+				OnGroupsUpdatedDelegate.Broadcast();
+			}
+		}
+		
+		FOnTransferTimelineUpdated& GetOnTimelineUpdatedDelegates() { return OnTimelineUpdatedDelegates; }
+		FOnTransferGroupsUpdated& GetOnGroupsUpdatedDelegate() { return OnGroupsUpdatedDelegate; }
+		const TArray<FConcertTransferSamplePoint>& GetTransferStatisticsTimeline() const { return TransferStatisticsTimeline; }
+		const TArray<TSharedPtr<TStatBase>>& GetTransferStatisticsGroupedById() const { return TransferStatisticsGroupedById; }
+
+	private:
+		
+		TSpscQueue<TStatItem> AsyncStatQueue;
+		
+		TArray<FConcertTransferSamplePoint> TransferStatisticsTimeline;
+		TMap<FMessageId, FIncompleteMessageData> IncompleteStatsUntilNow;
+		
+		TArray<TSharedPtr<TStatBase>> TransferStatisticsGroupedById;
+		TMap<FMessageId, FDateTime> LastUpdateGroupUpdates;
+		
+		FOnTransferTimelineUpdated OnTimelineUpdatedDelegates;
+		FOnTransferGroupsUpdated OnGroupsUpdatedDelegate;
+
+		FShouldInclude ShouldIncludeFunc;
+		FStatGetter StatGetterFunc;
+		
+		static bool IsTooOld(const FDateTime& StatCreationTime, const FDateTime& Now)
+		{
+			const FTimespan RetainTime = FTimespan::FromSeconds(60.f);
+			return RetainTime < Now - StatCreationTime;
+		}
+		
+		bool RemoveOldStatTimelines()
+		{
+			bool bModifiedTimelines = false;
+			
+			const FDateTime Now = FDateTime::Now();
+			for (auto SampleIt = TransferStatisticsTimeline.CreateIterator(); SampleIt; ++SampleIt)
+			{
+				if (IsTooOld(SampleIt->LocalTime, Now))
+				{
+					SampleIt.RemoveCurrent();
+					bModifiedTimelines = true;
+				}
+			}
+
+			for (auto IncompleteIt = IncompleteStatsUntilNow.CreateIterator(); IncompleteIt; ++IncompleteIt)
+			{
+				if (IsTooOld(IncompleteIt->Value.LastUpdate, Now))
+				{
+					IncompleteIt.RemoveCurrent();
+				}
+			}
+
+			return bModifiedTimelines;
+		}
+		
+		bool RemoveOldGroupedStats()
+		{
+			bool bRemovedAny = false;
+			const FDateTime Now = FDateTime::Now();
+			for (auto It = TransferStatisticsGroupedById.CreateIterator(); It; ++It)
+			{
+				const TSharedPtr<TStatBase>& Stat = *It;
+				if (IsTooOld(LastUpdateGroupUpdates[Stat->MessageId], Now))
+				{
+					LastUpdateGroupUpdates.Remove(Stat->MessageId);
+					It.RemoveCurrent();
+					bRemovedAny = true;
+				}
+			}
+			return bRemovedAny;
+		}
+		
+		void UpdateStatTimeline(const TStatBase& TransferStatistics, FConcertTransferSamplePoint& SamplingThisTick)
+		{
+			uint64 BytesSentSinceLastTime = StatGetterFunc(TransferStatistics);
+			// Same message ID may have been queued multiple times
+			if (FIncompleteMessageData* ItemThisTick = IncompleteStatsUntilNow.Find(TransferStatistics.MessageId))
+			{
+				BytesSentSinceLastTime -= ItemThisTick->BytesTransferredSoFar;
+			}
+
+			IncompleteStatsUntilNow.Add(TransferStatistics.MessageId, { StatGetterFunc(TransferStatistics), FDateTime::Now() });
+			SamplingThisTick.BytesTransferred += BytesSentSinceLastTime;
+		}
+		
+		void UpdateGroupedStats(const TStatBase& TransferStatistics)
+		{
+			const TSharedPtr<TStatBase> NewValue = MakeShared<TStatBase>(TransferStatistics);
+			const auto Pos = Algo::LowerBound(TransferStatisticsGroupedById, NewValue, [](const TSharedPtr<TStatBase>& Value, const TSharedPtr<TStatBase>& Check)
+			{
+				return Value->MessageId < Check->MessageId;
+			});
+			if (TransferStatisticsGroupedById.Num() > 0 && Pos < TransferStatisticsGroupedById.Num() && TransferStatisticsGroupedById[Pos] && TransferStatisticsGroupedById[Pos]->MessageId == NewValue->MessageId)
+			{
+				*TransferStatisticsGroupedById[Pos] = *NewValue;
+			}
+			else
+			{
+				TransferStatisticsGroupedById.Insert(NewValue, Pos);
+			}
+
+			LastUpdateGroupUpdates.Add(NewValue->MessageId, FDateTime::Now());
+		}
 	};
 	
 	class FClientTransferStatisticsModel : public IClientTransferStatisticsModel
@@ -27,49 +181,25 @@ namespace UE::MultiUserServer
 		FClientTransferStatisticsModel(const FMessageAddress& ClientAddress);
 		virtual ~FClientTransferStatisticsModel() override;
 		
-		virtual const TArray<FConcertTransferSamplePoint>& GetTransferStatTimeline(EConcertTransferStatistic StatisticType) const override { return TransferStatisticsTimelines[StatisticType]; }
-		virtual const TArray<TSharedPtr<FOutboundTransferStatistics>>& GetTransferStatsGroupedById() const override { return TransferStatisticsGroupedById; }
-		virtual FOnTransferTimelineUpdated& OnTransferTimelineUpdated(EConcertTransferStatistic StatisticType) override { return OnTimelineUpdatedDelegates[StatisticType]; }
-		virtual FOnTransferGroupsUpdated& OnTransferGroupsUpdated() override { return OnGroupsUpdatedDelegate; }
+		virtual const TArray<FConcertTransferSamplePoint>& GetTransferStatTimeline(EConcertTransferStatistic StatisticType) const override;
+		virtual const TArray<TSharedPtr<FOutboundTransferStatistics>>& GetOutboundTransferStatsGroupedById() const override { return OutboundStatTracker.GetTransferStatisticsGroupedById(); }
+		virtual const TArray<TSharedPtr<FInboundTransferStatistics>>& GetInboundTransferStatsGroupedById() const override { return InboundStatTracker.GetTransferStatisticsGroupedById(); }
+		virtual FOnTransferTimelineUpdated& OnTransferTimelineUpdated(EConcertTransferStatistic StatisticType) override;
+		virtual FOnTransferGroupsUpdated& OnOutboundTransferGroupsUpdated() override { return OutboundStatTracker.GetOnGroupsUpdatedDelegate(); }
+		virtual FOnTransferGroupsUpdated& OnInboundTransferGroupsUpdated() override { return InboundStatTracker.GetOnGroupsUpdatedDelegate(); }
 
 	private:
 
-		using FConcertStatTypeFlags = TBitArray<TInlineAllocator<static_cast<int32>(EConcertTransferStatistic::Count)>>;
-		using FMessageId = decltype(FOutboundTransferStatistics::MessageId);
-		struct FIncompleteMessageData
-		{
-			uint64 BytesTransferredSoFar;
-			FDateTime LastUpdate;
-		};
-
 		const FMessageAddress ClientAddress;
-		TSpscQueue<FTransferStatItem> AsyncStatQueue;
-
-		// Timelines
-		TMap<EConcertTransferStatistic, TArray<FConcertTransferSamplePoint>> TransferStatisticsTimelines;
-		TMap<FMessageId, FIncompleteMessageData> IncompleteStatsUntilNow;
-
-		// Grouped
-		TArray<TSharedPtr<FOutboundTransferStatistics>> TransferStatisticsGroupedById;
-		TMap<FMessageId, FDateTime> LastUpdateGroupUpdates;
-		
-		// Delegate info
-		TMap<EConcertTransferStatistic, FOnTransferTimelineUpdated> OnTimelineUpdatedDelegates;
-		FOnTransferGroupsUpdated OnGroupsUpdatedDelegate;
 		FTSTicker::FDelegateHandle TickHandle;
 		
-		void OnTransferUpdatedFromThread(FOutboundTransferStatistics TransferStatistics);
-		bool AreRelevantStats(const FOutboundTransferStatistics& TransferStatistics) const;
 		bool IsSentToClient(const FOutboundTransferStatistics& Item) const;
-		bool IsReceivedFromClient(const FOutboundTransferStatistics& Item) const;
+		bool IsReceivedFromClient(const FInboundTransferStatistics& Item) const;
 		
 		bool Tick(float DeltaTime);
-		
-		void RemoveOldStatTimelines(FConcertStatTypeFlags& ModifiedTimelines);
-		bool RemoveOldGroupedStats();
-		
-		void UpdateStatTimeline(const FTransferStatItem& TransferStatistics, FConcertTransferSamplePoint& SamplingThisTick);
-		void UpdateGroupedStats(const FTransferStatItem& TransferStatistics);
+
+		TClientTransferStatTracker<FOutboundTransferStatistics> OutboundStatTracker;
+		TClientTransferStatTracker<FInboundTransferStatistics> InboundStatTracker;
 	};
 }
 

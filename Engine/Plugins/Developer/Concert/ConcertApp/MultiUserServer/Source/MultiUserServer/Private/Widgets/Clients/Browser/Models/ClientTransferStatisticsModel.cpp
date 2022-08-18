@@ -41,17 +41,13 @@ namespace UE::MultiUserServer
 
 	FClientTransferStatisticsModel::FClientTransferStatisticsModel(const FMessageAddress& ClientAddress)
 		: ClientAddress(ClientAddress)
+		, OutboundStatTracker([this](const FOutboundTransferStatistics& Stats) { return IsSentToClient(Stats); }, [](const FOutboundTransferStatistics& Stats){ return Stats.BytesSent; })
+		, InboundStatTracker([this](const FInboundTransferStatistics& Stats) { return IsReceivedFromClient(Stats); }, [](const FInboundTransferStatistics& Stats){ return Stats.BytesReceived; })
 	{
-		for (int32 i = 0; i < static_cast<int32>(EConcertTransferStatistic::Count); ++i)
-		{
-			const EConcertTransferStatistic StatType = static_cast<EConcertTransferStatistic>(i);
-			TransferStatisticsTimelines.Add(StatType);
-			OnTimelineUpdatedDelegates.Add(StatType);
-		}
-		
 		if (INetworkMessagingExtension* Statistics = Private::ClientTransferStatisticsModel::GetMessagingStatistics())
 		{
-			Statistics->OnOutboundTransferUpdatedFromThread().AddRaw(this, &FClientTransferStatisticsModel::OnTransferUpdatedFromThread);
+			Statistics->OnOutboundTransferUpdatedFromThread().AddRaw(&OutboundStatTracker, &TClientTransferStatTracker<FOutboundTransferStatistics>::OnTransferUpdatedFromThread);
+			Statistics->OnInboundTransferUpdatedFromThread().AddRaw(&InboundStatTracker, &TClientTransferStatTracker<FInboundTransferStatistics>::OnTransferUpdatedFromThread);
 			TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FClientTransferStatisticsModel::Tick));
 		}
 	}
@@ -60,28 +56,42 @@ namespace UE::MultiUserServer
 	{
 		if (INetworkMessagingExtension* Statistics = Private::ClientTransferStatisticsModel::GetMessagingStatistics())
 		{
-			Statistics->OnOutboundTransferUpdatedFromThread().RemoveAll(this);
+			Statistics->OnOutboundTransferUpdatedFromThread().RemoveAll(&OutboundStatTracker);
+			Statistics->OnInboundTransferUpdatedFromThread().RemoveAll(&InboundStatTracker);
 		}
 		
 		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 	}
 
-	void FClientTransferStatisticsModel::OnTransferUpdatedFromThread(FOutboundTransferStatistics TransferStatistics)
+	const TArray<FConcertTransferSamplePoint>& FClientTransferStatisticsModel::GetTransferStatTimeline(EConcertTransferStatistic StatisticType) const
 	{
-		if (AreRelevantStats(TransferStatistics))
+		switch (StatisticType)
 		{
-			AsyncStatQueue.Enqueue(FTransferStatItem{ FDateTime::Now(), TransferStatistics });
+		case EConcertTransferStatistic::SentToClient: return OutboundStatTracker.GetTransferStatisticsTimeline();
+		case EConcertTransferStatistic::ReceivedFromClient: return InboundStatTracker.GetTransferStatisticsTimeline();;
+		case EConcertTransferStatistic::Count:
+		default:
+			checkNoEntry();
+			return OutboundStatTracker.GetTransferStatisticsTimeline();
 		}
 	}
 
-	bool FClientTransferStatisticsModel::AreRelevantStats(const FOutboundTransferStatistics& TransferStatistics) const
+	FOnTransferTimelineUpdated& FClientTransferStatisticsModel::OnTransferTimelineUpdated(EConcertTransferStatistic StatisticType)
 	{
-		return IsSentToClient(TransferStatistics) || IsReceivedFromClient(TransferStatistics);
+		switch (StatisticType)
+		{
+		case EConcertTransferStatistic::SentToClient: return OutboundStatTracker.GetOnTimelineUpdatedDelegates();
+		case EConcertTransferStatistic::ReceivedFromClient: return InboundStatTracker.GetOnTimelineUpdatedDelegates();;
+		case EConcertTransferStatistic::Count:
+		default:
+			checkNoEntry();
+			return OutboundStatTracker.GetOnTimelineUpdatedDelegates();
+		}
 	}
 
 	bool FClientTransferStatisticsModel::IsSentToClient(const FOutboundTransferStatistics& Item) const
 	{
-		if (INetworkMessagingExtension* Statistics = Private::ClientTransferStatisticsModel::GetMessagingStatistics())
+		if (const INetworkMessagingExtension* Statistics = Private::ClientTransferStatisticsModel::GetMessagingStatistics())
 		{
 			const FGuid ClientNodeId = Statistics->GetNodeIdFromAddress(ClientAddress);
 			return ClientNodeId == Item.DestinationId;
@@ -89,134 +99,20 @@ namespace UE::MultiUserServer
 		return false;
 	}
 
-	bool FClientTransferStatisticsModel::IsReceivedFromClient(const FOutboundTransferStatistics& Item) const
+	bool FClientTransferStatisticsModel::IsReceivedFromClient(const FInboundTransferStatistics& Item) const
 	{
-		// TODO: UDP module is missing a way to find out
+		if (const INetworkMessagingExtension* Statistics = Private::ClientTransferStatisticsModel::GetMessagingStatistics())
+		{
+			const FGuid ClientNodeId = Statistics->GetNodeIdFromAddress(ClientAddress);
+			return ClientNodeId == Item.OriginId;
+		}
 		return false; 
 	}
 	
 	bool FClientTransferStatisticsModel::Tick(float DeltaTime)
 	{
-		constexpr int32 NumStats = static_cast<int32>(EConcertTransferStatistic::Count);
-		FConcertStatTypeFlags ConcertStatFlags(false, NumStats);
-
-		RemoveOldStatTimelines(ConcertStatFlags);
-		const bool bRemovedAnyGroups = RemoveOldGroupedStats();
-		
-		const FDateTime Now = FDateTime::Now();
-		FConcertTransferSamplePoint SamplingThisTick[NumStats] = { FConcertTransferSamplePoint{ Now }, FConcertTransferSamplePoint{ Now } };
-		static_assert(NumStats == 2);
-		while (const TOptional<FTransferStatItem> TransferStatistics = AsyncStatQueue.Dequeue())
-		{
-			constexpr int32 StatAsInt = static_cast<int32>(EConcertTransferStatistic::SentToClient);
-			ConcertStatFlags[StatAsInt] = true;
-			
-			UpdateStatTimeline(TransferStatistics.GetValue(), SamplingThisTick[StatAsInt]);
-			UpdateGroupedStats(TransferStatistics.GetValue());
-		}
-
-		if (bRemovedAnyGroups || ConcertStatFlags.CountSetBits() != 0)
-		{
-			for (int32 i = 0; i < NumStats; ++i)
-			{
-				const bool bHadStatThisUpdate = ConcertStatFlags[i]; 
-				if (bHadStatThisUpdate)
-				{
-					const EConcertTransferStatistic Stat = static_cast<EConcertTransferStatistic>(i);
-					TransferStatisticsTimelines[Stat].Add(SamplingThisTick[i]);
-					OnTimelineUpdatedDelegates[Stat].Broadcast();
-				}
-			}
-			OnGroupsUpdatedDelegate.Broadcast();
-		}
-
+		OutboundStatTracker.Tick();
+		InboundStatTracker.Tick();
 		return true;
-	}
-
-	namespace Private::ClientTransferStatisticsModel
-	{
-		bool IsTooOld(const FDateTime& StatCreationTime, const FDateTime& Now)
-		{
-			const FTimespan RetainTime = FTimespan::FromSeconds(60.f);
-			return RetainTime < Now - StatCreationTime;
-		}
-	}
-	
-	void FClientTransferStatisticsModel::RemoveOldStatTimelines(FConcertStatTypeFlags& ModifiedTimelines)
-	{
-		const FDateTime Now = FDateTime::Now();
-		for (auto TimelineIt = TransferStatisticsTimelines.CreateIterator(); TimelineIt; ++TimelineIt)
-		{
-			TArray<FConcertTransferSamplePoint>& SamplePoints = TimelineIt->Value;
-			bool bModifiedAny = false;
-			for (auto SampleIt = SamplePoints.CreateIterator(); SampleIt; ++SampleIt)
-			{
-				if (Private::ClientTransferStatisticsModel::IsTooOld(SampleIt->LocalTime, Now))
-				{
-					SampleIt.RemoveCurrent();
-					bModifiedAny = true;
-				}
-			}
-
-			const int32 Index = static_cast<int32>(TimelineIt->Key);
-			ModifiedTimelines[Index] = bModifiedAny;
-		}
-
-		for (auto IncompleteIt = IncompleteStatsUntilNow.CreateIterator(); IncompleteIt; ++IncompleteIt)
-		{
-			if (Private::ClientTransferStatisticsModel::IsTooOld(IncompleteIt->Value.LastUpdate, Now))
-			{
-				IncompleteIt.RemoveCurrent();
-			}
-		}
-	}
-
-	bool FClientTransferStatisticsModel::RemoveOldGroupedStats()
-	{
-		bool bRemovedAny = false;
-		const FDateTime Now = FDateTime::Now();
-		for (auto It = TransferStatisticsGroupedById.CreateIterator(); It; ++It)
-		{
-			const TSharedPtr<FOutboundTransferStatistics>& Stat = *It;
-			if (Private::ClientTransferStatisticsModel::IsTooOld(LastUpdateGroupUpdates[Stat->MessageId], Now))
-			{
-				LastUpdateGroupUpdates.Remove(Stat->MessageId);
-				It.RemoveCurrent();
-				bRemovedAny = true;
-			}
-		}
-		return bRemovedAny;
-	}
-
-	void FClientTransferStatisticsModel::UpdateStatTimeline(const FTransferStatItem& TransferStatistics, FConcertTransferSamplePoint& SamplingThisTick)
-	{
-		uint64 BytesSentSinceLastTime = TransferStatistics.BytesSent;
-		// Same message ID may have been queued multiple times
-		if (FIncompleteMessageData* ItemThisTick = IncompleteStatsUntilNow.Find(TransferStatistics.MessageId))
-		{
-			BytesSentSinceLastTime -= ItemThisTick->BytesTransferredSoFar;
-		}
-
-		IncompleteStatsUntilNow.Add(TransferStatistics.MessageId, { TransferStatistics.BytesSent, FDateTime::Now() });
-		SamplingThisTick.BytesTransferred += BytesSentSinceLastTime;
-	}
-
-	void FClientTransferStatisticsModel::UpdateGroupedStats(const FTransferStatItem& TransferStatistics)
-	{
-		const TSharedPtr<FOutboundTransferStatistics> NewValue = MakeShared<FOutboundTransferStatistics>(TransferStatistics);
-		const auto Pos = Algo::LowerBound(TransferStatisticsGroupedById, NewValue, [](const TSharedPtr<FOutboundTransferStatistics>& Value, const TSharedPtr<FOutboundTransferStatistics>& Check)
-		{
-			return Value->MessageId < Check->MessageId;
-		});
-		if (TransferStatisticsGroupedById.Num() > 0 && Pos < TransferStatisticsGroupedById.Num() && TransferStatisticsGroupedById[Pos] && TransferStatisticsGroupedById[Pos]->MessageId == NewValue->MessageId)
-		{
-			*TransferStatisticsGroupedById[Pos] = *NewValue;
-		}
-		else
-		{
-			TransferStatisticsGroupedById.Insert(NewValue, Pos);
-		}
-
-		LastUpdateGroupUpdates.Add(NewValue->MessageId, FDateTime::Now());
 	}
 }

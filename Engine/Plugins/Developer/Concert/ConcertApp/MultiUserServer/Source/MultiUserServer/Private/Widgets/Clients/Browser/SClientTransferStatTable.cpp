@@ -101,12 +101,12 @@ namespace UE::MultiUserServer
 	{
 		StatsModel = InStatsModel;
 
-		StatsModel->OnTransferGroupsUpdated().AddSP(this, &SClientTransferStatTable::OnTransferStatisticsUpdated);
+		StatsModel->OnOutboundTransferGroupsUpdated().AddSP(this, &SClientTransferStatTable::OnTransferStatisticsUpdated);
 
 		ChildSlot
 		[
 			SAssignNew(SegmenterListView, SListView<TSharedPtr<FOutboundTransferStatistics>>)
-			.ListItemsSource(&InStatsModel->GetTransferStatsGroupedById())
+			.ListItemsSource(&InStatsModel->GetOutboundTransferStatsGroupedById())
 			.OnGenerateRow(this, &SClientTransferStatTable::OnGenerateActivityRowWidget)
 			.SelectionMode(ESelectionMode::Multi)
 			.HeaderRow
