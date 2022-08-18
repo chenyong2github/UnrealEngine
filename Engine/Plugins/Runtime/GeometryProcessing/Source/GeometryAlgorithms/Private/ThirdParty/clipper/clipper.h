@@ -21,13 +21,6 @@
 #include <vector>
 
 // @UE BEGIN
-// undefined throw if no exceptions allowed
-#ifndef __cpp_exceptions
-#define throw
-#endif
-// @UE END
-
-// @UE BEGIN
 // include paths
 #include "ThirdParty/clipper/clipper.core.h"
 #include "ThirdParty/clipper/clipper.engine.h"
@@ -145,8 +138,9 @@ namespace Clipper2Lib
   inline PathsD InflatePaths(const PathsD& paths, double delta,
     JoinType jt, EndType et, double miter_limit = 2.0, double precision = 2)
   {
-    if (precision < -8 || precision > 8)
-      throw new Clipper2Exception("Error: Precision exceeds the allowed range.");
+    // @UE BEGIN
+    ensureMsgf(precision >= -8 && precision <= 8, TEXT("Error: Precision %d exceeds the allowed range"), precision);
+    // @UE END
     const double scale = std::pow(10, precision);
     ClipperOffset clip_offset(miter_limit);
     clip_offset.AddPaths(ScalePaths<int64,double>(paths, scale), jt, et);
@@ -549,8 +543,9 @@ namespace Clipper2Lib
 
   inline PathD TrimCollinear(const PathD& path, int precision, bool is_open_path = false)
   {
-    if (precision > 8 || precision < -8) 
-      throw new Clipper2Exception("Error: Precision exceeds the allowed range.");
+    // @UE BEGIN
+    ensureMsgf(precision <= 8 && precision >= -8, TEXT("Error: Precision %d exceeds the allowed range."), precision) ;
+    // @UE END
     const double scale = std::pow(10, precision);
     Path64 p = ScalePath<int64, double>(path, scale);
     p = TrimCollinear(p, is_open_path);

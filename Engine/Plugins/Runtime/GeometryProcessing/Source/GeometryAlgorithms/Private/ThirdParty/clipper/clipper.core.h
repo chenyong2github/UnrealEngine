@@ -24,13 +24,6 @@
 #include <iostream>
 #include <algorithm>
 
-// @UE BEGIN
-// undefined throw if no exceptions allowed
-#ifndef __cpp_exceptions
-#define throw
-#endif
-// @UE END
-
 namespace Clipper2Lib 
 {
 
