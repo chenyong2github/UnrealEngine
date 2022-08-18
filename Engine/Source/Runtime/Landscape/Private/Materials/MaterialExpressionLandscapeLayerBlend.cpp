@@ -150,20 +150,9 @@ bool UMaterialExpressionLandscapeLayerBlend::IsResultMaterialAttributes(int32 Ou
 
 int32 UMaterialExpressionLandscapeLayerBlend::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compile(Compiler, OutputIndex, false);
-}
-
-int32 UMaterialExpressionLandscapeLayerBlend::CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	return Compile(Compiler, OutputIndex, true);
-}
-
-int32 UMaterialExpressionLandscapeLayerBlend::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex, bool bForPreview)
-{
 	// For renormalization
 	bool bNeedsRenormalize = false;
 	int32 WeightSumCode = Compiler->Constant(0);
-
 	// Temporary store for each layer's weight
 	TArray<int32> WeightCodes;
 	WeightCodes.Empty(Layers.Num());
@@ -180,7 +169,7 @@ int32 UMaterialExpressionLandscapeLayerBlend::Compile(class FMaterialCompiler* C
 			// Height input
 			const int32 HeightCode = Layer.HeightInput.Expression ? Layer.HeightInput.Compile(Compiler) : Compiler->Constant(Layer.ConstHeightInput);
 
-			const int32 DefaultWeightCode = bForPreview && Layer.PreviewWeight > 0.0f ? Compiler->Constant(Layer.PreviewWeight) : INDEX_NONE;
+			const int32 DefaultWeightCode = Layer.PreviewWeight > 0.0f ? Compiler->Constant(Layer.PreviewWeight) : INDEX_NONE;
 			const int32 WeightCode = Compiler->StaticTerrainLayerWeight(Layer.LayerName, DefaultWeightCode);
 			if (WeightCode != INDEX_NONE)
 			{
@@ -243,7 +232,7 @@ int32 UMaterialExpressionLandscapeLayerBlend::Compile(class FMaterialCompiler* C
 	{
 		if (Layer.BlendType == LB_AlphaBlend)
 		{
-			const int32 DefaultWeightCode = bForPreview && Layer.PreviewWeight > 0.0f ? Compiler->Constant(Layer.PreviewWeight) : INDEX_NONE;
+			const int32 DefaultWeightCode = Layer.PreviewWeight > 0.0f ? Compiler->Constant(Layer.PreviewWeight) : INDEX_NONE;
 			const int32 WeightCode = Compiler->StaticTerrainLayerWeight(Layer.LayerName, DefaultWeightCode);
 			if (WeightCode != INDEX_NONE)
 			{

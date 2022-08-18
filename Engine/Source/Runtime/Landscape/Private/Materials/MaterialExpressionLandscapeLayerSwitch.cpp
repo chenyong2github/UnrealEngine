@@ -34,7 +34,7 @@ UMaterialExpressionLandscapeLayerSwitch::UMaterialExpressionLandscapeLayerSwitch
 	bCollapsed = false;
 #endif
 
-	PreviewUsed = false;
+	PreviewUsed = true;
 }
 
 #if WITH_EDITOR

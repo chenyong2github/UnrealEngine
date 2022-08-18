@@ -1939,6 +1939,8 @@ public:
 	virtual bool IsPersistent() const = 0;
 	virtual UMaterialInterface* GetMaterialInterface() const { return NULL; }
 
+	virtual bool IsPreview() const { return false; }
+
 #if WITH_EDITOR
 	UE_DEPRECATED(5.1, "Should instead check individual properties")
 	virtual bool HasMaterialAttributesConnected() const { return false; }

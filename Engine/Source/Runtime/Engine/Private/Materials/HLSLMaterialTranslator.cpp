@@ -6963,7 +6963,7 @@ int32 FHLSLMaterialTranslator::StaticTerrainLayerWeight(FName LayerName,int32 De
 		}
 	}
 
-	if(!bFoundParameter)
+	if(!bFoundParameter && Material->IsPreview())
 	{
 		return Default;
 	}

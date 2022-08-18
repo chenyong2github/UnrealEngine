@@ -227,6 +227,8 @@ public:
 	 */
 	virtual bool IsPersistent() const override { return false; }
 	virtual FString GetAssetName() const override { return FString::Printf(TEXT("Preview:%s"), *FMaterialResource::GetAssetName()); }
+
+	virtual bool IsPreview() const override { return true; }
 };
 
 /** Implementation of Preview Material functions*/
