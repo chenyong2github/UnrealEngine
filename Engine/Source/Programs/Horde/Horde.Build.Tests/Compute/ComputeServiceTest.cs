@@ -46,7 +46,7 @@ namespace Horde.Build.Tests.Compute
 		{
 			await CreateTaskWithRequirement("memory >= 10");
 			IPool pool = await CreatePool(new () { {"cpu", "5"} });
-			Assert.AreEqual(0, await ComputeService.GetNumQueuedTasksForPool(_clusterId, pool));
+			Assert.AreEqual(0, await ComputeService.GetNumQueuedTasksForPoolAsync(_clusterId, pool));
 		}
 
 		[TestMethod]
@@ -54,7 +54,7 @@ namespace Horde.Build.Tests.Compute
 		{
 			await CreateTaskWithRequirement("memory >= 10");
 			IPool pool = await CreatePool(new () { {"memory", "20"} });
-			Assert.AreEqual(1, await ComputeService.GetNumQueuedTasksForPool(_clusterId, pool));
+			Assert.AreEqual(1, await ComputeService.GetNumQueuedTasksForPoolAsync(_clusterId, pool));
 		}
 		
 		[TestMethod]
@@ -62,7 +62,7 @@ namespace Horde.Build.Tests.Compute
 		{
 			await CreateTaskWithRequirement("memory >= 10 && cpu < 5");
 			IPool pool = await CreatePool(new () { {"memory", "15"}, {"cpu", "4"} });
-			Assert.AreEqual(1, await ComputeService.GetNumQueuedTasksForPool(_clusterId, pool));
+			Assert.AreEqual(1, await ComputeService.GetNumQueuedTasksForPoolAsync(_clusterId, pool));
 		}
 		
 		[TestMethod]
@@ -75,8 +75,8 @@ namespace Horde.Build.Tests.Compute
 			IPool pool1 = await CreatePool(new () { {"memory", "20"}, {"cpu", "4"} });
 			IPool pool2 = await CreatePool(new () { {"memory", "15"}, {"cpu", "4"} });
 
-			Assert.AreEqual(3, await ComputeService.GetNumQueuedTasksForPool(_clusterId, pool1));
-			Assert.AreEqual(2, await ComputeService.GetNumQueuedTasksForPool(_clusterId, pool2));
+			Assert.AreEqual(3, await ComputeService.GetNumQueuedTasksForPoolAsync(_clusterId, pool1));
+			Assert.AreEqual(2, await ComputeService.GetNumQueuedTasksForPoolAsync(_clusterId, pool2));
 		}
 
 		private async Task CreateTaskWithRequirement(string condition, ChannelId? channelId = null, RefId? refId = null)
