@@ -438,7 +438,10 @@ public:
 		CanReceiveCSM = (1 << 1),
 
 		// Informs the processor to use PassDrawRenderState for all mesh commands
-		ForcePassDrawRenderState = (1 << 2)
+		ForcePassDrawRenderState = (1 << 2),
+
+		// Informs the processor to not cache any mesh commands
+		DoNotCache = (1 << 3)
 	};
 
 	FMobileBasePassMeshProcessor(

@@ -667,6 +667,7 @@ void GenerateMobileBasePassDynamicMeshDrawCommands(
 	MobilePassCSMPassMeshProcessor->SetDrawListContext(&DynamicPassMeshDrawListContext);
 
 	const FMobileCSMVisibilityInfo& MobileCSMVisibilityInfo = View.MobileCSMVisibilityInfo;
+	const bool bSkipCSMShaderCulling = MobileBasePassAlwaysUsesCSM(View.GetShaderPlatform());
 	
 	{
 		const int32 NumCommandsBefore = VisibleCommands.Num();
@@ -680,7 +681,8 @@ void GenerateMobileBasePassDynamicMeshDrawCommands(
 				const uint64 BatchElementMask = ~0ull;
 
 				const int32 PrimitiveIndex = MeshAndRelevance.PrimitiveSceneProxy->GetPrimitiveSceneInfo()->GetIndex();
-				if (MobileCSMVisibilityInfo.bMobileDynamicCSMInUse
+				if (!bSkipCSMShaderCulling
+					&& MobileCSMVisibilityInfo.bMobileDynamicCSMInUse
 					&& (MobileCSMVisibilityInfo.bAlwaysUseCSM || MobileCSMVisibilityInfo.MobilePrimitiveCSMReceiverVisibilityMap[PrimitiveIndex]))
 				{
 					MobilePassCSMPassMeshProcessor->AddMeshBatch(*MeshAndRelevance.Mesh, BatchElementMask, MeshAndRelevance.PrimitiveSceneProxy);
@@ -706,7 +708,8 @@ void GenerateMobileBasePassDynamicMeshDrawCommands(
 			const FStaticMeshBatch* StaticMeshBatch = DynamicMeshCommandBuildRequests[MeshIndex];
 
 			const int32 PrimitiveIndex = StaticMeshBatch->PrimitiveSceneInfo->Proxy->GetPrimitiveSceneInfo()->GetIndex();
-			if (MobileCSMVisibilityInfo.bMobileDynamicCSMInUse
+			if (!bSkipCSMShaderCulling
+				&& MobileCSMVisibilityInfo.bMobileDynamicCSMInUse
 				&& (MobileCSMVisibilityInfo.bAlwaysUseCSM || MobileCSMVisibilityInfo.MobilePrimitiveCSMReceiverVisibilityMap[PrimitiveIndex]))
 			{
 				const uint64 DefaultBatchElementMask = ~0ul;
