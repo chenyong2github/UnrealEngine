@@ -607,7 +607,7 @@ public:
 		const int64 BlockSize = CacheSlotID::GetSize();
 		const int32 SlotIndex = (int32)FMath::DivideAndRoundDown(Offset, BlockSize);
 		const int32 OffsetInSlot = (int32)(Offset - SlotIndex * BlockSize);
-		checkSlow(SlotIndex >= 0 && SlotIndex < NumCacheSlots);
+		check(SlotIndex >= 0 && SlotIndex < NumCacheSlots);
 		const void* SlotMemory = Cache.GetSlotMemory(CacheSlots[SlotIndex]);
 
 		OutSize = FMath::Min(InSize, BlockSize - OffsetInSlot);
