@@ -343,3 +343,21 @@ EConnectionStatus TryFlushBuffer(FSocket* Socket, FSendBuffer& Buffer, uint64 Ma
 }
 
 }
+
+FCbWriter& operator<<(FCbWriter& Writer, const FSoftObjectPathSerializationWrapper& Path)
+{
+	Writer << Path.Inner.ToString();
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FSoftObjectPathSerializationWrapper& Path)
+{
+	FString PathString;
+	if (!LoadFromCompactBinary(Field, PathString))
+	{
+		Path.Inner.Reset();
+		return false;
+	}
+	Path.Inner.SetPath(PathString);
+	return true;
+}

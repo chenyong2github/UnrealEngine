@@ -4,10 +4,12 @@
 
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/Map.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/Guid.h"
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/CompactBinaryWriter.h"
+#include "UObject/SoftObjectPath.h"
 
 class FSocket;
 
@@ -201,3 +203,42 @@ inline FCbWriter& operator<<(FCbWriter& Writer, const TMap<KeyType, ValueType, S
 	Writer.EndArray();
 	return Writer;
 }
+
+template <typename Key, typename Value>
+FCbWriter& operator<<(FCbWriter& Writer, const TPair<Key, Value>& Pair)
+{
+	Writer.BeginObject();
+	Writer << "K" << Pair.Key;
+	Writer << "V" << Pair.Value;
+	Writer.EndObject();
+	return Writer;
+}
+
+template <typename Key, typename Value>
+bool LoadFromCompactBinary(FCbFieldView Field, TPair<Key, Value>& Pair)
+{
+	bool bOk = LoadFromCompactBinary(Field["K"], Pair.Key);
+	bOk = LoadFromCompactBinary(Field["V"], Pair.Value) & bOk;
+	return bOk;
+}
+
+// FSoftObjectPath has an implicit constructor from FString for backwards compatibility; if we
+// try to create an operator<< for it, it will cause operator<< to be ambiguous.
+// This prevents us from using it directly in containers. To hack around this,
+// containers of FSoftObjectPath need to be reinterpret_casted to containers of FSoftObjectPathSerializationWrapper
+struct FSoftObjectPathSerializationWrapper
+{
+	FSoftObjectPath Inner;
+	bool operator==(const FSoftObjectPathSerializationWrapper& Other) const
+	{
+		return Inner == Other.Inner;
+	}
+	friend uint32 GetTypeHash(const FSoftObjectPathSerializationWrapper& Wrapper)
+	{
+		return GetTypeHash(Wrapper.Inner);
+	}
+};
+
+FCbWriter& operator<<(FCbWriter& Writer, const FSoftObjectPathSerializationWrapper& Path);
+bool LoadFromCompactBinary(FCbFieldView Field, FSoftObjectPathSerializationWrapper& Path);
+

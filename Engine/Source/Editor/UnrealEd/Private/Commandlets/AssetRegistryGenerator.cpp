@@ -40,7 +40,9 @@
 #include "Settings/ProjectPackagingSettings.h"
 #include "Stats/StatsMisc.h"
 #include "String/ParseTokens.h"
+#include "Templates/AreTypesEqual.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/SoftObjectPath.h"
 
 #if WITH_EDITOR
 #include "HAL/ThreadHeartBeat.h"
@@ -1526,39 +1528,6 @@ void FAssetRegistryGenerator::AddAssetToFileOrderRecursive(const FName& InPackag
 	}
 }
 
-void FAssetRegistryGenerator::UpdateAssetDatas(bool bForceNoFilter)
-{
-	// Keep the existing AssetData->PackageFlags. These flags were set by UpdateAssetDataPackageFlags after saving
-	// each Asset and the existing values are authoritative for the cooked AssetRegistry.
-	// TODO: Remove this end-of-cook updating of the AssetDatas. Update them as we go along,
-	// in UpdateAssetDataPackageFlags, and set the PackageFlags afterwards. Then we won't have to
-	// have the cost of the many map lookups we do here.
-	TSet<FName> SkipNone;
-	TArray<TPair<FName, uint32>> PackageNameAndFlags;
-	PackageNameAndFlags.Reserve(State.GetNumAssets());
-	State.EnumerateAllAssets(SkipNone, [&PackageNameAndFlags](const FAssetData& AssetData)
-		{
-			if (!AssetData.PackageName.IsNone())
-			{
-				PackageNameAndFlags.Emplace(AssetData.PackageName, AssetData.PackageFlags);
-			}
-			return true;
-		});
-
-	FAssetRegistrySerializationOptions SaveOptions;
-	AssetRegistry.InitializeSerializationOptions(SaveOptions, TargetPlatform->IniPlatformName());
-	if (bForceNoFilter)
-	{
-		SaveOptions.DisableFilters();
-	}
-	AssetRegistry.InitializeTemporaryAssetRegistryState(State, SaveOptions, true);
-
-	for (TPair<FName, uint32>& Pair : PackageNameAndFlags)
-	{
-		State.UpdateAssetDataPackageFlags(Pair.Key, Pair.Value);
-	}
-}
-
 bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool bSerializeDevelopmentAssetRegistry, bool bForceNoFilter)
 {
 	UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Saving asset registry v%d."), FAssetRegistryVersion::Type::LatestVersion);
@@ -1579,6 +1548,9 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 		DevelopmentSaveOptions.DisableFilters();
 		SaveOptions.DisableFilters();
 	}
+
+	// Filter tags from both development and saved registries, keeping only the tags applicable to the platform
+	State.FilterTags(SaveOptions);
 
 	// Then possibly apply previous AssetData and AssetPackageData for packages kept from a previous cook
 	UpdateKeptPackages();
@@ -2544,7 +2516,7 @@ const FAssetData* FAssetRegistryGenerator::CreateOrFindAssetData(UObject& Object
 	return AssetData;
 }
 
-void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(const UPackage& Package,
+void FAssetRegistryGenerator::UpdateAssetRegistryData(const UPackage& Package,
 	FSavePackageResultStruct& SavePackageResult,
 	FCookTagList&& InArchiveCookTagList
 	)
@@ -2555,11 +2527,22 @@ void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(const UPackage& Pac
 	uint32 NewPackageFlags = 0;
 	FAssetPackageData* AssetPackageData = GetAssetPackageData(PackageName);
 	bool bSaveSucceeded = SavePackageResult.IsSuccessful();
+
+	// Copy latest data for all Assets in the package into the cooked registry. This should be done even
+	// if not successful so that editor-only packages are recorded as well
+	TArray<FAssetData> AssetDatas;
+	constexpr bool bIncludeOnlyDiskAssets = true; // Enumerating memory assets is unnecessary; we waited on AR to update
+	AssetRegistry.GetAssetsByPackageName(PackageName, AssetDatas, bIncludeOnlyDiskAssets,
+		false /* SkipARFilteredAssets */);
+	for (FAssetData& AssetData : AssetDatas)
+	{
+		State.UpdateAssetData(MoveTemp(AssetData), true /* bCreateIfNotExists */);
+	}
+	// Create a record for assets that were created during PostLoad or cooking and are not in the global assetregistry
+	CreateOrFindAssetDatas(Package);
+
 	if (bSaveSucceeded)
 	{
-		// Ensure all assets in the package are recorded in the registry
-		CreateOrFindAssetDatas(Package);
-
 		// Migrate cook tags over
 		CookTagsToAdd.Append(MoveTemp(InArchiveCookTagList.ObjectToTags));
 		InArchiveCookTagList.Reset();
@@ -2585,7 +2568,7 @@ void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(const UPackage& Pac
 		TEXT("Trying to update asset package flags in package '%s' that does not exist"), *PackageName.ToString());
 }
 
-void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(UE::Cook::FPackageData& PackageData, UE::Cook::FAssetRegistryPackageMessage&& Message)
+void FAssetRegistryGenerator::UpdateAssetRegistryData(UE::Cook::FPackageData& PackageData, UE::Cook::FAssetRegistryPackageMessage&& Message)
 {
 	const FName PackageName = PackageData.GetPackageName();
 	PreviousPackagesToUpdate.Remove(PackageName);
@@ -2593,26 +2576,12 @@ void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(UE::Cook::FPackageD
 	for (FAssetData& AssetData : Message.AssetDatas)
 	{
 		AssetData.PackageFlags = Message.PackageFlags;
-
-		// MPCOOKTODO: We are setting the AssetData onto this->State rather than into the global assetregistry,
-		// because the AR does not currently support updating an AssetData and it is better for performance to
-		// edit this->State. This will not work as is, because FAssetRegistryGenerator::UpdateAssetDatas later
-		// clobbers this->State with AssetDatas from the global AssetRegistry. Changing that for SingleProcess
-		// director cooks is something we want to do anyways because its confusing as is. Make that change so
-		// we don't clobber this function's results, or change this function to write to the global asset registry.
-		const FAssetData* ExistingAssetData = State.GetAssetByObjectPath(AssetData.ObjectPath);
-		if (!ExistingAssetData)
-		{
-			FAssetData* const NewAssetData = new FAssetData(MoveTemp(AssetData));
-			State.AddAssetData(NewAssetData);
-		}
-		else
-		{
-			State.UpdateAssetData(const_cast<FAssetData*>(ExistingAssetData), MoveTemp(AssetData));
-		}
+		State.UpdateAssetData(MoveTemp(AssetData), true /* bCreateIfNotExists */);
 	}
 	FAssetPackageData* AssetPackageData = GetAssetPackageData(PackageName);
 	AssetPackageData->DiskSize = Message.DiskSize;
+
+	CookTagsToAdd.Append(MoveTemp(Message.CookTags));
 }
 
 namespace UE::Cook
@@ -2624,7 +2593,7 @@ FAssetRegistryReporterRemote::FAssetRegistryReporterRemote(FCookWorkerClient& In
 {
 }
 
-void FAssetRegistryReporterRemote::UpdateAssetRegistryPackageData(FPackageData& PackageData, const UPackage& Package,
+void FAssetRegistryReporterRemote::UpdateAssetRegistryData(FPackageData& PackageData, const UPackage& Package,
 	FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList)
 {
 	uint32 NewPackageFlags = 0;
@@ -2646,18 +2615,34 @@ void FAssetRegistryReporterRemote::UpdateAssetRegistryPackageData(FPackageData& 
 	FAssetRegistryPackageMessage Message;
 	Message.PackageFlags = NewPackageFlags;
 	Message.DiskSize = DiskSize;
-	IAssetRegistry::Get()->GetAssetsByPackageName(PackageData.GetPackageName(), Message.AssetDatas);
-	for (FAssetData& AssetData : Message.AssetDatas)
-	{
-		TArray<FCookTagList::FTagNameValuePair>* ExtraCookTags = InArchiveCookTagList.ObjectToTags.Find(FSoftObjectPath(AssetData.ObjectPath));
-		if (ExtraCookTags)
-		{
-			FAssetDataTagMap NewTags = AssetData.TagsAndValues.CopyMap();
-			AppendCookTagsToTagMap(MoveTemp(*ExtraCookTags), NewTags);
-			AssetData.TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(NewTags));
-		}
-	}
 
+	// Add to the message all the AssetDatas in the package from the global AssetRegistry
+	constexpr bool bIncludeOnlyDiskAssets = true; // Enumerating memory assets is unnecessary; we waited on AR to update
+	IAssetRegistry::Get()->GetAssetsByPackageName(PackageData.GetPackageName(), Message.AssetDatas,
+		bIncludeOnlyDiskAssets, false /* SkipARFilteredAssets */);
+
+	// Also add AssetDatas for any assets that were created during PostLoad or cooking and are not in the global assetregistry
+	TSet<FName> ExistingAssets;
+	for (const FAssetData& AssetData : Message.AssetDatas)
+	{
+		ExistingAssets.Add(AssetData.AssetName);
+	}
+	ForEachObjectWithOuter(&Package, [&Message, &ExistingAssets](UObject* const Object)
+		{
+			if (Object->IsAsset())
+			{
+				FName AssetName = Object->GetFName();
+				if (!ExistingAssets.Contains(AssetName))
+				{
+					Message.AssetDatas.Emplace(Object, true /* bAllowBlueprintClass */);
+				}
+			}
+		}, /*bIncludeNestedObjects*/ false);
+
+	// Add the cooktags that were recorded during serialization
+	Message.CookTags = MoveTemp(InArchiveCookTagList.ObjectToTags);
+
+	// Send the message to the director
 	PackageData.GetOrAddPackageRemoteResult().AddMessage(PackageData, TargetPlatform, Message);
 }
 
@@ -2671,6 +2656,11 @@ void FAssetRegistryPackageMessage::Write(FCbWriter& Writer, const FPackageData& 
 
 	}
 	Writer.EndArray();
+	// We cast TMap<FSoftObjectPath,                     ValueType>
+	//      to TMap<FSoftObjectPathSerializationWrapper, ValueType>
+	// to workaround FSoftObjectPath's implicit constructor. See comment in CompactBinaryTCP.h
+	static_assert(ARE_TYPES_EQUAL(decltype(CookTags)::KeyType, FSoftObjectPath), "Expected KeyType of CookTags to be FSoftObjectPath");
+	Writer << "T" << reinterpret_cast<const TMap<FSoftObjectPathSerializationWrapper, decltype(CookTags)::ValueType>&>(CookTags);
 	Writer << "F" << PackageFlags;
 	Writer << "S" << DiskSize;
 }
@@ -2693,6 +2683,11 @@ bool FAssetRegistryPackageMessage::TryRead(FCbObject&& Object, FPackageData& Pac
 		}
 	}
 
+	static_assert(ARE_TYPES_EQUAL(decltype(CookTags)::KeyType, FSoftObjectPath), "Expected KeyType of CookTags to be FSoftObjectPath");
+	if (!LoadFromCompactBinary(Object["T"], reinterpret_cast<TMap<FSoftObjectPathSerializationWrapper, decltype(CookTags)::ValueType>&>(CookTags)))
+	{
+		return false;
+	}
 	if (!LoadFromCompactBinary(Object["F"], PackageFlags))
 	{
 		return false;

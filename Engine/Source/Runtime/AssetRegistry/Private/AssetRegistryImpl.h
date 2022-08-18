@@ -162,7 +162,7 @@ public:
 
 	/** Enumerate assets in the State, filtering by filter and package not in PackagesToSkip */
 	void EnumerateDiskAssets(const FARCompiledFilter& InFilter, TSet<FName>& PackagesToSkip,
-		TFunctionRef<bool(const FAssetData&)> Callback) const;
+		TFunctionRef<bool(const FAssetData&)> Callback, bool bSkipARFilteredAssets) const;
 	/** Enumerate assets in the State, filtering by package not in PackagesToSkip */
 	void EnumerateAllDiskAssets(TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const;
 
@@ -566,13 +566,14 @@ void EnumerateAllMemoryAssets(TSet<FName>& OutPackageNamesWithAssets, bool& bOut
  * Fills in OutPackageNamesWithAssets with names of all packages tested.
  */
 void EnumerateMemoryAssetsHelper(const FARCompiledFilter& InFilter, TSet<FName>& OutPackageNamesWithAssets,
-	bool& bOutStopIteration, TFunctionRef<bool(const UObject* Object, FAssetData&& PartialAssetData)> Callback);
+	bool& bOutStopIteration, TFunctionRef<bool(const UObject* Object, FAssetData&& PartialAssetData)> Callback,
+	bool bSkipARFilteredAssets);
 /**
  * Call the given callback on all UObjects in memory that pass the given filter.
  * Fills in OutPackageNamesWithAssets with names of all packages tested.
 */
 void EnumerateMemoryAssets(const FARCompiledFilter& InFilter, TSet<FName>& OutPackageNamesWithAssets,
-	bool& bOutStopIteration, TFunctionRef<bool(FAssetData&&)> Callback);
+	bool& bOutStopIteration, TFunctionRef<bool(FAssetData&&)> Callback, bool bSkipARFilteredAssets);
 
 }
 

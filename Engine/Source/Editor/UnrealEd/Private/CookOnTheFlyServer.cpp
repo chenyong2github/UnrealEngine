@@ -976,7 +976,7 @@ void UCookOnTheFlyServer::GetDependentPackages( const TSet<FName>& RootPackages,
 bool UCookOnTheFlyServer::ContainsMap(const FName& PackageName) const
 {
 	TArray<FAssetData> Assets;
-	ensure(AssetRegistry->GetAssetsByPackageName(PackageName, Assets, true));
+	ensure(AssetRegistry->GetAssetsByPackageName(PackageName, Assets, true /* IncludeOnlyDiskAssets */));
 
 	for (const FAssetData& Asset : Assets)
 	{
@@ -993,7 +993,7 @@ bool UCookOnTheFlyServer::ContainsRedirector(const FName& PackageName, TMap<FNam
 {
 	bool bFoundRedirector = false;
 	TArray<FAssetData> Assets;
-	ensure(AssetRegistry->GetAssetsByPackageName(PackageName, Assets, true));
+	ensure(AssetRegistry->GetAssetsByPackageName(PackageName, Assets, true /* IncludeOnlyDiskAssets */));
 
 	for (const FAssetData& Asset : Assets)
 	{
@@ -5527,8 +5527,10 @@ void FSaveCookedPackageContext::FinishPlatform()
 	// Update asset registry
 	if (COTFS.IsDirectorCookByTheBook())
 	{
+		// Flush the AssetRegisty so any AssetData changes from the save are present
+		COTFS.AssetRegistry->WaitForCompletion();
 		IAssetRegistryReporter& Reporter = *(COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryReporter);
-		Reporter.UpdateAssetRegistryPackageData(PackageData, *Package, SavePackageResult, MoveTemp(*ArchiveCookContext.GetCookTagList()));
+		Reporter.UpdateAssetRegistryData(PackageData, *Package, SavePackageResult, MoveTemp(*ArchiveCookContext.GetCookTagList()));
 	}
 
 	// If not retrying, mark the package as cooked, either successfully or with failure
@@ -8191,9 +8193,6 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(SavingAssetRegistry);
 			SCOPED_BOOT_TIMING("SavingAssetRegistry");
 
-			// Flush the asset registry to get any remaining updates from late loads
-			AssetRegistry->Tick(-1.0f);
-
 			RegisterLocalizationChunkDataGenerator();
 			RegisterShaderChunkDataGenerator();
 
@@ -8276,9 +8275,6 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 					}
 				}
 				
-				// Sync the Generator's AssetRegistryState with any changes to AssetDatas made during the cook
-				Generator.UpdateAssetDatas(bForceNoFilterAssetsFromAssetRegistry);
-
 				// Add the package hashes to the relevant AssetPackageDatas.
 				// PackageHashes are gated by requiring UPackage::WaitForAsyncFileWrites(), which is called above.
 				FCookSavePackageContext& SaveContext = FindOrCreateSaveContext(TargetPlatform);
@@ -10563,11 +10559,13 @@ uint32 UCookOnTheFlyServer::CookFullLoadAndSave()
 							}
 						}
 
-						// Update asset registry
+						// Flush the global AssetRegisty so any AssetData changes from the save are present
+						AssetRegistry->WaitForCompletion();
+						// Update cooked asset registry
 						FAssetPackageData* AssetPackageData = nullptr;
 						{
 							FScopeLock AssetGeneratorScopeLock(&AssetGeneratorLock);
-							Generator.UpdateAssetRegistryPackageData(*Package, SaveResult, MoveTemp(*CookContext.GetCookTagList()));
+							Generator.UpdateAssetRegistryData(*Package, SaveResult, MoveTemp(*CookContext.GetCookTagList()));
 							AssetPackageData = Generator.GetAssetPackageData(Package->GetFName());
 						}
 						check(AssetPackageData);

@@ -477,7 +477,7 @@ void FCookWorkerServer::HandleReceivedPackagePlatformMessages(FPackageData& Pack
 			{
 				FAssetRegistryGenerator* RegistryGenerator = COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator.Get();
 				check(RegistryGenerator); // The TargetPlatform came from OrderedSessionPlatforms, and the RegistryGenerator should exist for any of those platforms
-				RegistryGenerator->UpdateAssetRegistryPackageData(PackageData, MoveTemp(ARMessage));
+				RegistryGenerator->UpdateAssetRegistryData(PackageData, MoveTemp(ARMessage));
 			}
 		}
 	}

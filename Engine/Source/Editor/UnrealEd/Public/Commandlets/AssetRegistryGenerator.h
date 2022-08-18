@@ -6,6 +6,7 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryState.h"
+#include "Containers/Map.h"
 #include "Cooker/PackageResultsMessage.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "Misc/Paths.h"
@@ -20,6 +21,7 @@ class IChunkDataGenerator;
 class UChunkDependencyInfo;
 struct FChunkDependencyTreeNode;
 struct FCookTagList;
+struct FSoftObjectPath;
 namespace UE::Cook { class FAssetRegistryPackageMessage; }
 namespace UE::Cook { class FCookWorkerClient; }
 namespace UE::Cook { struct FPackageData; }
@@ -116,9 +118,6 @@ public:
 	 */
 	void RegisterChunkDataGenerator(TSharedRef<IChunkDataGenerator> InChunkDataGenerator);
 
-	/** Called before PreSave; copy AssetData changes from the global AssetRegistry that were made during the cook. */
-	void UpdateAssetDatas(bool bForceNoFilter);
-
 	/**
 	* PreSave
 	* Notify generator that we are about to save the registry and chunk manifests
@@ -203,8 +202,8 @@ public:
 	 * @param Package The package to update info on
 	 * @param SavePackageResult The metadata to associate with the given package name
 	 */
-	void UpdateAssetRegistryPackageData(const UPackage& Package, FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList);
-	void UpdateAssetRegistryPackageData(UE::Cook::FPackageData& PackageData, UE::Cook::FAssetRegistryPackageMessage&& Message);
+	void UpdateAssetRegistryData(const UPackage& Package, FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList);
+	void UpdateAssetRegistryData(UE::Cook::FPackageData& PackageData, UE::Cook::FAssetRegistryPackageMessage&& Message);
 
 	/**
 	 * Check config to see whether chunk assignments use the AssetManager. If so, run the once-per-process construction
@@ -434,7 +433,7 @@ class IAssetRegistryReporter
 public:
 	virtual ~IAssetRegistryReporter() {}
 
-	virtual void UpdateAssetRegistryPackageData(FPackageData& PackageData, const UPackage& Package,
+	virtual void UpdateAssetRegistryData(FPackageData& PackageData, const UPackage& Package,
 		FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList) = 0;
 
 };
@@ -447,10 +446,10 @@ public:
 	{
 	}
 
-	virtual void UpdateAssetRegistryPackageData(FPackageData& PackageData, const UPackage& Package,
+	virtual void UpdateAssetRegistryData(FPackageData& PackageData, const UPackage& Package,
 		FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList) override
 	{
-		Generator.UpdateAssetRegistryPackageData(Package, SavePackageResult, MoveTemp(InArchiveCookTagList));
+		Generator.UpdateAssetRegistryData(Package, SavePackageResult, MoveTemp(InArchiveCookTagList));
 	}
 
 private:
@@ -462,7 +461,7 @@ class FAssetRegistryReporterRemote : public IAssetRegistryReporter
 public:
 	FAssetRegistryReporterRemote(FCookWorkerClient& InClient, const ITargetPlatform* InTargetPlatform);
 
-	virtual void UpdateAssetRegistryPackageData(FPackageData& PackageData, const UPackage& Package,
+	virtual void UpdateAssetRegistryData(FPackageData& PackageData, const UPackage& Package,
 		FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList) override;
 
 private:
@@ -478,6 +477,7 @@ public:
 	virtual FGuid GetMessageType() const override { return MessageType; }
 
 	TArray<FAssetData> AssetDatas;
+	TMap<FSoftObjectPath, TArray<TPair<FName, FString>>> CookTags;
 	uint32 PackageFlags = 0;
 	int64 DiskSize = -1;
 

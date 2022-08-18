@@ -154,9 +154,9 @@ public:
 	 * @param Filter filter to apply to the assets in the AssetRegistry
 	 * @param PackageNamesToSkip explicit list of packages to skip, because they were already added
 	 * @param OutAssetData the list of assets in this path
-	 * @param bARFiltering Whether to apply filtering from UE::AssetRegistry::FFiltering (false by default)
+	 * @param bSkipARFilteredAssets If true, skip assets that are skipped by UE::AssetRegistry::FFiltering (false by default)
 	 */
-	bool GetAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData, bool bARFiltering = false) const;
+	bool GetAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData, bool bSkipARFilteredAssets = false) const;
 
 	/**
 	 * Enumerate asset data for all assets that match the filter.
@@ -358,7 +358,8 @@ public:
 	void AddTagsToAssetData(const FSoftObjectPath& InObjectPath, FAssetDataTagMap&& InTagsAndValues);
 
 	/** Finds an existing asset data based on object path and updates it with the new value and updates lookup maps */
-	void UpdateAssetData(const FAssetData& NewAssetData);
+	void UpdateAssetData(const FAssetData& NewAssetData, bool bCreateIfNotExists=false);
+	void UpdateAssetData(FAssetData&& NewAssetData, bool bCreateIfNotExists = false);
 
 	/** Updates an existing asset data with the new value and updates lookup maps */
 	void UpdateAssetData(FAssetData* AssetData, const FAssetData& NewAssetData, bool* bOutModified = nullptr);
@@ -406,6 +407,9 @@ public:
 	 * @param Options Serialization options to read filter info from
 	 */
 	void InitializeFromExistingAndPrune(const FAssetRegistryState& ExistingState, const TSet<FName>& RequiredPackages, const TSet<FName>& RemovePackages, const TSet<int32> ChunksToKeep, const FAssetRegistrySerializationOptions& Options);
+
+	/** Edit every AssetData's Tags to remove Tags that are filtered out by the filtering rules in Options */
+	void FilterTags(const FAssetRegistrySerializationOptions& Options);
 
 
 	/** Serialize the registry to/from a file, skipping editor only data */
@@ -469,6 +473,8 @@ private:
 
 	void LoadDependencies(FArchive& Ar);
 	void LoadDependencies_BeforeFlags(FArchive& Ar, bool bSerializeDependencies, FAssetRegistryVersion::Type Version);
+
+	void SetTagsOnExistingAsset(FAssetData* AssetData, FAssetDataTagMap&& NewTags);
 
 	/** The map of ObjectPath names to asset data for assets saved to disk */
 	TMap<FName, FAssetData*> CachedAssetsByObjectPath;
