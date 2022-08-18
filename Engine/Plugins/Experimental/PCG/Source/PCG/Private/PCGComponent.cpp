@@ -54,12 +54,6 @@ bool UPCGComponent::IsPartitioned() const
 	return bIsPartitioned && CanPartition();
 }
 
-bool UPCGComponent::IsLocalComponent() const
-{
-	// TODO: Have a more robust solution for this.
-	return GetOwner() && GetOwner()->IsA<APCGPartitionActor>();
-}
-
 void UPCGComponent::SetGraph_Implementation(UPCGGraph* InGraph)
 {
 	SetGraphLocal(InGraph);
@@ -96,6 +90,7 @@ void UPCGComponent::AddToManagedResources(UPCGManagedResource* InResource)
 	if (InResource)
 	{
 		FScopeLock ResourcesLock(&GeneratedResourcesLock);
+		check(!GeneratedResourcesInaccessible);
 		GeneratedResources.Add(InResource);
 	}
 }
@@ -103,6 +98,7 @@ void UPCGComponent::AddToManagedResources(UPCGManagedResource* InResource)
 void UPCGComponent::ForEachManagedResource(TFunctionRef<void(UPCGManagedResource*)> Func)
 {
 	FScopeLock ResourcesLock(&GeneratedResourcesLock);
+	check(!GeneratedResourcesInaccessible);
 	for (TObjectPtr<UPCGManagedResource> ManagedResource : GeneratedResources)
 	{
 		Func(ManagedResource);
@@ -204,50 +200,24 @@ void UPCGComponent::Generate_Implementation(bool bForce)
 
 void UPCGComponent::GenerateLocal(bool bForce)
 {
-	GenerateLocal(bForce, EPCGComponentGenerationTrigger::GenerateOnDemand);
+	GenerateInternal(bForce, EPCGComponentGenerationTrigger::GenerateOnDemand, {});
 }
 
-void UPCGComponent::GenerateLocal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger)
+FPCGTaskId UPCGComponent::GenerateInternal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger, const TArray<FPCGTaskId>& Dependencies)
 {
-	if (IsGenerating() || !GetSubsystem())
+	if (IsGenerating() || !GetSubsystem() || !ShouldGenerate(bForce, RequestedGenerationTrigger))
 	{
-		return;
+		return InvalidPCGTaskId;
 	}
 
-	if (IsCleaningUp())
-	{
-		// If we are cleaning up, retry this function when it's done
-		TWeakObjectPtr<UPCGComponent> ThisComponentPtr(this);
+	CurrentGenerationTask = GetSubsystem()->ScheduleComponent(this, /*bSave=*/bForce, Dependencies);
 
-		CurrentGenerationTask = GetSubsystem()->ScheduleGeneric([ThisComponentPtr, bForce, RequestedGenerationTrigger]()
-			{
-				if (UPCGComponent* ThisComponent = ThisComponentPtr.Get())
-				{
-					// This is necessary to have "IsGenerating" to return false.
-					// Otherwise it will early out
-					ThisComponent->CurrentGenerationTask = InvalidPCGTaskId;
-					ThisComponent->GenerateLocal(bForce, RequestedGenerationTrigger);
-				}
-
-				return true;
-			}, { CurrentCleanupTask });
-	}
-	else
-	{
-		// Force component activation so it's easier to control by BP.
-		if (!bActivated)
-		{
-			Modify();
-			bActivated = true;
-		}
-
-		GenerateInternal(bForce, RequestedGenerationTrigger, {});
-	}
+	return CurrentGenerationTask;
 }
 
-FPCGTaskId UPCGComponent::GenerateInternal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger, const TArray<FPCGTaskId>& TaskDependencies)
+FPCGTaskId UPCGComponent::CreateGenerateTask(bool bForce, const TArray<FPCGTaskId>& Dependencies)
 {
-	if (IsGenerating() || !ShouldGenerate(bForce, RequestedGenerationTrigger))
+	if (IsGenerating())
 	{
 		return InvalidPCGTaskId;
 	}
@@ -264,18 +234,18 @@ FPCGTaskId UPCGComponent::GenerateInternal(bool bForce, EPCGComponentGenerationT
 
 	// Keep track of all the dependencies
 	TArray<FPCGTaskId> AdditionalDependencies;
-	const TArray<FPCGTaskId>* AllDependencies = &TaskDependencies;
+	const TArray<FPCGTaskId>* AllDependencies = &Dependencies;
 
 	if (IsCleaningUp())
 	{
-		AdditionalDependencies = TaskDependencies;
+		AdditionalDependencies = Dependencies;
 		AdditionalDependencies.Add(CurrentCleanupTask);
 		AllDependencies = &AdditionalDependencies;
 	}
 	else if (bGenerated)
 	{
 		// Immediate pass to mark all resources unused (and remove the ones that cannot be re-used)
-		CleanupInternalImmediate(/*bRemoveComponents=*/false);
+		CleanupLocalImmediate(/*bRemoveComponents=*/false);
 	}
 
 	const FBox NewBounds = GetGridBounds();
@@ -285,8 +255,7 @@ FPCGTaskId UPCGComponent::GenerateInternal(bool bForce, EPCGComponentGenerationT
 		return InvalidPCGTaskId;
 	}
 
-	CurrentGenerationTask = GetSubsystem()->ScheduleComponent(this, /*bSave=*/bForce, *AllDependencies);
-	return CurrentGenerationTask;
+	return GetSubsystem()->ScheduleGraph(this, *AllDependencies);
 }
 
 bool UPCGComponent::GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors, bool bCullAgainstLocalBounds)
@@ -391,35 +360,18 @@ void UPCGComponent::Cleanup_Implementation(bool bRemoveComponents, bool bSave)
 
 void UPCGComponent::CleanupLocal(bool bRemoveComponents, bool bSave)
 {
+	CleanupInternal(bRemoveComponents, bSave, {});
+}
+
+FPCGTaskId UPCGComponent::CleanupInternal(bool bRemoveComponents, bool bSave, const TArray<FPCGTaskId>& Dependencies)
+{
 	if ((!bGenerated && !IsGenerating()) || !GetSubsystem() || IsCleaningUp())
 	{
-		return;
+		return InvalidPCGTaskId;
 	}
 
-	if (IsGenerating())
-	{
-		// If we are generating, retry this function when it's done
-		TWeakObjectPtr<UPCGComponent> ThisComponentPtr(this);
-
-		CurrentCleanupTask = GetSubsystem()->ScheduleGeneric([ThisComponentPtr, bRemoveComponents, bSave]()
-			{
-				if (UPCGComponent* ThisComponent = ThisComponentPtr.Get())
-				{
-					// This is necessary to have "IsCleaningUp" to return false.
-					// Otherwise it will early out
-					ThisComponent->CurrentCleanupTask = InvalidPCGTaskId;
-					ThisComponent->CleanupLocal(bRemoveComponents, bSave);
-				}
-
-				return true;
-			}, { CurrentGenerationTask });
-	}
-	else
-	{
-		Modify();
-
-		CurrentCleanupTask = GetSubsystem()->ScheduleCleanup(this, bRemoveComponents, bSave, {});
-	}
+	CurrentCleanupTask = GetSubsystem()->ScheduleCleanup(this, bRemoveComponents, bSave, Dependencies);
+	return CurrentCleanupTask;
 }
 
 AActor* UPCGComponent::ClearPCGLink(UClass* TemplateActor)
@@ -493,6 +445,7 @@ bool UPCGComponent::MoveResourcesToNewActor(AActor* InNewActor, bool bCreateChil
 	// Trying to move all resources for now. Perhaps in the future we won't want that.
 	{
 		FScopeLock ResourcesLock(&GeneratedResourcesLock);
+		check(!GeneratedResourcesInaccessible);
 		for (TObjectPtr<UPCGManagedResource>& GeneratedResource : GeneratedResources)
 		{
 			check(GeneratedResource);
@@ -515,7 +468,7 @@ bool UPCGComponent::MoveResourcesToNewActor(AActor* InNewActor, bool bCreateChil
 	return bHasMovedResources;
 }
 
-void UPCGComponent::CleanupInternalImmediate(bool bRemoveComponents)
+void UPCGComponent::CleanupLocalImmediate(bool bRemoveComponents)
 {
 	if (!bGenerated || IsPartitioned() || IsCleaningUp() || IsGenerating())
 	{
@@ -526,6 +479,7 @@ void UPCGComponent::CleanupInternalImmediate(bool bRemoveComponents)
 
 	{
 		FScopeLock ResourcesLock(&GeneratedResourcesLock);
+		check(!GeneratedResourcesInaccessible);
 		for (int32 ResourceIndex = GeneratedResources.Num() - 1; ResourceIndex >= 0; --ResourceIndex)
 		{
 			if (GeneratedResources[ResourceIndex]->Release(bRemoveComponents, ActorsToDelete))
@@ -538,16 +492,12 @@ void UPCGComponent::CleanupInternalImmediate(bool bRemoveComponents)
 	UPCGActorHelpers::DeleteActors(GetWorld(), ActorsToDelete.Array());
 }
 
-FPCGTaskId UPCGComponent::CleanupInternal(bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies)
+FPCGTaskId UPCGComponent::CreateCleanupTask(bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies)
 {
 	if ((!bGenerated && !IsGenerating()) || IsPartitioned() || IsCleaningUp())
 	{
 		return InvalidPCGTaskId;
 	}
-
-	// Need a shared ptr to keep track of all actors to delete.
-	// Will be protected by GeneratedResourcesLock
-	TSharedPtr<TSet<TSoftObjectPtr<AActor>>> ActorsToDeletePtr = MakeShared<TSet<TSoftObjectPtr<AActor>>>();
 
 	// Keep track of all the dependencies
 	TArray<FPCGTaskId> AdditionalDependencies;
@@ -560,81 +510,63 @@ FPCGTaskId UPCGComponent::CleanupInternal(bool bRemoveComponents, const TArray<F
 		AllDependencies = &AdditionalDependencies;
 	}
 
-	TArray<FPCGTaskId> AllTasks;
-
-	// Use a WeakPtr to guard against the case when the Component doesn't exist anymore.
-	TWeakObjectPtr<UPCGComponent> ThisComponentWeakPtr(this);
-
+	struct CleanupContext
 	{
-		FScopeLock ResourcesLock(&GeneratedResourcesLock);
-		for (int32 ResourceIndex = GeneratedResources.Num() - 1; ResourceIndex >= 0; --ResourceIndex)
-		{
-			check(GeneratedResources[ResourceIndex]);
-			TWeakObjectPtr<UPCGManagedResource> GeneratedResourcePtr(GeneratedResources[ResourceIndex]);
+		bool bIsFirstIteration = true;
+		int32 ResourceIndex = -1;
+		TSet<TSoftObjectPtr<AActor>> ActorsToDelete;
+	};
 
-			// For now this is done on a single thread, but we could extend it to multi-thread if the release support MT.
-			FPCGTaskId ReleaseTask = GetSubsystem()->ScheduleGeneric([GeneratedResourcePtr, ResourceIndex, bRemoveComponents, ActorsToDeletePtr, ThisComponentWeakPtr]()
-			{
-				if (UPCGComponent* ThisComponent = ThisComponentWeakPtr.Get())
-				{
-					if (UPCGManagedResource* GeneratedResource = GeneratedResourcePtr.Get())
-					{
-						TSet<TSoftObjectPtr<AActor>> ActorsToDelete;
-						GeneratedResource->Release(bRemoveComponents, ActorsToDelete);
-
-						if (!ActorsToDelete.IsEmpty())
-						{
-							FScopeLock Lock(&ThisComponent->GeneratedResourcesLock);
-							ActorsToDeletePtr->Append(ActorsToDelete);
-						}
-					}
-				}
-
-				return true;
-			}, *AllDependencies);
-
-			AllTasks.Add(ReleaseTask);
-		}
-	}
-
-	// Use a WeakPtr to guard against the case when the World doesn't exist anymore.
+	TSharedPtr<CleanupContext> Context = MakeShared<CleanupContext>();
+	TWeakObjectPtr<UPCGComponent> ThisComponentWeakPtr(this);
 	TWeakObjectPtr<UWorld> WorldPtr(GetWorld());
 
-	FPCGTaskId PostReleaseTask = GetSubsystem()->ScheduleGeneric([WorldPtr, ThisComponentWeakPtr, bRemoveComponents, ActorsToDeletePtr]()
+	auto CleanupTask = [Context, ThisComponentWeakPtr, WorldPtr, bRemoveComponents]()
+	{
+		if (UPCGComponent* ThisComponent = ThisComponentWeakPtr.Get())
 		{
-			if (UPCGComponent* ThisComponent = ThisComponentWeakPtr.Get())
-			{
-				ThisComponent->Modify();
-				FScopeLock ResourcesLock(&ThisComponent->GeneratedResourcesLock);
+			FScopeLock ResourcesLock(&ThisComponent->GeneratedResourcesLock);
 
-				// If we remove components, all generated resources are removed
-				if (bRemoveComponents)
-				{
-					ThisComponent->GeneratedResources.Empty();
-				}
-				else
-				{
-					// Otherwise, remove only those who are not marked unused (meaning that they can't be re-used)
-					for (int32 ResourceIndex = ThisComponent->GeneratedResources.Num() - 1; ResourceIndex >= 0; --ResourceIndex)
-					{
-						if (!ThisComponent->GeneratedResources[ResourceIndex]->IsMarkedUnused())
-						{
-							ThisComponent->GeneratedResources.RemoveAtSwap(ResourceIndex);
-						}
-					}
-				}
+			// Safeguard to track illegal modifications of the generated resources array while doing cleanup
+			if (Context->bIsFirstIteration)
+			{
+				check(!ThisComponent->GeneratedResourcesInaccessible);
+				ThisComponent->GeneratedResourcesInaccessible = true;
+				Context->ResourceIndex = ThisComponent->GeneratedResources.Num() - 1;
+				Context->bIsFirstIteration = false;
 			}
 
-			if (UWorld* World = WorldPtr.Get())
+			// Going backward
+			if (Context->ResourceIndex >= 0)
 			{
-				UPCGActorHelpers::DeleteActors(World, ActorsToDeletePtr->Array());
+				UPCGManagedResource* Resource = ThisComponent->GeneratedResources[Context->ResourceIndex];
+				check(Resource);
+
+				if (Resource->Release(bRemoveComponents, Context->ActorsToDelete))
+				{
+					ThisComponent->GeneratedResources.RemoveAtSwap(Context->ResourceIndex);
+				}
+
+				Context->ResourceIndex--;
+
+				// Returning false means the task is not over
+				return false;
 			}
+			else
+			{
+				ThisComponent->GeneratedResourcesInaccessible = false;
+			}
+		}
 
-			return true;
-		}, AllTasks);
+		if (UWorld* World = WorldPtr.Get())
+		{
+			UPCGActorHelpers::DeleteActors(World, Context->ActorsToDelete.Array());
+		}
 
-	CurrentCleanupTask = PostReleaseTask;
-	return CurrentCleanupTask;
+		return true;
+	};
+
+	return GetSubsystem()->ScheduleGeneric(CleanupTask, *AllDependencies);
 }
 
 void UPCGComponent::CleanupUnusedManagedResources()
@@ -643,6 +575,7 @@ void UPCGComponent::CleanupUnusedManagedResources()
 
 	{
 		FScopeLock ResourcesLock(&GeneratedResourcesLock);
+		check(!GeneratedResourcesInaccessible);
 		for (int32 ResourceIndex = GeneratedResources.Num() - 1; ResourceIndex >= 0; --ResourceIndex)
 		{
 			check(GeneratedResources[ResourceIndex]);
@@ -681,7 +614,7 @@ void UPCGComponent::BeginPlay()
 		}
 		else
 		{
-			GenerateLocal(/*bForce=*/false, EPCGComponentGenerationTrigger::GenerateOnLoad);
+			GenerateInternal(/*bForce=*/false, EPCGComponentGenerationTrigger::GenerateOnLoad, {});
 			bRuntimeGenerated = true;
 		}
 	}
@@ -705,7 +638,6 @@ void UPCGComponent::OnComponentCreated()
 
 #if WITH_EDITOR
 	SetupActorCallbacks();
-	UpdateIsLocalComponent();
 #endif
 }
 
@@ -781,8 +713,6 @@ void UPCGComponent::PostLoad()
 	{
 		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
 	}
-	
-	UpdateIsLocalComponent();
 #endif
 }
 
@@ -925,11 +855,11 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 
 					if (bIsNowPartitioned)
 					{
-						GetSubsystem()->DelayPartitionGraph(this);
+						GetSubsystem()->SchedulePartitionGraph(this);
 					}
 					else
 					{
-						GetSubsystem()->DelayUnpartitionGraph(this);
+						GetSubsystem()->ScheduleUnpartitionGraph(this);
 
 					}
 
@@ -1291,8 +1221,10 @@ void UPCGComponent::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedE
 	bool bValueNotInteractive = (InEvent.ChangeType != EPropertyChangeType::Interactive);
 	// Special exception for actor tags, as we can't track otherwise an actor "losing" a tag
 	bool bActorTagChange = (InEvent.Property && InEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, Tags));
+	// Discard property changed if this is this component. They will be caught by the PostEditChangeProperty
+	bool bIsThisComponent = InObject == this;
 
-	if(!bValueNotInteractive && !bActorTagChange)
+	if (bIsThisComponent || (!bValueNotInteractive && !bActorTagChange))
 	{
 		return;
 	}
@@ -1474,13 +1406,13 @@ void UPCGComponent::Refresh()
 		{
 			if (LastGeneratedBounds.IsValid)
 			{
-				GetSubsystem()->DelayUnpartitionGraph(this);
+				GetSubsystem()->ScheduleUnpartitionGraph(this);
 			}
 		}
 		else
 		{
 			bool bWasGenerated = bGenerated;
-			CleanupLocal(/*bRemoveComponents=*/false);
+			CleanupLocalImmediate(/*bRemoveComponents=*/true);
 			bGenerated = bWasGenerated;
 		}
 	}
@@ -1492,7 +1424,7 @@ void UPCGComponent::Refresh()
 		}
 		else if (IsPartitioned() && GetSubsystem())
 		{
-			GetSubsystem()->DelayPartitionGraph(this);
+			GetSubsystem()->SchedulePartitionGraph(this);
 		}
 	}
 }
@@ -2149,14 +2081,6 @@ void UPCGComponent::DirtyCacheForAllTrackedTags()
 bool UPCGComponent::GraphUsesLandscapePin() const
 {
 	return Graph && Graph->GetInputNode()->IsOutputPinConnected(PCGInputOutputConstants::DefaultLandscapeLabel);
-}
-
-void UPCGComponent::UpdateIsLocalComponent()
-{
-	if (IsLocalComponent())
-	{
-		bIsComponentLocal = true;
-	}
 }
 
 #endif // WITH_EDITOR

@@ -403,6 +403,7 @@ void FPCGGraphExecutor::Execute()
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphExecutor::Execute::ExecuteTasks);
+			bool bMainTaskDone = false;
 			// Execute main thread task
 			if (!ActiveTasks.IsEmpty())
 			{
@@ -413,13 +414,19 @@ void FPCGGraphExecutor::Execute()
 				if (!MainThreadTask.Context->bIsPaused && MainThreadTask.Element->Execute(MainThreadTask.Context.Get()))
 #endif
 				{
+					bMainTaskDone = true;
 					PostTaskExecute(ActiveTasks.Num() - 1);
 				}
 			}
 
-			for (int32 ExecutionIndex = ActiveTasks.Num() - 1; ExecutionIndex >= 0; --ExecutionIndex)
+			// If the main thread task is done, it was removed from ActiveTasks, and ActiveTasks should contains only futures (if there are some)
+			// Otherwise, ActiveTasks.Num() - 1 still point to the main thread tasks, so futures indexes are within [0, ActiveTasks.Num() - 2].
+			int32 FuturesLastIndex = bMainTaskDone ? ActiveTasks.Num() - 1 : ActiveTasks.Num() - 2;
+
+			// Then wait after all futures
+			for (int32 ExecutionIndex = FuturesLastIndex; ExecutionIndex >= 0; --ExecutionIndex)
 			{
-				bool bTaskDone = true;
+				bool bTaskDone = false;
 				// Wait on the future if any
 				if (TFuture<bool>* Future = Futures.Find(ExecutionIndex))
 				{
@@ -434,7 +441,7 @@ void FPCGGraphExecutor::Execute()
 			}
 		}
 
-		check(CurrentlyUsedThreads == 0);
+		check(ActiveTasks.Num() > 0 || CurrentlyUsedThreads == 0);
 
 		const double EndLoopTime = FPlatformTime::Seconds();
 		if (static_cast<float>((EndLoopTime - StartTime) * 1000) > CVarTimePerFrame.GetValueOnAnyThread())

@@ -62,7 +62,7 @@ bool UPCGManagedActors::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>&
 			{
 				// It is more complicated to handled a non-immediate cleanup when doing it recursively in the managed actors.
 				// Do it all immediate then.
-				Component->CleanupInternalImmediate(/*bRemoveComponents=*/bHardRelease);
+				Component->CleanupLocalImmediate(/*bRemoveComponents=*/bHardRelease);
 			}
 
 			ComponentsToCleanup.Reset();

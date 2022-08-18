@@ -65,6 +65,9 @@ public:
 	// Schedule graph (used internally for dynamic subgraph execution)
 	FPCGTaskId ScheduleGraph(UPCGGraph* Graph, UPCGComponent* SourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& Dependencies);
 
+	// Schedule graph (used internally for dynamic subgraph execution)
+	FPCGTaskId ScheduleGraph(UPCGComponent* SourceComponent, const TArray<FPCGTaskId>& Dependencies);
+
 	/** General job scheduling, used to control loading/unloading */
 	FPCGTaskId ScheduleGeneric(TFunction<bool()> InOperation, const TArray<FPCGTaskId>& TaskDependencies);
 
@@ -89,9 +92,9 @@ public:
 #if WITH_EDITOR
 public:
 	/** Operations to schedule a later operation, which enables to delay bounds querying */
-	void DelayPartitionGraph(UPCGComponent* Component);
-	void DelayUnpartitionGraph(UPCGComponent* Component);
-	FPCGTaskId DelayGenerateGraph(UPCGComponent* Component, bool bSave);
+	FPCGTaskId SchedulePartitionGraph(UPCGComponent* Component);
+	FPCGTaskId ScheduleUnpartitionGraph(UPCGComponent* Component);
+	FPCGTaskId ScheduleProcessGraph(UPCGComponent* Component, bool bSave);
 
 	/** Schedules an operation to cleanup the graph in the given bounds */
 	FPCGTaskId CleanupGraph(UPCGComponent* Component, const FBox& InBounds, bool bRemoveComponents, bool bSave);
@@ -132,7 +135,6 @@ private:
 		Generate
 	};
 
-	FPCGTaskId DelayProcessGraph(UPCGComponent* Component, EOperation InOperation, bool bSave);
 	FPCGTaskId ProcessGraph(UPCGComponent* Component, const FBox& InPreviousBounds, const FBox& InNewBounds, EOperation InOperation, bool bSave);
 #endif // WITH_EDITOR
 	

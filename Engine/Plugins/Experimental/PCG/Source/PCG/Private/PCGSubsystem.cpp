@@ -149,7 +149,7 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, bool bS
 #if WITH_EDITOR
 	if (PCGComponent->IsPartitioned() && !PCGHelpers::IsRuntimeOrPIE())
 	{
-		return DelayGenerateGraph(PCGComponent, bSave);
+		return ScheduleProcessGraph(PCGComponent, bSave);
 	}
 #endif // WITH_EDITOR
 
@@ -169,7 +169,7 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, bool bS
 	}
 	else
 	{
-		FPCGTaskId TaskId = GraphExecutor->Schedule(PCGComponent, Dependencies);
+		FPCGTaskId TaskId = PCGComponent->CreateGenerateTask(/*bForce=*/bSave, Dependencies);
 		if (TaskId != InvalidPCGTaskId)
 		{
 			AllTasks.Add(TaskId);
@@ -234,7 +234,7 @@ FPCGTaskId UPCGSubsystem::ScheduleCleanup(UPCGComponent* PCGComponent, bool bRem
 	}
 	else
 	{
-		FPCGTaskId TaskId = PCGComponent->CleanupInternal(bRemoveComponents, Dependencies);
+		FPCGTaskId TaskId = PCGComponent->CreateCleanupTask(bRemoveComponents, Dependencies);
 		if (TaskId != InvalidPCGTaskId)
 		{
 			AllTasks.Add(TaskId);
@@ -257,6 +257,18 @@ FPCGTaskId UPCGSubsystem::ScheduleCleanup(UPCGComponent* PCGComponent, bool bRem
 
 			return true;
 		}, AllTasks);
+}
+
+FPCGTaskId UPCGSubsystem::ScheduleGraph(UPCGComponent* SourceComponent, const TArray<FPCGTaskId>& Dependencies)
+{
+	if (SourceComponent)
+	{
+		return GraphExecutor->Schedule(SourceComponent, Dependencies);
+	}
+	else
+	{
+		return InvalidPCGTaskId;
+	}
 }
 
 FPCGTaskId UPCGSubsystem::ScheduleGraph(UPCGGraph* Graph, UPCGComponent* SourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& Dependencies)
@@ -328,7 +340,7 @@ TArray<FPCGTaskId> UPCGSubsystem::ScheduleMultipleCleanup(UPCGComponent* Origina
 				// Add check to avoid infinite loop
 				if (ensure(!LocalComponent->IsPartitioned()))
 				{
-					FPCGTaskId LocalTask = LocalComponent->CleanupInternal(bRemoveComponents, Dependencies);
+					FPCGTaskId LocalTask = LocalComponent->CleanupInternal(bRemoveComponents, /*bSave=*/ false, Dependencies);
 
 					if (LocalTask != InvalidPCGTaskId)
 					{
@@ -770,7 +782,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 
 	// TODO: optimal implementation would find the difference between the previous bounds and the new bounds
 	// and process these only. This is esp. important because of the CreateActor parameter.
-	auto ScheduleTask = [this, ComponentPtr, InOperation](APCGPartitionActor* PCGActor, const FBox& InBounds, const TArray<FPCGTaskId>& TaskDependencies){
+	auto ScheduleTask = [this, ComponentPtr, InOperation, bSave](APCGPartitionActor* PCGActor, const FBox& InBounds, const TArray<FPCGTaskId>& TaskDependencies){
 		TWeakObjectPtr<APCGPartitionActor> PCGActorPtr(PCGActor);
 
 		auto UnpartitionTask = [ComponentPtr, PCGActorPtr]() {
@@ -804,7 +816,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 			return true;
 		};
 
-		auto ScheduleGraph = [this, PCGActorPtr, ComponentPtr, &TaskDependencies]() {
+		auto ScheduleGraph = [this, PCGActorPtr, ComponentPtr, bSave, TaskDependencies]() {
 			if (APCGPartitionActor* PCGActor = PCGActorPtr.Get())
 			{
 				if (UPCGComponent* Component = ComponentPtr.Get())
@@ -820,7 +832,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 						return InvalidPCGTaskId;
 					}
 
-					return LocalComponent->GenerateInternal(/*bForce=*/false, EPCGComponentGenerationTrigger::GenerateOnDemand, TaskDependencies);
+					return LocalComponent->GenerateInternal(bSave, EPCGComponentGenerationTrigger::GenerateOnDemand, TaskDependencies);
 				}
 				else
 				{
@@ -899,7 +911,7 @@ FPCGTaskId UPCGSubsystem::CleanupGraph(UPCGComponent* Component, const FBox& InB
 			// Ensure to avoid infinite loop
 			if (ensure(!LocalComponent->IsPartitioned()))
 			{
-				return ScheduleCleanup(LocalComponent, bRemoveComponents, bSave, TaskDependencies);
+				return LocalComponent->CleanupInternal(bRemoveComponents, bSave, TaskDependencies);
 			}
 		}
 
@@ -1193,29 +1205,34 @@ void UPCGSubsystem::ResetPartitionActorsMap()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-void UPCGSubsystem::DelayPartitionGraph(UPCGComponent* Component)
-{
-	DelayProcessGraph(Component, EOperation::Partition, /*bSave=*/false);
-}
-
-void UPCGSubsystem::DelayUnpartitionGraph(UPCGComponent* Component)
-{
-	DelayProcessGraph(Component, EOperation::Unpartition, /*bSave=*/false);
-}
-
-FPCGTaskId UPCGSubsystem::DelayGenerateGraph(UPCGComponent* Component, bool bSave)
-{
-	return DelayProcessGraph(Component, EOperation::Generate, bSave);
-}
-
-FPCGTaskId UPCGSubsystem::DelayProcessGraph(UPCGComponent* Component, EOperation InOperation, bool bSave)
+FPCGTaskId UPCGSubsystem::SchedulePartitionGraph(UPCGComponent* Component)
 {
 	check(Component && Component->IsPartitioned());
 
 	const FBox PreviousBounds = Component->LastGeneratedBounds;
 	const FBox NewBounds = Component->GetGridBounds();
 
-	return ProcessGraph(Component, PreviousBounds, NewBounds, InOperation, bSave);
+	return ProcessGraph(Component, PreviousBounds, NewBounds, EOperation::Partition, /*bSave=*/false);
+}
+
+FPCGTaskId UPCGSubsystem::ScheduleUnpartitionGraph(UPCGComponent* Component)
+{
+	check(Component && Component->IsPartitioned());
+
+	const FBox PreviousBounds = Component->LastGeneratedBounds;
+	const FBox NewBounds = Component->GetGridBounds();
+
+	return ProcessGraph(Component, PreviousBounds, NewBounds, EOperation::Unpartition, /*bSave=*/false);
+}
+
+FPCGTaskId UPCGSubsystem::ScheduleProcessGraph(UPCGComponent* Component, bool bSave)
+{
+	check(Component && Component->IsPartitioned());
+
+	const FBox PreviousBounds = Component->LastGeneratedBounds;
+	const FBox NewBounds = Component->GetGridBounds();
+
+	return ProcessGraph(Component, PreviousBounds, NewBounds, EOperation::Generate, bSave);
 }
 
 #endif // WITH_EDITOR

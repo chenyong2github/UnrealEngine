@@ -251,7 +251,7 @@ void TestMeshSelectorByAttribute(
 	}
 
 	TestData.TestPCGComponent->bGenerated = true;
-	TestData.TestPCGComponent->Cleanup();
+	TestData.TestPCGComponent->CleanupLocalImmediate(true);
 	
 	Test->TestEqual("Valid total instance count", TotalInstanceCount, ValidInstanceCount);
 }
@@ -340,7 +340,7 @@ void TestMeshSelectorWeighted(
 	}
 
 	TestData.TestPCGComponent->bGenerated = true;
-	TestData.TestPCGComponent->Cleanup();
+	TestData.TestPCGComponent->CleanupLocalImmediate(true);
 	
 	Test->TestEqual("Valid total instance count", TotalInstanceCount, PointCount);
 }
@@ -423,7 +423,7 @@ void TestMeshSelectorWeightedByCategory(
 	}
 
 	TestData.TestPCGComponent->bGenerated = true;
-	TestData.TestPCGComponent->Cleanup();
+	TestData.TestPCGComponent->CleanupLocalImmediate(true);
 
 	Test->TestEqual("Valid total instance count", TotalInstanceCount, PointCount);
 }

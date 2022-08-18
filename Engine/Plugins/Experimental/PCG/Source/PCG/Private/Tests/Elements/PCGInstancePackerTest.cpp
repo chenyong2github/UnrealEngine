@@ -95,7 +95,7 @@ namespace
 		}
 
 		TestData.TestPCGComponent->bGenerated = true;
-		TestData.TestPCGComponent->Cleanup();
+		TestData.TestPCGComponent->CleanupLocalImmediate(true);
 
 		return bTestPassed;
 	};

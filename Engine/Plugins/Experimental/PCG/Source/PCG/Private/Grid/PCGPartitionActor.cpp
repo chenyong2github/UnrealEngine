@@ -47,6 +47,12 @@ void APCGPartitionActor::PostLoad()
 	{
 		BoundsComponent->SetBoxExtent(GetFixedBounds().GetExtent());
 	}
+
+	// Mark all our local components as local
+	for (UPCGComponent* LocalComponent : GetAllLocalPCGComponents())
+	{
+		LocalComponent->MarkAsLocalComponent();
+	}
 #endif // WITH_EDITOR
 }
 
@@ -205,6 +211,7 @@ void APCGPartitionActor::AddGraphInstance(UPCGComponent* OriginalComponent)
 	{
 		// Update properties as needed and early out
 		LocalComponent->SetPropertiesFromOriginal(OriginalComponent);
+		LocalComponent->MarkAsLocalComponent();
 		return;
 	}
 
@@ -215,6 +222,7 @@ void APCGPartitionActor::AddGraphInstance(UPCGComponent* OriginalComponent)
 	LocalComponent->SetPropertiesFromOriginal(OriginalComponent);
 
 	LocalComponent->RegisterComponent();
+	LocalComponent->MarkAsLocalComponent();
 	// TODO: check if we should use a non-instanced component?
 	AddInstanceComponent(LocalComponent);
 
@@ -237,7 +245,7 @@ bool APCGPartitionActor::RemoveGraphInstance(UPCGComponent* OriginalComponent)
 	LocalToOriginalMap.Remove(LocalComponent);
 
 	// TODO Add option to not cleanup?
-	LocalComponent->CleanupLocal(/*bRemoveComponents=*/true);
+	LocalComponent->CleanupLocalImmediate(/*bRemoveComponents=*/true);
 	LocalComponent->DestroyComponent();
 
 	return OriginalToLocalMap.IsEmpty();

@@ -97,13 +97,16 @@ public:
 	void Generate();
 	void Cleanup();
 
-	/** Starts generation from a local (vs. remote) standpoint. Will not be replicated. */
+	/** Starts generation from a local (vs. remote) standpoint. Will not be replicated. Will be delayed. */
 	UFUNCTION(BlueprintCallable, Category = PCG)
 	void GenerateLocal(bool bForce);
 
-	/** Cleans up the generation from a local (vs. remote) standpoint. Will not be replicated. */
+	/** Cleans up the generation from a local (vs. remote) standpoint. Will not be replicated. Will be delayed. */
 	UFUNCTION(BlueprintCallable, Category = PCG)
 	void CleanupLocal(bool bRemoveComponents, bool bSave = false);
+
+	/* Same as CleanupLocal, but without any delayed tasks. All is done immediately. */
+	void CleanupLocalImmediate(bool bRemoveComponents);
 
 	/** Networked generation call that also activates the component as needed */
 	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = PCG)
@@ -148,9 +151,6 @@ public:
 	bool bRuntimeGenerated = false;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(VisibleAnywhere, Transient, Category = Properties, meta = (EditCondition = false, EditConditionHides))
-	bool bIsComponentLocal = false;
-
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = Properties, meta = (DisplayName = "Regenerate PCG volume in editor"))
 	bool bRegenerateInEditor = true;
 
@@ -181,7 +181,10 @@ public:
 #endif
 
 	bool IsPartitioned() const;
-	bool IsLocalComponent() const;
+	bool IsLocalComponent() const { return bIsComponentLocal; }
+
+	/* Responsibility of the PCG Partition Actor to mark is local */
+	void MarkAsLocalComponent() { bIsComponentLocal = true; }
 
 	/** Updates internal properties from other component, dirties as required but does not trigger Refresh */
 	void SetPropertiesFromOriginal(const UPCGComponent* Original);
@@ -204,16 +207,16 @@ private:
 	bool IsLandscapeCachedDataDirty(const UPCGData* Data) const;
 
 	bool ShouldGenerate(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger) const;
-	void GenerateLocal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger);
 
-	/* Internal call to create tasks to generate the component. If there is nothing to do, an invalid task id will be returned. */
+	/* Internal call that allows to delay a Generate/Cleanup call, chain with dependencies and keep track of the task id created. This task id is also returned. */
 	FPCGTaskId GenerateInternal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger, const TArray<FPCGTaskId>& Dependencies);
+	FPCGTaskId CleanupInternal(bool bRemoveComponents, bool bSave, const TArray<FPCGTaskId>& Dependencies);
 
-	/* Internal call to create tacks to cleanup the component. If there is nothing to do, an invalid task id will be returned. */
-	FPCGTaskId CleanupInternal(bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies);
+	/* Internal call to create tasks to generate the component. If there is nothing to do, an invalid task id will be returned. Should only be used by the subsystem. */
+	FPCGTaskId CreateGenerateTask(bool bForce, const TArray<FPCGTaskId>& Dependencies);
 
-	/* Same as CleanupInternal, but without any delayed tasks. All is done immediately. */
-	void CleanupInternalImmediate(bool bRemoveComponents);
+	/* Internal call to create tasks to cleanup the component. If there is nothing to do, an invalid task id will be returned. Should only be used by the subsystem. */
+	FPCGTaskId CreateCleanupTask(bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies);
 
 	void PostProcessGraph(const FBox& InNewBounds, bool bInGenerated);
 	void PostCleanupGraph();
@@ -292,11 +295,17 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UPCGManagedResource>> GeneratedResources;
 
+	// When doing a cleanup, locking resource modification. Used as sentinel.
+	bool GeneratedResourcesInaccessible = false;
+
 	UPROPERTY()
 	FBox LastGeneratedBounds = FBox(EForceInit::ForceInit);
 
 	FPCGTaskId CurrentGenerationTask = InvalidPCGTaskId;
 	FPCGTaskId CurrentCleanupTask = InvalidPCGTaskId;
+
+	UPROPERTY(VisibleAnywhere, Transient, Category = Properties, meta = (EditCondition = false, EditConditionHides))
+	bool bIsComponentLocal = false;
 
 #if WITH_EDITOR
 	bool bIsInspecting = false;
@@ -307,7 +316,6 @@ private:
 	void TeardownLandscapeTracking();
 	void UpdateTrackedLandscape(bool bBoundsCheck = true);
 	void OnLandscapeChanged(ALandscapeProxy* Landscape, const FLandscapeProxyComponentDataChangedParams& ChangeParams);
-	void UpdateIsLocalComponent();
 #endif
 
 #if WITH_EDITORONLY_DATA
