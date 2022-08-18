@@ -4,6 +4,7 @@
 
 #include "ObjectMixerEditorLog.h"
 #include "ObjectMixerEditorModule.h"
+#include "ObjectMixerEditorProjectSettings.h"
 #include "Views/List/ObjectMixerEditorList.h"
 #include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 #include "Views/Widgets/SObjectMixerPlacementAssetMenuEntry.h"
@@ -90,6 +91,41 @@ TSharedRef<SWidget> SObjectMixerEditorMainPanel::GenerateToolbar()
 		.HintText(LOCTEXT("SearchHintText", "Search Scene Objects"))
 		.ToolTipText(LOCTEXT("ObjectMixerEditorList_TooltipText", "Search Scene Objects"))
 		.OnTextChanged_Raw(this, &SObjectMixerEditorMainPanel::OnSearchTextChanged)
+	];
+
+	// Selection Sync Toggle
+	ToolbarBox->AddSlot()
+	.HAlign(HAlign_Right)
+	.VAlign(VAlign_Center)
+	.AutoWidth()
+	.Padding(8.f, 1.f, 0.f, 1.f)
+	[
+		SNew(SCheckBox )
+		.Padding(4.f)
+		.ToolTipText(LOCTEXT("SyncSelectionButton_Tooltip", "Sync Selection\nIf enabled, clicking an item in the mixer list will also select the item in the Scene Outliner.\nAlt + Click to select items in mixer without selecting the item in the Scene outliner.\nIf disabled, selections will not sync unless Alt is held. Effectively, this is the opposite behavior."))
+		.Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox"))
+		.ForegroundColor(FSlateColor::UseForeground())
+		.IsChecked_Lambda([]()
+		{
+			if (const UObjectMixerEditorProjectSettings* Settings = GetDefault<UObjectMixerEditorProjectSettings>())
+			{
+				return Settings->bSyncSelection ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			}
+			
+			return ECheckBoxState::Undetermined; 
+		})
+		.OnCheckStateChanged_Lambda([](ECheckBoxState InNewState)
+		{
+			if (UObjectMixerEditorProjectSettings* Settings = GetMutableDefault<UObjectMixerEditorProjectSettings>())
+			{
+				Settings->bSyncSelection = InNewState == ECheckBoxState::Checked ? true : false;
+			}
+		})
+		[
+			SNew(SImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image( FAppStyle::Get().GetBrush("FoliageEditMode.SelectAll") )
+		]
 	];
 
 	// Show Options

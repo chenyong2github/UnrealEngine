@@ -24,6 +24,8 @@ public:
 
 	static FObjectMixerEditorModule& Get();
 
+	static void OpenProjectSettings();
+
 	virtual FName GetModuleName();
 	
 	virtual TSharedPtr<SWidget> MakeObjectMixerDialog() const;

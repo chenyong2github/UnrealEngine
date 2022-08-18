@@ -2,7 +2,7 @@
 
 #include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
 
-#include "ObjectMixerEditorProjectSettings.h"
+#include "ObjectMixerEditorSerializedData.h"
 #include "Views/List/ObjectMixerEditorList.h"
 #include "Views/MainPanel/SObjectMixerEditorMainPanel.h"
 
@@ -101,7 +101,7 @@ void FObjectMixerEditorMainPanel::AddObjectsToCategory(const FName& CategoryName
 {
 	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
 	{
-		if (UObjectMixerEditorProjectSettings* Settings = GetMutableDefault<UObjectMixerEditorProjectSettings>())
+		if (UObjectMixerEditorSerializedData* Settings = GetMutableDefault<UObjectMixerEditorSerializedData>())
 		{
 			Settings->AddObjectsToCategory(Filter->GetFName(), CategoryName, ObjectsToAdd);
 
@@ -114,7 +114,7 @@ void FObjectMixerEditorMainPanel::RemoveObjectsFromCategory(const FName& Categor
 {
 	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
 	{
-		if (UObjectMixerEditorProjectSettings* Settings = GetMutableDefault<UObjectMixerEditorProjectSettings>())
+		if (UObjectMixerEditorSerializedData* Settings = GetMutableDefault<UObjectMixerEditorSerializedData>())
 		{
 			Settings->RemoveObjectsFromCategory(Filter->GetFName(), CategoryName, ObjectsToRemove);
 
@@ -127,7 +127,7 @@ void FObjectMixerEditorMainPanel::RemoveCategory(const FName& CategoryName) cons
 {
 	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
 	{
-		if (UObjectMixerEditorProjectSettings* Settings = GetMutableDefault<UObjectMixerEditorProjectSettings>())
+		if (UObjectMixerEditorSerializedData* Settings = GetMutableDefault<UObjectMixerEditorSerializedData>())
 		{
 			Settings->RemoveCategory(Filter->GetFName(), CategoryName);
 
@@ -140,7 +140,7 @@ bool FObjectMixerEditorMainPanel::IsObjectInCategory(const FName& CategoryName, 
 {
 	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
 	{
-		if (UObjectMixerEditorProjectSettings* Settings = GetMutableDefault<UObjectMixerEditorProjectSettings>())
+		if (UObjectMixerEditorSerializedData* Settings = GetMutableDefault<UObjectMixerEditorSerializedData>())
 		{
 			return Settings->IsObjectInCategory(Filter->GetFName(), CategoryName, InObject);
 		}
@@ -153,7 +153,7 @@ TSet<FName> FObjectMixerEditorMainPanel::GetCategoriesForObject(const FSoftObjec
 {
 	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
 	{
-		if (UObjectMixerEditorProjectSettings* Settings = GetMutableDefault<UObjectMixerEditorProjectSettings>())
+		if (UObjectMixerEditorSerializedData* Settings = GetMutableDefault<UObjectMixerEditorSerializedData>())
 		{
 			return Settings->GetCategoriesForObject(Filter->GetFName(), InObject);
 		}
@@ -166,7 +166,7 @@ TSet<FName> FObjectMixerEditorMainPanel::GetAllCategories() const
 {
 	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
 	{
-		if (UObjectMixerEditorProjectSettings* Settings = GetMutableDefault<UObjectMixerEditorProjectSettings>())
+		if (UObjectMixerEditorSerializedData* Settings = GetMutableDefault<UObjectMixerEditorSerializedData>())
 		{
 			return Settings->GetAllCategories(Filter->GetFName());
 		}

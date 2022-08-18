@@ -98,6 +98,12 @@ FObjectMixerEditorModule& FObjectMixerEditorModule::Get()
 	return FModuleManager::LoadModuleChecked< FObjectMixerEditorModule >("ObjectMixerEditor");
 }
 
+void FObjectMixerEditorModule::OpenProjectSettings()
+{
+	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings")
+		.ShowViewer("Project", "Editor", "Object Mixer");
+}
+
 FName FObjectMixerEditorModule::GetModuleName()
 {
 	return "ObjectMixerEditor";

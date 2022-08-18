@@ -33,6 +33,12 @@ FLightMixerModule& FLightMixerModule::Get()
 	return FModuleManager::LoadModuleChecked< FLightMixerModule >("LightMixer");
 }
 
+void FLightMixerModule::OpenProjectSettings()
+{
+	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings")
+		.ShowViewer("Project", "Editor", "Light Mixer");
+}
+
 void FLightMixerModule::Initialize()
 {
 	FObjectMixerEditorModule::Initialize();
@@ -66,7 +72,7 @@ void FLightMixerModule::RegisterProjectSettings() const
 	{
 		// User Project Settings
 		const TSharedPtr<ISettingsSection> ProjectSettingsSectionPtr = SettingsModule->RegisterSettings(
-			"Project", "Plugins", "Light Mixer",
+			"Project", "Editor", "Light Mixer",
 			LOCTEXT("LightMixerSettingsCategoryDisplayName", "Light Mixer"),
 			LOCTEXT("LightMixerSettingsDescription", "Configure Light Mixer user settings"),
 			GetMutableDefault<ULightMixerProjectSettings>());
@@ -77,7 +83,7 @@ void FLightMixerModule::UnregisterProjectSettings() const
 {
 	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 	{
-		SettingsModule->UnregisterSettings("Project", "Plugins", "Light Mixer");
+		SettingsModule->UnregisterSettings("Project", "Editor", "Light Mixer");
 	}
 }
 

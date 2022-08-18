@@ -4,7 +4,7 @@
 
 #include "LightMixerProjectSettings.generated.h"
 
-UCLASS(config = Engine, defaultconfig)
+UCLASS(config = ObjectMixer, defaultconfig)
 class LIGHTMIXER_API ULightMixerProjectSettings : public UObject
 {
 	GENERATED_BODY()

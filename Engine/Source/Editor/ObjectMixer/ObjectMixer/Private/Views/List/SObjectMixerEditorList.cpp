@@ -16,6 +16,7 @@
 #include "Algo/AllOf.h"
 #include "Algo/AnyOf.h"
 #include "Editor.h"
+#include "LevelEditorViewport.h"
 #include "SceneOutlinerMenuContext.h"
 #include "Selection.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -84,7 +85,11 @@ void SObjectMixerEditorList::Construct(const FArguments& InArgs, TSharedRef<FObj
 				})
 				.OnSelectionChanged_Lambda([this] (const FObjectMixerEditorListRowPtr& Row, const ESelectInfo::Type SelectionType)
 				{
-					if (GEditor && FSlateApplication::Get().GetModifierKeys().IsAltDown())
+					const bool bSyncSelectionEnabled = GetDefault<UObjectMixerEditorProjectSettings>()->bSyncSelection;
+					const bool bIsAltDown = FSlateApplication::Get().GetModifierKeys().IsAltDown();
+					const bool bShouldSyncSelection = bSyncSelectionEnabled ? !bIsAltDown : bIsAltDown;
+						
+					if (GEditor && bShouldSyncSelection)
 					{
 						TArray<AActor*> ActorsToSelect;
 						for (const TSharedPtr<FObjectMixerEditorListRow>& SelectedRow : TreeViewPtr->GetSelectedItems())
@@ -115,6 +120,34 @@ void SObjectMixerEditorList::Construct(const FArguments& InArgs, TSharedRef<FObj
 								GEditor->SelectActor( Actor, true, true, true );
 							}
 						}
+					}
+				})
+				.OnMouseButtonDoubleClick_Lambda([this] (FObjectMixerEditorListRowPtr Row)
+				{							
+					if (Row->GetRowType() == FObjectMixerEditorListRow::MatchingObject ||
+						Row->GetRowType() == FObjectMixerEditorListRow::ContainerObject)
+					{
+						if (GCurrentLevelEditingViewportClient)
+						{
+							AActor* Actor = Cast<AActor>(Row->GetObject());
+
+							if (!Actor)
+							{
+								Actor = Row->GetObject()->GetTypedOuter<AActor>();
+							}
+
+							if (Actor)
+							{
+								FVector Origin;
+								FVector Extents;
+								Actor->GetActorBounds(false, Origin, Extents, true);
+								GCurrentLevelEditingViewportClient->FocusViewportOnBox(FBox(Origin - Extents, Origin + Extents));
+							}
+						}
+					}
+					else
+					{
+						Row->SetIsTreeViewItemExpanded(!Row->GetIsTreeViewItemExpanded());
 					}
 				})
 				.TreeItemsSource(&VisibleTreeViewObjects)

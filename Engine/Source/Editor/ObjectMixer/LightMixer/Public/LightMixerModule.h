@@ -15,6 +15,8 @@ public:
 
 	static FLightMixerModule& Get();
 	
+	static void OpenProjectSettings();
+	
 	//~ Begin FObjectMixerEditorModule overrides
 	virtual void Initialize() override;
 	virtual FName GetModuleName() override;
