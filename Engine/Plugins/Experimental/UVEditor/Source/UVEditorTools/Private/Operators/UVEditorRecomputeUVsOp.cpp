@@ -286,6 +286,15 @@ bool FUVEditorRecomputeUVsOp::CalculateResult_Basic(FProgressCancel* Progress)
 					UVEditor.ScaleUVAreaTo3DArea(ComponentTris, true);
 				}
 				break;
+			case EUVEditorRecomputeUVsUnwrapType::SpectralConformal:
+			{
+				bComponentSolved[k] = UVEditor.SetTriangleUVsFromFreeBoundarySpectralConformal(ComponentTris, bUseExistingUVTopology, bPreserveIrregularity);
+				if (bComponentSolved[k])
+				{
+					UVEditor.ScaleUVAreaTo3DArea(ComponentTris, true);
+				}
+				break;
+			}
 			}
 
 			if (bComponentSolved[k])
@@ -534,12 +543,19 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorRecomputeUVsOpFactory::MakeNewOperator
 	case EUVEditorRecomputeUVsPropertiesUnwrapType::IslandMerging:
 		RecomputeUVsOp->UnwrapType = EUVEditorRecomputeUVsUnwrapType::ExpMap;
 		RecomputeUVsOp->bMergingOptimization = true;
+		break;
+	case EUVEditorRecomputeUVsPropertiesUnwrapType::SpectralConformal:
+		RecomputeUVsOp->UnwrapType = EUVEditorRecomputeUVsUnwrapType::SpectralConformal;
+		RecomputeUVsOp->bMergingOptimization = false;
+		break;
 	}
 
 	RecomputeUVsOp->bAutoRotate = (Settings->AutoRotation == EUVEditorRecomputeUVsToolOrientationMode::MinBounds);
 
 	RecomputeUVsOp->NormalSmoothingRounds = Settings->SmoothingSteps;
 	RecomputeUVsOp->NormalSmoothingAlpha = Settings->SmoothingAlpha;
+
+	RecomputeUVsOp->bPreserveIrregularity = Settings->bPreserveIrregularity;
 
 	RecomputeUVsOp->MergingThreshold = Settings->MergingDistortionThreshold;
 	RecomputeUVsOp->MaxNormalDeviationDeg = Settings->MergingAngleThreshold;
