@@ -767,7 +767,14 @@ namespace Horde.Build.Perforce
 							PerforceError? error = response.Error;
 							if (error != null)
 							{
-								throw new ReplicationException($"Perforce error while replicating content: {error.Data}");
+								if (error.Generic == PerforceGenericCode.Empty)
+								{
+									continue;
+								}
+								else
+								{
+									throw new ReplicationException($"Perforce error while replicating content - {error}");
+								}
 							}
 
 							processTimer.Start();
