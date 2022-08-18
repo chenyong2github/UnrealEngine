@@ -60,10 +60,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
 	virtual void SetPatchManager(ALandscapePatchManager* NewPatchManager);
 
+	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
+	virtual ALandscapePatchManager* GetPatchManager() const;
+
+	void ApplyComponentInstanceData(struct FLandscapePatchComponentInstanceData* ComponentInstanceData);
+
 	// For now we keep the patches largely editor-only, since we don't yet support runtime landscape editing.
 	// The above functions are also editor-only (and don't work at runtime), but can't be in WITH_EDITOR blocks
 	// so that they can be called from non-editor-only classes in editor contexts.
 #if WITH_EDITOR
+
 	// USceneComponent
 	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
 
@@ -72,6 +78,7 @@ public:
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 	virtual void OnRegister() override;
 	virtual void GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const override;
+	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
 
 	// UObject
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -88,6 +95,13 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = Settings, AdvancedDisplay)
 	TSoftObjectPtr<ALandscapePatchManager> PatchManager = nullptr;
+
+	/** 
+	 * Move the patch to be the last processed patch in the current patch manager. This is a way to 
+	 * reorder patches relative to each other. 
+	 */
+	UFUNCTION(CallInEditor, Category = Initialization)
+	void MoveToTop();
 
 	// Determines whether the height patch was made by copying a different height patch.
 	bool bWasCopy = false;
@@ -111,4 +125,30 @@ private:
 	// Used to properly transition to a different manager when editing it via the detail panel.
 	UPROPERTY()
 	TSoftObjectPtr<ALandscapePatchManager> PreviousPatchManager = nullptr;
+};
+
+/** Used to store some extra data during RerunConstructionScripts, namely the component's position in the patch manager. */
+USTRUCT()
+struct FLandscapePatchComponentInstanceData : public FSceneComponentInstanceData
+{
+	GENERATED_BODY()
+
+	FLandscapePatchComponentInstanceData() = default;
+	FLandscapePatchComponentInstanceData(const ULandscapePatchComponent* SourceComponent);
+
+	virtual ~FLandscapePatchComponentInstanceData() = default;
+
+	virtual bool ContainsData() const override
+	{
+		return true;
+	}
+
+	virtual void ApplyToComponent(UActorComponent* Component, const ECacheApplyPhase CacheApplyPhase) override
+	{
+		Super::ApplyToComponent(Component, CacheApplyPhase);
+		CastChecked<ULandscapePatchComponent>(Component)->ApplyComponentInstanceData(this);
+	}
+
+	UPROPERTY()
+	int32 IndexInManager = -1;
 };

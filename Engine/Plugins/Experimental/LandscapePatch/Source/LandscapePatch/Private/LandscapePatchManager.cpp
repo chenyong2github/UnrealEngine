@@ -171,7 +171,7 @@ void ALandscapePatchManager::SetTargetLandscape(ALandscape* InTargetLandscape)
 #endif
 }
 
-bool ALandscapePatchManager::ContainsPatch(TObjectPtr<ULandscapePatchComponent> Patch)
+bool ALandscapePatchManager::ContainsPatch(TObjectPtr<ULandscapePatchComponent> Patch) const
 {
 	return PatchComponents.Contains(Patch);
 }
@@ -201,6 +201,29 @@ bool ALandscapePatchManager::RemovePatch(TObjectPtr<ULandscapePatchComponent> Pa
 	}
 	
 	return bRemoved;
+}
+
+int32 ALandscapePatchManager::GetIndexOfPatch(TObjectPtr<const ULandscapePatchComponent> Patch) const
+{
+	return PatchComponents.IndexOfByKey(Patch);
+}
+
+void ALandscapePatchManager::MovePatchToIndex(TObjectPtr<ULandscapePatchComponent> Patch, int32 Index)
+{
+	if (!Patch)
+	{
+		return;
+	}
+
+	// It might seem like the index needs adjusting if we're removing before the given index, but that
+	// is not the case if our goal is for the index of the patch to be the given index at the end (rather
+	// than our goal being that the patch be in a particular position relative to the existing patches).
+	RemovePatch(Patch);
+
+	Index = FMath::Clamp(Index, 0, PatchComponents.Num());
+	PatchComponents.Insert(TSoftObjectPtr<ULandscapePatchComponent>(Patch.Get()), Index);
+
+	RequestLandscapeUpdate();
 }
 
 #if WITH_EDITOR

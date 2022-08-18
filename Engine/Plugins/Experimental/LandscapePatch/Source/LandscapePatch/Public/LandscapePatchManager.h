@@ -47,12 +47,23 @@ public:
 	 */
 	virtual FTransform GetHeightmapCoordsToWorld() { return HeightmapCoordsToWorld; }
 
-	bool ContainsPatch(TObjectPtr<ULandscapePatchComponent> Patch);
+	bool ContainsPatch(TObjectPtr<ULandscapePatchComponent> Patch) const;
 
 	void AddPatch(TObjectPtr<ULandscapePatchComponent> Patch);
 
 	bool RemovePatch(TObjectPtr<ULandscapePatchComponent> Patch);
 
+	/** 
+	 * Gets the index of a particular patch in the manager's stack of patches (later indices get applied after
+	 * earlier ones.
+	 */
+	int32 GetIndexOfPatch(TObjectPtr<const ULandscapePatchComponent> Patch) const;
+
+	/**
+	 * Moves patch to given index in the list of patches held by the manager (so that it is applied at 
+	 * a particular time relative to the others).
+	 */
+	void MovePatchToIndex(TObjectPtr<ULandscapePatchComponent> Patch, int32 Index);
 	
 #if WITH_EDITOR
 	// ALandscapeBlueprintBrushBase

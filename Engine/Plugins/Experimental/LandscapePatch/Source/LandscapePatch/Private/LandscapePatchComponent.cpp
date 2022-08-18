@@ -186,6 +186,21 @@ void ULandscapePatchComponent::GetActorDescProperties(FPropertyPairsMap& Propert
 	}
 }
 
+TStructOnScope<FActorComponentInstanceData> ULandscapePatchComponent::GetComponentInstanceData() const
+{
+	return MakeStructOnScope<FActorComponentInstanceData, FLandscapePatchComponentInstanceData>(this);
+}
+
+FLandscapePatchComponentInstanceData::FLandscapePatchComponentInstanceData(const ULandscapePatchComponent* Patch)
+: FSceneComponentInstanceData(Patch)
+{
+	ALandscapePatchManager* PatchManager = Patch->GetPatchManager();
+	if (PatchManager)
+	{
+		IndexInManager = PatchManager->GetIndexOfPatch(Patch);
+	}
+}
+
 void ULandscapePatchComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
 	Super::OnUpdateTransform(UpdateTransformFlags, Teleport);
@@ -222,6 +237,16 @@ void ULandscapePatchComponent::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	RequestLandscapeUpdate();
 }
 #endif
+
+// Called after rerunning construction scripts (when patch is part of a blueprint) to make sure that the newly created 
+// instance of the patch is placed in the same order in the patch  manager as the destroyed instance.
+void ULandscapePatchComponent::ApplyComponentInstanceData(FLandscapePatchComponentInstanceData* ComponentInstanceData)
+{
+	if (ComponentInstanceData && ComponentInstanceData->IndexInManager >= 0 && PatchManager.IsValid())
+	{
+		PatchManager->MovePatchToIndex(this, ComponentInstanceData->IndexInManager);
+	}
+}
 
 void ULandscapePatchComponent::SetLandscape(ALandscape* NewLandscape)
 {
@@ -280,10 +305,10 @@ void ULandscapePatchComponent::SetPatchManager(ALandscapePatchManager* NewPatchM
 	// surround everything since nothing is currently expected to work for a patch manager at runtime.
 #if WITH_EDITOR
 
-	// TODO: We don't currently have an early out here (for PreviousPatchManager == NewPatchManager) 
-	// because using SetPatchManager is currently a convenient way to reorder patches inside the manager,
-	// and because we want to make sure the patch is added to the manager if it was removed from
-	// the list somehow. However we may want to revisit this if it turns out to cause problems.
+	if (PreviousPatchManager == NewPatchManager && NewPatchManager && NewPatchManager->ContainsPatch(this))
+	{
+		return;
+	}
 
 	if (PreviousPatchManager.IsValid())
 	{
@@ -308,6 +333,22 @@ void ULandscapePatchComponent::SetPatchManager(ALandscapePatchManager* NewPatchM
 	PreviousPatchManager = NewPatchManager;
 
 #endif // WITH_EDITOR
+}
+
+ALandscapePatchManager* ULandscapePatchComponent::GetPatchManager() const
+{
+	return PatchManager.Get();
+}
+
+void ULandscapePatchComponent::MoveToTop()
+{
+	if (PatchManager.IsValid() && PatchManager->ContainsPatch(this))
+	{
+		PatchManager->Modify();
+		PatchManager->RemovePatch(this);
+		PatchManager->AddPatch(this);
+		PatchManager->RequestLandscapeUpdate();
+	}
 }
 
 void ULandscapePatchComponent::RequestLandscapeUpdate()
