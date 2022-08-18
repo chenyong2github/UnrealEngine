@@ -30,6 +30,13 @@ namespace UnrealBuildTool.Rules
 					"StaticMeshDescription",
 				}
 				);
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"MeshConversion",
+					"GeometryCore",
+				}
+				);
 
 			PrivateIncludePathModuleNames.Add("DerivedDataCache");
 

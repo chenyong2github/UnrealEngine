@@ -33,6 +33,14 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
 	TArray<TObjectPtr<UMaterialInterface>> SourceMaterial;
+
+	/** Whether source materials should be duplicated to create slots for internal materials. Does not apply if the source is a GeometryCollection. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
+	bool bAddInternalMaterials = true;
+
+	/** Whether connected components in the source object should be added as separate pieces of geometry. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
+	bool bSplitComponents = false;
 };
 
 USTRUCT(BlueprintType)

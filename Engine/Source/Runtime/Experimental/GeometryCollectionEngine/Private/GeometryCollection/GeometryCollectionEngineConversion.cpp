@@ -25,6 +25,8 @@
 #include "StaticMeshOperations.h"
 #include "Physics/Experimental/ChaosInterfaceUtils.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "MeshDescriptionBuilder.h"
+#include "VertexConnectedComponents.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(UGeometryCollectionConversionLogging, Log, All);
@@ -86,7 +88,7 @@ static FVector GetMeshBuildScale3D(const UStaticMesh& StaticMesh)
 
 void FGeometryCollectionEngineConversion::AppendMeshDescription(
 	const FMeshDescription* MeshDescription, const FString& Name, int32 MaterialStartIndex, const FTransform& StaticMeshTransform, 
-	FGeometryCollection* GeometryCollection, UBodySetup* BodySetup, bool ReindexMaterials)
+	FGeometryCollection* GeometryCollection, UBodySetup* BodySetup, bool ReindexMaterials, bool bAddInternalMaterials)
 {
 #if WITH_EDITORONLY_DATA
 
@@ -213,8 +215,9 @@ void FGeometryCollectionEngineConversion::AppendMeshDescription(
 
 		TargetVisible[TargetIndex] = true;
 
-		// Materials are ganged in pairs and we want the id to associate with the first of each pair.
-		TargetMaterialID[TargetIndex] = MaterialStartIndex + (MeshDescription->GetTrianglePolygonGroup(TriangleIndex) * 2);
+		// If adding internal materials, then materials are ganged in pairs and we want the id to associate with the first of each pair.
+		int32 MaterialIndexScale = 1 + int32(bAddInternalMaterials);
+		TargetMaterialID[TargetIndex] = MaterialStartIndex + (MeshDescription->GetTrianglePolygonGroup(TriangleIndex) * MaterialIndexScale);
 
 		// Is this right?
 		TargetMaterialIndex[TargetIndex] = TargetIndex;
@@ -411,7 +414,9 @@ int32 FGeometryCollectionEngineConversion::AppendMaterials(const TArray<UMateria
 	return MaterialStart;
 }
 
-bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials, const FTransform& StaticMeshTransform, UGeometryCollection* GeometryCollectionObject, bool bReindexMaterials)
+bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials, 
+	const FTransform& StaticMeshTransform, UGeometryCollection* GeometryCollectionObject, bool bReindexMaterials,
+	bool bAddInternalMaterials, bool bSplitComponents)
 {
 #if WITH_EDITORONLY_DATA
 
@@ -422,9 +427,9 @@ bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* St
 	FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get();
 	check(GeometryCollection);
 
-	if (AppendStaticMesh(StaticMesh, StartMaterialIndex, StaticMeshTransform, GeometryCollection, bReindexMaterials))
+	if (AppendStaticMesh(StaticMesh, StartMaterialIndex, StaticMeshTransform, GeometryCollection, bReindexMaterials, bAddInternalMaterials, bSplitComponents))
 	{
-		AppendMaterials(Materials, GeometryCollectionObject, true);
+		AppendMaterials(Materials, GeometryCollectionObject, bAddInternalMaterials);
 		return true;
 	}
 
@@ -432,7 +437,8 @@ bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* St
 	return false;
 }
 
-bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* StaticMesh, int32 StartMaterialIndex, const FTransform& StaticMeshTransform, FGeometryCollection* GeometryCollection, bool bReindexMaterials)
+bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* StaticMesh, int32 StartMaterialIndex,  const FTransform& StaticMeshTransform,
+	FGeometryCollection* GeometryCollection, bool bReindexMaterials, bool bAddInternalMaterials, bool bSplitComponents)
 {
 #if WITH_EDITORONLY_DATA
 	if (StaticMesh)
@@ -449,8 +455,134 @@ bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* St
 					StaticMeshTransform.GetTranslation(),
 					StaticMeshTransform.GetScale3D() * MeshBuildScale3D
 			);
-			
-			AppendMeshDescription(MeshDescription, StaticMesh->GetName(), StartMaterialIndex, MeshTransform, GeometryCollection, StaticMesh->GetBodySetup(), bReindexMaterials);
+
+			if (bSplitComponents)
+			{
+				int32 MaxVID = MeshDescription->Vertices().Num();
+				UE::Geometry::FVertexConnectedComponents Components(MaxVID);
+				for (const FTriangleID TriangleID : MeshDescription->Triangles().GetElementIDs())
+				{
+					TArrayView<const FVertexID> TriangleIDs = MeshDescription->GetTriangleVertices(TriangleID);
+					Components.ConnectVertices(TriangleIDs[0].GetValue(), TriangleIDs[1].GetValue());
+					Components.ConnectVertices(TriangleIDs[1].GetValue(), TriangleIDs[2].GetValue());
+				}
+				if (Components.HasMultipleComponents(MaxVID, 2))
+				{
+					// look up vertex positions
+					TVertexAttributesConstRef<FVector3f> VertexPositions = MeshDescription->GetVertexPositions();
+
+					// vertex instance attributes
+					FStaticMeshConstAttributes Attributes(*MeshDescription);
+					TVertexInstanceAttributesConstRef<FVector2f> InstanceUVs = Attributes.GetVertexInstanceUVs();
+					TVertexInstanceAttributesConstRef<FVector3f> InstanceNormals = Attributes.GetVertexInstanceNormals();
+					TVertexInstanceAttributesConstRef<FVector3f> InstanceTangents = Attributes.GetVertexInstanceTangents();
+					TVertexInstanceAttributesConstRef<float> InstanceBiTangentSign = Attributes.GetVertexInstanceBinormalSigns();
+					TVertexInstanceAttributesConstRef<FVector4f> InstanceColors = Attributes.GetVertexInstanceColors();
+					const int NumUVLayers = InstanceUVs.GetNumChannels();
+
+					TMap<int32, int32> Map = Components.MakeComponentMap(MaxVID, 2);
+					int32 NumIslands = Map.Num();
+					
+					TArray<FMeshDescription> Descriptions;
+					Descriptions.SetNum(NumIslands);
+					TArray<FMeshDescriptionBuilder> Builders;
+					Builders.SetNum(NumIslands);
+					for (int32 MeshIdx = 0; MeshIdx < NumIslands; ++MeshIdx)
+					{
+						FStaticMeshAttributes MeshAttributes(Descriptions[MeshIdx]);
+						MeshAttributes.Register();
+
+						Builders[MeshIdx].SetMeshDescription(&Descriptions[MeshIdx]);
+						Builders[MeshIdx].SuspendMeshDescriptionIndexing();
+						Builders[MeshIdx].SetNumUVLayers(NumUVLayers);
+					}
+					for (TPair<int32, int32> IDToIdx : Map)
+					{
+						int32 ID = IDToIdx.Key;
+						int32 Idx = IDToIdx.Value;
+						int32 NumVertices = Components.GetComponentSize(ID);
+						Builders[Idx].ReserveNewVertices(NumVertices);
+					}
+					TArray<int32> VertexIDMap;
+					VertexIDMap.Init(INDEX_NONE, MeshDescription->Vertices().Num());
+
+					for (const FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
+					{
+						int32 MeshID = Components.GetComponent(VertexID.GetValue());
+						int32* MeshIdx = Map.Find(MeshID);
+						if (MeshIdx)
+						{
+							FVector Position = (FVector)VertexPositions.Get(VertexID);
+							VertexIDMap[VertexID.GetValue()] = Builders[*MeshIdx].AppendVertex(Position);
+						}
+					}
+					for (const FTriangleID TriangleID : MeshDescription->Triangles().GetElementIDs())
+					{
+						TArrayView<const FVertexID> TriangleVerts = MeshDescription->GetTriangleVertices(TriangleID);
+						TArrayView<const FVertexInstanceID> SourceInstanceTri = MeshDescription->GetTriangleVertexInstances(TriangleID);
+						int32 MeshID = Components.GetComponent(TriangleVerts[0].GetValue());
+						int32 MeshIdx = Map[MeshID];
+						FMeshDescriptionBuilder& Builder = Builders[MeshIdx];
+
+						// create new vtx instances for each triangle
+						FVertexInstanceID DestInstanceTri[3];
+						for (int32 j = 0; j < 3; ++j)
+						{
+							const FVertexID TriVertex = VertexIDMap[TriangleVerts[j].GetValue()];
+							DestInstanceTri[j] = Builder.AppendInstance(TriVertex);
+						}
+						// add the triangle to MeshDescription
+						FPolygonGroupID MaterialID = MeshDescription->GetTrianglePolygonGroup(TriangleID);
+						FTriangleID NewTriangleID = Builder.AppendTriangle(DestInstanceTri[0], DestInstanceTri[1], DestInstanceTri[2], MaterialID);
+						// transfer UVs.  Note the Builder sets both the shared and per-instance UVs from this
+						for (int32 UVLayer = 0; UVLayer < NumUVLayers; ++UVLayer)
+						{
+							FUVID UVIDs[3] = { FUVID(-1), FUVID(-1), FUVID(-1) };
+							for (int32 j = 0; j < 3; ++j)
+							{
+								FVector2D UV = (FVector2D)InstanceUVs.Get(SourceInstanceTri[j], UVLayer);
+								UVIDs[j] = Builder.AppendUV(UV, UVLayer);
+							}
+
+							// append the UV triangle - builder takes care of the rest
+							Builder.AppendUVTriangle(NewTriangleID, UVIDs[0], UVIDs[1], UVIDs[2], UVLayer);
+						}
+
+						// Set instance attributes: normal/tangent/bitangent frame and color
+						for (int32 j = 0; j < 3; ++j)
+						{
+							const FVertexInstanceID SourceInstanceID = SourceInstanceTri[j];
+							const FVertexInstanceID DestInstanceID = DestInstanceTri[j];
+							FVector TriVertNormal = (FVector)InstanceNormals.Get(SourceInstanceID);
+							FVector TriVertTangent = (FVector)InstanceTangents.Get(SourceInstanceID);
+							float BiTangentSign = (float)InstanceBiTangentSign.Get(SourceInstanceID);
+							Builder.SetInstanceTangentSpace(DestInstanceID, TriVertNormal, TriVertTangent, BiTangentSign);
+							FVector4f InstColor = InstanceColors.Get(SourceInstanceID);
+							Builder.SetInstanceColor(DestInstanceID, InstColor);
+						}
+					}
+
+					for (int32 MeshIdx = 0; MeshIdx < NumIslands; ++MeshIdx)
+					{
+						Builders[MeshIdx].ResumeMeshDescriptionIndexing();
+					}
+
+					for (FMeshDescription& MD : Descriptions)
+					{
+						AppendMeshDescription(&MD, StaticMesh->GetName(), StartMaterialIndex, MeshTransform, GeometryCollection, StaticMesh->GetBodySetup(), false, bAddInternalMaterials);
+					}
+
+					if (bReindexMaterials)
+					{
+						GeometryCollection->ReindexMaterials();
+					}
+
+					return true;
+				}
+				// else only one component -- fall back to just using the original mesh description
+			}
+
+			AppendMeshDescription(MeshDescription, StaticMesh->GetName(), StartMaterialIndex, MeshTransform, GeometryCollection, StaticMesh->GetBodySetup(), bReindexMaterials, bAddInternalMaterials);
 			return true;
 		}
 	}
@@ -710,7 +842,8 @@ void FGeometryCollectionEngineConversion::AppendGeometryCollection(const UGeomet
 }
 
 
-void FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, const FTransform& StaticMeshTransform, UGeometryCollection* GeometryCollectionObject, bool ReindexMaterials)
+void FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, const FTransform& StaticMeshTransform, UGeometryCollection* GeometryCollectionObject, 
+	bool ReindexMaterials, bool bAddInternalMaterials, bool bSplitComponents)
 {
 	if (StaticMesh == nullptr)
 	{
@@ -731,7 +864,7 @@ void FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* St
 	GeometryCollectionObject->Materials.Remove(BoneSelectedMaterial);
 	Materials.Remove(BoneSelectedMaterial);
 	
-	AppendStaticMesh(StaticMesh, Materials, StaticMeshTransform, GeometryCollectionObject, ReindexMaterials);
+	AppendStaticMesh(StaticMesh, Materials, StaticMeshTransform, GeometryCollectionObject, ReindexMaterials, bAddInternalMaterials, bSplitComponents);
 }
 
 

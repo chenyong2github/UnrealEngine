@@ -237,6 +237,28 @@ public:
 		return false;
 	}
 
+	bool HasMultipleComponents(int32 MaxVID, int32 KeepSizeThreshold = 0)
+	{
+		int32 FoundComponent = -1;
+		for (int32 VID = 0; VID < MaxVID; VID++)
+		{
+			int32 SetID = DisjointSet.Find(VID);
+			if (KeepSizeThreshold > 0 && DisjointSet.Sizes[SetID] < KeepSizeThreshold)
+			{
+				continue;
+			}
+			if (FoundComponent == -1)
+			{
+				FoundComponent = SetID;
+			}
+			else if (FoundComponent != SetID)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	// Map arbitrary set IDs to indices from 0 to k-1 (if there are k components)
 	template<typename TriangleMeshType>
 	TMap<int32, int32> MakeComponentMap(const TriangleMeshType& Mesh, int32 KeepSizeThreshold = 0)
@@ -249,6 +271,25 @@ public:
 			{
 				continue;
 			}
+			int32 SetID = DisjointSet.Find(VID);
+			if (KeepSizeThreshold > 0 && DisjointSet.Sizes[SetID] < KeepSizeThreshold)
+			{
+				continue;
+			}
+			if (!ComponentMap.Contains(SetID))
+			{
+				ComponentMap.Add(SetID, CurrentIdx++);
+			}
+		}
+		return ComponentMap;
+	}
+
+	TMap<int32, int32> MakeComponentMap(int32 MaxVID, int32 KeepSizeThreshold = 0)
+	{
+		TMap<int32, int32> ComponentMap;
+		int32 CurrentIdx = 0;
+		for (int32 VID = 0; VID < MaxVID; VID++)
+		{
 			int32 SetID = DisjointSet.Find(VID);
 			if (KeepSizeThreshold > 0 && DisjointSet.Sizes[SetID] < KeepSizeThreshold)
 			{
