@@ -3631,32 +3631,37 @@ bool USkeletalMeshComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBB
 		{
 			// Transform verts into world space. Note that this assumes skeletal mesh is in reference pose...
 			const FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[0];
-			for (uint32 VertIdx = 0; VertIdx < LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices(); VertIdx++)
+			// When editor accesses cooked data and mesh streaming is on, lower LODs are cooked as StreamingBulkData instead of cooking inline,
+			// so the vertex buffer may contain valid meta data but no actual vertex data. Check it is valid before accessing it.
+			if (LODData.StaticVertexBuffers.PositionVertexBuffer.GetVertexData())
 			{
-				const FVector3f& VertexPos(LODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertIdx));
-				const FVector Location = GetComponentTransform().TransformPosition((FVector)VertexPos);
-				const bool bLocationIntersected = FMath::PointBoxIntersection(Location, InSelBBox);
+				for (uint32 VertIdx = 0; VertIdx < LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices(); VertIdx++)
+				{
+					const FVector3f& VertexPos(LODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertIdx));
+					const FVector Location = GetComponentTransform().TransformPosition((FVector)VertexPos);
+					const bool bLocationIntersected = FMath::PointBoxIntersection(Location, InSelBBox);
 
-				// If the selection box doesn't have to encompass the entire component and a skeletal mesh vertex has intersected with
-				// the selection box, this component is being touched by the selection box
-				if (!bMustEncompassEntireComponent && bLocationIntersected)
+					// If the selection box doesn't have to encompass the entire component and a skeletal mesh vertex has intersected with
+					// the selection box, this component is being touched by the selection box
+					if (!bMustEncompassEntireComponent && bLocationIntersected)
+					{
+						return true;
+					}
+
+					// If the selection box has to encompass the entire component and a skeletal mesh vertex didn't intersect with the selection
+					// box, this component does not qualify
+					else if (bMustEncompassEntireComponent && !bLocationIntersected)
+					{
+						return false;
+					}
+				}	
+
+				// If the selection box has to encompass all of the component and none of the component's verts failed the intersection test, this component
+				// is consider touching
+				if (bMustEncompassEntireComponent)
 				{
 					return true;
 				}
-
-				// If the selection box has to encompass the entire component and a skeletal mesh vertex didn't intersect with the selection
-				// box, this component does not qualify
-				else if (bMustEncompassEntireComponent && !bLocationIntersected)
-				{
-					return false;
-				}
-			}
-
-			// If the selection box has to encompass all of the component and none of the component's verts failed the intersection test, this component
-			// is consider touching
-			if (bMustEncompassEntireComponent)
-			{
-				return true;
 			}
 		}
 	}
@@ -3673,30 +3678,35 @@ bool USkeletalMeshComponent::ComponentIsTouchingSelectionFrustum(const FConvexVo
 		{
 			// Transform verts into world space. Note that this assumes skeletal mesh is in reference pose...
 			const FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[0];
-			for (uint32 VertIdx = 0; VertIdx < LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices(); VertIdx++)
+			// When editor accesses cooked data and mesh streaming is on, lower LODs are cooked as StreamingBulkData instead of cooking inline,
+			// so the vertex buffer may contain valid meta data but no actual vertex data. Check it is valid before accessing it.
+			if (LODData.StaticVertexBuffers.PositionVertexBuffer.GetVertexData())
 			{
-				const FVector3f& VertexPos(LODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertIdx));
-				const FVector Location = GetComponentTransform().TransformPosition((FVector)VertexPos);
-				const bool bLocationIntersected = InFrustum.IntersectSphere(Location, 0.0f);
-
-				// If the selection box doesn't have to encompass the entire component and a skeletal mesh vertex has intersected with
-				// the selection box, this component is being touched by the selection box
-				if (!bMustEncompassEntireComponent && bLocationIntersected)
+				for (uint32 VertIdx = 0; VertIdx < LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices(); VertIdx++)
 				{
-					return true;
+					const FVector3f& VertexPos(LODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertIdx));
+					const FVector Location = GetComponentTransform().TransformPosition((FVector)VertexPos);
+					const bool bLocationIntersected = InFrustum.IntersectSphere(Location, 0.0f);
+
+					// If the selection box doesn't have to encompass the entire component and a skeletal mesh vertex has intersected with
+					// the selection box, this component is being touched by the selection box
+					if (!bMustEncompassEntireComponent && bLocationIntersected)
+					{
+						return true;
+					}
+
+					// If the selection box has to encompass the entire component and a skeletal mesh vertex didn't intersect with the selection
+					// box, this component does not qualify
+					else if (bMustEncompassEntireComponent && !bLocationIntersected)
+					{
+						return false;
+					}
 				}
 
-				// If the selection box has to encompass the entire component and a skeletal mesh vertex didn't intersect with the selection
-				// box, this component does not qualify
-				else if (bMustEncompassEntireComponent && !bLocationIntersected)
-				{
-					return false;
-				}
+				// If the selection box has to encompass all of the component and none of the component's verts failed the intersection test, this component
+				// is consider touching
+				return true;
 			}
-
-			// If the selection box has to encompass all of the component and none of the component's verts failed the intersection test, this component
-			// is consider touching
-			return true;
 		}
 	}
 
