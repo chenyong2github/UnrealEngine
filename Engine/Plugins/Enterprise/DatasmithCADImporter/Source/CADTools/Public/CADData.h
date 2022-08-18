@@ -317,7 +317,6 @@ class CADTOOLS_API FBodyMesh
 public:
 	FBodyMesh(FCadId InBodyID = 0) : BodyID(InBodyID)
 	{
-		BBox.Init();
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FBodyMesh& BodyMesh);
@@ -336,9 +335,10 @@ public:
 		}
 	}
 
+	bool bIsFromCad = true;
+
 	TArray<FVector3f> VertexArray; // set by CADKernel, filled by FillKioVertexPosition that merges coincident vertices (CoreTechHelper)
 	TArray<FTessellationData> Faces;
-	FBox BBox;
 
 	uint32 TriangleCount = 0;
 	FCadId BodyID = 0;

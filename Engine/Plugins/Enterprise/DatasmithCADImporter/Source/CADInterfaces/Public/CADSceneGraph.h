@@ -130,6 +130,7 @@ public:
 	void Delete();
 
 	// non serialized fields
+	bool bIsFromCad = true;
 	bool bIsASolid = true;
 };
 

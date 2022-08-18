@@ -95,9 +95,10 @@ FArchive& operator<<(FArchive& Ar, FTessellationData& TessellationData)
 
 FArchive& operator<<(FArchive& Ar, FBodyMesh& BodyMesh)
 {
+	Ar << BodyMesh.bIsFromCad;
+
 	Ar << BodyMesh.VertexArray;
 	Ar << BodyMesh.Faces;
-	Ar << BodyMesh.BBox;
 
 	Ar << BodyMesh.TriangleCount;
 	Ar << BodyMesh.BodyID;
