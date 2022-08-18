@@ -56,7 +56,7 @@ private:
 	 */
 	FString GetCurrentValue_X() const
 	{
-		return GetValue(TextBox_X);
+		return FString::Printf(TEXT("%f"), GetValue().X);
 	}
 
 	/*
@@ -66,7 +66,7 @@ private:
 	 */
 	FString GetCurrentValue_Y() const
 	{
-		return GetValue(TextBox_Y);
+		return FString::Printf(TEXT("%f"), GetValue().Y);
 	}
 
 	/*
@@ -74,29 +74,21 @@ private:
 	 *
 	 *	@param: Text box index
 	 *
-	 *	@return current string value
+	 *	@return current value
 	 */
-	FString GetValue(ETextBoxIndex Index) const
+	FVector2D GetValue() const
 	{
-		FString DefaultString = GraphPinObj->GetDefaultAsString();
-		TArray<FString> ResultString;
+		const FString& DefaultString = GraphPinObj->GetDefaultAsString();
 
 		FVector2D Value;
 		Value.InitFromString(DefaultString);
 
-		if (Index == TextBox_X)
-		{
-			return FString::Printf(TEXT("%f"), Value.X);
-		}
-		else
-		{
-			return FString::Printf(TEXT("%f"), Value.Y);
-		}
+		return Value;
 	}
 
-	FString MakeVector2DString(const FString& X, const FString& Y)
+	static FString MakeVector2DString(NumericType X, NumericType Y)
 	{
-		return FString(TEXT("(X=")) + X + FString(TEXT(",Y=")) + Y + FString(TEXT(")"));
+		return FString::Format(TEXT("(X={0},Y={1})"), { X, Y });
 	}
 
 	/*
@@ -111,13 +103,13 @@ private:
 			return;
 		}
 
-		const FString ValueStr = FString::Printf(TEXT("%f"), NewValue);
-		const FString Vector2DString = MakeVector2DString(ValueStr, GetValue(TextBox_Y));
-
-		if (GraphPinObj->GetDefaultAsString() != Vector2DString)
+		const FVector2D OldValue = GetValue();
+		if (NewValue != OldValue.X)
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("GraphEditor", "ChangeVectorPinValue", "Change Vector Pin Value"));
 			GraphPinObj->Modify();
+
+			const FString Vector2DString = MakeVector2DString(NewValue, OldValue.Y);
 			GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, Vector2DString);
 		}
 	}
@@ -134,13 +126,13 @@ private:
 			return;
 		}
 
-		const FString ValueStr = FString::Printf(TEXT("%f"), NewValue);
-		const FString Vector2DString = MakeVector2DString(GetValue(TextBox_X), ValueStr);
-
-		if (GraphPinObj->GetDefaultAsString() != Vector2DString)
+		const FVector2D OldValue = GetValue();
+		if (NewValue != OldValue.Y)
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("GraphEditor", "ChangeVectorPinValue", "Change Vector Pin Value"));
 			GraphPinObj->Modify();
+
+			const FString Vector2DString = MakeVector2DString(OldValue.X, NewValue);
 			GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, Vector2DString);
 		}
 	}
