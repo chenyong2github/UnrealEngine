@@ -15,6 +15,7 @@
 #include "UI/BaseLogicUI/RCLogicModeBase.h"
 #include "UI/Panels/SRCDockPanel.h"
 #include "UI/RemoteControlPanelStyle.h"
+#include "UI/RCUIHelpers.h"
 #include "UI/SRemoteControlPanel.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SComboButton.h"
@@ -180,29 +181,50 @@ TSharedRef<SWidget> SRCControllerPanel::GetControllerMenuContentWidget() const
 	for (const TPair<EPropertyBagPropertyType, UObject*>& Pair : VirtualPropertyFieldClassNames)
 	{
 		// Display Name
-		const UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/StructUtils.EPropertyBagPropertyType"));
-		FString PropertyTypeString = Enum->GetValueAsName(Pair.Key).ToString();
-		PropertyTypeString.RemoveFromStart("EPropertyBagPropertyType::");
+		const FName DefaultName = URCVirtualPropertyBase::GetVirtualPropertyTypeDisplayName(Pair.Key, Pair.Value);
 
-		if (PropertyTypeString.StartsWith(TEXT("Bool")))
+		// Type Color
+		FLinearColor TypeColor = FColor::White;
+
+		// Generate a transient virtual property for deducing type color:
+		FInstancedPropertyBag Bag;
+		Bag.AddProperty(DefaultName, Pair.Key, Pair.Value);
+		const FPropertyBagPropertyDesc* BagPropertyDesc = Bag.FindPropertyDescByName(DefaultName);
+		if (ensure(BagPropertyDesc))
 		{
-			PropertyTypeString = "Boolean";
-		}
-		
-		if (PropertyTypeString.StartsWith(TEXT("Int")))
-		{
-			PropertyTypeString = PropertyTypeString.Replace(TEXT("Int"), TEXT("Integer"));
+			TypeColor = UE::RCUIHelpers::GetFieldClassTypeColor(BagPropertyDesc->CachedProperty);
 		}
 
-		const FName DefaultName = Pair.Value ? Pair.Value->GetFName() : *PropertyTypeString;
+		// Variable Color Bar
+		TSharedRef<SWidget> MenuItemWidget = 
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Fill)
+			[
+				SNew(SBox)
+				.HeightOverride(5.f)
+				[
+					SNew(SBorder)
+					.Visibility(EVisibility::HitTestInvisible)
+					.BorderImage(FAppStyle::Get().GetBrush("NumericEntrySpinBox.NarrowDecorator"))
+					.BorderBackgroundColor(TypeColor)
+					.Padding(FMargin(5.0f, 0.0f, 0.0f, 0.f))
+				]
+			]
+		+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(FMargin(6.f, 0.f))
+			[
+				SNew(STextBlock)
+				.Text(FText::FromName(DefaultName))
+			];
 
 		// Menu Item
 		FUIAction Action(FExecuteAction::CreateSP(this, &SRCControllerPanel::OnAddControllerClicked, Pair.Key, Pair.Value));
-		MenuBuilder.AddMenuEntry(
-			FText::Format(LOCTEXT("AddController", "{0}"), FText::FromName(DefaultName)),
-			FText::Format(LOCTEXT("AddControllerTooltip", "Add a controller of type {0}."), FText::FromName(DefaultName)),
-			FSlateIcon(),
-			Action);
+
+		MenuBuilder.AddMenuEntry(Action, MenuItemWidget);
 	}
 
 	return MenuBuilder.MakeWidget();
@@ -214,6 +236,11 @@ void SRCControllerPanel::OnAddControllerClicked(const EPropertyBagPropertyType I
 	if (URemoteControlPreset* Preset = GetPreset())
 	{
 		URCVirtualPropertyInContainer* NewVirtualProperty = Preset->AddVirtualProperty(URCController::StaticClass(), InValueType, InValueTypeObject);
+
+		if (ControllerPanelList.IsValid())
+		{
+			NewVirtualProperty->DisplayIndex = ControllerPanelList->GetNumControllerItems();
+		}
 
 		// Refresh list
 		const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel();

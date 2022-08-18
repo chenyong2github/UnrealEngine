@@ -621,6 +621,9 @@ public:
 	/** Fetches a virtual property by internal property name. */
 	URCVirtualPropertyBase* GetVirtualProperty(const FName InPropertyName) const;
 
+	/** Fetches a virtual property by unique Id. */
+	URCVirtualPropertyBase* GetVirtualProperty(const FGuid& InId) const;
+
 	/** Fetches a virtual property by specified name. */
 	URCVirtualPropertyBase* GetVirtualPropertyByDisplayName(const FName InDisplayName) const;
 

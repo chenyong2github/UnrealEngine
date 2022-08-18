@@ -13,7 +13,7 @@
 FRCControllerModel::FRCControllerModel(URCVirtualPropertyBase* InVirtualProperty, const TSharedRef<IDetailTreeNode>& InTreeNode, const TSharedPtr<SRemoteControlPanel> InRemoteControlPanel)
 	: FRCLogicModeBase(InRemoteControlPanel)
 	, VirtualPropertyWeakPtr(InVirtualProperty)
-	, DetailTreeNodeWeakPtr(InTreeNode)	
+	, DetailTreeNodeWeakPtr(InTreeNode)
 {
 	if(ensure(InVirtualProperty))
 	{
@@ -24,6 +24,8 @@ FRCControllerModel::FRCControllerModel(URCVirtualPropertyBase* InVirtualProperty
 			.Text(FText::FromName(InVirtualProperty->DisplayName))
 			.OnTextCommitted_Raw(this, &FRCControllerModel::OnControllerNameCommitted);
 	}
+
+	Id = FGuid::NewGuid();
 }
 
 TSharedRef<SWidget> FRCControllerModel::GetWidget() const

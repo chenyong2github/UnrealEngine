@@ -1,7 +1,10 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "DragAndDrop/DecoratedDragDropOp.h"
 #include "UI/BaseLogicUI/SRCLogicPanelListBase.h"
+#include "UI/RemoteControlPanelStyle.h"
+#include "Widgets/Layout/SBorder.h"
 
 struct FRCPanelStyle;
 class FRCControllerModel;
@@ -14,6 +17,37 @@ class STableViewBase;
 class URCController;
 class URemoteControlPreset;
 template <typename ItemType> class SListView;
+
+/*
+* ~ FRCControllerDragDrop ~
+*
+* Facilitates drag-drop operation for Controller row drag handles
+*/
+class FRCControllerDragDrop final : public FDecoratedDragDropOp
+{
+public:
+	DRAG_DROP_OPERATOR_TYPE(FRCControllerDragDropOp, FDecoratedDragDropOp)
+
+	using WidgetType = SWidget;
+
+	FRCControllerDragDrop(TSharedPtr<SWidget> InWidget, const FGuid& InId)
+		: Id(InId)
+	{
+	}
+
+	FGuid GetId() const
+	{
+		return Id;
+	}
+
+	virtual void OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent) override
+	{
+		FDecoratedDragDropOp::OnDrop(bDropWasHandled, MouseEvent);
+	}
+
+private:
+	FGuid Id;
+};
 
 /*
 * ~ SRCControllerPanelList ~
@@ -46,6 +80,18 @@ public:
 	virtual void DeleteSelectedPanelItem() override;
 
 	void EnterRenameMode();
+
+	int32 GetNumControllerItems() const
+	{
+		return ControllerItems.Num();
+	}
+
+	/** Finds a Controller UI model by unique Id*/
+	TSharedPtr<FRCControllerModel> FindControllerItemById(const FGuid& InId) const;
+
+	/** Given an item to move and an anchor row this function moves the item to the position of the anchor
+	* and pushes all other rows below */
+	void ReorderControllerItem(TSharedRef<FRCControllerModel> ItemToMove, TSharedRef<FRCControllerModel> AnchorItem);
 
 private:
 

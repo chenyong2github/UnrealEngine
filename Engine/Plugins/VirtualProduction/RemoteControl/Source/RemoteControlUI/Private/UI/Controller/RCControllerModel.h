@@ -53,6 +53,9 @@ public:
 	/** User-friendly Name of the underlying Controller */
 	FName GetControllerDisplayName();
 
+	/**Fetches the unique Id for this UI item */
+	FGuid GetId() const { return Id; }
+
 private:
 	/* Text commit event for Controller Name text box*/
 	void OnControllerNameCommitted(const FText& InNewControllerName, ETextCommit::Type InCommitInfo);
@@ -68,4 +71,7 @@ private:
 
 	/** Controller name - editable text box */
 	TSharedPtr<SInlineEditableTextBlock> ControllerNameTextBox;
+
+	/**Unique Id for this UI item*/
+	FGuid Id;
 };

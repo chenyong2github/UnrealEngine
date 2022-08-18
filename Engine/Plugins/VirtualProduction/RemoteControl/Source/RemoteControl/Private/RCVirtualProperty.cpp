@@ -625,6 +625,29 @@ FName URCVirtualPropertyBase::GetPropertyName() const
 	return PropertyName;
 }
 
+FName URCVirtualPropertyBase::GetVirtualPropertyTypeDisplayName(const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject)
+{
+	const UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/StructUtils.EPropertyBagPropertyType"));
+	FString PropertyTypeString = Enum->GetValueAsName(InValueType).ToString();
+	PropertyTypeString.RemoveFromStart("EPropertyBagPropertyType::");
+
+	// User-friendly typename alias
+	if (PropertyTypeString == "Bool")
+	{
+		PropertyTypeString = "Boolean";
+	}
+	else if (PropertyTypeString == "Int32")
+	{
+		PropertyTypeString = TEXT("Integer");
+	}
+	
+	// For Structs we should derive the prefix from the subobject type (Vector / Color / Rotator / etc) rather than the property bag type (which is always "Struct")
+	if (InValueTypeObject)
+		PropertyTypeString = InValueTypeObject->GetName();
+
+	return *PropertyTypeString;
+}
+
 const FInstancedPropertyBag* URCVirtualPropertyInContainer::GetPropertyBagInstance() const
 {
 	if (ContainerWeakPtr.Get())

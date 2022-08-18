@@ -2,17 +2,22 @@
 
 #include "SRCControllerPanelList.h"
 
+#include "Controller/RCControllerContainer.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
 #include "RCControllerModel.h"
 #include "RCVirtualProperty.h"
 #include "RCVirtualPropertyContainer.h"
 #include "RemoteControlPreset.h"
+#include "SDropTarget.h"
 #include "SlateOptMacros.h"
 #include "SRCControllerPanel.h"
 #include "Styling/RemoteControlStyles.h"
+#include "UI/Action/SRCActionPanelList.h"
 #include "UI/BaseLogicUI/RCLogicModeBase.h"
 #include "UI/RemoteControlPanelStyle.h"
+#include "UI/SRCPanelExposedEntity.h"
+#include "UI/SRCPanelDragHandle.h"
 #include "UI/SRemoteControlPanel.h"
 #include "Widgets/Views/SHeaderRow.h"
 
@@ -20,18 +25,20 @@
 
 namespace UE::RCControllerPanelList
 {
-	static const FName ControllerNameColumn(TEXT("Controller Name"));
-	static const FName ControllerValueColumn(TEXT("Controller Value"));
+	namespace Columns
+	{
+		const FName Name = TEXT("Controller Name");
+		const FName Value = TEXT("Controller Value");
+		const FName DragHandle = TEXT("Drag Handle");
+	}
 
 	class SControllerItemListRow : public SMultiColumnTableRow<TSharedRef<FRCControllerModel>>
 	{
-	private:
-		TSharedPtr<FRCControllerModel> ControllerItem;
-
 	public:
-		void Construct(const FTableRowArgs& InArgs, const TSharedRef<STableViewBase>& OwnerTableView, TSharedRef<FRCControllerModel> InControllerItem)
+		void Construct(const FTableRowArgs& InArgs, const TSharedRef<STableViewBase>& OwnerTableView, TSharedRef<FRCControllerModel> InControllerItem, TSharedRef<SRCControllerPanelList> InControllerPanelList)
 		{
 			ControllerItem = InControllerItem;
+			ControllerPanelList = InControllerPanelList;
 			FSuperRowType::Construct(InArgs, OwnerTableView);
 		}
 
@@ -40,19 +47,94 @@ namespace UE::RCControllerPanelList
 			if (!ensure(ControllerItem.IsValid()))
 				return SNullWidget::NullWidget;
 
-			if (ColumnName == UE::RCControllerPanelList::ControllerNameColumn)
+			if (ColumnName == UE::RCControllerPanelList::Columns::Name)
 			{
-				return ControllerItem->GetNameWidget();
+				return WrapWithDropTarget(ControllerItem->GetNameWidget());
 			}
-			else if (ColumnName == UE::RCControllerPanelList::ControllerValueColumn)
+			else if (ColumnName == UE::RCControllerPanelList::Columns::Value)
 			{
 				return ControllerItem->GetWidget();
+			}
+			else if (ColumnName == UE::RCControllerPanelList::Columns::DragHandle)
+			{
+				SAssignNew(DragDropBorderWidget, SBorder)
+					.BorderImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.ExposedFieldBorder"));
+
+				TSharedRef<SWidget> DragHandleWidget = 
+					SNew(SBox)
+					.Padding(5.f)
+					[
+						SNew(SRCPanelDragHandle<FRCControllerDragDrop>, ControllerItem->GetId())
+						.Widget(DragDropBorderWidget)
+					];
+
+				return WrapWithDropTarget(DragHandleWidget);
 			}
 
 			return SNullWidget::NullWidget;
 		}
 
+		TSharedPtr<SBorder> DragDropBorderWidget;
+
 	private:
+
+		TSharedRef<SWidget> WrapWithDropTarget(const TSharedRef<SWidget> InWidget)
+		{
+			return SNew(SDropTarget)
+				.VerticalImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.VerticalDash"))
+				.HorizontalImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.HorizontalDash"))
+				.OnDropped_Lambda([this](const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent) { return SControllerItemListRow::OnControllerItemDragDrop(InDragDropEvent.GetOperation()); })
+				.OnAllowDrop(this, &SControllerItemListRow::OnAllowDrop)
+				.OnIsRecognized(this, &SControllerItemListRow::OnAllowDrop)
+				[
+					InWidget
+				];
+		}
+
+		FReply OnControllerItemDragDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
+		{
+			if (!DragDropOperation)
+			{
+				return FReply::Handled();
+			}
+
+			if (DragDropOperation->IsOfType<FRCControllerDragDrop>())
+			{
+				if (TSharedPtr<FRCControllerDragDrop> DragDropOp = StaticCastSharedPtr<FRCControllerDragDrop>(DragDropOperation))
+				{
+					const FGuid DragDropControllerId = DragDropOp->GetId();
+
+					if (ControllerPanelList.IsValid())
+					{
+						TSharedPtr<FRCControllerModel> DragDropControllerItem = ControllerPanelList->FindControllerItemById(DragDropControllerId);
+
+						if (ensure(ControllerItem && DragDropControllerItem))
+						{
+							ControllerPanelList->ReorderControllerItem(DragDropControllerItem.ToSharedRef(), ControllerItem.ToSharedRef());
+						}
+					}
+				}
+			}
+
+			return FReply::Handled();
+		}
+
+		bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
+		{
+			if (DragDropOperation && ControllerItem)
+			{
+				// Dragging Controllers onto Controllers (Reordering)
+				if (DragDropOperation->IsOfType<FRCControllerDragDrop>())
+				{
+					if (TSharedPtr<FRCControllerDragDrop> DragDropOp = StaticCastSharedPtr<FRCControllerDragDrop>(DragDropOperation))
+					{
+						return true;
+					}
+				}
+			}
+
+			return false;
+		}
 
 		//~ SWidget Interface
 		virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override
@@ -64,8 +146,12 @@ namespace UE::RCControllerPanelList
 
 			return FSuperRowType::OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent);
 		}
+
+private:
+		TSharedPtr<FRCControllerModel> ControllerItem;
+		TSharedPtr<SRCControllerPanelList> ControllerPanelList;
 	};
-}
+} 
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -86,14 +172,19 @@ void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRe
 			SNew(SHeaderRow)
 			.Style(&RCPanelStyle->HeaderRowStyle)
 
-			+ SHeaderRow::Column(UE::RCControllerPanelList::ControllerNameColumn)
-			.DefaultLabel(LOCTEXT("ControllerNameColumnName", "Name"))
-			.FillWidth(0.25f)
+			+ SHeaderRow::Column(UE::RCControllerPanelList::Columns::DragHandle)
+			.DefaultLabel(FText::GetEmpty())
+			.FillWidth(0.1f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
-			+ SHeaderRow::Column(UE::RCControllerPanelList::ControllerValueColumn)
+			+ SHeaderRow::Column(UE::RCControllerPanelList::Columns::Name)
+			.DefaultLabel(LOCTEXT("ControllerNameColumnName", "Name"))
+			.FillWidth(0.3f)
+			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
+
+			+ SHeaderRow::Column(UE::RCControllerPanelList::Columns::Value)
 			.DefaultLabel(LOCTEXT("ControllerValueColumnName", "Input"))
-			.FillWidth(0.75f)
+			.FillWidth(0.6f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 		);
 
@@ -147,10 +238,15 @@ void SRCControllerPanelList::Reset()
 	PropertyRowGenerator->OnFinishedChangingProperties().AddSP(this, &SRCControllerPanelList::OnFinishedChangingProperties);
 
 	// Generator should be moved to separate class
-	for (const TSharedRef<IDetailTreeNode>& CategoryNode : PropertyRowGenerator->GetRootTreeNodes())
+	TArray<TSharedRef<IDetailTreeNode>> RootTreeNodes = PropertyRowGenerator->GetRootTreeNodes();
+
+	for (const TSharedRef<IDetailTreeNode>& CategoryNode : RootTreeNodes)
 	{
 		TArray<TSharedRef<IDetailTreeNode>> Children;
 		CategoryNode->GetChildren(Children);
+
+		ControllerItems.SetNumZeroed(Children.Num());
+
 		for (TSharedRef<IDetailTreeNode>& Child : Children)
 		{
 			FProperty* Property = Child->CreatePropertyHandle()->GetProperty();
@@ -158,7 +254,8 @@ void SRCControllerPanelList::Reset()
 
 			if (URCVirtualPropertyBase* Controller = Preset->GetVirtualProperty(Property->GetFName()))
 			{
-				ControllerItems.Add(MakeShared<FRCControllerModel>(Controller, Child, RemoteControlPanel));
+				if(ensureAlways(ControllerItems.IsValidIndex(Controller->DisplayIndex)))
+					ControllerItems[Controller->DisplayIndex] = MakeShared<FRCControllerModel>(Controller, Child, RemoteControlPanel);
 			}
 		}
 	}
@@ -170,7 +267,7 @@ TSharedRef<ITableRow> SRCControllerPanelList::OnGenerateWidgetForList(TSharedPtr
 {
 	typedef UE::RCControllerPanelList::SControllerItemListRow SControllerRowType;
 
-	return SNew(SControllerRowType, OwnerTable, InItem.ToSharedRef())
+	return SNew(SControllerRowType, OwnerTable, InItem.ToSharedRef(), SharedThis(this))
 		.Style(&RCPanelStyle->TableRowStyle)
 		.Padding(FMargin(3.f));
 }
@@ -277,6 +374,39 @@ void SRCControllerPanelList::EnterRenameMode()
 	{
 		SelectedItem->EnterRenameMode();
 	}
+}
+
+TSharedPtr<FRCControllerModel> SRCControllerPanelList::FindControllerItemById(const FGuid& InId) const
+{
+	for (TSharedPtr<FRCControllerModel> ControllerItem : ControllerItems)
+	{
+		if (ControllerItem && ControllerItem->GetId() == InId)
+		{
+			return ControllerItem;
+		}
+	}
+
+	return nullptr;
+}
+
+void SRCControllerPanelList::ReorderControllerItem(TSharedRef<FRCControllerModel> ItemToMove, TSharedRef<FRCControllerModel> AnchorItem)
+{
+	int32 Index = ControllerItems.Find(AnchorItem);
+
+	// Update UI list
+	ControllerItems.RemoveSingle(ItemToMove);
+	ControllerItems.Insert(ItemToMove, Index);
+
+	// Update display indices
+	for (int32 i = Index; i < ControllerItems.Num(); i++)
+	{
+		if(URCVirtualPropertyBase * Controller = ControllerItems[i]->GetVirtualProperty())
+		{
+			Controller->DisplayIndex = i;
+		}
+	}
+
+	ListView->RequestListRefresh();
 }
 
 #undef LOCTEXT_NAMESPACE

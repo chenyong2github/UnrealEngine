@@ -261,6 +261,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Remote Control Behaviour")
 	FName GetPropertyName() const;
 
+	/** Fetches a user-friendly representation of the Virtual Property's type name (i.e. Controller type), given a Property Bag type and value object (for structures)*/
+	static FName GetVirtualPropertyTypeDisplayName(const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject);
+
 public:
 	/** Unique property name */
 	UPROPERTY()
@@ -277,6 +280,10 @@ public:
 	/** User friendly name of the Controller*/
 	UPROPERTY()
 	FName DisplayName;
+
+	/** User configurable Display Index for this Virtual Property (as Logic Controller) when represented as a row in the RC Logic Controllers list  */
+	UPROPERTY()
+	int32 DisplayIndex;
 };
 
 /**

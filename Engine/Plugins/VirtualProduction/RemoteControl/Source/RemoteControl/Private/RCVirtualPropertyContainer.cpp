@@ -23,7 +23,7 @@ URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::AddProperty(cons
 	MarkPackageDirty();
 #endif
 
-	const FName PropertyName = GenerateUniquePropertyName(InPropertyName, InValueType, this);
+	const FName PropertyName = GenerateUniquePropertyName(InPropertyName, InValueType, InValueTypeObject, this);
 	Bag.AddProperty(PropertyName, InValueType, InValueTypeObject);
 
 	const FPropertyBagPropertyDesc* BagPropertyDesc = Bag.FindPropertyDescByName(InPropertyName);
@@ -152,6 +152,19 @@ URCVirtualPropertyBase* URCVirtualPropertyContainerBase::GetVirtualProperty(cons
 	return nullptr;
 }
 
+URCVirtualPropertyBase* URCVirtualPropertyContainerBase::GetVirtualProperty(const FGuid& InId) const
+{
+	for (URCVirtualPropertyBase* VirtualProperty : VirtualProperties)
+	{
+		if (VirtualProperty->Id == InId)
+		{
+			return VirtualProperty;
+		}
+	}
+
+	return nullptr;
+}
+
 URCVirtualPropertyBase* URCVirtualPropertyContainerBase::GetVirtualPropertyByDisplayName(const FName InDisplayName) const
 {
 	for (URCVirtualPropertyBase* VirtualProperty : VirtualProperties)
@@ -180,7 +193,7 @@ TSharedPtr<FStructOnScope> URCVirtualPropertyContainerBase::CreateStructOnScope(
 	return MakeShared<FStructOnScope>(Bag.GetPropertyBagStruct(), Bag.GetMutableValue().GetMutableMemory());
 }
 
-FName URCVirtualPropertyContainerBase::GenerateUniquePropertyName(const FName& InPropertyName, const EPropertyBagPropertyType InValueType, const URCVirtualPropertyContainerBase* InContainer)
+FName URCVirtualPropertyContainerBase::GenerateUniquePropertyName(const FName& InPropertyName, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject, const URCVirtualPropertyContainerBase* InContainer)
 {
 	auto GetFinalName = [](const FString& InPrefix, const int32 InIndex = 0)
 	{
@@ -194,12 +207,11 @@ FName URCVirtualPropertyContainerBase::GenerateUniquePropertyName(const FName& I
 		return FinalName;
 	};
 
-	const UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/StructUtils.EPropertyBagPropertyType"));
-	FString DefaultName = Enum->GetValueAsName(InValueType).ToString();	
-	DefaultName.RemoveFromStart("EPropertyBagPropertyType::");
+
+	FName DefaultName = URCVirtualPropertyBase::GetVirtualPropertyTypeDisplayName(InValueType, InValueTypeObject);
 	
 	int32 Index = 0;
-	const FString InitialName = InPropertyName.IsNone() ? DefaultName : InPropertyName.ToString();
+	const FString InitialName = InPropertyName.IsNone() ? DefaultName.ToString() : InPropertyName.ToString();
 	FString FinalName = InitialName;
 	
 	// Recursively search for an available name by incrementing suffix till we find one.

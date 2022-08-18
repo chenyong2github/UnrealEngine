@@ -519,6 +519,16 @@ URCVirtualPropertyBase* URemoteControlPreset::GetVirtualProperty(const FName InP
 	return ControllerContainer->GetVirtualProperty(InPropertyName);
 }
 
+URCVirtualPropertyBase* URemoteControlPreset::GetVirtualProperty(const FGuid& InId) const
+{
+	if (!ensure(ControllerContainer))
+	{
+		return nullptr;
+	}
+
+	return ControllerContainer->GetVirtualProperty(InId);
+}
+
 URCVirtualPropertyBase* URemoteControlPreset::GetVirtualPropertyByDisplayName(const FName InDisplayName) const
 {
 	if (!ensure(ControllerContainer))
@@ -540,7 +550,7 @@ URCVirtualPropertyInContainer* URemoteControlPreset::AddVirtualProperty(TSubclas
 	FName NewPropertyName = InPropertyName;
 	if (NewPropertyName.IsNone())
 	{
-		NewPropertyName = URCVirtualPropertyContainerBase::GenerateUniquePropertyName(TEXT(""), InValueType, ControllerContainer);
+		NewPropertyName = URCVirtualPropertyContainerBase::GenerateUniquePropertyName(TEXT(""), InValueType, InValueTypeObject, ControllerContainer);
 	}	
 
 	return ControllerContainer->AddProperty(NewPropertyName, InPropertyClass, InValueType, InValueTypeObject);

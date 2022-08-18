@@ -76,6 +76,11 @@ public:
 	virtual URCVirtualPropertyBase* GetVirtualProperty(const FName InPropertyName) const;
 
 	/**
+	 * Returns virtual property by unique Id.
+	 */
+	URCVirtualPropertyBase* GetVirtualProperty(const FGuid& InId) const;
+
+	/**
 	 * Returns virtual property by user-friendly display name (Controller Name)
 	 */
 	virtual URCVirtualPropertyBase* GetVirtualPropertyByDisplayName(const FName InDisplayName) const;
@@ -93,7 +98,7 @@ public:
 	/**
 	 * Generates unique name for the property for specified property container
 	 */
-	static FName GenerateUniquePropertyName(const FName& InPropertyName, const EPropertyBagPropertyType InValueType, const URCVirtualPropertyContainerBase* InContainer);
+	static FName GenerateUniquePropertyName(const FName& InPropertyName, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject, const URCVirtualPropertyContainerBase* InContainer);
 
 #if WITH_EDITOR
 	/** Delegate when object changed */
