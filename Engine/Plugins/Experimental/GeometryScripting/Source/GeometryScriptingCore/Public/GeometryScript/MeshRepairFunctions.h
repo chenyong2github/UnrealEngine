@@ -24,6 +24,18 @@ public:
 };
 
 
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptResolveTJunctionOptions
+{
+	GENERATED_BODY()
+public:
+	/**  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	float Tolerance = 1e-03f;
+};
+
+
 UENUM(BlueprintType)
 enum class EGeometryScriptFillHolesMethod : uint8
 {
@@ -124,6 +136,13 @@ public:
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	CompactMesh(  
 		UDynamicMesh* TargetMesh, 
+		UGeometryScriptDebug* Debug = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Repair", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ResolveMeshTJunctions(  
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptResolveTJunctionOptions ResolveOptions,
 		UGeometryScriptDebug* Debug = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Repair", meta=(ScriptMethod))

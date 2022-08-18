@@ -10,6 +10,7 @@
 #include "Polygroups/PolygroupSet.h"
 #include "MeshBoundaryLoops.h"
 #include "DynamicMeshEditor.h"
+#include "Operations/MeshResolveTJunctions.h"
 #include "Operations/RemoveOccludedTriangles.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Selections/MeshFaceSelection.h"
@@ -35,6 +36,33 @@ UDynamicMesh* UGeometryScriptLibrary_MeshRepairFunctions::CompactMesh(
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
 	{
 		EditMesh.CompactInPlace();
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshRepairFunctions::ResolveMeshTJunctions(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptResolveTJunctionOptions ResolveOptions,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ResolveMeshTJunctions_InvalidInput", "ResolveMeshTJunctions: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		FMeshResolveTJunctions Resolver(&EditMesh);
+		Resolver.DistanceTolerance = 2 * ResolveOptions.Tolerance;
+		bool bResolveOK = Resolver.Apply();
+		if (!bResolveOK)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("ResolveMeshTJunctions_Error", "ResolveMeshTJunctions: ResolveTJunctions Operation returned error flag"));
+		}
 
 	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
 
