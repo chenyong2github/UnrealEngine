@@ -800,6 +800,11 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 		}
 	}
 
+	// Mark the level as dirty since we received a notice about our stage having changed in some way.
+	// The main goal of this is to trigger the "save layers" dialog if we then save the UE level
+	const bool bAlwaysMarkDirty = true;
+	Modify( bAlwaysMarkDirty );
+
 	// We may update our levelsequence objects (tracks, moviescene, sections, etc.) due to these changes. We definitely don't want to write anything
 	// back to USD when these objects change though.
 	FScopedBlockMonitoringChangesForTransaction BlockMonitoring{ LevelSequenceHelper };
@@ -1590,6 +1595,8 @@ void AUsdStageActor::OpenUsdStage()
 		AbsPath = RootLayer.FilePath;
 	}
 
+	OnPreStageChanged.Broadcast();
+
 	UsdStage = UnrealUSDWrapper::OpenStage( *AbsPath, InitialLoadSet );
 	if ( UsdStage )
 	{
@@ -1613,6 +1620,8 @@ void AUsdStageActor::OpenUsdStage()
 
 void AUsdStageActor::CloseUsdStage()
 {
+	OnPreStageChanged.Broadcast();
+
 	FUsdStageActorImpl::DiscardStage( UsdStage, this );
 	UsdStage = UE::FUsdStage();
 	LevelSequenceHelper.Init( UE::FUsdStage() ); // Drop the helper's reference to the stage
@@ -1722,6 +1731,7 @@ void AUsdStageActor::OnObjectsReplaced( const TMap<UObject*, UObject*>& ObjectRe
 			NewActor->OnActorDestroyed = OnActorDestroyed;
 			NewActor->OnActorLoaded = OnActorLoaded;
 			NewActor->OnStageChanged = OnStageChanged;
+			NewActor->OnPreStageChanged = OnPreStageChanged;
 			NewActor->OnPrimChanged = OnPrimChanged;
 
 			// UEngine::CopyPropertiesForUnrelatedObjects won't copy over the cache's transient assets, but we still
@@ -1769,6 +1779,8 @@ void AUsdStageActor::LoadUsdStage()
 
 	FScopedSlowTask SlowTask( 1.f, LOCTEXT( "LoadingUDStage", "Loading USD Stage") );
 	SlowTask.MakeDialog();
+
+	OnPreStageChanged.Broadcast();
 
 	if ( !AssetCache )
 	{

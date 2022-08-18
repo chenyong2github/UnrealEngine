@@ -99,6 +99,7 @@ namespace UE
 
 		FString ComputeAbsolutePath(const FString& AssetPath) const;
 
+		bool IsDirty() const;
 		bool IsEmpty() const;
 		bool IsAnonymous() const;
 

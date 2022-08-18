@@ -632,7 +632,7 @@ void SUsdLayersTreeView::OnExportSelectedLayers() const
 	// Single layer -> Allow picking the target layer filename
 	if ( LayersToExport.Num() == 1 )
 	{
-		TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save, AsShared() );
+		TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save );
 		if ( !UsdFilePath.IsSet() )
 		{
 			return;
@@ -713,7 +713,7 @@ bool SUsdLayersTreeView::CanAddSubLayer() const
 
 void SUsdLayersTreeView::OnAddSubLayer()
 {
-	TOptional< FString > SubLayerFile = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Composition, AsShared() );
+	TOptional< FString > SubLayerFile = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Composition );
 
 	if ( !SubLayerFile )
 	{
@@ -733,7 +733,7 @@ void SUsdLayersTreeView::OnAddSubLayer()
 
 void SUsdLayersTreeView::OnNewSubLayer()
 {
-	TOptional< FString > SubLayerFile = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save, AsShared() );
+	TOptional< FString > SubLayerFile = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save );
 
 	if ( !SubLayerFile )
 	{

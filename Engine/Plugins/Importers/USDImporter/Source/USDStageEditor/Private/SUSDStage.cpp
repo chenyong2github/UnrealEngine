@@ -329,11 +329,20 @@ void SUsdStage::SetupStageActorDelegates()
 					const bool bEvenIfPendingKill = true;
 					if ( ViewModel.UsdStageActor.IsValid( bEvenIfPendingKill ) )
 					{
+						// Reset our selection to the stage root
+						SelectedPrimPath = TEXT( "/" );
+
 						if ( this->UsdPrimInfoWidget )
 						{
 							// The cast here forces us to use the const version of GetUsdStage, that won't force-load the stage in case it isn't opened yet
 							const UE::FUsdStage& UsdStage = static_cast< const AUsdStageActor* >( ViewModel.UsdStageActor.Get( bEvenIfPendingKill ) )->GetUsdStage();
 							this->UsdPrimInfoWidget->SetPrimPath( UsdStage, TEXT("/") );
+						}
+
+						if ( this->UsdStageTreeView )
+						{
+							this->UsdStageTreeView->ClearSelection();
+							this->UsdStageTreeView->RequestTreeRefresh();
 						}
 					}
 
@@ -1325,7 +1334,7 @@ void SUsdStage::OnNew()
 
 void SUsdStage::OnOpen()
 {
-	TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Open, AsShared() );
+	TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Open );
 
 	if ( UsdFilePath )
 	{
@@ -1352,7 +1361,7 @@ void SUsdStage::OnSave()
 			}
 			else
 			{
-				TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save, AsShared() );
+				TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save );
 				if ( UsdFilePath )
 				{
 					ViewModel.SaveStageAs( *UsdFilePath.GetValue() );
@@ -1521,7 +1530,7 @@ void SUsdStage::OnExportFlattened()
 		return;
 	}
 
-	TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save, AsShared() );
+	TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save );
 	if ( !UsdFilePath.IsSet() )
 	{
 		return;
@@ -1604,8 +1613,19 @@ void SUsdStage::OnPrimSelectionChanged( const TArray<FString>& PrimPaths )
 		UsdPrimInfoWidget->SetPrimPath( UsdStage, *SelectedPrimPath );
 	}
 
+	// We don't need to check for actors and components in case we're just selecting the stage root
+	// Note: This is also a temp fix that prevents an ensure: When we're switching to a new stage,
+	// AUsdStageActor::LoadUsdStage calls AUsdStageActor::OpenUsdStage, which triggers OnStageChanged
+	// and gets us here. Ideally this wouldn't happen at the same time as AUsdStageActor::LoadUsdStage
+	// because we need the InfoCache to be complete at this point. Strangely though, the SlowTask.EnterProgressFrame
+	// within AUsdStageActor::LoadUsdStage triggers a full slate tick right there, that calls us before
+	// LoadUsdStage is complete... in the future I think we can fix this by changing our delegates from
+	// AsyncTask( ENamedThreads::GameThread ) to finishing up on the next tick instead, but for now
+	// this will do
+	const bool bIsRootSelection = PrimPaths.Num() == 1 && PrimPaths[0] == TEXT("/");
+
 	const UUsdStageEditorSettings* Settings = GetDefault<UUsdStageEditorSettings>();
-	if ( Settings && Settings->bSelectionSynced && GEditor )
+	if ( Settings && Settings->bSelectionSynced && GEditor && !bIsRootSelection )
 	{
 		TGuardValue<bool> SelectionLoopGuard( bUpdatingViewportSelection, true );
 

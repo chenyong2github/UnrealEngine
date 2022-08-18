@@ -639,6 +639,19 @@ namespace UE
 	}
 
 	template<typename PtrType>
+	bool FSdfLayerBase<PtrType>::IsDirty() const
+	{
+#if USE_USD_SDK
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return Ptr->IsDirty();
+		}
+#endif // #if USE_USD_SDK
+
+		return false;
+	}
+
+	template<typename PtrType>
 	bool FSdfLayerBase<PtrType>::IsEmpty() const
 	{
 #if USE_USD_SDK

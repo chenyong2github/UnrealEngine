@@ -59,7 +59,7 @@ namespace UsdUtils
 
 #if WITH_EDITOR
 	/** Opens a file dialog to open or save a USD file. The returned file path will always be absolute */
-	USDUTILITIES_API TOptional< FString > BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< const SWidget > OriginatingWidget );
+	USDUTILITIES_API TOptional< FString > BrowseUsdFile( EBrowseFileMode Mode );
 #endif // #if WITH_EDITOR
 
 	/**

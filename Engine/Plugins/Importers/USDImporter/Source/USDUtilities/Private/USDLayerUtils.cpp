@@ -117,7 +117,7 @@ bool UsdUtils::InsertSubLayer( const pxr::SdfLayerRefPtr& ParentLayer, const TCH
 }
 
 #if WITH_EDITOR
-TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< const SWidget > OriginatingWidget )
+TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode )
 {
 	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
 
@@ -125,12 +125,6 @@ TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< 
 	{
 		return {};
 	}
-
-	// show the file browse dialog
-	TSharedPtr< SWindow > ParentWindow = FSlateApplication::Get().FindWidgetWindow( OriginatingWidget );
-	void* ParentWindowHandle = ( ParentWindow.IsValid() && ParentWindow->GetNativeWindow().IsValid() )
-		? ParentWindow->GetNativeWindow()->GetOSWindowHandle()
-		: nullptr;
 
 	TArray< FString > OutFiles;
 
@@ -168,7 +162,15 @@ TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< 
 		case EBrowseFileMode::Open :
 		case EBrowseFileMode::Composition :
 		{
-			if ( !DesktopPlatform->OpenFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), *FileTypes, EFileDialogFlags::None, OutFiles ) )
+			if ( !DesktopPlatform->OpenFileDialog(
+				FSlateApplication::Get().FindBestParentWindowHandleForDialogs( nullptr ),
+				LOCTEXT( "ChooseFile", "Choose file").ToString(),
+				TEXT(""),
+				TEXT(""),
+				*FileTypes,
+				EFileDialogFlags::None,
+				OutFiles
+			) )
 			{
 				return {};
 			}
@@ -176,7 +178,15 @@ TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< 
 		}
 		case EBrowseFileMode::Save :
 		{
-			if ( !DesktopPlatform->SaveFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), *FileTypes, EFileDialogFlags::None, OutFiles ) )
+			if ( !DesktopPlatform->SaveFileDialog(
+				FSlateApplication::Get().FindBestParentWindowHandleForDialogs( nullptr ),
+				LOCTEXT( "ChooseFile", "Choose file").ToString(),
+				TEXT(""),
+				TEXT(""),
+				*FileTypes,
+				EFileDialogFlags::None,
+				OutFiles
+			) )
 			{
 				return {};
 			}

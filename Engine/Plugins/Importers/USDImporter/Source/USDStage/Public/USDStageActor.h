@@ -170,6 +170,7 @@ public:
 	USDSTAGE_API static FOnActorLoaded OnActorLoaded;
 
 	DECLARE_EVENT( AUsdStageActor, FOnStageActorEvent );
+	FOnStageActorEvent OnPreStageChanged;
 	FOnStageActorEvent OnStageChanged;
 	FOnStageActorEvent OnActorDestroyed;
 

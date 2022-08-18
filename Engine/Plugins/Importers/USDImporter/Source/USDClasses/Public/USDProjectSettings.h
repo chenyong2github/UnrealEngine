@@ -8,6 +8,14 @@
 
 #include "USDProjectSettings.generated.h"
 
+UENUM( BlueprintType )
+enum class EUsdSaveDialogBehavior : uint8
+{
+	NeverSave,
+	AlwaysSave,
+	ShowPrompt
+};
+
 UCLASS(config=Editor, meta=(DisplayName=USDImporter), MinimalAPI)
 class UUsdProjectSettings : public UDeveloperSettings
 {
@@ -18,10 +26,18 @@ public:
 	UPROPERTY( config, EditAnywhere, Category = USD )
 	TArray<FDirectoryPath> AdditionalPluginDirectories;
 
-	UPROPERTY( config, EditAnywhere, Category = USD )
+	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
 	bool bShowConfirmationWhenClearingLayers = true;
 
 	// Whether to show the warning dialog when authoring opinions that could have no effect on the composed stage
-	UPROPERTY( config, EditAnywhere, Category = USD )
+	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
 	bool bShowOverriddenOpinionsWarning = true;
+
+	// Whether to display the pop up dialog asking what to do about dirty USD layers when saving the UE level
+	UPROPERTY(config, EditAnywhere, Category = "USD|Dialogs" )
+	EUsdSaveDialogBehavior ShowSaveLayersDialogWhenSaving = EUsdSaveDialogBehavior::ShowPrompt;
+
+	// Whether to display the pop up dialog asking what to do about dirty USD layers when closing USD stages
+	UPROPERTY(config, EditAnywhere, Category = "USD|Dialogs" )
+	EUsdSaveDialogBehavior ShowSaveLayersDialogWhenClosing = EUsdSaveDialogBehavior::ShowPrompt;
 };
