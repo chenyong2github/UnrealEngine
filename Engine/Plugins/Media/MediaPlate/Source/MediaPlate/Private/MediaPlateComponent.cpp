@@ -242,7 +242,7 @@ void UMediaPlateComponent::Pause()
 	}
 }
 
-void UMediaPlateComponent::Stop()
+void UMediaPlateComponent::Close()
 {
 	if (MediaPlayer != nullptr)
 	{

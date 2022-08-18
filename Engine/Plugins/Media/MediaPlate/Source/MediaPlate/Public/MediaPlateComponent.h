@@ -71,10 +71,10 @@ public:
 	void Pause();
 
 	/**
-	 * Call this to stop playing.
+	 * Call this to close the media.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")
-	void Stop();
+	void Close();
 
 	/**
 	 * Call this to see if we want to loop.

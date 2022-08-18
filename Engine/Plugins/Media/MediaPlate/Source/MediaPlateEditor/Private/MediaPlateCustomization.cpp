@@ -369,7 +369,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 								UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 								if (MediaPlate != nullptr)
 								{
-									MediaPlate->Stop();
+									MediaPlate->Close();
 								}
 							}
 							return FReply::Handled();
@@ -1026,7 +1026,7 @@ void FMediaPlateCustomization::StopMediaPlates()
 		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 		if (MediaPlate != nullptr)
 		{
-			MediaPlate->Stop();
+			MediaPlate->Close();
 		}
 	}
 }
