@@ -331,6 +331,20 @@ void UGSTab::OnSyncFilterWindowSaved(
 	UserSettings->Save();
 }
 
+void UGSTab::OnOpenExplorer()
+{
+	FPlatformProcess::ExploreFolder(*FPaths::GetPath(ProjectFileName));
+}
+
+void UGSTab::OnOpenEditor()
+{
+	UGSCore::EBuildConfig EditorBuildConfig = GetEditorBuildConfig();
+
+	FString EditorPath = GetEditorExePath(EditorBuildConfig, DetectSettings);
+
+	EditorProcessHandle = FPlatformProcess::CreateProc(*EditorPath, *ProjectFileName, true, false, false, nullptr, 0, nullptr, nullptr, nullptr);
+}
+
 void UGSTab::QueueMessageForMainThread(TFunction<void()> Function)
 {
 	FScopeLock Lock(&CriticalSection);
@@ -359,6 +373,16 @@ void UGSTab::Tick()
 		bNeedUpdateGameTabBuildList = false;
 
 		UpdateGameTabBuildList();
+	}
+
+	// if we have spawned an editor process, check if its closed to reap it
+	if (EditorProcessHandle.IsValid())
+	{
+		if (!FPlatformProcess::IsProcRunning(EditorProcessHandle))
+		{
+			FPlatformProcess::CloseProc(EditorProcessHandle);
+			EditorProcessHandle.Reset();
+		}
 	}
 }
 

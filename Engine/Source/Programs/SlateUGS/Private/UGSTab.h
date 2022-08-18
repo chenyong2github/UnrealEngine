@@ -58,6 +58,8 @@ public:
 		const TArray<FString>& SyncViewAll,
 		const TArray<FGuid>& SyncExcludedCategoriesAll);
 	void OnBuildWorkspace();
+	void OnOpenExplorer();
+	void OnOpenEditor();
 
 	// Accessors
 	bool IsSyncing() const;
@@ -115,4 +117,7 @@ private:
 	std::atomic<bool> bHasQueuedMessages;
 
 	std::atomic<bool> bNeedUpdateGameTabBuildList;
+
+	// If we launch the editor, keep track of it to reap when its exited
+	FProcHandle EditorProcessHandle;
 };

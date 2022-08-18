@@ -273,21 +273,20 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					+SHorizontalBox::Slot()
 					.AutoWidth()
 					[
-						SNew(SSimpleComboButton)
+						SNew(SSimpleButton)
 						.Text(LOCTEXT("RunUnrealEditor", "Run Unreal Editor"))
 						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.Launch"))
-						.HasDownArrow(true)
 						.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
-						.IsEnabled(false) // Todo: enable after adding this functionality
+						.OnClicked_Lambda([this] { Tab->OnOpenEditor(); return FReply::Handled(); })
 					]
 					+SHorizontalBox::Slot()
 					.AutoWidth()
 					[
 						SNew(SSimpleButton)
-						.Text(LOCTEXT("OpenSolution", "OpenSolution"))
+						.Text(LOCTEXT("OpenExplorer", "Open Explorer"))
 						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.FolderOpen")) // Todo: shouldn't use this icon (repurposing, also could use other IDEs)
 						.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
-						.IsEnabled(false) // Todo: enable after adding this functionality
+						.OnClicked_Lambda([this] { Tab->OnOpenExplorer(); return FReply::Handled(); })
 					]
 				]
 				+SHorizontalBox::Slot()
