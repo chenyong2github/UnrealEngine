@@ -98,7 +98,7 @@ void SDetailsViewBase::SetRootExpansionStates(const bool bExpand, const bool bRe
 			Children.Reset();
 			(*Iter)->GetChildren(Children);
 
-			for(TSharedRef<class FDetailTreeNode>& Child : Children)
+			for(TSharedRef<FDetailTreeNode>& Child : Children)
 			{
 				SetNodeExpansionState(Child, bExpand, bRecurse);
 			}
@@ -127,7 +127,7 @@ void SDetailsViewBase::SetNodeExpansionState(TSharedRef<FDetailTreeNode> InTreeN
 		if (bRecursive)
 		{
 			for (int32 ChildIndex = 0; ChildIndex < Children.Num(); ++ChildIndex)
-			{
+					{
 				TSharedRef<FDetailTreeNode> Child = Children[ChildIndex];
 
 				SetNodeExpansionState(Child, bIsItemExpanded, bRecursive);
@@ -778,7 +778,7 @@ TSharedPtr<SWidget> SDetailsViewBase::GetFilterAreaWidget()
 	return DetailsViewArgs.bCustomFilterAreaLocation ? FilterRow : nullptr;
 }
 
-TSharedPtr<class FUICommandList> SDetailsViewBase::GetHostCommandList() const
+TSharedPtr<FUICommandList> SDetailsViewBase::GetHostCommandList() const
 {
 	return DetailsViewArgs.HostCommandList;
 }
@@ -1063,13 +1063,11 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 	if (bUpdateFilteredDetails)
 	{
 		UpdateFilteredDetails();
-
-		RestoreAllExpandedItems();
 	}
 
-	for(FDetailLayoutData& LayoutData : DetailLayouts)
+	for (FDetailLayoutData& LayoutData : DetailLayouts)
 	{
-		if(LayoutData.DetailLayout.IsValid())
+		if (LayoutData.DetailLayout.IsValid())
 		{
 			LayoutData.DetailLayout->Tick(InDeltaTime);
 		}
@@ -1370,43 +1368,44 @@ void SDetailsViewBase::HandleNodeAnimationComplete()
 	CurrentlyAnimatingNodePath = nullptr;
 }
 
+void SDetailsViewBase::FilterRootNode(const TSharedPtr<FComplexPropertyNode>& RootNode)
+{
+	if (RootNode.IsValid())
+	{
+		SaveExpandedItems(RootNode.ToSharedRef());
+
+		RootNode->FilterNodes(CurrentFilter.FilterStrings);
+		RootNode->ProcessSeenFlags(true);
+
+		RestoreExpandedItems(RootNode.ToSharedRef());
+	}
+}
+
 void SDetailsViewBase::UpdateFilteredDetails()
 {
 	RootTreeNodes.Reset();
 
 	FDetailNodeList InitialRootNodeList;
-	
 	NumVisibleTopLevelObjectNodes = 0;
 	
-	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
-	for(int32 RootNodeIndex = 0; RootNodeIndex < RootPropertyNodes.Num(); ++RootNodeIndex)
+	const FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
+	for (int32 RootNodeIndex = 0; RootNodeIndex < RootPropertyNodes.Num(); ++RootNodeIndex)
 	{
-		const TSharedPtr<FComplexPropertyNode>& RootPropertyNode = RootPropertyNodes[RootNodeIndex];
-		if(RootPropertyNode.IsValid())
+		if (RootPropertyNodes[RootNodeIndex].IsValid())
 		{
-			RootPropertyNode->FilterNodes(CurrentFilter.FilterStrings);
-			RootPropertyNode->ProcessSeenFlags(true);
-
-			RestoreExpandedItems(RootPropertyNode.ToSharedRef());
+			FilterRootNode(RootPropertyNodes[RootNodeIndex]);
 
 			const TSharedPtr<FDetailLayoutBuilderImpl>& DetailLayout = DetailLayouts[RootNodeIndex].DetailLayout;
-			if(DetailLayout.IsValid())
+			if (DetailLayout.IsValid())
 			{
-				FRootPropertyNodeList& ExternalRootPropertyNodes = DetailLayout->GetExternalRootPropertyNodes();
-				for (const TSharedPtr<FComplexPropertyNode>& ExternalRootNode : ExternalRootPropertyNodes)
+				for (const TSharedPtr<FComplexPropertyNode>& ExternalRootNode : DetailLayout->GetExternalRootPropertyNodes())
 				{
-					if (ExternalRootNode.IsValid())
-					{
-						ExternalRootNode->FilterNodes(CurrentFilter.FilterStrings);
-						ExternalRootNode->ProcessSeenFlags(true);
-
-						RestoreExpandedItems(ExternalRootNode.ToSharedRef());
-					}
+					FilterRootNode(ExternalRootNode);
 				}
 
 				DetailLayout->FilterDetailLayout(CurrentFilter);
 
-				FDetailNodeList& LayoutRoots = DetailLayout->GetFilteredRootTreeNodes();
+				const FDetailNodeList& LayoutRoots = DetailLayout->GetFilteredRootTreeNodes();
 				if (LayoutRoots.Num() > 0)
 				{
 					// A top level object nodes has a non-filtered away root so add one to the total number we have
@@ -1419,9 +1418,9 @@ void SDetailsViewBase::UpdateFilteredDetails()
 	}
 
 	// for multiple top level object we need to do a secondary pass on top level object nodes after we have determined if there is any nodes visible at all.  If there are then we ask the details panel if it wants to show childen
-	for(TSharedRef<class FDetailTreeNode> RootNode : InitialRootNodeList)
+	for (const TSharedRef<FDetailTreeNode>& RootNode : InitialRootNodeList)
 	{
-		if(RootNode->ShouldShowOnlyChildren())
+		if (RootNode->ShouldShowOnlyChildren())
 		{
 			RootNode->GetChildren(RootTreeNodes);
 		}

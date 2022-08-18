@@ -12,6 +12,8 @@ class AActor;
 class FNotifyHook;
 class FPropertyPath;
 class FTabManager;
+class FUICommandList;
+class IClassViewerFilter;
 class IDetailKeyframeHandler;
 class IDetailPropertyExtensionHandler;
 class IDetailRootObjectCustomization;
@@ -67,7 +69,7 @@ public:
 	 *
 	 * @param InRootObjectCustomization	If null is passed in, the customization will be removed
 	 */
-	virtual void SetRootObjectCustomizationInstance(TSharedPtr<class IDetailRootObjectCustomization> InRootObjectCustomization) = 0;
+	virtual void SetRootObjectCustomizationInstance(TSharedPtr<IDetailRootObjectCustomization> InRootObjectCustomization) = 0;
 
 	/**
 	 * Sets the objects this details view is viewing
@@ -215,7 +217,7 @@ public:
 	/**
 	 * Sets the set of properties that are considered differing, used when filtering out identical properties
 	 */
-	virtual void UpdatePropertyAllowList(const TSet<FPropertyPath> InAllowedProperties) = 0;
+	virtual void UpdatePropertyAllowList(const TSet<FPropertyPath>& InAllowedProperties) = 0;
 
 	/** Returns the name area widget used to display object naming functionality so it can be placed in a custom location.  Note FDetailsViewArgs.bCustomNameAreaLocation must be true */
 	virtual TSharedPtr<SWidget> GetNameAreaWidget() = 0;
@@ -227,7 +229,7 @@ public:
 	virtual TSharedPtr<SWidget> GetFilterAreaWidget() = 0;
 
 	/** Returns the command list of the hosting toolkit (can be nullptr if the widget that contains the details panel didn't route a command list in) */
-	virtual TSharedPtr<class FUICommandList> GetHostCommandList() const = 0;
+	virtual TSharedPtr<FUICommandList> GetHostCommandList() const = 0;
 
 	/** Returns the tab manager of the hosting toolkit (can be nullptr if the details panel is not hosted within a tab) */
 	virtual TSharedPtr<FTabManager> GetHostTabManager() const = 0;
@@ -248,7 +250,7 @@ public:
 	virtual void SetObjectFilter(TSharedPtr<FDetailsViewObjectFilter> InFilter) = 0;
 
 	/** Sets the custom filter(s) to be used when selecting values for class properties in this view. */
-	virtual void SetClassViewerFilters(const TArray<TSharedRef<class IClassViewerFilter>>& InFilters) = 0;
+	virtual void SetClassViewerFilters(const TArray<TSharedRef<IClassViewerFilter>>& InFilters) = 0;
 
 	/** Allows other systems to add a custom filter in the details panel */
 	virtual void SetCustomFilterDelegate(FSimpleDelegate InDelegate) = 0;

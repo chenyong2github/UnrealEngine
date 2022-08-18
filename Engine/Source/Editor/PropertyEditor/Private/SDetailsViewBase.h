@@ -117,7 +117,7 @@ public:
 	}
 	/** IDetailsViewPrivate interface */
 	virtual void RerunCurrentFilter() override;
-	void SetNodeExpansionState(TSharedRef<FDetailTreeNode> InTreeNode, bool bIsItemExpanded, bool bRecursive) override;
+	void SetNodeExpansionState(TSharedRef<FDetailTreeNode> InTreeNode, bool bExpand, bool bRecursive) override;
 	void SaveCustomExpansionState(const FString& NodePath, bool bIsExpanded) override;
 	bool GetCustomSavedExpansionState(const FString& NodePath) const override;
 	virtual void NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -273,9 +273,10 @@ protected:
 	/** Called when show animated is clicked */
 	void OnShowAnimatedClicked();
 
-	/**
-	* Updates the details with the passed in filter
-	*/
+	/** Apply the CurrentFilter to the given root node. */
+	void FilterRootNode(const TSharedPtr<FComplexPropertyNode>& RootNode);
+
+	/** Updates the details with the CurrentFilter */
 	void UpdateFilteredDetails();
 
 	/** Called when the filter text changes.  This filters specific property nodes out of view */
@@ -285,7 +286,7 @@ protected:
 	void OnFilterTextCommitted(const FText& InSearchText, ETextCommit::Type InCommitType);
 
 	/** Called when the list of currently differing properties changes */
-	virtual void UpdatePropertyAllowList(const TSet<FPropertyPath> InAllowedProperties) override { CurrentFilter.PropertyAllowList = InAllowedProperties; }
+	virtual void UpdatePropertyAllowList(const TSet<FPropertyPath>& InAllowedProperties) override { CurrentFilter.PropertyAllowList = InAllowedProperties; }
 
 	virtual TSharedPtr<SWidget> GetNameAreaWidget() override;
 	virtual void SetNameAreaCustomContent(TSharedRef<SWidget>& InCustomContent) override;
