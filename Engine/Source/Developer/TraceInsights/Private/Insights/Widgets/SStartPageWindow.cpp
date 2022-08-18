@@ -791,6 +791,7 @@ STraceStoreWindow::STraceStoreWindow()
 	, FilterByAppName()
 	, FilterByBuildConfig()
 	, FilterByBuildTarget()
+	, FilterByBranch()
 	, bFilterStatsTextIsDirty(true)
 	, FilterStatsText()
 	, SortColumn(TraceStoreColumns::Date)
@@ -1019,7 +1020,7 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructFiltersToolbar()
 		ToolbarBuilder.AddComboButton(
 			FUIAction(),
 			FOnGetContent::CreateSP(this, &STraceStoreWindow::MakeBuildConfigFilterMenu),
-			LOCTEXT("FilterByBuildConfigText", "Build Config"),
+			LOCTEXT("FilterByBuildConfigText", "Config"),
 			LOCTEXT("FilterByBuildConfigToolTip", "Filters the list of trace sessions by build configuration."),
 			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Filter.ToolBar"),
 			false
@@ -1029,8 +1030,18 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructFiltersToolbar()
 		ToolbarBuilder.AddComboButton(
 			FUIAction(),
 			FOnGetContent::CreateSP(this, &STraceStoreWindow::MakeBuildTargetFilterMenu),
-			LOCTEXT("FilterByBuildTargetText", "Build Target"),
+			LOCTEXT("FilterByBuildTargetText", "Target"),
 			LOCTEXT("FilterByBuildTargetToolTip", "Filters the list of trace sessions by build target."),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Filter.ToolBar"),
+			false
+		);
+
+		// Filter by Branch
+		ToolbarBuilder.AddComboButton(
+			FUIAction(),
+			FOnGetContent::CreateSP(this, &STraceStoreWindow::MakeBranchFilterMenu),
+			LOCTEXT("FilterByBranchText", "Branch"),
+			LOCTEXT("FilterByBranchToolTip", "Filters the list of trace sessions by branch."),
 			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Filter.ToolBar"),
 			false
 		);
@@ -2271,6 +2282,28 @@ void STraceStoreWindow::BuildBuildTargetFilterSubMenu(FMenuBuilder& InMenuBuilde
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedRef<SWidget> STraceStoreWindow::MakeBranchFilterMenu()
+{
+	FSlateApplication::Get().CloseToolTip();
+
+	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
+
+	MenuBuilder.BeginSection("Filter", LOCTEXT("MenuSection_BranchFilter", "Branch Filter"));
+	BuildBranchFilterSubMenu(MenuBuilder);
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STraceStoreWindow::BuildBranchFilterSubMenu(FMenuBuilder& InMenuBuilder)
+{
+	FilterByBranch->BuildMenu(InMenuBuilder, *this);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FText STraceStoreWindow::GetTraceStoreDirectory() const
 {
 	return FText::FromString(FPaths::ConvertRelativePathToFull(FInsightsManager::Get()->GetStoreDir()));
@@ -2449,6 +2482,11 @@ FTraceFilterByBuildTarget::FTraceFilterByBuildTarget()
 	ToggleAllActionTooltip = LOCTEXT("FilterByBuildTarget_ToggleAll_Tooltip", "Shows or hides traces for all build targets.");
 }
 
+FTraceFilterByBranch::FTraceFilterByBranch()
+{
+	ToggleAllActionTooltip = LOCTEXT("FilterByBranch_ToggleAll_Tooltip", "Shows or hides traces for all branches.");
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STraceStoreWindow::FilterByNameSearchBox_OnTextChanged(const FText& InFilterText)
@@ -2494,6 +2532,9 @@ void STraceStoreWindow::CreateFilters()
 
 	FilterByBuildTarget = MakeShared<FTraceFilterByBuildTarget>();
 	Filters->Add(FilterByBuildTarget);
+
+	FilterByBranch = MakeShared<FTraceFilterByBranch>();
+	Filters->Add(FilterByBranch);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2520,7 +2561,8 @@ void STraceStoreWindow::UpdateFiltering()
 		FilterByPlatform->IsEmpty() &&
 		FilterByAppName->IsEmpty() &&
 		FilterByBuildConfig->IsEmpty() &&
-		FilterByBuildTarget->IsEmpty())
+		FilterByBuildTarget->IsEmpty() && 
+		FilterByBranch->IsEmpty())
 	{
 		// No filtering.
 		FilteredTraceViewModels = TraceViewModels;

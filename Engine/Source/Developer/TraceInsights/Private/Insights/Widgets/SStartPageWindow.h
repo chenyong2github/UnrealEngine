@@ -215,6 +215,18 @@ protected:
 	}
 };
 
+class FTraceFilterByBranch : public FTraceFilterByStringSet
+{
+public:
+	FTraceFilterByBranch();
+
+protected:
+	virtual FString GetFilterValueForTrace(const FTraceViewModel& InTrace) const override
+	{
+		return InTrace.Branch.ToString();
+	}
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Implements the Trace Store window. */
@@ -310,6 +322,9 @@ private:
 	TSharedRef<SWidget> MakeBuildTargetColumnHeaderMenu();
 	TSharedRef<SWidget> MakeBuildTargetFilterMenu();
 	void BuildBuildTargetFilterSubMenu(FMenuBuilder& InMenuBuilder);
+
+	TSharedRef<SWidget> MakeBranchFilterMenu();
+	void BuildBranchFilterSubMenu(FMenuBuilder& InMenuBuilder);
 
 	FReply RefreshTraces_OnClicked();
 
@@ -469,6 +484,7 @@ private:
 	TSharedPtr<FTraceFilterByAppName> FilterByAppName;
 	TSharedPtr<FTraceFilterByBuildConfig> FilterByBuildConfig;
 	TSharedPtr<FTraceFilterByBuildTarget> FilterByBuildTarget;
+	TSharedPtr<FTraceFilterByBranch> FilterByBranch;
 
 	bool bFilterStatsTextIsDirty;
 	FText FilterStatsText;
