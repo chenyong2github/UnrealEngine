@@ -344,7 +344,7 @@ namespace Clipper2Lib {
 		bool IsHole() const 
 		{
 			const PolyPath* pp = parent_;
-			bool is_hole = pp;
+			bool is_hole = pp != nullptr;
 			while (pp) {
 				is_hole = !is_hole;
 				pp = pp->parent_;
