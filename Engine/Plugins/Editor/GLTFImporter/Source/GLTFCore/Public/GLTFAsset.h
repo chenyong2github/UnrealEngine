@@ -86,6 +86,7 @@ namespace GLTF
 		TArray<FString>   Variants;
 
 		TSet<EExtension> ExtensionsUsed;
+		TArray<FString>	 RequiredExtensions;
 		FMetadata        Metadata;
 
 		/**

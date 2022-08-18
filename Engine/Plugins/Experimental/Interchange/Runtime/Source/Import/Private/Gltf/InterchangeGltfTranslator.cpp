@@ -33,6 +33,17 @@ static FAutoConsoleVariableRef CCvarInterchangeEnableGLTFImport(
 	TEXT("Whether glTF support is enabled."),
 	ECVF_Default);
 
+// is not supported yet
+static const TArray<FString> SupportedExtensions = {/* Lights */
+														//TEXT("KHR_lights_punctual"), TEXT("KHR_lights"), //not supported yet
+													/* Variants */
+														TEXT("KHR_materials_variants"), 
+													/* Materials */
+														//TEXT("KHR_materials_unlit"), //not supported yet
+														TEXT("KHR_materials_ior"), TEXT("KHR_materials_clearcoat"), TEXT("KHR_materials_transmission"), TEXT("KHR_materials_sheen"),
+														TEXT("KHR_materials_specular"), TEXT("KHR_materials_pbrSpecularGlossiness"), 
+														TEXT("MSFT_packing_occlusionRoughnessMetallic"), TEXT("MSFT_packing_normalRoughnessMetallic") };
+
 namespace UE::Interchange::Gltf::Private
 {
 	EInterchangeTextureWrapMode ConvertWrap(GLTF::FSampler::EWrap Wrap)
@@ -839,7 +850,28 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 
 	const bool bLoadImageData = false;
 	const bool bLoadMetaData = false;
-	GltfFileReader.ReadFile( FilePath, bLoadImageData, bLoadMetaData, const_cast< UInterchangeGltfTranslator* >( this )->GltfAsset );	
+	GltfFileReader.ReadFile( FilePath, bLoadImageData, bLoadMetaData, const_cast< UInterchangeGltfTranslator* >( this )->GltfAsset );
+
+	if (GltfAsset.RequiredExtensions.Num() != 0)
+	{
+		FString NotSupportedExtensions;
+		for (const FString& RequiredExtension: GltfAsset.RequiredExtensions)
+		{
+			if (SupportedExtensions.Find(RequiredExtension) == INDEX_NONE)
+			{
+				if (NotSupportedExtensions.Len() > 0)
+				{
+					NotSupportedExtensions += ", ";
+				}
+				NotSupportedExtensions += RequiredExtension;
+			}
+		}
+		if (NotSupportedExtensions.Len() > 0)
+		{
+			UE_LOG(LogInterchangeImport, Error, TEXT("Not All Required Extensions are supported. (Unsupported extensions: %s)"), *NotSupportedExtensions);
+			return false;
+		}
+	}
 
 	const FString FileName = FPaths::GetBaseFilename(FilePath);
 	const_cast< UInterchangeGltfTranslator* >( this )->GltfAsset.GenerateNames(FileName);

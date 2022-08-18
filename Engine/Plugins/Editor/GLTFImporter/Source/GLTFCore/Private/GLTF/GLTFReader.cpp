@@ -809,6 +809,8 @@ namespace GLTF
 		const uint32 TextureCount  = ArraySize(*JsonRoot, TEXT("textures"));
 		const uint32 MaterialCount = ArraySize(*JsonRoot, TEXT("materials"));
 
+		const uint32 ExtensionsRequiredCount = ArraySize(*JsonRoot, TEXT("extensionsRequired"));
+
 		{
 			// cleanup and reserve
 			OutAsset.Buffers.Empty(BufferCount);
@@ -826,6 +828,7 @@ namespace GLTF
 			OutAsset.Textures.Empty(TextureCount);
 			OutAsset.Materials.Empty(MaterialCount);
 			OutAsset.ExtensionsUsed.Empty((int)EExtension::Count);
+			OutAsset.RequiredExtensions.Empty();
 		}
 
 		// allocate asset mapped data for images and buffers
@@ -851,6 +854,23 @@ namespace GLTF
 		SetupObjects(SamplerCount, TEXT("samplers"), [this](const FJsonObject& Object) { SetupSampler(Object); });
 		SetupObjects(TextureCount, TEXT("textures"), [this](const FJsonObject& Object) { SetupTexture(Object); });
 		SetupObjects(MaterialCount, TEXT("materials"), [this](const FJsonObject& Object) { SetupMaterial(Object); });
+
+		SetupObjects(MaterialCount, TEXT("materials"), [this](const FJsonObject& Object) { SetupMaterial(Object); });
+
+
+		/*
+		* Returns true if all required extensions are supported.
+		* According to gltf specification checking only the top-level extensionsRequired property in order to decide
+		* if the model import is supported should be sufficient as the documentation states:
+		* "All glTF extensions required to load and/or render an asset MUST be listed in the top-level extensionsRequired array"
+		*/
+		{
+			for (const TSharedPtr<FJsonValue>& Extension : JsonRoot->GetArrayField(TEXT("extensionsRequired")))
+			{
+				FString ExtensionString = Extension->AsString();
+				OutAsset.RequiredExtensions.Add(ExtensionString);
+			}
+		}
 
 		SetupNodesType();
 		ExtensionsHandler->SetupAssetExtensions(*JsonRoot);

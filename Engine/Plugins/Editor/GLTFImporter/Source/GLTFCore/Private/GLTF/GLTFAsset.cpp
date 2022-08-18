@@ -59,6 +59,7 @@ namespace GLTF
 		Materials.Empty();
 
 		ExtensionsUsed.Empty((int)EExtension::Count);
+		RequiredExtensions.Empty();
 		Metadata.GeneratorName.Empty();
 		Metadata.Extras.Empty();
 
