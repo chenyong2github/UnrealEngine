@@ -226,12 +226,19 @@ void UMediaPlateComponent::Open()
 	}
 }
 
-
 void UMediaPlateComponent::Play()
 {
 	if (MediaPlayer != nullptr)
 	{
 		MediaPlayer->Play();
+	}
+}
+
+void UMediaPlateComponent::Pause()
+{
+	if (MediaPlayer != nullptr)
+	{
+		MediaPlayer->Pause();
 	}
 }
 

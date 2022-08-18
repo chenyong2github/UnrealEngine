@@ -64,6 +64,13 @@ public:
 	void Play();
 
 	/**
+	 * Call this to pause playback.
+	 * Play can be called to resume playback.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")
+	void Pause();
+
+	/**
 	 * Call this to stop playing.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")

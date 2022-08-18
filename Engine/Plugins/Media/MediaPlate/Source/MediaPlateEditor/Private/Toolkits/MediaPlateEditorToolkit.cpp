@@ -274,7 +274,7 @@ void FMediaPlateEditorToolkit::BindCommands()
 
 	ToolkitCommands->MapAction(
 		Commands.PauseMedia,
-		FExecuteAction::CreateLambda([this]{ MediaPlate->GetMediaPlayer()->Pause(); }),
+		FExecuteAction::CreateLambda([this]{ MediaPlate->Pause(); }),
 		FCanExecuteAction::CreateLambda([this]{
 			TObjectPtr<UMediaPlayer> MediaPlayer = MediaPlate->GetMediaPlayer();
 			return MediaPlayer->CanPause() && !MediaPlayer->IsPaused();

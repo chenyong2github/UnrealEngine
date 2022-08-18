@@ -297,12 +297,8 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 						{
 							UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 							if (MediaPlate != nullptr)
-							{
-								UMediaPlayer* MediaPlayer = MediaPlate->GetMediaPlayer();
-								if (MediaPlayer != nullptr)
-								{
-									MediaPlayer->Pause();
-								}
+							{							
+								MediaPlate->Pause();
 							}
 						}
 						return FReply::Handled();
