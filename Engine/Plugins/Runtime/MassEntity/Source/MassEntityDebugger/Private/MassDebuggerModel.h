@@ -66,7 +66,7 @@ struct FMassDebuggerArchetypeData
 	uint32 FullHash = 0;
 
 	/** Archetype statistics */
-	FMassDebugger::FArchetypeStats ArchetypeStats;
+	UE::Mass::Debug::FArchetypeStats ArchetypeStats;
 
 	/** Child debugger data (same as parent, but changed in some way) */
 	TArray<TSharedPtr<FMassDebuggerArchetypeData>> Children;
