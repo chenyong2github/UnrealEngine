@@ -14,6 +14,6 @@ class GAMEPLAYINTERACTIONSMODULE_API UGameplayInteractionSmartObjectBehaviorDefi
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(EditDefaultsOnly, Category="", meta=(Schema="GameplayInteractionStateTreeSchema"))
+	UPROPERTY(EditDefaultsOnly, Category="", meta=(Schema="/Script/GameplayInteractionsModule.GameplayInteractionStateTreeSchema"))
 	FStateTreeReference StateTreeReference;
 };

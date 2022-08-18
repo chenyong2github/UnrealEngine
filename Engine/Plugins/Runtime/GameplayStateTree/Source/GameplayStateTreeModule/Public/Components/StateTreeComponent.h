@@ -62,7 +62,7 @@ protected:
 	UStateTree* StateTree_DEPRECATED;
 #endif
 
-	UPROPERTY(EditAnywhere, Category = AI, meta=(RequiredAssetDataTags = "Schema=StateTreeComponentSchema"))
+	UPROPERTY(EditAnywhere, Category = AI, meta=(Schema="/Script/GameplayStateTreeModule.StateTreeComponentSchema"))
 	FStateTreeReference StateTreeRef;
 
 	UPROPERTY(Transient)
