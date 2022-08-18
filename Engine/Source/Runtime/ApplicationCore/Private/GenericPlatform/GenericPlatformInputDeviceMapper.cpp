@@ -410,7 +410,7 @@ void FGenericPlatformInputDeviceMapper::OnUserLoginChangedEvent(bool bLoggedIn, 
 		// TODO: As of right now there is no logic that needs to run when a new platform user logs in, but there may be in the future
 	}
 	// A platform user has logged out
-	else
+	else if (bUnpairInputDevicesWhenLoggingOut)
 	{
 		// Remap any input devices that the logged out platform user had to the "Unpaired" user
 		FPlatformUserId UnkownUserId = GetUserForUnpairedInputDevices();

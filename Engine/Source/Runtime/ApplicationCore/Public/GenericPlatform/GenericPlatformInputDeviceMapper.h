@@ -297,7 +297,7 @@ protected:
 
 	/** 
 	* Callback for when FCoreDelegates::FOnUserLoginChangedEvent is broadcasted.
-	* If the user has logged out, then remap any input devices that the user had to the "Unpaired" user on this platform.
+	* If the user has logged out, then remap any input devices that the user had to the "Unpaired" user on this platform (if bUnpairInputDevicesWhenLoggingOut is true)
 	*/
 	virtual void OnUserLoginChangedEvent(bool bLoggedIn, int32 RawPlatformUserId, int32 UserIndex) override;
 	
@@ -310,4 +310,7 @@ protected:
 	/** Flags for backwards compatibility with the older "int32 ControllerId" implementation */
 	const bool bUsingControllerIdAsUserId = true;
 	const bool bShouldBroadcastLegacyDelegates = true;
+
+	/** Additional functionality that specializations can customize */
+	bool bUnpairInputDevicesWhenLoggingOut = true;
 };
