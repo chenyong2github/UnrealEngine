@@ -3033,17 +3033,6 @@ int32 FAndroidMisc::GetNativeDisplayRefreshRate()
 
 }
 
-int32 FAndroidMisc::GetMaxRefreshRate()
-{
-	int32 MaxRefreshRate = 60;
-	TArray<int32> RefreshRates = GetSupportedNativeDisplayRefreshRates();
-	if (RefreshRates.Num() > 0) {
-		RefreshRates.Sort();
-		MaxRefreshRate = RefreshRates[RefreshRates.Num()-1];
-	}
-	return MaxRefreshRate;
-}
-
 FORCEINLINE bool ValueOutsideThreshold(float Value, float BaseLine, float Threshold)
 {
 	return Value > BaseLine * (1.0f + Threshold)

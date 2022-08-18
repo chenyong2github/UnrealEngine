@@ -291,8 +291,6 @@ public:
 
 	static int32 GetNativeDisplayRefreshRate();
 
-	static int32 GetMaxRefreshRate();
-
 	/**
 	 * Returns whether or not a 16 bit index buffer should be promoted to 32 bit on load, needed for some Android devices
 	 */
