@@ -225,7 +225,7 @@ void FTestCacheStore::Put(
 {
 	const int32 Index = PutRequests.Num();
 	const int32 Count = Requests.Num();
-	PutRequests.Append(Requests);
+	PutRequests.Append(Requests.GetData(), Requests.Num());
 	TotalRequestCount += Count;
 
 	ExecuteOrQueue(Owner, [this, Index, Count, OnComplete = MoveTemp(OnComplete)](bool bCancel)
@@ -300,7 +300,7 @@ void FTestCacheStore::Get(
 {
 	const int32 Index = GetRequests.Num();
 	const int32 Count = Requests.Num();
-	GetRequests.Append(Requests);
+	GetRequests.Append(Requests.GetData(), Requests.Num());
 	TotalRequestCount += Count;
 
 	ExecuteOrQueue(Owner, [this, Index, Count, OnComplete = MoveTemp(OnComplete)](bool bCancel)
@@ -351,7 +351,7 @@ void FTestCacheStore::PutValue(
 {
 	const int32 Index = PutValueRequests.Num();
 	const int32 Count = Requests.Num();
-	PutValueRequests.Append(Requests);
+	PutValueRequests.Append(Requests.GetData(), Requests.Num());
 	TotalRequestCount += Count;
 
 	ExecuteOrQueue(Owner, [this, Index, Count, OnComplete = MoveTemp(OnComplete)](bool bCancel)
@@ -383,7 +383,7 @@ void FTestCacheStore::GetValue(
 {
 	const int32 Index = GetValueRequests.Num();
 	const int32 Count = Requests.Num();
-	GetValueRequests.Append(Requests);
+	GetValueRequests.Append(Requests.GetData(), Requests.Num());
 	TotalRequestCount += Count;
 
 	ExecuteOrQueue(Owner, [this, Index, Count, OnComplete = MoveTemp(OnComplete)](bool bCancel)
@@ -424,7 +424,7 @@ void FTestCacheStore::GetChunks(
 {
 	const int32 Index = GetChunkRequests.Num();
 	const int32 Count = Requests.Num();
-	GetChunkRequests.Append(Requests);
+	GetChunkRequests.Append(Requests.GetData(), Requests.Num());
 	TotalRequestCount += Count;
 
 	ExecuteOrQueue(Owner, [this, Index, Count, OnComplete = MoveTemp(OnComplete)](bool bCancel)

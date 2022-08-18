@@ -747,6 +747,7 @@ void FCacheStoreHierarchy::TGetBatch<Params>::CompleteRequest(FGetResponse&& Res
 	};
 
 	FState& State = States[int32(Response.UserData)];
+	Response.UserData = State.Request.UserData;
 	const FCacheStoreNode& Node = Hierarchy.Nodes[State.NodeIndex];
 	const EStatus PreviousStatus = State.Response.Status;
 	const int32 PreviousNodeIndex = State.NodeIndex;

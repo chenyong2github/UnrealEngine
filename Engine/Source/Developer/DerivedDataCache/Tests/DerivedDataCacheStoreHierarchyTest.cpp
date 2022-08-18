@@ -48,8 +48,9 @@ TEST_CASE("DerivedData::Cache::Hierarchy::PartialRecordPropagation", "[DerivedDa
 	PolicyBuilder.AddValuePolicy(Id0, ECachePolicy::Local);
 
 	FRequestOwner Owner(EPriority::Normal);
-	Hierarchy->Get({{{TEXTVIEW("PropagatePartial")}, Key, PolicyBuilder.Build()}}, Owner, [](FCacheGetResponse&& Response)
+	Hierarchy->Get({{{TEXTVIEW("PropagatePartial")}, Key, PolicyBuilder.Build(), 12345}}, Owner, [](FCacheGetResponse&& Response)
 	{
+		CHECK(Response.UserData == 12345);
 		CHECK(Response.Status == EStatus::Ok);
 		CHECK(Response.Record.GetValues().Num() == 3);
 		CHECK(Algo::AllOf(Response.Record.GetValues(), &FValue::HasData));
@@ -166,8 +167,9 @@ TEST_CASE("DerivedData::Cache::Hierarchy::PartialNonDeterministicRecordPropagati
 		PolicyBuilder.AddValuePolicy(Id0, ECachePolicy::Local);
 
 		FRequestOwner Owner(EPriority::Normal);
-		Hierarchy->Get({{{TEXTVIEW("PropagatePartial")}, Key, PolicyBuilder.Build()}}, Owner, [&Id0, &Value0Diff](FCacheGetResponse&& Response)
+		Hierarchy->Get({{{TEXTVIEW("PropagatePartial")}, Key, PolicyBuilder.Build(), 12345}}, Owner, [&Id0, &Value0Diff](FCacheGetResponse&& Response)
 		{
+			CHECK(Response.UserData == 12345);
 			CHECK(Response.Status == EStatus::Ok);
 			CHECK(Response.Record.GetValues().Num() == 3);
 			CHECK(Algo::AllOf(Response.Record.GetValues(), &FValue::HasData));
@@ -229,8 +231,9 @@ TEST_CASE("DerivedData::Cache::Hierarchy::PartialNonDeterministicRecordPropagati
 		PolicyBuilder.AddValuePolicy(Id0, ECachePolicy::Local);
 
 		FRequestOwner Owner(EPriority::Normal);
-		Hierarchy->Get({{{TEXTVIEW("PropagatePartial")}, Key, PolicyBuilder.Build()}}, Owner, [&Id0, &Value0Diff](FCacheGetResponse&& Response)
+		Hierarchy->Get({{{TEXTVIEW("PropagatePartial")}, Key, PolicyBuilder.Build(), 12345}}, Owner, [&Id0, &Value0Diff](FCacheGetResponse&& Response)
 		{
+			CHECK(Response.UserData == 12345);
 			CHECK(Response.Status == EStatus::Ok);
 			CHECK(Response.Record.GetValues().Num() == 3);
 			CHECK(Algo::AllOf(Response.Record.GetValues(), &FValue::HasData));
