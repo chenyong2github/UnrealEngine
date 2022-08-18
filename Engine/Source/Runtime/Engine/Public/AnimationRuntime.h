@@ -256,7 +256,8 @@ public:
 
 	/**
 	* Blends together a set of poses, each with a given weight.
-	* This function is for BlendSpace per bone blending. BlendSampleDataCache contains the weight information and is indexed using BlendSampleDataCacheIndices, to prevent caller having to supply an ordered array 
+	* This function is for BlendSpace per bone blending. BlendSampleDataCache contains the weight information 
+	* and is indexed using BlendSampleDataCacheIndices, to prevent caller having to supply an ordered array 
 	*
 	* This blends in local space
 	*
@@ -282,29 +283,42 @@ public:
 		/*out*/ FAnimationPoseData& OutAnimationPoseData);
 
 	/**
-	* Blends together a set of poses, each with a given weight.
-	* This function is for BlendSpace per bone blending. BlendSampleDataCache contains the weight information
+	* Blends together a set of local space (not mesh space) poses, each with a given weight.
+	* This function is for BlendSpace per bone blending. BlendSampleDataCache contains the
+	* weight information
 	*
-	* This blends rotation in mesh space, so performance intensive.
+	* This blends the rotations in mesh space, so is performance intensive as it requires a
+	* conversion from joint rotations into mesh space, then the blend, then a conversion back.
 	*
-	* @param	ResultPose		Output pose of relative bone transforms.
+	* @param OutResultPose Output blended pose of relative bone transforms.
+	* @param OutResultCurve Output blended curves
 	*/
 	UE_DEPRECATED(4.26, "Use BlendPosesTogetherPerBone with other signature")
 	static void BlendPosesTogetherPerBoneInMeshSpace(
-		TArrayView<FCompactPose> SourcePoses,
-		TArrayView<const FBlendedCurve> SourceCurves,
-		const UBlendSpace* BlendSpace,
+		TArrayView<FCompactPose>           SourcePoses,
+		TArrayView<const FBlendedCurve>    SourceCurves,
+		const UBlendSpace*                 BlendSpace,
 		TArrayView<const FBlendSampleData> BlendSampleDataCache,
-		/*out*/ FCompactPose& ResultPose,
-		/*out*/ FBlendedCurve& ResultCurve);
+		FCompactPose&                      OutResultPose,
+		FBlendedCurve&                     OutResultCurve);
 
+	/**
+	* Blends together a set of local space (not mesh space) poses, each with a given weight.
+	* This function is for BlendSpace per bone blending. BlendSampleDataCache contains the 
+	* weight information
+	*
+	* This blends the rotations in mesh space, so is performance intensive as it requires a 
+	* conversion from joint rotations into mesh space, then the blend, then a conversion back.
+	*
+	* @param OutAnimationPoseData Output pose, curves and attributes.
+	*/
 	static void BlendPosesTogetherPerBoneInMeshSpace(
-		TArrayView< FCompactPose> SourcePoses,
-		TArrayView<const FBlendedCurve> SourceCurves,
+		TArrayView<FCompactPose>                             SourcePoses,
+		TArrayView<const FBlendedCurve>                      SourceCurves,
 		TArrayView<const UE::Anim::FStackAttributeContainer> SourceAttributes,	
-		const UBlendSpace* BlendSpace,
-		TArrayView<const FBlendSampleData> BlendSampleDataCache,
-		/*out*/ FAnimationPoseData& OutAnimationPoseData);
+		const UBlendSpace*                                   BlendSpace,
+		TArrayView<const FBlendSampleData>                   BlendSampleDataCache,
+		FAnimationPoseData&                                  OutAnimationPoseData);
 
 	/** Blending flags for BlendPosesPerBoneFilter */
 	enum class EBlendPosesPerBoneFilterFlags : uint32

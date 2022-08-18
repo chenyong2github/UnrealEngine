@@ -690,12 +690,14 @@ private:
 	bool UpdateBlendSamples_Internal(const FVector& InBlendSpacePosition, float InDeltaTime, TArray<FBlendSampleData>& InOutOldSampleDataList, TArray<FBlendSampleData>& InOutSampleDataCache, int32& InOutCachedTriangulationIndex) const;
 
 public:
-	/**
-	* When you use per bone sample smoothing, this makes blending happen in mesh space and can happen if this 
-	* contains additive animation samples. This is more performance intensive than blending in local space.
-	*/
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "This property is deprecated. Please use/see bContainsRotationOffsetMeshSpaceSamples instead")
+	bool bRotationBlendInMeshSpace_DEPRECATED;
+#endif
+
+	/** Indicates whether any samples have the flag to apply rotation offsets in mesh space */
 	UPROPERTY()
-	bool bRotationBlendInMeshSpace;
+	bool bContainsRotationOffsetMeshSpaceSamples;
 
 	/** Input Smoothing parameters for each input axis */
 	UPROPERTY(EditAnywhere, Category = InputInterpolation)
@@ -737,6 +739,22 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = SampleSmoothing, meta = (DisplayName = "Smoothing"))
 	bool bTargetWeightInterpolationEaseInOut = true;
+
+	/**
+	 * If set then blending is performed in mesh space if there are per-bone sample smoothing overrides.
+	 * 
+	 * Note that mesh space blending is significantly more expensive (slower) than normal blending when the 
+	 * samples are regular animations (i.e. not additive animations that are already set to apply in mesh 
+	 * space), and is typically only useful if you want some parts of the skeleton to achieve a pose 
+	 * in mesh space faster or slower than others - for example to make the head move faster than the 
+	 * body/arms when aiming, so the character looks at the target slightly before aiming at it.
+	 * 
+	 * Note also that blend space assets with additive/mesh space samples will always blend in mesh space, and 
+	 * also that enabling this option with blend space graphs producing additive/mesh space samples may cause
+	 * undesired results.
+	 */
+	UPROPERTY(EditAnywhere, Category = SampleSmoothing)
+	bool bAllowMeshSpaceBlending = false;
 
 	/** 
 	* The default looping behavior of this blend space.

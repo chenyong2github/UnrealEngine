@@ -632,7 +632,6 @@ void FAnimationRuntime::BlendPosesTogetherPerBone(TArrayView<const FCompactPose>
 	}
 
 	BlendPosePerBone<ETransformBlendMode::Overwrite>(PerBoneIndices, BlendSampleDataCache[0], OutPose, SourcePoses[0]);
-
 	for (int32 i = 1; i < SourcePoses.Num(); ++i)
 	{
 		BlendPosePerBone<ETransformBlendMode::Accumulate>(PerBoneIndices, BlendSampleDataCache[i], OutPose, SourcePoses[i]);
@@ -720,27 +719,34 @@ void FAnimationRuntime::BlendPosesTogetherPerBone(TArrayView<const FCompactPose>
 }
 
 void FAnimationRuntime::BlendPosesTogetherPerBoneInMeshSpace(
-	const TArrayView<FCompactPose> SourcePoses,
-	const TArrayView<const FBlendedCurve> SourceCurves,
-	const UBlendSpace* BlendSpace,
+	const TArrayView<FCompactPose>           SourcePoses,
+	const TArrayView<const FBlendedCurve>    SourceCurves,
+	const UBlendSpace*                       BlendSpace,
 	const TArrayView<const FBlendSampleData> BlendSampleDataCache,
-	/*out*/ FCompactPose& ResultPose,
-	/*out*/ FBlendedCurve& ResultCurve)
+	/*out*/ FCompactPose&                    ResultPose,
+	/*out*/ FBlendedCurve&                   ResultCurve)
 {
 	UE::Anim::FStackAttributeContainer TempAttributes;
 	FAnimationPoseData AnimationPoseData = { ResultPose, ResultCurve, TempAttributes };
 
-	BlendPosesTogetherPerBoneInMeshSpace(SourcePoses, SourceCurves, {}, BlendSpace, BlendSampleDataCache, AnimationPoseData);
+	BlendPosesTogetherPerBoneInMeshSpace(
+		SourcePoses, SourceCurves, {}, BlendSpace, BlendSampleDataCache, AnimationPoseData);
 }
 
-void FAnimationRuntime::BlendPosesTogetherPerBoneInMeshSpace(TArrayView<FCompactPose> SourcePoses, TArrayView<const FBlendedCurve> SourceCurves, TArrayView<const UE::Anim::FStackAttributeContainer> SourceAttributes, const UBlendSpace* BlendSpace, TArrayView<const FBlendSampleData> BlendSampleDataCache, /*out*/ FAnimationPoseData& OutAnimationPoseData)
+void FAnimationRuntime::BlendPosesTogetherPerBoneInMeshSpace(
+	TArrayView<FCompactPose>                             SourcePoses, 
+	TArrayView<const FBlendedCurve>                      SourceCurves, 
+	TArrayView<const UE::Anim::FStackAttributeContainer> SourceAttributes, 
+	const UBlendSpace*                                   BlendSpace, 
+	TArrayView<const FBlendSampleData>                   BlendSampleDataCache, 
+	/*out*/ FAnimationPoseData&                          OutAnimationPoseData)
 {
-	FQuat NewRotation;
-	USkeleton* Skeleton = BlendSpace->GetSkeleton();
-
 	FCompactPose& OutPose = OutAnimationPoseData.GetPose();
 
-	// all this is going to do is to convert SourcePoses.Rotation to be mesh space, and then once it goes through BlendPosesTogetherPerBone, convert back to local
+	// Convert the sources poses into mesh space, and then once they have gone through
+	// BlendPosesTogetherPerBone, convert back to local space
+
+	// Convert SourcePoses.Rotation to be mesh space
 	for (FCompactPose& Pose : SourcePoses)
 	{
 		for (const FCompactPoseBoneIndex BoneIndex : Pose.ForEachBoneIndex())
@@ -748,23 +754,17 @@ void FAnimationRuntime::BlendPosesTogetherPerBoneInMeshSpace(TArrayView<FCompact
 			const FCompactPoseBoneIndex ParentIndex = Pose.GetParentBoneIndex(BoneIndex);
 			if (ParentIndex != INDEX_NONE)
 			{
-				NewRotation = Pose[ParentIndex].GetRotation() * Pose[BoneIndex].GetRotation();
+				FQuat NewRotation = Pose[ParentIndex].GetRotation() * Pose[BoneIndex].GetRotation();
 				NewRotation.Normalize();
+				Pose[BoneIndex].SetRotation(NewRotation);
 			}
-			else
-			{
-				NewRotation = Pose[BoneIndex].GetRotation();
-			}
-
-			// now copy back to SourcePoses
-			Pose[BoneIndex].SetRotation(NewRotation);
 		}
 	}
 
 	// now we have mesh space rotation, call BlendPosesTogetherPerBone
 	BlendPosesTogetherPerBone(SourcePoses, SourceCurves, SourceAttributes, BlendSpace, BlendSampleDataCache, OutAnimationPoseData);
 
-	// now result atoms has the output with mesh space rotation. Convert back to local space, start from back
+	// Now OutPose has the output with mesh space rotation. Convert back to local space, start from back
 	for (const FCompactPoseBoneIndex BoneIndex : OutPose.ForEachBoneIndexReverse())
 	{
 		const FCompactPoseBoneIndex ParentIndex = OutPose.GetParentBoneIndex(BoneIndex);

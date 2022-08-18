@@ -900,18 +900,32 @@ void UBlendSpace::GetAnimationPose_Internal(TArray<FBlendSampleData>& BlendSampl
 
 	if (PerBoneBlend.Num() > 0)
 	{
-		if (bRotationBlendInMeshSpace)
+		bool bValidAdditive = IsValidAdditive();
+
+		if (bAllowMeshSpaceBlending && !bContainsRotationOffsetMeshSpaceSamples)
 		{
-			FAnimationRuntime::BlendPosesTogetherPerBoneInMeshSpace(ChildrenPosesView, ChildrenCurves, ChildrenAttributes, this, BlendSampleDataCache, OutAnimationPoseData);
+			// Why blend in mesh space when there are per-bone smoothing settings? Because then we
+			// can blend between two aim poses (for example), with the hands moving faster towards
+			// the target than the spine. This results in nice organic looking movement, rather than
+			// everything moving at the same rate. However, note that if the samples contain mesh-space
+			// rotations then the regular blend will already happen in mesh space automatically.
+			FAnimationRuntime::BlendPosesTogetherPerBoneInMeshSpace(
+				ChildrenPosesView, ChildrenCurves, ChildrenAttributes,
+				this, BlendSampleDataCache, OutAnimationPoseData);
 		}
 		else
 		{
-			FAnimationRuntime::BlendPosesTogetherPerBone(ChildrenPosesView, ChildrenCurves, ChildrenAttributes, this, BlendSampleDataCache, OutAnimationPoseData);
+			FAnimationRuntime::BlendPosesTogetherPerBone(
+				ChildrenPosesView, ChildrenCurves, ChildrenAttributes,
+				this, BlendSampleDataCache, OutAnimationPoseData);
 		}
 	}
 	else
 	{
-		FAnimationRuntime::BlendPosesTogether(ChildrenPosesView, ChildrenCurves, ChildrenAttributes, ChildrenWeights, OutAnimationPoseData);
+		// We could allow mesh space blending here, when there are no per-bone smoothing settings. However, it's
+		// unlikely that it would actually provide a benefit, but is a lot more expensive.
+		FAnimationRuntime::BlendPosesTogether(
+			ChildrenPosesView, ChildrenCurves, ChildrenAttributes, ChildrenWeights, OutAnimationPoseData);
 	}
 
 	// Once all the accumulation and blending has been done, normalize rotations.
@@ -1221,15 +1235,7 @@ void UBlendSpace::ValidateSampleData()
 		}
 	}
 
-	// Set the space for blending
-	if (IsAsset())
-	{
-		bRotationBlendInMeshSpace = ContainsMatchingSamples(AAT_RotationOffsetMeshSpace);
-	}
-	else
-	{
-		bRotationBlendInMeshSpace = IsValidAdditive();
-	}
+	bContainsRotationOffsetMeshSpaceSamples = ContainsMatchingSamples(AAT_RotationOffsetMeshSpace);
 
 	SampleIndexWithMarkers = bAllMarkerPatternsMatch ? SampleWithMarkers : INDEX_NONE;
 
