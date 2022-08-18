@@ -41,20 +41,12 @@ const UMaterialInterface* FGLTFMeshUtility::GetDefaultMaterial()
 
 const TArray<FStaticMaterial>& FGLTFMeshUtility::GetMaterials(const UStaticMesh* StaticMesh)
 {
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 	return StaticMesh->GetStaticMaterials();
-#else
-	return StaticMesh->StaticMaterials;
-#endif
 }
 
 const TArray<FSkeletalMaterial>& FGLTFMeshUtility::GetMaterials(const USkeletalMesh* SkeletalMesh)
 {
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 	return SkeletalMesh->GetMaterials();
-#else
-	return SkeletalMesh->Materials;
-#endif
 }
 
 const UMaterialInterface* FGLTFMeshUtility::GetMaterial(const UMaterialInterface* Material)
@@ -230,11 +222,7 @@ int32 FGLTFMeshUtility::GetMinimumLOD(const UStaticMesh* StaticMesh, const UStat
 
 	if (StaticMesh != nullptr)
 	{
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 		return StaticMesh->GetMinLOD().Default;
-#else
-		return StaticMesh->MinLOD.Default;
-#endif
 	}
 
 	return -1;
@@ -249,11 +237,7 @@ int32 FGLTFMeshUtility::GetMinimumLOD(const USkeletalMesh* SkeletalMesh, const U
 
 	if (SkeletalMesh != nullptr)
 	{
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 		return SkeletalMesh->GetMinLod().Default;
-#else
-		return SkeletalMesh->MinLod.Default;
-#endif
 	}
 
 	return -1;

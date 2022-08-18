@@ -65,11 +65,7 @@ const USkeletalMesh* FGLTFExporterUtility::GetPreviewMesh(const UAnimSequence* A
 
 const USkeletalMesh* FGLTFExporterUtility::FindCompatibleMesh(const USkeleton *Skeleton)
 {
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 	const FName SkeletonMemberName = USkeletalMesh::GetSkeletonMemberName();
-#else
-	const FName SkeletonMemberName = GET_MEMBER_NAME_CHECKED(USkeletalMesh, Skeleton);
-#endif
 
 	FARFilter Filter;
 	Filter.ClassPaths.Add(USkeletalMesh::StaticClass()->GetClassPathName());
