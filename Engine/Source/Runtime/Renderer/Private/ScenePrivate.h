@@ -2058,7 +2058,6 @@ public:
 	FReadBuffer BrickUploadDataBuffer;
 
 	TArray<FDistanceFieldReadRequest> ReadRequests;
-	FGraphEventArray AsyncTaskEvents;
 
 	/** Stores the primitive and instance index of every entry in the object buffer. */
 	TArray<FPrimitiveAndInstance> PrimitiveInstanceMapping;

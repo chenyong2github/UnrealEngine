@@ -1457,29 +1457,20 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 			UpdateParameters.BrickUploadCoordinatesPtr = AtlasUpload.BrickUploadCoordinatesPtr;
 		}
 
-		check(AsyncTaskEvents.IsEmpty());
-
 		if (NewReadRequests.Num() || ReadRequestsToUpload.Num() || ReadRequestsToCleanUp.Num())
 		{
 			UpdateParameters.NewReadRequests = MoveTemp(NewReadRequests);
 			UpdateParameters.ReadRequestsToUpload = MoveTemp(ReadRequestsToUpload);
 			UpdateParameters.ReadRequestsToCleanUp = MoveTemp(ReadRequestsToCleanUp);
 
-			// Kick off an async task to copy completed read requests into upload staging buffers, and issue new read requests
-			AsyncTaskEvents.Add(TGraphTask<FDistanceFieldStreamingUpdateTask>::CreateTask().ConstructAndDispatchWhenReady(UpdateParameters));
+			// TODO: We actually run this synchronously now after the RDG conversion, as it would otherwise immediately sync.
+			AsyncUpdate(UpdateParameters);
 		}
 
-		if (AsyncTaskEvents.Num() || NumBrickUploads > 0 || NumIndirectionTableAdds > 0)
+		if (NumBrickUploads > 0 || NumIndirectionTableAdds > 0)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_WaitOnDistanceFieldStreamingUpdate);
 			TRACE_CPUPROFILER_EVENT_SCOPE(WaitOnDistanceFieldStreamingUpdate);
-
-			if (!AsyncTaskEvents.IsEmpty())
-			{
-				// Block on the async task before RDG execution of compute scatter uploads
-				FTaskGraphInterface::Get().WaitUntilTasksComplete(AsyncTaskEvents, ENamedThreads::GetRenderThread_Local());
-				AsyncTaskEvents.Empty();
-			}
 
 			if (NumBrickUploads > 0)
 			{
