@@ -6,8 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public ControlRigSpline(ReadOnlyTargetRules Target) : base(Target)
 		{
-			bEnableUndefinedIdentifierWarnings = false;
-			
 			PrivateIncludePaths.Add("ControlRigSpline/ThirdParty/TinySpline");
 
 			PublicDependencyModuleNames.AddRange(
