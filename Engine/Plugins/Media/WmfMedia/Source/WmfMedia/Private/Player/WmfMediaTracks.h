@@ -85,7 +85,6 @@ class FWmfMediaTracks
 		bool Protected;
 		int32 SelectedFormat;
 		DWORD StreamIndex;
-		bool bNoDirectXOutput;
 	};
 
 public:

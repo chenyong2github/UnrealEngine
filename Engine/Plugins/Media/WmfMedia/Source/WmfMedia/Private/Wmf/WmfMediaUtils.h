@@ -49,7 +49,7 @@ namespace WmfMedia
 	 * @param Whether the media source is a video capture device (there are some limitations with those).
 	 * @return The output type, or NULL on error.
 	 */
-	TComPtr<IMFMediaType> CreateOutputType(IMFMediaType& InputType, bool& bNoDirectXOutput, bool AllowNonStandardCodecs, bool IsVideoDevice);
+	TComPtr<IMFMediaType> CreateOutputType(IMFMediaType& InputType, bool AllowNonStandardCodecs, bool IsVideoDevice);
 
 	/**
 	 * Dump information about the given media type to the output log.

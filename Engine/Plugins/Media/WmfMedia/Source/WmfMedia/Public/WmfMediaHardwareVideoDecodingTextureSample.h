@@ -85,7 +85,7 @@ public:
 		// Only use sample converter for Win8+
 		if (FPlatformMisc::VerifyWindowsVersion(6, 2))
 		{
-			return this;
+			return (SourceTexture.IsValid() || DestinationTexture.IsValid() || IsBufferExternal()) ? this : nullptr;
 		}
 		return nullptr;
 	}

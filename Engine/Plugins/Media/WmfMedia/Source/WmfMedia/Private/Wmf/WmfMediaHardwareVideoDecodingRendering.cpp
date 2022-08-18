@@ -118,16 +118,6 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 
 	TComPtr<ID3D11Texture2D> SampleTexture = InSample->GetSourceTexture();
 
-	ID3D11Device* D3D11Device = nullptr;
-	// Must access rendering device context to copy shared resource.
-	ID3D11DeviceContext* D3D11DeviceContext = nullptr;
-
-	if (InSample->IsBufferExternal() == false)
-	{
-		D3D11Device = GetID3D11DynamicRHI()->RHIGetDevice();
-		D3D11DeviceContext = GetID3D11DynamicRHI()->RHIGetDeviceContext();
-	}
-			
 	{
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
@@ -153,7 +143,7 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 
 		// Copy buffer.
 		FTexture2DRHIRef SampleDestinationTexture = InSample->GetOrCreateDestinationTexture();
-		if (D3D11Device == nullptr)
+		if (InSample->IsBufferExternal() || !SampleTexture.IsValid())
 		{
 			const uint8* Data = (const uint8*)InSample->GetBuffer();
 			

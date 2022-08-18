@@ -1277,7 +1277,6 @@ bool FWmfMediaTracks::AddTrackToTopology(const FTrack& Track, IMFTopology& Topol
 
 #if WITH_ENGINE
 	if ((GEngine != nullptr) &&
-		!Track.bNoDirectXOutput &&
 		(WmfMediaSettings->HardwareAcceleratedVideoDecoding || WmfMediaSettings->bAreHardwareAcceleratedCodecRegistered) &&
 		MajorType == MFMediaType_Video &&
 		FPlatformMisc::VerifyWindowsVersion(6, 2) && // Windows 8
@@ -1581,8 +1580,7 @@ bool FWmfMediaTracks::AddStreamToTracks(uint32 StreamIndex, bool IsVideoDevice, 
 		OutInfo += FString::Printf(TEXT("\t\tCodec: %s\n"), *TypeName);
 
 		// create output type
-		bool bNoDirectXOutput;
-		TComPtr<IMFMediaType> OutputType = WmfMedia::CreateOutputType(*MediaType, bNoDirectXOutput, AllowNonStandardCodecs, IsVideoDevice);
+		TComPtr<IMFMediaType> OutputType = WmfMedia::CreateOutputType(*MediaType, AllowNonStandardCodecs, IsVideoDevice);
 
 		if (!OutputType.IsValid())
 		{
@@ -1590,8 +1588,6 @@ bool FWmfMediaTracks::AddStreamToTracks(uint32 StreamIndex, bool IsVideoDevice, 
 
 			continue;
 		}
-
-		Track->bNoDirectXOutput = bNoDirectXOutput;
 
 		// add format details
 		int32 FormatIndex = INDEX_NONE;
