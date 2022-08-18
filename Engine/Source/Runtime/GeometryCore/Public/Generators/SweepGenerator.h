@@ -663,11 +663,16 @@ public:
 	TArray<FVector3d> Path;
 
 	FFrame3d InitialFrame;
+	// If PathFrames.Num == Path.Num, then PathFrames[k] is used for each step instead of the propagated InitialFrame.
+	TArray<FFrame3d> PathFrames;
+	// If PathScales.Num == Path.Num, then PathScales[k] is applied to the CrossSection at each step (this is combined with StartScale/EndScale, but ignored if bLoop=true)
+	TArray<FVector2d> PathScales;
 
 	bool bCapped = false;
 	bool bLoop = false;
 	ECapType CapType = ECapType::FlatTriangulation;
 
+	// 2D uniform scale of the CrossSection, interpolated along the Path (via arc length) from StartScale to EndScale
 	double StartScale = 1.0;
 	double EndScale = 1.0;
 
@@ -694,7 +699,8 @@ public:
 		}
 		int PathNum = Path.Num();
 		
-		bool bApplyScaling = (StartScale != 1.0 || EndScale != 1.0) && (bLoop == false);
+		bool bHavePathScaling = (PathScales.Num() == PathNum);
+		bool bApplyScaling = (bHavePathScaling|| (StartScale != 1.0) || (EndScale != 1.0)) && (bLoop == false);
 		bool bNeedArcLength = (bApplyScaling || bUVScaleRelativeWorld);
 		double TotalPathArcLength = (bNeedArcLength) ? UE::Geometry::CurveUtil::ArcLength<double, FVector3d>(Path, bLoop) : 1.0;
 
@@ -719,22 +725,32 @@ public:
 
 		double AccumArcLength = 0;
 		FFrame3d CrossSectionFrame = InitialFrame;
+		bool bHaveExplicitFrames = (PathFrames.Num() == Path.Num());
 		for (int PathIdx = 0; PathIdx < PathNum; ++PathIdx)
 		{
-			FVector3d Tangent = UE::Geometry::CurveUtil::Tangent<double, FVector3d>(Path, PathIdx, bLoop);
-			CrossSectionFrame.AlignAxis(2, Tangent);
 			FVector3d C = Path[PathIdx];
-			FVector3d X = CrossSectionFrame.X();
-			FVector3d Y = CrossSectionFrame.Y();
+			FVector3d X, Y;
+			if (bHaveExplicitFrames == false)
+			{
+				FVector3d Tangent = UE::Geometry::CurveUtil::Tangent<double, FVector3d>(Path, PathIdx, bLoop);
+				CrossSectionFrame.AlignAxis(2, Tangent);
+				X = CrossSectionFrame.X();
+				Y = CrossSectionFrame.Y();
+			}
+			else
+			{
+				C = PathFrames[PathIdx].Origin;
+				X = PathFrames[PathIdx].X();
+				Y = PathFrames[PathIdx].Y();
+			}
+
+			double T = FMathd::Clamp((AccumArcLength / TotalPathArcLength), 0.0, 1.0);
+			double UniformScale = (bApplyScaling) ? FMathd::Lerp(StartScale, EndScale, T) : 1.0;
+			FVector2d PathScaling = (bHavePathScaling) ? PathScales[PathIdx] : FVector2d::One();
+
 			for (int SubIdx = 0; SubIdx < XNum; SubIdx++)
 			{
-				FVector2d XP = CrossSection[SubIdx];
-				if (bApplyScaling)
-				{
-					double T = FMathd::Clamp((AccumArcLength / TotalPathArcLength), 0.0, 1.0);
-					XP *= FMathd::Lerp(StartScale, EndScale, T);
-				}
-
+				FVector2d XP = UniformScale * PathScaling * CrossSection[SubIdx];
 				FVector2d XN = XNormals[SubIdx];
 				Vertices[SubIdx + PathIdx * XNum] = C + X * XP.X + Y * XP.Y;
 				Normals[SubIdx + PathIdx * XNum] = (FVector3f)(X * XN.X + Y * XN.Y);

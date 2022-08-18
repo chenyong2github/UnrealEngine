@@ -651,6 +651,68 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSimpleSweptPo
 
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSweepPolygon(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptPrimitiveOptions PrimitiveOptions,
+	FTransform Transform,
+	const TArray<FVector2D>& PolygonVertices,
+	const TArray<FTransform>& SweepPath,
+	bool bLoop,
+	bool bCapped,
+	float StartScale,
+	float EndScale,
+	float RotationAngleDeg,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSweepPolygon_NullMesh", "AppendSweepPolygon: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (PolygonVertices.Num() < 3)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSweepPolygon_InvalidPolygon", "AppendSweepPolygon: PolygonVertices array requires at least 3 positions"));
+		return TargetMesh;
+	}
+	if (SweepPath.Num() < 2)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSweepPolygon_InvalidSweepPath", "AppendSweepPolygon: SweepPath array requires at least 2 positions"));
+		return TargetMesh;
+	}
+
+	FMatrix2d Rotation2D = FMatrix2d::RotationDeg(-RotationAngleDeg);
+	FGeneralizedCylinderGenerator SweepGen;
+	for (const FVector2D& Point : PolygonVertices)
+	{
+		SweepGen.CrossSection.AppendVertex( Rotation2D * FVector2d(Point.X, Point.Y) );
+	}
+	for (const FTransform& SweepXForm : SweepPath)
+	{
+		SweepGen.Path.Add(SweepXForm.GetLocation());
+		FQuaterniond Rotation(SweepXForm.GetRotation());
+		SweepGen.PathFrames.Add(
+			FFrame3d(SweepXForm.GetLocation(), Rotation.AxisY(), Rotation.AxisZ(), Rotation.AxisX())
+		);
+		FVector3d Scale = SweepXForm.GetScale3D();
+		SweepGen.PathScales.Add(FVector2d(Scale.Y, Scale.Z));
+	}
+
+	SweepGen.bLoop = bLoop;
+	SweepGen.bCapped = bCapped;
+	SweepGen.bPolygroupPerQuad = (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad);
+	SweepGen.InitialFrame = FFrame3d(SweepGen.Path[0]);
+	SweepGen.StartScale = StartScale;
+	SweepGen.EndScale = EndScale;
+
+	SweepGen.Generate();
+
+	AppendPrimitive(TargetMesh, &SweepGen, Transform, PrimitiveOptions);
+	return TargetMesh;
+}
+
+
+
+
 UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRectangleXY(
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptPrimitiveOptions PrimitiveOptions,
