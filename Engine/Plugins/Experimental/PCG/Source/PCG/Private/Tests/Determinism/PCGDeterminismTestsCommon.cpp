@@ -440,6 +440,11 @@ namespace PCGDeterminismTests
 			EPCGDataType FirstDataType = FirstCollection.TaggedData[I].Data->GetDataType();
 			EPCGDataType SecondDataType = SecondCollection.TaggedData[I].Data->GetDataType();
 
+			if (!DataTypeIsComparable(FirstDataType))
+			{
+				continue;
+			}
+
 			// Only compare if they are the same type and same pin label
 			if (FirstDataType != SecondDataType || FirstCollection.TaggedData[I].Pin != SecondCollection.TaggedData[I].Pin)
 			{
@@ -918,17 +923,17 @@ namespace PCGDeterminismTests
 
 	bool DataTypeIsComparable(EPCGDataType DataType)
 	{
+		// Data types that don't need to be compared
+		if (DataType == EPCGDataType::None || DataType == EPCGDataType::Other || DataType == EPCGDataType::Settings)
+		{
+			return false;
+		}
+
 		// Comparable data types
 		// TODO: Add metadata/param data as comparable in the future
 		if (!!(DataType & EPCGDataType::Spatial))
 		{
 			return true;
-		}
-
-		// Data types that don't need to be compared
-		if (DataType == EPCGDataType::None || DataType == EPCGDataType::Other || DataType == EPCGDataType::Settings)
-		{
-			return false;
 		}
 
 		UE_LOG(LogPCG, Warning, TEXT("Unknown data comparison type: %s"), *UEnum::GetValueAsString(DataType));
@@ -1175,7 +1180,7 @@ namespace PCGDeterminismTests
 
 		FPCGDataCollection ThirdOutput;
 		FPCGDataCollection FourthOutput;
-		ExecuteWithSameTestDataSameElement(TestData, PCGNode, FirstOutput, SecondOutput);
+		ExecuteWithSameTestDataSameElement(TestData, PCGNode, ThirdOutput, FourthOutput);
 
 		// Same data, so it ought to be exact
 		return DataCollectionsAreIdentical(FirstOutput, SecondOutput) && DataCollectionsAreIdentical(ThirdOutput, FourthOutput);
