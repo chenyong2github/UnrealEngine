@@ -6,12 +6,14 @@
 // Widgets & ViewModels
 #include "Widgets/Docking/SDockTab.h"
 #include "NiagaraSimCacheViewModel.h"
+#include "SNiagaraSimCacheViewTimeline.h"
+#include "SNiagaraSimCacheViewTransportControls.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSimCacheToolkit"
 
 const FName FNiagaraSimCacheToolkit::NiagaraSimCacheSpreadsheetTabId(TEXT("NiagaraSimCacheEditor_Spreadsheet"));
 
-//TODO Timeline, & Preview
+//TODO Preview
 
 FNiagaraSimCacheToolkit::FNiagaraSimCacheToolkit()
 {
@@ -104,7 +106,31 @@ TSharedRef<SDockTab> FNiagaraSimCacheToolkit::SpawnTab_SimCacheSpreadsheet(const
 	Contents->AddSlot()
 		.FillHeight(1.0f)
 		[
-			SimCacheSpreadsheetView->AsShared()
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			[
+				SimCacheSpreadsheetView->AsShared()
+			]
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.0f)
+				[
+					SNew(SNiagaraSimCacheViewTransportControls)
+					.WeakViewModel(SimCacheViewModel->AsWeak())
+				]
+				+SHorizontalBox::Slot()
+				.Padding(4.0f)
+				[
+					SNew(SNiagaraSimCacheViewTimeline)
+					.WeakViewModel(SimCacheViewModel->AsWeak())
+				]
+				
+			]
+			
 		];
 
 	TSharedRef<SDockTab> SpawnedTab =

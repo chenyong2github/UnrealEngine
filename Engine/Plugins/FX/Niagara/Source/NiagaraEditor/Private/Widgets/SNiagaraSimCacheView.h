@@ -28,12 +28,7 @@ public:
 	void UpdateRows(const bool bRefresh);
 
 	void UpdateBufferSelectionList();
-
-	TOptional<int32> GetNumFrames() const;
-	int32 GetFrameIndex() const;
-
-	void SetFrameIndex(int32);
-
+	
 	TSharedRef<SWidget> BufferSelectionGenerateWidget(TSharedPtr<FBufferSelectionInfo> InItem);
 
 	void BufferSelectionChanged(TSharedPtr<FBufferSelectionInfo> NewSelection, ESelectInfo::Type SelectInfo);
@@ -43,6 +38,8 @@ public:
 	void OnComponentFilterChange(const FText& InFilter);
 
 	void OnSimCacheChanged(const FAssetData& InAsset);
+
+	void OnSimCacheFrameChanged(const bool bRefresh);
 
 	TArray<TSharedPtr<int32>>					RowItems;
 	TSharedPtr<FNiagaraSimCacheViewModel>		SimCacheViewModel;

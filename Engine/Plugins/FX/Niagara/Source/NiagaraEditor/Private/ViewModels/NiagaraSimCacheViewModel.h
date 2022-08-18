@@ -22,6 +22,8 @@ struct FNiagaraSimCacheComponentInfo
 class NIAGARAEDITOR_API FNiagaraSimCacheViewModel : public TSharedFromThis<FNiagaraSimCacheViewModel>
 {
 public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnFrameUpdated, bool)
+	
 	FNiagaraSimCacheViewModel();
 	~FNiagaraSimCacheViewModel();
 
@@ -37,7 +39,7 @@ public:
 
 	int32 GetFrameIndex() const { return FrameIndex; };
 
-	void SetFrameIndex(const int32 InFrameIndex) { FrameIndex = InFrameIndex; };
+	void SetFrameIndex(const int32 InFrameIndex);;
 
 	int32 GetEmitterIndex() const { return EmitterIndex; };
 
@@ -53,7 +55,11 @@ public:
 
 	FName GetEmitterLayoutName(int32 Index);
 
+	FOnFrameUpdated& OnFrameUpdated();
+
 private:
 	uint32 FrameIndex = 0;
 	uint32 EmitterIndex = INDEX_NONE;
+
+	FOnFrameUpdated OnFrameUpdatedDelegate;
 };

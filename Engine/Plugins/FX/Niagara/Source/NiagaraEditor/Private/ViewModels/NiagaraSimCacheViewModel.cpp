@@ -272,6 +272,12 @@ int32 FNiagaraSimCacheViewModel::GetNumFrames() const
 	return SimCache ? SimCache->CacheFrames.Num() : 0;
 }
 
+void FNiagaraSimCacheViewModel::SetFrameIndex(const int32 InFrameIndex)
+{
+	FrameIndex = InFrameIndex;
+	OnFrameUpdatedDelegate.Broadcast(true);
+}
+
 
 void FNiagaraSimCacheViewModel::SetEmitterIndex(const int32 InEmitterIndex)
 {
@@ -299,6 +305,11 @@ FName FNiagaraSimCacheViewModel::GetEmitterLayoutName(const int32 Index)
 {
 	const UNiagaraSimCache* SimCache = BufferReader ? BufferReader->GetSimCache() : nullptr;
 	return SimCache ? SimCache->CacheLayout.EmitterLayouts[Index].LayoutName : NAME_None;
+}
+
+FNiagaraSimCacheViewModel::FOnFrameUpdated& FNiagaraSimCacheViewModel::OnFrameUpdated()
+{
+	return OnFrameUpdatedDelegate;
 }
 
 #undef LOCTEXT_NAMESPACE

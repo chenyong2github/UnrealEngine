@@ -67,6 +67,8 @@ void SNiagaraSimCacheView::Construct(const FArguments& InArgs)
 {
 	SimCacheViewModel = InArgs._SimCacheViewModel;
 
+	SimCacheViewModel->OnFrameUpdated().AddSP(this, &SNiagaraSimCacheView::OnSimCacheFrameChanged);
+
 	HeaderRowWidget = SNew(SHeaderRow);
 
 	UpdateColumns(false);
@@ -116,27 +118,6 @@ void SNiagaraSimCacheView::Construct(const FArguments& InArgs)
 					SNew(STextBlock)
 					.Text(this, &SNiagaraSimCacheView::GetBufferSelectionText)
 				]
-			]
-			// Select Cache Frame
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(10.0f)
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("FrameIndex", "Frame Index"))
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
-			[
-				SNew(SSpinBox<int32>)
-				.MinValue(0)
-				.MaxValue(this, &SNiagaraSimCacheView::GetNumFrames)
-				.Value(this, &SNiagaraSimCacheView::GetFrameIndex)
-				.OnValueChanged(this, &SNiagaraSimCacheView::SetFrameIndex)
 			]
 			// Component Filter
 			+ SHorizontalBox::Slot()
@@ -295,22 +276,6 @@ void SNiagaraSimCacheView::UpdateBufferSelectionList()
 	}
 }
 
-TOptional<int32> SNiagaraSimCacheView::GetNumFrames() const
-{
-	return SimCacheViewModel->GetNumFrames();
-}
-
-int32 SNiagaraSimCacheView::GetFrameIndex() const
-{
-	return SimCacheViewModel->GetFrameIndex();
-}
-
-void SNiagaraSimCacheView::SetFrameIndex(int32 Value)
-{
-	SimCacheViewModel->SetFrameIndex(Value);
-	UpdateRows(true);
-}
-
 TSharedRef<SWidget> SNiagaraSimCacheView::BufferSelectionGenerateWidget(TSharedPtr<FBufferSelectionInfo> InItem)
 {
 	return
@@ -356,6 +321,11 @@ void SNiagaraSimCacheView::OnSimCacheChanged(const FAssetData& InAsset)
 		UpdateColumns(true);
 		UpdateBufferSelectionList();
 	}
+}
+
+void SNiagaraSimCacheView::OnSimCacheFrameChanged(const bool bRefresh)
+{
+	UpdateRows(bRefresh);
 }
 
 #undef LOCTEXT_NAMESPACE
