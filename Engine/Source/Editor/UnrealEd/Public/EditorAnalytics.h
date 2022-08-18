@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 
-class FEngineSessionManager;
 struct FAnalyticsEventAttribute;
 
 namespace EAnalyticsErrorCodes
@@ -118,7 +117,4 @@ public:
 
 	/* Determine whether the error code should cause the reporter to display the message in a dialog. */
 	UNREALED_API static bool ShouldElevateMessageThroughDialog(const int32 ErrorCode);
-
-private:
-	static TSharedPtr<class FEngineSessionManager> SessionManager;
 };

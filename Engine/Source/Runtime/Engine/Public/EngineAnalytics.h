@@ -59,6 +59,5 @@ public:
 private:
 	static bool bIsInitialized;
 	static ENGINE_API TSharedPtr<IAnalyticsProviderET> Analytics;
-	static TSharedPtr<FEngineSessionManager> SessionManager;
 };
 

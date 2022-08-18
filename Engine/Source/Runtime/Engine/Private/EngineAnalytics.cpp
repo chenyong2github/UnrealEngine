@@ -13,7 +13,6 @@
 #include "IAnalyticsProviderET.h"
 #include "AnalyticsET.h"
 #include "GeneralProjectSettings.h"
-#include "EngineSessionManager.h"
 #include "Misc/EngineVersion.h"
 #include "RHI.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
@@ -29,7 +28,6 @@
 
 bool FEngineAnalytics::bIsInitialized;
 TSharedPtr<IAnalyticsProviderET> FEngineAnalytics::Analytics;
-TSharedPtr<FEngineSessionManager> FEngineAnalytics::SessionManager;
 
 #if WITH_EDITOR
 static TUniquePtr<FAnalyticsSessionSummaryManager> AnalyticsSessionSummaryManager;
@@ -153,13 +151,6 @@ void FEngineAnalytics::Initialize()
 			bIsInitialized = true;
 		}
 
-		// Create the session manager singleton
-		if (!SessionManager.IsValid())
-		{
-			SessionManager = MakeShared<FEngineSessionManager>(EEngineSessionManagerMode::Editor);
-			SessionManager->Initialize();
-		}
-
 #if WITH_EDITOR
 		if (!AnalyticsSessionSummaryManager)
 		{
@@ -191,13 +182,6 @@ void FEngineAnalytics::Initialize()
 
 void FEngineAnalytics::Shutdown(bool bIsEngineShutdown)
 {
-	// Destroy the session manager singleton if it exists
-	if (SessionManager.IsValid() && bIsEngineShutdown)
-	{
-		SessionManager->Shutdown();
-		SessionManager.Reset();
-	}
-
 #if WITH_EDITOR
 	OnShutdownEngineAnalytics.Broadcast();
 
@@ -232,11 +216,6 @@ void FEngineAnalytics::Shutdown(bool bIsEngineShutdown)
 void FEngineAnalytics::Tick(float DeltaTime)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineAnalytics_Tick);
-
-	if (SessionManager.IsValid())
-	{
-		SessionManager->Tick(DeltaTime);
-	}
 
 #if WITH_EDITOR
 	if (EditorAnalyticSessionSummary)
