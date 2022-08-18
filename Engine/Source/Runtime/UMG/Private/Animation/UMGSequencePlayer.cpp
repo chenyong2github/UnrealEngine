@@ -410,7 +410,11 @@ void UUMGSequencePlayer::HandleLatentStop()
 
 	bIsStopping = false;
 
-	UserWidget->OnAnimationFinishedPlaying(*this);
+	if (UserWidget.IsValid())
+	{
+		UserWidget->OnAnimationFinishedPlaying(*this);
+	}
+
 	OnSequenceFinishedPlayingEvent.Broadcast(*this);
 }
 
