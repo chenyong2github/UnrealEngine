@@ -264,6 +264,23 @@ void UGSTab::OnSyncChangelist(int Changelist)
 	Workspace->Update(Context);
 }
 
+void UGSTab::OnBuildWorkspace()
+{
+	UGSCore::EWorkspaceUpdateOptions Options = UGSCore::EWorkspaceUpdateOptions::Build;
+
+	TSharedRef<UGSCore::FWorkspaceUpdateContext, ESPMode::ThreadSafe> Context = MakeShared<UGSCore::FWorkspaceUpdateContext, ESPMode::ThreadSafe>(
+		-1,
+		Options,
+		CombinedSyncFilter,
+		GetDefaultBuildStepObjects(DetectSettings->NewProjectEditorTarget, UserSettings),
+		ProjectSettings->BuildSteps,
+		TSet<FGuid>(),
+		GetWorkspaceVariables(DetectSettings));
+
+	// Update the workspace with the Context!
+	Workspace->Update(Context);
+}
+
 void UGSTab::OnViewInSwarmClicked(int Changelist) const
 {
 	FString SwarmURL = FString::Printf(TEXT("https://p4-swarm.epicgames.net/changes/%i"), Changelist);

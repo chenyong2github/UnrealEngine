@@ -57,6 +57,7 @@ public:
 		const TArray<FGuid>& SyncExcludedCategoriesCurrent,
 		const TArray<FString>& SyncViewAll,
 		const TArray<FGuid>& SyncExcludedCategoriesAll);
+	void OnBuildWorkspace();
 
 	// Accessors
 	bool IsSyncing() const;

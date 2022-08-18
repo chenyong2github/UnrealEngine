@@ -268,7 +268,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("Build", "Build"))
 						.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
-						.IsEnabled(false) // Todo: enable after adding this functionality
+						.OnClicked_Lambda([this] { Tab->OnBuildWorkspace(); return FReply::Handled(); })
 					]
 					+SHorizontalBox::Slot()
 					.AutoWidth()
@@ -285,7 +285,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					[
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("OpenSolution", "OpenSolution"))
-						.Icon(FSlateUGSStyle::Get().GetBrush("MainFrame.OpenVisualStudio")) // Todo: shouldn't use this icon (repurposing, also could use other IDEs)
+						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.FolderOpen")) // Todo: shouldn't use this icon (repurposing, also could use other IDEs)
 						.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
 						.IsEnabled(false) // Todo: enable after adding this functionality
 					]
@@ -322,7 +322,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					[
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("CleanSolution", "Clean Solution"))
-						.Icon(FSlateUGSStyle::Get().GetBrush("GraphEditor.Clean")) // Todo: shouldn't use this icon (repurposing)
+						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.Delete")) // Todo: shouldn't use this icon (repurposing)
 						.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
 						.IsEnabled(false) // Todo: enable after adding this functionality
 					]
