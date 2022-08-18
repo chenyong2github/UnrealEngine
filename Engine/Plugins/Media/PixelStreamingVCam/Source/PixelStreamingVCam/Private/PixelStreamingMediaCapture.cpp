@@ -26,6 +26,7 @@ bool UPixelStreamingMediaCapture::InitializeCapture()
 bool UPixelStreamingMediaCapture::PostInitializeCaptureViewport(TSharedPtr<FSceneViewport>& InSceneViewport)
 {
 	Viewport = InSceneViewport;
+	OnCaptureViewportInitialized.Broadcast();
 	return true;
 }
 

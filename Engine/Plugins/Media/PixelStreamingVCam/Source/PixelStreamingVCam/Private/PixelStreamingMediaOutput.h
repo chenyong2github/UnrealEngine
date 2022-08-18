@@ -39,6 +39,7 @@ private:
 	FString StreamID = TEXT("VCam");
 
 	void OnCaptureStateChanged();
+	void OnCaptureViewportInitialized();
 	void StartStreaming();
 	void StopStreaming();
 };

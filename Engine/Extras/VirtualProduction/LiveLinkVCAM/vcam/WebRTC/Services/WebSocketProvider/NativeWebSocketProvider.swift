@@ -48,8 +48,8 @@ class NativeWebSocketProvider : NSObject, WebSocketProvider, URLSessionWebSocket
         }
     }
     
-    func send(text: String) {
-        socket.send(.string(text)) { error in
+    func send(msg: String) {
+        socket.send(.string(msg)) { error in
             self.handleError(error)
         }
     }

@@ -246,13 +246,6 @@ void UVCamPixelStreamingSession::PostEditChangeProperty(FPropertyChangedEvent& P
 		{
 			SetActive(false);
 		}
-		else if(Property->GetFName() == FName(TEXT("bIsActive")))
-		{
-			if(bIsActive) {
-				// this is a hack to suppress double activation, livelink tick will activate it
-				return;
-			}
-		}
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }

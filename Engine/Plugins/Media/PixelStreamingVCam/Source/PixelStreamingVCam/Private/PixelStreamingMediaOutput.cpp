@@ -28,7 +28,8 @@ UMediaCapture* UPixelStreamingMediaOutput::CreateMediaCaptureImpl()
 	{
 		Capture = NewObject<UPixelStreamingMediaCapture>();
 		Capture->SetMediaOutput(this);
-		Capture->OnStateChangedNative.AddLambda([this]() { OnCaptureStateChanged(); });
+		Capture->OnStateChangedNative.AddUObject(this, &UPixelStreamingMediaOutput::OnCaptureStateChanged);
+		Capture->OnCaptureViewportInitialized.AddUObject(this, &UPixelStreamingMediaOutput::OnCaptureViewportInitialized);
 	}
 	return Capture;
 }
@@ -49,14 +50,21 @@ void UPixelStreamingMediaOutput::OnCaptureStateChanged()
 	}
 }
 
+void UPixelStreamingMediaOutput::OnCaptureViewportInitialized()
+{
+	if(Streamer)
+	{
+		Streamer->SetTargetViewport(Capture->GetViewport().Get());
+		Streamer->SetTargetWindow(Capture->GetViewport()->FindWindow());
+	}
+}
+
 void UPixelStreamingMediaOutput::StartStreaming()
 {
 	if (Streamer)
 	{
 		Streamer->SetSignallingServerURL(SignallingServerURL);
 		Streamer->SetVideoInput(Capture->GetVideoInput());
-		Streamer->SetTargetViewport(Capture->GetViewport().Get());
-		Streamer->SetTargetWindow(Capture->GetViewport()->FindWindow());
 
 		if(!Streamer->IsStreaming())
 		{

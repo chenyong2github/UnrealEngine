@@ -27,6 +27,8 @@ public:
 	TSharedPtr<IPixelStreamingVideoInput> GetVideoInput() const { return VideoInput; }
 	TSharedPtr<FSceneViewport> GetViewport() const { return Viewport.Pin(); }
 
+	DECLARE_MULTICAST_DELEGATE(FOnCaptureViewportInitialized);
+	FOnCaptureViewportInitialized OnCaptureViewportInitialized;
 private:
 	void SetupVideoInput();
 
