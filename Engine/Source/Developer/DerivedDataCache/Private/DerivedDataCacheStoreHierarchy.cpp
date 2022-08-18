@@ -2,7 +2,9 @@
 
 #include "Algo/AllOf.h"
 #include "Algo/AnyOf.h"
+#include "Algo/Compare.h"
 #include "Algo/Find.h"
+#include "Algo/MinElement.h"
 #include "Containers/Array.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheStore.h"
@@ -90,7 +92,7 @@ private:
 	static ECachePolicy GetCombinedPolicy(const ECachePolicy Policy) { return Policy; }
 	static ECachePolicy GetCombinedPolicy(const FCacheRecordPolicy& Policy) { return Policy.GetRecordPolicy(); }
 
-	static ECachePolicy AddPolicy(ECachePolicy BasePolicy, ECachePolicy Policy) { return BasePolicy | Policy; }
+	static ECachePolicy AddPolicy(ECachePolicy BasePolicy, ECachePolicy Policy) { return BasePolicy | (Policy & ~FCacheValuePolicy::PolicyMask); }
 	static ECachePolicy RemovePolicy(ECachePolicy BasePolicy, ECachePolicy Policy) { return BasePolicy & ~Policy; }
 	static FCacheRecordPolicy AddPolicy(const FCacheRecordPolicy& BasePolicy, ECachePolicy Policy);
 	static FCacheRecordPolicy RemovePolicy(const FCacheRecordPolicy& BasePolicy, ECachePolicy Policy);
@@ -169,7 +171,9 @@ struct FCacheStoreHierarchy::TBatchParams
 	static PutFunctionType Put();
 	static GetFunctionType Get();
 	static bool HasResponseData(const FGetResponse& Response);
-	static void FilterResponseByRequest(FGetResponse& Response, const FGetRequest& Request);
+	static bool MergeFromResponse(FGetResponse& OutResponse, const FGetResponse& Response);
+	static void ModifyPolicyForResponse(decltype(FGetRequest::Policy)& Policy, const FGetResponse& Response) {}
+	static FGetResponse FilterResponseByRequest(const FGetResponse& Response, const FGetRequest& Request);
 	static FPutRequest MakePutRequest(const FGetResponse& Response, const FGetRequest& Request);
 	static FGetRequest MakeGetRequest(const FPutRequest& Request, uint64 UserData);
 };
@@ -561,6 +565,8 @@ class FCacheStoreHierarchy::TGetBatch final : public FBatchBase, public Params
 	using Params::Put;
 	using Params::Get;
 	using Params::HasResponseData;
+	using Params::MergeFromResponse;
+	using Params::ModifyPolicyForResponse;
 	using Params::FilterResponseByRequest;
 	using Params::MakePutRequest;
 
@@ -597,6 +603,7 @@ private:
 	{
 		FGetRequest Request;
 		FGetResponse Response;
+		uint64 NodeIndex = 0;
 	};
 
 	const FCacheStoreHierarchy& Hierarchy;
@@ -606,7 +613,6 @@ private:
 	IRequestOwner& Owner;
 	FRequestOwner AsyncOwner;
 	FCounterEvent RemainingRequestCount;
-	int32 NodeIndex = 0;
 };
 
 template <typename Params>
@@ -637,13 +643,24 @@ void FCacheStoreHierarchy::TGetBatch<Params>::DispatchRequests()
 	NodeRequests.Reserve(RequestCount);
 	AsyncNodeRequests.Reserve(RequestCount);
 
-	for (const int32 NodeCount = Hierarchy.Nodes.Num(); NodeIndex < NodeCount && !Owner.IsCanceled(); ++NodeIndex)
+	for (const int32 NodeCount = Hierarchy.Nodes.Num(); !Owner.IsCanceled();)
 	{
+		const int32 NodeIndex = Algo::MinElementBy(States, &FState::NodeIndex)->NodeIndex;
+		if (NodeIndex >= NodeCount)
+		{
+			break;
+		}
+
 		const FCacheStoreNode& Node = Hierarchy.Nodes[NodeIndex];
 
 		uint64 StateIndex = 0;
-		for (const FState& State : States)
+		for (FState& State : States)
 		{
+			if (NodeIndex < State.NodeIndex)
+			{
+				continue;
+			}
+
 			const FGetRequest& Request = State.Request;
 			const FGetResponse& Response = State.Response;
 			if (Response.Status == EStatus::Ok)
@@ -651,24 +668,36 @@ void FCacheStoreHierarchy::TGetBatch<Params>::DispatchRequests()
 				if (HasResponseData(Response) && CanStore(GetCombinedPolicy(Request.Policy), Node.CacheFlags))
 				{
 					AsyncNodeRequests.Add(MakePutRequest(Response, Request));
+					++State.NodeIndex;
 				}
 				else if (EnumHasAnyFlags(Node.CacheFlags, ECacheStoreFlags::StopGetStore) && CanQuery(GetCombinedPolicy(Request.Policy), Node.CacheFlags))
 				{
 					NodeRequests.Add({Request.Name, Request.Key, AddPolicy(Request.Policy, ECachePolicy::SkipData), StateIndex});
 				}
+				else
+				{
+					++State.NodeIndex;
+				}
 			}
 			else
 			{
-				if (const ECachePolicy Policy = GetCombinedPolicy(Request.Policy); CanQuery(Policy, Node.CacheFlags))
+				if (const ECachePolicy CombinedPolicy = GetCombinedPolicy(Request.Policy); CanQuery(CombinedPolicy, Node.CacheFlags))
 				{
-					if (CanStoreIfOk(Policy, Node.NodeFlags))
+					auto Policy = Request.Policy;
+					if (CanStoreIfOk(CombinedPolicy, Node.NodeFlags))
 					{
-						NodeRequests.Add({Request.Name, Request.Key, RemovePolicy(Request.Policy, ECachePolicy::SkipData | ECachePolicy::SkipMeta), StateIndex});
+						Policy = RemovePolicy(Policy, ECachePolicy::SkipData | ECachePolicy::SkipMeta);
 					}
-					else
+					if (CanQueryIfError(CombinedPolicy, Node.NodeFlags))
 					{
-						NodeRequests.Add({Request.Name, Request.Key, Request.Policy, StateIndex});
+						Policy = AddPolicy(Policy, ECachePolicy::PartialRecord);
 					}
+					ModifyPolicyForResponse(Policy, Response);
+					NodeRequests.Add({Request.Name, Request.Key, Policy, StateIndex});
+				}
+				else
+				{
+					++State.NodeIndex;
 				}
 			}
 			++StateIndex;
@@ -709,25 +738,34 @@ void FCacheStoreHierarchy::TGetBatch<Params>::DispatchRequests()
 template <typename Params>
 void FCacheStoreHierarchy::TGetBatch<Params>::CompleteRequest(FGetResponse&& Response)
 {
-	FState& State = States[int32(Response.UserData)];
-	const FCacheStoreNode& Node = Hierarchy.Nodes[NodeIndex];
-
-	const bool bFirstOk = Response.Status == EStatus::Ok && State.Response.Status == EStatus::Error;
-	const bool bLastQuery = bFirstOk || !CanQueryIfError(GetCombinedPolicy(State.Request.Policy), Node.NodeFlags);
-
-	if (State.Response.Status == EStatus::Error)
+	ON_SCOPE_EXIT
 	{
-		Response.UserData = State.Request.UserData;
-		// TODO: Merge values from partial records.
-		State.Response = Response;
+		if (RemainingRequestCount.Signal())
+		{
+			DispatchRequests();
+		}
+	};
+
+	FState& State = States[int32(Response.UserData)];
+	const FCacheStoreNode& Node = Hierarchy.Nodes[State.NodeIndex];
+	const EStatus PreviousStatus = State.Response.Status;
+	const int32 PreviousNodeIndex = State.NodeIndex;
+
+	// Failure to merge requires dispatching to the same node to try to recover missing values.
+	if (!MergeFromResponse(State.Response, Response))
+	{
+		return;
 	}
 
-	if (bLastQuery && CanStoreIfOk(GetCombinedPolicy(State.Request.Policy), Node.NodeFlags) && HasResponseData(Response))
+	const bool bFirstOk = State.Response.Status == EStatus::Ok && PreviousStatus == EStatus::Error;
+	const bool bLastQuery = bFirstOk || !CanQueryIfError(GetCombinedPolicy(State.Request.Policy), Node.NodeFlags);
+
+	if (bLastQuery && CanStoreIfOk(GetCombinedPolicy(State.Request.Policy), Node.NodeFlags) && HasResponseData(State.Response))
 	{
 		// Store any retrieved values to previous writable nodes if Ok or there are no remaining nodes to query.
-		FPutRequest PutRequest = MakePutRequest(Response, State.Request);
+		FPutRequest PutRequest = MakePutRequest(State.Response, State.Request);
 		PutRequest.Policy = RemovePolicy(PutRequest.Policy, ECachePolicy::Query);
-		for (int32 PutNodeIndex = 0; PutNodeIndex < NodeIndex; ++PutNodeIndex)
+		for (int32 PutNodeIndex = 0; PutNodeIndex < PreviousNodeIndex; ++PutNodeIndex)
 		{
 			const FCacheStoreNode& PutNode = Hierarchy.Nodes[PutNodeIndex];
 			if (CanStore(GetCombinedPolicy(State.Request.Policy), PutNode.CacheFlags))
@@ -740,9 +778,8 @@ void FCacheStoreHierarchy::TGetBatch<Params>::CompleteRequest(FGetResponse&& Res
 
 	if (bFirstOk)
 	{
-		// Values may be fetched to fill previous nodes. Remove values if requested.
-		FilterResponseByRequest(Response, State.Request);
-		OnComplete(MoveTemp(Response));
+		// Values may be fetched to populate earlier nodes. Remove values if requested.
+		OnComplete(FilterResponseByRequest(State.Response, State.Request));
 	}
 
 	if (Response.Status == EStatus::Ok)
@@ -760,11 +797,7 @@ void FCacheStoreHierarchy::TGetBatch<Params>::CompleteRequest(FGetResponse&& Res
 		}
 	}
 
-	if (RemainingRequestCount.Signal())
-	{
-		++NodeIndex;
-		DispatchRequests();
-	}
+	++State.NodeIndex;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -788,8 +821,95 @@ bool FCacheStoreHierarchy::FCacheRecordBatchParams::HasResponseData(const FCache
 }
 
 template <>
-void FCacheStoreHierarchy::FCacheRecordBatchParams::FilterResponseByRequest(
-	FCacheGetResponse& Response,
+bool FCacheStoreHierarchy::FCacheRecordBatchParams::MergeFromResponse(
+	FCacheGetResponse& OutResponse,
+	const FCacheGetResponse& Response)
+{
+	if (OutResponse.Status == EStatus::Ok)
+	{
+		return true;
+	}
+
+	const FCacheRecord& NewRecord = Response.Record;
+	const FCacheRecord ExistingRecord = MoveTemp(OutResponse.Record);
+
+	OutResponse = Response;
+
+	if (ExistingRecord.GetValues().IsEmpty())
+	{
+		return true;
+	}
+
+	bool bOk = true;
+	FCacheRecordBuilder Builder(ExistingRecord.GetKey());
+	Builder.SetMeta(CopyTemp(NewRecord.GetMeta() ? NewRecord.GetMeta() : ExistingRecord.GetMeta()));
+	for (const FValueWithId& Value : NewRecord.GetValues())
+	{
+		if (Value.HasData())
+		{
+			Builder.AddValue(Value);
+		}
+		else if (const FValueWithId& ExistingValue = ExistingRecord.GetValue(Value.GetId()); ExistingValue && ExistingValue.HasData())
+		{
+			if (Value == ExistingValue)
+			{
+				// There is a matching existing value with data. Merge it into the new record.
+				Builder.AddValue(ExistingValue);
+			}
+			else
+			{
+				// There is an existing value and it differs. Requery the current node for this value.
+				Builder.AddValue(Value);
+				OutResponse.Status = EStatus::Error;
+				bOk = false;
+			}
+		}
+		else
+		{
+			Builder.AddValue(Value);
+		}
+	}
+	OutResponse.Record = Builder.Build();
+	return bOk;
+}
+
+template <>
+void FCacheStoreHierarchy::FCacheRecordBatchParams::ModifyPolicyForResponse(
+	FCacheRecordPolicy& Policy,
+	const FCacheGetResponse& Response)
+{
+	const TConstArrayView<FValueWithId> Values = Response.Record.GetValues();
+	if (Values.IsEmpty())
+	{
+		return;
+	}
+
+	FCacheRecordPolicyBuilder Builder(Policy.GetBasePolicy());
+
+	// Skip values that are present in the response.
+	for (const FValueWithId& Value : Values)
+	{
+		if (Value.HasData())
+		{
+			Builder.AddValuePolicy(Value.GetId(), ECachePolicy::None);
+		}
+	}
+
+	// Copy any the policy for any other values from the source policy.
+	for (const FCacheValuePolicy& ValuePolicy : Policy.GetValuePolicies())
+	{
+		if (!Response.Record.GetValue(ValuePolicy.Id).HasData())
+		{
+			Builder.AddValuePolicy(ValuePolicy);
+		}
+	}
+
+	Policy = Builder.Build();
+}
+
+template <>
+FCacheGetResponse FCacheStoreHierarchy::FCacheRecordBatchParams::FilterResponseByRequest(
+	const FCacheGetResponse& Response,
 	const FCacheGetRequest& Request)
 {
 	const ECachePolicy RecordPolicy = Request.Policy.GetRecordPolicy();
@@ -813,8 +933,9 @@ void FCacheStoreHierarchy::FCacheRecordBatchParams::FilterResponseByRequest(
 				Builder.AddValue(Value);
 			}
 		}
-		Response.Record = Builder.Build();
+		return {Response.Name, Builder.Build(), Response.UserData, Response.Status};
 	}
+	return Response;
 }
 
 template <>
@@ -876,14 +997,27 @@ bool FCacheStoreHierarchy::FCacheValueBatchParams::HasResponseData(const FCacheG
 }
 
 template <>
-void FCacheStoreHierarchy::FCacheValueBatchParams::FilterResponseByRequest(
-	FCacheGetValueResponse& Response,
+bool FCacheStoreHierarchy::FCacheValueBatchParams::MergeFromResponse(
+	FGetResponse& OutResponse,
+	const FGetResponse& Response)
+{
+	if (OutResponse.Status == EStatus::Error)
+	{
+		OutResponse = Response;
+	}
+	return true;
+}
+
+template <>
+FCacheGetValueResponse FCacheStoreHierarchy::FCacheValueBatchParams::FilterResponseByRequest(
+	const FCacheGetValueResponse& Response,
 	const FCacheGetValueRequest& Request)
 {
 	if (Response.Value.HasData() && EnumHasAnyFlags(Request.Policy, ECachePolicy::SkipData))
 	{
-		Response.Value = Response.Value.RemoveData();
+		return {Response.Name, Response.Key, Response.Value.RemoveData(), Response.UserData, Response.Status};
 	}
+	return Response;
 }
 
 template <>

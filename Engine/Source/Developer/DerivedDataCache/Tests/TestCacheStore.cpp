@@ -490,14 +490,11 @@ void FTestCacheStore::ExecuteOrQueue(IRequestOwner& Owner, TUniqueFunction<void 
 
 void FTestCacheStore::ExecuteAsync()
 {
-	while (!Queue.IsEmpty())
+	TArray<TRefCountPtr<FAsyncRequest>> Requests;
+	Swap(Requests, Queue);
+	for (const TRefCountPtr<FAsyncRequest>& Request : Requests)
 	{
-		TArray<TRefCountPtr<FAsyncRequest>> Requests;
-		Swap(Requests, Queue);
-		for (const TRefCountPtr<FAsyncRequest>& Request : Requests)
-		{
-			Request->Wait();
-		}
+		Request->Wait();
 	}
 }
 
