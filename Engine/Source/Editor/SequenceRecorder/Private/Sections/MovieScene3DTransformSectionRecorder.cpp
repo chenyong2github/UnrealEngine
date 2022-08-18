@@ -132,11 +132,11 @@ void FMovieScene3DTransformSectionRecorder::FinalizeSection(float CurrentTime)
 		USkeletalMeshComponent* SkeletalMeshComponent = AnimRecorder->GetSkeletalMeshComponent();
 		if (SkeletalMeshComponent)
 		{
-			USkeletalMesh* SkeletalMesh =
-				Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent) ?
-				Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent)->GetSkeletalMeshAsset() :
-				SkeletalMeshComponent->GetSkeletalMeshAsset();
-			if (AnimSequence && SkeletalMesh)
+			USkinnedAsset* SkinnedAsset =
+				SkeletalMeshComponent->LeaderPoseComponent != nullptr ?
+				SkeletalMeshComponent->LeaderPoseComponent->GetSkinnedAsset() :
+				SkeletalMeshComponent->GetSkinnedAsset();
+			if (AnimSequence && SkinnedAsset)
 			{
 				// find the root bone
 				int32 RootIndex = INDEX_NONE;
@@ -149,8 +149,8 @@ void FMovieScene3DTransformSectionRecorder::FinalizeSection(float CurrentTime)
 					const int32 BoneTreeIndex = AnimationTrack.BoneTreeIndex;
 					if (BoneTreeIndex != INDEX_NONE)
 					{
-						const int32 BoneIndex = AnimSkeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkeletalMesh, BoneTreeIndex);
-						const int32 ParentIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
+						const int32 BoneIndex = AnimSkeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkinnedAsset, BoneTreeIndex);
+						const int32 ParentIndex = SkinnedAsset->GetRefSkeleton().GetParentIndex(BoneIndex);
 						if (ParentIndex == INDEX_NONE)
 						{
 							// found root

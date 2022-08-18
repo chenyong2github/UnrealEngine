@@ -741,7 +741,11 @@ public:
 	/** Non-serialised cache of linkups between different skeletal meshes and this Skeleton. */
 	TArray<struct FSkeletonToMeshLinkup> LinkupCache;
 
-	/** Runtime built mapping table between SkeletalMeshes, and LinkupCache array indices. */
+private:
+	/** Runtime built mapping table between SkinnedAssets, and LinkupCache array indices. */
+	TMap<TWeakObjectPtr<USkinnedAsset>, int32> SkinnedAsset2LinkupCache;
+public:
+	UE_DEPRECATED(5.1, "Public access to this member variable is deprecated.")
 	TMap<TWeakObjectPtr<USkeletalMesh>, int32> SkelMesh2LinkupCache;
 
 	/** A cached soft object pointer of this skeleton. This is done for performance reasons when searching for compatible skeletons when using IsCompatible(Skeleton). */
@@ -889,42 +893,42 @@ public:
 	 */
 
 	/**
-	 * Verify to see if we can match this skeleton with the provided SkeletalMesh.
+	 * Verify to see if we can match this skeleton with the provided SkinnedAsset.
 	 * 
 	 * Returns true 
 	 *		- if bone hierarchy matches (at least needs to have matching parent) 
 	 *		- and if parent chain matches - meaning if bone tree has A->B->C and if ref pose has A->C, it will fail
 	 *		- and if more than 50 % of bones matches
 	 *  
-	 * @param	InSkelMesh	SkeletalMesh to compare the Skeleton against.
+	 * @param	InSkinnedAsset	SkinnedAsset to compare the Skeleton against.
 	 * @param   bDoParentChainCheck When true (the default) this method also compares if chains match with the parent. 
 	 * 
-	 * @return				true if animation set can play on supplied SkeletalMesh, false if not.
+	 * @return				true if animation set can play on supplied SkinnedAsset, false if not.
 	 */
-	ENGINE_API bool IsCompatibleMesh(const USkeletalMesh* InSkelMesh, bool bDoParentChainCheck=true) const;
+	ENGINE_API bool IsCompatibleMesh(const USkinnedAsset* InSkinnedAsset, bool bDoParentChainCheck=true) const;
 
 	/** Clears all cache data **/
 	ENGINE_API void ClearCacheData();
 
 	/** 
-	 * Find a mesh linkup table (mapping of skeleton bone tree indices to refpose indices) for a particular SkeletalMesh
+	 * Find a mesh linkup table (mapping of skeleton bone tree indices to refpose indices) for a particular SkinnedAsset
 	 * If one does not already exist, create it now.
 	 */
-	ENGINE_API int32 GetMeshLinkupIndex(const USkeletalMesh* InSkelMesh);
+	ENGINE_API int32 GetMeshLinkupIndex(const USkinnedAsset* InSkinnedAsset);
 
 	/** 
-	 * Merge Bones (RequiredBones from InSkelMesh) to BoneTrees if not exists
+	 * Merge Bones (RequiredBones from InSkinnedAsset) to BoneTrees if not exists
 	 * 
 	 * Note that this bonetree can't ever clear up because doing so will corrupt all animation data that was imported based on this
 	 * If nothing exists, it will build new bone tree 
 	 * 
-	 * @param InSkelMesh			: Mesh to build from. 
-	 * @param RequiredRefBones		: RequiredBones are subset of list of bones (index to InSkelMesh->RefSkeleton)
+	 * @param InSkinnedAsset		: Mesh to build from. 
+	 * @param RequiredRefBones		: RequiredBones are subset of list of bones (index to InSkinnedAsset->RefSkeleton)
 									Most of cases, you don't like to add all bones to skeleton, so you'll have choice of cull out some
 	 * 
 	 * @return true if success
 	 */
-	ENGINE_API bool MergeBonesToBoneTree(const USkeletalMesh* InSkeletalMesh, const TArray<int32> &RequiredRefBones);
+	ENGINE_API bool MergeBonesToBoneTree(const USkinnedAsset* InSkinnedAsset, const TArray<int32> &RequiredRefBones);
 
 	/** 
 	 * Merge all Bones to BoneTrees if not exists
@@ -932,22 +936,22 @@ public:
 	 * Note that this bonetree can't ever clear up because doing so will corrupt all animation data that was imported based on this
 	 * If nothing exists, it will build new bone tree 
 	 * 
-	 * @param InSkelMesh			: Mesh to build from. 
+	 * @param InSkinnedAsset		: Mesh to build from. 
 	 * 
 	 * @return true if success
 	 */
-	ENGINE_API bool MergeAllBonesToBoneTree(const USkeletalMesh* InSkelMesh);
+	ENGINE_API bool MergeAllBonesToBoneTree(const USkinnedAsset* InSkinnedAsset);
 
 	/** 
 	 * Merge has failed, then Recreate BoneTree
 	 * 
 	 * This will invalidate all animations that were linked before, but this is needed 
 	 * 
-	 * @param InSkelMesh			: Mesh to build from. 
+	 * @param InSkinnedAsset		: Mesh to build from. 
 	 * 
 	 * @return true if success
 	 */
-	ENGINE_API bool RecreateBoneTree(USkeletalMesh* InSkelMesh);
+	ENGINE_API bool RecreateBoneTree(USkinnedAsset* InSkinnedAsset);
 
 	// @todo document
 	const TArray<FTransform>& GetRefLocalPoses( FName RetargetSource = NAME_None ) const 
@@ -966,11 +970,11 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/**
-	 * Find a retarget source for a particular skel mesh.
-	 * @param	InMesh	The skeletal mesh to find a source for
+	 * Find a retarget source for a particular mesh.
+	 * @param	InSkinnedAsset	The skinned asset mesh to find a source for
 	 * @return NAME_None if a retarget source was not found, or a valid name if it was
 	 */
-	ENGINE_API FName GetRetargetSourceForMesh(USkeletalMesh* InMesh) const;
+	ENGINE_API FName GetRetargetSourceForMesh(USkinnedAsset* InSkinnedAsset) const;
 #endif
 
 	/** 
@@ -985,19 +989,19 @@ public:
 
 	/** 
 	 * Get Bone Tree Index from Reference Bone Index
-	 * @param	InSkelMesh	SkeletalMesh for the ref bone idx
-	 * @param	InRefBoneIdx	Reference Bone Index to look for - index of USkeletalMesh.RefSkeleton
+	 * @param	InSkinnedAsset	SkinnedAsset for the ref bone idx
+	 * @param	InRefBoneIdx	Reference Bone Index to look for - index of USkinnedAsset.RefSkeleton
 	 * @return	Index of BoneTree Index
 	 */
-	ENGINE_API int32 GetSkeletonBoneIndexFromMeshBoneIndex(const USkeletalMesh* InSkelMesh, const int32 MeshBoneIndex);
+	ENGINE_API int32 GetSkeletonBoneIndexFromMeshBoneIndex(const USkinnedAsset* InSkinnedAsset, const int32 MeshBoneIndex);
 
 	/** 
 	 * Get Reference Bone Index from Bone Tree Index
-	 * @param	InSkelMesh	SkeletalMesh for the ref bone idx
+	 * @param	InSkinnedAsset	SkinnedAsset for the ref bone idx
 	 * @param	InBoneTreeIdx	Bone Tree Index to look for - index of USkeleton.BoneTree
 	 * @return	Index of BoneTree Index
 	 */
-	ENGINE_API int32 GetMeshBoneIndexFromSkeletonBoneIndex(const USkeletalMesh* InSkelMesh, const int32 SkeletonBoneIndex);
+	ENGINE_API int32 GetMeshBoneIndexFromSkeletonBoneIndex(const USkinnedAsset* InSkinnedAsset, const int32 SkeletonBoneIndex);
 
 	EBoneTranslationRetargetingMode::Type GetBoneTranslationRetargetingMode(const int32 BoneTreeIdx) const
 	{
@@ -1011,16 +1015,16 @@ public:
 	/** 
 	 * Rebuild Look up between SkelMesh to BoneTree - this should only get called when SkelMesh is re-imported or so, where the mapping may be no longer valid
 	 *
-	 * @param	InSkelMesh	: SkeletalMesh to build look up for
+	 * @param	InSkinnedAsset	: SkinnedAsset to build look up for
 	 */
-	ENGINE_API void RebuildLinkup(const USkeletalMesh* InSkelMesh);
+	ENGINE_API void RebuildLinkup(const USkinnedAsset* InSkinnedAsset);
 
 	/**
 	 * Remove Link up cache for the SkelMesh
 	 *
-	 * @param	InSkelMesh	: SkeletalMesh to remove linkup cache for 
+	 * @param	InSkinnedAsset	: SkinnedAsset to remove linkup cache for 
 	 */
-	void RemoveLinkup(const USkeletalMesh* InSkelMesh);
+	void RemoveLinkup(const USkinnedAsset* InSkinnedAsset);
 
 	ENGINE_API void SetBoneTranslationRetargetingMode(const int32 BoneIndex, EBoneTranslationRetargetingMode::Type NewRetargetingMode, bool bChildrenToo=false);
 
@@ -1031,15 +1035,15 @@ public:
 	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 
 	/** 
-	 * Create RefLocalPoses from InSkelMesh. Note InSkelMesh cannot be null and this function will assert if it is.
+	 * Create RefLocalPoses from InSkinnedAsset. Note InSkinnedAsset cannot be null and this function will assert if it is.
 	 * 
 	 * If bClearAll is false, it will overwrite ref pose of bones that are found in InSkelMesh
 	 * If bClearAll is true, it will reset all Reference Poses 
-	 * Note that this means it will remove transforms of extra bones that might not be found in this skeletalmesh
+	 * Note that this means it will remove transforms of extra bones that might not be found in this InSkinnedAsset
 	 *
-	 * @return true if successful. false if skeletalmesh wasn't compatible with the bone hierarchy
+	 * @return true if successful. false if InSkinnedAsset wasn't compatible with the bone hierarchy
 	 */
-	ENGINE_API void UpdateReferencePoseFromMesh(const USkeletalMesh* InSkelMesh);
+	ENGINE_API void UpdateReferencePoseFromMesh(const USkinnedAsset* InSkinnedAsset);
 
 #if WITH_EDITORONLY_DATA
 	/**
@@ -1051,25 +1055,25 @@ public:
 #endif
 protected:
 	/** 
-	 * Check if Parent Chain Matches between BoneTree, and SkelMesh 
-	 * Meaning if BoneTree has A->B->C (top to bottom) and if SkelMesh has A->C
+	 * Check if Parent Chain Matches between BoneTree, and SkinnedAsset 
+	 * Meaning if BoneTree has A->B->C (top to bottom) and if SkinnedAsset has A->C
 	 * It will fail since it's missing B
 	 * We ensure this chain matches to play animation properly
 	 *
 	 * @param StartBoneIndex	: BoneTreeIndex to start from in BoneTree 
-	 * @param InSkelMesh		: SkeletalMesh to compare
+	 * @param InSkinnedAsset	: InSkinnedAsset to compare
 	 *
 	 * @return true if matches till root. false if not. 
 	 */
-	bool DoesParentChainMatch(int32 StartBoneTreeIndex, const USkeletalMesh* InSkelMesh) const;
+	bool DoesParentChainMatch(int32 StartBoneTreeIndex, const USkinnedAsset* InSkinnedAsset) const;
 
-	/** 
-	 * Build Look up between SkelMesh to BoneTree
+	/**
+	 * Build Look up between SkinnedAsset to BoneTree
 	 *
-	 * @param	InSkelMesh	: SkeletalMesh to build look up for
-	 * @return	Index of LinkupCache that this SkelMesh is linked to 
+	 * @param	InSkinnedAsset	: SkinnedAsset to build look up for
+	 * @return	Index of LinkupCache that this SkelMesh is linked to
 	 */
-	int32 BuildLinkup(const USkeletalMesh* InSkelMesh);
+	int32 BuildLinkup(const USkinnedAsset* InSkinnedAsset);
 
 #if WITH_EDITORONLY_DATA
 	/**
@@ -1080,12 +1084,12 @@ protected:
 	/**
 	 * Create Reference Skeleton From the given Mesh 
 	 * 
-	 * @param InSkeletonMesh	SkeletalMesh that this Skeleton is based on
+	 * @param InSkinnedAsset	SkinnedAsset that this Skeleton is based on
 	 * @param RequiredRefBones	List of required bones to create skeleton from
 	 *
 	 * @return true if successful
 	 */
-	bool CreateReferenceSkeletonFromMesh(const USkeletalMesh* InSkeletalMesh, const TArray<int32> & RequiredRefBones);
+	bool CreateReferenceSkeletonFromMesh(const USkinnedAsset* InSkinnedAsset, const TArray<int32> & RequiredRefBones);
 
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE( FOnSkeletonHierarchyChangedMulticaster );

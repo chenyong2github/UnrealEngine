@@ -70,8 +70,6 @@ public:
 	TObjectCacheIterator<UStaticMeshComponent>  GetStaticMeshComponents();
 	TObjectCacheIterator<USkinnedMeshComponent> GetSkinnedMeshComponents();
 	TObjectCacheIterator<USkinnedMeshComponent> GetSkinnedMeshComponents(USkinnedAsset* InSkinnedAsset);
-	UE_DEPRECATED(5.1, "Use GetSkinnedMeshComponents(USkinnedAsset* InSkinnedAsset) instead")
-	TObjectCacheIterator<USkinnedMeshComponent> GetSkinnedMeshComponents(USkeletalMesh* InSkeletalMesh);
 	TObjectCacheIterator<UStaticMeshComponent>  GetStaticMeshComponents(UStaticMesh* InStaticMesh);
 	TObjectCacheIterator<UMaterialInterface>    GetMaterialsAffectedByTexture(UTexture* InTexture);
 	TObjectCacheIterator<UPrimitiveComponent>   GetPrimitivesAffectedByMaterial(UMaterialInterface* InMaterial);

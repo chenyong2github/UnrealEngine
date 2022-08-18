@@ -271,9 +271,9 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 	{
 		// verify if this bone exists in skeleton
 		const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(
-			Cast<USkeletalMeshComponent>(Component->LeaderPoseComponent) ?
-			Cast<USkeletalMeshComponent>(Component->LeaderPoseComponent)->GetSkeletalMeshAsset() :
-			Component->GetSkeletalMeshAsset(), BoneIndex);
+			Component->LeaderPoseComponent != nullptr ?
+			Component->LeaderPoseComponent->GetSkinnedAsset() :
+			Component->GetSkinnedAsset(), BoneIndex);
 		if (BoneTreeIndex != INDEX_NONE)
 		{
 			// add tracks for the bone existing
@@ -656,9 +656,9 @@ void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkel
 		for (int32 BoneIndex = 0; BoneIndex < SpaceBases->Num(); ++BoneIndex)
 		{
 			const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(
-				Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent) ?
-				Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent)->GetSkeletalMeshAsset() :
-				SkeletalMeshComponent->GetSkeletalMeshAsset(), BoneIndex);
+				SkeletalMeshComponent->LeaderPoseComponent != nullptr ?
+				SkeletalMeshComponent->LeaderPoseComponent->GetSkinnedAsset() :
+				SkeletalMeshComponent->GetSkinnedAsset(), BoneIndex);
 			if (BoneTreeIndex != INDEX_NONE)
 			{
 				FName BoneTreeName = AnimSkeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
@@ -680,9 +680,9 @@ void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkel
 	{
 		// verify if this bone exists in skeleton
 		const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(
-			Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent) ?
-			Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent)->GetSkeletalMeshAsset() :
-			SkeletalMeshComponent->GetSkeletalMeshAsset(), BoneIndex);
+			SkeletalMeshComponent->LeaderPoseComponent != nullptr ?
+			SkeletalMeshComponent->LeaderPoseComponent->GetSkinnedAsset() :
+			SkeletalMeshComponent->GetSkinnedAsset(), BoneIndex);
 		if (BoneTreeIndex != INDEX_NONE)
 		{
 			// add tracks for the bone existing
@@ -835,10 +835,10 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 	if (ensure(AnimationObject))
 	{
 		IAnimationDataController& Controller = AnimationObject->GetController();
-		USkeletalMesh* SkeletalMesh =
-			Cast<USkeletalMeshComponent>(Component->LeaderPoseComponent) ?
-			Cast<USkeletalMeshComponent>(Component->LeaderPoseComponent)->GetSkeletalMeshAsset() :
-			Component->GetSkeletalMeshAsset();
+		USkinnedAsset* SkinnedAsset =
+			Component->LeaderPoseComponent != nullptr ?
+			Component->LeaderPoseComponent->GetSkinnedAsset() :
+			Component->GetSkinnedAsset();
 
 		const TArray<FBoneAnimationTrack>& BoneAnimationTracks = AnimationObject->GetDataModel()->GetBoneAnimationTracks();
 
@@ -854,8 +854,8 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 				const int32 BoneTreeIndex = AnimationTrack.BoneTreeIndex;
 				if (BoneTreeIndex != INDEX_NONE)
 				{
-					const int32 BoneIndex = AnimSkeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkeletalMesh, BoneTreeIndex);
-					const int32 ParentIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
+					const int32 BoneIndex = AnimSkeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkinnedAsset, BoneTreeIndex);
+					const int32 ParentIndex = SkinnedAsset->GetRefSkeleton().GetParentIndex(BoneIndex);
 					const FTransform LocalTransform = SpacesBases[BoneIndex];
 					if (ParentIndex == INDEX_NONE)
 					{
@@ -895,8 +895,8 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 			const int32 BoneTreeIndex = AnimationTrack.BoneTreeIndex;
 			if (BoneTreeIndex != INDEX_NONE)
 			{
-				const int32 BoneIndex = AnimSkeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkeletalMesh, BoneTreeIndex);
-				const int32 ParentIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
+				const int32 BoneIndex = AnimSkeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkinnedAsset, BoneTreeIndex);
+				const int32 ParentIndex = SkinnedAsset->GetRefSkeleton().GetParentIndex(BoneIndex);
 
 				if (bRecordTransforms)
 				{

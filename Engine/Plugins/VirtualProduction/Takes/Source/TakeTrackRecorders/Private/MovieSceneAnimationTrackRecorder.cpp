@@ -158,9 +158,9 @@ void UMovieSceneAnimationTrackRecorder::CreateTrackImpl()
 			{
 				// verify if this bone exists in skeleton
 				const int32 BoneTreeIndex = AnimSkeleton->GetSkeletonBoneIndexFromMeshBoneIndex(
-					Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent) ? 
-					Cast<USkeletalMeshComponent>(SkeletalMeshComponent->LeaderPoseComponent)->GetSkeletalMeshAsset() :
-					SkeletalMeshComponent->GetSkeletalMeshAsset(), BoneIndex);
+					SkeletalMeshComponent->LeaderPoseComponent != nullptr ? 
+					SkeletalMeshComponent->LeaderPoseComponent->GetSkinnedAsset() :
+					SkeletalMeshComponent->GetSkinnedAsset(), BoneIndex);
 				if (BoneTreeIndex != INDEX_NONE)
 				{
 					// add tracks for the bone existing

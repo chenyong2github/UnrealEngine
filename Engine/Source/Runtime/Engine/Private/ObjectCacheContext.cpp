@@ -564,11 +564,6 @@ TObjectCacheIterator<UMaterialInterface> FObjectCacheContext::GetMaterialsAffect
 	return TObjectCacheIterator<UMaterialInterface>(ComputeResult.Array());
 }
 
-TObjectCacheIterator<USkinnedMeshComponent> FObjectCacheContext::GetSkinnedMeshComponents(USkeletalMesh* InSkeletalMesh)
-{
-	return GetSkinnedMeshComponents(Cast<USkinnedAsset>(InSkeletalMesh));
-}
-
 TObjectCacheIterator<USkinnedMeshComponent> FObjectCacheContext::GetSkinnedMeshComponents(USkinnedAsset* InSkinnedAsset)
 {
 	if (!SkinnedAssetToComponents.IsSet())

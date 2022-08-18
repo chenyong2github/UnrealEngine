@@ -6,7 +6,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "GameFramework/Actor.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "Editor.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
@@ -181,9 +181,9 @@ void FSkinnedMeshComponentDetails::PopulateSkinWeightProfileNames()
 	SkinWeightProfileNames.Add(MakeShared<FName>(DefaultProfileName));
 
 	// Retrieve all possible skin weight profiles from the component
-	if (USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(WeakSkinnedMeshComponent.Get()))
+	if (USkinnedMeshComponent* Component = WeakSkinnedMeshComponent.Get())
 	{
-		if (USkeletalMesh* Mesh = Component->GetSkeletalMeshAsset())
+		if (USkeletalMesh* Mesh = Cast<USkeletalMesh>(Component->GetSkinnedAsset()))
 		{			
 			for (const FSkinWeightProfileInfo& Profile : Mesh->GetSkinWeightProfiles())
 			{
