@@ -19,6 +19,39 @@ void FNiagaraVariableBase::SetNamespacedName(const FString& InNamespace, FName I
 	Name = FName(NameBuilder.ToString());
 }
 
+bool FNiagaraVariableBase::RemoveRootNamespace(const FStringView& ExpectedNamespace)
+{
+	FNameBuilder NameString;
+	Name.ToString(NameString);
+
+	FStringView NameStringView = NameString.ToView();
+	if ( (NameStringView.Len() > ExpectedNamespace.Len() + 1) && (NameStringView[ExpectedNamespace.Len()] == '.') && NameStringView.StartsWith(ExpectedNamespace) )
+	{
+		FNameBuilder NewNameString;
+		NewNameString.Append(NameStringView.Mid(ExpectedNamespace.Len() + 1));
+		Name = FName(FStringView(NewNameString));
+		return true;
+	}
+	return false;
+}
+
+bool FNiagaraVariableBase::ReplaceRootNamespace(const FStringView& ExpectedNamespace, const FStringView& NewNamespace)
+{
+	FNameBuilder NameString;
+	Name.ToString(NameString);
+
+	FStringView NameStringView = NameString.ToView();
+	if ( (NameStringView.Len() > ExpectedNamespace.Len() + 1) && (NameStringView[ExpectedNamespace.Len()] == '.') && NameStringView.StartsWith(ExpectedNamespace) )
+	{
+		FNameBuilder NewNameString;
+		NewNameString.Append(NewNamespace);
+		NewNameString.Append(NameStringView.Mid(ExpectedNamespace.Len() + 1));
+		Name = FName(FStringView(NewNameString));
+		return true;
+	}
+	return false;
+}
+
 void FNiagaraVariableMetaData::CopyUserEditableMetaData(const FNiagaraVariableMetaData& OtherMetaData)
 {
 	for (const FProperty* ChildProperty : TFieldRange<FProperty>(StaticStruct()))

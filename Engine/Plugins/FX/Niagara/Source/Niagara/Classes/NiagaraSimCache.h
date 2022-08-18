@@ -9,6 +9,54 @@
 class UNiagaraComponent;
 
 USTRUCT()
+struct FNiagaraSimCacheCreateParameters
+{
+	GENERATED_BODY()
+
+	FNiagaraSimCacheCreateParameters()
+		: bAllowRebasing(true)
+		, bAllowDataInterfaceCaching(true)
+	{
+	}
+
+	/**
+	When enabled allows the SimCache to be re-based.
+	i.e. World space emitters can be moved to the new component's location
+	*/
+	UPROPERTY(EditAnywhere, Category="SimCache")
+	uint32 bAllowRebasing : 1;
+
+	/**
+	When enabled Data Interface data will be stored in the SimCache.
+	This can result in a large increase to the cache size, depending on what Data Interfaces are used
+	*/
+	UPROPERTY(EditAnywhere, Category="SimCache")
+	uint32 bAllowDataInterfaceCaching : 1;
+
+	/**
+	When enabled the SimCache will only be useful for rendering a replay, it can not be used to restart
+	the simulation from as only attributes & data interface that impact rendering will be stored.
+	This should result in a much smaller caches.
+	*/
+	//UPROPERTY(EditAnywhere, Category="SimCache")
+	//uint32 bRenderOnly : 1;
+
+	/**
+	List of Attributes to force include in the SimCache rebase, they should be the full path to the attribute
+	For example, MyEmitter.Particles.MyQuat would force the particle attribute MyQuat to be included for MyEmitter
+	*/
+	UPROPERTY(EditAnywhere, Category = "SimCache")
+	TArray<FName> RebaseIncludeList;
+
+	/**
+	List of Attributes to force exclude from the SimCache rebase, they should be the full path to the attribute
+	For example, MyEmitter.Particles.MyQuat would force the particle attribute MyQuat to be included for MyEmitter
+	*/
+	UPROPERTY(EditAnywhere, Category = "SimCache")
+	TArray<FName> RebaseExcludeList;
+};
+
+USTRUCT()
 struct FNiagaraSimCacheDataBuffers
 {
 	GENERATED_BODY()
@@ -66,6 +114,9 @@ struct FNiagaraSimCacheFrame
 	GENERATED_BODY()
 
 	UPROPERTY()
+	FTransform LocalToWorld;
+
+	UPROPERTY()
 	FNiagaraSimCacheSystemFrame SystemData;
 
 	UPROPERTY()
@@ -104,6 +155,25 @@ struct FNiagaraSimCacheDataBuffersLayout
 {
 	GENERATED_BODY()
 
+	// Copy Function parameters are
+	// Dest, DestStride, Source, SourceStride, NumInstances, RebasedTransform
+	typedef void (*FVariableCopyFunction)(uint8*, uint32, const uint8*, uint32, uint32, const FTransform&);
+
+	struct FVariableCopyInfo
+	{
+		FVariableCopyInfo() = default;
+		explicit FVariableCopyInfo(uint16 InComponentFrom, uint16 InComponentTo, FVariableCopyFunction InCopyFunc)
+			: ComponentFrom(InComponentFrom)
+			, ComponentTo(InComponentTo)
+			, CopyFunc(InCopyFunc)
+		{
+		}
+
+		uint16					ComponentFrom = 0;
+		uint16					ComponentTo = 0;
+		FVariableCopyFunction	CopyFunc;
+	};
+
 	UPROPERTY()
 	FName LayoutName;
 
@@ -122,10 +192,12 @@ struct FNiagaraSimCacheDataBuffersLayout
 	UPROPERTY()
 	uint16 Int32Count = 0;
 
-	UPROPERTY(transient)
-	TArray<uint16> ComponentMappingsToDataBuffer;
+	UPROPERTY()
+	TArray<FName> RebaseVariableNames;
 
-	UPROPERTY(transient)
+	TArray<uint16> ComponentMappingsToDataBuffer;
+	TArray<FVariableCopyInfo> VariableMappingsToDataBuffer;
+
 	TArray<uint16> ComponentMappingsFromDataBuffer;
 };
 
@@ -155,6 +227,9 @@ class NIAGARA_API UNiagaraSimCache : public UObject
 	UPROPERTY(VisibleAnywhere, Category=SimCache)
 	float DurationSeconds = 0.0f;
 
+	UPROPERTY()
+	FNiagaraSimCacheCreateParameters CreateParameters;
+
 	UPROPERTY(transient)
 	bool bNeedsReadComponentMappingRecache = true;
 
@@ -178,19 +253,13 @@ class NIAGARA_API UNiagaraSimCache : public UObject
 
 	bool IsCacheValid() const { return SoftNiagaraSystem.IsNull() == false; }
 
-	void BeginWrite(UNiagaraComponent* NiagaraComponent);
+	void BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent);
 	void WriteFrame(UNiagaraComponent* NiagaraComponent);
 	void EndWrite();
 
 	bool CanRead(UNiagaraSystem* NiagaraSystem);
 	bool Read(float TimeSeconds, FNiagaraSystemInstance* SystemInstance) const;
 	bool ReadFrame(int32 FrameIndex, float FrameFraction, FNiagaraSystemInstance* SystemInstance) const;
-
-	/*
-	Create a simulation cache from the component's current data.
-	The cache can be applied to a component to warmup the system, for example, or can be used to debug the system.
-	*/
-	static UNiagaraSimCache* CreateSingleFrame(UObject* OuterObject, UNiagaraComponent* NiagaraComponent);
 
 private:
 	mutable std::atomic<int32> PendingCommandsInFlight;

@@ -73,7 +73,7 @@ void FNiagaraBakerRendererOutputSimCache::BakeFrame(UNiagaraBakerOutput* InBaker
 
 	if ( FrameIndex == 0 )
 	{
-		BakeSimCache->BeginWrite(BakerRenderer.GetPreviewComponent());
+		BakeSimCache->BeginWrite(BakerOutput->CreateParameters, BakerRenderer.GetPreviewComponent());
 	}
 	BakeSimCache->WriteFrame(BakerRenderer.GetPreviewComponent());
 }

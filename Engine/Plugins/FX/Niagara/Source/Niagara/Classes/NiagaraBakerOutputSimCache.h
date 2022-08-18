@@ -19,6 +19,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	FString SimCacheAssetPathFormat = TEXT("{AssetFolder}/{AssetName}_SimCache_{OutputName}");
 
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FNiagaraSimCacheCreateParameters CreateParameters;
+
 	virtual bool Equals(const UNiagaraBakerOutput& Other) const override;
 
 #if WITH_EDITOR

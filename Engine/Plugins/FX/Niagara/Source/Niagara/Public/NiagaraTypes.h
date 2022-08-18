@@ -1743,6 +1743,20 @@ struct FNiagaraVariableBase
 		return Name != NAME_None && TypeDefHandle->IsValid();
 	}
 
+	/**
+	Removes the root namespace from the variable if it matches the expected namespace.
+	i.e. MyNamespace.VarName would become VarName but Other.MyNamespace.VarName would not be modified.
+	For more complex namespace manipulation refer to FNiagaraUtilities::ResolveAliases
+	*/
+	bool RemoveRootNamespace(const FStringView& ExpectedNamespace);
+
+	/**
+	Replaces the root namespace from the variable if it matches the expected namespace with the NewNamespace.
+	i.e. Prev.VarName would become Next.VarName but Other.Prev.VarName would not be modified.
+	For more complex namespace manipulation refer to FNiagaraUtilities::ResolveAliases
+	*/
+	bool ReplaceRootNamespace(const FStringView& ExpectedNamespace, const FStringView& NewNamespace);
+
 	FORCEINLINE bool IsInNameSpace(const FStringView& Namespace) const
 	{
 		TStringBuilder<128> NameString;

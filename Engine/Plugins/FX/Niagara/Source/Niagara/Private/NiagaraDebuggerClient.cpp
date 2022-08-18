@@ -510,7 +510,7 @@ bool FNiagaraSimCacheCaptureInfo::Process()
 		if (ProcessedFrames == Request.CaptureDelayFrames)
 		{	
 			SimCache.Reset(NewObject<UNiagaraSimCache>(GetTransientPackage()));
-			SimCache->BeginWrite(Comp);
+			SimCache->BeginWrite(FNiagaraSimCacheCreateParameters(), Comp);
 		}
 
 		SimCache->WriteFrame(Comp);
