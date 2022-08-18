@@ -437,58 +437,10 @@ bool FSourceControlWindows::PromptForRevert( const TArray<FString>& InPackageNam
 		{
 			TArray<FString> FinalPackagesToRevert;
 			SourceControlWidget->GetPackagesToRevert(FinalPackagesToRevert);
+			
 			if (FinalPackagesToRevert.Num() > 0)
 			{
-				// attempt to unload the packages we are about to revert
-				TArray<UPackage*> LoadedPackages;
-				for (TArray<FString>::TConstIterator PackageIter(InPackageNames); PackageIter; ++PackageIter)
-				{
-					UPackage* Package = FindPackage(NULL, **PackageIter);
-					if (Package != NULL)
-					{
-						LoadedPackages.Add(Package);
-					}
-				}
-
-				const TArray<FString> RevertPackageFilenames = SourceControlHelpers::PackageFilenames(FinalPackagesToRevert);
-
-				// Prepare the packages to be reverted...
-				for (UPackage* Package : LoadedPackages)
-				{
-					// Detach the linkers of any loaded packages so that SCC can overwrite the files...
-					if (!Package->IsFullyLoaded())
-					{
-						FlushAsyncLoading();
-						Package->FullyLoad();
-					}
-					ResetLoaders(Package);
-				}
-
-				// Revert everything...
-				SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), RevertPackageFilenames);
-
-				// Reverting may have deleted some packages, so we need to unload those rather than re-load them...
-				TArray<UPackage*> PackagesToUnload;
-				LoadedPackages.RemoveAll([&](UPackage* InPackage) -> bool
-				{
-					const FString PackageExtension = InPackage->ContainsMap() ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
-					const FString PackageFilename = FPackageName::LongPackageNameToFilename(InPackage->GetName(), PackageExtension);
-					if (!FPaths::FileExists(PackageFilename))
-					{
-						PackagesToUnload.Emplace(InPackage);
-						return true; // remove package
-					}
-					return false; // keep package
-				});
-
-				// Hot-reload the new packages...
-				UPackageTools::ReloadPackages(LoadedPackages);
-
-				// Unload any deleted packages...
-				UPackageTools::UnloadPackages(PackagesToUnload);
-
-				// Re-cache the SCC state...
-				SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), RevertPackageFilenames, EConcurrency::Asynchronous);
+				SourceControlHelpers::RevertAndReloadPackages(FinalPackagesToRevert);
 
 				bReverted = true;
 			}

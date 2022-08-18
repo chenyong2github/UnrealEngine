@@ -347,6 +347,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
 	static bool RevertFile(const FString& InFile, bool bSilent = false);
 
+#if WITH_EDITOR
+
+	/**
+	 * Applies the provided function and reloads provided packages.
+	 * @param	InFilenames		The files/packages to apply the operation and reload
+	 * @param	InOperation		The function to apply
+	 * @return true if succeeded.
+	 */
+	static bool ApplyOperationAndReloadPackages(const TArray<FString>& InFilenames, const TFunctionRef<bool(const TArray<FString>&)>& InOperation);
+
+	/**
+     * Reverts the provided files then reload packages.
+     * @param	InFilenames		The files/packages to revert and reload
+     * @return true if succeeded.
+     */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	static bool RevertAndReloadPackages(const TArray<FString>& InFilenames);
+
+#endif // !WITH_EDITOR
+
 	/**
 	 * Use currently set source control provider to revert files regardless whether any changes will be lost or not.
 	 * @note	Blocks until action is complete.

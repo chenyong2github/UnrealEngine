@@ -21,6 +21,7 @@
 #include "PackagesDialog.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
+#include "SourceControlHelpers.h"
 #include "SourceControlOperations.h"
 #include "Styling/SlateTypes.h"
 #include "UObject/ObjectSaveContext.h"
@@ -253,18 +254,24 @@ void FUncontrolledChangelistsModule::OnAssetAddedInternal(const FAssetData& Asse
 	}
 }
 
-void FUncontrolledChangelistsModule::OnRevert(const TArray<FString>& InFilenames)
+static bool ExecuteRevertOperation(const TArray<FString>& InFilenames)
 {
-	if (!IsEnabled() || InFilenames.IsEmpty())
-	{
-		return;
-	}
-
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	IFileManager& FileManager = IFileManager::Get();
+	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
+	ISourceControlProvider& SourceControlProvider = SourceControlModule.GetProvider();
 	TArray<FSourceControlStateRef> UpdatedFilestates;
 
-	SourceControlProvider.GetState(InFilenames, UpdatedFilestates, EStateCacheUsage::ForceUpdate);
+	auto BuildFileString = [](const TArray<FString>& Files) -> FString
+	{
+		TStringBuilder<2048> Builder;
+		Builder.Join(Files, TEXT(", "));
+		return Builder.ToString();
+	};
+
+	if (SourceControlProvider.GetState(InFilenames, UpdatedFilestates, EStateCacheUsage::ForceUpdate) != ECommandResult::Succeeded)
+	{
+		UE_LOG(LogSourceControl, Error, TEXT("Failed to update the source control files states for %s."), *BuildFileString(InFilenames));
+		return false;
+	}
 
 	TArray<FString> FilesToDelete;
 	TArray<FString> FilesToRevert;
@@ -286,8 +293,16 @@ void FUncontrolledChangelistsModule::OnRevert(const TArray<FString>& InFilenames
 		TSharedRef<FSync> ForceSyncOperation = ISourceControlOperation::Create<FSync>();
 		ForceSyncOperation->SetForce(true);
 		ForceSyncOperation->SetLastSyncedFlag(true);
-		SourceControlProvider.Execute(ForceSyncOperation, FilesToRevert);
+
+		if (SourceControlProvider.Execute(ForceSyncOperation, FilesToRevert) != ECommandResult::Succeeded)
+		{
+			UE_LOG(LogSourceControl, Error, TEXT("Failed to sync the following files to a previous version: %s."), *BuildFileString(FilesToRevert));
+			return false;
+		}
 	}
+
+	IFileManager& FileManager = IFileManager::Get();
+	bool bSuccess = true;
 
 	for (const FString& FileToDelete : FilesToDelete)
 	{
@@ -295,10 +310,32 @@ void FUncontrolledChangelistsModule::OnRevert(const TArray<FString>& InFilenames
 		const bool bEvenReadOnly = false;
 		const bool bQuiet = false;
 
-		FileManager.Delete(*FileToDelete, bRequireExists, bEvenReadOnly, bQuiet);
+		if (!FileManager.Delete(*FileToDelete, bRequireExists, bEvenReadOnly, bQuiet))
+		{
+			UE_LOG(LogSourceControl, Error, TEXT("Failed to delete %s."), *FileToDelete);
+			bSuccess = false;
+		}
 	}
 
+	SourceControlModule.GetOnFilesDeleted().Broadcast(FilesToDelete);
+
+	return bSuccess;
+}
+
+bool FUncontrolledChangelistsModule::OnRevert(const TArray<FString>& InFilenames)
+{
+	bool bSuccess = false;
+
+	if (!IsEnabled() || InFilenames.IsEmpty())
+	{
+		return true;
+	}
+
+	bSuccess = SourceControlHelpers::ApplyOperationAndReloadPackages(InFilenames, ExecuteRevertOperation);
+
 	UpdateStatus();
+
+	return bSuccess;
 }
 
 void FUncontrolledChangelistsModule::OnObjectPreSaved(UObject* InObject, const FObjectPreSaveContext& InPreSaveContext)

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SourceControlHelpers.h"
+#include "Algo/Transform.h"
 #include "ISourceControlState.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
@@ -15,8 +16,12 @@
 #include "Logging/MessageLog.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
-#define LOCTEXT_NAMESPACE "SourceControlHelpers"
+#if WITH_EDITOR
+#include "Editor.h"
+#include "PackageTools.h"
+#endif
 
+#define LOCTEXT_NAMESPACE "SourceControlHelpers"
 
 namespace SourceControlHelpersInternal
 {
@@ -896,6 +901,118 @@ bool USourceControlHelpers::RevertFile(const FString& InFile, bool bSilent)
 	return Result == ECommandResult::Succeeded;
 }
 
+#if WITH_EDITOR
+bool USourceControlHelpers::ApplyOperationAndReloadPackages(const TArray<FString>& InFilenames, const TFunctionRef<bool(const TArray<FString>&)>& InOperation)
+{
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	TArray<UPackage*> LoadedPackages;
+	TArray<FString> PackageNames;
+	TArray<FString> PackageFilenames;
+	TArray<FString> FilteredActorPackages;
+	bool bSuccess = false;
+
+	// Normalize packagenames and filenames
+	Algo::Transform(InFilenames, PackageNames, [](const FString& FileName)
+	{
+		return FPackageName::FilenameToLongPackageName(FileName);
+	});
+
+	// Remove packages if they are loaded actors or world
+	PackageNames.RemoveAll([&FilteredActorPackages, &LoadedPackages](const FString& PackageName) -> bool
+	{
+		UPackage* Package = FindPackage(NULL, *PackageName);
+		
+		if (Package != nullptr)
+		{
+			if (UWorld::IsWorldOrExternalActorPackage(Package))
+			{
+				FilteredActorPackages.Emplace(PackageName);
+				return true; // remove the package
+			}
+
+			LoadedPackages.Add(Package);
+		}
+
+		return false; // do not remove the package
+	});
+
+	if (!FilteredActorPackages.IsEmpty())
+	{
+		TStringBuilder<2048> Builder;
+		Builder.Join(FilteredActorPackages, TEXT(", "));
+		const FString Packages = Builder.ToString();
+
+		UE_LOG(LogSourceControl, Warning, TEXT("This operation could not complete on the following map or external packages, please unload them before retrying : %s"), *Packages);
+		return false;
+	}
+
+	// Prepare the packages to be reverted...
+	for (UPackage* Package : LoadedPackages)
+	{
+		// Detach the linkers of any loaded packages so that SCC can overwrite the files...
+		if (!Package->IsFullyLoaded())
+		{
+			FlushAsyncLoading();
+			Package->FullyLoad();
+		}
+		ResetLoaders(Package);
+	}
+
+	PackageFilenames = SourceControlHelpers::PackageFilenames(PackageNames);
+
+	// Apply Operation
+	bSuccess = InOperation(PackageFilenames);
+
+	// Operation may have deleted some packages, so we need to unload those rather than re-load them...
+	TArray<UPackage*> PackagesToUnload;
+	
+	LoadedPackages.RemoveAll([&](UPackage* InPackage) -> bool
+	{
+		const FString PackageExtension = InPackage->ContainsMap() ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
+		const FString PackageFilename = FPackageName::LongPackageNameToFilename(InPackage->GetName(), PackageExtension);
+		
+		if (!FPaths::FileExists(PackageFilename))
+		{
+			PackagesToUnload.Emplace(InPackage);
+			
+			return true; // remove package
+		}
+		return false; // keep package
+	});
+
+	// Hot-reload the new packages...
+	UPackageTools::ReloadPackages(LoadedPackages);
+
+	// Unload any deleted packages...
+	UPackageTools::UnloadPackages(PackagesToUnload);
+
+	// Re-cache the SCC state...
+	SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), PackageFilenames, EConcurrency::Asynchronous);
+
+	return bSuccess;
+}
+
+bool USourceControlHelpers::RevertAndReloadPackages(const TArray<FString>& InFilenames)
+{
+	auto RevertOperation = [](const TArray<FString>& InFilenames) -> bool
+	{
+		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+
+		auto OperationCompleteCallback = FSourceControlOperationComplete::CreateLambda([](const FSourceControlOperationRef& Operation, ECommandResult::Type InResult)
+		{
+			if (Operation->GetName() == TEXT("Revert"))
+			{
+				TSharedRef<FRevert> RevertOperation = StaticCastSharedRef<FRevert>(Operation);
+				ISourceControlModule::Get().GetOnFilesDeleted().Broadcast(RevertOperation->GetDeletedFiles());
+			}
+		});
+
+		return SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), InFilenames, EConcurrency::Synchronous, OperationCompleteCallback) == ECommandResult::Succeeded;
+	};
+
+	return ApplyOperationAndReloadPackages(InFilenames, RevertOperation);
+}
+#endif //!WITH_EDITOR
 
 bool USourceControlHelpers::RevertFiles(const TArray<FString>& InFiles,	bool bSilent)
 {

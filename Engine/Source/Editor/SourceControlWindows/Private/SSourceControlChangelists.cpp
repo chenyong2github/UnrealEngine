@@ -750,17 +750,28 @@ void SSourceControlChangelistsWidget::OnRevert()
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 
 	// Reverts the selected Changelist or Files
-	if (SelectedChangelist.IsValid() || (!SelectedControlledFiles.IsEmpty()))
+	if (SelectedChangelist.IsValid())
 	{
-		auto RevertOperation = ISourceControlOperation::Create<FRevert>();
-		SourceControlProvider.Execute(RevertOperation, SelectedChangelist, SelectedControlledFiles, EConcurrency::Synchronous, FSourceControlOperationComplete::CreateLambda([](const FSourceControlOperationRef& Operation, ECommandResult::Type InResult)
+		TSet<FString> ToRevertFiles;
+		FSourceControlChangelistStatePtr ChangelistState;
+		ChangelistState = SourceControlProvider.GetState(SelectedChangelist.ToSharedRef(), EStateCacheUsage::Use);
+
+		if (ChangelistState.IsValid())
 		{
-			if (Operation->GetName() == TEXT("Revert"))
+			Algo::Transform(ChangelistState->GetFilesStates(), ToRevertFiles, [](FSourceControlStateRef FileState)
 			{
-				TSharedRef<FRevert> RevertOperation = StaticCastSharedRef<FRevert>(Operation);
-				ISourceControlModule::Get().GetOnFilesDeleted().Broadcast(RevertOperation->GetDeletedFiles());
-			}
-		}));
+				return FileState->GetFilename();
+			});
+		}
+
+		// Enforce unique occurences of files.
+		ToRevertFiles.Append(SelectedControlledFiles);
+		SelectedControlledFiles = ToRevertFiles.Array();
+	}
+
+	if (!SelectedControlledFiles.IsEmpty())
+	{
+		SourceControlHelpers::RevertAndReloadPackages(SelectedControlledFiles);
 	}
 
 	FUncontrolledChangelistStatePtr SelectedUncontrolledChangelist = GetCurrentUncontrolledChangelistState();

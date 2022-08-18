@@ -91,9 +91,10 @@ public:
 
 	/** Called when "Revert files" button is clicked. Reverts modified files and deletes new ones.
 	 *  @param	InFilenames		The files to be reverted
+	 *	@return true if the provided files were reverted.
 	 */
-	void OnRevert(const TArray<FString>& InFilenames);
-
+	bool OnRevert(const TArray<FString>& InFilenames);
+	
 	/**
 	 * Delegate callback called before an asset has been written to disk.
 	 * @param 	InObject 			The saved object.
