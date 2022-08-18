@@ -12,33 +12,6 @@
 #include "UObject/UObjectGlobals.h"
 #endif
 
-void FGLTFUVOverlapChecker::Sanitize(const FMeshDescription*& Description, FGLTFIndexArray& SectionIndices, int32& TexCoord)
-{
-	// The code below is disabled waiting for the proper fix: See UE-159948
-#if WITH_EDITOR && !WITH_EDITOR
-	if (Description != nullptr)
-	{
-		const TVertexInstanceAttributesConstRef<FVector2f> VertexInstanceUVs =
-			Description->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
-		const int32 TexCoordCount = VertexInstanceUVs.GetNumChannels();
-
-		if (TexCoord < 0 || TexCoord >= TexCoordCount)
-		{
-			Description = nullptr;
-		}
-
-		const int32 MinSectionIndex = FMath::Min(SectionIndices);
-		const int32 MaxSectionIndex = FMath::Max(SectionIndices);
-		const int32 SectionCount = Description->PolygonGroups().GetArraySize();
-
-		if (MinSectionIndex < 0 || MaxSectionIndex >= SectionCount)
-		{
-			Description = nullptr;
-		}
-	}
-#endif
-}
-
 float FGLTFUVOverlapChecker::Convert(const FMeshDescription* Description, FGLTFIndexArray SectionIndices, int32 TexCoord)
 {
 #if WITH_EDITOR

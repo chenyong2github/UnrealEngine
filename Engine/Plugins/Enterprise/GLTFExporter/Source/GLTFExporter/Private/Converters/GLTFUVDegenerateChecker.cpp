@@ -6,32 +6,6 @@
 #include "MeshDescription.h"
 #endif
 
-void FGLTFUVDegenerateChecker::Sanitize(const FMeshDescription*& Description, FGLTFIndexArray& SectionIndices, int32& TexCoord)
-{
-#if WITH_EDITOR
-	if (Description != nullptr)
-	{
-		const int32 SectionCount = Description->PolygonGroups().Num();
-		for (const int32 SectionIndex : SectionIndices)
-		{
-			if (SectionIndex < 0 || SectionIndex >= SectionCount)
-			{
-				Description = nullptr;
-			}
-		}
-	}
-
-	if (Description != nullptr)
-	{
-		const int32 TexCoordCount = Description->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate).GetNumChannels();
-		if (TexCoord < 0 || TexCoord >= TexCoordCount)
-		{
-			Description = nullptr;
-		}
-	}
-#endif
-}
-
 float FGLTFUVDegenerateChecker::Convert(const FMeshDescription* Description, FGLTFIndexArray SectionIndices, int32 TexCoord)
 {
 #if WITH_EDITOR
