@@ -873,10 +873,12 @@ namespace Audio
 		// Active sound instance ID is the audio component ID of active sound.
 		uint64 InstanceID = 0;
 		bool bActiveSoundIsPreviewSound = false;
+		TArray<FAudioParameter> DefaultParameters;
 		if (WaveInstance->ActiveSound)
 		{
 			InstanceID = WaveInstance->ActiveSound->GetAudioComponentID();
 			bActiveSoundIsPreviewSound = WaveInstance->ActiveSound->bIsPreviewSound;
+			DefaultParameters = MoveTemp(WaveInstance->ActiveSound->DefaultParameters);
 		}
 
 		FMixerSourceBufferInitArgs BufferInitArgs;
@@ -890,7 +892,7 @@ namespace Audio
 		BufferInitArgs.bIsSeeking = bIsSeeking;
 		BufferInitArgs.bIsPreviewSound = bActiveSoundIsPreviewSound;
 
-		MixerSourceBuffer = FMixerSourceBuffer::Create(BufferInitArgs);
+		MixerSourceBuffer = FMixerSourceBuffer::Create(BufferInitArgs, MoveTemp(DefaultParameters));
 		
 		if (!MixerSourceBuffer.IsValid())
 		{

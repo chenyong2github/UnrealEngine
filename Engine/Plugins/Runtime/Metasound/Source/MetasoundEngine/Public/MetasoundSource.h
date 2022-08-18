@@ -175,19 +175,14 @@ public:
 	virtual bool SupportsSubtitles() const override;
 	virtual float GetDuration() const override;
 	virtual bool ImplementsParameterInterface(Audio::FParameterInterfacePtr InInterface) const override;
-	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
+	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams, TArray<FAudioParameter>&& InDefaultParameters) override;
 	virtual TUniquePtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const override;
 	virtual bool IsParameterValid(const FAudioParameter& InParameter) const override;
 	virtual bool IsLooping() const override;
 	virtual bool IsOneShot() const override;
 	virtual bool EnableSubmixSendsOnPreview() const override { return true; }
 protected:
-	/** Gets all the default parameters for this Asset.  */
-	virtual bool GetAllDefaultParameters(TArray<FAudioParameter>& OutParameters) const override;
 
-	virtual void SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys) override;
-
-	bool IsParameterValid(const FAudioParameter& InParameter, const TMap<FName, FName>& InInputNameTypePairs) const;
 
 	Metasound::Frontend::FDocumentAccessPtr GetDocument() override
 	{
@@ -205,7 +200,14 @@ protected:
 		return MakeAccessPtr<FConstDocumentAccessPtr>(RootMetasoundDocument.AccessPoint, RootMetasoundDocument);
 	}
 
+	/** Gets all the default parameters for this Asset.  */
+	virtual bool GetAllDefaultParameters(TArray<FAudioParameter>& OutParameters) const override;
+
+	virtual void SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys) override;
+
 private:
+
+	bool IsParameterValid(const FAudioParameter& InParameter, const TMap<FName, FMetasoundFrontendVertex>& InInputNameVertexMap) const;
 
 	Metasound::FOperatorSettings GetOperatorSettings(Metasound::FSampleRate InSampleRate) const;
 	Metasound::FMetasoundEnvironment CreateEnvironment() const;

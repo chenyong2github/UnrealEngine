@@ -56,16 +56,16 @@ namespace Audio
 		return CurrentSample >= NumSamples;
 	}
 
-	TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> FMixerSourceBuffer::Create(FMixerSourceBufferInitArgs& InArgs)
+	TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> FMixerSourceBuffer::Create(FMixerSourceBufferInitArgs& InArgs, TArray<FAudioParameter>&& InDefaultParams)
 	{
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
-		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> NewSourceBuffer = MakeShareable(new FMixerSourceBuffer(InArgs));
+		TSharedPtr<FMixerSourceBuffer, ESPMode::ThreadSafe> NewSourceBuffer = MakeShareable(new FMixerSourceBuffer(InArgs, MoveTemp(InDefaultParams)));
 
 		return NewSourceBuffer;
 	}
 
-	FMixerSourceBuffer::FMixerSourceBuffer(FMixerSourceBufferInitArgs& InArgs)
+	FMixerSourceBuffer::FMixerSourceBuffer(FMixerSourceBufferInitArgs& InArgs, TArray<FAudioParameter>&& InDefaultParams)
 		: NumBuffersQeueued(0)
 		, CurrentBuffer(0)
 		, SoundWave(InArgs.SoundWave)
@@ -101,7 +101,7 @@ namespace Audio
 			InitParams.InstanceID = InArgs.InstanceID;
 			InitParams.bIsPreviewSound = InArgs.bIsPreviewSound;
 
-			SoundGenerator = InArgs.SoundWave->CreateSoundGenerator(InitParams);
+			SoundGenerator = InArgs.SoundWave->CreateSoundGenerator(InitParams, MoveTemp(InDefaultParams));
 
 			// In the case of procedural audio generation, the mixer source buffer will never "loop" -- i.e. when it's done, it's done
 			LoopingMode = LOOP_Never;

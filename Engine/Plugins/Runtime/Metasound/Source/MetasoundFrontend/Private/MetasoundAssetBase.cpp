@@ -3,6 +3,7 @@
 #include "MetasoundAssetBase.h"
 
 #include "Algo/AnyOf.h"
+#include "Algo/Copy.h"
 #include "Algo/ForEach.h"
 #include "Algo/Transform.h"
 #include "Containers/Set.h"
@@ -840,14 +841,25 @@ TArray<FMetasoundFrontendClassInput> FMetasoundAssetBase::GetTransmittableClassI
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(FMetasoundAssetBase::GetTransmittableClassInputs);
 
 	check(IsInGameThread() || IsInAudioThread());
-	TArray<FMetasoundFrontendClassInput> Inputs;
 
-	const FMetasoundFrontendDocument& Doc = GetDocumentChecked();
+	TArray<FMetasoundFrontendClassInput> TransmittableInputs = GetPublicClassInputs();
+	RemoveNonTransmittableClassInputs(TransmittableInputs);
+
+	return TransmittableInputs;
+}
+
+TArray<FMetasoundFrontendClassInput> FMetasoundAssetBase::GetPublicClassInputs() const
+{
+	using namespace Metasound;
+	using namespace Metasound::Frontend;
+
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(FMetasoundAssetBase::GetPublicClassInputs);
+
 	auto GetInputName = [](const FMetasoundFrontendClassInput& InInput) { return InInput.Name; };
 
-	// Do not transmit vertices defined in interface marked as non-transmittable
+	// Inputs which are controlled by an interface are private. 
 	TArray<const IInterfaceRegistryEntry*> Interfaces;
-	TSet<FVertexName> NonTransmittableInputs;
+	TSet<FVertexName> PrivateInputs;
 	GetDeclaredInterfaces(Interfaces);
 	for (const IInterfaceRegistryEntry* InterfaceEntry : Interfaces)
 	{
@@ -856,34 +868,47 @@ TArray<FMetasoundFrontendClassInput> FMetasoundAssetBase::GetTransmittableClassI
 			if (InterfaceEntry->GetRouterName() != Audio::IParameterTransmitter::RouterName)
 			{
 				const FMetasoundFrontendInterface& Interface = InterfaceEntry->GetInterface();
-				Algo::Transform(Interface.Inputs, NonTransmittableInputs, GetInputName);
+				Algo::Transform(Interface.Inputs, PrivateInputs, GetInputName);
 			}
 		}
 	}
 
+	auto IsPublic = [&PrivateInputs](const FMetasoundFrontendClassVertex& InVertex)
+	{
+		return !PrivateInputs.Contains(InVertex.Name);
+	};
+
+	const FMetasoundFrontendDocument& Doc = GetDocumentChecked();
+	TArray<FMetasoundFrontendClassInput> PublicInputs;
+
+	Algo::CopyIf(Doc.RootGraph.Interface.Inputs, PublicInputs, IsPublic);
+
+	return PublicInputs;
+}
+
+void FMetasoundAssetBase::RemoveNonTransmittableClassInputs(TArray<FMetasoundFrontendClassInput>& InOutClassInputs) const
+{
+	using namespace Metasound::Frontend;
+
 	// Do not transmit vertices which are not transmittable. Async communication
 	// is not supported without transmission.
 	IDataTypeRegistry& Registry = IDataTypeRegistry::Get();
-	auto IsTransmittable = [&Registry, &NonTransmittableInputs](const FMetasoundFrontendClassVertex& InVertex)
+	auto IsNotTransmittable = [&Registry](const FMetasoundFrontendClassVertex& InVertex)
 	{
 		// Don't transmit constructor inputs 
 		if (InVertex.AccessType == EMetasoundFrontendVertexAccessType::Reference)
 		{
-			if (!NonTransmittableInputs.Contains(InVertex.Name))
+			FDataTypeRegistryInfo Info;
+			if (Registry.GetDataTypeInfo(InVertex.TypeName, Info))
 			{
-				FDataTypeRegistryInfo Info;
-				if (Registry.GetDataTypeInfo(InVertex.TypeName, Info))
-				{
-					return Info.bIsTransmittable;
-				}
+				return !Info.bIsTransmittable;
 			}
 		}
 
-		return false;
+		return true;
 	};
-	Algo::TransformIf(Doc.RootGraph.Interface.Inputs, Inputs, IsTransmittable, [] (const FMetasoundFrontendClassInput& Input) { return Input; });
 
-	return Inputs;
+	InOutClassInputs.RemoveAllSwap(IsNotTransmittable);
 }
 
 void FMetasoundAssetBase::RebuildReferencedAssetClassKeys()
@@ -908,13 +933,18 @@ const FMetasoundAssetBase::FRuntimeData& FMetasoundAssetBase::CacheRuntimeData(c
 	if (CachedRuntimeData.ChangeID != CurrentCachedRuntimeDataChangeID)
 	{
 		// Update CachedRuntimeData.
-		TArray<FMetasoundFrontendClassInput> ClassInputs = GetTransmittableClassInputs();
-		TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> Graph = BuildMetasoundDocument(InPreprocessedDoc, ClassInputs);
+
+		TArray<FMetasoundFrontendClassInput> PublicInputs = GetPublicClassInputs();
+		TArray<FMetasoundFrontendClassInput> TransmittableInputs = PublicInputs;
+		RemoveNonTransmittableClassInputs(TransmittableInputs);
+
+		TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> Graph = BuildMetasoundDocument(InPreprocessedDoc, TransmittableInputs);
 
 		CachedRuntimeData =
 		{
 			CurrentCachedRuntimeDataChangeID,
-			MoveTemp(ClassInputs),
+			MoveTemp(PublicInputs),
+			MoveTemp(TransmittableInputs),
 			MoveTemp(Graph)
 		};
 	}

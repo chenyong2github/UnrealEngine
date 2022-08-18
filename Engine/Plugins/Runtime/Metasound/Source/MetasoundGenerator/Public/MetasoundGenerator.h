@@ -14,6 +14,7 @@
 #include "MetasoundRouter.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundVertex.h"
+#include "MetasoundVertexData.h"
 #include "Sound/SoundGenerator.h"
 #include "Tickable.h"
 
@@ -29,6 +30,7 @@ namespace Metasound
 		FMetasoundEnvironment Environment;
 		FString MetaSoundName;
 		TArray<FVertexName> AudioOutputNames;
+		TArray<FAudioParameter> DefaultParameters;
 
 		void Release();
 	};
@@ -60,6 +62,10 @@ namespace Metasound
 		}
 
 	private:
+		TUniquePtr<IOperator> BuildGraphOperator(TArray<FAudioParameter>& InParameters, FBuildResults& OutBuildResults) const;
+		TUniquePtr<Frontend::FGraphAnalyzer> BuildGraphAnalyzer(TMap<FGuid, FDataReferenceCollection>&& InInternalDataReferences) const;
+		void LogBuildErrors(const FBuildResults& InBuildResults) const;
+		TArray<FAudioBufferReadRef> FindOutputAudioBuffers(const FVertexInterfaceData& InVertexData) const;
 
 		FMetasoundGenerator* Generator;
 		FMetasoundGeneratorInitParams InitParams;

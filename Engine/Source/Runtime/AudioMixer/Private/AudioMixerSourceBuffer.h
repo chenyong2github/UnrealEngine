@@ -64,7 +64,7 @@ namespace Audio
 	class FMixerSourceBuffer : public ISoundWaveClient
 	{
 	public:
-		static FMixerSourceBufferPtr Create(FMixerSourceBufferInitArgs& InArgs);
+		static FMixerSourceBufferPtr Create(FMixerSourceBufferInitArgs& InArgs, TArray<FAudioParameter>&& InDefaultParams=TArray<FAudioParameter>());
 
 		~FMixerSourceBuffer();
 
@@ -115,7 +115,7 @@ namespace Audio
 		bool IsGeneratorFinished() const;
 
 	private:
-		FMixerSourceBuffer(FMixerSourceBufferInitArgs& InArgs);
+		FMixerSourceBuffer(FMixerSourceBufferInitArgs& InArgs, TArray<FAudioParameter>&& InDefaultParams);
 
 		void SubmitInitialPCMBuffers();
 		void SubmitInitialRealtimeBuffers();

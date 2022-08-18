@@ -5045,21 +5045,23 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& InNewActiveSoun
 		VirtualActiveSound.ClearAudioComponent();
 	}
 
-	// Retriggering a virtualized ActiveSound results in an
-	// already created, valid transmitter, and thus forwarded
-	// initial params should be ignored to avoid stomping existing
-	// parameter state.
+	// Retriggering a virtualized ActiveSound which already have a transmitter
+	// should not be given a new transmitter.
 	if (!ActiveSound->InstanceTransmitter.IsValid())
 	{
 		Audio::FParameterTransmitterInitParams TransmitterInitParams
 		{
 			ActiveSound->GetAudioComponentID(),
 			GetSampleRate(),
-			MoveTemp(InDefaultParams)
+			InDefaultParams
 		};
 
 		ActiveSound->InstanceTransmitter = Sound->CreateParameterTransmitter(MoveTemp(TransmitterInitParams));
 	}
+
+	// Set the default parameter used during creation of the active sound.
+	ActiveSound->DefaultParameters = MoveTemp(InDefaultParams);
+
 
 	ActiveSounds.Add(ActiveSound);
 

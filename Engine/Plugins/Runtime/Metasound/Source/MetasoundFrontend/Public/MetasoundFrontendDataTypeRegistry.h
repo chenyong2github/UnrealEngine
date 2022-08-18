@@ -196,6 +196,9 @@ namespace Metasound
 
 			/** Create a get delayed variable node for this data type. */
 			virtual TUniquePtr<INode> CreateVariableDeferredAccessorNode(const FNodeInitData&) const = 0;
+			
+			/** Create a data reference from a literal. */
+			virtual TOptional<FAnyDataReference> CreateDataReference(EDataReferenceAccessType InAccessType, const FLiteral& InLiteral, const FOperatorSettings& InOperatorSettings) const = 0;
 
 			/** Create a proxy from a UObject. If this data type does not support
 			 * UObject proxies, return a nullptr. */
@@ -207,6 +210,7 @@ namespace Metasound
 
 			/** Clone this registry entry. */
 			virtual TUniquePtr<IDataTypeRegistryEntry> Clone() const = 0;
+
 		};
 
 		class METASOUNDFRONTEND_API IDataTypeRegistry
@@ -254,6 +258,9 @@ namespace Metasound
 			virtual FLiteral CreateDefaultLiteral(const FName& InDataType) const = 0;
 			virtual FLiteral CreateLiteralFromUObject(const FName& InDataType, UObject* InObject) const = 0;
 			virtual FLiteral CreateLiteralFromUObjectArray(const FName& InDataType, const TArray<UObject*>& InObjectArray) const = 0;
+
+			/** Create a data reference of the data type given a literal. If not supported, the result will be not be set. */
+			virtual TOptional<FAnyDataReference> CreateDataReference(const FName& InDataType, EDataReferenceAccessType InAccessType, const FLiteral& InLiteral, const FOperatorSettings& InOperatorSettings) const = 0;
 
 			virtual TSharedPtr<IDataChannel, ESPMode::ThreadSafe> CreateDataChannel(const FName& InDataType, const FOperatorSettings& InOperatorSettings) const = 0;
 

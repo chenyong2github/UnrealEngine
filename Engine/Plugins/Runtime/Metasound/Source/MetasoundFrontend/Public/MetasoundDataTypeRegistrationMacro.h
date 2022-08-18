@@ -526,6 +526,28 @@ namespace Metasound
 					return Audio::IProxyDataPtr(nullptr);
 				}
 
+				virtual TOptional<FAnyDataReference> CreateDataReference(EDataReferenceAccessType InAccessType, const FLiteral& InLiteral, const FOperatorSettings& InOperatorSettings) const override
+				{
+					if constexpr(bIsParsable)
+					{
+						switch (InAccessType)
+						{
+							case EDataReferenceAccessType::Read:
+								return FAnyDataReference{TDataReadReferenceLiteralFactory<TDataType>::CreateExplicitArgs(InOperatorSettings, InLiteral)};
+
+							case EDataReferenceAccessType::Write:
+								return FAnyDataReference{TDataWriteReferenceLiteralFactory<TDataType>::CreateExplicitArgs(InOperatorSettings, InLiteral)};
+
+							case EDataReferenceAccessType::Value:
+								return FAnyDataReference{TDataValueReferenceLiteralFactory<TDataType>::CreateExplicitArgs(InOperatorSettings, InLiteral)};
+
+							default:
+								break;
+						}
+					}
+					return TOptional<FAnyDataReference>();
+				}
+
 				virtual TSharedPtr<IDataChannel, ESPMode::ThreadSafe> CreateDataChannel(const FOperatorSettings& InOperatorSettings) const override
 				{
 					if constexpr (bIsParsable)

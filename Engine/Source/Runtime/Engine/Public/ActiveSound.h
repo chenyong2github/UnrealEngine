@@ -465,6 +465,9 @@ public:
 		Concurrency
 	};
 
+	/** The default initial parameters use when starting a new active sound. */
+	TArray<FAudioParameter> DefaultParameters;
+
 	/** Whether or not the sound has checked if it was occluded already. Used to initialize a sound as occluded and bypassing occlusion interpolation. */
 	uint8 bHasCheckedOcclusion:1;
 

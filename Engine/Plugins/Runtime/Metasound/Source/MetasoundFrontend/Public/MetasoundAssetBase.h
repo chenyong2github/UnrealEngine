@@ -195,6 +195,9 @@ protected:
 		// Current ID of graph.
 		FGuid ChangeID;
 
+		// Array of inputs which can be set for construction. 
+		TArray<FMetasoundFrontendClassInput> PublicInputs;
+
 		// Array of inputs which can be transmitted to.
 		TArray<FMetasoundFrontendClassInput> TransmittableInputs;
 
@@ -208,11 +211,18 @@ protected:
 	// Returns the cached runtime data.
 	const FRuntimeData& GetRuntimeData() const;
 
+	// Returns all public class inputs.  This is a potentially expensive.
+	// Prefer accessing public class inputs using CacheRuntimeData.
+	TArray<FMetasoundFrontendClassInput> GetPublicClassInputs() const;
+
 	// Returns all transmissible class inputs.  This is a potentially expensive.
 	// Prefer accessing transmissible class inputs using CacheRuntimeData.
 	TArray<FMetasoundFrontendClassInput> GetTransmittableClassInputs() const;
 
 private:
+	// Remove all inputs from the array which are of non-transmittable data types. 
+	void RemoveNonTransmittableClassInputs(TArray<FMetasoundFrontendClassInput>& InOutClassInputs) const;
+
 	Metasound::Frontend::FNodeRegistryKey RegistryKey;
 
 	// Cache ID is used to determine whether CachedRuntimeData is out-of-date.
