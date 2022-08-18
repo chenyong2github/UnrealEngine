@@ -9,6 +9,8 @@ public class RigLogicLibTest : ModuleRules
 {
     public RigLogicLibTest(ReadOnlyTargetRules Target) : base(Target)
     {
+		bUseUnity = false; // A windows include is preprocessing some method names causing compile failures.
+
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             PrivateDefinitions.Add("RL_BUILD_WITH_SSE=1");
