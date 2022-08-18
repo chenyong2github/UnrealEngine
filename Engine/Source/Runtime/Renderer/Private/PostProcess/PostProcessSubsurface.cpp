@@ -1171,7 +1171,7 @@ void AddSubsurfaceViewPass(
 			}
 
 			// Generate mipmap for the diffuse scene color and depth, use bilinear filter conditionally
-			FGenerateMips::ExecuteCompute(GraphBuilder, SetupTexture, BilinearBorderSampler, MipsConditionBuffer, Offset);
+			FGenerateMips::ExecuteCompute(GraphBuilder, View.FeatureLevel, SetupTexture, BilinearBorderSampler, MipsConditionBuffer, Offset);
 		}
 
 		// Allocate auxiliary buffers

@@ -145,12 +145,12 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FGenerateMipsIndirectCS, "/Engine/Private/ComputeGenerateMips.usf", "MainCS", SF_Compute);
 
-void FGenerateMips::ExecuteRaster(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler)
+void FGenerateMips::ExecuteRaster(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FRDGTextureRef Texture, FRHISamplerState* Sampler)
 {
 	check(Texture);
 	check(Sampler);
 
-	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+	auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
 	TShaderMapRef<FGenerateMipsVS> VertexShader(ShaderMap);
 	TShaderMapRef<FGenerateMipsPS> PixelShader(ShaderMap);
 
@@ -196,7 +196,7 @@ void FGenerateMips::ExecuteRaster(FRDGBuilder& GraphBuilder, FRDGTextureRef Text
 	}
 }
 
-void FGenerateMips::ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler)
+void FGenerateMips::ExecuteCompute(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FRDGTextureRef Texture, FRHISamplerState* Sampler)
 {
 	check(Texture);
 	check(Sampler);
@@ -210,7 +210,7 @@ void FGenerateMips::ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Tex
 	FGenerateMipsCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FGenerateMipsCS::FGenMipsSRGB>(bMipsSRGB);
 	PermutationVector.Set<FGenerateMipsCS::FGenMipsSwizzle>(bMipsSwizzle);
-	TShaderMapRef<FGenerateMipsCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
+	TShaderMapRef<FGenerateMipsCS> ComputeShader(GetGlobalShaderMap(FeatureLevel), PermutationVector);
 
 	// Loop through each level of the mips that require creation and add a dispatch pass per level.
 	for (uint8 MipLevel = 1, MipCount = TextureDesc.NumMips; MipLevel < MipCount; ++MipLevel)
@@ -234,11 +234,18 @@ void FGenerateMips::ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Tex
 	}
 }
 
-void FGenerateMips::ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler,
-	FRDGBufferRef ConditionBuffer, uint32 Offset)
+void FGenerateMips::ExecuteCompute(
+	FRDGBuilder& GraphBuilder,
+	ERHIFeatureLevel::Type FeatureLevel,
+	FRDGTextureRef Texture,
+	FRHISamplerState* Sampler,
+	FRDGBufferRef ConditionBuffer,
+	uint32 Offset)
 {
 	check(Texture);
 	check(Sampler);
+
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 	const FRDGTextureDesc& TextureDesc = Texture->Desc;
 
@@ -255,7 +262,7 @@ void FGenerateMips::ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Tex
 		PassParameters->ConditionBuffer = GraphBuilder.CreateSRV(ConditionBuffer, EPixelFormat::PF_R32_UINT);
 		PassParameters->RWIndirectDispatchArgsBuffer = GraphBuilder.CreateUAV(IndirectDispatchArgsBuffer, EPixelFormat::PF_R32_UINT);
 
-		TShaderMapRef<FBuildIndirectDispatchArgsBufferCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		TShaderMapRef<FBuildIndirectDispatchArgsBufferCS> ComputeShader(ShaderMap);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -272,7 +279,7 @@ void FGenerateMips::ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Tex
 	FGenerateMipsIndirectCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FGenerateMipsIndirectCS::FGenMipsSRGB>(bMipsSRGB);
 	PermutationVector.Set<FGenerateMipsIndirectCS::FGenMipsSwizzle>(bMipsSwizzle);
-	TShaderMapRef<FGenerateMipsIndirectCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
+	TShaderMapRef<FGenerateMipsIndirectCS> ComputeShader(ShaderMap, PermutationVector);
 
 	// Loop through each level of the mips that require creation and add a dispatch pass per level.
 	for (uint8 MipLevel = 1, MipCount = TextureDesc.NumMips; MipLevel < MipCount; ++MipLevel)
@@ -307,7 +314,7 @@ bool FGenerateMips::WillFormatSupportCompute(EPixelFormat InPixelFormat)
 	return RHIRequiresComputeGenerateMips() && RHIIsTypedUAVStoreSupported(InPixelFormat);
 }
 
-void FGenerateMips::Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FGenerateMipsParams Params, EGenerateMipsPass Pass)
+void FGenerateMips::Execute(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FRDGTextureRef Texture, FGenerateMipsParams Params, EGenerateMipsPass Pass)
 {
 	if (Texture->Desc.NumMips > 1)
 	{
@@ -315,7 +322,7 @@ void FGenerateMips::Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, F
 		{
 			FSamplerStateInitializerRHI SamplerInit(Params.Filter, Params.AddressU, Params.AddressV, Params.AddressW);
 			FSamplerStateRHIRef Sampler = *GraphBuilder.AllocObject<FSamplerStateRHIRef>(RHICreateSamplerState(SamplerInit));
-			Execute(GraphBuilder, Texture, Sampler, Pass);
+			Execute(GraphBuilder, FeatureLevel, Texture, Sampler, Pass);
 		}
 		else
 		{
@@ -334,7 +341,7 @@ void FGenerateMips::Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, F
 	}
 }
 
-void FGenerateMips::Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler, EGenerateMipsPass Pass)
+void FGenerateMips::Execute(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FRDGTextureRef Texture, FRHISamplerState* Sampler, EGenerateMipsPass Pass)
 {
 	if (Pass == EGenerateMipsPass::AutoDetect)
 	{
@@ -343,28 +350,35 @@ void FGenerateMips::Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, F
 
 	if (Pass == EGenerateMipsPass::Compute)
 	{
-		ExecuteCompute(GraphBuilder, Texture, Sampler);
+		ExecuteCompute(GraphBuilder, FeatureLevel, Texture, Sampler);
 	}
 	else
 	{
-		ExecuteRaster(GraphBuilder, Texture, Sampler);
+		ExecuteRaster(GraphBuilder, FeatureLevel, Texture, Sampler);
 	}
 }
 
-void FGenerateMips::Execute(FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, TSharedPtr<FGenerateMipsStruct>& ExternalMipsStructCache, FGenerateMipsParams Params, bool bAllowRenderBasedGeneration)
+
+//////////////////////////////////////////////////////////////////////////
+// Deprecated versions
+void FGenerateMips::Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FGenerateMipsParams Params, EGenerateMipsPass Pass)
 {
-	TRefCountPtr<IPooledRenderTarget> PooledRenderTarget = CreateRenderTarget(Texture, TEXT("MipGeneration"));
-
-	FRDGBuilder GraphBuilder(RHICmdList);
-	Execute(GraphBuilder, GraphBuilder.RegisterExternalTexture(PooledRenderTarget), Params, bAllowRenderBasedGeneration ? EGenerateMipsPass::Raster : EGenerateMipsPass::Compute);
-	GraphBuilder.Execute();
+	Execute(GraphBuilder, GMaxRHIFeatureLevel, Texture, Params, Pass);
 }
-
-void FGenerateMips::Execute(FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FGenerateMipsParams Params, bool bAllowRenderBasedGeneration)
+void FGenerateMips::Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler, EGenerateMipsPass Pass)
 {
-	TRefCountPtr<IPooledRenderTarget> PooledRenderTarget = CreateRenderTarget(Texture, TEXT("MipGeneration"));
-
-	FRDGBuilder GraphBuilder(RHICmdList);
-	Execute(GraphBuilder, GraphBuilder.RegisterExternalTexture(PooledRenderTarget), Params, bAllowRenderBasedGeneration ? EGenerateMipsPass::Raster : EGenerateMipsPass::Compute);
-	GraphBuilder.Execute();
+	Execute(GraphBuilder, GMaxRHIFeatureLevel, Texture, Sampler, Pass);
 }
+void FGenerateMips::ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler)
+{
+	ExecuteCompute(GraphBuilder, GMaxRHIFeatureLevel, Texture, Sampler);
+}
+void FGenerateMips::ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler, FRDGBufferRef ConditionBuffer, uint32 Offset)
+{
+	ExecuteCompute(GraphBuilder, GMaxRHIFeatureLevel, Texture, Sampler, ConditionBuffer, Offset);
+}
+void FGenerateMips::ExecuteRaster(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler)
+{
+	ExecuteRaster(GraphBuilder, GMaxRHIFeatureLevel, Texture, Sampler);
+}
+//////////////////////////////////////////////////////////////////////////

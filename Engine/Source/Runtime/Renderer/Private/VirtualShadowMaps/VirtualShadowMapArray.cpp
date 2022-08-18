@@ -783,14 +783,14 @@ class FClearIndirectDispatchArgs1DCS : public FVirtualPageManagementShader
 };
 IMPLEMENT_GLOBAL_SHADER(FClearIndirectDispatchArgs1DCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapPageManagement.usf", "ClearIndirectDispatchArgs1DCS", SF_Compute);
 
-static void AddClearIndirectDispatchArgs1DPass(FRDGBuilder& GraphBuilder, FRDGBufferRef IndirectArgsRDG, uint32 NumIndirectArgs = 1U, uint32 IndirectArgStride = 4U)
+static void AddClearIndirectDispatchArgs1DPass(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FRDGBufferRef IndirectArgsRDG, uint32 NumIndirectArgs = 1U, uint32 IndirectArgStride = 4U)
 {
 	FClearIndirectDispatchArgs1DCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearIndirectDispatchArgs1DCS::FParameters>();
 	PassParameters->NumIndirectArgs = NumIndirectArgs;
 	PassParameters->IndirectArgStride = IndirectArgStride;
 	PassParameters->OutIndirectArgsBuffer = GraphBuilder.CreateUAV(IndirectArgsRDG);
 
-	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FClearIndirectDispatchArgs1DCS>();
+	auto ComputeShader = GetGlobalShaderMap(FeatureLevel)->GetShader<FClearIndirectDispatchArgs1DCS>();
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
@@ -871,7 +871,7 @@ void FVirtualShadowMapArray::MergeStaticPhysicalPages(FRDGBuilder& GraphBuilder)
 		FRDGBufferRef PhysicalPagesToMergeRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(int32), GetTotalAllocatedPhysicalPages() + 1), TEXT("Shadow.Virtual.PhysicalPagesToMerge"));
 
 		// 1. Initialize the indirect args buffer
-		AddClearIndirectDispatchArgs1DPass(GraphBuilder, MergePagesIndirectArgsRDG);
+		AddClearIndirectDispatchArgs1DPass(GraphBuilder, Scene.GetFeatureLevel(), MergePagesIndirectArgsRDG);
 		// 2. Filter the relevant physical pages and set up the indirect args
 		{
 			FSelectPagesToMergeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectPagesToMergeCS::FParameters>();
@@ -883,7 +883,7 @@ void FVirtualShadowMapArray::MergeStaticPhysicalPages(FRDGBuilder& GraphBuilder)
 			FSelectPagesToMergeCS::FPermutationDomain PermutationVector;
 			SetStatsArgsAndPermutation<FSelectPagesToMergeCS>(GraphBuilder, StatsBufferRDG, PassParameters, PermutationVector);
 
-			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSelectPagesToMergeCS>(PermutationVector);
+			auto ComputeShader = GetGlobalShaderMap(Scene.GetFeatureLevel())->GetShader<FSelectPagesToMergeCS>(PermutationVector);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
@@ -901,7 +901,7 @@ void FVirtualShadowMapArray::MergeStaticPhysicalPages(FRDGBuilder& GraphBuilder)
 			PassParameters->OutPhysicalPagePool = GraphBuilder.CreateUAV(PhysicalPagePoolRDG);
 			PassParameters->IndirectArgs = MergePagesIndirectArgsRDG;
 			PassParameters->PhysicalPagesToMerge = GraphBuilder.CreateSRV(PhysicalPagesToMergeRDG);
-			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FMergeStaticPhysicalPagesIndirectCS>();
+			auto ComputeShader = GetGlobalShaderMap(Scene.GetFeatureLevel())->GetShader<FMergeStaticPhysicalPagesIndirectCS>();
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
@@ -920,7 +920,7 @@ void FVirtualShadowMapArray::MergeStaticPhysicalPages(FRDGBuilder& GraphBuilder)
 		PassParameters->PhysicalPageMetaData = GraphBuilder.CreateSRV(PhysicalPageMetaDataRDG);
 		PassParameters->OutPhysicalPagePool = GraphBuilder.CreateUAV(PhysicalPagePoolRDG);		
 
-		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FMergeStaticPhysicalPagesCS>();
+		auto ComputeShader = GetGlobalShaderMap(Scene.GetFeatureLevel())->GetShader<FMergeStaticPhysicalPagesCS>();
 
 		// Shader contains logic to deal with static cached pages if enabled
 		// We only need to launch one per page, even if there are multiple cached pages per page
@@ -1215,7 +1215,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 		PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
 		PassParameters->OutPageRectBounds = GraphBuilder.CreateUAV(PageRectBoundsRDG);
 
-		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FInitPageRectBoundsCS>();
+		auto ComputeShader = GetGlobalShaderMap(Scene.GetFeatureLevel())->GetShader<FInitPageRectBoundsCS>();
 		ClearUnusedGraphResources(ComputeShader, PassParameters);
 
 		FComputeShaderUtils::AddPass(
@@ -1522,7 +1522,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			FRDGBufferRef PhysicalPagesToInitializeRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(int32), GetTotalAllocatedPhysicalPages() + 1), TEXT("Shadow.Virtual.PhysicalPagesToInitialize"));
 
 			// 1. Initialize the indirect args buffer
-			AddClearIndirectDispatchArgs1DPass(GraphBuilder, InitializePagesIndirectArgsRDG);
+			AddClearIndirectDispatchArgs1DPass(GraphBuilder, Scene.GetFeatureLevel(), InitializePagesIndirectArgsRDG);
 			// 2. Filter the relevant physical pages and set up the indirect args
 			{
 				FSelectPagesToInitializeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectPagesToInitializeCS::FParameters>();
@@ -1538,7 +1538,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				FSelectPagesToInitializeCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FSelectPagesToInitializeCS::FGenerateStatsDim>(bGenerateStats);
 
-				auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSelectPagesToInitializeCS>(PermutationVector);
+				auto ComputeShader = GetGlobalShaderMap(Scene.GetFeatureLevel())->GetShader<FSelectPagesToInitializeCS>(PermutationVector);
 
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
@@ -1556,7 +1556,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				PassParameters->OutPhysicalPagePool = GraphBuilder.CreateUAV(PhysicalPagePoolRDG);
 				PassParameters->IndirectArgs = InitializePagesIndirectArgsRDG;
 				PassParameters->PhysicalPagesToInitialize = GraphBuilder.CreateSRV(PhysicalPagesToInitializeRDG);
-				auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FInitializePhysicalPagesIndirectCS>();
+				auto ComputeShader = GetGlobalShaderMap(Scene.GetFeatureLevel())->GetShader<FInitializePhysicalPagesIndirectCS>();
 
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
@@ -1575,7 +1575,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			PassParameters->PhysicalPageMetaData = GraphBuilder.CreateSRV(PhysicalPageMetaDataRDG);
 			PassParameters->OutPhysicalPagePool = GraphBuilder.CreateUAV(PhysicalPagePoolRDG);
 
-			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FInitializePhysicalPagesCS>();
+			auto ComputeShader = GetGlobalShaderMap(Scene.GetFeatureLevel())->GetShader<FInitializePhysicalPagesCS>();
 
 			// Shader contains logic to deal with static cached pages if enabled
 			// We only need to launch one per page, even if there are multiple cached pages per page
@@ -1607,7 +1607,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 		PassParameters->StatusMessageId = CacheManager->StatusFeedbackSocket.GetMessageId().GetIndex();
 		PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
 
-		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVirtualSmFeedbackStatusCS>();
+		auto ComputeShader = GetGlobalShaderMap(Scene.GetFeatureLevel())->GetShader<FVirtualSmFeedbackStatusCS>();
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -1677,7 +1677,7 @@ void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder, TArrayVi
 
 		PassParameters->OutVisualize = GraphBuilder.CreateUAV(DebugVisualizationOutput[ViewIndex]);
 
-		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FDebugVisualizeVirtualSmCS>();
+		auto ComputeShader = GetGlobalShaderMap(Scene.GetFeatureLevel())->GetShader<FDebugVisualizeVirtualSmCS>();
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -2085,7 +2085,7 @@ static FCullingResult AddCullingPasses(FRDGBuilder& GraphBuilder,
 	CullingResult.DrawIndirectArgsRDG = GraphBuilder.CreateBuffer(IndirectArgsDesc, TEXT("Shadow.Virtual.DrawIndirectArgsBuffer"));
 	GraphBuilder.QueueBufferUpload(CullingResult.DrawIndirectArgsRDG, IndirectArgs.GetData(), IndirectArgs.GetTypeSize() * IndirectArgs.Num());
 
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GPUScene.GetFeatureLevel());
 
 	// Note: we redundantly clear the instance counts here as there is some issue with replays on certain consoles.
 	FInstanceCullingContext::AddClearIndirectArgInstanceCountPass(GraphBuilder, ShaderMap, CullingResult.DrawIndirectArgsRDG);
@@ -2195,7 +2195,7 @@ static FCullingResult AddCullingPasses(FRDGBuilder& GraphBuilder,
 	CullingResult.InstanceIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), CullingResult.MaxNumInstancesPerPass), TEXT("Shadow.Virtual.InstanceIdsBuffer"));
 	CullingResult.PageInfoBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), CullingResult.MaxNumInstancesPerPass), TEXT("Shadow.Virtual.PageInfoBuffer"));
 
-	FRDGBufferRef OutputPassIndirectArgs = FComputeShaderUtils::AddIndirectArgsSetupCsPass1D(GraphBuilder, VisibleInstanceWriteOffsetRDG, TEXT("Shadow.Virtual.IndirectArgs"), FOutputCommandInstanceListsCs::NumThreadsPerGroup);
+	FRDGBufferRef OutputPassIndirectArgs = FComputeShaderUtils::AddIndirectArgsSetupCsPass1D(GraphBuilder, GPUScene.GetFeatureLevel(), VisibleInstanceWriteOffsetRDG, TEXT("Shadow.Virtual.IndirectArgs"), FOutputCommandInstanceListsCs::NumThreadsPerGroup);
 	if (true)
 	{
 
@@ -2342,7 +2342,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 		return FLargeWorldRenderPosition(MinOrigin);
 	};
 
-	FInstanceCullingMergedContext InstanceCullingMergedContext(GMaxRHIFeatureLevel);
+	FInstanceCullingMergedContext InstanceCullingMergedContext(GPUScene.GetFeatureLevel());
 	// We don't use the registered culling views (this redundancy should probably be addressed at some point), set the number to disable index range checking
 	InstanceCullingMergedContext.NumCullingViews = -1;
 	for (int32 Index = 0; Index < VirtualSmMeshCommandPasses.Num(); ++Index)
@@ -2424,7 +2424,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 		ShadowDepthPassParameters->PackedNaniteViews = GraphBuilder.CreateSRV(VirtualShadowViewsRDG);
 		ShadowDepthPassParameters->PageRectBounds = GraphBuilder.CreateSRV(PageRectBoundsRDG);
 		ShadowDepthPassParameters->OutDepthBufferArray = GraphBuilder.CreateUAV(PhysicalPagePoolRDG, ERDGUnorderedAccessViewFlags::SkipBarrier);
-		SetupSceneTextureUniformParameters(GraphBuilder, SceneTextures, GMaxRHIFeatureLevel, ESceneTextureSetupMode::None, ShadowDepthPassParameters->SceneTextures);
+		SetupSceneTextureUniformParameters(GraphBuilder, SceneTextures, Scene.GetFeatureLevel(), ESceneTextureSetupMode::None, ShadowDepthPassParameters->SceneTextures);
 		ShadowDepthPassParameters->bClampToNearPlane = bClampToNearPlane;
 
 		return GraphBuilder.CreateUniformBuffer(ShadowDepthPassParameters);
@@ -2674,7 +2674,7 @@ void FVirtualShadowMapArray::UpdateHZB(FRDGBuilder& GraphBuilder)
 	FRDGBufferRef PhysicalPagesForHZBRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(int32), GetTotalAllocatedPhysicalPages() + 1), TEXT("Shadow.Virtual.PhysicalPagesForHZB"));
 
 	// 1. Clear the indirect args buffer (note 2x args)
-	AddClearIndirectDispatchArgs1DPass(GraphBuilder, PagesForHZBIndirectArgsRDG, 2U);
+	AddClearIndirectDispatchArgs1DPass(GraphBuilder, Scene.GetFeatureLevel(), PagesForHZBIndirectArgsRDG, 2U);
 
 	// 2. Filter the relevant physical pages and set up the indirect args
 	{
@@ -2688,7 +2688,7 @@ void FVirtualShadowMapArray::UpdateHZB(FRDGBuilder& GraphBuilder)
 		PassParameters->bForceFullHZBUpdate = CVarShadowsVirtualForceFullHZBUpdate.GetValueOnRenderThread();
 		FSelectPagesForHZBCS::FPermutationDomain PermutationVector;
 		SetStatsArgsAndPermutation<FSelectPagesForHZBCS>(GraphBuilder, StatsBufferRDG, PassParameters, PermutationVector);
-		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSelectPagesForHZBCS>(PermutationVector);
+		auto ComputeShader = GetGlobalShaderMap(Scene.GetFeatureLevel())->GetShader<FSelectPagesForHZBCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -2717,7 +2717,7 @@ void FVirtualShadowMapArray::UpdateHZB(FRDGBuilder& GraphBuilder)
 
 		PassParameters->IndirectArgs = PagesForHZBIndirectArgsRDG;
 		PassParameters->PhysicalPagesForHZB = GraphBuilder.CreateSRV(PhysicalPagesForHZBRDG);
-		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVirtualSmBuildHZBPerPageCS>();
+		auto ComputeShader = GetGlobalShaderMap(Scene.GetFeatureLevel())->GetShader<FVirtualSmBuildHZBPerPageCS>();
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -2745,7 +2745,7 @@ void FVirtualShadowMapArray::UpdateHZB(FRDGBuilder& GraphBuilder)
 
 		PassParameters->IndirectArgs = PagesForHZBIndirectArgsRDG;
 		PassParameters->PhysicalPagesForHZB = GraphBuilder.CreateSRV(PhysicalPagesForHZBRDG);
-		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVirtualSmBBuildHZBPerPageTopCS>();
+		auto ComputeShader = GetGlobalShaderMap(Scene.GetFeatureLevel())->GetShader<FVirtualSmBBuildHZBPerPageTopCS>();
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,

@@ -491,7 +491,7 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 
 				FRDGBuilder GraphBuilder(FRHICommandListExecutor::GetImmediateCommandList());
 				FRDGTextureRef MipOutputTexture = GraphBuilder.RegisterExternalTexture(MipGenerationCache);
-				FGenerateMips::Execute(GraphBuilder, MipOutputTexture, FGenerateMipsParams{ SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp }, GenerateMipsPass);
+				FGenerateMips::Execute(GraphBuilder, GetFeatureLevel(), MipOutputTexture, FGenerateMipsParams{ SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp }, GenerateMipsPass);
 				GraphBuilder.Execute();
 			}
 
@@ -852,7 +852,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 			GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 
 			// configure media shaders
-			auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+			auto ShaderMap = GetGlobalShaderMap(GetFeatureLevel());
 			TShaderMapRef<FMediaShadersVS> VertexShader(ShaderMap);
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GMediaVertexDeclaration.VertexDeclarationRHI;
@@ -1135,7 +1135,7 @@ void FMediaTextureResource::CopyFromExternalTexture(const TSharedPtr <IMediaText
 			GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 
 			// configure media shaders
-			auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+			auto ShaderMap = GetGlobalShaderMap(GetFeatureLevel());
 			TShaderMapRef<FMediaShadersVS> VertexShader(ShaderMap);
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GMediaVertexDeclaration.VertexDeclarationRHI;

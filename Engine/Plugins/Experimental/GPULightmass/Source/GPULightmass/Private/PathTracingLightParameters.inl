@@ -7,9 +7,9 @@
 
 #if RHI_RAYTRACING
 
-RENDERER_API FRDGTexture* PrepareIESAtlas(const TMap<FTexture*, int>& InIESLightProfilesMap, FRDGBuilder& GraphBuilder);
+RENDERER_API FRDGTexture* PrepareIESAtlas(const TMap<FTexture*, int>& InIESLightProfilesMap, FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel);
 
-RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, FPathTracingLightGrid* LightGridParameters, const FPathTracingLight* Lights, uint32 NumLights, uint32 NumInfiniteLights, FRDGBufferSRV* LightsSRV);
+RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FPathTracingLightGrid* LightGridParameters, const FPathTracingLight* Lights, uint32 NumLights, uint32 NumInfiniteLights, FRDGBufferSRV* LightsSRV);
 
 static uint32 EncodeToF16x2(const FVector2f& In)
 {
@@ -232,7 +232,7 @@ void SetupPathTracingLightParameters(
 
 	if (IESLightProfilesMap.Num() > 0)
 	{
-		PassParameters->IESTexture = PrepareIESAtlas(IESLightProfilesMap, GraphBuilder);
+		PassParameters->IESTexture = PrepareIESAtlas(IESLightProfilesMap, GraphBuilder, View.GetFeatureLevel());
 	}
 	else
 	{
@@ -240,7 +240,7 @@ void SetupPathTracingLightParameters(
 	}
 	PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	PrepareLightGrid(GraphBuilder, &PassParameters->LightGridParameters, Lights.GetData(), PassParameters->SceneLightCount, NumInfiniteLights, PassParameters->SceneLights);
+	PrepareLightGrid(GraphBuilder, View.GetFeatureLevel(), &PassParameters->LightGridParameters, Lights.GetData(), PassParameters->SceneLightCount, NumInfiniteLights, PassParameters->SceneLights);
 }
 
 #endif  // RHI_RAYTRACING

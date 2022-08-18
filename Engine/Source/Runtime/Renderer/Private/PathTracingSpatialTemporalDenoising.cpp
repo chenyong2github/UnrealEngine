@@ -774,10 +774,10 @@ public:
 			CopyInfo.NumMips = FMath::Min(SourceDesc.NumMips, TargetDesc.NumMips);
 
 			AddCopyTexturePass(GraphBuilder, SourceTexture, SourceMipTexture, CopyInfo);
-			FGenerateMips::Execute(GraphBuilder, SourceMipTexture, BilinearClampSampler);
+			FGenerateMips::Execute(GraphBuilder, View.FeatureLevel, SourceMipTexture, BilinearClampSampler);
 
 			AddCopyTexturePass(GraphBuilder, TargetTexture, TargetMipTexture, CopyInfo);
-			FGenerateMips::Execute(GraphBuilder, TargetMipTexture, BilinearClampSampler);
+			FGenerateMips::Execute(GraphBuilder, View.FeatureLevel, TargetMipTexture, BilinearClampSampler);
 		}
 
 		for (int TextureId = 0; TextureId < kNumberOfTexturesPerPass; ++TextureId)

@@ -13,6 +13,7 @@
 
 RENDERER_API void PrepareSkyTexture_Internal(
 	FRDGBuilder& GraphBuilder,
+	ERHIFeatureLevel::Type FeatureLevel,
 	FReflectionUniformParameters& Parameters,
 	uint32 Size,
 	FLinearColor SkyColor,
@@ -321,7 +322,7 @@ FLightRenderParameters FRectLightRenderState::GetLightShaderParameters() const
 	return LightParameters;
 }
 
-void FSkyLightRenderState::PrepareSkyTexture(FRHICommandListImmediate& RHICmdList)
+void FSkyLightRenderState::PrepareSkyTexture(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
 {
 	FRDGBuilder GraphBuilder(RHICmdList);
 
@@ -343,6 +344,7 @@ void FSkyLightRenderState::PrepareSkyTexture(FRHICommandListImmediate& RHICmdLis
 
 	PrepareSkyTexture_Internal(
 		GraphBuilder,
+		FeatureLevel,
 		Parameters,
 		Size,
 		SkyColor,

@@ -335,7 +335,7 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 
 		if (bGenerateMips)
 		{
-			FGenerateMips::Execute(GraphBuilder, TargetTexture, GenerateMipsParams);
+			FGenerateMips::Execute(GraphBuilder, SceneRenderer->FeatureLevel, TargetTexture, GenerateMipsParams);
 		}
 
 		AddCopyTexturePass(GraphBuilder, TargetTexture, ShaderResourceTexture, CopyInfo);
@@ -431,7 +431,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 
 		if (bGenerateMips)
 		{
-			FGenerateMips::Execute(GraphBuilder, OutputTexture, GenerateMipsParams);
+			FGenerateMips::Execute(GraphBuilder, SceneRenderer->FeatureLevel, OutputTexture, GenerateMipsParams);
 		}
 
 		GraphBuilder.Execute();

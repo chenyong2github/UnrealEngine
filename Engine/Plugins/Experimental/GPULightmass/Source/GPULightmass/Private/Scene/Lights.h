@@ -314,7 +314,7 @@ struct FSkyLightRenderState
 	FRWBufferStructured SkyIrradianceEnvironmentMap;
 
 	// New sky dome
-	void PrepareSkyTexture(FRHICommandListImmediate& RHICmdList);
+	void PrepareSkyTexture(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);
 	float SkylightInvResolution;
 	int32 SkylightMipCount;
 	TRefCountPtr<IPooledRenderTarget> PathTracingSkylightTexture;

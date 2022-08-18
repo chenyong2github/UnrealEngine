@@ -596,7 +596,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FClearUAVRectsParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const uint32(&ClearValues)[4], FRDGBufferSRVRef RectCoordBufferSRV, uint32 NumRects)
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FRDGTextureUAVRef TextureUAV, const uint32(&ClearValues)[4], FRDGBufferSRVRef RectCoordBufferSRV, uint32 NumRects)
 {
 	if (NumRects == 0)
 	{
@@ -614,7 +614,7 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, co
 	PassParameters->PS.ClearValue.W = ClearValues[3];
 	PassParameters->PS.ClearResource = TextureUAV;
 
-	auto* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+	auto* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 	auto PixelShader = ShaderMap->GetShader<FClearUAVRectsPS>();
 
 	const FRDGTextureRef Texture = TextureUAV->GetParent();
@@ -955,7 +955,7 @@ class FInitIndirectArgs1DCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FInitIndirectArgs1DCS, "/Engine/Private/Tools/SetupIndirectArgs.usf", "InitIndirectArgs1DCS", SF_Compute);
 
-FRDGBufferRef FComputeShaderUtils::AddIndirectArgsSetupCsPass1D(FRDGBuilder& GraphBuilder, FRDGBufferRef& InputCountBuffer, const TCHAR* OutputBufferName, uint32 Divisor, uint32 InputCountOffset, uint32 Multiplier)
+FRDGBufferRef FComputeShaderUtils::AddIndirectArgsSetupCsPass1D(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FRDGBufferRef& InputCountBuffer, const TCHAR* OutputBufferName, uint32 Divisor, uint32 InputCountOffset, uint32 Multiplier)
 {
 	// 1. Add setup pass
 	FRDGBufferRef IndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), OutputBufferName);
@@ -967,7 +967,7 @@ FRDGBufferRef FComputeShaderUtils::AddIndirectArgsSetupCsPass1D(FRDGBuilder& Gra
 		PassParameters->InputCountOffset = InputCountOffset;
 		PassParameters->IndirectDispatchArgsOut = GraphBuilder.CreateUAV(IndirectArgsBuffer, PF_R32_UINT);
 
-		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FInitIndirectArgs1DCS>();
+		auto ComputeShader = GetGlobalShaderMap(FeatureLevel)->GetShader<FInitIndirectArgs1DCS>();
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("InitIndirectArgs1D"),
@@ -978,6 +978,12 @@ FRDGBufferRef FComputeShaderUtils::AddIndirectArgsSetupCsPass1D(FRDGBuilder& Gra
 	}
 
 	return IndirectArgsBuffer;
+}
+
+// Deprecated
+FRDGBufferRef FComputeShaderUtils::AddIndirectArgsSetupCsPass1D(FRDGBuilder& GraphBuilder, FRDGBufferRef& InputCountBuffer, const TCHAR* OutputBufferName, uint32 Divisor, uint32 InputCountOffset, uint32 Multiplier)
+{
+	return AddIndirectArgsSetupCsPass1D(GraphBuilder, GMaxRHIFeatureLevel, InputCountBuffer, OutputBufferName, Divisor, InputCountOffset, Multiplier);
 }
 
 FRDGBufferRef CreateStructuredBuffer(

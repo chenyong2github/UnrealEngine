@@ -26,7 +26,9 @@ bool FDisplayClusterShadersGenerateMips::GenerateMips(FRHICommandListImmediate& 
 		TRefCountPtr<IPooledRenderTarget> PoolRenderTarget = CreateRenderTarget(InOutMipsTexture, TEXT("nDisplayViewportMips"));
 		FRDGTextureRef MipOutputTexture = GraphBuilder.RegisterExternalTexture(PoolRenderTarget);
 
-		FGenerateMips::Execute(GraphBuilder, MipOutputTexture, GenerateMipsParams);
+		// TODO: get FeatureLevel from an outside source.
+		ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
+		FGenerateMips::Execute(GraphBuilder, FeatureLevel, MipOutputTexture, GenerateMipsParams);
 
 		GraphBuilder.Execute();
 

@@ -2669,7 +2669,7 @@ FRasterContext InitRasterContext(
 			RasterContext.Parameters.OutDepthBuffer = GraphBuilder.CreateUAV( RasterContext.DepthBuffer );
 			if (bClearTarget)
 			{
-				AddClearUAVPass( GraphBuilder, RasterContext.Parameters.OutDepthBuffer, ClearValue, RectMinMaxBufferSRV, NumRects );
+				AddClearUAVPass( GraphBuilder, SharedContext.FeatureLevel, RasterContext.Parameters.OutDepthBuffer, ClearValue, RectMinMaxBufferSRV, NumRects );
 			}
 		}
 	}
@@ -2678,15 +2678,15 @@ FRasterContext InitRasterContext(
 		RasterContext.Parameters.OutVisBuffer64 = GraphBuilder.CreateUAV( RasterContext.VisBuffer64 );
 		if (bClearTarget)
 		{
-			AddClearUAVPass( GraphBuilder, RasterContext.Parameters.OutVisBuffer64, ClearValue, RectMinMaxBufferSRV, NumRects );
+			AddClearUAVPass( GraphBuilder, SharedContext.FeatureLevel, RasterContext.Parameters.OutVisBuffer64, ClearValue, RectMinMaxBufferSRV, NumRects );
 		}
 		
 		if (RasterContext.VisualizeActive)
 		{
 			RasterContext.Parameters.OutDbgBuffer64 = GraphBuilder.CreateUAV( RasterContext.DbgBuffer64 );
 			RasterContext.Parameters.OutDbgBuffer32 = GraphBuilder.CreateUAV( RasterContext.DbgBuffer32 );
-			AddClearUAVPass( GraphBuilder, RasterContext.Parameters.OutDbgBuffer64, ClearValue, RectMinMaxBufferSRV, NumRects );
-			AddClearUAVPass( GraphBuilder, RasterContext.Parameters.OutDbgBuffer32, ClearValue, RectMinMaxBufferSRV, NumRects );
+			AddClearUAVPass( GraphBuilder, SharedContext.FeatureLevel, RasterContext.Parameters.OutDbgBuffer64, ClearValue, RectMinMaxBufferSRV, NumRects );
+			AddClearUAVPass( GraphBuilder, SharedContext.FeatureLevel, RasterContext.Parameters.OutDbgBuffer32, ClearValue, RectMinMaxBufferSRV, NumRects );
 		}
 	}
 

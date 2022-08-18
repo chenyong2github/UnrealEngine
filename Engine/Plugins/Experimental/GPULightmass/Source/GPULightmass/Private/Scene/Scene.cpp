@@ -620,7 +620,7 @@ void FScene::AddLight(USkyLightComponent* SkyLight)
 	NewSkyLightRenderState.IrradianceEnvironmentMap = SkyLight->GetIrradianceEnvironmentMap();
 
 	ENQUEUE_RENDER_COMMAND(AddLightRenderState)(
-		[&RenderState = RenderState, NewSkyLightRenderState = MoveTemp(NewSkyLightRenderState), ProcessedSkyTexture = SkyLight->GetProcessedSkyTexture()](FRHICommandListImmediate& RHICmdList) mutable
+		[&RenderState = RenderState, NewSkyLightRenderState = MoveTemp(NewSkyLightRenderState), ProcessedSkyTexture = SkyLight->GetProcessedSkyTexture(), FeatureLevel = FeatureLevel](FRHICommandListImmediate& RHICmdList) mutable
 	{
 		// Dereferencing ProcessedSkyTexture must be deferred onto render thread
 		NewSkyLightRenderState.ProcessedTexture = ProcessedSkyTexture->TextureRHI;
@@ -628,7 +628,7 @@ void FScene::AddLight(USkyLightComponent* SkyLight)
 
 		NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Initialize(TEXT("SkyIrradianceEnvironmentMap"), sizeof(FVector4f), 7);
 
-		NewSkyLightRenderState.PrepareSkyTexture(RHICmdList);
+		NewSkyLightRenderState.PrepareSkyTexture(RHICmdList, FeatureLevel);
 
 		// Set the captured environment map data
 		void* DataPtr = RHICmdList.LockBuffer(NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Buffer, 0, NewSkyLightRenderState.SkyIrradianceEnvironmentMap.NumBytes, RLM_WriteOnly);

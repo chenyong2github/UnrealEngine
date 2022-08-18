@@ -1261,6 +1261,7 @@ bool FRayTracingMeshProcessor::ProcessPathTracing(
 
 RENDERER_API void PrepareSkyTexture_Internal(
 	FRDGBuilder& GraphBuilder,
+	ERHIFeatureLevel::Type FeatureLevel,
 	FReflectionUniformParameters& Parameters,
 	uint32 Size,
 	FLinearColor SkyColor,
@@ -1295,7 +1296,7 @@ RENDERER_API void PrepareSkyTexture_Internal(
 
 	// run a simple compute shader to sample the cubemap and prep the top level of the mipmap hierarchy
 	{
-		TShaderMapRef<FPathTracingSkylightPrepareCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		TShaderMapRef<FPathTracingSkylightPrepareCS> ComputeShader(GetGlobalShaderMap(FeatureLevel));
 		FPathTracingSkylightPrepareCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingSkylightPrepareCS::FParameters>();
 		PassParameters->SkyColor = FVector3f(SkyColor.R, SkyColor.G, SkyColor.B);
 		PassParameters->SkyLightCubemap0 = Parameters.SkyLightCubemap;
@@ -1313,11 +1314,11 @@ RENDERER_API void PrepareSkyTexture_Internal(
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(FIntPoint(Size, Size), FComputeShaderUtils::kGolden2DGroupSize));
 	}
-	FGenerateMips::ExecuteCompute(GraphBuilder, SkylightPdf, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+	FGenerateMips::ExecuteCompute(GraphBuilder, FeatureLevel, SkylightPdf, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 
 	if (UseMISCompensation)
 	{
-		TShaderMapRef<FPathTracingSkylightMISCompensationCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		TShaderMapRef<FPathTracingSkylightMISCompensationCS> ComputeShader(GetGlobalShaderMap(FeatureLevel));
 		FPathTracingSkylightMISCompensationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingSkylightMISCompensationCS::FParameters>();
 		PassParameters->SkylightTexturePdfAverage = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(SkylightPdf, SkylightMipCount - 1));
 		PassParameters->SkylightTextureOutput = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SkylightTexture, 0));
@@ -1328,11 +1329,11 @@ RENDERER_API void PrepareSkyTexture_Internal(
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(FIntPoint(Size, Size), FComputeShaderUtils::kGolden2DGroupSize));
-		FGenerateMips::ExecuteCompute(GraphBuilder, SkylightPdf, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+		FGenerateMips::ExecuteCompute(GraphBuilder, FeatureLevel, SkylightPdf, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 	}
 }
 
-RENDERER_API FRDGTexture* PrepareIESAtlas(const TMap<FTexture*, int>& InIESLightProfilesMap, FRDGBuilder& GraphBuilder)
+RENDERER_API FRDGTexture* PrepareIESAtlas(const TMap<FTexture*, int>& InIESLightProfilesMap, FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel)
 {
 	// We found some IES profiles to use -- upload them into a single atlas so we can access them easily in HLSL
 
@@ -1364,7 +1365,7 @@ RENDERER_API FRDGTexture* PrepareIESAtlas(const TMap<FTexture*, int>& InIESLight
 		AtlasPassParameters->IESSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		AtlasPassParameters->IESAtlas = GraphBuilder.CreateUAV(IESTexture);
 		AtlasPassParameters->IESAtlasSlice = Slice;
-		TShaderMapRef<FPathTracingIESAtlasCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		TShaderMapRef<FPathTracingIESAtlasCS> ComputeShader(GetGlobalShaderMap(FeatureLevel));
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("Path Tracing IES Atlas (Slice=%d)", Slice),
@@ -1436,6 +1437,7 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 
 	PrepareSkyTexture_Internal(
 		GraphBuilder,
+		View.FeatureLevel,
 		Parameters,
 		Size,
 		SkyColor,
@@ -1460,7 +1462,7 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 	return true;
 }
 
-RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, FPathTracingLightGrid* LightGridParameters, const FPathTracingLight* Lights, uint32 NumLights, uint32 NumInfiniteLights, FRDGBufferSRV* LightsSRV)
+RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FPathTracingLightGrid* LightGridParameters, const FPathTracingLight* Lights, uint32 NumLights, uint32 NumInfiniteLights, FRDGBufferSRV* LightsSRV)
 {
 	const float Inf = std::numeric_limits<float>::infinity();
 	LightGridParameters->SceneInfiniteLightCount = NumInfiniteLights;
@@ -1535,7 +1537,7 @@ RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, FPathTracingLightG
 		LightGridPassParameters->SceneLights = LightsSRV;
 		LightGridPassParameters->SceneLightCount = NumLights;
 
-		TShaderMapRef<FPathTracingBuildLightGridCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		TShaderMapRef<FPathTracingBuildLightGridCS> ComputeShader(GetGlobalShaderMap(FeatureLevel));
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("Light Grid Create (%u lights)", NumFiniteLights),
@@ -1837,7 +1839,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 
 	if (!IESLightProfilesMap.IsEmpty())
 	{
-		PassParameters->IESTexture = PrepareIESAtlas(IESLightProfilesMap, GraphBuilder);
+		PassParameters->IESTexture = PrepareIESAtlas(IESLightProfilesMap, GraphBuilder, View.FeatureLevel);
 	}
 	else
 	{
@@ -1845,7 +1847,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 	}
 	PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	PrepareLightGrid(GraphBuilder, &PassParameters->LightGridParameters, Lights, NumLights, NumInfiniteLights, PassParameters->SceneLights);
+	PrepareLightGrid(GraphBuilder, View.FeatureLevel, &PassParameters->LightGridParameters, Lights, NumLights, NumInfiniteLights, PassParameters->SceneLights);
 }
 
 class FPathTracingCompositorPS : public FGlobalShader
@@ -2046,7 +2048,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			PassParameters->Resolution = AtmoConfig.Resolution;
 			PassParameters->Atmosphere = Scene->GetSkyAtmosphereSceneInfo()->GetAtmosphereUniformBuffer();
 			PassParameters->AtmosphereOpticalDepthLUT = GraphBuilder.CreateUAV(AtmosphereOpticalDepthLUT);
-			TShaderMapRef<FPathTracingBuildAtmosphereOpticalDepthLUTCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+			TShaderMapRef<FPathTracingBuildAtmosphereOpticalDepthLUTCS> ComputeShader(GetGlobalShaderMap(View.FeatureLevel));
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("Path Tracing Atmosphere Optical Depth LUT (Resolution=%u, NumSamples=%u)", AtmoConfig.Resolution, AtmoConfig.NumSamples),
@@ -2410,7 +2412,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		// mGPU renders blocks of pixels that need to be mapped back into alternating scanlines
 		// perform this swizzling now with a simple compute shader
 
-		TShaderMapRef<FPathTracingSwizzleScanlinesCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		TShaderMapRef<FPathTracingSwizzleScanlinesCS> ComputeShader(GetGlobalShaderMap(View.FeatureLevel));
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 			View.ViewRect.Size(),
 			PF_A32B32G32R32F,
