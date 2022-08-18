@@ -453,7 +453,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 						// If the resolve texture is not the same as the MSAA texture, we need to render to scene color and copy to back buffer.
 						|| (NumMSAASamples > 1 && !RHISupportsSeparateMSAAAndResolveTextures(ShaderPlatform))
 						|| bIsFullDepthPrepassEnabled;
-	
+
 	const bool bSceneDepthCapture = (
 		ViewFamily.SceneCaptureSource == SCS_SceneColorSceneDepth ||
 		ViewFamily.SceneCaptureSource == SCS_SceneDepth ||

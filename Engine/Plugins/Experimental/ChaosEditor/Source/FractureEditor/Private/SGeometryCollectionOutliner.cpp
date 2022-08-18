@@ -869,7 +869,7 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 				{
 					Anchored = AnchoringFacade.IsAnchored(ItemBoneIndex);
 				}
-				
+
 				if (RelativeSizes)
 				{
 					RelativeSize = (*RelativeSizes)[ItemBoneIndex];

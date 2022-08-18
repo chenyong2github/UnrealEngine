@@ -673,7 +673,7 @@ namespace ChaosTest
 		// Chains the particles and make the first one kinematix
 		Test.Evolution.SetParticleObjectState(Test.ParticleHandles[0], EObjectStateType::Kinematic);
 		Test.MakeChain();
-		
+
 		// Wait for sleep
 		Test.AdvanceUntilSleeping();
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);

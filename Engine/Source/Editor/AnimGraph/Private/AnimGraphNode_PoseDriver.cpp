@@ -61,11 +61,11 @@ FText UAnimGraphNode_PoseDriver::GetNodeTitle(ENodeTitleType::Type TitleType) co
 	const FText& Description = Node.SoloTargetIndex == INDEX_NONE ? DescriptionAll : DescriptionSolo;
 
 	const FName FirstSourceBone = (Node.SourceBones.Num() > 0) ? Node.SourceBones[0].BoneName : NAME_None;
- 	if ((TitleType == ENodeTitleType::ListView || TitleType == ENodeTitleType::MenuTitle) && (FirstSourceBone == NAME_None))
+	if ((TitleType == ENodeTitleType::ListView || TitleType == ENodeTitleType::MenuTitle) && (FirstSourceBone == NAME_None))
 	{
 		return Description;
 	}
-	else 
+	else
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("ControllerDescription"), Description);
@@ -126,7 +126,7 @@ void UAnimGraphNode_PoseDriver::ValidateAnimNodeDuringCompilation(USkeleton* For
 		}
 	}
 
-	if(MissingBoneName != NAME_None)
+	if (MissingBoneName != NAME_None)
 	{
 		MessageLog.Warning(*LOCTEXT("SourceBoneNotFound", "@@ - Entry in SourceBones not found").ToString(), this);
 	}
@@ -136,7 +136,7 @@ void UAnimGraphNode_PoseDriver::ValidateAnimNodeDuringCompilation(USkeleton* For
 	TArray<int> InvalidTargets;
 	if (!FRBFSolver::ValidateTargets(Node.RBFParams, RBFTargets, InvalidTargets))
 	{
-		for (int TargetIdx: InvalidTargets)
+		for (int TargetIdx : InvalidTargets)
 		{
 			MessageLog.Error(*LOCTEXT("PoseDriver_InvalidTarget", "@@ - '@@' is an invalid or duplicate target.").ToString(),
 				this, GetData(Node.PoseTargets[TargetIdx].DrivenName.ToString()));
@@ -145,7 +145,7 @@ void UAnimGraphNode_PoseDriver::ValidateAnimNodeDuringCompilation(USkeleton* For
 
 	if (Node.SoloTargetIndex != INDEX_NONE)
 	{
-		MessageLog.Warning(*LOCTEXT("PoseDriver_SoloEnabled", "@@ - Solo enabled on target '@@'").ToString(), 
+		MessageLog.Warning(*LOCTEXT("PoseDriver_SoloEnabled", "@@ - Solo enabled on target '@@'").ToString(),
 			this, GetData(Node.PoseTargets[Node.SoloTargetIndex].DrivenName.ToString()));
 	}
 
@@ -236,7 +236,7 @@ void UAnimGraphNode_PoseDriver::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FPoseDriverCustomVersion::GUID);
 }
 
-void UAnimGraphNode_PoseDriver::CopyNodeDataToPreviewNode(FAnimNode_Base* InPreviewNode){
+void UAnimGraphNode_PoseDriver::CopyNodeDataToPreviewNode(FAnimNode_Base* InPreviewNode) {
 	FAnimNode_PoseDriver* PreviewPoseDriver = static_cast<FAnimNode_PoseDriver*>(InPreviewNode);
 
 	PreviewPoseDriver->RBFParams.SolverType = Node.RBFParams.SolverType;
@@ -261,14 +261,14 @@ void UAnimGraphNode_PoseDriver::CopyNodeDataToPreviewNode(FAnimNode_Base* InPrev
 FAnimNode_PoseDriver* UAnimGraphNode_PoseDriver::GetPreviewPoseDriverNode() const
 {
 	FAnimNode_PoseDriver* PreviewNode = nullptr;
-	USkeletalMeshComponent * Component = nullptr;
+	USkeletalMeshComponent* Component = nullptr;
 
 	// look for a valid component in the object being debugged,
 	// we might be set to something other than the preview.
-	UObject * ObjectBeingDebugged = GetAnimBlueprint()->GetObjectBeingDebugged();
+	UObject* ObjectBeingDebugged = GetAnimBlueprint()->GetObjectBeingDebugged();
 	if (ObjectBeingDebugged)
 	{
-		UAnimInstance * InstanceBeingDebugged = Cast<UAnimInstance>(ObjectBeingDebugged);
+		UAnimInstance* InstanceBeingDebugged = Cast<UAnimInstance>(ObjectBeingDebugged);
 		if (InstanceBeingDebugged)
 		{
 			Component = InstanceBeingDebugged->GetSkelMeshComponent();
@@ -352,7 +352,7 @@ void UAnimGraphNode_PoseDriver::CopyTargetsFromPoseAsset()
 			}
 
 			// re-apply the same setting in case we have seen this target before
-			const FPoseDriverTarget * PreviousTarget = PreviousTargets.Find(PoseTarget.DrivenName);
+			const FPoseDriverTarget* PreviousTarget = PreviousTargets.Find(PoseTarget.DrivenName);
 			if (PreviousTarget)
 			{
 				PoseTarget.TargetScale = PreviousTarget->TargetScale;
@@ -456,7 +456,7 @@ void UAnimGraphNode_PoseDriver::AddNewTarget()
 void UAnimGraphNode_PoseDriver::ReserveTargetTransforms()
 {
 	// reallocate transforms array in each target
-	for(FPoseDriverTarget& PoseTarget : Node.PoseTargets)
+	for (FPoseDriverTarget& PoseTarget : Node.PoseTargets)
 	{
 		PoseTarget.BoneTransforms.SetNum(Node.SourceBones.Num());
 	}
@@ -467,7 +467,7 @@ FLinearColor UAnimGraphNode_PoseDriver::GetColorFromWeight(float InWeight)
 	return FMath::Lerp(FLinearColor::Blue.Desaturate(0.5), FLinearColor::Red, InWeight);
 }
 
-void UAnimGraphNode_PoseDriver::AutoSetTargetScales(float &OutMaxDistance)
+void UAnimGraphNode_PoseDriver::AutoSetTargetScales(float& OutMaxDistance)
 {
 	if (LastPreviewComponent && LastPreviewComponent->AnimScriptInstance)
 	{
