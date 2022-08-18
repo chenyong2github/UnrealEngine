@@ -5,6 +5,7 @@
 #include "Engine/PrimaryAssetLabel.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetRegistryHelpers.h"
 #include "Containers/StringView.h"
 #include "Engine/Engine.h"
 #include "Engine/BlueprintGeneratedClass.h"
@@ -502,33 +503,7 @@ FPrimaryAssetId UAssetManager::DeterminePrimaryAssetIdForObject(const UObject* O
 
 bool UAssetManager::IsAssetDataBlueprintOfClassSet(const FAssetData& AssetData, const TSet<FTopLevelAssetPath>& ClassNameSet) const
 {
-	const FString ParentClassFromData = AssetData.GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
-	if (!ParentClassFromData.IsEmpty())
-	{
-		const FTopLevelAssetPath ClassObjectPath(FPackageName::ExportTextPathToObjectPath(ParentClassFromData));
-		const FName ClassName = ClassObjectPath.GetAssetName();
-
-		TArray<FTopLevelAssetPath> ValidNames;
-		ValidNames.Add(ClassObjectPath);
-#if WITH_EDITOR
-		// Check for redirected name
-		FTopLevelAssetPath RedirectedName = FTopLevelAssetPath(FLinkerLoad::FindNewPathNameForClass(ClassObjectPath.ToString(), false));
-		if (!RedirectedName.IsNull())
-		{
-			// @todo: we need a full path
-			ValidNames.Add(RedirectedName);
-		}
-#endif
-		for (const FTopLevelAssetPath& ValidName : ValidNames)
-		{
-			if (ClassNameSet.Contains(ValidName))
-			{
-				// Our parent class is in the class name set
-				return true;
-			}
-		}
-	}
-	return false;
+	return UAssetRegistryHelpers::IsAssetDataBlueprintOfClassSet(AssetData, ClassNameSet);
 }
 
 int32 UAssetManager::SearchAssetRegistryPaths(TArray<FAssetData>& OutAssetDataList, const FAssetManagerSearchRules& Rules) const
