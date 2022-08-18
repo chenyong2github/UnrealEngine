@@ -140,7 +140,7 @@ namespace Chaos::Softs
 			}
 		}
 
-		void TimeStepPostprocessing(const ParticleType& InParticles, const T Dt)
+		void TimeStepPostprocessing(ParticleType& InParticles, const T Dt)
 		{
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("STAT_ChaosXPBDGridBasedCorotatedGrid::FinalG2P"));
@@ -310,7 +310,7 @@ namespace Chaos::Softs
 				}
 			}
 			//final G2P to compute particle positions:
-			FinalG2P(Particles);
+			//FinalG2P(Particles);
 		}
 
 	private:

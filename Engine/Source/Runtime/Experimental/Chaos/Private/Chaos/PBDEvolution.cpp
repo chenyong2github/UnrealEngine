@@ -24,6 +24,7 @@ DECLARE_CYCLE_STAT(TEXT("Chaos PBD Iteration Loop"), STAT_ChaosPBDIterationLoop,
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Post Iteration Updates"), STAT_ChaosPBDPostIterationUpdates, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Constraint Rules"), STAT_ChaosPBDConstraintRule, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Post Collision Constraint Rules"), STAT_ChaosPBDPostCollisionConstraintRule, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos PBD Constraint Postprocessings"), STAT_ChaosPBDConstraintPostprocessings, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Self Collision"), STAT_ChaosPBDSelfCollisionRule, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Collision Rule"), STAT_ChaosPBDCollisionRule, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Collider Friction"), STAT_ChaosPBDCollisionRuleFriction, STATGROUP_Chaos);
@@ -87,6 +88,7 @@ FPBDEvolution::FPBDEvolution(
 	, MConstraintInitsActiveView(MConstraintInits)
 	, MConstraintRulesActiveView(MConstraintRules)
 	, MPostCollisionConstraintRulesActiveView(MPostCollisionConstraintRules)
+	, MConstraintPostprocessingsActiveView(MConstraintPostprocessings)
 	, MNumIterations(NumIterations)
 	, MGravity(FSolverVec3((FSolverReal)0., (FSolverReal)0., (FSolverReal)-980.665))
 	, MCollisionThickness(CollisionThickness)
@@ -206,6 +208,15 @@ int32 FPBDEvolution::AddPostCollisionConstraintRuleRange(int32 NumConstraints, b
 
 	// Add range
 	return MPostCollisionConstraintRulesActiveView.AddRange(NumConstraints, bActivate);
+}
+
+int32 FPBDEvolution::AddConstraintPostprocessingsRange(int32 NumConstraints, bool bActivate)
+{
+	// Add new constraint rule functions
+	MConstraintPostprocessings.AddDefaulted(NumConstraints);
+
+	// Add range
+	return MConstraintPostprocessingsActiveView.AddRange(NumConstraints, bActivate);
 }
 
 template<bool bForceRule, bool bVelocityField, bool bDampVelocityRule>
@@ -497,6 +508,21 @@ void FPBDEvolution::AdvanceOneTimeStep(const FSolverReal Dt, const bool bSmoothD
 					for (int32 ConstraintIndex = Offset; ConstraintIndex < Range; ++ConstraintIndex)
 					{
 						ConstraintRules[ConstraintIndex](MParticles, Dt); // P +/-= ...
+					}
+				}, bUseSingleThreadedRange);
+		}
+
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDConstraintPostprocessings);
+			SCOPE_CYCLE_COUNTER(STAT_ChaosPBDConstraintPostprocessings);
+			MConstraintPostprocessingsActiveView.RangeFor(
+				[this, Dt](TArray<TFunction<void(FSolverParticles&, const FSolverReal)>>& ConstraintPostprocessings, int32 Offset, int32 Range)
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDConstraintPostprocessings);
+					SCOPE_CYCLE_COUNTER(STAT_ChaosPBDConstraintPostprocessings);
+					for (int32 ConstraintIndex = Offset; ConstraintIndex < Range; ++ConstraintIndex)
+					{
+						ConstraintPostprocessings[ConstraintIndex](MParticles, Dt); // P +/-= ...
 					}
 				}, bUseSingleThreadedRange);
 		}

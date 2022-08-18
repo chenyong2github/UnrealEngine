@@ -385,6 +385,12 @@ namespace Chaos::Softs
 		{
 			this->GridBasedCorotatedConstraint->ApplyInParallel(InParticles, Dt);
 		};
+		int32 PostprocessingIndex1 = Evolution->AddConstraintPostprocessingsRange(1, true);
+		Evolution->ConstraintPostprocessings()[PostprocessingIndex1] =
+			[this](FSolverParticles& InParticles, const FSolverReal Dt)
+		{
+			this->GridBasedCorotatedConstraint->TimeStepPostprocessing(InParticles, Dt);
+		};
 	
 	
 	}

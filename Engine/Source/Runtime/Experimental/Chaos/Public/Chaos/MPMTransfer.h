@@ -301,56 +301,57 @@ public:
 	void ComputeAArray(const TArray<T>& GridData, const TDynamicParticles<T, 3>& Particles)
 	{
 		AArray.Init((T)0., NumModes * 3 * Particles.Size());
-		for (int32 p = 0; p < Particles.Size(); p++)
-		{
-			TVector<int32, 3> BaseIndex = Indices[p];
-			for (int32 ii = 0; ii < int32(Grid.NPerDir); ii++)
+		PhysicsParallelFor(int32(Particles.Size()), [&](const int32 p)
+			//for (int32 p = 0; p < int32(Particles.Size()); p++)
 			{
-				T Nii = Grid.Nijk(Weights[p][0], ii);
-				T dNii = Grid.dNijk(Weights[p][0], ii, Grid.GetDx()[0]);
-				for (int32 jj = 0; jj < int32(Grid.NPerDir); jj++)
+				TVector<int32, 3> BaseIndex = Indices[p];
+				for (int32 ii = 0; ii < int32(Grid.NPerDir); ii++)
 				{
-					T Njj = Grid.Nijk(Weights[p][1], jj);
-					T dNjj = Grid.dNijk(Weights[p][1], jj, Grid.GetDx()[0]);
-					for (int32 kk = 0; kk < int32(Grid.NPerDir); kk++)
+					T Nii = Grid.Nijk(Weights[p][0], ii);
+					T dNii = Grid.dNijk(Weights[p][0], ii, Grid.GetDx()[0]);
+					for (int32 jj = 0; jj < int32(Grid.NPerDir); jj++)
 					{
-						T Nkk = Grid.Nijk(Weights[p][2], kk);
-						T dNkk = Grid.dNijk(Weights[p][2], kk, Grid.GetDx()[0]);
-						TVector<T, 3> Ni = { Nii, Njj, Nkk };
-						TVector<T, 3> dNi = { dNii, dNjj, dNkk };
-						TVector<int32, 3> LocIndex = { ii, jj, kk };
-						TVector<int32, 3> GlobIndex = Grid.Loc2GlobIndex(BaseIndex, LocIndex);
-						int32 GlobIndexFlat = Grid.FlatIndex(GlobIndex);
-						if (GridData[(NTransfer + 1) * GlobIndexFlat] != T(0))
+						T Njj = Grid.Nijk(Weights[p][1], jj);
+						T dNjj = Grid.dNijk(Weights[p][1], jj, Grid.GetDx()[0]);
+						for (int32 kk = 0; kk < int32(Grid.NPerDir); kk++)
 						{
-							if (Grid.interp == TMPMGrid<T>::linear)
+							T Nkk = Grid.Nijk(Weights[p][2], kk);
+							T dNkk = Grid.dNijk(Weights[p][2], kk, Grid.GetDx()[0]);
+							TVector<T, 3> Ni = { Nii, Njj, Nkk };
+							TVector<T, 3> dNi = { dNii, dNjj, dNkk };
+							TVector<int32, 3> LocIndex = { ii, jj, kk };
+							TVector<int32, 3> GlobIndex = Grid.Loc2GlobIndex(BaseIndex, LocIndex);
+							int32 GlobIndexFlat = Grid.FlatIndex(GlobIndex);
+							if (GridData[(NTransfer + 1) * GlobIndexFlat] != T(0))
 							{
-								TVector<T, 3> dN((T)0.);
-								Grid.GradNi(Ni, dNi, dN);
-								for (int32 l = 0; l < 3; l++)
+								if (Grid.interp == TMPMGrid<T>::linear)
 								{
-									T GridQuantity = GridData[(NTransfer + 1) * GlobIndexFlat + 1 + l] / GridData[(NTransfer + 1) * GlobIndexFlat];
-									for (int32 iii = 0; iii < NumModes; ++iii)
-										AArray[NumModes * 3 * p + NumModes * l + iii] += dN[iii] * GridQuantity;
+									TVector<T, 3> dN((T)0.);
+									Grid.GradNi(Ni, dNi, dN);
+									for (int32 l = 0; l < 3; l++)
+									{
+										T GridQuantity = GridData[(NTransfer + 1) * GlobIndexFlat + 1 + l] / GridData[(NTransfer + 1) * GlobIndexFlat];
+										for (int32 iii = 0; iii < int32(NumModes); ++iii)
+											AArray[NumModes * 3 * p + NumModes * l + iii] += dN[iii] * GridQuantity;
+									}
+								}
+								else
+								{
+									TVector<T, 3> rip = Grid.Node(GlobIndexFlat) - Particles.X(p);
+									T NiProdbInv = (T(4) * Ni[0] * Ni[1] * Ni[2]) / (Grid.GetDx()[0] * Grid.GetDx()[0]);
+									for (int32 l = 0; l < 3; l++)
+									{
+										T GridQuantity = GridData[(NTransfer + 1) * GlobIndexFlat + 1 + l] / GridData[(NTransfer + 1) * GlobIndexFlat];
+										for (int32 iii = 0; iii < int32(NumModes); ++iii)
+											AArray[NumModes * 3 * p + NumModes * l + iii] += NiProdbInv * rip[iii] * GridQuantity;
+									}
 								}
 							}
-							else
-							{
-								TVector<T, 3> rip = Grid.Node(GlobIndexFlat) - Particles.X(p);
-								T NiProdbInv = (T(4) * Ni[0] * Ni[1] * Ni[2]) / (Grid.GetDx()[0] * Grid.GetDx()[0]);
-								for (int32 l = 0; l < 3; l++)
-								{
-									T GridQuantity = GridData[(NTransfer + 1) * GlobIndexFlat + 1 + l] / GridData[(NTransfer + 1) * GlobIndexFlat];
-									for (int32 iii = 0; iii < NumModes; ++iii)
-										AArray[NumModes * 3 * p + NumModes * l + iii] += NiProdbInv * rip[iii] * GridQuantity;
-								}
-							}
+
 						}
-						
 					}
 				}
-			}
-		}
+			}, Particles.Size() < 50);
 	}
 
 	void GridPositionsToGridData(const TArray<TVector<T, 3>>& GridPositions, const T Dt, TArray<T>& GridData)
