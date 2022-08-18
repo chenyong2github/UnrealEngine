@@ -337,6 +337,28 @@ bool UContextualAnimUtilities::BP_CreateContextualAnimSceneBindings(const UConte
 	return false;
 }
 
+bool UContextualAnimUtilities::BP_CreateContextualAnimSceneBindingsForTwoActors(const UContextualAnimSceneAsset* SceneAsset, const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Secondary, FContextualAnimSceneBindings& OutBindings)
+{
+	if (SceneAsset == nullptr || !SceneAsset->HasValidData())
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimUtilities::BP_CreateContextualAnimSceneBindingsForTwoActors Failed. Reason: Invalid or Empty SceneAsset (%s)"), *GetNameSafe(SceneAsset));
+		return false;
+	}
+
+	const int32 SectionIdx = 0; // Always start from the first section
+	const int32 NumSets = SceneAsset->GetNumAnimSetsInSection(SectionIdx);
+	for (int32 AnimSetIdx = 0; AnimSetIdx < NumSets; AnimSetIdx++)
+	{
+		OutBindings.Reset();
+		if (FContextualAnimSceneBindings::TryCreateBindings(*SceneAsset, SectionIdx, AnimSetIdx, Primary, Secondary, OutBindings))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 // SceneBindings Blueprint Interface
 //------------------------------------------------------------------------------------------
 

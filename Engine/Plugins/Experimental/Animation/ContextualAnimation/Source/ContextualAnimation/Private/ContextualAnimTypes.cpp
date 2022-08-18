@@ -392,6 +392,61 @@ bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneA
 	return (OutBindings.Num() == SceneAsset.GetNumRoles());
 }
 
+bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, int32 AnimSetIdx, const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Secondary, FContextualAnimSceneBindings& OutBindings)
+{
+	check(SceneAsset.HasValidData());
+
+	OutBindings.Reset();
+
+	const TArray<FContextualAnimRoleDefinition>& Roles = SceneAsset.GetRolesAsset()->Roles;
+
+	if (Roles.Num() > 2)
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::TryCreateBindings Failed. Reason: Trying to create bindings with two actors for a SceneAsset with more than two roles. SceneAsset: %s Num Roles: %d SectionIdx: %d AnimSetIdx: %d"),
+			*GetNameSafe(&SceneAsset), Roles.Num(), SectionIdx, AnimSetIdx);
+
+		return false;
+	}
+
+	for(const FContextualAnimRoleDefinition& RoleDef : Roles)
+	{
+		const FName PrimaryRole = SceneAsset.GetPrimaryRole();
+		if(RoleDef.Name == PrimaryRole)
+		{
+			const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(SectionIdx, AnimSetIdx, PrimaryRole);
+			if (AnimTrack && AnimTrack->DoesQuerierPassSelectionCriteria(Primary, Primary))
+			{
+				OutBindings.Add(FContextualAnimSceneBinding(Primary, SceneAsset, *AnimTrack));
+			}
+			else
+			{
+				UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::TryCreateBindings Failed. Reason: Can't find valid track for primary actor. SceneAsset: %s Role: %s Actor: %s SectionIdx: %d AnimSetIdx: %d"),
+					*GetNameSafe(&SceneAsset), *RoleDef.Name.ToString(), *GetNameSafe(Primary.GetActor()), SectionIdx, AnimSetIdx);
+
+				return false;
+			}
+		}
+		else // Secondary Role
+		{
+			const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(SectionIdx, AnimSetIdx, RoleDef.Name);
+			if (AnimTrack && AnimTrack->DoesQuerierPassSelectionCriteria(Primary, Secondary))
+			{
+				OutBindings.Add(FContextualAnimSceneBinding(Secondary, SceneAsset, *AnimTrack));
+			}
+			else
+			{
+				UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::TryCreateBindings Failed. Reason: Can't find valid track for secondary actor. SceneAsset: %s Role: %s Actor: %s SectionIdx: %d AnimSetIdx: %d"),
+					*GetNameSafe(&SceneAsset), *RoleDef.Name.ToString(), *GetNameSafe(Secondary.GetActor()), SectionIdx, AnimSetIdx);
+
+				return false;
+			}
+		}
+	}
+
+	// Success if all the roles were filled
+	return (OutBindings.Num() == SceneAsset.GetNumRoles());
+}
+
 void FContextualAnimSceneBindings::CalculateAnimSetPivots(TArray<FContextualAnimSetPivot>& OutScenePivots) const
 {
 	if (const UContextualAnimSceneAsset* SceneAsset = GetSceneAsset())
