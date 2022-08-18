@@ -226,9 +226,18 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					+SHorizontalBox::Slot()
 					.AutoWidth()
 					[
+						SNew(SSimpleButton)
+						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.Refresh"))
+						.ToolTipText(LOCTEXT("RefreshBuildList", "Refreshes the Build List"))
+						.OnClicked_Lambda([this] { Tab->RefreshBuildList(); return FReply::Handled(); })
+						.IsEnabled_Lambda([this] { return !Tab->IsSyncing(); })
+					]
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					[
 						SNew(SSimpleComboButton)
 						.Text(LOCTEXT("Sync", "Sync"))
-						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.Refresh"))
+						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.CircleArrowDown"))
 						.HasDownArrow(true)
 						.MenuContent()
 						[
@@ -241,6 +250,7 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 					[
 						SNew(SSimpleButton)
 						.Text(LOCTEXT("CancelSync", "Cancel"))
+						.ToolTipText(LOCTEXT("CancelSync", "Cancels the current sync/build operation"))
 						.Icon(FSlateUGSStyle::Get().GetBrush("Icons.X"))
 						.OnClicked_Lambda([this] { Tab->CancelSync(); return FReply::Handled(); })
 						.IsEnabled_Lambda([this] { return Tab->IsSyncing(); })

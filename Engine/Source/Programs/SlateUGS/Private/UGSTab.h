@@ -68,6 +68,7 @@ public:
 	UGSTabManager* GetTabManager();
 	TSharedPtr<UGSCore::FUserSettings> GetUserSettings() const;
 
+	void RefreshBuildList();
 	void CancelSync();
 
 private:

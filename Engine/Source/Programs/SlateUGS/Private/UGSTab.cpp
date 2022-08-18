@@ -213,6 +213,11 @@ bool UGSTab::OnWorkspaceChosen(const FString& Project)
 	return false;
 }
 
+void UGSTab::RefreshBuildList()
+{
+	PerforceMonitor->Refresh();
+}
+
 void UGSTab::CancelSync()
 {
 	if (Workspace->IsBusy())
