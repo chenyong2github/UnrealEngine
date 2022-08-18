@@ -59,17 +59,17 @@ public:
 		SetNum(Num);
 	}
 
-	void RemoveAt(const int Idx, const int Count) override
+	FORCEINLINE void RemoveAt(const int Idx, const int Count) override
 	{
 		TArray<T>::RemoveAt(Idx, Count);
 	}
 
-	void RemoveAtSwap(const int Idx) override
+	FORCEINLINE void RemoveAtSwap(const int Idx) override
 	{
 		TArray<T>::RemoveAtSwap(Idx);
 	}
 
-	void MoveToOtherArray(const int Idx, TArrayCollectionArrayBase& Other)
+	FORCEINLINE void MoveToOtherArray(const int Idx, TArrayCollectionArrayBase& Other)
 	{
 		//todo: add developer check to make sure this is ok?
 		auto& OtherTArray = static_cast<TArrayCollectionArray<T>&>(Other);
@@ -77,7 +77,7 @@ public:
 		TArray<T>::RemoveAtSwap(Idx);
 	}
 
-	uint64 SizeOfElem() const override
+	FORCEINLINE uint64 SizeOfElem() const override
 	{
 		return sizeof(T);
 	}

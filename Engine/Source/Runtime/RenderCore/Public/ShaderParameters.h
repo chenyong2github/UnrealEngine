@@ -53,7 +53,7 @@ public:
 
 	RENDERCORE_API void Bind(const FShaderParameterMap& ParameterMap,const TCHAR* ParameterName, EShaderParameterFlags Flags = SPF_Optional);
 	friend RENDERCORE_API FArchive& operator<<(FArchive& Ar,FShaderParameter& P);
-	bool IsBound() const { return NumBytes > 0; }
+	FORCEINLINE bool IsBound() const { return NumBytes > 0; }
 	
 	inline bool IsInitialized() const 
 	{ 
@@ -112,12 +112,12 @@ public:
 		checkf(!(SRVParameter.GetNumResources() && UAVParameter.GetNumResources()),TEXT("Shader binds SRV and UAV of the same resource: %s"),BaseName);
 	}
 
-	bool IsBound() const
+	FORCEINLINE bool IsBound() const
 	{
 		return SRVParameter.IsBound() || UAVParameter.IsBound();
 	}
 
-	bool IsUAVBound() const
+	FORCEINLINE bool IsUAVBound() const
 	{
 		return UAVParameter.IsBound();
 	}
@@ -170,7 +170,7 @@ public:
 		return Ar;
 	}
 
-	bool IsBound() const { return BaseIndex != 0xffff; }
+	FORCEINLINE bool IsBound() const { return BaseIndex != 0xffff; }
 
 	void Serialize(FArchive& Ar)
 	{
