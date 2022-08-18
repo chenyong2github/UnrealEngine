@@ -2,6 +2,7 @@
 
 #include "Sequencer/MediaPlateTrackEditor.h"
 
+#include "ActorTreeItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISequencer.h"
 #include "MediaTexture.h"
@@ -9,8 +10,11 @@
 #include "MediaPlateComponent.h"
 #include "MediaPlayer.h"
 #include "MediaPlaylist.h"
+#include "Modules/ModuleManager.h"
 #include "MovieSceneMediaSection.h"
 #include "MovieSceneMediaTrack.h"
+#include "SceneOutlinerModule.h"
+#include "Sequencer/MediaTrackEditor.h"
 
 #define LOCTEXT_NAMESPACE "FMediaPlateTrackEditor"
 
@@ -30,10 +34,13 @@ FMediaPlateTrackEditor::FMediaPlateTrackEditor(TSharedRef<ISequencer> InSequence
 	, bGetDurationDelay(false)
 {
 	OnActorAddedToSequencerHandle = InSequencer->OnActorAddedToSequencer().AddRaw(this, &FMediaPlateTrackEditor::HandleActorAdded);
+	FMediaTrackEditor::OnBuildOutlinerEditWidget.AddRaw(this,
+		&FMediaPlateTrackEditor::OnBuildOutlinerEditWidget);
 }
 
 FMediaPlateTrackEditor::~FMediaPlateTrackEditor()
 {
+	FMediaTrackEditor::OnBuildOutlinerEditWidget.RemoveAll(this);
 }
 
 void FMediaPlateTrackEditor::BuildObjectBindingContextMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
@@ -278,6 +285,60 @@ bool FMediaPlateTrackEditor::GetDuration(
 	}
 
 	return bIsDone;
+}
+
+void FMediaPlateTrackEditor::OnBuildOutlinerEditWidget(FMenuBuilder& MenuBuilder)
+{
+	// Add media plate sub menu.
+	MenuBuilder.AddSubMenu(
+		LOCTEXT("MediaPlate", "Media Plate"),
+		LOCTEXT("MediaPlateTooltip", "Add media from a media plate."),
+		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& MenuBuilder)
+		{
+			// Actor picker options.
+			FSceneOutlinerInitializationOptions InitOptions;
+			InitOptions.bShowHeaderRow = false;
+			InitOptions.bShowSearchBox = true;
+			InitOptions.bShowCreateNewFolder = false;
+			InitOptions.bFocusSearchBoxWhenOpened = true;
+			InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
+			InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(
+				FActorTreeItem::FFilterPredicate::CreateLambda([](const AActor* Actor)
+				{
+					return Actor && Actor->IsA<AMediaPlate>();
+				}
+				));
+
+			// Create actor picker.
+			FSceneOutlinerModule& SceneOutlinerModule = 
+				FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
+			TSharedRef<SBox> Picker = SNew(SBox)
+				.WidthOverride(300.0f)
+				.HeightOverride(300.f)
+				[
+					SceneOutlinerModule.CreateActorPicker(InitOptions,
+						FOnActorPicked::CreateLambda([this](AActor* Actor)
+						{
+							AddMediaPlateToSequencer(Actor);
+						}))
+				];
+
+			MenuBuilder.AddWidget(Picker, FText::GetEmpty(), true);
+		}));
+}
+
+void FMediaPlateTrackEditor::AddMediaPlateToSequencer(AActor* Actor)
+{
+	if (Actor != nullptr)
+	{
+		TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
+		if (SequencerPtr.IsValid())
+		{
+			TArray<TWeakObjectPtr<AActor>> ActorArray;
+			ActorArray.Add(Actor);
+			SequencerPtr->AddActors(ActorArray);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -12,6 +12,7 @@ class FTrackEditorThumbnailPool;
 class UMediaSource;
 class UMovieSceneMediaTrack;
 
+DECLARE_EVENT_OneParam(FMediaTrackEditor, FOnBuildOutlinerEditWidget, FMenuBuilder&);
 
 /**
  * Track editor that understands how to animate MediaPlayer properties on objects
@@ -38,6 +39,12 @@ public:
 	 * @return List of animated properties.
 	 */
 	static TArray<FAnimatedPropertyKey, TInlineAllocator<1>> GetAnimatedPropertyTypes();
+
+	/**
+	 * Event for when we build the widget for adding to the track.
+	 * Hook into this if you want to add custom options.
+	 */
+	static FOnBuildOutlinerEditWidget OnBuildOutlinerEditWidget;
 
 public:
 

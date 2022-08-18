@@ -99,6 +99,20 @@ private:
 	bool GetDuration(TStrongObjectPtr<UMediaPlayer>& MediaPlayer,
 		TWeakObjectPtr<UMovieSceneSection>& NewSection);
 
+	/**
+	 * Adds media plates to the MediaTrackEditor widget.
+	 * 
+	 * @param MenuBuilder		Menu to add to.
+	 */
+	void OnBuildOutlinerEditWidget(FMenuBuilder& MenuBuilder);
+
+	/**
+	 * Adds a media plate to a Sequencer track.
+	 * 
+	 * @param Actor			Media plate actor to add.
+	 */
+	void AddMediaPlateToSequencer(AActor* Actor);
+
 	/** Handle to our delegate. */
 	FDelegateHandle OnActorAddedToSequencerHandle;
 

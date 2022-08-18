@@ -27,6 +27,7 @@
 
 #define LOCTEXT_NAMESPACE "FMediaTrackEditor"
 
+FOnBuildOutlinerEditWidget FMediaTrackEditor::OnBuildOutlinerEditWidget;
 
 /* FMediaTrackEditor static functions
  *****************************************************************************/
@@ -111,7 +112,20 @@ TSharedPtr<SWidget> FMediaTrackEditor::BuildOutlinerEditWidget(const FGuid& Obje
 				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
 			];
 
-		return Picker;
+		// Create menu.
+		FMenuBuilder MenuBuilder(true, NULL);
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("MediaSourceLabel", "Media Source"),
+			LOCTEXT("MediaSourceTooltip", "Add media from a media source."),
+			FNewMenuDelegate::CreateLambda([Picker](FMenuBuilder& InMenuBuilder)
+		{
+			InMenuBuilder.AddWidget(Picker, FText::GetEmpty(), true);
+		}));
+
+		// Allow customizations from other sources.
+		OnBuildOutlinerEditWidget.Broadcast(MenuBuilder);
+
+		return MenuBuilder.MakeWidget();
 	};
 
 	return SNew(SHorizontalBox)

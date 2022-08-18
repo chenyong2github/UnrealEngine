@@ -33,6 +33,7 @@ public class MediaPlateEditor : ModuleRules
 				"ModelingComponents",
 				"MovieScene",
 				"PropertyEditor",
+				"SceneOutliner",
 				"Sequencer",
 				"Slate",
 				"SlateCore",
