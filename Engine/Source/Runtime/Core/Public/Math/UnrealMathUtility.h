@@ -2498,6 +2498,8 @@ namespace LWC
 	template<typename OutIntType, typename InFloatType>
 	FORCEINLINE OutIntType FloatToIntCastChecked(InFloatType FloatValue)
 	{
+		static_assert(std::is_floating_point_v<InFloatType>, "Only floating point input type supported!");
+		static_assert(std::is_integral_v<OutIntType>, "Only integral output type supported!");
 		return (OutIntType)(FloatValue);
 	}
 
