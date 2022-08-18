@@ -93,7 +93,7 @@ TSharedPtr<SHeaderRow> FRCActionRangeMapModel::GetHeaderRow()
 		.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
 		+ SHeaderRow::Column(UE::RCActionPanelRangeMapList::Columns::Step)
-		.DefaultLabel(LOCTEXT("RCActionConditionColumnHeader", "Step"))
+		.DefaultLabel(LOCTEXT("RCActionStepColumnHeader", "Step"))
 		.FillWidth(0.2f)
 		.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
