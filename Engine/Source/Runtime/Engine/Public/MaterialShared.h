@@ -2529,6 +2529,9 @@ public:
 	 */
 	void CacheUniformExpressions(bool bRecreateUniformBuffer);
 
+	/** Cancels an in-flight cache operation. */
+	void CancelCacheUniformExpressions();
+
 	/**
 	 * Enqueues a rendering command to cache uniform expressions for efficient runtime evaluation.
 	 * bRecreateUniformBuffer - whether to recreate the material uniform buffer.  
@@ -2628,6 +2631,9 @@ public:
 private:
 	IAllocatedVirtualTexture* GetPreallocatedVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack) const;
 	IAllocatedVirtualTexture* AllocateVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack) const;
+
+	virtual void StartCacheUniformExpressions() const {}
+	virtual void FinishCacheUniformExpressions() const {}
 
 	/** 0 if not set, game thread pointer, do not dereference, only for comparison */
 	const USubsurfaceProfile* SubsurfaceProfileRT;

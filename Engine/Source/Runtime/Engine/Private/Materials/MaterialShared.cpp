@@ -3827,6 +3827,7 @@ void FMaterialRenderProxy::CacheUniformExpressions(bool bRecreateUniformBuffer)
 	{
 		UE_LOG(LogMaterial, Fatal, TEXT("Cannot queue the Expression Cache for Material %s when it is about to be deleted"), *MaterialName);
 	}
+	StartCacheUniformExpressions();
 	DeferredUniformExpressionCacheRequests.Add(this);
 
 	InvalidateUniformExpressionCache(bRecreateUniformBuffer);
@@ -3937,6 +3938,11 @@ void FMaterialRenderProxy::InitDynamicRHI()
 #endif // WITH_EDITOR
 }
 
+void FMaterialRenderProxy::CancelCacheUniformExpressions()
+{
+	DeferredUniformExpressionCacheRequests.Remove(this);
+}
+
 void FMaterialRenderProxy::ReleaseDynamicRHI()
 {
 #if WITH_EDITOR
@@ -3947,7 +3953,11 @@ void FMaterialRenderProxy::ReleaseDynamicRHI()
 	}
 #endif // WITH_EDITOR
 
-	DeferredUniformExpressionCacheRequests.Remove(this);
+	if (DeferredUniformExpressionCacheRequests.Remove(this))
+	{
+		// Notify that we're finished with this inflight cache request, because the object is being released
+		FinishCacheUniformExpressions();
+	}
 
 	InvalidateUniformExpressionCache(true);
 
@@ -4074,6 +4084,8 @@ void FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions()
 				MaterialProxy->EvaluateUniformExpressions(MaterialProxy->UniformExpressionCache[(int32)InFeatureLevel], MaterialRenderContext, UpdaterIfEnabled);
 			}
 		});
+
+		MaterialProxy->FinishCacheUniformExpressions();
 	}
 
 	if (UpdaterIfEnabled)

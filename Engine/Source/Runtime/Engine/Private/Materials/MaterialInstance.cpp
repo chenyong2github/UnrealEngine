@@ -60,6 +60,26 @@ DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyUniformParamsInternal"), STAT_Mate
 
 const FMaterialInstanceCachedData FMaterialInstanceCachedData::EmptyData{};
 
+void UMaterialInstance::StartCacheUniformExpressions() const
+{
+	UsedByRT |= (uint32)EMaterialInstanceUsedByRTFlag::CacheUniformExpressions;
+}
+
+void UMaterialInstance::FinishCacheUniformExpressions() const
+{
+	UsedByRT &= ~(uint32)EMaterialInstanceUsedByRTFlag::CacheUniformExpressions;
+}
+
+void FMaterialInstanceResource::StartCacheUniformExpressions() const
+{
+	Owner->StartCacheUniformExpressions();
+}
+
+void FMaterialInstanceResource::FinishCacheUniformExpressions() const
+{
+	Owner->FinishCacheUniformExpressions();
+}
+
 /**
  * Cache uniform expressions for the given material.
  * @param MaterialInstance - The material instance for which to cache uniform expressions.
@@ -68,6 +88,7 @@ void CacheMaterialInstanceUniformExpressions(const UMaterialInstance* MaterialIn
 {
 	if (MaterialInstance->Resource)
 	{
+		MaterialInstance->StartCacheUniformExpressions();
 		MaterialInstance->Resource->CacheUniformExpressions_GameThread(bRecreateUniformBuffer);
 	}
 }
@@ -367,6 +388,8 @@ void GameThread_UpdateMIParameter(const UMaterialInstance* Instance, const Param
 {
 	if (FApp::CanEverRender())
 	{
+		Instance->StartCacheUniformExpressions();
+
 		const UMaterial* Material = Instance->GetMaterial_Concurrent();
 		if (Material != nullptr)
 		{
@@ -635,7 +658,7 @@ bool UMaterialInstance::UpdateParameters()
 
 UMaterialInstance::UMaterialInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, ReleasedByRT(true)
+	, UsedByRT((uint32)EMaterialInstanceUsedByRTFlag::None)
 {
 	bHasStaticPermutationResource = false;
 	bLoadedCachedData = false;
@@ -660,6 +683,7 @@ void UMaterialInstance::PostInitProperties()
 	if(!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		Resource = new FMaterialInstanceResource(this);
+		UsedByRT |= (uint32)EMaterialInstanceUsedByRTFlag::ResourceCreate;
 	}
 }
 
@@ -2892,12 +2916,10 @@ void UMaterialInstance::BeginDestroy()
 
 	if (Resource || ResourcesToDestroy.Num() > 0)
 	{
-		ReleasedByRT = false;
-
 		FMaterialRenderProxy* LocalResource = Resource;
-		FThreadSafeBool* Released = &ReleasedByRT;
+		std::atomic<uint32>* Used = &UsedByRT;
 		ENQUEUE_RENDER_COMMAND(BeginDestroyCommand)(
-		[ResourcesToDestroy = MoveTemp(ResourcesToDestroy), LocalResource, Released](FRHICommandListImmediate& RHICmdList)
+		[ResourcesToDestroy = MoveTemp(ResourcesToDestroy), LocalResource, Used](FRHICommandListImmediate& RHICmdList)
 		{
 			if (LocalResource)
 			{
@@ -2910,7 +2932,15 @@ void UMaterialInstance::BeginDestroy()
 				CurrentResource->PrepareDestroy_RenderThread();
 			}
 
-			*Released = true;
+			// Clear flag set when Resource was created
+			*Used &= ~(uint32)EMaterialInstanceUsedByRTFlag::ResourceCreate;
+
+			// And remove from deferred uniform expression cache queue if it's in that
+			if (*Used & (uint32)EMaterialInstanceUsedByRTFlag::CacheUniformExpressions)
+			{
+				LocalResource->CancelCacheUniformExpressions();
+				*Used &= ~(uint32)EMaterialInstanceUsedByRTFlag::CacheUniformExpressions;
+			}
 		});		
 	}
 }
@@ -2919,7 +2949,7 @@ bool UMaterialInstance::IsReadyForFinishDestroy()
 {
 	bool bIsReady = Super::IsReadyForFinishDestroy();
 
-	return bIsReady && ReleasedByRT;
+	return bIsReady && UsedByRT == 0;
 }
 
 void UMaterialInstance::FinishDestroy()

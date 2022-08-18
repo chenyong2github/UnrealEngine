@@ -430,6 +430,15 @@ enum class EMaterialInstanceClearParameterFlag
 };
 ENUM_CLASS_FLAGS(EMaterialInstanceClearParameterFlag);
 
+enum class EMaterialInstanceUsedByRTFlag : uint32
+{
+	None = 0u,
+	ResourceCreate = (1u << 0),
+	CacheUniformExpressions = (1u << 1),
+
+	All = ResourceCreate | CacheUniformExpressions,
+};
+
 #if WITH_EDITORONLY_DATA
 class FMaterialInstanceParameterUpdateContext
 {
@@ -666,8 +675,8 @@ private:
 	/** Material resources being cached for cooking. */
 	TMap<const class ITargetPlatform*, TArray<FMaterialResource*>> CachedMaterialResourcesForCooking;
 #endif
-	/** Flag used to guarantee that the RT is finished using various resources in this UMaterial before cleanup. */
-	FThreadSafeBool ReleasedByRT;
+	/** Thread-safe flags used to track whether this instance is still in use by the render thread (EMaterialInstanceUsedByRTFlag) */
+	mutable std::atomic<uint32> UsedByRT;
 
 public:
 	virtual ENGINE_API ~UMaterialInstance() {};
@@ -897,6 +906,10 @@ public:
 	ENGINE_API virtual void CacheGivenTypesForCooking(EShaderPlatform Platform, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel, const TArray<const FVertexFactoryType*>& VFTypes, const TArray<const FShaderPipelineType*> PipelineTypes, const TArray<const FShaderType*>& ShaderTypes) override;
 #endif
 	ENGINE_API virtual bool IsComplete() const override;
+
+	/** Tracking of in-flight uniform expression cache update operations for the material instance, for thread safety destroying the resource. */
+	void StartCacheUniformExpressions() const;
+	void FinishCacheUniformExpressions() const;
 
 protected:
 

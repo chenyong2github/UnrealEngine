@@ -316,6 +316,9 @@ private:
 	static bool IsValidParameterValue(const UTexture* Value) { return Value != nullptr; }
 	static bool IsValidParameterValue(const URuntimeVirtualTexture* Value) { return Value != nullptr; }
 
+	virtual void StartCacheUniformExpressions() const override;
+	virtual void FinishCacheUniformExpressions() const override;
+
 	// Validation logic that exhaustively searches the array, to compare with what the hash table logic finds
 	#define HASHED_MATERIAL_PARAMETER_MAP_VALIDATE 0
 
