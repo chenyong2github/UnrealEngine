@@ -451,20 +451,24 @@ void UpdateMotionMatchingState(
 
 		// Search the database for the nearest match to the updated query vector
 		FSearchResult SearchResult = Searchable->Search(SearchContext);
-		const float ContinuingPoseCost = bCanAdvance && SearchResult.ContinuingPoseCost.IsValid() ? SearchResult.ContinuingPoseCost.GetTotalCost() : MAX_flt;
-		const float PoseCost = SearchResult.PoseCost.IsValid() ? SearchResult.PoseCost.GetTotalCost() : MAX_flt;
+
+		// making sure we haven't calculated ContinuingPoseCost if we !bCanAdvance 
+		check(bCanAdvance || !SearchResult.ContinuingPoseCost.IsValid());
 		
-		if (PoseCost < ContinuingPoseCost)
+		if (SearchResult.PoseCost.GetTotalCost() < SearchResult.ContinuingPoseCost.GetTotalCost())
 		{
 			InOutMotionMatchingState.JumpToPose(Context, Settings, SearchResult);
 		}
-
+		else
+		{
+			// copying few properties of SearchResult into CurrentSearchResult to facilitate debug drawing
 #if WITH_EDITOR
-		InOutMotionMatchingState.CurrentSearchResult.BruteForcePoseCost = SearchResult.BruteForcePoseCost;
+			InOutMotionMatchingState.CurrentSearchResult.BruteForcePoseCost = SearchResult.BruteForcePoseCost;
 #endif
-
-		// todo: cache the queries into TraceState, one per TraceState.DatabaseEntries or
-		InOutMotionMatchingState.CurrentSearchResult.ComposedQuery = SearchResult.ComposedQuery;
+			InOutMotionMatchingState.CurrentSearchResult.PoseCost = SearchResult.PoseCost;
+			InOutMotionMatchingState.CurrentSearchResult.ContinuingPoseCost = SearchResult.ContinuingPoseCost;
+			InOutMotionMatchingState.CurrentSearchResult.ComposedQuery = SearchResult.ComposedQuery;
+		}
 	}
 
 	// If we didn't search or it didn't find a pose to jump to, and we can 

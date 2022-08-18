@@ -143,9 +143,10 @@ void FAnimNode_MotionMatching::PreUpdate(const UAnimInstance* InAnimInstance)
 		USkeletalMeshComponent* SkeletalMeshComponent = InAnimInstance->GetSkelMeshComponent();
 		check(SkeletalMeshComponent);
 
+		const UE::PoseSearch::FSearchResult& CurResult = MotionMatchingState.CurrentSearchResult;
 		UE::PoseSearch::FDebugDrawParams DrawParams;
 		DrawParams.RootTransform = SkeletalMeshComponent->GetComponentTransform();
-		DrawParams.Database = MotionMatchingState.CurrentSearchResult.Database.Get();
+		DrawParams.Database = CurResult.Database.Get();
 		DrawParams.World = SkeletalMeshComponent->GetWorld();
 		DrawParams.DefaultLifeTime = 0.0f;
 
@@ -153,34 +154,45 @@ void FAnimNode_MotionMatching::PreUpdate(const UAnimInstance* InAnimInstance)
 		{
 			if (bDebugDrawMatch)
 			{
-				DrawFeatureVector(DrawParams, MotionMatchingState.CurrentSearchResult.PoseIdx);
+				DrawFeatureVector(DrawParams, CurResult.PoseIdx);
 			}
 
 			if (bDebugDrawQuery)
 			{
 				EnumAddFlags(DrawParams.Flags, EDebugDrawFlags::DrawQuery);
-				DrawFeatureVector(DrawParams, MotionMatchingState.CurrentSearchResult.ComposedQuery.GetValues());
+				DrawFeatureVector(DrawParams, CurResult.ComposedQuery.GetValues());
 			}
 
 			if (DrawParams.Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
 			{
-				const float TotalCostKDTree = MotionMatchingState.CurrentSearchResult.IsValid() ? MotionMatchingState.CurrentSearchResult.PoseCost.GetTotalCost() : 0.f;
-				const float TotalCostBruteForce = MotionMatchingState.CurrentSearchResult.IsValid() ? MotionMatchingState.CurrentSearchResult.BruteForcePoseCost.GetTotalCost() : 0.f;
+				FDebugFloatHistory& C = MotionMatchingState.SearchCostHistoryContinuing;
+				FDebugFloatHistory& B = MotionMatchingState.SearchCostHistoryBruteForce;
+				FDebugFloatHistory& K = MotionMatchingState.SearchCostHistoryKDTree;
 
-				MotionMatchingState.SearchCostHistoryKDTree.AddSample(TotalCostKDTree);
-				MotionMatchingState.SearchCostHistoryBruteForce.AddSample(TotalCostBruteForce);
+				C.AddSample(CurResult.ContinuingPoseCost.IsValid() ? CurResult.ContinuingPoseCost.GetTotalCost() : C.MaxValue);
+				B.AddSample(CurResult.BruteForcePoseCost.IsValid() ? CurResult.BruteForcePoseCost.GetTotalCost() : B.MaxValue);
+				K.AddSample(CurResult.PoseCost.IsValid() ? CurResult.PoseCost.GetTotalCost() : K.MaxValue);
 
 				// making SearchCostHistoryKDTree and SearchCostHistoryBruteForce min max consistent
-				MotionMatchingState.SearchCostHistoryKDTree.MinValue = FMath::Min(MotionMatchingState.SearchCostHistoryKDTree.MinValue, MotionMatchingState.SearchCostHistoryBruteForce.MinValue);
-				MotionMatchingState.SearchCostHistoryKDTree.MaxValue = FMath::Max(MotionMatchingState.SearchCostHistoryKDTree.MaxValue, MotionMatchingState.SearchCostHistoryBruteForce.MaxValue);
+				const float MinValue = FMath::Min(C.MinValue, FMath::Min(B.MinValue, K.MinValue));
+				const float MaxValue = FMath::Max(C.MaxValue, FMath::Max(B.MaxValue, K.MaxValue));
+				
+				C.MinValue = MinValue;
+				C.MaxValue = MaxValue;
 
-				MotionMatchingState.SearchCostHistoryBruteForce.MinValue = MotionMatchingState.SearchCostHistoryKDTree.MinValue;
-				MotionMatchingState.SearchCostHistoryBruteForce.MaxValue = MotionMatchingState.SearchCostHistoryKDTree.MaxValue;
+				B.MinValue = MinValue;
+				B.MaxValue = MaxValue;
 
+				K.MinValue = MinValue;
+				K.MaxValue = MaxValue;
+
+				const FVector2D DrawSize(150.f, 100.f);
 				const FTransform OffsetTransform(FRotator(0.f, 0.f, 0.f), FVector(-50.f, -75.f, 100.f));
-				FVector2D DrawSize(150.f, 50.f);
-				DrawDebugFloatHistory(*DrawParams.World, MotionMatchingState.SearchCostHistoryKDTree, OffsetTransform * DrawParams.RootTransform, DrawSize, FColor(255,192,203,150)); // pink
-				DrawDebugFloatHistory(*DrawParams.World, MotionMatchingState.SearchCostHistoryBruteForce, OffsetTransform * DrawParams.RootTransform, DrawSize, FColor(0,0,255,150)); // blue
+				const FTransform DrawTransform = OffsetTransform * DrawParams.RootTransform;
+
+				DrawDebugFloatHistory(*DrawParams.World, K, OffsetTransform * DrawParams.RootTransform, DrawSize, FColor(255, 192, 203, 160)); // pink
+				DrawDebugFloatHistory(*DrawParams.World, B, OffsetTransform * DrawParams.RootTransform, DrawSize, FColor(0, 0, 255, 160)); // blue
+				DrawDebugFloatHistory(*DrawParams.World, C, OffsetTransform * DrawParams.RootTransform, DrawSize, FColor(160, 160, 160, 160)); // gray
 			}
 		}
 	}

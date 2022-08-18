@@ -1151,7 +1151,8 @@ public:
 
 	FPoseSearchIndex* GetSearchIndex();
 	const FPoseSearchIndex* GetSearchIndex() const;
-
+	
+	bool GetSkipSearchIfPossible() const;
 	bool IsValidForIndexing() const;
 	bool IsValidForSearch() const;
 

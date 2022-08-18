@@ -93,8 +93,10 @@ struct POSESEARCH_API FMotionMatchingState
 	FTransform RootMotionTransformDelta = FTransform::Identity;
 
 #if WITH_EDITORONLY_DATA
-	FDebugFloatHistory SearchCostHistoryBruteForce;
-	FDebugFloatHistory SearchCostHistoryKDTree;
+	enum { SearchCostHistoryNumSamples = 200 };
+	FDebugFloatHistory SearchCostHistoryContinuing = FDebugFloatHistory(SearchCostHistoryNumSamples, 0, 0, true);
+	FDebugFloatHistory SearchCostHistoryBruteForce = FDebugFloatHistory(SearchCostHistoryNumSamples, 0, 0, true);
+	FDebugFloatHistory SearchCostHistoryKDTree = FDebugFloatHistory(SearchCostHistoryNumSamples, 0, 0, true);
 #endif
 
 	UE::PoseSearch::FPoseIndicesHistory PoseIndicesHistory;

@@ -1252,6 +1252,16 @@ void UPoseSearchDatabase::GenerateDDCKey(FBlake3& InOutKeyHasher) const
 
 #endif // WITH_EDITOR
 
+bool UPoseSearchDatabase::GetSkipSearchIfPossible() const
+{
+	if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate || PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
+	{
+		return false;
+	}
+
+	return bSkipSearchIfPossible;
+}
+
 bool UPoseSearchDatabase::IsValidForIndexing() const
 {
 	bool bValid = Schema && Schema->IsValid() && !Sequences.IsEmpty();
@@ -2047,6 +2057,10 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(UE::PoseSearch::FSearc
 
 #if WITH_EDITORONLY_DATA
 		Result.BruteForcePoseCost = BruteForcePoseCost;
+		if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
+		{
+			check(Result.BruteForcePoseCost.GetTotalCost() <= Result.PoseCost.GetTotalCost());
+		}
 #endif
 	}
 	
@@ -2137,7 +2151,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 			SearchIndex->FindAssetForPose(SearchContext.CurrentResult.PoseIdx)->SourceGroupIdx,
 			NormalizedQueryValues);
 
-		if (bSkipSearchIfPossible)
+		if (GetSkipSearchIfPossible())
 		{
 			SearchContext.UpdateCurrentBestCost(Result.ContinuingPoseCost);
 		}
@@ -2198,7 +2212,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 			}
 		}
 
-		if (bSkipSearchIfPossible && BestPoseCost.IsValid())
+		if (GetSkipSearchIfPossible() && BestPoseCost.IsValid())
 		{
 			SearchContext.UpdateCurrentBestCost(BestPoseCost);
 		}
@@ -2254,7 +2268,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 				SearchIndex->FindAssetForPose(SearchContext.CurrentResult.PoseIdx)->SourceGroupIdx,
 				NormalizedQueryValues);
 
-			if (bSkipSearchIfPossible)
+			if (GetSkipSearchIfPossible())
 			{
 				SearchContext.UpdateCurrentBestCost(Result.ContinuingPoseCost);
 			}
@@ -2318,7 +2332,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 			}
 		}
 
-		if (bSkipSearchIfPossible && BestPoseCost.IsValid())
+		if (GetSkipSearchIfPossible() && BestPoseCost.IsValid())
 		{
 			SearchContext.UpdateCurrentBestCost(BestPoseCost);
 		}
@@ -2392,7 +2406,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(UE::PoseSearch::FSe
 				PoseSearchIndexAsset->SourceGroupIdx,
 				NormalizedQueryValues);
 
-		if (Database->bSkipSearchIfPossible)
+		if (Database->GetSkipSearchIfPossible())
 		{
 			SearchContext.UpdateCurrentBestCost(Result.ContinuingPoseCost);
 		}
