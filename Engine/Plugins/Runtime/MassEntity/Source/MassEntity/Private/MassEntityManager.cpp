@@ -772,7 +772,7 @@ void FMassEntityManager::RemoveFragmentListFromEntity(FMassEntityHandle Entity, 
 
 	const FMassFragmentBitSet FragmentsToRemove(FragmentList);
 
-	if (ensureMsgf(OldArchetype->GetFragmentBitSet().HasAny(FragmentsToRemove), TEXT("Trying to remove a list of fragments from an entity but none of the fragments given was found.")))
+	if (OldArchetype->GetFragmentBitSet().HasAny(FragmentsToRemove))
 	{
 		// If all the fragments got removed this will result in fetching of the empty archetype
 		const FMassArchetypeCompositionDescriptor NewComposition(OldArchetype->GetFragmentBitSet() - FragmentsToRemove, OldArchetype->GetTagBitSet(), OldArchetype->GetChunkFragmentBitSet(), OldArchetype->GetSharedFragmentBitSet());
