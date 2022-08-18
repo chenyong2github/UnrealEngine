@@ -2,7 +2,7 @@
 
 #include "PackageDependencyData.h"
 
-FName FPackageDependencyData::GetImportPackageName(const TArray<FObjectImport>& ImportMap, int32 ImportIndex)
+FName FPackageDependencyData::GetImportPackageName(TConstArrayView<FObjectImport> ImportMap, int32 ImportIndex)
 {
 	for (int32 NumCycles = 0; NumCycles < ImportMap.Num(); ++NumCycles)
 	{
@@ -30,7 +30,7 @@ FName FPackageDependencyData::GetImportPackageName(const TArray<FObjectImport>& 
 	return NAME_None;
 }
 
-void FPackageDependencyData::LoadDependenciesFromPackageHeader(FName SourcePackageName, TArray<FObjectImport>& ImportMap,
+void FPackageDependencyData::LoadDependenciesFromPackageHeader(FName SourcePackageName, TConstArrayView<FObjectImport> ImportMap,
 	TArray<FName>& SoftPackageReferenceList, TMap<FPackageIndex, TArray<FName>>& SearchableNames,
 	TBitArray<>& ImportUsedInGame, TBitArray<>& SoftPackageUsedInGame)
 {
@@ -77,7 +77,7 @@ void FPackageDependencyData::LoadDependenciesFromPackageHeader(FName SourcePacka
 			{
 				continue;
 			}
-			FObjectImport& Resource = ImportMap[ImportIndex];
+			const FObjectImport& Resource = ImportMap[ImportIndex];
 			FPackageIndex OuterLinkerIndex = Resource.OuterIndex;
 			if (!OuterLinkerIndex.IsNull())
 			{

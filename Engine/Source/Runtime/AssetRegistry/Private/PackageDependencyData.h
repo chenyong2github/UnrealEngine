@@ -6,6 +6,7 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Containers/ArrayView.h"
 #include "Containers/BitArray.h"
 #include "UObject/Linker.h"
 
@@ -63,7 +64,7 @@ public:
 		Ar << SearchableNameDependencies;
 	}
 
-	void LoadDependenciesFromPackageHeader(FName PackageName, TArray<FObjectImport>& ImportMap,
+	void LoadDependenciesFromPackageHeader(FName PackageName, TConstArrayView<FObjectImport> ImportMap,
 		TArray<FName>& SoftPackageReferenceList, TMap<FPackageIndex, TArray<FName>>& SearchableNames,
 		TBitArray<>& ImportUsedInGame, TBitArray<>& SoftPackageUsedInGame);
 
@@ -77,7 +78,7 @@ public:
 	}
 
 private:
-	FName GetImportPackageName(const TArray<FObjectImport>& ImportMap, int32 ImportIndex);
+	FName GetImportPackageName(TConstArrayView<FObjectImport> ImportMap, int32 ImportIndex);
 
 
 };

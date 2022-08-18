@@ -85,13 +85,13 @@ private:
 
 	/** Serializers for different package maps */
 	bool SerializeNameMap();
-	bool SerializeImportMap(TArray<FObjectImport>& OutImportMap);
-	bool SerializeExportMap(TArray<FObjectExport>& OutExportMap);
-	bool SerializeImportedClasses(const TArray<FObjectImport>& ImportMap, TArray<FName>& OutClassNames);
+	bool SerializeImportMap();
+	bool SerializeExportMap();
+	bool SerializeImportedClasses(const TArray<FObjectImport>& InImportMap, TArray<FName>& OutClassNames);
 	bool SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPackageReferenceList);
 	bool SerializeSearchableNamesMap(FLinkerTables& OutSearchableNames);
 	bool SerializeAssetRegistryDependencyData(TBitArray<>& OutImportUsedInGame, TBitArray<>& OutSoftPackageUsedInGame,
-		const TArray<FObjectImport>& ImportMap, const TArray<FName>& SoftPackageReferenceList);
+		const TArray<FObjectImport>& InImportMap, const TArray<FName>& SoftPackageReferenceList);
 	bool SerializePackageTrailer(FAssetPackageData& PackageData);
 
 	/** Returns flags the asset package was saved with */
@@ -103,6 +103,8 @@ private:
 	FArchive* Loader;
 	FPackageFileSummary PackageFileSummary;
 	TArray<FName> NameMap;
+	TArray<FObjectImport> ImportMap;
+	TArray<FObjectExport> ExportMap;
 	int64 PackageFileSize;
 	int64 AssetRegistryDependencyDataOffset;
 	bool bLoaderOwner;
