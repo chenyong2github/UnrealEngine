@@ -1036,7 +1036,7 @@ namespace Horde.Build.Perforce
 				newClient.Description = "Created to mirror Perforce content to Horde Storage";
 				newClient.Owner = perforce.Settings.UserName;
 				newClient.Host = serverInfo.ClientHost;
-				newClient.Stream = stream.Name;
+				newClient.Stream = stream.Config.ReplicationStream ?? stream.Name;
 				await perforce.CreateClientAsync(newClient);
 				_logger.LogInformation("Created client {ClientName} for {StreamName}", newClient.Name, stream.Name);
 

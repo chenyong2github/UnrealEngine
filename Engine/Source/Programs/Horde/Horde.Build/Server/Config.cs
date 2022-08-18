@@ -270,6 +270,11 @@ namespace Horde.Build.Server
 		public string? ReplicationFilter { get; set; }
 
 		/// <summary>
+		/// Stream to use for replication, if different to the default.
+		/// </summary>
+		public string? ReplicationStream { get; set; }
+
+		/// <summary>
 		/// Workflows for dealing with new issues
 		/// </summary>
 		public List<WorkflowConfig> Workflows { get; set; } = new List<WorkflowConfig>();
