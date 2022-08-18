@@ -237,6 +237,23 @@ void UMediaPlateComponent::Stop()
 	bWantsToPlayWhenVisible = false;
 }
 
+bool UMediaPlateComponent::GetLoop()
+{
+	return bLoop;
+}
+
+void UMediaPlateComponent::SetLoop(bool bInLoop)
+{
+	if (bLoop != bInLoop)
+	{
+		bLoop = bInLoop;
+		if (MediaPlayer != nullptr)
+		{
+			MediaPlayer->SetLooping(bLoop);
+		}
+	}
+}
+
 void UMediaPlateComponent::SetMeshRange(FVector2D InMeshRange)
 {
 	MeshRange = InMeshRange;

@@ -62,13 +62,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")
 	void Stop();
 
+	/**
+	 * Call this to see if we want to loop.
+	 */
+	UFUNCTION(BlueprintGetter)
+	bool GetLoop();
+
+	/**
+	 * Call this enable/disable looping.
+	 */
+	UFUNCTION(BlueprintSetter)
+	void SetLoop(bool bInLoop);
+
 	/** If set then start playing right away. */
 	UPROPERTY(EditAnywhere, Category = "MediaPlate")
 	bool bAutoPlay;
-
-	/** If set then loop when we reach the end. */
-	UPROPERTY(EditAnywhere, Category = "MediaPlate")
-	bool bLoop;
 
 	/** If set then enable audio. */
 	UPROPERTY(EditAnywhere, Category = "MediaPlate")
@@ -165,6 +173,10 @@ private:
 	/** If true then only allow playback when the media plate is visible. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
 	bool bPlayOnlyWhenVisible = false;
+
+	/** If set then loop when we reach the end. */
+	UPROPERTY(EditAnywhere, Blueprintgetter = GetLoop, BlueprintSetter = SetLoop, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
+	bool bLoop;
 
 	/** If > 0, then this is the aspect ratio of our screen and 
 	 * letterboxes will be added if the media is smaller than the screen. */
