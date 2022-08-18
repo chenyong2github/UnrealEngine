@@ -3577,6 +3577,144 @@ FUniformExpressionCache::~FUniformExpressionCache()
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+class FUniformExpressionCacheAsyncUpdateTask
+{
+public:
+	void Begin()
+	{
+		check(!Task);
+		check(!bEnabled);
+		bEnabled = true;
+	}
+
+	void End()
+	{
+		check(bEnabled);
+		bEnabled = false;
+		Wait();
+	}
+
+	bool IsEnabled() const
+	{
+		return bEnabled && GUniformExpressionCacheAsyncUpdates > 0 && !GRHICommandList.Bypass();
+	}
+
+	void SetTask(const FGraphEventRef& InTask)
+	{
+		check(!Task);
+		check(IsEnabled());
+		Task = InTask;
+	}
+
+	void Wait()
+	{
+		if (Task)
+		{
+			Task->Wait();
+			Task = nullptr;
+		}
+	}
+
+private:
+	FGraphEventRef Task;
+	bool bEnabled = false;
+
+} GUniformExpressionCacheAsyncUpdateTask;
+
+FUniformExpressionCacheAsyncUpdateScope::FUniformExpressionCacheAsyncUpdateScope()
+{
+	ENQUEUE_RENDER_COMMAND(BeginAsyncUniformExpressionCacheUpdates)(
+		[](FRHICommandList&)
+	{
+		GUniformExpressionCacheAsyncUpdateTask.Begin();
+		FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
+	});
+}
+
+FUniformExpressionCacheAsyncUpdateScope::~FUniformExpressionCacheAsyncUpdateScope()
+{
+	ENQUEUE_RENDER_COMMAND(EndAsyncUniformExpressionCacheUpdates)(
+		[](FRHICommandList&)
+	{
+		GUniformExpressionCacheAsyncUpdateTask.End();
+	});
+}
+
+void FUniformExpressionCacheAsyncUpdateScope::WaitForTask()
+{
+	GUniformExpressionCacheAsyncUpdateTask.Wait();
+}
+
+class FUniformExpressionCacheAsyncUpdater
+{
+public:
+	void Add(FUniformExpressionCache* UniformExpressionCache, const FUniformExpressionSet* UniformExpressionSet, const FRHIUniformBufferLayout* UniformBufferLayout, const FMaterialRenderContext& Context)
+	{
+		Items.Emplace(UniformExpressionCache, UniformExpressionSet, UniformBufferLayout, Context);
+	}
+
+	void Update(FRHICommandListImmediate& RHICmdListImmediate)
+	{
+		if (Items.IsEmpty())
+		{
+			return;
+		}
+
+		GUniformExpressionCacheAsyncUpdateTask.Wait();
+
+		FRHICommandList* RHICmdList = new FRHICommandList(FRHIGPUMask::All());
+
+		FGraphEventRef Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[Items = MoveTemp(Items), RHICmdList]
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FUniformExpressionCacheAsyncUpdater::Update);
+			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+			FMemMark Mark(FMemStack::Get());
+
+			for (const FItem& Item : Items)
+			{
+				uint8* TempBuffer = FMemStack::Get().PushBytes(Item.UniformBufferLayout->ConstantBufferSize, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+
+				FMaterialRenderContext Context(Item.MaterialRenderProxy, *Item.Material, Item.bShowSelection);
+
+				Item.UniformExpressionSet->FillUniformBuffer(Context, Item.AllocatedVTs, Item.UniformBufferLayout, TempBuffer, Item.UniformBufferLayout->ConstantBufferSize);
+
+				RHICmdList->UpdateUniformBuffer(Item.UniformBuffer, TempBuffer);
+			}
+
+		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask);
+
+		RHICmdListImmediate.QueueRenderThreadCommandListSubmit(Event, RHICmdList);
+
+		GUniformExpressionCacheAsyncUpdateTask.SetTask(Event);
+	}
+
+private:
+	struct FItem
+	{
+		FItem() = default;
+		FItem(FUniformExpressionCache* InUniformExpressionCache, const FUniformExpressionSet* InUniformExpressionSet, const FRHIUniformBufferLayout* InUniformBufferLayout, const FMaterialRenderContext& Context)
+			: UniformBuffer(InUniformExpressionCache->UniformBuffer)
+			, AllocatedVTs(InUniformExpressionCache->AllocatedVTs)
+			, UniformExpressionSet(InUniformExpressionSet)
+			, UniformBufferLayout(InUniformBufferLayout)
+			, MaterialRenderProxy(Context.MaterialRenderProxy)
+			, Material(&Context.Material)
+			, bShowSelection(Context.bShowSelection)
+		{}
+
+		TRefCountPtr<FRHIUniformBuffer> UniformBuffer;
+		TArray<IAllocatedVirtualTexture*, FConcurrentLinearArrayAllocator> AllocatedVTs;
+		const FUniformExpressionSet* UniformExpressionSet = nullptr;
+		const FRHIUniformBufferLayout* UniformBufferLayout = nullptr;
+		const FMaterialRenderProxy* MaterialRenderProxy = nullptr;
+		const FMaterial* Material = nullptr;
+		bool bShowSelection = false;
+	};
+
+	TArray<FItem, FConcurrentLinearArrayAllocator> Items;
+};
+
 void FUniformExpressionCache::ResetAllocatedVTs()
 {
 	for (int32 i=0; i< OwnedAllocatedVTs.Num(); ++i)
@@ -3587,7 +3725,7 @@ void FUniformExpressionCache::ResetAllocatedVTs()
 	OwnedAllocatedVTs.Reset();
 }
 
-void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& OutUniformExpressionCache, const FMaterialRenderContext& Context, FUniformExpressionCacheUpdater* Updater) const
+void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& OutUniformExpressionCache, const FMaterialRenderContext& Context, FUniformExpressionCacheAsyncUpdater* Updater) const
 {
 	check(IsInRenderingThread());
 
@@ -3904,80 +4042,6 @@ const FMaterial& FMaterialRenderProxy::GetIncompleteMaterialWithFallback(ERHIFea
 	return *Material;
 }
 
-class FUniformExpressionCacheAsyncUpdateTask
-{
-public:
-	FUniformExpressionCacheAsyncUpdateTask()
-	{
-		DelegateHandle = FCoreRenderDelegates::OnFlushRenderingCommandsEnd.AddLambda([this]
-		{
-			Wait();
-		});
-	}
-
-	~FUniformExpressionCacheAsyncUpdateTask()
-	{
-		Wait();
-		FCoreRenderDelegates::OnFlushRenderingCommandsEnd.Remove(DelegateHandle);
-	}
-
-	void SetTask(const FGraphEventRef& InTask)
-	{
-		check(!Task);
-		Task = InTask;
-	}
-
-	void Wait()
-	{
-		if (Task)
-		{
-			Task->Wait();
-			Task = nullptr;
-		}
-	}
-
-private:
-	FGraphEventRef Task;
-	FDelegateHandle DelegateHandle;
-
-} GUniformExpressionCacheAsyncUpdateTask;
-
-void FUniformExpressionCacheUpdater::Update(FRHICommandListImmediate& RHICmdListImmediate)
-{
-	if (Items.IsEmpty())
-	{
-		return;
-	}
-
-	GUniformExpressionCacheAsyncUpdateTask.Wait();
-
-	FRHICommandList* RHICmdList = new FRHICommandList(FRHIGPUMask::All());
-
-	FGraphEventRef Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
-		[Items = MoveTemp(Items), RHICmdList]
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FUniformExpressionCacheUpdater::Update);
-		FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-		FMemMark Mark(FMemStack::Get());
-
-		for (const FItem& Item : Items)
-		{
-			uint8* TempBuffer = FMemStack::Get().PushBytes(Item.UniformBufferLayout->ConstantBufferSize, SHADER_PARAMETER_STRUCT_ALIGNMENT);
-
-			FMaterialRenderContext Context(Item.MaterialRenderProxy, *Item.Material, Item.bShowSelection);
-
-			Item.UniformExpressionSet->FillUniformBuffer(Context, Item.AllocatedVTs, Item.UniformBufferLayout, TempBuffer, Item.UniformBufferLayout->ConstantBufferSize);
-
-			RHICmdList->UpdateUniformBuffer(Item.UniformBuffer, TempBuffer);
-		}
-
-	}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask);
-
-	RHICmdListImmediate.QueueRenderThreadCommandListSubmit(Event, RHICmdList);
-
-	GUniformExpressionCacheAsyncUpdateTask.SetTask(Event);
-}
-
 void FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions()
 {
 	LLM_SCOPE(ELLMTag::Materials);
@@ -3988,8 +4052,8 @@ void FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions()
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Material_UpdateDeferredCachedUniformExpressions);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateDeferredCachedUniformExpressions);
 
-	FUniformExpressionCacheUpdater Updater;
-	FUniformExpressionCacheUpdater* UpdaterIfEnabled = !GRHICommandList.Bypass() && GUniformExpressionCacheAsyncUpdates > 0 ? &Updater : nullptr;
+	FUniformExpressionCacheAsyncUpdater Updater;
+	FUniformExpressionCacheAsyncUpdater* UpdaterIfEnabled = GUniformExpressionCacheAsyncUpdateTask.IsEnabled() ? &Updater : nullptr;
 
 	for (TSet<FMaterialRenderProxy*>::TConstIterator It(DeferredUniformExpressionCacheRequests); It; ++It)
 	{

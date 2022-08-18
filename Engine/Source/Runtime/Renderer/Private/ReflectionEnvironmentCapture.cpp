@@ -477,6 +477,8 @@ void CaptureSceneToScratchCubemap(
 
 	const ERHIFeatureLevel::Type FeatureLevel = SceneRenderer->FeatureLevel;
 
+	FUniformExpressionCacheAsyncUpdateScope AsyncUpdateScope;
+
 	// update any resources that needed a deferred update
 	FDeferredUpdateResource::UpdateResources(RHICmdList);
 
@@ -484,8 +486,6 @@ void CaptureSceneToScratchCubemap(
 
 	// We need to execute the pre-render view extensions before we do any view dependent work.
 	FSceneRenderer::ViewExtensionPreRender_RenderThread(GraphBuilder, SceneRenderer);
-
-	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "CubeMapCapture");

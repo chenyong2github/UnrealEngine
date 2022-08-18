@@ -4178,6 +4178,9 @@ static FSceneRenderCleanUpState GSceneRenderCleanUpState;
 
 void FSceneRenderer::RenderThreadEnd(FRHICommandListImmediate& RHICmdList, const TArray<FSceneRenderer*>& SceneRenderers)
 {
+	// We need to sync async uniform expression cache updates since we're about to start deleting material proxies.
+	FUniformExpressionCacheAsyncUpdateScope::WaitForTask();
+
 	check(GSceneRenderCleanUpState.Renderers.IsEmpty());
 
 	const ESceneRenderCleanUpMode SceneRenderCleanUpMode = GetSceneRenderCleanUpMode();
@@ -4556,11 +4559,7 @@ void FRendererModule::BeginRenderingViewFamilies(FCanvas* Canvas, TArrayView<FSc
 			FThreadIdleStats::BeginCriticalPath();
 		});
 
-	ENQUEUE_RENDER_COMMAND(UpdateDeferredCachedUniformExpressions)(
-		[](FRHICommandList& RHICmdList)
-		{
-			FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
-		});
+	FUniformExpressionCacheAsyncUpdateScope AsyncUpdateScope;
 
 	ENQUEUE_RENDER_COMMAND(UpdateFastVRamConfig)(
 		[](FRHICommandList& RHICmdList)

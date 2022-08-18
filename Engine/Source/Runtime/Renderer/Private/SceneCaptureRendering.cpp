@@ -507,7 +507,7 @@ static void UpdateSceneCaptureContent_RenderThread(
 	bool bClearRenderTarget,
 	bool bOrthographicCamera)
 {
-	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
+	FUniformExpressionCacheAsyncUpdateScope AsyncUpdateScope;
 
 	switch (SceneRenderer->Scene->GetShadingPath())
 	{

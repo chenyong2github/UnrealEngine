@@ -2475,41 +2475,21 @@ private:
 };
 
 class USubsurfaceProfile;
+class FUniformExpressionCacheAsyncUpdater;
 
-class ENGINE_API FUniformExpressionCacheUpdater
+/** Defines a scope to update deferred uniform expression caches using an async task to fill uniform buffers. The scope
+ *  attempts to launch async updates immediately, but further async updates can launch within the scope. Only one async
+ *  task is launched at a time though. The async task is synced when the scope destructs. The scope enqueues render commands
+ *  so it can be used on the game or render threads.
+ */
+class ENGINE_API FUniformExpressionCacheAsyncUpdateScope
 {
 public:
-	void Add(FUniformExpressionCache* UniformExpressionCache, const FUniformExpressionSet* UniformExpressionSet, const FRHIUniformBufferLayout* UniformBufferLayout, const FMaterialRenderContext& Context)
-	{
-		Items.Emplace(UniformExpressionCache, UniformExpressionSet, UniformBufferLayout, Context);
-	}
+	FUniformExpressionCacheAsyncUpdateScope();
+	~FUniformExpressionCacheAsyncUpdateScope();
 
-	void Update(FRHICommandListImmediate& RHICmdList);
-
-private:
-	struct FItem
-	{
-		FItem() = default;
-		FItem(FUniformExpressionCache* InUniformExpressionCache, const FUniformExpressionSet* InUniformExpressionSet, const FRHIUniformBufferLayout* InUniformBufferLayout, const FMaterialRenderContext& Context)
-			: UniformBuffer(InUniformExpressionCache->UniformBuffer)
-			, AllocatedVTs(InUniformExpressionCache->AllocatedVTs)
-			, UniformExpressionSet(InUniformExpressionSet)
-			, UniformBufferLayout(InUniformBufferLayout)
-			, MaterialRenderProxy(Context.MaterialRenderProxy)
-			, Material(&Context.Material)
-			, bShowSelection(Context.bShowSelection)
-		{}
-
-		TRefCountPtr<FRHIUniformBuffer> UniformBuffer;
-		TArray<IAllocatedVirtualTexture*, FConcurrentLinearArrayAllocator> AllocatedVTs;
-		const FUniformExpressionSet* UniformExpressionSet = nullptr;
-		const FRHIUniformBufferLayout* UniformBufferLayout = nullptr;
-		const FMaterialRenderProxy* MaterialRenderProxy = nullptr;
-		const FMaterial* Material = nullptr;
-		bool bShowSelection = false;
-	};
-
-	TArray<FItem, FConcurrentLinearArrayAllocator> Items;
+	/** Call if a wait is required within the scope. */
+	static void WaitForTask();
 };
 
 /**
@@ -2542,7 +2522,7 @@ public:
 	 * @param OutUniformExpressionCache - The uniform expression cache to build.
 	 * @param MaterialRenderContext - The context for which to cache expressions.
 	 */
-	void EvaluateUniformExpressions(FUniformExpressionCache& OutUniformExpressionCache, const FMaterialRenderContext& Context, FUniformExpressionCacheUpdater* Updater = nullptr) const;
+	void EvaluateUniformExpressions(FUniformExpressionCache& OutUniformExpressionCache, const FMaterialRenderContext& Context, FUniformExpressionCacheAsyncUpdater* Updater = nullptr) const;
 
 	/**
 	 * Caches uniform expressions for efficient runtime evaluation.
