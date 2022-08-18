@@ -395,6 +395,10 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Build with hidden symbol visibility in shipping config. [Experimental]"))
 	bool bBuildWithHiddenSymbolVisibility;
 
+	// Disable libc++_shared dependency validation in all .so files linked with libUnreal.so
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Disable libc++_shared dependency validation in all dependencies"))
+	bool bDisableLibCppSharedDependencyValidation;
+
 	// Always save .so file with symbols allowing use of addr2line on raw callstack addresses.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Always save a copy of the libUnreal.so with symbols. [Experimental]"))
 	bool bSaveSymbols;
