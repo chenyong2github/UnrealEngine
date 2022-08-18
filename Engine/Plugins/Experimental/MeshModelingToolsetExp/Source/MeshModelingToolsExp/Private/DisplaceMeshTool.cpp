@@ -290,12 +290,12 @@ namespace DisplaceMeshToolLocals{
 					
 					FDynamicMesh3 OutMesh;
 					FAdaptiveTessellate Tessellator(ResultMesh.Get(), &OutMesh);
-					
+					Tessellator.Progress = ProgressCancel;
 					Tessellator.SetPattern(Pattern.Get());
 					
 					if (ensureMsgf(Tessellator.Validate() == EOperationValidationResult::Ok, TEXT("The tessellator parameters are invalid.")))
 					{
-						if (ensureMsgf(Tessellator.Compute(), TEXT("Failed to tessellate the selected triangles.")))
+						if (Tessellator.Compute())
 						{
 							*ResultMesh = MoveTemp(OutMesh);
 						}
