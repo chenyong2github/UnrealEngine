@@ -341,7 +341,7 @@ void BeginInitTextLocalization()
 void InitEngineTextLocalization()
 {
 	LLM_SCOPE(ELLMTag::Localization);
-	
+	UE_SCOPED_ENGINE_ACTIVITY(TEXT("Initializing Localization"));
 	SCOPED_BOOT_TIMING("InitEngineTextLocalization");
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("InitEngineTextLocalization"), STAT_InitEngineTextLocalization, STATGROUP_LoadTime);
 

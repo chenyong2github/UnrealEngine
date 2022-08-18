@@ -1041,6 +1041,8 @@ void UGameFeaturesSubsystem::CancelGameFeatureStateChange(const FString& PluginU
 
 void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlugin>& Plugin, FBuiltInPluginAdditionalFilters AdditionalFilter)
 {
+	UE_SCOPED_ENGINE_ACTIVITY(TEXT("Loading GameFeaturePlugin %s"), *Plugin->GetName());
+
 	UAssetManager::Get().PushBulkScanning();
 
 	const FString& PluginDescriptorFilename = Plugin->GetDescriptorFileName();

@@ -224,6 +224,8 @@ void FSubsystemCollectionBase::AddReferencedObjects(UObject* Referencer, FRefere
 
 USubsystem* FSubsystemCollectionBase::AddAndInitializeSubsystem(UClass* SubsystemClass)
 {
+	UE_SCOPED_ENGINE_ACTIVITY(TEXT("Initializing Subsystem %s"), *SubsystemClass->GetName());
+
 	TGuardValue<bool> PopulatingGuard(bPopulating, true);
 
 	if (!SubsystemMap.Contains(SubsystemClass))

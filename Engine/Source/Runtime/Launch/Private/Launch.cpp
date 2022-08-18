@@ -13,6 +13,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/TrackedActivity.h"
 #if WITH_EDITOR
 	#include "UnrealEdGlobals.h"
 #endif
@@ -95,6 +96,8 @@ extern UNREALED_API FSecondsCounterData BlueprintCompileAndLoadTimerData;
  */
 int32 GuardedMain( const TCHAR* CmdLine )
 {
+	FTrackedActivity::GetEngineActivity().Update(TEXT("Starting"), FTrackedActivity::ELight::Yellow);
+
 	FTaskTagScope Scope(ETaskTag::EGameThread);
 
 #if !(UE_BUILD_SHIPPING)
@@ -147,6 +150,7 @@ int32 GuardedMain( const TCHAR* CmdLine )
 	}
 #endif
 
+	FTrackedActivity::GetEngineActivity().Update(TEXT("Initializing"));
 	int32 ErrorLevel = EnginePreInit( CmdLine );
 
 	// exit if PreInit failed.
@@ -188,6 +192,8 @@ int32 GuardedMain( const TCHAR* CmdLine )
 
 	BootTimingPoint("Tick loop starting");
 	DumpBootTiming();
+
+	FTrackedActivity::GetEngineActivity().Update(TEXT("Ticking loop"), FTrackedActivity::ELight::Green);
 
 	// Don't tick if we're running an embedded engine - we rely on the outer
 	// application ticking us instead.

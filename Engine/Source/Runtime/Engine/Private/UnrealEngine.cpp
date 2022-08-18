@@ -2962,6 +2962,7 @@ static FAutoConsoleCommand GResetTimecode(
 */
 void UEngine::InitializeObjectReferences()
 {
+	UE_SCOPED_ENGINE_ACTIVITY(TEXT("Initializing Object References"));
 	TRACE_LOADTIME_REQUEST_GROUP_SCOPE(TEXT("UEngine::InitializeObjectReferences"));
 	SCOPED_BOOT_TIMING("UEngine::InitializeObjectReferences");
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UEngine::InitializeObjectReferences"), STAT_InitializeObjectReferences, STATGROUP_LoadTime);
@@ -14558,6 +14559,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 		// If the level isn't already in memory, load level from disk
 		if (WorldPackage == nullptr)
 		{
+			UE_SCOPED_ENGINE_ACTIVITY(TEXT("Loading World %s"), *URL.Map);
 			WorldPackage = LoadPackage(nullptr, *URL.Map, (WorldContext.WorldType == EWorldType::PIE ? LOAD_PackageForPIE : LOAD_None));
 		}
 
