@@ -101,9 +101,11 @@ bool FSequencerPlaylistItemPlayer_Sequence::Play(USequencerPlaylistItem* Item)
 
 	const FQualifiedFrameTime GlobalTime = Sequencer->GetGlobalTime();
 	const FFrameNumber StartFrame = GlobalTime.Time.FloorToFrame();
+	const int32 MinDuration = 1;
 	const int32 MaxDuration = TNumericLimits<int32>::Max() - StartFrame.Value - 1;
-	const int32 Duration = FMath::Min(MaxDuration,
-		(SingleLoopDuration * FMath::Max(1, SequenceItem->NumLoops + 1)).FloorToFrame().Value);
+	const int32 Duration = FMath::Clamp(
+		(SingleLoopDuration * FMath::Max(1, SequenceItem->NumLoops + 1)).FloorToFrame().Value,
+		MinDuration, MaxDuration);
 
 	ItemState.PlayingUntil_RootTicks = FMath::Max(StartFrame.Value + Duration, ItemState.PlayingUntil_RootTicks);
 

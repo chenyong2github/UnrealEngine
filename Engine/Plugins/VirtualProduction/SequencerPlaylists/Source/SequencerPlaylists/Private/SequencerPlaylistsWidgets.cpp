@@ -1135,6 +1135,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 				SNew(SNumericEntryBox<int32>)
 				.AllowSpin(true)
 				.ToolTipText(LOCTEXT("StartFrameOffsetTooltip", "Number of frames by which to clip the in point of sections played from this item. Will also affect the first frame for hold."))
+				.MinSliderValue(0)
 				.MaxSliderValue(this, &SSequencerPlaylistItemWidget::GetItemLengthDisplayFrames)
 				.Value(TAttribute<TOptional<int32>>::CreateLambda([WeakItem]() { return WeakItem.IsValid() ? WeakItem->StartFrameOffset : TOptional<int32>(); }))
 				.OnValueChanged_Lambda([WeakItem](int32 NewValue) {
@@ -1155,6 +1156,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 				SNew(SNumericEntryBox<int32>)
 				.AllowSpin(true)
 				.ToolTipText(LOCTEXT("EndFrameOffsetTooltip", "Number of frames by which to clip the out point of sections played from this item."))
+				.MinSliderValue(0)
 				.MaxSliderValue(this, &SSequencerPlaylistItemWidget::GetItemLengthDisplayFrames)
 				.Value(TAttribute<TOptional<int32>>::CreateLambda([WeakItem]() { return WeakItem.IsValid() ? WeakItem->EndFrameOffset : TOptional<int32>(); }))
 				.OnValueChanged_Lambda([WeakItem](int32 NewValue) {
@@ -1417,7 +1419,7 @@ TOptional<int32> SSequencerPlaylistItemWidget::GetItemLengthDisplayFrames() cons
 		}
 	}
 
-	return TOptional<int32>();
+	return 0;
 }
 
 
