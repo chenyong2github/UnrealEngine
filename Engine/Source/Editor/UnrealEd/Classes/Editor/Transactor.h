@@ -111,6 +111,8 @@ protected:
 		TUniquePtr<UE::Transaction::FDiffableObject> DiffableObject;
 		/** The diffable object data when it was last snapshot (always null once finalized) */
 		TUniquePtr<UE::Transaction::FDiffableObject> DiffableObjectSnapshot;
+		/** The combined list of properties that have been passed any Snapshot call for this object (always empty once finalized) */
+		TArray<const FProperty*> AllPropertiesSnapshot;
 		/** Delta change information between the diffable state of the object when the transaction started, and the diffable state of the object when the transaction ended */
 		FTransactionObjectDeltaChange DeltaChange;
 
