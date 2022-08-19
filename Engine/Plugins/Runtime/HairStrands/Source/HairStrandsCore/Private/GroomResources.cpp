@@ -1035,7 +1035,6 @@ bool FHairStrandsClusterCullingResource::InternalIsDataLoaded()
 
 void FHairStrandsClusterCullingResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	check(BulkDataRequest.IsNone() == false)
 	BulkDataRequest = FBulkDataRequest();
 
 	if (GHairStrandsBulkData_Validation > 0)
