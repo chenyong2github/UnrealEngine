@@ -122,6 +122,17 @@ private:
 	/** Cached time of the first recv socket error that will be used to compute disconnect delay. */
 	double SocketError_RecvDelayStartTime;
 
+#if !UE_BUILD_SHIPPING
+	/** The number of socket-level sends that have occurred during initial connect */
+	int32 InitialConnectSocketSendCount = 0;
+
+	/** The last time initial connect diagnostics put out a log */
+	double InitialConnectLastLogTime = 0.0;
+
+	/** The value of 'InitialConnectSocketSendCount' the last time there was an initial connect diagnostic log */
+	int32 InitialConnectLastLogSocketSendCount = 0;
+#endif
+
 private:
 
 	/** Cleanup for the deprecated 'Socket' value */

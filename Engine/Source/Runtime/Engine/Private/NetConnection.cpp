@@ -955,7 +955,7 @@ void UNetConnection::Close(FNetResult&& CloseReason)
 		if (GNetCloseTimingDebug)
 		{
 			const double CurTime = FPlatformTime::Seconds();
-			const double TimeSinceRecv = LastReceiveRealtime != 0.0 ? (CurTime - LastReceiveRealtime) : -1.0;
+			const double TimeSinceRecv = LastReceiveRealtime != 0.0 && InTotalPackets != 0 ? (CurTime - LastReceiveRealtime) : -1.0;
 			const double TimeSinceSend = PreviousPacketSendTimeInS != 0.0 ? (CurTime - PreviousPacketSendTimeInS) : -1.0;
 			const double TimeSinceTickFlush = LastTime != 0.0 ? (CurTime - LastTime) : -1.0;
 			const double TimeSinceTickDispatch = CurTime - Driver->LastTickDispatchRealtime;

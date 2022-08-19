@@ -46,6 +46,24 @@ TAutoConsoleVariable<int32> CVarNetIpConnectionDisableResolution(
 	TEXT("If enabled, any future ip connections will not use resolution methods."),
 	ECVF_Default | ECVF_Cheat);
 
+namespace UE::Net::Private
+{
+#if !UE_BUILD_SHIPPING
+	static int32 GNetDebugInitialConnect = 1;
+
+	static FAutoConsoleVariableRef CVarNetDebugInitialConnect(
+		TEXT("net.DebugInitialConnect"),
+		GNetDebugInitialConnect,
+		TEXT("When enabled, periodically logs socket-level send stats clientside, until a packet is successfully received to verify connection."));
+
+	static float GNetDebugInitialConnectLogFrequency = 10.0;
+
+	static FAutoConsoleVariableRef CVarNetDebugInitialConnectLogFrequency(
+		TEXT("net.DebugInitialConnectLogFrequency"),
+		GNetDebugInitialConnectLogFrequency,
+		TEXT("The amount of time, in seconds, between initial connect debug logging."));
+#endif
+}
 
 /**
  * UIpConnection
@@ -210,6 +228,25 @@ void UIpConnection::Tick(float DeltaSeconds)
 	}
 
 	Super::Tick(DeltaSeconds);
+
+#if !UE_BUILD_SHIPPING
+	if (!!GNetDebugInitialConnect && InTotalPackets == 0 && Driver != nullptr && Driver->ServerConnection != nullptr)
+	{
+		const double CurTime = Driver->GetElapsedTime();
+		const double ElapsedLogTime = CurTime - InitialConnectLastLogTime;
+
+		if (ElapsedLogTime >= static_cast<double>(GNetDebugInitialConnectLogFrequency))
+		{
+			const int32 SendCount = InitialConnectSocketSendCount - InitialConnectLastLogSocketSendCount;
+
+			UE_LOG(LogNet, Log, TEXT("Initial Connect Diagnostics: Sent '%i' packets in last '%f' seconds, no packets received yet."),
+					SendCount, ElapsedLogTime);
+
+			InitialConnectLastLogSocketSendCount = InitialConnectSocketSendCount;
+			InitialConnectLastLogTime = CurTime;
+		}
+	}
+#endif	
 }
 
 void UIpConnection::CleanUp()
@@ -264,6 +301,8 @@ void UIpConnection::WaitForSendTasks()
 
 void UIpConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& Traits)
 {
+	using namespace UE::Net::Private;
+
 	const uint8* DataToSend = reinterpret_cast<uint8*>(Data);
 
 	// If the remote addr hasn't been set, we need to wait for it.
@@ -369,6 +408,13 @@ void UIpConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& 
 							bWasSendSuccessful = CurSocket->SendTo(Packet.GetData(), Packet.Num(), Result.BytesSent, *RemoteAddr);
 						}
 
+#if !UE_BUILD_SHIPPING
+						if (!!GNetDebugInitialConnect && InTotalPackets == 0 && bWasSendSuccessful)
+						{
+							InitialConnectSocketSendCount++;
+						}
+#endif
+
 						if (!bWasSendSuccessful && SocketSubsystem)
 						{
 							Result.Error = SocketSubsystem->GetLastErrorCode();
@@ -406,6 +452,13 @@ void UIpConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& 
 					{
 						HandleSocketSendResult(SendResult, nullptr);
 					}
+
+#if !UE_BUILD_SHIPPING
+					if (!!GNetDebugInitialConnect && InTotalPackets == 0)
+					{
+						InitialConnectSocketSendCount++;
+					}
+#endif
 				}
 				else
 				{
