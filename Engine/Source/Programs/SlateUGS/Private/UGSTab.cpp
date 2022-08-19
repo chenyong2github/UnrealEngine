@@ -132,7 +132,11 @@ namespace
 
 	FString GetEditorExePath(UGSCore::EBuildConfig Config, TSharedPtr<UGSCore::FDetectProjectSettingsTask> DetectSettings)
 	{
+	#if PLATFORM_WINDOWS
+		FString ExeFileName = TEXT("UnrealEditor.exe");
+	#else
 		FString ExeFileName = TEXT("UnrealEditor");
+	#endif
 
 		if (Config != UGSCore::EBuildConfig::DebugGame && Config != UGSCore::EBuildConfig::Development)
 		{
