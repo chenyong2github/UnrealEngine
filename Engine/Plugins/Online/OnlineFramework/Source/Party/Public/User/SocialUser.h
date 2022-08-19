@@ -60,6 +60,7 @@ public:
 	bool IsFriend() const;
 	bool IsFriend(ESocialSubsystem SubsystemType) const;
 	bool IsFriendshipPending(ESocialSubsystem SubsystemType) const;
+	bool IsAnyInboundFriendshipPending() const;
 	const FOnlineUserPresence* GetFriendPresenceInfo(ESocialSubsystem SubsystemType) const;
 	FDateTime GetFriendshipCreationDate() const;
 	virtual FDateTime GetLastOnlineDate() const;

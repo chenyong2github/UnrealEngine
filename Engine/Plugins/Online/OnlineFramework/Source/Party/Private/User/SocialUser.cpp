@@ -514,6 +514,22 @@ bool USocialUser::IsFriendshipPending(ESocialSubsystem SubsystemType) const
 	return FriendInviteStatus == EInviteStatus::PendingInbound || FriendInviteStatus == EInviteStatus::PendingOutbound;
 }
 
+bool USocialUser::IsAnyInboundFriendshipPending() const
+{
+	for (const TPair<ESocialSubsystem, FSubsystemUserInfo>& SubsystemInfoPair : SubsystemInfoByType)
+	{
+		if (const FOnlineFriend* OnlineFriend = SubsystemInfoPair.Value.FriendInfo.Pin().Get())
+		{
+			const EInviteStatus::Type FriendInviteStatus = OnlineFriend->GetInviteStatus();
+			if (FriendInviteStatus == EInviteStatus::PendingInbound)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 const FOnlineUserPresence* USocialUser::GetFriendPresenceInfo(ESocialSubsystem SubsystemType) const
 {
 	const FSubsystemUserInfo* SubsystemInfo = SubsystemInfoByType.Find(SubsystemType);
