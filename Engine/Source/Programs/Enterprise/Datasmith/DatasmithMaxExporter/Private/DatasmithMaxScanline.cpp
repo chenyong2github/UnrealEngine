@@ -1227,24 +1227,62 @@ FString FDatasmithMaxMatWriter::DumpFalloff(TSharedRef< IDatasmithScene > Datasm
 
 void GetBakeableMaximumSize(Texmap* InTexmap, int &Width, int &Height)
 {
-	if (InTexmap == NULL)
+	TArray<Texmap*> Texmaps;
+	Texmaps.Add(InTexmap);
+
+	// Limit baked texture size by subbitmap with largest area(number of pixels)
+	int32 BiggestSubBitmapArea = 0;  // Biggest pixel count
+	int32 BiggestSubBitmapWidth = 0;
+	int32 BiggestSubBitmapHeight = 0;
+
+	while (!Texmaps.IsEmpty())
 	{
-		return;
-	}	
-	if (InTexmap->ClassID() == RBITMAPCLASS)
-	{
-		BitmapTex* BitmapTexture = (BitmapTex*)InTexmap;
-		Bitmap* ActualBitmap = ((BitmapTex*)InTexmap)->GetBitmap(GetCOREInterface()->GetTime());
-		if (ActualBitmap != NULL)
+		Texmap* Texmap = Texmaps.Pop(false);
+
+		if (!Texmap)
 		{
-			Width = FMath::Min(Width, ActualBitmap->Width());
-			Height = FMath::Min(Height, ActualBitmap->Height());
+			continue;;
+		}
+
+		if (Texmap->ClassID() == RBITMAPCLASS)
+		{
+			BitmapTex* BitmapTexture = (BitmapTex*)Texmap;
+			Bitmap* ActualBitmap = ((BitmapTex*)Texmap)->GetBitmap(GetCOREInterface()->GetTime());
+			if (ActualBitmap != NULL)
+			{
+				int32 BitmapWidth = ActualBitmap->Width();
+				int32 BitmapHeight = ActualBitmap->Height();
+
+				int32 Area = BitmapWidth*BitmapHeight;
+				if (Area > BiggestSubBitmapArea)
+				{
+					BiggestSubBitmapArea = Area;
+					BiggestSubBitmapWidth = BitmapWidth;
+					BiggestSubBitmapHeight = BitmapHeight;
+				}
+
+			}
+		}
+
+		for (int SubTexmap = 0; SubTexmap < Texmap->NumSubTexmaps(); SubTexmap++)
+		{
+			Texmaps.Add(Texmap->GetSubTexmap(SubTexmap));
 		}
 	}
 
-	for (int SubTexmap = 0; SubTexmap < InTexmap->NumSubTexmaps(); SubTexmap++)
+	if (BiggestSubBitmapArea > 0)
 	{
-		GetBakeableMaximumSize(InTexmap->GetSubTexmap(SubTexmap), Width, Height);
+		int32 AreaLimit = Width*Height;
+
+		Width = BiggestSubBitmapWidth;
+		Height = BiggestSubBitmapHeight;
+		int32 Area = BiggestSubBitmapArea;
+		while (Area > AreaLimit)
+		{
+			Width = Width / 2;
+			Height = Height / 2;
+			Area = Width * Height;
+		}
 	}
 }
 
