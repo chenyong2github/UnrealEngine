@@ -9,7 +9,6 @@
 
 class ALandscapeProxy;
 class ULandscapeInfo;
-class FLandscapeNotificationManager;
 
 UCLASS(MinimalAPI)
 class ULandscapeSubsystem : public UTickableWorldSubsystem
@@ -43,7 +42,6 @@ public:
 	LANDSCAPE_API void ChangeGridSize(ULandscapeInfo* LandscapeInfo, uint32 NewGridSizeInComponents);
 	LANDSCAPE_API ALandscapeProxy* FindOrAddLandscapeProxy(ULandscapeInfo* LandscapeInfo, const FIntPoint& SectionBase);
 	LANDSCAPE_API void DisplayBuildMessages(class FCanvas* Canvas, float& XPos, float& YPos);
-	FLandscapeNotificationManager* GetNotificationManager() { return NotificationManager; }
 #endif
 
 private:
@@ -58,7 +56,5 @@ private:
 	class FLandscapeGrassMapsBuilder* GrassMapsBuilder;
 	class FLandscapeGIBakedTextureBuilder* GIBakedTextureBuilder;
 	class FLandscapePhysicalMaterialBuilder* PhysicalMaterialBuilder;
-	
-	FLandscapeNotificationManager* NotificationManager;
 #endif
 };
