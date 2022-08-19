@@ -144,7 +144,7 @@ FSquare2DGridHelper GetGridHelper(const FBox& WorldBounds, int64 GridCellSize)
 	return FSquare2DGridHelper(WorldBounds, GridOrigin, GridCellSize);
 }
 
-FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<const IStreamingGenerationContext::FActorSetInstance*>& ActorSetInstances)
+FSquare2DGridHelper GetPartitionedActors(const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<const IStreamingGenerationContext::FActorSetInstance*>& ActorSetInstances)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(GetPartitionedActors);
 	UE_SCOPED_TIMER(TEXT("GetPartitionedActors"), LogWorldPartition, Display);
