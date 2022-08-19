@@ -28,6 +28,7 @@ namespace Horde.Build.Agents.Fleet
 		private IPoolSizeStrategy _leaseUtilizationStrategy;
 		private IPoolSizeStrategy _jobQueueStrategy;
 		private IPoolSizeStrategy _noOpStrategy;
+		private IPoolSizeStrategy _computeQueueAwsMetricStrategy;
 		private readonly IAgentCollection _agentCollection;
 		private readonly IPoolCollection _poolCollection;
 		private readonly IFleetManager _fleetManager;
@@ -42,11 +43,23 @@ namespace Horde.Build.Agents.Fleet
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AutoscaleServiceV2(LeaseUtilizationStrategy leaseUtilizationStrategy, JobQueueStrategy jobQueueStrategy, NoOpPoolSizeStrategy noOpStrategy, IAgentCollection agentCollection, IPoolCollection poolCollection, IFleetManager fleetManager, IDogStatsd dogStatsd, IClock clock, IOptions<ServerSettings> settings, ILogger<AutoscaleServiceV2> logger)
+		public AutoscaleServiceV2(
+			LeaseUtilizationStrategy leaseUtilizationStrategy,
+			JobQueueStrategy jobQueueStrategy,
+			NoOpPoolSizeStrategy noOpStrategy,
+			ComputeQueueAwsMetricStrategy computeQueueAwsMetricStrategy,
+			IAgentCollection agentCollection,
+			IPoolCollection poolCollection,
+			IFleetManager fleetManager,
+			IDogStatsd dogStatsd,
+			IClock clock,
+			IOptions<ServerSettings> settings,
+			ILogger<AutoscaleServiceV2> logger)
 		{
 			_leaseUtilizationStrategy = leaseUtilizationStrategy;
 			_jobQueueStrategy = jobQueueStrategy;
 			_noOpStrategy = noOpStrategy;
+			_computeQueueAwsMetricStrategy = computeQueueAwsMetricStrategy;
 			_agentCollection = agentCollection;
 			_poolCollection = poolCollection;
 			_fleetManager = fleetManager;
@@ -181,11 +194,17 @@ namespace Horde.Build.Agents.Fleet
 		/// <param name="leaseUtilizationStrategy"></param>
 		/// <param name="jobQueueStrategy"></param>
 		/// <param name="noOpStrategy"></param>
-		internal void OverridePoolSizeStrategiesDuringTesting(IPoolSizeStrategy leaseUtilizationStrategy, IPoolSizeStrategy jobQueueStrategy, IPoolSizeStrategy noOpStrategy)
+		/// <param name="computeQueueAwsMetricStrategy"></param>
+		internal void OverridePoolSizeStrategiesDuringTesting(
+			IPoolSizeStrategy leaseUtilizationStrategy,
+			IPoolSizeStrategy jobQueueStrategy,
+			IPoolSizeStrategy noOpStrategy,
+			IPoolSizeStrategy computeQueueAwsMetricStrategy)
 		{
 			_leaseUtilizationStrategy = leaseUtilizationStrategy;
 			_jobQueueStrategy = jobQueueStrategy;
 			_noOpStrategy = noOpStrategy;
+			_computeQueueAwsMetricStrategy = computeQueueAwsMetricStrategy;
 		}
 		
 		private IPoolSizeStrategy GetPoolSizeStrategy(PoolSizeStrategy type)
@@ -195,6 +214,7 @@ namespace Horde.Build.Agents.Fleet
 				PoolSizeStrategy.LeaseUtilization => _leaseUtilizationStrategy,
 				PoolSizeStrategy.JobQueue => _jobQueueStrategy,
 				PoolSizeStrategy.NoOp => _noOpStrategy,
+				PoolSizeStrategy.ComputeQueueAwsMetric => _computeQueueAwsMetricStrategy,
 				_ => throw new Exception($"Unknown strategy: {type}")
 			};
 		}

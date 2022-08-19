@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Amazon.CloudWatch;
 using Horde.Build.Jobs;
 using Horde.Build.Server;
 using Horde.Build.Perforce;
@@ -19,6 +20,7 @@ using Horde.Build.Jobs.Templates;
 using Horde.Build.Configuration;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Jobs.Artifacts;
+using Moq;
 
 namespace Horde.Build.Tests;
 
@@ -42,8 +44,14 @@ public class TestWebApplicationFactory<TStartup> : WebApplicationFactory<TStartu
 			{ "Horde:OidcAuthority", null },
 			{ "Horde:OidcClientId", null }
 		};
+
+		Mock<IAmazonCloudWatch> cloudWatchMock = new (MockBehavior.Strict);
 		builder.ConfigureAppConfiguration((hostingContext, config) => { config.AddInMemoryCollection(dict); });
-		builder.ConfigureTestServices(collection => collection.AddSingleton<IPerforceService, PerforceServiceStub>());
+		builder.ConfigureTestServices(collection =>
+		{
+			collection.AddSingleton<IPerforceService, PerforceServiceStub>();
+			collection.AddSingleton<IAmazonCloudWatch>(x => cloudWatchMock.Object);
+		});
 	}
 }
 

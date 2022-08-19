@@ -31,6 +31,7 @@ namespace Horde.Build.Agents.Pools
 		/// <param name="sizeStrategy">Pool sizing strategy</param>
 		/// <param name="leaseUtilizationSettings">Settings for lease utilization strategy</param>
 		/// <param name="jobQueueSettings">Settings for job queue strategy</param>
+		/// <param name="computeQueueAwsMetricSettings">Settings for compute queue AWS metric strategy</param>
 		/// <param name="properties">Properties for the pool</param>
 		/// <returns>The new pool document</returns>
 		Task<IPool> AddAsync(
@@ -46,6 +47,7 @@ namespace Horde.Build.Agents.Pools
 			PoolSizeStrategy? sizeStrategy = null,
 			LeaseUtilizationSettings? leaseUtilizationSettings = null,
 			JobQueueSettings? jobQueueSettings = null,
+			ComputeQueueAwsMetricSettings? computeQueueAwsMetricSettings = null,
 			IEnumerable<KeyValuePair<string, string>>? properties = null);
 
 		/// <summary>
@@ -94,6 +96,7 @@ namespace Horde.Build.Agents.Pools
 		/// <param name="sizeStrategy">Pool sizing strategy</param>
 		/// <param name="leaseUtilizationSettings">Settings for lease utilization strategy</param>
 		/// <param name="jobQueueSettings">Settings for job queue strategy</param>
+		/// <param name="computeQueueAwsMetricSettings">Settings for compute queue AWS metric strategy</param>
 		/// <param name="useDefaultStrategy">Whether to use the default strategy</param>
 		/// <returns>Async task</returns>
 		Task<IPool?> TryUpdateAsync(
@@ -114,6 +117,7 @@ namespace Horde.Build.Agents.Pools
 			PoolSizeStrategy? sizeStrategy = null,
 			LeaseUtilizationSettings? leaseUtilizationSettings = null,
 			JobQueueSettings? jobQueueSettings = null,
+			ComputeQueueAwsMetricSettings? computeQueueAwsMetricSettings = null,
 			bool? useDefaultStrategy = null);
 	}
 }

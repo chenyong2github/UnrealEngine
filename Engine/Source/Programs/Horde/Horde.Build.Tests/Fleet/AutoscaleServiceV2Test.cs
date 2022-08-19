@@ -81,7 +81,8 @@ namespace Horde.Build.Tests.Fleet
 			PoolSizeStrategySpy leaseUtilizationSpy = new();
 			PoolSizeStrategySpy jobQueueSpy = new();
 			PoolSizeStrategySpy noOpSpy = new();
-			service.OverridePoolSizeStrategiesDuringTesting(leaseUtilizationSpy, jobQueueSpy, noOpSpy);
+			PoolSizeStrategySpy computeQueueAwsMetricSpy = new();
+			service.OverridePoolSizeStrategiesDuringTesting(leaseUtilizationSpy, jobQueueSpy, noOpSpy, computeQueueAwsMetricSpy);
 
 			await service.TickLeaderAsync(CancellationToken.None);
 			
@@ -161,7 +162,8 @@ namespace Horde.Build.Tests.Fleet
 
 			LeaseUtilizationStrategy leaseUtilizationStrategy = new(AgentCollection, PoolCollection, LeaseCollection, Clock);
 			JobQueueStrategy jobQueueStrategy = new(JobCollection, GraphCollection, StreamService, Clock);
-			AutoscaleServiceV2 service = new AutoscaleServiceV2(leaseUtilizationStrategy,jobQueueStrategy, new NoOpPoolSizeStrategy(), AgentCollection, PoolCollection, fleetManager, _dogStatsD, Clock, serverSettingsOpt, logger);
+			ComputeQueueAwsMetricStrategy computeQueueAwsMetricStrategy = new(null!, null!, null!);
+			AutoscaleServiceV2 service = new AutoscaleServiceV2(leaseUtilizationStrategy,jobQueueStrategy, new NoOpPoolSizeStrategy(), computeQueueAwsMetricStrategy, AgentCollection, PoolCollection, fleetManager, _dogStatsD, Clock, serverSettingsOpt, logger);
 			return service;
 		}
 	}

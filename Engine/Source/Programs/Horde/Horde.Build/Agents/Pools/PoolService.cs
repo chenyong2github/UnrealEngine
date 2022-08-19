@@ -67,6 +67,7 @@ namespace Horde.Build.Agents.Pools
 		/// <param name="sizeStrategy">Pool sizing strategy</param>
 		/// <param name="leaseUtilizationSettings">Settings for lease utilization strategy</param>
 		/// <param name="jobQueueSettings">Settings for job queue strategy</param>
+		/// <param name="computeQueueAwsMetricSettings">Settings for compute queue AWS metric strategy</param>
 		/// <param name="properties">Properties for the new pool</param>
 		/// <returns>The new pool document</returns>
 		public Task<IPool> CreatePoolAsync(
@@ -81,6 +82,7 @@ namespace Horde.Build.Agents.Pools
 			PoolSizeStrategy? sizeStrategy = null,
 			LeaseUtilizationSettings? leaseUtilizationSettings = null,
 			JobQueueSettings? jobQueueSettings = null,
+			ComputeQueueAwsMetricSettings? computeQueueAwsMetricSettings = null,
 			Dictionary<string, string>? properties = null)
 		{
 			return _pools.AddAsync(
@@ -96,6 +98,7 @@ namespace Horde.Build.Agents.Pools
 				sizeStrategy,
 				leaseUtilizationSettings,
 				jobQueueSettings,
+				computeQueueAwsMetricSettings,
 				properties);
 		}
 
@@ -125,6 +128,7 @@ namespace Horde.Build.Agents.Pools
 		/// <param name="sizeStrategy">New pool sizing strategy for the pool</param>
 		/// <param name="leaseUtilizationSettings">Settings for lease utilization-based strategy</param>
 		/// <param name="jobQueueSettings">Settings for job queue-based strategy</param>
+		/// <param name="computeQueueAwsMetricSettings">Settings for compute queue AWS metric strategy</param>
 		/// <param name="useDefaultStrategy">Whether to use the default strategy</param>
 		/// <returns>Async task object</returns>
 		public async Task<IPool?> UpdatePoolAsync(
@@ -141,6 +145,7 @@ namespace Horde.Build.Agents.Pools
 			PoolSizeStrategy? sizeStrategy = null,
 			LeaseUtilizationSettings? leaseUtilizationSettings = null,
 			JobQueueSettings? jobQueueSettings = null,
+			ComputeQueueAwsMetricSettings? computeQueueAwsMetricSettings = null,
 			bool? useDefaultStrategy = null)
 		{
 			for (; pool != null; pool = await _pools.GetAsync(pool.Id))
@@ -159,6 +164,7 @@ namespace Horde.Build.Agents.Pools
 					sizeStrategy: sizeStrategy,
 					leaseUtilizationSettings: leaseUtilizationSettings,
 					jobQueueSettings: jobQueueSettings,
+					computeQueueAwsMetricSettings: computeQueueAwsMetricSettings,
 					useDefaultStrategy: useDefaultStrategy);
 				
 				if (newPool != null)

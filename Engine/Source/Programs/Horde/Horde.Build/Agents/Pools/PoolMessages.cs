@@ -75,6 +75,39 @@ namespace Horde.Build.Agents.Pools
 		}
 	}
 	
+	/// <see cref="ComputeQueueAwsMetricSettings" />
+	public class ComputeQueueAwsMetricSettingsMessage
+	{
+		/// <summary>
+		/// Compute cluster ID to observe
+		/// </summary>
+		public string ComputeClusterId { get; set; }
+
+		/// <summary>
+		/// AWS CloudWatch namespace to write metrics in
+		/// </summary>
+		public string Namespace { get; set; }
+
+		/// <summary>
+		/// Construct a public REST API representation from the internal one
+		/// </summary>
+		/// <param name="settings"></param>
+		public ComputeQueueAwsMetricSettingsMessage(ComputeQueueAwsMetricSettings settings)
+		{
+			ComputeClusterId = settings.ComputeClusterId;
+			Namespace = settings.Namespace;
+		}
+		
+		/// <summary>
+		/// Convert this public REST API object to an internal representation
+		/// </summary>
+		/// <returns></returns>
+		public ComputeQueueAwsMetricSettings Convert()
+		{
+			return new ComputeQueueAwsMetricSettings(ComputeClusterId, Namespace);
+		}
+	}
+	
 	/// <summary>
 	/// Parameters to create a new pool
 	/// </summary>
@@ -125,9 +158,14 @@ namespace Horde.Build.Agents.Pools
 		/// Settings for job queue pool sizing strategy (if used) 
 		/// </summary>
 		public JobQueueSettingsMessage? JobQueueSettings { get; set; }
+		
+		/// <summary>
+		/// Settings for compute queue pool sizing strategy for AWS metrics (if used) 
+		/// </summary>
+		public ComputeQueueAwsMetricSettingsMessage? ComputeQueueAwsMetricSettings { get; set; }
 
 		/// <summary>
-		/// The minimum nunmber of agents to retain in this pool
+		/// The minimum number of agents to retain in this pool
 		/// </summary>
 		public int? MinAgents { get; set; }
 
@@ -216,9 +254,14 @@ namespace Horde.Build.Agents.Pools
 		/// Settings for job queue pool sizing strategy (if used) 
 		/// </summary>
 		public JobQueueSettingsMessage? JobQueueSettings { get; set; }
+		
+		/// <summary>
+		/// Settings for compute queue AWS metric pool sizing strategy (if used) 
+		/// </summary>
+		public ComputeQueueAwsMetricSettingsMessage? ComputeQueueAwsMetricSettings { get; set; }
 
 		/// <summary>
-		/// The minimum nunmber of agents to retain in this pool
+		/// The minimum number of agents to retain in this pool
 		/// </summary>
 		public int? MinAgents { get; set; }
 
@@ -311,6 +354,11 @@ namespace Horde.Build.Agents.Pools
 		public JobQueueSettingsMessage? JobQueueSettings { get; set; }
 
 		/// <summary>
+		/// Settings for compute queue pool sizing strategy for AWS metrics (if used) 
+		/// </summary>
+		public ComputeQueueAwsMetricSettingsMessage? ComputeQueueAwsMetricSettings { get; set; }
+
+		/// <summary>
 		/// The minimum nunmber of agents to retain in this pool
 		/// </summary>
 		public int? MinAgents { get; set; }
@@ -346,6 +394,7 @@ namespace Horde.Build.Agents.Pools
 			SizeStrategy = pool.SizeStrategy;
 			LeaseUtilizationSettings = pool.LeaseUtilizationSettings == null ? null : new LeaseUtilizationSettingsMessage(pool.LeaseUtilizationSettings);
 			JobQueueSettings = pool.JobQueueSettings == null ? null : new JobQueueSettingsMessage(pool.JobQueueSettings);
+			ComputeQueueAwsMetricSettings = pool.ComputeQueueAwsMetricSettings == null ? null : new ComputeQueueAwsMetricSettingsMessage(pool.ComputeQueueAwsMetricSettings);
 			MinAgents = pool.MinAgents;
 			NumReserveAgents = pool.NumReserveAgents;
 			Workspaces = pool.Workspaces.Select(x => new GetAgentWorkspaceResponse(x)).ToList();

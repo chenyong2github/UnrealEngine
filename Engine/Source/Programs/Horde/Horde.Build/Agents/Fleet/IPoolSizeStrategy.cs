@@ -28,7 +28,13 @@ namespace Horde.Build.Agents.Fleet
 		/// No-op strategy used as fallback/default behavior
 		/// <see cref="NoOpPoolSizeStrategy"/> 
 		/// </summary>
-		NoOp
+		NoOp,
+		
+		/// <summary>
+		/// A no-op strategy that reports metrics to let an external AWS auto-scaling policy scale the fleet
+		/// <see cref="ComputeQueueAwsMetric"/> 
+		/// </summary>
+		ComputeQueueAwsMetric
 	}
 
 	/// <summary>

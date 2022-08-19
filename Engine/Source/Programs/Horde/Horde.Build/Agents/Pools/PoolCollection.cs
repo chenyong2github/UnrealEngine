@@ -46,6 +46,7 @@ namespace Horde.Build.Agents.Pools
 			PoolSizeStrategy IPool.SizeStrategy => SizeStrategy ?? defaultStrategy!.Value;
 			public LeaseUtilizationSettings? LeaseUtilizationSettings { get; set; }
 			public JobQueueSettings? JobQueueSettings { get; set; }
+			public ComputeQueueAwsMetricSettings? ComputeQueueAwsMetricSettings { get; set; }
 			public int UpdateIndex { get; set; }
 
 			// Read-only wrappers
@@ -75,6 +76,7 @@ namespace Horde.Build.Agents.Pools
 				SizeStrategy = other.SizeStrategy;
 				LeaseUtilizationSettings = other.LeaseUtilizationSettings;
 				JobQueueSettings = other.JobQueueSettings;
+				ComputeQueueAwsMetricSettings = other.ComputeQueueAwsMetricSettings;
 				UpdateIndex = other.UpdateIndex;
 			}
 		}
@@ -111,6 +113,7 @@ namespace Horde.Build.Agents.Pools
 			PoolSizeStrategy? sizeStrategy,
 			LeaseUtilizationSettings? leaseUtilizationSettings,
 			JobQueueSettings? jobQueueSettings,
+			ComputeQueueAwsMetricSettings? computeQueueAwsMetricSettings,
 			IEnumerable<KeyValuePair<string, string>>? properties)
 		{
 			PoolDocument pool = new PoolDocument();
@@ -134,6 +137,7 @@ namespace Horde.Build.Agents.Pools
 			pool.SizeStrategy = sizeStrategy;
 			pool.LeaseUtilizationSettings = leaseUtilizationSettings;
 			pool.JobQueueSettings = jobQueueSettings;
+			pool.ComputeQueueAwsMetricSettings = computeQueueAwsMetricSettings;
 			await _pools.InsertOneAsync(pool);
 			return pool;
 		}
@@ -226,6 +230,7 @@ namespace Horde.Build.Agents.Pools
 			PoolSizeStrategy? sizeStrategy,
 			LeaseUtilizationSettings? leaseUtilizationSettings,
 			JobQueueSettings? jobQueueSettings, 
+			ComputeQueueAwsMetricSettings? computeQueueAwsMetricSettings, 
 			bool? useDefaultStrategy)
 		{
 			TransactionBuilder<PoolDocument> transaction = new TransactionBuilder<PoolDocument>();
@@ -332,6 +337,10 @@ namespace Horde.Build.Agents.Pools
 			if (jobQueueSettings != null)
 			{
 				transaction.Set(x => x.JobQueueSettings, jobQueueSettings);
+			}
+			if (computeQueueAwsMetricSettings != null)
+			{
+				transaction.Set(x => x.ComputeQueueAwsMetricSettings, computeQueueAwsMetricSettings);
 			}
 			return TryUpdateAsync(pool, transaction);
 		}

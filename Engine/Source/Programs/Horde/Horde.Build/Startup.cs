@@ -12,9 +12,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Amazon.CloudWatch;
 using Amazon.Extensions.NETCore.Setup;
-using Amazon.Runtime;
-using Amazon.SecurityToken.Model;
 using EpicGames.AspNet;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
@@ -94,7 +93,7 @@ using Horde.Build.Agents.Fleet.Providers;
 using Horde.Build.Server.Notices;
 using Horde.Build.Notifications.Sinks;
 using EpicGames.Horde.Storage.Bundles;
-using Microsoft.Extensions.Caching.Memory;
+using StatusCode = Grpc.Core.StatusCode;
 
 namespace Horde.Build
 {
@@ -389,6 +388,7 @@ namespace Horde.Build
 			services.AddSingleton<LeaseUtilizationStrategy>();
 			services.AddSingleton<JobQueueStrategy>();
 			services.AddSingleton<NoOpPoolSizeStrategy>();
+			services.AddSingleton<ComputeQueueAwsMetricStrategy>();
 			
 			switch (settings.FleetManager)
 			{
@@ -464,6 +464,10 @@ namespace Horde.Build
 			services.AddSingleton<ITreeStore<ReplicationService>>(sp => CreateTreeStore(sp, settings.CommitStorage).ForType<ReplicationService>());
 
 			services.AddHordeStorage(settings => configSection.GetSection("Storage").Bind(settings));
+			
+			AWSOptions awsOptions = Configuration.GetAWSOptions();
+			services.AddDefaultAWSOptions(awsOptions);
+			services.AddAWSService<IAmazonCloudWatch>();
 
 			ConfigureLogStorage(services);
 
@@ -636,6 +640,7 @@ namespace Horde.Build
 			services.AddSingleton<ConformTaskSource>();
 			services.AddHostedService<ConformTaskSource>(provider => provider.GetRequiredService<ConformTaskSource>());
 			services.AddSingleton<ComputeService>();
+			services.AddSingleton<IComputeService, ComputeService>();
 
 			services.AddSingleton<ITaskSource, UpgradeTaskSource>();
 			services.AddSingleton<ITaskSource, ShutdownTaskSource>();

@@ -100,6 +100,11 @@ namespace Horde.Build.Agents.Pools
 		/// Settings for job queue pool sizing strategy (if used)
 		/// </summary>
 		public JobQueueSettings? JobQueueSettings { get; }
+		
+		/// <summary>
+		/// Settings for job queue pool sizing strategy (if used)
+		/// </summary>
+		public ComputeQueueAwsMetricSettings? ComputeQueueAwsMetricSettings { get; }
 
 		/// <summary>
 		/// Update index for this document
