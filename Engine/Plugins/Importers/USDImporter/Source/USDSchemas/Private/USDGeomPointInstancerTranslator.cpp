@@ -351,7 +351,8 @@ USceneComponent* FUsdGeomPointInstancerTranslator::CreateComponents()
 					Context->Time,
 					Context->ObjectFlags,
 					Context->bAllowInterpretingLODs,
-					Context->RenderContext
+					Context->RenderContext,
+					Context->MaterialPurpose
 				);
 			}
 		}

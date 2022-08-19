@@ -165,11 +165,28 @@ namespace UsdToUnreal
 	 * @param MaterialAssignments - Output parameter that will be filled with the material assignment data extracted from UsdSkinningQuery
 	 * @param MaterialToPrimvarsUVSetNames - Maps from a material prim path, to pairs indicating which primvar names are used as 'st' coordinates for this mesh, and which UVIndex materials will sample from (e.g. ["st0", 0], ["myUvSet2", 2], etc). This is used to pick which primvars will become UV sets.
 	 * @param RenderContext - Render context to use when parsing the skinned mesh's materials (e.g. '' for universal, or 'mdl', or 'unreal', etc.)
+	 * @param MaterialPurpose - Material purpose to use when parsing the skinned Mesh prim's material bindings
 	 * @return Whether the conversion was successful or not.
 	 */
-	USDUTILITIES_API bool ConvertSkinnedMesh( const pxr::UsdSkelSkinningQuery& UsdSkinningQuery, const pxr::UsdSkelSkeletonQuery& SkeletonQuery, FSkeletalMeshImportData& SkelMeshImportData, TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const pxr::TfToken& RenderContext = pxr::UsdShadeTokens->universalRenderContext );
+	USDUTILITIES_API bool ConvertSkinnedMesh(
+		const pxr::UsdSkelSkinningQuery& UsdSkinningQuery,
+		const pxr::UsdSkelSkeletonQuery& SkeletonQuery,
+		FSkeletalMeshImportData& SkelMeshImportData,
+		TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments,
+		const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
+		const pxr::TfToken& RenderContext = pxr::UsdShadeTokens->universalRenderContext,
+		const pxr::TfToken& MaterialPurpose = pxr::UsdShadeTokens->allPurpose
+	);
 	UE_DEPRECATED( 5.1, "Please use the other overload that also receives the relevant UsdSkelSkeletonQuery object." )
-	USDUTILITIES_API bool ConvertSkinnedMesh( const pxr::UsdSkelSkinningQuery& UsdSkinningQuery, const FTransform& AdditionalTransform, FSkeletalMeshImportData& SkelMeshImportData, TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const pxr::TfToken& RenderContext = pxr::UsdShadeTokens->universalRenderContext );
+	USDUTILITIES_API bool ConvertSkinnedMesh(
+		const pxr::UsdSkelSkinningQuery& UsdSkinningQuery,
+		const FTransform& AdditionalTransform,
+		FSkeletalMeshImportData& SkelMeshImportData,
+		TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments,
+		const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
+		const pxr::TfToken& RenderContext = pxr::UsdShadeTokens->universalRenderContext,
+		const pxr::TfToken& MaterialPurpose = pxr::UsdShadeTokens->allPurpose
+	);
 
 	/**
 	 * Will extract animation data from the animation source of InUsdSkeletonQuery's skeleton, and populate OutSkeletalAnimationAsset with the data.

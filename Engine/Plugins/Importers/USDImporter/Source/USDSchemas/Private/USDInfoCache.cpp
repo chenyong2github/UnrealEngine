@@ -140,12 +140,19 @@ namespace UE::USDInfoCacheImpl::Private
 				RenderContextToken = UnrealToUsd::ConvertToken( *Context.RenderContext.ToString() ).Get();
 			}
 
+			pxr::TfToken MaterialPurposeToken = pxr::UsdShadeTokens->allPurpose;
+			if ( !Context.MaterialPurpose.IsNone() )
+			{
+				MaterialPurposeToken = UnrealToUsd::ConvertToken( *Context.MaterialPurpose.ToString() ).Get();
+			}
+
 			const bool bProvideMaterialIndices = false;
 			UsdUtils::FUsdPrimMaterialAssignmentInfo LocalInfo = UsdUtils::GetPrimMaterialAssignments(
 				UsdPrim,
 				Context.Time,
 				bProvideMaterialIndices,
-				RenderContextToken
+				RenderContextToken,
+				MaterialPurposeToken
 			);
 
 			OutMaterialSlots.Append( MoveTemp( LocalInfo.Slots ) );

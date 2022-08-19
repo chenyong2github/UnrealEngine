@@ -23,15 +23,17 @@ public:
 	// End of IDetailCustomization interface
 
 private:
-	void OnComboBoxOpening();
 	void OnComboBoxSelectionChanged( TSharedPtr<FString> NewContext, ESelectInfo::Type SelectType );
 	FText GetComboBoxSelectedOptionText() const;
 	void ForceRefreshDetails();
 
 	AUsdStageActor* CurrentActor;
 	TWeakPtr<IDetailLayoutBuilder> DetailBuilderWeakPtr;
-	TSharedPtr<SComboBox<TSharedPtr<FString>>> ComboBox;
-	TArray<TSharedPtr<FString>> ComboBoxItems;
+
+	TSharedPtr<SComboBox<TSharedPtr<FString>>> RenderContextComboBox;
+	TArray<TSharedPtr<FString>> RenderContextComboBoxItems;
+
+	TArray<TSharedPtr<FString>> MaterialPurposeComboBoxItems;
 };
 
 #endif // WITH_EDITOR

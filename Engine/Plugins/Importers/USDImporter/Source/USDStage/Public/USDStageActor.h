@@ -83,6 +83,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD")
 	FName RenderContext;
 
+	/** Specifies which material purbose to use when parsing USD material bindings, in addition to the "allPurpose" fallback. */
+	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "USD" )
+	FName MaterialPurpose;
+
 public:
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	USDSTAGE_API void SetRootLayer(const FString& RootFilePath );
@@ -110,6 +114,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	USDSTAGE_API void SetRenderContext( const FName& NewRenderContext );
+
+	UFUNCTION( BlueprintCallable, Category = "USD", meta = ( CallInEditor = "true" ) )
+	USDSTAGE_API void SetMaterialPurpose( const FName& NewMaterialPurpose );
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	USDSTAGE_API float GetTime() const { return Time; }

@@ -583,7 +583,12 @@ TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr
 	return UsdUtils::GetUVSetPrimvars(UsdMesh, {});
 }
 
-TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr::UsdGeomMesh& UsdMesh, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const pxr::TfToken& RenderContext )
+TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars(
+	const pxr::UsdGeomMesh& UsdMesh,
+	const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
+	const pxr::TfToken& RenderContext,
+	const pxr::TfToken& MaterialPurpose
+)
 {
 	if ( !UsdMesh )
 	{
@@ -591,7 +596,14 @@ TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr
 	}
 
 	const bool bProvideMaterialIndices = false;
-	UsdUtils::FUsdPrimMaterialAssignmentInfo Info = UsdUtils::GetPrimMaterialAssignments( UsdMesh.GetPrim(), pxr::UsdTimeCode( 0.0 ), bProvideMaterialIndices, RenderContext );
+	UsdUtils::FUsdPrimMaterialAssignmentInfo Info = UsdUtils::GetPrimMaterialAssignments(
+		UsdMesh.GetPrim(),
+		pxr::UsdTimeCode( 0.0 ),
+		bProvideMaterialIndices,
+		RenderContext,
+		MaterialPurpose
+	);
+
 	return UsdUtils::GetUVSetPrimvars( UsdMesh, MaterialToPrimvarsUVSetNames, Info );
 }
 

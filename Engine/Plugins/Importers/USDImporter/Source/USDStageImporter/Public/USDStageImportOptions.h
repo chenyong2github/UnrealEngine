@@ -78,6 +78,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "USD options")
 	FName RenderContextToImport;
 
+	/** Specifies which material purpose to use when parsing USD material bindings, in addition to the "allPurpose" fallback */
+	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "USD options" )
+	FName MaterialPurpose;
+
 	/** Whether to use the specified StageOptions instead of the stage's own settings */
 	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "USD options" )
 	bool bOverrideStageOptions;

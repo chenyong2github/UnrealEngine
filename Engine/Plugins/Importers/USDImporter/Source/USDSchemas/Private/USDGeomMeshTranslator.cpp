@@ -1466,7 +1466,8 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 				Context->Time,
 				Context->ObjectFlags,
 				Context->bAllowInterpretingLODs,
-				Context->RenderContext
+				Context->RenderContext,
+				Context->MaterialPurpose
 			);
 		}
 	}
@@ -1485,7 +1486,8 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 				Context->Time,
 				Context->ObjectFlags,
 				bAllowInterpretingLODs,
-				Context->RenderContext
+				Context->RenderContext,
+				Context->MaterialPurpose
 			);
 
 #if WITH_EDITOR
@@ -1494,7 +1496,7 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 			{
 				UsdGroomTranslatorUtils::CreateGroomBindingAsset( GetPrim(), *( Context->AssetCache ), Context->ObjectFlags );
 
-				// For the groom binding to work, the GroomComponent must be a child of the SceneComponent 
+				// For the groom binding to work, the GroomComponent must be a child of the SceneComponent
 				// so the Context ParentComponent is set to the SceneComponent temporarily
 				TGuardValue< USceneComponent* > ParentComponentGuard{ Context->ParentComponent, SceneComponent };
 				const bool bNeedsActor = false;

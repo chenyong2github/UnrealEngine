@@ -1136,7 +1136,15 @@ bool UsdToUnreal::ConvertSkeleton(const pxr::UsdSkelSkeletonQuery& SkeletonQuery
 	return true;
 }
 
-bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQuery, const pxr::UsdSkelSkeletonQuery& SkeletonQuery, FSkeletalMeshImportData& SkelMeshImportData, TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const pxr::TfToken& RenderContext )
+bool UsdToUnreal::ConvertSkinnedMesh(
+	const pxr::UsdSkelSkinningQuery& SkinningQuery,
+	const pxr::UsdSkelSkeletonQuery& SkeletonQuery,
+	FSkeletalMeshImportData& SkelMeshImportData,
+	TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments,
+	const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
+	const pxr::TfToken& RenderContext,
+	const pxr::TfToken& MaterialPurpose
+)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::ConvertSkinnedMesh );
 
@@ -1286,7 +1294,13 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 
 	// Material assignments
 	const bool bProvideMaterialIndices = true;
-	UsdUtils::FUsdPrimMaterialAssignmentInfo LocalInfo = UsdUtils::GetPrimMaterialAssignments( SkinningPrim, pxr::UsdTimeCode::EarliestTime(), bProvideMaterialIndices, RenderContext );
+	UsdUtils::FUsdPrimMaterialAssignmentInfo LocalInfo = UsdUtils::GetPrimMaterialAssignments(
+		SkinningPrim,
+		pxr::UsdTimeCode::EarliestTime(),
+		bProvideMaterialIndices,
+		RenderContext,
+		MaterialPurpose
+	);
 	TArray< UsdUtils::FUsdPrimMaterialSlot >& LocalMaterialSlots = LocalInfo.Slots;
 	TArray< int32 >& FaceMaterialIndices = LocalInfo.MaterialIndices;
 
@@ -1451,7 +1465,12 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 
 	TArray< FUVSet > UVSets;
 
-	TArray< TUsdStore< UsdGeomPrimvar > > PrimvarsByUVIndex = UsdUtils::GetUVSetPrimvars( UsdMesh, MaterialToPrimvarsUVSetNames, RenderContext );
+	TArray< TUsdStore< UsdGeomPrimvar > > PrimvarsByUVIndex = UsdUtils::GetUVSetPrimvars(
+		UsdMesh,
+		MaterialToPrimvarsUVSetNames,
+		RenderContext,
+		MaterialPurpose
+	);
 
 	int32 UVChannelIndex = 0;
 	while ( true )
@@ -1729,7 +1748,15 @@ bool UsdToUnreal::ConvertSkinnedMesh(const pxr::UsdSkelSkinningQuery& SkinningQu
 	return true;
 }
 
-bool UsdToUnreal::ConvertSkinnedMesh( const pxr::UsdSkelSkinningQuery& UsdSkinningQuery, const FTransform& AdditionalTransform, FSkeletalMeshImportData& SkelMeshImportData, TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const pxr::TfToken& RenderContext )
+bool UsdToUnreal::ConvertSkinnedMesh(
+	const pxr::UsdSkelSkinningQuery& UsdSkinningQuery,
+	const FTransform& AdditionalTransform,
+	FSkeletalMeshImportData& SkelMeshImportData,
+	TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments,
+	const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
+	const pxr::TfToken& RenderContext,
+	const pxr::TfToken& MaterialPurpose
+)
 {
 	FScopedUsdAllocs UEAllocs;
 
@@ -1801,7 +1828,8 @@ bool UsdToUnreal::ConvertSkinnedMesh( const pxr::UsdSkelSkinningQuery& UsdSkinni
 			SkelMeshImportData,
 			MaterialAssignments,
 			MaterialToPrimvarsUVSetNames,
-			RenderContext
+			RenderContext,
+			MaterialPurpose
 		);
 	}
 

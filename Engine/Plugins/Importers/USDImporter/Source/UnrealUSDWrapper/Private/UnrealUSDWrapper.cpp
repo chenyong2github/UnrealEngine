@@ -762,6 +762,17 @@ FName UnrealIdentifiers::OuterConeAnglePropertyName = GET_MEMBER_NAME_CHECKED( U
 FName UnrealIdentifiers::InnerConeAnglePropertyName = GET_MEMBER_NAME_CHECKED( USpotLightComponent, InnerConeAngle );
 FName UnrealIdentifiers::LightSourceAnglePropertyName = GET_MEMBER_NAME_CHECKED( UDirectionalLightComponent, LightSourceAngle );
 
+FString UnrealIdentifiers::MaterialAllPurposeText = TEXT( "allPurpose" );
+#if USE_USD_SDK
+FString UnrealIdentifiers::MaterialAllPurpose = ANSI_TO_TCHAR( pxr::UsdShadeTokens->allPurpose.GetString().c_str() );
+FString UnrealIdentifiers::MaterialPreviewPurpose = ANSI_TO_TCHAR( pxr::UsdShadeTokens->preview.GetString().c_str() );
+FString UnrealIdentifiers::MaterialFullPurpose = ANSI_TO_TCHAR( pxr::UsdShadeTokens->full.GetString().c_str() );
+#else
+FString UnrealIdentifiers::MaterialAllPurpose = TEXT( "" );
+FString UnrealIdentifiers::MaterialPreviewPurpose = TEXT( "preview" );
+FString UnrealIdentifiers::MaterialFullPurpose = TEXT( "full" );
+#endif // USE_USD_SDK
+
 FUsdDelegates::FUsdImportDelegate FUsdDelegates::OnPreUsdImport;
 FUsdDelegates::FUsdImportDelegate FUsdDelegates::OnPostUsdImport;
 

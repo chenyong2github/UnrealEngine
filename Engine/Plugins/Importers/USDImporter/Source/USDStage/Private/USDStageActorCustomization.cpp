@@ -4,6 +4,7 @@
 
 #include "USDStageActorCustomization.h"
 
+#include "USDProjectSettings.h"
 #include "USDSchemasModule.h"
 #include "USDSchemaTranslator.h"
 #include "USDStageActor.h"
@@ -13,10 +14,10 @@
 #include "DetailWidgetRow.h"
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
+#include "Styling/AppStyle.h"
 #include "UObject/Object.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/AppStyle.h"
-
+#include "Widgets/Input/SEditableTextBox.h"
 
 #define LOCTEXT_NAMESPACE "UsdStageActorCustomization"
 
@@ -53,7 +54,7 @@ void FUsdStageActorCustomization::CustomizeDetails( IDetailLayoutBuilder& Detail
 
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT( "USDSchemas" ) );
 
-	ComboBoxItems.Reset();
+	RenderContextComboBoxItems.Reset();
 	TSharedPtr<FString> InitiallySelectedContext;
 	for ( const FName& Context : UsdSchemasModule.GetRenderContextRegistry().GetRenderContexts() )
 	{
@@ -72,7 +73,7 @@ void FUsdStageActorCustomization::CustomizeDetails( IDetailLayoutBuilder& Detail
 			InitiallySelectedContext = ContextStr;
 		}
 
-		ComboBoxItems.Add( ContextStr );
+		RenderContextComboBoxItems.Add( ContextStr );
 	}
 
 	IDetailCategoryBuilder& CatBuilder = DetailLayoutBuilder.EditCategory( TEXT( "USD" ) );
@@ -85,14 +86,14 @@ void FUsdStageActorCustomization::CustomizeDetails( IDetailLayoutBuilder& Detail
 		.NameContent()
 		[
 			SNew( STextBlock )
-			.Text( FText::FromString( TEXT( "Render Context" ) ) )
+			.Text( FText::FromString( TEXT( "Render context" ) ) )
 			.Font( FAppStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
 			.ToolTipText( RenderContextProperty->GetToolTipText() )
 		]
 		.ValueContent()
 		[
-			SAssignNew( ComboBox, SComboBox<TSharedPtr<FString>> )
-			.OptionsSource( &ComboBoxItems )
+			SAssignNew( RenderContextComboBox, SComboBox<TSharedPtr<FString>> )
+			.OptionsSource( &RenderContextComboBoxItems )
 			.InitiallySelectedItem( InitiallySelectedContext )
 			.OnSelectionChanged( this, &FUsdStageActorCustomization::OnComboBoxSelectionChanged )
 			.OnGenerateWidget_Lambda( []( TSharedPtr<FString> Item )
@@ -106,6 +107,131 @@ void FUsdStageActorCustomization::CustomizeDetails( IDetailLayoutBuilder& Detail
 				SNew( STextBlock )
 				.Text( this, &FUsdStageActorCustomization::GetComboBoxSelectedOptionText )
 				.Font(FAppStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
+			]
+		];
+	}
+
+	if ( TSharedPtr<IPropertyHandle> MaterialPurposeProperty = DetailLayoutBuilder.GetProperty( GET_MEMBER_NAME_CHECKED( AUsdStageActor, MaterialPurpose ) ) )
+	{
+		DetailLayoutBuilder.HideProperty( MaterialPurposeProperty );
+
+		CatBuilder.AddCustomRow( FText::FromString( TEXT( "MaterialPurposeCustomization" ) ) )
+		.NameContent()
+		[
+			SNew( STextBlock )
+			.Text( FText::FromString( TEXT( "Material purpose" ) ) )
+			.Font( FAppStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
+			.ToolTipText( MaterialPurposeProperty->GetToolTipText() )
+		]
+		.ValueContent()
+		[
+			SNew( SBox )
+			.VAlign( VAlign_Center )
+			[
+				SNew( SComboBox< TSharedPtr<FString> > )
+				.OptionsSource( &MaterialPurposeComboBoxItems )
+				.OnComboBoxOpening_Lambda([this]()
+				{
+					MaterialPurposeComboBoxItems = {
+						MakeShared<FString>( UnrealIdentifiers::MaterialAllPurpose ),
+						MakeShared<FString>( UnrealIdentifiers::MaterialPreviewPurpose ),
+						MakeShared<FString>( UnrealIdentifiers::MaterialFullPurpose )
+					};
+
+					// Add additional purposes from project settings
+					if ( const UUsdProjectSettings* ProjectSettings = GetDefault<UUsdProjectSettings>() )
+					{
+						MaterialPurposeComboBoxItems.Reserve( MaterialPurposeComboBoxItems.Num() + ProjectSettings->AdditionalMaterialPurposes.Num() );
+
+						TSet<FString> ExistingEntries = {
+							UnrealIdentifiers::MaterialAllPurpose,
+							UnrealIdentifiers::MaterialPreviewPurpose,
+							UnrealIdentifiers::MaterialFullPurpose
+						};
+
+						for ( const FName& AdditionalPurpose : ProjectSettings->AdditionalMaterialPurposes )
+						{
+							FString AdditionalPurposeStr = AdditionalPurpose.ToString();
+
+							if ( !ExistingEntries.Contains( AdditionalPurposeStr ) )
+							{
+								ExistingEntries.Add( AdditionalPurposeStr );
+								MaterialPurposeComboBoxItems.AddUnique( MakeShared<FString>( AdditionalPurposeStr ) );
+							}
+						}
+					}
+				})
+				.OnGenerateWidget_Lambda( [ & ]( TSharedPtr<FString> Option )
+				{
+					TSharedPtr<SWidget> Widget = SNullWidget::NullWidget;
+					if ( Option )
+					{
+						Widget = SNew( STextBlock )
+							.Text( FText::FromString( ( *Option ) == UnrealIdentifiers::MaterialAllPurpose
+								? UnrealIdentifiers::MaterialAllPurposeText
+								: *Option
+							) )
+							.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) );
+					}
+
+					return Widget.ToSharedRef();
+				})
+				.OnSelectionChanged_Lambda([this]( TSharedPtr<FString> ChosenOption, ESelectInfo::Type SelectInfo )
+				{
+					if ( ChosenOption && CurrentActor )
+					{
+						CurrentActor->SetMaterialPurpose( **ChosenOption );
+					}
+				})
+				[
+					SNew( SEditableTextBox )
+					.Text_Lambda([this]() -> FText
+					{
+						if ( CurrentActor )
+						{
+							return FText::FromString( CurrentActor->MaterialPurpose == *UnrealIdentifiers::MaterialAllPurpose
+								? UnrealIdentifiers::MaterialAllPurposeText
+								: CurrentActor->MaterialPurpose.ToString()
+							);
+						}
+
+						return FText::GetEmpty();
+					})
+					.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
+					.OnTextCommitted_Lambda( [this]( const FText& NewText, ETextCommit::Type CommitType )
+					{
+						if ( CommitType != ETextCommit::OnEnter )
+						{
+							return;
+						}
+
+						FString NewPurposeString = NewText.ToString();
+						FName NewPurpose = *NewPurposeString;
+
+						bool bIsNew = true;
+						for ( const TSharedPtr<FString>& Purpose : MaterialPurposeComboBoxItems )
+						{
+							if ( Purpose && *Purpose == NewPurposeString )
+							{
+								bIsNew = false;
+								break;
+							}
+						}
+
+						if ( bIsNew )
+						{
+							if ( UUsdProjectSettings* ProjectSettings = GetMutableDefault<UUsdProjectSettings>() )
+							{
+								ProjectSettings->AdditionalMaterialPurposes.AddUnique( NewPurpose );
+							}
+						}
+
+						if ( CurrentActor )
+						{
+							CurrentActor->SetMaterialPurpose( NewPurpose );
+						}
+					})
+				]
 			]
 		];
 	}
@@ -147,7 +273,7 @@ void FUsdStageActorCustomization::OnComboBoxSelectionChanged( TSharedPtr<FString
 
 FText FUsdStageActorCustomization::GetComboBoxSelectedOptionText() const
 {
-	TSharedPtr<FString> SelectedItem = ComboBox->GetSelectedItem();
+	TSharedPtr<FString> SelectedItem = RenderContextComboBox->GetSelectedItem();
 	if ( SelectedItem.IsValid() )
 	{
 		return FText::FromString( *SelectedItem );

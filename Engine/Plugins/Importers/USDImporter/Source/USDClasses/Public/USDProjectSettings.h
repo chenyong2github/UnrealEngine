@@ -26,6 +26,10 @@ public:
 	UPROPERTY( config, EditAnywhere, Category = USD )
 	TArray<FDirectoryPath> AdditionalPluginDirectories;
 
+	// Material purposes to show on drop-downs in addition to the standard "preview" and "full"
+	UPROPERTY( config, EditAnywhere, Category = USD )
+	TArray<FName> AdditionalMaterialPurposes;
+
 	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
 	bool bShowConfirmationWhenClearingLayers = true;
 

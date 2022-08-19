@@ -46,6 +46,7 @@ protected:
 	void FillPayloadsSubMenu( FMenuBuilder& MenuBuilder );
 	void FillPurposesToLoadSubMenu( FMenuBuilder& MenuBuilder );
 	void FillRenderContextSubMenu( FMenuBuilder& MenuBuilder );
+	void FillMaterialPurposeSubMenu( FMenuBuilder& MenuBuilder );
 	void FillCollapsingSubMenu( FMenuBuilder& MenuBuilder );
 	void FillInterpolationTypeSubMenu( FMenuBuilder& MenuBuilder );
 	void FillSelectionSubMenu( FMenuBuilder& MenuBuilder );
@@ -111,6 +112,8 @@ protected:
 	TSharedPtr<ISceneOutliner> ActorPickerMenu;
 
 	int32 CurrentNaniteThreshold = INT32_MAX;
+
+	TArray<TSharedPtr<FString>> MaterialPurposes;
 };
 
 #endif // #if USE_USD_SDK

@@ -104,6 +104,7 @@ struct FUsdStageActorImpl
 		TranslationContext->PurposesToLoad = (EUsdPurpose) StageActor->PurposesToLoad;
 		TranslationContext->NaniteTriangleThreshold = StageActor->NaniteTriangleThreshold;
 		TranslationContext->RenderContext = StageActor->RenderContext;
+		TranslationContext->MaterialPurpose = StageActor->MaterialPurpose;
 		TranslationContext->MaterialToPrimvarToUVIndex = &StageActor->MaterialToPrimvarToUVIndex;
 		TranslationContext->BlendShapesByPath = &StageActor->BlendShapesByPath;
 		TranslationContext->InfoCache = StageActor->InfoCache;
@@ -537,6 +538,7 @@ struct FUsdStageActorImpl
 			EventAttributes.Emplace( TEXT( "PurposesToLoad" ), LexToString( StageActor->PurposesToLoad ) );
 			EventAttributes.Emplace( TEXT( "NaniteTriangleThreshold" ), LexToString( StageActor->NaniteTriangleThreshold ) );
 			EventAttributes.Emplace( TEXT( "RenderContext" ), StageActor->RenderContext.ToString() );
+			EventAttributes.Emplace( TEXT( "MaterialPurpose" ), StageActor->MaterialPurpose.ToString() );
 
 			const bool bAutomated = false;
 			IUsdClassesModule::SendAnalytics( MoveTemp( EventAttributes ), TEXT( "Open" ), bAutomated, ElapsedSeconds, NumberOfFrames, Extension );
@@ -621,6 +623,7 @@ AUsdStageActor::AUsdStageActor()
 	, bCollapseTopLevelPointInstancers( false )
 	, PurposesToLoad( (int32) EUsdPurpose::Proxy )
 	, NaniteTriangleThreshold( (uint64) 1000000 )
+	, MaterialPurpose( *UnrealIdentifiers::MaterialAllPurpose )
 	, Time( 0.0f )
 	, bIsTransitioningIntoPIE( false )
 	, bIsModifyingAProperty( false )
@@ -1021,7 +1024,7 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 					// seem to be the only ones that do at the moment
 					if ( ExistingMaterial && ( ExistingMaterial != NewMaterial ) )
 					{
-						for ( const FString& MaterialUserPrim : UsdUtils::GetMaterialUsers( PrimToResync ) )
+						for ( const FString& MaterialUserPrim : UsdUtils::GetMaterialUsers( PrimToResync, MaterialPurpose ) )
 						{
 							const bool bResyncComponent = true; // We need to force resync to reassign materials
 							UE::FSdfPath MaterialPrimPath{ *MaterialUserPrim };
@@ -1442,6 +1445,15 @@ void AUsdStageActor::SetRenderContext( const FName& NewRenderContext )
 	Modify(bMarkDirty);
 
 	RenderContext = NewRenderContext;
+	LoadUsdStage();
+}
+
+void AUsdStageActor::SetMaterialPurpose( const FName& NewMaterialPurpose )
+{
+	const bool bMarkDirty = false;
+	Modify( bMarkDirty );
+
+	MaterialPurpose = NewMaterialPurpose;
 	LoadUsdStage();
 }
 
@@ -2731,6 +2743,10 @@ void AUsdStageActor::HandlePropertyChangedEvent( FPropertyChangedEvent& Property
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, RenderContext ) )
 	{
 		SetRenderContext( RenderContext );
+	}
+	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, MaterialPurpose ) )
+	{
+		SetMaterialPurpose( MaterialPurpose );
 	}
 
 	bIsModifyingAProperty = false;

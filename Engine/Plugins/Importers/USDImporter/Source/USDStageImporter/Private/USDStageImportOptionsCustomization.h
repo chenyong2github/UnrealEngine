@@ -29,8 +29,11 @@ private:
 	void ForceRefreshDetails();
 
 	UUsdStageImportOptions* CurrentOptions;
-	TSharedPtr<SComboBox<TSharedPtr<FString>>> ComboBox;
-	TArray<TSharedPtr<FString>> ComboBoxItems;
+
+	TSharedPtr<SComboBox<TSharedPtr<FString>>> RenderContextComboBox;
+	TArray<TSharedPtr<FString>> RenderContextComboBoxItems;
+
+	TArray<TSharedPtr<FString>> MaterialPurposeComboBoxItems;
 };
 
 #endif // WITH_EDITOR

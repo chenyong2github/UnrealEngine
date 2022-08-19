@@ -10,6 +10,7 @@
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
+#include "USDProjectSettings.h"
 #include "USDSchemasModule.h"
 #include "USDSchemaTranslator.h"
 #include "USDStageActor.h"
@@ -28,7 +29,6 @@
 #include "Async/Async.h"
 #include "DesktopPlatformModule.h"
 #include "Dialogs/DlgPickPath.h"
-#include "Styling/AppStyle.h"
 #include "Engine/Selection.h"
 #include "Engine/World.h"
 #include "EngineAnalytics.h"
@@ -37,7 +37,9 @@
 #include "Modules/ModuleManager.h"
 #include "SceneOutlinerModule.h"
 #include "ScopedTransaction.h"
+#include "Styling/AppStyle.h"
 #include "UObject/StrongObjectPtr.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SSplitter.h"
 
@@ -713,9 +715,14 @@ void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 			FNewMenuDelegate::CreateSP(this, &SUsdStage::FillPurposesToLoadSubMenu));
 
 		MenuBuilder.AddSubMenu(
-			LOCTEXT("RenderContext", "Render Context"),
+			LOCTEXT("RenderContext", "Render context"),
 			LOCTEXT("RenderContext_ToolTip", "Choose which render context to use when parsing materials"),
 			FNewMenuDelegate::CreateSP(this, &SUsdStage::FillRenderContextSubMenu));
+
+		MenuBuilder.AddSubMenu(
+			LOCTEXT( "MaterialPurpose", "Material purpose" ),
+			LOCTEXT( "MaterialPurpose_ToolTip", "Material purpose to use when parsing material bindings in addition to the \"allPurpose\" fallback" ),
+			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillMaterialPurposeSubMenu ) );
 
 		MenuBuilder.AddSubMenu(
 			LOCTEXT( "Collapsing", "Collapsing" ),
@@ -982,6 +989,126 @@ void SUsdStage::FillRenderContextSubMenu( FMenuBuilder& MenuBuilder )
 	{
 		AddRenderContextEntry( RenderContext );
 	}
+}
+
+void SUsdStage::FillMaterialPurposeSubMenu( FMenuBuilder& MenuBuilder )
+{
+	MaterialPurposes = {
+		MakeShared<FString>( UnrealIdentifiers::MaterialAllPurpose ),
+		MakeShared<FString>( UnrealIdentifiers::MaterialPreviewPurpose ),
+		MakeShared<FString>( UnrealIdentifiers::MaterialFullPurpose )
+	};
+
+	// Add additional purposes from project settings
+	if ( const UUsdProjectSettings* ProjectSettings = GetDefault<UUsdProjectSettings>() )
+	{
+		MaterialPurposes.Reserve( MaterialPurposes.Num() + ProjectSettings->AdditionalMaterialPurposes.Num() );
+
+		TSet<FString> ExistingEntries = {
+			UnrealIdentifiers::MaterialAllPurpose,
+			UnrealIdentifiers::MaterialPreviewPurpose,
+			UnrealIdentifiers::MaterialFullPurpose
+		};
+
+		for (const FName& AdditionalPurpose : ProjectSettings->AdditionalMaterialPurposes )
+		{
+			FString AdditionalPurposeStr = AdditionalPurpose.ToString();
+
+			if ( !ExistingEntries.Contains( AdditionalPurposeStr ) )
+			{
+				ExistingEntries.Add( AdditionalPurposeStr );
+				MaterialPurposes.AddUnique( MakeShared<FString>( AdditionalPurposeStr ) );
+			}
+		}
+	}
+
+	TSharedRef<SBox> Box = SNew( SBox )
+	.Padding( FMargin( 8.0f, 0.0f ) )
+	.VAlign( VAlign_Center )
+	[
+		// We have to use TSharedPtr<FString> here as the combobox actually contains a list view.
+		// Also, a regular SComboBox<FName> doesn't even call our OnGenerateWidget function in case the item is NAME_None,
+		// and we do need that case for allPurpose.
+		SNew( SComboBox< TSharedPtr<FString> > )
+		.OptionsSource( &MaterialPurposes )
+		.OnGenerateWidget_Lambda( [ & ]( TSharedPtr<FString> Option )
+		{
+			TSharedPtr<SWidget> Widget = SNullWidget::NullWidget;
+			if ( Option )
+			{
+				Widget = SNew( STextBlock )
+					.Text( FText::FromString( (*Option) == UnrealIdentifiers::MaterialAllPurpose
+						? UnrealIdentifiers::MaterialAllPurposeText
+						: *Option
+					))
+					.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) );
+			}
+
+			return Widget.ToSharedRef();
+		})
+		.OnSelectionChanged_Lambda([this]( TSharedPtr<FString> ChosenOption, ESelectInfo::Type SelectInfo )
+		{
+			if ( ChosenOption )
+			{
+				if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+				{
+					StageActor->SetMaterialPurpose( **ChosenOption );
+				}
+			}
+		})
+		[
+			SNew( SEditableTextBox )
+			.Text_Lambda([this]() -> FText
+			{
+				if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+				{
+					return FText::FromString( StageActor->MaterialPurpose == *UnrealIdentifiers::MaterialAllPurpose
+						? UnrealIdentifiers::MaterialAllPurposeText
+						: StageActor->MaterialPurpose.ToString()
+					);
+				}
+
+				return FText::GetEmpty();
+			})
+			.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
+			.OnTextCommitted_Lambda( [this]( const FText& NewText, ETextCommit::Type CommitType )
+			{
+				if ( CommitType != ETextCommit::OnEnter )
+				{
+					return;
+				}
+
+				FString NewPurposeString = NewText.ToString();
+				FName NewPurpose = *NewPurposeString;
+
+				bool bIsNew = true;
+				for ( const TSharedPtr<FString>& Purpose : MaterialPurposes )
+				{
+					if ( Purpose && *Purpose == NewPurposeString )
+					{
+						bIsNew = false;
+						break;
+					}
+				}
+
+				if ( bIsNew )
+				{
+					if ( UUsdProjectSettings* ProjectSettings = GetMutableDefault<UUsdProjectSettings>() )
+					{
+						ProjectSettings->AdditionalMaterialPurposes.AddUnique( NewPurpose );
+					}
+				}
+
+				if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+				{
+					StageActor->SetMaterialPurpose( NewPurpose );
+				}
+			})
+		]
+	];
+
+	const bool bNoIndent = true;
+	MenuBuilder.AddWidget( Box, FText::GetEmpty(), bNoIndent );
 }
 
 void SUsdStage::FillCollapsingSubMenu( FMenuBuilder& MenuBuilder )

@@ -625,6 +625,7 @@ namespace UsdToUnreal
 		: AdditionalTransform( FTransform::Identity )
 		, PurposesToLoad( EUsdPurpose::Render )
 		, RenderContext( pxr::UsdShadeTokens->universalRenderContext )
+		, MaterialPurpose( pxr::UsdShadeTokens->allPurpose )
 		, TimeCode( pxr::UsdTimeCode::EarliestTime() )
 		, MaterialToPrimvarToUVIndex( nullptr )
 		, bMergeIdenticalMaterialSlots( true )
@@ -662,7 +663,8 @@ bool UsdToUnreal::ConvertGeomMesh(
 		UsdPrim,
 		Options.TimeCode,
 		bProvideMaterialIndices,
-		Options.RenderContext
+		Options.RenderContext,
+		Options.MaterialPurpose
 	);
 	TArray< UsdUtils::FUsdPrimMaterialSlot >& LocalMaterialSlots = LocalInfo.Slots;
 	TArray< int32 >& FaceMaterialIndices = LocalInfo.MaterialIndices;
@@ -1465,7 +1467,13 @@ UMaterialInstanceConstant* UsdUtils::CreateDisplayColorMaterialInstanceConstant(
 	return nullptr;
 }
 
-UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( const pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode, bool bProvideMaterialIndices, const pxr::TfToken& RenderContext )
+UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
+	const pxr::UsdPrim& UsdPrim,
+	const pxr::UsdTimeCode TimeCode,
+	bool bProvideMaterialIndices,
+	const pxr::TfToken& RenderContext,
+	const pxr::TfToken& MaterialPurpose
+)
 {
 	if ( !UsdPrim )
 	{
@@ -1522,10 +1530,10 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 		return {};
 	};
 
-	auto FetchMaterialByComputingBoundMaterial = [ &RenderContext ]( const pxr::UsdPrim& UsdPrim ) -> TOptional<FString>
+	auto FetchMaterialByComputingBoundMaterial = [ &RenderContext, &MaterialPurpose ]( const pxr::UsdPrim& UsdPrim ) -> TOptional<FString>
 	{
 		pxr::UsdShadeMaterialBindingAPI BindingAPI( UsdPrim );
-		pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial();
+		pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial( MaterialPurpose );
 		if ( !ShadeMaterial )
 		{
 			return {};
@@ -1642,7 +1650,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 		pxr::UsdShadeMaterialBindingAPI BindingAPI( UsdPrim );
 		if ( BindingAPI )
 		{
-			if ( pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial() )
+			if ( pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial( MaterialPurpose ) )
 			{
 				if ( TOptional<FString> UnrealMaterial = UsdUtils::GetUnrealSurfaceOutput( ShadeMaterial.GetPrim() ) )
 				{
@@ -1717,7 +1725,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 					pxr::UsdShadeMaterialBindingAPI BindingAPI( GeomSubset.GetPrim() );
 					if ( BindingAPI )
 					{
-						if ( pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial() )
+						if ( pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial( MaterialPurpose ) )
 						{
 							if ( TOptional<FString> UnrealMaterial = UsdUtils::GetUnrealSurfaceOutput( ShadeMaterial.GetPrim() ) )
 							{
@@ -1833,7 +1841,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 	return Result;
 }
 
-TArray<FString> UsdUtils::GetMaterialUsers( const UE::FUsdPrim& MaterialPrim )
+TArray<FString> UsdUtils::GetMaterialUsers( const UE::FUsdPrim& MaterialPrim, FName MaterialPurpose )
 {
 	TArray<FString> Result;
 
@@ -1843,6 +1851,12 @@ TArray<FString> UsdUtils::GetMaterialUsers( const UE::FUsdPrim& MaterialPrim )
 	if ( !UsdMaterialPrim || !UsdMaterialPrim.IsA<pxr::UsdShadeMaterial>() )
 	{
 		return Result;
+	}
+
+	pxr::TfToken MaterialPurposeToken = pxr::UsdShadeTokens->allPurpose;
+	if ( !MaterialPurpose.IsNone() )
+	{
+		MaterialPurposeToken = UnrealToUsd::ConvertToken( *MaterialPurpose.ToString() ).Get();
 	}
 
 	pxr::UsdStageRefPtr UsdStage = UsdMaterialPrim.GetStage();
@@ -1858,7 +1872,7 @@ TArray<FString> UsdUtils::GetMaterialUsers( const UE::FUsdPrim& MaterialPrim )
 		}
 
 		pxr::UsdShadeMaterialBindingAPI BindingAPI( Prim );
-		pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial();
+		pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial( MaterialPurposeToken );
 		if ( !ShadeMaterial )
 		{
 			continue;
@@ -2476,6 +2490,8 @@ void UsdUtils::ReplaceUnrealMaterialsWithBaked(
 			pxr::UsdShadeMaterialBindingAPI MaterialBindingAPI{ Prim };
 			if ( MaterialBindingAPI )
 			{
+				// We always emit UnrealMaterials with allpurpose bindings, so we can use default arguments for
+				// ComputeBoundMaterial
 				if ( pxr::UsdShadeMaterial BoundMaterial = MaterialBindingAPI.ComputeBoundMaterial() )
 				{
 					UnrealMaterial = BoundMaterial;
@@ -2752,6 +2768,8 @@ FString UsdUtils::HashGeomMeshPrim( const UE::FUsdStage& Stage, const FString& P
 		MD5.Update( ( uint8* ) UsdOpacities.cdata(), UsdOpacities.size() * sizeof( float ) );
 	}
 
+	// TODO: This is not providing render context or material purpose, so it will never consider float2f primvars
+	// for the hash, which could be an issue in very exotic cases
 	TArray< TUsdStore< UsdGeomPrimvar > > PrimvarsByUVIndex = UsdUtils::GetUVSetPrimvars( UsdMesh );
 	for ( int32 UVChannelIndex = 0; UVChannelIndex < PrimvarsByUVIndex.Num(); ++UVChannelIndex )
 	{

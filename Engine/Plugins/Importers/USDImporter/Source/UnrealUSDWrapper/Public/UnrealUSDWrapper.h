@@ -439,6 +439,12 @@ namespace UnrealIdentifiers
 
 	// UDirectionalLightComponent properties
 	extern UNREALUSDWRAPPER_API FName LightSourceAnglePropertyName;
+
+	// Material purpose tokens that we convert from USD, if available
+	extern UNREALUSDWRAPPER_API FString MaterialAllPurpose;
+	extern UNREALUSDWRAPPER_API FString MaterialAllPurposeText; // Text to show on UI for "allPurpose", as its value is actually the empty string
+	extern UNREALUSDWRAPPER_API FString MaterialPreviewPurpose;
+	extern UNREALUSDWRAPPER_API FString MaterialFullPurpose;
 }
 
 struct UNREALUSDWRAPPER_API FUsdDelegates

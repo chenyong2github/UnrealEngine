@@ -331,7 +331,8 @@ namespace UsdSkelRootTranslatorImpl
 		float InTime,
 		const UUsdAssetCache& AssetCache,
 		bool bInInterpretLODs,
-		const pxr::TfToken& RenderContext
+		const pxr::TfToken& RenderContext,
+		const pxr::TfToken& MaterialPurpose
 	)
 	{
 		if ( !InSkeletonRoot )
@@ -396,7 +397,18 @@ namespace UsdSkelRootTranslatorImpl
 		}
 
 		TFunction<bool( const pxr::UsdGeomMesh&, int32 )> ConvertLOD =
-		[ &LODIndexToSkeletalMeshImportDataMap, &LODIndexToMaterialInfoMap, &SkelQuery, InTime, &InMaterialToPrimvarsUVSetNames, &InOutUsedMorphTargetNames, OutBlendShapes, &StageInfo, RenderContext ]
+		[
+			&LODIndexToSkeletalMeshImportDataMap,
+			&LODIndexToMaterialInfoMap,
+			&SkelQuery,
+			InTime,
+			&InMaterialToPrimvarsUVSetNames,
+			&InOutUsedMorphTargetNames,
+			OutBlendShapes,
+			&StageInfo,
+			RenderContext,
+			MaterialPurpose
+		]
 		( const pxr::UsdGeomMesh& LODMesh, int32 LODIndex )
 		{
 			pxr::UsdSkelSkinningQuery SkinningQuery = UsdUtils::CreateSkinningQuery( LODMesh, SkelQuery );
@@ -417,7 +429,15 @@ namespace UsdSkelRootTranslatorImpl
 			// into one FSkeletalMeshImportData per LOD, so we need to remap the indices using this
 			uint32 NumPointsBeforeThisMesh = static_cast< uint32 >( LODImportData.Points.Num() );
 
-			bool bSuccess = UsdToUnreal::ConvertSkinnedMesh( SkinningQuery, SkelQuery, LODImportData, LODSlots, InMaterialToPrimvarsUVSetNames, RenderContext );
+			bool bSuccess = UsdToUnreal::ConvertSkinnedMesh(
+				SkinningQuery,
+				SkelQuery,
+				LODImportData,
+				LODSlots,
+				InMaterialToPrimvarsUVSetNames,
+				RenderContext,
+				MaterialPurpose
+			);
 			if ( !bSuccess )
 			{
 				return true;
@@ -527,7 +547,17 @@ namespace UsdSkelRootTranslatorImpl
 	}
 
 	/** Warning: This function will temporarily switch the active LOD variant if one exists, so it's *not* thread safe! */
-	void SetMaterialOverrides( const pxr::UsdPrim& SkelRootPrim, const TArray<UMaterialInterface*>& ExistingAssignments, UMeshComponent& MeshComponent, UUsdAssetCache& AssetCache, float Time, EObjectFlags Flags, bool bInterpretLODs, const FName& RenderContext )
+	void SetMaterialOverrides(
+		const pxr::UsdPrim& SkelRootPrim,
+		const TArray<UMaterialInterface*>& ExistingAssignments,
+		UMeshComponent& MeshComponent,
+		UUsdAssetCache& AssetCache,
+		float Time,
+		EObjectFlags Flags,
+		bool bInterpretLODs,
+		const FName& RenderContext,
+		const FName& MaterialPurpose
+	)
 	{
 		FScopedUsdAllocs Allocs;
 
@@ -545,9 +575,23 @@ namespace UsdSkelRootTranslatorImpl
 			RenderContextToken = UnrealToUsd::ConvertToken( *RenderContext.ToString() ).Get();
 		}
 
+		pxr::TfToken MaterialPurposeToken = pxr::UsdShadeTokens->allPurpose;
+		if ( !MaterialPurpose.IsNone() )
+		{
+			MaterialPurposeToken = UnrealToUsd::ConvertToken( *MaterialPurpose.ToString() ).Get();
+		}
+
 		TMap<int32, UsdUtils::FUsdPrimMaterialAssignmentInfo> LODIndexToMaterialInfoMap;
 		TMap<int32, TSet<UsdUtils::FUsdPrimMaterialSlot>> CombinedSlotsForLODIndex;
-		TFunction<bool( const pxr::UsdGeomMesh&, int32 )> IterateLODsLambda = [ &LODIndexToMaterialInfoMap, &CombinedSlotsForLODIndex, Time, RenderContextToken ]( const pxr::UsdGeomMesh& LODMesh, int32 LODIndex )
+		TFunction<bool( const pxr::UsdGeomMesh&, int32 )> IterateLODsLambda =
+		[
+			&LODIndexToMaterialInfoMap,
+			&CombinedSlotsForLODIndex,
+			Time,
+			RenderContextToken,
+			MaterialPurposeToken
+		]
+		( const pxr::UsdGeomMesh& LODMesh, int32 LODIndex )
 		{
 			if ( LODMesh && LODMesh.ComputeVisibility() == pxr::UsdGeomTokens->invisible )
 			{
@@ -558,7 +602,13 @@ namespace UsdSkelRootTranslatorImpl
 			TSet<UsdUtils::FUsdPrimMaterialSlot>& CombinedLODSlotsSet = CombinedSlotsForLODIndex.FindOrAdd( LODIndex );
 
 			const bool bProvideMaterialIndices = false; // We have no use for material indices and it can be slow to retrieve, as it will iterate all faces
-			UsdUtils::FUsdPrimMaterialAssignmentInfo LocalInfo = UsdUtils::GetPrimMaterialAssignments( LODMesh.GetPrim(), pxr::UsdTimeCode( Time ), bProvideMaterialIndices, RenderContextToken );
+			UsdUtils::FUsdPrimMaterialAssignmentInfo LocalInfo = UsdUtils::GetPrimMaterialAssignments(
+				LODMesh.GetPrim(),
+				pxr::UsdTimeCode( Time ),
+				bProvideMaterialIndices,
+				RenderContextToken,
+				MaterialPurposeToken
+			);
 
 			// Combine material slots in the same order that UsdToUnreal::ConvertSkinnedMesh does
 			for ( UsdUtils::FUsdPrimMaterialSlot& LocalSlot : LocalInfo.Slots )
@@ -755,6 +805,12 @@ namespace UsdSkelRootTranslatorImpl
 					RenderContextToken = UnrealToUsd::ConvertToken( *Context->RenderContext.ToString() ).Get();
 				}
 
+				pxr::TfToken MaterialPurposeToken = pxr::UsdShadeTokens->allPurpose;
+				if ( !Context->MaterialPurpose.IsNone() )
+				{
+					MaterialPurposeToken = UnrealToUsd::ConvertToken( *Context->MaterialPurpose.ToString() ).Get();
+				}
+
 				const bool bContinueTaskChain = UsdSkelRootTranslatorImpl::LoadAllSkeletalData(
 					SkeletonCache.Get(),
 					pxr::UsdSkelRoot( GetPrim() ),
@@ -767,7 +823,8 @@ namespace UsdSkelRootTranslatorImpl
 					Context->Time,
 					*Context->AssetCache.Get(),
 					Context->bAllowInterpretingLODs,
-					RenderContextToken
+					RenderContextToken,
+					MaterialPurposeToken
 				);
 
 				return bContinueTaskChain;
@@ -1227,7 +1284,7 @@ USceneComponent* FUsdSkelRootTranslator::CreateComponents()
 	{
 		UsdGroomTranslatorUtils::CreateGroomBindingAsset( GetPrim(), *( Context->AssetCache ), Context->ObjectFlags );
 
-		// For the groom binding to work, the GroomComponent must be a child of the SceneComponent 
+		// For the groom binding to work, the GroomComponent must be a child of the SceneComponent
 		// so the Context ParentComponent is set to the SceneComponent temporarily
 		TGuardValue< USceneComponent* > ParentComponentGuard{ Context->ParentComponent, SceneComponent };
 		const bool bNeedsActor = false;
@@ -1321,7 +1378,8 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 				Context->Time,
 				Context->ObjectFlags,
 				Context->bAllowInterpretingLODs,
-				Context->RenderContext
+				Context->RenderContext,
+				Context->MaterialPurpose
 			);
 		}
 	}

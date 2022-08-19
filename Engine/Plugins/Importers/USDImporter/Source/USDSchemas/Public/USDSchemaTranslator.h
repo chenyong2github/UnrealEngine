@@ -149,6 +149,9 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	/** The render context to use when translating materials */
 	FName RenderContext;
 
+	/** The material purpose to use when translating material bindings */
+	FName MaterialPurpose;
+
 	/** If a generated UStaticMesh has at least this many triangles we will attempt to enable Nanite */
 	int32 NaniteTriangleThreshold;
 

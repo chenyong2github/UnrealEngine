@@ -49,7 +49,8 @@ namespace MeshTranslationImpl
 		float Time,
 		EObjectFlags Flags,
 		bool bInterpretLODs,
-		const FName& RenderContext
+		const FName& RenderContext,
+		const FName& MaterialPurpose
 	);
 }
 
