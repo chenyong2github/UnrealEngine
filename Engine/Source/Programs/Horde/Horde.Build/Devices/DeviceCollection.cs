@@ -332,6 +332,16 @@ namespace Horde.Build.Devices
 
 		}
 
+		class StreamDeviceTelemetry : IStreamDeviceTelemetry
+		{
+			/// <inheritdoc/>
+			public StreamId StreamId { get; set; } = new StreamId();
+
+			/// <inheritdoc/>
+			public List<DeviceId> DeviceIds { get; set; } = new List<DeviceId>();
+		}
+
+
 		class DevicePlatformTelemetryDocument : IDevicePlatformTelemetry
 		{
 			/// <summary>
@@ -386,15 +396,15 @@ namespace Horde.Build.Devices
 			/// Stream devices that are reserved
 			/// </summary>
 			[BsonIgnoreIfNull]
-			public Dictionary<StreamId, List<DeviceId>>? StreamDevices { get; set; } = new Dictionary<StreamId, List<DeviceId>>();
-			IReadOnlyDictionary<StreamId, IReadOnlyList<DeviceId>> IDevicePlatformTelemetry.StreamDevices => StreamDevices?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value as IReadOnlyList<DeviceId>) ?? new Dictionary<StreamId, IReadOnlyList<DeviceId>>();
+			public List<StreamDeviceTelemetry> StreamDevices { get; set; } = new List<StreamDeviceTelemetry>();
+			IReadOnlyList<IStreamDeviceTelemetry> IDevicePlatformTelemetry.StreamDevices => StreamDevices;
 
 			[BsonConstructor]
 			private DevicePlatformTelemetryDocument()
 			{
 			}
 
-			public DevicePlatformTelemetryDocument(DevicePlatformId platformId, int available, int reserved, int maintenance, int problem, int disabled, Dictionary<StreamId, List<DeviceId>> streamDevices)
+			public DevicePlatformTelemetryDocument(DevicePlatformId platformId, int available, int reserved, int maintenance, int problem, int disabled, List<StreamDeviceTelemetry> streamDevices)
 			{
 				TelemetryId = ObjectId.GenerateNewId();
 				CreateTimeUtc = DateTime.UtcNow;
@@ -1164,7 +1174,13 @@ namespace Horde.Build.Devices
 				foreach (KeyValuePair<DevicePlatformId, DevicePoolTelemetryHelper> platform in helpers)
 				{
 					DevicePoolTelemetryHelper helper = platform.Value;
-					platformTelemtry.Add(new DevicePlatformTelemetryDocument(platform.Key, helper.available, helper.reserved, helper.maintenance, helper.problem, helper.disabled, helper.streamDevices));
+					List<StreamDeviceTelemetry> streamDevices = new List<StreamDeviceTelemetry>();
+					foreach (KeyValuePair<StreamId, List<DeviceId>> i in helper.streamDevices)
+					{
+						streamDevices.Add(new StreamDeviceTelemetry() { StreamId = i.Key, DeviceIds = i.Value });
+					}
+
+					platformTelemtry.Add(new DevicePlatformTelemetryDocument(platform.Key, helper.available, helper.reserved, helper.maintenance, helper.problem, helper.disabled, streamDevices));
 				}
 
 				poolTelemetry[pool.Id] = platformTelemtry;

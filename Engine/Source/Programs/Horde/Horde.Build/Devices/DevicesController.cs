@@ -525,9 +525,9 @@ namespace Horde.Build.Devices
 					foreach (IDevicePlatformTelemetry telemetry in pool.Value)
 					{
 						Dictionary<string, List<string>> streamDevices = new Dictionary<string, List<string>>();
-						foreach(KeyValuePair<StringId<Streams.IStream>, IReadOnlyList<DeviceId>> kvp in telemetry.StreamDevices)
+						foreach(IStreamDeviceTelemetry i in telemetry.StreamDevices)
 						{
-							streamDevices[kvp.Key.ToString()] = kvp.Value.Select(x => x.ToString()).ToList();
+							streamDevices[i.StreamId.ToString()] = i.DeviceIds.Select(x => x.ToString()).ToList();
 						}
 						platformTelemetry.Add(new GetDevicePlatformTelemetryResponse(telemetry.PlatformId.ToString(), telemetry.Available, telemetry.Reserved, telemetry.Maintenance, telemetry.Problem, telemetry.Disabled, streamDevices));
 					}

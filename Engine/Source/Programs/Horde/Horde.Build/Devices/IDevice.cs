@@ -336,6 +336,24 @@ namespace Horde.Build.Devices
 	}
 
 	/// <summary>
+	/// Stream device telemetry for pool snapshot
+	/// </summary>
+	public interface IStreamDeviceTelemetry
+	{
+		/// <summary>
+		/// Associated stream
+		/// </summary>
+		public StreamId StreamId { get;  }
+
+		/// <summary>
+		/// Device ids contained in the snapshot
+		/// </summary>
+		public List<DeviceId> DeviceIds { get; }
+
+	}
+
+
+	/// <summary>
 	/// Platform telemetry for a device pool
 	/// </summary>
 	public interface IDevicePlatformTelemetry
@@ -373,7 +391,7 @@ namespace Horde.Build.Devices
 		/// <summary>
 		/// Devices reserved in streams
 		/// </summary>
-		public IReadOnlyDictionary<StreamId, IReadOnlyList<DeviceId>> StreamDevices { get; }
+		public IReadOnlyList<IStreamDeviceTelemetry> StreamDevices { get; }
 
 	}
 
