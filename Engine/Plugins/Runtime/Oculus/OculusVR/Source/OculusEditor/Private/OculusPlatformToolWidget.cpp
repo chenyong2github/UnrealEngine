@@ -35,6 +35,8 @@ static bool bShowUploadDebugSymbols = false;
 
 FString SOculusPlatformToolWidget::LogText;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 SOculusPlatformToolWidget::SOculusPlatformToolWidget()
 {
 	LogTextUpdated = false;
@@ -978,7 +980,7 @@ void SOculusPlatformToolWidget::EnableUploadButton(bool enabled)
 
 void SOculusPlatformToolWidget::LoadConfigSettings()
 {
-	PlatformSettings = GetMutableDefault<UOculusPlatformToolSettings>();
+	PlatformSettings = GetMutableDefault<UDEPRECATED_UOculusPlatformToolSettings>();
 	PlatformEnum = StaticEnum<EOculusPlatformTarget>();
 	GamepadEmulationEnum = StaticEnum<EOculusGamepadEmulation>();
 	AssetTypeEnum = StaticEnum<EOculusAssetType>();
@@ -1705,7 +1707,7 @@ FPlatformLoadRedistPackagesTask::FPlatformLoadRedistPackagesTask(FUpdateLogTextD
 
 void FPlatformLoadRedistPackagesTask::DoWork()
 {
-	UOculusPlatformToolSettings* PlatformSettings = GetMutableDefault<UOculusPlatformToolSettings>();
+	UDEPRECATED_UOculusPlatformToolSettings* PlatformSettings = GetMutableDefault<UDEPRECATED_UOculusPlatformToolSettings>();
 
 	// Check to see if the CLI exists, we need this to load avalible redist packages
 	if (!FPaths::FileExists(FPaths::ProjectContentDir() + ProjectPlatformUtilPath))
@@ -1773,5 +1775,7 @@ void FPlatformLoadRedistPackagesTask::DoWork()
 		}
 	}
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

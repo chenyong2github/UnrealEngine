@@ -6,8 +6,10 @@
 #include "UObject/NoExportTypes.h"
 #include "OculusEditorSettings.generated.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UENUM()
-enum class EOculusPlatform : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") EOculusPlatform : uint8
 {
 	PC UMETA(DisplayName="PC"),
 	Mobile UMETA(DisplayName="Mobile"),
@@ -17,13 +19,13 @@ enum class EOculusPlatform : uint8
 /**
  * 
  */
-UCLASS(config=Editor)
-class OCULUSEDITOR_API UOculusEditorSettings : public UObject
+UCLASS(config=Editor, deprecated, meta = (DeprecationMessage = "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace."))
+class OCULUSEDITOR_API UDEPRECATED_UOculusEditorSettings : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UOculusEditorSettings();
+	UDEPRECATED_UOculusEditorSettings();
 
 	UPROPERTY(config, EditAnywhere, Category = Oculus)
 	TMap<FName, bool> PerfToolIgnoreList;
@@ -34,3 +36,5 @@ public:
 	UPROPERTY(globalconfig, EditAnywhere, Category = Oculus)
 	bool bAddMenuOption;
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

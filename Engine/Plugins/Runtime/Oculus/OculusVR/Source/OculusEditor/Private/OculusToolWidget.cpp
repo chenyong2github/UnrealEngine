@@ -22,6 +22,8 @@
 
 #define LOCTEXT_NAMESPACE "OculusToolWidget"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 // Misc notes and known issues:
 // * I save after every change because UE wasn't prompting to save on exit, but this makes it tough for users to undo, and doesn't prompt shader rebuild. Alternatives?
 
@@ -64,7 +66,7 @@ EVisibility SOculusToolWidget::IsVisible(FName tag) const
 	const SimpleSetting* setting = SimpleSettings.Find(tag);
 	checkf(setting != NULL, TEXT("Failed to find tag %s."), *tag.ToString());
 	if(SettingIgnored(setting->tag)) return EVisibility::Collapsed;
-	UOculusEditorSettings* EditorSettings = GetMutableDefault<UOculusEditorSettings>();
+	UDEPRECATED_UOculusEditorSettings* EditorSettings = GetMutableDefault<UDEPRECATED_UOculusEditorSettings>();
 	EOculusPlatform targetPlatform = EditorSettings->PerfToolTargetPlatform;
 	 
 	if(targetPlatform == EOculusPlatform::Mobile && !((int)setting->supportMask & (int)SupportFlags::SupportMobile)) return EVisibility::Collapsed;
@@ -89,7 +91,7 @@ void SOculusToolWidget::AddSimpleSetting(TSharedRef<SVerticalBox> box, SimpleSet
 
 bool SOculusToolWidget::SettingIgnored(FName settingKey) const
 {
-	UOculusEditorSettings* EditorSettings = GetMutableDefault<UOculusEditorSettings>();
+	UDEPRECATED_UOculusEditorSettings* EditorSettings = GetMutableDefault<UDEPRECATED_UOculusEditorSettings>();
 	bool* ignoreSetting = EditorSettings->PerfToolIgnoreList.Find(settingKey);
 	return (ignoreSetting != NULL && *ignoreSetting == true);
 }
@@ -132,7 +134,7 @@ void SOculusToolWidget::RebuildLayout()
 	if (!ScrollingContainer.IsValid()) return;
 	TSharedRef<SScrollBox> scroller = ScrollingContainer.ToSharedRef();
 
-	UOculusEditorSettings* EditorSettings = GetMutableDefault<UOculusEditorSettings>();
+	UDEPRECATED_UOculusEditorSettings* EditorSettings = GetMutableDefault<UDEPRECATED_UOculusEditorSettings>();
 	uint8 initiallySelected = 0;
 	for (uint8 i = 0; i < (uint8)EOculusPlatform::Length; ++i)
 	{
@@ -326,7 +328,7 @@ void SOculusToolWidget::Construct(const FArguments& InArgs)
 	PlatformEnum = StaticEnum<EOculusPlatform>();
 	Platforms.Reset(2);
 
-	UOculusEditorSettings* EditorSettings = GetMutableDefault<UOculusEditorSettings>();
+	UDEPRECATED_UOculusEditorSettings* EditorSettings = GetMutableDefault<UDEPRECATED_UOculusEditorSettings>();
 	for (uint8 i = 0; i < (uint8)EOculusPlatform::Length; ++i)
 	{
 		Platforms.Add(MakeShareable(new FString(PlatformEnum->GetDisplayNameTextByIndex((int64)i).ToString())));
@@ -591,7 +593,7 @@ void SOculusToolWidget::OnChangePlatform(TSharedPtr<FString> ItemSelected, ESele
 	int32 idx = PlatformEnum->GetIndexByNameString(*ItemSelected);
 	if (idx != INDEX_NONE)
 	{
-		UOculusEditorSettings* EditorSettings = GetMutableDefault<UOculusEditorSettings>();
+		UDEPRECATED_UOculusEditorSettings* EditorSettings = GetMutableDefault<UDEPRECATED_UOculusEditorSettings>();
 		EditorSettings->PerfToolTargetPlatform = (EOculusPlatform)idx;
 		EditorSettings->SaveConfig();
 	}
@@ -600,7 +602,7 @@ void SOculusToolWidget::OnChangePlatform(TSharedPtr<FString> ItemSelected, ESele
 
 FReply SOculusToolWidget::IgnoreRecommendation(FName tag)
 {
-	UOculusEditorSettings* EditorSettings = GetMutableDefault<UOculusEditorSettings>();
+	UDEPRECATED_UOculusEditorSettings* EditorSettings = GetMutableDefault<UDEPRECATED_UOculusEditorSettings>();
 	EditorSettings->PerfToolIgnoreList.Add(tag, true);
 	EditorSettings->SaveConfig();
 	return FReply::Handled();
@@ -608,13 +610,13 @@ FReply SOculusToolWidget::IgnoreRecommendation(FName tag)
 
 EVisibility SOculusToolWidget::CanUnhideIgnoredRecommendations() const
 {
-	UOculusEditorSettings* EditorSettings = GetMutableDefault<UOculusEditorSettings>();
+	UDEPRECATED_UOculusEditorSettings* EditorSettings = GetMutableDefault<UDEPRECATED_UOculusEditorSettings>();
 	return EditorSettings->PerfToolIgnoreList.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FReply SOculusToolWidget::UnhideIgnoredRecommendations()
 {
-	UOculusEditorSettings* EditorSettings = GetMutableDefault<UOculusEditorSettings>();
+	UDEPRECATED_UOculusEditorSettings* EditorSettings = GetMutableDefault<UDEPRECATED_UOculusEditorSettings>();
 	EditorSettings->PerfToolIgnoreList.Empty();
 	EditorSettings->SaveConfig();
 	RebuildLayout();
@@ -623,7 +625,7 @@ FReply SOculusToolWidget::UnhideIgnoredRecommendations()
 
 bool SOculusToolWidget::UsingForwardShading() const
 {
-	UOculusEditorSettings* EditorSettings = GetMutableDefault<UOculusEditorSettings>();
+	UDEPRECATED_UOculusEditorSettings* EditorSettings = GetMutableDefault<UDEPRECATED_UOculusEditorSettings>();
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
 	EOculusPlatform targetPlatform = EditorSettings->PerfToolTargetPlatform;
 	return targetPlatform == EOculusPlatform::Mobile || Settings->bForwardShading;
@@ -982,7 +984,7 @@ FReply SOculusToolWidget::SelectLight(FString lightName)
 
 FReply SOculusToolWidget::IgnoreLight(FString lightName)
 {
-	UOculusEditorSettings* EditorSettings = GetMutableDefault<UOculusEditorSettings>();
+	UDEPRECATED_UOculusEditorSettings* EditorSettings = GetMutableDefault<UDEPRECATED_UOculusEditorSettings>();
 	FString lightIgnoreKey = "IgnoreLight_" + lightName;
 	EditorSettings->PerfToolIgnoreList.Add(FName(lightIgnoreKey.GetCharArray().GetData()), true);
 	EditorSettings->SaveConfig();
@@ -1018,5 +1020,7 @@ EVisibility SOculusToolWidget::SupportDashVisibility(FName tag) const
 	const UOculusHMDRuntimeSettings* Settings = GetDefault<UOculusHMDRuntimeSettings>();
 	return Settings->bSupportsDash ? EVisibility::Collapsed : EVisibility::Visible;
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

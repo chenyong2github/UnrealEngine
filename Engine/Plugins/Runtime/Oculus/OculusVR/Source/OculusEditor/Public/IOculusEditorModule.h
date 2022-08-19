@@ -13,6 +13,7 @@ class FMenuBuilder;
 //////////////////////////////////////////////////////////////////////////
 // IOculusEditorModule
 
+class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") IOculusEditorModule;
 class IOculusEditorModule : public IModuleInterface
 {
 };

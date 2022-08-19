@@ -17,6 +17,8 @@ class FMenuBuilder;
 
 enum class ECheckBoxState : uint8;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class FOculusEditorModule : public IOculusEditorModule
 {
 public:
@@ -73,3 +75,6 @@ public:
 	bool GetBuildTelemetryCheckBoxEnabled() const;
 	EVisibility GetOculusHMDAvailableWarningVisibility() const;
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+

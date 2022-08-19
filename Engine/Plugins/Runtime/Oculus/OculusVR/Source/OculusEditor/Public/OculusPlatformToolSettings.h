@@ -6,8 +6,10 @@
 #include "UObject/NoExportTypes.h"
 #include "OculusPlatformToolSettings.generated.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UENUM()
-enum class EOculusPlatformTarget : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") EOculusPlatformTarget : uint8
 {
 	Rift UMETA(DisplayName="Rift"),
 	Quest UMETA(DisplayName="Quest"),
@@ -15,7 +17,7 @@ enum class EOculusPlatformTarget : uint8
 };
 
 UENUM()
-enum class EOculusGamepadEmulation : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") EOculusGamepadEmulation : uint8
 {
 	Off UMETA(DisplayName="Off"),
 	Twinstick UMETA(DisplayName = "Twinstick"),
@@ -25,7 +27,7 @@ enum class EOculusGamepadEmulation : uint8
 };
 
 UENUM()
-enum class EOculusAssetType : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") EOculusAssetType : uint8
 {
 	Default UMETA(DisplayName="Default"),
 	Store UMETA(DisplayName="Store"),
@@ -33,7 +35,7 @@ enum class EOculusAssetType : uint8
 	Length UMETA(DisplayName="Invlaid"),
 };
 
-USTRUCT()
+USTRUCT(meta = (Deprecated = "5.1"))
 struct FRedistPackage
 {
 	GENERATED_USTRUCT_BODY()
@@ -48,7 +50,7 @@ struct FRedistPackage
 	FString Id;
 };
 
-USTRUCT()
+USTRUCT(meta = (Deprecated = "5.1"))
 struct FAssetConfig
 {
 	GENERATED_USTRUCT_BODY()
@@ -66,7 +68,7 @@ struct FAssetConfig
 	FString Sku;
 };
 
-USTRUCT()
+USTRUCT(meta = (Deprecated = "5.1"))
 struct FAssetConfigArray
 {
 	GENERATED_USTRUCT_BODY()
@@ -78,13 +80,13 @@ struct FAssetConfigArray
 /**
  * 
  */
-UCLASS(config=Editor)
-class OCULUSEDITOR_API UOculusPlatformToolSettings : public UObject
+UCLASS(config=Editor, deprecated, meta = (DeprecationMessage = "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace."))
+class OCULUSEDITOR_API UDEPRECATED_UOculusPlatformToolSettings : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UOculusPlatformToolSettings();
+	UDEPRECATED_UOculusPlatformToolSettings();
 
 	uint8 GetTargetPlatform()
 	{
@@ -205,34 +207,34 @@ public:
 		return (uint8)OculusTargetPlatform < OculusAssetConfigs.Num() ? &OculusAssetConfigs[(uint8)OculusTargetPlatform].ConfigArray : NULL;
 	}
 
-	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	UPROPERTY(config, EditAnywhere, Category = Oculus, meta = (DeprecatedProperty))
 	FString OculusRiftBuildDirectory;
 
-	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	UPROPERTY(config, EditAnywhere, Category = Oculus, meta = (DeprecatedProperty))
 	FString OculusRiftBuildVersion;
 
-	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	UPROPERTY(config, EditAnywhere, Category = Oculus, meta = (DeprecatedProperty))
 	FString OculusRiftLaunchParams;
 
-	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	UPROPERTY(config, EditAnywhere, Category = Oculus, meta = (DeprecatedProperty))
 	bool OculusRiftFireWallException;
 
-	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	UPROPERTY(config, EditAnywhere, Category = Oculus, meta = (DeprecatedProperty))
 	FString OculusRift2DLaunchPath;
 
-	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	UPROPERTY(config, EditAnywhere, Category = Oculus, meta = (DeprecatedProperty))
 	FString OculusRift2DLaunchParams;
 
-	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	UPROPERTY(config, EditAnywhere, Category = Oculus, meta = (DeprecatedProperty))
 	TArray<FRedistPackage> OculusRedistPackages;
 
-	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	UPROPERTY(config, EditAnywhere, Category = Oculus, meta = (DeprecatedProperty))
 	bool UploadDebugSymbols;
 
-	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	UPROPERTY(config, EditAnywhere, Category = Oculus, meta = (DeprecatedProperty))
 	bool DebugSymbolsOnly;
 
-	UPROPERTY(config, EditAnywhere, Category = Oculus)
+	UPROPERTY(config, EditAnywhere, Category = Oculus, meta = (DeprecatedProperty))
 	FString BuildID;
 
 private:
@@ -269,3 +271,6 @@ private:
 	UPROPERTY(config, EditAnywhere, Category = Oculus)
 	TArray<FAssetConfigArray> OculusAssetConfigs;
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+

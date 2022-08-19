@@ -2,8 +2,9 @@
 
 #include "OculusPlatformToolSettings.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
-UOculusPlatformToolSettings::UOculusPlatformToolSettings()
+UDEPRECATED_UOculusPlatformToolSettings::UDEPRECATED_UOculusPlatformToolSettings()
 	: OculusTargetPlatform(EOculusPlatformTarget::Rift)
 {
 	uint8 NumPlatforms = (uint8)EOculusPlatformTarget::Length;
@@ -24,4 +25,4 @@ UOculusPlatformToolSettings::UOculusPlatformToolSettings()
 	}
 }
 
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

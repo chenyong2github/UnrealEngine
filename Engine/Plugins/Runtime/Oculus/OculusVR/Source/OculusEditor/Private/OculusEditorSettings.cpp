@@ -2,11 +2,12 @@
 
 #include "OculusEditorSettings.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
-UOculusEditorSettings::UOculusEditorSettings()
+UDEPRECATED_UOculusEditorSettings::UDEPRECATED_UOculusEditorSettings()
 	: PerfToolTargetPlatform(EOculusPlatform::PC)
 {
 
 }
 
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

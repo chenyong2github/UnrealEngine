@@ -32,6 +32,8 @@ DECLARE_DELEGATE_OneParam(FUpdateLogTextDel, FString);
 DECLARE_DELEGATE_OneParam(FSetProcessDel, FProcHandle);
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FFieldValidatorDel, FString, FString&);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class SOculusPlatformToolWidget : public SCompoundWidget
 {
 public:
@@ -62,7 +64,7 @@ private:
 	UEnum* PlatformEnum;
 	UEnum* GamepadEmulationEnum;
 	UEnum* AssetTypeEnum;
-	UOculusPlatformToolSettings* PlatformSettings;
+	UDEPRECATED_UOculusPlatformToolSettings* PlatformSettings;
 	TArray<TSharedPtr<FString>> OculusPlatforms;
 	TArray<TSharedPtr<FString>> RiftGamepadEmulation;
 	TArray<TSharedPtr<FString>> AssetType;
@@ -218,4 +220,6 @@ protected:
 		RETURN_QUICK_DECLARE_CYCLE_STAT(FPlatformLoadRedistPackagesTask, STATGROUP_ThreadPoolAsyncTasks);
 	}
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
