@@ -3,7 +3,6 @@
 
 #include "Containers/UnrealString.h"
 #include "MetasoundFrontendController.h"
-#include "MetasoundFrontendDocumentVersioning.h"
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundFrontendDocument.h"
 #include "UObject/NameTypes.h"
