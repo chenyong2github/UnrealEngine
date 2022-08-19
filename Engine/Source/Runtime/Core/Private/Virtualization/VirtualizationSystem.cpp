@@ -5,14 +5,20 @@
 #include "CoreGlobals.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ScopeLock.h"
 
 // Can be defined as 1 by programs target.cs files to disable the virtualization system
 // entirely. This could be removed in the future if we move the virtualization module
 // to be a plugin
 #ifndef UE_DISABLE_VIRTUALIZATION_SYSTEM
 	#define UE_DISABLE_VIRTUALIZATION_SYSTEM 0
-#endif
+#endif //UE_DISABLE_VIRTUALIZATION_SYSTEM
 
+// Can be defined as 1 by programs target.cs files to change the initialization of
+// the virtualization system to be a lazy initialization.
+#ifndef UE_VIRTUALIZATION_SYSTEM_LAZY_INIT
+	#define UE_VIRTUALIZATION_SYSTEM_LAZY_INIT 0
+#endif //UE_VIRTUALIZATION_SYSTEM_LAZY_INIT
 namespace UE::Virtualization
 {
 
@@ -133,32 +139,63 @@ Private::IVirtualizationSystemFactory* FindFactory(FName SystemName)
 	return nullptr;
 }
 
-void Initialize()
+void Initialize(EInitializationFlags Flags)
 {
-	FApp::GetProjectName();
-
 	const FConfigFile* ConfigFile = GConfig->Find(GEngineIni);
 
 	if (ConfigFile != nullptr)
 	{
 		FInitParams InitParams(FApp::GetProjectName() , *ConfigFile);
-		Initialize(InitParams);
+		Initialize(InitParams, Flags);
 	}
 	else
 	{
 		UE_LOG(LogVirtualization, Error, TEXT("Unable to find a valid engine config file when trying to create the virtualization system"));
 
-		GVirtualizationSystem = MakeUnique<FNullVirtualizationSystem>();
-
 		FConfigFile EmptyConfigFile;
-		FInitParams DummyParams(TEXT(""), EmptyConfigFile);
+		FInitParams InitParams(TEXT(""), EmptyConfigFile);
 
-		GVirtualizationSystem->Initialize(DummyParams);
+		Initialize(InitParams, Flags);
 	}	
 }
 
-void Initialize(const FInitParams& InitParams)
+void Initialize(const FInitParams& InitParams, EInitializationFlags Flags)
 {
+	// If we are not forcing the initialization check to see if we should lazy
+	// initialize or not.
+	if (!EnumHasAnyFlags(Flags, EInitializationFlags::ForceInitialize))
+	{
+#if UE_VIRTUALIZATION_SYSTEM_LAZY_INIT
+		return;
+#else
+		if (FParse::Param(FCommandLine::Get(), TEXT("VA-LazyInit")))
+		{
+			return;
+		}
+		else
+		{
+			bool bLazyInit = false;
+			InitParams.ConfigFile.GetBool(TEXT("Core.ContentVirtualization"), TEXT("LazyInit"), bLazyInit);
+
+			if (bLazyInit)
+			{
+				return;
+			}
+		}
+#endif //UE_VIRTUALIZATION_SYSTEM_LAZY_INIT
+	}
+
+	// Only allow one thread to initialize the system at a time
+	static FCriticalSection InitCS;
+
+	FScopeLock _(&InitCS);
+	
+	if (IVirtualizationSystem::IsInitialized())
+	{
+		// Another thread initialized the system first
+		return;
+	}
+
 	FName SystemName;
 
 #if UE_DISABLE_VIRTUALIZATION_SYSTEM == 0
@@ -184,13 +221,17 @@ void Initialize(const FInitParams& InitParams)
 		Private::IVirtualizationSystemFactory* SystemFactory = FindFactory(SystemName);
 		if (SystemFactory != nullptr)
 		{
-			GVirtualizationSystem = SystemFactory->Create();
-			check(GVirtualizationSystem.IsValid()); // It is assumed that create will always return a valid pointer
+			TUniquePtr<IVirtualizationSystem> NewSystem = SystemFactory->Create();
+			check(NewSystem != nullptr); // It is assumed that create will always return a valid pointer
 
-			if (!GVirtualizationSystem->Initialize(InitParams))
+			if (NewSystem->Initialize(InitParams))
+			{
+				check(!IVirtualizationSystem::IsInitialized());
+				GVirtualizationSystem = MoveTemp(NewSystem);
+			}
+			else
 			{
 				UE_LOG(LogVirtualization, Error, TEXT("Initialization of the virtualization system '%s' failed, falling back to the default implementation"), *SystemName.ToString());
-				GVirtualizationSystem.Reset();
 			}
 		}
 		else
@@ -202,8 +243,11 @@ void Initialize(const FInitParams& InitParams)
 	// If we found no system to create so we will use the fallback system
 	if (!GVirtualizationSystem.IsValid())
 	{
-		GVirtualizationSystem = MakeUnique<FNullVirtualizationSystem>();
-		GVirtualizationSystem->Initialize(InitParams);
+		TUniquePtr<IVirtualizationSystem> NullSystem = MakeUnique<FNullVirtualizationSystem>();
+		NullSystem->Initialize(InitParams);
+
+		check(!IVirtualizationSystem::IsInitialized());
+		GVirtualizationSystem = MoveTemp(NullSystem);
 	}
 }
 
@@ -213,13 +257,20 @@ void Shutdown()
 	UE_LOG(LogVirtualization, Log, TEXT("UE::Virtualization was shutdown"));
 }
 
+
+bool IVirtualizationSystem::IsInitialized()
+{
+	return GVirtualizationSystem != nullptr;
+}
+
 IVirtualizationSystem& IVirtualizationSystem::Get()
 {
 	// For now allow Initialize to be called directly if it was not called explicitly.
-	if (GVirtualizationSystem == nullptr)
+	if (!IsInitialized())
 	{
-		UE_LOG(LogVirtualization, Warning, TEXT("UE::Virtualization::Initialize was not called before UE::Virtualization::IVirtualizationSystem::Get()!"));
-		UE::Virtualization::Initialize();
+		// We need to ForceInitialize at this point to make sure any lazy init flags are ignored
+		UE::Virtualization::Initialize(EInitializationFlags::ForceInitialize);
+		check(IsInitialized());
 	}
 
 	return *GVirtualizationSystem;

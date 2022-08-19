@@ -240,7 +240,7 @@ bool FUnrealVirtualizationToolApp::Run()
 				Project.RegisterMountPoints();
 
 				UE::Virtualization::FInitParams InitParams(ProjectName, EngineConfigWithProject);
-				UE::Virtualization::Initialize(InitParams);
+				UE::Virtualization::Initialize(InitParams, UE::Virtualization::EInitializationFlags::ForceInitialize);
 
 				TArray<FString> Packages = Project.GetAllPackages();
 

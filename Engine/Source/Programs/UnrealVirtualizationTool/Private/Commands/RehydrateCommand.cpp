@@ -145,7 +145,7 @@ bool FRehydrateCommand::Run(const TArray<FProject>& Projects)
 		Project.RegisterMountPoints();
 
 		UE::Virtualization::FInitParams InitParams(ProjectName, EngineConfigWithProject);
-		UE::Virtualization::Initialize(InitParams);
+		UE::Virtualization::Initialize(InitParams, UE::Virtualization::EInitializationFlags::ForceInitialize);
 		
 		ON_SCOPE_EXIT
 		{

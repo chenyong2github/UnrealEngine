@@ -155,7 +155,7 @@ namespace DetailedCookStats
 			if (GConfig->GetString(TEXT("CookAnalytics"), TEXT("APIServer"), APIServerET, GEngineIni))
 			{
 				FString AppId(TEXT("Cook"));
- 				bool bUseLegacyCookProtocol = !GConfig->GetString(TEXT("CookAnalytics"), TEXT("AppId"), AppId, GEngineIni);
+				bool bUseLegacyCookProtocol = !GConfig->GetString(TEXT("CookAnalytics"), TEXT("AppId"), AppId, GEngineIni);
 
 				// Optionally create an analytics provider to send stats to for central collection.
 				TSharedPtr<IAnalyticsProviderET> CookAnalytics = FAnalyticsET::Get().CreateAnalyticsProvider(FAnalyticsET::Config(AppId, APIServerET, FString(), bUseLegacyCookProtocol));
@@ -241,7 +241,7 @@ namespace DetailedCookStats
 
 		/** this functor will take a collected cooker stat and log it out using some custom formatting based on known stats that are collected.. */
 		auto LogStatsFunc = [&DDCResourceUsageStats, &DDCSummaryStats, &CookProfileData, &StatCategories, &StatsInCategories]
-							(const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
+		(const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
 		{
 			// Some stats will use custom formatting to make a visibly pleasing summary.
 			bool bStatUsedCustomFormatting = false;
@@ -379,9 +379,9 @@ namespace DetailedCookStats
 				SortedDDCResourceUsageStats.Emplace(Stat);
 			}
 			SortedDDCResourceUsageStats.Sort([](const FDDCResourceUsageStat& LHS, const FDDCResourceUsageStat& RHS)
-			{
-				return LHS.TotalTimeSec > RHS.TotalTimeSec;
-			});
+				{
+					return LHS.TotalTimeSec > RHS.TotalTimeSec;
+				});
 
 			UE_LOG(LogCookCommandlet, Display, TEXT(""));
 			UE_LOG(LogCookCommandlet, Display, TEXT("DDC Resource Stats"));
@@ -396,7 +396,10 @@ namespace DetailedCookStats
 
 		DumpBuildDependencyTrackerStats();
 
-		UE::Virtualization::IVirtualizationSystem::Get().DumpStats();
+		if (UE::Virtualization::IVirtualizationSystem::IsInitialized())
+		{
+			UE::Virtualization::IVirtualizationSystem::Get().DumpStats();
+		}
 	}
 }
 #endif

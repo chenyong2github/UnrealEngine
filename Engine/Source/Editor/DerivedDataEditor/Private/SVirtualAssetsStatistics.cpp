@@ -144,10 +144,14 @@ void AddContextMenuEntry()
 SVirtualAssetsStatisticsDialog::SVirtualAssetsStatisticsDialog()
 {
 	using namespace UE::Virtualization;
-
+	
+	// TODO - need a way to make this work once the system is initialized
 	// Register our VA notification delegate with the event
-	IVirtualizationSystem& System = IVirtualizationSystem::Get();
-	System.GetNotificationEvent().AddRaw(this, &SVirtualAssetsStatisticsDialog::OnNotificationEvent);
+	if (IVirtualizationSystem::IsInitialized())
+	{
+		IVirtualizationSystem& System = IVirtualizationSystem::Get();
+		System.GetNotificationEvent().AddRaw(this, &SVirtualAssetsStatisticsDialog::OnNotificationEvent);
+	}
 
 	UE::Virtualization::Rehydration::AddContextMenuEntry();
 }
@@ -313,16 +317,32 @@ TSharedRef<SWidget> SVirtualAssetsStatisticsDialog::GetGridPanel()
 {
 	using namespace UE::Virtualization;
 
-	IVirtualizationSystem& System = IVirtualizationSystem::Get();
-
-	TSharedRef<SGridPanel> Panel = SNew(SGridPanel);
-
 	const float RowMargin = 0.0f;
 	const float TitleMargin = 10.0f;
 	const float ColumnMargin = 10.0f;
 	const FSlateColor TitleColor = FStyleColors::AccentWhite;
 	const FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);
 	const double BytesToMegaBytes = 1.0 / (1024.0 * 1024.0);
+
+	TSharedRef<SGridPanel> Panel = SNew(SGridPanel);
+
+	// TODO - need a way to make this work once the system is initialized
+	if (!IVirtualizationSystem::IsInitialized())
+	{
+		Panel->AddSlot(0, 0)
+			[
+				SNew(STextBlock)
+				.Margin(FMargin(ColumnMargin, RowMargin))
+				.ColorAndOpacity(TitleColor)
+				.Font(TitleFont)
+				.Justification(ETextJustify::Center)
+				.Text(LOCTEXT("LazyInit", "Virtual Assets are lazy initialized for this project, cannot display stats"))
+			];
+
+		return Panel;
+	}
+
+	IVirtualizationSystem& System = IVirtualizationSystem::Get();	
 
 	if (System.IsEnabled() == false)
 	{

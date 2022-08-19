@@ -246,22 +246,25 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 
 	SCCProvider->Init(true);
  
-	// Note that if the connect is failing then we expect it to fail here rather than in the subsequent attempts to get the meta info file
-	TSharedRef<FConnect, ESPMode::ThreadSafe> ConnectCommand = ISourceControlOperation::Create<FConnect>();
-	if (SCCProvider->Execute(ConnectCommand, FString(), EConcurrency::Synchronous) != ECommandResult::Succeeded)
-	{		
-		FTextBuilder Errors;
-		for (const FText& Msg : ConnectCommand->GetResultInfo().ErrorMessages)
+	if (IsInGameThread())
+	{
+		// Note that if the connect is failing then we expect it to fail here rather than in the subsequent attempts to get the meta info file
+		TSharedRef<FConnect, ESPMode::ThreadSafe> ConnectCommand = ISourceControlOperation::Create<FConnect>();
+		if (SCCProvider->Execute(ConnectCommand, FString(), EConcurrency::Synchronous) != ECommandResult::Succeeded)
 		{
-			Errors.AppendLine(Msg);
-		}
+			FTextBuilder Errors;
+			for (const FText& Msg : ConnectCommand->GetResultInfo().ErrorMessages)
+			{
+				Errors.AppendLine(Msg);
+			}
 
-		FMessageLog Log("LogVirtualization");
-		Log.Warning(	FText::Format(LOCTEXT("FailedSourceControlConnection", "Failed to connect to source control backend with the following errors:\n{0}\nThe source control backend had trouble connecting!\nTrying logging in with the 'p4 login' command or by using p4vs/UnrealGameSync."),
-					Errors.ToText()));
-		
-		OnConnectionError();
-		return true;
+			FMessageLog Log("LogVirtualization");
+			Log.Warning(FText::Format(LOCTEXT("FailedSourceControlConnection", "Failed to connect to source control backend with the following errors:\n{0}\nThe source control backend had trouble connecting!\nTrying logging in with the 'p4 login' command or by using p4vs/UnrealGameSync."),
+				Errors.ToText()));
+
+			OnConnectionError();
+			return true;
+		}
 	}
 
 	// When a source control depot is set up a file named 'payload_metainfo.txt' should be submitted to it's root.

@@ -289,6 +289,18 @@ struct FInitParams
 	/** The config file to load the settings from (will default to GEngineIni) */
 	const FConfigFile& ConfigFile;
 };
+
+/** Optional flags that change how the VA system is initialized */
+enum class EInitializationFlags : uint32
+{
+	/** No flags are set */
+	None			= 0,
+	/** Forces the initialization to occur, ignoring and of the lazy initialization flags */
+	ForceInitialize = 1 << 0
+};
+
+ENUM_CLASS_FLAGS(EInitializationFlags);
+
 /**
  * Creates the global IVirtualizationSystem if it has not already been set up. This can be called explicitly
  * during process start up but it will also be called by IVirtualizationSystem::Get if it detects that the
@@ -296,12 +308,12 @@ struct FInitParams
  * 
  * This version will use the default values of FInitParams.
  */
-CORE_API void Initialize();
+CORE_API void Initialize(EInitializationFlags Flags);
 
 /**
  * This version of ::Initialize takes parameters via the FInitParams structure.
  */
-CORE_API void Initialize(const FInitParams& InitParams);
+CORE_API void Initialize(const FInitParams& InitParams, EInitializationFlags Flags);
 
 /**
  * Shutdowns the global IVirtualizationSystem if it exists. 
@@ -344,7 +356,13 @@ public:
 	 */
 	virtual bool Initialize(const FInitParams& InitParams) = 0;
 
-	/** Gain access to the current virtualization system active for the project */
+	/** Returns true if a virtualization system has been initialized and false if not */
+	static bool IsInitialized();
+
+	/** 
+	 * Gain access to the current virtualization system active for the project. If the system has not yet been 
+	 * initialized then calling this method will initialize it.
+	 */
 	static IVirtualizationSystem& Get();
 
 	/** Poll to see if content virtualization is enabled or not. */

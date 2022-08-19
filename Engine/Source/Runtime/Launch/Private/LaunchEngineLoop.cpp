@@ -2891,7 +2891,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #if WITH_EDITOR
 		// The virtualization system will be initialized when ever IVirtualizationSystem::Get is called
 		// but here we try to explicitly initialize it.
-		UE::Virtualization::Initialize();
+		UE::Virtualization::Initialize(UE::Virtualization::EInitializationFlags::None);
 #endif //WITH_EDITOR
 
 		check(!GDistanceFieldAsyncQueue);

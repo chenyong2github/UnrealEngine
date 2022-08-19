@@ -906,18 +906,30 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 	}
 
 	// Check for any legacy settings and print them out (easier to do this in one block rather than one and time)
-	if (const FConfigSection* LegacySection = ConfigFile.Find(LegacyConfigSection))
 	{
-		if (LegacySection->Num() > 1)
+		// Entries that are allows to be in [Core.ContentVirtualization
+		TArrayView<const TCHAR* const> AllowedEntries = { TEXT("SystemName") , TEXT("LazyInit") };
+		
+		TArray<FString> LegacyEntries;	
+		if (const FConfigSection* LegacySection = ConfigFile.Find(LegacyConfigSection))
 		{
-			UE_LOG(LogVirtualization, Warning, TEXT("\tFound %d legacy ini file settings under [Core.ContentVirtualization] that should be moved to [Core.VirtualizationModule]"), LegacySection->Num() - 1);
-			for (auto Iterator : *LegacySection)
+			for (const TPair<FName, FConfigValue>& It : *LegacySection)
 			{
-				FString Name = Iterator.Key.ToString();
-				if (Name != TEXT("SystemName"))
+				FString Name = It.Key.ToString();
+			
+				if (!AllowedEntries.Contains(Name))
 				{
-					UE_LOG(LogVirtualization, Warning, TEXT("\t\t%s"), *Iterator.Key.ToString());
+					LegacyEntries.Add(MoveTemp(Name));
 				}
+			}
+		}
+
+		if (!LegacyEntries.IsEmpty())
+		{
+			UE_LOG(LogVirtualization, Warning, TEXT("\tFound %d legacy ini file settings under [Core.ContentVirtualization] that should be moved to [Core.VirtualizationModule]"), LegacyEntries.Num());
+			for (const FString& LegacyEntry : LegacyEntries)
+			{
+				UE_LOG(LogVirtualization, Warning, TEXT("\t\t%s"), *LegacyEntry);
 			}
 		}
 	}
