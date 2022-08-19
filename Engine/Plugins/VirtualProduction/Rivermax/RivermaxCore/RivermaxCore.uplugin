@@ -29,6 +29,12 @@
 			"PlatformAllowList": [ "Win64" ]
 		},
 		{
+			"Name": "RivermaxEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [ "Win64" ]
+		},
+		{
 			"Name": "RivermaxRendering",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",

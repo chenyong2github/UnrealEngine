@@ -3,6 +3,7 @@
 #include "RivermaxMediaCapture.h"
 
 #include "IRivermaxCoreModule.h"
+#include "IRivermaxManager.h"
 #include "IRivermaxOutputStream.h"
 #include "RenderGraphUtils.h"
 #include "RivermaxMediaLog.h"
@@ -189,8 +190,21 @@ bool URivermaxMediaCapture::ConfigureStream(URivermaxMediaOutput* InMediaOutput,
 {
 	using namespace UE::RivermaxCore;
 
+	// Resolve interface address
+	IRivermaxCoreModule* Module = FModuleManager::GetModulePtr<IRivermaxCoreModule>("RivermaxCore");
+	if (Module == nullptr)
+	{
+		return false;
+	}
+
+	const bool bFoundDevice = Module->GetRivermaxManager()->GetMatchingDevice(InMediaOutput->InterfaceAddress, OutOptions.InterfaceAddress);
+	if (bFoundDevice == false)
+	{
+		UE_LOG(LogRivermaxMedia, Error, TEXT("Could not find a matching interface for IP '%s'"), *InMediaOutput->InterfaceAddress);
+		return false;
+	}
+
 	OutOptions.StreamAddress = InMediaOutput->StreamAddress;
-	OutOptions.InterfaceAddress = InMediaOutput->InterfaceAddress;
 	OutOptions.Port = InMediaOutput->Port;
 	OutOptions.Resolution = InMediaOutput->Resolution;
 	OutOptions.FrameRate = InMediaOutput->FrameRate;

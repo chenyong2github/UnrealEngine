@@ -2,28 +2,25 @@
 
 using UnrealBuildTool;
 
-public class RivermaxCore : ModuleRules
+public class RivermaxEditor : ModuleRules
 {
-	public RivermaxCore(ReadOnlyTargetRules Target) : base(Target)
+	public RivermaxEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"CoreUObject",
-				"DeveloperSettings",
-				"MediaAssets",
-				"MediaIOCore",
-				"RivermaxLib",
-				"TimeManagement"
+				"PropertyEditor",
+				"RivermaxCore",
 			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"Engine",
-				"Networking",
-				"RenderCore",
-				"RHI"
+				"CoreUObject",
+				"EditorStyle",
+				"InputCore",
+				"Slate",
+				"SlateCore",
 			}
 		);
 

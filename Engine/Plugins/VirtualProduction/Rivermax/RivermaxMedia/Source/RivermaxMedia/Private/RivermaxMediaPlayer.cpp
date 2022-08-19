@@ -4,6 +4,7 @@
 
 #include "IMediaEventSink.h"
 #include "IRivermaxCoreModule.h"
+#include "IRivermaxManager.h"
 #include "MediaIOCoreEncodeTime.h"
 #include "MediaIOCoreFileWriter.h"
 #include "MediaIOCoreSamples.h"
@@ -277,7 +278,21 @@ namespace UE::RivermaxMedia
 
 	bool FRivermaxMediaPlayer::ConfigureStream(const IMediaOptions* Options)
 	{
-		StreamOptions.InterfaceAddress = Options->GetMediaOption(RivermaxMediaOption::InterfaceAddress, FString());
+		// Resolve interface address
+		IRivermaxCoreModule* Module = FModuleManager::GetModulePtr<IRivermaxCoreModule>("RivermaxCore");
+		if (Module == nullptr)
+		{
+			return false;
+		}
+
+		const FString DesiredInterface = Options->GetMediaOption(RivermaxMediaOption::InterfaceAddress, FString());
+		const bool bFoundDevice = Module->GetRivermaxManager()->GetMatchingDevice(DesiredInterface, StreamOptions.InterfaceAddress);
+		if (bFoundDevice == false)
+		{
+			UE_LOG(LogRivermaxMedia, Error, TEXT("Could not find a matching interface for IP '%s'"), *DesiredInterface);
+			return false;
+		}
+
 		StreamOptions.StreamAddress = Options->GetMediaOption(RivermaxMediaOption::StreamAddress, FString());
 		StreamOptions.Port = Options->GetMediaOption(RivermaxMediaOption::Port, (int64)0);
 		StreamOptions.Resolution = VideoTrackFormat.Dim;

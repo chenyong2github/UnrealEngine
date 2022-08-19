@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class RivermaxMediaEditor : ModuleRules
@@ -22,6 +23,8 @@ public class RivermaxMediaEditor : ModuleRules
 				"MediaAssets",
 				"MediaIOCore",
 				"MediaIOEditor",
+				"RivermaxCore",
+				"RivermaxEditor",
 				"RivermaxMedia",
 				"Slate",
 				"SlateCore",
