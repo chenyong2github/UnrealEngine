@@ -6,6 +6,8 @@
 #include "NiagaraBakerRenderer.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraComponent.h"
+#include "NiagaraPlatformSet.h"
+#include "NiagaraSettings.h"
 #include "NiagaraSystem.h"
 
 #include "Niagara/Classes/NiagaraDataInterfaceRenderTarget2D.h"
@@ -348,6 +350,22 @@ void FNiagaraBakerViewModel::ResetCurrentCamera()
 	}
 }
 
+bool FNiagaraBakerViewModel::IsBakeQualityLevel(FName QualityLevel) const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->BakeQualityLevel == QualityLevel : false;
+}
+
+void FNiagaraBakerViewModel::SetBakeQualityLevel(FName QualityLevel)
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		const FScopedTransaction Transaction(LOCTEXT("BakeQualityLevel", "Set Bake Quality Level"));
+		BakerSettings->Modify();
+		BakerSettings->BakeQualityLevel = QualityLevel;
+	}
+}
+
 bool FNiagaraBakerViewModel::IsSimTickRate(int TickRate) const
 {
 	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
@@ -611,6 +629,20 @@ void FNiagaraBakerViewModel::RenderBaker()
 		FScopedSlowTask SlowTask(TotalFrames);
 		SlowTask.MakeDialog();
 
+		const int32 ExistingQualityLevel = FNiagaraPlatformSet::GetQualityLevel();
+		if (BakerSettings->BakeQualityLevel.IsNone() == false)
+		{
+			const UNiagaraSettings* NiagaraSettings = GetDefault<UNiagaraSettings>();
+			for (int32 i=0; i < NiagaraSettings->QualityLevels.Num(); ++i)
+			{
+				if (FName(NiagaraSettings->QualityLevels[i].ToString()) == BakerSettings->BakeQualityLevel)
+				{
+					SetGNiagaraQualityLevel(i);
+					break;
+				}
+			}
+		}
+
 		for ( int32 iFrame=0; iFrame < TotalFrames; ++iFrame )
 		{
 			SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("BakingFormat", "Baking Frame ({0} / {1})"), iFrame + 1, TotalFrames));
@@ -627,6 +659,11 @@ void FNiagaraBakerViewModel::RenderBaker()
 					OutputRenderers[i]->BakeFrame(BakerSettings->Outputs[i], iFrame, *BakerRenderer.Get());
 				}
 			}
+		}
+
+		if (BakerSettings->BakeQualityLevel.IsNone() == false)
+		{
+			SetGNiagaraQualityLevel(ExistingQualityLevel);
 		}
 	}
 

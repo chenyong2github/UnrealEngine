@@ -7,6 +7,7 @@
 #include "NiagaraEditorCommon.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraComponent.h"
+#include "NiagaraSettings.h"
 #include "NiagaraSystem.h"
 #include "ViewModels/NiagaraBakerViewModel.h"
 
@@ -641,6 +642,12 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeSettingsMenu()
 	);
 
 	MenuBuilder.AddSubMenu(
+		LOCTEXT("BakeQualityLevel", "Bake Quality Level"),
+		LOCTEXT("BakeQualityLevelToolTip", "Allows you to optionally override the quality level when baking, i.e. use cinematic quality while baking"),
+		FNewMenuDelegate::CreateSP(this, &SNiagaraBakerWidget::MakeBakeQualityLevelMenu)
+	);
+
+	MenuBuilder.AddSubMenu(
 		LOCTEXT("SimulationTickRate", "Simulation Tick Rate"),
 		LOCTEXT("SimulationTickRateToolTip", "The rate at which the simulation will tick, i.e. 120fps, 60fps, 30fps, etc."),
 		FNewMenuDelegate::CreateSP(this, &SNiagaraBakerWidget::MakeSimTickRateMenu)
@@ -775,6 +782,48 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeAddOutputMenu()
 	}
 
 	return MenuBuilder.MakeWidget();
+}
+
+void SNiagaraBakerWidget::MakeBakeQualityLevelMenu(FMenuBuilder& MenuBuilder) const
+{
+	FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get();
+	check(ViewModel != nullptr);
+
+	// Special entry for 'leave as default'
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("CurrentQualityLevel" ,"Current Quality Level"),
+		LOCTEXT("CurrentQualityLevelTooltip", "Uses the current quality level that is set in the editor when baking."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetBakeQualityLevel, FName()),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::IsBakeQualityLevel, FName())
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	// Engine driven quality levels
+	MenuBuilder.BeginSection("QualityLevel", LOCTEXT("QualityLevel", "QualityLevel"));
+	{
+		for (const FText& QualityLevelText : GetDefault<UNiagaraSettings>()->QualityLevels)
+		{
+			const FName QualityLevel(*QualityLevelText.ToString());
+
+			MenuBuilder.AddMenuEntry(
+				QualityLevelText,
+				FText::GetEmpty(),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetBakeQualityLevel, QualityLevel),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::IsBakeQualityLevel, QualityLevel)
+				),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
+	}
 }
 
 void SNiagaraBakerWidget::MakeSimTickRateMenu(FMenuBuilder& MenuBuilder) const

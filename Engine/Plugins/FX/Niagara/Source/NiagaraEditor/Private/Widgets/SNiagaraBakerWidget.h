@@ -33,6 +33,7 @@ public:
 	TSharedRef<SWidget> MakeOutputSelectMenu();
 	TSharedRef<SWidget> MakeAddOutputMenu();
 
+	void MakeBakeQualityLevelMenu(FMenuBuilder& MenuBuilder) const;
 	void MakeSimTickRateMenu(FMenuBuilder& MenuBuilder) const;
 
 	void FindWarnings();

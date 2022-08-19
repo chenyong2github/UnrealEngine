@@ -103,6 +103,9 @@ public:
 
 	void ResetCurrentCamera();
 
+	bool IsBakeQualityLevel(FName QualityLevel) const;
+	void SetBakeQualityLevel(FName QualityLevel);
+
 	bool IsSimTickRate(int TickRate) const;
 	int GetSimTickRate() const;
 	void SetSimTickRate(int TickRate);

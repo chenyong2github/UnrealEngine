@@ -138,7 +138,7 @@ struct FNiagaraBakerOutputFrameIndices
 	float	Interp = 0.0f;
 };
 
-UCLASS()
+UCLASS(config=Niagara, defaultconfig)
 class NIAGARA_API UNiagaraBakerSettings : public UObject
 {
 	GENERATED_BODY()
@@ -184,6 +184,10 @@ public:
 	/** Active camera that we were saved with */
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	int32 CurrentCameraIndex = 0;
+
+	/** What quality level to use when baking the simulation, where None means use the current quality level. */
+	UPROPERTY(EditAnywhere, Category = "Settings", config)
+	FName BakeQualityLevel;
 
 	/** Should we render just the component or the whole scene. */
 	UPROPERTY(EditAnywhere, Category = "Settings")
