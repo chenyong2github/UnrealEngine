@@ -96,18 +96,13 @@ void FImage::ApplyOverrideMaterialToNode(FNodeOccurence& Node, FMaterialOccurren
 
 void FImage::UpdateOccurrence(FExportContext& Context, FNodeOccurence& Node)
 {
-	if (!Node.bVisible)
-	{
-		return;
-	}
-	
 	Node.EffectiveLayerRef = DatasmithSketchUpUtils::GetEffectiveLayer( SUImageToDrawingElement(SUImageFromEntity(EntityRef)), Node.ParentNode->EffectiveLayerRef);
 
 	BuildNodeNames(Node);
 
 	FString EffectiveLayerName = FDatasmithUtils::SanitizeObjectName(SuGetString(SULayerGetName, Node.EffectiveLayerRef));
 	Node.DatasmithActorElement->SetLayer(*EffectiveLayerName);
-	Node.DatasmithActorElement->SetLabel(*Node.DatasmithActorLabel);
+	Node.DatasmithActorElement->SetLabel(*Node.GetActorLabel());
 
 	// Compute the world transform of the SketchUp component instance.
 	SUTransformation LocalTransform;
@@ -220,23 +215,16 @@ void FImage::BuildNodeNames(FNodeOccurence& Node)
 	Node.DatasmithActorLabel = FDatasmithUtils::SanitizeObjectName(EntityName.IsEmpty() ? GetName() : EntityName);
 }
 
-void FImage::CreateActor(FExportContext& Context, FNodeOccurence& Node)
+void FImage::SetupActor(FExportContext& Context, FNodeOccurence& Node)
 {
-	BuildNodeNames(Node);
+	// Add the Datasmith actor component depth tag.
+	// We use component depth + 1 to factor in the added Datasmith scene root once imported in Unreal.
+	FString ComponentDepthTag = FString::Printf(TEXT("SU.DEPTH.%d"), Node.Depth);
+	Node.DatasmithActorElement->AddTag(*ComponentDepthTag);
 
-	// Create a Datasmith actor for the component instance.
-	Node.DatasmithActorElement = FDatasmithSceneFactory::CreateActor(*Node.DatasmithActorName); // a EDatasmithElementType::Actor
-
-	{
-		// Add the Datasmith actor component depth tag.
-		// We use component depth + 1 to factor in the added Datasmith scene root once imported in Unreal.
-		FString ComponentDepthTag = FString::Printf(TEXT("SU.DEPTH.%d"), Node.Depth);
-		Node.DatasmithActorElement->AddTag(*ComponentDepthTag);
-
-		// Add the Datasmith actor component instance path tag.
-		FString InstancePathTag = Node.DatasmithActorName.Replace(TEXT("SU"), TEXT("SU.PATH.0")).Replace(TEXT("_"), TEXT("."));
-		Node.DatasmithActorElement->AddTag(*InstancePathTag);
-	}
+	// Add the Datasmith actor component instance path tag.
+	FString InstancePathTag = Node.GetActorName().Replace(TEXT("SU"), TEXT("SU.PATH.0")).Replace(TEXT("_"), TEXT("."));
+	Node.DatasmithActorElement->AddTag(*InstancePathTag);
 
 	if (Node.ParentNode->DatasmithActorElement)
 	{
@@ -258,13 +246,7 @@ void FImage::UpdateOccurrenceVisibility(FExportContext& Context, FNodeOccurence&
 
 	if (Node.bVisible)
 	{
-		if (!Node.DatasmithActorElement)
-		{
-			CreateActor(Context, Node);
-
-			// Invalidate actor-dependent 
-			Node.InvalidateProperties();
-		}
+		Node.InvalidateProperties();
 		Node.InvalidateMeshActors();
 	}
 	else
@@ -278,16 +260,15 @@ void FImage::UpdateOccurrenceVisibility(FExportContext& Context, FNodeOccurence&
 	}
 }
 
-bool FImage::UpdateOccurrenceMeshActors(FExportContext& Context, FNodeOccurence& Node)
+void FImage::UpdateOccurrenceMeshActors(FExportContext& Context, FNodeOccurence& Node)
 {
-	Node.MeshActors.Reset(1);
+	BuildNodeNames(Node);
 
 	FString ComponentActorName = Node.GetActorName();
 	
 	{
-		FString MeshActorName = FString::Printf(TEXT("%ls_%d"), *ComponentActorName); // Count meshes/mesh actors from 1
+		FString MeshActorName = ComponentActorName;
 
-		// Create a Datasmith mesh actor for the Datasmith mesh element.
 		TSharedPtr<IDatasmithMeshActorElement> DMeshActorPtr = FDatasmithSceneFactory::CreateMeshActor(*MeshActorName);
 
 		Node.MeshActors.Add(DMeshActorPtr);
@@ -301,22 +282,20 @@ bool FImage::UpdateOccurrenceMeshActors(FExportContext& Context, FNodeOccurence&
 		FString InstancePathTag = ComponentActorName.Replace(TEXT("SU"), TEXT("SU.PATH.0")).Replace(TEXT("_"), TEXT("."));
 		DMeshActorPtr->AddTag(*InstancePathTag);
 
-		// Add the mesh actor to our component Datasmith actor hierarchy.
-		if (Node.DatasmithActorElement.IsValid()) 
-		{
-			Node.DatasmithActorElement->AddChild(DMeshActorPtr);
-		}
-		else
-		{
-			Context.DatasmithScene->AddActor(DMeshActorPtr);
-		}
-
 		// ADD_TRACE_LINE(TEXT("Actor %ls: %ls %ls %ls"), *MeshActorLabel, *ComponentDepthTag, *DefinitionGUIDTag, *InstancePathTag);
 
 		// Set the Datasmith mesh element used by the mesh actor.
 		DMeshActorPtr->SetStaticMeshPathName(GetMeshElementName());
 	}
-	return false;
+
+	Node.DatasmithActorElement = Node.MeshActors[0];
+
+	SetupActor(Context, Node);
+}
+
+void FImage::ResetOccurrenceActors(FExportContext& Context, FNodeOccurence& Node)
+{
+	Node.ResetNodeActors(Context);
 }
 
 void FImage::InvalidateOccurrencesGeometry(FExportContext& Context)
