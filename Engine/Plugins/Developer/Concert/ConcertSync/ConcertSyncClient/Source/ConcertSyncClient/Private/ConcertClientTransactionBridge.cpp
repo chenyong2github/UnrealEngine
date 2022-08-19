@@ -210,43 +210,44 @@ struct FEditorTransactionNotification
 };
 #endif
 
-void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot, const FConcertSyncWorldRemapper& WorldRemapper, TSet<AActor*>* DeletedActors)
+void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot, const FConcertSyncWorldRemapper& WorldRemapper, TSet<AActor*>* DeletedActors, const bool bIncludeEditorOnlyProperties)
 {
 	// Transactions are applied in multiple-phases...
+	//	0) Sort the objects to be processed; creation needs to happen parent->child, and update needs to happen child->parent
 	//	1) Find or create all objects in the transaction (to handle object-interdependencies in the serialized data)
 	//	2) Notify all objects that they are about to be changed (via PreEditUndo)
 	//	3) Update the state of all objects
-	//	4) Notify all objects that they were changed (via PostEditUndo) - also finish spawning any new actors now that they have the correct state
+	//	4) Notify all objects that they were changed (via PostEditUndo)
+
+	// --------------------------------------------------------------------------------------------------------------------
+	// Phase 0
+	// --------------------------------------------------------------------------------------------------------------------
+	TArray<const FConcertExportedObject*, TInlineAllocator<8>> SortedExportedObjects;
+	{
+		SortedExportedObjects.Reserve(InEvent.ExportedObjects.Num());
+		for (const FConcertExportedObject& ExportedObject : InEvent.ExportedObjects)
+		{
+			SortedExportedObjects.Add(&ExportedObject);
+		}
+
+		SortedExportedObjects.StableSort([](const FConcertExportedObject& One, const FConcertExportedObject& Two) -> bool
+		{
+			return One.ObjectPathDepth < Two.ObjectPathDepth;
+		});
+	}
 
 	// --------------------------------------------------------------------------------------------------------------------
 	// Phase 1
 	// --------------------------------------------------------------------------------------------------------------------
 	bool bObjectsDeleted = false;
 	TArray<ConcertSyncClientUtil::FGetObjectResult, TInlineAllocator<8>> TransactionObjects;
-	TransactionObjects.AddDefaulted(InEvent.ExportedObjects.Num());
 	{
-		// Sort the object list so that outers will be created before their child objects
-		typedef TTuple<int32, const FConcertExportedObject*> FConcertExportedIndexAndObject;
-		TArray<FConcertExportedIndexAndObject, TInlineAllocator<8>> SortedExportedObjects;
-		SortedExportedObjects.Reserve(InEvent.ExportedObjects.Num());
-		for (int32 ObjectIndex = 0; ObjectIndex < InEvent.ExportedObjects.Num(); ++ObjectIndex)
+		// Find or create each object in parent->child order
+		TransactionObjects.AddDefaulted(SortedExportedObjects.Num());
+		for (int32 ObjectIndex = 0; ObjectIndex < SortedExportedObjects.Num(); ++ObjectIndex)
 		{
-			SortedExportedObjects.Add(MakeTuple(ObjectIndex, &InEvent.ExportedObjects[ObjectIndex]));
-		}
-
-		SortedExportedObjects.StableSort([](const FConcertExportedIndexAndObject& One, const FConcertExportedIndexAndObject& Two) -> bool
-		{
-			const FConcertExportedObject& OneObjectUpdate = *One.Value;
-			const FConcertExportedObject& TwoObjectUpdate = *Two.Value;
-			return OneObjectUpdate.ObjectPathDepth < TwoObjectUpdate.ObjectPathDepth;
-		});
-
-		// Find or create each object, populating TransactionObjects in the original order (not the sorted order)
-		for (const FConcertExportedIndexAndObject& SortedExportedObjectsPair : SortedExportedObjects)
-		{
-			const int32 ObjectUpdateIndex = SortedExportedObjectsPair.Key;
-			const FConcertExportedObject& ObjectUpdate = *SortedExportedObjectsPair.Value;
-			ConcertSyncClientUtil::FGetObjectResult& TransactionObjectRef = TransactionObjects[ObjectUpdateIndex];
+			ConcertSyncClientUtil::FGetObjectResult& TransactionObjectRef = TransactionObjects[ObjectIndex];
+			const FConcertExportedObject& ObjectUpdate = *SortedExportedObjects[ObjectIndex];
 
 			// Is this object excluded? We exclude certain packages when re-applying live transactions on a package load
 			if (InPackagesToProcess.Num() > 0)
@@ -262,6 +263,12 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 			// Find or create the object
 			TransactionObjectRef = ConcertSyncClientUtil::GetObject(ObjectUpdate.ObjectId, ObjectUpdate.ObjectData.NewName, ObjectUpdate.ObjectData.NewOuterPathName, ObjectUpdate.ObjectData.NewExternalPackageName, ObjectUpdate.ObjectData.bAllowCreate);
 			bObjectsDeleted |= (ObjectUpdate.ObjectData.bIsPendingKill || TransactionObjectRef.NeedsGC());
+
+			if (ObjectUpdate.ObjectData.bResetExisting && !TransactionObjectRef.NewlyCreated())
+			{
+				check(TransactionObjectRef.Obj);
+				ConcertSyncUtil::ResetObjectPropertiesToArchetypeValues(TransactionObjectRef.Obj, bIncludeEditorOnlyProperties);
+			}
 		}
 	}
 
@@ -279,11 +286,11 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 	// --------------------------------------------------------------------------------------------------------------------
 #if WITH_EDITOR
 	TArray<TSharedPtr<ITransactionObjectAnnotation>, TInlineAllocator<8>> TransactionAnnotations;
-	TransactionAnnotations.AddDefaulted(InEvent.ExportedObjects.Num());
-	for (int32 ObjectIndex = 0; ObjectIndex < TransactionObjects.Num(); ++ObjectIndex)
+	TransactionAnnotations.AddDefaulted(SortedExportedObjects.Num());
+	for (int32 ObjectIndex = SortedExportedObjects.Num() - 1; ObjectIndex >= 0; --ObjectIndex)
 	{
 		const ConcertSyncClientUtil::FGetObjectResult& TransactionObjectRef = TransactionObjects[ObjectIndex];
-		const FConcertExportedObject& ObjectUpdate = InEvent.ExportedObjects[ObjectIndex];
+		const FConcertExportedObject& ObjectUpdate = *SortedExportedObjects[ObjectIndex];
 
 		UObject* TransactionObject = TransactionObjectRef.Obj;
 		if (!TransactionObject)
@@ -341,10 +348,10 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 	// --------------------------------------------------------------------------------------------------------------------
 	// Phase 3
 	// --------------------------------------------------------------------------------------------------------------------
-	for (int32 ObjectIndex = 0; ObjectIndex < TransactionObjects.Num(); ++ObjectIndex)
+	for (int32 ObjectIndex = SortedExportedObjects.Num() - 1; ObjectIndex >= 0; --ObjectIndex)
 	{
 		const ConcertSyncClientUtil::FGetObjectResult& TransactionObjectRef = TransactionObjects[ObjectIndex];
-		const FConcertExportedObject& ObjectUpdate = InEvent.ExportedObjects[ObjectIndex];
+		const FConcertExportedObject& ObjectUpdate = *SortedExportedObjects[ObjectIndex];
 
 		UObject* TransactionObject = TransactionObjectRef.Obj;
 		if (!TransactionObject)
@@ -378,10 +385,10 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 	// --------------------------------------------------------------------------------------------------------------------
 	// Phase 4
 	// --------------------------------------------------------------------------------------------------------------------
-	for (int32 ObjectIndex = 0; ObjectIndex < TransactionObjects.Num(); ++ObjectIndex)
+	for (int32 ObjectIndex = SortedExportedObjects.Num() - 1; ObjectIndex >= 0; --ObjectIndex)
 	{
 		const ConcertSyncClientUtil::FGetObjectResult& TransactionObjectRef = TransactionObjects[ObjectIndex];
-		const FConcertExportedObject& ObjectUpdate = InEvent.ExportedObjects[ObjectIndex];
+		const FConcertExportedObject& ObjectUpdate = *SortedExportedObjects[ObjectIndex];
 
 		UObject* TransactionObject = TransactionObjectRef.Obj;
 		if (!TransactionObject)
@@ -389,7 +396,6 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 			continue;
 		}
 
-		// Finish spawning any newly created actors
 		if (AActor* TransactionActor = Cast<AActor>(TransactionObject))
 		{
 			if (ObjectUpdate.ObjectData.bIsPendingKill)
@@ -398,10 +404,6 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 				{
 					DeletedActors->Add(TransactionActor);
 				}
-			}
-			else if (TransactionObjectRef.NeedsPostSpawn())
-			{
-				TransactionActor->FinishSpawning(FTransform(), true);
 			}
 		}
 
@@ -524,17 +526,17 @@ FOnApplyTransaction& FConcertClientTransactionBridge::OnApplyTransaction()
 
 void FConcertClientTransactionBridge::ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot)
 {
-	ConcertClientTransactionBridgeUtil::ProcessTransactionEvent(InEvent, InVersionInfo, InPackagesToProcess, InLocalIdentifierTablePtr, bIsSnapshot, FConcertSyncWorldRemapper(), nullptr);
+	ConcertClientTransactionBridgeUtil::ProcessTransactionEvent(InEvent, InVersionInfo, InPackagesToProcess, InLocalIdentifierTablePtr, bIsSnapshot, FConcertSyncWorldRemapper(), nullptr, bIncludeEditorOnlyProperties);
 }
 
 void FConcertClientTransactionBridge::ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot, const FConcertSyncWorldRemapper& ConcertSyncWorldRemapper)
 {
-	ConcertClientTransactionBridgeUtil::ProcessTransactionEvent(InEvent, InVersionInfo, InPackagesToProcess, InLocalIdentifierTablePtr, bIsSnapshot, ConcertSyncWorldRemapper, nullptr);
+	ConcertClientTransactionBridgeUtil::ProcessTransactionEvent(InEvent, InVersionInfo, InPackagesToProcess, InLocalIdentifierTablePtr, bIsSnapshot, ConcertSyncWorldRemapper, nullptr, bIncludeEditorOnlyProperties);
 }
 
 void FConcertClientTransactionBridge::ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot, const FConcertSyncWorldRemapper& ConcertSyncWorldRemapper, TSet<AActor*>* DeletedActors)
 {
-	ConcertClientTransactionBridgeUtil::ProcessTransactionEvent(InEvent, InVersionInfo, InPackagesToProcess, InLocalIdentifierTablePtr, bIsSnapshot, ConcertSyncWorldRemapper, DeletedActors);
+	ConcertClientTransactionBridgeUtil::ProcessTransactionEvent(InEvent, InVersionInfo, InPackagesToProcess, InLocalIdentifierTablePtr, bIsSnapshot, ConcertSyncWorldRemapper, DeletedActors, bIncludeEditorOnlyProperties);
 }
 
 bool& FConcertClientTransactionBridge::GetIgnoreLocalTransactionsRef()

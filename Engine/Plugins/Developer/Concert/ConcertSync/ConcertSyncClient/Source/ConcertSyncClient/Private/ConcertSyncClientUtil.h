@@ -34,8 +34,8 @@ namespace ConcertSyncClientUtil
 	enum class EGetObjectResultFlags : uint8
 	{
 		None = 0,
-		NeedsGC = 1 << 0,
-		NeedsPostSpawn = 1 << 1,
+		NeedsGC = 1<<0,
+		NewlyCreated = 1<<1,
 	};
 	ENUM_CLASS_FLAGS(EGetObjectResultFlags);
 
@@ -58,9 +58,9 @@ namespace ConcertSyncClientUtil
 			return EnumHasAnyFlags(Flags, EGetObjectResultFlags::NeedsGC);
 		}
 
-		bool NeedsPostSpawn() const
+		bool NewlyCreated() const
 		{
-			return EnumHasAnyFlags(Flags, EGetObjectResultFlags::NeedsPostSpawn);
+			return EnumHasAnyFlags(Flags, EGetObjectResultFlags::NewlyCreated);
 		}
 
 		UObject* Obj;
