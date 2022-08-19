@@ -7,7 +7,6 @@
 #include "GeometryCacheVertexFactory.h"
 #include "SceneView.h"
 #include "MeshBatch.h"
-#include "GPUSkinCache.h"
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
 

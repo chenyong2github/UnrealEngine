@@ -26,7 +26,6 @@
 #include "DynamicPrimitiveDrawing.h"
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
-#include "GPUSkinCache.h"
 #include "MeshPassProcessor.inl"
 #include "PixelShaderUtils.h"
 #include "RenderGraphUtils.h"

@@ -28,7 +28,6 @@
 #include "DistanceFieldAtlas.h"
 #include "EngineModule.h"
 #include "SceneViewExtension.h"
-#include "GPUSkinCache.h"
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
 #include "RendererModule.h"
