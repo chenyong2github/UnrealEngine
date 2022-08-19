@@ -10447,7 +10447,9 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 			{
 				return false;
 			}
-
+			
+			InPin->SetDisplayName(InNewName);
+			
 			// update the eventually stored pin path to the new name
 			for (URigVMLink* Link : Links)
 			{
