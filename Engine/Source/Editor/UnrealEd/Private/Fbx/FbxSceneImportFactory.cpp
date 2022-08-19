@@ -124,6 +124,7 @@ bool GetFbxSceneImportOptions(UnFbx::FFbxImporter* FbxImporter
 	GlobalImportSettings->ImportTranslation = FVector(0);
 	GlobalImportSettings->ImportRotation = FRotator(0);
 	GlobalImportSettings->ImportUniformScale = 1.0f;
+	GlobalImportSettings->DistanceFieldResolutionScale = 1.0f;
 
 	GlobalImportSettings->bConvertScene = true;
 	GlobalImportSettings->bConvertSceneUnit = true;
