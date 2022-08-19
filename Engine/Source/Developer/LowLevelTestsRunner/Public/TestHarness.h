@@ -82,8 +82,22 @@ THIRD_PARTY_INCLUDES_END
 #define LLT_CONCAT_(x, y) x##y
 #define LLT_CONCAT(x, y) LLT_CONCAT_(x,y)
 
+#define DISABLED_TEST_CASE_METHOD_INTERNAL(TestName, ClassName, ...) \
+	CATCH_INTERNAL_START_WARNINGS_SUPPRESSION \
+	CATCH_INTERNAL_SUPPRESS_GLOBALS_WARNINGS \
+	namespace \
+	{ \
+		struct TestName : INTERNAL_CATCH_REMOVE_PARENS(ClassName) \
+		{ \
+			void test(); \
+		}; \
+	} \
+	CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION \
+	void TestName::test()
+
 #define DISABLED_TEST_CASE(...) static void LLT_CONCAT(disabled_test_,__LINE__)()
-#define DISABLED_TEST_CASE_METHOD(...) static void LLT_CONCAT(disabled_test_method_,__LINE__)()
+#define DISABLED_TEST_CASE_METHOD(ClassName, ...) \
+	DISABLED_TEST_CASE_METHOD_INTERNAL(INTERNAL_CATCH_UNIQUE_NAME( CATCH2_INTERNAL_TEST_ ), ClassName, __VA_ARGS__)
 #define DISABLED_SCENARIO(...) static void LLT_CONCAT(disabled_scenario_,__LINE__)()
 #define DISABLED_SECTION(...) auto LLT_CONCAT(disabled_section_,__LINE__) = []()
 
