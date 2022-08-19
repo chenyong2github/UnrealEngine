@@ -138,7 +138,7 @@ namespace AnimationEditorUtils
 {
 	UNREALED_API FAssetData CreateModalAnimationCompressionSelectionDialog(const FAnimationCompressionSelectionDialogConfig& InConfig);
 
-	UNREALED_API void CreateAnimationAssets(const TArray<TWeakObjectPtr<UObject>>& SkeletonsOrSkeletalMeshes, TSubclassOf<UAnimationAsset> AssetClass, const FString& InPrefix, FAnimAssetCreated AssetCreated, UObject* NameBaseObject = nullptr, bool bDoNotShowNameDialog = false);
+	UNREALED_API void CreateAnimationAssets(const TArray<TWeakObjectPtr<UObject>>& SkeletonsOrSkeletalMeshes, TSubclassOf<UAnimationAsset> AssetClass, const FString& InPrefix, FAnimAssetCreated AssetCreated, UObject* NameBaseObject = nullptr, bool bDoNotShowNameDialog = false, bool bAllowReplaceExisting = false);
 	
 	UNREALED_API void CreateNewAnimBlueprint(TArray<TWeakObjectPtr<UObject>> SkeletonsOrSkeletalMeshes, FAnimAssetCreated AssetCreated, bool bInContentBrowser);
 	UNREALED_API void FillCreateAssetMenu(FMenuBuilder& MenuBuilder, const TArray<TWeakObjectPtr<UObject>>& SkeletonsOrSkeletalMeshes, FAnimAssetCreated AssetCreated, bool bInContentBrowser=true);
@@ -212,7 +212,7 @@ namespace AnimationEditorUtils
 	//////////////////////////////////////////////////////////////////////////////////////////
 
 	template <typename TFactory, typename T>
-	void ExecuteNewAnimAsset(TArray<TWeakObjectPtr<UObject>> SkeletonsOrSkeletalMeshes, const FString InSuffix, FAnimAssetCreated AssetCreated, bool bInContentBrowser)
+	void ExecuteNewAnimAsset(TArray<TWeakObjectPtr<UObject>> SkeletonsOrSkeletalMeshes, const FString InSuffix, FAnimAssetCreated AssetCreated, bool bInContentBrowser, bool bAllowReplaceExisting)
 	{
 		if(bInContentBrowser && SkeletonsOrSkeletalMeshes.Num() == 1)
 		{
@@ -265,7 +265,10 @@ namespace AnimationEditorUtils
 		}
 		else
 		{
-			CreateAnimationAssets(SkeletonsOrSkeletalMeshes, T::StaticClass(), InSuffix, AssetCreated);
+			UObject* NameBaseObject = nullptr;
+			const bool bDoNotShowNameDialog = false;
+
+			CreateAnimationAssets(SkeletonsOrSkeletalMeshes, T::StaticClass(), InSuffix, AssetCreated, NameBaseObject, bDoNotShowNameDialog, bAllowReplaceExisting);
 		}
 	}
 } // namespace AnimationEditorUtils

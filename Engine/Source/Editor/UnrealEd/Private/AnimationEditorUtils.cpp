@@ -458,7 +458,7 @@ namespace AnimationEditorUtils
 		AssetToolsModule.Get().CreateUniqueAssetName(InBasePackageName, InSuffix, OutPackageName, OutAssetName);
 	}
 
-	void CreateAnimationAssets(const TArray<TWeakObjectPtr<UObject>>& SkeletonsOrSkeletalMeshes, TSubclassOf<UAnimationAsset> AssetClass, const FString& InPrefix, FAnimAssetCreated AssetCreated, UObject* NameBaseObject /*= nullptr*/, bool bDoNotShowNameDialog /*= false*/)
+	void CreateAnimationAssets(const TArray<TWeakObjectPtr<UObject>>& SkeletonsOrSkeletalMeshes, TSubclassOf<UAnimationAsset> AssetClass, const FString& InPrefix, FAnimAssetCreated AssetCreated, UObject* NameBaseObject /*= nullptr*/, bool bDoNotShowNameDialog /*= false*/, bool bAllowReplaceExisting /*= false*/)
 	{
 		TArray<UObject*> ObjectsToSync;
 		for(auto SkelIt = SkeletonsOrSkeletalMeshes.CreateConstIterator(); SkelIt; ++SkelIt)
@@ -498,8 +498,35 @@ namespace AnimationEditorUtils
 
 				// Create the asset, and assign its skeleton
 				FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
-				UAnimationAsset* NewAsset = Cast<UAnimationAsset>(AssetToolsModule.Get().CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), AssetClass, NULL));
 
+				UAnimationAsset* NewAsset = nullptr;
+
+				if (bAllowReplaceExisting)
+				{
+					UPackage* ExistingPackage = FindPackage(nullptr, *PackageName);
+					UObject* ExistingObject = StaticFindObject(AssetClass.Get(), ExistingPackage, *Name);
+					if (ExistingObject)
+					{
+						EAppReturnType::Type UserResponse = FMessageDialog::Open(
+							EAppMsgType::YesNo,
+							FText::Format(LOCTEXT("CreateAnimationAssetsAlreadyExists", "Do you want to replace the existing asset?\n\nAn asset already exists at the import location: {0}"), FText::FromString(PackageName)));
+
+						if (UserResponse == EAppReturnType::Yes)
+						{
+							NewAsset = Cast<UAnimationAsset>(ExistingObject);
+						}
+						else
+						{
+							return;
+						}
+					}
+				}
+				
+				if (!NewAsset)
+				{
+					NewAsset = Cast<UAnimationAsset>(AssetToolsModule.Get().CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), AssetClass, NULL));
+				}
+				
 				if(NewAsset)
 				{
 					NewAsset->SetSkeleton(Skeleton);
@@ -643,6 +670,8 @@ namespace AnimationEditorUtils
 
 	void FillCreateAssetMenu(FMenuBuilder& MenuBuilder, const TArray<TWeakObjectPtr<UObject>>& SkeletonsOrSkeletalMeshes, FAnimAssetCreated AssetCreated, bool bInContentBrowser)
 	{
+		const bool bAllowReplaceExisting = false;
+
 		MenuBuilder.BeginSection("CreateAnimAssets", LOCTEXT("CreateAnimAssetsMenuHeading", "Anim Assets"));
 		{
 			if(CanCreateAssetOfType(UAnimBlueprint::StaticClass()))
@@ -666,7 +695,7 @@ namespace AnimationEditorUtils
 					LOCTEXT("Skeleton_NewAnimCompositeTooltip", "Creates an AnimComposite using the selected skeleton."),
 					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimComposite"),
 					FUIAction(
-						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAnimCompositeFactory, UAnimComposite>, SkeletonsOrSkeletalMeshes, FString("_Composite"), AssetCreated, bInContentBrowser),
+						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAnimCompositeFactory, UAnimComposite>, SkeletonsOrSkeletalMeshes, FString("_Composite"), AssetCreated, bInContentBrowser, bAllowReplaceExisting),
 						FCanExecuteAction()
 						)
 					);
@@ -679,7 +708,7 @@ namespace AnimationEditorUtils
 					LOCTEXT("Skeleton_NewAnimMontageTooltip", "Creates an AnimMontage using the selected skeleton."),
 					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.AnimMontage"),
 					FUIAction(
-						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAnimMontageFactory, UAnimMontage>, SkeletonsOrSkeletalMeshes, FString("_Montage"), AssetCreated, bInContentBrowser),
+						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAnimMontageFactory, UAnimMontage>, SkeletonsOrSkeletalMeshes, FString("_Montage"), AssetCreated, bInContentBrowser, bAllowReplaceExisting),
 						FCanExecuteAction()
 						)
 					);
@@ -696,7 +725,7 @@ namespace AnimationEditorUtils
 					LOCTEXT("SkeletalMesh_New2DBlendspaceTooltip", "Creates a Blend Space using the selected skeleton."),
 					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.BlendSpace"),
 					FUIAction(
-						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UBlendSpaceFactoryNew, UBlendSpace>, SkeletonsOrSkeletalMeshes, FString("_BlendSpace"), AssetCreated, bInContentBrowser),
+						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UBlendSpaceFactoryNew, UBlendSpace>, SkeletonsOrSkeletalMeshes, FString("_BlendSpace"), AssetCreated, bInContentBrowser, bAllowReplaceExisting),
 						FCanExecuteAction()
 						)
 					);
@@ -709,7 +738,7 @@ namespace AnimationEditorUtils
 					LOCTEXT("SkeletalMesh_New1DBlendspaceTooltip", "Creates a 1D Blend Space using the selected skeleton."),
 					FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.BlendSpace1D"),
 					FUIAction(
-						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UBlendSpaceFactory1D, UBlendSpace1D>, SkeletonsOrSkeletalMeshes, FString("_BlendSpace1D"), AssetCreated, bInContentBrowser),
+						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UBlendSpaceFactory1D, UBlendSpace1D>, SkeletonsOrSkeletalMeshes, FString("_BlendSpace1D"), AssetCreated, bInContentBrowser, bAllowReplaceExisting),
 						FCanExecuteAction()
 						)
 					);
@@ -726,7 +755,7 @@ namespace AnimationEditorUtils
 					LOCTEXT("SkeletalMesh_New2DAimOffsetTooltip", "Creates a Aim Offset blendspace using the selected skeleton."),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAimOffsetBlendSpaceFactoryNew, UAimOffsetBlendSpace>, SkeletonsOrSkeletalMeshes, FString("_AimOffset2D"), AssetCreated, bInContentBrowser),
+						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAimOffsetBlendSpaceFactoryNew, UAimOffsetBlendSpace>, SkeletonsOrSkeletalMeshes, FString("_AimOffset2D"), AssetCreated, bInContentBrowser, bAllowReplaceExisting),
 						FCanExecuteAction()
 						)
 					);
@@ -739,7 +768,7 @@ namespace AnimationEditorUtils
 					LOCTEXT("SkeletalMesh_New1DAimOffsetTooltip", "Creates a 1D Aim Offset blendspace using the selected skeleton."),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAimOffsetBlendSpaceFactory1D, UAimOffsetBlendSpace1D>, SkeletonsOrSkeletalMeshes, FString("_AimOffset1D"), AssetCreated, bInContentBrowser),
+						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAimOffsetBlendSpaceFactory1D, UAimOffsetBlendSpace1D>, SkeletonsOrSkeletalMeshes, FString("_AimOffset1D"), AssetCreated, bInContentBrowser, bAllowReplaceExisting),
 						FCanExecuteAction()
 						)
 					);
