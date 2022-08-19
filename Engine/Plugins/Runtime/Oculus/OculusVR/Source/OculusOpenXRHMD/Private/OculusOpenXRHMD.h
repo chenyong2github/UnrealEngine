@@ -6,6 +6,8 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogOculusOpenXRPlugin, Log, All);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class FOculusOpenXRHMD : public IOculusOpenXRHMDPlugin
 {
 private:
@@ -50,3 +52,5 @@ public:
 	virtual const void* OnSyncActions(XrSession InSession, const void* InNext) override;
 	virtual void PostSyncActions(XrSession InSession) override;
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
