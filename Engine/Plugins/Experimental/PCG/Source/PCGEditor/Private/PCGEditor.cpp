@@ -300,6 +300,12 @@ void FPCGEditor::RegisterToolbar() const
 			TAttribute<FText>(),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.PausePlaySession")));
 
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+			FPCGEditorCommands::Get().ForceGraphRegeneration,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh")));
+
 		Section.AddSeparator(NAME_None);
 		Section.AddDynamicEntry("Debugging", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 		{
@@ -325,6 +331,10 @@ void FPCGEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnPauseAutomaticRegeneration_Clicked),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FPCGEditor::IsAutomaticRegenerationPaused));
+
+	ToolkitCommands->MapAction(
+		PCGEditorCommands.ForceGraphRegeneration,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnForceGraphRegeneration_Clicked));
 
 	GraphEditorCommands->MapAction(
 		PCGEditorCommands.CollapseNodes,
@@ -391,6 +401,14 @@ void FPCGEditor::OnPauseAutomaticRegeneration_Clicked()
 bool FPCGEditor::IsAutomaticRegenerationPaused() const
 {
 	return PCGGraphBeingEdited && PCGGraphBeingEdited->NotificationsForEditorArePausedByUser();
+}
+
+void FPCGEditor::OnForceGraphRegeneration_Clicked()
+{
+	if (PCGGraphBeingEdited)
+	{
+		PCGGraphBeingEdited->ForceNotificationForEditor();
+	}
 }
 
 bool FPCGEditor::CanRunDeterminismTests() const

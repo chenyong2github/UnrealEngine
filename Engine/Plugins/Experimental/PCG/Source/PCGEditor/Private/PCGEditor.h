@@ -90,7 +90,11 @@ private:
 
 	/** Enable/Disable automatic PCG node generation */
 	void OnPauseAutomaticRegeneration_Clicked();
+	/** Has the user paused automatic regeneration in the Graph Editor */
 	bool IsAutomaticRegenerationPaused() const;
+
+	/** Force a regeneration by invoking the graph notifications  */
+	void OnForceGraphRegeneration_Clicked();
 
 	/** Start inspecting the current selected node */
 	void OnStartInspectNode();

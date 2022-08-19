@@ -18,6 +18,7 @@ public:
 	TSharedPtr<FUICommandInfo> Find;
 	TSharedPtr<FUICommandInfo> RunDeterminismTest;
 	TSharedPtr<FUICommandInfo> PauseAutoRegeneration;
+	TSharedPtr<FUICommandInfo> ForceGraphRegeneration;
 	TSharedPtr<FUICommandInfo> StartInspectNode;
 	TSharedPtr<FUICommandInfo> StopInspectNode;
 	TSharedPtr<FUICommandInfo> ExecutionModeEnabled;

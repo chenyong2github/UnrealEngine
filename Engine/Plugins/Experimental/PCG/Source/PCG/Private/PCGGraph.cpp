@@ -445,6 +445,17 @@ bool UPCGGraph::RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel
 }
 
 #if WITH_EDITOR
+void UPCGGraph::ForceNotificationForEditor()
+{
+	// Queue up the delayed change
+	NotifyGraphChanged(EPCGChangeType::Structural);
+	if (bUserPausedNotificationsInGraphEditor)
+	{
+		EnableNotificationsForEditor();
+		DisableNotificationsForEditor();
+	}
+}
+
 void UPCGGraph::PreNodeUndo(UPCGNode* InPCGNode)
 {
 	if (InPCGNode)
@@ -535,7 +546,7 @@ void UPCGGraph::GetTrackedTagsToSettings(FPCGTagToSettingsMap& OutTagsToSettings
 
 void UPCGGraph::NotifyGraphChanged(EPCGChangeType ChangeType)
 {
-	if(GraphChangeNotificationsDisableCounter > 0)
+	if (GraphChangeNotificationsDisableCounter > 0)
 	{
 		bDelayedChangeNotification = true;
 		DelayedChangeType |= ChangeType;

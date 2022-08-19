@@ -88,6 +88,7 @@ public:
 	void EnableNotificationsForEditor();
 	void ToggleUserPausedNotificationsForEditor();
 	bool NotificationsForEditorArePausedByUser() const { return bUserPausedNotificationsInGraphEditor; }
+	void ForceNotificationForEditor();
 	void PreNodeUndo(UPCGNode* InPCGNode);
 	void PostNodeUndo(UPCGNode* InPCGNode);
 
