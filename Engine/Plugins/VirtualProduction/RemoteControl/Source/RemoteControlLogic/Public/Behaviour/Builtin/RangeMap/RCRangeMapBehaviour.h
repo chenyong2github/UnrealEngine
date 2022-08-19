@@ -32,7 +32,7 @@ struct FRCRangeMapStep
 
 	/** The Property this Action holds and will be used for calculations for the lerp. */
 	UPROPERTY()
-	URCVirtualPropertySelfContainer* PropertyValue;
+	TObjectPtr<URCVirtualPropertySelfContainer> PropertyValue;
 };
 
 /**
