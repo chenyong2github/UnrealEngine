@@ -267,9 +267,9 @@ bool FChunkCacheWorker::CheckSignature(const FChunkRequest& ChunkInfo)
 		{
 			UE_LOG(LogPakFile, Warning, TEXT("Pak chunk signing mismatch on chunk [%i/%i]! Expected %s, Received %s"), ChunkInfo.Index, Signatures->ChunkHashes.Num() - 1, *ChunkHashToString(Signatures->ChunkHashes[ChunkInfo.Index]), *ChunkHashToString(ChunkHash));
 
-			if (Signatures->DecryptedHash != Signatures->ComputeCurrentMasterHash())
+			if (Signatures->DecryptedHash != Signatures->ComputeCurrentPrincipalHash())
 			{
-				UE_LOG(LogPakFile, Warning, TEXT("Master signature table has changed since initialization!"));
+				UE_LOG(LogPakFile, Warning, TEXT("Principal signature table has changed since initialization!"));
 			}
 
 			const FPakChunkSignatureCheckFailedData Data(Reader->GetArchiveName(), Signatures->ChunkHashes[ChunkInfo.Index], ChunkHash, ChunkInfo.Index);
