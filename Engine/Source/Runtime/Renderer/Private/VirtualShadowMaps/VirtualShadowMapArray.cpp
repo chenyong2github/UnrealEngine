@@ -825,6 +825,7 @@ class FSelectPagesToMergeCS : public FVirtualPageManagementShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPhysicalPageMetaData>, PhysicalPageMetaData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, CumulativeDirtyPageFlags)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutMergePagesIndirectArgsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutPhysicalPagesToMerge)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutStatsBuffer)
@@ -876,6 +877,7 @@ void FVirtualShadowMapArray::MergeStaticPhysicalPages(FRDGBuilder& GraphBuilder)
 		{
 			FSelectPagesToMergeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectPagesToMergeCS::FParameters>();
 			PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
+			PassParameters->CumulativeDirtyPageFlags = GraphBuilder.CreateSRV(CumulativeDirtyPageFlagsRDG);
 			PassParameters->PhysicalPageMetaData = GraphBuilder.CreateSRV(PhysicalPageMetaDataRDG);
 			PassParameters->OutMergePagesIndirectArgsBuffer = GraphBuilder.CreateUAV(MergePagesIndirectArgsRDG);
 			PassParameters->OutPhysicalPagesToMerge = GraphBuilder.CreateUAV(PhysicalPagesToMergeRDG);
@@ -1206,8 +1208,10 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	DynamicCasterPageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumPageFlagsToAllocate), TEXT("Shadow.Virtual.DynamicCasterPageFlags"));
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DynamicCasterPageFlagsRDG), 0);
 
-	DirtyPageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumPageFlagsToAllocate), TEXT("Shadow.Virtual.DirtyPageFlags"));
+	DirtyPageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), GetMaxPhysicalPages()), TEXT("Shadow.Virtual.DirtyPageFlags"));
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DirtyPageFlagsRDG), 0);
+	CumulativeDirtyPageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), GetMaxPhysicalPages()), TEXT("Shadow.Virtual.CumulativeDirtyPageFlags"));
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CumulativeDirtyPageFlagsRDG), 0);
 		
 	// Record the number of instances the buffer has capactiy for, should anything change (it shouldn't!)
 	NumInvalidatingInstanceSlots = Scene.GPUScene.GetNumInstances();
@@ -2613,10 +2617,10 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 	}
 }
 
-class FSelectPagesForHZBCS : public FVirtualPageManagementShader
+class FSelectPagesForHZBAndUpdateDirtyFlagsCS : public FVirtualPageManagementShader
 {
-	DECLARE_GLOBAL_SHADER(FSelectPagesForHZBCS);
-	SHADER_USE_PARAMETER_STRUCT(FSelectPagesForHZBCS, FVirtualPageManagementShader)
+	DECLARE_GLOBAL_SHADER(FSelectPagesForHZBAndUpdateDirtyFlagsCS);
+	SHADER_USE_PARAMETER_STRUCT(FSelectPagesForHZBAndUpdateDirtyFlagsCS, FVirtualPageManagementShader)
 
 	class FGenerateStatsDim : SHADER_PERMUTATION_BOOL("VSM_GENERATE_STATS");
 	using FPermutationDomain = TShaderPermutationDomain< FGenerateStatsDim >;
@@ -2626,13 +2630,14 @@ class FSelectPagesForHZBCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPhysicalPageMetaData>, PhysicalPageMetaData)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutPagesForHZBIndirectArgsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutPhysicalPagesForHZB)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, DirtyPageFlags)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, DirtyPageFlagsInOut)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, CumulativeDirtyPageFlagsInOut)
 		SHADER_PARAMETER(uint32, bFirstBuildThisFrame)
 		SHADER_PARAMETER(uint32, bForceFullHZBUpdate)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutStatsBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FSelectPagesForHZBCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapPageManagement.usf", "SelectPagesForHZBCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FSelectPagesForHZBAndUpdateDirtyFlagsCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapPageManagement.usf", "SelectPagesForHZBAndUpdateDirtyFlagsCS", SF_Compute);
 
 
 class FVirtualSmBuildHZBPerPageCS : public FVirtualPageManagementShader
@@ -2693,29 +2698,27 @@ void FVirtualShadowMapArray::UpdateHZB(FRDGBuilder& GraphBuilder)
 
 	// 2. Filter the relevant physical pages and set up the indirect args
 	{
-		FSelectPagesForHZBCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectPagesForHZBCS::FParameters>();
+		FSelectPagesForHZBAndUpdateDirtyFlagsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectPagesForHZBAndUpdateDirtyFlagsCS::FParameters>();
 		PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
 		PassParameters->PhysicalPageMetaData = GraphBuilder.CreateSRV(PhysicalPageMetaDataRDG);
 		PassParameters->OutPagesForHZBIndirectArgsBuffer = GraphBuilder.CreateUAV(PagesForHZBIndirectArgsRDG);
 		PassParameters->OutPhysicalPagesForHZB = GraphBuilder.CreateUAV(PhysicalPagesForHZBRDG);
-		PassParameters->DirtyPageFlags = GraphBuilder.CreateSRV(DirtyPageFlagsRDG);
+		PassParameters->DirtyPageFlagsInOut = GraphBuilder.CreateUAV(DirtyPageFlagsRDG);
+		PassParameters->CumulativeDirtyPageFlagsInOut = GraphBuilder.CreateUAV(CumulativeDirtyPageFlagsRDG);
 		PassParameters->bFirstBuildThisFrame = !bHZBBuiltThisFrame;
 		PassParameters->bForceFullHZBUpdate = CVarShadowsVirtualForceFullHZBUpdate.GetValueOnRenderThread();
-		FSelectPagesForHZBCS::FPermutationDomain PermutationVector;
-		SetStatsArgsAndPermutation<FSelectPagesForHZBCS>(GraphBuilder, StatsBufferRDG, PassParameters, PermutationVector);
-		auto ComputeShader = GetGlobalShaderMap(Scene.GetFeatureLevel())->GetShader<FSelectPagesForHZBCS>(PermutationVector);
+		FSelectPagesForHZBAndUpdateDirtyFlagsCS::FPermutationDomain PermutationVector;
+		SetStatsArgsAndPermutation<FSelectPagesForHZBAndUpdateDirtyFlagsCS>(GraphBuilder, StatsBufferRDG, PassParameters, PermutationVector);
+		auto ComputeShader = GetGlobalShaderMap(Scene.GetFeatureLevel())->GetShader<FSelectPagesForHZBAndUpdateDirtyFlagsCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("SelectPagesForHZB"),
 			ComputeShader,
 			PassParameters,
-			FIntVector(FMath::DivideAndRoundUp(UniformParameters.MaxPhysicalPages, FSelectPagesForHZBCS::DefaultCSGroupX), 1, 1)
+			FIntVector(FMath::DivideAndRoundUp(UniformParameters.MaxPhysicalPages, FSelectPagesForHZBAndUpdateDirtyFlagsCS::DefaultCSGroupX), 1, 1)
 		);
 	}
-
-	// Clear the dirty flags (for subsequent render passes).
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DirtyPageFlagsRDG), 0);
 
 	bHZBBuiltThisFrame = true;
 		

@@ -1049,6 +1049,7 @@ void InitializePhysicalPagesIndirectCS(uint2 TileThreadID : SV_GroupThreadID, ui
 
 RWBuffer<uint> OutMergePagesIndirectArgsBuffer;
 RWStructuredBuffer<uint> OutPhysicalPagesToMerge;
+StructuredBuffer<uint> CumulativeDirtyPageFlags;
 
 
 [numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
@@ -1061,17 +1062,17 @@ void SelectPagesToMergeCS(uint PhysicalPageIndex : SV_DispatchThreadID)
 
 	FPhysicalPageMetaData MetaData = PhysicalPageMetaData[PhysicalPageIndex];
 
-	bool bFullyCached = (MetaData.Flags & (VSM_DYNAMIC_UNCACHED_FLAG | VSM_STATIC_UNCACHED_FLAG)) == 0;
+	if ((MetaData.Flags & VSM_ALLOCATED_FLAG) != 0U)
+	{
+		bool bFullyCached = (MetaData.Flags & (VSM_DYNAMIC_UNCACHED_FLAG | VSM_STATIC_UNCACHED_FLAG)) == 0;
 
-	// Merge any page that was not fully cached
-	// NOTE: This shader does not run if VirtualShadowMapShouldCacheStaticSeparately() is false
-	if ((MetaData.Flags & VSM_ALLOCATED_FLAG) == 0)
-	{
-	}
-	else if (!bFullyCached)
-	{
-		StatsBufferInterlockedInc(VSM_STAT_NUM_PAGES_TO_MERGE);
-		EmitPageToProcess(OutMergePagesIndirectArgsBuffer, OutPhysicalPagesToMerge, PhysicalPageIndex);
+		bool bPageDirty = CumulativeDirtyPageFlags[PhysicalPageIndex] != 0U;
+
+		if (!bFullyCached || bPageDirty)
+		{
+			StatsBufferInterlockedInc(VSM_STAT_NUM_PAGES_TO_MERGE);
+			EmitPageToProcess(OutMergePagesIndirectArgsBuffer, OutPhysicalPagesToMerge, PhysicalPageIndex);
+		}
 	}
 }
 
@@ -1093,23 +1094,27 @@ void MergeStaticPhysicalPagesIndirectCS(uint2 TileThreadID : SV_GroupThreadID, u
 
 RWBuffer<uint> OutPagesForHZBIndirectArgsBuffer;
 RWStructuredBuffer<uint> OutPhysicalPagesForHZB;
-StructuredBuffer<uint> DirtyPageFlags;
+RWStructuredBuffer<uint> DirtyPageFlagsInOut;
+RWStructuredBuffer<uint> CumulativeDirtyPageFlagsInOut;
+
 uint bFirstBuildThisFrame;
 uint bForceFullHZBUpdate;
 
 [numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
-void SelectPagesForHZBCS(uint PhysicalPageIndex : SV_DispatchThreadID)
+void SelectPagesForHZBAndUpdateDirtyFlagsCS(uint PhysicalPageIndex : SV_DispatchThreadID)
 {
 	if (PhysicalPageIndex >= VirtualShadowMap.MaxPhysicalPages)
 	{
 		return;
 	}
 
+	uint DirtyFlag = DirtyPageFlagsInOut[PhysicalPageIndex];
+
 	FPhysicalPageMetaData MetaData = PhysicalPageMetaData[PhysicalPageIndex];
 
 	if ((MetaData.Flags & VSM_ALLOCATED_FLAG) != 0)
 	{
-		bool bPageDirty = DirtyPageFlags[MetaData.VirtualPageOffset] != 0U;
+		bool bPageDirty = DirtyFlag != 0U;
 		// rebuild the HZB if the page is rendered to or it is freshly allocated, but only the first time for a given frame.
 		if (bForceFullHZBUpdate || bPageDirty || (bFirstBuildThisFrame != 0 && MetaData.Age == 0U))
 		{
@@ -1124,6 +1129,11 @@ void SelectPagesForHZBCS(uint PhysicalPageIndex : SV_DispatchThreadID)
 			WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0 + 4], 1U, GroupCount);
 		}
 	}
+	// Update all the dirtied pages for the frame.
+	CumulativeDirtyPageFlagsInOut[PhysicalPageIndex] = CumulativeDirtyPageFlagsInOut[PhysicalPageIndex] | DirtyFlag;
+
+	// clear the dirty flag
+	DirtyPageFlagsInOut[PhysicalPageIndex] = 0U;
 }
 
 

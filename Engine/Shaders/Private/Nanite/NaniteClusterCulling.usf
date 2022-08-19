@@ -341,8 +341,9 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 					++NumClustersToEmit;
 					if (!bWasOccluded)
 					{
+						FShadowPhysicalPage PhysPage = ShadowGetPhysicalPage(PageFlagOffset);
 						// Mark the page dirty so we regenerate HZB, etc.
-						OutDirtyPageFlags[ PageFlagOffset ] = 1;
+						OutDirtyPageFlags[VSMPhysicalPageAddressToIndex(PhysPage.PhysicalAddress)] = 1U;
 					}
 				}
 			}

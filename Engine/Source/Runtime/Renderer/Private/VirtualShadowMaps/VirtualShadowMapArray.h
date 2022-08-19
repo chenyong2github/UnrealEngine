@@ -320,8 +320,9 @@ public:
 	FRDGBufferRef AllocatedPageRectBoundsRDG = nullptr;
 	FRDGBufferRef ProjectionDataRDG = nullptr;
 
-	FRDGBufferRef DirtyPageFlagsRDG = nullptr;
+	FRDGBufferRef DirtyPageFlagsRDG = nullptr; // Dirty flags that are cleared after render passes
 	bool bHZBBuiltThisFrame = false;
+	FRDGBufferRef CumulativeDirtyPageFlagsRDG = nullptr; // Cumulative dirty flags for whole frame
 
 	FRDGTextureRef HZBPhysical = nullptr;
 	TMap<int32, FVirtualShadowMapHZBMetadata> HZBMetadata;
