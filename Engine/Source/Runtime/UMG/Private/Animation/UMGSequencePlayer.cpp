@@ -547,6 +547,21 @@ void UUMGSequencePlayer::BeginDestroy()
 {
 	RootTemplateInstance.BeginDestroy();
 
+	// Remove any latent actions added by this player.
+	if (CVarUserWidgetUseParallelAnimation.GetValueOnGameThread())
+	{
+		UUserWidget* Widget = UserWidget.Get();
+		UUMGSequenceTickManager* TickManager = Widget ? ToRawPtr(Widget->AnimationTickManager) : nullptr;
+		if (TickManager)
+		{
+			TickManager->ClearLatentActions(this);
+		}
+	}
+	else
+	{
+		LatentActions.Empty();
+	}
+
 	Super::BeginDestroy();
 }
 

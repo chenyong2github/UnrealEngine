@@ -41,6 +41,7 @@ void UUMGSequenceTickManager::AddWidget(UUserWidget* InWidget)
 
 void UUMGSequenceTickManager::RemoveWidget(UUserWidget* InWidget)
 {
+	ClearLatentActions(InWidget);
 	TWeakObjectPtr<UUserWidget> WeakWidget = InWidget;
 	WeakUserWidgetData.Remove(WeakWidget);
 }

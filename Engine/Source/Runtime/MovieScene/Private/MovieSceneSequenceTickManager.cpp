@@ -226,6 +226,13 @@ void UMovieSceneSequenceTickManager::UnregisterTickClient(TScriptInterface<IMovi
 		return;
 	}
 
+	// Remove any latent actions tied to the given client.
+	UObject* Object = InTickInterface.GetObject();
+	if (Object)
+	{
+		ClearLatentActions(Object);
+	}
+
 	const int32 ClientIndex = Algo::IndexOfBy(TickableClients, ClientInterface, &FTickableClientData::Interface);
 	if (!TickableClients.IsValidIndex(ClientIndex))
 	{
