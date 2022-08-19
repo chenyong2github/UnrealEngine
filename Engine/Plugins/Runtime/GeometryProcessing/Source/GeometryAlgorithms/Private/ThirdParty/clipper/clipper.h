@@ -13,8 +13,9 @@
 // @UE END
 
 // @UE BEGIN
-// for int64
+// for int64, PI
 #include "HAL/Platform.h"
+#include "Math/UnrealMathUtility.h"
 // @UE END
 
 #include <cstdlib>
@@ -135,18 +136,22 @@ namespace Clipper2Lib
     return clip_offset.Execute(delta);
   }
 
+  // @UE BEGIN
+  // Exceptions not supported, but unused function
+  /*
   inline PathsD InflatePaths(const PathsD& paths, double delta,
     JoinType jt, EndType et, double miter_limit = 2.0, double precision = 2)
   {
-    // @UE BEGIN
-    ensureMsgf(precision >= -8 && precision <= 8, TEXT("Error: Precision %d exceeds the allowed range"), precision);
-    // @UE END
+    if (precision < -8 || precision > 8)
+      throw new Clipper2Exception("Error: Precision exceeds the allowed range.");
     const double scale = std::pow(10, precision);
     ClipperOffset clip_offset(miter_limit);
     clip_offset.AddPaths(ScalePaths<int64,double>(paths, scale), jt, et);
     Paths64 tmp = clip_offset.Execute(delta * scale);
     return ScalePaths<double, int64>(tmp, 1 / scale);
   }
+  */
+  // @UE END
 
   inline Path64 TranslatePath(const Path64& path, int64 dx, int64 dy)
   {
@@ -541,16 +546,20 @@ namespace Clipper2Lib
     return dst;
   }
 
+  // @UE BEGIN
+  // Exceptions not supported, but unused function
+  /*
   inline PathD TrimCollinear(const PathD& path, int precision, bool is_open_path = false)
   {
-    // @UE BEGIN
-    ensureMsgf(precision <= 8 && precision >= -8, TEXT("Error: Precision %d exceeds the allowed range."), precision) ;
-    // @UE END
+    if (precision > 8 || precision < -8) 
+      throw new Clipper2Exception("Error: Precision exceeds the allowed range.");
     const double scale = std::pow(10, precision);
     Path64 p = ScalePath<int64, double>(path, scale);
     p = TrimCollinear(p, is_open_path);
     return ScalePath<double, int64>(p, 1/scale);
   }
+  */
+  // @UE END
 
   template <typename T>
   inline double Distance(const Point<T> pt1, const Point<T> pt2)
