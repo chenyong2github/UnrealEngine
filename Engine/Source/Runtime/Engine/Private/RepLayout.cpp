@@ -3442,7 +3442,7 @@ static FGuidReferencesMap* PrepReceivedArray(
 		// in game logic.
 		if (GbWithArrayOnRepFix && ShadowArray->Num() != DataArray->Num())
 		{
-			Parent.Property->CopyCompleteValue((uint8*)ShadowArray, (uint8*)DataArray);
+			Cmd.Property->CopyCompleteValue((uint8*)ShadowArray, (uint8*)DataArray);
 		}
 
 		*OutShadowBaseData = ShadowArray->GetData();
