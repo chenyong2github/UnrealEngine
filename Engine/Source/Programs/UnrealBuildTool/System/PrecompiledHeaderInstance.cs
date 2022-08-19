@@ -30,6 +30,11 @@ namespace UnrealBuildTool
 		public CPPOutput Output;
 
 		/// <summary>
+		/// List of modules using this instance
+		/// </summary>
+		public List<UEBuildModuleCPP> Modules = new List<UEBuildModuleCPP>();
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		public PrecompiledHeaderInstance(FileItem HeaderFile, CppCompileEnvironment CompileEnvironment, CPPOutput Output)

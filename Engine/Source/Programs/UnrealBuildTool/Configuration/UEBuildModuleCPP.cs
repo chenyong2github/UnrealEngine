@@ -817,6 +817,8 @@ namespace UnrealBuildTool
 				Instance = new PrecompiledHeaderInstance(WrapperFile, CompileEnvironment, Output);
 				Template.Instances.Add(Instance);
 			}
+
+			Instance.Modules.Add(this);
 			return Instance;
 		}
 
