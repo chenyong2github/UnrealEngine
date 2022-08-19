@@ -903,6 +903,13 @@ void UWidgetComponent::OnRegister()
 		}
 
 		BodySetup = nullptr;
+
+#if WITH_EDITOR
+		if (!bIsGameWorld)
+		{
+			InitWidget();
+		}
+#endif
 	}
 #endif // !UE_SERVER
 }
@@ -1059,6 +1066,14 @@ void UWidgetComponent::OnUnregister()
 		}
 	}
 #endif
+
+#if WITH_EDITOR
+	if (!GetWorld()->IsGameWorld())
+	{
+		ReleaseResources();
+	}
+#endif
+
 	Super::OnUnregister();
 }
 
