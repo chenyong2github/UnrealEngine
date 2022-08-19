@@ -9,8 +9,6 @@
 #include "MediaTexture.h"
 #include "MediaOutput.h"
 
-#include "Engine/TextureRenderTarget2D.h"
-
 #include "DisplayClusterConfigurationTypes_Media.generated.h"
 
 
@@ -57,10 +55,6 @@ public:
 	/** Media output to use */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media Output", meta = (EditCondition = "bEnabled"))
 	TObjectPtr<UMediaOutput> MediaOutput = nullptr;
-
-	/** Render target to use */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media Output", meta = (EditCondition = "bEnabled"))
-	TObjectPtr<UTextureRenderTarget2D> RenderTarget = nullptr;
 };
 
 

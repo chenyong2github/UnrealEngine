@@ -10,7 +10,6 @@ class FRDGBuilder;
 class FRHICommandListImmediate;
 class UMediaCapture;
 class UMediaOutput;
-class UTextureRenderTarget2D;
 
 
 /**
@@ -21,7 +20,7 @@ class FDisplayClusterMediaCaptureBase
 	, public FGCObject
 {
 public:
-	FDisplayClusterMediaCaptureBase(const FString& MediaId, const FString& ClusterNodeId, UMediaOutput* MediaOutput, UTextureRenderTarget2D* RenderTarget);
+	FDisplayClusterMediaCaptureBase(const FString& MediaId, const FString& ClusterNodeId, UMediaOutput* MediaOutput);
 	virtual ~FDisplayClusterMediaCaptureBase();
 
 public:
@@ -37,11 +36,6 @@ public:
 	virtual bool StartCapture();
 	virtual void StopCapture();
 
-	UTextureRenderTarget2D* GetRenderTarget()
-	{
-		return RenderTarget;
-	}
-
 protected:
 	void ExportMediaData(FRDGBuilder& GraphBuilder, const FMediaTextureInfo& TextureInfo);
 	void OnPostClusterTick();
@@ -53,7 +47,6 @@ private:
 	//~ Begin GC by AddReferencedObjects
 	UMediaOutput*           MediaOutput  = nullptr;
 	UMediaCapture*          MediaCapture = nullptr;
-	UTextureRenderTarget2D* RenderTarget = nullptr;
 	//~ End GC by AddReferencedObjects
 
 	// Used to restart media capture in the case it falls in error

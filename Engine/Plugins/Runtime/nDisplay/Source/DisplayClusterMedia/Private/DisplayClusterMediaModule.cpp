@@ -79,7 +79,7 @@ void FDisplayClusterMediaModule::InitializeMedia()
 				const FDisplayClusterConfigurationMedia& MediaSettings = ClusterNode->Media;
 
 				const bool bInputDataValid   = MediaSettings.MediaInput.MediaPlayer && MediaSettings.MediaInput.MediaSource && MediaSettings.MediaInput.MediaTexture;
-				const bool bOutputDataValid  = MediaSettings.MediaOutput.MediaOutput && MediaSettings.MediaOutput.RenderTarget;
+				const bool bOutputDataValid  = !!MediaSettings.MediaOutput.MediaOutput;
 
 				// Media input
 				if (MediaSettings.MediaInput.bEnabled && bInputDataValid)
@@ -104,7 +104,7 @@ void FDisplayClusterMediaModule::InitializeMedia()
 
 					CaptureNode = MakeUnique<FDisplayClusterMediaCaptureNode>(
 						MediaCaptureId, ClusterNodeId,
-						MediaSettings.MediaOutput.MediaOutput, MediaSettings.MediaOutput.RenderTarget);
+						MediaSettings.MediaOutput.MediaOutput);
 
 					AllCaptures.Add(CaptureNode.Get());
 				}
@@ -120,7 +120,7 @@ void FDisplayClusterMediaModule::InitializeMedia()
 					if (MediaSettings.bEnabled)
 					{
 						const bool bInputDataValid   = MediaSettings.MediaInput.MediaPlayer && MediaSettings.MediaInput.MediaSource && MediaSettings.MediaInput.MediaTexture;
-						const bool bOutputDataValid  = MediaSettings.MediaOutput.MediaOutput && MediaSettings.MediaOutput.RenderTarget;
+						const bool bOutputDataValid  = !!MediaSettings.MediaOutput.MediaOutput;
 
 						// Media input
 						if (MediaSettings.MediaInput.bEnabled && bInputDataValid)
@@ -148,7 +148,7 @@ void FDisplayClusterMediaModule::InitializeMedia()
 							TUniquePtr<FDisplayClusterMediaCaptureViewport> NewViewportCapture = MakeUnique<FDisplayClusterMediaCaptureViewport>(
 								MediaCaptureId, ClusterNodeId,
 								ViewportIt.Key,
-								MediaSettings.MediaOutput.MediaOutput, MediaSettings.MediaOutput.RenderTarget);
+								MediaSettings.MediaOutput.MediaOutput);
 
 							AllCaptures.Add(NewViewportCapture.Get());
 							CaptureViewports.Emplace(MediaCaptureId, MoveTemp(NewViewportCapture));
@@ -176,7 +176,7 @@ void FDisplayClusterMediaModule::InitializeMedia()
 							const FString MediaCaptureId   = RootActor->GetName() + FString("_") + ICVFXCameraName + FString("_icvfx_capture");
 							const FString MediaInputId     = RootActor->GetName() + FString("_") + ICVFXCameraName + FString("_icvfx_input");
 							const bool bInputDataValid     = MediaSettings.MediaInput.MediaPlayer && MediaSettings.MediaInput.MediaSource && MediaSettings.MediaInput.MediaTexture;
-							const bool bOutputDataValid    = MediaSettings.MediaOutput.MediaOutput && MediaSettings.MediaOutput.RenderTarget;
+							const bool bOutputDataValid    = !!MediaSettings.MediaOutput.MediaOutput;
 							const bool bClusterNodeMatches = MediaSettings.MediaOutputNode.Equals(ClusterNodeId, ESearchCase::IgnoreCase);
 
 							// Media sharing
@@ -190,7 +190,7 @@ void FDisplayClusterMediaModule::InitializeMedia()
 									TUniquePtr<FDisplayClusterMediaCaptureViewport> NewICVFXCapture = MakeUnique<FDisplayClusterMediaCaptureCamera>(
 										MediaCaptureId, ClusterNodeId,
 										ICVFXCameraName, ICVFXViewportId,
-										MediaSettings.MediaOutput.MediaOutput, MediaSettings.MediaOutput.RenderTarget);
+										MediaSettings.MediaOutput.MediaOutput);
 
 									AllCaptures.Add(NewICVFXCapture.Get());
 									CaptureViewports.Emplace(MediaCaptureId, MoveTemp(NewICVFXCapture));
@@ -230,7 +230,7 @@ void FDisplayClusterMediaModule::InitializeMedia()
 								TUniquePtr<FDisplayClusterMediaCaptureViewport> NewICVFXCapture = MakeUnique<FDisplayClusterMediaCaptureCamera>(
 									MediaCaptureId, ClusterNodeId,
 									ICVFXCameraName, ICVFXViewportId,
-									MediaSettings.MediaOutput.MediaOutput, MediaSettings.MediaOutput.RenderTarget);
+									MediaSettings.MediaOutput.MediaOutput);
 
 								AllCaptures.Add(NewICVFXCapture.Get());
 								CaptureViewports.Emplace(MediaCaptureId, MoveTemp(NewICVFXCapture));

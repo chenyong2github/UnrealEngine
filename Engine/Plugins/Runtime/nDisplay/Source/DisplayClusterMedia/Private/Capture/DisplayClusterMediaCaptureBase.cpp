@@ -8,20 +8,17 @@
 
 #include "MediaCapture.h"
 #include "MediaOutput.h"
-#include "Engine/TextureRenderTarget2D.h"
 
 #include "RenderGraphBuilder.h"
 #include "RHIResources.h"
 
 
 
-FDisplayClusterMediaCaptureBase::FDisplayClusterMediaCaptureBase(const FString& InMediaId, const FString& InClusterNodeId, UMediaOutput* InMediaOutput, UTextureRenderTarget2D* InRenderTarget)
+FDisplayClusterMediaCaptureBase::FDisplayClusterMediaCaptureBase(const FString& InMediaId, const FString& InClusterNodeId, UMediaOutput* InMediaOutput)
 	: FDisplayClusterMediaBase(InMediaId, InClusterNodeId)
 	, MediaOutput(InMediaOutput)
-	, RenderTarget(InRenderTarget)
 {
-	// We expect these to always be valid
-	check(InMediaOutput && InRenderTarget);
+	check(InMediaOutput);
 
 	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostTick().AddRaw(this, &FDisplayClusterMediaCaptureBase::OnPostClusterTick);
 }
@@ -35,7 +32,6 @@ FDisplayClusterMediaCaptureBase::~FDisplayClusterMediaCaptureBase()
 void FDisplayClusterMediaCaptureBase::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(MediaOutput);
-	Collector.AddReferencedObject(RenderTarget);
 
 	if (MediaCapture)
 	{
@@ -45,7 +41,7 @@ void FDisplayClusterMediaCaptureBase::AddReferencedObjects(FReferenceCollector& 
 
 bool FDisplayClusterMediaCaptureBase::StartCapture()
 {
-	if (MediaOutput && RenderTarget && !MediaCapture)
+	if (MediaOutput && !MediaCapture)
 	{
 		MediaCapture = MediaOutput->CreateMediaCapture();
 		if (MediaCapture)
@@ -73,9 +69,8 @@ void FDisplayClusterMediaCaptureBase::StopCapture()
 void FDisplayClusterMediaCaptureBase::ExportMediaData(FRDGBuilder& GraphBuilder, const FMediaTextureInfo& TextureInfo)
 {
 	FRHITexture* const SrcTexture = TextureInfo.Texture;
-	FRHITexture* const DstTexture = GetRenderTarget()->GetRenderTargetResource()->GetTextureRHI();
 
-	if (SrcTexture && DstTexture)
+	if (SrcTexture)
 	{
 		MediaCapture->SetValidSourceGPUMask(GraphBuilder.RHICmdList.GetGPUMask());
 
