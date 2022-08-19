@@ -102,7 +102,6 @@ enum class EPoseSearchDataPreprocessor : int32
 	None,
 	Automatic,
 	Normalize,
-	Sphere UMETA(Hidden),
 
 	Num UMETA(Hidden),
 	Invalid = Num UMETA(Hidden)
@@ -369,11 +368,15 @@ public:
 	// Called during UPoseSearchSchema::Finalize to prepare the schema for this channel
 	virtual void InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer);
 	
+	// Called at database build time to collect feature weights.
+	// Weights is sized to the cardinality of the schema and the feature channel should write
+	// its weights at the channel's data offset. Channels should provide a weight for each dimension.
 	virtual void FillWeights(TArray<float>& Weights) const PURE_VIRTUAL(UPoseSearchFeatureChannel::FillWeights, );
 
 	// Called at database build time to populate pose vectors with this channel's data
 	virtual void IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const PURE_VIRTUAL(UPoseSearchFeatureChannel::IndexAsset, );
 
+	// Called at database build time to calculate normalization values
 	virtual void ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations) const;
 
 	// Hash channel properties to produce a key for database derived data
@@ -384,6 +387,10 @@ public:
 
 	// Draw this channel's data for the given pose vector
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
+
+	// Used during data normalization. If a feature has less than this amount of deviation from the mean across all poses in a database, then it will not be normalized.
+	UPROPERTY(EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0001"))
+	float MinimumMeanDeviation = 1.0f;
 
 private:
 	// IBoneReferenceSkeletonProvider interface
@@ -1313,7 +1320,7 @@ public:
 	static FVector2D DecodeVector2D(TArrayView<const float> Values, int32& DataOffset);
 
 	// populates MeanDeviations[DataOffset] ... MeanDeviations[DataOffset + Cardinality] with a single value the mean deviation calcualted from a cenetered matrix
-	static void ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality);
+	static void ComputeMeanDeviations(float MinMeanDeviation, const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality);
 
 private:
 	static FQuat DecodeQuatInternal(TArrayView<const float> Values, int32 DataOffset);
