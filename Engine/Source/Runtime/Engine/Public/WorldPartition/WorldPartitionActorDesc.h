@@ -22,6 +22,7 @@ struct FWorldPartitionActorDescInitData
 
 class AActor;
 class UActorDescContainer;
+class IStreamingGenerationErrorHandler;
 struct FActorContainerID;
 
 enum class EContainerClusterMode : uint8
@@ -115,6 +116,7 @@ public:
 	virtual const FGuid& GetSceneOutlinerParent() const { return GetParentActor(); }
 	virtual bool IsResaveNeeded() const { return false; }
 	virtual bool IsRuntimeRelevant(const FActorContainerID& InContainerID) const { return true; }
+	virtual void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
 
 	bool operator==(const FWorldPartitionActorDesc& Other) const
 	{

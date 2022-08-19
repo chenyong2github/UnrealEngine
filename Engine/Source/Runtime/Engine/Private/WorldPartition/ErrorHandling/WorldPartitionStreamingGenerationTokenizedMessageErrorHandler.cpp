@@ -142,6 +142,39 @@ void ITokenizedMessageErrorHandler::OnActorNeedsResave(const FWorldPartitionActo
 	HandleTokenizedMessage(MoveTemp(Message));
 }
 
+void ITokenizedMessageErrorHandler::OnLevelInstanceInvalidWorldAsset(const FWorldPartitionActorDescView& ActorDescView, FName WorldAsset, ELevelInstanceInvalidReason Reason)
+{
+	FSoftObjectPath ActorPath(ActorDescView.GetActorPath());
+	EMessageSeverity::Type MessageSeverity = EMessageSeverity::Info;
+	FText ReasonText;
+
+	switch (Reason)
+	{
+	case ELevelInstanceInvalidReason::WorldAssetNotFound:
+		MessageSeverity = EMessageSeverity::Error;
+		ReasonText = LOCTEXT("TokenMessage_WorldPartition_HasInvalidWorldAsset", "has an invalid world asset");
+		break;
+	case ELevelInstanceInvalidReason::WorldAssetNotUsingExternalActors:
+		MessageSeverity = EMessageSeverity::Error;
+		ReasonText = LOCTEXT("TokenMessage_WorldPartition_WorldAssetIsNotUsingExternalActors", "is not using external actors");
+		break;
+	case ELevelInstanceInvalidReason::WorldAssetImcompatiblePartitioned:
+		MessageSeverity = EMessageSeverity::Error;
+		ReasonText = LOCTEXT("TokenMessage_WorldPartition_WorldAssetIsPartitionedIncompatible", "is partitioned but not marked as compatible");
+		break;
+	};
+
+	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(MessageSeverity);
+	Message->AddToken(FTextToken::Create(LOCTEXT("TokenMessage_WorldPartition_Actor", "Level Instance")))
+		->AddToken(FAssetNameToken::Create(ActorPath.GetLongPackageName() + TEXT(".") + ActorDescView.GetActorLabelOrName().ToString()))
+		->AddToken(FTextToken::Create(ReasonText))
+		->AddToken(FAssetNameToken::Create(WorldAsset.ToString()));
+
+	AddAdditionalNameToken(Message, FName(TEXT("WorldPartition_LevelInstanceInvalidWorldAsset_CheckForErrors")));
+
+	HandleTokenizedMessage(MoveTemp(Message));
+}
+
 #undef LOCTEXT_NAMESPACE
 
 #endif

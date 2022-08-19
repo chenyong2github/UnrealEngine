@@ -58,4 +58,23 @@ void FStreamingGenerationLogErrorHandler::OnActorNeedsResave(const FWorldPartiti
 {
 	UE_LOG(LogWorldPartition, Log, TEXT("Actor %s needs to be resaved"), *ActorDescView.GetActorLabelOrName().ToString());
 }
+
+void FStreamingGenerationLogErrorHandler::OnLevelInstanceInvalidWorldAsset(const FWorldPartitionActorDescView& ActorDescView, FName WorldAsset, ELevelInstanceInvalidReason Reason)
+{
+	const FSoftObjectPath ActorPath(ActorDescView.GetActorPath());
+	const FString ActorName = ActorPath.GetLongPackageName() + TEXT(".") + ActorDescView.GetActorLabelOrName().ToString();
+
+	switch (Reason)
+	{
+	case ELevelInstanceInvalidReason::WorldAssetNotFound:
+		UE_LOG(LogWorldPartition, Log, TEXT("Actor %s has an invalid world asset '%s'"), *ActorName, *WorldAsset.ToString());
+		break;
+	case ELevelInstanceInvalidReason::WorldAssetNotUsingExternalActors:
+		UE_LOG(LogWorldPartition, Log, TEXT("Actor %s world asset '%s' is not using external actors"), *ActorName, *WorldAsset.ToString());
+		break;
+	case ELevelInstanceInvalidReason::WorldAssetImcompatiblePartitioned:
+		UE_LOG(LogWorldPartition, Log, TEXT("Actor %s world asset '%s' is partitioned but not marked as compatible"), *ActorName, *WorldAsset.ToString());
+		break;
+	};
+}
 #endif

@@ -536,6 +536,12 @@ class FWorldPartitionStreamingGenerator
 			}
 		}
 
+		// Route standard CheckForErrors calls which should not modify actor descriptors in any ways
+		ContainerDescriptor.ActorDescViewMap.ForEachActorDescView([this](FWorldPartitionActorDescView& ActorDescView)
+		{
+			ActorDescView.CheckForErrors(ErrorHandler);
+		});
+
 		// Perform various adjustements based on validations and report errors
 		//
 		// The first validation pass is used to report errors, subsequent passes are used to make corrections to the FWorldPartitionActorDescView
@@ -709,15 +715,6 @@ class FWorldPartitionStreamingGenerator
 				}
 			});		
 		}
-
-		// Report actors that need to be resaved
-		ContainerDescriptor.ActorDescViewMap.ForEachActorDescView([this](FWorldPartitionActorDescView& ActorDescView)
-		{
-			if (ActorDescView.IsResaveNeeded())
-			{
-				ErrorHandler->OnActorNeedsResave(ActorDescView);
-			}
-		});
 	}
 
 	/** 

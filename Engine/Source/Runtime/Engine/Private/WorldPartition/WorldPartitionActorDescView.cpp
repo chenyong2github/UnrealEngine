@@ -150,6 +150,11 @@ bool FWorldPartitionActorDescView::GetContainerInstance(const UActorDescContaine
 	return ActorDesc->GetContainerInstance(OutLevelContainer, OutLevelTransform, OutClusterMode);
 }
 
+void FWorldPartitionActorDescView::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const
+{
+	ActorDesc->CheckForErrors(ErrorHandler);
+}
+
 FName FWorldPartitionActorDescView::GetActorLabelOrName() const
 {
 	return ActorDesc->GetActorLabelOrName();
@@ -186,11 +191,6 @@ void FWorldPartitionActorDescView::SetRuntimeDataLayers(TArray<FName>& InRuntime
 void FWorldPartitionActorDescView::SetRuntimeReferences(TArray<FGuid>& InRuntimeReferences)
 {
 	RuntimeReferences = InRuntimeReferences;
-}
-
-bool FWorldPartitionActorDescView::IsResaveNeeded() const
-{
-	return ActorDesc->IsResaveNeeded();
 }
 
 AActor* FWorldPartitionActorDescView::GetActor() const

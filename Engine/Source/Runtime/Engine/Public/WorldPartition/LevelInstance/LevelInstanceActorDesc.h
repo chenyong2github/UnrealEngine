@@ -12,6 +12,7 @@
 
 class ULevelInstanceSubsystem;
 class UActorDescContainer;
+class IStreamingGenerationErrorHandler;
 enum class ELevelInstanceRuntimeBehavior : uint8;
 
 /**
@@ -26,6 +27,7 @@ public:
 	virtual bool IsContainerInstance() const override;
 	virtual FName GetLevelPackage() const override { return LevelPackage; }
 	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const override;
+	virtual void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const override;
 
 protected:
 	virtual void Init(const AActor* InActor) override;

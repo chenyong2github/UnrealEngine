@@ -362,4 +362,19 @@ void UWorldPartitionChangelistValidator::OnActorNeedsResave(const FWorldPartitio
 	// Changelist validation already ensures that dirty actors must be part of the changelist
 }
 
+void UWorldPartitionChangelistValidator::OnLevelInstanceInvalidWorldAsset(const FWorldPartitionActorDescView& ActorDescView, FName WorldAsset, ELevelInstanceInvalidReason Reason)
+{
+	if (Filter(ActorDescView))
+	{
+		if (Reason == ELevelInstanceInvalidReason::WorldAssetNotFound)
+		{
+			FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.WorldPartition.LevelInstanceInvalidWorldAsset", "Level instance {0} has an invalid world asset {1}."),
+				FText::FromString(GetPrettyPackageName(ActorDescView)), 
+				FText::FromName(WorldAsset));
+
+			Errors->Add(CurrentError);
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

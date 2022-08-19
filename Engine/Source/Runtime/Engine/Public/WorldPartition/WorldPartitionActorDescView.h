@@ -7,6 +7,7 @@
 #if WITH_EDITOR
 class AActor;
 class FWorldPartitionActorDesc;
+class IStreamingGenerationErrorHandler;
 class UActorDescContainer;
 class UWorldPartition;
 enum class EContainerClusterMode : uint8;
@@ -50,6 +51,8 @@ public:
 	bool IsContainerInstance() const;
 	bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;
 
+	void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
+
 	FName GetActorLabelOrName() const;
 
 	void SetForcedNonSpatiallyLoaded();
@@ -57,8 +60,6 @@ public:
 	void SetInvalidDataLayers();
 	void SetRuntimeDataLayers(TArray<FName>& InRuntimeDataLayers);
 	void SetRuntimeReferences(TArray<FGuid>& InRuntimeReferences);
-
-	bool IsResaveNeeded() const;
 
 	AActor* GetActor() const;
 

@@ -62,5 +62,17 @@ public:
 	 * Called when an actor needs to be resaved.
 	 */
 	virtual void OnActorNeedsResave(const FWorldPartitionActorDescView& ActorDescView) = 0;
+
+	/**
+	 * Called when a level instance actor has errrors
+	 */
+	enum class ELevelInstanceInvalidReason
+	{
+		WorldAssetNotFound,
+		WorldAssetNotUsingExternalActors,
+		WorldAssetImcompatiblePartitioned
+	};
+
+	virtual void OnLevelInstanceInvalidWorldAsset(const FWorldPartitionActorDescView& ActorDescView, FName WorldAsset, ELevelInstanceInvalidReason Reason) = 0;
 };
 #endif
