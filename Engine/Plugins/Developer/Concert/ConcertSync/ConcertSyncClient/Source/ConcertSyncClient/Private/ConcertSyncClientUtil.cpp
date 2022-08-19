@@ -343,16 +343,14 @@ TArray<FName> GetRootProperties(const TArray<FName>& InChangedProperties)
 
 FProperty* GetExportedProperty(const UStruct* InStruct, const FName InPropertyName, const bool InIncludeEditorOnlyData)
 {
-	FProperty* Property = FindFProperty<FProperty>(InStruct, InPropertyName);
-
-	// Filter the property
-	if (Property 
-		&& (!Property->IsEditorOnlyProperty() || InIncludeEditorOnlyData) 
-		&& !Property->HasAnyPropertyFlags(CPF_NonTransactional)
-		&& !ConcertSyncUtil::ShouldSkipTransientProperty(Property))
+	if (FProperty* Property = FindFProperty<FProperty>(InStruct, InPropertyName))
 	{
-		return Property;
+		if (ConcertSyncUtil::CanExportProperty(Property, InIncludeEditorOnlyData))
+		{
+			return Property;
+		}
 	}
+
 	return nullptr;
 }
 

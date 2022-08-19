@@ -12,7 +12,9 @@ DECLARE_DELEGATE_RetVal_OneParam(bool, FConcertSyncObjectPathBelongsToWorld, con
 
 namespace ConcertSyncUtil
 {
-	 bool CONCERTSYNCCORE_API ShouldSkipTransientProperty(const FProperty* Property);
+CONCERTSYNCCORE_API bool CanExportProperty(const FProperty* Property, const bool InIncludeEditorOnlyData);
+
+CONCERTSYNCCORE_API void ResetObjectPropertiesToArchetypeValues(UObject* Object, const bool InIncludeEditorOnlyData);
 }
 
 /** Util to handle remapping objects within the source world to be the equivalent objects in the destination world */

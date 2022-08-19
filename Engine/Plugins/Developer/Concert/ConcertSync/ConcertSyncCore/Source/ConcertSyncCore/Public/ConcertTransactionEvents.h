@@ -80,6 +80,9 @@ struct FConcertSerializedObjectData
 	bool bAllowCreate = false;
 
 	UPROPERTY()
+	bool bResetExisting = false;
+
+	UPROPERTY()
 	bool bIsPendingKill = false;
 
 	UPROPERTY()
