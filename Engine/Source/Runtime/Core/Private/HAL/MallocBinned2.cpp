@@ -803,6 +803,7 @@ void FMallocBinned2::OnMallocInitialized()
 #if UE_USE_VERYLARGEPAGEALLOCATOR
 	FCoreDelegates::GetLowLevelAllocatorMemoryTrimDelegate().AddLambda([this]()
 		{
+			FScopeLock Lock(&Mutex);
 			CachedOSPageAllocator.FreeAll(&Mutex);
 		}
 	);
