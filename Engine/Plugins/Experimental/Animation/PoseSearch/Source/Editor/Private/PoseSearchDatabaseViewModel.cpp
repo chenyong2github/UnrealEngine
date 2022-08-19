@@ -174,7 +174,7 @@ namespace UE::PoseSearch
 			return PreviewActor;
 		}
 
-		PreviewActor.IndexAsset = &IndexAsset;
+		PreviewActor.IndexAsset = IndexAsset;
 		PreviewActor.CurrentPoseIndex = INDEX_NONE;
 
 		// todo: use preview when possible
@@ -259,8 +259,7 @@ namespace UE::PoseSearch
 				PreviewActor.Actor->SetActorTransform(RootMotion);
 				PreviewActor.AnimInstance->SetPosition(CurrentTime);
 
-				PreviewActor.CurrentPoseIndex =
-					PoseSearchDatabase->GetPoseIndexFromTime(CurrentTime, PreviewActor.IndexAsset);
+				PreviewActor.CurrentPoseIndex = PoseSearchDatabase->GetPoseIndexFromTime(CurrentTime, &PreviewActor.IndexAsset);
 			}
 		}
 	}
@@ -417,7 +416,7 @@ namespace UE::PoseSearch
 
 		if (SelectedPreviewActor)
 		{
-			SelectedActorIndexAsset = SelectedPreviewActor->IndexAsset;
+			SelectedActorIndexAsset = &SelectedPreviewActor->IndexAsset;
 		}
 	}
 

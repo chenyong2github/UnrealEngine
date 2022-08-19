@@ -7,6 +7,7 @@
 #include "MovieSceneFwd.h"
 
 #include "PoseSearchDatabasePreviewScene.h"
+#include "PoseSearch/PoseSearch.h"
 
 class UWorld;
 class UPoseSearchDatabase;
@@ -41,7 +42,7 @@ namespace UE::PoseSearch
 		TWeakObjectPtr<AActor> Actor = nullptr;
 		TWeakObjectPtr<UDebugSkelMeshComponent> Mesh = nullptr;
 		TWeakObjectPtr<UAnimPreviewInstance> AnimInstance = nullptr;
-		const FPoseSearchIndexAsset* IndexAsset = nullptr;
+		FPoseSearchIndexAsset IndexAsset; // keeping a copy since database index can be invalidated
 		int32 CurrentPoseIndex = INDEX_NONE;
 
 		bool IsValid()
