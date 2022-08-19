@@ -98,7 +98,7 @@ namespace UE::MultiUserServer
 		
 		Points = DistributeIntoTimeBuckets(Points, DisplayTimeRangInSeconds, TimeSliceSize, LocalNow, TimeBucketAnchor);
 		CurveData->Points = FlattenCurve(Points);
-		Graph->SetFixedRange(0, MaxDataInDisplayTime);
+		Graph->SetFixedRange(0, GetMaxRange());
 	}
 
 	static TArray<FCurvePoint> DistributeIntoTimeBuckets(TArrayView<FCurvePoint> Curve, float TimeRange, float TimeSliceSize, const FDateTime& Now, const FDateTime& TimeAnchor)
@@ -177,7 +177,7 @@ namespace UE::MultiUserServer
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Text_Lambda([this](){ return GetBytesDisplayText(2 * MaxDataInDisplayTime / 3); })
+					.Text_Lambda([this](){ return GetBytesDisplayText(2 * GetMaxRange() / 3); })
 					.ColorAndOpacity(FConcertServerStyle::Get().GetColor("Concert.Clients.NetworkGraph.HorizontalHelperLine.TextColor"))
 				]
 
@@ -202,7 +202,7 @@ namespace UE::MultiUserServer
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Text_Lambda([this](){ return GetBytesDisplayText(MaxDataInDisplayTime / 3); })
+					.Text_Lambda([this](){ return GetBytesDisplayText(GetMaxRange() / 3); })
 					.ColorAndOpacity(FConcertServerStyle::Get().GetColor("Concert.Clients.NetworkGraph.HorizontalHelperLine.TextColor"))
 				]
 

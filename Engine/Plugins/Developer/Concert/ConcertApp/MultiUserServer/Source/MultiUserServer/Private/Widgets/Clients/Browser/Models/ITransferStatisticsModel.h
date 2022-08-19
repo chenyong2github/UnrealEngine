@@ -36,7 +36,7 @@ namespace UE::MultiUserServer
 	};
 	
 	/** Keeps track of a single client's transfer statistics */
-	class IClientTransferStatisticsModel
+	class ITransferStatisticsModel
 	{
 	public:
 
@@ -54,7 +54,7 @@ namespace UE::MultiUserServer
 		/** Called when GetTransferStatsGroupedById changes */
 		virtual FOnTransferGroupsUpdated& OnInboundTransferGroupsUpdated() = 0;
 
-		virtual ~IClientTransferStatisticsModel() = default;
+		virtual ~ITransferStatisticsModel() = default;
 	};
 }
 

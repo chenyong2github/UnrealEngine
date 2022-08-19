@@ -10,7 +10,7 @@ struct FMessageAddress;
 namespace UE::MultiUserServer
 {
 	class IClientNetworkStatisticsModel;
-	class IClientTransferStatisticsModel;
+	class ITransferStatisticsModel;
 
 	enum class EConcertBrowserItemDisplayMode : uint8
 	{
@@ -31,14 +31,12 @@ namespace UE::MultiUserServer
 		virtual FString GetDisplayName() const = 0;
 		/** What to display when the thumbnail is hovered */
 		virtual FText GetToolTip() const = 0;
-		/** The address of the corresponding item. */
-		virtual FMessageAddress GetMessageAddress() const = 0;
 		
 		virtual void SetDisplayMode(EConcertBrowserItemDisplayMode Value) = 0;
 		virtual EConcertBrowserItemDisplayMode GetDisplayMode() const = 0;
 
 		/** The network statistics for this item */
-		virtual TSharedRef<IClientTransferStatisticsModel> GetTransferStatistics() const = 0;
+		virtual TSharedRef<ITransferStatisticsModel> GetTransferStatistics() const = 0;
 
 		/** Adds terms this item can be searched by */
 		virtual void AppendSearchTerms(TArray<FString>& SearchTerms) const = 0;
@@ -55,18 +53,13 @@ namespace UE::MultiUserServer
 	class FConcertBrowserItemCommonImpl : public IConcertBrowserItem
 	{
 	public:
-
-		FConcertBrowserItemCommonImpl(TSharedRef<IClientNetworkStatisticsModel> NetworkStatisticsModel);
-
+		
 		virtual void SetDisplayMode(EConcertBrowserItemDisplayMode Value) override;
 		virtual EConcertBrowserItemDisplayMode GetDisplayMode() const override;
 		virtual void AppendSearchTerms(TArray<FString>& SearchTerms) const override;
-		virtual TOptional<FMessageTransportStatistics> GetLatestNetworkStatistics() const override;
-		virtual bool IsOnline() const override;
 
 	private:
 
-		TSharedRef<IClientNetworkStatisticsModel> NetworkStatisticsModel;
 		EConcertBrowserItemDisplayMode ItemDisplayMode = EConcertBrowserItemDisplayMode::NetworkGraph;
 	};
 }

@@ -86,6 +86,8 @@ namespace UE::MultiUserServer
 
 		/** Updates the graph in an interval of TimeSliceSize in case no network data is received in that time. */
 		void SetTimerForForceRefresh();
+
+		uint64 GetMaxRange() const { return MaxDataInDisplayTime * 1.15; }
 	};
 }
 

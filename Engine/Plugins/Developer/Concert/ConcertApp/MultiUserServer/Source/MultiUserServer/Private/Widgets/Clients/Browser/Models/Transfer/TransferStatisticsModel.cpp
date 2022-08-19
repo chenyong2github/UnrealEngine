@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ClientTransferStatisticsModel.h"
+#include "TransferStatisticsModel.h"
 
 #include "INetworkMessagingExtension.h"
 #include "Containers/Ticker.h"
@@ -8,7 +8,7 @@
 
 namespace UE::MultiUserServer
 {
-	namespace Private::ClientTransferStatisticsModel
+	namespace Private::TransferStatisticsModel
 	{
 		static INetworkMessagingExtension* GetMessagingStatistics()
 		{
@@ -39,22 +39,21 @@ namespace UE::MultiUserServer
 		}
 	}
 
-	FClientTransferStatisticsModel::FClientTransferStatisticsModel(const FMessageAddress& ClientAddress)
-		: ClientAddress(ClientAddress)
-		, OutboundStatTracker([this](const FOutboundTransferStatistics& Stats) { return IsSentToClient(Stats); }, [](const FOutboundTransferStatistics& Stats){ return Stats.BytesSent; })
-		, InboundStatTracker([this](const FInboundTransferStatistics& Stats) { return IsReceivedFromClient(Stats); }, [](const FInboundTransferStatistics& Stats){ return Stats.BytesReceived; })
+	FTransferStatisticsModelBase::FTransferStatisticsModelBase()
+		: OutboundStatTracker([this](const FOutboundTransferStatistics& Stats) { return ShouldIncludeOutboundStat(Stats); }, [](const FOutboundTransferStatistics& Stats){ return Stats.BytesSent; })
+		, InboundStatTracker([this](const FInboundTransferStatistics& Stats) { return ShouldIncludeInboundStat(Stats); }, [](const FInboundTransferStatistics& Stats){ return Stats.BytesReceived; })
 	{
-		if (INetworkMessagingExtension* Statistics = Private::ClientTransferStatisticsModel::GetMessagingStatistics())
+		if (INetworkMessagingExtension* Statistics = Private::TransferStatisticsModel::GetMessagingStatistics())
 		{
 			Statistics->OnOutboundTransferUpdatedFromThread().AddRaw(&OutboundStatTracker, &TClientTransferStatTracker<FOutboundTransferStatistics>::OnTransferUpdatedFromThread);
 			Statistics->OnInboundTransferUpdatedFromThread().AddRaw(&InboundStatTracker, &TClientTransferStatTracker<FInboundTransferStatistics>::OnTransferUpdatedFromThread);
-			TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FClientTransferStatisticsModel::Tick));
+			TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FTransferStatisticsModelBase::Tick));
 		}
 	}
 
-	FClientTransferStatisticsModel::~FClientTransferStatisticsModel()
+	FTransferStatisticsModelBase::~FTransferStatisticsModelBase()
 	{
-		if (INetworkMessagingExtension* Statistics = Private::ClientTransferStatisticsModel::GetMessagingStatistics())
+		if (INetworkMessagingExtension* Statistics = Private::TransferStatisticsModel::GetMessagingStatistics())
 		{
 			Statistics->OnOutboundTransferUpdatedFromThread().RemoveAll(&OutboundStatTracker);
 			Statistics->OnInboundTransferUpdatedFromThread().RemoveAll(&InboundStatTracker);
@@ -63,7 +62,7 @@ namespace UE::MultiUserServer
 		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
 	}
 
-	const TArray<FConcertTransferSamplePoint>& FClientTransferStatisticsModel::GetTransferStatTimeline(EConcertTransferStatistic StatisticType) const
+	const TArray<FConcertTransferSamplePoint>& FTransferStatisticsModelBase::GetTransferStatTimeline(EConcertTransferStatistic StatisticType) const
 	{
 		switch (StatisticType)
 		{
@@ -76,7 +75,7 @@ namespace UE::MultiUserServer
 		}
 	}
 
-	FOnTransferTimelineUpdated& FClientTransferStatisticsModel::OnTransferTimelineUpdated(EConcertTransferStatistic StatisticType)
+	FOnTransferTimelineUpdated& FTransferStatisticsModelBase::OnTransferTimelineUpdated(EConcertTransferStatistic StatisticType)
 	{
 		switch (StatisticType)
 		{
@@ -88,28 +87,8 @@ namespace UE::MultiUserServer
 			return OutboundStatTracker.GetOnTimelineUpdatedDelegates();
 		}
 	}
-
-	bool FClientTransferStatisticsModel::IsSentToClient(const FOutboundTransferStatistics& Item) const
-	{
-		if (const INetworkMessagingExtension* Statistics = Private::ClientTransferStatisticsModel::GetMessagingStatistics())
-		{
-			const FGuid ClientNodeId = Statistics->GetNodeIdFromAddress(ClientAddress);
-			return ClientNodeId == Item.DestinationId;
-		}
-		return false;
-	}
-
-	bool FClientTransferStatisticsModel::IsReceivedFromClient(const FInboundTransferStatistics& Item) const
-	{
-		if (const INetworkMessagingExtension* Statistics = Private::ClientTransferStatisticsModel::GetMessagingStatistics())
-		{
-			const FGuid ClientNodeId = Statistics->GetNodeIdFromAddress(ClientAddress);
-			return ClientNodeId == Item.OriginId;
-		}
-		return false; 
-	}
 	
-	bool FClientTransferStatisticsModel::Tick(float DeltaTime)
+	bool FTransferStatisticsModelBase::Tick(float DeltaTime)
 	{
 		OutboundStatTracker.Tick();
 		InboundStatTracker.Tick();

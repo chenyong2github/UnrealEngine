@@ -2,7 +2,8 @@
 
 #include "ClientBrowserItem.h"
 
-#include "Models/ClientTransferStatisticsModel.h"
+#include "Widgets/Clients/Browser/Models/IClientNetworkStatisticsModel.h"
+#include "Widgets/Clients/Browser/Models/Transfer/ClientTransferStatisticsModel.h"
 #include "Widgets/Clients/Util/EndpointToUserNameCache.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.FClientBrowserItem"
@@ -10,7 +11,7 @@
 namespace UE::MultiUserServer
 {
 	FClientBrowserItem::FClientBrowserItem(TSharedRef<IClientNetworkStatisticsModel> NetworkStatisticsModel, TSharedRef<FEndpointToUserNameCache> UserLookup, const FMessageAddress& ClientAddress, const FGuid& MessageNodeId)
-		: FConcertBrowserItemCommonImpl(MoveTemp(NetworkStatisticsModel))
+		: NetworkStatisticsModel(MoveTemp(NetworkStatisticsModel))
 		, UserLookup(MoveTemp(UserLookup))
 		, TransferStatisticsModel(MakeShared<FClientTransferStatisticsModel>(ClientAddress))
 		, ClientAddress(ClientAddress)
@@ -48,9 +49,19 @@ namespace UE::MultiUserServer
 			);
 	}
 
-	TSharedRef<IClientTransferStatisticsModel> FClientBrowserItem::GetTransferStatistics() const
+	TSharedRef<ITransferStatisticsModel> FClientBrowserItem::GetTransferStatistics() const
 	{
 		return TransferStatisticsModel;
+	}
+
+	TOptional<FMessageTransportStatistics> FClientBrowserItem::GetLatestNetworkStatistics() const
+	{
+		return NetworkStatisticsModel->GetLatestNetworkStatistics(ClientAddress);
+	}
+
+	bool FClientBrowserItem::IsOnline() const
+	{
+		return NetworkStatisticsModel->IsOnline(ClientAddress);
 	}
 }
 

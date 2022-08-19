@@ -12,7 +12,7 @@ struct FOutboundTransferStatistics;
 
 namespace UE::MultiUserServer
 {
-	class IClientTransferStatisticsModel;
+	class ITransferStatisticsModel;
 
 	/**
 	 * Displays FOutboundTransferStatistics as they are updated by INetworkMessagingExtension.
@@ -25,12 +25,12 @@ namespace UE::MultiUserServer
 		{}
 		SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs, TSharedRef<IClientTransferStatisticsModel> InStatsModel);
+		void Construct(const FArguments& InArgs, TSharedRef<ITransferStatisticsModel> InStatsModel);
 
 	private:
 
 		/** Tells us when the transfer stats have changed */
-		TSharedPtr<IClientTransferStatisticsModel> StatsModel;
+		TSharedPtr<ITransferStatisticsModel> StatsModel;
 		/** Displays the transfer stats */
 		TSharedPtr<SListView<TSharedPtr<FOutboundTransferStatistics>>> SegmenterListView;
 

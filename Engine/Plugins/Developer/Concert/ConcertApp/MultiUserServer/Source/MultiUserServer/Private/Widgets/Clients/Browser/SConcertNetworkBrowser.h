@@ -3,13 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SConcertBrowserItem.h"
+#include "Item/ServerBrowserItem.h"
 #include "Misc/TextFilter.h"
 #include "Models/IClientBrowserModel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class FConcertClientsTabController;
 class FMenuBuilder;
 class STableViewBase;
 class ITableRow;
@@ -21,6 +20,7 @@ struct FConcertSessionClientInfo;
 namespace UE::MultiUserServer
 {
 	class FClientBrowserItem;
+	class FServerBrowserItem;
 	class IClientNetworkStatisticsModel;
 	class IClientBrowserModel;
 	enum class EConcertBrowserItemDisplayMode : uint8;
@@ -34,14 +34,16 @@ namespace UE::MultiUserServer
 	public:
 
 		DECLARE_DELEGATE_OneParam(FOnClientDoubleClicked, const FGuid& /*EndpointId*/);
+		DECLARE_DELEGATE(FOnServerDoubleClicked);
 
 		SLATE_BEGIN_ARGS(SConcertNetworkBrowser) {}
 			/** Extension point to the right of the search bar */
 			SLATE_NAMED_SLOT(FArguments, RightOfSearch)
+			SLATE_EVENT(FOnServerDoubleClicked, OnServerDoubleClicked)
 			SLATE_EVENT(FOnClientDoubleClicked, OnClientDoubleClicked)
 		SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs, TSharedRef<IClientBrowserModel> InBrowserModel);
+		void Construct(const FArguments& InArgs, TSharedRef<IClientBrowserModel> InBrowserModel, TSharedRef<IClientNetworkStatisticsModel> NetworkStatisticsModel, TSharedRef<IConcertServer> Server);
 
 		/** Shows only the clients connected to the given session ID */
 		void ShowOnlyClientsFromSession(const FGuid& SessionId);
@@ -50,7 +52,7 @@ namespace UE::MultiUserServer
 
 		using FSessionId = FGuid;
 		using FMessagingNodeId = FGuid;
-		using FClientTextFilter = TTextFilter<const TSharedPtr<FClientBrowserItem>&>;
+		using FBrowserItemTextFilter = TTextFilter<const TSharedPtr<IConcertBrowserItem>&>;
 
 		/** Retrieves clients and live sessions */
 		TSharedPtr<IClientBrowserModel> BrowserModel;
@@ -62,15 +64,19 @@ namespace UE::MultiUserServer
 		/** Should admin endpoints be shown? */
 		bool bShowSessionlessClients = true;
 
+		TSharedPtr<FServerBrowserItem> ServerItem;
+		/** Filtered version of IClientBrowserModel::GetItems. Added to DisplayItems. */
+		TArray<TSharedPtr<FClientBrowserItem>> DisplayedClientItems;
 		/** Source array for TileView - fitlered version of IClientBrowserModel::GetItems */
-		TArray<TSharedPtr<FClientBrowserItem>> DisplayedClients;
+		TArray<TSharedPtr<IConcertBrowserItem>> DisplayedItems;
 		/** Visualizes all the items */
-		TSharedPtr<STileView<TSharedPtr<FClientBrowserItem>>> TileView;
+		TSharedPtr<STileView<TSharedPtr<IConcertBrowserItem>>> TileView;
 
 		// Filtering
 		TSharedPtr<FText> HighlightText;
-		TSharedPtr<FClientTextFilter> SessionFilter;
+		TSharedPtr<FBrowserItemTextFilter> SessionFilter;
 		
+		FOnServerDoubleClicked OnServerDoubleClicked;
 		FOnClientDoubleClicked OnClientDoubleClicked;
 
 		TSharedRef<SWidget> CreateSearchArea(const FArguments& InArgs);
@@ -88,17 +94,18 @@ namespace UE::MultiUserServer
 		FText GetErrorMessageText() const;
 		
 		// TileView events
-		TSharedRef<ITableRow> MakeTileViewWidget(TSharedPtr<FClientBrowserItem> ClientItem, const TSharedRef<STableViewBase>& OwnerTable);
+		TSharedRef<ITableRow> MakeTileViewWidget(TSharedPtr<IConcertBrowserItem> ClientItem, const TSharedRef<STableViewBase>& OwnerTable);
 		TSharedPtr<SWidget> OnGetContextMenuContent();
 		void AddDisplayModeEntry(FMenuBuilder& MenuBuilder, EConcertBrowserItemDisplayMode DisplayMode, FText Title, FText Tooltip) const;
-		void OnListMouseButtonDoubleClick(TSharedPtr<FClientBrowserItem> ClientItem);
+		void OnListMouseButtonDoubleClick(TSharedPtr<IConcertBrowserItem> ClientItem);
 
 		// Filtering
 		void AllowAllSessions();
 		void DisallowAllSessions();
 		void UpdateTileViewFromAllowedSessions();
+		bool PassesFilter(const TSharedPtr<FServerBrowserItem>& Client) const;
 		bool PassesFilter(const TSharedPtr<FClientBrowserItem>& Client) const;
-		void GenerateSearchTerms(const TSharedPtr<FClientBrowserItem>& Client, TArray<FString>& SearchTerms) const;
+		void GenerateSearchTerms(const TSharedPtr<IConcertBrowserItem>& Client, TArray<FString>& SearchTerms) const;
 	};
 }
 

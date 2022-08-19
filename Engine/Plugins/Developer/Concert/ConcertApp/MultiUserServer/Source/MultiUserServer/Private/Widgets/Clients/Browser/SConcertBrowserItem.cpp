@@ -2,16 +2,15 @@
 
 #include "SConcertBrowserItem.h"
 
-#include "ClientBrowserItem.h"
 #include "ConcertServerStyle.h"
-#include "IConcertBrowserItem.h"
 #include "INetworkMessagingExtension.h"
 #include "SClientNetworkStats.h"
 #include "Graph/SClientNetworkGraphs.h"
-#include "Models/ClientTransferStatisticsModel.h"
 #include "Models/IClientNetworkStatisticsModel.h"
+#include "Models/Transfer/ClientTransferStatisticsModel.h"
 #include "Table/SClientOutboundTransferStatTable.h"
 #include "Table/SClientInboundTransferStatTable.h"
+#include "Widgets/Clients/Browser/Item/IConcertBrowserItem.h"
 
 #include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"

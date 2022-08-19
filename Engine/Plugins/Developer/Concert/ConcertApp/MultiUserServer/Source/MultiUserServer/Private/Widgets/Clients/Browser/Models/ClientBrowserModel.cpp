@@ -4,7 +4,7 @@
 
 #include "ConcertServerEvents.h"
 #include "IConcertServer.h"
-#include "Widgets/Clients/Browser/ClientBrowserItem.h"
+#include "Widgets/Clients/Browser/Item/ClientBrowserItem.h"
 #include "Widgets/Clients/Util/EndpointToUserNameCache.h"
 
 #include "Algo/AnyOf.h"

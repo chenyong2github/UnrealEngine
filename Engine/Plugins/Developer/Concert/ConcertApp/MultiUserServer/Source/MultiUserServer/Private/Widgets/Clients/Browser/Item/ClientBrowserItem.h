@@ -11,7 +11,7 @@ class FEndpointToUserNameCache;
 
 namespace UE::MultiUserServer
 {
-	class IClientTransferStatisticsModel;
+	class ITransferStatisticsModel;
 	class FClientTransferStatisticsModel;
 
 	DECLARE_DELEGATE_RetVal(TOptional<FConcertClientInfo>, FGetClientInfo);
@@ -34,11 +34,14 @@ namespace UE::MultiUserServer
 		
 		virtual FString GetDisplayName() const override;
 		virtual FText GetToolTip() const override;
-		virtual FMessageAddress GetMessageAddress() const override { return ClientAddress; }
-		virtual TSharedRef<IClientTransferStatisticsModel> GetTransferStatistics() const override;
+		virtual TSharedRef<ITransferStatisticsModel> GetTransferStatistics() const override;
+		virtual TOptional<FMessageTransportStatistics> GetLatestNetworkStatistics() const override;
+		virtual bool IsOnline() const override;
 
 	private:
 
+		TSharedRef<IClientNetworkStatisticsModel> NetworkStatisticsModel;
+		
 		/** Used to gets the client's name once it becomes available */
 		TSharedRef<FEndpointToUserNameCache> UserLookup;
 

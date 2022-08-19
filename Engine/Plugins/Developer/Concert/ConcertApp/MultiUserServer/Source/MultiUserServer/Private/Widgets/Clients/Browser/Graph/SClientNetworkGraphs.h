@@ -5,11 +5,11 @@
 #include "CoreMinimal.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Clients/Browser/Models/IClientTransferStatisticsModel.h"
+#include "Widgets/Clients/Browser/Models/ITransferStatisticsModel.h"
 
 namespace UE::MultiUserServer
 {
-	class IClientTransferStatisticsModel;
+	class ITransferStatisticsModel;
 	class SNetworkGraph;
 
 	/** Displays send and receive graphs */
@@ -24,12 +24,12 @@ namespace UE::MultiUserServer
 			SLATE_ARGUMENT(FTimespan, TimeRange)
 		SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs, TSharedRef<IClientTransferStatisticsModel> InTransferStatsModel);
+		void Construct(const FArguments& InArgs, TSharedRef<ITransferStatisticsModel> InTransferStatsModel);
 
 	private:
 
 		/** Tells us the data to display */
-		TSharedPtr<IClientTransferStatisticsModel> TransferStatisticsModel;
+		TSharedPtr<ITransferStatisticsModel> TransferStatisticsModel;
 
 		TMap<EConcertTransferStatistic, TSharedPtr<SNetworkGraph>> Graphs;
 		

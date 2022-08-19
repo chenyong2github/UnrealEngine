@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IClientTransferStatisticsModel.h"
 #include "IMessageContext.h"
 #include "Containers/SpscQueue.h"
 #include "Containers/Ticker.h"
+#include "Widgets/Clients/Browser/Models/ITransferStatisticsModel.h"
 
 namespace UE::MultiUserServer
 {
@@ -173,13 +173,13 @@ namespace UE::MultiUserServer
 			LastUpdateGroupUpdates.Add(NewValue->MessageId, FDateTime::Now());
 		}
 	};
-	
-	class FClientTransferStatisticsModel : public IClientTransferStatisticsModel
+
+	class FTransferStatisticsModelBase : public ITransferStatisticsModel
 	{
 	public:
 		
-		FClientTransferStatisticsModel(const FMessageAddress& ClientAddress);
-		virtual ~FClientTransferStatisticsModel() override;
+		FTransferStatisticsModelBase();
+		virtual ~FTransferStatisticsModelBase() override;
 		
 		virtual const TArray<FConcertTransferSamplePoint>& GetTransferStatTimeline(EConcertTransferStatistic StatisticType) const override;
 		virtual const TArray<TSharedPtr<FOutboundTransferStatistics>>& GetOutboundTransferStatsGroupedById() const override { return OutboundStatTracker.GetTransferStatisticsGroupedById(); }
@@ -189,12 +189,12 @@ namespace UE::MultiUserServer
 		virtual FOnTransferGroupsUpdated& OnInboundTransferGroupsUpdated() override { return InboundStatTracker.GetOnGroupsUpdatedDelegate(); }
 
 	private:
+		
+		virtual bool ShouldIncludeOutboundStat(const FOutboundTransferStatistics& Item) const = 0;
+		virtual bool ShouldIncludeInboundStat(const FInboundTransferStatistics& Item) const = 0;
 
-		const FMessageAddress ClientAddress;
 		FTSTicker::FDelegateHandle TickHandle;
 		
-		bool IsSentToClient(const FOutboundTransferStatistics& Item) const;
-		bool IsReceivedFromClient(const FInboundTransferStatistics& Item) const;
 		
 		bool Tick(float DeltaTime);
 

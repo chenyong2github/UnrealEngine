@@ -143,16 +143,20 @@ void SConcertClientsTabView::CreateTabs(const TSharedRef<FTabManager>& InTabMana
 
 TSharedRef<SDockTab> SConcertClientsTabView::SpawnClientBrowserTab(const FSpawnTabArgs& InTabArgs)
 {
+	using namespace UE::MultiUserServer;
+	const TSharedRef<FClientNetworkStatisticsModel> NetworkStatisticsModel = MakeShared<FClientNetworkStatisticsModel>();
+	
 	return SNew(SDockTab)
 		.Label(LOCTEXT("ClientBrowserTabLabel", "Clients"))
 		.TabRole(PanelTab)
 		[
 			SAssignNew(ClientBrowser, UE::MultiUserServer::SConcertNetworkBrowser,
-				MakeShared<UE::MultiUserServer::FClientBrowserModel>(Server->GetConcertServer(), ClientInfoCache.ToSharedRef(), MakeShared<UE::MultiUserServer::FClientNetworkStatisticsModel>()))
+				MakeShared<UE::MultiUserServer::FClientBrowserModel>(Server->GetConcertServer(), ClientInfoCache.ToSharedRef(), NetworkStatisticsModel), NetworkStatisticsModel, Server->GetConcertServer())
 			.RightOfSearch()
 			[
 				CreateOpenGlobalLogButton()
 			]
+			.OnServerDoubleClicked_Raw(this, &SConcertClientsTabView::OpenGlobalLogTab)
 			.OnClientDoubleClicked_Raw(this, &SConcertClientsTabView::OpenClientLogTab)
 		]; 
 }

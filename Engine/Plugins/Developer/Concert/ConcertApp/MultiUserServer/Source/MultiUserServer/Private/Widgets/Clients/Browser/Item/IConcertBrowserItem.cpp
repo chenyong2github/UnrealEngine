@@ -2,17 +2,13 @@
 
 #include "IConcertBrowserItem.h"
 
-#include "Models/IClientNetworkStatisticsModel.h"
+#include "Widgets/Clients/Browser/Models/IClientNetworkStatisticsModel.h"
 
 #include "IMessageContext.h"
 #include "INetworkMessagingExtension.h"
 
 namespace UE::MultiUserServer
 {
-	FConcertBrowserItemCommonImpl::FConcertBrowserItemCommonImpl(TSharedRef<IClientNetworkStatisticsModel> NetworkStatisticsModel)
-			: NetworkStatisticsModel(MoveTemp(NetworkStatisticsModel))
-	{}
-
 	void FConcertBrowserItemCommonImpl::SetDisplayMode(EConcertBrowserItemDisplayMode Value)
 	{
 		ItemDisplayMode = Value;
@@ -37,15 +33,5 @@ namespace UE::MultiUserServer
 			SearchTerms.Add(NetworkStatistics::FormatBytesInflight(*Stats));
 			SearchTerms.Add(NetworkStatistics::FormatTotalBytesLost(*Stats));
 		}
-	}
-
-	TOptional<FMessageTransportStatistics> FConcertBrowserItemCommonImpl::GetLatestNetworkStatistics() const
-	{
-		return NetworkStatisticsModel->GetLatestNetworkStatistics(GetMessageAddress());
-	}
-	
-	bool FConcertBrowserItemCommonImpl::IsOnline() const
-	{
-		return NetworkStatisticsModel->IsOnline(GetMessageAddress());
 	}
 }

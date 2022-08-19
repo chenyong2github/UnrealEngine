@@ -3,7 +3,7 @@
 #include "SClientOutboundTransferStatTable.h"
 
 #include "INetworkMessagingExtension.h"
-#include "Widgets/Clients/Browser/Models/IClientTransferStatisticsModel.h"
+#include "Widgets/Clients/Browser/Models/ITransferStatisticsModel.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/Text/STextBlock.h"
@@ -97,7 +97,7 @@ namespace UE::MultiUserServer
 		}
 	};
 	
-	void SClientOutboundTransferStatTable::Construct(const FArguments& InArgs, TSharedRef<IClientTransferStatisticsModel> InStatsModel)
+	void SClientOutboundTransferStatTable::Construct(const FArguments& InArgs, TSharedRef<ITransferStatisticsModel> InStatsModel)
 	{
 		StatsModel = InStatsModel;
 

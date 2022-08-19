@@ -4,7 +4,7 @@
 
 #include "ConcertServerStyle.h"
 #include "SNetworkGraph.h"
-#include "Widgets/Clients/Browser/Models/IClientTransferStatisticsModel.h"
+#include "Widgets/Clients/Browser/Models/ITransferStatisticsModel.h"
 
 #include "Math/UnitConversion.h"
 #include "Widgets/Layout/SBorder.h"
@@ -15,7 +15,7 @@
 
 namespace UE::MultiUserServer 
 {
-	void SClientNetworkGraphs::Construct(const FArguments& InArgs, TSharedRef<IClientTransferStatisticsModel> InTransferStatsModel)
+	void SClientNetworkGraphs::Construct(const FArguments& InArgs, TSharedRef<ITransferStatisticsModel> InTransferStatsModel)
 	{
 		TransferStatisticsModel = MoveTemp(InTransferStatsModel);
 

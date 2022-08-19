@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IMessageContext.h"
-#include "Models/IClientTransferStatisticsModel.h"
+#include "Models/ITransferStatisticsModel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
