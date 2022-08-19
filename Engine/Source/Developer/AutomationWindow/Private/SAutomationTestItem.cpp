@@ -38,6 +38,7 @@ void SAutomationTestItem::Construct( const FArguments& InArgs, const TSharedRef<
 	ColumnWidth = InArgs._ColumnWidth;
 	HighlightText = InArgs._HighlightText;
 	OnCheckedStateChangedDelegate = InArgs._OnCheckedStateChanged;
+	IsLocalSession = InArgs._IsLocalSession;
 
 	SMultiColumnTableRow< TSharedPtr< FString > >::Construct( SMultiColumnTableRow< TSharedPtr< FString > >::FArguments(), InOwnerTableView );
 }
@@ -373,12 +374,12 @@ ECheckBoxState SAutomationTestItem::IsToBeSkipped() const
 
 bool SAutomationTestItem::IsDirectlyExcluded() const
 {
-	return WITH_EDITOR && !TestStatus->IsToBeSkippedByPropagation();
+	return WITH_EDITOR && IsLocalSession && !TestStatus->IsToBeSkippedByPropagation();
 }
 
 EVisibility SAutomationTestItem::IsDirectlyExcluded_GetVisibility() const
 {
-	return  TestStatus->IsToBeSkipped() && IsDirectlyExcluded() ? EVisibility::Visible : EVisibility::Collapsed;
+	return  (WITH_EDITOR && IsLocalSession && (IsDirectlyExcluded() || TestStatus->IsToBeSkippedOnConditions())) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FText SAutomationTestItem::GetExcludeReason() const

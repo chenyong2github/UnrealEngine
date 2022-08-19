@@ -1722,9 +1722,10 @@ void SAutomationWindow::ClearAutomationUI ()
 TSharedRef<ITableRow> SAutomationWindow::OnGenerateWidgetForTest( TSharedPtr<IAutomationReport> InItem, const TSharedRef<STableViewBase>& OwnerTable )
 {
 	bIsRequestingTests = false;
-	return SNew( SAutomationTestItem, OwnerTable )
-		.TestStatus( InItem )
-		.ColumnWidth( ColumnWidth )
+	return SNew(SAutomationTestItem, OwnerTable)
+		.TestStatus(InItem)
+		.ColumnWidth(ColumnWidth)
+		.IsLocalSession(ActiveSession->IsStandalone())
 		.HighlightText(this, &SAutomationWindow::HandleAutomationHighlightText)
 		.OnCheckedStateChanged(this, &SAutomationWindow::HandleItemCheckBoxCheckedStateChanged);
 }

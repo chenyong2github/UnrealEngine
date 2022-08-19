@@ -72,6 +72,7 @@ public:
 	virtual const bool ExpandInUI() const override;
 	virtual void StopRunningTest() override;
 	virtual bool IsToBeSkipped(FName* OutReason = nullptr, bool* OutWarn = nullptr) const override;
+	virtual bool IsToBeSkippedOnConditions() const override;
 	virtual bool IsToBeSkippedByPropagation() const override;
 	virtual void SetSkipFlag(bool bEnableSkip, const FAutomationTestExcludelistEntry* Template = nullptr, bool bFromPropagation = false) override;
 	virtual TSharedPtr<FAutomationTestExcludeOptions> GetExcludeOptions() override;

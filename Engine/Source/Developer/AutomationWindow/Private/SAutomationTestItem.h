@@ -25,6 +25,7 @@ public:
 	SLATE_BEGIN_ARGS(SAutomationTestItem)
 		{}
 		SLATE_ARGUMENT(float, ColumnWidth)
+		SLATE_ARGUMENT(bool, IsLocalSession)
 		SLATE_ARGUMENT(TSharedPtr<IAutomationReport>, TestStatus)
 		SLATE_ATTRIBUTE(FText, HighlightText)
 		/** Delegate called when a report has it's checkbox clicked */
@@ -201,6 +202,9 @@ private:
 
 	/** The column width. */
 	float ColumnWidth;
+
+	/** Is Session local. */
+	bool IsLocalSession;
 
 	/** Holds the highlight string for the automation test. */
 	TAttribute<FText> HighlightText;

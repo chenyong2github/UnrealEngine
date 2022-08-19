@@ -136,13 +136,24 @@ FAutomationTestExcludelistEntry* UAutomationTestExcludelist::GetExcludeTestEntry
 
 	const FString NameToCompare = TestName.TrimStartAndEnd().ToLower();
 
+	FAutomationTestExcludelistEntry* OutEntry = nullptr;
+
 	for (auto& Entry : ExcludeTest)
 	{
 		if(NameToCompare.StartsWith(Entry.FullTestName))
 		{
 			if (NameToCompare.Len() == Entry.FullTestName.Len() || NameToCompare.Mid(Entry.FullTestName.Len(), 1) == TEXT("."))
 			{
-				if (RHI.IsEmpty() || Entry.RHIs.Num() == 0 || Entry.RHIs.Contains(*RHI))
+				if (Entry.RHIs.Num() == 0)
+				{
+					return &Entry;
+				}
+				if (RHI.IsEmpty())
+				{
+					OutEntry = &Entry;
+					continue;
+				}
+				if (Entry.RHIs.Contains(*RHI))
 				{
 					return &Entry;
 				}
@@ -150,7 +161,7 @@ FAutomationTestExcludelistEntry* UAutomationTestExcludelist::GetExcludeTestEntry
 		}
 	}
 
-	return nullptr;
+	return OutEntry;
 }
 
 #if WITH_EDITOR

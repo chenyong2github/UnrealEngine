@@ -114,6 +114,32 @@ struct FAutomationTestExcludelistEntry
 		bIsPropagated = false;
 	}
 
+	/* Has conditional exclusion */
+	bool HasConditions() const
+	{
+		return !RHIs.IsEmpty();
+	}
+
+	/* Remove exclusion conditions, return true if a condition was removed */
+	bool RemoveConditions(const FAutomationTestExcludelistEntry& Entry)
+	{
+		if (!Entry.HasConditions())
+		{
+			return false;
+		}
+
+		bool GotRemoved = false;
+		// Check RHIs
+		int Length = RHIs.Num();
+		if (Length > 0)
+		{
+			RHIs = RHIs.Difference(Entry.RHIs);
+			GotRemoved = GotRemoved || Length != RHIs.Num();
+		}
+
+		return GotRemoved;
+	}
+
 	/* Hold full test name/path */
 	FString FullTestName;
 	/* Is the entry comes from propagation */

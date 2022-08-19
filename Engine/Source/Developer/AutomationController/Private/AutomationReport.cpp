@@ -71,7 +71,7 @@ FString FAutomationReport::GetDisplayNameWithDecoration() const
 {
 	FString FinalDisplayName = TestInfo.GetDisplayName();
 	//if this is an internal leaf node and the "decoration" name is being requested
-	if (ChildReports.Num())
+	if (FilteredChildReports.Num())
 	{
 		int32 NumChildren = GetTotalNumFilteredChildren();
 		//append on the number of child tests
@@ -885,6 +885,11 @@ bool FAutomationReport::IsToBeSkipped(FName* OutReason, bool* OutWarn) const
 	return false;
 }
 
+bool FAutomationReport::IsToBeSkippedOnConditions() const
+{
+	return bNeedToSkip && ExcludeTestInfo.HasConditions();
+}
+
 bool FAutomationReport::IsToBeSkippedByPropagation() const
 {
 	return bNeedToSkip && ExcludeTestInfo.bIsPropagated;
@@ -904,7 +909,7 @@ void FAutomationReport::SetSkipFlag(bool bEnableSkip, const FAutomationTestExclu
 		}
 	}
 
-	if (!bFromPropagation && !ExcludeTestInfo.IsEmpty() && ExcludeTestInfo.bIsPropagated)
+	if (!bFromPropagation && !ExcludeTestInfo.IsEmpty() && ExcludeTestInfo.bIsPropagated && !ExcludeTestInfo.HasConditions())
 		return; // Propagated exclusion can't be changed directly
 
 	bNeedToSkip = bEnableSkip;
@@ -916,27 +921,64 @@ void FAutomationReport::SetSkipFlag(bool bEnableSkip, const FAutomationTestExclu
 		ExcludeTestInfo.bIsPropagated = bFromPropagation;
 	}
 
+	auto ExcludedTestCached = UAutomationTestExcludelist::Get();
 	if (bFromPropagation)
 	{
-		if (!bNeedToSkip)
+		auto Entry = ExcludedTestCached->GetExcludeTestEntry(TestInfo.GetFullTestPath());
+		if (bNeedToSkip)
 		{
-			ExcludeTestInfo.Reset();
+			// If we get an exclusion entry, check if it is the original one.
+			if (Entry != nullptr)
+			{
+				ExcludeTestInfo = *Entry;
+				ExcludeTestInfo.SetPropagation(TestInfo.GetFullTestPath());
+			}
+		}
+		else
+		{
+			// Before enabling the test, check if there is an underlying exclusion already set
+			if (Entry == nullptr)
+			{
+				ExcludeTestInfo.Reset();
+			}
+			else
+			{
+				// Update instance exclusion info
+				ExcludeTestInfo = *Entry;
+				bNeedToSkip = true;
+				// Update exclusion template for the children propagation
+				Template = Entry;
+			}
 		}
 	}
 	else
 	{
-		auto ExcludedTestCached = UAutomationTestExcludelist::Get();
 		if (bNeedToSkip)
 		{
 			check(Template != nullptr);
+			auto Entry = ExcludedTestCached->GetExcludeTestEntry(TestInfo.GetFullTestPath());
+			if (Entry != nullptr && ExcludeTestInfo.RemoveConditions(*Entry))
+			{
+				// Branch off the template with a different exclusion condition set
+				Template = &ExcludeTestInfo;
+			}
 			ExcludedTestCached->AddToExcludeTest(TestInfo.GetFullTestPath(), *Template);
 		}
 		else
 		{
 			ExcludedTestCached->RemoveFromExcludeTest(TestInfo.GetFullTestPath());
+			auto Entry = ExcludedTestCached->GetExcludeTestEntry(TestInfo.GetFullTestPath());
+			if (Entry != nullptr)
+			{
+				// If there is still an entry, it means a higher exclusion rule exists so we apply it.
+				// Update instance exclusion info
+				ExcludeTestInfo = *Entry;
+				ExcludeTestInfo.bIsPropagated = true;
+				bNeedToSkip = true;
+				// Update exclusion template for the children propagation
+				Template = Entry;
+			}
 		}
-
-		ExcludedTestCached->SaveConfig();
 	}
 
 	// Propagate to children
@@ -948,6 +990,11 @@ void FAutomationReport::SetSkipFlag(bool bEnableSkip, const FAutomationTestExclu
 		}
 	}
 
+	if (!bFromPropagation)
+	{
+		// Save config only at the end of the recursion
+		ExcludedTestCached->SaveConfig();
+	}
 }
 
 TSharedPtr<FAutomationTestExcludeOptions> FAutomationReport::GetExcludeOptions()
