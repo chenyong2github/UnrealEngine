@@ -1428,7 +1428,7 @@ public:
 	class COREUOBJECT_API FScatterGather : public FRequestBuilder
 	{
 	public:
-		FScatterGather& Read(FBulkData& BulkData, uint64 Offset = 0, uint64 Size = MAX_uint64);
+		FScatterGather& Read(const FBulkData& BulkData, uint64 Offset = 0, uint64 Size = MAX_uint64);
 		FBulkDataRequest Issue(FIoBuffer& Dst, FCompletionCallback&& Callback, EAsyncIOPriorityAndFlags Priority = AIOP_BelowNormal);
 	};
 

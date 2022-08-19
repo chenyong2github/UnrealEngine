@@ -1094,7 +1094,7 @@ void FBulkDataRequest::FRequestBuilder::AddRequest(
 	TotalRequestSize += Size;
 }
 
-FBulkDataRequest::FScatterGather& FBulkDataRequest::FScatterGather::Read(FBulkData& BulkData, uint64 Offset, uint64 Size)
+FBulkDataRequest::FScatterGather& FBulkDataRequest::FScatterGather::Read(const FBulkData& BulkData, uint64 Offset, uint64 Size)
 {
 	const uint64 BulkOffset	= uint64(BulkData.GetBulkDataOffsetInFile());
 	const uint64 BulkSize	= uint64(BulkData.GetBulkDataSize());
