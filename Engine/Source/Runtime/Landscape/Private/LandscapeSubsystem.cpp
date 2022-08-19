@@ -14,6 +14,7 @@
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Engine/World.h"
 #include "Math/IntRect.h"
+#include "LandscapeNotification.h"
 #include "LandscapeConfigHelper.h"
 #include "Engine/Canvas.h"
 #include "EngineUtils.h"
@@ -54,24 +55,17 @@ void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	GrassMapsBuilder = new FLandscapeGrassMapsBuilder(GetWorld());
 	GIBakedTextureBuilder = new FLandscapeGIBakedTextureBuilder(GetWorld());
 	PhysicalMaterialBuilder = new FLandscapePhysicalMaterialBuilder(GetWorld());
+	NotificationManager = new FLandscapeNotificationManager();
 #endif
 }
 
 void ULandscapeSubsystem::Deinitialize()
 {
 #if WITH_EDITOR
-	if (GrassMapsBuilder)
-	{
-		delete GrassMapsBuilder;
-	}
-	if (GIBakedTextureBuilder)
-	{
-		delete GIBakedTextureBuilder;
-	}
-	if (PhysicalMaterialBuilder)
-	{
-		delete PhysicalMaterialBuilder;
-	}
+	delete GrassMapsBuilder;
+	delete GIBakedTextureBuilder;
+	delete PhysicalMaterialBuilder;
+	delete NotificationManager;
 #endif
 	Proxies.Empty();
 
@@ -159,6 +153,7 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 	if (GIsEditor && !World->IsPlayInEditor())
 	{
 		LandscapePhysicalMaterial::GarbageCollectTasks();
+		NotificationManager->Tick();
 	}
 #endif
 }
