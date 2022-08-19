@@ -143,7 +143,7 @@ bool NaniteClustersIntersection(
 			const float3 PointWorld1 = mul(float4(PointLocal1, 1), LocalToTranslatedWorld).xyz;
 			const float3 PointWorld2 = mul(float4(PointLocal2, 1), LocalToTranslatedWorld).xyz;
 
-			bool bHit = RayTriangleIntersection(Origin, Direction, PointLocal0, PointLocal1, PointLocal2, IntersectionT, Barycentrics);
+			bool bHit = RayTriangleIntersection(Origin, Direction, PointWorld0, PointWorld1, PointWorld2, IntersectionT, Barycentrics);
 #endif
 			
 			if (bHit && IntersectionT >= TMin && IntersectionT <= RayTCurrent)
