@@ -8,7 +8,7 @@
 
 void FStreamingGenerationLogErrorHandler::OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid)
 {
-	UE_LOG(LogWorldPartition, Log, TEXT("Actor %s have missing reference to %s"), *ActorDescView.GetActorLabelOrName().ToString(), *ReferenceGuid.ToString());
+	UE_LOG(LogWorldPartition, Log, TEXT("Actor %s have missing reference to %s"), *GetFullActorName(ActorDescView), *ReferenceGuid.ToString());
 }
 
 void FStreamingGenerationLogErrorHandler::OnInvalidReferenceGridPlacement(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
@@ -16,27 +16,27 @@ void FStreamingGenerationLogErrorHandler::OnInvalidReferenceGridPlacement(const 
 	const FString SpatiallyLoadedActor(TEXT("Spatially loaded actor"));
 	const FString NonSpatiallyLoadedActor(TEXT("Non-spatially loaded loaded actor"));
 
-	UE_LOG(LogWorldPartition, Log, TEXT("%s %s reference %s %s"), ActorDescView.GetIsSpatiallyLoaded() ? *SpatiallyLoadedActor : *NonSpatiallyLoadedActor, *ActorDescView.GetActorLabelOrName().ToString(), ReferenceActorDescView.GetIsSpatiallyLoaded() ? *SpatiallyLoadedActor : *NonSpatiallyLoadedActor, *ReferenceActorDescView.GetActorLabelOrName().ToString());
+	UE_LOG(LogWorldPartition, Log, TEXT("%s %s reference %s %s"), ActorDescView.GetIsSpatiallyLoaded() ? *SpatiallyLoadedActor : *NonSpatiallyLoadedActor, *GetFullActorName(ActorDescView), ReferenceActorDescView.GetIsSpatiallyLoaded() ? *SpatiallyLoadedActor : *NonSpatiallyLoadedActor, *GetFullActorName(ReferenceActorDescView));
 }
 
 void FStreamingGenerationLogErrorHandler::OnInvalidReferenceDataLayers(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
 {
-	UE_LOG(LogWorldPartition, Log, TEXT("Actor %s references an actor in a different set of runtime data layers %s"), *ActorDescView.GetActorLabelOrName().ToString(), *ReferenceActorDescView.GetActorLabelOrName().ToString());
+	UE_LOG(LogWorldPartition, Log, TEXT("Actor %s references an actor in a different set of runtime data layers %s"), *GetFullActorName(ActorDescView), *GetFullActorName(ReferenceActorDescView));
 }
 
 void FStreamingGenerationLogErrorHandler::OnInvalidReferenceRuntimeGrid(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
 {
-	UE_LOG(LogWorldPartition, Log, TEXT("Actor %s references an actor in a different runtime grid %s"), *ActorDescView.GetActorLabelOrName().ToString(), *ReferenceActorDescView.GetActorLabelOrName().ToString());
+	UE_LOG(LogWorldPartition, Log, TEXT("Actor %s references an actor in a different runtime grid %s"), *GetFullActorName(ActorDescView), *GetFullActorName(ReferenceActorDescView));
 }
 
 void FStreamingGenerationLogErrorHandler::OnInvalidReferenceLevelScriptStreamed(const FWorldPartitionActorDescView& ActorDescView)
 {
-	UE_LOG(LogWorldPartition, Log, TEXT("Level Script Blueprint references streamed actor %s"), *ActorDescView.GetActorLabelOrName().ToString());
+	UE_LOG(LogWorldPartition, Log, TEXT("Level Script Blueprint references streamed actor %s"), *GetFullActorName(ActorDescView));
 }
 
 void FStreamingGenerationLogErrorHandler::OnInvalidReferenceLevelScriptDataLayers(const FWorldPartitionActorDescView& ActorDescView)
 {
-	UE_LOG(LogWorldPartition, Log, TEXT("Level Script Blueprint references streamed actor %s with a non empty set of data layers"), *ActorDescView.GetActorLabelOrName().ToString());
+	UE_LOG(LogWorldPartition, Log, TEXT("Level Script Blueprint references streamed actor %s with a non empty set of data layers"), *GetFullActorName(ActorDescView));
 }
 
 void FStreamingGenerationLogErrorHandler::OnInvalidReferenceDataLayerAsset(const UDataLayerInstanceWithAsset* DataLayerInstance)
@@ -56,13 +56,12 @@ void FStreamingGenerationLogErrorHandler::OnDataLayerAssetConflict(const UDataLa
 
 void FStreamingGenerationLogErrorHandler::OnActorNeedsResave(const FWorldPartitionActorDescView& ActorDescView)
 {
-	UE_LOG(LogWorldPartition, Log, TEXT("Actor %s needs to be resaved"), *ActorDescView.GetActorLabelOrName().ToString());
+	UE_LOG(LogWorldPartition, Log, TEXT("Actor %s needs to be resaved"), *GetFullActorName(ActorDescView));
 }
 
 void FStreamingGenerationLogErrorHandler::OnLevelInstanceInvalidWorldAsset(const FWorldPartitionActorDescView& ActorDescView, FName WorldAsset, ELevelInstanceInvalidReason Reason)
 {
-	const FSoftObjectPath ActorPath(ActorDescView.GetActorPath());
-	const FString ActorName = ActorPath.GetLongPackageName() + TEXT(".") + ActorDescView.GetActorLabelOrName().ToString();
+	const FString ActorName = GetFullActorName(ActorDescView);
 
 	switch (Reason)
 	{

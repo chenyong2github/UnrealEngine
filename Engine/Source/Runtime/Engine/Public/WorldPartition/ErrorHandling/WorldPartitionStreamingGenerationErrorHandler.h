@@ -74,5 +74,8 @@ public:
 	};
 
 	virtual void OnLevelInstanceInvalidWorldAsset(const FWorldPartitionActorDescView& ActorDescView, FName WorldAsset, ELevelInstanceInvalidReason Reason) = 0;
+
+	// Helpers
+	static FString GetFullActorName(const FWorldPartitionActorDescView& ActorDescView);
 };
 #endif
