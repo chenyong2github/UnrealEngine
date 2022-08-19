@@ -17,6 +17,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEnhancedInputEditor, Log, All);
 ////////////////////////////////////////////////////////////////////
 // FInputEditorModule
 
+class UInputAction;
 class SWindow;
 
 class FInputEditorModule : public IModuleInterface, public FTickableEditorObject
@@ -63,6 +64,15 @@ class INPUTEDITOR_API UInputMappingContext_Factory : public UFactory
 	GENERATED_UCLASS_BODY()
 public:
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
+
+	/** Set the array of initial actions that the resulting IMC should be populated with */
+	void SetInitialActions(TArray<TWeakObjectPtr<UInputAction>> InInitialActions);
+	
+protected:
+
+	/** An array of Input Actions that the mapping context should be populated with upon creation */
+	TArray<TWeakObjectPtr<UInputAction>> InitialActions;
+	
 };
 
 UCLASS()

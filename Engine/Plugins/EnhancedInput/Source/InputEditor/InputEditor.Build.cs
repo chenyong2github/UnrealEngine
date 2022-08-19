@@ -37,6 +37,8 @@ namespace UnrealBuildTool.Rules
 					"AssetTools",
 					"DeveloperSettings",
 					"EditorSubsystem",
+					"ToolMenus",
+					"ContentBrowser",
 					"SourceControl",
                 }
             );
