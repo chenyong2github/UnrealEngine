@@ -270,7 +270,7 @@ namespace Chaos
 			// Range of the chosen type (unsigned so Min is always 0)
 			static constexpr int32 StorageRange = TNumericLimits<StorageType>::Max();
 
-			static constexpr int32 LowResInc = 5;
+			static constexpr int32 LowResInc = 6;
 
 			// Heights in the chosen format. final placement of the vertex will be at
 			// MinValue + Heights[Index] * HeightPerUnit
@@ -406,6 +406,23 @@ namespace Chaos
 				OutBounds = FAABBVectorized(MakeVectorRegisterFloat((FRealSingle)X, (FRealSingle)Y, MinZ, 0.0f),
 											MakeVectorRegisterFloat((FRealSingle)X + 1, (FRealSingle)Y + 1, MaxZ, 0.0f));
 			}
+
+			FORCEINLINE void GetBoundsSimd(int32 Index, FAABBVectorized& OutBounds) const
+			{
+				const FRealSingle H0 = static_cast<FRealSingle>(MinValue + Heights[Index] * HeightPerUnit);
+				const FRealSingle H1 = static_cast<FRealSingle>(MinValue + Heights[Index + 1] * HeightPerUnit);
+				const FRealSingle H2 = static_cast<FRealSingle>(MinValue + Heights[Index + NumCols] * HeightPerUnit);
+				const FRealSingle H3 = static_cast<FRealSingle>(MinValue + Heights[Index + NumCols + 1] * HeightPerUnit);
+
+				const int32 X = Index % (NumCols);
+				const int32 Y = Index / (NumCols);
+				
+				const FRealSingle MinZ = FMath::Min<FRealSingle>(H0, FMath::Min<FRealSingle>(H1, FMath::Min<FRealSingle>(H2, H3)));
+				const FRealSingle MaxZ = FMath::Max<FRealSingle>(H0, FMath::Max<FRealSingle>(H1, FMath::Max<FRealSingle>(H2, H3)));
+
+				OutBounds = FAABBVectorized(MakeVectorRegisterFloat((FRealSingle)X, (FRealSingle)Y, MinZ, 0.0f),
+					MakeVectorRegisterFloat((FRealSingle)X + 1, (FRealSingle)Y + 1, MaxZ, 0.0f));
+			}
 			
 			FORCEINLINE void GetBounds(TVec2<int32> CellIdx, TVec2<int32> Area, FAABBVectorized& OutBounds) const
 			{
@@ -451,13 +468,10 @@ namespace Chaos
 
 			FORCEINLINE void GetLowResBounds(TVec2<int32> CellIdx, FAABBVectorized& OutBounds) const
 			{
-				int32 FirstIndexX = CellIdx[0];
-				int32 FirstIndexY = CellIdx[1];
+				const int32 IndexLowResX = CellIdx[0] / LowResInc;
+				const int32 IndexLowResY = CellIdx[1] / LowResInc;
 
-				const int32 FirstIndexLowResX = FirstIndexX / LowResInc;
-				const int32 FirstIndexLowResY = FirstIndexY / LowResInc;
-
-				const int32 Index = FirstIndexLowResY * (NumColsLowRes - 1) + FirstIndexLowResX + FirstIndexLowResY;
+				const int32 Index = IndexLowResY * (NumColsLowRes - 1) + IndexLowResX + IndexLowResY;
 				check(Index < LowResolutionHeights.Num());
 
 				FRealSingle MinHeight = LowResolutionHeights[Index].Min;
@@ -468,8 +482,8 @@ namespace Chaos
 				MinHeight = MinValueSingle + MinHeight * HeightPerUnitSingle;
 				MaxHeight = MinValueSingle + MaxHeight * HeightPerUnitSingle;
 
-				OutBounds = FAABBVectorized(MakeVectorRegisterFloat(static_cast<FRealSingle>(FirstIndexLowResX*LowResInc), static_cast<FRealSingle>(FirstIndexLowResY*LowResInc), MinHeight, 0.0f),
-					MakeVectorRegisterFloat(static_cast<FRealSingle>((FirstIndexLowResX+1) * LowResInc), static_cast<FRealSingle>((FirstIndexLowResY + 1) * LowResInc), MaxHeight, 0.0f));
+				OutBounds = FAABBVectorized(MakeVectorRegisterFloat(static_cast<FRealSingle>(IndexLowResX *LowResInc), static_cast<FRealSingle>(IndexLowResY *LowResInc), MinHeight, 0.0f),
+					MakeVectorRegisterFloat(static_cast<FRealSingle>((IndexLowResX +1) * LowResInc), static_cast<FRealSingle>((IndexLowResY + 1) * LowResInc), MaxHeight, 0.0f));
 			}
 
 			FORCEINLINE void GetPointsScaled(int32 Index, FVec3 OutPts[4]) const
@@ -511,9 +525,33 @@ namespace Chaos
 				OutBounds = FAABBVectorized(Min, Max);
 			}
 
+			FORCEINLINE void GetBoundsScaledSimd(int32 Index, FAABBVectorized& OutBounds) const
+			{
+				GetBoundsSimd(Index, OutBounds);
+
+				VectorRegister4Float P0 = VectorMultiply(OutBounds.GetMin(), ScaleSimd);
+				VectorRegister4Float P1 = VectorMultiply(OutBounds.GetMax(), ScaleSimd);
+				VectorRegister4Float Min = VectorMin(P0, P1);
+				VectorRegister4Float Max = VectorMax(P0, P1);
+
+				OutBounds = FAABBVectorized(Min, Max);
+			}
+
 			FORCEINLINE void GetBoundsScaled(TVec2<int32> CellIdx, TVec2<int32> Area, FAABBVectorized& OutBounds) const
 			{
 				GetBounds(CellIdx, Area, OutBounds);
+
+				VectorRegister4Float P0 = VectorMultiply(OutBounds.GetMin(), ScaleSimd);
+				VectorRegister4Float P1 = VectorMultiply(OutBounds.GetMax(), ScaleSimd);
+				VectorRegister4Float Min = VectorMin(P0, P1);
+				VectorRegister4Float Max = VectorMax(P0, P1);
+
+				OutBounds = FAABBVectorized(Min, Max);
+			}
+
+			FORCEINLINE void GetBoundsScaled(TVec2<int32> CellIdx, FAABBVectorized& OutBounds) const
+			{
+				GetBounds(CellIdx, OutBounds);
 
 				VectorRegister4Float P0 = VectorMultiply(OutBounds.GetMin(), ScaleSimd);
 				VectorRegister4Float P1 = VectorMultiply(OutBounds.GetMax(), ScaleSimd);
@@ -601,7 +639,12 @@ namespace Chaos
 				}
 
 				Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
-				if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::AddLowResolutionHeightField)
+				if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) == FUE5MainStreamObjectVersion::AddLowResolutionHeightField)
+				{
+					Ar << LowResolutionHeights;
+					Ar << NumColsLowRes;
+				}
+				else if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::DecreaseLowResolutionHeightField)
 				{
 					Ar << LowResolutionHeights;
 					Ar << NumColsLowRes;
@@ -881,6 +924,19 @@ namespace Chaos
 		// Query functions - sweep, ray, overlap
 		template<typename SQVisitor>
 		bool GridSweep(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FVec3 InHalfExtents, SQVisitor& Visitor) const;
+		
+		bool WalkSlow(TVec2<int32>& CellIdx, FHeightfieldRaycastVisitor& Visitor, FReal CurrentLength, const VectorRegister4Float& CurrentLengthSimd,
+			const FVec2& ScaledMin, FReal ZMidPoint, const FVec3& Dir, const FVec3& InvDir, bool bParallel[3], const FVec2& ScaledDx2D, FVec3& NextStart,
+			const FVec3& ScaleSign, const FVec3& ScaledDx, int32 IndexLowResX, int32 IndexLowResY) const;
+		
+		bool WalkFast(TVec2<int32>& CellIdx, FHeightfieldRaycastVisitor& Visitor, FReal CurrentLength, const VectorRegister4Float& CurrentLengthSimd,
+			const FVec2& ScaledMin, FReal ZMidPoint, const FVec3& Dir, const FVec3& InvDir, bool bParallel[3], const FVec2& ScaledDx2D, FVec3& NextStart,
+			const FVec3& ScaleSign, const FVec3& ScaledDx, const FVec2& Scale2D, const FVec3& DirScaled) const;
+
+		bool WalkOnLowRes(TVec2<int32>& CellIdx, FHeightfieldRaycastVisitor& Visitor, FReal CurrentLength, const VectorRegister4Float& CurrentLengthSimd,
+			const FVec2& ScaledMin, FReal ZMidPoint, const FVec3& Dir, const FVec3& InvDir, bool bParallel[3], const FVec2& ScaledDx2D, FVec3& NextStart,
+			const FVec3& ScaleSign, const FVec3& ScaledDx, const FVec2& Scale2D, const FVec3& DirScaled) const;
+
 		bool GridCast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, FHeightfieldRaycastVisitor& Visitor) const;
 		bool GetGridIntersections(FBounds2D InFlatBounds, TArray<TVec2<int32>>& OutInterssctions) const;
 		bool GetGridIntersectionsBatch(FBounds2D InFlatBounds, TArray<TVec2<int32>>& OutIntersections, const FAABBVectorized& Bounds) const;

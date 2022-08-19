@@ -265,6 +265,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Add low resolution data in Height Field
 		AddLowResolutionHeightField,
 
+		// Low resolution data in Height Field will store one height for (6x6) 36 cells
+		DecreaseLowResolutionHeightField,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
