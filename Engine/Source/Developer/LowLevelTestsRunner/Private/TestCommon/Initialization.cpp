@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TestCommon/Initialization.h"
-#include "TestCommon/ApplicationCoreUtilities.h"
 #include "TestCommon/CoreUtilities.h"
 #include "TestCommon/CoreUObjectUtilities.h"
 #include "TestCommon/EditorUtilities.h"
@@ -17,15 +16,6 @@ void InitAllThreadPoolsEditorEx(bool MultiThreaded)
 	InitAllThreadPools(MultiThreaded);
 }
 
-void InitOutputDevicesEx()
-{
-#if WITH_APPLICATION_CORE
-	InitOutputDevicesAppCore();
-#else
-	InitOutputDevices();
-#endif
-}
-
 void InitStats()
 {
 #if STATS
@@ -35,13 +25,11 @@ void InitStats()
 
 void InitAll(bool bAllowLogging, bool bMultithreaded)
 {
-	InitCommandLine(bAllowLogging);
 	InitAllThreadPools(bMultithreaded);
 #if WITH_ENGINE
 	InitAsyncQueues();
 #endif // WITH_ENGINE
 	InitTaskGraph();
-	InitOutputDevices();
 #if WITH_ENGINE
 	InitRendering();
 #endif // WITH_ENGINE

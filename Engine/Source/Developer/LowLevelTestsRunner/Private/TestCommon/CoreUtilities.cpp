@@ -10,28 +10,12 @@
 
 #include "TestCommon/CoreUtilities.h"
 
-void InitCommandLine(bool AllowLogging)
+void InitCommandLine()
 {
-	if (AllowLogging)
-	{
-		FCommandLine::Set(TEXT(""));
-	}
-	else
-	{
-		FCommandLine::Set(TEXT(R"(-LogCmds="global off")"));
-		FLogSuppressionInterface::Get().ProcessConfigAndCommandLine();
-	}
 }
 
 void CleanupCommandLine()
 {
-	FCommandLine::Reset();
-}
-
-void InitOutputDevices()
-{
-	GError = FPlatformOutputDevices::GetError();
-	GWarn = FPlatformOutputDevices::GetFeedbackContext();
 }
 
 void InitIOThreadPool(bool MultiThreaded, int32 StackSize)

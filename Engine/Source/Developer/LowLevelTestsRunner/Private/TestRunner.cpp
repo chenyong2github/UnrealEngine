@@ -1,29 +1,65 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "TestRunner.h"
+#include "TestRunnerPrivate.h"
+
+#include "HAL/PlatformOutputDevices.h"
 #include "HAL/PlatformTLS.h"
+#include "LowLevelTestModule.h"
 #include "Modules/ModuleManager.h"
 #include "Templates/SharedPointer.h"
-
-#include "TestRunner.h"
-#include "TestHarness.h"
-#include "TestGlobals.h"
-#include "LowLevelTestModule.h"
 #include "TestCommon/CoreUtilities.h"
-#include "TestListeners/ConsoleListener.h"
+#include "TestHarness.h"
+
+#if WITH_APPLICATION_CORE
+#include "HAL/PlatformApplicationMisc.h"
+#endif
 
 #include <catch2/catch_session.hpp>
 
-#include <set>
 #include <iostream>
+#include <set>
 
-bool bCatchIsRunning = false;
-bool bGAllowLogging = false;
-bool bGMultithreaded = false;
-bool bGDebug = false;
-bool bGGlobalSetup = true;
+namespace UE::LowLevelTests
+{
 
+static ITestRunner* GTestRunner;
 
-void LoadBaseTestModule(FString BaseModuleName)
+ITestRunner* ITestRunner::Get()
+{
+	return GTestRunner;
+}
+
+ITestRunner::ITestRunner()
+{
+	check(!GTestRunner);
+	GTestRunner = this;
+}
+
+ITestRunner::~ITestRunner()
+{
+	check(GTestRunner == this);
+	GTestRunner = nullptr;
+}
+
+class FTestRunner final : public ITestRunner
+{
+public:
+	bool HasGlobalSetup() const final { return bGlobalSetup; }
+	bool HasLogOutput() const final { return bLogOutput || bDebugMode; }
+	bool IsDebugMode() const final { return bDebugMode; }
+
+	void SetGlobalSetup(bool bInGlobalSetup) { bGlobalSetup = bInGlobalSetup; }
+	void SetLogOutput(bool bInLogOutput) { bLogOutput = bInLogOutput; }
+	void SetDebugMode(bool bInDebugMode) { bDebugMode = bInDebugMode; }
+
+private:
+	bool bGlobalSetup = true;
+	bool bLogOutput = false;
+	bool bDebugMode = false;
+};
+
+static void LoadBaseTestModule(const FString& BaseModuleName)
 {
 	if (!BaseModuleName.IsEmpty())
 	{
@@ -31,7 +67,7 @@ void LoadBaseTestModule(FString BaseModuleName)
 	}
 }
 
-void UnloadBaseTestModule(FString BaseModuleName)
+static void UnloadBaseTestModule(const FString& BaseModuleName)
 {
 	if (!BaseModuleName.IsEmpty())
 	{
@@ -39,42 +75,29 @@ void UnloadBaseTestModule(FString BaseModuleName)
 	}
 }
 
-void GlobalModuleSetup()
+static TArray<FName> GetGlobalModuleNames()
 {
-	// Search for all low level test modules
 	TArray<FName> ModuleNames;
 	FModuleManager::Get().FindModules(TEXT("*GlobalLowLevelTests"), ModuleNames);
+	return ModuleNames;
+}
 
-	if (ModuleNames.Num() <= 0)
+static void GlobalModuleSetup()
+{
+	for (FName ModuleName : GetGlobalModuleNames())
 	{
-		return;
-	}
-
-	for (FName ModuleName : ModuleNames)
-	{
-		ILowLevelTestsModule* Module = FModuleManager::LoadModulePtr<ILowLevelTestsModule>(ModuleName);
-		if (Module != nullptr)
+		if (ILowLevelTestsModule* Module = FModuleManager::LoadModulePtr<ILowLevelTestsModule>(ModuleName))
 		{
 			Module->GlobalSetup();
 		}
 	}
 }
 
-void GlobalModuleTeardown()
+static void GlobalModuleTeardown()
 {
-	// Search for all low level test modules
-	TArray<FName> ModuleNames;
-	FModuleManager::Get().FindModules(TEXT("*GlobalLowLevelTests"), ModuleNames);
-
-	if (ModuleNames.Num() <= 0)
+	for (FName ModuleName : GetGlobalModuleNames())
 	{
-		return;
-	}
-
-	for (FName ModuleName : ModuleNames)
-	{
-		ILowLevelTestsModule* Module = FModuleManager::GetModulePtr<ILowLevelTestsModule>(ModuleName);
-		if (Module != nullptr)
+		if (ILowLevelTestsModule* Module = FModuleManager::GetModulePtr<ILowLevelTestsModule>(ModuleName))
 		{
 			Module->GlobalTeardown();
 			if (Module->SupportsAutomaticShutdown())
@@ -85,15 +108,19 @@ void GlobalModuleTeardown()
 	}
 }
 
+} // UE::LowLevelTests
+
 int RunTests(int argc, const char* argv[])
 {
-	// remember thread id of the main thread
+	using namespace UE::LowLevelTests;
+
+	// Set up the Game Thread.
 	GGameThreadId = FPlatformTLS::GetCurrentThreadId();
 	GIsGameThreadIdInitialized = true;
 
 #ifdef SLEEP_ON_INIT
-	// Sleep to allow sync with Gauntlet
-	std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+	// Sleep to allow sync with Gauntlet.
+	FPlatformProcess::Sleep(5.0f);
 #endif
 
 	//Read command-line from file (if any). Some platforms do this earlier.
@@ -125,6 +152,9 @@ int RunTests(int argc, const char* argv[])
 	// By default don't wait for input
 	bool bWaitForInputToTerminate = false;
 
+	FTestRunner TestRunner;
+	bool bMultiThreaded = false;
+
 	FString BaseModuleName;
 
 	// Every argument that is not in the list of known low level test options and is considered to be a catch test runner argument.
@@ -142,35 +172,34 @@ int RunTests(int argc, const char* argv[])
 			}
 			if (std::strcmp(argv[i], "--log") == 0)
 			{
-				bGAllowLogging = true;
+				TestRunner.SetLogOutput(true);
 			}
 			else if (std::strcmp(argv[i], "--no-log") == 0)
 			{
-				bGAllowLogging = false;
+				TestRunner.SetLogOutput(false);
 			}
 			if (std::strcmp(argv[i], "--mt") == 0)
 			{
-				bGMultithreaded = true;
+				bMultiThreaded = true;
 			}
 			else if (std::strcmp(argv[i], "--no-mt") == 0)
 			{
-				bGMultithreaded = false;
+				bMultiThreaded = false;
 			}
 			if (std::strcmp(argv[i], "--global-setup") == 0)
 			{
-				bGGlobalSetup = true;
+				TestRunner.SetGlobalSetup(true);
 			}
 			else if (std::strcmp(argv[i], "--no-global-setup") == 0)
 			{
-				bGGlobalSetup = false;
+				TestRunner.SetGlobalSetup(false);
 			}
 			if (std::strcmp(argv[i], "--debug") == 0)
 			{
-				bGDebug = true;
+				TestRunner.SetDebugMode(true);
 			}
 			// If we have --base-global-module parse proceeding argument as its option-value
-			if (std::strcmp(argv[i], "--base-global-module") == 0 &&
-				i + 1 < argc)
+			if (std::strcmp(argv[i], "--base-global-module") == 0 && i + 1 < argc)
 			{
 				BaseModuleName = argv[i + 1];
 				++i;
@@ -183,12 +212,36 @@ int RunTests(int argc, const char* argv[])
 		}
 	}
 
-	//add break by default to break in debugger on test failures when attached
+	// Break in the debugger on failed assertions when attached.
 	CatchArgv.Get()[CatchArgc++] = "--break";
 
-	if (bGGlobalSetup)
-	{	
-		InitCommandLine(bGAllowLogging);
+	if (TestRunner.HasGlobalSetup())
+	{
+		FCommandLine::Set(TEXT(""));
+
+		// Finish setting up the Game Thread, which requires the command line.
+		FPlatformProcess::SetThreadAffinityMask(FPlatformAffinity::GetMainGameMask());
+		FPlatformProcess::SetupGameThread();
+
+		// Always set up GError to handle FatalError, failed assertions, and crashes and other fatal errors.
+	#if WITH_APPLICATION_CORE
+		GError = FPlatformApplicationMisc::GetErrorOutputDevice();
+	#else
+		GError = FPlatformOutputDevices::GetError();
+	#endif
+
+		if (TestRunner.HasLogOutput())
+		{
+			// Set up GWarn to handle Error, Warning, Display; but only when log output is enabled.
+		#if WITH_APPLICATION_CORE
+			GWarn = FPlatformApplicationMisc::GetFeedbackContext();
+		#else
+			GWarn = FPlatformOutputDevices::GetFeedbackContext();
+		#endif
+
+			// Set up default output devices to handle Log, Verbose, VeryVerbose.
+			FPlatformOutputDevices::SetupOutputDevices();
+		}
 
 		LoadBaseTestModule(BaseModuleName);
 
@@ -197,12 +250,11 @@ int RunTests(int argc, const char* argv[])
 
 	int SessionResult = 0;
 	{
-		TGuardValue<bool> CatchRunning(bCatchIsRunning, true);
 		SessionResult = Catch::Session().run(CatchArgc, CatchArgv.Get());
 		CatchArgv.Reset();
 	}
 
-	if (bGGlobalSetup)
+	if (TestRunner.HasGlobalSetup())
 	{
 		GlobalModuleTeardown();
 
@@ -210,7 +262,7 @@ int RunTests(int argc, const char* argv[])
 
 		CleanupPlatform();
 
-		CleanupCommandLine();
+		FCommandLine::Reset();
 	}
 
 #if PLATFORM_DESKTOP
@@ -222,4 +274,4 @@ int RunTests(int argc, const char* argv[])
 #endif
 
 	return SessionResult;
-};
+}
