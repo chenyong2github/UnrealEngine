@@ -21,6 +21,6 @@ public class AssetRegistry : ModuleRules
 			DynamicallyLoadedModuleNames.AddRange(new string[] { "DirectoryWatcher" });
 		}
 
-		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }
