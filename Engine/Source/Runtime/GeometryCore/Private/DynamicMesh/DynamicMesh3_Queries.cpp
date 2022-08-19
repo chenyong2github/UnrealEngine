@@ -147,7 +147,6 @@ EMeshResult FDynamicMesh3::GetVtxTriangles(int vID, TArray<int>& TrianglesOut) c
 			{
 				TrianglesOut.Add(Edge.Tri[0]);
 			}
-			const int et1 = Edge.Tri[1];
 			if (Edge.Tri[1] != InvalidID && TriHasSequentialVertices(Edge.Tri[1], vID, vOther))
 			{
 				TrianglesOut.Add(Edge.Tri[1]);
