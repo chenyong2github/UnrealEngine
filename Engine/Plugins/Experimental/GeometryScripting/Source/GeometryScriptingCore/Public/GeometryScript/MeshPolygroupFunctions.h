@@ -69,6 +69,17 @@ public:
 		int MinGroupSize = 2,
 		UGeometryScriptDebug* Debug = nullptr );
 
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Polygroups", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ComputePolygroupsFromPolygonDetection( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptGroupLayer GroupLayer,
+		bool bRespectUVSeams = true,
+		bool bRespectHardNormals = false,
+		double QuadAdjacencyWeight = 1.0,
+		double QuadMetricClamp = 1.0,
+		int MaxSearchRounds = 1,
+		UGeometryScriptDebug* Debug = nullptr );
 
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Polygroups", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Polygroup ID") int32
