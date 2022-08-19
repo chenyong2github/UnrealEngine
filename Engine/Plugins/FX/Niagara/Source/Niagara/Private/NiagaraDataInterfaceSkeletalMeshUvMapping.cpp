@@ -74,7 +74,7 @@ struct FQuadTreeQueryHelper
 				return false;
 			}
 
-			return false;
+			return true;
 		});
 
 		return FoundTriangleIndex;
