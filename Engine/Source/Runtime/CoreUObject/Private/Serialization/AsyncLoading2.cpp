@@ -2279,8 +2279,8 @@ private:
 	TMap<UClass*, TArray<FEventLoadNode2*>> PendingCDOs;
 	TArray<UClass*> PendingCDOsRecursiveStack;
 
-	/** [ASYNC/GAME THREAD] Unreachable objects from last NotifyUnreachableObjects callback from GC.
-	 * Protected by FGCScopeGuard */
+	/** [ASYNC/GAME THREAD] Unreachable objects from last NotifyUnreachableObjects callback from GC. */
+	FCriticalSection UnreachableObjectsCritical;
 	FUnreachableObjects UnreachableObjects;
 
 	uint32 ConditionalBeginPostLoadTick = 0;
@@ -5490,7 +5490,10 @@ uint32 FAsyncLoadingThread2::Run()
 
 				{
 					FGCScopeGuard GCGuard;
-					RemoveUnreachableObjects(UnreachableObjects);
+					{
+						FScopeLock UnreachableObjectsLock(&UnreachableObjectsCritical);
+						RemoveUnreachableObjects(UnreachableObjects);
+					}
 
 					if (bShouldWaitForExternalReads)
 					{
@@ -5779,6 +5782,7 @@ FORCENOINLINE static void FilterUnreachableObjects(
 
 void FAsyncLoadingThread2::OnLeakedPackageRename(UPackage* Package)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(OnLeakedPackageRename);
 	check(IsInGameThread());
 	
 	if (!FGCCSyncObject::Get().IsGCLocked())
@@ -5792,6 +5796,12 @@ void FAsyncLoadingThread2::OnLeakedPackageRename(UPackage* Package)
 	{
 		return;
 	}
+
+	FScopeLock UnreachableObjectsLock(&UnreachableObjectsCritical);
+
+	// unreachable objects from last GC should typically have been processed already,
+	// if not handle them here before processing new ones
+	RemoveUnreachableObjects(UnreachableObjects);
 
 	// If a package that can be imported was leaked and renamed,
 	// then it must exist in the loaded package store at this point since it is normally only trimmed during GC.
@@ -5862,6 +5872,8 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 	{
 		return;
 	}
+
+	FScopeLock UnreachableObjectsLock(&UnreachableObjectsCritical);
 
 	// unreachable objects from last GC should typically have been processed already,
 	// if not handle them here before adding new ones
