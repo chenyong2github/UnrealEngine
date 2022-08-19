@@ -71,6 +71,25 @@ public:
 	void Pause();
 
 	/**
+	 * Rewinds the media to the beginning.
+	 *
+	 * This is the same as seeking to zero time.
+	 *
+	 * @return				True if rewinding, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")
+	bool Rewind();
+
+	/**
+	 * Call this to seek to the specified playback time.
+	 * 
+	 * @param Time			Time to seek to.
+	 * @return				True on success, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")
+	bool Seek(const FTimespan& Time);
+
+	/**
 	 * Call this to close the media.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")

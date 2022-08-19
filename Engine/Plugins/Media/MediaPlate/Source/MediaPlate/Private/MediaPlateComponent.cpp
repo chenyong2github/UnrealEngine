@@ -242,6 +242,21 @@ void UMediaPlateComponent::Pause()
 	}
 }
 
+bool UMediaPlateComponent::Rewind()
+{
+	return Seek(FTimespan::Zero());
+}
+
+bool UMediaPlateComponent::Seek(const FTimespan& Time)
+{
+	if (MediaPlayer != nullptr)
+	{
+		return MediaPlayer->Seek(Time);
+	}
+
+	return false;
+}
+
 void UMediaPlateComponent::Close()
 {
 	if (MediaPlayer != nullptr)
