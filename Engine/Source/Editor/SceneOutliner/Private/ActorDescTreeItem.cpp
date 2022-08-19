@@ -272,8 +272,11 @@ void FActorDescTreeItem::FocusActorBounds() const
 	{
 		if (FLevelEditorViewportClient* LevelViewportClient = GCurrentLevelEditingViewportClient)
 		{
-			LevelViewportClient->FocusViewportOnBox(ActorDesc->GetBounds(), false);
-		}	
+			FBox Bounds = ActorDesc->GetBounds();
+			LevelViewportClient->FocusViewportOnBox(Bounds, false);
+			const FColor DarkGray(40, 40, 40);
+			DrawDebugBox(ActorDesc->GetContainer()->GetWorld(), Bounds.GetCenter(), Bounds.GetExtent(), DarkGray, false, 0.5f);
+		}
 	}
 }
 

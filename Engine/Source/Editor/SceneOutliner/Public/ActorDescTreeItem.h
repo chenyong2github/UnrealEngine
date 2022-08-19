@@ -59,11 +59,12 @@ public:
 	virtual const FGuid& GetGuid() const override { return ActorGuid; }
 	/* End IActorBaseTreeItem Implementation */
 
+	void FocusActorBounds() const;
+
 protected:
 	FString DisplayString;
 
 private:
-	void FocusActorBounds() const;
 	void CopyActorFilePathtoClipboard() const;
 	FGuid ActorGuid;
 };
