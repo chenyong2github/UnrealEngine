@@ -4419,7 +4419,7 @@ void FHeaderParser::GetVarType(
 						if (VariableCategory == EVariableCategory::Member)
 						{
 							// TODO: Remove exclusion for plugins under engine when all plugins have had their raw pointers converted.
-							ConditionalLogPointerUsage(bIsCurrentModulePartOfEngine && !PackageDef.GetModule().BaseDirectory.Contains(TEXT("/Plugins/")) ? UHTConfig.EngineNativePointerMemberBehavior : UHTConfig.NonEngineNativePointerMemberBehavior,
+							ConditionalLogPointerUsage(bIsCurrentModulePartOfEngine ? UHTConfig.EngineNativePointerMemberBehavior : UHTConfig.NonEngineNativePointerMemberBehavior,
 								TEXT("Native pointer"), FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar(), TEXT("TObjectPtr"));
 
 							MatchIdentifier(TEXT("const"), ESearchCase::CaseSensitive);
@@ -4430,7 +4430,7 @@ void FHeaderParser::GetVarType(
 					else if ((PropertyType == CPT_ObjectPtrReference) && (VariableCategory == EVariableCategory::Member))
 					{
 						// TODO: Remove exclusion for plugins under engine when all plugins have had their raw pointers converted.
-						ConditionalLogPointerUsage(bIsCurrentModulePartOfEngine && !PackageDef.GetModule().BaseDirectory.Contains(TEXT("/Plugins/")) ? UHTConfig.EngineObjectPtrMemberBehavior : UHTConfig.NonEngineObjectPtrMemberBehavior,
+						ConditionalLogPointerUsage(bIsCurrentModulePartOfEngine ? UHTConfig.EngineObjectPtrMemberBehavior : UHTConfig.NonEngineObjectPtrMemberBehavior,
 							TEXT("ObjectPtr"), FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar(), nullptr);
 					}
 
