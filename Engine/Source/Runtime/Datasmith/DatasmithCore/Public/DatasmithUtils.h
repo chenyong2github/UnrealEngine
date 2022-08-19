@@ -184,13 +184,13 @@ public:
 
 class DATASMITHCORE_API FDatasmithMeshUtils
 {
-public:
 	/**
 	 * @param bValidateRawMesh this boolean indicate if the raw must be valid.
 	 * For example a collision mesh don't need to have a valid raw mesh
 	 */
 	static bool ToRawMesh(const FDatasmithMesh& Mesh, FRawMesh& RawMesh, bool bValidateRawMesh = true);
 
+public:
 	enum EUvGenerationPolicy
 	{
 		Ignore, // do not generate a default UV. Conversion fails when no UV is available
