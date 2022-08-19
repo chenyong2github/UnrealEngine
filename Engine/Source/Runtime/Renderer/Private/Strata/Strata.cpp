@@ -51,7 +51,7 @@ static TAutoConsoleVariable<int32> CVarMaterialRoughDiffuse(
 // STRATA_TODO we keep this for now and can remove it once battletested.
 static TAutoConsoleVariable<int32> CVarUseCmaskClear(
 	TEXT("r.Strata.UseCmaskClear"),
-	1,
+	0,
 	TEXT("TEST."),
 	ECVF_RenderThreadSafe);
 
