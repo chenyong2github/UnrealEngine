@@ -564,7 +564,6 @@ public:
 	inline int32 GetVisibilityId() const { return VisibilityId; }
 	inline int16 GetTranslucencySortPriority() const { return TranslucencySortPriority; }
 	inline float GetTranslucencySortDistanceOffset() const { return TranslucencySortDistanceOffset; }
-	inline bool HasMotionBlurVelocityMeshes() const { return bHasMotionBlurVelocityMeshes; }
 
 	inline int32 GetVirtualTextureLodBias() const { return VirtualTextureLodBias; }
 	inline int32 GetVirtualTextureCullMips() const { return VirtualTextureCullMips; }
@@ -1085,9 +1084,6 @@ private:
 
 	/** true if ViewOwnerDepthPriorityGroup should be used. */
 	uint8 bUseViewOwnerDepthPriorityGroup : 1;
-
-	/** true if the primitive has motion blur velocity meshes */
-	uint8 bHasMotionBlurVelocityMeshes : 1;
 
 	/** DPG this prim belongs to. */
 	uint8 StaticDepthPriorityGroup : SDPG_NumBits;

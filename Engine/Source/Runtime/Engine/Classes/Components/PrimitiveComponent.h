@@ -363,10 +363,6 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=LOD)
 	uint8 bAllowCullDistanceVolume:1;
 
-	/** True if the primitive has motion blur velocity meshes */
-	UPROPERTY()
-	uint8 bHasMotionBlurVelocityMeshes:1;
-	
 	/** If true, this component will be visible in reflection captures. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Rendering)
 	uint8 bVisibleInReflectionCaptures:1;
