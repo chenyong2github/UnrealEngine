@@ -2670,7 +2670,7 @@ namespace VulkanRHI
 		uint32 Alignment = CalculateBufferAlignmentFromVKUsageFlags(InDevice, VulkanBufferUsage);
 
 #if VULKAN_RHI_RAYTRACING
-		if (EnumHasAnyFlags(InUEUsage, BUF_RayTracingScratch))
+		if (EnumHasAllFlags(InUEUsage, BUF_RayTracingScratch))
 		{
 			Alignment = GRHIRayTracingScratchBufferAlignment;
 		}
