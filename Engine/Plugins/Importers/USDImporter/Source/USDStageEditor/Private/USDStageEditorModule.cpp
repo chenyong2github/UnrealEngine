@@ -29,6 +29,7 @@ namespace UE::UsdStageEditorModule::Private
 {
 	void SaveStageActorLayersForWorld( UWorld* World, bool bForClosing, AUsdStageActor* TargetStageActor = nullptr )
 	{
+#if USE_USD_SDK
 		if ( !World )
 		{
 			return;
@@ -209,6 +210,7 @@ namespace UE::UsdStageEditorModule::Private
 				}
 			}
 		}
+#endif // USE_USD_SDK
 	}
 }
 
