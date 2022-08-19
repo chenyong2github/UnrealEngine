@@ -14,6 +14,9 @@
 #include "UObject/RenderingObjectVersion.h"
 #include "GenerateMips.h"
 #include "RenderGraphUtils.h"
+#if WITH_EDITOR
+#include "Components/SceneCaptureComponent2D.h"
+#endif
 
 int32 GTextureRenderTarget2DMaxSizeX = 999999999;
 int32 GTextureRenderTarget2DMaxSizeY = 999999999;
@@ -209,6 +212,23 @@ void UTextureRenderTarget2D::PostEditChangeProperty(FPropertyChangedEvent& Prope
 
     // SRGB may have been changed by Super, reset it since we prefer to honor explicit user choice
 	SRGB = IsSRGB();
+
+	// If this is an interactive size edit, notify any scene capture component that points to this render target that it needs to refresh.
+	// During interactive edits, time is paused, so the Tick function which normally handles capturing isn't called.
+	static const FName SizeXName = GET_MEMBER_NAME_CHECKED(UTextureRenderTarget2D, SizeX);
+	static const FName SizeYName = GET_MEMBER_NAME_CHECKED(UTextureRenderTarget2D, SizeY);
+
+	if ((PropertyChangedEvent.ChangeType & EPropertyChangeType::Interactive) && (PropertyChangedEvent.GetPropertyName() == SizeXName || PropertyChangedEvent.GetPropertyName() == SizeYName))
+	{
+		for (TObjectIterator<USceneCaptureComponent2D> It; It; ++It)
+		{
+			USceneCaptureComponent2D* SceneCaptureComponent = *It;
+			if (SceneCaptureComponent->TextureTarget == this)
+			{
+				SceneCaptureComponent->CaptureSceneDeferred();
+			}
+		}
+	}
 }
 #endif // WITH_EDITOR
 

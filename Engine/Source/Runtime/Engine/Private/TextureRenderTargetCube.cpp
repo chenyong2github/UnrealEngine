@@ -12,6 +12,9 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Engine/TextureCube.h"
 #include "ClearQuad.h"
+#if WITH_EDITOR
+#include "Components/SceneCaptureComponentCube.h"
+#endif
 
 /*-----------------------------------------------------------------------------
 	UTextureRenderTargetCube
@@ -108,6 +111,22 @@ void UTextureRenderTargetCube::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	SizeX = FMath::Clamp<int32>(SizeX - (SizeX % GPixelFormats[Format].BlockSizeX),1,MaxSize);
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	// If this is an interactive size edit, notify any scene capture component that points to this render target that it needs to refresh.
+	// During interactive edits, time is paused, so the Tick function which normally handles capturing isn't called.
+	static const FName SizeXName = GET_MEMBER_NAME_CHECKED(UTextureRenderTargetCube, SizeX);
+
+	if ((PropertyChangedEvent.ChangeType & EPropertyChangeType::Interactive) && PropertyChangedEvent.GetPropertyName() == SizeXName)
+	{
+		for (TObjectIterator<USceneCaptureComponentCube> It; It; ++It)
+		{
+			USceneCaptureComponentCube* SceneCaptureComponent = *It;
+			if (SceneCaptureComponent->TextureTarget == this)
+			{
+				SceneCaptureComponent->CaptureSceneDeferred();
+			}
+		}
+	}
 }
 #endif // WITH_EDITOR
 
