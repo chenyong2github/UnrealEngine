@@ -1984,7 +1984,7 @@ void UOptimusDeformer::PostLoad()
 		{
 			if (Binding->bIsPrimaryBinding)
 			{
-				Binding->Rename(*PrimaryBindingName.ToString(), nullptr, REN_NonTransactional);
+				Binding->Rename(*PrimaryBindingName.ToString(), nullptr, REN_ForceNoResetLoaders | REN_NonTransactional);
 				Binding->BindingName = PrimaryBindingName;
 			}
 		}
