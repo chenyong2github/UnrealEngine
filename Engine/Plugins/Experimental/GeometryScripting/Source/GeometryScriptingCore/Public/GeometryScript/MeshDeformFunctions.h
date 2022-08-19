@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GeometryScript/GeometryScriptTypes.h"
+#include "GeometryScript/GeometryScriptSelectionTypes.h"
 #include "MeshDeformFunctions.generated.h"
 
 class UDynamicMesh;
@@ -138,6 +139,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bApplyAlongNormal = true;
+
+	/** EmptyBehavior Defines how an empty input selection should be interpreted */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	EGeometryScriptEmptySelectionBehavior EmptyBehavior = EGeometryScriptEmptySelectionBehavior::FullMeshSelection;
 };
 
 
@@ -151,6 +156,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	float Alpha = 0.2;
+
+	/** EmptyBehavior Defines how an empty input selection should be interpreted */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	EGeometryScriptEmptySelectionBehavior EmptyBehavior = EGeometryScriptEmptySelectionBehavior::FullMeshSelection;
 };
 
 
@@ -175,6 +184,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	int ImageChannel = 0;
+
+	/** EmptyBehavior Defines how an empty input selection should be interpreted */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	EGeometryScriptEmptySelectionBehavior EmptyBehavior = EGeometryScriptEmptySelectionBehavior::FullMeshSelection;
 };
 
 
@@ -233,6 +246,7 @@ public:
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyPerlinNoiseToMesh(  
 		UDynamicMesh* TargetMesh, 
+		FGeometryScriptMeshSelection Selection,
 		FGeometryScriptPerlinNoiseOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
@@ -240,6 +254,7 @@ public:
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyIterativeSmoothingToMesh(  
 		UDynamicMesh* TargetMesh, 
+		FGeometryScriptMeshSelection Selection,
 		FGeometryScriptIterativeMeshSmoothingOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
@@ -249,15 +264,21 @@ public:
 	ApplyDisplaceFromTextureMap(  
 		UDynamicMesh* TargetMesh, 
 		UTexture2D* Texture,
+		FGeometryScriptMeshSelection Selection,
 		FGeometryScriptDisplaceFromTextureOptions Options,
 		int32 UVLayer = 0,
 		UGeometryScriptDebug* Debug = nullptr);
 
-	
+	/**
+	 * Add the vectors in VectorList, scaled by Magnitude, to the vertex positions in TargetMesh.
+	 * VectorList Length must be >= the as TargetMesh MaxVertexID.
+	 * @param Selection if non-empty, only the vertices identified by the selection will be displaced. The VectorList must still be the same size as the whole mesh, this is just a filter on which vertices are updated.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Deformations", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyDisplaceFromPerVertexVectors(  
 		UDynamicMesh* TargetMesh,
+		FGeometryScriptMeshSelection Selection,
 		const FGeometryScriptVectorList& VectorList, 
 		float Magnitude = 5.0,
 		UGeometryScriptDebug* Debug = nullptr);
