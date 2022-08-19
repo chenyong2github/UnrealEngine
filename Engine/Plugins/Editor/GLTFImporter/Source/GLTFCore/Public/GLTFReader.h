@@ -60,6 +60,8 @@ namespace GLTF
 		void SetupObjects(uint32 ObjectCount, const TCHAR* FieldName, SetupFunc Func) const;
 		void SetupNodesType() const;
 
+		void BuildParentIndices(int32 ParentNodeIndex, int32 CurrentNodeIndex) const;
+
 	private:
 		uint32 BufferCount;
 		uint32 BufferViewCount;

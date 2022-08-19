@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GLTFLogger.h"
+#include "MeshTypes.h"
 
 struct FMeshDescription;
 
@@ -18,6 +19,8 @@ namespace GLTF
 		FMeshFactory();
 		~FMeshFactory();
 
+		using FIndexVertexIdMap = TMap<int32, FVertexID>;
+
 		void FillMeshDescription(const GLTF::FMesh &Mesh, FMeshDescription* MeshDescription);
 
 		float GetUniformScale() const;
@@ -26,6 +29,8 @@ namespace GLTF
 		const TArray<FLogMessage>&  GetLogMessages() const;
 
 		void SetReserveSize(uint32 Size);
+
+		TArray<FMeshFactory::FIndexVertexIdMap>& GetPositionIndexToVertexIdPerPrim() const;
 
 		void CleanUp();
 

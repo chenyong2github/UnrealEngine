@@ -37,12 +37,15 @@ namespace GLTF
 		int32 CameraIndex;  // index into FAsset::Cameras
 		int32 LightIndex;   // index into FAsset::Lights
 
+		int32 ParentIndex;
+
 		FNode()
 		    : Type(EType::None)
 		    , MeshIndex(INDEX_NONE)
 		    , Skindex(INDEX_NONE)
 		    , CameraIndex(INDEX_NONE)
 		    , LightIndex(INDEX_NONE)
+			, ParentIndex(INDEX_NONE)
 		{
 		}
 	};

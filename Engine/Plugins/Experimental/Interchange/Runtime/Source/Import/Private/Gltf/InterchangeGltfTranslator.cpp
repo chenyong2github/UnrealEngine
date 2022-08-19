@@ -17,6 +17,9 @@
 #include "InterchangeShaderGraphNode.h"
 #include "InterchangeTexture2DNode.h"
 #include "InterchangeVariantSetNode.h"
+#include "Nodes/InterchangeSourceNode.h"
+
+#include "Nodes/InterchangeAnimationAPI.h"
 
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Texture/InterchangeImageWrapperTranslator.h"
@@ -24,7 +27,14 @@
 #include "Algo/Find.h"
 #include "Async/Async.h"
 #include "StaticMeshAttributes.h"
+#include "SkeletalMeshAttributes.h"
 #include "UObject/GCObjectScopeGuard.h"
+
+#include "StaticMeshOperations.h"
+#include "SkeletalMeshOperations.h"
+
+#include "Gltf/InterchangeGltfPrivate.h"
+
 
 static bool GInterchangeEnableGLTFImport = true;
 static FAutoConsoleVariableRef CCvarInterchangeEnableGLTFImport(
@@ -33,7 +43,6 @@ static FAutoConsoleVariableRef CCvarInterchangeEnableGLTFImport(
 	TEXT("Whether glTF support is enabled."),
 	ECVF_Default);
 
-// is not supported yet
 static const TArray<FString> SupportedExtensions = {/* Lights */
 														//TEXT("KHR_lights_punctual"), TEXT("KHR_lights"), //not supported yet
 													/* Variants */
@@ -62,82 +71,6 @@ namespace UE::Interchange::Gltf::Private
 		}
 	}
 
-	void GetAnimationTransformPayloadData(const GLTF::FAnimation& Animation, int32 ChannelIndex, UE::Interchange::FAnimationCurvePayloadData& OutPayloadData)
-	{
-		const GLTF::FAnimation::FChannel& Channel = Animation.Channels[ChannelIndex];
-		const GLTF::FAnimation::FSampler& Sampler = Animation.Samplers[Channel.Sampler];
-
-		TArray<float> FrameTimeBuffer;
-		TArray<float> FrameDataBuffer;
-
-		Sampler.Input.GetFloatArray(FrameTimeBuffer);
-
-		ERichCurveInterpMode InterpolationMode = static_cast<ERichCurveInterpMode>(Sampler.Interpolation);
-
-		TFunction<void(TFunction<FVector3f(const float*)>, int32, int32, bool)> ConvertCurve = [InterpolationMode, &FrameTimeBuffer, &FrameDataBuffer, &OutPayloadData](TFunction<FVector3f(const float*)> ConvertSample, int32 CurvesIndexOffset, int32 SampleSize, bool bUnwindRotation)
-		{
-			const int32 SampleCount = FrameDataBuffer.Num() / SampleSize;
-
-			FRichCurve& Curve0 = OutPayloadData.Curves[CurvesIndexOffset + 0];
-			FRichCurve& Curve1 = OutPayloadData.Curves[CurvesIndexOffset + 1];
-			FRichCurve& Curve2 = OutPayloadData.Curves[CurvesIndexOffset + 2];
-
-			for (int32 SampleIndex = 0; SampleIndex < SampleCount; ++SampleIndex)
-			{
-				const float* RawSample = FrameDataBuffer.GetData() + (SampleIndex * SampleSize);
-
-				FVector3f Sample = ConvertSample(RawSample);
-
-				FKeyHandle Key0 = Curve0.AddKey(FrameTimeBuffer[SampleIndex], Sample[0], bUnwindRotation);
-				FKeyHandle Key1 = Curve1.AddKey(FrameTimeBuffer[SampleIndex], Sample[1], bUnwindRotation);
-				FKeyHandle Key2 = Curve2.AddKey(FrameTimeBuffer[SampleIndex], Sample[2], bUnwindRotation);
-
-				Curve0.SetKeyInterpMode(Key0, InterpolationMode);
-				Curve1.SetKeyInterpMode(Key1, InterpolationMode);
-				Curve2.SetKeyInterpMode(Key2, InterpolationMode);
-			}
-		};
-
-		switch (Channel.Target.Path)
-		{
-			case GLTF::FAnimation::EPath::Translation:
-			{
-				FrameDataBuffer.SetNumUninitialized(Sampler.Output.Count * 3);
-				Sampler.Output.GetCoordArray(reinterpret_cast<FVector3f*>(FrameDataBuffer.GetData()));
-				const float Scale = 100.f; // Convert m to cm
-				ConvertCurve([&Scale](const float* VecData)
-					{
-						return FVector3f(VecData[0] * Scale, VecData[1] * Scale, VecData[2] * Scale);
-					}, 0, 3, false);
-				break;
-			}
-			case GLTF::FAnimation::EPath::Rotation:
-			{
-				FrameDataBuffer.SetNumUninitialized(Sampler.Output.Count * 4);
-				Sampler.Output.GetQuatArray(reinterpret_cast<FVector4f*>(FrameDataBuffer.GetData()));
-				ConvertCurve([](const float* QuatData)
-					{
-						const FQuat4f Quat(QuatData[0], QuatData[1], QuatData[2], QuatData[3]);
-						return Quat.Euler();
-					}, 3, 4, true);
-				break;
-			}
-			case GLTF::FAnimation::EPath::Scale:
-			{
-				FrameDataBuffer.SetNumUninitialized(Sampler.Output.Count * 3);
-				Sampler.Output.GetCoordArray(reinterpret_cast<FVector3f*>(FrameDataBuffer.GetData()));
-				ConvertCurve([](const float* VecData)
-					{
-						return FVector3f(VecData[0], VecData[1], VecData[2]);
-					}, 6, 3, false);
-				break;
-			}
-			default:
-				UE_LOG(LogInterchangeImport, Warning, TEXT("Animation type not supported"));
-				break;
-		}
-	}
-
 	bool CheckForVariants(const GLTF::FMesh& Mesh, int32 VariantCount, int32 MaterialCount)
 	{
 		for (const GLTF::FPrimitive& Primitive : Mesh.Primitives)
@@ -159,9 +92,17 @@ namespace UE::Interchange::Gltf::Private
 
 		return false;
 	}
+
+	void ScaleNodeTranslations(TArray<GLTF::FNode>& Nodes, float Scale)
+	{
+		for (GLTF::FNode& Node : Nodes)
+		{
+			Node.Transform.SetTranslation(Node.Transform.GetTranslation() * Scale);
+		}
+	}
 }
 
-void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FNode& GltfNode, const FString& ParentNodeUid, const int32 NodeIndex, bool &bHasVariants ) const
+void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FNode& GltfNode, const FString& ParentNodeUid, const int32 NodeIndex, bool &bHasVariants, TArray<int32>& SkinnedMeshNodes ) const
 {
 	using namespace UE::Interchange::Gltf::Private;
 
@@ -177,11 +118,27 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 
 	FTransform Transform = GltfNode.Transform;
 
-	constexpr float MetersToCentimeters = 100.f;
-	Transform.SetTranslation( Transform.GetTranslation() * MetersToCentimeters );
+	Transform.SetTranslation( Transform.GetTranslation());
 
 	switch ( GltfNode.Type )
 	{
+		case GLTF::FNode::EType::MeshSkinned:
+		{
+			SkinnedMeshNodes.Add(NodeIndex);
+
+			if (!bHasVariants && GltfAsset.Variants.Num() > 0)
+			{
+				bHasVariants |= CheckForVariants(GltfAsset.Meshes[GltfNode.MeshIndex], GltfAsset.Variants.Num(), GltfAsset.Materials.Num());
+			}
+			break;
+		}
+
+		case GLTF::FNode::EType::Joint:
+		{
+			InterchangeSceneNode->AddSpecializedType(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString());
+			break;
+		}
+
 		case GLTF::FNode::EType::Mesh:
 		{
 			if ( GltfAsset.Meshes.IsValidIndex( GltfNode.MeshIndex ) )
@@ -240,7 +197,7 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 	{
 		if ( GltfAsset.Nodes.IsValidIndex( ChildIndex ) )
 		{
-			HandleGltfNode( NodeContainer, GltfAsset.Nodes[ ChildIndex ], NodeUid, ChildIndex, bHasVariants );
+			HandleGltfNode( NodeContainer, GltfAsset.Nodes[ ChildIndex ], NodeUid, ChildIndex, bHasVariants, SkinnedMeshNodes );
 		}
 	}
 }
@@ -852,6 +809,8 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 	const bool bLoadMetaData = false;
 	GltfFileReader.ReadFile( FilePath, bLoadImageData, bLoadMetaData, const_cast< UInterchangeGltfTranslator* >( this )->GltfAsset );
 
+	ScaleNodeTranslations(const_cast<UInterchangeGltfTranslator*>(this)->GltfAsset.Nodes, GltfUnitConversionMultiplier);
+
 	if (GltfAsset.RequiredExtensions.Num() != 0)
 	{
 		FString NotSupportedExtensions;
@@ -913,15 +872,19 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 
 			MeshNode->InitializeNode( MeshNodeUid, GltfMesh.Name, EInterchangeNodeContainerType::TranslatedAsset );
 			MeshNode->SetPayLoadKey( LexToString( MeshIndex++ ) );
+
 			NodeContainer.AddNode( MeshNode );
 
-			// Assign materials
-			for ( const GLTF::FPrimitive& Primitive : GltfMesh.Primitives )
+			
+			for (size_t PrimitiveCounter = 0; PrimitiveCounter < GltfMesh.Primitives.Num(); PrimitiveCounter++)
 			{
-				if ( GltfAsset.Materials.IsValidIndex( Primitive.MaterialIndex ) )
+				const GLTF::FPrimitive& Primitive = GltfMesh.Primitives[PrimitiveCounter];
+
+				// Assign materials
+				if (GltfAsset.Materials.IsValidIndex(Primitive.MaterialIndex))
 				{
 					const FString MaterialName = GltfAsset.Materials[Primitive.MaterialIndex].Name;
-					const FString ShaderGraphNodeUid = UInterchangeShaderGraphNode::MakeNodeUid( TEXT("Material_") + MaterialName);
+					const FString ShaderGraphNodeUid = UInterchangeShaderGraphNode::MakeNodeUid(TEXT("Material_") + MaterialName);
 					MeshNode->SetSlotMaterialDependencyUid(MaterialName, ShaderGraphNodeUid);
 				}
 			}
@@ -974,21 +937,27 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			SceneNode->InitializeNode( SceneNodeUid, SceneName, EInterchangeNodeContainerType::TranslatedScene );
 			NodeContainer.AddNode( SceneNode );
 
+			TArray<int32> SkinnedMeshNodes;
+
 			for ( const int32 NodeIndex : GltfScene.Nodes )
 			{
 				if ( GltfAsset.Nodes.IsValidIndex( NodeIndex ) )
 				{
-					HandleGltfNode( NodeContainer, GltfAsset.Nodes[ NodeIndex ], SceneNodeUid, NodeIndex, bHasVariants );
+					HandleGltfNode( NodeContainer, GltfAsset.Nodes[ NodeIndex ], SceneNodeUid, NodeIndex, bHasVariants, SkinnedMeshNodes );
 				}
 			}
+
+			// Skeletons:
+			HandleGltfSkeletons(NodeContainer, SceneNodeUid, SkinnedMeshNodes);
 		}
 	}
 
 	// Animations
 	{
+		TArray<FString> JointsAlreadyUsedInAnAnimation;
 		for (int32 AnimationIndex = 0; AnimationIndex < GltfAsset.Animations.Num(); ++AnimationIndex)
 		{
-			HandleGltfAnimation(NodeContainer, AnimationIndex);
+			HandleGltfAnimation(NodeContainer, AnimationIndex, JointsAlreadyUsedInAnAnimation);
 		}
 	}
 
@@ -1003,46 +972,16 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 
 TFuture< TOptional< UE::Interchange::FStaticMeshPayloadData > > UInterchangeGltfTranslator::GetStaticMeshPayloadData( const FString& PayLoadKey ) const
 {
-	using namespace UE::Interchange::Gltf::Private;
-
-	TPromise< TOptional< UE::Interchange::FStaticMeshPayloadData > > MeshPayloadDataPromise;
-
-	int32 MeshIndex = 0;
-	LexFromString( MeshIndex, *PayLoadKey );
-
-	if ( !GltfAsset.Meshes.IsValidIndex( MeshIndex ) )
-	{
-		MeshPayloadDataPromise.SetValue(TOptional< UE::Interchange::FStaticMeshPayloadData >());
-		return MeshPayloadDataPromise.GetFuture();
-	}
-
-	UE::Interchange::FStaticMeshPayloadData StaticMeshPayloadData;
-
-	const GLTF::FMesh& GltfMesh = GltfAsset.Meshes[ MeshIndex ];
-	GLTF::FMeshFactory MeshFactory;
-	MeshFactory.SetUniformScale( 100.f ); // GLTF is in meters while UE is in centimeters
-	MeshFactory.FillMeshDescription( GltfMesh, &StaticMeshPayloadData.MeshDescription );
-
-	// Patch polygon groups material slot names to match Interchange expectations (rename material slots from indices to material names)
-	{
-		FStaticMeshAttributes StaticMeshAttributes( StaticMeshPayloadData.MeshDescription );
-
-		for ( int32 MaterialSlotIndex = 0; MaterialSlotIndex < StaticMeshAttributes.GetPolygonGroupMaterialSlotNames().GetNumElements(); ++MaterialSlotIndex )
+	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey]
 		{
-			int32 MaterialIndex = 0;
-			LexFromString( MaterialIndex, *StaticMeshAttributes.GetPolygonGroupMaterialSlotNames()[ MaterialSlotIndex ].ToString() );
+			UE::Interchange::FStaticMeshPayloadData StaticMeshPayloadData;
+			UE::Interchange::Gltf::Private::GetStaticMeshPayloadDataForPayLoadKey(GltfAsset, PayLoadKey, StaticMeshPayloadData);
 
-			if ( GltfAsset.Materials.IsValidIndex( MaterialIndex ) )
-			{
-				const FString MaterialName = GltfAsset.Materials[MaterialIndex].Name;
-				StaticMeshAttributes.GetPolygonGroupMaterialSlotNames()[ MaterialSlotIndex ] = *MaterialName;
-			}
-		}
-	}
+			TOptional<UE::Interchange::FStaticMeshPayloadData> Result;
+			Result.Emplace(StaticMeshPayloadData);
 
-	MeshPayloadDataPromise.SetValue( StaticMeshPayloadData );
-
-	return MeshPayloadDataPromise.GetFuture();
+			return Result;
+		});
 }
 
 TOptional< UE::Interchange::FImportImage > UInterchangeGltfTranslator::GetTexturePayloadData( const UInterchangeSourceData* InSourceData, const FString& PayLoadKey ) const
@@ -1086,67 +1025,19 @@ TOptional< UE::Interchange::FImportImage > UInterchangeGltfTranslator::GetTextur
 		return TextureTranslator->GetTexturePayloadData(PayloadSourceData, TextureFilePath);
 	}
 }
+
 TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>> UInterchangeGltfTranslator::GetAnimationCurvePayloadData(const FString& PayLoadKey) const
 {
-	using namespace UE::Interchange;
-	using namespace UE::Interchange::Gltf::Private;
-
-	TSharedPtr<TPromise<TOptional<UE::Interchange::FAnimationCurvePayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FAnimationCurvePayloadData>>>();
-	Promise->SetValue(TOptional<UE::Interchange::FAnimationCurvePayloadData>());
-
-	TArray<FString> PayloadTokens;
-
-	// We need at minimum animation index + one channel index
-	if (2 > PayLoadKey.ParseIntoArray(PayloadTokens, TEXT(":")))
-	{
-		// Invalid payload
-		return Promise->GetFuture();
-	}
-
-	TArray<int32> Tokens;
-	Tokens.Reserve(PayloadTokens.Num());
-
-	for (const FString& Token : PayloadTokens)
-	{
-		int32 IntToken = INDEX_NONE;
-		LexFromString(IntToken, *Token);
-
-		if (IntToken != INDEX_NONE)
+	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey]
 		{
-			Tokens.Add(IntToken);
-		}
-	}
 
-	const int32 AnimationIndex = Tokens[0];
+			TOptional<UE::Interchange::FAnimationCurvePayloadData> Result;
+			UE::Interchange::FAnimationCurvePayloadData AnimationCurvePayloadData;
 
-	if (!ensure(GltfAsset.Animations.IsValidIndex(AnimationIndex)))
-	{
-		// Invalid payload
-		return Promise->GetFuture();
-	}
-
-	return Async(EAsyncExecution::TaskGraph, [this, AnimationIndex, Tokens = MoveTemp(Tokens)]
-		{
-			TOptional<FAnimationCurvePayloadData> Result;
-
-			const GLTF::FAnimation& GltfAnimation = GltfAsset.Animations[AnimationIndex];
-
-			UE::Interchange::FAnimationCurvePayloadData TransformPayloadData;
-
-			TransformPayloadData.Curves.SetNum(9);
-
-			for (int32 TokenIndex = 1; TokenIndex < Tokens.Num(); ++TokenIndex)
+			if (UE::Interchange::Gltf::Private::GetAnimationTransformPayloadData(PayLoadKey, GltfAsset, AnimationCurvePayloadData))
 			{
-				const int32 ChannelIndex = Tokens[TokenIndex];
-				if (!ensure(GltfAnimation.Channels.IsValidIndex(ChannelIndex)))
-				{
-					continue;
-				}
-
-				GetAnimationTransformPayloadData(GltfAnimation, ChannelIndex, TransformPayloadData);
+				Result.Emplace(AnimationCurvePayloadData);
 			}
-
-			Result.Emplace(MoveTemp(TransformPayloadData));
 
 			return Result;
 		}
@@ -1164,23 +1055,151 @@ TFuture<TOptional<UE::Interchange::FAnimationStepCurvePayloadData>> UInterchange
 
 TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>> UInterchangeGltfTranslator::GetAnimationBakeTransformPayloadData(const FString& PayLoadKey, const double BakeFrequency, const double RangeStartSecond, const double RangeStopSecond) const
 {
-	TSharedPtr<TPromise<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>>>();
-	Promise->SetValue(TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>());
-	return Promise->GetFuture();
+	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey, BakeFrequency, RangeStartSecond, RangeStopSecond]
+		{
+			TOptional<UE::Interchange::FAnimationBakeTransformPayloadData> Result;
+
+			UE::Interchange::FAnimationBakeTransformPayloadData PayloadData;
+
+			PayloadData.BakeFrequency = BakeFrequency;
+			PayloadData.RangeStartTime = RangeStartSecond;
+			PayloadData.RangeEndTime = RangeStopSecond;
+
+			if (UE::Interchange::Gltf::Private::GetBakedAnimationTransformPayloadData(PayLoadKey, GltfAsset, PayloadData))
+			{
+				Result.Emplace(PayloadData);
+			}
+
+			return Result;
+		});
 }
 
-void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContainer& NodeContainer, int32 AnimationIndex) const
+void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContainer& NodeContainer, int32 AnimationIndex, TArray<FString>& JointsAlreadyUsedInAnAnimation /*Currently the system only supports 1 animation per skeleton*/) const
 {
 	const GLTF::FAnimation& GltfAnimation = GltfAsset.Animations[AnimationIndex];
 
 	TMap< const GLTF::FNode*, TArray<int32> > NodeChannelsMap;
 
+	TMap<FString, TArray<int32>> JointNodeUidsToChannelsUsed;
+
 	for (int32 ChannelIndex = 0; ChannelIndex < GltfAnimation.Channels.Num(); ++ChannelIndex)
 	{
-		const GLTF::FNode* AnimatedNode = &GltfAnimation.Channels[ChannelIndex].Target.Node;
+		const GLTF::FAnimation::FChannel& Channel = GltfAnimation.Channels[ChannelIndex];
+		const GLTF::FNode* AnimatedNode = &Channel.Target.Node;
+
+		if (AnimatedNode->Type == GLTF::FNode::EType::Joint)
+		{
+			const FString* JointNodeUid = NodeUidMap.Find(AnimatedNode);
+			if (ensure(JointNodeUid))
+			{
+				TArray<int32>& ChannelsUsed = JointNodeUidsToChannelsUsed.FindOrAdd(*JointNodeUid);
+				ChannelsUsed.Add(ChannelIndex);
+			}
+			
+			continue;
+		}
 
 		TArray<int32>& NodeChannels = NodeChannelsMap.FindOrAdd(AnimatedNode);
 		NodeChannels.Add(ChannelIndex);
+	}
+
+	//setup rigged animations:
+	{
+		for (TTuple<FString,TArray<int32>>& JointNodeUidToChannelsUsed : JointNodeUidsToChannelsUsed)
+		{
+			if (JointsAlreadyUsedInAnAnimation.Contains(JointNodeUidToChannelsUsed.Key))
+			{
+				//this joint (part of skeleton) is already part of an animation
+				//due to the Interchange system only supporting a single animation per skeleton at the moment we skip the setup of this joint and animatino pair
+				continue;
+			}
+			
+			//@ AllAnimationStart = 0;
+			//from gltf documentation: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#animations
+			//Implementation Note
+			//	For example, if the earliest sampler input for an animation is t = 10, a client implementation must begin playback of that animation channel at t = 0 with output clamped to the first available output value.
+			double AnimationStart = 0.0;
+			double AnimationStop = 0.0;
+			double FrameRate = 30.0;
+			double SingleFrameDuration = 1.0 / FrameRate;
+			int32 KeyCount = 0;
+			bool CorruptSamplerFound = false;
+
+			//check channel length:
+			{
+				for (int32 ChannelIndex : JointNodeUidToChannelsUsed.Value)
+				{
+					const GLTF::FAnimation::FChannel& Channel = GltfAnimation.Channels[ChannelIndex];
+					const GLTF::FAnimation::FSampler& Sampler = GltfAnimation.Samplers[Channel.Sampler];
+					TArray<float> Seconds;
+					Sampler.Input.GetFloatArray(Seconds);					
+
+					if (Sampler.Interpolation == GLTF::FAnimation::EInterpolation::CubicSpline)
+					{
+						if (Sampler.Input.Count != 3 * Sampler.Output.Count)
+						{
+							CorruptSamplerFound = true;
+							UE_LOG(LogInterchangeImport, Warning, TEXT("GLTF Sampler Corrupt. Input and Output not meeting expectations."));
+							break;
+						}
+					}
+					else
+					{
+						if (Sampler.Input.Count != Sampler.Output.Count)
+						{
+							CorruptSamplerFound = true;
+							UE_LOG(LogInterchangeImport, Warning, TEXT("GLTF Sampler Corrupt. Input and Output not meeting expectations."));
+							break;
+						}
+					}
+
+					float CurrentAnimationStop = 0;
+					int CurrentKeyCount = 0;
+
+					if (Seconds.Num() > 0)
+					{
+						//calculate keycount and currentAnimationStop:
+						CurrentAnimationStop = Seconds[Seconds.Num()-1];
+
+						float CurrentKeyCountCandidate = CurrentAnimationStop / SingleFrameDuration;
+						CurrentKeyCount = int(CurrentKeyCountCandidate);
+						if (int(CurrentKeyCountCandidate) < CurrentKeyCountCandidate)
+						{
+							CurrentKeyCount++;
+						}
+						CurrentAnimationStop = CurrentKeyCount * SingleFrameDuration;
+					}
+					
+					if (KeyCount < CurrentKeyCount)
+					{
+						KeyCount = CurrentKeyCount;
+						AnimationStop = KeyCount * SingleFrameDuration;
+					}
+				}
+			}
+
+			if (CorruptSamplerFound)
+			{
+				break;
+			}
+
+			if (UInterchangeSceneNode* AnimatedInterchangeSceneNode = const_cast<UInterchangeSceneNode*>(Cast< UInterchangeSceneNode >(NodeContainer.GetNode(*JointNodeUidToChannelsUsed.Key))))
+			{
+				//add the joint to the of already set up joints to track it for handling single animation only.
+				JointsAlreadyUsedInAnAnimation.Add(JointNodeUidToChannelsUsed.Key);
+
+				FString Payload = LexToString(AnimationIndex);
+				for (int32 ChannelIndex : JointNodeUidToChannelsUsed.Value)
+				{
+					Payload += ":" + LexToString(ChannelIndex);
+				}
+
+				UInterchangeAnimationAPI::SetCustomNodeTransformPayloadKey(AnimatedInterchangeSceneNode, Payload);
+				UInterchangeAnimationAPI::SetCustomIsNodeTransformAnimated(AnimatedInterchangeSceneNode, true);
+				UInterchangeAnimationAPI::SetCustomNodeTransformAnimationStartTime(AnimatedInterchangeSceneNode, AnimationStart);
+				UInterchangeAnimationAPI::SetCustomNodeTransformAnimationEndTime(AnimatedInterchangeSceneNode, AnimationStop);
+			}
+		}
 	}
 
 	if (NodeChannelsMap.IsEmpty())
@@ -1505,4 +1524,154 @@ bool UInterchangeGltfTranslator::GetVariantSetPayloadData(UE::Interchange::FVari
 	}
 
 	return true;
+}
+
+TFuture<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>> UInterchangeGltfTranslator::GetSkeletalMeshLodPayloadData(const FString& PayLoadKey) const
+{
+	return Async(EAsyncExecution::TaskGraph, [this, PayLoadKey]
+		{
+			TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> Result;
+			UE::Interchange::FSkeletalMeshLodPayloadData SkeletalMeshPayloadData;
+			
+			if (UE::Interchange::Gltf::Private::GetSkeletalMeshDescriptionForPayLoadKey(GltfAsset, PayLoadKey, SkeletalMeshPayloadData.LodMeshDescription, &SkeletalMeshPayloadData.JointNames))
+			{
+				Result.Emplace(SkeletalMeshPayloadData);
+			}
+
+			return Result;
+		});
+}
+
+TFuture<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>> UInterchangeGltfTranslator::GetSkeletalMeshMorphTargetPayloadData(const FString& PayLoadKey) const
+{
+	TSharedPtr<TPromise<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>>();
+	Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>{});
+	return Promise->GetFuture();
+}
+
+int32 UInterchangeGltfTranslator::FindRootJointNodeIndex(int32 CurrentIndex) const
+{
+	if (GltfAsset.Nodes[CurrentIndex].Type != GLTF::FNode::EType::Joint)
+	{
+		return CurrentIndex;
+	}
+
+	while (GltfAsset.Nodes.IsValidIndex(GltfAsset.Nodes[CurrentIndex].ParentIndex) && GltfAsset.Nodes[GltfAsset.Nodes[CurrentIndex].ParentIndex].Type == GLTF::FNode::EType::Joint)
+	{
+		CurrentIndex = GltfAsset.Nodes[CurrentIndex].ParentIndex;
+	}
+	return CurrentIndex;
+}
+
+void UInterchangeGltfTranslator::HandleGltfSkeletons(UInterchangeBaseNodeContainer& NodeContainer, const FString& SceneNodeUid, const TArray<int32>& SkinnedMeshNodes) const
+{
+	//if skeletons present set them as a root joint for the join hierarchy as per documentation:
+	//The skeleton property (if present) points to the node that is the common root of a joints hierarchy or to a direct or indirect parent node of the common root.
+	for (const GLTF::FSkinInfo& Skin : GltfAsset.Skins)
+	{
+		if (GltfAsset.Nodes.IsValidIndex(Skin.Skeleton))
+		{
+			const FString* SkeletonNodeUid = NodeUidMap.Find(&GltfAsset.Nodes[Skin.Skeleton]);
+			if (SkeletonNodeUid)
+			{
+				NodeContainer.SetNodeParentUid(*SkeletonNodeUid, SceneNodeUid);
+			}
+		}
+	}
+
+
+	TMap<int32, TMap<int32, TArray<int32>>> MeshIndexToRootJointGroupedSkinnedMeshNodesMap;
+
+	//group SkinnedMeshNodes based on Joint Root Parents and Mesh indices
+	//this is needed in order to figure out how many duplications do we need for a given mesh
+	for (int32 SkinnedMeshNodeIndex : SkinnedMeshNodes)
+	{
+		const GLTF::FNode& SkinnedMeshNode = GltfAsset.Nodes[SkinnedMeshNodeIndex];
+
+		TMap<int32, TArray<int32>>& RootJointGroupedSkinnedMeshNodes = MeshIndexToRootJointGroupedSkinnedMeshNodesMap.FindOrAdd(SkinnedMeshNode.MeshIndex);
+
+		//get the SkinnedMeshNode's skin's first joint as the starting ground and find the top most root joint for it:
+		int32 RootJointIndex = FindRootJointNodeIndex(GltfAsset.Skins[SkinnedMeshNode.Skindex].Joints[0]);
+
+		//basedon that root joint group the SkinnedMeshNodes:
+		TArray<int32>& GroupedSkinnedMeshNodes = RootJointGroupedSkinnedMeshNodes.FindOrAdd(RootJointIndex);
+		GroupedSkinnedMeshNodes.Add(SkinnedMeshNodeIndex);
+	}
+
+	for (const TTuple<int32, TMap<int32, TArray<int32>>>& MeshIndexRootJointGroups : MeshIndexToRootJointGroupedSkinnedMeshNodesMap)
+	{
+		const TMap<int32, TArray<int32>>& RootJointGroupedSkinnedMeshNodes = MeshIndexRootJointGroups.Value;
+
+		//Get original MeshNode:
+		const FString OriginalMeshNodeUid = TEXT("\\Mesh\\") + GltfAsset.Meshes[MeshIndexRootJointGroups.Key].Name;
+		if (const UInterchangeMeshNode* ConstOriginalMeshNode = Cast< UInterchangeMeshNode >(NodeContainer.GetNode(OriginalMeshNodeUid)))
+		{
+			UInterchangeMeshNode* OriginalMeshNode = const_cast<UInterchangeMeshNode*>(ConstOriginalMeshNode);
+
+			if (!ensure(OriginalMeshNode))
+			{
+				continue;
+			}
+
+			//iterate through the groups:
+			//rootjoint , array<skinnedMeshNodes>
+			for (const TTuple<int32, TArray<int32>>& RootJointToSkinnedMeshNodes : RootJointGroupedSkinnedMeshNodes)
+			{
+				//Duplicate MeshNode for each group:
+				UInterchangeMeshNode* DuplicatedMeshNode = NewObject< UInterchangeMeshNode >(&NodeContainer);
+				FString DuplicatedMeshNodeUid = OriginalMeshNode->GetUniqueID() + TEXT("_") + LexToString(RootJointToSkinnedMeshNodes.Key);
+				FString DuplicatedMeshDisplayLabel = OriginalMeshNode->GetDisplayLabel() + TEXT("_") + LexToString(RootJointToSkinnedMeshNodes.Key);
+				DuplicatedMeshNode->InitializeNode(DuplicatedMeshNodeUid, DuplicatedMeshDisplayLabel, EInterchangeNodeContainerType::TranslatedAsset);
+				TMap<FString, FString> MaterialDependencies;
+				OriginalMeshNode->GetSlotMaterialDependencies(MaterialDependencies);
+				for (const TTuple<FString, FString>& MaterialDependency : MaterialDependencies)
+				{
+					DuplicatedMeshNode->SetSlotMaterialDependencyUid(MaterialDependency.Key, MaterialDependency.Value);
+				}
+
+				DuplicatedMeshNode->SetSkinnedMesh(true);
+
+				//generate payload key:
+				//of template:
+				//"LexToString(SkinnedMeshNode.MeshIndex | (SkinnedMeshNode.Skindex << 16))":"LexToString(SkinnedMeshNode.MeshIndex | (SkinnedMeshNode.Skindex << 16))".....
+				FString Payload = "";
+				for (int32 SkinnedMeshIndex : RootJointToSkinnedMeshNodes.Value)
+				{
+					const GLTF::FNode& SkinnedMeshNode = GltfAsset.Nodes[SkinnedMeshIndex];
+					if (Payload.Len() > 0)
+					{
+						Payload += ":";
+					}
+					Payload += LexToString(SkinnedMeshNode.MeshIndex | (SkinnedMeshNode.Skindex << 16));
+				}
+				DuplicatedMeshNode->SetPayLoadKey(Payload);
+
+				//set the root joint node as the skeletonDependency:
+				int32 RootJointNodeIndex = RootJointToSkinnedMeshNodes.Key;
+				const GLTF::FNode& RootJointNode = GltfAsset.Nodes[RootJointNodeIndex];
+				const FString* SkeletonNodeUid = NodeUidMap.Find(&RootJointNode);
+				if (ensure(SkeletonNodeUid))
+				{
+					DuplicatedMeshNode->SetSkeletonDependencyUid(*SkeletonNodeUid);
+				}
+				
+
+				//set the mesh node's custom asset instance uid to the new duplicated mesh
+				//if there are more than one skins, then choose the topmost (root node of the collection, top most in a hierarchical tree term) occurance of SkinnedMeshIndex
+				int32 MeshNodeIndex = UE::Interchange::Gltf::Private::GetRootNodeIndex(GltfAsset, RootJointToSkinnedMeshNodes.Value);
+				const GLTF::FNode& MeshNode = GltfAsset.Nodes[MeshNodeIndex];
+				const FString* SceneMeshNodeUid = NodeUidMap.Find(&MeshNode);
+				if (const UInterchangeSceneNode* ConstSceneMeshNode = Cast< UInterchangeSceneNode >(NodeContainer.GetNode(*SceneMeshNodeUid)))
+				{
+					UInterchangeSceneNode* SceneMeshNode = const_cast<UInterchangeSceneNode*>(ConstSceneMeshNode);
+					if (ensure(SceneMeshNode))
+					{
+						SceneMeshNode->SetCustomAssetInstanceUid(DuplicatedMeshNodeUid);
+					}
+				}
+
+				NodeContainer.AddNode(DuplicatedMeshNode);
+			}
+		}
+	}
 }

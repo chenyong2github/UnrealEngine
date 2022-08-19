@@ -276,6 +276,8 @@ namespace GLTF
 			{
 				const int32 NodeIndex = Value->AsNumber();
 				Scene.Nodes.Add(NodeIndex);
+
+				BuildParentIndices(-1, NodeIndex);
 			}
 		}
 
@@ -842,8 +844,8 @@ namespace GLTF
 		SetupObjects(AccessorCount, TEXT("accessors"), [this](const FJsonObject& Object) { SetupAccessor(Object); });
 
 		SetupObjects(MeshCount, TEXT("meshes"), [this](const FJsonObject& Object) { SetupMesh(Object); });
-		SetupObjects(SceneCount, TEXT("scenes"), [this](const FJsonObject& Object) { SetupScene(Object); });
 		SetupObjects(NodeCount, TEXT("nodes"), [this](const FJsonObject& Object) { SetupNode(Object); });
+		SetupObjects(SceneCount, TEXT("scenes"), [this](const FJsonObject& Object) { SetupScene(Object); });
 		SetupObjects(CameraCount, TEXT("cameras"), [this](const FJsonObject& Object) { SetupCamera(Object); });
 		SetupObjects(SkinCount, TEXT("skins"), [this](const FJsonObject& Object) { SetupSkin(Object); });
 		SetupObjects(AnimationsCount, TEXT("animations"), [this](const FJsonObject& Object) { SetupAnimation(Object); });
@@ -925,6 +927,21 @@ namespace GLTF
 					|| Asset->Nodes[JointIndex].Type == FNode::EType::Joint);
 				Asset->Nodes[JointIndex].Type = FNode::EType::Joint;
 			}
+		}
+	}
+
+	void FFileReader::BuildParentIndices(int32 ParentNodeIndex, int32 CurrentNodeIndex) const
+	{
+		if (!Asset->Nodes.IsValidIndex(CurrentNodeIndex))
+		{
+			return;
+		}
+		GLTF::FNode& Node = Asset->Nodes[CurrentNodeIndex];
+		Node.ParentIndex = ParentNodeIndex;
+
+		for (const int32 ChildNodeIndex : Node.Children)
+		{
+			BuildParentIndices(CurrentNodeIndex, ChildNodeIndex);
 		}
 	}
 

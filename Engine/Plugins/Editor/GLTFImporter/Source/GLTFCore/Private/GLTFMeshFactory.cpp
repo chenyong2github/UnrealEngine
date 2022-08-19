@@ -81,13 +81,11 @@ namespace GLTF
 			Vector4dBufferCount = 3,
 		};
 
-		using FIndexVertexIdMap = TMap<int32, FVertexID>;
-
 		float                ImportUniformScale;
 
 		TSet<int32>                  MaterialIndicesUsed;
 		TMap<int32, FPolygonGroupID> MaterialIndexToPolygonGroupID;
-		TArray<FIndexVertexIdMap>    PositionIndexToVertexIdPerPrim;
+		TArray<FMeshFactory::FIndexVertexIdMap>    PositionIndexToVertexIdPerPrim;
 
 		TArray<FVector2f>                       Vector2dBuffers[MAX_MESH_TEXTURE_COORDS_MD + 1];
 		TArray<FVector3f>                       VectorBuffers[VectorBufferCount];
@@ -197,7 +195,7 @@ namespace GLTF
 			TArray<FVector3f>& Positions = GetVectorBuffer(PositionBufferIndex);
 			Primitive.GetPositions(Positions);
 
-			FIndexVertexIdMap& PositionIndexToVertexId = PositionIndexToVertexIdPerPrim[Index];
+			FMeshFactory::FIndexVertexIdMap& PositionIndexToVertexId = PositionIndexToVertexIdPerPrim[Index];
 			PositionIndexToVertexId.Empty(Positions.Num());
 			for (int32 PositionIndex = 0; PositionIndex < Positions.Num(); ++PositionIndex)
 			{
@@ -471,5 +469,10 @@ namespace GLTF
 	void FMeshFactory::CleanUp()
 	{
 		Impl->CleanUp();
+	}
+
+	TArray<FMeshFactory::FIndexVertexIdMap>& FMeshFactory::GetPositionIndexToVertexIdPerPrim() const
+	{
+		return Impl->PositionIndexToVertexIdPerPrim;
 	}
 } //namespace GLTF

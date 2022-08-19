@@ -328,13 +328,13 @@ namespace GLTF
 					case EComponentType::U8:
 						for (int i = 0; i < 4; ++i)
 						{
-							Values[i] = *(const uint8*)ValuePtr;
+							Values[i] = ((uint8*)ValuePtr)[i];
 						}
 						return;
 					case EComponentType::U16:
 						for (int i = 0; i < 4; ++i)
 						{
-							Values[i] = *(const uint16*)ValuePtr;
+							Values[i] = ((uint16*)ValuePtr)[i];
 						}
 						return;
 					default:
