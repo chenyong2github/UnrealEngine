@@ -37,6 +37,11 @@ public:
 	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
 	bool bShowOverriddenOpinionsWarning = true;
 
+	// Whether to show a warning whenever the "Duplicate All Local Layer Specs" option is picked, and the duplicated
+	// prim has some specs outside the local layer stack that will not be duplicated.
+	UPROPERTY( config, EditAnywhere, Category = "USD|Dialogs" )
+	bool bShowWarningOnIncompleteDuplication = true;
+
 	// Whether to display the pop up dialog asking what to do about dirty USD layers when saving the UE level
 	UPROPERTY(config, EditAnywhere, Category = "USD|Dialogs" )
 	EUsdSaveDialogBehavior ShowSaveLayersDialogWhenSaving = EUsdSaveDialogBehavior::ShowPrompt;

@@ -65,6 +65,9 @@ public:
 	void RemoveGroomSchema();
 	bool CanRemoveGroomSchema() const;
 
+	// Returns true if this prim has at least one spec on the stage's local layer stack
+	bool HasSpecsOnLocalLayer() const;
+
 	void DefinePrim( const TCHAR* PrimName );
 
 	/** Delegate for hooking up an inline editable text block to be notified that a rename is requested. */

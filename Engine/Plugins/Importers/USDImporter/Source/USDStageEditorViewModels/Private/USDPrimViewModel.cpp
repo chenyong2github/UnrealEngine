@@ -427,6 +427,30 @@ bool FUsdPrimViewModel::CanRemoveGroomSchema() const
 #endif // #if USE_USD_SDK
 }
 
+bool FUsdPrimViewModel::HasSpecsOnLocalLayer() const
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdPrim PxrUsdPrim{ UsdPrim };
+	if ( PxrUsdPrim )
+	{
+		if ( pxr::UsdStageRefPtr PrimUsdStage = PxrUsdPrim.GetStage() )
+		{
+			for ( const pxr::SdfPrimSpecHandle& Spec : PxrUsdPrim.GetPrimStack() )
+			{
+				if ( Spec && PrimUsdStage->HasLocalLayer( Spec->GetLayer() ) )
+				{
+					return true;
+				}
+			}
+		}
+	}
+#endif // #if USE_USD_SDK
+
+	return false;
+}
+
 void FUsdPrimViewModel::DefinePrim( const TCHAR* PrimName )
 {
 #if USE_USD_SDK

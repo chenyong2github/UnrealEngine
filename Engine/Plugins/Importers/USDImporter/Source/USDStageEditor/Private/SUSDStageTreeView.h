@@ -82,6 +82,7 @@ private:
 	bool CanPastePrim() const;
 	bool DoesPrimExistOnStage() const;
 	bool DoesPrimExistOnEditTarget() const;
+	bool CanDuplicateAllLocalLayerSpecs() const;
 
 	bool CanSetUpLiveLink() const;
 	bool CanRemoveLiveLink() const;

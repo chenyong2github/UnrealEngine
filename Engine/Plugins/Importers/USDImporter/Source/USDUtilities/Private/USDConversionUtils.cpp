@@ -8,6 +8,7 @@
 #include "USDGeomMeshConversion.h"
 #include "USDLayerUtils.h"
 #include "USDLog.h"
+#include "USDProjectSettings.h"
 #include "USDTypesConversion.h"
 
 #include "UsdWrappers/SdfLayer.h"
@@ -36,10 +37,12 @@
 #include "Engine/SpotLight.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "GeometryCache.h"
 #include "GroomAsset.h"
 #include "InstancedFoliageActor.h"
 #include "LandscapeProxy.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 #if WITH_EDITOR
 #include "ObjectTools.h"
@@ -214,6 +217,85 @@ namespace USDConversionUtilsImpl
 						bUsedByMaterial ? FText::FromString( TEXT( ", as its used by its bound material" ) ) : FText::GetEmpty()
 					)
 				);
+			}
+		}
+	}
+
+	// Shows a notification saying that some specs of the provided prims won't be duplicated due to being on external
+	// layers
+	void NotifySpecsWontBeDuplicated( const TArray<UE::FUsdPrim>& Prims )
+	{
+		if ( Prims.Num() == 0 )
+		{
+			return;
+		}
+
+		const FText Text = LOCTEXT( "IncompleteDuplicationText", "USD: Incomplete duplication" );
+
+		FString PrimNamesString;
+		const static FString Delimiter = TEXT(", ");
+		for( const UE::FUsdPrim& Prim : Prims )
+		{
+			PrimNamesString += Prim.GetName().ToString() + Delimiter;
+		}
+		PrimNamesString.RemoveFromEnd( Delimiter );
+
+		const int32 NumPrims = Prims.Num();
+
+		const FText SubText = FText::Format(
+			LOCTEXT( "IncompleteDuplicationSubText", "{0}|plural(one=This,other=These) duplicated {0}|plural(one=prim,other=prims):\n\n{1}\n\n{0}|plural(one=Has,other=Have) some specs within layers that are outside of the stage's local layer stack, and so will not be duplicated.\n\nIf you wish to modify referenced or payload layers, please open those layers as USD stages directly." ),
+			NumPrims,
+			FText::FromString( PrimNamesString )
+		);
+
+		UE_LOG( LogUsd, Warning, TEXT( "%s" ), *SubText.ToString().Replace( TEXT( "\n\n" ), TEXT( " " ) ) );
+
+		const UUsdProjectSettings* Settings = GetDefault<UUsdProjectSettings>();
+		if ( Settings && Settings->bShowWarningOnIncompleteDuplication )
+		{
+			static TWeakPtr<SNotificationItem> Notification;
+
+			FNotificationInfo Toast( Text );
+			Toast.SubText = SubText;
+			Toast.Image = FCoreStyle::Get().GetBrush( TEXT( "MessageLog.Warning" ) );
+			Toast.CheckBoxText = LOCTEXT( "DontAskAgain", "Don't prompt again" );
+			Toast.bUseLargeFont = false;
+			Toast.bFireAndForget = false;
+			Toast.FadeOutDuration = 0.0f;
+			Toast.ExpireDuration = 0.0f;
+			Toast.bUseThrobber = false;
+			Toast.bUseSuccessFailIcons = false;
+			Toast.ButtonDetails.Emplace(
+				LOCTEXT( "OverridenOpinionMessageOk", "Ok" ),
+				FText::GetEmpty(),
+				FSimpleDelegate::CreateLambda( []() {
+				if ( TSharedPtr<SNotificationItem> PinnedNotification = Notification.Pin() )
+				{
+					PinnedNotification->SetCompletionState( SNotificationItem::CS_Success );
+					PinnedNotification->ExpireAndFadeout();
+				}
+			} )
+			);
+			// This is flipped because the default checkbox message is "Don't prompt again"
+			Toast.CheckBoxState = Settings->bShowWarningOnIncompleteDuplication ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
+			Toast.CheckBoxStateChanged = FOnCheckStateChanged::CreateStatic( []( ECheckBoxState NewState )
+			{
+				if ( UUsdProjectSettings* Settings = GetMutableDefault<UUsdProjectSettings>() )
+				{
+					// This is flipped because the default checkbox message is "Don't prompt again"
+					Settings->bShowWarningOnIncompleteDuplication = NewState == ECheckBoxState::Unchecked;
+				}
+			} );
+
+			// Only show one at a time
+			if ( !Notification.IsValid() )
+			{
+				Notification = FSlateNotificationManager::Get().AddNotification( Toast );
+			}
+
+			if ( TSharedPtr<SNotificationItem> PinnedNotification = Notification.Pin() )
+			{
+				PinnedNotification->SetCompletionState( SNotificationItem::CS_Pending );
 			}
 		}
 	}
@@ -2019,6 +2101,30 @@ TArray<UE::FSdfPath> UsdUtils::DuplicatePrims( const TArray<UE::FUsdPrim>& Prims
 			for ( const pxr::SdfLayerHandle& Handle : UsdStage->GetLayerStack( bIncludeSessionLayers ) )
 			{
 				LayersThatCanBeAffected.insert( Handle );
+			}
+
+			// If any of our prims has specs on layers that are used by the stage but are not within the local layer
+			// stack, then warn the user that some of these specs will not be duplicated
+			{
+				TArray<UE::FUsdPrim> PrimsWithExternalSpecs;
+				for ( const UE::FUsdPrim& Prim : Prims )
+				{
+					pxr::UsdPrim UsdPrim{ Prim };
+					if ( !UsdPrim )
+					{
+						continue;
+					}
+
+					for ( const pxr::SdfPrimSpecHandle& Spec : UsdPrim.GetPrimStack() )
+					{
+						if ( Spec && LayersThatCanBeAffected.count( Spec->GetLayer() ) == 0 )
+						{
+							PrimsWithExternalSpecs.Add(Prim);
+							break;
+						}
+					}
+				}
+				USDConversionUtilsImpl::NotifySpecsWontBeDuplicated( PrimsWithExternalSpecs );
 			}
 			break;
 		}

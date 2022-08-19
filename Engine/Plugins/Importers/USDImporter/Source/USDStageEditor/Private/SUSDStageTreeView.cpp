@@ -1394,6 +1394,21 @@ bool SUsdStageTreeView::DoesPrimExistOnEditTarget() const
 	return false;
 }
 
+bool SUsdStageTreeView::CanDuplicateAllLocalLayerSpecs() const
+{
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		if ( SelectedItem->HasSpecsOnLocalLayer() )
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool SUsdStageTreeView::CanSetUpLiveLink() const
 {
 	if ( !UsdStageActor.IsValid() )
@@ -1672,11 +1687,16 @@ void SUsdStageTreeView::FillDuplicateSubmenu( FMenuBuilder& MenuBuilder )
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT( "DuplicateSingle_Text", "Single layer specs" ),
-		LOCTEXT( "DuplicateSingle_ToolTip", "Duplicate the prim's specs on the current edit target only" ),
+		TAttribute<FText>::Create( TAttribute<FText>::FGetter::CreateLambda( [this]()
+		{
+			return DoesPrimExistOnEditTarget()
+				? LOCTEXT( "DuplicateSingleValid_ToolTip", "Duplicate the prim's specs on the current edit target only" )
+				: LOCTEXT( "DuplicateSingleInvalid_ToolTip", "This prim needs a spec in the local edit target for this option to be usable!" );
+		})),
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnDuplicatePrim, EUsdDuplicateType::SingleLayerSpecs ),
-			FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::DoesPrimExistOnStage )
+			FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::DoesPrimExistOnEditTarget )
 		),
 		NAME_None,
 		EUserInterfaceActionType::Button
@@ -1684,11 +1704,16 @@ void SUsdStageTreeView::FillDuplicateSubmenu( FMenuBuilder& MenuBuilder )
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT( "DuplicateAllLocal_Text", "All local layer specs" ),
-		LOCTEXT( "DuplicateAllLocal_ToolTip", "Duplicate each of the prim's specs across the entire stage" ),
+		TAttribute<FText>::Create( TAttribute<FText>::FGetter::CreateLambda( [this]()
+		{
+			return CanDuplicateAllLocalLayerSpecs()
+				? LOCTEXT( "DuplicateAllLocalValid_ToolTip", "Duplicate each of the prim's specs across the entire stage" )
+				: LOCTEXT( "DuplicateAllLocalInvalid_ToolTip", "This prim needs at least one spec on the stage's local layer stack for this option to be usable!" );
+		})),
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnDuplicatePrim, EUsdDuplicateType::AllLocalLayerSpecs ),
-			FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::DoesPrimExistOnStage )
+			FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanDuplicateAllLocalLayerSpecs )
 		),
 		NAME_None,
 		EUserInterfaceActionType::Button
