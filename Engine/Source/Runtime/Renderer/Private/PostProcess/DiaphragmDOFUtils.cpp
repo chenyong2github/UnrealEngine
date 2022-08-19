@@ -117,6 +117,7 @@ void DiaphragmDOF::FPhysicalCocModel::Compile(const FViewInfo& View)
 	}
 
 	// Compile coc model equation.
+	if (View.FinalPostProcessSettings.DepthOfFieldFstop > 0.f && View.FinalPostProcessSettings.DepthOfFieldFocalDistance > 0.f)
 	{
 
 		float FocalLengthInMM = DiaphragmDOF::ComputeFocalLengthFromFov(View);
@@ -139,6 +140,11 @@ void DiaphragmDOF::FPhysicalCocModel::Compile(const FViewInfo& View)
 
 		// Convert diameter in mm to resolution less radius on the filmback.
 		InfinityBackgroundCocRadius = DiameterInMM * 0.5f / SensorWidthInMM;
+	}
+	else
+	{
+		InfinityBackgroundCocRadius = 0.0f;
+		MinForegroundCocRadius = 0.0;
 	}
 }
 
