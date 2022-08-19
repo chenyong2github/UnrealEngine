@@ -18,11 +18,11 @@ UsageAndExit()
     echo
     echo "Usage examples:"
     echo
-    echo "    $BUILD_SCRIPT_NAME 1.38.1 x86_64-unknown-linux-gnu"
-    echo "      -- Installs $LIBRARY_NAME version 1.38.1 for x86_64 architecture."
+    echo "    $BUILD_SCRIPT_NAME 1.38.5 x86_64-unknown-linux-gnu"
+    echo "      -- Installs $LIBRARY_NAME version 1.38.5 for x86_64 architecture."
     echo
-    echo "    $BUILD_SCRIPT_NAME 1.38.1 aarch64-unknown-linux-gnueabi"
-    echo "      -- Installs $LIBRARY_NAME version 1.38.1 for arm64 architecture."
+    echo "    $BUILD_SCRIPT_NAME 1.38.5 aarch64-unknown-linux-gnueabi"
+    echo "      -- Installs $LIBRARY_NAME version 1.38.5 for arm64 architecture."
     echo
     exit 1
 }

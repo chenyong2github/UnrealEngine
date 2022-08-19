@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set MATERIALX_VERSION=1.38.1
+set MATERIALX_VERSION=1.38.5
 
 rem Set as VS2015 for backwards compatibility even though VS2019 is used
 rem when building.
