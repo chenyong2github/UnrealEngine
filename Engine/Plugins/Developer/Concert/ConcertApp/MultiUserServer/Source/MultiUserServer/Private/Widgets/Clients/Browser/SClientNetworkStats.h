@@ -4,43 +4,36 @@
 
 #include "CoreMinimal.h"
 #include "IMessageContext.h"
+#include "INetworkMessagingExtension.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
 
 class STextBlock;
-struct FMessageTransportStatistics;
 
 namespace UE::MultiUserServer
 {
-	class IClientNetworkStatisticsModel;
-	
 	/**
 	 * Displays statistics about a client connection in a table like format: send, receive, RTT, Inflight, and Loss.
 	 */
 	class SClientNetworkStats : public SCompoundWidget
 	{
 	public:
-
+		
 		SLATE_BEGIN_ARGS(SClientNetworkStats){}
 			SLATE_ARGUMENT(TSharedPtr<FText>, HighlightText)
+			SLATE_ATTRIBUTE(TOptional<FMessageTransportStatistics>, NetworkStatistics)
 		SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs, const FMessageAddress& InNodeAddress, TSharedRef<IClientNetworkStatisticsModel> InStatisticModel);
+		void Construct(const FArguments& InArgs);
 
 		//~ Begin SCompoundWidget Interface		
 		virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 		//~ End SCompoundWidget Interface
-		
-		/** Appends the statistics to the search terms */
-		void AppendSearchTerms(TArray<FString>& SearchTerms) const;
 
 	private:
 
-		/** The ID getting visualised */
-		FMessageAddress NodeAddress;
-		/** Used to obtain settings */
-		TSharedPtr<IClientNetworkStatisticsModel> StatisticModel;
+		TAttribute<TOptional<FMessageTransportStatistics>> NetworkStatistics;
 		
 		/** The text to highlight */
 		TSharedPtr<FText> HighlightText;

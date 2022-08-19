@@ -2,12 +2,10 @@
 
 #include "SClientNetworkStats.h"
 
-#include "ConcertServerStyle.h"
 #include "INetworkMessagingExtension.h"
 #include "Math/UnitConversion.h"
 #include "Widgets/Clients/Browser/Models/ClientNetworkStatisticsModel.h"
 
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -15,10 +13,9 @@
 
 namespace UE::MultiUserServer
 {
-	void SClientNetworkStats::Construct(const FArguments& InArgs, const FMessageAddress& InNodeAddress, TSharedRef<IClientNetworkStatisticsModel> InStatisticModel)
+	void SClientNetworkStats::Construct(const FArguments& InArgs)
 	{
-		NodeAddress = InNodeAddress;
-		StatisticModel = MoveTemp(InStatisticModel);
+		NetworkStatistics = InArgs._NetworkStatistics;
 		
 		HighlightText = InArgs._HighlightText;
 		check(HighlightText);
@@ -34,7 +31,7 @@ namespace UE::MultiUserServer
 	{
 		SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 
-		if (const TOptional<FMessageTransportStatistics> Stats = StatisticModel->GetLatestNetworkStatistics(NodeAddress))
+		if (const TOptional<FMessageTransportStatistics> Stats = NetworkStatistics.Get())
 		{
 			UpdateStatistics(*Stats);
 		}
@@ -49,47 +46,13 @@ namespace UE::MultiUserServer
 		}
 	}
 
-	void SClientNetworkStats::AppendSearchTerms(TArray<FString>& SearchTerms) const
-	{
-		SearchTerms.Add(SendText->GetText().ToString());
-		SearchTerms.Add(ReceiveText->GetText().ToString());
-		SearchTerms.Add(RoundTripTimeText->GetText().ToString());
-		SearchTerms.Add(InflightText->GetText().ToString());
-		SearchTerms.Add(LossText->GetText().ToString());
-	}
-
 	void SClientNetworkStats::UpdateStatistics(const FMessageTransportStatistics& Statistics)
 	{
-		// Send
-		{
-			const FNumericUnit<uint64> Unit = FUnitConversion::QuantizeUnitsToBestFit(Statistics.TotalBytesSent, EUnit::Bytes);
-			const FString DisplayString = FString::Printf(TEXT("%lld %s"), Unit.Value, FUnitConversion::GetUnitDisplayString(Unit.Units));
-			SendText->SetText(FText::FromString(DisplayString));
-		}
-		// Receive
-		{
-			const FNumericUnit<uint64> Unit = FUnitConversion::QuantizeUnitsToBestFit(Statistics.TotalBytesReceived, EUnit::Bytes);
-			const FString DisplayString = FString::Printf(TEXT("%lld %s"), Unit.Value, FUnitConversion::GetUnitDisplayString(Unit.Units));
-			ReceiveText->SetText(FText::FromString(DisplayString));
-		}
-		// RTT
-		{
-			const FNumericUnit<uint64> Unit = FUnitConversion::QuantizeUnitsToBestFit(static_cast<uint64>(Statistics.AverageRTT.GetTotalMilliseconds()), EUnit::Milliseconds);
-			const FString DisplayString = FString::Printf(TEXT("%lld %s"), Unit.Value, FUnitConversion::GetUnitDisplayString(Unit.Units));
-			RoundTripTimeText->SetText(FText::FromString(DisplayString));
-		}
-		// Inflight
-		{
-			const FNumericUnit<uint64> Unit = FUnitConversion::QuantizeUnitsToBestFit(Statistics.BytesInflight, EUnit::Bytes);
-			const FString DisplayString = FString::Printf(TEXT("%lld %s"), Unit.Value, FUnitConversion::GetUnitDisplayString(Unit.Units));
-			InflightText->SetText(FText::FromString(DisplayString));
-		}
-		// Loss
-		{
-			const FNumericUnit<uint64> Unit = FUnitConversion::QuantizeUnitsToBestFit(Statistics.TotalBytesLost, EUnit::Bytes);
-			const FString DisplayString = FString::Printf(TEXT("%lld %s"), Unit.Value, FUnitConversion::GetUnitDisplayString(Unit.Units));
-			LossText->SetText(FText::FromString(DisplayString));
-		}
+		SendText->SetText(FText::FromString(NetworkStatistics::FormatTotalBytesSent(Statistics)));
+		ReceiveText->SetText(FText::FromString(NetworkStatistics::FormatTotalBytesReceived(Statistics)));
+		RoundTripTimeText->SetText(FText::FromString(NetworkStatistics::FormatAverageRTT(Statistics)));
+		InflightText->SetText(FText::FromString(NetworkStatistics::FormatBytesInflight(Statistics)));
+		LossText->SetText(FText::FromString(NetworkStatistics::FormatTotalBytesLost(Statistics)));
 	}
 
 	TSharedRef<SWidget> SClientNetworkStats::CreateStatTable()
@@ -97,9 +60,10 @@ namespace UE::MultiUserServer
 		const TSharedRef<SHorizontalBox> Content = SNew(SHorizontalBox)
 			.ToolTipText_Lambda([this]()
 			{
-				const TOptional<FMessageTransportStatistics> Stats = StatisticModel->GetLatestNetworkStatistics(NodeAddress);
+				const TOptional<FMessageTransportStatistics> Stats = NetworkStatistics.Get();
 				return Stats.IsSet() ? FText::GetEmpty() : LOCTEXT("ErrorGettingStats", "Error getting stats");
 			});
+		
 		AddStatistic(Content, LOCTEXT("SentLabel", "Sent"), LOCTEXT("SentTooltip", "Total bytes sent to this client"), SendText);
 		AddStatistic(Content, LOCTEXT("ReceiveLabel", "Received"), LOCTEXT("ReceiveTooltip", "Total bytes received from this client"), ReceiveText);
 		AddStatistic(Content, LOCTEXT("RttLabel", "RTT"), LOCTEXT("RttTooltip", "Round trip time"), RoundTripTimeText);

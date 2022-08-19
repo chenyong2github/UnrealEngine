@@ -10,7 +10,7 @@ namespace UE
 {
 	namespace MultiUserServer
 	{
-		class SConcertClientBrowser;
+		class SConcertNetworkBrowser;
 	}
 }
 
@@ -62,7 +62,7 @@ private:
 	/** Used by various systems to convert logs to text */
 	TSharedPtr<FConcertLogTokenizer> LogTokenizer;
 
-	TSharedPtr<UE::MultiUserServer::SConcertClientBrowser> ClientBrowser;
+	TSharedPtr<UE::MultiUserServer::SConcertNetworkBrowser> ClientBrowser;
 	
 	/** Used to overlay EnableLoggingPrompt over the tabs */
 	TSharedPtr<SOverlay> EnableLoggingPromptOverlay;

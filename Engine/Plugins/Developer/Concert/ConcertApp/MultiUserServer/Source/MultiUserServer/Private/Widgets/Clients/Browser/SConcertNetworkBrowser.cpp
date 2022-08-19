@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SConcertClientBrowser.h"
+#include "SConcertNetworkBrowser.h"
 
 #include "ClientBrowserItem.h"
 #include "ConcertServerStyle.h"
 #include "MultiUserServerModule.h"
 #include "Models/IClientBrowserModel.h"
 #include "Models/IClientNetworkStatisticsModel.h"
-#include "SConcertClientBrowserItem.h"
+#include "SConcertBrowserItem.h"
 #include "Algo/Accumulate.h"
 #include "Algo/AllOf.h"
 
@@ -25,14 +25,13 @@
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertClientBrowser"
 
-void UE::MultiUserServer::SConcertClientBrowser::Construct(const FArguments& InArgs, TSharedRef<IClientBrowserModel> InBrowserModel, TSharedRef<IClientNetworkStatisticsModel> InStatisticsModel)
+void UE::MultiUserServer::SConcertNetworkBrowser::Construct(const FArguments& InArgs, TSharedRef<IClientBrowserModel> InBrowserModel)
 {
 	BrowserModel = MoveTemp(InBrowserModel);
-	StatisticsModel = MoveTemp(InStatisticsModel);
 	
 	HighlightText = MakeShared<FText>();
-	SessionFilter = MakeShared<FClientTextFilter>(FClientTextFilter::FItemToStringArray::CreateSP(this, &SConcertClientBrowser::GenerateSearchTerms));
-	SessionFilter->OnChanged().AddSP(this, &SConcertClientBrowser::UpdateTileViewFromAllowedSessions);
+	SessionFilter = MakeShared<FClientTextFilter>(FClientTextFilter::FItemToStringArray::CreateSP(this, &SConcertNetworkBrowser::GenerateSearchTerms));
+	SessionFilter->OnChanged().AddSP(this, &SConcertNetworkBrowser::UpdateTileViewFromAllowedSessions);
 
 	OnClientDoubleClicked = InArgs._OnClientDoubleClicked;
 
@@ -65,26 +64,26 @@ void UE::MultiUserServer::SConcertClientBrowser::Construct(const FArguments& InA
 				.Visibility_Lambda([this](){ return DisplayedClients.Num() == 0 ? EVisibility::Visible : EVisibility::Hidden; })
 				[
 					SNew(STextBlock)
-					.Text(this, &SConcertClientBrowser::GetErrorMessageText)
+					.Text(this, &SConcertNetworkBrowser::GetErrorMessageText)
 				]
 			]
 		]
 	];
 
-	BrowserModel->OnSessionCreated().AddSP(this, &SConcertClientBrowser::OnSessionCreated);
-	BrowserModel->OnSessionDestroyed().AddSP(this, &SConcertClientBrowser::OnSessionDestroyed);
-	BrowserModel->OnClientListChanged().AddSP(this, &SConcertClientBrowser::OnClientListChanged);
+	BrowserModel->OnSessionCreated().AddSP(this, &SConcertNetworkBrowser::OnSessionCreated);
+	BrowserModel->OnSessionDestroyed().AddSP(this, &SConcertNetworkBrowser::OnSessionDestroyed);
+	BrowserModel->OnClientListChanged().AddSP(this, &SConcertNetworkBrowser::OnClientListChanged);
 
 	AllowAllSessions();
 }
 
-void UE::MultiUserServer::SConcertClientBrowser::ShowOnlyClientsFromSession(const FGuid& SessionId)
+void UE::MultiUserServer::SConcertNetworkBrowser::ShowOnlyClientsFromSession(const FGuid& SessionId)
 {
 	AllowedSessions = { SessionId };
 	UpdateTileViewFromAllowedSessions();
 }
 
-TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowser::CreateSearchArea(const FArguments& InArgs)
+TSharedRef<SWidget> UE::MultiUserServer::SConcertNetworkBrowser::CreateSearchArea(const FArguments& InArgs)
 {
 	return SNew(SHorizontalBox)
 	
@@ -92,7 +91,7 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowser::CreateSearchArea
 		.AutoWidth()
 		[
 			SNew(SComboButton)
-			.OnGetMenuContent(this, &SConcertClientBrowser::MakeSessionOption)
+			.OnGetMenuContent(this, &SConcertNetworkBrowser::MakeSessionOption)
 			.ButtonContent()
 			[
 				SNew(STextBlock)
@@ -133,7 +132,7 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowser::CreateSearchArea
 		];
 }
 
-TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowser::CreateKeepDisconnectedClients()
+TSharedRef<SWidget> UE::MultiUserServer::SConcertNetworkBrowser::CreateKeepDisconnectedClients()
 {
 	return SNew(SHorizontalBox)
 		.ToolTipText(LOCTEXT("KeepDisconnectedClients.Tooltip", "Whether to keep clients that have disconnected in memory. This may be useful in unstable networks when you want to analyse why clients keep disconnecting."))
@@ -161,7 +160,7 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowser::CreateKeepDiscon
 					return;
 				}
 				
-				const int32 NumDisconnected = Algo::CountIf(BrowserModel->GetItems(), [](const TSharedPtr<FClientBrowserItem>& Item) { return Item->bIsDisconnected; });
+				const int32 NumDisconnected = Algo::CountIf(BrowserModel->GetItems(), [](const TSharedPtr<FClientBrowserItem>& Item) { return Item->IsDisconnected(); });
 				if (NumDisconnected == 0)
 				{
 					BrowserModel->SetKeepClientsAfterDisconnect(false);
@@ -189,22 +188,22 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowser::CreateKeepDiscon
 	;
 }
 
-TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowser::CreateTileView()
+TSharedRef<SWidget> UE::MultiUserServer::SConcertNetworkBrowser::CreateTileView()
 {
 	constexpr int32 Height = 270;
 	constexpr int32 Width = 270;
 	return SAssignNew(TileView, STileView<TSharedPtr<FClientBrowserItem>>)
 		.SelectionMode(ESelectionMode::Multi)
 		.ListItemsSource(&DisplayedClients)
-		.OnGenerateTile(this, &SConcertClientBrowser::MakeTileViewWidget)
-		.OnContextMenuOpening(this, &SConcertClientBrowser::OnGetContextMenuContent)
-		.OnMouseButtonDoubleClick(this, &SConcertClientBrowser::OnListMouseButtonDoubleClick)
+		.OnGenerateTile(this, &SConcertNetworkBrowser::MakeTileViewWidget)
+		.OnContextMenuOpening(this, &SConcertNetworkBrowser::OnGetContextMenuContent)
+		.OnMouseButtonDoubleClick(this, &SConcertNetworkBrowser::OnListMouseButtonDoubleClick)
 		.ItemHeight(Height)
 		.ItemWidth(Width)
 	;
 }
 
-void UE::MultiUserServer::SConcertClientBrowser::OnSessionCreated(const FGuid& SessionId)
+void UE::MultiUserServer::SConcertNetworkBrowser::OnSessionCreated(const FGuid& SessionId)
 {
 	if (bShowAllSessions)
 	{
@@ -213,7 +212,7 @@ void UE::MultiUserServer::SConcertClientBrowser::OnSessionCreated(const FGuid& S
 	}
 }
 
-void UE::MultiUserServer::SConcertClientBrowser::OnSessionDestroyed(const FGuid& SessionId)
+void UE::MultiUserServer::SConcertNetworkBrowser::OnSessionDestroyed(const FGuid& SessionId)
 {
 	if (AllowedSessions.Contains(SessionId))
 	{
@@ -222,7 +221,7 @@ void UE::MultiUserServer::SConcertClientBrowser::OnSessionDestroyed(const FGuid&
 	}
 }
 
-void UE::MultiUserServer::SConcertClientBrowser::OnClientListChanged(TSharedPtr<FClientBrowserItem> Item, IClientBrowserModel::EClientUpdateType UpdateType)
+void UE::MultiUserServer::SConcertNetworkBrowser::OnClientListChanged(TSharedPtr<FClientBrowserItem> Item, IClientBrowserModel::EClientUpdateType UpdateType)
 {
 	switch (UpdateType)
 	{
@@ -242,7 +241,7 @@ void UE::MultiUserServer::SConcertClientBrowser::OnClientListChanged(TSharedPtr<
 	TileView->RequestListRefresh();
 }
 
-TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowser::SConcertClientBrowser::MakeSessionOption()
+TSharedRef<SWidget> UE::MultiUserServer::SConcertNetworkBrowser::SConcertNetworkBrowser::MakeSessionOption()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
@@ -311,7 +310,7 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowser::SConcertClientBr
 	return MenuBuilder.MakeWidget();
 }
 
-FText UE::MultiUserServer::SConcertClientBrowser::GetErrorMessageText() const
+FText UE::MultiUserServer::SConcertNetworkBrowser::GetErrorMessageText() const
 {
 	if (BrowserModel->GetSessions().Num() == 0)
 	{
@@ -332,27 +331,19 @@ FText UE::MultiUserServer::SConcertClientBrowser::GetErrorMessageText() const
 	return LOCTEXT("NoClients", "No known clients");
 }
 
-TSharedRef<ITableRow> UE::MultiUserServer::SConcertClientBrowser::MakeTileViewWidget(TSharedPtr<FClientBrowserItem> ClientItem, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> UE::MultiUserServer::SConcertNetworkBrowser::MakeTileViewWidget(TSharedPtr<FClientBrowserItem> ClientItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	const FMessagingNodeId MessagingNodeId = ClientItem->MessageNodeId;
-	const TSharedPtr<SConcertClientBrowserItem>* ExistingWidget = ClientWidgets.Find(MessagingNodeId);
-	if (!ExistingWidget)
-	{
-		ClientWidgets.Add(MessagingNodeId, SNew(SConcertClientBrowserItem, ClientItem.ToSharedRef(), StatisticsModel.ToSharedRef())
-			 .HighlightText(HighlightText)
-			 );
-	}
-	
 	return SNew(STableRow<TSharedPtr<FClientBrowserItem>>, OwnerTable )
 		.Padding(2.f)
 		.Style(FConcertServerStyle::Get(), "Concert.Clients.TileTableRow")
 		.Content()
 		[
-			ClientWidgets[MessagingNodeId].ToSharedRef()
+			SNew(SConcertBrowserItem, ClientItem.ToSharedRef())
+			 .HighlightText(HighlightText)
 		];
 }
 
-TSharedPtr<SWidget> UE::MultiUserServer::SConcertClientBrowser::OnGetContextMenuContent()
+TSharedPtr<SWidget> UE::MultiUserServer::SConcertNetworkBrowser::OnGetContextMenuContent()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
@@ -376,22 +367,22 @@ TSharedPtr<SWidget> UE::MultiUserServer::SConcertClientBrowser::OnGetContextMenu
 		);
 	
 	MenuBuilder.AddSeparator();
-	AddDisplayModeEntry(MenuBuilder, EClientDisplayMode::NetworkGraph,
+	AddDisplayModeEntry(MenuBuilder, EConcertBrowserItemDisplayMode::NetworkGraph,
 		LOCTEXT("DisplayMode.NetworkGraph.Title", "Network graph"),
 		LOCTEXT("DisplayMode.NetworkGraph.Tooltip", "Show the up and down stream network traffic on a graph")
 		);
-	AddDisplayModeEntry(MenuBuilder, EClientDisplayMode::OutboundSegementTable,
+	AddDisplayModeEntry(MenuBuilder, EConcertBrowserItemDisplayMode::OutboundSegementTable,
 		LOCTEXT("DisplayMode.OutboundSegementTable.Title", "Outbound segment table"),
 		LOCTEXT("DisplayMode.SegementTable.Tooltip", "A table displaying the messaging protocol's outbound segments' MessageId, Sent, Acked and Size data in realtime.")
 		);
-	AddDisplayModeEntry(MenuBuilder, EClientDisplayMode::InboundSegmentTable,
+	AddDisplayModeEntry(MenuBuilder, EConcertBrowserItemDisplayMode::InboundSegmentTable,
 		LOCTEXT("DisplayMode.InboundSegementTable.Title", "Inbound Segment table"),
 		LOCTEXT("DisplayMode.SegementTable.Tooltip", "A table displaying the messaging protocol's inbound segments' MessageId, Received and Size data in realtime.")
 		);
 	return MenuBuilder.MakeWidget();
 }
 
-void UE::MultiUserServer::SConcertClientBrowser::AddDisplayModeEntry(FMenuBuilder& MenuBuilder, EClientDisplayMode DisplayMode, FText Title, FText Tooltip) const
+void UE::MultiUserServer::SConcertNetworkBrowser::AddDisplayModeEntry(FMenuBuilder& MenuBuilder, EConcertBrowserItemDisplayMode DisplayMode, FText Title, FText Tooltip) const
 {
 	MenuBuilder.AddMenuEntry(
 		Title,
@@ -403,10 +394,7 @@ void UE::MultiUserServer::SConcertClientBrowser::AddDisplayModeEntry(FMenuBuilde
 				TArray<TSharedPtr<FClientBrowserItem>> Items = TileView->GetSelectedItems();
 				for (const TSharedPtr<FClientBrowserItem>& Item : Items)
 				{
-					if (const TSharedPtr<SConcertClientBrowserItem>* ItemWidget = ClientWidgets.Find(Item->MessageNodeId))
-					{
-						ItemWidget->Get()->SetDisplayMode(DisplayMode);
-					}
+					Item->SetDisplayMode(DisplayMode);
 				}
 			}),
 			FCanExecuteAction::CreateLambda([] { return true; }),
@@ -414,11 +402,7 @@ void UE::MultiUserServer::SConcertClientBrowser::AddDisplayModeEntry(FMenuBuilde
 			{
 				return Algo::AllOf(TileView->GetSelectedItems(), [this, DisplayMode](const TSharedPtr<FClientBrowserItem>& Item)
 				{
-					if (const TSharedPtr<SConcertClientBrowserItem>* ItemWidget = ClientWidgets.Find(Item->MessageNodeId))
-					{
-						return ItemWidget->Get()->GetDisplayMode() == DisplayMode;
-					}
-					return false;
+					return Item->GetDisplayMode() == DisplayMode;
 				});
 			})),
 		NAME_None,
@@ -426,24 +410,24 @@ void UE::MultiUserServer::SConcertClientBrowser::AddDisplayModeEntry(FMenuBuilde
 	);
 }
 
-void UE::MultiUserServer::SConcertClientBrowser::OnListMouseButtonDoubleClick(TSharedPtr<FClientBrowserItem> ClientItem)
+void UE::MultiUserServer::SConcertNetworkBrowser::OnListMouseButtonDoubleClick(TSharedPtr<FClientBrowserItem> ClientItem)
 {
-	OnClientDoubleClicked.ExecuteIfBound(ClientItem->MessageNodeId);
+	OnClientDoubleClicked.ExecuteIfBound(ClientItem->GetMessageNodeId());
 }
 
-void UE::MultiUserServer::SConcertClientBrowser::SConcertClientBrowser::AllowAllSessions()
+void UE::MultiUserServer::SConcertNetworkBrowser::SConcertNetworkBrowser::AllowAllSessions()
 {
 	AllowedSessions = BrowserModel->GetSessions();
 	UpdateTileViewFromAllowedSessions();
 }
 
-void UE::MultiUserServer::SConcertClientBrowser::DisallowAllSessions()
+void UE::MultiUserServer::SConcertNetworkBrowser::DisallowAllSessions()
 {
 	AllowedSessions.Reset();
 	UpdateTileViewFromAllowedSessions();
 }
 
-void UE::MultiUserServer::SConcertClientBrowser::UpdateTileViewFromAllowedSessions()
+void UE::MultiUserServer::SConcertNetworkBrowser::UpdateTileViewFromAllowedSessions()
 {
 	bShowAllSessions = AllowedSessions.Num() == BrowserModel->GetSessions().Num();
 	DisplayedClients.Empty();
@@ -456,33 +440,18 @@ void UE::MultiUserServer::SConcertClientBrowser::UpdateTileViewFromAllowedSessio
 		}
 	}
 	TileView->RequestListRefresh();
-
-	for (auto CachedClientWidgetIt = ClientWidgets.CreateIterator(); CachedClientWidgetIt; ++CachedClientWidgetIt)
-	{
-		const bool bShouldExist = BrowserModel->GetItems().ContainsByPredicate([MessageNodeId = CachedClientWidgetIt->Key](const TSharedPtr<FClientBrowserItem>& Item)
-		{
-			return Item->MessageNodeId == MessageNodeId;
-		});
-		if (!bShouldExist)
-		{
-			CachedClientWidgetIt.RemoveCurrent();
-		}
-	}
 }
 
-bool UE::MultiUserServer::SConcertClientBrowser::PassesFilter(const TSharedPtr<FClientBrowserItem>& Client) const
+bool UE::MultiUserServer::SConcertNetworkBrowser::PassesFilter(const TSharedPtr<FClientBrowserItem>& Client) const
 {
-	const bool bIsSessionAllowed = Client->CurrentSession.IsSet() && AllowedSessions.Contains(*Client->CurrentSession);
-	const bool bAllowBaseOnSession = bIsSessionAllowed || (bShowSessionlessClients && !Client->CurrentSession.IsSet());
+	const bool bIsSessionAllowed = Client->GetCurrentSession().IsSet() && AllowedSessions.Contains(*Client->GetCurrentSession());
+	const bool bAllowBaseOnSession = bIsSessionAllowed || (bShowSessionlessClients && !Client->GetCurrentSession().IsSet());
 	return bAllowBaseOnSession && SessionFilter->PassesFilter(Client);
 }
 
-void UE::MultiUserServer::SConcertClientBrowser::GenerateSearchTerms(const TSharedPtr<FClientBrowserItem>& Client, TArray<FString>& SearchTerms) const
+void UE::MultiUserServer::SConcertNetworkBrowser::GenerateSearchTerms(const TSharedPtr<FClientBrowserItem>& Client, TArray<FString>& SearchTerms) const
 {
-	if (const TSharedPtr<SConcertClientBrowserItem>* ItemWidget = ClientWidgets.Find(Client->MessageNodeId))
-	{
-		ItemWidget->Get()->AppendSearchTerms(SearchTerms);
-	}
+	Client->AppendSearchTerms(SearchTerms);
 }
 
 

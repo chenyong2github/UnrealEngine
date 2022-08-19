@@ -13,11 +13,13 @@ class IConcertServer;
 
 namespace UE::MultiUserServer
 {
+	class IClientNetworkStatisticsModel;
+
 	class FClientBrowserModel : public IClientBrowserModel
 	{
 	public:
 
-		FClientBrowserModel(TSharedRef<IConcertServer> InServer, TSharedRef<FEndpointToUserNameCache> ClientInfoCache);
+		FClientBrowserModel(TSharedRef<IConcertServer> InServer, TSharedRef<FEndpointToUserNameCache> ClientInfoCache, TSharedRef<IClientNetworkStatisticsModel> NetworkStatisticsModel);
 		virtual ~FClientBrowserModel() override;
 
 		//~ Begin IClientBrowserModel Interface
@@ -38,6 +40,7 @@ namespace UE::MultiUserServer
 
 		TSharedRef<IConcertServer> Server;
 		TSharedRef<FEndpointToUserNameCache> ClientInfoCache;
+		TSharedRef<IClientNetworkStatisticsModel> NetworkStatisticsModel;
 
 		TArray<TSharedPtr<FClientBrowserItem>> Clients;
 		/** Needed for when an admin endpoint disconnects - querying won't work anymore then. */

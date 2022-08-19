@@ -11,7 +11,7 @@ struct FMessageAddress;
 
 namespace UE::MultiUserServer
 {
-	struct FClientBrowserItem;
+	class FClientBrowserItem;
 	
 	/** Decouples the UI from the server functions. */
 	class IClientBrowserModel

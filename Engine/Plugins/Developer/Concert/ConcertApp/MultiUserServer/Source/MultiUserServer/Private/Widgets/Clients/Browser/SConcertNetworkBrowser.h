@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SConcertClientBrowserItem.h"
+#include "SConcertBrowserItem.h"
 #include "Misc/TextFilter.h"
 #include "Models/IClientBrowserModel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -20,28 +20,28 @@ struct FConcertSessionClientInfo;
 
 namespace UE::MultiUserServer
 {
+	class FClientBrowserItem;
 	class IClientNetworkStatisticsModel;
 	class IClientBrowserModel;
-	enum class EClientDisplayMode : uint8;
-	struct FClientBrowserItem;
+	enum class EConcertBrowserItemDisplayMode : uint8;
 	
 	/**
 	 * Presents a view of client thumbnails, which include important statistics.
 	 * Clients can be right-clicked, opening a context menu, and double clicked, opening a new tab with a log view.
 	 */
-	class SConcertClientBrowser : public SCompoundWidget
+	class SConcertNetworkBrowser : public SCompoundWidget
 	{
 	public:
 
 		DECLARE_DELEGATE_OneParam(FOnClientDoubleClicked, const FGuid& /*EndpointId*/);
 
-		SLATE_BEGIN_ARGS(SConcertClientBrowser) {}
+		SLATE_BEGIN_ARGS(SConcertNetworkBrowser) {}
 			/** Extension point to the right of the search bar */
 			SLATE_NAMED_SLOT(FArguments, RightOfSearch)
 			SLATE_EVENT(FOnClientDoubleClicked, OnClientDoubleClicked)
 		SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs, TSharedRef<IClientBrowserModel> InBrowserModel, TSharedRef<IClientNetworkStatisticsModel> InStatisticsModel);
+		void Construct(const FArguments& InArgs, TSharedRef<IClientBrowserModel> InBrowserModel);
 
 		/** Shows only the clients connected to the given session ID */
 		void ShowOnlyClientsFromSession(const FGuid& SessionId);
@@ -54,8 +54,6 @@ namespace UE::MultiUserServer
 
 		/** Retrieves clients and live sessions */
 		TSharedPtr<IClientBrowserModel> BrowserModel;
-		/** Used by sub-widgets to display networking data */
-		TSharedPtr<IClientNetworkStatisticsModel> StatisticsModel;
 
 		/** Contains the guid of every session we're allowed to display */
 		TSet<FSessionId> AllowedSessions;
@@ -63,8 +61,6 @@ namespace UE::MultiUserServer
 		bool bShowAllSessions = true;
 		/** Should admin endpoints be shown? */
 		bool bShowSessionlessClients = true;
-		/** Keeps widgets alive even when not displayed in the view - otherwise the graph will lose the historic data. */
-		TMap<FMessagingNodeId, TSharedPtr<SConcertClientBrowserItem>> ClientWidgets;
 
 		/** Source array for TileView - fitlered version of IClientBrowserModel::GetItems */
 		TArray<TSharedPtr<FClientBrowserItem>> DisplayedClients;
@@ -94,7 +90,7 @@ namespace UE::MultiUserServer
 		// TileView events
 		TSharedRef<ITableRow> MakeTileViewWidget(TSharedPtr<FClientBrowserItem> ClientItem, const TSharedRef<STableViewBase>& OwnerTable);
 		TSharedPtr<SWidget> OnGetContextMenuContent();
-		void AddDisplayModeEntry(FMenuBuilder& MenuBuilder, EClientDisplayMode DisplayMode, FText Title, FText Tooltip) const;
+		void AddDisplayModeEntry(FMenuBuilder& MenuBuilder, EConcertBrowserItemDisplayMode DisplayMode, FText Title, FText Tooltip) const;
 		void OnListMouseButtonDoubleClick(TSharedPtr<FClientBrowserItem> ClientItem);
 
 		// Filtering

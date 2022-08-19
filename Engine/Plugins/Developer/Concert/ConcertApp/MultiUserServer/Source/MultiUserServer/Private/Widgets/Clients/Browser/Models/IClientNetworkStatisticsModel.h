@@ -23,6 +23,18 @@ namespace UE::MultiUserServer
 
 		virtual ~IClientNetworkStatisticsModel() = default;
 	};
+
+	// Should move IClientNetworkStatisticsModel into the this namespace for more cohesion
+	namespace NetworkStatistics
+	{
+		FString FormatIPv4AsString(const TOptional<FMessageTransportStatistics>& Stats);
+		
+		FString FormatTotalBytesSent(const FMessageTransportStatistics& Stats);
+		FString FormatTotalBytesReceived(const FMessageTransportStatistics& Stats);
+		FString FormatAverageRTT(const FMessageTransportStatistics& Stats);
+		FString FormatBytesInflight(const FMessageTransportStatistics& Stats);
+		FString FormatTotalBytesLost(const FMessageTransportStatistics& Stats);
+	}
 }
 
 

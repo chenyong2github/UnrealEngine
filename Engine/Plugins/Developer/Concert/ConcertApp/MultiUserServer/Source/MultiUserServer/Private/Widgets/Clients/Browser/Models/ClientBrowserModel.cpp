@@ -12,9 +12,10 @@
 #include "Features/IModularFeatures.h"
 #include "INetworkMessagingExtension.h"
 
-UE::MultiUserServer::FClientBrowserModel::FClientBrowserModel(TSharedRef<IConcertServer> InServer, TSharedRef<FEndpointToUserNameCache> ClientInfoCache)
+UE::MultiUserServer::FClientBrowserModel::FClientBrowserModel(TSharedRef<IConcertServer> InServer, TSharedRef<FEndpointToUserNameCache> ClientInfoCache, TSharedRef<IClientNetworkStatisticsModel> NetworkStatisticsModel)
 	: Server(MoveTemp(InServer))
 	, ClientInfoCache(MoveTemp(ClientInfoCache))
+	, NetworkStatisticsModel(MoveTemp(NetworkStatisticsModel))
 {
 	ConcertServerEvents::OnLiveSessionCreated().AddRaw(this, &FClientBrowserModel::OnLiveSessionCreated);
 	ConcertServerEvents::OnLiveSessionDestroyed().AddRaw(this, &FClientBrowserModel::OnLiveSessionDestroyed);
@@ -73,7 +74,7 @@ void UE::MultiUserServer::FClientBrowserModel::SetKeepClientsAfterDisconnect(boo
 	}
 	for (auto It = Clients.CreateIterator(); It; ++It)
 	{
-		if (It->Get()->bIsDisconnected)
+		if (It->Get()->IsDisconnected())
 		{
 			OnClientListChanged().Broadcast(*It, EClientUpdateType::Removed);
 			It.RemoveCurrent();
@@ -152,11 +153,18 @@ void UE::MultiUserServer::FClientBrowserModel::UpdateClientSessionId(IConcertSer
 	const FGuid NodeId = Extension.GetNodeIdFromAddress(Address);
 	const int32 Index = Clients.IndexOfByPredicate([&NodeId](const TSharedPtr<FClientBrowserItem>& Item)
 	{
-		return Item->MessageNodeId == NodeId;
+		return Item->GetMessageNodeId() == NodeId;
 	});
 	if (Clients.IsValidIndex(Index))
 	{
-		Clients[Index]->CurrentSession = SessionId;
+		if (SessionId)
+		{
+			Clients[Index]->OnJoinSession(*SessionId);
+		}
+		else
+		{
+			Clients[Index]->OnLeaveSession();
+		}
 	}
 }
 
@@ -196,19 +204,17 @@ void UE::MultiUserServer::FClientBrowserModel::AddClientAdminEndpoint(const FCon
 	const FGuid NodeId = MessagingExtension->GetNodeIdFromAddress(Address);
 	const TSharedPtr<FClientBrowserItem>* ExistingItem = Clients.FindByPredicate([&NodeId](const TSharedPtr<FClientBrowserItem>& Item)
 	{
-		return Item->MessageNodeId == NodeId;
+		return Item->GetMessageNodeId() == NodeId;
 	});
 	if (ExistingItem)
 	{
-		ExistingItem->Get()->bIsDisconnected = false;
+		ExistingItem->Get()->OnClientReconnected();
 		return;
 	}
 	
 	const TSharedRef<FClientBrowserItem> Item = MakeShared<FClientBrowserItem>(
-		FGetClientInfo::CreateLambda([this, NodeId]()
-		{
-			return ClientInfoCache->GetClientInfoFromNodeId(NodeId);
-		}),
+		NetworkStatisticsModel,
+		ClientInfoCache,
 		Address,
 		NodeId
 		);
@@ -227,7 +233,7 @@ void UE::MultiUserServer::FClientBrowserModel::RemoveClientAdminEndpoint(const F
 	
 	const int32 Index = Clients.IndexOfByPredicate([NodeId](const TSharedPtr<FClientBrowserItem>& Item)
 	{
-		return Item->MessageNodeId == *NodeId;
+		return Item->GetMessageNodeId() == *NodeId;
 	});
 	
 	if (ensure(Clients.IsValidIndex(Index)))
@@ -236,7 +242,7 @@ void UE::MultiUserServer::FClientBrowserModel::RemoveClientAdminEndpoint(const F
 		const TSharedPtr<FClientBrowserItem> Item = Clients[Index]; 
 		if (bKeepClientsAfterDisconnect)
 		{
-			Item->bIsDisconnected = true;
+			Item->OnClientDisconnected();
 			return;
 		}
 		

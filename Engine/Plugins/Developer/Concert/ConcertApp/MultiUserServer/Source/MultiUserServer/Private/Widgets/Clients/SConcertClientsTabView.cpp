@@ -9,7 +9,7 @@
 #include "Logging/Source/GlobalLogSource.h"
 #include "Logging/Util/ConcertLogTokenizer.h"
 #include "Util/EndpointToUserNameCache.h"
-#include "Widgets/Clients/Browser/SConcertClientBrowser.h"
+#include "Widgets/Clients/Browser/SConcertNetworkBrowser.h"
 #include "Widgets/Clients/Browser/Models/ClientBrowserModel.h"
 #include "Widgets/Clients/Browser/Models/ClientNetworkStatisticsModel.h"
 #include "Widgets/Clients/Logging/SConcertTransportLog.h"
@@ -147,9 +147,8 @@ TSharedRef<SDockTab> SConcertClientsTabView::SpawnClientBrowserTab(const FSpawnT
 		.Label(LOCTEXT("ClientBrowserTabLabel", "Clients"))
 		.TabRole(PanelTab)
 		[
-			SAssignNew(ClientBrowser, UE::MultiUserServer::SConcertClientBrowser,
-				MakeShared<UE::MultiUserServer::FClientBrowserModel>(Server->GetConcertServer(), ClientInfoCache.ToSharedRef()),
-				MakeShared<UE::MultiUserServer::FClientNetworkStatisticsModel>())
+			SAssignNew(ClientBrowser, UE::MultiUserServer::SConcertNetworkBrowser,
+				MakeShared<UE::MultiUserServer::FClientBrowserModel>(Server->GetConcertServer(), ClientInfoCache.ToSharedRef(), MakeShared<UE::MultiUserServer::FClientNetworkStatisticsModel>()))
 			.RightOfSearch()
 			[
 				CreateOpenGlobalLogButton()
