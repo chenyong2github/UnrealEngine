@@ -829,7 +829,7 @@ bool FDesktopPlatformBase::GetOidcAccessToken(const FString& RootDir, const FStr
 			bRes = GetOidcAccessTokenInteractive(RootDir, Arguments, Warn, ExitCode);
 			if (!bRes)
 			{
-				UE_LOG(LogDesktopPlatform, Error, TEXT("Unable to allocate an access token. Interactive login failed, make sure you are logged in using UGS or using the UGS cli command 'login'. Provider used: '%s'. Ran OidcToken (project file is '%s', exe path is '%s')"), *ProviderIdentifier, *ProjectFileName, *GetOidcTokenExecutableFilename(RootDir));
+				UE_LOG(LogDesktopPlatform, Error, TEXT("Unable to allocate an access token. Interactive login failed, make sure you are assigned access and are able to login in the created browser window. Provider used: '%s'. Ran OidcToken (project file is '%s', exe path is '%s')"), *ProviderIdentifier, *ProjectFileName, *GetOidcTokenExecutableFilename(RootDir));
 				return false;
 			}
 		}
@@ -980,14 +980,17 @@ bool FDesktopPlatformBase::GetOidcAccessTokenInteractive(const FString& RootDir,
 		FPlatformProcess::Sleep(0.1f);
 	}
 
-	bool bGotReturnCode = FPlatformProcess::GetProcReturnCode(ProcHandle, &OutReturnCode);		
-	check(bGotReturnCode);
-	FPlatformProcess::ClosePipe(PipeRead, PipeWrite);
-	
 	if (!bIsFinished)
 	{
 		OutReturnCode = -1;
+		FPlatformProcess::ClosePipe(PipeRead, PipeWrite);
+		FPlatformProcess::TerminateProc(ProcHandle);
+		return false;
 	}
+
+	bool bGotReturnCode = FPlatformProcess::GetProcReturnCode(ProcHandle, &OutReturnCode);		
+	check(bGotReturnCode);
+	FPlatformProcess::ClosePipe(PipeRead, PipeWrite);
 
 	return bInvoked;
 }

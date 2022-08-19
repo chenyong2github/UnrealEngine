@@ -638,6 +638,6 @@ FString FDesktopPlatformMac::GetUserTempPath()
 
 FString FDesktopPlatformMac::GetOidcTokenExecutableFilename(const FString& RootDir) const
 {
-	return FPaths::ConvertRelativePathToFull(RootDir / TEXT("Engine/Binaries/DotNET/OidcToken/mac-x64/OidcToken.exe"));
+	return FPaths::ConvertRelativePathToFull(RootDir / TEXT("Engine/Binaries/DotNET/OidcToken/osx-x64/OidcToken"));
 }
 #undef LOCTEXT_NAMESPACE
