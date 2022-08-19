@@ -331,7 +331,7 @@ void FMeshSimpleShapeApproximation::Generate_ConvexHullDecompositions(FSimpleSha
 		for (int32 HullIdx = 0; HullIdx < Decomposition.NumHulls(); HullIdx++)
 		{
 			FDynamicMesh3 HullMesh = Decomposition.GetHullMesh(HullIdx);
-			if (!FMeshConvexHull::SimplifyHull(HullMesh, HullTargetFaceCount, Progress))
+			if (bSimplifyHulls && FMeshConvexHull::SimplifyHull(HullMesh, HullTargetFaceCount, Progress) == false)
 			{
 				return;
 			}

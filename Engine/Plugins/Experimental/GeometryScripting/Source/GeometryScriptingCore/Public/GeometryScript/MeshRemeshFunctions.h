@@ -145,6 +145,7 @@ public:
 
 	/**
 	 * Apply Uniform Remeshing to the TargetMesh. 
+	 * @warning this function can be quite expensive. The results may be non-deterministic, and are expected to change in future versions.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 

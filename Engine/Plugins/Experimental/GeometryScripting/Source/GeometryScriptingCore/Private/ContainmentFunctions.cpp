@@ -4,8 +4,10 @@
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/MeshNormals.h"
+#include "DynamicMeshEditor.h"
 #include "Operations/MeshConvexHull.h"
 #include "Operations/MeshProjectionHull.h"
+#include "ShapeApproximation/MeshSimpleShapeApproximation.h"
 #include "UDynamicMesh.h"
 
 using namespace UE::Geometry;
@@ -17,6 +19,7 @@ UDynamicMesh* UGeometryScriptLibrary_ContainmentFunctions::ComputeMeshConvexHull
 	UDynamicMesh* TargetMesh,
 	UPARAM(DisplayName = "Hull Mesh", ref) UDynamicMesh* CopyToMesh, 
 	UPARAM(DisplayName = "Hull Mesh") UDynamicMesh*& CopyToMeshOut, 
+	FGeometryScriptMeshSelection Selection,
 	FGeometryScriptConvexHullOptions Options,
 	UGeometryScriptDebug* Debug)
 {
@@ -37,7 +40,13 @@ UDynamicMesh* UGeometryScriptLibrary_ContainmentFunctions::ComputeMeshConvexHull
 	{
 		FMeshConvexHull Hull(&EditMesh);
 
-		if (Options.bPrefilterVertices)
+		if (Selection.IsEmpty() == false)
+		{
+			Selection.ProcessByVertexID(EditMesh, [&](int32 VertexID) {
+				Hull.VertexSet.Add(VertexID);
+			});
+		}
+		else if (Options.bPrefilterVertices)
 		{
 			FMeshConvexHull::GridSample(EditMesh, FMath::Max(32, Options.PrefilterGridResolution), Hull.VertexSet);
 		}
@@ -118,6 +127,78 @@ UDynamicMesh* UGeometryScriptLibrary_ContainmentFunctions::ComputeMeshSweptHull(
 
 	return TargetMesh;
 }
+
+
+
+
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_ContainmentFunctions::ComputeMeshConvexDecomposition(
+	UDynamicMesh* TargetMesh,
+	UPARAM(DisplayName = "Hull Mesh", ref) UDynamicMesh* CopyToMesh, 
+	UPARAM(DisplayName = "Hull Mesh") UDynamicMesh*& CopyToMeshOut, 
+	FGeometryScriptConvexDecompositionOptions Options,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ComputeMeshConvexDecomposition_InvalidInput", "ComputeMeshConvexDecomposition: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (CopyToMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ComputeMeshConvexDecomposition_InvalidInput2", "ComputeMeshConvexDecomposition: CopyToMesh is Null"));
+		return TargetMesh;
+	}
+	CopyToMeshOut = CopyToMesh;
+
+	FDynamicMesh3 HullsMesh;
+	TargetMesh->ProcessMesh([&](const FDynamicMesh3& EditMesh) 
+	{
+		TArray<const FDynamicMesh3*> InputMeshes;
+		InputMeshes.Add(&EditMesh);
+		FMeshSimpleShapeApproximation Approximator;
+		Approximator.InitializeSourceMeshes(InputMeshes);
+
+		Approximator.bSimplifyHulls = (Options.SimplifyToFaceCount > 4);
+		Approximator.HullTargetFaceCount = Options.SimplifyToFaceCount;
+
+		Approximator.ConvexDecompositionMaxPieces = Options.NumHulls;
+		Approximator.ConvexDecompositionSearchFactor = Options.SearchFactor;
+		Approximator.ConvexDecompositionErrorTolerance = Options.ErrorTolerance;
+		Approximator.ConvexDecompositionMinPartThickness = Options.MinPartThickness;
+
+		FSimpleShapeSet3d Shapes;
+		Approximator.Generate_ConvexHullDecompositions(Shapes);
+
+		HullsMesh.EnableMatchingAttributes(EditMesh);
+		FDynamicMeshEditor Editor(&HullsMesh);
+		for (FConvexShape3d& Convex : Shapes.Convexes)
+		{
+			FMeshIndexMappings Mappings;
+			Editor.AppendMesh(&Convex.Mesh, Mappings);
+		}
+	});
+
+	if ( HullsMesh.TriangleCount() == 0 )
+	{
+		// todo: replace output with bounding box mesh?
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("ComputeMeshConvexDecomposition_Failed", "ComputeMeshConvexDecomposition: Hull Computation Failed"));
+		CopyToMesh->ResetToCube();
+	}
+	else
+	{
+		FMeshNormals::InitializeOverlayToPerTriangleNormals(HullsMesh.Attributes()->PrimaryNormals());
+		CopyToMesh->SetMesh(MoveTemp(HullsMesh));
+	}
+
+	return TargetMesh;
+}
+
+
+
 
 
 #undef LOCTEXT_NAMESPACE
