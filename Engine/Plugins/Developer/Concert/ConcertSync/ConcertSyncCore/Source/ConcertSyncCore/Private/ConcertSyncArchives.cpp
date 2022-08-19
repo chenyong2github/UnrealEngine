@@ -223,30 +223,30 @@ FConcertSyncObjectWriter::FConcertSyncObjectWriter(FConcertLocalIdentifierTable*
 {
 }
 
-void FConcertSyncObjectWriter::SerializeObject(UObject* InObject, const TArray<FName>* InPropertyNamesToWrite)
+void FConcertSyncObjectWriter::SerializeObject(const UObject* InObject, const TArray<const FProperty*>* InPropertiesToWrite)
 {
-	if (InPropertyNamesToWrite)
+	if (InPropertiesToWrite)
 	{
-		ShouldSkipPropertyFunc = [InObject, InPropertyNamesToWrite](const FProperty* InProperty) -> bool
+		ShouldSkipPropertyFunc = [InObject, InPropertiesToWrite](const FProperty* InProperty) -> bool
 		{
-			return InProperty->GetOwnerStruct() == InObject->GetClass() && !InPropertyNamesToWrite->Contains(InProperty->GetFName());
+			return !InPropertiesToWrite->Contains(InProperty);
 		};
 
-		InObject->Serialize(*this);
+		const_cast<UObject*>(InObject)->Serialize(*this);
 
 		ShouldSkipPropertyFunc = FShouldSkipPropertyFunc();
 	}
 	else
 	{
-		InObject->Serialize(*this);
+		const_cast<UObject*>(InObject)->Serialize(*this);
 	}
 }
 
-void FConcertSyncObjectWriter::SerializeProperty(FProperty* InProp, UObject* InObject)
+void FConcertSyncObjectWriter::SerializeProperty(const FProperty* InProp, const UObject* InObject)
 {
 	for (int32 Idx = 0; Idx < InProp->ArrayDim; ++Idx)
 	{
-		InProp->SerializeItem(FStructuredArchiveFromArchive(*this).GetSlot(), InProp->ContainerPtrToValuePtr<void>(InObject, Idx));
+		InProp->SerializeItem(FStructuredArchiveFromArchive(*this).GetSlot(), InProp->ContainerPtrToValuePtr<void>(const_cast<UObject*>(InObject), Idx));
 	}
 }
 
@@ -372,7 +372,7 @@ void FConcertSyncObjectReader::SerializeObject(UObject* InObject)
 	InObject->Serialize(*this);
 }
 
-void FConcertSyncObjectReader::SerializeProperty(FProperty* InProp, UObject* InObject)
+void FConcertSyncObjectReader::SerializeProperty(const FProperty* InProp, UObject* InObject)
 {
 	for (int32 Idx = 0; Idx < InProp->ArrayDim; ++Idx)
 	{

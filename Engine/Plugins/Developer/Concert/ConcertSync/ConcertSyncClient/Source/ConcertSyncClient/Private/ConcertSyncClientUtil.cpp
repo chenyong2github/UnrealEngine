@@ -312,38 +312,25 @@ FGetObjectResult GetObject(const FConcertObjectId& InObjectId, const FName InNew
 	return FGetObjectResult();
 }
 
-bool ImportPropertyData(const FConcertLocalIdentifierTable* InLocalIdentifierTable, const FConcertSyncWorldRemapper& InWorldRemapper, const FConcertSessionVersionInfo* InVersionInfo, UObject* InObj, const FName InPropertyName, const TArray<uint8>& InSerializedData)
+TArray<const FProperty*> GetExportedProperties(const UStruct* InStruct, const TArray<FName>& InPropertyNames, const bool InIncludeEditorOnlyData)
 {
-	FProperty* Prop = InObj->GetClass()->FindPropertyByName(InPropertyName);
-	if (Prop)
+	TArray<const FProperty*> ExportedProperties;
+	ExportedProperties.Reserve(InPropertyNames.Num());
+
+	for (const FName& PropertyName : InPropertyNames)
 	{
-		FConcertSyncObjectReader ObjectReader(InLocalIdentifierTable, InWorldRemapper, InVersionInfo, InObj, InSerializedData);
-		ObjectReader.SerializeProperty(Prop, InObj);
-		return !ObjectReader.GetError();
+		if (const FProperty* Property = GetExportedProperty(InStruct, PropertyName, InIncludeEditorOnlyData))
+		{
+			ExportedProperties.Add(Property);
+		}
 	}
 
-	return false;
+	return ExportedProperties;
 }
 
-TArray<FName> GetRootProperties(const TArray<FName>& InChangedProperties)
+const FProperty* GetExportedProperty(const UStruct* InStruct, const FName InPropertyName, const bool InIncludeEditorOnlyData)
 {
-	TArray<FName> RootProperties;
-	RootProperties.Reserve(InChangedProperties.Num());
-	for (const FName& PropertyChainName : InChangedProperties)
-	{
-		// Only care about the root property in the chain
-		TArray<FString> PropertyChainNames;
-		PropertyChainName.ToString().ParseIntoArray(PropertyChainNames, TEXT("."));
-		check(PropertyChainNames.Num() >= 1);
-
-		RootProperties.AddUnique(*PropertyChainNames[0]);
-	}
-	return RootProperties;
-}
-
-FProperty* GetExportedProperty(const UStruct* InStruct, const FName InPropertyName, const bool InIncludeEditorOnlyData)
-{
-	if (FProperty* Property = FindFProperty<FProperty>(InStruct, InPropertyName))
+	if (const FProperty* Property = FindFProperty<FProperty>(InStruct, InPropertyName))
 	{
 		if (ConcertSyncUtil::CanExportProperty(Property, InIncludeEditorOnlyData))
 		{
@@ -354,18 +341,13 @@ FProperty* GetExportedProperty(const UStruct* InStruct, const FName InPropertyNa
 	return nullptr;
 }
 
-void SerializeProperties(FConcertLocalIdentifierTable* InLocalIdentifierTable, const UObject* InObject, const TArray<FName>& InChangedProperties, const bool InIncludeEditorOnlyData, TArray<FConcertSerializedPropertyData>& OutPropertyDatas)
+void SerializeProperties(FConcertLocalIdentifierTable* InLocalIdentifierTable, const UObject* InObject, const TArray<const FProperty*>& InProperties, const bool InIncludeEditorOnlyData, TArray<FConcertSerializedPropertyData>& OutPropertyDatas)
 {
-	const TArray<FName> RootPropertyNames = GetRootProperties(InChangedProperties);
-	for (const FName& RootPropertyName : RootPropertyNames)
+	for (const FProperty* Property : InProperties)
 	{
-		FProperty* RootProperty = GetExportedProperty(InObject->GetClass(), RootPropertyName, InIncludeEditorOnlyData);
-		if (RootProperty)
-		{
-			FConcertSerializedPropertyData& PropertyData = OutPropertyDatas.AddDefaulted_GetRef();
-			PropertyData.PropertyName = RootProperty->GetFName();
-			SerializeProperty(InLocalIdentifierTable, InObject, RootProperty, InIncludeEditorOnlyData, PropertyData.SerializedData);
-		}
+		FConcertSerializedPropertyData& PropertyData = OutPropertyDatas.AddDefaulted_GetRef();
+		PropertyData.PropertyName = Property->GetFName();
+		SerializeProperty(InLocalIdentifierTable, InObject, Property, InIncludeEditorOnlyData, PropertyData.SerializedData);
 	}
 }
 
@@ -374,15 +356,15 @@ void SerializeProperty(FConcertLocalIdentifierTable* InLocalIdentifierTable, con
 	bool bSkipAssets = false; // TODO: Handle asset updates
 
 	FConcertSyncObjectWriter ObjectWriter(InLocalIdentifierTable, (UObject*)InObject, OutSerializedData, InIncludeEditorOnlyData, bSkipAssets);
-	ObjectWriter.SerializeProperty((FProperty*)InProperty, (UObject*)InObject);
+	ObjectWriter.SerializeProperty(InProperty, InObject);
 }
 
-void SerializeObject(FConcertLocalIdentifierTable* InLocalIdentifierTable, const UObject* InObject, const TArray<FName>* InChangedProperties, const bool InIncludeEditorOnlyData, TArray<uint8>& OutSerializedData)
+void SerializeObject(FConcertLocalIdentifierTable* InLocalIdentifierTable, const UObject* InObject, const TArray<const FProperty*>* InProperties, const bool InIncludeEditorOnlyData, TArray<uint8>& OutSerializedData)
 {
 	bool bSkipAssets = false; // TODO: Handle asset updates
 
 	FConcertSyncObjectWriter ObjectWriter(InLocalIdentifierTable, (UObject*)InObject, OutSerializedData, InIncludeEditorOnlyData, bSkipAssets);
-	ObjectWriter.SerializeObject((UObject*)InObject, InChangedProperties);
+	ObjectWriter.SerializeObject(InObject, InProperties);
 }
 
 

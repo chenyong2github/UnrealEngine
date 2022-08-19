@@ -50,8 +50,8 @@ public:
 	FConcertSyncObjectWriter(FConcertLocalIdentifierTable* InLocalIdentifierTable, UObject* InObj, TArray<uint8>& OutBytes, const bool InIncludeEditorOnlyData, const bool InSkipAssets, const FConcertSyncRemapObjectPath& InRemapDelegate);
 	FConcertSyncObjectWriter(FConcertLocalIdentifierTable* InLocalIdentifierTable, UObject* InObj, TArray<uint8>& OutBytes, const bool InIncludeEditorOnlyData, const bool InSkipAssets);
 
-	void SerializeObject(UObject* InObject, const TArray<FName>* InPropertyNamesToWrite = nullptr);
-	void SerializeProperty(FProperty* InProp, UObject* InObject);
+	void SerializeObject(const UObject* InObject, const TArray<const FProperty*>* InPropertiesToWrite = nullptr);
+	void SerializeProperty(const FProperty* InProp, const UObject* InObject);
 
 	using FConcertIdentifierWriter::operator<<; // For visibility of the overloads we don't override
 
@@ -80,7 +80,7 @@ public:
 	FConcertSyncObjectReader(const FConcertLocalIdentifierTable* InLocalIdentifierTable, FConcertSyncWorldRemapper InWorldRemapper, const FConcertSessionVersionInfo* InVersionInfo, UObject* InObj, const TArray<uint8>& InBytes);
 
 	void SerializeObject(UObject* InObject);
-	void SerializeProperty(FProperty* InProp, UObject* InObject);
+	void SerializeProperty(const FProperty* InProp, UObject* InObject);
 
 	using FConcertIdentifierReader::operator<<; // For visibility of the overloads we don't override
 

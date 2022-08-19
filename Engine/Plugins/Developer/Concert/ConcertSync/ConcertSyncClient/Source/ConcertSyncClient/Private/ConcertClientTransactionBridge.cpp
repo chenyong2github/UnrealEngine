@@ -673,7 +673,7 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 	const FName NewObjectName = InTransactionEvent.HasNameChange() ? InObject->GetFName() : FName();
 	const FName NewObjectOuterPathName = (InTransactionEvent.HasOuterChange() && InObject->GetOuter()) ? FName(*InObject->GetOuter()->GetPathName()) : FName();
 	const FName NewObjectExternalPackageName = (InTransactionEvent.HasExternalPackageChange() && InObject->GetExternalPackage()) ? InObject->GetExternalPackage()->GetFName() : FName();
-	const TArray<FName> RootPropertyNames = ConcertSyncClientUtil::GetRootProperties(InTransactionEvent.GetChangedProperties());
+	const TArray<const FProperty*> ExportedProperties = ConcertSyncClientUtil::GetExportedProperties(InObject->GetClass(), InTransactionEvent.GetChangedProperties(), bIncludeEditorOnlyProperties);
 	TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation = InTransactionEvent.GetAnnotation();
 
 	// Track which packages were changed
@@ -721,26 +721,20 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 			}
 
 			// Find or add an update for each property
-			for (const FName& RootPropertyName : RootPropertyNames)
+			for (const FProperty* ExportedProperty : ExportedProperties)
 			{
-				FProperty* RootProperty = ConcertSyncClientUtil::GetExportedProperty(InObject->GetClass(), RootPropertyName, bIncludeEditorOnlyProperties);
-				if (!RootProperty)
+				FConcertSerializedPropertyData* PropertyDataPtr = ObjectUpdatePtr->PropertyDatas.FindByPredicate([ExportedProperty](FConcertSerializedPropertyData& PropertyData)
 				{
-					continue;
-				}
-
-				FConcertSerializedPropertyData* PropertyDataPtr = ObjectUpdatePtr->PropertyDatas.FindByPredicate([&RootPropertyName](FConcertSerializedPropertyData& PropertyData)
-				{
-					return RootPropertyName == PropertyData.PropertyName;
+					return ExportedProperty->GetFName() == PropertyData.PropertyName;
 				});
 				if (!PropertyDataPtr)
 				{
 					PropertyDataPtr = &ObjectUpdatePtr->PropertyDatas.AddDefaulted_GetRef();
-					PropertyDataPtr->PropertyName = RootPropertyName;
+					PropertyDataPtr->PropertyName = ExportedProperty->GetFName();
 				}
 
 				PropertyDataPtr->SerializedData.Reset();
-				ConcertSyncClientUtil::SerializeProperty(nullptr, InObject, RootProperty, bIncludeEditorOnlyProperties, PropertyDataPtr->SerializedData);
+				ConcertSyncClientUtil::SerializeProperty(nullptr, InObject, ExportedProperty, bIncludeEditorOnlyProperties, PropertyDataPtr->SerializedData);
 			}
 		}
 	}
@@ -773,31 +767,20 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 		{
 			// The 'non-property changes' refers to custom data added by a deriver UObject before and/or after the standard serialized data. Since this is a custom
 			// data format, we don't know what changed, call the object to re-serialize this part, but still send the delta for the generic reflected properties (in RootPropertyNames).
-			ConcertSyncClientUtil::SerializeObject(&OngoingTransaction.FinalizedData.FinalizedLocalIdentifierTable, InObject, &RootPropertyNames, bIncludeEditorOnlyProperties, ObjectUpdate.ObjectData.SerializedData);
+			ConcertSyncClientUtil::SerializeObject(&OngoingTransaction.FinalizedData.FinalizedLocalIdentifierTable, InObject, &ExportedProperties, bIncludeEditorOnlyProperties, ObjectUpdate.ObjectData.SerializedData);
 
 			// Track which properties changed. Not used to apply the transaction on the receiving side, the object specific serialization function will be used for that, but
 			// to be able to display, in the transaction detail view, which 'properties' changed in the transaction as transaction data is otherwise opaque to UI.
-			for (const FName& RootPropertyName : RootPropertyNames)
+			for (const FProperty* ExportedProperty : ExportedProperties)
 			{
-				if (FProperty* RootProperty = ConcertSyncClientUtil::GetExportedProperty(InObject->GetClass(), RootPropertyName, bIncludeEditorOnlyProperties))
-				{
-					FConcertSerializedPropertyData& PropertyData = ObjectUpdate.PropertyDatas.AddDefaulted_GetRef();
-					PropertyData.PropertyName = RootPropertyName;
-				}
+				FConcertSerializedPropertyData& PropertyData = ObjectUpdate.PropertyDatas.AddDefaulted_GetRef();
+				PropertyData.PropertyName = ExportedProperty->GetFName();
 			}
 		}
 		else // Its possible to optimize the transaction payload, only sending a 'delta' update.
 		{
 			// Only send properties that changed. The receiving side will 'patch' the object using the reflection system. The specific object serialization function will NOT be called.
-			for (const FName& RootPropertyName : RootPropertyNames)
-			{
-				if (FProperty* RootProperty = ConcertSyncClientUtil::GetExportedProperty(InObject->GetClass(), RootPropertyName, bIncludeEditorOnlyProperties))
-				{
-					FConcertSerializedPropertyData& PropertyData = ObjectUpdate.PropertyDatas.AddDefaulted_GetRef();
-					PropertyData.PropertyName = RootPropertyName;
-					ConcertSyncClientUtil::SerializeProperty(&OngoingTransaction.FinalizedData.FinalizedLocalIdentifierTable, InObject, RootProperty, bIncludeEditorOnlyProperties, PropertyData.SerializedData);
-				}
-			}
+			ConcertSyncClientUtil::SerializeProperties(&OngoingTransaction.FinalizedData.FinalizedLocalIdentifierTable, InObject, ExportedProperties, bIncludeEditorOnlyProperties, ObjectUpdate.PropertyDatas);
 		}
 	}
 }
