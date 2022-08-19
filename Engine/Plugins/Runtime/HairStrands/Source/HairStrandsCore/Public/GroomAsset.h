@@ -60,6 +60,9 @@ struct HAIRSTRANDSCORE_API FHairGroupInfo
 
 	UPROPERTY(VisibleAnywhere, Category = "Info", meta = (DisplayName = "Imported width (DCC) of the larget hair strands"))
 	float MaxImportedWidth = -1.f;
+
+	UPROPERTY(VisibleAnywhere, Category = "Info", meta = (DisplayName = "Card Group ID for split hair card generation"))
+	int32 GroupCardsID = 0;
 };
 
 USTRUCT(BlueprintType)

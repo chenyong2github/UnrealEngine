@@ -30,6 +30,7 @@ namespace HairAttribute
 		extern HAIRSTRANDSCORE_API const FName CurveType;		// FName (EGroomCurveType)
 		extern HAIRSTRANDSCORE_API const FName Knots;			// float[]
 		extern HAIRSTRANDSCORE_API const FName GroupName;		// FName
+		extern HAIRSTRANDSCORE_API const FName GroupCardsID;	// int
 	}
 
 	namespace Groom
