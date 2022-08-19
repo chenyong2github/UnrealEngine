@@ -45,11 +45,11 @@ void UDMXMVRLayersNode::GetFixtureNodes(TArray<UDMXMVRFixtureNode*>& OutFixtureN
 	}
 }
 
-UDMXMVRParametricObjectNodeBase** UDMXMVRLayersNode::FindParametricObjectNodeByUUID(const FGuid& UUID) const
+TObjectPtr<UDMXMVRParametricObjectNodeBase>* UDMXMVRLayersNode::FindParametricObjectNodeByUUID(const FGuid& UUID) const
 {
 	for (UDMXMVRLayerNode* Layer : LayerNodes)
 	{
-		UDMXMVRParametricObjectNodeBase** ParametricObjectNodePtr = Layer->FindParametricObjectNodeByUUID(UUID);
+		TObjectPtr<UDMXMVRParametricObjectNodeBase>* ParametricObjectNodePtr = Layer->FindParametricObjectNodeByUUID(UUID);
 		if (ParametricObjectNodePtr)
 		{
 			return ParametricObjectNodePtr;

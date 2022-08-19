@@ -42,7 +42,7 @@ public:
 	bool Contains(UDMXMVRParametricObjectNodeBase* ParametricObjectNode);
 
 	/** Returns a pointer ot the Parametric Object Node that corresponds to the UUID, or nullptr if there is no corresponding Parametric Object Node */
-	UDMXMVRParametricObjectNodeBase** FindParametricObjectNodeByUUID(const FGuid& InUUID);
+	TObjectPtr<UDMXMVRParametricObjectNodeBase>* FindParametricObjectNodeByUUID(const FGuid& InUUID);
 
 	/** Removes the Parametric Object Node from Child List. Returns true if the Node was removed. */
 	bool RemoveParametricObjectNode(UDMXMVRParametricObjectNodeBase* ParametricObjectNode);

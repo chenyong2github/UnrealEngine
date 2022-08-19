@@ -48,7 +48,7 @@ public:
 	UDMXMVRChildListNode& GetOrCreateFirstChildListNode();
 
 	/** Returns a pointer ot the Parametric Object Node that corresponds to the UUID, or nullptr if there is no corresponding Parametric Object Node */
-	UDMXMVRParametricObjectNodeBase** FindParametricObjectNodeByUUID(const FGuid& UUID) const;
+	TObjectPtr<UDMXMVRParametricObjectNodeBase>* FindParametricObjectNodeByUUID(const FGuid& UUID) const;
 
 	/** Removes the Parametric Object Node from the General Scene Description. Returns true if the Node was removed. */
 	bool RemoveParametricObjectNode(UDMXMVRParametricObjectNodeBase* ParametricObjectNode);

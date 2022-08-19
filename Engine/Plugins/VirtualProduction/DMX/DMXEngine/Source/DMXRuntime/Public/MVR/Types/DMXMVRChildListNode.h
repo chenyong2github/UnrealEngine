@@ -33,7 +33,7 @@ public:
 	bool Contains(UDMXMVRParametricObjectNodeBase* ParametricObjectNode);
 
 	/** Returns a pointer ot the Parametric Object Node that corresponds to the UUID, or nullptr if there is no corresponding Parametric Object Node */
-	UDMXMVRParametricObjectNodeBase** FindParametricObjectNodeByUUID(const FGuid& UUID);
+	TObjectPtr<UDMXMVRParametricObjectNodeBase>* FindParametricObjectNodeByUUID(const FGuid& UUID);
 
 	/** Creates a Parametric Object Node as a Child in the Child List Node */
 	template<typename ParametricObjectNodeClass, typename TEnableIf<TIsDerivedFrom<ParametricObjectNodeClass, UDMXMVRParametricObjectNodeBase>::Value, bool>::Type = true>

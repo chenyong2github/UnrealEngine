@@ -39,7 +39,7 @@ public:
 	bool Contains(UDMXMVRParametricObjectNodeBase* ParametricObjectNode);
 
 	/** Returns a pointer ot the Parametric Object Node that corresponds to the UUID, or nullptr if there is no corresponding Parametric Object Node */
-	UDMXMVRParametricObjectNodeBase** FindParametricObjectNodeByUUID(const FGuid& InUUID) const;
+	TObjectPtr<UDMXMVRParametricObjectNodeBase>* FindParametricObjectNodeByUUID(const FGuid& InUUID) const;
 
 	/** Returns a list of graphic objects that are part of the layer. */
 	FORCEINLINE UDMXMVRChildListNode* GetChildListNode() const { return ChildListNode; }

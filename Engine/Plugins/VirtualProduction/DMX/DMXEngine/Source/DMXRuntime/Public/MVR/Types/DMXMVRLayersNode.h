@@ -32,7 +32,7 @@ public:
 	void GetFixtureNodes(TArray<UDMXMVRFixtureNode*>& OutFixtureNodes) const;
 
 	/** Returns a pointer ot the Parametric Object Node that corresponds to the UUID, or nullptr if there is no corresponding Parametric Object Node */
-	UDMXMVRParametricObjectNodeBase** FindParametricObjectNodeByUUID(const FGuid& UUID) const;
+	TObjectPtr<UDMXMVRParametricObjectNodeBase>* FindParametricObjectNodeByUUID(const FGuid& UUID) const;
 
 	/** Creates a new Layer. Returns the newly created Layer */
 	UDMXMVRLayerNode* CreateLayer();

@@ -92,13 +92,12 @@ bool UDMXMVRChildListNode::Contains(UDMXMVRParametricObjectNodeBase* ParametricO
 	return false;
 }
 
-UDMXMVRParametricObjectNodeBase** UDMXMVRChildListNode::FindParametricObjectNodeByUUID(const FGuid& UUID)
+TObjectPtr<UDMXMVRParametricObjectNodeBase>* UDMXMVRChildListNode::FindParametricObjectNodeByUUID(const FGuid& UUID)
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UDMXMVRParametricObjectNodeBase)* TempParametricObjectNodePtr = Algo::FindByPredicate(ParametricObjectNodes, [UUID](UDMXMVRParametricObjectNodeBase* ParametricObjectNode)
+	TObjectPtr<UDMXMVRParametricObjectNodeBase>* ParametricObjectNodePtr = Algo::FindByPredicate(ParametricObjectNodes, [UUID](UDMXMVRParametricObjectNodeBase* ParametricObjectNode)
 		{
 			return ParametricObjectNode->UUID == UUID;
 		});
-	UDMXMVRParametricObjectNodeBase** ParametricObjectNodePtr = &static_cast<UDMXMVRParametricObjectNodeBase*&>(*TempParametricObjectNodePtr);
 	if (ParametricObjectNodePtr)
 	{
 		return ParametricObjectNodePtr;

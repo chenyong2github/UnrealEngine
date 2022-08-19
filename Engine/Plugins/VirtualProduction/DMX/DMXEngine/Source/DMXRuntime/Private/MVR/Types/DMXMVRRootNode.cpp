@@ -149,7 +149,7 @@ UDMXMVRChildListNode& UDMXMVRRootNode::GetOrCreateFirstChildListNode()
 	return *ChildListNode;
 }
 
-UDMXMVRParametricObjectNodeBase** UDMXMVRRootNode::FindParametricObjectNodeByUUID(const FGuid& UUID) const
+TObjectPtr<UDMXMVRParametricObjectNodeBase>* UDMXMVRRootNode::FindParametricObjectNodeByUUID(const FGuid& UUID) const
 {
 	UDMXMVRLayersNode* LayersNode = SceneNode ? SceneNode->GetLayersNode() : nullptr;
 	if (LayersNode)

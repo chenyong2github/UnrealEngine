@@ -45,7 +45,7 @@ UDMXMVRFixtureNode* UDMXMVRGeneralSceneDescription::FindFixtureNode(const FGuid&
 {
 	checkf(RootNode, TEXT("Unexpected: MVR General Scene Description Root Node is invalid."));
 
-	if (UDMXMVRParametricObjectNodeBase** ObjectNodePtr = RootNode->FindParametricObjectNodeByUUID(FixtureUUID))
+	if (TObjectPtr<UDMXMVRParametricObjectNodeBase>* ObjectNodePtr = RootNode->FindParametricObjectNodeByUUID(FixtureUUID))
 	{
 		return Cast<UDMXMVRFixtureNode>(*ObjectNodePtr);
 	}
@@ -131,7 +131,7 @@ void UDMXMVRGeneralSceneDescription::WriteFixturePatchToGeneralSceneDescription(
 	}
 
 	const FGuid& MVRFixtureUUID = FixturePatch.GetMVRFixtureUUID();
-	UDMXMVRParametricObjectNodeBase** ParametricObjectNodePtr = RootNode->FindParametricObjectNodeByUUID(MVRFixtureUUID);
+	TObjectPtr<UDMXMVRParametricObjectNodeBase>* ParametricObjectNodePtr = RootNode->FindParametricObjectNodeByUUID(MVRFixtureUUID);
 
 	UDMXMVRFixtureNode* MVRFixtureNode = nullptr;
 	if (ParametricObjectNodePtr)
@@ -213,7 +213,7 @@ TArray<int32> UDMXMVRGeneralSceneDescription::GetNumericalFixtureIDsInUse(const 
 	TArray<int32> FixtureIDsInUse;
 	for (const FGuid& MVRFixtureUUID : MVRFixtureUUIDsInUse)
 	{
-		if (UDMXMVRParametricObjectNodeBase** ObjectNodePtr = RootNode->FindParametricObjectNodeByUUID(MVRFixtureUUID))
+		if (TObjectPtr<UDMXMVRParametricObjectNodeBase>* ObjectNodePtr = RootNode->FindParametricObjectNodeByUUID(MVRFixtureUUID))
 		{
 			if (UDMXMVRFixtureNode* FixtureNode = Cast<UDMXMVRFixtureNode>(*ObjectNodePtr))
 			{

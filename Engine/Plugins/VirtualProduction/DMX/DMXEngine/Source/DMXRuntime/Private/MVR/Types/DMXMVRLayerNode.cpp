@@ -119,10 +119,10 @@ bool UDMXMVRLayerNode::Contains(UDMXMVRParametricObjectNodeBase* ParametricObjec
 	return false;
 }
 
-UDMXMVRParametricObjectNodeBase** UDMXMVRLayerNode::FindParametricObjectNodeByUUID(const FGuid& InUUID) const
+TObjectPtr<UDMXMVRParametricObjectNodeBase>* UDMXMVRLayerNode::FindParametricObjectNodeByUUID(const FGuid& InUUID) const
 {
 	checkf(ChildListNode, TEXT("Unexpected: ChildListNode is instanced, but its pointer is invalid."));
-	UDMXMVRParametricObjectNodeBase** ParametricObjectNodePtr = ChildListNode->FindParametricObjectNodeByUUID(InUUID);
+	TObjectPtr<UDMXMVRParametricObjectNodeBase>* ParametricObjectNodePtr = ChildListNode->FindParametricObjectNodeByUUID(InUUID);
 	if (ParametricObjectNodePtr)
 	{
 		return ParametricObjectNodePtr;

@@ -101,7 +101,7 @@ bool UDMXMVRGroupObjectNode::Contains(UDMXMVRParametricObjectNodeBase* Parametri
 	return false;
 }
 
-UDMXMVRParametricObjectNodeBase** UDMXMVRGroupObjectNode::FindParametricObjectNodeByUUID(const FGuid& InUUID)
+TObjectPtr<UDMXMVRParametricObjectNodeBase>* UDMXMVRGroupObjectNode::FindParametricObjectNodeByUUID(const FGuid& InUUID)
 {
 	checkf(ChildListNode, TEXT("Default Subobject 'ChildListNode' is invalid, this is not expected."));
 
