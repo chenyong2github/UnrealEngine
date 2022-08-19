@@ -203,8 +203,17 @@ private:
 			{
 				return BaseColor.GetValue();
 			}
+			
+			if(WeakSceneOutliner.IsValid())
+			{
+				// Use the normal foreground color for selected items to make them readable
+				if(WeakSceneOutliner.Pin()->GetTree().IsItemSelected(TreeItem))
+				{
+					return FSlateColor::UseSubduedForeground();
+				}
+			}
 		}
-
+		
 		return FSceneOutlinerCommonLabelData::DarkColor;
 	}
 
