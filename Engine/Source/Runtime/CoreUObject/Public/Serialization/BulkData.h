@@ -1437,10 +1437,12 @@ public:
 	{
 	public:
 		FStreamToInstance& Read(FBulkData& BulkData);
+		/** Returns a handle to a pending or completed request depending on if the bulk data has been loaded or not. */
 		FBulkDataRequest Issue(EAsyncIOPriorityAndFlags Priority = AIOP_BelowNormal);
 
 	private:
 		TArray<FBulkData*> Instances;
+		int32 NumRequested = 0;
 	};
 
 	/** Returns a request builder that reads one or more bulk data into a single I/O buffer. */
@@ -1452,6 +1454,7 @@ public:
 private:
 
 	static FBulkDataRequest Issue(TArrayView<FReadRequest> Requests, EAsyncIOPriorityAndFlags Priority, FBulkDataRequest::FCompletionCallback&& Callback);
+	static FBulkDataRequest FromCompletionStatus(EStatus CompletionStatus, FBulkDataRequest::FCompletionCallback&& Callback);
 
 	struct FDeleter
 	{

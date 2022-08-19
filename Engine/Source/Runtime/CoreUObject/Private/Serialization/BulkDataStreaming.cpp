@@ -775,11 +775,22 @@ void FlushAsyncLoad(FBulkData* Owner)
 class FBulkDataRequest::FBase
 {
 public:
+	FBase(FCompletionCallback&& Callback)
+		: DoneEvent(EEventMode::ManualReset)
+		, CompletionCallback(MoveTemp(Callback))
+	{
+	}
+
 	virtual ~FBase() = default;
 
-	virtual void Cancel() = 0;
+	virtual void Cancel()
+	{
+	}
 
-	virtual bool Issue(TArrayView<FReadRequest> Requests, EAsyncIOPriorityAndFlags Priority) = 0;
+	virtual bool Issue(TArrayView<FReadRequest> Requests, EAsyncIOPriorityAndFlags Priority)
+	{
+		return true;
+	}
 
 	bool Wait(uint32 Milliseconds)
 	{
@@ -791,13 +802,12 @@ public:
 		return static_cast<FBulkDataRequest::EStatus>(Status.load(std::memory_order_consume));
 	}
 
-protected:
-
-	FBase(FCompletionCallback&& Callback)
-		: DoneEvent(EEventMode::ManualReset)
-		, CompletionCallback(MoveTemp(Callback))
+	void SetCompleted(FBulkDataRequest::EStatus CompletionStatus)
 	{
+		CompleteRequest(CompletionStatus);
 	}
+
+protected:
 
 	inline void SetStatus(FBulkDataRequest::EStatus InStatus)
 	{
@@ -806,13 +816,12 @@ protected:
 
 	inline void CompleteRequest(FBulkDataRequest::EStatus CompletionStatus)
 	{
-		SetStatus(CompletionStatus);
-
 		if (CompletionCallback)
 		{
 			CompletionCallback(CompletionStatus);
 		}
 
+		SetStatus(CompletionStatus);
 		DoneEvent.Trigger();
 	}
 
@@ -1127,17 +1136,28 @@ FBulkDataRequest FBulkDataRequest::FScatterGather::Issue(FIoBuffer& Dst, FBulkDa
 
 FBulkDataRequest::FStreamToInstance& FBulkDataRequest::FStreamToInstance::Read(FBulkData& BulkData)
 {
-	const uint64 BulkOffset	= uint64(BulkData.GetBulkDataOffsetInFile());
-	const uint64 BulkSize	= uint64(BulkData.GetBulkDataSize());
-	
-	AddRequest(BulkData.BulkMeta, BulkData.BulkChunkId, BulkOffset, BulkSize, nullptr);
-	Instances.Add(&BulkData);
+	if (BulkData.IsBulkDataLoaded() == false)
+	{
+		const uint64 BulkOffset	= uint64(BulkData.GetBulkDataOffsetInFile());
+		const uint64 BulkSize	= uint64(BulkData.GetBulkDataSize());
+		
+		AddRequest(BulkData.BulkMeta, BulkData.BulkChunkId, BulkOffset, BulkSize, nullptr);
+		Instances.Add(&BulkData);
+	}
+
+	NumRequested++;
 
 	return *this;
 }
 
 FBulkDataRequest FBulkDataRequest::FStreamToInstance::Issue(EAsyncIOPriorityAndFlags Priority)
 {
+	// Complete the request if all instances are already loaded 
+	if (NumRequested > 0 && Requests.IsEmpty())
+	{
+		return FBulkDataRequest::FromCompletionStatus(FBulkDataRequest::EStatus::Ok, FBulkDataRequest::FCompletionCallback());
+	}
+
 	if (Requests.IsEmpty())
 	{
 		return FBulkDataRequest();
@@ -1216,4 +1236,14 @@ FBulkDataRequest FBulkDataRequest::Issue(TArrayView<FReadRequest> Requests, EAsy
 	}
 
 	return FBulkDataRequest(MoveTemp(NewRequest));
+}
+
+FBulkDataRequest FBulkDataRequest::FromCompletionStatus(FBulkDataRequest::EStatus CompletionStatus, FBulkDataRequest::FCompletionCallback&& Callback)
+{
+	check(CompletionStatus != FBulkDataRequest::EStatus::None && CompletionStatus != FBulkDataRequest::EStatus::Pending);
+
+	FBasePtr Completed(new FBulkDataRequest::FBase(MoveTemp(Callback)));
+	Completed->SetCompleted(CompletionStatus);
+
+	return FBulkDataRequest(MoveTemp(Completed));
 }
