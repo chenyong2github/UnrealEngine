@@ -3,12 +3,12 @@
 #if WITH_AUDIOMODULATION_METASOUND_SUPPORT
 #include "AudioDefines.h"
 #include "AudioModulation.h"
+#include "Interfaces/MetasoundFrontendSourceInterface.h"
 #include "MetasoundDataFactory.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
-#include "MetasoundSourceInterface.h"
 #include "SoundModulatorAsset.h"
 
 #define LOCTEXT_NAMESPACE "AudioModulationNodes"

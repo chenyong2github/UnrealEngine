@@ -3,8 +3,8 @@
 #include "MetasoundParameterTransmitter.h"
 
 #include "IAudioParameterInterfaceRegistry.h"
+#include "Interfaces/MetasoundFrontendSourceInterface.h"
 #include "MetasoundLog.h"
-#include "MetasoundSourceInterface.h"
 
 
 namespace Metasound

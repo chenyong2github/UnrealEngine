@@ -4,11 +4,11 @@
 #include "Components/AudioComponent.h"
 #include "IAudioParameterInterfaceRegistry.h"
 #include "Interfaces/IPluginManager.h"
+#include "Interfaces/MetasoundFrontendOutputFormatInterfaces.h"
+#include "Interfaces/MetasoundFrontendSourceInterface.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendSearchEngine.h"
-#include "MetasoundOutputFormatInterfaces.h"
 #include "MetasoundSource.h"
-#include "MetasoundSourceInterface.h"
 #include "Misc/AutomationTest.h"
 #include "Tests/AutomationCommon.h"
 

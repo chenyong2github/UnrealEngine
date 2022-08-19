@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MetasoundOutputFormatInterfaces.h"
+#include "Interfaces/MetasoundFrontendOutputFormatInterfaces.h"
 
 #include "IAudioParameterInterfaceRegistry.h"
 #include "MetasoundAudioBuffer.h"

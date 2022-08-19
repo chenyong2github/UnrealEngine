@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Interfaces/MetasoundFrontendSourceInterface.h"
 #include "MetasoundFacade.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesCategories.h"
-#include "MetasoundSourceInterface.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
 

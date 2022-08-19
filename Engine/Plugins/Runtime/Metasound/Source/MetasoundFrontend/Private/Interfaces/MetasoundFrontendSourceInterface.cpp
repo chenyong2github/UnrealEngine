@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MetasoundSourceInterface.h"
+#include "Interfaces/MetasoundFrontendSourceInterface.h"
 
+#include "AudioParameter.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundTrigger.h"
-#include "UObject/Class.h"
 #include "Templates/SharedPointer.h"
-#include "AudioParameter.h"
+#include "UObject/Class.h"
 
 #define LOCTEXT_NAMESPACE "Metasound"
 

@@ -1364,6 +1364,8 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendDocument
 {
 	GENERATED_BODY()
 
+	static FMetasoundFrontendVersionNumber GetMaxVersion();
+
 	Metasound::Frontend::FAccessPoint AccessPoint;
 
 	FMetasoundFrontendDocument();

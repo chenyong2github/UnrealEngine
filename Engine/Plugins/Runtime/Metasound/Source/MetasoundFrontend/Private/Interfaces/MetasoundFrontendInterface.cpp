@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
-
-#include "MetasoundArchetype.h"
+#include "Interfaces/MetasoundFrontendInterface.h"
 
 #include "Algo/ForEach.h"
 #include "MetasoundFrontendDocument.h"
+
 
 namespace Metasound
 {
 	namespace Frontend
 	{
-		namespace MetasoundInterfaceIntrinsics
+		namespace InterfacePrivate
 		{
 			bool IsLessThanVertex(const FMetasoundFrontendVertex& VertexA, const FMetasoundFrontendVertex& VertexB)
 			{
@@ -124,11 +123,11 @@ namespace Metasound
 
 				return UniqueA.Num() + UniqueB.Num();
 			}
-		}
+		} // namespace InterfacePrivate
 
 		bool IsSubsetOfInterface(const FMetasoundFrontendInterface& InSubsetInterface, const FMetasoundFrontendInterface& InSupersetInterface)
 		{
-			using namespace MetasoundInterfaceIntrinsics;
+			using namespace InterfacePrivate;
 
 			const bool bIsInputSetIncluded = IsSetIncluded(InSubsetInterface.Inputs, InSupersetInterface.Inputs, &IsLessThanVertex);
 
@@ -143,7 +142,7 @@ namespace Metasound
 		{
 			// TODO: Environment variables are ignored as they are poorly supported and classes describe which environment variables are required,
 			// not which are supported 
-			using namespace MetasoundInterfaceIntrinsics;
+			using namespace InterfacePrivate;
 
 			const bool bIsInputSetIncluded = IsSetIncluded(InSubsetInterface.Inputs, InSupersetClass.Interface.Inputs, &IsLessThanVertex);
 			const bool bIsOutputSetIncluded = IsSetIncluded(InSubsetInterface.Outputs, InSupersetClass.Interface.Outputs, &IsLessThanVertex);
@@ -153,7 +152,7 @@ namespace Metasound
 
 		bool IsEquivalentInterface(const FMetasoundFrontendInterface& InInputInterface, const FMetasoundFrontendInterface& InTargetInterface)
 		{
-			using namespace MetasoundInterfaceIntrinsics;
+			using namespace InterfacePrivate;
 
 			const bool bIsInputSetEquivalent = IsSetEquivalent(InTargetInterface.Inputs, InInputInterface.Inputs, &IsLessThanVertex);
 			const bool bIsOutputSetEquivalent = IsSetEquivalent(InTargetInterface.Outputs, InInputInterface.Outputs, &IsLessThanVertex);
@@ -187,7 +186,7 @@ namespace Metasound
 
 		int32 InputOutputDifferenceCount(const FMetasoundFrontendClass& InClass, const FMetasoundFrontendInterface& InInterface)
 		{
-			using namespace MetasoundInterfaceIntrinsics;
+			using namespace InterfacePrivate;
 
 			int32 DiffCount = SetDifferenceCount(InClass.Interface.Inputs, InInterface.Inputs, &IsLessThanVertex);
 			DiffCount += SetDifferenceCount(InClass.Interface.Outputs, InInterface.Outputs, &IsLessThanVertex);
@@ -197,7 +196,7 @@ namespace Metasound
 
 		int32 InputOutputDifferenceCount(const FMetasoundFrontendInterface& InInterfaceA, const FMetasoundFrontendInterface& InInterfaceB)
 		{
-			using namespace MetasoundInterfaceIntrinsics;
+			using namespace InterfacePrivate;
 
 			int32 DiffCount = SetDifferenceCount(InInterfaceA.Inputs, InInterfaceB.Inputs, &IsLessThanVertex);
 			DiffCount += SetDifferenceCount(InInterfaceA.Outputs, InInterfaceB.Outputs, &IsLessThanVertex);
@@ -209,7 +208,7 @@ namespace Metasound
 		{
 			auto GatherRequiredEnvironmentVariablesFromClass = [&](const FMetasoundFrontendClass& InClass)
 			{
-				using namespace MetasoundInterfaceIntrinsics;
+				using namespace InterfacePrivate;
 
 				for (const FMetasoundFrontendClassEnvironmentVariable& EnvVar : InClass.Interface.Environment)
 				{
@@ -234,9 +233,14 @@ namespace Metasound
 			Algo::ForEach(InSubgraphs, GatherRequiredEnvironmentVariablesFromClass);
 		}
 
+		static FMetasoundFrontendVersionNumber GetMaxVersion()
+		{
+			return FMetasoundFrontendVersionNumber{ 1, 10 };
+		}
+
 		const FMetasoundFrontendInterface* FindMostSimilarInterfaceSupportingEnvironment(const FMetasoundFrontendGraphClass& InRootGraph, const TArray<FMetasoundFrontendClass>& InDependencies, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendInterface>& InCandidateInterfaces)
 		{
-			using namespace MetasoundInterfaceIntrinsics;
+			using namespace InterfacePrivate;
 
 			const FMetasoundFrontendInterface* Result = nullptr;
 
@@ -273,5 +277,5 @@ namespace Metasound
 		{
 			return FindMostSimilarInterfaceSupportingEnvironment(InDocument.RootGraph, InDocument.Dependencies, InDocument.Subgraphs, InCandidateInterfaces);
 		}
-	}
-}
+	} // namespace Frontend
+} // namespace Metasound

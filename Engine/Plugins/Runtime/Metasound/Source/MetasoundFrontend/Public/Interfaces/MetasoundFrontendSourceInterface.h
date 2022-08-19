@@ -53,7 +53,7 @@ namespace Metasound
 		namespace SourceInterface
 		{
 			namespace Inputs
-			{
+			{ 
 				METASOUNDFRONTEND_API const extern FName OnPlay;
 			}
 

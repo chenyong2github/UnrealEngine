@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Interfaces/MetasoundFrontendSourceInterface.h"
 #include "Internationalization/Text.h"
 #include "MetasoundArrayNodes.h"
 #include "MetasoundBuilderInterface.h"
@@ -14,7 +14,6 @@
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
-#include "MetasoundSourceInterface.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundVertex.h"
 #include "Misc/ScopeLock.h"

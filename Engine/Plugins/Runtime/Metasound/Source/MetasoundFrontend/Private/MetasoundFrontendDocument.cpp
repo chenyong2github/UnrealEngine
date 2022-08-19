@@ -7,6 +7,7 @@
 #include "Algo/Transform.h"
 #include "IAudioParameterInterfaceRegistry.h"
 #include "Logging/LogMacros.h"
+#include "MetasoundFrontendDocumentVersioning.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundLog.h"
@@ -571,6 +572,11 @@ FMetasoundFrontendClassVariable::FMetasoundFrontendClassVariable(const FMetasoun
 FMetasoundFrontendGraphClass::FMetasoundFrontendGraphClass()
 {
 	Metadata.SetType(EMetasoundFrontendClassType::Graph);
+}
+
+FMetasoundFrontendVersionNumber FMetasoundFrontendDocument::GetMaxVersion()
+{
+	return Metasound::Frontend::FVersionDocument::GetMaxVersion();
 }
 
 FMetasoundFrontendDocument::FMetasoundFrontendDocument()

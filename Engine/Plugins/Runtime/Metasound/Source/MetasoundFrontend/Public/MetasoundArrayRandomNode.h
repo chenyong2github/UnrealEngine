@@ -2,11 +2,10 @@
 #pragma once
 
 #include "Containers/CircularQueue.h"
-
+#include "Interfaces/MetasoundFrontendSourceInterface.h"
 #include "MetasoundArrayNodes.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
-#include "MetasoundSourceInterface.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundParamHelper.h"
 #include "MetasoundTrigger.h"

@@ -43,6 +43,7 @@
 #include "Toolkits/ToolkitManager.h"
 #include "WaveTable.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "../../MetasoundFrontend/Private/MetasoundFrontendDocumentVersioning.h"
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
@@ -1476,7 +1477,7 @@ namespace Metasound
 			// 2. Set default doc version Metadata
 			FDocumentHandle DocumentHandle = MetaSoundAsset->GetDocumentHandle();
 			FMetasoundFrontendDocumentMetadata DocMetadata = DocumentHandle->GetMetadata();
-			DocMetadata.Version.Number = FVersionDocument::GetMaxVersion();
+			DocMetadata.Version.Number = FMetasoundFrontendDocument::GetMaxVersion();
 			DocumentHandle->SetMetadata(DocMetadata);
 
 			MetaSoundAsset->AddDefaultInterfaces();

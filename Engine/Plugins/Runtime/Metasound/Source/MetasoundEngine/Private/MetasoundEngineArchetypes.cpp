@@ -3,12 +3,12 @@
 #include "MetasoundEngineArchetypes.h"
 
 #include "IAudioParameterInterfaceRegistry.h"
+#include "Interfaces/MetasoundFrontendOutputFormatInterfaces.h"
 #include "MetasoundAudioFormats.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundInterface.h"
-#include "MetasoundOutputFormatInterfaces.h"
 #include "MetasoundRouter.h"
 #include "MetasoundSource.h"
 #include "MetasoundUObjectRegistry.h"

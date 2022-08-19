@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Interfaces/MetasoundFrontendSourceInterface.h"
 #include "MetasoundDataFactory.h"
 #include "MetasoundEngineNodesNames.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
-#include "WaveTableSampler.h"
-#include "MetasoundSourceInterface.h"
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrace.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundWaveTable.h"
+#include "WaveTableSampler.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 

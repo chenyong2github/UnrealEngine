@@ -225,22 +225,5 @@ namespace Metasound
 
 			bool Transform(FDocumentHandle InDocument) const override;
 		};
-
-		/** Base class for versioning a document. */
-		class METASOUNDFRONTEND_API FVersionDocument : public IDocumentTransform
-		{
-			const FName Name;
-			const FString& Path;
-
-		public:
-			static FMetasoundFrontendVersionNumber GetMaxVersion()
-			{
-				return FMetasoundFrontendVersionNumber { 1, 10 };
-			}
-
-			FVersionDocument(FName InName, const FString& InPath);
-
-			bool Transform(FDocumentHandle InDocument) const override;
-		};
 	}
 }
