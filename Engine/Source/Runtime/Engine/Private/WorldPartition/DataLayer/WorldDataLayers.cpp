@@ -89,7 +89,7 @@ void AWorldDataLayers::InitializeDataLayerRuntimeStates()
 {
 	check(ActiveDataLayerNames.IsEmpty() && LoadedDataLayerNames.IsEmpty());
 
-	if (GetWorld()->IsGameWorld())
+	if (GetWorld()->IsGameWorld() && IsRuntimeRelevant())
 	{
 		ForEachDataLayer([this](class UDataLayerInstance* DataLayer)
 		{
@@ -122,7 +122,7 @@ void AWorldDataLayers::InitializeDataLayerRuntimeStates()
 		RepEffectiveActiveDataLayerNames = EffectiveActiveDataLayerNames.Array();
 		RepEffectiveLoadedDataLayerNames = EffectiveLoadedDataLayerNames.Array();
 
-		UE_LOG(LogWorldPartition, Log, TEXT("Initial Data Layer Effective States Activated(%s) Loaded(%s)"), *JoinDataLayerShortNamesFromInstanceNames(this, RepEffectiveActiveDataLayerNames), *JoinDataLayerShortNamesFromInstanceNames(this, RepEffectiveLoadedDataLayerNames));
+		UE_CLOG(RepEffectiveActiveDataLayerNames.Num() || RepEffectiveLoadedDataLayerNames.Num(), LogWorldPartition, Log, TEXT("Initial Data Layer Effective States Activated(%s) Loaded(%s)"), *JoinDataLayerShortNamesFromInstanceNames(this, RepEffectiveActiveDataLayerNames), *JoinDataLayerShortNamesFromInstanceNames(this, RepEffectiveLoadedDataLayerNames));
 	}
 }
 
@@ -770,6 +770,14 @@ void AWorldDataLayers::PostLoad()
 		RemoveDataLayers(EditorDataLayers);
 	}
 
+	// Sub-WorldDataLayers are not supported at runtime, clear data layers
+	if (GetWorld()->IsGameWorld() && !IsRuntimeRelevant() && !IsEmpty())
+	{
+		UE_LOG(LogWorldPartition, Warning, TEXT("WorldDataLayers %s is not runtime relevant, Data Layers of this level will be ignored."), *GetPathName());
+		TArray<UDataLayerInstance*> AllDataLayers = DataLayerInstances.Array();
+		RemoveDataLayers(AllDataLayers);
+	}
+
 	// Setup defaults before overriding with user settings
 	for (UDataLayerInstance* DataLayer : DataLayerInstances)
 	{
@@ -836,6 +844,11 @@ void AWorldDataLayers::PostUnregisterAllComponents()
 	}
 
 	Super::PostUnregisterAllComponents();
+}
+
+bool AWorldDataLayers::IsRuntimeRelevant() const
+{
+	return !IsSubWorldDataLayers();
 }
 
 bool AWorldDataLayers::IsSubWorldDataLayers() const

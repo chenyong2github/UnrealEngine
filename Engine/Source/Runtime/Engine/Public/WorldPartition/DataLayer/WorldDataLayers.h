@@ -89,6 +89,7 @@ public:
 #endif
 
 	bool IsSubWorldDataLayers() const;
+	bool IsRuntimeRelevant() const;
 	static FName GetWorldPartionWorldDataLayersName() { return FName(TEXT("WorldDataLayers")); } // reserved for ULevel::WorldDataLayers
 	
 	void DumpDataLayers(FOutputDevice& OutputDevice) const;

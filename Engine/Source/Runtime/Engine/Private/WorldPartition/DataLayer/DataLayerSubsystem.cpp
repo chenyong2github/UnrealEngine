@@ -226,6 +226,12 @@ TSet<FName> UDataLayerSubsystem::GetEffectiveLoadedDataLayerNames() const
 
 void UDataLayerSubsystem::RegisterWorldDataLayer(AWorldDataLayers* WorldDataLayers)
 {
+	// Don't register WorldDataLayers in game if it's not relevant at runtime
+	if (GetWorld()->IsGameWorld() && WorldDataLayers && !WorldDataLayers->IsRuntimeRelevant())
+	{
+		return;
+	}
+
 	if (WorldDataLayerCollection.RegisterWorldDataLayer(WorldDataLayers))
 	{
 #if WITH_EDITOR
