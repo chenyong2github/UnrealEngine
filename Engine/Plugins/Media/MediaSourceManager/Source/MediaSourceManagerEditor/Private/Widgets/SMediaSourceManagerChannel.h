@@ -101,9 +101,9 @@ private:
 	void DismissErrorNotification();
 
 	/**
-	 * Called when the edit input button is pressed.
+	 * Call this to bring up an editor to edit the input.
 	 */
-	FReply OnEditInput();
+	void OnEditInput();
 
 	/**
 	 * Determines warning icon visibilty based on the validity of the input.
