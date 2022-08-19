@@ -8,15 +8,10 @@
 
 namespace FPCGAsync
 {
-	void AsyncPointProcessing(FPCGContext* Context, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<bool(int32, FPCGPoint&)>& PointFunc)
-	{
-		const int32 MinIterationsPerTask = 256;
-		AsyncPointProcessing(Context ? Context->NumAvailableTasks : 1, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
-	}
-
-	void AsyncPointProcessing(int32 NumAvailableTasks, int32 MinIterationsPerTask, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<bool(int32, FPCGPoint&)>& PointFunc)
+	void AsyncPointProcessing(int32 NumAvailableTasks, int32 MinIterationsPerTask, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<int32(int32, int32)>& IterationInnerLoop)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing);
+
 		check(NumAvailableTasks > 0 && MinIterationsPerTask > 0 && NumIterations >= 0);
 		if (NumAvailableTasks <= 0 || MinIterationsPerTask <= 0 || NumIterations <= 0)
 		{
@@ -33,22 +28,6 @@ namespace FPCGAsync
 			// Pre-reserve the out points array
 			OutPoints.SetNum(NumIterations);
 		}
-
-		auto IterationInnerLoop = [&PointFunc, &OutPoints](int32 StartIndex, int32 EndIndex) -> int32
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing::InnerLoop);
-			int32 NumPointsWritten = 0;
-
-			for (int32 Index = StartIndex; Index < EndIndex; ++Index)
-			{
-				if (PointFunc(Index, OutPoints[StartIndex + NumPointsWritten]))
-				{
-					++NumPointsWritten;
-				}
-			}
-
-			return NumPointsWritten;
-		};
 
 		// Setup [current, last, nb points] data per dispatch
 		TArray<TFuture<int32>> AsyncTasks;
@@ -103,6 +82,56 @@ namespace FPCGAsync
 
 			OutPoints.SetNum(RangeIndex);
 		}
+	}
+
+	void AsyncPointProcessing(FPCGContext* Context, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<bool(int32, FPCGPoint&)>& PointFunc)
+	{
+		const int32 MinIterationsPerTask = 256;
+		AsyncPointProcessing(Context ? Context->NumAvailableTasks : 1, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
+	}
+
+	void AsyncPointProcessing(FPCGContext* Context, const TArray<FPCGPoint>& InPoints, TArray<FPCGPoint>& OutPoints, const TFunction<bool(const FPCGPoint&, FPCGPoint&)>& PointFunc)
+	{
+		const int32 MinIterationsPerTask = 256;
+
+		auto IterationInnerLoop = [&PointFunc, &InPoints, &OutPoints](int32 StartIndex, int32 EndIndex) -> int32
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing::InnerLoop);
+			int32 NumPointsWritten = 0;
+
+			for (int32 Index = StartIndex; Index < EndIndex; ++Index)
+			{
+				if (PointFunc(InPoints[Index], OutPoints[StartIndex + NumPointsWritten]))
+				{
+					++NumPointsWritten;
+				}
+			}
+
+			return NumPointsWritten;
+		};
+
+		AsyncPointProcessing(Context ? Context->NumAvailableTasks : 1, MinIterationsPerTask, InPoints.Num(), OutPoints, IterationInnerLoop);
+	}
+
+	void AsyncPointProcessing(int32 NumAvailableTasks, int32 MinIterationsPerTask, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<bool(int32, FPCGPoint&)>& PointFunc)
+	{
+		auto IterationInnerLoop = [&PointFunc, &OutPoints](int32 StartIndex, int32 EndIndex) -> int32
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::AsyncPointProcessing::InnerLoop);
+			int32 NumPointsWritten = 0;
+
+			for (int32 Index = StartIndex; Index < EndIndex; ++Index)
+			{
+				if (PointFunc(Index, OutPoints[StartIndex + NumPointsWritten]))
+				{
+					++NumPointsWritten;
+				}
+			}
+
+			return NumPointsWritten;
+		};
+
+		AsyncPointProcessing(NumAvailableTasks, MinIterationsPerTask, NumIterations, OutPoints, IterationInnerLoop);
 	}
 
 	void AsyncPointFilterProcessing(FPCGContext* Context, int32 NumIterations, TArray<FPCGPoint>& InFilterPoints, TArray<FPCGPoint>& OutFilterPoints, const TFunction<bool(int32, FPCGPoint&, FPCGPoint&)>& PointFunc)

@@ -7,6 +7,8 @@
 #include "PCGNode.h"
 #include "PCGSettings.h"
 
+#include "Elements/PCGPointProcessingElementBase.h"
+
 #include "PCGDensityRemapElement.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
@@ -47,7 +49,7 @@ public:
 	bool bExcludeValuesOutsideInputRange = true;
 };
 
-class FPCGDensityRemapElement : public FSimplePCGElement
+class FPCGDensityRemapElement : public FPCGPointProcessingElementBase
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const;

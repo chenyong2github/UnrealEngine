@@ -3,8 +3,6 @@
 #include "Elements/PCGDensityRemapElement.h"
 
 #include "PCGHelpers.h"
-#include "Data/PCGPointData.h"
-#include "Helpers/PCGAsync.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
 #include "Math/RandomStream.h"
@@ -53,49 +51,19 @@ bool FPCGDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 		Intercept = OutRangeMin;
 	}
 
-	// TODO: embarassingly parallel loop
-	for (const FPCGTaggedData& Input : Inputs)
+	ProcessPoints(Context, Inputs, Outputs, [&](const FPCGPoint& InPoint, FPCGPoint& OutPoint)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FPCGDensityRemapElement::Execute::InputLoop);
-		FPCGTaggedData& Output = Outputs.Add_GetRef(Input);
+		OutPoint = InPoint;
+		const float SourceDensity = InPoint.Density;
 
-		const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Input.Data);
-
-		if (!SpatialData)
+		if (!bExcludeValuesOutsideInputRange || (SourceDensity >= InRangeTrueMin && SourceDensity <= InRangeTrueMax))
 		{
-			PCGE_LOG(Error, "Unable to get SpatialData from input");
-			continue;
+			const float UnclampedDensity = Slope * (SourceDensity - InRangeMin) + Intercept;
+			OutPoint.Density = FMath::Clamp(UnclampedDensity, 0.f, 1.f);
 		}
 
-		const UPCGPointData* PointData = SpatialData->ToPointData(Context);
-
-		if (!PointData)
-		{
-			PCGE_LOG(Error, "Unable to get PointData from input");
-			continue;
-		}
-
-		const TArray<FPCGPoint>& Points = PointData->GetPoints();
-
-		UPCGPointData* SampledData = NewObject<UPCGPointData>();
-		SampledData->InitializeFromData(PointData);
-		TArray<FPCGPoint>& SampledPoints = SampledData->GetMutablePoints();
-		Output.Data = SampledData;
-
-		FPCGAsync::AsyncPointProcessing(Context, Points.Num(), SampledPoints, [&](int32 Index, FPCGPoint& OutPoint)
-		{
-			OutPoint = Points[Index];
-			const float SourceDensity = Points[Index].Density;
-
-			if (!bExcludeValuesOutsideInputRange || (SourceDensity >= InRangeTrueMin && SourceDensity <= InRangeTrueMax))
-			{
-				const float UnclampedDensity = Slope * (SourceDensity - InRangeMin) + Intercept;
-				OutPoint.Density = FMath::Clamp(UnclampedDensity, 0.f, 1.f);
-			}
-
-			return true;
-		});
-	}
+		return true;
+	});
 
 	// Forward any non-input data
 	Outputs.Append(Context->InputData.GetAllSettings());

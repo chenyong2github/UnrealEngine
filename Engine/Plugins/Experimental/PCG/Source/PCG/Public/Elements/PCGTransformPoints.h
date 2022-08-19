@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "PCGSettings.h"
 
+#include "Elements/PCGPointProcessingElementBase.h"
+
 #include "PCGTransformPoints.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
@@ -66,7 +68,7 @@ public:
 	bool bRecomputeSeed = false;
 };
 
-class FPCGTransformPointsElement : public FSimplePCGElement
+class FPCGTransformPointsElement : public FPCGPointProcessingElementBase
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;

@@ -3,9 +3,6 @@
 #include "Elements/PCGTransformPoints.h"
 
 #include "PCGHelpers.h"
-#include "Data/PCGPointData.h"
-#include "Data/PCGSpatialData.h"
-#include "Helpers/PCGAsync.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
 TArray<FPCGPinProperties> UPCGTransformPointsSettings::InputPinProperties() const
@@ -45,108 +42,70 @@ bool FPCGTransformPointsElement::ExecuteInternal(FPCGContext* Context) const
 	const bool bUniformScale = PCG_GET_OVERRIDEN_VALUE(Settings, bUniformScale, Params);
 	const bool bRecomputeSeed = PCG_GET_OVERRIDEN_VALUE(Settings, bRecomputeSeed, Params);
 
-	for (const FPCGTaggedData& Input : Inputs)
+	ProcessPoints(Context, Inputs, Outputs, [&](const FPCGPoint& InPoint, FPCGPoint& OutPoint)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FPCGTransformPointsElement::Execute::InputLoop);
+		OutPoint = InPoint;
 
-		FPCGTaggedData& Output = Outputs.Add_GetRef(Input);
+		FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, InPoint.Seed));
 
-		if (!Input.Data || Cast<UPCGSpatialData>(Input.Data) == nullptr)
+		const float OffsetX = RandomSource.FRandRange(OffsetMin.X, OffsetMax.X);
+		const float OffsetY = RandomSource.FRandRange(OffsetMin.Y, OffsetMax.Y);
+		const float OffsetZ = RandomSource.FRandRange(OffsetMin.Z, OffsetMax.Z);
+		const FVector RandomOffset(OffsetX, OffsetY, OffsetZ);
+
+		const float RotationX = RandomSource.FRandRange(RotationMin.Pitch, RotationMax.Pitch);
+		const float RotationY = RandomSource.FRandRange(RotationMin.Yaw, RotationMax.Yaw);
+		const float RotationZ = RandomSource.FRandRange(RotationMin.Roll, RotationMax.Roll);
+		const FQuat RandomRotation(FRotator(RotationX, RotationY, RotationZ).Quaternion());
+
+		FVector RandomScale;
+		if (bUniformScale)
 		{
-			PCGE_LOG(Error, "Invalid input data");
-			continue;
+			RandomScale = FVector(RandomSource.FRandRange(ScaleMin.X, ScaleMax.X));
+		}
+		else
+		{
+			RandomScale.X = RandomSource.FRandRange(ScaleMin.X, ScaleMax.X);
+			RandomScale.Y = RandomSource.FRandRange(ScaleMin.Y, ScaleMax.Y);
+			RandomScale.Z = RandomSource.FRandRange(ScaleMin.Z, ScaleMax.Z);
 		}
 
-		const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Input.Data);
-
-		if (!SpatialData)
+		if (bAbsoluteOffset)
 		{
-			PCGE_LOG(Error, "Unable to get SpatialData from input");
-			continue;
+			OutPoint.Transform.SetLocation(InPoint.Transform.GetLocation() + RandomOffset); 
+		}
+		else
+		{
+			const FTransform RotatedTransform(InPoint.Transform.GetRotation());
+			OutPoint.Transform.SetLocation(InPoint.Transform.GetLocation() + RotatedTransform.TransformPosition(RandomOffset)); 
 		}
 
-		const UPCGPointData* PointData = SpatialData->ToPointData(Context);
-
-		if (!PointData)
+		if (bAbsoluteRotation)
 		{
-			PCGE_LOG(Error, "Unable to get PointData from input");
-			continue;
+			OutPoint.Transform.SetRotation(RandomRotation);
+		}
+		else
+		{
+			OutPoint.Transform.SetRotation(InPoint.Transform.GetRotation() * RandomRotation);
 		}
 
-		const TArray<FPCGPoint>& Points = PointData->GetPoints();
-
-		UPCGPointData* OutPointData = NewObject<UPCGPointData>();
-		OutPointData->InitializeFromData(PointData);
-		TArray<FPCGPoint>& OutPoints = OutPointData->GetMutablePoints();
-		Output.Data = OutPointData;
-
-		// loop on points
-		FPCGAsync::AsyncPointProcessing(Context, Points.Num(), OutPoints, [&](int32 Index, FPCGPoint& OutPoint)
+		if (bAbsoluteScale)
 		{
-			const FPCGPoint& InPoint = Points[Index];
-			OutPoint = InPoint;
+			OutPoint.Transform.SetScale3D(RandomScale);
+		}
+		else
+		{
+			OutPoint.Transform.SetScale3D(InPoint.Transform.GetScale3D() * RandomScale);
+		}
 
-			FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, InPoint.Seed));
+		if (bRecomputeSeed)
+		{
+			const FVector& Position = OutPoint.Transform.GetLocation();
+			OutPoint.Seed = PCGHelpers::ComputeSeed((int)Position.X, (int)Position.Y, (int)Position.Z);
+		}
 
-			const float OffsetX = RandomSource.FRandRange(OffsetMin.X, OffsetMax.X);
-			const float OffsetY = RandomSource.FRandRange(OffsetMin.Y, OffsetMax.Y);
-			const float OffsetZ = RandomSource.FRandRange(OffsetMin.Z, OffsetMax.Z);
-			const FVector RandomOffset(OffsetX, OffsetY, OffsetZ);
-
-			const float RotationX = RandomSource.FRandRange(RotationMin.Pitch, RotationMax.Pitch);
-			const float RotationY = RandomSource.FRandRange(RotationMin.Yaw, RotationMax.Yaw);
-			const float RotationZ = RandomSource.FRandRange(RotationMin.Roll, RotationMax.Roll);
-			const FQuat RandomRotation(FRotator(RotationX, RotationY, RotationZ).Quaternion());
-
-			FVector RandomScale;
-			if (bUniformScale)
-			{
-				RandomScale = FVector(RandomSource.FRandRange(ScaleMin.X, ScaleMax.X));
-			}
-			else
-			{
-				RandomScale.X = RandomSource.FRandRange(ScaleMin.X, ScaleMax.X);
-				RandomScale.Y = RandomSource.FRandRange(ScaleMin.Y, ScaleMax.Y);
-				RandomScale.Z = RandomSource.FRandRange(ScaleMin.Z, ScaleMax.Z);
-			}
-
-			if (bAbsoluteOffset)
-			{
-				OutPoint.Transform.SetLocation(InPoint.Transform.GetLocation() + RandomOffset); 
-			}
-			else
-			{
-				const FTransform RotatedTransform(InPoint.Transform.GetRotation());
-				OutPoint.Transform.SetLocation(InPoint.Transform.GetLocation() + RotatedTransform.TransformPosition(RandomOffset)); 
-			}
-
-			if (bAbsoluteRotation)
-			{
-				OutPoint.Transform.SetRotation(RandomRotation);
-			}
-			else
-			{
-				OutPoint.Transform.SetRotation(InPoint.Transform.GetRotation() * RandomRotation);
-			}
-
-			if (bAbsoluteScale)
-			{
-				OutPoint.Transform.SetScale3D(RandomScale);
-			}
-			else
-			{
-				OutPoint.Transform.SetScale3D(InPoint.Transform.GetScale3D() * RandomScale);
-			}
-
-			if (bRecomputeSeed)
-			{
-				const FVector& Position = OutPoint.Transform.GetLocation();
-				OutPoint.Seed = PCGHelpers::ComputeSeed((int)Position.X, (int)Position.Y, (int)Position.Z);
-			}
-
-			return true;
-		});
-	}
+		return true;
+	});
 
 	// Forward any non-input data
 	Outputs.Append(Context->InputData.GetAllSettings());

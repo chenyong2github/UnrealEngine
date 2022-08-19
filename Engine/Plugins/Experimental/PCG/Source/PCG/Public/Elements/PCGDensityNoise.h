@@ -7,6 +7,8 @@
 #include "PCGNode.h"
 #include "PCGSettings.h"
 
+#include "Elements/PCGPointProcessingElementBase.h"
+
 #include "PCGDensityNoise.generated.h"
 
 UENUM()
@@ -53,7 +55,7 @@ public:
 	bool bInvertSourceDensity = false;
 };
 
-class FPCGDensityNoiseElement : public FSimplePCGElement
+class FPCGDensityNoiseElement : public FPCGPointProcessingElementBase
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const;
