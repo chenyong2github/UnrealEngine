@@ -17,6 +17,7 @@ struct OPTIMUSCORE_API FOptimusObjectVersion
 		SwitchToParameterBindingArrayStruct,
 		AddBindingsToGraph,
 		ComponentProviderSupport,
+		SetPrimaryBindingName,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

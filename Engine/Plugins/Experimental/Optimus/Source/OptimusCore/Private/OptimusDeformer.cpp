@@ -1977,6 +1977,29 @@ void UOptimusDeformer::PostLoad()
 		// Fix up any data providers to ensure they have a binding.
 		PostLoadFixupMissingComponentBindingsCompat();
 	}
+	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::SetPrimaryBindingName)
+	{
+		FName PrimaryBindingName = UOptimusComponentSourceBinding::GetPrimaryBindingName();
+		for (UOptimusComponentSourceBinding* Binding : Bindings->Bindings)
+		{
+			if (Binding->bIsPrimaryBinding)
+			{
+				Binding->Rename(*PrimaryBindingName.ToString(), nullptr, REN_NonTransactional);
+				Binding->BindingName = PrimaryBindingName;
+			}
+		}
+		TArray<UOptimusNode*> AllComponentSourceNode = GetAllNodesOfClass(UOptimusNode_ComponentSource::StaticClass());
+		for (UOptimusNode* Node : AllComponentSourceNode)
+		{
+			if (UOptimusNode_ComponentSource* ComponentSourceNode = Cast<UOptimusNode_ComponentSource>(Node))
+			{
+				if (ComponentSourceNode->GetComponentSourceBinding()->IsPrimaryBinding())
+				{
+					ComponentSourceNode->SetDisplayName(FText::FromName(PrimaryBindingName));
+				}
+			}
+		}
+	}
 
 	// Fixup any empty array entries.
 	Resources->Descriptions.RemoveAllSwap([](const TObjectPtr<UOptimusResourceDescription>& Value) { return Value == nullptr; });
