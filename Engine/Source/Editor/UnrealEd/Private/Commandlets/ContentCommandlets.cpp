@@ -1803,7 +1803,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 	FScopedEditorWorld EditorWorld(World, IVS);
 
 	// Load and Save world partition actor packages
-	if (bResaveWorldPartitionExternalActors)
+	if (bResaveWorldPartitionExternalActors && !bShouldBuildNavigationData)
 	{
 		FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, [this, WorldPartition](const FWorldPartitionActorDesc* ActorDesc)
 		{
