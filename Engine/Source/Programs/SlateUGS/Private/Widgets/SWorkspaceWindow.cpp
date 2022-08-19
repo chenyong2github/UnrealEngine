@@ -244,11 +244,17 @@ FReply SWorkspaceWindow::OnBrowseClicked()
 			EFileDialogFlags::None,
 			OutOpenFilenames
 		);
-	}
 
-	if (!OutOpenFilenames.IsEmpty())
-	{
-		LocalFileText->SetText(FText::FromString(OutOpenFilenames[0]));
+		FString Path = OutOpenFilenames[0];
+		if (FPaths::IsRelative(Path))
+		{
+			Path = FPaths::ConvertRelativePathToFull(Path);
+		}
+
+		if (!OutOpenFilenames.IsEmpty())
+		{
+			LocalFileText->SetText(FText::FromString(Path));
+		}
 	}
 
 	return FReply::Handled();
