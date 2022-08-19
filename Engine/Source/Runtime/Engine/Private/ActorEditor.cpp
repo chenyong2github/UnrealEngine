@@ -1551,7 +1551,10 @@ bool AActor::IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& Propert
 
 bool AActor::SupportsDataLayer() const
 {
-	return (ActorTypeSupportsDataLayer() &&
+	ULevel* Level = GetLevel();
+	const bool bIsLevelNotPartitioned = Level ? !Level->bIsPartitioned : false;
+	return (!bIsLevelNotPartitioned &&
+			ActorTypeSupportsDataLayer() &&
 			!FActorEditorUtils::IsABuilderBrush(this) &&
 			!GetClass()->GetDefaultObject<AActor>()->bHiddenEd);
 }

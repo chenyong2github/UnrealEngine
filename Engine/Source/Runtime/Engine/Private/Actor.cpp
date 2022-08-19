@@ -3482,6 +3482,8 @@ void AActor::PostEditImport()
 {
 	Super::PostEditImport();
 
+	FixupDataLayers();
+
 	DispatchOnComponentsCreated(this);
 
 	ULevel* Level = GetLevel();
