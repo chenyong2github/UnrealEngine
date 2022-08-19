@@ -19,6 +19,7 @@ namespace UGSCore
 }
 
 class UGSTabManager;
+class FLogWidgetTextWriter;
 
 enum SyncCategoryType
 {
@@ -107,6 +108,7 @@ private:
 	TSharedPtr<UGSCore::FDetectProjectSettingsTask> DetectSettings;
 	TArray<FString> CombinedSyncFilter;
 	TSharedPtr<UGSCore::FUserSettings> UserSettings;
+	TSharedPtr<FLogWidgetTextWriter> Log;
 
 	// Monitoring threads
 	TSharedPtr<UGSCore::FPerforceMonitor> PerforceMonitor;
