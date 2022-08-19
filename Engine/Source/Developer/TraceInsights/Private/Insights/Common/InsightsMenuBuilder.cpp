@@ -55,6 +55,12 @@ void FInsightsMenuBuilder::PopulateMenu(FMenuBuilder& MenuBuilder)
 #if !WITH_EDITOR
 	MenuBuilder.BeginSection("Insights");
 	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ImportTable", "Import Table..."),
+		LOCTEXT("ImportTable_ToolTip", "Import CSV or TSV data from a file to an Insights Table."),
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ImportTable"),
+		FUIAction(FExecuteAction::CreateLambda([] { Insights::FTableImportTool::Get()->StartImportProcess(); })));
+	MenuBuilder.AddSeparator();
+	MenuBuilder.AddMenuEntry(
 		LOCTEXT("OpenSessionBrowser", "Session Browser"),
 		LOCTEXT("OpenSessionBrowser_ToolTip", "Opens the Unreal Insights Session Browser window."),
 		FSlateIcon(FInsightsStyle::GetStyleSetName(), "AppIcon.Small"),
@@ -66,11 +72,6 @@ void FInsightsMenuBuilder::PopulateMenu(FMenuBuilder& MenuBuilder)
 		false,
 		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.FolderOpen")
 	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ImportTable", "Import Table"),
-		LOCTEXT("ImportTable_ToolTip", "Import CSV or TSV data from a file to an Insights Table."),
-		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Import.Table"),
-		FUIAction(FExecuteAction::CreateLambda([] { Insights::FTableImportTool::Get()->StartImportProcess(); })));
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AutoOpenLiveTrace", "Auto Open Live Trace"),
 		LOCTEXT("AutoOpenLiveTrace_ToolTip", "If enabled, the analysis starts automatically for each new live trace session, replacing the current analysis session."),
