@@ -3,20 +3,26 @@
 using UnrealBuildTool;
 using System.IO;
 
-public class DisplayClusterOperator : ModuleRules
+public class DisplayClusterColorGrading : ModuleRules
 {
-	public DisplayClusterOperator(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
+	public DisplayClusterColorGrading(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"DisplayCluster",
+				"DisplayClusterConfiguration",
+				"DisplayClusterOperator",
 
+				"AppFramework",
+				"ColorCorrectRegions",
 				"Core",
 				"CoreUObject",
+				"DetailCustomizations",
 				"EditorStyle",
 				"Engine",
 				"InputCore",
 				"Kismet",
+				"PropertyEditor",
 				"Slate",
 				"SlateCore",
 				"ToolWidgets",

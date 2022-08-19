@@ -6,12 +6,14 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
+class IDisplayClusterOperatorViewModel;
 class FLayoutExtender;
 class FExtensibilityManager;
+class FDisplayClusterOperatorStatusBarExtender;
 class ADisplayClusterRootActor;
 
 DECLARE_EVENT_OneParam(IDisplayClusterOperator, FOnRegisterLayoutExtensions, FLayoutExtender&);
-DECLARE_EVENT_OneParam(IDisplayClusterOperator, FOnActiveRootActorChanged, ADisplayClusterRootActor*);
+DECLARE_EVENT_OneParam(IDisplayClusterOperator, FOnRegisterStatusBarExtensions, FDisplayClusterOperatorStatusBarExtender&);
 DECLARE_EVENT_OneParam(IDisplayClusterOperator, FOnDetailObjectsChanged, const TArray<UObject*>&);
 
 /**
@@ -46,17 +48,23 @@ public:
 		return FModuleManager::Get().IsModuleLoaded(ModuleName);
 	}
 
+	/** Gets the operator panel's view model, which stores any state used by the operator panel */
+	virtual TSharedRef<IDisplayClusterOperatorViewModel> GetOperatorViewModel() = 0;
+
 	/** Gets the event handler that is raised when the operator panel processes extensions to its layout */
 	virtual FOnRegisterLayoutExtensions& OnRegisterLayoutExtensions() = 0;
 
-	/** Gets the event handler that is raised when the operator panel changes the root actor being operated on */
-	virtual FOnActiveRootActorChanged& OnActiveRootActorChanged() = 0;
+	/** Gets the event handler that is raised when the operator panel processes extensions to its status bar */
+	virtual FOnRegisterStatusBarExtensions& OnRegisterStatusBarExtensions() = 0;
 
 	/** Gets the event handler that is raised when the objects being displayed in the operator's details panel are changed */
 	virtual FOnDetailObjectsChanged& OnDetailObjectsChanged() = 0;
 
-	/** Gets the extension ID that can be used to add tabs to the operator panel */
-	virtual FName GetOperatorExtensionId() = 0;
+	/** Gets the extension ID for the main window region that can be used to add tabs to the operator panel */
+	virtual FName GetPrimaryOperatorExtensionId() = 0;
+
+	/** Gets the extension ID for the auxilliary window region intended for lower-thirds windows (e.g log output) that can be used to add tabs to the operator panel */
+	virtual FName GetAuxilliaryOperatorExtensionId() = 0;
 
 	/** Gets the extensibility manager for the operator panel's toolbar */
 	virtual TSharedPtr<FExtensibilityManager> GetOperatorToolBarExtensibilityManager() = 0;
@@ -69,4 +77,7 @@ public:
 
 	/** Displays the properties of the specified object in the operator's details panel */
 	virtual void ShowDetailsForObjects(const TArray<UObject*>& Objects) = 0;
+
+	/** Forces the operator panel to dismiss any open drawers */
+	virtual void ForceDismissDrawers() = 0;
 };

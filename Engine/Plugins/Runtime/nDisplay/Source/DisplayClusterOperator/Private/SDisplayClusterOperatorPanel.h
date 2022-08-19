@@ -13,40 +13,34 @@ class SBox;
 class SDockTab;
 class SWindow;
 class SDisplayClusterOperatorToolbar;
+class SDisplayClusterOperatorStatusBar;
 
 /** The nDisplay operator panel that allows users to edit root actor instances with a variety of tools */
 class SDisplayClusterOperatorPanel : public SCompoundWidget
 {
 public:
-	/** The name of the tab that the operator panel lives in */
-	static const FName TabName;
-
 	/** The tab ID that the operator toolbar lives in */
 	static const FName ToolbarTabId;
 
 	/** The tab ID that the details panel lives in */
 	static const FName DetailsTabId;
 
-	/** The ID of the tab stack that can be extended by external tabs */
-	static const FName TabExtensionId;
+	/** The ID of the main tab stack that can be extended by external tabs */
+	static const FName PrimaryTabExtensionId;
 
+	/** The ID of the auxilliary tab stack that can be extended by external tabs; intended for lower-thirds windows like log outputs */
+	static const FName AuxilliaryTabExtensionId;
 
-	/** Registers the operator panel with the global tab manager and adds it to the Virtual Projections window menu */
-	static void RegisterTabSpawner();
-
-	/** Unregisters the operator panel from the global tab manager */
-	static void UnregisterTabSpawner();
-
-	/** Creates a tab with the operator panel inside */
-	static TSharedRef<SDockTab> SpawnInTab(const FSpawnTabArgs& SpawnTabArgs);
-
-
+public:
 	SLATE_BEGIN_ARGS(SDisplayClusterOperatorPanel) {}
 	SLATE_END_ARGS()
 
 	~SDisplayClusterOperatorPanel();
 
-	void Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& MajorTabOwner, const TSharedPtr<SWindow>& WindowOwner);
+	void Construct(const FArguments& InArgs, const TSharedRef<FTabManager>& InTabManager, const TSharedPtr<SWindow>& WindowOwner);
+
+	/** Forces the operator panel to dismiss any open drawers */
+	void ForceDismissDrawers();
 
 private:
 	/** Creates a tab with the operator toolbar in it */
@@ -73,6 +67,9 @@ private:
 
 	/** A reference to the operator panel's details view */
 	TSharedPtr<class SKismetInspector> DetailsView;
+
+	/** A reference to the operator panel's status bar widget */
+	TSharedPtr<SDisplayClusterOperatorStatusBar> StatusBar;
 
 	/** The delegate handle for the operator module's OnDetailObjectsChanged event */
 	FDelegateHandle DetailObjectsChangedHandle;

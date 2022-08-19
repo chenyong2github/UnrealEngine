@@ -9,6 +9,7 @@
 
 enum class EMapChangeType : uint8;
 class FUICommandList;
+class IDisplayClusterOperatorViewModel;
 class ADisplayClusterRootActor;
 
 template<class T>
@@ -26,9 +27,6 @@ public:
 	~SDisplayClusterOperatorToolbar();
 
 	void Construct(const FArguments& InArgs);
-
-	/** Gets the root actor that is currently selected in the toolbar */
-	TWeakObjectPtr<ADisplayClusterRootActor> GetActiveRootActor() const { return ActiveRootActor; }
 
 private:
 	/** 
@@ -64,6 +62,9 @@ private:
 	void HandleMapChanged(UWorld* InWorld, EMapChangeType InMapChangeType);
 
 private:
+	/** A reference the the operator panel's view model, which stores the operator panel state */
+	TSharedPtr<IDisplayClusterOperatorViewModel> ViewModel;
+
 	/** The command list used by the toolbar */
 	TSharedPtr<FUICommandList> CommandList;
 	
@@ -75,9 +76,6 @@ private:
 
 	/** The combo box widget that allows the uesr to pick the active root actor from */
 	TSharedPtr<SComboBox<TSharedPtr<FString>>> RootActorComboBox;
-
-	/** The active root actor that the operator panel is currently editing */
-	TWeakObjectPtr<ADisplayClusterRootActor> ActiveRootActor;
 
 	/** The OnLevelActorDeleted delegate handle */
 	FDelegateHandle LevelActorDeletedHandle;

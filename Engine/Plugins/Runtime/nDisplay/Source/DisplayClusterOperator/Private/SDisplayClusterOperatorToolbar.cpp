@@ -3,6 +3,7 @@
 #include "SDisplayClusterOperatorToolbar.h"
 
 #include "IDisplayClusterOperator.h"
+#include "IDisplayClusterOperatorViewModel.h"
 #include "DisplayClusterRootActor.h"
 
 #include "Styling/AppStyle.h"
@@ -27,7 +28,7 @@ SDisplayClusterOperatorToolbar::~SDisplayClusterOperatorToolbar()
 		LevelEditor.OnMapChanged().Remove(MapChangedHandle);
 	}
 	
-	if (ActiveRootActor.IsValid())
+	if (ADisplayClusterRootActor* ActiveRootActor = ViewModel->GetRootActor())
 	{
 		if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(ActiveRootActor->GetClass()))
 		{
@@ -38,6 +39,7 @@ SDisplayClusterOperatorToolbar::~SDisplayClusterOperatorToolbar()
 
 void SDisplayClusterOperatorToolbar::Construct(const FArguments& InArgs)
 {
+	ViewModel = IDisplayClusterOperator::Get().GetOperatorViewModel();
 	CommandList = InArgs._CommandList;
 
 	FillRootActorList();
@@ -125,7 +127,7 @@ TSharedPtr<FString> SDisplayClusterOperatorToolbar::FillRootActorList(const FStr
 
 void SDisplayClusterOperatorToolbar::ClearSelectedRootActor()
 {
-	if (ActiveRootActor.IsValid())
+	if (ADisplayClusterRootActor* ActiveRootActor = ViewModel->GetRootActor())
 	{
 		if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(ActiveRootActor->GetClass()))
 		{
@@ -134,8 +136,7 @@ void SDisplayClusterOperatorToolbar::ClearSelectedRootActor()
 	}
 
 	ActiveRootActorName.Reset();
-	ActiveRootActor.Reset();
-	IDisplayClusterOperator::Get().OnActiveRootActorChanged().Broadcast(nullptr);
+	ViewModel->SetRootActor(nullptr);
 	RootActorComboBox->SetSelectedItem(nullptr);
 }
 
@@ -160,7 +161,7 @@ void SDisplayClusterOperatorToolbar::OnRootActorChanged(TSharedPtr<FString> Item
 		}
 	}
 
-	if (ActiveRootActor.IsValid())
+	if (ADisplayClusterRootActor* ActiveRootActor = ViewModel->GetRootActor())
 	{
 		if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(ActiveRootActor->GetClass()))
 		{
@@ -177,8 +178,7 @@ void SDisplayClusterOperatorToolbar::OnRootActorChanged(TSharedPtr<FString> Item
 		}
 	}
 
-	ActiveRootActor = SelectedRootActor;
-	IDisplayClusterOperator::Get().OnActiveRootActorChanged().Broadcast(SelectedRootActor);
+	ViewModel->SetRootActor(SelectedRootActor);
 }
 
 void SDisplayClusterOperatorToolbar::OnBlueprintCompiled(UBlueprint* Blueprint)
@@ -224,7 +224,7 @@ FText SDisplayClusterOperatorToolbar::GetRootActorComboBoxText() const
 
 void SDisplayClusterOperatorToolbar::OnLevelActorDeleted(AActor* Actor)
 {
-	if (Actor == ActiveRootActor)
+	if (Actor == ViewModel->GetRootActor())
 	{
 		if (Actor && Actor->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists))
 		{
@@ -240,7 +240,7 @@ void SDisplayClusterOperatorToolbar::OnLevelActorDeleted(AActor* Actor)
 void SDisplayClusterOperatorToolbar::HandleMapChanged(UWorld* InWorld, EMapChangeType InMapChangeType)
 {
 	if (InMapChangeType == EMapChangeType::TearDownWorld &&
-		(!ActiveRootActor.IsValid() || ActiveRootActor->GetWorld() == InWorld))
+		(!ViewModel->HasRootActor() || ViewModel->GetRootActor()->GetWorld() == InWorld))
 	{
 		ClearSelectedRootActor();
 	}

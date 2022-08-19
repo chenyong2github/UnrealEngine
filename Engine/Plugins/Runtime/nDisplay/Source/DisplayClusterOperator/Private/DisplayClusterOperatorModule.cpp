@@ -2,6 +2,7 @@
 
 #include "DisplayClusterOperatorModule.h"
 
+#include "DisplayClusterOperatorViewModel.h"
 #include "SDisplayClusterOperatorPanel.h"
 #include "DisplayClusterRootActor.h"
 
@@ -10,11 +11,17 @@
 #include "Engine/World.h"
 #include "LevelEditorViewport.h"
 #include "Toolkits/AssetEditorToolkit.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterOperator"
 
+const FName FDisplayClusterOperatorModule::OperatorPanelTabName = TEXT("DisplayClusterOperatorTab");
+
 void FDisplayClusterOperatorModule::StartupModule()
 {
+	OperatorViewModel = MakeShared<FDisplayClusterOperatorViewModel>();
 	OperatorToolBarExtensibilityManager = MakeShared<FExtensibilityManager>();
 
 	RegisterTabSpawners();
@@ -25,9 +32,19 @@ void FDisplayClusterOperatorModule::ShutdownModule()
 	UnregisterTabSpawners();
 }
 
-FName FDisplayClusterOperatorModule::GetOperatorExtensionId()
+TSharedRef<IDisplayClusterOperatorViewModel> FDisplayClusterOperatorModule::GetOperatorViewModel()
 {
-	return SDisplayClusterOperatorPanel::TabExtensionId;
+	return OperatorViewModel.ToSharedRef();
+}
+
+FName FDisplayClusterOperatorModule::GetPrimaryOperatorExtensionId()
+{
+	return SDisplayClusterOperatorPanel::PrimaryTabExtensionId;
+}
+
+FName FDisplayClusterOperatorModule::GetAuxilliaryOperatorExtensionId()
+{
+	return SDisplayClusterOperatorPanel::AuxilliaryTabExtensionId;
 }
 
 void FDisplayClusterOperatorModule::GetRootActorLevelInstances(TArray<ADisplayClusterRootActor*>& OutRootActorInstances)
@@ -58,14 +75,45 @@ void FDisplayClusterOperatorModule::ShowDetailsForObjects(const TArray<UObject*>
 	DetailObjectsChanged.Broadcast(Objects);
 }
 
+void FDisplayClusterOperatorModule::ForceDismissDrawers()
+{
+	if (ActiveOperatorPanel.IsValid())
+	{
+		ActiveOperatorPanel.Pin()->ForceDismissDrawers();
+	}
+}
+
 void FDisplayClusterOperatorModule::RegisterTabSpawners()
 {
-	SDisplayClusterOperatorPanel::RegisterTabSpawner();
+	// Register the nDisplay operator panel tab spawner
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OperatorPanelTabName, FOnSpawnTab::CreateRaw(this, &FDisplayClusterOperatorModule::SpawnOperatorPanelTab))
+		.SetDisplayName(LOCTEXT("TabDisplayName", "nDisplay Operator"))
+		.SetTooltipText(LOCTEXT("TabTooltip", "Open the nDisplay Operator tab."))
+		.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorVirtualProductionCategory());
 }
 
 void FDisplayClusterOperatorModule::UnregisterTabSpawners()
 {
-	SDisplayClusterOperatorPanel::UnregisterTabSpawner();
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(OperatorPanelTabName);
+}
+
+TSharedRef<SDockTab> FDisplayClusterOperatorModule::SpawnOperatorPanelTab(const FSpawnTabArgs& SpawnTabArgs)
+{
+	const TSharedRef<SDockTab> MajorTab = SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab)
+		.OnTabClosed_Raw(this, &FDisplayClusterOperatorModule::OnOperatorPanelTabClosed);
+
+	MajorTab->SetContent(SAssignNew(ActiveOperatorPanel, SDisplayClusterOperatorPanel, OperatorViewModel->CreateTabManager(MajorTab), SpawnTabArgs.GetOwnerWindow()));
+
+	return MajorTab;
+}
+
+void FDisplayClusterOperatorModule::OnOperatorPanelTabClosed(TSharedRef<SDockTab> Tab)
+{
+	OperatorViewModel->ResetTabManager();
+	OperatorViewModel->SetRootActor(nullptr);
+
+	ActiveOperatorPanel.Reset();
 }
 
 IMPLEMENT_MODULE(FDisplayClusterOperatorModule, DisplayClusterOperator);

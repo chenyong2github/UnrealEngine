@@ -3,7 +3,10 @@
 #include "SDisplayClusterOperatorPanel.h"
 
 #include "IDisplayClusterOperator.h"
+#include "IDisplayClusterOperatorViewModel.h"
 #include "SDisplayClusterOperatorToolbar.h"
+#include "SDisplayClusterOperatorStatusBar.h"
+#include "DisplayClusterOperatorStatusBarExtender.h"
 
 #include "Styling/AppStyle.h"
 #include "Framework/Docking/TabManager.h"
@@ -11,49 +14,24 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SKismetInspector.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "WorkspaceMenuStructure.h"
-#include "WorkspaceMenuStructureModule.h"
 
 #include "Components/ActorComponent.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterOperatorPanel"
 
-const FName SDisplayClusterOperatorPanel::TabName = TEXT("DisplayClusterOperatorTab");
 const FName SDisplayClusterOperatorPanel::ToolbarTabId = TEXT("OperatorToolbar");
 const FName SDisplayClusterOperatorPanel::DetailsTabId = TEXT("OperatorDetails");
-const FName SDisplayClusterOperatorPanel::TabExtensionId = TEXT("OperatorTabStack");
-
-void SDisplayClusterOperatorPanel::RegisterTabSpawner()
-{
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(TabName, FOnSpawnTab::CreateStatic(&SDisplayClusterOperatorPanel::SpawnInTab))
-			.SetDisplayName(LOCTEXT("TabDisplayName", "nDisplay Operator"))
-			.SetTooltipText(LOCTEXT("TabTooltip", "Open the nDisplay Operator tab."))
-			.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorVirtualProductionCategory());
-}
-
-void SDisplayClusterOperatorPanel::UnregisterTabSpawner()
-{
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TabName);
-}
-
-TSharedRef<SDockTab> SDisplayClusterOperatorPanel::SpawnInTab(const FSpawnTabArgs& SpawnTabArgs)
-{
-	const TSharedRef<SDockTab> MajorTab = SNew(SDockTab)
-		.TabRole(ETabRole::NomadTab);
-
-	MajorTab->SetContent(SNew(SDisplayClusterOperatorPanel, MajorTab, SpawnTabArgs.GetOwnerWindow()));
-
-	return MajorTab;
-}
+const FName SDisplayClusterOperatorPanel::PrimaryTabExtensionId = TEXT("PrimaryOperatorTabStack");
+const FName SDisplayClusterOperatorPanel::AuxilliaryTabExtensionId = TEXT("AuxilliaryOperatorTabStack");
 
 SDisplayClusterOperatorPanel::~SDisplayClusterOperatorPanel()
 {
 	IDisplayClusterOperator::Get().OnDetailObjectsChanged().Remove(DetailObjectsChangedHandle);
 }
 
-void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& MajorTabOwner, const TSharedPtr<SWindow>& WindowOwner)
+void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSharedRef<FTabManager>& InTabManager, const TSharedPtr<SWindow>& WindowOwner)
 {
-	TabManager = FGlobalTabmanager::Get()->NewTabManager(MajorTabOwner);
+	TabManager = InTabManager;
 	TSharedRef<FWorkspaceItem> AppMenuGroup = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("OperatorMenuGroupName", "nDisplay Operator"));
 	TabManager->SetAllowWindowMenuBar(true);
 
@@ -84,9 +62,19 @@ void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSh
 					->SetOrientation(Orient_Horizontal)
 					->Split
 					(
-						FTabManager::NewStack()
-							->SetExtensionId(TabExtensionId)
-							->SetSizeCoefficient(0.67f)
+						FTabManager::NewSplitter()
+						->SetOrientation(Orient_Vertical)
+						->SetSizeCoefficient(0.67f)
+						->Split
+						(
+							FTabManager::NewStack()
+								->SetExtensionId(PrimaryTabExtensionId)
+						)
+						->Split
+						(
+							FTabManager::NewStack()
+								->SetExtensionId(AuxilliaryTabExtensionId)
+						)
 					)
 					->Split
 					(
@@ -106,22 +94,42 @@ void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSh
 
 	ChildSlot
 	[
-		TabManager->RestoreFrom(Layout, WindowOwner).ToSharedRef()
+		SNew(SVerticalBox)
+
+		+SVerticalBox::Slot()
+		.Padding(4.0f, 2.f, 4.f, 2.f)
+		.FillHeight(1.0f)
+		[
+			TabManager->RestoreFrom(Layout, WindowOwner).ToSharedRef()
+		]
+
+		+SVerticalBox::Slot()
+		.Padding(0.0f, 2.0f, 0.0f, 0.0f)
+		.AutoHeight()
+		[
+			SAssignNew(StatusBar, SDisplayClusterOperatorStatusBar)
+		]
 	];
 
-	// TODO: Move ownership of active root controller to a view model object, instead of letting the toolbar control which root actor is active
+	// Allow any external modules to register extensions to the operator panel's status bar
+	FDisplayClusterOperatorStatusBarExtender StatusBarExtender;
+	IDisplayClusterOperator::Get().OnRegisterStatusBarExtensions().Broadcast(StatusBarExtender);
+	StatusBarExtender.RegisterExtensions(StatusBar.ToSharedRef());
+
 	if (ToolbarContainer.IsValid())
 	{
 		// Create toolbar after tab has been restored so child windows can register their toolbar extensions
 		ToolbarContainer->SetContent(
 		SAssignNew(Toolbar, SDisplayClusterOperatorToolbar)
 		.CommandList(TSharedPtr<FUICommandList>()));
+	}
+}
 
-		TWeakObjectPtr<ADisplayClusterRootActor> ActiveRootActor = Toolbar->GetActiveRootActor();
-		if (ActiveRootActor.IsValid())
-		{
-			IDisplayClusterOperator::Get().OnActiveRootActorChanged().Broadcast(ActiveRootActor.Get());
-		}
+void SDisplayClusterOperatorPanel::ForceDismissDrawers()
+{
+	if (StatusBar.IsValid())
+	{
+		StatusBar->DismissDrawer(nullptr);
 	}
 }
 

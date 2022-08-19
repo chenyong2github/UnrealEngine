@@ -251,6 +251,11 @@ struct FDisplayClusterConfigurationViewport_PerViewportColorGrading
 {
 	GENERATED_BODY()
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = "Viewport Settings")
+	FText Name = FText::GetEmpty();
+#endif
+
 	/** Enable the color grading settings for the viewport(s) specified and add them to nDisplay's color grading stack.  This will not affect the inner frustum. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Enable Per-Viewport Color Grading"))
 	bool bIsEnabled = true;
@@ -290,6 +295,11 @@ USTRUCT(Blueprintable)
 struct FDisplayClusterConfigurationViewport_PerNodeColorGrading
 {
 	GENERATED_BODY()
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = "Viewport Settings")
+	FText Name = FText::GetEmpty();
+#endif
 
 	/** Enable the color grading settings for the node(s) specified and add them to nDisplay's color grading stack. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Enable Per-Node Color Grading"))

@@ -15,6 +15,7 @@
 #include "Viewport/DisplayClusterLightCardEditorViewportClient.h"
 
 #include "IDisplayClusterOperator.h"
+#include "IDisplayClusterOperatorViewModel.h"
 
 #include "DisplayClusterRootActor.h"
 #include "DisplayClusterConfigurationTypes.h"
@@ -62,7 +63,7 @@ void SDisplayClusterLightCardEditor::UnregisterTabSpawner()
 void SDisplayClusterLightCardEditor::RegisterLayoutExtension(FLayoutExtender& InExtender)
 {
 	FTabManager::FTab NewTab(FTabId(TabName, ETabIdFlags::SaveLayout), ETabState::OpenedTab);
-	InExtender.ExtendStack(IDisplayClusterOperator::Get().GetOperatorExtensionId(), ELayoutExtensionPosition::After, NewTab);
+	InExtender.ExtendStack(IDisplayClusterOperator::Get().GetPrimaryOperatorExtensionId(), ELayoutExtensionPosition::After, NewTab);
 }
 
 TSharedRef<SDockTab> SDisplayClusterLightCardEditor::SpawnInTab(const FSpawnTabArgs& SpawnTabArgs)
@@ -79,7 +80,7 @@ TSharedRef<SDockTab> SDisplayClusterLightCardEditor::SpawnInTab(const FSpawnTabA
 
 SDisplayClusterLightCardEditor::~SDisplayClusterLightCardEditor()
 {
-	IDisplayClusterOperator::Get().OnActiveRootActorChanged().Remove(ActiveRootActorChangedHandle);
+	IDisplayClusterOperator::Get().GetOperatorViewModel()->OnActiveRootActorChanged().Remove(ActiveRootActorChangedHandle);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 
 	if (GEngine != nullptr)
@@ -109,7 +110,7 @@ void SDisplayClusterLightCardEditor::PostRedo(bool bSuccess)
 
 void SDisplayClusterLightCardEditor::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& MajorTabOwner, const TSharedPtr<SWindow>& WindowOwner)
 {
-	ActiveRootActorChangedHandle = IDisplayClusterOperator::Get().OnActiveRootActorChanged().AddSP(this, &SDisplayClusterLightCardEditor::OnActiveRootActorChanged);
+	ActiveRootActorChangedHandle = IDisplayClusterOperator::Get().GetOperatorViewModel()->OnActiveRootActorChanged().AddSP(this, &SDisplayClusterLightCardEditor::OnActiveRootActorChanged);
 	if (GEngine != nullptr)
 	{
 		GEngine->OnLevelActorDeleted().AddSP(this, &SDisplayClusterLightCardEditor::OnLevelActorDeleted);
