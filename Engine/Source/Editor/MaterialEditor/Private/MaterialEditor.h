@@ -425,6 +425,9 @@ public:
 
 	virtual void AddGraphEditorPinActionsToContextMenu(FToolMenuSection& InSection) const override;
 
+	/** Overrides function in FEditorUndoClient. Called to see if the context of the current undo/redo operation is a match for the client. */
+	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const override;
+
 public:
 	/** Set to true when modifications have been made to the material */
 	bool bMaterialDirty;

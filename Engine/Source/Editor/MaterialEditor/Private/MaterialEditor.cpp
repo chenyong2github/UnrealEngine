@@ -7,6 +7,7 @@
 #include "Engine/Engine.h"
 #include "EngineModule.h"
 #include "Misc/MessageDialog.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Modules/ModuleManager.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SSeparator.h"
@@ -34,6 +35,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialParameterCollection.h"
+#include "Materials/MaterialParameterCollectionInstance.h"
 #include "StaticParameterSet.h"
 #include "Engine/TextureCube.h"
 #include "Engine/Texture2DArray.h"
@@ -2103,6 +2105,36 @@ void FMaterialEditor::AddGraphEditorPinActionsToContextMenu(FToolMenuSection& In
 		AddStrataContextualMenu(FMaterialEditorCommands::Get().CreateVerticalLayerNode, EStrataNodeForPin::VerticalLayer);
 		AddStrataContextualMenu(FMaterialEditorCommands::Get().CreateWeightNode, EStrataNodeForPin::Weight);
 	}
+}
+
+bool FMaterialEditor::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const
+{
+	for (const TPair<UObject*, FTransactionObjectEvent>& TransactionObjectContext : TransactionObjectContexts)
+	{
+		UObject* Object = TransactionObjectContext.Get<0>();
+
+		// Evaluate whether any object we are interested in matches an object part of the transaction.
+		bool bIsMaterialRelatedObject =
+			   Object->IsA<UMaterialInterface>()
+			|| Object->IsA<UMaterialEditorOnlyData>()
+			|| Object->IsA<UMaterialExpression>()
+			|| Object->IsA<UMaterialGraph>()
+			|| Object->IsA<UMaterialFunctionInterface>()
+			|| Object->IsA<UMaterialEditingLibrary>()
+			|| Object->IsA<UMaterialEditorSettings>()
+			|| Object->IsA<UMaterialEditorInstanceConstant>()
+			|| Object->IsA<UMaterialEditorMenuContext>()
+			|| Object->IsA<UMaterialEditorOptions>()
+			|| Object->IsA<UMaterialParameterCollection>()
+			|| Object->IsA<UMaterialParameterCollectionInstance>();
+
+		if (bIsMaterialRelatedObject)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void FMaterialEditor::DrawMaterialInfoStrings(
