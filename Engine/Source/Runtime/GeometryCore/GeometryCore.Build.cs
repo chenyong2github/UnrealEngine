@@ -23,6 +23,6 @@ public class GeometryCore : ModuleRules
 			}
 		);
 
-		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }

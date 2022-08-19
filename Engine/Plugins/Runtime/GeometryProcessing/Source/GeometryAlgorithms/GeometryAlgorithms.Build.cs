@@ -18,6 +18,6 @@ public class GeometryAlgorithms : ModuleRules
 				"GeometryCore"
 			}
 			);
-		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }
