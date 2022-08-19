@@ -1046,7 +1046,7 @@ void UCommonButtonBase::HandleFocusReceived()
 
 void UCommonButtonBase::HandleButtonPressed()
 {
-	OnPressed().Broadcast();
+	NativeOnPressed();
 
 	UCommonInputSubsystem* CommonInputSubsystem = GetInputSubsystem();
 
@@ -1059,7 +1059,7 @@ void UCommonButtonBase::HandleButtonPressed()
 
 void UCommonButtonBase::HandleButtonReleased()
 {
-	OnReleased().Broadcast();
+	NativeOnReleased();
 
 	UCommonInputSubsystem* CommonInputSubsystem = GetInputSubsystem();
 
@@ -1168,6 +1168,18 @@ void UCommonButtonBase::NativeOnDoubleClicked()
 void UCommonButtonBase::StopDoubleClickPropagation()
 {
 	bStopDoubleClickPropagation = true;
+}
+
+void UCommonButtonBase::NativeOnPressed()
+{
+	BP_OnPressed();
+	OnPressed().Broadcast();
+}
+
+void UCommonButtonBase::NativeOnReleased()
+{
+	BP_OnReleased();
+	OnReleased().Broadcast();
 }
 
 void UCommonButtonBase::NativeOnEnabled()

@@ -520,6 +520,14 @@ protected:
 	/** Unless this is called, we will assume the double click should be converted into a normal click. */
 	UFUNCTION(BlueprintCallable, Category = CommonButton)
 	void StopDoubleClickPropagation();
+	
+	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Pressed"))
+	void BP_OnPressed();
+	virtual void NativeOnPressed();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Released"))
+	void BP_OnReleased();
+	virtual void NativeOnReleased();
 
 	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Enabled"))
 	void BP_OnEnabled();
