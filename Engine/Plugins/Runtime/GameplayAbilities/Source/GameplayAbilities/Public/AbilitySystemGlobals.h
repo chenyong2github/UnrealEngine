@@ -225,7 +225,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemGlobals : public UObject
 	UPROPERTY(config)
 	FName ActivateFailNetworkingName;
 
-	/** How many bits to use for "number of tags" in FMinimapReplicationTagCountMap::NetSerialize.  */
+	/** How many bits to use for "number of tags" in FMinimalReplicationTagCountMap::NetSerialize.  */
 	UPROPERTY(config)
 	int32	MinimalReplicationTagCountBits;
 

@@ -1654,7 +1654,7 @@ struct GAMEPLAYABILITIES_API FMinimalReplicationTagCountMap
 		}
 		else if (Count < 0)
 		{
-			ABILITY_LOG(Error, TEXT("FMinimapReplicationTagCountMap::RemoveTag called on Tag %s and count is now < 0"), *Tag.ToString());
+			ABILITY_LOG(Error, TEXT("FMinimalReplicationTagCountMap::RemoveTag called on Tag %s and count is now < 0"), *Tag.ToString());
 			Count = 0;
 		}
 	}

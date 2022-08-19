@@ -1133,7 +1133,7 @@ bool FMinimalReplicationTagCountMap::NetSerialize(FArchive& Ar, class UPackageMa
 		if (Count > MaxCount)
 		{
 #if UE_BUILD_SHIPPING
-			ABILITY_LOG(Error, TEXT("FMinimalReplicationTagCountMap has too many tags (%d) when the limit is %d. This will cause tags to not replicate. See FMinimapReplicationTagCountMap::NetSerialize"), TagMap.Num(), MaxCount);
+			ABILITY_LOG(Error, TEXT("FMinimalReplicationTagCountMap has too many tags (%d) when the limit is %d. This will cause tags to not replicate. See FMinimalReplicationTagCountMap::NetSerialize"), TagMap.Num(), MaxCount);
 #else
 			TArray<FGameplayTag> TagKeys;
 			TagMap.GetKeys(TagKeys);
@@ -1152,7 +1152,7 @@ bool FMinimalReplicationTagCountMap::NetSerialize(FArchive& Ar, class UPackageMa
 				TagKeys[TagIndex].GetTagName().AppendString(TagsString);
 			}
 
-			ABILITY_LOG(Error, TEXT("FMinimalReplicationTagCountMap has too many tags (%d) when the limit is %d. This will cause tags to not replicate. See FMinimapReplicationTagCountMap::NetSerialize\nTagMap tags: %s"), TagMap.Num(), MaxCount, *TagsString);
+			ABILITY_LOG(Error, TEXT("FMinimalReplicationTagCountMap has too many tags (%d) when the limit is %d. This will cause tags to not replicate. See FMinimalReplicationTagCountMap::NetSerialize\nTagMap tags: %s"), TagMap.Num(), MaxCount, *TagsString);
 #endif	
 
 			//clamp the count
