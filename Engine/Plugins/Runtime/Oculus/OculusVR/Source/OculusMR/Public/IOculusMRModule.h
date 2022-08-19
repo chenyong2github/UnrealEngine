@@ -9,6 +9,7 @@
  * The public interface to this module.  In most cases, this interface is only public to sibling modules 
  * within this plugin.
  */
+class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated") IOculusMRModule;
 class IOculusMRModule : public IModuleInterface
 {
 

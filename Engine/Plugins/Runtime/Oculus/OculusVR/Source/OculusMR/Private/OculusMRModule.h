@@ -10,13 +10,15 @@ enum class EOculusMR_CompositionMethod : uint8;
 enum class EOculusMR_CameraDeviceEnum : uint8;
 enum class EOculusMR_DepthQuality : uint8;
 
-class UOculusMR_Settings;
+class UDEPRECATED_UOculusMR_Settings;
 class AOculusMR_CastingCameraActor;
 class UOculusMR_State;
 
 //-------------------------------------------------------------------------------------------------
 // FOculusInputModule
 //-------------------------------------------------------------------------------------------------
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 class FOculusMRModule : public IOculusMRModule
 {
@@ -36,12 +38,12 @@ public:
 	bool IsInitialized() { return bInitialized; }
 
 	bool IsActive();
-	UOculusMR_Settings* GetMRSettings();
+	UDEPRECATED_UOculusMR_Settings* GetMRSettings();
 	UOculusMR_State* GetMRState();
 
 private:
 	bool bInitialized;
-	UOculusMR_Settings* MRSettings;
+	UDEPRECATED_UOculusMR_Settings* MRSettings_DEPRECATED;
 	UOculusMR_State* MRState;
 	AOculusMR_CastingCameraActor* MRActor;
 	UWorld* CurrentWorld;
@@ -97,5 +99,6 @@ private:
 #endif
 };
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

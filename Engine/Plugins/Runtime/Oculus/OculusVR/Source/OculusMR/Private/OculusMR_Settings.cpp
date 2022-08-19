@@ -5,7 +5,9 @@
 #include "OculusHMD.h"
 #include "Engine/Engine.h"
 
-UOculusMR_Settings::UOculusMR_Settings(const FObjectInitializer& ObjectInitializer)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+UDEPRECATED_UOculusMR_Settings::UDEPRECATED_UOculusMR_Settings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ClippingReference(EOculusMR_ClippingReference::CR_Head)
 	, bUseTrackedCameraResolution(true)
@@ -26,7 +28,7 @@ UOculusMR_Settings::UOculusMR_Settings(const FObjectInitializer& ObjectInitializ
 {
 }
 
-void UOculusMR_Settings::SetCompositionMethod(EOculusMR_CompositionMethod val)
+void UDEPRECATED_UOculusMR_Settings::SetCompositionMethod(EOculusMR_CompositionMethod val)
 {
 	if (CompositionMethod == val)
 	{
@@ -37,7 +39,7 @@ void UOculusMR_Settings::SetCompositionMethod(EOculusMR_CompositionMethod val)
 	CompositionMethodChangeDelegate.Execute(old, val);
 }
 
-void UOculusMR_Settings::SetCapturingCamera(EOculusMR_CameraDeviceEnum val)
+void UDEPRECATED_UOculusMR_Settings::SetCapturingCamera(EOculusMR_CameraDeviceEnum val)
 {
 	if (CapturingCamera == val)
 	{
@@ -48,7 +50,7 @@ void UOculusMR_Settings::SetCapturingCamera(EOculusMR_CameraDeviceEnum val)
 	CapturingCameraChangeDelegate.Execute(old, val);
 }
 
-void UOculusMR_Settings::SetIsCasting(bool val)
+void UDEPRECATED_UOculusMR_Settings::SetIsCasting(bool val)
 {
 	if (bIsCasting == val)
 	{
@@ -59,7 +61,7 @@ void UOculusMR_Settings::SetIsCasting(bool val)
 	IsCastingChangeDelegate.Execute(old, val);
 }
 
-void UOculusMR_Settings::BindToTrackedCameraIndexIfAvailable(int InTrackedCameraIndex)
+void UDEPRECATED_UOculusMR_Settings::BindToTrackedCameraIndexIfAvailable(int InTrackedCameraIndex)
 {
 	if (BindToTrackedCameraIndex == InTrackedCameraIndex)
 	{
@@ -70,7 +72,7 @@ void UOculusMR_Settings::BindToTrackedCameraIndexIfAvailable(int InTrackedCamera
 	TrackedCameraIndexChangeDelegate.Execute(old, InTrackedCameraIndex);
 }
 
-void UOculusMR_Settings::LoadFromIni()
+void UDEPRECATED_UOculusMR_Settings::LoadFromIni()
 {
 	if (!GConfig)
 	{
@@ -152,7 +154,7 @@ void UOculusMR_Settings::LoadFromIni()
 	UE_LOG(LogMR, Log, TEXT("MixedReality settings loaded from Engine.ini"));
 }
 
-void UOculusMR_Settings::SaveToIni() const
+void UDEPRECATED_UOculusMR_Settings::SaveToIni() const
 {
 	if (!GConfig)
 	{
@@ -181,3 +183,5 @@ void UOculusMR_Settings::SaveToIni() const
 
 	UE_LOG(LogMR, Log, TEXT("MixedReality settings saved to Engine.ini"));
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

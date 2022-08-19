@@ -15,6 +15,8 @@
 
 #define LOCTEXT_NAMESPACE "OculusInput"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 namespace OculusInput
 {
 
@@ -1005,7 +1007,7 @@ bool FOculusInput::GetControllerOrientationAndPosition( const int32 ControllerIn
 	DeviceMapper.RemapControllerIdToPlatformUserAndDevice(ControllerIndex, InPlatformUser, InDeviceId);
 	
 	// Don't do renderthread pose update if MRC is active due to controller jitter issues with SceneCaptures
-	if (IsInGameThread() || !UOculusMRFunctionLibrary::IsMrcActive())
+	if (IsInGameThread() || !UDEPRECATED_UOculusMRFunctionLibrary::IsMrcActive())
 	{
 		for (const FOculusControllerPair& ControllerPair : ControllerPairs)
 		{
@@ -1389,6 +1391,8 @@ uint32 FOculusInput::GetNumberOfHandControllers() const
 }
 
 } // namespace OculusInput
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE
 #endif	 // OCULUS_INPUT_SUPPORTED_PLATFORMS

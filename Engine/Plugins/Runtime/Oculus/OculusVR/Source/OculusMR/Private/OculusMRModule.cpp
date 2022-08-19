@@ -29,6 +29,8 @@
 
 #define LOCTEXT_NAMESPACE "OculusMR"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 namespace
 {
 	ovrpCameraDevice ConvertCameraDevice(EOculusMR_CameraDeviceEnum device)
@@ -44,7 +46,7 @@ namespace
 
 FOculusMRModule::FOculusMRModule()
 	: bInitialized(false)
-	, MRSettings(nullptr)
+	, MRSettings_DEPRECATED(nullptr)
 	, MRState(nullptr)
 	, MRActor(nullptr)
 	, CurrentWorld(nullptr)
@@ -118,7 +120,7 @@ void FOculusMRModule::ShutdownModule()
 			FEditorDelegates::PrePIEEnded.Remove(PieEndedEventBinding);
 #else
 			// Stop casting and close camera with module if it's the game
-			MRSettings->SetIsCasting(false);
+			MRSettings_DEPRECATED->SetIsCasting(false);
 #endif
 		}
 #if PLATFORM_ANDROID
@@ -130,9 +132,9 @@ void FOculusMRModule::ShutdownModule()
 #endif 
 		FOculusHMDModule::GetPluginWrapper().ShutdownMixedReality();
 
-		if (MRSettings->IsRooted())
+		if (MRSettings_DEPRECATED->IsRooted())
 		{
-			MRSettings->RemoveFromRoot();
+			MRSettings_DEPRECATED->RemoveFromRoot();
 		}
 		if (MRState->IsRooted())
 		{
@@ -156,16 +158,16 @@ void FOculusMRModule::ShutdownModule()
 
 bool FOculusMRModule::IsActive()
 {
-	bool bReturn = bInitialized && MRSettings && MRSettings->GetIsCasting();
+	bool bReturn = bInitialized && MRSettings_DEPRECATED && MRSettings_DEPRECATED->GetIsCasting();
 #if PLATFORM_ANDROID
 	bReturn = bReturn && bActivated;
 #endif
 	return bReturn;
 }
 
-UOculusMR_Settings* FOculusMRModule::GetMRSettings()
+UDEPRECATED_UOculusMR_Settings* FOculusMRModule::GetMRSettings()
 {
-	return MRSettings;
+	return MRSettings_DEPRECATED;
 }
 
 UOculusMR_State* FOculusMRModule::GetMRState()
@@ -210,14 +212,14 @@ void FOculusMRModule::InitMixedRealityCapture()
 {
 	bInitialized = true;
 
-	MRSettings = NewObject<UOculusMR_Settings>((UObject*)GetTransientPackage(), FName("OculusMR_Settings"), RF_MarkAsRootSet);
+	MRSettings_DEPRECATED = NewObject<UDEPRECATED_UOculusMR_Settings>((UObject*)GetTransientPackage(), FName("OculusMR_Settings"), RF_MarkAsRootSet);
 	MRState = NewObject<UOculusMR_State>((UObject*)GetTransientPackage(), FName("OculusMR_State"), RF_MarkAsRootSet);
 
 	// Always bind the event handlers in case devs call them without MRC on
-	MRSettings->TrackedCameraIndexChangeDelegate.BindRaw(this, &FOculusMRModule::OnTrackedCameraIndexChanged);
-	MRSettings->CompositionMethodChangeDelegate.BindRaw(this, &FOculusMRModule::OnCompositionMethodChanged);
-	MRSettings->CapturingCameraChangeDelegate.BindRaw(this, &FOculusMRModule::OnCapturingCameraChanged);
-	MRSettings->IsCastingChangeDelegate.BindRaw(this, &FOculusMRModule::OnIsCastingChanged);
+	MRSettings_DEPRECATED->TrackedCameraIndexChangeDelegate.BindRaw(this, &FOculusMRModule::OnTrackedCameraIndexChanged);
+	MRSettings_DEPRECATED->CompositionMethodChangeDelegate.BindRaw(this, &FOculusMRModule::OnCompositionMethodChanged);
+	MRSettings_DEPRECATED->CapturingCameraChangeDelegate.BindRaw(this, &FOculusMRModule::OnCapturingCameraChanged);
+	MRSettings_DEPRECATED->IsCastingChangeDelegate.BindRaw(this, &FOculusMRModule::OnIsCastingChanged);
 
 	ResetSettingsAndState();
 
@@ -232,7 +234,7 @@ void FOculusMRModule::InitMixedRealityCapture()
 	PieEndedEventBinding = FEditorDelegates::PrePIEEnded.AddRaw(this, &FOculusMRModule::OnPieEnded);
 #else // WITH_EDITOR
 	// Start casting and open camera with the module if it's the game
-	MRSettings->SetIsCasting(true);
+	MRSettings_DEPRECATED->SetIsCasting(true);
 #endif // WITH_EDITOR
 }
 
@@ -240,7 +242,7 @@ void FOculusMRModule::SetupExternalCamera()
 {
 	using namespace OculusHMD;
 
-	if (!MRSettings->GetIsCasting())
+	if (!MRSettings_DEPRECATED->GetIsCasting())
 	{
 		return;
 	}
@@ -248,7 +250,7 @@ void FOculusMRModule::SetupExternalCamera()
 	// Always request the MRC actor to handle a camera state change on its end
 	MRState->ChangeCameraStateRequested = true;
 
-	if (MRSettings->CompositionMethod == EOculusMR_CompositionMethod::ExternalComposition)
+	if (MRSettings_DEPRECATED->CompositionMethod == EOculusMR_CompositionMethod::ExternalComposition)
 	{
 		// Close the camera device for external composition since we don't need the actual camera feed
 		if (MRState->CurrentCapturingCamera != ovrpCameraDevice_None)
@@ -257,17 +259,17 @@ void FOculusMRModule::SetupExternalCamera()
 		}
 	}
 #if PLATFORM_WINDOWS
-	else if (MRSettings->CompositionMethod == EOculusMR_CompositionMethod::DirectComposition)
+	else if (MRSettings_DEPRECATED->CompositionMethod == EOculusMR_CompositionMethod::DirectComposition)
 	{
 		ovrpBool available = ovrpBool_False;
-		if (MRSettings->CapturingCamera == EOculusMR_CameraDeviceEnum::CD_None)
+		if (MRSettings_DEPRECATED->CapturingCamera == EOculusMR_CameraDeviceEnum::CD_None)
 		{
 			MRState->CurrentCapturingCamera = ovrpCameraDevice_None;
 			UE_LOG(LogMR, Error, TEXT("CapturingCamera is set to CD_None which is invalid. Please pick a valid camera for CapturingCamera. If you are not sure, try to set it to CD_WebCamera0 and use the first connected USB web camera"));
 			return;
 		}
 
-		MRState->CurrentCapturingCamera = ConvertCameraDevice(MRSettings->CapturingCamera);
+		MRState->CurrentCapturingCamera = ConvertCameraDevice(MRSettings_DEPRECATED->CapturingCamera);
 		if (OVRP_FAILURE(FOculusHMDModule::GetPluginWrapper().IsCameraDeviceAvailable2(MRState->CurrentCapturingCamera, &available)) || !available)
 		{
 			MRState->CurrentCapturingCamera = ovrpCameraDevice_None;
@@ -312,7 +314,7 @@ void FOculusMRModule::CloseExternalCamera()
 void FOculusMRModule::SetupInGameCapture()
 {
 	// Don't do anything if we don't have a UWorld or if we are not casting
-	if (CurrentWorld == nullptr || !MRSettings->GetIsCasting())
+	if (CurrentWorld == nullptr || !MRSettings_DEPRECATED->GetIsCasting())
 	{
 		return;
 	}
@@ -332,7 +334,7 @@ void FOculusMRModule::SetupInGameCapture()
 
 	// Spawn an MRC camera actor if one wasn't already there
 	MRActor = CurrentWorld->SpawnActorDeferred<AOculusMR_CastingCameraActor>(AOculusMR_CastingCameraActor::StaticClass(), FTransform::Identity);
-	MRActor->InitializeStates(MRSettings, MRState);
+	MRActor->InitializeStates(MRSettings_DEPRECATED, MRState);
 	UGameplayStatics::FinishSpawningActor(MRActor, FTransform::Identity);
 }
 
@@ -358,19 +360,19 @@ void FOculusMRModule::ResetSettingsAndState()
 	// Reset MR Settings
 	const bool bAutoOpenInExternalComposition = FParse::Param(FCommandLine::Get(), TEXT("externalcomposition"));
 	const bool bAutoOpenInDirectComposition = FParse::Param(FCommandLine::Get(), TEXT("directcomposition"));
-	MRSettings->BindToTrackedCameraIndexIfAvailable(0);
-	MRSettings->LoadFromIni();
+	MRSettings_DEPRECATED->BindToTrackedCameraIndexIfAvailable(0);
+	MRSettings_DEPRECATED->LoadFromIni();
 
 	// Save right after load to write defaults to the config if they weren't already there
-	MRSettings->SaveToIni();
+	MRSettings_DEPRECATED->SaveToIni();
 
 	if (bAutoOpenInExternalComposition)
 	{
-		MRSettings->CompositionMethod = EOculusMR_CompositionMethod::ExternalComposition;
+		MRSettings_DEPRECATED->CompositionMethod = EOculusMR_CompositionMethod::ExternalComposition;
 	}
 	else if (bAutoOpenInDirectComposition)
 	{
-		MRSettings->CompositionMethod = EOculusMR_CompositionMethod::DirectComposition;
+		MRSettings_DEPRECATED->CompositionMethod = EOculusMR_CompositionMethod::DirectComposition;
 	}
 }
 
@@ -599,7 +601,7 @@ void FOculusMRModule::OnPieBegin(bool bIsSimulating)
 		ResetSettingsAndState();
 
 		// Always start casting with PIE (since this can only be reached if the command line param is on)
-		MRSettings->SetIsCasting(true);
+		MRSettings_DEPRECATED->SetIsCasting(true);
 	}
 }
 
@@ -619,11 +621,13 @@ void FOculusMRModule::OnPieEnded(bool bIsSimulating)
 	if (!bIsSimulating && PieWorld)
 	{
 		// Stop casting when PIE ends
-		MRSettings->SetIsCasting(false);
+		MRSettings_DEPRECATED->SetIsCasting(false);
 		OnWorldDestroyed(PieWorld);
 	}
 }
 #endif // WITH_EDITOR
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 IMPLEMENT_MODULE( FOculusMRModule, OculusMR )
 

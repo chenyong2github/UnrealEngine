@@ -39,6 +39,8 @@ static TAutoConsoleVariable<float> CChromaKeySmoothRangeVar(TEXT("oculus.mr.Chro
 static TAutoConsoleVariable<float> CChromaKeySpillRangeVar(TEXT("oculus.mr.ChromaKeySpillRange"), 0.04f, TEXT("Chroma Key Spill Range"));
 static TAutoConsoleVariable<float> CCastingLantencyVar(TEXT("oculus.mr.CastingLantency"), 0, TEXT("Casting Latency"));
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 namespace
 {
 	bool GetCameraTrackedObjectPoseInTrackingSpace(OculusHMD::FOculusHMD* OculusHMD, const FTrackedCamera& TrackedCamera, OculusHMD::FPose& CameraTrackedObjectPose)
@@ -278,11 +280,11 @@ void AOculusMR_CastingCameraActor::Tick(float DeltaTime)
 
 	if (COverrideMixedRealityParametersVar.GetValueOnAnyThread() > 0)
 	{
-		MRSettings->ChromaKeyColor = FColor(CChromaKeyColorRVar.GetValueOnAnyThread(), CChromaKeyColorGVar.GetValueOnAnyThread(), CChromaKeyColorBVar.GetValueOnAnyThread());
-		MRSettings->ChromaKeySimilarity = CChromaKeySimilarityVar.GetValueOnAnyThread();
-		MRSettings->ChromaKeySmoothRange = CChromaKeySmoothRangeVar.GetValueOnAnyThread();
-		MRSettings->ChromaKeySpillRange = CChromaKeySpillRangeVar.GetValueOnAnyThread();
-		MRSettings->CastingLatency = CCastingLantencyVar.GetValueOnAnyThread();
+		MRSettings_DEPRECATED->ChromaKeyColor = FColor(CChromaKeyColorRVar.GetValueOnAnyThread(), CChromaKeyColorGVar.GetValueOnAnyThread(), CChromaKeyColorBVar.GetValueOnAnyThread());
+		MRSettings_DEPRECATED->ChromaKeySimilarity = CChromaKeySimilarityVar.GetValueOnAnyThread();
+		MRSettings_DEPRECATED->ChromaKeySmoothRange = CChromaKeySmoothRangeVar.GetValueOnAnyThread();
+		MRSettings_DEPRECATED->ChromaKeySpillRange = CChromaKeySpillRangeVar.GetValueOnAnyThread();
+		MRSettings_DEPRECATED->CastingLatency = CCastingLantencyVar.GetValueOnAnyThread();
 	}
 
 	// Reset capturing components if the composition method changes
@@ -295,16 +297,16 @@ void AOculusMR_CastingCameraActor::Tick(float DeltaTime)
 	}
 
 #if PLATFORM_WINDOWS
-	if (MRSettings->GetCompositionMethod() == EOculusMR_CompositionMethod::ExternalComposition)
+	if (MRSettings_DEPRECATED->GetCompositionMethod() == EOculusMR_CompositionMethod::ExternalComposition)
 #endif
 	{
-		if (ForegroundLayerBackgroundColor != MRSettings->BackdropColor)
+		if (ForegroundLayerBackgroundColor != MRSettings_DEPRECATED->BackdropColor)
 		{
-			ForegroundLayerBackgroundColor = MRSettings->BackdropColor;
+			ForegroundLayerBackgroundColor = MRSettings_DEPRECATED->BackdropColor;
 			SetBackdropMaterialColor();
 		}
 		// Enable external composition post process based on setting
-		bool bPostProcess = MRSettings->ExternalCompositionPostProcessEffects != EOculusMR_PostProcessEffects::PPE_Off;
+		bool bPostProcess = MRSettings_DEPRECATED->ExternalCompositionPostProcessEffects != EOculusMR_PostProcessEffects::PPE_Off;
 		if (COverrideMixedRealityParametersVar.GetValueOnAnyThread() > 0)
 		{
 			bPostProcess = CEnableExternalCompositionPostProcess.GetValueOnAnyThread() > 0;
@@ -316,16 +318,16 @@ void AOculusMR_CastingCameraActor::Tick(float DeltaTime)
 		}
 	}
 #if PLATFORM_WINDOWS
-	else if (MRSettings->GetCompositionMethod() == EOculusMR_CompositionMethod::DirectComposition)
+	else if (MRSettings_DEPRECATED->GetCompositionMethod() == EOculusMR_CompositionMethod::DirectComposition)
 	{
 		SetupCameraFrameMaterialInstance();
 
 		if (CameraFrameMaterialInstance)
 		{
-			CameraFrameMaterialInstance->SetVectorParameterValue(FName(TEXT("ChromaKeyColor")), FLinearColor(MRSettings->ChromaKeyColor));
-			CameraFrameMaterialInstance->SetScalarParameterValue(FName(TEXT("ChromaKeySimilarity")), MRSettings->ChromaKeySimilarity);
-			CameraFrameMaterialInstance->SetScalarParameterValue(FName(TEXT("ChromaKeySmoothRange")), MRSettings->ChromaKeySmoothRange);
-			CameraFrameMaterialInstance->SetScalarParameterValue(FName(TEXT("ChromaKeySpillRange")), MRSettings->ChromaKeySpillRange);
+			CameraFrameMaterialInstance->SetVectorParameterValue(FName(TEXT("ChromaKeyColor")), FLinearColor(MRSettings_DEPRECATED->ChromaKeyColor));
+			CameraFrameMaterialInstance->SetScalarParameterValue(FName(TEXT("ChromaKeySimilarity")), MRSettings_DEPRECATED->ChromaKeySimilarity);
+			CameraFrameMaterialInstance->SetScalarParameterValue(FName(TEXT("ChromaKeySmoothRange")), MRSettings_DEPRECATED->ChromaKeySmoothRange);
+			CameraFrameMaterialInstance->SetScalarParameterValue(FName(TEXT("ChromaKeySpillRange")), MRSettings_DEPRECATED->ChromaKeySpillRange);
 		}
 	}
 #endif
@@ -355,7 +357,7 @@ void AOculusMR_CastingCameraActor::Tick(float DeltaTime)
 #if PLATFORM_WINDOWS
 	RepositionPlaneMesh();
 
-	double HandPoseStateLatencyToSet = (double)MRSettings->HandPoseStateLatency;
+	double HandPoseStateLatencyToSet = (double)MRSettings_DEPRECATED->HandPoseStateLatency;
 	ovrpResult result = FOculusHMDModule::GetPluginWrapper().SetHandNodePoseStateLatency(HandPoseStateLatencyToSet);
 	if (OVRP_FAILURE(result))
 	{
@@ -534,14 +536,14 @@ void AOculusMR_CastingCameraActor::Execute_BindToTrackedCameraIndexIfAvailable()
 	}
 
 	FTrackedCamera TempTrackedCamera;
-	if (MRSettings->GetBindToTrackedCameraIndex() >= 0)
+	if (MRSettings_DEPRECATED->GetBindToTrackedCameraIndex() >= 0)
 	{
 		TArray<FTrackedCamera> TrackedCameras;
-		UOculusMRFunctionLibrary::GetAllTrackedCamera(TrackedCameras);
+		UDEPRECATED_UOculusMRFunctionLibrary::GetAllTrackedCamera(TrackedCameras);
 		int i;
 		for (i = 0; i < TrackedCameras.Num(); ++i)
 		{
-			if (TrackedCameras[i].Index == MRSettings->GetBindToTrackedCameraIndex())
+			if (TrackedCameras[i].Index == MRSettings_DEPRECATED->GetBindToTrackedCameraIndex())
 			{
 				TempTrackedCamera = TrackedCameras[i];
 				break;
@@ -549,12 +551,12 @@ void AOculusMR_CastingCameraActor::Execute_BindToTrackedCameraIndexIfAvailable()
 		}
 		if (i == TrackedCameras.Num())
 		{
-			UE_LOG(LogMR, Warning, TEXT("Unable to find TrackedCamera at index %d, use TempTrackedCamera"), MRSettings->GetBindToTrackedCameraIndex());
+			UE_LOG(LogMR, Warning, TEXT("Unable to find TrackedCamera at index %d, use TempTrackedCamera"), MRSettings_DEPRECATED->GetBindToTrackedCameraIndex());
 		}
 	}
 	else
 	{
-		UE_LOG(LogMR, Warning, TEXT("BindToTrackedCameraIndex == %d, use TempTrackedCamera"), MRSettings->GetBindToTrackedCameraIndex());
+		UE_LOG(LogMR, Warning, TEXT("BindToTrackedCameraIndex == %d, use TempTrackedCamera"), MRSettings_DEPRECATED->GetBindToTrackedCameraIndex());
 	}
 
 	MRState->TrackedCamera = TempTrackedCamera;
@@ -601,7 +603,7 @@ void AOculusMR_CastingCameraActor::SetTrackedCameraInitialPoseWithPlayerTransfor
 	FQuat TROrientation;
 	FVector TRLocation;
 	FRotator TRRotation;
-	if (!UOculusMRFunctionLibrary::GetTrackingReferenceLocationAndRotationInWorldSpace(MRState->TrackingReferenceComponent, TRLocation, TRRotation))
+	if (!UDEPRECATED_UOculusMRFunctionLibrary::GetTrackingReferenceLocationAndRotationInWorldSpace(MRState->TrackingReferenceComponent, TRLocation, TRRotation))
 	{
 		UE_LOG(LogMR, Warning, TEXT("Could not get player position"));
 		return;
@@ -646,7 +648,7 @@ void AOculusMR_CastingCameraActor::SetTrackedCameraUserPoseWithCameraTransform()
 	FQuat TROrientation;
 	FVector TRLocation;
 	FRotator TRRotation;
-	if (!UOculusMRFunctionLibrary::GetTrackingReferenceLocationAndRotationInWorldSpace(MRState->TrackingReferenceComponent, TRLocation, TRRotation))
+	if (!UDEPRECATED_UOculusMRFunctionLibrary::GetTrackingReferenceLocationAndRotationInWorldSpace(MRState->TrackingReferenceComponent, TRLocation, TRRotation))
 	{
 		UE_LOG(LogMR, Warning, TEXT("Could not get player position"));
 		return;
@@ -694,11 +696,11 @@ void AOculusMR_CastingCameraActor::UpdateTrackedCameraPosition()
 	CameraPose.Position = CameraPose.Position * MRState->ScalingFactor;
 
 	float Distance = 0.0f;
-	if (MRSettings->ClippingReference == EOculusMR_ClippingReference::CR_TrackingReference)
+	if (MRSettings_DEPRECATED->ClippingReference == EOculusMR_ClippingReference::CR_TrackingReference)
 	{
 		Distance = -FVector::DotProduct(CameraPose.Orientation.GetForwardVector().GetSafeNormal2D(), CameraPose.Position);
 	}
-	else if (MRSettings->ClippingReference == EOculusMR_ClippingReference::CR_Head)
+	else if (MRSettings_DEPRECATED->ClippingReference == EOculusMR_ClippingReference::CR_Head)
 	{
 		FQuat HeadOrientation;
 		FVector HeadPosition;
@@ -720,7 +722,7 @@ void AOculusMR_CastingCameraActor::UpdateTrackedCameraPosition()
 	FQuat TROrientation;
 	FVector TRLocation;
 	FRotator TRRotation;
-	if (!UOculusMRFunctionLibrary::GetTrackingReferenceLocationAndRotationInWorldSpace(MRState->TrackingReferenceComponent, TRLocation, TRRotation))
+	if (!UDEPRECATED_UOculusMRFunctionLibrary::GetTrackingReferenceLocationAndRotationInWorldSpace(MRState->TrackingReferenceComponent, TRLocation, TRRotation))
 	{
 		UE_LOG(LogMR, Warning, TEXT("Could not get player position"));
 		return;
@@ -739,9 +741,9 @@ void AOculusMR_CastingCameraActor::UpdateTrackedCameraPosition()
 	}
 }
 
-void AOculusMR_CastingCameraActor::InitializeStates(UOculusMR_Settings* MRSettingsIn, UOculusMR_State* MRStateIn)
+void AOculusMR_CastingCameraActor::InitializeStates(UDEPRECATED_UOculusMR_Settings* MRSettingsIn, UOculusMR_State* MRStateIn)
 {
-	MRSettings = MRSettingsIn;
+	MRSettings_DEPRECATED = MRSettingsIn;
 	MRState = MRStateIn;
 }
 
@@ -759,7 +761,7 @@ void AOculusMR_CastingCameraActor::SetupTrackedCamera()
 
 #if PLATFORM_WINDOWS
 	// Set the plane mesh to the camera stream in direct composition or static background for external composition
-	if (MRSettings->GetCompositionMethod() == EOculusMR_CompositionMethod::DirectComposition)
+	if (MRSettings_DEPRECATED->GetCompositionMethod() == EOculusMR_CompositionMethod::DirectComposition)
 	{
 		ovrpBool cameraOpen;
 		if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().HasCameraDeviceOpened2(MRState->CurrentCapturingCamera, &cameraOpen)) && cameraOpen)
@@ -778,7 +780,7 @@ void AOculusMR_CastingCameraActor::SetupTrackedCamera()
 
 		SetupCameraFrameMaterialInstance();
 	}
-	else if (MRSettings->GetCompositionMethod() == EOculusMR_CompositionMethod::ExternalComposition)
+	else if (MRSettings_DEPRECATED->GetCompositionMethod() == EOculusMR_CompositionMethod::ExternalComposition)
 	{
 		SetupBackdropMaterialInstance();
 	}
@@ -829,8 +831,8 @@ void AOculusMR_CastingCameraActor::RepositionPlaneMesh()
 	FVector PlaneCenter = FVector::ForwardVector * ForegroundMaxDistance;
 	FVector PlaneUp = FVector::UpVector;
 	FVector PlaneNormal = -FVector::ForwardVector;
-	int ViewWidth = MRSettings->bUseTrackedCameraResolution ? MRState->TrackedCamera.SizeX : MRSettings->WidthPerView;
-	int ViewHeight = MRSettings->bUseTrackedCameraResolution ? MRState->TrackedCamera.SizeY : MRSettings->HeightPerView;
+	int ViewWidth = MRSettings_DEPRECATED->bUseTrackedCameraResolution ? MRState->TrackedCamera.SizeX : MRSettings_DEPRECATED->WidthPerView;
+	int ViewHeight = MRSettings_DEPRECATED->bUseTrackedCameraResolution ? MRState->TrackedCamera.SizeY : MRSettings_DEPRECATED->HeightPerView;
 	float Width = ForegroundMaxDistance * FMath::Tan(FMath::DegreesToRadians(GetCaptureComponent2D()->FOVAngle) * 0.5f) * 2.0f;
 	float Height = Width * ViewHeight / ViewWidth;
 	FVector2D PlaneSize = FVector2D(Width, Height);
@@ -885,8 +887,8 @@ void BuildProjectionMatrix(float YMultiplier, float FOV, float FarClipPlane, FMa
 
 void AOculusMR_CastingCameraActor::UpdateRenderTargetSize()
 {
-	int ViewWidth = MRSettings->bUseTrackedCameraResolution ? MRState->TrackedCamera.SizeX : MRSettings->WidthPerView;
-	int ViewHeight = MRSettings->bUseTrackedCameraResolution ? MRState->TrackedCamera.SizeY : MRSettings->HeightPerView;
+	int ViewWidth = MRSettings_DEPRECATED->bUseTrackedCameraResolution ? MRState->TrackedCamera.SizeX : MRSettings_DEPRECATED->WidthPerView;
+	int ViewHeight = MRSettings_DEPRECATED->bUseTrackedCameraResolution ? MRState->TrackedCamera.SizeY : MRSettings_DEPRECATED->HeightPerView;
 
 #if PLATFORM_WINDOWS
 	BackgroundRenderTargets[0]->ResizeTarget(ViewWidth, ViewHeight);
@@ -946,7 +948,7 @@ void AOculusMR_CastingCameraActor::SetupMRCScreen()
 		GetCaptureComponent2D()->TextureTarget = BackgroundRenderTargets[0];
 
 #if PLATFORM_WINDOWS
-		if (MRSettings->GetCompositionMethod() == EOculusMR_CompositionMethod::ExternalComposition)
+		if (MRSettings_DEPRECATED->GetCompositionMethod() == EOculusMR_CompositionMethod::ExternalComposition)
 #endif
 		{
 			ForegroundCaptureActor = GetWorld()->SpawnActor<ASceneCapture2D>();
@@ -975,7 +977,7 @@ void AOculusMR_CastingCameraActor::SetupMRCScreen()
 			ForegroundCaptureActor->AttachToActor(this, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true));
 		}
 #if PLATFORM_WINDOWS
-		else if (MRSettings->GetCompositionMethod() == EOculusMR_CompositionMethod::DirectComposition)
+		else if (MRSettings_DEPRECATED->GetCompositionMethod() == EOculusMR_CompositionMethod::DirectComposition)
 		{
 			SpecScreen->SetMRBackground(BackgroundRenderTargets[0]);
 			SpecScreen->SetMRSpectatorScreenMode(OculusHMD::EMRSpectatorScreenMode::DirectComposition);
@@ -1026,5 +1028,7 @@ void AOculusMR_CastingCameraActor::CloseTrackedCamera()
 	}
 	CameraFrameMaterialInstance = NULL;
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

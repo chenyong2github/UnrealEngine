@@ -15,12 +15,14 @@
 // UOculusFunctionLibrary
 //-------------------------------------------------------------------------------------------------
 
-UOculusMRFunctionLibrary::UOculusMRFunctionLibrary(const FObjectInitializer& ObjectInitializer)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+UDEPRECATED_UOculusMRFunctionLibrary::UDEPRECATED_UOculusMRFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
 
-void UOculusMRFunctionLibrary::GetAllTrackedCamera(TArray<FTrackedCamera>& TrackedCameras, bool bCalibratedOnly)
+void UDEPRECATED_UOculusMRFunctionLibrary::GetAllTrackedCamera(TArray<FTrackedCamera>& TrackedCameras, bool bCalibratedOnly)
 {
 	TrackedCameras.Empty();
 
@@ -77,7 +79,7 @@ void UOculusMRFunctionLibrary::GetAllTrackedCamera(TArray<FTrackedCamera>& Track
 	}
 }
 
-OculusHMD::FOculusHMD* UOculusMRFunctionLibrary::GetOculusHMD()
+OculusHMD::FOculusHMD* UDEPRECATED_UOculusMRFunctionLibrary::GetOculusHMD()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	if (GEngine && GEngine->XRSystem.IsValid())
@@ -92,7 +94,7 @@ OculusHMD::FOculusHMD* UOculusMRFunctionLibrary::GetOculusHMD()
 	return nullptr;
 }
 
-bool UOculusMRFunctionLibrary::GetTrackingReferenceLocationAndRotationInWorldSpace(USceneComponent* TrackingReferenceComponent, FVector& TRLocation, FRotator& TRRotation)
+bool UDEPRECATED_UOculusMRFunctionLibrary::GetTrackingReferenceLocationAndRotationInWorldSpace(USceneComponent* TrackingReferenceComponent, FVector& TRLocation, FRotator& TRRotation)
 {
 	if (!TrackingReferenceComponent)
 	{
@@ -118,9 +120,9 @@ bool UOculusMRFunctionLibrary::GetTrackingReferenceLocationAndRotationInWorldSpa
 	}
 }
 
-UOculusMR_Settings* UOculusMRFunctionLibrary::GetOculusMRSettings()
+UDEPRECATED_UOculusMR_Settings* UDEPRECATED_UOculusMRFunctionLibrary::GetOculusMRSettings()
 {
-	UOculusMR_Settings* Settings = nullptr;
+	UDEPRECATED_UOculusMR_Settings* Settings = nullptr;
 	if (FOculusMRModule::IsAvailable())
 	{
 		Settings = FOculusMRModule::Get().GetMRSettings();
@@ -128,7 +130,7 @@ UOculusMR_Settings* UOculusMRFunctionLibrary::GetOculusMRSettings()
 	return Settings;
 }
 
-USceneComponent* UOculusMRFunctionLibrary::GetTrackingReferenceComponent()
+USceneComponent* UDEPRECATED_UOculusMRFunctionLibrary::GetTrackingReferenceComponent()
 {
 	USceneComponent * TrackingRef = nullptr;
 	if (FOculusMRModule::IsAvailable())
@@ -138,7 +140,7 @@ USceneComponent* UOculusMRFunctionLibrary::GetTrackingReferenceComponent()
 	return TrackingRef;
 }
 
-bool UOculusMRFunctionLibrary::SetTrackingReferenceComponent(USceneComponent* Component)
+bool UDEPRECATED_UOculusMRFunctionLibrary::SetTrackingReferenceComponent(USceneComponent* Component)
 {
 	if (FOculusMRModule::IsAvailable())
 	{
@@ -148,7 +150,7 @@ bool UOculusMRFunctionLibrary::SetTrackingReferenceComponent(USceneComponent* Co
 	return false;
 }
 
-float UOculusMRFunctionLibrary::GetMrcScalingFactor()
+float UDEPRECATED_UOculusMRFunctionLibrary::GetMrcScalingFactor()
 {
 	if (FOculusMRModule::IsAvailable())
 	{
@@ -157,7 +159,7 @@ float UOculusMRFunctionLibrary::GetMrcScalingFactor()
 	return 0.0;
 }
 
-bool UOculusMRFunctionLibrary::SetMrcScalingFactor(float ScalingFactor)
+bool UDEPRECATED_UOculusMRFunctionLibrary::SetMrcScalingFactor(float ScalingFactor)
 {
 	if (FOculusMRModule::IsAvailable() && ScalingFactor > 0.0f)
 	{
@@ -167,12 +169,14 @@ bool UOculusMRFunctionLibrary::SetMrcScalingFactor(float ScalingFactor)
 	return false;
 }
 
-bool UOculusMRFunctionLibrary::IsMrcEnabled()
+bool UDEPRECATED_UOculusMRFunctionLibrary::IsMrcEnabled()
 {
 	return FOculusMRModule::IsAvailable() && FOculusMRModule::Get().IsInitialized();
 }
 
-bool UOculusMRFunctionLibrary::IsMrcActive()
+bool UDEPRECATED_UOculusMRFunctionLibrary::IsMrcActive()
 {
 	return FOculusMRModule::IsAvailable() && FOculusMRModule::Get().IsActive();
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -17,7 +17,7 @@ class UOculusMR_PlaneMeshComponent;
 class UMaterial;
 class AOculusMR_BoundaryActor;
 class UTextureRenderTarget2D;
-class UOculusMR_Settings;
+class UDEPRECATED_UOculusMR_Settings;
 class UOculusMR_State;
 class UMaterialInstanceDynamic;
 
@@ -33,7 +33,7 @@ public:
 	AOculusMR_CastingCameraActor(const FObjectInitializer& ObjectInitializer);
 
 	/** Initialize the MRC settings and states */
-	void InitializeStates(UOculusMR_Settings* MRSettingsIn, UOculusMR_State* MRStateIn);
+	void InitializeStates(UDEPRECATED_UOculusMR_Settings* MRSettingsIn, UOculusMR_State* MRStateIn);
 
 	virtual void BeginPlay() override;
 	virtual void EndPlay(EEndPlayReason::Type Reason) override;
@@ -129,8 +129,8 @@ private:
 	UPROPERTY()
 	TArray<double> PoseTimes;
 
-	UPROPERTY()
-	TObjectPtr<UOculusMR_Settings> MRSettings;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "The OculusVR plugin is deprecated."))
+	TObjectPtr<UDEPRECATED_UOculusMR_Settings> MRSettings_DEPRECATED;
 
 	UPROPERTY()
 	TObjectPtr<UOculusMR_State> MRState;
