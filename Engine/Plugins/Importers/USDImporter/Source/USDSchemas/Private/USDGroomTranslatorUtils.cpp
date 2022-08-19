@@ -18,6 +18,7 @@
 #include "USDIntegrationUtils.h"
 #include "USDSchemaTranslator.h"
 #include "USDTypesConversion.h"
+#include "UsdWrappers/SdfPath.h"
 
 #include "USDIncludesStart.h"
 #include "pxr/usd/usd/prim.h"
@@ -283,6 +284,11 @@ namespace UsdGroomTranslatorUtils
 				break;
 			}
 		}
+	}
+
+	FString GetStrandsGroomCachePrimPath(const UE::FSdfPath& PrimPath)
+	{
+		return FString::Printf(TEXT("%s_strands_cache"), *PrimPath.GetString());
 	}
 }
 

@@ -25,12 +25,14 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"HairStrandsCore",
 					"LevelSequence",
 					"LiveLinkComponents", // For tracking edits to LiveLinkComponentController properties and writing to USD
 					"LiveLinkInterface",
 					"MeshDescription",
 					"MovieScene",
 					"MovieSceneTracks",
+					"Niagara",	// Needed by GroomComponent.h
 					"Projects", // So that we can use the plugin manager to find out our content dir and cook the base materials
 					"Slate",
 					"SlateCore",

@@ -19,60 +19,70 @@ DEFINE_LOG_CATEGORY_STATIC(LogGroomCacheImporter, Log, All);
 
 static UGroomCache* CreateGroomCache(EGroomCacheType Type, UObject*& InParent, const FString& ObjectName, const EObjectFlags Flags)
 {
-	// Setup package name and create one accordingly
-	FString NewPackageName = InParent->GetOutermost()->GetName();
-	if (!NewPackageName.EndsWith(ObjectName))
+	// Don't do any package handling if the parent is the transient package; just use it
+	UPackage* Package = nullptr;
+	FString SanitizedObjectName = ObjectName;
+	if (InParent != GetTransientPackage())
 	{
-		// Remove the cache suffix if the parent is from a reimport
-		if (NewPackageName.EndsWith("_strands_cache"))
+		// Setup package name and create one accordingly
+		FString NewPackageName = InParent->GetOutermost()->GetName();
+		if (!NewPackageName.EndsWith(ObjectName))
 		{
-			NewPackageName.RemoveFromEnd("_strands_cache");
-		}
-		else if (NewPackageName.EndsWith("_guides_cache"))
-		{
-			NewPackageName.RemoveFromEnd("_guides_cache");
+			// Remove the cache suffix if the parent is from a reimport
+			if (NewPackageName.EndsWith("_strands_cache"))
+			{
+				NewPackageName.RemoveFromEnd("_strands_cache");
+			}
+			else if (NewPackageName.EndsWith("_guides_cache"))
+			{
+				NewPackageName.RemoveFromEnd("_guides_cache");
+			}
+
+			// Append the correct suffix
+			NewPackageName += TEXT("_") + ObjectName;
 		}
 
-		// Append the correct suffix
-		NewPackageName += TEXT("_") + ObjectName;
+		NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);
+
+		// Parent package to place new GroomCache
+		Package = CreatePackage(*NewPackageName);
+
+		FString CompoundObjectName = FPackageName::GetShortName(NewPackageName);
+		SanitizedObjectName = ObjectTools::SanitizeObjectName(CompoundObjectName);
+
+		UGroomCache* ExistingTypedObject = FindObject<UGroomCache>(Package, *SanitizedObjectName);
+		UObject* ExistingObject = FindObject<UObject>(Package, *SanitizedObjectName);
+
+		if (ExistingTypedObject != nullptr)
+		{
+			ExistingTypedObject->PreEditChange(nullptr);
+			return ExistingTypedObject;
+		}
+		else if (ExistingObject != nullptr)
+		{
+			// Replacing an object.  Here we go!
+			// Delete the existing object
+			const bool bDeleteSucceeded = ObjectTools::DeleteSingleObject(ExistingObject);
+
+			if (bDeleteSucceeded)
+			{
+				// Force GC so we can cleanly create a new asset (and not do an 'in place' replacement)
+				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+
+				// Create a package for each mesh
+				Package = CreatePackage(*NewPackageName);
+				InParent = Package;
+			}
+			else
+			{
+				// failed to delete
+				return nullptr;
+			}
+		}
 	}
-
-	NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);
-
-	// Parent package to place new GroomCache
-	UPackage* Package = CreatePackage(*NewPackageName);
-
-	FString CompoundObjectName = FPackageName::GetShortName(NewPackageName);
-	const FString SanitizedObjectName = ObjectTools::SanitizeObjectName(CompoundObjectName);
-
-	UGroomCache* ExistingTypedObject = FindObject<UGroomCache>(Package, *SanitizedObjectName);
-	UObject* ExistingObject = FindObject<UObject>(Package, *SanitizedObjectName);
-
-	if (ExistingTypedObject != nullptr)
+	else
 	{
-		ExistingTypedObject->PreEditChange(nullptr);
-		return ExistingTypedObject;
-	}
-	else if (ExistingObject != nullptr)
-	{
-		// Replacing an object.  Here we go!
-		// Delete the existing object
-		const bool bDeleteSucceeded = ObjectTools::DeleteSingleObject(ExistingObject);
-
-		if (bDeleteSucceeded)
-		{
-			// Force GC so we can cleanly create a new asset (and not do an 'in place' replacement)
-			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-
-			// Create a package for each mesh
-			Package = CreatePackage(*NewPackageName);
-			InParent = Package;
-		}
-		else
-		{
-			// failed to delete
-			return nullptr;
-		}
+		Package = GetTransientPackage();
 	}
 
 	UGroomCache* GroomCache = NewObject<UGroomCache>(Package, FName(*SanitizedObjectName), Flags | RF_Public);
@@ -81,7 +91,7 @@ static UGroomCache* CreateGroomCache(EGroomCacheType Type, UObject*& InParent, c
 	return GroomCache;
 }
 
-UGroomCache* ProcessToGroomCache(FGroomCacheProcessor& Processor, const FGroomAnimationInfo& AnimInfo, FHairImportContext& ImportContext, const FString& ObjectNameSuffix)
+UGroomCache* FGroomCacheImporter::ProcessToGroomCache(FGroomCacheProcessor& Processor, const FGroomAnimationInfo& AnimInfo, FHairImportContext& ImportContext, const FString& ObjectNameSuffix)
 {
 	if (UGroomCache* GroomCache = CreateGroomCache(Processor.GetType(), ImportContext.Parent, ObjectNameSuffix, ImportContext.Flags))
 	{

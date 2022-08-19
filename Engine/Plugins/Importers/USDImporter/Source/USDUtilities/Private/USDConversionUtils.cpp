@@ -40,6 +40,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "GeometryCache.h"
 #include "GroomAsset.h"
+#include "GroomCache.h"
 #include "InstancedFoliageActor.h"
 #include "LandscapeProxy.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -1187,6 +1188,10 @@ UUsdAssetImportData* UsdUtils::GetAssetImportData( UObject* Asset )
 	else if ( UGroomAsset* Groom = Cast<UGroomAsset>( Asset ) )
 	{
 		ImportData = Cast<UUsdAssetImportData>( Groom->AssetImportData );
+	}
+	else if ( UGroomCache* GroomCache = Cast<UGroomCache>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>( GroomCache->AssetImportData );
 	}
 
 #endif

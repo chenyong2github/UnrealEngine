@@ -40,12 +40,16 @@
 #include "Components/SpotLightComponent.h"
 #include "ControlRigObjectBinding.h"
 #include "CoreMinimal.h"
+#include "GroomCache.h"
+#include "GroomComponent.h"
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"
 #include "Misc/ITransaction.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "MovieScene.h"
+#include "MovieSceneGroomCacheSection.h"
+#include "MovieSceneGroomCacheTrack.h"
 #include "MovieSceneTimeHelpers.h"
 #include "MovieSceneTrack.h"
 #include "Rigs/FKControlRig.h"
@@ -535,6 +539,7 @@ private:
 	void AddCameraTracks( const UUsdPrimTwin& PrimTwin, const UE::FUsdPrim& Prim );
 	void AddLightTracks( const UUsdPrimTwin& PrimTwin, const UE::FUsdPrim& Prim, const TSet<FName>& PropertyPathsToRead = {} );
 	void AddSkeletalTracks( const UUsdPrimTwin& PrimTwin, const UE::FUsdPrim& Prim );
+	void AddGroomTracks( const UUsdPrimTwin& PrimTwin, const UE::FUsdPrim& Prim );
 
 	template<typename TrackType>
 	TrackType* AddTrack( const FName& PropertyPath, const UUsdPrimTwin& PrimTwin, USceneComponent& ComponentToBind, ULevelSequence& Sequence, bool bIsMuted = false  );
@@ -1863,6 +1868,67 @@ void FUsdLevelSequenceHelperImpl::AddSkeletalTracks( const UUsdPrimTwin& PrimTwi
 	PrimPathByLevelSequenceName.AddUnique( SkelAnimationSequence->GetFName(), PrimPath );
 }
 
+void FUsdLevelSequenceHelperImpl::AddGroomTracks( const UUsdPrimTwin& PrimTwin, const UE::FUsdPrim& Prim )
+{
+	UGroomComponent* ComponentToBind = Cast< UGroomComponent >( PrimTwin.GetSceneComponent() );
+	if ( !ComponentToBind )
+	{
+		return;
+	}
+
+	if ( !AssetCache )
+	{
+		return;
+	}
+
+	// Fetch the groom cache asset from the asset cache. If there's none, don't actually need to create track
+	const FString PrimPath = Prim.GetPrimPath().GetString();
+	const FString GroomCachePath = FString::Printf( TEXT( "%s_strands_cache" ), *PrimPath );
+	UGroomCache* GroomCache = Cast< UGroomCache >( AssetCache->GetAssetForPrim( GroomCachePath ) );
+	if ( !GroomCache )
+	{
+		return;
+	}
+
+	if ( ComponentToBind->GroomCache.Get() != GroomCache )
+	{
+		return;
+	}
+
+	UE::FSdfLayer GroomLayer = UsdUtils::FindLayerForPrim( Prim );
+	if ( !GroomLayer )
+	{
+		return;
+	}
+
+	ULevelSequence* GroomAnimationSequence = FindOrAddSequenceForLayer( GroomLayer, GroomLayer.GetIdentifier(), GroomLayer.GetDisplayName() );
+	if ( !GroomAnimationSequence )
+	{
+		return;
+	}
+
+	UMovieScene* MovieScene = GroomAnimationSequence->GetMovieScene();
+	if ( !MovieScene )
+	{
+		return;
+	}
+
+	const bool bReadonly = false;
+	UsdLevelSequenceHelperImpl::FMovieSceneReadonlyGuard MovieSceneReadonlyGuard{ *MovieScene, bReadonly };
+
+	const bool bIsMuted = false;
+	if ( UMovieSceneGroomCacheTrack* GroomCacheTrack = AddTrack< UMovieSceneGroomCacheTrack >( Prim.GetName(), PrimTwin, *ComponentToBind, *GroomAnimationSequence, bIsMuted ) )
+	{
+		GroomCacheTrack->RemoveAllAnimationData();
+
+		const FFrameNumber StartOffset;
+		UMovieSceneGroomCacheSection* NewSection = Cast< UMovieSceneGroomCacheSection >( GroomCacheTrack->AddNewAnimation( StartOffset, ComponentToBind ) );
+		NewSection->EvalOptions.CompletionMode = EMovieSceneCompletionMode::KeepState;
+	}
+
+	PrimPathByLevelSequenceName.AddUnique( GroomAnimationSequence->GetFName(), PrimPath );
+}
+
 void FUsdLevelSequenceHelperImpl::AddPrim( UUsdPrimTwin& PrimTwin, bool bForceVisibilityTracks )
 {
 	if ( !UsdStage )
@@ -1909,6 +1975,10 @@ void FUsdLevelSequenceHelperImpl::AddPrim( UUsdPrimTwin& PrimTwin, bool bForceVi
 	else if ( UsdPrim.IsA( TEXT( "SkelRoot" ) ) )
 	{
 		AddSkeletalTracks( PrimTwin, UsdPrim );
+	}
+	else if ( UsdUtils::PrimHasSchema( UsdPrim, UnrealIdentifiers::GroomAPI ) )
+	{
+		AddGroomTracks( PrimTwin, UsdPrim );
 	}
 
 	AddCommonTracks( PrimTwin, UsdPrim, bForceVisibilityTracks );

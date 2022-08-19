@@ -16,6 +16,7 @@ class UsdTimeCode;
 PXR_NAMESPACE_CLOSE_SCOPE
 
 class FHairDescription;
+struct FGroomAnimationInfo;
 
 namespace UsdToUnreal
 {
@@ -26,9 +27,10 @@ namespace UsdToUnreal
 	 * @param TimeCode - The timecode at which to query the prim attributes
 	 * @param ParentTransform - The prim transform to propagate to the children
 	 * @param HairDescription - The hair description where the groom prim data is outputted
+	 * @param AnimInfo -  Optional GroomAnimationInfo to fill when parsing the hierarchy
 	 * @return true if the conversion was successful; false otherwise
 	 */
-	USDUTILITIES_API bool ConvertGroomHierarchy(const pxr::UsdPrim& Prim, const pxr::UsdTimeCode& TimeCode, const FTransform& ParentTransform, FHairDescription& HairDescription);
+	USDUTILITIES_API bool ConvertGroomHierarchy(const pxr::UsdPrim& Prim, const pxr::UsdTimeCode& TimeCode, const FTransform& ParentTransform, FHairDescription& HairDescription, FGroomAnimationInfo* AnimInfo = nullptr);
 }
 
 #endif // #if USE_USD_SDK

@@ -4,6 +4,7 @@
 
 #include "USDGroomConversion.h"
 
+#include "GroomCacheData.h"
 #include "HairDescription.h"
 #include "USDPrimConversion.h"
 #include "USDTypesConversion.h"
@@ -188,11 +189,30 @@ namespace UE::UsdGroomConversion::Private
 			}
 		}
 	}
+
+	/** Fill the AnimInfo with the time data for the given attribute, if it's animated */
+	void UpdateAnimInfo(const pxr::UsdAttribute& Attr, EGroomCacheAttributes Flag, FGroomAnimationInfo* AnimInfo)
+	{
+		if (AnimInfo)
+		{
+			std::vector<double> TimeSamples;
+			if (Attr.GetTimeSamples(&TimeSamples))
+			{
+				if (TimeSamples.size() > 1)
+				{
+					AnimInfo->Attributes = AnimInfo->Attributes | Flag;
+					AnimInfo->StartFrame = FMath::Min(AnimInfo->StartFrame, TimeSamples[0]);
+					AnimInfo->EndFrame = FMath::Max(AnimInfo->EndFrame, TimeSamples[TimeSamples.size() - 1]);
+					AnimInfo->NumFrames = FMath::Max(AnimInfo->NumFrames, uint32(AnimInfo->EndFrame - AnimInfo->StartFrame + 1));
+				}
+			}
+		}
+	}
 }
 
 namespace UsdToUnreal
 {
-	bool ConvertGroomHierarchy(const pxr::UsdPrim& Prim, const pxr::UsdTimeCode& TimeCode, const FTransform& ParentTransform, FHairDescription& HairDescription)
+	bool ConvertGroomHierarchy(const pxr::UsdPrim& Prim, const pxr::UsdTimeCode& TimeCode, const FTransform& ParentTransform, FHairDescription& HairDescription, FGroomAnimationInfo* AnimInfo)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UsdToUnreal::ConvertGroomHierarchy);
 
@@ -227,6 +247,8 @@ namespace UsdToUnreal
 			{
 				return false;
 			}
+
+			UE::UsdGroomConversion::Private::UpdateAnimInfo(PointsAttr, EGroomCacheAttributes::Position, AnimInfo);
 
 			// Get the starting strand and vertex IDs for this group of Curves
 			int32 StartStrandID = HairDescription.GetNumStrands();
@@ -268,6 +290,8 @@ namespace UsdToUnreal
 			pxr::VtArray<float> WidthsArray;
 			if (Widths && Widths.Get(&WidthsArray, TimeCode) && !WidthsArray.empty())
 			{
+				UE::UsdGroomConversion::Private::UpdateAnimInfo(Widths, EGroomCacheAttributes::Width, AnimInfo);
+
 				// Determine the scope of the Widths attribute
 				pxr::TfToken Interpolation = Curves.GetWidthsInterpolation();
 
@@ -333,7 +357,7 @@ namespace UsdToUnreal
 
 			for (const pxr::UsdPrim& Child : Prim.GetChildren())
 			{
-				bSuccess &= ConvertGroomHierarchy(Child, TimeCode, TransformToPropagate, HairDescription);
+				bSuccess &= ConvertGroomHierarchy(Child, TimeCode, TransformToPropagate, HairDescription, AnimInfo);
 				if (!bSuccess)
 				{
 					break;
