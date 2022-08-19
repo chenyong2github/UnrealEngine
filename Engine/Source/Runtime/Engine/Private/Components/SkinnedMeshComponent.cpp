@@ -3779,6 +3779,8 @@ void USkinnedMeshComponent::SetVertexColorOverride_LinearColor(int32 LODIndex, c
 
 void USkinnedMeshComponent::SetVertexColorOverride(int32 LODIndex, const TArray<FColor>& VertexColors)
 {
+	LLM_SCOPE_BYNAME(TEXT("SkeletalMesh/VertexColorOverride"));
+
 	InitLODInfos();
 
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
@@ -3972,6 +3974,8 @@ void CreateSkinWeightsArray(
 
 void USkinnedMeshComponent::SetSkinWeightOverride(int32 LODIndex, const TArray<FSkelMeshSkinWeightInfo>& SkinWeights)
 {
+	LLM_SCOPE_BYNAME(TEXT("SkeletalMesh/SkinWeightOverride"));
+
 	InitLODInfos();
 
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
