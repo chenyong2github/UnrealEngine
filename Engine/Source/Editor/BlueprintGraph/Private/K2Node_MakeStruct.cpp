@@ -92,7 +92,7 @@ static bool CanBeExposed(const FProperty* Property, UBlueprint* BP)
 		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 		check(Schema);
 
-		const bool bIsEditorBP = IsEditorOnlyObject(BP);
+		const bool bIsEditorBP = BP->ParentClass && IsEditorOnlyObject(BP->ParentClass);
 		const bool bIsEditAnywhereProperty = Property->HasAllPropertyFlags(CPF_Edit) &&
 			!Property->HasAnyPropertyFlags(CPF_EditConst);
 
