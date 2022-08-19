@@ -364,19 +364,22 @@ bool FDataCacheDuplicatedObjectData::Serialize(FArchive& Ar)
 	if (Ar.IsLoading())
 	{
 		DuplicatedObject = nullptr;
-		// Get the object class
-		if (UClass* ObjectClass = LoadObject<UClass>(nullptr, *ObjectClassPath))
+		if (!ObjectClassPath.IsEmpty())
 		{
-			// Get the object outer
-			if (UObject* FoundOuter = StaticFindObject(UObject::StaticClass(), nullptr, *ObjectOuterPath))
+			// Get the object class
+			if (UClass* ObjectClass = LoadObject<UClass>(nullptr, *ObjectClassPath))
 			{
-				// Create the duplicated object
-				DuplicatedObject = NewObject<UObject>(FoundOuter, ObjectClass, *ObjectName.ToString(), (EObjectFlags)ObjectPersistentFlags);
+				// Get the object outer
+				if (UObject* FoundOuter = StaticFindObject(UObject::StaticClass(), nullptr, *ObjectOuterPath))
+				{
+					// Create the duplicated object
+					DuplicatedObject = NewObject<UObject>(FoundOuter, ObjectClass, *ObjectName.ToString(), (EObjectFlags)ObjectPersistentFlags);
 
-				// Deserialize the duplicated object
-				FMemoryReader MemAr(ObjectData);
-				FObjectAndNameAsStringProxyArchive Reader(MemAr, false);
-				ObjectClass->SerializeTaggedProperties(Reader, (uint8*)DuplicatedObject, ObjectClass, nullptr);
+					// Deserialize the duplicated object
+					FMemoryReader MemAr(ObjectData);
+					FObjectAndNameAsStringProxyArchive Reader(MemAr, false);
+					ObjectClass->SerializeTaggedProperties(Reader, (uint8*)DuplicatedObject, ObjectClass, nullptr);
+				}
 			}
 		}
 	}

@@ -428,7 +428,7 @@ AConcertClientPresenceActor* FConcertClientPresenceManager::SpawnPresenceActor(c
 	if (!VRDevice.IsNone())
 	{
 		UClass*& AvatarClass = OthersAvatarClasses.FindOrAdd(InClientInfo.VRAvatarActorClass, nullptr);
-		if (!AvatarClass)
+		if (!AvatarClass && !InClientInfo.VRAvatarActorClass.IsEmpty())
 		{
 			AvatarClass = LoadObject<UClass>(nullptr, *InClientInfo.VRAvatarActorClass);
 		}
@@ -437,7 +437,7 @@ AConcertClientPresenceActor* FConcertClientPresenceManager::SpawnPresenceActor(c
 	else
 	{
 		UClass*& AvatarClass = OthersAvatarClasses.FindOrAdd(InClientInfo.DesktopAvatarActorClass, nullptr);
-		if (!AvatarClass)
+		if (!AvatarClass && !InClientInfo.DesktopAvatarActorClass.IsEmpty())
 		{
 			AvatarClass = LoadObject<UClass>(nullptr, *InClientInfo.DesktopAvatarActorClass);
 		}
