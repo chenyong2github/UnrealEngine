@@ -547,6 +547,11 @@ public:
 	{
 		return Context.InvalidateColorByLayer();
 	}
+
+	bool SetActiveScene(const DatasmithSketchUp::FEntityIDType& EntityID)
+	{
+		return Context.Scenes.SetActiveScene(EntityID);
+	}
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -642,6 +647,19 @@ VALUE DatasmithSketchUpDirectLinkExporter_send_update(VALUE self)
 
 	ptr->SendUpdate();
 	return Qtrue;
+}
+
+VALUE DatasmithSketchUpDirectLinkExporter_set_active_scene(VALUE self, VALUE ruby_entity_id)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* Ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
+
+	Check_Type(ruby_entity_id, T_FIXNUM);
+	int32 EntityId = FIX2LONG(ruby_entity_id);
+	// Done converting args
+
+	return Ptr->SetActiveScene(DatasmithSketchUp::FEntityIDType(EntityId)) ? Qtrue : Qfalse;
 }
 
 VALUE DatasmithSketchUpDirectLinkExporter_update(VALUE self, VALUE modified_hint)
@@ -942,6 +960,8 @@ extern "C" DLLEXPORT void Init_DatasmithSketchUp()
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "export_current_datasmith_scene", ToRuby(DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene), 0);
 
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "get_connection_status", ToRuby(DatasmithSketchUpDirectLinkExporter_get_connection_status), 0);
+
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "set_active_scene", ToRuby(DatasmithSketchUpDirectLinkExporter_set_active_scene), 1);
 
 }
 

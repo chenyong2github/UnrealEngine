@@ -95,7 +95,7 @@ void FExportContext::Populate()
 
 	// Parse/convert Model
 	Layers.PopulateFromModel(ModelRef);
-	Scenes.PopulateFromModel(ModelRef);
+	Scenes.Update();
 	ComponentDefinitions.PopulateFromModel(ModelRef);
 
 	ModelDefinition->ParseNode(*this, *RootNode); // Create node hierarchy
@@ -163,6 +163,8 @@ bool FExportContext::Update(bool bModifiedHint)
 	bool bModified = bModifiedHint;
 
 	bModified |= PreUpdateColorByLayer();
+
+	bModified |= Scenes.Update();
 
 	if (!bModified)
 	{
@@ -301,18 +303,34 @@ bool FImageCollection::RemoveImage(FComponentInstanceIDType ParentEntityId, FEnt
 
 }
 
-void FSceneCollection::PopulateFromModel(SUModelRef InModelRef)
+bool FSceneCollection::SetActiveScene(const FEntityIDType& EntityID)
 {
-	// Get the number of scenes in the SketchUp model.
+	if (ActiveSceneId == EntityID)
+	{
+		return false;
+	}
+	ActiveSceneId = EntityID;
+	return true;
+}
+
+bool FSceneCollection::Update()
+{
+	// Extract set of scenes(cameras ) and compute data hash to determine if Datasmith update is needed
+
+	FMD5 MD5;
+
 	size_t SceneCount = 0;
-	SUModelGetNumScenes(InModelRef, &SceneCount); // we can ignore the returned SU_RESULT
+	SUModelGetNumScenes(Context.ModelRef, &SceneCount);
+	MD5.Update(reinterpret_cast<uint8*>(&SceneCount), sizeof(SceneCount));
+
+	TArray<FEntityIDType> SceneIds;
 
 	if (SceneCount > 0)
 	{
 		// Retrieve the scenes in the SketchUp model.
 		TArray<SUSceneRef> Scenes;
 		Scenes.Init(SU_INVALID, SceneCount);
-		SUResult SResult = SUModelGetScenes(InModelRef, SceneCount, Scenes.GetData(), &SceneCount);
+		SUResult SResult = SUModelGetScenes(Context.ModelRef, SceneCount, Scenes.GetData(), &SceneCount);
 		Scenes.SetNum(SceneCount);
 		// Make sure the SketchUp model has scenes to retrieve (no SU_ERROR_NO_DATA).
 		if (SResult == SU_ERROR_NONE)
@@ -322,15 +340,67 @@ void FSceneCollection::PopulateFromModel(SUModelRef InModelRef)
 				// Make sure the SketchUp scene uses a camera.
 				bool bSceneUseCamera = false;
 				SUSceneGetUseCamera(SceneRef, &bSceneUseCamera); // we can ignore the returned SU_RESULT
+				MD5.Update(reinterpret_cast<uint8*>(&bSceneUseCamera), sizeof(bSceneUseCamera));
 
 				if (bSceneUseCamera)
 				{
-					TSharedPtr<DatasmithSketchUp::FCamera> Camera = FCamera::Create(Context, SceneRef);
-					SceneIdToCameraMap.Add(DatasmithSketchUpUtils::GetSceneID(SceneRef), Camera);
+					FEntityIDType SceneId = DatasmithSketchUpUtils::GetSceneID(SceneRef);
+
+					TSharedPtr<DatasmithSketchUp::FCamera> Camera;
+					if (TSharedPtr<DatasmithSketchUp::FCamera>* Found =  SceneIdToCameraMap.Find(SceneId))
+					{
+						Camera = *Found;
+					}
+					else
+					{
+						Camera = FCamera::Create(Context, SceneRef);
+						SceneIdToCameraMap.Add(SceneId, Camera);
+					}
+
+					MD5.Update(reinterpret_cast<uint8*>(&SceneId), sizeof(SceneId));
+
+					Camera->bIsActive = SceneId == ActiveSceneId;
+					
+					FMD5Hash CameraHash = Camera->GetHash();
+					
+					MD5.Update(CameraHash.GetBytes(), CameraHash.GetSize());
+
+					SceneIds.Add(SceneId);
 				}
 			}
 		}
 	}
+
+	MD5.Update(reinterpret_cast<uint8*>(&ActiveSceneId), sizeof(ActiveSceneId));
+
+	FMD5Hash Hash;
+	Hash.Set(MD5);
+
+	bool bModified = ScenesHash != Hash;
+
+	ScenesHash = Hash;
+
+	if (bModified)
+	{
+
+		for (TPair<FEntityIDType, TSharedPtr<FCamera>> IdCamera : SceneIdToCameraMap.Array())
+		{
+			FEntityIDType SceneId = IdCamera.Key;
+			TSharedPtr<FCamera> Camera = IdCamera.Value;
+			if (SceneIds.Contains(SceneId))
+			{
+				Camera->Update(Context);
+			}
+			else
+			{
+				// Cleanup removed scenes
+				Context.DatasmithScene->RemoveActor(Camera->DatasmithCamera, EDatasmithActorRemovalRule::RemoveChildren);
+				SceneIdToCameraMap.Remove(SceneId);
+			}
+		}
+	}
+
+	return bModified;
 }
 
 void FLayerCollection::PopulateFromModel(SUModelRef InModelRef)

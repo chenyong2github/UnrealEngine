@@ -202,10 +202,16 @@ namespace DatasmithSketchUp
 		void PopulateFromModel(
 			SUModelRef InSModelRef // model containing SketchUp camera definitions
 		);
+		bool SetActiveScene(const FEntityIDType& EntityID);
+
+		bool Update();
 
 		TMap<FSceneIDType, TSharedPtr<FCamera>> SceneIdToCameraMap;
+		FSceneIDType ActiveSceneId = FSceneIDType();
 	private:
 		FExportContext& Context;
+
+		FMD5Hash ScenesHash;
 	};
 
 	class FRegularMaterials

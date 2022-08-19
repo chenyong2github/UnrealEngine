@@ -11,6 +11,7 @@
 #include "DatasmithSketchUpSDKCeases.h"
 
 #include "Containers/UnrealString.h"
+#include "Misc/SecureHash.h"
 
 class IDatasmithCameraActorElement;
 
@@ -30,10 +31,12 @@ namespace DatasmithSketchUp
 		static TSharedPtr<FCamera> Create(FExportContext& Context, SUSceneRef InSceneRef);
 
 		void Update(FExportContext& Context);
+		FMD5Hash GetHash();
 
 		SUCameraRef CameraRef;
 		FString Name;
 		TSharedPtr<IDatasmithCameraActorElement> DatasmithCamera;
+		bool bIsActive;
 	};
 
 }

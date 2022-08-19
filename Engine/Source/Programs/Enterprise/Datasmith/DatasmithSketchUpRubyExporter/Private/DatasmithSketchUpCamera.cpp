@@ -24,10 +24,8 @@ using namespace DatasmithSketchUp;
 TSharedPtr<FCamera> FCamera::Create(FExportContext& Context, SUCameraRef InCameraRef, const FString& Name)
 {
 	TSharedPtr<FCamera> Camera = MakeShared<FCamera>(InCameraRef);
-	Camera->DatasmithCamera = FDatasmithSceneFactory::CreateCameraActor(TEXT(""));
-	Context.DatasmithScene->AddActor(Camera->DatasmithCamera);
+
 	Camera->Name = Name;
-	Camera->Update(Context);
 	return Camera;
 }
 
@@ -42,6 +40,12 @@ TSharedPtr<FCamera> FCamera::Create(FExportContext& Context, SUSceneRef InSceneR
 
 void FCamera::Update(FExportContext& Context)
 {
+	if (!DatasmithCamera)
+	{
+		DatasmithCamera = FDatasmithSceneFactory::CreateCameraActor(TEXT(""));
+		Context.DatasmithScene->AddActor(DatasmithCamera);
+	}
+
 	SUPoint3D SourcePosition;
 	SUPoint3D SourceTarget;
 	SUVector3D SourceUpVector;
@@ -129,4 +133,77 @@ void FCamera::Update(FExportContext& Context)
 	FVector DistanceVector = FVector(DatasmithSketchUpUtils::FromSketchUp::ConvertPosition(SourceTarget.x - SourcePosition.x, SourceTarget.y - SourcePosition.y, SourceTarget.z - SourcePosition.z));
 	DatasmithCamera->SetFocusDistance(DistanceVector.Size());
 
+	// Using unused 'Visibility' flag for Camera to indicate currently active camera
+	// todo: replace someday with dedicated flag
+	DatasmithCamera->SetVisibility(bIsActive);
+}
+
+FMD5Hash FCamera::GetHash()
+{
+	FMD5 MD5;
+
+	MD5.Update(reinterpret_cast<const uint8*>(*Name), Name.Len() * sizeof(TCHAR));
+
+	SUPoint3D SourcePosition;
+	SUPoint3D SourceTarget;
+	SUVector3D SourceUpVector;
+
+	// Retrieve the SketckUp camera orientation.
+	SUCameraGetOrientation(CameraRef, &SourcePosition, &SourceTarget, &SourceUpVector);
+
+	MD5.Update(reinterpret_cast<const uint8*>(&SourcePosition), sizeof(SourcePosition));
+	MD5.Update(reinterpret_cast<const uint8*>(&SourceTarget), sizeof(SourceTarget));
+	MD5.Update(reinterpret_cast<const uint8*>(&SourceUpVector), sizeof(SourceUpVector));
+
+	// Get the SketchUp camera aspect ratio.
+	double CameraAspectRatio = 0.0;
+	SUResult Result = SUCameraGetAspectRatio(CameraRef, &CameraAspectRatio);
+	double SourceAspectRatio = 16.0 / 9.0;
+
+	// Keep the default aspect ratio when the camera uses the screen aspect ratio (SU_ERROR_NO_DATA).
+	if (Result == SU_ERROR_NONE)
+	{
+		SourceAspectRatio = CameraAspectRatio;
+	}
+	MD5.Update(reinterpret_cast<const uint8*>(&SourceAspectRatio), sizeof(SourceAspectRatio));
+
+	// Get the flag indicating whether or not the SketchUp scene camera is a perspective camera.
+	bool bCameraIsPerspective = false;
+	SUCameraGetPerspective(CameraRef, &bCameraIsPerspective); // we can ignore the returned SU_RESULT
+	MD5.Update(reinterpret_cast<const uint8*>(&bCameraIsPerspective), sizeof(bCameraIsPerspective));
+
+	// Get the flag indicating whether or not the SketchUp scene camera is a two dimensional camera.
+	bool bCameraIs2D = false;
+	SUCameraGet2D(CameraRef, &bCameraIs2D); // we can ignore the returned SU_RESULT
+	MD5.Update(reinterpret_cast<const uint8*>(&bCameraIs2D), sizeof(bCameraIs2D));
+
+	bool bSourceFOVForHeight = true;
+	double SourceFOV(60.0);             // default vertical field of view of 60 degrees
+	double SourceImageWidth(36.0);      // default image width of 36 mm (from Datasmith)
+
+	if (bCameraIsPerspective && !bCameraIs2D)
+	{
+		// Get the flag indicating whether or not the SketchUp camera field of view value represents the camera view height.
+		SUCameraGetFOVIsHeight(CameraRef, &bSourceFOVForHeight); // we can ignore the returned SU_RESULT
+		MD5.Update(reinterpret_cast<const uint8*>(&bSourceFOVForHeight), sizeof(bSourceFOVForHeight));
+
+		// Get the SketchUp camera field of view (in degrees).
+		SUCameraGetPerspectiveFrustumFOV(CameraRef, &SourceFOV); // we can ignore the returned SU_RESULT
+		MD5.Update(reinterpret_cast<const uint8*>(&SourceFOV), sizeof(SourceFOV));
+
+		// Get the SketchUp camera image width (in millimeters).
+		double CameraImageWidth = 0.0;
+		Result = SUCameraGetImageWidth(CameraRef, &CameraImageWidth);
+		// Keep the default image width when the camera does not have an image width.
+		if (CameraImageWidth > 0.0)
+		{
+			SourceImageWidth = CameraImageWidth;
+		}
+		MD5.Update(reinterpret_cast<const uint8*>(&SourceImageWidth), sizeof(SourceImageWidth));
+	}
+
+
+	FMD5Hash Hash;
+	Hash.Set(MD5);
+	return Hash;
 }
