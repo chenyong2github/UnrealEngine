@@ -333,7 +333,7 @@ public:
 
 	// Debug visualization
 	TArray<FRDGTextureRef> DebugVisualizationOutput;
-	FVirtualShadowMapVisualizeLightSearch VisualizeLight;
+	TArray<FVirtualShadowMapVisualizeLightSearch> VisualizeLight;
 
 private:
 	FScene &Scene;
