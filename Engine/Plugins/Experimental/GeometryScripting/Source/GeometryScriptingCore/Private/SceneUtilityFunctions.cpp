@@ -8,10 +8,14 @@
 #include "DynamicMesh/MeshTransforms.h"
 #include "DynamicMesh/MeshNormals.h"
 
+#include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/BrushComponent.h"
 #include "Components/DynamicMeshComponent.h"
 #include "ConversionUtils/VolumeToDynamicMesh.h"
+#include "Physics/ComponentCollisionUtil.h"
 
 using namespace UE::Geometry;
 
@@ -131,6 +135,104 @@ void UGeometryScriptLibrary_SceneUtilityFunctions::SetComponentMaterialList(
 	{
 		Component->SetMaterial(k, MaterialList[k]);
 	}
+}
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_SceneUtilityFunctions::CopyCollisionMeshesFromObject(
+	UObject* FromObject,
+	UDynamicMesh* ToDynamicMesh,
+	bool bTransformToWorld,
+	FTransform& LocalToWorld,
+	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+	bool bUseComplexCollision,
+	int SphereResolution,
+	UGeometryScriptDebug* Debug)
+{
+	Outcome = EGeometryScriptOutcomePins::Failure;
+
+	FDynamicMesh3 AccumulatedMesh;
+	ToDynamicMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+	{
+		AccumulatedMesh.EnableMatchingAttributes(ReadMesh, true);
+	});
+
+	if (bUseComplexCollision)
+	{
+		// rewrite object type if necessary
+		if (UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(FromObject))
+		{
+			FromObject = StaticMeshComp->GetStaticMesh();
+		}
+
+		// find the Complex Collision mesh interface
+		IInterface_CollisionDataProvider* CollisionProvider = nullptr;
+		if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(FromObject))
+		{
+			LocalToWorld = FTransform::Identity;
+			CollisionProvider = (IInterface_CollisionDataProvider*)StaticMesh;
+		}
+		else if ( Cast<UDynamicMeshComponent>(FromObject) != nullptr )
+		{
+			UPrimitiveComponent* AnyComponent = Cast<UPrimitiveComponent>(FromObject);
+			LocalToWorld = AnyComponent->GetComponentTransform();
+			CollisionProvider = (IInterface_CollisionDataProvider*)AnyComponent;
+		}
+
+		if (CollisionProvider == nullptr)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyCollisionMeshesFromObject_NoCollisionProvider", "CopyCollisionMeshesFromObject: Complex Collision Provider is not available for this object type"));
+			return ToDynamicMesh;
+		}
+
+		FTransformSequence3d Transforms;
+		if (bTransformToWorld)
+		{
+			Transforms.Append(LocalToWorld);
+		}
+
+		// generate mesh
+		bool bFoundMeshErrors = false;
+		UE::Geometry::ConvertComplexCollisionToMeshes(CollisionProvider, AccumulatedMesh, Transforms, bFoundMeshErrors, true, true);
+	}
+	else
+	{
+		const UBodySetup* BodySetup = nullptr;
+		if (UPrimitiveComponent* AnyComponent = Cast<UPrimitiveComponent>(FromObject))
+		{
+			LocalToWorld = AnyComponent->GetComponentTransform();
+			BodySetup = AnyComponent->GetBodySetup();
+		}
+		else if (const UStaticMesh* StaticMesh = Cast<UStaticMesh>(FromObject))
+		{
+			LocalToWorld = FTransform::Identity;
+			BodySetup = StaticMesh->GetBodySetup();
+		}
+
+		if (BodySetup == nullptr)
+		{
+			UE::Geometry::AppendWarning(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyCollisionMeshesFromObject_NoBodySetup", "CopyCollisionMeshesFromObject: BodySetup is null or Object type is not supported"));
+			return ToDynamicMesh;
+		}
+
+		FTransformSequence3d Transforms;
+		if (bTransformToWorld)
+		{
+			Transforms.Append(LocalToWorld);
+		}
+
+		UE::Geometry::ConvertSimpleCollisionToMeshes(BodySetup->AggGeom, AccumulatedMesh, Transforms, SphereResolution, true, true);
+	}
+
+	ToDynamicMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+	{
+		EditMesh = MoveTemp(AccumulatedMesh);
+	});
+
+	Outcome = EGeometryScriptOutcomePins::Success;
+
+	return ToDynamicMesh;
 }
 
 

@@ -4,9 +4,16 @@
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "ShapeApproximation/SimpleShapeSet3.h"
+#include "DynamicMeshEditor.h"
+#include "DynamicMesh/MeshNormals.h"
+#include "Generators/SphereGenerator.h"
+#include "Generators/MinimalBoxMeshGenerator.h"
+#include "Generators/CapsuleGenerator.h"
+#include "DynamicMesh/MeshTransforms.h"
+#include "Parameterization/DynamicMeshUVEditor.h"
+#include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 
 #include "Physics/PhysicsDataCollection.h"
-
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -178,3 +185,202 @@ bool UE::Geometry::AppendSimpleCollision(
 }
 
 
+void UE::Geometry::ConvertSimpleCollisionToMeshes(
+	const FKAggregateGeom& AggGeom,
+	FDynamicMesh3& MeshOut,
+	const FTransformSequence3d& TransformSeqeuence,
+	int32 SphereResolution,
+	bool bSetToPerTriangleNormals,
+	bool bInitializeConvexUVs,
+	TFunction<void(int, const FDynamicMesh3&)> PerElementMeshCallback )
+{
+	FDynamicMeshEditor Editor(&MeshOut);
+
+	for (const FKSphereElem& Sphere : AggGeom.SphereElems)
+	{
+		FSphereGenerator SphereGen;
+		SphereGen.Radius = Sphere.Radius;
+		SphereGen.NumPhi = SphereGen.NumTheta = SphereResolution;
+		SphereGen.bPolygroupPerQuad = false;
+		SphereGen.Generate();
+		FDynamicMesh3 SphereMesh(&SphereGen);
+
+		MeshTransforms::Translate(SphereMesh, FVector3d(Sphere.Center));
+
+		FMeshIndexMappings Mappings;
+		Editor.AppendMesh(&SphereMesh, Mappings,
+			[&](int32 vid, const FVector3d& P) { return TransformSeqeuence.TransformPosition(P); },
+			[&](int32 vid, const FVector3d& N) { return TransformSeqeuence.TransformNormal(N); });
+
+		if (PerElementMeshCallback)
+		{
+			PerElementMeshCallback(0, SphereMesh);
+		}
+	}
+
+	for (const FKBoxElem& Box : AggGeom.BoxElems)
+	{
+		FMinimalBoxMeshGenerator BoxGen;
+		BoxGen.Box = UE::Geometry::FOrientedBox3d(
+			FFrame3d(FVector3d(Box.Center), FQuaterniond(Box.Rotation.Quaternion())),
+			0.5*FVector3d(Box.X, Box.Y, Box.Z));
+		BoxGen.Generate();
+		FDynamicMesh3 BoxMesh(&BoxGen);
+
+		// transform not applied because it is just the Center/Rotation
+
+		FMeshIndexMappings Mappings;
+		Editor.AppendMesh(&BoxMesh, Mappings,
+			[&](int32 vid, const FVector3d& P) { return TransformSeqeuence.TransformPosition(P); },
+			[&](int32 vid, const FVector3d& N) { return TransformSeqeuence.TransformNormal(N); });	
+
+		if (PerElementMeshCallback)
+		{
+			PerElementMeshCallback(1, BoxMesh);
+		}
+	}
+
+
+	for (const FKSphylElem& Capsule: AggGeom.SphylElems)
+	{
+		FCapsuleGenerator CapsuleGen;
+		CapsuleGen.Radius = Capsule.Radius;
+		CapsuleGen.SegmentLength = Capsule.Length;
+		CapsuleGen.NumHemisphereArcSteps = SphereResolution/4+1;
+		CapsuleGen.NumCircleSteps = SphereResolution;
+		CapsuleGen.bPolygroupPerQuad = false;
+		CapsuleGen.Generate();
+		FDynamicMesh3 CapsuleMesh(&CapsuleGen);
+
+		MeshTransforms::Translate(CapsuleMesh, FVector3d(0,0,-0.5*Capsule.Length) );
+
+		FTransformSRT3d Transform(Capsule.GetTransform());
+		MeshTransforms::ApplyTransform(CapsuleMesh, Transform);
+
+		FMeshIndexMappings Mappings;
+		Editor.AppendMesh(&CapsuleMesh, Mappings,
+			[&](int32 vid, const FVector3d& P) { return TransformSeqeuence.TransformPosition(P); },
+			[&](int32 vid, const FVector3d& N) { return TransformSeqeuence.TransformNormal(N); });	
+
+		if (PerElementMeshCallback)
+		{
+			PerElementMeshCallback(2, CapsuleMesh);
+		}
+	}
+
+
+	for (const FKConvexElem& Convex : AggGeom.ConvexElems)
+	{
+		FTransformSRT3d ElemTransform(Convex.GetTransform());
+		FDynamicMesh3 ConvexMesh(EMeshComponents::None);
+		int32 NumVertices = Convex.VertexData.Num();
+		for (int32 k = 0; k < NumVertices; ++k)
+		{
+			ConvexMesh.AppendVertex( FVector3d(Convex.VertexData[k]) );
+		}
+		int32 NumTriangles = Convex.IndexData.Num() / 3;
+		for (int32 k = 0; k < NumTriangles; ++k)
+		{
+			ConvexMesh.AppendTriangle(Convex.IndexData[3*k], Convex.IndexData[3*k+1], Convex.IndexData[3*k+2]);
+		}
+
+		ConvexMesh.ReverseOrientation();
+		ConvexMesh.EnableTriangleGroups(0);
+		ConvexMesh.EnableAttributes();
+		if (bInitializeConvexUVs)
+		{
+			FDynamicMeshUVEditor UVEditor(&ConvexMesh, 0, true);
+			UVEditor.SetPerTriangleUVs();
+		}
+
+		FMeshIndexMappings Mappings;
+		Editor.AppendMesh(&ConvexMesh, Mappings,
+			[&](int32 vid, const FVector3d& P) { return TransformSeqeuence.TransformPosition(P); },
+			[&](int32 vid, const FVector3d& N) { return TransformSeqeuence.TransformNormal(N); });	
+
+		if (PerElementMeshCallback)
+		{
+			PerElementMeshCallback(3, ConvexMesh);
+		}
+	}
+
+	if (MeshOut.HasAttributes() && MeshOut.Attributes()->PrimaryNormals() != nullptr)
+	{
+		if (bSetToPerTriangleNormals)
+		{
+			FMeshNormals::InitializeMeshToPerTriangleNormals(&MeshOut);
+		}
+		else
+		{
+			FMeshNormals::InitializeOverlayToPerVertexNormals(MeshOut.Attributes()->PrimaryNormals(), false);
+		}
+	}
+}
+
+
+
+bool UE::Geometry::ConvertComplexCollisionToMeshes(
+	IInterface_CollisionDataProvider* CollisionProvider,
+	UE::Geometry::FDynamicMesh3& MeshOut,
+	const FTransformSequence3d& TransformSeqeuence,
+	bool& bFoundMeshErrorsOut,
+	bool bWeldEdges,
+	bool bSetToPerTriangleNormals)
+{
+	bFoundMeshErrorsOut = false;
+	if (CollisionProvider && CollisionProvider->ContainsPhysicsTriMeshData(true))
+	{
+		FTriMeshCollisionData CollisionData;
+		if (CollisionProvider->GetPhysicsTriMeshData(&CollisionData, true))
+		{
+			TArray<int32> VertexIDMap;
+			for (int32 k = 0; k < CollisionData.Vertices.Num(); ++k)
+			{
+				int32 VertexID = MeshOut.AppendVertex((FVector)CollisionData.Vertices[k]);
+				VertexIDMap.Add(VertexID);
+			}
+			for (const FTriIndices& TriIndices : CollisionData.Indices)
+			{
+				FIndex3i Triangle(TriIndices.v0, TriIndices.v1, TriIndices.v2);
+				int32 TriangleID = MeshOut.AppendTriangle(Triangle);
+				if (TriangleID < 0)
+				{
+					bFoundMeshErrorsOut = true;
+					// create new vertices for this triangle
+					int32 A = MeshOut.AppendVertex(MeshOut.GetVertex(TriIndices.v0));
+					int32 B = MeshOut.AppendVertex(MeshOut.GetVertex(TriIndices.v1));
+					int32 C = MeshOut.AppendVertex(MeshOut.GetVertex(TriIndices.v2));
+					MeshOut.AppendTriangle(FIndex3i(A,B,C));
+				}
+			}
+
+			if (bWeldEdges)
+			{
+				FMergeCoincidentMeshEdges Weld(&MeshOut);
+				Weld.OnlyUniquePairs = true;
+				Weld.Apply();
+				Weld.OnlyUniquePairs = false;
+				Weld.Apply();
+			}
+
+			if (!CollisionData.bFlipNormals)		// collision mesh has reversed orientation
+			{
+				MeshOut.ReverseOrientation(false);
+			}
+		}
+	}
+
+	if (MeshOut.HasAttributes() && MeshOut.Attributes()->PrimaryNormals() != nullptr)
+	{
+		if (bSetToPerTriangleNormals)
+		{
+			FMeshNormals::InitializeMeshToPerTriangleNormals(&MeshOut);
+		}
+		else
+		{
+			FMeshNormals::InitializeOverlayToPerVertexNormals(MeshOut.Attributes()->PrimaryNormals(), false);
+		}
+	}
+
+	return (MeshOut.TriangleCount() > 0);
+}

@@ -5,10 +5,13 @@
 #include "CoreMinimal.h"
 #include "Components/PrimitiveComponent.h"
 #include "TransformTypes.h"
+#include "TransformSequence.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 class UBodySetup;
 class UStaticMesh;
 struct FKAggregateGeom;
+class IInterface_CollisionDataProvider;
 
 namespace UE
 {
@@ -85,7 +88,36 @@ MODELINGCOMPONENTS_API void UpdateSimpleCollision(
 	UStaticMesh* StaticMesh = nullptr,
 	FComponentCollisionSettings CollisionSettings = FComponentCollisionSettings());
 
+/**
+ * Extract the simple collision geometry from AggGeom as meshes (ie spheres and capsules are tessellated) and
+ * accumulate into MeshOut. TransformSequence is applied to the meshes as they are accumulated.
+ * @param bSetToPerTriangleNormals if true and the mesh has a normals attribute overlay,  the mesh is set to face normals, otherwise averaged vertex normals
+ * @param bInitializeConvexUVs if true convex hulls have their UVs initialized to per-face planar projections, otherwise no UVs are set
+ * @param PerElementMeshCallback if provided, called with each element mesh before transforming/appending to MeshOut. The int parameter is the shape type, 0=Sphere, 1=Box, 2=Capsule, 3=Convex
+ */
+MODELINGCOMPONENTS_API void ConvertSimpleCollisionToMeshes(
+	const FKAggregateGeom& AggGeom,
+	UE::Geometry::FDynamicMesh3& MeshOut,
+	const FTransformSequence3d& TransformSeqeuence,
+	int32 SphereResolution = 16,
+	bool bSetToPerTriangleNormals = false,
+	bool bInitializeConvexUVs = false,
+	TFunction<void(int, const FDynamicMesh3&)> PerElementMeshCallback = nullptr );
 
+/**
+ * Extract the complex collision geometry from CollisionDataProvider as a dynamic mesh.
+ * TransformSequence is applied to the mesh.
+ * @param bFoundMeshErrorsOut will be returned as true if potential non-manifold geometry was detected during construction (in that case some triangles will be disconnected)
+ * @param bWeldEdges if true the mesh edges are welded
+ * @param bSetToPerTriangleNormals if true and the mesh has a normals attribute overlay, the mesh is set to face normals, otherwise averaged vertex normals
+ */
+MODELINGCOMPONENTS_API bool ConvertComplexCollisionToMeshes(
+	IInterface_CollisionDataProvider* CollisionDataProvider,
+	UE::Geometry::FDynamicMesh3& MeshOut,
+	const FTransformSequence3d& TransformSeqeuence,
+	bool& bFoundMeshErrorsOut,
+	bool bWeldEdges = true,
+	bool bSetToPerTriangleNormals = false);
 
 }  // end namespace Geometry
 }  // end namespace UE
