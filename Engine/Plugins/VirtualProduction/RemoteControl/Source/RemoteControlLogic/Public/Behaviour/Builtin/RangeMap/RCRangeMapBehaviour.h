@@ -15,7 +15,7 @@ struct FRCRangeMapStep
 	GENERATED_BODY()
 
 	FRCRangeMapStep() {}
-	FRCRangeMapStep(const double InStepValue, const URCVirtualPropertySelfContainer* InPropertyValue)
+	FRCRangeMapStep(const double InStepValue, URCVirtualPropertySelfContainer* InPropertyValue)
 		: StepValue(InStepValue)
 	{
 		if (!PropertyValue)
@@ -23,7 +23,7 @@ struct FRCRangeMapStep
 			return;
 		}
 		
-		PropertyValue = MakeObjectPtrUnsafe<URCVirtualPropertySelfContainer>(InPropertyValue);
+		PropertyValue = InPropertyValue;
 	}
 
 	/** The Value which we use represent the action based on a normalized step. */
@@ -32,7 +32,7 @@ struct FRCRangeMapStep
 
 	/** The Property this Action holds and will be used for calculations for the lerp. */
 	UPROPERTY()
-	TObjectPtr<URCVirtualPropertySelfContainer> PropertyValue;
+	URCVirtualPropertySelfContainer* PropertyValue;
 };
 
 /**
@@ -66,7 +66,7 @@ public:
 	void Refresh();
 	
 	/** Called whenever a new action is added into the ActionContainer. Will add a FRCRangeMapStep into RangeMapActionContainer corresponding to the Action. */
-	void OnActionAdded(URCAction* Action, const TObjectPtr<URCVirtualPropertySelfContainer> InPropertyValue);
+	void OnActionAdded(URCAction* Action, URCVirtualPropertySelfContainer* InPropertyValue);
 
 	/** Adds an Action to the ActionContainer, whilst making sure that it is unique. */
 	URCAction* AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField) override;
