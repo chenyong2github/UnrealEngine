@@ -14,6 +14,7 @@
 #include "ClearQuad.h"
 #if WITH_EDITOR
 #include "Components/SceneCaptureComponentCube.h"
+#include "UObject/UObjectIterator.h"
 #endif
 
 /*-----------------------------------------------------------------------------

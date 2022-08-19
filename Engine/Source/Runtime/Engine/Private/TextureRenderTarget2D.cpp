@@ -16,6 +16,7 @@
 #include "RenderGraphUtils.h"
 #if WITH_EDITOR
 #include "Components/SceneCaptureComponent2D.h"
+#include "UObject/UObjectIterator.h"
 #endif
 
 int32 GTextureRenderTarget2DMaxSizeX = 999999999;
