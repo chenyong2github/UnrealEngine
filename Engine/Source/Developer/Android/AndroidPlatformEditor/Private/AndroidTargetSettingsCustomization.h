@@ -44,9 +44,6 @@ private:
 	// Called when the app id is modified
 	void OnAppIDModified();
 
-	// Called when EnableGradle is modified
-	void OnEnableGradleChange();
-
 	// Called when License accepted
 	void OnLicenseAccepted();
 

@@ -383,7 +383,7 @@ namespace UnrealBuildTool
 			string NDKPath = Environment.GetEnvironmentVariable("NDKROOT")!;
 			NDKPath = NDKPath.Replace("\"", "");
 
-			AndroidToolChain ToolChain = new AndroidToolChain(Target.ProjectFile, false, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures, Logger);
+			AndroidToolChain ToolChain = new AndroidToolChain(Target.ProjectFile, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures, Logger);
 
 			// figure out the NDK version
 			string? NDKToolchainVersion = SDK.GetInstalledVersion();
@@ -530,16 +530,15 @@ namespace UnrealBuildTool
 
 		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
-			bool bUseLdGold = Target.bUseUnityBuild;
 			ClangToolChainOptions Options = CreateToolChainOptions(Target.AndroidPlatform.TargetRules);
-			return new AndroidToolChain(Target.ProjectFile, bUseLdGold, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures, Options, Logger);
+			return new AndroidToolChain(Target.ProjectFile, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures, Options, Logger);
 		}
 		public virtual UEToolChain CreateTempToolChainForProject(FileReference? ProjectFile)
 		{
 			AndroidTargetRules TargetRules = new AndroidTargetRules();
 			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), TargetRules, Logger);
 			ClangToolChainOptions Options = CreateToolChainOptions(TargetRules);
-			return new AndroidToolChain(ProjectFile, true, null, null, Options, Logger);
+			return new AndroidToolChain(ProjectFile, null, null, Options, Logger);
 		}
 
 		/// <inheritdoc/>

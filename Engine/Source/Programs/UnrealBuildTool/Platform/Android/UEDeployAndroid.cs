@@ -953,7 +953,6 @@ namespace UnrealBuildTool
 		}
 
 		private int CachedStoreVersion = -1;
-		private int CachedStoreVersionOffsetArmV7 = 0;
 		private int CachedStoreVersionOffsetArm64 = 0;
 		private int CachedStoreVersionOffsetX8664= 0;
 
@@ -993,14 +992,12 @@ namespace UnrealBuildTool
 
 				CachedStoreVersion = StoreVersion;
 
-				Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetArmV7", out CachedStoreVersionOffsetArmV7);
 				Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetArm64", out CachedStoreVersionOffsetArm64);
 				Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetX8664", out CachedStoreVersionOffsetX8664);
 			}
 
 			switch (UnrealArch)
 			{
-				case "-armv7": return CachedStoreVersion + CachedStoreVersionOffsetArmV7;
 				case "-arm64": return CachedStoreVersion + CachedStoreVersionOffsetArm64;
 				case "-x64": return CachedStoreVersion + CachedStoreVersionOffsetX8664;
 			}
@@ -3350,13 +3347,6 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		private bool GradleEnabled()
-		{
-			ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
-			bool bEnableGradle = false;
-			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bEnableGradle", out bEnableGradle);
-			return bEnableGradle;
-		}
 		private bool BundleEnabled()
 		{
 			if (ForceAPKGeneration)
@@ -4006,11 +3996,6 @@ namespace UnrealBuildTool
 				Logger.LogInformation("");
 				Logger.LogInformation("===={Time}====COMPLETED MAKE APK=======================================================================", DateTime.Now.ToString());
 				return;
-			}
-
-			if (!GradleEnabled())
-			{
-				throw new BuildException("Support for building APK without Gradle is depreciated; please update your project Engine.ini.");
 			}
 
 			if (UPL!.GetLastError() != null)

@@ -193,10 +193,6 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging")
 	TEnumAsByte<EAndroidInstallLocation::Type> InstallLocation;
 
-	// Use Gradle instead of Ant for Java compiling and APK generation
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Enable Gradle instead of Ant"))
-	bool bEnableGradle;
-
 	// Enable -Xlint:unchecked and -Xlint:depreciation for Java compiling (Gradle only)
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "APK Packaging", Meta = (DisplayName = "Enable Lint depreciation checks"))
 	bool bEnableLint;
@@ -392,8 +388,12 @@ public:
 	bool bDetectVulkanByDefault;
 
 	// Build the shipping config with hidden visibility by default. Results in smaller .so file but will also removes symbols used to display callstack dumps.
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Build with hidden symbol visibility in shipping config. [Experimental]"))
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Build with hidden symbol visibility in shipping config."))
 	bool bBuildWithHiddenSymbolVisibility;
+
+	// Disables extra checks for buffer overflows, comes with perf improvement, but might make tracing stack corruptions in production harder. Note that _FORTIFY_SOURCE=2 is still enabled by the toolchain providing lightweight stack checks
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Disable extra checks for buffer overflows"))
+	bool bDisableStackProtector;
 
 	// Disable libc++_shared dependency validation in all .so files linked with libUnreal.so
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Disable libc++_shared dependency validation in all dependencies"))
@@ -402,10 +402,6 @@ public:
 	// Always save .so file with symbols allowing use of addr2line on raw callstack addresses.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Always save a copy of the libUnreal.so with symbols. [Experimental]"))
 	bool bSaveSymbols;
-
-	// Use legacy ld instead of new lld linker.
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = AdvancedBuild, meta = (DisplayName = "Force linking to use ld instead of lld"))
-	bool bForceLDLinker;
 
 	// Strip shader reflection information under Android to avoid issues on older drivers
 	UPROPERTY(config, EditAnywhere, Category = AdvancedBuild, meta = (

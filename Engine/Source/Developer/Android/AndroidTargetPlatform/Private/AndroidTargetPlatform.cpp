@@ -371,18 +371,12 @@ int32 FAndroidTargetPlatform::CheckRequirements(bool bProjectHasCode, EBuildConf
 		bReadyToBuild |= ETargetPlatformReadyStatus::SDKNotFound;
 	}
 
-	bool bEnableGradle;
-	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bEnableGradle"), bEnableGradle, GEngineIni);
-
-	if (bEnableGradle)
+	// need to check license was accepted
+	if (!HasLicense())
 	{
-		// need to check license was accepted
-		if (!HasLicense())
-		{
-			OutTutorialPath.Empty();
-			CustomizedLogMessage = LOCTEXT("AndroidLicenseNotAcceptedMessageDetail", "SDK License must be accepted in the Android project settings to deploy your app to the device.");
-			bReadyToBuild |= ETargetPlatformReadyStatus::LicenseNotAccepted;
-		}
+		OutTutorialPath.Empty();
+		CustomizedLogMessage = LOCTEXT("AndroidLicenseNotAcceptedMessageDetail", "SDK License must be accepted in the Android project settings to deploy your app to the device.");
+		bReadyToBuild |= ETargetPlatformReadyStatus::LicenseNotAccepted;
 	}
 
 	return bReadyToBuild;

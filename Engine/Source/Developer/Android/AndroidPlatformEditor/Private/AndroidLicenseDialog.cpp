@@ -267,9 +267,6 @@ FReply SAndroidLicenseDialog::OnAgree()
 
 FReply SAndroidLicenseDialog::OnCancel()
 {
-	// turn off Gradle checkbox
-	//GetMutableDefault<UAndroidRuntimeSettings>()->bEnableGradle = false;
-
 	TSharedRef<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared()).ToSharedRef();
 	FSlateApplication::Get().RequestDestroyWindow(ParentWindow);
 	return FReply::Handled();

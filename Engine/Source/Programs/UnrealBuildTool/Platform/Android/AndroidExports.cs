@@ -90,7 +90,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static IAndroidToolChain CreateToolChain(FileReference ProjectFile)
 		{
-			return new AndroidToolChain(ProjectFile, false, null, null, Log.Logger);
+			return new AndroidToolChain(ProjectFile, null, null, Log.Logger);
 		}
 
 		/// <summary>
@@ -99,7 +99,7 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static IAndroidToolChain CreateTempToolChain()
 		{
-			return new AndroidToolChain(null, false, null, null, Log.Logger);
+			return new AndroidToolChain(null, null, null, Log.Logger);
 		}
 
 		/// <summary>
@@ -140,7 +140,7 @@ namespace UnrealBuildTool
 		/// <param name="Logger">Logger for output</param>
 		public static void StripSymbols(FileReference SourceFile, FileReference TargetFile, ILogger Logger)
 		{
-			AndroidToolChain ToolChain = new AndroidToolChain(null, false, null, null, Logger);
+			AndroidToolChain ToolChain = new AndroidToolChain(null, null, null, Logger);
 			ToolChain.StripSymbols(SourceFile, TargetFile, Logger);
 		}
 	}

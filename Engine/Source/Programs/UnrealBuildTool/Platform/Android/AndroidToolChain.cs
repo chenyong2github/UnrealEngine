@@ -56,7 +56,6 @@ namespace UnrealBuildTool
 		}
 
 		protected FileReference? ProjectFile;
-		private bool bUseLdGold;
 		private List<string> AdditionalArches;
 		private List<string> AdditionalGPUArches;
 		protected bool bExecuteCompilerThroughShell;
@@ -125,24 +124,21 @@ namespace UnrealBuildTool
 		[CommandLine("-Architectures=", ListSeparator = '+')]
 		public List<string> ArchitectureArg = new List<string>();
 
-		protected bool bEnableGcSections = true;
-
-		public AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, ILogger InLogger)
-			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false, ClangToolChainOptions.None, InLogger)
+		public AndroidToolChain(FileReference? InProjectFile, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, ILogger InLogger)
+			: this(InProjectFile, InAdditionalArches, InAdditionalGPUArches, false, ClangToolChainOptions.None, InLogger)
 		{
 		}
 
-		public AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, ClangToolChainOptions ToolchainOptions, ILogger InLogger)
-			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false, ToolchainOptions, InLogger)
+		public AndroidToolChain(FileReference? InProjectFile, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, ClangToolChainOptions ToolchainOptions, ILogger InLogger)
+			: this(InProjectFile, InAdditionalArches, InAdditionalGPUArches, false, ToolchainOptions, InLogger)
 		{
 		}
 
-		protected AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, bool bAllowMissingNDK, ClangToolChainOptions ToolchainOptions, ILogger InLogger)
+		protected AndroidToolChain(FileReference? InProjectFile, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, bool bAllowMissingNDK, ClangToolChainOptions ToolchainOptions, ILogger InLogger)
 			: base(ToolchainOptions, InLogger)
 		{
 			Options = ToolchainOptions;
 			ProjectFile = InProjectFile;
-			bUseLdGold = bInUseLdGold;
 			AdditionalArches = new List<string>();
 			AdditionalGPUArches = new List<string>();
 
@@ -255,18 +251,9 @@ namespace UnrealBuildTool
 				AndroidClangBuild = "unknown";
 			}
 
-			if (ForceLDLinker())
-			{
-				// use ld before r21
-				ArPathArm64 = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/aarch64-linux-android-4.9", ArchitecturePath, @"bin/aarch64-linux-android-ar" + ExeExtension));
-				ArPathx64 = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/x86_64-4.9", ArchitecturePath, @"bin/x86_64-linux-android-ar" + ExeExtension));
-			}
-			else
-			{
-				// use lld for r21+
-				ArPathArm64 = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/llvm", ArchitecturePath, @"bin/llvm-ar" + ExeExtension));
-				ArPathx64 = ArPathArm64;
-			}
+			// use lld for r21+
+			ArPathArm64 = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/llvm", ArchitecturePath, @"bin/llvm-ar" + ExeExtension));
+			ArPathx64 = ArPathArm64;
 
 			// NDK setup (enforce minimum API level)
 			int NDKApiLevel64Int = GetNdkApiLevelInt(MinimumNDKAPILevel);
@@ -354,13 +341,6 @@ namespace UnrealBuildTool
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
 			bool bBuild = false;
 			return CompileEnvironment.Configuration == CppConfiguration.Shipping && (Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bBuildWithHiddenSymbolVisibility", out bBuild) && bBuild);
-		}
-
-		private bool ForceLDLinker()
-		{
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
-			bool bForceLDLinker = false;
-			return Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bForceLDLinker", out bForceLDLinker) && bForceLDLinker;
 		}
 
 		private bool DisableFunctionDataSections()
@@ -823,7 +803,7 @@ namespace UnrealBuildTool
 			Result += " -shared";
 			Result += " -Wl,-Bsymbolic";
 			Result += " -Wl,--no-undefined";
-			if (bEnableGcSections && !DisableFunctionDataSections())
+			if (!DisableFunctionDataSections())
 			{
 				Result += " -Wl,--gc-sections"; // Enable garbage collection of unused input sections. works best with -ffunction-sections, -fdata-sections
 			}
@@ -833,8 +813,6 @@ namespace UnrealBuildTool
 				Result += " -Wl,--strip-debug";
 			}
 
-			bool bUseLLD = !ForceLDLinker();
-			bool bAllowLdGold = true;
 			if (Architecture == "-x64")
 			{
 				Result += ToolchainLinkParamsx64;
@@ -844,40 +822,19 @@ namespace UnrealBuildTool
 			{
 				Result += ToolchainLinkParamsArm64;
 				Result += " -march=armv8-a";
-				bAllowLdGold = false;       // NDK issue 70838247
 			}
 
 			if (LinkEnvironment.Configuration == CppConfiguration.Shipping)
 			{
 				Result += " -Wl,--icf=all"; // Enables ICF (Identical Code Folding). [all, safe] safe == fold functions that can be proven not to have their address taken.
-				if (!bUseLLD)
-				{
-					Result += " -Wl,--icf-iterations=3";
-				}
-
 				Result += " -Wl,-O3";
 			}
 
-			if (bUseLLD)
-			{
-				Result += " -Wl,-no-pie";
+			Result += " -Wl,-no-pie";
 
-				// use lld as linker (requires llvm-strip)
-				Result += " -fuse-ld=lld";
-			}
-			else
-			{
-				if (bAllowLdGold && bUseLdGold)
-				{
-					// use ld.gold as linker (requires strip)
-					Result += " -fuse-ld=gold";
-				}
-				else
-				{
-					// use ld as linker (requires strip)
-					Result += " -fuse-ld=ld";
-				}
-			}
+			// use lld as linker (requires llvm-strip)
+			Result += " -fuse-ld=lld";
+
 
 			// make sure the DT_SONAME field is set properly (or we can a warning toast at startup on new Android)
 			Result += " -Wl,-soname,libUnreal.so";

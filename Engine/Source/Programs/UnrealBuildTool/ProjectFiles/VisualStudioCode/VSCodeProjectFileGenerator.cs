@@ -1176,25 +1176,15 @@ namespace UnrealBuildTool
 			// Get store version
 			int StoreVersion = 1;
 			int StoreVersionArm64 = 1;
-			int StoreVersionArmV7 = 1;
 			int StoreVersionOffsetArm64 = 0;
-			int StoreVersionOffsetArmV7 = 0;
 			Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersion", out StoreVersion);
 			Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetArm64", out StoreVersionOffsetArm64);
-			Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetArmV7", out StoreVersionOffsetArmV7);
 			StoreVersionArm64 = StoreVersion + StoreVersionOffsetArm64;
-			StoreVersionArmV7 = StoreVersion + StoreVersionOffsetArmV7;
 
 			DirectoryReference SymbolPathArm64 = DirectoryReference.Combine(
 				BuildProduct.OutputFile.Directory,
 				Target.Name + "_Symbols_v" + StoreVersionArm64.ToString(),
 				Target.Name + "-arm64");
-
-			DirectoryReference SymbolPathArmV7 = DirectoryReference.Combine(
-				BuildProduct.OutputFile.Directory,
-				Target.Name + "_Symbols_v" + StoreVersionArmV7.ToString(),
-				Target.Name + "-armv7");
-
 
 			string LaunchTaskName = String.Format("{0} {1} {2} Deploy", Target.Name, BuildProduct.Platform, BuildProduct.Config);
 
@@ -1230,7 +1220,6 @@ namespace UnrealBuildTool
 						{
 							OutFile.BeginArray("librarySearchPaths");
 							OutFile.AddUnnamedField("\\\"" + SymbolPathArm64.ToNormalizedPath() + "\\\"");
-							OutFile.AddUnnamedField("\\\"" + SymbolPathArmV7.ToNormalizedPath() + "\\\"");
 							OutFile.EndArray();
 
 							OutFile.BeginArray("lldbPreTargetCreateCommands");

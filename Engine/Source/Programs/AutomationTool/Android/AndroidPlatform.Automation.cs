@@ -3413,11 +3413,7 @@ public class AndroidPlatform : Platform
 
 			int StoreVersionOffset = 0;
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(SC.RawProjectPath), SC.StageTargetPlatform.PlatformType);
-			if (ApkName.Contains("-armv7-"))
-			{
-				Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetArmV7", out StoreVersionOffset);
-			}
-			else if (ApkName.Contains("-arm64-"))
+			if (ApkName.Contains("-arm64-"))
 			{
 				Ini.GetInt32("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "StoreVersionOffsetArm64", out StoreVersionOffset);
 			}
