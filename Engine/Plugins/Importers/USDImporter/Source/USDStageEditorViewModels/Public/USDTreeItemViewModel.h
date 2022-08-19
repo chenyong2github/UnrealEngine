@@ -3,8 +3,9 @@
 #pragma once
 
 #include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
 
-class USDSTAGEEDITORVIEWMODELS_API IUsdTreeViewItem
+class USDSTAGEEDITORVIEWMODELS_API IUsdTreeViewItem : public TSharedFromThis< IUsdTreeViewItem >
 {
 public:
 	virtual ~IUsdTreeViewItem() = default;

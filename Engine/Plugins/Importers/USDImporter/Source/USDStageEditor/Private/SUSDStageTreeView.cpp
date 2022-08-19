@@ -1735,7 +1735,7 @@ void SUsdStageTreeView::ScrollItemIntoView( FUsdPrimViewModelRef TreeItem )
 	FUsdPrimViewModel* Parent = TreeItem->ParentItem;
 	while( Parent )
 	{
-		SetItemExpansion( Parent->AsShared(), true );
+		SetItemExpansion( StaticCastSharedRef< FUsdPrimViewModel>( Parent->AsShared() ), true );
 		Parent = Parent->ParentItem;
 	}
 

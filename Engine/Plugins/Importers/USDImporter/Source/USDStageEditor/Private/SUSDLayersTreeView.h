@@ -20,6 +20,13 @@ public:
 	void Construct( const FArguments& InArgs, AUsdStageActor* UsdStageActor );
 	void Refresh( AUsdStageActor* UsdStageActor, bool bResync );
 
+	// Drag and drop interface for our rows
+	FReply OnRowDragDetected( const FGeometry& Geometry, const FPointerEvent& PointerEvent );
+	void OnRowDragLeave( const FDragDropEvent& Event );
+	TOptional<EItemDropZone> OnRowCanAcceptDrop( const FDragDropEvent& Event, EItemDropZone Zone, FUsdLayerViewModelRef Item );
+	FReply OnRowAcceptDrop( const FDragDropEvent& Event, EItemDropZone Zone, FUsdLayerViewModelRef Item );
+	// End drag and drop interface
+
 private:
 	virtual TSharedRef< ITableRow > OnGenerateRow( FUsdLayerViewModelRef InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable ) override;
 	virtual void OnGetChildren( FUsdLayerViewModelRef InParent, TArray< FUsdLayerViewModelRef >& OutChildren ) const override;
@@ -41,7 +48,7 @@ private:
 
 	void OnExportSelectedLayers() const;
 
-	bool CanAddSubLayer() const;
+	bool CanInsertSubLayer() const;
 	void OnAddSubLayer();
 	void OnNewSubLayer();
 

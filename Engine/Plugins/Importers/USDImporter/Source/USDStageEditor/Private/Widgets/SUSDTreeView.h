@@ -88,7 +88,16 @@ template< typename ItemType >
 class SUsdTreeRow : public SMultiColumnTableRow< ItemType >
 {
 public:
+	typedef typename STableRow<ItemType>::FOnCanAcceptDrop FUsdOnCanAcceptDrop;
+	typedef typename STableRow<ItemType>::FOnAcceptDrop FUsdOnAcceptDrop;
+
 	SLATE_BEGIN_ARGS( SUsdTreeRow ) {}
+		SLATE_EVENT( FUsdOnCanAcceptDrop, OnCanAcceptDrop )
+		SLATE_EVENT( FUsdOnAcceptDrop, OnAcceptDrop )
+		SLATE_EVENT( FOnDragDetected, OnDragDetected )
+		SLATE_EVENT( FOnTableRowDragEnter, OnDragEnter )
+		SLATE_EVENT( FOnTableRowDragLeave, OnDragLeave )
+		SLATE_EVENT( FOnTableRowDrop, OnDrop )
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs, ItemType InTreeItem, const TSharedRef< STableViewBase >& OwnerTable, TSharedPtr< FSharedUsdTreeData > InSharedData )
@@ -96,7 +105,16 @@ public:
 		TreeItem = InTreeItem;
 		SharedData = InSharedData;
 
-		SMultiColumnTableRow< ItemType >::Construct( typename SMultiColumnTableRow< ItemType >::FArguments(), OwnerTable );
+		SMultiColumnTableRow< ItemType >::Construct(
+			typename SMultiColumnTableRow< ItemType >::FArguments()
+				.OnCanAcceptDrop( InArgs._OnCanAcceptDrop )
+				.OnAcceptDrop( InArgs._OnAcceptDrop )
+				.OnDragDetected( InArgs._OnDragDetected )
+				.OnDragEnter( InArgs._OnDragEnter )
+				.OnDragLeave( InArgs._OnDragLeave )
+				.OnDrop( InArgs._OnDrop ),
+			OwnerTable
+		);
 	}
 
 	/** Overridden from SMultiColumnTableRow.  Generates a widget for this column of the tree row. */

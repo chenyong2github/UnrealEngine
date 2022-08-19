@@ -72,12 +72,87 @@ namespace UE::UsdLayerUtilsImpl::Private
 	}
 }
 
-namespace UsdUtils
+FText UsdUtils::ToText( ECanInsertSublayerResult Result )
 {
-	std::string GetUESessionStateLayerDisplayName( const pxr::UsdStageRefPtr& Stage )
+	switch ( Result )
 	{
-		return pxr::SdfLayer::GetDisplayNameFromIdentifier( Stage->GetRootLayer()->GetIdentifier() ) + "-UE-session-state.usda";
+	default:
+	case ECanInsertSublayerResult::Success:
+		return FText::GetEmpty();
+		break;
+	case ECanInsertSublayerResult::ErrorSubLayerNotFound:
+		return LOCTEXT( "CanAddSubLayerNotFound", "SubLayer not found!" );
+		break;
+	case ECanInsertSublayerResult::ErrorSubLayerInvalid:
+		return LOCTEXT( "CanAddSubLayerInvalid", "SubLayer is invalid!" );
+		break;
+	case ECanInsertSublayerResult::ErrorSubLayerIsParentLayer:
+		return LOCTEXT( "CanAddSubLayerIsParent", "SubLayer is the same as the parent layer!" );
+		break;
+	case ECanInsertSublayerResult::ErrorCycleDetected:
+		return LOCTEXT( "CanAddSubLayerCycle", "Cycles detected!" );
+		break;
 	}
+}
+
+UsdUtils::ECanInsertSublayerResult UsdUtils::CanInsertSubLayer(
+	const pxr::SdfLayerRefPtr& ParentLayer,
+	const TCHAR* SubLayerIdentifier
+)
+{
+	if ( !SubLayerIdentifier )
+	{
+		return ECanInsertSublayerResult::ErrorSubLayerNotFound;
+	}
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::SdfLayerRefPtr SubLayer = pxr::SdfLayer::FindOrOpen( UnrealToUsd::ConvertString( SubLayerIdentifier ).Get() );
+	if ( !SubLayer )
+	{
+		return ECanInsertSublayerResult::ErrorSubLayerNotFound;
+	}
+
+	if ( SubLayer == ParentLayer )
+	{
+		return ECanInsertSublayerResult::ErrorSubLayerIsParentLayer;
+	}
+
+	// We can't climb through ancestors of ParentLayer, so we have to open sublayer and see if parentlayer is a
+	// descendant of *it* in order to detect cycles
+	TFunction< ECanInsertSublayerResult( const pxr::SdfLayerRefPtr& ) > CanAddSubLayerRecursive;
+	CanAddSubLayerRecursive = [ParentLayer, &CanAddSubLayerRecursive](
+		const pxr::SdfLayerRefPtr& CurrentParent
+	) -> ECanInsertSublayerResult
+	{
+		for ( const std::string& SubLayerPath : CurrentParent->GetSubLayerPaths() )
+		{
+			// This may seem expensive, but keep in mind the main use case for this (at least for now) is for checking
+			// during layer drag and drop, where all of these layers are actually already open anyway
+			pxr::SdfLayerRefPtr ChildSubLayer = pxr::SdfLayer::FindOrOpenRelativeToLayer(
+				CurrentParent,
+				SubLayerPath
+			);
+
+			if ( !ChildSubLayer )
+			{
+				return ECanInsertSublayerResult::ErrorSubLayerInvalid;
+			}
+
+			ECanInsertSublayerResult RecursiveResult = ChildSubLayer == ParentLayer
+				 ? ECanInsertSublayerResult::ErrorCycleDetected
+				 : CanAddSubLayerRecursive( ChildSubLayer );
+
+			if ( RecursiveResult != ECanInsertSublayerResult::Success )
+			{
+				return RecursiveResult;
+			}
+		}
+
+		return ECanInsertSublayerResult::Success;
+	};
+
+	return CanAddSubLayerRecursive( SubLayer );
 }
 
 bool UsdUtils::InsertSubLayer( const pxr::SdfLayerRefPtr& ParentLayer, const TCHAR* SubLayerFile, int32 Index, double OffsetTimeCodes, double TimeCodesScale )

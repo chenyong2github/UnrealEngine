@@ -521,6 +521,17 @@ namespace UE
 	}
 
 	template<typename PtrType>
+	void FSdfLayerBase<PtrType>::RemoveSubLayerPath( int32 Index )
+	{
+#if USE_USD_SDK
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			Ptr->RemoveSubLayerPath( Index );
+		}
+#endif // #if USE_USD_SDK
+	}
+
+	template<typename PtrType>
 	void FSdfLayerBase<PtrType>::SetFramesPerSecond( double FramesPerSecond )
 	{
 #if USE_USD_SDK

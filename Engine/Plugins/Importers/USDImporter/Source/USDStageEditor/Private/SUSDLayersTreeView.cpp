@@ -4,13 +4,16 @@
 
 #include "SUSDStageEditorStyle.h"
 #include "USDClassesModule.h"
+#include "USDDragDropOp.h"
 #include "USDLayersViewModel.h"
 #include "USDLayerUtils.h"
+#include "USDLog.h"
 #include "USDMemory.h"
 #include "USDProjectSettings.h"
 #include "USDStageActor.h"
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
+#include "UsdWrappers/SdfChangeBlock.h"
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/UsdStage.h"
 
@@ -23,6 +26,7 @@
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateIconFinder.h"
 #include "Styling/SlateTypes.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/Images/SImage.h"
@@ -268,9 +272,560 @@ void SUsdLayersTreeView::Refresh( AUsdStageActor* UsdStageActor, bool bResync )
 	RequestTreeRefresh();
 }
 
+FReply SUsdLayersTreeView::OnRowDragDetected( const FGeometry& Geometry, const FPointerEvent& PointerEvent )
+{
+	TArray<FUsdLayerViewModelRef> Items = GetSelectedItems();
+
+	TSet<TSharedRef<IUsdTreeViewItem>> DraggedItems;
+	DraggedItems.Reserve( Items.Num() );
+
+	for ( const FUsdLayerViewModelRef& Item : Items )
+	{
+		// Don't let a drag operation begin if we're dragging the root or session layer
+		if ( Item->ParentItem == nullptr )
+		{
+			return FReply::Unhandled();
+		}
+
+		DraggedItems.Add( Item );
+	}
+
+	const FSlateBrush* Icon = FAppStyle::GetBrush( TEXT( "Layer.Icon16x" ) );
+	FText DefaultHoverText = DraggedItems.Num() == 1
+		? FText::Format(
+			LOCTEXT( "DefaultTextSingle", "USD layer '{0}'" ),
+			FText::FromString( StaticCastSharedRef<FUsdLayerViewModel>( *DraggedItems.CreateConstIterator() )->LayerIdentifier )
+		)
+		: FText::Format( LOCTEXT( "DefaultTextMultiple", "{0} USD layers" ), DraggedItems.Num() );
+
+	TSharedRef<FUsdDragDropOp> Op = MakeShared<FUsdDragDropOp>();
+	Op->OpType = EUsdDragDropOpType::Layers;
+	Op->DraggedItems = DraggedItems;
+	Op->SetToolTip( DefaultHoverText, Icon );
+	Op->SetupDefaults();
+	Op->Construct();  // Required to initialize the little window that shows tooltips
+
+	return FReply::Handled().BeginDragDrop( Op );
+}
+
+void SUsdLayersTreeView::OnRowDragLeave( const FDragDropEvent& Event )
+{
+	if ( TSharedPtr<FUsdDragDropOp> Op = Event.GetOperationAs<FUsdDragDropOp>() )
+	{
+		Op->ResetToDefaultToolTip();
+	}
+}
+
+namespace UE::USDLayersTreeViewImpl::Private
+{
+	// Checks if we can add all of our dragged layers as sublayers to Parent
+	UsdUtils::ECanInsertSublayerResult CanAddAsSubLayers(
+		const UE::FSdfLayer& Parent,
+		const TSet<TSharedRef<IUsdTreeViewItem>>& SubLayerItems
+	)
+	{
+		for ( const TSharedRef<IUsdTreeViewItem>& Item : SubLayerItems )
+		{
+			const FUsdLayerViewModelRef& SubLayerItem = StaticCastSharedRef<FUsdLayerViewModel>( Item );
+
+			UsdUtils::ECanInsertSublayerResult Result = UsdUtils::CanInsertSubLayer(
+				Parent,
+				*SubLayerItem->LayerIdentifier
+			);
+
+			if ( Result != UsdUtils::ECanInsertSublayerResult::Success )
+			{
+				return Result;
+			}
+		}
+
+		return UsdUtils::ECanInsertSublayerResult::Success;
+	}
+
+	// Checks if this operation would effectively do nothing
+	bool IsNoOp(
+		const TArray< FUsdLayerViewModelRef >& ExistingItems,
+		const TSet< TSharedRef<IUsdTreeViewItem> >& DraggedItems,
+		int32 TargetItemIndex,
+		EItemDropZone DropZone
+	)
+	{
+		switch ( DropZone )
+		{
+			case EItemDropZone::AboveItem:
+			{
+				ensure( TargetItemIndex != INDEX_NONE );
+
+				// If dropped, we'll add the layers before the target index within ExistingItems, so here we just have
+				// to check if the previous items of ExistingItems (before the target) are the ones we're dragging
+
+				// We have dragged more items than there are items after the target, so there is
+				// no way this can be a no-op
+				if ( DraggedItems.Num() > TargetItemIndex )
+				{
+					return false;
+				}
+
+				// See if all the items immediately before the target are the same as the ones we're
+				// dragging
+				TSet<FUsdLayerViewModelRef> UniqueItemsBeforeTarget;
+				for ( int32 Index = TargetItemIndex - 1; Index >= 0; --Index )
+				{
+					const FUsdLayerViewModelRef& OtherItem = ExistingItems[ Index ];
+
+					if ( DraggedItems.Contains( OtherItem ) )
+					{
+						UniqueItemsBeforeTarget.Add( OtherItem );
+					}
+					else
+					{
+						// We found something else other than the dragged items
+						break;
+					}
+				}
+
+				// This means there is another item before the target that is *not* something we dragged:
+				// That means we're dragging something that is not immediately after the target, so
+				// this operation would actually do something
+				if ( UniqueItemsBeforeTarget.Num() < DraggedItems.Num() )
+				{
+					return false;
+				}
+				break;
+			}
+			case EItemDropZone::BelowItem:
+			{
+				ensure( TargetItemIndex != INDEX_NONE );
+
+				// If dropped, we'll add the layers after the target index within ExistingItems, so here we just have
+				// to check if the next items of ExistingItems (after the target) are the ones we're dragging
+
+				// We have dragged more items than there are items after the target, so there is
+				// no way this can be a no-op
+				if ( DraggedItems.Num() > ExistingItems.Num() - TargetItemIndex - 1 )
+				{
+					return false;
+				}
+
+				// See if all the items immediately after the target are the same as the ones we're
+				// dragging
+				TSet<FUsdLayerViewModelRef> UniqueItemsAfterTarget;
+				for ( int32 Index = TargetItemIndex + 1; Index < ExistingItems.Num(); ++Index )
+				{
+					const FUsdLayerViewModelRef& OtherItem = ExistingItems[ Index ];
+
+					if ( DraggedItems.Contains( OtherItem ) )
+					{
+						UniqueItemsAfterTarget.Add( OtherItem );
+					}
+					else
+					{
+						// We found something else other than the dragged items
+						break;
+					}
+				}
+
+				// This means there is another item after the target that is *not* something we dragged:
+				// That means we're dragging something that is not immediately after the target, so
+				// this operation would actually do something
+				if ( UniqueItemsAfterTarget.Num() < DraggedItems.Num() )
+				{
+					return false;
+				}
+				break;
+			}
+			case EItemDropZone::OntoItem:
+			{
+				// If dropped, we add the layers at then end of the sublayer list, so here we just
+				// have to check if the last items of the sublayer list are the ones we're dragging
+
+				if ( DraggedItems.Num() > ExistingItems.Num() )
+				{
+					return false;
+				}
+
+				// See if the last ExistingItems are the same as the ones we're dragging
+				TSet<FUsdLayerViewModelRef> UniqueExistingItemsTail;
+				for ( int32 Index = ExistingItems.Num() - 1; Index >= 0; --Index )
+				{
+					const FUsdLayerViewModelRef& OtherItem = ExistingItems[ Index ];
+
+					if ( DraggedItems.Contains( OtherItem ) )
+					{
+						UniqueExistingItemsTail.Add( OtherItem );
+					}
+					else
+					{
+						// We found something else other than the dragged items
+						break;
+					}
+				}
+
+				// This means there is another item at the end of ExistingItems that is *not* something we dragged:
+				// That means we're dragging something that is not already at the end of ExistingITems, and so that
+				// this operation would actually do something
+				if ( UniqueExistingItemsTail.Num() < DraggedItems.Num() )
+				{
+					return false;
+				}
+
+				break;
+			}
+			default:
+			{
+				return false;
+				break;
+			}
+		}
+
+		return true;
+	}
+}
+
+TOptional<EItemDropZone> SUsdLayersTreeView::OnRowCanAcceptDrop( const FDragDropEvent& Event, EItemDropZone Zone, FUsdLayerViewModelRef Item )
+{
+	using namespace UE::USDLayersTreeViewImpl::Private;
+
+	TOptional<EItemDropZone> Result;
+	if ( TSharedPtr<FUsdDragDropOp> Op = Event.GetOperationAs<FUsdDragDropOp>() )
+	{
+		FText NewHoverText;
+		const FSlateBrush* NewHoverIcon = nullptr;
+		const int32 NumItems = Op->DraggedItems.Num();
+		bool bResetToDefaultAndBlockOp = false;
+
+		if ( Op->OpType == EUsdDragDropOpType::Layers && NumItems > 0 )
+		{
+			// Don't accept dropping onto one of the currently dragged layers
+			for ( const TSharedRef<IUsdTreeViewItem>& DraggedItem : Op->DraggedItems )
+			{
+				if ( StaticCastSharedRef<FUsdLayerViewModel>( DraggedItem ) == Item )
+				{
+					bResetToDefaultAndBlockOp = true;
+					break;
+				}
+			}
+
+			if ( !bResetToDefaultAndBlockOp )
+			{
+				// Special case when hovering the root/session layer. We can only add as sublayers here, as we don't
+				// support swapping root/session layers or having multiple of them
+				// (USD doesn't either... that would be more like reopening a stage?)
+				if ( Item->ParentItem == nullptr )
+				{
+					Zone = EItemDropZone::OntoItem;
+				}
+
+				FUsdLayerViewModel* ParentItem = nullptr;
+				FText MessageEnd;
+				switch ( Zone )
+				{
+					case EItemDropZone::AboveItem:
+					{
+						ParentItem = Item->ParentItem;
+						MessageEnd = FText::Format(
+							LOCTEXT(
+								"DropAboveMessageEnd",
+								", before '{0}'"
+							),
+							FText::FromString( FPaths::GetCleanFilename( Item->LayerIdentifier ) )
+						);
+						break;
+					}
+					case EItemDropZone::BelowItem:
+					{
+						ParentItem = Item->ParentItem;
+						MessageEnd = FText::Format(
+							LOCTEXT(
+								"DropBelowMessageEnd",
+								", after '{0}'"
+							),
+							FText::FromString( FPaths::GetCleanFilename( Item->LayerIdentifier ) )
+						);
+						break;
+					}
+					default:
+					case EItemDropZone::OntoItem:
+					{
+						ParentItem = &Item.Get();
+						MessageEnd = FText::GetEmpty();
+						break;
+					}
+				}
+
+				const UsdUtils::ECanInsertSublayerResult CanAddResult = CanAddAsSubLayers(
+					ParentItem->GetLayer(),
+					Op->DraggedItems
+				);
+
+				// Find the index of the hovered item within its parent, so we know where to insert the dragged layers
+				// into. We don't need this for the EItemDropZone::OntoItem case as we always append them at the end
+				int32 ItemIndexInParent = INDEX_NONE;
+				if ( CanAddResult == UsdUtils::ECanInsertSublayerResult::Success && Zone != EItemDropZone::OntoItem )
+				{
+					for ( int32 Index = 0; Index < ParentItem->Children.Num(); ++Index )
+					{
+						const FUsdLayerViewModelRef& SiblingItem = ParentItem->Children[ Index ];
+						if ( SiblingItem == Item )
+						{
+							ItemIndexInParent = Index;
+							break;
+						}
+					}
+				}
+
+				// We can't allow duplicate sublayers on the same list, so here we need to check if
+				// ParentItem->Children has any item with an identifier that matches one in dragged items list *without
+				// being one of the dragged items itself*.
+				// We have to check for this particular error here and not within CanAddAsSubLayers because
+				// we need the actual tree view items.
+				bool bHasDuplicateLayer = false;
+				if ( CanAddResult == UsdUtils::ECanInsertSublayerResult::Success )
+				{
+					TSet<FString> DraggedItemIdentifiers;
+					DraggedItemIdentifiers.Reserve( Op->DraggedItems.Num() );
+					for ( const TSharedRef<IUsdTreeViewItem>& DraggedItem : Op->DraggedItems )
+					{
+						const FUsdLayerViewModelRef& DraggedLayerItem =
+							StaticCastSharedRef<FUsdLayerViewModel>( DraggedItem );
+
+						DraggedItemIdentifiers.Add( DraggedLayerItem->LayerIdentifier );
+					}
+
+					for ( const FUsdLayerViewModelRef& SiblingItem : ParentItem->Children )
+					{
+						if ( !Op->DraggedItems.Contains( StaticCastSharedRef<IUsdTreeViewItem>( SiblingItem ) )
+							&& DraggedItemIdentifiers.Contains( SiblingItem->LayerIdentifier ) )
+						{
+							bHasDuplicateLayer = true;
+							break;
+						}
+					}
+				}
+
+				const FText ErrorMessage = bHasDuplicateLayer
+					? LOCTEXT( "CanDropDuplicate_Text", "Cannot add duplicate SubLayer!" )
+					: UsdUtils::ToText( CanAddResult );
+
+				const bool bIsNoOp = !bHasDuplicateLayer
+					&& CanAddResult == UsdUtils::ECanInsertSublayerResult::Success
+					&& IsNoOp(
+						ParentItem->Children,
+						Op->DraggedItems,
+						ItemIndexInParent,
+						Zone
+					);
+
+				// Drag and drop would do nothing
+				if ( bIsNoOp )
+				{
+					bResetToDefaultAndBlockOp = true;
+				}
+				// Drag and drop cannot be performed for some reason
+				else if ( bHasDuplicateLayer || CanAddResult != UsdUtils::ECanInsertSublayerResult::Success )
+				{
+					NewHoverText = FText::Format(
+						LOCTEXT(
+							"CanDropError_Text",
+							"Cannot add dragged {0}|plural(one=layer,other=layers) as {0}|plural(one=sublayer,other=sublayers) of '{1}': {2}"
+						),
+						NumItems,
+						FText::FromString( FPaths::GetCleanFilename( ParentItem->LayerIdentifier ) ),
+						ErrorMessage
+					);
+				}
+				// Can drop the one dragged layer
+				else if ( NumItems == 1 )
+				{
+					FString FirstDraggedLayer = FPaths::GetCleanFilename(
+						StaticCastSharedRef<FUsdLayerViewModel>(
+							*Op->DraggedItems.CreateConstIterator()
+						)->LayerIdentifier
+					);
+
+					NewHoverText = FText::Format(
+						LOCTEXT(
+							"CanDropSingle_Text",
+							"Add layer '{0}' as a sublayer of '{1}'{2}"
+						),
+						FText::FromString( FirstDraggedLayer ),
+						FText::FromString( FPaths::GetCleanFilename( ParentItem->LayerIdentifier ) ),
+						MessageEnd
+					);
+
+					Result = { Zone };
+				}
+				// Can drop multiple dragged layers
+				else
+				{
+					NewHoverText = FText::Format(
+						LOCTEXT(
+							"CanDropMultiple_Text",
+							"Add {0} layers as sublayers of '{1}'{2}"
+						),
+						NumItems,
+						FText::FromString( FPaths::GetCleanFilename( ParentItem->LayerIdentifier ) ),
+						MessageEnd
+					);
+
+					Result = { Zone };
+				}
+			}
+		}
+		else
+		{
+			NewHoverText = LOCTEXT(
+				"CanDropUnsupported_Text",
+				"Can only drag and drop layers for now"
+			);
+		}
+
+		if ( bResetToDefaultAndBlockOp )
+		{
+			Op->ResetToDefaultToolTip();
+			Result.Reset();
+		}
+		else
+		{
+			NewHoverIcon = FAppStyle::GetBrush( Result.IsSet()
+				? TEXT( "Graph.ConnectorFeedback.Ok" )
+				: TEXT( "Graph.ConnectorFeedback.Error" )
+			);
+
+			Op->SetToolTip( NewHoverText, NewHoverIcon );
+		}
+	}
+
+	return Result;
+}
+
+FReply SUsdLayersTreeView::OnRowAcceptDrop( const FDragDropEvent& Event, EItemDropZone Zone, FUsdLayerViewModelRef Item )
+{
+	// This doesn't work very well USD-wise yet, and I don't know how we can possibly undo/redo layer reassignments
+	// like this. We do need a transaction though, as this may trigger the creation or deletion of UObjects
+	FScopedTransaction Transaction( LOCTEXT( "OnAcceptDropTransaction", "Drop dragged USD layers" ) );
+
+	if ( TSharedPtr<FUsdDragDropOp> Op = Event.GetOperationAs<FUsdDragDropOp>() )
+	{
+		// Only accept layers for now
+		const int32 NumItems = Op->DraggedItems.Num();
+		if ( Op->OpType == EUsdDragDropOpType::Layers && NumItems > 0 )
+		{
+			UE::FSdfChangeBlock ChangeBlock;
+
+			// Make sure our layers aren't closed by USD between us removing them and readding
+			TArray<UE::FSdfLayer> LayerPins;
+			LayerPins.Reserve( Op->DraggedItems.Num() );
+
+			// Remove the dragged items from their parents before we even fetch where to insert them into as this will
+			// affect the target indices
+			for ( const TSharedRef<IUsdTreeViewItem>& DraggedItem : Op->DraggedItems )
+			{
+				const FUsdLayerViewModelRef& LayerItem = StaticCastSharedRef<FUsdLayerViewModel>( DraggedItem );
+				UE::FSdfLayer LayerPin = LayerItem->GetLayer();
+				LayerPins.Add( LayerPin );
+
+				// We are only allowed to drag off things that have parents: There would never be anywhere to add the
+				// root/session layer into as that would create loops/strange situations
+				FUsdLayerViewModel* OldParent = LayerItem->ParentItem;
+				if ( ensure( OldParent ) )
+				{
+					if ( UE::FSdfLayer OldParentLayer = OldParent->GetLayer() )
+					{
+						int32 OldIndex = OldParent->Children.IndexOfByKey( LayerItem->AsShared() );
+						ensure( OldIndex != INDEX_NONE );
+
+						OldParentLayer.RemoveSubLayerPath( OldIndex );
+
+						// If we have dragged multiple items, the upcoming insertion of this item may affect all the
+						// other removals indices too, so we need to make sure our widgets are up-to-date. They won't
+						// be updated on the next iteration of this loop even if we remove the outer FSdfChangeBlock,
+						// as the resync would end up creating a new batch of widgets anyway
+						OldParent->Children.RemoveAt( OldIndex );
+					}
+				}
+			}
+
+			UE::FSdfLayer ParentLayer;
+			int32 TargetSubLayerIndex = INDEX_NONE;
+			switch ( Zone )
+			{
+				case EItemDropZone::AboveItem:
+				{
+					// Here we'll add the dragged items as siblings of Item, before it
+
+					FUsdLayerViewModel* ParentItem = Item->ParentItem;
+					if ( ensure( ParentItem ) )
+					{
+						ParentLayer = ParentItem->GetLayer();
+						TargetSubLayerIndex = ParentItem->Children.IndexOfByKey( Item );
+						ensure( TargetSubLayerIndex != INDEX_NONE );
+					}
+					break;
+				}
+				case EItemDropZone::BelowItem:
+				{
+					// Here we'll add the dragged items as siblings of Item, after it
+
+					FUsdLayerViewModel* ParentItem = Item->ParentItem;
+					if ( ensure( ParentItem ) )
+					{
+						ParentLayer = ParentItem->GetLayer();
+						TargetSubLayerIndex = ParentItem->Children.IndexOfByKey( Item );
+						ensure( TargetSubLayerIndex != INDEX_NONE );
+					}
+					break;
+				}
+				default:
+				case EItemDropZone::OntoItem:
+				{
+					// Just add the dragged items as children of Item, at the end of its list of children
+
+					ParentLayer = Item->GetLayer();
+					break;
+				}
+			}
+
+			for ( const TSharedRef<IUsdTreeViewItem>& DraggedItem : Op->DraggedItems )
+			{
+				const FUsdLayerViewModelRef& LayerItem = StaticCastSharedRef<FUsdLayerViewModel>( DraggedItem );
+				UE::FSdfLayer LayerPin = LayerItem->GetLayer();
+
+				const bool bInserted = UsdUtils::InsertSubLayer(
+					ParentLayer,
+					*LayerPin.GetIdentifier(),
+					Zone == EItemDropZone::OntoItem
+						? -1 // Always at the end
+						: Zone == EItemDropZone::AboveItem
+							? TargetSubLayerIndex++
+							: ++TargetSubLayerIndex
+				);
+
+				if ( !bInserted )
+				{
+					UE_LOG( LogUsd, Warning, TEXT( "Failed to insert layer '%s' as a sublayer of '%s' at index '%d'" ),
+						*LayerPin.GetIdentifier(),
+						*ParentLayer.GetIdentifier(),
+						TargetSubLayerIndex
+					);
+				}
+
+			}
+
+			return FReply::Handled();
+		}
+	}
+
+	return FReply::Unhandled();
+}
+
 TSharedRef< ITableRow > SUsdLayersTreeView::OnGenerateRow( FUsdLayerViewModelRef InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable )
 {
-	return SNew( SUsdTreeRow< FUsdLayerViewModelRef >, InDisplayNode, OwnerTable, SharedData );
+	return SNew( SUsdTreeRow< FUsdLayerViewModelRef >, InDisplayNode, OwnerTable, SharedData )
+		.OnDragDetected( this, &SUsdLayersTreeView::OnRowDragDetected )
+		.OnDragLeave( this, &SUsdLayersTreeView::OnRowDragLeave )
+		.OnCanAcceptDrop( this, &SUsdLayersTreeView::OnRowCanAcceptDrop )
+		.OnAcceptDrop( this, &SUsdLayersTreeView::OnRowAcceptDrop );
 }
 
 void SUsdLayersTreeView::OnGetChildren( FUsdLayerViewModelRef InParent, TArray< FUsdLayerViewModelRef >& OutChildren ) const
@@ -382,7 +937,7 @@ TSharedPtr< SWidget > SUsdLayersTreeView::ConstructLayerContextMenu()
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdLayersTreeView::OnAddSubLayer ),
-				FCanExecuteAction::CreateSP( this, &SUsdLayersTreeView::CanAddSubLayer )
+				FCanExecuteAction::CreateSP( this, &SUsdLayersTreeView::CanInsertSubLayer )
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -394,7 +949,7 @@ TSharedPtr< SWidget > SUsdLayersTreeView::ConstructLayerContextMenu()
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdLayersTreeView::OnNewSubLayer ),
-				FCanExecuteAction::CreateSP( this, &SUsdLayersTreeView::CanAddSubLayer )
+				FCanExecuteAction::CreateSP( this, &SUsdLayersTreeView::CanInsertSubLayer )
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -706,7 +1261,7 @@ void SUsdLayersTreeView::OnExportSelectedLayers() const
 	}
 }
 
-bool SUsdLayersTreeView::CanAddSubLayer() const
+bool SUsdLayersTreeView::CanInsertSubLayer() const
 {
 	return GetSelectedItems().Num() > 0;
 }

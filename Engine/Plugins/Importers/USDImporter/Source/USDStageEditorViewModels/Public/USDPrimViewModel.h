@@ -30,7 +30,7 @@ public:
 	bool bIsVisible = true;
 };
 
-class USDSTAGEEDITORVIEWMODELS_API FUsdPrimViewModel : public IUsdTreeViewItem, public TSharedFromThis< FUsdPrimViewModel >
+class USDSTAGEEDITORVIEWMODELS_API FUsdPrimViewModel : public IUsdTreeViewItem
 {
 public:
 	FUsdPrimViewModel( FUsdPrimViewModel* InParentItem, const UE::FUsdStageWeak& InUsdStage, const UE::FUsdPrim& InUsdPrim );

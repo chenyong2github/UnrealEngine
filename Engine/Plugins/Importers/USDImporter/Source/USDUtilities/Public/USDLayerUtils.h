@@ -46,16 +46,42 @@ namespace UsdUtils
 		Save
 	};
 
+	enum class ECanInsertSublayerResult
+	{
+		Success,
+		ErrorSubLayerNotFound,
+		ErrorSubLayerInvalid,
+		ErrorSubLayerIsParentLayer,
+		ErrorCycleDetected,
+	};
+	USDUTILITIES_API FText ToText( ECanInsertSublayerResult Result );
+
+	/**
+	 * Checks whether we can add SubLayerIdentifier as a sublayer to ParentLayer.
+	 * The index is actually not relevant.
+	 */
+	USDUTILITIES_API ECanInsertSublayerResult CanInsertSubLayer(
+		const pxr::SdfLayerRefPtr& ParentLayer,
+		const TCHAR* SubLayerIdentifier
+	);
+
 	/**
 	 * Inserts the SubLayerFile path into ParentLayer as a sublayer
 	 * @param ParentLayer - Layer to receive the new sublayer entry
 	 * @param SubLayerFile - Absolute path to a usd file to use as sublayer
-	 * @param Index - Zero-based index on the list of ParentLayer's sublayers list to insert the new sublayer. -1 means "at the end" (the default)
+	 * @param Index - Zero-based index on the list of ParentLayer's sublayers list to insert the new sublayer.
+					  -1 means "at the end" (the default)
 	 * @param OffsetTimeCodes - Offset in USD time codes to use for the sublayer reference
 	 * @param TimeCodesScale - Scale to use for the sublayer reference
 	 * @return Whether the sublayer reference was added successfully or not
 	 */
-	USDUTILITIES_API bool InsertSubLayer( const pxr::SdfLayerRefPtr& ParentLayer, const TCHAR* SubLayerFile, int32 Index = -1, double OffsetTimeCodes = 0.0, double TimeCodesScale = 1.0 );
+	USDUTILITIES_API bool InsertSubLayer(
+		const pxr::SdfLayerRefPtr& ParentLayer,
+		const TCHAR* SubLayerFile,
+		int32 Index = -1,
+		double OffsetTimeCodes = 0.0,
+		double TimeCodesScale = 1.0
+	);
 
 #if WITH_EDITOR
 	/** Opens a file dialog to open or save a USD file. The returned file path will always be absolute */

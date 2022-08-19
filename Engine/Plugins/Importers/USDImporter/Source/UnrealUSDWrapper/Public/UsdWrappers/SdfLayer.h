@@ -121,6 +121,7 @@ namespace UE
 
 		bool HasFramesPerSecond() const;
 		double GetFramesPerSecond() const;
+		void RemoveSubLayerPath( int32 Index );
 		void SetFramesPerSecond( double FramesPerSecond );
 
 		int64 GetNumSubLayerPaths() const;
