@@ -31,6 +31,7 @@
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SGridPanel.h"
@@ -1076,6 +1077,80 @@ void FOptimusSourceDetailsCustomization::OnTextChanged(const FText& InValue)
 }
 
 
+FOptimusComponentSourceBindingDetailsCustomization::FOptimusComponentSourceBindingDetailsCustomization()
+{
+}
+
+TSharedRef<IDetailCustomization> FOptimusComponentSourceBindingDetailsCustomization::MakeInstance()
+{
+	return MakeShareable(new FOptimusComponentSourceBindingDetailsCustomization);
+}
+
+void FOptimusComponentSourceBindingDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
+	DetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
+	if (ObjectsBeingCustomized.Num() > 1)
+	{
+		return;
+	}
+	OptimusSourceBinding = Cast<UOptimusComponentSourceBinding>(ObjectsBeingCustomized[0].Get());
+	if (OptimusSourceBinding == nullptr)
+	{
+		return;
+	}
+
+	// Collect and sort ComponentSources for combo box.
+	UOptimusComponentSource* CurrentSource = OptimusSourceBinding->ComponentType->GetDefaultObject<UOptimusComponentSource>();
+	TSharedPtr<FString> CurrentSelection;
+	for (const UOptimusComponentSource* Source : UOptimusComponentSource::GetAllSources())
+	{
+		if (!OptimusSourceBinding->IsPrimaryBinding() || Source->IsUsableAsPrimarySource())
+		{
+			TSharedPtr<FString> SourceName = MakeShared<FString>(Source->GetDisplayName().ToString());
+			if (Source == CurrentSource)
+			{
+				CurrentSelection = SourceName;
+			}
+			ComponentSources.Add(SourceName);
+		}
+	}
+	Algo::Sort(ComponentSources, [](TSharedPtr<FString> ItemA, TSharedPtr<FString> ItemB)
+	{
+		return ItemA->Compare(*ItemB) < 0;
+	});
+
+	TSharedRef<IPropertyHandle> SourcePropertyHandle = DetailBuilder.GetProperty(TEXT("ComponentType"));
+	DetailBuilder.EditDefaultProperty(SourcePropertyHandle)->ShowPropertyButtons(false)
+	.CustomWidget()
+	.OverrideResetToDefault(FResetToDefaultOverride::Hide())
+	.NameContent()
+	[
+		SourcePropertyHandle->CreatePropertyNameWidget()
+	]
+	.ValueContent()
+	[
+		SNew(STextComboBox)
+			.OptionsSource(&ComponentSources)
+			.InitiallySelectedItem(CurrentSelection)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.OnSelectionChanged(this, &FOptimusComponentSourceBindingDetailsCustomization::ComponentSourceChanged)
+	];
+}
+
+void FOptimusComponentSourceBindingDetailsCustomization::ComponentSourceChanged(TSharedPtr<FString> Selection, ESelectInfo::Type SelectInfo)
+{
+	for (const UOptimusComponentSource* Source : UOptimusComponentSource::GetAllSources())
+	{
+		if (*Selection == Source->GetDisplayName().ToString())
+		{
+			UOptimusDeformer* Deformer = OptimusSourceBinding->GetOwningDeformer();
+			Deformer->SetComponentBindingSource(OptimusSourceBinding, Source);
+			return;
+		}
+	}
+}
+
 
 TSharedRef<IPropertyTypeCustomization> FOptimusDeformerInstanceComponentBindingCustomization::MakeInstance()
 {
@@ -1141,7 +1216,7 @@ void FOptimusDeformerInstanceComponentBindingCustomization::CustomizeHeader(
 	.ValueContent()
 	[
 		SNew(SComboBox<FComponentHandle>)
-		.IsEnabled(Binding && !Binding->IsPrimaryBinding())
+		.IsEnabled(Binding)
 		.OptionsSource(&ComponentHandles)
 		.InitiallySelectedItem(SelectedComponentHandle)
 		.OnGenerateWidget_Lambda([](const FComponentHandle InComponentHandle)

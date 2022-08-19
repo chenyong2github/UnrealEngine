@@ -35,6 +35,9 @@ public:
 	virtual TArray<FName> GetExecutionContexts() const
 	PURE_VIRTUAL(UOptimusComponentSource::GetExecutionContexts, return {}; );
 
+	/** Returns true if the source can be used by primary bindings. */
+	bool IsUsableAsPrimarySource() const;
+
 	// TODO: Component color for additional indicator wire.
 
 	/** Returns all registered component source objects */
@@ -59,11 +62,11 @@ public:
 	UOptimusDeformer* GetOwningDeformer() const;
 
 	/** The name to give the binding, to disambiguate it from other bindings of same component type. */
-	UPROPERTY(EditAnywhere, Category=Binding)
+	UPROPERTY(EditAnywhere, Category=Binding, meta = (EditCondition = "!bIsPrimaryBinding", HideEditConditionToggle))
 	FName BindingName;
 
 	/** The component type that this binding applies to */
-	UPROPERTY(EditAnywhere, Category=Binding, meta=(EditCondition="!bIsPrimaryBinding", HideEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category=Binding)
 	TSubclassOf<UOptimusComponentSource> ComponentType;
 	
 	/** Component tags to automatically bind this component binding to. */
@@ -71,6 +74,8 @@ public:
 	TArray<FName> ComponentTags;
 
 	bool IsPrimaryBinding() const { return bIsPrimaryBinding; }
+
+	static FName GetPrimaryBindingName();
 
 	const UOptimusComponentSource* GetComponentSource() const; 
 
@@ -85,6 +90,8 @@ protected:
 	
 	UPROPERTY()
 	bool bIsPrimaryBinding = false;
+
+	static const FName PrimaryBindingName;
 
 private:
 #if WITH_EDITORONLY_DATA

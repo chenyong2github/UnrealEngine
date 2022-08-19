@@ -3,6 +3,7 @@
 #include "OptimusDeformerFactory.h"
 
 #include "AssetTypeCategories.h"
+#include "OptimusComponentSource.h"
 #include "OptimusDeformer.h"
 
 
@@ -25,7 +26,7 @@ UObject* UOptimusDeformerFactory::FactoryCreateNew(
 	UOptimusDeformer* Deformer = NewObject<UOptimusDeformer>(InParent, InClass, InName, InFlags);
 	
 	// Create a default primary binding.
-	Deformer->AddComponentBinding(nullptr);
+	Deformer->AddComponentBinding(nullptr, UOptimusComponentSourceBinding::GetPrimaryBindingName());
 
 	return Deformer;
 }

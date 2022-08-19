@@ -14,6 +14,7 @@ class SExpandableArea;
 class SMultiLineEditableText;
 class SOptimusShaderTextDocumentTextBox;
 class SScrollBar;
+class UOptimusComponentSourceBinding;
 class UOptimusSource;
 
 
@@ -302,6 +303,31 @@ private:
 	FText GetText() const;
 	void OnTextChanged(const FText& InValue);
 };
+
+
+/** UI customization for UOptimusComponentSourceBinding */
+class FOptimusComponentSourceBindingDetailsCustomization : public IDetailCustomization
+{
+public:
+	static TSharedRef<IDetailCustomization> MakeInstance();
+
+protected:
+	FOptimusComponentSourceBindingDetailsCustomization();
+
+	//~ Begin IDetailCustomization Interface.
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	//~ End IDetailCustomization Interface.
+
+	/** Handle combo box selection. */
+	void ComponentSourceChanged(TSharedPtr<FString> Selection, ESelectInfo::Type SelectInfo);
+
+private:
+	/** SourceBinding being edited. */
+	UOptimusComponentSourceBinding* OptimusSourceBinding = nullptr;
+	/** Array of combo box entries. */
+	TArray<TSharedPtr<FString>> ComponentSources;
+};
+
 
 /** UI customization for FOptimusDeformerInstanceComponentBinding */
 class FOptimusDeformerInstanceComponentBindingCustomization :

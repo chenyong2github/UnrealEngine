@@ -127,12 +127,15 @@ public:
 		TSharedPtr<FString> CurrentSelection;
 		for (const UOptimusComponentSource* Source: UOptimusComponentSource::GetAllSources())
 		{
-			TSharedPtr<FString> SourceName = MakeShared<FString>(Source->GetDisplayName().ToString());
-			if (Source == CurrentSource)
+			if (!InBinding->IsPrimaryBinding() || Source->IsUsableAsPrimarySource())
 			{
-				CurrentSelection = SourceName;
+				TSharedPtr<FString> SourceName = MakeShared<FString>(Source->GetDisplayName().ToString());
+				if (Source == CurrentSource)
+				{
+					CurrentSelection = SourceName;
+				}
+				ComponentSources.Add(SourceName);
 			}
-			ComponentSources.Add(SourceName);
 		}
 		Algo::Sort(ComponentSources, [](TSharedPtr<FString> ItemA, TSharedPtr<FString> ItemB)
 		{
@@ -149,14 +152,7 @@ public:
 				.OnSelectionChanged(this, &SBindingSourceSelectorHelper::ComponentSourceChanged)
 		];
 
-		if (InBinding->IsPrimaryBinding())
-		{
-			SetEnabled(false);
-		}
-		else
-		{
-			SetEnabled(TAttribute<bool>::Create([bInEnabled]() { return !bInEnabled.Get(); }));
-		}
+		SetEnabled(TAttribute<bool>::Create([bInEnabled]() { return !bInEnabled.Get(); }));
 	}
 
 private:
@@ -177,7 +173,6 @@ private:
 	
 	TArray<TSharedPtr<FString>> ComponentSources;
 	
-	
 	TWeakObjectPtr<UOptimusComponentSourceBinding> WeakBinding;
 };
 
@@ -194,15 +189,6 @@ void SOptimusEditorGraphExplorerItem::Construct(
 
 	TWeakPtr<FEdGraphSchemaAction> WeakGraphAction = GraphAction;
 	const bool bIsReadOnlyCreate = InCreateData->bIsReadOnly;
-	auto IsReadOnlyLambda = [WeakGraphAction, InOptimusEditor, bIsReadOnlyCreate]()
-	{
-		if (WeakGraphAction.IsValid() && InOptimusEditor.IsValid())
-		{
-		}
-
-		return bIsReadOnlyCreate;
-	};
-	TAttribute<bool> bIsReadOnly = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(IsReadOnlyLambda));
 
 	FSlateFontInfo NameFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
 
@@ -214,14 +200,14 @@ void SOptimusEditorGraphExplorerItem::Construct(
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
-				CreateIconWidget(InCreateData, bIsReadOnly)
+				CreateIconWidget(InCreateData, bIsReadOnlyCreate)
 			]
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.f)
 			.VAlign(VAlign_Center)
 			.Padding(/* horizontal */ 3.0f, /* vertical */ 0.0f)
 			[
-				CreateTextSlotWidget(InCreateData, bIsReadOnly )
+				CreateTextSlotWidget(InCreateData, bIsReadOnlyCreate)
 			]		
 		];	
 	}
@@ -240,12 +226,12 @@ void SOptimusEditorGraphExplorerItem::Construct(
 			.VAlign(VAlign_Center)
 			.Padding(/* horizontal */ 3.0f, /* vertical */ 0.0f)
 			[
-				CreateTextSlotWidget(InCreateData, bIsReadOnly )
+				CreateTextSlotWidget(InCreateData, bIsReadOnlyCreate || Binding->IsPrimaryBinding())
 			]		
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
-				SNew(SBindingSourceSelectorHelper, Binding, bIsReadOnly)
+				SNew(SBindingSourceSelectorHelper, Binding, bIsReadOnlyCreate)
 			]
 		];	
 	}

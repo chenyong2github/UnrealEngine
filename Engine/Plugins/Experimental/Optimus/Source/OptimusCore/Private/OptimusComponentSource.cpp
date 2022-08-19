@@ -2,11 +2,16 @@
 
 #include "OptimusComponentSource.h"
 
+#include "Components/SkinnedMeshComponent.h"
 #include "OptimusDeformer.h"
 #include "OptimusHelpers.h"
-
 #include "UObject/UObjectIterator.h"
 
+
+bool UOptimusComponentSource::IsUsableAsPrimarySource() const
+{
+	return GetComponentClass()->IsChildOf<USkinnedMeshComponent>();
+}
 
 TArray<const UOptimusComponentSource*> UOptimusComponentSource::GetAllSources()
 {
@@ -45,6 +50,13 @@ const UOptimusComponentSource* UOptimusComponentSource::GetSourceFromDataInterfa
 	return nullptr;
 }
 
+
+const FName UOptimusComponentSourceBinding::PrimaryBindingName("Primary");
+
+FName UOptimusComponentSourceBinding::GetPrimaryBindingName()
+{
+	return PrimaryBindingName;
+}
 
 UOptimusDeformer* UOptimusComponentSourceBinding::GetOwningDeformer() const
 {

@@ -9,6 +9,7 @@
 #include "IOptimusExecutionDomainProvider.h"
 #include "ObjectTools.h"
 #include "OptimusBindingTypes.h"
+#include "OptimusComponentSource.h"
 #include "OptimusDataType.h"
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusDeformerAssetActions.h"
@@ -193,6 +194,7 @@ void FOptimusEditorModule::RegisterPropertyCustomizations()
 	};
 
 	RegisterDetailCustomization(UOptimusSource::StaticClass()->GetFName(), &FOptimusSourceDetailsCustomization::MakeInstance);
+	RegisterDetailCustomization(UOptimusComponentSourceBinding::StaticClass()->GetFName(), &FOptimusComponentSourceBindingDetailsCustomization::MakeInstance);
 }
 
 void FOptimusEditorModule::UnregisterPropertyCustomizations()
