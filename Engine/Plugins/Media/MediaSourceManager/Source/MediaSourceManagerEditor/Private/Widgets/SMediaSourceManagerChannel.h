@@ -76,7 +76,12 @@ private:
 	void AddMediaSourceEnterPressed(const TArray<FAssetData>& AssetData);
 
 	/**
-	 * Assignss a media source to this channel.
+	 * Clears the input on this channel.
+	 */
+	void ClearInput();
+
+	/**
+	 * Assigns a media source to this channel.
 	 * 
 	 * @param MediaSource	Media source to use as input.
 	 */

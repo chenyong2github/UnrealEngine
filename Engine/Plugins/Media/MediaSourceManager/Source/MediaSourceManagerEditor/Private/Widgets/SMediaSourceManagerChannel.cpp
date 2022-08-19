@@ -13,6 +13,7 @@
 #include "IMediaIOCoreModule.h"
 #include "Inputs/MediaSourceManagerInputMediaSource.h"
 #include "MediaIOPermutationsSelectorBuilder.h"
+#include "MediaPlayer.h"
 #include "MediaSource.h"
 #include "MediaSourceManagerChannel.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -163,6 +164,14 @@ TSharedRef<SWidget> SMediaSourceManagerChannel::CreateAssignInputMenu()
 {
 	FMenuBuilder MenuBuilder(true, NULL);
 
+	// Add current asset options.
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("CurrentAsset", "Current Asset"));
+	FUIAction ClearAction(FExecuteAction::CreateSP(this, &SMediaSourceManagerChannel::ClearInput));
+	MenuBuilder.AddMenuEntry(LOCTEXT("Clear", "Clear"),
+		LOCTEXT("ClearToolTip", "Clears the asset set on this field"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCommands.Delete"), ClearAction);
+	MenuBuilder.EndSection();
+
 	// Get all Media IO device providers.
 	IMediaIOCoreModule& MediaIOCoreModule = IMediaIOCoreModule::Get();
 	TConstArrayView<IMediaIOCoreDeviceProvider*> DeviceProviders =
@@ -274,6 +283,24 @@ void SMediaSourceManagerChannel::AddMediaSourceEnterPressed(const TArray<FAssetD
 	}
 }
 
+void SMediaSourceManagerChannel::ClearInput()
+{
+	UMediaSourceManagerChannel* Channel = ChannelPtr.Get();
+	if (Channel != nullptr)
+	{
+		// Clear input on channel.
+		Channel->Modify();
+		Channel->Input = nullptr;
+
+		// Stop player.
+		UMediaPlayer* MediaPlayer = Channel->GetMediaPlayer();
+		if (MediaPlayer != nullptr)
+		{
+			MediaPlayer->Close();
+		}
+		Refresh();
+	}
+}
 
 void SMediaSourceManagerChannel::AssignMediaSourceInput(UMediaSource* MediaSource)
 {
