@@ -91,7 +91,9 @@ Audio::TSampleBuffer<> FWaveformEditorWaveWriter::GenerateSampleBuffer() const
 			Transformation->ProcessAudio(TransformationInfo);
 		}
 
-		if (const float MaxValue = Audio::ArrayMaxAbsValue(Buffer) > 1.f)
+		const float MaxValue = Audio::ArrayMaxAbsValue(Buffer);
+
+		if (MaxValue > 1.f)
 		{
 			Audio::ArrayMultiplyByConstantInPlace(Buffer, 1.f / MaxValue);
 		}

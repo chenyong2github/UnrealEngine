@@ -124,8 +124,9 @@ void FWaveformTransformationsRenderManager::GenerateRenderDataInternal()
 			OutputBuffer = TransformationsBuffer;
 		}
 		
+		const float MaxValue = Audio::ArrayMaxAbsValue(OutputBuffer);
 
-		if (const float MaxValue = Audio::ArrayMaxAbsValue(OutputBuffer) > 1.f)
+		if (MaxValue > 1.f)
 		{
 			Audio::ArrayMultiplyByConstantInPlace(OutputBuffer, 1.f / MaxValue);
 		}
