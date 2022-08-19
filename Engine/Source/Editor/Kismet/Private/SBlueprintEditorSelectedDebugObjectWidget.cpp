@@ -549,6 +549,11 @@ void SBlueprintEditorSelectedDebugObjectWidget::DebugObjectSelectionChanged(TSha
 	{
 		UObject* DebugObj = NewSelection->ObjectPtr.Get();
 		GetBlueprintObj()->SetObjectBeingDebugged(DebugObj);
+
+		if (TSharedPtr<FBlueprintEditor> SharedBlueprintEditor = BlueprintEditor.Pin())
+		{
+			SharedBlueprintEditor->RefreshMyBlueprint();
+		}
 		
 		LastObjectObserved = DebugObj;
 	}

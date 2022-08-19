@@ -31,12 +31,12 @@ public:
 	virtual bool IsActionFilteredOut(class FBlueprintActionFilter const& Filter) override;
 	
 	// Begin UAnimGraphNode_CustomProperty
-	virtual FAnimNode_CustomProperty* GetCustomPropertyNode() override { return &Node;  }
-	virtual const FAnimNode_CustomProperty* GetCustomPropertyNode() const override { return &Node; }
+	virtual FAnimNode_CustomProperty* GetCustomPropertyNode() override;
+	virtual const FAnimNode_CustomProperty* GetCustomPropertyNode() const override;
 
 	// Begin UAnimGraphNode_LinkedAnimGraphBase
-	virtual FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() override { return &Node; }
-	virtual const FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() const override { return &Node; }
+	virtual FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() override;
+	virtual const FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() const override;
 
 	// IK2Node_ExternalGraphInterface interface
 	virtual TArray<UEdGraph*> GetExternalGraphs() const override;

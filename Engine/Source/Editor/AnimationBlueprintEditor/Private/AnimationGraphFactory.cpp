@@ -29,6 +29,7 @@
 #include "AnimationNodes/SGraphNodeStateMachineInstance.h"
 #include "AnimationNodes/SGraphNodeLayeredBoneBlend.h"
 #include "AnimationNodes/SGraphNodeBlendSpacePlayer.h"
+#include "AnimationNodes/SGraphNodeLinkedLayer.h"
 #include "AnimationPins/SGraphPinPose.h"
 
 #include "AnimGraphConnectionDrawingPolicy.h"
@@ -36,6 +37,7 @@
 
 #include "KismetPins/SGraphPinExec.h"
 #include "AnimGraphNode_BlendSpaceGraph.h"
+#include "AnimGraphNode_LinkedAnimGraph.h"
 #include "AnimationNodes/SGraphNodeBlendSpaceGraph.h"
 #include "K2Node_AnimNodeReference.h"
 #include "AnimationNodes/SAnimNodeReference.h"
@@ -67,6 +69,10 @@ TSharedPtr<class SGraphNode> FAnimationGraphNodeFactory::CreateNode(class UEdGra
 		else if (UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceGraph = Cast<UAnimGraphNode_BlendSpaceGraphBase>(InNode))
 		{
 			return SNew(SGraphNodeBlendSpaceGraph, BlendSpaceGraph);
+		}
+		else if (UAnimGraphNode_LinkedAnimGraph* LinkedAnimLayer = Cast<UAnimGraphNode_LinkedAnimGraph>(InNode))
+		{
+			return SNew(SGraphNodeLinkedLayer, LinkedAnimLayer);
 		}
 		else
 		{

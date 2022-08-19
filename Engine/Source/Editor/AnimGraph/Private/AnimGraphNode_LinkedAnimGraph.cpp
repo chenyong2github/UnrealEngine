@@ -190,4 +190,28 @@ void UAnimGraphNode_LinkedAnimGraph::Serialize(FArchive& Ar)
 	}
 }
 
+FAnimNode_CustomProperty* UAnimGraphNode_LinkedAnimGraph::GetCustomPropertyNode()
+{
+	FAnimNode_CustomProperty* const RuntimeCustomPropertyNode = GetDebuggedAnimNode<FAnimNode_CustomProperty>();
+	return RuntimeCustomPropertyNode ? RuntimeCustomPropertyNode : &Node;
+}
+
+const FAnimNode_CustomProperty* UAnimGraphNode_LinkedAnimGraph::GetCustomPropertyNode() const
+{
+	const FAnimNode_CustomProperty* const RuntimeCustomPropertyNode = GetDebuggedAnimNode<FAnimNode_CustomProperty>();
+	return RuntimeCustomPropertyNode ? RuntimeCustomPropertyNode : &Node;
+}
+
+FAnimNode_LinkedAnimGraph* UAnimGraphNode_LinkedAnimGraph::GetLinkedAnimGraphNode()
+{
+	FAnimNode_LinkedAnimGraph* const RuntimeLinkedAnimGraphNode = GetDebuggedAnimNode<FAnimNode_LinkedAnimGraph>();
+	return RuntimeLinkedAnimGraphNode ? RuntimeLinkedAnimGraphNode : &Node;
+}
+
+const FAnimNode_LinkedAnimGraph* UAnimGraphNode_LinkedAnimGraph::GetLinkedAnimGraphNode() const
+{
+	const FAnimNode_LinkedAnimGraph* const RuntimeLinkedAnimGraphNode = GetDebuggedAnimNode<FAnimNode_LinkedAnimGraph>();
+	return RuntimeLinkedAnimGraphNode ? RuntimeLinkedAnimGraphNode : &Node;
+}
+
 #undef LOCTEXT_NAMESPACE
