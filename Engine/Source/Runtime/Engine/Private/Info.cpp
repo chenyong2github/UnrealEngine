@@ -51,3 +51,24 @@ AInfo::AInfo(const FObjectInitializer& ObjectInitializer)
 /** Returns SpriteComponent subobject **/
 UBillboardComponent* AInfo::GetSpriteComponent() const { return SpriteComponent; }
 #endif
+
+#if WITH_EDITOR
+void AInfo::PostLoad()
+{
+	Super::PostLoad();
+
+	// Fixes Actors that were saved prior to their constructor using ObjectInitializer.DoNotCreateDefaultSubobject(TEXT("Sprite"))
+	// Those Components are MarkForGarbage in their UActorComponent::PostInitProperties and so we need to clear the Component pointers
+	if (RootComponent != nullptr && !IsValid(RootComponent))
+	{
+		RootComponent = nullptr;
+	}
+
+#if WITH_EDITORONLY_DATA
+	if (SpriteComponent != nullptr && !IsValid(SpriteComponent))
+	{
+		SpriteComponent = nullptr;
+	}
+#endif
+}
+#endif

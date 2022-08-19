@@ -21,6 +21,11 @@ class AInfo : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
+public:
+#if WITH_EDITOR
+	ENGINE_API virtual void PostLoad() override;
+#endif
+
 private:
 #if WITH_EDITOR
 	virtual bool ActorTypeSupportsDataLayer() const override { return false; }
