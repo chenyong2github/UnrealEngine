@@ -241,7 +241,7 @@ namespace EpicGames.UHT.Types
 			}
 
 			UhtPackage package = propertySettings.Outer.Package;
-			UhtPointerMemberBehavior behavior = package.IsPartOfEngine ? engineBehavior : nonEngineBehavior;
+			UhtPointerMemberBehavior behavior = package.IsPartOfEngine && !package.IsPlugin ? engineBehavior : nonEngineBehavior;
 
 			if (behavior == UhtPointerMemberBehavior.AllowSilently)
 			{
