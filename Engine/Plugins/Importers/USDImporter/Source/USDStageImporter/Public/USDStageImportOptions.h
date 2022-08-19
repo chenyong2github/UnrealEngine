@@ -82,6 +82,10 @@ public:
 	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "USD options" )
 	FName MaterialPurpose;
 
+	// Describes what to add to the root bone animation within generated AnimSequences, if anything
+	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "USD options", meta = ( EditCondition = bImportSkeletalAnimations ) )
+	EUsdRootMotionHandling RootMotionHandling = EUsdRootMotionHandling::NoAdditionalRootMotion;
+
 	/** Whether to use the specified StageOptions instead of the stage's own settings */
 	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "USD options" )
 	bool bOverrideStageOptions;

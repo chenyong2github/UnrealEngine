@@ -105,6 +105,7 @@ struct FUsdStageActorImpl
 		TranslationContext->NaniteTriangleThreshold = StageActor->NaniteTriangleThreshold;
 		TranslationContext->RenderContext = StageActor->RenderContext;
 		TranslationContext->MaterialPurpose = StageActor->MaterialPurpose;
+		TranslationContext->RootMotionHandling = StageActor->RootMotionHandling;
 		TranslationContext->MaterialToPrimvarToUVIndex = &StageActor->MaterialToPrimvarToUVIndex;
 		TranslationContext->BlendShapesByPath = &StageActor->BlendShapesByPath;
 		TranslationContext->InfoCache = StageActor->InfoCache;
@@ -539,6 +540,7 @@ struct FUsdStageActorImpl
 			EventAttributes.Emplace( TEXT( "NaniteTriangleThreshold" ), LexToString( StageActor->NaniteTriangleThreshold ) );
 			EventAttributes.Emplace( TEXT( "RenderContext" ), StageActor->RenderContext.ToString() );
 			EventAttributes.Emplace( TEXT( "MaterialPurpose" ), StageActor->MaterialPurpose.ToString() );
+			EventAttributes.Emplace( TEXT( "RootMotionHandling" ), LexToString( ( uint8 ) StageActor->RootMotionHandling ) );
 
 			const bool bAutomated = false;
 			IUsdClassesModule::SendAnalytics( MoveTemp( EventAttributes ), TEXT( "Open" ), bAutomated, ElapsedSeconds, NumberOfFrames, Extension );
@@ -624,6 +626,7 @@ AUsdStageActor::AUsdStageActor()
 	, PurposesToLoad( (int32) EUsdPurpose::Proxy )
 	, NaniteTriangleThreshold( (uint64) 1000000 )
 	, MaterialPurpose( *UnrealIdentifiers::MaterialAllPurpose )
+	, RootMotionHandling( EUsdRootMotionHandling::NoAdditionalRootMotion )
 	, Time( 0.0f )
 	, bIsTransitioningIntoPIE( false )
 	, bIsModifyingAProperty( false )
@@ -1454,6 +1457,15 @@ void AUsdStageActor::SetMaterialPurpose( const FName& NewMaterialPurpose )
 	Modify( bMarkDirty );
 
 	MaterialPurpose = NewMaterialPurpose;
+	LoadUsdStage();
+}
+
+USDSTAGE_API void AUsdStageActor::SetRootMotionHandling( EUsdRootMotionHandling NewHandlingStrategy )
+{
+	const bool bMarkDirty = false;
+	Modify( bMarkDirty );
+
+	RootMotionHandling = NewHandlingStrategy;
 	LoadUsdStage();
 }
 
@@ -2747,6 +2759,10 @@ void AUsdStageActor::HandlePropertyChangedEvent( FPropertyChangedEvent& Property
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, MaterialPurpose ) )
 	{
 		SetMaterialPurpose( MaterialPurpose );
+	}
+	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, RootMotionHandling ) )
+	{
+		SetRootMotionHandling( RootMotionHandling );
 	}
 
 	bIsModifyingAProperty = false;

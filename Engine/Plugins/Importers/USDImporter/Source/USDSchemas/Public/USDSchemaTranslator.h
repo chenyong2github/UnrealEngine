@@ -152,6 +152,9 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	/** The material purpose to use when translating material bindings */
 	FName MaterialPurpose;
 
+	/** Describes what to add to the root bone animation within generated AnimSequences, if anything */
+	EUsdRootMotionHandling RootMotionHandling = EUsdRootMotionHandling::NoAdditionalRootMotion;
+
 	/** If a generated UStaticMesh has at least this many triangles we will attempt to enable Nanite */
 	int32 NaniteTriangleThreshold;
 

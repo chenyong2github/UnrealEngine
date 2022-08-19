@@ -205,7 +205,7 @@ namespace UsdSkelRootTranslatorImpl
 		return OutHash;
 	}
 
-	FSHAHash ComputeSHAHash( const pxr::UsdSkelSkeletonQuery& InUsdSkeletonQuery )
+	FSHAHash ComputeSHAHash( const pxr::UsdSkelSkeletonQuery& InUsdSkeletonQuery, const pxr::UsdPrim& RootMotionPrim )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( UsdSkelRootTranslatorImpl::ComputeSHAHash_SkelQuery );
 
@@ -268,6 +268,24 @@ namespace UsdSkelRootTranslatorImpl
 		{
 			AnimQuery.ComputeBlendShapeWeights( &WeightsForSample, pxr::UsdTimeCode( CurveTimeSample ) );
 			HashState.Update( ( uint8* ) WeightsForSample.data(), WeightsForSample.size() * sizeof( float ) );
+		}
+
+		// If we're pulling root motion from anywhere, hash that too because if it changes we'll need to rebake
+		// the AnimSequence asset
+		if ( pxr::UsdGeomXformable Xformable{ RootMotionPrim } )
+		{
+			std::vector<double> TimeSamples;
+			Xformable.GetTimeSamples( &TimeSamples );
+
+			pxr::GfMatrix4d Transform{};
+			bool bResetsXformSack = false;
+			for ( double TimeSample : TimeSamples )
+			{
+				Xformable.GetLocalTransformation( &Transform, &bResetsXformSack, TimeSample );
+				HashState.Update( ( uint8* ) Transform.data(), 16 * sizeof( double ) );
+			}
+
+			HashState.Update( ( uint8* ) &bResetsXformSack, sizeof( bool ) );
 		}
 
 		HashState.Final();
@@ -952,7 +970,13 @@ namespace UsdSkelRootTranslatorImpl
 							continue;
 						}
 
-						FSHAHash Hash = UsdSkelRootTranslatorImpl::ComputeSHAHash( SkelQuery );
+						pxr::UsdPrim RootMotionPrim = Context->RootMotionHandling == EUsdRootMotionHandling::UseMotionFromSkelRoot
+							? SkeletonRoot.GetPrim()
+							: Context->RootMotionHandling == EUsdRootMotionHandling::UseMotionFromSkeleton
+								? Skeleton.GetPrim()
+								: pxr::UsdPrim{};
+
+						FSHAHash Hash = UsdSkelRootTranslatorImpl::ComputeSHAHash( SkelQuery, RootMotionPrim );
 						FString HashString = Hash.ToString();
 						UAnimSequence* AnimSequence = Cast< UAnimSequence >( Context->AssetCache->GetCachedAsset( HashString ) );
 
@@ -972,7 +996,15 @@ namespace UsdSkelRootTranslatorImpl
 
 							TUsdStore<pxr::VtArray<pxr::UsdSkelSkinningQuery>> SkinningTargets = Binding.GetSkinningTargets();
 							float LayerStartOffsetSeconds = 0.0f;
-							UsdToUnreal::ConvertSkelAnim( SkelQuery, &SkinningTargets.Get(), &NewBlendShapes, Context->bAllowInterpretingLODs, AnimSequence, &LayerStartOffsetSeconds );
+							UsdToUnreal::ConvertSkelAnim(
+								SkelQuery,
+								&SkinningTargets.Get(),
+								&NewBlendShapes,
+								Context->bAllowInterpretingLODs,
+								RootMotionPrim,
+								AnimSequence,
+								&LayerStartOffsetSeconds
+							);
 
 							if (AnimSequence->GetDataModel()->GetNumBoneTracks() != 0 || AnimSequence->GetDataModel()->GetNumberOfFloatCurves() != 0 )
 							{

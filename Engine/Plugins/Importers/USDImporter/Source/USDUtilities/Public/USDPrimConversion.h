@@ -60,7 +60,26 @@ namespace UsdToUnreal
 	UE_DEPRECATED( 5.0, "Use CreatePropertyTrackReader and ConvertTransformTimeSamples (c.f. FUsdLevelSequenceHelperImpl::AddCommonTracks)" )
 	USDUTILITIES_API bool ConvertXformable( const pxr::UsdTyped& Schema, UMovieScene3DTransformTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform );
 
-	USDUTILITIES_API bool ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, USceneComponent& SceneComponent, double EvalTime );
+	/**
+	 * Converts a pxr::UsdGeomXformable's attribute values into an USceneComponent's property values
+	 * @param Stage - Stage that contains the prim to convert
+	 * @param Schema - Prim to convert
+	 * @param SceneComponent - Output component to receieve the converted data
+	 * @param EvalTime - Time at which to sample the prim's attributes
+	 * @param bUsePrimTransform - Whether to convert transform data or not
+	 * @return Whether the conversion was successful or not.
+	 */
+	USDUTILITIES_API bool ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, USceneComponent& SceneComponent, double EvalTime, bool bUsePrimTransform = true );
+
+	/**
+	 * Converts a pxr::UsdGeomXformable's transform attribute values into a UE-space FTransform
+	 * @param Stage - Stage that contains the prim to convert
+	 * @param Schema - Prim to convert
+	 * @param OutTransform - Output transform to receieve the converted data
+	 * @param EvalTime - Time at which to sample the prim's attributes
+	 * @param bOutResetTransformStack - Output parameter that, when available, will be set to true if this prim uses the "!resetXformStack!" op
+	 * @return Whether the conversion was successful or not.
+	 */
 	USDUTILITIES_API bool ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, FTransform& OutTransform, double EvalTime, bool* bOutResetTransformStack = nullptr );
 
 	UE_DEPRECATED( 5.0, "Prefer the overload that receives an UE::FUsdPrim" )
@@ -95,8 +114,9 @@ namespace UsdToUnreal
 	 * Creates an FPropertyTrackReader that can be used to repeatedly read and convert values of attributes that correspond to PropertyPath in UE.
 	 * e.g. calling this with a RectLight prim and UnrealIdentifiers::IntensityPropertyName will return a reader with a FloatReader member that checks
 	 * the intensity, exposure, width, height of Prim at each UsdTimeCode and returns the corresponding float value for Intensity.
+	 * When we generate a TransformReader, if bIgnorePrimLocalTransform is true it will cause it to ignore that prim's local transform for the reader.
 	 */
-	USDUTILITIES_API FPropertyTrackReader CreatePropertyTrackReader( const UE::FUsdPrim& Prim, const FName& PropertyPath );
+	USDUTILITIES_API FPropertyTrackReader CreatePropertyTrackReader( const UE::FUsdPrim& Prim, const FName& PropertyPath, bool bIgnorePrimLocalTransform = false );
 }
 
 namespace UnrealToUsd

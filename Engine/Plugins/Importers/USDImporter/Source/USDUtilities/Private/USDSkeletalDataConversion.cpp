@@ -11,6 +11,7 @@
 #include "USDLayerUtils.h"
 #include "USDLog.h"
 #include "USDMemory.h"
+#include "USDPrimConversion.h"
 #include "USDTypesConversion.h"
 
 #include "UsdWrappers/SdfLayer.h"
@@ -58,6 +59,7 @@
 	#include "pxr/usd/usdGeom/primvarsAPI.h"
 	#include "pxr/usd/usdGeom/subset.h"
 	#include "pxr/usd/usdGeom/tokens.h"
+	#include "pxr/usd/usdGeom/xformable.h"
 	#include "pxr/usd/usdGeom/xformCache.h"
 	#include "pxr/usd/usdShade/tokens.h"
 	#include "pxr/usd/usdSkel/animation.h"
@@ -1838,7 +1840,15 @@ bool UsdToUnreal::ConvertSkinnedMesh(
 
 // Using UsdSkelSkeletonQuery instead of UsdSkelAnimQuery as it automatically does the joint remapping when we ask it to compute joint transforms.
 // It also initializes the joint transforms with the rest pose, if available, in case the animation doesn't provide data for all joints.
-bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeletonQuery, const pxr::VtArray<pxr::UsdSkelSkinningQuery>* InSkinningTargets, const UsdUtils::FBlendShapeMap* InBlendShapes, bool bInInterpretLODs, UAnimSequence* OutSkeletalAnimationAsset, float* OutStartOffsetSeconds )
+bool UsdToUnreal::ConvertSkelAnim(
+	const pxr::UsdSkelSkeletonQuery& InUsdSkeletonQuery,
+	const pxr::VtArray<pxr::UsdSkelSkinningQuery>* InSkinningTargets,
+	const UsdUtils::FBlendShapeMap* InBlendShapes,
+	bool bInInterpretLODs,
+	const pxr::UsdPrim& RootMotionPrim,
+	UAnimSequence* OutSkeletalAnimationAsset,
+	float* OutStartOffsetSeconds
+)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::ConvertSkelAnim );
 
@@ -1917,8 +1927,32 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 		LastBlendShapeSampleTimeCode = BlendShapeTimeSamples[ BlendShapeTimeSamples.size() - 1 ];
 	}
 
+	TUsdStore<std::vector<double>> UsdRootMotionPrimTimeSamples;
+	TOptional<double> FirstRootMotionTimeCode;
+	TOptional<double> LastRootMotionTimeCode;
+	TUsdStore<pxr::UsdGeomXformable> RootMotionXformable;
+	{
+		FScopedUsdAllocs UsdAllocs;
+
+		// Note how we don't care whether the root motion is animated or not and will use RootMotionXformable
+		// regardless, to have a similar effect in case its just a single non-animated transform
+		RootMotionXformable = pxr::UsdGeomXformable{ RootMotionPrim };
+		if ( RootMotionXformable.Get() )
+		{
+			std::vector< double > UsdTimeSamples;
+			if ( RootMotionXformable.Get().GetTimeSamples(&UsdTimeSamples) )
+			{
+				if ( UsdTimeSamples.size() > 0 )
+				{
+					FirstRootMotionTimeCode = UsdTimeSamples[ 0 ];
+					LastRootMotionTimeCode = UsdTimeSamples[ UsdTimeSamples.size() - 1 ];
+				}
+			}
+		}
+	}
+
 	// Nothing to do: we don't actually have joints or blend shape time samples
-	if ( !FirstJointSampleTimeCode.IsSet() && !FirstBlendShapeSampleTimeCode.IsSet() )
+	if ( !FirstJointSampleTimeCode.IsSet() && !FirstBlendShapeSampleTimeCode.IsSet() && !FirstRootMotionTimeCode.IsSet() )
 	{
 		return true;
 	}
@@ -1933,8 +1967,20 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 	// which is important because later our composition of tracks and subsections within a LevelSequence will reapply analogous
 	// offsets and scalings anyway
 
-	const double StageStartTimeCode = FMath::Min( FirstJointSampleTimeCode.Get( TNumericLimits<double>::Max() ), FirstBlendShapeSampleTimeCode.Get( TNumericLimits<double>::Max() ) );
-	const double StageEndTimeCode = FMath::Max( LastJointSampleTimeCode.Get( TNumericLimits<double>::Lowest() ), LastBlendShapeSampleTimeCode.Get( TNumericLimits<double>::Lowest() ) );
+	const double StageStartTimeCode = FMath::Min(
+		FirstJointSampleTimeCode.Get( TNumericLimits<double>::Max() ),
+		FMath::Min(
+			FirstBlendShapeSampleTimeCode.Get( TNumericLimits<double>::Max() ),
+			FirstRootMotionTimeCode.Get( TNumericLimits<double>::Max() )
+		)
+	);
+	const double StageEndTimeCode = FMath::Max(
+		LastJointSampleTimeCode.Get( TNumericLimits<double>::Lowest() ),
+		FMath::Max(
+			LastBlendShapeSampleTimeCode.Get( TNumericLimits<double>::Lowest() ),
+			LastRootMotionTimeCode.Get( TNumericLimits<double>::Lowest() )
+		)
+	);
 	const double StageStartSeconds = StageStartTimeCode / StageTimeCodesPerSecond;
 	const double StageSequenceLengthTimeCodes = StageEndTimeCode - StageStartTimeCode;
 	const double LayerSequenceLengthTimeCodes = StageSequenceLengthTimeCodes / Offset.Scale;
@@ -1975,6 +2021,8 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 			JointTrack.ScaleKeys.Reserve(NumBakedFrames);
 		}
 
+		FTransform RootMotionTransform;
+
 		pxr::VtArray<pxr::GfMatrix4d> UsdJointTransforms;
 		for ( int32 FrameIndex = 0; FrameIndex < NumBakedFrames; ++FrameIndex )
 		{
@@ -1985,6 +2033,27 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 			{
 				pxr::GfMatrix4d& UsdJointTransform = UsdJointTransforms[ BoneIndex ];
 				FTransform UEJointTransform = UsdToUnreal::ConvertMatrix( StageInfo, UsdJointTransform );
+
+				// Concatenate the root bone transform with the transform track actually present on the skel root as a
+				// whole
+				if ( BoneIndex == 0 )
+				{
+					// We don't care about resetXformStack here: We'll always use the root motion prim's transform as
+					// a local transformation anyway
+					bool* OutResetTransformStack = nullptr;
+					const bool bSuccess = UsdToUnreal::ConvertXformable(
+						Stage.Get(),
+						RootMotionXformable.Get(),
+						RootMotionTransform,
+						StageFrameTimeCodes,
+						OutResetTransformStack
+					);
+
+					if ( bSuccess )
+					{
+						UEJointTransform = UEJointTransform * RootMotionTransform;
+					}
+				}
 
 				FRawAnimSequenceTrack& JointTrack = JointTracks[ BoneIndex ];
 				JointTrack.PosKeys.Add( FVector3f(UEJointTransform.GetTranslation()) );

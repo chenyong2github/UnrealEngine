@@ -180,6 +180,22 @@ enum class EUsdInterpolationType : uint8
 	Linear
 };
 
+UENUM()
+enum class EUsdRootMotionHandling
+{
+	// Use for the root bone just its regular joint animation as described on the SkelAnimation prim.
+	NoAdditionalRootMotion,
+
+	// Use the transform animation from the SkelRoot prim in addition to the root bone joint animation as
+	// described on the SkelAnimation prim. Note that the SkelRoot prim's Sequencer transform track will no longer
+	// contain the transform animation data used in this manner, so as to not apply the animation twice.
+	UseMotionFromSkelRoot,
+
+	// Use the transform animation from the Skeleton prim in addition to the root bone joint animation as
+	// described on the SkelAnimation prim.
+	UseMotionFromSkeleton
+};
+
 class IUnrealUSDWrapperModule : public IModuleInterface
 {
 };

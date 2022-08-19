@@ -725,6 +725,11 @@ void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillMaterialPurposeSubMenu ) );
 
 		MenuBuilder.AddSubMenu(
+			LOCTEXT( "RootMotionHandling", "Root motion handling" ),
+			LOCTEXT( "RootMotionHandling_ToolTip", "Choose how to handle root motion for generated AnimSequences and LevelSequences" ),
+			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillRootMotionSubMenu ) );
+
+		MenuBuilder.AddSubMenu(
 			LOCTEXT( "Collapsing", "Collapsing" ),
 			LOCTEXT( "Collapsing_ToolTip", "Whether to try to combine individual assets and components of the same type on a Kind-per-Kind basis, like multiple Mesh prims into a single Static Mesh" ),
 			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillCollapsingSubMenu ) );
@@ -1109,6 +1114,57 @@ void SUsdStage::FillMaterialPurposeSubMenu( FMenuBuilder& MenuBuilder )
 
 	const bool bNoIndent = true;
 	MenuBuilder.AddWidget( Box, FText::GetEmpty(), bNoIndent );
+}
+
+void SUsdStage::FillRootMotionSubMenu( FMenuBuilder& MenuBuilder )
+{
+	auto AddRootMotionEntry = [&](const EUsdRootMotionHandling& HandlingStrategy, const FText& Text)
+	{
+		UEnum* Enum = StaticEnum< EUsdRootMotionHandling >();
+		FText ToolTip = Enum->GetToolTipTextByIndex( Enum->GetIndexByValue( static_cast< uint8 >( HandlingStrategy ) ) );
+
+		MenuBuilder.AddMenuEntry(
+			Text,
+			ToolTip,
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this, HandlingStrategy]()
+				{
+					if(AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get())
+					{
+						FScopedTransaction Transaction(FText::Format(
+							LOCTEXT("RootMotionHandlingTransaction", "Change root motion handling strategy for USD stage actor '{0}'"),
+							FText::FromString(StageActor->GetActorLabel())
+						));
+
+						// c.f. comment in SUsdStage::FillCollapsingSubMenu
+						TGuardValue<bool> MaintainSelectionGuard( bUpdatingViewportSelection, true );
+
+						StageActor->Modify();
+						StageActor->SetRootMotionHandling( HandlingStrategy );
+					}
+				}),
+				FCanExecuteAction::CreateLambda([this]()
+				{
+					return ViewModel.UsdStageActor.Get() != nullptr;
+				}),
+				FIsActionChecked::CreateLambda([this, HandlingStrategy]()
+				{
+					if(AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get())
+					{
+						return StageActor->RootMotionHandling == HandlingStrategy;
+					}
+					return false;
+				})
+			),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+	};
+
+	AddRootMotionEntry( EUsdRootMotionHandling::NoAdditionalRootMotion, LOCTEXT("NoAdditionalRootMotionText", "No additional root motion"));
+	AddRootMotionEntry( EUsdRootMotionHandling::UseMotionFromSkelRoot, LOCTEXT("UseMotionFromSkelRootText", "Use motion from SkelRoot"));
+	AddRootMotionEntry( EUsdRootMotionHandling::UseMotionFromSkeleton, LOCTEXT("UseMotionFromSkeletonText", "Use motion from Skeleton"));
 }
 
 void SUsdStage::FillCollapsingSubMenu( FMenuBuilder& MenuBuilder )

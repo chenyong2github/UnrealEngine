@@ -233,7 +233,7 @@ namespace UE
 
 			// Turns OutTransform into the UE-space relative (local to parent) transform for Xformable, paying attention to if it
 			// or any of its ancestors has the '!resetXformStack!' xformOp.
-			void GetPrimConvertedRelativeTransform( pxr::UsdGeomXformable Xformable, double UsdTimeCode, FTransform& OutTransform )
+			void GetPrimConvertedRelativeTransform( pxr::UsdGeomXformable Xformable, double UsdTimeCode, FTransform& OutTransform, bool bIgnoreLocalTransform = false )
 			{
 				if ( !Xformable )
 				{
@@ -246,7 +246,17 @@ namespace UE
 				pxr::UsdStageRefPtr UsdStage = UsdPrim.GetStage();
 
 				bool bResetTransformStack = false;
-				UsdToUnreal::ConvertXformable( UsdStage, Xformable, OutTransform, UsdTimeCode, &bResetTransformStack );
+				if( bIgnoreLocalTransform )
+				{
+					FTransform Dummy;
+					UsdToUnreal::ConvertXformable( UsdStage, Xformable, Dummy, UsdTimeCode, &bResetTransformStack );
+
+					OutTransform = FTransform::Identity;
+				}
+				else
+				{
+					UsdToUnreal::ConvertXformable( UsdStage, Xformable, OutTransform, UsdTimeCode, &bResetTransformStack );
+				}
 
 				// If we have the resetXformStack op on this prim's xformOpOrder we have to essentially use its transform
 				// as the world transform (i.e. we have to discard the parent transforms). We won't do this here, and will instead
@@ -373,7 +383,7 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 	return true;
 }
 
-bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, USceneComponent& SceneComponent, double EvalTime )
+bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, USceneComponent& SceneComponent, double EvalTime, bool bUsePrimTransform )
 {
 	pxr::UsdGeomXformable Xformable( Schema );
 	if ( !Xformable )
@@ -387,7 +397,7 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 
 	// Transform
 	FTransform Transform;
-	UE::USDPrimConversionImpl::Private::GetPrimConvertedRelativeTransform( Xformable, EvalTime, Transform );
+	UE::USDPrimConversionImpl::Private::GetPrimConvertedRelativeTransform( Xformable, EvalTime, Transform, !bUsePrimTransform );
 	SceneComponent.SetRelativeTransform( Transform );
 
 	SceneComponent.Modify();
@@ -920,7 +930,7 @@ bool UsdToUnreal::ConvertTransformTimeSamples( const UE::FUsdStage& Stage, const
 	return true;
 }
 
-UsdToUnreal::FPropertyTrackReader UsdToUnreal::CreatePropertyTrackReader( const UE::FUsdPrim& Prim, const FName& PropertyPath )
+UsdToUnreal::FPropertyTrackReader UsdToUnreal::CreatePropertyTrackReader( const UE::FUsdPrim& Prim, const FName& PropertyPath, bool bIgnorePrimLocalTransform )
 {
 	UsdToUnreal::FPropertyTrackReader Reader;
 
@@ -935,12 +945,12 @@ UsdToUnreal::FPropertyTrackReader UsdToUnreal::CreatePropertyTrackReader( const 
 		if ( PropertyPath == UnrealIdentifiers::TransformPropertyName )
 		{
 			FTransform Default = FTransform::Identity;
-			UE::USDPrimConversionImpl::Private::GetPrimConvertedRelativeTransform( Xformable, UsdUtils::GetDefaultTimeCode(), Default );
+			UE::USDPrimConversionImpl::Private::GetPrimConvertedRelativeTransform( Xformable, UsdUtils::GetDefaultTimeCode(), Default, bIgnorePrimLocalTransform );
 
-			Reader.TransformReader = [UsdStage, Xformable, Default]( double UsdTimeCode )
+			Reader.TransformReader = [UsdStage, Xformable, Default, bIgnorePrimLocalTransform]( double UsdTimeCode )
 			{
 				FTransform Result = Default;
-				UE::USDPrimConversionImpl::Private::GetPrimConvertedRelativeTransform( Xformable, UsdTimeCode, Result );
+				UE::USDPrimConversionImpl::Private::GetPrimConvertedRelativeTransform( Xformable, UsdTimeCode, Result, bIgnorePrimLocalTransform );
 				return Result;
 			};
 			return Reader;

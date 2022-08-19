@@ -1381,6 +1381,20 @@ void FUsdLevelSequenceHelperImpl::AddCommonTracks( const UUsdPrimTwin& PrimTwin,
 		}
 	}
 
+	// Check whether we should ignore the prim's local transform or not. We only do this for SkelRoots, in case we
+	// already appended their transform animations to the root bone as additional root motion
+	bool bIgnorePrimLocalTransform = false;
+	if ( AUsdStageActor* StageActorPtr = StageActor.Get() )
+	{
+		if ( StageActorPtr->RootMotionHandling == EUsdRootMotionHandling::UseMotionFromSkelRoot )
+		{
+			if ( Prim.IsA( TEXT( "SkelRoot" ) ) )
+			{
+				bIgnorePrimLocalTransform = true;
+			}
+		}
+	}
+
 	// Test that transform might be time varying and not TransformAttribute since it will check each xform ops
 	if ( Xformable.TransformMightBeTimeVarying() || bNeedTrackToCompensateResetXformOp )
 	{
@@ -1416,7 +1430,7 @@ void FUsdLevelSequenceHelperImpl::AddCommonTracks( const UUsdPrimTwin& PrimTwin,
 
 							if ( UMovieScene3DTransformTrack* TransformTrack = AddTrack<UMovieScene3DTransformTrack>( UnrealIdentifiers::TransformPropertyName, PrimTwin, *ComponentToBind, *AttributeSequence, bIsMuted ) )
 							{
-								UsdToUnreal::FPropertyTrackReader Reader = UsdToUnreal::CreatePropertyTrackReader( Prim, UnrealIdentifiers::TransformPropertyName );
+								UsdToUnreal::FPropertyTrackReader Reader = UsdToUnreal::CreatePropertyTrackReader( Prim, UnrealIdentifiers::TransformPropertyName, bIgnorePrimLocalTransform );
 								UsdToUnreal::ConvertTransformTimeSamples( UsdStage, TimeSamples, Reader.TransformReader, *TransformTrack, SequenceTransform );
 							}
 

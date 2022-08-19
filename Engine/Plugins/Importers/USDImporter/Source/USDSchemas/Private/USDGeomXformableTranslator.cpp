@@ -597,7 +597,14 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 		// into the mesh at that case, as each LOD could technically have a separate transform
 		if ( !Context->bAllowInterpretingLODs || !bHasMultipleLODs )
 		{
-			UsdToUnreal::ConvertXformable( Context->Stage, pxr::UsdGeomXformable( Prim ), *SceneComponent, Context->Time );
+			// Don't update the component's transform if this is already factored in as root motion within the AnimSequence
+			bool bConvertTransform = true;
+			if ( Prim.IsA( TEXT( "SkelRoot" ) ) && Context->RootMotionHandling == EUsdRootMotionHandling::UseMotionFromSkelRoot )
+			{
+				bConvertTransform = false;
+			}
+
+			UsdToUnreal::ConvertXformable( Context->Stage, pxr::UsdGeomXformable( Prim ), *SceneComponent, Context->Time, bConvertTransform );
 		}
 
 		// Note how we should only register if we unregistered ourselves: If we did this every time we would
