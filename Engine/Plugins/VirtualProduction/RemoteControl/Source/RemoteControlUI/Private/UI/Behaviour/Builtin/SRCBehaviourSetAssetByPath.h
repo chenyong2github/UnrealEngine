@@ -17,7 +17,7 @@ public:
 	SLATE_END_ARGS()
 
 	/** Constructs this widget with InArgs */
-	void Construct(const FArguments& InArgs, TSharedRef<const FRCSetAssetByPathBehaviourModel> InBehaviourItem);
+	void Construct(const FArguments& InArgs, TSharedRef<FRCSetAssetByPathBehaviourModel> InBehaviourItem);
 
 private:
 	/** The Behaviour (UI model) associated with us*/

@@ -1,12 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "RemoteControlEntity.h"
 #include "Behaviour/RCSetAssetByPathBehaviour.h"
 #include "UI/Behaviour/RCBehaviourModel.h"
 
 class IDetailTreeNode;
 class SBox;
 
+namespace SetAssetByPathModelHelper
+{
+	const FString InputToken = FString(TEXT("*INPUT "));
+}
 
 /*
  * ~ FRCSetAssetByPathModel ~
@@ -29,7 +34,14 @@ public:
 	 * further two Text Widgets representing elements needed for the Path Behaviour.
 	 * All of them store the user input and use them to perform the SetAssetByPath Behaviour.
 	 */
-	TSharedRef<SWidget> GetPropertyWidget() const;
+	TSharedRef<SWidget> GetPropertyWidget();
+
+	/** Builds the Combobox which the Behaviour will use to select and and apply it's Asset Setting on. */
+	TSharedRef<SWidget> GetSelectorWidget(TWeakPtr<const FRemoteControlEntity> InInitialSelected);
+
+protected:
+	/** Gets the currently selected Entities Name, or a failure Text in case it fails. */
+	FText GetSelectedEntityText() const;
 	
 private:
 	/** The SetAssetByPath Behaviour associated with this Model */
@@ -37,6 +49,12 @@ private:
 
 	/** Pointer to the Widget holding the PathArray created for this behaviour */
 	TSharedPtr<SBox> PathArrayWidget;
+
+	/** Pointer to the Preview Text Widget for the Path */
+	TSharedPtr<STextBlock> PreviewPathWidget;
+
+	/** POinter to the ComboBox Widget */
+	TSharedPtr<SWidget> SelectorBox;
 
 	/** The row generator used to build the generic value widgets */
 	TSharedPtr<IPropertyRowGenerator> PropertyRowGenerator;
@@ -49,10 +67,16 @@ private:
 	
 	/** Used to create a generic Value Widget based on the Paths Available*/
 	TArray<TSharedPtr<IDetailTreeNode>> DetailTreeNodeWeakPtrArray;
-
+	
+	/** Array of Exposed Entities from the Preset to help create a Widget to choose the Target */
+	TArray<TWeakPtr<const FRemoteControlEntity>> ExposedEntities;
+	
 private:
 	void RegenerateWeakPtrInternal();
 	
 	/** Regenerates and creates a new PathArray Widget if changed */
-	void RegeneratePathArrayWidget();
+	void RefreshPathAndPreview();
+
+	/** Creates a asset path, based on the selected Asset in the content browser. */
+	void CreateAssetPathFromSelection();
 };

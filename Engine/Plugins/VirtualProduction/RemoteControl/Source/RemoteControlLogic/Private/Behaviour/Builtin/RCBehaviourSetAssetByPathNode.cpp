@@ -11,7 +11,7 @@
 URCBehaviourSetAssetByPathNode::URCBehaviourSetAssetByPathNode()
 {
 	DisplayName = NSLOCTEXT("Remote Control Behaviour", "Behaviour Name - Set Asset By Path", "Set Asset By Path");
-	BehaviorDescription = NSLOCTEXT("Remote Control Behaviour", "Behavior Desc - Set Asset By Path", "Triggers an event which sets an object based on the TargetProperty Name.");
+	BehaviorDescription = NSLOCTEXT("Remote Control Behaviour", "Behaviour Desc - Set Asset By Path", "Triggers an event which sets an object based on the selected Exposed Entity.");
 }
 
 bool URCBehaviourSetAssetByPathNode::Execute_Implementation(URCBehaviour* InBehaviour) const
@@ -33,38 +33,12 @@ bool URCBehaviourSetAssetByPathNode::Execute_Implementation(URCBehaviour* InBeha
 		return false;
 	}
 
-	FString ControllerString;
-	FString TargetPropertyString;
 	FString DefaultString;
-	
-	RCController->GetValueString(ControllerString);
-	SetAssetByPathBehaviour->PropertyInContainer->GetVirtualProperty(SetAssetByPathBehaviourHelpers::TargetProperty)->GetValueString(TargetPropertyString);
-	SetAssetByPathBehaviour->PropertyInContainer->GetVirtualProperty(SetAssetByPathBehaviourHelpers::DefaultProperty)->GetValueString(DefaultString);
+	SetAssetByPathBehaviour->PropertyInContainer->GetVirtualProperty(SetAssetByPathBehaviourHelpers::DefaultInput)->GetValueString(DefaultString);
 
-	// Add Path String Concat
-	FString ConcatPath = SetAssetByPathBehaviourHelpers::ContentFolder;
-	for (FString PathPart : SetAssetByPathBehaviour->PathStruct.PathArray)
-	{
-		if (PathPart.IsEmpty())
-		{
-			continue;
-		}
-		// Add '/' if needed
-		int32 IndexFound;
-
-		if (PathPart.FindLastChar('_', IndexFound) && IndexFound == PathPart.Len() - 1)
-		{
-			// In the case there's underscore char in the at the end of one of the Path Strings, do nothing to facilitate more complex pathing behaviours.
-		}
-		else if (!PathPart.FindLastChar('/', IndexFound) || IndexFound < PathPart.Len() - 1)
-		{
-			PathPart = PathPart.AppendChar('/');
-		}
-		
-		ConcatPath += PathPart;
-	}
+	const FString ConcatPath = SetAssetByPathBehaviour->GetCurrentPath();
 	
-	return SetAssetByPathBehaviour->SetAssetByPath(ConcatPath, TargetPropertyString, DefaultString);
+	return SetAssetByPathBehaviour->SetAssetByPath(ConcatPath, DefaultString);
 }
 
 bool URCBehaviourSetAssetByPathNode::IsSupported_Implementation(URCBehaviour* InBehaviour) const
