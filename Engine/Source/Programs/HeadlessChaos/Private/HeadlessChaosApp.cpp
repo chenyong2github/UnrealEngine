@@ -262,6 +262,7 @@ TEST(BP, BroadphaseTests) {
 	ChaosTest::GridBPTest2();
 	ChaosTest::AABBTreeTest();
 	ChaosTest::AABBTreeTestDynamic();
+	ChaosTest::AABBTreeDirtyTreeTest();
 	ChaosTest::AABBTreeDirtyGridTest();
 	ChaosTest::AABBTreeTimesliceTest();
 	ChaosTest::DoForSweepIntersectCellsImpTest();

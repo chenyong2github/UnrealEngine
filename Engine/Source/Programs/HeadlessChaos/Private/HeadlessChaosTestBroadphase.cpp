@@ -570,6 +570,28 @@ namespace ChaosTest
 		
 	}
 
+	void AABBTreeDirtyTreeTest()
+	{
+		using TreeType = TAABBTree<int32, TAABBTreeLeafArray<int32>, true>;
+
+		// Do the standard tests
+		{
+			TUniquePtr<TBox<FReal, 3>> Box;
+			auto Boxes = BuildBoxes(Box);
+
+			TArray<TSOAView<FGeometryParticles>> EmptyArray;
+			TreeType Spatial{ MakeParticleView(MoveTemp(EmptyArray)),5, 5, 10000.0f, 1000, false, true};
+
+			int32 Idx;
+			for (Idx = 0; Idx < (int32)Boxes->Size(); ++Idx)
+			{
+				Spatial.UpdateElement(Idx, Boxes->WorldSpaceInflatedBounds(Idx), true);
+			}		
+
+			SpatialTestHelper(Spatial, Boxes.Get(), Box);
+		}
+	}
+
 	void AABBTreeDirtyGridTest()
 	{
 		using TreeType = TAABBTree<int32, TBoundingVolume<int32>>;

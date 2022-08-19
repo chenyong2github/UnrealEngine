@@ -15,6 +15,8 @@ namespace ChaosTest {
 
 	void AABBTreeTestDynamic();
 
+	void AABBTreeDirtyTreeTest();
+
 	void AABBTreeDirtyGridTest();
 
 	void AABBTreeTimesliceTest();
