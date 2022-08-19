@@ -1367,6 +1367,10 @@ namespace Gauntlet
 						Log.Info("Retrying Directory.GetFiles() once.");
 						Files = Directory.GetFiles();
 					}
+					else
+					{
+						throw;
+					}
 				}
 				return Files;
 			}
@@ -1387,6 +1391,10 @@ namespace Gauntlet
 					{
 						Log.Info("Retrying Directory.GetFiles(Pattern, SearchOption) once.");
 						Files = Directory.GetFiles(Pattern, SearchOption);
+					}
+					else
+					{
+						throw;
 					}
 				}
 				return Files;
@@ -1409,6 +1417,10 @@ namespace Gauntlet
 						Log.Info("Retrying Directory.GetDirectories() once.");
 						Directories = Directory.GetDirectories();
 					}
+					else
+					{
+						throw;
+					}
 				}
 				return Directories;
 			}
@@ -1429,6 +1441,10 @@ namespace Gauntlet
 					{
 						Log.Info("Retrying Directory.GetDirectories(Pattern, SearchOption) once.");
 						Directories = Directory.GetDirectories(Pattern, SearchOption);
+					}
+					else
+					{
+						throw;
 					}
 				}
 				return Directories;
@@ -1456,6 +1472,10 @@ namespace Gauntlet
 						Log.Info("Retrying Directory.GetFileSystemInfos(Pattern, SearchOption) once.");
 						FileInfos = Directory.GetFileSystemInfos(Pattern, SearchOption);
 					}
+					else
+					{
+						throw;
+					}
 				}
 				return FileInfos;
 			}
@@ -1476,6 +1496,10 @@ namespace Gauntlet
 						Log.Info("Retrying Directory.Delete(Force) once.");
 						Directory.Delete(Force);
 					}
+					else
+					{
+						throw;
+					}
 				}
 			}
 
@@ -1494,6 +1518,10 @@ namespace Gauntlet
 					{
 						Log.Info("Retrying File.Delete() once.");
 						File.Delete();
+					}
+					else
+					{
+						throw;
 					}
 				}
 			}
