@@ -619,8 +619,8 @@ FText FDisplayClusterLaunchEditorModule::GetToolbarButtonTooltipText()
 FSlateIcon FDisplayClusterLaunchEditorModule::GetToolbarButtonIcon()
 {
 	RemoveTerminatedNodeProcesses();
-	return FSlateIcon(FAppStyle::Get().GetStyleSetName(),
-		ActiveDisplayClusterProcesses.Num() > 0 ? "Icons.Toolbar.Stop" : "Icons.Toolbar.Play");
+	return FSlateIcon(FDisplayClusterLaunchEditorStyle::Get().GetStyleSetName(),
+		ActiveDisplayClusterProcesses.Num() > 0 ? "Icons.DisplayClusterLaunchStop" : "Icons.DisplayClusterLaunchPlay");
 }
 
 void FDisplayClusterLaunchEditorModule::OnClickToolbarButton()
