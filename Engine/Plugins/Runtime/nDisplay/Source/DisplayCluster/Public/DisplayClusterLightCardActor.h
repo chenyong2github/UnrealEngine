@@ -181,7 +181,7 @@ public:
 	float Tint;
 
 	/** 2^Exposure color value multiplier */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", meta = (UIMin = -100, ClampMin = -100, UIMax = 100, ClampMax = 100))
 	float Exposure;
 
 	/** Linear color value multiplier */
