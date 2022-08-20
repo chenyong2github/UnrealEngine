@@ -245,6 +245,13 @@ namespace Horde.Build.Users
 		}
 
 		/// <inheritdoc/>
+		public async Task<IUser?> FindUserByEmailAsync(string email)
+		{
+			string emailUpper = email.ToUpperInvariant();
+			return await _users.Find(x => x.EmailUpper == emailUpper).FirstOrDefaultAsync();
+		}
+
+		/// <inheritdoc/>
 		public async Task<IUser> FindOrAddUserByLoginAsync(string login, string? name, string? email)
 		{
 			if (login.Contains(' ', StringComparison.Ordinal))

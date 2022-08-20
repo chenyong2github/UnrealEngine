@@ -125,6 +125,12 @@ namespace Horde.Build.Users
 		}
 
 		/// <inheritdoc/>
+		public Task<IUser?> FindUserByEmailAsync(string email)
+		{
+			return Task.FromResult<IUser?>(null);
+		}
+
+		/// <inheritdoc/>
 		public async Task<IUser> FindOrAddUserByLoginAsync(string login, string? name, string? email)
 		{
 			ClaimDocument newPrimaryClaim = new ClaimDocument(ClaimTypes.Name, login);

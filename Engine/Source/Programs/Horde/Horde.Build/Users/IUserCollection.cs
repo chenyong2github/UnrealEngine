@@ -49,6 +49,13 @@ namespace Horde.Build.Users
 		Task<IUser?> FindUserByLoginAsync(string login);
 
 		/// <summary>
+		/// Gets a user by email address
+		/// </summary>
+		/// <param name="email">Email for the user</param>
+		/// <returns>The user information</returns>
+		Task<IUser?> FindUserByEmailAsync(string email);
+
+		/// <summary>
 		/// Find or add a user with the given claims. Claims will be updated if the user exists.
 		/// </summary>
 		/// <param name="login">Login id of the user</param>
