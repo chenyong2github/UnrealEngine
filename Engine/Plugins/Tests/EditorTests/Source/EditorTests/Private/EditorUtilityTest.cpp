@@ -59,7 +59,7 @@ UEditorUtilityTest::UEditorUtilityTest(const FObjectInitializer& ObjectInitializ
 
 void UEditorUtilityTest::Run()
 {
-	if (State != EEditorUtilityTestResult::Preparing || State != EEditorUtilityTestResult::Running)
+	if (State != EEditorUtilityTestResult::Preparing && State != EEditorUtilityTestResult::Running)
 	{
 		State = EEditorUtilityTestResult::Preparing;
 
