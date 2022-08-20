@@ -39,6 +39,7 @@ public class ObjectMixerEditor : ModuleRules
 				"SlateCore",
 				"ToolMenus", 
 				"ToolWidgets",
+				"TypedElementFramework",
 				"UnrealEd",
 				"WorkspaceMenuStructure"
 			}
