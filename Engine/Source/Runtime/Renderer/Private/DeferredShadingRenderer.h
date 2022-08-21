@@ -863,6 +863,9 @@ private:
 	void ComputeVolumetricFog(FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures);
 
+	void RenderHeterogeneousVolumes(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
+	void CompositeHeterogeneousVolumes(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
+
 	void VisualizeVolumetricLightmap(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
 
 	/** Render image based reflections (SSR, Env, SkyLight) without compute shaders */

@@ -2916,6 +2916,7 @@ public:
 #if RHI_RAYTRACING
 	/** Persistently-allocated ray tracing scene data. */
 	FRayTracingScene RayTracingScene;
+	FRayTracingScene HeterogeneousVolumesRayTracingScene;
 
 	bool bHasRayTracedLights = false;
 	void UpdateRayTracedLights();

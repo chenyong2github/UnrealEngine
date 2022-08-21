@@ -15,6 +15,7 @@
 #include "StaticMeshResources.h"
 #include "MeshPassProcessor.inl"
 #include "VolumetricCloudRendering.h"
+#include "HeterogeneousVolumes/HeterogeneousVolumes.h"
 
 int32 GVolumetricFogVoxelizationSlicesPerGSPass = 8;
 FAutoConsoleVariableRef CVarVolumetricFogVoxelizationSlicesPerPass(
@@ -661,9 +662,20 @@ void FDeferredShadingSceneRenderer::VoxelizeFogVolumePrimitives(
 						&View,
 						DynamicMeshPassContext);
 
+					const bool bShouldRenderHeterogeneousVolumes = ShouldRenderHeterogeneousVolumesForView(View);
+
 					for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.VolumetricMeshBatches.Num(); ++MeshBatchIndex)
 					{
 						const FMeshBatch* Mesh = View.VolumetricMeshBatches[MeshBatchIndex].Mesh;
+						const FMaterialRenderProxy* MaterialRenderProxy = Mesh->MaterialRenderProxy;
+						const FMaterial& Material = MaterialRenderProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialRenderProxy);
+
+						// Skip volumes flagged as rendered with HeterogenousVolumes
+						if (bShouldRenderHeterogeneousVolumes && Material.IsUsedWithNiagaraMeshParticles())
+						{
+							continue;
+						}
+
 						const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.VolumetricMeshBatches[MeshBatchIndex].Proxy;
 						const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 						const FBoxSphereBounds Bounds = PrimitiveSceneProxy->GetBounds();

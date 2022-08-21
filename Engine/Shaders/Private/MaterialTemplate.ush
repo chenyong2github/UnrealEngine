@@ -591,6 +591,10 @@ void MaterialPackInterpolatorComponent(in out FMaterialVertexParameters Paramete
 #endif
 }
 
+#if GET_PRIMITIVE_DATA_OVERRIDE
+	FPrimitiveSceneData GetPrimitiveData(FMaterialVertexParameters Parameters);
+	FPrimitiveSceneData GetPrimitiveData(FMaterialPixelParameters Parameters);
+#else
 FPrimitiveSceneData GetPrimitiveData(FMaterialVertexParameters Parameters)
 {
 	return Parameters.SceneData.Primitive;
@@ -600,6 +604,7 @@ FPrimitiveSceneData GetPrimitiveData(FMaterialPixelParameters Parameters)
 {
 	return GetPrimitiveData(Parameters.PrimitiveId);
 }
+#endif 
 
 bool UnpackUniform_bool(uint Packed, uint BitOffset)
 {

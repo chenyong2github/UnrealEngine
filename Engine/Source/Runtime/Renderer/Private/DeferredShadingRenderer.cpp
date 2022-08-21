@@ -75,6 +75,7 @@
 #include "Containers/ChunkedArray.h"
 #include "Async/ParallelFor.h"
 #include "Shadows/ShadowSceneRenderer.h"
+#include "HeterogeneousVolumes/HeterogeneousVolumes.h"
 
 extern int32 GNaniteShowStats;
 extern int32 GNanitePickingDomain;
@@ -1721,7 +1722,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
-	RayTracingScene.CreateWithInitializationData(GraphBuilder, Scene->GPUScene, ReferenceView.ViewMatrices, MoveTemp(ReferenceView.RayTracingSceneInitData));
+	RayTracingScene.CreateWithInitializationData(GraphBuilder, &Scene->GPUScene, ReferenceView.ViewMatrices, MoveTemp(ReferenceView.RayTracingSceneInitData));
 
 	const uint32 BLASScratchSize = Scene->GetRayTracingDynamicGeometryCollection()->ComputeScratchBufferSize();
 	if (BLASScratchSize > 0)
@@ -3177,6 +3178,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		ComputeVolumetricFog(GraphBuilder, SceneTextures);
 	}
 
+	if (ShouldRenderHeterogeneousVolumes(Scene) && !bHasRayTracedOverlay)
+	{
+		RenderHeterogeneousVolumes(GraphBuilder, SceneTextures);
+	}
+
 	if (bShouldRenderVolumetricCloud && IsVolumetricRenderTargetEnabled() && !bHasHalfResCheckerboardMinMaxDepth && !bHasRayTracedOverlay)
 	{
 		HalfResolutionDepthCheckerboardMinMaxTexture = CreateHalfResolutionDepthCheckerboardMinMax(GraphBuilder, Views, SceneTextures.Depth.Resolve);
@@ -3464,6 +3470,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (ViewFamily.EngineShowFlags.StationaryLightOverlap)
 	{
 		RenderStationaryLightOverlap(GraphBuilder, SceneTextures, LightingChannelsTexture);
+	}
+
+	if (ShouldRenderHeterogeneousVolumes(Scene) && !bHasRayTracedOverlay)
+	{
+		CompositeHeterogeneousVolumes(GraphBuilder, SceneTextures);
 	}
 
 	if (bShouldVisualizeVolumetricCloud && !bHasRayTracedOverlay)

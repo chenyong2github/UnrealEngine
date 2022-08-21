@@ -1,0 +1,228 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "HeterogeneousVolumesSparseVoxelUtils.ush"
+#include "../Common.ush"
+
+#define SUPPORT_CONTACT_SHADOWS 0
+
+#include "/Engine/Generated/Material.ush"
+#include "HeterogeneousVolumesLiveShadingUtils.ush"
+#include "HeterogeneousVolumesTracingUtils.ush"
+#include "HeterogeneousVolumesLightingUtils.ush"
+
+// Object data
+float4x4 LocalToWorld;
+float4x4 WorldToLocal;
+float3 LocalBoundsOrigin;
+float3 LocalBoundsExtent;
+int PrimitiveId;
+
+// Lighting
+int bApplyEmission;
+int bApplyDirectLighting;
+int LightType;
+float ShadowStepFactor;
+
+// Ray data
+float MaxTraceDistance;
+float StepSize;
+int MaxStepCount;
+int bJitter;
+
+// Dispatch data
+int3 GroupCount;
+
+// Output
+RWTexture2D<float4> RWLightingTexture;
+
+struct FDebugOutput
+{
+	int PrimitiveId;
+	float3 LocalObjectBoundsMin;
+	float3 LocalObjectBoundsMax;
+	int Paddington;
+	float4x4 LocalToWorld;
+	float4x4 WorldToLocal;
+};
+
+RWStructuredBuffer<FDebugOutput> RWDebugOutputBuffer;
+
+FDebugOutput CreateDebugOutput(
+	inout FMaterialPixelParameters MaterialParameters,
+	inout FPixelMaterialInputs PixelMaterialInputs)
+{
+	FDebugOutput DebugOutput = (FDebugOutput)0;
+
+	DebugOutput.PrimitiveId = MaterialParameters.PrimitiveId;
+	DebugOutput.LocalObjectBoundsMin = GetPrimitiveData(MaterialParameters).LocalObjectBoundsMin.xyz;
+	DebugOutput.LocalObjectBoundsMax = GetPrimitiveData(MaterialParameters).LocalObjectBoundsMax.xyz;
+	DebugOutput.LocalToWorld = LWCToFloat(GetPrimitiveData(MaterialParameters).LocalToWorld);
+	DebugOutput.WorldToLocal = LWCToFloat(GetPrimitiveData(MaterialParameters).WorldToLocal);
+
+	return DebugOutput;
+}
+
+FPrimitiveSceneData GetPrimitiveData(FMaterialPixelParameters Parameters)
+{
+	return GetPrimitiveData(Parameters, LocalToWorld, WorldToLocal, LocalBoundsOrigin, LocalBoundsExtent);
+}
+
+float4x4 GetLocalToWorld()
+{
+	return LocalToWorld;
+}
+
+float4x4 GetWorldToLocal()
+{
+	return WorldToLocal;
+}
+
+float3 GetLocalBoundsOrigin()
+{
+	return LocalBoundsOrigin;
+}
+
+float3 GetLocalBoundsExtent()
+{
+	return LocalBoundsExtent;
+}
+
+float GetStepSize()
+{
+	return StepSize;
+}
+
+float GetShadowStepFactor()
+{
+	return ShadowStepFactor;
+}
+
+struct FVolumeSampleContext
+{
+	FMaterialPixelParameters MaterialParameters;
+	FPixelMaterialInputs PixelMaterialInputs;
+};
+
+FVolumeSampleContext CreateVolumeSampleContext(float3 LocalPosition, float3 WorldPosition)
+{
+	FVolumeSampleContext VolumeSampleContext;
+	VolumeSampleContext.MaterialParameters = MakeInitializedMaterialPixelParameters();
+	//VolumeSampleContext.MaterialParameters.PrimitiveId = PrimitiveId;
+	VolumeSampleContext.MaterialParameters.AbsoluteWorldPosition = LWCPromote(WorldPosition);
+
+	// Evaluate Material graph
+	CalcPixelMaterialInputs(VolumeSampleContext.MaterialParameters, VolumeSampleContext.PixelMaterialInputs);
+
+	return VolumeSampleContext;
+}
+
+float3 SampleExtinction(inout FVolumeSampleContext Context)
+{
+	float3 Extinction = SampleExtinctionCoefficients(Context.PixelMaterialInputs);
+	return Extinction;
+}
+
+float3 SampleEmission(inout FVolumeSampleContext Context)
+{
+	float3 Emission = SampleEmissive(Context.PixelMaterialInputs);
+	return Emission;
+}
+
+float3 SampleAlbedo(inout FVolumeSampleContext Context)
+{
+	float3 Albedo = SampleAlbedo(Context.PixelMaterialInputs);
+	return Albedo;
+}
+
+#include "HeterogeneousVolumesRayMarchingUtils.ush"
+
+[numthreads(THREADGROUP_SIZE_2D, THREADGROUP_SIZE_2D, 1)]
+void RenderSingleScatteringWithLiveShadingCS(
+	uint2 GroupThreadId : SV_GroupThreadID,
+	uint2 DispatchThreadId : SV_DispatchThreadID
+)
+{
+	float3 Radiance = 0.0;
+	float3 Transmittance = 1.0;
+	FDebugOutput DebugOutput = (FDebugOutput)0;
+
+	// Create screen ray
+	if (any(DispatchThreadId.xy >= View.ViewSizeAndInvSize.xy))
+	{
+		return;
+	}
+	uint LinearIndex = DispatchThreadId.y * GroupCount.x * THREADGROUP_SIZE_2D + DispatchThreadId.x;
+	uint2 PixelCoord = DispatchThreadId.xy + View.ViewRectMin.xy;
+
+	// Extract depth
+	float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
+#if HAS_INVERTED_Z_BUFFER
+	DeviceZ = max(0.000000000001, DeviceZ);
+#endif // HAS_INVERTED_Z_BUFFER
+
+	// Clip trace distance
+	float SceneDepth = min(ConvertFromDeviceZ(DeviceZ), MaxTraceDistance);
+	DeviceZ = ConvertToDeviceZ(SceneDepth);
+
+	float Jitter = bJitter ? InterleavedGradientNoise(PixelCoord, View.StateFrameIndexMod8) : 0.0;
+
+	// Intersect ray with bounding volume
+	// TODO: LWC integration..
+	float3 WorldRayOrigin = LWCHackToFloat(LWCSubtract(View.TranslatedWorldCameraOrigin, PrimaryView.PreViewTranslation));
+	float3 WorldRayEnd = LWCHackToFloat(SvPositionToWorld(float4(PixelCoord + 0.5, DeviceZ, 1)));
+	float3 WorldRayDirection = WorldRayEnd - WorldRayOrigin;
+	float WorldRayLength = length(WorldRayDirection);
+	WorldRayDirection /= WorldRayLength;
+
+	float3 LocalRayOrigin = mul(float4(WorldRayOrigin, 1.0), WorldToLocal).xyz;
+	float3 LocalRayEnd = mul(float4(WorldRayEnd, 1.0), WorldToLocal).xyz;
+	float3 LocalRayDirection = LocalRayEnd - LocalRayOrigin;
+	float LocalRayLength = length(LocalRayDirection);
+	LocalRayDirection /= LocalRayLength;
+
+	float3 LocalBoundsMin = LocalBoundsOrigin - LocalBoundsExtent;
+	float3 LocalBoundsMax = LocalBoundsOrigin + LocalBoundsExtent;
+
+	// Test bounding volume
+	float2 HitT = IntersectAABB(LocalRayOrigin, LocalRayDirection, 0.0, SceneDepth, LocalBoundsMin, LocalBoundsMax);
+	float HitSpan = HitT.y - HitT.x;
+	if (HitSpan > 0.0)
+	{
+		// March
+		FRayMarchingContext RayMarchingContext = CreateRayMarchingContext(
+			// Local-space
+			LocalRayOrigin,
+			LocalRayDirection,
+			HitT.x,
+			HitT.y,
+			// World-space
+			WorldRayOrigin,
+			WorldRayDirection,
+			// Ray-step attributes
+			Jitter,
+			StepSize,
+			MaxStepCount,
+			bApplyEmission,
+			bApplyDirectLighting
+		);
+
+		FDeferredLightData LightData = LoadLightData(LightType);
+		uint StepCount = CalcStepCount(RayMarchingContext);
+
+		RayMarchSingleScattering(
+			RayMarchingContext,
+			LightData,
+			LightType,
+			StepCount,
+			Radiance,
+			Transmittance
+		);
+
+		// Output..
+		float3 Opacity = 1.0 - Transmittance;
+		RWLightingTexture[PixelCoord] += float4(Radiance, Luminance(Opacity));
+
+		// Debug output
+		//RWDebugOutputBuffer[LinearIndex] = DebugOutput;
+	}
+}

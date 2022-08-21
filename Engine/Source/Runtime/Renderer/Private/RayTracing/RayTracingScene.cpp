@@ -36,12 +36,12 @@ FRayTracingSceneWithGeometryInstances FRayTracingScene::BuildInitializationData(
 		NumCallableShaderSlots);
 }
 
-void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const FViewMatrices& ViewMatrices)
+void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene* GPUScene, const FViewMatrices& ViewMatrices)
 {
 	CreateWithInitializationData(GraphBuilder, GPUScene, ViewMatrices, BuildInitializationData());
 }
 
-void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const FViewMatrices& ViewMatrices, FRayTracingSceneWithGeometryInstances SceneWithGeometryInstances)
+void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, const FGPUScene* GPUScene, const FViewMatrices& ViewMatrices, FRayTracingSceneWithGeometryInstances SceneWithGeometryInstances)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(FRayTracingScene_BeginCreate);
 
@@ -196,7 +196,7 @@ void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, c
 			ERDGPassFlags::Compute,
 			[PassParams,
 			this,
-			GPUScene = &GPUScene,
+			GPUScene,
 			ViewTilePosition = AbsoluteViewOrigin.GetTile(),
 			RelativePreViewTranslation = ViewMatrices.GetPreViewTranslation() + ViewTileOffset,
 			&SceneInitializer,

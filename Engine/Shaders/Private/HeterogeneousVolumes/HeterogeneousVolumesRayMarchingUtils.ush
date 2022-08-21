@@ -1,0 +1,243 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#ifndef HARDWARE_RAY_TRACING
+#define HARDWARE_RAY_TRACING 0
+#endif // HARDWARE_RAY_TRACING
+
+struct FRayMarchingContext
+{
+	// Local-space
+	float3 LocalRayOrigin;
+	float3 LocalRayDirection;
+	float LocalRayTMin;
+	float LocalRayTMax;
+	// World-space
+	float3 WorldRayOrigin;
+	float3 WorldRayDirection;
+	// Ray-step attributes
+	float Jitter;
+	float StepSize;
+	uint MaxStepCount;
+	// Lighting
+	int bApplyEmission;
+	int bApplyDirectLighting;
+};
+
+FRayMarchingContext CreateRayMarchingContext(
+	// Local-space
+	float3 LocalRayOrigin,
+	float3 LocalRayDirection,
+	float LocalRayTMin,
+	float LocalRayTMax,
+	// World-space
+	float3 WorldRayOrigin,
+	float3 WorldRayDirection,
+	// Ray-step attributes
+	float Jitter,
+	float StepSize,
+	uint MaxStepCount,
+	// Lighting
+	int bApplyEmission,
+	int bApplyDirectLighting
+)
+{
+	FRayMarchingContext Context;
+	// Local-space
+	Context.LocalRayOrigin = LocalRayOrigin;
+	Context.LocalRayDirection = LocalRayDirection;
+	Context.LocalRayTMin = LocalRayTMin;
+	Context.LocalRayTMax = LocalRayTMax;
+	// World-space
+	Context.WorldRayOrigin = WorldRayOrigin;
+	Context.WorldRayDirection = WorldRayDirection;
+	// Ray-step attributes
+	Context.Jitter = Jitter;
+	Context.StepSize = StepSize;
+	Context.MaxStepCount = MaxStepCount;
+	// Lighting
+	Context.bApplyEmission = bApplyEmission;
+	Context.bApplyDirectLighting = bApplyDirectLighting;
+
+	return Context;
+}
+
+uint CalcStepCount(inout FRayMarchingContext Context)
+{
+	float HitSpan = Context.LocalRayTMax - Context.LocalRayTMin;
+	float StepSize = Context.StepSize;
+	uint StepCount = max(ceil(HitSpan / StepSize), 1);
+	if (StepCount > Context.MaxStepCount)
+	{
+		StepCount = Context.MaxStepCount;
+		StepSize = HitSpan / StepCount;
+	}
+
+	Context.StepSize = StepSize;
+	return StepCount;
+}
+
+void RayMarchTransmittance(
+	inout FRayMarchingContext RayMarchingContext,
+	uint StepCount,
+	inout float3 Transmittance
+)
+{
+	for (uint StepIndex = 0; StepIndex < StepCount; ++StepIndex)
+	{
+		float3 LocalPosition = RayMarchingContext.LocalRayOrigin + RayMarchingContext.LocalRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
+		float3 WorldPosition = RayMarchingContext.WorldRayOrigin + RayMarchingContext.WorldRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
+
+		FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalPosition, WorldPosition);
+		float3 Extinction = SampleExtinction(SampleContext);
+		Transmittance *= exp(-Extinction * RayMarchingContext.StepSize);
+	}
+}
+
+float3 ComputeTransmittance(
+	inout FRayMarchingContext RayMarchingContext
+)
+{
+#if HARDWARE_RAY_TRACING
+	return ComputeTransmittanceHardwareRayTracing(RayMarchingContext.WorldRayOrigin, RayMarchingContext.WorldRayDirection, RayMarchingContext.LocalRayTMin, RayMarchingContext.LocalRayTMax);
+#else // HARDWARE_RAY_TRACING
+
+	float3 Transmittance = 1.0;
+
+	float3 LocalBoundsMin = GetLocalBoundsOrigin() - GetLocalBoundsExtent();
+	float3 LocalBoundsMax = GetLocalBoundsOrigin() + GetLocalBoundsExtent();
+	float2 HitT = IntersectAABB(RayMarchingContext.LocalRayOrigin, RayMarchingContext.LocalRayDirection, RayMarchingContext.LocalRayTMin, RayMarchingContext.LocalRayTMax,
+		LocalBoundsMin, LocalBoundsMax);
+
+	float HitSpan = HitT.y - HitT.x;
+	if (HitSpan > 0.0)
+	{
+		RayMarchingContext.LocalRayTMin = HitT.x;
+		RayMarchingContext.LocalRayTMax = HitT.y;
+		uint StepCount = CalcStepCount(RayMarchingContext);
+
+		RayMarchTransmittance(RayMarchingContext, StepCount, Transmittance);
+	}
+
+	return Transmittance;
+#endif // HARDWARE_RAY_TRACING
+}
+
+void RayMarchEmissionAbsorption(
+	inout FRayMarchingContext RayMarchingContext,
+	uint StepCount,
+	inout float3 Radiance,
+	inout float3 Transmittance
+)
+{
+	for (uint StepIndex = 0; StepIndex < StepCount; ++StepIndex)
+	{
+		float3 LocalPosition = RayMarchingContext.LocalRayOrigin + RayMarchingContext.LocalRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
+		float3 WorldPosition = RayMarchingContext.WorldRayOrigin + RayMarchingContext.WorldRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
+
+		FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalPosition, WorldPosition);
+		float3 Extinction = SampleExtinction(SampleContext);
+
+		float3 Emission = SampleEmission(SampleContext);
+		Radiance += Emission * RayMarchingContext.StepSize * Transmittance;
+
+		// Accumulate transmittance for the next evaluation
+		Transmittance *= exp(-Extinction * RayMarchingContext.StepSize);
+	}
+}
+
+void RayMarchSingleScattering(
+	inout FRayMarchingContext RayMarchingContext,
+	inout FDeferredLightData LightData,
+	uint LightType,
+	uint StepCount,
+	inout float3 Radiance,
+	inout float3 Transmittance
+)
+{
+	for (uint StepIndex = 0; StepIndex < StepCount; ++StepIndex)
+	{
+		float3 LocalPosition = RayMarchingContext.LocalRayOrigin + RayMarchingContext.LocalRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
+		float3 WorldPosition = RayMarchingContext.WorldRayOrigin + RayMarchingContext.WorldRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
+		FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalPosition, WorldPosition);
+
+		if (RayMarchingContext.bApplyEmission)
+		{
+			float3 Emission = SampleEmission(SampleContext);
+			Radiance += Emission * RayMarchingContext.StepSize * Transmittance;
+		}
+
+		float3 Extinction = SampleExtinction(SampleContext);
+		if (RayMarchingContext.bApplyDirectLighting && (any(Extinction > 0.0)))
+		{
+			float3 Albedo = SampleAlbedo(SampleContext);
+			if (any(Albedo > 0.0))
+			{
+				float3 TranslatedWorldPosition = LWCHackToFloat(LWCAdd(WorldPosition, PrimaryView.PreViewTranslation));
+
+				float3 L = LightData.Direction;
+				//float3 ToLight = L * RayMarchingContext.MaxShadowTraceDistance;
+				float3 ToLight = L * 10000;
+
+				float LightAttenuation = 1.0;
+				if (LightType != LIGHT_TYPE_DIRECTIONAL)
+				{
+					LightAttenuation = GetLocalLightAttenuation(TranslatedWorldPosition, LightData, ToLight, L);
+					if (LightData.bRectLight)
+					{
+						FRect Rect = GetRect(ToLight, LightData);
+						LightAttenuation *= IntegrateLight(Rect);
+					}
+					else
+					{
+						FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
+						Capsule.DistBiasSqr = 0;
+						LightAttenuation *= IntegrateLight(Capsule, LightData.bInverseSquared);
+					}
+				}
+
+				float3 Inscattering = LightData.Color * LightAttenuation;
+
+				if (any(Inscattering > 0.0))
+				{
+					// Build shadow ray and find intersection
+					float3 LocalShadowRayOrigin = mul(float4(WorldPosition, 1.0), GetWorldToLocal()).xyz;
+					float3 LocalShadowRayEnd = mul(float4(WorldPosition + ToLight, 1.0), GetWorldToLocal()).xyz;
+					float3 LocalShadowRayDirection = LocalShadowRayEnd - LocalShadowRayOrigin;
+					float LocalShadowRayTMin = 0.0;
+					float LocalShadowRayTMax = length(LocalShadowRayDirection);
+					LocalShadowRayDirection /= LocalShadowRayTMax;
+
+					//float ShadowJitter = InterleavedGradientNoise(PixelCoord, StepIndex);
+					float ShadowJitter = 0.0;
+					float ShadowStepSize = GetStepSize() * GetShadowStepFactor();
+					int bApplyEmission = 0;
+					int bApplyDirectLighting = 0;
+
+					FRayMarchingContext ShadowRayMarchingContext = CreateRayMarchingContext(
+						LocalShadowRayOrigin,
+						LocalShadowRayDirection,
+						LocalShadowRayTMin,
+						LocalShadowRayTMax,
+						WorldPosition, // WorldShadowRayOrigin
+						normalize(ToLight), // WorldShadowRayDirection
+						ShadowJitter,
+						ShadowStepSize,
+						RayMarchingContext.MaxStepCount,
+						bApplyEmission,
+						bApplyDirectLighting
+						//RayMarchingContext.MaxShadowTraceDistance
+					);
+					float3 ShadowTransmittance = ComputeTransmittance(ShadowRayMarchingContext);
+
+					// Convert in-scattering to exitant radiance
+					float3 ScatteringCoefficient = Albedo * Extinction;
+					float IsotropicPhase = 1.0 / (4.0 * PI);
+					Radiance += Inscattering * ShadowTransmittance * ScatteringCoefficient * IsotropicPhase * Transmittance * RayMarchingContext.StepSize;
+				}
+			}
+		}
+
+		// Accumulate transmittance for the next evaluation
+		Transmittance *= exp(-Extinction * RayMarchingContext.StepSize);
+	}
+}

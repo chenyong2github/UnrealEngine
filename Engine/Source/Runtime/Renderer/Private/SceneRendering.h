@@ -1435,6 +1435,8 @@ public:
 	FForwardLightingViewResources ForwardLightingResources;
 	FVolumetricFogViewResources VolumetricFogResources;
 
+	FRDGTextureRef HeterogeneousVolumeRadiance = nullptr;
+
 	// Size of the HZB's mipmap 0
 	// NOTE: the mipmap 0 is downsampled version of the depth buffer
 	FIntPoint HZBMipmap0Size;
