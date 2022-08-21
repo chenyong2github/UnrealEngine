@@ -5,17 +5,12 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
-#if WITH_EDITOR
-FString UDMXGDTFAssetImportData::GetSourceFilePathAndName() const
-{
-	// Not GetFirstFilename(), we want the name even if the file doesn't exist on disk locally.
-	return SourceData.SourceFiles.Num() > 0 ? SourceData.SourceFiles[0].RelativeFilename : FString();
-}
-#endif // WITH_EDITOR
 
 #if WITH_EDITOR
-void UDMXGDTFAssetImportData::SetSourceFile(const FString& FilePathAndName)
+void UDMXGDTFAssetImportData::SetSourceFile(const FString& InFilePathAndName)
 {
+	FilePathAndName = InFilePathAndName;
+
 	FAssetImportInfo Info;
 	Info.Insert(FAssetImportInfo::FSourceFile(FilePathAndName));
 	SourceData = Info;
@@ -29,3 +24,14 @@ void UDMXGDTFAssetImportData::SetSourceFile(const FString& FilePathAndName)
 	FFileHelper::LoadFileToArray(RawSourceData.ByteArray, *FilePathAndName);
 }
 #endif // WITH_EDITOR
+
+void UDMXGDTFAssetImportData::PostLoad() 
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	FAssetImportInfo Info;
+	Info.Insert(FAssetImportInfo::FSourceFile(FilePathAndName));
+	SourceData = Info;
+#endif // WITH_EDITOR
+}

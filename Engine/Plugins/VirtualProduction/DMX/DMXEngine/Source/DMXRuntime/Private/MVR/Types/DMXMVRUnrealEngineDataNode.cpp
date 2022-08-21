@@ -32,6 +32,6 @@ void UDMXMVRUnrealEngineDataNode::CreateXmlNodeInParent(FXmlNode& ParentNode) co
 	DataXmlNode->SetAttributes(Attributes);
 
 	// 'Date' child node
-	constexpr TCHAR ChildTag_Date[] = TEXT("Date");
+	constexpr TCHAR ChildTag_Date[] = TEXT("CreationDate");
 	DataXmlNode->AppendChildNode(ChildTag_Date, FDateTime::Now().ToString());
 }

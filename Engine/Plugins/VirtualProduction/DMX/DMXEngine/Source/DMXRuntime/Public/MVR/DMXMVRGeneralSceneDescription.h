@@ -47,6 +47,9 @@ public:
 	 */
 	void WriteDMXLibraryToGeneralSceneDescription(const UDMXLibrary& DMXLibrary);
 
+	/** Returns true if an Xml File can be created. Gives a reason if no MVR can be exported */
+	bool CanCreateXmlFile(FText& OutReason) const;
+
 	/** Creates an General Scene Description Xml File from this. */
 	TSharedPtr<FXmlFile> CreateXmlFile() const;
 

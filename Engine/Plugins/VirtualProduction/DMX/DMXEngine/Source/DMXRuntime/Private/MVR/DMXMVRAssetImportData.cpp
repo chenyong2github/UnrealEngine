@@ -7,8 +7,10 @@
 
 
 #if WITH_EDITOR
-void UDMXMVRAssetImportData::SetSourceFile(const FString& FilePathAndName)
+void UDMXMVRAssetImportData::SetSourceFile(const FString& InFilePathAndName)
 {
+	FilePathAndName = InFilePathAndName;
+
 	FAssetImportInfo Info;
 	Info.Insert(FAssetImportInfo::FSourceFile(FilePathAndName));
 	SourceData = Info;
@@ -22,3 +24,14 @@ void UDMXMVRAssetImportData::SetSourceFile(const FString& FilePathAndName)
 	FFileHelper::LoadFileToArray(RawSourceData.ByteArray, *FilePathAndName);
 }
 #endif // WITH_EDITOR
+
+void UDMXMVRAssetImportData::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	FAssetImportInfo Info;
+	Info.Insert(FAssetImportInfo::FSourceFile(FilePathAndName));
+	SourceData = Info;
+#endif
+}

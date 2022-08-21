@@ -19,20 +19,26 @@ class DMXRUNTIME_API UDMXGDTFAssetImportData
 	GENERATED_BODY()
 
 public:
-#if WITH_EDITOR
-	/** Returns path and name of the source file the GDTF asset originated from */
-	FString GetSourceFilePathAndName() const;
+	/** Returns the imported file path and name */
+	FORCEINLINE const FString& GetFilePathAndName() const { return FilePathAndName; };
 
+#if WITH_EDITOR
 	/** Creates new asset GDTF Asset Import Data from the File. Returns the GDTF Asset Import Data or nullptr if not a valid GDTF File */
-	void SetSourceFile(const FString& FilePathAndName);
+	void SetSourceFile(const FString& InFilePathAndName);
 
 	/** Returns the source data the asset was generated from */
 	FORCEINLINE const TArray64<uint8>& GetRawSourceData() const { return RawSourceData.ByteArray; }
 #endif // WITH_EDITOR 
 
-private:
-	/** We need to remember the literal File Name to */
+protected:
+	//~ Begin UObject interface
+	virtual void PostLoad() override;
+	//~ End UObject interface
 
+private:
+	/** The imported file path and name */
+	UPROPERTY()
+	FString FilePathAndName;
 
 #if WITH_EDITORONLY_DATA
 	/** The raw GDTF zip file as byte array */

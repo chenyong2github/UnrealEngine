@@ -188,7 +188,7 @@ bool UDMXGDTFFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 	UDMXImportGDTF* GDTF = Cast<UDMXImportGDTF>(Obj);
 	if (GDTF && GDTF->GetGDTFAssetImportData())
 	{
-		const FString SourceFilename = GDTF->GetGDTFAssetImportData()->GetSourceFilePathAndName();
+		const FString SourceFilename = GDTF->GetGDTFAssetImportData()->GetFilePathAndName();
 		OutFilenames.Add(SourceFilename);
 		return true;
 	}
@@ -213,7 +213,7 @@ EReimportResult::Type UDMXGDTFFactory::Reimport(UObject* InObject)
 		return EReimportResult::Failed;
 	}
 
-	const FString SourceFilename = GDTF->GetGDTFAssetImportData()->GetSourceFilePathAndName();
+	const FString SourceFilename = GDTF->GetGDTFAssetImportData()->GetFilePathAndName();
 	if (!FPaths::FileExists(SourceFilename))
 	{
 		return EReimportResult::Failed;

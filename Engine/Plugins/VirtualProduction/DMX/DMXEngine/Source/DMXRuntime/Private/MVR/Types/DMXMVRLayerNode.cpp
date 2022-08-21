@@ -13,6 +13,7 @@
 
 UDMXMVRLayerNode::UDMXMVRLayerNode()
 {
+	UUID = FGuid::NewGuid();
 	ChildListNode = CreateDefaultSubobject<UDMXMVRChildListNode>("ChildListNode");
 }
 

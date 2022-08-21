@@ -6,6 +6,11 @@
 #include "MVR/Types/DMXMVRLayerNode.h"
 
 
+UDMXMVRParametricObjectNodeBase::UDMXMVRParametricObjectNodeBase()
+{
+	UUID = FGuid::NewGuid();
+}
+
 UDMXMVRLayerNode* UDMXMVRParametricObjectNodeBase::GetLayer()
 {
 	return const_cast<UDMXMVRLayerNode*>(const_cast<const UDMXMVRParametricObjectNodeBase*>(this)->GetLayer());

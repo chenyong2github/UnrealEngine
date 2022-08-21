@@ -29,7 +29,6 @@
 
 void FDMXMVRExporter::Export(UDMXLibrary* DMXLibrary, const FString& FilePathAndName, FText& OutErrorReason)
 {
-
 	FDMXMVRExporter Instance;
 	Instance.ExportInternal(DMXLibrary, FilePathAndName, OutErrorReason);
 }
@@ -53,9 +52,8 @@ void FDMXMVRExporter::ExportInternal(UDMXLibrary* DMXLibrary, const FString& Fil
 	}
 
 	const TSharedRef<FDMXZipper> Zip = MakeShared<FDMXZipper>();
-	if (!ZipGeneralSceneDescription(Zip, GeneralSceneDescription))
+	if (!ZipGeneralSceneDescription(Zip, GeneralSceneDescription, OutErrorReason))
 	{
-		OutErrorReason = FText::Format(LOCTEXT("MVRExportCreateZipFailedReason", "Failed to write General Scene Description. Cannot export {0}."), FText::FromString(FilePathAndName));
 		return;
 	}
 
@@ -73,10 +71,19 @@ void FDMXMVRExporter::ExportInternal(UDMXLibrary* DMXLibrary, const FString& Fil
 	}
 }
 
-bool FDMXMVRExporter::ZipGeneralSceneDescription(const TSharedRef<FDMXZipper>& Zip, const UDMXMVRGeneralSceneDescription* GeneralSceneDescription)
+bool FDMXMVRExporter::ZipGeneralSceneDescription(const TSharedRef<FDMXZipper>& Zip, const UDMXMVRGeneralSceneDescription* GeneralSceneDescription, FText& OutErrorReason)
 {
+	if (!GeneralSceneDescription->CanCreateXmlFile(OutErrorReason))
+	{
+		return false;
+	}
+
 	TSharedPtr<FXmlFile> XmlFile = GeneralSceneDescription->CreateXmlFile();
-	
+	if (!ensureMsgf(XmlFile.IsValid(), TEXT("General Scene Descriptions returns CanCreateXmlFile() as true, but CreateXmlFile() fails.")))
+	{
+		return false;
+	}
+
 	// Try to merge the source General Scene Description Xml
 	const TSharedPtr<FXmlFile> SourceXmlFile = CreateSourceGeneralSceneDescriptionXmlFile(GeneralSceneDescription);
 	if (SourceXmlFile.IsValid())
@@ -153,7 +160,7 @@ bool FDMXMVRExporter::ZipGDTFs(const TSharedRef<FDMXZipper>& Zip, UDMXLibrary* D
 		const TArray64<uint8>& RawSourceData = RefreshSourceDataAndFixtureType(*FixtureType, *GDTFAssetImportData);
 		if (RawSourceData.Num() > 0)
 		{
-			const FString GDTFFilename = FPaths::GetCleanFilename(GDTFAssetImportData->GetSourceFilePathAndName());
+			const FString GDTFFilename = FPaths::GetCleanFilename(GDTFAssetImportData->GetFilePathAndName());
 			Zip->AddFile(GDTFFilename, GDTFAssetImportData->GetRawSourceData());
 		}
 		else
@@ -274,9 +281,9 @@ const TArray64<uint8>& FDMXMVRExporter::RefreshSourceDataAndFixtureType(UDMXEnti
 
 			TArray<FString> Filenames;
 			if (!InOutGDTFAssetImportData.GetSourceData().SourceFiles.IsEmpty() &&
-				FPaths::FileExists(InOutGDTFAssetImportData.GetSourceFilePathAndName()))
+				FPaths::FileExists(InOutGDTFAssetImportData.GetFilePathAndName()))
 			{
-				Filenames.Add(InOutGDTFAssetImportData.GetSourceFilePathAndName());
+				Filenames.Add(InOutGDTFAssetImportData.GetFilePathAndName());
 			}
 			else
 			{

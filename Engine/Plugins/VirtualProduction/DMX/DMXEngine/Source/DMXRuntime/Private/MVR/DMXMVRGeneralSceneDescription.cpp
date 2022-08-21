@@ -24,6 +24,8 @@
 #include "Misc/Paths.h"
 
 
+#define LOCTEXT_NAMESPACE "DMXMVRGeneralSceneDescription"
+
 UDMXMVRGeneralSceneDescription::UDMXMVRGeneralSceneDescription()
 {
 	RootNode = CreateDefaultSubobject<UDMXMVRRootNode>("MVRRootNode");
@@ -113,6 +115,20 @@ void UDMXMVRGeneralSceneDescription::WriteDMXLibraryToGeneralSceneDescription(co
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
+bool UDMXMVRGeneralSceneDescription::CanCreateXmlFile(FText& OutReason) const
+{
+	TArray<UDMXMVRFixtureNode*> FixtureNodes;
+	GetFixtureNodes(FixtureNodes);
+	if (FixtureNodes.IsEmpty())
+	{
+		OutReason = LOCTEXT("CannotCreateXmlFileBecauseNoFixtures", "DMX Library does not define valid MVR fixtures.");
+		return false;
+	}
+	return true;
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
 TSharedPtr<FXmlFile> UDMXMVRGeneralSceneDescription::CreateXmlFile() const
 {
 	return RootNode ? RootNode->CreateXmlFile() : nullptr;
@@ -170,7 +186,7 @@ void UDMXMVRGeneralSceneDescription::WriteFixturePatchToGeneralSceneDescription(
 			{
 				if (GDTF && GDTF->GetGDTFAssetImportData())
 				{
-					return GDTF->GetGDTFAssetImportData()->GetSourceFilePathAndName();
+					return GDTF->GetGDTFAssetImportData()->GetFilePathAndName();
 				}
 				return FString();
 			}();
@@ -233,3 +249,5 @@ TArray<int32> UDMXMVRGeneralSceneDescription::GetNumericalFixtureIDsInUse(const 
 
 	return FixtureIDsInUse;
 }
+
+#undef LOCTEXT_NAMESPACE

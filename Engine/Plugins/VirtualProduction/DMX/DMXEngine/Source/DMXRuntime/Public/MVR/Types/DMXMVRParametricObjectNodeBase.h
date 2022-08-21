@@ -24,6 +24,9 @@ class UDMXMVRParametricObjectNodeBase
 	GENERATED_BODY()
 
 public:
+	/** Constructor */
+	UDMXMVRParametricObjectNodeBase();
+
 	/** Creates a DMX Xml Node as per MVR standard in parent, or logs warnings if no compliant Node can be created. */
 	virtual void CreateXmlNodeInParent(FXmlNode& ParentNode) const PURE_VIRTUAL(UDMXMVRParametricObjectNodeBase::CreateXmlNodeInParent, return;);
 

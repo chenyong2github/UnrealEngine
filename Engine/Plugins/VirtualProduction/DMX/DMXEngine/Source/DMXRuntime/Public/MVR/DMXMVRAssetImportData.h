@@ -20,23 +20,28 @@ class DMXRUNTIME_API UDMXMVRAssetImportData
 	GENERATED_BODY()
 
 public:
+	/** Returns the imported file path and name */
+	FORCEINLINE const FString& GetFilePathAndName() const { return FilePathAndName; };
+
 #if WITH_EDITOR
 	/** Sets the source file and initializes members from it */
-	void SetSourceFile(const FString& FilePathAndName);
-
-	/** Returns the Asset Import Data */
-	FORCEINLINE UAssetImportData* GetAssetImportData() { return AssetImportData;};
+	void SetSourceFile(const FString& InFilePathAndName);
 
 	/** Returns the raw source file as byte array, as it was imported */
 	FORCEINLINE const TArray64<uint8>& GetRawSourceData() const { return RawSourceData.ByteArray; }
 #endif // WITH_EDITOR 
 
-private:
-#if WITH_EDITORONLY_DATA
-	/** The Asset Import Data used to generate the GDTF asset or nullptr, if not generated from a GDTF file */
-	UPROPERTY()
-	TObjectPtr<UAssetImportData> AssetImportData;
+protected:
+	//~ Begin UObject interface
+	virtual void PostLoad() override;
+	//~ End UObject interface
 
+private:
+	/** The imported file path and name */
+	UPROPERTY()
+	FString FilePathAndName;
+
+#if WITH_EDITORONLY_DATA
 	/** The raw source file as byte array, as it was imported */
 	UPROPERTY()
 	FDMXByteArray64 RawSourceData;

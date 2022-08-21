@@ -174,7 +174,7 @@ TArray<UDMXImportGDTF*> UDMXLibraryFromMVRFactory::CreateGDTFAssets(UObject* Par
 
 					if (UDMXGDTFAssetImportData* GDTFAssetImportData = GDTFAsset->GetGDTFAssetImportData())
 					{
-						const FString SourceFilename = FPaths::GetCleanFilename(GDTFAssetImportData->GetSourceFilePathAndName());
+						const FString SourceFilename = FPaths::GetCleanFilename(GDTFAssetImportData->GetFilePathAndName());
 						ImportedGDTFNames.Add(SourceFilename);
 					}
 				}
@@ -247,7 +247,7 @@ void UDMXLibraryFromMVRFactory::InitDMXLibrary(UDMXLibrary* DMXLibrary, const TA
 			continue;
 		}
 
-		const FString GDTFSourceFilename = GDTFAssetImportData->GetSourceFilePathAndName();
+		const FString GDTFSourceFilename = GDTFAssetImportData->GetFilePathAndName();
 		const FString GDTFFilename = FPaths::GetCleanFilename(GDTFSourceFilename);
 		FDMXEntityFixtureTypeConstructionParams FixtureTypeConstructionParams;
 		FixtureTypeConstructionParams.DMXCategory = FDMXFixtureCategory(FDMXFixtureCategory::GetFirstValue());

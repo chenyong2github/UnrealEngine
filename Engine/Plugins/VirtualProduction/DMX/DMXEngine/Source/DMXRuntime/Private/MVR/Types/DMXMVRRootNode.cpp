@@ -83,6 +83,15 @@ TSharedPtr<FXmlFile> UDMXMVRRootNode::CreateXmlFile()
 	checkf(UserDataNode, TEXT("Default Subobject 'UserDataNode' is invalid, this is not expected."));
 	checkf(SceneNode, TEXT("Default Subobject 'SceneNode' is invalid, this is not expected."));
 
+	// Don't export if there's nothing to export
+	TArray<UDMXMVRFixtureNode*> FixtureNodes;
+	GetFixtureNodes(FixtureNodes);
+	if (FixtureNodes.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	// Create Xml File
 	const FString Buffer = "<?xml version=\"1.0\" encoding=\"UTF - 8\" standalone=\"no\" ?>\n<GeneralSceneDescription>\n</GeneralSceneDescription>";
 
 	TSharedRef<FXmlFile> XmlFile = MakeShared<FXmlFile>();
