@@ -653,18 +653,34 @@ void FDisplayClusterLightCardEditorHelper::PixelToWorld(const FSceneView& View, 
 	const FMatrix& InvProjMatrix = View.ViewMatrices.GetInvProjectionMatrix();
 	FMatrix InvViewMatrix = View.ViewMatrices.GetInvViewMatrix();
 
+	// Cancel out the root actor's orientation
 	if (USceneComponent* OriginComponent = ProjectionOriginComponent.Get())
 	{
-		// Cancel out the root actor's orientation
-		InvViewMatrix *= OriginComponent->GetComponentTransform().ToInverseMatrixWithScale();
+		if (const AActor* Actor = OriginComponent->GetOwner())
+		{
+			if (!bIsOrthographic)
+			{
+				FTransform Transform;
+
+				Transform.SetRotation(Actor->GetActorRotation().Quaternion());
+				Transform.SetTranslation(OriginComponent->GetComponentLocation());
+
+				InvViewMatrix *= Transform.ToInverseMatrixWithScale();
+			}
+		}
 	}
 
-	const FVector4 ScreenPos = View.PixelToScreen(PixelPos.X, PixelPos.Y, 0);
-	const FVector4 HomogeneousPos = bIsOrthographic
-		? FVector4(ScreenPos.X, ScreenPos.Y, 1.0f, 1.0f)
-		: FVector4(ScreenPos.X * GNearClippingPlane, ScreenPos.Y * GNearClippingPlane, 0.0f, GNearClippingPlane);
+	FVector4 ScreenPos = View.PixelToScreen(PixelPos.X, PixelPos.Y, 0);
+	ScreenPos.Z = 1; // Force near clip plane
 
-	const FVector ViewPos = FVector(InvProjMatrix.TransformFVector4(HomogeneousPos));
+	FVector4 ViewPos = FVector(InvProjMatrix.TransformFVector4(ScreenPos));
+	ViewPos /= ViewPos.W;
+
+	if (bIsOrthographic)
+	{
+		ViewPos.Z = 0;
+	}
+
 	const FVector UnprojectedViewPos = FDisplayClusterMeshProjectionRenderer::UnprojectViewPosition(ViewPos, ProjectionMode);
 
 	if (bIsOrthographic)

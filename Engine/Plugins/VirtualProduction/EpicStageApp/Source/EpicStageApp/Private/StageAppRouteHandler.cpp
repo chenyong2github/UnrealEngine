@@ -133,7 +133,7 @@ bool FStageAppRouteHandler::FPerRendererData::GetSceneViewInitOptions(FSceneView
 		PreviewSettings.FOV,
 		PreviewSettings.Resolution,
 		ViewOriginComponent->GetComponentLocation(),
-		FRotator(ViewOriginComponent->GetComponentRotation().Quaternion() * PreviewSettings.Rotation.Quaternion())
+		FRotator(RootActor->GetActorRotation().Quaternion() * PreviewSettings.Rotation.Quaternion())
 	);
 
 	return true;
