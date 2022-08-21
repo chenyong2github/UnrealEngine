@@ -33,6 +33,9 @@ public:
 	virtual TOnlineAsyncOpHandle<FCommerceRetrieveS2SToken> RetrieveS2SToken(FCommerceRetrieveS2SToken::Params&& Params) override;
 	virtual TOnlineEvent<void(const FCommerceOnPurchaseComplete&)> OnPurchaseCompleted() override;
 
+	//CommerceCommon
+	FText GetFormattedPrice(uint64 Price, int32 DecimalPoint, FString CurrencyCode);
+
 protected:
 	TOnlineEventCallable<void(const FCommerceOnPurchaseComplete&)> OnPurchaseCompletedEvent;
 };

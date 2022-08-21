@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Online/CommerceCommon.h"
+#include "eos_ecom.h"
 
 namespace UE::Online {
 
@@ -31,6 +32,13 @@ public:
 	virtual TOnlineAsyncOpHandle<FCommerceRedeemEntitlement> RedeemEntitlement(FCommerceRedeemEntitlement::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FCommerceRetrieveS2SToken> RetrieveS2SToken(FCommerceRetrieveS2SToken::Params&& Params) override;
 
+private:
+	void EOSOfferToOssOffer(FOffer& InOffer, EOS_Ecom_CatalogOffer* EosOffer);
+	void EOSEntitlementToOssEntitlement(FEntitlement& OutEntitlement, EOS_Ecom_Entitlement* EosEntitlement);
+
+	EOS_HEcom EcomHandle;
+	TMap<FOnlineAccountIdHandle, TArray<FEntitlement>> CachedEntitlements;
+	TMap<FOnlineAccountIdHandle, TArray<FOffer>> CachedOffers;
 };
 
 /* UE::Online */

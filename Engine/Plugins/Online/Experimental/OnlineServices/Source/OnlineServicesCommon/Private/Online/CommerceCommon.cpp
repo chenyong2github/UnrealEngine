@@ -103,4 +103,9 @@ TOnlineEvent<void(const FCommerceOnPurchaseComplete&)> FCommerceCommon::OnPurcha
 	return OnPurchaseCompletedEvent;
 }
 
+FText FCommerceCommon::GetFormattedPrice(uint64 Price, int32 DecimalPoint, FString CurrencyCode)
+{
+	return FText::AsCurrencyBase(Price, CurrencyCode, NULL, DecimalPoint);
+}
+
 } // namespace UE::Online
