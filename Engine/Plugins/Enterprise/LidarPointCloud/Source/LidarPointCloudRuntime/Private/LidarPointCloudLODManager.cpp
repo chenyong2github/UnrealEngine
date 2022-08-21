@@ -437,6 +437,8 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 			SelectionFilterParams.AddZeroed(DeltaSize);
 		}
 	}
+	
+	const bool bUseRayTracing = GetDefault<ULidarPointCloudSettings>()->bEnableLidarRayTracing;
 
 	uint32 TotalPointsSelected = 0;
 	int64 NewNumPointsInFrustum = 0;
@@ -477,7 +479,7 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 					SelectionParams.MinDepth = RegisteredProxy.ComponentRenderParams.MinDepth;
 					SelectionParams.MaxDepth = RegisteredProxy.ComponentRenderParams.MaxDepth;
 					SelectionParams.BoundsScale = RegisteredProxy.ComponentRenderParams.BoundsScale;
-					SelectionParams.bUseFrustumCulling = RegisteredProxy.ComponentRenderParams.bUseFrustumCulling;
+					SelectionParams.bUseFrustumCulling = RegisteredProxy.ComponentRenderParams.bUseFrustumCulling && !bUseRayTracing;
 					SelectionParams.ClippingVolumes = RegisteredProxy.ComponentRenderParams.bOwnedByEditor ? nullptr : &ClippingVolumes; // Ignore clipping if in editor viewport
 
 					// Append visible nodes
@@ -548,6 +550,7 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 				UpdateData.RootCellSize = RegisteredProxy.Octree->GetRootCellSize();
 				UpdateData.ClippingVolumes = ClippingVolumes;
 				UpdateData.bUseStaticBuffers = bUseStaticBuffers && !RegisteredProxy.Octree->IsOptimizedForDynamicData();
+				UpdateData.bUseRayTracing = bUseRayTracing;
 				UpdateData.RenderParams = RegisteredProxy.ComponentRenderParams;
 
 #if !(UE_BUILD_SHIPPING)
@@ -652,7 +655,7 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 					{
 						for (FLidarPointCloudProxyUpdateDataNode& Node : UpdateData.SelectedNodes)
 						{
-							if (Node.BuildDataCache(UpdateData.bUseStaticBuffers))
+							if (Node.BuildDataCache(UpdateData.bUseStaticBuffers, UpdateData.bUseRayTracing))
 							{
 								MaxPointsPerNode = FMath::Max(MaxPointsPerNode, (uint32)Node.NumVisiblePoints);
 							}

@@ -19,6 +19,7 @@ struct FLidarPointCloudTraversalOctree;
 struct FLidarPointCloudTraversalOctreeNode;
 class FLidarPointCloudRenderBuffer;
 class FLidarPointCloudVertexFactory;
+class FLidarPointCloudRayTracingGeometry;
 
 namespace LidarPointCloudMeshing
 {
@@ -104,7 +105,8 @@ private:
 	/** Holds render data for this node */
 	TSharedPtr<FLidarPointCloudRenderBuffer> DataCache;
 	TSharedPtr<FLidarPointCloudVertexFactory> VertexFactory;
-
+	TSharedPtr<FLidarPointCloudRayTracingGeometry> RayTracingGeometry;
+	
 	bool bRenderDataDirty;
 
 	/** Used to keep track, which data is available for rendering */
@@ -133,12 +135,15 @@ public:
 
 	/** Return a pointer to the vertex factory containing pre-cached geometry */
 	FORCEINLINE TSharedPtr<FLidarPointCloudVertexFactory> GetVertexFactory() { return VertexFactory; }
+	
+	/** Return a pointer to the ray tracing geometry */
+	FORCEINLINE TSharedPtr<FLidarPointCloudRayTracingGeometry> GetRayTracingGeometry() { return RayTracingGeometry; }
 
 	/**
 	 * Builds and updates the necessary render data buffers
 	 * Returns true if successful
 	 */
-	bool BuildDataCache(bool bUseStaticBuffers);
+	bool BuildDataCache(bool bUseStaticBuffers, bool bUseRayTracing);
 
 	/** Returns the sum of grid and padding points allocated to this node. */
 	FORCEINLINE uint32 GetNumPoints() const { return NumPoints; }

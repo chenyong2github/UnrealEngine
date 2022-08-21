@@ -94,6 +94,13 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Performance)
 	bool bUseFastRendering;
 
+	/**
+	 * If enabled, Lidar assets will become visible to Ray Tracing.
+	 * Warning, this will significantly increase VRAM usage!
+	 */
+	UPROPERTY(config, EditAnywhere, Category=RayTracing)
+	bool bEnableLidarRayTracing;
+	
 	/** Affects the size of per-thread data for the meshing algorithm. */
 	UPROPERTY(config, EditAnywhere, Category=Collision)
 	int32 MeshingBatchSize;

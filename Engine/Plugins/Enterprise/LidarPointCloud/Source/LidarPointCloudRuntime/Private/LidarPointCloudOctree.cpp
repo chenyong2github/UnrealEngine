@@ -135,6 +135,7 @@ FLidarPointCloudOctreeNode::FLidarPointCloudOctreeNode(FLidarPointCloudOctree* T
 	, bHasData(false)
 	, DataCache(nullptr)
 	, VertexFactory(nullptr)
+	, RayTracingGeometry(nullptr)
 	, bRenderDataDirty(true)
 	, bHasDataPending(false)
 	, bCanReleaseData(true)
@@ -198,7 +199,7 @@ FLidarPointCloudPoint* FLidarPointCloudOctreeNode::GetPersistentData() const
 	return GetData();
 }
 
-bool FLidarPointCloudOctreeNode::BuildDataCache(bool bUseStaticBuffers)
+bool FLidarPointCloudOctreeNode::BuildDataCache(bool bUseStaticBuffers, bool bUseRayTracing)
 {	
 	// Only include nodes with available data
 	if (HasData() && GetNumVisiblePoints())
@@ -235,24 +236,39 @@ bool FLidarPointCloudOctreeNode::BuildDataCache(bool bUseStaticBuffers)
 			}
 		}
 
+		if(bUseRayTracing)
+		{
+			if(!RayTracingGeometry.IsValid())
+			{
+				RayTracingGeometry = MakeShareable(new FLidarPointCloudRayTracingGeometry());
+				bRenderDataDirty = true;
+			}
+		}
+		else
+		{
+			if(RayTracingGeometry.IsValid())
+			{
+				RayTracingGeometry->ReleaseResource();
+				RayTracingGeometry.Reset();
+				bRenderDataDirty = true;
+			}
+		}
+
 		if (bRenderDataDirty)
 		{
-			if (DataCache.IsValid())
+			if (DataCache.IsValid() && !DataCache->IsInitialized())
 			{
-				DataCache->Resize(GetNumVisiblePoints() * 5);
-
-				uint8* StructuredBuffer = (uint8*)RHILockBuffer(DataCache->Buffer, 0, GetNumVisiblePoints() * sizeof(FLidarPointCloudPoint), RLM_WriteOnly);
-				for (FLidarPointCloudPoint* P = GetData(), *DataEnd = P + GetNumVisiblePoints(); P != DataEnd; ++P)
-				{
-					FMemory::Memcpy(StructuredBuffer, P, sizeof(FLidarPointCloudPoint));
-					StructuredBuffer += sizeof(FLidarPointCloudPoint);
-				}
-				RHIUnlockBuffer(DataCache->Buffer);
+				DataCache->Initialize(GetData(), GetNumVisiblePoints());
 			}
 
-			if (VertexFactory.IsValid())
+			if (VertexFactory.IsValid() && !VertexFactory->IsInitialized())
 			{
 				VertexFactory->Initialize(GetData(), GetNumVisiblePoints());
+			}
+
+			if(RayTracingGeometry.IsValid() && !RayTracingGeometry->IsInitialized())
+			{
+				RayTracingGeometry->Initialize(GetNumVisiblePoints());
 			}
 
 			bRenderDataDirty = false;
@@ -822,7 +838,8 @@ void FLidarPointCloudOctreeNode::ReleaseDataCache()
 {
 	if (VertexFactory.IsValid() || DataCache.IsValid())
 	{
-		ENQUEUE_RENDER_COMMAND(LidarPointCloudOctreeNode_ReleaseDataCache)([DataCache = DataCache, VertexFactory = VertexFactory](FRHICommandListImmediate& RHICmdList)
+		ENQUEUE_RENDER_COMMAND(LidarPointCloudOctreeNode_ReleaseDataCache)([
+			DataCache = DataCache, VertexFactory = VertexFactory, RayTracingGeometry = RayTracingGeometry](FRHICommandListImmediate& RHICmdList)
 		{
 			if (DataCache.IsValid())
 			{
@@ -833,10 +850,16 @@ void FLidarPointCloudOctreeNode::ReleaseDataCache()
 			{
 				VertexFactory->ReleaseResource();
 			}
+			
+			if(RayTracingGeometry.IsValid())
+			{
+				RayTracingGeometry->ReleaseResource();
+			}
 		});
 
 		DataCache.Reset();
 		VertexFactory.Reset();
+		RayTracingGeometry.Reset();
 	}
 }
 

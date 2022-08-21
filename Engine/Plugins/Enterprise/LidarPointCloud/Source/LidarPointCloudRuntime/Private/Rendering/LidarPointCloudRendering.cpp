@@ -13,15 +13,19 @@
 #include "SceneManagement.h"
 #include "LocalVertexFactory.h"
 #include "Materials/Material.h"
+#if RHI_RAYTRACING
+#include "RayTracingInstance.h"
+#endif
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Draw Calls"), STAT_DrawCallCount, STATGROUP_LidarPointCloud)
 
-bool FLidarPointCloudProxyUpdateDataNode::BuildDataCache(bool bUseStaticBuffers)
+bool FLidarPointCloudProxyUpdateDataNode::BuildDataCache(bool bUseStaticBuffers, bool bUseRayTracing)
 {
-	if(DataNode && DataNode->BuildDataCache(bUseStaticBuffers))
+	if(DataNode && DataNode->BuildDataCache(bUseStaticBuffers, bUseRayTracing))
 	{
 		VertexFactory = DataNode->GetVertexFactory();
 		DataCache = DataNode->GetDataCache();
+		RayTracingGeometry = DataNode->GetRayTracingGeometry();
 		DataNode = nullptr;
 		return  true;
 	}
@@ -202,8 +206,6 @@ public:
 			return;
 		}
 
-		const bool bUsesSprites = RenderData.RenderParams.PointSize > 0;
-
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			const FSceneView* View = Views[ViewIndex];
@@ -218,25 +220,12 @@ public:
 
 					for (const FLidarPointCloudProxyUpdateDataNode& Node : RenderData.SelectedNodes)
 					{
-						if ((RenderData.bUseStaticBuffers && Node.VertexFactory.IsValid() && Node.VertexFactory->IsInitialized()) || (!RenderData.bUseStaticBuffers && Node.DataCache.IsValid()))
+						if ((RenderData.bUseStaticBuffers && Node.VertexFactory.IsValid() && Node.VertexFactory->IsInitialized()) ||
+							(!RenderData.bUseStaticBuffers && Node.DataCache.IsValid()))
 						{
 							FMeshBatch& MeshBatch = Collector.AllocateMesh();
-
-							MeshBatch.Type = bUsesSprites ? PT_TriangleList : PT_PointList;
-							MeshBatch.LODIndex = 0;
-							MeshBatch.VertexFactory = RenderData.bUseStaticBuffers ? Node.VertexFactory.Get() : (FVertexFactory*)&GLidarPointCloudSharedVertexFactory;
-							MeshBatch.bWireframe = false;
-							MeshBatch.MaterialRenderProxy = RenderData.RenderParams.Material->GetRenderProxy();
-							MeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
-							MeshBatch.DepthPriorityGroup = SDPG_World;
-
-							FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
-							BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
-							BatchElement.IndexBuffer = &GLidarPointCloudIndexBuffer;
-							BatchElement.FirstIndex = bUsesSprites ? 0 : GLidarPointCloudIndexBuffer.PointOffset;
-							BatchElement.MinVertexIndex = 0;
-							BatchElement.NumPrimitives = Node.NumVisiblePoints * (bUsesSprites ? 2 : 1);
-							BatchElement.UserData = &UserData[UserData.Add(BuildUserDataElement(View, Node))];
+							
+							SetupMeshBatch(MeshBatch, Node, &UserData[UserData.Add(BuildUserDataElement(View, Node))]);
 
 							Collector.AddMesh(ViewIndex, MeshBatch);
 
@@ -309,6 +298,7 @@ public:
 			Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 			Result.bRenderCustomDepth = ShouldRenderCustomDepth();
 			MaterialRelevance.SetPrimitiveViewRelevance(Result);
+			Result.bVelocityRelevance = DrawsVelocity() && Result.bOpaque && Result.bRenderInMainPass;
 		}
 
 		return Result;
@@ -333,8 +323,8 @@ public:
 		UserDataElement.RootExtent = FVector3f(RenderData.RenderParams.BoundsSize.GetAbsMax() * 0.5f);
 
 		UserDataElement.LocationOffset = RenderData.RenderParams.LocationOffset;
-		UserDataElement.ViewRightVector = (FVector3f)InView->GetViewRight();
-		UserDataElement.ViewUpVector = (FVector3f)InView->GetViewUp();
+		UserDataElement.ViewRightVector = InView ? (FVector3f)InView->GetViewRight() : FVector3f::RightVector;
+		UserDataElement.ViewUpVector = InView ? (FVector3f)InView->GetViewUp() : FVector3f::ForwardVector;
 		UserDataElement.bUseCameraFacing = !RenderData.RenderParams.bShouldRenderFacingNormals;
 		UserDataElement.BoundsSize = RenderData.RenderParams.BoundsSize;
 		UserDataElement.ElevationColorBottom = FVector3f(RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : RenderData.RenderParams.ElevationColorBottom);
@@ -363,7 +353,6 @@ public:
 			UserDataElement.bStartClipped |= ClippingVolume.Mode == ELidarClippingVolumeMode::ClipOutside;
 		}
 
-		UserDataElement.DataBuffer = Node.DataCache ? Node.DataCache->SRV : nullptr;
 		UserDataElement.TreeBuffer = TreeBuffer->SRV;
 
 		return UserDataElement;
@@ -395,6 +384,79 @@ public:
 		RHIUnlockBuffer(TreeBuffer->Buffer);
 	}
 
+	void SetupMeshBatch(FMeshBatch& MeshBatch, const FLidarPointCloudProxyUpdateDataNode& Node, const FLidarPointCloudBatchElementUserData* UserData) const
+	{
+		const bool bUsesSprites = RenderData.RenderParams.PointSize > 0;
+		
+		MeshBatch.Type = bUsesSprites ? PT_TriangleList : PT_PointList;
+		MeshBatch.LODIndex = 0;
+		MeshBatch.VertexFactory = RenderData.bUseStaticBuffers ? Node.VertexFactory.Get() : (FVertexFactory*)&GLidarPointCloudSharedVertexFactory;
+		MeshBatch.bWireframe = false;
+		MeshBatch.MaterialRenderProxy = RenderData.RenderParams.Material->GetRenderProxy();
+		MeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
+		MeshBatch.DepthPriorityGroup = SDPG_World;
+		MeshBatch.bCanApplyViewModeOverrides = true;
+		
+		FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
+		BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
+		BatchElement.IndexBuffer = &GLidarPointCloudIndexBuffer;
+		BatchElement.FirstIndex = bUsesSprites ? 0 : GLidarPointCloudIndexBuffer.PointOffset;
+		BatchElement.MinVertexIndex = 0;
+		BatchElement.NumPrimitives = Node.NumVisiblePoints * (bUsesSprites ? 2 : 1);
+		BatchElement.MaxVertexIndex = Node.NumVisiblePoints * (bUsesSprites ? 4 : 1);
+		BatchElement.UserData = UserData;
+		BatchElement.VertexFactoryUserData = RenderData.bUseStaticBuffers ? Node.VertexFactory->GetUniformBuffer() : Node.DataCache->GetUniformBuffer();
+	}
+
+#if RHI_RAYTRACING
+	virtual bool IsRayTracingRelevant() const override { return true; }
+
+	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override
+	{
+		if (RenderData.NumElements)
+		{
+			TArray<FLidarPointCloudBatchElementUserData>& UserData = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FLidarOneFrameResource>().Payload;
+			UserData.Reserve(RenderData.SelectedNodes.Num());
+
+			CachedRayTracingMaterials.Reset();
+			const FMatrix& ThisLocalToWorld = GetLocalToWorld();
+
+			for (const FLidarPointCloudProxyUpdateDataNode& Node : RenderData.SelectedNodes)
+			{
+				if (Node.RayTracingGeometry.IsValid() && Node.RayTracingGeometry->IsInitialized())
+				{
+					TArray<FMeshBatch> &NodeRayTracingMaterials = CachedRayTracingMaterials.AddDefaulted_GetRef();
+					FMeshBatch &MeshBatch = NodeRayTracingMaterials.AddDefaulted_GetRef();
+					SetupMeshBatch(MeshBatch, Node, &UserData[UserData.Add(BuildUserDataElement(nullptr, Node))]);
+					MeshBatch.SegmentIndex = 0;
+					MeshBatch.CastRayTracedShadow = IsShadowCast(Context.ReferenceView);
+
+					FLidarPointCloudRayTracingGeometry* Geometry = Node.RayTracingGeometry.Get();
+					FRayTracingInstance &RayTracingInstance = OutRayTracingInstances.AddDefaulted_GetRef();
+					RayTracingInstance.Geometry = Geometry;
+					RayTracingInstance.InstanceTransformsView = MakeArrayView(&ThisLocalToWorld, 1);
+					RayTracingInstance.MaterialsView = MakeArrayView(NodeRayTracingMaterials);
+					RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
+
+					Context.DynamicRayTracingGeometriesToUpdate.Add(
+						FRayTracingDynamicGeometryUpdateParams
+						{
+							NodeRayTracingMaterials,
+							false,
+							Geometry->GetNumVertices(),
+							Geometry->GetBufferSize(),
+							Geometry->GetNumPrimitives(),
+							Geometry,
+							nullptr,
+							true
+						}
+					);
+				}
+			}
+		}
+	}
+#endif // RHI_RAYTRACING
+	
 public:
 	TSharedPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> ProxyWrapper;
 
@@ -403,6 +465,8 @@ private:
 
 	FLidarPointCloudRenderBuffer* TreeBuffer;
 	FMaterialRelevance MaterialRelevance;
+
+	TArray<TArray<FMeshBatch>> CachedRayTracingMaterials;
 	
 	bool bCompatiblePlatform;
 	

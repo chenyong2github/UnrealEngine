@@ -26,7 +26,9 @@ float RootCellSize;
 float3 RootExtent;
 uint bUsePerPointScaling;
 float ReversedVirtualDepthMultiplier;
+#if !RAYHITGROUPSHADER
 Buffer<float> TreeBuffer;
+#endif
 
 // Needed for WPO calculations
 float3 ViewRightVector;
@@ -56,8 +58,6 @@ uint bUseClassification;
 uint bUseClassificationAlpha;
 
 float4 ClassificationColors[32];
-
-Buffer<float> DataBuffer;
 
 /**
  * [Tx, Ty, Tz, Invert]
@@ -223,6 +223,7 @@ float CalcSpriteSize(float3 Position)
 {
 	float VD = VirtualDepth;
 
+#if !RAYHITGROUPSHADER
 	if (bUsePerPointScaling)
 	{
 		VD = 0;
@@ -262,6 +263,7 @@ float CalcSpriteSize(float3 Position)
 			NodeExtent *= 0.5f;
 		}
 	}
+#endif
 	
 	return RootCellSize / pow(2.0f, VD);
 }
@@ -284,13 +286,13 @@ float3 ProcessPosition(float3 Position, int VertexID)
 float3 LidarGetInstancePosition(uint VertexId)
 {
 	uint Idx = (VertexId / 4) * 5;
-	return float3(DataBuffer[Idx], DataBuffer[Idx + 1], DataBuffer[Idx + 2]);
+	return float3(LidarVF.VertexFetch_Buffer[Idx], LidarVF.VertexFetch_Buffer[Idx + 1], LidarVF.VertexFetch_Buffer[Idx + 2]);
 }
 
 float3 LidarGetInstanceNormal(uint VertexId)
 {
 	uint Idx = (VertexId / 4) * 5;
-	return CalcTangentToLocal(asuint(DataBuffer[Idx + 4]))[2];
+	return CalcTangentToLocal(asuint(LidarVF.VertexFetch_Buffer[Idx + 4]))[2];
 }
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
@@ -313,13 +315,13 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	else
 	{
 		uint Idx = (Input.VertexId / 4) * 5;
-		Position = float3(DataBuffer[Idx], DataBuffer[Idx + 1], DataBuffer[Idx + 2]);
+		Position = float3(LidarVF.VertexFetch_Buffer[Idx], LidarVF.VertexFetch_Buffer[Idx + 1], LidarVF.VertexFetch_Buffer[Idx + 2]);
 		
-		uint ColorData = asuint(DataBuffer[Idx + 3]);		
+		uint ColorData = asuint(LidarVF.VertexFetch_Buffer[Idx + 3]);		
 		Color = half3(0x000000FF & (ColorData >> 16), 0x000000FF & (ColorData >> 8), 0x000000FF & ColorData) * 0.003921568627451;
 		Intensity = (0x000000FF & (ColorData >> 24)) * 0.003921568627451;
 
-		MetaData = asuint(DataBuffer[Idx + 4]);
+		MetaData = asuint(LidarVF.VertexFetch_Buffer[Idx + 4]);
 	}
 
 	Intermediates.TangentToLocal = CalcTangentToLocal(MetaData);
@@ -539,6 +541,67 @@ uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
 	return 0;
 }
+
+#if RAYHITGROUPSHADER || COMPUTESHADER
+uint GetNumRayTracingDynamicMeshVerticesIndirect()
+{
+	return 0;
+}
+#endif
+
+FVertexFactoryInput LoadVertexFactoryInputFromIndices(uint TriangleIndex, int VertexIndex)
+{
+	FVertexFactoryInput Input = (FVertexFactoryInput)0;
+
+	Input.VertexId = TriangleIndex * 3 + VertexIndex;
+
+	/**
+	 * When using static buffers we duplicate the data for each of the 4 vertices of the plane so we can use the VertexId directly
+	 * When using dynamic buffers, each 4 vertices of the plane will share the same data element so we need to divide by 4
+	 *
+	 * The buffer stride is 20 bytes and data is held in floats, so we need to multiply the starting offset by 5
+	 */
+	uint VertexOffset = (bUseStaticBuffers ? Input.VertexId : floor(Input.VertexId / 4)) * 5;
+
+	// Helps minimize incorrect self-shadowing due to camera-facing planes 
+	float ZOffset = 0.3;
+		
+	Input.Position.x = LidarVF.VertexFetch_Buffer[VertexOffset + 0];
+	Input.Position.y = LidarVF.VertexFetch_Buffer[VertexOffset + 1];
+	Input.Position.z = LidarVF.VertexFetch_Buffer[VertexOffset + 2] - ZOffset;
+
+	uint ColorData = asuint(LidarVF.VertexFetch_Buffer[VertexOffset + 3]);
+	Input.Color = half4(0x000000FF & (ColorData >> 16), 0x000000FF & (ColorData >> 8), 0x000000FF & ColorData, 0x000000FF & (ColorData >> 24)) * 0.003921568627451;
+	Input.MetaData = asuint(LidarVF.VertexFetch_Buffer[VertexOffset + 4]);
+
+	return Input;
+}
+
+#if RAYHITGROUPSHADER
+FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
+{
+	FVertexFactoryInput Input = LoadVertexFactoryInputFromIndices(TriangleIndex, VertexIndex);
+		
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	VF_GPUSCENE_SET_INPUT_FOR_RT(Input, GetInstanceUserData(), 0U);
+#endif // VF_USE_PRIMITIVE_SCENE_DATA
+		
+	return Input;
+}
+#endif
+
+#if COMPUTESHADER
+
+FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, int VertexIndex, uint PrimitiveId)
+{
+	FVertexFactoryInput Input = LoadVertexFactoryInputFromIndices(TriangleIndex, VertexIndex);
+		
+	VF_GPUSCENE_SET_INPUT_FOR_RT(Input, PrimitiveId, 0U);
+
+	return Input;
+}
+
+#endif
 
 #include "/Engine/Private/VertexFactoryDefaultInterface.ush"
 

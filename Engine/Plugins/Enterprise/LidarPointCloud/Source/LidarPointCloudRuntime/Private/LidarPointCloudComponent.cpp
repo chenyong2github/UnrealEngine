@@ -344,8 +344,14 @@ void FLidarPointCloudComponentRenderParams::UpdateFromComponent(ULidarPointCloud
 	bDrawNodeBounds = Component->bDrawNodeBounds;
 	bShouldRenderFacingNormals = Component->ShouldRenderFacingNormals();
 	bUseFrustumCulling = Component->bUseFrustumCulling;
-
+	
 	ScalingMethod = Component->ScalingMethod;
+
+	// Per-point scaling is currently unavailable in Ray Tracing
+	if(ScalingMethod == ELidarPointCloudScalingMethod::PerPoint && GetDefault<ULidarPointCloudSettings>()->bEnableLidarRayTracing)
+	{
+		ScalingMethod = ELidarPointCloudScalingMethod::PerNodeAdaptive;
+	}
 
 	ColorSource = Component->ColorSource;
 	PointShape = Component->GetPointShape();

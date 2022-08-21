@@ -29,6 +29,7 @@ public:
 	 */
 	TSharedPtr<class FLidarPointCloudRenderBuffer> DataCache;
 	TSharedPtr<class FLidarPointCloudVertexFactory> VertexFactory;
+	TSharedPtr<class FLidarPointCloudRayTracingGeometry> RayTracingGeometry;
 
 	FLidarPointCloudProxyUpdateDataNode() : FLidarPointCloudProxyUpdateDataNode(0, 0, nullptr) {}
 	FLidarPointCloudProxyUpdateDataNode(uint8 VirtualDepth, int64 NumVisiblePoints, FLidarPointCloudOctreeNode* DataNode)
@@ -37,11 +38,12 @@ public:
 		, NumVisiblePoints(NumVisiblePoints)
 		, DataCache(nullptr)
 		, VertexFactory(nullptr)
+		, RayTracingGeometry(nullptr)
 	{
 	}
 
 	/** Passthrough method */
-	bool BuildDataCache(bool bUseStaticBuffers);
+	bool BuildDataCache(bool bUseStaticBuffers, bool bUseRayTracing);
 };
 
 /** Used to pass data to RT to update the proxy's render data */
@@ -58,6 +60,7 @@ struct FLidarPointCloudProxyUpdateData
 	float RootCellSize;
 	
 	bool bUseStaticBuffers;
+	bool bUseRayTracing;
 
 	TArray<uint32> TreeStructure;
 
