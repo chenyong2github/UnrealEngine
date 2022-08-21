@@ -274,6 +274,8 @@ void RenderWithLiveShading(
 			LightType = LightSceneInfoCompact[PassIndex].LightType;
 			LightSceneInfo = LightSceneInfoCompact[PassIndex].LightSceneInfo;
 			check(LightSceneInfo != nullptr);
+
+			bApplyDirectLighting = (LightSceneInfo != nullptr);
 		}
 
 		RenderSingleScatteringWithLiveShading(

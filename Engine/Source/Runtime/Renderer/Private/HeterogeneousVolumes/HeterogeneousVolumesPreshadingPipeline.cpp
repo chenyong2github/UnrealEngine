@@ -434,6 +434,8 @@ void RenderWithPreshadingCompute(
 				LightType = LightSceneInfoCompact[PassIndex].LightType;
 				LightSceneInfo = LightSceneInfoCompact[PassIndex].LightSceneInfo;
 				check(LightSceneInfo != nullptr);
+
+				bApplyDirectLighting = (LightSceneInfo != nullptr);
 			}
 
 			RenderSingleScatteringWithPreshadingCompute(
@@ -548,6 +550,8 @@ void RenderWithPreshadingHardwareRayTracing(
 				LightType = LightSceneInfoCompact[PassIndex].LightType;
 				LightSceneInfo = LightSceneInfoCompact[PassIndex].LightSceneInfo;
 				check(LightSceneInfo != nullptr);
+
+				bApplyDirectLighting = (LightSceneInfo != nullptr);
 			}
 
 			RenderSingleScatteringWithPreshadingHardwareRayTracing(
