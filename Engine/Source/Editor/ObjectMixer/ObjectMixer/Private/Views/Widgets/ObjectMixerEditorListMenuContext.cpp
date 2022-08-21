@@ -2,6 +2,8 @@
 
 #include "Views/Widgets/ObjectMixerEditorListMenuContext.h"
 
+#include "LevelEditor.h"
+#include "LevelEditorMenuContext.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "ToolMenu.h"
 #include "ToolMenus.h"
@@ -37,19 +39,25 @@ TSharedPtr<SWidget> UObjectMixerEditorListMenuContext::BuildContextMenu(const FO
 
 	const FToolMenuContext Context(ContextObject);
 
-	// Build up the menu for a selection
+	// todo: Uncomment all code when Level Editor Changes from 21454357 are pushed
+	// First get scene outliner-style context menu
+	// FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	// TSharedPtr<ILevelEditor> LevelEditorInstancePtr = LevelEditorModule.GetLevelEditorInstance().Pin();
+	//
+	// UToolMenu* BaseMenu = LevelEditorInstancePtr->GenerateLevelEditorContextMenu(
+	// 		ELevelEditorMenuContext::SceneOutliner, nullptr, FTypedElementHandle());
+
+	// Now generate custom sections to append
 	UToolMenus* ToolMenus = UToolMenus::Get();
-	UToolMenu* Menu = ToolMenus->GenerateMenu(DefaultContextBaseMenuName, Context);
+	UToolMenu* CustomMenu = ToolMenus->GenerateMenu(DefaultContextBaseMenuName, Context);
 
-	for (const FToolMenuSection& Section : Menu->Sections)
-	{
-		if (Section.Blocks.Num() > 0)
-		{
-			return ToolMenus->GenerateWidget(Menu);
-		}
-	}
+	// for (const FToolMenuSection& Section : CustomMenu->Sections)
+	// {
+	// 	BaseMenu->Sections.Add(Section);
+	// }
 
-	return nullptr;
+	//return ToolMenus->GenerateWidget(BaseMenu);
+	return ToolMenus->GenerateWidget(CustomMenu);
 }
 
 void UObjectMixerEditorListMenuContext::RegisterContextMenu()
@@ -60,7 +68,7 @@ void UObjectMixerEditorListMenuContext::RegisterContextMenu()
 	{
 		UToolMenu* Menu = ToolMenus->RegisterMenu(DefaultContextBaseMenuName);
 	
-		Menu->AddDynamicSection("DynamicCategorizationSection", FNewToolMenuDelegate::CreateLambda(
+		Menu->AddDynamicSection("DynamicCollectionsSection", FNewToolMenuDelegate::CreateLambda(
 			[](UToolMenu* InMenu)
 			{
 				UObjectMixerEditorListMenuContext* Context = InMenu->FindContext<UObjectMixerEditorListMenuContext>();
@@ -69,13 +77,13 @@ void UObjectMixerEditorListMenuContext::RegisterContextMenu()
 					return;
 				}
 	
-				FToolMenuSection& Section = InMenu->FindOrAddSection("Categorization");
-				Section.Label = LOCTEXT("CategorizationSectionName", "Categorization");
+				FToolMenuSection& Section = InMenu->FindOrAddSection("Collections");
+				Section.Label = LOCTEXT("CollectionsSectionName", "Collections");
 			
 				Section.AddSubMenu(
-					"SelectCategorySubMenu",
-					LOCTEXT("SelectCategorySubmenu", "Select or Add Category"),
-					LOCTEXT("SelectCategorySubmenu_Tooltip", "Select the category to which you wish to assign this object."),
+					"SelectCollectionsSubMenu",
+					LOCTEXT("SelectCollectionsSubmenu", "Select or Add Collection"),
+					LOCTEXT("SelectCollectionsSubmenu_Tooltip", "Select the collection to which you wish to assign this object."),
 					FNewToolMenuDelegate::CreateLambda(
 						[Context](UToolMenu* Menu)
 						{
@@ -89,40 +97,40 @@ void UObjectMixerEditorListMenuContext::RegisterContextMenu()
 											.Padding(8, 0)
 											[
 												SAssignNew(Context->EditableText, SEditableTextBox)
-												.HintText(LOCTEXT("NewCategoryEditableHintText", "Enter a new category name..."))
+												.HintText(LOCTEXT("NewCollectionEditableHintText", "Enter a new collection name..."))
 												.OnTextCommitted_Static(&UObjectMixerEditorListMenuContext::OnTextCommitted, Context)
 												.OnTextChanged_Static(&UObjectMixerEditorListMenuContext::OnTextChanged, Context)
 											]
 									;
 								}
 							);
-							Menu->AddMenuEntry("NewCategoryInput", Args);
+							Menu->AddMenuEntry("NewCollectionInput", Args);
 							
 							if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanel = Context->Data.MainPanelPtr.Pin())
 							{
-								if (TArray<FName> Categories = MainPanel->GetAllCategories().Array(); Categories.Num() > 0)
+								if (TArray<FName> Collections = MainPanel->GetAllCollections().Array(); Collections.Num() > 0)
 								{
-									FToolMenuSection& Section = Menu->FindOrAddSection("Categories");
-								   Section.Label = LOCTEXT("CategoriesSectionName", "Categories");
+									FToolMenuSection& Section = Menu->FindOrAddSection("Collections");
+								   Section.Label = LOCTEXT("CollectionsSectionName", "Collections");
 
-								   Categories.StableSort([](const FName& A, const FName B)
+								   Collections.StableSort([](const FName& A, const FName B)
 								   {
 									   return A.LexicalLess(B);
 								   });
 								
-								   for (const FName& Key : Categories)
+								   for (const FName& Key : Collections)
 								   {
 									   const FText KeyText = FText::FromName(Key);
 									
 									   Section.AddMenuEntry(
 										   Key,
 										   KeyText,
-										   FText::Format(LOCTEXT("AddObjectsToCategoryTooltipFormat", "Add selected to category '{0}'"), KeyText),
+										   FText::Format(LOCTEXT("AddObjectsToCollectionTooltipFormat", "Add selected to collection '{0}'"), KeyText),
 										   FSlateIcon(),
 										   FUIAction(
-											   FExecuteAction::CreateStatic(&UObjectMixerEditorListMenuContext::OnClickCategoryMenuEntry, Key, Context),
+											   FExecuteAction::CreateStatic(&UObjectMixerEditorListMenuContext::OnClickCollectionMenuEntry, Key, Context),
 											   FCanExecuteAction(),
-											   FIsActionChecked::CreateStatic(&UObjectMixerEditorListMenuContext::AreAllObjectsInCategory, Key, Context)
+											   FIsActionChecked::CreateStatic(&UObjectMixerEditorListMenuContext::AreAllObjectsInCollection, Key, Context)
 										   ),
 										   EUserInterfaceActionType::Check
 									   );
@@ -145,7 +153,7 @@ void UObjectMixerEditorListMenuContext::OnTextCommitted(const FText& InText, ETe
 	{
 		UE_LOG(LogTemp, Warning, TEXT("%hs: %s"), __FUNCTION__, *InText.ToString());
 
-		AddObjectsToCategory(*InText.ToString(), Context);
+		AddObjectsToCollection(*InText.ToString(), Context);
 	}
 }
 
@@ -159,19 +167,19 @@ void UObjectMixerEditorListMenuContext::OnTextChanged(const FText& InText, UObje
 	}
 }
 
-void UObjectMixerEditorListMenuContext::OnClickCategoryMenuEntry(const FName Key, UObjectMixerEditorListMenuContext* Context)
+void UObjectMixerEditorListMenuContext::OnClickCollectionMenuEntry(const FName Key, UObjectMixerEditorListMenuContext* Context)
 {
-	if (AreAllObjectsInCategory(Key, Context))
+	if (AreAllObjectsInCollection(Key, Context))
 	{
-		RemoveObjectsFromCategory(Key, Context);
+		RemoveObjectsFromCollection(Key, Context);
 	}
 	else
 	{
-		AddObjectsToCategory(Key, Context);
+		AddObjectsToCollection(Key, Context);
 	}
 }
 
-void UObjectMixerEditorListMenuContext::AddObjectsToCategory(const FName Key, UObjectMixerEditorListMenuContext* Context)
+void UObjectMixerEditorListMenuContext::AddObjectsToCollection(const FName Key, UObjectMixerEditorListMenuContext* Context)
 {
 	check(Context);
 
@@ -187,11 +195,11 @@ void UObjectMixerEditorListMenuContext::AddObjectsToCategory(const FName Key, UO
 			}
 		}
 		
-		MainPanel->AddObjectsToCategory(Key, ObjectPaths);
+		MainPanel->AddObjectsToCollection(Key, ObjectPaths);
 	}
 }
 
-void UObjectMixerEditorListMenuContext::RemoveObjectsFromCategory(const FName Key, UObjectMixerEditorListMenuContext* Context)
+void UObjectMixerEditorListMenuContext::RemoveObjectsFromCollection(const FName Key, UObjectMixerEditorListMenuContext* Context)
 {
 	check(Context);
 
@@ -207,15 +215,15 @@ void UObjectMixerEditorListMenuContext::RemoveObjectsFromCategory(const FName Ke
 			}
 		}
 		
-		MainPanel->RemoveObjectsFromCategory(Key, ObjectPaths);
+		MainPanel->RemoveObjectsFromCollection(Key, ObjectPaths);
 	}
 }
 
-bool UObjectMixerEditorListMenuContext::AreAllObjectsInCategory(const FName Key, UObjectMixerEditorListMenuContext* Context)
+bool UObjectMixerEditorListMenuContext::AreAllObjectsInCollection(const FName Key, UObjectMixerEditorListMenuContext* Context)
 {
 	check(Context);
 
-	bool bAreAllSelectedObjectsInCategory = false;
+	bool bAreAllSelectedObjectsInCollection = false;
 
 	if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanel = Context->Data.MainPanelPtr.Pin())
 	{
@@ -223,9 +231,9 @@ bool UObjectMixerEditorListMenuContext::AreAllObjectsInCategory(const FName Key,
 		{
 			if (const UObject* Object = Item->GetObject())
 			{
-				bAreAllSelectedObjectsInCategory = MainPanel->IsObjectInCategory(Key, Object);
+				bAreAllSelectedObjectsInCollection = MainPanel->IsObjectInCollection(Key, Object);
 
-				if (!bAreAllSelectedObjectsInCategory)
+				if (!bAreAllSelectedObjectsInCollection)
 				{
 					return false;
 				}
@@ -233,7 +241,7 @@ bool UObjectMixerEditorListMenuContext::AreAllObjectsInCategory(const FName Key,
 		}
 	}
 
-	return bAreAllSelectedObjectsInCategory;
+	return bAreAllSelectedObjectsInCollection;
 }
 
 #undef LOCTEXT_NAMESPACE

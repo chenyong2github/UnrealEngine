@@ -42,9 +42,9 @@ public:
 		return ShowFilters;	
 	}
 
-	const TSet<FName>& GetCurrentCategorySelection();
+	const TSet<FName>& GetCurrentCollectionSelection();
 	
-	void RebuildCategorySelector();
+	void RebuildCollectionSelector();
 
 	virtual ~SObjectMixerEditorMainPanel() override;
 
@@ -66,16 +66,16 @@ private:
 
 	void OnSearchTextChanged(const FText& Text);
 
-	// User Categorization
+	// User Collections
 	
-	TSharedPtr<class SWrapBox> CategorySelectorBox;
-	TSet<FName> CurrentCategorySelection;
+	TSharedPtr<class SWrapBox> CollectionSelectorBox;
+	TSet<FName> CurrentCollectionSelection;
 
-	void ResetCurrentCategorySelection()
+	void ResetCurrentCollectionSelection()
 	{
-		CurrentCategorySelection.Reset();
+		CurrentCollectionSelection.Reset();
 	}
 	
-	void OnCategoryCheckedChanged(ECheckBoxState State, FName SectionName);
-	ECheckBoxState IsCategoryChecked(FName Section) const;
+	void OnCollectionCheckedChanged(ECheckBoxState State, FName SectionName);
+	ECheckBoxState IsCollectionChecked(FName Section) const;
 };

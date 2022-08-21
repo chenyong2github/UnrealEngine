@@ -15,7 +15,7 @@
 #include "SPositiveActionButton.h"
 #include "Styling/StyleColors.h"
 #include "Views/List/ObjectMixerEditorListFilters/IObjectMixerEditorListFilter.h"
-#include "Views/List/ObjectMixerEditorListFilters/ObjectMixerEditorListFilter_Category.h"
+#include "Views/List/ObjectMixerEditorListFilters/ObjectMixerEditorListFilter_Collection.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
@@ -48,7 +48,7 @@ void SObjectMixerEditorMainPanel::Construct(
 		.Padding(8, 2, 8, 7)
 		.AutoHeight()
 		[
-			SAssignNew(CategorySelectorBox, SWrapBox)
+			SAssignNew(CollectionSelectorBox, SWrapBox)
 			.UseAllottedSize(true)
 			.InnerSlotPadding(FVector2D(4,4))
 		]
@@ -61,9 +61,9 @@ void SObjectMixerEditorMainPanel::Construct(
 		]
 	];
 
-	InMainPanel->GetOnObjectMixerCategoryMapChanged().AddRaw(this, &SObjectMixerEditorMainPanel::RebuildCategorySelector);
+	InMainPanel->GetOnObjectMixerCollectionMapChanged().AddRaw(this, &SObjectMixerEditorMainPanel::RebuildCollectionSelector);
 
-	ShowFilters.Add(MakeShared<FObjectMixerEditorListFilter_Category>());
+	ShowFilters.Add(MakeShared<FObjectMixerEditorListFilter_Collection>());
 }
 
 TSharedRef<SWidget> SObjectMixerEditorMainPanel::GenerateToolbar()
@@ -466,75 +466,75 @@ void SObjectMixerEditorMainPanel::ToggleFilterActive(const FString& FilterName)
 	}
 }
 
-const TSet<FName>& SObjectMixerEditorMainPanel::GetCurrentCategorySelection()
+const TSet<FName>& SObjectMixerEditorMainPanel::GetCurrentCollectionSelection()
 {
-	return CurrentCategorySelection;
+	return CurrentCollectionSelection;
 }
 
-void SObjectMixerEditorMainPanel::RebuildCategorySelector()
+void SObjectMixerEditorMainPanel::RebuildCollectionSelector()
 {
 	check(MainPanelModel.IsValid());
 	
-	CategorySelectorBox->ClearChildren();
-	CategorySelectorBox->SetVisibility(EVisibility::Collapsed);
+	CollectionSelectorBox->ClearChildren();
+	CollectionSelectorBox->SetVisibility(EVisibility::Collapsed);
 
-	TArray<FName> AllCategories = MainPanelModel.Pin()->GetAllCategories().Array();
+	TArray<FName> AllCollections = MainPanelModel.Pin()->GetAllCollections().Array();
 	
-	if (AllCategories.IsEmpty())
+	if (AllCollections.IsEmpty())
 	{
 		// we've selected something that has no sections - rather than show just "All", hide the box
-		ResetCurrentCategorySelection();
+		ResetCurrentCollectionSelection();
 		return;
 	}
 
-	auto CreateSection = [this](FName CategoryName) 
+	auto CreateSection = [this](FName CollectionName) 
 	{
 		return SNew(SBox)
 			.Padding(FMargin(0))
 			[
 				SNew(SCheckBox)
 				.Style(FAppStyle::Get(), "DetailsView.SectionButton")
-				.OnCheckStateChanged(this, &SObjectMixerEditorMainPanel::OnCategoryCheckedChanged, CategoryName)
-				.IsChecked(this, &SObjectMixerEditorMainPanel::IsCategoryChecked, CategoryName)
+				.OnCheckStateChanged(this, &SObjectMixerEditorMainPanel::OnCollectionCheckedChanged, CollectionName)
+				.IsChecked(this, &SObjectMixerEditorMainPanel::IsCollectionChecked, CollectionName)
 				[
 					SNew(STextBlock)
 					.TextStyle(FAppStyle::Get(), "SmallText")
-					.Text(FText::FromName(CategoryName))
+					.Text(FText::FromName(CollectionName))
 				]
 			];
 	};
 	
-	AllCategories.Sort([](FName A, FName B)
+	AllCollections.Sort([](FName A, FName B)
 		{
 			return A.LexicalLess(B);
 		});
 
-	for (const FName& Key : AllCategories)
+	for (const FName& Key : AllCollections)
 	{
-		CategorySelectorBox->AddSlot()
+		CollectionSelectorBox->AddSlot()
 		[
 			CreateSection(Key)
 		];
 	}
 
-	CategorySelectorBox->AddSlot()
+	CollectionSelectorBox->AddSlot()
 	[
 		CreateSection("All")
 	];
 
-	CategorySelectorBox->SetVisibility(EVisibility::Visible);
+	CollectionSelectorBox->SetVisibility(EVisibility::Visible);
 }
 
-void SObjectMixerEditorMainPanel::OnCategoryCheckedChanged(ECheckBoxState State, FName SectionName)
+void SObjectMixerEditorMainPanel::OnCollectionCheckedChanged(ECheckBoxState State, FName SectionName)
 {
 	check(MainPanelModel.IsValid());
 
-	// Remove category
+	// Remove Collection
 	if (FSlateApplication::Get().GetModifierKeys().IsAltDown())
 	{
-		MainPanelModel.Pin()->RemoveCategory(SectionName);
+		MainPanelModel.Pin()->RemoveCollection(SectionName);
 
-		CurrentCategorySelection.Remove(SectionName);
+		CurrentCollectionSelection.Remove(SectionName);
 	}
 	else
 	{
@@ -544,15 +544,15 @@ void SObjectMixerEditorMainPanel::OnCategoryCheckedChanged(ECheckBoxState State,
 		{
 			if (bIsControlDown)
 			{
-				CurrentCategorySelection.Remove(SectionName);
+				CurrentCollectionSelection.Remove(SectionName);
 			}
 			else
 			{
-				CurrentCategorySelection.Reset();
+				CurrentCollectionSelection.Reset();
 
 				if (SectionName != "All")
 				{
-					CurrentCategorySelection.Add(SectionName);
+					CurrentCollectionSelection.Add(SectionName);
 				}
 			}
 		}
@@ -560,12 +560,12 @@ void SObjectMixerEditorMainPanel::OnCategoryCheckedChanged(ECheckBoxState State,
 		{
 			if (!bIsControlDown)
 			{
-				CurrentCategorySelection.Reset();
+				CurrentCollectionSelection.Reset();
 			}
 
 			if (SectionName != "All")
 			{
-				CurrentCategorySelection.Add(SectionName);
+				CurrentCollectionSelection.Add(SectionName);
 			}
 		}
 	}
@@ -573,21 +573,21 @@ void SObjectMixerEditorMainPanel::OnCategoryCheckedChanged(ECheckBoxState State,
 	MainPanelModel.Pin()->GetEditorListModel().Pin()->EvaluateIfRowsPassFilters();
 }
 
-ECheckBoxState SObjectMixerEditorMainPanel::IsCategoryChecked(FName Section) const
+ECheckBoxState SObjectMixerEditorMainPanel::IsCollectionChecked(FName Section) const
 {
-	if (CurrentCategorySelection.IsEmpty() && Section == "All")
+	if (CurrentCollectionSelection.IsEmpty() && Section == "All")
 	{
 		return ECheckBoxState::Checked;
 	}
 
-	return CurrentCategorySelection.Contains(Section) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return CurrentCollectionSelection.Contains(Section) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 SObjectMixerEditorMainPanel::~SObjectMixerEditorMainPanel()
 {
 	if (MainPanelModel.IsValid())
 	{
-		MainPanelModel.Pin()->GetOnObjectMixerCategoryMapChanged().RemoveAll(this);
+		MainPanelModel.Pin()->GetOnObjectMixerCollectionMapChanged().RemoveAll(this);
 		MainPanelModel.Reset();
 	}
 }

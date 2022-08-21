@@ -41,7 +41,7 @@ UObjectMixerObjectFilter* FObjectMixerEditorListRow::GetObjectFilter() const
 	return nullptr;
 }
 
-bool FObjectMixerEditorListRow::IsObjectRefInSelectedCategories() const
+bool FObjectMixerEditorListRow::IsObjectRefInSelectedCollections() const
 {
 	check (ListViewPtr.IsValid());
 	
@@ -51,16 +51,16 @@ bool FObjectMixerEditorListRow::IsObjectRefInSelectedCategories() const
 		{
 			if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanel = ListModel->GetMainPanelModel().Pin())
 			{
-				const TSet<FName>& CategorySelection = MainPanel->GetCurrentCategorySelection();
+				const TSet<FName>& CollectionSelection = MainPanel->GetCurrentCollectionSelection();
 
-				if (CategorySelection.Num() == 0)
+				if (CollectionSelection.Num() == 0)
 				{
 					return true;
 				}
 
-				const TSet<FName>& ObjectAssignedCategories = MainPanel->GetCategoriesForObject(GetObject());
+				const TSet<FName>& ObjectAssignedCollections = MainPanel->GetCollectionsForObject(GetObject());
 
-				const TSet<FName> Intersection = CategorySelection.Intersect(ObjectAssignedCategories);
+				const TSet<FName> Intersection = CollectionSelection.Intersect(ObjectAssignedCollections);
 
 				return Intersection.Num() > 0;
 			}

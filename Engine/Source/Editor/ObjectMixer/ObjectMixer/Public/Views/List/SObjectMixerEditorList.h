@@ -45,7 +45,7 @@ struct FListViewColumnInfo
 	EListViewColumnType PropertyType = EListViewColumnType::PropertyGenerated;
 
 	UPROPERTY()
-	FName CategoryName = NAME_None;
+	FName PropertyCategoryName = NAME_None;
 
 	UPROPERTY()
 	bool bIsDesiredForDisplay = false;

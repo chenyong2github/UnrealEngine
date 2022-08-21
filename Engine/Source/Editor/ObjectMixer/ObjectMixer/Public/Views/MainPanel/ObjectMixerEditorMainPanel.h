@@ -11,7 +11,7 @@
 class FObjectMixerEditorList;
 class SObjectMixerEditorMainPanel;
 
-DECLARE_MULTICAST_DELEGATE(FOnObjectMixerCategoryMapChanged)
+DECLARE_MULTICAST_DELEGATE(FOnObjectMixerCollectionMapChanged)
 
 class OBJECTMIXEREDITOR_API FObjectMixerEditorMainPanel : public TSharedFromThis<FObjectMixerEditorMainPanel>
 {
@@ -44,7 +44,7 @@ public:
 		return EditorListModel;
 	}
 
-	void RebuildCategorySelector();
+	void RebuildCollectionSelector();
 
 	FString GetSearchStringFromSearchInputField() const;
 
@@ -146,26 +146,26 @@ public:
 		return ModuleName;
 	}
 
-	// User Categorization
+	// User Collections
 
 	/**
-	 * Add set of objects to a category in the map, or create a new category if one does not exist,
+	 * Add set of objects to a collection in the map, or create a new collection if one does not exist,
 	 */
-	void AddObjectsToCategory(const FName& CategoryName, const TSet<FSoftObjectPath>& ObjectsToAdd) const;
-	void RemoveObjectsFromCategory(const FName& CategoryName, const TSet<FSoftObjectPath>& ObjectsToRemove) const;
-	void RemoveCategory(const FName& CategoryName) const;
-	bool IsObjectInCategory(const FName& CategoryName, const FSoftObjectPath& InObject) const;
-	TSet<FName> GetCategoriesForObject(const FSoftObjectPath& InObject) const;
-	TSet<FName> GetAllCategories() const;
-	FOnObjectMixerCategoryMapChanged& GetOnObjectMixerCategoryMapChanged()
+	void AddObjectsToCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToAdd) const;
+	void RemoveObjectsFromCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToRemove) const;
+	void RemoveCollection(const FName& CollectionName) const;
+	bool IsObjectInCollection(const FName& CollectionName, const FSoftObjectPath& InObject) const;
+	TSet<FName> GetCollectionsForObject(const FSoftObjectPath& InObject) const;
+	TSet<FName> GetAllCollections() const;
+	FOnObjectMixerCollectionMapChanged& GetOnObjectMixerCollectionMapChanged()
 	{
-		return OnObjectMixerCategoryMapChanged;
+		return OnObjectMixerCollectionMapChanged;
 	}
 
 	/**
-	 * Returns the categories selected by the user. If the set is empty, consider "All" categories to be selected.
+	 * Returns the collections selected by the user. If the set is empty, consider "All" collections to be selected.
 	 */
-	const TSet<FName>& GetCurrentCategorySelection() const;
+	const TSet<FName>& GetCurrentCollectionSelection() const;
 
 private:
 
@@ -189,5 +189,5 @@ private:
 
 	FName ModuleName = NAME_None;
 
-	FOnObjectMixerCategoryMapChanged OnObjectMixerCategoryMapChanged;
+	FOnObjectMixerCollectionMapChanged OnObjectMixerCollectionMapChanged;
 };

@@ -44,9 +44,9 @@ void FObjectMixerEditorMainPanel::RefreshList() const
 	}
 }
 
-void FObjectMixerEditorMainPanel::RebuildCategorySelector()
+void FObjectMixerEditorMainPanel::RebuildCollectionSelector()
 {
-	MainPanelWidget->RebuildCategorySelector();
+	MainPanelWidget->RebuildCollectionSelector();
 }
 
 FString FObjectMixerEditorMainPanel::GetSearchStringFromSearchInputField() const
@@ -97,85 +97,85 @@ const TArray<TSharedRef<IObjectMixerEditorListFilter>>& FObjectMixerEditorMainPa
 	return MainPanelWidget->GetShowFilters();	
 }
 
-void FObjectMixerEditorMainPanel::AddObjectsToCategory(const FName& CategoryName, const TSet<FSoftObjectPath>& ObjectsToAdd) const
+void FObjectMixerEditorMainPanel::AddObjectsToCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToAdd) const
 {
 	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
 	{
 		if (UObjectMixerEditorSerializedData* Settings = GetMutableDefault<UObjectMixerEditorSerializedData>())
 		{
-			Settings->AddObjectsToCategory(Filter->GetFName(), CategoryName, ObjectsToAdd);
+			Settings->AddObjectsToCollection(Filter->GetFName(), CollectionName, ObjectsToAdd);
 
-			OnObjectMixerCategoryMapChanged.Broadcast();
+			OnObjectMixerCollectionMapChanged.Broadcast();
 		}
 	}
 }
 
-void FObjectMixerEditorMainPanel::RemoveObjectsFromCategory(const FName& CategoryName, const TSet<FSoftObjectPath>& ObjectsToRemove) const
+void FObjectMixerEditorMainPanel::RemoveObjectsFromCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToRemove) const
 {
 	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
 	{
 		if (UObjectMixerEditorSerializedData* Settings = GetMutableDefault<UObjectMixerEditorSerializedData>())
 		{
-			Settings->RemoveObjectsFromCategory(Filter->GetFName(), CategoryName, ObjectsToRemove);
+			Settings->RemoveObjectsFromCollection(Filter->GetFName(), CollectionName, ObjectsToRemove);
 
-			OnObjectMixerCategoryMapChanged.Broadcast();
+			OnObjectMixerCollectionMapChanged.Broadcast();
 		}
 	}
 }
 
-void FObjectMixerEditorMainPanel::RemoveCategory(const FName& CategoryName) const
+void FObjectMixerEditorMainPanel::RemoveCollection(const FName& CollectionName) const
 {
 	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
 	{
 		if (UObjectMixerEditorSerializedData* Settings = GetMutableDefault<UObjectMixerEditorSerializedData>())
 		{
-			Settings->RemoveCategory(Filter->GetFName(), CategoryName);
+			Settings->RemoveCollection(Filter->GetFName(), CollectionName);
 
-			OnObjectMixerCategoryMapChanged.Broadcast();
+			OnObjectMixerCollectionMapChanged.Broadcast();
 		}
 	}
 }
 
-bool FObjectMixerEditorMainPanel::IsObjectInCategory(const FName& CategoryName, const FSoftObjectPath& InObject) const
+bool FObjectMixerEditorMainPanel::IsObjectInCollection(const FName& CollectionName, const FSoftObjectPath& InObject) const
 {
 	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
 	{
 		if (UObjectMixerEditorSerializedData* Settings = GetMutableDefault<UObjectMixerEditorSerializedData>())
 		{
-			return Settings->IsObjectInCategory(Filter->GetFName(), CategoryName, InObject);
+			return Settings->IsObjectInCollection(Filter->GetFName(), CollectionName, InObject);
 		}
 	}
 
 	return false;
 }
 
-TSet<FName> FObjectMixerEditorMainPanel::GetCategoriesForObject(const FSoftObjectPath& InObject) const
+TSet<FName> FObjectMixerEditorMainPanel::GetCollectionsForObject(const FSoftObjectPath& InObject) const
 {
 	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
 	{
 		if (UObjectMixerEditorSerializedData* Settings = GetMutableDefault<UObjectMixerEditorSerializedData>())
 		{
-			return Settings->GetCategoriesForObject(Filter->GetFName(), InObject);
+			return Settings->GetCollectionsForObject(Filter->GetFName(), InObject);
 		}
 	}
 
 	return {};
 }
 
-TSet<FName> FObjectMixerEditorMainPanel::GetAllCategories() const
+TSet<FName> FObjectMixerEditorMainPanel::GetAllCollections() const
 {
 	if (const TSubclassOf<UObjectMixerObjectFilter> Filter = GetObjectFilterClass())
 	{
 		if (UObjectMixerEditorSerializedData* Settings = GetMutableDefault<UObjectMixerEditorSerializedData>())
 		{
-			return Settings->GetAllCategories(Filter->GetFName());
+			return Settings->GetAllCollections(Filter->GetFName());
 		}
 	}
 
 	return {};
 }
 
-const TSet<FName>& FObjectMixerEditorMainPanel::GetCurrentCategorySelection() const
+const TSet<FName>& FObjectMixerEditorMainPanel::GetCurrentCollectionSelection() const
 {
-	return MainPanelWidget->GetCurrentCategorySelection();
+	return MainPanelWidget->GetCurrentCollectionSelection();
 }

@@ -218,7 +218,7 @@ void FObjectMixerEditorModule::RegisterProjectSettings() const
 		// User Project Settings
 		const TSharedPtr<ISettingsSection> ProjectSettingsSectionPtr = SettingsModule->RegisterSettings(
 			"Project", "Editor", "Object Mixer",
-			LOCTEXT("ObjectMixerSettingsCategoryDisplayName", "Object Mixer"),
+			LOCTEXT("ObjectMixerSettingsDisplayName", "Object Mixer"),
 			LOCTEXT("ObjectMixerSettingsDescription", "Configure Object Mixer user settings"),
 			GetMutableDefault<UObjectMixerEditorProjectSettings>());	
 	}

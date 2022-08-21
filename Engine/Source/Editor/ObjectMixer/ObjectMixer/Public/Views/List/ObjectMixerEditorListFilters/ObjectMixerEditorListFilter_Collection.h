@@ -6,18 +6,18 @@
 
 #define LOCTEXT_NAMESPACE "ObjectMixerEditor"
 
-class OBJECTMIXEREDITOR_API FObjectMixerEditorListFilter_Category : public IObjectMixerEditorListFilter
+class OBJECTMIXEREDITOR_API FObjectMixerEditorListFilter_Collection : public IObjectMixerEditorListFilter
 {
 public:
 
-	FObjectMixerEditorListFilter_Category()
+	FObjectMixerEditorListFilter_Collection()
 	{
 		SetFilterMatchType(EObjectMixerEditorListFilterMatchType::MatchAll);
 	}
 
 	virtual FString GetFilterName() const override
 	{
-		return "ObjectMixerCategoryListFilter";
+		return "ObjectMixerCollectionListFilter";
 	}
 
 	virtual bool IsToggleable() const override
@@ -27,12 +27,12 @@ public:
 
 	virtual FText GetFilterButtonLabel() const override
 	{
-		return LOCTEXT("ShowSourceTextFilterFormat", "Show Categories");
+		return LOCTEXT("ShowSourceTextFilterFormat", "Show Collections");
 	}
 
 	virtual FText GetFilterButtonToolTip() const override
 	{
-		return LOCTEXT("ShowSourceTextFilterTooltipFormat", "Show rows that are assigned to the selected categories");
+		return LOCTEXT("ShowSourceTextFilterTooltipFormat", "Show rows that are assigned to the selected collections");
 	}
 
 	virtual bool DoesItemPassFilter(const FObjectMixerEditorListRowPtr& InItem) const override
@@ -42,7 +42,7 @@ public:
 			if (InItem->GetRowType() == FObjectMixerEditorListRow::ContainerObject ||
 				InItem->GetRowType() == FObjectMixerEditorListRow::MatchingObject)
 			{
-				return InItem->IsObjectRefInSelectedCategories();
+				return InItem->IsObjectRefInSelectedCollections();
 			}
 		}
 

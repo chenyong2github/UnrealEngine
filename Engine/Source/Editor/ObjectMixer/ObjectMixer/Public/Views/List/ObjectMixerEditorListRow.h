@@ -53,7 +53,7 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 
 	UObjectMixerObjectFilter* GetObjectFilter() const;
 
-	bool IsObjectRefInSelectedCategories() const;
+	bool IsObjectRefInSelectedCollections() const;
 
 	[[nodiscard]] EObjectMixerEditorListRowType GetRowType() const;
 

@@ -18,7 +18,7 @@ FObjectMixerSerializationData* UObjectMixerEditorSerializedData::FindSerializati
 	return nullptr;
 }
 
-void UObjectMixerEditorSerializedData::AddObjectsToCategory(const FName& FilterClassName, const FName& CategoryName, const TSet<FSoftObjectPath>& ObjectsToAdd)
+void UObjectMixerEditorSerializedData::AddObjectsToCollection(const FName& FilterClassName, const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToAdd)
 {
 	FObjectMixerSerializationData* Data = FindSerializationDataByFilterClassName(FilterClassName);
 
@@ -30,36 +30,36 @@ void UObjectMixerEditorSerializedData::AddObjectsToCategory(const FName& FilterC
 	
 	if (Data)
 	{
-		if (FObjectMixerCategoryObjectSet* Match = Algo::FindByPredicate(Data->SerializedCategories,
-			[CategoryName](const FObjectMixerCategoryObjectSet& Comparator)
+		if (FObjectMixerCollectionObjectSet* Match = Algo::FindByPredicate(Data->SerializedCollection,
+			[CollectionName](const FObjectMixerCollectionObjectSet& Comparator)
 			{
-				return Comparator.CategoryName.IsEqual(CategoryName);
+				return Comparator.CollectionName.IsEqual(CollectionName);
 			}))
 		{
-			(*Match).CategoryObjects.Append(ObjectsToAdd);
+			(*Match).CollectionObjects.Append(ObjectsToAdd);
 		}
 		else
 		{
-			Data->SerializedCategories.Add({CategoryName, ObjectsToAdd});
+			Data->SerializedCollection.Add({CollectionName, ObjectsToAdd});
 		}
 
 		SaveConfig();
 	}
 }
 
-void UObjectMixerEditorSerializedData::RemoveObjectsFromCategory(const FName& FilterClassName, const FName& CategoryName, const TSet<FSoftObjectPath>& ObjectsToRemove)
+void UObjectMixerEditorSerializedData::RemoveObjectsFromCollection(const FName& FilterClassName, const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToRemove)
 {
 	if (FObjectMixerSerializationData* Data = FindSerializationDataByFilterClassName(FilterClassName))
 	{
-		if (FObjectMixerCategoryObjectSet* Match = Algo::FindByPredicate(Data->SerializedCategories,
-			[CategoryName](const FObjectMixerCategoryObjectSet& Comparator)
+		if (FObjectMixerCollectionObjectSet* Match = Algo::FindByPredicate(Data->SerializedCollection,
+			[CollectionName](const FObjectMixerCollectionObjectSet& Comparator)
 			{
-				return Comparator.CategoryName.IsEqual(CategoryName);
+				return Comparator.CollectionName.IsEqual(CollectionName);
 			}))
 		{
 			for (const FSoftObjectPath& ObjectPath : ObjectsToRemove)
 			{
-				(*Match).CategoryObjects.Remove(ObjectPath);
+				(*Match).CollectionObjects.Remove(ObjectPath);
 			}
 			
 			SaveConfig();
@@ -67,74 +67,74 @@ void UObjectMixerEditorSerializedData::RemoveObjectsFromCategory(const FName& Fi
 	}
 }
 
-void UObjectMixerEditorSerializedData::RemoveCategory(const FName& FilterClassName, const FName& CategoryName)
+void UObjectMixerEditorSerializedData::RemoveCollection(const FName& FilterClassName, const FName& CollectionName)
 {
 	if (FObjectMixerSerializationData* Data = FindSerializationDataByFilterClassName(FilterClassName))
 	{
-		if (FObjectMixerCategoryObjectSet* Match = Algo::FindByPredicate(Data->SerializedCategories,
-			[CategoryName](const FObjectMixerCategoryObjectSet& Comparator)
+		if (FObjectMixerCollectionObjectSet* Match = Algo::FindByPredicate(Data->SerializedCollection,
+			[CollectionName](const FObjectMixerCollectionObjectSet& Comparator)
 			{
-				return Comparator.CategoryName.IsEqual(CategoryName);
+				return Comparator.CollectionName.IsEqual(CollectionName);
 			}))
 		{
-			(*Match).CategoryObjects.Empty();
+			(*Match).CollectionObjects.Empty();
 
-			Data->SerializedCategories.Remove(*Match);
+			Data->SerializedCollection.Remove(*Match);
 
 			SaveConfig();
 		}
 	}
 }
 
-bool UObjectMixerEditorSerializedData::IsObjectInCategory(const FName& FilterClassName, const FName& CategoryName, const FSoftObjectPath& InObject)
+bool UObjectMixerEditorSerializedData::IsObjectInCollection(const FName& FilterClassName, const FName& CollectionName, const FSoftObjectPath& InObject)
 {
 	if (FObjectMixerSerializationData* Data = FindSerializationDataByFilterClassName(FilterClassName))
 	{
-		if (const FObjectMixerCategoryObjectSet* Match = Algo::FindByPredicate(Data->SerializedCategories,
-			[CategoryName](const FObjectMixerCategoryObjectSet& Comparator)
+		if (const FObjectMixerCollectionObjectSet* Match = Algo::FindByPredicate(Data->SerializedCollection,
+			[CollectionName](const FObjectMixerCollectionObjectSet& Comparator)
 			{
-				return Comparator.CategoryName.IsEqual(CategoryName);
+				return Comparator.CollectionName.IsEqual(CollectionName);
 			}))
 		{
-			return (*Match).CategoryObjects.Contains(InObject);
+			return (*Match).CollectionObjects.Contains(InObject);
 		}
 	}
 
 	return false;
 }
 
-TSet<FName> UObjectMixerEditorSerializedData::GetCategoriesForObject(const FName& FilterClassName, const FSoftObjectPath& InObject)
+TSet<FName> UObjectMixerEditorSerializedData::GetCollectionsForObject(const FName& FilterClassName, const FSoftObjectPath& InObject)
 {
 	if (FObjectMixerSerializationData* Data = FindSerializationDataByFilterClassName(FilterClassName))
 	{
-		TSet<FName> CategoriesWithObject;
+		TSet<FName> CollectionsWithObject;
 
-		for (const FObjectMixerCategoryObjectSet& SerializedCategory : Data->SerializedCategories)
+		for (const FObjectMixerCollectionObjectSet& CollectionObjectSet : Data->SerializedCollection)
 		{
-			if (IsObjectInCategory(FilterClassName, SerializedCategory.CategoryName, InObject))
+			if (IsObjectInCollection(FilterClassName, CollectionObjectSet.CollectionName, InObject))
 			{
-				CategoriesWithObject.Add(SerializedCategory.CategoryName);
+				CollectionsWithObject.Add(CollectionObjectSet.CollectionName);
 			}
 		}
 
-		return CategoriesWithObject;
+		return CollectionsWithObject;
 	}
 
 	return {};
 }
 
-TSet<FName> UObjectMixerEditorSerializedData::GetAllCategories(const FName& FilterClassName)
+TSet<FName> UObjectMixerEditorSerializedData::GetAllCollections(const FName& FilterClassName)
 {
 	if (FObjectMixerSerializationData* Data = FindSerializationDataByFilterClassName(FilterClassName))
 	{
-		TSet<FName> Categories;
+		TSet<FName> Collections;
 
-		for (const FObjectMixerCategoryObjectSet& SerializedCategory : Data->SerializedCategories)
+		for (const FObjectMixerCollectionObjectSet& CollectionObjectSet : Data->SerializedCollection)
 		{
-			Categories.Add(SerializedCategory.CategoryName);
+			Collections.Add(CollectionObjectSet.CollectionName);
 		}
 
-		return Categories;
+		return Collections;
 	}
 
 	return {};

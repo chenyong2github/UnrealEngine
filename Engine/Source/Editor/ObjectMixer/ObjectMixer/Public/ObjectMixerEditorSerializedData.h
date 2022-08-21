@@ -5,24 +5,24 @@
 #include "ObjectMixerEditorSerializedData.generated.h"
 
 USTRUCT()
-struct FObjectMixerCategoryObjectSet
+struct FObjectMixerCollectionObjectSet
 {
 	GENERATED_BODY()
 	
 	UPROPERTY()
-	FName CategoryName = NAME_None;
+	FName CollectionName = NAME_None;
 
 	UPROPERTY()
-	TSet<FSoftObjectPath> CategoryObjects = {};
+	TSet<FSoftObjectPath> CollectionObjects = {};
 
-	bool operator==(const FObjectMixerCategoryObjectSet& Other) const
+	bool operator==(const FObjectMixerCollectionObjectSet& Other) const
 	{
-		return CategoryName.IsEqual(Other.CategoryName);
+		return CollectionName.IsEqual(Other.CollectionName);
 	}
 
-	friend uint32 GetTypeHash (const FObjectMixerCategoryObjectSet& Other)
+	friend uint32 GetTypeHash (const FObjectMixerCollectionObjectSet& Other)
 	{
-		return GetTypeHash(Other.CategoryName);
+		return GetTypeHash(Other.CollectionName);
 	}
 };
 
@@ -35,7 +35,7 @@ struct FObjectMixerSerializationData
 	FName FilterClassName = NAME_None;
 
 	UPROPERTY()
-	TSet<FObjectMixerCategoryObjectSet> SerializedCategories = {};
+	TSet<FObjectMixerCollectionObjectSet> SerializedCollection = {};
 
 	bool operator==(const FObjectMixerSerializationData& Other) const
 	{
@@ -62,15 +62,15 @@ public:
 
 	FObjectMixerSerializationData* FindSerializationDataByFilterClassName(const FName& FilterClassName);
 
-	void AddObjectsToCategory(const FName& FilterClassName, const FName& CategoryName, const TSet<FSoftObjectPath>& ObjectsToAdd);
+	void AddObjectsToCollection(const FName& FilterClassName, const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToAdd);
 
-	void RemoveObjectsFromCategory(const FName& FilterClassName, const FName& CategoryName, const TSet<FSoftObjectPath>& ObjectsToRemove);
+	void RemoveObjectsFromCollection(const FName& FilterClassName, const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToRemove);
 
-	void RemoveCategory(const FName& FilterClassName, const FName& CategoryName);
+	void RemoveCollection(const FName& FilterClassName, const FName& CollectionName);
 
-	bool IsObjectInCategory(const FName& FilterClassName, const FName& CategoryName, const FSoftObjectPath& InObject);
+	bool IsObjectInCollection(const FName& FilterClassName, const FName& CollectionName, const FSoftObjectPath& InObject);
 
-	TSet<FName> GetCategoriesForObject(const FName& FilterClassName, const FSoftObjectPath& InObject);
+	TSet<FName> GetCollectionsForObject(const FName& FilterClassName, const FSoftObjectPath& InObject);
 
-	TSet<FName> GetAllCategories(const FName& FilterClassName);
+	TSet<FName> GetAllCollections(const FName& FilterClassName);
 };

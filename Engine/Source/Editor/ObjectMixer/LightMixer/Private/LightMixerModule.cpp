@@ -73,7 +73,7 @@ void FLightMixerModule::RegisterProjectSettings() const
 		// User Project Settings
 		const TSharedPtr<ISettingsSection> ProjectSettingsSectionPtr = SettingsModule->RegisterSettings(
 			"Project", "Editor", "Light Mixer",
-			LOCTEXT("LightMixerSettingsCategoryDisplayName", "Light Mixer"),
+			LOCTEXT("LightMixerSettingsDisplayName", "Light Mixer"),
 			LOCTEXT("LightMixerSettingsDescription", "Configure Light Mixer user settings"),
 			GetMutableDefault<ULightMixerProjectSettings>());
 	}

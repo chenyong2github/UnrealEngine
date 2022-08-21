@@ -35,10 +35,10 @@ private:
 	static void OnTextCommitted(const FText& InText, ETextCommit::Type InCommitType, UObjectMixerEditorListMenuContext* Context);
 	static void OnTextChanged(const FText& InText, UObjectMixerEditorListMenuContext* Context);
 	
-	static void OnClickCategoryMenuEntry(const FName Key, UObjectMixerEditorListMenuContext* Context);
-	static void AddObjectsToCategory(const FName Key, UObjectMixerEditorListMenuContext* Context);
-	static void RemoveObjectsFromCategory(const FName Key, UObjectMixerEditorListMenuContext* Context);
-	static bool AreAllObjectsInCategory(const FName Key, UObjectMixerEditorListMenuContext* Context);
+	static void OnClickCollectionMenuEntry(const FName Key, UObjectMixerEditorListMenuContext* Context);
+	static void AddObjectsToCollection(const FName Key, UObjectMixerEditorListMenuContext* Context);
+	static void RemoveObjectsFromCollection(const FName Key, UObjectMixerEditorListMenuContext* Context);
+	static bool AreAllObjectsInCollection(const FName Key, UObjectMixerEditorListMenuContext* Context);
 
 	TSharedPtr<class SEditableTextBox> EditableText;
 };

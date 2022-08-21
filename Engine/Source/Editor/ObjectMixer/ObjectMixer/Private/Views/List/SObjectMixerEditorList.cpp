@@ -450,18 +450,18 @@ TSharedRef<SWidget> SObjectMixerEditorList::GenerateHeaderRowContextMenu() const
 	
 	MenuBuilder.AddSearchWidget();
 
-	FName LastCategoryName = NAME_None;
+	FName LastPropertyCategoryName = NAME_None;
 
 	for (const FListViewColumnInfo& ColumnInfo : ListViewColumns)
 	{
-		const FName& CategoryName = ColumnInfo.CategoryName;
+		const FName& PropertyCategoryName = ColumnInfo.PropertyCategoryName;
 
-		if (!CategoryName.IsEqual(LastCategoryName))
+		if (!PropertyCategoryName.IsEqual(LastPropertyCategoryName))
 		{
-			LastCategoryName = CategoryName;
+			LastPropertyCategoryName = PropertyCategoryName;
 			
 			MenuBuilder.EndSection();
-            MenuBuilder.BeginSection(LastCategoryName, FText::FromName(LastCategoryName));
+            MenuBuilder.BeginSection(LastPropertyCategoryName, FText::FromName(LastPropertyCategoryName));
 		}
 		
 		const FName& PropertyName = ColumnInfo.PropertyName;
@@ -546,10 +546,10 @@ bool SObjectMixerEditorList::AddUniquePropertyColumnsToHeaderRow(
 				})
 			)
 		{
-			FString CategoryName = "Generated Properties";
+			FString PropertyCategoryName = "Generated Properties";
 			if (const FString* CategoryMeta = Property->FindMetaData("Category"))
 			{
-				CategoryName = *CategoryMeta;
+				PropertyCategoryName = *CategoryMeta;
 			}
 			
 			ListViewColumns.Add(
@@ -557,7 +557,7 @@ bool SObjectMixerEditorList::AddUniquePropertyColumnsToHeaderRow(
 					Property, PropertyName,
 					Property->GetDisplayNameText(),
 					EListViewColumnType::PropertyGenerated,
-					*CategoryName,
+					*PropertyCategoryName,
 					true, true, false
 				}
 			);
@@ -648,10 +648,10 @@ TSharedPtr<SHeaderRow> SObjectMixerEditorList::GenerateHeaderRow()
 		return A.PropertyDisplayText.ToString() < B.PropertyDisplayText.ToString();
 	});
 
-	// Alphabetical sort by Category Name
+	// Alphabetical sort by Property Category Name
 	ListViewColumns.StableSort([](const FListViewColumnInfo& A, const FListViewColumnInfo& B)
 	{
-		return A.CategoryName.LexicalLess(B.CategoryName);
+		return A.PropertyCategoryName.LexicalLess(B.PropertyCategoryName);
 	});
 
 	// Add Built-in Columns to beginning
@@ -1113,7 +1113,7 @@ void SObjectMixerEditorList::GenerateTreeView()
 
 	if (TSharedPtr<FObjectMixerEditorMainPanel> MainPanel = ListModelPtr.Pin()->GetMainPanelModel().Pin())
 	{
-		MainPanel->RebuildCategorySelector();
+		MainPanel->RebuildCollectionSelector();
 	}
 
 	RefreshList();
