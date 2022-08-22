@@ -14,7 +14,12 @@ namespace MovieRenderPipeline
 {
 	struct IVideoCodecWriter
 	{
+		// The filename to actually write to disk with. This may include "de-duplication" numbers (MyFile (1).ext etc.)
 		FString FileName;
+		// The filename without de-duplication numbers, used to match up multiple incoming frames back to the same writer.
+		// We use this when looking for existing writers so that we can avoid the de-duplication numbers perpetually increasing
+		// due to the file existing on disk after the first frame comes in, and then the next one de-duplicating to one more than that.
+		FString StableFileName;
 		FMoviePipelineFormatArgs FormatArgs;
 		bool bConvertToSrgb;
 	};
