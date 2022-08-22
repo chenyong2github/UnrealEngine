@@ -76,7 +76,7 @@ struct TSequencerKeyEditor
 		{
 			const FFrameTime CurrentTime = UE::MovieScene::ClampToDiscreteRange(Sequencer->GetLocalTime().Time, OwningSection->GetRange());
 			//If we have no keys and no default, key with the external value if it exists
-			if (!EvaluateChannel(Channel, CurrentTime, Result))
+			if (!EvaluateChannel(OwningSection, Channel, CurrentTime, Result))
 			{
 				if (TOptional<ValueType> ExternalValue = GetExternalValue())
 				{
