@@ -66,6 +66,7 @@ public:
 	/**
 	 * List of deprecated UProperties/UFunctions to supress warning messages for - useful for source changes
 	 * that would otherwise cause content warnings
+	 * The easiest way to populate this list is using the context menu on nodes with deprecated references
 	 */
 	UPROPERTY(EditAnywhere, config, Category = Blueprints, DisplayName = "Deprecated Symbols to Supress")
 	TArray<FString> SuppressedDeprecationMessages;
