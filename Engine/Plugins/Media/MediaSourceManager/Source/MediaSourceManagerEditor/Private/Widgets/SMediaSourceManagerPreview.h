@@ -6,6 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class ISlateStyle;
+class UMaterialInstanceConstant;
 class UMediaSource;
 class UMediaSourceManagerChannel;
 
@@ -35,6 +36,9 @@ public:
 	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	//~ End of SWidget interface
 
 private:
@@ -46,7 +50,15 @@ private:
 	 */
 	void AssignMediaSourceInput(UMediaSource* MediaSource);
 
+	/**
+	 * Gets a material for this texture.
+	 */
+	UMaterialInstanceConstant* GetMaterial();
+
 	/** Pointer to the object that is being viewed. */
 	TWeakObjectPtr<UMediaSourceManagerChannel> ChannelPtr;
+
+	/** Name for the media texture parameter in the material. */
+	static FLazyName MediaTextureName;
 
 };
