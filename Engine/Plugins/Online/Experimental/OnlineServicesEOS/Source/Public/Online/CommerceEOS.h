@@ -3,6 +3,10 @@
 #pragma once
 
 #include "Online/CommerceCommon.h"
+
+#if defined(EOS_PLATFORM_BASE_FILE_NAME)
+#include EOS_PLATFORM_BASE_FILE_NAME
+#endif
 #include "eos_ecom.h"
 
 namespace UE::Online {
