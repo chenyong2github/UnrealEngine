@@ -6,6 +6,7 @@
 #include "HAL/IConsoleManager.h"
 #include "INetworkMessagingExtension.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "Misc/AssertionMacros.h"
 #include "UdpMessagingPrivate.h"
 
 #include "Common/UdpSocketSender.h"
@@ -89,9 +90,23 @@ FOnInboundTransferDataUpdated& OnReassemblerUpdated()
 	return OnTransferUpdated;
 }
 
+uint16 GetMessageProcessorWorkQueueSize()
+{
+	return GetDefault<UUdpMessagingSettings>()->WorkQueueSize;
+}
+
 }
 /* FUdpMessageProcessor structors
  *****************************************************************************/
+FUdpMessageProcessor::FNodeInfo::FNodeInfo()
+	: LastSegmentReceivedTime(FDateTime::MinValue())
+	, NodeId()
+	, ProtocolVersion(UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION)
+	, WorkQueue(UE::Private::MessageProcessor::GetMessageProcessorWorkQueueSize())
+{
+	ComputeWindowSize(0,0);
+}
+
 
 FUdpMessageProcessor::FUdpMessageProcessor(FSocket& InSocket, const FGuid& InNodeId, const FIPv4Endpoint& InMulticastEndpoint)
 	: Beacon(nullptr)
@@ -541,7 +556,17 @@ bool FUdpMessageProcessor::ConsumeOneOutboundMessage(const FOutboundMessage& Out
 					  [FindNodeWithLog](const FGuid &Id) {return FindNodeWithLog(Id);},
 					  [this](const FGuid &Id) {return KnownNodes.Find(Id);} );
 
-	const bool bCanConsume = Algo::AllOf(Recipients, [](FNodeInfo *Node) {return !Node->WorkQueue.IsFull();});
+	const bool bCanConsume = Algo::AllOf(Recipients, [](FNodeInfo *Node)
+		{
+			const bool bWorkQueueIsNotFull = !Node->WorkQueue.IsFull();
+			if (!bWorkQueueIsNotFull)
+			{
+				UE_LOG(LogUdpMessaging, Warning,
+					   TEXT("Work queue for node %s is full. Send queue is congested. Will retry on next tick."), *Node->Endpoint.ToString());
+			}
+			return bWorkQueueIsNotFull;
+		});
+
 	const bool bIsReliable = EnumHasAnyFlags(OutboundMessage.MessageFlags, EMessageFlags::Reliable);
 	if (bCanConsume)
 	{
@@ -582,13 +607,6 @@ void FUdpMessageProcessor::ConsumeOutboundMessages()
 	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_ConsumeOutputMessages);
 	FOutboundMessage OutboundMessage;
 
-	const auto CannotConsumeMsg = []()
-	{
-		UE_LOG(LogUdpMessaging, Warning, TEXT("Can't consume outbound messages. Work queue on one or more receipents is full. Will try again next tick."));
-		// We can't queue any messages at the moment because our some/all of our work queues are full.
-		//
-	};
-
 	if (DeferredOutboundMessage)
 	{
 		if (ConsumeOneOutboundMessage(DeferredOutboundMessage.GetValue()))
@@ -597,7 +615,6 @@ void FUdpMessageProcessor::ConsumeOutboundMessages()
 		}
 		else
 		{
-			CannotConsumeMsg();
 			return ;
 		}
 	}
@@ -606,7 +623,6 @@ void FUdpMessageProcessor::ConsumeOutboundMessages()
 	{
 		if (!ConsumeOneOutboundMessage(OutboundMessage))
 		{
-			CannotConsumeMsg();
 			DeferredOutboundMessage = OutboundMessage;
 			return ;
 		}

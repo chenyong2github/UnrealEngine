@@ -84,6 +84,16 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Transport, AdvancedDisplay)
 	uint32 AutoRepairAttemptLimit = 10;
 
+	/**
+	 * The buffer size for the working send queues. Each node connections
+	 * gets a send queue and new messages to send are put on that queue.  The send
+	 * scheduler will fairly send data on this queue and re-queue when partial data is
+	 * sent or waiting for a reliable message. Can be specified on the command line with
+	 * `-UDPMESSAGING_WORK_QUEUE_SIZE=`
+	 */
+	UPROPERTY(config, EditAnywhere, Category = Transport, meta = (ClampMin="1024"), AdvancedDisplay)
+	uint16 WorkQueueSize = 1024;
+
 	/** Whether to stop the transport service when the application deactivates, and restart it when the application is reactivated */
 	UPROPERTY(config)
 	bool bStopServiceWhenAppDeactivates = true;

@@ -38,8 +38,6 @@ class FUdpSocketSender;
 class IMessageAttachment;
 enum class EUdpMessageFormat : uint8;
 
-constexpr const uint16 MessageProcessorWorkQueueSize{1024};
-
 /**
  * Running statistics as known by the UdpMessageProcessor. This will be per endpoint.
  */
@@ -118,7 +116,8 @@ FOnOutboundTransferDataUpdated &OnSegmenterUpdated();
 /*
  * Global delegate for handling reassembler (aka received data) updates.
  */
-FOnInboundTransferDataUpdated& OnReassemblerUpdated();
+FOnInboundTransferDataUpdated &OnReassemblerUpdated();
+
 }
 
 /**
@@ -150,7 +149,7 @@ class FUdpMessageProcessor
 		TMap<int32, TSharedPtr<FUdpMessageSegmenter>> Segmenters;
 
 		/** Holds of queue of MessageIds to send. They are processed in round-robin fashion. */
-		TUdpCircularQueue<int32> WorkQueue{MessageProcessorWorkQueueSize};
+		TUdpCircularQueue<int32> WorkQueue;
 
 		/** A map from sequence id to information about what was sent. The size of this map is the size of our sending window. */
 		TMap<uint64, FSentData> InflightSegments;
@@ -168,13 +167,7 @@ class FUdpMessageProcessor
 		FMessageTransportStatistics Statistics;
 
 		/** Default constructor. */
-		FNodeInfo()
-			: LastSegmentReceivedTime(FDateTime::MinValue())
-			, NodeId()
-			, ProtocolVersion(UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION)
-		{
-			ComputeWindowSize(0,0);
-		}
+		FNodeInfo();
 
 		/**
 		 * Remap a MessageId and SegmentId pair into a 64 bit number using Szudzik pairing calculation.
