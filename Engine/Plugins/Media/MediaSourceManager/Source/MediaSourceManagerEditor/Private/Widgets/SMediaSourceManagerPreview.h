@@ -5,10 +5,15 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+class IMediaIOCoreDeviceProvider;
 class ISlateStyle;
+class SNotificationItem;
 class UMaterialInstanceConstant;
 class UMediaSource;
 class UMediaSourceManagerChannel;
+
+struct FAssetData;
+struct FMediaIOConnection;
 
 /**
  * Implements a preview for a single media source manager channel.
@@ -57,6 +62,29 @@ private:
 	void AssignMediaSourceInput(UMediaSource* MediaSource);
 
 	/**
+	 * Assigns a MediaIO input to this channel.
+	 *
+	 * @param DeviceProvider	MediaIO device provider to get the input from.
+	 * @param Connection		Connection to pass to the device provider.
+	 */
+	void AssignMediaIOInput(IMediaIOCoreDeviceProvider* DeviceProvider, FMediaIOConnection Connection);
+
+	/**
+	 * Creates a widget to select a media source.
+	 */
+	TSharedRef<SWidget> BuildMediaSourcePickerWidget();
+
+	/**
+	 * Callback to add a media source.
+	 */
+	void AddMediaSource(const FAssetData& AssetData);
+
+	/**
+	 * Callback to add a media source.
+	 */
+	void AddMediaSourceEnterPressed(const TArray<FAssetData>& AssetData);
+
+	/**
 	 * Call this to bring up an editor to edit the input.
 	 */
 	void OnEditInput();
@@ -71,8 +99,15 @@ private:
 	 */
 	void OpenContextMenu(const FPointerEvent& MouseEvent);
 
+	/**
+	 * Call this to remove the error notification.
+	 */
+	void DismissErrorNotification();
+
 	/** Pointer to the object that is being viewed. */
 	TWeakObjectPtr<UMediaSourceManagerChannel> ChannelPtr;
+	/** Holds our error notification so we can dismiss it. */
+	TWeakPtr<SNotificationItem> ErrorNotificationPtr;
 
 	/** Name for the media texture parameter in the material. */
 	static FLazyName MediaTextureName;
