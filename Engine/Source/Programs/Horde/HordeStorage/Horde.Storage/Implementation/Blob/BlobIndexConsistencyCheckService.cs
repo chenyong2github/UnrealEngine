@@ -165,6 +165,12 @@ namespace Horde.Storage.Implementation
                                             _logger.Error(e, "Failed to replicate Blob {Blob} in namespace {Namespace}. Unable to repair the blob index", blobInfo.BlobIdentifier, blobInfo.Namespace);
                                         }
                                     }
+                                    catch (BlobNotFoundException)
+                                    {
+                                        // the blob does not exist we should remove it from the blob index
+                                        await _blobIndex.RemoveBlobFromIndex(blobInfo.Namespace, blobInfo.BlobIdentifier);
+                                        deleted = true;
+                                    }
                                 }
                                 else
                                 {
