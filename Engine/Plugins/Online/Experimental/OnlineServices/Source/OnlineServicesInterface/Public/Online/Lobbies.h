@@ -10,9 +10,12 @@
 
 namespace UE::Online {
 
+// TODO: Aliases will be removed once full Schema support is added to Lobbies
 using FLobbySchemaId = FSchemaId;
 using FLobbyAttributeId = FSchemaAttributeId;
 using FLobbyVariant = FSchemaVariant;
+using ELobbyComparisonOp = ESchemaAttributeComparisonOp;
+using ELobbyAttributeVisibility = ESchemaAttributeVisibility;
 
 enum class ELobbyJoinPolicy : uint8
 {
@@ -51,14 +54,6 @@ enum class ELobbyMemberLeaveReason
 ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ELobbyMemberLeaveReason LeaveReason);
 ONLINESERVICESINTERFACE_API void LexFromString(ELobbyMemberLeaveReason& OutLeaveReason, const TCHAR* InStr);
 
-enum class ELobbyAttributeVisibility
-{
-	Public,
-	Private,
-};
-ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ELobbyAttributeVisibility Visibility);
-ONLINESERVICESINTERFACE_API void LexFromString(ELobbyAttributeVisibility& OutVisibility, const TCHAR* InStr);
-
 struct FLobbyMember
 {
 	FOnlineAccountIdHandle AccountId;
@@ -87,23 +82,6 @@ struct FJoinLobbyLocalUserData
 	/** Initial attributes. */
 	TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
 };
-
-enum class ELobbyComparisonOp : uint8
-{
-
-	Equals,
-	NotEquals,
-	GreaterThan,
-	GreaterThanEquals,
-	LessThan,
-	LessThanEquals,
-	Near,
-	In,
-	NotIn
-};
-
-ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ELobbyComparisonOp EnumVal);
-ONLINESERVICESINTERFACE_API void LexFromString(ELobbyComparisonOp& OutComparison, const TCHAR* InStr);
 
 struct FFindLobbySearchFilter
 {

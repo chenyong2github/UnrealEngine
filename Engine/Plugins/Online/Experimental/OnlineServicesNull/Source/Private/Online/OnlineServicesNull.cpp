@@ -101,7 +101,7 @@ TOnlineResult<FGetResolvedConnectString> FOnlineServicesNull::GetResolvedConnect
 					if (Session->SessionSettings.CustomSettings.Contains(CONNECT_STRING_TAG))
 					{
 						FGetResolvedConnectString::Result Result;
-						Result.ResolvedConnectString = Session->SessionSettings.CustomSettings[CONNECT_STRING_TAG].Data.Get<FString>();
+						Result.ResolvedConnectString = Session->SessionSettings.CustomSettings[CONNECT_STRING_TAG].Data.GetString();
 						return TOnlineResult<FGetResolvedConnectString>(Result);
 					}
 					else

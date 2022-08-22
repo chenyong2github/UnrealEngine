@@ -5,70 +5,36 @@
 #include "Online/OnlineAsyncOpHandle.h"
 #include "Online/CoreOnline.h"
 #include "Online/OnlineMeta.h"
+#include "Online/SchemaTypes.h"
 #include "Misc/TVariant.h"
 
 namespace UE::Online {
 
-enum class ESessionsComparisonOp : uint8
-{
-	Equals,
-	NotEquals,
-	GreaterThan,
-	GreaterThanEquals,
-	LessThan,
-	LessThanEquals,
-	Near
-};
-ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ESessionsComparisonOp EnumVal);
-ONLINESERVICESINTERFACE_API void LexFromString(ESessionsComparisonOp& OutComparison, const TCHAR* InStr);
-
 struct FFindSessionsSearchFilter
 {
-	// TODO: Will change after SchemaVariant work
-
-	using FVariantType = TVariant<FString, int64, double, bool>;
-
 	/** Name of the custom setting to be used as filter */
-	FName Key;
+	FSchemaAttributeId Key;
 
 	/** The type of comparison to perform */
-	ESessionsComparisonOp ComparisonOp;
+	ESchemaAttributeComparisonOp ComparisonOp;
 
 	/** Value to use when comparing the filter */
-	FVariantType Value;
+	FSchemaVariant Value;
 };
-
-enum class ECustomSessionSettingVisibility : uint8
-{
-	/* Don't advertise via the online service or QoS data */
-	DontAdvertise,
-	/* Advertise via the server ping data only */
-	ViaPingOnly,
-	/* Advertise via the online service only */
-	ViaOnlineService,
-	/* Advertise via the online service and via the ping data */
-	ViaOnlineServiceAndPing
-};
-ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ECustomSessionSettingVisibility Value);
-ONLINESERVICESINTERFACE_API void LexFromString(ECustomSessionSettingVisibility& Value, const TCHAR* InStr);
 
 struct FCustomSessionSetting
 {
-	// TODO: Will share this type with Lobbies
-
-	using FVariantType = TVariant<FString, int64, double, bool>;
-
 	/** Setting value */
-	FVariantType Data;
+	FSchemaVariant Data;
 
 	/** How is this session setting advertised with the backend or searches */
-	ECustomSessionSettingVisibility Visibility;
+	ESchemaAttributeVisibility Visibility;
 
 	/** Optional ID used in some platforms as the index instead of the setting name */
 	int32 ID;
 };
 
-using FCustomSessionSettingsMap = TMap<FName, FCustomSessionSetting>;
+using FCustomSessionSettingsMap = TMap<FSchemaAttributeId, FCustomSessionSetting>;
 
 /** A member is a player that is part of the session, and it stops being a member when they leave it */
 struct FSessionMember
@@ -81,7 +47,7 @@ using FSessionMembersMap = TMap<FOnlineAccountIdHandle, FSessionMember>;
 struct FSessionMemberUpdate
 {
 	FCustomSessionSettingsMap UpdatedMemberSettings;
-	TArray<FName> RemovedMemberSettings;
+	TArray<FSchemaAttributeId> RemovedMemberSettings;
 
 	FSessionMemberUpdate& operator+=(FSessionMemberUpdate&& UpdatedValue);
 };
@@ -124,7 +90,7 @@ using FRegisteredPlayersMap = TMap<FOnlineAccountIdHandle, FRegisteredPlayer>;
 struct FSessionSettingsUpdate
 {
 	/** Set with an updated value if the SchemaName field will be changed in the update operation */
-	TOptional<FName> SchemaName;
+	TOptional<FSchemaId> SchemaName;
 	/** Set with an updated value if the NumMaxPublicConnections field will be changed in the update operation */
 	TOptional<uint32> NumMaxPublicConnections;
 	/** Set with an updated value if the NumOpenPublicConnections field will be changed in the update operation */
@@ -153,7 +119,7 @@ struct FSessionSettingsUpdate
 	/** Updated values for custom settings to change in the update operation*/
 	FCustomSessionSettingsMap UpdatedCustomSettings;
 	/** Names of custom settings to be removed in the update operation*/
-	TArray<FName> RemovedCustomSettings;
+	TArray<FSchemaAttributeId> RemovedCustomSettings;
 
 	/** Updated values for session member info to change in the update operation*/
 	FSessionMemberUpdatesMap UpdatedSessionMembers;
@@ -171,7 +137,7 @@ struct FSessionSettingsUpdate
 struct ONLINESERVICESINTERFACE_API FSessionSettings
 {
 	/* The schema which will be applied to the session */
-	FName SchemaName;
+	FSchemaId SchemaName;
 
 	/* Maximum number of public slots for session members */
 	uint32 NumMaxPublicConnections = 0;

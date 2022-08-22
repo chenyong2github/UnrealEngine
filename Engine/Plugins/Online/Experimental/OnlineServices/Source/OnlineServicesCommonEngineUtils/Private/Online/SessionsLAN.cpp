@@ -7,6 +7,7 @@
 #include "Online/OnlineServicesCommonEngineUtils.h"
 #include "SocketSubsystem.h"
 #include "UObject/CoreNet.h"
+#include "Online/NboSerializerCommonSvc.h"
 
 namespace UE::Online {
 
@@ -28,6 +29,24 @@ FOnlineSessionIdHandle FOnlineSessionIdRegistryLAN::GetNextSessionId()
 {
 	return BasicRegistry.FindOrAddHandle(FGuid::NewGuid().ToString());
 }
+
+/** NboSerializerLAN */
+
+namespace NboSerializerLANSvc {
+
+void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionLAN& Session)
+{
+	NboSerializerCommonSvc::SerializeToBuffer(Packet, Session);
+	Packet << *Session.OwnerInternetAddr;
+}
+
+void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionLAN& Session)
+{
+	NboSerializerCommonSvc::SerializeFromBuffer(Packet, Session);
+	Packet >> *Session.OwnerInternetAddr;
+}
+
+/* NboSerializerLANSvc */ }
 
 /** FSessionLAN */
 
@@ -62,6 +81,12 @@ void FSessionLAN::Initialize()
 	{
 		OwnerInternetAddr->SetPort(7777); // Default port
 	}
+
+	// We'll set the connect address for the remote session as a custom parameter, so it can be read in OnlineServices' GetResolvedConnectString
+	FCustomSessionSetting ConnectString;
+	ConnectString.Data.Set(OwnerInternetAddr->ToString(true));
+	ConnectString.Visibility = ESchemaAttributeVisibility::Public;
+	SessionSettings.CustomSettings.Add(CONNECT_STRING_TAG, ConnectString);
 }
 
 FSessionLAN& FSessionLAN::Cast(FSession& InSession)

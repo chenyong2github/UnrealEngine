@@ -32,31 +32,26 @@ FSessionsNull::FSessionsNull(FOnlineServicesNull& InServices)
 
 void FSessionsNull::AppendSessionToPacket(FNboSerializeToBuffer& Packet, const FSessionLAN& Session)
 {
+	using namespace NboSerializerLANSvc;
 	using namespace NboSerializerNullSvc;
 
-	// We won't save CurrentState in the packet as all advertised sessions will be Valid
+	SerializeToBuffer(Packet, Session);
 	SerializeToBuffer(Packet, Session.OwnerUserId);
 	SerializeToBuffer(Packet, Session.SessionId);
-	Packet << *Session.OwnerInternetAddr;
-
-	// TODO: Write session settings to packet, after SchemaVariant work
+	SerializeToBuffer(Packet, Session.SessionSettings.RegisteredPlayers);
+	SerializeToBuffer(Packet, Session.SessionSettings.SessionMembers);
 }
 
 void FSessionsNull::ReadSessionFromPacket(FNboSerializeFromBuffer& Packet, FSessionLAN& Session)
 {
+	using namespace NboSerializerLANSvc;
 	using namespace NboSerializerNullSvc;
 
+	SerializeFromBuffer(Packet, Session);
 	SerializeFromBuffer(Packet, Session.OwnerUserId);
 	SerializeFromBuffer(Packet, Session.SessionId);
-	Packet >> *Session.OwnerInternetAddr;
-
-	// We'll set the connect address for the remote session as a custom parameter, so it can be read in OnlineServices' GetResolvedConnectString
-	FCustomSessionSetting ConnectString;
-	ConnectString.Data.Set<FString>(Session.OwnerInternetAddr->ToString(true));
-	ConnectString.Visibility = ECustomSessionSettingVisibility::ViaOnlineService;
-	Session.SessionSettings.CustomSettings.Add(CONNECT_STRING_TAG, ConnectString);
-
-	// TODO:: Read session settings from packet, after SchemaVariant work
+	SerializeFromBuffer(Packet, Session.SessionSettings.RegisteredPlayers);
+	SerializeFromBuffer(Packet, Session.SessionSettings.SessionMembers);
 }
 
 /* UE::Online */ }

@@ -4,6 +4,91 @@
 
 namespace UE::Online {
 
+const TCHAR* LexToString(ESchemaAttributeComparisonOp Comparison)
+{
+	switch (Comparison)
+	{
+	case ESchemaAttributeComparisonOp::Equals:			return TEXT("Equals");
+	case ESchemaAttributeComparisonOp::NotEquals:			return TEXT("NotEquals");
+	case ESchemaAttributeComparisonOp::GreaterThan:		return TEXT("GreaterThan");
+	case ESchemaAttributeComparisonOp::GreaterThanEquals:	return TEXT("GreaterThanEquals");
+	case ESchemaAttributeComparisonOp::LessThan:			return TEXT("LessThan");
+	case ESchemaAttributeComparisonOp::LessThanEquals:	return TEXT("LessThanEquals");
+	case ESchemaAttributeComparisonOp::Near:				return TEXT("Near");
+	case ESchemaAttributeComparisonOp::In:				return TEXT("In");
+	default:									checkNoEntry(); // Intentional fallthrough
+	case ESchemaAttributeComparisonOp::NotIn:				return TEXT("NotIn");
+	}
+}
+
+void LexFromString(ESchemaAttributeComparisonOp& OutComparison, const TCHAR* InStr)
+{
+	if (FCString::Stricmp(InStr, TEXT("Equals")) == 0)
+	{
+		OutComparison = ESchemaAttributeComparisonOp::Equals;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("NotEquals")) == 0)
+	{
+		OutComparison = ESchemaAttributeComparisonOp::NotEquals;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("GreaterThan")) == 0)
+	{
+		OutComparison = ESchemaAttributeComparisonOp::GreaterThan;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("GreaterThanEquals")) == 0)
+	{
+		OutComparison = ESchemaAttributeComparisonOp::GreaterThanEquals;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("LessThan")) == 0)
+	{
+		OutComparison = ESchemaAttributeComparisonOp::LessThan;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("LessThanEquals")) == 0)
+	{
+		OutComparison = ESchemaAttributeComparisonOp::LessThanEquals;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Near")) == 0)
+	{
+		OutComparison = ESchemaAttributeComparisonOp::Near;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("In")) == 0)
+	{
+		OutComparison = ESchemaAttributeComparisonOp::In;
+	}
+	else
+	{
+		checkNoEntry();
+		OutComparison = ESchemaAttributeComparisonOp::In;
+	}
+}
+
+const TCHAR* LexToString(ESchemaAttributeVisibility Visibility)
+{
+	switch (Visibility)
+	{
+	case ESchemaAttributeVisibility::Public:		return TEXT("Public");
+	default:									checkNoEntry(); // Intentional fallthrough
+	case ESchemaAttributeVisibility::Private:	return TEXT("Private");
+	}
+}
+
+void LexFromString(ESchemaAttributeVisibility& OutVisibility, const TCHAR* InStr)
+{
+	if (FCString::Stricmp(InStr, TEXT("Public")) == 0)
+	{
+		OutVisibility = ESchemaAttributeVisibility::Public;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Private")) == 0)
+	{
+		OutVisibility = ESchemaAttributeVisibility::Private;
+	}
+	else
+	{
+		checkNoEntry();
+		OutVisibility = ESchemaAttributeVisibility::Private;
+	}
+}
+
 const TCHAR* LexToString(ESchemaAttributeFlags SchemaAttributeFlags)
 {
 	switch (SchemaAttributeFlags)

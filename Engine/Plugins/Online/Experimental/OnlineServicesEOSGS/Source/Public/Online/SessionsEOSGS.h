@@ -34,8 +34,6 @@ private:
 	FOnlineSessionInviteIdRegistryEOSGS();
 };
 
-static FName EOS_SESSIONS_BUCKET_ID = TEXT("EOS_SESSIONS_BUCKET_ID");
-
 struct FSessionModificationHandleEOSGS : FNoncopyable
 {
 	EOS_HSessionModification ModificationHandle;
@@ -86,6 +84,8 @@ class FSessionEOSGS : public FSessionLAN
 public:
 	FSessionEOSGS() = default;
 	FSessionEOSGS(const FSessionEOSGS& InSession) = default;
+
+	/** This constructor should only be used by BuildSessionFromDetailsHandle, after all user ids in the session have been resolved. */
 	FSessionEOSGS(const EOS_HSessionDetails& SessionDetailsHandle);
 
 	static const FSessionEOSGS& Cast(const FSession& InSession);
@@ -97,7 +97,7 @@ public:
 
 struct FUpdateSessionImpl
 {
-	static constexpr TCHAR Name[] = TEXT("FUpdateSessionImpl");
+	static constexpr TCHAR Name[] = TEXT("UpdateSessionImpl");
 
 	struct Params
 	{
@@ -107,6 +107,29 @@ struct FUpdateSessionImpl
 
 	struct Result
 	{
+	};
+};
+
+struct FBuildSessionFromDetailsHandle
+{
+	static constexpr TCHAR Name[] = TEXT("BuildSessionFromDetailsHandle");
+
+	struct Params
+	{
+		/** User which will drive the id resolution */
+		FOnlineAccountIdHandle LocalUserId;
+
+		/** EOS session details handle used to extract the data */
+		TSharedRef<FSessionDetailsHandleEOSGS> SessionDetailsHandleEOSGS;
+	};
+
+	struct Result
+	{
+		/** User which started the resolution operation */
+		FOnlineAccountIdHandle LocalUserId;
+
+		/** Session built from the details handle */
+		TSharedRef<FSession> Session;
 	};
 };
 
@@ -145,6 +168,8 @@ protected:
 	void SetPermissionLevel(EOS_HSessionModification& SessionModHandle, const ESessionJoinPolicy& JoinPolicy);
 	void SetBucketId(EOS_HSessionModification& SessionModHandle, const FString& NewBucketId);
 	void SetMaxPlayers(EOS_HSessionModification& SessionModHandle, const uint32& NewMaxPlayers);
+	void AddAttribute(EOS_HSessionModification& SessionModificationHandle, const FSchemaAttributeId& Key, const FCustomSessionSetting& Value);
+	void RemoveAttribute(EOS_HSessionModification& SessionModificationHandle, const FSchemaAttributeId& Key);
 
 	void SetSessionSearchMaxResults(FSessionSearchHandleEOSGS& SessionSearchHandle, uint32 MaxResults);
 	void SetSessionSearchParameters(FSessionSearchHandleEOSGS& SessionSearchHandle, TArray<FFindSessionsSearchFilter> Filters);
@@ -176,6 +201,11 @@ protected:
 	 */
 	TResult<TSharedRef<const FSession>, FOnlineError> BuildSessionFromUIEvent(const EOS_UI_EventId& UIEventId) const;
 
+	/**
+	 * Builds a session from an EOS Session Details Handle. Asynchronous due to the id resolution process
+	 */
+	TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> BuildSessionFromDetailsHandle(FBuildSessionFromDetailsHandle::Params&& Params);
+
 private:
 	// FSessionsLAN
 	virtual void AppendSessionToPacket(FNboSerializeToBuffer& Packet, const FSessionLAN& Session) override;
@@ -190,5 +220,26 @@ protected:
 
 	TSharedPtr<FSessionSearchHandleEOSGS> CurrentSessionSearchHandleEOSGS;
 };
+
+namespace Meta {
+
+BEGIN_ONLINE_STRUCT_META(FUpdateSessionImpl::Params)
+	ONLINE_STRUCT_FIELD(FUpdateSessionImpl::Params, SessionModificationHandle)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FUpdateSessionImpl::Result)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FBuildSessionFromDetailsHandle::Params)
+	ONLINE_STRUCT_FIELD(FBuildSessionFromDetailsHandle::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FBuildSessionFromDetailsHandle::Params, SessionDetailsHandleEOSGS)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FBuildSessionFromDetailsHandle::Result)
+	ONLINE_STRUCT_FIELD(FBuildSessionFromDetailsHandle::Result, LocalUserId),
+	ONLINE_STRUCT_FIELD(FBuildSessionFromDetailsHandle::Result, Session)
+END_ONLINE_STRUCT_META()
+
+/* Meta*/ }
 
 /* UE::Online */ }

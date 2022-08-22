@@ -46,6 +46,31 @@ using FSchemaServiceAttributeId = FName;
   */
 using FSchemaServiceDescriptorId = FName;
 
+/** Flags to indicate comparison types between Schema Attributes. Used in searches */
+enum class ESchemaAttributeComparisonOp : uint8
+{
+	Equals,
+	NotEquals,
+	GreaterThan,
+	GreaterThanEquals,
+	LessThan,
+	LessThanEquals,
+	Near,
+	In,
+	NotIn
+};
+ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ESchemaAttributeComparisonOp EnumVal);
+ONLINESERVICESINTERFACE_API void LexFromString(ESchemaAttributeComparisonOp& OutComparison, const TCHAR* InStr);
+
+// TODO: This enum fulfills the same function as the attribute flags, and will be removed once full Schema support is added to Sessions/Lobbies/Auth
+enum class ESchemaAttributeVisibility : uint8
+{
+	Public,
+	Private,
+};
+ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ESchemaAttributeVisibility Visibility);
+ONLINESERVICESINTERFACE_API void LexFromString(ESchemaAttributeVisibility& OutVisibility, const TCHAR* InStr);
+
 /**
   * Flags to indicate required properties for a schema attribute.
   */

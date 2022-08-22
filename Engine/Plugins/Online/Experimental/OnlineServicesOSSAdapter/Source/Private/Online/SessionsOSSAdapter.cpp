@@ -17,17 +17,17 @@ namespace UE::Online {
 
 /** Auxiliary functions */
 
-EOnlineComparisonOp::Type GetV1SessionSearchComparisonOp(const ESessionsComparisonOp& InValue)
+EOnlineComparisonOp::Type GetV1SessionSearchComparisonOp(const ESchemaAttributeComparisonOp& InValue)
 {
 	switch (InValue)
 	{
-	case ESessionsComparisonOp::Equals:				return EOnlineComparisonOp::Equals;
-	case ESessionsComparisonOp::GreaterThan:		return EOnlineComparisonOp::GreaterThan;
-	case ESessionsComparisonOp::GreaterThanEquals:	return EOnlineComparisonOp::GreaterThanEquals;
-	case ESessionsComparisonOp::LessThan:			return EOnlineComparisonOp::LessThan;
-	case ESessionsComparisonOp::LessThanEquals:		return EOnlineComparisonOp::LessThanEquals;
-	case ESessionsComparisonOp::Near:				return EOnlineComparisonOp::Near;
-	case ESessionsComparisonOp::NotEquals:			return EOnlineComparisonOp::NotEquals;
+	case ESchemaAttributeComparisonOp::Equals:			return EOnlineComparisonOp::Equals;
+	case ESchemaAttributeComparisonOp::GreaterThan:		return EOnlineComparisonOp::GreaterThan;
+	case ESchemaAttributeComparisonOp::GreaterThanEquals:	return EOnlineComparisonOp::GreaterThanEquals;
+	case ESchemaAttributeComparisonOp::LessThan:			return EOnlineComparisonOp::LessThan;
+	case ESchemaAttributeComparisonOp::LessThanEquals:	return EOnlineComparisonOp::LessThanEquals;
+	case ESchemaAttributeComparisonOp::Near:				return EOnlineComparisonOp::Near;
+	case ESchemaAttributeComparisonOp::NotEquals:			return EOnlineComparisonOp::NotEquals;
 	}
 
 	checkNoEntry();
@@ -53,11 +53,162 @@ ESessionState GetV2SessionState(const EOnlineSessionState::Type InValue)
 	return ESessionState::Invalid;
 }
 
+FSchemaVariant GetV2SessionVariant(const FVariantData& InValue)
+{
+	FSchemaVariant Result;
+	
+	switch(InValue.GetType())
+	{
+	case EOnlineKeyValuePairDataType::Int32:
+	{
+		int32 Value;
+		InValue.GetValue(Value);
+		Result.Set((int64)Value);
+		break;
+	}
+	case EOnlineKeyValuePairDataType::UInt32:
+	{
+		uint32 Value;
+		InValue.GetValue(Value);
+		Result.Set((int64)Value);
+		break;
+	}
+	case EOnlineKeyValuePairDataType::Int64:
+	{
+		int64 Value;
+		InValue.GetValue(Value);
+		Result.Set(Value);
+		break;
+	}
+	case EOnlineKeyValuePairDataType::UInt64:
+	{
+		uint64 Value;
+		InValue.GetValue(Value);
+		Result.Set((int64)Value);
+		break;
+	}
+	case EOnlineKeyValuePairDataType::Float:
+	{
+		float Value;
+		InValue.GetValue(Value);
+		Result.Set((double)Value);
+		break;
+	}	
+	case EOnlineKeyValuePairDataType::Double:
+	{
+		double Value;
+		InValue.GetValue(Value);
+		Result.Set(Value);
+		break;
+	}
+	case EOnlineKeyValuePairDataType::String:
+	{
+		FString Value;
+		InValue.GetValue(Value);
+		Result.Set(Value);
+		break;
+	}
+	case EOnlineKeyValuePairDataType::Bool:
+	{
+		bool Value;
+		InValue.GetValue(Value);
+		Result.Set(Value);
+		break;
+	}
+	case EOnlineKeyValuePairDataType::Empty: // Intentional fallthrough
+	case EOnlineKeyValuePairDataType::Blob:	// Intentional fallthrough
+	case EOnlineKeyValuePairDataType::Json:	// Intentional fallthrough
+	case EOnlineKeyValuePairDataType::MAX:	// Intentional fallthrough
+	default:
+		UE_LOG(LogTemp, Warning, TEXT("[GetV2SessionVariant] FVariantData type not supported by FSessionsVariant. No value was set."));
+		break;
+	}
+
+	return Result;
+}
+
+FVariantData GetV1VariantData(const FSchemaVariant& InValue)
+{
+	FVariantData Result;
+
+	switch (InValue.VariantType)
+	{
+	case ESchemaAttributeType::Bool:
+		Result.SetValue(InValue.GetBoolean());
+		break;
+	case ESchemaAttributeType::Double:
+		Result.SetValue(InValue.GetDouble());
+		break;
+	case ESchemaAttributeType::Int64:
+		Result.SetValue(InValue.GetInt64());
+		break;
+	case ESchemaAttributeType::String:
+		Result.SetValue(InValue.GetString());
+		break;
+	default:
+		UE_LOG(LogTemp, Warning, TEXT("[GetV1VariantData] FSchemaVariant type not supported by FVariantData. No value was set."));
+		break;
+	}
+
+	return Result;
+}
+
+ESchemaAttributeVisibility GetV2SessionsAttributeVisibility(const EOnlineDataAdvertisementType::Type& InValue)
+{
+	switch (InValue)
+	{
+	case EOnlineDataAdvertisementType::DontAdvertise:			// Intentional fallthrough
+	case EOnlineDataAdvertisementType::ViaPingOnly:				return ESchemaAttributeVisibility::Private;
+	case EOnlineDataAdvertisementType::ViaOnlineService:		// Intentional fallthrough
+	case EOnlineDataAdvertisementType::ViaOnlineServiceAndPing:	return ESchemaAttributeVisibility::Public;
+	}
+
+	checkNoEntry();
+	return ESchemaAttributeVisibility::Private;
+}
+
+EOnlineDataAdvertisementType::Type GetV1OnlineDataAdvertisementType(const ESchemaAttributeVisibility& InValue)
+{
+	switch (InValue)
+	{
+	case ESchemaAttributeVisibility::Private:	return EOnlineDataAdvertisementType::DontAdvertise;
+	case ESchemaAttributeVisibility::Public:	return EOnlineDataAdvertisementType::ViaOnlineServiceAndPing;
+	}
+
+	checkNoEntry();
+	return EOnlineDataAdvertisementType::DontAdvertise;
+}
+
 FCustomSessionSettingsMap GetV2SessionSettings(const ::FSessionSettings& InSessionSettings)
 {
 	FCustomSessionSettingsMap Result;
 
-	// TODO: Pending SchemaVariant work
+	for (const TPair<FName, FOnlineSessionSetting>& Entry : InSessionSettings)
+	{
+		FCustomSessionSetting NewCustomSetting;
+		NewCustomSetting.Data = GetV2SessionVariant(Entry.Value.Data);
+		NewCustomSetting.Visibility = GetV2SessionsAttributeVisibility(Entry.Value.AdvertisementType);
+		NewCustomSetting.ID = Entry.Value.ID;
+
+		Result.Emplace(Entry.Key, NewCustomSetting);
+	}
+
+	return Result;
+}
+
+::FSessionSettings GetV1SessionSettings(const FCustomSessionSettingsMap& InSessionSettings)
+{
+	::FSessionSettings Result;
+
+	for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& Entry : InSessionSettings)
+	{
+		FOnlineSessionSetting NewSessionSetting;
+		NewSessionSetting.Data = GetV1VariantData(Entry.Value.Data);
+		NewSessionSetting.AdvertisementType = GetV1OnlineDataAdvertisementType(Entry.Value.Visibility);
+		NewSessionSetting.ID = Entry.Value.ID;
+
+		Result.Add(Entry.Key, NewSessionSetting);
+	}
 
 	return Result;
 }
@@ -72,19 +223,32 @@ TSharedRef<FOnlineSessionSearch> BuildV1SessionSearch(const FFindSessions::Param
 
 	if (const FFindSessionsSearchFilter* PingBucketSize = Algo::FindBy(SearchParams.Filters, OSS_ADAPTER_SESSION_SEARCH_PING_BUCKET_SIZE, &FFindSessionsSearchFilter::Key))
 	{
-		Result->PingBucketSize = (int32)PingBucketSize->Value.Get<int64>();
+		Result->PingBucketSize = (int32)PingBucketSize->Value.GetInt64();
 	}
 
 	if (const FFindSessionsSearchFilter* PlatformHash = Algo::FindBy(SearchParams.Filters, OSS_ADAPTER_SESSION_SEARCH_PLATFORM_HASH, &FFindSessionsSearchFilter::Key))
 	{
-		Result->PlatformHash = (int32)PlatformHash->Value.Get<int64>();
+		Result->PlatformHash = (int32)PlatformHash->Value.GetInt64();
 	}
 
-	//for (const FFindSessionsSearchFilter& SearchFilter : SearchParams.Filters)
-	//{
-		// TODO: Pending SchemaVariant support
-		// Result->QuerySettings.Set(SearchFilter.Key, SearchFilter.Value, GetV1SessionSearchComparisonOp(SearchFilter.ComparisonOp));
-	//}
+	for (const FFindSessionsSearchFilter& SearchFilter : SearchParams.Filters)
+	{
+		switch (SearchFilter.Value.VariantType)
+		{
+		case ESchemaAttributeType::Bool:
+			Result->QuerySettings.Set<bool>(SearchFilter.Key, SearchFilter.Value.GetBoolean(), GetV1SessionSearchComparisonOp(SearchFilter.ComparisonOp));
+			break;
+		case ESchemaAttributeType::Double:
+			Result->QuerySettings.Set<double>(SearchFilter.Key, SearchFilter.Value.GetDouble(), GetV1SessionSearchComparisonOp(SearchFilter.ComparisonOp));
+			break;
+		case ESchemaAttributeType::Int64:
+			Result->QuerySettings.Set<uint64>(SearchFilter.Key, (uint64)SearchFilter.Value.GetInt64(), GetV1SessionSearchComparisonOp(SearchFilter.ComparisonOp));
+			break;
+		case ESchemaAttributeType::String:
+			Result->QuerySettings.Set<FString>(SearchFilter.Key, SearchFilter.Value.GetString(), GetV1SessionSearchComparisonOp(SearchFilter.ComparisonOp));
+			break;
+		}
+	}
 
 	return Result;
 }
@@ -241,8 +405,7 @@ void FSessionsOSSAdapter::Initialize()
 				{
 					if (const FCustomSessionSetting* Setting = SessionMember->MemberSettings.Find(Entry.Key))
 					{
-						// TODO: First part of the comparison commented until the SchemaVariant changes are applied
-						if (/*Setting->Data != Entry.Value.Data ||*/ Setting->Visibility != Entry.Value.Visibility || Setting->ID != Entry.Value.ID)
+						if (Setting->Data != Entry.Value.Data || Setting->Visibility != Entry.Value.Visibility || Setting->ID != Entry.Value.ID)
 						{
 							SessionMemberUpdate.UpdatedMemberSettings.Add(Entry);
 						}
@@ -682,7 +845,24 @@ TOnlineAsyncOpHandle<FStartMatchmaking> FSessionsOSSAdapter::StartMatchmaking(FS
 		{
 			FSessionMatchmakingUser NewMatchMakingUser { ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(LocalUser.Key).ToSharedRef() };
 
-			// TODO: Copy Attributes from session members parameters (Pending SchemaVariant)
+			for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& Entry : LocalUser.Value.MemberSettings)
+			{
+				switch (Entry.Value.Data.VariantType)
+				{
+				case ESchemaAttributeType::Bool:
+					NewMatchMakingUser.Attributes.Emplace(Entry.Key.ToString(), FVariantData(Entry.Value.Data.GetBoolean()));
+					break;
+				case ESchemaAttributeType::Double:
+					NewMatchMakingUser.Attributes.Emplace(Entry.Key.ToString(), FVariantData(Entry.Value.Data.GetDouble()));
+					break;
+				case ESchemaAttributeType::Int64:
+					NewMatchMakingUser.Attributes.Emplace(Entry.Key.ToString(), FVariantData(Entry.Value.Data.GetInt64()));
+					break;
+				case ESchemaAttributeType::String:
+					NewMatchMakingUser.Attributes.Emplace(Entry.Key.ToString(), FVariantData(Entry.Value.Data.GetString()));
+					break;
+				}
+			}
 
 			MatchMakingUsers.Add(NewMatchMakingUser);
 		}
@@ -808,7 +988,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsOSSAdapter::JoinSession(FJoinSession
 
 		if (const FCustomSessionSetting* PingInMs = FoundSession->SessionSettings.CustomSettings.Find(OSS_ADAPTER_SESSIONS_PING_IN_MS))
 		{
-			SearchResult.PingInMs = (int32)PingInMs->Data.Get<int64>();
+			SearchResult.PingInMs = (int32)PingInMs->Data.GetInt64();
 		}
 
 		SearchResult.Session = BuildV1Session(FoundSession);
@@ -1037,28 +1217,27 @@ FOnlineSessionSettings FSessionsOSSAdapter::BuildV1Settings(const FSessionSettin
 	Result.bShouldAdvertise = InSessionSettings.bAllowNewMembers;
 	if (const FCustomSessionSetting* BuildUniqueId = InSessionSettings.CustomSettings.Find(OSS_ADAPTER_SESSIONS_BUILD_UNIQUE_ID))
 	{
-		Result.BuildUniqueId = BuildUniqueId->Data.Get<int64>();
+		Result.BuildUniqueId = BuildUniqueId->Data.GetInt64();
 	}
 	if (const FCustomSessionSetting* BuildUniqueId = InSessionSettings.CustomSettings.Find(OSS_ADAPTER_SESSIONS_USE_LOBBIES_IF_AVAILABLE))
 	{
-		Result.bUseLobbiesIfAvailable = BuildUniqueId->Data.Get<bool>();
+		Result.bUseLobbiesIfAvailable = BuildUniqueId->Data.GetBoolean();
 	}
 	if (const FCustomSessionSetting* BuildUniqueId = InSessionSettings.CustomSettings.Find(OSS_ADAPTER_SESSIONS_USE_LOBBIES_VOICE_CHAT_IF_AVAILABLE))
 	{
-		Result.bUseLobbiesVoiceChatIfAvailable = BuildUniqueId->Data.Get<bool>();
+		Result.bUseLobbiesVoiceChatIfAvailable = BuildUniqueId->Data.GetBoolean();
 	}
 	Result.bUsesPresence = InSessionSettings.bPresenceEnabled;
 	if (const FCustomSessionSetting* BuildUniqueId = InSessionSettings.CustomSettings.Find(OSS_ADAPTER_SESSIONS_USES_STATS))
 	{
-		Result.bUsesStats = BuildUniqueId->Data.Get<bool>();
+		Result.bUsesStats = BuildUniqueId->Data.GetBoolean();
 	}
 	Result.NumPrivateConnections = InSessionSettings.NumMaxPrivateConnections;
 	Result.NumPublicConnections = InSessionSettings.NumMaxPublicConnections;
 	Result.Settings.Add(OSS_ADAPTER_SESSIONS_SCHEMA_NAME, InSessionSettings.SchemaName.ToString());
 	Result.SessionIdOverride = InSessionSettings.SessionIdOverride;
 
-	// TODO: Pending SchemaVariant work
-	//Result.Settings =
+	Result.Settings = GetV1SessionSettings(InSessionSettings.CustomSettings);
 	
 	FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 
@@ -1084,22 +1263,23 @@ void FSessionsOSSAdapter::WriteV2SessionSettingsFromV1Session(const FOnlineSessi
 	OutSettings.NumOpenPublicConnections = InSession->NumOpenPublicConnections;
 	FString SchemaNameStr;
 	InSession->SessionSettings.Settings.FindChecked(OSS_ADAPTER_SESSIONS_SCHEMA_NAME).Data.GetValue(SchemaNameStr);
-	OutSettings.SchemaName = FName(SchemaNameStr);
+	OutSettings.SchemaName = FSchemaId(SchemaNameStr);
 	OutSettings.SessionIdOverride = InSession->SessionSettings.SessionIdOverride;
 
-	// TODO: Pending SchemaVariant work
-	//Result.CustomSettings = 
+	OutSettings.CustomSettings = GetV2SessionSettings(InSession->SessionSettings.Settings);
 
 	FCustomSessionSetting BuildUniqueId;
-	BuildUniqueId.Data.Set<int64>(InSession->SessionSettings.BuildUniqueId);
+	BuildUniqueId.Data.Set((int64)InSession->SessionSettings.BuildUniqueId);
 	OutSettings.CustomSettings.Add(OSS_ADAPTER_SESSIONS_BUILD_UNIQUE_ID, BuildUniqueId);
 
 	FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 
-	for (TPair<FUniqueNetIdRef, ::FSessionSettings> Entry : InSession->SessionSettings.MemberSettings)
+	for (const TPair<FUniqueNetIdRef, ::FSessionSettings>& Entry : InSession->SessionSettings.MemberSettings)
 	{
 		FOnlineAccountIdHandle SessionMemberId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(Entry.Key);
-		FSessionMember SessionMember = FSessionMember(); // TODO: Pending SchemaVariant work
+
+		FSessionMember SessionMember;
+		SessionMember.MemberSettings = GetV2SessionSettings(Entry.Value);
 
 		OutSettings.SessionMembers.Emplace(SessionMemberId, SessionMember);
 	}
@@ -1154,7 +1334,7 @@ TArray<TSharedRef<const FSession>> FSessionsOSSAdapter::BuildV2SessionSearchResu
 		TSharedRef<FSession> FoundSession = BuildV2Session(&SearchResult.Session);
 
 		FCustomSessionSetting PingInMs;
-		PingInMs.Data.Set<int64>((int64)SearchResult.PingInMs);
+		PingInMs.Data.Set((int64)SearchResult.PingInMs);
 		FoundSession->SessionSettings.CustomSettings.Emplace(OSS_ADAPTER_SESSIONS_PING_IN_MS, PingInMs);
 
 		FoundSessions.Add(FoundSession);

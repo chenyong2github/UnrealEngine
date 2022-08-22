@@ -8,6 +8,7 @@
 #include "Online/LobbiesEOSGS.h"
 #include "Online/SessionsEOSGS.h"
 #include "Online/CoreOnline.h"
+#include "Online/NboSerializerCommonSvc.h"
 
 /**
  * Serializes data in network byte order form into a buffer
@@ -32,6 +33,28 @@ inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const FOnlineSessionIdH
 	Ar.WriteBinary(Data.GetData(), Data.Num());
 }
 
+inline void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionMembersMap& SessionMembersMap)
+{
+	Packet << SessionMembersMap.Num();
+
+	for (const TPair<FOnlineAccountIdHandle, FSessionMember>& Entry : SessionMembersMap)
+	{
+		SerializeToBuffer(Packet, Entry.Key);
+		NboSerializerCommonSvc::SerializeToBuffer(Packet, Entry.Value);
+	}
+}
+
+inline void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FRegisteredPlayersMap& RegisteredPlayersMap)
+{
+	Packet << RegisteredPlayersMap.Num();
+
+	for (const TPair<FOnlineAccountIdHandle, FRegisteredPlayer>& Entry : RegisteredPlayersMap)
+	{
+		SerializeToBuffer(Packet, Entry.Key);
+		NboSerializerCommonSvc::SerializeToBuffer(Packet, Entry.Value);
+	}
+}
+
 /** NboSerializeFromBuffer methods */
 
 inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, FOnlineAccountIdHandle& UniqueId)
@@ -50,6 +73,40 @@ inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, FOnlineSessionIdHan
 	Ar >> Size;
 	Ar.ReadBinaryArray(Data, Size);
 	SessionId = FOnlineSessionIdRegistryEOSGS::Get().FromReplicationData(Data);
+}
+
+inline void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionMembersMap& SessionMembersMap)
+{
+	int32 NumEntries = 0;
+	Packet >> NumEntries;
+
+	for (int32 Index = 0; Index < NumEntries; ++Index)
+	{
+		FOnlineAccountIdHandle Key;
+		SerializeFromBuffer(Packet, Key);
+
+		FSessionMember Value;
+		NboSerializerCommonSvc::SerializeFromBuffer(Packet, Value);
+
+		SessionMembersMap.Emplace(Key, Value);
+	}
+}
+
+inline void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FRegisteredPlayersMap& RegisteredPlayersMap)
+{
+	int32 NumEntries = 0;
+	Packet >> NumEntries;
+
+	for (int32 Index = 0; Index < NumEntries; ++Index)
+	{
+		FOnlineAccountIdHandle Key;
+		SerializeFromBuffer(Packet, Key);
+
+		FRegisteredPlayer Value;
+		NboSerializerCommonSvc::SerializeFromBuffer(Packet, Value);
+
+		RegisteredPlayersMap.Emplace(Key, Value);
+	}
 }
 
 /* NboSerializerNullSvc */ }

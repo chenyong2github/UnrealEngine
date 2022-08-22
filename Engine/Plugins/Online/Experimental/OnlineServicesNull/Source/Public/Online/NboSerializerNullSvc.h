@@ -8,6 +8,7 @@
 #include "Online/LobbiesNull.h"
 #include "Online/SessionsNull.h"
 #include "Online/CoreOnline.h"
+#include "Online/NboSerializerCommonSvc.h"
 
 /**
  * Serializes data in network byte order form into a buffer
@@ -30,6 +31,28 @@ inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const FOnlineSessionIdH
 	TArray<uint8> Data = FOnlineSessionIdRegistryNull::Get().ToReplicationData(SessionId);
 	Ar << Data.Num();
 	Ar.WriteBinary(Data.GetData(), Data.Num());
+}
+
+inline void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionMembersMap& SessionMembersMap)
+{
+	Packet << SessionMembersMap.Num();
+
+	for (const TPair<FOnlineAccountIdHandle, FSessionMember>& Entry : SessionMembersMap)
+	{
+		SerializeToBuffer(Packet, Entry.Key);
+		NboSerializerCommonSvc::SerializeToBuffer(Packet, Entry.Value);
+	}
+}
+
+inline void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FRegisteredPlayersMap& RegisteredPlayersMap)
+{
+	Packet << RegisteredPlayersMap.Num();
+
+	for (const TPair<FOnlineAccountIdHandle, FRegisteredPlayer>& Entry : RegisteredPlayersMap)
+	{
+		SerializeToBuffer(Packet, Entry.Key);
+		NboSerializerCommonSvc::SerializeToBuffer(Packet, Entry.Value);
+	}
 }
 
 inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const TMap<FLobbyAttributeId, FLobbyVariant>& Map)
@@ -62,6 +85,40 @@ inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, FOnlineSessionIdHan
 	Ar.ReadBinaryArray(Data, Size);
 
 	SessionId = FOnlineSessionIdRegistryNull::Get().FromReplicationData(Data);
+}
+
+inline void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionMembersMap& SessionMembersMap)
+{
+	int32 NumEntries = 0;
+	Packet >> NumEntries;
+
+	for (int32 Index = 0; Index < NumEntries; ++Index)
+	{
+		FOnlineAccountIdHandle Key;
+		SerializeFromBuffer(Packet, Key);
+
+		FSessionMember Value;
+		NboSerializerCommonSvc::SerializeFromBuffer(Packet, Value);
+
+		SessionMembersMap.Emplace(Key, Value);
+	}
+}
+
+inline void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FRegisteredPlayersMap& RegisteredPlayersMap)
+{
+	int32 NumEntries = 0;
+	Packet >> NumEntries;
+
+	for (int32 Index = 0; Index < NumEntries; ++Index)
+	{
+		FOnlineAccountIdHandle Key;
+		SerializeFromBuffer(Packet, Key);
+
+		FRegisteredPlayer Value;
+		NboSerializerCommonSvc::SerializeFromBuffer(Packet, Value);
+
+		RegisteredPlayersMap.Emplace(Key, Value);
+	}
 }
 
 inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, TMap<FLobbyAttributeId, FLobbyVariant>& Map)

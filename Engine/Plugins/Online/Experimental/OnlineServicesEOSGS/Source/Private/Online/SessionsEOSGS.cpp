@@ -8,26 +8,11 @@
 #include "Online/OnlineServicesEOSGSTypes.h"
 #include "Online/NboSerializerEOSGSSvc.h"
 #include "Online/OnlineErrorEOSGS.h"
+#include "Online/SessionsEOSGSTypes.h"
 
 #include "eos_sessions.h"
-#include "eos_sessions_types.h"
 
 namespace UE::Online {
-
-/** Auxiliary methods */
-
-EOS_EOnlineSessionPermissionLevel GetEOSGSType(const ESessionJoinPolicy& Value)
-{
-	switch (Value)
-	{
-	case ESessionJoinPolicy::Public:		return EOS_EOnlineSessionPermissionLevel::EOS_OSPF_PublicAdvertised;
-	case ESessionJoinPolicy::FriendsOnly:	return EOS_EOnlineSessionPermissionLevel::EOS_OSPF_JoinViaPresence;
-	case ESessionJoinPolicy::InviteOnly:	return EOS_EOnlineSessionPermissionLevel::EOS_OSPF_InviteOnly;
-	}
-
-	checkNoEntry();
-	return EOS_EOnlineSessionPermissionLevel::EOS_OSPF_InviteOnly;
-}
 
 /** FOnlineSessionIdRegistryEOSGS */
 
@@ -70,12 +55,146 @@ FSessionEOSGS::FSessionEOSGS(const EOS_HSessionDetails& InSessionDetailsHandle)
 	{
 		CurrentState = ESessionState::Valid;
 		SessionId = FSessionsEOSGS::CreateSessionId(FString(SessionDetailsInfo->SessionId));
+		SessionSettings.NumOpenPublicConnections = SessionDetailsInfo->NumOpenPublicConnections;
+		// We could retrieve the Host Address here if we set it during creation or update
 
-		// TODO: Load all session settings after SchemaVariant work
+		// TODO: evaluate effect of bInvitesAllowed and bAllowJoinInProgress to know whether we can just read the values here or if we need the custom parameter
+		SessionSettings.bAllowSanctionedPlayers = !SessionDetailsInfo->Settings->bSanctionsEnabled;
+		SessionSettings.NumMaxPublicConnections = SessionDetailsInfo->Settings->NumPublicConnections;
+		SessionSettings.JoinPolicy = FromServiceType(SessionDetailsInfo->Settings->PermissionLevel);
+		SessionSettings.CustomSettings.Emplace(EOSGS_BUCKET_ID, FCustomSessionSetting{ FSchemaVariant(FString(UTF8_TO_TCHAR(SessionDetailsInfo->Settings->BucketId))), ESchemaAttributeVisibility::Public });
+
+		// We retrieve all the session attributes
+		EOS_SessionDetails_GetSessionAttributeCountOptions GetAttributeCountOptions = {};
+		GetAttributeCountOptions.ApiVersion = EOS_SESSIONDETAILS_GETSESSIONATTRIBUTECOUNT_API_LATEST;
+		static_assert(EOS_SESSIONDETAILS_GETSESSIONATTRIBUTECOUNT_API_LATEST == 1, "EOS_SessionDetails_GetSessionAttributeCountOptions updated, check new fields");
+
+		uint32_t AttributeCount = EOS_SessionDetails_GetSessionAttributeCount(InSessionDetailsHandle, &GetAttributeCountOptions);
+		for (uint32_t Index = 0; Index < AttributeCount; ++Index)
+		{
+			EOS_SessionDetails_CopySessionAttributeByIndexOptions CopyAttributeByIndexOptions = {};
+			CopyAttributeByIndexOptions.ApiVersion = EOS_SESSIONDETAILS_COPYSESSIONATTRIBUTEBYINDEX_API_LATEST;
+			static_assert(EOS_SESSIONDETAILS_COPYSESSIONATTRIBUTEBYINDEX_API_LATEST == 1, "EOS_SessionDetails_CopySessionAttributeByIndexOptions updated, check new fields");
+
+			CopyAttributeByIndexOptions.AttrIndex = Index;
+
+			EOS_SessionDetails_Attribute* Attribute = nullptr;
+			EOS_EResult CopyAttributeByIndexResult = EOS_SessionDetails_CopySessionAttributeByIndex(InSessionDetailsHandle, &CopyAttributeByIndexOptions, &Attribute);
+			if (CopyAttributeByIndexResult == EOS_EResult::EOS_Success)
+			{
+				// We parse a single attribute
+				FString Key(Attribute->Data->Key);
+
+				// If the Key contains the ':' character, it will be a user related entry, either a Session Member setting, or Registered Player information
+				if (Key.Contains(TEXT(":")))
+				{
+					TArray<FString> KeyComponents;
+					Key.ParseIntoArray(KeyComponents, TEXT(":"));
+
+					// If the first element is the Registered Players key, we will process the entry as Registered Player information
+					if (KeyComponents[0] == EOSGS_REGISTERED_PLAYERS.ToString())
+					{
+						// We retrieve the registered player id
+						const FString& PlayerIdStr = KeyComponents[1];
+						const EOS_ProductUserId ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*PlayerIdStr));
+						const FOnlineAccountIdHandle& IdHandle = FindAccountId(ProductUserId);
+
+						// This constructor should only be used by BuildSessionFromDetailsHandle, after all user ids in the session have been resolved
+						check(IdHandle.IsValid());
+
+						FRegisteredPlayer& RegisteredPlayer = SessionSettings.RegisteredPlayers.FindOrAdd(IdHandle);
+						
+						FSessionAttributeConverter<ESessionAttributeConversionType::FromService> CustomSettingConverter(*Attribute->Data);
+						const TPair<FSchemaAttributeId, FSchemaVariant>& CustomSettingData = CustomSettingConverter.GetAttributeData();
+						bool bParameterValue = CustomSettingData.Value.GetBoolean();
+
+						// And set the value for the appropriate parameter
+						const FString& ParameterName = KeyComponents[2];
+
+						if (ParameterName == EOSGS_REGISTERED_PLAYER_IS_IN_SESSION.ToString())
+						{
+							RegisteredPlayer.bIsInSession = bParameterValue;
+						}
+						else if (ParameterName == EOSGS_REGISTERED_PLAYER_HAS_RESERVED_SLOT.ToString())
+						{
+							RegisteredPlayer.bHasReservedSlot = bParameterValue;
+						}
+					}
+					else // If not, it will be parsed as a Session Member setting
+					{
+						// We retrieve the member id
+						FString PlayerIdStr = KeyComponents[0];
+						EOS_ProductUserId ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*PlayerIdStr));
+						FOnlineAccountIdHandle IdHandle = FindAccountId(ProductUserId);
+
+						FSessionMember& SessionMember = SessionSettings.SessionMembers.FindOrAdd(IdHandle);
+
+						// And add the corresponding custom setting
+						FSchemaAttributeId AttributeId(KeyComponents[1]);
+
+						FSessionAttributeConverter<ESessionAttributeConversionType::FromService> CustomSettingConverter(*Attribute->Data);
+						TPair<FSchemaAttributeId, FSchemaVariant> CustomSettingData = CustomSettingConverter.GetAttributeData();
+
+						FCustomSessionSetting CustomSessionSetting;
+						CustomSessionSetting.Visibility = FromServiceType(Attribute->AdvertisementType);
+						CustomSessionSetting.Data = CustomSettingData.Value;
+
+						SessionMember.MemberSettings.Emplace(AttributeId, CustomSessionSetting);
+					}
+				}
+				else 
+				{
+					FSessionAttributeConverter<ESessionAttributeConversionType::FromService> CustomSettingConverter(*Attribute->Data);
+					TPair<FSchemaAttributeId, FSchemaVariant> CustomSettingData = CustomSettingConverter.GetAttributeData();
+					
+					// Most Session Settings values get parsed in the same way as Custom Session Settings, so we will attempt to retrieve them
+					if (Key == EOSGS_ALLOW_NEW_MEMBERS.ToString())
+					{
+						SessionSettings.bAllowNewMembers = CustomSettingData.Value.GetBoolean();
+					}
+					else if (Key == EOSGS_ALLOW_UNREGISTERED_PLAYERS.ToString())
+					{
+						SessionSettings.bAllowUnregisteredPlayers = CustomSettingData.Value.GetBoolean();
+					}
+					else if (Key == EOSGS_ANTI_CHEAT_PROTECTED.ToString())
+					{
+						SessionSettings.bAntiCheatProtected = CustomSettingData.Value.GetBoolean();
+					}
+					else if (Key == EOSGS_IS_DEDICATED_SERVER_SESSION.ToString())
+					{
+						SessionSettings.bIsDedicatedServerSession = CustomSettingData.Value.GetBoolean();
+					}
+					else if (Key == EOSGS_PRESENCE_ENABLED.ToString())
+					{
+						SessionSettings.bPresenceEnabled = CustomSettingData.Value.GetBoolean();
+					}
+					else if (Key == EOSGS_SCHEMA_NAME.ToString())
+					{
+						SessionSettings.SchemaName = FSchemaId(CustomSettingData.Value.GetString());
+					}
+					else if (Key == EOSGS_SESSION_ID_OVERRIDE.ToString())
+					{
+						SessionSettings.SessionIdOverride = CustomSettingData.Value.GetString();
+					}
+					else // The rest are parsed as a Custom Session Setting
+					{
+						FCustomSessionSetting CustomSessionSetting;
+						CustomSessionSetting.Visibility = FromServiceType(Attribute->AdvertisementType);
+						CustomSessionSetting.Data = CustomSettingData.Value;
+
+						SessionSettings.CustomSettings.Emplace(Key, CustomSessionSetting);
+					}
+				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FSessionEOSGS] EOS_SessionDetails_CopySessionAttributeByIndex failed with result [%s]"), *LexToString(CopyInfoResult));
+			}
+		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[FSessionEOSGS] EOS_SessionDetails_CopyInfo failed with result [%s]"), *LexToString(CopyInfoResult));
+		UE_LOG(LogTemp, Warning, TEXT("[FSessionEOSGS] EOS_SessionDetails_CopyInfo failed with result [%s]"), *LexToString(CopyInfoResult));
 
 		CurrentState = ESessionState::Invalid;
 	}
@@ -287,8 +406,8 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSessio
 		CreateSessionModificationOptions.bPresenceEnabled = OpParams.SessionSettings.bPresenceEnabled;
 		CreateSessionModificationOptions.bSanctionsEnabled = !OpParams.SessionSettings.bAllowSanctionedPlayers;
 
-		const FCustomSessionSetting* BucketIdSetting = OpParams.SessionSettings.CustomSettings.Find(EOS_SESSIONS_BUCKET_ID);
-		FTCHARToUTF8 BucketIdUtf8(BucketIdSetting != nullptr ? BucketIdSetting->Data.Get<FString>() : FString());
+		const FCustomSessionSetting* BucketIdSetting = OpParams.SessionSettings.CustomSettings.Find(EOSGS_BUCKET_ID);
+		FTCHARToUTF8 BucketIdUtf8(BucketIdSetting != nullptr ? BucketIdSetting->Data.GetString() : FString());
 
 		if (BucketIdUtf8.Length())
 		{
@@ -368,12 +487,12 @@ void FSessionsEOSGS::SetPermissionLevel(EOS_HSessionModification& SessionModific
 	Options.ApiVersion = EOS_SESSIONMODIFICATION_SETPERMISSIONLEVEL_API_LATEST;
 	static_assert(EOS_SESSIONMODIFICATION_SETPERMISSIONLEVEL_API_LATEST == 1, "EOS_SessionModification_SetPermissionLevelOptions updated, check new fields");
 
-	Options.PermissionLevel = GetEOSGSType(NewJoinPolicy);
+	Options.PermissionLevel = ToServiceType(NewJoinPolicy);
 
 	EOS_EResult ResultCode = EOS_SessionModification_SetPermissionLevel(SessionModificationHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EOS_SessionModification_SetPermissionLevel failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::SetPermissionLevel] EOS_SessionModification_SetPermissionLevel failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -389,7 +508,7 @@ void FSessionsEOSGS::SetBucketId(EOS_HSessionModification& SessionModificationHa
 	EOS_EResult ResultCode = EOS_SessionModification_SetBucketId(SessionModificationHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EOS_SessionModification_SetBucketId failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::SetBucketId] EOS_SessionModification_SetBucketId failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -404,7 +523,41 @@ void FSessionsEOSGS::SetMaxPlayers(EOS_HSessionModification& SessionModification
 	EOS_EResult ResultCode = EOS_SessionModification_SetMaxPlayers(SessionModificationHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EOS_SessionModification_SetMaxPlayers failed with result [%s]"), *LexToString(ResultCode));
+		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::SetMaxPlayers] EOS_SessionModification_SetMaxPlayers failed with result [%s]"), *LexToString(ResultCode));
+	}
+}
+
+void FSessionsEOSGS::AddAttribute(EOS_HSessionModification& SessionModificationHandle, const FSchemaAttributeId& Key, const FCustomSessionSetting& Value)
+{
+	EOS_SessionModification_AddAttributeOptions Options = { };
+	Options.ApiVersion = EOS_SESSIONMODIFICATION_ADDATTRIBUTE_API_LATEST;
+	static_assert(EOS_SESSIONMODIFICATION_ADDATTRIBUTE_API_LATEST == 1, "EOS_SessionModification_AddAttributeOptions updated, check new fields");
+
+	Options.AdvertisementType = ToServiceType(Value.Visibility);
+
+	FSessionAttributeConverter<ESessionAttributeConversionType::ToService> SessionAttribute(Key, Value.Data);
+	Options.SessionAttribute = &SessionAttribute.GetAttributeData();
+
+	EOS_EResult ResultCode = EOS_SessionModification_AddAttribute(SessionModificationHandle, &Options);
+	if (ResultCode != EOS_EResult::EOS_Success)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::AddAttribute] EOS_SessionModification_AddAttribute failed with result [%s]"), *LexToString(ResultCode));
+	}
+}
+
+void FSessionsEOSGS::RemoveAttribute(EOS_HSessionModification& SessionModificationHandle, const FSchemaAttributeId& Key)
+{
+	EOS_SessionModification_RemoveAttributeOptions Options = { };
+	Options.ApiVersion = EOS_SESSIONMODIFICATION_REMOVEATTRIBUTE_API_LATEST;
+	static_assert(EOS_SESSIONMODIFICATION_REMOVEATTRIBUTE_API_LATEST == 1, "EOS_SessionModification_RemoveAttributeOptions updated, check new fields");
+
+	FTCHARToUTF8 KeyUtf8(Key.ToString());
+	Options.Key = KeyUtf8.Get();
+
+	EOS_EResult ResultCode = EOS_SessionModification_RemoveAttribute(SessionModificationHandle, &Options);
+	if (ResultCode != EOS_EResult::EOS_Success)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::RemoveAttribute] EOS_SessionModification_RemoveAttribute failed with result [%s]"), *LexToString(ResultCode));
 	}
 }
 
@@ -415,46 +568,57 @@ void FSessionsEOSGS::WriteCreateSessionModificationHandle(EOS_HSessionModificati
 	// TODO: We either call Start or End session, EOS_SessionModification_SetJoinInProgressAllowed and EOS_SessionModification_SetInvitesAllowed depending on this value changing, or a custom setting.
 	// Investigation pending to see if there is overlay changes when the session is not joinable (started + JIP false, or InvitesAllowed false)
 
-	// TODO: Add non-custom settings as attributes on the API call to transmit that information in session searches. Example:
-
-// 	FCustomSessionSetting NewSetting;
-// 	NewSetting.Data.Set<bool>(SessionSettings.bAllowNewMembers);
-// 	NewSetting.Visibility = ECustomSessionSettingVisibility::ViaOnlineService;
-// 
-// 	AddAttribute(SessionModificationHandle, EOS_SESSIONS_ALLOW_NEW_MEMBERS, NewSetting);
+	// We won't copy bIsLANSession since it' irrelevant for EOS Sessions
+	AddAttribute(SessionModificationHandle, EOSGS_ALLOW_NEW_MEMBERS, { FSchemaVariant(SessionSettings.bAllowNewMembers), ESchemaAttributeVisibility::Public });
+	AddAttribute(SessionModificationHandle, EOSGS_ALLOW_UNREGISTERED_PLAYERS, { FSchemaVariant(SessionSettings.bAllowUnregisteredPlayers), ESchemaAttributeVisibility::Public });
+	AddAttribute(SessionModificationHandle, EOSGS_ANTI_CHEAT_PROTECTED, { FSchemaVariant(SessionSettings.bAntiCheatProtected), ESchemaAttributeVisibility::Public });
+	AddAttribute(SessionModificationHandle, EOSGS_IS_DEDICATED_SERVER_SESSION, { FSchemaVariant(SessionSettings.bIsDedicatedServerSession), ESchemaAttributeVisibility::Public });
+	AddAttribute(SessionModificationHandle, EOSGS_PRESENCE_ENABLED, { FSchemaVariant(SessionSettings.bPresenceEnabled), ESchemaAttributeVisibility::Public });
 
 	SetPermissionLevel(SessionModificationHandle, SessionSettings.JoinPolicy);
 
 	SetMaxPlayers(SessionModificationHandle, SessionSettings.NumMaxPrivateConnections + SessionSettings.NumMaxPublicConnections);
 
+	AddAttribute(SessionModificationHandle, EOSGS_SCHEMA_NAME, { FSchemaVariant(SessionSettings.SchemaName.ToString()), ESchemaAttributeVisibility::Public });
+	AddAttribute(SessionModificationHandle, EOSGS_SESSION_ID_OVERRIDE, { FSchemaVariant(SessionSettings.SessionIdOverride), ESchemaAttributeVisibility::Public });
+
 	// Custom Settings
 
-// 	for (FCustomSessionSettingsMap::TConstIterator It(SessionSettings.CustomSettings); It; ++It)
-// 	{
-// 		// TODO: Add the attribute to the SessionModification. Pending SchemaVariant work.
-// 	}
+ 	for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& Entry : SessionSettings.CustomSettings)
+ 	{
+		AddAttribute(SessionModificationHandle, Entry.Key, Entry.Value);
+	}
 
 	// BucketId has its own set method on the API
-	const FCustomSessionSetting* NewBucketIdSetting = SessionSettings.CustomSettings.Find(EOS_SESSIONS_BUCKET_ID);
+	const FCustomSessionSetting* NewBucketIdSetting = SessionSettings.CustomSettings.Find(EOSGS_BUCKET_ID);
 	if (NewBucketIdSetting)
 	{
-		SetBucketId(SessionModificationHandle, NewBucketIdSetting->Data.Get<FString>());
+		SetBucketId(SessionModificationHandle, NewBucketIdSetting->Data.GetString());
 	}
 
 	// Session Members
 
-// 	for (FSessionMembersMap::TConstIterator MemberIt(SessionSettings.SessionMembers); MemberIt; ++MemberIt)
-// 	{
-// 		const FSessionMember& SessionMember = MemberIt.Value();
-// 		
-// 		for (FCustomSessionSettingsMap::TConstIterator SettingIt(SessionMember.MemberSettings); SettingIt; ++SettingIt)
-// 		{
-// 			const FName& Key = FName(LexToString(GetProductUserIdChecked(MemberIt.Key())) + TEXT(":") + SettingIt.Key().ToString());
-// 			const FCustomSessionSetting& Value = SettingIt.Value();
-// 
-// 			// TODO: Add the attribute to the SessionModification. Pending SchemaVariant work.
-// 		}		
-// 	}
+	for (const TPair<FOnlineAccountIdHandle, FSessionMember>& SessionMemberEntry : SessionSettings.SessionMembers)
+	{
+		const FSessionMember& SessionMember = SessionMemberEntry.Value;
+		
+		for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& CustomSettingEntry : SessionMember.MemberSettings)
+		{
+			const FName& Key = FName(LexToString(GetProductUserIdChecked(SessionMemberEntry.Key)) + TEXT(":") + CustomSettingEntry.Key.ToString());
+			AddAttribute(SessionModificationHandle, Key, CustomSettingEntry.Value);
+		}		
+	}
+
+	// TODO: Should always be empty at session creation time so might not be needed
+	// Registered Players
+	for (const TPair<FOnlineAccountIdHandle, FRegisteredPlayer>& Entry : SessionSettings.RegisteredPlayers)
+	{
+		const FName& HasReservedSlotKey = FName(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(Entry.Key)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_HAS_RESERVED_SLOT.ToString());
+		AddAttribute(SessionModificationHandle, HasReservedSlotKey, { FSchemaVariant(Entry.Value.bHasReservedSlot), ESchemaAttributeVisibility::Public });
+
+		const FName& IsInSessionKey = FName(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(Entry.Key)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_IS_IN_SESSION.ToString());
+		AddAttribute(SessionModificationHandle, IsInSessionKey, { FSchemaVariant(Entry.Value.bIsInSession), ESchemaAttributeVisibility::Public });
+	}
 }
 
 void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FName& SessionName, const FSessionSettingsUpdate& NewSettings)
@@ -464,14 +628,43 @@ void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModificati
 	// TODO: We either call Start or End session, EOS_SessionModification_SetJoinInProgressAllowed and EOS_SessionModification_SetInvitesAllowed depending on this value changing, or a custom setting.
 	// Investigation pending to see if there is overlay changes when the session is not joinable (started + JIP false, or InvitesAllowed false)
 
-	// TODO: Add non-custom settings as attributes on the API call to transmit that information in session searches. Example:
+	if (NewSettings.bAllowNewMembers.IsSet())
+	{
+		AddAttribute(SessionModificationHandle, EOSGS_ALLOW_NEW_MEMBERS, { FSchemaVariant(NewSettings.bAllowNewMembers.GetValue()), ESchemaAttributeVisibility::Public });
+	}
 
-// 	FCustomSessionSetting NewSetting;
-// 	NewSetting.Data.Set<bool>(SessionSettings.bAllowNewMembers);
-// 	NewSetting.Visibility = ECustomSessionSettingVisibility::ViaOnlineService;
-// 
-// 	AddAttribute(SessionModificationHandle, EOS_SESSIONS_ALLOW_NEW_MEMBERS, NewSetting);
+	if (NewSettings.bAllowUnregisteredPlayers.IsSet())
+	{
+		AddAttribute(SessionModificationHandle, EOSGS_ALLOW_UNREGISTERED_PLAYERS, { FSchemaVariant(NewSettings.bAllowUnregisteredPlayers.GetValue()), ESchemaAttributeVisibility::Public });
+	}
+
+	if (NewSettings.bAntiCheatProtected.IsSet())
+	{
+		AddAttribute(SessionModificationHandle, EOSGS_ANTI_CHEAT_PROTECTED, { FSchemaVariant(NewSettings.bAntiCheatProtected.GetValue()), ESchemaAttributeVisibility::Public });
+	}
+
+	if (NewSettings.bIsDedicatedServerSession.IsSet())
+	{
+		AddAttribute(SessionModificationHandle, EOSGS_IS_DEDICATED_SERVER_SESSION, { FSchemaVariant(NewSettings.bIsDedicatedServerSession.GetValue()), ESchemaAttributeVisibility::Public });
+	}
+
+	if (NewSettings.bPresenceEnabled.IsSet())
+	{
+		AddAttribute(SessionModificationHandle, EOSGS_PRESENCE_ENABLED, { FSchemaVariant(NewSettings.bPresenceEnabled.GetValue()), ESchemaAttributeVisibility::Public });
+	}
+
+	if (NewSettings.SchemaName.IsSet())
+	{
+		AddAttribute(SessionModificationHandle, EOSGS_SCHEMA_NAME, { FSchemaVariant(NewSettings.SchemaName.GetValue().ToString()), ESchemaAttributeVisibility::Public });
+	}
+
+	if (NewSettings.SessionIdOverride.IsSet())
+	{
+		AddAttribute(SessionModificationHandle, EOSGS_SESSION_ID_OVERRIDE, { FSchemaVariant(NewSettings.SessionIdOverride.GetValue()), ESchemaAttributeVisibility::Public });
+	}
+
 	const TSharedRef<FSession>& FoundSession = LocalSessionsByName.FindChecked(SessionName);
+	const FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
 	if (NewSettings.JoinPolicy.IsSet())
 	{
@@ -481,94 +674,84 @@ void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModificati
 	if (NewSettings.NumMaxPrivateConnections.IsSet() || NewSettings.NumMaxPublicConnections.IsSet())
 	{
 		// We set MaxPlayers to the sum of any new values (if set) and old values (if not set)
-		uint32 DefaultNumMaxPrivateConnections = FoundSession->SessionSettings.NumMaxPrivateConnections;
-		uint32 DefaultNumMaxPublicConnections = FoundSession->SessionSettings.NumMaxPublicConnections;
+		uint32 DefaultNumMaxPrivateConnections = SessionSettings.NumMaxPrivateConnections;
+		uint32 DefaultNumMaxPublicConnections = SessionSettings.NumMaxPublicConnections;
 
 		SetMaxPlayers(SessionModificationHandle, NewSettings.NumMaxPrivateConnections.Get(DefaultNumMaxPrivateConnections) + NewSettings.NumMaxPublicConnections.Get(DefaultNumMaxPublicConnections));
 	}
 
 	// BucketId has its own set method on the API
-	const FCustomSessionSetting* NewBucketIdSetting = NewSettings.UpdatedCustomSettings.Find(EOS_SESSIONS_BUCKET_ID);
+	const FCustomSessionSetting* NewBucketIdSetting = NewSettings.UpdatedCustomSettings.Find(EOSGS_BUCKET_ID);
 	if (NewBucketIdSetting)
 	{
-		SetBucketId(SessionModificationHandle, NewBucketIdSetting->Data.Get<FString>());
+		SetBucketId(SessionModificationHandle, NewBucketIdSetting->Data.GetString());
 	}
 
-	// TODO: This next section will be reactivated as part of the CL to add support for SchemaVariant
-#if 0
 	// Custom Settings
 
-	for (const FName& Key : NewSettings.RemovedCustomSettings)
+	for (const FSchemaAttributeId& Key : NewSettings.RemovedCustomSettings)
 	{
-		SessionSettings.CustomSettings.Remove(Key);
-
-		// TODO: Remove the attribute to the SessionModification. Pending SchemaVariant work.
+		RemoveAttribute(SessionModificationHandle, Key);
 	}
 
-// 	for (FCustomSessionSettingsMap::TConstIterator It(NewSettings.UpdatedCustomSettings); It; ++It)
-// 	{
-// 		// TODO: Add the attribute to the SessionModification. Pending SchemaVariant work.
-// 	}
-
-	SessionSettings.CustomSettings.Append(NewSettings.UpdatedCustomSettings);
-
-	// registered players
-
-	for (const FOnlineAccountIdHandle& Key : NewSettings.RemovedRegisteredPlayers)
+	for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& Entry : NewSettings.UpdatedCustomSettings)
 	{
-		SessionSettings.RegisteredPlayers.Remove(Key);
+		AddAttribute(SessionModificationHandle, Entry.Key, Entry.Value);
 	}
-
-	SessionSettings.RegisteredPlayers.Append(NewSettings.UpdatedRegisteredPlayers);
 
 	// Session Members
-
-	for (const FOnlineAccountIdHandle& Key : NewSettings.RemovedSessionMembers)
+	
+	for (const FOnlineAccountIdHandle& SessionMemberId : NewSettings.RemovedSessionMembers)
 	{
-// 		// Before removing a session member, we'll remove all their attributes
-// 		if (FSessionMember* SessionMember = SessionSettings.SessionMembers.Find(Key))
-// 		{
-// 			TArray<FName> SettingsKeyArray;
-// 			SessionMember->MemberSettings.GenerateKeyArray(SettingsKeyArray);
-// 
-// 			for (const FName& SettingKey : SettingsKeyArray)
-// 			{
-// 				const FName& MemberKey = FName(LexToString(GetProductUserIdChecked(Key)) + TEXT(":") + SettingKey.ToString());
-// 				
-// 				// TODO: Remove the attribute to the SessionModification. Pending SchemaVariant work.
-// 			}
-// 		}
-
-		SessionSettings.SessionMembers.Remove(Key);
+		// To remove a session member, we'll remove all their attributes
+ 		if (const FSessionMember* SessionMember = SessionSettings.SessionMembers.Find(SessionMemberId))
+ 		{
+ 			TArray<FName> SettingsKeyArray;
+ 			SessionMember->MemberSettings.GenerateKeyArray(SettingsKeyArray);
+ 			for (const FSchemaAttributeId& CustomSettingEntryKey : SettingsKeyArray)
+ 			{
+ 				const FSchemaAttributeId& Key = FName(LexToString(GetProductUserIdChecked(SessionMemberId)) + TEXT(":") + CustomSettingEntryKey.ToString());
+				RemoveAttribute(SessionModificationHandle, Key);
+ 			}
+ 		}
 	}
 
-	for (FSessionMemberUpdatesMap::TConstIterator MemberIt(NewSettings.UpdatedSessionMembers); MemberIt; ++MemberIt)
+	for (const TPair<FOnlineAccountIdHandle, FSessionMemberUpdate>& SessionMemberEntry : NewSettings.UpdatedSessionMembers)
 	{
-		if (FSessionMember* SessionMember = SessionSettings.SessionMembers.Find(MemberIt.Key()))
+		const FSessionMemberUpdate& SessionMemberUpdate = SessionMemberEntry.Value;
+
+		for (const FSchemaAttributeId& CustomSettingEntryKey : SessionMemberUpdate.RemovedMemberSettings)
 		{
-			const FSessionMemberUpdate& SessionMemberUpdate = MemberIt.Value();
+			const FSchemaAttributeId& Key = FSchemaAttributeId(LexToString(GetProductUserIdChecked(SessionMemberEntry.Key)) + TEXT(":") + CustomSettingEntryKey.ToString());
+			RemoveAttribute(SessionModificationHandle, Key);
+		}
 
-			for (const FName& Key : SessionMemberUpdate.RemovedMemberSettings)
-			{
-				SessionMember->MemberSettings.Remove(Key);
-
-// 				const FName& MemberKey = FName(LexToString(GetProductUserIdChecked(MemberIt.Key())) + TEXT(":") + Key.ToString());
-// 				
-// 				// TODO: Remove the attribute to the SessionModification. Pending SchemaVariant work.
-			}
-			
-// 			for (FCustomSessionSettingsMap::TConstIterator SettingIt(SessionMemberUpdate.UpdatedMemberSettings); SettingIt; ++SettingIt)
-// 			{
-// 				const FName& Key = FName(LexToString(GetProductUserIdChecked(MemberIt.Key())) + TEXT(":") + SettingIt.Key().ToString());
-// 				const FCustomSessionSetting& Value = SettingIt.Value();
-// 
-// 				// TODO: Add the attribute to the SessionModification. Pending SchemaVariant work.
-// 			}
-
-			SessionMember->MemberSettings.Append(SessionMemberUpdate.UpdatedMemberSettings);
+		for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& CustomSettingEntry : SessionMemberUpdate.UpdatedMemberSettings)
+		{
+			const FSchemaAttributeId& Key = FSchemaAttributeId(LexToString(GetProductUserIdChecked(SessionMemberEntry.Key)) + TEXT(":") + CustomSettingEntry.Key.ToString());
+			AddAttribute(SessionModificationHandle, Key, CustomSettingEntry.Value);
 		}
 	}
-#endif
+
+	// Registered Players
+	
+	for (const FOnlineAccountIdHandle& RemovedEntry : NewSettings.RemovedRegisteredPlayers)
+	{
+		const FSchemaAttributeId& HasReservedSlotKey = FSchemaAttributeId(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(RemovedEntry)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_HAS_RESERVED_SLOT.ToString());
+		RemoveAttribute(SessionModificationHandle, HasReservedSlotKey);
+
+		const FSchemaAttributeId& IsInSessionKey = FSchemaAttributeId(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(RemovedEntry)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_IS_IN_SESSION.ToString());
+		RemoveAttribute(SessionModificationHandle, IsInSessionKey);
+	}
+
+	for (const TPair<FOnlineAccountIdHandle, FRegisteredPlayer>& Entry : NewSettings.UpdatedRegisteredPlayers)
+	{
+		const FSchemaAttributeId& HasReservedSlotKey = FSchemaAttributeId(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(Entry.Key)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_HAS_RESERVED_SLOT.ToString());
+		AddAttribute(SessionModificationHandle, HasReservedSlotKey, { FSchemaVariant(Entry.Value.bHasReservedSlot), ESchemaAttributeVisibility::Public });
+
+		const FSchemaAttributeId& IsInSessionKey = FSchemaAttributeId(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(Entry.Key)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_IS_IN_SESSION.ToString());
+		AddAttribute(SessionModificationHandle, IsInSessionKey, { FSchemaVariant(Entry.Value.bIsInSession), ESchemaAttributeVisibility::Public });
+	}
 }
 
 TOnlineAsyncOpHandle<FUpdateSession> FSessionsEOSGS::UpdateSession(FUpdateSession::Params&& Params)
@@ -766,8 +949,23 @@ void FSessionsEOSGS::SetSessionSearchMaxResults(FSessionSearchHandleEOSGS& Sessi
 
 void FSessionsEOSGS::SetSessionSearchParameters(FSessionSearchHandleEOSGS& SessionSearchHandle, TArray<FFindSessionsSearchFilter> Filters)
 {
-	// TODO: Pending SchemaVariant work
-	// Here we'll call EOS_SessionSearch_SetParameter
+	for (const FFindSessionsSearchFilter& Filter : Filters)
+	{
+		EOS_SessionSearch_SetParameterOptions Options = { };
+		Options.ApiVersion = EOS_SESSIONSEARCH_SETPARAMETER_API_LATEST;
+		static_assert(EOS_SESSIONSEARCH_SETPARAMETER_API_LATEST == 1, "EOS_SessionSearch_SetMaxResultsOptions updated, check new fields");
+
+		Options.ComparisonOp = ToServiceType(Filter.ComparisonOp);
+		
+		FSessionAttributeConverter<ESessionAttributeConversionType::ToService> Parameter(Filter.Key, Filter.Value);
+		Options.Parameter = &Parameter.GetAttributeData();
+
+		EOS_EResult ResultCode = EOS_SessionSearch_SetParameter(SessionSearchHandle.SearchHandle, &Options);
+		if (ResultCode != EOS_EResult::EOS_Success)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::SetSessionSearchParameters] EOS_SessionSearch_SetParameter failed with result [%s]"), *LexToString(ResultCode));
+		}
+	}
 }
 
 void FSessionsEOSGS::SetSessionSearchSessionId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FOnlineSessionIdHandle& SessionId)
@@ -906,6 +1104,8 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 			return;
 		}
 
+		const FFindSessions::Params& OpParams = Op.GetParams();
+
 		// For a successful session, we'll get the search results
 		EOS_SessionSearch_GetSearchResultCountOptions GetSearchResultCountOptions = { };
 		GetSearchResultCountOptions.ApiVersion = EOS_SESSIONSEARCH_GETSEARCHRESULTCOUNT_API_LATEST;
@@ -916,6 +1116,9 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 		CopySearchResultByIndexOptions.ApiVersion = EOS_SESSIONSEARCH_COPYSEARCHRESULTBYINDEX_API_LATEST;
 		static_assert(EOS_SESSIONSEARCH_COPYSEARCHRESULTBYINDEX_API_LATEST == 1, "EOS_SessionSearch_CopySearchResultByIndexOptions updated, check new fields");
 
+
+		TArray<TFuture<TDefaultErrorResult<FBuildSessionFromDetailsHandle>>> PendingSessionsBuilt;
+
 		for (int32 Index = 0; Index < NumSearchResults; Index++)
 		{
 			EOS_HSessionDetails SessionDetailsHandle = nullptr;
@@ -924,26 +1127,61 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 			EOS_EResult CopySearchResultByIndexResult = EOS_SessionSearch_CopySearchResultByIndex(CurrentSessionSearchHandleEOSGS->SearchHandle, &CopySearchResultByIndexOptions, &SessionDetailsHandle);
 			if (CopySearchResultByIndexResult == EOS_EResult::EOS_Success)
 			{
-				// All session attributes get extracted with the SessionDetailsHandle
-				const TSharedRef<FSessionEOSGS>& NewSessionEOSGSRef = MakeShared<FSessionEOSGS>(SessionDetailsHandle);
+				TSharedRef<TPromise<TDefaultErrorResult<FBuildSessionFromDetailsHandle>>> BuildSessionPromise = MakeShared<TPromise<TDefaultErrorResult<FBuildSessionFromDetailsHandle>>>();
+				BuildSessionFromDetailsHandle({ OpParams.LocalUserId, MakeShared<FSessionDetailsHandleEOSGS>(SessionDetailsHandle) })
+				.OnComplete([this, BuildSessionPromise](const TOnlineResult<FBuildSessionFromDetailsHandle>& Result) mutable
+				{
+					if (Result.IsOk())
+					{
+						CurrentSessionSearch->FoundSessions.Add(Result.GetOkValue().Session);
 
-				CurrentSessionSearch->FoundSessions.Add(NewSessionEOSGSRef);
+						TMap<FOnlineSessionIdHandle, TSharedRef<FSession>>& UserMap = SessionSearchResultsUserMap.FindOrAdd(Result.GetOkValue().LocalUserId);
+						UserMap.Emplace(Result.GetOkValue().Session->SessionId, Result.GetOkValue().Session);
 
-				TMap<FOnlineSessionIdHandle, TSharedRef<FSession>>& UserMap = SessionSearchResultsUserMap.FindOrAdd(Op.GetParams().LocalUserId);
-				UserMap.Emplace(NewSessionEOSGSRef->SessionId, NewSessionEOSGSRef);
+						BuildSessionPromise->EmplaceValue(Result.GetOkValue());
+					}
+					else
+					{
+						BuildSessionPromise->EmplaceValue(Result.GetErrorValue());
+					}
+				});
+			
+				PendingSessionsBuilt.Add(BuildSessionPromise->GetFuture());
 			}
 			else
 			{
 				UE_LOG(LogTemp, Error, TEXT("[FSessionsEOSGS::FindSessions] EOS_SessionSearch_CopySearchResultByIndex failed for index [%d] with result [%s]"), Index, *LexToString(CopySearchResultByIndexResult));
+
+				Op.SetError(Errors::FromEOSResult(CopySearchResultByIndexResult));
 			}
 		}
 
-		Op.SetResult(MoveTemp(*CurrentSessionSearch));
+		WhenAll(MoveTemp(PendingSessionsBuilt))
+			.Next([this, WeakOp = Op.AsWeak()](TArray<TDefaultErrorResult<FBuildSessionFromDetailsHandle>>&& Results) mutable
+		{
+			if (TOnlineAsyncOpPtr<FFindSessions> StrongOp = WeakOp.Pin())
+			{
+				for (TDefaultErrorResult<FBuildSessionFromDetailsHandle>& Result : Results)
+				{
+					if (Result.IsError())
+					{
+						// Store first encountered error to return as result.
+						StrongOp->SetError(MoveTemp(Result.GetErrorValue()));
+						return;
+					}
+				}
 
-		CurrentSessionSearch.Reset();
-		CurrentSessionSearchHandleEOSGS.Reset();
-	})
-	.Enqueue(GetSerialQueue());
+				StrongOp->SetResult(MoveTemp(*CurrentSessionSearch));
+
+				CurrentSessionSearch.Reset();
+				CurrentSessionSearchHandleEOSGS.Reset();
+			}
+		});
+	});
+
+	// TODO: Call BuildSessionFromDetailsHandle as many times as we have details handles
+
+	Op->Enqueue(GetSerialQueue());
 
 	return Op->GetHandle();
 }
@@ -1133,6 +1371,95 @@ TResult<TSharedRef<const FSession>, FOnlineError> FSessionsEOSGS::BuildSessionFr
 
 		return TResult<TSharedRef<const FSession>, FOnlineError>(Errors::FromEOSResult(CopySessionHandleByUiEventIdResult));
 	}
+}
+
+TResult<TArray<EOS_ProductUserId>, FOnlineError> GetProductUserIdsFromEOSGSSession(const EOS_HSessionDetails& SessionDetailsHandle)
+{
+	TArray<EOS_ProductUserId> Result;
+
+	EOS_SessionDetails_CopyInfoOptions CopyInfoOptions = { };
+	CopyInfoOptions.ApiVersion = EOS_SESSIONDETAILS_COPYINFO_API_LATEST;
+	static_assert(EOS_SESSIONDETAILS_COPYINFO_API_LATEST == 1, "EOS_SessionDetails_CopyInfoOptions updated, check new fields");
+
+	EOS_SessionDetails_Info* SessionDetailsInfo = nullptr;
+	EOS_EResult CopyInfoResult = EOS_SessionDetails_CopyInfo(SessionDetailsHandle, &CopyInfoOptions, &SessionDetailsInfo);
+	if (CopyInfoResult == EOS_EResult::EOS_Success)
+	{
+		// We retrieve all the session attributes
+		EOS_SessionDetails_GetSessionAttributeCountOptions GetAttributeCountOptions = {};
+		GetAttributeCountOptions.ApiVersion = EOS_SESSIONDETAILS_GETSESSIONATTRIBUTECOUNT_API_LATEST;
+		static_assert(EOS_SESSIONDETAILS_GETSESSIONATTRIBUTECOUNT_API_LATEST == 1, "EOS_SessionDetails_GetSessionAttributeCountOptions updated, check new fields");
+		
+		uint32_t AttributeCount = EOS_SessionDetails_GetSessionAttributeCount(SessionDetailsHandle, &GetAttributeCountOptions);
+		for (uint32_t Index = 0; Index < AttributeCount; ++Index)
+		{
+			EOS_SessionDetails_CopySessionAttributeByIndexOptions CopyAttributeByIndexOptions = {};
+			CopyAttributeByIndexOptions.ApiVersion = EOS_SESSIONDETAILS_COPYSESSIONATTRIBUTEBYINDEX_API_LATEST;
+			static_assert(EOS_SESSIONDETAILS_COPYSESSIONATTRIBUTEBYINDEX_API_LATEST == 1, "EOS_SessionDetails_CopySessionAttributeByIndexOptions updated, check new fields");
+
+			CopyAttributeByIndexOptions.AttrIndex = Index;
+
+			EOS_SessionDetails_Attribute* Attribute = nullptr;
+			EOS_EResult CopyAttributeByIndexResult = EOS_SessionDetails_CopySessionAttributeByIndex(SessionDetailsHandle, &CopyAttributeByIndexOptions, &Attribute);
+			if (CopyAttributeByIndexResult == EOS_EResult::EOS_Success)
+			{
+				// We parse a single attribute
+				FString Key(Attribute->Data->Key);
+
+				// If the Key contains the ':' character, it will contain a user id
+				if (Key.Contains(TEXT(":")))
+				{
+					TArray<FString> KeyComponents;
+					Key.ParseIntoArray(KeyComponents, TEXT(":"));
+					const FString& PlayerIdStr = KeyComponents[0] == EOSGS_REGISTERED_PLAYERS.ToString() ? KeyComponents[1] : KeyComponents[0];
+					const EOS_ProductUserId ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*PlayerIdStr));
+					Result.AddUnique(ProductUserId);
+				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::BuildSessionFromDetailsHandle] EOS_SessionDetails_CopySessionAttributeByIndex failed with result [%s]"), *LexToString(CopyAttributeByIndexResult));
+
+				TResult<TArray<EOS_ProductUserId>, FOnlineError>(Errors::FromEOSResult(CopyAttributeByIndexResult));
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::BuildSessionFromDetailsHandle] EOS_SessionDetails_CopyInfo failed with result [%s]"), *LexToString(CopyInfoResult));
+
+		TResult<TArray<EOS_ProductUserId>, FOnlineError>(Errors::FromEOSResult(CopyInfoResult));
+	}
+
+	return TResult<TArray<EOS_ProductUserId>, FOnlineError>(Result);
+}
+
+TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> FSessionsEOSGS::BuildSessionFromDetailsHandle(FBuildSessionFromDetailsHandle::Params&& Params)
+{
+	TOnlineAsyncOpRef<FBuildSessionFromDetailsHandle> Op = GetOp<FBuildSessionFromDetailsHandle>(MoveTemp(Params));
+	const FBuildSessionFromDetailsHandle::Params& OpParams = Op->GetParams();
+
+	// The first step in the process will be retrieving all ids in the session that need resolution
+	TResult<TArray<EOS_ProductUserId>, FOnlineError> GetIdsResult = GetProductUserIdsFromEOSGSSession(Params.SessionDetailsHandleEOSGS->SessionDetailsHandle);
+
+	if (GetIdsResult.IsOk())
+	{
+		Services.Get<FAuthEOSGS>()->ResolveAccountIds(Params.LocalUserId, GetIdsResult.GetOkValue())
+			.Next([this, WeakOp = Op->AsWeak(), Params = MoveTemp(Params)](TArray<FOnlineAccountIdHandle> ResolvedAccountIds) mutable
+		{
+			if (TOnlineAsyncOpPtr<FBuildSessionFromDetailsHandle> StrongOp = WeakOp.Pin())
+			{
+				// After all the ids are resolved, we can build the session safely
+				StrongOp->SetResult(FBuildSessionFromDetailsHandle::Result{ StrongOp->GetParams().LocalUserId, MakeShared<FSessionEOSGS>(Params.SessionDetailsHandleEOSGS->SessionDetailsHandle) });
+			}
+		});
+	}
+	else
+	{
+		Op->SetError(MoveTemp(GetIdsResult.GetErrorValue()));
+	}
+
+	return Op->GetHandle();
 }
 
 TOnlineAsyncOpHandle<FSendSessionInvite> FSessionsEOSGS::SendSessionInvite(FSendSessionInvite::Params&& Params)
@@ -1373,31 +1700,26 @@ TOnlineAsyncOpHandle<FRemoveSessionMembers> FSessionsEOSGS::RemoveSessionMembers
 
 void FSessionsEOSGS::AppendSessionToPacket(FNboSerializeToBuffer& Packet, const FSessionLAN& Session)
 {
+	using namespace NboSerializerLANSvc;
 	using namespace NboSerializerEOSGSSvc;
 
-	// We won't save CurrentState in the packet as all advertised sessions will be Valid
+	SerializeToBuffer(Packet, Session);
 	SerializeToBuffer(Packet, Session.OwnerUserId);
 	SerializeToBuffer(Packet, Session.SessionId);
-	Packet << *Session.OwnerInternetAddr;
-
-	// TODO: Write session settings to packet, after SchemaVariant work
+	SerializeToBuffer(Packet, Session.SessionSettings.RegisteredPlayers);
+	SerializeToBuffer(Packet, Session.SessionSettings.SessionMembers);
 }
 
 void FSessionsEOSGS::ReadSessionFromPacket(FNboSerializeFromBuffer& Packet, FSessionLAN& Session)
 {
+	using namespace NboSerializerLANSvc;
 	using namespace NboSerializerEOSGSSvc;
 
+	SerializeFromBuffer(Packet, Session);
 	SerializeFromBuffer(Packet, Session.OwnerUserId);
 	SerializeFromBuffer(Packet, Session.SessionId);
-	Packet >> *Session.OwnerInternetAddr;
-
-	// We'll set the connect address for the remote session as a custom parameter, so it can be read in OnlineServices' GetResolvedConnectString
-	FCustomSessionSetting ConnectString;
-	ConnectString.Data.Set<FString>(Session.OwnerInternetAddr->ToString(true));
-	ConnectString.Visibility = ECustomSessionSettingVisibility::ViaOnlineService;
-	Session.SessionSettings.CustomSettings.Add(CONNECT_STRING_TAG, ConnectString);
-
-	// TODO:: Read session settings from packet, after SchemaVariant work
+	SerializeFromBuffer(Packet, Session.SessionSettings.RegisteredPlayers);
+	SerializeFromBuffer(Packet, Session.SessionSettings.SessionMembers);
 }
 
 /* UE::Online */ }

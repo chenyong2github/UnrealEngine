@@ -38,6 +38,13 @@ public:
 	TSharedPtr<FInternetAddr> OwnerInternetAddr;
 };
 
+namespace NboSerializerLANSvc {
+
+void ONLINESERVICESCOMMONENGINEUTILS_API SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionLAN& Session);
+void ONLINESERVICESCOMMONENGINEUTILS_API SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionLAN& Session);
+
+/* NboSerializerLANSvc */ }
+
 class ONLINESERVICESCOMMONENGINEUTILS_API FSessionsLAN : public FSessionsCommon
 {
 public:
