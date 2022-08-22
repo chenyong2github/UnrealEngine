@@ -57,7 +57,7 @@ public:
 	int TextureResolution = 1024;
 
 	/** Generate new UVs based on polygroups from specified layer. */
-	UPROPERTY(EditAnywhere, Category = UVAtlas, meta = (EditCondition = bPolygroupsEnabled, EditConditionHides, HideEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = UVAtlas, meta = (DisplayName = "Constrain to Polygroups", EditCondition = bPolygroupsEnabled, EditConditionHides, HideEditConditionToggle))
 	bool bUsePolygroups;
 
 	/** Layout resulting islands on UDIMs based on polygroups. */
@@ -123,7 +123,7 @@ public:
 	int TextureResolution = 1024;
 
 	/** Generate new UVs based on polygroups from specified layer. */
-	UPROPERTY(EditAnywhere, Category = PatchBuilder, meta = (EditCondition = bPolygroupsEnabled, EditConditionHides, HideEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = PatchBuilder, meta = (DisplayName = "Constrain to Polygroups", EditCondition = bPolygroupsEnabled, EditConditionHides, HideEditConditionToggle))
 	bool bUsePolygroups;
 
 	/** Layout resulting islands on UDIMs based on polygroups. */

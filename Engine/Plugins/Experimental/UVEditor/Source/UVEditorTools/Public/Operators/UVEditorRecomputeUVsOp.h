@@ -89,7 +89,7 @@ public:
 
 	/** Type of UV flattening algorithm to use */
 	UPROPERTY(EditAnywhere, Category = "UV Unwrap")
-	EUVEditorRecomputeUVsPropertiesUnwrapType UnwrapType = EUVEditorRecomputeUVsPropertiesUnwrapType::Conformal;
+	EUVEditorRecomputeUVsPropertiesUnwrapType UnwrapType = EUVEditorRecomputeUVsPropertiesUnwrapType::SpectralConformal;
 
 	/** Type of automatic rotation applied to each UV island */
 	UPROPERTY(EditAnywhere, Category = "UV Unwrap")
