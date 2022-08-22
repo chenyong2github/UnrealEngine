@@ -2246,6 +2246,15 @@ void FBlueprintEditor::RemoveNamespace(const FString& InNamespace)
 	}
 }
 
+void FBlueprintEditor::SelectAndDuplicateNode(UEdGraphNode* InNode)
+{
+	check(InNode != nullptr);
+
+	ClearSelectionStateFor(CurrentUISelection);
+	AddToSelection(InNode);
+	DuplicateNodes();
+}
+
 void FBlueprintEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
 	//@TODO: Can't we do this sooner?

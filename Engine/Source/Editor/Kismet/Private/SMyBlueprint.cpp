@@ -38,6 +38,8 @@
 #include "BlueprintEditorCommands.h"
 #include "GraphEditorActions.h"
 #include "AnimationGraph.h"
+#include "AnimationStateMachineGraph.h"
+#include "AnimGraphNode_StateMachineBase.h"
 #include "SBlueprintEditorToolbar.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ObjectEditorUtils.h"
@@ -3289,44 +3291,56 @@ void SMyBlueprint::OnDuplicateAction()
 
 	if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
 	{
-		const FScopedTransaction Transaction( LOCTEXT( "DuplicateGraph", "Duplicate Graph" ) );
-		GetBlueprintObj()->Modify();
+		// Only StateMachine, function, anim graph and macro duplication is supported
+		EGraphType GraphType = GraphAction->EdGraph->GetSchema()->GetGraphType(GraphAction->EdGraph);
+		check(GraphType == GT_StateMachine || GraphType == GT_Function || GraphType == GT_Macro || GraphType == GT_Animation);
 
-		UEdGraph* DuplicatedGraph = GraphAction->EdGraph->GetSchema()->DuplicateGraph(GraphAction->EdGraph);
-		check(DuplicatedGraph);
-
-		DuplicatedGraph->Modify();
-
-		// Generate new Guids and component templates for all relevant nodes in the graph
-		// *NOTE* this cannot occur during PostDuplicate, node Guids and component templates need to remain static during duplication for Blueprint compilation
-		for (UEdGraphNode* EdGraphNode : DuplicatedGraph->Nodes)
+		if (GraphType == GT_StateMachine)
 		{
-			if (EdGraphNode)
+			// StateMachine is handled using the BlueprintEditor copy / paste functionality
+			if (const UAnimationStateMachineGraph* AnimationStateMachineGraph = Cast<UAnimationStateMachineGraph>(GraphAction->EdGraph))
 			{
-				EdGraphNode->CreateNewGuid();
-
-				if (UK2Node_AddComponent* AddComponentNode = Cast<UK2Node_AddComponent>(EdGraphNode))
-				{
-					AddComponentNode->MakeNewComponentTemplate();
-				}
+				BlueprintEditorPtr.Pin()->SelectAndDuplicateNode(AnimationStateMachineGraph->OwnerAnimGraphNode.Get());
 			}
 		}
-		// Only function, anim graph and macro duplication is supported
-		EGraphType GraphType = DuplicatedGraph->GetSchema()->GetGraphType(GraphAction->EdGraph);
-		check(GraphType == GT_Function || GraphType == GT_Macro || GraphType == GT_Animation);
-
-		if (GraphType == GT_Function || GraphType == GT_Animation)
+		else
 		{
-			GetBlueprintObj()->FunctionGraphs.Add(DuplicatedGraph);
-		}
-		else if (GraphType == GT_Macro)
-		{
-			GetBlueprintObj()->MacroGraphs.Add(DuplicatedGraph);
-		}
-		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprintObj());
+			const FScopedTransaction Transaction(LOCTEXT("DuplicateGraph", "Duplicate Graph"));
+			GetBlueprintObj()->Modify();
 
-		BlueprintEditorPtr.Pin()->OpenDocument(DuplicatedGraph, FDocumentTracker::ForceOpenNewDocument);
-		DuplicateActionName = DuplicatedGraph->GetFName();
+			UEdGraph* DuplicatedGraph = GraphAction->EdGraph->GetSchema()->DuplicateGraph(GraphAction->EdGraph);
+			check(DuplicatedGraph);
+
+			DuplicatedGraph->Modify();
+
+			// Generate new Guids and component templates for all relevant nodes in the graph
+			// *NOTE* this cannot occur during PostDuplicate, node Guids and component templates need to remain static during duplication for Blueprint compilation
+			for (UEdGraphNode* EdGraphNode : DuplicatedGraph->Nodes)
+			{
+				if (EdGraphNode)
+				{
+					EdGraphNode->CreateNewGuid();
+
+					if (UK2Node_AddComponent* AddComponentNode = Cast<UK2Node_AddComponent>(EdGraphNode))
+					{
+						AddComponentNode->MakeNewComponentTemplate();
+					}
+				}
+			}
+
+			if (GraphType == GT_Function || GraphType == GT_Animation)
+			{
+				GetBlueprintObj()->FunctionGraphs.Add(DuplicatedGraph);
+			}
+			else if (GraphType == GT_Macro)
+			{
+				GetBlueprintObj()->MacroGraphs.Add(DuplicatedGraph);
+			}
+			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprintObj());
+
+			BlueprintEditorPtr.Pin()->OpenDocument(DuplicatedGraph, FDocumentTracker::ForceOpenNewDocument);
+			DuplicateActionName = DuplicatedGraph->GetFName();
+		}
 	}
 	else if (FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar())
 	{
