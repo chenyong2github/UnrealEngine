@@ -3461,11 +3461,13 @@ bool CreateExporter(bool bEnableUI, const TCHAR* EnginePath)
 
 	if (!FDatasmithExporterManager::Initialize(Options))
 	{
+		LogError(TEXT("Failed to initialize Datasmith Exporter Manager"));
 		return false;
 	}
 
 	if (int32 ErrorCode = FDatasmithDirectLink::ValidateCommunicationSetup())
 	{
+		LogError(TEXT("Failed to validate DatasmithDirect Link Communication setup"));
 		return false;
 	}
 

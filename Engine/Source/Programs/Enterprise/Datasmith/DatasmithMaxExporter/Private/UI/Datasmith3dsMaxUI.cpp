@@ -26,6 +26,7 @@
 #include "HAL/PlatformApplicationMisc.h"  // For ClipboardCopy
 
 #include "DatasmithExporterManager.h"  // Using FDatasmithExporterManager::PushCommandIntoGameThread
+#include "DatasmithUtils.h"
 
 
 #define LOCTEXT_NAMESPACE "Datasmith3dsMaxUI"
@@ -243,6 +244,13 @@ public:
 class FMessagesWindow : public IMessagesWindow
 {
 public:
+	FText GetWindowTitle()
+	{
+		FFormatNamedArguments WindowTitleArgs;
+		WindowTitleArgs.Add(TEXT("DatasmithSDKVersion"), FText::FromString(FDatasmithUtils::GetEnterpriseVersionAsString()));
+		return FText::Format(LOCTEXT("DatasmithMessagesWindowTitle", "Datasmith Messages v.{DatasmithSDKVersion}"), WindowTitleArgs);
+	}
+
 	virtual void OpenWindow() override
 	{
 		FSimpleDelegate RunOnUIThread;
@@ -265,7 +273,7 @@ public:
 					.AutoCenter( EAutoCenter::PrimaryWorkArea )
 					.SizingRule( ESizingRule::UserSized )
 					.FocusWhenFirstShown( true )
-					.Title( LOCTEXT("DatasmithMessagesWindowTitle", "Datasmith Messages") );
+					.Title( GetWindowTitle() );
 
 				TSharedRef<SWindowTitleBar> WindowTitleBar = SNew( SWindowTitleBar, Window, nullptr, GetWindowTitleAlignement() )
 					.Visibility( EVisibility::Visible )
