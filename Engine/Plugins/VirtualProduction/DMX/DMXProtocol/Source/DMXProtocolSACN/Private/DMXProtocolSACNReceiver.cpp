@@ -58,19 +58,19 @@ FDMXProtocolSACNReceiver::~FDMXProtocolSACNReceiver()
 
 TSharedPtr<FDMXProtocolSACNReceiver> FDMXProtocolSACNReceiver::TryCreate(const TSharedPtr<FDMXProtocolSACN, ESPMode::ThreadSafe>& SACNProtocol, const FString& IPAddress)
 {
-	TSharedPtr<FInternetAddr> EndpointInternetAddr = FDMXProtocolUtils::CreateInternetAddr(IPAddress, ACN_PORT);
+	const TSharedPtr<FInternetAddr> EndpointInternetAddr = FDMXProtocolUtils::CreateInternetAddr(IPAddress, ACN_PORT);
 	if (!EndpointInternetAddr.IsValid())
 	{
 		UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create sACN receiver: Invalid IP address: %s"), *IPAddress);
 		return nullptr;
 	}
-
-	FIPv4Endpoint Endpoint = FIPv4Endpoint(EndpointInternetAddr);
+	const FIPv4Endpoint Endpoint(EndpointInternetAddr);
+	const FIPv4Endpoint AnyEndpoint(FIPv4Address::Any, ACN_PORT);
 
 	FSocket* NewListeningSocket = FUdpSocketBuilder(TEXT("UDPSACNListeningSocket"))
 		.AsBlocking()
 		.AsReusable()
-		.BoundToEndpoint(Endpoint)
+		.BoundToEndpoint(AnyEndpoint)
 		.WithMulticastLoopback()
 		.WithMulticastTtl(1)
 		.WithMulticastInterface(Endpoint.Address);

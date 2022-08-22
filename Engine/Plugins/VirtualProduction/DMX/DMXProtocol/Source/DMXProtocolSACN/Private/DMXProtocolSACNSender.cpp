@@ -102,25 +102,20 @@ TSharedPtr<FDMXProtocolSACNSender> FDMXProtocolSACNSender::TryCreateMulticastSen
 	const FString& InNetworkInterfaceIP)
 {
 	// Try to create a socket
-	TSharedPtr<FInternetAddr> NewNetworkInterfaceInternetAddr = FDMXProtocolUtils::CreateInternetAddr(InNetworkInterfaceIP, ACN_PORT);
+	const TSharedPtr<FInternetAddr> NewNetworkInterfaceInternetAddr = FDMXProtocolUtils::CreateInternetAddr(InNetworkInterfaceIP, ACN_PORT);
 	if (!NewNetworkInterfaceInternetAddr.IsValid())
 	{
 		UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create sACN sender: Invalid IP address: %s"), *InNetworkInterfaceIP);
 		return nullptr;
 	}
 
-	FIPv4Endpoint NewNetworkInterfaceEndpoint = FIPv4Endpoint(NewNetworkInterfaceInternetAddr);
-
 	FSocket* NewSocket = 
 		FUdpSocketBuilder(TEXT("UDPSACNMulticastSocket"))
-#if PLATFORM_SUPPORTS_UDP_MULTICAST_GROUP
-		.WithMulticastInterface(NewNetworkInterfaceEndpoint.Address)
-		.WithMulticastTtl(1)
-#endif
-		.AsBlocking()
-		.BoundToEndpoint(NewNetworkInterfaceInternetAddr)
-		.AsReusable();
-
+        .AsBlocking()
+        .AsReusable()
+        .WithMulticastLoopback()
+        .WithMulticastTtl(1);
+	
 	if(!NewSocket)
 	{
 		UE_LOG(LogDMXProtocol, Error, TEXT("Invalid Network Interface IP %s for DMX Port. Please update your Output Ports in Project Settings -> Plugins -> DMX Plugin"), *InNetworkInterfaceIP);
