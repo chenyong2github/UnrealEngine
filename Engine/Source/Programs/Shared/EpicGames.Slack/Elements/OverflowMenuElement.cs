@@ -29,7 +29,7 @@ namespace EpicGames.Slack.Elements
 		/// An array of up to five option objects to display in the menu.
 		/// </summary>
 		[JsonPropertyName("options")]
-		public List<Option> Options { get; } = new List<Option>();
+		public List<SlackOption> Options { get; } = new List<SlackOption>();
 
 		/// <summary>
 		/// A confirm object that defines an optional confirmation dialog that appears after clicking one of the checkboxes in this element.
@@ -40,7 +40,7 @@ namespace EpicGames.Slack.Elements
 		/// <summary>
 		/// Construct a new Button action element.
 		/// </summary>
-		public OverflowMenuElement(string actionId, List<Option> options, SlackConfirm? confirm = null)
+		public OverflowMenuElement(string actionId, List<SlackOption> options, SlackConfirm? confirm = null)
 			: base("overflow")
 		{
 			ActionId = actionId;

@@ -11,7 +11,7 @@ namespace EpicGames.Slack
 	/// <summary>
 	/// An object that represents a single selectable item in a select menu, multi-select menu, checkbox group, radio button group, or overflow menu.
 	/// </summary>
-	public class Option
+	public class SlackOption
 	{
 		/// <summary>
 		/// A text object that defines the text shown in the option on the menu. Overflow, select, and multi-select menus can only use plain_text objects, while radio buttons and checkboxes can use mrkdwn text objects.
@@ -41,7 +41,7 @@ namespace EpicGames.Slack
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public Option(TextObject text, string value)
+		public SlackOption(TextObject text, string value)
 		{
 			Text = text;
 			Value = value;
@@ -50,7 +50,7 @@ namespace EpicGames.Slack
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public Option(string text, string value)
+		public SlackOption(string text, string value)
 			: this(new PlainTextObject(text), value)
 		{
 		}
@@ -59,7 +59,7 @@ namespace EpicGames.Slack
 	/// <summary>
 	/// Provides a way to group options in a select menu or multi-select menu.
 	/// </summary>
-	public class OptionGroup
+	public class SlackOptionGroup
 	{
 		/// <summary>
 		/// A plain_text only text object that defines the label shown above this group of options. Maximum length for the text in this field is 75 characters.
@@ -69,12 +69,12 @@ namespace EpicGames.Slack
 		/// <summary>
 		/// An array of option objects that belong to this specific group. Maximum of 100 items.
 		/// </summary>
-		public List<Option> Options { get; } = new List<Option>();
+		public List<SlackOption> Options { get; } = new List<SlackOption>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public OptionGroup(PlainTextObject label, List<Option> options)
+		public SlackOptionGroup(PlainTextObject label, List<SlackOption> options)
 		{
 			Label = label;
 			Options.AddRange(options);

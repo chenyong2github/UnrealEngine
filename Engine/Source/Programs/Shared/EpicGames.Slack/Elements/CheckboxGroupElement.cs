@@ -25,13 +25,13 @@ namespace EpicGames.Slack.Elements
 		/// An array of option objects. A maximum of 10 options are allowed.
 		/// </summary>
 		[JsonPropertyName("options")]
-		public List<Option> Options { get; } = new List<Option>();
+		public List<SlackOption> Options { get; } = new List<SlackOption>();
 
 		/// <summary>
 		/// An array of option objects that exactly matches one or more of the options within options. These options will be selected when the checkbox group initially loads.
 		/// </summary>
 		[JsonPropertyName("initial_options")]
-		public List<Option> InitialOptions { get; } = new List<Option>();
+		public List<SlackOption> InitialOptions { get; } = new List<SlackOption>();
 
 		/// <summary>
 		/// A confirm object that defines an optional confirmation dialog that appears after clicking one of the checkboxes in this element.
@@ -48,7 +48,7 @@ namespace EpicGames.Slack.Elements
 		/// <summary>
 		/// Construct a new Button action element.
 		/// </summary>
-		public CheckboxGroupElement(string actionId, List<Option> options)
+		public CheckboxGroupElement(string actionId, List<SlackOption> options)
 			: base("checkboxes")
 		{
 			ActionId = actionId;

@@ -45,19 +45,19 @@ namespace EpicGames.Slack.Elements
 		/// An array of option objects. A maximum of 10 options are allowed.
 		/// </summary>
 		[JsonPropertyName("options")]
-		public List<Option>? Options { get; set; }
+		public IReadOnlyList<SlackOption>? Options { get; set; }
 
 		/// <summary>
 		/// An array of option objects. A maximum of 10 options are allowed.
 		/// </summary>
 		[JsonPropertyName("option_groups")]
-		public List<OptionGroup>? OptionGroups { get; set; }
+		public IReadOnlyList<SlackOptionGroup>? OptionGroups { get; set; }
 
 		/// <summary>
 		/// An array of option objects that exactly matches one or more of the options within options. These options will be selected when the checkbox group initially loads.
 		/// </summary>
 		[JsonPropertyName("initial_option")]
-		public Option? InitialOption { get; }
+		public SlackOption? InitialOption { get; }
 
 		/// <summary>
 		/// A confirm object that defines an optional confirmation dialog that appears after clicking one of the checkboxes in this element.
@@ -74,21 +74,21 @@ namespace EpicGames.Slack.Elements
 		/// <summary>
 		/// Construct a new Button action element.
 		/// </summary>
-		public StaticSelectMenuElement(string actionId, PlainTextObject placeholder, List<Option> options)
+		public StaticSelectMenuElement(string actionId, PlainTextObject placeholder, List<SlackOption> options)
 			: base("static_select", actionId)
 		{
 			Placeholder = placeholder;
-			Options = new List<Option>(options);
+			Options = new List<SlackOption>(options);
 		}
 
 		/// <summary>
 		/// Construct a new Button action element.
 		/// </summary>
-		public StaticSelectMenuElement(string actionId, PlainTextObject placeholder, List<OptionGroup> optionGroups)
+		public StaticSelectMenuElement(string actionId, PlainTextObject placeholder, List<SlackOptionGroup> optionGroups)
 			: base("static_select", actionId)
 		{
 			Placeholder = placeholder;
-			OptionGroups = new List<OptionGroup>(optionGroups);
+			OptionGroups = new List<SlackOptionGroup>(optionGroups);
 		}
 	}
 }

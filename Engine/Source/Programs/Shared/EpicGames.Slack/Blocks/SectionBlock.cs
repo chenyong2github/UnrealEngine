@@ -24,7 +24,7 @@ namespace EpicGames.Slack.Blocks
 		/// Maximum number of items is 10. Maximum length for the text in each item is 2000 characters.
 		/// </summary>
 		[JsonPropertyName("fields")]
-		public List<TextObject>? Fields { get; set; }
+		public IReadOnlyList<TextObject>? Fields { get; set; }
 
 		/// <summary>
 		/// One of the available element objects.
