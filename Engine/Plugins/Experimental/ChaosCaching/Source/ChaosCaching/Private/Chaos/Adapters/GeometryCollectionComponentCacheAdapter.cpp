@@ -612,6 +612,11 @@ namespace Chaos
 
 		return nullptr;
 	}
+	
+	Chaos::FPhysicsSolverEvents* FGeometryCollectionCacheAdapter::BuildEventsSolver(UPrimitiveComponent* InComponent) const
+	{
+		return GetComponentSolver(InComponent);
+	}
 
 	void FGeometryCollectionCacheAdapter::SetRestState(UPrimitiveComponent* InComponent, UChaosCache* InCache, const FTransform& InRootTransform, Chaos::FReal InTime) const
 	{
@@ -630,7 +635,6 @@ namespace Chaos
 			const FTransform ActorToWorld = InRootTransform;
 			const FTransform WorldToComponent = Comp->GetComponentTransform().Inverse();
 			FTransform ActorToComponent = ActorToWorld * WorldToComponent;
-
 			
 			if (const UGeometryCollection* RestCollection = Comp->GetRestCollection())
 			{

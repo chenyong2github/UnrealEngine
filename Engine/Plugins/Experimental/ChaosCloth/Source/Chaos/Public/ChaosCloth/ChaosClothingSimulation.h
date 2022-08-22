@@ -22,6 +22,7 @@ namespace Chaos
 	class FClothingSimulationMesh;
 	class FClothingSimulationCloth;
 	class FClothingSimulationCollider;
+	class FSkeletalMeshCacheAdapter;
 
 	typedef FClothingSimulationContextCommon FClothingSimulationContext;
 
@@ -33,6 +34,8 @@ namespace Chaos
 	public:
 		FClothingSimulation();
 		virtual ~FClothingSimulation() override;
+
+		friend FSkeletalMeshCacheAdapter;
 
 	protected:
 		// IClothingSimulation interface

@@ -21,7 +21,10 @@ public:
 
 	void FlushAllCacheWrites();
 
-	const TArray<UChaosCache*> GetCaches() const;
+	const TArray<UChaosCache*>& GetCaches() const {return Caches;}
+
+	/** Return the max duration of all the caches stored in the collection */
+	float GetMaxDuration() const;
 
 	UPROPERTY(EditAnywhere, Instanced, Category="Caching", meta=(EditFixedOrder))
 	TArray<TObjectPtr<UChaosCache>> Caches;

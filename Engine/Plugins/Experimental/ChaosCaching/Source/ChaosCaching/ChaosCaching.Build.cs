@@ -18,7 +18,10 @@ namespace UnrealBuildTool.Rules
                     "RenderCore",
                     "RHI",
 					"GeometryCollectionEngine",
-					"ChaosSolverEngine"
+					"ChaosSolverEngine",
+					"MovieScene",
+					"MovieSceneTracks",
+					"LevelSequence",
 				});
 
 			if(Target.bBuildEditor)

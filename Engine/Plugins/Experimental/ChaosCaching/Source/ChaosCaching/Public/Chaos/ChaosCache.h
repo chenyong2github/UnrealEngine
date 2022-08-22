@@ -171,6 +171,7 @@ struct FCacheEvaluationContext
 	bool                 bEvaluateCurves;
 	bool                 bEvaluateEvents;
 	TArray<int32>        EvaluationIndices;
+	bool                 bEvaluateChannels;
 };
 
 struct FCacheEvaluationResult
@@ -181,6 +182,7 @@ public:
 	TArray<FTransform>                     Transform;
 	TArray<TMap<FName, float>>             Curves;
 	TMap<FName, TArray<FCacheEventHandle>> Events;
+	TMap<FName, TArray<float>>             Channels;
 };
 
 struct FPendingParticleWrite
@@ -191,12 +193,24 @@ struct FPendingParticleWrite
 	TArray<TPair<FName, float>> PendingCurveData;
 };
 
+USTRUCT()
+struct FRichCurves
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	TArray<FRichCurve> RichCurves;
+};
+
 struct FPendingFrameWrite
 {
 	float                         Time;
 	TArray<FPendingParticleWrite> PendingParticleData;
 	TArray<TPair<FName, float>>   PendingCurveData;
 	TMap<FName, FCacheEventTrack> PendingEvents;
+
+	TArray<int32>				  PendingChannelsIndices;
+	TMap<FName, TArray<float>>	  PendingChannelsData;
 
 	template<typename T>
 	FCacheEventTrack& FindOrAddEventTrack(FName InName)
@@ -367,6 +381,10 @@ public:
 	/** Per-particle data, includes transforms, velocities and other per-particle, per-frame data */
 	UPROPERTY()
 	TArray<FPerParticleCacheData> ParticleTracks;
+
+	/** Per-particle data, includes transforms, velocities and other per-particle, per-frame data */
+	UPROPERTY()
+	TMap<FName,FRichCurves> ChannelsTracks;
 
 	/** Per component/cache curve data, any continuous data that isn't per-particle can be stored here */
 	UPROPERTY()

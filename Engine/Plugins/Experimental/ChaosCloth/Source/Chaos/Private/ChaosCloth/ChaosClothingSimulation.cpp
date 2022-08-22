@@ -579,7 +579,14 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 		}
 
 		// Step the simulation
-		Solver->Update((Softs::FSolverReal)Context->DeltaSeconds);
+		if(Solver->GetEnableSolver() || (Context->CachedPositions.Num() == 0 && Context->CachedVelocities.Num() == 0))
+		{
+			Solver->Update((Softs::FSolverReal)Context->DeltaSeconds);
+		}
+		else
+		{
+			Solver->UpdateFromCache(Context->CachedPositions, Context->CachedVelocities);
+		}
 
 		// Keep the actual used number of iterations for the stats
 		NumIterations = Solver->GetNumUsedIterations();

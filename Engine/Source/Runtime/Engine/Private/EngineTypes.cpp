@@ -120,7 +120,8 @@ FLightmassDebugOptions::FLightmassDebugOptions()
 	, ExecutionTimeDivisor(15.0f)
 {}
 
-UActorComponent* FComponentReference::GetComponent(AActor* OwningActor) const
+
+UActorComponent* FBaseComponentReference::ExtractComponent(AActor* SearchActor) const 
 {
 	UActorComponent* Result = nullptr;
 
@@ -131,8 +132,6 @@ UActorComponent* FComponentReference::GetComponent(AActor* OwningActor) const
 	}
 	else
 	{
-		// Look in Actor if specified, OwningActor if not
-		AActor* SearchActor = (OtherActor != NULL) ? ToRawPtr(OtherActor) : OwningActor;
 		if(SearchActor)
 		{
 			if(ComponentProperty != NAME_None)
@@ -156,6 +155,18 @@ UActorComponent* FComponentReference::GetComponent(AActor* OwningActor) const
 	}
 
 	return Result;
+}
+
+UActorComponent* FComponentReference::GetComponent(AActor* OwningActor) const
+{
+	AActor* SearchActor = (OtherActor != NULL) ? ToRawPtr(OtherActor) : OwningActor;
+	return ExtractComponent(SearchActor);
+}
+
+UActorComponent* FSoftComponentReference::GetComponent(AActor* OwningActor) const
+{
+	AActor* SearchActor = (OtherActor.IsValid()) ? OtherActor.Get() : OwningActor;
+	return ExtractComponent(SearchActor);
 }
 
 const TCHAR* LexToString(const EWorldType::Type Value)

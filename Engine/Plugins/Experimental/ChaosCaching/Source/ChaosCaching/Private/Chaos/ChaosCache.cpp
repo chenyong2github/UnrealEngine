@@ -111,6 +111,30 @@ void UChaosCache::FlushPendingFrames()
 	while(PendingWrites.Dequeue(NewData))
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(QSTAT_CacheFlushSingleFrame);
+
+		{
+			const int32 NumParticles = NewData.PendingChannelsIndices.Num();
+			bWroteParticleData |= NumParticles > 0;
+
+			for(auto& ChannelData : NewData.PendingChannelsData)
+			{
+				// TArray<FRichCurve>& TargetCurve = ChannelsTracks.FindOrAdd(ChannelData.Key).RichCurves;
+				// TargetCurve.SetNum(NumParticles);
+
+				FRichCurves* TargetCurve = ChannelsTracks.Find(ChannelData.Key);
+				if(TargetCurve == nullptr)
+				{
+					TargetCurve = &ChannelsTracks.Add(ChannelData.Key);
+					TargetCurve->RichCurves.SetNum(NumParticles);
+				}
+				int32 ParticleIndex = 0;
+				for(auto& ChannelValue : ChannelData.Value)
+				{
+					TargetCurve->RichCurves[ParticleIndex++].AddKey(NewData.Time, ChannelValue);
+				}
+			}
+		}
+		
 		const int32 ParticleCount = NewData.PendingParticleData.Num();
 
 		bWroteParticleData |= ParticleCount > 0;
@@ -136,7 +160,7 @@ void UChaosCache::FlushPendingFrames()
 				PTrack.BeginOffset = NewData.Time;
 
 				// Particle will hold at end of recording.
-				PTrack.bDeactivateOnEnd = false;
+				PTrack.bDeactivateOnEnd = false; 
 			}
 
 			if (ParticleData.bPendingDeactivate)
@@ -208,6 +232,7 @@ FCacheUserToken UChaosCache::BeginRecord(UPrimitiveComponent* InComponent, FGuid
 			RecordedDuration = 0.0f;
 			NumRecordedFrames = 0;
 			ParticleTracks.Reset();
+			ChannelsTracks.Reset();
 			TrackToParticle.Reset();
 			CurveData.Reset();
 			EventTracks.Reset();
@@ -323,6 +348,7 @@ FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InCo
 	QUICK_SCOPE_CYCLE_COUNTER(QSTAT_CacheEval);
 
 	FCacheEvaluationResult Result;
+	static const TMap<FName, float> EmptyMap;
 
 	if(CurrentPlaybackCount.load() == 0)
 	{
@@ -333,7 +359,7 @@ FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InCo
 
 	Result.EvaluatedTime = InContext.TickRecord.GetTime();
 
-	if(!InContext.bEvaluateTransform && !InContext.bEvaluateCurves && !InContext.bEvaluateEvents)
+	if(!InContext.bEvaluateTransform && !InContext.bEvaluateCurves && !InContext.bEvaluateEvents && !InContext.bEvaluateChannels)
 	{
 		// no evaluation requested
 		return Result;
@@ -345,17 +371,32 @@ FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InCo
 	{
 		if(InContext.bEvaluateTransform)
 		{
-			Result.Transform.SetNum(NumProvidedIndices);
+			Result.Transform.Init(FTransform::Identity, NumProvidedIndices);
 		}
 
 		if(InContext.bEvaluateCurves)
 		{
-			Result.Curves.SetNum(NumProvidedIndices);
+			Result.Curves.Init(EmptyMap,NumProvidedIndices);
+		}
+
+		if(InContext.bEvaluateChannels)
+		{
+			for(auto& ChannelData : ChannelsTracks)
+			{
+				TArray<float>& ResultData = Result.Channels.FindOrAdd(ChannelData.Key);
+				ResultData.Init(0.0, NumProvidedIndices);
+
+				for(int32 EvalIndex = 0; EvalIndex < NumProvidedIndices; ++EvalIndex)
+				{
+					const int32 CacheIndex = InContext.EvaluationIndices[EvalIndex];
+					ResultData[CacheIndex] = ChannelData.Value.RichCurves[CacheIndex].Eval(InContext.TickRecord.GetTime(),0.0);
+				}
+			}
 		}
 
 		for(int32 EvalIndex = 0; EvalIndex < NumProvidedIndices; ++EvalIndex)
 		{
-			int32 CacheIndex = InContext.EvaluationIndices[EvalIndex];
+			const int32 CacheIndex = InContext.EvaluationIndices[EvalIndex];
 			if(ensure(ParticleTracks.IsValidIndex(CacheIndex)))
 			{
 				FTransform* EvalTransform = nullptr;
@@ -396,7 +437,19 @@ FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InCo
 		{
 			Result.Curves.Reserve(NumParticles);
 		}
-
+		if(InContext.bEvaluateChannels)
+		{
+			for(auto& ChannelData : ChannelsTracks)
+			{
+				TArray<float>& ResultData = Result.Channels.FindOrAdd(ChannelData.Key);
+				ResultData.Init(0.0, NumParticles);
+				
+				for(int32 EvalIndex = 0; EvalIndex < NumParticles; ++EvalIndex)
+				{
+					ResultData[EvalIndex] = ChannelData.Value.RichCurves[EvalIndex].Eval(InContext.TickRecord.GetTime(),0.0);
+				}
+			}
+		}
 		for(int32 Index = 0; Index < NumParticles; ++Index)
 		{
 			if(ParticleTracks[Index].TransformData.BeginOffset > InContext.TickRecord.GetTime())
@@ -416,13 +469,13 @@ FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InCo
 
 			if(InContext.bEvaluateTransform)
 			{
-				Result.Transform.AddUninitialized();
+				Result.Transform.Add(FTransform::Identity);
 				EvalTransform = &Result.Transform.Last();
 			}
 
 			if(InContext.bEvaluateCurves)
 			{
-				Result.Curves.AddUninitialized();
+				Result.Curves.Add(EmptyMap);
 				EvalCurves = &Result.Curves.Last();
 			}
 

@@ -29,7 +29,6 @@ namespace Chaos
 	class IRewindCallback;
 
 	extern CHAOS_API int32 GSingleThreadedPhysics;
-
 	extern CHAOS_API int32 UseAsyncInterpolation;
 	extern CHAOS_API int32 ForceDisableAsyncPhysics;
 	extern CHAOS_API FRealSingle AsyncInterpolationMultiplier;
@@ -166,8 +165,54 @@ namespace Chaos
 		TaskGraph,
 		SingleThread
 	};
+	
+	/** Base solver class storing events that will be used by the derived solver during the solve.
+	 * Currently used by caching but could be used for any other pre/post solve works that need to be done.  */
+	class CHAOS_API FPhysicsSolverEvents
+	{
 
-	class CHAOS_API FPhysicsSolverBase
+	public:
+
+		/** Only allow construction with valid parameters as well as restricting to module construction */
+		virtual ~FPhysicsSolverEvents() { ClearCallbacks(); }
+		
+		/** Events */
+		/** Pre advance is called before any physics processing or simulation happens in a given physics update */
+		FDelegateHandle AddPreAdvanceCallback(FSolverPreAdvance::FDelegate InDelegate);
+		bool            RemovePreAdvanceCallback(FDelegateHandle InHandle);
+
+		/** Pre buffer happens after the simulation has been advanced (particle positions etc. will have been updated) but GT results haven't been prepared yet */
+		FDelegateHandle AddPreBufferCallback(FSolverPreAdvance::FDelegate InDelegate);
+		bool            RemovePreBufferCallback(FDelegateHandle InHandle);
+
+		/** Post advance happens after all processing and results generation has been completed */
+		FDelegateHandle AddPostAdvanceCallback(FSolverPostAdvance::FDelegate InDelegate);
+		bool            RemovePostAdvanceCallback(FDelegateHandle InHandle);
+
+		/** Teardown happens as the solver is destroyed or streamed out */
+		FDelegateHandle AddTeardownCallback(FSolverTeardown::FDelegate InDelegate);
+		bool            RemoveTeardownCallback(FDelegateHandle InHandle);
+
+		/** Clear all the callbacks*/
+		void            ClearCallbacks() 
+		{
+			EventPostSolve.Clear(); 
+			EventPreBuffer.Clear(); 
+			EventPostSolve.Clear(); 
+			EventTeardown.Clear();
+		}
+	
+	protected:
+			
+		/** Storage for events, see the Add/Remove pairs above for event timings */
+		FSolverPreAdvance EventPreSolve;
+		FSolverPreBuffer EventPreBuffer;
+		FSolverPostAdvance EventPostSolve;
+		FSolverTeardown EventTeardown;
+	};
+
+
+	class CHAOS_API FPhysicsSolverBase : public FPhysicsSolverEvents
 	{
 	public:
 
@@ -601,33 +646,12 @@ namespace Chaos
 		TArray<FGeometryParticle*> UniqueIdxToGTParticles;
 
 	public:
-		/** Events */
-		/** Pre advance is called before any physics processing or simulation happens in a given physics update */
-		FDelegateHandle AddPreAdvanceCallback(FSolverPreAdvance::FDelegate InDelegate);
-		bool            RemovePreAdvanceCallback(FDelegateHandle InHandle);
-
-		/** Pre buffer happens after the simulation has been advanced (particle positions etc. will have been updated) but GT results haven't been prepared yet */
-		FDelegateHandle AddPreBufferCallback(FSolverPreAdvance::FDelegate InDelegate);
-		bool            RemovePreBufferCallback(FDelegateHandle InHandle);
-
-		/** Post advance happens after all processing and results generation has been completed */
-		FDelegateHandle AddPostAdvanceCallback(FSolverPostAdvance::FDelegate InDelegate);
-		bool            RemovePostAdvanceCallback(FDelegateHandle InHandle);
-
-		/** Teardown happens as the solver is destroyed or streamed out */
-		FDelegateHandle AddTeardownCallback(FSolverTeardown::FDelegate InDelegate);
-		bool            RemoveTeardownCallback(FDelegateHandle InHandle);
 
 		/** Get the lock used for external data manipulation. A better API would be to use scoped locks so that getting a write lock is non-const */
 		//NOTE: this is a const operation so that you can acquire a read lock on a const solver. The assumption is that non-const write operations are already marked non-const
 		FPhysSceneLock& GetExternalDataLock_External() const { return *ExternalDataLock_External; }
 
 	protected:
-		/** Storage for events, see the Add/Remove pairs above for event timings */
-		FSolverPreAdvance EventPreSolve;
-		FSolverPreBuffer EventPreBuffer;
-		FSolverPostAdvance EventPostSolve;
-		FSolverTeardown EventTeardown;
 
 		void TrackGTParticle_External(FGeometryParticle& Particle);
 		void ClearGTParticle_External(FGeometryParticle& Particle);

@@ -66,6 +66,12 @@ public:
 	  */
 	virtual bool IsEditor() const { return false; }
 
+	/** 
+	  * @return Spawner priority in order to sort the list of the spawners. If several spawners 
+	  *	match the template type, the one with the highest priority will be picked. 
+	  */
+	virtual int32 GetSpawnerPriority() const { return 0; }
+
 #if WITH_EDITOR
 	
 	/**

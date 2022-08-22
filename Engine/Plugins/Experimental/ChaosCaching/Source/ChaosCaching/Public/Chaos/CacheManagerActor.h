@@ -5,6 +5,7 @@
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "ChaosCache.h"
+#include "Adapters/CacheAdapter.h"
 #include "Engine/EngineTypes.h"
 #include "Chaos/Core.h"
 #include "GameFramework/Actor.h"
@@ -39,7 +40,7 @@ namespace Chaos
 	using FPhysicsSolver = FPBDRigidsSolver;
 }
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct CHAOSCACHING_API FObservedComponent
 {
 	GENERATED_BODY()
@@ -52,17 +53,41 @@ struct CHAOSCACHING_API FObservedComponent
 	{
 	}
 
+	FObservedComponent& operator=(const FObservedComponent& OtherComponent)
+	{
+		CacheName = OtherComponent.CacheName;
+		bIsSimulating = OtherComponent.bIsSimulating;
+		bTriggered = OtherComponent.bTriggered;
+		AbsoluteTime = OtherComponent.AbsoluteTime;
+		TimeSinceTrigger = OtherComponent.TimeSinceTrigger;
+		Cache = OtherComponent.Cache;
+		TickRecord = OtherComponent.TickRecord;
+		BestFitAdapter = OtherComponent.BestFitAdapter;
+		SoftComponentRef = OtherComponent.SoftComponentRef;
+		
+		return *this;
+	}
+
 	/** Unique name for the cache, used as a key into the cache collection */
 	UPROPERTY(EditAnywhere, Category = "Caching")
 	FName CacheName;
 
+	/** Deprecated hard object reference. Not working with sequencer and take recorder since
+	 all the pointers from any other packages are cleared out. Use TSoftObjectPtr instead. */
+	UE_DEPRECATED(5.1, "This property is going to be deleted. Use the SoftComponentRef instead")
+	UPROPERTY()
+	FComponentReference ComponentRef;
+
 	/** The component observed by this object for either playback or recording */
 	UPROPERTY(EditAnywhere, Category = "Caching", meta = (UseComponentPicker, AllowAnyActor))
-	FComponentReference ComponentRef;
+	FSoftComponentReference SoftComponentRef;
 
 	/** Capture of the initial state of the component before cache manager takes control. */
 	UPROPERTY(EditAnywhere, Category = "Caching")
-	bool bIsSimulating;				  
+	bool bIsSimulating;
+
+	/** Post serialize function to transfer datas from the deprecated TObjectPtr -> TSoftObjectPtr */
+	void PostSerialize(const FArchive& Ar);
 
 	/** Prepare runtime tick data for a new run */
 	void ResetRuntimeData(const EStartMode ManagerStartMode);
@@ -140,6 +165,7 @@ public:
 	/** end AActor interface */
 
 	/** UObject interface */
+	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
 	friend class IChaosCachingEditorPlugin;
 #endif
@@ -179,24 +205,37 @@ public:
 	/** Returns true if this cache manager is allowed to record caches. */
 	bool CanRecord() const { return bCanRecord; }
 
+	/** Initialize the cache adapters before playing/recording the cache. */
+	void BeginEvaluate();
+	
+	/** Clean the cache adapters after playing/recording the cache.  */
+	void EndEvaluate();
+
+	/** Accessor to the manager observed components (read only) */
+	const TArray<FObservedComponent>& GetObservedComponents() const {return ObservedComponents;}
+
+	/** Accessor to the manager observed components (read/write) */
+	TArray<FObservedComponent>& GetObservedComponents() {return ObservedComponents;}
+
 protected:
+
 	/** AActor interface */
 	void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	/** End AActor interface */
-
+	
 	/**	Handles physics thread pre-solve (push kinematic data for components under playback) */
-	void HandlePreSolve(Chaos::FReal InDt, Chaos::FPhysicsSolver* InSolver);
-
-	/** Handles physics thread pre-buffer (mark dirty kinematic particles) */
-	void HandlePreBuffer(Chaos::FReal InDt, Chaos::FPhysicsSolver* InSolver);
-
-	/** Handles physics thread post-solve (record data for components under record) */
-	void HandlePostSolve(Chaos::FReal InDt, Chaos::FPhysicsSolver* InSolver);
-
-	/** Handles solver teardown due to solver destruction / stream-out */
-	void HandleTeardown(Chaos::FPhysicsSolver* InSolver);
-
+    void HandlePreSolve(Chaos::FReal InDt, Chaos::FPhysicsSolverEvents* InSolver);
+   
+    /** Handles physics thread pre-buffer (mark dirty kinematic particles) */
+    void HandlePreBuffer(Chaos::FReal InDt, Chaos::FPhysicsSolverEvents* InSolver);
+   
+    /** Handles physics thread post-solve (record data for components under record) */
+    void HandlePostSolve(Chaos::FReal InDt, Chaos::FPhysicsSolverEvents* InSolver);
+   
+    /** Handles solver teardown due to solver destruction / stream-out */
+    void HandleTeardown(Chaos::FPhysicsSolverEvents* InSolver);
+	
 	/** Evaluates and sets state for all observed components at the specified time. */
 	void OnStartFrameChanged(Chaos::FReal InT);
 
@@ -259,7 +298,7 @@ private:
 	TArray<Chaos::FComponentCacheAdapter*> ActiveAdapters;
 
 	/** List of particles returned by the adapter as requiring a kinematic update */
-	TMap<Chaos::FPhysicsSolver*, FPerSolverData> PerSolverData;
+	TMap<Chaos::FPhysicsSolverEvents*, FPerSolverData> PerSolverData;
 
 	/** Lists of currently open caches that need to be closed when complete */
 	TArray<TTuple<FCacheUserToken, UChaosCache*>> OpenRecordCaches;

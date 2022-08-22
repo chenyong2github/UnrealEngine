@@ -7,6 +7,7 @@
 #include "Features/IModularFeature.h"
 #include "Templates/SubclassOf.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "Chaos/Framework/PhysicsSolverBase.h"
 
 class UClass;
 class UChaosCache;
@@ -19,12 +20,8 @@ struct FPendingFrameWrite;
 
 namespace Chaos
 {
-	using FPhysicsSolver = FPBDRigidsSolver;
-}
-
-namespace Chaos
-{
 	class FComponentCacheAdapter;
+	class AChaosCacheManager;
 	struct FAdapterUtil
 	{
 		static CHAOSCACHING_API FComponentCacheAdapter* GetBestAdapterForClass(TSubclassOf<UPrimitiveComponent> InComponentClass, bool bAllowDerived = true);
@@ -106,12 +103,19 @@ namespace Chaos
 		virtual uint8 GetPriority() const = 0;
 
 		/**
-		 * Called to retrieve the solver for a specific component. Required until a more generic method
+		 * Called to retrieve the rigid solver for a specific component if it exists. Required until a more generic method
 		 * of solver binding for components is devised.
 		 * #BGTODO Remove when multiple solver concept moved into primitive component
 		 * @param InComponent Component to resolve the solver for
 		 */
 		virtual Chaos::FPhysicsSolver* GetComponentSolver(UPrimitiveComponent* InComponent) const = 0;
+
+		/**
+		 * Called to retrieve the base events solver for a specific component. If the component is
+		 * requiring it the solver could be rebuilt.
+		 * @param InComponent Component to resolve the solver for
+		 */
+		virtual Chaos::FPhysicsSolverEvents* BuildEventsSolver(UPrimitiveComponent* InComponent) const { return nullptr; }
 
 		/**
 		 * Called from the game thread to perform any global setup that the adapter may need to perform.

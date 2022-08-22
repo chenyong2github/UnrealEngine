@@ -16,7 +16,8 @@ public class ChaosCloth : ModuleRules
                 "ClothingSystemRuntimeCommon",
                 "ClothingSystemRuntimeInterface",
                 "Engine",
-                "Chaos"
+                "Chaos",
+                "ChaosCaching"
             }
 		);
 

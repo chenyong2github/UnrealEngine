@@ -10,6 +10,7 @@
 namespace Chaos {
 	class FGeometryCollectionCacheAdapter;
 	class FStaticMeshCacheAdapter;
+	class FSkeletalMeshCacheAdapter;
 }
 
 DECLARE_LOG_CATEGORY_EXTERN(LogChaosCache, Verbose, All);
@@ -45,4 +46,5 @@ private:
 	TUniquePtr<Chaos::FGeometryCollectionCacheAdapter> GeometryCollectionAdapter;
 	TUniquePtr<Chaos::FStaticMeshCacheAdapter> StaticMeshAdapter;
 
+	FDelegateHandle OnCreateMovieSceneObjectSpawnerHandle;
 };

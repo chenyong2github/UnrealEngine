@@ -2080,13 +2080,25 @@ const IClothingSimulation* USkeletalMeshComponent::GetClothingSimulation() const
 	return ClothingSimulation;
 }
 
+IClothingSimulation* USkeletalMeshComponent::GetClothingSimulation()
+{
+	return ClothingSimulation;
+}
+
 const IClothingSimulationContext* USkeletalMeshComponent::GetClothingSimulationContext() const
 {
 	return ClothingSimulationContext;
 }
 
+IClothingSimulationContext* USkeletalMeshComponent::GetClothingSimulationContext()
+{
+	check(IsInGameThread());
+	return ClothingSimulationContext;
+}
+
 UClothingSimulationInteractor* USkeletalMeshComponent::GetClothingSimulationInteractor() const
 {
+	check(IsInGameThread());
 	return ClothingInteractor;
 }
 

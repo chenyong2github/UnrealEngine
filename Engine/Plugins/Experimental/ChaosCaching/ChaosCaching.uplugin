@@ -26,5 +26,11 @@
 			"Type": "Editor",
 			"LoadingPhase": "PreDefault"
 		}
+	],
+	"Plugins": [
+		{
+			"Name": "Takes",
+			"Enabled": true
+		}
 	]
 }

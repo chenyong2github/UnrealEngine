@@ -3114,22 +3114,14 @@ struct FConstrainComponentPropName
 };
 
 /** 
- *	Struct that allows for different ways to reference a component. 
- *	If just an Actor is specified, will return RootComponent of that Actor.
+ *	Base class for the hard/soft component reference structs 
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FComponentReference
+struct ENGINE_API FBaseComponentReference
 {
 	GENERATED_BODY()
 
-	FComponentReference() : OtherActor(nullptr) {}
-
-	/** 
-	 * Pointer to a different Actor that owns the Component.  
-	 * If this is not provided the reference refers to a component on this / the same actor.
-	 */
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category=Component, meta = (DisplayName = "Referenced Actor"))
-	TObjectPtr<AActor> OtherActor;
+	FBaseComponentReference()  {}
 
 	/** Name of component to use. If this is not specified the reference refers to the root component. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Component, meta = (DisplayName = "Component Name"))
@@ -3142,14 +3134,72 @@ struct ENGINE_API FComponentReference
 	/** Allows direct setting of first component to constraint. */
 	TWeakObjectPtr<class UActorComponent> OverrideComponent;
 
+	/** Extract the actual component pointer from this reference given a search actor */
+	class UActorComponent* ExtractComponent(AActor* SearchActor) const;
+
+	/** FBaseComponentReference == operator */
+	bool operator== (const FBaseComponentReference& Other) const
+	{
+		return ComponentProperty == Other.ComponentProperty && PathToComponent == Other.PathToComponent && OverrideComponent == Other.OverrideComponent;
+	}
+};
+
+/** 
+ *	Struct that allows for different ways to reference a component using TObjectPtr. 
+ *	If just an Actor is specified, will return RootComponent of that Actor.
+ */
+USTRUCT(BlueprintType)
+struct ENGINE_API FComponentReference : public FBaseComponentReference
+{
+	GENERATED_BODY()
+
+	FComponentReference() : OtherActor(nullptr) {}
+
+	/** 
+	 * Hard Pointer to a different Actor that owns the Component.  
+	 * If this is not provided the reference refers to a component on this / the same actor.
+	 */
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category=Component, meta = (DisplayName = "Referenced Actor"))
+	TObjectPtr<AActor> OtherActor;
+
 	/** Get the actual component pointer from this reference */
 	class UActorComponent* GetComponent(AActor* OwningActor) const;
 
+	/** FComponentReference == operator */
 	bool operator== (const FComponentReference& Other) const
 	{
-		return OtherActor == Other.OtherActor && ComponentProperty == Other.ComponentProperty && PathToComponent == Other.PathToComponent && OverrideComponent == Other.OverrideComponent;
+		return (OtherActor == Other.OtherActor) && (FBaseComponentReference::operator==(Other));
 	}
 };
+
+/** 
+ *	Struct that allows for different ways to reference a component using TSoftObjectPtr. 
+ *	If just an Actor is specified, will return RootComponent of that Actor.
+ */
+USTRUCT(BlueprintType)
+struct ENGINE_API FSoftComponentReference : public FBaseComponentReference
+{
+	GENERATED_BODY()
+
+	FSoftComponentReference() : OtherActor(nullptr) {}
+
+	/** 
+	 * Soft Pointer to a different Actor that owns the Component.  
+	 * If this is not provided the reference refers to a component on this / the same actor.
+	 */
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category=Component, meta = (DisplayName = "Referenced Actor"))
+	TSoftObjectPtr<AActor> OtherActor;
+
+	/** Get the actual component pointer from this reference */
+	class UActorComponent* GetComponent(AActor* OwningActor) const;
+
+	/** FSoftComponentReference == operator */
+	bool operator== (const FSoftComponentReference& Other) const
+	{
+		return (OtherActor == Other.OtherActor) && (FBaseComponentReference::operator==(Other));
+	}
+};
+
 
 /** Types of valid physical material mask colors which may be associated with a physical material */
 UENUM(BlueprintType)

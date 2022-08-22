@@ -136,7 +136,12 @@ namespace Chaos
 
 		return nullptr;
 	}
-
+	
+	Chaos::FPhysicsSolverEvents* FStaticMeshCacheAdapter::BuildEventsSolver(UPrimitiveComponent* InComponent) const
+	{
+		return GetComponentSolver(InComponent);
+	}
+	
 	void FStaticMeshCacheAdapter::SetRestState(UPrimitiveComponent* InComponent, UChaosCache* InCache, const FTransform& InRootTransform, Chaos::FReal InTime) const
 	{
 		if (!InCache || InCache->GetDuration() == 0.0f)

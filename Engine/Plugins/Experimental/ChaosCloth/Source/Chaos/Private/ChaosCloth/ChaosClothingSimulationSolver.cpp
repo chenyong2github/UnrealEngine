@@ -97,6 +97,7 @@ FClothingSimulationSolver::FClothingSimulationSolver()
 	, WindVelocity(ClothingSimulationSolverDefault::WindVelocity)
 	, LegacyWindAdaption(0.f)
 	, bIsClothGravityOverrideEnabled(false)
+	, bEnableSolver(true)
 {
 	Softs::FSolverParticles LocalParticles;
 	Softs::FSolverRigidParticles RigidParticles;
@@ -947,6 +948,8 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdatePreSolverStep);
 
 		ApplyPreSimulationTransforms();
+		
+		EventPreSolve.Broadcast(DeltaTime);
 	}
 
 	// Advance Sim
@@ -955,21 +958,24 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdateSolverStep);
 		SCOPE_CYCLE_COUNTER(STAT_ClothInternalSolve);
 
-		// Update solver time dependent parameters
-		constexpr Softs::FSolverReal SolverFrequency = 60.f;  // TODO: This could become a solver property
-
-		const int32 TimeDependentNumIterations = bClothSolverDisableTimeDependentNumIterations ?
-			NumIterations :
-			(int32)(SolverFrequency * DeltaTime * (Softs::FSolverReal)NumIterations);
-
-		Evolution->SetIterations(FMath::Clamp(TimeDependentNumIterations, 1, MaxNumIterations));
-
-		// Advance substeps
-		const Softs::FSolverReal SubstepDeltaTime = DeltaTime / (Softs::FSolverReal)NumSubsteps;
-	
-		for (int32 i = 0; i < NumSubsteps; ++i)
+		if(bEnableSolver)
 		{
-			Evolution->AdvanceOneTimeStep(SubstepDeltaTime, bClothSolverUseImprovedTimeStepSmoothing);
+			// Update solver time dependent parameters
+			constexpr Softs::FSolverReal SolverFrequency = 60.f;  // TODO: This could become a solver property
+
+			const int32 TimeDependentNumIterations = bClothSolverDisableTimeDependentNumIterations ?
+				NumIterations : 
+				(int32)(SolverFrequency * DeltaTime * (Softs::FSolverReal)NumIterations);
+
+			Evolution->SetIterations(FMath::Clamp(TimeDependentNumIterations, 1, MaxNumIterations));
+
+			// Advance substeps
+			const Softs::FSolverReal SubstepDeltaTime = DeltaTime / (Softs::FSolverReal)NumSubsteps;
+	
+			for (int32 i = 0; i < NumSubsteps; ++i)
+			{
+				Evolution->AdvanceOneTimeStep(SubstepDeltaTime, bClothSolverUseImprovedTimeStepSmoothing);
+			}
 		}
 
 		Time = Evolution->GetTime();
@@ -981,6 +987,8 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 		TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationSolver_UpdatePostSolverStep);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdatePostSolverStep);
 		SCOPE_CYCLE_COUNTER(STAT_ClothComputeNormals);
+		
+		EventPostSolve.Broadcast(DeltaTime);
 
 		PhysicsParallelFor(Cloths.Num(), [this](int32 ClothIndex)
 		{
@@ -991,6 +999,25 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 
 	// Save old space location for next update
 	OldLocalSpaceLocation = LocalSpaceLocation;
+}
+
+void FClothingSimulationSolver::UpdateFromCache(const TArray<FVector>& CachedPositions, const TArray<FVector>& CachedVelocities) 
+{
+	Chaos::Softs::FSolverParticles& SolverParticles = Evolution->Particles();
+	const int32 NumParticles = GetNumParticles();
+	if(CachedPositions.Num() == NumParticles)
+	{
+		for(int32 ParticleIndex = 0; ParticleIndex < NumParticles; ++ParticleIndex)
+		{
+			SolverParticles.X(ParticleIndex) = CachedPositions[ParticleIndex];
+			SolverParticles.V(ParticleIndex) = CachedVelocities[ParticleIndex];
+		}
+	}
+	PhysicsParallelFor(Cloths.Num(), [this](int32 ClothIndex)
+	{
+		FClothingSimulationCloth* const Cloth = Cloths[ClothIndex];
+		Cloth->PostUpdate(this);
+	}, /*bForceSingleThreaded =*/ !bClothSolverParallelClothPostUpdate);
 }
 
 int32 FClothingSimulationSolver::GetNumUsedIterations() const
@@ -1072,6 +1099,11 @@ FBoxSphereBounds FClothingSimulationSolver::CalculateBounds() const
 	}
 
 	return FBoxSphereBounds(LocalSpaceLocation, FVector(0.f), 0.f);
+}
+
+uint32 FClothingSimulationSolver::GetNumParticles() const
+{
+	return Evolution->Particles().Size();
 }
 
 } // End namespace Chaos

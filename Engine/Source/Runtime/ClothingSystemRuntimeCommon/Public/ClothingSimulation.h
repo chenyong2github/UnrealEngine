@@ -71,6 +71,12 @@ public:
 
 	// The predicted LOD of the skeletal mesh component running the simulation
 	int32 PredictedLod;
+	
+	// World space cached positions for the kinematics targets
+	TArray<FVector> CachedPositions;
+
+	// World space cached velocities for the kinematics targets
+	TArray<FVector> CachedVelocities;
 };
 
 // Base simulation to fill in common data for the base context

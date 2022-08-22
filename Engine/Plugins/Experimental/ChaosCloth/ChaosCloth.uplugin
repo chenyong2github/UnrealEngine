@@ -20,5 +20,11 @@
         "Type": "Runtime",
         "LoadingPhase": "PostConfigInit"
       }
-    ]
+    ],
+	"Plugins": [
+		{
+			"Name": "ChaosCaching",
+			"Enabled": true
+		}
+	]
 }

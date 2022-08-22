@@ -19,42 +19,42 @@ namespace Chaos
 		BufferMode = InBufferMode;
 	}
 
-	FDelegateHandle FPhysicsSolverBase::AddPreAdvanceCallback(FSolverPreAdvance::FDelegate InDelegate)
+	FDelegateHandle FPhysicsSolverEvents::AddPreAdvanceCallback(FSolverPreAdvance::FDelegate InDelegate)
 	{
 		return EventPreSolve.Add(InDelegate);
 	}
 
-	bool FPhysicsSolverBase::RemovePreAdvanceCallback(FDelegateHandle InHandle)
+	bool FPhysicsSolverEvents::RemovePreAdvanceCallback(FDelegateHandle InHandle)
 	{
 		return EventPreSolve.Remove(InHandle);
 	}
 
-	FDelegateHandle FPhysicsSolverBase::AddPreBufferCallback(FSolverPreBuffer::FDelegate InDelegate)
+	FDelegateHandle FPhysicsSolverEvents::AddPreBufferCallback(FSolverPreBuffer::FDelegate InDelegate)
 	{
 		return EventPreBuffer.Add(InDelegate);
 	}
 
-	bool FPhysicsSolverBase::RemovePreBufferCallback(FDelegateHandle InHandle)
+	bool FPhysicsSolverEvents::RemovePreBufferCallback(FDelegateHandle InHandle)
 	{
 		return EventPreBuffer.Remove(InHandle);
 	}
 
-	FDelegateHandle FPhysicsSolverBase::AddPostAdvanceCallback(FSolverPostAdvance::FDelegate InDelegate)
+	FDelegateHandle FPhysicsSolverEvents::AddPostAdvanceCallback(FSolverPostAdvance::FDelegate InDelegate)
 	{
 		return EventPostSolve.Add(InDelegate);
 	}
 
-	bool FPhysicsSolverBase::RemovePostAdvanceCallback(FDelegateHandle InHandle)
+	bool FPhysicsSolverEvents::RemovePostAdvanceCallback(FDelegateHandle InHandle)
 	{
 		return EventPostSolve.Remove(InHandle);
 	}
 
-	FDelegateHandle FPhysicsSolverBase::AddTeardownCallback(FSolverTeardown::FDelegate InDelegate)
+	FDelegateHandle FPhysicsSolverEvents::AddTeardownCallback(FSolverTeardown::FDelegate InDelegate)
 	{
 		return EventTeardown.Add(InDelegate);
 	}
 
-	bool FPhysicsSolverBase::RemoveTeardownCallback(FDelegateHandle InHandle)
+	bool FPhysicsSolverEvents::RemoveTeardownCallback(FDelegateHandle InHandle)
 	{
 		return EventTeardown.Remove(InHandle);
 	}

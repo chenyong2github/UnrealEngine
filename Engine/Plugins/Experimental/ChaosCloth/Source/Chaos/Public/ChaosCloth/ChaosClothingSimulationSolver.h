@@ -5,6 +5,7 @@
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Transform.h"
+#include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/ImplicitObject.h"
 #include "PhysicsProxy/PerSolverFieldSystem.h"
 
@@ -20,11 +21,12 @@ namespace Chaos
 	class FClothingSimulationMesh;
 
 	// Solver simulation node
-	class FClothingSimulationSolver final
+	class CHAOSCLOTH_API FClothingSimulationSolver final : public FPhysicsSolverEvents
 	{
 	public:
 		FClothingSimulationSolver();
 		~FClothingSimulationSolver();
+		
 
 		// ---- Animatable property setters ----
 		void SetLocalSpaceLocation(const FVec3& InLocalSpaceLocation, bool bReset = false);
@@ -50,6 +52,8 @@ namespace Chaos
 		int32 GetMaxNumIterations() const { return MaxNumIterations; }
 		void SetNumSubsteps(int32 InNumSubsteps) { NumSubsteps = InNumSubsteps; }
 		int32 GetNumSubsteps() const { return NumSubsteps; }
+		void SetEnableSolver(bool InbEnableSolver) { bEnableSolver = InbEnableSolver; }
+		bool GetEnableSolver() const { return bEnableSolver; }
 		// ---- End of the animatable property setters ----
 
 		// ---- Object management functions ----
@@ -64,7 +68,11 @@ namespace Chaos
 		TConstArrayView<const FClothingSimulationCloth*> GetCloths() const { return Cloths; }
 
 		// Update solver properties before simulation.
+		
 		void Update(FSolverReal InDeltaTime);
+
+		/** Set the cached positions onto the particles */
+		void UpdateFromCache(const TArray<FVector>& CachedPositions, const TArray<FVector>& CachedVelocities);
 
 		// Return the actual of number of iterations used by the Evolution solver after the update (different from the number of iterations, depends on frame rate)
 		int32 GetNumUsedIterations() const;
@@ -152,6 +160,7 @@ namespace Chaos
 		const Softs::FSolverReal* GetParticleInvMasses(int32 Offset) const;
 		const FClothConstraints& GetClothConstraints(int32 Offset) const { return *ClothsConstraints.FindChecked(Offset); }
 		FClothConstraints& GetClothConstraints(int32 Offset) { return *ClothsConstraints.FindChecked(Offset); }
+		uint32 GetNumParticles() const;
 		// ---- End of the Cloth interface ----
 
 		// ---- Collider interface ----
@@ -244,6 +253,9 @@ namespace Chaos
 
 		// Field system unique to the cloth solver
 		FPerSolverFieldSystem PerSolverField;
+
+		// Boolean to enable/disable solver in case caching is used
+		bool bEnableSolver;
 	};
 
 } // namespace Chaos

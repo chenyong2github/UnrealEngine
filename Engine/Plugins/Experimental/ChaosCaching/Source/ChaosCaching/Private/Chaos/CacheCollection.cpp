@@ -87,7 +87,12 @@ void UChaosCacheCollection::FlushAllCacheWrites()
 	});
 }
 
-const TArray<UChaosCache*> UChaosCacheCollection::GetCaches() const
+float UChaosCacheCollection::GetMaxDuration() const
 {
-	return Caches;
+	float MaxDuration = 0.0;
+    for( UChaosCache* CacheInstance : Caches)
+    {
+    	MaxDuration = FMath::Max(CacheInstance->GetDuration(), MaxDuration);
+    }
+	return MaxDuration;
 }
