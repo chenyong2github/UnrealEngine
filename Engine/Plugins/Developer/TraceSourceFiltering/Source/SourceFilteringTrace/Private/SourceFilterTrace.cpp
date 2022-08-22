@@ -72,6 +72,11 @@ TMap<uint64, FObjectKey> FSourceFilterTrace::IDsToWorldInstance;
 
 void FSourceFilterTrace::OutputClass(const TSubclassOf<UDataSourceFilter> InClass)
 {
+	if (InClass == nullptr)
+	{
+		return;
+	}
+
 	// Skip SKEL and REINST classes.
 	if (InClass->GetName().StartsWith(TEXT("SKEL_")) || InClass->GetName().StartsWith(TEXT("REINST_")))
 	{
