@@ -142,6 +142,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "MediaPlate")
 	TObjectPtr<UMediaPlaylist> MediaPlaylist;
 
+	/** The current index of the source in the play list being played. */
+	UPROPERTY(BlueprintReadWrite, Category = "MediaPlate")
+	int32 PlaylistIndex = 0;
+
 	/** Override the default cache settings. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
 	FMediaSourceCacheSettings CacheSettings;
@@ -292,5 +296,11 @@ private:
 	 * Removes ability to have letterboxes.
 	 */
 	void RemoveLetterboxes();
+
+	/**
+	 * Called by the media player when the video ends.
+	 */
+	UFUNCTION()
+	void OnMediaEnd();
 
 };
