@@ -70,6 +70,8 @@ namespace NDIStaticMeshLocal
 		SHADER_PARAMETER(FVector3f,				InstanceWorldVelocity)
 
 		SHADER_PARAMETER(int,					InstanceDistanceFieldIndex)
+
+		SHADER_PARAMETER(FVector3f,				SystemLWCTile)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static const TCHAR* TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceStaticMeshTemplate.ush");
@@ -2592,6 +2594,8 @@ void UNiagaraDataInterfaceStaticMesh::SetShaderParameters(const FNiagaraDataInte
 	{
 		FNiagaraDistanceFieldHelper::SetMeshDistanceFieldParameters(Context.GetGraphBuilder(), DistanceFieldSceneData, *ShaderDistanceFieldObjectParameters, *ShaderDistanceFieldAtlasParameters, FNiagaraRenderer::GetDummyFloat4Buffer());
 	}
+
+	ShaderParameters->SystemLWCTile = Context.GetSystemLWCTile();
 }
 
 bool UNiagaraDataInterfaceStaticMesh::Equals(const UNiagaraDataInterface* Other) const

@@ -30,6 +30,8 @@ float4x4		{ParameterName}_InstancePreviousTransformInverseTransposed;
 float4			{ParameterName}_InstancePreviousRotation;
 float3			{ParameterName}_InstanceWorldVelocity;
 
+float3			{ParameterName}_SystemLWCTile;
+
 #if DISTATICMESH_ALLOWDISTANCEFIELD
 int				{ParameterName}_InstanceDistanceFieldIndex;
 #endif
@@ -566,6 +568,8 @@ void GetWorldVelocity_{ParameterName}(out float3 Velocity)
 // Experimental Distance Field Functions
 void QueryDistanceField_{ParameterName}(bool bExecute, float3 WorldPosition, bool bUseMaxDistance, float MaxDistance, out bool OutIsValid, out float OutDistance)
 {
+	const FLWCVector3 LWCWorldPosition = MakeLWCVector3({ParameterName}_SystemLWCTile, WorldPosition);
+
 	if ( !bUseMaxDistance )
 	{
 		MaxDistance = 1e38;
@@ -578,7 +582,7 @@ void QueryDistanceField_{ParameterName}(bool bExecute, float3 WorldPosition, boo
 	{
 		// Needs to be a smidge over 0.0 for DistanceToNearestSurfaceForObject to query the SDF
 		MaxDistance = max(0.001, MaxDistance);
-		OutDistance = DistanceToNearestSurfaceForObject({ParameterName}_InstanceDistanceFieldIndex, LWCPromote(WorldPosition), MaxDistance); // LWC_TODO
+		OutDistance = DistanceToNearestSurfaceForObject({ParameterName}_InstanceDistanceFieldIndex, LWCWorldPosition, MaxDistance);
 	}
 #else
 	OutIsValid = false;
