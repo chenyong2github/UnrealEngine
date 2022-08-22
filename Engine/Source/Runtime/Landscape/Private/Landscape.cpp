@@ -80,6 +80,8 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "LandscapeDataAccess.h"
+#include "LandscapeNotification.h"
+#include "LandscapeHeightfieldCollisionComponent.h"
 #include "UObject/EditorObjectVersion.h"
 #include "Algo/BinarySearch.h"
 #include "WorldPartition/WorldPartition.h"
@@ -89,6 +91,8 @@ Landscape.cpp: Terrain rendering
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #include "Misc/ScopedSlowTask.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
 #endif
 
 /** Landscape stats */
@@ -2317,6 +2321,56 @@ void ULandscapeInfo::Serialize(FArchive& Ar)
 	}
 }
 
+void ALandscape::PostInitProperties()
+{
+#if WITH_EDITOR
+	if (!IsTemplate() && GetWorld() != nullptr)
+	{
+		FLandscapeNotificationManager* LandscapeNotificationManager = GetWorld()->GetSubsystem<ULandscapeSubsystem>()->GetNotificationManager();
+	
+		// Create conditional TextureBakingNotification
+		TextureBakingNotification = MakeShared<FLandscapeNotification>(this, FLandscapeNotification::EType::TextureBaking,
+			[this]() { return NumComponentsNeedingTextureBaking > 0; },
+			[this](FText& InText)
+			{
+				// Accumulating all outstanding textures needing baking for ALL landscapes because only one such notification can be displayed at a time
+				int ComponentsNeedingTextureBakingAllLandscapes = 0;
+				for (const ALandscape* Landscape : TObjectRange<ALandscape>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
+				{
+					ComponentsNeedingTextureBakingAllLandscapes += Landscape->NumComponentsNeedingTextureBaking;
+				}
+				
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("OutstandingTextures"), FText::AsNumber(ComponentsNeedingTextureBakingAllLandscapes));
+				InText = FText::Format(NSLOCTEXT("TextureBaking", "TextureBakingFormat", "Baking Landscape Textures ({OutstandingTextures})"), Args);
+			});
+
+		// Create conditional GrassRenderingNotification
+		GrassRenderingNotification = MakeShared<FLandscapeNotification>(this, FLandscapeNotification::EType::GrassRendering,
+			[this]() { return NumComponentsNeedingGrassMapRender > 0 && !(FSlateApplication::Get().HasAnyMouseCaptor() || GUnrealEd->IsUserInteracting()); },
+			[this](FText& InText)
+			{
+				// Accumulating all outstanding grass maps that need to be rendered for ALL landscapes because only one such notification can be displayed at a time
+				int ComponentsNeedingGrassMapRenderAllLandscapes = 0;
+				for (const ALandscape* Landscape : TObjectRange<ALandscape>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
+				{
+					ComponentsNeedingGrassMapRenderAllLandscapes += Landscape->NumComponentsNeedingGrassMapRender;
+				}
+				
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("OutstandingGrassMaps"), FText::AsNumber(ComponentsNeedingGrassMapRenderAllLandscapes));
+				InText = FText::Format(NSLOCTEXT("GrassMapRender", "GrassMapRenderFormat", "Building Grass Maps ({OutstandingGrassMaps})"), Args);
+			});
+
+		LandscapeNotificationManager->RegisterNotification(TextureBakingNotification);
+		LandscapeNotificationManager->RegisterNotification(GrassRenderingNotification);
+	}
+#endif
+
+	Super::PostInitProperties();
+}
+
+
 void ALandscape::PostLoad()
 {
 	if (!LandscapeGuid.IsValid())
@@ -3292,7 +3346,6 @@ void ALandscapeProxy::Destroyed()
 			SplineComponent->ModifySplines();
 		}
 
-		TotalComponentsNeedingGrassMapRender -= NumComponentsNeedingGrassMapRender;
 		NumComponentsNeedingGrassMapRender = 0;
 		TotalTexturesToStreamForVisibleGrassMapRender -= NumTexturesToStreamForVisibleGrassMapRender;
 		NumTexturesToStreamForVisibleGrassMapRender = 0;
@@ -4431,7 +4484,6 @@ ALandscapeProxy::~ALandscapeProxy()
 	AsyncFoliageTasks.Empty();
 
 #if WITH_EDITOR
-	TotalComponentsNeedingGrassMapRender -= NumComponentsNeedingGrassMapRender;
 	NumComponentsNeedingGrassMapRender = 0;
 	TotalTexturesToStreamForVisibleGrassMapRender -= NumTexturesToStreamForVisibleGrassMapRender;
 	NumTexturesToStreamForVisibleGrassMapRender = 0;
@@ -4754,7 +4806,6 @@ void ALandscapeProxy::UpdateGIBakedTextures(bool bBakeAllGITextures)
 		return;
 	}
 
-	TotalComponentsNeedingTextureBaking -= NumComponentsNeedingTextureBaking;
 	NumComponentsNeedingTextureBaking = 0;
 	int32 NumGenerated = 0;
 
@@ -4840,9 +4891,7 @@ void ALandscapeProxy::UpdateGIBakedTextures(bool bBakeAllGITextures)
 				}
 			}
 		}
-
-	TotalComponentsNeedingTextureBaking += NumComponentsNeedingTextureBaking;
-
+	
 	if (NumGenerated == 0)
 	{
 		// Don't check if we need to update anything for another 60 frames
