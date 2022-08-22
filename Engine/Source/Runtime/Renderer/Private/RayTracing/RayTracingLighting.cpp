@@ -612,7 +612,7 @@ static int32 BindParameters(const TShaderRef<ShaderClass>& Shader, typename Shad
 	int32 MaxUniformBufferUsed = -1;
 	for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBuffers; UniformBufferIndex++)
 	{
-		const FShaderParameterInfo &Parameter = ParameterMap.UniformBuffers[UniformBufferIndex];
+		const FShaderUniformBufferParameterInfo Parameter = ParameterMap.UniformBuffers[UniformBufferIndex];
 		checkSlow(Parameter.BaseIndex < MaxParams);
 		const FRHIUniformBuffer* UniformBuffer = ResourceBinder.UniformBuffers[UniformBufferIndex];
 		if (Parameter.BaseIndex < MaxParams)

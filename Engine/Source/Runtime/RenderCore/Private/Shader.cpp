@@ -38,7 +38,9 @@ IMPLEMENT_TYPE_LAYOUT(FShaderParameterBindings);
 IMPLEMENT_TYPE_LAYOUT(FShaderMapContent);
 IMPLEMENT_TYPE_LAYOUT(FShaderTypeDependency);
 IMPLEMENT_TYPE_LAYOUT(FShaderPipeline);
-IMPLEMENT_TYPE_LAYOUT(FShaderParameterInfo);
+IMPLEMENT_TYPE_LAYOUT(FShaderUniformBufferParameterInfo);
+IMPLEMENT_TYPE_LAYOUT(FShaderResourceParameterInfo);
+IMPLEMENT_TYPE_LAYOUT(FShaderLooseParameterInfo);
 IMPLEMENT_TYPE_LAYOUT(FShaderLooseParameterBufferInfo);
 IMPLEMENT_TYPE_LAYOUT(FShaderParameterMapInfo);
 
@@ -599,6 +601,14 @@ void FShader::Finalize(const FShaderMapResourceCode* Code)
 	ResourceIndex = NewResourceIndex;
 }
 
+template<class TType>
+static void CityHashArray(uint64& Hash, const TMemoryImageArray<TType>& Array)
+{
+	const int32 ArrayNum = Array.Num();
+	CityHash64WithSeed((const char*)&ArrayNum, sizeof(ArrayNum), Hash);
+	CityHash64WithSeed((const char*)Array.GetData(), Array.Num() * sizeof(TType), Hash);
+}
+
 void FShader::BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& ParameterMap)
 {
 	uint32 UniformCount = 0;
@@ -629,12 +639,10 @@ void FShader::BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& P
 	ParameterMapInfo.TextureSamplers.Empty(SamplerCount);
 	ParameterMapInfo.SRVs.Empty(SRVCount);
 
-	auto GetParameterMap = [this](EShaderParameterType ParameterType) -> TMemoryImageArray<FShaderParameterInfo>*
+	auto GetResourceParameterMap = [this](EShaderParameterType ParameterType) -> TMemoryImageArray<FShaderResourceParameterInfo>*
 	{
 		switch (ParameterType)
 		{
-		case EShaderParameterType::UniformBuffer:
-			return &ParameterMapInfo.UniformBuffers;
 		case EShaderParameterType::Sampler:
 			return &ParameterMapInfo.TextureSamplers;
 		case EShaderParameterType::SRV:
@@ -662,8 +670,7 @@ void FShader::BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& P
 
 				if (LooseParameterBufferInfo.BaseIndex == ParamValue.BufferIndex)
 				{
-					FShaderParameterInfo ParameterInfo(ParamValue.BaseIndex, ParamValue.Size);
-					LooseParameterBufferInfo.Parameters.Add(ParameterInfo);
+					LooseParameterBufferInfo.Parameters.Emplace(ParamValue.BaseIndex, ParamValue.Size);
 					LooseParameterBufferInfo.Size += ParamValue.Size;
 					bAddedToExistingBuffer = true;
 				}
@@ -673,17 +680,18 @@ void FShader::BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& P
 			{
 				FShaderLooseParameterBufferInfo NewParameterBufferInfo(ParamValue.BufferIndex, ParamValue.Size);
 
-				FShaderParameterInfo ParameterInfo(ParamValue.BaseIndex, ParamValue.Size);
-				NewParameterBufferInfo.Parameters.Add(ParameterInfo);
+				NewParameterBufferInfo.Parameters.Emplace(ParamValue.BaseIndex, ParamValue.Size);
 
 				ParameterMapInfo.LooseParameterBuffers.Add(NewParameterBufferInfo);
 			}
 		}
-		else if (TMemoryImageArray<FShaderParameterInfo>* ParameterInfoArray = GetParameterMap(ParamValue.Type))
+		else if (ParamValue.Type == EShaderParameterType::UniformBuffer)
 		{
-			const uint16 BaseIndex = ParamValue.Type == EShaderParameterType::UniformBuffer ? ParamValue.BufferIndex : ParamValue.BaseIndex;
-			FShaderParameterInfo ParameterInfo(BaseIndex, ParamValue.Size);
-			ParameterInfoArray->Add(ParameterInfo);
+			ParameterMapInfo.UniformBuffers.Emplace(ParamValue.BufferIndex);
+		}
+		else if (TMemoryImageArray<FShaderResourceParameterInfo>* ParameterInfoArray = GetResourceParameterMap(ParamValue.Type))
+		{
+			ParameterInfoArray->Emplace(ParamValue.BaseIndex, ParamValue.BufferIndex, ParamValue.Type);
 		}
 	}
 
@@ -704,21 +712,15 @@ void FShader::BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& P
 			CityHash64WithSeed((const char*)&Value, sizeof(Value), Hash);
 		};
 
-		const auto CityHashArray = [&](const TMemoryImageArray<FShaderParameterInfo>& Array)
-		{
-			CityHashValue(Array.Num());
-			CityHash64WithSeed((const char*)Array.GetData(), Array.Num() * sizeof(FShaderParameterInfo), Hash);
-		};
-
 		for (FShaderLooseParameterBufferInfo& Info : ParameterMapInfo.LooseParameterBuffers)
 		{
 			CityHashValue(Info.BaseIndex);
 			CityHashValue(Info.Size);
-			CityHashArray(Info.Parameters);
+			CityHashArray(Hash, Info.Parameters);
 		}
-		CityHashArray(ParameterMapInfo.UniformBuffers);
-		CityHashArray(ParameterMapInfo.TextureSamplers);
-		CityHashArray(ParameterMapInfo.SRVs);
+		CityHashArray(Hash, ParameterMapInfo.UniformBuffers);
+		CityHashArray(Hash, ParameterMapInfo.TextureSamplers);
+		CityHashArray(Hash, ParameterMapInfo.SRVs);
 	}
 
 	ParameterMapInfo.Hash = Hash;

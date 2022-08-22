@@ -199,10 +199,10 @@ public:
 
 				if (LooseParameterBuffer.BaseIndex == Parameter.GetBufferIndex())
 				{
-					TArrayView<const FShaderParameterInfo> Parameters(LooseParameterBuffer.Parameters);
+					TArrayView<const FShaderLooseParameterInfo> Parameters(LooseParameterBuffer.Parameters);
 					for (int32 LooseParameterIndex = 0; LooseParameterIndex < Parameters.Num(); LooseParameterIndex++)
 					{
-						FShaderParameterInfo LooseParameter = Parameters[LooseParameterIndex];
+						const FShaderLooseParameterInfo LooseParameter = Parameters[LooseParameterIndex];
 
 						if (Parameter.GetBaseIndex() == LooseParameter.BaseIndex)
 						{

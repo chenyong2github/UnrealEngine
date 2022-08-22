@@ -137,36 +137,106 @@ public:
 	}
 };
 
-class FShaderParameterInfo
+class FShaderUniformBufferParameterInfo
 {
-	DECLARE_TYPE_LAYOUT(FShaderParameterInfo, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FShaderUniformBufferParameterInfo, NonVirtual);
+public:
+	LAYOUT_FIELD(uint16, BaseIndex);
+
+	FShaderUniformBufferParameterInfo() = default;
+
+	FShaderUniformBufferParameterInfo(uint16 InBaseIndex)
+	{
+		BaseIndex = InBaseIndex;
+		checkf(BaseIndex == InBaseIndex, TEXT("Tweak FShaderUniformBufferParameterInfo type sizes"));
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FShaderUniformBufferParameterInfo& Info)
+	{
+		Ar << Info.BaseIndex;
+		return Ar;
+	}
+
+	inline bool operator==(const FShaderUniformBufferParameterInfo& Rhs) const
+	{
+		return BaseIndex == Rhs.BaseIndex;
+	}
+
+	inline bool operator<(const FShaderUniformBufferParameterInfo& Rhs) const
+	{
+		return BaseIndex < Rhs.BaseIndex;
+	}
+};
+
+class FShaderResourceParameterInfo
+{
+	DECLARE_TYPE_LAYOUT(FShaderResourceParameterInfo, NonVirtual);
+public:
+	LAYOUT_FIELD(uint16, BaseIndex);
+	LAYOUT_FIELD(uint8, BufferIndex);
+	LAYOUT_FIELD(EShaderParameterType, Type);
+
+	FShaderResourceParameterInfo() = default;
+
+	FShaderResourceParameterInfo(uint16 InBaseIndex, uint8 InBufferIndex, EShaderParameterType InType)
+	{
+		BaseIndex = InBaseIndex;
+		BufferIndex = InBufferIndex;
+		Type = InType;
+		checkf(BaseIndex == InBaseIndex && BufferIndex == InBufferIndex && Type == InType, TEXT("Tweak FShaderResourceParameterInfo type sizes"));
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FShaderResourceParameterInfo& Info)
+	{
+		Ar << Info.BaseIndex;
+		Ar << Info.BufferIndex;
+		Ar << Info.Type;
+		return Ar;
+	}
+
+	inline bool operator==(const FShaderResourceParameterInfo& Rhs) const
+	{
+		return BaseIndex == Rhs.BaseIndex
+			&& BufferIndex == Rhs.BufferIndex
+			&& Type == Rhs.Type;
+	}
+
+	inline bool operator<(const FShaderResourceParameterInfo& Rhs) const
+	{
+		return BaseIndex < Rhs.BaseIndex;
+	}
+};
+
+class FShaderLooseParameterInfo
+{
+	DECLARE_TYPE_LAYOUT(FShaderLooseParameterInfo, NonVirtual);
 public:
 	LAYOUT_FIELD(uint16, BaseIndex);
 	LAYOUT_FIELD(uint16, Size);
 
-	FShaderParameterInfo() {}
+	FShaderLooseParameterInfo() = default;
 
-	FShaderParameterInfo(uint16 InBaseIndex, uint16 InSize)
+	FShaderLooseParameterInfo(uint16 InBaseIndex, uint16 InSize)
 	{
 		BaseIndex = InBaseIndex;
 		Size = InSize;
-		checkf(BaseIndex == InBaseIndex && Size == InSize, TEXT("Tweak FShaderParameterInfo type sizes"));
+		checkf(BaseIndex == InBaseIndex && Size == InSize, TEXT("Tweak FShaderLooseParameterInfo type sizes"));
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, FShaderParameterInfo& Info)
+	friend FArchive& operator<<(FArchive& Ar, FShaderLooseParameterInfo& Info)
 	{
 		Ar << Info.BaseIndex;
 		Ar << Info.Size;
 		return Ar;
 	}
 
-	inline bool operator==(const FShaderParameterInfo& Rhs) const
+	inline bool operator==(const FShaderLooseParameterInfo& Rhs) const
 	{
 		return BaseIndex == Rhs.BaseIndex
 			&& Size == Rhs.Size;
 	}
 
-	inline bool operator<(const FShaderParameterInfo& Rhs) const
+	inline bool operator<(const FShaderLooseParameterInfo& Rhs) const
 	{
 		return BaseIndex < Rhs.BaseIndex;
 	}
@@ -179,7 +249,7 @@ public:
 	LAYOUT_FIELD(uint16, BaseIndex);
 	LAYOUT_FIELD(uint16, Size);
 
-	LAYOUT_FIELD(TMemoryImageArray<FShaderParameterInfo>, Parameters);
+	LAYOUT_FIELD(TMemoryImageArray<FShaderLooseParameterInfo>, Parameters);
 
 	FShaderLooseParameterBufferInfo() {}
 
@@ -215,9 +285,9 @@ class FShaderParameterMapInfo
 {
 	DECLARE_TYPE_LAYOUT(FShaderParameterMapInfo, NonVirtual);
 public:
-	LAYOUT_FIELD(TMemoryImageArray<FShaderParameterInfo>, UniformBuffers);
-	LAYOUT_FIELD(TMemoryImageArray<FShaderParameterInfo>, TextureSamplers);
-	LAYOUT_FIELD(TMemoryImageArray<FShaderParameterInfo>, SRVs);
+	LAYOUT_FIELD(TMemoryImageArray<FShaderUniformBufferParameterInfo>, UniformBuffers);
+	LAYOUT_FIELD(TMemoryImageArray<FShaderResourceParameterInfo>, TextureSamplers);
+	LAYOUT_FIELD(TMemoryImageArray<FShaderResourceParameterInfo>, SRVs);
 	LAYOUT_FIELD(TMemoryImageArray<FShaderLooseParameterBufferInfo>, LooseParameterBuffers);
 	LAYOUT_FIELD(uint64, Hash);
 
