@@ -15,6 +15,8 @@
 #include "Selections/MeshConnectedComponents.h"
 #include "Selections/MeshFaceSelection.h"
 #include "UDynamicMesh.h"
+#include "MeshSimplification.h"
+#include "MeshConstraintsUtil.h"
 
 #include "CleaningOps/HoleFillOp.h"
 
@@ -248,6 +250,138 @@ UDynamicMesh* UGeometryScriptLibrary_MeshRepairFunctions::RemoveHiddenTriangles(
 	return TargetMesh;
 }
 
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshRepairFunctions::SplitMeshBowties(
+	UDynamicMesh* TargetMesh,
+	bool bMeshBowties,
+	bool bAttributeBowties,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SplitMeshBowties_InvalidInput", "SplitMeshBowties: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		if (bMeshBowties)
+		{
+			FDynamicMeshEditor Editor(&EditMesh);
+			FDynamicMeshEditResult EditResult;
+			Editor.SplitBowties(EditResult);
+		}
+
+		if (bAttributeBowties)
+		{
+			if (EditMesh.HasAttributes())
+			{
+				EditMesh.Attributes()->SplitAllBowties(true);
+			}
+		}
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshRepairFunctions::RepairMeshDegenerateGeometry(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptDegenerateTriangleOptions Options,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("RepairMeshDegenerateGeometry_InvalidInput", "RepairMeshDegenerateGeometry: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	bool bModified = false;
+
+	auto DeleteByAreaPass = [&bModified, &Options](FDynamicMesh3& EditMesh)
+	{
+		TArray<int32> ToDelete;
+		for (int32 tid : EditMesh.TriangleIndicesItr())
+		{
+			if (EditMesh.GetTriArea(tid) < Options.MinTriangleArea)
+			{
+				ToDelete.Add(tid);
+			}
+		}
+		FDynamicMeshEditor Editor(&EditMesh);
+		Editor.RemoveTriangles(ToDelete, true);
+		bModified = true;
+	};
+
+	auto DeleteByEdgePass = [&bModified, &Options](FDynamicMesh3& EditMesh)
+	{
+		TArray<int32> ToDelete;
+		for (int32 eid : EditMesh.EdgeIndicesItr())
+		{
+			FDynamicMesh3::FEdge Edge = EditMesh.GetEdge(eid);
+			if ( Distance(EditMesh.GetVertex(Edge.Vert.A), EditMesh.GetVertex(Edge.Vert.B)) < Options.MinEdgeLength )
+			{
+				ToDelete.AddUnique(Edge.Tri.A);
+				if (Edge.Tri.B != IndexConstants::InvalidID)
+				{
+					ToDelete.AddUnique(Edge.Tri.B);
+				}
+			}
+		}
+		FDynamicMeshEditor Editor(&EditMesh);
+		Editor.RemoveTriangles(ToDelete, true);
+		bModified = true;
+	};
+
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		bool bTryRepair = (Options.Mode != EGeometryScriptRepairMeshMode::DeleteOnly);
+		bool bDoDelete = (Options.Mode != EGeometryScriptRepairMeshMode::RepairOrSkip);
+
+		if (bTryRepair)
+		{
+			FQEMSimplification Simplifier(&EditMesh);
+			Simplifier.ProjectionMode = FQEMSimplification::ETargetProjectionMode::NoProjection;
+			Simplifier.DEBUG_CHECK_LEVEL = 0;
+			Simplifier.bRetainQuadricMemory = false;
+			if (EditMesh.HasAttributes())
+			{
+				Simplifier.bAllowSeamCollapse = true;
+				Simplifier.SetEdgeFlipTolerance(1.e-5);
+				EditMesh.Attributes()->SplitAllBowties();	// eliminate any bowties that might have formed on attribute seams.
+			}
+			FMeshConstraints Constraints;
+			FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(Constraints, EditMesh,
+				EEdgeRefineFlags::NoFlip, EEdgeRefineFlags::NoConstraint, EEdgeRefineFlags::NoConstraint,
+				false, false, true);
+			Simplifier.SetExternalConstraints(MoveTemp(Constraints));
+			Simplifier.SimplifyToEdgeLength(Options.MinEdgeLength);
+
+			//TODO: this would not resolve sliver triangles that have all long-edges...
+			//TODO: could we do explicit collapse passes here? we would need to still respect constraints...
+
+			bModified = true;
+		}
+
+		if (bDoDelete)
+		{
+			DeleteByAreaPass(EditMesh);
+			DeleteByEdgePass(EditMesh);
+		}
+
+		if (bModified && Options.bCompactOnCompletion)
+		{
+			EditMesh.CompactInPlace();
+		}
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
 
 
 #undef LOCTEXT_NAMESPACE

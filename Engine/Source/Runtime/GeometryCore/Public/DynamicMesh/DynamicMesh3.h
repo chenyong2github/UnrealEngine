@@ -1320,7 +1320,7 @@ public:
 	/**
 	 * Returns a debug string that contains mesh statistics and other information
 	 */
-	virtual FString MeshInfoString();
+	virtual FString MeshInfoString() const;
 
 	/**
 	 * Options for the IsSameAs check

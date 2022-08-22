@@ -125,6 +125,38 @@ public:
 
 
 
+UENUM(BlueprintType)
+enum class EGeometryScriptRepairMeshMode : uint8
+{
+	DeleteOnly = 0,
+	RepairOrDelete = 1,
+	RepairOrSkip = 2
+};
+
+
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptDegenerateTriangleOptions
+{
+	GENERATED_BODY()
+public:
+	/**  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	EGeometryScriptRepairMeshMode Mode = EGeometryScriptRepairMeshMode::RepairOrDelete;
+
+	/**  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	double MinTriangleArea = 0.001;
+
+	/**  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	double MinEdgeLength = 0.0001;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool bCompactOnCompletion = true;
+};
+
+
 
 UCLASS(meta = (ScriptName = "GeometryScript_MeshRepair"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshRepairFunctions : public UBlueprintFunctionLibrary
@@ -175,4 +207,18 @@ public:
 		FGeometryScriptRemoveHiddenTrianglesOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Repair", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	SplitMeshBowties(  
+		UDynamicMesh* TargetMesh, 
+		bool bMeshBowties = true,
+		bool bAttributeBowties = true,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Repair", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	RepairMeshDegenerateGeometry(  
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptDegenerateTriangleOptions Options,
+		UGeometryScriptDebug* Debug = nullptr);
 };

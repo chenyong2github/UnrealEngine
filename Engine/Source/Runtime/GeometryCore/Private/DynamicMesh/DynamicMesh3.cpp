@@ -676,7 +676,7 @@ void FDynamicMesh3::EnumerateEdgeTriangles(int32 EdgeID, TFunctionRef<void(int32
 }
 
 
-FString FDynamicMesh3::MeshInfoString()
+FString FDynamicMesh3::MeshInfoString() const
 {
 	FString VtxString = FString::Printf(TEXT("Vertices count %d max %d  %s  VtxEdges %s"),
 		VertexCount(), MaxVertexID(), *VertexRefCounts.UsageStats(), *(VertexEdgeLists.MemoryUsage()));
@@ -686,8 +686,8 @@ FString FDynamicMesh3::MeshInfoString()
 		EdgeCount(), MaxEdgeID(), *EdgeRefCounts.UsageStats());
 	FString AttribString = FString::Printf(TEXT("VtxNormals %d  VtxColors %d  VtxUVs %d  TriGroups %d  Attributes %d"),
 		HasVertexNormals(), HasVertexColors(), HasVertexUVs(), HasTriangleGroups(), HasAttributes());
-	FString InfoString = FString::Printf(TEXT("Closed %d  Compact %d  ShapeChangeStamp %d  TopologyChangeStamp %d  MaxGroupID %d"),
-		IsClosed(), IsCompact(), GetShapeChangeStamp(), GetTopologyChangeStamp(), MaxGroupID());
+	FString InfoString = FString::Printf(TEXT("Closed %d  Compact %d  TopologyChangeStamp %d  MaxGroupID %d"),
+		IsClosed(), IsCompact(), GetTopologyChangeStamp(), MaxGroupID());
 
 	return VtxString + "\n" + TriString + "\n" + EdgeString + "\n" + AttribString + "\n" + InfoString;
 }
