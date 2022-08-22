@@ -210,7 +210,8 @@ public:
 		remove(ev.A); remove(ev.B);
 	}
 
-	void DeselectEdges(TArrayView<const int> Edges) {
+	void DeselectEdges(TArrayView<const int> Edges) 
+	{
 		for (int EID : Edges)
 		{
 			FIndex2i ev = Mesh->GetEdgeV(EID);
@@ -230,7 +231,8 @@ public:
 	{
 		TArray<int> temp;
 
-		for (int vid : Selected) {
+		for (int vid : Selected) 
+		{
 			for (int nbr_vid : Mesh->VtxVerticesItr(vid))
 			{
 				if (FilterF && FilterF(nbr_vid) == false)
@@ -261,6 +263,37 @@ public:
 	}
 
 
+	/**
+	 * Remove all vertices in current selection set that have at least
+	 * one neighbour vertex that is not selected (ie vertices are on border of selection)
+	 */
+	void ContractByBorderVertices(int32 nRings = 1)
+	{
+		// find set of boundary vertices
+		TArray<int> BorderVertices;
+		for (int32 k = 0; k < nRings; ++k)
+		{
+			BorderVertices.Reset();
+
+			for (int vid : Selected) 
+			{
+				bool bAnyNeighbourDeselected = false;
+				for (int nbr_vid : Mesh->VtxVerticesItr(vid))
+				{
+					if (IsSelected(nbr_vid) == false)
+					{
+						bAnyNeighbourDeselected = true;
+						break;
+					}
+				}
+				if (bAnyNeighbourDeselected)
+				{
+					BorderVertices.Add(vid);
+				}
+			}
+			Deselect(BorderVertices);
+		}
+	}
 
 
 

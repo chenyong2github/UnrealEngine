@@ -102,7 +102,8 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMeshSelection
 	 * For Polygroup Selections, a full mesh iteration is used to find all Triangles in the Groups.
 	 */
 	void ProcessByTriangleID(const UE::Geometry::FDynamicMesh3& Mesh,
-		TFunctionRef<void(int32)> PerTriangleFunc) const;
+		TFunctionRef<void(int32)> PerTriangleFunc,
+		bool bProcessAllTrisIfSelectionEmpty = false) const;
 
 	/**
 	 * Call PerVertexFunc for each VertexID in the Selection.
@@ -110,7 +111,8 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMeshSelection
 	 * For Polygroup Selections, a full mesh iteration is used to find all Triangle Vertices in the Groups (accumulated in a TSet)
 	 */
 	void ProcessByVertexID(const UE::Geometry::FDynamicMesh3& Mesh,
-		TFunctionRef<void(int32)> PerVertexFunc) const;
+		TFunctionRef<void(int32)> PerVertexFunc,
+		bool bProcessAllVertsIfSelectionEmpty = false) const;
 
 private:
 	// keeping this private for now in case it needs to be revised in 5.2+

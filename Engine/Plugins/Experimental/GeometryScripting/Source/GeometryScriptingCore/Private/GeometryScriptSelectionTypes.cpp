@@ -286,8 +286,18 @@ EGeometryScriptIndexType FGeometryScriptMeshSelection::ConvertToMeshIndexArray(
 
 
 void FGeometryScriptMeshSelection::ProcessByTriangleID(const UE::Geometry::FDynamicMesh3& Mesh,
-	TFunctionRef<void(int32)> PerTriangleFunc) const
+	TFunctionRef<void(int32)> PerTriangleFunc,
+	bool bProcessAllTrisIfSelectionEmpty) const
 {
+	if (IsEmpty() && bProcessAllTrisIfSelectionEmpty)
+	{
+		for (int32 TriangleID : Mesh.TriangleIndicesItr())
+		{
+			PerTriangleFunc(TriangleID);
+		}
+		return;
+	}
+
 	if (GetSelectionType() == EGeometryScriptMeshSelectionType::Triangles)
 	{
 		for (uint64 Item : GeoSelection->Selection)
@@ -338,8 +348,18 @@ void FGeometryScriptMeshSelection::ProcessByTriangleID(const UE::Geometry::FDyna
 
 
 void FGeometryScriptMeshSelection::ProcessByVertexID(const UE::Geometry::FDynamicMesh3& Mesh,
-	TFunctionRef<void(int32)> PerVertexFunc) const
+	TFunctionRef<void(int32)> PerVertexFunc,
+	bool bProcessAllVertsIfSelectionEmpty) const
 {
+	if (IsEmpty() && bProcessAllVertsIfSelectionEmpty)
+	{
+		for (int32 VertexID : Mesh.VertexIndicesItr())
+		{
+			PerVertexFunc(VertexID);
+		}
+		return;
+	}
+
 	if (GetSelectionType() == EGeometryScriptMeshSelectionType::Vertices)
 	{
 		for (uint64 Item : GeoSelection->Selection)

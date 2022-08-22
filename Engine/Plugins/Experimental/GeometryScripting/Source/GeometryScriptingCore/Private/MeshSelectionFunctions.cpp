@@ -10,6 +10,8 @@
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Spatial/FastWinding.h"
 #include "Selections/MeshConnectedComponents.h"
+#include "Selections/MeshFaceSelection.h"
+#include "Selections/MeshVertexSelection.h"
 
 using namespace UE::Geometry;
 
@@ -806,6 +808,129 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSelectionFunctions::ExpandMeshSelection
 
 	return TargetMesh;
 }
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshSelectionFunctions::ExpandContractMeshSelection(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptMeshSelection Selection,
+	FGeometryScriptMeshSelection& NewSelection,
+	int32 Iterations,
+	bool bContract,
+	bool bOnlyExpandToFaceNeighbours)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("ExpandContractMeshSelection: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (Selection.IsEmpty())
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("ExpandContractMeshSelection: Initial Selection is Empty"));
+		return TargetMesh;
+	}
+	if (Iterations <= 0)
+	{
+		NewSelection.SetSelection(Selection);
+		return TargetMesh;
+	}
+	Iterations = FMath::Clamp(Iterations, 1, 100);
+
+	// TODO: when doing multiple iterations w/ polygroups, we cannot rely on the code below because it is only
+	// expanding/contracting by triangle rings. Need to expand to polygroups at each step which is currently not easy
+	// to do with a FMeshFaceSelection, need to convert to FMeshConnectedComponents/etc. So for now we will just
+	// recursively do it this way which is expensive...
+	if (Selection.GetSelectionType() == EGeometryScriptMeshSelectionType::Polygroups && Iterations > 1)
+	{
+		FGeometryScriptMeshSelection CurSelection = Selection;
+		FGeometryScriptMeshSelection NextSelection;
+		for (int32 k = 0; k < Iterations; ++k)
+		{
+			ExpandContractMeshSelection(TargetMesh, CurSelection, NextSelection, 1, bContract, bOnlyExpandToFaceNeighbours);
+			CurSelection = NextSelection;
+		}
+		NewSelection = CurSelection;
+		return TargetMesh;
+	}
+
+
+	FGeometrySelection NewGeoSelection;
+	if (Selection.GetSelectionType() == EGeometryScriptMeshSelectionType::Vertices)
+	{
+		NewGeoSelection.InitializeTypes(EGeometryElementType::Vertex, EGeometryTopologyType::Triangle);
+		TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+		{
+			FMeshVertexSelection VtxSelection(&ReadMesh);
+			Selection.ProcessByVertexID(ReadMesh, [&](int32 VertexID) { VtxSelection.Select(VertexID); } );
+			if (bContract)
+			{
+				VtxSelection.ContractByBorderVertices(Iterations);
+			}
+			else
+			{
+				VtxSelection.ExpandToOneRingNeighbours(Iterations);
+			}
+			for (int32 VertexID : VtxSelection)
+			{
+				NewGeoSelection.Selection.Add(FGeoSelectionID::MeshVertex(VertexID).Encoded());
+			}
+		});
+	}
+	else 
+	{
+		TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+		{
+			FMeshFaceSelection TriSelection(&ReadMesh);
+			Selection.ProcessByTriangleID(ReadMesh, [&](int32 TriangleID) { TriSelection.Select(TriangleID); });
+			if (bContract)
+			{
+				TriSelection.ContractBorderByOneRingNeighbours(Iterations, true);
+			}
+			else
+			{
+				if (bOnlyExpandToFaceNeighbours)
+				{
+					TriSelection.ExpandToFaceNeighbours(Iterations);
+				}
+				else
+				{
+					TriSelection.ExpandToOneRingNeighbours(Iterations);
+				}
+			}
+			if (Selection.GetSelectionType() == EGeometryScriptMeshSelectionType::Triangles)
+			{
+				NewGeoSelection.InitializeTypes(EGeometryElementType::Face, EGeometryTopologyType::Triangle);
+				for (int32 TriangleID : TriSelection)
+				{
+					NewGeoSelection.Selection.Add(FGeoSelectionID::MeshTriangle(TriangleID).Encoded());
+				}
+			}
+			else
+			{
+				NewGeoSelection.InitializeTypes(EGeometryElementType::Face, EGeometryTopologyType::Polygroup);
+				TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+				{
+					TSet<int32> UniqueGroupIDs;
+					for (int32 tid : TriSelection)
+					{
+						int32 GroupID = ReadMesh.GetTriangleGroup(tid);
+						if (UniqueGroupIDs.Contains(GroupID) == false)
+						{
+							NewGeoSelection.Selection.Add(FGeoSelectionID::GroupFace(tid, GroupID).Encoded());
+						}
+					}
+				});
+
+			}
+		});
+	}
+
+	NewSelection.SetSelection(MoveTemp(NewGeoSelection));
+
+	return TargetMesh;
+}
+
+
 
 
 

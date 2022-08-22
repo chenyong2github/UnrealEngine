@@ -160,7 +160,7 @@ public:
 	 * @param bInvert return a selection of all elements not in the Box
 	 * @param MinNumTrianglePoints number of vertices of a triangle that must be in the box for it to be selected (1,2, or 3)
 	 */
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod, AdvancedDisplay="NumPointsInBox"))
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod, AdvancedDisplay="MinNumTrianglePoints"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	SelectMeshElementsInBox(
 		UDynamicMesh* TargetMesh,
@@ -177,7 +177,7 @@ public:
 	* @param bInvert return a selection of all elements not in the Sphere
 	* @param MinNumTrianglePoints number of vertices of a triangle that must be in the Sphere for it to be selected (1,2, or 3)
 	*/
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod, AdvancedDisplay="NumPointsInBox"))
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod, AdvancedDisplay="MinNumTrianglePoints"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	SelectMeshElementsInSphere(
 		UDynamicMesh* TargetMesh,
@@ -195,7 +195,7 @@ public:
 	* @param bInvert return a selection of all elements on the other (negative) side of the Plane
 	* @param MinNumTrianglePoints number of vertices of a triangle that must be on the positive Plane side to be selected (1,2, or 3)
 	*/
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod, AdvancedDisplay="NumPointsInBox"))
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod, AdvancedDisplay="MinNumTrianglePoints"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	SelectMeshElementsWithPlane(
 		UDynamicMesh* TargetMesh,
@@ -215,7 +215,7 @@ public:
 	* @param bInvert return a selection of all elements not within the given deviation
 	* @param MinNumTrianglePoints number of vertices of a triangle that must be within the angular deviation for it to be selected (1,2, or 3)
 	*/
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod, AdvancedDisplay="NumPointsInBox"))
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod, AdvancedDisplay="MinNumTrianglePoints"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	SelectMeshElementsByNormalAngle(
 		UDynamicMesh* TargetMesh,
@@ -236,7 +236,7 @@ public:
 	* @param WindingThreshold Threshold used for Fast Mesh Winding Number inside/outside test (range is [0,1], with 1 being "inside")
 	* @param MinNumTrianglePoints number of vertices of a triangle that must be within the angular deviation for it to be selected (1,2, or 3)
 	*/
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod, AdvancedDisplay="NumPointsInBox"))
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod, AdvancedDisplay="MinNumTrianglePoints"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	SelectMeshElementsInsideMesh(
 		UDynamicMesh* TargetMesh,
@@ -253,7 +253,7 @@ public:
 	 * Expand the Selection on the TargetMesh to connected regions and return the NewSelection
 	 * @param ConnectionType defines what "connected" means, ie purely geometric connection, or some additional constraint like same MaterialIDs/etc 
 	 */
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod, AdvancedDisplay="NumPointsInBox"))
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ExpandMeshSelectionToConnected(
 		UDynamicMesh* TargetMesh,
@@ -261,5 +261,27 @@ public:
 		FGeometryScriptMeshSelection& NewSelection,
 		EGeometryScriptTopologyConnectionType ConnectionType = EGeometryScriptTopologyConnectionType::Geometric
 	);
+
+
+	/**
+	 * Grow or Shrink the Selection on the TargetMesh to connected neighbours.
+	 * For Vertex selections, Expand includes vertices in one-ring of selected vertices, and Contract removes any vertices with a one-ring neighbour that is not selected
+	 * For Triangle selections, Add/Remove Triangles connected to selected Triangles
+	 * For Polygroup selections, Add/Remove Polygroups connected to selected Polygroups
+	 * @param Iterations number of times to Expand/Contract the Selection. Valid range is [0,100] where 0 is a no-op.
+	 * @param bContract if true selection contracts instead of growing
+	 * @param bOnlyExpandToFaceNeighbours if true, only adjacent Triangles/Polygroups directly connected by an edge are added, vs connected to any selected vertex
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ExpandContractMeshSelection(
+		UDynamicMesh* TargetMesh,
+		FGeometryScriptMeshSelection Selection, 
+		FGeometryScriptMeshSelection& NewSelection,
+		int32 Iterations = 1,
+		bool bContract = false,
+		bool bOnlyExpandToFaceNeighbours = false
+	);
+
 
 };
