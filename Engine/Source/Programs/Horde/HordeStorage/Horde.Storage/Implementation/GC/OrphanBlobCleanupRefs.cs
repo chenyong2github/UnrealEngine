@@ -147,7 +147,7 @@ namespace Horde.Storage.Implementation
                     try
                     {
                         (ObjectRecord, BlobContents?) _ = await _objectService.Get(blobNamespace,
-                            bucket, key, new string[] { "name" });
+                            bucket, key, new string[] { "name" }, doLastAccessTracking:false);
                         found = true;
                     }
                     catch (ObjectNotFoundException)
