@@ -117,6 +117,12 @@ public:
 		return OnDefaultAttributesChanged;
 	}
 
+	/** Gets a Delegate Broadcast when default fixture categories were changed */
+	FSimpleMulticastDelegate& GetOnDefaultFixtureCategoriesChanged()
+	{
+		return OnDefaultFixtureCategoriesChanged;
+	}
+
 #if WITH_EDITOR
 	/** Returns true if Fixture Patches should receive DMX in Editor */
 	bool ShouldAllFixturePatchesReceiveDMXInEditor() const { return bAllFixturePatchesReceiveDMXInEditor; }
@@ -170,6 +176,9 @@ private:
 
 	/** Broadcast when default attributets changed */
 	FSimpleMulticastDelegate OnDefaultAttributesChanged;
+
+	/** Broadcast when default fixture categories changed */
+	FSimpleMulticastDelegate OnDefaultFixtureCategoriesChanged;
 
 #if WITH_EDITORONLY_DATA
 	/** If true, all fixture patches receive DMX in Editor. This overrides the fixture patches 'Receive DMX In Editor' property. */

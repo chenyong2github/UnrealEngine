@@ -83,7 +83,7 @@ TSharedRef<SWidget> SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::GenerateWidge
 	{
 		return
 			SNew(SNameListPicker)
-			.OptionsSource(MakeAttributeLambda(&FDMXAttributeName::GetPossibleValues))
+			.OptionsSource(MakeAttributeLambda(&FDMXAttributeName::GetPredefinedValues))
 			.Value(this, &SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::GetCellAttributeName)
 			.bDisplayWarningIcon(true)
 			.OnValueChanged(this, &SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::SetCellAttributeName);

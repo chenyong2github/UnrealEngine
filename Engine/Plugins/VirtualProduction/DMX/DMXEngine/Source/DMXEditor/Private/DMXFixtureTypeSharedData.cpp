@@ -901,7 +901,7 @@ void FDMXFixtureTypeSharedData::AddCellAttributeToSelectedMode()
 				FDMXFixtureMode& Mode = FixtureType->Modes[Selection->SelectedModeIndices[0]];
 
 				FDMXFixtureCellAttribute NewAttribute;
-				TArray<FName> AvailableAttributes = FDMXAttributeName::GetPossibleValues();
+				TArray<FName> AvailableAttributes = FDMXAttributeName::GetPredefinedValues();
 				NewAttribute.Attribute = AvailableAttributes.Num() > 0 ? FDMXAttributeName(AvailableAttributes[0]) : FDMXAttributeName();
 
 				const FDMXFixtureTypeSharedDataDetails::FDMXScopedModeEditChangeChainProperty_DEPRECATED ScopedChange(FixtureType);

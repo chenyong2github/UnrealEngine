@@ -179,7 +179,7 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 			FixtureCategories.Add(TEXT("Other"));
 		}
 
-		FDMXFixtureCategory::OnValuesChanged.Broadcast();
+		OnDefaultFixtureCategoriesChanged.Broadcast();
 	}
 	else if (
 		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, Attributes) ||

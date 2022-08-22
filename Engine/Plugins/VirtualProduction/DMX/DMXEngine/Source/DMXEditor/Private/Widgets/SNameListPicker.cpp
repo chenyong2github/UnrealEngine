@@ -29,12 +29,6 @@ void SNameListPicker::Construct(const FArguments& InArgs)
 	OnValueChangedDelegate = InArgs._OnValueChanged;
 
 	UpdateOptionsSource();
-	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-	if (!ProtocolSettings)
-	{
-		return;
-	}
-	ProtocolSettings->GetOnDefaultAttributesChanged().AddSP(this, &SNameListPicker::UpdateOptionsSource);
 
 	EdititableTextBox = SNew(SEditableTextBox)
 		.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
@@ -115,7 +109,7 @@ void SNameListPicker::UpdateOptionsSource()
 	OptionsSource.Reserve(NumOptions);
 
 	// <None> is the first option
-	OptionsSource.Add(MakeShared<FName>(FDMXNameListItem::None));
+	OptionsSource.Add(MakeShared<FName>(NAME_None));
 
 	for (const FName& Name : OptionsSourceAttr.Get())
 	{
@@ -141,7 +135,7 @@ TSharedRef<ITableRow> SNameListPicker::GenerateNameItemWidget(TSharedPtr<FName> 
 		return TableRow;
 	}
 
-	if (InItem->IsEqual(FDMXNameListItem::None))
+	if (InItem->IsEqual(NAME_None))
 	{
 		RowTextBlock->SetText(NoneLabel);
 		return TableRow;
@@ -270,7 +264,7 @@ void SNameListPicker::UpdateFilteredOptions(const FString& Filter)
 
 		for (TSharedPtr<FName>& NameOption : OptionsSource)
 		{
-			if (!NameOption.IsValid() || NameOption->IsEqual(FDMXNameListItem::None))
+			if (!NameOption.IsValid() || NameOption->IsEqual(NAME_None))
 			{
 				continue;
 			}
@@ -305,7 +299,7 @@ FText SNameListPicker::GetCurrentNameLabel() const
 	}
 
 	const FName CurrentName = ValueAttribute.Get();
-	if (CurrentName.IsEqual(FDMXNameListItem::None))
+	if (CurrentName.IsEqual(NAME_None))
 	{
 		return NoneLabel;
 	}

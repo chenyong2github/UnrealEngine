@@ -45,7 +45,7 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 
 	/** Constructor */
 	FDMXFixtureFunction()
-		: Attribute(FDMXNameListItem::None)
+		: Attribute()
 		, FunctionName()
 		, Description()
 		, DefaultValue(0)
@@ -116,7 +116,7 @@ struct DMXRUNTIME_API FDMXFixtureCellAttribute
 
 	/** Constructor */
 	FDMXFixtureCellAttribute()
-		: Attribute(FDMXNameListItem::None)
+		: Attribute()
 		, Description()
 		, DefaultValue(0)
 		, DataType(EDMXFixtureSignalFormat::E8Bit)

@@ -172,7 +172,7 @@ TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorFunctionRow::GenerateWidgetFor
 			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			[
 				SNew(SNameListPicker)
-				.OptionsSource(MakeAttributeLambda(&FDMXAttributeName::GetPossibleValues))
+				.OptionsSource(MakeAttributeLambda(&FDMXAttributeName::GetPredefinedValues))
 				.Value(this, &SDMXFixtureTypeFunctionsEditorFunctionRow::GetAttributeName)
 				.bDisplayWarningIcon(true)
 				.OnValueChanged(this, &SDMXFixtureTypeFunctionsEditorFunctionRow::OnUserChangedAttributeName)

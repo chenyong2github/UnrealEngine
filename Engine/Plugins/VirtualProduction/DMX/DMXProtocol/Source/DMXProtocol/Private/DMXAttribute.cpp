@@ -6,23 +6,10 @@
 
 #include "Modules/ModuleManager.h"
 
-
-TArray<FName> FDMXAttributeName::GetPossibleValues()
-{
-	TArray<FName> DefaultValues;
-
-	if (const UDMXProtocolSettings* DMXSettings = GetDefault<UDMXProtocolSettings>())
-	{
-		DefaultValues.Reserve(DMXSettings->Attributes.Num());
-
-		for (const FDMXAttribute& Attribute : DMXSettings->Attributes)
-		{
-			DefaultValues.Emplace(Attribute.Name);
-		}
-	}
-
-	return DefaultValues;
-}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+const bool FDMXAttributeName::bCanBeNone = true;
+FSimpleMulticastDelegate FDMXAttributeName::OnValuesChanged;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FDMXAttributeName::FDMXAttributeName()
 {
@@ -57,14 +44,15 @@ void FDMXAttributeName::SetFromName(const FName& InName)
 	*this = InName;
 }
 
-const FDMXAttribute& FDMXAttributeName::GetAttribute() const
+FDMXAttribute FDMXAttributeName::GetAttribute() const
 {
-	static const FDMXAttribute FailureAttribute;
-
+	FDMXAttribute Attribute;
+	Attribute.Name = Name;
+	return Attribute;
 	const UDMXProtocolSettings* DMXSettings = GetDefault<UDMXProtocolSettings>();
-	if (DMXSettings == nullptr)
+	if (!DMXSettings)
 	{
-		return FailureAttribute;
+		return Attribute;
 	}
 
 	for (const FDMXAttribute& SettingsAttribute : DMXSettings->Attributes)
@@ -75,7 +63,28 @@ const FDMXAttribute& FDMXAttributeName::GetAttribute() const
 		}
 	}
 
-	return FailureAttribute;
+	return Attribute;
+}
+
+TArray<FName> FDMXAttributeName::GetPredefinedValues()
+{
+	TArray<FName> Result;
+	const UDMXProtocolSettings* DMXSettings = GetDefault<UDMXProtocolSettings>();
+	if (!DMXSettings)
+	{
+		return Result;
+	}
+
+	for (const FDMXAttribute& Attribute : DMXSettings->Attributes)
+	{
+		Result.Add(Attribute.Name);
+	}
+	return Result;
+}
+
+TArray<FName> FDMXAttributeName::GetPossibleValues()
+{
+	return GetPredefinedValues();
 }
 
 FString UDMXAttributeNameConversions::Conv_DMXAttributeToString(const FDMXAttributeName& InAttribute)

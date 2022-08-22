@@ -81,6 +81,7 @@ bool TypeName::IsValid(const FName& InName)
  * - inherit this struct and override the virtual functions.
  * - use the DMX_NAMELISTITEM_STATICS macros above to declare the expected statics.
  */
+struct UE_DEPRECATED(5.1, "Removed to overcome restrictions of the generic base struct. Ustructs that have a Name property should declare it themselves instead.") FDMXNameListItem;
 USTRUCT()
 struct DMXPROTOCOL_API FDMXNameListItem
 {

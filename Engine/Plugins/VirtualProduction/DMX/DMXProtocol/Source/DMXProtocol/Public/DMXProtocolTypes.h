@@ -6,7 +6,6 @@
 #include "DMXProtocolConstants.h"
 #include "DMXProtocolLog.h"
 #include "DMXProtocolMacros.h"
-#include "DMXNameListItem.h"
 
 #include "Dom/JsonObject.h"
 #include "HAL/CriticalSection.h"
@@ -99,12 +98,9 @@ enum class EDMXFixtureSignalFormat : uint8
 /** A DMX protocol as a name that can be displayed in UI. The protocol is directly accessible via GetProtocol */
 USTRUCT(BlueprintType, Category = "DMX")
 struct DMXPROTOCOL_API FDMXProtocolName
-	: public FDMXNameListItem
 {
 public:
 	GENERATED_BODY()
-
-	DECLARE_DMX_NAMELISTITEM_STATICS(false)
 
 	FDMXProtocolName();
 
@@ -118,7 +114,7 @@ public:
 	IDMXProtocolPtr GetProtocol() const;
 
 	/** IsValid member accessor */
-	bool IsValid() const { return IsValid(Name); }
+	bool IsValid() const { return !Name.IsNone(); }
 
 	//~ FName operators
 	operator FName&() { return Name; }
@@ -129,7 +125,12 @@ public:
 	operator const IDMXProtocolPtr() const { return GetProtocol(); }
 
 	/** Bool (is valid) operator */
-	operator bool() const { return IsValid(Name); }
+	UE_DEPRECATED(5.1, "Please use IsValid() instead.")
+	operator bool() const { return !Name.IsNone(); }
+
+	/** The Protocol Name */
+	UPROPERTY(EditAnywhere, Category = "DMX")
+	FName Name;
 
 	//~ Comparison operators
 	bool operator==(const FDMXProtocolName& Other) const { return Name == Other.Name; }
@@ -138,34 +139,65 @@ public:
 	bool operator!=(const IDMXProtocolPtr& Other) const { return GetProtocol().Get() != Other.Get(); }
 	bool operator==(const FName& Other) const { return Name == Other; }
 	bool operator!=(const FName& Other) const { return !Name.IsEqual(Other); }
+
+	//////////////////////////////////////////////////////////////////
+	// Deprecated members originating from deprecated FDMXNameListItem
+	UE_DEPRECATED(5.1, "Instead please use IDMXProtocol::GetProtocolNames")
+	static TArray<FName> GetPossibleValues();
+
+	// Deprecated without replacement. Always false.
+	UE_DEPRECATED(5.1, "Obsolete. The value never can and never should be none in any case.")
+	static const bool bCanBeNone;
+
+	// Deprecated without replacement. Protocols cannot be enabled or disabled after engine startup.
+	UE_DEPRECATED(5.1, "Obsolete. Protocols cannot be enabled or disabled after engine startup.")
+	static FSimpleMulticastDelegate OnValuesChanged;
 };
 
 /** Category of a fixture */
 USTRUCT(BlueprintType, Category = "DMX")
 struct DMXPROTOCOL_API FDMXFixtureCategory
-	: public FDMXNameListItem
 {
 public:
 	GENERATED_BODY()
-
-	DECLARE_DMX_NAMELISTITEM_STATICS(false)
 
 	static FName GetFirstValue();
 
 	FDMXFixtureCategory();
 
 	explicit FDMXFixtureCategory(const FName& InName);
+	
+	/** The Protocol Name */
+	UPROPERTY(EditAnywhere, Category = "DMX")
+	FName Name;
+
+	/** Returns the predefined values */
+	static TArray<FName> GetPredefinedValues();
 
 	//~ FName operators
 	operator FName&() { return Name; }
 	operator const FName&() const { return Name; }
 
 	/** Bool (is valid) operator */
-	operator bool() const { return IsValid(Name); }
+	UE_DEPRECATED(5.1, "Please use IsValid() instead.")
+	operator bool() const { return !Name.IsNone(); }
 
 	//~ Comparison operators
 	bool operator==(const FDMXFixtureCategory& Other) const { return Name == Other.Name; }
 	bool operator==(const FName& Other) const { return Name == Other; }
+
+	//////////////////////////////////////////////////////////////////
+	// Deprecated members originating from deprecated FDMXNameListItem
+	UE_DEPRECATED(5.1, "Please use GetPredefinedValues() instead")
+	static TArray<FName> GetPossibleValues();
+
+	// Deprecated without replacement. Always false
+	UE_DEPRECATED(5.1, "Obsolete. The value never can and never should be none in any case.")
+	static const bool bCanBeNone;
+
+	// Deprecated without replacement. Protocols cannot be enabled or disabled after engine startup.
+	UE_DEPRECATED(5.1, "Obsolete. To listen to default fixture category changes, please refer to UDMXProtocolSettings::GetOnDefaultFixtureCategoriesChanged().")
+	static FSimpleMulticastDelegate OnValuesChanged;
 };
 
 UCLASS()
@@ -187,7 +219,4 @@ public:
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "ToName (DMX Fixture Category)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|DMX")
 	static FName Conv_DMXFixtureCategoryToName(const FDMXFixtureCategory& InFixtureCategory);
 };
-
-
-
 

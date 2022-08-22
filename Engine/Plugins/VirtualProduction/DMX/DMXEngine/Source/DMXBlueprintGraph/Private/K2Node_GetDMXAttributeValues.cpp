@@ -436,9 +436,7 @@ void UK2Node_GetDMXAttributeValues::ExposeAttributes()
 	{
 		for (const FDMXFixtureFunction& Function : ActiveFixtureMode->Functions)
 		{
-			auto Attribute = Function.Attribute.GetAttribute();
-
-			if (Attribute.Name.IsNone())
+			if (!Function.Attribute.IsValid())
 			{
 				continue;
 			}

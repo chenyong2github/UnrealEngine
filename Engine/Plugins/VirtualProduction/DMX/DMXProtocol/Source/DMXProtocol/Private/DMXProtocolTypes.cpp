@@ -1,24 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXProtocolTypes.h"
-#include "Interfaces/IDMXProtocol.h"
+
 #include "DMXProtocolSettings.h"
+#include "Interfaces/IDMXProtocol.h"
 
-IMPLEMENT_DMX_NAMELISTITEM_STATICVARS(FDMXProtocolName)
 
-IMPLEMENT_DMX_NAMELISTITEM_GetAllValues(FDMXProtocolName)
-{
-	return IDMXProtocol::GetProtocolNames();
-}
-
-IMPLEMENT_DMX_NAMELISTITEM_IsValid(FDMXProtocolName)
-{
-	if (InName.IsNone())
-	{
-		return false;
-	}
-	return IDMXProtocol::Get(InName).IsValid();
-}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+const bool FDMXProtocolName::bCanBeNone = false;
+FSimpleMulticastDelegate FDMXProtocolName::OnValuesChanged;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FDMXProtocolName::FDMXProtocolName(IDMXProtocolPtr InProtocol)
 {
@@ -57,26 +48,16 @@ IDMXProtocolPtr FDMXProtocolName::GetProtocol() const
 	return IDMXProtocol::Get(Name);
 }
 
-IMPLEMENT_DMX_NAMELISTITEM_STATICVARS(FDMXFixtureCategory)
-
-IMPLEMENT_DMX_NAMELISTITEM_GetAllValues(FDMXFixtureCategory)
+TArray<FName> FDMXProtocolName::GetPossibleValues()
 {
-	return GetDefault<UDMXProtocolSettings>()->FixtureCategories.Array();
+	// DEPRECATED 5.1
+	return IDMXProtocol::GetProtocolNames();
 }
 
-IMPLEMENT_DMX_NAMELISTITEM_IsValid(FDMXFixtureCategory)
-{
-	const TArray<FName>&& AvailableNames = GetPossibleValues();
-	for (const FName& AvailableName : AvailableNames)
-	{
-		if (InName.IsEqual(AvailableName))
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+const bool FDMXFixtureCategory::bCanBeNone = false;
+FSimpleMulticastDelegate FDMXFixtureCategory::OnValuesChanged;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FName FDMXFixtureCategory::GetFirstValue()
 {
@@ -88,6 +69,22 @@ FName FDMXFixtureCategory::GetFirstValue()
 	}
 
 	return FName();
+}
+
+TArray<FName> FDMXFixtureCategory::GetPredefinedValues()
+{
+	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+	if (ProtocolSettings)
+	{
+		return ProtocolSettings->FixtureCategories.Array();
+	}
+	return TArray<FName>();
+}
+
+TArray<FName> FDMXFixtureCategory::GetPossibleValues()
+{
+	// Deprecated 5.1
+	return GetPredefinedValues();
 }
 
 FDMXFixtureCategory::FDMXFixtureCategory()

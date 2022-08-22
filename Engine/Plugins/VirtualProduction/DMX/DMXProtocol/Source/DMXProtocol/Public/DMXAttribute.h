@@ -52,11 +52,6 @@ struct DMXPROTOCOL_API FDMXAttributeName
 	GENERATED_BODY()
 
 public:
-	//~ Constructors
-
-	/** */
-	static TArray<FName> GetPossibleValues();
-
 	/**
 	 * Default constructor. Assigns Attribute to the first available
 	 * Attribute from the plugin settings
@@ -72,12 +67,31 @@ public:
 	//~ FDMXNameListItem interface
 	void SetFromName(const FName& InName);
 
+	/** IsValid member accessor */
+	bool IsValid() const { return !Name.IsNone(); }
+
 	/** The Attribute Name */
 	UPROPERTY(EditAnywhere, Category = "DMX")
 	FName Name;
 
-	const FDMXAttribute& GetAttribute() const;
-	operator const FDMXAttribute& () const { return GetAttribute(); }
+	/** Returns the predefined values */
+	static TArray<FName> GetPredefinedValues();
+
+	UE_DEPRECATED(5.1, "Deprecated since attributes now can take any name. If it is desired to resolve against default attributes from project settings, do a lookup on UDMXProtocolSettings::Attributes")
+	FDMXAttribute GetAttribute() const;
+
+	//////////////////////////////////////////////////////////////////
+	// Deprecated members originating from deprecated FDMXNameListItem
+	UE_DEPRECATED(5.1, "Please use GetPredefinedValues() instead.")
+	static TArray<FName> GetPossibleValues();
+
+	// Deprecated 5.1 without replacement. Always true
+	UE_DEPRECATED(5.1, "Obsolete. Value 'None' is always allowed.")
+	static const bool bCanBeNone;
+
+	// Deprecated 5.1 without replacement. To listen to changes of default defined protocols, please refer to UDMXProtocolSettings::GetOnDefaultAttributesChanged
+	UE_DEPRECATED(5.1, "To listen to changes of default defined protocols, please refer to UDMXProtocolSettings::GetOnDefaultAttributesChanged().")
+	static FSimpleMulticastDelegate OnValuesChanged;
 };
 
 inline uint32 GetTypeHash(const FDMXAttributeName& DMXNameListItem)

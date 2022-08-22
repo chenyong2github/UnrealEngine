@@ -12,6 +12,7 @@
 #include "Library/DMXImportGDTF.h"
 #include "Library/DMXLibrary.h"
 
+#include "Algo/Find.h"
 
 #define LOCTEXT_NAMESPACE "DMXEntityFixtureType"
 
@@ -23,25 +24,9 @@ uint8 FDMXFixtureFunction::GetLastChannel() const
 FDMXFixtureMatrix::FDMXFixtureMatrix()
 {
 	// Add a default cell attribute	
-	if (!GIsInitialLoad)
-	{
-		if (const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>())
-		{
-			FDMXAttributeName RedAttribute("Red");
-
-			if (ProtocolSettings->Attributes.Contains(RedAttribute.GetAttribute()))
-			{
-				FDMXFixtureCellAttribute RedCellAttribute;
-				RedCellAttribute.Attribute = RedAttribute;
-				CellAttributes = { RedCellAttribute };
-			}
-			else
-			{
-				FDMXFixtureCellAttribute VoidAttribute;
-				CellAttributes = { VoidAttribute };
-			}
-		}
-	}
+	FDMXFixtureCellAttribute RedCellAttribute;
+	RedCellAttribute.Attribute = FName("Red");
+	CellAttributes = { RedCellAttribute };
 }
 
 int32 FDMXFixtureMatrix::GetNumChannels() const
@@ -114,7 +99,7 @@ bool FDMXFixtureMatrix::GetChannelsFromCell(FIntPoint CellCoordinate, FDMXAttrib
 	for (const FDMXFixtureCellAttribute& CellAttribute : CellAttributes)
 	{
 		int32 CurrentFunctionSize = FDMXConversions::GetSizeOfSignalFormat(CellAttribute.DataType);
-		if (CellAttribute.Attribute.GetAttribute() == Attribute.GetAttribute())
+		if (CellAttribute.Attribute == Attribute)
 		{
 			CellAttributeIndex = CellSize;
 			CellAttributeSize = CurrentFunctionSize;
@@ -943,7 +928,7 @@ void UDMXEntityFixtureType::AddCellAttribute(int32 ModeIndex)
 		FDMXFixtureMatrix& Matrix = Mode.FixtureMatrixConfig;
 
 		FDMXFixtureCellAttribute NewAttribute;
-		TArray<FName> AvailableAttributes = FDMXAttributeName::GetPossibleValues();
+		TArray<FName> AvailableAttributes = FDMXAttributeName::GetPredefinedValues();
 		NewAttribute.Attribute = AvailableAttributes.Num() > 0 ? FDMXAttributeName(AvailableAttributes[0]) : FDMXAttributeName();
 
 		// Disable the matrix while editing it so other functions align when enabling it again
