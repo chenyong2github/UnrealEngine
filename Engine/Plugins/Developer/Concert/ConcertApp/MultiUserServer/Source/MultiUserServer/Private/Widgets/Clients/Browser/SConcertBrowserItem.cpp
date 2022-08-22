@@ -84,6 +84,16 @@ void UE::MultiUserServer::SConcertBrowserItem::Construct(const FArguments& InArg
 	];
 }
 
+void UE::MultiUserServer::SConcertBrowserItem::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	if (const TOptional<FMessageTransportStatistics> Stats = Item->GetLatestNetworkStatistics())
+	{
+		LastAvailableIp = NetworkStatistics::FormatIPv4AsString(Stats);
+	}
+}
+
 TSharedRef<SWidget> UE::MultiUserServer::SConcertBrowserItem::CreateHeader()
 {
 	return SAssignNew(ClientName, STextBlock)
@@ -162,12 +172,18 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertBrowserItem::CreateFooter()
 				SAssignNew(ClientIP4, STextBlock)
 				.ColorAndOpacity(FColor::White)
 				.HighlightText_Lambda([this](){ return *HighlightText; })
-				.Text_Lambda([this]()
-				{
-					return FText::FromString(NetworkStatistics::FormatIPv4AsString(Item->GetLatestNetworkStatistics()));
-				})
+				.Text(this, &SConcertBrowserItem::GetIpText)
 			]
 		];
+}
+
+FText UE::MultiUserServer::SConcertBrowserItem::GetIpText() const
+{
+	if (LastAvailableIp)
+	{
+		return FText::FromString(*LastAvailableIp);
+	}
+	return FText::FromString(NetworkStatistics::FormatIPv4AsString({}));
 }
 
 const FSlateBrush* UE::MultiUserServer::SConcertBrowserItem::GetBackgroundImage() const

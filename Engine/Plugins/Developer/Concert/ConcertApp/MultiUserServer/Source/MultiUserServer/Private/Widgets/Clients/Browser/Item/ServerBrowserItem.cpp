@@ -40,7 +40,7 @@ namespace UE::MultiUserServer
 			{
 				const FMessageAddress ClientAddress = Session->GetClientAddress(ClientInfo.ClientEndpointId);
 				const TOptional<FMessageTransportStatistics> Stats = NetworkStatisticsModel->GetLatestNetworkStatistics(ClientAddress);
-				if (ensureMsgf(Stats, TEXT("Server stats should always be available because the connection is server controlled.")))
+				if (Stats)
 				{
 					AllStats.Add(*Stats);
 				}
@@ -51,7 +51,7 @@ namespace UE::MultiUserServer
 		for (const FConcertEndpointContext& RemoteClientAdminEndpoints : Server->GetRemoteAdminEndpoints())
 		{
 			const TOptional<FMessageTransportStatistics> Stats = NetworkStatisticsModel->GetLatestNetworkStatistics(Server->GetRemoteAddress(RemoteClientAdminEndpoints.EndpointId));
-			if (ensureMsgf(Stats, TEXT("Server stats should always be available because the connection is server controlled.")))
+			if (Stats)
 			{
 				AllStats.Add(*Stats);
 			}

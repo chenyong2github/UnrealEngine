@@ -35,18 +35,9 @@ namespace UE::MultiUserServer
 		{
 			UpdateStatistics(*Stats);
 		}
-		else
-		{
-			const FText NotApplicableText = FText::FromString(TEXT("n/a"));
-			SendText->SetText(NotApplicableText);
-			ReceiveText->SetText(NotApplicableText);
-			RoundTripTimeText->SetText(NotApplicableText);
-			InflightText->SetText(NotApplicableText);
-			LossText->SetText(NotApplicableText);
-		}
 	}
 
-	void SClientNetworkStats::UpdateStatistics(const FMessageTransportStatistics& Statistics)
+	void SClientNetworkStats::UpdateStatistics(const FMessageTransportStatistics& Statistics) const
 	{
 		SendText->SetText(FText::FromString(NetworkStatistics::FormatTotalBytesSent(Statistics)));
 		ReceiveText->SetText(FText::FromString(NetworkStatistics::FormatTotalBytesReceived(Statistics)));

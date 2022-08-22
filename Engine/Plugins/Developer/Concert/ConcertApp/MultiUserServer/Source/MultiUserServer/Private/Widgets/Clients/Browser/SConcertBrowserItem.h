@@ -26,6 +26,8 @@ namespace UE::MultiUserServer
 		SLATE_END_ARGS()
 		
 		void Construct(const FArguments& InArgs, TSharedRef<IConcertBrowserItem> InClientItem);
+		/** Updates LastAvailableIp */
+		virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	private:
 
@@ -38,11 +40,16 @@ namespace UE::MultiUserServer
 		TSharedPtr<STextBlock> ClientName;
 		TSharedPtr<SClientNetworkStats> NetworkStats;
 		TSharedPtr<STextBlock> ClientIP4;
+
+		/** Stores the IP address once it becomes it available. Used so we can continue displaying it when the client goes offline. */
+		TOptional<FString> LastAvailableIp;
 		
 		TSharedRef<SWidget> CreateHeader();
 		TSharedRef<SWidget> CreateContentArea();
 		TSharedRef<SWidget> CreateStats();
 		TSharedRef<SWidget> CreateFooter();
+
+		FText GetIpText() const;
 
 		const FSlateBrush* GetBackgroundImage() const;
 	};

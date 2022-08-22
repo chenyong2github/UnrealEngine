@@ -44,7 +44,7 @@ namespace UE::MultiUserServer
 		TSharedPtr<STextBlock> InflightText;
 		TSharedPtr<STextBlock> LossText;
 		
-		void UpdateStatistics(const FMessageTransportStatistics& Statistics);
+		void UpdateStatistics(const FMessageTransportStatistics& Statistics) const;
 
 		TSharedRef<SWidget> CreateStatTable();
 		void AddStatistic(const TSharedRef<SHorizontalBox>& AddTo, const FText& StatisticName, const FText& StatisticToolTip, TSharedPtr<STextBlock>& AssignTo);
