@@ -22,6 +22,7 @@ class FRenderSingleScatteringWithLiveShadingCS : public FMeshMaterialShader
 		// Light data
 		SHADER_PARAMETER(int, bApplyEmission)
 		SHADER_PARAMETER(int, bApplyDirectLighting)
+		SHADER_PARAMETER(int, bApplyShadowTransmittance)
 		SHADER_PARAMETER(int, LightType)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLight)
 
@@ -123,6 +124,7 @@ void RenderSingleScatteringWithLiveShading(
 	// Light data
 	bool bApplyEmission,
 	bool bApplyDirectLighting,
+	bool bApplyShadowTransmittance,
 	uint32 LightType,
 	const FLightSceneInfo* LightSceneInfo,
 	// Object data
@@ -161,6 +163,7 @@ void RenderSingleScatteringWithLiveShading(
 		FDeferredLightUniformStruct DeferredLightUniform;
 		PassParameters->bApplyEmission = bApplyEmission;
 		PassParameters->bApplyDirectLighting = bApplyDirectLighting;
+		PassParameters->bApplyShadowTransmittance = bApplyShadowTransmittance;
 		if (PassParameters->bApplyDirectLighting)
 		{
 			DeferredLightUniform = GetDeferredLightParameters(View, *LightSceneInfo);
@@ -266,6 +269,7 @@ void RenderWithLiveShading(
 	{
 		bool bApplyEmission = PassIndex == 0;
 		bool bApplyDirectLighting = !LightSceneInfoCompact.IsEmpty();
+		bool bApplyShadowTransmittance = false;
 
 		uint32 LightType = 0;
 		FLightSceneInfo* LightSceneInfo = nullptr;
@@ -276,6 +280,7 @@ void RenderWithLiveShading(
 			check(LightSceneInfo != nullptr);
 
 			bApplyDirectLighting = (LightSceneInfo != nullptr);
+			bApplyShadowTransmittance = LightSceneInfo->Proxy->CastsVolumetricShadow();
 		}
 
 		RenderSingleScatteringWithLiveShading(
@@ -287,6 +292,7 @@ void RenderWithLiveShading(
 			// Light data
 			bApplyEmission,
 			bApplyDirectLighting,
+			bApplyShadowTransmittance,
 			LightType,
 			LightSceneInfo,
 			// Object data

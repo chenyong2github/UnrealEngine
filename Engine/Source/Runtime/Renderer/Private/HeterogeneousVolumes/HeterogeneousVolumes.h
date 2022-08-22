@@ -190,6 +190,7 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 	// Light data
 	bool bApplyEmission,
 	bool bApplyDirectLighting,
+	bool bApplyShadowTransmittance,
 	uint32 LightType,
 	const FLightSceneInfo* LightSceneInfo,
 	// Object data

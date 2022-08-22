@@ -20,6 +20,7 @@ int PrimitiveId;
 // Lighting
 int bApplyEmission;
 int bApplyDirectLighting;
+int bApplyShadowTransmittance;
 int LightType;
 float ShadowStepFactor;
 
@@ -203,7 +204,8 @@ void RenderSingleScatteringWithLiveShadingCS(
 			StepSize,
 			MaxStepCount,
 			bApplyEmission,
-			bApplyDirectLighting
+			bApplyDirectLighting,
+			bApplyShadowTransmittance
 		);
 
 		FDeferredLightData LightData = LoadLightData(LightType);

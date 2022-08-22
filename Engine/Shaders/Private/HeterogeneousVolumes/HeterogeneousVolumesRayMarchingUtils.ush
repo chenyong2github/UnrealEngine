@@ -21,6 +21,7 @@ struct FRayMarchingContext
 	// Lighting
 	int bApplyEmission;
 	int bApplyDirectLighting;
+	int bApplyShadowTransmittance;
 };
 
 FRayMarchingContext CreateRayMarchingContext(
@@ -38,7 +39,8 @@ FRayMarchingContext CreateRayMarchingContext(
 	uint MaxStepCount,
 	// Lighting
 	int bApplyEmission,
-	int bApplyDirectLighting
+	int bApplyDirectLighting,
+	int bApplyShadowTransmittance
 )
 {
 	FRayMarchingContext Context;
@@ -57,6 +59,7 @@ FRayMarchingContext CreateRayMarchingContext(
 	// Lighting
 	Context.bApplyEmission = bApplyEmission;
 	Context.bApplyDirectLighting = bApplyDirectLighting;
+	Context.bApplyShadowTransmittance = bApplyShadowTransmittance;
 
 	return Context;
 }
@@ -199,35 +202,43 @@ void RayMarchSingleScattering(
 
 				if (any(Inscattering > 0.0))
 				{
-					// Build shadow ray and find intersection
-					float3 LocalShadowRayOrigin = mul(float4(WorldPosition, 1.0), GetWorldToLocal()).xyz;
-					float3 LocalShadowRayEnd = mul(float4(WorldPosition + ToLight, 1.0), GetWorldToLocal()).xyz;
-					float3 LocalShadowRayDirection = LocalShadowRayEnd - LocalShadowRayOrigin;
-					float LocalShadowRayTMin = 0.0;
-					float LocalShadowRayTMax = length(LocalShadowRayDirection);
-					LocalShadowRayDirection /= LocalShadowRayTMax;
+					float3 ShadowTransmittance = 1.0;
 
-					//float ShadowJitter = InterleavedGradientNoise(PixelCoord, StepIndex);
-					float ShadowJitter = 0.0;
-					float ShadowStepSize = GetStepSize() * GetShadowStepFactor();
-					int bApplyEmission = 0;
-					int bApplyDirectLighting = 0;
+					if (RayMarchingContext.bApplyShadowTransmittance)
+					{
+						// Build shadow ray and find intersection
+						float3 LocalShadowRayOrigin = mul(float4(WorldPosition, 1.0), GetWorldToLocal()).xyz;
+						float3 LocalShadowRayEnd = mul(float4(WorldPosition + ToLight, 1.0), GetWorldToLocal()).xyz;
+						float3 LocalShadowRayDirection = LocalShadowRayEnd - LocalShadowRayOrigin;
+						float LocalShadowRayTMin = 0.0;
+						float LocalShadowRayTMax = length(LocalShadowRayDirection);
+						LocalShadowRayDirection /= LocalShadowRayTMax;
 
-					FRayMarchingContext ShadowRayMarchingContext = CreateRayMarchingContext(
-						LocalShadowRayOrigin,
-						LocalShadowRayDirection,
-						LocalShadowRayTMin,
-						LocalShadowRayTMax,
-						WorldPosition, // WorldShadowRayOrigin
-						normalize(ToLight), // WorldShadowRayDirection
-						ShadowJitter,
-						ShadowStepSize,
-						RayMarchingContext.MaxStepCount,
-						bApplyEmission,
-						bApplyDirectLighting
-						//RayMarchingContext.MaxShadowTraceDistance
-					);
-					float3 ShadowTransmittance = ComputeTransmittance(ShadowRayMarchingContext);
+						//float ShadowJitter = InterleavedGradientNoise(PixelCoord, StepIndex);
+						float ShadowJitter = 0.0;
+						float ShadowStepSize = GetStepSize() * GetShadowStepFactor();
+						int bApplyEmission = 0;
+						int bApplyDirectLighting = 0;
+						int bApplyShadowTransmittance = 0;
+
+						FRayMarchingContext ShadowRayMarchingContext = CreateRayMarchingContext(
+							LocalShadowRayOrigin,
+							LocalShadowRayDirection,
+							LocalShadowRayTMin,
+							LocalShadowRayTMax,
+							WorldPosition, // WorldShadowRayOrigin
+							normalize(ToLight), // WorldShadowRayDirection
+							ShadowJitter,
+							ShadowStepSize,
+							RayMarchingContext.MaxStepCount,
+							bApplyEmission,
+							bApplyDirectLighting,
+							bApplyShadowTransmittance
+							//RayMarchingContext.MaxShadowTraceDistance
+						);
+
+						ShadowTransmittance = ComputeTransmittance(ShadowRayMarchingContext);
+					}
 
 					// Convert in-scattering to exitant radiance
 					float3 ScatteringCoefficient = Albedo * Extinction;

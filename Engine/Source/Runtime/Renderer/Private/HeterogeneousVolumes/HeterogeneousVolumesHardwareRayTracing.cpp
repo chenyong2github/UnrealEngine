@@ -324,7 +324,8 @@ class FRenderSingleScatteringWithPreshadingRGS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FRenderSingleScatteringWithPreshadingRGS)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FRenderSingleScatteringWithPreshadingRGS, FGlobalShader)
 
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	class FApplyShadowTransmittanceDim : SHADER_PERMUTATION_BOOL("DIM_APPLY_SHADOW_TRANSMITTANCE");
+	using FPermutationDomain = TShaderPermutationDomain<FApplyShadowTransmittanceDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		// Scene 
@@ -446,6 +447,7 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 	// Light data
 	bool bApplyEmission,
 	bool bApplyDirectLighting,
+	bool bApplyShadowTransmittance,
 	uint32 LightType,
 	const FLightSceneInfo* LightSceneInfo,
 	// Object data
@@ -492,6 +494,7 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 	}
 
 	FRenderSingleScatteringWithPreshadingRGS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FRenderSingleScatteringWithPreshadingRGS::FApplyShadowTransmittanceDim>(bApplyShadowTransmittance);
 	TShaderRef<FRenderSingleScatteringWithPreshadingRGS> RayGenerationShader = View.ShaderMap->GetShader<FRenderSingleScatteringWithPreshadingRGS>(PermutationVector);
 	FIntPoint DispatchResolution = View.ViewRect.Size();
 

@@ -10,6 +10,10 @@
 #include "HeterogeneousVolumesTracingUtils.ush"
 #include "HeterogeneousVolumesLightingUtils.ush"
 
+#ifndef DIM_APPLY_SHADOW_TRANSMITTANCE
+#define DIM_APPLY_SHADOW_TRANSMITTANCE 0
+#endif // DIM_APPLY_SHADOW_TRANSMITTANCE
+
 #define VOXEL_COUNT_MAX 6
 
 #define SHADOW_BIT 0x80000000
@@ -458,7 +462,8 @@ RAY_TRACING_ENTRY_RAYGEN(RenderSingleScatteringWithPreshadingRGS)
 			GetStepSize(),
 			MaxStepCount,
 			bApplyEmission,
-			bApplyDirectLighting
+			bApplyDirectLighting,
+			DIM_APPLY_SHADOW_TRANSMITTANCE
 		);
 
 		FDeferredLightData LightData = LoadLightData(LightType);

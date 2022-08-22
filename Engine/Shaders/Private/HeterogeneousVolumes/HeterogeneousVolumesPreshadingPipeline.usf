@@ -30,6 +30,10 @@
 #define DIM_VOXEL_CULLING 1
 #endif // DIM_VOXEL_CULLING
 
+#ifndef DIM_APPLY_SHADOW_TRANSMITTANCE
+#define DIM_APPLY_SHADOW_TRANSMITTANCE 0
+#endif // DIM_APPLY_SHADOW_TRANSMITTANCE
+
 // Lighting
 int bApplyEmission;
 int bApplyDirectLighting;
@@ -495,7 +499,8 @@ void RenderSingleScatteringWithPreshadingCS(
 			StepSize,
 			MaxStepCount,
 			bApplyEmission,
-			bApplyDirectLighting
+			bApplyDirectLighting,
+			DIM_APPLY_SHADOW_TRANSMITTANCE
 		);
 
 		FDeferredLightData LightData = LoadLightData(LightType);

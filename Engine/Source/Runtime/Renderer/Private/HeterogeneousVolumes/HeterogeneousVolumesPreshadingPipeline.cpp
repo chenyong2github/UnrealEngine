@@ -204,10 +204,11 @@ class FRenderSingleScatteringWithPreshadingCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FRenderSingleScatteringWithPreshadingCS);
 	SHADER_USE_PARAMETER_STRUCT(FRenderSingleScatteringWithPreshadingCS, FGlobalShader);
 
-	class FDebugDim : SHADER_PERMUTATION_BOOL("DIM_DEBUG");
+	class FApplyShadowTransmittanceDim : SHADER_PERMUTATION_BOOL("DIM_APPLY_SHADOW_TRANSMITTANCE");
 	class FVoxelCullingDim : SHADER_PERMUTATION_BOOL("DIM_VOXEL_CULLING");
 	class FSparseVoxelTracingDim : SHADER_PERMUTATION_BOOL("DIM_SPARSE_VOXEL_TRACING");
-	using FPermutationDomain = TShaderPermutationDomain<FDebugDim, FVoxelCullingDim, FSparseVoxelTracingDim>;
+	class FDebugDim : SHADER_PERMUTATION_BOOL("DIM_DEBUG");
+	using FPermutationDomain = TShaderPermutationDomain<FApplyShadowTransmittanceDim, FVoxelCullingDim, FSparseVoxelTracingDim, FDebugDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		// Scene data
@@ -282,6 +283,7 @@ void RenderSingleScatteringWithPreshadingCompute(
 	// Light data
 	bool bApplyEmission,
 	bool bApplyDirectLighting,
+	bool bApplyShadowTransmittance,
 	uint32 LightType,
 	const FLightSceneInfo* LightSceneInfo,
 	// Object data
@@ -350,9 +352,10 @@ void RenderSingleScatteringWithPreshadingCompute(
 	}
 
 	FRenderSingleScatteringWithPreshadingCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FRenderSingleScatteringWithPreshadingCS::FDebugDim>(HeterogeneousVolumes::GetDebugMode() != 0);
+	PermutationVector.Set<FRenderSingleScatteringWithPreshadingCS::FApplyShadowTransmittanceDim>(bApplyShadowTransmittance);
 	PermutationVector.Set<FRenderSingleScatteringWithPreshadingCS::FVoxelCullingDim>(HeterogeneousVolumes::UseSparseVoxelPerTileCulling());
 	PermutationVector.Set<FRenderSingleScatteringWithPreshadingCS::FSparseVoxelTracingDim>(HeterogeneousVolumes::UseSparseVoxelPipeline());
+	PermutationVector.Set<FRenderSingleScatteringWithPreshadingCS::FDebugDim>(HeterogeneousVolumes::GetDebugMode() != 0);
 	TShaderRef<FRenderSingleScatteringWithPreshadingCS> ComputeShader = View.ShaderMap->GetShader<FRenderSingleScatteringWithPreshadingCS>(PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
@@ -426,6 +429,7 @@ void RenderWithPreshadingCompute(
 		{
 			bool bApplyEmission = PassIndex == 0;
 			bool bApplyDirectLighting = !LightSceneInfoCompact.IsEmpty();
+			bool bApplyShadowTransmittance = false;
 
 			uint32 LightType = 0;
 			FLightSceneInfo* LightSceneInfo = nullptr;
@@ -436,6 +440,7 @@ void RenderWithPreshadingCompute(
 				check(LightSceneInfo != nullptr);
 
 				bApplyDirectLighting = (LightSceneInfo != nullptr);
+				bApplyShadowTransmittance = LightSceneInfo->Proxy->CastsVolumetricShadow();
 			}
 
 			RenderSingleScatteringWithPreshadingCompute(
@@ -447,6 +452,7 @@ void RenderWithPreshadingCompute(
 				// Light
 				bApplyEmission,
 				bApplyDirectLighting,
+				bApplyShadowTransmittance,
 				LightType,
 				LightSceneInfo,
 				// Object
@@ -542,6 +548,7 @@ void RenderWithPreshadingHardwareRayTracing(
 		{
 			bool bApplyEmission = PassIndex == 0;
 			bool bApplyDirectLighting = !LightSceneInfoCompact.IsEmpty();
+			bool bApplyShadowTransmittance = false;
 
 			uint32 LightType = 0;
 			FLightSceneInfo* LightSceneInfo = nullptr;
@@ -552,6 +559,7 @@ void RenderWithPreshadingHardwareRayTracing(
 				check(LightSceneInfo != nullptr);
 
 				bApplyDirectLighting = (LightSceneInfo != nullptr);
+				bApplyShadowTransmittance = LightSceneInfo->Proxy->CastsVolumetricShadow();
 			}
 
 			RenderSingleScatteringWithPreshadingHardwareRayTracing(
@@ -563,6 +571,7 @@ void RenderWithPreshadingHardwareRayTracing(
 				// Light data
 				bApplyEmission,
 				bApplyDirectLighting,
+				bApplyShadowTransmittance,
 				LightType,
 				LightSceneInfo,
 				// Object data
