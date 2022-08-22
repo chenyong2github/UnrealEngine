@@ -36,6 +36,26 @@ namespace Horde.Build.Agents.Fleet
 		/// </summary>
 		ComputeQueueAwsMetric
 	}
+	
+	/// <summary>
+	/// Extensions for pool size strategy
+	/// </summary>
+	public static class PoolSizeStrategyExtensions
+	{
+		/// <summary>
+		/// Checks whether the strategy can be called more often than normal (i.e it's cheap to run)
+		/// </summary>
+		/// <param name="strategy"></param>
+		/// <returns>True if it supports high-frequency</returns>
+		public static bool SupportsHighFrequency(this PoolSizeStrategy strategy)
+		{
+			return strategy switch
+			{
+				PoolSizeStrategy.ComputeQueueAwsMetric => true,
+				_ => false
+			};
+		}
+	}
 
 	/// <summary>
 	/// Class for specifying and grouping data together required for calculating pool size
