@@ -42,3 +42,21 @@ FMovieSceneChannel* FMovieSceneChannelProxy::GetChannel(FName ChannelTypeName, i
 	}
 	return nullptr;
 }
+
+#if WITH_EDITOR
+
+FMovieSceneChannel* FMovieSceneChannelProxy::GetChannelBySortOrder(FName ChannelTypeName, int32 ChannelSortOrder) const
+{
+	if (const FMovieSceneChannelEntry* Entry = FindEntry(ChannelTypeName))
+	{
+		TArrayView<FMovieSceneChannel* const> Channels = Entry->GetChannels();
+		const int32 ChannelIndex = Entry->GetChannelIndexBySortOrder(ChannelSortOrder);
+		if (ChannelIndex != INDEX_NONE)
+		{
+			return Channels[ChannelIndex];
+		}
+	}
+	return nullptr;
+}
+
+#endif // WITH_EDITOR

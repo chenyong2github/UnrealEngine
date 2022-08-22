@@ -108,6 +108,27 @@ struct FMovieSceneChannelProxyData
 	/**
 	 * Add a new channel to the proxy. Channel's address is stored internally as a voic* and should exist as long as the channel proxy does
 	 *
+	 * @param InChannel          The channel to add to this proxy. Should live for as long as the proxy does. Any re-allocation should be accompanied with a re-creation of the proxy
+	 * @param InMetaData         The editor meta data to be associated with this channel
+	 */
+	template<typename ChannelType>
+	FMovieSceneChannelHandle AddWithDefaultEditorData(ChannelType& InChannel, const FMovieSceneChannelMetaData& InMetaData)
+	{
+		static_assert(!TIsSame<typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType, void>::Value, "This method is for channels with typed editor data. You *must* call SetExtendedEditorData afterwards.");
+		static_assert(!TIsSame<ChannelType, FMovieSceneChannel>::Value, "Cannot add channels by their base FMovieSceneChannel type.");
+
+		// Add the channel
+		const int32 ChannelTypeIndex = AddInternal(InChannel);
+		// Add a default editor data at the same index, hopefully the caller will set it afterwards
+		Entries[ChannelTypeIndex].AddMetaData<ChannelType>(InMetaData, TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType());
+		// Return index usable for SetExtendedEditorData
+		const FName ChannelTypeName = ChannelType::StaticStruct()->GetFName();
+		return FMovieSceneChannelHandle(nullptr, ChannelTypeName, Entries[ChannelTypeIndex].GetChannels().Num() - 1);
+	}
+
+	/**
+	 * Add a new channel to the proxy. Channel's address is stored internally as a voic* and should exist as long as the channel proxy does
+	 *
 	 * @param InChannel             The channel to add to this proxy. Should live for as long as the proxy does. Any re-allocation should be accompanied with a re-creation of the proxy
 	 * @param InMetaData            The editor meta data to be associated with this channel
 	 * @param InExtendedEditorData  Additional editor data to be associated with this channel as per its traits
@@ -122,6 +143,20 @@ struct FMovieSceneChannelProxyData
 		const int32 ChannelTypeIndex = AddInternal(InChannel);
 		// Add the editor data at the same index
 		Entries[ChannelTypeIndex].AddMetaData<ChannelType>(InMetaData, Forward<ExtendedEditorDataType>(InExtendedEditorData));
+	}
+
+	template<typename ChannelType, typename ExtendedEditorDataType>
+	void SetExtendedEditorData(FMovieSceneChannelHandle ChannelHandle, ExtendedEditorDataType&& InExtendedEditorData)
+	{
+		// Find the entry
+		// TODO: we rely on ChannelType's extended editor data to be the same as the overriden extended editor data!
+		const FName ChannelTypeName = ChannelHandle.GetChannelTypeName();
+		FMovieSceneChannelEntry* Entry = Entries.FindByPredicate([=](const FMovieSceneChannelEntry& CurEntry)
+				{ return CurEntry.ChannelTypeName == ChannelTypeName; });
+		if (ensure(Entry))
+		{
+			Entry->SetExtendedEditorData<ChannelType>(ChannelHandle.GetChannelIndex(), InExtendedEditorData);
+		}
 	}
 
 #else
@@ -259,7 +294,6 @@ public:
 
 #if !WITH_EDITOR
 
-
 	/**
 	 * Construction via a single channel, and its editor data
 	 * Channel's address is stored internally as a voic* and should exist as long as this channel proxy does.
@@ -291,6 +325,21 @@ public:
 	 */
 	template<typename ChannelType>
 	TArrayView<const FMovieSceneChannelMetaData> GetMetaData() const;
+
+	/**
+	 * Get the channel for the specified sort index of a particular type.
+	 *
+	 * @return A pointer to the channel, or nullptr if the index was invalid, or the type was not present
+	 */
+	template<typename ChannelType>
+	ChannelType* GetChannelBySortOrder(int32 ChannelSortOrder) const;
+
+	/**
+	 * Get the channel for the specified sort index of a particular type.
+	 *
+	 * @return A pointer to the channel, or nullptr if the index was invalid, or the type was not present
+	 */
+	FMovieSceneChannel* GetChannelBySortOrder(FName ChannelTypeName, int32 ChannelSortOrder) const;
 
 	/**
 	 * Access all the extended data for the templated channel type
@@ -370,7 +419,6 @@ ChannelType* FMovieSceneChannelProxy::GetChannel(int32 ChannelIndex) const
 	TArrayView<ChannelType*> Channels = GetChannels<ChannelType>();
 	return Channels.IsValidIndex(ChannelIndex) ? Channels[ChannelIndex] : nullptr;
 }
-
 
 #if !WITH_EDITOR
 
@@ -463,5 +511,19 @@ TArrayView<const FMovieSceneChannelMetaData> FMovieSceneChannelProxy::GetMetaDat
 	}
 	return TArrayView<const FMovieSceneChannelMetaData>();
 }
+
+
+/**
+ * Get the channel for the specified sort index of a particular type.
+ *
+ * @return A pointer to the channel, or nullptr if the index was invalid, or the type was not present
+ */
+template<typename ChannelType>
+ChannelType* FMovieSceneChannelProxy::GetChannelBySortOrder(int32 ChannelSortOrder) const
+{
+	FName ChannelTypeName = ChannelType::StaticStruct()->GetFName();
+	return static_cast<ChannelType*>(GetChannelBySortOrder(ChannelTypeName, ChannelSortOrder));
+}
+
 
 #endif	// !WITH_EDITOR
