@@ -4,10 +4,9 @@
 	MeshDistanceFieldCommon.ush
 =============================================================================*/
 
-float DistanceToNearestSurfaceForObject(FDFObjectData DFObjectData, float3 WorldPosition, float MaxDistance)
+float DistanceToNearestSurfaceForObject(FDFObjectData DFObjectData, FLWCVector3 WorldPosition, float MaxDistance)
 {
-	float4x4 WorldToVolume = LWCHackToFloat(DFObjectData.WorldToVolume);
-	float3 VolumePosition = mul(float4(WorldPosition, 1), WorldToVolume).xyz;
+	float3 VolumePosition = LWCMultiply(WorldPosition, DFObjectData.WorldToVolume);
 
 	float3 ClampedVolumePosition = clamp(VolumePosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
 	float DistanceToBox = length((VolumePosition - ClampedVolumePosition) * DFObjectData.VolumeToWorldScale);
@@ -29,7 +28,7 @@ float DistanceToNearestSurfaceForObject(FDFObjectData DFObjectData, float3 World
 	return DistanceToOccluder;
 }
 
-float DistanceToNearestSurfaceForObject(uint ObjectIndex, float3 WorldPosition, float MaxDistance)
+float DistanceToNearestSurfaceForObject(uint ObjectIndex, FLWCVector3 WorldPosition, float MaxDistance)
 {
 	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 	return DistanceToNearestSurfaceForObject(DFObjectData, WorldPosition, MaxDistance);

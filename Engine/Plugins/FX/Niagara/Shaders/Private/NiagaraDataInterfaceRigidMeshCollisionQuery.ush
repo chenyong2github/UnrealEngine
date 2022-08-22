@@ -384,7 +384,7 @@ void GetClosestPointMeshDistanceField_{ParameterName}(in float3 WorldPosition, i
 			// #todo(dmp): this does a dynamic branch based on intersecting the bbox.  Maybe we can factor that out due to the broadphase here?
 			// #todo(dmp): Check the distance from the physics asset for a speedup?
 			MaxDistance = max(.001, MaxDistance);
-			OutClosestDistance = DistanceToNearestSurfaceForObject(DFIndex, WorldPosition, MaxDistance);			 
+			OutClosestDistance = DistanceToNearestSurfaceForObject(DFIndex, LWCPromote(WorldPosition), MaxDistance); // LWC_TODO
 
 			FDFObjectData DFObjectData = LoadDFObjectData(DFIndex);
 			float4x4 WorldToVolume = LWCHackToFloat(DFObjectData.WorldToVolume);
@@ -434,7 +434,7 @@ void GetClosestPointMeshDistanceFieldAccurate_{ParameterName}(in float3 WorldPos
 		// #todo(dmp): this does a dynamic branch based on intersecting the bbox.  Maybe we can factor that out due to the broadphase here?
 		// #todo(dmp): Check the distance from the physics asset for a speedup?
 		MaxDistance = max(.001, MaxDistance);
-		float OutClosestDistanceTmp = DistanceToNearestSurfaceForObject(DFIndex, WorldPosition, MaxDistance);			 
+		float OutClosestDistanceTmp = DistanceToNearestSurfaceForObject(DFIndex, LWCPromote(WorldPosition), MaxDistance); // LWC_TODO
 
 		if (OutClosestDistanceTmp < OutClosestDistance)
 		{
@@ -487,7 +487,7 @@ void GetClosestPointMeshDistanceFieldNoNormal_{ParameterName}(in float3 WorldPos
 		{
 			// #todo(dmp): this does a dynamic branch based on intersecting the bbox.  Maybe we can factor that out due to the broadphase here?
 			MaxDistance = max(.001, MaxDistance);
-			OutClosestDistance = DistanceToNearestSurfaceForObject(DFIndex, WorldPosition, MaxDistance);		
+			OutClosestDistance = DistanceToNearestSurfaceForObject(DFIndex, LWCPromote(WorldPosition), MaxDistance); // LWC_TODO
 		}
 		
 		const float3 PreviousPosition = mul(GetPreviousTransform_{ParameterName}(ElementIndex), float4(CollisionPosition,1.0)).xyz;

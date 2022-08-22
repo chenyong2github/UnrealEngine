@@ -505,7 +505,7 @@ void MeshSDFObjectCullPS(
 #if INTERSECT_FROXEL_WITH_SDF
 		if (ObjectType == CULL_MESH_TYPE_SDF && bTileIntersectsObject)
 		{
-			float3 WorldTileCenterPosition = ComputeCellWorldPosition(FroxelGridCoordinate, .5f);
+			float3 WorldTileCenterPosition = ComputeCellWorldPosition(FroxelGridCoordinate, .5f); // LWC_TODO
 
 			float3 WorldTileCornerVector = (ComputeCellWorldPosition(FroxelGridCoordinate, float3(1, 1, 1)) - WorldTileCenterPosition);
 			float CornerLength = length(WorldTileCornerVector);
@@ -514,7 +514,7 @@ void MeshSDFObjectCullPS(
 			CornerLength = max(length(WorldTileCornerVector), CornerLength);
 
 			float TileBoundingSphereRadius = CornerLength + MaxMeshSDFInfluenceRadius;
-			float DistanceToSurface = DistanceToNearestSurfaceForObject(ObjectIndex, WorldTileCenterPosition, TileBoundingSphereRadius);
+			float DistanceToSurface = DistanceToNearestSurfaceForObject(ObjectIndex, LWCPromote(WorldTileCenterPosition), TileBoundingSphereRadius);
 			bTileIntersectsObject = DistanceToSurface < TileBoundingSphereRadius;
 		}
 #endif
@@ -600,7 +600,7 @@ void MeshSDFObjectCullForProbesPS(
 				// Check distance to SDF
 				if (bProbeIntersectsObject)
 				{
-					float DistanceToSurface = DistanceToNearestSurfaceForObject(ObjectData.Index, ProbeWorldPosition, MaxMeshSDFInfluenceRadius);
+					float DistanceToSurface = DistanceToNearestSurfaceForObject(ObjectData.Index, LWCPromote(ProbeWorldPosition), MaxMeshSDFInfluenceRadius); // LWC_TODO
 					bProbeIntersectsObject = DistanceToSurface < MaxMeshSDFInfluenceRadius;
 				}
 

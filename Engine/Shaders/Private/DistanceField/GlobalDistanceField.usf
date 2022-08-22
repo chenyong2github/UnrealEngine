@@ -389,7 +389,7 @@ void AllocatePagesCS(
 
 			if (SquaredDistanceBetweenAABBs < ClipmapInfluenceRadius * ClipmapInfluenceRadius)
 			{
-				float DistanceToPageCenter = DistanceToNearestSurfaceForObject(ObjectIndex, PageWorldCenter, InfluenceMax);
+				float DistanceToPageCenter = DistanceToNearestSurfaceForObject(ObjectIndex, LWCPromote(PageWorldCenter), InfluenceMax); // LWC_TODO
 				MinDistanceToPageCenter = min(MinDistanceToPageCenter, DistanceToPageCenter);
 			}
 		}
@@ -664,7 +664,7 @@ void CompositeMeshSDF(uint ObjectIndex, float3 VoxelWorldCenter, inout float Min
 	float MaxQueryDistance = min(InfluenceRadius, max(MinDistance, MaxEarlyOutDistance));
 
 	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
-	float DistanceToOccluder = DistanceToNearestSurfaceForObject(DFObjectData, VoxelWorldCenter, MaxQueryDistance);
+	float DistanceToOccluder = DistanceToNearestSurfaceForObject(DFObjectData, LWCPromote(VoxelWorldCenter), MaxQueryDistance); // LWC_TODO
 	MinDistance = min(MinDistance, DistanceToOccluder);
 
 #if COMPOSITE_COVERAGE_ATLAS
