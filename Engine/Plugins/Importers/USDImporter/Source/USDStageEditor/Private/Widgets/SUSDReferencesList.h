@@ -31,7 +31,7 @@ class SUsdReferencesList : public SListView< TSharedPtr< FUsdReference > >
 	SLATE_END_ARGS()
 
 public:
-	void Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
+	void Construct( const FArguments& InArgs );
 	void SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
 
 protected:

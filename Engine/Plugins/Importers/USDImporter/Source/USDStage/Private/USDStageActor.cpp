@@ -1253,7 +1253,7 @@ UUsdPrimTwin* AUsdStageActor::ExpandPrim( const UE::FUsdPrim& Prim, FUsdSchemaTr
 	// if we have any as if will properly deactivate them like the usual "Bake to Control Rig" workflow.
 	if ( Prim.IsA( TEXT( "SkelRoot" ) ) )
 	{
-		if ( UsdUtils::PrimHasControlRigSchema( Prim ) )
+		if ( UsdUtils::PrimHasSchema( Prim, UnrealIdentifiers::ControlRigAPI ) )
 		{
 			LevelSequenceHelper.UpdateControlRigTracks( *UsdPrimTwin );
 

@@ -3,6 +3,7 @@
 #include "UsdWrappers/SdfLayer.h"
 
 #include "UsdWrappers/SdfPath.h"
+#include "UsdWrappers/SdfPrimSpec.h"
 
 #include "USDMemory.h"
 
@@ -11,6 +12,7 @@
 #include "USDIncludesStart.h"
 	#include "pxr/usd/sdf/layer.h"
 	#include "pxr/usd/sdf/layerUtils.h"
+	#include "pxr/usd/sdf/primSpec.h"
 #include "USDIncludesEnd.h"
 
 #endif // #if USE_USD_SDK
@@ -614,6 +616,32 @@ namespace UE
 #endif // #if USE_USD_SDK
 
 		return false;
+	}
+
+	template<typename PtrType>
+	FSdfPrimSpec FSdfLayerBase<PtrType>::GetPseudoRoot() const
+	{
+#if USE_USD_SDK
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return FSdfPrimSpec{ Ptr->GetPseudoRoot() };
+		}
+#endif // #if USE_USD_SDK
+
+		return FSdfPrimSpec{};
+	}
+
+	template<typename PtrType>
+	FSdfPrimSpec FSdfLayerBase<PtrType>::GetPrimAtPath( const FSdfPath& Path ) const
+	{
+#if USE_USD_SDK
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			return FSdfPrimSpec{ Ptr->GetPrimAtPath( Path ) };
+		}
+#endif // #if USE_USD_SDK
+
+		return FSdfPrimSpec{};
 	}
 
 	template<typename PtrType>

@@ -26,7 +26,7 @@ FUsdVariantSetViewModel::FUsdVariantSetViewModel( FUsdVariantSetsViewModel* InOw
 void FUsdVariantSetViewModel::SetVariantSelection( const TSharedPtr< FString >& InVariantSelection )
 {
 #if USE_USD_SDK
-	if ( !Owner->UsdPrim )
+	if ( !Owner || !Owner->UsdStage )
 	{
 		return;
 	}
@@ -41,31 +41,33 @@ void FUsdVariantSetViewModel::SetVariantSelection( const TSharedPtr< FString >& 
 
 	FScopedUsdAllocs UsdAllocs;
 
-	std::string UsdVariantSelection;
+	std::string UsdVariantSetName = UnrealToUsd::ConvertString( *SetName ).Get();
+	std::string UsdVariantSelection = VariantSelection
+		? UnrealToUsd::ConvertString( *( *VariantSelection ) ).Get()
+		: std::string{};
 
-	if ( VariantSelection )
+	if ( const UE::FUsdPrim& Prim = Owner->UsdStage.GetPrimAtPath( UE::FSdfPath{ *Owner->PrimPath } ) )
 	{
-		UsdVariantSelection = UnrealToUsd::ConvertString( *(*VariantSelection ) ).Get();
+		pxr::UsdVariantSets UsdVariantSets = pxr::UsdPrim{ Prim }.GetVariantSets();
+		UsdVariantSets.SetSelection( UsdVariantSetName, UsdVariantSelection );
 	}
 
-	pxr::UsdVariantSets UsdVariantSets = pxr::UsdPrim( Owner->UsdPrim ).GetVariantSets();
-	UsdVariantSets.SetSelection( UnrealToUsd::ConvertString( *SetName ).Get(), UsdVariantSelection );
 #endif // #if USE_USD_SDK
 }
 
-void FUsdVariantSetsViewModel::UpdateVariantSets( const UE::FUsdStageWeak& InUsdStage, const TCHAR* PrimPath )
+void FUsdVariantSetsViewModel::UpdateVariantSets( const UE::FUsdStageWeak& InUsdStage, const TCHAR* InPrimPath )
 {
 #if USE_USD_SDK
 	VariantSets.Reset();
 	UsdStage = InUsdStage;
+	PrimPath = InPrimPath;
 
-	if ( !UsdStage )
+	if ( !UsdStage || PrimPath.IsEmpty() || UE::FSdfPath{ InPrimPath }.IsAbsoluteRootPath() )
 	{
 		return;
 	}
 
-	UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( PrimPath ) );
-
+	UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( *PrimPath ) );
 	if ( !UsdPrim )
 	{
 		return;
@@ -83,7 +85,7 @@ void FUsdVariantSetsViewModel::UpdateVariantSets( const UE::FUsdStageWeak& InUsd
 		FUsdVariantSetViewModel VariantSet( this );
 		VariantSet.SetName = UsdToUnreal::ConvertString( UsdVariantSetName.c_str() );
 
-		pxr::UsdVariantSet UsdVariantSet =  pxr::UsdPrim( UsdPrim ).GetVariantSet( UsdVariantSetName.c_str() );
+		pxr::UsdVariantSet UsdVariantSet = pxr::UsdPrim( UsdPrim ).GetVariantSet( UsdVariantSetName.c_str() );
 		VariantSet.VariantSelection = MakeSharedUnreal< FString >( UsdToUnreal::ConvertString( UsdVariantSet.GetVariantSelection().c_str() ) );
 
 		std::vector< std::string > VariantNames = UsdVariantSet.GetVariantNames();

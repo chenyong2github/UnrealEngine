@@ -3,11 +3,13 @@
 #pragma once
 
 #include "USDTreeItemViewModel.h"
-#include "Templates/SharedPointer.h"
-#include "Internationalization/Text.h"
 
+#include "UsdWrappers/ForwardDeclarations.h"
 #include "UsdWrappers/UsdStage.h"
 #include "UsdWrappers/UsdPrim.h"
+
+#include "Templates/SharedPointer.h"
+#include "Internationalization/Text.h"
 
 using FUsdPrimViewModelRef = TSharedRef< class FUsdPrimViewModel >;
 using FUsdPrimViewModelPtr = TSharedPtr< class FUsdPrimViewModel >;
@@ -19,7 +21,7 @@ public:
 	FText GetType() const { return Type; }
 	bool HasPayload() const { return bHasPayload; }
 	bool IsLoaded() const { return bIsLoaded; }
-	bool HasCompositionArcs() const {return bHasCompositionArcs; }
+	bool HasCompositionArcs() const { return bHasCompositionArcs; }
 	bool IsVisible() const { return bIsVisible; }
 
 	FText Name;
@@ -33,9 +35,7 @@ public:
 class USDSTAGEEDITORVIEWMODELS_API FUsdPrimViewModel : public IUsdTreeViewItem
 {
 public:
-	FUsdPrimViewModel( FUsdPrimViewModel* InParentItem, const UE::FUsdStageWeak& InUsdStage, const UE::FUsdPrim& InUsdPrim );
-
-	FUsdPrimViewModel( FUsdPrimViewModel* InParentItem, const UE::FUsdStageWeak& InUsdStage );
+	FUsdPrimViewModel( FUsdPrimViewModel* InParentItem, const UE::FUsdStageWeak& InUsdStage, const UE::FUsdPrim& InPrim = {} );
 
 	TArray< FUsdPrimViewModelRef >& UpdateChildren();
 
@@ -47,23 +47,10 @@ public:
 	void ToggleVisibility();
 	void TogglePayload();
 
-	void SetUpLiveLink();
-	bool CanSetUpLiveLink() const;
-
-	void RemoveLiveLink();
-	bool CanRemoveLiveLink() const;
-
-	void SetUpControlRig();
-	bool CanSetUpControlRig() const;
-
-	void RemoveControlRig();
-	bool CanRemoveControlRig() const;
-
-	void ApplyGroomSchema();
-	bool CanApplyGroomSchema() const;
-
-	void RemoveGroomSchema();
-	bool CanRemoveGroomSchema() const;
+	void ApplySchema( FName SchemaName );
+	bool CanApplySchema( FName SchemaName ) const;
+	void RemoveSchema( FName SchemaName );
+	bool CanRemoveSchema( FName SchemaName ) const;
 
 	// Returns true if this prim has at least one spec on the stage's local layer stack
 	bool HasSpecsOnLocalLayer() const;
@@ -83,8 +70,8 @@ public:
 public:
 	UE::FUsdStageWeak UsdStage;
 	UE::FUsdPrim UsdPrim;
-	FUsdPrimViewModel* ParentItem;
 
+	FUsdPrimViewModel* ParentItem;
 	TArray< FUsdPrimViewModelRef > Children;
 
 	TSharedRef< FUsdPrimModel > RowData; // Data model

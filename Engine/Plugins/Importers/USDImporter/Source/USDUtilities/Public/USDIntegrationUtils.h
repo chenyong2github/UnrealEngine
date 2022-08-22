@@ -22,27 +22,20 @@ class ULiveLinkComponentController;
 namespace UsdUtils
 {
 #if USE_USD_SDK
-
 	// Returns true if Prim has the given Schema
 	USDUTILITIES_API bool PrimHasSchema( const pxr::UsdPrim& Prim, const pxr::TfToken& Schema );
+
+	// Returns true if we can apply a single-apply API schema named "SchemaName" to Prim
+	USDUTILITIES_API bool CanApplySchema( pxr::UsdPrim Prim, pxr::TfToken SchemaName );
 
 	// Apply the given Schema to the Prim. Returns true if the application was successful
 	USDUTILITIES_API bool ApplySchema( const pxr::UsdPrim& Prim, const pxr::TfToken& Schema );
 
-	// Returns true in case Prim has our custom "LiveLinkAPI" schema
-	USDUTILITIES_API bool PrimHasLiveLinkSchema( const pxr::UsdPrim& Prim );
+	// Returns true if we can remove a single-apply API schema named "SchemaName" from Prim
+	USDUTILITIES_API bool CanRemoveSchema( pxr::UsdPrim Prim, pxr::TfToken SchemaName );
 
-	// Returns true in case Prim has our custom "ControlRigAPI" schema
-	USDUTILITIES_API bool PrimHasControlRigSchema( const pxr::UsdPrim& Prim );
-
-	// Apply the control rig schema to the prim, creates all the required attributes and sets default values
-	// if they're otherwise not authored
-	USDUTILITIES_API bool ApplyControlRigSchema( const pxr::UsdPrim& Prim );
-
-	// Apply the live link schema to the prim, creates all the required attributes and sets default values
-	// if they're otherwise not authored
-	USDUTILITIES_API bool ApplyLiveLinkSchema( const pxr::UsdPrim& Prim );
-
+	// Remove the given Schema from the Prim. Returns true if was successful
+	USDUTILITIES_API bool RemoveSchema( const pxr::UsdPrim& Prim, const pxr::TfToken& Schema );
 #endif // USE_USD_SDK
 }
 

@@ -16,6 +16,10 @@ class UUsdStageEditorSettings : public UObject
 
 public:
 	/** Whether our prim selection in SUSDStageTreeView is kept synchronized with the viewport selection */
-	UPROPERTY(config, EditAnywhere, Category=Options)
+	UPROPERTY( config, EditAnywhere, Category = USD )
 	bool bSelectionSynced = false;
+
+	/** Whether to automatically set a layer as edit target when isolating it */
+	UPROPERTY( config, EditAnywhere, Category = USD )
+	bool bIsolateLayerSyncedWithEditTarget = true;
 };

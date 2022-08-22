@@ -13,7 +13,7 @@ class SUsdPrimPropertiesList : public SListView< TSharedPtr< FUsdPrimAttributeVi
 	SLATE_END_ARGS()
 
 public:
-	void Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath );
+	void Construct( const FArguments& InArgs );
 	void SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath );
 
 protected:

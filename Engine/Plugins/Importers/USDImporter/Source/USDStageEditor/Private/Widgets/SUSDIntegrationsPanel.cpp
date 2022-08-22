@@ -438,7 +438,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 		];
 }
 
-void SUsdIntegrationsPanel::Construct( const FArguments& InArgs, const UE::FUsdStageWeak& InUsdStage, const TCHAR* InPrimPath )
+void SUsdIntegrationsPanel::Construct( const FArguments& InArgs )
 {
 	SAssignNew( HeaderRowWidget, SHeaderRow )
 
@@ -453,74 +453,20 @@ void SUsdIntegrationsPanel::Construct( const FArguments& InArgs, const UE::FUsdS
 	SListView::Construct
 	(
 		SListView::FArguments()
-		.ListItemsSource( &Attributes )
+		.ListItemsSource( &ViewModel.Attributes )
 		.OnGenerateRow( this, &SUsdIntegrationsPanel::OnGenerateRow )
 		.HeaderRow( HeaderRowWidget )
 	);
 
-	SetPrimPath( InUsdStage, InPrimPath );
+	SetVisibility( EVisibility::Collapsed ); // Start hidden until SetPrimPath displays us
 }
 
 void SUsdIntegrationsPanel::SetPrimPath( const UE::FUsdStageWeak& InUsdStage, const TCHAR* InPrimPath )
 {
-	PrimPath = InPrimPath;
-	UsdStage = InUsdStage;
+	ViewModel.UpdateAttributes( InUsdStage, InPrimPath );
 
-	Attributes.Reset();
+	SetVisibility( ViewModel.Attributes.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed );
 
-	EVisibility PanelVisibility = EVisibility::Collapsed;
-
-	// Important as this function may be reentrant in case our ApplyXSchema calls create attributes
-	UE::FSdfChangeBlock Block;
-
-	if ( InUsdStage )
-	{
-		if ( UE::FUsdPrim Prim = InUsdStage.GetPrimAtPath( UE::FSdfPath{ InPrimPath } ) )
-		{
-			if ( !Prim.IsPseudoRoot() )
-			{
-				const bool bHasLiveLink = UsdUtils::PrimHasLiveLinkSchema( Prim );
-				const bool bHasControlRig = UsdUtils::PrimHasControlRigSchema( Prim );
-				const bool bIsSkelRoot = Prim.IsA( TEXT( "SkelRoot" ) );
-
-				TArray<FString> AttributeNames;
-
-				if ( bHasLiveLink )
-				{
-					if ( bIsSkelRoot )
-					{
-						AttributeNames.Add( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealAnimBlueprintPath ) );
-					}
-
-					AttributeNames.Add( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkSubjectName ) );
-					AttributeNames.Add( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealLiveLinkEnabled ) );
-				}
-
-				if( bHasControlRig && bIsSkelRoot )
-				{
-					AttributeNames.Add( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigPath ) );
-					AttributeNames.Add( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealUseFKControlRig ) );
-					AttributeNames.Add( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigReduceKeys ) );
-					AttributeNames.Add( *UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealControlRigReductionTolerance ) );
-				}
-
-				if ( bHasLiveLink || bHasControlRig )
-				{
-					PanelVisibility = EVisibility::Visible;
-				}
-
-				for ( const FString& AttributeName : AttributeNames )
-				{
-					if ( UE::FUsdAttribute Attr = Prim.GetAttribute( *AttributeName ) )
-					{
-						Attributes.Add( MakeShared<UE::FUsdAttribute>( Attr ) );
-					}
-				}
-			}
-		}
-	}
-
-	SetVisibility( PanelVisibility );
 	RequestListRefresh();
 }
 

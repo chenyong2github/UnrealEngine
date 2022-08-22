@@ -9,6 +9,7 @@
 namespace UE
 {
 	class FSdfPath;
+	class FSdfPrimSpec;
 
 	namespace Internal
 	{
@@ -131,6 +132,9 @@ namespace UE
 		void SetSubLayerOffset( const FSdfLayerOffset& LayerOffset, int32 Index );
 
 		bool HasSpec( const FSdfPath& Path ) const;
+
+		FSdfPrimSpec GetPseudoRoot() const;
+		FSdfPrimSpec GetPrimAtPath( const FSdfPath& Path ) const;
 
 		TSet< double > ListTimeSamplesForPath( const FSdfPath& Path ) const;
 		void EraseTimeSample( const FSdfPath& Path, double Time );

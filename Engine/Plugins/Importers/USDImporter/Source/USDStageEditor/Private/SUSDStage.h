@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "USDStageViewModel.h"
+
 #include "CoreMinimal.h"
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
@@ -10,8 +12,6 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-
-#include "USDStageViewModel.h"
 
 class AUsdStageActor;
 class FLevelCollectionModel;
@@ -39,6 +39,7 @@ protected:
 	TSharedRef< SWidget > MakeMainMenu();
 	TSharedRef< SWidget > MakeActorPickerMenu();
 	TSharedRef< SWidget > MakeActorPickerMenuContent();
+	TSharedRef< SWidget > MakeFocusWarningButton();
 	void FillFileMenu( FMenuBuilder& MenuBuilder );
 	void FillActionsMenu( FMenuBuilder& MenuBuilder );
 	void FillOptionsMenu( FMenuBuilder& MenuBuilder );
@@ -73,8 +74,6 @@ protected:
 	void Refresh();
 
 	void OnStageActorLoaded( AUsdStageActor* InUsdStageActor );
-
-	void OnMapChanged( UWorld* World, EMapChangeType ChangeType );
 
 	void OnViewportSelectionChanged( UObject* NewSelection );
 

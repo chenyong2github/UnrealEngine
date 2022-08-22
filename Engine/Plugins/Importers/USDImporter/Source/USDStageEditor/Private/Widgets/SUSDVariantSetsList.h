@@ -45,18 +45,15 @@ class SVariantsList : public SListView< TSharedPtr< FUsdVariantSetViewModel > >
 	SLATE_END_ARGS()
 
 public:
-	void Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath );
+	void Construct( const FArguments& InArgs );
 	void SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath );
 
 protected:
-	void UpdateVariantSets( const TCHAR* InPrimPath );
 	TSharedRef< ITableRow > OnGenerateRow( TSharedPtr< FUsdVariantSetViewModel > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable );
 
 	void OnVariantSelectionChanged( const TSharedRef< FUsdVariantSetViewModel >& VariantSet, const TSharedPtr< FString >& NewValue );
 
 private:
-	FString PrimPath;
-
 	FUsdVariantSetsViewModel ViewModel;
 	TSharedPtr< SHeaderRow > HeaderRowWidget;
 };

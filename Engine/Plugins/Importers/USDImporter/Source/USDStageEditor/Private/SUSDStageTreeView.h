@@ -2,13 +2,12 @@
 
 #pragma once
 
+#include "USDPrimViewModel.h"
+#include "UsdWrappers/UsdStage.h"
 #include "Widgets/SUSDTreeView.h"
 
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/STreeView.h"
-
-#include "USDMemory.h"
-#include "USDPrimViewModel.h"
 
 class AUsdStageActor;
 class FUICommandList;
@@ -27,8 +26,9 @@ public:
 		SLATE_EVENT( FOnPrimSelectionChanged, OnPrimSelectionChanged )
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs, AUsdStageActor* InUsdStageActor );
-	void Refresh( AUsdStageActor* InUsdStageActor );
+	void Construct( const FArguments& InArgs );
+
+	void Refresh( const UE::FUsdStageWeak& NewStage );
 	void RefreshPrim( const FString& PrimPath, bool bResync );
 
 	FUsdPrimViewModelPtr GetItemFromPrimPath( const FString& PrimPath );
@@ -71,12 +71,10 @@ private:
 	void OnAddPayload();
 	void OnClearPayloads();
 
-	void OnSetUpLiveLink();
-	void OnRemoveLiveLink();
-	void OnSetUpControlRig();
-	void OnRemoveControlRig();
-	void OnApplyGroomSchema();
-	void OnRemoveGroomSchema();
+	void OnApplySchema( FName SchemaName );
+	void OnRemoveSchema( FName SchemaName );
+	bool CanApplySchema( FName SchemaName );
+	bool CanRemoveSchema( FName SchemaName );
 
 	bool CanAddChildPrim() const;
 	bool CanPastePrim() const;
@@ -84,19 +82,14 @@ private:
 	bool DoesPrimExistOnEditTarget() const;
 	bool CanDuplicateAllLocalLayerSpecs() const;
 
-	bool CanSetUpLiveLink() const;
-	bool CanRemoveLiveLink() const;
-	bool CanSetUpControlRig() const;
-	bool CanRemoveControlRig() const;
-	bool CanApplyGroomSchema() const;
-	bool CanRemoveGroomSchema() const;
-
 	/** Uses TreeItemExpansionStates to travel the tree and call SetItemExpansion */
 	void RestoreExpansionStates();
 	virtual void RequestListRefresh() override;
 
 private:
-	TWeakObjectPtr< AUsdStageActor > UsdStageActor;
+	// Should always be valid, we keep the one we're given on Refresh()
+	UE::FUsdStageWeak UsdStage;
+
 	TWeakPtr< FUsdPrimViewModel > PendingRenameItem;
 
 	// So that we can store these across refreshes

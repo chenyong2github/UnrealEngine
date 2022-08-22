@@ -218,22 +218,62 @@ protected:
 class FUsdLayerEditColumn : public FUsdTreeViewColumn, public TSharedFromThis< FUsdLayerEditColumn >
 {
 public:
-	const FSlateBrush* GetCheckedImage( const FUsdLayerViewModelRef InTreeItem ) const
+	FReply OnClicked( const FUsdLayerViewModelRef TreeItem )
 	{
-		return InTreeItem->LayerModel->bIsEditTarget
-			? FUsdStageEditorStyle::Get()->GetBrush( "UsdStageEditor.CheckBoxImage" )
-			: nullptr;
+		if ( TreeItem->UsdStage )
+		{
+			TreeItem->UsdStage.SetEditTarget( TreeItem->GetLayer() );
+		}
+
+		return FReply::Handled();
+	}
+
+	FSlateColor GetForegroundColor( const FUsdLayerViewModelRef TreeItem, const TSharedPtr< ITableRow > TableRow, const TSharedPtr< SButton > Button ) const
+	{
+		if ( !TableRow.IsValid() || !Button.IsValid() )
+		{
+			return FSlateColor::UseForeground();
+		}
+
+		const bool bIsButtonHovered = Button->IsHovered();
+		const bool bIsLayerEditTarget = TreeItem->UsdStage ? TreeItem->UsdStage.GetEditTarget() == TreeItem->GetLayer() : false;
+
+		if ( bIsLayerEditTarget )
+		{
+			return FSlateColor::UseForeground();
+		}
+		else
+		{
+			if ( !bIsButtonHovered )
+			{
+				return FLinearColor::Transparent;
+			}
+			else
+			{
+				return FAppStyle::GetSlateColor( TEXT( "Colors.ForegroundHover" ) );
+			}
+		}
 	}
 
 	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem, const TSharedPtr< ITableRow > TableRow ) override
 	{
 		const FUsdLayerViewModelRef TreeItem = StaticCastSharedRef< FUsdLayerViewModel >( InTreeItem.ToSharedRef() );
 
-		TSharedRef< SWidget > Item =
-			SNew(SImage)
-				.Image( this, &FUsdLayerEditColumn::GetCheckedImage, TreeItem );
-
 		float ItemSize = FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" );
+
+		TSharedPtr<SButton> Button = SNew( SButton )
+			.ContentPadding( 0 )
+			.ButtonStyle( FUsdStageEditorStyle::Get(), TEXT( "NoBorder" ) )
+			.OnClicked( this, &FUsdLayerEditColumn::OnClicked, TreeItem )
+			.ToolTip( SNew( SToolTip ).Text( LOCTEXT( "EditLayerButtonToolTip", "Edit layer" ) ) )
+			.HAlign( HAlign_Center )
+			.VAlign( VAlign_Center );
+
+		TSharedPtr<SImage> Image = SNew( SImage )
+			.Image( FUsdStageEditorStyle::Get()->GetBrush( "UsdStageEditor.CheckBoxImage" ) )
+			.ColorAndOpacity( this, &FUsdLayerEditColumn::GetForegroundColor, TreeItem, TableRow, Button );
+
+		Button->SetContent( Image.ToSharedRef() );
 
 		return SNew( SBox )
 			.HeightOverride( ItemSize )
@@ -241,25 +281,50 @@ public:
 			.HAlign( HAlign_Center )
 			.VAlign( VAlign_Center )
 			[
-				Item
+				Button.ToSharedRef()
 			];
 	}
 };
 
-void SUsdLayersTreeView::Construct( const FArguments& InArgs, AUsdStageActor* UsdStageActor )
+void SUsdLayersTreeView::Construct( const FArguments& InArgs )
 {
 	SUsdTreeView::Construct( SUsdTreeView::FArguments() );
 
 	OnContextMenuOpening = FOnContextMenuOpening::CreateSP( this, &SUsdLayersTreeView::ConstructLayerContextMenu );
 
-	BuildUsdLayersEntries( UsdStageActor );
+	OnExpansionChanged = FOnExpansionChanged::CreateLambda( [this]( const FUsdLayerViewModelRef& LayerViewModel, bool bIsExpanded )
+	{
+		if ( !LayerViewModel->IsValid() )
+		{
+			return;
+		}
+
+		TreeItemExpansionStates.Add( LayerViewModel->LayerIdentifier, bIsExpanded );
+	} );
 }
 
-void SUsdLayersTreeView::Refresh( AUsdStageActor* UsdStageActor, bool bResync )
+void SUsdLayersTreeView::Refresh( const UE::FUsdStageWeak& NewStage, bool bResync )
 {
 	if ( bResync )
 	{
-		BuildUsdLayersEntries( UsdStageActor );
+		bool bShouldResetExpansionStates = false;
+		if ( RootItems.Num() > 0 )
+		{
+			const FUsdLayerViewModelRef& FirstRootItem = RootItems[ 0 ];
+			const UE::FUsdStageWeak& OldStage = FirstRootItem->UsdStage;
+			bShouldResetExpansionStates = NewStage != OldStage;
+		}
+
+		if ( bShouldResetExpansionStates )
+		{
+			TreeItemExpansionStates.Reset();
+		}
+
+		UsdStage = NewStage;
+
+		BuildUsdLayersEntries();
+
+		RestoreExpansionStates();
 	}
 	else
 	{
@@ -836,17 +901,11 @@ void SUsdLayersTreeView::OnGetChildren( FUsdLayerViewModelRef InParent, TArray< 
 	}
 }
 
-void SUsdLayersTreeView::BuildUsdLayersEntries( AUsdStageActor* UsdStageActor )
+void SUsdLayersTreeView::BuildUsdLayersEntries()
 {
 	RootItems.Empty();
 
-	if ( !UsdStageActor )
-	{
-		return;
-	}
-
-	// The cast here forces us to use the const version of GetUsdStage, that won't force-load the stage in case it isn't opened yet
-	if ( const UE::FUsdStage& UsdStage = const_cast< const AUsdStageActor* >( UsdStageActor )->GetUsdStage() )
+	if ( UsdStage )
 	{
 		RootItems.Add( MakeSharedUnreal< FUsdLayerViewModel >( nullptr, UsdStage, UsdStage.GetRootLayer().GetIdentifier() ) );
 		RootItems.Add( MakeSharedUnreal< FUsdLayerViewModel >( nullptr, UsdStage, UsdStage.GetSessionLayer().GetIdentifier() ) );
@@ -859,7 +918,8 @@ void SUsdLayersTreeView::SetupColumns()
 
 	SHeaderRow::FColumn::FArguments LayerMutedColumnArguments;
 	LayerMutedColumnArguments.FixedWidth( 24.f );
-
+	LayerMutedColumnArguments.HAlignHeader( HAlign_Center );
+	LayerMutedColumnArguments.HAlignCell( HAlign_Center );
 	TSharedRef< FUsdLayerMutedColumn > LayerMutedColumn = MakeShared< FUsdLayerMutedColumn >();
 	AddColumn( TEXT("Mute"), FText(), LayerMutedColumn, LayerMutedColumnArguments );
 
@@ -1370,6 +1430,36 @@ void SUsdLayersTreeView::OnRemoveSelectedLayers()
 	if ( bLayerRemoved )
 	{
 		RequestTreeRefresh();
+	}
+}
+
+void SUsdLayersTreeView::RestoreExpansionStates()
+{
+	TFunction< void( const FUsdLayerViewModelRef& ) > SetExpansionRecursive = [&]( const FUsdLayerViewModelRef& Item )
+	{
+		if ( Item->IsValid() )
+		{
+			if ( bool* bFoundExpansionState = TreeItemExpansionStates.Find( Item->LayerIdentifier ) )
+			{
+				SetItemExpansion( Item, *bFoundExpansionState );
+			}
+			// Default to showing everything expanded
+			else
+			{
+				const bool bShouldExpand = true;
+				SetItemExpansion( Item, bShouldExpand );
+			}
+		}
+
+		for ( const FUsdLayerViewModelRef& Child : Item->Children )
+		{
+			SetExpansionRecursive( Child );
+		}
+	};
+
+	for ( const FUsdLayerViewModelRef& RootItem : RootItems )
+	{
+		SetExpansionRecursive( RootItem );
 	}
 }
 

@@ -40,6 +40,7 @@
 #include "Styling/AppStyle.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SSplitter.h"
 
@@ -49,7 +50,7 @@
 
 namespace SUSDStageConstants
 {
-	static const FMargin SectionPadding( 1.f, 4.f, 1.f, 1.f );
+	static const FMargin SectionPadding( 1.f, 1.f, 1.f, 1.f );
 }
 
 namespace SUSDStageImpl
@@ -222,6 +223,18 @@ void SUsdStage::Construct( const FArguments& InArgs )
 					SNew( SBox )
 					.HAlign( HAlign_Right )
 					.VAlign( VAlign_Fill )
+					.Padding( FMargin( 0.0f, 0.0f, 10.0f, 0.0f ) )
+					[
+						MakeFocusWarningButton()
+					]
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew( SBox )
+					.HAlign( HAlign_Right )
+					.VAlign( VAlign_Fill )
 					[
 						MakeActorPickerMenu()
 					]
@@ -247,7 +260,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 						SNew( SBorder )
 						.BorderImage( FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")) )
 						[
-							SAssignNew( UsdStageTreeView, SUsdStageTreeView, ViewModel.UsdStageActor.Get() )
+							SAssignNew( UsdStageTreeView, SUsdStageTreeView )
 							.OnPrimSelectionChanged( this, &SUsdStage::OnPrimSelectionChanged )
 						]
 					]
@@ -258,7 +271,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 						SNew( SBorder )
 						.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 						[
-							SAssignNew( UsdPrimInfoWidget, SUsdPrimInfo, UsdStage, TEXT("/") )
+							SAssignNew( UsdPrimInfoWidget, SUsdPrimInfo )
 						]
 					]
 				]
@@ -270,7 +283,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 					SNew(SBorder)
 					.BorderImage( FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")) )
 					[
-						SAssignNew( UsdLayersTreeView, SUsdLayersTreeView, ViewModel.UsdStageActor.Get() )
+						SAssignNew( UsdLayersTreeView, SUsdLayersTreeView )
 					]
 				]
 			]
@@ -379,7 +392,10 @@ void SUsdStage::SetupStageActorDelegates()
 					if ( this->UsdLayersTreeView && ViewModel.UsdStageActor.IsValid() )
 					{
 						constexpr bool bResync = false;
-						this->UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get(), bResync );
+						this->UsdLayersTreeView->Refresh(
+							ViewModel.UsdStageActor.Get()->GetOrLoadUsdStage(),
+							bResync
+						);
 					}
 				});
 			}
@@ -393,7 +409,10 @@ void SUsdStage::SetupStageActorDelegates()
 					if ( this->UsdLayersTreeView && ViewModel.UsdStageActor.IsValid() )
 					{
 						constexpr bool bResync = false;
-						this->UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get(), bResync );
+						this->UsdLayersTreeView->Refresh(
+							ViewModel.UsdStageActor.Get()->GetOrLoadUsdStage(),
+							bResync
+						);
 					}
 				});
 			}
@@ -528,6 +547,34 @@ TSharedRef< SWidget > SUsdStage::MakeActorPickerMenuContent()
 	}
 
 	return SNullWidget::NullWidget;
+}
+
+TSharedRef< SWidget > SUsdStage::MakeFocusWarningButton()
+{
+	// TODO: Will be used for focus mode in the future
+	return SNew( SButton )
+		.ButtonStyle( &FAppStyle::Get().GetWidgetStyle<FButtonStyle>( "EditorViewportToolBar.WarningButton" ) )
+		.OnClicked_Lambda( [this]() -> FReply
+		{
+			return FReply::Handled();
+		})
+		.Visibility_Lambda( [this]() -> EVisibility
+		{
+			return EVisibility::Hidden;
+		})
+		.ToolTipText_Lambda( [this]() -> FText
+		{
+			return FText::Format(
+				LOCTEXT( "FocusWarningButtonToolTip", "The USD Stage editor and the Unreal level are displaying a focused stage with '{0}' as its root layer.\nPress this button to revert to displaying the entire composed stage." ),
+				FText::GetEmpty()
+			);
+		})
+		.Content()
+		[
+			SNew( STextBlock )
+			.TextStyle( &FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>( "SmallText" ) )
+			.Text( LOCTEXT( "FocusWarningButtonText", "Focus Mode" ) )
+		];
 }
 
 void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
@@ -1748,7 +1795,8 @@ void SUsdStage::OnReloadStage()
 
 	if ( UsdLayersTreeView )
 	{
-		UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get(), true );
+		const bool bResync = true;
+		UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get()->GetOrLoadUsdStage(), bResync );
 	}
 }
 
@@ -1758,7 +1806,8 @@ void SUsdStage::OnResetStage()
 
 	if ( UsdLayersTreeView )
 	{
-		UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get(), true );
+		const bool bResync = true;
+		UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get()->GetOrLoadUsdStage(), bResync );
 	}
 }
 
@@ -1843,10 +1892,15 @@ void SUsdStage::SetActor( AUsdStageActor* InUsdStageActor )
 
 	SetupStageActorDelegates();
 
-	if ( this->UsdPrimInfoWidget && InUsdStageActor )
+	if( InUsdStageActor )
 	{
-		// Just reset to the pseudoroot for now
-		this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetOrLoadUsdStage(), TEXT( "/" ) );
+		UE::FUsdStage UsdStage = InUsdStageActor->GetOrLoadUsdStage();
+
+		if ( this->UsdPrimInfoWidget && InUsdStageActor )
+		{
+			// Just reset to the pseudoroot for now
+			this->UsdPrimInfoWidget->SetPrimPath( UsdStage, TEXT( "/" ) );
+		}
 	}
 
 	Refresh();
@@ -1859,12 +1913,13 @@ void SUsdStage::Refresh()
 
 	if (UsdLayersTreeView)
 	{
-		UsdLayersTreeView->Refresh( StageActor, true );
+		const bool bResync = true;
+		UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get()->GetOrLoadUsdStage(), bResync );
 	}
 
 	if (UsdStageTreeView)
 	{
-		UsdStageTreeView->Refresh( StageActor );
+		UsdStageTreeView->Refresh( StageActor->GetOrLoadUsdStage() );
 
 		// Refresh will generate brand new RootItems, so let's immediately select the new item
 		// that corresponds to the prim we're supposed to be selecting

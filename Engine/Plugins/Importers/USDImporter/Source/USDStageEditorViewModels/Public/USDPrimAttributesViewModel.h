@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "Misc/TVariant.h"
-#include "Templates/SharedPointer.h"
-
 #include "USDValueConversion.h"
 
 #include "UsdWrappers/UsdStage.h"
+
+#include "Templates/SharedPointer.h"
 
 class FUsdPrimAttributesViewModel;
 
@@ -40,12 +39,12 @@ public:
 
 	void SetPrimAttribute( const FString& AttributeName, const UsdUtils::FConvertedVtValue& Value );
 
-	void Refresh( const TCHAR* InPrimPath, float TimeCode );
+	void Refresh( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath, float TimeCode );
 
 public:
-	UE::FUsdStageWeak UsdStage;
 	TArray< TSharedPtr< FUsdPrimAttributeViewModel > > PrimAttributes;
 
 private:
+	UE::FUsdStageWeak UsdStage;
 	FString PrimPath;
 };

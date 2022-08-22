@@ -256,6 +256,15 @@ namespace UE
 #endif // #if USE_USD_SDK
 	}
 
+	FSdfPath FSdfPath::AppendProperty( FName PropertyName ) const
+	{
+#if USE_USD_SDK
+		return FSdfPath( Impl->PxrSdfPath.Get().AppendProperty( pxr::TfToken( TCHAR_TO_ANSI( *PropertyName.ToString() ) ) ) );
+#else
+		return FSdfPath();
+#endif // #if USE_USD_SDK
+	}
+
 	UE::FSdfPath FSdfPath::StripAllVariantSelections() const
 	{
 #if USE_USD_SDK

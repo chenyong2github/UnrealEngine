@@ -34,8 +34,11 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 	class UsdStage;
 	template< typename T > class TfRefPtr;
-
 	using UsdStageRefPtr = TfRefPtr< UsdStage >;
+
+	class SdfPrimSpec;
+	template <class T> class SdfHandle;
+	using SdfPrimSpecHandle = SdfHandle< SdfPrimSpec >;
 PXR_NAMESPACE_CLOSE_SCOPE
 
 #endif // #if USE_USD_SDK
@@ -102,6 +105,7 @@ namespace UsdUtils
 	USDUTILITIES_API int32 GetUsdStageNumFrames( const pxr::UsdStageRefPtr& Stage );
 
 	USDUTILITIES_API bool HasCompositionArcs( const pxr::UsdPrim& Prim );
+	USDUTILITIES_API bool HasCompositionArcs( const pxr::SdfPrimSpecHandle& PrimSpec );
 
 	USDUTILITIES_API UClass* GetActorTypeForPrim( const pxr::UsdPrim& Prim );
 	USDUTILITIES_API UClass* GetComponentTypeForPrim( const pxr::UsdPrim& Prim );

@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "USDIntegrationsViewModel.h"
 #include "UsdWrappers/UsdStage.h"
 
+#include "Templates/SharedPointer.h"
 #include "Widgets/Views/SListView.h"
 
 #include "SUSDIntegrationsPanel.generated.h"
@@ -57,18 +59,15 @@ class SUsdIntegrationsPanel : public SListView< TSharedPtr<UE::FUsdAttribute> >
 	SLATE_END_ARGS()
 
 public:
-	void Construct( const FArguments& InArgs, const UE::FUsdStageWeak& InUsdStage, const TCHAR* InPrimPath );
-	void SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath );
+	void Construct( const FArguments& InArgs );
+	void SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
 
 protected:
 	TSharedRef< ITableRow > OnGenerateRow( TSharedPtr<UE::FUsdAttribute> InAttr, const TSharedRef< STableViewBase >& OwnerTable );
 
 private:
 	TSharedPtr< SHeaderRow > HeaderRowWidget;
-
-	TArray<TSharedPtr<UE::FUsdAttribute>> Attributes;
-	UE::FUsdStageWeak UsdStage;
-	FString PrimPath;
+	FUsdIntegrationsViewModel ViewModel;
 };
 
 #endif // USE_USD_SDK

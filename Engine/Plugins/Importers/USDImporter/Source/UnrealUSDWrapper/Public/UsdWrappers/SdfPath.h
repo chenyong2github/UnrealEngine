@@ -74,6 +74,7 @@ namespace UE
 
 		FSdfPath GetParentPath() const;
 		FSdfPath AppendChild( const TCHAR* ChildName ) const;
+		FSdfPath AppendProperty( FName PropertyName ) const;
 
 		FSdfPath StripAllVariantSelections() const;
 

@@ -32,7 +32,7 @@ public:
 
 public:
 	UE::FUsdStageWeak UsdStage;
-	UE::FUsdPrim UsdPrim;
+	FString PrimPath;
 
 	TArray< TSharedPtr< FUsdVariantSetViewModel > > VariantSets;
 };

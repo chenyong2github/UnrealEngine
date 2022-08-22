@@ -84,7 +84,7 @@ void SUsdVariantRow::OnSelectionChanged( TSharedPtr< FString > NewValue, ESelect
 	OnVariantSelectionChanged.ExecuteIfBound( VariantSet.ToSharedRef(), NewValue );
 }
 
-void SVariantsList::Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath )
+void SVariantsList::Construct( const FArguments& InArgs )
 {
 	SAssignNew( HeaderRowWidget, SHeaderRow )
 
@@ -104,7 +104,7 @@ void SVariantsList::Construct( const FArguments& InArgs, const UE::FUsdStageWeak
 		.HeaderRow( HeaderRowWidget )
 	);
 
-	SetPrimPath( UsdStage, InPrimPath );
+	SetVisibility( EVisibility::Collapsed ); // Start hidden until SetPrimPath displays us
 }
 
 TSharedRef< ITableRow > SVariantsList::OnGenerateRow( TSharedPtr< FUsdVariantSetViewModel > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable )
@@ -115,21 +115,9 @@ TSharedRef< ITableRow > SVariantsList::OnGenerateRow( TSharedPtr< FUsdVariantSet
 
 void SVariantsList::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath )
 {
-	PrimPath = InPrimPath;
-	ViewModel.UpdateVariantSets( UsdStage, *PrimPath );
+	ViewModel.UpdateVariantSets( UsdStage, InPrimPath );
 
-	EVisibility NewVisibility = EVisibility::Collapsed;
-	if ( UsdStage )
-	{
-		if ( UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath{ InPrimPath } ) )
-		{
-			if ( UsdPrim.HasVariantSets() )
-			{
-				NewVisibility = EVisibility::Visible;
-			}
-		}
-	}
-	SetVisibility( NewVisibility );
+	SetVisibility( ViewModel.VariantSets.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed );
 
 	RequestListRefresh();
 }

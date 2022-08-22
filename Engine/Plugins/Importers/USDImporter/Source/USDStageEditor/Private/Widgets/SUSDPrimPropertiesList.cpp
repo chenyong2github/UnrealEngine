@@ -650,10 +650,8 @@ void SUsdPrimPropertyRow::OnCheckBoxCheckStateChanged( ECheckBoxState NewState )
 	UsdPrimAttribute->SetAttributeValue( NewValue );
 }
 
-void SUsdPrimPropertiesList::Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath )
+void SUsdPrimPropertiesList::Construct( const FArguments& InArgs )
 {
-	GeneratePropertiesList( UsdStage, InPrimPath );
-
 	// Clear map as usd file may have additional Kinds now
 	UsdPrimPropertiesListImpl::ResetOptions(TEXT("Kind"));
 
@@ -683,9 +681,8 @@ TSharedRef< ITableRow > SUsdPrimPropertiesList::OnGenerateRow( TSharedPtr< FUsdP
 
 void SUsdPrimPropertiesList::GeneratePropertiesList( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath )
 {
-	float TimeCode = 0.f;
-	ViewModel.UsdStage = UsdStage;
-	ViewModel.Refresh( InPrimPath, TimeCode );
+	const float TimeCode = 0.f;
+	ViewModel.Refresh( UsdStage, InPrimPath, TimeCode );
 }
 
 void SUsdPrimPropertiesList::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath )

@@ -199,11 +199,13 @@ void FUsdPrimAttributesViewModel::SetPrimAttribute( const FString& AttributeName
 #endif // #if USE_USD_SDK
 }
 
-void FUsdPrimAttributesViewModel::Refresh( const TCHAR* InPrimPath, float TimeCode )
+void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, const TCHAR* InPrimPath, float TimeCode )
 {
 	FScopedUnrealAllocs UnrealAllocs;
 
+	UsdStage = InUsdStage;
 	PrimPath = InPrimPath;
+
 	PrimAttributes.Reset();
 
 #if USE_USD_SDK

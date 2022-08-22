@@ -583,7 +583,7 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 		// skeletal version of the LiveLink configuration, we only handle setting up LiveLink for simple transforms
 		if ( !SceneComponent->IsA<USkeletalMeshComponent>() )
 		{
-			if ( UsdUtils::PrimHasLiveLinkSchema( Prim ) )
+			if ( UsdUtils::PrimHasSchema( Prim, UnrealIdentifiers::LiveLinkAPI ) )
 			{
 				UE::UsdXformableTranslatorImpl::Private::SetUpSceneComponentForLiveLink( Context.Get(), SceneComponent, Prim );
 			}
@@ -767,7 +767,7 @@ bool FUsdGeomXformableTranslator::CanBeCollapsed( ECollapsingType CollapsingType
 		return false;
 	}
 
-	if ( UsdUtils::PrimHasLiveLinkSchema( UsdPrim ) )
+	if ( UsdUtils::PrimHasSchema( UsdPrim, UnrealIdentifiers::LiveLinkAPI ) )
 	{
 		return false;
 	}

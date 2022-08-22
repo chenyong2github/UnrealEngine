@@ -378,6 +378,16 @@ bool UsdUtils::HasCompositionArcs( const pxr::UsdPrim& Prim )
 	return Prim.HasAuthoredReferences() || Prim.HasPayload() || Prim.HasAuthoredInherits() || Prim.HasAuthoredSpecializes() || Prim.HasVariantSets();
 }
 
+bool UsdUtils::HasCompositionArcs( const pxr::SdfPrimSpecHandle& PrimSpec )
+{
+	if ( !PrimSpec || !PrimSpec->GetActive() )
+	{
+		return false;
+	}
+
+	return PrimSpec->HasReferences() || PrimSpec->HasPayloads() || PrimSpec->HasInheritPaths() || PrimSpec->HasSpecializes() || PrimSpec->HasVariantSetNames();
+}
+
 UClass* UsdUtils::GetActorTypeForPrim( const pxr::UsdPrim& Prim )
 {
 	// If we have this attribute and a valid child camera prim then we'll assume

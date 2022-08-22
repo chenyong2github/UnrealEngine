@@ -31,7 +31,7 @@
 
 #define LOCTEXT_NAMESPACE "SUSDPrimInfo"
 
-void SUsdPrimInfo::Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
+void SUsdPrimInfo::Construct( const FArguments& InArgs )
 {
 	ChildSlot
 	[
@@ -43,7 +43,7 @@ void SUsdPrimInfo::Construct( const FArguments& InArgs, const UE::FUsdStageWeak&
 			SNew( SBox )
 			.Content()
 			[
-				SAssignNew( PropertiesList, SUsdPrimPropertiesList, UsdStage, PrimPath )
+				SAssignNew( PropertiesList, SUsdPrimPropertiesList )
 			]
 		]
 
@@ -53,7 +53,7 @@ void SUsdPrimInfo::Construct( const FArguments& InArgs, const UE::FUsdStageWeak&
 			SNew( SBox )
 			.Content()
 			[
-				SAssignNew( IntegrationsPanel, SUsdIntegrationsPanel, UsdStage, PrimPath )
+				SAssignNew( IntegrationsPanel, SUsdIntegrationsPanel )
 			]
 		]
 
@@ -63,7 +63,7 @@ void SUsdPrimInfo::Construct( const FArguments& InArgs, const UE::FUsdStageWeak&
 			SNew( SBox )
 			.Content()
 			[
-				SAssignNew( VariantsList, SVariantsList, UsdStage, PrimPath )
+				SAssignNew( VariantsList, SVariantsList )
 			]
 		]
 
@@ -73,7 +73,7 @@ void SUsdPrimInfo::Construct( const FArguments& InArgs, const UE::FUsdStageWeak&
 			SNew( SBox )
 			.Content()
 			[
-				SAssignNew( ReferencesList, SUsdReferencesList, UsdStage, PrimPath )
+				SAssignNew( ReferencesList, SUsdReferencesList )
 			]
 		]
 	];

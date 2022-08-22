@@ -23,7 +23,7 @@ void FUsdReferencesViewModel::UpdateReferences( const UE::FUsdStageWeak& UsdStag
 {
 	References.Reset();
 
-	if ( !UsdStage )
+	if ( !UsdStage || !PrimPath || FString{ PrimPath }.IsEmpty() || UE::FSdfPath{ PrimPath }.IsAbsoluteRootPath() )
 	{
 		return;
 	}

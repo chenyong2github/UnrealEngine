@@ -55,7 +55,7 @@ TSharedRef< SWidget > SUsdReferenceRow::GenerateWidgetForColumn( const FName& Co
 		];
 }
 
-void SUsdReferencesList::Construct( const FArguments& InArgs, const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
+void SUsdReferencesList::Construct( const FArguments& InArgs )
 {
 	SAssignNew( HeaderRowWidget, SHeaderRow )
 
@@ -71,7 +71,7 @@ void SUsdReferencesList::Construct( const FArguments& InArgs, const UE::FUsdStag
 		.HeaderRow( HeaderRowWidget )
 	);
 
-	SetPrimPath( UsdStage, PrimPath );
+	SetVisibility( EVisibility::Collapsed ); // Start hidden until SetPrimPath displays us
 }
 
 TSharedRef< ITableRow > SUsdReferencesList::OnGenerateRow( TSharedPtr< FUsdReference > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable )
@@ -83,18 +83,7 @@ void SUsdReferencesList::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const T
 {
 	ViewModel.UpdateReferences( UsdStage, PrimPath );
 
-	EVisibility NewVisibility = EVisibility::Collapsed;
-	if ( UsdStage )
-	{
-		if ( UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath{ PrimPath } ) )
-		{
-			if ( UsdPrim.HasAuthoredReferences() )
-			{
-				NewVisibility = EVisibility::Visible;
-			}
-		}
-	}
-	SetVisibility( NewVisibility );
+	SetVisibility( ViewModel.References.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed );
 
 	RequestListRefresh();
 }

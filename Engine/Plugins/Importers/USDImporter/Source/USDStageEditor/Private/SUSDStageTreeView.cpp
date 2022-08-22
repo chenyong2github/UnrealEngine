@@ -8,6 +8,7 @@
 #include "USDDuplicateType.h"
 #include "USDLayerUtils.h"
 #include "USDOptionsWindow.h"
+#include "USDPrimViewModel.h"
 #include "USDReferenceOptions.h"
 #include "USDStageActor.h"
 #include "USDStageModule.h"
@@ -184,6 +185,7 @@ public:
 
 				return EVisibility::Collapsed;
 			})
+			.ToolTipText( LOCTEXT( "TogglePayloadToolTip", "Toggle payload" ) )
 			.IsChecked( this, &FUsdStagePayloadColumn::IsChecked, StaticCastSharedPtr< FUsdPrimViewModel >( InTreeItem ) )
 			.OnCheckStateChanged( this, &FUsdStagePayloadColumn::OnCheckedPayload, StaticCastSharedPtr< FUsdPrimViewModel >( InTreeItem ) );
 
@@ -307,7 +309,7 @@ public:
 	}
 };
 
-void SUsdStageTreeView::Construct( const FArguments& InArgs, AUsdStageActor* InUsdStageActor )
+void SUsdStageTreeView::Construct( const FArguments& InArgs )
 {
 	SUsdTreeView::Construct( SUsdTreeView::FArguments() );
 
@@ -375,8 +377,6 @@ void SUsdStageTreeView::Construct( const FArguments& InArgs, AUsdStageActor* InU
 		FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnRenamePrim ),
 		FCanExecuteAction::CreateLambda( [this]() { return SUsdStageTreeView::DoesPrimExistOnStage() && GetSelectedItems().Num() == 1; } )
 	);
-
-	Refresh( InUsdStageActor );
 }
 
 TSharedRef< ITableRow > SUsdStageTreeView::OnGenerateRow( FUsdPrimViewModelRef InDisplayNode, const TSharedRef<STableViewBase>& OwnerTable )
@@ -392,30 +392,24 @@ void SUsdStageTreeView::OnGetChildren( FUsdPrimViewModelRef InParent, TArray< FU
 	}
 }
 
-void SUsdStageTreeView::Refresh( AUsdStageActor* InUsdStageActor )
+void SUsdStageTreeView::Refresh( const UE::FUsdStageWeak& NewStage )
 {
 	UE::FUsdStageWeak OldStage = RootItems.Num() > 0 ? RootItems[0]->UsdStage : UE::FUsdStageWeak();
-	UE::FUsdStageWeak NewStage = InUsdStageActor
-		? static_cast< UE::FUsdStageWeak > ( static_cast< const AUsdStageActor* >( InUsdStageActor )->GetUsdStage() )
-		: UE::FUsdStageWeak();
 
 	RootItems.Empty();
-	if ( UsdStageActor.Get() != InUsdStageActor || NewStage != OldStage )
+
+	UsdStage = NewStage;
+
+	if ( OldStage != NewStage )
 	{
 		TreeItemExpansionStates.Reset();
-	}
-
-	UsdStageActor = InUsdStageActor;
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
 	}
 
 	if ( NewStage )
 	{
 		if ( UE::FUsdPrim RootPrim = NewStage.GetPseudoRoot() )
 		{
-			RootItems.Add( MakeShared< FUsdPrimViewModel >( nullptr, NewStage, RootPrim ) );
+			RootItems.Add( MakeShared< FUsdPrimViewModel >( nullptr, UsdStage, RootPrim ) );
 		}
 
 		RestoreExpansionStates();
@@ -448,7 +442,7 @@ void SUsdStageTreeView::RefreshPrim( const FString& PrimPath, bool bResync )
 	// We couldn't find the target prim, do a full refresh instead
 	else
 	{
-		Refresh( UsdStageActor.Get() );
+		Refresh( UsdStage );
 	}
 
 	if ( bResync )
@@ -766,8 +760,16 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 			LOCTEXT( "SetUpLiveLink_ToolTip", "Sets up the generated component for Live Link and store the connection details to the USD Stage" ),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnSetUpLiveLink ),
-				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanSetUpLiveLink )
+				FExecuteAction::CreateSP(
+					this,
+					&SUsdStageTreeView::OnApplySchema,
+					FName{ *UsdToUnreal::ConvertToken( UnrealIdentifiers::LiveLinkAPI ) }
+				),
+				FCanExecuteAction::CreateSP(
+					this,
+					&SUsdStageTreeView::CanApplySchema,
+					FName{ *UsdToUnreal::ConvertToken( UnrealIdentifiers::LiveLinkAPI ) }
+				)
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -778,8 +780,16 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 			LOCTEXT( "RemoveLiveLink_ToolTip", "Reverses the Live Link configuration on the component and removes the connection details from the USD Stage" ),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnRemoveLiveLink ),
-				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanRemoveLiveLink )
+				FExecuteAction::CreateSP(
+					this,
+					&SUsdStageTreeView::OnRemoveSchema,
+					FName{ *UsdToUnreal::ConvertToken( UnrealIdentifiers::LiveLinkAPI ) }
+				),
+				FCanExecuteAction::CreateSP(
+					this,
+					&SUsdStageTreeView::CanRemoveSchema,
+					FName{ *UsdToUnreal::ConvertToken( UnrealIdentifiers::LiveLinkAPI ) }
+				)
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -790,8 +800,16 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 			LOCTEXT( "SetUpControlRig_ToolTip", "Sets up the generated component for Control Rig integration and store the connection details to the USD Stage" ),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnSetUpControlRig ),
-				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanSetUpControlRig )
+				FExecuteAction::CreateSP(
+					this,
+					&SUsdStageTreeView::OnApplySchema,
+					FName{ *UsdToUnreal::ConvertToken( UnrealIdentifiers::ControlRigAPI ) }
+				),
+				FCanExecuteAction::CreateSP(
+					this,
+					&SUsdStageTreeView::CanApplySchema,
+					FName{ *UsdToUnreal::ConvertToken( UnrealIdentifiers::ControlRigAPI ) }
+				)
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -802,8 +820,16 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 			LOCTEXT( "RemoveControlRig_ToolTip", "Reverses the Control Rig configuration on the component and removes the connection details from the USD Stage" ),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnRemoveControlRig ),
-				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanRemoveControlRig )
+				FExecuteAction::CreateSP(
+					this,
+					&SUsdStageTreeView::OnRemoveSchema,
+					FName{ *UsdToUnreal::ConvertToken( UnrealIdentifiers::ControlRigAPI ) }
+				),
+				FCanExecuteAction::CreateSP(
+					this,
+					&SUsdStageTreeView::CanRemoveSchema,
+					FName{ *UsdToUnreal::ConvertToken( UnrealIdentifiers::ControlRigAPI ) }
+				)
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -814,10 +840,16 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 			LOCTEXT( "ApplyGroomSchema_ToolTip", "Applies the Groom schema to interpret the prim and its children as a groom" ),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnApplyGroomSchema ),
-				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanApplyGroomSchema ),
-				FIsActionChecked(),
-				FIsActionButtonVisible::CreateSP( this, &SUsdStageTreeView::CanApplyGroomSchema )
+				FExecuteAction::CreateSP(
+					this,
+					&SUsdStageTreeView::OnApplySchema,
+					FName{ *UsdToUnreal::ConvertToken( UnrealIdentifiers::GroomAPI ) }
+				),
+				FCanExecuteAction::CreateSP(
+					this,
+					&SUsdStageTreeView::CanApplySchema,
+					FName{ *UsdToUnreal::ConvertToken( UnrealIdentifiers::GroomAPI ) }
+				)
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -828,10 +860,16 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 			LOCTEXT( "RemoveGroomSchema_ToolTip", "Removes the Groom schema from the prim to stop interpreting it as a groom" ),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnRemoveGroomSchema ),
-				FCanExecuteAction::CreateSP( this, &SUsdStageTreeView::CanRemoveGroomSchema ),
-				FIsActionChecked(),
-				FIsActionButtonVisible::CreateSP( this, &SUsdStageTreeView::CanRemoveGroomSchema )
+				FExecuteAction::CreateSP(
+					this,
+					&SUsdStageTreeView::OnRemoveSchema,
+					FName{ *UsdToUnreal::ConvertToken( UnrealIdentifiers::GroomAPI ) }
+				),
+				FCanExecuteAction::CreateSP(
+					this,
+					&SUsdStageTreeView::CanRemoveSchema,
+					FName{ *UsdToUnreal::ConvertToken( UnrealIdentifiers::GroomAPI ) }
+				)
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -847,11 +885,6 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 
 void SUsdStageTreeView::OnAddChildPrim()
 {
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
 	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
 
 	// Add a new child prim
@@ -869,7 +902,7 @@ void SUsdStageTreeView::OnAddChildPrim()
 	// Add a new top-level prim (direct child of the pseudo-root prim)
 	else
 	{
-		FUsdPrimViewModelRef TreeItem = MakeShared< FUsdPrimViewModel >( nullptr, UsdStageActor->GetOrLoadUsdStage() );
+		FUsdPrimViewModelRef TreeItem = MakeShared< FUsdPrimViewModel >( nullptr, UsdStage );
 		RootItems.Add( TreeItem );
 
 		PendingRenameItem = TreeItem;
@@ -881,11 +914,6 @@ void SUsdStageTreeView::OnAddChildPrim()
 
 void SUsdStageTreeView::OnCutPrim()
 {
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
 	FScopedTransaction Transaction( LOCTEXT( "CutPrimTransaction", "Cut prims" ) );
 
 	UE::FSdfChangeBlock Block;
@@ -908,11 +936,6 @@ void SUsdStageTreeView::OnCutPrim()
 
 void SUsdStageTreeView::OnCopyPrim()
 {
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
 	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
 
 	TArray<UE::FUsdPrim> Prims;
@@ -931,7 +954,7 @@ void SUsdStageTreeView::OnCopyPrim()
 
 void SUsdStageTreeView::OnPastePrim()
 {
-	if ( !UsdStageActor.IsValid() )
+	if ( !UsdStage )
 	{
 		return;
 	}
@@ -947,8 +970,7 @@ void SUsdStageTreeView::OnPastePrim()
 	// This happens when right-clicking the background area without selecting any prim
 	if ( MySelectedItems.IsEmpty() )
 	{
-		UE::FUsdStage Stage = UsdStageActor->GetOrLoadUsdStage();
-		ParentPrims.Add( Stage.GetPseudoRoot() );
+		ParentPrims.Add( UsdStage.GetPseudoRoot() );
 	}
 	else
 	{
@@ -973,13 +995,7 @@ void SUsdStageTreeView::OnPastePrim()
 
 void SUsdStageTreeView::OnDuplicatePrim( EUsdDuplicateType DuplicateType )
 {
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
-	UE::FUsdStage Stage = UsdStageActor->GetOrLoadUsdStage();
-	if ( !Stage )
+	if ( !UsdStage )
 	{
 		return;
 	}
@@ -1001,16 +1017,11 @@ void SUsdStageTreeView::OnDuplicatePrim( EUsdDuplicateType DuplicateType )
 		}
 	}
 
-	UsdUtils::DuplicatePrims( Prims, DuplicateType, Stage.GetEditTarget() );
+	UsdUtils::DuplicatePrims( Prims, DuplicateType, UsdStage.GetEditTarget() );
 }
 
 void SUsdStageTreeView::OnDeletePrim()
 {
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
 	FScopedTransaction Transaction( LOCTEXT( "DeletePrimTransaction", "Delete prims" ) );
 
 	UE::FSdfChangeBlock Block;
@@ -1025,11 +1036,6 @@ void SUsdStageTreeView::OnDeletePrim()
 
 void SUsdStageTreeView::OnRenamePrim()
 {
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
 	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
 
 	if ( MySelectedItems.Num() > 0 )
@@ -1044,8 +1050,7 @@ void SUsdStageTreeView::OnRenamePrim()
 
 void SUsdStageTreeView::OnAddReference()
 {
-	UE::FUsdStage& Stage = UsdStageActor->GetOrLoadUsdStage();
-	if ( !UsdStageActor.IsValid() || !Stage || !Stage.IsEditTargetValid() )
+	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
 	{
 		return;
 	}
@@ -1092,11 +1097,6 @@ void SUsdStageTreeView::OnAddReference()
 
 void SUsdStageTreeView::OnClearReferences()
 {
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
 	FScopedTransaction Transaction( LOCTEXT( "ClearReferenceTransaction", "Clear references to USD layers" ) );
 
 	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
@@ -1109,8 +1109,7 @@ void SUsdStageTreeView::OnClearReferences()
 
 void SUsdStageTreeView::OnAddPayload()
 {
-	UE::FUsdStage& Stage = UsdStageActor->GetOrLoadUsdStage();
-	if ( !UsdStageActor.IsValid() || !Stage || !Stage.IsEditTargetValid() )
+	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
 	{
 		return;
 	}
@@ -1157,11 +1156,6 @@ void SUsdStageTreeView::OnAddPayload()
 
 void SUsdStageTreeView::OnClearPayloads()
 {
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
 	FScopedTransaction Transaction( LOCTEXT( "ClearPayloadTransaction", "Clear payloads to USD layers" ) );
 
 	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
@@ -1172,14 +1166,12 @@ void SUsdStageTreeView::OnClearPayloads()
 	}
 }
 
-void SUsdStageTreeView::OnSetUpLiveLink()
+void SUsdStageTreeView::OnApplySchema( FName SchemaName )
 {
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
-	FScopedTransaction Transaction( LOCTEXT( "SetUpLiveLinkTransaction", "Set up Live Link for selected prims" ) );
+	FScopedTransaction Transaction( FText::Format(
+		LOCTEXT( "ApplySchemaTransaction", "Apply the '{0}' schema onto selected prims" ),
+		FText::FromName( SchemaName )
+	));
 
 	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
 
@@ -1187,18 +1179,16 @@ void SUsdStageTreeView::OnSetUpLiveLink()
 
 	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
 	{
-		SelectedItem->SetUpLiveLink();
+		SelectedItem->ApplySchema( SchemaName );
 	}
 }
 
-void SUsdStageTreeView::OnRemoveLiveLink()
+void SUsdStageTreeView::OnRemoveSchema( FName SchemaName )
 {
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
-	FScopedTransaction Transaction( LOCTEXT( "RemoveLiveLinkTransaction", "Reverses the Live Link configuration for selected prims" ) );
+	FScopedTransaction Transaction( FText::Format(
+		LOCTEXT( "RemoveSchemaTransaction", "Remove the '{0}' schema from selected prims" ),
+		FText::FromName( SchemaName )
+	) );
 
 	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
 
@@ -1206,94 +1196,52 @@ void SUsdStageTreeView::OnRemoveLiveLink()
 
 	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
 	{
-		SelectedItem->RemoveLiveLink();
+		SelectedItem->RemoveSchema( SchemaName );
 	}
 }
 
-void SUsdStageTreeView::OnSetUpControlRig()
+bool SUsdStageTreeView::CanApplySchema( FName SchemaName )
 {
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
-	FScopedTransaction Transaction( LOCTEXT( "SetUpControlRigTransaction", "Set up Control Rig for selected prims" ) );
-
-	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
-
-	UE::FSdfChangeBlock Block;
-
-	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
-	{
-		SelectedItem->SetUpControlRig();
-	}
-}
-
-void SUsdStageTreeView::OnRemoveControlRig()
-{
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
-	FScopedTransaction Transaction( LOCTEXT( "RemoveControlRigTransaction", "Reverses the Live Link configuration for selected prims" ) );
-
-	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
-
-	UE::FSdfChangeBlock Block;
-
-	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
-	{
-		SelectedItem->RemoveControlRig();
-	}
-}
-
-void SUsdStageTreeView::OnApplyGroomSchema()
-{
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
-	FScopedTransaction Transaction( LOCTEXT( "ApplyGroomSchemaTransaction", "Apply Groom schema to selected prims" ) );
-
-	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
-
-	UE::FSdfChangeBlock Block;
-
-	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
-	{
-		SelectedItem->ApplyGroomSchema();
-	}
-}
-
-void SUsdStageTreeView::OnRemoveGroomSchema()
-{
-	if ( !UsdStageActor.IsValid() )
-	{
-		return;
-	}
-
-	FScopedTransaction Transaction( LOCTEXT( "RemoveGroomSchemaTransaction", "Remove Groom schema from selected prims" ) );
-
-	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
-
-	UE::FSdfChangeBlock Block;
-
-	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
-	{
-		SelectedItem->RemoveGroomSchema();
-	}
-}
-
-bool SUsdStageTreeView::CanAddChildPrim() const
-{
-	if ( !UsdStageActor.IsValid() )
+	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
 	{
 		return false;
 	}
 
-	UE::FUsdStage UsdStage =  UsdStageActor->GetOrLoadUsdStage();
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		if ( SelectedItem->CanApplySchema( SchemaName ) )
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool SUsdStageTreeView::CanRemoveSchema( FName SchemaName )
+{
+	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
+	{
+		return false;
+	}
+
+	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
+
+	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
+	{
+		if ( SelectedItem->CanRemoveSchema( SchemaName ) )
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool SUsdStageTreeView::CanAddChildPrim() const
+{
 	if ( !UsdStage )
 	{
 		return false;
@@ -1327,12 +1275,6 @@ bool SUsdStageTreeView::CanAddChildPrim() const
 
 bool SUsdStageTreeView::CanPastePrim() const
 {
-	if ( !UsdStageActor.IsValid() )
-	{
-		return false;
-	}
-
-	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
 	if ( !UsdStage )
 	{
 		return false;
@@ -1343,12 +1285,6 @@ bool SUsdStageTreeView::CanPastePrim() const
 
 bool SUsdStageTreeView::DoesPrimExistOnStage() const
 {
-	if ( !UsdStageActor.IsValid() )
-	{
-		return false;
-	}
-
-	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
 	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
 	{
 		return false;
@@ -1369,12 +1305,6 @@ bool SUsdStageTreeView::DoesPrimExistOnStage() const
 
 bool SUsdStageTreeView::DoesPrimExistOnEditTarget() const
 {
-	if ( !UsdStageActor.IsValid() )
-	{
-		return false;
-	}
-
-	UE::FUsdStage UsdStage =  UsdStageActor->GetOrLoadUsdStage();
 	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
 	{
 		return false;
@@ -1401,162 +1331,6 @@ bool SUsdStageTreeView::CanDuplicateAllLocalLayerSpecs() const
 	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
 	{
 		if ( SelectedItem->HasSpecsOnLocalLayer() )
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool SUsdStageTreeView::CanSetUpLiveLink() const
-{
-	if ( !UsdStageActor.IsValid() )
-	{
-		return false;
-	}
-
-	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
-	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
-	{
-		return false;
-	}
-
-	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
-
-	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
-	{
-		if ( SelectedItem->CanSetUpLiveLink() )
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool SUsdStageTreeView::CanRemoveLiveLink() const
-{
-	if ( !UsdStageActor.IsValid() )
-	{
-		return false;
-	}
-
-	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
-	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
-	{
-		return false;
-	}
-
-	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
-
-	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
-	{
-		if ( SelectedItem->CanRemoveLiveLink() )
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool SUsdStageTreeView::CanSetUpControlRig() const
-{
-	if ( !UsdStageActor.IsValid() )
-	{
-		return false;
-	}
-
-	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
-	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
-	{
-		return false;
-	}
-
-	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
-
-	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
-	{
-		if ( SelectedItem->CanSetUpControlRig() )
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool SUsdStageTreeView::CanRemoveControlRig() const
-{
-	if ( !UsdStageActor.IsValid() )
-	{
-		return false;
-	}
-
-	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
-	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
-	{
-		return false;
-	}
-
-	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
-
-	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
-	{
-		if ( SelectedItem->CanRemoveControlRig() )
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool SUsdStageTreeView::CanApplyGroomSchema() const
-{
-	if ( !UsdStageActor.IsValid() )
-	{
-		return false;
-	}
-
-	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
-	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
-	{
-		return false;
-	}
-
-	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
-
-	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
-	{
-		if ( SelectedItem->CanApplyGroomSchema() )
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool SUsdStageTreeView::CanRemoveGroomSchema() const
-{
-	if ( !UsdStageActor.IsValid() )
-	{
-		return false;
-	}
-
-	UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
-	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
-	{
-		return false;
-	}
-
-	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
-
-	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
-	{
-		if ( SelectedItem->CanRemoveGroomSchema() )
 		{
 			return true;
 		}
@@ -1603,7 +1377,7 @@ void SUsdStageTreeView::RestoreExpansionStates()
 
 void SUsdStageTreeView::OnToggleAllPayloads( EPayloadsTrigger PayloadsTrigger )
 {
-	if ( !UsdStageActor.IsValid() )
+	if ( !UsdStage )
 	{
 		return;
 	}
@@ -1665,8 +1439,6 @@ void SUsdStageTreeView::OnToggleAllPayloads( EPayloadsTrigger PayloadsTrigger )
 	if ( PrimsToLoad.Num() + PrimsToUnload.Num() > 0 )
 	{
 		UE::FSdfChangeBlock GroupNotices;
-
-		UE::FUsdStage UsdStage = UsdStageActor->GetOrLoadUsdStage();
 		UsdStage.LoadAndUnload( PrimsToLoad, PrimsToUnload );
 	}
 }
