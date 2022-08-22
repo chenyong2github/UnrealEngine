@@ -5,7 +5,6 @@
 #include "MediaSourceManager.h"
 #include "MediaSourceManagerEditorModule.h"
 #include "MediaSourceManagerSettings.h"
-#include "MediaTexture.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/SMediaSourceManagerPreview.h"
@@ -62,15 +61,12 @@ void SMediaSourceManagerPreviews::RefreshChannels()
 			UMediaSourceManagerChannel* Channel = MediaSourceManager->Channels[Index];
 			if (Channel != nullptr)
 			{
-				UMediaPlayer* MediaPlayer = Channel->GetMediaPlayer();
-				UMediaTexture* MediaTexture = Cast<UMediaTexture>(Channel->OutTexture);
-
 				// Add preview widget.
 				ChannelsContainer->AddSlot()
 					.Padding(2)
 					.HAlign(HAlign_Center)
 					[
-						SNew(SMediaSourceManagerPreview, *MediaPlayer, MediaTexture, StyleRef)
+						SNew(SMediaSourceManagerPreview, Channel, StyleRef)
 					];
 
 				Channel->Play();
