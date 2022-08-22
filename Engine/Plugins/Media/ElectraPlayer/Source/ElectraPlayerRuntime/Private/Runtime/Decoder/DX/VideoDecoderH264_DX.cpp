@@ -45,7 +45,7 @@ namespace Electra {
 
 IVideoDecoderH264::FSystemConfiguration			FVideoDecoderH264::SystemConfig;
 
-#if ELECTRA_ENABLE_SWDECODE
+#ifdef ELECTRA_ENABLE_SWDECODE
 bool FVideoDecoderH264::bDidCheckHWSupport = false;
 bool FVideoDecoderH264::bIsHWSupported = false;
 #endif
