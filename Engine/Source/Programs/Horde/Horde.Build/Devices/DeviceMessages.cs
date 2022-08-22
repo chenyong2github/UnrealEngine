@@ -647,27 +647,27 @@ namespace Horde.Build.Devices
 		/// <summary>
 		/// Number of available devices of this platform 
 		/// </summary>
-		public int Available { get; set; }
+		public int? Available { get; set; }
 
 		/// <summary>
 		/// Number of reserved devices of this platform 
 		/// </summary>
-		public int Reserved { get; set; }
+		public int? Reserved { get; set; }
 
 		/// <summary>
 		/// Number of devices in maintenance state
 		/// </summary>
-		public int Maintenance { get; set; }
+		public int? Maintenance { get; set; }
 
 		/// <summary>
 		/// Number of devices in problem state
 		/// </summary>
-		public int Problem { get; set; }
+		public int? Problem { get; set; }
 
 		/// <summary>
 		/// Number of devices in disabled state
 		/// </summary>
-		public int Disabled { get; set; }
+		public int? Disabled { get; set; }
 
 		/// <summary>
 		/// StreamId to reserved device ids
@@ -680,11 +680,11 @@ namespace Horde.Build.Devices
 		public GetDevicePlatformTelemetryResponse(string platformId, int available, int reserved, int maintenance, int problem, int disabled, Dictionary<string, List<string>> streamDevices)
 		{
 			PlatformId = platformId;
-			Available = available;
-			Reserved = reserved;
-			Maintenance = maintenance;
-			Problem = problem;
-			Disabled = disabled;
+			Available = available == 0 ? null : available;
+			Reserved = reserved == 0 ? null : reserved;
+			Maintenance = maintenance == 0 ? null : maintenance;
+			Problem = problem == 0 ? null : problem;
+			Disabled = disabled == 0 ? null : disabled;
 			StreamDevices = streamDevices;
 		}
 	}

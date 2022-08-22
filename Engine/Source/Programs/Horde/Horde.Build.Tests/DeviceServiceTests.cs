@@ -219,7 +219,7 @@ namespace Horde.Build.Tests
 			{
 				if (t.PlatformId == "testdeviceplatform1")
 				{
-					Assert.AreEqual(0, t.Available);
+					Assert.IsNull(t.Available);
 					Assert.AreEqual(1, t.Reserved);
 					Assert.AreEqual(1, t.Maintenance);
 

@@ -323,17 +323,17 @@ namespace Horde.Build.Devices
 		/// <summary>
 		/// Get device telemetry
 		/// </summary>
-		public Task<List<IDeviceTelemetry>> GetDeviceTelemetryAsync(DeviceId[]? deviceIds = null, DateTimeOffset? minCreateTime=null, DateTimeOffset? maxCreateTime=null)
+		public Task<List<IDeviceTelemetry>> GetDeviceTelemetryAsync(DeviceId[]? deviceIds = null, DateTimeOffset? minCreateTime=null, DateTimeOffset? maxCreateTime=null, int? index = null, int? count = null)
 		{
-			return _devices.FindDeviceTelemetryAsync(deviceIds, minCreateTime, maxCreateTime);
+			return _devices.FindDeviceTelemetryAsync(deviceIds, minCreateTime, maxCreateTime, index, count);
 		}
 
 		/// <summary>
 		/// Get device pool telemetry
 		/// </summary>
-		public Task<List<IDevicePoolTelemetry>> GetDevicePoolTelemetryAsync(DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null)
+		public Task<List<IDevicePoolTelemetry>> GetDevicePoolTelemetryAsync(DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null, int? index = null, int? count = null)
 		{
-			return _devices.FindPoolTelemetryAsync(minCreateTime, maxCreateTime);
+			return _devices.FindPoolTelemetryAsync(minCreateTime, maxCreateTime, index, count);
 		}
 
 

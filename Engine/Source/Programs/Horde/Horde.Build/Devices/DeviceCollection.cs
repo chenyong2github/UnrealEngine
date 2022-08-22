@@ -254,61 +254,61 @@ namespace Horde.Build.Devices
 			/// <summary>
 			/// Id of telemetry document
 			/// </summary>
-			[BsonRequired, BsonId]
+			[BsonRequired, BsonId, BsonElement("tid")]
 			public ObjectId TelemetryId { get; set; }
 
 			/// <summary>
 			/// The device id
 			/// </summary>
-			[BsonRequired]
+			[BsonRequired, BsonElement("did")]
 			public DeviceId DeviceId { get; set; }
 
 			/// <summary>
 			/// The time this telemetry data was created
 			/// </summary>
-			[BsonRequired]
+			[BsonRequired, BsonElement("c")]
 			public DateTime CreateTimeUtc { get; set; }
 
 			/// <summary>
 			/// The stream id which utilized device
 			/// </summary>
-			[BsonIgnoreIfNull]
+			[BsonIgnoreIfNull, BsonElement("sid")]
 			public string? StreamId { get; set; }
 
 			/// <summary>
 			/// The job id which utilized device
 			/// </summary>
-			[BsonIgnoreIfNull]
+			[BsonIgnoreIfNull,BsonElement("job")]
 			public string? JobId { get; set; }
 
 			/// <summary>
 			/// The job's step id
 			/// </summary>
-			[BsonIgnoreIfNull]
+			[BsonIgnoreIfNull, BsonElement("step")]
 			public string? StepId { get; set; }
 
 			/// <summary>
 			/// Reservation Id (transient, reservations are deleted upon expiration)
 			/// </summary>
-			[BsonIgnoreIfNull]
+			[BsonIgnoreIfNull, BsonElement("rid")]
 			public ObjectId? ReservationId { get; set; }
 
 			/// <summary>
 			/// The time device was reserved
 			/// </summary>
-			[BsonIgnoreIfNull]
+			[BsonIgnoreIfNull, BsonElement("rs")]
 			public DateTime? ReservationStartUtc { get; set; }
 
 			/// <summary>
 			/// The time device was freed
 			/// </summary>
-			[BsonIgnoreIfNull]
+			[BsonIgnoreIfNull, BsonElement("rf")]
 			public DateTime? ReservationFinishUtc { get; set; }
 
 			/// <summary>
 			/// If the device reported a problem
 			/// </summary>
-			[BsonIgnoreIfNull]
+			[BsonIgnoreIfNull, BsonElement("p")]
 			public DateTime? ProblemTimeUtc { get; set; }
 
 			[BsonConstructor]
@@ -347,49 +347,49 @@ namespace Horde.Build.Devices
 			/// <summary>
 			/// Id of telemetry document
 			/// </summary>
-			[BsonRequired, BsonId]
+			[BsonRequired, BsonId, BsonElement("tid")]
 			public ObjectId TelemetryId { get; set; }
 
 			/// <summary>
 			/// The time this telemetry data was created
 			/// </summary>
-			[BsonRequired]
+			[BsonRequired, BsonElement("c")]
 			public DateTime CreateTimeUtc { get; set; }
 
 			/// <summary>
 			/// The platform id 
 			/// </summary>
-			[BsonRequired]
+			[BsonRequired, BsonElement("pid")]
 			public DevicePlatformId PlatformId { get; set; }
 
 			/// <summary>
 			/// Number of available devices of this platform 
 			/// </summary>
-			[BsonRequired]
+			[BsonIgnoreIfDefault, BsonDefaultValue(0), BsonElement("a")]
 			public int Available { get; set; } = 0;
 
 			/// <summary>
 			/// Number of reserved devices of this platform 
 			/// </summary>
-			[BsonRequired]
+			[BsonIgnoreIfDefault, BsonDefaultValue(0), BsonElement("r")]
 			public int Reserved { get; set; } = 0;
 
 			/// <summary>
 			/// Number of devices in maintenance state
 			/// </summary>
-			[BsonRequired]
+			[BsonIgnoreIfDefault, BsonDefaultValue(0), BsonElement("m")]
 			public int Maintenance { get; set; } = 0;
 
 			/// <summary>
 			/// Number of devices in problem state
-			/// </summary>
-			[BsonRequired]
+			/// </summary>			
+			[BsonIgnoreIfDefault, BsonDefaultValue(0), BsonElement("p")]
 			public int Problem { get; set; } = 0;
 
 			/// <summary>
 			/// Number of devices that are disabled
 			/// </summary>
-			[BsonRequired]
+			[BsonIgnoreIfDefault, BsonDefaultValue(0), BsonElement("d")]
 			public int Disabled { get; set; } = 0;
 
 			/// <summary>
@@ -484,11 +484,11 @@ namespace Horde.Build.Devices
 
 			List<MongoIndex<DeviceTelemetryDocument>> deviceTelemetryIndexes = new List<MongoIndex<DeviceTelemetryDocument>>();
 			deviceTelemetryIndexes.Add((keys => keys.Descending(x => x.CreateTimeUtc)));
-			_deviceTelemetry = mongoService.GetCollection<DeviceTelemetryDocument>("Devices.DeviceTelemetry", deviceTelemetryIndexes);
+			_deviceTelemetry = mongoService.GetCollection<DeviceTelemetryDocument>("Devices.DeviceTelemetryV2", deviceTelemetryIndexes);
 
 			List<MongoIndex<DevicePoolTelemetryDocument>> poolTelemetryIndexes = new List<MongoIndex<DevicePoolTelemetryDocument>>();
 			poolTelemetryIndexes.Add((keys => keys.Descending(x => x.CreateTimeUtc)));
-			_poolTelemetry = mongoService.GetCollection<DevicePoolTelemetryDocument>("Devices.PoolTelemetry", poolTelemetryIndexes);
+			_poolTelemetry = mongoService.GetCollection<DevicePoolTelemetryDocument>("Devices.PoolTelemetryV2", poolTelemetryIndexes);
 		}
 
 		/// <inheritdoc/>
@@ -1051,7 +1051,7 @@ namespace Horde.Build.Devices
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IDeviceTelemetry>> FindDeviceTelemetryAsync(DeviceId[]? deviceIds = null, DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null)
+		public async Task<List<IDeviceTelemetry>> FindDeviceTelemetryAsync(DeviceId[]? deviceIds = null, DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null, int? index = null, int? count = null)
 		{
 			FilterDefinitionBuilder<DeviceTelemetryDocument> filterBuilder = Builders<DeviceTelemetryDocument>.Filter;
 			FilterDefinition<DeviceTelemetryDocument> filter = filterBuilder.Empty;
@@ -1071,7 +1071,7 @@ namespace Horde.Build.Devices
 				filter &= filterBuilder.Lte(x => x.CreateTimeUtc!, maxCreateTime.Value.UtcDateTime);
 			}
 
-			List<DeviceTelemetryDocument> results = await _deviceTelemetry.Find(filter).ToListAsync();	
+			List<DeviceTelemetryDocument> results = await _deviceTelemetry.Find(filter).Range(index, count).ToListAsync();	
 			return results.ConvertAll<IDeviceTelemetry>(x => x);
 		}
 
@@ -1190,7 +1190,7 @@ namespace Horde.Build.Devices
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IDevicePoolTelemetry>> FindPoolTelemetryAsync(DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null)
+		public async Task<List<IDevicePoolTelemetry>> FindPoolTelemetryAsync(DateTimeOffset? minCreateTime = null, DateTimeOffset? maxCreateTime = null, int? index = null, int? count = null)
 		{
 			FilterDefinitionBuilder<DevicePoolTelemetryDocument> filterBuilder = Builders<DevicePoolTelemetryDocument>.Filter;
 			FilterDefinition<DevicePoolTelemetryDocument> filter = filterBuilder.Empty;
@@ -1205,7 +1205,7 @@ namespace Horde.Build.Devices
 				filter &= filterBuilder.Lte(x => x.CreateTimeUtc!, maxCreateTime.Value.UtcDateTime);
 			}
 
-			List<DevicePoolTelemetryDocument> results = await _poolTelemetry.Find(filter).ToListAsync();
+			List<DevicePoolTelemetryDocument> results = await _poolTelemetry.Find(filter).Range(index, count).ToListAsync();
 			return results.ConvertAll<IDevicePoolTelemetry>(x => x);
 		}
 

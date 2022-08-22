@@ -498,7 +498,9 @@ namespace Horde.Build.Devices
 		[ProducesResponseType(typeof(List<GetDevicePoolTelemetryResponse>), 200)]
 		public async Task<ActionResult<List<GetDevicePoolTelemetryResponse>>> GetDevicePoolTelemetry(
 			[FromQuery] DateTimeOffset? minCreateTime = null,
-			[FromQuery] DateTimeOffset? maxCreateTime = null)
+			[FromQuery] DateTimeOffset? maxCreateTime = null,
+			[FromQuery] int index = 0,
+			[FromQuery] int count = 1024)
 		{
 			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceRead, User))
 			{
@@ -510,7 +512,7 @@ namespace Horde.Build.Devices
 				minCreateTime = new DateTimeOffset(DateTime.UtcNow - TimeSpan.FromHours(24));
 			}
 
-			List<IDevicePoolTelemetry> telemetryData = await _deviceService.GetDevicePoolTelemetryAsync(minCreateTime, maxCreateTime);
+			List<IDevicePoolTelemetry> telemetryData = await _deviceService.GetDevicePoolTelemetryAsync(minCreateTime, maxCreateTime, index, count);
 
 			List<GetDevicePoolTelemetryResponse> response = new List<GetDevicePoolTelemetryResponse>();
 						
@@ -730,7 +732,9 @@ namespace Horde.Build.Devices
 			[FromQuery] string? poolId = null,
 			[FromQuery] string? platformId = null,
 			[FromQuery] DateTimeOffset? minCreateTime = null,
-			[FromQuery] DateTimeOffset? maxCreateTime = null)
+			[FromQuery] DateTimeOffset? maxCreateTime = null,
+			[FromQuery] int index = 0,
+			[FromQuery] int count = 1024)
 		{
 			if (!await _deviceService.AuthorizeAsync(AclAction.DeviceRead, User))
 			{
@@ -764,7 +768,7 @@ namespace Horde.Build.Devices
 				return response;
 			}
 			
-			List<IDeviceTelemetry> telemetryData = await _deviceService.GetDeviceTelemetryAsync(devices.Select(x => x.Id).ToArray(), minCreateTime, maxCreateTime);
+			List<IDeviceTelemetry> telemetryData = await _deviceService.GetDeviceTelemetryAsync(devices.Select(x => x.Id).ToArray(), minCreateTime, maxCreateTime, index, count);
 
 			Dictionary<string, List<GetTelemetryInfoResponse>> results = new Dictionary<string, List<GetTelemetryInfoResponse>>();
 
