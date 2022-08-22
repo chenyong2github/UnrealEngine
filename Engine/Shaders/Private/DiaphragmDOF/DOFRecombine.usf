@@ -562,7 +562,7 @@ void FetchAndAccumulateSamplePair(
 	float SampleDistance = FullResPixelDistanceToCocDistance(length(PixelOffset));
 
 	// Scene buffer offset.
-	float2 SceneBufferUVOffset = PixelOffset * View.BufferSizeAndInvSize.zw;
+	float2 SceneBufferUVOffset = PixelOffset * View.BufferSizeAndInvSize.zw * float2(CocInvSqueeze, 1.0);
 	
 	// Two sample to gather at same time.
 	FGatherSample Sample[2];
@@ -578,7 +578,7 @@ void FetchAndAccumulateSamplePair(
 		{
 			const float InvLutSize = rcp(float(BOKEH_LUT_SIZE));
 
-			float2 LookupUV = (0.5 + 0.5 * InvLutSize) + PixelOffset * (SampleSign * InvLutSize);
+			float2 LookupUV = (0.5 + 0.5 * InvLutSize) + PixelOffset * (SampleSign * InvLutSize) * float2(CocInvSqueeze, 1.0);
 			float4 LookupSample = BokehLUT.SampleLevel(GlobalPointClampedSampler, LookupUV, 0);
 			SampleDistance = LookupSample.x;
 		}

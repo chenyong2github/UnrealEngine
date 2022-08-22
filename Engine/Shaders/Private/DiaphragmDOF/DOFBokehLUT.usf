@@ -202,7 +202,7 @@ void BuildBokehLUTMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			CocRadiusToBokehEdgeFactor = 1.0;
 		}
 
-		float PixelCocDistanceFromBokehCenter = FullResPixelDistanceToCocDistance(length(RelativePosFromCenter) / CocRadiusToBokehEdgeFactor);
+		float PixelCocDistanceFromBokehCenter = FullResPixelDistanceToCocDistance(length(RelativePosFromCenter * float2(CocSqueeze, 1.0)) / CocRadiusToBokehEdgeFactor);
 		BokehLUTOutput[DispatchThreadId] = float4(PixelCocDistanceFromBokehCenter, 0, 0, 0);
 	}
 	#elif DIM_LUT_FORMAT == LUT_FORMAT_GATHER_SAMPLE_POS
@@ -258,6 +258,9 @@ void BuildBokehLUTMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 		// Final position of the sample in kernel.
 		float2 SamplePos = KernelUnitPos * RingRadius;
+		
+		// Apply anamorphic squeeze factor to save VALU in DOFGatherKernel.ush
+		SamplePos.x *= CocInvSqueeze;
 
 		BokehLUTOutput[DispatchThreadId] = float4(SamplePos, 0, 0);
 	}

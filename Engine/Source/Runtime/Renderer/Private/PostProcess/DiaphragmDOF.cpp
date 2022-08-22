@@ -940,6 +940,8 @@ class FDiaphragmDOFBuildBokehLUTCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER(float, CocRadiusToIncircleRadius)
 		SHADER_PARAMETER(float, DiaphragmBladeRadius)
 		SHADER_PARAMETER(float, DiaphragmBladeCenterOffset)
+		SHADER_PARAMETER(float, CocSqueeze)
+		SHADER_PARAMETER(float, CocInvSqueeze)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, BokehLUTOutput)
 	END_SHADER_PARAMETER_STRUCT()
@@ -2110,6 +2112,8 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		PassParameters->CocRadiusToIncircleRadius = BokehModel.CocRadiusToIncircleRadius;
 		PassParameters->DiaphragmBladeRadius = BokehModel.RoundedBlades.DiaphragmBladeRadius;
 		PassParameters->DiaphragmBladeCenterOffset = BokehModel.RoundedBlades.DiaphragmBladeCenterOffset;
+		PassParameters->CocSqueeze = CocModel.Squeeze;
+		PassParameters->CocInvSqueeze = 1.0f / CocModel.Squeeze;
 		PassParameters->BokehLUTOutput = GraphBuilder.CreateUAV(BokehLUT);
 			
 		TShaderMapRef<FDiaphragmDOFBuildBokehLUTCS> ComputeShader(View.ShaderMap, PermutationVector);
