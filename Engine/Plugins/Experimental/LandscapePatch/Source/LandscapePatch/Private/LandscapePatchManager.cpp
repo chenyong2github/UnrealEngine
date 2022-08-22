@@ -2,12 +2,15 @@
 
 #include "LandscapePatchManager.h"
 
+#include "Modules/ModuleManager.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Landscape.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapePatchComponent.h"
 #include "LandscapePatchLogging.h"
 #include "RenderGraph.h" // RDG_EVENT_NAME
+#include "LandscapeModule.h"
+#include "LandscapeEditorServices.h"
 
 #define LOCTEXT_NAMESPACE "LandscapePatchManager"
 
@@ -131,41 +134,12 @@ void ALandscapePatchManager::SetTargetLandscape(ALandscape* InTargetLandscape)
 
 		if (InTargetLandscape && ensure(InTargetLandscape->CanHaveLayersContent()))
 		{
-			FName LayerName = FName("LandscapePatches");
-			int32 ExistingPatchLayerIndex = InTargetLandscape->GetLayerIndex(LayerName);
-			if (ExistingPatchLayerIndex == INDEX_NONE)
-			{
-				ExistingPatchLayerIndex = InTargetLandscape->CreateLayer(LayerName);
+			static const FName PatchLayerName = FName("LandscapePatches");
 
-				// If there's a layer with a water brush manager, put the layer we created under that
-				// TODO: It's uncertain whether we want this approach long term. We might want to have a popup ask where to
-				// insert the layer, for instance. However, this is what the first artists to test the module suggested,
-				// and it's fairly easy to swap layers around, so it is easy for users to change if they are unhappy. 
-				int32 LayerIndex = 0;
-				for (; LayerIndex < ExistingPatchLayerIndex; ++LayerIndex)
-				{
-					TArray<ALandscapeBlueprintBrushBase*> LayerBrushes = InTargetLandscape->GetBrushesForLayer(LayerIndex);
-					if (LayerBrushes.ContainsByPredicate([](ALandscapeBlueprintBrushBase* Brush) 
-						{ 
-							// It would be preferable to do a Cast<ALandscapeBlueprintBrushBase> to be robust to subclassing, etc.,
-							// but that doesn't seem worth having to add a dependency on the water plugin, hence the comparison by name.
-							// Note that the "A" prefix is removed in GetName.
-							FString BrushManagerName = Brush->GetClass()->GetName();
-							return Brush->GetClass()->GetName() == TEXT("WaterBrushManager");
-						}))
-					{
-						// Found a water brush manager.
-						break;
-					}
-				}
-
-				if (LayerIndex < ExistingPatchLayerIndex)
-				{
-					InTargetLandscape->ReorderLayer(ExistingPatchLayerIndex, LayerIndex);
-					ExistingPatchLayerIndex = LayerIndex;
-				}
-			}
-			InTargetLandscape->AddBrushToLayer(ExistingPatchLayerIndex, this);
+			ILandscapeModule& LandscapeModule = FModuleManager::GetModuleChecked<ILandscapeModule>("Landscape");
+			int32 PatchLayerIndex = LandscapeModule.GetLandscapeEditorServices()->GetOrCreateEditLayer(PatchLayerName, InTargetLandscape);
+			
+			InTargetLandscape->AddBrushToLayer(PatchLayerIndex, this);
 		}
 	}
 #endif

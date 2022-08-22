@@ -19,6 +19,7 @@
 #include "LandscapeFileFormatPng.h"
 #include "LandscapeFileFormatRaw.h"
 #include "Settings/EditorExperimentalSettings.h"
+#include "LandscapeEditorServices.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "PropertyEditorModule.h"
@@ -27,6 +28,7 @@
 #include "LandscapeEditorDetailCustomization_CopyPaste.h"
 #include "LandscapeEditorDetailCustomization_ImportLayers.h"
 #include "LandscapeSplineDetails.h"
+#include "LandscapeModule.h"
 
 #include "LevelEditor.h"
 #include "ToolMenus.h"
@@ -134,6 +136,10 @@ public:
 			FUIAction ActionBuildNanite(FExecuteAction::CreateStatic(&BuildNanite), FCanExecuteAction());
 			Section.AddMenuEntry(NAME_None, LOCTEXT("BuildNaniteOnly", "Build Nanite Only"), LOCTEXT("BuildLandscapeNanite", "Build Nanite representation"), TAttribute<FSlateIcon>(), ActionBuildNanite, EUserInterfaceActionType::Button);
 		}
+		
+		ILandscapeModule& LandscapeModule = FModuleManager::GetModuleChecked<ILandscapeModule>("Landscape");
+		LandscapeEditorServices.Reset(new FLandscapeEditorServices);
+		LandscapeModule.SetLandscapeEditorServices(LandscapeEditorServices.Get());
 	}
 
 	/**
@@ -164,6 +170,13 @@ public:
 		// remove actor factories
 		// TODO - this crashes on shutdown
 		// GEditor->ActorFactories.RemoveAll([](const UActorFactory* ActorFactory) { return ActorFactory->IsA<UActorFactoryLandscape>(); });
+
+		ILandscapeModule& LandscapeModule = FModuleManager::GetModuleChecked<ILandscapeModule>("Landscape");
+		if (LandscapeModule.GetLandscapeEditorServices() == LandscapeEditorServices.Get())
+		{
+			LandscapeModule.SetLandscapeEditorServices(nullptr);
+		}
+		LandscapeEditorServices.Reset();
 	}
 
 	static void ConstructLandscapeViewportMenu(FMenuBuilder& MenuBuilder)
@@ -313,7 +326,7 @@ public:
 	virtual const ILandscapeWeightmapFileFormat* GetWeightmapFormatByExtension(const TCHAR* Extension) const override;
 
 	virtual TSharedPtr<FUICommandList> GetLandscapeLevelViewportCommandList() const override;
-		
+
 protected:
 	TSharedPtr<FExtender> ViewportMenuExtender;
 	TSharedPtr<FUICommandList> GlobalUICommandList;
@@ -323,6 +336,7 @@ protected:
 	mutable FString WeightmapImportDialogTypeString;
 	mutable FString HeightmapExportDialogTypeString;
 	mutable FString WeightmapExportDialogTypeString;
+	TUniquePtr<ILandscapeEditorServices> LandscapeEditorServices;
 };
 
 IMPLEMENT_MODULE(FLandscapeEditorModule, LandscapeEditor);

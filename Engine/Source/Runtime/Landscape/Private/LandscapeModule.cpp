@@ -36,12 +36,16 @@ public:
 	void ShutdownModule() override;
 
 	virtual TSharedPtr<FLandscapeSceneViewExtension, ESPMode::ThreadSafe> GetLandscapeSceneViewExtension() const override { return SceneViewExtension; }
+
+	virtual void SetLandscapeEditorServices(ILandscapeEditorServices* InLandscapeEditorServices) override { LandscapeEditorServices = InLandscapeEditorServices; }
+	virtual ILandscapeEditorServices* GetLandscapeEditorServices() const override { return LandscapeEditorServices; }
 private:
 	void OnPostEngineInit();
 	void OnEnginePreExit();
 
 private:
 	TSharedPtr<FLandscapeSceneViewExtension, ESPMode::ThreadSafe> SceneViewExtension;
+	ILandscapeEditorServices* LandscapeEditorServices = nullptr;
 };
 
 /**

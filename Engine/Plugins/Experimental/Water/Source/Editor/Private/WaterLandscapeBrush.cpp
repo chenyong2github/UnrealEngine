@@ -26,6 +26,8 @@
 #include "Components/BillboardComponent.h"
 #include "Modules/ModuleManager.h"
 #include "WaterModule.h"
+#include "LandscapeModule.h"
+#include "LandscapeEditorServices.h"
 
 #define LOCTEXT_NAMESPACE "WaterLandscapeBrush"
 
@@ -457,13 +459,12 @@ void AWaterLandscapeBrush::SetTargetLandscape(ALandscape* InTargetLandscape)
 
 		if (InTargetLandscape && InTargetLandscape->CanHaveLayersContent())
 		{
-			FName WaterLayerName = FName("Water");
-			int32 ExistingWaterLayerIndex = InTargetLandscape->GetLayerIndex(WaterLayerName);
-			if (ExistingWaterLayerIndex == INDEX_NONE)
-			{
-				ExistingWaterLayerIndex = InTargetLandscape->CreateLayer(WaterLayerName);
-			}
-			InTargetLandscape->AddBrushToLayer(ExistingWaterLayerIndex, this);
+			static const FName WaterLayerName = FName("Water");
+			
+			ILandscapeModule& LandscapeModule = FModuleManager::GetModuleChecked<ILandscapeModule>("Landscape");
+			int32 WaterLayerIndex = LandscapeModule.GetLandscapeEditorServices()->GetOrCreateEditLayer(WaterLayerName, InTargetLandscape);
+			
+			InTargetLandscape->AddBrushToLayer(WaterLayerIndex, this);
 		}
 	}
 
