@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GeometryScript/GeometryScriptTypes.h"
+#include "GeometryScript/GeometryScriptSelectionTypes.h"
 #include "MeshUVFunctions.generated.h"
 
 class UDynamicMesh;
@@ -178,6 +179,7 @@ public:
 		UDynamicMesh* TargetMesh, 
 		int UVSetIndex,
 		FVector2D Translation,
+		FGeometryScriptMeshSelection Selection,
 		UGeometryScriptDebug* Debug = nullptr );
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
@@ -187,6 +189,7 @@ public:
 		int UVSetIndex,
 		FVector2D Scale,
 		FVector2D ScaleOrigin,
+		FGeometryScriptMeshSelection Selection,
 		UGeometryScriptDebug* Debug = nullptr );
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
@@ -196,6 +199,7 @@ public:
 		int UVSetIndex,
 		float RotationAngle,
 		FVector2D RotationOrigin,
+		FGeometryScriptMeshSelection Selection,
 		UGeometryScriptDebug* Debug = nullptr );
 
 
@@ -208,6 +212,7 @@ public:
 		UDynamicMesh* TargetMesh, 
 		int UVSetIndex,
 		FTransform PlaneTransform,
+		FGeometryScriptMeshSelection Selection,
 		UGeometryScriptDebug* Debug = nullptr );
 
 
@@ -217,6 +222,7 @@ public:
 		UDynamicMesh* TargetMesh, 
 		int UVSetIndex,
 		FTransform BoxTransform,
+		FGeometryScriptMeshSelection Selection,
 		int MinIslandTriCount = 2,
 		UGeometryScriptDebug* Debug = nullptr );
 
@@ -227,6 +233,7 @@ public:
 		UDynamicMesh* TargetMesh, 
 		int UVSetIndex,
 		FTransform CylinderTransform,
+		FGeometryScriptMeshSelection Selection,
 		float SplitAngle = 45.0,
 		UGeometryScriptDebug* Debug = nullptr );
 
@@ -238,7 +245,9 @@ public:
 		UDynamicMesh* TargetMesh, 
 		int UVSetIndex,
 		FGeometryScriptRecomputeUVsOptions Options,
+		FGeometryScriptMeshSelection Selection,
 		UGeometryScriptDebug* Debug = nullptr );
+
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
@@ -264,6 +273,33 @@ public:
 		FGeometryScriptXAtlasOptions Options,
 		UGeometryScriptDebug* Debug = nullptr );
 
+	/**
+	 * Compute information about dimensions and areas for a UV Set of a Mesh, with an optional Mesh Selection
+	 * @param UVSetIndex index of UV Set to query
+	 * @param Selection subset of triangles to process, whole mesh is used if selection is not provided
+	 * @param MeshArea output 3D area of queried triangles
+	 * @param UVArea output 2D UV-space area of queried triangles
+	 * @param MeshBounds output 3D bounding box of queried triangles
+	 * @param UVBounds output 2D UV-space bounding box of queried triangles
+	 * @param bIsValidUVSet output flag set to false if UVSetIndex does not exist on the target mesh. In this case Areas and Bounds are not initialized.
+	 * @param bFoundUnsetUVs output flag set to true if any of the queried triangles do not have valid UVs set
+	 * @param bOnlyIncludeValidUVTris if true, only triangles with valid UVs are included in 3D Mesh Area/Bounds
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Copy From Mesh") UDynamicMesh* 
+	GetMeshUVSizeInfo(  
+		UDynamicMesh* TargetMesh, 
+		int UVSetIndex,
+		FGeometryScriptMeshSelection Selection,
+		double& MeshArea,
+		double& UVArea,
+		FBox& MeshBounds,
+		FBox2D& UVBounds,
+		bool& bIsValidUVSet,
+		bool& bFoundUnsetUVs,
+		bool bOnlyIncludeValidUVTris = true,
+		UGeometryScriptDebug* Debug = nullptr);	
+
 
 	/**
 	 * Get a list of single vertex UVs for each mesh vertex in the TargetMesh, derived from the specified UV Overlay.
@@ -285,7 +321,6 @@ public:
 		bool& bHasVertexIDGaps,
 		bool& bHasSplitUVs,
 		UGeometryScriptDebug* Debug = nullptr);
-
 
 
 	/**
