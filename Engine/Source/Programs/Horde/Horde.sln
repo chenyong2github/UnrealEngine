@@ -56,6 +56,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Core.Tests", "..\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.BuildGraph.Tests", "..\Shared\EpicGames.BuildGraph.Tests\EpicGames.BuildGraph.Tests.csproj", "{C2C89F6A-E03F-43A7-84D5-282D48C4C917}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Slack", "..\Shared\EpicGames.Slack\EpicGames.Slack.csproj", "{AEBA0D44-6D51-4034-8D07-EA5DAB7BDD81}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Analyze|Any CPU = Analyze|Any CPU
@@ -240,6 +242,14 @@ Global
 		{C2C89F6A-E03F-43A7-84D5-282D48C4C917}.Development|Any CPU.Build.0 = Development|Any CPU
 		{C2C89F6A-E03F-43A7-84D5-282D48C4C917}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C2C89F6A-E03F-43A7-84D5-282D48C4C917}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AEBA0D44-6D51-4034-8D07-EA5DAB7BDD81}.Analyze|Any CPU.ActiveCfg = Analyze|Any CPU
+		{AEBA0D44-6D51-4034-8D07-EA5DAB7BDD81}.Analyze|Any CPU.Build.0 = Analyze|Any CPU
+		{AEBA0D44-6D51-4034-8D07-EA5DAB7BDD81}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AEBA0D44-6D51-4034-8D07-EA5DAB7BDD81}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AEBA0D44-6D51-4034-8D07-EA5DAB7BDD81}.Development|Any CPU.ActiveCfg = Development|Any CPU
+		{AEBA0D44-6D51-4034-8D07-EA5DAB7BDD81}.Development|Any CPU.Build.0 = Development|Any CPU
+		{AEBA0D44-6D51-4034-8D07-EA5DAB7BDD81}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AEBA0D44-6D51-4034-8D07-EA5DAB7BDD81}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -259,6 +269,7 @@ Global
 		{18C0EB0A-1514-4597-BDBB-47A82B70D5CF} = {84144B9A-C142-4656-96C8-1D23B9A1C63D}
 		{556E0EFB-F064-49FD-9602-A6AA48F50148} = {84144B9A-C142-4656-96C8-1D23B9A1C63D}
 		{C2C89F6A-E03F-43A7-84D5-282D48C4C917} = {84144B9A-C142-4656-96C8-1D23B9A1C63D}
+		{AEBA0D44-6D51-4034-8D07-EA5DAB7BDD81} = {84144B9A-C142-4656-96C8-1D23B9A1C63D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F06D2583-1509-4254-BEE6-5921340022BF}
