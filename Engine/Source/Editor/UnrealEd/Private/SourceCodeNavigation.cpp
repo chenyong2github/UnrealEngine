@@ -769,11 +769,9 @@ void FSourceCodeNavigation::Initialize()
 
 const FSourceFileDatabase& FSourceCodeNavigation::GetSourceFileDatabase()
 {
-#if !( PLATFORM_WINDOWS && defined(__clang__) )		// @todo clang: This code causes a strange stack overflow issue when compiling using Clang on Windows
 	// Lock so that nothing may proceed while the AsyncTask is constructing the FSourceFileDatabase for the first time
 	FScopeLock Lock(&CriticalSection);
 	Instance.UpdateIfNeeded();
-#endif
 
 	return Instance;
 }
