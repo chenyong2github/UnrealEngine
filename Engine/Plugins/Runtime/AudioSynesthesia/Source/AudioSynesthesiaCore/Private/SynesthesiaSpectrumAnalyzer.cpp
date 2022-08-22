@@ -1,5 +1,4 @@
- //Copyright Epic Games, Inc. All Rights Reserved.
-
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SynesthesiaSpectrumAnalyzer.h"
 #include "DSP/FFTAlgorithm.h"
