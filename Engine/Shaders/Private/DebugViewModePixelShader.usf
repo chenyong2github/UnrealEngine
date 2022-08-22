@@ -17,7 +17,9 @@
 
 #include "Common.ush"
 #include "SHCommon.ush"
+#if OUTPUT_QUAD_OVERDRAW
 #include "QuadOverdraw.ush"
+#endif
 #include "VirtualTextureCommon.ush"
 
 #define UNDEF_ACCURACY 1024
@@ -462,7 +464,7 @@ float4 VisualizeShaderComplexityAccumulate(in FDebugPSIn DebugInputs, in bool bI
 	{
 		float3 FinalComplexity = NormalizedComplexity.xyz;
 
-#if !(COMPILER_METAL)
+#if !(COMPILER_METAL) && (OUTPUT_QUAD_OVERDRAW)
 		[branch]
 		if (bShowQuadOverdraw && NormalizedComplexity.x > 0)
 		{
@@ -470,7 +472,7 @@ float4 VisualizeShaderComplexityAccumulate(in FDebugPSIn DebugInputs, in bool bI
 			// The extra cost from quad overdraw is assumed to be linear.
 			FinalComplexity.x *= 4.f / (float)(Coverage);
 		}
-#endif // !(COMPILER_METAL)
+#endif // !(COMPILER_METAL) && (OUTPUT_QUAD_OVERDRAW)
 
 		// use the maximum range allowed for scene color
 		Result = FinalComplexity;
