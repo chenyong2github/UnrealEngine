@@ -216,6 +216,7 @@ public:
 	 * @Param ReimportAsset - This is an optional parameter which is set when re-importing an asset.
 	 */
 	virtual void AdjustSettingsForContext(EInterchangePipelineContext ReimportType, TObjectPtr<UObject> ReimportAsset);
+	virtual void AdjustSettingsFromCache();
 
 	/**
 	 * This function is used to add the given message object directly into the results for this operation.
@@ -314,8 +315,10 @@ protected:
 
 	UInterchangePipelineBase* GetMostPipelineOuter() const;
 
+	static void InternalToggleVisibilityPropertiesOfMetaDataValue(UInterchangePipelineBase* OuterMostPipeline, UInterchangePipelineBase* Pipeline, bool bDoTransientSubPipeline, const FString& MetaDataKey, const FString& MetaDataValue, const bool bVisibilityState);
 	static void HidePropertiesOfCategory(UInterchangePipelineBase* OuterMostPipeline, UInterchangePipelineBase* Pipeline, const FString& HideCategoryName, bool bDoTransientSubPipeline = false);
-
+	static void HidePropertiesOfSubCategory(UInterchangePipelineBase* OuterMostPipeline, UInterchangePipelineBase* Pipeline, const FString& HideSubCategoryName, bool bDoTransientSubPipeline = false);
+	
 	/**
 	 * If true, the property editor for this pipeline instance will allow properties states edition.
 	 * If false, the property editor for this pipeline instance will apply the properties states.
@@ -342,4 +345,8 @@ protected:
 	*/
 	UPROPERTY()
 	TMap<FName, FInterchangePipelinePropertyStates> PropertiesStates;
+
+	mutable TMap<FName, FInterchangePipelinePropertyStates> CachePropertiesStates;
+	mutable EInterchangePipelineContext CachePipelineContext = EInterchangePipelineContext::None;
+	mutable TWeakObjectPtr<UObject> CacheReimportObject = nullptr;
 };

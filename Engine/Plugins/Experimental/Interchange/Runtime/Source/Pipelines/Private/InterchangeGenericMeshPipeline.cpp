@@ -37,43 +37,59 @@ void UInterchangeGenericMeshPipeline::AdjustSettingsForContext(EInterchangePipel
 		bCreatePhysicsAsset = false;
 		PhysicsAsset = nullptr;
 	}
+	const FString CommonMeshesCategory = TEXT("Common Meshes");
+	const FString StaticMeshesCategory = TEXT("Static Meshes");
+	const FString SkeletalMeshesCategory = TEXT("Skeletal Meshes");
+	const FString CommonSkeletalMeshesAndAnimationCategory = TEXT("Common Skeletal Meshes and Animations");
 
 	TArray<FString> HideCategories;
+	TArray<FString> HideSubCategories;
 	if (ImportType == EInterchangePipelineContext::AssetReimport)
 	{
+		HideSubCategories.Add(TEXT("Build"));
 		if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(ReimportAsset))
 		{
-
 			//Set the skeleton to the current asset skeleton
 			CommonSkeletalMeshesAndAnimationsProperties->Skeleton = SkeletalMesh->GetSkeleton();
 			bImportStaticMeshes = false;
-			HideCategories.Add(TEXT("Static Meshes"));
+			HideCategories.Add(StaticMeshesCategory);
 		}
 		else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(ReimportAsset))
 		{
-			HideCategories.Add(TEXT("Skeletal Meshes"));
-			HideCategories.Add(TEXT("Common Skeletal Meshes and Animations"));
+			HideCategories.Add(SkeletalMeshesCategory);
+			HideCategories.Add(CommonSkeletalMeshesAndAnimationCategory);
 		}
 		else if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(ReimportAsset))
 		{
-			HideCategories.Add(TEXT("Static Meshes"));
-			HideCategories.Add(TEXT("Skeletal Meshes"));
-			HideCategories.Add(TEXT("Common Meshes"));
+			HideCategories.Add(StaticMeshesCategory);
+			HideCategories.Add(SkeletalMeshesCategory);
+			HideCategories.Add(CommonMeshesCategory);
 		}
 		else if (ReimportAsset)
 		{
-			HideCategories.Add(TEXT("Static Meshes"));
-			HideCategories.Add(TEXT("Skeletal Meshes"));
-			HideCategories.Add(TEXT("Common Meshes"));
-			HideCategories.Add(TEXT("Common Skeletal Meshes and Animations"));
+			HideCategories.Add(StaticMeshesCategory);
+			HideCategories.Add(SkeletalMeshesCategory);
+			HideCategories.Add(CommonMeshesCategory);
+			HideCategories.Add(CommonSkeletalMeshesAndAnimationCategory);
 		}
 	}
 
 	if (UInterchangePipelineBase* OuterMostPipeline = GetMostPipelineOuter())
 	{
+		constexpr bool bDoTransientSubPipeline = true;
+		if (UInterchangeGenericAssetsPipeline* ParentPipeline = Cast<UInterchangeGenericAssetsPipeline>(OuterMostPipeline))
+		{
+			if (ParentPipeline->ReimportStrategy == EReimportStrategyFlags::ApplyNoProperties)
+			{
+				for (const FString& HideSubCategoryName : HideSubCategories)
+				{
+					HidePropertiesOfSubCategory(OuterMostPipeline, this, HideSubCategoryName, bDoTransientSubPipeline);
+				}
+			}
+		}
+
 		for (const FString& HideCategoryName : HideCategories)
 		{
-			constexpr bool bDoTransientSubPipeline = true;
 			HidePropertiesOfCategory(OuterMostPipeline, this, HideCategoryName, bDoTransientSubPipeline);
 		}
 	}
@@ -170,3 +186,46 @@ void UInterchangeGenericMeshPipeline::SetReimportSourceIndex(UClass* ReimportObj
 	}
 }
 
+#if WITH_EDITOR
+bool UInterchangeGenericMeshPipeline::DoClassesIncludeAllEditableStructProperties(const TArray<const UClass*>& Classes, const UStruct* Struct)
+{
+	const FName CategoryKey("Category");
+	for (const FProperty* Property = Struct->PropertyLink; Property; Property = Property->PropertyLinkNext)
+	{
+		//skip (transient, deprecated, const) property
+		if (Property->HasAnyPropertyFlags(CPF_Transient | CPF_Deprecated | CPF_EditConst))
+		{
+			continue;
+		}
+		//skip property that is not editable
+		if (!Property->HasAnyPropertyFlags(CPF_Edit))
+		{
+			continue;
+		}
+		const FObjectProperty* SubObject = CastField<FObjectProperty>(Property);
+		if (SubObject)
+		{
+			continue;
+		}
+		else if (const FString* PropertyCategoryString = Property->FindMetaData(CategoryKey))
+		{
+			FName PropertyName = Property->GetFName();
+			bool bFindProperty = false;
+			for (const UClass* Class : Classes)
+			{
+				if (Class->FindPropertyByName(PropertyName) != nullptr)
+				{
+					bFindProperty = true;
+					break;
+				}
+			}
+			//Ensure to notify
+			if (!bFindProperty)
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+#endif

@@ -88,6 +88,38 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
 	bool SetCustomImportContentType(const EInterchangeSkeletalMeshContentType& AttributeValue);
 
+	/** Query the skeletal mesh threshold use to decide if two vertex position are equal. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
+	bool GetCustomThresholdPosition(float& AttributeValue) const;
+
+	/** Set the skeletal mesh threshold use to decide if two vertex position are equal. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
+	bool SetCustomThresholdPosition(const float& AttributeValue, bool bAddApplyDelegate = true);
+
+	/** Query the skeletal mesh threshold use to decide if two normal, tangents or bi-normals are equal. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
+	bool GetCustomThresholdTangentNormal(float& AttributeValue) const;
+
+	/** Set the skeletal mesh threshold use to decide if two normal, tangents or bi-normals are equal. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
+	bool SetCustomThresholdTangentNormal(const float& AttributeValue, bool bAddApplyDelegate = true);
+
+	/** Query the skeletal mesh threshold use to decide if two UVs are equal. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
+	bool GetCustomThresholdUV(float& AttributeValue) const;
+
+	/** Set the skeletal mesh threshold use to decide if two UVs are equal. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
+	bool SetCustomThresholdUV(const float& AttributeValue, bool bAddApplyDelegate = true);
+
+	/** Query the skeletal mesh threshold to compare vertex position equality when computing morph target deltas. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
+	bool GetCustomMorphThresholdPosition(float& AttributeValue) const;
+
+	/** Set the skeletal mesh threshold to compare vertex position equality when computing morph target deltas. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
+	bool SetCustomMorphThresholdPosition(const float& AttributeValue, bool bAddApplyDelegate = true);
+
 	/**
 	 * The skeletal mesh thumbnail can have an overlay if the last re-import was geometry only. This thumbnail overlay feature use the metadata to find out if the last import was geometry only.
 	 */
@@ -103,9 +135,19 @@ private:
 	const UE::Interchange::FAttributeKey Macro_CustomCreatePhysicsAssetKey = UE::Interchange::FAttributeKey(TEXT("CreatePhysicsAsset"));
 	const UE::Interchange::FAttributeKey Macro_CustomPhysicAssetSoftObjectPathKey = UE::Interchange::FAttributeKey(TEXT("PhysicAssetSoftObjectPath"));
 	const UE::Interchange::FAttributeKey Macro_CustomImportContentTypeKey = UE::Interchange::FAttributeKey(TEXT("ImportContentType"));
+	const UE::Interchange::FAttributeKey Macro_CustomThresholdPositionKey = UE::Interchange::FAttributeKey(TEXT("ThresholdPosition"));
+	const UE::Interchange::FAttributeKey Macro_CustomThresholdTangentNormalKey = UE::Interchange::FAttributeKey(TEXT("ThresholdTangentNormal"));
+	const UE::Interchange::FAttributeKey Macro_CustomThresholdUVKey = UE::Interchange::FAttributeKey(TEXT("ThresholdUV"));
+	const UE::Interchange::FAttributeKey Macro_CustomMorphThresholdPositionKey = UE::Interchange::FAttributeKey(TEXT("MorphThresholdPosition"));
 
+	bool ApplyCustomThresholdPositionToAsset(UObject* Asset) const;
+	bool FillCustomThresholdPositionFromAsset(UObject* Asset);
+	bool ApplyCustomThresholdTangentNormalToAsset(UObject* Asset) const;
+	bool FillCustomThresholdTangentNormalFromAsset(UObject* Asset);
+	bool ApplyCustomThresholdUVToAsset(UObject* Asset) const;
+	bool FillCustomThresholdUVFromAsset(UObject* Asset);
+	bool ApplyCustomMorphThresholdPositionToAsset(UObject* Asset) const;
+	bool FillCustomMorphThresholdPositionFromAsset(UObject* Asset);
 protected:
-#if WITH_ENGINE
 	TSubclassOf<USkeletalMesh> AssetClass = nullptr;
-#endif
 };

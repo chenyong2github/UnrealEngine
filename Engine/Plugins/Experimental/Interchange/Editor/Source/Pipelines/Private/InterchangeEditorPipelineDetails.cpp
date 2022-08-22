@@ -137,11 +137,12 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 	CachedDetailBuilder->GetCategoryNames(AllCategoryNames);
 	TMap<FName, TArray<FName>> PropertiesPerCategorys;
 	InternalGetPipelineProperties(InterchangePipeline.Get(), AllCategoryNames, PropertiesPerCategorys);
-
-	TMap<FName, TMap<FName, TArray<FInternalPropertyData>>> SubCategoriesPropertiesPerMainCategory;
-
+	
 	for (const TPair<FName, TArray<FName>>& CategoryAndProperties : PropertiesPerCategorys)
 	{
+		//Category meta value Subgroup data
+		TMap<FName, IDetailGroup*> SubCategoryGroups;
+
 		const FName CategoryName = CategoryAndProperties.Key;
 		IDetailCategoryBuilder& Category = CachedDetailBuilder->EditCategory(CategoryName);
 		
@@ -169,9 +170,32 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 			}
 			FName PropertyPath = FName(PropertyPtr->GetPathName());
 			CachedDetailBuilder->HideProperty(PropertyHandle);
+
+			const FName SubCategoryData = FName(PropertyHandle->GetMetaData(TEXT("SubCategory")));
+			IDetailGroup* GroupPtr = nullptr;
+			auto GetGroupPtr = [&GroupPtr, &SubCategoryData, &SubCategoryGroups, &Category]()
+			{
+				if (SubCategoryData != NAME_None)
+				{
+					if (!SubCategoryGroups.Contains(SubCategoryData))
+					{
+						SubCategoryGroups.Add(SubCategoryData, &(Category.AddGroup(SubCategoryData, FText::FromName(SubCategoryData))));
+					}
+					GroupPtr = SubCategoryGroups.FindChecked(SubCategoryData);
+				}
+			};
+
+			//This is the import/re-import dialog mode
 			if (!bAllowPropertyStatesEdition)
 			{
-				const FName SubCategoryData = FName(PropertyHandle->GetMetaData(TEXT("SubCategory")));
+				if (bIsReimportContext && PropertyHandle->GetBoolMetaData(FName("AdjustPipelineAndRefreshDetailOnChange")))
+				{
+					PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([this]() {
+						InterchangePipeline->AdjustSettingsFromCache();
+						RefreshCustomDetail();
+					}));
+				}
+
 				bool IsLocked = false;
 				if (const FInterchangePipelinePropertyStates* PropertyStates = InterchangePipeline->GetPropertyStates(PropertyPath))
 				{
@@ -181,28 +205,20 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 					}
 					IsLocked = PropertyStates->IsPropertyLocked();
 				}
-				if (SubCategoryData != NAME_None)
+				GetGroupPtr();
+				IDetailPropertyRow& PropertyRow = GroupPtr ? GroupPtr->AddPropertyRow(PropertyHandle) : Category.AddProperty(PropertyHandle);
+				//When we use the pipeline in interchange
+				if (IsLocked)
 				{
-					TMap<FName, TArray<FInternalPropertyData>>& SubCategoriesProperties = SubCategoriesPropertiesPerMainCategory.FindOrAdd(CategoryName);
-					TArray<FInternalPropertyData>& SubCategoryProperties = SubCategoriesProperties.FindOrAdd(SubCategoryData);
-					FInternalPropertyData& PropertyData = SubCategoryProperties.AddDefaulted_GetRef();
-					PropertyData.PropertyHandle = PropertyHandle;
-					PropertyData.bReadOnly = IsLocked;
-				}
-				else
-				{
-					IDetailPropertyRow& PropertyRow = Category.AddProperty(PropertyHandle);
-					//When we use the pipeline in interchange
-					if (IsLocked)
-					{
-						LockPropertyHandleRow(PropertyHandle, PropertyRow);
-					}
+					LockPropertyHandleRow(PropertyHandle, PropertyRow);
 				}
 			}
+			//This is the asset editor mode, we allow users to set default value and locks
 			else
 			{
 				constexpr bool bShowChildren = true;
-				IDetailPropertyRow& PropertyRow = Category.AddProperty(PropertyHandle);
+				GetGroupPtr();
+				IDetailPropertyRow& PropertyRow = GroupPtr ? GroupPtr->AddPropertyRow(PropertyHandle) : Category.AddProperty(PropertyHandle);
 				TSharedPtr<SWidget> NameWidget;
 				TSharedPtr<SWidget> ValueWidget;
 				FDetailWidgetRow Row;
@@ -383,8 +399,6 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 			}
 		}
 	}
-
-	AddSubCategory(DetailBuilder, SubCategoriesPropertiesPerMainCategory);
 }
 
 FInterchangeBaseNodeDetailsCustomization::FInterchangeBaseNodeDetailsCustomization()

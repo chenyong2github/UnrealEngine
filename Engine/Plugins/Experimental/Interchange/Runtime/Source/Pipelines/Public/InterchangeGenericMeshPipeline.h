@@ -70,7 +70,57 @@ public:
 	/** If enabled this option will allow you to use Nanite rendering at runtime. Can only be used with simple opaque materials. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Build"))
 	bool bBuildNanite = false;
+
+	/** If enabled this option will make sure the staticmesh build a reverse index buffer. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Build"))
+	bool bBuildReversedIndexBuffer = true;
 	
+	/** If enabled this option will generate lightmap for this staticmesh. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Build"))
+	bool bGenerateLightmapUVs = true;
+	
+	/** 
+	 * Whether to generate the distance field treating every triangle hit as a front face.  
+	 * When enabled prevents the distance field from being discarded due to the mesh being open, but also lowers Distance Field AO quality.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta=(SubCategory = "Build", DisplayName="Two-Sided Distance Field Generation"))
+	bool bGenerateDistanceFieldAsIfTwoSided = false;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Build", DisplayName="Enable Physical Material Mask"))
+	bool bSupportFaceRemap = false;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Build"))
+	int32 MinLightmapResolution = 64;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Build", DisplayName="Source Lightmap Index"))
+	int32 SrcLightmapIndex = 0;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Build", DisplayName="Destination Lightmap Index"))
+	int32 DstLightmapIndex = 1;
+	
+	/** The local scale applied when building the mesh */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Build", DisplayName="Build Scale"))
+	FVector BuildScale3D = FVector(1.0);
+	
+	/** 
+	 * Scale to apply to the mesh when allocating the distance field volume texture.
+	 * The default scale is 1, which is assuming that the mesh will be placed unscaled in the world.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Build"))
+	float DistanceFieldResolutionScale = 1.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Build"))
+	TObjectPtr<class UStaticMesh> DistanceFieldReplacementMesh = nullptr;
+	
+	/** 
+	 * Max Lumen mesh cards to generate for this mesh.
+	 * More cards means that surface will have better coverage, but will result in increased runtime overhead.
+	 * Set to 0 in order to disable mesh card generation for this mesh.
+	 * Default is 12.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Static Meshes", meta = (SubCategory = "Build"))
+	int32 MaxLumenMeshCards = 12;
+
 	//////	SKELETAL_MESHES_CATEGORY Properties //////
 
 	/** If enable, import the animation asset find in the sources. */
@@ -105,6 +155,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (editcondition = "!bCreatePhysicsAsset"))
 	TObjectPtr<UPhysicsAsset> PhysicsAsset;
 
+	/** Threshold use to decide if two vertex position are equal. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (SubCategory = "Build"))
+	float ThresholdPosition = 0.00002f;
+	
+	/** Threshold use to decide if two normal, tangents or bi-normals are equal. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (SubCategory = "Build"))
+	float ThresholdTangentNormal = 0.00002f;
+	
+	/** Threshold use to decide if two UVs are equal. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (SubCategory = "Build"))
+	float ThresholdUV = 0.0009765625f;
+	
+	/** Threshold to compare vertex position equality when computing morph target deltas. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (SubCategory = "Build"))
+	float MorphThresholdPosition = 0.015f;
+
 	virtual void AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset) override;
 
 	virtual void PreDialogCleanup(const FName PipelineStackName) override;
@@ -120,6 +186,18 @@ protected:
 	}
 
 	virtual void SetReimportSourceIndex(UClass* ReimportObjectClass, const int32 SourceFileIndex) override;
+
+#if WITH_EDITOR
+	/**
+	 * This function return true if all UPROPERTYs of the @Struct exist in the provided @Classes.
+	 * @Struct UPROPERTY tested must be: not transient, editable
+	 * 
+	 * @param Classes - The array of UClass that should contains the Struct properties
+	 * @param Struct - The struct that has the referenced properties
+	 * 
+	 */
+	static bool DoClassesIncludeAllEditableStructProperties(const TArray<const UClass*>& Classes, const UStruct* Struct);
+#endif
 
 private:
 

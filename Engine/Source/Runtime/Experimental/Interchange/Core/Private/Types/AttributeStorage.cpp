@@ -395,8 +395,14 @@ namespace UE
 			const uint64 NumberOfChar = AttributeAllocationInfo->Size / sizeof(TCHAR);
 			check(NumberOfChar > 0);
 
+			//Since the null character is always there, a empty String is only one TCHAR
+			if (NumberOfChar <= 1)
+			{
+				OutValue.Empty();
+				return;
+			}
 
-			//Empty and pre allocate the FString buffer (TArray<TCHAR>)
+			//Empty and pre allocate the FString buffer (TArray<TCHAR>) and add the null terminator
 			OutValue.Reset(NumberOfChar - 1);
 			//SLOW! We have to add the characters 1 x 1, there is no AddZeroed or similar stuff. We do not have a string to use the operator= which do what we need here
 			//We go up to NumberOfChar -1 because there is always a null terminating character add at the end of the FString

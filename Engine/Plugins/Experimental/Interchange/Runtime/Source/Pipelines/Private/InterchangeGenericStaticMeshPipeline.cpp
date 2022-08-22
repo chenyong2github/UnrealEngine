@@ -138,6 +138,19 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineStaticMesh()
 {
 	check(!CommonMeshesProperties.IsNull());
 
+#if WITH_EDITOR
+	//Make sure the generic pipeline will cover all staticmesh build settings when we import
+	{
+		TArray<const UClass*> Classes;
+		Classes.Add(UInterchangeGenericCommonMeshesProperties::StaticClass());
+		Classes.Add(UInterchangeGenericMeshPipeline::StaticClass());
+		if (!ensure(DoClassesIncludeAllEditableStructProperties(Classes, FMeshBuildSettings::StaticStruct())))
+		{
+			UE_LOG(LogInterchangePipeline, Log, TEXT("UInterchangeGenericMeshPipeline: The generic pipeline does not cover all static mesh build options."));
+		}
+	}
+#endif
+
 	if (bImportStaticMeshes && (CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_None || CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_StaticMesh))
 	{
 		const bool bConvertSkeletalMeshToStaticMesh = (CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_StaticMesh);
@@ -416,10 +429,28 @@ UInterchangeStaticMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateStatic
 		break;
 	}
 
-	if (bBuildNanite)
-	{
-		StaticMeshFactoryNode->SetCustomBuildNanite(bBuildNanite);
-	}
+	//Common meshes build options
+	StaticMeshFactoryNode->SetCustomRecomputeNormals(CommonMeshesProperties->bRecomputeNormals);
+	StaticMeshFactoryNode->SetCustomRecomputeTangents(CommonMeshesProperties->bRecomputeTangents);
+	StaticMeshFactoryNode->SetCustomUseMikkTSpace(CommonMeshesProperties->bUseMikkTSpace);
+	StaticMeshFactoryNode->SetCustomComputeWeightedNormals(CommonMeshesProperties->bComputeWeightedNormals);
+	StaticMeshFactoryNode->SetCustomUseHighPrecisionTangentBasis(CommonMeshesProperties->bUseHighPrecisionTangentBasis);
+	StaticMeshFactoryNode->SetCustomUseFullPrecisionUVs(CommonMeshesProperties->bUseFullPrecisionUVs);
+	StaticMeshFactoryNode->SetCustomUseBackwardsCompatibleF16TruncUVs(CommonMeshesProperties->bUseBackwardsCompatibleF16TruncUVs);
+	StaticMeshFactoryNode->SetCustomRemoveDegenerates(CommonMeshesProperties->bRemoveDegenerates);
+	//Static meshes build options
+	StaticMeshFactoryNode->SetCustomBuildReversedIndexBuffer(bBuildReversedIndexBuffer);
+	StaticMeshFactoryNode->SetCustomGenerateLightmapUVs(bGenerateLightmapUVs);
+	StaticMeshFactoryNode->SetCustomGenerateDistanceFieldAsIfTwoSided(bGenerateDistanceFieldAsIfTwoSided);
+	StaticMeshFactoryNode->SetCustomSupportFaceRemap(bSupportFaceRemap);
+	StaticMeshFactoryNode->SetCustomMinLightmapResolution(MinLightmapResolution);
+	StaticMeshFactoryNode->SetCustomSrcLightmapIndex(SrcLightmapIndex);
+	StaticMeshFactoryNode->SetCustomDstLightmapIndex(DstLightmapIndex);
+	StaticMeshFactoryNode->SetCustomBuildScale3D(BuildScale3D);
+	StaticMeshFactoryNode->SetCustomDistanceFieldResolutionScale(DistanceFieldResolutionScale);
+	StaticMeshFactoryNode->SetCustomDistanceFieldReplacementMesh(DistanceFieldReplacementMesh);
+	StaticMeshFactoryNode->SetCustomMaxLumenMeshCards(MaxLumenMeshCards);
+	StaticMeshFactoryNode->SetCustomBuildNanite(bBuildNanite);
 
 	return StaticMeshFactoryNode;
 }

@@ -70,6 +70,38 @@ public:
 	/** Specify override color in the case that VertexColorImportOption is set to Override */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes")
 	FColor VertexOverrideColor;
+
+	/** If true, normals in the imported mesh are ignored and recomputed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes", meta = (SubCategory = "Build"))
+	bool bRecomputeNormals = true;
+
+	/** If true, tangents in the imported mesh are ignored and recomputed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes", meta = (SubCategory = "Build"))
+	bool bRecomputeTangents = true;
+
+	/** If true, recompute tangents will use mikkt space. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes", meta = (SubCategory = "Build"))
+	bool bUseMikkTSpace = true;
+
+	/** If true, we will use the surface area and the corner angle of the triangle as a ratio when computing the normals. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes", meta = (SubCategory = "Build"))
+	bool bComputeWeightedNormals = false;
+
+	/** If true, Tangents will be stored at 16 bit vs 8 bit precision. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes", meta = (SubCategory = "Build"))
+	bool bUseHighPrecisionTangentBasis = false;
+
+	/** If true, UVs will be stored at full floating point precision. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes", meta = (SubCategory = "Build"))
+	bool bUseFullPrecisionUVs = false;
+
+	/** If true, UVs will use backwards-compatible F16 conversion with truncation for legacy meshes. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes", meta = (SubCategory = "Build"))
+	bool bUseBackwardsCompatibleF16TruncUVs = false;
+
+	/** If true, degenerate triangles will be removed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes", meta = (SubCategory = "Build"))
+	bool bRemoveDegenerates = false;
 };
 
 UCLASS(BlueprintType, hidedropdown, Experimental)

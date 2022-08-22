@@ -114,26 +114,9 @@ namespace InterchangePrivateNodeBase
  * @param AssetType - This is the asset you want to apply the storage value"
  * @param EnumType - Optional, specify it only if the AssetType member is an enum so we can type cast it in the apply function (we use uint8 to store the enum value)"
  */
-#define IMPLEMENT_NODE_ATTRIBUTE_KEY(AttributeName)																\
+#define IMPLEMENT_NODE_ATTRIBUTE_KEY(AttributeName)																				\
 const UE::Interchange::FAttributeKey Macro_Custom##AttributeName##Key = UE::Interchange::FAttributeKey(TEXT(#AttributeName));
 
-#if WITH_ENGINE
-#define IMPLEMENT_NODE_ATTRIBUTE_DELEGATE_BY_PROPERTYNAME(AttributeName, AttributeType, ObjectType, PropertyName)		\
-bool ApplyCustom##AttributeName##ToAsset(UObject* Asset) const														\
-{																													\
-	return ApplyAttributeToObject<AttributeType>(Macro_Custom##AttributeName##Key.Key, Asset, PropertyName);	\
-}																													\
-																													\
-bool FillCustom##AttributeName##FromAsset(UObject* Asset)															\
-{																													\
-	return FillAttributeFromObject<AttributeType>(Macro_Custom##AttributeName##Key.Key, Asset, PropertyName);\
-}
-
-#else //#if WITH_ENGINE
-
-#define IMPLEMENT_NODE_ATTRIBUTE_DELEGATE_BY_PROPERTYNAME(AttributeName, AttributeType, AssetType, PropertyName)
-
-#endif //#if WITH_ENGINE
 
 #define IMPLEMENT_NODE_ATTRIBUTE_GETTER(AttributeName, AttributeType)																					\
 	FString OperationName = GetTypeName() + TEXT(".Get" #AttributeName);																				\
@@ -143,68 +126,25 @@ bool FillCustom##AttributeName##FromAsset(UObject* Asset)															\
 	FString OperationName = GetTypeName() + TEXT(".Set" #AttributeName);																				\
 	return InterchangePrivateNodeBase::SetCustomAttribute<AttributeType>(*Attributes, Macro_Custom##AttributeName##Key, OperationName, AttributeValue);
 
-#if WITH_ENGINE
 
-#define IMPLEMENT_NODE_ATTRIBUTE_SETTER(NodeClassName, AttributeName, AttributeType, AssetType)														\
-	FString OperationName = GetTypeName() + TEXT(".Set" #AttributeName);																			\
-	if(InterchangePrivateNodeBase::SetCustomAttribute<AttributeType>(*Attributes, Macro_Custom##AttributeName##Key, OperationName, AttributeValue))	\
-	{																																				\
-		if(bAddApplyDelegate)																														\
-		{																																			\
-			FName AttributeNameImpl = TEXT(""#AttributeName);																						\
-			AddApplyAndFillDelegates<AttributeType>(Macro_Custom##AttributeName##Key.Key, AssetType::StaticClass(), AttributeNameImpl);				\
-		}																																			\
-		return true;																																\
-	}																																				\
+#define INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(ValueType)																												\
+	UE::Interchange::FAttributeStorage::TAttributeHandle<ValueType> Handle = RegisterAttribute<ValueType>(UE::Interchange::FAttributeKey(NodeAttributeKey), Value);	\
+	return Handle.IsValid();
+
+#define INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(ValueType)																							\
+	if(HasAttribute(UE::Interchange::FAttributeKey(NodeAttributeKey)))																			\
+	{																																			\
+		UE::Interchange::FAttributeStorage::TAttributeHandle<ValueType> Handle = GetAttributeHandle<ValueType>(UE::Interchange::FAttributeKey(NodeAttributeKey));	\
+		if (Handle.IsValid())																													\
+		{																																		\
+			return (Handle.Get(OutValue) == UE::Interchange::EAttributeStorageResult::Operation_Success);										\
+		}																																		\
+	}																																			\
 	return false;
-
-#define IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(NodeClassName, AttributeName, AttributeType, AssetType)								\
-	FString OperationName = GetTypeName() + TEXT(".Set" #AttributeName);																			\
-	if(InterchangePrivateNodeBase::SetCustomAttribute<AttributeType>(*Attributes, Macro_Custom##AttributeName##Key, OperationName, AttributeValue))	\
-	{																																				\
-		if(bAddApplyDelegate)																														\
-		{																																			\
-			TArray<UE::Interchange::FApplyAttributeToAsset>& Delegates = ApplyCustomAttributeDelegates.FindOrAdd(AssetType::StaticClass());			\
-			Delegates.Add(UE::Interchange::FApplyAttributeToAsset::CreateUObject(this, &NodeClassName::ApplyCustom##AttributeName##ToAsset));		\
-			TArray<UE::Interchange::FFillAttributeToAsset>& FillDelegates = FillCustomAttributeDelegates.FindOrAdd(AssetType::StaticClass());		\
-			FillDelegates.Add(UE::Interchange::FFillAttributeToAsset::CreateUObject(this, &NodeClassName::FillCustom##AttributeName##FromAsset));	\
-		}																																			\
-		return true;																																\
-	}																																				\
-	return false;
-
-#else //#if WITH_ENGINE
-
-#define IMPLEMENT_NODE_ATTRIBUTE_SETTER(NodeClassName, AttributeName, AttributeType, AssetType)															\
-	FString OperationName = GetTypeName() + TEXT(".Set" #AttributeName);																				\
-	return InterchangePrivateNodeBase::SetCustomAttribute<AttributeType>(*Attributes, Macro_Custom##AttributeName##Key, OperationName, AttributeValue);
-
-#define IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(NodeClassName, AttributeName, AttributeType, AssetType)								\
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER(NodeClassName, AttributeName, AttributeType, AssetType)
-
-#endif //#if WITH_ENGINE
-
-#define INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(ValueType)																									\
-UE::Interchange::FAttributeStorage::TAttributeHandle<ValueType> Handle = RegisterAttribute<ValueType>(UE::Interchange::FAttributeKey(NodeAttributeKey), Value);	\
-return Handle.IsValid();
-
-#define INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(ValueType)																						\
-if(HasAttribute(UE::Interchange::FAttributeKey(NodeAttributeKey)))																			\
-{																																			\
-	UE::Interchange::FAttributeStorage::TAttributeHandle<ValueType> Handle = GetAttributeHandle<ValueType>(UE::Interchange::FAttributeKey(NodeAttributeKey));	\
-	if (Handle.IsValid())																													\
-	{																																		\
-		return (Handle.Get(OutValue) == UE::Interchange::EAttributeStorageResult::Operation_Success);										\
-	}																																		\
-}																																			\
-return false;
 
 //Interchange namespace
 namespace UE::Interchange
 {
-	DECLARE_DELEGATE_RetVal_OneParam(bool, FApplyAttributeToAsset, UObject*);
-	DECLARE_DELEGATE_RetVal_OneParam(bool, FFillAttributeToAsset, UObject*);
-
 	/**
 		* Helper struct use to declare static const data we use in the UInterchangeBaseNode
 		* Node that derive from UInterchangeBaseNode can also add a struct that derive from this one to add there static data
@@ -220,7 +160,6 @@ namespace UE::Interchange
 		static const FAttributeKey& ClassTypeAttributeKey();
 		static const FAttributeKey& AssetNameKey();
 		static const FAttributeKey& NodeContainerTypeKey();
-		static const FAttributeKey& ReimportStrategyFlagsKey();
 	};
 
 } //ns UE::Interchange
@@ -232,17 +171,6 @@ enum class EInterchangeNodeContainerType : uint8
 	TranslatedScene,
 	TranslatedAsset,
 	FactoryData
-};
-
-UENUM()
-enum class EReimportStrategyFlags : uint8
-{
-	//Do not apply any property when re-importing, simply change the source data
-	ApplyNoProperties,
-	//Always apply all pipeline specified properties
-	ApplyPipelineProperties,
-	//Always apply all pipeline properties, but leave the properties modified in editor since the last import
-	ApplyEditorChangedProperties
 };
 
 /**
@@ -469,35 +397,6 @@ public:
 	}
 
 	/**
-	 * Adds the delegates that will read and write the attribute value to a UObject.
-	 * @param NodeAttributeKey	The key of the attribute for which we are adding the delegates.
-	 * @param ObjectClass		The class of the object that we will apply and fill on.
-	 * @param PropertyName		The name of the property of the ObjectClass that we will read and write to.
-	 */
-	template<typename AttributeType>
-	inline void AddApplyAndFillDelegates(const FName& NodeAttributeKey, UClass* ObjectClass, const FName PropertyName);
-
-	/**
-	 * Writes an attribute value to a UObject.
-	 * @param NodeAttributeKey	The key for the attribute to write.
-	 * @param Object			The object to write to.
-	 * @param PropertyName		The name of the property to write to on the Object.
-	 * @result					True if we succeeded.
-	 */
-	template<typename AttributeType>
-	inline bool ApplyAttributeToObject(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName) const;
-
-	/**
-	 * Reads an attribute value from a UObject.
-	 * @param NodeAttributeKey	The key for the attribute to update.
-	 * @param Object			The object to read from.
-	 * @param PropertyName		The name of the property to read from on the Object.
-	 * @result					True if we succeeded.
-	 */
-	template<typename AttributeType>
-	inline bool FillAttributeFromObject(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName);
-
-	/**
 	 * Return the unique id pass in the constructor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
@@ -514,20 +413,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
 	bool SetDisplayLabel(const FString& DisplayName);
-
-	/**
-	 * Return the reimport strategy flags.
-	 *
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	EReimportStrategyFlags GetReimportStrategyFlags() const;
-
-	/**
-	 * Change the reimport strategy flags.
-	 *
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool SetReimportStrategyFlags(const EReimportStrategyFlags& ReimportStrategyFlags);
 
 	/**
 	 * Return the parent unique id. In case the attribute does not exist it will return InvalidNodeUid()
@@ -613,15 +498,6 @@ public:
 	static FString InvalidNodeUid();
 
 	/**
-	 * Each Attribute that was set and have a delegate set for the specified UObject->UClass will
-	 * get the delegate execute so it apply the attribute to the UObject property.
-	 * See the macros IMPLEMENT_NODE_ATTRIBUTE_SETTER at the top of the file to know how delegates are setup for property.
-	 */
-	void ApplyAllCustomAttributeToObject(UObject* Object) const;
-
-	void FillAllCustomAttributeFromObject(UObject* Object) const;
-
-	/**
 	 * Serialize the node, by default only the attribute storage is serialize for a node
 	 */
 	virtual void Serialize(FArchive& Ar) override;
@@ -641,11 +517,6 @@ protected:
 	/** The storage use to store the Key value attribute for this node. */
 	TSharedPtr<UE::Interchange::FAttributeStorage, ESPMode::ThreadSafe> Attributes;
 
-	/* This array hold the delegate to apply the attribute that has to be set on an UObject */
-	TMap<UClass*, TArray<UE::Interchange::FApplyAttributeToAsset>> ApplyCustomAttributeDelegates;
-
-	TMap<UClass*, TArray<UE::Interchange::FFillAttributeToAsset>> FillCustomAttributeDelegates;
-
 	bool bIsInitialized = false;
 
 	/**
@@ -653,247 +524,3 @@ protected:
 	 */
 	mutable UE::Interchange::TArrayAttributeHelper<FString> TargetNodes;
 };
-
-template<typename AttributeType>
-inline void UInterchangeBaseNode::AddApplyAndFillDelegates(const FName& NodeAttributeKey, UClass* ObjectClass, const FName PropertyName)
-{
-	TArray<UE::Interchange::FApplyAttributeToAsset>& ApplyDelegates = ApplyCustomAttributeDelegates.FindOrAdd(ObjectClass);
-	ApplyDelegates.Add(
-		UE::Interchange::FApplyAttributeToAsset::CreateLambda(
-		[NodeAttributeKey, PropertyName, this](UObject* Asset)
-		{
-			return ApplyAttributeToObject<AttributeType>(NodeAttributeKey, Asset, PropertyName);
-		})
-	);
-
-	TArray<UE::Interchange::FFillAttributeToAsset>& FillDelegates = FillCustomAttributeDelegates.FindOrAdd(ObjectClass);
-	FillDelegates.Add(
-		UE::Interchange::FApplyAttributeToAsset::CreateLambda(
-		[NodeAttributeKey, PropertyName, this](UObject* Asset)
-		{
-			return FillAttributeFromObject<AttributeType>(NodeAttributeKey, Asset, PropertyName);
-		})
-	);
-}
-
-template<typename AttributeType>
-inline bool UInterchangeBaseNode::ApplyAttributeToObject(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName) const
-{
-	if (!Object)
-	{
-		return false;
-	}
-
-	AttributeType ValueData;
-	if (GetAttribute<AttributeType>(NodeAttributeKey, ValueData))
-	{
-		TVariant<UObject*, uint8*> Container;
-		Container.Set<UObject*>(Object);
-		if(FProperty* Property = InterchangePrivateNodeBase::FindPropertyByPathChecked(Container, Object->GetClass(), PropertyName.ToString()))
-		{
-			AttributeType* PropertyValueAddress;
-			if (Container.IsType<UObject*>())
-			{
-				PropertyValueAddress = Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<UObject*>());
-			}
-			else
-			{
-				PropertyValueAddress = Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<uint8*>());
-			}
-
-			*PropertyValueAddress = ValueData;
-		}
-		return true;
-	}
-	return false;
-}
-
-/**
- * Specialized version of ApplyAttributeToObject for strings.
- * If the target property is a FObjectPropertyBase, treat the string as an object path.
- */
-template<>
-inline bool UInterchangeBaseNode::ApplyAttributeToObject<FString>(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName) const
-{
-	if (!Object)
-	{
-		return false;
-	}
-
-	FString ValueData;
-	if (GetAttribute<FString>(NodeAttributeKey, ValueData))
-	{
-		TVariant<UObject*, uint8*> Container;
-		Container.Set<UObject*>(Object);
-		if(FProperty* Property = InterchangePrivateNodeBase::FindPropertyByPathChecked(Container, Object->GetClass(), PropertyName.ToString()))
-		{
-			FString* PropertyValueAddress;
-			if (Container.IsType<UObject*>())
-			{
-				PropertyValueAddress = Property->ContainerPtrToValuePtr<FString>(Container.Get<UObject*>());
-			}
-			else
-			{
-				PropertyValueAddress = Property->ContainerPtrToValuePtr<FString>(Container.Get<uint8*>());
-			}
-
-			if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
-			{
-				ObjectProperty->SetObjectPropertyValue(PropertyValueAddress, FSoftObjectPath(ValueData).TryLoad());
-			}
-			else
-			{
-				*PropertyValueAddress = ValueData;
-			}
-		}
-		return true;
-	}
-	return false;
-}
-
-/**
- * Specialized version of ApplyAttributeToObject for bools.
- * If the target property is a FBoolProperty, treat the propertyg as a bitfield.
- */
-template<>
-inline bool UInterchangeBaseNode::ApplyAttributeToObject<bool>(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName) const
-{
-	if (!Object)
-	{
-		return false;
-	}
-
-	bool bValueData;
-	if (GetAttribute<bool>(NodeAttributeKey, bValueData))
-	{
-		TVariant<UObject*, uint8*> Container;
-		Container.Set<UObject*>(Object);
-		if(FProperty* Property = InterchangePrivateNodeBase::FindPropertyByPathChecked(Container, Object->GetClass(), PropertyName.ToString()))
-		{
-			bool* PropertyValueAddress;
-			if (Container.IsType<UObject*>())
-			{
-				PropertyValueAddress = Property->ContainerPtrToValuePtr<bool>(Container.Get<UObject*>());
-			}
-			else
-			{
-				PropertyValueAddress = Property->ContainerPtrToValuePtr<bool>(Container.Get<uint8*>());
-			}
-
-			// Support for bitfields
-			if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
-			{
-				BoolProperty->SetPropertyValue(PropertyValueAddress, bValueData);
-			}
-			else
-			{
-				*PropertyValueAddress = bValueData;
-			}
-		}
-		return true;
-	}
-	return false;
-}
-
-template<typename AttributeType>
-inline bool UInterchangeBaseNode::FillAttributeFromObject(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName)
-{
-	TVariant<UObject*, uint8*> Container;
-	Container.Set<UObject*>(Object);
-	if(FProperty* Property = InterchangePrivateNodeBase::FindPropertyByPathChecked(Container, Object->GetClass(), PropertyName.ToString()))
-	{
-		AttributeType* PropertyValueAddress;
-		if (Container.IsType<UObject*>())
-		{
-			PropertyValueAddress = Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<UObject*>());
-		}
-		else
-		{
-			PropertyValueAddress = Property->ContainerPtrToValuePtr<AttributeType>(Container.Get<uint8*>());
-		}
-
-		// Support for bitfields
-		if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
-		{
-			const bool bPropertyValue = BoolProperty->GetPropertyValue(PropertyValueAddress);
-			return SetAttribute(NodeAttributeKey, bPropertyValue);
-		}
-		else
-		{
-			return SetAttribute(NodeAttributeKey, *PropertyValueAddress);
-		}
-	}
-
-	return false;
-}
-
-/**
- * Specialized version of FillAttributeFromObject for strings.
- * If the target property is a FObjectPropertyBase, treat the string as an object path.
- */
-template<>
-inline bool UInterchangeBaseNode::FillAttributeFromObject<FString>(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName)
-{
-	TVariant<UObject*, uint8*> Container;
-	Container.Set<UObject*>(Object);
-	if(FProperty* Property = InterchangePrivateNodeBase::FindPropertyByPathChecked(Container, Object->GetClass(), PropertyName.ToString()))
-	{
-		FString* PropertyValueAddress;
-		if (Container.IsType<UObject*>())
-		{
-			PropertyValueAddress = Property->ContainerPtrToValuePtr<FString>(Container.Get<UObject*>());
-		}
-		else
-		{
-			PropertyValueAddress = Property->ContainerPtrToValuePtr<FString>(Container.Get<uint8*>());
-		}
-
-		if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
-		{
-			UObject* ObjectValue = ObjectProperty->GetObjectPropertyValue(PropertyValueAddress);
-			return SetAttribute(NodeAttributeKey, ObjectValue->GetPathName());
-		}
-		else
-		{
-			return SetAttribute(NodeAttributeKey, *PropertyValueAddress);
-		}
-	}
-
-	return false;
-}
-
-/**
- * Specialized version of FillAttributeFromObject for bools.
- * If the target property is a FBoolProperty, treat the property as a bitfield.
- */
-template<>
-inline bool UInterchangeBaseNode::FillAttributeFromObject<bool>(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName)
-{
-	TVariant<UObject*, uint8*> Container;
-	Container.Set<UObject*>(Object);
-	if(FProperty* Property = InterchangePrivateNodeBase::FindPropertyByPathChecked(Container, Object->GetClass(), PropertyName.ToString()))
-	{
-		bool* PropertyValueAddress;
-		if (Container.IsType<UObject*>())
-		{
-			PropertyValueAddress = Property->ContainerPtrToValuePtr<bool>(Container.Get<UObject*>());
-		}
-		else
-		{
-			PropertyValueAddress = Property->ContainerPtrToValuePtr<bool>(Container.Get<uint8*>());
-		}
-
-		// Support for bitfields
-		if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
-		{
-			const bool bPropertyValue = BoolProperty->GetPropertyValue(PropertyValueAddress);
-			return SetAttribute(NodeAttributeKey, bPropertyValue);
-		}
-		else
-		{
-			return SetAttribute(NodeAttributeKey, *PropertyValueAddress);
-		}
-	}
-
-	return false;
-}

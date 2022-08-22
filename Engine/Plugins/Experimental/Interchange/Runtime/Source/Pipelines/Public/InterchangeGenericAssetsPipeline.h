@@ -33,7 +33,7 @@ public:
 	
 	//////	COMMON_CATEGORY Properties //////
 	/* Allow user to choose the re-import strategy. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common", meta = (AdjustPipelineAndRefreshDetailOnChange = "True"))
 	EReimportStrategyFlags ReimportStrategy = EReimportStrategyFlags::ApplyNoProperties;
 
 	/** If enable and there is only one asset and one source data, we will name the asset like the source data name. */

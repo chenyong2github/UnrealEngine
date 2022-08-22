@@ -18,6 +18,12 @@ namespace UE
 			return BaseNodeFactoryDependencies_BaseKey;
 		}
 
+		const FAttributeKey& FFactoryBaseNodeStaticData::ReimportStrategyFlagsKey()
+		{
+			static FAttributeKey AttributeKey(TEXT("__Reimport_Strategy_Flags_Key__"));
+			return AttributeKey;
+		}
+
 	} //ns Interchange
 } //ns UE
 
@@ -25,6 +31,8 @@ namespace UE
 UInterchangeFactoryBaseNode::UInterchangeFactoryBaseNode()
 {
 	FactoryDependencies.Initialize(Attributes, UE::Interchange::FFactoryBaseNodeStaticData::FactoryDependenciesBaseKey());
+
+	RegisterAttribute<uint8>(UE::Interchange::FFactoryBaseNodeStaticData::ReimportStrategyFlagsKey(), static_cast<uint8>(EReimportStrategyFlags::ApplyNoProperties));
 }
 
 
@@ -49,6 +57,10 @@ FString UInterchangeFactoryBaseNode::GetKeyDisplayName(const UE::Interchange::FA
 		{
 			KeyDisplayName += OriginalKeyName.RightChop(IndexPosition);
 		}
+	}
+	else if (NodeAttributeKey == UE::Interchange::FFactoryBaseNodeStaticData::ReimportStrategyFlagsKey())
+	{
+		KeyDisplayName = TEXT("Re-Import Strategy");
 	}
 	else
 	{
@@ -75,6 +87,25 @@ FString UInterchangeFactoryBaseNode::GetAttributeCategory(const UE::Interchange:
 UClass* UInterchangeFactoryBaseNode::GetObjectClass() const
 {
 	return nullptr;
+}
+
+EReimportStrategyFlags UInterchangeFactoryBaseNode::GetReimportStrategyFlags() const
+{
+	checkSlow(Attributes->ContainAttribute(UE::Interchange::FFactoryBaseNodeStaticData::ReimportStrategyFlagsKey()));
+	uint8 ReimportStrategyFlags = static_cast<uint8>(EReimportStrategyFlags::ApplyNoProperties);
+	Attributes->GetAttributeHandle<uint8>(UE::Interchange::FFactoryBaseNodeStaticData::ReimportStrategyFlagsKey()).Get(ReimportStrategyFlags);
+	return static_cast<EReimportStrategyFlags>(ReimportStrategyFlags);
+}
+
+bool UInterchangeFactoryBaseNode::SetReimportStrategyFlags(const EReimportStrategyFlags& ReimportStrategyFlags)
+{
+	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FFactoryBaseNodeStaticData::ReimportStrategyFlagsKey(), static_cast<uint8>(ReimportStrategyFlags));
+	if (IsAttributeStorageResultSuccess(Result))
+	{
+		UE::Interchange::FAttributeStorage::TAttributeHandle<uint8> Handle = Attributes->GetAttributeHandle<uint8>(UE::Interchange::FFactoryBaseNodeStaticData::ReimportStrategyFlagsKey());
+		return Handle.IsValid();
+	}
+	return false;
 }
 
 bool UInterchangeFactoryBaseNode::GetCustomSubPath(FString& AttributeValue) const
@@ -115,4 +146,40 @@ bool UInterchangeFactoryBaseNode::RemoveFactoryDependencyUid(const FString& Depe
 FString UInterchangeFactoryBaseNode::BuildFactoryNodeUid(const FString& TranslatedNodeUid)
 {
 	return TEXT("Factory_") + TranslatedNodeUid;
+}
+
+void UInterchangeFactoryBaseNode::ApplyAllCustomAttributeToObject(UObject* Object) const
+{
+	UClass* ObjectClass = Object->GetClass();
+	for (const TPair<UClass*, TArray<UE::Interchange::FApplyAttributeToAsset>>& ClassDelegatePair : ApplyCustomAttributeDelegates)
+	{
+		if (ObjectClass->IsChildOf(ClassDelegatePair.Key))
+		{
+			for (const UE::Interchange::FApplyAttributeToAsset& Delegate : ClassDelegatePair.Value)
+			{
+				if (Delegate.IsBound())
+				{
+					Delegate.Execute(Object);
+				}
+			}
+		}
+	}
+}
+
+void UInterchangeFactoryBaseNode::FillAllCustomAttributeFromObject(UObject* Object) const
+{
+	UClass* ObjectClass = Object->GetClass();
+	for (const TPair<UClass*, TArray<UE::Interchange::FFillAttributeToAsset>>& ClassDelegatePair : FillCustomAttributeDelegates)
+	{
+		if (ObjectClass->IsChildOf(ClassDelegatePair.Key))
+		{
+			for (const UE::Interchange::FFillAttributeToAsset& Delegate : ClassDelegatePair.Value)
+			{
+				if (Delegate.IsBound())
+				{
+					Delegate.Execute(Object);
+				}
+			}
+		}
+	}
 }

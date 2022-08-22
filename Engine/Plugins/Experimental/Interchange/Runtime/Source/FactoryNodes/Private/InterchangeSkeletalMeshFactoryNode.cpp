@@ -2,15 +2,48 @@
 
 #include "InterchangeSkeletalMeshFactoryNode.h"
 
-#if WITH_ENGINE
 #include "Engine/SkeletalMesh.h"
-#endif
+
+#if WITH_EDITOR
+
+#define IMPLEMENT_SKELETAL_BUILD_VALUE_TO_ASSET(AttributeName, AttributeType, PropertyName)	\
+AttributeType ValueData;															\
+if (GetAttribute<AttributeType>(Macro_Custom##AttributeName##Key.Key, ValueData))	\
+{																					\
+	if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Asset))					\
+	{																				\
+		if (FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(0))			\
+		{																			\
+			LodInfo->BuildSettings.PropertyName = ValueData;						\
+			return true;															\
+		}																			\
+	}																				\
+}																					\
+return false;
+
+#define IMPLEMENT_SKELETALMESH_BUILD_ASSET_TO_VALUE(AttributeName, PropertyName)					\
+if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Asset))						\
+{																					\
+	if (FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(0))				\
+	{																				\
+		return SetAttribute(Macro_Custom##AttributeName##Key.Key, LodInfo->BuildSettings.PropertyName);	\
+	}																				\
+}																					\
+return false;
+
+#else //WITH_EDITOR
+
+#define IMPLEMENT_SKELETAL_BUILD_VALUE_TO_ASSET(AttributeName, AttributeType, PropertyName)	\
+return false;
+
+#define IMPLEMENT_SKELETALMESH_BUILD_ASSET_TO_VALUE(AttributeName, PropertyName)					\
+return false;
+
+#endif //else WITH_EDIOTR
 
 UInterchangeSkeletalMeshFactoryNode::UInterchangeSkeletalMeshFactoryNode()
 {
-#if WITH_ENGINE
 	AssetClass = nullptr;
-#endif
 }
 
 void UInterchangeSkeletalMeshFactoryNode::InitializeSkeletalMeshNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass)
@@ -32,11 +65,7 @@ FString UInterchangeSkeletalMeshFactoryNode::GetTypeName() const
 UClass* UInterchangeSkeletalMeshFactoryNode::GetObjectClass() const
 {
 	ensure(bIsNodeClassInitialized);
-#if WITH_ENGINE
 	return AssetClass.Get() != nullptr ? AssetClass.Get() : USkeletalMesh::StaticClass();
-#else
-	return nullptr;
-#endif
 }
 
 bool UInterchangeSkeletalMeshFactoryNode::GetCustomSkeletonSoftObjectPath(FSoftObjectPath& AttributeValue) const
@@ -77,6 +106,74 @@ bool UInterchangeSkeletalMeshFactoryNode::GetCustomPhysicAssetSoftObjectPath(FSo
 bool UInterchangeSkeletalMeshFactoryNode::SetCustomPhysicAssetSoftObjectPath(const FSoftObjectPath& AttributeValue)
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(PhysicAssetSoftObjectPath, FSoftObjectPath)
+}
+
+bool UInterchangeSkeletalMeshFactoryNode::GetCustomThresholdPosition(float& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(ThresholdPosition, float)
+}
+bool UInterchangeSkeletalMeshFactoryNode::SetCustomThresholdPosition(const float& AttributeValue, bool bAddApplyDelegate)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(UInterchangeSkeletalMeshFactoryNode, ThresholdPosition, float);
+}
+bool UInterchangeSkeletalMeshFactoryNode::ApplyCustomThresholdPositionToAsset(UObject* Asset) const
+{
+	IMPLEMENT_SKELETAL_BUILD_VALUE_TO_ASSET(ThresholdPosition, float, ThresholdPosition);
+}
+bool UInterchangeSkeletalMeshFactoryNode::FillCustomThresholdPositionFromAsset(UObject* Asset)
+{
+	IMPLEMENT_SKELETALMESH_BUILD_ASSET_TO_VALUE(ThresholdPosition, ThresholdPosition);
+}
+
+bool UInterchangeSkeletalMeshFactoryNode::GetCustomThresholdTangentNormal(float& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(ThresholdTangentNormal, float)
+}
+bool UInterchangeSkeletalMeshFactoryNode::SetCustomThresholdTangentNormal(const float& AttributeValue, bool bAddApplyDelegate)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(UInterchangeSkeletalMeshFactoryNode, ThresholdTangentNormal, float);
+}
+bool UInterchangeSkeletalMeshFactoryNode::ApplyCustomThresholdTangentNormalToAsset(UObject* Asset) const
+{
+	IMPLEMENT_SKELETAL_BUILD_VALUE_TO_ASSET(ThresholdTangentNormal, float, ThresholdTangentNormal);
+}
+bool UInterchangeSkeletalMeshFactoryNode::FillCustomThresholdTangentNormalFromAsset(UObject* Asset)
+{
+	IMPLEMENT_SKELETALMESH_BUILD_ASSET_TO_VALUE(ThresholdTangentNormal, ThresholdTangentNormal);
+}
+
+bool UInterchangeSkeletalMeshFactoryNode::GetCustomThresholdUV(float& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(ThresholdUV, float)
+}
+bool UInterchangeSkeletalMeshFactoryNode::SetCustomThresholdUV(const float& AttributeValue, bool bAddApplyDelegate)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(UInterchangeSkeletalMeshFactoryNode, ThresholdUV, float);
+}
+bool UInterchangeSkeletalMeshFactoryNode::ApplyCustomThresholdUVToAsset(UObject* Asset) const
+{
+	IMPLEMENT_SKELETAL_BUILD_VALUE_TO_ASSET(ThresholdUV, float, ThresholdUV);
+}
+bool UInterchangeSkeletalMeshFactoryNode::FillCustomThresholdUVFromAsset(UObject* Asset)
+{
+	IMPLEMENT_SKELETALMESH_BUILD_ASSET_TO_VALUE(ThresholdUV, ThresholdUV);
+}
+
+bool UInterchangeSkeletalMeshFactoryNode::GetCustomMorphThresholdPosition(float& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(MorphThresholdPosition, float)
+}
+bool UInterchangeSkeletalMeshFactoryNode::SetCustomMorphThresholdPosition(const float& AttributeValue, bool bAddApplyDelegate)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(UInterchangeSkeletalMeshFactoryNode, MorphThresholdPosition, float);
+}
+bool UInterchangeSkeletalMeshFactoryNode::ApplyCustomMorphThresholdPositionToAsset(UObject* Asset) const
+{
+	IMPLEMENT_SKELETAL_BUILD_VALUE_TO_ASSET(MorphThresholdPosition, float, MorphThresholdPosition);
+}
+bool UInterchangeSkeletalMeshFactoryNode::FillCustomMorphThresholdPositionFromAsset(UObject* Asset)
+{
+	IMPLEMENT_SKELETALMESH_BUILD_ASSET_TO_VALUE(MorphThresholdPosition, MorphThresholdPosition);
 }
 
 bool UInterchangeSkeletalMeshFactoryNode::GetCustomImportContentType(EInterchangeSkeletalMeshContentType& AttributeValue) const

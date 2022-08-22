@@ -5,6 +5,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Async/Async.h"
 #include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
 #include "InterchangeGenericAssetsPipeline.h"
 #include "InterchangeMaterialFactoryNode.h"
 #include "InterchangeMeshNode.h"
@@ -83,6 +84,20 @@ void UInterchangeGenericMeshPipeline::ExecutePreImportPipelineSkeletalMesh()
 		//Nothing to import
 		return;
 	}
+
+#if WITH_EDITOR
+	//Make sure the generic pipeline we cover all skeletalmesh build settings by asserting when we import
+	{
+		TArray<const UClass*> Classes;
+		Classes.Add(UInterchangeGenericCommonMeshesProperties::StaticClass());
+		Classes.Add(UInterchangeGenericMeshPipeline::StaticClass());
+		if (!ensure(DoClassesIncludeAllEditableStructProperties(Classes, FSkeletalMeshBuildSettings::StaticStruct())))
+		{
+			UE_LOG(LogInterchangePipeline, Log, TEXT("UInterchangeGenericMeshPipeline: The generic pipeline does not cover all skeletal mesh build options."));
+		}
+	}
+#endif
+
 	const bool bConvertStaticMeshToSkeletalMesh = (CommonMeshesProperties->ForceAllMeshAsType == EInterchangeForceMeshType::IFMT_SkeletalMesh);
 	TMap<FString, TArray<FString>> SkeletalMeshFactoryDependencyOrderPerSkeletonRootNodeUid;
 
@@ -478,6 +493,22 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkel
 		SkeletonFactoryNode->SetEnabled(false);
 		SkeletalMeshFactoryNode->SetEnabled(false);
 	}
+
+	//Common meshes build options
+	SkeletalMeshFactoryNode->SetCustomRecomputeNormals(CommonMeshesProperties->bRecomputeNormals);
+	SkeletalMeshFactoryNode->SetCustomRecomputeTangents(CommonMeshesProperties->bRecomputeTangents);
+	SkeletalMeshFactoryNode->SetCustomUseMikkTSpace(CommonMeshesProperties->bUseMikkTSpace);
+	SkeletalMeshFactoryNode->SetCustomComputeWeightedNormals(CommonMeshesProperties->bComputeWeightedNormals);
+	SkeletalMeshFactoryNode->SetCustomUseHighPrecisionTangentBasis(CommonMeshesProperties->bUseHighPrecisionTangentBasis);
+	SkeletalMeshFactoryNode->SetCustomUseFullPrecisionUVs(CommonMeshesProperties->bUseFullPrecisionUVs);
+	SkeletalMeshFactoryNode->SetCustomUseBackwardsCompatibleF16TruncUVs(CommonMeshesProperties->bUseBackwardsCompatibleF16TruncUVs);
+	SkeletalMeshFactoryNode->SetCustomRemoveDegenerates(CommonMeshesProperties->bRemoveDegenerates);
+	//Skeletal meshes build options
+	SkeletalMeshFactoryNode->SetCustomThresholdPosition(ThresholdPosition);
+	SkeletalMeshFactoryNode->SetCustomThresholdTangentNormal(ThresholdTangentNormal);
+	SkeletalMeshFactoryNode->SetCustomThresholdUV(ThresholdUV);
+	SkeletalMeshFactoryNode->SetCustomMorphThresholdPosition(MorphThresholdPosition);
+
 	return SkeletalMeshFactoryNode;
 }
 

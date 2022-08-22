@@ -602,7 +602,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
 	bool SetCustomDownscale(const float& AttributeValue, bool bAddApplyDelegate = true)
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(UInterchangeTextureFactoryNode, Downscale, float, UTexture)
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE_WITH_CUSTOM_CLASS(UInterchangeTextureFactoryNode, Downscale, float, UTexture)
 	}
 
 	/** Return false if the Attribute was not set previously.*/

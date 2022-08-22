@@ -60,12 +60,6 @@ namespace UE
 			return AttributeKey;
 		}
 
-		const FAttributeKey& FBaseNodeStaticData::ReimportStrategyFlagsKey()
-		{
-			static FAttributeKey AttributeKey(TEXT("__Reimport_Strategy_Flags_Key__"));
-			return AttributeKey;
-		}
-
 	} //ns Interchange
 } //ns UE
 
@@ -75,7 +69,6 @@ UInterchangeBaseNode::UInterchangeBaseNode()
 	TargetNodes.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey().ToString());
 	RegisterAttribute<bool>(UE::Interchange::FBaseNodeStaticData::IsEnabledKey(), true);
 	RegisterAttribute<uint8>(UE::Interchange::FBaseNodeStaticData::NodeContainerTypeKey(), static_cast<uint8>(EInterchangeNodeContainerType::None));
-	RegisterAttribute<uint8>(UE::Interchange::FBaseNodeStaticData::ReimportStrategyFlagsKey(), static_cast<uint8>(EReimportStrategyFlags::ApplyNoProperties));
 }
 
 void UInterchangeBaseNode::InitializeNode(const FString& UniqueID, const FString& DisplayLabel, const EInterchangeNodeContainerType NodeContainerType)
@@ -143,10 +136,6 @@ FString UInterchangeBaseNode::GetKeyDisplayName(const UE::Interchange::FAttribut
 	else if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::NodeContainerTypeKey())
 	{
 		KeyDisplayName = TEXT("Node Container Type");
-	}
-	else if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::ReimportStrategyFlagsKey())
-	{
-		KeyDisplayName = TEXT("Re-Import Strategy");
 	}
 	else if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey())
 	{
@@ -306,25 +295,6 @@ bool UInterchangeBaseNode::SetDisplayLabel(const FString& DisplayLabel)
 	return false;
 }
 
-EReimportStrategyFlags UInterchangeBaseNode::GetReimportStrategyFlags() const
-{
-	checkSlow(Attributes->ContainAttribute(UE::Interchange::FBaseNodeStaticData::ReimportStrategyFlagsKey()));
-	uint8 ReimportStrategyFlags = static_cast<uint8>(EReimportStrategyFlags::ApplyNoProperties);
-	Attributes->GetAttributeHandle<uint8>(UE::Interchange::FBaseNodeStaticData::ReimportStrategyFlagsKey()).Get(ReimportStrategyFlags);
-	return static_cast<EReimportStrategyFlags>(ReimportStrategyFlags);
-}
-
-bool UInterchangeBaseNode::SetReimportStrategyFlags(const EReimportStrategyFlags& ReimportStrategyFlags)
-{
-	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FBaseNodeStaticData::ReimportStrategyFlagsKey(), static_cast<uint8>(ReimportStrategyFlags));
-	if (IsAttributeStorageResultSuccess(Result))
-	{
-		UE::Interchange::FAttributeStorage::TAttributeHandle<uint8> Handle = Attributes->GetAttributeHandle<uint8>(UE::Interchange::FBaseNodeStaticData::ReimportStrategyFlagsKey());
-		return Handle.IsValid();
-	}
-	return false;
-}
-
 FString UInterchangeBaseNode::GetParentUid() const
 {
 	if (!Attributes->ContainAttribute(UE::Interchange::FBaseNodeStaticData::ParentIDKey()))
@@ -454,42 +424,6 @@ bool UInterchangeBaseNode::RemoveTargetNodeUid(const FString& AssetUid) const
 FString UInterchangeBaseNode::InvalidNodeUid()
 {
 	return FString();
-}
-
-void UInterchangeBaseNode::ApplyAllCustomAttributeToObject(UObject* Object) const
-{
-	UClass* ObjectClass = Object->GetClass();
-	for (const TPair<UClass*, TArray<UE::Interchange::FApplyAttributeToAsset>>& ClassDelegatePair : ApplyCustomAttributeDelegates)
-	{
-		if(ObjectClass->IsChildOf(ClassDelegatePair.Key))
-		{
-			for (const UE::Interchange::FApplyAttributeToAsset& Delegate : ClassDelegatePair.Value)
-			{
-				if(Delegate.IsBound())
-				{
-					Delegate.Execute(Object);
-				}
-			}
-		}
-	}
-}
-
-void UInterchangeBaseNode::FillAllCustomAttributeFromObject(UObject* Object) const
-{
-	UClass* ObjectClass = Object->GetClass();
-	for (const TPair<UClass*, TArray<UE::Interchange::FFillAttributeToAsset>>& ClassDelegatePair : FillCustomAttributeDelegates)
-	{
-		if (ObjectClass->IsChildOf(ClassDelegatePair.Key))
-		{
-			for (const UE::Interchange::FFillAttributeToAsset& Delegate : ClassDelegatePair.Value)
-			{
-				if (Delegate.IsBound())
-				{
-					Delegate.Execute(Object);
-				}
-			}
-		}
-	}
 }
 
 void UInterchangeBaseNode::Serialize(FArchive& Ar)

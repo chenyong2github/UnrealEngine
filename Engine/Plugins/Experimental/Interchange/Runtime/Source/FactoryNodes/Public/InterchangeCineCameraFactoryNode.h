@@ -26,7 +26,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | CameraFactory")
 	bool SetCustomFocalLength(const float& AttributeValue, bool bAddApplyDelegate = true)
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(UInterchangeCineCameraFactoryNode, FocalLength, float, UCineCameraComponent);
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE_WITH_CUSTOM_CLASS(UInterchangeCineCameraFactoryNode, FocalLength, float, UCineCameraComponent);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | CameraFactory")
@@ -38,7 +38,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | CameraFactory")
 	bool SetCustomSensorWidth(const float& AttributeValue, bool bAddApplyDelegate = true)
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(UInterchangeCineCameraFactoryNode, SensorWidth, float, UCineCameraComponent);
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE_WITH_CUSTOM_CLASS(UInterchangeCineCameraFactoryNode, SensorWidth, float, UCineCameraComponent);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | CameraFactory")
@@ -50,7 +50,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | CameraFactory")
 	bool SetCustomSensorHeight(const float& AttributeValue, bool bAddApplyDelegate = true)
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE(UInterchangeCineCameraFactoryNode, SensorHeight, float, UCineCameraComponent);
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE_WITH_CUSTOM_CLASS(UInterchangeCineCameraFactoryNode, SensorHeight, float, UCineCameraComponent);
 	}
 
 private:

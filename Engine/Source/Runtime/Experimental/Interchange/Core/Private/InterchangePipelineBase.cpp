@@ -43,6 +43,10 @@ void UInterchangePipelineBase::SaveSettings(const FName PipelineStackName)
 
 void UInterchangePipelineBase::AdjustSettingsForContext(EInterchangePipelineContext ReimportType, TObjectPtr<UObject> ReimportAsset)
 {
+	CachePipelineContext = ReimportType;
+	CacheReimportObject = ReimportAsset;
+	CachePropertiesStates = PropertiesStates;
+
 	bAllowPropertyStatesEdition = (ReimportType == EInterchangePipelineContext::None);
 	bIsReimportContext = false;
 	switch (ReimportType)
@@ -56,6 +60,12 @@ void UInterchangePipelineBase::AdjustSettingsForContext(EInterchangePipelineCont
 	}
 	break;
 	}
+}
+
+void UInterchangePipelineBase::AdjustSettingsFromCache()
+{
+	PropertiesStates = CachePropertiesStates;
+	AdjustSettingsForContext(CachePipelineContext, CacheReimportObject.Get());
 }
 
 const FInterchangePipelinePropertyStates* UInterchangePipelineBase::GetPropertyStates(const FName PropertyPath) const
@@ -285,11 +295,10 @@ UInterchangePipelineBase* UInterchangePipelineBase::GetMostPipelineOuter() const
 	return Top;
 }
 
-void UInterchangePipelineBase::HidePropertiesOfCategory(UInterchangePipelineBase* OuterMostPipeline, UInterchangePipelineBase* Pipeline, const FString& HideCategoryName, bool bDoTransientSubPipeline /*= false*/)
+void UInterchangePipelineBase::InternalToggleVisibilityPropertiesOfMetaDataValue(UInterchangePipelineBase* OuterMostPipeline, UInterchangePipelineBase* Pipeline, bool bDoTransientSubPipeline, const FString& MetaDataKey, const FString& MetaDataValue, const bool VisibilityState)
 {
 #if WITH_EDITOR
 	UClass* PipelineClass = Pipeline->GetClass();
-	const FName CategoryKey("Category");
 	for (FProperty* Property = PipelineClass->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
 		FObjectProperty* SubObject = CastField<FObjectProperty>(Property);
@@ -303,19 +312,31 @@ void UInterchangePipelineBase::HidePropertiesOfCategory(UInterchangePipelineBase
 
 		const FName PropertyName = Property->GetFName();
 		const FName PropertyPath = FName(Property->GetPathName());
-		
+
 		if (SubPipeline)
 		{
-			HidePropertiesOfCategory(OuterMostPipeline, SubPipeline, HideCategoryName);
+			InternalToggleVisibilityPropertiesOfMetaDataValue(OuterMostPipeline, SubPipeline, bDoTransientSubPipeline, MetaDataKey, MetaDataValue, VisibilityState);
 		}
 		else
 		{
-			FString CategoryName = Property->GetMetaData(CategoryKey);
-			if (CategoryName.Equals(HideCategoryName))
+			FString CategoryName = Property->GetMetaData(*MetaDataKey);
+			if (CategoryName.Equals(MetaDataValue))
 			{
-				OuterMostPipeline->FindOrAddPropertyStates(PropertyPath).ReimportStates.bVisible = false;
+				OuterMostPipeline->FindOrAddPropertyStates(PropertyPath).ReimportStates.bVisible = VisibilityState;
 			}
 		}
 	}
 #endif
+}
+
+void UInterchangePipelineBase::HidePropertiesOfCategory(UInterchangePipelineBase* OuterMostPipeline, UInterchangePipelineBase* Pipeline, const FString& HideCategoryName, bool bDoTransientSubPipeline /*= false*/)
+{
+	constexpr bool bVisibilityState = false;
+	InternalToggleVisibilityPropertiesOfMetaDataValue(OuterMostPipeline, Pipeline, bDoTransientSubPipeline, TEXT("Category"), HideCategoryName, bVisibilityState);
+}
+
+void UInterchangePipelineBase::HidePropertiesOfSubCategory(UInterchangePipelineBase* OuterMostPipeline, UInterchangePipelineBase* Pipeline, const FString& HideSubCategoryName, bool bDoTransientSubPipeline /*= false*/)
+{
+	constexpr bool bVisibilityState = false;
+	InternalToggleVisibilityPropertiesOfMetaDataValue(OuterMostPipeline, Pipeline, bDoTransientSubPipeline, TEXT("SubCategory"), HideSubCategoryName, bVisibilityState);
 }

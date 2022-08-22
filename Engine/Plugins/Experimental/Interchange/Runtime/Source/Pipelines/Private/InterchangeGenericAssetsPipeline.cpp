@@ -233,12 +233,9 @@ void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 
 	ImplementUseSourceNameForAssetOption();
 	//Make sure all factory nodes have the specified strategy
-	BaseNodeContainer->IterateNodes([ReimportStrategyClosure = ReimportStrategy](const FString& NodeUid, UInterchangeBaseNode* Node)
+	BaseNodeContainer->IterateNodesOfType<UInterchangeFactoryBaseNode>([ReimportStrategyClosure = ReimportStrategy](const FString& NodeUid, UInterchangeFactoryBaseNode* FactoryNode)
 		{
-			if (Node->GetNodeContainerType() == EInterchangeNodeContainerType::FactoryData)
-			{
-				Node->SetReimportStrategyFlags(ReimportStrategyClosure);
-			}
+			FactoryNode->SetReimportStrategyFlags(ReimportStrategyClosure);
 		});
 }
 
