@@ -87,6 +87,40 @@ FString UDatasmithAssetUserData::GetDatasmithUserDataValueForKey(UObject* Object
 	return FString();
 }
 
+TArray<FString> UDatasmithAssetUserData::GetDatasmithUserDataValuesForKey(UObject* Object, FName Key, bool bPartialMatchKey)
+{
+	if (Object)
+	{
+		if (UDatasmithAssetUserData* AssetUserData = GetDatasmithUserData(Object))
+		{
+			TArray<FString> Values;
+
+			if (bPartialMatchKey)
+			{
+				const FString KeyString = Key.ToString();
+
+				for (TPair<FName, FString> KeyValuePair : AssetUserData->MetaData)
+				{
+					if (KeyValuePair.Key.ToString().Contains(KeyString))
+					{
+						Values.Add(KeyValuePair.Value);
+					}
+				}
+			}
+			else
+			{
+				if (FString* ValuePtr = AssetUserData->MetaData.Find(Key))
+				{
+					Values.Add(*ValuePtr);
+				}
+			}
+
+			return Values;
+		}
+	}
+	return {};
+}
+
 bool UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(UObject* Object, FName Key, const FString & Value)
 {
 	// For AActor, the interface is actually implemented by the ActorComponent

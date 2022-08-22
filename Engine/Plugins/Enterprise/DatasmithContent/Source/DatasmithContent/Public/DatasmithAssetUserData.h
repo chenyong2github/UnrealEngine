@@ -30,6 +30,7 @@ public:
 #endif
 
 	static FString GetDatasmithUserDataValueForKey(UObject* Object, FName Key, bool bPartialMatchKey = false);
+	static TArray<FString> GetDatasmithUserDataValuesForKey(UObject* Object, FName Key, bool bPartialMatchKey = false);
 	static UDatasmithAssetUserData* GetDatasmithUserData(UObject* Object);
 	static bool SetDatasmithUserDataValueForKey(UObject* Object, FName Key, const FString & Value);
 

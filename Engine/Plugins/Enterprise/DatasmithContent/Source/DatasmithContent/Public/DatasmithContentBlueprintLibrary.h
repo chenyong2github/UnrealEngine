@@ -27,11 +27,20 @@ public:
 	 * Get the value of the given key for the Datasmith User Data of the given object.
 	 * @param	Object				The Object from which to retrieve the Datasmith User Data.
 	 * @param	Key					The key to find in the Datasmith User Data.
-	 * @param	bPartialMatchKey	If true, check for contains, rather than exact match.
 	 * @return						The string value associated with the given key
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Datasmith User Data")
 	static FString GetDatasmithUserDataValueForKey(UObject* Object, FName Key, bool bPartialMatchKey = false);
+
+	/**
+	 * Get the values of the given key for the Datasmith User Data of the given object.
+	 * @param	Object				The Object from which to retrieve the Datasmith User Data.
+	 * @param	Key					The key to find in the Datasmith User Data.
+	 * @param	bPartialMatchKey	If true, check for contains, rather than exact match.
+	 * @return						The string value associated with the given key
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Datasmith User Data")
+	static TArray<FString> GetDatasmithUserDataValuesForKey(UObject* Object, FName Key, bool bPartialMatchKey = false);
 
 	/**
 	 * Get the keys and values for which the associated value contains the string to match for the Datasmith User Data of the given object.
