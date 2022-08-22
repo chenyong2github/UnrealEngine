@@ -4,9 +4,6 @@
 
 #include "PoseSearch/PoseSearch.h"
 
-
-#if UE_POSE_SEARCH_TRACE_ENABLED
-
 UE_TRACE_CHANNEL_EXTERN(PoseSearchChannel, POSESEARCH_API);
 
 namespace UE { namespace PoseSearch {
@@ -131,6 +128,7 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	template<typename T>
 	static const T* GetObjectFromId(uint64 ObjectId)
 	{
+#if OBJECT_TRACE_ENABLED
 		if (ObjectId)
 		{
 			UObject* Object = FObjectTrace::GetObjectFromId(ObjectId);
@@ -139,13 +137,18 @@ struct POSESEARCH_API FTraceMotionMatchingState
 				return CastChecked<T>(Object);
 			}
 		}
+#endif
 
 		return nullptr;
 	}
 
 	static uint64 GetIdFromObject(const UObject* Object)
 	{
+#if OBJECT_TRACE_ENABLED
 		return FObjectTrace::GetObjectId(Object);
+#else
+		return 0;
+#endif
 	}
 	
 	static const FName Name;
@@ -155,6 +158,3 @@ ENUM_CLASS_FLAGS(FTraceMotionMatchingState::EFlags)
 POSESEARCH_API FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingState& State);
 
 }}
-
-#endif // UE_POSE_SEARCH_TRACE_ENABLED
-

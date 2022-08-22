@@ -5,7 +5,6 @@
 #include "Trace/Trace.inl"
 #include "Animation/AnimNodeBase.h"
 
-#if UE_POSE_SEARCH_TRACE_ENABLED
 
 UE_TRACE_CHANNEL_DEFINE(PoseSearchChannel);
 
@@ -84,6 +83,7 @@ FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingState& State)
 
 void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext)
 {
+#if OBJECT_TRACE_ENABLED
 	if (!ShouldTrace(InContext))
 	{
 		return;
@@ -108,6 +108,7 @@ void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext)
 
 	UE_TRACE_LOG(PoseSearch, MotionMatchingState, PoseSearchChannel)
 		<< MotionMatchingState.Data(ArchiveData.GetData(), ArchiveData.Num());
+#endif
 }
 
 const UPoseSearchDatabase* FTraceMotionMatchingState::GetCurrentDatabase() const
@@ -135,4 +136,3 @@ int32 FTraceMotionMatchingState::GetCurrentDatabasePoseIndex() const
 }
 
 }}
-#endif // UE_POSE_SEARCH_TRACE_ENABLED
