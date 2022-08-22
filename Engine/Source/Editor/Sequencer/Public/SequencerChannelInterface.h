@@ -85,7 +85,7 @@ struct TSequencerChannelInterfaceCommon : ISequencerChannelInterface
 	 * @param Channels              Array of channels and handles that are being shown in the context menu
 	 * @param InSequencer           The currently active sequencer
 	 */
-	virtual void ExtendKeyMenu_Raw(FMenuBuilder& MenuBuilder, TArrayView<const FExtendKeyMenuParams> ChannelsAndHandles, TWeakPtr<ISequencer> InSequencer) const override
+	virtual void ExtendKeyMenu_Raw(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, TArrayView<const FExtendKeyMenuParams> ChannelsAndHandles, TWeakPtr<ISequencer> InSequencer) const override
 	{
 		using namespace Sequencer;
 		TArray<TExtendKeyMenuParams<ChannelType>> TypedChannels;
@@ -100,7 +100,7 @@ struct TSequencerChannelInterfaceCommon : ISequencerChannelInterface
 			TypedChannels.Add(MoveTemp(TypedChannelAndHandles));
 		}
 
-		ExtendKeyMenu(MenuBuilder, MoveTemp(TypedChannels), InSequencer);
+		ExtendKeyMenu(MenuBuilder, MenuExtender, MoveTemp(TypedChannels), InSequencer);
 	}
 
 	/**
@@ -111,7 +111,7 @@ struct TSequencerChannelInterfaceCommon : ISequencerChannelInterface
 	 * @param Sections              Array of sections being shown on the context menu
 	 * @param InSequencer           The currently active sequencer
 	 */
-	virtual void ExtendSectionMenu_Raw(FMenuBuilder& MenuBuilder, TArrayView<const FMovieSceneChannelHandle> Channels, TArrayView<UMovieSceneSection* const> Sections, TWeakPtr<ISequencer> InSequencer) const override
+	virtual void ExtendSectionMenu_Raw(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, TArrayView<const FMovieSceneChannelHandle> Channels, TArrayView<UMovieSceneSection* const> Sections, TWeakPtr<ISequencer> InSequencer) const override
 	{
 		using namespace Sequencer;
 		TArray<TMovieSceneChannelHandle<ChannelType>> TypedChannels;
@@ -121,7 +121,7 @@ struct TSequencerChannelInterfaceCommon : ISequencerChannelInterface
 			TypedChannels.Add(RawHandle.Cast<ChannelType>());
 		}
 
-		ExtendSectionMenu(MenuBuilder, MoveTemp(TypedChannels), Sections, InSequencer);
+		ExtendSectionMenu(MenuBuilder, MenuExtender, MoveTemp(TypedChannels), Sections, InSequencer);
 	}
 
 	/**

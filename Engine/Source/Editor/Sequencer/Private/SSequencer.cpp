@@ -3826,9 +3826,10 @@ bool SSequencer::OpenPasteMenu()
 	}
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, SequencerPtr.Pin()->GetCommandBindings());
+	TSharedPtr<FExtender> MenuExtender = MakeShared<FExtender>();
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, SequencerPtr.Pin()->GetCommandBindings(), MenuExtender);
 
-	ContextMenu->PopulateMenu(MenuBuilder);
+	ContextMenu->PopulateMenu(MenuBuilder, MenuExtender);
 
 	FWidgetPath Path;
 	FSlateApplication::Get().FindPathToWidget(AsShared(), Path);
@@ -3858,9 +3859,10 @@ void SSequencer::PasteFromHistory()
 	if (ContextMenu.IsValid())
 	{
 		const bool bShouldCloseWindowAfterMenuSelection = true;
-		FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, Sequencer->GetCommandBindings());
+		TSharedPtr<FExtender> MenuExtender = MakeShared<FExtender>();
+		FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, Sequencer->GetCommandBindings(), MenuExtender);
 
-		ContextMenu->PopulateMenu(MenuBuilder);
+		ContextMenu->PopulateMenu(MenuBuilder, MenuExtender);
 
 		FWidgetPath Path;
 		FSlateApplication::Get().FindPathToWidget(AsShared(), Path);

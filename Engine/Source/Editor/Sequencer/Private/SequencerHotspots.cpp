@@ -172,11 +172,11 @@ TOptional<FFrameNumber> FKeyHotspot::GetTime() const
 	return Time;
 }
 
-bool FKeyHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime)
+bool FKeyHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FFrameTime MouseDownTime)
 {
 	if (TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin())
 	{
-		FKeyContextMenu::BuildMenu(MenuBuilder, *Sequencer);
+		FKeyContextMenu::BuildMenu(MenuBuilder, MenuExtender, *Sequencer);
 	}
 	return true;
 }
@@ -250,14 +250,14 @@ void FSectionHotspotBase::UpdateOnHover(FTrackAreaViewModel& InTrackArea) const
 	}
 }
 
-bool FSectionHotspotBase::PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime)
+bool FSectionHotspotBase::PopulateContextMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FFrameTime MouseDownTime)
 {
 	TSharedPtr<FSectionModel> SectionModel = WeakSectionModel.Pin();
 	UMovieSceneSection*       ThisSection  = SectionModel ? SectionModel->GetSection() : nullptr;
 	if (ThisSection)
 	{
 		TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
-		FSectionContextMenu::BuildMenu(MenuBuilder, *Sequencer, MouseDownTime);
+		FSectionContextMenu::BuildMenu(MenuBuilder, MenuExtender, *Sequencer, MouseDownTime);
 
 		TSharedPtr<IObjectBindingExtension> ObjectBinding = SectionModel->FindAncestorOfType<IObjectBindingExtension>();
 		SectionModel->GetSectionInterface()->BuildSectionContextMenu(MenuBuilder, ObjectBinding ? ObjectBinding->GetObjectGuid() : FGuid());
@@ -341,11 +341,11 @@ void FSectionEasingHandleHotspot::UpdateOnHover(FTrackAreaViewModel& InTrackArea
 	InTrackArea.AttemptToActivateTool(FSequencerEditTool_Movement::Identifier);
 }
 
-bool FSectionEasingHandleHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime)
+bool FSectionEasingHandleHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FFrameTime MouseDownTime)
 {
 	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
 
-	FEasingContextMenu::BuildMenu(MenuBuilder, { FEasingAreaHandle{WeakSectionModel, HandleType} }, *Sequencer, MouseDownTime);
+	FEasingContextMenu::BuildMenu(MenuBuilder, MenuExtender, { FEasingAreaHandle{WeakSectionModel, HandleType} }, *Sequencer, MouseDownTime);
 	return true;
 }
 
@@ -361,12 +361,12 @@ const FSlateBrush* FSectionEasingHandleHotspot::GetCursorDecorator(const FGeomet
 	return FAppStyle::Get().GetBrush(TEXT("Sequencer.CursorDecorator_EasingHandle"));
 }
 
-bool FSectionEasingAreaHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime)
+bool FSectionEasingAreaHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FFrameTime MouseDownTime)
 {
 	using namespace UE::Sequencer;
 
 	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
-	FEasingContextMenu::BuildMenu(MenuBuilder, Easings, *Sequencer, MouseDownTime);
+	FEasingContextMenu::BuildMenu(MenuBuilder, MenuExtender, Easings, *Sequencer, MouseDownTime);
 
 	TSharedPtr<FSectionModel> SectionModel = WeakSectionModel.Pin();
 	UMovieSceneSection*       ThisSection  = SectionModel ? SectionModel->GetSection() : nullptr;

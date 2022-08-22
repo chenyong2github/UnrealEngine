@@ -75,7 +75,7 @@ struct FLayerBarHotspot
 
 		return nullptr;
 	}
-	bool PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime) override
+	bool PopulateContextMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FFrameTime MouseDownTime) override
 	{
 		return true;
 	}
@@ -129,7 +129,7 @@ struct FLayerBarStretchHotspot
 
 		return MakeShared<FEditToolDragOperation_Stretch>(Sequencer.Get(), StretchConstraint, GetTime().GetValue());
 	}
-	bool PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime) override
+	bool PopulateContextMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FFrameTime MouseDownTime) override
 	{
 		return true;
 	}

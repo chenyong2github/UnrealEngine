@@ -70,7 +70,7 @@ struct FKeyHotspot
 
 	virtual void UpdateOnHover(FTrackAreaViewModel& InTrackArea) const override;
 	virtual TOptional<FFrameNumber> GetTime() const override;
-	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime) override;
+	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FFrameTime MouseDownTime) override;
 
 	virtual void HandleMouseSelection(FHotspotSelectionManager& SelectionManager) override;
 
@@ -94,7 +94,7 @@ struct FSectionHotspotBase
 	virtual TOptional<FFrameNumber> GetTime() const override;
 	virtual TOptional<FFrameTime> GetOffsetTime() const override;
 	virtual TSharedPtr<ISequencerEditToolDragOperation> InitiateDrag(const FPointerEvent& MouseEvent) override { return nullptr; }
-	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime) override;
+	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FFrameTime MouseDownTime) override;
 
 	/** IMouseHandlerHotspot */
 	virtual void HandleMouseSelection(FHotspotSelectionManager& SelectionManager) override;
@@ -157,7 +157,7 @@ struct FSectionEasingHandleHotspot : FSectionHotspotBase
 	{}
 
 	virtual void UpdateOnHover(FTrackAreaViewModel& InTrackArea) const override;
-	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime) override;
+	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FFrameTime MouseDownTime) override;
 	virtual TOptional<FFrameNumber> GetTime() const override;
 	virtual TSharedPtr<ISequencerEditToolDragOperation> InitiateDrag(const FPointerEvent& MouseEvent) override;
 	virtual FCursorReply GetCursor() const { return FCursorReply::Cursor( EMouseCursor::ResizeLeftRight ); }
@@ -183,7 +183,7 @@ struct FSectionEasingAreaHotspot : FSectionHotspotBase
 		, Easings(InEasings)
 	{}
 
-	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime) override;
+	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FFrameTime MouseDownTime) override;
 
 	/** IMouseHandlerHotspot */
 	virtual void HandleMouseSelection(FHotspotSelectionManager& SelectionManager) override;

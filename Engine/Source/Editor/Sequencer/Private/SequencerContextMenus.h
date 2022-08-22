@@ -14,6 +14,7 @@
 
 struct FSequencerSelectedKey;
 class FMenuBuilder;
+class FExtender;
 class UMovieSceneSection;
 
 /**
@@ -24,7 +25,7 @@ class UMovieSceneSection;
  */
 struct FSectionContextMenu : TSharedFromThis<FSectionContextMenu>
 {
-	static void BuildMenu(FMenuBuilder& MenuBuilder, FSequencer& Sequencer, FFrameTime InMouseDownTime);
+	static void BuildMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FSequencer& Sequencer, FFrameTime InMouseDownTime);
 
 private:
 
@@ -33,7 +34,7 @@ private:
 
 	FSectionContextMenu(FSequencer& InSeqeuncer, FFrameTime InMouseDownTime);
 
-	void PopulateMenu(FMenuBuilder& MenuBuilder);
+	void PopulateMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender);
 
 	/** Add edit menu for trim and split */
 	void AddEditMenu(FMenuBuilder& MenuBuilder);
@@ -129,11 +130,11 @@ struct FPasteContextMenuArgs
 
 struct FPasteContextMenu : TSharedFromThis<FPasteContextMenu>
 {
-	static bool BuildMenu(FMenuBuilder& MenuBuilder, FSequencer& Sequencer, const FPasteContextMenuArgs& Args);
+	static bool BuildMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FSequencer& Sequencer, const FPasteContextMenuArgs& Args);
 
 	static TSharedRef<FPasteContextMenu> CreateMenu(FSequencer& Sequencer, const FPasteContextMenuArgs& Args);
 
-	void PopulateMenu(FMenuBuilder& MenuBuilder);
+	void PopulateMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender);
 
 	bool IsValidPaste() const;
 
@@ -178,11 +179,11 @@ private:
 
 struct FPasteFromHistoryContextMenu : TSharedFromThis<FPasteFromHistoryContextMenu>
 {
-	static bool BuildMenu(FMenuBuilder& MenuBuilder, FSequencer& Sequencer, const FPasteContextMenuArgs& Args);
+	static bool BuildMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FSequencer& Sequencer, const FPasteContextMenuArgs& Args);
 
 	static TSharedPtr<FPasteFromHistoryContextMenu> CreateMenu(FSequencer& Sequencer, const FPasteContextMenuArgs& Args);
 
-	void PopulateMenu(FMenuBuilder& MenuBuilder);
+	void PopulateMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender);
 
 private:
 
@@ -208,7 +209,7 @@ private:
  */
 struct FKeyContextMenu : TSharedFromThis<FKeyContextMenu>
 {
-	static void BuildMenu(FMenuBuilder& MenuBuilder, FSequencer& Sequencer);
+	static void BuildMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FSequencer& Sequencer);
 
 private:
 
@@ -222,7 +223,7 @@ private:
 	/** Add the Properties sub-menu. */
 	void AddPropertiesMenu(FMenuBuilder& MenuBuilder);
 
-	void PopulateMenu(FMenuBuilder& MenuBuilder);
+	void PopulateMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender);
 
 	/** The sequencer */
 	TSharedRef<FSequencer> Sequencer;
@@ -240,7 +241,7 @@ private:
  */
 struct FEasingContextMenu : TSharedFromThis<FEasingContextMenu>
 {
-	static void BuildMenu(FMenuBuilder& MenuBuilder, const TArray<UE::Sequencer::FEasingAreaHandle>& InEasings, FSequencer& Sequencer, FFrameTime InMouseDownTime);
+	static void BuildMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, const TArray<UE::Sequencer::FEasingAreaHandle>& InEasings, FSequencer& Sequencer, FFrameTime InMouseDownTime);
 
 private:
 
@@ -253,7 +254,7 @@ private:
 	/** Hidden AsShared() methods to discourage CreateSP delegate use. */
 	using TSharedFromThis::AsShared;
 
-	void PopulateMenu(FMenuBuilder& MenuBuilder);
+	void PopulateMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender);
 
 	FText GetEasingTypeText() const;
 

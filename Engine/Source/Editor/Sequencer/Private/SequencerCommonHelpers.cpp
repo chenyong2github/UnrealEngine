@@ -238,11 +238,14 @@ TSharedPtr<SWidget> SequencerHelpers::SummonContextMenu(FSequencer& Sequencer, c
 	const bool bInRecursivelySearchable = false;
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, Sequencer.GetCommandBindings(), nullptr, false, &FCoreStyle::Get(), true, NAME_None, bInRecursivelySearchable);
+
+	TSharedPtr<FExtender> MenuExtender = MakeShared<FExtender>();
+
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, Sequencer.GetCommandBindings(), MenuExtender, false, &FCoreStyle::Get(), true, NAME_None, bInRecursivelySearchable);
 
 	TSharedPtr<ITrackAreaHotspot> Hotspot = Sequencer.GetViewModel()->GetTrackArea()->GetHotspot();
 
-	if (Hotspot.IsValid() && Hotspot->PopulateContextMenu(MenuBuilder, PasteAtTime))
+	if (Hotspot.IsValid() && Hotspot->PopulateContextMenu(MenuBuilder, MenuExtender, PasteAtTime))
 	{
 		return MenuBuilder.MakeWidget();
 	}
@@ -251,7 +254,7 @@ TSharedPtr<SWidget> SequencerHelpers::SummonContextMenu(FSequencer& Sequencer, c
 		TSharedPtr<FPasteContextMenu> PasteMenu = FPasteContextMenu::CreateMenu(Sequencer, SequencerWidget->GeneratePasteArgs(PasteAtTime));
 		if (PasteMenu.IsValid() && PasteMenu->IsValidPaste())
 		{
-			PasteMenu->PopulateMenu(MenuBuilder);
+			PasteMenu->PopulateMenu(MenuBuilder, MenuExtender);
 
 			return MenuBuilder.MakeWidget();
 		}

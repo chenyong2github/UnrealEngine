@@ -12,6 +12,7 @@
 struct FPointerEvent;
 
 class FMenuBuilder;
+class FExtender;
 
 namespace UE
 {
@@ -32,7 +33,7 @@ struct SEQUENCERCORE_API ITrackAreaHotspot
 	virtual TOptional<FFrameNumber> GetTime() const { return TOptional<FFrameNumber>(); }
 	virtual TOptional<FFrameTime> GetOffsetTime() const { return TOptional<FFrameTime>(); }
 	virtual TSharedPtr<ISequencerEditToolDragOperation> InitiateDrag(const FPointerEvent& MouseEvent) { return nullptr; }
-	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime){ return false; }
+	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender, FFrameTime MouseDownTime){ return false; }
 	virtual FCursorReply GetCursor() const { return FCursorReply::Unhandled(); }
 	virtual const FSlateBrush* GetCursorDecorator(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const { return nullptr; }
 
