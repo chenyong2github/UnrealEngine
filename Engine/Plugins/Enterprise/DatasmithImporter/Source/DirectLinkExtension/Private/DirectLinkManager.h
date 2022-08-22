@@ -93,6 +93,9 @@ namespace UE::DatasmithImporter
 #if WITH_EDITOR
 		virtual bool IsAssetAutoReimportEnabled(UObject* InAsset) const override { return AutoReimportManger->IsAssetAutoReimportEnabled(InAsset); }
 		virtual bool SetAssetAutoReimport(UObject* InAsset, bool bEnabled) override { return AutoReimportManger->SetAssetAutoReimport(InAsset, bEnabled); }
+#else
+		virtual bool IsAssetAutoReimportEnabled(UObject* InAsset) const override { return false; }
+		virtual bool SetAssetAutoReimport(UObject* InAsset, bool bEnabled) override { return false; }
 #endif //WITH_EDITOR
 		virtual TArray<TSharedRef<FDirectLinkExternalSource>> GetExternalSourceList() const override;
 		virtual void UnregisterDirectLinkExternalSource(FName InName) override;

@@ -52,13 +52,6 @@ namespace UE::DatasmithImporter
 		return TOptional<FDirectLinkSourceDescription>();
 	}
 
-#if WITH_EDITOR
-	TSharedPtr<FExternalSource> FDirectLinkUriResolver::BrowseExternalSource(const FSourceUri& DefaultSourceUri) const
-	{
-		return IDirectLinkExtensionModule::Get().DisplayDirectLinkSourcesDialog();
-	}
-#endif //WITH_EDITOR
-
 	const FString& FDirectLinkUriResolver::GetDirectLinkScheme()
 	{
 		static FString Scheme(TEXT("directlink"));

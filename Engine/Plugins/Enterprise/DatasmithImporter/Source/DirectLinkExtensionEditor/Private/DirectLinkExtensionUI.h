@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "UI/DirectLinkExtensionStyle.h"
-#include "UI/SDirectLinkAvailableSource.h"
-#include "UI/SDirectLinkAssetThumbnailIndicator.h"
+#include "DirectLinkExtensionStyle.h"
+#include "SDirectLinkAvailableSource.h"
+#include "SDirectLinkAssetThumbnailIndicator.h"
 
 #include "ContentBrowserModule.h"
 #include "CoreMinimal.h"

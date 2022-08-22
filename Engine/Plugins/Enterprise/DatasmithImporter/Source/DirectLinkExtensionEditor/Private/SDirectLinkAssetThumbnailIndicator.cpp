@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "UI/SDirectLinkAssetThumbnailIndicator.h"
+#include "SDirectLinkAssetThumbnailIndicator.h"
 
 #include "DirectLinkExtensionModule.h"
 #include "IDirectLinkManager.h"
-#include "UI/DirectLinkExtensionStyle.h"
+#include "DirectLinkExtensionStyle.h"
 
 #include "ExternalSource.h"
 #include "ExternalSourceModule.h"

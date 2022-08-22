@@ -6,7 +6,9 @@
 #include "Async/Async.h"
 #include "ExternalSource.h"
 #include "SourceUri.h"
+#if WITH_EDITOR
 #include "EditorReimportHandler.h"
+#endif
 #include "ExternalSourceModule.h"
 #include "Stats/Stats.h"
 #include "Misc/App.h"
@@ -236,7 +238,11 @@ namespace UE::DatasmithImporter
 		// Make sure we are not triggering a reimport on an asset that doesn't have a DirectLink source.
 		if (Uri.IsValid())
 		{
+#if WITH_EDITOR
 			FReimportManager::Instance()->Reimport(Asset, /*bAskForNewFileIfMissing*/ false, /*bShowNotification*/ true, /*PreferredReimportFile*/ TEXT(""), /*SpecifiedReimportHandler */ nullptr, /*SourceFileIndex*/ INDEX_NONE, /*bForceNewFile*/ false, /*bAutomated*/ true);
+#else
+			// TODO: Find a way to trigger re-import at runtime
+#endif
 		}
 		else
 		{

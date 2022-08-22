@@ -10,6 +10,8 @@
 
 namespace UE::DatasmithImporter
 {
+	class FExternalSource;
+
 	/**
 	 * Dialog used to make a selection of one available FDirectLinkExternalSource.
 	 */

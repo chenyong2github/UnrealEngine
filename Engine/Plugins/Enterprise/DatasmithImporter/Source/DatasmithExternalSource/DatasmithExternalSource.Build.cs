@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
 					new string[]
 					{
 						"DesktopPlatform",
+						"DirectLinkExtensionEditor",
 						"Slate",
 						"UnrealEd",
 					}

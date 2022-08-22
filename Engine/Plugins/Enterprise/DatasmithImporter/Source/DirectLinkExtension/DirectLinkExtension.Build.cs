@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+using System;
 
 namespace UnrealBuildTool.Rules
 {
@@ -11,31 +12,30 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"ContentBrowserData",
-					"EditorStyle",
-					"EditorWidgets",
 					"Engine",
 					"InputCore",
-					"MainFrame",
-					"Projects",
-					"PropertyEditor",
-					"Slate",
-					"SlateCore",
-					"ToolMenus",
-					"UnrealEd",
 				}
 			);
 
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"ContentBrowser",
 					"Core",
 					"CoreUObject",
 					"DirectLink",
 					"ExternalSource",
 				}
 			);
+
+			if (Target.Type == TargetType.Editor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"UnrealEd",
+					}
+				);
+			}
 		}
 	}
 }

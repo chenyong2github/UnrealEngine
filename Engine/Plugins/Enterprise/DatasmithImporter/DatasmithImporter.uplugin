@@ -17,7 +17,7 @@
 	"Modules": [
 		{
 			"Name": "DatasmithExternalSource",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
 		{
@@ -37,6 +37,11 @@
 		},
 		{
 			"Name": "DirectLinkExtension",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "DirectLinkExtensionEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		},

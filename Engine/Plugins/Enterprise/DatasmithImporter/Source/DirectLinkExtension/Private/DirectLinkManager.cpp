@@ -10,13 +10,8 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Async/Async.h"
-#include "EditorReimportHandler.h"
 #include "Misc/CoreDelegates.h"
 #include "UObject/UObjectGlobals.h"
-
-#if WITH_EDITOR
-#include "Editor.h"
-#endif //WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "DirectLinkManager"
 

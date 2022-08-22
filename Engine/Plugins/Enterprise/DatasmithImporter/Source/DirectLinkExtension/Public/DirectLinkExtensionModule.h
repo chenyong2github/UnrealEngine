@@ -11,7 +11,7 @@
 
 namespace UE::DatasmithImporter
 {
-	class FDirectLinkExternalSource;
+	class IUriResolver;
 }
 
 namespace DirectLink
@@ -42,21 +42,19 @@ public:
 		return FModuleManager::Get().IsModuleLoaded(DIRECTLINKEXTENSION_MODULE_NAME);
 	}
 
-	/**
-	 * Return the DirectLinkManager singleton.
-	 */
-	virtual UE::DatasmithImporter::IDirectLinkManager& GetManager() const = 0;
-
-	/**
-	 * Spawn a dialog window prompting the user to select one available FDirectLinkExternalSource.
-	 * The list of displayed DirectLink source can be filtered.
-	 * @return The selected DirectLinkExternalSource, nullptr is returned if the dialog was canceled. 
-	 */
-	virtual TSharedPtr<UE::DatasmithImporter::FDirectLinkExternalSource> DisplayDirectLinkSourcesDialog() = 0;
-
 	static DirectLink::FEndpoint& GetEndpoint()
 	{
 		return Get().GetManager().GetEndpoint();
 	}
+
+	/**
+	 * Overwrite the UriResolver of the DirectLinkExtension module.
+	 */
+	virtual void OverwriteUriResolver(const TSharedRef<UE::DatasmithImporter::IUriResolver>& UriResolver) = 0;
+
+	/**
+	 * Return the DirectLinkManager singleton.
+	 */
+	virtual UE::DatasmithImporter::IDirectLinkManager& GetManager() const = 0;
 };
 

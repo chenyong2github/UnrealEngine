@@ -18,7 +18,9 @@ namespace UE::DatasmithImporter
 		AssetRegistry.OnAssetRemoved().AddRaw(this, &FDirectLinkAssetObserver::AssetRemovedEvent);
 		AssetRegistry.OnAssetUpdated().AddRaw(this, &FDirectLinkAssetObserver::AssetUpdatedEvent);
 
+#if WITH_EDITOR
 		FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FDirectLinkAssetObserver::OnObjectPropertyChanged);
+#endif
 	}
 
 	FDirectLinkAssetObserver::~FDirectLinkAssetObserver()
@@ -30,7 +32,9 @@ namespace UE::DatasmithImporter
 			AssetRegistry.OnAssetUpdated().RemoveAll(this);
 		}
 
+#if WITH_EDITOR
 		FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+#endif
 	}
 
 	void FDirectLinkAssetObserver::AssetRemovedEvent(const FAssetData& AssetData)

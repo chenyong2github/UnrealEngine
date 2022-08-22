@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"DesktopPlatform",
+					"DirectLinkExtension",
 					"EditorFramework",
 					"EditorStyle",
 					"EditorScriptingUtilities",
@@ -67,7 +68,7 @@ namespace UnrealBuildTool.Rules
 					"DatasmithCore",
 					"DatasmithTranslator",
 					"DatasmithContentEditor",
-					"DirectLinkExtension",
+					"DirectLinkExtensionEditor",
 					"ExternalSource",
 				}
 			);

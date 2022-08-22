@@ -7,7 +7,7 @@
 #include "Delegates/IDelegateInstance.h"
 #include "Logging/LogMacros.h"
 #include "Templates/SharedPointer.h"
-#include "TickableEditorObject.h"
+#include "Tickable.h"
 #include "UObject/SoftObjectPtr.h"
 
 class UObject;
@@ -17,15 +17,17 @@ namespace UE::DatasmithImporter
 	class FExternalSource;
 	struct FAutoReimportInfo;
 
-	class FAutoReimportManager : public FTickableEditorObject, public TSharedFromThis<FAutoReimportManager>
+	class FAutoReimportManager : public FTickableGameObject, public TSharedFromThis<FAutoReimportManager>
 	{
 
 	public:
-		/* Begin FTickableEditorObject Interface */
+		/* Begin FTickableGameObject Interface */
 		virtual void Tick(float DeltaTime) override;
 		virtual bool IsAllowedToTick() const override { return PendingAutoReimportObjects.Num() > 0 || !PendingReimportQueue.IsEmpty(); }
 		virtual TStatId GetStatId() const override;
-		/* End FTickableEditorObject Interface */
+		virtual bool IsTickableWhenPaused() const override { return true; }
+		virtual bool IsTickableInEditor() const override { return true; }
+		/* End FTickableGameObject Interface */
 
 		bool IsAssetAutoReimportEnabled(UObject* InAsset) const;
 

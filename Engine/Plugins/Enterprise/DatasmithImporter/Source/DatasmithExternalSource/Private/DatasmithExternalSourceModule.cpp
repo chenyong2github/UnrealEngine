@@ -33,7 +33,7 @@ void FDatasmithExternalSourceModule::StartupModule()
 
 	IDirectLinkManager& DirectLinkManager = IDirectLinkExtensionModule::Get().GetManager();
 	DirectLinkManager.RegisterDirectLinkExternalSource<FDatasmithDirectLinkExternalSource>(UE::DatasmithExternalSourceModule::DatasmithDirectLinkExternalSourceName);
-	
+
 	IUriManager& UriManager = IExternalSourceModule::Get().GetManager();
 	UriManager.RegisterResolver(UE::DatasmithExternalSourceModule::FileUriResolverName, MakeShared<FDatasmithFileUriResolver>());
 }

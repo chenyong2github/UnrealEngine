@@ -13,6 +13,8 @@ namespace DirectLink
 
 namespace UE::DatasmithImporter
 {
+	class FDirectLinkExternalSource;
+
 	struct FDirectLinkSourceDescription
 	{
 		FString ComputerName;
@@ -30,8 +32,11 @@ namespace UE::DatasmithImporter
 		virtual bool CanResolveUri(const FSourceUri& Uri) const override;
 		virtual FName GetScheme() const override { return FName(GetDirectLinkScheme()); }
 #if WITH_EDITOR
-		virtual TSharedPtr<FExternalSource> BrowseExternalSource(const FSourceUri& DefaultSourceUri) const override;
-#endif //WITH_EDITOR
+		virtual TSharedPtr<FExternalSource> BrowseExternalSource(const FSourceUri& DefaultSourceUri) const override
+		{
+			return {};
+		}
+#endif
 		// IUriResolver interface end
 
 		/**

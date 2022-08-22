@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "UI/DirectLinkExtensionStyle.h"
+#include "DirectLinkExtensionStyle.h"
 
 #include "Styling/SlateStyleRegistry.h"
 #include "Brushes/SlateImageBrush.h"

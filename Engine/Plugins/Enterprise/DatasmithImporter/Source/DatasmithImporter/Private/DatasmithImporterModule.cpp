@@ -31,7 +31,7 @@
 #include "DataprepAssetInterface.h"
 #include "DataprepAssetUserData.h"
 #include "DataprepCoreUtils.h"
-#include "DirectLinkExtensionModule.h"
+#include "DirectLinkExtensionEditorModule.h"
 #include "DirectLinkUriResolver.h"
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
@@ -248,7 +248,7 @@ void FDatasmithImporterModule::OnClickedImportDirectLinkMenuEntry()
 {
 	using namespace UE::DatasmithImporter;
 
-	TSharedPtr<FDirectLinkExternalSource> ExternalSource = IDirectLinkExtensionModule::Get().DisplayDirectLinkSourcesDialog();
+	TSharedPtr<FDirectLinkExternalSource> ExternalSource = IDirectLinkExtensionEditorModule::Get().DisplayDirectLinkSourcesDialog();
 	if ( ExternalSource )
 	{
 		TFuture<TSharedPtr<IDatasmithScene>> DatasmithSceneFuture = ExternalSource->AsyncLoad();
@@ -775,7 +775,7 @@ void FDatasmithImporterModule::SetupDatasmithContentDelegates()
 					return false;
 				}
 
-				return IDirectLinkExtensionModule::Get().GetManager().SetAssetAutoReimport(Asset, bEnabled);
+				return IDirectLinkExtensionEditorModule::Get().GetManager().SetAssetAutoReimport(Asset, bEnabled);
 			});
 		SetAssetAutoReimportHandle = SetAssetAutoReimport.GetHandle();
 		DatasmithContentEditorModule.RegisterSetAssetAutoReimportHandler(MoveTemp(SetAssetAutoReimport));
@@ -805,7 +805,7 @@ void FDatasmithImporterModule::SetupDatasmithContentDelegates()
 
 				if (SourceUri.HasScheme(FDirectLinkUriResolver::GetDirectLinkScheme()))
 				{
-					return IDirectLinkExtensionModule::Get().GetManager().IsAssetAutoReimportEnabled(Asset);
+					return IDirectLinkExtensionEditorModule::Get().GetManager().IsAssetAutoReimportEnabled(Asset);
 				}
 
 				return false;
