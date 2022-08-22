@@ -13,7 +13,8 @@ namespace UnrealBuildTool.Rules
 			//
 
 			bLegalToDistributeObjectCode = true;
-			PCHUsage = PCHUsageMode.NoPCHs;
+			PCHUsage = PCHUsageMode.UseSharedPCHs;
+			PrivatePCHHeaderFile = "Private/ElectraPlayerPrivate.h";
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
