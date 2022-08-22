@@ -476,6 +476,7 @@ UNetDriver::UNetDriver(const FObjectInitializer& ObjectInitializer)
 ,	DuplicateLevelID(INDEX_NONE)
 ,	PacketLossBurstEndTime(-1.0f)
 ,	OutTotalNotifiedPackets(0u)
+,	NetTraceId(NetTraceInvalidGameInstanceId)
 {
 	UpdateDelayRandomStream.Initialize(FApp::bUseFixedSeed ? GetFName() : NAME_None);
 }
@@ -611,9 +612,10 @@ void UNetDriver::LoadChannelDefinitions()
 void UNetDriver::NotifyGameInstanceUpdated()
 {
 #if UE_NET_TRACE_ENABLED
-	if (GetWorld() && GetWorld()->WorldType)
+	const UWorld* LocalWorld = GetWorld();
+	if (GetNetTraceId() != NetTraceInvalidGameInstanceId && LocalWorld && LocalWorld->WorldType)
 	{
-		FString InstanceName = FString::Printf(TEXT("%s (%s)"), *GetNameSafe(GetWorld()->GetGameInstance()), LexToString(GetWorld()->WorldType.GetValue()));
+		FString InstanceName = FString::Printf(TEXT("%s (%s)"), *GetNameSafe(LocalWorld->GetGameInstance()), LexToString(LocalWorld->WorldType.GetValue()));
 		UE_NET_TRACE_UPDATE_INSTANCE(GetNetTraceId(), IsServer(), *InstanceName);
 	}
 #endif
@@ -1357,9 +1359,6 @@ bool UNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FU
 
 	Notify = InNotify;
 
-	// If we are not using Iris, we use the UniqueId to identify the NetDriver.
-	NetTraceId = GetUniqueID();
-
 #if UE_WITH_IRIS
 	if (IsUsingIrisReplication() && !ReplicationSystem)
 	{
@@ -1389,6 +1388,11 @@ bool UNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FU
 		}
 	}
 #endif // UE_WITH_IRIS
+	
+	InitNetTraceId();
+
+	// NotifyGameInstanceUpdate might have been called prior to setting up the NetTraceId so we call it again
+	NotifyGameInstanceUpdated();
 
 	if (!bInitAsClient)
 	{
@@ -6026,7 +6030,8 @@ void UNetDriver::UpdateReplicationViews() const
 	}
 
 	TObjectPtr<UNetConnection> const* Connections = (ServerConnection != nullptr ? &ServerConnection : ClientConnections.GetData());
-	const bool bUpdateConnectionViewTarget = ServerConnection != nullptr;
+	const bool bUpdateConnectionViewTarget = ServerConnection == nullptr;
+
 	const uint32 ConnectionCount = (ServerConnection != nullptr ? 1U : uint32(ClientConnections.Num()));
 	TArray<UNetConnection*, TInlineAllocator<4>> SubConnections;
 	for (uint32 ConnIt = 0, ConnEndIt = ConnectionCount; ConnIt != ConnEndIt; ++ConnIt)
@@ -6117,6 +6122,21 @@ void UNetDriver::SendClientMoveAdjustments()
 	}
 }
 #endif // UE_WITH_IRIS
+
+void UNetDriver::InitNetTraceId()
+{
+	if (IsUsingIrisReplication())
+	{
+		return;
+	}
+
+	if (NetTraceId == NetTraceInvalidGameInstanceId)
+	{
+		// We just need to make sure that all active NetDriver`s running in the same game instance uses different NetTraceId`s.
+		static uint8 CurrentNetTraceId = 255;
+		NetTraceId = ++CurrentNetTraceId;
+	}
+}
 
 #if NET_DEBUG_RELEVANT_ACTORS
 static void	DumpRelevantActors( UWorld* InWorld )

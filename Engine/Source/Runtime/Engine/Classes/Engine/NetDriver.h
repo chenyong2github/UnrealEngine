@@ -1944,6 +1944,8 @@ private:
 	void SendClientMoveAdjustments();
 #endif
 
+	void InitNetTraceId();
+
 	UPROPERTY(transient)
 	TObjectPtr<UReplicationDriver> ReplicationDriver;
 
@@ -1979,7 +1981,7 @@ private:
 	FNetConnectionIdHandler ConnectionIdHandler;
 
 	/** Unique id used by NetTrace to identify driver */
-	uint32 NetTraceId = 0;
+	uint32 NetTraceId;
 
 	/** Stat tracking for the total number of out of order packets lost */
 	int32 TotalOutOfOrderPacketsLost = 0;

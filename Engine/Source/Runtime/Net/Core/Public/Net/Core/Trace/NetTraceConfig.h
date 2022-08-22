@@ -26,6 +26,8 @@ namespace ENetTraceVerbosity
 	};
 }
 
+const uint32 NetTraceInvalidGameInstanceId = ~0U;
+
 #if UE_NET_TRACE_ENABLED
 #	ifndef UE_NET_TRACE_COMPILETIME_VERBOSITY
 #		if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
