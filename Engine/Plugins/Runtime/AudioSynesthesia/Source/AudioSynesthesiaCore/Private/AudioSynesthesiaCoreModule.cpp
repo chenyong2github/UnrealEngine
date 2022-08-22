@@ -12,6 +12,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "OnsetNRTFactory.h"
+#include "SynesthesiaSpectrumAnalysisFactory.h"
 
 DEFINE_LOG_CATEGORY(LogAudioSynesthesiaCore);
 
@@ -23,6 +24,8 @@ namespace Audio
 			void StartupModule()
 			{
 				LLM_SCOPE_BYNAME(TEXT("Audio/AudioAnalysis"));
+				FModuleManager::Get().LoadModuleChecked(TEXT("SignalProcessing"));
+
 				// Register factories on startup
 				IModularFeatures::Get().RegisterModularFeature(FLoudnessNRTFactory::GetModularFeatureName(), &LoudnessNRTFactory);
 				IModularFeatures::Get().RegisterModularFeature(FConstantQNRTFactory::GetModularFeatureName(), &ConstantQNRTFactory);
@@ -30,6 +33,7 @@ namespace Audio
 
 				IModularFeatures::Get().RegisterModularFeature(FLoudnessFactory::GetModularFeatureName(), &LoudnessFactory);
 				IModularFeatures::Get().RegisterModularFeature(FMeterFactory::GetModularFeatureName(), &MeterFactory);
+				IModularFeatures::Get().RegisterModularFeature(FSynesthesiaSpectrumAnalysisFactory::GetModularFeatureName(), &SpectralAnalysisFactory);
 			}
 
 			void ShutdownModule()
@@ -42,6 +46,7 @@ namespace Audio
 
 				IModularFeatures::Get().UnregisterModularFeature(FLoudnessFactory::GetModularFeatureName(), &LoudnessFactory);
 				IModularFeatures::Get().UnregisterModularFeature(FMeterFactory::GetModularFeatureName(), &MeterFactory);
+				IModularFeatures::Get().UnregisterModularFeature(FSynesthesiaSpectrumAnalysisFactory::GetModularFeatureName(), &SpectralAnalysisFactory);
 			}
 
 		private:
@@ -50,7 +55,8 @@ namespace Audio
 			FOnsetNRTFactory OnsetNRTFactory;
 
 			FLoudnessFactory LoudnessFactory;
-			FMeterFactory MeterFactory;
+			FMeterFactory MeterFactory; 
+			FSynesthesiaSpectrumAnalysisFactory SpectralAnalysisFactory;
 	};
 }
 
