@@ -4,6 +4,7 @@
 
 #include "Online/Leaderboards.h"
 #include "Online/OnlineComponent.h"
+#include "Online/Stats.h"
 
 namespace UE::Online {
 
@@ -64,6 +65,7 @@ public:
 	FLeaderboardsCommon(FOnlineServicesCommon& InServices);
 
 	// TOnlineComponent
+	virtual void Initialize() override;
 	virtual void LoadConfig() override;
 	virtual void RegisterCommands() override;
 
@@ -76,7 +78,11 @@ public:
 	virtual TOnlineAsyncOpHandle<FWriteLeaderboardScores> WriteLeaderboardScores(FWriteLeaderboardScores::Params&& Params);
 
 protected:
+	void WriteLeaderboardsByStats(const FStatsUpdated& StatsUpdated);
+
 	TMap<FString, FLeaderboardDefinition> LeaderboardDefinitions;
+	FOnlineEventDelegateHandle StatEventHandle;
+	bool bIsTitleManaged = false;
 };
 
 namespace Meta {

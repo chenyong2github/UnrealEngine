@@ -23,7 +23,7 @@ void FAchievementsCommon::Initialize()
 {
 	TOnlineComponent<IAchievements>::Initialize();
 
-	StatEventHandle = Services.Get<FStatsCommon>()->OnStatsUpdated().Add([this](const FStatsUpdated& StatsUpdated) { UnlockAchievementsByStats(StatsUpdated); });
+	StatEventHandle = Services.Get<IStats>()->OnStatsUpdated().Add([this](const FStatsUpdated& StatsUpdated) { UnlockAchievementsByStats(StatsUpdated); });
 }
 
 void FAchievementsCommon::Shutdown()

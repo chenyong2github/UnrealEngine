@@ -4,6 +4,7 @@
 
 #include "Online/Auth.h"
 #include "Online/OnlineServicesCommon.h"
+#include "Online/StatsCommon.h"
 
 namespace UE::Online {
 
@@ -66,8 +67,15 @@ void LexFromString(ELeaderboardOrderMethod& OutValue, const TCHAR* InStr)
 }
 
 FLeaderboardsCommon::FLeaderboardsCommon(FOnlineServicesCommon& InServices)
-	: TOnlineComponent(TEXT("Leaderboards"), InServices)
+	: Super(TEXT("Leaderboards"), InServices)
 {
+}
+
+void FLeaderboardsCommon::Initialize()
+{
+	Super::Initialize();
+
+	StatEventHandle = Services.Get<IStats>()->OnStatsUpdated().Add([this](const FStatsUpdated& StatsUpdated) { WriteLeaderboardsByStats(StatsUpdated); });
 }
 
 void FLeaderboardsCommon::LoadConfig()
@@ -75,6 +83,7 @@ void FLeaderboardsCommon::LoadConfig()
 	Super::LoadConfig();
 
 	const TCHAR* ConfigSection = TEXT("OnlineServices.Leaderboards");
+	GConfig->GetBool(ConfigSection, TEXT("LeaderboardDef_IsTitleManaged"), bIsTitleManaged, GEngineIni);
 
 	for (int StatIdx = 0;; StatIdx++)
 	{
@@ -141,6 +150,29 @@ TOnlineAsyncOpHandle<FWriteLeaderboardScores> FLeaderboardsCommon::WriteLeaderbo
 	TOnlineAsyncOpRef<FWriteLeaderboardScores> Operation = GetOp<FWriteLeaderboardScores>(MoveTemp(Params));
 	Operation->SetError(Errors::NotImplemented());
 	return Operation->GetHandle();
+}
+
+void FLeaderboardsCommon::WriteLeaderboardsByStats(const FStatsUpdated& StatsUpdated)
+{
+	if (!bIsTitleManaged)
+	{
+		return;
+	}
+
+	for (const FUserStats& UserStats : StatsUpdated.UpdateUsersStats)
+	{
+		for (const TPair<FString, FStatValue>& StatPair : UserStats.Stats)
+		{
+			if (LeaderboardDefinitions.Contains(StatPair.Key))
+			{
+				FWriteLeaderboardScores::Params WriteLeaderboardScoresParam;
+				WriteLeaderboardScoresParam.LocalUserId = UserStats.UserId;
+				WriteLeaderboardScoresParam.BoardName = StatPair.Key;
+				WriteLeaderboardScoresParam.Score = StatPair.Value.GetInt64();
+				WriteLeaderboardScores(MoveTemp(WriteLeaderboardScoresParam));
+			}
+		}
+	}
 }
 
 /* UE::Online */ }

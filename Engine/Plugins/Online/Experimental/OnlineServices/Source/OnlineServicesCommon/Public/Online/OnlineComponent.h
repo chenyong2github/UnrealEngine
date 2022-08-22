@@ -15,6 +15,8 @@ class TOnlineComponent
 	, public IOnlineComponent
 {
 public:
+	using Super = ComponentType;
+
 	TOnlineComponent(const TOnlineComponent&) = delete;
 	TOnlineComponent(TOnlineComponent&&) = delete;
 

@@ -103,6 +103,7 @@ TOnlineAsyncOpHandle<FWriteLeaderboardScores> FLeaderboardsNull::WriteLeaderboar
 		UserScoreToInsert.Score = UpdatedScore;
 		UserScoreToInsert.UserId = InAsyncOp.GetParams().LocalUserId;
 
+		bool bInserted = false;
 		CurrentNode = UserScoreList.GetHead();
 		while (CurrentNode)
 		{
@@ -122,15 +123,17 @@ TOnlineAsyncOpHandle<FWriteLeaderboardScores> FLeaderboardsNull::WriteLeaderboar
 			}
 			if (ShouldInsert)
 			{
+				bInserted = true;
 				UserScoreList.InsertNode(UserScoreToInsert, CurrentNode);
 				break;
 			}
 
 			CurrentNode = CurrentNode->GetNextNode();
-			if (!CurrentNode)
-			{
-				UserScoreList.AddTail(UserScoreToInsert);
-			}
+		}
+
+		if (!bInserted)
+		{
+			UserScoreList.AddTail(UserScoreToInsert);
 		}
 
 		InAsyncOp.SetResult({});
