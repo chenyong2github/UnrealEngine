@@ -56,11 +56,6 @@ namespace UE::MultiUserServer
 				AllStats.Add(*Stats);
 			}
 		}
-		
-		if (AllStats.Num() == 0)
-		{
-			return {};
-		}
 
 		FMessageTransportStatistics Result = SumUpStats(AllStats);
 		Result.IPv4AsString = TEXT("localhost"); // Should probably look up the IP address values ...
@@ -85,7 +80,7 @@ namespace UE::MultiUserServer
 			Result.AverageRTT += Stats.AverageRTT;
 		}
 
-		if (ensure(StatArray.Num() > 0))
+		if (StatArray.Num() > 0)
 		{
 			Result.AverageRTT /= StatArray.Num();
 		}
