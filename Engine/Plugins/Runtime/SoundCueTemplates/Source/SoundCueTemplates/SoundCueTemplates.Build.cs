@@ -6,7 +6,6 @@ public class SoundCueTemplates : ModuleRules
 {
     public SoundCueTemplates(ReadOnlyTargetRules Target) : base(Target)
     {
-        OptimizeCode = CodeOptimization.Never;
         PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
         PublicDependencyModuleNames.AddRange(
