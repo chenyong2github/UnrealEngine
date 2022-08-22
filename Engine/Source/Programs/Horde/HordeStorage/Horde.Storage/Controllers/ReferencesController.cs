@@ -749,11 +749,18 @@ namespace Horde.Storage.Controllers
                 return accessResult;
             }
 
-            (ContentId[] missingReferences, BlobIdentifier[] missingBlobs) = await _objectService.Finalize(ns, bucket, key, hash);
-            List<ContentHash> missingHashes = new List<ContentHash>(missingReferences);
-            missingHashes.AddRange(missingBlobs);
+            try
+            {
+                (ContentId[] missingReferences, BlobIdentifier[] missingBlobs) = await _objectService.Finalize(ns, bucket, key, hash);
+                List<ContentHash> missingHashes = new List<ContentHash>(missingReferences);
+                missingHashes.AddRange(missingBlobs);
 
-            return Ok(new PutObjectResponse(missingHashes.ToArray()));
+                return Ok(new PutObjectResponse(missingHashes.ToArray()));
+            }
+            catch (ObjectHashMismatchException e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
         [HttpPost("{ns}")]
