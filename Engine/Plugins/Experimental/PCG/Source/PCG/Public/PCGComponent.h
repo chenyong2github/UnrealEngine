@@ -65,6 +65,10 @@ public:
 	/** ~Begin UObject interface */
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
+
+#if WITH_EDITOR
+	virtual void PostEditImport() override;
+#endif
 	/** ~End UObject interface */
 
 	//~Begin UActorComponent Interface
@@ -229,7 +233,7 @@ private:
 	void CleanupUnusedManagedResources();
 	bool MoveResourcesToNewActor(AActor* InNewActor, bool bCreateChild);
 
-	/* Called as part of the RerunConstructionScript, just takes resources as-is, assumes current state is empty + the resources have been retargeted if needed */
+	/** Called as part of the RerunConstructionScript, just takes resources as-is, assumes current state is empty + the resources have been retargeted if needed */
 	void GetManagedResources(TArray<TObjectPtr<UPCGManagedResource>>& Resources) const;
 	void SetManagedResources(const TArray<TObjectPtr<UPCGManagedResource>>& Resources);
 
@@ -243,6 +247,9 @@ private:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
+
+	/** Sets up actor, tracking, landscape and graph callbacks */
+	void SetupCallbacksOnCreation();
 
 	void SetupActorCallbacks();
 	void TeardownActorCallbacks();

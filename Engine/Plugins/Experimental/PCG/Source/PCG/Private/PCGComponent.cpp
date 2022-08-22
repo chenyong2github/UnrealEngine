@@ -697,6 +697,13 @@ void UPCGComponent::PostLoad()
 #endif
 
 #if WITH_EDITOR
+	SetupCallbacksOnCreation();
+#endif
+}
+
+#if WITH_EDITOR
+void UPCGComponent::SetupCallbacksOnCreation()
+{
 	SetupActorCallbacks();
 	SetupTrackingCallbacks();
 
@@ -707,14 +714,14 @@ void UPCGComponent::PostLoad()
 	else
 	{
 		UpdateTrackedLandscape(/*bBoundsCheck=*/false);
-	}	
+	}
 
 	if (Graph)
 	{
 		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
 	}
-#endif
 }
+#endif
 
 void UPCGComponent::BeginDestroy()
 {
@@ -914,6 +921,13 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 			Refresh();
 		}
 	}
+}
+
+void UPCGComponent::PostEditImport()
+{
+	Super::PostEditImport();
+
+	SetupCallbacksOnCreation();
 }
 
 void UPCGComponent::PreEditUndo()
