@@ -440,12 +440,12 @@ private:
 
 	void UpdateTraceListView();
 
+	void ShowSuccessMessage(FText& InMessage);
+	void ShowFailMessage(FText& InMessage);
+
 private:
 	/** Widget for the non-intrusive notifications. */
 	TSharedPtr<SNotificationList> NotificationList;
-
-	/** Holds all active and visible notifications, stored as FGuid -> SNotificationItemWeak. */
-	TMap<FString, SNotificationItemWeak> ActiveNotifications;
 
 	/** Overlay slot which contains the profiler settings widget. */
 	SOverlay::FOverlaySlot* OverlaySettingsSlot;
@@ -546,9 +546,6 @@ private:
 
 	/** Widget for the non-intrusive notifications. */
 	TSharedPtr<SNotificationList> NotificationList;
-
-	/** Holds all active and visible notifications, stored as FGuid -> SNotificationItemWeak. */
-	TMap<FString, SNotificationItemWeak> ActiveNotifications;
 
 	FGraphEventRef ConnectTask;
 
