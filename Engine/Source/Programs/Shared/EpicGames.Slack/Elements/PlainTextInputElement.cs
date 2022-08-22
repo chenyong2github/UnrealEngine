@@ -9,7 +9,7 @@ using System.Text.Json.Serialization;
 namespace EpicGames.Slack.Elements
 {
 	/// <summary>
-	/// A plain-text input, similar to the HTML <input> tag, creates a field where a user can enter freeform data. It can appear as a single-line field or a larger text area using the multiline flag.
+	/// A plain-text input, similar to the HTML &lt;input&gt; tag, creates a field where a user can enter freeform data. It can appear as a single-line field or a larger text area using the multiline flag.
 	/// </summary>
 	public class PlainTextInputElement : Element
 	{

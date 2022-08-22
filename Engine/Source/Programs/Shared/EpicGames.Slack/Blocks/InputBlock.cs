@@ -61,7 +61,6 @@ namespace EpicGames.Slack.Blocks
 		/// <summary>
 		/// Add an <see cref="ImageBlock"/> to the list of blocks
 		/// </summary>
-		/// <param name="container">Block container</param>
 		public static InputBlock AddInput(this ISlackBlockContainer container, PlainTextObject label, Element element)
 		{
 			InputBlock block = new InputBlock(label, element);

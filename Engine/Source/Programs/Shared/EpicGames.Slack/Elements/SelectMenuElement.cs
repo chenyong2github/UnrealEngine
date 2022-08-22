@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text.Json;
@@ -45,13 +46,15 @@ namespace EpicGames.Slack.Elements
 		/// An array of option objects. A maximum of 10 options are allowed.
 		/// </summary>
 		[JsonPropertyName("options")]
-		public IReadOnlyList<SlackOption>? Options { get; set; }
+		[SuppressMessage("Usage", "CA2227:Collection properties should be read only")]
+		public List<SlackOption>? Options { get; set; }
 
 		/// <summary>
 		/// An array of option objects. A maximum of 10 options are allowed.
 		/// </summary>
 		[JsonPropertyName("option_groups")]
-		public IReadOnlyList<SlackOptionGroup>? OptionGroups { get; set; }
+		[SuppressMessage("Usage", "CA2227:Collection properties should be read only")]
+		public List<SlackOptionGroup>? OptionGroups { get; set; }
 
 		/// <summary>
 		/// An array of option objects that exactly matches one or more of the options within options. These options will be selected when the checkbox group initially loads.

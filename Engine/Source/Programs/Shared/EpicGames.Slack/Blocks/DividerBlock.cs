@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace EpicGames.Slack.Blocks
 {
 	/// <summary>
-	/// A content divider, like an <hr>, to split up different blocks inside of a message. The divider block is nice and neat, requiring only a type.
+	/// A content divider, like an &lt;hr&gt;, to split up different blocks inside of a message. The divider block is nice and neat, requiring only a type.
 	/// </summary>
 	public class DividerBlock : Block
 	{

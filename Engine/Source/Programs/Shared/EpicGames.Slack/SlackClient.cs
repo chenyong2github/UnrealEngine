@@ -13,16 +13,28 @@ using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Slack
 {
+	/// <summary>
+	/// Exception thrown due to an error response from Slack
+	/// </summary>
 	public class SlackException : Exception
 	{
+		/// <summary>
+		/// Slack error code
+		/// </summary>
 		public string Code { get; }
 
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		public SlackException(string code) : base(code)
 		{
 			Code = code;
 		}
 	}
 
+	/// <summary>
+	/// Wrapper around Slack client functionality
+	/// </summary>
 	public class SlackClient
 	{
 		class SlackResponse
@@ -38,6 +50,11 @@ namespace EpicGames.Slack
 		readonly JsonSerializerOptions _serializerOptions;
 		readonly ILogger _logger;
 
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="httpClient">Http client for connecting to slack. Should have the necessary authorization headers.</param>
+		/// <param name="logger">Logger interface</param>
 		public SlackClient(HttpClient httpClient, ILogger logger)
 		{
 			_httpClient = httpClient;
@@ -132,21 +149,47 @@ namespace EpicGames.Slack
 			public string? Ts { get; set; }
 		}
 
+		/// <summary>
+		/// Posts a message to a recipient
+		/// </summary>
+		/// <param name="recipient">Recipient of the message. May be a channel or Slack user id.</param>
+		/// <param name="message">New message to post</param>
 		public async Task<string> PostMessageAsync(string recipient, SlackMessage message)
 		{
 			return await PostOrUpdateMessageAsync(recipient, null, null, message, false);
 		}
 
+		/// <summary>
+		/// Posts a message to a recipient
+		/// </summary>
+		/// <param name="recipient">Recipient of the message. May be a channel or Slack user id.</param>
+		/// <param name="threadTs">Timestamp of the thread to post the message to</param>
+		/// <param name="message">New message to post</param>
+		/// <param name="replyBroadcast">Whether to broadcast the message to the channel</param>
 		public async Task<string> PostMessageAsync(string recipient, string threadTs, SlackMessage message, bool replyBroadcast = false)
 		{
 			return await PostOrUpdateMessageAsync(recipient, null, threadTs, message, replyBroadcast);
 		}
 
+		/// <summary>
+		/// Updates an existing message
+		/// </summary>
+		/// <param name="recipient">Recipient of the message. May be a channel or Slack user id.</param>
+		/// <param name="ts">The message timestamp</param>
+		/// <param name="message">New message to post</param>
 		public async Task UpdateMessageAsync(string recipient, string ts, SlackMessage message)
 		{
 			await PostOrUpdateMessageAsync(recipient, ts, null, message, false);
 		}
 
+		/// <summary>
+		/// Updates an existing message
+		/// </summary>
+		/// <param name="recipient">Recipient of the message. May be a channel or Slack user id.</param>
+		/// <param name="ts">The message timestamp</param>
+		/// <param name="threadTs">Timestamp of the thread to post the message to</param>
+		/// <param name="message">New message to post</param>
+		/// <param name="replyBroadcast">Whether to broadcast the message to the channel</param>
 		public async Task UpdateMessageAsync(string recipient, string ts, string threadTs, SlackMessage message, bool replyBroadcast = false)
 		{
 			await PostOrUpdateMessageAsync(recipient, ts, threadTs, message, replyBroadcast);
@@ -203,6 +246,12 @@ namespace EpicGames.Slack
 			public string? Permalink { get; set; }
 		}
 
+		/// <summary>
+		/// Gets a permalink for a message
+		/// </summary>
+		/// <param name="channel">Channel containing the message</param>
+		/// <param name="ts">Message timestamp</param>
+		/// <returns>Link to the message</returns>
 		public async Task<string> GetPermalinkAsync(string channel, string ts)
 		{
 			string requestUrl = $"{GetPermalinkUrl}?channel={channel}&message_ts={ts}";
@@ -236,6 +285,12 @@ namespace EpicGames.Slack
 			public string? Name { get; set; }
 		}
 
+		/// <summary>
+		/// Adds a reaction to a posted message
+		/// </summary>
+		/// <param name="channel">Channel containing the message</param>
+		/// <param name="ts">Message timestamp</param>
+		/// <param name="name">Name of the reaction to post</param>
 		public async Task AddReactionAsync(string channel, string ts, string name)
 		{
 			ReactionMessage message = new ReactionMessage();
@@ -248,6 +303,12 @@ namespace EpicGames.Slack
 			await SendRequestAsync<SlackResponse>(AddReactionUrl, message, ShouldLogError);
 		}
 
+		/// <summary>
+		/// Removes a reaction from a posted message
+		/// </summary>
+		/// <param name="channel">Channel containing the message</param>
+		/// <param name="ts">Message timestamp</param>
+		/// <param name="name">Name of the reaction to post</param>
 		public async Task RemoveReactionAsync(string channel, string ts, string name)
 		{
 			ReactionMessage message = new ReactionMessage();
@@ -275,8 +336,18 @@ namespace EpicGames.Slack
 			public string? Users { get; set; } // Comma separated list of ids
 		}
 
+		/// <summary>
+		/// Invite a user to a channel
+		/// </summary>
+		/// <param name="channel">Channel identifier to invite the user to</param>
+		/// <param name="userId">The user id</param>
 		public Task InviteUserAsync(string channel, string userId) => InviteUsersAsync(channel, new[] { userId });
 
+		/// <summary>
+		/// Invite a set of users to a channel
+		/// </summary>
+		/// <param name="channel">Channel identifier to invite the user to</param>
+		/// <param name="userIds">The user id</param>
 		public async Task InviteUsersAsync(string channel, IEnumerable<string> userIds)
 		{
 			InviteMessage message = new InviteMessage();
@@ -298,6 +369,11 @@ namespace EpicGames.Slack
 			public SlackUser? User { get; set; }
 		}
 
+		/// <summary>
+		/// Gets a user's profile
+		/// </summary>
+		/// <param name="userId">The user id</param>
+		/// <returns>User profile</returns>
 		public async Task<SlackUser> GetUserAsync(string userId)
 		{
 			using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"{UsersInfoUrl}?user={userId}"))
@@ -307,6 +383,11 @@ namespace EpicGames.Slack
 			}
 		}
 
+		/// <summary>
+		/// Finds a user by email address
+		/// </summary>
+		/// <param name="email">The user's email address</param>
+		/// <returns>User profile</returns>
 		public async Task<SlackUser?> FindUserByEmailAsync(string email)
 		{
 			using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"{UsersLookupByEmailUrl}?email={email}"))
@@ -333,6 +414,11 @@ namespace EpicGames.Slack
 			public SlackView? View { get; set; }
 		}
 
+		/// <summary>
+		/// Open a new modal view, in response to a trigger
+		/// </summary>
+		/// <param name="triggerId">The trigger id, as returned as part of an interaction payload</param>
+		/// <param name="view">Definition for the view</param>
 		public async Task OpenViewAsync(string triggerId, SlackView view)
 		{
 			ViewsOpenRequest request = new ViewsOpenRequest();
@@ -342,118 +428,5 @@ namespace EpicGames.Slack
 		}
 
 		#endregion
-/*
-		#region Interactions
-
-		const string AppConnectionOpenUrl = "https://slack.com/api/apps.connections.open";
-
-		class OpenSocketResponse : SlackResponse
-		{
-			[JsonPropertyName("url")]
-			public Uri? Url { get; set; }
-		}
-
-		class EventMessage
-		{
-			[JsonPropertyName("type")]
-			public string? Type { get; set; }
-
-			[JsonPropertyName("envelope_id")]
-			public string? EnvelopeId { get; set; }
-
-			[JsonPropertyName("payload")]
-			public EventPayload? Payload { get; set; }
-		}
-
-		class EventPayload
-		{
-			[JsonPropertyName("type")]
-			public string? Type { get; set; }
-
-			[JsonPropertyName("trigger_id")]
-			public string? TriggerId { get; set; }
-
-			[JsonPropertyName("user")]
-			public UserInfo? User { get; set; }
-
-			[JsonPropertyName("response_url")]
-			public string? ResponseUrl { get; set; }
-
-			[JsonPropertyName("actions")]
-			public List<ActionInfo> Actions { get; set; } = new List<ActionInfo>();
-		}
-
-		/// <inheritdoc/>
-		public async Task HandleInteractionsAsync(CancellationToken stoppingToken)
-		{
-			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, AppConnectionOpenUrl);
-			request.Content = new FormUrlEncodedContent(Array.Empty<KeyValuePair<string?, string?>>());
-
-			OpenSocketResponse response = await SendRequestAsync<OpenSocketResponse>(request, "");
-		}
-
-		private async Task HandleInteractionsInternalAsync(Uri socketUrl, CancellationToken stoppingToken)
-		{
-			using ClientWebSocket socket = new ClientWebSocket();
-			await socket.ConnectAsync(socketUrl, stoppingToken);
-
-			byte[] buffer = new byte[2048];
-			while (!stoppingToken.IsCancellationRequested)
-			{
-				// Read the next message
-				int length = 0;
-				for (; ; )
-				{
-					if (length == buffer.Length)
-					{
-						Array.Resize(ref buffer, buffer.Length + 2048);
-					}
-
-					WebSocketReceiveResult result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer, length, buffer.Length - length), stoppingToken);
-					if (result.MessageType == WebSocketMessageType.Close)
-					{
-						return;
-					}
-					length += result.Count;
-
-					if (result.EndOfMessage)
-					{
-						break;
-					}
-				}
-
-				// Get the message data
-				_logger.LogInformation("Slack event: {Message}", Encoding.UTF8.GetString(buffer, 0, length));
-				EventMessage eventMessage = JsonSerializer.Deserialize<EventMessage>(buffer.AsSpan(0, length))!;
-
-				// Acknowledge the message
-				if (eventMessage.EnvelopeId != null)
-				{
-					object response = new { eventMessage.EnvelopeId };
-					await socket.SendAsync(JsonSerializer.SerializeToUtf8Bytes(response), WebSocketMessageType.Text, true, stoppingToken);
-				}
-
-				// Handle the message type
-				if (eventMessage.Type != null)
-				{
-					string type = eventMessage.Type;
-					if (type.Equals("disconnect", StringComparison.Ordinal))
-					{
-						break;
-					}
-					else if (type.Equals("interactive", StringComparison.Ordinal))
-					{
-						await HandleInteractionMessage(eventMessage);
-					}
-					else
-					{
-						_logger.LogDebug("Unhandled event type ({Type})", type);
-					}
-				}
-			}
-		}
-
-		#endregion
-*/
 	}
 }

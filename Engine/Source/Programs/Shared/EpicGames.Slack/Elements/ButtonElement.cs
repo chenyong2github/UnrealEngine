@@ -53,7 +53,7 @@ namespace EpicGames.Slack.Elements
 	}
 
 	/// <summary>
-	/// An button element that can be added to an <see cref="ActionsBlock"/>.
+	/// An button element that can be added to an <see cref="Blocks.ActionsBlock"/>.
 	/// </summary>
 	public class ButtonElement : Element
 	{

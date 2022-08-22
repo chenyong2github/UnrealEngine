@@ -43,6 +43,7 @@ namespace EpicGames.Slack.Blocks
 		/// Add an <see cref="HeaderBlock"/> to the list of blocks
 		/// </summary>
 		/// <param name="container">List of blocks</param>
+		/// <param name="text">Text for the header</param>
 		public static void AddHeader(this ISlackBlockContainer container, PlainTextObject text)
 		{
 			HeaderBlock block = new HeaderBlock(text);

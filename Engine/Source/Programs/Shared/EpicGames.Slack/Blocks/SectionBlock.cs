@@ -63,7 +63,6 @@ namespace EpicGames.Slack.Blocks
 		/// <summary>
 		/// Add an <see cref="SectionBlock"/> to the list of blocks
 		/// </summary>
-		/// <param name="container">Container for the blocks</param>
 		public static void AddSection(this ISlackBlockContainer container, TextObject text)
 		{
 			SectionBlock block = new SectionBlock(text);

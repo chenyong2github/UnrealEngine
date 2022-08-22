@@ -50,7 +50,6 @@ namespace EpicGames.Slack.Blocks
 		/// <summary>
 		/// Add an <see cref="ImageBlock"/> to the list of blocks
 		/// </summary>
-		/// <param name="container">Block container</param>
 		public static void AddImage(this ISlackBlockContainer container, Uri imageUrl, string altText, PlainTextObject? title = null)
 		{
 			ImageBlock block = new ImageBlock(imageUrl, altText, title);
