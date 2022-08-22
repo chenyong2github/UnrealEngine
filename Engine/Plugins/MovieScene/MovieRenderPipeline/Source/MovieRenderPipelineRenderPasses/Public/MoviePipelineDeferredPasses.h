@@ -70,6 +70,13 @@ protected:
 	virtual FString GetCameraName(const int32 InCameraIndex) const;
 	virtual FString GetCameraNameOverride(const int32 InCameraIndex) const;
 
+	bool IsUsingDataLayers() const;
+	int32 GetNumStencilLayers() const;
+	TArray<FString> GetStencilLayerNames() const;
+	bool IsActorInLayer(AActor* InActor, int32 InLayerIndex) const;
+	bool IsActorInAnyStencilLayer(AActor* InActor) const;
+	FSoftObjectPath GetValidDataLayerByIndex(const int32 InIndex) const;
+
 public:
 	/**
 	* Should multiple temporal/spatial samples accumulate the alpha channel? This requires r.PostProcessing.PropagateAlpha
@@ -123,7 +130,18 @@ public:
 	* base layer. Only works with materials that can write to custom depth.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stencil Clip Layers")
+	TArray<FActorLayer> ActorLayers;
+	
+	UE_DEPRECATED(5.1, "Use ActorLayers property instead.")
 	TArray<FActorLayer> StencilLayers;
+	
+	/**
+	* If the map you are working with is a World Partition map, you can specify Data layers instead of Actor Layers. If any
+	* Data Layers are specified, this will take precedence over any ActorLayers in this config. Does not affect whether or
+	* not the Data Layers are actually loaded, you must ensure layers are loaded for rendering.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (AllowedClasses = "/Script/Engine.DataLayerAsset"), Category = "Stencil Clip Layers")
+	TArray<FSoftObjectPath> DataLayers;
 
 protected:
 	/** While rendering, store an array of the non-null valid materials loaded from AdditionalPostProcessMaterials. Cleared on teardown. */
