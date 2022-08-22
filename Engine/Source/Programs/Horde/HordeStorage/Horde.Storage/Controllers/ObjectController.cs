@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Net;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using async_enumerable_dotnet;
@@ -157,10 +158,17 @@ namespace Horde.Storage.Controllers
             }
 
             _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
-            using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
+            try
+            {
+                using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
 
-            BlobIdentifier identifier = await _storage.PutObject(ns, payload, id);
-            return Ok(new PutBlobResponse(identifier));
+                BlobIdentifier identifier = await _storage.PutObject(ns, payload, id);
+                return Ok(new PutBlobResponse(identifier));
+            }
+            catch (ClientSendSlowException e)
+            {
+                return Problem(e.Message, null, (int)HttpStatusCode.RequestTimeout);
+            }
         }
 
         [HttpGet("{ns}/{id}/references")]

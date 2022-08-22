@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Net;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
@@ -13,6 +14,7 @@ using Horde.Storage.Implementation;
 using Jupiter;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
+using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
@@ -23,7 +25,7 @@ namespace Horde.Storage.Controllers
     using BlobNotFoundException = Horde.Storage.Implementation.BlobNotFoundException;
 
     [ApiController]
-	[Authorize]
+    [Authorize]
     [Route("api/v1/compressed-blobs")]
     public class CompressedBlobController : ControllerBase
     {
@@ -216,23 +218,26 @@ namespace Horde.Storage.Controllers
 
             _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
 
-            using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
-
             try
             {
-                ContentId identifier = await _storage.PutCompressedObject(ns, payload, id, _contentIdStore, _compressedBufferUtils);
+                using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
 
-                return Ok(new
-                {
-                    Identifier = identifier.ToString()
-                });
+                ContentId identifier =
+                    await _storage.PutCompressedObject(ns, payload, id, _contentIdStore, _compressedBufferUtils);
+
+                return Ok(new { Identifier = identifier.ToString() });
             }
             catch (HashMismatchException e)
             {
                 return BadRequest(new ProblemDetails
                 {
-                    Title = $"Incorrect hash, got hash \"{e.SuppliedHash}\" but hash of content was determined to be \"{e.ContentHash}\""
+                    Title =
+                        $"Incorrect hash, got hash \"{e.SuppliedHash}\" but hash of content was determined to be \"{e.ContentHash}\""
                 });
+            }
+            catch (ClientSendSlowException e)
+            {
+                return Problem(e.Message, null, (int)HttpStatusCode.RequestTimeout);
             }
         }
 
@@ -250,10 +255,10 @@ namespace Horde.Storage.Controllers
 
             _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
 
-            using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
-
             try
             {
+                using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
+
                 ContentId identifier = await _storage.PutCompressedObject(ns, payload, null, _contentIdStore, _compressedBufferUtils);
 
                 return Ok(new
@@ -267,6 +272,10 @@ namespace Horde.Storage.Controllers
                 {
                     Title = $"Incorrect hash, got hash \"{e.SuppliedHash}\" but hash of content was determined to be \"{e.ContentHash}\""
                 });
+            }
+            catch (ClientSendSlowException e)
+            {
+                return Problem(e.Message, null, (int)HttpStatusCode.RequestTimeout);
             }
         }
 
@@ -311,7 +320,7 @@ namespace Horde.Storage.Controllers
 
     public class ExistCheckMultipleContentIdResponse
     {
-		[CbField("needs")]
-		public ContentId[] Needs { get; set; } = null!;
+        [CbField("needs")]
+        public ContentId[] Needs { get; set; } = null!;
     }
 }

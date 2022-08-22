@@ -497,7 +497,7 @@ namespace Horde.Storage.Controllers
             {
                 return NotFound(new ProblemDetails { Title = $"Blob {e.Blob} in namespace {ns} did not exist" });
             }
-			catch (ObjectNotFoundException e)
+            catch (ObjectNotFoundException e)
             {
                 return NotFound(new ProblemDetails {Title = $"Object {e.Bucket} {e.Key} in namespace {e.Namespace} did not exist"});
             }
@@ -595,26 +595,29 @@ namespace Horde.Storage.Controllers
             }
 
             _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
-            
-            using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
-
-            BlobIdentifier headerHash;
-            if (Request.Headers.ContainsKey(CommonHeaders.HashHeaderName))
-            {
-                headerHash = new BlobIdentifier(Request.Headers[CommonHeaders.HashHeaderName]);
-            }
-            else
-            {
-                return BadRequest(new ProblemDetails
-                {
-                    Title = $"Missing expected header {CommonHeaders.HashHeaderName}"
-                });
-            }
 
             CbObject payloadObject;
-            BlobIdentifier blobHeader = headerHash;
+            BlobIdentifier blobHeader;
+
             try
             {
+                using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
+
+                BlobIdentifier headerHash;
+                if (Request.Headers.ContainsKey(CommonHeaders.HashHeaderName))
+                {
+                    headerHash = new BlobIdentifier(Request.Headers[CommonHeaders.HashHeaderName]);
+                }
+                else
+                {
+                    return BadRequest(new ProblemDetails
+                    {
+                        Title = $"Missing expected header {CommonHeaders.HashHeaderName}"
+                    });
+                }
+
+                blobHeader = headerHash;
+
                 switch (Request.ContentType)
                 {
                     case MediaTypeNames.Application.Json:
@@ -667,6 +670,10 @@ namespace Horde.Storage.Controllers
                 {
                     Title = $"Incorrect hash, got hash \"{e.SuppliedHash}\" but hash of content was determined to be \"{e.ContentHash}\""
                 });
+            }
+            catch (ClientSendSlowException e)
+            {
+                return Problem(e.Message, null, (int)HttpStatusCode.RequestTimeout);
             }
 
             (ContentId[] missingReferences, BlobIdentifier[] missingBlobs) = await _objectService.Put(ns, bucket, key, blobHeader, payloadObject);

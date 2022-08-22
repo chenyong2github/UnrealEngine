@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
@@ -14,6 +15,7 @@ using Horde.Storage.Implementation;
 using Jupiter;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
+using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -170,10 +172,11 @@ namespace Horde.Storage.Controllers
             }
 
             _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
-            using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
 
             try
             {
+                using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
+
                 BlobIdentifier identifier = await _storage.PutObject(ns, payload, id);
                 return Ok(new
                 {
@@ -183,6 +186,10 @@ namespace Horde.Storage.Controllers
             catch (ResourceHasToManyRequestsException)
             {
                 return StatusCode(StatusCodes.Status429TooManyRequests);
+            }
+            catch (ClientSendSlowException e)
+            {
+                return Problem(e.Message, null, (int)HttpStatusCode.RequestTimeout);
             }
         }
 
@@ -199,17 +206,24 @@ namespace Horde.Storage.Controllers
             }
 
             _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
-            using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
-            
-            await using Stream stream = payload.GetStream();
-
-            BlobIdentifier id = await BlobIdentifier.FromStream(stream);
-            await _storage.PutObjectKnownHash(ns, payload, id);
-
-            return Ok(new
+            try
             {
-                Identifier = id.ToString()
-            });
+                using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
+
+                await using Stream stream = payload.GetStream();
+
+                BlobIdentifier id = await BlobIdentifier.FromStream(stream);
+                await _storage.PutObjectKnownHash(ns, payload, id);
+                
+                return Ok(new
+                {
+                    Identifier = id.ToString()
+                });
+            }
+            catch (ClientSendSlowException e)
+            {
+                return Problem(e.Message, null, (int)HttpStatusCode.RequestTimeout);
+            }
         }
 
         [HttpDelete("{ns}/{id}")]
