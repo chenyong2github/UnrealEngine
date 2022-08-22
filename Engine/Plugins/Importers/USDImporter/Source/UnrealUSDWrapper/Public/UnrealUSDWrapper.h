@@ -416,6 +416,11 @@ namespace UnrealIdentifiers
 	extern UNREALUSDWRAPPER_API const pxr::TfToken GroomBindingAPI;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealGroomToBind;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealGroomReferenceMesh;
+
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealContentPath;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealAssetType;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealExportTime;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealEngineVersion;
 #endif // #if USE_USD_SDK
 
 	extern UNREALUSDWRAPPER_API const TCHAR* Invisible;

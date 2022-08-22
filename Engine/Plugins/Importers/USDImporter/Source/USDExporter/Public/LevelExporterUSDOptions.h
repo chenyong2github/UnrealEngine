@@ -94,6 +94,20 @@ public:
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ShowOnlyInnerProperties ) )
     FLevelExporterUSDOptionsInner Inner;
 
+	/**
+	 * Whether to export levels and LevelSequences even if the existing files already describe the same versions of compatible assets.
+	 * This is only checked when bReplaceIdentical is set on the asset export task. Otherwise we'll never overwrite files.
+	 */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Collision", meta = ( DisplayName = "Re-export Identical Levels and Sequences" ) )
+	bool bReExportIdenticalLevelsAndSequences = false;
+
+	/**
+	 * Whether to export any asset (StaticMesh, Material, etc.) even if the existing file already describes the same version of a compatible asset.
+	 * This is only checked when bReplaceIdentical is set on the asset export task. Otherwise we'll never overwrite files.
+	 */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Collision", meta = ( DisplayName = "Re-export Identical Assets" ) )
+	bool bReExportIdenticalAssets = false;
+
 public:
 	// We temporarily stash our export task here as a way of passing our options down to
 	// the Python exporter, that does the actual level exporting.

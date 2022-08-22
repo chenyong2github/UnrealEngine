@@ -28,9 +28,17 @@ public:
 	 * @param Material - Material to bake
 	 * @param Options - Options to use when baking
 	 * @param FilePath - Filepath of the destination file (e.g. "C:/MyFolder/Red.usda")
+	 * @param ReplaceIdentical - Whether to overwrite the destination file in case it already exists
+	 * @param bReExportIdenticalAssets - Whether to overwrite the destination file even if it already describes an up-to-date version of Material
 	 * @return Whether the export was successful or not.
 	 */
-	static bool ExportMaterial( const UMaterialInterface& Material, const FUsdMaterialBakingOptions& Options, const FFilePath& FilePath );
+	static bool ExportMaterial(
+		const UMaterialInterface& Material,
+		const FUsdMaterialBakingOptions& Options,
+		const FFilePath& FilePath,
+		bool bReplaceIdentical = true,
+		bool bReExportIdenticalAssets = false
+	);
 
 	/**
 	 * Exports the provided materials next to the stage's root layer on disk, replacing usages of unrealMaterials within `Stage` with references
@@ -45,6 +53,8 @@ public:
 	 *                      behaviors when authoring the material binding relationships.
 	 * @param bRemoveUnrealMaterials - Whether to remove the `unrealMaterial` attributes after replacing them with material bindings.
 	 *                                 Important because the `unrealMaterial` attributes will be used as a higher priority when determining material assignments
+	 * @param ReplaceIdentical - Whether to overwrite the destination files in case they already exist
+	 * @param bReExportIdenticalAssets - Whether to overwrite the destination files even if they already describe up-to-date versions of Materials
 	 * @return Whether the export was successful or not.
 	 */
 	static bool ExportMaterialsForStage(
@@ -53,6 +63,8 @@ public:
 		const UE::FUsdStage& Stage,
 		bool bIsAssetLayer,
 		bool bUsePayload,
-		bool bRemoveUnrealMaterials
+		bool bRemoveUnrealMaterials,
+		bool bReplaceIdentical = true,
+		bool bReExportIdenticalAssets = false
 	);
 };

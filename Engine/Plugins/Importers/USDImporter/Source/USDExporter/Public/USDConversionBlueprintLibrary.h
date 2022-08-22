@@ -58,6 +58,15 @@ public:
 	UFUNCTION( BlueprintCallable, Category = "World utils" )
 	static TSet<AActor*> GetActorsToConvert( UWorld* World );
 
+	/**
+	 * Generates a unique identifier string that involves the package's persistent guid, the corresponding file save
+	 * date and time, and the number of times the package has been dirtied since last being saved.
+	 * This can be used to track the version of exported assets and levels, to prevent reexporting of actors and
+	 * components.
+	 */
+	UFUNCTION( BlueprintCallable, Category = "World utils" )
+	static FString GeneratePackageVersionGuidString( const UPackage* Package );
+
 	UFUNCTION( BlueprintCallable, Category = "Layer utils" )
 	static FString MakePathRelativeToLayer( const FString& AnchorLayerPath, const FString& PathToMakeRelative );
 

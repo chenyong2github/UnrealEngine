@@ -8,6 +8,7 @@
 #include "USDLog.h"
 #include "USDPrimConversion.h"
 #include "USDShadeConversion.h"
+#include "USDUnrealAssetInfo.h"
 
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdPrim.h"
@@ -477,5 +478,38 @@ int32 UUsdConversionBlueprintContext::GetUsdStageNumFrames()
 #else
 	return 0;
 #endif // USE_USD_SDK
+}
+
+void UUsdConversionBlueprintContext::SetPrimAssetInfo( const FString& PrimPath, const FUsdUnrealAssetInfo& Info )
+{
+#if USE_USD_SDK
+	if ( !Stage )
+	{
+		return;
+	}
+
+	UE::FUsdPrim Prim = UnrealToUsdImpl::GetPrim( Stage, PrimPath );
+	if ( !Prim )
+	{
+		return;
+	}
+
+	UsdUtils::SetPrimAssetInfo( Prim, Info );
+#endif // USE_USD_SDK
+}
+
+FUsdUnrealAssetInfo UUsdConversionBlueprintContext::GetPrimAssetInfo( const FString& PrimPath )
+{
+#if USE_USD_SDK
+	if ( Stage )
+	{
+		if ( UE::FUsdPrim Prim = UnrealToUsdImpl::GetPrim( Stage, PrimPath ) )
+		{
+			return UsdUtils::GetPrimAssetInfo( Prim );
+		}
+	}
+#endif // USE_USD_SDK
+
+	return {};
 }
 

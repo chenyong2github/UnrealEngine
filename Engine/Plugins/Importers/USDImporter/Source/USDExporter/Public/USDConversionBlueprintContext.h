@@ -3,9 +3,8 @@
 #pragma once
 
 #include "UnrealUSDWrapper.h"
-
 #include "USDStageOptions.h"
-
+#include "USDUnrealAssetInfo.h"
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/UsdStage.h"
 
@@ -167,4 +166,12 @@ public:
 	/** Returns how many frames of animation the stage would generate if imported */
 	UFUNCTION( BlueprintCallable, Category = "Conversion utils" )
 	int32 GetUsdStageNumFrames();
+
+	/** Adds to Prim the assetInfo metadata the values described in Info */
+	UFUNCTION( BlueprintCallable, Category = "Conversion utils" )
+	void SetPrimAssetInfo( const FString& PrimPath, const FUsdUnrealAssetInfo& Info );
+
+	/** Retrieves from Prim the assetInfo metadata values that we use as export metadata, when exporting Unreal assets */
+	UFUNCTION( BlueprintCallable, Category = "Conversion utils" )
+	FUsdUnrealAssetInfo GetPrimAssetInfo( const FString& PrimPath );
 };

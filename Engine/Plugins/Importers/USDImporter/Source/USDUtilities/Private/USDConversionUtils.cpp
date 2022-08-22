@@ -10,6 +10,7 @@
 #include "USDLog.h"
 #include "USDProjectSettings.h"
 #include "USDTypesConversion.h"
+#include "USDUnrealAssetInfo.h"
 
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/SdfPath.h"
@@ -2314,6 +2315,156 @@ TArray<UE::FSdfPath> UsdUtils::DuplicatePrims( const TArray<UE::FUsdPrim>& Prims
 		}
 
 		Result[ Index ] = UE::FSdfPath{ NewSpecPath };
+	}
+#endif // USE_USD_SDK
+
+	return Result;
+}
+
+void UsdUtils::SetPrimAssetInfo( UE::FUsdPrim& Prim, const FUsdUnrealAssetInfo& Info )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim UsdPrim{ Prim };
+	if ( !UsdPrim )
+	{
+		return;
+	}
+
+	// Just fetch the dictionary already since we'll add custom keys anyway
+	pxr::VtDictionary AssetInfoDict = UsdPrim.GetAssetInfo();
+
+	if ( !Info.Name.IsEmpty() )
+	{
+		AssetInfoDict.SetValueAtPath(
+			pxr::UsdModelAPIAssetInfoKeys->name,
+			pxr::VtValue{ UnrealToUsd::ConvertString( *Info.Name ).Get() }
+		);
+	}
+
+	if ( !Info.Identifier.IsEmpty() )
+	{
+		AssetInfoDict.SetValueAtPath(
+			pxr::UsdModelAPIAssetInfoKeys->identifier,
+			pxr::VtValue{ pxr::SdfAssetPath{ UnrealToUsd::ConvertString( *Info.Identifier ).Get() } }
+		);
+	}
+
+	if ( !Info.Version.IsEmpty() )
+	{
+		AssetInfoDict.SetValueAtPath(
+			pxr::UsdModelAPIAssetInfoKeys->version,
+			pxr::VtValue{ UnrealToUsd::ConvertString( *Info.Version ).Get() }
+		);
+	}
+
+	if ( !Info.UnrealContentPath.IsEmpty() )
+	{
+		AssetInfoDict.SetValueAtPath(
+			UnrealIdentifiers::UnrealContentPath,
+			pxr::VtValue{ UnrealToUsd::ConvertString( *Info.UnrealContentPath ).Get() }
+		);
+	}
+
+	if ( !Info.UnrealAssetType.IsEmpty() )
+	{
+		AssetInfoDict.SetValueAtPath(
+			UnrealIdentifiers::UnrealAssetType,
+			pxr::VtValue{ UnrealToUsd::ConvertString( *Info.UnrealAssetType ).Get() }
+		);
+	}
+
+	if ( !Info.UnrealExportTime.IsEmpty() )
+	{
+		AssetInfoDict.SetValueAtPath(
+			UnrealIdentifiers::UnrealExportTime,
+			pxr::VtValue{ UnrealToUsd::ConvertString( *Info.UnrealExportTime ).Get() }
+		);
+	}
+
+	if ( !Info.UnrealEngineVersion.IsEmpty() )
+	{
+		AssetInfoDict.SetValueAtPath(
+			UnrealIdentifiers::UnrealEngineVersion,
+			pxr::VtValue{ UnrealToUsd::ConvertString( *Info.UnrealEngineVersion ).Get() }
+		);
+	}
+
+	UsdPrim.SetAssetInfo( AssetInfoDict );
+#endif // USE_USD_SDK
+}
+
+FUsdUnrealAssetInfo UsdUtils::GetPrimAssetInfo( const UE::FUsdPrim& Prim )
+{
+	FUsdUnrealAssetInfo Result;
+
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim UsdPrim{ Prim };
+	if ( !UsdPrim )
+	{
+		return Result;
+	}
+
+	// Just fetch the dictionary already since we'll fetch custom keys anyway
+	pxr::VtDictionary AssetInfoDict = UsdPrim.GetAssetInfo();
+
+	if ( const pxr::VtValue* Value = AssetInfoDict.GetValueAtPath( pxr::UsdModelAPIAssetInfoKeys->name ) )
+	{
+		if ( Value->IsHolding<std::string>() )
+		{
+			Result.Name = UsdToUnreal::ConvertString( Value->Get<std::string>() );
+		}
+	}
+
+	if ( const pxr::VtValue* Value = AssetInfoDict.GetValueAtPath( pxr::UsdModelAPIAssetInfoKeys->identifier ) )
+	{
+		if ( Value->IsHolding<pxr::SdfAssetPath>() )
+		{
+			Result.Identifier = UsdToUnreal::ConvertString( Value->Get<pxr::SdfAssetPath>().GetAssetPath() );
+		}
+	}
+
+	if ( const pxr::VtValue* Value = AssetInfoDict.GetValueAtPath( pxr::UsdModelAPIAssetInfoKeys->version ) )
+	{
+		if ( Value->IsHolding<std::string>() )
+		{
+			Result.Version = UsdToUnreal::ConvertString( Value->Get<std::string>() );
+		}
+	}
+
+	if ( const pxr::VtValue* Value = AssetInfoDict.GetValueAtPath( UnrealIdentifiers::UnrealContentPath ) )
+	{
+		if ( Value->IsHolding<std::string>() )
+		{
+			Result.UnrealContentPath = UsdToUnreal::ConvertString( Value->Get<std::string>() );
+		}
+	}
+
+	if ( const pxr::VtValue* Value = AssetInfoDict.GetValueAtPath( UnrealIdentifiers::UnrealAssetType ) )
+	{
+		if ( Value->IsHolding<std::string>() )
+		{
+			Result.UnrealAssetType = UsdToUnreal::ConvertString( Value->Get<std::string>() );
+		}
+	}
+
+	if ( const pxr::VtValue* Value = AssetInfoDict.GetValueAtPath( UnrealIdentifiers::UnrealExportTime ) )
+	{
+		if ( Value->IsHolding<std::string>() )
+		{
+			Result.UnrealExportTime = UsdToUnreal::ConvertString( Value->Get<std::string>() );
+		}
+	}
+
+	if ( const pxr::VtValue* Value = AssetInfoDict.GetValueAtPath( UnrealIdentifiers::UnrealEngineVersion ) )
+	{
+		if ( Value->IsHolding<std::string>() )
+		{
+			Result.UnrealEngineVersion = UsdToUnreal::ConvertString( Value->Get<std::string>() );
+		}
 	}
 #endif // USE_USD_SDK
 

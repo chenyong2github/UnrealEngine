@@ -148,6 +148,11 @@ namespace UnrealIdentifiers
 	const TfToken GroomBindingAPI = TfToken( "GroomBindingAPI" );
 	const TfToken UnrealGroomToBind = TfToken( "unreal:groomBinding:groom" );
 	const TfToken UnrealGroomReferenceMesh = TfToken( "unreal:groomBinding:referenceMesh" );
+
+	const TfToken UnrealContentPath = TfToken( "unreal:contentPath" );
+	const TfToken UnrealAssetType = TfToken( "unreal:assetType" );
+	const TfToken UnrealExportTime = TfToken( "unreal:exportTime" );
+	const TfToken UnrealEngineVersion = TfToken( "unreal:engineVersion" );
 }
 
 std::string FUsdAttribute::GetUnrealPropertyPath( const pxr::UsdAttribute& Attribute )

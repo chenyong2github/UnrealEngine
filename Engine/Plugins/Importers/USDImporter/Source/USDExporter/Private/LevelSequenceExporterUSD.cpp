@@ -10,6 +10,7 @@
 #include "USDLog.h"
 #include "USDOptionsWindow.h"
 #include "USDPrimConversion.h"
+#include "USDUnrealAssetInfo.h"
 
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/SdfPath.h"
@@ -465,6 +466,9 @@ namespace UE
 				ULevelSequence& RootSequence;
 
 				ULevelSequenceExporterUsdOptions* ExportOptions;
+
+				// Where we store our ExportTask's bReplaceIdentical, which indicates if we should overwrite files or not
+				bool bReplaceIdentical;
 
 				// Our own read-only sequencer that we use to play the level sequences while we bake them out one frame at a time
 				TSharedRef<ISequencer> Sequencer;
@@ -941,55 +945,7 @@ namespace UE
 				// Overwriting other files is OK, as we want to allow a "repeatedly export over the same files" workflow
 				FString UniqueFilePath = UsdUtils::GetUniqueName( FilePath, Context.UsedFilePaths );
 
-				UE::FUsdStage UsdStage = UnrealUSDWrapper::NewStage( *UniqueFilePath );
-				if ( !UsdStage )
-				{
-					return;
-				}
-
-				if ( Context.ExportOptions )
-				{
-					UsdUtils::SetUsdStageMetersPerUnit( UsdStage, Context.ExportOptions->StageOptions.MetersPerUnit );
-					UsdUtils::SetUsdStageUpAxis( UsdStage, Context.ExportOptions->StageOptions.UpAxis );
-					UsdStage.SetTimeCodesPerSecond( Context.ExportOptions->TimeCodesPerSecond );
-				}
-
-				// Set this so that if we open this exported sequence back up in UE the Sequencer will start up showing
-				// the same DisplayRate as the original exported sequence
-				UsdStage.SetFramesPerSecond( MovieScene->GetDisplayRate().AsDecimal() );
-
-				UE::FUsdPrim RootPrim = UsdStage.OverridePrim( UE::FSdfPath( TEXT( "/Root" ) ) );
-				if ( !RootPrim )
-				{
-					return;
-				}
-
-				UsdStage.SetDefaultPrim( RootPrim );
-
-				// Currently we bake the full composed result of each level sequence into a single layer,
-				// because USD can't compose individual layers in the same way (with blending and so on). So here
-				// we make sure that our sequencer exports each MovieSceneSequence as if it was a root, emitting the
-				// same result as if we had exported that subsequence's LevelSequence by itself
-				Context.Sequencer->ResetToNewRootSequence( MovieSceneSequence );
-
-				TMap< UMovieSceneSequence*, TArray<FMovieSceneSequenceID> > SequenceInstances = GetSequenceHierarchyInstances( MovieSceneSequence, Context.Sequencer.Get() );
-
-				TMap<USceneComponent*, FCombinedComponentBakers> Bakers;
-				GenerateBakersForMovieScene( Context, MovieSceneSequence, SequenceInstances, UsdStage, Bakers );
-
-				// Bake this MovieScene
-				// We bake each MovieScene individually instead of doing one large simultaneous bake because this way
-				// not only we avoid having to handle FMovieSceneSequenceTransforms when writing out the UsdTimeCodes,
-				// we guarantee we'll get the same result as if we exported each subsequence individually.
-				// They could have differed, for example, if we had a limited the playback range of a subsequence
-				BakeMovieSceneSequence( Context, MovieSceneSequence, UsdStage, Bakers );
-
-				const TRange< FFrameNumber > PlaybackRange = MovieScene->GetPlaybackRange();
-				const FFrameRate Resolution = MovieScene->GetTickResolution();
-				const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-				const double StageTimeCodesPerSecond = UsdStage.GetTimeCodesPerSecond();
-				const FFrameRate StageFrameRate( StageTimeCodesPerSecond, 1 );
-
+				// Try exporting subsequences if needed
 				if ( Context.ExportOptions )
 				{
 					if ( Context.ExportOptions->bExportSubsequencesAsLayers )
@@ -1042,15 +998,129 @@ namespace UE
 							}
 						}
 					}
+				}
 
-					// We can add the level as a sublayer to every exported subsequence, so that each can be opened individually and
-					// automatically load the level layer. It doesn't matter much if the parent stage has composed the level
-					// sublayer multiple times (in case we add subsequence layers as sublayers in the future), as the prims will
-					// just all override each other with the same data
-					if ( Context.ExportOptions->bUseExportedLevelAsSublayer && FPaths::FileExists( Context.LevelFilePath ) )
+				FString LevelSequenceVersion = MovieSceneSequence.GetSignature().ToString();
+				{
+					// We could just use the GUID directly but all other asset types end up with SHA hash size so lets be
+					// consistent
+					FSHA1 SHA1;
+					SHA1.UpdateWithString( *LevelSequenceVersion, LevelSequenceVersion.Len() );
+					SHA1.Final();
+					FSHAHash Hash;
+					SHA1.GetHash( &Hash.Hash[ 0 ] );
+					LevelSequenceVersion = Hash.ToString();
+				}
+
+				// Check if we already have exported what we plan on exporting anyway
+				if ( FPaths::FileExists( UniqueFilePath ) )
+				{
+					if ( !Context.bReplaceIdentical )
 					{
-						UsdUtils::InsertSubLayer( UsdStage.GetRootLayer(), *Context.LevelFilePath );
+						UE_LOG( LogUsd, Log,
+							TEXT( "Skipping export of asset '%s' as the target file '%s' already exists." ),
+							*MovieSceneSequence.GetPathName(),
+							*UExporter::CurrentFilename
+						);
+						return;
 					}
+					// If we don't want to re-export this level sequence we need to check if its the same version
+					else if ( !Context.ExportOptions->bReExportIdenticalLevelsAndSequences )
+					{
+						// Don't use the stage cache here as we want this stage to close within this scope in case
+						// we have to overwrite its files due to e.g. missing payload or anything like that
+						const bool bUseStageCache = false;
+						const EUsdInitialLoadSet InitialLoadSet = EUsdInitialLoadSet::LoadNone;
+						if ( UE::FUsdStage TempStage = UnrealUSDWrapper::OpenStage( *UniqueFilePath, InitialLoadSet, bUseStageCache ) )
+						{
+							if ( UE::FUsdPrim RootPrim = TempStage.GetDefaultPrim() )
+							{
+								FUsdUnrealAssetInfo Info = UsdUtils::GetPrimAssetInfo( RootPrim );
+
+								const bool bVersionMatches = !Info.Version.IsEmpty() && Info.Version == LevelSequenceVersion;
+
+								const bool bAssetTypeMatches = !Info.UnrealAssetType.IsEmpty()
+									&& Info.UnrealAssetType == MovieSceneSequence.GetClass()->GetName();
+
+								if ( bVersionMatches && bAssetTypeMatches )
+								{
+									UE_LOG( LogUsd, Log,
+										TEXT( "Skipping export of asset '%s' as the target file '%s' already contains up-to-date exported data." ),
+										*MovieSceneSequence.GetPathName(),
+										*UniqueFilePath
+									);
+									return;
+								}
+							}
+						}
+					}
+				}
+
+				UE::FUsdStage UsdStage = UnrealUSDWrapper::NewStage( *UniqueFilePath );
+				if ( !UsdStage )
+				{
+					return;
+				}
+
+				if ( Context.ExportOptions )
+				{
+					UsdUtils::SetUsdStageMetersPerUnit( UsdStage, Context.ExportOptions->StageOptions.MetersPerUnit );
+					UsdUtils::SetUsdStageUpAxis( UsdStage, Context.ExportOptions->StageOptions.UpAxis );
+					UsdStage.SetTimeCodesPerSecond( Context.ExportOptions->TimeCodesPerSecond );
+				}
+
+				// Set this so that if we open this exported sequence back up in UE the Sequencer will start up showing
+				// the same DisplayRate as the original exported sequence
+				UsdStage.SetFramesPerSecond( MovieScene->GetDisplayRate().AsDecimal() );
+
+				UE::FUsdPrim RootPrim = UsdStage.OverridePrim( UE::FSdfPath( TEXT( "/Root" ) ) );
+				if ( !RootPrim )
+				{
+					return;
+				}
+
+				UsdStage.SetDefaultPrim( RootPrim );
+
+				// Currently we bake the full composed result of each level sequence into a single layer,
+				// because USD can't compose individual layers in the same way (with blending and so on). So here
+				// we make sure that our sequencer exports each MovieSceneSequence as if it was a root, emitting the
+				// same result as if we had exported that subsequence's LevelSequence by itself
+				Context.Sequencer->ResetToNewRootSequence( MovieSceneSequence );
+
+				TMap< UMovieSceneSequence*, TArray<FMovieSceneSequenceID> > SequenceInstances = GetSequenceHierarchyInstances( MovieSceneSequence, Context.Sequencer.Get() );
+
+				TMap<USceneComponent*, FCombinedComponentBakers> Bakers;
+				GenerateBakersForMovieScene( Context, MovieSceneSequence, SequenceInstances, UsdStage, Bakers );
+
+				// Bake this MovieScene
+				// We bake each MovieScene individually instead of doing one large simultaneous bake because this way
+				// not only we avoid having to handle FMovieSceneSequenceTransforms when writing out the UsdTimeCodes,
+				// we guarantee we'll get the same result as if we exported each subsequence individually.
+				// They could have differed, for example, if we had a limited the playback range of a subsequence
+				BakeMovieSceneSequence( Context, MovieSceneSequence, UsdStage, Bakers );
+
+				// We can add the level as a sublayer to every exported subsequence, so that each can be opened individually and
+				// automatically load the level layer. It doesn't matter much if the parent stage has composed the level
+				// sublayer multiple times (in case we add subsequence layers as sublayers in the future), as the prims will
+				// just all override each other with the same data
+				if ( Context.ExportOptions && Context.ExportOptions->bUseExportedLevelAsSublayer && FPaths::FileExists( Context.LevelFilePath ) )
+				{
+					UsdUtils::InsertSubLayer( UsdStage.GetRootLayer(), *Context.LevelFilePath );
+				}
+
+				// Write asset info now that we finished exporting
+				if ( UE::FUsdPrim AssetDefaultPrim = UsdStage.GetDefaultPrim() )
+				{
+					FUsdUnrealAssetInfo Info;
+					Info.Name = MovieSceneSequence.GetName();
+					Info.Identifier = UniqueFilePath;
+					Info.Version = LevelSequenceVersion;
+					Info.UnrealContentPath = MovieSceneSequence.GetPathName();
+					Info.UnrealAssetType = MovieSceneSequence.GetClass()->GetName();
+					Info.UnrealExportTime = FDateTime::Now().ToString();
+					Info.UnrealEngineVersion = FEngineVersion::Current().ToString();
+
+					UsdUtils::SetPrimAssetInfo( AssetDefaultPrim, Info );
 				}
 
 				Context.ExportedMovieScenes.Add( &MovieSceneSequence, UniqueFilePath );
@@ -1106,28 +1176,31 @@ bool ULevelSequenceExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type
 	{
 		Options = Cast<ULevelSequenceExporterUsdOptions>( ExportTask->Options );
 	}
-
 	if ( !Options )
 	{
 		Options = GetMutableDefault<ULevelSequenceExporterUsdOptions>();
+
+		// Prompt with an options dialog if we can
+		if ( Options && ( !ExportTask || !ExportTask->bAutomated ) )
+		{
+			Options->LevelExportOptions.AssetFolder.Path = FPaths::Combine( FPaths::GetPath( UExporter::CurrentFilename ), TEXT( "Assets" ) );
+			Options->TimeCodesPerSecond = MovieScene->GetDisplayRate().AsDecimal();
+
+			const bool bIsImport = false;
+			const bool bContinue = SUsdOptionsWindow::ShowImportExportOptions( *Options, bIsImport );
+			if ( !bContinue )
+			{
+				return false;
+			}
+		}
 	}
 	if ( !Options )
 	{
 		return false;
 	}
 
-	if ( !ExportTask || !ExportTask->bAutomated )
-	{
-		Options->LevelExportOptions.AssetFolder.Path = FPaths::Combine( FPaths::GetPath( UExporter::CurrentFilename ), TEXT( "Assets" ) );
-		Options->TimeCodesPerSecond = MovieScene->GetDisplayRate().AsDecimal();
-
-		const bool bIsImport = false;
-		const bool bContinue = SUsdOptionsWindow::ShowImportExportOptions( *Options, bIsImport );
-		if ( !bContinue )
-		{
-			return false;
-		}
-	}
+	// See comment on the analogous line within StaticMeshExporterUSD.cpp
+	ExportTask->bPrompt = false;
 
 	double StartTime = FPlatformTime::Cycles64();
 
@@ -1173,6 +1246,7 @@ bool ULevelSequenceExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type
 
 	LevelSequenceExporterImpl::FLevelSequenceExportContext Context{ *LevelSequence, TempSequencer.ToSharedRef(), SpawnRegister.ToSharedRef() };
 	Context.ExportOptions = Options;
+	Context.bReplaceIdentical = ExportTask->bReplaceIdentical;
 
 	// Spawn (but hide) all spawnables so that they will also show up on the level export if we need them to.
 	// We have to traverse the template IDs when spawning spawnables, because we'll want to force each individual spawnable of each
@@ -1205,6 +1279,8 @@ bool ULevelSequenceExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type
 			ULevelExporterUSDOptions* LevelOptions = GetMutableDefault<ULevelExporterUSDOptions>();
 			LevelOptions->StageOptions = Options->StageOptions;
 			LevelOptions->Inner = Options->LevelExportOptions;
+			LevelOptions->bReExportIdenticalAssets = Options->bReExportIdenticalAssets;
+			LevelOptions->bReExportIdenticalLevelsAndSequences = Options->bReExportIdenticalLevelsAndSequences;
 
 			UAssetExportTask* LevelExportTask = NewObject<UAssetExportTask>();
 			FGCObjectScopeGuard ExportTaskGuard( LevelExportTask );
@@ -1213,11 +1289,11 @@ bool ULevelSequenceExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type
 			LevelExportTask->Exporter = nullptr;
 			LevelExportTask->Filename = Context.LevelFilePath;
 			LevelExportTask->bSelected = false;
-			LevelExportTask->bReplaceIdentical = true;
+			LevelExportTask->bReplaceIdentical = ExportTask->bReplaceIdentical;
 			LevelExportTask->bPrompt = false;
 			LevelExportTask->bUseFileArchive = false;
 			LevelExportTask->bWriteEmptyFiles = false;
-			LevelExportTask->bAutomated = true; // Pretend this is an automated task so it doesn't pop the dialog
+			LevelExportTask->bAutomated = true; // Pretend this is an automated task so it doesn't pop the options dialog
 
 			UExporter::RunAssetExportTask( LevelExportTask );
 		}

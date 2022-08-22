@@ -47,6 +47,7 @@ class USceneComponent;
 class UUsdAssetImportData;
 enum class EUsdDuplicateType : uint8;
 enum class EUsdUpAxis : uint8;
+struct FUsdUnrealAssetInfo;
 namespace UE
 {
 	class FUsdPrim;
@@ -345,5 +346,11 @@ namespace UsdUtils
 		EUsdDuplicateType DuplicateType,
 		const UE::FSdfLayer& TargetLayer = UE::FSdfLayer{}
 	);
+
+	/** Adds to Prim the assetInfo metadata the values described in Info */
+	USDUTILITIES_API void SetPrimAssetInfo( UE::FUsdPrim& Prim, const FUsdUnrealAssetInfo& Info );
+
+	/** Retrieves from Prim the assetInfo metadata values that we use as export metadata, when exporting Unreal assets */
+	USDUTILITIES_API FUsdUnrealAssetInfo GetPrimAssetInfo( const UE::FUsdPrim& Prim );
 }
 

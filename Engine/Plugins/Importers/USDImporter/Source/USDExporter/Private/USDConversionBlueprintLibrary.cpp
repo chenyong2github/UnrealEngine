@@ -6,6 +6,7 @@
 #include "UnrealUSDWrapper.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
+#include "USDExporterModule.h"
 #include "USDLayerUtils.h"
 #include "USDLog.h"
 
@@ -287,6 +288,11 @@ TSet<AActor*> UUsdConversionBlueprintLibrary::GetActorsToConvert( UWorld* World 
 
 	Result.Remove( nullptr );
 	return Result;
+}
+
+FString UUsdConversionBlueprintLibrary::GeneratePackageVersionGuidString( const UPackage* Package )
+{
+	return IUsdExporterModule::GeneratePackageVersionGuidString( Package );
 }
 
 FString UUsdConversionBlueprintLibrary::MakePathRelativeToLayer( const FString& AnchorLayerPath, const FString& PathToMakeRelative )

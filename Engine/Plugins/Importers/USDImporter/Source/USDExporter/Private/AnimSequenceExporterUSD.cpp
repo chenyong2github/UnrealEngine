@@ -3,15 +3,18 @@
 #include "AnimSequenceExporterUSD.h"
 
 #include "AnimSequenceExporterUSDOptions.h"
-#include "EngineAnalytics.h"
 #include "Engine/SkeletalMesh.h"
+#include "EngineAnalytics.h"
 #include "MaterialExporterUSD.h"
+#include "SkeletalMeshExporterUSDOptions.h"
 #include "UnrealUSDWrapper.h"
 #include "USDClassesModule.h"
 #include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
+#include "USDLog.h"
 #include "USDOptionsWindow.h"
 #include "USDSkeletalDataConversion.h"
+#include "USDUnrealAssetInfo.h"
 
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/SdfPath.h"
@@ -20,6 +23,7 @@
 
 #include "Animation/AnimSequence.h"
 #include "AssetExportTask.h"
+#include "UObject/GCObjectScopeGuard.h"
 
 namespace UE
 {
@@ -117,17 +121,23 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 
 	FScopedUsdMessageLog UsdMessageLog;
 
+	// We may dispatch another export task in between, so lets cache this for ourselves as it may
+	// be overwritten
+	const FString AnimSequenceFile = UExporter::CurrentFilename;
+
 	UAnimSequenceExporterUSDOptions* Options = nullptr;
 	if ( ExportTask )
 	{
 		Options = Cast<UAnimSequenceExporterUSDOptions>( ExportTask->Options );
 	}
-	if ( !Options && ( !ExportTask || !ExportTask->bAutomated ) )
+	if ( !Options )
 	{
 		Options = GetMutableDefault<UAnimSequenceExporterUSDOptions>();
-		if ( Options )
+
+		// Prompt with an options dialog if we can
+		if ( Options && ( !ExportTask || !ExportTask->bAutomated ) )
 		{
-			Options->PreviewMeshOptions.MaterialBakingOptions.TexturesDir.Path = FPaths::Combine( FPaths::GetPath( UExporter::CurrentFilename ), TEXT( "Textures" ) );
+			Options->PreviewMeshOptions.MaterialBakingOptions.TexturesDir.Path = FPaths::Combine( FPaths::GetPath( AnimSequenceFile ), TEXT( "Textures" ) );
 
 			const bool bIsImport = false;
 			const bool bContinue = SUsdOptionsWindow::ShowImportExportOptions( *Options, bIsImport );
@@ -137,45 +147,17 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 			}
 		}
 	}
-
-	double StartTime = FPlatformTime::Cycles64();
-
-	// If bUsePayload is true, we'll intercept the filename so that we write the mesh data to
-	// "C:/MyFolder/file_payload.usda" and create an "asset" file "C:/MyFolder/file.usda" that uses it
-	// as a payload, pointing at the default prim
-	FString PayloadFilename = UExporter::CurrentFilename;
-	const FString& AssetFilename = UExporter::CurrentFilename;
-	if ( Options && Options->PreviewMeshOptions.bUsePayload )
-	{
-		FString PathPart;
-		FString FilenamePart;
-		FString ExtensionPart;
-		FPaths::Split( PayloadFilename, PathPart, FilenamePart, ExtensionPart );
-
-		if ( FormatExtension.Contains( Options->PreviewMeshOptions.PayloadFormat ) )
-		{
-			ExtensionPart = Options->PreviewMeshOptions.PayloadFormat;
-		}
-
-		PayloadFilename = FPaths::Combine( PathPart, FilenamePart + TEXT( "_payload." ) + ExtensionPart );
-	}
-
-	UE::FUsdStage AssetStage = UnrealUSDWrapper::NewStage( *AssetFilename );
-	if ( !AssetStage )
+	if ( !Options )
 	{
 		return false;
 	}
 
-	if ( Options )
-	{
-		UsdUtils::SetUsdStageMetersPerUnit( AssetStage, Options->StageOptions.MetersPerUnit );
-		UsdUtils::SetUsdStageUpAxis( AssetStage, Options->StageOptions.UpAxis );
-	}
+	// See comment on the analogous line within StaticMeshExporterUSD.cpp
+	ExportTask->bPrompt = false;
 
-	FString PrimPath;
-	UE::FUsdPrim SkelRootPrim;
+	// Export preview mesh if needed
 	USkeletalMesh* SkeletalMesh = nullptr;
-
+	FString MeshAssetFile;
 	if ( Options && Options->bExportPreviewMesh )
 	{
 		SkeletalMesh = AnimSequence->GetPreviewMesh();
@@ -194,41 +176,34 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 
 		if ( SkeletalMesh )
 		{
-			PrimPath = TEXT( "/" ) + UsdUtils::SanitizeUsdIdentifier( *SkeletalMesh->GetName() );
-			SkelRootPrim = AssetStage.DefinePrim( UE::FSdfPath( *PrimPath ), TEXT( "SkelRoot" ) );
+			FString PathPart;
+			FString FilenamePart;
+			FString ExtensionPart;
+			FPaths::Split( AnimSequenceFile, PathPart, FilenamePart, ExtensionPart );
+			MeshAssetFile = FPaths::Combine( PathPart, FilenamePart + TEXT( "_SkeletalMesh." ) + ExtensionPart );
 
-			if ( SkelRootPrim )
+			USkeletalMeshExporterUSDOptions* SkeletalMeshOptions = GetMutableDefault<USkeletalMeshExporterUSDOptions>();
+			SkeletalMeshOptions->StageOptions = Options->StageOptions;
+			SkeletalMeshOptions->MeshAssetOptions = Options->PreviewMeshOptions;
+			SkeletalMeshOptions->bReExportIdenticalAssets = Options->bReExportIdenticalAssets;
+
+			UAssetExportTask* LevelExportTask = NewObject<UAssetExportTask>();
+			FGCObjectScopeGuard ExportTaskGuard( LevelExportTask );
+			LevelExportTask->Object = SkeletalMesh;
+			LevelExportTask->Options = SkeletalMeshOptions;
+			LevelExportTask->Exporter = nullptr;
+			LevelExportTask->Filename = MeshAssetFile;
+			LevelExportTask->bSelected = false;
+			LevelExportTask->bReplaceIdentical = ExportTask->bReplaceIdentical;
+			LevelExportTask->bPrompt = false;
+			LevelExportTask->bUseFileArchive = false;
+			LevelExportTask->bWriteEmptyFiles = false;
+			LevelExportTask->bAutomated = true; // Pretend this is an automated task so it doesn't pop the options dialog
+
+			const bool bSucceeded = UExporter::RunAssetExportTask( LevelExportTask );
+			if ( !bSucceeded )
 			{
-				AssetStage.SetDefaultPrim( SkelRootPrim );
-			}
-
-			// Using payload: Convert mesh data through the asset stage (that references the payload) so that we can
-			// author mesh data on the payload layer and material data on the asset layer
-			if ( Options->PreviewMeshOptions.bUsePayload )
-			{
-				if ( UE::FUsdStage PayloadStage = UnrealUSDWrapper::NewStage( *PayloadFilename ) )
-				{
-					UsdUtils::SetUsdStageMetersPerUnit( PayloadStage, Options->StageOptions.MetersPerUnit );
-					UsdUtils::SetUsdStageUpAxis( PayloadStage, Options->StageOptions.UpAxis );
-
-					if ( UE::FUsdPrim PayloadSkelRootPrim = PayloadStage.DefinePrim( UE::FSdfPath( *PrimPath ), TEXT( "SkelRoot" ) ) )
-					{
-						UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, PayloadSkelRootPrim, UsdUtils::GetDefaultTimeCode(), &AssetStage, Options->PreviewMeshOptions.LowestMeshLOD, Options->PreviewMeshOptions.HighestMeshLOD );
-						PayloadStage.SetDefaultPrim( PayloadSkelRootPrim );
-					}
-
-					PayloadStage.GetRootLayer().Save();
-
-					if ( SkelRootPrim )
-					{
-						UsdUtils::AddPayload( SkelRootPrim, *PayloadFilename );
-					}
-				}
-			}
-			// Not using payload: Just author everything on the current edit target of the payload (== asset) layer
-			else
-			{
-				UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, SkelRootPrim, UsdUtils::GetDefaultTimeCode(), nullptr, Options->PreviewMeshOptions.LowestMeshLOD, Options->PreviewMeshOptions.HighestMeshLOD );
+				MeshAssetFile = {};
 			}
 		}
 		else
@@ -239,66 +214,174 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 		}
 	}
 
-	PrimPath += TEXT( "/" ) + UsdUtils::SanitizeUsdIdentifier( *AnimSequence->GetName() );
-	UE::FUsdPrim SkelAnimPrim = AssetStage.DefinePrim( UE::FSdfPath( *PrimPath ), TEXT("SkelAnimation") );
-	if ( !SkelAnimPrim )
+	// Collect the target paths for our SkelAnimation prim and its SkelRoot, if any
+	UE::FSdfPath SkelRootPath;
+	UE::FSdfPath SkelAnimPath;
+	if ( MeshAssetFile.IsEmpty() )
+	{
+		SkelAnimPath = UE::FSdfPath::AbsoluteRootPath().AppendChild(
+			*UsdUtils::SanitizeUsdIdentifier( *AnimSequence->GetName() )
+		);
+	}
+	else
+	{
+		SkelRootPath = UE::FSdfPath::AbsoluteRootPath().AppendChild(
+			*UsdUtils::SanitizeUsdIdentifier( *SkeletalMesh->GetName() )
+		);
+
+		SkelAnimPath = SkelRootPath.AppendChild(
+			*UsdUtils::SanitizeUsdIdentifier( *AnimSequence->GetName() )
+		);
+	}
+
+	FString AnimSequenceVersion;
+	if ( UAnimDataModel* DataModel = AnimSequence->GetDataModel() )
+	{
+		AnimSequenceVersion = DataModel->GenerateGuid().ToString();
+
+		// We could just use the GUID directly but all other asset types end up with SHA hash size so lets be
+		// consistent
+		FSHA1 SHA1;
+		SHA1.UpdateWithString( *AnimSequenceVersion, AnimSequenceVersion.Len() );
+		SHA1.Final();
+		FSHAHash Hash;
+		SHA1.GetHash( &Hash.Hash[ 0 ] );
+		AnimSequenceVersion = Hash.ToString();
+	}
+
+	// Check if we already have exported what we plan on exporting anyway
+	if ( FPaths::FileExists( AnimSequenceFile ) && !AnimSequenceVersion.IsEmpty() )
+	{
+		if ( !ExportTask->bReplaceIdentical )
+		{
+			UE_LOG( LogUsd, Log,
+				TEXT( "Skipping export of asset '%s' as the target file '%s' already exists." ),
+				*Object->GetPathName(),
+				*AnimSequenceFile
+			);
+			return false;
+		}
+		// If we don't want to re-export this asset we need to check if its the same version
+		else if ( !Options->bReExportIdenticalAssets )
+		{
+			// Don't use the stage cache here as we want this stage to close within this scope in case
+			// we have to overwrite its files due to e.g. missing payload or anything like that
+			const bool bUseStageCache = false;
+			const EUsdInitialLoadSet InitialLoadSet = EUsdInitialLoadSet::LoadNone;
+			if ( UE::FUsdStage TempStage = UnrealUSDWrapper::OpenStage( *AnimSequenceFile, InitialLoadSet, bUseStageCache ) )
+			{
+				if ( UE::FUsdPrim SkelAnimPrim = TempStage.GetPrimAtPath( SkelAnimPath ) )
+				{
+					FUsdUnrealAssetInfo Info = UsdUtils::GetPrimAssetInfo( SkelAnimPrim );
+
+					const bool bVersionMatches = !Info.Version.IsEmpty() && Info.Version == AnimSequenceVersion;
+
+					const bool bAssetTypeMatches = !Info.UnrealAssetType.IsEmpty()
+						&& Info.UnrealAssetType == Object->GetClass()->GetName();
+
+					if ( bVersionMatches && bAssetTypeMatches )
+					{
+						UE_LOG( LogUsd, Log,
+							TEXT( "Skipping export of asset '%s' as the target file '%s' already contains up-to-date exported data." ),
+							*Object->GetPathName(),
+							*AnimSequenceFile
+						);
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	double StartTime = FPlatformTime::Cycles64();
+
+	UE::FUsdStage AnimationStage = UnrealUSDWrapper::NewStage( *AnimSequenceFile );
+	if ( !AnimationStage )
 	{
 		return false;
 	}
 
-	if ( !AssetStage.GetDefaultPrim() )
+	UE::FUsdPrim SkelRootPrim;
+	UE::FUsdPrim SkelAnimPrim;
+
+	// Haven't exported the SkeletalMesh, just make a stage with a SkelAnimation prim
+	if( MeshAssetFile.IsEmpty() )
 	{
-		AssetStage.SetDefaultPrim( SkelAnimPrim );
+		SkelAnimPrim = AnimationStage.DefinePrim( SkelAnimPath, TEXT( "SkelAnimation" ) );
+		if ( !SkelAnimPrim )
+		{
+			return false;
+		}
+
+		AnimationStage.SetDefaultPrim( SkelAnimPrim );
+	}
+	// Exported a SkeletalMesh prim elsewhere, create a SkelRoot containing this SkelAnimation prim
+	else
+	{
+		SkelRootPrim = AnimationStage.DefinePrim( SkelRootPath, TEXT( "SkelRoot" ) );
+		if ( !SkelRootPrim )
+		{
+			return false;
+		}
+
+		SkelAnimPrim = AnimationStage.DefinePrim( SkelAnimPath, TEXT( "SkelAnimation" ) );
+		if ( !SkelAnimPrim )
+		{
+			return false;
+		}
+
+		AnimationStage.SetDefaultPrim( SkelRootPrim );
+		UsdUtils::BindAnimationSource( SkelRootPrim, SkelAnimPrim );
+
+		// Add a reference to the SkelRoot of the static mesh, which will compose in the Mesh and Skeleton prims
+		UsdUtils::AddReference( SkelRootPrim, *MeshAssetFile );
 	}
 
-	const double StartTimeCode = 0.0;
-	const double EndTimeCode = AnimSequence->GetNumberOfSampledKeys() - 1;
-	UsdUtils::AddTimeCodeRangeToLayer( AssetStage.GetRootLayer(), StartTimeCode, EndTimeCode );
+	// Configure stage metadata
+	{
+		if ( Options )
+		{
+			UsdUtils::SetUsdStageMetersPerUnit( AnimationStage, Options->StageOptions.MetersPerUnit );
+			UsdUtils::SetUsdStageUpAxis( AnimationStage, Options->StageOptions.UpAxis );
+		}
 
-	AssetStage.SetTimeCodesPerSecond( AnimSequence->GetSamplingFrameRate().AsDecimal() );
+		const double StartTimeCode = 0.0;
+		const double EndTimeCode = AnimSequence->GetNumberOfSampledKeys() - 1;
+		UsdUtils::AddTimeCodeRangeToLayer( AnimationStage.GetRootLayer(), StartTimeCode, EndTimeCode );
+
+		AnimationStage.SetTimeCodesPerSecond( AnimSequence->GetSamplingFrameRate().AsDecimal() );
+	}
 
 	UnrealToUsd::ConvertAnimSequence( AnimSequence, SkelAnimPrim );
 
-	if ( SkelRootPrim )
+	// Write asset info now that we finished exporting
 	{
-		UsdUtils::BindAnimationSource( SkelRootPrim, SkelAnimPrim );
+		FUsdUnrealAssetInfo Info;
+		Info.Name = AnimSequence->GetName();
+		Info.Identifier = AnimSequenceFile;
+		Info.Version = AnimSequenceVersion;
+		Info.UnrealContentPath = AnimSequence->GetPathName();
+		Info.UnrealAssetType = AnimSequence->GetClass()->GetName();
+		Info.UnrealExportTime = FDateTime::Now().ToString();
+		Info.UnrealEngineVersion = FEngineVersion::Current().ToString();
+
+		UsdUtils::SetPrimAssetInfo( SkelAnimPrim, Info );
 	}
 
-	// Bake materials and replace unrealMaterials with references to the baked files.
-	// Do this last because we will need to check the default prim of the stage during the traversal for replacing baked materials
-	if ( Options && Options->bExportPreviewMesh && SkeletalMesh && Options->PreviewMeshOptions.bBakeMaterials )
-	{
-		TSet<UMaterialInterface*> MaterialsToBake;
-		for ( const FSkeletalMaterial& SkeletalMaterial : SkeletalMesh->GetMaterials() )
-		{
-			MaterialsToBake.Add( SkeletalMaterial.MaterialInterface );
-		}
-
-		const bool bIsAssetLayer = true;
-		UMaterialExporterUsd::ExportMaterialsForStage(
-			MaterialsToBake.Array(),
-			Options->PreviewMeshOptions.MaterialBakingOptions,
-			AssetStage,
-			bIsAssetLayer,
-			Options->PreviewMeshOptions.bUsePayload,
-			Options->PreviewMeshOptions.bRemoveUnrealMaterials
-		);
-	}
-
-	AssetStage.GetRootLayer().Save();
+	AnimationStage.GetRootLayer().Save();
 
 	// Analytics
 	{
 		bool bAutomated = ExportTask ? ExportTask->bAutomated : false;
 		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
-		FString Extension = FPaths::GetExtension( UExporter::CurrentFilename );
+		FString Extension = FPaths::GetExtension( AnimSequenceFile );
 
 		UE::AnimSequenceExporterUSD::Private::SendAnalytics(
 			Object,
 			Options,
 			bAutomated,
 			ElapsedSeconds,
-			UsdUtils::GetUsdStageNumFrames( AssetStage ),
+			UsdUtils::GetUsdStageNumFrames( AnimationStage ),
 			Extension
 		);
 	}
