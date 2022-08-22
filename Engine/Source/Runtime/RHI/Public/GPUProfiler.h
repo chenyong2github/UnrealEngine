@@ -147,8 +147,8 @@ struct RHI_API FGPUProfilerEventNodeFrame
 */
 struct FGPUTimingCalibrationTimestamp
 {
-	uint64 GPUMicroseconds;
-	uint64 CPUMicroseconds;
+	uint64 GPUMicroseconds = 0;
+	uint64 CPUMicroseconds = 0;
 };
 
 /**
