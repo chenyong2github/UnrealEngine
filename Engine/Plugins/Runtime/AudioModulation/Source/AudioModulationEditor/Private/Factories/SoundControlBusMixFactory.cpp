@@ -2,7 +2,7 @@
 
 #include "SoundControlBusMixFactory.h"
 
-#include "EngineAnalytics.h"
+#include "AudioAnalytics.h"
 #include "SoundControlBusMix.h"
 
 
@@ -17,9 +17,6 @@ USoundControlBusMixFactory::USoundControlBusMixFactory(const FObjectInitializer&
 
 UObject* USoundControlBusMixFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.AudioModulation.ControlBusMixCreated"));
-	}
+	Audio::Analytics::RecordEvent_Usage(TEXT("AudioModulation.ControlBusMixCreated"));
 	return NewObject<USoundControlBusMix>(InParent, Name, Flags);
 }

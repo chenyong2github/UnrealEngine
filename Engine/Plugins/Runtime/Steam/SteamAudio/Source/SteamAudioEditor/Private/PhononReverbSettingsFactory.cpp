@@ -4,7 +4,7 @@
 
 #include "PhononReverbSettingsFactory.h"
 
-#include "EngineAnalytics.h"
+#include "AudioAnalytics.h"
 #include "PhononReverbSourceSettings.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
@@ -54,10 +54,7 @@ UPhononReverbSettingsFactory::UPhononReverbSettingsFactory(const FObjectInitiali
 UObject* UPhononReverbSettingsFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context,
 	FFeedbackContext* Warn)
 {
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.SteamAudio.PhononReverbSettingsCreated"));
-	}
+	Audio::Analytics::RecordEvent_Usage(TEXT("SteamAudio.PhononReverbSettingsCreated"));
 	return NewObject<UPhononReverbSourceSettings>(InParent, InName, Flags);
 }
 

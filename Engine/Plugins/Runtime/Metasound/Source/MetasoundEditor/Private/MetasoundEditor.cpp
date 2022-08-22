@@ -11,7 +11,6 @@
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraphUtilities.h"
 #include "Editor.h"
-#include "EngineAnalytics.h"
 #include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -896,11 +895,6 @@ namespace Metasound
 			if (bRestartSound)
 			{
 				Play();
-			}
-
-			if (FEngineAnalytics::IsAvailable())
-			{
-				FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.MetaSounds.EditorOpened"));
 			}
 		}
 

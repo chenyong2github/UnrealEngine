@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MotoSynthSourceFactory.h"
+#include "AudioAnalytics.h"
 #include "MotoSynthSourceAsset.h"
-#include "EngineAnalytics.h"
 #include "MotoSynthEditorModule.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
@@ -37,10 +37,7 @@ UMotoSynthPresetFactory::UMotoSynthPresetFactory(const FObjectInitializer& Objec
 UObject* UMotoSynthPresetFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
 	UMotoSynthPreset* NewAsset = NewObject<UMotoSynthPreset >(InParent, InName, Flags);
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.MotoSynth.PresetCreated"));
-	}
+	Audio::Analytics::RecordEvent_Usage(TEXT("MotoSynth.PresetCreated"));
 	return NewAsset;
 }
 

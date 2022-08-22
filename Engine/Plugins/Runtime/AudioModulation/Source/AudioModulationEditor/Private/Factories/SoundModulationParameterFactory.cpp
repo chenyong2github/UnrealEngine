@@ -2,8 +2,8 @@
 
 #include "SoundModulationParameterFactory.h"
 
+#include "AudioAnalytics.h"
 #include "ClassViewerFilter.h"
-#include "EngineAnalytics.h"
 #include "SoundModulationParameter.h"
 #include "Kismet2/SClassPickerDialog.h"
 
@@ -73,10 +73,7 @@ UObject* USoundModulationParameterFactory::FactoryCreateNew(UClass* InClass, UOb
 	{
 		NewParameter = NewObject<USoundModulationParameter>(InParent, ParameterClass, InName, Flags);
 
-		if (FEngineAnalytics::IsAvailable())
-		{
-			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.AudioModulation.ModulationParameterCreated"));
-		}
+		Audio::Analytics::RecordEvent_Usage(TEXT("AudioModulation.ModulationParameterCreated"));
 	}
 
 	return NewParameter;

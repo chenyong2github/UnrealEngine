@@ -2,13 +2,9 @@
 
 #include "IAudioLink.h"
 
-#include "EngineAnalytics.h"
+#include "AudioAnalytics.h"
 
 IAudioLink::IAudioLink()
 {
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.AudioLink.InstanceCreated"));
-	}
+	Audio::Analytics::RecordEvent_Usage(TEXT("AudioLink.InstanceCreated"));
 }
-

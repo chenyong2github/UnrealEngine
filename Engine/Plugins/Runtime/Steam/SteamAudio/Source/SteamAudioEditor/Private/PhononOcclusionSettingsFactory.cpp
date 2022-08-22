@@ -4,7 +4,7 @@
 
 #include "PhononOcclusionSettingsFactory.h"
 
-#include "EngineAnalytics.h"
+#include "AudioAnalytics.h"
 #include "PhononOcclusionSourceSettings.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
@@ -54,10 +54,7 @@ UPhononOcclusionSettingsFactory::UPhononOcclusionSettingsFactory(const FObjectIn
 UObject* UPhononOcclusionSettingsFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context,
 	FFeedbackContext* Warn)
 {
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.SteamAudio.PhononOcclusionSettingsCreated"));
-	}
+	Audio::Analytics::RecordEvent_Usage(TEXT("SteamAudio.PhononOcclusionSettingsCreated"));
 	return NewObject<UPhononOcclusionSourceSettings>(InParent, InName, Flags);
 }
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "EpicSynth1PresetBank.h"
 
-#include "EngineAnalytics.h"
+#include "AudioAnalytics.h"
 #include "SynthComponents/EpicSynth1Component.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
@@ -37,10 +37,7 @@ UModularSynthPresetBankFactory::UModularSynthPresetBankFactory(const FObjectInit
 UObject* UModularSynthPresetBankFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
 	UModularSynthPresetBank* NewPresetBank = NewObject<UModularSynthPresetBank>(InParent, InName, Flags);
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.SynthesisAndDSPEffects.ModularSynthPresetBankCreated"));
-	}
+	Audio::Analytics::RecordEvent_Usage(TEXT("SynthesisAndDSPEffects.ModularSynthPresetBankCreated"));
 	return NewPresetBank;
 }
 

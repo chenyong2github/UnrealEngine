@@ -193,12 +193,6 @@ void FSoundSubmixEditor::Init(const EToolkitMode::Type Mode, const TSharedPtr<IT
 			break;
 		}
 	}
-
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.Submix.EditorOpened"));
-	}
-
 }
 
 FSoundSubmixEditor::~FSoundSubmixEditor()

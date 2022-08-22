@@ -3,11 +3,11 @@
 
 #include "Audio.h"
 #include "Audio/AudioDebug.h"
+#include "AudioAnalytics.h"
 #include "AudioDefines.h"
 #include "AudioDevice.h"
 #include "AudioMixerDevice.h"
 #include "Engine/World.h"
-#include "EngineAnalytics.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundWave.h"
 #include "GameFramework/GameUserSettings.h"
@@ -711,13 +711,7 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 		IsUsingAudioMixerCvar->Set(0, ECVF_SetByConstructor);
 	}
 
-	if (FEngineAnalytics::IsAvailable())
-	{ 		
-		if (bForceNoAudioMixer)
-		{
-			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.ForceNoAudioMixer"));
-		}
-	}
+	Audio::Analytics::RecordEvent_Usage(TEXT("ForceNoAudioMixer"));
 
 	return AudioDeviceModule != nullptr;
 }
@@ -914,10 +908,7 @@ bool FAudioDeviceManager::Initialize()
 		}
 		else
 		{
-			if (FEngineAnalytics::IsAvailable())
-			{
-				FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.AllAudioDisabled"));
-			}
+			Audio::Analytics::RecordEvent_Usage(TEXT("AllAudioDisabled"));
 		}
 	}
 

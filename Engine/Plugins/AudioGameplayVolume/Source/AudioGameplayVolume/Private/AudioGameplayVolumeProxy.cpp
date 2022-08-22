@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioGameplayVolumeProxy.h"
+#include "AudioAnalytics.h"
 #include "AudioGameplayVolumeMutator.h"
 #include "AudioGameplayVolumeSubsystem.h"
 #include "AudioGameplayVolumeLogs.h"
 #include "AudioGameplayVolumeComponent.h"
-#include "EngineAnalytics.h"
 #include "Interfaces/IAudioGameplayCondition.h"
 #include "Components/BrushComponent.h"
 #include "Components/PrimitiveComponent.h"
@@ -53,11 +53,7 @@ void UAudioGameplayVolumeProxy::InitFromComponent(const UAudioGameplayVolumeComp
 		}
 	}
 
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.AudioGameplayVolume.InitializedFromComponent"));
-	}
-
+	Audio::Analytics::RecordEvent_Usage(TEXT("AudioGameplayVolume.InitializedFromComponent"));
 }
 
 void UAudioGameplayVolumeProxy::FindMutatorPriority(FAudioProxyMutatorPriorities& Priorities) const

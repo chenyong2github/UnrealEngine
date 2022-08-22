@@ -5,7 +5,7 @@
 #include "ResonanceAudioReverbPluginPresetFactory.h"
 #include "ResonanceAudioReverb.h"
 
-#include "EngineAnalytics.h"
+#include "AudioAnalytics.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
@@ -51,10 +51,7 @@ UResonanceAudioReverbPluginPresetFactory::UResonanceAudioReverbPluginPresetFacto
 
 UObject* UResonanceAudioReverbPluginPresetFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.ResonanceAudio.ReverbPresetCreated"));
-	}
+	Audio::Analytics::RecordEvent_Usage(TEXT("ResonanceAudio.ReverbPresetCreated"));
 	return NewObject<UResonanceAudioReverbPluginPreset>(InParent, InName, Flags);
 }
 

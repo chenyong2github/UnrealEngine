@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundModImporterFactory.h"
-#include "EngineAnalytics.h"
+#include "AudioAnalytics.h"
 #include "EngineGlobals.h"
 #include "Editor.h"
 #include "SoundMod.h"
@@ -122,10 +122,7 @@ UObject* USoundModImporterFactory::FactoryCreateBinary
 		ComponentsToRestart[ComponentIndex]->Play();
 	}
 
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent("Audio.Usage.SoundModule.BinaryCreated");
-	}
+	Audio::Analytics::RecordEvent_Usage("SoundModule.BinaryCreated");
 
 	return Sound;
 }

@@ -175,12 +175,6 @@ void FSoundClassEditor::InitSoundClassEditor( const EToolkitMode::Type Mode, con
 			break;
 		}
 	}
-
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.SoundClass.EditorOpened"));
-	}
-
 }
 
 void FSoundClassEditor::BindCommands()
