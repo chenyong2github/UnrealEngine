@@ -52,6 +52,9 @@ FRewindDebugger::FRewindDebugger()  :
 	bTargetActorPositionValid(false),
 	bIsDetailsPanelOpen(true)
 {
+	UE::Trace::ToggleChannel(TEXT("Cpu"), false);
+	UE::Trace::ToggleChannel(TEXT("Gpu"), false);
+
 	RecordingDuration.Set(0);
 
 	if (GEditor->bIsSimulatingInEditor || GEditor->PlayWorld)
@@ -226,9 +229,11 @@ uint64 FRewindDebugger::GetTargetActorId() const
 
 void FRewindDebugger::RefreshDebugTracks()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRewindDebugger::RefreshDebugTracks);
 	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
+
 		UWorld* World = GetWorldToVisualize();
 
 		if (const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider"))
@@ -671,6 +676,7 @@ void FRewindDebugger::Tick(float DeltaTime)
 			{
 				if (bRecording)
 				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(FRewindDebugger::Tick_UpdateSimulating);
 					RecordingDuration.Set(FObjectTrace::GetWorldElapsedTime(World));
 					SetCurrentScrubTime(RecordingDuration.Get());
 					TrackCursorDelegate.ExecuteIfBound(false);
@@ -682,6 +688,7 @@ void FRewindDebugger::Tick(float DeltaTime)
 				{
 					if (ControlState == EControlState::Play || ControlState == EControlState::PlayReverse)
 					{
+						TRACE_CPUPROFILER_EVENT_SCOPE(FRewindDebugger::Tick_UpdatePlayback);
 						float Rate = PlaybackRate * (ControlState == EControlState::Play ? 1 : -1);
 						SetCurrentScrubTime(FMath::Clamp(CurrentScrubTime + Rate * DeltaTime, 0.0f, RecordingDuration.Get()));
 						TrackCursorDelegate.ExecuteIfBound(Rate<0);

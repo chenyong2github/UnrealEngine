@@ -54,9 +54,40 @@ void FRewindDebuggerObjectTrack::IterateSubTracksInternal(TFunction<void(TShared
 	}
 };
 
+FText FRewindDebuggerObjectTrack::GetDisplayNameInternal() const
+{
+	if (!bDisplayNameValid)
+	{
+		IRewindDebugger* RewindDebugger = IRewindDebugger::Instance();
+		const TraceServices::IAnalysisSession* Session = RewindDebugger->GetAnalysisSession();
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
+
+		const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider");
+
+		const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(ObjectId);
+
+		DisplayName = FText::FromString(ObjectInfo.Name);
+
+		if (const FWorldInfo* WorldInfo = GameplayProvider->FindWorldInfoFromObject(ObjectId))
+		{
+			bool bIsServer = WorldInfo->NetMode == FWorldInfo::ENetMode::DedicatedServer;
+
+			if (bIsServer)
+			{
+				DisplayName = FText::Format(NSLOCTEXT("RewindDebuggerTrack", " (Server)", "{0} (Server)"), FText::FromString(ObjectInfo.Name));
+			}
+		}
+
+		bDisplayNameValid = true;
+	}
+
+	return DisplayName;
+}
+
 bool FRewindDebuggerObjectTrack::UpdateInternal()
 {
-	IRewindDebugger *RewindDebugger = IRewindDebugger::Instance();
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRewindDebuggerObjectTrack::UpdateInternal);
+	IRewindDebugger* RewindDebugger = IRewindDebugger::Instance();
 	const TraceServices::IAnalysisSession* Session = RewindDebugger->GetAnalysisSession();
 	TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
 
@@ -85,31 +116,31 @@ bool FRewindDebuggerObjectTrack::UpdateInternal()
 
 	// add debug views as children
 	FRewindDebuggerTrackCreators::EnumerateCreators([this, &Session, &bChanged, RewindDebugger](const IRewindDebuggerTrackCreator* Creator)
-	{
-		int32 FoundIndex = Children.FindLastByPredicate([&bChanged, this, Creator, RewindDebugger](const TSharedPtr<FRewindDebuggerTrack>& Track) { return Track->GetName() == Creator->GetName(); });
-
-		const bool bHasDebugInfo = Creator->HasDebugInfo(ObjectId) && IsTargetType(ObjectId, Creator->GetTargetTypeName(), *Session);
-
-		if (FoundIndex >= 0)
 		{
-			if (!bHasDebugInfo)
+			int32 FoundIndex = Children.FindLastByPredicate([&bChanged, this, Creator, RewindDebugger](const TSharedPtr<FRewindDebuggerTrack>& Track) { return Track->GetName() == Creator->GetName(); });
+
+			const bool bHasDebugInfo = Creator->HasDebugInfo(ObjectId) && IsTargetType(ObjectId, Creator->GetTargetTypeName(), *Session);
+
+			if (FoundIndex >= 0)
 			{
-				bChanged = true;
-				Children.RemoveAt(FoundIndex);
-			}
-		}
-		else
-		{
-			if (bHasDebugInfo)
-			{
-				bChanged = true;
-				if (TSharedPtr<FRewindDebuggerTrack> Track = Creator->CreateTrack(ObjectId))
+				if (!bHasDebugInfo)
 				{
-					Children.Add(Track);
+					bChanged = true;
+					Children.RemoveAt(FoundIndex);
 				}
 			}
-		}
-	});
+			else
+			{
+				if (bHasDebugInfo)
+				{
+					bChanged = true;
+					if (TSharedPtr<FRewindDebuggerTrack> Track = Creator->CreateTrack(ObjectId))
+					{
+						Children.Add(Track);
+					}
+				}
+			}
+		});
 
 	// Fallback codepath to add views with no track implementation
 	FRewindDebuggerViewCreators::EnumerateCreators([this, &Session, &bChanged, RewindDebugger](const IRewindDebuggerViewCreator* Creator)
@@ -140,24 +171,33 @@ bool FRewindDebuggerObjectTrack::UpdateInternal()
 	);
 
 	// add child objects/components
-	GameplayProvider->EnumerateObjects(RewindDebugger->GetCurrentTraceRange().GetLowerBoundValue(), RewindDebugger->GetCurrentTraceRange().GetUpperBoundValue(),
-		[this, &bChanged, GameplayProvider, &FoundObjects, RewindDebugger](const FObjectInfo& InObjectInfo)
-		{
-			if (InObjectInfo.OuterId == ObjectId)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRewindDebuggerObjectTrack::UpdateInternal_AddChildComponents);
+
+		TRange<double> ViewRange = RewindDebugger->GetCurrentViewRange();
+
+		GameplayProvider->EnumerateSubobjects(ObjectId, [this, &FoundObjects, &bChanged,&ViewRange, GameplayProvider](uint64 SubobjectId)
 			{
-				int32 FoundIndex = Children.FindLastByPredicate([&InObjectInfo](const TSharedPtr<FRewindDebuggerTrack>& Info) { return Info->GetObjectId() == InObjectInfo.Id; });
-				bool bExisted = FoundIndex >= 0;
-
-				if (!bExisted)
+				TRange<double> Lifetime = GameplayProvider->GetObjectRecordingLifetime(SubobjectId);
+				TRange<double> Overlap = TRange<double>::Intersection(Lifetime, ViewRange);
+				// only display the track if the lifetime of the object and the view range overlap
+				if (!Overlap.IsEmpty())
 				{
-					FoundIndex = Children.Num();
-					Children.Add(MakeShared<FRewindDebuggerObjectTrack>(InObjectInfo.Id, InObjectInfo.Name));
-				}
+					int32 FoundIndex = Children.FindLastByPredicate([SubobjectId](const TSharedPtr<FRewindDebuggerTrack>& Info) { return Info->GetObjectId() == SubobjectId; });
+					bool bExisted = FoundIndex >= 0;
 
-				bChanged = bChanged | !bExisted;
-				FoundObjects.Add(InObjectInfo.Id);
-			}
-		});
+					if (!bExisted)
+					{
+						FoundIndex = Children.Num();
+
+						Children.Add(MakeShared<FRewindDebuggerObjectTrack>(SubobjectId, ""));
+					}
+
+					bChanged = bChanged || !bExisted;
+					FoundObjects.Add(SubobjectId);
+				}
+			});
+	}
 
 	// add controller and it's component hierarchy if one is attached
 	if (bAddController)

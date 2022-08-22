@@ -179,7 +179,6 @@ void FGameplayProvider::EnumerateObjectPropertyValues(uint64 InObjectId, const F
 		}
 	}
 }
-
 void FGameplayProvider::EnumerateObjects(TFunctionRef<void(const FObjectInfo&)> Callback) const
 {
 	Session.ReadAccessCheck();
@@ -202,6 +201,18 @@ void FGameplayProvider::EnumerateObjects(double StartTime, double EndTime, TFunc
 			return TraceServices::EEventEnumerate::Continue;
 		});
 }
+
+void FGameplayProvider::EnumerateSubobjects(uint64 ObjectId, TFunctionRef<void(uint64 SubobjectId)> Callback) const
+{
+	TArray<uint64, TInlineAllocator<32>> SubobjectIds;
+	ObjectHierarchy.MultiFind(ObjectId, SubobjectIds);
+
+	for (auto SubObjectId : SubobjectIds)
+	{
+		Callback(SubObjectId);
+	}
+}
+
 
 const FClassInfo* FGameplayProvider::FindClassInfo(uint64 InClassId) const
 {
@@ -398,6 +409,8 @@ void FGameplayProvider::AppendObject(uint64 InObjectId, uint64 InOuterId, uint64
 
 		int32 NewObjectInfoIndex = ObjectInfos.Add(NewObjectInfo);
 		ObjectIdToIndexMap.Add(InObjectId, NewObjectInfoIndex);
+
+		ObjectHierarchy.AddUnique(NewObjectInfo.OuterId, NewObjectInfo.Id);
 	}
 }
 
