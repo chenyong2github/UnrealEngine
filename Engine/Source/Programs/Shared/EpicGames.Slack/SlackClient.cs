@@ -98,8 +98,15 @@ namespace EpicGames.Slack
 			TResponse responseObject = JsonSerializer.Deserialize<TResponse>(responseBytes)!;
 			if (shouldLogError(responseObject))
 			{
-				_logger.LogError("Failed to send Slack message ({Error}). Request: {Request}. Response: {Response}", responseObject.Error, requestJson, Encoding.UTF8.GetString(responseBytes));
-				throw new SlackException(responseObject.Error ?? "unknown");
+				try
+				{
+					throw new SlackException(responseObject.Error ?? "unknown");
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Failed to send Slack message ({Error}). Request: {Request}. Response: {Response}", responseObject.Error, requestJson, Encoding.UTF8.GetString(responseBytes));
+					throw;
+				}
 			}
 			return responseObject;
 		}

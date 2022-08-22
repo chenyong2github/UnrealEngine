@@ -52,7 +52,7 @@ namespace Horde.Build.Notifications.Sinks
 	/// <summary>
 	/// Maintains a connection to Slack, in order to receive socket-mode notifications of user interactions
 	/// </summary>
-	public class SlackNotificationSink : BackgroundService, INotificationSink, IAvatarService
+	public sealed class SlackNotificationSink : BackgroundService, INotificationSink, IAvatarService
 	{
 		const bool defaultAllowMentions = true;
 
@@ -260,8 +260,7 @@ namespace Horde.Build.Notifications.Sinks
 			base.Dispose();
 
 			_userCache.Dispose();
-
-			GC.SuppressFinalize(this);
+			_httpClient.Dispose();
 		}
 
 		#region Avatars
