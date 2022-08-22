@@ -59,7 +59,7 @@ float MaxNormalBias;
 float FilterWidth;
 float AbsorptionScale; // inverse distance at which we hit BaseColor - exposed mainly so we can disable absorption handling and experiment with the default scale factor
 float CameraFocusDistance;
-float CameraLensRadius;
+float2 CameraLensRadius;
 
 RWTexture2D<float4> RadianceTexture;
 RWTexture2D<float4> AlbedoTexture;
@@ -794,7 +794,7 @@ FPathState CreatePathState(int2 PixelIndex)
 		Output.Ray = CreatePrimaryRay(ViewportUV);
 	}
 
-	if (CameraLensRadius > 0)
+	if (CameraLensRadius.y > 0)
 	{
 	    // DOF enabled - apply simple thin-lens model
 		float2 LensSample = RandomSequence_GenerateSample2D(Output.RandSequence);
