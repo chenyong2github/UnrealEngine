@@ -8,7 +8,7 @@
 #include "MediaTexture.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "Widgets/SMediaPlayerEditorViewer.h"
+#include "Widgets/SMediaSourceManagerPreview.h"
 
 #define LOCTEXT_NAMESPACE "SMediaSourceManagerPreviews"
 
@@ -70,8 +70,7 @@ void SMediaSourceManagerPreviews::RefreshChannels()
 					.Padding(2)
 					.HAlign(HAlign_Center)
 					[
-						SNew(SMediaPlayerEditorViewer, *MediaPlayer, MediaTexture, StyleRef, false)
-							.bShowUrl(false)
+						SNew(SMediaSourceManagerPreview, *MediaPlayer, MediaTexture, StyleRef)
 					];
 
 				Channel->Play();
