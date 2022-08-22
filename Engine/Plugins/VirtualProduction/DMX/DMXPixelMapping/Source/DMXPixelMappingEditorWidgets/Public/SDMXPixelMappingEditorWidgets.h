@@ -14,6 +14,7 @@
 class STextBlock;
 class SUniformGridPanel;
 
+class UE_DEPRECATED(5.1, "Pixel Mapping Editor Widgets are no longer supported and to be implemented per view. See SDMXPixelMappingOutputComponent for an example.") SDMXPixelMappingScreenLayout;
 class DMXPIXELMAPPINGEDITORWIDGETS_API SDMXPixelMappingScreenLayout 
 	: public SCompoundWidget
 {
@@ -81,6 +82,7 @@ private:
 	TArray<TPair<int32, int32>> SortedList;
 };
 
+class UE_DEPRECATED(5.1, "Pixel Mapping Editor Widgets are no longer supported and to be implemented per view. See SDMXPixelMappingOutputComponent for an example.") SDMXPixelMappingSimpleScreenLayout;
 class DMXPIXELMAPPINGEDITORWIDGETS_API SDMXPixelMappingSimpleScreenLayout
 	: public SCompoundWidget
 {
@@ -120,6 +122,7 @@ private:
 	TAttribute<const FSlateBrush*> Brush;
 };
 
+class UE_DEPRECATED(5.1, "Pixel Mapping Editor Widgets are no longer supported and to be implemented per view. See SDMXPixelMappingOutputComponent for an example.") SDMXPixelMappingCell;
 class DMXPIXELMAPPINGEDITORWIDGETS_API SDMXPixelMappingCell
 	: public SCompoundWidget
 {

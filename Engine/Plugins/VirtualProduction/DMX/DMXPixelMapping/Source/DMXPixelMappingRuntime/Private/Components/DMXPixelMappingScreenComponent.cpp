@@ -26,9 +26,8 @@ const FVector2D UDMXPixelMappingScreenComponent::MinGridSize = FVector2D(1.f);
 UDMXPixelMappingScreenComponent::UDMXPixelMappingScreenComponent()
 	: bSendToAllOutputPorts(true)
 {
-	SizeX = 500.f; 
-	SizeY = 500.f; 
-
+	SetSize(FVector2D(500.f, 500.f)); 
+	
 	NumXCells = 10;
 	NumYCells = 10;
 
@@ -48,6 +47,25 @@ void UDMXPixelMappingScreenComponent::PostEditChangeChainProperty(FPropertyChang
 	// Call the parent at the first place
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 	
+	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, OutputPortReferences))
+	{
+		// Rebuild the set of ports
+		OutputPorts.Reset();
+		for (const FDMXOutputPortReference& OutputPortReference : OutputPortReferences)
+		{
+			const FDMXOutputPortSharedRef* OutputPortPtr = FDMXPortManager::Get().GetOutputPorts().FindByPredicate([&OutputPortReference](const FDMXOutputPortSharedRef& OutputPort) {
+				return OutputPort->GetPortGuid() == OutputPortReference.GetPortGuid();
+				});
+
+			if (OutputPortPtr)
+			{
+				OutputPorts.Add(*OutputPortPtr);
+			}
+		}
+	}
+	
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumXCells) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumYCells) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, LocalUniverse) ||
@@ -72,41 +90,26 @@ void UDMXPixelMappingScreenComponent::PostEditChangeChainProperty(FPropertyChang
 			ScreenComponentBox->RebuildGrid(GridParams);
 		}
 	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, OutputPortReferences))
+	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		// Rebuild the set of ports
-		OutputPorts.Reset();
-		for (const FDMXOutputPortReference& OutputPortReference : OutputPortReferences)
+		if (PropertyChangedChainEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetPositionXPropertyName() ||
+			PropertyChangedChainEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetPositionYPropertyName())
 		{
-			const FDMXOutputPortSharedRef* OutputPortPtr = FDMXPortManager::Get().GetOutputPorts().FindByPredicate([&OutputPortReference](const FDMXOutputPortSharedRef& OutputPort) {
-				return OutputPort->GetPortGuid() == OutputPortReference.GetPortGuid();
-				});
-
-			if (OutputPortPtr)
+			if (ComponentWidget_DEPRECATED.IsValid())
 			{
-				OutputPorts.Add(*OutputPortPtr);
+				ComponentWidget_DEPRECATED->SetPosition(GetPosition());
+			}
+		}
+		else if (PropertyChangedChainEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeXPropertyName() ||
+			PropertyChangedChainEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeYPropertyName())
+		{
+			if (ComponentWidget_DEPRECATED.IsValid())
+			{
+				ComponentWidget_DEPRECATED->SetSize(GetPosition());
 			}
 		}
 	}
-	else if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
-	{
-		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionX) ||
-			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionY))
-		{
-			if (ComponentWidget.IsValid())
-			{
-				ComponentWidget->SetPosition(FVector2D(PositionX, PositionY));
-			}
-		}
-		else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, SizeX) ||
-			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, SizeY))
-		{
-			if (ComponentWidget.IsValid())
-			{
-				ComponentWidget->SetSize(FVector2D(SizeX, SizeY));
-}
-		}
-	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 #endif // WITH_EDITOR
 
@@ -118,9 +121,10 @@ const FText UDMXPixelMappingScreenComponent::GetPaletteCategory()
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TSharedRef<FDMXPixelMappingComponentWidget> UDMXPixelMappingScreenComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
 {
-	if (!ComponentWidget.IsValid())
+	if (!ComponentWidget_DEPRECATED.IsValid())
 	{
 		ScreenComponentBox = 
 			SNew(SDMXPixelMappingScreenComponentBox)
@@ -133,17 +137,18 @@ TSharedRef<FDMXPixelMappingComponentWidget> UDMXPixelMappingScreenComponent::Bui
 			.bShowAddresses(bShowAddresses)
 			.bShowUniverse(bShowUniverse);
 
-		ComponentWidget = MakeShared<FDMXPixelMappingComponentWidget>(ScreenComponentBox, nullptr);
+		ComponentWidget_DEPRECATED = MakeShared<FDMXPixelMappingComponentWidget>(ScreenComponentBox, nullptr);
 
-		ComponentWidget->AddToCanvas(InCanvas, ZOrder);
-		ComponentWidget->SetPosition(GetPosition());
-		ComponentWidget->SetSize(GetSize());
-		ComponentWidget->SetColor(GetEditorColor());
-		ComponentWidget->SetLabelText(FText::FromString(GetUserFriendlyName()));
+		ComponentWidget_DEPRECATED->AddToCanvas(InCanvas, ZOrder);
+		ComponentWidget_DEPRECATED->SetPosition(GetPosition());
+		ComponentWidget_DEPRECATED->SetSize(GetSize());
+		ComponentWidget_DEPRECATED->SetColor(GetEditorColor());
+		ComponentWidget_DEPRECATED->SetLabelText(FText::FromString(GetUserFriendlyName()));
 	}
 	
-	return ComponentWidget.ToSharedRef();
+	return ComponentWidget_DEPRECATED.ToSharedRef();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR
 
 const FName& UDMXPixelMappingScreenComponent::GetNamePrefix()
@@ -349,9 +354,9 @@ void UDMXPixelMappingScreenComponent::SendDMX()
 
 			// should be channels from 1...UniverseMaxChannels
 			ChannelToValueMap.Add(SendDMXIndex, SendBuffer[FragmentMapIndex]);
-			if (SendDMXIndex > UniverseMaxChannels || SendDMXIndex < 1)
+			if (!ensureMsgf(SendDMXIndex < UniverseMaxChannels || SendDMXIndex > 0, TEXT("Pixel Mapping Screen Component trying to send out of universe range.")))
 			{
-				UE_LOG(LogTemp, Warning, TEXT("WrongIndex FragmentMapIndex %d, SendDMXIndex %d"), FragmentMapIndex, SendDMXIndex);
+				break;
 			}
 
 			// send dmx if next iteration is the last one
@@ -386,7 +391,7 @@ void UDMXPixelMappingScreenComponent::QueueDownsample()
 	check(TextureSizeX > 0 && TextureSizeY > 0);
 	
 	constexpr bool bStaticCalculateUV = true;
-	const FVector2D SizePixel(SizeX / NumXCells, SizeY / NumYCells);
+	const FVector2D SizePixel(GetSize().X / NumXCells, GetSize().Y / NumYCells);
 	const FVector2D UVSize(SizePixel.X / TextureSizeX, SizePixel.Y / TextureSizeY);
 	const FVector2D UVCellSize = UVSize / 2.f;
 	const int32 PixelNum = NumXCells * NumYCells;
@@ -400,7 +405,7 @@ void UDMXPixelMappingScreenComponent::QueueDownsample()
 	ForEachPixel([&](const int32 InXYIndex, const int32 XIndex, const int32 YIndex)
         {
             const FIntPoint PixelPosition = RendererComponent->GetPixelPosition(InXYIndex + PixelDownsamplePositionRange.Key);
-            const FVector2D UV = FVector2D((PositionX + SizePixel.X * XIndex) / TextureSizeX, (PositionY + SizePixel.Y * YIndex) / TextureSizeY);
+            const FVector2D UV = FVector2D((GetPosition().X + SizePixel.X * XIndex) / TextureSizeX, (GetPosition().Y + SizePixel.Y * YIndex) / TextureSizeY);
 
             FDMXPixelMappingDownsamplePixelParam DownsamplePixelParam
             {
@@ -440,7 +445,7 @@ bool UDMXPixelMappingScreenComponent::CanBeMovedTo(const UDMXPixelMappingBaseCom
 
 const FVector2D UDMXPixelMappingScreenComponent::GetScreenPixelSize() const
 {
-	return FVector2D(SizeX / NumXCells, SizeY / NumYCells);
+	return FVector2D(GetSize().X / NumXCells, GetSize().Y / NumYCells);
 }
 
 void UDMXPixelMappingScreenComponent::ForEachPixel(ForEachPixelCallback InCallback)
@@ -458,30 +463,29 @@ void UDMXPixelMappingScreenComponent::ForEachPixel(ForEachPixelCallback InCallba
 
 void UDMXPixelMappingScreenComponent::SetPosition(const FVector2D& NewPosition)
 {
-	PositionX = NewPosition.X;
-	PositionY = NewPosition.Y;
+	Super::SetPosition(NewPosition);
 
 #if WITH_EDITOR
-	if (ComponentWidget.IsValid())
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (ComponentWidget_DEPRECATED.IsValid())
 	{
-		ComponentWidget->SetPosition(FVector2D(PositionX, PositionY));
+		ComponentWidget_DEPRECATED->SetPosition(GetPosition());
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
 void UDMXPixelMappingScreenComponent::SetSize(const FVector2D& NewSize)
 {
-	SizeX = FMath::Max(NewSize.X, 1.f);
-	SizeY = FMath::Max(NewSize.Y, 1.f);
-
-	SizeX = FMath::Max(SizeX, 1.f);
-	SizeY = FMath::Max(SizeY, 1.f);
+	Super::SetSize(NewSize);
 
 #if WITH_EDITOR
-	if (ComponentWidget.IsValid())
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (ComponentWidget_DEPRECATED.IsValid())
 	{
-		ComponentWidget->SetSize(FVector2D(SizeX, SizeY));
+		ComponentWidget_DEPRECATED->SetSize(GetSize());
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 

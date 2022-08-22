@@ -13,6 +13,7 @@ class SBox;
 
 
 /** Params to update a SDMXPixelMappingScreenComponentBox */
+struct UE_DEPRECATED(5.1, "Pixel Mapping Editor Widgets are no longer supported and to be implemented per view. See SDMXPixelMappingOutputComponent for an example.") FDMXPixelMappingScreenComponentGridParams;
 struct DMXPIXELMAPPINGEDITORWIDGETS_API FDMXPixelMappingScreenComponentGridParams
 {
 	int32 NumXCells = 1;
@@ -25,7 +26,9 @@ struct DMXPIXELMAPPINGEDITORWIDGETS_API FDMXPixelMappingScreenComponentGridParam
 	int32 StartAddress = 1;
 };
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 /** A label component label in pixelmapping designer. Ment to be used with DMXPixelMapingComponentWidgetWrapper */
+class UE_DEPRECATED(5.1, "Pixel Mapping Editor Widgets are no longer supported and to be implemented per view. See SDMXPixelMappingOutputComponent for an example.") SDMXPixelMappingScreenComponentBox;
 class DMXPIXELMAPPINGEDITORWIDGETS_API SDMXPixelMappingScreenComponentBox
 	: public SDMXPixelMappingComponentBox
 {
@@ -83,3 +86,4 @@ private:
 	/** Can't set text, it's not in use in this class */
 	using SDMXPixelMappingComponentBox::SetIDText;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

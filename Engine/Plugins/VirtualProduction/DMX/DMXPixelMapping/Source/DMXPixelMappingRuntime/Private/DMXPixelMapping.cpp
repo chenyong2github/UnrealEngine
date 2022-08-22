@@ -129,6 +129,7 @@ UDMXPixelMappingBaseComponent* UDMXPixelMapping::FindComponent(const FName& InNa
 #if WITH_EDITOR
 UDMXPixelMappingOutputComponent* UDMXPixelMapping::FindComponent(TSharedPtr<SWidget> InWidget) const
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UDMXPixelMappingOutputComponent* FoundComponent = nullptr;
 
 	ForEachComponentOfClass<UDMXPixelMappingOutputComponent>([&](UDMXPixelMappingOutputComponent* InComponent)
@@ -143,6 +144,7 @@ UDMXPixelMappingOutputComponent* UDMXPixelMapping::FindComponent(TSharedPtr<SWid
 		});
 
 	return FoundComponent;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 #endif // WITH_EDITOR

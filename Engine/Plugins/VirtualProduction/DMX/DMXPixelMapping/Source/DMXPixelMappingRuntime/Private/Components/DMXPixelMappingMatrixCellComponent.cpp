@@ -32,6 +32,7 @@ UDMXPixelMappingMatrixCellComponent::UDMXPixelMappingMatrixCellComponent()
 {
 #if WITH_EDITORONLY_DATA
 	bLockInDesigner = true;
+	EditorColor = FLinearColor::White.CopyWithNewOpacity(.4f);
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -43,46 +44,50 @@ void UDMXPixelMappingMatrixCellComponent::PostEditChangeProperty(FPropertyChange
 
 	FName PropertyName = PropertyChangedEvent.GetPropertyName();
 
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionX) ||
-		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionY))
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetPositionXPropertyName() ||
+		PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetPositionYPropertyName())
 	{
-		if (ComponentWidget.IsValid())
+		if (ComponentWidget_DEPRECATED.IsValid())
 		{
-			ComponentWidget->SetPosition(FVector2D(PositionX, PositionY));
+			ComponentWidget_DEPRECATED->SetPosition(GetPosition());
 		}
 	}
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX) ||
-		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY))
+	if (PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeXPropertyName() ||
+		PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeYPropertyName())
 	{
-		if (ComponentWidget.IsValid())
+		if (ComponentWidget_DEPRECATED.IsValid())
 		{
-			ComponentWidget->SetSize(FVector2D(SizeX, SizeY));
+			ComponentWidget_DEPRECATED->SetSize(GetSize());
 		}
 	}
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixCellComponent, CellID))
 	{
-		if (ComponentWidget.IsValid())
+		if (ComponentWidget_DEPRECATED.IsValid())
 		{
-			ComponentWidget->GetComponentBox()->SetIDText(FText::Format(LOCTEXT("CellID", "{0}"), CellID));
+			ComponentWidget_DEPRECATED->GetComponentBox()->SetIDText(FText::Format(LOCTEXT("CellID", "{0}"), CellID));
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TSharedRef<FDMXPixelMappingComponentWidget> UDMXPixelMappingMatrixCellComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
 {
-	ComponentWidget = Super::BuildSlot(InCanvas);
+	ComponentWidget_DEPRECATED = Super::BuildSlot(InCanvas);
 
 	// Expect super to construct the component widget
-	if (ensureMsgf(ComponentWidget.IsValid(), TEXT("PixelMapping: Expected Super to construct a component widget, but didn't.")))
+	if (ensureMsgf(ComponentWidget_DEPRECATED.IsValid(), TEXT("PixelMapping: Expected Super to construct a component widget, but didn't.")))
 	{
-		ComponentWidget->GetComponentLabel()->SetText(FText::GetEmpty());
-		ComponentWidget->GetComponentBox()->SetIDText(FText::Format(LOCTEXT("CellID", "{0}"), CellID));
+		ComponentWidget_DEPRECATED->GetComponentLabel()->SetText(FText::GetEmpty());
+		ComponentWidget_DEPRECATED->GetComponentBox()->SetIDText(FText::Format(LOCTEXT("CellID", "{0}"), CellID));
 	}
 
-	return ComponentWidget.ToSharedRef();
+	return ComponentWidget_DEPRECATED.ToSharedRef();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
@@ -104,6 +109,7 @@ bool UDMXPixelMappingMatrixCellComponent::IsVisible() const
 #if WITH_EDITOR
 FLinearColor UDMXPixelMappingMatrixCellComponent::GetEditorColor() const
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (bLockInDesigner)
 	{
 		// When locked in designer, always use the parent color. So when the parent shows an error color, show it too.
@@ -115,6 +121,7 @@ FLinearColor UDMXPixelMappingMatrixCellComponent::GetEditorColor() const
 			}
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	return EditorColor;
 }
@@ -123,51 +130,60 @@ FLinearColor UDMXPixelMappingMatrixCellComponent::GetEditorColor() const
 bool UDMXPixelMappingMatrixCellComponent::IsOverParent() const
 {
 	// Needs be over the matrix and over the group
-	if (UDMXPixelMappingMatrixComponent* ParentMatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(GetParent()))
+	UDMXPixelMappingMatrixComponent* ParentMatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(GetParent());
+	if (!ParentMatrixComponent)
 	{
-		const bool bIsParentMatrixOverGroup = ParentMatrixComponent->IsOverParent();
-
-		return
-			bIsParentMatrixOverGroup &&
-			PositionX >= ParentMatrixComponent->GetPosition().X &&
-			PositionY >= ParentMatrixComponent->GetPosition().Y &&
-			PositionX + SizeX <= ParentMatrixComponent->GetPosition().X + ParentMatrixComponent->GetSize().X &&
-			PositionY + SizeY <= ParentMatrixComponent->GetPosition().Y + ParentMatrixComponent->GetSize().Y;
+		return false;
+	}
+	
+	const bool bIsParentMatrixOverGroup = ParentMatrixComponent->IsOverParent();
+	if (!bIsParentMatrixOverGroup)
+	{
+		return false;
 	}
 
-	return false;
+	const float Left = GetPosition().X;
+	const float Top = GetPosition().Y;
+	const float Right = GetPosition().X + GetSize().X;
+	const float Bottom = GetPosition().Y + GetSize().Y;
+
+	const float ParentLeft = ParentMatrixComponent->GetPosition().X;
+	const float ParentTop = ParentMatrixComponent->GetPosition().Y;
+	const float ParentRight = ParentMatrixComponent->GetPosition().X + ParentMatrixComponent->GetSize().X;
+	const float ParentBottom = ParentMatrixComponent->GetPosition().Y + ParentMatrixComponent->GetSize().Y;
+
+	return
+		Left > ParentLeft - .49f &&
+		Top > ParentTop - .49f &&
+		Right < ParentRight + .49f &&
+		Bottom < ParentBottom + .49f;
 }
 
 void UDMXPixelMappingMatrixCellComponent::SetPosition(const FVector2D& NewPosition)
 {
-	Modify();
-
-	PositionX = FMath::RoundHalfToZero(NewPosition.X);
-	PositionY = FMath::RoundHalfToZero(NewPosition.Y);
+	Super::SetPosition(NewPosition);
 
 #if WITH_EDITOR
-	if (ComponentWidget.IsValid())
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (ComponentWidget_DEPRECATED.IsValid())
 	{
-		ComponentWidget->SetPosition(FVector2D(PositionX, PositionY));
+		ComponentWidget_DEPRECATED->SetPosition(GetPosition());
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
 void UDMXPixelMappingMatrixCellComponent::SetSize(const FVector2D& NewSize)
 {
-	Modify();
-
-	SizeX = FMath::RoundHalfToZero(NewSize.X);
-	SizeY = FMath::RoundHalfToZero(NewSize.Y);
-
-	SizeX = FMath::Max(SizeX, 1.f);
-	SizeY = FMath::Max(SizeY, 1.f);
+	Super::SetSize(NewSize);
 
 #if WITH_EDITOR
-	if (ComponentWidget.IsValid())
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (ComponentWidget_DEPRECATED.IsValid())
 	{
-		ComponentWidget->SetSize(FVector2D(SizeX, SizeY));
+		ComponentWidget_DEPRECATED->SetSize(GetSize());
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
@@ -232,8 +248,8 @@ void UDMXPixelMappingMatrixCellComponent::QueueDownsample()
 	const uint32 TextureSizeY = InputTexture->GetResource()->GetSizeY();
 	check(TextureSizeX > 0 && TextureSizeY > 0);
 	const FIntPoint PixelPosition = RendererComponent->GetPixelPosition(DownsamplePixelIndex);
-	const FVector2D UV = FVector2D(PositionX / TextureSizeX, PositionY / TextureSizeY);
-	const FVector2D UVSize(SizeX / TextureSizeX, SizeY / TextureSizeY);
+	const FVector2D UV = FVector2D(GetPosition().X / TextureSizeX, GetPosition().Y / TextureSizeY);
+	const FVector2D UVSize(GetSize().X / TextureSizeX, GetSize().Y / TextureSizeY);
 	const FVector2D UVCellSize = UVSize / 2.f;
 	constexpr bool bStaticCalculateUV = true;
 

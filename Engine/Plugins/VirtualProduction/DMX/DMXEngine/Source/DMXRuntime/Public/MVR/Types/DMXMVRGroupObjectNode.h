@@ -19,7 +19,7 @@ class FXmlNode;
 
 /** This node defines logical group of objects. The child objects are located inside a local coordinate system. */
 UCLASS()
-class UDMXMVRGroupObjectNode
+class DMXRUNTIME_API UDMXMVRGroupObjectNode
 	: public UDMXMVRParametricObjectNodeBase
 {
 	GENERATED_BODY()

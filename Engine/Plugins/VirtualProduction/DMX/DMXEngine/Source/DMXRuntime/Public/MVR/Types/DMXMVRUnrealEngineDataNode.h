@@ -14,7 +14,7 @@ class FXmlNode;
  * UE sepecific: Used to add UE specific meta data
  */
 UCLASS()
-class UDMXMVRUnrealEngineDataNode
+class DMXRUNTIME_API UDMXMVRUnrealEngineDataNode
 	: public UObject
 {
 	GENERATED_BODY()

@@ -7,6 +7,7 @@
 #include "Widgets/Layout/SBox.h"
 
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // The whole class and several child widgets are deprecated 5.1
 const uint32 SDMXPixelMappingScreenComponentBox::MaxGridUICells = 40 * 40;
 
 void SDMXPixelMappingScreenComponentBox::Construct(const FArguments& InArgs)
@@ -51,7 +52,6 @@ void SDMXPixelMappingScreenComponentBox::Construct(const FArguments& InArgs)
 	}
 }
 
-
 void SDMXPixelMappingScreenComponentBox::SetLocalSize(const FVector2D& NewLocalSize)
 {
 	LocalSize = NewLocalSize;
@@ -94,3 +94,4 @@ void SDMXPixelMappingScreenComponentBox::RebuildGrid(const FDMXPixelMappingScree
 		);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

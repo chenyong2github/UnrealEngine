@@ -10,27 +10,17 @@
 
 #include "DMXPixelMappingOutputComponent.generated.h"
 
+struct FDMXPixelMappingLayoutToken;
+class UDMXEntityFixturePatch;
+class UDMXPixelMappingRendererComponent;
+
 #if WITH_EDITOR
 enum class EDMXPixelMappingComponentLabelAlignment : uint8;
 class FDMXPixelMappingComponentWidget;
 #endif
-class UDMXEntityFixturePatch;
-class UDMXPixelMappingRendererComponent;
 
 class SBox;
 
-
-/** Definition for Default colors */
-struct FDMXOutputComponentColors
-{
-	// Note, for the default color, use the editor color
-
-	/** The color used when no the component is selected */
-	virtual const FLinearColor& GetSelectedColor() { return SelectedColor; }
-
-private:
-	static const FLinearColor SelectedColor;
-};
 
 /** Enum that defines the quality of how pixels are rendered */
 UENUM()
@@ -87,7 +77,10 @@ public:
 	virtual const FText GetPaletteCategory();
 
 	/** Rebuild widget for designer view */
+	UE_DEPRECATED(5.1, "Pixel Mapping Components no longer hold their own widget, in an effort to separate Views from Data.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS // FDMXPixelMappingComponentWidget is deprecated
 	virtual TSharedRef<FDMXPixelMappingComponentWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Whether component should be visible */
 	virtual bool IsVisible() const;
@@ -123,13 +116,13 @@ public:
 	/** Sets the position */
 	virtual void SetPosition(const FVector2D& NewPosition);
 
-	/** Returns the position */
+	/** Returns the position. Note this is the position before a layout has been applied, use GetLayoutedPosition() to get the final position.. */
 	FVector2D GetPosition() const { return FVector2D(PositionX, PositionY); }
 
 	/** Sets the size */
 	virtual void SetSize(const FVector2D& NewSize);
 
-	/** Get the size of the component */
+	/** Get the size. Note this is the position before a layout has been applied, use GetLayoutedSize() to get the final position.. */
 	FVector2D GetSize() const { return FVector2D(SizeX, SizeY); }
 
 	/** Helper that returns render component if available */
@@ -144,7 +137,10 @@ public:
 public:
 #if WITH_EDITOR
 	/** Returns the component widget */
-	FORCEINLINE const TSharedPtr<FDMXPixelMappingComponentWidget> GetComponentWidget() { return ComponentWidget; }
+	UE_DEPRECATED(5.1, "Pixel Mapping Components no longer hold their own widget, in an effort to separate Views from Data.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS // FDMXPixelMappingComponentWidget is deprecated
+	FORCEINLINE const TSharedPtr<FDMXPixelMappingComponentWidget> GetComponentWidget() { return ComponentWidget_DEPRECATED; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 protected:
 	/** Udpates the component widget. If bWithChildrenRecursive, updates child Components' Component Widget recursively */
@@ -168,8 +164,10 @@ protected:
 	/** Children available PreEditUndo, useful to hide all removed ones in post edit undo */
 	TArray<UDMXPixelMappingBaseComponent*> PreEditUndoChildren;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** The widget shown for this component */
-	TSharedPtr<FDMXPixelMappingComponentWidget> ComponentWidget;
+	TSharedPtr<FDMXPixelMappingComponentWidget> ComponentWidget_DEPRECATED;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITORONLY_DATA
 
 
@@ -178,27 +176,30 @@ protected:
 	----------------------------------*/
 public:
 #if WITH_EDITOR
-	/** Returns the bIsLockInDesigner property name */
+	// Property Name getters
 	FORCEINLINE static FName GetLockInDesignerPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, bLockInDesigner); }
-
-	/** Returns the bIsVisibleInDesigner property name */
 	FORCEINLINE static FName GetVisibleInDesignerPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, bVisibleInDesigner); }
+	FORCEINLINE static FName GetPositionXPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionX); }
+	FORCEINLINE static FName GetPositionYPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionY); }
+	FORCEINLINE static FName GetSizeXPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX); }
+	FORCEINLINE static FName GetSizeYPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY); }
 #endif
 
 	/** The quality level to use when averaging colors during downsampling. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pixel Settings")
 	EDMXPixelBlendingQuality CellBlendingQuality;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (EditCondition = "!bLockInDesigner"))
+private:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (EditCondition = "!bLockInDesigner", AllowPrivateAccess = true))
 	float PositionX;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (EditCondition = "!bLockInDesigner"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (EditCondition = "!bLockInDesigner", AllowPrivateAccess = true))
 	float PositionY;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (ClampMin = 0, UIMin = 0, EditCondition = "!bLockInDesigner"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (ClampMin = 1, UIMin = 1, EditCondition = "!bLockInDesigner", AllowPrivateAccess = true))
 	float SizeX;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (ClampMin = 0, UIMin = 0, EditCondition = "!bLockInDesigner"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (ClampMin = 1, UIMin = 1, EditCondition = "!bLockInDesigner", AllowPrivateAccess = true))
 	float SizeY;
 
 protected:

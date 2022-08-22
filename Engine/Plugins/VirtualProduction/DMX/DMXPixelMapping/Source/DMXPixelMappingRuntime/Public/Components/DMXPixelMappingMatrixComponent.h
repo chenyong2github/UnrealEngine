@@ -7,8 +7,9 @@
 #include "Library/DMXEntityFixtureType.h"
 #include "DMXPixelMappingMatrixComponent.generated.h"
 
-
 class UDMXLibrary;
+class UDMXPixelMappingLayoutScript;
+
 class STextBlock;
 enum class EDMXColorMode : uint8;
 
@@ -42,6 +43,7 @@ public:
 	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
 #if WITH_EDITOR
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
 #endif // WITH_EDITOR
@@ -90,6 +92,12 @@ protected:
 	TArray<UDMXPixelMappingBaseComponent*> PreEditUndoMatrixCellChildren;
 #endif // WITH_EDITORONLY_DATA
 
+private:
+	/** True while the component is updating its children */
+	bool bIsUpdatingChildren = false;
+
+	/** Position before it was changed */
+	FVector2D PreEditChangePosition;
 
 public:
 	UPROPERTY()
@@ -153,4 +161,8 @@ public:
 
 	UPROPERTY()
 	EDMXPixelMappingDistribution Distribution;
+
+	/** Layout script for the children of this component (hidden in customizations and displayed in its own panel). */
+	UPROPERTY(EditAnywhere, Instanced, Category = "Layout")
+	TObjectPtr<UDMXPixelMappingLayoutScript> LayoutScript;
 };

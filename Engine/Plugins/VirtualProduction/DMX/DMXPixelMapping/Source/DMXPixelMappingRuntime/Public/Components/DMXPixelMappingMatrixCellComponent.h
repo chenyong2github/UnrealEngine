@@ -43,7 +43,9 @@ public:
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
 #if WITH_EDITOR
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS // FDMXPixelMappingComponentWidget is deprecated
 	virtual TSharedRef<FDMXPixelMappingComponentWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual bool IsVisible() const override;
 	virtual FLinearColor GetEditorColor() const override;
 #endif // WITH_EDITOR	

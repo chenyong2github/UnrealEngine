@@ -306,6 +306,84 @@ struct TStructOpsTypeTraits<FDMXOptionalGuid>
 	};
 };
 
+
+USTRUCT()
+struct DMXRUNTIME_API FDMXOptionalVector2D
+{
+	GENERATED_BODY()
+
+	/** The Optional Value */
+	TOptional<FVector2D> Value;
+
+	/** Resets the optional */
+	void Reset() { Value.Reset(); }
+	
+	/** Returns true if the optional is set */
+	bool IsSet() const { return Value.IsSet(); }
+	
+	/** Returns the Value of the optional, only call when the value is set. */
+	const FVector2D& GetValue() const { return Value.GetValue(); }
+
+	const FDMXOptionalVector2D& operator=(const FDMXOptionalVector2D& Rhs)
+	{
+		Value = Rhs.Value;
+		return *this;
+	}
+	const FDMXOptionalVector2D& operator=(const FVector2D& Vector2D)
+	{
+		Value = Vector2D;
+		return *this;
+	}
+
+	friend bool operator==(const FDMXOptionalVector2D& A, const FDMXOptionalVector2D& B)
+	{
+		const bool bBothSet = A.Value.IsSet() && B.Value.IsSet();
+		if (bBothSet)
+		{
+			return A.Value.GetValue() == B.Value.GetValue();
+		}
+		else
+		{
+			return A.Value.IsSet() == B.Value.IsSet();
+		}
+	}
+
+	friend bool operator!=(const FDMXOptionalVector2D& A, const FDMXOptionalVector2D& B)
+	{
+		return !(A == B);
+	}
+
+	bool Serialize(FArchive& Ar)
+	{
+		Ar << Value;
+		return true;
+	}
+
+	FArchive& operator<<(FArchive& Ar)
+	{
+		Ar << Value;
+		return Ar;
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FDMXOptionalVector2D& Struct)
+	{
+		Ar << Struct.Value;
+		return Ar;
+	}
+};
+	
+template<>
+struct TStructOpsTypeTraits<FDMXOptionalVector2D>
+	: public TStructOpsTypeTraitsBase2<FDMXOptionalVector2D>
+{
+	enum
+	{
+		WithSerializer = true,
+		WithCopy = true,
+		WithIdenticalViaEquality = true
+	};
+};
+
 USTRUCT()
 struct DMXRUNTIME_API FDMXOptionalTransform
 {

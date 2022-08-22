@@ -62,17 +62,6 @@ TSharedPtr<FDMXPixelMappingGroupChildDragDropHelper> FDMXPixelMappingGroupChildD
 		}
 
 		NewHelper->WeakChildComponents.Add(OutputComponent);
-
-		// Clamp the size of each child to the a valid size
-		FVector2D IndividualChildSize = OutputComponent->GetSize();
-		if (IndividualChildSize.ComponentwiseAllGreaterThan(NewHelper->ParentSize))
-		{
-			OutputComponent->SetSize(NewHelper->ParentSize - FVector2D(NewHelper->ParentSize.X / 10.f, NewHelper->ParentSize.X / 10.f)); // Same X and Y so it's evenly aligned
-		}
-		else if (IndividualChildSize.GetMax() < 1.f)
-		{
-			OutputComponent->SetSize(FVector2D(1.f, 1.f));
-		}
 	}
 
 	return NewHelper;
@@ -106,7 +95,7 @@ void FDMXPixelMappingGroupChildDragDropHelper::LayoutAligned(const FVector2D& Gr
 					if (GroupComponent->IsOverPosition(NextPosition) && 
 						GroupComponent->IsOverPosition(NextPosition + ChildComponent->GetSize()))
 					{
-						SetPositionRounded(ChildComponent, NextPosition);
+						SetPosition(ChildComponent, NextPosition);
 
 						RowHeight = FMath::Max(ChildComponent->GetSize().Y, RowHeight);
 						NextPosition = FVector2D(NextPosition.X + ChildComponent->GetSize().X, NextPosition.Y);
@@ -120,14 +109,14 @@ void FDMXPixelMappingGroupChildDragDropHelper::LayoutAligned(const FVector2D& Gr
 						if (GroupComponent->IsOverPosition(NextPositionOnNewRow) &&
 							GroupComponent->IsOverPosition(NextPositionOnNewRow + ChildComponent->GetSize()))
 						{
-							SetPositionRounded(ChildComponent, NewRowPosition);
+							SetPosition(ChildComponent, NewRowPosition);
 
 							NextPosition = FVector2D(NewRowPosition.X + ChildComponent->GetSize().X, NewRowPosition.Y);
 							RowHeight = ChildComponent->GetSize().Y;							
 						}
 						else
 						{
-							SetPositionRounded(ChildComponent, NextPosition);
+							SetPosition(ChildComponent, NextPosition);
 
 							NextPosition = FVector2D(NextPosition.X + ChildComponent->GetSize().X, NextPosition.Y);
 						}
@@ -156,16 +145,7 @@ void FDMXPixelMappingGroupChildDragDropHelper::LayoutUnaligned(const FVector2D& 
 						FVector2D AnchorOffset = Anchor - ChildComponent->GetPosition();
 
 						FVector2D NewPosition = GraphSpacePosition - AnchorOffset - PinnedDragDropOp->GraphSpaceDragOffset;
-						SetPositionRounded(ChildComponent, NewPosition);
-
-						// Apply a color depending on where the component ended
-						if (TSharedPtr<FDMXPixelMappingComponentWidget> ComponentWidget = ChildComponent->GetComponentWidget())
-						{
-							const bool bOverParent = ChildComponent->IsOverParent();
-							const FLinearColor WidgetColor = bOverParent ? FLinearColor::Green : FLinearColor::Red;
-
-							ComponentWidget->SetColor(WidgetColor);
-						}
+						SetPosition(ChildComponent, NewPosition);
 					}
 				}
 			}
@@ -173,12 +153,12 @@ void FDMXPixelMappingGroupChildDragDropHelper::LayoutUnaligned(const FVector2D& 
 	}
 }
 
-void FDMXPixelMappingGroupChildDragDropHelper::SetPositionRounded(UDMXPixelMappingOutputComponent* Component, const FVector2D& Position) const
+void FDMXPixelMappingGroupChildDragDropHelper::SetPosition(UDMXPixelMappingOutputComponent* Component, const FVector2D& Position) const
 {
 	if (Component)
 	{
 		Component->Modify();
 
-		Component->SetPosition(Position.RoundToVector());
+		Component->SetPosition(Position);
 	}
 }

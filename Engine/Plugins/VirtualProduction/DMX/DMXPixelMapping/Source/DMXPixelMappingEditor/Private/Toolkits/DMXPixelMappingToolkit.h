@@ -8,13 +8,14 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "DMXPixelMappingComponentReference.h"
 
-class FDMXPixelMappingPaletteViewModel;
 class FDMXPixelMappingToolbar;
-class SDMXPixelMappingPaletteView;
 class SDMXPixelMappingHierarchyView;
 class SDMXPixelMappingDesignerView;
-class SDMXPixelMappingPreviewView;
 class SDMXPixelMappingDetailsView;
+class SDMXPixelMappingLayoutView;
+class SDMXPixelMappingPaletteView;
+class SDMXPixelMappingPreviewView;
+class FDMXPixelMappingPaletteViewModel;
 class UDMXPixelMapping;
 class UDMXPixelMappingBaseComponent;
 class UDMXPixelMappingMatrixComponent;
@@ -37,10 +38,6 @@ class FDMXPixelMappingToolkit
 	friend class FDMXPixelMappingToolbar;
 
 public:
-	DECLARE_MULTICAST_DELEGATE(FOnComponentsAddedOrDeletedDelegate)
-	UE_DEPRECATED(4.27, "Use UDMXPixelMappingBaseComponent::GetOnComponentAdded and  UDMXPixelMappingBaseComponent::GetOnComponentRemoved instead.")
-	FOnComponentsAddedOrDeletedDelegate& GetOnComponentsAddedOrDeletedDelegate() { return OnComponentsAddedOrDeletedDelegate_DEPRECATED; }
-
 	DECLARE_MULTICAST_DELEGATE(FOnSelectedComponentsChangedDelegate)
 	FOnSelectedComponentsChangedDelegate& GetOnSelectedComponentsChangedDelegate() { return OnSelectedComponentsChangedDelegate; }
 
@@ -109,27 +106,27 @@ public:
 
 	const TSet<FDMXPixelMappingComponentReference>& GetSelectedComponents() const { return SelectedComponents; }
 
+	/** Gets or creates the Palette View for this Pixel Mapping instance */
 	TSharedRef<SWidget> CreateOrGetView_PaletteView();
 
+	/** Gets or creates the Hierarchy View for this Pixel Mapping instance */
 	TSharedRef<SWidget> CreateOrGetView_HierarchyView();
 
+	/** Gets or creates the Designer View for this Pixel Mapping instance */
 	TSharedRef<SWidget> CreateOrGetView_DesignerView();
 
+	/** Gets or creates the Preview View for this Pixel Mapping instance */
 	TSharedRef<SWidget> CreateOrGetView_PreviewView();
 
+	/** Gets or creates the Details View for this Pixel Mapping instance */
 	TSharedRef<SWidget> CreateOrGetView_DetailsView();
+
+	/** Gets or creates the Layout View for this Pixel Mapping instance */
+	TSharedRef<SWidget> CreateOrGetView_LayoutView();
 
 	bool IsPlayingDMX() const { return bIsPlayingDMX; }
 
 	void SetActiveRenderComponent(UDMXPixelMappingRendererComponent* InComponent);
-
-	/** DEPRECATED 4.27 */
-	UE_DEPRECATED(4.27, "No longer needed")
-	void HandleAddComponents();
-
-	/** DEPRECATED 4.27 */
-	UE_DEPRECATED(4.27, "No longer needed")
-	void HandleRemoveComponents();
 
 	/** Creates an array of components given specifed component references */
 	template <typename ComponentType>
@@ -139,9 +136,6 @@ public:
 
 	/** Returns true if the component is selected */
 	bool IsComponentSelected(UDMXPixelMappingBaseComponent* Component) const;
-
-	/** Gives each component widget a color depending on selection and whether it's over its parent */
-	void UpdateComponentWidgetColors();
 
 	void AddRenderer();
 
@@ -163,14 +157,17 @@ private:
 	/** Called when a Component was removed from the pixel mapping */
 	void OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
 
-	/** Updates the Slow Task when removing Components */
-	void UpdateRemoveComponentSlowTask(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component, TSharedRef<FScopedSlowTask> SlowTask);
-
 	void PlayDMX();
 
 	void StopPlayingDMX();
 
 	void ExecutebTogglePlayDMXAll();
+
+	/** Returns true if the selected component can be sized to texture */
+	bool CanSizeSelectedComponentToTexture() const;
+
+	/** Sizes the component to the render target of the pixelmapping asset */
+	void SizeSelectedComponentToTexture();
 
 	void UpdateBlueprintNodes(UDMXPixelMapping* InDMXPixelMapping);
 
@@ -178,15 +175,23 @@ private:
 
 	void InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid);
 
+	/** Spawns the Pallette View */
 	TSharedRef<SDockTab> SpawnTab_PaletteView(const FSpawnTabArgs& Args);
 
+	/** Spawns the Hierarchy View */
 	TSharedRef<SDockTab> SpawnTab_HierarchyView(const FSpawnTabArgs& Args);
 
+	/** Spawns the Designer View */
 	TSharedRef<SDockTab> SpawnTab_DesignerView(const FSpawnTabArgs& Args);
 
+	/** Spawns the Preview View */
 	TSharedRef<SDockTab> SpawnTab_PreviewView(const FSpawnTabArgs& Args);
 
+	/** Spawns the Details View */
 	TSharedRef<SDockTab> SpawnTab_DetailsView(const FSpawnTabArgs& Args);
+
+	/** Spawns the Layout View */
+	TSharedRef<SDockTab> SpawnTab_LayoutView(const FSpawnTabArgs& Args);
 
 	void SetupCommands();
 
@@ -201,16 +206,25 @@ private:
 	/** List of open tool panels; used to ensure only one exists at any one time */
 	TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;
 
+	/** The Palette View instance */
 	TSharedPtr<SDMXPixelMappingPaletteView> PaletteView;
-
+	
+	/** The Hierarchy View instance */
 	TSharedPtr<SDMXPixelMappingHierarchyView> HierarchyView;
 
+	/** The Designer View instance */
 	TSharedPtr<SDMXPixelMappingDesignerView> DesignerView;
 
+	/** The Preview View instance */
 	TSharedPtr<SDMXPixelMappingPreviewView> PreviewView;
 
+	/** The Details View instance */
 	TSharedPtr<SDMXPixelMappingDetailsView> DetailsView;
 
+	/** The Layout View instance */
+	TSharedPtr<SDMXPixelMappingLayoutView> LayoutView;
+
+	/** The Palette View Model instance */
 	TSharedPtr<FDMXPixelMappingPaletteViewModel> PaletteViewModel;
 
 	FOnSelectedComponentsChangedDelegate OnSelectedComponentsChangedDelegate;
@@ -242,16 +256,22 @@ private:
 	/** True while removing components (to avoid needlessly updating blueprint nodes on each component removed via our own methods) */
 	bool bRemovingComponents = false;
 
-	FOnComponentsAddedOrDeletedDelegate OnComponentsAddedOrDeletedDelegate_DEPRECATED;
-
 public:
+	/** Name of the Palette View Tab */
 	static const FName PaletteViewTabID;
 
+	/** Name of the Hierarchy View Tab */
 	static const FName HierarchyViewTabID;
 
+	/** Name of the Designer View Tab */
 	static const FName DesignerViewTabID;
 
+	/** Name of the Preview View Tab */
 	static const FName PreviewViewTabID;
 
+	/** Name of the Details View Tab */
 	static const FName DetailsViewTabID;
+
+	/** Name of the Details View Tab */
+	static const FName LayoutViewTabID;
 };

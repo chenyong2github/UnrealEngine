@@ -3,6 +3,7 @@
 #include "Toolkits/DMXPixelMappingToolkit.h"
 
 #include "DMXEditorUtils.h"
+#include "DMXPixelMappingLayoutSettings.h"
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingEditorCommands.h"
 #include "DMXPixelMappingEditorModule.h"
@@ -17,26 +18,21 @@
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
+#include "Components/DMXPixelMappingScreenComponent.h"
 #include "Templates/DMXPixelMappingComponentTemplate.h"
 #include "ViewModels/DMXPixelMappingPaletteViewModel.h"
-#include "Views/SDMXPixelMappingPaletteView.h"
-#include "Views/SDMXPixelMappingHierarchyView.h"
 #include "Views/SDMXPixelMappingDesignerView.h"
-#include "Views/SDMXPixelMappingPreviewView.h"
 #include "Views/SDMXPixelMappingDetailsView.h"
-
-#include "Library/DMXEntityFixtureType.h"
-#include "Library/DMXEntityFixturePatch.h"
-#include "Library/DMXLibrary.h"
-#include "DMXPixelMappingComponentWidget.h"
+#include "Views/SDMXPixelMappingHierarchyView.h"
+#include "Views/SDMXPixelMappingLayoutView.h"
+#include "Views/SDMXPixelMappingPaletteView.h"
+#include "Views/SDMXPixelMappingPreviewView.h"
 
 #include "ScopedTransaction.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Framework/Commands/GenericCommands.h"
-#include "Kismet2/BlueprintEditorUtils.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Styling/AppStyle.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/Docking/SDockTab.h"
 
 
@@ -44,11 +40,10 @@
 
 const FName FDMXPixelMappingToolkit::PaletteViewTabID(TEXT("DMXPixelMappingEditor_PaletteViewTabID"));
 const FName FDMXPixelMappingToolkit::HierarchyViewTabID(TEXT("DMXPixelMappingEditor_HierarchyViewTabID"));
-
 const FName FDMXPixelMappingToolkit::DesignerViewTabID(TEXT("DMXPixelMappingEditor_DesignerViewTabID"));
 const FName FDMXPixelMappingToolkit::PreviewViewTabID(TEXT("DMXPixelMappingEditor_PreviewViewTabID"));
-
 const FName FDMXPixelMappingToolkit::DetailsViewTabID(TEXT("DMXPixelMappingEditor_DetailsViewTabID"));
+const FName FDMXPixelMappingToolkit::LayoutViewTabID(TEXT("DMXPixelMappingEditor_LayoutViewTabID"));
 
 const uint8 FDMXPixelMappingToolkit::RequestStopSendingMaxTicks = 5;
 
@@ -108,6 +103,10 @@ void FDMXPixelMappingToolkit::RegisterTabSpawners(const TSharedRef<class FTabMan
 		.SetDisplayName(LOCTEXT("Tab_DetailsView", "Details"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Details"));
+
+	InTabManager->RegisterTabSpawner(LayoutViewTabID, FOnSpawnTab::CreateSP(this, &FDMXPixelMappingToolkit::SpawnTab_LayoutView))
+		.SetDisplayName(LOCTEXT("Tab_LayoutView", "Layout"))
+		.SetGroup(WorkspaceMenuCategoryRef);
 }
 
 void FDMXPixelMappingToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -119,6 +118,7 @@ void FDMXPixelMappingToolkit::UnregisterTabSpawners(const TSharedRef<class FTabM
 	InTabManager->UnregisterTabSpawner(DesignerViewTabID);
 	InTabManager->UnregisterTabSpawner(PreviewViewTabID);
 	InTabManager->UnregisterTabSpawner(DetailsViewTabID);
+	InTabManager->UnregisterTabSpawner(LayoutViewTabID);
 }
 
 FText FDMXPixelMappingToolkit::GetBaseToolkitName() const
@@ -262,9 +262,6 @@ void FDMXPixelMappingToolkit::Tick(float DeltaTime)
 			}
 		}
 	}
-
-	// Update component widgets
-	UpdateComponentWidgetColors();
 }
 
 TStatId FDMXPixelMappingToolkit::GetStatId() const
@@ -280,43 +277,6 @@ FDMXPixelMappingComponentReference FDMXPixelMappingToolkit::GetReferenceFromComp
 void FDMXPixelMappingToolkit::SetActiveRenderComponent(UDMXPixelMappingRendererComponent* InComponent)
 {
 	ActiveRendererComponent = InComponent;
-}
-
-void FDMXPixelMappingToolkit::HandleAddComponents()
-{
-	// DEPRECATED 4.27
-	UpdateBlueprintNodes(DMXPixelMapping);
-	OnComponentsAddedOrDeletedDelegate_DEPRECATED.Broadcast();
-}
-
-void FDMXPixelMappingToolkit::HandleRemoveComponents()
-{
-	// DEPRECATED 4.27
-	FDMXEditorUtils::ClearAllDMXPortBuffers();
-	FDMXEditorUtils::ClearFixturePatchCachedData();
-
-	UpdateBlueprintNodes(DMXPixelMapping);
-	OnComponentsAddedOrDeletedDelegate_DEPRECATED.Broadcast();
-
-	// Remove removed components from selection
-	TSet<FDMXPixelMappingComponentReference> NewSelection;
-	for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponents)
-	{
-
-		if (UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent())
-		{
-			if (IsValid(Component->GetParent()) || Component->GetClass() == UDMXPixelMappingRootComponent::StaticClass())
-			{
-				NewSelection.Add(ComponentReference);
-			}
-		}
-	}
-	if (NewSelection.Num() != SelectedComponents.Num())
-	{
-		SelectedComponents = NewSelection;
-
-		OnSelectedComponentsChangedDelegate.Broadcast();
-	}
 }
 
 template <typename ComponentType>
@@ -365,107 +325,6 @@ void FDMXPixelMappingToolkit::SelectComponents(const TSet<FDMXPixelMappingCompon
 	OnSelectedComponentsChangedDelegate.Broadcast();
 }
 
-void FDMXPixelMappingToolkit::UpdateComponentWidgetColors()
-{
-	if (DMXPixelMapping)
-	{
-		// Reset all to default color
-		DMXPixelMapping->ForEachComponentOfClass<UDMXPixelMappingOutputComponent>([this](UDMXPixelMappingOutputComponent* OutputComponent)
-			{
-				if (TSharedPtr<FDMXPixelMappingComponentWidget> ComponentWidget = OutputComponent->GetComponentWidget())
-				{
-					ComponentWidget->SetColor(OutputComponent->GetEditorColor());
-				}
-			});
-
-		TArray<UDMXPixelMappingBaseComponent*> SelectedComponentsArray;
-		SelectedComponentsArray.Reserve(GetSelectedComponents().Num());
-		for (const FDMXPixelMappingComponentReference& ComponentReference : GetSelectedComponents())
-		{
-			if (ComponentReference.GetComponent())
-			{
-				SelectedComponentsArray.Add(ComponentReference.GetComponent());
-			}
-		}
-
-		UDMXPixelMappingBaseComponent** SelectedFixtureGroupPtr = SelectedComponentsArray.FindByPredicate([&SelectedComponentsArray](UDMXPixelMappingBaseComponent* Component)
-			{
-				if (Component->GetClass() == UDMXPixelMappingFixtureGroupComponent::StaticClass())
-				{
-					return true;
-				}
-				return false;
-			});
-
-		if (SelectedFixtureGroupPtr)
-		{
-			if (UDMXPixelMappingOutputComponent* FixtureGroupComponent = Cast<UDMXPixelMappingOutputComponent>(*SelectedFixtureGroupPtr))
-			{
-				if (TSharedPtr<FDMXPixelMappingComponentWidget> ComponentWidget = FixtureGroupComponent->GetComponentWidget())
-				{
-					ComponentWidget->SetColor(FLinearColor::Green);
-				}
-
-				constexpr bool bApplyColorChildsRecursive = true;
-				FixtureGroupComponent->ForEachChildOfClass<UDMXPixelMappingOutputComponent>([FixtureGroupComponent](UDMXPixelMappingOutputComponent* HighlightedComponent)
-					{
-						const bool bIsOverParent = HighlightedComponent->IsOverParent();
-						if (TSharedPtr<FDMXPixelMappingComponentWidget> ComponentWidget = HighlightedComponent->GetComponentWidget())
-						{
-							if (bIsOverParent)
-							{
-								// Give childs of the group some greenish color when they're over their parent
-								ComponentWidget->SetColor(FLinearColor(0.05f, 0.5f, 0.05f));
-							}
-							else
-							{
-								ComponentWidget->SetColor(FLinearColor::Red);
-							}
-						}
-					}, bApplyColorChildsRecursive);
-			}
-		}
-		else
-		{
-			// Set a selected color to selected components and their childs
-			for (UDMXPixelMappingBaseComponent* Component : SelectedComponentsArray)
-			{
-				if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Component))
-				{
-					// Pick a color depending on where the widget resides and what is selected
-					FLinearColor Color = [OutputComponent]()
-					{
-						const bool bIsOverParent = OutputComponent->IsOverParent();
-						if (bIsOverParent)
-						{
-							return FLinearColor::Green;
-						}
-						else
-						{
-							return FLinearColor::Red;
-						}
-					}();
-
-					if (TSharedPtr<FDMXPixelMappingComponentWidget> ComponentWidget = OutputComponent->GetComponentWidget())
-					{
-						ComponentWidget->SetColor(Color);
-					}
-
-					constexpr bool bApplyColorChildsRecursive = true;
-					OutputComponent->ForEachChildOfClass<UDMXPixelMappingOutputComponent>([&Color](UDMXPixelMappingOutputComponent* HighlightedComponent)
-						{
-
-							if (TSharedPtr<FDMXPixelMappingComponentWidget> ComponentWidget = HighlightedComponent->GetComponentWidget())
-							{
-								ComponentWidget->SetColor(Color);
-							}
-						}, bApplyColorChildsRecursive);
-				}
-			}
-		}
-	}
-}
-
 bool FDMXPixelMappingToolkit::IsComponentSelected(UDMXPixelMappingBaseComponent* Component) const
 {
 	for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponents)
@@ -508,7 +367,103 @@ void FDMXPixelMappingToolkit::StopPlayingDMX()
 
 void FDMXPixelMappingToolkit::ExecutebTogglePlayDMXAll()
 {
-	bTogglePlayDMXAll ^= 1;
+	bTogglePlayDMXAll = !bTogglePlayDMXAll;
+}
+
+bool FDMXPixelMappingToolkit::CanSizeSelectedComponentToTexture() const
+{
+	if (SelectedComponents.Num() == 1)
+	{
+		if (UDMXPixelMappingBaseComponent* Component = SelectedComponents.Array()[0].GetComponent())
+		{
+			return
+				Component->GetClass() == UDMXPixelMappingFixtureGroupComponent::StaticClass() ||
+				Component->GetClass() == UDMXPixelMappingMatrixComponent::StaticClass() ||
+				Component->GetClass() == UDMXPixelMappingScreenComponent::StaticClass() ||
+				(Component->GetParent() && Component->GetParent()->GetClass() == UDMXPixelMappingFixtureGroupComponent::StaticClass()) ||
+				(Component->GetParent() && Component->GetParent()->GetClass() == UDMXPixelMappingMatrixComponent::StaticClass()) ||
+				(Component->GetParent() && Component->GetParent()->GetClass() == UDMXPixelMappingScreenComponent::StaticClass());
+		}
+	}
+	return false;
+}
+
+void FDMXPixelMappingToolkit::SizeSelectedComponentToTexture()
+{
+	if (SelectedComponents.IsEmpty())
+	{
+		return;
+	}	
+
+	const UDMXPixelMappingRendererComponent* RendererComponent = GetActiveRendererComponent();
+	if (!RendererComponent)
+	{
+		return;
+	}
+
+	const FVector2D TextureSize = RendererComponent->GetSize();
+	if (TextureSize == FVector2D::ZeroVector)
+	{
+		return;
+	}
+
+	UDMXPixelMappingOutputComponent* Component = Cast<UDMXPixelMappingOutputComponent>(SelectedComponents.Array()[0].GetComponent());
+	if (!Component)
+	{
+		return;
+	}
+
+	// Apply to parent where appropriate
+	if (Component->GetClass() != UDMXPixelMappingFixtureGroupComponent::StaticClass() &&
+		Component->GetClass() != UDMXPixelMappingMatrixComponent::StaticClass() &&
+		Component->GetClass() != UDMXPixelMappingScreenComponent::StaticClass())
+	{
+		if ((Component->GetParent() && Component->GetParent()->GetClass() == UDMXPixelMappingFixtureGroupComponent::StaticClass()) ||
+			(Component->GetParent() && Component->GetParent()->GetClass() == UDMXPixelMappingMatrixComponent::StaticClass()) ||
+			(Component->GetParent() && Component->GetParent()->GetClass() == UDMXPixelMappingScreenComponent::StaticClass()))
+		{
+			Component = Cast<UDMXPixelMappingOutputComponent>(Component->GetParent());
+		}
+	}
+
+	const FScopedTransaction SizeComponentToTextureTransaction(LOCTEXT("SizeComponentToTextureTransaction", "Size Component to Texture"));
+
+	const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
+	if (LayoutSettings && LayoutSettings->bScaleChildrenWithParent)
+	{		
+		// Scale children to parent
+		const FVector2D RatioVector = TextureSize / Component->GetSize();
+		for (UDMXPixelMappingBaseComponent* BaseChild : Component->GetChildren())
+		{
+			if (UDMXPixelMappingOutputComponent* Child = Cast<UDMXPixelMappingOutputComponent>(BaseChild))
+			{
+				Child->PreEditChange(UDMXPixelMappingOutputComponent::StaticClass()->FindPropertyByName(UDMXPixelMappingOutputComponent::GetPositionXPropertyName()));
+				Child->PreEditChange(UDMXPixelMappingOutputComponent::StaticClass()->FindPropertyByName(UDMXPixelMappingOutputComponent::GetPositionYPropertyName()));
+				Child->PreEditChange(UDMXPixelMappingOutputComponent::StaticClass()->FindPropertyByName(UDMXPixelMappingOutputComponent::GetSizeXPropertyName()));
+				Child->PreEditChange(UDMXPixelMappingOutputComponent::StaticClass()->FindPropertyByName(UDMXPixelMappingOutputComponent::GetSizeYPropertyName()));
+
+				// Scale size (SetSize already clamps)
+				Child->SetSize(Child->GetSize() * RatioVector);
+
+				// Scale position (new position is zero vector)
+				const FVector2D ChildPosition = Child->GetPosition();
+				const FVector2D NewPositionRelative = (ChildPosition - Component->GetPosition()) * RatioVector;
+				Child->SetPosition(Component->GetPosition() + NewPositionRelative);
+
+				Child->PostEditChange();
+			}
+		}
+	}
+
+	Component->PreEditChange(UDMXPixelMappingOutputComponent::StaticClass()->FindPropertyByName(UDMXPixelMappingOutputComponent::GetPositionXPropertyName()));
+	Component->PreEditChange(UDMXPixelMappingOutputComponent::StaticClass()->FindPropertyByName(UDMXPixelMappingOutputComponent::GetPositionYPropertyName()));
+	Component->PreEditChange(UDMXPixelMappingOutputComponent::StaticClass()->FindPropertyByName(UDMXPixelMappingOutputComponent::GetSizeXPropertyName()));
+	Component->PreEditChange(UDMXPixelMappingOutputComponent::StaticClass()->FindPropertyByName(UDMXPixelMappingOutputComponent::GetSizeYPropertyName()));
+
+	Component->SetPosition(FVector2D::ZeroVector);
+	Component->SetSize(TextureSize);
+
+	Component->PostEditChange();
 }
 
 void FDMXPixelMappingToolkit::UpdateBlueprintNodes(UDMXPixelMapping* InDMXPixelMapping)
@@ -537,14 +492,10 @@ TArray<UDMXPixelMappingBaseComponent*> FDMXPixelMappingToolkit::CreateComponents
 	{
 		TGuardValue<bool>(bAddingComponents, true);
 
-		FScopedSlowTask SlowTask(Templates.Num(), LOCTEXT("CreateComponentsSlowTaskMessage", "Creating Pixel Mapping Components"));
-		SlowTask.MakeDialogDelayed(.5f);
-
 		if (ensureMsgf(RootComponent && Target, TEXT("Tried to create components from template but RootComponent or Target were invalid.")))
 		{
 			for (const TSharedPtr<FDMXPixelMappingComponentTemplate>& Template : Templates)
 			{
-				SlowTask.EnterProgressFrame(1);
 				if (UDMXPixelMappingBaseComponent* NewComponent = Template->CreateComponent<UDMXPixelMappingBaseComponent>(RootComponent))
 				{
 					NewComponents.Add(NewComponent);
@@ -589,17 +540,6 @@ void FDMXPixelMappingToolkit::DeleteSelectedComponents()
 			return DescendantsCounter;
 		}();
 
-		// Make a slow task since removing may take a significant amount of time
-		const TSharedRef<FScopedSlowTask> SlowTask = MakeShared<FScopedSlowTask>(NumComponentsAndItsDescendants, LOCTEXT("DeleteComponentsSlowTaskMessage", "Removing Pixel Mapping Components"));
-		SlowTask->MakeDialogDelayed(.5f);
-
-		// Bind to the Component Removed Event and let the Slow Task update from that 
-		const FDelegateHandle RemoveComponentDelegateHandle = UDMXPixelMappingBaseComponent::GetOnComponentRemoved().AddRaw(this, &FDMXPixelMappingToolkit::UpdateRemoveComponentSlowTask, SlowTask);
-
-		// Remove the Components
-		const FScopedTransaction DeleteSelectedComponentsTransaction =
-			FScopedTransaction(FText::Format(LOCTEXT("DeleteSelectedComponents", "PixelMapping: Delete {0}|plural(one=Component, other=Components)"), SelectedComponents.Num()));
-
 		TSet<FDMXPixelMappingComponentReference> ParentComponentReferences;
 		for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponents)
 		{
@@ -628,9 +568,6 @@ void FDMXPixelMappingToolkit::DeleteSelectedComponents()
 			}
 		}
 
-		// Unbind from the Component Removed Event
-		UDMXPixelMappingBaseComponent::GetOnComponentRemoved().Remove(RemoveComponentDelegateHandle);
-
 		// Select the Parent Component 
 		SelectComponents(ParentComponentReferences);
 
@@ -656,11 +593,6 @@ void FDMXPixelMappingToolkit::OnComponentRemoved(UDMXPixelMapping* PixelMapping,
 	{
 		UpdateBlueprintNodes(DMXPixelMapping);
 	}
-}
-
-void FDMXPixelMappingToolkit::UpdateRemoveComponentSlowTask(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* InComponent, TSharedRef<FScopedSlowTask> SlowTask)
-{
-	SlowTask->EnterProgressFrame(1);
 }
 
 void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid)
@@ -727,9 +659,21 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 				)
 				->Split
 				(
-					FTabManager::NewStack()
-					->AddTab(DetailsViewTabID, ETabState::OpenedTab)
-					->SetSizeCoefficient(0.25f)
+					FTabManager::NewSplitter()
+					->SetOrientation(Orient_Vertical)
+					->SetSizeCoefficient(0.5f)
+					->Split
+					(
+						FTabManager::NewStack()
+						->AddTab(DetailsViewTabID, ETabState::OpenedTab)
+						->SetSizeCoefficient(0.6f)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->AddTab(LayoutViewTabID, ETabState::OpenedTab)
+						->SetSizeCoefficient(0.4f)
+					)
 				)
 			)
 		);
@@ -809,6 +753,19 @@ TSharedRef<SDockTab> FDMXPixelMappingToolkit::SpawnTab_DetailsView(const FSpawnT
 	return SpawnedTab;
 }
 
+TSharedRef<SDockTab> FDMXPixelMappingToolkit::SpawnTab_LayoutView(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == LayoutViewTabID);
+
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+		.Label(LOCTEXT("LayoutViewTabID", "Layout"))
+		[
+			LayoutView.ToSharedRef()
+		];
+
+	return SpawnedTab;
+}
+
 void FDMXPixelMappingToolkit::CreateInternalViewModels()
 {
 	TSharedPtr<FDMXPixelMappingToolkit> ThisPtr(SharedThis(this));
@@ -823,6 +780,7 @@ void FDMXPixelMappingToolkit::CreateInternalViews()
 	CreateOrGetView_DesignerView();
 	CreateOrGetView_PreviewView();
 	CreateOrGetView_DetailsView();
+	CreateOrGetView_LayoutView();
 }
 
 void FDMXPixelMappingToolkit::OnComponentRenamed(UDMXPixelMappingBaseComponent* InComponent)
@@ -880,35 +838,204 @@ TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_DetailsView()
 	return DetailsView.ToSharedRef();
 }
 
+TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_LayoutView()
+{
+	if (!LayoutView.IsValid())
+	{
+		LayoutView = SNew(SDMXPixelMappingLayoutView, SharedThis(this));
+	}
+
+	return LayoutView.ToSharedRef();
+}
+
 void FDMXPixelMappingToolkit::SetupCommands()
 {
 	GetToolkitCommands()->MapAction(
 		FDMXPixelMappingEditorCommands::Get().AddMapping,
-		FExecuteAction::CreateRaw(this, &FDMXPixelMappingToolkit::AddRenderer));
+		FExecuteAction::CreateSP(this, &FDMXPixelMappingToolkit::AddRenderer)
+	);
 
 	GetToolkitCommands()->MapAction(
 		FDMXPixelMappingEditorCommands::Get().SaveThumbnailImage,
-		FExecuteAction::CreateSP(this, &FDMXPixelMappingToolkit::OnSaveThumbnailImage));
+		FExecuteAction::CreateSP(this, &FDMXPixelMappingToolkit::OnSaveThumbnailImage)
+	);
 
 	GetToolkitCommands()->MapAction(
 		FDMXPixelMappingEditorCommands::Get().PlayDMX,
-		FExecuteAction::CreateRaw(this, &FDMXPixelMappingToolkit::PlayDMX),
-		FCanExecuteAction::CreateLambda([this] { return !bIsPlayingDMX; }),
+		FExecuteAction::CreateSP(this, &FDMXPixelMappingToolkit::PlayDMX),
+		FCanExecuteAction::CreateLambda([this] 
+			{ 
+				return !bIsPlayingDMX;
+			}),
 		FIsActionChecked(),
-		FIsActionButtonVisible::CreateLambda([this] { return !bIsPlayingDMX; }));
+		FIsActionButtonVisible::CreateLambda([this] 
+			{ 
+				return !bIsPlayingDMX; 
+			})
+	);
 
 	GetToolkitCommands()->MapAction(
 		FDMXPixelMappingEditorCommands::Get().StopPlayingDMX,
-		FExecuteAction::CreateRaw(this, &FDMXPixelMappingToolkit::StopPlayingDMX),
-		FCanExecuteAction::CreateLambda([this] { return bIsPlayingDMX; }),
+		FExecuteAction::CreateSP(this, &FDMXPixelMappingToolkit::StopPlayingDMX),
+		FCanExecuteAction::CreateLambda([this] 
+			{ 
+				return bIsPlayingDMX; 
+			}),
 		FIsActionChecked(),
-		FIsActionButtonVisible::CreateLambda([this] { return bIsPlayingDMX; }));
+		FIsActionButtonVisible::CreateLambda([this] 
+			{ 
+				return bIsPlayingDMX;
+			})
+	);
 
 	GetToolkitCommands()->MapAction(
-		FDMXPixelMappingEditorCommands::Get().bTogglePlayDMXAll,
-		FExecuteAction::CreateRaw(this, &FDMXPixelMappingToolkit::ExecutebTogglePlayDMXAll),
+		FDMXPixelMappingEditorCommands::Get().TogglePlayDMXAll,
+		FExecuteAction::CreateSP(this, &FDMXPixelMappingToolkit::ExecutebTogglePlayDMXAll),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this]() -> bool { return bTogglePlayDMXAll; }));
+		FIsActionChecked::CreateLambda([this]()
+			{ 
+				return bTogglePlayDMXAll; 
+			})
+	);
+
+	// Layout related
+	GetToolkitCommands()->MapAction(
+		FDMXPixelMappingEditorCommands::Get().SizeComponentToTexture,
+		FExecuteAction::CreateSP(this, &FDMXPixelMappingToolkit::SizeSelectedComponentToTexture),
+		FCanExecuteAction::CreateSP(this, &FDMXPixelMappingToolkit::CanSizeSelectedComponentToTexture)
+	);
+
+	GetToolkitCommands()->MapAction(
+		FDMXPixelMappingEditorCommands::Get().ToggleScaleChildrenWithParent,
+		FExecuteAction::CreateLambda([]
+			{
+				if (UDMXPixelMappingLayoutSettings* LayoutSettings = GetMutableDefault<UDMXPixelMappingLayoutSettings>())
+				{
+					LayoutSettings->PreEditChange(nullptr);
+					LayoutSettings->bScaleChildrenWithParent = !LayoutSettings->bScaleChildrenWithParent;
+					LayoutSettings->PostEditChange();
+				}
+			}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([]()
+			{
+				if (const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>())
+				{
+					return LayoutSettings->bScaleChildrenWithParent;
+				}
+				return false;
+			})
+	);
+
+	GetToolkitCommands()->MapAction(
+		FDMXPixelMappingEditorCommands::Get().ToggleAlwaysSelectGroup,
+		FExecuteAction::CreateLambda([]
+			{
+				if (UDMXPixelMappingLayoutSettings* LayoutSettings = GetMutableDefault<UDMXPixelMappingLayoutSettings>())
+				{
+					LayoutSettings->PreEditChange(nullptr);
+					LayoutSettings->bAlwaysSelectGroup = !LayoutSettings->bAlwaysSelectGroup;
+					LayoutSettings->PostEditChange();
+				}
+			}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([]()
+			{
+				if (const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>())
+				{
+					return LayoutSettings->bAlwaysSelectGroup;
+				}
+				return false;
+			})
+	);
+
+	GetToolkitCommands()->MapAction(
+		FDMXPixelMappingEditorCommands::Get().ToggleApplyLayoutScriptWhenLoaded,
+		FExecuteAction::CreateLambda([]
+			{
+				if (UDMXPixelMappingLayoutSettings* LayoutSettings = GetMutableDefault<UDMXPixelMappingLayoutSettings>())
+				{
+					LayoutSettings->PreEditChange(nullptr);
+					LayoutSettings->bApplyLayoutScriptWhenLoaded = !LayoutSettings->bApplyLayoutScriptWhenLoaded;
+					LayoutSettings->PostEditChange();
+				}
+			}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([]()
+			{
+				if (const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>())
+				{
+					return LayoutSettings->bApplyLayoutScriptWhenLoaded;
+				}
+				return false;
+			})
+	);
+
+	GetToolkitCommands()->MapAction(
+		FDMXPixelMappingEditorCommands::Get().ToggleShowComponentNames,
+		FExecuteAction::CreateLambda([]
+			{
+				if (UDMXPixelMappingLayoutSettings* LayoutSettings = GetMutableDefault<UDMXPixelMappingLayoutSettings>())
+				{
+					LayoutSettings->PreEditChange(nullptr);
+					LayoutSettings->bShowComponentNames = !LayoutSettings->bShowComponentNames;
+					LayoutSettings->PostEditChange();
+				}
+			}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([]()
+			{
+				if (const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>())
+				{
+					return LayoutSettings->bShowComponentNames;
+				}
+				return false;
+			})
+	);
+
+	GetToolkitCommands()->MapAction(
+		FDMXPixelMappingEditorCommands::Get().ToggleShowPatchInfo,
+		FExecuteAction::CreateLambda([]
+			{
+				if (UDMXPixelMappingLayoutSettings* LayoutSettings = GetMutableDefault<UDMXPixelMappingLayoutSettings>())
+				{
+					LayoutSettings->PreEditChange(nullptr);
+					LayoutSettings->bShowPatchInfo = !LayoutSettings->bShowPatchInfo;
+					LayoutSettings->PostEditChange();
+				}
+			}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([]()
+			{
+				if (const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>())
+				{
+					return LayoutSettings->bShowPatchInfo;
+				}
+				return false;
+			})
+	);
+
+	GetToolkitCommands()->MapAction(
+		FDMXPixelMappingEditorCommands::Get().ToggleShowCellIDs,
+		FExecuteAction::CreateLambda([]
+			{
+				if (UDMXPixelMappingLayoutSettings* LayoutSettings = GetMutableDefault<UDMXPixelMappingLayoutSettings>())
+				{
+					LayoutSettings->PreEditChange(nullptr);
+					LayoutSettings->bShowCellIDs = !LayoutSettings->bShowCellIDs;
+					LayoutSettings->PostEditChange();
+				}
+			}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([]()
+			{
+				if (const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>())
+				{
+					return LayoutSettings->bShowCellIDs;
+				}
+				return false;
+			})
+	);
 }
 
 void FDMXPixelMappingToolkit::ExtendToolbar()

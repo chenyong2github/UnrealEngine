@@ -9,17 +9,16 @@
 #include "EditorUndoClient.h"
 #include "Templates/SharedPointer.h"
 
-class UDMXPixelMappingBaseComponent;
 class FDMXPixelMappingComponentReference;
 class FDMXPixelMappingDragDropOp;
-class UDMXPixelMappingFixtureGroupComponent;
-class UDMXPixelMappingFixtureGroupItemComponent;
-class UDMXPixelMappingOutputComponent;
-class UDMXPixelMappingRendererComponent;
+class FDMXPixelMappingToolkit;
+class IDMXPixelMappingOutputComponentWidgetInterface;
 class SDMXPixelMappingRuler;
 class SDMXPixelMappingSourceTextureViewport;
-class FDMXPixelMappingToolkit;
 class SDMXPixelMappingTransformHandle;
+class UDMXPixelMappingBaseComponent;
+class UDMXPixelMappingOutputComponent;
+class UDMXPixelMappingRendererComponent;
 
 class FHittestGrid;
 struct FOptionalSize;
@@ -219,6 +218,9 @@ private:
 
 	/** The position in local space where the user began dragging a widget */
 	FVector2D DragAnchor;
+
+	/** Oupput component views currently displayed */
+	TArray<TSharedRef<IDMXPixelMappingOutputComponentWidgetInterface>> OutputComponentWidgets;
 
 	TArray<TSharedPtr<SDMXPixelMappingTransformHandle>> TransformHandles;
 

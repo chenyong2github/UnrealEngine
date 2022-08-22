@@ -22,14 +22,18 @@ public:
 	/** Virtual Destructor */
 	virtual ~FDMXPixelMappingToolbar() {}
 
+	/** Builds the toolbar */
 	void BuildToolbar(TSharedPtr<FExtender> Extender);
 
 private:
-	void Build(FToolBarBuilder& ToolbarBuilder);
+	/** Callback, raised when the menu extender requests to build the toolbar */
+	void BuildToolbarCallback(FToolBarBuilder& ToolbarBuilder);
 
-	void AddHelpersSection(FToolBarBuilder& ToolbarBuilder);
-	void AddPlayAndStopSection(FToolBarBuilder& ToolbarBuilder);
-	TSharedRef<SWidget> FillPlayMenu();
+	/** Generates a widget with play options (play, stop) */
+	TSharedRef<SWidget> GeneratesPlayOptionsWidget();
+
+	/** Generates a layout settings menu for the pixelmapping toolbar */
+	TSharedRef<SWidget> GenerateLayoutMenu();
 
 public:
 	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;

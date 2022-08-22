@@ -4,7 +4,9 @@
 
 #include "DMXPixelMappingComponentReference.h"
 #include "DMXPixelMappingComponentWidget.h"
+#include "DMXPixelMappingLayoutSettings.h"
 #include "Components/DMXPixelMappingOutputComponent.h"
+#include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "Views/SDMXPixelMappingDesignerView.h"
 
@@ -89,28 +91,6 @@ FReply SDMXPixelMappingTransformHandle::OnMouseButtonUp(const FGeometry& MyGeome
 			{
 				if (UDMXPixelMappingOutputComponent* ResizedComponent = Cast<UDMXPixelMappingOutputComponent>(ComponentReference.GetComponent()))
 				{
-					// Delete the component if it's no longer over its parent
-					if (ResizedComponent->HasValidParent() &&
-						!ResizedComponent->IsOverParent())
-					{
-						ResizedComponent->SetFlags(RF_Transactional);
-						ResizedComponent->Modify();
-
-						ResizedComponent->GetParent()->RemoveChild(ResizedComponent);
-					}
-
-					// Delete childs if they're no longer over their parent
-					for (UDMXPixelMappingBaseComponent* Child : TArray<UDMXPixelMappingBaseComponent*>(ResizedComponent->Children))
-					{
-						if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Child))
-						{
-							if (OutputComponent && !OutputComponent->IsOverParent())
-							{
-								ResizedComponent->RemoveChild(Child);
-							}
-						}
-					}
-
 					// Set the final size transacted
 					const FVector2D Delta = MouseEvent.GetScreenSpacePosition() - MouseDownPosition;
 					const FVector2D TranslateAmount = Delta * (1.0f / (DesignerViewWeakPtr.Pin()->GetPreviewScale() * MyGeometry.Scale));
@@ -154,16 +134,15 @@ FReply SDMXPixelMappingTransformHandle::OnMouseMove(const FGeometry& MyGeometry,
 
 void SDMXPixelMappingTransformHandle::Resize(UDMXPixelMappingBaseComponent* BaseComponent, const FVector2D& Direction, const FVector2D& Amount)
 {
-
 	if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(BaseComponent))
 	{
 		FVector2D ComponentSize = OutputComponent->GetSize();
 
 		FMargin Offsets = StartingOffsets;
 
-		FVector2D Movement = Amount * Direction;
-		FVector2D PositionMovement = Movement * (FVector2D(1.0f, 1.0f));
-		FVector2D SizeMovement = Movement;
+		const FVector2D Movement = Amount * Direction;
+		const FVector2D PositionMovement = Movement * (FVector2D(1.0f, 1.0f));
+		const FVector2D SizeMovement = Movement;
 
 		if (Direction.X < 0)
 		{
@@ -179,17 +158,60 @@ void SDMXPixelMappingTransformHandle::Resize(UDMXPixelMappingBaseComponent* Base
 
 		if (Direction.X > 0)
 		{
-			Offsets.Left += (Movement).X;
+			Offsets.Left += Movement.X;
 			Offsets.Right += Amount.X * Direction.X;
 		}
 
 		if (Direction.Y > 0)
 		{
-			Offsets.Top += (Movement).Y;
+			Offsets.Top += Movement.Y;
 			Offsets.Bottom += Amount.Y * Direction.Y;
 		}
 
-		OutputComponent->SetSize(FVector2D(Offsets.Right, Offsets.Bottom).RoundToVector());
+		const FVector2D OldSize = OutputComponent->GetSize();
+		const FVector2D NewSize = FVector2D(Offsets.Right, Offsets.Bottom);
+		if (OldSize == NewSize)
+		{
+			// No unchanged values
+			return;
+		}
+
+		OutputComponent->SetSize(NewSize);
+
+		// Scale children if desired, no division by zero
+		const UDMXPixelMappingLayoutSettings* LayoutSettings = GetDefault<UDMXPixelMappingLayoutSettings>();
+		if (!LayoutSettings ||
+			!LayoutSettings->bScaleChildrenWithParent ||
+			NewSize == FVector2D::ZeroVector)
+		{
+			return;
+		}
+
+		const FVector2D RatioVector = NewSize / OldSize;
+		for (UDMXPixelMappingBaseComponent* BaseChild : OutputComponent->GetChildren())
+		{
+			if (UDMXPixelMappingOutputComponent* Child = Cast<UDMXPixelMappingOutputComponent>(BaseChild))
+			{
+				if (BaseChild->GetClass() == UDMXPixelMappingMatrixCellComponent::StaticClass())
+				{
+					// Don't scale matrix cells, the matrix component already cares for this
+					if (Child->IsLockInDesigner())
+					{
+						continue;
+					}
+				}
+
+				Child->Modify();
+
+				// Scale size (Note, SetSize already clamps)
+				Child->SetSize(Child->GetSize() * RatioVector);
+
+				// Scale position
+				const FVector2D ChildPosition = Child->GetPosition();
+				const FVector2D NewPositionRelative = (ChildPosition - OutputComponent->GetPosition()) * RatioVector;
+				Child->SetPosition(OutputComponent->GetPosition() + NewPositionRelative);
+			}
+		}
 	}
 }
 

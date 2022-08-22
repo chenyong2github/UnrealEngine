@@ -17,7 +17,7 @@ class FXmlNode;
  * UE Specific: Note, while properties follow the standard closely, only properties relevant to the Engine are implemented.
  */
 UCLASS()
-class UDMXMVRSceneNode
+class DMXRUNTIME_API UDMXMVRSceneNode
 	: public UObject
 {
 	GENERATED_BODY()

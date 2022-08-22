@@ -27,6 +27,7 @@ public class DMXPixelMappingEditor : ModuleRules
 			"RHI",
 			"Slate",
 			"SlateCore",
+			"ToolMenus",
 			"ToolWidgets",
 			"UnrealEd",
 		});

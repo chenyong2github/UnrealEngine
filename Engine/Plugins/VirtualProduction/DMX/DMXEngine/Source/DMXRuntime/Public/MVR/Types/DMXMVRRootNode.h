@@ -22,7 +22,7 @@ class FXmlFile;
  * UE specific: Note, while properties follow the standard closely, only children relevant to the Engine are implemented.
  */
 UCLASS()
-class UDMXMVRRootNode
+class DMXRUNTIME_API UDMXMVRRootNode
 	: public UObject
 {
 	GENERATED_BODY()

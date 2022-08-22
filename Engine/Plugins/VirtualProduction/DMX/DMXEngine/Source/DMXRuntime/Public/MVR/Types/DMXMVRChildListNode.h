@@ -14,7 +14,7 @@ class FXmlNode;
 
 /** This node defines a generic graphical object. */
 UCLASS()
-class UDMXMVRChildListNode
+class DMXRUNTIME_API UDMXMVRChildListNode
 	: public UObject
 {
 	GENERATED_BODY()

@@ -24,17 +24,11 @@ void FDMXPixelMappingToolbar::BuildToolbar(TSharedPtr<FExtender> Extender)
 		"Asset",
 		EExtensionHook::After,
 		Toolkit->GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateSP(this, &FDMXPixelMappingToolbar::Build)
+		FToolBarExtensionDelegate::CreateSP(this, &FDMXPixelMappingToolbar::BuildToolbarCallback)
 	);
 }
 
-void FDMXPixelMappingToolbar::Build(FToolBarBuilder& ToolbarBuilder)
-{
-	AddHelpersSection(ToolbarBuilder);
-	AddPlayAndStopSection(ToolbarBuilder);
-}
-
-void FDMXPixelMappingToolbar::AddHelpersSection(FToolBarBuilder& ToolbarBuilder)
+void FDMXPixelMappingToolbar::BuildToolbarCallback(FToolBarBuilder& ToolbarBuilder)
 {
 	ToolbarBuilder.BeginSection("Thumbnail");
 	{
@@ -44,10 +38,7 @@ void FDMXPixelMappingToolbar::AddHelpersSection(FToolBarBuilder& ToolbarBuilder)
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Cascade.SaveThumbnailImage"));
 	}
 	ToolbarBuilder.EndSection();
-}
 
-void FDMXPixelMappingToolbar::AddPlayAndStopSection(FToolBarBuilder& ToolbarBuilder)
-{
 	TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin();
 	check(Toolkit.IsValid());
 
@@ -81,16 +72,28 @@ void FDMXPixelMappingToolbar::AddPlayAndStopSection(FToolBarBuilder& ToolbarBuil
 
 		ToolbarBuilder.AddComboButton(
 			PlayDMXOptionsAction,
-			FOnGetContent::CreateSP(this, &FDMXPixelMappingToolbar::FillPlayMenu),
+			FOnGetContent::CreateSP(this, &FDMXPixelMappingToolbar::GeneratesPlayOptionsWidget),
 			LOCTEXT("PlayDMXOptions", "Play DMX Options"),
 			LOCTEXT("PlayDMXOptions", "Play DMX Options"),
 			FSlateIcon(),
 			true);
 	}
 	ToolbarBuilder.EndSection();
+
+	ToolbarBuilder.BeginSection("Layout");
+	{
+		ToolbarBuilder.AddComboButton(
+			FUIAction(),
+			FOnGetContent::CreateSP(this, &FDMXPixelMappingToolbar::GenerateLayoutMenu),
+			LOCTEXT("PixelMappingToolbarLayoutSettingsLabel", "Layout"),
+			LOCTEXT("PixelMappingToolbarLayoutSettingsTooltip", "Layout Settings for Pixel Mapping Editors"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Layout")
+		);
+	}
+	ToolbarBuilder.EndSection();
 }
 
-TSharedRef<SWidget> FDMXPixelMappingToolbar::FillPlayMenu()
+TSharedRef<SWidget> FDMXPixelMappingToolbar::GeneratesPlayOptionsWidget()
 {
 	TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin();
 	check(Toolkit.IsValid());
@@ -101,10 +104,38 @@ TSharedRef<SWidget> FDMXPixelMappingToolbar::FillPlayMenu()
 	{
 		MenuBuilder.BeginSection("bTogglePlayDMXAll");
 		{
-			MenuBuilder.AddMenuEntry(FDMXPixelMappingEditorCommands::Get().bTogglePlayDMXAll);
+			MenuBuilder.AddMenuEntry(FDMXPixelMappingEditorCommands::Get().TogglePlayDMXAll);
 		}
 		MenuBuilder.EndSection();
 	}
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> FDMXPixelMappingToolbar::GenerateLayoutMenu()
+{
+	TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin();
+	check(Toolkit.IsValid());
+
+	constexpr bool bShouldCloseMenuAfterSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseMenuAfterSelection, Toolkit->GetToolkitCommands());
+	
+	MenuBuilder.BeginSection("Actions", LOCTEXT("ActionsSection", "Actions"));
+	{
+		MenuBuilder.AddMenuEntry(FDMXPixelMappingEditorCommands::Get().SizeComponentToTexture);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("LayoutSettings", LOCTEXT("LayoutSettingsSection", "Settings"));
+	{
+		MenuBuilder.AddMenuEntry(FDMXPixelMappingEditorCommands::Get().ToggleScaleChildrenWithParent);
+		MenuBuilder.AddMenuEntry(FDMXPixelMappingEditorCommands::Get().ToggleAlwaysSelectGroup);
+		MenuBuilder.AddMenuEntry(FDMXPixelMappingEditorCommands::Get().ToggleApplyLayoutScriptWhenLoaded);
+		MenuBuilder.AddMenuEntry(FDMXPixelMappingEditorCommands::Get().ToggleShowComponentNames);
+		MenuBuilder.AddMenuEntry(FDMXPixelMappingEditorCommands::Get().ToggleShowPatchInfo);
+		MenuBuilder.AddMenuEntry(FDMXPixelMappingEditorCommands::Get().ToggleShowCellIDs);
+	}
+	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
 }

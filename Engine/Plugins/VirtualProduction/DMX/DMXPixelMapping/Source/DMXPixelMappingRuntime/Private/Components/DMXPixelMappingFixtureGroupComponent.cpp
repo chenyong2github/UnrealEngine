@@ -24,22 +24,21 @@
 
 UDMXPixelMappingFixtureGroupComponent::UDMXPixelMappingFixtureGroupComponent()
 {
-	SizeX = 500.f;
-	SizeY = 500.f;
+	SetSize(FVector2D(500.f, 500.f));
 }
 
 void UDMXPixelMappingFixtureGroupComponent::PostInitProperties()
 {
 	Super::PostInitProperties();
 
-	LastPosition = FVector2D(PositionX, PositionY);
+	LastPosition = GetPosition();
 }
 
 void UDMXPixelMappingFixtureGroupComponent::PostLoad()
 {
 	Super::PostLoad();
 
-	LastPosition = FVector2D(PositionX, PositionY);
+	LastPosition = GetPosition();
 }
 
 #if WITH_EDITOR
@@ -48,26 +47,29 @@ void UDMXPixelMappingFixtureGroupComponent::PostEditChangeProperty(FPropertyChan
 	// Call the parent at the first place
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionX) ||
-		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionY))
+	if (PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetPositionXPropertyName() ||
+		PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetPositionYPropertyName())
 	{
 		HandlePositionChanged();
 	}
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX) ||
-		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY))
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeXPropertyName() ||
+		PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeYPropertyName())
 	{
-		if (ComponentWidget.IsValid())
+		if (ComponentWidget_DEPRECATED.IsValid())
 		{
-			ComponentWidget->SetSize(FVector2D(SizeX, SizeY));
+			ComponentWidget_DEPRECATED->SetSize(GetSize());
 		}
 	}
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, DMXLibrary))
 	{
-		if (ComponentWidget.IsValid())
+		if (ComponentWidget_DEPRECATED.IsValid())
 		{
-			ComponentWidget->SetLabelText(FText::FromString(GetUserFriendlyName()));
+			ComponentWidget_DEPRECATED->SetLabelText(FText::FromString(GetUserFriendlyName()));
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 #endif // WITH_EDITOR
 
@@ -155,39 +157,34 @@ void UDMXPixelMappingFixtureGroupComponent::QueueDownsample()
 
 void UDMXPixelMappingFixtureGroupComponent::SetPosition(const FVector2D& NewPosition)
 {
-	Modify();
-
-	PositionX = FMath::RoundHalfToZero(NewPosition.X);
-	PositionY = FMath::RoundHalfToZero(NewPosition.Y);
+	Super::SetPosition(NewPosition);
 
 	HandlePositionChanged();
 }
 
 void UDMXPixelMappingFixtureGroupComponent::SetSize(const FVector2D& NewSize)
 {
-	Modify();
-
-	SizeX = FMath::RoundHalfToZero(NewSize.X);
-	SizeY = FMath::RoundHalfToZero(NewSize.Y);
-
-	SizeX = FMath::Max(SizeX, 1.f);
-	SizeY = FMath::Max(SizeY, 1.f);
+	Super::SetSize(NewSize);
 
 #if WITH_EDITOR
-	if (ComponentWidget.IsValid())
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (ComponentWidget_DEPRECATED.IsValid())
 	{
-		ComponentWidget->SetSize(FVector2D(SizeX, SizeY));
+		ComponentWidget_DEPRECATED->SetSize(GetSize());
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
 void UDMXPixelMappingFixtureGroupComponent::HandlePositionChanged()
 {
 #if WITH_EDITOR
-	if (ComponentWidget.IsValid())
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (ComponentWidget_DEPRECATED.IsValid())
 	{
-		ComponentWidget->SetPosition(FVector2D(PositionX, PositionY));
+		ComponentWidget_DEPRECATED->SetPosition(GetPosition());
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
 	// Propagonate to children

@@ -43,6 +43,15 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
 private:
+	/** Creates a button that adds all patches to the group */
+	void CreateAddAllPatchesButton(IDetailLayoutBuilder& InDetailLayout);
+
+	/** Creates a list of fixture patches available to drag drop as detail rws */
+	void CreateFixturePatchDetailRows(IDetailLayoutBuilder& InDetailLayout);
+
+	/** Called when the 'Add all Patches' button was clicked */
+	FReply OnAddAllPatchesClicked();
+
 	/** Called when the library changed */
 	void OnLibraryChanged();
 
@@ -51,6 +60,15 @@ private:
 
 	/** Called when a component was removed */
 	void OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
+
+	/** Called before the SizeX property changed */
+	void OnSizePropertyPreChange();
+
+	/** Called when the SizeX property changed */
+	void OnSizePropertyChanged(const FPropertyChangedEvent& PropertyChangedEvent);
+
+	/** Handles the size property changed, useful to call on tick */
+	void HandleSizePropertyChanged();
 
 	/** Forces the detail layout to refresh */
 	void ForceRefresh();
@@ -64,11 +82,17 @@ private:
 	/** Called when a fixture patch was dragged */
 	FReply OnFixturePatchesDragged(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
+	/** Returns true if the fixture patch is used in the pixel mapping */
+	bool IsFixturePatchAssignedToPixelMapping(UDMXEntityFixturePatch* FixturePatch) const;
+
 	/** Updates highlights for the fixture patches (selection) */
 	void UpdateFixturePatchHighlights();
 
 	/** Update fixture patches in use */
 	void UpdateFixturePatchesInUse(UDMXLibrary* DMXLibrary);
+
+	/** Updates the bCachedScaleChildrenWithParent member from UDMXPixelMappingLayoutSettings */
+	void UpdateCachedScaleChildrenWithParent();
 
 	/** Helper that returns the library selected in for the group */
 	UDMXLibrary* GetSelectedDMXLibrary(UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent) const;
@@ -88,11 +112,26 @@ private:
 	/** The single fixture group component in use */
 	TWeakObjectPtr<UDMXPixelMappingFixtureGroupComponent> WeakFixtureGroupComponent;
 
+	/** Number of fixture patch rows displayed */
+	int32 NumFixturePatchRows = 0;
+
+	/** SizeX before it got changed */
+	TMap<TWeakObjectPtr<UDMXPixelMappingFixtureGroupComponent>, FVector2D> PreEditChangeComponentToSizeMap;
+
+	/** Cached UDMXPixelMappingLayoutSettings::bScaleChildrenWithParen, to avoid repetitive reads during interactive changes */
+	bool bCachedScaleChildrenWithParent = false;
+
 	/** Handle to the dmx library property */
 	TSharedPtr<IPropertyHandle> DMXLibraryHandle;
 
 	/** Handle to the dmx library's entity array */
 	TSharedPtr<IPropertyHandle> EntitiesHandle;
+
+	/** Property handle for the SizeX property */
+	TSharedPtr<IPropertyHandle> SizeXHandle;
+
+	/** Property handle for the SizeY property */
+	TSharedPtr<IPropertyHandle> SizeYHandle;
 
 	/** Patches with their details row. Helps to multiselect and toggle highlights */
 	struct FDetailRowWidgetWithPatch
@@ -106,7 +145,4 @@ private:
 	FDelegateHandle RequestForceRefreshHandle;
 
 	TSharedPtr<IPropertyUtilities> PropertyUtilities;
-
-	/** If true, is refreshing */
-	bool bRefreshing = false;
 };

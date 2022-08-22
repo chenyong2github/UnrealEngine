@@ -17,7 +17,7 @@ class FXmlNode;
 
 /** A Layer node in the Layers Node of a Scene. */
 UCLASS()
-class UDMXMVRLayerNode
+class DMXRUNTIME_API UDMXMVRLayerNode
 	: public UObject
 {
 	GENERATED_BODY()

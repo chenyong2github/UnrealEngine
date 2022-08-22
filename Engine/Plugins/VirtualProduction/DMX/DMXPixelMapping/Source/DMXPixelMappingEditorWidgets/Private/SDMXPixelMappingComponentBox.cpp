@@ -8,6 +8,7 @@
 #include "Widgets/Text/STextBlock.h"
 
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // The whole class is deprecated 5.1
 void SDMXPixelMappingComponentBox::Construct(const FArguments& InArgs)
 {
 	SetCanTick(false);
@@ -87,3 +88,4 @@ FLinearColor SDMXPixelMappingComponentBox::GetBorderColor() const
 {
 	return BorderBrush.TintColor.GetSpecifiedColor();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

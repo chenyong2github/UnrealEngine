@@ -21,37 +21,17 @@
 
 FDMXPixelMappingDragDropOp::~FDMXPixelMappingDragDropOp()
 {
-	// Remember children not over their parent (to remove after), make others highest ZOrder.
+	// Newly added components are highest Z-Order
 	TArray<UDMXPixelMappingOutputComponent*> ChildrenNotOverTheirParent;
 	for (const TWeakObjectPtr<UDMXPixelMappingBaseComponent>& DraggedComponent : DraggedComponents)
 	{
 		if (UDMXPixelMappingOutputComponent* DraggedOutputComponent = Cast<UDMXPixelMappingOutputComponent>(DraggedComponent.Get()))
 		{
-			if (DraggedOutputComponent->GetParent() && 
-				!DraggedOutputComponent->IsOverParent())
-			{
-				ChildrenNotOverTheirParent.Add(DraggedOutputComponent);
-			}
-			else
-			{
-				DraggedOutputComponent->MakeHighestZOrderInComponentRect();
-			}
+			DraggedOutputComponent->MakeHighestZOrderInComponentRect();
 		}
 	}
 
-	// Destroy components not over their parent 
-	TArray<UDMXPixelMappingOutputComponent*> RemovedComponents;
-	for (UDMXPixelMappingOutputComponent* ComponentNotOverParent : ChildrenNotOverTheirParent)
-	{
-		DraggedComponents.Remove(ComponentNotOverParent);
-
-		// Remove output components not over their parent
-		ComponentNotOverParent->Modify();
-		ComponentNotOverParent->GetParent()->Modify();
-
-		ComponentNotOverParent->GetParent()->RemoveChild(ComponentNotOverParent);
-	}
-
+	// End the transaction in any case
 	GEditor->EndTransaction();
 }
 

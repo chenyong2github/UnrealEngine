@@ -11,15 +11,16 @@
 
 #include "DMXPixelMappingRendererComponent.generated.h"
 
+enum class EDMXPixelMappingRendererType : uint8;
+class UDMXPixelMappingLayoutScript;
 
+enum class EMapChangeType : uint8;
 class UMaterialInterface;
 class UTexture;
 class UUserWidget;
 class UTextureRenderTarget2D;
 class UWorld;
 
-enum class EMapChangeType : uint8;
-enum class EDMXPixelMappingRendererType : uint8;
 
 /**
  * Component for rendering input texture
@@ -55,10 +56,6 @@ public:
 	virtual void RenderAndSendDMX() final;
 	//~ End UDMXPixelMappingBaseComponent implementation
 
-	// ~Begin UDMXPixelMappingOutputComponent interface
-	virtual void SetSize(const FVector2D& NewSize) override;
-	// ~End UDMXPixelMappingOutputComponent interface
-
 #if WITH_EDITOR
 	/** Render all downsample pixel for editor preview texture */
 	void RenderEditorPreviewTexture();
@@ -88,6 +85,7 @@ public:
 	/**
 	 * Take of container widget which is holds widget for all child components.
 	 */
+	UE_DEPRECATED(5.1, "Pixel Mapping Components no longer hold their own widget, in an effort to separate Views from Data.")
 	TSharedRef<SWidget> TakeWidget();
 #endif // WITH_EDITOR
 
@@ -184,6 +182,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0", UIMax = "1"))
 	float Brightness;
 
+	/** Layout script for the children of this component (hidden in customizations and displayed in its own panel). */
+	UPROPERTY(EditAnywhere, Instanced, Category = "Layout")
+	TObjectPtr<UDMXPixelMappingLayoutScript> LayoutScript;
+
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
 
@@ -242,6 +244,7 @@ private:
 
 	/** Initial texture color */
 	static const FLinearColor ClearTextureColor;
+
 public:
 	/** Max downsample target size */
 	static const FIntPoint MaxDownsampleBufferTargetSize;

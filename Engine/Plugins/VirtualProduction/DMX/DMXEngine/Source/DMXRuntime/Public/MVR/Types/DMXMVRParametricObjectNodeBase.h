@@ -18,7 +18,7 @@ class FXmlNode;
 
 /** UE specific: The base class for all Children in a Child List Node, whereas the standard refers to them as 'Parametric Objects'. */
 UCLASS(Abstract)
-class UDMXMVRParametricObjectNodeBase
+class DMXRUNTIME_API UDMXMVRParametricObjectNodeBase
 	: public UObject
 {
 	GENERATED_BODY()

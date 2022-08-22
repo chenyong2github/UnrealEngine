@@ -6,6 +6,7 @@
 #include "SDMXPixelMappingComponentLabel.h"
 
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // The whole class and several child widgets are deprecated 5.1
 FDMXPixelMappingComponentWidget::FDMXPixelMappingComponentWidget(TSharedPtr<SDMXPixelMappingComponentBox> InComponentBox, TSharedPtr<SDMXPixelMappingComponentLabel> InComponentLabel, bool bShowLabelAbove)
 	: ComponentBox(InComponentBox)
 	, ComponentLabel(InComponentLabel)
@@ -124,3 +125,4 @@ void FDMXPixelMappingComponentWidget::SetVisibility(EVisibility Visibility)
 	ComponentBox->SetVisibility(Visibility);
 	ComponentLabel->SetVisibility(Visibility);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -28,8 +28,7 @@ DECLARE_CYCLE_STAT(TEXT("Send Fixture Group Item"), STAT_DMXPixelMaping_FixtureG
 UDMXPixelMappingFixtureGroupItemComponent::UDMXPixelMappingFixtureGroupItemComponent()
 	: DownsamplePixelIndex(0)
 {
-	SizeX = 32.f;
-	SizeY = 32.f;
+	SetSize(FVector2D(32.f, 32.f));
 
 	ColorMode = EDMXColorMode::CM_RGB;
 	AttributeRExpose = AttributeGExpose = AttributeBExpose = true;
@@ -75,22 +74,24 @@ void UDMXPixelMappingFixtureGroupItemComponent::PostEditChangeProperty(FProperty
 
 	FName PropertyName = PropertyChangedEvent.GetPropertyName();
 
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionX) ||
-		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionY))
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetPositionXPropertyName() ||
+		PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetPositionYPropertyName())
 	{
-		if (ComponentWidget.IsValid())
+		if (ComponentWidget_DEPRECATED.IsValid())
 		{
-			ComponentWidget->SetPosition(FVector2D(PositionX, PositionY));
+			ComponentWidget_DEPRECATED->SetPosition(GetPosition());
 		}
 	}
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX) ||
-		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY))
+	if (PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeXPropertyName() ||
+		PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeYPropertyName())
 	{
-		if (ComponentWidget.IsValid())
+		if (ComponentWidget_DEPRECATED.IsValid())
 		{
-			ComponentWidget->SetSize(FVector2D(SizeX, SizeY));
+			ComponentWidget_DEPRECATED->SetSize(GetSize());
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 #endif // WITH_EDITOR
 
@@ -208,8 +209,8 @@ void UDMXPixelMappingFixtureGroupItemComponent::QueueDownsample()
 	const uint32 TextureSizeY = InputTexture->GetResource()->GetSizeY();
 	check(TextureSizeX > 0 && TextureSizeY > 0);
 	const FIntPoint PixelPosition = RendererComponent->GetPixelPosition(DownsamplePixelIndex);
-	const FVector2D UV = FVector2D(PositionX / TextureSizeX, PositionY / TextureSizeY);
-	const FVector2D UVSize(SizeX / TextureSizeX, SizeY / TextureSizeY);
+	const FVector2D UV = FVector2D(GetPosition().X / TextureSizeX, GetPosition().Y / TextureSizeY);
+	const FVector2D UVSize(GetSize().X / TextureSizeX, GetSize().Y / TextureSizeY);
 	const FVector2D UVCellSize = UVSize / 2.f;
 	constexpr bool bStaticCalculateUV = true;
 
@@ -245,34 +246,29 @@ void UDMXPixelMappingFixtureGroupItemComponent::QueueDownsample()
 
 void UDMXPixelMappingFixtureGroupItemComponent::SetPosition(const FVector2D& NewPosition)
 {
-	Modify();
-
-	PositionX = FMath::RoundHalfToZero(NewPosition.X);
-	PositionY = FMath::RoundHalfToZero(NewPosition.Y);
+	Super::SetPosition(NewPosition);
 
 #if WITH_EDITOR
-	if (ComponentWidget.IsValid())
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (ComponentWidget_DEPRECATED.IsValid())
 	{
-		ComponentWidget->SetPosition(FVector2D(PositionX, PositionY));
+		ComponentWidget_DEPRECATED->SetPosition(GetPosition());
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
 void UDMXPixelMappingFixtureGroupItemComponent::SetSize(const FVector2D& NewSize)
 {
-	Modify();
-
-	SizeX = FMath::RoundHalfToZero(NewSize.X);
-	SizeY = FMath::RoundHalfToZero(NewSize.Y);
-
-	SizeX = FMath::Max(SizeX, 1.f);
-	SizeY = FMath::Max(SizeY, 1.f);
+	Super::SetSize(NewSize);
 
 #if WITH_EDITOR
-	if (ComponentWidget.IsValid())
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (ComponentWidget_DEPRECATED.IsValid())
 	{
-		ComponentWidget->SetSize(FVector2D(SizeX, SizeY));
+		ComponentWidget_DEPRECATED->SetSize(GetSize());
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
@@ -281,11 +277,21 @@ bool UDMXPixelMappingFixtureGroupItemComponent::IsOverParent() const
 	// Needs be over the over the group
 	if (UDMXPixelMappingFixtureGroupComponent* ParentFixtureGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(GetParent()))
 	{
+		const float Left = GetPosition().X;
+		const float Top = GetPosition().Y;
+		const float Right = GetPosition().X + GetSize().X;
+		const float Bottom = GetPosition().Y + GetSize().Y;
+
+		const float ParentLeft = ParentFixtureGroupComponent->GetPosition().X;
+		const float ParentTop = ParentFixtureGroupComponent->GetPosition().Y;
+		const float ParentRight = ParentFixtureGroupComponent->GetPosition().X + ParentFixtureGroupComponent->GetSize().X;
+		const float ParentBottom = ParentFixtureGroupComponent->GetPosition().Y + ParentFixtureGroupComponent->GetSize().Y;
+
 		return
-			PositionX >= ParentFixtureGroupComponent->GetPosition().X &&
-			PositionY >= ParentFixtureGroupComponent->GetPosition().Y &&
-			PositionX + SizeX <= ParentFixtureGroupComponent->GetPosition().X + ParentFixtureGroupComponent->GetSize().X &&
-			PositionY + SizeY <= ParentFixtureGroupComponent->GetPosition().Y + ParentFixtureGroupComponent->GetSize().Y;
+			Left > ParentLeft - .49f &&
+			Top > ParentTop - .49f &&
+			Right < ParentRight + .49f &&
+			Bottom < ParentBottom + .49f;
 	}
 
 	return false;

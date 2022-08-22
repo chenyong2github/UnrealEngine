@@ -15,6 +15,7 @@ class SConstraintCanvas;
  * Since pixel mapping designer logic relies on computed sizes, two widgets are needed, one as label text, one as the actual box that needs its real size.
  * This widget internally holds both, both are guaranteed to be valid, and adopt sizes and positions reasonably together.
  */
+class UE_DEPRECATED(5.1, "Pixel Mapping Editor Widgets are no longer supported and to be implemented per view. See SDMXPixelMappingOutputComponent for an example.") FDMXPixelMappingComponentWidget;
 class DMXPIXELMAPPINGEDITORWIDGETS_API FDMXPixelMappingComponentWidget
 	: public TSharedFromThis<FDMXPixelMappingComponentWidget>
 {

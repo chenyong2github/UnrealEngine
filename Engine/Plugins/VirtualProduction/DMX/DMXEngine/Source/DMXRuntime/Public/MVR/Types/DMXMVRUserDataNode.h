@@ -14,7 +14,7 @@ class FXmlNode;
 
 /** This node contains a collection of user data nodes defined and used by provider applications if required. */
 UCLASS()
-class UDMXMVRUserDataNode
+class DMXRUNTIME_API UDMXMVRUserDataNode
 	: public UObject
 {
 	GENERATED_BODY()

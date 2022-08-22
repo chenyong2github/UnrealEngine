@@ -16,8 +16,6 @@
 #define LOCTEXT_NAMESPACE "DMXPixelMappingOutputComponent"
 
 
-const FLinearColor FDMXOutputComponentColors::SelectedColor = FLinearColor::Green;
-
 UDMXPixelMappingOutputComponent::UDMXPixelMappingOutputComponent()
 	: CellBlendingQuality(EDMXPixelBlendingQuality::Low)
 	, PositionX(0.f)
@@ -38,13 +36,15 @@ void UDMXPixelMappingOutputComponent::PostEditChangeProperty(FPropertyChangedEve
 	// Call the parent at the first place
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// Handle deprecated component widget changes
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, bVisibleInDesigner))
 	{
 		const EVisibility NewVisiblity = IsVisible() ? EVisibility::HitTestInvisible : EVisibility::Hidden;
 
-		if (ComponentWidget.IsValid())
+		if (ComponentWidget_DEPRECATED.IsValid())
 		{
-			ComponentWidget->SetVisibility(NewVisiblity);
+			ComponentWidget_DEPRECATED->SetVisibility(NewVisiblity);
 		}
 
 		constexpr bool bSetVisibilityRecursive = true;
@@ -56,7 +56,10 @@ void UDMXPixelMappingOutputComponent::PostEditChangeProperty(FPropertyChangedEve
 				}
 			}, bSetVisibilityRecursive);
 	}
-	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, CellBlendingQuality))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	// Apply cell belending quality
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, CellBlendingQuality))
 	{
 		// Propagonate to children
 		constexpr bool bSetCellBlendingQualityToChildsRecursive = true;
@@ -64,45 +67,6 @@ void UDMXPixelMappingOutputComponent::PostEditChangeProperty(FPropertyChangedEve
 			{
 				ChildComponent->CellBlendingQuality = CellBlendingQuality;
 			}, bSetCellBlendingQualityToChildsRecursive);
-	}
-
-	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
-	{
-		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionX) ||
-			PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionY) ||
-			PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX) ||
-			PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY))
-		{
-			PositionX = FMath::RoundHalfToZero(PositionX);
-			PositionY = FMath::RoundHalfToZero(PositionY);
-
-			SizeX = FMath::RoundHalfToZero(SizeX);
-			SizeY = FMath::RoundHalfToZero(SizeY);
-
-			// Remove self if not over parent
-			if (!IsOverParent())
-			{
-				Modify();
-
-				if (ensureMsgf(HasValidParent(), TEXT("No valid Parent when trying to remove PixelMapping Component %s."), *GetUserFriendlyName()))
-				{
-					GetParent()->Modify();
-					GetParent()->RemoveChild(this);
-				}
-			}
-
-			// Remove childs if not over self
-			for (UDMXPixelMappingBaseComponent* Child : TArray<UDMXPixelMappingBaseComponent*>(Children))
-			{
-				if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Child))
-				{
-					if (OutputComponent && !OutputComponent->IsOverParent())
-					{
-						RemoveChild(OutputComponent);
-					}
-				}
-			}
-		}
 	}
 }
 #endif // WITH_EDITOR
@@ -163,13 +127,15 @@ void UDMXPixelMappingOutputComponent::BeginDestroy()
 	Super::BeginDestroy();
 
 #if WITH_EDITOR
-	if (ComponentWidget.IsValid())
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (ComponentWidget_DEPRECATED.IsValid())
 	{
-		ComponentWidget->RemoveFromCanvas();
+		ComponentWidget_DEPRECATED->RemoveFromCanvas();
 
 		// Should have released all references by now
-		ensureMsgf(ComponentWidget.GetSharedReferenceCount() == 1, TEXT("Detected Reference to Component Widget the component is destroyed."));
+		ensureMsgf(ComponentWidget_DEPRECATED.GetSharedReferenceCount() == 1, TEXT("Detected Reference to Component Widget the component is destroyed."));
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
@@ -192,15 +158,17 @@ void UDMXPixelMappingOutputComponent::NotifyRemovedFromParent()
 	Super::NotifyRemovedFromParent();
 
 #if WITH_EDITOR
-	if (ComponentWidget.IsValid())
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (ComponentWidget_DEPRECATED.IsValid())
 	{
-		ComponentWidget->RemoveFromCanvas();
+		ComponentWidget_DEPRECATED->RemoveFromCanvas();
 
 		// Should have released all references by now
-		ensureMsgf(ComponentWidget.GetSharedReferenceCount() == 1, TEXT("Detected Reference to Component Widget the component is destroyed."));
+		ensureMsgf(ComponentWidget_DEPRECATED.GetSharedReferenceCount() == 1, TEXT("Detected Reference to Component Widget the component is destroyed."));
 
-		ComponentWidget.Reset();
+		ComponentWidget_DEPRECATED.Reset();
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR
 }
 
@@ -214,17 +182,19 @@ const FText UDMXPixelMappingOutputComponent::GetPaletteCategory()
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TSharedRef<FDMXPixelMappingComponentWidget> UDMXPixelMappingOutputComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
 {
-	ComponentWidget = MakeShared<FDMXPixelMappingComponentWidget>();
-	ComponentWidget->AddToCanvas(InCanvas, ZOrder);
+	ComponentWidget_DEPRECATED = MakeShared<FDMXPixelMappingComponentWidget>();
+	ComponentWidget_DEPRECATED->AddToCanvas(InCanvas, ZOrder);
 
 	EVisibility NewVisibility = IsVisible() ? EVisibility::HitTestInvisible : EVisibility::Hidden;
 
 	UpdateComponentWidget(NewVisibility);
 
-	return ComponentWidget.ToSharedRef();
+	return ComponentWidget_DEPRECATED.ToSharedRef();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
@@ -243,10 +213,12 @@ void UDMXPixelMappingOutputComponent::SetZOrder(int32 NewZOrder)
 	
 	ZOrder = NewZOrder;
 
-	// Apply to the UI
-	if (ComponentWidget.IsValid())
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// Handle deprecated component widget changes
+	if (ComponentWidget_DEPRECATED.IsValid())
 	{
-		ComponentWidget->SetZOrder(ZOrder);
+		ComponentWidget_DEPRECATED->SetZOrder(ZOrder);
 	}
 
 	constexpr bool bRecursive = true;
@@ -255,19 +227,19 @@ void UDMXPixelMappingOutputComponent::SetZOrder(int32 NewZOrder)
 			if (UDMXPixelMappingOutputComponent* ChildOutputComponent = Cast<UDMXPixelMappingOutputComponent>(ChildComponent))
 			{
 				const int32 NewChildZOrder = ChildOutputComponent->GetZOrder() + DeltaZOrder;
-				if (TSharedPtr<FDMXPixelMappingComponentWidget> ChildComponentWidget = ChildOutputComponent->GetComponentWidget())
+				if (TSharedPtr<FDMXPixelMappingComponentWidget> ChildComponentWidget_DEPRECATED = ChildOutputComponent->GetComponentWidget())
 				{
 					ChildOutputComponent->SetZOrder(NewChildZOrder);
 
 					// Apply to the UI
-					if (ChildOutputComponent->ComponentWidget.IsValid())
+					if (ChildOutputComponent->ComponentWidget_DEPRECATED.IsValid())
 					{
-						ChildOutputComponent->ComponentWidget->SetZOrder(ZOrder);
+						ChildOutputComponent->ComponentWidget_DEPRECATED->SetZOrder(ZOrder);
 					}
 				}
 			}
 		}, bRecursive);
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 #endif // WITH_EDITOR
 
@@ -305,12 +277,20 @@ bool UDMXPixelMappingOutputComponent::OverlapsComponent(UDMXPixelMappingOutputCo
 
 void UDMXPixelMappingOutputComponent::SetPosition(const FVector2D& Position) 
 {
-	ensureMsgf(0, TEXT("SetPosition needs to be implemented in child classes."));
+	if (Position.X != PositionX || Position.Y != PositionY)
+	{
+		PositionX = Position.X;
+		PositionY = Position.Y;
+	}
 }
 
 void UDMXPixelMappingOutputComponent::SetSize(const FVector2D& Size) 
 {
-	ensureMsgf(0, TEXT("SetSize needs to be implemented in child classes."));
+	SizeX = Size.X;
+	SizeY = Size.Y;
+
+	SizeX = FMath::Max(SizeX, 1.f);
+	SizeY = FMath::Max(SizeY, 1.f);
 }
 
 UDMXPixelMappingRendererComponent* UDMXPixelMappingOutputComponent::FindRendererComponent() const
@@ -369,13 +349,14 @@ void UDMXPixelMappingOutputComponent::MakeHighestZOrderInComponentRect()
 #if WITH_EDITOR
 void UDMXPixelMappingOutputComponent::UpdateComponentWidget(EVisibility NewVisibility, bool bWithChildrenRecursive)
 {
-	if (ComponentWidget.IsValid())
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (ComponentWidget_DEPRECATED.IsValid())
 	{
-		ComponentWidget->SetVisibility(NewVisibility);
-		ComponentWidget->SetPosition(GetPosition());
-		ComponentWidget->SetSize(GetSize());
-		ComponentWidget->SetColor(GetEditorColor());
-		ComponentWidget->SetLabelText(FText::FromString(GetUserFriendlyName()));
+		ComponentWidget_DEPRECATED->SetPosition(FVector2D(PositionX, PositionY));
+		ComponentWidget_DEPRECATED->SetSize(FVector2D(SizeX, SizeY));
+		ComponentWidget_DEPRECATED->SetVisibility(NewVisibility);
+		ComponentWidget_DEPRECATED->SetColor(GetEditorColor());
+		ComponentWidget_DEPRECATED->SetLabelText(FText::FromString(GetUserFriendlyName()));
 	}
 
 	if (bWithChildrenRecursive)
@@ -389,6 +370,7 @@ void UDMXPixelMappingOutputComponent::UpdateComponentWidget(EVisibility NewVisib
 			}
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 #endif // WITH_EDITOR
 

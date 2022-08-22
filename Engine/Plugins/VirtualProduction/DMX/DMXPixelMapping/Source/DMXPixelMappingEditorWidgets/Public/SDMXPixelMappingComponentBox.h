@@ -12,6 +12,7 @@ class STextBlock;
 
 
 /** A label component label in pixelmapping designer. Ment to be used with DMXPixelMapingComponentWidgetWrapper */
+class UE_DEPRECATED(5.1, "Pixel Mapping Editor Widgets are no longer supported and to be implemented per view. See SDMXPixelMappingOutputComponent for an example.") SDMXPixelMappingComponentBox;
 class DMXPIXELMAPPINGEDITORWIDGETS_API SDMXPixelMappingComponentBox
 	: public SCompoundWidget
 {

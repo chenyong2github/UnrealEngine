@@ -45,8 +45,7 @@ UDMXPixelMappingRendererComponent::UDMXPixelMappingRendererComponent()
 	RendererType = EDMXPixelMappingRendererType::Texture;
 #endif
 	
-	SizeX = 100.f;
-	SizeY = 100.f;
+	SetSize(FVector2D(100.f, 100.f));
 
 	Brightness = 1.0f;
 
@@ -125,22 +124,24 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 	// Call the parent at the first place
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY))
+	if (PropertyChangedChainEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeXPropertyName() ||
+		PropertyChangedChainEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeYPropertyName())
 	{
 		// The target always needs be within GMaxTextureDimensions, larger dimensions are not supported by the engine
 		const uint32 MaxTextureDimensions = GetMax2DTextureDimension();
 
-		if (SizeX > MaxTextureDimensions ||
-			SizeY > MaxTextureDimensions)
+		if (GetSize().X > MaxTextureDimensions ||
+			GetSize().Y > MaxTextureDimensions)
 		{
-			SizeX = FMath::Clamp(SizeX, 0.0f, static_cast<float>(MaxTextureDimensions));
-			SizeY = FMath::Clamp(SizeY, 0.0f, static_cast<float>(MaxTextureDimensions));
+			const float NewSizeX = FMath::Clamp(GetSize().X, 0.0f, static_cast<float>(MaxTextureDimensions));
+			const float NewSizeY = FMath::Clamp(GetSize().Y, 0.0f, static_cast<float>(MaxTextureDimensions));
+			const FVector2D NewSize(NewSizeX, NewSizeY);
+			SetSize(NewSize);
 
 			UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("Pixel mapping textures are limited to engine's max texture dimension %dx%d"), MaxTextureDimensions, MaxTextureDimensions);
 		}
 
-		ResizeMaterialRenderTarget(SizeX, SizeY);
+		ResizeMaterialRenderTarget(GetSize().X, GetSize().Y);
 	} 
 	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, RendererType))
 	{
@@ -282,6 +283,7 @@ TSharedRef<SWidget> UDMXPixelMappingRendererComponent::TakeWidget()
 			SNew(SConstraintCanvas);
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ForEachChild([&](UDMXPixelMappingBaseComponent* InComponent) {
 		if (UDMXPixelMappingOutputComponent* Component = Cast<UDMXPixelMappingOutputComponent>(InComponent))
 		{
@@ -289,6 +291,7 @@ TSharedRef<SWidget> UDMXPixelMappingRendererComponent::TakeWidget()
 			Component->BuildSlot(ComponentsCanvas.ToSharedRef());
 		}
 	}, true);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	return ComponentsCanvas.ToSharedRef();
 }
@@ -386,12 +389,6 @@ void UDMXPixelMappingRendererComponent::RenderAndSendDMX()
 {
 	Render();
 	SendDMX();
-}
-
-void UDMXPixelMappingRendererComponent::SetSize(const FVector2D& NewSize)
-{
-	SizeX = NewSize.X;
-	SizeY = NewSize.Y;
 }
 
 FIntPoint UDMXPixelMappingRendererComponent::GetPixelPosition(int32 InPosition) const
@@ -502,7 +499,7 @@ UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::CreateRenderTarget(co
 	UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>(this, TargetName);
 	RenderTarget->ClearColor = ClearTextureColor;
 	constexpr bool bInForceLinearGamma = false;
-	RenderTarget->InitCustomFormat(SizeX, SizeY, EPixelFormat::PF_B8G8R8A8, bInForceLinearGamma);
+	RenderTarget->InitCustomFormat(GetSize().X, GetSize().Y, EPixelFormat::PF_B8G8R8A8, bInForceLinearGamma);
 
 	return  RenderTarget;
 }
@@ -538,7 +535,7 @@ void UDMXPixelMappingRendererComponent::RendererInputTexture()
 	}
 	else
 	{
-		ResizePreviewRenderTarget(SizeX, SizeY);
+		ResizePreviewRenderTarget(GetSize().X, GetSize().Y);
 	}
 #endif
 }

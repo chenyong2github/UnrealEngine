@@ -40,9 +40,9 @@ protected:
 
 	virtual FReply OnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& MouseEvent) override
 	{
-		FSceneViewport::OnMouseButtonDown(InGeometry, MouseEvent);
+		FSceneViewport::OnMouseWheel(InGeometry, MouseEvent);
 
-		return FReply::Unhandled();
+		return FReply::Handled();
 	}
 
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override

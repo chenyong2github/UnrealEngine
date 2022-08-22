@@ -143,7 +143,7 @@ struct TStructOpsTypeTraits<FDMXOptionalMVRFixtureGobo>
 
 /** This node defines a light fixture object. */
 UCLASS()
-class UDMXMVRFixtureNode
+class DMXRUNTIME_API UDMXMVRFixtureNode
 	: public UDMXMVRParametricObjectNodeBase
 {
 	GENERATED_BODY()

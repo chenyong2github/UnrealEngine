@@ -56,18 +56,22 @@ void UK2Node_PixelMappingRendererComponent::GetMenuActions(FBlueprintActionDatab
 
 UEdGraphPin* UK2Node_PixelMappingRendererComponent::GetInRendererComponentPin() const
 {
-	UEdGraphPin* Pin = FindPinChecked(InRendererComponentPinName);
-	check(Pin->Direction == EGPD_Input);
-
-	return Pin;
+	if (UEdGraphPin* Pin = FindPin(InRendererComponentPinName))
+	{
+		check(Pin->Direction == EGPD_Input);
+		return Pin;
+	}
+	return nullptr;
 }
 
 UEdGraphPin* UK2Node_PixelMappingRendererComponent::GetOutRendererComponentPin() const
 {
-	UEdGraphPin* Pin = FindPinChecked(OutRendererComponentPinName);
-	check(Pin->Direction == EGPD_Output);
-
-	return Pin;
+	if (UEdGraphPin* Pin = FindPin(OutRendererComponentPinName))
+	{
+		check(Pin->Direction == EGPD_Output);
+		return Pin;
+	}
+	return nullptr;
 }
 
 void UK2Node_PixelMappingRendererComponent::EarlyValidation(FCompilerResultsLog& MessageLog) const
