@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "DMXAttributeNameCustomization.h"
 
 #include "DMXAttribute.h"
