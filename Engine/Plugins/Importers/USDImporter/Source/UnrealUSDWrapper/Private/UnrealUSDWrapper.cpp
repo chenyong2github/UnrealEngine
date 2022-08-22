@@ -908,60 +908,210 @@ TArray<FString> UnrealUSDWrapper::GetNativeFileFormats()
 	return Result;
 }
 
-UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* Identifier, EUsdInitialLoadSet InitialLoadSet, bool bUseStageCache )
+namespace UE::UnrealUSDWrapper::Private
 {
-	if ( !Identifier || FCString::Strlen( Identifier ) == 0 )
+	UE::FUsdStage OpenStageImpl(
+		const TCHAR* RootIdentifier,
+		const TCHAR* SessionIdentifier,
+		EUsdInitialLoadSet InitialLoadSet,
+		bool bUseStageCache,
+		const TArray<FString>* PopulationMask,
+		bool bForceReloadLayersFromDisk
+	)
 	{
-		return UE::FUsdStage();
-	}
+		if ( !RootIdentifier || FCString::Strlen( RootIdentifier ) == 0 )
+		{
+			return UE::FUsdStage();
+		}
 
 #if USE_USD_SDK
-	FScopedUsdAllocs UsdAllocs;
+		FScopedUsdAllocs UsdAllocs;
 
-	pxr::SdfLayerHandleSet LoadedLayers = pxr::SdfLayer::GetLoadedLayers();
-	pxr::UsdStageRefPtr Stage;
+		pxr::SdfLayerHandleSet LoadedLayers = pxr::SdfLayer::GetLoadedLayers();
+		pxr::UsdStageRefPtr Stage;
 
-	TOptional<pxr::UsdStageCacheContext> StageCacheContext;
-	if ( bUseStageCache )
-	{
-		StageCacheContext.Emplace( pxr::UsdUtilsStageCache::Get() );
-	}
-
-	FString IdentifierStr = FString(Identifier);
-	if ( FPaths::FileExists( IdentifierStr ) )
-	{
-		Stage = pxr::UsdStage::Open( TCHAR_TO_ANSI( Identifier ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) );
-	}
-	else if ( IdentifierStr.RemoveFromStart( UnrealIdentifiers::IdentifierPrefix ) )
-	{
-		pxr::SdfLayerRefPtr RootLayer = pxr::SdfLayer::Find( TCHAR_TO_ANSI( *IdentifierStr ) );
-		if ( RootLayer )
+		TOptional<pxr::UsdStageCacheContext> StageCacheContext;
+		if ( bUseStageCache )
 		{
-			Stage = pxr::UsdStage::Open( RootLayer, pxr::UsdStage::InitialLoadSet( InitialLoadSet ) );
+			StageCacheContext.Emplace( pxr::UsdUtilsStageCache::Get() );
 		}
-	}
 
-	if ( !bUseStageCache && Stage )
-	{
-		// Layers are cached in the layer registry independently of the stage cache. If the layer is already in the registry by the time
-		// we try to open a stage, even if we're not using a stage cache at all the layer will be reused and the file will *not* be re-read.
-		// Here we keep track of these loaded layers and manually reload the ones that were reused, because if we're passing false for
-		// bUseStageCache we really expect the files to be fully re-read
-		pxr::SdfLayerHandleVector StageLayers = Stage->GetLayerStack();
-		for ( pxr::SdfLayerHandle StageLayer : StageLayers )
+		pxr::UsdStagePopulationMask Mask;
+		if( PopulationMask )
 		{
-			if ( LoadedLayers.count( StageLayer ) > 0 )
+			// The USD OpenMaskedStage functions don't actually consult or populate the stage cache
+			ensure( bUseStageCache == false );
+
+			for ( const FString& AllowedPrimPath : *PopulationMask )
 			{
-				StageLayer->Reload();
+				Mask.Add( pxr::SdfPath{ TCHAR_TO_ANSI( *AllowedPrimPath ) } );
 			}
 		}
+
+		static_assert( ( int ) pxr::UsdStage::InitialLoadSet::LoadAll == ( int ) EUsdInitialLoadSet::LoadAll );
+		static_assert( ( int ) pxr::UsdStage::InitialLoadSet::LoadNone == ( int ) EUsdInitialLoadSet::LoadNone );
+		pxr::UsdStage::InitialLoadSet LoadSet = static_cast< pxr::UsdStage::InitialLoadSet >( InitialLoadSet );
+
+		FString IdentifierStr = FString( RootIdentifier );
+		if ( FPaths::FileExists( IdentifierStr ) )
+		{
+			if( PopulationMask )
+			{
+				Stage = pxr::UsdStage::OpenMasked( TCHAR_TO_ANSI( *IdentifierStr ), Mask, LoadSet );
+			}
+			else
+			{
+				Stage = pxr::UsdStage::Open( TCHAR_TO_ANSI( *IdentifierStr ), LoadSet );
+			}
+		}
+		else
+		{
+			FString SessionIdentifierStr = FString{ SessionIdentifier };
+
+			IdentifierStr.RemoveFromStart( UnrealIdentifiers::IdentifierPrefix );
+			SessionIdentifierStr.RemoveFromStart( UnrealIdentifiers::IdentifierPrefix );
+
+			pxr::SdfLayerRefPtr RootLayer = pxr::SdfLayer::Find( TCHAR_TO_ANSI( *IdentifierStr ) );
+			pxr::SdfLayerRefPtr SessionLayer = pxr::SdfLayer::Find( TCHAR_TO_ANSI( *SessionIdentifierStr ) );
+			if ( RootLayer )
+			{
+				if ( PopulationMask )
+				{
+					// We use this additional check so we don't have to replicate USD's "_CreateAnonymousSessionLayer"
+					// Basically we can't pass an invalid session layer pointer here the stage will actually end up
+					// with no session layer at all
+					if ( SessionLayer )
+					{
+						Stage = pxr::UsdStage::OpenMasked( RootLayer, SessionLayer, Mask, LoadSet );
+					}
+					else
+					{
+						Stage = pxr::UsdStage::OpenMasked( RootLayer, Mask, LoadSet );
+					}
+				}
+				else
+				{
+					if( SessionLayer )
+					{
+						Stage = pxr::UsdStage::Open( RootLayer, SessionLayer, LoadSet );
+					}
+					else
+					{
+						Stage = pxr::UsdStage::Open( RootLayer, LoadSet );
+					}
+				}
+			}
+		}
+
+		if ( bForceReloadLayersFromDisk && Stage )
+		{
+			// Layers are cached in the layer registry independently of the stage cache. If the layer is already in
+			// the registry by the time we try to open a stage, even if we're not using a stage cache at all the
+			// layer will be reused and the file will *not* be re-read, so here we manually reload them.
+			pxr::SdfLayerHandleVector StageLayers = Stage->GetLayerStack();
+			for ( pxr::SdfLayerHandle StageLayer : StageLayers )
+			{
+				if ( LoadedLayers.count( StageLayer ) > 0 )
+				{
+					StageLayer->Reload();
+				}
+			}
+		}
+
+		return UE::FUsdStage( Stage );
+#else
+		UsdWrapperUtils::CheckIfForceDisabled();
+		return UE::FUsdStage();
+#endif // #if USE_USD_SDK
+	}
+}
+
+UE::FUsdStage UnrealUSDWrapper::OpenStage(
+	const TCHAR* Identifier,
+	EUsdInitialLoadSet InitialLoadSet,
+	bool bUseStageCache,
+	bool bForceReloadLayersFromDisk
+)
+{
+	const TArray<FString>* PopulationMask = nullptr;
+	const TCHAR* SessionIdentifier = nullptr;
+	return UE::UnrealUSDWrapper::Private::OpenStageImpl(
+		Identifier,
+		SessionIdentifier,
+		InitialLoadSet,
+		bUseStageCache,
+		nullptr,
+		bForceReloadLayersFromDisk
+	);
+}
+
+ UE::FUsdStage UnrealUSDWrapper::OpenStage(
+	 UE::FSdfLayer RootLayer,
+	 UE::FSdfLayer SessionLayer,
+	 EUsdInitialLoadSet InitialLoadSet,
+	 bool bUseStageCache,
+	 bool bForceReloadLayersFromDisk
+ )
+{
+	 if( !RootLayer )
+	 {
+		 return {};
+	 }
+
+	 const TArray<FString>* PopulationMask = nullptr;
+	 const TCHAR* SessionIdentifier = nullptr;
+	 return UE::UnrealUSDWrapper::Private::OpenStageImpl(
+		 *RootLayer.GetIdentifier(),
+		 SessionLayer ? *SessionLayer.GetIdentifier() : nullptr,
+		 InitialLoadSet,
+		 bUseStageCache,
+		 nullptr,
+		 bForceReloadLayersFromDisk
+	 );
+}
+
+UE::FUsdStage UnrealUSDWrapper::OpenMaskedStage(
+	const TCHAR* Identifier,
+	EUsdInitialLoadSet InitialLoadSet,
+	const TArray<FString>& PopulationMask,
+	bool bForceReloadLayersFromDisk
+)
+{
+	const bool bUseStageCache = false;
+	const TCHAR* SessionIdentifier = nullptr;
+	return UE::UnrealUSDWrapper::Private::OpenStageImpl(
+		Identifier,
+		SessionIdentifier,
+		InitialLoadSet,
+		bUseStageCache,
+		&PopulationMask,
+		bForceReloadLayersFromDisk
+	);
+}
+
+UE::FUsdStage UnrealUSDWrapper::OpenMaskedStage(
+	UE::FSdfLayer RootLayer,
+	UE::FSdfLayer SessionLayer,
+	EUsdInitialLoadSet InitialLoadSet,
+	const TArray<FString>& PopulationMask,
+	bool bForceReloadLayersFromDisk
+)
+{
+	if ( !RootLayer )
+	{
+		return {};
 	}
 
-	return UE::FUsdStage( Stage );
-#else
-	UsdWrapperUtils::CheckIfForceDisabled();
-	return UE::FUsdStage();
-#endif // #if USE_USD_SDK
+	const bool bUseStageCache = false;
+	const TCHAR* SessionIdentifier = nullptr;
+	return UE::UnrealUSDWrapper::Private::OpenStageImpl(
+		*RootLayer.GetIdentifier(),
+		SessionLayer ? *SessionLayer.GetIdentifier() : nullptr,
+		InitialLoadSet,
+		bUseStageCache,
+		&PopulationMask,
+		bForceReloadLayersFromDisk
+	);
 }
 
 UE::FUsdStage UnrealUSDWrapper::NewStage( const TCHAR* FilePath )

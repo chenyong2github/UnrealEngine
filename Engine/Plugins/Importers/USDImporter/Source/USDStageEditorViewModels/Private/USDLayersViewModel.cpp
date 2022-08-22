@@ -23,10 +23,16 @@
 
 #endif // #if USE_USD_SDK
 
-FUsdLayerViewModel::FUsdLayerViewModel( FUsdLayerViewModel* InParentItem, const UE::FUsdStageWeak& InUsdStage, const FString& InLayerIdentifier )
+FUsdLayerViewModel::FUsdLayerViewModel(
+	FUsdLayerViewModel* InParentItem,
+	const UE::FUsdStageWeak& InUsdStage,
+	const UE::FUsdStageWeak& InIsolatedStage,
+	const FString& InLayerIdentifier
+)
 	: LayerModel( MakeShared< FUsdLayerModel >() )
 	, ParentItem( InParentItem )
 	, UsdStage( InUsdStage )
+	, IsolatedStage( InIsolatedStage )
 	, LayerIdentifier( InLayerIdentifier )
 {
 	RefreshData();
@@ -119,7 +125,7 @@ void FUsdLayerViewModel::FillChildren()
 				// Prevent infinite recursions if a sublayer refers to a parent of the same hierarchy
 				if ( !AllLayerIdentifiers.Contains( AssetPathRelativeToLayer ) )
 				{
-					Children.Add( MakeShared< FUsdLayerViewModel >( this, UsdStage, AssetPathRelativeToLayer ) );
+					Children.Add( MakeShared< FUsdLayerViewModel >( this, UsdStage, IsolatedStage, AssetPathRelativeToLayer ) );
 				}
 			}
 		}
@@ -140,11 +146,13 @@ void FUsdLayerViewModel::RefreshData()
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdStageRefPtr UsdStageRef( UsdStage );
+	pxr::UsdStageRefPtr IsolatedStageRef( IsolatedStage );
 
-	const TUsdStore< std::string > UsdLayerIdentifier = UnrealToUsd::ConvertString( *LayerIdentifier );
+	const std::string UsdLayerIdentifier = UnrealToUsd::ConvertString( *LayerIdentifier ).Get();
 
-	LayerModel->DisplayName = UsdToUnreal::ConvertString( pxr::SdfLayer::GetDisplayNameFromIdentifier( UsdLayerIdentifier.Get() ) );
-	LayerModel->bIsMuted = UsdStageRef->IsLayerMuted( UsdLayerIdentifier.Get() );
+	LayerModel->DisplayName = UsdToUnreal::ConvertString(
+		pxr::SdfLayer::GetDisplayNameFromIdentifier( UsdLayerIdentifier )
+	);
 
 	pxr::SdfLayerRefPtr UsdLayer = UE::FSdfLayer::FindOrOpen( *LayerIdentifier );
 	if ( UsdLayer )
@@ -152,10 +160,29 @@ void FUsdLayerViewModel::RefreshData()
 		LayerModel->bIsDirty = UsdLayer->IsDirty() && !UsdLayer->IsAnonymous();
 	}
 
+	const bool bIsIsolatedRootLayer = IsolatedStageRef && IsolatedStageRef->GetRootLayer() == UsdLayer;
+
+	// Note: Originally this was a proper check to see if UsdLayer was inside IsolatedStage's layer stack. However, this
+	// breaks down if the layer is also muted: When that happens the stages basically pretend the layer doesn't exist,
+	// and so any muted layer on the base stage would behave as if it was "non-isolated"
+	LayerModel->bIsInIsolatedStage = !IsolatedStageRef
+		|| bIsIsolatedRootLayer
+		|| ( ParentItem && ParentItem->IsInIsolatedStage() );
+
 	const pxr::SdfLayerHandle& EditTargetLayer = UsdStageRef->GetEditTarget().GetLayer();
-	LayerModel->bIsEditTarget = ( EditTargetLayer
-		? FCStringAnsi::Stricmp( EditTargetLayer->GetIdentifier().c_str(), UsdLayerIdentifier.Get().c_str() ) == 0
-		: false );
+	const pxr::SdfLayerHandle& FocusedEditTarget = IsolatedStageRef
+		? IsolatedStageRef->GetEditTarget().GetLayer()
+		: pxr::SdfLayerHandle{};
+
+	LayerModel->bIsEditTarget = ( IsolatedStageRef )
+		? LayerModel->bIsInIsolatedStage && FocusedEditTarget == UsdLayer
+		: EditTargetLayer == UsdLayer;
+
+	LayerModel->bIsMuted = ( IsolatedStageRef && LayerModel->bIsInIsolatedStage )
+		// If we isolating, we're only muted if we're muted on the isolated stage
+		? IsolatedStageRef->IsLayerMuted( UsdLayerIdentifier )
+		// Otherwise we're muted any time we're muted in the base stage
+		: UsdStageRef->IsLayerMuted( UsdLayerIdentifier );
 
 	for ( const TSharedRef< FUsdLayerViewModel >& Child : Children )
 	{
@@ -193,7 +220,10 @@ bool FUsdLayerViewModel::CanMuteLayer() const
 		return false;
 	}
 
-	return !UsdStage.GetRootLayer().GetIdentifier().Equals( LayerIdentifier, ESearchCase::Type::IgnoreCase ) && !LayerModel->bIsEditTarget;
+	UE::FUsdStageWeak AffectedStage = IsolatedStage ? IsolatedStage : UsdStage;
+
+	return !AffectedStage.GetRootLayer().GetIdentifier().Equals( LayerIdentifier, ESearchCase::Type::IgnoreCase )
+		&& !LayerModel->bIsEditTarget;
 }
 
 void FUsdLayerViewModel::ToggleMuteLayer()
@@ -208,19 +238,40 @@ void FUsdLayerViewModel::ToggleMuteLayer()
 
 	const TUsdStore< std::string > UsdLayerIdentifier = UnrealToUsd::ConvertString( *LayerIdentifier );
 
-	pxr::UsdStageRefPtr UsdStageRef( UsdStage );
+	pxr::UsdStageRefPtr CurrentStage( IsolatedStage ? IsolatedStage : UsdStage );
 
-	if ( UsdStageRef->IsLayerMuted( UsdLayerIdentifier.Get() ) )
+	if ( CurrentStage->IsLayerMuted( UsdLayerIdentifier.Get() ) )
 	{
-		UsdStageRef->UnmuteLayer( UsdLayerIdentifier.Get() );
+		CurrentStage->UnmuteLayer( UsdLayerIdentifier.Get() );
 	}
 	else
 	{
-		UsdStageRef->MuteLayer( UsdLayerIdentifier.Get() );
+		CurrentStage->MuteLayer( UsdLayerIdentifier.Get() );
 	}
 
-	RefreshData();
+	// We have to refresh all of our view models here, because this layer can appear more than once on the layer
+	// stack and we want all of them to show the updated muted/unmuted icon
+	FUsdLayerViewModel* Ancestor = this;
+	while ( true )
+	{
+		FUsdLayerViewModel* AncestorParent = Ancestor->ParentItem;
+		if ( !AncestorParent )
+		{
+			break;
+		}
+
+		Ancestor = AncestorParent;
+	}
+	if ( Ancestor )
+	{
+		Ancestor->RefreshData();
+	}
 #endif // #if USE_USD_SDK
+}
+
+bool FUsdLayerViewModel::IsEditTarget() const
+{
+	return LayerModel->bIsEditTarget;
 }
 
 bool FUsdLayerViewModel::CanEditLayer() const
@@ -231,15 +282,23 @@ bool FUsdLayerViewModel::CanEditLayer() const
 bool FUsdLayerViewModel::EditLayer()
 {
 	UE::FSdfLayer Layer( GetLayer() );
-	if ( !UsdStage || !Layer || !CanEditLayer() )
+
+	UE::FUsdStageWeak AffectedStage = IsolatedStage ? IsolatedStage : UsdStage;
+
+	if ( !AffectedStage || !Layer || !CanEditLayer() )
 	{
 		return false;
 	}
 
-	UsdStage.SetEditTarget( Layer );
+	AffectedStage.SetEditTarget( Layer );
 	RefreshData();
 
 	return true;
+}
+
+bool FUsdLayerViewModel::IsInIsolatedStage() const
+{
+	return LayerModel->bIsInIsolatedStage;
 }
 
 void FUsdLayerViewModel::AddSubLayer( const TCHAR* SubLayerIdentifier )

@@ -69,9 +69,16 @@ namespace UE::USDLayersTreeViewImpl::Private
 	}
 }
 
-class FUsdLayerNameColumn : public FUsdTreeViewColumn
+class FUsdLayerNameColumn : public FUsdTreeViewColumn, public TSharedFromThis< FUsdLayerNameColumn >
 {
 public:
+	FSlateColor GetForegroundColor( const FUsdLayerViewModelRef TreeItem ) const
+	{
+		return TreeItem->IsInIsolatedStage()
+			? FSlateColor::UseForeground()
+			: FSlateColor::UseSubduedForeground();
+	}
+
 	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem, const TSharedPtr< ITableRow > TableRow ) override
 	{
 		FUsdLayerViewModelRef TreeItem = StaticCastSharedRef< FUsdLayerViewModel >( InTreeItem.ToSharedRef() );
@@ -80,8 +87,9 @@ public:
 		return SNew( SBox )
 			.VAlign( VAlign_Center )
 			[
-				SNew(STextBlock)
+				SNew( STextBlock )
 				.Text( TreeItem, &FUsdLayerViewModel::GetDisplayName )
+				.ColorAndOpacity( this, &FUsdLayerNameColumn::GetForegroundColor, TreeItem )
 				.ToolTipText_Lambda( [TreeItemWeak]
 				{
 					if ( TSharedPtr<FUsdLayerViewModel> PinnedTreeItem = TreeItemWeak.Pin() )
@@ -113,7 +121,7 @@ public:
 		{
 			return nullptr;
 		}
-		else if ( TreeItem->LayerModel->bIsMuted )
+		else if ( TreeItem->IsLayerMuted() )
 		{
 			return bIsButtonHovered
 				? FAppStyle::GetBrush( "Level.NotVisibleHighlightIcon16x" )
@@ -159,6 +167,7 @@ public:
 		}
 
 		FUsdLayerViewModelRef TreeItem = StaticCastSharedRef< FUsdLayerViewModel >( InTreeItem.ToSharedRef() );
+		FUsdLayerViewModelWeak TreeItemWeak = TreeItem;
 		const float ItemSize = FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" );
 
 		if ( !TreeItem->CanMuteLayer() )
@@ -172,6 +181,14 @@ public:
 
 		TSharedPtr<SButton> Button = SNew( SButton )
 			.ContentPadding( 0 )
+			.IsEnabled_Lambda([TreeItemWeak]()->bool
+			{
+				if ( TSharedPtr<FUsdLayerViewModel> PinnedTreeItem = TreeItemWeak.Pin() )
+				{
+					return PinnedTreeItem->IsInIsolatedStage();
+				}
+				return false;
+			})
 			.ButtonStyle( FUsdStageEditorStyle::Get(), TEXT("NoBorder") )
 			.OnClicked( this, &FUsdLayerMutedColumn::OnClicked, TreeItem )
 			.ToolTip( SNew( SToolTip ).Text( LOCTEXT( "MuteLayerTooltip", "Mute or unmute this layer" ) ) )
@@ -196,22 +213,15 @@ public:
 protected:
 	bool CanMuteLayer( FUsdLayerViewModelRef LayerItem ) const
 	{
-		if ( !LayerItem->IsValid() )
-		{
-			return false;
-		}
-
-		return LayerItem->CanMuteLayer();
+		return LayerItem->IsValid() && LayerItem->CanMuteLayer();
 	}
 
 	void ToggleMuteLayer( FUsdLayerViewModelRef LayerItem )
 	{
-		if ( !LayerItem->IsValid() || !CanMuteLayer( LayerItem ) )
+		if ( CanMuteLayer( LayerItem ) )
 		{
-			return;
+			LayerItem->ToggleMuteLayer();
 		}
-
-		LayerItem->ToggleMuteLayer();
 	}
 };
 
@@ -220,12 +230,7 @@ class FUsdLayerEditColumn : public FUsdTreeViewColumn, public TSharedFromThis< F
 public:
 	FReply OnClicked( const FUsdLayerViewModelRef TreeItem )
 	{
-		if ( TreeItem->UsdStage )
-		{
-			TreeItem->UsdStage.SetEditTarget( TreeItem->GetLayer() );
-		}
-
-		return FReply::Handled();
+		return TreeItem->EditLayer() ? FReply::Handled() : FReply::Unhandled();
 	}
 
 	FSlateColor GetForegroundColor( const FUsdLayerViewModelRef TreeItem, const TSharedPtr< ITableRow > TableRow, const TSharedPtr< SButton > Button ) const
@@ -236,7 +241,7 @@ public:
 		}
 
 		const bool bIsButtonHovered = Button->IsHovered();
-		const bool bIsLayerEditTarget = TreeItem->UsdStage ? TreeItem->UsdStage.GetEditTarget() == TreeItem->GetLayer() : false;
+		const bool bIsLayerEditTarget = TreeItem->IsEditTarget();
 
 		if ( bIsLayerEditTarget )
 		{
@@ -258,11 +263,20 @@ public:
 	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem, const TSharedPtr< ITableRow > TableRow ) override
 	{
 		const FUsdLayerViewModelRef TreeItem = StaticCastSharedRef< FUsdLayerViewModel >( InTreeItem.ToSharedRef() );
+		FUsdLayerViewModelWeak TreeItemWeak = TreeItem;
 
 		float ItemSize = FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" );
 
 		TSharedPtr<SButton> Button = SNew( SButton )
 			.ContentPadding( 0 )
+			.IsEnabled_Lambda([TreeItemWeak]()->bool
+			{
+				if ( TSharedPtr<FUsdLayerViewModel> PinnedTreeItem = TreeItemWeak.Pin() )
+				{
+					return PinnedTreeItem->IsInIsolatedStage();
+				}
+				return false;
+			})
 			.ButtonStyle( FUsdStageEditorStyle::Get(), TEXT( "NoBorder" ) )
 			.OnClicked( this, &FUsdLayerEditColumn::OnClicked, TreeItem )
 			.ToolTip( SNew( SToolTip ).Text( LOCTEXT( "EditLayerButtonToolTip", "Edit layer" ) ) )
@@ -290,6 +304,8 @@ void SUsdLayersTreeView::Construct( const FArguments& InArgs )
 {
 	SUsdTreeView::Construct( SUsdTreeView::FArguments() );
 
+	LayerIsolatedDelegate = InArgs._OnLayerIsolated;
+
 	OnContextMenuOpening = FOnContextMenuOpening::CreateSP( this, &SUsdLayersTreeView::ConstructLayerContextMenu );
 
 	OnExpansionChanged = FOnExpansionChanged::CreateLambda( [this]( const FUsdLayerViewModelRef& LayerViewModel, bool bIsExpanded )
@@ -303,7 +319,7 @@ void SUsdLayersTreeView::Construct( const FArguments& InArgs )
 	} );
 }
 
-void SUsdLayersTreeView::Refresh( const UE::FUsdStageWeak& NewStage, bool bResync )
+void SUsdLayersTreeView::Refresh( const UE::FUsdStageWeak& NewStage, const UE::FUsdStageWeak& InIsolatedStage, bool bResync )
 {
 	if ( bResync )
 	{
@@ -321,6 +337,7 @@ void SUsdLayersTreeView::Refresh( const UE::FUsdStageWeak& NewStage, bool bResyn
 		}
 
 		UsdStage = NewStage;
+		IsolatedStage = InIsolatedStage;
 
 		BuildUsdLayersEntries();
 
@@ -907,8 +924,8 @@ void SUsdLayersTreeView::BuildUsdLayersEntries()
 
 	if ( UsdStage )
 	{
-		RootItems.Add( MakeSharedUnreal< FUsdLayerViewModel >( nullptr, UsdStage, UsdStage.GetRootLayer().GetIdentifier() ) );
-		RootItems.Add( MakeSharedUnreal< FUsdLayerViewModel >( nullptr, UsdStage, UsdStage.GetSessionLayer().GetIdentifier() ) );
+		RootItems.Add( MakeSharedUnreal< FUsdLayerViewModel >( nullptr, UsdStage, IsolatedStage, UsdStage.GetRootLayer().GetIdentifier() ) );
+		RootItems.Add( MakeSharedUnreal< FUsdLayerViewModel >( nullptr, UsdStage, IsolatedStage, UsdStage.GetSessionLayer().GetIdentifier() ) );
 	}
 }
 
@@ -939,6 +956,54 @@ TSharedPtr< SWidget > SUsdLayersTreeView::ConstructLayerContextMenu()
 	FMenuBuilder LayerOptions( true, nullptr );
 	LayerOptions.BeginSection( "Layer", LOCTEXT("Layer", "Layer") );
 	{
+		LayerOptions.AddMenuEntry(
+			TAttribute<FText>::Create( TAttribute<FText>::FGetter::CreateLambda( [this]()
+			{
+				if ( IsolatedStage )
+				{
+					TArray< FUsdLayerViewModelRef > MySelectedItems = GetSelectedItems();
+					if ( MySelectedItems.Num() == 1 && IsolatedStage )
+					{
+						const UE::FSdfLayerWeak& Layer = MySelectedItems[ 0 ]->GetLayer();
+						if ( Layer == IsolatedStage.GetRootLayer() || Layer == UsdStage.GetRootLayer() )
+						{
+							return LOCTEXT( "StopIsolatingStage_Text", "Stop isolating" );
+						}
+					}
+				}
+
+				return LOCTEXT( "IsolateStage_Text", "Isolate" );
+			})),
+			TAttribute<FText>::Create( TAttribute<FText>::FGetter::CreateLambda( [this]()
+			{
+				if ( IsolatedStage )
+				{
+					TArray< FUsdLayerViewModelRef > MySelectedItems = GetSelectedItems();
+					if ( MySelectedItems.Num() == 1 )
+					{
+						const UE::FSdfLayerWeak& Layer = MySelectedItems[ 0 ]->GetLayer();
+						if ( Layer == IsolatedStage.GetRootLayer() )
+						{
+							return LOCTEXT( "StopIsolatingStage_ToolTip", "Stops isolating this layer and go back to showing the full composed stage" );
+						}
+						else if ( IsolatedStage && Layer == UsdStage.GetRootLayer() )
+						{
+							return LOCTEXT( "LeaveIsolatedMode_ToolTip", "Stops isolating on any layer and go back to showing the full composed stage" );
+						}
+					}
+				}
+
+				return LOCTEXT( "IsolateStage_ToolTip", "Isolate a stage with this layer as its root layer" );
+			})),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &SUsdLayersTreeView::OnIsolateSelectedLayer ),
+				FCanExecuteAction::CreateSP( this, &SUsdLayersTreeView::CanIsolateSelectedLayer )
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
 		LayerOptions.AddMenuEntry(
 			LOCTEXT("EditLayer", "Edit"),
 			LOCTEXT("EditLayer_ToolTip", "Sets the layer as the edit target"),
@@ -1032,6 +1097,62 @@ TSharedPtr< SWidget > SUsdLayersTreeView::ConstructLayerContextMenu()
 	MenuWidget = LayerOptions.MakeWidget();
 
 	return MenuWidget;
+}
+
+bool SUsdLayersTreeView::CanIsolateSelectedLayer() const
+{
+	TArray< FUsdLayerViewModelRef > MySelectedItems = GetSelectedItems();
+
+	if ( MySelectedItems.Num() != 1 )
+	{
+		return false;
+	}
+
+	for ( FUsdLayerViewModelRef SelectedItem : MySelectedItems )
+	{
+		const UE::FSdfLayerWeak& Layer = SelectedItem->GetLayer();
+		const bool bLayerIsStageRoot = Layer == UsdStage.GetRootLayer();
+
+		return SelectedItem->IsValid() && (
+			// If we're right clicking a sublayer its always OK
+			!bLayerIsStageRoot
+			// If we're isolating and selecting either a sublayer or the root layer (i.e. not the session layer)
+			|| ( IsolatedStage && ( SelectedItem->ParentItem || bLayerIsStageRoot ) )
+		);
+	}
+
+	return false;
+}
+
+void SUsdLayersTreeView::OnIsolateSelectedLayer()
+{
+	if ( !LayerIsolatedDelegate.IsBound() )
+	{
+		return;
+	}
+
+	TArray< FUsdLayerViewModelRef > MySelectedItems = GetSelectedItems();
+
+	if ( MySelectedItems.Num() != 1 )
+	{
+		return;
+	}
+
+	for ( FUsdLayerViewModelRef SelectedItem : MySelectedItems )
+	{
+		UE::FSdfLayer Layer = SelectedItem->GetLayer();
+
+		if ( IsolatedStage && IsolatedStage.GetRootLayer() == Layer )
+		{
+			// We're already isolating this one -> Toggle isolate mode off
+			LayerIsolatedDelegate.Execute( UE::FSdfLayer{} );
+		}
+		else
+		{
+			// Isolate the provided layer
+			LayerIsolatedDelegate.Execute( Layer );
+		}
+	}
 }
 
 bool SUsdLayersTreeView::CanEditSelectedLayer() const

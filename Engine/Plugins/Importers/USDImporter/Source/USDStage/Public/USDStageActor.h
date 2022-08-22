@@ -197,6 +197,8 @@ public:
 public:
 	AUsdStageActor();
 
+	USDSTAGE_API void IsolateLayer( const UE::FSdfLayer& Layer );
+
 	USDSTAGE_API void Reset() override;
 	void Refresh() const;
 	void ReloadAnimations();
@@ -275,8 +277,18 @@ public:
 	UE_DEPRECATED( 4.27, "Use the const version if you don't wish to load the stage on-demand, or use GetOrLoadUsdStage if you do" )
 	USDSTAGE_API UE::FUsdStage& GetUsdStage();
 
+	// Loads the stage with RootLayer if its not loaded already, and returns the either the isolated stage (if any) or
+	// the base stage
 	USDSTAGE_API UE::FUsdStage& GetOrLoadUsdStage();
+
+	// Returns either the isolated stage (if any) or the base stage
 	USDSTAGE_API const UE::FUsdStage& GetUsdStage() const;
+
+	// Always returns the base stage, regardless of whether we have an isolated stage or not
+	USDSTAGE_API const UE::FUsdStage& GetBaseUsdStage() const;
+
+	// Always returns the isolated stage, being an invalid stage in case we're not isolating anything
+	USDSTAGE_API const UE::FUsdStage& GetIsolatedUsdStage() const;
 
 	FUsdListener& GetUsdListener() { return UsdListener; }
 	const FUsdListener& GetUsdListener() const { return UsdListener; }
@@ -318,7 +330,12 @@ private:
 	 */
 	TMap< FString, TMap< FString, int32 > > MaterialToPrimvarToUVIndex;
 
+	// The main UsdStage that is currently opened
 	UE::FUsdStage UsdStage;
+
+	// Another stage that has as root layer one of the non-root local layers of UsdStage. This is the stage we'll
+	// be displaying if it is valid, otherwise we'll be displaying UsdStage directly.
+	UE::FUsdStage IsolatedStage;
 
 	/**
 	 * We use PostRegisterAllComponents and PostUnregisterAllComponents as main entry points to decide when to load/unload

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "USDStageViewModel.h"
+#include "UsdWrappers/UsdStage.h"
 
 #include "CoreMinimal.h"
 #include "Layout/Visibility.h"
@@ -39,7 +40,7 @@ protected:
 	TSharedRef< SWidget > MakeMainMenu();
 	TSharedRef< SWidget > MakeActorPickerMenu();
 	TSharedRef< SWidget > MakeActorPickerMenuContent();
-	TSharedRef< SWidget > MakeFocusWarningButton();
+	TSharedRef< SWidget > MakeIsolateWarningButton();
 	void FillFileMenu( FMenuBuilder& MenuBuilder );
 	void FillActionsMenu( FMenuBuilder& MenuBuilder );
 	void FillOptionsMenu( FMenuBuilder& MenuBuilder );
@@ -63,6 +64,8 @@ protected:
 	void OnResetStage();
 	void OnClose();
 
+	void OnLayerIsolated( const UE::FSdfLayer& IsolatedLayer );
+
 	void OnImport();
 
 	void OnPrimSelectionChanged( const TArray<FString>& PrimPath );
@@ -80,6 +83,8 @@ protected:
 	int32 GetNaniteTriangleThresholdValue() const;
 	void OnNaniteTriangleThresholdValueChanged( int32 InValue );
 	void OnNaniteTriangleThresholdValueCommitted( int32 InValue, ETextCommit::Type InCommitType );
+
+	UE::FUsdStageWeak GetCurrentStage() const;
 
 protected:
 	TSharedPtr< class SUsdStageTreeView > UsdStageTreeView;

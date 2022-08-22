@@ -404,7 +404,7 @@ struct FUsdStageActorImpl
 	 * correct value of bHiddenInGame.
 	 * Note that bHiddenInGame corresponds to computed visibility, and the component tags correspond to individual prim-level visibilities
 	 */
-	static void MakeVisible( UUsdPrimTwin& UsdPrimTwin, UE::FUsdStage& Stage )
+	static void MakeVisible( UUsdPrimTwin& UsdPrimTwin, const UE::FUsdStage& Stage )
 	{
 		// Find the highest invisible prim parent: Nothing above this can possibly change with what we're doing
 		UUsdPrimTwin* Iter = &UsdPrimTwin;
@@ -767,6 +767,45 @@ AUsdStageActor::AUsdStageActor()
 	}
 }
 
+void AUsdStageActor::IsolateLayer( const UE::FSdfLayer& Layer )
+{
+	if ( IsolatedStage && IsolatedStage.GetRootLayer() == Layer )
+	{
+		return;
+	}
+
+	// Stop isolating
+	if ( !Layer || Layer == UsdStage.GetRootLayer() )
+	{
+		IsolatedStage = UE::FUsdStage{};
+
+		UsdListener.Register( UsdStage );
+
+		LoadUsdStage();
+		return;
+	}
+
+	if ( UsdStage )
+	{
+		// Ideally we'd check to see if Layer belonged to the stage first, but there isn't any foolproof way to check
+		// for that because if the layer is muted it won't show up on the layer stack at all. Its also valid to mute
+		// any layer anyway (even one that doesn't belong to the stage yet), so checking the list of muted layers also
+		// wouldn't improve anything: It would always be possible to trick that code into isolating an external layer
+		// by just muting the layer first...
+
+		// We really want our own stage for this and not something from the stage cache.
+		// Plus, this means its easier to cleanup: Just drop our IsolatedStage
+		const bool bUseStageCache = false;
+		IsolatedStage = UnrealUSDWrapper::OpenStage( Layer, {}, EUsdInitialLoadSet::LoadAll, bUseStageCache );
+		IsolatedStage.SetEditTarget( IsolatedStage.GetRootLayer() );
+		IsolatedStage.SetInterpolationType( InterpolationType );
+
+		UsdListener.Register( IsolatedStage );
+
+		LoadUsdStage();
+	}
+}
+
 void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& InfoChanges, const UsdUtils::FObjectChangesByPath& ResyncChanges )
 {
 #if USE_USD_SDK
@@ -794,7 +833,8 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 	// and the UE::FUsdStage will still be opened and valid (even though we intend on closing/changing it when we transact). It could be problematic/wasteful if we
 	// responded to those notices, so just early out here. We can do this check because our RootLayer property will already have the new value
 	{
-		const UE::FSdfLayer& StageRoot = Stage.GetRootLayer();
+		const UE::FUsdStage& BaseStage = GetBaseUsdStage();
+		const UE::FSdfLayer& StageRoot = BaseStage.GetRootLayer();
 		if ( !StageRoot )
 		{
 			return;
@@ -932,7 +972,7 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 		// However, if we know that only Prim resynced, we can traverse the tree root down and if we reach Prim and its collapsing state
 		// hasn't updated from before, we don't have to update its subtree at all, or sibling subtrees.
 		TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, TEXT( "/" ) );
-		InfoCache->RebuildCacheForSubtree( UsdStage.GetPseudoRoot(), TranslationContext.Get() );
+		InfoCache->RebuildCacheForSubtree( Stage.GetPseudoRoot(), TranslationContext.Get() );
 	}
 
 	for ( const TPair< FString, bool >& PrimChangedInfo : SortedPrimsChangedList )
@@ -1320,19 +1360,29 @@ UE::FUsdStage& AUsdStageActor::GetUsdStage()
 {
 	OpenUsdStage();
 
-	return UsdStage;
+	return IsolatedStage ? IsolatedStage : UsdStage;
 }
 
 const UE::FUsdStage& AUsdStageActor::GetUsdStage() const
 {
+	return IsolatedStage ? IsolatedStage : UsdStage;
+}
+
+const UE::FUsdStage& AUsdStageActor::GetBaseUsdStage() const
+{
 	return UsdStage;
+}
+
+const UE::FUsdStage& AUsdStageActor::GetIsolatedUsdStage() const
+{
+	return IsolatedStage;
 }
 
 UE::FUsdStage& AUsdStageActor::GetOrLoadUsdStage()
 {
 	OpenUsdStage();
 
-	return UsdStage;
+	return IsolatedStage ? IsolatedStage : UsdStage;
 }
 
 void AUsdStageActor::SetRootLayer( const FString& RootFilePath )
@@ -1480,14 +1530,15 @@ void AUsdStageActor::SetTime(float InTime)
 
 USceneComponent* AUsdStageActor::GetGeneratedComponent( const FString& PrimPath )
 {
-	if ( !UsdStage )
+	const UE::FUsdStage& CurrentStage = static_cast< const AUsdStageActor* >( this )->GetUsdStage();
+	if ( !CurrentStage )
 	{
 		return nullptr;
 	}
 
 	// We can't query our InfoCache with invalid paths, as we're using ensures to track when we miss the cache (which shouldn't ever happen)
 	UE::FSdfPath UsdPath{ *PrimPath };
-	if ( !UsdStage.GetPrimAtPath( UsdPath ) )
+	if ( !CurrentStage.GetPrimAtPath( UsdPath ) )
 	{
 		return nullptr;
 	}
@@ -1508,14 +1559,15 @@ USceneComponent* AUsdStageActor::GetGeneratedComponent( const FString& PrimPath 
 
 TArray<UObject*> AUsdStageActor::GetGeneratedAssets( const FString& PrimPath )
 {
-	if ( !UsdStage )
+	const UE::FUsdStage& CurrentStage = static_cast<const AUsdStageActor*>(this)->GetUsdStage();
+	if ( !CurrentStage )
 	{
 		return {};
 	}
 
 	// We can't query our InfoCache with invalid paths, as we're using ensures to track when we miss the cache (which shouldn't ever happen)
 	UE::FSdfPath UsdPath{ *PrimPath };
-	if ( !UsdStage.GetPrimAtPath( UsdPath ) )
+	if ( !CurrentStage.GetPrimAtPath( UsdPath ) )
 	{
 		return {};
 	}
@@ -1622,6 +1674,8 @@ void AUsdStageActor::OpenUsdStage()
 	OnPreStageChanged.Broadcast();
 
 	UsdStage = UnrealUSDWrapper::OpenStage( *AbsPath, InitialLoadSet );
+	IsolatedStage = UE::FUsdStage{};
+
 	if ( UsdStage )
 	{
 		UsdStage.SetEditTarget( UsdStage.GetRootLayer() );
@@ -1648,6 +1702,7 @@ void AUsdStageActor::CloseUsdStage()
 
 	FUsdStageActorImpl::DiscardStage( UsdStage, this );
 	UsdStage = UE::FUsdStage();
+	IsolatedStage = UE::FUsdStage();  // We don't keep our isolated stages on the stage cache
 	LevelSequenceHelper.Init( UE::FUsdStage() ); // Drop the helper's reference to the stage
 	OnStageChanged.Broadcast();
 }
@@ -1743,6 +1798,7 @@ void AUsdStageActor::OnObjectsReplaced( const TMap<UObject*, UObject*>& ObjectRe
 			// Can't just move out of this one as TUsdStore expects its TOptional to always contain a value, and we may
 			// still need to use the bool operator on it to test for validity
 			NewActor->UsdStage = UsdStage;
+			NewActor->IsolatedStage = IsolatedStage;
 
 			NewActor->LevelSequenceHelper = MoveTemp( LevelSequenceHelper );
 			NewActor->LevelSequence = LevelSequence;
@@ -1826,18 +1882,29 @@ void AUsdStageActor::LoadUsdStage()
 
 	FScopedUsdMessageLog ScopedMessageLog;
 
-	// If we're in here we don't expect our current stage to be the same as the new stage we're trying to load, so
-	// get rid of it so that OpenUsdStage can open it
-	UsdStage = UE::FUsdStage();
-
-	OpenUsdStage();
-	if ( !UsdStage )
+	// If we have an isolated stage we may have been asked to refresh to display it: We should keep our UsdStage opened
+	UE::FUsdStage StageToLoad;
+	if ( IsolatedStage )
 	{
-		OnStageChanged.Broadcast();
-		return;
+		StageToLoad = IsolatedStage;
+	}
+	else
+	{
+		// If we're in here we don't expect our current stage to be the same as the new stage we're trying to load, so
+		// get rid of it so that OpenUsdStage can open it
+		UsdStage = UE::FUsdStage();
+
+		OpenUsdStage();
+		if ( !UsdStage )
+		{
+			OnStageChanged.Broadcast();
+			return;
+		}
+
+		StageToLoad = UsdStage;
 	}
 
-	UsdStage.SetInterpolationType( InterpolationType );
+	StageToLoad.SetInterpolationType( InterpolationType );
 
 	ReloadAnimations();
 
@@ -1854,20 +1921,20 @@ void AUsdStageActor::LoadUsdStage()
 	{
 		InfoCache = MakeShared<FUsdInfoCache>();
 	}
-	InfoCache->RebuildCacheForSubtree( UsdStage.GetPseudoRoot(), TranslationContext.Get() );
+	InfoCache->RebuildCacheForSubtree( StageToLoad.GetPseudoRoot(), TranslationContext.Get() );
 
 	SlowTask.EnterProgressFrame( 0.7f );
-	LoadAssets( *TranslationContext, UsdStage.GetPseudoRoot() );
+	LoadAssets( *TranslationContext, StageToLoad.GetPseudoRoot() );
 
 	SlowTask.EnterProgressFrame( 0.2f );
-	UpdatePrim( UsdStage.GetPseudoRoot().GetPrimPath(), true, *TranslationContext );
+	UpdatePrim( StageToLoad.GetPseudoRoot().GetPrimPath(), true, *TranslationContext );
 
 	TranslationContext->CompleteTasks();
 
 	// Keep our old Time value if we're loading the stage during initialization, so that we can save/load Time values
-	if ( UsdStage.GetRootLayer() && IsActorInitialized() )
+	if ( StageToLoad.GetRootLayer() && IsActorInitialized() )
 	{
-		SetTime( UsdStage.GetRootLayer().GetStartTimeCode() );
+		SetTime( StageToLoad.GetRootLayer().GetStartTimeCode() );
 
 		// If we're an instance of a blueprint that derives the stage actor and we're in the editor preview world, it means we're the
 		// blueprint preview actor. We (the instance) will load the stage and update our Time to StartTimeCode, but our CDO will not.
@@ -1908,7 +1975,7 @@ void AUsdStageActor::LoadUsdStage()
 	FUsdStageActorImpl::SendAnalytics(
 		this,
 		ElapsedSeconds,
-		UsdUtils::GetUsdStageNumFrames( UsdStage ),
+		UsdUtils::GetUsdStageNumFrames( StageToLoad ),
 		FPaths::GetExtension( RootLayer.FilePath )
 	);
 #endif // #if USE_USD_SDK
@@ -2011,7 +2078,8 @@ void AUsdStageActor::ReloadAnimations()
 	}
 	TGuardValue<bool> ReentrantGuard( bIsReentrant, true );
 
-	if ( !UsdStage )
+	const UE::FUsdStage& CurrentStage = GetOrLoadUsdStage();
+	if ( !CurrentStage )
 	{
 		return;
 	}
@@ -2036,7 +2104,7 @@ void AUsdStageActor::ReloadAnimations()
 		const bool bMarkDirty = false;
 		Modify(bMarkDirty);
 
-		LevelSequence = LevelSequenceHelper.Init( UsdStage );
+		LevelSequence = LevelSequenceHelper.Init( CurrentStage );
 		LevelSequenceHelper.BindToUsdStageActor( this );
 
 #if WITH_EDITOR
@@ -2341,7 +2409,8 @@ void AUsdStageActor::PostRegisterAllComponents()
 
 	// This may fail if our stage happened to not spawn any components, actors or assets, but by that
 	// point "being loaded" doesn't really mean anything anyway
-	const bool bStageIsLoaded = UsdStage && ( ( RootUsdTwin && RootUsdTwin->GetSceneComponent() != nullptr ) || ( AssetCache && AssetCache->GetNumAssets() > 0 ) );
+	const bool bStageIsLoaded = GetBaseUsdStage()
+		&& ( ( RootUsdTwin && RootUsdTwin->GetSceneComponent() != nullptr ) || ( AssetCache && AssetCache->GetNumAssets() > 0 ) );
 
 	// Blocks loading stage when going into PIE, if we already have something loaded (we'll want to duplicate stuff instead).
 	// We need to allow loading when going into PIE when we have nothing loaded yet because the MovieRenderQueue (or other callers)
@@ -2433,7 +2502,8 @@ void AUsdStageActor::UnregisterAllComponents( bool bForReregister )
 	}
 #endif // WITH_EDITOR
 
-	const bool bStageIsLoaded = UsdStage && ( ( RootUsdTwin && RootUsdTwin->GetSceneComponent() != nullptr ) || ( AssetCache && AssetCache->GetNumAssets() > 0 ) );
+	const bool bStageIsLoaded = GetBaseUsdStage()
+		&& ( ( RootUsdTwin && RootUsdTwin->GetSceneComponent() != nullptr ) || ( AssetCache && AssetCache->GetNumAssets() > 0 ) );
 
 	UWorld* World = GetWorld();
 	if ( bIsTransitioningIntoPIE && bStageIsLoaded && ( !World || World->WorldType == EWorldType::PIE ) )
@@ -2464,14 +2534,15 @@ void AUsdStageActor::PostUnregisterAllComponents()
 
 void AUsdStageActor::OnPreUsdImport( FString FilePath )
 {
-	if ( !UsdStage || !HasAuthorityOverStage() )
+	const UE::FUsdStage& CurrentStage = static_cast< const AUsdStageActor* >( this )->GetUsdStage();
+	if ( !CurrentStage || !HasAuthorityOverStage() )
 	{
 		return;
 	}
 
 	// Stop listening to events because a USD import may temporarily modify the stage (e.g. when importing with
 	// a different MetersPerUnit value), and we don't want to respond to the notices in the meantime
-	FString RootPath = UsdStage.GetRootLayer().GetRealPath();
+	FString RootPath = CurrentStage.GetRootLayer().GetRealPath();
 	FPaths::NormalizeFilename( RootPath );
 	if ( RootPath == FilePath )
 	{
@@ -2481,13 +2552,14 @@ void AUsdStageActor::OnPreUsdImport( FString FilePath )
 
 void AUsdStageActor::OnPostUsdImport( FString FilePath )
 {
-	if ( !UsdStage || !HasAuthorityOverStage() )
+	const UE::FUsdStage& CurrentStage = static_cast< const AUsdStageActor* >( this )->GetUsdStage();
+	if ( !CurrentStage || !HasAuthorityOverStage() )
 	{
 		return;
 	}
 
 	// Resume listening to events
-	FString RootPath = UsdStage.GetRootLayer().GetRealPath();
+	FString RootPath = CurrentStage.GetRootLayer().GetRealPath();
 	FPaths::NormalizeFilename( RootPath );
 	if ( RootPath == FilePath )
 	{
@@ -2594,6 +2666,8 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 		}
 	}
 
+	const UE::FUsdStage& CurrentStage = static_cast< const AUsdStageActor* >( this )->GetUsdStage();
+
 	FString PrimPath = ObjectsToWatch[ PrimObject ];
 
 	if ( UUsdPrimTwin* UsdPrimTwin = GetRootPrimTwin()->Find( PrimPath ) )
@@ -2608,14 +2682,14 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 
 		if ( PrimSceneComponent )
 		{
-			if ( UsdStage )
+			if ( CurrentStage )
 			{
 				// This block is important, as it not only prevents us from getting into infinite loops with the USD notices,
 				// but it also guarantees that if we have an object property change, the corresponding stage notice is not also
 				// independently saved to the transaction via the UUsdTransactor, which would be duplication
 				FScopedBlockNoticeListening BlockNotices( this );
 
-				UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( *PrimPath ) );
+				UE::FUsdPrim UsdPrim = CurrentStage.GetPrimAtPath( UE::FSdfPath( *PrimPath ) );
 
 				// We want to keep component visibilities in sync with USD, which uses inherited visibilities
 				// To accomplish that while blocking notices we must always propagate component visibility changes manually.
@@ -2630,7 +2704,7 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 					}
 					else
 					{
-						FUsdStageActorImpl::MakeVisible( *UsdPrimTwin, UsdStage );
+						FUsdStageActorImpl::MakeVisible( *UsdPrimTwin, CurrentStage );
 					}
 				}
 
@@ -2638,11 +2712,11 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 
 				UnrealToUsd::ConvertLiveLinkProperties( Controller ? Cast<UActorComponent>( Controller ) : PrimSceneComponent, UsdPrim );
 
-				UnrealToUsd::ConvertSceneComponent( UsdStage, PrimSceneComponent, UsdPrim );
+				UnrealToUsd::ConvertSceneComponent( CurrentStage, PrimSceneComponent, UsdPrim );
 
 				if ( UMeshComponent* MeshComponent = Cast< UMeshComponent >( PrimSceneComponent ) )
 				{
-					UnrealToUsd::ConvertMeshComponent( UsdStage, MeshComponent, UsdPrim );
+					UnrealToUsd::ConvertMeshComponent( CurrentStage, MeshComponent, UsdPrim );
 				}
 				else if ( UsdPrim && UsdPrim.IsA( TEXT( "Camera" ) ) )
 				{
@@ -2784,12 +2858,13 @@ bool AUsdStageActor::HasAuthorityOverStage() const
 void AUsdStageActor::OnSkelAnimationBaked( const FString& SkelRootPrimPath )
 {
 #if USE_USD_SDK
-	if ( !UsdStage || !GRegenerateSkeletalAssetsOnControlRigBake )
+	const UE::FUsdStage& CurrentStage = static_cast< const AUsdStageActor* >( this )->GetUsdStage();
+	if ( !CurrentStage || !GRegenerateSkeletalAssetsOnControlRigBake )
 	{
 		return;
 	}
 
-	UE::FUsdPrim SkelRootPrim = UsdStage.GetPrimAtPath( UE::FSdfPath{ *SkelRootPrimPath } );
+	UE::FUsdPrim SkelRootPrim = CurrentStage.GetPrimAtPath( UE::FSdfPath{ *SkelRootPrimPath } );
 	if ( !SkelRootPrim || !SkelRootPrim.IsA( TEXT( "SkelRoot" ) ) )
 	{
 		return;
@@ -2936,7 +3011,8 @@ void AUsdStageActor::LoadAssets( FUsdSchemaTranslationContext& TranslationContex
 void AUsdStageActor::AnimatePrims()
 {
 	// Don't try to animate if we don't have a stage opened
-	if ( !UsdStage )
+	const UE::FUsdStage& CurrentStage = static_cast< const AUsdStageActor* >( this )->GetUsdStage();
+	if ( !CurrentStage )
 	{
 		return;
 	}
@@ -2961,7 +3037,7 @@ void AUsdStageActor::AnimatePrims()
 		UE::FSdfPath PrimPath( *PrimToAnimate );
 
 		IUsdSchemasModule& SchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( "USDSchemas" );
-		if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = SchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, UE::FUsdTyped( UsdStage.GetPrimAtPath( PrimPath ) ) ) )
+		if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = SchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, UE::FUsdTyped( CurrentStage.GetPrimAtPath( PrimPath ) ) ) )
 		{
 			if ( UUsdPrimTwin* UsdPrimTwin = GetRootPrimTwin()->Find( PrimToAnimate ) )
 			{

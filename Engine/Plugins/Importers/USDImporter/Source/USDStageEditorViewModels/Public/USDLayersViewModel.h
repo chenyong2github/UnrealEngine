@@ -15,12 +15,18 @@ public:
 	bool bIsEditTarget = false;
 	bool bIsMuted = false;
 	bool bIsDirty = false;
+	bool bIsInIsolatedStage = true;
 };
 
 class USDSTAGEEDITORVIEWMODELS_API FUsdLayerViewModel : public IUsdTreeViewItem
 {
 public:
-	explicit FUsdLayerViewModel( FUsdLayerViewModel* InParentItem, const UE::FUsdStageWeak& InUsdStage, const FString& InLayerIdentifier );
+	explicit FUsdLayerViewModel(
+		FUsdLayerViewModel* InParentItem,
+		const UE::FUsdStageWeak& InUsdStage,
+		const UE::FUsdStageWeak& InIsolatedStage,
+		const FString& InLayerIdentifier
+	);
 
 	bool IsValid() const;
 
@@ -37,8 +43,11 @@ public:
 	bool CanMuteLayer() const;
 	void ToggleMuteLayer();
 
+	bool IsEditTarget() const;
 	bool CanEditLayer() const;
 	bool EditLayer();
+
+	bool IsInIsolatedStage() const;
 
 	void AddSubLayer( const TCHAR* SubLayerIdentifier );
 	void NewSubLayer( const TCHAR* SubLayerIdentifier );
@@ -52,5 +61,6 @@ public:
 	TArray< TSharedRef< FUsdLayerViewModel > > Children;
 
 	UE::FUsdStageWeak UsdStage;
+	UE::FUsdStageWeak IsolatedStage;
 	FString LayerIdentifier;
 };

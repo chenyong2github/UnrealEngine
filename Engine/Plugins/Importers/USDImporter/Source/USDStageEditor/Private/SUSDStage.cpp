@@ -225,7 +225,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 					.VAlign( VAlign_Fill )
 					.Padding( FMargin( 0.0f, 0.0f, 10.0f, 0.0f ) )
 					[
-						MakeFocusWarningButton()
+						MakeIsolateWarningButton()
 					]
 				]
 
@@ -284,6 +284,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 					.BorderImage( FAppStyle::GetBrush(TEXT("ToolPanel.GroupBorder")) )
 					[
 						SAssignNew( UsdLayersTreeView, SUsdLayersTreeView )
+						.OnLayerIsolated( this, &SUsdStage::OnLayerIsolated )
 					]
 				]
 			]
@@ -291,6 +292,12 @@ void SUsdStage::Construct( const FArguments& InArgs )
 	];
 
 	SetupStageActorDelegates();
+
+	// We're opening the USD Stage editor for the first time and we already have a stage: Display it immediately
+	if ( UsdStage )
+	{
+		Refresh();
+	}
 }
 
 void SUsdStage::SetupStageActorDelegates()
@@ -321,7 +328,7 @@ void SUsdStage::SetupStageActorDelegates()
 						 ViewModel.UsdStageActor.IsValid() &&
 						 ( bViewingTheUpdatedPrim || ( bViewingStageProperties && bStageUpdated ) ) )
 					{
-						this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetOrLoadUsdStage(), *PrimPath );
+						this->UsdPrimInfoWidget->SetPrimPath( GetCurrentStage(), *PrimPath);
 					}
 
 					// If we resynced our selected prim or our ancestor and have selection sync enabled, try to refresh it so that we're
@@ -349,9 +356,7 @@ void SUsdStage::SetupStageActorDelegates()
 
 						if ( this->UsdPrimInfoWidget )
 						{
-							// The cast here forces us to use the const version of GetUsdStage, that won't force-load the stage in case it isn't opened yet
-							const UE::FUsdStage& UsdStage = static_cast< const AUsdStageActor* >( ViewModel.UsdStageActor.Get( bEvenIfPendingKill ) )->GetUsdStage();
-							this->UsdPrimInfoWidget->SetPrimPath( UsdStage, TEXT("/") );
+							this->UsdPrimInfoWidget->SetPrimPath( GetCurrentStage(), TEXT("/"));
 						}
 
 						if ( this->UsdStageTreeView )
@@ -389,11 +394,13 @@ void SUsdStage::SetupStageActorDelegates()
 			{
 				AsyncTask( ENamedThreads::GameThread, [this]()
 				{
-					if ( this->UsdLayersTreeView && ViewModel.UsdStageActor.IsValid() )
+					AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+					if ( this->UsdLayersTreeView && StageActor )
 					{
 						constexpr bool bResync = false;
-						this->UsdLayersTreeView->Refresh(
-							ViewModel.UsdStageActor.Get()->GetOrLoadUsdStage(),
+						UsdLayersTreeView->Refresh(
+							StageActor->GetBaseUsdStage(),
+							StageActor->GetIsolatedUsdStage(),
 							bResync
 						);
 					}
@@ -406,11 +413,13 @@ void SUsdStage::SetupStageActorDelegates()
 			{
 				AsyncTask( ENamedThreads::GameThread, [this]()
 				{
-					if ( this->UsdLayersTreeView && ViewModel.UsdStageActor.IsValid() )
+					AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+					if ( this->UsdLayersTreeView && StageActor )
 					{
 						constexpr bool bResync = false;
-						this->UsdLayersTreeView->Refresh(
-							ViewModel.UsdStageActor.Get()->GetOrLoadUsdStage(),
+						UsdLayersTreeView->Refresh(
+							StageActor->GetBaseUsdStage(),
+							StageActor->GetIsolatedUsdStage(),
 							bResync
 						);
 					}
@@ -549,31 +558,47 @@ TSharedRef< SWidget > SUsdStage::MakeActorPickerMenuContent()
 	return SNullWidget::NullWidget;
 }
 
-TSharedRef< SWidget > SUsdStage::MakeFocusWarningButton()
+TSharedRef< SWidget > SUsdStage::MakeIsolateWarningButton()
 {
-	// TODO: Will be used for focus mode in the future
 	return SNew( SButton )
 		.ButtonStyle( &FAppStyle::Get().GetWidgetStyle<FButtonStyle>( "EditorViewportToolBar.WarningButton" ) )
+		.ButtonColorAndOpacity( FLinearColor{ 1.0f, 0.4f, 0.0f, 1.0f } )
 		.OnClicked_Lambda( [this]() -> FReply
 		{
+			// Isolating nothing is how we un-isolate
+			OnLayerIsolated( UE::FSdfLayerWeak{} );
 			return FReply::Handled();
 		})
 		.Visibility_Lambda( [this]() -> EVisibility
 		{
+			if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+			{
+				if ( StageActor->GetIsolatedUsdStage() )
+				{
+					return EVisibility::Visible;
+				}
+			}
 			return EVisibility::Hidden;
 		})
 		.ToolTipText_Lambda( [this]() -> FText
 		{
-			return FText::Format(
-				LOCTEXT( "FocusWarningButtonToolTip", "The USD Stage editor and the Unreal level are displaying a focused stage with '{0}' as its root layer.\nPress this button to revert to displaying the entire composed stage." ),
-				FText::GetEmpty()
-			);
+			if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+			{
+				if ( const UE::FUsdStage& CurrentStage = StageActor->GetUsdStage() )
+				{
+					return FText::Format(
+						LOCTEXT( "IsolateWarningButtonToolTip", "The USD Stage editor and the Unreal level are displaying an isolated stage with '{0}' as its root layer.\nPress this button to revert to displaying the entire composed stage." ),
+						FText::FromString( CurrentStage.GetRootLayer().GetDisplayName() )
+					);
+				}
+			}
+
+			return FText::GetEmpty();
 		})
 		.Content()
 		[
 			SNew( STextBlock )
-			.TextStyle( &FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>( "SmallText" ) )
-			.Text( LOCTEXT( "FocusWarningButtonText", "Focus Mode" ) )
+			.Text( LOCTEXT( "IsolateWarningButtonText", "Isolated Mode" ) )
 		];
 }
 
@@ -1793,10 +1818,12 @@ void SUsdStage::OnReloadStage()
 
 	ViewModel.ReloadStage();
 
-	if ( UsdLayersTreeView )
+	const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+
+	if ( UsdLayersTreeView && StageActor )
 	{
 		const bool bResync = true;
-		UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get()->GetOrLoadUsdStage(), bResync );
+		UsdLayersTreeView->Refresh( StageActor->GetBaseUsdStage(), StageActor->GetIsolatedUsdStage(), bResync );
 	}
 }
 
@@ -1804,10 +1831,12 @@ void SUsdStage::OnResetStage()
 {
 	ViewModel.ResetStage();
 
-	if ( UsdLayersTreeView )
+	const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+
+	if ( UsdLayersTreeView && StageActor )
 	{
 		const bool bResync = true;
-		UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get()->GetOrLoadUsdStage(), bResync );
+		UsdLayersTreeView->Refresh( StageActor->GetBaseUsdStage(), StageActor->GetIsolatedUsdStage(), bResync );
 	}
 }
 
@@ -1817,6 +1846,16 @@ void SUsdStage::OnClose()
 
 	ViewModel.CloseStage();
 	Refresh();
+}
+
+void SUsdStage::OnLayerIsolated( const UE::FSdfLayer& IsolatedLayer )
+{
+	if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+	{
+		StageActor->IsolateLayer( IsolatedLayer );
+
+		Refresh();
+	}
 }
 
 void SUsdStage::OnImport()
@@ -1911,15 +1950,21 @@ void SUsdStage::Refresh()
 	// May be nullptr, but that is ok. Its how the widgets are reset
 	AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
 
-	if (UsdLayersTreeView)
+	if ( UsdLayersTreeView )
 	{
+		UE::FUsdStageWeak IsolatedStage = StageActor ? StageActor->GetIsolatedUsdStage() : UE::FUsdStage{};
+		UE::FUsdStageWeak BaseStage = StageActor ? StageActor->GetBaseUsdStage() : UE::FUsdStage{};
+
+		// The layers tree view always needs to receive both the full stage as well as the isolated
 		const bool bResync = true;
-		UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get()->GetOrLoadUsdStage(), bResync );
+		UsdLayersTreeView->Refresh( BaseStage, IsolatedStage, bResync );
 	}
 
-	if (UsdStageTreeView)
+	if ( UsdStageTreeView )
 	{
-		UsdStageTreeView->Refresh( StageActor->GetOrLoadUsdStage() );
+		UE::FUsdStageWeak CurrentStage = StageActor ? StageActor->GetOrLoadUsdStage() : UE::FUsdStage{};
+
+		UsdStageTreeView->Refresh( CurrentStage );
 
 		// Refresh will generate brand new RootItems, so let's immediately select the new item
 		// that corresponds to the prim we're supposed to be selecting
@@ -2028,6 +2073,17 @@ void SUsdStage::OnNaniteTriangleThresholdValueCommitted( int32 InValue, ETextCom
 
 	StageActor->SetNaniteTriangleThreshold( InValue );
 	CurrentNaniteThreshold = InValue;
+}
+
+UE::FUsdStageWeak SUsdStage::GetCurrentStage() const
+{
+	const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+	if ( StageActor )
+	{
+		return StageActor->GetUsdStage();
+	}
+
+	return UE::FUsdStageWeak{};
 }
 
 #endif // #if USE_USD_SDK

@@ -225,15 +225,47 @@ public:
 	UNREALUSDWRAPPER_API static TArray<FString> GetNativeFileFormats();
 
 	/**
-	 * Opens a file as a root layer of an USD stage, and returns that stage.
+	 * Opens a USD stage from a file on disk or existing layers, with a population mask or not.
 	 * @param Identifier - Path to a file that the USD SDK can open (or the identifier of a root layer), which will become the root layer of the new stage
+	 * @param RootLayer - Existing root layer to use for the new stage, instead of reading it from disk
+	 * @param SessionLayer - Existing session layer to use for the new stage, instead of creating a new one
 	 * @param InitialLoadSet - How to handle USD payloads when opening this stage
+	 * @param PopulationMask - List of prim paths to import, following the USD population mask rules
 	 * @param bUseStageCache - If true, and the stage is already opened in the stage cache (or the layers are already loaded in the registry) then
 	 *						   the file reading may be skipped, and the existing stage returned. When false, the stage and all its referenced layers
 	 *						   will be re-read anew, and the stage will not be added to the stage cache.
+	 * @param bForceReloadLayersFromDisk - USD layers are always cached in the layer registry, so trying to reopen an
+	 *                                     already opened layer will just fetch it from memory (potentially with
+	 *                                     edits). If this is true, all local layers used by the stage will be force-
+	 *                                     reloaded from disk
 	 * @return The opened stage, which may be invalid.
 	 */
-	UNREALUSDWRAPPER_API static UE::FUsdStage OpenStage( const TCHAR* Identifier, EUsdInitialLoadSet InitialLoadSet, bool bUseStageCache = true );
+	UNREALUSDWRAPPER_API static UE::FUsdStage OpenStage(
+		const TCHAR* Identifier,
+		EUsdInitialLoadSet InitialLoadSet,
+		bool bUseStageCache = true,
+		bool bForceReloadLayersFromDisk = false
+	);
+	UNREALUSDWRAPPER_API static UE::FUsdStage OpenStage(
+		UE::FSdfLayer RootLayer,
+		UE::FSdfLayer SessionLayer,
+		EUsdInitialLoadSet InitialLoadSet,
+		bool bUseStageCache = true,
+		bool bForceReloadLayersFromDisk = false
+	);
+	UNREALUSDWRAPPER_API static UE::FUsdStage OpenMaskedStage(
+		const TCHAR* Identifier,
+		EUsdInitialLoadSet InitialLoadSet,
+		const TArray<FString>& PopulationMask,
+		bool bForceReloadLayersFromDisk = false
+	);
+	UNREALUSDWRAPPER_API static UE::FUsdStage OpenMaskedStage(
+		UE::FSdfLayer RootLayer,
+		UE::FSdfLayer SessionLayer,
+		EUsdInitialLoadSet InitialLoadSet,
+		const TArray<FString>& PopulationMask,
+		bool bForceReloadLayersFromDisk = false
+	);
 
 	/** Creates a new USD root layer file, opens it as a new stage and returns that stage */
 	UNREALUSDWRAPPER_API static UE::FUsdStage NewStage( const TCHAR* FilePath );

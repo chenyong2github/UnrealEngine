@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "UsdWrappers/ForwardDeclarations.h"
 #include "UsdWrappers/UsdStage.h"
 #include "Widgets/SUSDTreeView.h"
 
@@ -11,15 +12,19 @@
 class AUsdStageActor;
 
 using FUsdLayerViewModelRef = TSharedRef< class FUsdLayerViewModel >;
+using FUsdLayerViewModelWeak = TWeakPtr< class FUsdLayerViewModel >;
+
+DECLARE_DELEGATE_OneParam( FOnLayerIsolated, const UE::FSdfLayer& );
 
 class SUsdLayersTreeView : public SUsdTreeView< FUsdLayerViewModelRef >
 {
 public:
 	SLATE_BEGIN_ARGS( SUsdLayersTreeView ) {}
+		SLATE_EVENT( FOnLayerIsolated, OnLayerIsolated )
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs );
-	void Refresh( const UE::FUsdStageWeak& NewStage, bool bResync = false );
+	void Refresh( const UE::FUsdStageWeak& NewStage, const UE::FUsdStageWeak& IsolatedStage = {}, bool bResync = false);
 
 	// Drag and drop interface for our rows
 	FReply OnRowDragDetected( const FGeometry& Geometry, const FPointerEvent& PointerEvent );
@@ -39,6 +44,9 @@ private:
 	void BuildUsdLayersEntries();
 
 	TSharedPtr< SWidget > ConstructLayerContextMenu();
+
+	bool CanIsolateSelectedLayer() const;
+	void OnIsolateSelectedLayer();
 
 	bool CanEditSelectedLayer() const;
 	void OnEditSelectedLayer();
@@ -65,6 +73,12 @@ private:
 	// Should always be valid, we keep the one we're given on Refresh()
 	UE::FUsdStageWeak UsdStage;
 
+	// A stage we create based on one of the sublayers of UsdStage
+	UE::FUsdStageWeak IsolatedStage;
+
 	// So that we can store these across refreshes
 	TMap< FString, bool > TreeItemExpansionStates;
+
+	// Used so that we can isolate the new layer without coupling to the SUSDStage widget too much
+	FOnLayerIsolated LayerIsolatedDelegate;
 };
