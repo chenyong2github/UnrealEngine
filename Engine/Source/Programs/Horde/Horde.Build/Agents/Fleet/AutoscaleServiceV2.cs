@@ -75,10 +75,16 @@ namespace Horde.Build.Agents.Fleet
 		}
 
 		/// <inheritdoc/>
-		public Task StartAsync(CancellationToken cancellationToken) => _ticker.StartAsync();
+		public Task StartAsync(CancellationToken cancellationToken)
+		{
+			return Task.WhenAll(_ticker.StartAsync(), _tickerHighFrequency.StartAsync());
+		}
 
 		/// <inheritdoc/>
-		public Task StopAsync(CancellationToken cancellationToken) => _ticker.StopAsync();
+		public Task StopAsync(CancellationToken cancellationToken)
+		{
+			return Task.WhenAll(_ticker.StopAsync(), _tickerHighFrequency.StopAsync());
+		}
 
 		/// <inheritdoc/>
 		public void Dispose() => _ticker.Dispose();
