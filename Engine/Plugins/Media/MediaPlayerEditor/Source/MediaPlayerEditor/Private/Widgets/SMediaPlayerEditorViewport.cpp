@@ -23,6 +23,7 @@
 
 SMediaPlayerEditorViewport::SMediaPlayerEditorViewport()
 	: MediaPlayer(nullptr)
+	, bIsMouseControlEnabled(true)
 { }
 
 
@@ -171,7 +172,8 @@ void SMediaPlayerEditorViewport::Construct(const FArguments& InArgs, UMediaPlaye
 
 FReply SMediaPlayerEditorViewport::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if (MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+	if ((bIsMouseControlEnabled == false) ||
+		(MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton))
 	{
 		return FReply::Unhandled();
 	}
@@ -184,7 +186,8 @@ FReply SMediaPlayerEditorViewport::OnMouseButtonDown(const FGeometry& MyGeometry
 
 FReply SMediaPlayerEditorViewport::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if (MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+	if ((bIsMouseControlEnabled == false) ||
+		(MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton))
 	{
 		return FReply::Unhandled();
 	}
@@ -204,7 +207,8 @@ FReply SMediaPlayerEditorViewport::OnMouseButtonDoubleClick(const FGeometry& MyG
 
 FReply SMediaPlayerEditorViewport::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if (MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+	if ((bIsMouseControlEnabled == false) ||
+		(MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton))
 	{
 		return FReply::Unhandled();
 	}
@@ -231,6 +235,11 @@ FReply SMediaPlayerEditorViewport::OnMouseMove(const FGeometry& MyGeometry, cons
 
 FReply SMediaPlayerEditorViewport::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
+	if (bIsMouseControlEnabled == false)
+	{
+		return FReply::Unhandled();
+	}
+
 	MediaPlayer->SetViewField(MouseEvent.GetWheelDelta(), 0.0f, false);
 
 	return FReply::Handled();

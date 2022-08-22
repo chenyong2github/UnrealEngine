@@ -340,7 +340,7 @@ void SMediaPlayerEditorViewer::Construct(const FArguments& InArgs, UMediaPlayer&
 							.Padding(0.0f)
 							[
 								// movie area
-								SNew(SMediaPlayerEditorViewport, InMediaPlayer, InMediaTexture, InStyle, bInIsSoundEnabled)
+								SAssignNew(PlayerViewport, SMediaPlayerEditorViewport, InMediaPlayer, InMediaTexture, InStyle, bInIsSoundEnabled)
 							]
 					]
 
@@ -549,6 +549,13 @@ void SMediaPlayerEditorViewer::Construct(const FArguments& InArgs, UMediaPlayer&
 	];
 }
 
+void SMediaPlayerEditorViewer::EnableMouseControl(bool bIsEnabled)
+{
+	if (PlayerViewport.IsValid())
+	{
+		PlayerViewport->EnableMouseControl(bIsEnabled);
+	}
+}
 
 /* SWidget interface
  *****************************************************************************/

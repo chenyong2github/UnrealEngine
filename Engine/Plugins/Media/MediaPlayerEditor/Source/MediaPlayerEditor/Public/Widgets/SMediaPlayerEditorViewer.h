@@ -14,6 +14,7 @@
 class FMenuBuilder;
 class SEditableTextBox;
 class SSlider;
+class SMediaPlayerEditorViewport;
 class UMediaPlayer;
 class UMediaSoundComponent;
 class UMediaTexture;
@@ -61,6 +62,11 @@ public:
 	void Construct(const FArguments& InArgs, UMediaPlayer& InMediaPlayer,
 		UMediaTexture* InMediaTexture, const TSharedRef<ISlateStyle>& InStyle,
 		bool bInIsSoundEnabled);
+
+	/**
+	 * Enables/disables using the mouse to control the viewport.
+	 */
+	void EnableMouseControl(bool bIsEnabled);
 
 public:
 
@@ -150,4 +156,7 @@ private:
 
 	/** Media URL text box. */
 	TSharedPtr<SEditableTextBox> UrlTextBox;
+
+	/** The viewport that shows the media. */
+	TSharedPtr<SMediaPlayerEditorViewport> PlayerViewport;
 };

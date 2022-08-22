@@ -39,6 +39,11 @@ public:
 		UMediaTexture* InMediaTexture, const TSharedRef<ISlateStyle>& InStyle,
 		bool bInIsSoundEnabled);
 
+	/**
+	 * Enables/disables using the mouse to control the viewport.
+	 */
+	void EnableMouseControl(bool bIsEnabled) { bIsMouseControlEnabled = bIsEnabled; }
+
 public:
 
 	//~ SWidget interface
@@ -73,4 +78,7 @@ private:
 
 	/** The style set to use for this widget. */
 	TSharedPtr<ISlateStyle> Style;
+	
+	/** True if the mouse can control things. */
+	bool bIsMouseControlEnabled;
 };
