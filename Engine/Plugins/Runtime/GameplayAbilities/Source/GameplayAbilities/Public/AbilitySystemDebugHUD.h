@@ -65,7 +65,9 @@ class UAbilitySystemDebugHUDExtension_Tags final : public UAbilitySystemDebugHUD
 {
 	GENERATED_BODY()
 
-	static bool bEnabled;
+	TSet<FString> TagsToDisplay;
+
+	bool bEnabled;
 
 public:
 
@@ -86,9 +88,9 @@ class UAbilitySystemDebugHUDExtension_Attributes final : public UAbilitySystemDe
 {
 	GENERATED_BODY()
 
-	static TSet<FString> AttributesToDisplay;
+	TSet<FString> AttributesToDisplay;
 
-	static bool bIncludeModifiers;
+	bool bIncludeModifiers;
 public:
 	static void ToggleExtension(const TArray<FString>& Args, UWorld* World);
 	
@@ -111,7 +113,9 @@ class UAbilitySystemDebugHUDExtension_BlockedAbilityTags final : public UAbility
 {
 	GENERATED_BODY()
 
-	static bool bEnabled;
+	TSet<FString> TagsToDisplay;
+
+	bool bEnabled;
 
 public:
 
