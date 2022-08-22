@@ -44,6 +44,10 @@ public:
 	virtual void SetConstantScale(bool InConstantScale);
 	virtual bool GetConstantScale() const;
 
+	// Set whether this group should be treated as a hit owner and its part identifier returned when any of its sub-elements are hit.
+	virtual void SetHitOwner(bool bInHitOwner);
+	virtual bool GetHitOwner() const;
+
 protected:
 
 	// When true, maintains view-dependent constant scale for this gizmo object hierarchy

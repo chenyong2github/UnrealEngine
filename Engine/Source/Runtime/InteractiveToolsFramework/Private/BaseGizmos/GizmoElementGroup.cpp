@@ -152,3 +152,13 @@ bool UGizmoElementGroup::GetConstantScale() const
 {
 	return bConstantScale;
 }
+
+void UGizmoElementGroup::SetHitOwner(bool bInHitOwner)
+{
+	bHitOwner = bInHitOwner;
+}
+
+bool UGizmoElementGroup::GetHitOwner() const
+{
+	return bHitOwner;
+}
