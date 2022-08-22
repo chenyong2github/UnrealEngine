@@ -49,6 +49,7 @@ namespace Horde.Build.Issues.Handlers
 		static bool TryGetHash(string message, out Md5Hash hash)
 		{
 			string sanitized = message.ToUpperInvariant();
+			sanitized = Regex.Replace(sanitized, @"0[xX][0-9a-fA-F]+", "H"); // Redact hex strings
 			sanitized = Regex.Replace(sanitized, @"\d[\d.,:]*", "n"); // Redact numbers and timestamp like things
 
 			if (sanitized.Length > 30)
