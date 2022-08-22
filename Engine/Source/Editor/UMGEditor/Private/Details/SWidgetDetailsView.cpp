@@ -45,7 +45,6 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	DetailsViewArgs.bHideSelectionTip = true;
 	DetailsViewArgs.NotifyHook = this;
-	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
 
 	PropertyView = EditModule.CreateDetailView(DetailsViewArgs);
 
@@ -56,6 +55,9 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 	// Create a handler for property binding via the details panel
 	TSharedRef<FDetailWidgetExtensionHandler> BindingHandler = MakeShareable( new FDetailWidgetExtensionHandler( InBlueprintEditor ) );
 	PropertyView->SetExtensionHandler(BindingHandler);
+
+	// Handle EditDefaultsOnly and EditInstanceOnly flags
+	PropertyView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SWidgetDetailsView::IsPropertyVisible));
 
 	// Notify us of object selection changes so we can update the package re-mapping
 	PropertyView->SetOnObjectArrayChanged(FOnObjectArrayChanged::CreateSP(this, &SWidgetDetailsView::OnPropertyViewObjectArrayChanged));
@@ -311,6 +313,24 @@ void SWidgetDetailsView::ClearFocusIfOwned()
 		}
 		bIsReentrant = false;
 	}
+}
+
+bool SWidgetDetailsView::IsPropertyVisible(const FPropertyAndParent& PropertyAndParent) const
+{
+	const FProperty& Property = PropertyAndParent.Property;
+
+	const bool bIsEditDefaultsOnly = Property.HasAnyPropertyFlags(CPF_DisableEditOnInstance);
+	const bool bIsEditInstanceOnly = Property.HasAnyPropertyFlags(CPF_DisableEditOnTemplate);
+	if (bIsEditDefaultsOnly || bIsEditInstanceOnly)
+	{
+		// EditDefaultsOnly properties are only visible when the CDO/root is selected, EditInstanceOnly are only visible when the CDO/root is *not* selected
+		const bool bIsCDOSelected = IsWidgetCDOSelected();
+		if ((bIsEditDefaultsOnly && !bIsCDOSelected) || (bIsEditInstanceOnly && bIsCDOSelected))
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 bool SWidgetDetailsView::IsWidgetCDOSelected() const

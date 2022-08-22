@@ -48,6 +48,8 @@ private:
 
 	void ClearFocusIfOwned();
 
+	bool IsPropertyVisible(const FPropertyAndParent& PropertyAndParent) const;
+	
 	bool IsWidgetCDOSelected() const;
 
 	EVisibility GetBorderAreaVisibility() const;
