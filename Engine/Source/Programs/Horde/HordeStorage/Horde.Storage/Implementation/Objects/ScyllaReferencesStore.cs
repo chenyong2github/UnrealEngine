@@ -83,7 +83,7 @@ namespace Horde.Storage.Implementation
             }
             catch (Exception e)
             {
-                _logger.Error(e, "Partial object found {Namespace} {Bucket} {Name} ignoring object", ns, bucket, name);
+                _logger.Warning(e, "Partial object found {Namespace} {Bucket} {Name} ignoring object", ns, bucket, name);
                 throw new ObjectNotFoundException(ns, bucket, name);
             }
 
