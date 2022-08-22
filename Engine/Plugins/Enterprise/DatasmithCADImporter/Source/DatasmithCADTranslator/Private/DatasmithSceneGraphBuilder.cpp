@@ -234,24 +234,13 @@ bool FDatasmithSceneBaseGraphBuilder::Build()
 	// application_name is something like "Catia V5"
 	DatasmithScene->SetVendor(TEXT("Techsoft"));
 
-	if (const FString* ProductVersion = Reference.MetaData.Find(TEXT("TechsoftVersion")))
+	FString ProductVersion;
+	if (Reference.MetaData.RemoveAndCopyValue(TEXT("TechsoftVersion"), ProductVersion))
 	{
-		DatasmithScene->SetProductVersion(**ProductVersion);
+		DatasmithScene->SetProductVersion(*ProductVersion);
 	}
 
-	FString ProductName;
-	const FString* ProductNamePtr = Reference.MetaData.Find(TEXT("Input_Format_and_Emitter"));
-	if (ProductNamePtr)
-	{
-		ProductName = *ProductNamePtr;
-		ProductName.TrimStartAndEndInline();
-		if (!ProductName.IsEmpty())
-		{
-			DatasmithScene->SetProductName(*ProductName);
-		}
-	}
-
-	if (ProductName.IsEmpty())
+	// SetProductName
 	{
 		switch (RootFileDescription.GetFileFormat())
 		{
@@ -606,6 +595,7 @@ void FDatasmithSceneBaseGraphBuilder::AddMetaData(TSharedPtr<IDatasmithActorElem
 		}
 
 		// Add name
+		if(!Component.Label.IsEmpty())
 		{
 			FString MetaName = PostName;
 			MetaName += TEXT(" Name");

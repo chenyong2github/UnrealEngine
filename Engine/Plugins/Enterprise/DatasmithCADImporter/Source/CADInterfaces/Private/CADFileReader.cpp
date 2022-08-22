@@ -117,7 +117,7 @@ namespace CADLibrary
 				{
 					bNeedToProceed = false;
 				}
-				else // the file has been converted into CT file but meshed with different parameters
+				else // the file has been converted into TechSoft file (".prc") but meshed with different parameters
 				{
 					CADFileData.GetCADFileDescription().SetCacheFile(CADFileCachePath);
 				}

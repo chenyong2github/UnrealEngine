@@ -139,20 +139,33 @@ inline void RemoveUnwantedChar(FString& StringToClean, TCHAR UnwantedChar)
 
 void TraverseAttribute(const A3DMiscAttributeData& AttributeData, TMap<FString, FString>& OutMetaData)
 {
-	FString AttributeName;
+	FString AttributeFamillyName;
 	if (AttributeData.m_bTitleIsInt)
 	{
 		A3DUns32 UnsignedValue = 0;
 		memcpy(&UnsignedValue, AttributeData.m_pcTitle, sizeof(A3DUns32));
-		AttributeName = FString::Printf(TEXT("%u"), UnsignedValue);
+		AttributeFamillyName = FString::Printf(TEXT("%u"), UnsignedValue);
 	}
 	else if (AttributeData.m_pcTitle && AttributeData.m_pcTitle[0] != '\0')
 	{
-		AttributeName = UTF8_TO_TCHAR(AttributeData.m_pcTitle);
+		AttributeFamillyName = UTF8_TO_TCHAR(AttributeData.m_pcTitle);
 	}
 
 	for (A3DUns32 Index = 0; Index < AttributeData.m_uiSize; ++Index)
 	{
+		FString AttributeName = AttributeFamillyName;
+		{
+			FString AttributeTitle = UTF8_TO_TCHAR(AttributeData.m_asSingleAttributesData[Index].m_pcTitle);
+			if (AttributeTitle.Len())
+			{
+				AttributeName += TEXT(" ") + AttributeTitle;
+			}
+			else if(Index > 0)
+			{
+				AttributeName += TEXT(" ") + FString::FromInt((int32)Index);
+			}
+		}
+
 		FString AttributeValue;
 		switch (AttributeData.m_asSingleAttributesData[Index].m_eType)
 		{
@@ -188,14 +201,7 @@ void TraverseAttribute(const A3DMiscAttributeData& AttributeData, TMap<FString, 
 
 		if (AttributeName.Len())
 		{
-			if (Index)
-			{
-				OutMetaData.Emplace(FString::Printf(TEXT("%s_%u"), *AttributeName, (int32)Index), AttributeValue);
-			}
-			else
-			{
-				OutMetaData.Emplace(AttributeName, AttributeValue);
-			}
+			OutMetaData.Emplace(AttributeName, AttributeValue);
 		}
 	}
 }
