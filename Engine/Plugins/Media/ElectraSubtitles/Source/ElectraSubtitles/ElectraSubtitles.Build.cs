@@ -6,7 +6,9 @@ namespace UnrealBuildTool.Rules
 	{
 		public ElectraSubtitles(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PCHUsage = PCHUsageMode.NoPCHs;
+			PCHUsage = PCHUsageMode.UseSharedPCHs;
+			PrivatePCHHeaderFile = "Public/ElectraSubtitleModule.h";
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
