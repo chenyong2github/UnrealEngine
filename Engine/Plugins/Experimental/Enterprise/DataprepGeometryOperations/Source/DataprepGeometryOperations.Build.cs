@@ -37,7 +37,6 @@ namespace UnrealBuildTool.Rules
 			if (bWithProxyLOD)
 			{
 				// For boost:: and TBB:: code
-				bEnableUndefinedIdentifierWarnings = false;
 				bUseRTTI = true;
 
 				PrivateDependencyModuleNames.AddRange(
