@@ -56,7 +56,7 @@ protected:
 		}
 
 		TOptional<NumericType> OldValue = TDefaultNumericTypeInterface<NumericType>{}.FromString(GraphPinObj->GetDefaultAsString(), InValue);
-		if (OldValue && InValue != *OldValue)
+		if (!OldValue.IsSet() || InValue != *OldValue)
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("GraphEditor", "ChangeNumberPinValue", "Change Number Pin Value"));
 			GraphPinObj->Modify();
