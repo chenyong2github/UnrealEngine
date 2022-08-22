@@ -166,7 +166,7 @@ void FAnimNode_LayeredBoneBlend::Update_AnyThread(const FAnimationUpdateContext&
 					FAnimationRuntime::UpdateDesiredBoneWeight(DesiredBoneBlendWeights, CurrentBoneBlendWeights, BlendWeights);
 					bHasRelevantPoses = true;
 
-					if(bBlendRootMotionBasedOnRootBone)
+					if(bBlendRootMotionBasedOnRootBone && !CurrentBoneBlendWeights.IsEmpty())
 					{
 						const float NewRootMotionWeight = CurrentBoneBlendWeights[0].BlendWeight;
 						if(NewRootMotionWeight > ZERO_ANIMWEIGHT_THRESH)
