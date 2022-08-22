@@ -672,7 +672,7 @@ namespace Horde.Build.Devices
 		/// <summary>
 		/// StreamId to reserved device ids
 		/// </summary>
-		public Dictionary<string, List<string>> StreamDevices { get; set; } = null!;
+		public Dictionary<string, List<string>>? StreamDevices { get; set; }
 
 		/// <summary>
 		/// Constructor
@@ -685,7 +685,7 @@ namespace Horde.Build.Devices
 			Maintenance = maintenance == 0 ? null : maintenance;
 			Problem = problem == 0 ? null : problem;
 			Disabled = disabled == 0 ? null : disabled;
-			StreamDevices = streamDevices;
+			StreamDevices = streamDevices.Count == 0 ? null : streamDevices;
 		}
 	}
 
