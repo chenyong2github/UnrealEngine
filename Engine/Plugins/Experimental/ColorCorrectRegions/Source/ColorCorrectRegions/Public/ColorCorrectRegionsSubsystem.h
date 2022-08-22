@@ -97,10 +97,6 @@ public:
 	TArray<AColorCorrectRegion*> RegionsDistanceBased;
 
 private:
-
-	/** Region class. Used for getting all region actors in level. */
-	TSubclassOf<AColorCorrectRegion> RegionClass;
-
 	TSharedPtr< class FColorCorrectRegionsSceneViewExtension, ESPMode::ThreadSafe > PostProcessSceneViewExtension;
 
 	FCriticalSection RegionAccessCriticalSection;

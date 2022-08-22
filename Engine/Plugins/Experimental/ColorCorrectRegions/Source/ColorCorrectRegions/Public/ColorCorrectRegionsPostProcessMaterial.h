@@ -14,6 +14,7 @@
 #include "Runtime/RenderCore/Public/RenderGraphResources.h"
 #include "Runtime/RenderCore/Public/RenderGraphResources.h"
 #include "ColorCorrectRegion.h"
+#include "ColorCorrectWindow.h"
 
 // FScreenPassTextureViewportParameters and FScreenPassTextureInput
 #include "Runtime/Renderer/Private/ScreenPass.h"
@@ -121,7 +122,7 @@ public:
 	
 };
 
-class FColorCorrectRegionMaterialPS : public FColorCorrectRegionsPostProcessMaterialShader
+class FColorCorrectGenericPS : public FColorCorrectRegionsPostProcessMaterialShader
 {
 public:
 	UENUM(BlueprintType)
@@ -133,16 +134,12 @@ public:
 		Disabled,
 		MAX
 	};
-	DECLARE_GLOBAL_SHADER(FColorCorrectRegionMaterialPS);
 
-	class FShaderType : SHADER_PERMUTATION_ENUM_CLASS("SHAPE_TYPE", EColorCorrectRegionsType);
 	class FTemperatureType : SHADER_PERMUTATION_ENUM_CLASS("TEMPERATURE_TYPE", ETemperatureType);
 	class FAdvancedShader : SHADER_PERMUTATION_BOOL("ADVANCED_CC");
 
-	using FPermutationDomain = TShaderPermutationDomain<FShaderType, FTemperatureType, FAdvancedShader>;
-
-	FColorCorrectRegionMaterialPS() = default;
-	FColorCorrectRegionMaterialPS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
+	FColorCorrectGenericPS() = default;
+	FColorCorrectGenericPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FColorCorrectRegionsPostProcessMaterialShader(Initializer)
 	{}
 
@@ -151,10 +148,44 @@ public:
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
 	}
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment & OutEnvironment)
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FColorCorrectRegionsPostProcessMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
+
+};
+
+class FColorCorrectRegionMaterialPS : public FColorCorrectGenericPS
+{
+public:
+
+	DECLARE_GLOBAL_SHADER(FColorCorrectRegionMaterialPS);
+
+	class FShaderType : SHADER_PERMUTATION_ENUM_CLASS("SHAPE_TYPE", EColorCorrectRegionsType);
+
+	using FPermutationDomain = TShaderPermutationDomain<FShaderType, FTemperatureType, FAdvancedShader>;
+
+	FColorCorrectRegionMaterialPS() = default;
+	FColorCorrectRegionMaterialPS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
+		: FColorCorrectGenericPS(Initializer)
+	{}
+};
+
+
+class FColorCorrectWindowMaterialPS : public FColorCorrectGenericPS
+{
+public:
+
+	DECLARE_GLOBAL_SHADER(FColorCorrectWindowMaterialPS);
+
+	class FShaderType : SHADER_PERMUTATION_ENUM_CLASS("WINDOW_TYPE", EColorCorrectWindowType);
+
+	using FPermutationDomain = TShaderPermutationDomain<FShaderType, FTemperatureType, FAdvancedShader>;
+
+	FColorCorrectWindowMaterialPS() = default;
+	FColorCorrectWindowMaterialPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FColorCorrectGenericPS(Initializer)
+	{}
 };
 
 // The vertex shader used by DrawScreenPass to draw a rectangle.

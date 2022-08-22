@@ -3,6 +3,7 @@
 #include "ColorCorrectRegionsEditorModule.h"
 #include "Editor/PlacementMode/Public/IPlacementModeModule.h"
 #include "ColorCorrectRegion.h"
+#include "ColorCorrectWindow.h"
 #include "ColorCorrectRegionsStyle.h"
 #include "ColorCorrectRegionCustomization.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
@@ -11,11 +12,11 @@
 
 void FColorCorrectRegionsEditorModule::StartupModule()
 {
-	IPlacementModeModule::Get().OnPlacementModeCategoryRefreshed().AddRaw(this, &FColorCorrectRegionsEditorModule::OnPlacementModeRefresh);
 	FColorCorrectRegionsStyle::Initialize();
+	IPlacementModeModule::Get().OnPlacementModeCategoryRefreshed().AddRaw(this, &FColorCorrectRegionsEditorModule::OnPlacementModeRefresh);
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.RegisterCustomClassLayout(AColorCorrectRegion::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FColorCorrectRegionDetails::MakeInstance));
+	PropertyModule.RegisterCustomClassLayout(AColorCorrectRegion::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FColorCorrectWindowDetails::MakeInstance));
 }
 
 void FColorCorrectRegionsEditorModule::OnPlacementModeRefresh(FName CategoryName)
@@ -38,6 +39,17 @@ void FColorCorrectRegionsEditorModule::OnPlacementModeRefresh(FName CategoryName
 			NSLOCTEXT("PlacementMode", "Color Correct Region", "Color Correct Region")
 		);
 
+
+		FPlaceableItem* CCWPlaceableItem = new FPlaceableItem(
+			*AColorCorrectWindow::StaticClass(),
+			FAssetData(AColorCorrectWindow::StaticClass()),
+			FName("CCW.PlaceActorThumbnail"),
+			FName("CCR.PlaceActorIcon"),
+			TOptional<FLinearColor>(),
+			TOptional<int32>(), 
+			NSLOCTEXT("PlacementMode", "Color Correct Window", "Color Correct Window"));
+
+		PlacementModeModule.RegisterPlaceableItem(CategoryName, MakeShareable(CCWPlaceableItem));
 		PlacementModeModule.RegisterPlaceableItem(CategoryName, MakeShareable(CCRPlaceableItem));
 	}
 }

@@ -20,7 +20,9 @@
 #define SHAPE_TYPE_BOX 1
 #define SHAPE_TYPE_CYLINDER 2
 #define SHAPE_TYPE_CONE 3
-#define SHAPE_TYPE_PLANE 4
+
+#define WINDOW_TYPE_PLANE 0
+#define WINDOW_TYPE_CIRCLE 1
 
 #define TEMPERATURE_TYPE_LEGACY 0
 #define TEMPERATURE_TYPE_WHITE_BALANCE 1
@@ -144,7 +146,7 @@ MaterialFloat3 ProcessColor(in FExternalExpressions ExternalExpressions)
 	return AfterTemperature;
 }
 
-#if SHAPE_TYPE == SHAPE_TYPE_PLANE
+#ifdef WINDOW_TYPE 
 float GetShapeAlpha(in out FMaterialPixelParameters Parameters, in FExternalExpressions ExternalExpressions)
 {
 	// Pixel position in plane space.
@@ -168,8 +170,14 @@ float GetShapeAlpha(in out FMaterialPixelParameters Parameters, in FExternalExpr
 		PositionOnPlane = CameraVectorPlaneSpace + IntersectionSide / dot(DirVector, PlaneNormal) * DirVector;
 	}
 
-	float2 Interpolator = smoothstep(ExternalExpressions.Outer, ExternalExpressions.Inner, abs(PositionOnPlane.rg)) * step(-RotatedTranslatedScaled.b * DirectionSign, 0.) * step(IntersectionSide, 0.);
-	float ShapeAlpha = Interpolator.r * step(0., Interpolator.g) * Interpolator.g * step(0., Interpolator.r);
+	// Checks if Z is in front or behind the plane.
+	float ClipZ = step(-RotatedTranslatedScaled.z * DirectionSign, 0.);
+#if WINDOW_TYPE == WINDOW_TYPE_PLANE
+	float2 Interpolator = smoothstep(ExternalExpressions.Outer, ExternalExpressions.Inner, abs(PositionOnPlane.xy)) * ClipZ * step(IntersectionSide, 0.);
+	float ShapeAlpha = Interpolator.x * step(0., Interpolator.y) * Interpolator.g * step(0., Interpolator.x);
+#elif WINDOW_TYPE == WINDOW_TYPE_CIRCLE
+	float ShapeAlpha = smoothstep(ExternalExpressions.Outer, ExternalExpressions.Inner, length(PositionOnPlane)) * ClipZ;
+#endif
 
 #if CLIP_PIXELS_OUTSIDE_AABB
 	// Clip pixel if it is outside the bounding box.
@@ -180,8 +188,7 @@ float GetShapeAlpha(in out FMaterialPixelParameters Parameters, in FExternalExpr
 
 	return ShapeAlpha;
 }
-
-#else
+#else //#ifdef WINDOW_TYPE 
 
 float GetShapeAlpha(in out FMaterialPixelParameters Parameters, in FExternalExpressions ExternalExpressions)
 {
@@ -235,7 +242,7 @@ float GetShapeAlpha(in out FMaterialPixelParameters Parameters, in FExternalExpr
 	float ShapeAlpha = (1.0 - Shape);
 	return ShapeAlpha;
 }
-#endif
+#endif //#ifdef WINDOW_TYPE 
 
 MaterialFloat4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExpressions ExternalExpressions)
 {

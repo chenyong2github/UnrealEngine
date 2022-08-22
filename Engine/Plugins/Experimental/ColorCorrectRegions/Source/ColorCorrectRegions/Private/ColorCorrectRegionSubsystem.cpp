@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ColorCorrectRegionsSubsystem.h"
+#include "ColorCorrectWindow.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
@@ -93,12 +94,13 @@ void UColorCorrectRegionsSubsystem::OnActorSpawned(AActor* InActor)
 		// We wouldn't have to do a check here except in case of nDisplay we need to populate this list during OnLevelsChanged 
 		// because nDisplay can release Actors while those are marked as BeginningPlay. Therefore we want to avoid 
 		// adding regions twice.
-		TArray<AColorCorrectRegion*>* RegionsToAddTo = CCRType == EColorCorrectRegionsType::Plane ? &RegionsDistanceBased : &RegionsPriorityBased;
+		bool bIsDistanceBased = Cast<AColorCorrectWindow>(InActor) != nullptr;
+		TArray<AColorCorrectRegion*>* RegionsToAddTo = bIsDistanceBased ? &RegionsDistanceBased : &RegionsPriorityBased;
 		if (!RegionsToAddTo->Contains(AsRegion))
 		{
 			RegionsToAddTo->Add(AsRegion);
 			// Distance based CCR can only be sorted on render, when View info is available.
-			if (CCRType != EColorCorrectRegionsType::Plane)
+			if (!bIsDistanceBased)
 			{
 				SortRegionsByPriority();
 			}
@@ -163,7 +165,7 @@ void UColorCorrectRegionsSubsystem::RefreshRegions()
 		AColorCorrectRegion* AsRegion = *It;
 		if (IsRegionValid(AsRegion, GetWorld()))
 		{
-			if (AsRegion->Type != EColorCorrectRegionsType::Plane)
+			if (!Cast<AColorCorrectWindow>(AsRegion))
 			{
 				RegionsPriorityBased.Add(AsRegion);
 			}

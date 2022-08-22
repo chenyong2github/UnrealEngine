@@ -20,7 +20,6 @@ enum class EColorCorrectRegionsType : uint8
 	Box			UMETA(DisplayName = "Box"),
 	Cylinder	UMETA(DisplayName = "Cylinder"),
 	Cone		UMETA(DisplayName = "Cone"),
-	Plane		UMETA(DisplayName = "Plane (Window CCR)"),
 	MAX
 };
 

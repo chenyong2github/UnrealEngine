@@ -202,16 +202,26 @@ namespace
 				View.Family->EngineShowFlags.PostProcessMaterial;
 	}
 
-	// A helper function for getting the right shader.
-	TShaderMapRef<FColorCorrectRegionMaterialPS> GetRegionShader(const FGlobalShaderMap* GlobalShaderMap, EColorCorrectRegionsType RegionType, FColorCorrectRegionMaterialPS::ETemperatureType TemperatureType, bool bIsAdvanced)
+	// A helper function for getting the right shader for SDF based CCRs.
+	TShaderMapRef<FColorCorrectRegionMaterialPS> GetRegionShader(const FGlobalShaderMap* GlobalShaderMap, EColorCorrectRegionsType RegionType, FColorCorrectGenericPS::ETemperatureType TemperatureType, bool bIsAdvanced)
 	{
 		FColorCorrectRegionMaterialPS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FColorCorrectRegionMaterialPS::FAdvancedShader>(bIsAdvanced);
+		PermutationVector.Set<FColorCorrectGenericPS::FAdvancedShader>(bIsAdvanced);
+		PermutationVector.Set<FColorCorrectGenericPS::FTemperatureType>(TemperatureType);
 		PermutationVector.Set<FColorCorrectRegionMaterialPS::FShaderType>(static_cast<EColorCorrectRegionsType>(FMath::Min(static_cast<int32>(RegionType), static_cast<int32>(EColorCorrectRegionsType::MAX) - 1)));
-		PermutationVector.Set<FColorCorrectRegionMaterialPS::FTemperatureType>(TemperatureType);
 
 		return TShaderMapRef<FColorCorrectRegionMaterialPS>(GlobalShaderMap, PermutationVector);
-		;
+	}
+
+	// A helper function for getting the right shader for distance based CCRs.
+	TShaderMapRef<FColorCorrectWindowMaterialPS> GetWindowShader(const FGlobalShaderMap* GlobalShaderMap, EColorCorrectWindowType RegionType, FColorCorrectGenericPS::ETemperatureType TemperatureType, bool bIsAdvanced)
+	{
+		FColorCorrectWindowMaterialPS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FColorCorrectGenericPS::FAdvancedShader>(bIsAdvanced);
+		PermutationVector.Set<FColorCorrectGenericPS::FTemperatureType>(TemperatureType);
+		PermutationVector.Set<FColorCorrectWindowMaterialPS::FShaderType>(static_cast<EColorCorrectWindowType>(FMath::Min(static_cast<int32>(RegionType), static_cast<int32>(EColorCorrectWindowType::MAX) - 1)));
+
+		return TShaderMapRef<FColorCorrectWindowMaterialPS>(GlobalShaderMap, PermutationVector);
 	}
 
 	FVector4 Clamp(const FVector4 & VectorToClamp, float Min, float Max)
@@ -361,7 +371,16 @@ namespace
 		FColorCorrectRegionMaterialPS::ETemperatureType TemperatureType = FMath::IsNearlyEqual(Region->Temperature, DefaultTemperature) && FMath::IsNearlyEqual(Region->Tint, DefaultTint)
 			? FColorCorrectRegionMaterialPS::ETemperatureType::Disabled
 			: static_cast<FColorCorrectRegionMaterialPS::ETemperatureType>(Region->TemperatureType);
-		TShaderMapRef<FColorCorrectRegionMaterialPS> PixelShader = GetRegionShader(GlobalShaderMap, Region->Type, TemperatureType, bIsAdvanced);
+
+		TShaderRef<FColorCorrectGenericPS> PixelShader;
+		if (AColorCorrectWindow* CCWindow = Cast<AColorCorrectWindow>(Region))
+		{
+			PixelShader = GetWindowShader(GlobalShaderMap, CCWindow->WindowType, TemperatureType, bIsAdvanced);
+		}
+		else
+		{
+			PixelShader = GetRegionShader(GlobalShaderMap, Region->Type, TemperatureType, bIsAdvanced);
+		}
 
 		ClearUnusedGraphResources(VertexShader, PixelShader, PostProcessMaterialParameters);
 

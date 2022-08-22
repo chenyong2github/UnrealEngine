@@ -18,7 +18,7 @@ AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitial
 	, Outer(1.0)
 	, Falloff(1.0)
 	, Invert(false)
-	, TemperatureType(EColorCorrectRegionTemperatureType::WhiteBalance)
+	, TemperatureType(EColorCorrectRegionTemperatureType::ColorTemperature)
 	, Temperature(6500)
 	, Tint(0)
 	, Enabled(true)
