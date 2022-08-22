@@ -6,8 +6,6 @@ public class OSCModulationMixing : ModuleRules
 {
 	public OSCModulationMixing(ReadOnlyTargetRules Target) : base(Target)
 	{
-		OptimizeCode = CodeOptimization.Never;
-
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicDependencyModuleNames.AddRange(
