@@ -402,7 +402,7 @@ TDefaultErrorResultInternal<FEOSAuthLoginOptions> FEOSAuthLoginOptions::CreateIm
 
 	if (EnumHasAnyFlags(TranslatorTraits->Flags, EEOSAuthTranslationFlags::SetId))
 	{
-		FTCHARToUTF8 Converter(*CredentialsId);
+		const FTCHARToUTF8 Converter(*CredentialsId);
 		EOSAuthLoginOptions.IdUtf8.SetNumZeroed(Converter.Length() + 1);
 		FCStringAnsi::Strncpy(EOSAuthLoginOptions.IdUtf8.GetData(), Converter.Get(), EOSAuthLoginOptions.IdUtf8.Num());
 		EOSAuthLoginOptions.CredentialsData.Id = EOSAuthLoginOptions.IdUtf8.GetData();
@@ -416,7 +416,7 @@ TDefaultErrorResultInternal<FEOSAuthLoginOptions> FEOSAuthLoginOptions::CreateIm
 			return TDefaultErrorResultInternal<FEOSAuthLoginOptions>(Errors::InvalidCreds());
 		}
 
-		FTCHARToUTF8 Converter(*CredentialsToken.Get<FString>());
+		const FTCHARToUTF8 Converter(*CredentialsToken.Get<FString>());
 		EOSAuthLoginOptions.TokenUtf8.SetNumZeroed(Converter.Length() + 1);
 		FCStringAnsi::Strncpy(EOSAuthLoginOptions.TokenUtf8.GetData(), Converter.Get(), EOSAuthLoginOptions.TokenUtf8.Num());
 		EOSAuthLoginOptions.CredentialsData.Token = EOSAuthLoginOptions.TokenUtf8.GetData();

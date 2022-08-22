@@ -31,7 +31,7 @@ public:
 	virtual inline TArray<uint8> ToReplicationData(const FOnlineSessionIdHandle& Handle) const override
 	{
 		const FString IdValue = BasicRegistry.FindIdValue(Handle);
-		const FTCHARToUTF8 IdValueUtf8(IdValue);
+		const FTCHARToUTF8 IdValueUtf8(*IdValue);
 
 		TArray<uint8> ReplicationData;
 		ReplicationData.SetNumUninitialized(IdValueUtf8.Length());

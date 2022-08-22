@@ -207,7 +207,7 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 			EOS_PresenceModification_SetRawRichTextOptions RawRichTextOptions = { };
 			RawRichTextOptions.ApiVersion = EOS_PRESENCEMODIFICATION_SETRAWRICHTEXT_API_LATEST;
 
-			FTCHARToUTF8 Utf8RawRichText(*Params.Presence->StatusString);
+			const FTCHARToUTF8 Utf8RawRichText(*Params.Presence->StatusString);
 			RawRichTextOptions.RichText = Utf8RawRichText.Get();
 
 			EOS_EResult SetRawRichTextResult = EOS_PresenceModification_SetRawRichText(ChangeHandle, &RawRichTextOptions);
@@ -239,7 +239,7 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 				int32 CurrentIndex = 0;
 				for (const FString& RemovedProperty : RemovedProperties)
 				{
-					const FTCHARToUTF8& Utf8Key = Utf8Strings.Emplace_GetRef(RemovedProperty);
+					const FTCHARToUTF8& Utf8Key = Utf8Strings.Emplace_GetRef(*RemovedProperty);
 
 					EOS_PresenceModification_DataRecordId& RecordId = RecordIds.Emplace_GetRef();
 					RecordId.ApiVersion = EOS_PRESENCEMODIFICATION_DATARECORDID_API_LATEST;
@@ -278,8 +278,8 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 				int32 CurrentIndex = 0;
 				for (const TPair<FString, FPresenceVariant>& UpdatedProperty : Params.Presence->Properties)
 				{
-					const FTCHARToUTF8& Utf8Key = Utf8Strings.Emplace_GetRef(UpdatedProperty.Key);
-					const FTCHARToUTF8& Utf8Value = Utf8Strings.Emplace_GetRef(UpdatedProperty.Value); // TODO: Better serialization
+					const FTCHARToUTF8& Utf8Key = Utf8Strings.Emplace_GetRef(*UpdatedProperty.Key);
+					const FTCHARToUTF8& Utf8Value = Utf8Strings.Emplace_GetRef(*UpdatedProperty.Value); // TODO: Better serialization
 
 					EOS_Presence_DataRecord& Record = Records.Emplace_GetRef();
 					Record.ApiVersion = EOS_PRESENCE_DATARECORD_API_LATEST;
@@ -399,7 +399,7 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 						EOS_PresenceModification_SetRawRichTextOptions RawRichTextOptions = { };
 						RawRichTextOptions.ApiVersion = EOS_PRESENCEMODIFICATION_SETRAWRICHTEXT_API_LATEST;
 
-						FTCHARToUTF8 Utf8RawRichText(*Params.Mutations.StatusString.GetValue());
+						const FTCHARToUTF8 Utf8RawRichText(*Params.Mutations.StatusString.GetValue());
 						RawRichTextOptions.RichText = Utf8RawRichText.Get();
 
 						EOS_EResult SetRawRichTextResult = EOS_PresenceModification_SetRawRichText(ChangeHandle, &RawRichTextOptions);
@@ -424,7 +424,7 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 						int32 CurrentIndex = 0;
 						for (const FString& RemovedProperty : Params.Mutations.RemovedProperties)
 						{
-							const FTCHARToUTF8& Utf8Key = Utf8Strings.Emplace_GetRef(RemovedProperty);
+							const FTCHARToUTF8& Utf8Key = Utf8Strings.Emplace_GetRef(*RemovedProperty);
 
 							EOS_PresenceModification_DataRecordId& RecordId = RecordIds.Emplace_GetRef();
 							RecordId.ApiVersion = EOS_PRESENCEMODIFICATION_DATARECORDID_API_LATEST;
@@ -463,8 +463,8 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 						int32 CurrentIndex = 0;
 						for (const TPair<FString, FPresenceVariant>& UpdatedProperty : Params.Mutations.UpdatedProperties)
 						{
-							const FTCHARToUTF8& Utf8Key = Utf8Strings.Emplace_GetRef(UpdatedProperty.Key);
-							const FTCHARToUTF8& Utf8Value = Utf8Strings.Emplace_GetRef(UpdatedProperty.Value); // TODO: Better serialization
+							const FTCHARToUTF8& Utf8Key = Utf8Strings.Emplace_GetRef(*UpdatedProperty.Key);
+							const FTCHARToUTF8& Utf8Value = Utf8Strings.Emplace_GetRef(*UpdatedProperty.Value); // TODO: Better serialization
 
 							EOS_Presence_DataRecord& Record = Records.Emplace_GetRef();
 							Record.ApiVersion = EOS_PRESENCE_DATARECORD_API_LATEST;
