@@ -396,7 +396,7 @@ protected:
 	void OnConsoleCommandExecuted();
 
 	/** Request we immediately force scroll to the bottom of the log */
-	void RequestForceScroll();
+	void RequestForceScroll(bool bIfUserHasNotScrolledUp = false);
 
 	/** Converts the array of messages into something the text box understands */
 	TSharedPtr< FOutputLogTextLayoutMarshaller > MessagesTextMarshaller;
@@ -462,6 +462,14 @@ private:
 	bool IsWordWrapEnabled() const;
 
 	void SetWordWrapEnabled(ECheckBoxState InValue);
+
+	void SetTimestampMode(ELogTimes::Type InValue);
+
+	bool IsSelectedTimestampMode(ELogTimes::Type NewType);
+
+	void AddTimestampMenuSection(FMenuBuilder& Menu);
+
+	ELogTimes::Type GetSelectedTimestampMode();
 
 #if WITH_EDITOR
 	bool IsClearOnPIEEnabled() const;
