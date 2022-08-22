@@ -30,8 +30,11 @@ public:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
-	static void FormatFilename(TSharedRef<IPropertyHandle> PropertyHandle_Filename);
+	static void FormatFilename(TSharedRef<IPropertyHandle> PropertyHandle_Filename, bool bForExport);
 private:
+	static bool GetExportSingleFileIsEnabled();
+	static ECheckBoxState GetExportSingleFileCheckState();
+	static void OnExportSingleFileCheckStateChanged(ECheckBoxState NewCheckState);
 	static EVisibility GetImportExportVisibility(bool bImport);
 	static bool IsHeightmapEnabled();
 	static ECheckBoxState GetHeightmapSelectedCheckState();

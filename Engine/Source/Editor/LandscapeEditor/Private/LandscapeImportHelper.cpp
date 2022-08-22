@@ -10,7 +10,7 @@
 
 #define LOCTEXT_NAMESPACE "LandscapeImportHelper"
 
-bool FLandscapeImportHelper::ExtractCoordinates(FString BaseFilename, FIntPoint& OutCoord, FString& OutBaseFilePattern)
+bool FLandscapeImportHelper::ExtractCoordinates(const FString& BaseFilename, FIntPoint& OutCoord, FString& OutBaseFilePattern)
 {
 	//We expect file name in form: <tilename>_x<number>_y<number>
 	int32 XPos = BaseFilename.Find(TEXT("_x"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
@@ -34,12 +34,29 @@ bool FLandscapeImportHelper::ExtractCoordinates(FString BaseFilename, FIntPoint&
 
 void FLandscapeImportHelper::GetMatchingFiles(const FString& FilePathPattern, TArray<FString>& OutFileToImport)
 {
-	IFileManager::Get().IterateDirectoryRecursively(*FPaths::GetPath(FilePathPattern), [&OutFileToImport, &FilePathPattern](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+	FString BaseFilePathPattern = FPaths::GetBaseFilename(FilePathPattern);
+	IFileManager::Get().IterateDirectoryRecursively(*FPaths::GetPath(FilePathPattern), [&OutFileToImport, &FilePathPattern, &BaseFilePathPattern](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
 	{
 		if (!bIsDirectory)
 		{
 			FString Filename(FilenameOrDirectory);
-			if (Filename.StartsWith(FilePathPattern))
+			FString BaseFilename = FPaths::GetBaseFilename(Filename);
+			bool bIsValidFile = false;
+			// The file name must match either exactly (e.g. MyHeightmap.png) :
+			if (BaseFilename == BaseFilePathPattern)
+			{
+				bIsValidFile = true;
+			}
+			// Or it must exactly match the pattern (e.g. MyHeightmap_x0_y0.png ok, MyHeightmap0.png not ok) :
+			else
+			{
+				FIntPoint Coord;
+				FString BaseFilePattern;
+				bool bIsValidPatternFileName = FLandscapeImportHelper::ExtractCoordinates(BaseFilename, Coord, BaseFilePattern);
+				bIsValidFile = bIsValidPatternFileName && (BaseFilePattern == BaseFilePathPattern);
+			}
+
+			if (bIsValidFile)
 			{
 				OutFileToImport.Add(Filename);
 			}
@@ -129,7 +146,7 @@ ELandscapeImportResult GetImportDescriptorInternal(const FString& FilePath, bool
 	FString FilePathPattern;
 	TArray<FString> OutFilesToImport;
 
-	// If we are handling multiple files handle the case where Filepath is in the _xN_yM.extenstion format or if its a pattern already
+	// If we are handling multiple files handle the case where Filepath is in the _xN_yM.extention format or if it's a pattern already
 	if (!bSingleFile)
 	{
 		if (FLandscapeImportHelper::ExtractCoordinates(FPaths::GetBaseFilename(FilePath), OutCoord, OutFileImportPattern))
@@ -142,8 +159,28 @@ ELandscapeImportResult GetImportDescriptorInternal(const FString& FilePath, bool
 		}
 
 		FLandscapeImportHelper::GetMatchingFiles(FilePathPattern, OutFilesToImport);
-		// We were expecting multiple files but only got one.
-		bSingleFile = OutFilesToImport.Num() == 1 && FilePath == OutFilesToImport[0];
+		if (OutFilesToImport.IsEmpty())
+		{
+			return ELandscapeImportResult::Error;
+		}
+		
+		if (OutFilesToImport.Contains(FilePath))
+		{
+			// If one of the files found has a name that exactly matches yet we have on or more numbered files matching the pattern, then we have an ambiguity and warn the user about it :
+			if (OutFilesToImport.Num() > 1)
+			{
+				OutMessage = FText::Format(LOCTEXT("Import_AmbiguousImportFile", 
+					"Ambiguous import files found :\nThere's a single '{0}.{3}' file and {1} {1}|plural(one=file,other=files) whose {1}|plural(one=name,other=names) {1}|plural(one=matches,other=match) the proper input pattern (ex: '{2}_x0_y0.{3}').\nPlease rename the single file."),
+					FText::FromString(FPaths::GetBaseFilename(FilePath)), OutFilesToImport.Num() - 1, FText::FromString(FPaths::GetBaseFilename(FilePathPattern)), FText::FromString(FPaths::GetExtension(FilePath)));
+				return ELandscapeImportResult::Error;
+			}
+			else
+			{
+				// We have a single file found and it's exactly matching the expected file name, consider we're in single file mode :
+				check(OutFilesToImport.Num() == 1);
+				bSingleFile = true;
+			}
+		}
 	}
 	else
 	{
@@ -177,7 +214,7 @@ ELandscapeImportResult GetImportDescriptorInternal(const FString& FilePath, bool
 			FString OutLocalFileImportPattern;
 			if (!bSingleFile && !FLandscapeImportHelper::ExtractCoordinates(FPaths::GetBaseFilename(ImportFilename), OutCoord, OutLocalFileImportPattern))
 			{
-				OutMessage = FText::Format(LOCTEXT("Import_InvalidFilename", "File '{0}' doesn't have proper pattern(ex: {1}_x0_y0.{2})"),FText::FromString(FPaths::GetBaseFilename(ImportFilename)), FText::FromString(OutFileImportPattern), FText::FromString(FPaths::GetExtension(FilePath)));
+				OutMessage = FText::Format(LOCTEXT("Import_InvalidFilename", "File '{0}' doesn't have the proper pattern(ex: '{1}_x0_y0.{2})'"),FText::FromString(FPaths::GetBaseFilename(ImportFilename)), FText::FromString(OutFileImportPattern), FText::FromString(FPaths::GetExtension(FilePath)));
 				return ELandscapeImportResult::Error;
 			}
 			MinCoord.X = FMath::Min(OutCoord.X, MinCoord.X);

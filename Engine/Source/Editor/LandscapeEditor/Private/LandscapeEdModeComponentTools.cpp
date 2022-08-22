@@ -1875,7 +1875,7 @@ public:
 		DraggingEdge = ELandscapeEdge::None;
 		DraggingEdge_Remainder = 0.0f;
 		EdMode->NewLandscapePreviewMode = NewLandscapePreviewMode;
-		EdMode->UISettings->ImportLandscapeData();
+		EdMode->UISettings->RefreshImports();
 	}
 
 	virtual void ExitTool() override

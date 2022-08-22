@@ -136,7 +136,7 @@ public:
 
 	static void ChooseBestComponentSizeForImport(int32 Width, int32 Height, int32& InOutQuadsPerSection, int32& InOutSectionsPerComponent, FIntPoint& OutComponentCount);
 
-	static bool ExtractCoordinates(FString BaseFilename, FIntPoint& OutCoord, FString& OutBaseFilePattern);
+	static bool ExtractCoordinates(const FString& BaseFilename, FIntPoint& OutCoord, FString& OutBaseFilePattern);
 	static void GetMatchingFiles(const FString& FilePathPattern, TArray<FString>& OutFilePaths);
 
 

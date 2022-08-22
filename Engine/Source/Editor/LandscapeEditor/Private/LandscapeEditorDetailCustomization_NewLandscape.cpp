@@ -139,7 +139,7 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 	DetailBuilder.HideProperty(PropertyHandle_HeightmapErrorMessage);
 	PropertyHandle_HeightmapFilename->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([this, PropertyHandle_HeightmapFilename]()
 	{
-		FLandscapeEditorDetailCustomization_ImportExport::FormatFilename(PropertyHandle_HeightmapFilename);
+		FLandscapeEditorDetailCustomization_ImportExport::FormatFilename(PropertyHandle_HeightmapFilename, /*bForExport = */false);
 		OnImportHeightmapFilenameChanged();
 	}));
 	NewLandscapeCategory.AddProperty(PropertyHandle_HeightmapFilename)
