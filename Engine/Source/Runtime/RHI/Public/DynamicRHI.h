@@ -1333,8 +1333,8 @@ FORCEINLINE FDynamicRHI::FRHICalcTextureSizeResult RHICalcTexturePlatformSize(FR
 //UE_DEPRECATED(5.1, "The separate RHICalcTexture... functions for each texture type are deprecated. Use RHICalcTexturePlatformSize instead.")
 FORCEINLINE uint64 RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
-	const uint32 Depth = 1;
-	const uint32 ArraySize = 1;
+	const uint16 Depth = 1;
+	const uint16 ArraySize = 1;
 
 	FRHITextureDesc Desc(
 		ETextureDimension::Texture2D,
@@ -1344,8 +1344,8 @@ FORCEINLINE uint64 RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint
 		{ (int32)SizeX, (int32)SizeY },
 		Depth,
 		ArraySize,
-		NumMips,
-		NumSamples,
+		(uint8)NumMips,
+		(uint8)NumSamples,
 		CreateInfo.ExtData
 	);
 
@@ -1357,7 +1357,7 @@ FORCEINLINE uint64 RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint
 //UE_DEPRECATED(5.1, "The separate RHICalcTexture... functions for each texture type are deprecated. Use RHICalcTexturePlatformSize instead.")
 FORCEINLINE uint64 RHICalcTexture2DArrayPlatformSize(uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
-	const uint32 Depth = 1;
+	const uint16 Depth = 1;
 
 	FRHITextureDesc Desc(
 		ETextureDimension::Texture2DArray,
@@ -1366,9 +1366,9 @@ FORCEINLINE uint64 RHICalcTexture2DArrayPlatformSize(uint32 SizeX, uint32 SizeY,
 		CreateInfo.ClearValueBinding,
 		{ (int32)SizeX, (int32)SizeY },
 		Depth,
-		ArraySize,
-		NumMips,
-		NumSamples,
+		(uint16)ArraySize,
+		(uint8)NumMips,
+		(uint8)NumSamples,
 		CreateInfo.ExtData
 	);
 
@@ -1380,8 +1380,8 @@ FORCEINLINE uint64 RHICalcTexture2DArrayPlatformSize(uint32 SizeX, uint32 SizeY,
 //UE_DEPRECATED(5.1, "The separate RHICalcTexture... functions for each texture type are deprecated. Use RHICalcTexturePlatformSize instead.")
 FORCEINLINE uint64 RHICalcVMTexture2DPlatformSize(uint32 Mip0Width, uint32 Mip0Height, uint8 Format, uint32 NumMips, uint32 FirstMipIdx, uint32 NumSamples, ETextureCreateFlags Flags, uint32& OutAlign)
 {
-	const uint32 Depth     = 1;
-	const uint32 ArraySize = 1;
+	const uint16 Depth     = 1;
+	const uint16 ArraySize = 1;
 	const uint32 ExtData   = 0;
 
 	FRHITextureDesc Desc(
@@ -1392,8 +1392,8 @@ FORCEINLINE uint64 RHICalcVMTexture2DPlatformSize(uint32 Mip0Width, uint32 Mip0H
 		{ (int32)Mip0Width, (int32)Mip0Height },
 		Depth,
 		ArraySize,
-		NumMips,
-		NumSamples,
+		(uint8)NumMips,
+		(uint8)NumSamples,
 		ExtData
 	);
 
@@ -1405,8 +1405,8 @@ FORCEINLINE uint64 RHICalcVMTexture2DPlatformSize(uint32 Mip0Width, uint32 Mip0H
 //UE_DEPRECATED(5.1, "The separate RHICalcTexture... functions for each texture type are deprecated. Use RHICalcTexturePlatformSize instead.")
 FORCEINLINE uint64 RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
-	const uint32 ArraySize  = 1;
-	const uint32 NumSamples = 1;
+	const uint16 ArraySize  = 1;
+	const uint8 NumSamples = 1;
 
 	FRHITextureDesc Desc(
 		ETextureDimension::Texture3D,
@@ -1414,9 +1414,9 @@ FORCEINLINE uint64 RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint
 		(EPixelFormat)Format,
 		CreateInfo.ClearValueBinding,
 		{ (int32)SizeX, (int32)SizeY },
-		SizeZ,
+		(uint16)SizeZ,
 		ArraySize,
-		NumMips,
+		(uint8)NumMips,
 		NumSamples,
 		CreateInfo.ExtData
 	);
@@ -1429,9 +1429,9 @@ FORCEINLINE uint64 RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint
 //UE_DEPRECATED(5.1, "The separate RHICalcTexture... functions for each texture type are deprecated. Use RHICalcTexturePlatformSize instead.")
 FORCEINLINE uint64 RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
-	const uint32 Depth      = 1;
-	const uint32 ArraySize  = 1;
-	const uint32 NumSamples = 1;
+	const uint16 Depth      = 1;
+	const uint16 ArraySize  = 1;
+	const uint8 NumSamples = 1;
 
 	FRHITextureDesc Desc(
 		ETextureDimension::TextureCube,
@@ -1441,7 +1441,7 @@ FORCEINLINE uint64 RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uin
 		{ (int32)Size, (int32)Size },
 		Depth,
 		ArraySize,
-		NumMips,
+		(uint8)NumMips,
 		NumSamples,
 		CreateInfo.ExtData
 	);

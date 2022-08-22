@@ -277,12 +277,12 @@ void FLinuxWindow::Initialize( FLinuxApplication* const Application, const TShar
 	}
 	else if (bIsMinSizeSet)
 	{
-		SDL_SetWindowMinimumSize(HWnd, *Definition->SizeLimits.GetMinWidth(), *Definition->SizeLimits.GetMinHeight());
+		SDL_SetWindowMinimumSize(HWnd, (int)*Definition->SizeLimits.GetMinWidth(), (int)*Definition->SizeLimits.GetMinHeight());
 	}
 
 	if (bIsMaxSizeSet)
 	{
-		SDL_SetWindowMaximumSize(HWnd, *Definition->SizeLimits.GetMaxWidth(), *Definition->SizeLimits.GetMaxHeight());
+		SDL_SetWindowMaximumSize(HWnd, (int)*Definition->SizeLimits.GetMaxWidth(), (int)*Definition->SizeLimits.GetMaxHeight());
 	}
 
 	if (Definition->AppearsInTaskbar)

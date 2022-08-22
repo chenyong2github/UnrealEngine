@@ -243,11 +243,11 @@ void FLinuxSplashState::DrawCharacter(int32 PenX, int32 PenY, FT_GlyphSlot Glyph
 			// write pixel
 			const float Alpha = Pixels[SourceIndex] / 255.0f;
 
-			ScratchSpace[DestIndex] = ScratchSpace[DestIndex]*(1.0 - Alpha) + Alpha*Red;
+			ScratchSpace[DestIndex] = (uint8)(ScratchSpace[DestIndex]*(1.0 - Alpha) + Alpha*Red);
 			DestIndex++;
-			ScratchSpace[DestIndex] = ScratchSpace[DestIndex]*(1.0 - Alpha) + Alpha*Green;
+			ScratchSpace[DestIndex] = (uint8)(ScratchSpace[DestIndex]*(1.0 - Alpha) + Alpha*Green);
 			DestIndex++;
-			ScratchSpace[DestIndex] = ScratchSpace[DestIndex]*(1.0 - Alpha) + Alpha*Blue;
+			ScratchSpace[DestIndex] = (uint8)(ScratchSpace[DestIndex]*(1.0 - Alpha) + Alpha*Blue);
 		}
 	}
 }

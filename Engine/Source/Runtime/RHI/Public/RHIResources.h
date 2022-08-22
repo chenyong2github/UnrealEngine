@@ -1221,8 +1221,8 @@ struct RHI_API FRHITextureDesc
 		, uint32              ExtData    = 0
 		)
 	{
-		const uint32 Depth     = 1;
-		const uint32 ArraySize = 1;
+		const uint16 Depth     = 1;
+		const uint16 ArraySize = 1;
 		return FRHITextureDesc(ETextureDimension::Texture2D, Flags, Format, ClearValue, { Size.X, Size.Y }, Depth, ArraySize, NumMips, NumSamples, ExtData);
 	}
 
@@ -1238,7 +1238,7 @@ struct RHI_API FRHITextureDesc
 		, uint32              ExtData    = 0
 		)
 	{
-		const uint32 Depth   = 1;
+		const uint16 Depth   = 1;
 		return FRHITextureDesc(ETextureDimension::Texture2DArray, Flags, Format, ClearValue, { Size.X, Size.Y }, Depth, ArraySize, NumMips, NumSamples, ExtData);
 	}
 
@@ -1252,12 +1252,13 @@ struct RHI_API FRHITextureDesc
 		, uint32              ExtData    = 0
 		)
 	{
-		const uint32 ArraySize  = 1;
-		const uint32 LocalNumSamples = 1;
+		const uint16 Depth = (uint16)Size.Z;
+		const uint16 ArraySize  = 1;
+		const uint16 LocalNumSamples = 1;
 
 		checkf(Size.Z <= TNumericLimits<decltype(FRHITextureDesc::Depth)>::Max(), TEXT("Depth parameter (Size.Z) exceeds valid range"));
 
-		return FRHITextureDesc(ETextureDimension::Texture3D, Flags, Format, ClearValue, { Size.X, Size.Y }, Size.Z, ArraySize, NumMips, LocalNumSamples, ExtData);
+		return FRHITextureDesc(ETextureDimension::Texture3D, Flags, Format, ClearValue, { Size.X, Size.Y }, Depth, ArraySize, NumMips, LocalNumSamples, ExtData);
 	}
 
 	UE_DEPRECATED(5.1, "FRHITextureDesc Create functions have been moved to FRHITextureCreateDesc.")
@@ -1273,8 +1274,8 @@ struct RHI_API FRHITextureDesc
 	{
 		checkf(Size <= (uint32)TNumericLimits<int32>::Max(), TEXT("Size parameter exceeds valid range"));
 
-		const uint32 Depth     = 1;
-		const uint32 ArraySize = 1;
+		const uint16 Depth     = 1;
+		const uint16 ArraySize = 1;
 		return FRHITextureDesc(ETextureDimension::TextureCube, Flags, Format, ClearValue, { (int32)Size, (int32)Size }, Depth, ArraySize, NumMips, NumSamples, ExtData);
 	}
 
@@ -1292,7 +1293,7 @@ struct RHI_API FRHITextureDesc
 	{
 		checkf(Size <= (uint32)TNumericLimits<int32>::Max(), TEXT("Size parameter exceeds valid range"));
 
-		const uint32 Depth   = 1;
+		const uint16 Depth   = 1;
 		return FRHITextureDesc(ETextureDimension::TextureCubeArray, Flags, Format, ClearValue, { (int32)Size, (int32)Size }, Depth, ArraySize, NumMips, NumSamples, ExtData);
 	}
 
@@ -1560,7 +1561,7 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		return Create2DArray(DebugName)
 			.SetExtent(Size)
 			.SetFormat(Format)
-			.SetArraySize(ArraySize);
+			.SetArraySize((uint16)ArraySize);
 	}
 
 	static FRHITextureCreateDesc Create2DArray(const TCHAR* DebugName, int32 SizeX, int32 SizeY, int32 ArraySize, EPixelFormat Format)
@@ -1568,14 +1569,14 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		return Create2DArray(DebugName)
 			.SetExtent(SizeX, SizeY)
 			.SetFormat(Format)
-			.SetArraySize(ArraySize);
+			.SetArraySize((uint16)ArraySize);
 	}
 
 	static FRHITextureCreateDesc Create3D(const TCHAR* DebugName, FIntVector Size, EPixelFormat Format)
 	{
 		return Create3D(DebugName)
 			.SetExtent(Size.X, Size.Y)
-			.SetDepth(Size.Z)
+			.SetDepth((uint16)Size.Z)
 			.SetFormat(Format);
 	}
 
@@ -1583,7 +1584,7 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 	{
 		return Create3D(DebugName)
 			.SetExtent(SizeX, SizeY)
-			.SetDepth(SizeZ)
+			.SetDepth((uint16)SizeZ)
 			.SetFormat(Format);
 	}
 
@@ -1599,7 +1600,7 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 		return CreateCubeArray(DebugName)
 			.SetExtent(Size)
 			.SetFormat(Format)
-			.SetArraySize(ArraySize);
+			.SetArraySize((uint16)ArraySize);
 	}
 
 	FRHITextureCreateDesc() = default;

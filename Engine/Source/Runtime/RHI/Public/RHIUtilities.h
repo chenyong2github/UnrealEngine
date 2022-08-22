@@ -793,8 +793,8 @@ inline void ClearRenderTarget(FRHICommandList& RHICmdList, FRHITexture* Texture,
 	check(Texture);
 	const FIntPoint Extent = Texture->GetSizeXY();
 	FRHIRenderPassInfo Info(Texture, ERenderTargetActions::Clear_Store);
-	Info.ColorRenderTargets[0].MipIndex = MipIndex;
-	Info.ColorRenderTargets[0].ArraySlice = ArraySlice;
+	Info.ColorRenderTargets[0].MipIndex = (uint8)MipIndex;
+	Info.ColorRenderTargets[0].ArraySlice = (int32)ArraySlice;
 	RHICmdList.BeginRenderPass(Info, TEXT("ClearRenderTarget"));
 	RHICmdList.EndRenderPass();
 }

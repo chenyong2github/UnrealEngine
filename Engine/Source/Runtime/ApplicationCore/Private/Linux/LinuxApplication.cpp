@@ -357,7 +357,7 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 					int32 BorderSizeX, BorderSizeY;
 					CurrentEventWindow->GetNativeBordersSize(BorderSizeX, BorderSizeY);
 
-					LinuxCursor->SetCachedPosition(motionEvent.x + Props.Location.X + BorderSizeX, motionEvent.y + Props.Location.Y + BorderSizeY);
+					LinuxCursor->SetCachedPosition((int32)(motionEvent.x + Props.Location.X + BorderSizeX), (int32)(motionEvent.y + Props.Location.Y + BorderSizeY));
 				}
 
 				if( !CurrentEventWindow->GetDefinition().HasOSWindowBorder )
@@ -365,7 +365,7 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 					if ( CurrentEventWindow->IsRegularWindow() )
 					{
 						FVector2D CurrentPosition = LinuxCursor->GetPosition();
-						MessageHandler->GetWindowZoneForPoint( CurrentEventWindow.ToSharedRef(), CurrentPosition.X - Props.Location.X, CurrentPosition.Y - Props.Location.Y );
+						MessageHandler->GetWindowZoneForPoint(CurrentEventWindow.ToSharedRef(), (int32)(CurrentPosition.X - Props.Location.X), (int32)(CurrentPosition.Y - Props.Location.Y));
 						MessageHandler->OnCursorSet();
 					}
 				}
@@ -463,7 +463,7 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 	case SDL_MOUSEWHEEL:
 		{
 			SDL_MouseWheelEvent *WheelEvent = &Event.wheel;
-			float Amount = WheelEvent->y * fMouseWheelScrollAccel;
+			float Amount = (float)WheelEvent->y * fMouseWheelScrollAccel;
 
 			MessageHandler->OnMouseWheel(Amount);
 		}
@@ -1191,18 +1191,18 @@ TCHAR FLinuxApplication::ConvertChar( SDL_Keysym Keysym )
 		return 0;
 	}
 
-	TCHAR Char = SDL_GetKeyFromScancode(Keysym.scancode);
+	TCHAR Char = (TCHAR)SDL_GetKeyFromScancode(Keysym.scancode);
 
     if (Keysym.mod & (KMOD_LSHIFT | KMOD_RSHIFT))
     {
         // Convert to uppercase (FIXME: what about CAPS?)
 		if( SDL_GetKeyFromScancode(Keysym.scancode)  >= 97 && SDL_GetKeyFromScancode(Keysym.scancode)  <= 122)
         {
-            return Keysym.sym - 32;
+            return (TCHAR)(Keysym.sym - 32);
         }
 		else if( SDL_GetKeyFromScancode(Keysym.scancode) >= 91 && SDL_GetKeyFromScancode(Keysym.scancode)  <= 93)
         {
-			return SDL_GetKeyFromScancode(Keysym.scancode) + 32; // [ \ ] -> { | }
+			return (TCHAR)(SDL_GetKeyFromScancode(Keysym.scancode) + 32); // [ \ ] -> { | }
         }
         else
         {
@@ -1899,7 +1899,7 @@ bool FLinuxApplication::IsMouseAttached() const
 
 	for (int i=0; i<9; i++)
 	{
-		Mouse[MouseIdx] = '0' + i;
+		Mouse[MouseIdx] = (char)('0' + i);
 		if (access(Mouse, F_OK) == 0)
 		{
 			return true;
@@ -2026,15 +2026,15 @@ void FLinuxApplication::SDLControllerState::UpdateHapticEffect()
 	{
 		Effect.type = SDL_HAPTIC_LEFTRIGHT;
 		Effect.leftright.length = 1000;
-		Effect.leftright.large_magnitude = 32767.0f * LargeValue;
-		Effect.leftright.small_magnitude = 32767.0f * SmallValue;
+		Effect.leftright.large_magnitude = (uint16)(32767.0f * LargeValue);
+		Effect.leftright.small_magnitude = (uint16)(32767.0f * SmallValue);
 	}
 	else if (SDL_HapticQuery(Haptic) & SDL_HAPTIC_SINE)
 	{
 		Effect.type = SDL_HAPTIC_SINE;
 		Effect.periodic.length = 1000;
 		Effect.periodic.period = 1000;
-		Effect.periodic.magnitude = 32767.0f * FMath::Max(SmallValue, LargeValue);
+		Effect.periodic.magnitude = (uint16)(32767.0f * FMath::Max(SmallValue, LargeValue));
 	}
 	else
 	{

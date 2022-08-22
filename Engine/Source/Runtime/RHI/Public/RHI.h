@@ -2414,7 +2414,7 @@ private:
 
 	// Private constructor. Memory for transitions is allocated manually with extra space at the tail of the structure for RHI use.
 	FRHITransition(ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines)
-		: State(int8(SrcPipelines) | (int8(DstPipelines) << int32(ERHIPipeline::Num)))
+		: State(int8(int32(SrcPipelines) | (int32(DstPipelines) << int32(ERHIPipeline::Num))))
 #if DO_CHECK || USING_CODE_ANALYSIS
 		, AllowedSrc(SrcPipelines)
 		, AllowedDst(DstPipelines)
@@ -2460,7 +2460,7 @@ private:
 	{
 		checkf(EnumHasAllFlags(AllowedDst, Pipeline), TEXT("Transition is being used on a destination pipeline that it wasn't created for."));
 
-		int8 Mask = int8(Pipeline) << int32(ERHIPipeline::Num);
+		int8 Mask = int8(int32(Pipeline) << int32(ERHIPipeline::Num));
 		int8 PreviousValue = FPlatformAtomics::InterlockedAnd(&State, ~Mask);
 		checkf((PreviousValue & Mask) == Mask, TEXT("RHIEndTransitions has been called twice on this transition for at least one pipeline."));
 

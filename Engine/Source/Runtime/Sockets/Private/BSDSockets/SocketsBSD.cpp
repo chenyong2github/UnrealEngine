@@ -730,7 +730,7 @@ ESocketBSDReturn FSocketBSD::HasState(ESocketBSDParam State, FTimespan WaitTime)
 		FDSet.events = POLLERR | POLLPRI;
 		break;
 	}
-	int Result = ::poll(&FDSet, 1, WaitTime.GetTotalMilliseconds());
+	int Result = ::poll(&FDSet, 1, (int)WaitTime.GetTotalMilliseconds());
 	if (Result >= 0)
 	{
 		if ((FDSet.revents & FDSet.events) > 0)

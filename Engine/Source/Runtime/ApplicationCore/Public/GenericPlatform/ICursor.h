@@ -69,6 +69,8 @@ namespace EMouseCursor
 class ICursor
 {
 public:
+	virtual ~ICursor() = default;
+
 	/** Creates a hardware cursor from file. Can return nullptr when not available. */
 	virtual void* CreateCursorFromFile(const FString& InPathToCursorWithoutExtension, FVector2D HotSpot) { return nullptr; }
 
