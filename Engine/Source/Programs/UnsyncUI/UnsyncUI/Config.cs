@@ -39,8 +39,24 @@ namespace UnsyncUI
 			public string Suffix;
 			public string Platform;
 			public string Flavor;
+			public string Include;
 
 			public bool IsStreamClFound => Stream != null && CL != null;
+
+		}
+
+		public sealed class FileGroup
+		{
+			public Regex Regex { get; }
+			public string Include { get; }
+			public string Flavor { get; }
+
+			public FileGroup(XElement node)
+			{
+				Regex = new Regex($@"^{node.Attribute("regex")?.Value}$", RegexOptions.IgnoreCase);
+				Include = node.Attribute("include")?.Value;
+				Flavor = node.Attribute("flavor")?.Value;
+			}
 		}
 
 		public sealed class Directory
@@ -52,6 +68,7 @@ namespace UnsyncUI
 			public string Platform { get; }
 			public string Flavor { get; }
 			public List<Directory> SubDirectories { get; }
+			public List<FileGroup> FileGroups { get; }
 
 			public Directory(XElement node)
 			{
@@ -62,13 +79,16 @@ namespace UnsyncUI
 				Platform = node.Attribute("platform")?.Value;
 				Flavor = node.Attribute("flavor")?.Value;
 				SubDirectories = node.Elements("dir").Select(d => new Directory(d)).ToList();
+				FileGroups = node.Elements("files").Select(f => new FileGroup(f)).ToList();
 			}
 
 			public bool Parse(string path, ref BuildTemplate template)
 			{
 				var match = Regex.Match(Path.GetFileName(path));
 				if (!match.Success)
+				{
 					return false;
+				}
 
 				string RegexReplace(string field) => Regex.Replace(field, @"\$([0-9]+)", m => match.Groups[int.Parse(m.Groups[1].Value)].Value);
 
@@ -94,6 +114,41 @@ namespace UnsyncUI
 				}
 
 				return true;
+			}
+
+			public void ParseFileGroups(List<String> filePaths, BuildTemplate template, out List<BuildTemplate> groupTemplates)
+			{
+				groupTemplates = null;
+				if (!filePaths.Any())
+				{
+					return;
+				}
+
+				HashSet<BuildTemplate> newTemplates = new HashSet<BuildTemplate>();
+				foreach (string path in filePaths)
+				{
+					foreach (var fileGroup in FileGroups)
+					{
+						var match = fileGroup.Regex.Match(Path.GetFileName(path));
+						if (match?.Success == true)
+						{
+							string RegexReplace(string field) => Regex.Replace(field, @"\$([0-9]+)", m => match.Groups[int.Parse(m.Groups[1].Value)].Value);
+
+							BuildTemplate groupTemplate = template;
+							if (fileGroup.Flavor != null)
+							{
+								groupTemplate.Flavor = RegexReplace(fileGroup.Flavor);
+							}
+							if (fileGroup.Include != null)
+							{
+								groupTemplate.Include = RegexReplace(fileGroup.Include);
+							}
+							newTemplates.Add(groupTemplate);
+						}
+					}
+				}
+
+				groupTemplates = newTemplates.ToList();
 			}
 		}
 

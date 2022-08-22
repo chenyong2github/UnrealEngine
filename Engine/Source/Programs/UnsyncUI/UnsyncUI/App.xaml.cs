@@ -115,6 +115,7 @@ namespace UnsyncUI
 		public Dictionary<string, string> ProjectDestinationMap { get; set; } = new Dictionary<string, string>();
 		public string CustomSrcPath { get; set; }
 		public string CustomDstPath { get; set; }
+		public string CustomInclude { get; set; }
 		public string AdditionalArgs { get; set; }
 
 		public static UserPreferences Load()

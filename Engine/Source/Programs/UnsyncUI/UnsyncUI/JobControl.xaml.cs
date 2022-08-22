@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -66,6 +67,7 @@ namespace UnsyncUI
         public string Proxy { get; }
 		public string DFS { get; }
 		public string AdditionalArgs { get; }
+		public string[] IncludeFilter { get; }
 		public string[] Exclusions { get; }
 
         public string ProxyStr => string.IsNullOrWhiteSpace(Proxy) ? "(none)" : Proxy;
@@ -162,14 +164,25 @@ namespace UnsyncUI
 		public ObservableCollection<FileModel> Files { get; } = new ObservableCollection<FileModel>();
 		private Dictionary<string, FileModel> filesMap = new Dictionary<string, FileModel>();
 
-        public JobModel(BuildPlatformModel build, string dstPath, bool dryRun, string proxy, string dfs, string additionalArgs, string[] exclusions, Action<JobModel> onCompletion, Action<JobModel> onClear, Action<JobModel> onProgress)
-        {
+		public JobModel(
+			BuildPlatformModel build,
+			string dstPath,
+			bool dryRun,
+			string proxy,
+			string dfs,
+			string additionalArgs,
+			string[] exclusions,
+			Action<JobModel> onCompletion,
+			Action<JobModel> onClear,
+			Action<JobModel> onProgress)
+		{
             Build = build;
             DstPath = dstPath;
             DryRun = dryRun;
             Proxy = proxy;
 			DFS = dfs;
 			AdditionalArgs = additionalArgs;
+			IncludeFilter = build.Include?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 			Exclusions = exclusions;
 			Succeeded = false;
 
@@ -350,6 +363,10 @@ namespace UnsyncUI
 					args.Add($"--dfs {DFS}");
 				}
 
+				if (IncludeFilter?.Length > 0)
+				{
+					args.Add($"--include {string.Join(",", IncludeFilter)}");
+				}
 				if (Exclusions != null && Exclusions.Length > 0)
 				{
 					args.Add($"--exclude {string.Join(",", Exclusions)}");
@@ -365,6 +382,8 @@ namespace UnsyncUI
 				{
 					argsStr = AdditionalArgs.Substring(1);
 				}
+
+				Debug.WriteLine($"Running unsync with args {argsStr}");
 
 				var unsyncPath = App.Current.UnsyncPath;
 				proc = new AsyncProcess(unsyncPath, argsStr);

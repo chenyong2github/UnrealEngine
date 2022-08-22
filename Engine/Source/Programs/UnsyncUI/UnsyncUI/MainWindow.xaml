@@ -7,7 +7,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:UnsyncUI"
         mc:Ignorable="d"
-        Title="UnsyncUI v1.0.11"
+        Title="UnsyncUI v1.0.12"
         Height="800"
         Width="1600"
         MinWidth="600"
@@ -41,6 +41,7 @@
 							<RowDefinition Height="auto"/>
 							<RowDefinition Height="auto"/>
 							<RowDefinition Height="auto"/>
+							<RowDefinition Height="auto"/>
 							<RowDefinition Height="*"/>
 						</Grid.RowDefinitions>
 
@@ -52,7 +53,11 @@
 							<local:SelectFolderControl SelectedPath="{Binding DstPath}" Description="Select a destination directory to sync builds to."/>
 						</GroupBox>
 
-						<TextBlock Grid.Row="2" Margin="4" HorizontalAlignment="Center">
+						<GroupBox Grid.Row="2" Header="Include">
+							<TextBox Text="{Binding Include}" ToolTip="Comma-separated list parts of filenames to filter the download"/>
+						</GroupBox>
+
+						<TextBlock Grid.Row="3" Margin="4" HorizontalAlignment="Center">
 							<Hyperlink Command="{Binding OnSyncClicked}">Start Custom Sync</Hyperlink>
 						</TextBlock>
 

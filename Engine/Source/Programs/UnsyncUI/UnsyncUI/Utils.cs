@@ -110,6 +110,45 @@ namespace UnsyncUI
 
             return tcs.Task;
 		}
+        public static Task<IEnumerable<string>> EnumerateFilesAsync(string path, CancellationToken token)
+        {
+			var tcs = new TaskCompletionSource<IEnumerable<string>>();
+            Task.Run(() =>
+			{
+				using var cancel = token.Register(() => tcs.TrySetCanceled());
+				try
+				{
+					mutex.Wait(token);
+					try
+					{
+						var timer = new Stopwatch();
+						timer.Start();
+
+						var dirs = Directory.EnumerateFiles(path).ToList();
+
+						timer.Stop();
+						Debug.WriteLine($"Time: {timer.Elapsed.TotalSeconds:0.000} s - {path}");
+
+						tcs.TrySetResult(dirs);
+					}
+					catch (Exception ex)
+					{
+						tcs.TrySetException(ex);
+					}
+					finally
+					{
+						mutex.Release();
+					}
+				}
+				catch (OperationCanceledException)
+				{
+					// Mutex wait was cancelled. Don't release
+					tcs.TrySetCanceled();
+				}
+			});
+
+            return tcs.Task;
+		}
     }
 
     public sealed class AsyncProcess

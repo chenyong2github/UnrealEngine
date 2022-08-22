@@ -90,6 +90,7 @@ namespace UnsyncUI
 		public string Description { get; }
 		public string FullPath { get; }
 		public string DestPathRelative { get; init; }
+		public string Include { get;  }
 
 		public string Name => Build == null
 			? "Custom Sync" 
@@ -97,7 +98,7 @@ namespace UnsyncUI
 
 		public string SafeName => Name.Replace('/', '+').Replace(" ", "");
 
-		public BuildPlatformModel(BuildModel build, string platform, string fullPath, string flavor)
+		public BuildPlatformModel(BuildModel build, string platform, string fullPath, string flavor, string include)
 		{
 			Build = build;
 			Platform = platform;
@@ -106,6 +107,7 @@ namespace UnsyncUI
 			DestPathRelative = Flavor == null ? Platform : Platform + Flavor;
 
 			Description = Flavor == null ? Platform : $"{Platform} {Flavor}";
+			Include = include;
 		}
 	}
 
@@ -151,8 +153,25 @@ namespace UnsyncUI
 			{
 				if (System.IO.Path.GetFileName(childDir) == ".unsync")
 				{
-					// This folder is a valid build
-					Platforms.Add(new BuildPlatformModel(this, template.Platform, path, template.Flavor));
+					List<Config.BuildTemplate> fileGroups = null;
+					if (currentDir.FileGroups?.Any() == true)
+					{
+						var files = await AsyncIO.EnumerateFilesAsync(path, cancellationToken.Token);
+						currentDir.ParseFileGroups(files.ToList(), template, out fileGroups);
+					}
+					if (fileGroups?.Any() == true)
+					{
+						foreach (var fileGroup in fileGroups)
+						{
+							Platforms.Add(new BuildPlatformModel(this, fileGroup.Platform, path, fileGroup.Flavor, fileGroup.Include));
+						}
+						Platforms.Add(new BuildPlatformModel(this, template.Platform, path, "All", null));
+					}
+					else
+					{
+						// This folder is a valid build
+						Platforms.Add(new BuildPlatformModel(this, template.Platform, path, template.Flavor, null));
+					}
 				}
 				else
 				{

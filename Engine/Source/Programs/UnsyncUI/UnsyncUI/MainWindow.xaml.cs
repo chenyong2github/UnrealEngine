@@ -91,6 +91,17 @@ namespace UnsyncUI
 			}
 		}
 
+		private string include = App.Current.UserConfig.CustomInclude;
+		public string Include
+		{
+			get => include;
+			set
+			{
+				SetProperty(ref include, value);
+				App.Current.UserConfig.CustomInclude = value;
+			}
+		}
+
 		public Command OnSyncClicked { get; }
 
 		private void UpdateSyncCommand()
@@ -103,7 +114,7 @@ namespace UnsyncUI
 			{
 				onBuildsSelected(new[]
 				{
-					(DstPath, default(string[]), new BuildPlatformModel(null, null, SrcPath, null))
+					(DstPath, default(string[]), new BuildPlatformModel(null, null, SrcPath, null, Include))
 				});
 			});
 
@@ -241,7 +252,18 @@ namespace UnsyncUI
 		{
 			foreach (var build in selectedBuilds)
 			{
-				AddJob(new JobModel(build.Model, build.DstPath, DryRun, SelectedProxy?.Path, DFS, AdditionalArgs, build.Exclusions, OnJobCompleted, OnClearJob, OnJobProgress));
+				AddJob(new JobModel(
+					build.Model, 
+					build.DstPath, 
+					DryRun, 
+					SelectedProxy?.Path,
+					DFS, 
+					AdditionalArgs, 
+					build.Exclusions, 
+					OnJobCompleted, 
+					OnClearJob, 
+					OnJobProgress
+				));
 			}
 		}
 
