@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "EditorUndoClient.h"
 #include "Misc/NotifyHook.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "WaveformEditorTransportController.h"
@@ -13,7 +14,12 @@ class SDockTab;
 class USoundWave;
 class UAudioComponent;
 
-class WAVEFORMEDITOR_API FWaveformEditor : public FAssetEditorToolkit, public FGCObject, public FNotifyHook
+class WAVEFORMEDITOR_API FWaveformEditor 
+	: public FAssetEditorToolkit
+	, public FEditorUndoClient
+	, public FGCObject
+	, public FNotifyHook
+
 {
 public:
 	bool Init(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, USoundWave* SoundWaveToEdit);
@@ -27,8 +33,14 @@ public:
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 
+	/** FNotifyHook interface */
 	void NotifyPreChange(class FEditPropertyChain* PropertyAboutToChange) override {};
 	void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, class FEditPropertyChain* PropertyThatChanged) override;
+
+	/** FEditorUndo interface */
+	void PostUndo(bool bSuccess) override;
+	void PostRedo(bool bSuccess) override;
+	bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const override;
 
 private:
 	bool SetupAudioComponent();

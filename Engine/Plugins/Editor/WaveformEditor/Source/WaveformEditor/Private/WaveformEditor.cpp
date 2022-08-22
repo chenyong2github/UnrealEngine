@@ -4,6 +4,7 @@
 
 #include "AudioDevice.h"
 #include "Components/AudioComponent.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "Sound/SoundWave.h"
 #include "Styling/AppStyle.h"
 #include "SWaveformPanel.h"
@@ -13,8 +14,8 @@
 #include "WaveformEditorLog.h"
 #include "WaveformEditorRenderData.h"
 #include "WaveformEditorStyle.h"
-#include "WaveformTransformationsRenderManager.h"
 #include "WaveformEditorWaveWriter.h"
+#include "WaveformTransformationsRenderManager.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "WaveformEditor"
@@ -44,6 +45,8 @@ bool FWaveformEditor::Init(const EToolkitMode::Type Mode, const TSharedPtr<ITool
 	bIsInitialized &= BindCommands();
 
 	const TSharedRef<FTabManager::FLayout>  StandaloneDefaultLayout = SetupStandaloneLayout();
+
+	GEditor->RegisterForUndo(this);
 
 	if (bIsInitialized)
 	{
@@ -340,6 +343,36 @@ void FWaveformEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChan
 	}
 
 	TransformationsRenderManager->UpdateRenderElements();
+}
+
+void FWaveformEditor::PostUndo(bool bSuccess)
+{
+	if (bSuccess)
+	{
+		TransformationsRenderManager->GenerateLayersChain();
+		TransformationsRenderManager->UpdateRenderElements();
+	}
+}
+
+void FWaveformEditor::PostRedo(bool bSuccess)
+{
+	PostUndo(bSuccess);
+}
+
+bool FWaveformEditor::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const
+{
+	bool bShoouldUndo = false;
+	for (const TPair<UObject*, FTransactionObjectEvent>& TransactionObjectPair : TransactionObjectContexts)
+	{
+		UObject* Object = TransactionObjectPair.Key;
+		const UClass* ObjectClass = Object->GetClass();
+		if (ObjectClass && ObjectClass->IsChildOf(UWaveformTransformationBase::StaticClass()))
+		{
+			bShoouldUndo = true;
+		}
+	}
+
+	return bShoouldUndo;
 }
 
 bool FWaveformEditor::SetUpPropertiesView()
