@@ -94,6 +94,20 @@
           Size="Large"
           Text="Export"
           UID="a1de5acd-fef8-45be-8e01-ec194b9b5191" />
+        <ads:RibbonButton
+          CommandHandler="{wpfcust:ActionItem ActionId=5, TableId=689133272}"
+          Description="Export Selected objects to Datasmith file"
+          Image="Icons/Datasmith/DatasmithIcon32.png"
+          IsCheckable="true"
+          IsToolTipEnabled="false"
+          LargeImage="Icons/Datasmith/DatasmithIcon32.png"
+          MinWidth="0"
+          Orientation="Vertical"
+          ResizeStyle="HideText"
+          ShowText="true"
+          Size="Large"
+          Text="Export Selected"
+          UID="405855b6-f3c3-4589-af11-7969a5badaa6" />
         <ads:RibbonPanelBreak
           AllowInToolBar="false"
           IsToolTipEnabled="true"
@@ -108,70 +122,6 @@
           MinWidth="100"
           ShowText="false"
           UID="4f43d4b3-f741-4262-8a64-ed43f3354248">
-          <wpfcust:MaxRibbonLabel
-            AllowInToolBar="false"
-            IsToolTipEnabled="false"
-            MinWidth="150"
-            ResizeStyle="NoResize"
-            ShowImage="false"
-            ShowText="true"
-            Text="Include:"
-            UID="8d852bc3-7af5-4060-920a-a0514588d74a" />
-          <ads:RibbonSeparator
-            AllowInToolBar="false"
-            IsToolTipEnabled="true"
-            MinWidth="0"
-            ResizeStyle="NoResize"
-            SeparatorStyle="Spacer"
-            ShowText="false"
-            UID="918543c4-50dc-4203-bbdf-fe5fa4bd10fe" />
-          <wpfcust:MaxRibbonSplitButton
-            Image="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
-            IsCheckable="false"
-            IsSplit="false"
-            IsSynchronizedWithCurrentItem="true"
-            IsToolTipEnabled="true"
-            LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
-            ListImageSize="Standard"
-            MaxscriptIndexCallback="Datasmith_ExportOptions_IncludeIndex()"
-            MinWidth="0"
-            ResizeStyle="HideText"
-            ShowImage="false"
-            ShowText="true"
-            UID="f97d81dd-03f8-4a14-b718-06733fb224f2">
-            <ads:RibbonCommandItem
-              AllowInToolBar="false"
-              CommandHandler="{wpfcust:ActionItem MacroName=Datasmith_ExportOptions_IncludeAllVisibleObjects, MacroCategory=Datasmith}"
-              Image="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
-              IsCheckable="true"
-              IsToolTipEnabled="true"
-              LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
-              MinWidth="100"
-              Name="Visible Objects"
-              ShowImage="false"
-              ShowText="false"
-              Text="Visible Objects"
-              UID="6ef627ea-f1fb-4b7a-9235-6f302d5ac4de" />
-            <ads:RibbonCommandItem
-              AllowInToolBar="false"
-              CommandHandler="{wpfcust:ActionItem MacroName=Datasmith_ExportOptions_IncludeSelectedOnly, MacroCategory=Datasmith}"
-              Image="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
-              IsCheckable="true"
-              IsToolTipEnabled="true"
-              LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
-              MinWidth="100"
-              Name="Selected Objects"
-              ShowImage="false"
-              ShowText="false"
-              Text="Selected Objects"
-              UID="9509a5c2-1553-4499-91c3-7b7b0a220cee" />
-          </wpfcust:MaxRibbonSplitButton>
-          <ads:RibbonRowBreak
-            AllowInToolBar="false"
-            IsToolTipEnabled="true"
-            MinWidth="100"
-            ShowText="false"
-            UID="81ee274b-ff06-4d67-a974-6461da0acf54" />
           <wpfcust:MaxRibbonLabel
             AllowInToolBar="false"
             IsToolTipEnabled="false"
@@ -234,7 +184,7 @@
       </wpfcust:MaxRibbonPanelSource>
     </wpfcust:MaxModelingRibbonPanel>
     <wpfcust:MaxModelingRibbonPanel
-      CollapsedPanelImage="Icons/MissingImage_32.png"
+      CollapsedPanelImage="Icons/Datasmith/DatasmithSettingsIcon32.png"
       FloatingGroup="0"
       FloatingOrder="0"
       UID="42ca9067-e3a4-4d3c-8d83-af9bb10b1124">
@@ -391,7 +341,7 @@
       </wpfcust:MaxRibbonPanelSource>
     </wpfcust:MaxModelingRibbonPanel>
     <wpfcust:MaxModelingRibbonPanel
-      CollapsedPanelImage="Icons/Datasmith/DatasmithSettingsIcon32.png"
+      CollapsedPanelImage="Icons/Datasmith/DatasmithToolsIcon32.png"
       FloatingGroup="0"
       FloatingOrder="0"
       ResizeStyle="NeverCollapsePanel"

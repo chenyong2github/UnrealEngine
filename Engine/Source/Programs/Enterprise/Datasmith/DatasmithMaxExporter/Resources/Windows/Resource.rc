@@ -148,6 +148,8 @@ BEGIN
     IDS_SHOWLOG_NAME    "Log"
     IDS_SHOWLOG_DESC    "Show Messages"
     IDS_DATASMITH_CATEGORY "Datasmith"
+    IDS_EXPORT_SELECTED_NAME    "Export Selected"
+    IDS_EXPORT_SELECTED_DESC    "Export Selected objects to Datasmith file"
 END
 
 #endif    // English (United States) resources

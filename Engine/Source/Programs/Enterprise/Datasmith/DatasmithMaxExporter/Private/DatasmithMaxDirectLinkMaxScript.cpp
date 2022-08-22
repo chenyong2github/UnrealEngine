@@ -157,8 +157,9 @@ Value* Export_cf(Value** arg_list, int count)
 	Value* pOutputPath = arg_list[1];
 
 	bool bQuiet = key_arg_or_default(quiet, &false_value)->to_bool();
+	bool bSelected = key_arg_or_default(selected, &false_value)->to_bool();
 
-	bool bResult = Export(pName->to_string(), pOutputPath->to_string(), bQuiet);;
+	bool bResult = Export(pName->to_string(), pOutputPath->to_string(), bQuiet, bSelected);;
 	return bool_result(bResult);
 }
 
@@ -314,7 +315,6 @@ Value* SetExportOption_##name##_cf(Value** arg_list, int count) \
 Primitive SetExportOption_##name##_pf(_M("Datasmith_SetExportOption_" #name), SetExportOption_##name##_cf);\
 
 //////////////////////////////////////////
-DefinePersistentExportOption(SelectedOnly)
 DefinePersistentExportOption(AnimatedTransforms)
 
 DefinePersistentExportOption(StatSync)
@@ -555,6 +555,7 @@ public:
 		ID_CONNECTIONS_ACTION_ID,
 		ID_EXPORT_ACTION_ID,
 		ID_SHOWLOG_ACTION_ID,
+		ID_EXPORT_SELECTED_ACTION_ID,
 	};
 
 	class FDatasmithActionTable : public ActionTable
@@ -612,6 +613,11 @@ public:
 				Icon.Reset(new MaxBmpFileIcon(_T(":/Datasmith/Icons/DatasmithLogIcon")));
 				break;
 			}
+			case ID_EXPORT_SELECTED_ACTION_ID:
+			{
+				Icon.Reset(new MaxBmpFileIcon(_T(":/Datasmith/Icons/DatasmithIcon")));
+				break;
+			}
 			}
 			return Icon.Get();
 		}
@@ -652,7 +658,7 @@ public:
 			{
 				if (GetExporter())
 				{
-					MCHAR* ScriptCode = _T("Datasmith_ExportDialog()");
+					MCHAR* ScriptCode = _T("Datasmith_ExportDialog selected:false");
 #if MAX_PRODUCT_YEAR_NUMBER >= 2022
 					 ExecuteMAXScriptScript(ScriptCode, MAXScript::ScriptSource::NonEmbedded);
 #else
@@ -664,6 +670,19 @@ public:
 			case ID_SHOWLOG_ACTION_ID:
 			{
 				MessagesDialog->OpenWindow();
+				return true;
+			}
+			case ID_EXPORT_SELECTED_ACTION_ID:
+			{
+				if (GetExporter())
+				{
+					MCHAR* ScriptCode = _T("Datasmith_ExportDialog selected:true");
+#if MAX_PRODUCT_YEAR_NUMBER >= 2022
+					 ExecuteMAXScriptScript(ScriptCode, MAXScript::ScriptSource::NonEmbedded);
+#else
+					 ExecuteMAXScriptScript(ScriptCode);
+#endif
+				}
 				return true;
 			}
 			}
@@ -688,6 +707,7 @@ public:
 			DATASMITH_ACTION(CONNECTIONS),
 			DATASMITH_ACTION(EXPORT),
 			DATASMITH_ACTION(SHOWLOG),
+			DATASMITH_ACTION(EXPORT_SELECTED),
 		};
 
 		FDatasmithActionTable* Table = new FDatasmithActionTable(Name); // Table, registered with RegisterActionTable will be deallocated by Max

@@ -566,7 +566,6 @@ public:
 		{
 			return;
 		}
-		GetBool(TEXT("SelectedOnly"), Options.bSelectedOnly);
 		GetBool(TEXT("AnimatedTransforms"), Options.bAnimatedTransforms);
 		GetInt(TEXT("TextureResolution"), Options.TextureResolution);
 		bLoaded = true;
@@ -618,16 +617,6 @@ public:
 	{
 		FString PlugCfgPath = GetCOREInterface()->GetDir(APP_PLUGCFG_DIR);
 		return FPaths::Combine(PlugCfgPath, TEXT("UnrealDatasmithMax.ini"));
-	}
-
-	virtual void SetSelectedOnly(bool bValue) override
-	{
-		Options.bSelectedOnly = bValue;
-		SetBool(TEXT("SelectedOnly"), Options.bSelectedOnly);
-	}
-	virtual bool GetSelectedOnly() override
-	{
-		return Options.bSelectedOnly;
 	}
 
 	virtual void SetAnimatedTransforms(bool bValue) override
@@ -3529,7 +3518,7 @@ void FExporter::Shutdown()
 	FDatasmithExporterManager::Shutdown();
 }
 
-bool Export(const TCHAR* Name, const TCHAR* OutputPath, bool bQuiet)
+bool Export(const TCHAR* Name, const TCHAR* OutputPath, bool bQuiet, bool bSelected)
 {
 	FUpdateProgress ProgressManager(!bQuiet, 3);
 	FUpdateProgress::FStage& MainStage = ProgressManager.MainStage;
@@ -3539,7 +3528,9 @@ bool Export(const TCHAR* Name, const TCHAR* OutputPath, bool bQuiet)
 	ExportedScene.SetName(Name);
 	ExportedScene.SetOutputPath(OutputPath);
 
-	FSceneTracker SceneTracker(PersistentExportOptions.Options, ExportedScene, nullptr);
+	FExportOptions ExportOptions = PersistentExportOptions.Options;
+	ExportOptions.bSelectedOnly = bSelected;
+	FSceneTracker SceneTracker((ExportOptions), ExportedScene, nullptr);
 
 	bool bCancelled = false;
 
@@ -3548,7 +3539,7 @@ bool Export(const TCHAR* Name, const TCHAR* OutputPath, bool bQuiet)
 		bCancelled = true;
 	}
 
-	if (PersistentExportOptions.Options.bAnimatedTransforms && !bCancelled)
+	if (ExportOptions.bAnimatedTransforms && !bCancelled)
 	{
 		if (!SceneTracker.ExportAnimations(MainStage))
 		{

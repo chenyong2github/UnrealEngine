@@ -49,10 +49,6 @@ class FLayerTracker;
 class IPersistentExportOptions
 {
 public:
-	 // Whether to export all visible or selected objects only
-	virtual void SetSelectedOnly(bool) = 0;
-	virtual bool GetSelectedOnly() = 0;
-
 
 	// Whether to export animation or not
 	virtual void SetAnimatedTransforms(bool) = 0;
@@ -103,7 +99,7 @@ class IExporter
 bool CreateExporter(bool bEnableUI, const TCHAR* EnginePath); // Create exporter with ability for DirectLink change tracking
 IExporter* GetExporter();
 void ShutdownExporter();
-bool Export(const TCHAR* Name, const TCHAR* OutputPath, bool bQuiet);
+bool Export(const TCHAR* Name, const TCHAR* OutputPath, bool bQuiet, bool bSelected);
 void ShutdownScripts();
 
 

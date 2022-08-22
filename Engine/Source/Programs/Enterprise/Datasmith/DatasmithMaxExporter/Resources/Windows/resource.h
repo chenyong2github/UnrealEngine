@@ -23,6 +23,8 @@
 #define IDS_SHOWLOG_NAME                117
 #define IDS_SHOWLOG_DESC                118
 #define IDS_DATASMITH_CATEGORY          119
+#define IDS_EXPORT_SELECTED_NAME        120
+#define IDS_EXPORT_SELECTED_DESC        121
 #define IDD_ERROR_MSGS                  181
 #define IDC_BYOBJECT                    1016
 #define IDC_BYMATERIAL                  1017
