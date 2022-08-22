@@ -4082,6 +4082,12 @@ AddCommaSeparatedWordsToList(const std::wstring& CommaSeparatedWords, std::vecto
 }
 
 void
+FSyncFilter::IncludeInSync(const std::wstring& CommaSeparatedWords)
+{
+	AddCommaSeparatedWordsToList(CommaSeparatedWords, SyncIncludedWords);
+}
+
+void
 FSyncFilter::ExcludeFromSync(const std::wstring& CommaSeparatedWords)
 {
 	AddCommaSeparatedWordsToList(CommaSeparatedWords, SyncExcludedWords);
@@ -4106,6 +4112,21 @@ FSyncFilter::ShouldSync(const FPath& Filename) const
 bool
 FSyncFilter::ShouldSync(const std::wstring& Filename) const
 {
+	bool bInclude = SyncIncludedWords.empty(); // Include everything if there are no specific inclusions
+	for (const std::wstring& Word : SyncIncludedWords)
+	{
+		if (Filename.find(Word) != std::wstring::npos)
+		{
+			bInclude = true;
+			break;
+		}
+	}
+
+	if (!bInclude)
+	{
+		return false;
+	}
+	
 	for (const std::wstring& Word : SyncExcludedWords)
 	{
 		if (Filename.find(Word) != std::wstring::npos)
@@ -4213,6 +4234,24 @@ LogManifestInfo(ELogLevel LogLevel, const FDirectoryManifest& Manifest)
 	LogManifestInfo(LogLevel, Info);
 }
 
+void
+LogManifestFiles(ELogLevel LogLevel, const FDirectoryManifest& Manifest)
+{
+	std::vector<std::wstring> Files;
+	for (const auto& ManifestIt : Manifest.Files)
+	{
+		Files.push_back(ManifestIt.first);
+	}
+
+	std::sort(Files.begin(), Files.end());
+
+	for (const std::wstring& Filename : Files)
+	{
+		const FFileManifest& Info = Manifest.Files.at(Filename);
+		LogPrintf(LogLevel, L"%s : %llu\n", Filename.c_str(), Info.Size);
+	}
+}
+
 HashMap<FGenericHash, FGenericBlock>
 BuildBlockMap(const FDirectoryManifest& Manifest, bool bNeedMacroBlocks)
 {
@@ -4276,7 +4315,7 @@ LogManifestDiff(ELogLevel LogLevel, const FDirectoryManifest& ManifestA, const F
 }
 
 int32
-CmdInfo(const FPath& InputA, const FPath& InputB)
+CmdInfo(const FPath& InputA, const FPath& InputB, bool bListFiles)
 {
 	FPath DirectoryManifestPathA = InputA / ".unsync" / "manifest.bin";
 	FPath DirectoryManifestPathB = InputB / ".unsync" / "manifest.bin";
@@ -4294,6 +4333,12 @@ CmdInfo(const FPath& InputA, const FPath& InputB)
 	{
 		UNSYNC_LOG_INDENT;
 		LogManifestInfo(ELogLevel::Info, ManifestA);
+	}
+
+	if (bListFiles)
+	{
+		UNSYNC_LOG_INDENT;
+		LogManifestFiles(ELogLevel::Info, ManifestA);
 	}
 
 	if (InputB.empty())
@@ -4315,6 +4360,11 @@ CmdInfo(const FPath& InputA, const FPath& InputB)
 	{
 		UNSYNC_LOG_INDENT;
 		LogManifestInfo(ELogLevel::Info, ManifestB);
+	}
+	if (bListFiles)
+	{
+		UNSYNC_LOG_INDENT;
+		LogManifestFiles(ELogLevel::Info, ManifestB);
 	}
 
 	LogPrintf(ELogLevel::Info, L"Difference:\n");

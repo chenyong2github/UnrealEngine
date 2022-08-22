@@ -26,6 +26,23 @@ CmdSync(const FCmdSyncOptions& Options)
 		UNSYNC_VERBOSE(L"Sync source: '%ls' ('%ls')", Options.Source.wstring().c_str(), ResolvedSource.wstring().c_str());
 	}
 
+	if (!Options.Filter->SyncIncludedWords.empty())
+	{
+		UNSYNC_VERBOSE(L"Include filter: ");
+		for( const std::wstring& include : Options.Filter->SyncIncludedWords)
+		{ 
+			UNSYNC_VERBOSE(L"\t%s", include.c_str());
+		}
+	}
+	if(!Options.Filter->SyncExcludedWords.empty())
+	{
+		UNSYNC_VERBOSE(L"Exclude filter: ");
+		for( const std::wstring& exclude : Options.Filter->SyncExcludedWords)
+		{ 
+			UNSYNC_VERBOSE(L"\t%s", exclude.c_str());
+		}
+	}
+
 	const bool bSourcePathExists	 = PathExists(ResolvedSource, ErrorCode);
 	const bool bSourceIsDirectory	 = bSourcePathExists && unsync::IsDirectory(ResolvedSource);
 	const bool bSourceIsManifestHash = !bSourcePathExists && LooksLikeHash160(Options.Source.native());

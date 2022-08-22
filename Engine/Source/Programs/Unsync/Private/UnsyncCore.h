@@ -184,6 +184,7 @@ struct FDirectoryManifestInfo
 
 FDirectoryManifestInfo GetManifestInfo(const FDirectoryManifest& Manifest);
 void				   LogManifestInfo(ELogLevel LogLevel, const FDirectoryManifestInfo& Info);
+void				   LogManifestFiles(ELogLevel LogLevel, const FDirectoryManifestInfo& Info);
 
 const std::string& GetVersionString();
 
@@ -324,6 +325,8 @@ struct FSyncFilter
 {
 	FSyncFilter() = default;
 
+	// By default all files will be included, calling this will include only files containing these substrings
+	void IncludeInSync(const std::wstring& CommaSeparatedWords);
 	void ExcludeFromSync(const std::wstring& CommaSeparatedWords);
 	void ExcludeFromCleanup(const std::wstring& CommaSeparatedWords);
 
@@ -335,6 +338,7 @@ struct FSyncFilter
 
 	FPath Resolve(const FPath& Filename) const;
 
+	std::vector<std::wstring> SyncIncludedWords;
 	std::vector<std::wstring> SyncExcludedWords; // any paths that contain these words will not be synced
 	std::vector<std::wstring> CleanupExcludedWords; // any paths that contain these words will not be deleted after sync
 
@@ -385,6 +389,6 @@ FHash160 ComputeSerializedManifestHash160(const FDirectoryManifest& Manifest);
 FBlock128			   ToBlock128(const FGenericBlock& GenericBlock);
 std::vector<FBlock128> ToBlock128(FGenericBlockArray& GenericBlocks);
 
-int32 CmdInfo(const FPath& InputA, const FPath& InputB);
+int32 CmdInfo(const FPath& InputA, const FPath& InputB, bool bListFiles);
 
 }  // namespace unsync

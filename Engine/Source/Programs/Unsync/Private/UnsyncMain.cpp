@@ -55,6 +55,7 @@ InnerMain(int Argc, char** Argv)
 	std::string				 PatchFilenameUtf8;
 	std::string				 InputFilename2Utf8;
 	std::string				 SourceManifestFilenameUtf8;
+	std::vector<std::string> IncludeFilterArrayUtf8;
 	std::vector<std::string> ExcludeFilterArrayUtf8;
 	std::vector<std::string> CleanupExcludeFilterArrayUtf8;
 	std::vector<std::string> OverlayArrayUtf8;
@@ -77,6 +78,7 @@ InnerMain(int Argc, char** Argv)
 	bool					 bNoCleanupAfterSync = false;
 	bool					 bFullSourceScan	 = false;
 	bool					 bFullDifference	 = false;
+	bool					 bInfoFiles			 = false;
 	int32					 CompressionLevel	 = 3;
 	uint32					 DiffBlockSize		 = uint32(4_KB);
 	uint32					 HashOrSyncBlockSize = uint32(64_KB);
@@ -141,6 +143,7 @@ InnerMain(int Argc, char** Argv)
 	CLI::App* SubInfo = Cli.add_subcommand("info", "Display information about a manifest file or diff two manifests");
 	SubInfo->add_option("Input 1", InputFilenameUtf8, "Input manifest file or root directory")->required();
 	SubInfo->add_option("Input 2", InputFilename2Utf8, "Optional input manifest file or root directory");
+	SubInfo->add_flag("--files", bInfoFiles, "List all files in the manifest");
 	SubCommands.push_back(SubInfo);
 
 	CLI::App* SubDiff = Cli.add_subcommand("diff", "Compute difference required to transform BaseFile into SourceFile");
@@ -164,7 +167,8 @@ InnerMain(int Argc, char** Argv)
 						"FProxy server address ([transport://]address[:port][/request][#namespace])");
 	SubSync->add_option("--dfs", PreferredDfsUtf8, "Preferred DFS mirror (matched by sub-string)");
 	SubSync->add_option("--overlay", OverlayArrayUtf8, "Additional source directory to sync (keep unique files from all sources, overwrite conflicting files with overlay source)");
-	SubSync->add_option("--exclude", ExcludeFilterArrayUtf8, "Exclude filenames that contain specified words (comma separated)");
+	SubSync->add_option("--include", IncludeFilterArrayUtf8, "Include filenames that contain specified words (comma separated). If this is not present, all files will be included.");
+	SubSync->add_option("--exclude", ExcludeFilterArrayUtf8, "Exclude filenames that contain specified words (comma separated). Filter is run after --include.");
 #if UNSYNC_USE_TLS
 	AddTlsOptions(SubSync);
 #else
@@ -452,6 +456,10 @@ InnerMain(int Argc, char** Argv)
 	{
 		SyncFilter.ExcludeFromSync(ConvertUtf8ToWide(Str));
 	}
+	for (const std::string& Str : IncludeFilterArrayUtf8)
+	{
+		SyncFilter.IncludeInSync(ConvertUtf8ToWide(Str));
+	}
 
 	if (const char* EnvCleanupExclude = getenv("UNSYNC_CLEANUP_EXCLUDE"))
 	{
@@ -679,7 +687,7 @@ InnerMain(int Argc, char** Argv)
 	}
 	else if (Cli.got_subcommand(SubInfo))
 	{
-		return CmdInfo(InputFilename, InputFilename2);
+		return CmdInfo(InputFilename, InputFilename2, bInfoFiles);
 	}
 	else if (Cli.got_subcommand(SubQuery))
 	{
