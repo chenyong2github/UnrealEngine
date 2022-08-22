@@ -1585,6 +1585,12 @@ UInterchangeMaterialFactoryNode* UInterchangeGenericMaterialPipeline::CreateMate
 		return MaterialFactoryNode;
 	}
 
+	if (HandleUnlitModel(ShaderGraphNode, MaterialFactoryNode))
+	{
+		// No need to proceed any further
+		return MaterialFactoryNode;
+	}
+
 	if (!HandlePhongModel(ShaderGraphNode, MaterialFactoryNode))
 	{
 		HandleLambertModel(ShaderGraphNode, MaterialFactoryNode);
@@ -1646,6 +1652,10 @@ UInterchangeMaterialInstanceFactoryNode* UInterchangeGenericMaterialPipeline::Cr
 	else if (IsLambertModel(ShaderGraphNode))
 	{
 		MaterialInstanceFactoryNode->SetCustomParent(TEXT("Material'/Interchange/Materials/LambertSurfaceMaterial.LambertSurfaceMaterial'"));
+	}
+	else if (IsUnlitModel(ShaderGraphNode))
+	{
+		MaterialInstanceFactoryNode->SetCustomParent(TEXT("Material'/Interchange/Materials/UnlitMaterial.UnlitMaterial'"));
 	}
 	else
 	{
@@ -1998,6 +2008,47 @@ UInterchangeMaterialFunctionFactoryNode* UInterchangeGenericMaterialPipeline::Cr
 	}
 
 	return FactoryNode;
+}
+
+bool UInterchangeGenericMaterialPipeline::IsUnlitModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+{
+	using namespace UE::Interchange::Materials::Unlit;
+
+	const bool bHasUnlitColorInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::UnlitColor);
+
+	return bHasUnlitColorInput;
+}
+
+bool UInterchangeGenericMaterialPipeline::HandleUnlitModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
+{
+	using namespace UE::Interchange::Materials;
+
+	bool bShadingModelHandled = false;
+
+	// Unlit Color
+	{
+		const bool bHasInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Unlit::Parameters::UnlitColor);
+
+		if (bHasInput)
+		{
+			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
+				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Unlit::Parameters::UnlitColor.ToString(), MaterialFactoryNode->GetUniqueID());
+
+			if (ExpressionFactoryNode.Get<0>())
+			{
+				MaterialFactoryNode->ConnectOutputToEmissiveColor(ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
+			}
+
+			bShadingModelHandled = true;
+		}
+	}
+
+	if (bShadingModelHandled)
+	{
+		MaterialFactoryNode->SetCustomShadingModel(EMaterialShadingModel::MSM_Unlit);
+	}
+
+	return bShadingModelHandled;
 }
 
 #undef LOCTEXT_NAMESPACE

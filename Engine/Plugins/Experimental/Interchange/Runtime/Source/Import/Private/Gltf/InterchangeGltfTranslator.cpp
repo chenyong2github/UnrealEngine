@@ -44,14 +44,23 @@ static FAutoConsoleVariableRef CCvarInterchangeEnableGLTFImport(
 	ECVF_Default);
 
 static const TArray<FString> SupportedExtensions = {/* Lights */
-														//TEXT("KHR_lights_punctual"), TEXT("KHR_lights"), //not supported yet
+													TEXT("KHR_lights_punctual"),
+													TEXT("KHR_lights"),
 													/* Variants */
-														TEXT("KHR_materials_variants"), 
+													TEXT("KHR_materials_variants"), 
 													/* Materials */
-														//TEXT("KHR_materials_unlit"), //not supported yet
-														TEXT("KHR_materials_ior"), TEXT("KHR_materials_clearcoat"), TEXT("KHR_materials_transmission"), TEXT("KHR_materials_sheen"),
-														TEXT("KHR_materials_specular"), TEXT("KHR_materials_pbrSpecularGlossiness"), 
-														TEXT("MSFT_packing_occlusionRoughnessMetallic"), TEXT("MSFT_packing_normalRoughnessMetallic") };
+													TEXT("KHR_materials_unlit"),
+													TEXT("KHR_materials_ior"),
+													TEXT("KHR_materials_clearcoat"),
+													TEXT("KHR_materials_transmission"),
+													TEXT("KHR_materials_sheen"),
+													TEXT("KHR_materials_specular"),
+													TEXT("KHR_materials_pbrSpecularGlossiness"),
+													TEXT("MSFT_packing_occlusionRoughnessMetallic"),
+													TEXT("MSFT_packing_normalRoughnessMetallic"),
+													/* Textures */
+													TEXT("KHR_texture_transform")
+};
 
 namespace UE::Interchange::Gltf::Private
 {
@@ -339,6 +348,20 @@ void UInterchangeGltfTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 	//(based on https://github.com/KhronosGroup/glTF-Sample-Models/tree/master/2.0/NormalTangentTest#problem-flipped-y-axis-or-flipped-green-channel)
 	SetTextureFlipGreenChannel(NodeContainer, GltfMaterial.Normal);
 	SetTextureFlipGreenChannel(NodeContainer, GltfMaterial.ClearCoat.NormalMap);
+
+	if (GltfMaterial.bIsUnlitShadingModel)
+	{
+		// Base Color
+		{
+			TVariant< FLinearColor, float > BaseColorFactor;
+			BaseColorFactor.Set< FLinearColor >(FLinearColor(GltfMaterial.BaseColorFactor));
+
+			HandleGltfMaterialParameter(NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, Unlit::Parameters::UnlitColor.ToString(),
+				BaseColorFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString());
+		}
+
+		return;
+	}
 	
 	//if there is a clearcoatnormal map then we want to swap it with the normals map
 	//as the Interchange pipeline will connect the clearcoatnormal map to ClearCoatBottomNormalMap

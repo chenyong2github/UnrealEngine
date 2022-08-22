@@ -277,6 +277,14 @@ namespace Interchange
 				const FName Tangent = TEXT("tangent");
 			}
 		}
+
+		namespace Unlit
+		{
+			namespace Parameters
+			{
+				const FName UnlitColor = TEXT("UnlitColor"); // Type: linear color
+			}
+		}
 	}
 }
 }
