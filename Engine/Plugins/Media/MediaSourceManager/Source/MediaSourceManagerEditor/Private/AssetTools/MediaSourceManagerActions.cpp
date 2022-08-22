@@ -4,6 +4,8 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "MediaSourceManager.h"
+#include "MediaSourceManagerEditorModule.h"
+#include "Modules/ModuleManager.h"
 #include "Toolkits/MediaSourceManagerEditorToolkit.h"
 
 #define LOCTEXT_NAMESPACE "MediaSourceManagerActions"
@@ -61,8 +63,12 @@ void FMediaSourceManagerActions::OpenAssetEditor(const TArray<UObject*>& InObjec
 
 		if (MediaSourceManager != nullptr)
 		{
-			TSharedRef<FMediaSourceManagerEditorToolkit> EditorToolkit = MakeShareable(new FMediaSourceManagerEditorToolkit(Style));
-			EditorToolkit->Initialize(MediaSourceManager, Mode, EditWithinLevelEditor);
+			IMediaSourceManagerEditorModule* Module = FModuleManager::GetModulePtr
+				<IMediaSourceManagerEditorModule>("MediaSourceManagerEditor");
+			if (Module != nullptr)
+			{
+				Module->OpenEditorTab();
+			}
 		}
 	}
 }

@@ -24,4 +24,8 @@ public:
 	 **/
 	virtual TSharedPtr<ISlateStyle> GetStyle() = 0;
 
+	/**
+	 * Opens the editor tab to edit the manager.
+	 */
+	virtual void OpenEditorTab() = 0;
 };

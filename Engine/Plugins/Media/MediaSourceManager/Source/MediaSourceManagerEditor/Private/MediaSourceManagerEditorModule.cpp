@@ -27,6 +27,15 @@ public:
 	//~ IMediaSourceManagerEditorModule interface
 	TSharedPtr<ISlateStyle> GetStyle() { return Style; }
 
+	void OpenEditorTab()
+	{
+		FTabId ManagerTabID(ManagerTabName);
+		FGlobalTabmanager::Get()->TryInvokeTab(ManagerTabID);
+
+		FTabId PreviewTabID(PreviewTabName);
+		FGlobalTabmanager::Get()->TryInvokeTab(PreviewTabID);
+	}
+
 	//~ IModuleInterface interface
 
 	virtual void StartupModule() override
