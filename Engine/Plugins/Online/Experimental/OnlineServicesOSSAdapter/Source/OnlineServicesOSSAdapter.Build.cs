@@ -11,7 +11,8 @@ public class OnlineServicesOSSAdapter : ModuleRules
 			new string[] {
 				"Core",
 				"OnlineServicesInterface",
-				"OnlineSubsystem"
+				"OnlineSubsystem",
+				"Json"
 			}
 		);
 

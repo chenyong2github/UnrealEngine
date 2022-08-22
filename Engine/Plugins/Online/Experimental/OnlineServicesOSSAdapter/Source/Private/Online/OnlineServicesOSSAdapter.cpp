@@ -15,6 +15,7 @@
 #include "Online/TitleFileOSSAdapter.h"
 #include "Online/UserFileOSSAdapter.h"
 #include "Online/UserInfoOSSAdapter.h"
+#include "Online/CommerceOSSAdapter.h"
 
 #include "OnlineSubsystem.h"
 
@@ -64,6 +65,10 @@ void FOnlineServicesOSSAdapter::RegisterComponents()
 	if (Subsystem->GetUserInterface().IsValid())
 	{
 		Components.Register<FUserInfoOSSAdapter>(*this);
+	}
+	if (Subsystem->GetPurchaseInterface().IsValid() && Subsystem->GetStoreV2Interface().IsValid())
+	{
+		Components.Register<FCommerceOSSAdapter>(*this);
 	}
 
 	FOnlineServicesCommon::RegisterComponents();

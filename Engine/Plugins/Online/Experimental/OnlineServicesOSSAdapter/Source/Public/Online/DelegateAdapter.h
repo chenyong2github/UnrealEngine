@@ -140,4 +140,10 @@ auto MakeDelegateAdapter(ComponentType* Interface, Callback&& InCallback)
 	return Private::TDAConverter<Callback>().Construct(Interface->AsShared(), MoveTemp(InCallback));
 }
 
+template<typename ComponentType, typename Callback>
+auto MakeDelegateAdapter(ComponentType& Interface, Callback&& InCallback)
+{
+	return Private::TDAConverter<Callback>().Construct(Interface.AsShared(), MoveTemp(InCallback));
+}
+
 /* UE::Online */ }
