@@ -530,7 +530,7 @@ FOptimusAnimAttributeRuntimeData::FOptimusAnimAttributeRuntimeData(
 
 	AttributeType = Registry.FindAttributeType(InDescription.DataType.TypeName);
 
-	if (ensure(InDescription.DefaultValue->GetValueType() == InDescription.DataType))
+	if (ensure(InDescription.DefaultValue) && ensure(InDescription.DefaultValue->GetValueType() == InDescription.DataType))
 	{
 		CachedDefaultValue = InDescription.DefaultValue->GetShaderValue();
 	}

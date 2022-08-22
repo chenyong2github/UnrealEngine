@@ -1361,6 +1361,11 @@ void FOptimusDataTypeRegistry::OnFilesLoaded()
 	for (const FAssetData& StructAsset : StructAssets)
 	{
 		UObject* Struct = StructAsset.GetAsset();
+		if (UObjectRedirector* RedirectedStruct = Cast<UObjectRedirector>(Struct))
+		{
+			Struct = RedirectedStruct->DestinationObject;
+		}
+		
 		UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Struct);
 		
 		if (ensure(ScriptStruct))
