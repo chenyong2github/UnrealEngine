@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Security.Cryptography;
+using EpicGames.Horde.Common;
 using EpicGames.Perforce;
 using Horde.Build.Acls;
 using Horde.Build.Server;
@@ -201,6 +202,11 @@ namespace Horde.Build.Server
 		/// Maximum number of simultaneous conforms on this server
 		/// </summary>
 		public int MaxConformCount { get; set; }
+
+		/// <summary>
+		/// Optional condition for a machine to be eligable to use this server
+		/// </summary>
+		public Condition? Condition { get; set; }
 
 		/// <summary>
 		/// List of properties for an agent to be eligable to use this server
