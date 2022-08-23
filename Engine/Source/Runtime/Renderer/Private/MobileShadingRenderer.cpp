@@ -438,7 +438,13 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager);
 	PostVisibilityFrameSetup(ILCTaskData);
 
-	const FIntPoint RenderTargetSize = (ViewFamily.RenderTarget->GetRenderTargetTexture().IsValid()) ? ViewFamily.RenderTarget->GetRenderTargetTexture()->GetSizeXY() : ViewFamily.RenderTarget->GetSizeXY();
+	FIntPoint RenderTargetSize = ViewFamily.RenderTarget->GetSizeXY();
+	EPixelFormat RenderTargetPixelFormat = PF_Unknown;
+	if (ViewFamily.RenderTarget->GetRenderTargetTexture().IsValid())
+	{
+		RenderTargetSize = ViewFamily.RenderTarget->GetRenderTargetTexture()->GetSizeXY();
+		RenderTargetPixelFormat = ViewFamily.RenderTarget->GetRenderTargetTexture()->GetFormat();
+	}
 	const bool bRequiresUpscale = ((int32)RenderTargetSize.X > FamilySize.X || (int32)RenderTargetSize.Y > FamilySize.Y);
 	// ES requires that the back buffer and depth match dimensions.
 	// For the most part this is not the case when using scene captures. Thus scene captures always render to scene color target.
@@ -452,6 +458,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 						|| Views[0].bIsReflectionCapture 
 						// If the resolve texture is not the same as the MSAA texture, we need to render to scene color and copy to back buffer.
 						|| (NumMSAASamples > 1 && !RHISupportsSeparateMSAAAndResolveTextures(ShaderPlatform))
+						|| (NumMSAASamples > 1 && (RenderTargetPixelFormat != PF_Unknown && RenderTargetPixelFormat != SceneTexturesConfig.ColorFormat))
 						|| bIsFullDepthPrepassEnabled;
 
 	const bool bSceneDepthCapture = (
@@ -531,7 +538,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	// Update the bKeepDepthContent based on the mobile renderer status.
 	SceneTexturesConfig.bKeepDepthContent = bKeepDepthContent;
 	// If we render in a single pass MSAA targets can be memoryless
-	SceneTexturesConfig.bMemorylessMSAA = !bRequiresMultiPass;
+	SceneTexturesConfig.bMemorylessMSAA = !(bRequiresMultiPass || bShouldCompositeEditorPrimitives);
 	
 	if (bDeferredShading) 
 	{
@@ -1189,6 +1196,12 @@ void FMobileSceneRenderer::RenderForwardSinglePass(FRDGBuilder& GraphBuilder, FM
 		// Pre-tonemap before MSAA resolve (iOS only)
 		PreTonemapMSAA(RHICmdList, SceneTextures);
 	});
+	
+	// resolve MSAA depth
+	if (!bIsFullDepthPrepassEnabled)
+	{
+		AddResolveSceneDepthPass(GraphBuilder, View, SceneTextures.Depth);
+	}
 }
 
 void FMobileSceneRenderer::RenderForwardMultiPass(FRDGBuilder& GraphBuilder, FMobileRenderPassParameters* PassParameters, FRenderTargetBindingSlots& BasePassRenderTargets, int32 ViewIndex, FViewInfo& View, FSceneTextures& SceneTextures)
@@ -1215,9 +1228,12 @@ void FMobileSceneRenderer::RenderForwardMultiPass(FRDGBuilder& GraphBuilder, FMo
 		PostRenderBasePass(RHICmdList, View);
 	});
 
-	// resolve MSAA depth for translucency
-	AddResolveSceneDepthPass(GraphBuilder, View, SceneTextures.Depth);
+	// resolve MSAA depth
 	AddResolveSceneColorPass(GraphBuilder, View, SceneTextures.DepthAux);
+	if (!bIsFullDepthPrepassEnabled)
+	{
+		AddResolveSceneDepthPass(GraphBuilder, View, SceneTextures.Depth);
+	}
 
 	FExclusiveDepthStencil::Type ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilRead;
 	if (bModulatedShadowsInUse)

@@ -5222,7 +5222,8 @@ void AddResolveSceneColorPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 	const uint32 NumSamples = SceneColor.Target->Desc.NumSamples;
 	const EShaderPlatform CurrentShaderPlatform = GetFeatureLevelShaderPlatform(View.FeatureLevel);
 
-	if (NumSamples == 1 || !SceneColor.IsSeparate())
+	if (NumSamples == 1 || !SceneColor.IsSeparate()
+		|| EnumHasAnyFlags(SceneColor.Target->Desc.Flags, TexCreate_Memoryless))
 	{
 		return;
 	}
@@ -5386,7 +5387,8 @@ void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 	const uint32 NumSamples = SceneDepth.Target->Desc.NumSamples;
 	const EShaderPlatform CurrentShaderPlatform = GetFeatureLevelShaderPlatform(View.FeatureLevel);
 
-	if (NumSamples == 1 || !SceneDepth.IsSeparate())
+	if (NumSamples == 1 || !SceneDepth.IsSeparate() 
+		|| EnumHasAnyFlags(SceneDepth.Target->Desc.Flags, TexCreate_Memoryless))
 	{
 		return;
 	}

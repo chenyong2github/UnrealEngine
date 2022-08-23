@@ -362,7 +362,7 @@ FD3D12Texture* FD3D12Viewport::CreateDummyBackBufferTextures(FD3D12Adapter* InAd
 		FRHITextureCreateDesc::Create2D(TEXT("BackBufferReference"))
 		.SetExtent(FIntPoint(InSizeX, InSizeY))
 		.SetFormat(InPixelFormat)
-		.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::Presentable)
+		.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::Presentable | ETextureCreateFlags::ResolveTargetable)
 		.SetInitialState(ERHIAccess::Present);
 
 	FD3D12Texture* Result = InAdapter->CreateLinkedObject<FD3D12Texture>(FRHIGPUMask::All(), [&](FD3D12Device* Device)

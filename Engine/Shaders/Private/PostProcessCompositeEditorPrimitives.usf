@@ -292,10 +292,6 @@ void MainCompositeEditorPrimitivesPS(
 	
 	float4 SceneColor = Texture2DSample(ColorTexture, ColorSampler, ColorUV);
 
-#if OUTPUT_SRGB_BUFFER
-	SceneColor.rgb = pow(SceneColor.rgb, 1.0f / 2.2f);
-#endif
-
 	// Resolve editor primitive scene color and depth.
 	float4 EditorPrimitiveColor;
 	float DepthMask;

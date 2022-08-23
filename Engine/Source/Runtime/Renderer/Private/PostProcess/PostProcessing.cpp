@@ -1790,7 +1790,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		MAX
 	};
 
-	const TCHAR* PassNames[] =
+	static const TCHAR* PassNames[] =
 	{
 		TEXT("Distortion"),
 		TEXT("SunMask"),
@@ -1832,7 +1832,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 	
 	const EAutoExposureMethod AutoExposureMethod = GetAutoExposureMethod(View);
 	const bool bUseEyeAdaptation = IsMobileEyeAdaptationEnabled(View);
-
+	const bool bIsPostProcessingEnabled = IsPostProcessingEnabled(View);
 	
 	//The input scene color has been encoded to non-linear space and needs to decode somewhere if MSAA enabled on Metal platform
 	bool bMetalMSAAHDRDecode = GSupportsShaderFramebufferFetch && IsMetalMobilePlatform(View.GetShaderPlatform()) && GetDefaultMSAACount(ERHIFeatureLevel::ES3_1) > 1;
@@ -1843,7 +1843,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 	bool bUseDof = GetMobileDepthOfFieldScale(View) > 0.0f && View.Family->EngineShowFlags.DepthOfField && !View.Family->EngineShowFlags.VisualizeDOF;
 	bool bUseMobileDof = bUseDof && !View.FinalPostProcessSettings.bMobileHQGaussian;
 
-	bool bUseToneMapper = !View.Family->EngineShowFlags.ShaderComplexity && IsMobileHDR();
+	bool bUseToneMapper = !View.Family->EngineShowFlags.ShaderComplexity && (IsMobileHDR() || IsMobileColorsRGB());
 
 	bool bUseHighResolutionScreenshotMask = IsHighResolutionScreenshotMaskEnabled(View);
 
@@ -1897,8 +1897,8 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 			bMetalMSAAHDRDecode = false;
 		}
 	};
-
-	if (IsPostProcessingEnabled(View))
+	
+	if (bIsPostProcessingEnabled)
 	{
 		bool bUseSun = View.MobileLightShaft.IsSet();
 			
@@ -2302,11 +2302,11 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 			BloomOutput = BlackAlphaOneDummy;
 		}
 
-		bool bDoGammaOnly = false;
+		bool bDoGammaOnly = !IsMobileHDR();
 
 		FRDGTextureRef ColorGradingTexture = nullptr;
 
-		if (IStereoRendering::IsAPrimaryView(View))
+		if (IStereoRendering::IsAPrimaryView(View) && !bDoGammaOnly)
 		{
 			ColorGradingTexture = AddCombineLUTPass(GraphBuilder, View);
 		}
