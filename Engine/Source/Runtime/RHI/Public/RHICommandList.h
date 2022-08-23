@@ -661,6 +661,11 @@ public:
 #endif
 	}
 
+	void FinishRecording()
+	{
+		FenceCandidate->Fence = RHIThreadBufferLockFence;
+	}
+
 private:
 	FRHICommandBase* Root;
 	FRHICommandBase** CommandLink;
@@ -675,6 +680,15 @@ private:
 	FMemStackBase MemManager; 
 	FGraphEventArray RTTasks;
 	FGraphEventRef RHIThreadBufferLockFence;
+
+	struct FFenceCandidate : public TConcurrentLinearObject<FFenceCandidate>, public FRefCountBase
+	{
+		FGraphEventRef Fence;
+	};
+
+	TRefCountPtr<FFenceCandidate> FenceCandidate;
+	FGraphEventArray QueuedFenceCandidateEvents;
+	TArray<TRefCountPtr<FFenceCandidate>, FConcurrentLinearArrayAllocator> QueuedFenceCandidates;
 
 	friend class FRHICommandListExecutor;
 	friend class FRHICommandListIterator;

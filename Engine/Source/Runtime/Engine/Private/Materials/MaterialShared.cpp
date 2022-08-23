@@ -3679,6 +3679,8 @@ public:
 				RHICmdList->UpdateUniformBuffer(Item.UniformBuffer, TempBuffer);
 			}
 
+			RHICmdList->FinishRecording();
+
 		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask);
 
 		RHICmdListImmediate.QueueRenderThreadCommandListSubmit(Event, RHICmdList);

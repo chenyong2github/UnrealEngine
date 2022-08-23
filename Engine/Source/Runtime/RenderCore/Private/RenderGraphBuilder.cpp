@@ -2375,6 +2375,7 @@ void FRDGBuilder::DispatchParallelExecute(IRHICommandContext* RHICmdContext)
 			}
 
 			RHICmdListPass.HandleRTThreadTaskCompletion(MyCompletionGraphEvent);
+			RHICmdListPass.FinishRecording();
 
 		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask);
 
