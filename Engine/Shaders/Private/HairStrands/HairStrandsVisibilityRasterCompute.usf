@@ -29,7 +29,7 @@ float2	OutputResolutionf;
 
 ///////////////////////////////////////////////////////////////////////////
 
-#if SHADER_RASTERCOMPUTE_BINNING || SHADER_RASTERCOMPUTE_RASTER || SHADER_RASTERCOMPUTE_DEPTH_GRID
+#if SHADER_RASTERCOMPUTE_BINNING || SHADER_RASTERCOMPUTE_COMPACTION || SHADER_RASTERCOMPUTE_RASTER || SHADER_RASTERCOMPUTE_DEPTH_GRID
 
 ///////////////////////////////////////////////////////////////////////////
 // 
@@ -582,6 +582,151 @@ void BinningCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID :
 	}
 }
 #endif //SHADER_RASTERCOMPUTE_BINNING
+
+///////////////////////////////////////////////////////////////////////////
+
+#if SHADER_RASTERCOMPUTE_COMPACTION
+
+ByteAddressBuffer					VisTileData;
+Buffer<uint> 						VisTilePrims;
+Buffer<uint> 						VisTileArgs;
+RWByteAddressBuffer					OutCompactedVisTileData;
+RWBuffer<uint> 						OutCompactedVisTilePrims;
+RWBuffer<uint> 						OutCompactedVisTileArgs;
+
+uint LoadVisTileData(uint index, uint offset)
+{
+	return VisTileData.Load((((index)) * VT_SIZE * 4) + ((offset) * 4));
+}
+
+void StoreCompactedVisTileData(uint index, uint offset, uint value)
+{
+	OutCompactedVisTileData.Store((((index)) * VT_SIZE * 4) + ((offset) * 4), (value));
+}
+
+groupshared uint group_TotalPrimCount;
+groupshared uint group_PrimWriteOffset;
+groupshared uint group_NumTiles;
+groupshared uint group_TilesToCompact[1024];
+
+[numthreads(1024, 1, 1)]
+void CompactionCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : SV_GroupThreadID, uint2 GroupID : SV_GroupID)
+{
+	if (GroupThreadID == 0)
+	{
+		group_TotalPrimCount = 0;
+		group_NumTiles = 0;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	const uint NumTiles = VisTileArgs[0];
+	const uint PackedCoord = PackVisTileCoord(GroupID);
+
+	// Compute total number of primitives at this tile coordinate
+	uint LocalPrimCount = 0;
+	{
+		for (uint TileIdx = GroupThreadID; TileIdx < NumTiles; TileIdx += 1024)
+		{
+			const uint TilePackedCoord = LoadVisTileData(TileIdx, VT_Coord);
+			if (PackedCoord == TilePackedCoord)
+			{
+				LocalPrimCount += LoadVisTileData(TileIdx, VT_PrimCount);
+				
+				uint WritePos;
+				InterlockedAdd(group_NumTiles, 1, WritePos);
+				if (WritePos < 1024)
+				{
+					group_TilesToCompact[WritePos] = TileIdx;
+				}
+			}
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (LocalPrimCount > 0)
+	{
+		InterlockedAdd(group_TotalPrimCount, LocalPrimCount);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	const uint TotalPrimCount = group_TotalPrimCount;
+
+	if (TotalPrimCount == 0)
+	{
+		return;
+	}
+
+	// Allocate space
+	if (GroupThreadID == 0)
+	{
+		const uint NumTilesToAllocate = (TotalPrimCount + 1023) / 1024;
+
+		uint FirstCompactedTile;
+		InterlockedAdd(OutCompactedVisTileArgs[0], NumTilesToAllocate, FirstCompactedTile);
+
+		group_PrimWriteOffset = FirstCompactedTile * 1024;
+
+		// Initialize new tiles
+		for (uint TileIdx = 0; TileIdx < NumTilesToAllocate; ++TileIdx)
+		{
+			const uint CompactedTile = FirstCompactedTile + TileIdx;
+
+			const uint PrimCount = ((TileIdx * 1024) < TotalPrimCount) ? 1024 : (TotalPrimCount - (TileIdx * 1024));
+			StoreCompactedVisTileData(CompactedTile, VT_PrimCount, PrimCount);
+			StoreCompactedVisTileData(CompactedTile, VT_Coord, PackedCoord);
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	// Copy PrimIDs to compacted memory
+	{
+		uint CurrentWriteOffset = group_PrimWriteOffset;
+
+		// First process the LDS list of tiles
+		const uint NumInputTiles = min(group_NumTiles, 1024);
+		for (uint LDSIdx = 0; LDSIdx < NumInputTiles; ++LDSIdx)
+		{
+			const uint TileIdx = group_TilesToCompact[LDSIdx];
+
+			const uint TilePrimOffset = TileIdx * 1024;
+			const uint TilePrimCount = LoadVisTileData(TileIdx, VT_PrimCount);
+
+			if (GroupThreadID < TilePrimCount)
+			{
+				OutCompactedVisTilePrims[CurrentWriteOffset + GroupThreadID] = VisTilePrims[TilePrimOffset + GroupThreadID];
+			}
+
+			CurrentWriteOffset += TilePrimCount;
+		}
+
+		// Check any remaning tiles
+		if (group_NumTiles > 1024)
+		{
+			for (uint TileIdx = group_TilesToCompact[1023] + 1; TileIdx < NumTiles; ++TileIdx)
+			{
+				const uint TilePackedCoord = LoadVisTileData(TileIdx, VT_Coord);
+				if (PackedCoord == TilePackedCoord)
+				{
+					const uint TilePrimOffset = TileIdx * 1024;
+					const uint TilePrimCount = LoadVisTileData(TileIdx, VT_PrimCount);
+
+					if (GroupThreadID < TilePrimCount)
+					{
+						OutCompactedVisTilePrims[CurrentWriteOffset + GroupThreadID] = VisTilePrims[TilePrimOffset + GroupThreadID];
+					}
+
+					CurrentWriteOffset += TilePrimCount;
+				}
+			}
+		}
+	}
+}
+
+#endif // SHADER_RASTERCOMPUTE_COMPACTION
 
 ///////////////////////////////////////////////////////////////////////////
 

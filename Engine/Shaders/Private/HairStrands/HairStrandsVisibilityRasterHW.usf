@@ -1,0 +1,119 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#define HAIR_STRANDS_PARAMETERS 1
+
+#include "../Common.ush"
+#include "HairStrandsVisibilityCommon.ush"
+#include "HairStrandsVertexFactoryCommon.ush"
+
+#if SHADER_RASTER_HW_VS
+
+Buffer<uint> 	HWRasterPrimIDs;
+float3			ViewDir;
+uint			HairMaterialId;
+float3			CameraOrigin;
+float			RadiusAtDepth1;
+uint			ControlPointStart;
+uint			bIsOrthoView;
+
+
+struct VSInput
+{
+	uint VertexID : SV_VertexID;
+	uint InstanceID : SV_InstanceID;
+};
+
+struct VSOutput
+{
+	float4 Position : SV_Position;
+	float Radius : RADIUS;
+	nointerpolation uint PrimMatID : PRIM_MAT_ID;
+};
+
+VSOutput VSMain(VSInput Input)
+{
+	const uint PrimID = ControlPointStart + Input.InstanceID;// HWRasterPrimIDs[Input.InstanceID];
+
+	const float3 PositionOffset = HairStrandsVF_PositionOffsetBuffer[0].xyz;
+
+	// Fetch both control points
+	const FHairControlPoint CP0 = UnpackHairControlPoint(
+		HairStrandsVF_PositionBuffer[PrimID],
+		PositionOffset,
+		HairStrandsVF_Radius,
+		HairStrandsVF_RootScale,
+		HairStrandsVF_TipScale);
+
+	// Kill quad
+	if (CP0.Type == HAIR_CONTROLPOINT_END)
+	{
+		VSOutput Output = (VSOutput)0;
+		Output.Position = 0.0f / 0.0f;
+		return Output;
+	}
+
+	const FHairControlPoint CP1 = UnpackHairControlPoint(
+		HairStrandsVF_PositionBuffer[PrimID + 1],
+		PositionOffset,
+		HairStrandsVF_Radius,
+		HairStrandsVF_RootScale,
+		HairStrandsVF_TipScale);
+
+	// Transform to world space
+	const float3 CP0WP = mul(float4(CP0.Position, 1.0f), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
+	const float3 CP1WP = mul(float4(CP1.Position, 1.0f), HairStrandsVF_LocalToWorldPrimitiveTransform).xyz;
+	
+	const float3 CPWP = Input.VertexID < 2 ? CP0WP : CP1WP;
+	const float CPWorldRadius = Input.VertexID < 2 ? CP0.WorldRadius : CP1.WorldRadius;
+
+	// Minimal radius to snap the strand to a sample/pixel center (to avoid aliasing)
+	const float DistanceToCamera = length(CameraOrigin - CPWP);
+	const float MinStrandHairRadius = bIsOrthoView ? RadiusAtDepth1 : DistanceToCamera * RadiusAtDepth1;
+
+	const float3 Tangent = normalize(CP1WP - CP0WP);
+	const float3 Right = normalize(cross(Tangent, ViewDir));
+	
+	const float3 WP = CPWP
+		+ (Input.VertexID == 1 || Input.VertexID == 3 ? Right : -Right)
+		* max(CPWorldRadius, MinStrandHairRadius);
+
+	VSOutput Output = (VSOutput)0;
+	
+	Output.Position = mul(float4(WP, 1.0f), LWCHackToFloat(PrimaryView.WorldToClip));
+	Output.Radius = CPWorldRadius * 2000.0f;
+	Output.PrimMatID = PackHairVisPrimitiveMaterialId(PrimID, HairMaterialId);
+
+	return Output;
+}
+
+#endif // SHADER_RASTER_HW_VS
+
+#if SHADER_RASTER_HW_PS
+
+RWTexture2D<uint>	OutHairCountTexture;
+RWTexture2D<uint>	OutDepthCovTexture;
+RWTexture2D<uint>	OutPrimMatTexture;
+float				SampleWeight;
+
+[earlydepthstencil]
+void PSMain(
+	float4 Position : SV_Position,
+	float Radius : RADIUS,
+	nointerpolation uint PrimMatID : PRIM_MAT_ID
+)
+{
+	const uint2 Coord = Position.xy;
+	const uint PackedDepthCov = PackHairVisDepthCoverage(Position.z, 1.0f);
+
+	InterlockedAdd(OutHairCountTexture[Coord], min(Radius / Position.w, 0.5f) * 2.0f * 1000.0f * SampleWeight);
+
+	// Write Depth + PrimMatID if depth test against hair depths is passed
+	uint OldValue;
+	InterlockedMax(OutDepthCovTexture[Coord], PackedDepthCov, OldValue);
+	if (PackedDepthCov > OldValue)
+	{
+		OutPrimMatTexture[Coord] = PrimMatID;
+	}
+}
+
+#endif // SHADER_RASTER_HW_PS
