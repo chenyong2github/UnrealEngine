@@ -79,6 +79,7 @@ ACharacter::ACharacter(const FObjectInitializer& ObjectInitializer)
 		ArrowComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_Characters;
 		ArrowComponent->SetupAttachment(CapsuleComponent);
 		ArrowComponent->bIsScreenSizeScaled = true;
+		ArrowComponent->SetSimulatePhysics(false);
 	}
 #endif // WITH_EDITORONLY_DATA
 
@@ -142,6 +143,18 @@ void ACharacter::PostInitializeComponents()
 			}
 		}
 	}
+}
+
+void ACharacter::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+	if (ArrowComponent)
+	{
+		ArrowComponent->SetSimulatePhysics(false);
+	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 void ACharacter::BeginPlay()

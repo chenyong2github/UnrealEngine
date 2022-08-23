@@ -584,6 +584,10 @@ public:
 	/** Incremented every time there is an Actor overlap event (start or stop) on this actor. */
 	uint32 NumActorOverlapEventsCounter;
 
+	//~ Begin UObject Interface.
+	virtual void PostLoad() override;
+	//~ End UObject Interface
+
 	//~ Begin AActor Interface.
 	virtual void BeginPlay() override;
 	virtual void ClearCrossLevelReferences() override;
