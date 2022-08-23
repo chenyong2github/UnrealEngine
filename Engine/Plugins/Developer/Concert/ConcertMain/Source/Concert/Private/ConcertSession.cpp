@@ -118,7 +118,7 @@ void FConcertSessionCommonImpl::CommonHandleCustomEvent(const FConcertMessageCon
 		TArray<TSharedPtr<IConcertSessionCustomEventHandler>>* HandlerArrayPtr = CustomEventHandlers.Find(RawPayload.GetStruct()->GetFName());
 		if (HandlerArrayPtr)
 		{
-			FConcertSessionContext SessionContext{ Message->SourceEndpointId, Message->GetMessageFlags(), SenderScratchpad };
+			FConcertSessionContext SessionContext{ Message->SourceEndpointId, Message->MessageId, Message->GetMessageFlags(), SenderScratchpad };
 			for (const TSharedPtr<IConcertSessionCustomEventHandler>& Handler : *HandlerArrayPtr)
 			{
 				Handler->HandleEvent(SessionContext, RawPayload.GetStructMemory());
@@ -161,7 +161,7 @@ TFuture<FConcertSession_CustomResponse> FConcertSessionCommonImpl::CommonHandleC
 		if (Handler.IsValid())
 		{
 			FStructOnScope ResponsePayload(Handler->GetResponseType());
-			FConcertSessionContext SessionContext{ Message->SourceEndpointId, Message->GetMessageFlags(), SenderScratchpad };
+			FConcertSessionContext SessionContext{ Message->SourceEndpointId, Message->MessageId, Message->GetMessageFlags(), SenderScratchpad };
 			ResponseData.SetResponseCode(Handler->HandleRequest(SessionContext, RawPayload.GetStructMemory(), ResponsePayload.GetStructMemory()));
 			if (ResponseData.ResponseCode == EConcertResponseCode::Success || ResponseData.ResponseCode == EConcertResponseCode::Failed)
 			{

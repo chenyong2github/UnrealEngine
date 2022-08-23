@@ -334,6 +334,14 @@ struct FConcertSessionSerializedPayload
 	CONCERT_API bool GetPayload(FStructOnScope& OutPayload) const;
 	CONCERT_API bool GetPayload(const UScriptStruct* InPayloadType, void* InOutPayloadData) const;
 
+	CONCERT_API bool IsTypeChildOf(const UScriptStruct* InPayloadType) const;
+	
+	template<typename T>
+	bool IsTypeChildOf() const
+	{
+		return IsTypeChildOf(TBaseStructure<T>::Get());
+	}
+
 	template <typename T>
 	bool GetTypedPayload(T& OutPayloadData) const
 	{

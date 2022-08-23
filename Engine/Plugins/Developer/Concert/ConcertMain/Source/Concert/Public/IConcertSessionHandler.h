@@ -13,6 +13,7 @@
 struct FConcertSessionContext
 {
 	FGuid SourceEndpointId;
+	FGuid MessageId;
 	EConcertMessageFlags MessageFlags;
 	FConcertScratchpadPtr SenderScratchpad;
 };

@@ -94,6 +94,11 @@ FOnConcertServerSessionClientChanged& FConcertServerSession::OnSessionClientChan
 	return OnSessionClientChangedDelegate;
 }
 
+FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint& FConcertServerSession::OnConcertMessageAcknowledgementReceived()
+{
+	return ServerSessionEndpoint->OnConcertMessageAcknowledgementReceived();
+}
+
 FString FConcertServerSession::GetSessionWorkingDirectory() const 
 {
 	return SessionDirectory;

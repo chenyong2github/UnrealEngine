@@ -98,6 +98,7 @@ public:
 	 * Get the scratchpad associated with the given client ID.
 	 */
 	virtual FConcertScratchpadPtr GetClientScratchpad(const FGuid& ClientEndpointId) const = 0;
+	
 
 	/**
 	 * Register a custom event handler for this session
@@ -255,6 +256,9 @@ public:
 
 	/** Callback when a session client state changes */
 	virtual FOnConcertServerSessionClientChanged& OnSessionClientChanged() = 0;
+	
+	/** Callback when a session message is acknowledged */
+	virtual FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint& OnConcertMessageAcknowledgementReceived() = 0;
 };
 
 /** Interface for Concert client sessions */

@@ -103,6 +103,7 @@ public:
 	// IConcertServerSession Begin
 	virtual FOnConcertServerSessionTick& OnTick() override                          { return NotMocked<FOnConcertServerSessionTick&>(Tick); }
 	virtual FOnConcertServerSessionClientChanged& OnSessionClientChanged() override { return NotMocked<FOnConcertServerSessionClientChanged&>(ConnectionChanged); }
+	virtual FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint& OnConcertMessageAcknowledgementReceived() override { return NotMocked<FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint&>(AckReceived); }
 	// IConcertServerSession End
 
 protected:
@@ -113,6 +114,7 @@ protected:
 	FConcertSessionInfo SessionInfo;
 	FOnConcertServerSessionTick Tick;
 	FOnConcertServerSessionClientChanged ConnectionChanged;
+	FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint AckReceived;
 };
 
 /** Implements a not-working IConcertClientSession. It must be further overridden to implement just what is required by the tests */

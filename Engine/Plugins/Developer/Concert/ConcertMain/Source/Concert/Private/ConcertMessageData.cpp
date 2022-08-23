@@ -335,12 +335,13 @@ bool FConcertSessionSerializedPayload::GetPayload(FStructOnScope& OutPayload) co
 bool FConcertSessionSerializedPayload::GetPayload(const UScriptStruct* InPayloadType, void* InOutPayloadData) const
 {
 	check(InPayloadType && InOutPayloadData);
+	return IsTypeChildOf(InPayloadType)
+		&& PayloadDetail::DeserializePreChecks((UScriptStruct*)InPayloadType, InOutPayloadData, *this)
+		&& PayloadDetail::DeserializeAndDecompress((UScriptStruct*)InPayloadType, InOutPayloadData, *this);
+}
+
+bool FConcertSessionSerializedPayload::IsTypeChildOf(const UScriptStruct* InPayloadType) const
+{
 	const UStruct* PayloadType = FindObject<UStruct>(nullptr, *PayloadTypeName.ToString());
-	if (PayloadType)
-	{
-		check(InPayloadType->IsChildOf(PayloadType));
-		return PayloadDetail::DeserializePreChecks((UScriptStruct*)InPayloadType, InOutPayloadData, *this)
-			&& PayloadDetail::DeserializeAndDecompress((UScriptStruct*)InPayloadType, InOutPayloadData, *this);
-	}
-	return false;
+	return PayloadType && InPayloadType->IsChildOf(PayloadType);
 }

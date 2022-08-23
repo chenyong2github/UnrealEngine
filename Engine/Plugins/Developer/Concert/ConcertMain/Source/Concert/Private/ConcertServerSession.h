@@ -81,6 +81,7 @@ public:
 
 	virtual FOnConcertServerSessionTick& OnTick() override;
 	virtual FOnConcertServerSessionClientChanged& OnSessionClientChanged() override;
+	virtual FOnConcertMessageAcknowledgementReceivedFromLocalEndpoint& OnConcertMessageAcknowledgementReceived() override;
 	virtual FString GetSessionWorkingDirectory() const override;
 
 protected:

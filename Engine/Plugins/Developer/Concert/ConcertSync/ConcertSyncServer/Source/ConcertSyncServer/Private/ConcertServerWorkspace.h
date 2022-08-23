@@ -6,11 +6,16 @@
 #include "IConcertSessionHandler.h"
 #include "ConcertWorkspaceMessages.h"
 #include "Misc/Optional.h"
-class IConcertServerSession;
+
 class IConcertFileSharingService;
+class IConcertMessage;
+class IConcertServerSession;
 class FConcertSyncServerLiveSession;
 class FConcertServerSyncCommandQueue;
 class FConcertServerDataStore;
+
+struct FConcertMessageContext;
+struct FConcertEndpointContext;
 struct FConcertTransactionSnapshotEvent;
 struct FConcertTransactionFinalizedEvent;
 
@@ -30,6 +35,10 @@ public:
 	~FConcertServerWorkspace();
 
 private:
+	
+	/** Creates an ID from the given data through an simple hash function. The ID only depends on the input, allowing us to reconstruct IDs later in time. */
+	static FGuid HashEndpointIdAndActivityId(const FGuid& TargetEndpointId, FActivityID ActivityID);
+	
 	/**
 	 * Get the sync event for a transaction activity in the session database.
 	 *
@@ -62,8 +71,14 @@ private:
 	void HandleSessionClientChanged(IConcertServerSession& InSession, EConcertClientStatus InClientStatus, const FConcertSessionClientInfo& InClientInfo);
 
 	/** */
+	void HandleSessionAcknowledgementReceived(const FConcertEndpointContext& LocalEndpoint, const FConcertEndpointContext& RemoteEndpoint, const TSharedRef<IConcertMessage>& AckedMessage, const FConcertMessageContext& MessageContext) const;
+
+	/** */
 	void HandleSyncRequestedEvent(const FConcertSessionContext& Context, const FConcertWorkspaceSyncRequestedEvent& Event);
 
+	/** */
+	void HandlePackageTransmissionStartEvent(const FConcertSessionContext& Context, const FConcertPackageTransmissionStartEvent& Event);
+	
 	/** */
 	void HandlePackageUpdateEvent(const FConcertSessionContext& Context, const FConcertPackageUpdateEvent& Event);
 

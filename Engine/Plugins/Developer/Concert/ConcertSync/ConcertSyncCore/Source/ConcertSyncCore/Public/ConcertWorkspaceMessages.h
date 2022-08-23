@@ -108,11 +108,31 @@ struct FConcertServerLogging
 	bool bLoggingEnabled = false;
 };
 
+/** Sent to let the receiver know something is coming. For now only sent from client to server. */
+USTRUCT()
+struct FConcertPackageTransmissionStartEvent
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FGuid TransmissionId;
+	
+	UPROPERTY()
+	FConcertPackageInfo PackageInfo;
+
+	UPROPERTY()
+	uint64 PackageNumBytes;
+};
+
+
 USTRUCT()
 struct FConcertPackageUpdateEvent
 {
 	GENERATED_BODY()
 
+	UPROPERTY()
+	FGuid TransmissionId;
+	
 	UPROPERTY()
 	FConcertPackage Package;
 };

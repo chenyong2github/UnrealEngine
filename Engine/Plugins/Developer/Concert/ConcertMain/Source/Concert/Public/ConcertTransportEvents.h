@@ -82,7 +82,9 @@ namespace ConcertTransportEvents
 	CONCERT_API void SetLoggingEnabled(bool bEnabled);
 
 	CONCERT_API FConcertTransportLoggingEnabledChanged& OnConcertTransportLoggingEnabledChangedEvent();
+	/** Use this when your local instance is a client. All client-generated logs are emitted by this event. */
 	CONCERT_API FConcertClientLogEvent& OnConcertClientLogEvent();
+	/** Use this when your local instance is a server. All server-generated logs are emitted by this event. */
 	CONCERT_API FConcertServerLogEvent& OnConcertServerLogEvent();
 }
 
