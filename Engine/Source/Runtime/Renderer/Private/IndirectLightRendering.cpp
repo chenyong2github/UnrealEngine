@@ -789,7 +789,8 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 	using namespace HybridIndirectLighting;
 
 	extern int32 GLumenVisualizeIndirectDiffuse;
-	if ((GLumenVisualizeIndirectDiffuse != 0) != bIsVisualizePass)
+	if ((GLumenVisualizeIndirectDiffuse != 0) != bIsVisualizePass
+		|| ViewFamily.EngineShowFlags.VisualizeLightCulling)
 	{
 		return;
 	}
