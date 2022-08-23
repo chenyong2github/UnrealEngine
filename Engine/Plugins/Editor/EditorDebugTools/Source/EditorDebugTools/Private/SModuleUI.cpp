@@ -13,6 +13,14 @@
 #include "Widgets/Views/SListView.h"
 #include "Misc/HotReloadInterface.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "ISourceCodeAccessModule.h"
+#include "ISourceCodeAccessor.h"
+
+static bool CanAccessSourceCode()
+{
+	ISourceCodeAccessModule* SourceCodeAccessModule = FModuleManager::GetModulePtr<ISourceCodeAccessModule>("SourceCodeAccess");
+	return SourceCodeAccessModule != nullptr && SourceCodeAccessModule->GetAccessor().CanAccessSourceCode();
+}
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SModuleUI::Construct(const SModuleUI::FArguments& InArgs)
@@ -324,6 +332,11 @@ EVisibility SModuleUI::FModuleListItem::GetVisibilityBasedOnReloadableState() co
 EVisibility SModuleUI::FModuleListItem::GetVisibilityBasedOnRecompilableState() const
 {
 	if ( GIsSavingPackage || IsGarbageCollecting() )
+	{
+		return EVisibility::Hidden;
+	}
+
+	if (!CanAccessSourceCode())
 	{
 		return EVisibility::Hidden;
 	}

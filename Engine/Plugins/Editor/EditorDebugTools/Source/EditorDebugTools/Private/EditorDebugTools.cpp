@@ -8,8 +8,6 @@
 #include "Widgets/Text/STextBlock.h"
 #include "ToolMenus.h"
 #include "SDebugPanel.h"
-#include "ISourceCodeAccessModule.h"
-#include "ISourceCodeAccessor.h"
 #include "GammaUIPanel.h"
 #include "SModuleUI.h"
 #include "WorkspaceMenuStructureModule.h"
@@ -17,12 +15,6 @@
 
 static const FName EditorDebugToolsTabName("DebugTools");
 static const FName ModulesTabName("Modules");
-
-static bool CanShowModulesTab()
-{
-	ISourceCodeAccessModule* SourceCodeAccessModule = FModuleManager::GetModulePtr<ISourceCodeAccessModule>("SourceCodeAccess");
-	return SourceCodeAccessModule != nullptr && SourceCodeAccessModule->GetAccessor().CanAccessSourceCode();
-}
 
 #define LOCTEXT_NAMESPACE "FEditorDebugToolsModule"
 
@@ -71,14 +63,11 @@ void FEditorDebugToolsModule::StartupModule()
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"))
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory());
 
-	if (CanShowModulesTab())
-	{
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ModulesTabName, FOnSpawnTab::CreateStatic(&CreateModulesTab))
-			.SetDisplayName(NSLOCTEXT("Toolbox", "Modules", "Modules"))
-			.SetTooltipText(NSLOCTEXT("Toolbox", "ModulesTooltipText", "Open the Modules tab."))
-			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Modules"))
-			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory());
-	}
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ModulesTabName, FOnSpawnTab::CreateStatic(&CreateModulesTab))
+		.SetDisplayName(NSLOCTEXT("Toolbox", "Modules", "Modules"))
+		.SetTooltipText(NSLOCTEXT("Toolbox", "ModulesTooltipText", "Open the Modules tab."))
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Modules"))
+		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory());
 }
 
 void FEditorDebugToolsModule::ShutdownModule()
@@ -87,10 +76,7 @@ void FEditorDebugToolsModule::ShutdownModule()
 
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(EditorDebugToolsTabName);
 
-	if (CanShowModulesTab())
-	{
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ModulesTabName);
-	}
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ModulesTabName);
 }
 
 
