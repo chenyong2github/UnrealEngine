@@ -20,9 +20,9 @@ public class UnrealPakTarget : TargetRules
 		// Editor-only data, however, is needed
 		bBuildWithEditorOnlyData = true;
 
-		// Currently this app is not linking against the engine, so we'll compile out references from Core to the rest of the engine
+		// Currently this app uses AssetRegistry and CoreUObject, but not Engine
 		bCompileAgainstEngine = false;
-		bCompileAgainstCoreUObject = false;
+		bCompileAgainstCoreUObject = true;
 
 		// ICU is not needed
 		bCompileICU = false;
