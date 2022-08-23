@@ -529,6 +529,18 @@ uint64 FGameplayProvider::FindPossessingController(uint64 PawnId, double Time) c
 	return ControllerId;
 }
 
+TRange<double> FGameplayProvider::GetObjectTraceLifetime(uint64 ObjectId) const
+{
+	if (const uint64* FoundIndex = ActiveObjectLifetimes.Find(ObjectId))
+	{
+		return TRange<double>(ObjectLifetimes.GetEventStartTime(*FoundIndex), ObjectLifetimes.GetEventEndTime(*FoundIndex));
+	}
+	else
+	{
+		return TRange<double>(0, 0);
+	}
+}
+
 TRange<double> FGameplayProvider::GetObjectRecordingLifetime(uint64 ObjectId) const
 {
 	if (const uint64 *FoundIndex = ActiveObjectRecordingLifetimes.Find(ObjectId))

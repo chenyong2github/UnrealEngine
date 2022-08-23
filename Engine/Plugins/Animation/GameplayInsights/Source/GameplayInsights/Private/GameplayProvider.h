@@ -90,7 +90,11 @@ public:
 	/** Search PawnPossession timeline to find the Controller Object Id for a Pawn (or 0 if none)*/
 	virtual uint64 FindPossessingController(uint64 Pawn, double Time) const override;
 	
-	/** find the time range for which an object existed */
+
+	/** find the Trace time range for which an object existed */
+	virtual TRange<double> GetObjectTraceLifetime(uint64 ObjectId) const override;
+
+	/** find the Recording time range for which an object existed */
 	virtual TRange<double> GetObjectRecordingLifetime(uint64 ObjectId) const override;
 
 private:

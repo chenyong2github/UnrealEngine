@@ -174,12 +174,12 @@ bool FRewindDebuggerObjectTrack::UpdateInternal()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRewindDebuggerObjectTrack::UpdateInternal_AddChildComponents);
 
-		TRange<double> ViewRange = RewindDebugger->GetCurrentViewRange();
+		TRange<double> TraceRange = RewindDebugger->GetCurrentTraceRange();
 
-		GameplayProvider->EnumerateSubobjects(ObjectId, [this, &FoundObjects, &bChanged,&ViewRange, GameplayProvider](uint64 SubobjectId)
+		GameplayProvider->EnumerateSubobjects(ObjectId, [this, &FoundObjects, &bChanged,&TraceRange, GameplayProvider](uint64 SubobjectId)
 			{
 				TRange<double> Lifetime = GameplayProvider->GetObjectRecordingLifetime(SubobjectId);
-				TRange<double> Overlap = TRange<double>::Intersection(Lifetime, ViewRange);
+				TRange<double> Overlap = TRange<double>::Intersection(Lifetime, TraceRange);
 				// only display the track if the lifetime of the object and the view range overlap
 				if (!Overlap.IsEmpty())
 				{
