@@ -522,6 +522,39 @@ bool FRigVMRegistry::IsExecuteType(TRigVMTypeIndex InTypeIndex) const
 	return false;
 }
 
+bool FRigVMRegistry::ConvertExecuteContextToBaseType(TRigVMTypeIndex& InOutTypeIndex) const
+{
+	if(InOutTypeIndex == INDEX_NONE)
+	{
+		return false;
+	}
+		
+	if(InOutTypeIndex == RigVMTypeUtils::TypeIndex::Execute) 
+	{
+		return true;
+	}
+
+	if(!IsExecuteType(InOutTypeIndex))
+	{
+		return false;
+	}
+
+	// execute arguments can have various execute context types. but we always
+	// convert them to the base execute type to make matching types easier later.
+	// this means that the execute argument in every permutations shares 
+	// the same type index of RigVMTypeUtils::TypeIndex::Execute
+	if(IsArrayType(InOutTypeIndex))
+	{
+		InOutTypeIndex = GetArrayTypeFromBaseTypeIndex(RigVMTypeUtils::TypeIndex::Execute);
+	}
+	else
+	{
+		InOutTypeIndex = RigVMTypeUtils::TypeIndex::Execute;
+	}
+
+	return true;
+}
+
 int32 FRigVMRegistry::GetArrayDimensionsForType(TRigVMTypeIndex InTypeIndex) const
 {
 	if(ensure(Types.IsValidIndex(InTypeIndex)))

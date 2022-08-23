@@ -59,6 +59,7 @@ protected:
 
 	friend class URigVMTemplateNode;
 	friend class URigVMController;
+	friend class UControlRigBlueprint;
 };
 
 /**

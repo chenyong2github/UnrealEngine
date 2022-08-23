@@ -1452,9 +1452,32 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 					TemplateNode->InvalidateCache();
 					TemplateNode->PostLoad();
 
+					// Fix preferred type of execute context which are not the base class
+					{
+						const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+						for (FRigVMTemplatePreferredType& PreferredType : TemplateNode->PreferredPermutationPairs)
+						{
+							if (!Registry.IsExecuteType(PreferredType.TypeIndex))
+							{
+								continue;
+							}
+							
+							if (URigVMPin* Pin = TemplateNode->FindPin(PreferredType.GetArgument().ToString()))
+							{
+								if (Pin->GetTypeIndex() == PreferredType.GetTypeIndex())
+								{
+									continue;
+								}
+
+								bDirtyDuringLoad = true;
+								Registry.ConvertExecuteContextToBaseType(PreferredType.TypeIndex);								
+							}
+						}
+					}
+
 					// Remove preferred types that do not match the pin type
 					{
-						TemplateNode->PreferredPermutationPairs.RemoveAll([TemplateNode](const FRigVMTemplatePreferredType& PreferredType)
+						int32 NumRemoved = TemplateNode->PreferredPermutationPairs.RemoveAll([TemplateNode](const FRigVMTemplatePreferredType& PreferredType)
 						{
 							if (URigVMPin* Pin = TemplateNode->FindPin(PreferredType.GetArgument().ToString()))
 							{
@@ -1464,7 +1487,12 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 								}
 							}
 							return true;
-						});						
+						});
+
+						if (NumRemoved > 0)
+						{
+							bDirtyDuringLoad = true;
+						}
 					}
 
 					if(!TemplateNode->HasWildCardPin() &&

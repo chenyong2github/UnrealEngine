@@ -154,6 +154,9 @@ public:
 	// Returns true if the type is an execute type
 	bool IsExecuteType(TRigVMTypeIndex InTypeIndex) const;
 
+	// Converts the given execute context type to the base execute context type
+	bool ConvertExecuteContextToBaseType(TRigVMTypeIndex& InOutTypeIndex) const;
+
 	// Returns the dimensions of the array 
 	int32 GetArrayDimensionsForType(TRigVMTypeIndex InTypeIndex) const;
 
