@@ -249,6 +249,20 @@ public:
 		double WindingThreshold = 0.5,
 		int MinNumTrianglePoints = 3);
 
+
+	/**
+	 * Invert the Selection on the TargetMesh, ie select what is not currently selected
+	 * @param bOnlyToConnected if true, the inverse is limited to mesh areas geometrically connected to the Selection, instead of the entire mesh
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	InvertMeshSelection(
+		UDynamicMesh* TargetMesh,
+		FGeometryScriptMeshSelection Selection, 
+		FGeometryScriptMeshSelection& NewSelection,
+		bool bOnlyToConnected = false );
+
+
 	/**
 	 * Expand the Selection on the TargetMesh to connected regions and return the NewSelection
 	 * @param ConnectionType defines what "connected" means, ie purely geometric connection, or some additional constraint like same MaterialIDs/etc 
@@ -259,8 +273,7 @@ public:
 		UDynamicMesh* TargetMesh,
 		FGeometryScriptMeshSelection Selection, 
 		FGeometryScriptMeshSelection& NewSelection,
-		EGeometryScriptTopologyConnectionType ConnectionType = EGeometryScriptTopologyConnectionType::Geometric
-	);
+		EGeometryScriptTopologyConnectionType ConnectionType = EGeometryScriptTopologyConnectionType::Geometric );
 
 
 	/**
@@ -280,8 +293,7 @@ public:
 		FGeometryScriptMeshSelection& NewSelection,
 		int32 Iterations = 1,
 		bool bContract = false,
-		bool bOnlyExpandToFaceNeighbours = false
-	);
+		bool bOnlyExpandToFaceNeighbours = false );
 
 
 };

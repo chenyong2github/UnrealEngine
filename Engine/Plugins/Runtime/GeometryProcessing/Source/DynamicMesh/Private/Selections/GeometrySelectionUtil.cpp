@@ -9,6 +9,26 @@
 #include "SegmentTypes.h"
 #include "GroupTopology.h"
 #include "Selections/MeshConnectedComponents.h"
+#include "Algo/Find.h"
+
+
+bool UE::Geometry::FindInSelectionByTopologyID(
+	const FGeometrySelection& GeometrySelection,
+	uint32 TopologyID,
+	uint64& FoundValue)
+{
+	const uint64* Found = Algo::FindByPredicate(GeometrySelection.Selection, [&](uint64 Item)
+	{
+		return FGeoSelectionID(Item).TopologyID == TopologyID;
+	});
+	if (Found != nullptr)
+	{
+		FoundValue = *Found;
+		return true;
+	}
+	FoundValue = FGeoSelectionID().Encoded();
+	return false;
+}
 
 
 void UE::Geometry::UpdateTriangleSelectionViaRaycast(

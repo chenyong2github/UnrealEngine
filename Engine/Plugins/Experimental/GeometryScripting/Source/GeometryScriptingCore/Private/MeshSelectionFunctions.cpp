@@ -81,6 +81,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSelectionFunctions::CreateSelectAllMesh
 				if (UniqueGroupIDs.Contains(GroupID) == false)
 				{
 					NewSelection.Selection.Add(FGeoSelectionID::GroupFace(tid, GroupID).Encoded());
+					UniqueGroupIDs.Add(GroupID);
 				}
 			}
 		}
@@ -710,6 +711,34 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSelectionFunctions::SelectMeshElementsI
 		UELocal::SelectMeshElementsWithContainmentTest(TargetMesh, ContainsFunc,
 			SelectionOut, SelectionType, MinNumTrianglePoints, true);
 	});
+
+	return TargetMesh;
+}
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshSelectionFunctions::InvertMeshSelection(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptMeshSelection Selection,
+	FGeometryScriptMeshSelection& NewSelection,
+	bool bOnlyToConnected)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("InvertMeshSelection: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	if (bOnlyToConnected)
+	{
+		ExpandMeshSelectionToConnected(TargetMesh, Selection, NewSelection, EGeometryScriptTopologyConnectionType::Geometric);
+	}
+	else
+	{
+		CreateSelectAllMeshSelection(TargetMesh, NewSelection, Selection.GetSelectionType());
+	}
+	NewSelection.CombineSelectionInPlace(Selection, EGeometryScriptCombineSelectionMode::Subtract);
 
 	return TargetMesh;
 }

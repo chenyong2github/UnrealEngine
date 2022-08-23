@@ -103,38 +103,99 @@ void FGeometryScriptMeshSelection::CombineSelectionInPlace(const FGeometryScript
 		return;
 	}
 
-	if (CombineMode == EGeometryScriptCombineSelectionMode::Add)
+	if (GetSelectionType() != EGeometryScriptMeshSelectionType::Polygroups)
 	{
-		for (uint64 Item : SelectionB.GeoSelection->Selection)
+		if (CombineMode == EGeometryScriptCombineSelectionMode::Add)
 		{
-			GeoSelection->Selection.Add(Item);
-		}
-	}
-	else if (CombineMode == EGeometryScriptCombineSelectionMode::Subtract)
-	{
-		for (uint64 Item : SelectionB.GeoSelection->Selection)
-		{
-			GeoSelection->Selection.Remove(Item);
-		}
-	}
-	else if (CombineMode == EGeometryScriptCombineSelectionMode::Intersection)
-	{
-		TArray<uint64, TInlineAllocator<32>> ToRemove;
-		for (uint64 Item : GeoSelection->Selection)
-		{
-			if ( ! SelectionB.GeoSelection->Selection.Contains(Item) )
+			for (uint64 ItemB : SelectionB.GeoSelection->Selection)
 			{
-				ToRemove.Add(Item);
+				GeoSelection->Selection.Add(ItemB);
 			}
 		}
-		for (uint64 Item : ToRemove)
+		else if (CombineMode == EGeometryScriptCombineSelectionMode::Subtract)
 		{
-			GeoSelection->Selection.Remove(Item);
+			if (SelectionB.IsEmpty() == false)
+			{
+				for (uint64 ItemB : SelectionB.GeoSelection->Selection)
+				{
+					GeoSelection->Selection.Remove(ItemB);
+				}
+				GeoSelection->Selection.Compact();
+			}
+		}
+		else if (CombineMode == EGeometryScriptCombineSelectionMode::Intersection)
+		{
+			TArray<uint64, TInlineAllocator<32>> ToRemove;
+			for (uint64 ItemA : GeoSelection->Selection)
+			{
+				if (!SelectionB.GeoSelection->Selection.Contains(ItemA))
+				{
+					ToRemove.Add(ItemA);
+				}
+			}
+			if (ToRemove.Num() > 0)
+			{
+				for (uint64 ItemA : ToRemove)
+				{
+					GeoSelection->Selection.Remove(ItemA);
+				}
+				GeoSelection->Selection.Compact();
+			}
+		}
+	}
+	else
+	{
+		// for Polygroup selections, we cannot rely on TSet operations because we have set an arbitrary Triangle ID 
+		// as the 'geometry' key.
+		if (CombineMode == EGeometryScriptCombineSelectionMode::Add)
+		{
+			for (uint64 ItemB : SelectionB.GeoSelection->Selection)
+			{
+				uint64 FoundItemA;
+				if ( UE::Geometry::FindInSelectionByTopologyID(*GeoSelection, FGeoSelectionID(ItemB).TopologyID, FoundItemA) == false)
+				{
+					GeoSelection->Selection.Add(ItemB);
+				}
+			}
+		}
+		else if (CombineMode == EGeometryScriptCombineSelectionMode::Subtract)
+		{
+			if (SelectionB.IsEmpty() == false)
+			{
+				for (uint64 ItemB : SelectionB.GeoSelection->Selection)
+				{
+					uint64 FoundItemA;
+					if (UE::Geometry::FindInSelectionByTopologyID(*GeoSelection, FGeoSelectionID(ItemB).TopologyID, FoundItemA))
+					{
+						GeoSelection->Selection.Remove(FoundItemA);
+					}
+				}
+				GeoSelection->Selection.Compact();
+			}
+		}
+		else if (CombineMode == EGeometryScriptCombineSelectionMode::Intersection)
+		{
+			TArray<uint64, TInlineAllocator<32>> ToRemove;
+			for (uint64 ItemA : GeoSelection->Selection)
+			{
+				uint64 FoundItemB;
+				if (UE::Geometry::FindInSelectionByTopologyID(*GeoSelection, FGeoSelectionID(ItemA).TopologyID, FoundItemB) == false)
+				{
+					ToRemove.Add(ItemA);
+				}
+			}
+			if (ToRemove.Num() > 0)
+			{
+				for (uint64 ItemA : ToRemove)
+				{
+					GeoSelection->Selection.Remove(ItemA);
+				}
+				GeoSelection->Selection.Compact();
+			}
 		}
 	}
 
 }
-
 
 
 

@@ -20,6 +20,18 @@ class FGroupTopology;
 struct FGroupTopologySelection;
 
 /**
+ * Assuming that the uint64 values in the GeometrySelection are encoded FGeoSelectionID's, 
+ * find the item that has a matching TopologyID, ignoring the GeometryID.
+ * @param FoundValue the hash value found 
+ * @return true if an item was found
+ */
+DYNAMICMESH_API bool FindInSelectionByTopologyID(
+	const FGeometrySelection& GeometrySelection,
+	uint32 TopologyID,
+	uint64& FoundValue);
+
+
+/**
  * Update a FGeometrySelection (via the Editor) of mesh vertices/edges/triangles
  * based on a raycast
  * @param UpdateConfig type of update (add/remove/replace) and other update controls
