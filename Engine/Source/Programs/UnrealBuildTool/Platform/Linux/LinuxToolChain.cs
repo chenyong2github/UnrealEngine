@@ -1580,5 +1580,16 @@ namespace UnrealBuildTool
 			StartInfo.CreateNoWindow = true;
 			Utils.RunLocalProcessAndLogOutput(StartInfo, Logger);
 		}
+
+		public override void AddExtraToolArguments(IList<string> ExtraArguments)
+		{
+			// We explicitly include the clang include directories so tools like IWYU can run outside of the clang directory.
+			// More info: https://github.com/include-what-you-use/include-what-you-use#how-to-install
+			string? InternalSdkPath = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Linux)!.GetInternalSDKPath();
+			if (InternalSdkPath != null)
+			{
+				ExtraArguments.Add(String.Format("-isystem\"{0}\"", System.IO.Path.Combine(InternalSdkPath, "lib/clang/" + Info.ClangVersion + "/include/").Replace("\\", "/")));
+			}
+		}
 	}
 }

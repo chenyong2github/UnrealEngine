@@ -1049,5 +1049,13 @@ namespace UnrealBuildTool
 
 			return Result;
 		}
+
+		/// <summary>
+		/// Used by other tools to get the extra arguments to run vanilla clang for a particular platform.
+		/// </summary>
+		/// <param name="ExtraArguments">List of extra arguments to add to.</param>
+		public virtual void AddExtraToolArguments(IList<string> ExtraArguments)
+		{
+		}
 	}
 }

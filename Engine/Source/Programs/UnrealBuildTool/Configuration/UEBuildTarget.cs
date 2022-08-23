@@ -2405,7 +2405,7 @@ namespace UnrealBuildTool
 		/// Creates a toolchain for the current target. May be overridden by the target rules.
 		/// </summary>
 		/// <returns>New toolchain instance</returns>
-		private UEToolChain CreateToolchain(UnrealTargetPlatform Platform)
+		public UEToolChain CreateToolchain(UnrealTargetPlatform Platform)
 		{
 			if (Rules.ToolChainName == null)
 			{
