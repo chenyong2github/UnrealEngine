@@ -3,6 +3,7 @@
 #include "ColorCorrectWindow.h"
 #include "Components/StaticMeshComponent.h"
 #include "CoreMinimal.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -10,7 +11,7 @@ ENUM_RANGE_BY_COUNT(EColorCorrectWindowType, EColorCorrectWindowType::MAX)
 
 AColorCorrectWindow::AColorCorrectWindow(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, WindowType(EColorCorrectWindowType::Plane)
+	, WindowType(EColorCorrectWindowType::Square)
 {
 	UMaterial* Material = LoadObject<UMaterial>(NULL, TEXT("/ColorCorrectRegions/Materials/M_ColorCorrectRegionTransparentPreview.M_ColorCorrectRegionTransparentPreview"), NULL, LOAD_None, NULL);
 	const TArray<UStaticMesh*> StaticMeshes =

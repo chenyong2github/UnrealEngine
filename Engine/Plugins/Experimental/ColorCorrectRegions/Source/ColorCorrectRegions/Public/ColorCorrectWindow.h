@@ -17,7 +17,7 @@ class UBillboardComponent;
 UENUM(BlueprintType)
 enum class EColorCorrectWindowType : uint8
 {
-	Plane		UMETA(DisplayName = "Plane"),
+	Square		UMETA(DisplayName = "Square"),
 	Circle		UMETA(DisplayName = "Circle"),
 	MAX
 };

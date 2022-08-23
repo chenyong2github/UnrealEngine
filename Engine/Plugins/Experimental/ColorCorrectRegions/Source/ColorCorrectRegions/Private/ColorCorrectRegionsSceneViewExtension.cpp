@@ -411,8 +411,9 @@ namespace
 			}
 			RegionData.Falloff = Region->Falloff;
 			RegionData.Intensity = Region->Intensity;
-			RegionData.ExcludeStencil = Region->ExcludeStencil;
 			RegionData.Invert = Region->Invert;
+			RegionData.ExcludeStencil = static_cast<uint32>(Region->ExcludeStencil);
+			RegionData.StencilId = Region->StencilId;
 
 			CCBase.ColorSaturation = (FVector4f)Region->ColorGradingSettings.Global.Saturation;
 			CCBase.ColorContrast = (FVector4f)Region->ColorGradingSettings.Global.Contrast;

@@ -32,6 +32,15 @@ enum class EColorCorrectRegionTemperatureType : uint8
 	MAX
 };
 
+UENUM(BlueprintType)
+enum class EColorCorrectRegionStencilType : uint8
+{
+	None					UMETA(DisplayName = "No Stencil"),
+	ExcludeStencil			UMETA(DisplayName = "Exclude Selected Stencil"),
+	IncludeStencil			UMETA(DisplayName = "Affect Only Selected Stencil"),
+	MAX
+};
+
 /**
  * An instance of Color Correction Region. Used to aggregate all active regions.
  * This actor is aggregated by ColorCorrectRegionsSubsystem which handles:
@@ -100,7 +109,11 @@ public:
 
 	/** Enable stenciling. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction")
-	bool ExcludeStencil;
+	EColorCorrectRegionStencilType ExcludeStencil;
+
+	/** Enable stenciling outside of stencil region. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction")
+	uint8 StencilId;
 
 #if WITH_EDITORONLY_DATA
 

@@ -32,6 +32,9 @@
 #define CCR_SHADER_DISPLAY_BOUNDING_RECT 0
 #define CLIP_PIXELS_OUTSIDE_AABB 1
 
+#define EXCLUDE_STENCIL 1
+
+
 struct FExternalExpressions
 {
 	float3 Rotate;
@@ -76,7 +79,8 @@ struct FExternalExpressions
 	float Intensity;
 
 	float FakeLight;
-	float ExcludeStencil;
+	int   ExcludeStencil;
+	int	  StencilId;
 
 	float4 SceneTexture;
 };
@@ -246,6 +250,41 @@ float GetShapeAlpha(in out FMaterialPixelParameters Parameters, in FExternalExpr
 
 MaterialFloat4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExpressions ExternalExpressions)
 {
+	if (ExternalExpressions.ExcludeStencil > 0)
+	{
+		float CustomStencil = SceneTextureLookup(GetDefaultSceneTextureUV(Parameters, PPI_CustomStencil), PPI_CustomStencil, false).r;
+
+		const float Float_Eps = 0.00000001;
+
+		if (ExternalExpressions.ExcludeStencil == EXCLUDE_STENCIL)
+		{
+			if (CustomStencil == ExternalExpressions.StencilId)
+			{
+				if (abs(Parameters.SceneDepth - Parameters.CustomDepth) <= Float_Eps)
+				{
+					clip(-1.);
+					return MaterialFloat4(ExternalExpressions.SceneTexture.rgb, 1.);
+				}
+			}
+		}
+		else
+		{
+			if (CustomStencil == ExternalExpressions.StencilId)
+			{
+				if (abs(Parameters.SceneDepth - Parameters.CustomDepth) > Float_Eps)
+				{
+					clip(-1.);
+					return MaterialFloat4(ExternalExpressions.SceneTexture.rgb, 1.);
+				}
+			}
+			else
+			{
+				clip(-1.);
+				return MaterialFloat4(ExternalExpressions.SceneTexture.rgb, 1.);
+			}
+		}
+	}
+
 	float ShapeAlpha = GetShapeAlpha(Parameters, ExternalExpressions);
 
 	// Final check to reduce the performance based on shape.
@@ -269,15 +308,6 @@ MaterialFloat4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExt
 	float FinalAlpha = lerp(0.0, ExternalExpressions.Intensity, FinalShape);
 
 	MaterialFloat3 FinalColor = lerp(ExternalExpressions.SceneTexture.rgb, AfterTemperature, FinalAlpha);
-
-	if (ExternalExpressions.ExcludeStencil > 0)
-	{
-		float CustomStencil = SceneTextureLookup(GetDefaultSceneTextureUV(Parameters, PPI_CustomStencil), PPI_CustomStencil, false).r;
-
-		const float Float_Eps = 0.00000001;
-		float UseStencil = lerp(0, clamp(CustomStencil, 0., 1.), step(abs(Parameters.SceneDepth - Parameters.CustomDepth), Float_Eps));
-		FinalColor = lerp(FinalColor, ExternalExpressions.SceneTexture.rgb, UseStencil);
-	}
 
 	return MaterialFloat4(FinalColor, FinalAlpha);
 }
@@ -319,6 +349,7 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 		ExtExpressions.FakeLight = RegionData.FakeLight;
 		ExtExpressions.ExcludeStencil = RegionData.ExcludeStencil;
 		ExtExpressions.SceneTexture = SceneTexture.rgba;
+		ExtExpressions.StencilId = RegionData.StencilId;
 #if ADVANCED_CC	
 		{
 			ExtExpressions.ColorSaturationShadows = ColorCorrectShadows.ColorSaturation;
