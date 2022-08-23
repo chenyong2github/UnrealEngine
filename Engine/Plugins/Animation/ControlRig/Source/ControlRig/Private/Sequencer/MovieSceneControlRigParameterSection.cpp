@@ -17,6 +17,7 @@
 #include "MovieSceneTimeHelpers.h"
 #include "Animation/AnimSequenceHelpers.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Constraints/ControlRigTransformableHandle.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
 #if WITH_EDITOR
@@ -1424,8 +1425,8 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
 		auto GetConstraints = [&Controller, this](const FName& InControlName)
 		{
-			static constexpr bool bSorted = true;			
-			const uint32 ControlHash = HashCombine(GetTypeHash(ControlRig.Get()), GetTypeHash(InControlName));
+			static constexpr bool bSorted = true;
+			const uint32 ControlHash = UTransformableControlHandle::ComputeHash(ControlRig.Get(), InControlName);
 			return Controller.GetParentConstraints(ControlHash, bSorted);
 		};
 

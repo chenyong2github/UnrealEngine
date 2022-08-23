@@ -13,6 +13,7 @@
 #include "Selection.h"
 #include "SlateOptMacros.h"
 #include "LevelEditor.h"
+#include "Editor/SceneOutliner/Private/SSocketChooser.h"
 #include "TransformConstraint.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/SButton.h"
@@ -279,28 +280,70 @@ void SDroppableConstraintItem::CreateConstraint(
 		return;	
 	}
 
-	// create constraints
-	UWorld* World = GCurrentLevelEditingViewportClient->GetWorld();
-	bool bCreated = false;
-	for (AActor* Child: Selection)
+	// has socket?
+	USceneComponent* ComponentWithSockets = nullptr;
+	if(USceneComponent* ParentComponent = InParent->GetRootComponent())
 	{
-		if (Child != InParent)
+		if (ParentComponent->HasAnySockets())
 		{
-			FScopedTransaction Transaction(LOCTEXT("CreateConstraintKey", "Create Constraint Key"));
-			UTickableTransformConstraint* Constraint =
-				FTransformConstraintUtils::CreateAndAddFromActors(World, InParent, Child, InConstraintType);
-			if (Constraint)
-			{
-				FConstraintChannelHelper::SmartConstraintKey(Constraint);
-				bCreated = true;
-			}
+			ComponentWithSockets = ParentComponent;
 		}
 	}
 
-	// update list
-	if (bCreated && InCreationDelegate.IsBound())
+	// create constraints
+	auto CreateConstraint = [InCreationDelegate, InConstraintType](
+		const TArray<AActor*>& Selection, AActor* InParent, const FName& InSocketName)
 	{
-		InCreationDelegate.Execute();
+		UWorld* World = GCurrentLevelEditingViewportClient->GetWorld();
+		bool bCreated = false;
+		for (AActor* Child: Selection)
+		{
+			if (Child != InParent)
+			{
+				FScopedTransaction Transaction(LOCTEXT("CreateConstraintKey", "Create Constraint Key"));
+				UTickableTransformConstraint* Constraint =
+					FTransformConstraintUtils::CreateAndAddFromActors(World, InParent, InSocketName, Child, InConstraintType);
+				if (Constraint)
+				{
+					FConstraintChannelHelper::SmartConstraintKey(Constraint);
+					bCreated = true;
+				}
+			}
+		}
+		
+		// update list
+		if (bCreated && InCreationDelegate.IsBound())
+		{
+			InCreationDelegate.Execute();
+		}
+	};
+	
+	// Show socket chooser if we have sockets to select
+	if (ComponentWithSockets != nullptr)
+	{		
+		const FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+		const TSharedPtr< ILevelEditor > LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+
+		FVector2D SummonLocation = FSlateApplication::Get().GetCursorPos();
+		SummonLocation.Y += 4 * FSlateApplication::Get().GetCursorSize().Y;
+		
+		// Create as context menu
+		FSlateApplication::Get().PushMenu(
+			LevelEditor.ToSharedRef(),
+			FWidgetPath(),
+			SNew(SSocketChooserPopup)
+			.SceneComponent( ComponentWithSockets )
+			.OnSocketChosen_Lambda([CreateConstraint, Selection, InParent](FName InSocketName)
+			{
+				CreateConstraint(Selection, InParent, InSocketName);
+			}),
+			SummonLocation,
+			FPopupTransitionEffect( FPopupTransitionEffect::ContextMenu )
+			);
+	}
+	else
+	{
+		CreateConstraint(Selection, InParent, NAME_None);
 	}
 }
 
@@ -747,7 +790,7 @@ void SConstraintsEditionWidget::InvalidateConstraintList()
 	bNeedsRefresh = true;
 }
 
-void SConstraintsEditionWidget::RefreshConstraintList()
+int32 SConstraintsEditionWidget::RefreshConstraintList()
 {
 	// get constraints
 	UWorld* World = GCurrentLevelEditingViewportClient->GetWorld();
@@ -785,6 +828,8 @@ void SConstraintsEditionWidget::RefreshConstraintList()
 
 	// refresh tree
 	ListView->RequestListRefresh();
+	
+	return ListItems.Num();
 }
 
 void SConstraintsEditionWidget::OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh)

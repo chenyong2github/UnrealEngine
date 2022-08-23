@@ -77,7 +77,7 @@ FTransform UTransformableComponentHandle::GetLocalTransform() const
 
 FTransform UTransformableComponentHandle::GetGlobalTransform() const
 {
-	return Component.IsValid() ? Component->GetComponentTransform() : FTransform::Identity;
+	return Component.IsValid() ? Component->GetSocketTransform(SocketName) : FTransform::Identity;
 }
 
 UObject* UTransformableComponentHandle::GetPrerequisiteObject() const
@@ -98,6 +98,30 @@ uint32 UTransformableComponentHandle::GetHash() const
 TWeakObjectPtr<UObject> UTransformableComponentHandle::GetTarget() const
 {
 	return Component;
+}
+
+bool UTransformableComponentHandle::HasDirectDependencyWith(const UTransformableHandle& InOther) const
+{
+	const uint32 OtherHash = InOther.GetHash();
+	if (OtherHash == 0)
+	{
+		return false;
+	}
+
+	// check whether the other handle is one of the component's parent
+	if (Component.IsValid())
+	{
+		for (const USceneComponent* Comp=Component->GetAttachParent(); Comp!=nullptr; Comp=Comp->GetAttachParent() )
+		{
+			const uint32 AttachParentHash = GetTypeHash(Comp);
+			if (AttachParentHash == OtherHash)
+			{
+				return true;
+			}
+		}
+	}
+	
+	return false;
 }
 
 void UTransformableComponentHandle::UnregisterDelegates() const
@@ -339,13 +363,32 @@ FString UTransformableComponentHandle::GetLabel() const
 		return DummyLabel;
 	}
 
+	if (SocketName != NAME_None)
+	{
+		return SocketName.ToString(); 
+	}
+
 	const AActor* Actor = Component->GetOwner();
 	return Actor ? Actor->GetActorLabel() : Component->GetName();
 }
 
 FString UTransformableComponentHandle::GetFullLabel() const
 {
-	return GetLabel();
+	if (!Component.IsValid())
+	{
+		static const FString DummyLabel;
+		return DummyLabel;
+	}
+
+	const AActor* Actor = Component->GetOwner();
+	const FString ComponentLabel = Actor ? Actor->GetActorLabel() : Component->GetName();
+	
+	if (SocketName == NAME_None)
+	{
+		return ComponentLabel;
+	}
+
+	return FString::Printf(TEXT("%s/%s"), *ComponentLabel, *SocketName.ToString() );
 };
 
 #endif

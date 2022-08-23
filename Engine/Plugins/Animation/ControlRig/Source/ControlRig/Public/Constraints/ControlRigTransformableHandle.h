@@ -47,8 +47,10 @@ public:
 	virtual FTickFunction* GetTickFunction() const override;
 
 	/** Generates a hash value based on ControlRig and ControlName. */
+	static uint32 ComputeHash(const UControlRig* InControlRig, const FName& InControlName);
 	virtual uint32 GetHash() const override;
-	/** @todo document */
+	
+	/** Returns the underlying targeted object. */
 	virtual TWeakObjectPtr<UObject> GetTarget() const override;
 
 	/** Get the array of float channels for the specified section*/
@@ -69,8 +71,11 @@ public:
 	void UnregisterDelegates() const;
 	void RegisterDelegates();
 
+	/** Check for direct dependencies (ie hierarchy + skeletal mesh) with InOther. */
+	virtual bool HasDirectDependencyWith(const UTransformableHandle& InOther) const override;
+
 #if WITH_EDITOR
-	/** @todo document */
+	/** Returns labels used for UI. */
 	virtual FString GetLabel() const override;
 	virtual FString GetFullLabel() const override;
 #endif

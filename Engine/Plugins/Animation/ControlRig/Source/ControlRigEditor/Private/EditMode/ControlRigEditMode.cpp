@@ -3778,9 +3778,8 @@ void FControlRigEditMode::SetControlShapeTransform(
 	const FTransform ChildTransform = InGlobalTransform * InToWorldTransform;
 	FTransform LocalTransform = ControlRig->GetControlLocalTransform(InShapeActor->ControlName);
 	
-	const ETransformConstraintType ConstraintType = static_cast<ETransformConstraintType>(Constraint->GetType());
 	LocalTransform = FTransformConstraintUtils::ComputeRelativeTransform(LocalTransform,
-		ChildTransform, ParentTransform, ConstraintType);
+		ChildTransform, ParentTransform, Constraint);
 
 	FRigControlModifiedContext Context = InContext;
 	Context.bConstraintUpdate = false;

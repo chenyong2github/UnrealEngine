@@ -209,7 +209,7 @@ public:
 	void InvalidateConstraintList();
 	
 	/** Rebuild the constraint list based on the current selection. */
-	void RefreshConstraintList();
+	int32 RefreshConstraintList();
 
 	/** Triggers a constraint list invalidation when selection in the level viewport. */
 	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);

@@ -70,8 +70,6 @@ void FCompensationEvaluator::ComputeLocalTransforms(
 	ChildGlobals.SetNum(NumFrames + 1);
 	SpaceGlobals.SetNum(NumFrames + 1);
 
-	const ETransformConstraintType ConstraintType = static_cast<ETransformConstraintType>(Constraint->GetType());
-
 	for (int32 Index = 0; Index < NumFrames + 1; ++Index)
 	{
 		const FFrameNumber FrameNumber = (Index == 0) ? InFrames[0] - 1 : InFrames[Index - 1];
@@ -100,8 +98,6 @@ void FCompensationEvaluator::ComputeLocalTransforms(
 		ChildGlobal = Handle->GetGlobalTransform();
 
 		const UTickableTransformConstraint* LastConstraint = GetLastActiveConstraint();
-		const ETransformConstraintType LastConstraintType = LastConstraint ?
-			static_cast<ETransformConstraintType>(LastConstraint->GetType()) : ETransformConstraintType::Parent;
 
 		// store constraint/parent space global transform
 		if (bToActive)
@@ -114,14 +110,14 @@ void FCompensationEvaluator::ComputeLocalTransforms(
 				{
 					SpaceGlobal = LastConstraint->GetParentGlobalTransform();
 					ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
-						ChildLocal, ChildGlobal, SpaceGlobal, LastConstraintType);
+						ChildLocal, ChildGlobal, SpaceGlobal, LastConstraint);
 				}
 			}
 			else
 			{
 				SpaceGlobal = Constraint->GetParentGlobalTransform();
 				ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
-					ChildLocal, ChildGlobal, SpaceGlobal, ConstraintType);
+					ChildLocal, ChildGlobal, SpaceGlobal, Constraint);
 			}
 		}
 		else
@@ -132,7 +128,7 @@ void FCompensationEvaluator::ComputeLocalTransforms(
 			{
 				SpaceGlobal = Constraint->GetParentGlobalTransform();
 				ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
-					ChildLocal, ChildGlobal, SpaceGlobal, ConstraintType);
+					ChildLocal, ChildGlobal, SpaceGlobal, Constraint);
 			}
 			else
 			{
@@ -140,7 +136,7 @@ void FCompensationEvaluator::ComputeLocalTransforms(
 				{
 					SpaceGlobal = LastConstraint->GetParentGlobalTransform();
 					ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
-						ChildLocal, ChildGlobal, SpaceGlobal, LastConstraintType);
+						ChildLocal, ChildGlobal, SpaceGlobal, LastConstraint);
 				}
 			}
 		}
@@ -216,12 +212,9 @@ void FCompensationEvaluator::ComputeLocalTransformsBeforeDeletion(
 		// store constraint/parent space global transform
 		if (const UTickableTransformConstraint* LastConstraint = GetLastActiveConstraint())
 		{
-			const ETransformConstraintType LastConstraintType =
-				static_cast<ETransformConstraintType>(LastConstraint->GetType());
-
 			SpaceGlobal = LastConstraint->GetParentGlobalTransform();
 			ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
-				ChildLocal, ChildGlobal, SpaceGlobal, LastConstraintType);
+				ChildLocal, ChildGlobal, SpaceGlobal, LastConstraint);
 		}
 	}
 }
@@ -283,10 +276,8 @@ void FCompensationEvaluator::ComputeCompensation(UWorld* InWorld, const TSharedP
 	if (const UTickableTransformConstraint* LastConstraint = GetLastActiveConstraint())
 	{
 		SpaceGlobals[0] = LastConstraint->GetParentGlobalTransform();
-
-		const ETransformConstraintType LastConstraintType = static_cast<ETransformConstraintType>(LastConstraint->GetType());
 		ChildLocals[0] = FTransformConstraintUtils::ComputeRelativeTransform(ChildLocals[0],
-			ChildGlobals[0], SpaceGlobals[0], LastConstraintType);
+			ChildGlobals[0], SpaceGlobals[0], LastConstraint);
 	}
 	else // switch to parent space
 	{

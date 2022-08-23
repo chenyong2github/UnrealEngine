@@ -254,6 +254,11 @@ public:
 	/** Returns the transform constraint function that the tick function will evaluate. */
 	virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
 
+	bool IsScalingEnabled() const
+	{
+		return bScaling;
+	}
+	
 protected:
 	/** Cache data structure to store last child local/global transform. */
 	struct FDynamicCache
@@ -272,6 +277,10 @@ protected:
 	/** Defines the local child's transform offset in the parent space. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
 	FTransform OffsetTransform = FTransform::Identity;
+
+	/** Defines whether we propagate the parent scale. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Properties")
+	bool bScaling = false;
 
 #if WITH_EDITOR
 public:
@@ -324,7 +333,8 @@ struct CONSTRAINTS_API FTransformConstraintUtils
 		
 	/** Create a handle for the scene component.*/
 	static UTransformableComponentHandle* CreateHandleForSceneComponent(
-		USceneComponent* InSceneComponent, 
+		USceneComponent* InSceneComponent,
+		const FName& InSocketName,
 		UObject* Outer);
 
 	/** Creates a new transform constraint based on the InType. */
@@ -336,6 +346,7 @@ struct CONSTRAINTS_API FTransformConstraintUtils
 	static UTickableTransformConstraint* CreateAndAddFromActors(
 		UWorld* InWorld,
 		AActor* InParent,
+		const FName& InSocketName,
 		AActor* InChild,
 		const ETransformConstraintType InType,
 		const bool bMaintainOffset = true);
@@ -353,5 +364,5 @@ struct CONSTRAINTS_API FTransformConstraintUtils
 		const FTransform& InChildLocal,
 		const FTransform& InChildWorld,
 		const FTransform& InSpaceWorld,
-		const ETransformConstraintType InType);
+		const UTickableTransformConstraint* InConstraint);
 };

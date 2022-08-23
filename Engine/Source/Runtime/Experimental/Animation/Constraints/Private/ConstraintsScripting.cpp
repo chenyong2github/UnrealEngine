@@ -13,12 +13,13 @@ UConstraintsManager* UConstraintsScriptingLibrary::GetManager(UWorld* InWorld)
 	return ConstraintsManager;
 }
 
-UTransformableComponentHandle* UConstraintsScriptingLibrary::CreateTransformableComponentHandle(UWorld* InWorld,USceneComponent* InSceneComponent)
+UTransformableComponentHandle* UConstraintsScriptingLibrary::CreateTransformableComponentHandle(
+	UWorld* InWorld, USceneComponent* InSceneComponent, const FName& InSocketName)
 {
 	UConstraintsManager* ConstraintsManager = UConstraintsManager::Get(InWorld);
 	if (ConstraintsManager)
 	{
-		UTransformableComponentHandle* Handle = FTransformConstraintUtils::CreateHandleForSceneComponent(InSceneComponent, ConstraintsManager);
+		UTransformableComponentHandle* Handle = FTransformConstraintUtils::CreateHandleForSceneComponent(InSceneComponent, InSocketName, ConstraintsManager);
 		return Handle;
 
 	}

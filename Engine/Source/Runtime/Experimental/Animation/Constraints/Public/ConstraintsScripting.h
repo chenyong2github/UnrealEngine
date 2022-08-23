@@ -39,10 +39,11 @@ public:
 	* Create the transformable handle that deals with getting and setting transforms on this scene component
 	* @param InWorld, the world you are in
 	* @param InSceneComponent World to create the constraint
+	* @param InSocketName Optional name of the socket to get the transform 
 	* @return returns the handle for this scene component
 	**/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig | Constraints")
-	static UTransformableComponentHandle* CreateTransformableComponentHandle(UWorld* InWorld, USceneComponent* InSceneComponent);
+	static UTransformableComponentHandle* CreateTransformableComponentHandle(UWorld* InWorld, USceneComponent* InSceneComponent, const FName& InSocketName);
 
 	/**
 	* Create Constraint based on the specified type.

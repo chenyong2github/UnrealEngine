@@ -136,11 +136,16 @@ FTickFunction* UTransformableControlHandle::GetTickFunction() const
 	return SkelMeshComponent ? &SkelMeshComponent->PrimaryComponentTick : nullptr;
 }
 
+uint32 UTransformableControlHandle::ComputeHash(const UControlRig* InControlRig, const FName& InControlName)
+{
+	return HashCombine(GetTypeHash(InControlRig), GetTypeHash(InControlName));
+}
+
 uint32 UTransformableControlHandle::GetHash() const
 {
 	if (ControlRig.IsValid() && ControlName != NAME_None)
 	{
-		return HashCombine(GetTypeHash(ControlRig.Get()), GetTypeHash(ControlName));
+		return ComputeHash(ControlRig.Get(), ControlName);
 	}
 	return 0;
 }
@@ -154,6 +159,43 @@ USkeletalMeshComponent* UTransformableControlHandle::GetSkeletalMesh() const
 {
 	const TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig.IsValid() ? ControlRig->GetObjectBinding() : nullptr;
 	return ObjectBinding ? Cast<USkeletalMeshComponent>(ObjectBinding->GetBoundObject()) : nullptr;
+}
+
+bool UTransformableControlHandle::HasDirectDependencyWith(const UTransformableHandle& InOther) const
+{
+	const uint32 OtherHash = InOther.GetHash();
+	if (OtherHash == 0)
+	{
+		return false;
+	}
+
+	// check whether the other handle is one of the skeletal mesh parent
+	if (const USkeletalMeshComponent* SkeletalMeshComponent = GetSkeletalMesh())
+	{
+		for (const USceneComponent* Comp=SkeletalMeshComponent->GetAttachParent(); Comp!=nullptr; Comp=Comp->GetAttachParent() )
+		{
+			const uint32 AttachParentHash = GetTypeHash(Comp);
+			if (AttachParentHash == OtherHash)
+			{
+				return true;
+			}
+		}
+	}
+	
+	const FRigControlElement* ControlElement = GetControlElement();
+	if (!ControlElement)
+	{
+		return false;
+	}
+
+	// check whether the other handle is one of the control parent within the CR hierarchy
+	static constexpr bool bRecursive = true;
+	const FRigBaseElementParentArray AllParents = ControlRig->GetHierarchy()->GetParents(ControlElement, bRecursive);
+	return  AllParents.ContainsByPredicate([this, OtherHash](const FRigBaseElement* Parent)
+	{
+		const uint32 ParentHash = ComputeHash(ControlRig.Get(), Parent->GetName());
+		return ParentHash == OtherHash;		
+	});
 }
 
 FRigControlElement* UTransformableControlHandle::GetControlElement() const

@@ -570,7 +570,7 @@ uint32 UTickableParentConstraint::CalculateInputHash() const
 	Hash = HashCombine(Hash, GetTypeHash(ChildLocalTransform.GetRotation().Euler() ));
 	Hash = HashCombine(Hash, GetTypeHash(ChildLocalTransform.GetScale3D()));
 	
-	const FTransform ChildGlobalTransform = GetChildLocalTransform();
+	const FTransform ChildGlobalTransform = GetChildGlobalTransform();
 	Hash = HashCombine(Hash, GetTypeHash(ChildGlobalTransform.GetTranslation()));
 	Hash = HashCombine(Hash, GetTypeHash(ChildGlobalTransform.GetRotation().Euler() ));
 	Hash = HashCombine(Hash, GetTypeHash(ChildGlobalTransform.GetScale3D()));
@@ -610,7 +610,15 @@ FConstraintTickFunction::ConstraintFunction UTickableParentConstraint::GetFuncti
 		
 		FTransform TargetTransform = (!bMaintainOffset) ? ParentTransform : OffsetTransform * ParentTransform;
 		//apply weight if needed
-		LerpTransform(GetChildGlobalTransform(), TargetTransform);
+		const FTransform ChildGlobalTransform = GetChildGlobalTransform();
+		LerpTransform(ChildGlobalTransform, TargetTransform);
+
+		//remove scale?
+		if (!bScaling)
+		{
+			TargetTransform.SetScale3D(ChildGlobalTransform.GetScale3D());
+		}
+		
 		SetChildGlobalTransform(TargetTransform);
 	};
 }
@@ -747,7 +755,7 @@ FQuat UTickableLookAtConstraint::FindQuatBetweenNormals(const FVector& A, const 
 namespace
 {
 
-UTransformableHandle* GetHandle(AActor* InActor, UObject* Outer)
+UTransformableHandle* GetHandle(AActor* InActor, const FName& InSocketName, UObject* Outer)
 {
 	// look for customized transform handle
 	const FTransformableRegistry& Registry = FTransformableRegistry::Get();
@@ -759,7 +767,7 @@ UTransformableHandle* GetHandle(AActor* InActor, UObject* Outer)
 	// need to make sure it's moveable
 	if (InActor->GetRootComponent())
 	{
-		return FTransformConstraintUtils::CreateHandleForSceneComponent(InActor->GetRootComponent(), Outer);
+		return FTransformConstraintUtils::CreateHandleForSceneComponent(InActor->GetRootComponent(), InSocketName, Outer);
 
 	}
 	return nullptr;
@@ -781,13 +789,17 @@ uint32 GetConstrainableHash(const AActor* InActor)
 	
 }
 
-UTransformableComponentHandle* FTransformConstraintUtils::CreateHandleForSceneComponent(USceneComponent* InSceneComponent, UObject* Outer)
+UTransformableComponentHandle* FTransformConstraintUtils::CreateHandleForSceneComponent(
+	USceneComponent* InSceneComponent,
+	const FName& InSocketName,
+	UObject* Outer)
 {
 	UTransformableComponentHandle* ComponentHandle = nullptr;
 	if (InSceneComponent)
 	{
 		ComponentHandle = NewObject<UTransformableComponentHandle>(Outer);
 		ComponentHandle->Component = InSceneComponent;
+		ComponentHandle->SocketName = InSocketName;
 		InSceneComponent->SetMobility(EComponentMobility::Movable);
 		ComponentHandle->RegisterDelegates();
 	}
@@ -866,6 +878,7 @@ UTickableTransformConstraint* FTransformConstraintUtils::CreateFromType(
 UTickableTransformConstraint* FTransformConstraintUtils::CreateAndAddFromActors(
 	UWorld* InWorld,
 	AActor* InParent,
+	const FName& InSocketName,
 	AActor* InChild,
 	const ETransformConstraintType InType,
 	const bool bMaintainOffset)
@@ -878,7 +891,7 @@ UTickableTransformConstraint* FTransformConstraintUtils::CreateAndAddFromActors(
 		UE_LOG(LogTemp, Error, TEXT("%s sanity check failed."), ErrorPrefix);
 		return nullptr;
 	}
-	
+
 	UConstraintsManager* ConstraintsManager = UConstraintsManager::Get(InWorld);
 	if (!ConstraintsManager)
 	{
@@ -886,24 +899,37 @@ UTickableTransformConstraint* FTransformConstraintUtils::CreateAndAddFromActors(
 		return nullptr;
 	}
 
-	UTransformableHandle* ParentHandle = GetHandle(InParent, ConstraintsManager);
+	UTransformableHandle* ParentHandle = GetHandle(InParent, InSocketName, ConstraintsManager);
 	if (!ParentHandle)
 	{
 		return nullptr;
 	}
 	
-	UTransformableHandle* ChildHandle = GetHandle(InChild, ConstraintsManager);
+	UTransformableHandle* ChildHandle = GetHandle(InChild, NAME_None, ConstraintsManager);
 	if (!ChildHandle)
 	{
 		return nullptr;
 	}
 
+	bool bDeleteHandles = false;
 	if (ChildHandle->GetHash() == ParentHandle->GetHash())
+	{
+		UE_LOG(LogTemp, Error, TEXT("%s handles are pointing at the same object."), ErrorPrefix);
+		bDeleteHandles = true;
+	}
+	
+	if (ParentHandle->HasDirectDependencyWith(*ChildHandle))
+	{
+#if WITH_EDITOR
+		UE_LOG(LogTemp, Error, TEXT("%s: %s has a direct dependecy to %s."), *ParentHandle->GetLabel(), *ChildHandle->GetLabel());
+#endif
+		bDeleteHandles = true;
+	}
+	
+	if (bDeleteHandles)
 	{
 		ChildHandle->MarkAsGarbage();
 		ParentHandle->MarkAsGarbage();
-		
-		UE_LOG(LogTemp, Error, TEXT("%s handles are pointing at the same object."), ErrorPrefix);
 		return nullptr;
 	}
 	
@@ -962,9 +988,15 @@ FTransform FTransformConstraintUtils::ComputeRelativeTransform(
 	const FTransform& InChildLocal,
 	const FTransform& InChildWorld,
 	const FTransform& InSpaceWorld,
-	const ETransformConstraintType InType)
+	const UTickableTransformConstraint* InConstraint)
 {
-	switch (InType)
+	if (!InConstraint)
+	{
+		return InChildWorld.GetRelativeTransform(InSpaceWorld);
+	}
+	
+	const ETransformConstraintType ConstraintType = static_cast<ETransformConstraintType>(InConstraint->GetType());
+	switch (ConstraintType)
 	{
 	case ETransformConstraintType::Translation:
 		{
@@ -992,7 +1024,16 @@ FTransform FTransformConstraintUtils::ComputeRelativeTransform(
 			return RelativeTransform;
 		}
 	case ETransformConstraintType::Parent:
-		return InChildWorld.GetRelativeTransform(InSpaceWorld);
+		{
+			FTransform RelativeTransform = InChildWorld.GetRelativeTransform(InSpaceWorld);
+			const UTickableParentConstraint* ParentConstraint = Cast<UTickableParentConstraint>(InConstraint);
+			const bool bScale = ParentConstraint ? ParentConstraint->IsScalingEnabled() : true;
+			if (!bScale)
+			{
+				RelativeTransform.SetScale3D(InChildLocal.GetScale3D());
+			}
+			return RelativeTransform;
+		}
 	case ETransformConstraintType::LookAt:
 		return InChildLocal;
 	default:

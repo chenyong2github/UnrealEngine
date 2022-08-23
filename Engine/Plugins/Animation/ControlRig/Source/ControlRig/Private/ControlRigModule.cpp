@@ -57,9 +57,8 @@ void FControlRigModule::RegisterTransformableCustomization() const
 	{
 		if (const AControlRigShapeActor* ControlActor = Cast<AControlRigShapeActor>(InObject))
 		{
-			const uint32 ControlHash = HashCombine(
-				GetTypeHash(ControlActor->ControlRig.Get()),
-				GetTypeHash(ControlActor->ControlName));
+			const uint32 ControlHash = UTransformableControlHandle::ComputeHash(
+				ControlActor->ControlRig.Get(), ControlActor->ControlName);
 			return ControlHash;
 		}
 		return 0;

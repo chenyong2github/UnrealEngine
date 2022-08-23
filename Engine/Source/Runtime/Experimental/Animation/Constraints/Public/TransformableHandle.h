@@ -70,9 +70,12 @@ public:
 	/** Generates a hash value of the underlying transformable object. */
 	virtual uint32 GetHash() const PURE_VIRTUAL(GetHash, return 0;);
 
-	/** @todo document */
+	/** Returns the underlying targeted object. */
 	virtual TWeakObjectPtr<UObject> GetTarget() const PURE_VIRTUAL(GetTarget, return nullptr;);
 
+	/** Check for direct dependencies with InOther. */
+	virtual bool HasDirectDependencyWith(const UTransformableHandle& InOther) const PURE_VIRTUAL(HasDirectDependencyWith, return false;);
+	
 	FHandleModifiedEvent& HandleModified();
 
 #if WITH_EDITOR
@@ -117,8 +120,11 @@ public:
 	/** Generates a hash value of Component. */
 	virtual uint32 GetHash() const override;
 
-	/** @todo document */
+	/** Returns the underlying targeted object. */
 	virtual TWeakObjectPtr<UObject> GetTarget() const override;
+
+	/** Check for direct dependencies (ie hierarchy) with InOther. */
+	virtual bool HasDirectDependencyWith(const UTransformableHandle& InOther) const override;
 
 	/** Get the array of float channels for the specified section*/
 	virtual TArrayView<FMovieSceneFloatChannel*>  GetFloatChannels(const UMovieSceneSection* InSection) const override;
@@ -131,7 +137,9 @@ public:
 		const FFrameRate& InTickResolution,
 		UMovieSceneSection* InSection,
 		const bool bLocal = true) const override;
+
 #if WITH_EDITOR
+	/** Returns labels used for UI. */
 	virtual FString GetLabel() const override;
 	virtual FString GetFullLabel() const override;
 #endif
@@ -139,6 +147,10 @@ public:
 	/** The Component that this handle is pointing at. */
 	UPROPERTY(BlueprintReadOnly, Category = "Object")
 	TWeakObjectPtr<USceneComponent> Component;
+
+	/** Optional socket name on Component. */
+	UPROPERTY(BlueprintReadOnly, Category = "Object")
+	FName SocketName = NAME_None;
 
 	/** Registers/Unregisters useful delegates to track changes in the Component's transform. */
 	void UnregisterDelegates() const;
