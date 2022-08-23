@@ -2,6 +2,7 @@
 
 #include "TakeWorldObjectSnapshotArchive.h"
 
+#include "LevelSnapshotsLog.h"
 #include "ObjectSnapshotData.h"
 #include "WorldSnapshotData.h"
 
@@ -20,7 +21,11 @@ void UE::LevelSnapshots::Private::FTakeWorldObjectSnapshotArchive::TakeSnapshot(
 UE::LevelSnapshots::Private::FTakeWorldObjectSnapshotArchive::FTakeWorldObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject)
 	: Super(InObjectData, InSharedData, false, InOriginalObject)
 	, Archetype(InOriginalObject->GetArchetype())
-{}
+{
+#if UE_BUILD_DEBUG
+	UE_LOG(LogLevelSnapshots, VeryVerbose, TEXT("FTakeWorldObjectSnapshotArchive: %s (%s)"), *InOriginalObject->GetPathName(), *InOriginalObject->GetClass()->GetPathName());
+#endif
+}
 
 bool UE::LevelSnapshots::Private::FTakeWorldObjectSnapshotArchive::ShouldSkipProperty(const FProperty* InProperty) const
 {

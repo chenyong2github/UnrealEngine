@@ -2,6 +2,7 @@
 
 #include "Archive/ClassDefaults/TakeClassDefaultObjectSnapshotArchive.h"
 
+#include "LevelSnapshotsLog.h"
 #include "ObjectSnapshotData.h"
 #include "WorldSnapshotData.h"
 
@@ -17,4 +18,8 @@ void UE::LevelSnapshots::Private::FTakeClassDefaultObjectSnapshotArchive::SaveCl
 UE::LevelSnapshots::Private::FTakeClassDefaultObjectSnapshotArchive::FTakeClassDefaultObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InSerializedObject)
 	:
 	Super(InObjectData, InSharedData, false, InSerializedObject)
-{}
+{
+#if UE_BUILD_DEBUG
+	UE_LOG(LogLevelSnapshots, VeryVerbose, TEXT("FTakeClassDefaultObjectSnapshotArchive: %s (%s)"), *InSerializedObject->GetPathName(), *InSerializedObject->GetClass()->GetPathName());
+#endif
+}

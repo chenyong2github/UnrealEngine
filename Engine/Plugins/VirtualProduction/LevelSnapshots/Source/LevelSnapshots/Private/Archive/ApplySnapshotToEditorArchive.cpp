@@ -267,7 +267,11 @@ UE::LevelSnapshots::Private::FApplySnapshotToEditorArchive::FApplySnapshotToEdit
 		, SelectionSet(InSelectionSet)
 		, OnPropertySerialized(InOnPropertySerialized)
 		, Cache(Cache)
-{}
+{
+#if UE_BUILD_DEBUG
+	UE_LOG(LogLevelSnapshots, VeryVerbose, TEXT("FApplySnapshotToEditorArchive: %s (%s)"), *InOriginalObject->GetPathName(), *InOriginalObject->GetClass()->GetPathName());
+#endif
+}
 
 bool UE::LevelSnapshots::Private::FApplySnapshotToEditorArchive::ShouldSerializeAllProperties() const
 {

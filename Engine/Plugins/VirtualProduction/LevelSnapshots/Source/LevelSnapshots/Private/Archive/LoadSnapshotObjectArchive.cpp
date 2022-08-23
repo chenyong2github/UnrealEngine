@@ -67,4 +67,8 @@ UE::LevelSnapshots::Private::FLoadSnapshotObjectArchive::FLoadSnapshotObjectArch
 	: Super(InObjectData, InSharedData, true, InSerializedObject)
 	, ProcessObjectDependency(ProcessObjectDependency)
 	, Cache(Cache)
-{}
+{
+#if UE_BUILD_DEBUG
+	UE_LOG(LogLevelSnapshots, VeryVerbose, TEXT("FLoadSnapshotObjectArchive: %s (%s)"), *InSerializedObject->GetPathName(), *InSerializedObject->GetClass()->GetPathName());
+#endif
+}

@@ -2,6 +2,7 @@
 
 #include "Archive/ClassDefaults/ApplyClassDefaulDataArchive.h"
 
+#include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "ObjectSnapshotData.h"
 #include "WorldSnapshotData.h"
@@ -26,4 +27,8 @@ UE::LevelSnapshots::Private::FApplyClassDefaulDataArchive::FApplyClassDefaulData
 {
 	// Only overwrite transient properties when actually serializing into a snapshot CDO
 	ArSerializingDefaults = InSerialisationMode == ESerialisationMode::RestoringCDO;
+
+#if UE_BUILD_DEBUG
+	UE_LOG(LogLevelSnapshots, VeryVerbose, TEXT("FApplyClassDefaulDataArchive: %s (%s)"), *InObjectToRestore->GetPathName(), *InObjectToRestore->GetClass()->GetPathName());
+#endif
 }

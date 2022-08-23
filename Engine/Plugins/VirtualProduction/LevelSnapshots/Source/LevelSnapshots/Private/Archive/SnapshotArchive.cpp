@@ -41,11 +41,29 @@ bool UE::LevelSnapshots::Private::FSnapshotArchive::ShouldSkipProperty(const FPr
 {
 	// In debug builds only because this has big potential of impacting performance
 #if UE_BUILD_DEBUG
-	FString PropertyToDebug = UE::LevelSnapshots::ConsoleVariables::CVarBreakOnSerializedPropertyName.GetValueOnAnyThread();
+	FString PropertyToDebug = ConsoleVariables::CVarBreakOnSerializedPropertyName.GetValueOnAnyThread();
 	if (!PropertyToDebug.IsEmpty() && InProperty->GetName().Equals(PropertyToDebug, ESearchCase::IgnoreCase))
 	{
 		UE_DEBUG_BREAK();
 	}
+
+	const FString PropertyChain = [this, InProperty]()
+	{
+		if (GetSerializedPropertyChain())
+		{
+			FString Result;
+			for (int32 i = 0; i < GetSerializedPropertyChain()->GetNumProperties(); ++i)
+			{
+				Result += GetSerializedPropertyChain()->GetPropertyFromRoot(i)->GetAuthoredName();
+				Result += TEXT(".");
+			}
+			Result += InProperty->GetAuthoredName();
+			return Result;
+		}
+		
+		return InProperty->GetAuthoredName();
+	}();
+	UE_LOG(LogLevelSnapshots, VeryVerbose, TEXT("ShouldSkipProperty(%s %s)"), *PropertyChain, InProperty->IsNative() ? TEXT("C++") : TEXT("BP"));
 #endif
 	
 	const bool bIsPropertyUnsupported = InProperty->HasAnyPropertyFlags(ExcludedPropertyFlags);
