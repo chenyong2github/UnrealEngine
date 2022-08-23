@@ -42,6 +42,8 @@ enum class EUserPresenceStatus : uint8
 	/** Default */
 	Unknown
 };
+ONLINESERVICESINTERFACE_API const TCHAR* LexToString(EUserPresenceStatus EnumVal);
+ONLINESERVICESINTERFACE_API void LexFromString(EUserPresenceStatus& OutStatus, const TCHAR* InStr);
 
 enum class EUserPresenceJoinability : uint8
 {
@@ -56,6 +58,8 @@ enum class EUserPresenceJoinability : uint8
 	/** Default */
 	Unknown
 };
+ONLINESERVICESINTERFACE_API const TCHAR* LexToString(EUserPresenceJoinability EnumVal);
+ONLINESERVICESINTERFACE_API void LexFromString(EUserPresenceJoinability& OutJoinability, const TCHAR* InStr);
 
 enum class EUserPresenceGameStatus : uint8
 {
@@ -66,6 +70,8 @@ enum class EUserPresenceGameStatus : uint8
 	/** Default */
 	Unknown
 };
+ONLINESERVICESINTERFACE_API const TCHAR* LexToString(EUserPresenceGameStatus EnumVal);
+ONLINESERVICESINTERFACE_API void LexFromString(EUserPresenceGameStatus& OutGameStatus, const TCHAR* InStr);
 
 typedef TMap<FString, FPresenceVariant> FPresenceProperties;
 
@@ -407,6 +413,8 @@ BEGIN_ONLINE_STRUCT_META(FPartialUpdatePresence::Params::FMutations)
 	ONLINE_STRUCT_FIELD(FPartialUpdatePresence::Params::FMutations, RemovedProperties)
 END_ONLINE_STRUCT_META()
 
+BEGIN_ONLINE_STRUCT_META(FPartialUpdatePresence::Result)
+END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FPresenceUpdated)
 	ONLINE_STRUCT_FIELD(FPresenceUpdated, LocalUserId),
