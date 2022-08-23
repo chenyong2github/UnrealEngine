@@ -157,6 +157,8 @@ enum class EPoseSearchTrajectoryFlags : uint32
 	Velocity = 1 << 0,
 	Position = 1 << 1,
 	FacingDirection = 1 << 3,
+	VelocityXY = 1 << 4,
+	PositionXY = 1 << 5,
 };
 ENUM_CLASS_FLAGS(EPoseSearchTrajectoryFlags);
 constexpr bool EnumHasAnyFlags(int32 Flags, EPoseSearchTrajectoryFlags Contains) { return (Flags & int32(Contains)) != 0; }
