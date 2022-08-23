@@ -37,14 +37,6 @@ FOffsetMeshRegion::FOffsetMeshRegion(FDynamicMesh3* mesh) : Mesh(mesh)
 
 bool FOffsetMeshRegion::Apply()
 {
-	FMeshNormals Normals;
-	bool bHaveVertexNormals = Mesh->HasVertexNormals();
-	if (!bHaveVertexNormals && ExtrusionVectorType == EVertexExtrusionVectorType::VertexNormal)
-	{
-		Normals = FMeshNormals(Mesh);
-		Normals.ComputeVertexNormals();
-	}
-
 	FMeshConnectedComponents RegionComponents(Mesh);
 	RegionComponents.FindConnectedTriangles(Triangles);
 
@@ -62,7 +54,7 @@ bool FOffsetMeshRegion::Apply()
 			Region.bIsSolid = AllTriangles.Num() == Region.OffsetTids.Num();
 		}
 
-		bool bRegionOK = ApplyOffset(Region, (bHaveVertexNormals) ? nullptr : &Normals);
+		bool bRegionOK = ApplyOffset(Region);
 
 		bAllOK = bAllOK && bRegionOK;
 	}
@@ -72,7 +64,7 @@ bool FOffsetMeshRegion::Apply()
 
 }
 
-bool FOffsetMeshRegion::ApplyOffset(FOffsetInfo& Region, FMeshNormals* UseNormals)
+bool FOffsetMeshRegion::ApplyOffset(FOffsetInfo& Region)
 {
 	// Store offset groups
 	if (Mesh->HasTriangleGroups())
@@ -293,24 +285,22 @@ bool FOffsetMeshRegion::ApplyOffset(FOffsetInfo& Region, FMeshNormals* UseNormal
 			VertexExtrudeVectors[i] = ExtrusionVector;
 		}
 	}
+	else if (ExtrusionVectorType == EVertexExtrusionVectorType::VertexNormal)
+	{
+		VertexExtrudeVectors.SetNumUninitialized(SelectedVids.Num());
+		for (int32 i = 0; i < SelectedVids.Num(); ++i)
+		{
+			int32 Vid = SelectedVids[i];
+			VertexExtrudeVectors[i] = Mesh->HasVertexNormals() ? (FVector3d)Mesh->GetVertexNormal(Vid) : FMeshNormals::ComputeVertexNormal(*Mesh, Vid);
+		}
+	}
 
 	// Perform the actual vertex displacement.
 	for (int32 i = 0; i < SelectedVids.Num(); ++i)
 	{
 		int32 Vid = SelectedVids[i];
-		FVector OldPosition = Mesh->GetVertex(Vid);
-		FVector ExtrusionVector = FVector::Zero();
-
-		switch (ExtrusionVectorType)
-		{
-		case EVertexExtrusionVectorType::VertexNormal:
-			ExtrusionVector = FVector(Mesh->GetVertexNormal(Vid));
-			break;
-		case EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAverage:
-		case EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAdjusted:
-			ExtrusionVector = VertexExtrudeVectors[i];
-			break;
-		}
+		FVector3d OldPosition = Mesh->GetVertex(Vid);
+		FVector3d ExtrusionVector = (ExtrusionVectorType == EVertexExtrusionVectorType::Zero) ? FVector3d::Zero() : VertexExtrudeVectors[i];
 
 		FVector3d NewPosition = OffsetPositionFunc(OldPosition, ExtrusionVector, Vid);
 		Mesh->SetVertex(Vid, NewPosition);

@@ -57,6 +57,14 @@ public:
 };
 
 
+UENUM(BlueprintType)
+enum class EGeometryScriptPolyOperationArea : uint8
+{
+	EntireSelection = 0,
+	PerPolygroup = 1,
+	PerTriangle = 2
+};
+
 
 USTRUCT(BlueprintType)
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMeshExtrudeOptions
@@ -84,13 +92,6 @@ enum class EGeometryScriptLinearExtrudeDirection : uint8
 	AverageFaceNormal = 1
 };
 
-UENUM(BlueprintType)
-enum class EGeometryScriptLinearExtrudeArea : uint8
-{
-	EntireSelection = 0,
-	PerPolygroup = 1,
-	PerTriangle = 2
-};
 
 USTRUCT(BlueprintType)
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMeshLinearExtrudeOptions
@@ -107,7 +108,7 @@ public:
 	FVector Direction = FVector(0,0,1);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
-	EGeometryScriptLinearExtrudeArea AreaMode = EGeometryScriptLinearExtrudeArea::EntireSelection;
+	EGeometryScriptPolyOperationArea AreaMode = EGeometryScriptPolyOperationArea::EntireSelection;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	FGeometryScriptMeshEditPolygroupOptions GroupOptions;
@@ -119,6 +120,71 @@ public:
 	bool bSolidsToShells = true;
 };
 
+
+UENUM(BlueprintType)
+enum class EGeometryScriptOffsetFacesType : uint8
+{
+	VertexNormal = 0,
+	FaceNormal = 1,
+	ParallelFaceOffset = 2
+};
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMeshOffsetFacesOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	float Distance = 1.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	EGeometryScriptOffsetFacesType OffsetType = EGeometryScriptOffsetFacesType::ParallelFaceOffset;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	EGeometryScriptPolyOperationArea AreaMode = EGeometryScriptPolyOperationArea::EntireSelection;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	FGeometryScriptMeshEditPolygroupOptions GroupOptions;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	float UVScale = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool bSolidsToShells = true;
+};
+
+
+
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMeshInsetOutsetFacesOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	float Distance = 1.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool bReproject = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool bBoundaryOnly = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	float Softness = 0.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	float AreaScale = 1.0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	EGeometryScriptPolyOperationArea AreaMode = EGeometryScriptPolyOperationArea::EntireSelection;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	FGeometryScriptMeshEditPolygroupOptions GroupOptions;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	float UVScale = 1.0f;
+};
 
 
 
@@ -233,8 +299,10 @@ public:
 		UGeometryScriptDebug* Debug = nullptr );
 
 
-
-
+	/**
+	 * Offset the vertices of TargetMesh from their initial positions based on averaged vertex normals.
+	 * This function is intended for high-res meshes, for polymodeling-style offsets, ApplyMeshOffsetFaces will produce better results.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Modeling", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyMeshOffset(
@@ -242,6 +310,10 @@ public:
 		FGeometryScriptMeshOffsetOptions Options,
 		UGeometryScriptDebug* Debug = nullptr );
 
+	/**
+	 * Create a thickened shell from TargetMesh by offsetting the vertex positions along averaged vertex normals, inwards or outwards.
+	 * Similar to ApplyMeshOffset but also includes the initial mesh (possibly flipped, if the offset is positive)
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Modeling", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyMeshShell(
@@ -262,7 +334,28 @@ public:
 		FGeometryScriptMeshSelection Selection,
 		UGeometryScriptDebug* Debug = nullptr );
 
+	/**
+	 * Apply an Offset to the faces of TargetMesh identified by the Selection, or all faces if the Selection is empty.
+	 * The Offset direction at each vertex can be derived from the averaged vertex normals or per-triangle normals.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Modeling", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ApplyMeshOffsetFaces(
+		UDynamicMesh* TargetMesh,
+		FGeometryScriptMeshOffsetFacesOptions Options,
+		FGeometryScriptMeshSelection Selection,
+		UGeometryScriptDebug* Debug = nullptr );
 
+	/**
+	 * Apply an Inset or Outset to the faces of TargetMesh identified by the Selection, or all faces if the Selection is empty.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Modeling", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ApplyMeshInsetOutsetFaces(
+		UDynamicMesh* TargetMesh,
+		FGeometryScriptMeshInsetOutsetFacesOptions Options,
+		FGeometryScriptMeshSelection Selection,
+		UGeometryScriptDebug* Debug = nullptr );
 
 	/**
 	 * Apply a Mesh Bevel operation to parts of TargetMesh using the BevelOptions settings.

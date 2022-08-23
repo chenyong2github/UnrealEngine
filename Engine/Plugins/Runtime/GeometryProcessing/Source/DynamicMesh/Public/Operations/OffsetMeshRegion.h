@@ -173,7 +173,7 @@ public:
 		int32 Eid1, int32 Eid2, bool bCheckColinearityAtBorder);
 protected:
 
-	virtual bool ApplyOffset(FOffsetInfo& Region, FMeshNormals* UseNormals = nullptr);
+	virtual bool ApplyOffset(FOffsetInfo& Region);
 };
 
 } // end namespace UE::Geometry
