@@ -164,7 +164,7 @@ void RenderSingleScatteringWithLiveShading(
 		PassParameters->bApplyEmission = bApplyEmission;
 		PassParameters->bApplyDirectLighting = bApplyDirectLighting;
 		PassParameters->bApplyShadowTransmittance = bApplyShadowTransmittance;
-		if (PassParameters->bApplyDirectLighting)
+		if (PassParameters->bApplyDirectLighting && (LightSceneInfo != nullptr))
 		{
 			DeferredLightUniform = GetDeferredLightParameters(View, *LightSceneInfo);
 		}

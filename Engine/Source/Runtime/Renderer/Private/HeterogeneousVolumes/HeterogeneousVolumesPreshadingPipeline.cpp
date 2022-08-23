@@ -274,6 +274,13 @@ class FRenderSingleScatteringWithPreshadingCS : public FGlobalShader
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FRenderSingleScatteringWithPreshadingCS, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesPreshadingPipeline.usf"), TEXT("RenderSingleScatteringWithPreshadingCS"), SF_Compute);
 
+void RenderTransmissionWithPreshadingCompute(
+
+)
+{
+
+}
+
 void RenderSingleScatteringWithPreshadingCompute(
 	FRDGBuilder& GraphBuilder,
 	// Scene data
@@ -314,7 +321,7 @@ void RenderSingleScatteringWithPreshadingCompute(
 		FDeferredLightUniformStruct DeferredLightUniform;
 		PassParameters->bApplyEmission = bApplyEmission;
 		PassParameters->bApplyDirectLighting = bApplyDirectLighting;
-		if (PassParameters->bApplyDirectLighting)
+		if (PassParameters->bApplyDirectLighting && (LightSceneInfo != nullptr))
 		{
 			DeferredLightUniform = GetDeferredLightParameters(View, *LightSceneInfo);
 		}

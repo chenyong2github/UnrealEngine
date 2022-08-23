@@ -471,7 +471,7 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 		FDeferredLightUniformStruct DeferredLightUniform;
 		PassParameters->bApplyEmission = bApplyEmission;
 		PassParameters->bApplyDirectLighting = bApplyDirectLighting;
-		if (PassParameters->bApplyDirectLighting)
+		if (PassParameters->bApplyDirectLighting && (LightSceneInfo != nullptr))
 		{
 			DeferredLightUniform = GetDeferredLightParameters(View, *LightSceneInfo);
 		}
