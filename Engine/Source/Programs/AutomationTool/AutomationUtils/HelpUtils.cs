@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -73,9 +74,163 @@ namespace AutomationTool
 		}
 	}
 
-	/// <summary>
-	/// Base utility function for script commands.
-	/// </summary>
+	[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+	public class ParamHelpAttribute : HelpAttribute
+	{
+		public enum ParamAction
+		{
+			Store,
+			Store_True,
+			Store_False,
+			Append
+		}
+
+		private ParamHelpAttribute(string Description) : base(Description)
+		{
+		}
+
+		public ParamHelpAttribute(string Name, string Description) : base(Name, Description)
+		{
+			ParamName = Name.TrimStart('-');
+			int EqualsInParamNameIndex = ParamName.IndexOf("=");
+			if (EqualsInParamNameIndex > 0)
+			{
+				ParamName = ParamName.Substring(0, EqualsInParamNameIndex);
+			}
+			_Action = ParamAction.Store;
+			Required = false;
+			ParamType = typeof(string);
+			DefaultValue = null;
+			_Choices = null;
+			MultiSelectSeparator = null;
+			Deprecated = false;
+		}
+
+		public string ParamName
+		{
+			get;
+		}
+		
+		public string ParamDescription
+		{
+			get
+			{
+				string RequiredStr = Required ? ". Required" : ". Optional";
+				string ChoicesStr = "";
+				var ValidChoices = Choices as IEnumerable<object>;
+				if (ValidChoices != null)
+				{
+					ChoicesStr += ". Choices=[";
+					foreach (var Value in ValidChoices)
+					{
+						ChoicesStr += Value.ToString() + (MultiSelectSeparator != null ? MultiSelectSeparator : "|");
+					}
+					ChoicesStr = ChoicesStr.Remove(ChoicesStr.Length - 1);
+					ChoicesStr += "]";
+				}
+				string DefaultStr = DefaultValue != null ? ". DefaultValue=" + DefaultValue.ToString() : "";
+				return base.Description + string.Format("{0}{1}{2}",
+						RequiredStr,
+						DefaultStr,
+						ChoicesStr
+					);
+			}
+		}
+
+		private ParamAction _Action = ParamAction.Store;
+		public ParamAction Action
+		{
+			get
+			{
+				return _Action;
+			}
+			set
+			{
+				if (value == ParamAction.Store_True || value == ParamAction.Store_False)
+				{
+					ParamType = typeof(bool);
+				}
+				_Action = value;
+			}
+		}
+
+		public object DefaultValue
+		{
+			get;
+			set;
+		}
+
+		public Type ParamType
+		{
+			get;
+			set;
+		}
+
+		object _Choices;
+		public object Choices
+		{
+			get
+			{
+				return _Choices;
+			}
+			set
+			{
+				var Enumerable = value as System.Collections.IEnumerable;
+				if (Enumerable != null)
+				{
+					_Choices = Enumerable;
+				}
+			}
+		}
+
+		public bool Required
+		{
+			get;
+			set;
+		}
+
+		public string Help
+		{
+			get;
+			set;
+		}
+
+		public string MultiSelectSeparator
+		{
+			get;
+			set;
+		}
+
+		public bool Deprecated
+		{
+			get;
+			set;
+		}
+
+		private string _Flag = null;
+		public string Flag
+		{
+			get
+			{
+				if (_Flag == null)
+				{
+					return ParamName;
+				}
+				return _Flag;
+			}
+			set
+			{
+				if (!string.IsNullOrEmpty(value))
+				{
+					_Flag = value.TrimStart('-');
+				}
+			}
+		}
+	}
+
+/// <summary>
+/// Base utility function for script commands.
+/// </summary>
 	public partial class CommandUtils
 	{
 		/// <summary>
