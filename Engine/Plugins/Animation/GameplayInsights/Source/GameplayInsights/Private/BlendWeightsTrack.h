@@ -41,6 +41,7 @@ private:
 	virtual FName GetNameInternal() const override { return "BlendWeight"; }
 	virtual FText GetDisplayNameInternal() const override { return CurveName; }
 	virtual uint64 GetObjectIdInternal() const override { return ObjectId; }
+	virtual bool HandleDoubleClickInternal() override;
 
 	TSharedPtr<SCurveTimelineView::FTimelineCurveData> GetCurveData() const;
 	

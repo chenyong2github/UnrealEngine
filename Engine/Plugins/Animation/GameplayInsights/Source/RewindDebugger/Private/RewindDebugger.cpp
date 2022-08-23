@@ -1028,6 +1028,11 @@ void FRewindDebugger::ComponentDoubleClicked(TSharedPtr<RewindDebugger::FRewindD
 	}
 	
 	SelectedTrack = SelectedObject;
+
+	if (SelectedTrack->HandleDoubleClick())
+	{
+		return;
+	}
 	
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
 	static const FName HandlerFeatureName = IRewindDebuggerDoubleClickHandler::ModularFeatureName;

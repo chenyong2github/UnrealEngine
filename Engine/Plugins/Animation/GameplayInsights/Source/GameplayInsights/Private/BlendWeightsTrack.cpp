@@ -12,6 +12,8 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
+#include "Editor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "BlendWeightsTrack"
@@ -335,6 +337,25 @@ TSharedPtr<SWidget> FBlendWeightTrack::GetDetailsViewInternal()
 	return BlendWeightsView;
 }
 
+bool FBlendWeightTrack::HandleDoubleClickInternal()
+{
+#if WITH_EDITOR
+	IRewindDebugger* RewindDebugger = IRewindDebugger::Instance();
+	if (const TraceServices::IAnalysisSession* AnalysisSession = RewindDebugger->GetAnalysisSession())
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+
+		const FGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+
+		const FObjectInfo& AssetInfo = GameplayProvider->GetObjectInfo(GetAssetId());
+
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetInfo.PathName);
+
+		return true;
+	}
+#endif
+	return false;
+}
 
 FName FBlendWeightsTrackCreator::GetTargetTypeNameInternal() const
 {

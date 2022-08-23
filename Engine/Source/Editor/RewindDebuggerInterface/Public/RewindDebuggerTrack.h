@@ -87,6 +87,12 @@ public:
 		return HasDebugDataInternal();
 	}
 
+	// Called when a track is double clicked.  Returns true if the track handled the double click
+	bool HandleDoubleClick()
+	{
+		return HandleDoubleClickInternal();
+	}
+
 	bool IsVisible() const { return bVisible; }
 	void SetIsVisible(bool bInIsVisible) { bVisible = bInIsVisible; }
 
@@ -101,6 +107,7 @@ private:
 	virtual uint64 GetObjectIdInternal() const { return 0; }
 	virtual bool HasDebugDataInternal() const { return true; }
 	virtual void IterateSubTracksInternal(TFunction<void(TSharedPtr<FRewindDebuggerTrack> SubTrack)> IteratorFunction) { }
+	virtual bool HandleDoubleClickInternal() { return false; }
 
 	bool bExpanded;
 	bool bVisible;
