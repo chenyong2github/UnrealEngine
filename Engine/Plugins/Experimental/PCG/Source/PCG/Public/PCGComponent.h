@@ -133,6 +133,9 @@ public:
 	EPCGComponentInput InputType = EPCGComponentInput::Actor;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bParseActorComponents = true;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	int Seed = 42;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
@@ -210,7 +213,7 @@ private:
 	UPCGData* CreatePCGData();
 	UPCGData* CreateInputPCGData();
 	UPCGData* CreateActorPCGData();
-	UPCGData* CreateActorPCGData(AActor* Actor);
+	UPCGData* CreateActorPCGData(AActor* Actor, bool bParseActor = true);
 	UPCGData* CreateLandscapePCGData(bool bHeightOnly);
 	void UpdatePCGExclusionData();
 	bool IsLandscapeCachedDataDirty(const UPCGData* Data) const;

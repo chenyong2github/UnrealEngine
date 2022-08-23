@@ -32,6 +32,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	EPCGSpawnActorOption Option = EPCGSpawnActorOption::CollapseActors;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Option==EPCGSpawnActorOption::NoMerging"))
+	bool bForceDisableActorParsing = true;
+
 	//~Begin UCPGSettings interface
 	virtual UPCGNode* CreateNode() const override;
 

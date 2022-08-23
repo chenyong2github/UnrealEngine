@@ -35,8 +35,6 @@ protected:
 
 #if WITH_EDITOR
 	void OnSubgraphChanged(UPCGGraph* InGraph, EPCGChangeType ChangeType);
-
-	virtual bool IsStructuralProperty(const FName& InPropertyName) const { return false; }
 #endif
 };
 

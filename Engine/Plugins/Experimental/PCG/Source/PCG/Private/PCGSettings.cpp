@@ -97,7 +97,7 @@ void UPCGSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 
 	if (PropertyChangedEvent.GetMemberPropertyName() != GET_MEMBER_NAME_CHECKED(UPCGSettings, DeterminismSettings))
 	{
-		OnSettingsChangedDelegate.Broadcast(this, EPCGChangeType::Settings);
+		OnSettingsChangedDelegate.Broadcast(this, IsStructuralProperty(PropertyChangedEvent.GetMemberPropertyName()) ? EPCGChangeType::Structural : EPCGChangeType::Settings);
 	}
 }
 

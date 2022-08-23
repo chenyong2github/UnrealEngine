@@ -83,6 +83,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	bool bShouldPassThroughInputs = (Settings->Option != EPCGSpawnActorOption::NoMerging && Settings->GetSubgraph() != nullptr);
+	const bool bForceDisableActorParsing = (Settings->bForceDisableActorParsing);
 
 	// Pass-through exclusions & settings
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
@@ -199,6 +200,11 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 						{
 							if (!bShouldPassThroughInputs)
 							{
+								if (bForceDisableActorParsing)
+								{
+									PCGComponent->bParseActorComponents = false;
+								}
+
 								PCGComponent->Generate();
 							}
 							else

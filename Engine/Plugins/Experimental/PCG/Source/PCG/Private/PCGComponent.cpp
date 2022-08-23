@@ -901,6 +901,11 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		DirtyGenerated(EPCGComponentDirtyFlag::Input);
 		Refresh();
 	}
+	else if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, bParseActorComponents))
+	{
+		DirtyGenerated(EPCGComponentDirtyFlag::Input);
+		Refresh();
+	}
 	// General properties that don't affect behavior
 	else if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, Seed))
 	{
@@ -1587,10 +1592,10 @@ void UPCGComponent::UpdatePCGExclusionData()
 
 UPCGData* UPCGComponent::CreateActorPCGData()
 {
-	return CreateActorPCGData(GetOwner());
+	return CreateActorPCGData(GetOwner(), bParseActorComponents);
 }
 
-UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor)
+UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, bool bParseActor)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::CreateActorPCGData);
 
@@ -1634,7 +1639,7 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor)
 
 		return Data;
 	}
-	else // Prepare data on a component basis
+	else if (bParseActor)// Prepare data on a component basis
 	{
 		TInlineComponentArray<ULandscapeSplinesComponent*, 1> LandscapeSplines;
 		Actor->GetComponents<ULandscapeSplinesComponent>(LandscapeSplines);
@@ -1722,14 +1727,12 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor)
 		{
 			return Union;
 		}
-		else // No parsed components: default
-		{
-			//Default behavior on unknown actors is to write a single point at the actor location
-			UPCGPointData* Data = NewObject<UPCGPointData>(this);
-			Data->InitializeFromActor(Actor);
-			return Data;
-		}
 	}
+
+	// Finally, if it's not a special actor and there are not parsed components, then return a single point at the actor position
+	UPCGPointData* Data = NewObject<UPCGPointData>(this);
+	Data->InitializeFromActor(Actor);
+	return Data;
 }
 
 UPCGData* UPCGComponent::CreatePCGData()
