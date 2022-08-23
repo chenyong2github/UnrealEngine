@@ -111,13 +111,6 @@ private:
 
 	int32 GetIndexOfGoal(const FName& OldName) const;
 
-	static void ExtractRotation(
-	    const FVector& DX,
-	    const FVector& DY,
-	    const FVector& DZ,
-	    FQuat &Q,
-	    const unsigned int maxIter);
-
 	int32 BodyBoneIndex;
 };
 

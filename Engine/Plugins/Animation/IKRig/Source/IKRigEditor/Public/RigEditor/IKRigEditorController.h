@@ -79,6 +79,30 @@ private:
 	static bool ReferenceTransformRelative[3];
 };
 
+enum class EChainSide
+{
+	Left,
+	Right,
+	Center
+};
+
+/** use string matching and skeletal analysis to suggest a reasonable default name for retarget chains */
+struct FRetargetChainAnalyzer
+{
+	TSharedPtr<FTextFilterExpressionEvaluator> TextFilter;
+
+	FRetargetChainAnalyzer()
+	{
+		TextFilter = MakeShared<FTextFilterExpressionEvaluator>(ETextFilterExpressionEvaluatorMode::BasicString);
+	}
+	
+	void AssignBestGuessName(FBoneChain& Chain, const FIKRigSkeleton& IKRigSkeleton);
+	
+	static FName GetDefaultChainName();
+
+	static EChainSide GetSideOfChain(const TArray<int32>& BoneIndices, const FIKRigSkeleton& IKRigSkeleton);
+};
+
 /** a home for cross-widget communication to synchronize state across all tabs and viewport */
 class FIKRigEditorController : public TSharedFromThis<FIKRigEditorController>, FGCObject
 {
@@ -86,6 +110,8 @@ public:
 
 	/** initialize the editor controller to an instance of the IK Rig editor */
 	void Initialize(TSharedPtr<FIKRigEditorToolkit> Toolkit, UIKRigDefinition* Asset);
+	/** cleanup when editor closed */
+	void Close() const;
 
 	/** get the currently active processor running the IK Rig in the editor */
 	UIKRigProcessor* GetIKRigProcessor() const;
@@ -124,10 +150,19 @@ public:
 	void GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems) const;
 	/** returns true if Goal is currently selected */
 	bool IsGoalSelected(const FName& GoalName) const;
-	/** get name of the selected retargeting chain */
-	FName GetSelectedChain() const;
 	/** is anything selected in the skeleton view? */
 	bool DoesSkeletonHaveSelectedItems() const;
+	/** get name of the selected retargeting chain */
+	TArray<FName> GetSelectedChains() const;
+	/** get chains selected in skeleton view */
+	void GetChainsSelectedInSkeletonView(TArray<FBoneChain>& InOutChains);
+	
+	/** create new retarget chains from selected bones (or single empty chain if no selection) */
+	void CreateNewRetargetChains();
+	/** show user the new retarget chain they are about to create (provides option to edit name) */
+	void PromptToAddNewRetargetChain(const FBoneChain& BoneChain) const;
+	/** prompt user if they want to add a goal to a newly mirrored chain */
+	void PromptToAddGoalToNewlyMirroredChain(const FBoneChain& OldChain, const FBoneChain& MirroredChain) const;
 	
 	/** determine if the element is connected to the selected solver */
 	bool IsElementConnectedToSolver(TSharedRef<FIKRigTreeElement> TreeElement, int32 SolverIndex);
@@ -162,9 +197,6 @@ public:
 	/** set retargeting tab view */
 	void SetRetargetingView(const TSharedPtr<SIKRigRetargetChainList>& InRetargetingView){ RetargetingView = InRetargetingView; };
 
-	/** create a new retarget chain */
-	void AddNewRetargetChain(const FName ChainName, const FName StartBone, const FName EndBone);
-
 	/** play preview animation on running anim instance in editor (before IK) */
 	void PlayAnimationAsset(UAnimationAsset* AssetToPlay);
 	
@@ -180,6 +212,9 @@ public:
 
 	/** the persona toolkit */
 	TWeakPtr<FIKRigEditorToolkit> EditorToolkit;
+
+	/** used to analyze a retarget chain */
+	FRetargetChainAnalyzer ChainAnalyzer;
 
 	/** UI and viewport selection state */
 	bool bManipulatingGoals = false;
@@ -204,6 +239,9 @@ private:
 	
 	/** right after importing a skeleton, we ask user what solver they want to use */
 	bool PromptToAddSolver() const;
+
+	/** right after creating a goal, we ask user if they want it assigned to a retarget chain */
+	void PromptToAddGoalToChain(UIKRigEffectorGoal* NewGoal) const;
 
 	/** Initializes editor's solvers instances */
 	void InitializeSolvers() const;
@@ -230,6 +268,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UIKRigBoneDetails> BoneDetails;
+
+	/** remove delegate when closing editor */
+	FDelegateHandle ReinitializeDelegateHandle;
 
 	friend struct FIKRigOutputLogTabSummoner;
 	friend class SIKRigAssetBrowser;

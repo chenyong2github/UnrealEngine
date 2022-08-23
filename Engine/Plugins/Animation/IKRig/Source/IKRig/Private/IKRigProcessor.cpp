@@ -14,7 +14,10 @@ UIKRigProcessor::UIKRigProcessor()
 	Log.SetLogTarget(LogName);
 }
 
-void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const USkeletalMesh* SkeletalMesh)
+void UIKRigProcessor::Initialize(
+	const UIKRigDefinition* InRigAsset,
+	const USkeletalMesh* SkeletalMesh,
+	const TArray<FName>& ExcludedGoals)
 {
 	// we instantiate UObjects here which MUST be done on game thread...
 	check(IsInGameThread());
@@ -52,17 +55,29 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const USkel
 	
 	// initialize goals based on source asset
 	GoalContainer.Empty();
-	const TArray<UIKRigEffectorGoal*>& GoalsInAsset = InRigAsset->GetGoalArray();
-	for (const UIKRigEffectorGoal* GoalInAsset : GoalsInAsset)
+	const TArray<UIKRigEffectorGoal*>& EffectorGoals = InRigAsset->GetGoalArray();
+	for (const UIKRigEffectorGoal* EffectorGoal : EffectorGoals)
 	{
+		// skip excluded goals
+		if (ExcludedGoals.Contains(EffectorGoal->GoalName))
+		{
+			continue;
+		}
+		
 		// add a copy of the Goal to the container
-		GoalContainer.SetIKGoal(GoalInAsset);
+		GoalContainer.SetIKGoal(EffectorGoal);
 	}
 	
 	// initialize goal bones from asset
 	GoalBones.Reset();
-	for (const UIKRigEffectorGoal* EffectorGoal : GoalsInAsset)
-	{	
+	for (const UIKRigEffectorGoal* EffectorGoal : EffectorGoals)
+	{
+		// skip excluded goals
+		if (ExcludedGoals.Contains(EffectorGoal->GoalName))
+		{
+			continue;
+		}
+		
 		FGoalBone NewGoalBone;
 		NewGoalBone.BoneName = EffectorGoal->BoneName;
 		NewGoalBone.BoneIndex = Skeleton.GetBoneIndexFromName(EffectorGoal->BoneName);
@@ -110,10 +125,18 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const USkel
 			continue;
 		}
 
-		// new solver name
+		// create duplicate solver instance with unique name
 		FString Name = IKRigSolver->GetName() + "_SolverInstance_";
 		Name.AppendInt(SolverIndex++);
 		UIKRigSolver* Solver = DuplicateObject(IKRigSolver, this, FName(*Name));
+
+		// remove excluded goals from the solver
+		for (const FName& ExcludedGoal : ExcludedGoals)
+		{
+			Solver->RemoveGoal(ExcludedGoal);
+		}
+
+		// initialize it and store in the processor
 		Solver->Initialize(Skeleton);
 		Solvers.Add(Solver);
 	}
@@ -333,7 +356,12 @@ const FIKRigGoalContainer& UIKRigProcessor::GetGoalContainer() const
 	return GoalContainer;
 }
 
-FIKRigSkeleton& UIKRigProcessor::GetSkeleton()
+FIKRigSkeleton& UIKRigProcessor::GetSkeletonWriteable()
+{
+	return Skeleton;
+}
+
+const FIKRigSkeleton& UIKRigProcessor::GetSkeleton() const
 {
 	return Skeleton;
 }

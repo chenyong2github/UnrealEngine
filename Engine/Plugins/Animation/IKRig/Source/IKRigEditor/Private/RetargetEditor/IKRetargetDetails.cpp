@@ -15,6 +15,8 @@
 #include "Widgets/Input/SSegmentedControl.h"
 #include "ScopedTransaction.h"
 #include "AnimationRuntime.h"
+#include "SSearchableComboBox.h"
+#include "UObject/UnrealTypePrivate.h"
 
 #if WITH_EDITOR
 #include "HAL/PlatformApplicationMisc.h"
@@ -80,7 +82,7 @@ FEulerTransform UIKRetargetBoneDetails::GetTransform(EIKRetargetTransformType Tr
 			// this is the only stored data we have for bone pose offsets
 			const ERetargetSourceOrTarget SourceOrTarget = EditorController->GetSourceOrTarget();
 			const FRotator LocalRotationDelta = EditorController->AssetController->GetRotationOffsetForRetargetPoseBone(SelectedBone, SourceOrTarget).Rotator();
-			const FVector GlobalTranslationDelta = IsRootBone() ? EditorController->AssetController->GetTranslationOffsetOnRetargetRootBone(SourceOrTarget) : FVector::Zero();
+			const FVector GlobalTranslationDelta = IsRootBone() ? EditorController->AssetController->GetCurrentRetargetPose(SourceOrTarget).GetRootTranslationDelta() : FVector::Zero();
 			const int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex);
 
 			if (bLocalSpace)
@@ -306,7 +308,7 @@ void UIKRetargetBoneDetails::OnPasteFromClipboard(
 			if (Result && ErrorPipe.NumErrors == 0)
 			{
 				Transform.SetLocation(Data);
-				EditorController->AssetController->SetTranslationOffsetOnRetargetRootBone(Transform.GetLocation(), SourceOrTarget);
+				EditorController->AssetController->GetCurrentRetargetPose(SourceOrTarget).SetRootTranslationDelta(Transform.GetLocation());
 			}
 			break;
 		}
@@ -404,7 +406,7 @@ void UIKRetargetBoneDetails::OnNumericValueCommitted(
 		{
 			const bool bIsTranslationLocal = RelativeOffsetTransformRelative[0];
 			FTransform CurrentGlobalOffset = FTransform::Identity;
-			CurrentGlobalOffset.SetTranslation(AssetController->GetTranslationOffsetOnRetargetRootBone(SourceOrTarget));
+			CurrentGlobalOffset.SetTranslation(AssetController->GetCurrentRetargetPose(SourceOrTarget).GetRootTranslationDelta());
 			
 			if (bIsTranslationLocal)
 			{	
@@ -433,7 +435,7 @@ void UIKRetargetBoneDetails::OnNumericValueCommitted(
 			// store the new transform in the retarget pose
 			FScopedTransaction Transaction(LOCTEXT("EditRootTranslation", "Edit Retarget Root Pose Translation"));
 			EditorController->AssetController->GetAsset()->Modify();
-			EditorController->AssetController->SetTranslationOffsetOnRetargetRootBone(CurrentGlobalOffset.GetTranslation(), SourceOrTarget);
+			EditorController->AssetController->GetCurrentRetargetPose(SourceOrTarget).SetRootTranslationDelta(CurrentGlobalOffset.GetTranslation());
 			
 			break;
 		}
@@ -625,14 +627,14 @@ void FIKRetargetBoneDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& 
 		// get/set relative
 		TransformWidgetArgs.OnGetIsComponentRelative_Lambda( [bIsEditable, BonesView, TransformType](ESlateTransformComponent::Type InComponent)
 		{
-			return BonesView.ContainsByPredicate( [&](const UIKRetargetBoneDetails* Bone)
+			return BonesView.ContainsByPredicate( [&](const TObjectPtr<UIKRetargetBoneDetails> Bone)
 			{
 				return Bone->IsComponentRelative(InComponent, TransformType);
 			} );
 		})
 		.OnIsComponentRelativeChanged_Lambda( [bIsEditable, BonesView, TransformType](ESlateTransformComponent::Type InComponent, bool bIsRelative)
 		{
-			for (UIKRetargetBoneDetails* Bone: BonesView)
+			for (const TObjectPtr<UIKRetargetBoneDetails> Bone: BonesView)
 			{
 				Bone->OnComponentRelativeChanged(InComponent, bIsRelative, TransformType);
 			}
@@ -753,6 +755,431 @@ void FIKRetargetBoneDetailCustomization::GetTransformUIData(
 			DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UIKRetargetBoneDetails, ReferenceTransform))
 			});
 	}
+}
+
+void FRetargetChainSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized = DetailBuilder.GetSelectedObjects();
+	ChainSettingsObjects.Reset();
+	for (const TWeakObjectPtr<UObject>& Object : ObjectsBeingCustomized)
+	{
+		if (URetargetChainSettings* ChainSettings = Cast<URetargetChainSettings>(Object.Get()))
+		{
+			ChainSettingsObjects.Add(ChainSettings);
+		}
+	}
+	
+	if (ChainSettingsObjects.IsEmpty())
+	{
+		return;
+	}
+
+	Controller = ChainSettingsObjects[0]->EditorController;
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+
+	// hide the settings category and build our own
+	DetailBuilder.HideCategory("Settings");
+	DetailBuilder.HideCategory("Chain Mapping");
+
+	// determine the current setup state of the chain (is it ready for FK and/or IK?)
+	// FK: it can only run FK retarget if it's mapped to a source chain
+	// IK: can only run IK if FK is setup AND it's mapped to a goal that is connected to a solver (in the target IK rig)
+	auto CheckChainSetupForIKAndFK([this](const TObjectPtr<URetargetChainSettings> ChainSettings, bool& OutFKSetup, bool&OutIKSetup)
+	{
+		OutFKSetup = true;
+		OutIKSetup = true;
+		
+		if (ChainSettings->SourceChain == NAME_None || ChainSettings->TargetChain == NAME_None)
+		{
+			OutFKSetup = false;
+			OutIKSetup = false;
+		}
+
+		if (!Controller->AssetController->IsChainRunningIK(ChainSettings.Get()))
+		{
+			OutIKSetup = false;
+		}
+	});
+
+	// get the FK and IK status of the first selected chain
+	bool bFirstChainFKSetup;
+	bool bFirstChainIKSetup;
+	CheckChainSetupForIKAndFK(ChainSettingsObjects[0].Get(), bFirstChainFKSetup, bFirstChainIKSetup);
+
+	// check to see if there is a mix of chains with valid FK or IK setups
+	bool bIsFKSetupMultipleValues = false;
+	bool bIsIKSetupMultipleValues = false;
+	for (const TWeakObjectPtr<URetargetChainSettings> ChainSettings : ChainSettingsObjects)
+	{
+		bool bIsFKSetup;
+		bool bIsIKSetup;
+		CheckChainSetupForIKAndFK(ChainSettings.Get(), bIsFKSetup, bIsIKSetup);
+		bIsFKSetupMultipleValues = bIsFKSetup != bFirstChainFKSetup ? true : bIsFKSetupMultipleValues;
+		bIsIKSetupMultipleValues = bIsIKSetup != bFirstChainIKSetup ? true : bIsIKSetupMultipleValues;
+	}
+
+	// are we editing multiple chains?
+	const bool bEditingMultipleChains = ChainSettingsObjects.Num() > 1;
+	TObjectPtr<URetargetChainSettings> PrimaryChainSettingsObject = ChainSettingsObjects[0].Get();
+
+	// get source chain options for combobox
+	SourceChainOptions.Reset();
+	SourceChainOptions.Add(MakeShareable(new FString(TEXT("None"))));
+	if (const UIKRigDefinition* SourceIKRig = Controller->AssetController->GetIKRig(ERetargetSourceOrTarget::Source))
+	{
+		const TArray<FBoneChain>& Chains = SourceIKRig->GetRetargetChains();
+		for (const FBoneChain& BoneChain : Chains)
+		{
+			SourceChainOptions.Add(MakeShareable(new FString(BoneChain.ChainName.ToString())));
+		}
+	}
+	
+	// replace the "Settings" struct property
+	const FText ChainTitleName = bEditingMultipleChains ?  LOCTEXT("MultipleChains_Label", "Multiple Chain") : FText::FromName(PrimaryChainSettingsObject->TargetChain);
+	const FText ChainCategoryTitle = FText::Format( LOCTEXT("ChainSettingsHeaderLabel", "{0} Settings"), ChainTitleName);
+	IDetailCategoryBuilder& SettingsCategory = DetailBuilder.EditCategory("Chain Settings", ChainCategoryTitle);
+	
+	// add row to select source chain to map to
+	SettingsCategory.AddCustomRow(LOCTEXT("ChainStatus_Label", "Status"))
+	.NameContent()
+	[
+		SNew(SBox)
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT( "ChainStatus_Label", "Source Chain" ))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+	]
+	.ValueContent()
+	.MinDesiredWidth(166.0f)
+	[
+		SNew(SSearchableComboBox)
+		.ToolTipText(LOCTEXT("SourceChainOptionsToolTip", "Select source chain to map to this target chain."))
+		.OptionsSource(&SourceChainOptions)
+		.OnGenerateWidget_Lambda([](TSharedPtr<FString> InItem)
+		{
+			return SNew(STextBlock).Text(FText::FromString(*InItem.Get()));
+		})
+		.OnSelectionChanged_Lambda([this](TSharedPtr<FString> InString, ESelectInfo::Type SelectInfo)
+		{
+			const FName SourceChainName = FName(*InString.Get());
+			for (TWeakObjectPtr<URetargetChainSettings> ChainMapSettings : ChainSettingsObjects)
+			{
+				Controller->AssetController->SetSourceChainForTargetChain(ChainMapSettings.Get(), SourceChainName);
+			}
+		})
+		[
+			SNew(STextBlock)
+			.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
+			.Text_Lambda([PrimaryChainSettingsObject]()
+			{
+				return FText::FromName(PrimaryChainSettingsObject->SourceChain);
+			})
+		]
+	];
+
+	// FK settings
+	const FText FKNotMappedWarning = LOCTEXT( "FKDisabled_Label", "Disabled: No source chain specified." );
+	const bool bFKEditingEnabled = bFirstChainFKSetup && !bIsFKSetupMultipleValues;
+	AddSettingsSection(
+		DetailBuilder,
+		SettingsCategory,
+		GET_MEMBER_NAME_STRING_CHECKED(FTargetChainSettings, FK),
+		FName("FK"),
+		LOCTEXT("FKGroup_Label", "FK"),
+		FTargetChainFKSettings::StaticStruct(),
+		GET_MEMBER_NAME_STRING_CHECKED(FTargetChainFKSettings, EnableFK),
+		bFKEditingEnabled,
+		FKNotMappedWarning);
+
+	// IK settings
+	const FText NoIKGoalWarning = LOCTEXT( "IKDisabled_Label", "Disabled: No IK Goal specified." );
+	const FText IKEnabledMultipleValuesWarning = LOCTEXT( "IKDisabledMultipleValues_Label", "Some selected chain(s) do not have an IK Goal." );
+	const bool bIKEditingEnabled = bFirstChainIKSetup && !bIsIKSetupMultipleValues;
+	const FText IKWarningToUse = !bFKEditingEnabled ? FKNotMappedWarning : !bIKEditingEnabled ? NoIKGoalWarning : FText();
+	AddSettingsSection(
+		DetailBuilder,
+		SettingsCategory,
+		GET_MEMBER_NAME_STRING_CHECKED(FTargetChainSettings, IK),
+		FName("IK"),
+		LOCTEXT("IKGroup_Label", "IK"),
+		FTargetChainIKSettings::StaticStruct(),
+		GET_MEMBER_NAME_STRING_CHECKED(FTargetChainIKSettings, EnableIK),
+		bIKEditingEnabled,
+		IKWarningToUse);
+
+	// Plant settings
+	AddSettingsSection(
+		DetailBuilder,
+		SettingsCategory,
+		GET_MEMBER_NAME_STRING_CHECKED(FTargetChainSettings, SpeedPlanting),
+		FName("Speed Planting"),
+		LOCTEXT("PlantingGroup_Label", "Speed Planting"),
+		FTargetChainSpeedPlantSettings::StaticStruct(),
+		GET_MEMBER_NAME_STRING_CHECKED(FTargetChainSpeedPlantSettings, EnableSpeedPlanting),
+		bIKEditingEnabled,
+		IKWarningToUse);
+}
+
+void FRetargetChainSettingsCustomization::AddSettingsSection(
+	const IDetailLayoutBuilder& DetailBuilder,
+	IDetailCategoryBuilder& SettingsCategory,
+	const FString& StructPropertyName,
+	const FName& GroupName,
+	const FText& LocalizedGroupName,
+	const UScriptStruct* SettingsClass,
+	const FString& EnabledPropertyName,
+	const bool& bIsSectionEnabled,
+	const FText& DisabledMessage) const
+{
+	// create a group of all the properties in a settings struct,
+	// with a single "Enable X" property in the header of the details row
+	
+	const FString SettingsPropertyPath = GET_MEMBER_NAME_STRING_CHECKED(URetargetChainSettings, Settings);
+	const FString SettingsStructPropertyPath = FString::Printf(TEXT("%s.%s"), *SettingsPropertyPath, *StructPropertyName);
+	const FString EnablePropertyPath = FString::Printf(TEXT("%s.%s"), *SettingsStructPropertyPath, *EnabledPropertyName);
+	const TSharedRef<IPropertyHandle> IsEnabledProperty = DetailBuilder.GetProperty(*EnablePropertyPath);
+
+	IDetailGroup& Group = SettingsCategory.AddGroup(GroupName, LocalizedGroupName, false, true);
+
+	if (bIsSectionEnabled)
+	{
+		Group.HeaderProperty(IsEnabledProperty).CustomWidget()
+			.NameContent()
+			.VAlign(VAlign_Center)
+			[
+				SNew( STextBlock )
+				.Text( FText::FromName(GroupName) )
+				.Font( FAppStyle::GetFontStyle( TEXT( "PropertyWindow.NormalFont" ) ) )
+				.ToolTipText( IsEnabledProperty->GetToolTipText() )
+			]
+			.ValueContent()
+			[
+				SNew(SCheckBox)
+				.ToolTipText(IsEnabledProperty->GetToolTipText())
+				.IsChecked_Lambda([IsEnabledProperty]() -> ECheckBoxState
+				{
+					bool IsChecked;
+					IsEnabledProperty.Get().GetValue(IsChecked);
+					return IsChecked ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				})
+				.OnCheckStateChanged_Lambda([this, IsEnabledProperty](ECheckBoxState State)
+				{
+					IsEnabledProperty->SetValue(State == ECheckBoxState::Checked);
+					Controller->OnRetargeterNeedsInitialized(Controller->AssetController->GetAsset());
+				})
+			];
+	}
+	else
+	{
+		Group.HeaderRow()
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LocalizedGroupName)
+		]
+		.ValueContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(DisabledMessage)
+		];
+	}
+	
+	const TAttribute<bool> EditCondition = TAttribute<bool>::Create([IsEnabledProperty, bIsSectionEnabled]()
+	{
+		bool bIsEnabledPropertyTrue = true;
+		IsEnabledProperty->GetValue(bIsEnabledPropertyTrue);
+		return bIsSectionEnabled && bIsEnabledPropertyTrue;
+	});
+	
+	for (TFieldIterator<FProperty> It(SettingsClass); It; ++It)
+	{
+		if (It->GetName() == EnabledPropertyName)
+		{
+			continue;
+		}
+		const FString PropertyPath = FString::Printf(TEXT("%s.%s"), *SettingsStructPropertyPath, *It->GetName());
+		Group.AddPropertyRow(DetailBuilder.GetProperty(*PropertyPath)).EditCondition(EditCondition, nullptr);
+	}
+}
+
+void FRetargetRootSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized = DetailBuilder.GetSelectedObjects();
+	if (ObjectsBeingCustomized.Num() < 0)
+	{
+		return;
+	}
+	
+	RootSettingsObject = Cast<URetargetRootSettings>(ObjectsBeingCustomized[0].Get());
+	if (!RootSettingsObject.IsValid())
+	{
+		return;
+	}
+
+	Controller = RootSettingsObject->EditorController;
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+
+	const FString StructPropertyPath = GET_MEMBER_NAME_STRING_CHECKED(URetargetRootSettings, Settings);
+
+	auto AddPropertyRowToGroup = [&StructPropertyPath, &DetailBuilder](IDetailGroup& Group, const FString& PropertyName)
+	{
+		const FString PropertyPath = FString::Printf(TEXT("%s.%s"), *StructPropertyPath, *PropertyName);
+		Group.AddPropertyRow(DetailBuilder.GetProperty(*PropertyPath));
+	};
+
+	DetailBuilder.HideCategory("Settings");
+
+	// replace the "Settings" struct property
+	IDetailCategoryBuilder& SettingsCategory = DetailBuilder.EditCategory(FName("Root Settings"));
+
+	// alpha group
+	IDetailGroup& AlphaGroup = SettingsCategory.AddGroup("Alpha", LOCTEXT("Alpha_Label", "Alpha"), false, true);
+	AddPropertyRowToGroup(AlphaGroup,GET_MEMBER_NAME_STRING_CHECKED(FTargetRootSettings, RotationAlpha));
+	AddPropertyRowToGroup(AlphaGroup,GET_MEMBER_NAME_STRING_CHECKED(FTargetRootSettings, TranslationAlpha));
+
+	// offset group
+	IDetailGroup& OffsetGroup = SettingsCategory.AddGroup("Offsets", LOCTEXT("OffsetRoot_Label", "Offsets"), false, true);
+	AddPropertyRowToGroup(OffsetGroup,GET_MEMBER_NAME_STRING_CHECKED(FTargetRootSettings, TranslationOffset));
+	AddPropertyRowToGroup(OffsetGroup,GET_MEMBER_NAME_STRING_CHECKED(FTargetRootSettings, RotationOffset));
+
+	// scale group
+	IDetailGroup& ScaleGroup = SettingsCategory.AddGroup("Scale Translation", LOCTEXT("ScaleRoot_Label", "Scale Translation"), false, true);
+	AddPropertyRowToGroup(ScaleGroup,GET_MEMBER_NAME_STRING_CHECKED(FTargetRootSettings, ScaleHorizontal));
+	AddPropertyRowToGroup(ScaleGroup,GET_MEMBER_NAME_STRING_CHECKED(FTargetRootSettings, ScaleVertical));
+
+	// blend to source group
+	IDetailGroup& BlendToSourceGroup = SettingsCategory.AddGroup("Blend To Source", LOCTEXT("BlendToSource_Label", "Blend to Source"), false, true);
+	AddPropertyRowToGroup(BlendToSourceGroup,GET_MEMBER_NAME_STRING_CHECKED(FTargetRootSettings, BlendToSource));
+	AddPropertyRowToGroup(BlendToSourceGroup,GET_MEMBER_NAME_STRING_CHECKED(FTargetRootSettings, BlendToSourceWeights));
+
+	// affect IK directionally
+	IDetailGroup& AffectIKGroup = SettingsCategory.AddGroup("Affect IK", LOCTEXT("AffectIK_Label", "Affect IK"), false, true);
+	AddPropertyRowToGroup(AffectIKGroup,GET_MEMBER_NAME_STRING_CHECKED(FTargetRootSettings, AffectIKHorizontal));
+	AddPropertyRowToGroup(AffectIKGroup,GET_MEMBER_NAME_STRING_CHECKED(FTargetRootSettings, AffectIKVertical));
+}
+
+void FRetargetGlobalSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized = DetailBuilder.GetSelectedObjects();
+	if (ObjectsBeingCustomized.Num() < 0)
+	{
+		return;
+	}
+	
+	GlobalSettingsObject = Cast<UIKRetargetGlobalSettings>(ObjectsBeingCustomized[0].Get());
+	if (!GlobalSettingsObject.IsValid())
+	{
+		return;
+	}
+
+	Controller = GlobalSettingsObject->EditorController;
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+
+	const FString StructPropertyPath = GET_MEMBER_NAME_STRING_CHECKED(URetargetRootSettings, Settings);
+
+	auto GetPropertyHandle = [&DetailBuilder, &StructPropertyPath](const FString& PropertyName)
+	{
+		const FString EnableWarpingPropertyName = GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, bIKWarping);
+		const FString PropertyPath = FString::Printf(TEXT("%s.%s"), *StructPropertyPath, *PropertyName);
+		return DetailBuilder.GetProperty(*PropertyPath);
+	};
+
+	DetailBuilder.HideCategory("Settings");
+
+	// replace the "Settings" struct property
+	IDetailCategoryBuilder& SettingsCategory = DetailBuilder.EditCategory(FName("Global Settings"));
+
+	// phases group
+	IDetailGroup& AlphaGroup = SettingsCategory.AddGroup("Phases", LOCTEXT("Phases_Label", "Global Retarget Phases"), false, true);
+	AlphaGroup.AddPropertyRow(GetPropertyHandle(GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, bEnableRoot)));
+	AlphaGroup.AddPropertyRow(GetPropertyHandle(GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, bEnableFK)));
+	AlphaGroup.AddPropertyRow(GetPropertyHandle(GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, bEnableIK)));
+
+	// stride warping group
+	IDetailGroup& WarpingGroup = SettingsCategory.AddGroup("Warping", LOCTEXT("Warping_Label", "Stride Warping"), false, true);
+
+	// header with "enable" checkbox that disables whole group
+	const TSharedRef<IPropertyHandle> EnableWarpingPropertyHandle = GetPropertyHandle(GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, bIKWarping));
+	WarpingGroup.HeaderProperty(EnableWarpingPropertyHandle);
+	
+	const TAttribute<bool> EditCondition = TAttribute<bool>::Create([EnableWarpingPropertyHandle]()
+	{
+		bool bIsEnabledPropertyTrue = true;
+		EnableWarpingPropertyHandle->GetValue(bIsEnabledPropertyTrue);
+		return bIsEnabledPropertyTrue;
+	});
+	
+	// add all the warping parameters
+	WarpingGroup.AddPropertyRow(GetPropertyHandle(GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, ForwardDirection))).EditCondition(EditCondition,nullptr);
+	WarpingGroup.AddPropertyRow(GetPropertyHandle(GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, DirectionSource))).EditCondition(EditCondition,nullptr);
+
+	// get target chain options for combobox
+	TargetChainOptions.Reset();
+	TargetChainOptions.Add(MakeShareable(new FString(TEXT("None"))));
+	if (const UIKRigDefinition* TargetIKRig = Controller->AssetController->GetIKRig(ERetargetSourceOrTarget::Target))
+	{
+		const TArray<FBoneChain>& Chains = TargetIKRig->GetRetargetChains();
+		for (const FBoneChain& BoneChain : Chains)
+		{
+			TargetChainOptions.Add(MakeShareable(new FString(BoneChain.ChainName.ToString())));
+		}
+	}
+	
+	// add row to target chain to use for body direction
+	const TSharedRef<IPropertyHandle> DirectionChainPropertyHandle = GetPropertyHandle(GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, DirectionChain));
+	WarpingGroup.AddPropertyRow(DirectionChainPropertyHandle).CustomWidget()
+	.IsEnabled(GlobalSettingsObject->Settings.DirectionSource == EWarpingDirectionSource::Chain)
+	.NameContent()
+	[
+		SNew(SBox)
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT( "DirectionChainName_Label", "Direction Chain" ))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+	]
+	.ValueContent()
+	.MinDesiredWidth(166.0f)
+	[
+		SNew(SSearchableComboBox)
+		.ToolTipText(LOCTEXT("DirectionChainOptionsToolTip", "Select target chain (usually the Spine) to help define the forward direction of the character. This is especially useful for creatures with a horizontal body, like quadrupeds."))
+		.OptionsSource(&TargetChainOptions)
+		.OnGenerateWidget_Lambda([](TSharedPtr<FString> InItem)
+		{
+			return SNew(STextBlock).Text(FText::FromString(*InItem.Get()));
+		})
+		.OnSelectionChanged_Lambda([this](TSharedPtr<FString> InString, ESelectInfo::Type SelectInfo)
+		{
+			const FName TargetChainName = FName(*InString.Get());
+			GlobalSettingsObject->Settings.DirectionChain = TargetChainName;
+		})
+		[
+			SNew(STextBlock)
+			.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
+			.Text_Lambda([this]()
+			{
+				return FText::FromName(GlobalSettingsObject->Settings.DirectionChain);
+			})
+		]
+	];
+	
+	WarpingGroup.AddPropertyRow(GetPropertyHandle(GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, WarpForwards))).EditCondition(EditCondition,nullptr);
+	WarpingGroup.AddPropertyRow(GetPropertyHandle(GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, WarpSplay))).EditCondition(EditCondition,nullptr);
+	WarpingGroup.AddPropertyRow(GetPropertyHandle(GET_MEMBER_NAME_STRING_CHECKED(FRetargetGlobalSettings, SidewaysOffset))).EditCondition(EditCondition,nullptr);
 }
 
 #undef LOCTEXT_NAMESPACE

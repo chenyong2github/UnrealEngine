@@ -12,6 +12,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Framework/Commands/UICommandList.h"
+#include "Misc/TextFilterExpressionEvaluator.h"
 
 #include "SIKRigRetargetChainList.generated.h"
 
@@ -107,6 +108,13 @@ struct FIKRigRetargetChainSettings
 	FName EndBone;
 };
 
+struct FChainFilterOptions
+{
+	bool bHideSingleBoneChains = false;
+	bool bShowOnlyIKChains = false;
+	bool bShowOnlyMissingBoneChains = false;
+};
+
 typedef SListView< TSharedPtr<FRetargetChainElement> > SRetargetChainListViewType;
 
 class SIKRigRetargetChainList : public SCompoundWidget, public FEditorUndoClient
@@ -117,7 +125,7 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<FIKRigEditorController> InEditorController);
 
-	FName GetSelectedChain();
+	TArray<FName> GetSelectedChains() const;
 
 private:
 	
@@ -134,6 +142,12 @@ private:
 	TSharedPtr<SRetargetChainListViewType> ListView;
 	TArray< TSharedPtr<FRetargetChainElement> > ListViewItems;
 	/** END list view */
+
+	/** filtering the list with search box */
+	TSharedRef<SWidget> CreateFilterMenuWidget();
+	void OnFilterTextChanged(const FText& SearchText);
+	TSharedPtr<FTextFilterExpressionEvaluator> TextFilter;
+	FChainFilterOptions ChainFilterOptions;
 
 	/** callback when "Add New Chain" clicked */
 	bool IsAddChainEnabled() const;
@@ -156,6 +170,9 @@ private:
 	
 	/** sort chain list callback */
 	void SortChainList();
+
+	/** mirror the selected chains (right-click menu callback) */
+	void MirrorSelectedChains();
 
 	friend SIKRigRetargetChainRow;
 	friend FIKRigEditorController;

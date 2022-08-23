@@ -348,7 +348,7 @@ void FIKRetargetBatchOperation::ConvertAnimation(
 			}
 
 			// update goals 
-			Processor->CopyAllSettingsFromAsset();
+			Processor->ApplySettingsFromAsset();
 			
 			// calculate the delta time
 			const float TimeAtCurrentFrame = SourceSequence->GetTimeAtFrame(FrameIndex);

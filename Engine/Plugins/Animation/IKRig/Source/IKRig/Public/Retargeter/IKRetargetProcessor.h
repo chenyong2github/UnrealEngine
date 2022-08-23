@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "IKRetargeter.h"
+#include "IKRetargetSettings.h"
 #include "IKRigLogger.h"
 #include "Kismet/KismetMathLibrary.h"
+
 #include "IKRetargetProcessor.generated.h"
 
 enum class ERetargetTranslationMode : uint8;
@@ -22,28 +24,27 @@ class USkeletalMesh;
 
 struct IKRIG_API FRetargetSkeleton
 {
-	TArray<FName> BoneNames;
-	
-	TArray<int32> ParentIndices;
-	
-	TArray<FTransform> RetargetLocalPose;
-	
-	TArray<FTransform> RetargetGlobalPose;
-	
-	USkeletalMesh* SkeletalMesh;
-
-	// record which chain is actually controlling each bone
-	TArray<FName> ChainThatContainsBone;
+	TArray<FName> BoneNames;				// list of all bone names in ref skeleton order
+	TArray<int32> ParentIndices;			// per-bone indices of parent bones (the hierarchy)
+	TArray<FTransform> RetargetLocalPose;	// local space retarget pose
+	TArray<FTransform> RetargetGlobalPose;	// global space retarget pose
+	FName RetargetPoseName;					// the name of the retarget pose this was initialized with
+	USkeletalMesh* SkeletalMesh;			// the skeletal mesh this was initialized with
+	TArray<FName> ChainThatContainsBone;	// record which chain is actually controlling each bone
 
 	void Initialize(
 		USkeletalMesh* InSkeletalMesh,
 		const TArray<FBoneChain>& BoneChains,
+		const FName InRetargetPoseName,
 		const FIKRetargetPose* RetargetPose,
 		const FName& RetargetRootBone);
 
 	void Reset();
 
-	void GenerateRetargetPose(const FIKRetargetPose* InRetargetPose, const FName& RetargetRootBone);
+	void GenerateRetargetPose(
+		const FName InRetargetPoseName,
+		const FIKRetargetPose* InRetargetPose,
+		const FName& RetargetRootBone);
 
 	int32 FindBoneIndexByName(const FName InName) const;
 
@@ -98,6 +99,7 @@ struct FTargetSkeleton : public FRetargetSkeleton
 	void Initialize(
 		USkeletalMesh* InSkeletalMesh,
 		const TArray<FBoneChain>& BoneChains,
+		const FName& InRetargetPoseName,
 		const FIKRetargetPose* RetargetPose,
 		const FName& RetargetRootBone);
 
@@ -140,30 +142,19 @@ struct FRootSource
 struct FRootTarget
 {
 	int32 BoneIndex;
-
 	FVector InitialPosition;
 	FQuat InitialRotation;
-	
 	float InitialHeight;
-};
 
-struct FRetargetRootSettings
-{
-	float GlobalScaleHorizontal = 1.0f;
-	float GlobalScaleVertical = 1.0f;
-	float BlendToSource = 0.0f;
-	FVector BlendToSourceWeights = FVector::OneVector;
-	FVector StaticOffset = FVector::ZeroVector;
-	FRotator StaticRotationOffset = FRotator::ZeroRotator;
-	
-	void CopySettingsFromAsset(const URetargetRootSettings* AssetRootSettings);
+	FVector RootTranslationDelta;
+	FQuat RootRotationDelta;
 };
 
 struct FRootRetargeter
 {	
 	FRootSource Source;
 	FRootTarget Target;
-	FRetargetRootSettings Settings;
+	FTargetRootSettings Settings;
 
 	void Reset();
 	
@@ -179,43 +170,13 @@ struct FRootRetargeter
 
 	void EncodePose(const TArray<FTransform> &SourceGlobalPose);
 	
-	void DecodePose( TArray<FTransform> &OutTargetGlobalPose) const;
+	void DecodePose(TArray<FTransform> &OutTargetGlobalPose);
 
 	FVector GetGlobalScaleVector() const
 	{
-		return FVector(Settings.GlobalScaleHorizontal, Settings.GlobalScaleHorizontal, Settings.GlobalScaleVertical);
+		return FVector(Settings.ScaleHorizontal, Settings.ScaleHorizontal, Settings.ScaleVertical);
 	}
 };
-
-struct FRetargetChainSettings
-{
-	FName TargetChainName;
-
-	bool CopyPoseUsingFK = true;
-	ERetargetRotationMode RotationMode;
-	float RotationAlpha = 1.0f;
-	ERetargetTranslationMode TranslationMode;
-	float TranslationAlpha = 1.0f;
-
-	bool DriveIKGoal = true;
-	FVector StaticOffset;
-	FVector StaticLocalOffset;
-	FRotator StaticRotationOffset;
-	float Extension = 1.0f;
-	float BlendToSource = 0.0f;
-	FVector BlendToSourceWeights = FVector::OneVector;
-
-	bool UseSpeedCurveToPlantIK = false;
-	float SpeedThreshold = 0.0f;
-	FName SpeedCurveName;
-	float UnplantStiffness = 250.0f;
-	float UnplantCriticalDamping = 1.0f;
-
-public:
-	
-	void CopySettingsFromAsset(const URetargetChainSettings* AssetChainSettings);
-};
-
 
 struct FChainFK
 {
@@ -226,13 +187,14 @@ struct FChainFK
 	TArray<FTransform> CurrentGlobalTransforms;
 
 	TArray<float> Params;
+	TArray<int32> BoneIndices;
 
 	int32 ChainParentBoneIndex;
 	FTransform ChainParentInitialGlobalTransform;
 
 	bool Initialize(
 		const FRetargetSkeleton& Skeleton,
-		const TArray<int32>& BoneIndices,
+		const TArray<int32>& InBoneIndices,
 		const TArray<FTransform> &InitialGlobalPose,
 		FIKRigLogger& Log);
 
@@ -277,7 +239,7 @@ struct FChainDecoderFK : public FChainFK
 	
 	void DecodePose(
 		const FRootRetargeter& RootRetargeter,
-		const FRetargetChainSettings& Settings,
+		const FTargetChainSettings& Settings,
 		const TArray<int32>& TargetBoneIndices,
 		FChainEncoderFK& SourceChain,
 		const FTargetSkeleton& TargetSkeleton,
@@ -299,63 +261,61 @@ private:
 
 struct FDecodedIKChain
 {
-	FVector EndEffectorPosition;
-	
-	FQuat EndEffectorRotation;
-	
-	FVector PoleVectorPosition;
+	FVector EndEffectorPosition = FVector::ZeroVector;
+	FQuat EndEffectorRotation = FQuat::Identity;
+	FVector PoleVectorPosition = FVector::ZeroVector;
 };
 
 struct FSourceChainIK
 {
-	int32 BoneIndexA;
+	int32 BoneIndexA = INDEX_NONE;
+	int32 BoneIndexB = INDEX_NONE;
+	int32 BoneIndexC = INDEX_NONE;
 	
-	int32 BoneIndexB;
-	
-	int32 BoneIndexC;
-	
-	FVector InitialEndPosition;
-	
-	FQuat InitialEndRotation;
-	
-	float InvInitialLength;
+	FVector InitialEndPosition = FVector::ZeroVector;
+	FQuat InitialEndRotation = FQuat::Identity;
+	float InvInitialLength = 1.0f;
 
 	// results after encoding...
-	FVector PreviousEndPosition;
-	FVector CurrentEndPosition;
-	
-	FVector CurrentEndDirectionNormalized;
-	
-	FQuat CurrentEndRotation;
-	
-	float CurrentHeightFromGroundNormalized;
-	
-	FVector PoleVectorDirection;
+	FVector PreviousEndPosition = FVector::ZeroVector;
+	FVector CurrentEndPosition = FVector::ZeroVector;
+	FVector CurrentEndDirectionNormalized = FVector::ZeroVector;
+	FQuat CurrentEndRotation = FQuat::Identity;
+	float CurrentHeightFromGroundNormalized = 0.0f;
+	FVector PoleVectorDirection = FVector::ZeroVector;
 };
 
 struct FTargetChainIK
 {
-	int32 BoneIndexA;
+	int32 BoneIndexA = INDEX_NONE;
+	int32 BoneIndexC = INDEX_NONE;
+	
+	float InitialLength = 1.0f;
+	FVector InitialEndPosition = FVector::ZeroVector;
+	FQuat InitialEndRotation = FQuat::Identity;
+	FVector PrevEndPosition = FVector::ZeroVector;
+};
 
-	int32 BoneIndexC;
-	
-	float InitialLength;
-	
-	FVector InitialEndPosition;
-	
-	FQuat InitialEndRotation;
-
-	FVector PrevEndPosition;
+struct FChainDebugData
+{
+	FTransform InputTransformStart = FTransform::Identity;
+	FTransform InputTransformEnd = FTransform::Identity;
+	FTransform OutputTransformEnd = FTransform::Identity;
 };
 
 struct FChainRetargeterIK
 {
 	FSourceChainIK Source;
-	
 	FTargetChainIK Target;
+	
+	FDecodedIKChain Results;
 
 	bool ResetThisTick;
 	FVectorSpringState PlantingSpringState;
+
+	#if WITH_EDITOR
+	FChainDebugData DebugData;
+	#endif
 
 	bool InitializeSource(
 		const TArray<int32>& BoneIndices,
@@ -370,16 +330,18 @@ struct FChainRetargeterIK
 	void EncodePose(const TArray<FTransform> &SourceInputGlobalPose);
 	
 	void DecodePose(
-		const FRetargetChainSettings& Settings,
+		const FTargetChainSettings& Settings,
+		const FRootRetargeter& RootRetargeter,
 		const TMap<FName, float>& SpeedValuesFromCurves,
 		const float DeltaTime,
-		const TArray<FTransform>& OutGlobalPose,
-		FDecodedIKChain& OutResults);
+		const TArray<FTransform>& InGlobalPose);
+
+	void SaveDebugInfo(const TArray<FTransform>& InGlobalPose);
 };
 
 struct FRetargetChainPair
 {
-	FRetargetChainSettings Settings;
+	FTargetChainSettings Settings;
 	
 	TArray<int32> SourceBoneIndices;
 	
@@ -392,7 +354,6 @@ struct FRetargetChainPair
 	virtual ~FRetargetChainPair() = default;
 	
 	virtual bool Initialize(
-		URetargetChainSettings* InSettings,
 		const FBoneChain& SourceBoneChain,
 		const FBoneChain& TargetBoneChain,
 		const FRetargetSkeleton& SourceSkeleton,
@@ -415,7 +376,6 @@ struct FRetargetChainPairFK : FRetargetChainPair
 	FChainDecoderFK FKDecoder;
 	
 	virtual bool Initialize(
-		URetargetChainSettings* InSettings,
         const FBoneChain& SourceBoneChain,
         const FBoneChain& TargetBoneChain,
         const FRetargetSkeleton& SourceSkeleton,
@@ -432,12 +392,16 @@ struct FRetargetChainPairIK : FRetargetChainPair
 	FName PoleVectorGoalName;
 
 	virtual bool Initialize(
-		URetargetChainSettings* Settings,
         const FBoneChain& SourceBoneChain,
         const FBoneChain& TargetBoneChain,
         const FRetargetSkeleton& SourceSkeleton,
         const FTargetSkeleton& TargetSkeleton,
         FIKRigLogger& Log) override;
+};
+
+struct FRetargetDebugData
+{
+	FTransform StrideWarpingFrame;
 };
 
 /** The runtime processor that converts an input pose from a source skeleton into an output pose on a target skeleton.
@@ -474,11 +438,18 @@ public:
 	* @param InSourceGlobalPose -  is the source mesh input pose in Component/Global space
 	* @return The retargeted Component/Global space pose for the target skeleton
 	*/
-	TArray<FTransform>& RunRetargeter(const TArray<FTransform>& InSourceGlobalPose, const TMap<FName, float>& SpeedValuesFromCurves, const float DeltaTime);
+	TArray<FTransform>& RunRetargeter(
+		const TArray<FTransform>& InSourceGlobalPose,
+		const TMap<FName,
+		float>& SpeedValuesFromCurves,
+		const float DeltaTime);
 
+	/** Apply the settings stored in a retarget profile. Call this before RunRetargeter() to use the settings stored in a profile. */
+	void ApplySettingsFromProfile(const FRetargetProfile& Profile);
 	
-	FTransform GetTargetBoneRetargetPoseLocalTransform(const int32& TargetBoneIndex) const;
-
+	/** Apply the settings stored in the retargeter asset. */
+	void ApplySettingsFromAsset();
+	
 	/** Get read-only access to the target skeleton. */
 	const FTargetSkeleton& GetTargetSkeleton() const { return TargetSkeleton; };
 
@@ -512,25 +483,28 @@ public:
 #if WITH_EDITOR
 	/** Set that this processor needs to be reinitialized. */
 	void SetNeedsInitialized();
-	/** During editor preview, drive the target IK Rig with the settings from it's source asset */
-	void CopyAllSettingsFromAsset();
 	/** Returns true if the bone is part of a retarget chain or root bone, false otherwise. */
 	bool IsBoneRetargeted(const int32& BoneIndex, const int8& SkeletonToCheck) const;
 	/** Returns name of the chain associated with this bone. Returns NAME_None if bone is not in a chain. */
 	FName GetChainNameForBone(const int32& BoneIndex, const int8& SkeletonToCheck) const;
+	/** Get read only access to the core IK retarget chains for debug purposes */
+	const TArray<FRetargetChainPairIK>& GetIKChainPairs() const { return ChainPairsIK; };
+	/** Get read only access to the core FK retarget chains for debug purposes */
+	const TArray<FRetargetChainPairFK>& GetFKChainPairs() const { return ChainPairsFK; };
+	/** Get read only access to the core root retargeter for debug purposes */
+	const FRootRetargeter& GetRootRetargeter() const { return RootRetargeter; };
+	/** store data for debug drawing */
+	FRetargetDebugData DebugData;
 #endif
 
 private:
 
 	/** Only true once Initialize() has successfully completed.*/
 	bool bIsInitialized = false;
-
 	/** true when roots are able to be retargeted */
 	bool bRootsInitialized = false;
-
 	/** true when at least one pair of bone chains is able to be retargeted */
 	bool bAtLeastOneValidBoneChainPair = false;
-
 	/** true when roots are able to be retargeted */
 	bool bIKRigInitialized = false;
 
@@ -574,7 +548,10 @@ private:
 	/** Internal retarget phase for the IK chains. */
 	void RunIKRetarget(
 		const TArray<FTransform>& InSourceGlobalPose,
-		TArray<FTransform>& OutTargeGlobalPose,
+		TArray<FTransform>& OutTargetGlobalPose,
 		const TMap<FName, float>& SpeedValuesFromCurves,
 		const float DeltaTime);
+
+	/** Runs in the after the base IK retarget to apply stride warping to IK goals. */
+	void RunStrideWarping(const TArray<FTransform>& InTargeGlobalPose);
 };

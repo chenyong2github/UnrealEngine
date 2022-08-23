@@ -28,20 +28,11 @@ public:
 	virtual void Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalContainer& Goals) PURE_VIRTUAL("Solve");
 	//** END RUNTIME */
 
-	//** ROOT BONE (optional, implement if your solver requires a root bone) */
-	/** if solver requires a root bone, then override this to return it. */
-	virtual FName GetRootBone() const { return NAME_None; };
-	/** override to support telling outside systems which bones this solver has setting for.
-	* NOTE: This must be overriden on solvers that use bone settings.
-	* NOTE: Only ADD to the incoming set, do not remove from it. */
-	virtual void GetBonesWithSettings(TSet<FName>& OutBonesWithSettings) const {};
-	
-	//** END ROOT BONE */
-
 #if WITH_EDITORONLY_DATA
 	/** callback whenever this solver is edited */
 	DECLARE_EVENT_OneParam(UIKRigSolver, FIKRigSolverModified, UIKRigSolver*);
 	FIKRigSolverModified& OnSolverModified(){ return IKRigSolverModified; };
+#endif
 
 	/** get if this solver is enabled */
 	bool IsEnabled() const { return bIsEnabled; };
@@ -76,6 +67,9 @@ public:
 	//** END GOALS */
 
 	//** ROOT BONE (optional, implement if your solver requires a root bone) */
+	/** if solver requires a root bone, then override this to return it. */
+	virtual FName GetRootBone() const { return NAME_None; };
+	//** ROOT BONE (optional, implement if your solver requires a root bone) */
 	/** override to support SETTING ROOT BONE for the solver */
 	virtual void SetRootBone(const FName& RootBoneName){};
 	virtual bool RequiresRootBone() const { return false; };
@@ -95,6 +89,11 @@ public:
 	/** override to support supplying per-bone settings to outside systems for editing/UI
 	 ** NOTE: This must be overriden on solvers that use bone settings.*/
 	virtual UObject* GetBoneSetting(const FName& BoneName) const { ensure(!UsesBoneSettings()); return nullptr; };
+	/** override to support telling outside systems which bones this solver has setting for.
+	* NOTE: This must be overriden on solvers that use bone settings.
+	* NOTE: Only ADD to the incoming set, do not remove from it. */
+	virtual void GetBonesWithSettings(TSet<FName>& OutBonesWithSettings) const {};
+	//** END BONE SETTINGS */
 	
 	/** override to tell systems if this solver supports per-bone settings */
 	virtual bool UsesBoneSettings() const { return false;};
@@ -104,18 +103,20 @@ public:
 	virtual bool IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const { return false; };
 	//** END ROOT BONE */
 
+#if WITH_EDITORONLY_DATA
 	/** UObject interface */
 	virtual void PostLoad() override;
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	/** END UObject interface */
+#endif
 
 private:
 
+#if WITH_EDITORONLY_DATA
 	/** Register callbacks to update IK Rig when a solver is modified */
 	FIKRigSolverModified IKRigSolverModified;
+#endif
 
 	UPROPERTY()
 	bool bIsEnabled = true;
-#endif
-
 };

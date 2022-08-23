@@ -99,9 +99,16 @@ void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 	// NOTE: this copies goal targets as well, but these are overwritten by IK chain goals
 	if (bDriveWithAsset)
 	{
-		Processor->CopyAllSettingsFromAsset();
+		Processor->ApplySettingsFromAsset();
+		if (const FRetargetProfile* CurrentProfile = IKRetargeterAsset->GetCurrentProfile())
+		{
+			Processor->ApplySettingsFromProfile(*CurrentProfile);
+		}
 	}
 #endif
+
+	// apply custom profile settings to the processor
+	Processor->ApplySettingsFromProfile(CustomRetargetProfile);
 
 	// run the retargeter
 	const TArray<FTransform>& RetargetedPose = Processor->RunRetargeter(SourceMeshComponentSpaceBoneTransforms, SpeedValuesFromCurves, DeltaTime);
@@ -180,10 +187,10 @@ void FAnimNode_RetargetPoseFromMesh::UpdateSpeedValuesFromCurves()
 		return;
 	}
 
-	const TArray<TObjectPtr<URetargetChainSettings>> ChainSettings = IKRetargeterAsset->GetAllChainSettings();
+	const TArray<TObjectPtr<URetargetChainSettings>>& ChainSettings = IKRetargeterAsset->GetAllChainSettings();
 	for (const TObjectPtr<URetargetChainSettings>& ChainSetting : ChainSettings)
 	{
-		FName CurveName = ChainSetting->SpeedCurveName;
+		FName CurveName = ChainSetting->Settings.SpeedPlanting.SpeedCurveName;
 		if (CurveName == NAME_None)
 		{
 			continue;

@@ -46,8 +46,12 @@ public:
 	 *  NOTE!! this function creates new UObjects and consequently MUST be called from the main thread!!
 	 *  @param InRigAsset - the IK Rig defining the collection of solvers to execute and all the rig settings
 	 *  @param SkeletalMesh - the skeletal mesh you want to solve the IK on
+	 *  @param ExcludedGoals - a list of goal names to exclude from this processor instance (support per-instance removal of goals)
 	 */
-	void Initialize(const UIKRigDefinition* InRigAsset, const USkeletalMesh* SkeletalMesh);
+	void Initialize(
+		const UIKRigDefinition* InRigAsset,
+		const USkeletalMesh* SkeletalMesh,
+		const TArray<FName>& ExcludedGoals = TArray<FName>());
 
 	//
 	// BEGIN UPDATE SEQUENCE FUNCTIONS
@@ -84,8 +88,10 @@ public:
 	/** Get access to the internal goal data (read only) */
 	const FIKRigGoalContainer& GetGoalContainer() const;
 	
-	/** Get access to the internal skeleton data */
-	FIKRigSkeleton& GetSkeleton();
+	/** Get read/write access to the internal skeleton data */
+	FIKRigSkeleton& GetSkeletonWriteable();
+	/** Get read-only access to the internal skeleton data */
+	const FIKRigSkeleton& GetSkeleton() const;
 
 	/** Used to determine if the IK Rig asset is compatible with a given skeleton. */
 	static bool IsIKRigCompatibleWithSkeleton(

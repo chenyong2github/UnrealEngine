@@ -4,15 +4,11 @@
 
 #include "AnimPose.h"
 #include "AssetToolsModule.h"
-#include "ContentBrowserModule.h"
 #include "EditorModeManager.h"
 #include "IContentBrowserSingleton.h"
 #include "Widgets/Input/SButton.h"
 #include "Animation/DebugSkelMeshComponent.h"
-#include "Animation/AnimMontage.h"
-#include "Animation/AnimSequence.h"
 #include "Animation/PoseAsset.h"
-#include "Factories/PoseAssetFactory.h"
 #include "RetargetEditor/IKRetargetAnimInstance.h"
 #include "RetargetEditor/IKRetargetDefaultMode.h"
 #include "RetargetEditor/IKRetargetEditPoseMode.h"
@@ -47,22 +43,36 @@ void FIKRetargetEditorController::Initialize(TSharedPtr<FIKRetargetEditor> InEdi
 	BindToIKRigAsset(AssetController->GetAsset()->GetTargetIKRigWriteable());
 
 	// bind callback when retargeter needs reinitialized
-	AssetController->OnRetargeterNeedsInitialized().AddSP(this, &FIKRetargetEditorController::OnRetargeterNeedsInitialized);
+	ReInitDelegateHandle = AssetController->OnRetargeterNeedsInitialized().AddSP(this, &FIKRetargetEditorController::OnRetargeterNeedsInitialized);
 }
 
-void FIKRetargetEditorController::BindToIKRigAsset(UIKRigDefinition* InIKRig) const
+void FIKRetargetEditorController::Close() const
 {
+	AssetController->OnRetargeterNeedsInitialized().Remove(ReInitDelegateHandle);
+
+	if (UIKRigController* IKRigController = UIKRigController::GetIKRigController(BoundToIKRig))
+	{
+		IKRigController->OnIKRigNeedsInitialized().Remove(ReInitDelegateHandle);
+		IKRigController->OnRetargetChainRenamed().Remove(RenameChainDelegateHandle);
+		IKRigController->OnRetargetChainRemoved().Remove(RemoveChainDelegateHandle);
+	}
+}
+
+void FIKRetargetEditorController::BindToIKRigAsset(UIKRigDefinition* InIKRig)
+{
+	BoundToIKRig = InIKRig;
+	
 	if (!InIKRig)
 	{
 		return;
 	}
-
+	
 	UIKRigController* Controller = UIKRigController::GetIKRigController(InIKRig);
 	if (!Controller->OnIKRigNeedsInitialized().IsBoundToObject(this))
 	{
-		Controller->OnIKRigNeedsInitialized().AddSP(this, &FIKRetargetEditorController::OnIKRigNeedsInitialized);
-		Controller->OnRetargetChainRenamed().AddSP(this, &FIKRetargetEditorController::OnRetargetChainRenamed);
-		Controller->OnRetargetChainRemoved().AddSP(this, &FIKRetargetEditorController::OnRetargetChainRemoved);
+		ReInitIKDelegateHandle = Controller->OnIKRigNeedsInitialized().AddSP(this, &FIKRetargetEditorController::OnIKRigNeedsInitialized);
+		RenameChainDelegateHandle = Controller->OnRetargetChainRenamed().AddSP(this, &FIKRetargetEditorController::OnRetargetChainRenamed);
+		RemoveChainDelegateHandle = Controller->OnRetargetChainRemoved().AddSP(this, &FIKRetargetEditorController::OnRetargetChainRemoved);
 	}
 }
 
@@ -195,18 +205,13 @@ FName FIKRetargetEditorController::GetChainNameFromBone(const FName& BoneName, E
 	return Processor->GetChainNameForBone(BoneIndex, (int8)SourceOrTarget);
 }
 
-TObjectPtr<UIKRetargetBoneDetails> FIKRetargetEditorController::GetDetailsObjectForBone(const FName& BoneName)
+TObjectPtr<UIKRetargetBoneDetails> FIKRetargetEditorController::GetOrCreateBoneDetailsObject(const FName& BoneName)
 {
 	if (AllBoneDetails.Contains(BoneName))
 	{
 		return AllBoneDetails[BoneName];
 	}
 
-	return CreateBoneDetails(BoneName);
-}
-
-TObjectPtr<UIKRetargetBoneDetails> FIKRetargetEditorController::CreateBoneDetails(const FName& BoneName)
-{
 	// create and store a new one
 	UIKRetargetBoneDetails* NewBoneDetails = NewObject<UIKRetargetBoneDetails>(AssetController->GetAsset(), FName(BoneName), RF_Standalone | RF_Transient );
 	NewBoneDetails->SelectedBone = BoneName;
@@ -266,15 +271,6 @@ FTransform FIKRetargetEditorController::GetGlobalRetargetPoseOfBone(
 	BoneTransform.NormalizeRotation();
 
 	return BoneTransform;
-}
-
-FTransform FIKRetargetEditorController::GetTargetBoneLocalTransform(
-	const UIKRetargetProcessor* RetargetProcessor,
-	const int32& TargetBoneIndex) const
-{
-	check(RetargetProcessor && RetargetProcessor->IsInitialized())
-
-	return RetargetProcessor->GetTargetBoneRetargetPoseLocalTransform(TargetBoneIndex);
 }
 
 void FIKRetargetEditorController::GetGlobalRetargetPoseOfImmediateChildren(
@@ -418,6 +414,12 @@ void FIKRetargetEditorController::PlayAnimationAsset(UAnimationAsset* AssetToPla
 	}
 }
 
+void FIKRetargetEditorController::StopPlayback()
+{
+	SourceAnimInstance->SetPlaying(false);
+	SourceAnimInstance->SetAnimationAsset(nullptr);
+}
+
 void FIKRetargetEditorController::PausePlayback()
 {
 	if (UAnimationAsset* CurrentAnim = SourceAnimInstance->GetAnimationAsset())
@@ -514,7 +516,7 @@ UPrimitiveComponent* FIKRetargetEditorController::GetSelectedMesh()
 
 void FIKRetargetEditorController::EditBoneSelection(
 	const TArray<FName>& InBoneNames,
-	EBoneSelectionEdit EditMode,
+	ESelectionEdit EditMode,
 	const bool bFromHierarchyView)
 {
 	// must have a skeletal mesh
@@ -523,10 +525,14 @@ void FIKRetargetEditorController::EditBoneSelection(
 	{
 		return;
 	}
+
+	// deselect mesh
+	SetSelectedMesh(nullptr);
+	SetRootSelected(false);
 	
 	switch (EditMode)
 	{
-		case EBoneSelectionEdit::Add:
+		case ESelectionEdit::Add:
 		{
 			for (const FName& BoneName : InBoneNames)
 			{
@@ -535,7 +541,7 @@ void FIKRetargetEditorController::EditBoneSelection(
 			
 			break;
 		}
-		case EBoneSelectionEdit::Remove:
+		case ESelectionEdit::Remove:
 		{
 			for (const FName& BoneName : InBoneNames)
 			{
@@ -543,7 +549,7 @@ void FIKRetargetEditorController::EditBoneSelection(
 			}
 			break;
 		}
-		case EBoneSelectionEdit::Replace:
+		case ESelectionEdit::Replace:
 		{
 			SelectedBones = InBoneNames;
 			break;
@@ -567,9 +573,6 @@ void FIKRetargetEditorController::EditBoneSelection(
 			break;
 		}
 	}
-
-	// deselect mesh
-	SetSelectedMesh(nullptr);
 	
 	// apply selection to debug mesh component so rendering knows
 	DebugComponent->BonesOfInterest = SelectedBoneIndices;
@@ -587,25 +590,110 @@ void FIKRetargetEditorController::EditBoneSelection(
 	}
 	else
 	{
-		SelectedBoneDetails.Reset();
+		TArray<UObject*> SelectedBoneDetails;
 		for (const FName& SelectedBone : SelectedBones)
 		{
-			TObjectPtr<UIKRetargetBoneDetails> BoneDetails = GetDetailsObjectForBone(SelectedBone);
+			TObjectPtr<UIKRetargetBoneDetails> BoneDetails = GetOrCreateBoneDetailsObject(SelectedBone);
 			SelectedBoneDetails.Add(BoneDetails);
 		}
 		SetDetailsObjects(SelectedBoneDetails);
 	}
 }
 
+void FIKRetargetEditorController::EditChainSelection(
+	const TArray<FName>& InChainNames,
+	ESelectionEdit EditMode,
+	const bool bFromChainsView)
+{
+	// deselect others
+	SetSelectedMesh(nullptr);
+	SetRootSelected(false);
+	
+	// update selection set based on edit mode
+	switch (EditMode)
+	{
+	case ESelectionEdit::Add:
+		{
+			for (const FName& ChainName : InChainNames)
+			{
+				SelectedChains.AddUnique(ChainName);
+			}
+			
+			break;
+		}
+	case ESelectionEdit::Remove:
+		{
+			for (const FName& ChainName : InChainNames)
+			{
+				SelectedChains.Remove(ChainName);
+			}
+			break;
+		}
+	case ESelectionEdit::Replace:
+		{
+			SelectedChains = InChainNames;
+			break;
+		}
+	default:
+		checkNoEntry();
+	}
+
+	// update chains view with selected chains
+	if (ChainsView)
+	{
+		if (!bFromChainsView)
+		{
+			ChainsView->RefreshView();
+		}
+	}
+
+	// get selected chain UObjects to show in details view
+	TArray<UObject*> SelectedChainSettings;
+	const TArray<TObjectPtr<URetargetChainSettings>>& AllChainSettings = AssetController->GetAsset()->GetAllChainSettings();
+	for (const TObjectPtr<URetargetChainSettings>& ChainSettings : AllChainSettings)
+	{
+		if (ChainSettings->EditorController.Get() != this)
+		{
+			ChainSettings->EditorController = SharedThis(this);	
+		}
+		
+		if (SelectedChains.Contains(ChainSettings.Get()->TargetChain))
+		{
+			SelectedChainSettings.Add(ChainSettings);
+		}
+	}
+
+	// no chains selected, then show asset settings in the details view
+	SelectedChainSettings.IsEmpty() ? SetDetailsObject(AssetController->GetAsset()) : SetDetailsObjects(SelectedChainSettings);
+}
+
+void FIKRetargetEditorController::SetRootSelected(const bool bIsSelected)
+{
+	bIsRootSelected = bIsSelected;
+
+	if (bIsSelected)
+	{
+		URetargetRootSettings* RootSettings = AssetController->GetAsset()->GetRootSettingsUObject();
+		if (RootSettings->EditorController.Get() != this)
+		{
+			RootSettings->EditorController = SharedThis(this);	
+		}
+		
+		SetDetailsObject(RootSettings);
+	}
+}
+
 void FIKRetargetEditorController::ClearSelection(const bool bKeepBoneSelection)
 {
-	// clear mesh selection
+	// clear root and mesh selection
+	SetRootSelected(false);
 	SetSelectedMesh(nullptr);
 	
 	// deselect all chains
 	if (ChainsView.IsValid())
 	{
 		ChainsView->ClearSelection();
+		SelectedChains.Empty();
 	}
 
 	// clear bone selection
@@ -613,7 +701,7 @@ void FIKRetargetEditorController::ClearSelection(const bool bKeepBoneSelection)
 	{
 		const TArray<FName> Empty;
 		constexpr bool bFromHierarchy = false;
-		EditBoneSelection(Empty, EBoneSelectionEdit::Replace, bFromHierarchy);
+		EditBoneSelection(Empty, ESelectionEdit::Replace, bFromHierarchy);
 
 		// show global details
 		SetDetailsObject(AssetController->GetAsset());
@@ -652,7 +740,7 @@ void FIKRetargetEditorController::SetRetargeterMode(ERetargeterOutputMode Mode)
 			OutputMode = ERetargeterOutputMode::RunRetarget;
 			SourceAnimInstance->SetRetargetMode(ERetargeterOutputMode::RunRetarget);
 			TargetAnimInstance->SetRetargetMode(ERetargeterOutputMode::RunRetarget);
-			// must reinitialize after editing the retarget pose
+			// force a reinitialization in case retarget pose was edited
 			AssetController->BroadcastNeedsReinitialized();
 			ResumePlayback();
 			break;

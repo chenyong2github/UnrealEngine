@@ -17,6 +17,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Preferences/PersonaOptions.h"
+#include "Widgets/Input/SSearchBox.h"
 
 #define LOCTEXT_NAMESPACE "SIKRigSkeleton"
 
@@ -72,9 +73,9 @@ TWeakObjectPtr< UObject > FIKRigTreeElement::GetObject() const
 		return Controller->AssetController->GetGoal(GoalName);
 		break;
 	case IKRigTreeElementType::SOLVERGOAL:
-		if (const UIKRigSolver* SolverWithEffector = Controller->AssetController->GetSolver(SolverGoalIndex))
+		if (const UIKRigSolver* SolverWithEffector = Controller->AssetController->GetSolver(EffectorIndex))
 		{
-			return SolverWithEffector->GetGoalSettings(SolverGoalName);
+			return SolverWithEffector->GetGoalSettings(EffectorGoalName);
 		}
 		break;
 	default:
@@ -281,12 +282,58 @@ void SIKRigSkeleton::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditor
 {
 	EditorController = InEditorController;
 	EditorController.Pin()->SetSkeletonsView(SharedThis(this));
+	TextFilter = MakeShareable(new FTextFilterExpressionEvaluator(ETextFilterExpressionEvaluatorMode::BasicString));
 	CommandList = MakeShared<FUICommandList>();
 	BindCommands();
 	
 	ChildSlot
     [
         SNew(SVerticalBox)
+
+        +SVerticalBox::Slot()
+		.Padding(2.0f)
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(6.f, 0.0))
+			[
+				SNew(SPositiveActionButton)
+				.OnGetMenuContent(this, &SIKRigSkeleton::CreateAddNewMenu)
+				.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
+			]
+
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNew(SSearchBox)
+				.SelectAllTextWhenFocused(true)
+				.OnTextChanged( this, &SIKRigSkeleton::OnFilterTextChanged )
+				.HintText(LOCTEXT( "SearchBoxHint", "Filter Hierarchy Tree..."))
+			]
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(FMargin(6.f, 0.0))
+			.VAlign(VAlign_Center)
+			[
+				SNew(SComboButton)
+				.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+				.ForegroundColor(FSlateColor::UseStyle())
+				.ContentPadding(2.0f)
+				.OnGetMenuContent( this, &SIKRigSkeleton::CreateFilterMenuWidget )
+				.ToolTipText(LOCTEXT( "FilterMenuLabel", "Filter hierarchy tree options."))
+				.HasDownArrow(true)
+				.ButtonContent()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+		]
 
         +SVerticalBox::Slot()
         .Padding(0.0f, 0.0f)
@@ -418,7 +465,7 @@ void SIKRigSkeleton::ReplaceItemInSelection(const FText& OldName, const FText& N
 	}
 }
 
-void SIKRigSkeleton::GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChains)
+void SIKRigSkeleton::GetSelectedBoneChains(TArray<FBoneChain>& OutChains)
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -426,11 +473,11 @@ void SIKRigSkeleton::GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChain
 		return; 
 	}
 
+	const FIKRigSkeleton& Skeleton = Controller->AssetController->GetIKRigSkeleton();
+
 	// get selected bones
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBoneItems;
 	GetSelectedBones(SelectedBoneItems);
-
-	const FIKRigSkeleton& Skeleton = Controller->AssetController->GetIKRigSkeleton();
 
 	// get selected bone indices
 	TArray<int32> SelectedBones;
@@ -440,8 +487,18 @@ void SIKRigSkeleton::GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChain
 		const int32 BoneIndex = Skeleton.GetBoneIndexFromName(BoneName);
 		SelectedBones.Add(BoneIndex);
 	}
+
+	// get bones in chains
+	Skeleton.GetChainsInList(SelectedBones, OutChains);
 	
-	return Skeleton.GetChainsInList(SelectedBones, OutChains);
+	// add goals (if there are any on the end bone of the chain)
+	for (FBoneChain& Chain : OutChains)
+	{
+		if (const UIKRigEffectorGoal* Goal = Controller->AssetController->GetGoalForBone(Chain.EndBone.BoneName))
+		{
+			Chain.IKGoalName = Goal->GoalName;
+		}
+	}
 }
 
 TArray<TSharedPtr<FIKRigTreeElement>> SIKRigSkeleton::GetSelectedItems() const
@@ -524,7 +581,12 @@ void SIKRigSkeleton::FillContextMenu(FMenuBuilder& MenuBuilder)
 	const TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
 	if (SelectedItems.IsEmpty())
 	{
-		return;
+		MenuBuilder.AddWidget(
+			SNew(SBox)
+			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock).Text(LOCTEXT("InvalidSelection", "Nothing selected."))
+			], FText(), false);
 	}
 
 	MenuBuilder.BeginSection("AddRemoveGoals", LOCTEXT("AddRemoveGoalOperations", "Goals"));
@@ -624,7 +686,7 @@ void SIKRigSkeleton::HandleDeleteElement()
 				Controller->AssetController->RemoveGoal(SelectedItem->GoalName);
 				break;
 			case IKRigTreeElementType::SOLVERGOAL:
-				Controller->AssetController->DisconnectGoalFromSolver(SelectedItem->SolverGoalName, SelectedItem->SolverGoalIndex);
+				Controller->AssetController->DisconnectGoalFromSolver(SelectedItem->EffectorGoalName, SelectedItem->EffectorIndex);
 				break;
 			case IKRigTreeElementType::BONE_SETTINGS:
 				Controller->AssetController->RemoveBoneSetting(SelectedItem->BoneSettingBoneName, SelectedItem->BoneSettingsSolverIndex);
@@ -1108,15 +1170,8 @@ void SIKRigSkeleton::HandleNewRetargetChain()
 	{
 		return;
 	}
-	
-	TArray<FIKRigSkeletonChain> BoneChains;
-	GetSelectedBoneChains(BoneChains);
-	for (const FIKRigSkeletonChain& BoneChain : BoneChains)
-	{
-		Controller->AddNewRetargetChain(BoneChain.StartBone, BoneChain.StartBone, BoneChain.EndBone);
-	}
-	
-	Controller->RefreshAllViews();
+
+	Controller->CreateNewRetargetChains();
 }
 
 bool SIKRigSkeleton::CanAddNewRetargetChain()
@@ -1280,6 +1335,142 @@ bool SIKRigSkeleton::CanRenameGoal() const
 	return SelectedGoals.Num() == 1;
 }
 
+TSharedRef<SWidget> SIKRigSkeleton::CreateFilterMenuWidget()
+{
+	const FUIAction FilterShowAllAction = FUIAction(
+		FExecuteAction::CreateLambda([this]
+		{
+			FilterOptions.ResetShowOptions();
+			FilterOptions.bShowAll = true; 
+			RefreshTreeView();
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]()
+		{
+			return FilterOptions.bShowAll;
+		}));
+	
+	const FUIAction FilterOnlyBonesAction = FUIAction(
+		FExecuteAction::CreateLambda([this]
+		{
+			FilterOptions.ResetShowOptions();
+			FilterOptions.bShowOnlyBones = true;
+			RefreshTreeView();
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]()
+		{
+			return FilterOptions.bShowOnlyBones;
+		}));
+
+	const FUIAction FilterOnlyGoalsAction = FUIAction(
+		FExecuteAction::CreateLambda([this]
+		{
+			FilterOptions.ResetShowOptions();
+			FilterOptions.bShowOnlyGoals = true;
+			RefreshTreeView();
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]()
+		{
+			return FilterOptions.bShowOnlyGoals;
+		}));
+
+	const FUIAction FilterOnlyBoneSettingsAction = FUIAction(
+		FExecuteAction::CreateLambda([this]
+		{
+			FilterOptions.ResetShowOptions();
+			FilterOptions.bShowOnlyBoneSettings = true;
+			RefreshTreeView();
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]()
+		{
+			return FilterOptions.bShowOnlyBoneSettings;
+		}));
+
+	const FUIAction FilterUnaffectedBonesAction = FUIAction(
+		FExecuteAction::CreateLambda([this]
+		{
+			FilterOptions.bHideUnaffectedBones = !FilterOptions.bHideUnaffectedBones;
+			RefreshTreeView();
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]()
+		{
+			return FilterOptions.bHideUnaffectedBones;
+		}));
+	
+	static constexpr bool CloseAfterSelection = true;
+	FMenuBuilder MenuBuilder(CloseAfterSelection, CommandList);
+
+	MenuBuilder.BeginSection("Hierarchy Filters", LOCTEXT("HierarchyFiltersSection", "Hierarchy Filters"));
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("OnlyBonesLabel", "Show All Types"),
+		LOCTEXT("OnlyBonesTooltip", "Show all object types in the hierarchy."),
+		FSlateIcon(),
+		FilterShowAllAction,
+		NAME_None,
+		EUserInterfaceActionType::RadioButton);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("OnlyBonesLabel", "Show Only Bones"),
+		LOCTEXT("OnlyBonesTooltip", "Hide everything except bones."),
+		FSlateIcon(),
+		FilterOnlyBonesAction,
+		NAME_None,
+		EUserInterfaceActionType::RadioButton);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("OnlyGoalsLabel", "Show Only Goals"),
+		LOCTEXT("OnlyGoalsTooltip", "Hide everything except IK goals."),
+		FSlateIcon(),
+		FilterOnlyGoalsAction,
+		NAME_None,
+		EUserInterfaceActionType::RadioButton);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("OnlyBoneSettingsLabel", "Show Only Bone Settings"),
+		LOCTEXT("OnlyBoneSettingsTooltip", "Hide everything except bone settings."),
+		FSlateIcon(),
+		FilterOnlyBoneSettingsAction,
+		NAME_None,
+		EUserInterfaceActionType::RadioButton);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("UnaffectedBonesLabel", "Hide Unaffected Bones"),
+		LOCTEXT("UnaffectedBonesTooltip", "Hide all bones that are unaffected by any solvers."),
+		FSlateIcon(),
+		FilterUnaffectedBonesAction,
+		NAME_None,
+		EUserInterfaceActionType::Check);
+	
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("Clear", LOCTEXT("ClearMapFiltersSection", "Clear"));
+	
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ClearMapFilterLabel", "Clear Filters"),
+		LOCTEXT("ClearMapFilterTooltip", "Clear all filters to show all hierarchy elements."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateLambda([this]
+		{
+			FilterOptions = FIKRigHierarchyFilterOptions();
+			RefreshTreeView();
+		})));
+
+	MenuBuilder.EndSection();
+	
+	return MenuBuilder.MakeWidget();
+}
+
+void SIKRigSkeleton::OnFilterTextChanged(const FText& SearchText)
+{
+	TextFilter->SetFilterText(SearchText);
+	RefreshTreeView();
+}
+
 void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup /*=false*/)
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
@@ -1314,30 +1505,77 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup /*=false*/)
 	// record bone element indices
 	TMap<FName, int32> BoneTreeElementIndices;
 
+	auto FilterString = [this](const FString& StringToTest) ->bool
+	{
+		return TextFilter->TestTextFilter(FBasicStringFilterExpressionContext(StringToTest));
+	};
+
 	// create all bone elements
-	for (const FName BoneName : Skeleton.BoneNames)
+	for (int32 BoneIndex=0; BoneIndex<Skeleton.BoneNames.Num(); ++BoneIndex)
 	{
 		// create "Bone" tree element for this bone
+		const FName BoneName = Skeleton.BoneNames[BoneIndex];
 		const FText BoneDisplayName = FText::FromName(BoneName);
 		TSharedPtr<FIKRigTreeElement> BoneElement = MakeShared<FIKRigTreeElement>(BoneDisplayName, IKRigTreeElementType::BONE, ControllerRef);
 		BoneElement.Get()->BoneName = BoneName;
 		const int32 BoneElementIndex = AllElements.Add(BoneElement);
 		BoneTreeElementIndices.Add(BoneName, BoneElementIndex);
 
+		// store pointer to parent (if there is one)
+		const int32 ParentIndex = Skeleton.ParentIndices[BoneIndex];
+		if (ParentIndex != INDEX_NONE)
+		{
+			// get parent tree element
+			const FName ParentBoneName = Skeleton.BoneNames[ParentIndex];
+			const TSharedPtr<FIKRigTreeElement> ParentBoneTreeElement = AllElements[BoneTreeElementIndices[ParentBoneName]];
+			BoneElement->UnFilteredParent = ParentBoneTreeElement;
+		}
+
+		// apply type filter to bones
+		if (FilterOptions.bShowOnlyBoneSettings || FilterOptions.bShowOnlyGoals)
+		{
+			BoneElement->bIsHidden = true;
+		}
+
+		if (FilterOptions.bHideUnaffectedBones)
+		{
+			
+		}
+		
+		// apply text filter to bones
+		if (!(TextFilter->GetFilterText().IsEmpty() || FilterString(BoneName.ToString())))
+		{
+			BoneElement->bIsHidden = true;
+		}
+
 		// create all "Bone Setting" tree elements for this bone
 		for (int32 SolverIndex=0; SolverIndex<Solvers.Num(); ++SolverIndex)
 		{
-			if (Solvers[SolverIndex]->GetBoneSetting(BoneName))
+			if (!Solvers[SolverIndex]->GetBoneSetting(BoneName))
 			{
-				const FText SolverDisplayName = FText::FromString(AssetController->GetSolverUniqueName(SolverIndex));
-				const FText BoneSettingDisplayName = FText::Format(LOCTEXT("BoneSettings", "{0} settings for {1}"), BoneDisplayName, SolverDisplayName);
-				TSharedPtr<FIKRigTreeElement> SettingsItem = MakeShared<FIKRigTreeElement>(BoneSettingDisplayName, IKRigTreeElementType::BONE_SETTINGS, ControllerRef);
-				SettingsItem->BoneSettingBoneName = BoneName;
-				SettingsItem->BoneSettingsSolverIndex = SolverIndex;
-				AllElements.Add(SettingsItem);
-				// store hierarchy pointers for item
-				BoneElement->Children.Add(SettingsItem);
-				SettingsItem->Parent = BoneElement;
+				continue;
+			}
+			
+			const FText SolverDisplayName = FText::FromString(AssetController->GetSolverUniqueName(SolverIndex));
+			const FText BoneSettingDisplayName = FText::Format(LOCTEXT("BoneSettings", "{0} settings for {1}"), BoneDisplayName, SolverDisplayName);
+			TSharedPtr<FIKRigTreeElement> SettingsItem = MakeShared<FIKRigTreeElement>(BoneSettingDisplayName, IKRigTreeElementType::BONE_SETTINGS, ControllerRef);
+			SettingsItem->BoneSettingBoneName = BoneName;
+			SettingsItem->BoneSettingsSolverIndex = SolverIndex;
+			AllElements.Add(SettingsItem);
+			
+			// store hierarchy pointer for item
+			SettingsItem->UnFilteredParent = BoneElement;
+
+			// apply type filter to bone settings
+			if (FilterOptions.bShowOnlyBones || FilterOptions.bShowOnlyGoals)
+			{
+				SettingsItem->bIsHidden = true;
+			}
+
+			// apply text filter to bone settings
+			if (!(TextFilter->GetFilterText().IsEmpty() || FilterString(BoneName.ToString())))
+			{
+				SettingsItem->bIsHidden = true;
 			}
 		}
 
@@ -1355,50 +1593,87 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup /*=false*/)
 			GoalItem->GoalName = Goal->GoalName;
 			AllElements.Add(GoalItem);
 
-			// store hierarchy pointers for goal
-			BoneElement->Children.Add(GoalItem);
-			GoalItem->Parent = BoneElement;
+			// apply type filter to goals
+			if (FilterOptions.bShowOnlyBones || FilterOptions.bShowOnlyBoneSettings)
+			{
+				GoalItem->bIsHidden = true;
+			}
+
+			// apply text filter to goals
+			if (!(TextFilter->GetFilterText().IsEmpty() ||
+				FilterString(Goal->GoalName.ToString()) ||
+				FilterString(Goal->BoneName.ToString())))
+			{
+				GoalItem->bIsHidden = true;
+			}
+
+			// store hierarchy pointer for goal
+			GoalItem->UnFilteredParent = BoneElement;
 
 			// add all solver settings connected to this goal
 			for (int32 SolverIndex=0; SolverIndex<Solvers.Num(); ++SolverIndex)
 			{
-				if (UObject* GoalSettings = AssetController->GetGoalSettingsForSolver(Goal->GoalName, SolverIndex))
+				UObject* GoalSettings = AssetController->GetGoalSettingsForSolver(Goal->GoalName, SolverIndex);
+				if (!GoalSettings)
 				{
-					// make new element for solver goal
-					const FText SolverDisplayName = FText::FromString(AssetController->GetSolverUniqueName(SolverIndex));
-					const FText SolverGoalDisplayName = FText::Format(LOCTEXT("GoalSettingsForSolver", "{0} settings for solver {1}"), FText::FromName(Goal->GoalName), SolverDisplayName);
-					TSharedPtr<FIKRigTreeElement> SolverGoalItem = MakeShared<FIKRigTreeElement>(SolverGoalDisplayName, IKRigTreeElementType::SOLVERGOAL, ControllerRef);
-					SolverGoalItem->SolverGoalIndex = SolverIndex;
-					SolverGoalItem->SolverGoalName = Goal->GoalName;
-					AllElements.Add(SolverGoalItem);
-					SolverGoalItem->Parent = GoalItem;
-					GoalItem->Children.Add(SolverGoalItem);
+					continue;
 				}
+				
+				// make new element for effector
+				const FText SolverDisplayName = FText::FromString(AssetController->GetSolverUniqueName(SolverIndex));
+				const FText EffectorDisplayName = FText::Format(LOCTEXT("GoalSettingsForSolver", "{0} settings for solver {1}"), FText::FromName(Goal->GoalName), SolverDisplayName);
+				TSharedPtr<FIKRigTreeElement> EffectorItem = MakeShared<FIKRigTreeElement>(EffectorDisplayName, IKRigTreeElementType::SOLVERGOAL, ControllerRef);
+				EffectorItem->EffectorIndex = SolverIndex;
+				EffectorItem->EffectorGoalName = Goal->GoalName;
+				AllElements.Add(EffectorItem);
+
+				// apply filter to effectors (treated as goals for filtering purposes)
+				EffectorItem->bIsHidden = GoalItem->bIsHidden;
+				
+				// store hierarchy pointer for effectors
+				EffectorItem->UnFilteredParent = GoalItem;
 			}
 		}
 	}
 
-	// store children/parent pointers on all bone elements
-	for (int32 BoneIndex=0; BoneIndex<Skeleton.BoneNames.Num(); ++BoneIndex)
+	// resolve parent/children pointers on all tree elements, taking into consideration the filter options
+	// (elements are parented to their nearest non-hidden/filtered parent element)
+	for (TSharedPtr<FIKRigTreeElement>& Element : AllElements)
 	{
-		const FName BoneName = Skeleton.BoneNames[BoneIndex];
-		const TSharedPtr<FIKRigTreeElement> BoneTreeElement = AllElements[BoneTreeElementIndices[BoneName]];
-		const int32 ParentIndex = Skeleton.ParentIndices[BoneIndex];
-		if (ParentIndex < 0)
+		if (Element->bIsHidden)
 		{
-			// store the root element
-			RootElements.Add(BoneTreeElement);
-			// has no parent, so skip storing parent pointer
 			continue;
 		}
+		
+		// find first parent that is not filtered
+		TSharedPtr<FIKRigTreeElement> ParentElement = Element->UnFilteredParent;
+		while (true)
+		{
+			if (!ParentElement.IsValid())
+			{
+				break;
+			}
 
-		// get parent tree element
-		const FName ParentBoneName = Skeleton.BoneNames[ParentIndex];
-		const TSharedPtr<FIKRigTreeElement> ParentBoneTreeElement = AllElements[BoneTreeElementIndices[ParentBoneName]];
-		// store pointer to child on parent
-		ParentBoneTreeElement->Children.Add(BoneTreeElement);
-		// store pointer to parent on child
-		BoneTreeElement->Parent = ParentBoneTreeElement;
+			if (!ParentElement->bIsHidden)
+			{
+				break;
+			}
+
+			ParentElement = ParentElement->UnFilteredParent;
+		}
+
+		if (ParentElement.IsValid())
+		{
+			// store pointer to child on parent
+			ParentElement->Children.Add(Element);
+			// store pointer to parent on child
+			Element->Parent = ParentElement;
+		}
+		else
+		{
+			// has no parent, store a root element
+			RootElements.Add(Element);
+		}
 	}
 
 	// expand all elements upon the initial construction of the tree
@@ -1450,9 +1725,17 @@ void SIKRigSkeleton::OnSelectionChanged(TSharedPtr<FIKRigTreeElement> Selection,
 	// NOTE: we may want to set the last selected item here
 }
 
+TSharedRef<SWidget> SIKRigSkeleton::CreateAddNewMenu()
+{
+	constexpr bool CloseAfterSelection = true;
+	FMenuBuilder MenuBuilder(CloseAfterSelection, CommandList);
+	FillContextMenu(MenuBuilder);
+	return MenuBuilder.MakeWidget();
+}
+
 TSharedPtr<SWidget> SIKRigSkeleton::CreateContextMenu()
 {
-	const bool CloseAfterSelection = true;
+	constexpr bool CloseAfterSelection = true;
 	FMenuBuilder MenuBuilder(CloseAfterSelection, CommandList);
 	FillContextMenu(MenuBuilder);
 	return MenuBuilder.MakeWidget();

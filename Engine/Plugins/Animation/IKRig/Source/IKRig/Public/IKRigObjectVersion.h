@@ -17,6 +17,9 @@ struct IKRIG_API FIKRigObjectVersion
 		// Retarget pose quaternions changed from pre to post multiplied
 		RetargetPoseQuatPostMultiplied,
 
+		// Chain settings moved to struct to be used in profiles
+		ChainSettingsConvertedToStruct,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -38,6 +38,8 @@ public:
 	USkeletalMesh* GetPreviewMesh(const ERetargetSourceOrTarget& SourceOrTarget) const;
 	/** Get either source or target IK Rig */
 	const UIKRigDefinition* GetIKRig(const ERetargetSourceOrTarget& SourceOrTarget) const;
+	/** Get either source or target IK Rig */
+	UIKRigDefinition* GetIKRigWriteable(const ERetargetSourceOrTarget& SourceOrTarget) const;
 	/** Set the SOURCE or TARGET preview mesh based on the mesh in the corresponding IK Rig asset */
 	void OnIKRigChanged(const ERetargetSourceOrTarget& SourceOrTarget) const;
 
@@ -61,6 +63,8 @@ public:
 	void SetSourceChainForTargetChain(URetargetChainSettings* ChainMap, FName SourceChainToMapTo) const;
 	/** Get read-only access to the list of chain mappings */
 	const TArray<TObjectPtr<URetargetChainSettings>>& GetChainMappings() const;
+	/** Get whether the given chain has a valid IK goal assigned to it */
+	bool IsChainRunningIK(const TObjectPtr<URetargetChainSettings> ChainSettings) const;
 	/** END RETARGET CHAIN MAPPING */
 
 	/** RETARGET POSE EDITING
@@ -106,12 +110,6 @@ public:
 	FQuat GetRotationOffsetForRetargetPoseBone(
 		const FName& BoneName,
 		const ERetargetSourceOrTarget& SourceOrTarget) const;
-	/** Set the delta translation of the root bone (used in Edit Mode in the retarget editor) */
-	void SetTranslationOffsetOnRetargetRootBone(
-		const FVector& TranslationOffset,
-		const ERetargetSourceOrTarget& SourceOrTarget) const;
-	/** Get the delta translation of the root bone (used in Edit Mode in the retarget editor) */
-	const FVector& GetTranslationOffsetOnRetargetRootBone(const ERetargetSourceOrTarget& SourceOrTarget) const;
 	/** Add a delta translation to the root bone (used in Edit Mode in the retarget editor) */
 	void AddTranslationOffsetToRetargetRootBone(
 		const FVector& TranslationOffset,

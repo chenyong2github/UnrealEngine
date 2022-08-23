@@ -124,21 +124,15 @@ void FIKRigEditMode::RenderGoals(FPrimitiveDrawInterface* PDI)
 
 void FIKRigEditMode::RenderBones(FPrimitiveDrawInterface* PDI)
 {
-	// editor configured and initialized?
+	// get the controller
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
 	{
 		return; 
 	}
 
-	// anim instance initialized?
-	if (!Controller->AnimInstance.IsValid())
-	{
-		return;
-	}
-
 	// IKRig processor initialized and running?
-	UIKRigProcessor* CurrentProcessor = Controller->GetIKRigProcessor();
+	const UIKRigProcessor* CurrentProcessor = Controller->GetIKRigProcessor();
 	if (!IsValid(CurrentProcessor))
 	{
 		return;
@@ -147,105 +141,90 @@ void FIKRigEditMode::RenderBones(FPrimitiveDrawInterface* PDI)
 	{
 		return;
 	}
+	
+	const UDebugSkelMeshComponent* MeshComponent = Controller->SkelMeshComponent;
+	const FTransform ComponentTransform = MeshComponent->GetComponentTransform();
+	const FReferenceSkeleton& RefSkeleton = MeshComponent->GetReferenceSkeleton();
+	const int32 NumBones = RefSkeleton.GetNum();
 
-	// determine size to draw bones from preference stored on the asset
-	const float BoneRadius = FMath::Max(0.01f, Controller->AssetController->GetAsset()->BoneSize);
-
-	// get affected / selected bones
-	TSet<int32> OutAffectedBones;
-	TSet<int32> OutSelectedBones;
-	GetAffectedBones(Controller.Get(), CurrentProcessor,OutAffectedBones,OutSelectedBones);
-
-	// use colors from user preferences
-	const UPersonaOptions* PersonaOptions = GetDefault<UPersonaOptions>();
-
-	// draw bones
-	TArray<int32> ChildrenIndices;
-	const FIKRigSkeleton& Skeleton = CurrentProcessor->GetSkeleton();
-	const TArray<FTransform>& BoneTransforms = Skeleton.CurrentPoseGlobal;
-	for (int32 BoneIndex=0; BoneIndex<Skeleton.BoneNames.Num(); ++BoneIndex)
+	// get world transforms of bones
+	TArray<FBoneIndexType> RequiredBones;
+	RequiredBones.AddUninitialized(NumBones);
+	TArray<FTransform> WorldTransforms;
+	WorldTransforms.AddUninitialized(NumBones);
+	for (int32 Index=0; Index<NumBones; ++Index)
 	{
-		// selected bones are drawn with different color
-		const bool bIsSelected = OutSelectedBones.Contains(BoneIndex);
-		const bool bIsAffected = OutAffectedBones.Contains(BoneIndex);
-		FLinearColor LineColor = bIsAffected ? PersonaOptions->AffectedBoneColor : PersonaOptions->DefaultBoneColor;
-		LineColor = bIsSelected ? PersonaOptions->SelectedBoneColor : LineColor;
-
-		// only draw axes on affected/selected bones
-		const bool bDrawAxes = bIsSelected || bIsAffected;
-		
-		// draw line from bone to each child
-		FTransform BoneTransform = BoneTransforms[BoneIndex];
-		TArray<FVector> ChildPoints;
-		Skeleton.GetChildIndices(BoneIndex,ChildrenIndices);
-		for (int32 ChildIndex : ChildrenIndices)
-		{
-			ChildPoints.Add(BoneTransforms[ChildIndex].GetLocation());
-		}
-
-		// draw cone to parent with different color if child is selected
-		TArray<FLinearColor> ChildColors;
-		for (int32 ChildIndex : ChildrenIndices)
-		{
-			FLinearColor ChildLineColor = LineColor;
-			if (!bIsSelected && OutSelectedBones.Contains(ChildIndex))
-			{
-				ChildLineColor = PersonaOptions->ParentOfSelectedBoneColor;
-			}
-			ChildColors.Add(ChildLineColor);
-		}
-
-		PDI->SetHitProxy(new HIKRigEditorBoneProxy(Skeleton.BoneNames[BoneIndex]));
-		SkeletalDebugRendering::DrawWireBoneAdvanced(
-			PDI,
-			BoneTransform,
-			ChildPoints,
-			ChildColors,
-			LineColor,
-			SDPG_Foreground,
-			BoneRadius,
-			bDrawAxes);
-		PDI->SetHitProxy(nullptr);
+		RequiredBones[Index] = Index;
+		WorldTransforms[Index] = MeshComponent->GetBoneTransform(Index, ComponentTransform);
 	}
+	
+	UPersonaOptions* ConfigOption = UPersonaOptions::StaticClass()->GetDefaultObject<UPersonaOptions>();
+	
+	FSkelDebugDrawConfig DrawConfig;
+	DrawConfig.BoneDrawMode = (EBoneDrawMode::Type)ConfigOption->DefaultBoneDrawSelection;
+	DrawConfig.BoneDrawSize = Controller->AssetController->GetAsset()->BoneSize;
+	DrawConfig.bAddHitProxy = true;
+	DrawConfig.bForceDraw = false;
+	DrawConfig.DefaultBoneColor = GetMutableDefault<UPersonaOptions>()->DefaultBoneColor;
+	DrawConfig.AffectedBoneColor = GetMutableDefault<UPersonaOptions>()->AffectedBoneColor;
+	DrawConfig.SelectedBoneColor = GetMutableDefault<UPersonaOptions>()->SelectedBoneColor;
+	DrawConfig.ParentOfSelectedBoneColor = GetMutableDefault<UPersonaOptions>()->ParentOfSelectedBoneColor;
+
+	TArray<HHitProxy*> HitProxies;
+	HitProxies.AddUninitialized(NumBones);
+	for (int32 Index = 0; Index < NumBones; ++Index)
+	{
+		HitProxies[Index] = new HIKRigEditorBoneProxy(RefSkeleton.GetBoneName(Index));
+	}
+	
+	// get selected bones
+	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBoneItems;
+	Controller->GetSelectedBones(SelectedBoneItems);
+	TArray<int32> SelectedBones;
+	for (TSharedPtr<FIKRigTreeElement> SelectedBone: SelectedBoneItems)
+	{
+		const int32 BoneIndex = RefSkeleton.FindBoneIndex(SelectedBone->BoneName);
+		SelectedBones.Add(BoneIndex);
+	}
+
+	// get bone colors
+	TArray<FLinearColor> BoneColors;
+	GetBoneColors(Controller.Get(), CurrentProcessor, RefSkeleton, BoneColors);
+
+	SkeletalDebugRendering::DrawBones(
+		PDI,
+		ComponentTransform.GetLocation(),
+		RequiredBones,
+		RefSkeleton,
+		WorldTransforms,
+		SelectedBones,
+		BoneColors,
+		HitProxies,
+		DrawConfig
+	);
 }
 
-void FIKRigEditMode::GetAffectedBones(
+void FIKRigEditMode::GetBoneColors(
 	FIKRigEditorController* Controller,
-	UIKRigProcessor* Processor,
-	TSet<int32>& OutAffectedBones,
-	TSet<int32>& OutSelectedBones) const
+	const UIKRigProcessor* Processor,
+	const FReferenceSkeleton& RefSkeleton,
+	TArray<FLinearColor>& OutBoneColors) const
 {
-	OutAffectedBones.Reset();
-	OutSelectedBones.Reset();
+	const FLinearColor DefaultColor = GetMutableDefault<UPersonaOptions>()->DefaultBoneColor;
+	const FLinearColor HighlightedColor = FLinearColor::Blue;
 
-	const FIKRigSkeleton& Skeleton = Processor->GetSkeleton();
+	// set all to default color
+	OutBoneColors.SetNum(RefSkeleton.GetNum());
+	for (int32 Index=0; Index<RefSkeleton.GetNum(); ++Index)
+	{
+		OutBoneColors[Index] = DefaultColor;
+	}
 	
+	// highlight bones of the last selected UI element (could be solver or retarget chain) 
 	switch (Controller->GetLastSelectedType())
 	{
 		case EIKRigSelectionType::Hierarchy:
-		{
-			// get selected bones
-			TArray<TSharedPtr<FIKRigTreeElement>> SelectedBoneItems;
-			Controller->GetSelectedBones(SelectedBoneItems);
-
-			// record indices of all selected bones
-			for (TSharedPtr<FIKRigTreeElement> SelectedBone: SelectedBoneItems)
-			{
-				int32 BoneIndex = Skeleton.GetBoneIndexFromName(SelectedBone->BoneName);
-				OutSelectedBones.Add(BoneIndex);
-			}
-
-			// "affected bones" are the selected bones AND their children, recursively
-			for (int32 SelectedBone : OutSelectedBones)
-			{
-				const int32 EndOfBranch = Skeleton.GetCachedEndOfBranchIndex(SelectedBone);
-				OutAffectedBones.Add(SelectedBone);
-				for (int32 BoneIndex=SelectedBone; BoneIndex<=EndOfBranch; ++BoneIndex)
-				{
-					OutAffectedBones.Add(BoneIndex);
-				}
-			}
-		}
+		// handled by SkeletalDebugRendering::DrawBones()
 		break;
 		
 		case EIKRigSelectionType::SolverStack:
@@ -259,16 +238,16 @@ void FIKRigEditMode::GetAffectedBones(
 			}
 
 			// record which bones in the skeleton are affected by this solver
-			UIKRigController* AssetController = Controller->AssetController;
-			UIKRigSolver* SelectedSolver = AssetController->GetSolver(SelectedSolvers[0].Get()->IndexInStack);
-			if(SelectedSolver)
+			const FIKRigSkeleton& Skeleton = Processor->GetSkeleton();
+			const UIKRigController* AssetController = Controller->AssetController;
+			if(const UIKRigSolver* SelectedSolver = AssetController->GetSolver(SelectedSolvers[0].Get()->IndexInStack))
 			{
-				for (int32 BoneIndex=0; BoneIndex<Skeleton.BoneNames.Num(); ++BoneIndex)
+				for (int32 BoneIndex=0; BoneIndex < Skeleton.BoneNames.Num(); ++BoneIndex)
 				{
 					const FName& BoneName = Skeleton.BoneNames[BoneIndex];
 					if (SelectedSolver->IsBoneAffectedBySolver(BoneName, Skeleton))
 					{
-						OutAffectedBones.Add(BoneIndex);
+						OutBoneColors[BoneIndex] = HighlightedColor;
 					}
 				}
 			}
@@ -277,12 +256,23 @@ void FIKRigEditMode::GetAffectedBones(
 		
 		case EIKRigSelectionType::RetargetChains:
 		{
-			const FName SelectedChainName = Controller->GetSelectedChain();
-			if (SelectedChainName == NAME_None)
+			const TArray<FName> SelectedChainNames = Controller->GetSelectedChains();
+			if (SelectedChainNames.IsEmpty())
 			{
 				return;
 			}
-			Controller->AssetController->ValidateChain(SelectedChainName, OutSelectedBones);
+
+			for (const FName& SelectedChainName : SelectedChainNames)
+			{
+				TSet<int32> OutChainBoneIndices;
+				if (Controller->AssetController->ValidateChain(SelectedChainName, OutChainBoneIndices))
+				{
+					for (const int32 IndexOfBoneInChain : OutChainBoneIndices)
+					{
+						OutBoneColors[IndexOfBoneInChain] = HighlightedColor;
+					}
+				}
+			}
 		}
 		break;
 		

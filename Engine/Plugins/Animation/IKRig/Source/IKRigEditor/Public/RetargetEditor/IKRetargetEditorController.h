@@ -32,7 +32,7 @@ enum class ERetargeterOutputMode : uint8
 	EditRetargetPose,	// allow editing the retarget pose
 };
 
-enum class EBoneSelectionEdit : uint8
+enum class ESelectionEdit : uint8
 {
 	Add,	// add to selection set
 	Remove,	// remove from selection
@@ -48,8 +48,10 @@ public:
 
 	/** Initialize the editor */
 	void Initialize(TSharedPtr<FIKRetargetEditor> InEditor, UIKRetargeter* InAsset);
+	/** Close the editor */
+	void Close() const;
 	/** Bind callbacks to this IK Rig */
-	void BindToIKRigAsset(UIKRigDefinition* InIKRig) const;
+	void BindToIKRigAsset(UIKRigDefinition* InIKRig);
 	/** callback when IK Rig asset requires reinitialization */
 	void OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const;
 	/** callback when IK Rig asset's retarget chain has been renamed */
@@ -119,8 +121,6 @@ public:
 		const int32& BoneIndex,
 		const float& Scale,
 		const FVector& Offset) const;
-
-	FTransform GetTargetBoneLocalTransform(const UIKRetargetProcessor* RetargetProcessor, const int32& TargetBoneIndex) const;
 	
 	/** get world space positions of all immediate children of bone (with component scale / offset applied) */
 	static void GetGlobalRetargetPoseOfImmediateChildren(
@@ -138,6 +138,7 @@ public:
 
 	/** Sequence Browser**/
 	void PlayAnimationAsset(UAnimationAsset* AssetToPlay);
+	void StopPlayback();
 	void PausePlayback();
 	void ResumePlayback();
 	UAnimationAsset* AnimThatWasPlaying = nullptr;
@@ -157,27 +158,46 @@ public:
 	ERetargetSourceOrTarget GetSourceOrTarget() const { return CurrentlyEditingSourceOrTarget; };
 	void SetSourceOrTargetMode(ERetargetSourceOrTarget SourceOrTarget);
 
-	/** bone selection management (viewport or hierarchy view) */
+	/** ------------------------- SELECTION -----------------------------*/
+
+	/** SELECTION - BONES (viewport or hierarchy view) */
 	void EditBoneSelection(
 		const TArray<FName>& InBoneNames,
-		EBoneSelectionEdit EditMode,
+		ESelectionEdit EditMode,
 		const bool bFromHierarchyView);
-	void ClearSelection(const bool bKeepBoneSelection=false);
 	const TArray<FName>& GetSelectedBones() const {return SelectedBones; };
-	/** mesh selection management (viewport view) */
+	/* END bone selection */
+	
+	/** SELECTION - MESHES (viewport view) */
 	void SetSelectedMesh(UPrimitiveComponent* InComponent);
 	UPrimitiveComponent* GetSelectedMesh();
 	void AddOffsetToMeshComponent(const FVector& Offset, USceneComponent* MeshComponent) const;
+	/* END mesh selection */
+
+	/** SELECTION - CHAINS (viewport or chains view) */
+	void EditChainSelection(
+		const TArray<FName>& InChainNames,
+		ESelectionEdit EditMode,
+		const bool bFromChainsView);
+	const TArray<FName>& GetSelectedChains() const {return SelectedChains; };
+	/* END chain selection */
+
+	void SetRootSelected(const bool bIsSelected);
+	bool GetRootSelected() const { return bIsRootSelected; };
+	
+	void ClearSelection(const bool bKeepBoneSelection=false);
+
+	/** ------------------------- END SELECTION -----------------------------*/
 
 	/** determine if bone in the specified skeleton is part of the retarget (in a mapped chain) */
 	bool IsBoneRetargeted(const FName& BoneName, ERetargetSourceOrTarget SourceOrTarget) const;
 	/** get the name of the chain that contains this bone */
 	FName GetChainNameFromBone(const FName& BoneName, ERetargetSourceOrTarget SourceOrTarget) const;
 
-	/** factory to get/create bone details object */
-	TObjectPtr<UIKRetargetBoneDetails> GetDetailsObjectForBone(const FName& BoneName);
+	/** factory to get/create bone details UObject */
+	TObjectPtr<UIKRetargetBoneDetails> GetOrCreateBoneDetailsObject(const FName& BoneName);
 
-	/* START RETARGET POSES */
+	/** ------------------------- RETARGET POSES -----------------------------*/
 	
 	/** go to retarget pose */
 	FReply HandleShowRetargetPose();
@@ -222,7 +242,7 @@ public:
 	TSharedPtr<SWindow> RenamePoseWindow;
 	TSharedPtr<SEditableTextBox> NewNameEditableText;
 	
-	/* END RETARGET POSES */
+	/** ------------------------- END RETARGET POSES -----------------------------*/
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -251,12 +271,19 @@ private:
 	ERetargetSourceOrTarget CurrentlyEditingSourceOrTarget;
 
 	/** current selection set */
+	bool bIsRootSelected;
+	UPrimitiveComponent* SelectedMesh;
+	TArray<FName> SelectedChains;
 	TArray<FName> SelectedBones;
 	UPROPERTY()
 	TMap<FName,TObjectPtr<UIKRetargetBoneDetails>> AllBoneDetails;
-	TArray<UObject*> SelectedBoneDetails;
-	TObjectPtr<UIKRetargetBoneDetails> CreateBoneDetails(const FName& InBoneName);
 
-	/** currently selected mesh */
-	UPrimitiveComponent* SelectedMesh;
+
+	/** to remove delegates when editor is closed */
+	FDelegateHandle ReInitDelegateHandle;
+	UIKRigDefinition* BoundToIKRig;
+	FDelegateHandle ReInitIKDelegateHandle;
+	FDelegateHandle RenameChainDelegateHandle;
+	FDelegateHandle RemoveChainDelegateHandle;
 };
+

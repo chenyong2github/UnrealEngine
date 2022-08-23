@@ -2,6 +2,7 @@
 
 #include "IKRigSkeleton.h"
 
+#include "IKRigDefinition.h"
 #include "Engine/SkeletalMesh.h"
 
 // This is the default end of branch index value, meaning we haven't cached it yet
@@ -321,7 +322,7 @@ void FIKRigSkeleton::NormalizeRotations(TArray<FTransform>& Transforms)
 	}
 }
 
-void FIKRigSkeleton::GetChainsInList(const TArray<int32>& SelectedBones, TArray<FIKRigSkeletonChain>& OutChains) const
+void FIKRigSkeleton::GetChainsInList(const TArray<int32>& SelectedBones, TArray<FBoneChain>& OutChains) const
 {	
 	// no bones provided, return empty list
 	if (SelectedBones.IsEmpty())
@@ -365,6 +366,96 @@ void FIKRigSkeleton::GetChainsInList(const TArray<int32>& SelectedBones, TArray<
 
     	const FName StartBoneName = GetBoneNameFromIndex(ChainStart);
     	const FName EndBoneName = GetBoneNameFromIndex(ChainEnd);
-    	OutChains.Emplace(StartBoneName, EndBoneName);	
+    	OutChains.Add(FBoneChain(NAME_None, StartBoneName, EndBoneName));	
     }
+}
+
+bool FIKRigSkeleton::GetBonesInChain(const FBoneChain& BoneChain, TArray<int32>& OutBoneIndices) const
+{
+	// validate start and end bones exist and are not the root
+	const int32 StartIndex = GetBoneIndexFromName(BoneChain.StartBone.BoneName);
+	const int32 EndIndex = GetBoneIndexFromName(BoneChain.EndBone.BoneName);
+	const bool bFoundStartBone = StartIndex > INDEX_NONE;
+	const bool bFoundEndBone = EndIndex > INDEX_NONE;
+
+	// no need to build the chain if start/end indices are wrong 
+	const bool bIsWellFormed = bFoundStartBone && bFoundEndBone && EndIndex >= StartIndex;
+	if (!bIsWellFormed)
+	{
+		return false;
+	}
+	
+	// init array with end bone 
+	OutBoneIndices = {EndIndex};
+
+	// if only one bone in the chain
+	if (EndIndex == StartIndex)
+	{
+		return true;
+	}
+
+	// record all bones in chain while walking up the hierarchy (tip to root of chain)
+	int32 ParentIndex = GetParentIndex(EndIndex);
+	while (ParentIndex > INDEX_NONE && ParentIndex >= StartIndex)
+	{
+		OutBoneIndices.Add(ParentIndex);
+		ParentIndex = GetParentIndex(ParentIndex);
+	}
+
+	// if we walked up till the start bone
+	if (OutBoneIndices.Last() == StartIndex)
+	{
+		// reverse the indices (we want root to tip order)
+		Algo::Reverse(OutBoneIndices);
+		return true;
+	}
+
+	// oops, we walked all the way up without finding the start bone
+	OutBoneIndices.Reset();
+	return false;
+}
+
+bool FIKRigSkeleton::GetMirroredBoneIndices(
+	const TArray<int32>& BoneIndices,
+	TArray<int32>& OutMirroredIndices,
+	float MaxDistanceThreshold) const
+{
+	constexpr float MirrorDistanceThreshold = 5.0f;
+
+	OutMirroredIndices.Reset();
+	for (const int32 BoneIndex : BoneIndices)
+	{
+		const FVector BoneLocation = RefPoseGlobal[BoneIndex].GetLocation();
+		const FVector MirroredLocation = BoneLocation * FVector(-1.f,1.f,1.f);
+		int32 ClosestBoneIndex;
+		float Distance;
+		GetClosestBone(MirroredLocation, ClosestBoneIndex, Distance);
+		if (Distance > MirrorDistanceThreshold || ClosestBoneIndex == INDEX_NONE)
+		{
+			OutMirroredIndices.Reset();
+			return false;
+		}
+		OutMirroredIndices.Add(ClosestBoneIndex);
+	}
+	return true;
+}
+
+void FIKRigSkeleton::GetClosestBone(
+	const FVector& InPoint,
+	int32& OutBoneIndex,
+	float& OutDistance) const
+{
+	int32 Index = 0;
+	OutBoneIndex = INDEX_NONE;
+	OutDistance = TNumericLimits<float>::Max();
+	for (const FTransform& BonePose : RefPoseGlobal)
+	{
+		const float Distance = FVector::Distance(InPoint, BonePose.GetLocation());
+		if (Distance < OutDistance)
+		{
+			OutBoneIndex = Index;
+			OutDistance = Distance;
+		}
+		++Index;
+	}
 }

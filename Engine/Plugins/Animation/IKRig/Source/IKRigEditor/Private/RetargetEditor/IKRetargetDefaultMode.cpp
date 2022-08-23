@@ -9,7 +9,7 @@
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "RetargetEditor/IKRetargetEditor.h"
-#include "RetargetEditor/SIKRetargetChainMapList.h"
+#include "RetargetEditor/IKRetargetHitProxies.h"
 
 
 #define LOCTEXT_NAMESPACE "IKRetargetDefaultMode"
@@ -67,6 +67,176 @@ void FIKRetargetDefaultMode::Initialize()
 void FIKRetargetDefaultMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 	FEdMode::Render(View, Viewport, PDI);
+
+	if (!EditorController.IsValid())
+	{
+		return;
+	}
+	
+	FIKRetargetEditorController* Controller = EditorController.Pin().Get();
+	if (Controller->GetRetargeterMode() == ERetargeterOutputMode::EditRetargetPose)
+	{
+		return;
+	}
+	
+	const UIKRetargeter* Asset = Controller->AssetController->GetAsset();
+	if (!Asset->bDebugDraw)
+	{
+		return;
+	}
+	
+	const UIKRetargetProcessor* RetargetProcessor = Controller->GetRetargetProcessor();
+	if (!RetargetProcessor && RetargetProcessor->IsInitialized())
+	{
+		return;
+	}
+
+	UDebugSkelMeshComponent* TargetSkelMesh = Controller->GetSkeletalMeshComponent(ERetargetSourceOrTarget::Target);
+	const FTransform ComponentTransform = TargetSkelMesh->GetComponentTransform();
+	const FVector ComponentOffset = ComponentTransform.GetTranslation();
+
+	const TArray<FName>& SelectedChains = Controller->GetSelectedChains();
+
+	constexpr FLinearColor Muted = FLinearColor(0.5,0.5,0.5, 0.5);
+	const FLinearColor SourceColor = (FLinearColor::Gray * FLinearColor::Blue) * Muted;
+	const FLinearColor GoalColor = FLinearColor::Yellow;
+	const FLinearColor MainColor = FLinearColor::Green;
+	const FLinearColor NonSelected = FLinearColor::Gray * 0.3f;
+
+	// get the root modification
+	const FRootRetargeter& RootRetargeter = RetargetProcessor->GetRootRetargeter();
+	const FVector RootModification = RootRetargeter.Target.RootTranslationDelta * RootRetargeter.Settings.GetAffectIKWeightVector();
+
+	// draw IK goals on each IK chain
+	const TArray<FRetargetChainPairIK>& IKChainPairs = RetargetProcessor->GetIKChainPairs();
+	for (const FRetargetChainPairIK& IKChainPair : IKChainPairs)
+	{
+		const FChainDebugData& ChainDebugData = IKChainPair.IKChainRetargeter.DebugData;
+		FTransform FinalTransform = ChainDebugData.OutputTransformEnd;
+		FinalTransform.AddToTranslation(ComponentOffset);
+
+		const bool bIsSelected = SelectedChains.Contains(IKChainPair.TargetBoneChainName);
+
+		PDI->SetHitProxy(new HIKRetargetEditorChainProxy(IKChainPair.TargetBoneChainName));
+
+		if (Asset->bDrawFinalGoals)
+		{
+			IKRigDebugRendering::DrawWireCube(
+			PDI,
+			FinalTransform,
+			bIsSelected ? GoalColor : GoalColor * NonSelected,
+			Asset->ChainDrawSize,
+			Asset->ChainDrawThickness);
+		}
+		
+		if (Asset->bDrawSourceLocations)
+		{
+			const FSourceChainIK& SourceChain = IKChainPair.IKChainRetargeter.Source;
+			FTransform SourceGoalTransform;
+			SourceGoalTransform.SetTranslation(SourceChain.CurrentEndPosition + ComponentOffset + RootModification);
+			SourceGoalTransform.SetRotation(SourceChain.CurrentEndRotation);
+
+			FLinearColor Color = bIsSelected ? SourceColor : SourceColor * NonSelected;
+
+			DrawWireSphere(
+				PDI,
+				SourceGoalTransform,
+				Color,
+				Asset->ChainDrawSize * 0.5f,
+				12,
+				SDPG_World,
+				0.0f,
+				0.001f,
+				false);
+
+			if (Asset->bDrawFinalGoals)
+			{
+				DrawDashedLine(
+					PDI,
+					SourceGoalTransform.GetLocation(),
+					FinalTransform.GetLocation(),
+					Color,
+					1.0f,
+					SDPG_Foreground);
+			}
+		}
+
+		// done drawing chain proxies
+		PDI->SetHitProxy(nullptr);
+	}
+
+	// draw lines on each FK chain
+	const TArray<FRetargetChainPairFK>& FKChainPairs = RetargetProcessor->GetFKChainPairs();
+	for (const FRetargetChainPairFK& FKChainPair : FKChainPairs)
+	{
+		const TArray<int32>& TargetChainBoneIndices = FKChainPair.FKDecoder.BoneIndices;
+		if (TargetChainBoneIndices.IsEmpty())
+		{
+			continue;
+		}
+		
+		const bool bIsSelected = SelectedChains.Contains(FKChainPair.TargetBoneChainName);
+		
+		// draw a line from start to end of chain, or in the case of a chain with only 1 bone in it, draw a sphere
+		PDI->SetHitProxy(new HIKRetargetEditorChainProxy(FKChainPair.TargetBoneChainName));
+		if (TargetChainBoneIndices.Num() > 1)
+		{
+			FTransform StartTransform = TargetSkelMesh->GetBoneTransform(TargetChainBoneIndices[0], ComponentTransform);
+			FTransform EndTransform = TargetSkelMesh->GetBoneTransform(TargetChainBoneIndices.Last(), ComponentTransform);
+			PDI->DrawLine(
+			StartTransform.GetLocation(),
+			EndTransform.GetLocation(),
+			bIsSelected ? MainColor : MainColor * NonSelected,
+			SDPG_Foreground,
+			Asset->ChainDrawThickness);
+		}
+		else
+		{
+			FTransform StartTransform = TargetSkelMesh->GetBoneTransform(TargetChainBoneIndices[0], ComponentTransform);
+			
+			DrawWireSphere(
+				PDI,
+				StartTransform.GetLocation(),
+				bIsSelected ? MainColor : MainColor * NonSelected,
+				Asset->ChainDrawSize,
+				12,
+				SDPG_World,
+				Asset->ChainDrawThickness,
+				0.001f,
+				false);
+		}
+		
+		PDI->SetHitProxy(nullptr);
+	}
+
+	// draw stride warping frame
+	FTransform WarpingFrame = RetargetProcessor->DebugData.StrideWarpingFrame;
+	DrawCoordinateSystem(PDI, WarpingFrame.GetLocation(), WarpingFrame.GetRotation().Rotator(), Asset->ChainDrawSize, SDPG_World, Asset->ChainDrawThickness);
+
+	// root bone name
+	const FName RootBoneName = Controller->AssetController->GetRetargetRootBone(ERetargetSourceOrTarget::Target);
+	const int32 RootBoneIndex = TargetSkelMesh->GetReferenceSkeleton().FindBoneIndex(RootBoneName);
+	if (RootBoneIndex == INDEX_NONE)
+	{
+		return;
+	}
+	const FTransform RootTransform = TargetSkelMesh->GetBoneTransform(RootBoneIndex, ComponentTransform);
+	const FVector RootCircleLocation = RootTransform.GetLocation() * FVector(1,1,0);
+	const bool bIsSelected = EditorController.Pin()->GetRootSelected();
+	const FLinearColor RootColor = bIsSelected ? MainColor : MainColor * NonSelected;
+	
+	PDI->SetHitProxy(new HIKRetargetEditorRootProxy());
+	DrawCircle(
+		PDI,
+		RootCircleLocation,
+		FVector(1, 0, 0),
+		FVector(0, 1, 0),
+		RootColor,
+		Asset->ChainDrawSize * 10.f,
+		12,
+		SDPG_World,
+		Asset->ChainDrawThickness * 2.0f);
+	PDI->SetHitProxy(nullptr);
 }
 
 bool FIKRetargetDefaultMode::AllowWidgetMove()
@@ -121,7 +291,8 @@ bool FIKRetargetDefaultMode::HandleClick(FEditorViewportClient* InViewportClient
 	}
 
 	const bool bLeftButtonClicked = Click.GetKey() == EKeys::LeftMouseButton;
-	constexpr bool bFromHierarchy = false;
+	const bool bCtrlOrShiftHeld = Click.IsControlDown() || Click.IsShiftDown();
+	const ESelectionEdit EditMode = bCtrlOrShiftHeld ? ESelectionEdit::Add : ESelectionEdit::Replace;
 	
 	// did we click on an actor in the viewport?
 	const bool bHitActor = HitProxy && HitProxy->IsA(HActor::StaticGetType());
@@ -137,23 +308,33 @@ bool FIKRetargetDefaultMode::HandleClick(FEditorViewportClient* InViewportClient
 	if (bLeftButtonClicked && bHitBone)
 	{
 		const HPersonaBoneHitProxy* BoneProxy = static_cast<HPersonaBoneHitProxy*>(HitProxy);
-		const TArray<FName> BoneNames{BoneProxy->BoneName};
-		
-		const bool bCtrlOrShiftHeld = Click.IsControlDown() || Click.IsShiftDown();
-		const EBoneSelectionEdit EditMode = bCtrlOrShiftHeld ? EBoneSelectionEdit::Add : EBoneSelectionEdit::Replace;
-		
+		const TArray BoneNames{BoneProxy->BoneName};
+		constexpr bool bFromHierarchy = false;
 		Controller->EditBoneSelection(BoneNames, EditMode, bFromHierarchy);
-		
 		return true;
 	}
 
-	// did we click in empty space in viewport?
-	if (!(bHitActor || bHitBone))
+	// did we click on a chain in the viewport?
+	const bool bHitChain = HitProxy && HitProxy->IsA(HIKRetargetEditorChainProxy::StaticGetType());
+	if (bLeftButtonClicked && bHitChain)
 	{
-		// deselect all meshes, bones, chains and update details view
-		Controller->ClearSelection();
+		const HIKRetargetEditorChainProxy* ChainProxy = static_cast<HIKRetargetEditorChainProxy*>(HitProxy);
+		const TArray ChainNames{ChainProxy->TargetChainName};
+		constexpr bool bFromChainView = false;
+		Controller->EditChainSelection(ChainNames, EditMode, bFromChainView);
+		return true;
 	}
-	
+
+	// did we click on the root in the viewport?
+	const bool bHitRoot = HitProxy && HitProxy->IsA(HIKRetargetEditorRootProxy::StaticGetType());
+	if (bLeftButtonClicked && bHitRoot)
+	{
+		Controller->SetRootSelected(true);
+		return true;
+	}
+
+	// we didn't hit anything, therefore clicked in empty space in viewport
+	Controller->ClearSelection(); // deselect all meshes, bones, chains and update details view
 	return true;
 }
 

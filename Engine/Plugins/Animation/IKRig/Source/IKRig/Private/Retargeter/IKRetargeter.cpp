@@ -3,6 +3,7 @@
 #include "Retargeter/IKRetargeter.h"
 
 #include "IKRigObjectVersion.h"
+#include "Retargeter/IKRetargetProfile.h"
 
 #if WITH_EDITOR
 const FName UIKRetargeter::GetSourceIKRigPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, SourceIKRigAsset); };
@@ -14,9 +15,9 @@ void UIKRetargeter::GetSpeedCurveNames(TArray<FName>& OutSpeedCurveNames) const
 {
 	for (const URetargetChainSettings* ChainSetting : ChainSettings)
 	{
-		if (ChainSetting->SpeedCurveName != NAME_None)
+		if (ChainSetting->Settings.SpeedPlanting.SpeedCurveName != NAME_None)
 		{
-			OutSpeedCurveNames.Add(ChainSetting->SpeedCurveName);
+			OutSpeedCurveNames.Add(ChainSetting->Settings.SpeedPlanting.SpeedCurveName);
 		}
 	}
 }
@@ -28,6 +29,9 @@ UIKRetargeter::UIKRetargeter(const FObjectInitializer& ObjectInitializer)
 {
 	RootSettings = CreateDefaultSubobject<URetargetRootSettings>(TEXT("RootSettings"));
 	RootSettings->SetFlags(RF_Transactional);
+
+	GlobalSettings = CreateDefaultSubobject<UIKRetargetGlobalSettings>(TEXT("GlobalSettings"));
+	GlobalSettings->SetFlags(RF_Transactional);
 
 	CleanAndInitialize();
 }
@@ -84,8 +88,21 @@ void UIKRetargeter::PostLoad()
 		{
 			TargetMeshScale = TargetActorScale_DEPRECATED;
 		}
-	#endif
 
+		// load deprecated global settings
+		if (bRetargetRoot_DEPRECATED)
+		{
+			GlobalSettings->Settings.bEnableRoot = bRetargetRoot_DEPRECATED;
+		}
+		if (bRetargetFK_DEPRECATED)
+		{
+			GlobalSettings->Settings.bEnableFK = bRetargetFK_DEPRECATED;
+		}
+		if (bRetargetIK_DEPRECATED)
+		{
+			GlobalSettings->Settings.bEnableIK = bRetargetIK_DEPRECATED;
+		}
+	#endif
 
 	// load deprecated retarget poses (pre adding retarget poses for source)
 	if (!RetargetPoses_DEPRECATED.IsEmpty())
@@ -142,13 +159,67 @@ void UIKRetargeter::CleanAndInitialize()
 	}
 };
 
+void URetargetChainSettings::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FIKRigObjectVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		// load the old chain settings into the new struct format
+		if (Ar.CustomVer(FIKRigObjectVersion::GUID) < FIKRigObjectVersion::ChainSettingsConvertedToStruct)
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			Settings.FK.EnableFK =  CopyPoseUsingFK_DEPRECATED;
+			Settings.FK.RotationMode =  RotationMode_DEPRECATED;
+			Settings.FK.RotationAlpha =  RotationAlpha_DEPRECATED;
+			Settings.FK.TranslationMode =  TranslationMode_DEPRECATED;
+			Settings.FK.TranslationAlpha =  TranslationAlpha_DEPRECATED;
+			Settings.IK.EnableIK =  DriveIKGoal_DEPRECATED;
+			Settings.IK.BlendToSource =  BlendToSource_DEPRECATED;
+			Settings.IK.BlendToSourceWeights =  BlendToSourceWeights_DEPRECATED;
+			Settings.IK.StaticOffset =  StaticOffset_DEPRECATED;
+			Settings.IK.StaticLocalOffset =  StaticLocalOffset_DEPRECATED;
+			Settings.IK.StaticRotationOffset =  StaticRotationOffset_DEPRECATED;
+			Settings.IK.Extension =  Extension_DEPRECATED;
+			Settings.SpeedPlanting.EnableSpeedPlanting =  UseSpeedCurveToPlantIK_DEPRECATED;
+			Settings.SpeedPlanting.SpeedCurveName =  SpeedCurveName_DEPRECATED;
+			Settings.SpeedPlanting.SpeedThreshold =  VelocityThreshold_DEPRECATED;
+			Settings.SpeedPlanting.UnplantStiffness =  UnplantStiffness_DEPRECATED;
+			Settings.SpeedPlanting.UnplantCriticalDamping =  UnplantCriticalDamping_DEPRECATED;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+	}
+}
+
+void URetargetRootSettings::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FIKRigObjectVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		// load the old root settings into the new struct format
+		if (Ar.CustomVer(FIKRigObjectVersion::GUID) < FIKRigObjectVersion::ChainSettingsConvertedToStruct)
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			Settings.ScaleHorizontal = GlobalScaleHorizontal_DEPRECATED;
+			Settings.ScaleVertical = GlobalScaleVertical_DEPRECATED;
+			Settings.BlendToSource = BlendToSource_DEPRECATED.Size();
+			Settings.TranslationOffset = StaticOffset_DEPRECATED;
+			Settings.RotationOffset = StaticRotationOffset_DEPRECATED;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+	}
+}
+
 FQuat FIKRetargetPose::GetDeltaRotationForBone(const FName BoneName) const
 {
 	const FQuat* BoneRotationOffset = BoneRotationOffsets.Find(BoneName);
 	return BoneRotationOffset != nullptr ? *BoneRotationOffset : FQuat::Identity;
 }
 
-void FIKRetargetPose::SetDeltaRotationForBone(FName BoneName, FQuat RotationDelta)
+void FIKRetargetPose::SetDeltaRotationForBone(FName BoneName, const FQuat& RotationDelta)
 {
 	FQuat* RotOffset = BoneRotationOffsets.Find(BoneName);
 	if (RotOffset == nullptr)
@@ -186,13 +257,173 @@ void FIKRetargetPose::SortHierarchically(const FIKRigSkeleton& Skeleton)
 	});
 }
 
+const FTargetChainSettings* UIKRetargeter::GetChainSettingsByName(const FName& TargetChainName) const
+{
+	const TObjectPtr<URetargetChainSettings>* ChainMap = ChainSettings.FindByPredicate(
+		[TargetChainName](const TObjectPtr<URetargetChainSettings> ChainMap)
+		{
+			return ChainMap->TargetChain == TargetChainName;
+		});
+	if (ChainMap)
+	{
+		return &ChainMap->Get()->Settings;
+	}
+
+	return nullptr;
+}
+
 const FIKRetargetPose* UIKRetargeter::GetCurrentRetargetPose(const ERetargetSourceOrTarget& SourceOrTarget) const
 {
 	return SourceOrTarget == ERetargetSourceOrTarget::Source ? &SourceRetargetPoses[CurrentSourceRetargetPose] : &TargetRetargetPoses[CurrentTargetRetargetPose];
+}
+
+FName UIKRetargeter::GetCurrentRetargetPoseName(const ERetargetSourceOrTarget& SourceOrTarget) const
+{
+	return SourceOrTarget == ERetargetSourceOrTarget::Source ? CurrentSourceRetargetPose : CurrentTargetRetargetPose;
+}
+
+const FIKRetargetPose* UIKRetargeter::GetRetargetPoseByName(
+	const ERetargetSourceOrTarget& SourceOrTarget,
+	const FName PoseName) const
+{
+	return SourceOrTarget == ERetargetSourceOrTarget::Source ? SourceRetargetPoses.Find(PoseName) : TargetRetargetPoses.Find(PoseName);
 }
 
 const FName UIKRetargeter::GetDefaultPoseName()
 {
 	static const FName DefaultPoseName = "Default Pose";
 	return DefaultPoseName;
+}
+
+const FRetargetProfile* UIKRetargeter::GetCurrentProfile() const
+{
+	return GetProfileByName(CurrentProfile);
+}
+
+const FRetargetProfile* UIKRetargeter::GetProfileByName(const FName& ProfileName) const
+{
+	return Profiles.Find(ProfileName);
+}
+
+FTargetChainSettings UIKRetargeter::GetChainSettingsFromRetargetAsset(
+	const UIKRetargeter* RetargetAsset,
+	const FName TargetChainName,
+	const FName OptionalProfileName)
+{
+	FTargetChainSettings OutSettings;
+	
+	if (!RetargetAsset)
+	{
+		return OutSettings;
+	}
+	
+	// optionally get the chain settings from a profile
+	if (OptionalProfileName != NAME_None)
+	{
+		if (const FRetargetProfile* RetargetProfile = RetargetAsset->GetProfileByName(OptionalProfileName))
+		{
+			if (const FTargetChainSettings* ProfileChainSettings = RetargetProfile->ChainSettings.Find(TargetChainName))
+			{
+				return *ProfileChainSettings;
+			}
+		}
+
+		// no profile with this chain found, return default settings
+		return OutSettings;
+	}
+	
+	// return the chain settings stored in the retargeter (if it has one matching specified name)
+	if (const FTargetChainSettings* AssetChainSettings = RetargetAsset->GetChainSettingsByName(TargetChainName))
+	{
+		return *AssetChainSettings;
+	}
+
+	// no chain map with the given target chain, so return default settings
+	return OutSettings;
+}
+
+FTargetChainSettings UIKRetargeter::GetChainSettingsFromRetargetProfile(
+	FRetargetProfile& RetargetProfile,
+	const FName TargetChainName)
+{
+	return RetargetProfile.ChainSettings.FindOrAdd(TargetChainName);
+}
+
+void UIKRetargeter::GetRootSettingsFromRetargetAsset(
+	const UIKRetargeter* RetargetAsset,
+	const FName OptionalProfileName,
+	FTargetRootSettings& OutSettings)
+{
+	if (!RetargetAsset)
+	{
+		OutSettings = FTargetRootSettings();
+		return;
+	}
+	
+	// optionally get the root settings from a profile
+	if (OptionalProfileName != NAME_None)
+	{
+		if (const FRetargetProfile* RetargetProfile = RetargetAsset->GetProfileByName(OptionalProfileName))
+		{
+			if (RetargetProfile->bApplyRootSettings)
+			{
+				OutSettings =  RetargetProfile->RootSettings;
+				return;
+			}
+		}
+		
+		// could not find profile, so return default settings
+		OutSettings = FTargetRootSettings();
+		return;
+	}
+
+	// return the base root settings
+	OutSettings =  RetargetAsset->GetRootSettingsUObject()->Settings;
+}
+
+void UIKRetargeter::SetRootSettingsInRetargetProfile(
+	FRetargetProfile& RetargetProfile,
+	const FTargetRootSettings& RootSettings)
+{
+	RetargetProfile.RootSettings = RootSettings;
+	RetargetProfile.bApplyRootSettings = true;
+}
+
+void UIKRetargeter::SetChainSettingsInRetargetProfile(
+	FRetargetProfile& RetargetProfile,
+	const FTargetChainSettings& ChainSettings,
+	const FName TargetChainName)
+{
+	RetargetProfile.ChainSettings.Add(TargetChainName, ChainSettings);
+	RetargetProfile.bApplyChainSettings = true;
+}
+
+void UIKRetargeter::SetChainFKSettingsInRetargetProfile(
+	FRetargetProfile& RetargetProfile,
+	const FTargetChainFKSettings& FKSettings,
+	const FName TargetChainName)
+{
+	FTargetChainSettings& ChainSettings = RetargetProfile.ChainSettings.FindOrAdd(TargetChainName);
+	ChainSettings.FK = FKSettings;
+	RetargetProfile.bApplyChainSettings = true;
+}
+
+void UIKRetargeter::SetChainIKSettingsInRetargetProfile(
+	FRetargetProfile& RetargetProfile,
+	const FTargetChainIKSettings& IKSettings,
+	const FName TargetChainName)
+{
+	FTargetChainSettings& ChainSettings = RetargetProfile.ChainSettings.FindOrAdd(TargetChainName);
+	ChainSettings.IK = IKSettings;
+	RetargetProfile.bApplyChainSettings = true;
+}
+
+void UIKRetargeter::SetChainSpeedPlantSettingsInRetargetProfile(
+	FRetargetProfile& RetargetProfile,
+	const FTargetChainSpeedPlantSettings& SpeedPlantSettings,
+	const FName TargetChainName)
+{
+	FTargetChainSettings& ChainSettings = RetargetProfile.ChainSettings.FindOrAdd(TargetChainName);
+	ChainSettings.SpeedPlanting = SpeedPlantSettings;
+	RetargetProfile.bApplyChainSettings = true;
 }

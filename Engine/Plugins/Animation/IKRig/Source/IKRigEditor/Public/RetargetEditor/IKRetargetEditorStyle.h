@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "Styling/AppStyle.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateStyleMacros.h"
-#include "Styling/SlateTypes.h"
 
 class FIKRetargetEditorStyle final	: public FSlateStyleSet
 {
@@ -15,13 +13,14 @@ public:
 	FIKRetargetEditorStyle() : FSlateStyleSet("IKRetargetEditorStyle")
 	{
 		const FVector2D Icon16x16(16.0f, 16.0f);
+		const FVector2D Icon64x64(64.0f, 64.0f);
 		
-		const FString IKRigPluginContentDir = FPaths::EnginePluginsDir() / TEXT("Animation/IKRig/Content");
-		SetContentRoot(IKRigPluginContentDir);
+		SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Animation/IKRig/Content"));
 		Set("IKRetarget.Tree.Bone", new IMAGE_BRUSH("Slate/Bone_16x", Icon16x16));
+		Set("ClassIcon.IKRetargeter", new IMAGE_BRUSH_SVG("Slate/IKRigRetargeter", Icon16x16));
+		Set("ClassThumbnail.IKRetargeter", new IMAGE_BRUSH_SVG("Slate/IKRigRetargeter_64", Icon64x64));
 
-		const FString EngineEditorSlateDir = FPaths::EngineContentDir() / TEXT("Editor/Slate");
-		SetContentRoot(EngineEditorSlateDir);
+		SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 		Set( "IKRetarget.Viewport.Border", new BOX_BRUSH( "Old/Window/ViewportDebugBorder", 0.8f, FLinearColor(1.0f,1.0f,1.0f,1.0f) ) );
 		
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
@@ -38,5 +37,3 @@ public:
 		FSlateStyleRegistry::UnRegisterSlateStyle(*this);
 	}
 };
-
-#undef IMAGE_BRUSH

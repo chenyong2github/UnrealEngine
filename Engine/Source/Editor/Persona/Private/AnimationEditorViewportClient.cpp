@@ -1402,7 +1402,7 @@ ELocalAxesMode::Type FAnimationViewportClient::GetLocalAxesMode() const
 
 void FAnimationViewportClient::SetBoneDrawSize(const float InBoneDrawSize)
 {
-	BoneDrawSize = FMath::Max(0.01f,InBoneDrawSize);
+	BoneDrawSize = FMath::Max(0.001f,InBoneDrawSize);
 
 	// optionally inform editors that may want to maintain bone size between sessions
 	if (OnSetBoneSize.IsBound())

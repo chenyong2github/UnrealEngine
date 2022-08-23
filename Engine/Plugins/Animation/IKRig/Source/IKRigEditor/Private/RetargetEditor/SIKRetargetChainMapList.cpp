@@ -14,11 +14,15 @@
 #include "RigEditor/IKRigEditorStyle.h"
 #include "Widgets/Input/SComboBox.h"
 #include "SSearchableComboBox.h"
+#include "Misc/TextFilterExpressionEvaluator.h"
+#include "Widgets/Input/SSearchBox.h"
 
 #define LOCTEXT_NAMESPACE "SIKRigRetargetChains"
 
 static const FName ColumnId_TargetChainLabel( "Target Bone Chain" );
 static const FName ColumnId_SourceChainLabel( "Source Bone Chain" );
+static const FName ColumnId_IKGoalNameLabel( "Target IK Goal" );
+static const FName ColumnId_ResetLabel( "Reset" );
 
 TSharedRef<ITableRow> FRetargetChainMapElement::MakeListRowWidget(
 	const TSharedRef<STableViewBase>& InOwnerTable,
@@ -41,7 +45,7 @@ void SIKRetargetChainMapRow::Construct(
 	// NOTE: cannot just use FName because "None" is considered a null entry and removed from ComboBox.
 	SourceChainOptions.Reset();
 	SourceChainOptions.Add(MakeShareable(new FString(TEXT("None"))));
-	const UIKRigDefinition* SourceIKRig = ChainMapList.Pin()->EditorController.Pin()->AssetController->GetAsset()->GetSourceIKRig();
+	const UIKRigDefinition* SourceIKRig = ChainMapList.Pin()->EditorController.Pin()->AssetController->GetIKRig(ERetargetSourceOrTarget::Source);
 	if (SourceIKRig)
 	{
 		const TArray<FBoneChain>& Chains = SourceIKRig->GetRetargetChains();
@@ -54,25 +58,26 @@ void SIKRetargetChainMapRow::Construct(
 	SMultiColumnTableRow< FRetargetChainMapElementPtr >::Construct( FSuperRowType::FArguments(), InOwnerTableView );
 }
 
-TSharedRef< SWidget > SIKRetargetChainMapRow::GenerateWidgetForColumn( const FName& ColumnName )
+TSharedRef< SWidget > SIKRetargetChainMapRow::GenerateWidgetForColumn(const FName& ColumnName)
 {
 	if (ColumnName == ColumnId_TargetChainLabel)
 	{
 		TSharedRef<SWidget> NewWidget =
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		.Padding(3.0f, 1.0f)
-		[
-			SNew(STextBlock)
-			.Text(FText::FromName(ChainMapElement.Pin()->ChainMap->TargetChain))
-			.Font(FAppStyle::GetFontStyle(TEXT("BoldFont")))
-		];
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.Padding(3.0f, 1.0f)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromName(ChainMapElement.Pin()->ChainMap->TargetChain))
+				.Font(FAppStyle::GetFontStyle(TEXT("BoldFont")))
+			];
 		return NewWidget;
 	}
-	else
+
+	if (ColumnName == ColumnId_SourceChainLabel)
 	{
 		TSharedRef<SWidget> NewWidget =
 		SNew(SHorizontalBox)
@@ -96,6 +101,50 @@ TSharedRef< SWidget > SIKRetargetChainMapRow::GenerateWidgetForColumn( const FNa
 		];
 		return NewWidget;
 	}
+
+	if (ColumnName == ColumnId_IKGoalNameLabel)
+	{
+		TSharedRef<SWidget> NewWidget =
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(3.0f, 1.0f)
+		[
+			SNew(STextBlock)
+			.Text(GetTargetIKGoalName())
+			.Font(FAppStyle::GetFontStyle(TEXT("BoldFont")))
+		];
+		return NewWidget;
+	}
+
+	if (ColumnName == ColumnId_ResetLabel)
+	{
+		TSharedRef<SWidget> NewWidget =
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(3.0f, 1.0f)
+		[
+			SNew(SButton)
+			//.OnClicked(this, &SIKRetargetChainMapRow::OnResetToDefaultClicked) TODO 
+			//.Visibility(this, &SIKRetargetChainMapRow::GetResetToDefaultVisibility) TODO 
+			.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
+			.Content()
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+			]
+		];
+		return NewWidget;
+	}
+	
+	checkNoEntry();
+	return SNullWidget::NullWidget;
 }
 
 void SIKRetargetChainMapRow::OnSourceChainComboSelectionChanged(TSharedPtr<FString> InName, ESelectInfo::Type SelectInfo)
@@ -121,12 +170,42 @@ FText SIKRetargetChainMapRow::GetSourceChainName() const
 	return FText::FromName(ChainMapElement.Pin()->ChainMap->SourceChain);
 }
 
+FText SIKRetargetChainMapRow::GetTargetIKGoalName() const
+{
+	UIKRetargeterController* RetargeterController = ChainMapList.Pin()->GetRetargetController();
+	if (!RetargeterController)
+	{
+		return FText(); 
+	}
+
+	const UIKRigDefinition* IKRig = RetargeterController->GetIKRig(ERetargetSourceOrTarget::Target);
+	if (!IKRig)
+	{
+		return FText(); 
+	}
+
+	const FBoneChain* Chain = IKRig->GetRetargetChainByName(ChainMapElement.Pin()->ChainMap->TargetChain);
+	if (!Chain)
+	{
+		return FText(); 
+	}
+
+	if (Chain->IKGoalName == NAME_None)
+	{
+		return FText::FromString("");
+	}
+	
+	return FText::FromName(Chain->IKGoalName);
+}
+
 void SIKRetargetChainMapList::Construct(
 	const FArguments& InArgs,
 	TSharedRef<FIKRetargetEditorController> InEditorController)
 {
 	EditorController = InEditorController;
 	EditorController.Pin()->SetChainsView(SharedThis(this));
+
+	TextFilter = MakeShareable(new FTextFilterExpressionEvaluator(ETextFilterExpressionEvaluatorMode::BasicString));
 	
 	ChildSlot
     [
@@ -144,9 +223,22 @@ void SIKRetargetChainMapList::Construct(
 			[
 				SNew(SPositiveActionButton)
 				.Icon(FAppStyle::Get().GetBrush("Icons.Settings"))
+				.Text(LOCTEXT("EditRootButtonLabel", "Global Settings"))
+				.ToolTipText(LOCTEXT("EditGlobalButtonToolTip", "Edit the global retarget settings."))
+				.OnClicked(this, &SIKRetargetChainMapList::OnGlobalSettingsButtonClicked)
+			]
+			
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(5, 0)
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SPositiveActionButton)
+				.Icon(FAppStyle::Get().GetBrush("Icons.Settings"))
 				.Text(LOCTEXT("EditRootButtonLabel", "Root Settings"))
 				.ToolTipText(LOCTEXT("EditRootButtonToolTip", "Edit the root retarget settings."))
-				.OnClicked(this, &SIKRetargetChainMapList::OnEditSettingsButtonClicked)
+				.OnClicked(this, &SIKRetargetChainMapList::OnRootSettingsButtonClicked)
 			]
 
 			+ SHorizontalBox::Slot()
@@ -193,17 +285,52 @@ void SIKRetargetChainMapList::Construct(
 		]
 
 		+SVerticalBox::Slot()
+		.Padding(2.0f)
 		.AutoHeight()
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Fill)
-		.Padding(5)
 		[
-			SNew(SPositiveActionButton)
-			.Visibility(this, &SIKRetargetChainMapList::IsAutoMapButtonVisible)
-			.Icon(FAppStyle::Get().GetBrush("Icons.Refresh"))
-			.Text(LOCTEXT("AutoMapButtonLabel", "Auto-Map Chains"))
-			.ToolTipText(LOCTEXT("AutoMapButtonToolTip", "Automatically assign source chains based on fuzzy string match"))
-			.OnClicked(this, &SIKRetargetChainMapList::OnAutoMapButtonClicked)
+			SNew(SHorizontalBox)
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(6.f, 0.0))
+			[
+				SNew(SPositiveActionButton)
+				.Visibility(this, &SIKRetargetChainMapList::IsAutoMapButtonVisible)
+				.Icon(FAppStyle::Get().GetBrush("Icons.Refresh"))
+				.Text(LOCTEXT("AutoMapButtonLabel", "Auto-Map Chains"))
+				.ToolTipText(LOCTEXT("AutoMapButtonToolTip", "Automatically assign source chains based on fuzzy string match"))
+				.OnClicked(this, &SIKRetargetChainMapList::OnAutoMapButtonClicked)
+			]
+			
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNew(SSearchBox)
+				.SelectAllTextWhenFocused(true)
+				.OnTextChanged( this, &SIKRetargetChainMapList::OnFilterTextChanged )
+				.HintText( LOCTEXT( "SearchBoxHint", "Filter Chain List...") )
+			]
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(FMargin(6.f, 0.0))
+			.VAlign(VAlign_Center)
+			[
+				SNew(SComboButton)
+				.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+				.ForegroundColor(FSlateColor::UseStyle())
+				.ContentPadding(2.0f)
+				.OnGetMenuContent( this, &SIKRetargetChainMapList::CreateFilterMenuWidget )
+				.ToolTipText( LOCTEXT("ChainMapFilterToolTip", "Filter list of chain mappings."))
+				.HasDownArrow(true)
+				.ButtonContent()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
 		]
 	    
         +SVerticalBox::Slot()
@@ -213,21 +340,30 @@ void SIKRetargetChainMapList::Construct(
 			.IsEnabled(this, &SIKRetargetChainMapList::IsChainMapEnabled)
 			.ListItemsSource( &ListViewItems )
 			.OnGenerateRow( this, &SIKRetargetChainMapList::MakeListRowWidget )
-			.OnMouseButtonClick(this, &SIKRetargetChainMapList::OnItemClicked)
-			.OnSelectionChanged_Lambda([this] (TSharedPtr<FRetargetChainMapElement> NewValue, ESelectInfo::Type SelectInfo)
+			.OnMouseButtonClick_Lambda([this](TSharedPtr<FRetargetChainMapElement> Item)
 			{
-				OnSelectionChanged();
+				OnItemClicked(Item);
 			})
 
 			.ItemHeight( 22.0f )
 			.HeaderRow
 			(
 				SNew( SHeaderRow )
-				+ SHeaderRow::Column( ColumnId_TargetChainLabel )
-				.DefaultLabel( LOCTEXT( "TargetColumnLabel", "Target Chain" ) )
+				+ SHeaderRow::Column(ColumnId_TargetChainLabel)
+				.DefaultLabel(LOCTEXT("TargetColumnLabel", "Target Chain"))
+				.DefaultTooltip(LOCTEXT("TargetChainToolTip", "The chain on the target skeleton to copy animation TO."))
+				
+				+ SHeaderRow::Column(ColumnId_IKGoalNameLabel)
+				.DefaultLabel(LOCTEXT("IKColumnLabel", "Target IK Goal"))
+				.DefaultTooltip(LOCTEXT("IKGoalToolTip", "The IK Goal assigned to the target chain (if any). Note, this goal should be on the LAST bone in the chain."))
 
-				+ SHeaderRow::Column( ColumnId_SourceChainLabel )
-				.DefaultLabel( LOCTEXT( "SourceColumnLabel", "Source Chain" ) )
+				+ SHeaderRow::Column(ColumnId_SourceChainLabel)
+				.DefaultLabel(LOCTEXT("SourceColumnLabel", "Source Chain"))
+				.DefaultTooltip(LOCTEXT("SourceChainToolTip", "The chain on the source skeleton to copy animation FROM."))
+				
+				+ SHeaderRow::Column(ColumnId_ResetLabel)
+                .DefaultLabel(LOCTEXT("ResetColumnLabel", "Reset"))
+                .DefaultTooltip(LOCTEXT("ResetChainToolTip", "Reset the FK and IK settings for this chain."))
 			)
         ]
     ];
@@ -292,35 +428,170 @@ bool SIKRetargetChainMapList::IsChainMapEnabled() const
 
 void SIKRetargetChainMapList::RefreshView()
 {
-	UIKRetargeterController* RetargeterController = GetRetargetController();
-	if (!RetargeterController)
+	UIKRetargeterController* AssetController = GetRetargetController();
+	if (!AssetController)
 	{
 		return; 
 	}
-	
-	TArray<TSharedPtr<FRetargetChainMapElement>> PreviouslySelectedItems = ListView->GetSelectedItems();
-	TArray<TObjectPtr<URetargetChainSettings>> SelectedChainMaps;
-	for (TSharedPtr<FRetargetChainMapElement> SelectedItem : PreviouslySelectedItems)
+
+	auto FilterString = [this](const FString& StringToTest) ->bool
 	{
-		SelectedChainMaps.Add(SelectedItem->ChainMap.Get());
-	}
-	
-	// refresh list of chains
-	TArray< TSharedPtr<FRetargetChainMapElement> > SelectedItems;
+		return TextFilter->TestTextFilter(FBasicStringFilterExpressionContext(StringToTest));
+	};
+
+	auto DoesChainHaveIK = [AssetController](const FName TargetChainName) ->bool
+	{
+		const UIKRigDefinition* IKRig = AssetController->GetIKRig(ERetargetSourceOrTarget::Target);
+		if (!IKRig)
+		{
+			return false;
+		}
+
+		const FBoneChain* Chain = IKRig->GetRetargetChainByName(TargetChainName);
+		if (!Chain)
+		{
+			return false;
+		}
+		
+		return Chain->IKGoalName != NAME_None;
+	};
+
+	const TArray<FName>& SelectedChains = EditorController.Pin()->GetSelectedChains();
+	const FName LiteralNone = FName("None");
+
+	// refresh items
 	ListViewItems.Reset();
-	const TArray<TObjectPtr<URetargetChainSettings>>& ChainMappings = RetargeterController->GetChainMappings();
+	const TArray<TObjectPtr<URetargetChainSettings>>& ChainMappings = AssetController->GetChainMappings();
 	for (const TObjectPtr<URetargetChainSettings> ChainMap : ChainMappings)
 	{
+		// apply text filter to items
+		if (!(TextFilter->GetFilterText().IsEmpty() ||
+			FilterString(ChainMap->SourceChain.ToString()) ||
+			FilterString(ChainMap->TargetChain.ToString())))
+		{
+			continue;
+		}
+		
+		// apply "only IK" filter
+		if (ChainFilterOptions.bHideChainsWithoutIK && !DoesChainHaveIK(ChainMap->TargetChain))
+		{
+			continue;
+		}
+
+		// apply "hide mapped chains" filter
+		if (ChainFilterOptions.bHideMappedChains && ChainMap->SourceChain != LiteralNone)
+		{
+			continue;
+		}
+		
+		// apply "hide un-mapped chains" filter
+		if (ChainFilterOptions.bHideUnmappedChains && ChainMap->SourceChain == LiteralNone)
+		{
+			continue;
+		}
+		
+		// create an item for this chain
 		TSharedPtr<FRetargetChainMapElement> ChainItem = FRetargetChainMapElement::Make(ChainMap);
 		ListViewItems.Add(ChainItem);
 
-		if (SelectedChainMaps.Contains(ChainMap))
-		{
-			ListView->SetItemSelection(ChainItem, true, ESelectInfo::Direct);
-		}
+		// select/deselect it
+		const bool bIsSelected = SelectedChains.Contains(ChainMap->TargetChain);
+		ListView->SetItemSelection(ChainItem, bIsSelected, ESelectInfo::Direct);
 	}
 	
 	ListView->RequestListRefresh();
+}
+
+TSharedRef<SWidget> SIKRetargetChainMapList::CreateFilterMenuWidget()
+{
+	const FUIAction FilterHideMappedAction = FUIAction(
+		FExecuteAction::CreateLambda([this]
+		{
+			ChainFilterOptions.bHideMappedChains = !ChainFilterOptions.bHideMappedChains;
+			RefreshView();
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]()
+		{
+			return ChainFilterOptions.bHideMappedChains;
+		}));
+
+	const FUIAction FilterOnlyUnMappedAction = FUIAction(
+		FExecuteAction::CreateLambda([this]
+		{
+			ChainFilterOptions.bHideUnmappedChains = !ChainFilterOptions.bHideUnmappedChains;
+			RefreshView();
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]()
+		{
+			return ChainFilterOptions.bHideUnmappedChains;
+		}));
+
+	const FUIAction FilterIKChainAction = FUIAction(
+		FExecuteAction::CreateLambda([this]
+		{
+			ChainFilterOptions.bHideChainsWithoutIK = !ChainFilterOptions.bHideChainsWithoutIK;
+			RefreshView();
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]()
+		{
+			return ChainFilterOptions.bHideChainsWithoutIK;
+		}));
+	
+	static constexpr bool CloseAfterSelection = true;
+	FMenuBuilder MenuBuilder(CloseAfterSelection, CommandList);
+
+	MenuBuilder.BeginSection("Chain Map Filters", LOCTEXT("ChainFiltersSection", "Filter Chain Mappings"));
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("HideMappedLabel", "Hide Mapped Chains"),
+		LOCTEXT("HideMappedTooltip", "Hide chains mapped to a source chain."),
+		FSlateIcon(),
+		FilterHideMappedAction,
+		NAME_None,
+		EUserInterfaceActionType::Check);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("HideUnMappedLabel", "Hide Unmapped Chains"),
+		LOCTEXT("HideUnMappedTooltip", "Hide chains not mapped to a source chain."),
+		FSlateIcon(),
+		FilterOnlyUnMappedAction,
+		NAME_None,
+		EUserInterfaceActionType::Check);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("HideNonIKLabel", "Hide Chains Without IK"),
+		LOCTEXT("HideNonIKTooltip", "Hide chains not using IK."),
+		FSlateIcon(),
+		FilterIKChainAction,
+		NAME_None,
+		EUserInterfaceActionType::Check);
+	
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("Clear", LOCTEXT("ClearMapFiltersSection", "Clear"));
+	
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ClearMapFilterLabel", "Clear Filters"),
+		LOCTEXT("ClearMapFilterTooltip", "Clear all filters to show all chain mappings."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateLambda([this]
+		{
+			ChainFilterOptions = FChainMapFilterOptions();
+			RefreshView();
+		})));
+
+	MenuBuilder.EndSection();
+	
+	return MenuBuilder.MakeWidget();
+}
+
+void SIKRetargetChainMapList::OnFilterTextChanged(const FText& SearchText)
+{
+	TextFilter->SetFilterText(SearchText);
+	RefreshView();
 }
 
 TSharedRef<ITableRow> SIKRetargetChainMapList::MakeListRowWidget(
@@ -333,38 +604,19 @@ TSharedRef<ITableRow> SIKRetargetChainMapList::MakeListRowWidget(
 		SharedThis(this));
 }
 
-void SIKRetargetChainMapList::OnItemClicked(TSharedPtr<FRetargetChainMapElement> InItem)
+void SIKRetargetChainMapList::OnItemClicked(TSharedPtr<FRetargetChainMapElement> InItem) const 
 {
-	OnSelectionChanged();
-}
-
-void SIKRetargetChainMapList::OnSelectionChanged()
-{
-	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
-	if (!Controller.IsValid())
-	{
-		return;
-	}
-	
-	// get selected chain settings
-	TArray<UObject*> SelectedChainSettings;
+	// get list of selected chains
+	TArray<FName> SelectedChains;
 	TArray<TSharedPtr<FRetargetChainMapElement>> SelectedItems = ListView.Get()->GetSelectedItems();
 	for (const TSharedPtr<FRetargetChainMapElement>& Item : SelectedItems)
 	{
-		SelectedChainSettings.Add(Item->ChainMap.Get());
+		SelectedChains.Add(Item.Get()->ChainMap->TargetChain);
 	}
-
-	// selection cleared
-	if (SelectedChainSettings.IsEmpty())
-	{
-		// show asset settings in the details view
-		Controller->SetDetailsObject(Controller->AssetController->GetAsset());
-	}
-	else
-	{
-		// show chain settings in the details view
-		Controller->SetDetailsObjects(SelectedChainSettings);
-	}
+	
+	// replace the chain selection
+	constexpr bool bEditFromChainsView = true;
+	EditorController.Pin()->EditChainSelection(SelectedChains, ESelectionEdit::Replace, bEditFromChainsView);
 }
 
 EVisibility SIKRetargetChainMapList::IsAutoMapButtonVisible() const
@@ -392,7 +644,32 @@ FReply SIKRetargetChainMapList::OnAutoMapButtonClicked() const
 	return FReply::Handled();
 }
 
-FReply SIKRetargetChainMapList::OnEditSettingsButtonClicked() const
+FReply SIKRetargetChainMapList::OnGlobalSettingsButtonClicked() const
+{
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	UIKRetargeterController* RetargeterController = GetRetargetController();
+	if (!RetargeterController)
+	{
+		return FReply::Unhandled();
+	}
+
+	UIKRetargetGlobalSettings* GlobalSettings = Controller->AssetController->GetAsset()->GetGlobalSettingsUObject();
+	if (GlobalSettings->EditorController != Controller)
+	{
+		GlobalSettings->EditorController = Controller;
+	}
+	
+	Controller->SetDetailsObject(GlobalSettings);
+	
+	return FReply::Handled();
+}
+
+FReply SIKRetargetChainMapList::OnRootSettingsButtonClicked() const
 {
 	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -406,7 +683,7 @@ FReply SIKRetargetChainMapList::OnEditSettingsButtonClicked() const
 		return FReply::Unhandled();
 	}
 	
-	Controller->SetDetailsObject(RetargeterController->GetAsset()->GetRetargetRootSettings());
+	Controller->SetRootSelected(true);
 	return FReply::Handled();
 }
 

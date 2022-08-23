@@ -145,13 +145,13 @@ struct IKRIG_API FBoneChain
 	UPROPERTY(EditAnywhere, Category = BoneChain)
 	FName ChainName;
 
-	UPROPERTY(EditAnywhere, Category = BoneChain)
+	UPROPERTY(VisibleAnywhere, Category = BoneChain)
 	FBoneReference StartBone;
 
-	UPROPERTY(EditAnywhere, Category = BoneChain)
+	UPROPERTY(VisibleAnywhere, Category = BoneChain)
 	FBoneReference EndBone;
 	
-	UPROPERTY(EditAnywhere, Category = IK)
+	UPROPERTY(VisibleAnywhere, Category = BoneChain)
 	FName IKGoalName;
 };
 

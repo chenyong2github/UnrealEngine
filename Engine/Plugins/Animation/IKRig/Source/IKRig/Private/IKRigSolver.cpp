@@ -2,7 +2,7 @@
 
 #include "IKRigSolver.h"
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 
 void UIKRigSolver::PostLoad()
 {

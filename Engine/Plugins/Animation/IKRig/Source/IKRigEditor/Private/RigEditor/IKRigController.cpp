@@ -152,14 +152,15 @@ bool UIKRigController::DoesBoneHaveSettings(const FName& BoneName) const
 	return false;
 }
 
-void UIKRigController::AddRetargetChain(const FName& ChainName, const FName& StartBone, const FName& EndBone) const
+void UIKRigController::AddRetargetChain(const FBoneChain& BoneChain) const
 {
-	FName UniqueChainName = GetUniqueRetargetChainName(ChainName);
+	FBoneChain ChainToAdd = BoneChain;
+	ChainToAdd.ChainName = GetUniqueRetargetChainName(BoneChain.ChainName);
 
 	FScopedTransaction Transaction(LOCTEXT("AddRetargetChain_Label", "Add Retarget Chain"));
 	Asset->Modify();
 	
-	Asset->RetargetDefinition.BoneChains.Emplace(UniqueChainName, StartBone, EndBone);
+	Asset->RetargetDefinition.BoneChains.Emplace(ChainToAdd);
 	BroadcastNeedsReinitialized();
 }
 
@@ -289,6 +290,11 @@ FName UIKRigController::GetRetargetChainEndBone(const FName& ChainName) const
 	}
 	
 	return Chain->EndBone.BoneName;
+}
+
+const FBoneChain* UIKRigController::GetRetargetChainByName(const FName& ChainName) const
+{
+	return Asset->GetRetargetChainByName(ChainName);
 }
 
 const TArray<FBoneChain>& UIKRigController::GetRetargetChains() const
@@ -863,6 +869,20 @@ FName UIKRigController::GetBoneForGoal(const FName& GoalName) const
 	return NAME_None;
 }
 
+const UIKRigEffectorGoal* UIKRigController::GetGoalForBone(const FName& BoneName) const
+{
+	const TArray<UIKRigEffectorGoal*>& AllGoals = GetAllGoals();
+	for (const UIKRigEffectorGoal* Goal : AllGoals)
+	{
+		if (Goal->BoneName == BoneName)
+		{
+			return Goal;
+		}
+	}
+
+	return nullptr;
+}
+
 bool UIKRigController::ConnectGoalToSolver(const UIKRigEffectorGoal& Goal, int32 SolverIndex) const
 {
 	// can't add goal that is not present in the core
@@ -912,6 +932,19 @@ bool UIKRigController::IsGoalConnectedToSolver(const FName& GoalName, int32 Solv
 	}
 
 	return Asset->Solvers[SolverIndex]->IsGoalConnected(GoalName);
+}
+
+bool UIKRigController::IsGoalConnectedToAnySolver(const FName& GoalName) const
+{
+	for (const TObjectPtr<UIKRigSolver> Solver : Asset->Solvers)
+	{
+		if (Solver->IsGoalConnected(GoalName))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 const TArray<UIKRigEffectorGoal*>& UIKRigController::GetAllGoals() const

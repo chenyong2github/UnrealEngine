@@ -91,6 +91,12 @@ void FIKRetargetEditor::InitAssetEditor(
 	RegenerateMenusAndToolbars();
 }
 
+void FIKRetargetEditor::OnClose()
+{
+	FPersonaAssetEditorToolkit::OnClose();
+	EditorController->Close();
+}
+
 void FIKRetargetEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_IKRigEditor", "IK Rig Editor"));

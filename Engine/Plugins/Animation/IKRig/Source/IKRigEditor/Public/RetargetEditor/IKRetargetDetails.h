@@ -115,3 +115,78 @@ private:
 
 	TArray<UIKRetargetBoneDetails*> Bones;
 };
+
+/** ------------------------------------- BEGIN CHAIN DETAILS CUSTOMIZATION -------------*/
+
+
+class FRetargetChainSettingsCustomization : public IDetailCustomization
+{
+public:
+
+	static TSharedRef<IDetailCustomization> MakeInstance()
+	{
+		return MakeShareable(new FRetargetChainSettingsCustomization);
+	}
+
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+private:
+
+	void AddSettingsSection(
+		const IDetailLayoutBuilder& DetailBuilder,
+		IDetailCategoryBuilder& SettingsCategory,
+		const FString& StructPropertyName,
+		const FName& GroupName,
+		const FText& LocalizedGroupName,
+		const UScriptStruct* SettingsClass,
+		const FString& EnabledPropertyName,
+		const bool& bIsSectionEnabled,
+		const FText& DisabledMessage) const;
+	
+	TArray<TWeakObjectPtr<URetargetChainSettings>> ChainSettingsObjects;
+	TSharedPtr<FIKRetargetEditorController> Controller;
+	TArray<TSharedPtr<FString>> SourceChainOptions;
+};
+
+/** ------------------------------------- BEGIN ROOT DETAILS CUSTOMIZATION -------------*/
+
+class FRetargetRootSettingsCustomization : public IDetailCustomization
+{
+public:
+
+	static TSharedRef<IDetailCustomization> MakeInstance()
+	{
+		return MakeShareable(new FRetargetRootSettingsCustomization);
+	}
+
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+private:
+
+	TWeakObjectPtr<URetargetRootSettings> RootSettingsObject;
+	TSharedPtr<FIKRetargetEditorController> Controller;
+};
+
+/** ------------------------------------- BEGIN GLOBAL DETAILS CUSTOMIZATION -------------*/
+
+class FRetargetGlobalSettingsCustomization : public IDetailCustomization
+{
+public:
+
+	static TSharedRef<IDetailCustomization> MakeInstance()
+	{
+		return MakeShareable(new FRetargetGlobalSettingsCustomization);
+	}
+
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+private:
+
+	TWeakObjectPtr<UIKRetargetGlobalSettings> GlobalSettingsObject;
+	TSharedPtr<FIKRetargetEditorController> Controller;
+
+	TArray<TSharedPtr<FString>> TargetChainOptions;
+};

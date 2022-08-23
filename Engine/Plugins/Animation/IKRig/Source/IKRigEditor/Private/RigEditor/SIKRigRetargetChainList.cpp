@@ -17,6 +17,7 @@
 #include "SSearchableComboBox.h"
 #include "BoneSelectionWidget.h"
 #include "Engine/SkeletalMesh.h"
+#include "Widgets/Input/SSearchBox.h"
 
 #define LOCTEXT_NAMESPACE "SIKRigRetargetChains"
 
@@ -291,6 +292,8 @@ void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIK
 {
 	EditorController = InEditorController;
 	EditorController.Pin()->SetRetargetingView(SharedThis(this));
+
+	TextFilter = MakeShareable(new FTextFilterExpressionEvaluator(ETextFilterExpressionEvaluatorMode::BasicString));
 	
 	CommandList = MakeShared<FUICommandList>();
 
@@ -325,31 +328,61 @@ void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIK
 				.IsReadOnly(true)
 			]
         ]
-        
-		+ SVerticalBox::Slot()
+
+        +SVerticalBox::Slot()
+		.Padding(2.0f)
 		.AutoHeight()
-		.VAlign(VAlign_Top)
-		.HAlign(HAlign_Left)
 		[
-			SNew(SPositiveActionButton)
-			.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
-			.Text(LOCTEXT("AddNewChainLabel", "Add New Chain"))
-			.ToolTipText(LOCTEXT("AddNewChainToolTip", "Add a new retarget bone chain."))
-			.OnClicked_Lambda([this]()
-			{
-				const UIKRigController* Controller = EditorController.Pin()->AssetController;
-				static FText NewChainText = LOCTEXT("NewRetargetChainLabel", "NewRetargetChain");
-				static FName NewChainName = FName(*NewChainText.ToString());
-				Controller->AddRetargetChain(NewChainName, NAME_None, NAME_None);
-				RefreshView();
-				return FReply::Handled();
-			})
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(6.f, 0.0))
+			[
+				SNew(SPositiveActionButton)
+				.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
+				.Text(LOCTEXT("AddNewChainLabel", "Add New Chain"))
+				.ToolTipText(LOCTEXT("AddNewChainToolTip", "Add a new retarget bone chain."))
+				.OnClicked_Lambda([this]()
+				{
+					EditorController.Pin()->CreateNewRetargetChains();
+					return FReply::Handled();
+				})
+			]
+
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				SNew(SSearchBox)
+				.SelectAllTextWhenFocused(true)
+				.OnTextChanged( this, &SIKRigRetargetChainList::OnFilterTextChanged )
+				.HintText( LOCTEXT( "SearchBoxHint", "Filter Chain List...") )
+			]
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(FMargin(6.f, 0.0))
+			.VAlign(VAlign_Center)
+			[
+				SNew(SComboButton)
+				.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+				.ForegroundColor(FSlateColor::UseStyle())
+				.ContentPadding(2.0f)
+				.OnGetMenuContent(this, &SIKRigRetargetChainList::CreateFilterMenuWidget)
+				.HasDownArrow(true)
+				.ButtonContent()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
 		]
 
         +SVerticalBox::Slot()
 		[
 			SAssignNew(ListView, SRetargetChainListViewType )
-			.SelectionMode(ESelectionMode::Single)
+			.SelectionMode(ESelectionMode::Multi)
 			.IsEnabled(this, &SIKRigRetargetChainList::IsAddChainEnabled)
 			.ListItemsSource( &ListViewItems )
 			.OnGenerateRow( this, &SIKRigRetargetChainList::MakeListRowWidget )
@@ -380,14 +413,113 @@ void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIK
 	RefreshView();
 }
 
-FName SIKRigRetargetChainList::GetSelectedChain()
+TArray<FName> SIKRigRetargetChainList::GetSelectedChains() const
 {
 	TArray<TSharedPtr<FRetargetChainElement>> SelectedItems = ListView->GetSelectedItems();
 	if (SelectedItems.IsEmpty())
 	{
-		return NAME_None;
+		return TArray<FName>();
 	}
-	return SelectedItems[0].Get()->ChainName;
+
+	TArray<FName> SelectedChainNames;
+	for (const TSharedPtr<FRetargetChainElement>& SelectedItem : SelectedItems)
+	{
+		SelectedChainNames.Add(SelectedItem->ChainName);
+	}
+	
+	return SelectedChainNames;
+}
+
+void SIKRigRetargetChainList::OnFilterTextChanged(const FText& SearchText)
+{
+	TextFilter->SetFilterText(SearchText);
+	RefreshView();
+}
+
+TSharedRef<SWidget> SIKRigRetargetChainList::CreateFilterMenuWidget()
+{
+	const FUIAction FilterSingleBoneAction = FUIAction(
+		FExecuteAction::CreateLambda([this]
+		{
+			ChainFilterOptions.bHideSingleBoneChains = !ChainFilterOptions.bHideSingleBoneChains;
+			RefreshView();
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]()
+		{
+			return ChainFilterOptions.bHideSingleBoneChains;
+		}));
+
+	const FUIAction FilterIKChainAction = FUIAction(
+		FExecuteAction::CreateLambda([this]
+		{
+			ChainFilterOptions.bShowOnlyIKChains = !ChainFilterOptions.bShowOnlyIKChains;
+			RefreshView();
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]()
+		{
+			return ChainFilterOptions.bShowOnlyIKChains;
+		}));
+
+	const FUIAction MissingBoneChainAction = FUIAction(
+		FExecuteAction::CreateLambda([this]
+		{
+			ChainFilterOptions.bShowOnlyMissingBoneChains = !ChainFilterOptions.bShowOnlyMissingBoneChains;
+			RefreshView();
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]()
+		{
+			return ChainFilterOptions.bShowOnlyMissingBoneChains;
+		}));
+	
+	static constexpr bool CloseAfterSelection = true;
+	FMenuBuilder MenuBuilder(CloseAfterSelection, CommandList);
+
+	MenuBuilder.BeginSection("Chain Filters", LOCTEXT("ChainFiltersSection", "Filter"));
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("SingleBoneLabel", "Hide Single Bone Chains"),
+		LOCTEXT("SingleBoneTooltip", "Show only chains that contain multiple bones."),
+		FSlateIcon(),
+		FilterSingleBoneAction,
+		NAME_None,
+		EUserInterfaceActionType::Check);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("HasIKLabel", "Show Only IK Chains"),
+		LOCTEXT("HasIKTooltip", "Show only chains that have an IK Goal."),
+		FSlateIcon(),
+		FilterIKChainAction,
+		NAME_None,
+		EUserInterfaceActionType::Check);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("MissingBoneLabel", "Show Only Chains Missing Bones"),
+		LOCTEXT("MissingBoneTooltip", "Show only chains that are missing either a Start or End bone."),
+		FSlateIcon(),
+		MissingBoneChainAction,
+		NAME_None,
+		EUserInterfaceActionType::Check);
+	
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("Clear", LOCTEXT("ClearFiltersSection", "Clear"));
+	
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ClearFilterLabel", "Clear Filters"),
+		LOCTEXT("ClearFilterTooltip", "Clear all filters to show all chains."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateLambda([this]
+		{
+			ChainFilterOptions = FChainFilterOptions();
+			RefreshView();
+		})));
+
+	MenuBuilder.EndSection();
+	
+	return MenuBuilder.MakeWidget();
 }
 
 bool SIKRigRetargetChainList::IsAddChainEnabled() const
@@ -416,6 +548,11 @@ void SIKRigRetargetChainList::RefreshView()
 	{
 		return;
 	}
+
+	auto FilterString = [this](const FString& StringToTest) ->bool
+	{
+		return TextFilter->TestTextFilter(FBasicStringFilterExpressionContext(StringToTest));
+	};
 	
 	// refresh retarget root
 	RetargetRootTextBox.Get()->SetText(FText::FromName(Controller->AssetController->GetRetargetRoot()));
@@ -425,6 +562,37 @@ void SIKRigRetargetChainList::RefreshView()
 	const TArray<FBoneChain>& Chains = Controller->AssetController->GetRetargetChains();
 	for (const FBoneChain& Chain : Chains)
 	{
+		// apply text filter to items
+		if (!(TextFilter->GetFilterText().IsEmpty() ||
+			FilterString(Chain.ChainName.ToString()) ||
+			FilterString(Chain.StartBone.BoneName.ToString()) ||
+			FilterString(Chain.EndBone.BoneName.ToString()) ||
+			FilterString(Chain.IKGoalName.ToString())))
+		{
+			continue;
+		}
+
+		// apply single-bone filter
+		if (ChainFilterOptions.bHideSingleBoneChains &&
+			Chain.StartBone == Chain.EndBone)
+		{
+			continue;
+		}
+
+		// apply missing-bone filter
+		if (ChainFilterOptions.bShowOnlyMissingBoneChains &&
+			(Chain.StartBone.BoneName != NAME_None && Chain.EndBone.BoneName != NAME_None))
+		{
+			continue;
+		}
+		
+		// apply IK filter
+		if (ChainFilterOptions.bShowOnlyIKChains &&
+			Chain.IKGoalName == NAME_None)
+		{
+			continue;
+		}
+		
 		TSharedPtr<FRetargetChainElement> ChainItem = FRetargetChainElement::Make(Chain.ChainName);
 		ListViewItems.Add(ChainItem);
 	}
@@ -490,10 +658,19 @@ TSharedPtr<SWidget> SIKRigRetargetChainList::CreateContextMenu()
 
 	MenuBuilder.BeginSection("Chains", LOCTEXT("ChainsSection", "Chains"));
 
-	const FUIAction Action = FUIAction( FExecuteAction::CreateSP(this, &SIKRigRetargetChainList::SortChainList));
-	static const FText Label = LOCTEXT("SortChainsLabel", "Sort Chains");
-	static const FText Tooltip = LOCTEXT("SortChainsTooltip", "Sort chain list in hierarchical order. This does not affect the retargeting behavior.");
-	MenuBuilder.AddMenuEntry(Label, Tooltip, FSlateIcon(), Action);
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("MirrorChainsLabel", "Mirror Chain"),
+		LOCTEXT("MirrorChainsTooltip", "Create a new, duplicate chain on the opposite side of the skeleton."),
+		FSlateIcon(),
+		FUIAction( FExecuteAction::CreateSP(this, &SIKRigRetargetChainList::MirrorSelectedChains)));
+
+	MenuBuilder.AddSeparator();
+	
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("SortChainsLabel", "Sort Chains"),
+		LOCTEXT("SortChainsTooltip", "Sort chain list in hierarchical order. This does not affect the retargeting behavior."),
+		FSlateIcon(),
+		FUIAction( FExecuteAction::CreateSP(this, &SIKRigRetargetChainList::SortChainList)));
 
 	MenuBuilder.EndSection();
 	
@@ -512,6 +689,67 @@ void SIKRigRetargetChainList::SortChainList()
 	{
 		AssetController->SortRetargetChains();
 		RefreshView();
+	}
+}
+
+void SIKRigRetargetChainList::MirrorSelectedChains()
+{
+	const TArray<FName> SelectedChainNames = GetSelectedChains();
+	if (SelectedChainNames.IsEmpty())
+	{
+		return;
+	}
+
+	const FIKRigEditorController& Controller = *EditorController.Pin();
+	const UIKRigController* AssetController = Controller.AssetController;
+	const FIKRigSkeleton& IKRigSkeleton = AssetController->GetIKRigSkeleton();
+
+	for (const FName& SelectedChainName : SelectedChainNames)
+	{
+		const FBoneChain* Chain = AssetController->GetRetargetChainByName(SelectedChainName);
+		if (!Chain)
+		{
+			continue;
+		}
+		
+		TArray<int32> BonesInChainIndices;
+		const bool bIsChainValid = IKRigSkeleton.GetBonesInChain(*Chain, BonesInChainIndices);
+		if (!bIsChainValid)
+		{
+			continue;
+		}
+
+		const EChainSide ChainSide = Controller.ChainAnalyzer.GetSideOfChain(BonesInChainIndices, IKRigSkeleton);
+		if (ChainSide == EChainSide::Center)
+		{
+			continue;
+		}
+
+		TArray<int32> MirroredIndices;
+		if (!IKRigSkeleton.GetMirroredBoneIndices(BonesInChainIndices, MirroredIndices))
+		{
+			continue;
+		}
+
+		FBoneChain MirroredChain = *Chain;
+		MirroredChain.ChainName = FName(MirroredChain.ChainName.ToString() + "_Mirrored");
+		MirroredChain.StartBone = IKRigSkeleton.BoneNames[MirroredIndices[0]];
+		MirroredChain.EndBone = IKRigSkeleton.BoneNames[MirroredIndices.Last()];
+		const UIKRigEffectorGoal* GoalOnMirroredBone = AssetController->GetGoalForBone(MirroredChain.EndBone.BoneName);
+		if (GoalOnMirroredBone)
+		{
+			MirroredChain.IKGoalName = GoalOnMirroredBone->GoalName;
+		}
+
+		Controller.PromptToAddNewRetargetChain(MirroredChain);
+
+		// old bone DOES have a goal, but the mirrored end bone does NOT have a goal,
+		// so lets ask the user if they want to add one...
+		const UIKRigEffectorGoal* GoalOnOldBone = AssetController->GetGoalForBone(Chain->EndBone.BoneName);
+		if (GoalOnOldBone && !GoalOnMirroredBone)
+		{
+			Controller.PromptToAddGoalToNewlyMirroredChain(*Chain, MirroredChain);
+		}
 	}
 }
 

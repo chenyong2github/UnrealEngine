@@ -7,6 +7,7 @@
 #include "Animation/AnimNodeBase.h"
 #include "Retargeter/IKRetargeter.h"
 #include "Retargeter/IKRetargetProcessor.h"
+#include "Retargeter/IKRetargetProfile.h"
 
 #include "AnimNode_RetargetPoseFromMesh.generated.h"
 
@@ -28,6 +29,10 @@ struct IKRIG_API FAnimNode_RetargetPoseFromMesh : public FAnimNode_Base
 	/** Retarget asset to use. Must define a Source and Target IK Rig compatible with the SourceMeshComponent and current anim instance.*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta=(PinHiddenByDefault))
 	TObjectPtr<UIKRetargeter> IKRetargeterAsset = nullptr;
+
+	/** connect a custom retarget profile to modify the retargeter's settings at runtime.*/
+	UPROPERTY(BlueprintReadWrite, transient, Category=Settings, meta=(PinHiddenByDefault))
+	FRetargetProfile CustomRetargetProfile;
 
 	/* Toggle whether to print warnings about missing or incorrectly configured retarget configurations. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Debug, meta = (NeverAsPin))

@@ -71,4 +71,3 @@ private:
 
 	bool bIsInitialized = false;
 };
-

@@ -45,6 +45,7 @@ public:
 		UIKRetargeter* Asset);
 
 	/** FAssetEditorToolkit interface */
+	virtual void OnClose() override;
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager) override;
 	virtual FName GetToolkitFName() const override;

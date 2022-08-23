@@ -92,12 +92,16 @@ public:
 	bool SetGoalBone(const FName& GoalName, const FName& NewBoneName) const;
 	/** The the Bone associated with the given Goal. */
 	FName GetBoneForGoal(const FName& GoalName) const;
+	/** The the Goal associated with the given Bone (may be null. */
+	const UIKRigEffectorGoal* GetGoalForBone(const FName& BoneName) const;
 	/** Connect the given Goal to the given Solver. This creates an "Effector" with settings specific to this Solver.*/
 	bool ConnectGoalToSolver(const UIKRigEffectorGoal& Goal, int32 SolverIndex) const;
 	/** Disconnect the given Goal from the given Solver. This removes the Effector that associates the Goal with the Solver.*/
 	bool DisconnectGoalFromSolver(const FName& GoalToRemove, int32 SolverIndex) const;
 	/** Returns true if the given Goal is connected to the given Solver. False otherwise. */
 	bool IsGoalConnectedToSolver(const FName& GoalName, int32 SolverIndex) const;
+	/** Returns true if the given Goal is connected to ANY solver. False otherwise. */
+	bool IsGoalConnectedToAnySolver(const FName& GoalName) const;
 	/** Get the index of the given Goal in the list of Goals. */
 	int32 GetGoalIndex(const FName& InGoalName, const ENameCase CompareMethod = ENameCase::IgnoreCase) const;
 	/** Get the name of Goal at the given index. */
@@ -145,7 +149,7 @@ public:
 	 * 
 	 */
 	/** Add a Chain with the given Name and Start/End bones. Returns true if a new Chain was created. */
-	void AddRetargetChain(const FName& ChainName, const FName& StartBone, const FName& EndBone) const;
+	void AddRetargetChain(const FBoneChain& BoneChain) const;
 	/** Remove a Chain with the given name. Returns true if a Chain was removed. */
 	bool RemoveRetargetChain(const FName& ChainName) const;
 	/** Renamed the given Chain. Returns the new name (same as old if unsuccessful). */
@@ -162,6 +166,8 @@ public:
     FName GetRetargetChainStartBone(const FName& ChainName) const;
     /** Get the Start Bone name for the given Chain. */
     FName GetRetargetChainEndBone(const FName& ChainName) const;
+	/** Get read-only access to a single retarget chain with the given name */
+	const FBoneChain* GetRetargetChainByName(const FName& ChainName) const;
 	/** Get read-only access to the list of Chains. */
 	const TArray<FBoneChain>& GetRetargetChains() const;
 	/** Set the Root Bone of the retargeting (can only be one). */

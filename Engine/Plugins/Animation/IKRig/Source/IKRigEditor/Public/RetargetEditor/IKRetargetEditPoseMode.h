@@ -21,7 +21,7 @@ enum class FIKRetargetTrackingState : int8
 	TranslatingRoot,
 };
 
-struct BoneEdit
+struct FBoneEdit
 {
 	FName Name;							// name of last selected bone
 	int32 Index;						// index of last selected bone
@@ -32,9 +32,12 @@ struct BoneEdit
 	
 	TArray<FQuat> PreviousDeltaRotation;		// the prev stored local offsets of all selected bones
 
+	// translation edits
+	FVector AccumulatedPositionOffset;	// accumulated offset since start of edit
+
 	void Reset()
 	{
-		*this = BoneEdit();
+		*this = FBoneEdit();
 	}
 };
 
@@ -78,17 +81,11 @@ private:
 
 	// get the scale and offset associated with the currently edited skeletal mesh component
 	void GetEditedComponentScaleAndOffset(float& OutScale, FVector& OutOffset) const;
-
+	
 	// render skeleton in viewport
 	void RenderSkeleton(
 		FPrimitiveDrawInterface* PDI,
 		const FIKRetargetEditorController* Controller);
-
-	void GetSelectedAndAffectedBones(
-		const FIKRetargetEditorController* Controller,
-		const FRetargetSkeleton& Skeleton,
-		TSet<int32>& OutAffectedBones,
-		TSet<int32>& OutSelectedBones) const;
 
 	UE::Widget::EWidgetMode CurrentWidgetMode;
 
@@ -97,7 +94,7 @@ private:
 	void UpdateWidgetTransform();
 
 	// the bone(s) currently being edited
-	BoneEdit BoneEdit;
+	FBoneEdit BoneEdit;
 
 	// the skeleton currently being edited
 	ERetargetSourceOrTarget SourceOrTarget;

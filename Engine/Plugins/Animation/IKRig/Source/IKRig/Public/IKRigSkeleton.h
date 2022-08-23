@@ -6,21 +6,10 @@
 
 #include "IKRigSkeleton.generated.h"
 
+struct FBoneChain;
 class USkeletalMesh;
 class UIKRigDefinition;
 class UIKRigSolver;
-
-USTRUCT()
-struct IKRIG_API FIKRigSkeletonChain
-{
-	GENERATED_BODY()
-	
-	FIKRigSkeletonChain(){}
-	FIKRigSkeletonChain(const FName& StartBone, const FName& EndBone): StartBone(StartBone), EndBone(EndBone){}
-
-	FName StartBone;
-	FName EndBone;
-};
 
 /** Data used just to initialize an IKRigSkeleton from outside systems
  *
@@ -120,7 +109,20 @@ struct IKRIG_API FIKRigSkeleton
 
 	static void NormalizeRotations(TArray<FTransform>& Transforms);
 
-	void GetChainsInList(const TArray<int32>& SelectedBones, TArray<FIKRigSkeletonChain>& OutChains) const;
+	void GetChainsInList(const TArray<int32>& SelectedBones, TArray<FBoneChain>& OutChains) const;
+
+	// get indices of bones in this chain, ordered from tip to root. returns false if chain is invalid.
+	bool GetBonesInChain(const FBoneChain& Chain, TArray<int32>& OutBoneIndices) const;
+
+	// given a set of bones, returns a set of indices of bones that are mirrored across X axis (YZ plane)
+	// return false if any of the bones do not have a mirrored pair within the MaxDistanceThreshold
+	bool GetMirroredBoneIndices(
+		const TArray<int32>& BoneIndices,
+		TArray<int32>& OutMirroredIndices,
+		float MaxDistanceThreshold=5.0f) const;
+	
+	// get the bone that is closest to the given point (sets bone index and distance)
+	void GetClosestBone(const FVector& InPoint, int32& OutBoneIndex, float& OutDistance) const;
 
 private:
 

@@ -8,6 +8,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "RetargetEditor/IKRetargetEditorController.h"
 #include "Retargeter/IKRetargeter.h"
+#include "RigEditor/IKRigController.h"
 
 #define LOCTEXT_NAMESPACE "IKRetargeterController"
 
@@ -63,6 +64,11 @@ USkeletalMesh* UIKRetargeterController::GetPreviewMesh(const ERetargetSourceOrTa
 const UIKRigDefinition* UIKRetargeterController::GetIKRig(const ERetargetSourceOrTarget& SourceOrTarget) const
 {
 	return SourceOrTarget == ERetargetSourceOrTarget::Source ? Asset->GetSourceIKRig() : Asset->GetTargetIKRig();
+}
+
+UIKRigDefinition* UIKRetargeterController::GetIKRigWriteable(const ERetargetSourceOrTarget& SourceOrTarget) const
+{
+	return SourceOrTarget == ERetargetSourceOrTarget::Source ? Asset->GetSourceIKRigWriteable() : Asset->GetTargetIKRigWriteable();
 }
 
 void UIKRetargeterController::OnIKRigChanged(const ERetargetSourceOrTarget& SourceOrTarget) const
@@ -318,6 +324,24 @@ const TArray<TObjectPtr<URetargetChainSettings>>& UIKRetargeterController::GetCh
 	return Asset->ChainSettings;
 }
 
+bool UIKRetargeterController::IsChainRunningIK(const TObjectPtr<URetargetChainSettings> ChainSettings) const
+{
+	if (ChainSettings.IsNull())
+	{
+		return false;
+	}
+	
+	UIKRigDefinition* TargetIKRig = GetIKRigWriteable(ERetargetSourceOrTarget::Target);
+	if (!TargetIKRig)
+	{
+		return false;
+	}
+	
+	const UIKRigController* IKRigController = UIKRigController::GetIKRigController(TargetIKRig);
+	const FName ChainGoalName = IKRigController->GetRetargetChainGoal(ChainSettings->TargetChain);
+	return IKRigController->IsGoalConnectedToAnySolver(ChainGoalName);
+}
+
 void UIKRetargeterController::AddRetargetPose(
 	const FName& NewPoseName,
 	const FIKRetargetPose* ToDuplicate,
@@ -492,18 +516,6 @@ FQuat UIKRetargeterController::GetRotationOffsetForRetargetPoseBone(
 	}
 	
 	return BoneOffsets[BoneName];
-}
-
-void UIKRetargeterController::SetTranslationOffsetOnRetargetRootBone(
-	const FVector& TranslationOffset,
-	const ERetargetSourceOrTarget& SourceOrTarget) const
-{
-	GetCurrentRetargetPose(SourceOrTarget).SetRootTranslationDelta(TranslationOffset);
-}
-
-const FVector& UIKRetargeterController::GetTranslationOffsetOnRetargetRootBone(const ERetargetSourceOrTarget& SourceOrTarget) const
-{
-	return GetCurrentRetargetPose(SourceOrTarget).RootTranslationOffset;
 }
 
 void UIKRetargeterController::AddTranslationOffsetToRetargetRootBone(

@@ -55,11 +55,11 @@ private:
 	
 	void RenderGoals(FPrimitiveDrawInterface* PDI);
 	void RenderBones(FPrimitiveDrawInterface* PDI);
-	void GetAffectedBones(
+	void GetBoneColors(
 		FIKRigEditorController* Controller,
-		UIKRigProcessor* Processor,
-		TSet<int32>& OutAffectedBones,
-		TSet<int32>& OutSelectedBones) const;
+		const UIKRigProcessor* Processor,
+		const FReferenceSkeleton& RefSkeleton,
+		TArray<FLinearColor>& OutBoneColors) const;
 	
 	/** The hosting app */
 	TWeakPtr<FIKRigEditorController> EditorController;

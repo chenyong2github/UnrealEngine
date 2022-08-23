@@ -12,7 +12,6 @@
 
 #include "SIKRigSolverStack.h"
 
-struct FIKRigSkeletonChain;
 class FIKRigEditorController;
 class SIKRigSkeleton;
 class FIKRigEditorToolkit;
@@ -36,12 +35,17 @@ public:
 
 	FText Key;
 	IKRigTreeElementType ElementType;
+
+	/** determines if this item is filtered out of the view */
+	bool bIsHidden = false;
+	TSharedPtr<FIKRigTreeElement> UnFilteredParent;
+	
 	TSharedPtr<FIKRigTreeElement> Parent;
 	TArray<TSharedPtr<FIKRigTreeElement>> Children;
 
 	/** effector meta-data (if it is an effector) */
-	FName SolverGoalName = NAME_None;
-	int32 SolverGoalIndex = INDEX_NONE;
+	FName EffectorGoalName = NAME_None;
+	int32 EffectorIndex = INDEX_NONE;
 
 	/** bone setting meta-data (if it is a bone setting) */
 	FName BoneSettingBoneName = NAME_None;
@@ -101,6 +105,23 @@ public:
 	TWeakPtr<FIKRigTreeElement> Element;
 };
 
+struct FIKRigHierarchyFilterOptions
+{
+	bool bShowAll = true;
+	bool bShowOnlyBones = false;
+	bool bShowOnlyGoals = false;
+	bool bShowOnlyBoneSettings = false;
+	bool bHideUnaffectedBones = false;
+
+	void ResetShowOptions()
+	{
+		bShowAll = false;
+		bShowOnlyBones = false;
+		bShowOnlyGoals = false;
+		bShowOnlyBoneSettings = false;
+	}
+};
+
 typedef SBaseHierarchyTreeView<FIKRigTreeElement> SIKRigSkeletonTreeView;
 
 class SIKRigSkeleton : public SCompoundWidget, public FEditorUndoClient
@@ -125,7 +146,7 @@ public:
 		const FName& ItemName,
 		IKRigTreeElementType ItemType,
 		const bool bReplace);
-	void GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChains);
+	void GetSelectedBoneChains(TArray<FBoneChain>& OutChains);
 	TArray<TSharedPtr<FIKRigTreeElement>> GetSelectedItems() const;
 	bool HasSelectedItems() const;
 	/** END selection state queries */
@@ -207,12 +228,19 @@ private:
 	TSharedPtr<SIKRigSkeletonTreeView> TreeView;
 	TArray<TSharedPtr<FIKRigTreeElement>> RootElements;
 	TArray<TSharedPtr<FIKRigTreeElement>> AllElements;
+
+	/** filtering the tree with search box */
+	TSharedRef<SWidget> CreateFilterMenuWidget();
+	void OnFilterTextChanged(const FText& SearchText);
+	TSharedPtr<FTextFilterExpressionEvaluator> TextFilter;
+	FIKRigHierarchyFilterOptions FilterOptions;
 	
 	/** tree view callbacks */
 	void RefreshTreeView(bool IsInitialSetup=false);
 	TSharedRef<ITableRow> MakeTableRowWidget(TSharedPtr<FIKRigTreeElement> InItem, const TSharedRef<STableViewBase>& OwnerTable);
 	void HandleGetChildrenForTree(TSharedPtr<FIKRigTreeElement> InItem, TArray<TSharedPtr<FIKRigTreeElement>>& OutChildren);
 	void OnSelectionChanged(TSharedPtr<FIKRigTreeElement> Selection, ESelectInfo::Type SelectInfo);
+	TSharedRef< SWidget > CreateAddNewMenu();
 	TSharedPtr< SWidget > CreateContextMenu();
 	void OnItemClicked(TSharedPtr<FIKRigTreeElement> InItem);
 	void OnItemDoubleClicked(TSharedPtr<FIKRigTreeElement> InItem);

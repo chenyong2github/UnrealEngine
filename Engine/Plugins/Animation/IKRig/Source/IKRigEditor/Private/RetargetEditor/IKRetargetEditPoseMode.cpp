@@ -55,7 +55,6 @@ void FIKRetargetEditPoseMode::Render(const FSceneView* View, FViewport* Viewport
 		return;
 	}
 
-	// render the skeleton
 	RenderSkeleton(PDI, Controller);
 }
 
@@ -90,7 +89,7 @@ void FIKRetargetEditPoseMode::RenderSkeleton(
 	DrawConfig.BoneDrawMode = (EBoneDrawMode::Type)ConfigOption->DefaultBoneDrawSelection;
 	DrawConfig.BoneDrawSize = BoneRadius;
 	DrawConfig.bAddHitProxy = true;
-	DrawConfig.bForceDraw = true;
+	DrawConfig.bForceDraw = false;
 	DrawConfig.DefaultBoneColor = GetMutableDefault<UPersonaOptions>()->DefaultBoneColor;
 	DrawConfig.AffectedBoneColor = GetMutableDefault<UPersonaOptions>()->AffectedBoneColor;
 	DrawConfig.SelectedBoneColor = GetMutableDefault<UPersonaOptions>()->SelectedBoneColor;
@@ -123,31 +122,6 @@ void FIKRetargetEditPoseMode::RenderSkeleton(
 		HitProxies,
 		DrawConfig
 	);
-}
-
-void FIKRetargetEditPoseMode::GetSelectedAndAffectedBones(
-	const FIKRetargetEditorController* Controller,
-	const FRetargetSkeleton& Skeleton,
-	TSet<int32>& OutAffectedBones,
-	TSet<int32>& OutSelectedBones) const
-{
-	// record selected bone indices
-	const TArray<FName>& SelectedBones = Controller->GetSelectedBones();
-	for (const FName& SelectedBone : SelectedBones)
-	{
-		OutSelectedBones.Add(Skeleton.FindBoneIndexByName(SelectedBone));
-	}
-
-	// "affected bones" are the selected bones AND their children, recursively
-	for (int32 SelectedBone : OutSelectedBones)
-	{
-		const int32 EndOfBranch = Skeleton.GetCachedEndOfBranchIndex(SelectedBone);
-		OutAffectedBones.Add(SelectedBone);
-		for (int32 BoneIndex=SelectedBone; BoneIndex<=EndOfBranch; ++BoneIndex)
-		{
-			OutAffectedBones.Add(BoneIndex);
-		}
-	}
 }
 
 bool FIKRetargetEditPoseMode::AllowWidgetMove()
@@ -248,7 +222,7 @@ bool FIKRetargetEditPoseMode::HandleClick(FEditorViewportClient* InViewportClien
 		HIKRetargetEditorBoneProxy* BoneProxy = static_cast<HIKRetargetEditorBoneProxy*>(HitProxy);
 		const TArray<FName> BoneNames{BoneProxy->BoneName};
 		constexpr bool bFromHierarchy = false;
-		const EBoneSelectionEdit EditMode = Click.IsControlDown() || Click.IsShiftDown() ? EBoneSelectionEdit::Add : EBoneSelectionEdit::Replace;
+		const ESelectionEdit EditMode = Click.IsControlDown() || Click.IsShiftDown() ? ESelectionEdit::Add : ESelectionEdit::Replace;
 		Controller->EditBoneSelection(BoneNames, EditMode, bFromHierarchy);
 		return true;
 	}
@@ -300,6 +274,7 @@ bool FIKRetargetEditPoseMode::StartTracking(FEditorViewportClient* InViewportCli
 		Controller->AssetController->GetAsset()->Modify();
 		TrackingState = FIKRetargetTrackingState::TranslatingRoot;
 		UpdateWidgetTransform();
+		BoneEdit.AccumulatedPositionOffset = Controller->AssetController->GetCurrentRetargetPose(SourceOrTarget).GetRootTranslationDelta();
 		return true;
 	}
 
@@ -343,6 +318,12 @@ bool FIKRetargetEditPoseMode::InputDelta(
 	{
 		return false; 
 	}
+
+	const TObjectPtr<UIKRetargeterController> AssetController = Controller->AssetController;
+	if (AssetController.IsNull())
+	{
+		return false; 
+	}
 	
 	// rotating any bone
 	if (TrackingState == FIKRetargetTrackingState::RotatingBone)
@@ -368,7 +349,7 @@ bool FIKRetargetEditPoseMode::InputDelta(
 
 			// apply the new delta to the retarget pose
 			const FQuat TotalDeltaRotation = BoneEdit.PreviousDeltaRotation[SelectionIndex] * BoneLocalDelta;
-			Controller->AssetController->SetRotationOffsetForRetargetPoseBone(BoneName, TotalDeltaRotation, Controller->GetSourceOrTarget());
+			AssetController->SetRotationOffsetForRetargetPoseBone(BoneName, TotalDeltaRotation, Controller->GetSourceOrTarget());
 		}
 
 		return true;
@@ -382,8 +363,15 @@ bool FIKRetargetEditPoseMode::InputDelta(
 			return false;
 		}
 
+		// must scale drag vector by inverse of component scale or else it will create feedback cycle and go to outer space
+		float Scale;
+		FVector Offset;
+		GetEditedComponentScaleAndOffset(Scale,Offset);
+		Scale = FMath::Max(Scale, KINDA_SMALL_NUMBER);
+		BoneEdit.AccumulatedPositionOffset += InDrag * (1.0f / Scale);
+		
 		// apply translation delta to root
-		Controller->AssetController->AddTranslationOffsetToRetargetRootBone(InDrag, Controller->GetSourceOrTarget());
+		AssetController->GetCurrentRetargetPose(SourceOrTarget).SetRootTranslationDelta(BoneEdit.AccumulatedPositionOffset);
 		return true;
 	}
 	
