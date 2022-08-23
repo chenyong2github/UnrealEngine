@@ -279,12 +279,8 @@ void FResources::RebuildBulkDataFromDDC(const UObject* Owner)
 
 void FResources::BeginRebuildBulkDataFromCache(const UObject* Owner)
 {
-	if (!HasStreamingData())
-	{
-		return;
-	}
-
-	if ((ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC) == 0u)
+	check(DDCRebuildState.State.load() == EDDCRebuildState::Initial);
+	if (!HasStreamingData() || (ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC) == 0u)
 	{
 		return;
 	}
@@ -305,10 +301,11 @@ void FResources::BeginRebuildBulkDataFromCache(const UObject* Owner)
 
 	FSharedBuffer SharedBuffer;
 	*DDCRequestOwner = MakePimpl<FRequestOwner>(EPriority::Normal);
+	DDCRebuildState.State.store(EDDCRebuildState::Pending);
+
 	GetCache().GetChunks(MakeArrayView(&Request, 1), **DDCRequestOwner,
 		[this](FCacheGetChunkResponse&& Response)
 		{
-			check(Response.Status != EStatus::Error);
 			if (Response.Status == EStatus::Ok)
 			{
 				StreamablePages.Lock(LOCK_READ_WRITE);
@@ -316,13 +313,13 @@ void FResources::BeginRebuildBulkDataFromCache(const UObject* Owner)
 				FMemory::Memcpy(Ptr, Response.RawData.GetData(), Response.RawData.GetSize());
 				StreamablePages.Unlock();
 				StreamablePages.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+				DDCRebuildState.State.store(EDDCRebuildState::Succeeded);
+			}
+			else
+			{
+				DDCRebuildState.State.store(EDDCRebuildState::Failed);
 			}
 		});
-}
-
-bool FResources::PollRebuildBulkDataFromCache() const
-{
-	return !(*DDCRequestOwner) || (*DDCRequestOwner)->Poll();
 }
 
 void FResources::EndRebuildBulkDataFromCache()
@@ -332,11 +329,41 @@ void FResources::EndRebuildBulkDataFromCache()
 		(*DDCRequestOwner)->Wait();
 		(*DDCRequestOwner).Reset();
 	}
+	DDCRebuildState.State.store(EDDCRebuildState::Initial);
 }
 
-bool FResources::IsRebuildingBulkDataFromCache() const
+bool FResources::RebuildBulkDataFromCacheAsync(const UObject* Owner, bool& bFailed)
 {
-	return (*DDCRequestOwner).IsValid();
+	bFailed = false;
+
+	if (!HasStreamingData() || (ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC) == 0u)
+	{
+		return true;
+	}
+
+	if (DDCRebuildState.State.load() == EDDCRebuildState::Initial)
+	{
+		// Handle Initial state first so we can transition directly to Succeeded/Failed if the data was immediately available from the cache.
+		check(!(*DDCRequestOwner).IsValid());
+		BeginRebuildBulkDataFromCache(Owner);
+	}
+
+	switch (DDCRebuildState.State.load())
+	{
+	case EDDCRebuildState::Pending:
+		return false;
+	case EDDCRebuildState::Succeeded:
+		check(StreamablePages.GetBulkDataSize() > 0);
+		EndRebuildBulkDataFromCache();
+		return true;
+	case EDDCRebuildState::Failed:
+		bFailed = true;
+		EndRebuildBulkDataFromCache();
+		return true;
+	default:
+		check(false);
+		return true;
+	}
 }
 #endif
 

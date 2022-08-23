@@ -2873,11 +2873,14 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 			GetCache().Get(MakeArrayView(&Request, 1), RequestOwner,
 				[&MeshDataBuffer, &EstimatedMeshDataCompressedSize, &NaniteStreamingDataHash](FCacheGetResponse&& Response)
 				{
-					const FCompressedBuffer& CompressedBuffer = Response.Record.GetValue(MeshDataId).GetData();
-					MeshDataBuffer = CompressedBuffer.Decompress();
-					EstimatedMeshDataCompressedSize = uint64(CompressedBuffer.GetCompressedSize() * DDCSizeToEstimateFactor);
+					if(Response.Status == EStatus::Ok)
+					{
+						const FCompressedBuffer& CompressedBuffer = Response.Record.GetValue(MeshDataId).GetData();
+						MeshDataBuffer = CompressedBuffer.Decompress();
+						EstimatedMeshDataCompressedSize = uint64(CompressedBuffer.GetCompressedSize() * DDCSizeToEstimateFactor);
 
-					NaniteStreamingDataHash = Response.Record.GetValue(NaniteStreamingDataId).GetRawHash();
+						NaniteStreamingDataHash = Response.Record.GetValue(NaniteStreamingDataId).GetRawHash();
+					}
 				});
 			RequestOwner.Wait();
 		}
@@ -4719,19 +4722,24 @@ bool UStaticMesh::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Target
 		return false;
 	}
 
-	Nanite::FResources& NaniteResources = GetPlatformStaticMeshRenderData(this, TargetPlatform).NaniteResources;
-	if (NaniteResources.HasStreamingData())
+	FStaticMeshRenderData& PlatformRenderData = GetPlatformStaticMeshRenderData(this, TargetPlatform);
+
+	bool bFailed = false;
+	if (!PlatformRenderData.NaniteResources.RebuildBulkDataFromCacheAsync(this, bFailed))
 	{
-		if (!NaniteResources.IsRebuildingBulkDataFromCache() && !NaniteResources.StreamablePages.IsBulkDataLoaded())
-		{
-			NaniteResources.BeginRebuildBulkDataFromCache(this);
-		}
-		if (!NaniteResources.PollRebuildBulkDataFromCache())
-		{
-			return false;
-		}
-		NaniteResources.EndRebuildBulkDataFromCache();
-		check(NaniteResources.StreamablePages.GetBulkDataSize() > 0);
+		return false;
+	}
+
+	if (bFailed)
+	{
+		UE_LOG(LogStaticMesh, Warning, TEXT("Failed to recover Nanite streaming from DDC for '%s'. Rebuilding and retrying."), *GetPathName());
+
+		// This should be a very rare event
+		// For simplicity, just rebuild the entire RenderData
+		PlatformRenderData.~FStaticMeshRenderData();
+		new (&PlatformRenderData) FStaticMeshRenderData();
+		PlatformRenderData.Cache(TargetPlatform, this, TargetPlatform->GetStaticMeshLODSettings());
+		return false;
 	}
 
 	return true;

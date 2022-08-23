@@ -293,20 +293,41 @@ struct FResources
 private:
 	TDontCopy<TPimplPtr<UE::DerivedData::FRequestOwner>> DDCRequestOwner;
 
-public:
-	ENGINE_API void DropBulkData();
+	enum class EDDCRebuildState : uint8
+	{
+		Initial,
+		Pending,
+		Succeeded,
+		Failed,
+	};
 
-	UE_DEPRECATED(5.1, "Call the Begin/Poll/End versions of this function.")
-	ENGINE_API void RebuildBulkDataFromDDC(const UObject* Owner);
+	struct FDDCRebuildState
+	{
+		std::atomic<EDDCRebuildState> State = EDDCRebuildState::Initial;
+
+		FDDCRebuildState() = default;
+		FDDCRebuildState(const FDDCRebuildState&) {}
+		FDDCRebuildState& operator=(const FDDCRebuildState&) { check(State == EDDCRebuildState::Initial); return *this; }
+	};
+
+	FDDCRebuildState		DDCRebuildState;
 
 	/** Begins an async rebuild of the bulk data from the cache. Must be paired with EndRebuildBulkDataFromCache. */
 	ENGINE_API void BeginRebuildBulkDataFromCache(const UObject* Owner);
-	/** Polls the async rebuild and returns true when EndRebuildBulkDataFromCache can be called without blocking. */
-	ENGINE_API bool PollRebuildBulkDataFromCache() const;
 	/** Ends an async rebuild of the bulk data from the cache. May block if poll has not returned true. */
 	ENGINE_API void EndRebuildBulkDataFromCache();
-	/** Returns true when rebuilding the bulk data from the cache. */
-	ENGINE_API bool IsRebuildingBulkDataFromCache() const;
+public:
+	ENGINE_API void DropBulkData();
+
+	UE_DEPRECATED(5.1, "Use RebuildBulkDataFromCacheAsync instead.")
+	ENGINE_API void RebuildBulkDataFromDDC(const UObject* Owner);
+
+	/** Requests (or polls) an async operation that rebuilds the streaming bulk data from the cache.
+		If a rebuild is already in progress, the call will just poll the pending operation.
+		If true is returned, the operation is complete and it is safe to access the streaming data.
+		If false is returned, the operation has not yet completed.
+		The operation can fail, which is indicated by the value of bFailed. */
+	ENGINE_API bool RebuildBulkDataFromCacheAsync(const UObject* Owner, bool& bFailed);
 #endif
 
 	ENGINE_API void InitResources(const UObject* Owner);
