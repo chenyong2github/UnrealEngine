@@ -2369,6 +2369,8 @@ private:
 	void ComputeFamilySize();
 
 #if !UE_BUILD_SHIPPING
+	/** Collect the draw data of all visible UPrimitiveComponents in the Scene */
+	void ProcessPrimitives(const FViewInfo& View, const FViewCommands& ViewCommands) const;
 	/** Dump all UPrimitiveComponents in the Scene to a CSV file */
 	void DumpPrimitives(const FViewCommands& ViewCommands);
 #endif

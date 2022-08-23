@@ -21,6 +21,11 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"DeveloperSettings",
 				});
+			
+			if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+			{
+				PrivateDependencyModuleNames.Add("DrawPrimitiveDebugger");
+			}
 
 			PrivateIncludePaths.AddRange(
 				new string[] {
