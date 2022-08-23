@@ -106,10 +106,8 @@ public:
 	/** logging system */
 	FIKRigLogger Log;
 
-#if WITH_EDITOR
 	/** Used to propagate setting values from the source asset at runtime (settings that do not require re-initialization) */
 	void CopyAllInputsFromSourceAssetAtRuntime(const UIKRigDefinition* SourceAsset);
-#endif
 	
 private:
 

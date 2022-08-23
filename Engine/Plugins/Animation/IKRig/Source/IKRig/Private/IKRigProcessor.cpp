@@ -320,8 +320,6 @@ void UIKRigProcessor::SetNeedsInitialized()
 	bTriedToInitialize = false;
 };
 
-#if WITH_EDITOR
-
 void UIKRigProcessor::CopyAllInputsFromSourceAssetAtRuntime(const UIKRigDefinition* SourceAsset)
 {
 	check(SourceAsset)
@@ -347,8 +345,6 @@ void UIKRigProcessor::CopyAllInputsFromSourceAssetAtRuntime(const UIKRigDefiniti
 		Solvers[SolverIndex]->UpdateSolverSettings(AssetSolvers[SolverIndex]);
 	}
 }
-
-#endif
 
 const FIKRigGoalContainer& UIKRigProcessor::GetGoalContainer() const
 {

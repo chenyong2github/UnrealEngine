@@ -1854,6 +1854,64 @@ void UIKRetargetProcessor::SetNeedsInitialized()
 	}
 }
 
+bool UIKRetargetProcessor::IsBoneRetargeted(
+	const int32& BoneIndex,
+	const int8& SkeletonToCheck) const
+{
+	const bool bUseSourceSkeleton = SkeletonToCheck == 0;
+	const FRetargetSkeleton& Skeleton = bUseSourceSkeleton ? SourceSkeleton : TargetSkeleton;
+	const int32 RootBoneIndex = bUseSourceSkeleton ? GetSourceRetargetRoot() : GetTargetRetargetRoot();
+	return (Skeleton.ChainThatContainsBone[BoneIndex] != NAME_None) || BoneIndex==RootBoneIndex;
+}
+
+FName UIKRetargetProcessor::GetChainNameForBone(const int32& BoneIndex, const int8& SkeletonToCheck) const
+{
+	const bool bUseSourceSkeleton = SkeletonToCheck == 0;
+	const FRetargetSkeleton& Skeleton = bUseSourceSkeleton ? SourceSkeleton : TargetSkeleton;
+	const int32 RootBoneIndex = bUseSourceSkeleton ? GetSourceRetargetRoot() : GetTargetRetargetRoot();
+	if (RootBoneIndex == BoneIndex)
+	{
+		return FName("Retarget Root");
+	}
+
+	return Skeleton.ChainThatContainsBone[BoneIndex];
+}
+
+#endif
+
+void UIKRetargetProcessor::ApplySettingsFromAsset()
+{
+	// copy IK Rig settings
+	if (const UIKRigDefinition* TargetIKRig = RetargeterAsset->GetTargetIKRig())
+	{
+		IKRigProcessor->CopyAllInputsFromSourceAssetAtRuntime(TargetIKRig);
+	}
+	
+	// copy chain settings
+	const TArray<TObjectPtr<URetargetChainSettings>>& AllChainSettings = RetargeterAsset->GetAllChainSettings();
+	for (const TObjectPtr<URetargetChainSettings>& ChainSettings : AllChainSettings)
+	{
+		for (FRetargetChainPairFK& Chain : ChainPairsFK)
+		{
+			if (Chain.TargetBoneChainName == ChainSettings->TargetChain)
+			{
+				Chain.Settings.CopySettingsFromAsset(ChainSettings);
+			}
+		}
+		
+		for (FRetargetChainPairIK& Chain : ChainPairsIK)
+		{
+			if (Chain.TargetBoneChainName == ChainSettings->TargetChain)
+			{
+				Chain.Settings.CopySettingsFromAsset(ChainSettings);
+			}
+		}
+	}
+
+	// copy root settings
+	RootRetargeter.Settings.CopySettingsFromAsset(RetargeterAsset->GetRootSettingsUObject());
+}
+
 void UIKRetargetProcessor::ApplySettingsFromProfile(const FRetargetProfile& Profile)
 {
 	auto ApplyRetargetPoseFromProfile = [this, Profile](ERetargetSourceOrTarget SourceOrTarget)
@@ -1914,63 +1972,5 @@ void UIKRetargetProcessor::ApplySettingsFromProfile(const FRetargetProfile& Prof
 		RootRetargeter.Settings = Profile.RootSettings;
 	}
 }
-
-void UIKRetargetProcessor::ApplySettingsFromAsset()
-{
-	// copy IK Rig settings
-	if (const UIKRigDefinition* TargetIKRig = RetargeterAsset->GetTargetIKRig())
-	{
-		IKRigProcessor->CopyAllInputsFromSourceAssetAtRuntime(TargetIKRig);
-	}
-	
-	// copy chain settings
-	const TArray<TObjectPtr<URetargetChainSettings>>& AllChainSettings = RetargeterAsset->GetAllChainSettings();
-	for (const TObjectPtr<URetargetChainSettings>& ChainSettings : AllChainSettings)
-	{
-		for (FRetargetChainPairFK& Chain : ChainPairsFK)
-		{
-			if (Chain.TargetBoneChainName == ChainSettings->TargetChain)
-			{
-				Chain.Settings.CopySettingsFromAsset(ChainSettings);
-			}
-		}
-		
-		for (FRetargetChainPairIK& Chain : ChainPairsIK)
-		{
-			if (Chain.TargetBoneChainName == ChainSettings->TargetChain)
-			{
-				Chain.Settings.CopySettingsFromAsset(ChainSettings);
-			}
-		}
-	}
-
-	// copy root settings
-	RootRetargeter.Settings.CopySettingsFromAsset(RetargeterAsset->GetRootSettingsUObject());
-}
-
-bool UIKRetargetProcessor::IsBoneRetargeted(
-	const int32& BoneIndex,
-	const int8& SkeletonToCheck) const
-{
-	const bool bUseSourceSkeleton = SkeletonToCheck == 0;
-	const FRetargetSkeleton& Skeleton = bUseSourceSkeleton ? SourceSkeleton : TargetSkeleton;
-	const int32 RootBoneIndex = bUseSourceSkeleton ? GetSourceRetargetRoot() : GetTargetRetargetRoot();
-	return (Skeleton.ChainThatContainsBone[BoneIndex] != NAME_None) || BoneIndex==RootBoneIndex;
-}
-
-FName UIKRetargetProcessor::GetChainNameForBone(const int32& BoneIndex, const int8& SkeletonToCheck) const
-{
-	const bool bUseSourceSkeleton = SkeletonToCheck == 0;
-	const FRetargetSkeleton& Skeleton = bUseSourceSkeleton ? SourceSkeleton : TargetSkeleton;
-	const int32 RootBoneIndex = bUseSourceSkeleton ? GetSourceRetargetRoot() : GetTargetRetargetRoot();
-	if (RootBoneIndex == BoneIndex)
-	{
-		return FName("Retarget Root");
-	}
-
-	return Skeleton.ChainThatContainsBone[BoneIndex];
-}
-
-#endif
 
 #undef LOCTEXT_NAMESPACE
