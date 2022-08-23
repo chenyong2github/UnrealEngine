@@ -20,6 +20,7 @@
 #include "Generators/StairGenerator.h"
 #include "ConstrainedDelaunay2.h"
 #include "Arrangement2d.h"
+#include "CompGeom/Delaunay2.h"
 
 using namespace UE::Geometry;
 
@@ -993,6 +994,95 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendCurvedStairs(
 	return TargetMesh;
 }
 
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendVoronoiDiagram2D(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptPrimitiveOptions PrimitiveOptions,
+	FTransform Transform,
+	const TArray<FVector2D>& VoronoiSites,
+	FGeometryScriptVoronoiOptions VoronoiOptions,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("PrimitiveFunctions_AppendVoronoiDiagram2D_NullTarget", "AppendVoronoiDiagram3d: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	if (VoronoiSites.Num() < 3)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("PrimitiveFunctions_AppendVoronoiDiagram2D_TooFewSites", "AppendVoronoiDiagram2D: VoronoiSites array requires at least 3 positions"));
+		return TargetMesh;
+	}
+
+	UE::Geometry::FDelaunay2 Delaunay;
+	bool bTriSuccess = Delaunay.Triangulate(VoronoiSites);
+
+	if (!bTriSuccess)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("PrimitiveFunctions_AppendVoronoiDiagram2D_GenFailed", "AppendVoronoiDiagram2D: Voronoi diagram generation failed"));
+		return TargetMesh;
+	}
+
+	TAxisAlignedBox2<double> AABB;
+	if (VoronoiOptions.Bounds.IsValid)
+	{
+		AABB.Max = FVector2d(VoronoiOptions.Bounds.Max.X, VoronoiOptions.Bounds.Max.Y);
+		AABB.Min = FVector2d(VoronoiOptions.Bounds.Min.X, VoronoiOptions.Bounds.Min.Y);
+	}
+	else
+	{
+		AABB.Contain(VoronoiSites);
+	}
+	TArray<TArray<FVector2d>> Polygons = Delaunay.ComputeVoronoiCells<double>(VoronoiSites, VoronoiOptions.bIncludeBoundary, AABB, (double)VoronoiOptions.BoundsExpand);
+
+	if (Polygons.Num() == 0)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("PrimitiveFunctions_AppendVoronoiDiagram2D_NoPolygons", "AppendVoronoiDiagram2D: No Voronoi cells constructed"));
+		return TargetMesh;
+	}
+
+	FFlatTriangulationMeshGenerator TriangulationMeshGen;
+	auto AddCell = [&TriangulationMeshGen, &Polygons, &Debug](int32 PolyIdx)
+	{
+		if (PolyIdx < 0 || PolyIdx >= Polygons.Num())
+		{
+			UE::Geometry::AppendWarning(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("PrimitiveFunctions_AppendVoronoiDiagram2D_BadID", "AppendVoronoiDiagram2D: Requested invalid cell ID"));
+			return;
+		}
+		int32 Start = TriangulationMeshGen.Vertices2D.Num();
+		TriangulationMeshGen.Vertices2D.Append(Polygons[PolyIdx]);
+		for (int32 Off = 1; Off + 1 < Polygons[PolyIdx].Num(); ++Off)
+		{
+			TriangulationMeshGen.Triangles2D.Emplace(Start, Start + Off + 1, Start + Off);
+			TriangulationMeshGen.Triangles2DPolygroups.Emplace(PolyIdx);
+		}
+	};
+
+	if (VoronoiOptions.CreateCells.IsEmpty())
+	{
+		for (int32 PolyIdx = 0; PolyIdx < Polygons.Num(); ++PolyIdx)
+		{
+			AddCell(PolyIdx);
+		}
+	}
+	else
+	{
+		for (int32 PolyIdx : VoronoiOptions.CreateCells)
+		{
+			AddCell(PolyIdx);
+		}
+	}
+
+	if (TriangulationMeshGen.Vertices2D.Num() > 2 && TriangulationMeshGen.Triangles2D.Num() > 0)
+	{
+		AppendPrimitive(TargetMesh, &TriangulationMeshGen.Generate(), Transform, PrimitiveOptions);
+	}
+
+	return TargetMesh;
+}
 
 
 

@@ -74,6 +74,26 @@ public:
 	bool bFillPartialRevolveEndcaps = true;
 };
 
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptVoronoiOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	float BoundsExpand = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	FBox Bounds = FBox(EForceInit::ForceInit);
+
+	/** Optional list of cells to create meshes for.  If empty, create all cells. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	TArray<int32> CreateCells;
+
+	/** Whether to include the bordering Voronoi cells (which extend 'infinitely' to any boundary) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool bIncludeBoundary = true;
+};
+
 
 UCLASS(meta = (ScriptName = "GeometryScript_Primitives"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshPrimitiveFunctions : public UBlueprintFunctionLibrary
@@ -372,6 +392,16 @@ public:
 		bool bFloating = false,
 		UGeometryScriptDebug* Debug = nullptr);
 
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta = (ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
+	AppendVoronoiDiagram2D(
+		UDynamicMesh* TargetMesh,
+		FGeometryScriptPrimitiveOptions PrimitiveOptions,
+		FTransform Transform,
+		const TArray<FVector2D>& VoronoiSites,
+		FGeometryScriptVoronoiOptions VoronoiOptions,
+		UGeometryScriptDebug* Debug = nullptr);
 
 
 

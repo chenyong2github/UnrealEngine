@@ -26,6 +26,9 @@ public:
 	/** Source triangle indices */
 	TArray<FIndex3i> Triangles2D;
 
+	/** Optional polygroup IDs per triangle -- ignored if empty */
+	TArray<int> Triangles2DPolygroups;
+
 	/** Normal vector of all vertices will be set to this value. Default is +Z axis. */
 	FVector3f Normal;
 

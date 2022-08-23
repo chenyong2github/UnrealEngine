@@ -51,7 +51,8 @@ FMeshShapeGenerator& FFlatTriangulationMeshGenerator::Generate()
 		SetTriangle(TriIdx, Tri);
 		SetTriangleUVs(TriIdx, Tri);
 		SetTriangleNormals(TriIdx, Tri);
-		SetTrianglePolygon(TriIdx, 0);
+		int PolygroupID = Triangles2DPolygroups.IsEmpty() ? 0 : Triangles2DPolygroups[TriIdx];
+		SetTrianglePolygon(TriIdx, PolygroupID);
 	}
 
 
