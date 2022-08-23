@@ -38,6 +38,8 @@ public:
 		return Hash != Other.Hash;
 	}
 
+	using IntType = uint32;
+
 	inline IntType AsUInt() const
 	{
 		return Hash;
@@ -46,8 +48,6 @@ public:
 private:
 	template<typename, typename, typename, typename>
 	friend class RobinHoodHashTable_Private::TRobinHoodHashTable;
-
-	using IntType = uint32;
 
 	inline explicit FHashType(IntType InHash) : Hash(InHash)
 	{
