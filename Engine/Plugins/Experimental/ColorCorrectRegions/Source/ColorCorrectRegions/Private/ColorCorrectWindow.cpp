@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ColorCorrectWindow.h"
-#include "Components/StaticMeshComponent.h"
 #include "CoreMinimal.h"
+#include "Materials/Material.h"
+#include "Engine/StaticMesh.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
 #include "UObject/ConstructorHelpers.h"
