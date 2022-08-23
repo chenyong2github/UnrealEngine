@@ -622,6 +622,7 @@ FSceneViewFamily::ConstructionValues FDisplayClusterViewportManager::CreateViewF
 
 			InEngineShowFlags.SetAtmosphere(0);
 			InEngineShowFlags.SetFog(0);
+			InEngineShowFlags.SetVolumetricFog(0);
 			InEngineShowFlags.SetMotionBlur(0); // motion blur doesn't work correctly with scene captures.
 			InEngineShowFlags.SetSeparateTranslucency(0);
 			InEngineShowFlags.SetHMDDistortion(0);
