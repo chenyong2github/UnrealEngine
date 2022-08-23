@@ -8,14 +8,9 @@
 #include "Logging/LogMacros.h"
 #include "Templates/UniquePtr.h"
 
-#if PLATFORM_SWITCH
-// Switch uses page alignment for submitted buffers
 // TODO: Move BufferVectorOperations AUDIO_BUFFER_ALIGNMENT
 // define to more central location and reference here.
-#define AUDIO_BUFFER_ALIGNMENT 4096
-#else
 #define AUDIO_BUFFER_ALIGNMENT 16
-#endif
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAudioResampler, Warning, All);
 
