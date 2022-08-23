@@ -3,12 +3,15 @@
 #include "SRCPanelExposedEntitiesList.h"
 
 #include "Algo/ForEach.h"
+#include "Commands/RemoteControlCommands.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
 #include "ISettingsModule.h"
 #include "RCPanelWidgetRegistry.h"
 #include "GameFramework/Actor.h"
 #include "Input/DragAndDrop.h"
+#include "IRemoteControlProtocolModule.h"
+#include "IRemoteControlProtocolWidgetsModule.h"
 #include "Engine/Selection.h"
 #include "Editor/EditorEngine.h"
 #include "Misc/Attribute.h"
@@ -18,6 +21,7 @@
 #include "RemoteControlPreset.h"
 #include "RemoteControlUIModule.h"
 #include "ScopedTransaction.h"
+#include "SRCModeSwitcher.h"
 #include "SRCPanelFieldGroup.h"
 #include "SRCPanelExposedField.h"
 #include "Styling/RemoteControlStyles.h"
@@ -32,6 +36,15 @@
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanelEntitiesList"
 
+TSet<FName> SRCPanelExposedEntitiesList::DefaultProtocolColumns = {
+//	FRemoteControlPresetColumns::LinkIdentifier,
+	FRemoteControlPresetColumns::Mask,
+	FRemoteControlPresetColumns::Status,
+};
+
+/**
+ * A custom row to describe each entity in the list.
+ */
 class SEntityRow : public SMultiColumnTableRow<TSharedPtr<SRCPanelTreeNode>>
 {
 public:
@@ -39,6 +52,7 @@ public:
 	SLATE_BEGIN_ARGS(SEntityRow)
 	{}
 	
+		SLATE_ATTRIBUTE(FName, ActiveProtocol)
 		SLATE_ARGUMENT(TSharedPtr<SRCPanelTreeNode>, Entity)
 
 		SLATE_ATTRIBUTE(FMargin, Padding)
@@ -54,6 +68,7 @@ public:
 
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTableView)
 	{
+		ActiveProtocol = InArgs._ActiveProtocol;
 		Entity = InArgs._Entity;
 
 		FSuperRowType::FArguments SuperArgs = FSuperRowType::FArguments();
@@ -73,6 +88,8 @@ public:
 
 	TSharedRef<SWidget> GenerateWidgetForColumn(const FName& InColumnName) override
 	{
+		const FName& ActiveProtocolName = ActiveProtocol.Get(NAME_None);
+
 		if (Entity.IsValid())
 		{
 			if (Entity->HasChildren() && InColumnName == FRemoteControlPresetColumns::Description)
@@ -98,7 +115,7 @@ public:
 					.Expose(InnerContentSlotNativePtr)
 					.Padding(8.f, 2.f)
 					[
-						Entity->GetWidget(InColumnName)
+						Entity->GetWidget(InColumnName, ActiveProtocolName)
 					];
 
 				InnerContentSlot = InnerContentSlotNativePtr;
@@ -108,11 +125,16 @@ public:
 			}
 			else
 			{
+				const bool bAlignCenter = InColumnName == FRemoteControlPresetColumns::Status || InColumnName == FRemoteControlDefaultProtocolColumns::BindingStatus;
+				
+				const bool bAlignLeft = InColumnName == FRemoteControlPresetColumns::Mask;
+
 				return SNew(SBox)
 					.Padding(FMargin(4.f, 2.f))
+					.HAlign(bAlignCenter ? HAlign_Center : bAlignLeft ? HAlign_Left : HAlign_Fill)
 					.VAlign(VAlign_Center)
 					[
-						Entity->GetWidget(InColumnName)
+						Entity->GetWidget(InColumnName, ActiveProtocolName)
 					];
 			}
 		}
@@ -135,6 +157,9 @@ private:
 
 private:
 
+	/** Holds the active protocol. */
+	TAttribute<FName> ActiveProtocol;
+
 	/** Cached reference of Entity */
 	TSharedPtr<SRCPanelTreeNode> Entity;
 };
@@ -142,6 +167,7 @@ private:
 void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, TWeakPtr<FRCPanelWidgetRegistry> InWidgetRegistry)
 {
 	bIsInEditMode = InArgs._EditMode;
+	bIsInProtocolsMode = InArgs._ProtocolsMode;
 	Preset = TStrongObjectPtr<URemoteControlPreset>(InPreset);
 	OnEntityListUpdatedDelegate = InArgs._OnEntityListUpdated;
 	WidgetRegistry = MoveTemp(InWidgetRegistry);
@@ -155,6 +181,7 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 	SearchedText = MakeShared<FText>();
 
 	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
+	ActiveListMode = EEntitiesListMode::Default;
 
 	// Major Panel
 	TSharedPtr<SRCMajorPanel> ExposePanel = SNew(SRCMajorPanel)
@@ -240,7 +267,7 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 		.TreeViewStyle(&RCPanelStyle->TableViewStyle)
 		.OnGetChildren(this, &SRCPanelExposedEntitiesList::OnGetNodeChildren)
 		.HeaderRow(
-			SNew(SHeaderRow)
+			SAssignNew(FieldsHeaderRow, SHeaderRow)
 			.Style(&RCPanelStyle->HeaderRowStyle)
 
 			+ SHeaderRow::Column(FRemoteControlPresetColumns::DragDropHandle)
@@ -250,11 +277,13 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 
 			+ SHeaderRow::Column(FRemoteControlPresetColumns::Description)
 			.DefaultLabel(LOCTEXT("RCPresetDescColumnHeader", "Description"))
+			.HAlignHeader(HAlign_Center)
 			.FillWidth(0.5f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
 			+ SHeaderRow::Column(FRemoteControlPresetColumns::Value)
 			.DefaultLabel(LOCTEXT("RCPresetValueColumnHeader", "Value"))
+			.HAlignHeader(HAlign_Center)
 			.FillWidth(0.5f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
@@ -266,7 +295,7 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 
 	// Exposed Entities Dock Panel
 	TSharedPtr<SRCMinorPanel> ExposeDockPanel = SNew(SRCMinorPanel)
-		.HeaderLabel(LOCTEXT("PropertiesLabel", "Properties"))
+		.HeaderLabel(this, &SRCPanelExposedEntitiesList::HandleEntityListHeaderLabel)
 		.EnableFooter(true)
 		[
 			FieldsListView.ToSharedRef()
@@ -303,8 +332,63 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 			]
 		];
 
+	// Mode Switcher
+	TSharedPtr<SRCModeSwitcher> ModeSwitcher = SNew(SRCModeSwitcher)
+		.OnModeSwitched_Lambda([this](const SRCModeSwitcher::FRCMode& NewMode)
+			{
+				if (ActiveProtocol != NewMode.ModeId)
+				{
+					ActiveListMode = EEntitiesListMode::Default; // Hack to trigger mode change via mode switcher.
+
+					ActiveProtocol = NewMode.ModeId;
+
+					if (bIsInProtocolsMode.Get())
+					{
+						RebuildListWithColumns(EEntitiesListMode::Protocols);
+					}
+				}
+			}
+		)
+		.Visibility_Lambda([this]()
+			{
+				return bIsInProtocolsMode.Get() && !ActiveProtocol.IsNone() ? EVisibility::Visible : EVisibility::Collapsed;
+			}
+		);
+
+	{ // Add dynamic entries based on the available protocols.
+		IRemoteControlProtocolModule& RCProtocolModule = IRemoteControlProtocolModule::Get();
+
+		TArray<FName> Protocols = RCProtocolModule.GetProtocolNames();
+
+		// To avoid random orientations, sort them in alphabetical order.
+		Algo::Sort(Protocols, [&](const FName& ThisProtocol, const FName& OtherProtocol) { return ThisProtocol.LexicalLess(OtherProtocol); });
+
+		for (int32 ProtocolIndex = 0; ProtocolIndex < Protocols.Num(); ProtocolIndex++)
+		{
+			const FName& ProtocolName = Protocols[ProtocolIndex];
+
+			const bool bIsDefault = ProtocolIndex == 0;
+
+			if (bIsDefault)
+			{
+				ActiveProtocol = ProtocolName;
+			}
+
+			SRCModeSwitcher::FRCMode::FArguments NewMode = SRCModeSwitcher::Mode(ProtocolName)
+				.DefaultLabel(FText::FromName(ProtocolName))
+				.DefaultTooltip(FText::FromName(ProtocolName))
+				.HAlignCell(HAlign_Fill)
+				.IsDefault(bIsDefault)
+				.VAlignCell(VAlign_Fill)
+				.FixedWidth(48.f);
+
+			ModeSwitcher->AddMode(NewMode);
+		}
+	}
+
 	// Expose Button
 	ExposeDockPanel->AddHeaderToolbarItem(EToolbar::Left, PlaceholderBox.ToSharedRef());
+	ExposeDockPanel->AddHeaderToolbarItem(EToolbar::Right, ModeSwitcher.ToSharedRef());
 	ExposeDockPanel->AddFooterToolbarItem(EToolbar::Right, InArgs._ExposeComboButton.Get().ToSharedRef());
 	ExposeDockPanel->AddFooterToolbarItem(EToolbar::Right, DeleteAllEntitiesButton.ToSharedRef());
 
@@ -403,6 +487,92 @@ void SRCPanelExposedEntitiesList::SetBackendFilter(const FRCFilter& InBackendFil
 	BackendFilter = InBackendFilter;
 
 	bFilterApplicationRequested = true;
+}
+
+void SRCPanelExposedEntitiesList::RebuildListWithColumns(EEntitiesListMode InListMode)
+{
+	// Only activate when the active mode changes to different one.
+	// Drop multiple calls to same mode change except for Protocols Mode.
+	if (ActiveListMode != InListMode && !ActiveProtocol.IsNone())
+	{
+		ActiveListMode = InListMode;
+
+		TSet<FName> ExisitingColumns;
+
+		if (FieldsListView.IsValid() && FieldsHeaderRow.IsValid())
+		{
+			const TIndirectArray<SHeaderRow::FColumn>& Columns = FieldsHeaderRow->GetColumns();
+
+			if (!Columns.IsEmpty())
+			{
+				Algo::TransformIf(Columns, ExisitingColumns
+					, [](const SHeaderRow::FColumn& InColumn) { return !InColumn.ColumnId.IsNone() && !SRCPanelTreeNode::DefaultColumns.Contains(InColumn.ColumnId); }
+					, [](const SHeaderRow::FColumn& InColumn) { return InColumn.ColumnId; }
+				);
+			}
+		}
+
+		const bool bShouldRemoveColumns = !ExisitingColumns.IsEmpty();
+
+		TSet<FName> ColumnsToBeRemoved = ExisitingColumns;
+
+		const bool bShouldAddColumns = InListMode == EEntitiesListMode::Protocols;
+
+		TSet<FName> ColumnsToBeAdded;
+
+		IRemoteControlProtocolModule& RCProtocolModule = IRemoteControlProtocolModule::Get();
+
+		TSet<FName> ActiveProtocolColumns;
+
+		TSet<FName> OtherProtocolColumns;
+
+		for (const FName& ProtocolName : RCProtocolModule.GetProtocolNames())
+		{
+			if (TSharedPtr<IRemoteControlProtocol> RCProtocol = RCProtocolModule.GetProtocolByName(ProtocolName))
+			{
+				if (ActiveProtocol == ProtocolName)
+				{
+					RCProtocol->GetRegisteredColumns(ActiveProtocolColumns);
+				}
+				else
+				{
+					RCProtocol->GetRegisteredColumns(OtherProtocolColumns);
+				}
+			}
+		}
+
+		if (bShouldRemoveColumns)
+		{
+			ColumnsToBeRemoved.Append(ActiveProtocolColumns.Intersect(OtherProtocolColumns));
+		
+			for (const FName& ColumnToBeRemoved : ColumnsToBeRemoved)
+			{
+				RemoveColumn(ColumnToBeRemoved);
+			}
+		}
+
+		if (bShouldAddColumns)
+		{
+			ColumnsToBeAdded = DefaultProtocolColumns.Union(ActiveProtocolColumns);
+		
+			for (const FName& ColumnToBeAdded : ColumnsToBeAdded)
+			{
+				InsertColumn(ColumnToBeAdded);
+			}
+		}
+	}
+}
+
+FText SRCPanelExposedEntitiesList::HandleEntityListHeaderLabel() const
+{
+	const FRemoteControlCommands& Commands = FRemoteControlCommands::Get();
+
+	if (bIsInProtocolsMode.Get() && Commands.ToggleProtocolMappings.IsValid())
+	{
+		return Commands.ToggleProtocolMappings->GetLabel();
+	}
+
+	return LOCTEXT("PropertiesLabel", "Properties");
 }
 
 void SRCPanelExposedEntitiesList::OnObjectPropertyChange(UObject* InObject, FPropertyChangedEvent& InChangeEvent)
@@ -638,6 +808,7 @@ TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCP
 			.OnDrop_Lambda(OnDropLambda)
 			.Padding(Margin)
 			.Style(&RCPanelStyle->TableRowStyle)
+			.ActiveProtocol_Lambda([this]() { return ActiveProtocol; })
 			.Entity(Node);
 	}
 }
@@ -827,11 +998,15 @@ void SRCPanelExposedEntitiesList::SelectActorsInlevel(const TArray<UObject*>& Ob
 void SRCPanelExposedEntitiesList::RegisterEvents()
 {
 	OnPropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(this, &SRCPanelExposedEntitiesList::OnObjectPropertyChange);
+
+	OnProtocolBindingAddedOrRemovedHandle = IRemoteControlProtocolWidgetsModule::Get().OnProtocolBindingAddedOrRemoved().AddSP(this, &SRCPanelExposedEntitiesList::OnProtocolBindingAddedOrRemoved);
 }
 
 void SRCPanelExposedEntitiesList::UnregisterEvents()
 {
 	FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(OnPropertyChangedHandle);
+
+	IRemoteControlProtocolWidgetsModule::Get().OnProtocolBindingAddedOrRemoved().Remove(OnProtocolBindingAddedOrRemovedHandle);
 }
 
 TSharedPtr<SRCPanelGroup> SRCPanelExposedEntitiesList::FindGroupById(const FGuid& Id)
@@ -1142,9 +1317,9 @@ FReply SRCPanelExposedEntitiesList::RequestDeleteAllEntities()
 		return FReply::Unhandled();
 	}
 
-	const FString WarningMessage = FString::Format(TEXT("You are about to delete '{0}' entities. This action might not be undone.\nAre you sure you want to proceed?"), { FString::FromInt(FieldWidgetMap.Num()) });
+	const FText WarningMessage = FText::Format(LOCTEXT("DeleteAllEntitiesWarning", "You are about to delete '{0}' entities. This action might not be undone.\nAre you sure you want to proceed?"), FieldWidgetMap.Num());
 
-	EAppReturnType::Type UserResponse = FMessageDialog::Open(EAppMsgType::YesNo, FText::FromString(WarningMessage));
+	EAppReturnType::Type UserResponse = FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage);
 
 	if (UserResponse == EAppReturnType::Yes)
 	{
@@ -1167,9 +1342,9 @@ FReply SRCPanelExposedEntitiesList::RequestDeleteAllGroups()
 		return FReply::Unhandled();
 	}
 
-	const FString WarningMessage = FString::Format(TEXT("You are about to delete '{0}' groups. This action might not be undone.\nAre you sure you want to proceed?"), { FString::FromInt(FieldGroups.Num() - 1) });
+	const FText WarningMessage = FText::Format(LOCTEXT("DeleteAllGroupsWarning", "You are about to delete '{0}' groups. This action might not be undone.\nAre you sure you want to proceed?"), FieldGroups.Num() - 1);
 
-	EAppReturnType::Type UserResponse = FMessageDialog::Open(EAppMsgType::YesNo, FText::FromString(WarningMessage));
+	EAppReturnType::Type UserResponse = FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage);
 
 	if (UserResponse == EAppReturnType::Yes)
 	{
@@ -1195,6 +1370,196 @@ FReply SRCPanelExposedEntitiesList::RequestDeleteAllGroups()
 	}
 
 	return FReply::Handled();
+}
+
+SHeaderRow::FColumn::FArguments SRCPanelExposedEntitiesList::CreateColumn(const FName ForColumnName)
+{
+	const FText DefaultColumnLabel = GetColumnLabel(ForColumnName);
+
+	if (ForColumnName == FRemoteControlPresetColumns::Status || ForColumnName == FRemoteControlDefaultProtocolColumns::BindingStatus) // Exception for Status & BindingStatus columns as they are fixed ones.
+	{
+		const SHeaderRow::FColumn::FArguments ColumnArgs = SHeaderRow::Column(ForColumnName)
+			.DefaultLabel(DefaultColumnLabel)
+			.FixedWidth(33.f)
+			.HAlignHeader(HAlign_Center)
+			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding);
+
+		return ColumnArgs;
+	}
+
+	const SHeaderRow::FColumn::FArguments ColumnArgs = SHeaderRow::Column(ForColumnName)
+		.DefaultLabel(DefaultColumnLabel)
+		.FillWidth(this, &SRCPanelExposedEntitiesList::GetColumnSize, ForColumnName)
+		.HAlignHeader(HAlign_Center)
+		.HeaderContentPadding(RCPanelStyle->HeaderRowPadding);
+
+	return ColumnArgs;
+}
+
+int32 SRCPanelExposedEntitiesList::GetColumnIndex(const FName& ForColumn) const
+{
+	if (ForColumn == FRemoteControlPresetColumns::LinkIdentifier)
+	{
+		return GetColumnIndex_Internal(ForColumn, FRemoteControlPresetColumns::DragDropHandle, ERCColumn::ERC_After);
+	}
+	else if (ForColumn == FRemoteControlPresetColumns::Mask)
+	{
+		return GetColumnIndex_Internal(ForColumn, FRemoteControlPresetColumns::Description, ERCColumn::ERC_After);
+	}
+	else if (ForColumn == FRemoteControlPresetColumns::Status)
+	{
+		return GetColumnIndex_Internal(ForColumn, FRemoteControlPresetColumns::Value, ERCColumn::ERC_After);
+	}
+	else if (ForColumn == FRemoteControlPresetColumns::Type)
+	{
+		return GetColumnIndex_Internal(ForColumn, FRemoteControlPresetColumns::Value, ERCColumn::ERC_After);
+	}
+	else
+	{
+		return GetColumnIndex_Internal(ForColumn, FRemoteControlPresetColumns::Value, ERCColumn::ERC_After);
+	}
+
+	return INDEX_NONE;
+}
+
+int32 SRCPanelExposedEntitiesList::GetColumnIndex_Internal(const FName& ForColumn, const FName& ExistingColumnName, ERCColumn::Position InPosition) const
+{
+	int32 InsertIndex = INDEX_NONE;
+
+	if (FieldsListView.IsValid() && FieldsHeaderRow.IsValid())
+	{
+		const TIndirectArray<SHeaderRow::FColumn>& ExistingColumns = FieldsHeaderRow->GetColumns();
+		
+		if (ExistingColumns.IsEmpty())
+		{
+			return InsertIndex;
+		}
+
+		auto ColumnItr = ExistingColumns.CreateConstIterator();
+		
+		while (ColumnItr)
+		{
+			// If the given column already exists then we need not to insert it again.
+			if (ColumnItr->ColumnId == ForColumn)
+			{
+				InsertIndex = INDEX_NONE;
+
+				break;
+			}
+
+			switch (InPosition)
+			{
+				case ERCColumn::ERC_After:
+					if (ColumnItr->ColumnId == ExistingColumnName)
+					{
+						InsertIndex = ColumnItr.GetIndex() + 1;
+
+						break;
+					}
+					break;
+				case ERCColumn::ERC_Before:
+					if (ColumnItr->ColumnId == ExistingColumnName)
+					{
+						InsertIndex = ColumnItr.GetIndex() - 1;
+
+						break;
+					}
+					break;
+			}
+
+			++ColumnItr;
+		}
+	}
+
+	return InsertIndex;
+}
+
+FText SRCPanelExposedEntitiesList::GetColumnLabel(const FName& ForColumn) const
+{
+	if (ForColumn == FRemoteControlPresetColumns::LinkIdentifier)
+	{
+		return LOCTEXT("RCPresetLinkIDColumnHeader", "Link ID");
+	}
+	else if (ForColumn == FRemoteControlPresetColumns::Mask)
+	{
+		return LOCTEXT("RCPresetMaskColumnHeader", "Mask");
+	}
+	else if (ForColumn == FRemoteControlPresetColumns::Status)
+	{
+		return LOCTEXT("RCPresetStatusColumnHeader", "");
+	}
+	else
+	{
+		IRemoteControlProtocolModule& RCProtocolModule = IRemoteControlProtocolModule::Get();
+
+		if (TSharedPtr<IRemoteControlProtocol> RCProtocol = RCProtocolModule.GetProtocolByName(ActiveProtocol))
+		{
+			if (const FProtocolColumnPtr& ProtocolColumn = RCProtocol->GetRegisteredColumn(ForColumn))
+			{
+				return ProtocolColumn->DisplayText;
+			}
+		}
+	}
+
+	return FText::GetEmpty();
+}
+
+float SRCPanelExposedEntitiesList::GetColumnSize(const FName ForColumn) const
+{
+	float ColumnSize = ProtocolColumnConstants::ColumnSizeSmall;
+
+	if (ForColumn == FRemoteControlPresetColumns::LinkIdentifier ||
+		ForColumn == FRemoteControlPresetColumns::Type)
+	{
+		ColumnSize = ProtocolColumnConstants::ColumnSizeMini;
+	}
+	else
+	{
+		IRemoteControlProtocolModule& RCProtocolModule = IRemoteControlProtocolModule::Get();
+
+		if (TSharedPtr<IRemoteControlProtocol> RCProtocol = RCProtocolModule.GetProtocolByName(ActiveProtocol))
+		{
+			if (const FProtocolColumnPtr& ProtocolColumn = RCProtocol->GetRegisteredColumn(ForColumn))
+			{
+				ColumnSize = ProtocolColumn->ColumnSize;
+			}
+		}
+	}
+
+	return ColumnSize;
+}
+
+void SRCPanelExposedEntitiesList::InsertColumn(const FName& InColumnName)
+{
+	if (FieldsListView.IsValid() && FieldsHeaderRow.IsValid())
+	{
+		int32 InsertIndex = GetColumnIndex(InColumnName);
+
+		if (InsertIndex != INDEX_NONE)
+		{
+			const SHeaderRow::FColumn::FArguments NewColumn = CreateColumn(InColumnName);
+
+			FieldsHeaderRow->InsertColumn(NewColumn, InsertIndex);
+		}
+	}
+}
+
+void SRCPanelExposedEntitiesList::RemoveColumn(const FName& InColumnName)
+{
+	if (FieldsListView.IsValid() && FieldsHeaderRow.IsValid())
+	{
+		FieldsHeaderRow->RemoveColumn(InColumnName);
+	}
+}
+
+void SRCPanelExposedEntitiesList::OnProtocolBindingAddedOrRemoved(ERCProtocolBinding::Op BindingOperation)
+{
+	ActiveListMode = EEntitiesListMode::Default; // Hack to trigger mode change via mode switcher.
+
+	if (bIsInProtocolsMode.Get())
+	{
+		RebuildListWithColumns(EEntitiesListMode::Protocols);
+	}
 }
 
 bool FGroupDragEvent::IsDraggedFromSameGroup() const

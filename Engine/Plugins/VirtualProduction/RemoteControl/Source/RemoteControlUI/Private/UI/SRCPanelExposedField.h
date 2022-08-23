@@ -47,11 +47,19 @@ struct SRCPanelExposedField : public SRCPanelExposedEntity
 	virtual ENodeType GetRCType() const override;
 	virtual bool HasChildren() const override;
 	virtual void Refresh() override;
+	virtual TSharedRef<SWidget> GetWidget(const FName ForColumnName, const FName InActiveProtocol) override;
 	//~ End SRCPanelTreeNode Interface
 
 	//~ SRCPanelExposedEntity Interface
 	virtual void SetIsHovered(bool bIsBeingHovered) override;
 	//~ End SRCPanelExposedEntity Interface
+
+	//~ BEGIN : IHasProtocolExtensibility Interface
+	virtual TSharedRef<SWidget> GetProtocolWidget(const FName ForColumnName, const FName InProtocolName = NAME_None) override;
+	virtual const bool HasProtocolExtension() const override;
+	virtual const bool GetProtocolBindingsNum() const override;
+	virtual const bool SupportsProtocol(const FName& InProtocolName) const override;
+	//~ END : IHasProtocolExtensibility Interface
 
 	/** Get a weak pointer to the underlying remote control field. */
 	TWeakPtr<FRemoteControlField> GetRemoteControlField() const { return WeakField; }
@@ -82,6 +90,7 @@ private:
 	TSharedRef<SWidget> ConstructCallFunctionButton(bool bIsEnabled = true);
 	/** Handles calling an exposed function.*/
 	FReply OnClickFunctionButton();
+
 private:
 	/** Weak pointer to the underlying RC Field. */
 	TWeakPtr<FRemoteControlField> WeakField;

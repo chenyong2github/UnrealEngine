@@ -7,11 +7,22 @@
 #include "IRemoteControlProtocolModule.h"
 #include "IRemoteControlModule.h"
 #include "RemoteControlPreset.h"
+#include "Styling/ProtocolPanelStyle.h"
 #include "ViewModels/ProtocolEntityViewModel.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SRCProtocolBindingList.h"
 
 DEFINE_LOG_CATEGORY(LogRemoteControlProtocolWidgets);
+
+void FRemoteControlProtocolWidgetsModule::StartupModule()
+{
+	FProtocolPanelStyle::Initialize();
+}
+
+void FRemoteControlProtocolWidgetsModule::ShutdownModule()
+{
+	FProtocolPanelStyle::Shutdown();
+}
 
 TSharedRef<SWidget> FRemoteControlProtocolWidgetsModule::GenerateDetailsForEntity(URemoteControlPreset* InPreset, const FGuid& InFieldId, const EExposedFieldType& InFieldType)
 {
@@ -29,7 +40,13 @@ TSharedRef<SWidget> FRemoteControlProtocolWidgetsModule::GenerateDetailsForEntit
 	{
 		if (PropertyStruct->IsChildOf(FRemoteControlProperty::StaticStruct()))
 		{
-			return SAssignNew(RCProtocolBindingList, SRCProtocolBindingList, FProtocolEntityViewModel::Create(InPreset, InFieldId));
+			TSharedRef<FProtocolEntityViewModel> EntityViewModel = FProtocolEntityViewModel::Create(InPreset, InFieldId);
+
+			EntityViewModel->OnBindingAdded().AddRaw(this, &FRemoteControlProtocolWidgetsModule::OnBindingAdded);
+
+			EntityViewModel->OnBindingRemoved().AddRaw(this, &FRemoteControlProtocolWidgetsModule::OnBindingRemoved);
+
+			return SAssignNew(RCProtocolBindingList, SRCProtocolBindingList, EntityViewModel);
 		}
 	}
 
@@ -44,6 +61,21 @@ void FRemoteControlProtocolWidgetsModule::ResetProtocolBindingList()
 TSharedPtr<IRCProtocolBindingList> FRemoteControlProtocolWidgetsModule::GetProtocolBindingList() const
 {
 	return RCProtocolBindingList;
+}
+
+FOnProtocolBindingAddedOrRemoved& FRemoteControlProtocolWidgetsModule::OnProtocolBindingAddedOrRemoved()
+{
+	return OnProtocolBindingAddedOrRemovedDelegate;
+}
+
+void FRemoteControlProtocolWidgetsModule::OnBindingAdded(TSharedRef<FProtocolBindingViewModel> InBindingViewModel)
+{
+	OnProtocolBindingAddedOrRemovedDelegate.Broadcast(ERCProtocolBinding::Added);
+}
+
+void FRemoteControlProtocolWidgetsModule::OnBindingRemoved(FGuid InBindingId)
+{
+	OnProtocolBindingAddedOrRemovedDelegate.Broadcast(ERCProtocolBinding::Removed);
 }
 
 IMPLEMENT_MODULE(FRemoteControlProtocolWidgetsModule, RemoteControlProtocolWidgets);

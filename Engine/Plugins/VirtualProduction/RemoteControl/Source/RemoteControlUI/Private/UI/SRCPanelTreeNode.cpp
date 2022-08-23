@@ -10,7 +10,34 @@
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanelNode"
 
-TSharedRef<SWidget> SRCPanelTreeNode::GetWidget(const FName& ForColumnName)
+TSet<FName> SRCPanelTreeNode::DefaultColumns = {
+	FRemoteControlPresetColumns::DragDropHandle,
+	FRemoteControlPresetColumns::Description,
+	FRemoteControlPresetColumns::Value,
+	FRemoteControlPresetColumns::Reset
+};
+
+TSharedRef<SWidget> SRCPanelTreeNode::GetProtocolWidget(const FName ForColumnName, const FName InProtocolName)
+{
+	return SNullWidget::NullWidget;
+}
+
+const bool SRCPanelTreeNode::HasProtocolExtension() const
+{
+	return false;
+}
+
+const bool SRCPanelTreeNode::GetProtocolBindingsNum() const
+{
+	return false;
+}
+
+const bool SRCPanelTreeNode::SupportsProtocol(const FName& InProtocolName) const
+{
+	return false;
+}
+
+TSharedRef<SWidget> SRCPanelTreeNode::GetWidget(const FName ForColumnName, const FName InActiveProtocol)
 {
 	if (ForColumnName == FRemoteControlPresetColumns::DragDropHandle)
 	{

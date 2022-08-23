@@ -34,6 +34,7 @@ public class RemoteControlUI : ModuleRules
 				"RemoteControl",
 				"RemoteControlCommon",
 				"RemoteControlLogic",				
+				"RemoteControlProtocol",
 				"RemoteControlProtocolWidgets",
 				"SceneOutliner",
 				"Slate",

@@ -20,6 +20,15 @@ FRemoteControlProtocol::~FRemoteControlProtocol()
 	FCoreDelegates::OnEndFrame.RemoveAll(this);
 }
 
+void FRemoteControlProtocol::Init()
+{
+#if WITH_EDITOR
+
+	RegisterColumns();
+
+#endif // WITH_EDITOR
+}
+
 FRemoteControlProtocolEntityPtr FRemoteControlProtocol::CreateNewProtocolEntity(FProperty* InProperty, URemoteControlPreset* InOwner, FGuid InPropertyId) const
 {
 	FRemoteControlProtocolEntityPtr NewDataPtr = MakeShared<TStructOnScope<FRemoteControlProtocolEntity>>();
@@ -62,6 +71,31 @@ void FRemoteControlProtocol::OnEndFrame()
 	PreviousTickValuesToApply = MoveTemp(EntityValuesToApply);
 }
 
+#if WITH_EDITOR
+
+FProtocolColumnPtr FRemoteControlProtocol::GetRegisteredColumn(const FName& ByColumnName) const
+{
+	for (const FProtocolColumnPtr& ProtocolColumn : RegisteredColumns)
+	{
+		if (ProtocolColumn->ColumnName == ByColumnName)
+		{
+			return ProtocolColumn.ToSharedRef();
+		}
+	}
+
+	return nullptr;
+}
+
+void FRemoteControlProtocol::GetRegisteredColumns(TSet<FName>& OutColumns)
+{
+	for (const FProtocolColumnPtr& ProtocolColumn : RegisteredColumns)
+	{
+		OutColumns.Add(ProtocolColumn->ColumnName);
+	}
+}
+
+#endif // WITH_EDITOR
+
 TFunction<bool(FRemoteControlProtocolEntityWeakPtr InProtocolEntityWeakPtr)> FRemoteControlProtocol::CreateProtocolComparator(FGuid InPropertyId)
 {
 	return [InPropertyId](FRemoteControlProtocolEntityWeakPtr InProtocolEntityWeakPtr) -> bool
@@ -74,6 +108,17 @@ TFunction<bool(FRemoteControlProtocolEntityWeakPtr InProtocolEntityWeakPtr)> FRe
 		return false;
 	};
 }
+
+#if WITH_EDITOR
+
+void FRemoteControlProtocol::RegisterColumns()
+{
+	REGISTER_COLUMN(FRemoteControlDefaultProtocolColumns::BindingStatus
+		, NSLOCTEXT("RemoteControlProtocol", "RCPresetBindingStatusColumnHeader", "REC")
+		, 33.f);
+}
+
+#endif // WITH_EDITOR
 
 FProperty* IRemoteControlProtocol::GetRangeInputTemplateProperty() const
 {

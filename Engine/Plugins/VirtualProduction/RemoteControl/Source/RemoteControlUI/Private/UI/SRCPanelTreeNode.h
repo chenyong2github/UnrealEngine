@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IRemoteControlUIModule.h"
+#include "IHasProtocolExtensibility.h"
 #include "Templates/SharedPointer.h"
 #include "Containers/Array.h"
 #include "Misc/Guid.h"
@@ -17,13 +18,29 @@ struct SRCPanelExposedMaterial;
 namespace FRemoteControlPresetColumns
 {
 	static FName DragDropHandle = TEXT("DragDropHandle");
+	static FName LinkIdentifier = TEXT("LinkID");
 	static FName Description = TEXT("Description");
+	static FName Mask = TEXT("Mask");
+	static FName Type = TEXT("Type");
 	static FName Value = TEXT("Value");
+	static FName Status = TEXT("Status");
 	static FName Reset = TEXT("Reset");
 }
 
+namespace ERCColumn
+{
+	enum Position
+	{
+		/** Places the given column after a specific column. */
+		ERC_After,
+
+		/** Places the given column before a specific column. */
+		ERC_Before
+	};
+}
+
 /** A node in the panel tree view. */
-struct SRCPanelTreeNode : public SCompoundWidget
+struct SRCPanelTreeNode : public SCompoundWidget, public IHasProtocolExtensibility
 {
 	enum ENodeType
 	{
@@ -36,6 +53,13 @@ struct SRCPanelTreeNode : public SCompoundWidget
 	};
 
 	virtual ~SRCPanelTreeNode() {}
+
+	//~ BEGIN : IHasProtocolExtensibility Interface
+	virtual TSharedRef<SWidget> GetProtocolWidget(const FName ForColumnName, const FName InProtocolName = NAME_None) override;
+	virtual const bool HasProtocolExtension() const override;
+	virtual const bool GetProtocolBindingsNum() const override;
+	virtual const bool SupportsProtocol(const FName& InProtocolName) const override;
+	//~ END : IHasProtocolExtensibility Interface
 
 	/** Get this tree node's childen. */
 	virtual void GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const {}
@@ -56,7 +80,7 @@ struct SRCPanelTreeNode : public SCompoundWidget
 	/** Updates the highlight text to active search term. */
 	virtual void SetHighlightText(const FText& InHightlightText = FText::GetEmpty()) {};
 	/** Retrieves the referenced widget corresponding to the given column name. */
-	virtual TSharedRef<SWidget> GetWidget(const FName& ForColumnName);
+	virtual TSharedRef<SWidget> GetWidget(const FName ForColumnName, const FName InActiveProtocol);
 
 protected:
 	struct FMakeNodeWidgetArgs
@@ -82,6 +106,11 @@ private:
 	float GetLeftColumnWidth() const;
 	float GetRightColumnWidth() const;
 	void SetColumnWidth(float InWidth);
+
+public:
+
+	/** Columns to be present by default in protocols mode. */
+	static TSet<FName> DefaultColumns;
 
 protected:
 	/** Holds the row's columns' width. */

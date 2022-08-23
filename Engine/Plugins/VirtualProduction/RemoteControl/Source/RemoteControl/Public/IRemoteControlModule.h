@@ -213,6 +213,61 @@ struct FRCObjectReference
 };
 
 /**
+ * Reference to a UObject or one of its properties for the purpose of masking.
+ */
+struct FRCMaskingOperation
+{
+	FRCMaskingOperation() = default;
+
+	explicit FRCMaskingOperation(FRCFieldPathInfo InPathInfo, UObject* InObject)
+		: OperationId(FGuid::NewGuid())
+		, ObjectRef(ERCAccess::NO_ACCESS, InObject, InPathInfo)
+	{
+		check(InObject);
+	}
+	
+	explicit FRCMaskingOperation(const FRCObjectReference& InObjectRef)
+		: OperationId(FGuid::NewGuid())
+		, ObjectRef(InObjectRef)
+	{
+	}
+
+	bool HasMask(ERCMask InMaskBit) const
+	{
+		return (Masks & InMaskBit) != ERCMask::NoMask;
+	}
+
+	bool IsValid() const
+	{
+		return OperationId.IsValid() && ObjectRef.IsValid();
+	}
+
+	friend bool operator==(const FRCMaskingOperation& LHS, const FRCMaskingOperation& RHS)
+	{
+		return LHS.OperationId == RHS.OperationId && LHS.ObjectRef == RHS.ObjectRef;
+	}
+
+	friend uint32 GetTypeHash(const FRCMaskingOperation& MaskingOperation)
+	{
+		return HashCombine(GetTypeHash(MaskingOperation.OperationId), GetTypeHash(MaskingOperation.ObjectRef));
+	}
+
+public:
+
+	/** Unique identifier of the operation being performed. */
+	FGuid OperationId;
+
+	/** Masks to be applied. */
+	ERCMask Masks = ERCMask::NoMask;
+	
+	/** Holds Object reference. */
+	FRCObjectReference ObjectRef;
+
+	/** Holds the state of this RC property before applying any masking. */
+	FVector4 PreMaskingCache = FVector4::Zero();
+};
+
+/**
  * Interface for the remote control module.
  */
 class IRemoteControlModule : public IModuleInterface
@@ -263,6 +318,17 @@ public:
 	 */
 	virtual void UnregisterEmbeddedPreset(FName Name) = 0;
 	virtual void UnregisterEmbeddedPreset(URemoteControlPreset* Preset) = 0;
+
+	/**
+	 * Performs the given masking operation.
+	 * @param InMaskingOperation Masking operation to be performed.
+	 */
+	virtual void PerformMasking(const TSharedRef<FRCMaskingOperation>& InMaskingOperation) = 0;
+
+	/**
+	 * Returns true if the given property can be masked, false otherwise.
+	 */
+	virtual bool SupportsMasking(const FProperty* InProperty) const = 0;
 
 	/**
 	 * Resolve a RemoteCall Object and Function.

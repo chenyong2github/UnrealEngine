@@ -37,8 +37,18 @@ struct FRCPanelStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, Category = Appearance)
 		FSlateBrush ContentAreaBrush;
 	FRCPanelStyle& SetContentAreaBrush(const FSlateBrush& InContentAreaBrush) { ContentAreaBrush = InContentAreaBrush; return *this; }
+	
+	/** Brush used by the RC Panels to draw the content associated with this panel (Dark). */
+	UPROPERTY(EditAnywhere, Category = Appearance)
+		FSlateBrush ContentAreaBrushDark;
+	FRCPanelStyle& SetContentAreaBrushDark(const FSlateBrush& InContentAreaBrushDark) { ContentAreaBrushDark = InContentAreaBrushDark; return *this; }
+	
+	/** Brush used by the RC Panels to draw the content associated with this panel (Light). */
+	UPROPERTY(EditAnywhere, Category = Appearance)
+		FSlateBrush ContentAreaBrushLight;
+	FRCPanelStyle& SetContentAreaBrushLight(const FSlateBrush& InContentAreaBrushLight) { ContentAreaBrushLight = InContentAreaBrushLight; return *this; }
 
-	/** Style used for the add new button */
+	/** Style used for the flat button */
 	UPROPERTY(EditAnywhere, Category = Appearance)
 		FButtonStyle FlatButtonStyle;
 	FRCPanelStyle& SetFlatButtonStyle(const FButtonStyle& InFlatButtonStyle) { FlatButtonStyle = InFlatButtonStyle; return *this; }
@@ -93,7 +103,12 @@ struct FRCPanelStyle : public FSlateWidgetStyle
 		FTableViewStyle TableViewStyle;
 	FRCPanelStyle& SetTableViewStyle(const FTableViewStyle& InTableViewStyle) { TableViewStyle = InTableViewStyle; return *this; }
 
-	/** Style used for the add new button */
+	/** Style used for the switch button */
+	UPROPERTY(EditAnywhere, Category = Appearance)
+		FCheckBoxStyle SwitchButtonStyle;
+	FRCPanelStyle& SetSwitchButtonStyle(const FCheckBoxStyle& InSwitchButtonStyle) { SwitchButtonStyle = InSwitchButtonStyle; return *this; }
+
+	/** Style used for the toggle button */
 	UPROPERTY(EditAnywhere, Category = Appearance)
 		FCheckBoxStyle ToggleButtonStyle;
 	FRCPanelStyle& SetToggleButtonStyle(const FCheckBoxStyle& InToggleButtonStyle) { ToggleButtonStyle = InToggleButtonStyle; return *this; }

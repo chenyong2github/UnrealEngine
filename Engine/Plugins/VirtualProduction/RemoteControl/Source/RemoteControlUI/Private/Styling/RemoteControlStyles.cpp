@@ -26,8 +26,11 @@ void FRCPanelStyle::GetResources(TArray<const FSlateBrush*>& OutBrushes) const
 	FlatButtonStyle.GetResources(OutBrushes);
 	TableRowStyle.GetResources(OutBrushes);
 	TableViewStyle.GetResources(OutBrushes);
+	SwitchButtonStyle.GetResources(OutBrushes);
 	ToggleButtonStyle.GetResources(OutBrushes);
 	OutBrushes.Add(&ContentAreaBrush);
+	OutBrushes.Add(&ContentAreaBrushDark);
+	OutBrushes.Add(&ContentAreaBrushLight);
 	OutBrushes.Add(&SectionHeaderBrush);
 }
 

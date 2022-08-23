@@ -75,7 +75,7 @@ public:
 
 		SLATE_ARGUMENT(bool, EnableHeader)
 
-		SLATE_ARGUMENT(FText, HeaderLabel)
+		SLATE_ATTRIBUTE(FText, HeaderLabel)
 
 		SLATE_ARGUMENT(EOrientation, Orientation)
 
@@ -140,7 +140,7 @@ public:
 
 		SLATE_ARGUMENT(bool, EnableHeader)
 
-		SLATE_ARGUMENT(FText, HeaderLabel)
+		SLATE_ATTRIBUTE(FText, HeaderLabel)
 
 		SLATE_ARGUMENT(EOrientation, Orientation)
 

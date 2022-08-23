@@ -45,6 +45,7 @@
 #include "ScopedTransaction.h"
 #include "SClassViewer.h"
 #include "SRCLogger.h"
+#include "SRCModeSwitcher.h"
 #include "SRCPanelExposedEntitiesList.h"
 #include "SRCPanelFunctionPicker.h"
 #include "SRCPanelExposedActor.h"
@@ -156,8 +157,7 @@ public:
 		const TAttribute<FText> ActualToolTip = UICommand.IsValid() ? UICommand->GetDescription() : FText::GetEmpty();
 
 		// If we were supplied an image than go ahead and use that, otherwise we use a null widget
-		TSharedRef<SLayeredImage> IconWidget =
-			SNew(SLayeredImage)
+		TSharedRef<SLayeredImage> IconWidget = SNew(SLayeredImage)
 			.ColorAndOpacity(this, &SAutoResizeButton::GetIconForegroundColor)
 			.Visibility(EVisibility::HitTestInvisible)
 			.Image(this, &SAutoResizeButton::GetIconBrush);
@@ -292,38 +292,6 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 
 	BindRemoteControlCommands();
 
-	// Rebind All
-	AddToolbarWidget(SNew(SButton)
-		.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
-		.Visibility_Lambda([this]() { return bShowRebindButton ? EVisibility::Visible : EVisibility::Collapsed; })
-		.OnClicked(this, &SRemoteControlPanel::OnClickRebindAllButton)
-		.ContentPadding(2.f)
-		[
-			SNew(SHorizontalBox)
-
-			+SHorizontalBox::Slot()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			.Padding(2.f)
-			[
-				SNew(SImage)
-				.Image(FAppStyle::Get().GetBrush("Icons.Link"))
-				.ColorAndOpacity(FSlateColor::UseForeground())
-			]
-
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(4.f, 2.f)
-			.FillWidth(1.f)
-			[	
-				SNew(STextBlock)
-				.ToolTipText(LOCTEXT("RebindButtonToolTip", "Attempt to rebind all unbound entites of the preset."))
-				.Text(LOCTEXT("RebindButtonText", "Rebind All"))
-				.TextStyle(&RCPanelStyle->PanelTextStyle)
-			]
-		]);
-
 	// Show Log
 	AddToolbarWidget(SNew(SCheckBox)
 		.Style(&RCPanelStyle->ToggleButtonStyle)
@@ -391,7 +359,8 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 				CachedExposedPropertyArgs.Reset();
 			}
 		)
-		.EditMode_Lambda([this]() { return bIsInEditMode; });
+		.EditMode_Lambda([this]() { return bIsInEditMode; })
+		.ProtocolsMode_Lambda([this]() { return IsInProtocolsMode() && ActivePanel == ERCPanels::RCP_Protocols; });
 
 	EntityList->OnSelectionChange().AddSP(this, &SRemoteControlPanel::UpdateEntityDetailsView);
 
@@ -1829,7 +1798,7 @@ void SRemoteControlPanel::GenerateToolbar()
 				[
 					SNew(SSeparator)
 					.SeparatorImage(FAppStyle::Get().GetBrush("Separator"))
-					.Thickness(1.5f)
+					.Thickness(2.f)
 					.Orientation(EOrientation::Orient_Vertical)
 				];
 
@@ -1856,10 +1825,105 @@ void SRemoteControlPanel::GenerateToolbar()
 		.Padding(5.f, 0.f)
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Center)
-		.FillWidth(1.f)
+		.AutoWidth()
 		[
 			SNew(STextBlock)
 			.Text(this, &SRemoteControlPanel::HandlePresetName)
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(5.f, 0.f)
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Center)
+		.FillWidth(1.f)
+		[
+			SNew(SSpacer)
+		]
+		+SHorizontalBox::Slot()
+		.Padding(5.f, 0.f)
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SRCModeSwitcher)
+			.DefaultMode("Setup")
+			.OnModeSwitched_Lambda([this](const SRCModeSwitcher::FRCMode& NewMode)
+				{
+					UE_LOG(LogRemoteControl, Warning, TEXT("Active Mode : %s"), *NewMode.ModeId.ToString());
+				}
+			)
+		
+			+ SRCModeSwitcher::Mode("Setup")
+			.DefaultLabel(FText::Format(LOCTEXT("SetupModeLabel", "{0}"), { FText::FromString("Setup") }))
+			.DefaultTooltip(FText::Format(LOCTEXT("SetupModeTooltip", "Switch to {0} mode."), { FText::FromString("Setup") }))
+			.HAlignCell(HAlign_Fill)
+			.VAlignCell(VAlign_Fill)
+			.FixedWidth(96.f)
+			.OptionalIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"))
+
+			+ SRCModeSwitcher::Mode("Operation")
+			.DefaultLabel(FText::Format(LOCTEXT("OpModeLabel", "{0}"), { FText::FromString("Operation") }))
+			.DefaultTooltip(FText::Format(LOCTEXT("OpModeTooltip", "Switch to {0} mode."), { FText::FromString("Operation") }))
+			.HAlignCell(HAlign_Fill)
+			.VAlignCell(VAlign_Fill)
+			.FixedWidth(96.f)
+			.OptionalIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Blueprint"))
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(5.f, 0.f)
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Center)
+		.FillWidth(1.f)
+		[
+			SNew(SSpacer)
+		]
+		// Companion Separator (Rebind All)
+		+SHorizontalBox::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Fill)
+		.AutoWidth()
+		[
+			SNew(SSeparator)
+			.SeparatorImage(FAppStyle::Get().GetBrush("Separator"))
+			.Thickness(1.5f)
+			.Orientation(EOrientation::Orient_Vertical)
+			.Visibility_Lambda([this]() { return bShowRebindButton ? EVisibility::Visible : EVisibility::Collapsed; })
+		]
+		// Rebind All (Statically added here as we cannot probagagte visibility to its companion separator when dynamically added.)
+		+ SHorizontalBox::Slot()
+		.Padding(5.f, 0.f)
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SButton)
+			.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
+			.Visibility_Lambda([this]() { return bShowRebindButton ? EVisibility::Visible : EVisibility::Collapsed; })
+			.OnClicked(this, &SRemoteControlPanel::OnClickRebindAllButton)
+			.ContentPadding(2.f)
+			[
+				SNew(SHorizontalBox)
+
+				+SHorizontalBox::Slot()
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(2.f)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.Link"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+
+				+SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(4.f, 2.f)
+				.FillWidth(1.f)
+				[	
+					SNew(STextBlock)
+					.ToolTipText(LOCTEXT("RebindButtonToolTip", "Attempt to rebind all unbound entites of the preset."))
+					.Text(LOCTEXT("RebindButtonText", "Rebind All"))
+					.TextStyle(&RCPanelStyle->PanelTextStyle)
+				]
+			]
 		]
 		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Right)
@@ -2037,6 +2101,13 @@ void SRemoteControlPanel::ToggleProtocolMappings_Execute()
 
 			PanelDrawer->TogglePanel(PropertiesPanel);
 		}
+
+		if (EntityList.IsValid())
+		{
+			const bool bToggleProtcolMode = IsInProtocolsMode() && ActivePanel == ERCPanels::RCP_Protocols;
+
+			EntityList->RebuildListWithColumns(bToggleProtcolMode ? EEntitiesListMode::Protocols : EEntitiesListMode::Default);
+		}
 	}
 }
 
@@ -2077,6 +2148,13 @@ void SRemoteControlPanel::OnRCPanelToggled(ERCPanels InPanelID)
 	if (InPanelID != ActivePanel)
 	{
 		ActivePanel = InPanelID;
+		
+		if (EntityList.IsValid())
+		{
+			const bool bToggleProtcolMode = IsInProtocolsMode() && ActivePanel == ERCPanels::RCP_Protocols;
+
+			EntityList->RebuildListWithColumns(bToggleProtcolMode ? EEntitiesListMode::Protocols : EEntitiesListMode::Default);
+		}
 	}
 }
 

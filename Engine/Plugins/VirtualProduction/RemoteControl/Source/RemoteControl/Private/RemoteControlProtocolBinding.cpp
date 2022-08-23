@@ -14,6 +14,14 @@
 #include "UObject/StructOnScope.h"
 #include "UObject/TextProperty.h"
 
+#if WITH_EDITOR
+
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+
+#endif // WITH_EDITOR
+
+
 #define LOCTEXT_NAMESPACE "RemoteControl"
 
 namespace EntityInterpolation
@@ -691,6 +699,12 @@ bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtoco
 	{
 		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, ObjectRef.PropertyPathInfo, ObjectRef);
 
+		TSharedPtr<FRCMaskingOperation> MaskingOperation = MakeShared<FRCMaskingOperation>(ObjectRef.PropertyPathInfo, Object);
+		MaskingOperation->Masks = RemoteControlProperty->GetActiveMasks();
+
+		// Cache the values.
+		IRemoteControlModule::Get().PerformMasking(MaskingOperation.ToSharedRef());
+
 		// Set properties after interpolation
 		TArray<uint8> InterpolatedBuffer;
 		if (GetInterpolatedPropertyBuffer(Property, InProtocolValue, InterpolatedBuffer))
@@ -698,6 +712,9 @@ bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtoco
 			FMemoryReader MemoryReader(InterpolatedBuffer);
 			FCborStructDeserializerBackend CborStructDeserializerBackend(MemoryReader);
 			bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, CborStructDeserializerBackend, ERCPayloadType::Cbor, InterpolatedBuffer);
+
+			// Apply the masked the values.
+			IRemoteControlModule::Get().PerformMasking(MaskingOperation.ToSharedRef());
 		}
 	}
 
@@ -722,6 +739,71 @@ void FRemoteControlProtocolEntity::ResetDefaultBindingState()
 {
 	BindingStatus = ERCBindingStatus::Unassigned;
 }
+
+#if WITH_EDITOR
+
+TSharedRef<SWidget> FRemoteControlProtocolEntity::GetWidget(const FName& ForColumnName)
+{
+	RegisterWidgets();
+
+	TSharedPtr<SWidget> ProtocolWidget = SNullWidget::NullWidget;
+
+	for (const TPair<FName, TSharedPtr<SWidget>>& Widget : Widgets)
+	{
+		if (Widget.Key == ForColumnName && Widget.Value.IsValid())
+		{
+			return Widget.Value.ToSharedRef();
+		}
+	}
+
+	return ProtocolWidget.ToSharedRef();
+}
+
+void FRemoteControlProtocolEntity::RegisterWidgets()
+{
+	if (!Widgets.Contains(FRemoteControlDefaultProtocolColumns::BindingStatus))
+	{
+		TSharedPtr<SWidget> BindingStatusWidget = SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+			.ToolTipText(LOCTEXT("RecordingButtonToolTip", "Status of the protocol entity binding"))
+			.ForegroundColor(FSlateColor::UseForeground())
+			.OnClicked_Lambda([this]()
+				{
+					ToggleBindingStatus();
+
+					return FReply::Handled();
+				}
+			)
+			.Content()
+			[
+				SNew(SImage)
+				.ColorAndOpacity_Lambda([this]()
+					{
+						const ERCBindingStatus ActiveBindingStatus = GetBindingStatus();
+				
+						switch (ActiveBindingStatus)
+						{
+							case ERCBindingStatus::Awaiting:
+								return FLinearColor::Red;
+							case ERCBindingStatus::Bound:
+								return FLinearColor::Green;
+							case ERCBindingStatus::Unassigned:
+								return FLinearColor::Gray;
+							default:
+								checkNoEntry();
+						}
+
+						return FLinearColor::Black;
+					}
+				)
+				.Image(FAppStyle::Get().GetBrush(TEXT("Icons.FilledCircle")))
+			];
+
+		Widgets.Add(FRemoteControlDefaultProtocolColumns::BindingStatus, BindingStatusWidget);
+	}
+}
+
+#endif // WITH_EDITOR
 
 bool FRemoteControlProtocolEntity::GetInterpolatedPropertyBuffer(FProperty* InProperty, double InProtocolValue, TArray<uint8>& OutBuffer)
 {

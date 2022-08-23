@@ -29,6 +29,8 @@ public:
 	virtual bool RegisterEmbeddedPreset(URemoteControlPreset* Preset, bool bReplaceExisting) override;
 	virtual void UnregisterEmbeddedPreset(FName Name) override;
 	virtual void UnregisterEmbeddedPreset(URemoteControlPreset* Preset) override;
+	virtual void PerformMasking(const TSharedRef<FRCMaskingOperation>& InMaskingOperation) override;
+	virtual bool SupportsMasking(const FProperty* InProperty) const override;
 	virtual bool ResolveCall(const FString& ObjectPath, const FString& FunctionName, FRCCallReference& OutCallRef, FString* OutErrorText) override;
 	virtual bool InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadType = ERCPayloadType::Json, const TArray<uint8>& InInterceptPayload = TArray<uint8>()) override;
 	virtual bool ResolveObject(ERCAccess AccessType, const FString& ObjectPath, const FString& PropertyName, FRCObjectReference& OutObjectRef, FString* OutErrorText = nullptr) override;
@@ -62,6 +64,12 @@ public:
 	//~ End IRemoteControlModule
 
 private:
+
+	/** Applies masked values to the given struct property. */
+	void ApplyMaskedValues(const FGuid& FromMaskingOperation, bool bIsInteractive);
+	/** Caches premasking values from the given struct property. */
+	void CacheRawValues(const FGuid& ToMaskingOperation);
+
 	/** Cache all presets in the project for the ResolvePreset function. */
 	void CachePresets() const;
 	
@@ -107,8 +115,8 @@ private:
 	//~ Register/Unregister editor delegates.
 	void RegisterEditorDelegates();
 	void UnregisterEditorDelegates();
-	
-#endif
+
+#endif // WITH_EDITOR
 
 private:
 	/** Cache of preset names to preset assets */
@@ -176,10 +184,17 @@ private:
 
 	/** Delay before we check if a modification is no longer ongoing. */
 	static constexpr float SecondsBetweenOngoingChangeCheck = 0.2f;
-#endif
+
+#endif // WITH_EDITOR
 
 	/** Map of the factories which is responsible for the Remote Control property creation */
 	TMap<FName, TSharedPtr<IRemoteControlPropertyFactory>> EntityFactories;
+
+	/** Holds the set of active masking operations. */
+	TSet<TSharedPtr<FRCMaskingOperation>> ActiveMaskingOperations;
+
+	/** Holds the set of structs supported by masking. */
+	static TSet<UScriptStruct*> MaskingSupportedStructs;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

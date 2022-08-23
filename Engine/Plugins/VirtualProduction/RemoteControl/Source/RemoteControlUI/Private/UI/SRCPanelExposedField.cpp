@@ -5,6 +5,7 @@
 #include "Algo/Transform.h"
 #include "EditorFontGlyphs.h"
 #include "IDetailTreeNode.h"
+#include "IRemoteControlProtocolModule.h"
 #include "IRemoteControlUIModule.h"
 #include "Layout/Visibility.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -21,6 +22,7 @@
 #include "Styling/RemoteControlStyles.h"
 #include "UObject/Object.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Masks/SRCProtocolMask.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
@@ -129,6 +131,71 @@ void SRCPanelExposedField::SetIsHovered(bool bInIsHovered)
 	bIsHovered = bInIsHovered;
 }
 
+TSharedRef<SWidget> SRCPanelExposedField::GetProtocolWidget(const FName ForColumnName, const FName InProtocolName)
+{
+	if (TSharedPtr<FRemoteControlField> RCField = WeakField.Pin())
+	{
+		if (const TSharedPtr<FRemoteControlProperty> RCProperty = StaticCastSharedPtr<FRemoteControlProperty>(RCField))
+		{
+			for (const FRemoteControlProtocolBinding& RCProtocolIter : RCProperty->ProtocolBindings)
+			{
+				if (RCProtocolIter.GetProtocolName() == InProtocolName)
+				{
+					if (TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> RCProtocolEntityPtr = RCProtocolIter.GetRemoteControlProtocolEntityPtr())
+					{
+						return RCProtocolEntityPtr->Get()->GetWidget(ForColumnName);
+					}
+				}
+			}
+		}
+	}
+
+	return SRCPanelTreeNode::GetProtocolWidget(ForColumnName, InProtocolName);
+}
+
+const bool SRCPanelExposedField::HasProtocolExtension() const
+{
+	return GetFieldType() == EExposedFieldType::Property;
+}
+
+const bool SRCPanelExposedField::GetProtocolBindingsNum() const
+{
+	IRemoteControlProtocolModule& RCProtocolModule = IRemoteControlProtocolModule::Get();
+
+	const TArray<FName>& AvailableProtocols = RCProtocolModule.GetProtocolNames();
+
+	if (AvailableProtocols.Num() < 2 || AvailableProtocols.IsEmpty())
+	{
+		return false;
+	}
+
+	const TArray<FName>& SupportedProtocols = AvailableProtocols.FilterByPredicate([&](const FName& ThisProtocol) { return SupportsProtocol(ThisProtocol); });
+
+	return SupportedProtocols.Num() >= 2;
+}
+
+const bool SRCPanelExposedField::SupportsProtocol(const FName& InProtocolName) const
+{
+	if (TSharedPtr<FRemoteControlField> RCField = WeakField.Pin())
+	{
+		if (const TSharedPtr<FRemoteControlProperty> RCProperty = StaticCastSharedPtr<FRemoteControlProperty>(RCField))
+		{
+			if (RCProperty->ProtocolBindings.Num())
+			{
+				for (TSet<FRemoteControlProtocolBinding>::TConstIterator RCProtocolIter(RCProperty->ProtocolBindings); RCProtocolIter; ++RCProtocolIter)
+				{
+					if (RCProtocolIter->GetProtocolName() == InProtocolName)
+					{
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 void SRCPanelExposedField::Refresh()
 {
 	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
@@ -144,6 +211,31 @@ void SRCPanelExposedField::Refresh()
 			ConstructFunctionWidget();
 		}
 	}
+}
+
+TSharedRef<SWidget> SRCPanelExposedField::GetWidget(const FName ForColumnName, const FName InActiveProtocol)
+{
+	if (HasProtocolExtension())
+	{
+		if (ForColumnName == FRemoteControlPresetColumns::Mask)
+		{
+			return SNew(SRCProtocolMask, WeakField);
+		}
+		else if (ForColumnName == FRemoteControlPresetColumns::Status)
+		{
+			return SNew(STextBlock)
+				.Text(LOCTEXT("StatusText", "!"))
+				.TextStyle(&RCPanelStyle->HeaderTextStyle)
+				.ToolTipText_Lambda([this]() { return GetProtocolBindingsNum() ? LOCTEXT("StatusTooltip", "Entity is bound to two or more protocols.") : FText::GetEmpty(); })
+				.Visibility_Lambda([this]() { return GetProtocolBindingsNum() ? EVisibility::Visible : EVisibility::Collapsed; });
+		}
+		else if (!DefaultColumns.Contains(ForColumnName))
+		{
+			return GetProtocolWidget(ForColumnName, InActiveProtocol);
+		}
+	}
+
+	return SRCPanelTreeNode::GetWidget(ForColumnName, InActiveProtocol);
 }
 
 void SRCPanelExposedField::GetBoundObjects(TSet<UObject*>& OutBoundObjects) const

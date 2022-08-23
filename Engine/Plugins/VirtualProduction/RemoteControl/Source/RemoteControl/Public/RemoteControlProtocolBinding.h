@@ -23,6 +23,15 @@ struct FRCObjectReference;
 
 using FGetProtocolMappingCallback = TFunctionRef<void(FRemoteControlProtocolMapping&)>;
 
+#if WITH_EDITOR
+
+namespace FRemoteControlDefaultProtocolColumns
+{
+	static FName BindingStatus = TEXT("BindingStatus");
+}
+
+#endif // WITH_EDITOR
+
 /**
  * Status of the binding 
  */
@@ -33,7 +42,6 @@ enum class ERCBindingStatus : uint8
 	Awaiting,
 	Bound
 };
-
 
 /*
  * Mapping of the range of the values for the protocol
@@ -417,6 +425,16 @@ public:
 	 */
 	virtual bool IsSame(const FRemoteControlProtocolEntity* InOther) { return false; }
 
+#if WITH_EDITOR
+
+	/** Retrieves the widget corresponding to the given column name. */
+	TSharedRef<SWidget> GetWidget(const FName& ForColumnName);
+
+	/** Register(s) all the widgets of this protocol entity. */
+	virtual void RegisterWidgets();
+
+#endif // WITH_EDITOR
+
 public:
 	/** Container for range and mapping value pointers, and an optional number of elements (arrays, strings). */
 	struct FRangeMappingData
@@ -516,6 +534,11 @@ protected:
 	 */
 	UPROPERTY()
 	TSet<FRemoteControlProtocolMapping> Mappings;
+	
+	/** 
+	 * Holds column specific widget(s) for this protocol.
+	 */
+	TMap<FName, TSharedPtr<SWidget>> Widgets;
 
 private:
 	/** Binding status of this protocol entity */

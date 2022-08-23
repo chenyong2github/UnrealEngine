@@ -94,6 +94,21 @@ bool FRemoteControlField::CanBindObject(const UObject* InObjectToBind) const
 	return false;
 }
 
+void FRemoteControlField::ClearMask(ERCMask InMaskBit)
+{
+	ActiveMasks &= ~InMaskBit;
+}
+
+void FRemoteControlField::EnableMask(ERCMask InMaskBit)
+{
+	ActiveMasks |= InMaskBit;
+}
+
+bool FRemoteControlField::HasMask(ERCMask InMaskBit) const
+{
+	return (ActiveMasks & InMaskBit) != ERCMask::NoMask;
+}
+
 void FRemoteControlField::PostSerialize(const FArchive& Ar)
 {
 	if (Ar.IsLoading())
@@ -304,6 +319,24 @@ UClass* FRemoteControlProperty::GetSupportedBindingClass() const
 bool FRemoteControlProperty::IsBound() const
 {
 	return !!GetProperty();
+}
+
+bool FRemoteControlProperty::HasOptionalMask() const
+{
+	if (const FStructProperty* StructProperty = CastField<FStructProperty>(GetProperty()))
+	{
+		return StructProperty->Struct == TBaseStructure<FLinearColor>::Get() ||
+			StructProperty->Struct == TBaseStructure<FVector4>::Get() ||
+			StructProperty->Struct == TBaseStructure<FQuat>::Get() ||
+			StructProperty->Struct == TBaseStructure<FIntVector4>::Get();
+	}
+
+	return FRemoteControlField::HasOptionalMask();
+}
+
+bool FRemoteControlProperty::SupportsMasking() const
+{
+	return IRemoteControlModule::Get().SupportsMasking(GetProperty());
 }
 
 bool FRemoteControlProperty::CheckIsBoundToPropertyPath(const FString& InPath) const

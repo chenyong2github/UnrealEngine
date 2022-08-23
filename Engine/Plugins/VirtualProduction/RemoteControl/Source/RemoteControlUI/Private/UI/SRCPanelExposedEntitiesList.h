@@ -20,6 +20,7 @@ struct FRemoteControlProperty;
 struct FRemoteControlPresetGroup;
 struct FRemoteControlFunction;
 class ITableRow;
+class SHeaderRow;
 class SRCPanelGroup;
 struct SRCPanelTreeNode;
 class SRemoteControlTarget;
@@ -27,6 +28,12 @@ struct SRCPanelExposedField;
 class STableViewBase;
 class URemoteControlPreset;
 struct FRCPanelStyle;
+
+enum class EEntitiesListMode : uint8
+{
+	Default,
+	Protocols
+};
 
 /** Holds information about a group drag and drop event  */
 struct FGroupDragEvent
@@ -54,6 +61,7 @@ public:
 		: _EditMode(true)
 	{}
 		SLATE_ATTRIBUTE(bool, EditMode)
+		SLATE_ATTRIBUTE(bool, ProtocolsMode)
 		SLATE_ATTRIBUTE(TSharedPtr<SWidget>, ExposeComboButton)
 		SLATE_EVENT(FSimpleDelegate, OnEntityListUpdated)
 	SLATE_END_ARGS()
@@ -78,6 +86,9 @@ public:
 	/** Notifies the entities list view that the filter-list filter has changed */
 	void SetBackendFilter(const FRCFilter& InBackendFilter);
 
+	/** Recreate the list with dynamic columns. */
+	void RebuildListWithColumns(EEntitiesListMode InListMode);
+	
 	/** Recreate everything in the panel. */
 	void Refresh();
 	
@@ -94,6 +105,8 @@ public:
 	FSimpleDelegate OnEntityListUpdated() { return OnEntityListUpdatedDelegate; }
 	
 private:
+	/** Handles label to be shown in the entity list header.  */
+	FText HandleEntityListHeaderLabel() const;
 	/** Handles object property changes, used to update arrays correctly.  */
 	void OnObjectPropertyChange(UObject* InObject, FPropertyChangedEvent& InChangeEvent);
 	/** Create exposed entity widgets. */
@@ -158,6 +171,16 @@ private:
 	/** Delete all operation for groups list. */
 	FReply RequestDeleteAllGroups();
 
+	SHeaderRow::FColumn::FArguments CreateColumn(const FName ForColumnName);
+	int32 GetColumnIndex(const FName& ForColumn) const;
+	int32 GetColumnIndex_Internal(const FName& ForColumn, const FName& ExistingColumnName, ERCColumn::Position InPosition) const;
+	FText GetColumnLabel(const FName& ForColumn) const;
+	float GetColumnSize(const FName ForColumn) const;
+	void InsertColumn(const FName& InColumnName);
+	void RemoveColumn(const FName& InColumnName);
+
+	void OnProtocolBindingAddedOrRemoved(ERCProtocolBinding::Op BindingOperation);
+
 private:
 	/** Holds the Groups list view. */
 	TSharedPtr<SListView<TSharedPtr<SRCPanelTreeNode>>> GroupsListView;
@@ -171,10 +194,14 @@ private:
 	TMap<FGuid, TSharedPtr<SRCPanelTreeNode>> FieldWidgetMap;
 	/** Whether the panel is in edit mode. */
 	TAttribute<bool> bIsInEditMode;
+	/** Whether the panel is in protocols mode. */
+	TAttribute<bool> bIsInProtocolsMode;
 	/** Holds the preset asset. */
 	TStrongObjectPtr<URemoteControlPreset> Preset;
 	/** Handle to the delegate called when an object property change is detected. */
 	FDelegateHandle OnPropertyChangedHandle;
+	/** Handle to the delegate called when a binding is added or removed. */
+	FDelegateHandle OnProtocolBindingAddedOrRemovedHandle;
 	/** Delegate called on selected group change. */
 	FOnSelectionChange OnSelectionChangeDelegate;
 	/** The column data shared between all tree nodes in order to share a splitter amongst all rows. */
@@ -195,4 +222,12 @@ private:
 	TSharedPtr<FText> SearchedText;
 	/** Panel Style reference. */
 	const FRCPanelStyle* RCPanelStyle;
+	/** Holds the header row of entities list. */
+	TSharedPtr<SHeaderRow> FieldsHeaderRow;
+	/** Holds the active list mode. */
+	EEntitiesListMode ActiveListMode;
+	/** Holds the active protocol enabled by the mode switcher. */
+	FName ActiveProtocol;
+	/** Columns to be present by default in protocols mode. */
+	static TSet<FName> DefaultProtocolColumns;
 };

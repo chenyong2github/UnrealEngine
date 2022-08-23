@@ -181,6 +181,14 @@ void FRemoteControlPanelStyle::SetupPanelStyles(TSharedRef<FSlateStyleSet> InSty
 
 	StyleSet->Set("RemoteControlPanel.GroupRow", TableRowStyle);
 
+	// Mode Switcher Styles
+	FSlateBrush ContentAreaBrushDark = BOX_BRUSH("Common/DarkGroupBorder", FMargin(4.f / 16.f), FLinearColor(0.5f, 0.5f, 0.5f, 1.f));
+	FSlateBrush ContentAreaBrushLight = BOX_BRUSH("Common/LightGroupBorder", FMargin(4.f / 16.f));
+
+	FCheckBoxStyle SwitchButtonStyle = AppStyle.GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox");
+	SwitchButtonStyle.SetCheckBoxType(ESlateCheckBoxType::ToggleButton);
+	SwitchButtonStyle.SetPadding(FMargin(4.f, 2.f));
+
 	// Text Styles
 	const FStyleFonts& StyleFonts = FStyleFonts::Get();
 
@@ -191,9 +199,12 @@ void FRemoteControlPanelStyle::SetupPanelStyles(TSharedRef<FSlateStyleSet> InSty
 
 	FRCPanelStyle RCMinorPanelStyle = FRCPanelStyle()
 		.SetFlatButtonStyle(FlatButtonStyle)
+		.SetSwitchButtonStyle(SwitchButtonStyle)
 		.SetToggleButtonStyle(ToggleButtonStyle)
 
 		.SetContentAreaBrush(FSlateColorBrush(FStyleColors::Panel))
+		.SetContentAreaBrushDark(ContentAreaBrushDark)
+		.SetContentAreaBrushLight(ContentAreaBrushLight)
 		.SetSectionHeaderBrush(FSlateColorBrush(FStyleColors::Foldout))
 
 		.SetHeaderRowStyle(HeaderRowStyle)

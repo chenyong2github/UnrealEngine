@@ -11,6 +11,8 @@ class SWidget;
 class URemoteControlPreset;
 class SWidget;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnProtocolBindingAddedOrRemoved, ERCProtocolBinding::Op /* BindingOperation */);
+
 /** A Remote Control module that provides editor widgets for protocol bindings. */
 class IRemoteControlProtocolWidgetsModule : public IModuleInterface
 {
@@ -35,4 +37,7 @@ public:
 
 	/** Get the binding list public reference */
 	virtual TSharedPtr<IRCProtocolBindingList> GetProtocolBindingList() const = 0;
+
+	/** Called when binding is added or removed. */
+	virtual FOnProtocolBindingAddedOrRemoved& OnProtocolBindingAddedOrRemoved() = 0;
 };
