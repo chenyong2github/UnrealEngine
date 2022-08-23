@@ -1424,6 +1424,14 @@ namespace UnrealBuildTool
 		public bool bStressTestUnity = false;
 
 		/// <summary>
+		/// Whether to add additional information to the unity files, such as '_of_X' in the file name.
+		/// </summary>
+		[CommandLine("-DetailedUnityFiles", Value = "true")]
+		[CommandLine("-NoDetailedUnityFiles", Value = "false")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bDetailedUnityFiles = true;
+
+		/// <summary>
 		/// Whether to force debug info to be generated.
 		/// </summary>
 		[CommandLine("-ForceDebugInfo")]
@@ -3068,6 +3076,11 @@ namespace UnrealBuildTool
 		public bool bStressTestUnity
 		{
 			get { return Inner.bStressTestUnity; }
+		}
+
+		public bool bDetailedUnityFiles
+		{
+			get { return Inner.bDetailedUnityFiles; }
 		}
 
 		public bool bDisableDebugInfo
