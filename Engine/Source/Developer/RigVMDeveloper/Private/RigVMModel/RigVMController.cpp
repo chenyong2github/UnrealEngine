@@ -16746,6 +16746,13 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 	{
 		InNode->ResolvedPermutation = INDEX_NONE;
 	}
+	else if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode))
+	{
+		if (const FRigVMFunction* Function = UnitNode->GetResolvedFunction())
+		{
+			UnitNode->ResolvedFunctionName = Function->GetName();
+		}
+	}
 	
 	return bAnyTypeChanged;
 }

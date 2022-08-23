@@ -893,6 +893,8 @@ public:
 	
 #endif
 
+	bool FullyResolveTemplateNode(URigVMTemplateNode* InNode, int32 InPermutationIndex, bool bSetupUndoRedo);
+
 	FRigVMUnitNodeCreatedContext& GetUnitNodeCreatedContext() { return UnitNodeCreatedContext; }
 
 	// Wires the unit node delegates to the default controller delegates.
@@ -1055,8 +1057,7 @@ private:
 	static void PostProcessDefaultValue(URigVMPin* Pin, FString& OutDefaultValue);
 
 	void ResolveTemplateNodeMetaData(URigVMTemplateNode* InNode, bool bSetupUndoRedo);
-	bool FullyResolveTemplateNode(URigVMTemplateNode* InNode, int32 InPermutationIndex, bool bSetupUndoRedo);
-
+	
 	// Prepare the graph for the change this template node is about to make
 	// If any of the types is supported (without breaking any links), then the filtered permutations will be updated and the change will
 	// propagate to other nodes in the graph.
