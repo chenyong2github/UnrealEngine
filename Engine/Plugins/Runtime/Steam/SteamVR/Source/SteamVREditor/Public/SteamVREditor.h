@@ -38,6 +38,7 @@ class FToolBarBuilder;
 class FMenuBuilder;
 class SWidget;
 
+class UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.") FSteamVREditorModule;
 class FSteamVREditorModule : public IModuleInterface
 {
 public:
@@ -69,6 +70,7 @@ private:
 
 };
 
+class UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.") FSteamVRSettingsDetailsCustomization;
 class FSteamVRSettingsDetailsCustomization : public IDetailCustomization
 {
 public:

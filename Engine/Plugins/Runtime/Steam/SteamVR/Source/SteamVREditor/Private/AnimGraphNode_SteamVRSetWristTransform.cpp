@@ -33,33 +33,37 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define LOCTEXT_NAMESPACE "SteamVRSetWristTransformAnimNode"
 
-UAnimGraphNode_SteamVRSetWristTransform::UAnimGraphNode_SteamVRSetWristTransform(const FObjectInitializer& ObjectInitializer)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+UDEPRECATED_UAnimGraphNode_SteamVRSetWristTransform::UDEPRECATED_UAnimGraphNode_SteamVRSetWristTransform(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
 
 // Node Color
-FLinearColor UAnimGraphNode_SteamVRSetWristTransform::GetNodeTitleColor() const 
+FLinearColor UDEPRECATED_UAnimGraphNode_SteamVRSetWristTransform::GetNodeTitleColor() const 
 { 
 	return FLinearColor(0.f, 0.f, 255.f, 1.f);
 }
 
 // Node Category
-FText UAnimGraphNode_SteamVRSetWristTransform::GetMenuCategory() const
+FText UDEPRECATED_UAnimGraphNode_SteamVRSetWristTransform::GetMenuCategory() const
 {
 	return LOCTEXT("NodeCategory", "SteamVR Input");
 }
 
 // Node Title
-FText UAnimGraphNode_SteamVRSetWristTransform::GetNodeTitle(ENodeTitleType::Type TitleType) const
+FText UDEPRECATED_UAnimGraphNode_SteamVRSetWristTransform::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	return LOCTEXT("NodeTitle", "SteamVR Set Wrist Transform");
 }
 
 // Node Tooltip
-FText UAnimGraphNode_SteamVRSetWristTransform::GetTooltipText() const
+FText UDEPRECATED_UAnimGraphNode_SteamVRSetWristTransform::GetTooltipText() const
 {
 	return LOCTEXT("NodeTooltip", "Sets the wrist transform of target pose from the reference pose");
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

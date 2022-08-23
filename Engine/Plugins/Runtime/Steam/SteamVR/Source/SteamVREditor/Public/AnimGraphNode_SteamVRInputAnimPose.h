@@ -37,12 +37,13 @@ POSSIBILITY OF SUCH DAMAGE.
 
 using namespace vr;
 
-UCLASS()
-class UAnimGraphNode_SteamVRInputAnimPose : public UAnimGraphNode_Base
+UCLASS(deprecated, meta = (DeprecationMessage = "SteamVR plugin is deprecated; please use the OpenXR plugin."))
+class UDEPRECATED_UAnimGraphNode_SteamVRInputAnimPose : public UAnimGraphNode_Base
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category=Settings)
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, Category=Settings, meta = (DeprecatedProperty))
 	FAnimNode_SteamVRInputAnimPose Node;
 
 public:

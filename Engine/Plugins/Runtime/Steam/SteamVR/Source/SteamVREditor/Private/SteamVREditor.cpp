@@ -50,6 +50,8 @@ static const FName SteamVREditorTabName("SteamVREditor");
 
 #define LOCTEXT_NAMESPACE "FSteamVREditorModule"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 void FSteamVREditorModule::StartupModule()
 {
 	RegisterSettings();
@@ -124,7 +126,7 @@ bool FSteamVREditorModule::ShowSteamVRInputToolbarDropdown()
 	if (GEngine && GEngine->XRSystem.IsValid() && (GEngine->XRSystem->GetSystemName() == SystemName))
 	{
 		// Only show the toolbar button if enabled by the user for this project.  Setting is under Project Settings > PLugins > SteamVR now instead.
-		USteamVREditorSettings* SteamVREditorSettings = GetMutableDefault<USteamVREditorSettings>();
+		UDEPRECATED_USteamVREditorSettings* SteamVREditorSettings = GetMutableDefault<UDEPRECATED_USteamVREditorSettings>();
 		if (SteamVREditorSettings->bShowSteamVrInputToolbarButton)
 		{
 			return true;
@@ -358,11 +360,11 @@ void FSteamVREditorModule::RegisterSettings()
 		SettingsModule->RegisterSettings("Project", "Plugins", "SteamVR",
 			LOCTEXT("SteamVREditorSettingsName", "SteamVR"),
 			LOCTEXT("SteamVREditorSettingsDescription", "Configure the SteamVR plugin"),
-			GetMutableDefault<USteamVREditorSettings>()
+			GetMutableDefault<UDEPRECATED_USteamVREditorSettings>()
 		);
 
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PropertyModule.RegisterCustomClassLayout(USteamVREditorSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FSteamVRSettingsDetailsCustomization::MakeInstance));
+		PropertyModule.RegisterCustomClassLayout(UDEPRECATED_USteamVREditorSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FSteamVRSettingsDetailsCustomization::MakeInstance));
 	}
 }
 
@@ -467,5 +469,7 @@ FReply FSteamVRSettingsDetailsCustomization::LaunchBindingsURL()
 	SteamVREditorModule.LaunchBindingsURL();
 	return FReply::Handled();
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

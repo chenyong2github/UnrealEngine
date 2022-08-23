@@ -9,12 +9,13 @@
 /**
  * 
  */
-UCLASS(config = Editor, defaultconfig)
-class STEAMVREDITOR_API USteamVREditorSettings : public UObject
+UCLASS(config = Editor, defaultconfig, deprecated, meta = (DeprecationMessage = "SteamVR plugin is deprecated; please use the OpenXR plugin."))
+class STEAMVREDITOR_API UDEPRECATED_USteamVREditorSettings : public UObject
 {
 	GENERATED_BODY()
 public:
 	/** Whether or not to show the SteamVR Input settings toolbar button */
-	UPROPERTY(config, EditAnywhere, Category = "SteamVR Editor Settings")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(config, EditAnywhere, Category = "SteamVR Editor Settings", meta = (DeprecatedProperty))
 	bool bShowSteamVrInputToolbarButton;
 };
