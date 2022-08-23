@@ -77,6 +77,10 @@ public class Launch : ModuleRules
 				});
 			}
 
+			DynamicallyLoadedModuleNames.AddRange(new string[] {
+					"AudioMixerPlatformAudioLink",
+				});
+
 			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				DynamicallyLoadedModuleNames.AddRange(new string[] {
