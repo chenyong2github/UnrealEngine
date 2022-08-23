@@ -131,8 +131,8 @@ private:
 		uint16 BlendChannel;
 		/** The index of this property within FPropertyRegistry::GetProperties. */
 		int32 PropertyDefinitionIndex;
-		/** true if this property has already been inspected for float-to-double conversion */
-		TOptional<bool> bRequiresTypeConversion;
+		/** Index of a float-based property if this property has been set for float-to-double conversion */
+		TOptional<int32> ConvertedFromPropertyDefinitionIndex;
 		/** true if any of the contributors to this property need restore state. */
 		bool bWantsRestoreState;
 	};
