@@ -33,6 +33,8 @@
 // Utility functions
 //-------------------------------------------------------------------------------------------------
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 namespace OculusHMD
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
@@ -254,3 +256,6 @@ namespace OculusHMD
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 
 } // namespace OculusHMD
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+

@@ -28,6 +28,7 @@
 #include "XRThreadUtils.h"
 #include "ProceduralMeshComponent.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 namespace OculusHMD
 {
@@ -67,7 +68,7 @@ enum FRecenterTypes
 
 class FOculusHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public IStereoLayers, public FHMDSceneViewExtension, public FOculusAssetManager
 {
-	friend class UOculusFunctionLibrary;
+	friend class UDEPRECATED_UOculusFunctionLibrary;
 	friend FOculusHMDModule;
 	friend class FSplash;
 	friend class FConsoleCommands;
@@ -467,5 +468,7 @@ typedef TSharedPtr< FOculusHMD, ESPMode::ThreadSafe > FOculusHMDPtr;
 
 
 } // namespace OculusHMD
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif //OCULUS_HMD_SUPPORTED_PLATFORMS

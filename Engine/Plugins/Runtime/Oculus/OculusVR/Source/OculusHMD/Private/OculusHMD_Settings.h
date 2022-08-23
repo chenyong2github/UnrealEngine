@@ -5,6 +5,8 @@
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 namespace OculusHMD
 {
 
@@ -128,5 +130,7 @@ public:
 typedef TSharedPtr<FSettings, ESPMode::ThreadSafe> FSettingsPtr;
 
 } // namespace OculusHMD
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif //OCULUS_HMD_SUPPORTED_PLATFORMS

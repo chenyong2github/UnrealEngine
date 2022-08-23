@@ -13,9 +13,11 @@ namespace OculusHMD
 	class FOculusHMD;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /* Tracked device types corresponding to ovrTrackedDeviceType enum*/
 UENUM(BlueprintType)
-enum class ETrackedDeviceType : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") ETrackedDeviceType : uint8
 {
 	None UMETA(DisplayName = "No Devices"),
 	HMD	UMETA(DisplayName = "HMD"),
@@ -26,15 +28,17 @@ enum class ETrackedDeviceType : uint8
 	All	UMETA(DisplayName = "All Devices")
 };
 
-USTRUCT(BlueprintType, meta = (DisplayName = "HMD User Profile Data Field"))
+USTRUCT(BlueprintType, meta = (DisplayName = "HMD User Profile Data Field", Deprecated = "5.1"))
 struct FHmdUserProfileField
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay", meta = (DeprecatedProperty))
 	FString FieldName;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay", meta = (DeprecatedProperty))
 	FString FieldValue;
 
 	FHmdUserProfileField() {}
@@ -42,36 +46,43 @@ struct FHmdUserProfileField
 		FieldName(Name), FieldValue(Value) {}
 };
 
-USTRUCT(BlueprintType, meta = (DisplayName = "HMD User Profile Data"))
+USTRUCT(BlueprintType, meta = (DisplayName = "HMD User Profile Data", Deprecated = "5.1"))
 struct FHmdUserProfile
 {
 	GENERATED_USTRUCT_BODY()
 
 	/** Name of the user's profile. */
-	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay", meta = (DeprecatedProperty))
 	FString Name;
 
 	/** Gender of the user ("male", "female", etc). */
-	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay", meta = (DeprecatedProperty))
 	FString Gender;
 
 	/** Height of the player, in meters */
-	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay", meta = (DeprecatedProperty))
 	float PlayerHeight;
 
 	/** Height of the player, in meters */
-	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay", meta = (DeprecatedProperty))
 	float EyeHeight;
 
 	/** Interpupillary distance of the player, in meters */
-	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay", meta = (DeprecatedProperty))
 	float IPD;
 
 	/** Neck-to-eye distance, in meters. X - horizontal, Y - vertical. */
-	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay", meta = (DeprecatedProperty))
 	FVector2D NeckToEyeDistance;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UPROPERTY(BlueprintReadWrite, Category = "Input|HeadMountedDisplay", meta = (DeprecatedProperty))
 	TArray<FHmdUserProfileField> ExtraFields;
 
 	FHmdUserProfile() :
@@ -79,7 +90,7 @@ struct FHmdUserProfile
 };
 
 UENUM(BlueprintType)
-enum class EFixedFoveatedRenderingLevel : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") EFixedFoveatedRenderingLevel : uint8
 {
 	FFR_Off = 0,
 	FFR_Low = 1,
@@ -91,14 +102,14 @@ enum class EFixedFoveatedRenderingLevel : uint8
 
 /* Guardian boundary types*/
 UENUM(BlueprintType)
-enum class EBoundaryType : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") EBoundaryType : uint8
 {
 	Boundary_Outer	UMETA(DisplayName = "Outer Boundary"),
 	Boundary_PlayArea	UMETA(DisplayName = "Play Area"),
 };
 
 UENUM(BlueprintType)
-enum class EOculusColorSpace : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") EOculusColorSpace : uint8
 {
 	/// The default value from GetHmdColorSpace until SetClientColorDesc is called. Only valid on PC, and will be remapped to Quest on Mobile
 	Unknown = 0,
@@ -121,7 +132,7 @@ enum class EOculusColorSpace : uint8
 };
 
 UENUM(BlueprintType)
-enum class EHandTrackingSupport : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") EHandTrackingSupport : uint8
 {
 	ControllersOnly,
 	ControllersAndHands,
@@ -129,7 +140,7 @@ enum class EHandTrackingSupport : uint8
 };
 
 UENUM(BlueprintType)
-enum class EHandTrackingFrequency : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") EHandTrackingFrequency : uint8
 {
 	LOW,
 	HIGH,
@@ -137,7 +148,7 @@ enum class EHandTrackingFrequency : uint8
 };
 
 UENUM(BlueprintType)
-enum class EOculusDeviceType : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") EOculusDeviceType : uint8
 {
 	//mobile HMDs 
 	OculusMobile_Deprecated0 = 0,
@@ -157,7 +168,7 @@ enum class EOculusDeviceType : uint8
 };
 
 UENUM(BlueprintType)
-enum class EOculusXrApi : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") EOculusXrApi : uint8
 {
 	LegacyOVRPlugin = 0 UMETA(DisplayName = "Legacy Oculus SDK (no longer developed by Epic)", ToolTip = "Legacy Oculus SDK. Epic is no longer developing for this SDK, and it should only be used if there are features required for a project that are not yet supported through OpenXR, but it's hard to guarantee potential bugs will be fixed as it's not in active development at Epic. Epic recommends Native OpenXR instead, as that will be the main development focus going forward."),
 	
@@ -171,34 +182,39 @@ enum class EOculusXrApi : uint8
 * EBoundaryType::Boundary_PlayArea) and a device or point in the world.
 * All dimensions, points, and vectors are returned in Unreal world coordinate space.
 */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta = (Deprecated = "5.1"))
 struct FGuardianTestResult
 {
 	GENERATED_BODY()
 
 	/** Is there a triggering interaction between the device/point and specified boundary? */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result", meta = (DeprecatedProperty))
 	bool IsTriggering = false;
 
 	/** Device type triggering boundary (ETrackedDeviceType::None if BoundaryTestResult corresponds to a point rather than a device) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result", meta = (DeprecatedProperty))
 	ETrackedDeviceType DeviceType = ETrackedDeviceType::None;
 
 	/** Distance of device/point to surface of boundary specified by BoundaryType */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result", meta = (DeprecatedProperty))
 	float ClosestDistance = 0.0f;
 
 	/** Closest point on surface corresponding to specified boundary */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result", meta = (DeprecatedProperty))
 	FVector ClosestPoint = FVector(0.0f);
 
 	/** Normal of closest point */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boundary Test Result", meta = (DeprecatedProperty))
 	FVector ClosestPointNormal = FVector(0.0f, 0.0f, 1.0f);
 };
 
-UCLASS()
-class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
+UCLASS(deprecated, meta = (DeprecationMessage = "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace."))
+class OCULUSHMD_API UDEPRECATED_UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
@@ -212,7 +228,8 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	 * @param bUsePositionForPlayerCamera	(in) Should be set to 'true' if the position is going to be used to update position of the camera manually.
 	 * @param PositionScale		(in) The 3D scale that will be applied to position.
 	 */
-	UFUNCTION(BlueprintPure, Category="OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static void GetPose(FRotator& DeviceRotation, FVector& DevicePosition, FVector& NeckPosition, bool bUseOrienationForPlayerCamera = false, bool bUsePositionForPlayerCamera = false, const FVector PositionScale = FVector::ZeroVector);
 
 	/**
@@ -224,18 +241,21 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	* @param LinearVelocity			(out) Velocity in meters per second.
 	* @param TimeInSeconds			(out) Time when the reported IMU reading took place, in seconds.
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static void GetRawSensorData(FVector& AngularAcceleration, FVector& LinearAcceleration, FVector& AngularVelocity, FVector& LinearVelocity, float& TimeInSeconds, ETrackedDeviceType DeviceType = ETrackedDeviceType::HMD);
 
 	/**
 	* Returns if the device is currently tracked by the runtime or not.
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static bool IsDeviceTracked(ETrackedDeviceType DeviceType);
 
 	/**
 	* Returns if the device is currently tracked by the runtime or not.
 	*/
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
 	UFUNCTION(BlueprintCallable, Category = "OculusLibrary")
 	static void SetCPUAndGPULevels(int CPULevel, int GPULevel);
 
@@ -245,7 +265,8 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	* @param Profile		(out) Structure to hold current user profile.
 	* @return (boolean)	True, if user profile was acquired.
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static bool GetUserProfile(FHmdUserProfile& Profile);
 
 	/**
@@ -260,7 +281,8 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	* @param BaseOffsetInMeters (in) the vector to be set as base offset, in meters.
 	* @param Options			(in) specifies either position, orientation or both should be set.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static void SetBaseRotationAndBaseOffsetInMeters(FRotator Rotation, FVector BaseOffsetInMeters, EOrientPositionSelector::Type Options);
 
 	/**
@@ -273,7 +295,8 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	* @param OutRotation			(out) Rotator object with base rotation
 	* @param OutBaseOffsetInMeters	(out) base position offset, vector, in meters.
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static void GetBaseRotationAndBaseOffsetInMeters(FRotator& OutRotation, FVector& OutBaseOffsetInMeters);
 
 	/**
@@ -281,6 +304,7 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	 *
 	 * @param PosScale3D	(in) the scale to apply to the HMD position.
 	 */
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
 	UFUNCTION(BlueprintCallable, Category = "OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "This feature is no longer supported."))
 	static void SetPositionScale3D(FVector PosScale3D) { }
 
@@ -295,6 +319,7 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	 * @param PosOffset			(in) the vector to be added to HMD position.
 	 * @param Options			(in) specifies either position, orientation or both should be set.
 	 */
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
 	UFUNCTION(BlueprintCallable, Category = "OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "A hack, proper camera positioning should be used"))
 	static void SetBaseRotationAndPositionOffset(FRotator BaseRot, FVector PosOffset, EOrientPositionSelector::Type Options);
 
@@ -304,6 +329,7 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	 * @param OutRot			(out) Rotator object with base rotation
 	 * @param OutPosOffset		(out) the vector with previously set position offset.
 	 */
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
 	UFUNCTION(BlueprintCallable, Category = "OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "A hack, proper camera positioning should be used"))
 	static void GetBaseRotationAndPositionOffset(FRotator& OutRot, FVector& OutPosOffset);
 
@@ -317,49 +343,57 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	 * @param DeltaRotation		(in) Incremental rotation, that is added each 2nd frame to the quad transform. The quad is rotated around the center of the quad.
 	 * @param bClearBeforeAdd	(in) If true, clears splashes before adding a new one.
 	 */
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
 	UFUNCTION(BlueprintCallable, Category = "OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "Use Add Loading Screen Splash from the Head Mounted Display Loading Screen functions instead."))
 	static void AddLoadingSplashScreen(class UTexture2D* Texture, FVector TranslationInMeters, FRotator Rotation, FVector2D SizeInMeters = FVector2D(1.0f, 1.0f), FRotator DeltaRotation = FRotator::ZeroRotator, bool bClearBeforeAdd = false);
 
 	/**
 	 * Removes all the splash screens.
 	 */
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
 	UFUNCTION(BlueprintCallable, Category = "OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "Use Clear Loading Screen Splashes from the Head Mounted Display Loading Screen functions instead."))
 	static void ClearLoadingSplashScreens();
 
 	/**
 	* Returns true, if the app has input focus.
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static bool HasInputFocus();
 
 	/**
 	* Returns true, if the system overlay is present.
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static bool HasSystemOverlayPresent();
 
 	/**
 	* Returns the GPU utilization availability and value
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static void GetGPUUtilization(bool& IsGPUAvailable, float& GPUUtilization);
 
 	/**
 	* Returns the GPU frame time on supported mobile platforms (Go for now)
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static float GetGPUFrameTime();
 
 	/**
 	* Returns the current multiresolution level
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static EFixedFoveatedRenderingLevel GetFixedFoveatedRenderingLevel();
 
 	/**
 	* Set the requested multiresolution level for the next frame, and whether FFR's level is now dynamic or not.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static void SetFixedFoveatedRenderingLevel(EFixedFoveatedRenderingLevel level, bool isDynamic);
 
 	/**
@@ -369,80 +403,93 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category = "OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "UOculusFunctionLibrary::GetDeviceName has been deprecated and no longer functions as before. Please use the enum-based GetDeviceType instead."))
 	static FString GetDeviceName();
 
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static EOculusDeviceType GetDeviceType();
 
 	/**
 	* Returns the current available frequencies
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static TArray<float> GetAvailableDisplayFrequencies();
 
 	/**
 	* Returns the current display frequency
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static float GetCurrentDisplayFrequency();
 
 	/**
 	* Sets the requested display frequency
 	*/
-	UFUNCTION(BlueprintCallable, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static void SetDisplayFrequency(float RequestedFrequency);
 
 	/**
 	* Enables/disables positional tracking on devices that support it.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static void EnablePositionTracking(bool bPositionTracking);
 
 	/**
 	* Enables/disables orientation tracking on devices that support it.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static void EnableOrientationTracking(bool bOrientationTracking);
 
 	/**
 	* Set the Color Scale/Offset
 	*/
-	UFUNCTION(BlueprintCallable, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static void SetColorScaleAndOffset(FLinearColor ColorScale, FLinearColor ColorOffset, bool bApplyToAllLayers = false);
 
 	/**
 	* Returns true if system headset is in 3dof mode 
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static bool GetSystemHmd3DofModeEnabled();
 
 	/**
 	* Returns the color space of the target HMD
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category="OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static EOculusColorSpace GetHmdColorDesc();
 
 	/**
 	* Sets the target HMD to do color space correction to a specific color space
 	*/
-	UFUNCTION(BlueprintCallable, Category = "OculusLibrary")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static void SetClientColorDesc(EOculusColorSpace ColorSpace);
 
 	/**
 	 * Returns IStereoLayers interface to work with overlays.
 	 */
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
 	static class IStereoLayers* GetStereoLayers();
 
 	/* GUARDIAN API */
 	/**
 	* Returns true if the Guardian Outer Boundary is being displayed
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|Guardian")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|Guardian", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static bool IsGuardianDisplayed();
 
 	/* GUARDIAN API */
 	/**
 	* Returns true if the Guardian has been set up by the user, false if the user is in "seated" mode and has not set up a play space.
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|Guardian")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|Guardian", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static bool IsGuardianConfigured();
 
 	/**
@@ -450,20 +497,23 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	* @param BoundaryType			(in) An enum representing the boundary type requested, either Outer Boundary (exact guardian bounds) or PlayArea (rectangle inside the Outer Boundary)
 	* @param UsePawnSpace			(in) Boolean indicating to return the points in world space or pawn space
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|Guardian")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|Guardian", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static TArray<FVector> GetGuardianPoints(EBoundaryType BoundaryType, bool UsePawnSpace = false);
 
 	/**
 	* Returns the dimensions in UE world space of the requested Boundary Type
 	* @param BoundaryType			(in) An enum representing the boundary type requested, either Outer Boundary (exact guardian bounds) or PlayArea (rectangle inside the Outer Boundary)
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|Guardian")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|Guardian", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static FVector GetGuardianDimensions(EBoundaryType BoundaryType);
 
 	/**
 	* Returns the transform of the play area rectangle, defining its position, rotation and scale to apply to a unit cube to match it with the play area.
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|Guardian")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|Guardian", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static FTransform GetPlayAreaTransform();
 
 	/**
@@ -471,7 +521,8 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	* @param Point					(in) Point in UE space to test against guardian boundaries
 	* @param BoundaryType			(in) An enum representing the boundary type requested, either Outer Boundary (exact guardian bounds) or PlayArea (rectangle inside the Outer Boundary)
 	*/
-	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|Guardian")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|Guardian", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static FGuardianTestResult GetPointGuardianIntersection(const FVector Point, EBoundaryType BoundaryType);
 
 	/**
@@ -479,14 +530,16 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 	* @param DeviceType             (in) Tracked Device type to test against guardian boundaries
 	* @param BoundaryType			(in) An enum representing the boundary type requested, either Outer Boundary (exact guardian bounds) or PlayArea (rectangle inside the Outer Boundary)
 	*/
-	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|Guardian")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|Guardian", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static FGuardianTestResult GetNodeGuardianIntersection(ETrackedDeviceType DeviceType, EBoundaryType BoundaryType);
 
 	/**
 	* Forces the runtime to render guardian at all times or not
 	* @param GuardianVisible			(in) True will display guardian, False will hide it
 	*/
-	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|Guardian")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|Guardian", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static void SetGuardianVisibility(bool GuardianVisible);
 
 	/** When player triggers the Guardian boundary */
@@ -509,3 +562,5 @@ class OCULUSHMD_API UOculusFunctionLibrary : public UBlueprintFunctionLibrary
 protected:
 	static class OculusHMD::FOculusHMD* GetOculusHMD();
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

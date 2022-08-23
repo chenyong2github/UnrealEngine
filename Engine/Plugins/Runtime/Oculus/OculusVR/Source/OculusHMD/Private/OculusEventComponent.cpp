@@ -3,14 +3,14 @@
 #include "OculusHMD.h"
 #include "OculusDelegates.h"
 
-void UOculusEventComponent::OnRegister()
+void UDEPRECATED_UOculusEventComponent::OnRegister()
 {
 	Super::OnRegister();
 
-	FOculusEventDelegates::OculusDisplayRefreshRateChanged.AddUObject(this, &UOculusEventComponent::OculusDisplayRefreshRateChanged_Handler);
+	FOculusEventDelegates::OculusDisplayRefreshRateChanged.AddUObject(this, &UDEPRECATED_UOculusEventComponent::OculusDisplayRefreshRateChanged_Handler);
 }
 
-void UOculusEventComponent::OnUnregister()
+void UDEPRECATED_UOculusEventComponent::OnUnregister()
 {
 	Super::OnUnregister();
 

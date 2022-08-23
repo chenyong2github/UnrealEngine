@@ -14,6 +14,8 @@
 #include "OculusHMDTypes.h"
 #endif
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 namespace OculusHMD
 {
 
@@ -85,7 +87,7 @@ void FSplash::Tick_RenderThread(float DeltaTime)
 
 void FSplash::LoadSettings()
 {
-	UOculusHMDRuntimeSettings* HMDSettings = GetMutableDefault<UOculusHMDRuntimeSettings>();
+	UDEPRECATED_UOculusHMDRuntimeSettings* HMDSettings = GetMutableDefault<UDEPRECATED_UOculusHMDRuntimeSettings>();
 	check(HMDSettings);
 	ClearSplashes();
 	for (const FOculusSplashDesc& SplashDesc : HMDSettings->SplashDescs)
@@ -165,7 +167,7 @@ void FSplash::Startup()
 #if WITH_EDITOR
 		PieBeginDelegateHandle = FEditorDelegates::BeginPIE.AddRaw(this, &FSplash::OnPieBegin);
 #else
-		UOculusHMDRuntimeSettings* HMDSettings = GetMutableDefault<UOculusHMDRuntimeSettings>();
+		UDEPRECATED_UOculusHMDRuntimeSettings* HMDSettings = GetMutableDefault<UDEPRECATED_UOculusHMDRuntimeSettings>();
 		check(HMDSettings);
 		if (HMDSettings->bAutoEnabled)
 		{
@@ -669,5 +671,7 @@ void FSplash::UnloadTexture(FSplashLayer& InSplashLayer)
 
 
 } // namespace OculusHMD
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS

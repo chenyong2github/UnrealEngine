@@ -3,11 +3,13 @@
 #include "OculusHMDRuntimeSettings.h"
 
 //////////////////////////////////////////////////////////////////////////
-// UOculusHMDRuntimeSettings
+// UDEPRECATED_UOculusHMDRuntimeSettings
 
 #include "OculusHMD_Settings.h"
 
-UOculusHMDRuntimeSettings::UOculusHMDRuntimeSettings(const FObjectInitializer& ObjectInitializer)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+UDEPRECATED_UOculusHMDRuntimeSettings::UDEPRECATED_UOculusHMDRuntimeSettings(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 , bAutoEnabled(true)
 {
@@ -52,14 +54,14 @@ UOculusHMDRuntimeSettings::UOculusHMDRuntimeSettings(const FObjectInitializer& O
 }
 
 #if WITH_EDITOR
-bool UOculusHMDRuntimeSettings::CanEditChange(const FProperty* InProperty) const
+bool UDEPRECATED_UOculusHMDRuntimeSettings::CanEditChange(const FProperty* InProperty) const
 {
 	bool bIsEditable = Super::CanEditChange(InProperty);
 	if (bIsEditable && InProperty)
 	{
 		const FName PropertyName = InProperty->GetFName();
 
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UOculusHMDRuntimeSettings, bFocusAware))
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UDEPRECATED_UOculusHMDRuntimeSettings, bFocusAware))
 		{
 			bIsEditable = false;
 		}
@@ -69,7 +71,7 @@ bool UOculusHMDRuntimeSettings::CanEditChange(const FProperty* InProperty) const
 }
 #endif // WITH_EDITOR
 
-void UOculusHMDRuntimeSettings::LoadFromIni()
+void UDEPRECATED_UOculusHMDRuntimeSettings::LoadFromIni()
 {
 	const TCHAR* OculusSettings = TEXT("Oculus.Settings");
 	bool v;
@@ -95,3 +97,5 @@ void UOculusHMDRuntimeSettings::LoadFromIni()
 		bCompositesDepth = v;
 	}
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

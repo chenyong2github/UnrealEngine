@@ -21,6 +21,7 @@
 
 OculusPluginWrapper FOculusHMDModule::PluginWrapper;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FOculusHMDModule::FOculusHMDModule()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
@@ -174,7 +175,7 @@ bool FOculusHMDModule::PreInit()
 bool FOculusHMDModule::IsHMDConnected()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
-	UOculusHMDRuntimeSettings* HMDSettings = GetMutableDefault<UOculusHMDRuntimeSettings>();
+	UDEPRECATED_UOculusHMDRuntimeSettings* HMDSettings = GetMutableDefault<UDEPRECATED_UOculusHMDRuntimeSettings>();
 	if (FApp::CanEverRender() && OculusHMD::IsOculusHMDConnected() && HMDSettings->XrApi != EOculusXrApi::NativeOpenXR)
 	{
 		return true;
@@ -411,5 +412,7 @@ void FOculusHMDModule::SetGraphicsAdapterLuid(uint64 InLuid)
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS_D3D11 || OCULUS_HMD_SUPPORTED_PLATFORMS_D3D12
 }
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 IMPLEMENT_MODULE(FOculusHMDModule, OculusHMD)

@@ -51,6 +51,8 @@
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 static TAutoConsoleVariable<int32> CVarOculusEnableSubsampledLayout(
 	TEXT("r.Mobile.Oculus.EnableSubsampled"),
 	0,
@@ -3691,7 +3693,7 @@ namespace OculusHMD
 
 	void FOculusHMD::LoadFromSettings()
 	{
-		UOculusHMDRuntimeSettings* HMDSettings = GetMutableDefault<UOculusHMDRuntimeSettings>();
+		UDEPRECATED_UOculusHMDRuntimeSettings* HMDSettings = GetMutableDefault<UDEPRECATED_UOculusHMDRuntimeSettings>();
 		check(HMDSettings);
 
 		Settings->Flags.bSupportsDash = HMDSettings->bSupportsDash;
@@ -3704,7 +3706,6 @@ namespace OculusHMD
 		Settings->ColorSpace = HMDSettings->ColorSpace;
 		Settings->bLateLatching = HMDSettings->bLateLatching;
 		Settings->bPhaseSync = HMDSettings->bPhaseSync;
-
 
 		// Set FFR level and dynamic from rendering settings
 		UEnum* FFREnum = StaticEnum<EFixedFoveatedRenderingLevel>();
@@ -3719,5 +3720,7 @@ namespace OculusHMD
 	/// @endcond
 
 } // namespace OculusHMD
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif //OCULUS_HMD_SUPPORTED_PLATFORMS

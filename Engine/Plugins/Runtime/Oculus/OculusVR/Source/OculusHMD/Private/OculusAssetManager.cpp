@@ -14,6 +14,7 @@
 /* FOculusAssetDirectory
  *****************************************************************************/
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FSoftObjectPath FOculusAssetDirectory::AssetListing[] =
 {
 	FString(TEXT("/OculusVR/Meshes/RiftHMD.RiftHMD")),
@@ -260,4 +261,5 @@ UPrimitiveComponent* FOculusAssetManager::CreateRenderComponent(const int32 Devi
 	OnLoadComplete.ExecuteIfBound(NewRenderComponent);
 	return NewRenderComponent;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 

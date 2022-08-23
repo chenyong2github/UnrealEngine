@@ -10,38 +10,54 @@
 #include "UObject/SoftObjectPath.h"
 #include "OculusHMDTypes.generated.h"
 
-USTRUCT()
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+USTRUCT(meta = (Deprecated = "5.1"))
 struct FOculusSplashDesc
 {
 	GENERATED_USTRUCT_BODY()
 
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
 	UPROPERTY(config, EditAnywhere, Category = Settings, meta = (
 		AllowedClasses = "/Script/Engine.Texture",
-		ToolTip = "Texture to display"))
+		ToolTip = "Texture to display",
+		DeprecatedProperty))
 	FSoftObjectPath		TexturePath;
 
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
 	UPROPERTY(config, EditAnywhere, Category = Settings, meta = (
-		ToolTip = "transform of center of quad (meters)."))
+		ToolTip = "transform of center of quad (meters).",
+		DeprecatedProperty))
 	FTransform			TransformInMeters;
 
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
 	UPROPERTY(config, EditAnywhere, Category = Settings, meta = (
-		ToolTip = "Dimensions in meters."))
+		ToolTip = "Dimensions in meters.",
+		DeprecatedProperty))
 	FVector2D			QuadSizeInMeters;
 
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
 	UPROPERTY(config, EditAnywhere, Category = Settings, meta = (
-		ToolTip = "A delta rotation that will be added each rendering frame (half rate of full vsync)."))
+		ToolTip = "A delta rotation that will be added each rendering frame (half rate of full vsync).",
+		DeprecatedProperty))
 	FQuat				DeltaRotation;
 
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
 	UPROPERTY(config, EditAnywhere, Category = Settings, meta = (
-		ToolTip = "Texture offset amount from the top left corner."))
+		ToolTip = "Texture offset amount from the top left corner.",
+		DeprecatedProperty))
 	FVector2D			TextureOffset;
 
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
 	UPROPERTY(config, EditAnywhere, Category = Settings, meta = (
-		ToolTip = "Texture scale."))
+		ToolTip = "Texture scale.",
+		DeprecatedProperty))
 	FVector2D			TextureScale;
 
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
 	UPROPERTY(config, EditAnywhere, Category = Settings, meta = (
-		ToolTip = "Whether the splash layer uses it's alpha channel."))
+		ToolTip = "Whether the splash layer uses it's alpha channel.",
+		DeprecatedProperty))
 	bool				bNoAlphaChannel;
 
 	// Runtime data
@@ -72,3 +88,4 @@ struct FOculusSplashDesc
 			LoadingTexture == d.LoadingTexture && LoadedTexture == d.LoadedTexture && bIsDynamic == d.bIsDynamic;
 	}
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

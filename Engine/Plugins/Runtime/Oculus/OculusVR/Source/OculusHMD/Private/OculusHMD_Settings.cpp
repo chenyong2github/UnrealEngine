@@ -4,6 +4,8 @@
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 namespace OculusHMD
 {
 
@@ -91,5 +93,7 @@ void FSettings::SetPixelDensityMax(float NewPixelDensityMax)
 
 
 } // namespace OculusHMD
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif //OCULUS_HMD_SUPPORTED_PLATFORMS

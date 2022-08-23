@@ -8,8 +8,8 @@
 #include "Components/ActorComponent.h"
 #include "OculusEventComponent.generated.h"
 
-UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent), ClassGroup = OculusHMD)
-class OCULUSHMD_API UOculusEventComponent : public UActorComponent
+UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent, DeprecationMessage = "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace."), ClassGroup = OculusHMD, deprecated)
+class OCULUSHMD_API UDEPRECATED_UOculusEventComponent : public UActorComponent
 {
 	GENERATED_BODY()
 

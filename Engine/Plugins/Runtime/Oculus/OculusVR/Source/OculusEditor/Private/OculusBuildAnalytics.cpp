@@ -7,6 +7,7 @@
 
 FOculusBuildAnalytics* FOculusBuildAnalytics::instance = 0;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FOculusBuildAnalytics* FOculusBuildAnalytics::GetInstance()
 {
 	if (IOculusHMDModule::IsAvailable())
@@ -311,3 +312,4 @@ void FOculusBuildAnalytics::SendBuildCompleteEvent(float TotalTime)
 	FOculusHMDModule::GetPluginWrapper().AddCustomMetadata("build_step_count", TCHAR_TO_ANSI(*FString::FromInt(BuildStepCount)));
 	FOculusHMDModule::GetPluginWrapper().SendEvent2("build_complete", TCHAR_TO_ANSI(*FString::SanitizeFloat(TotalTime)), "ovrbuild");
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

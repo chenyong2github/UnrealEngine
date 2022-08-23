@@ -1009,15 +1009,15 @@ EVisibility SOculusToolWidget::StartInVRVisibility(FName tag) const
 
 FReply SOculusToolWidget::SupportDashEnable(bool text)
 {
-	UOculusHMDRuntimeSettings* Settings = GetMutableDefault<UOculusHMDRuntimeSettings>();
+	UDEPRECATED_UOculusHMDRuntimeSettings* Settings = GetMutableDefault<UDEPRECATED_UOculusHMDRuntimeSettings>();
 	Settings->bSupportsDash = true;
-	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UOculusHMDRuntimeSettings, bSupportsDash)), Settings->GetDefaultConfigFilename());
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UDEPRECATED_UOculusHMDRuntimeSettings, bSupportsDash)), Settings->GetDefaultConfigFilename());
 	return FReply::Handled();
 }
 
 EVisibility SOculusToolWidget::SupportDashVisibility(FName tag) const
 {
-	const UOculusHMDRuntimeSettings* Settings = GetDefault<UOculusHMDRuntimeSettings>();
+	const UDEPRECATED_UOculusHMDRuntimeSettings* Settings = GetDefault<UDEPRECATED_UOculusHMDRuntimeSettings>();
 	return Settings->bSupportsDash ? EVisibility::Collapsed : EVisibility::Visible;
 }
 

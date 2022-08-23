@@ -7,6 +7,8 @@
 
 #include "OculusMR_State.generated.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 USTRUCT()
 struct FTrackedCamera
 {
@@ -116,3 +118,5 @@ public:
 	UPROPERTY()
 	bool BindToTrackedCameraIndexRequested;
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

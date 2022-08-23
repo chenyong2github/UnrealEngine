@@ -24,6 +24,8 @@
 
 #define LOCTEXT_NAMESPACE "OculusEditor"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 const FName FOculusEditorModule::OculusPerfTabName = FName("OculusPerfCheck");
 const FName FOculusEditorModule::OculusPlatToolTabName = FName("OculusPlatormTool");
 
@@ -131,11 +133,11 @@ void FOculusEditorModule::RegisterSettings()
 		SettingsModule->RegisterSettings("Project", "Plugins", "OculusVR",
 			LOCTEXT("RuntimeSettingsName", "OculusVR"),
 			LOCTEXT("RuntimeSettingsDescription", "Configure the OculusVR plugin"),
-			GetMutableDefault<UOculusHMDRuntimeSettings>()
+			GetMutableDefault<UDEPRECATED_UOculusHMDRuntimeSettings>()
 		);
 
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PropertyModule.RegisterCustomClassLayout(UOculusHMDRuntimeSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FOculusHMDSettingsDetailsCustomization::MakeInstance));
+		PropertyModule.RegisterCustomClassLayout(UDEPRECATED_UOculusHMDRuntimeSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FOculusHMDSettingsDetailsCustomization::MakeInstance));
 	}
 }
 
@@ -305,6 +307,8 @@ void FOculusHMDSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBuild
 				]
 		];
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 //////////////////////////////////////////////////////////////////////////
 

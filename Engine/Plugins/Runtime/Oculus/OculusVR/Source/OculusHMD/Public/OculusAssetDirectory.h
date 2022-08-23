@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/SoftObjectPath.h"
 
+class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") FOculusAssetDirectory;
+
 class FOculusAssetDirectory
 {
 public: 

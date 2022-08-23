@@ -7,16 +7,18 @@
 
 #define LOCTEXT_NAMESPACE "OculusFunctionLibrary"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 //-------------------------------------------------------------------------------------------------
-// UOculusFunctionLibrary
+// UDEPRECATED_UOculusFunctionLibrary
 //-------------------------------------------------------------------------------------------------
 
-UOculusFunctionLibrary::UOculusFunctionLibrary(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_UOculusFunctionLibrary::UDEPRECATED_UOculusFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
 
-OculusHMD::FOculusHMD* UOculusFunctionLibrary::GetOculusHMD()
+OculusHMD::FOculusHMD* UDEPRECATED_UOculusFunctionLibrary::GetOculusHMD()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	if (GEngine && GEngine->XRSystem.IsValid())
@@ -30,7 +32,7 @@ OculusHMD::FOculusHMD* UOculusFunctionLibrary::GetOculusHMD()
 	return nullptr;
 }
 
-void UOculusFunctionLibrary::GetPose(FRotator& DeviceRotation, FVector& DevicePosition, FVector& NeckPosition, bool bUseOrienationForPlayerCamera, bool bUsePositionForPlayerCamera, const FVector PositionScale)
+void UDEPRECATED_UOculusFunctionLibrary::GetPose(FRotator& DeviceRotation, FVector& DevicePosition, FVector& NeckPosition, bool bUseOrienationForPlayerCamera, bool bUsePositionForPlayerCamera, const FVector PositionScale)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -54,7 +56,7 @@ void UOculusFunctionLibrary::GetPose(FRotator& DeviceRotation, FVector& DevicePo
 	}
 }
 
-void UOculusFunctionLibrary::SetBaseRotationAndBaseOffsetInMeters(FRotator Rotation, FVector BaseOffsetInMeters, EOrientPositionSelector::Type Options)
+void UDEPRECATED_UOculusFunctionLibrary::SetBaseRotationAndBaseOffsetInMeters(FRotator Rotation, FVector BaseOffsetInMeters, EOrientPositionSelector::Type Options)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -72,7 +74,7 @@ void UOculusFunctionLibrary::SetBaseRotationAndBaseOffsetInMeters(FRotator Rotat
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 }
 
-void UOculusFunctionLibrary::GetBaseRotationAndBaseOffsetInMeters(FRotator& OutRotation, FVector& OutBaseOffsetInMeters)
+void UDEPRECATED_UOculusFunctionLibrary::GetBaseRotationAndBaseOffsetInMeters(FRotator& OutRotation, FVector& OutBaseOffsetInMeters)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -89,7 +91,7 @@ void UOculusFunctionLibrary::GetBaseRotationAndBaseOffsetInMeters(FRotator& OutR
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 }
 
-void UOculusFunctionLibrary::GetRawSensorData(FVector& AngularAcceleration, FVector& LinearAcceleration, FVector& AngularVelocity, FVector& LinearVelocity, float& TimeInSeconds, ETrackedDeviceType DeviceType)
+void UDEPRECATED_UOculusFunctionLibrary::GetRawSensorData(FVector& AngularAcceleration, FVector& LinearAcceleration, FVector& AngularVelocity, FVector& LinearVelocity, float& TimeInSeconds, ETrackedDeviceType DeviceType)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -108,7 +110,7 @@ void UOculusFunctionLibrary::GetRawSensorData(FVector& AngularAcceleration, FVec
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 }
 
-bool UOculusFunctionLibrary::IsDeviceTracked(ETrackedDeviceType DeviceType)
+bool UDEPRECATED_UOculusFunctionLibrary::IsDeviceTracked(ETrackedDeviceType DeviceType)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -128,7 +130,7 @@ bool UOculusFunctionLibrary::IsDeviceTracked(ETrackedDeviceType DeviceType)
 	return false;
 }
 
-void UOculusFunctionLibrary::SetCPUAndGPULevels(int CPULevel, int GPULevel)
+void UDEPRECATED_UOculusFunctionLibrary::SetCPUAndGPULevels(int CPULevel, int GPULevel)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -139,7 +141,7 @@ void UOculusFunctionLibrary::SetCPUAndGPULevels(int CPULevel, int GPULevel)
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 }
 
-bool UOculusFunctionLibrary::GetUserProfile(FHmdUserProfile& Profile)
+bool UDEPRECATED_UOculusFunctionLibrary::GetUserProfile(FHmdUserProfile& Profile)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -161,7 +163,7 @@ bool UOculusFunctionLibrary::GetUserProfile(FHmdUserProfile& Profile)
 	return false;
 }
 
-void UOculusFunctionLibrary::SetBaseRotationAndPositionOffset(FRotator BaseRot, FVector PosOffset, EOrientPositionSelector::Type Options)
+void UDEPRECATED_UOculusFunctionLibrary::SetBaseRotationAndPositionOffset(FRotator BaseRot, FVector PosOffset, EOrientPositionSelector::Type Options)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -175,7 +177,7 @@ void UOculusFunctionLibrary::SetBaseRotationAndPositionOffset(FRotator BaseRot, 
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 }
 
-void UOculusFunctionLibrary::GetBaseRotationAndPositionOffset(FRotator& OutRot, FVector& OutPosOffset)
+void UDEPRECATED_UOculusFunctionLibrary::GetBaseRotationAndPositionOffset(FRotator& OutRot, FVector& OutPosOffset)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -187,7 +189,7 @@ void UOculusFunctionLibrary::GetBaseRotationAndPositionOffset(FRotator& OutRot, 
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 }
 
-void UOculusFunctionLibrary::AddLoadingSplashScreen(class UTexture2D* Texture, FVector TranslationInMeters, FRotator Rotation, FVector2D SizeInMeters, FRotator DeltaRotation, bool bClearBeforeAdd)
+void UDEPRECATED_UOculusFunctionLibrary::AddLoadingSplashScreen(class UTexture2D* Texture, FVector TranslationInMeters, FRotator Rotation, FVector2D SizeInMeters, FRotator DeltaRotation, bool bClearBeforeAdd)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -212,7 +214,7 @@ void UOculusFunctionLibrary::AddLoadingSplashScreen(class UTexture2D* Texture, F
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 }
 
-void UOculusFunctionLibrary::ClearLoadingSplashScreens()
+void UDEPRECATED_UOculusFunctionLibrary::ClearLoadingSplashScreens()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -227,7 +229,7 @@ void UOculusFunctionLibrary::ClearLoadingSplashScreens()
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 }
 
-bool UOculusFunctionLibrary::HasInputFocus()
+bool UDEPRECATED_UOculusFunctionLibrary::HasInputFocus()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	const OculusHMD::FOculusHMD* const OculusHMD = GetOculusHMD();
@@ -243,7 +245,7 @@ bool UOculusFunctionLibrary::HasInputFocus()
 	return false;
 }
 
-bool UOculusFunctionLibrary::HasSystemOverlayPresent()
+bool UDEPRECATED_UOculusFunctionLibrary::HasSystemOverlayPresent()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	const OculusHMD::FOculusHMD* const OculusHMD = GetOculusHMD();
@@ -259,7 +261,7 @@ bool UOculusFunctionLibrary::HasSystemOverlayPresent()
 	return false;
 }
 
-void UOculusFunctionLibrary::GetGPUUtilization(bool& IsGPUAvailable, float& GPUUtilization)
+void UDEPRECATED_UOculusFunctionLibrary::GetGPUUtilization(bool& IsGPUAvailable, float& GPUUtilization)
 {
 	IsGPUAvailable = false;
 	GPUUtilization = 0.0f;
@@ -278,7 +280,7 @@ void UOculusFunctionLibrary::GetGPUUtilization(bool& IsGPUAvailable, float& GPUU
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 }
 
-float UOculusFunctionLibrary::GetGPUFrameTime()
+float UDEPRECATED_UOculusFunctionLibrary::GetGPUFrameTime()
 {
 	float frameTime = 0;
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
@@ -294,7 +296,7 @@ float UOculusFunctionLibrary::GetGPUFrameTime()
 	return 0.0f;
 }
 
-void UOculusFunctionLibrary::SetFixedFoveatedRenderingLevel(EFixedFoveatedRenderingLevel level, bool isDynamic)
+void UDEPRECATED_UOculusFunctionLibrary::SetFixedFoveatedRenderingLevel(EFixedFoveatedRenderingLevel level, bool isDynamic)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -305,7 +307,7 @@ void UOculusFunctionLibrary::SetFixedFoveatedRenderingLevel(EFixedFoveatedRender
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 }
 
-EFixedFoveatedRenderingLevel UOculusFunctionLibrary::GetFixedFoveatedRenderingLevel()
+EFixedFoveatedRenderingLevel UDEPRECATED_UOculusFunctionLibrary::GetFixedFoveatedRenderingLevel()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -321,7 +323,7 @@ EFixedFoveatedRenderingLevel UOculusFunctionLibrary::GetFixedFoveatedRenderingLe
 	return EFixedFoveatedRenderingLevel::FFR_Off;
 }
 
-FString UOculusFunctionLibrary::GetDeviceName()
+FString UDEPRECATED_UOculusFunctionLibrary::GetDeviceName()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -337,7 +339,7 @@ FString UOculusFunctionLibrary::GetDeviceName()
 	return FString();
 }
 
-EOculusDeviceType UOculusFunctionLibrary::GetDeviceType()
+EOculusDeviceType UDEPRECATED_UOculusFunctionLibrary::GetDeviceType()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -371,7 +373,7 @@ EOculusDeviceType UOculusFunctionLibrary::GetDeviceType()
 	return EOculusDeviceType::OculusUnknown;
 }
 
-TArray<float> UOculusFunctionLibrary::GetAvailableDisplayFrequencies()
+TArray<float> UDEPRECATED_UOculusFunctionLibrary::GetAvailableDisplayFrequencies()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -390,7 +392,7 @@ TArray<float> UOculusFunctionLibrary::GetAvailableDisplayFrequencies()
 	return TArray<float>();
 }
 
-float UOculusFunctionLibrary::GetCurrentDisplayFrequency()
+float UDEPRECATED_UOculusFunctionLibrary::GetCurrentDisplayFrequency()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -406,7 +408,7 @@ float UOculusFunctionLibrary::GetCurrentDisplayFrequency()
 	return 0.0f;
 }
 
-void UOculusFunctionLibrary::SetDisplayFrequency(float RequestedFrequency)
+void UDEPRECATED_UOculusFunctionLibrary::SetDisplayFrequency(float RequestedFrequency)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -417,7 +419,7 @@ void UOculusFunctionLibrary::SetDisplayFrequency(float RequestedFrequency)
 #endif
 }
 
-void UOculusFunctionLibrary::EnablePositionTracking(bool bPositionTracking)
+void UDEPRECATED_UOculusFunctionLibrary::EnablePositionTracking(bool bPositionTracking)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -429,7 +431,7 @@ void UOculusFunctionLibrary::EnablePositionTracking(bool bPositionTracking)
 }
 
 
-void UOculusFunctionLibrary::EnableOrientationTracking(bool bOrientationTracking)
+void UDEPRECATED_UOculusFunctionLibrary::EnableOrientationTracking(bool bOrientationTracking)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -440,7 +442,7 @@ void UOculusFunctionLibrary::EnableOrientationTracking(bool bOrientationTracking
 #endif
 }
 
-void UOculusFunctionLibrary::SetColorScaleAndOffset(FLinearColor ColorScale, FLinearColor ColorOffset, bool bApplyToAllLayers)
+void UDEPRECATED_UOculusFunctionLibrary::SetColorScaleAndOffset(FLinearColor ColorScale, FLinearColor ColorOffset, bool bApplyToAllLayers)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -451,7 +453,7 @@ void UOculusFunctionLibrary::SetColorScaleAndOffset(FLinearColor ColorScale, FLi
 #endif
 }
 
-class IStereoLayers* UOculusFunctionLibrary::GetStereoLayers()
+class IStereoLayers* UDEPRECATED_UOculusFunctionLibrary::GetStereoLayers()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -479,7 +481,7 @@ static ovrpBoundaryType ToOvrpBoundaryType(EBoundaryType Source)
 }
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS
 
-bool UOculusFunctionLibrary::IsGuardianConfigured()
+bool UDEPRECATED_UOculusFunctionLibrary::IsGuardianConfigured()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -492,7 +494,7 @@ bool UOculusFunctionLibrary::IsGuardianConfigured()
 	return false;
 }
 
-bool UOculusFunctionLibrary::IsGuardianDisplayed()
+bool UDEPRECATED_UOculusFunctionLibrary::IsGuardianDisplayed()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -505,7 +507,7 @@ bool UOculusFunctionLibrary::IsGuardianDisplayed()
 	return false;
 }
 
-TArray<FVector> UOculusFunctionLibrary::GetGuardianPoints(EBoundaryType BoundaryType, bool UsePawnSpace /* = false */)
+TArray<FVector> UDEPRECATED_UOculusFunctionLibrary::GetGuardianPoints(EBoundaryType BoundaryType, bool UsePawnSpace /* = false */)
 {
 	TArray<FVector> BoundaryPointList;
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
@@ -549,7 +551,7 @@ TArray<FVector> UOculusFunctionLibrary::GetGuardianPoints(EBoundaryType Boundary
 	return BoundaryPointList;
 }
 
-FVector UOculusFunctionLibrary::GetGuardianDimensions(EBoundaryType BoundaryType)
+FVector UDEPRECATED_UOculusFunctionLibrary::GetGuardianDimensions(EBoundaryType BoundaryType)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -568,7 +570,7 @@ FVector UOculusFunctionLibrary::GetGuardianDimensions(EBoundaryType BoundaryType
 	return FVector::ZeroVector;
 }
 
-FTransform UOculusFunctionLibrary::GetPlayAreaTransform()
+FTransform UDEPRECATED_UOculusFunctionLibrary::GetPlayAreaTransform()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -602,7 +604,7 @@ FTransform UOculusFunctionLibrary::GetPlayAreaTransform()
 	return FTransform();
 }
 
-FGuardianTestResult UOculusFunctionLibrary::GetPointGuardianIntersection(const FVector Point, EBoundaryType BoundaryType)
+FGuardianTestResult UDEPRECATED_UOculusFunctionLibrary::GetPointGuardianIntersection(const FVector Point, EBoundaryType BoundaryType)
 {
 	FGuardianTestResult InteractionInfo;
 	memset(&InteractionInfo, 0, sizeof(FGuardianTestResult));
@@ -629,7 +631,7 @@ FGuardianTestResult UOculusFunctionLibrary::GetPointGuardianIntersection(const F
 	return InteractionInfo;
 }
 
-FGuardianTestResult UOculusFunctionLibrary::GetNodeGuardianIntersection(ETrackedDeviceType DeviceType, EBoundaryType BoundaryType)
+FGuardianTestResult UDEPRECATED_UOculusFunctionLibrary::GetNodeGuardianIntersection(ETrackedDeviceType DeviceType, EBoundaryType BoundaryType)
 {
 	FGuardianTestResult InteractionInfo;
 	memset(&InteractionInfo, 0, sizeof(FGuardianTestResult));
@@ -656,7 +658,7 @@ FGuardianTestResult UOculusFunctionLibrary::GetNodeGuardianIntersection(ETracked
 	return InteractionInfo;
 }
 
-void UOculusFunctionLibrary::SetGuardianVisibility(bool GuardianVisible)
+void UDEPRECATED_UOculusFunctionLibrary::SetGuardianVisibility(bool GuardianVisible)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -667,7 +669,7 @@ void UOculusFunctionLibrary::SetGuardianVisibility(bool GuardianVisible)
 #endif
 }
 
-bool UOculusFunctionLibrary::GetSystemHmd3DofModeEnabled()
+bool UDEPRECATED_UOculusFunctionLibrary::GetSystemHmd3DofModeEnabled()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -680,7 +682,7 @@ bool UOculusFunctionLibrary::GetSystemHmd3DofModeEnabled()
 	return false;
 }
 
-EOculusColorSpace UOculusFunctionLibrary::GetHmdColorDesc()
+EOculusColorSpace UDEPRECATED_UOculusFunctionLibrary::GetHmdColorDesc()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -696,7 +698,7 @@ EOculusColorSpace UOculusFunctionLibrary::GetHmdColorDesc()
 	return EOculusColorSpace::Unknown;
 }
 
-void UOculusFunctionLibrary::SetClientColorDesc(EOculusColorSpace ColorSpace)
+void UDEPRECATED_UOculusFunctionLibrary::SetClientColorDesc(EOculusColorSpace ColorSpace)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OculusHMD::FOculusHMD* OculusHMD = GetOculusHMD();
@@ -713,5 +715,7 @@ void UOculusFunctionLibrary::SetClientColorDesc(EOculusColorSpace ColorSpace)
 	}
 #endif
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

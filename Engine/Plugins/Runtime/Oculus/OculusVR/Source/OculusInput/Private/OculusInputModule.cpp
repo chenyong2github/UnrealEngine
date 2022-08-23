@@ -13,6 +13,8 @@
 // FOculusInputModule
 //-------------------------------------------------------------------------------------------------
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 void FOculusInputModule::StartupModule()
 {
 	IInputDeviceModule::StartupModule();
@@ -66,6 +68,7 @@ TSharedPtr<IInputDevice> FOculusInputModule::GetInputDevice() const
 	return NULL;
 }
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif	// OCULUS_INPUT_SUPPORTED_PLATFORMS
 

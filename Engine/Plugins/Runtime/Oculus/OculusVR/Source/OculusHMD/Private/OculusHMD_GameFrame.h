@@ -7,6 +7,8 @@
 #include "OculusHMD_Settings.h"
 #include "ShowFlags.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 namespace OculusHMD
 {
 
@@ -56,5 +58,7 @@ public:
 typedef TSharedPtr<FGameFrame, ESPMode::ThreadSafe> FGameFramePtr;
 
 } // namespace OculusHMD
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif //OCULUS_HMD_SUPPORTED_PLATFORMS
