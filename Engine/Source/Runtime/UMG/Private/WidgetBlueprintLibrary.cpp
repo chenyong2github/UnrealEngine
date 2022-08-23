@@ -76,7 +76,7 @@ UDragDropOperation* UWidgetBlueprintLibrary::CreateDragDropOperation(TSubclassOf
 	return DragDropOperation;
 }
 
-void UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(APlayerController* PlayerController, UWidget* InWidgetToFocus, EMouseLockMode InMouseLockMode)
+void UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(APlayerController* PlayerController, UWidget* InWidgetToFocus, EMouseLockMode InMouseLockMode, const bool bFlushInput /* = false */)
 {
 	if (PlayerController != nullptr)
 	{
@@ -88,6 +88,11 @@ void UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(APlayerController* PlayerCon
 			InputMode.SetWidgetToFocus(InWidgetToFocus->TakeWidget());
 		}
 		PlayerController->SetInputMode(InputMode);
+
+		if (bFlushInput)
+		{
+			PlayerController->FlushPressedKeys();
+		}
 	}
 	#if WITH_EDITOR 
 	else
@@ -97,7 +102,7 @@ void UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(APlayerController* PlayerCon
 	#endif // WITH_EDITOR
 }
 
-void UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(APlayerController* PlayerController, UWidget* InWidgetToFocus, EMouseLockMode InMouseLockMode, bool bHideCursorDuringCapture)
+void UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(APlayerController* PlayerController, UWidget* InWidgetToFocus, EMouseLockMode InMouseLockMode, bool bHideCursorDuringCapture, const bool bFlushInput /* = false */)
 {
 	if (PlayerController != nullptr)
 	{
@@ -110,6 +115,11 @@ void UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(APlayerController* Player
 			InputMode.SetWidgetToFocus(InWidgetToFocus->TakeWidget());
 		}
 		PlayerController->SetInputMode(InputMode);
+
+		if (bFlushInput)
+		{
+			PlayerController->FlushPressedKeys();
+		}
 	}
 	#if WITH_EDITOR 
 	else
@@ -120,12 +130,17 @@ void UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(APlayerController* Player
 	
 }
 
-void UWidgetBlueprintLibrary::SetInputMode_GameOnly(APlayerController* PlayerController)
+void UWidgetBlueprintLibrary::SetInputMode_GameOnly(APlayerController* PlayerController, const bool bFlushInput /* = false */)
 {
 	if (PlayerController != nullptr)
 	{
 		FInputModeGameOnly InputMode;
 		PlayerController->SetInputMode(InputMode);
+		
+		if (bFlushInput)
+		{
+			PlayerController->FlushPressedKeys();
+		}
 	}
 	#if WITH_EDITOR 
 	else
