@@ -1241,7 +1241,10 @@ public:
 	TArray<FSortedTrianglesMeshBatch, SceneRenderingAllocator> SortedTrianglesMeshBatches;
 
 	/** A map from light ID to a boolean visibility value. */
-	TArray<FVisibleLightViewInfo,SceneRenderingAllocator> VisibleLightInfos;
+	TArray<FVisibleLightViewInfo, SceneRenderingAllocator> VisibleLightInfos;
+
+	/** Tracks the list of visible reflection capture lights that need to add meshes to the view. */
+	TArray<const FLightSceneProxy*, SceneRenderingAllocator> VisibleReflectionCaptureLights;
 
 	/** The view's batched elements. */
 	FBatchedElements BatchedViewElements;
@@ -2269,6 +2272,10 @@ protected:
 	void ComputeViewVisibility(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView, 
 		FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager);
 
+	virtual void ComputeLightVisibility();
+
+	void GatherReflectionCaptureLightMeshElements();
+
 	/** Performs once per frame setup after to visibility determination. */
 	void PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTaskData);
 
@@ -2381,6 +2388,19 @@ private:
 
 	friend class FRendererModule;
 };
+
+template <typename LambdaType>
+UE::Tasks::FTask LaunchSceneRenderTask(const TCHAR* DebugName, LambdaType&& Lambda, bool bExecuteInParallelCondition = true, LowLevelTasks::ETaskPriority TaskPriority = LowLevelTasks::ETaskPriority::Normal)
+{
+	const bool bExecuteInParallel = bExecuteInParallelCondition && FApp::ShouldUseThreadingForPerformance() && GIsThreadedRendering;
+
+	return UE::Tasks::Launch(DebugName, [Lambda = MoveTemp(Lambda)]
+	{
+		FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+		Lambda();
+	},
+	TaskPriority, bExecuteInParallel ? UE::Tasks::EExtendedTaskPriority::None : UE::Tasks::EExtendedTaskPriority::Inline);
+}
 
 struct FForwardScreenSpaceShadowMaskTextureMobileOutputs
 {
