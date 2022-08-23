@@ -2332,16 +2332,22 @@ void FControlRigParameterTrackEditor::HandleOnSpaceAdded(UMovieSceneControlRigPa
 {
 	if (SpaceChannel)
 	{
-		SpaceChannel->OnKeyMovedEvent().AddLambda([this,Section](FMovieSceneChannel* Channel, const  TArray<FKeyMoveEventItem>& MovedItems)
-			{
-				FMovieSceneControlRigSpaceChannel* SpaceChannel = static_cast<FMovieSceneControlRigSpaceChannel*>(Channel);
-				HandleSpaceKeyMoved(Section, SpaceChannel,MovedItems);
-			});
-		SpaceChannel->OnKeyDeletedEvent().AddLambda([this, Section](FMovieSceneChannel* Channel, const  TArray<FKeyAddOrDeleteEventItem>& Items)
-			{
-				FMovieSceneControlRigSpaceChannel* SpaceChannel = static_cast<FMovieSceneControlRigSpaceChannel*>(Channel);
-				HandleSpaceKeyDeleted(Section, SpaceChannel,Items);
-			});
+		if (!SpaceChannel->OnKeyMovedEvent().IsBound())
+		{
+			SpaceChannel->OnKeyMovedEvent().AddLambda([this, Section](FMovieSceneChannel* Channel, const  TArray<FKeyMoveEventItem>& MovedItems)
+				{
+					FMovieSceneControlRigSpaceChannel* SpaceChannel = static_cast<FMovieSceneControlRigSpaceChannel*>(Channel);
+					HandleSpaceKeyMoved(Section, SpaceChannel, MovedItems);
+				});
+		}
+		if (!SpaceChannel->OnKeyDeletedEvent().IsBound())
+		{
+			SpaceChannel->OnKeyDeletedEvent().AddLambda([this, Section](FMovieSceneChannel* Channel, const  TArray<FKeyAddOrDeleteEventItem>& Items)
+				{
+					FMovieSceneControlRigSpaceChannel* SpaceChannel = static_cast<FMovieSceneControlRigSpaceChannel*>(Channel);
+					HandleSpaceKeyDeleted(Section, SpaceChannel, Items);
+				});
+		}
 	}
 	//todoo do we need to remove this or not mz
 }
@@ -2541,20 +2547,26 @@ void FControlRigParameterTrackEditor::HandleOnConstraintAdded(
 	}
 
 	// handle key moved
-	InConstraintChannel->OnKeyMovedEvent().AddLambda([this,InSection](
-		FMovieSceneChannel* InChannel, const TArray<FKeyMoveEventItem>& InMovedItems)
+	if (!InConstraintChannel->OnKeyMovedEvent().IsBound())
 	{
-		const FMovieSceneConstraintChannel* ConstraintChannel = static_cast<FMovieSceneConstraintChannel*>(InChannel);
-		HandleConstraintKeyMoved(InSection, ConstraintChannel, InMovedItems);
-	});
+		InConstraintChannel->OnKeyMovedEvent().AddLambda([this, InSection](
+			FMovieSceneChannel* InChannel, const TArray<FKeyMoveEventItem>& InMovedItems)
+			{
+				const FMovieSceneConstraintChannel* ConstraintChannel = static_cast<FMovieSceneConstraintChannel*>(InChannel);
+				HandleConstraintKeyMoved(InSection, ConstraintChannel, InMovedItems);
+			});
+	}
 
 	// handle key deleted
-	InConstraintChannel->OnKeyDeletedEvent().AddLambda([this, InSection](
-		FMovieSceneChannel* InChannel, const TArray<FKeyAddOrDeleteEventItem>& InDeletedItems)
+	if (!InConstraintChannel->OnKeyDeletedEvent().IsBound())
 	{
-		const FMovieSceneConstraintChannel* ConstraintChannel = static_cast<FMovieSceneConstraintChannel*>(InChannel);
-		HandleConstraintKeyDeleted(InSection, ConstraintChannel, InDeletedItems);
-	});
+		InConstraintChannel->OnKeyDeletedEvent().AddLambda([this, InSection](
+			FMovieSceneChannel* InChannel, const TArray<FKeyAddOrDeleteEventItem>& InDeletedItems)
+			{
+				const FMovieSceneConstraintChannel* ConstraintChannel = static_cast<FMovieSceneConstraintChannel*>(InChannel);
+				HandleConstraintKeyDeleted(InSection, ConstraintChannel, InDeletedItems);
+			});
+	}
 
 	// handle constraint deleted
 	if (InSection)
@@ -2621,7 +2633,7 @@ void FControlRigParameterTrackEditor::HandleConstraintRemoved(IMovieSceneConstra
 	if (const UControlRig* ControlRig = Section->GetControlRig())
 	{
 		FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
-		if (!Controller.OnConstraintRemoved().IsBoundToObject(InSection))
+		if (!Controller.OnConstraintRemoved().IsBound())
 		{
 			InSection->OnConstraintRemovedHandle =
 			Controller.OnConstraintRemoved().AddLambda([InSection, Section, this](FName InConstraintName)

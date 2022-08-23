@@ -15,7 +15,6 @@
 #include "MovieSceneTracksComponentTypes.h"
 #include "Algo/AnyOf.h"
 #include "TransformConstraint.h"
-#include "TransformableHandle.h"
 
 #if WITH_EDITOR
 
@@ -847,16 +846,31 @@ TArray<FConstraintAndActiveChannel>& UMovieScene3DTransformSection::GetConstrain
 	}
 	return EmptyChannels;
 }
+#if WITH_EDITOR
+bool UMovieScene3DTransformSection::Modify(bool bAlwaysMarkDirty)
+{
+	using namespace UE::MovieScene;
 
+	bool bModified = Super::Modify(bAlwaysMarkDirty);
+	if (Constraints)
+	{
+		Constraints->SetFlags(RF_Transactional);
+		Constraints->Modify(bAlwaysMarkDirty);
+	}
+	return bModified;
+}
+#endif
 void UMovieScene3DTransformSection::AddConstraintChannel(UTickableConstraint* InConstraint)
 {
 	Modify();
 	if (!Constraints)
 	{
-		Constraints = NewObject<UMovieScene3dTransformSectionConstraints>(this, NAME_None, RF_Transactional);
+		Constraints = NewObject<UMovieScene3dTransformSectionConstraints>(this, NAME_None, RF_Public| RF_Transactional);
 	}
 	if (!HasConstraintChannel(InConstraint->GetFName()))
 	{
+		Constraints->SetFlags(RF_Transactional);
+		Constraints->Modify();
 		const int32 NewIndex = Constraints->ConstraintsChannels.Add(FConstraintAndActiveChannel(InConstraint));
 
 		FMovieSceneConstraintChannel* ExistingChannel = &Constraints->ConstraintsChannels[NewIndex].ActiveChannel;

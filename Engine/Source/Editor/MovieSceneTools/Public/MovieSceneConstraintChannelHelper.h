@@ -105,7 +105,6 @@ public:
 		const TArrayView<ChannelType*>& InChannels,
 		const FFrameNumber& InTime);
 
-private:
 	static bool bDoNotCompensate;
 
 };

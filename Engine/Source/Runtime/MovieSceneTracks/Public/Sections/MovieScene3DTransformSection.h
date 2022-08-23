@@ -216,6 +216,10 @@ class UMovieScene3DTransformSection
 
 public:
 
+#if WITH_EDITOR
+	/* From UObject*/
+	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+#endif
 	/* From UMovieSection*/
 	
 	MOVIESCENETRACKS_API virtual bool ShowCurveForChannel(const void *Channel) const override;

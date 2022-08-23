@@ -78,5 +78,4 @@ private:
 	/** END COMPONENT SECTION */
 
 	
-	static bool bDoNotCompensate;
 };

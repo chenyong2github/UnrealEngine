@@ -411,6 +411,13 @@ void FMovieSceneConstraintChannelHelper::HandleConstraintKeyDeleted(
 		UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
 		Evaluator.ComputeLocalTransforms(World, InSequencer, FramesToCompensate, PreviousValue);
 		TArray<FTransform>& ChildLocals = Evaluator.ChildLocals;
+		//turn off constraint, if we delete the key it may not evaluate to false
+		InConstraint->SetActive(false);
+
+		if (ChildLocals.Num() < 2)
+		{
+			return;
+		}
 		ChildLocals.RemoveAt(0);
 
 		const EMovieSceneTransformChannel ChannelsToKey = InConstraint->GetChannelsToKey();

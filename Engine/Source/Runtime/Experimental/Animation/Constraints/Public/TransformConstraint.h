@@ -79,18 +79,19 @@ public:
 
 	/** Returns the channels to key based on the constraint's type. */
 	EMovieSceneTransformChannel GetChannelsToKey() const;
-	
-protected:
 
-	/** Registers/Unregisters useful delegates for both child and parent handles. */
-	void UnregisterDelegates() const;
-	void RegisterDelegates();
-	
 	/**
 	 * Manages changes on the child/parent transformable handle. This can be used to update internal data (i.e. offset)
 	 * when transform changes outside of that system and need to trigger changes within the constraint itself.   
 	*/
 	virtual void OnHandleModified(UTransformableHandle* InHandle, bool bUpdate);
+
+protected:
+
+	/** Registers/Unregisters useful delegates for both child and parent handles. */
+	void UnregisterDelegates() const;
+	void RegisterDelegates();
+
 	
 	/**
 	 * Computes the initial offset that is needed to keep the child's global transform unchanged when creating the
@@ -144,6 +145,9 @@ public:
 	/** Returns the position constraint function that the tick function will evaluate. */
 	virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
 
+	/** Updates the dynamic offset based on external child's transform changes. */
+	virtual void OnHandleModified(UTransformableHandle* InHandle, bool bUpdate) override;
+
 protected:
 
 	/** Cache data structure to store last child local/global location. */
@@ -153,9 +157,6 @@ protected:
 	};
 	mutable FDynamicCache Cache;
 	uint32 CalculateInputHash() const;
-
-	/** Updates the dynamic offset based on external child's transform changes. */
-	virtual void OnHandleModified(UTransformableHandle* InHandle, bool bUpdate) override;
 	
 	/** Computes the child's local translation offset in the parent space. */
 	virtual void ComputeOffset() override;
@@ -187,6 +188,9 @@ public:
 	/** Returns the rotation constraint function that the tick function will evaluate. */
 	virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
 
+	/** Updates the dynamic offset based on external child's transform changes. */
+	virtual void OnHandleModified(UTransformableHandle* InHandle, bool bUpdate) override;
+
 protected:
 
 	/** Cache data structure to store last child local/global rotation. */
@@ -199,9 +203,6 @@ protected:
 	
 	/** Computes the child's local rotation offset in the parent space. */
 	virtual void ComputeOffset() override;
-
-	/** Updates the dynamic offset based on external child's transform changes. */
-	virtual void OnHandleModified(UTransformableHandle* InHandle, bool bUpdate) override;
 	
 	/** Defines the local child's rotation offset in the parent space. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
@@ -259,6 +260,10 @@ public:
 		return bScaling;
 	}
 	
+
+	/** Updates the dynamic offset based on external child's transform changes. */
+	virtual void OnHandleModified(UTransformableHandle* InHandle, bool bUpdate) override;
+
 protected:
 	/** Cache data structure to store last child local/global transform. */
 	struct FDynamicCache
@@ -268,9 +273,6 @@ protected:
 	mutable FDynamicCache Cache;
 	uint32 CalculateInputHash() const;
 
-	/** Updates the dynamic offset based on external child's transform changes. */
-	virtual void OnHandleModified(UTransformableHandle* InHandle, bool bUpdate) override;
-	
 	/** Computes the child's local transform offset in the parent space. */
 	virtual void ComputeOffset() override;
 

@@ -18,8 +18,8 @@
 #include "ScopedTransaction.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneDoubleChannel.h"
+#include "MovieSceneConstraintChannelHelper.h"
 
-bool FConstraintChannelHelper::bDoNotCompensate = false;
 
 #define LOCTEXT_NAMESPACE "Constraints"
 
@@ -167,7 +167,7 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 			if (CanAddKey(Channel->ActiveChannel, Time, ActiveValueToBeSet))
 			{
 
-				TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
+				TGuardValue<bool> CompensateGuard(FMovieSceneConstraintChannelHelper::bDoNotCompensate, true);
 				
 				// set constraint as dynamic
 				InConstraint->bDynamicOffset = true;
@@ -290,7 +290,7 @@ void FConstraintChannelHelper::SmartComponentConstraintKey(
 
 				//new for compensatio
 
-				TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
+				TGuardValue<bool> CompensateGuard(FMovieSceneConstraintChannelHelper::bDoNotCompensate, true);
 
 				// set constraint as dynamic
 				InConstraint->bDynamicOffset = true;
@@ -339,6 +339,17 @@ void FConstraintChannelHelper::SmartComponentConstraintKey(
 					// set tangents at Time
 					SetTangentsAtThisTime<FMovieSceneDoubleChannel>(ChannelIndex,NumChannels, Section, Time, Tangents);
 				}
+				// evaluate the constraint, this is needed so the global transform will be set up on the component 
+				//Todo do we need to evaluate all constraints?
+				InConstraint->SetActive(true); //will be false
+				InConstraint->Evaluate();
+				//need to fire this event so the transform values set by the constraint propragate to the transform section
+				FProperty* TransformProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
+				FEditPropertyChain PropertyChain;
+				PropertyChain.AddHead(TransformProperty);
+				FCoreUObjectDelegates::OnPreObjectPropertyChanged.Broadcast(Actor, PropertyChain);
+				FPropertyChangedEvent PropertyChangedEvent(TransformProperty, EPropertyChangeType::ValueSet);
+				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Actor, PropertyChangedEvent);
 			}
 		}
 	}
@@ -376,12 +387,12 @@ void FConstraintChannelHelper::CompensateIfNeeded(
 	const UMovieSceneControlRigParameterSection* Section,
 	const TOptional<FFrameNumber>& OptionalTime)
 {
-	if (bDoNotCompensate)
+	if (FMovieSceneConstraintChannelHelper::bDoNotCompensate)
 	{
 		return;
 	}
 
-	TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
+	TGuardValue<bool> CompensateGuard(FMovieSceneConstraintChannelHelper::bDoNotCompensate, true);
 
 	// Frames to compensate
 	TArray<FFrameNumber> OptionalTimeArray;

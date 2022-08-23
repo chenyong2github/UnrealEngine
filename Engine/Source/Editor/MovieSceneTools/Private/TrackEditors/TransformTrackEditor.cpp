@@ -70,11 +70,17 @@ F3DTransformTrackEditor::F3DTransformTrackEditor( TSharedRef<ISequencer> InSeque
 	// Listen for actor/component movement
 	FCoreUObjectDelegates::OnPreObjectPropertyChanged.AddRaw(this, &F3DTransformTrackEditor::OnPrePropertyChanged);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &F3DTransformTrackEditor::OnPostPropertyChanged);
+	if (GEditor != nullptr)
+	{
+		GEditor->RegisterForUndo(this);
+	}
 }
-
-
 F3DTransformTrackEditor::~F3DTransformTrackEditor()
 {
+	if (GEditor != nullptr)
+	{
+		GEditor->UnregisterForUndo(this);
+	}
 }
 
 void F3DTransformTrackEditor::OnRelease()
@@ -870,6 +876,58 @@ void F3DTransformTrackEditor::AddTransformKeys( UObject* ObjectToKey, const TOpt
 	AnimatablePropertyChanged( FOnKeyProperty::CreateLambda(OnKeyProperty) );
 }
 
+//todo move to external function so it can also be used by sdk/python
+static void UpdateTransformBasedOnConstraint(FTransform& CurrentTransform, USceneComponent* SceneComponent)
+{
+	TArray< TObjectPtr<UTickableConstraint> > Constraints;
+	AActor* ShapeActor = SceneComponent->GetTypedOuter<AActor>();
+	
+	if (ShapeActor)
+	{
+		FTransformConstraintUtils::GetParentConstraints(SceneComponent->GetWorld(), ShapeActor, Constraints);
+		const int32 LastActiveIndex = Constraints.FindLastByPredicate([](const TObjectPtr<UTickableConstraint>& InConstraint)
+			{
+				if (const UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(InConstraint.Get()))
+				{
+					return InConstraint->Active && TransformConstraint->bDynamicOffset;
+				}
+				return false;
+			});
+
+		if (Constraints.IsValidIndex(LastActiveIndex))
+		{
+			// switch to constraint space
+			const UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(Constraints[LastActiveIndex]);
+			const FTransform ParentTransform = Constraint->GetParentGlobalTransform();
+			const FTransform OriginalParentTransform = SceneComponent->GetAttachParent() ? SceneComponent->GetAttachParent()->GetSocketTransform(SceneComponent->GetAttachSocketName()) : FTransform::Identity;
+			const FTransform DiffParents = OriginalParentTransform.GetRelativeTransform(ParentTransform);
+
+			const ETransformConstraintType ConstraintType = static_cast<ETransformConstraintType>(Constraint->GetType());
+			switch (ConstraintType)
+			{
+				case ETransformConstraintType::Translation:
+				{
+					CurrentTransform.SetLocation(CurrentTransform.GetLocation() +  OriginalParentTransform.GetLocation() - ParentTransform.GetLocation());
+				}
+				case ETransformConstraintType::Rotation:
+				{
+					FQuat RelativeRotation = ParentTransform.GetRotation().Inverse() * OriginalParentTransform.GetRotation();
+					RelativeRotation.Normalize();
+					CurrentTransform.SetRotation(CurrentTransform.GetRotation() * RelativeRotation);
+				}
+				case ETransformConstraintType::Scale:
+				{
+					CurrentTransform.SetScale3D(CurrentTransform.GetScale3D() * DiffParents.GetScale3D());
+				}
+				case ETransformConstraintType::Parent:
+					CurrentTransform = CurrentTransform * DiffParents;
+				case ETransformConstraintType::LookAt: //leave current alone
+				default:
+					break;
+			}
+		}
+	}
+}
 
 FTransformData F3DTransformTrackEditor::RecomposeTransform(const FTransformData& InTransformData, UObject* AnimatedObject, UMovieSceneSection* Section)
 {
@@ -910,6 +968,7 @@ FTransformData F3DTransformTrackEditor::RecomposeTransform(const FTransformData&
 				CurrentTransform *= GetTransformOrigin().Inverse();
 			}
 
+			UpdateTransformBasedOnConstraint(CurrentTransform,SceneComponent);
 			return FTransformData(CurrentTransform.GetLocation(), CurrentTransform.GetRotation().Rotator(), CurrentTransform.GetScale3D());
 		}
 	}
@@ -1010,6 +1069,8 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 		{
 			CurrentTransform *= GetTransformOrigin().Inverse();
 		}
+
+		UpdateTransformBasedOnConstraint(CurrentTransform, Component);
 
 		FIntermediate3DTransform CurrentValue(CurrentTransform.GetTranslation(), CurrentTransform.GetRotation().Rotator(), CurrentTransform.GetScale3D());
 		TRecompositionResult<FIntermediate3DTransform> TransformData = System->RecomposeBlendOperational(FMovieSceneTracksComponentTypes::Get()->ComponentTransform, Query, CurrentValue);
@@ -1288,7 +1349,6 @@ void F3DTransformTrackEditor::PostUndo(bool bSuccess)
 	}
 }
 
-
 void F3DTransformTrackEditor::HandleOnConstraintAdded(IMovieSceneConstrainedSection* InSection, FMovieSceneConstraintChannel* InConstraintChannel)
 {
 	if (!InConstraintChannel)
@@ -1298,7 +1358,7 @@ void F3DTransformTrackEditor::HandleOnConstraintAdded(IMovieSceneConstrainedSect
 	// handle scene component changes so we can update the gizmo location when it changes
 	UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
 	FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
-	if (!Controller.OnSceneComponentConstrained().IsBoundToObject(this))
+	if (!Controller.OnSceneComponentConstrained().IsBound())
 	{
 		OnSceneComponentConstrainedHandle =
 			Controller.OnSceneComponentConstrained().AddLambda([](USceneComponent* InSceneComponent)
@@ -1324,20 +1384,26 @@ void F3DTransformTrackEditor::HandleOnConstraintAdded(IMovieSceneConstrainedSect
 				});
 	}
 	// handle key moved
-	InConstraintChannel->OnKeyMovedEvent().AddLambda([this, InSection](
-		FMovieSceneChannel* InChannel, const TArray<FKeyMoveEventItem>& InMovedItems)
-		{
-			const FMovieSceneConstraintChannel* ConstraintChannel = static_cast<FMovieSceneConstraintChannel*>(InChannel);
-			HandleConstraintKeyMoved(InSection, ConstraintChannel, InMovedItems);
-		});
+	if (!InConstraintChannel->OnKeyMovedEvent().IsBound())
+	{
+		InConstraintChannel->OnKeyMovedEvent().AddLambda([this, InSection](
+			FMovieSceneChannel* InChannel, const TArray<FKeyMoveEventItem>& InMovedItems)
+			{
+				const FMovieSceneConstraintChannel* ConstraintChannel = static_cast<FMovieSceneConstraintChannel*>(InChannel);
+				HandleConstraintKeyMoved(InSection, ConstraintChannel, InMovedItems);
+			});
+	}
 
 	// handle key deleted
-	InConstraintChannel->OnKeyDeletedEvent().AddLambda([this, InSection](
-		FMovieSceneChannel* InChannel, const TArray<FKeyAddOrDeleteEventItem>& InDeletedItems)
-		{
-			const FMovieSceneConstraintChannel* ConstraintChannel = static_cast<FMovieSceneConstraintChannel*>(InChannel);
-			HandleConstraintKeyDeleted(InSection, ConstraintChannel, InDeletedItems);
-		});
+	if (!InConstraintChannel->OnKeyDeletedEvent().IsBound())
+	{
+		InConstraintChannel->OnKeyDeletedEvent().AddLambda([this, InSection](
+			FMovieSceneChannel* InChannel, const TArray<FKeyAddOrDeleteEventItem>& InDeletedItems)
+			{
+				const FMovieSceneConstraintChannel* ConstraintChannel = static_cast<FMovieSceneConstraintChannel*>(InChannel);
+				HandleConstraintKeyDeleted(InSection, ConstraintChannel, InDeletedItems);
+			});
+	}
 
 	// handle constraint deleted
 	if (InSection)
@@ -1375,6 +1441,7 @@ void F3DTransformTrackEditor::HandleConstraintKeyDeleted(IMovieSceneConstrainedS
 	{
 		return;
 	}
+
     if(UTickableTransformConstraint* Constrain = GetTickableTransformConstraint(InSection,InConstraintChannel))
 	{
 		for (const FKeyAddOrDeleteEventItem& EventItem : InDeletedItems)
@@ -1391,7 +1458,6 @@ void F3DTransformTrackEditor::HandleConstraintKeyDeleted(IMovieSceneConstrainedS
 void F3DTransformTrackEditor::HandleConstraintKeyMoved(IMovieSceneConstrainedSection* InSection, const FMovieSceneConstraintChannel* InConstraintChannel,
 	const TArray<FKeyMoveEventItem>& InMovedItems)
 {
-
 	if (!InConstraintChannel)
 	{
 		return;
@@ -1401,6 +1467,7 @@ void F3DTransformTrackEditor::HandleConstraintKeyMoved(IMovieSceneConstrainedSec
 	{
 		return;
 	}
+
 	UMovieSceneSection* Section = Cast<UMovieSceneSection>(InSection);
 
 	for (const FKeyMoveEventItem& MoveEventItem : InMovedItems)
@@ -1417,7 +1484,7 @@ void F3DTransformTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSect
 	UMovieSceneSection* Section = Cast<UMovieSceneSection>(InSection);
 
 	FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
-	if (!Controller.OnConstraintRemoved().IsBoundToObject(InSection))
+	if (!Controller.OnConstraintRemoved().IsBound())
 	{
 		InSection->OnConstraintRemovedHandle =
 			Controller.OnConstraintRemoved().AddLambda([InSection,Section, this](FName InConstraintName)

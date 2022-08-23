@@ -13,6 +13,8 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "MovieSceneTracksComponentTypes.h"
 #include "Systems/MovieSceneComponentTransformSystem.h"
+#include "TransformConstraint.h"
+#include "TransformableHandle.h"
 
 class UTickableConstraint;
 
@@ -71,7 +73,7 @@ UMovieSceneConstraintSystem::UMovieSceneConstraintSystem(const FObjectInitialize
 	RelevantComponent = TracksComponents->ConstraintChannel;
 
 	// Run constraints during instantiation or evaluation
-	Phase = ESystemPhase::Instantiation | ESystemPhase::Evaluation;
+	Phase = ESystemPhase::Instantiation | ESystemPhase::Evaluation | ESystemPhase::Finalization;
 
 	if (HasAnyFlags(RF_ClassDefaultObject) ) 
 	{
@@ -101,13 +103,14 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 	}
 	else if (CurrentPhase == ESystemPhase::Evaluation)
 	{
+		DynamicOffsets.Reset();
 		FConstraintsManagerController& Controller = FConstraintsManagerController::Get(GetWorld());
 		FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
 		struct FEvaluateConstraintChannels
 		{
-			FEvaluateConstraintChannels(FConstraintsManagerController* InController) :Controller(InController) { check(Controller); };
+			FEvaluateConstraintChannels(FConstraintsManagerController* InController, UMovieSceneConstraintSystem* InSystem) :Controller(InController), System(InSystem) { check(Controller); check(System) };
 			void ForEachEntity(UObject* BoundObject, const FConstraintComponentData& ConstraintChannel, FFrameTime FrameTime)
 			{
 				UTickableConstraint* Constraint = Controller->GetConstraint(ConstraintChannel.ConstraintName);
@@ -116,9 +119,20 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 					bool Result = false;
 					ConstraintChannel.Channel->Evaluate(FrameTime, Result);
 					Constraint->SetActive(Result);
+					if (UTickableTransformConstraint* TransformConstraint = Cast< UTickableTransformConstraint>(Constraint))
+					{
+						if (UTransformableComponentHandle* ComponentHandle = Cast<UTransformableComponentHandle>(TransformConstraint->ChildTRSHandle))
+						{
+							FUpdateHandleForConstraint UpdateHandle;
+							UpdateHandle.Constraint = TransformConstraint;
+							UpdateHandle.TransformHandle = ComponentHandle;
+							System->DynamicOffsets.Add(UpdateHandle);
+						}
+					}
 				}
 			}
 			FConstraintsManagerController* Controller;
+			UMovieSceneConstraintSystem* System;
 		};
 
 		// Set up new constraints
@@ -127,7 +141,18 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 			.Read(BuiltInComponents->BoundObject)
 			.Read(TracksComponents->ConstraintChannel)
 			.Read(BuiltInComponents->EvalTime)
-			.Dispatch_PerEntity<FEvaluateConstraintChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents, &Controller);
+			.Dispatch_PerEntity<FEvaluateConstraintChannels>(&Linker->EntityManager, InPrerequisites, &Subsequents, &Controller, this);
+	}
+	else if (CurrentPhase == ESystemPhase::Finalization)
+	{
+		for (FUpdateHandleForConstraint& UpdateHandle : DynamicOffsets)
+		{
+			if (UpdateHandle.Constraint.IsValid() && UpdateHandle.TransformHandle.IsValid())
+			{
+				UpdateHandle.Constraint->OnHandleModified(UpdateHandle.TransformHandle.Get(),false);
+			}
+		}
+		DynamicOffsets.Reset();
 	}
 }
 
