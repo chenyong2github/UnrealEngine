@@ -1092,6 +1092,7 @@ static void RenderViewTranslucencyInner(
 				});
 			}
 
+			if (!View.Family->EngineShowFlags.CompositeEditorPrimitives)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(RenderTranslucencyParallel_SDPG_Foreground);
 
