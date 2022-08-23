@@ -32,20 +32,28 @@ namespace Chaos::Softs
 		const UObject* GetOwner() const { return Owner; }
 
 
-		class FOutputBuffer
+		class FBuffer
 		{
 			const UObject* Owner = nullptr;
 			FName TypeName = FName("");
 
 		public:
-			FOutputBuffer(const FThreadingProxy& Ref)
+			FBuffer(const FThreadingProxy& Ref)
 				: Owner(Ref.GetOwner())
 				, TypeName(Ref.BaseTypeName()) {}
 
-			FName BaseTypeName() { return TypeName; }
+			FBuffer(const UObject* InOwner,FName InTypeName)
+				: Owner(InOwner)
+				, TypeName(InTypeName) {}
+			virtual ~FBuffer() {}
+
+			FName BaseTypeName() const { return TypeName; }
 
 			template<class T>
 			T* As() { return T::Source::TypeName().IsEqual(BaseTypeName()) ? (T*)this : nullptr; }
+
+			template<class T>
+			T* As() const { return T::Source::TypeName().IsEqual(BaseTypeName()) ? (T*)this : nullptr; }
 		};
 	};
 
@@ -99,9 +107,26 @@ namespace Chaos::Softs
 			return Rest;
 		}
 
-		class FFleshOutputBuffer : public FThreadingProxy::FOutputBuffer
+		class FFleshInputBuffer : public FThreadingProxy::FBuffer
 		{
-			typedef FThreadingProxy::FOutputBuffer Super;
+			typedef FThreadingProxy::FBuffer Super;
+
+		public:
+			FFleshInputBuffer(const UObject* InOwner = nullptr)
+				: Super(InOwner, FFleshThreadingProxy::TypeName())
+			{
+				// Ref.Dynamic will have updated solver data 
+				//InputData.AddAttribute<FTransform>("Transforms", FTransformCollection::TransformGroup);
+				//InputData.CopyMatchingAttributesFrom(Ref.GetDynamicCollection());
+			}
+			virtual ~FFleshInputBuffer() {}
+
+			FManagedArrayCollection InputData;
+		};
+
+		class FFleshOutputBuffer : public FThreadingProxy::FBuffer
+		{
+			typedef FThreadingProxy::FBuffer Super;
 
 		public:
 			typedef FFleshThreadingProxy Source;
@@ -112,9 +137,11 @@ namespace Chaos::Softs
 				Dynamic.AddAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
 				Dynamic.CopyMatchingAttributesFrom(Ref.GetDynamicCollection());
 			}
+			virtual ~FFleshOutputBuffer() {}
 
 			FManagedArrayCollection Dynamic;
 		};
+
 
 	};
 }// namespace Chaos::Softs

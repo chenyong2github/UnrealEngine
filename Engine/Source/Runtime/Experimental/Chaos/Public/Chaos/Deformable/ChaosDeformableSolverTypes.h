@@ -62,20 +62,20 @@ namespace Chaos::Softs
 
 
 	/*Data Transfer*/
-	typedef TSharedPtr<FThreadingProxy::FOutputBuffer> FOutputDataMapValue; // OutputBuffer
-	typedef TMap<FThreadingProxy::FKey, FOutputDataMapValue > FOutputDataMap; // <const UObject*,OutputBuffer>
+	typedef TSharedPtr<const FThreadingProxy::FBuffer> FDataMapValue; // Buffer Pointer
+	typedef TMap<FThreadingProxy::FKey, FDataMapValue > FDeformableDataMap; // <const UObject*,FBufferSharedPtr>
 
-	struct CHAOS_API FOutputPackage {
-		FOutputPackage()
+	struct CHAOS_API FDeformablePackage {
+		FDeformablePackage()
 		{}
 
-		FOutputPackage(int32 InFrame, FOutputDataMap&& InMap)
+		FDeformablePackage(int32 InFrame, FDeformableDataMap&& InMap)
 			: Frame(InFrame)
 			, ObjectMap(InMap)
 		{}
 
 		int32 Frame = INDEX_NONE;
-		FOutputDataMap ObjectMap;
+		FDeformableDataMap ObjectMap;
 	};
 
 	/* Accessor for the Game Thread*/

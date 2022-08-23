@@ -35,7 +35,8 @@ DECLARE_CYCLE_STAT(TEXT("DeformableSolver.Advance"), STAT_DeformableSolver_Advan
 DEFINE_LOG_CATEGORY_STATIC(LogChaosDeformableSolver, Log, All);
 namespace Chaos::Softs
 {
-	FCriticalSection FDeformableSolver::PackageMutex;
+	FCriticalSection FDeformableSolver::PackageOutputMutex;
+	FCriticalSection FDeformableSolver::PackageInputMutex;
 
 
 	FDeformableSolver::FDeformableSolver(FDeformableSolverProperties InProp)
@@ -396,6 +397,40 @@ namespace Chaos::Softs
 	}
 
 
+	void FDeformableSolver::FGameThreadAccess::PushInputPackage(int32 InFrame, FDeformableDataMap&& InPackage)
+	{
+		Solver.PushInputPackage(InFrame, MoveTemp(InPackage));
+	}
+	void FDeformableSolver::PushInputPackage(int32 InFrame, FDeformableDataMap&& InPackage)
+	{
+		FScopeLock Lock(&PackageInputMutex);
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PushInputPackage);
+		InputPackages.Push(TUniquePtr< FDeformablePackage >(new FDeformablePackage(InFrame, MoveTemp(InPackage))));
+	}
+
+	TUniquePtr<FDeformablePackage> FDeformableSolver::FPhysicsThreadAccess::PullInputPackage()
+	{
+		return Solver.PullInputPackage();
+	}
+	TUniquePtr<FDeformablePackage> FDeformableSolver::PullInputPackage()
+	{
+		FScopeLock Lock(&PackageInputMutex);
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PullInputPackage);
+		if (InputPackages.Num())
+			return InputPackages.Pop();
+		return TUniquePtr<FDeformablePackage>(nullptr);
+	}
+
+	void FDeformableSolver::FPhysicsThreadAccess::UpdateProxyInputPackages()
+	{
+		return Solver.UpdateProxyInputPackages();
+	}
+	void FDeformableSolver::UpdateProxyInputPackages()
+	{
+		// todo(chaosflesh) : just clear the packages for now. 
+		while (PullInputPackage()) {}
+	}
+
 	void FDeformableSolver::FPhysicsThreadAccess::TickSimulation(FSolverReal DeltaTime)
 	{
 		Solver.TickSimulation(DeltaTime);
@@ -418,49 +453,48 @@ namespace Chaos::Softs
 		}
 
 
-		FOutputDataMap OutputBuffers;
+		FDeformableDataMap OutputBuffers;
 		for (TPair< FThreadingProxy::FKey, TUniquePtr<FThreadingProxy> > & BaseProxyPair : Proxies)
 		{
 			UpdateOutputState(*BaseProxyPair.Value);
 			if (FFleshThreadingProxy* Proxy = BaseProxyPair.Value->As<FFleshThreadingProxy>())
 			{
-				OutputBuffers.Add(Proxy->GetOwner(), TSharedPtr<FThreadingProxy::FOutputBuffer>(new FFleshThreadingProxy::FFleshOutputBuffer(*Proxy)));
+				OutputBuffers.Add(Proxy->GetOwner(), TSharedPtr<FThreadingProxy::FBuffer>(new FFleshThreadingProxy::FFleshOutputBuffer(*Proxy)));
 
 				if (Property.CacheToFile)
 				{
 					WriteFrame(*Proxy, DeltaTime);
 				}
 			}
-
 		}
 
-		PushPackage(Frame, MoveTemp(OutputBuffers));
+		PushOutputPackage(Frame, MoveTemp(OutputBuffers));
 	}
 
 
-	void FDeformableSolver::FPhysicsThreadAccess::PushPackage(int32 InFrame, FOutputDataMap&& InPackage)
+	void FDeformableSolver::FPhysicsThreadAccess::PushOutputPackage(int32 InFrame, FDeformableDataMap&& InPackage)
 	{
-		Solver.PushPackage(InFrame, MoveTemp(InPackage));
+		Solver.PushOutputPackage(InFrame, MoveTemp(InPackage));
 	}
-	void FDeformableSolver::PushPackage(int32 InFrame, FOutputDataMap&& InPackage)
+	void FDeformableSolver::PushOutputPackage(int32 InFrame, FDeformableDataMap&& InPackage)
 	{
-		FScopeLock Lock(&PackageMutex);
+		FScopeLock Lock(&PackageOutputMutex);
 		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PushPackage);
-		OutputPackages.Push(TUniquePtr< FOutputPackage >(new FOutputPackage(InFrame, MoveTemp(InPackage))));
+		OutputPackages.Push(TUniquePtr< FDeformablePackage >(new FDeformablePackage(InFrame, MoveTemp(InPackage))));
 	}
 
 
-	TUniquePtr<FOutputPackage>  FDeformableSolver::FGameThreadAccess::PullPackage()
+	TUniquePtr<FDeformablePackage>  FDeformableSolver::FGameThreadAccess::PullOutputPackage()
 	{
-		return Solver.PullPackage();
+		return Solver.PullOutputPackage();
 	}
-	TUniquePtr<FOutputPackage> FDeformableSolver::PullPackage()
+	TUniquePtr<FDeformablePackage> FDeformableSolver::PullOutputPackage()
 	{
-		FScopeLock Lock(&PackageMutex);
+		FScopeLock Lock(&PackageOutputMutex);
 		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PullPackage);
 		if (OutputPackages.Num())
 			return OutputPackages.Pop();
-		return TUniquePtr<FOutputPackage>(nullptr);
+		return TUniquePtr<FDeformablePackage>(nullptr);
 	}
 
 	void  FDeformableSolver::FGameThreadAccess::AddProxy(TUniquePtr<FThreadingProxy> InObject)

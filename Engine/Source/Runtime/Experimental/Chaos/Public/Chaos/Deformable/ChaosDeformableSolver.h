@@ -38,11 +38,13 @@ namespace Chaos::Softs
 			FPhysicsThreadAccess(FDeformableSolver& InSolver, const FPhysicsThreadAccessor&) : Solver(InSolver) {}
 
 			/* Simulation Advance */
+			void UpdateProxyInputPackages();
 			bool Advance(FSolverReal DeltaTime);
 			void Reset(const FDeformableSolverProperties&);
 			void TickSimulation(FSolverReal DeltaTime);
 			void UpdateOutputState(FThreadingProxy&);
-			void PushPackage(int32 Frame, FOutputDataMap&& Package);
+			TUniquePtr<FDeformablePackage> PullInputPackage();
+			void PushOutputPackage(int32 Frame, FDeformableDataMap&& Package);
 
 			/* Iteration Advance */
 			void InitializeSimulationObjects();
@@ -75,9 +77,12 @@ namespace Chaos::Softs
 		public:
 			FGameThreadAccess(FDeformableSolver& InSolver, const FGameThreadAccessor&) : Solver(InSolver) {}
 
+			int32 GetFrame() const { return Solver.GetFrame(); }
 			void AddProxy(TUniquePtr<FThreadingProxy> InObject);
 
-			TUniquePtr<FOutputPackage> PullPackage();
+			void PushInputPackage(int32 Frame, FDeformableDataMap&& InPackage);
+
+			TUniquePtr<FDeformablePackage> PullOutputPackage();
 
 		private:
 			FDeformableSolver& Solver;
@@ -86,11 +91,14 @@ namespace Chaos::Softs
 	protected:
 
 		/* Simulation Advance */
+		int32 GetFrame() const { return Frame; }
+		void UpdateProxyInputPackages();
 		bool Advance(FSolverReal DeltaTime);
 		void Reset(const FDeformableSolverProperties&);
 		void TickSimulation(FSolverReal DeltaTime);
 		void UpdateOutputState(FThreadingProxy&);
-		void PushPackage(int32 Frame, FOutputDataMap&& Package);
+		void PushOutputPackage(int32 Frame, FDeformableDataMap&& Package);
+		TUniquePtr<FDeformablePackage> PullInputPackage( );
 
 		/* Iteration Advance */
 		void InitializeSimulationObjects();
@@ -106,17 +114,20 @@ namespace Chaos::Softs
 
 		/*Game Thread API*/
 		void AddProxy(TUniquePtr<FThreadingProxy> InObject);
-		TUniquePtr<FOutputPackage> PullPackage();
+		TUniquePtr<FDeformablePackage> PullOutputPackage();
+		void PushInputPackage(int32 Frame, FDeformableDataMap&& InPackage);
 
 		const FDeformableSolverProperties& GetProperties() const { return Property; }
 
 	private:
 
 		// connections outside the solver.
-		static FCriticalSection	PackageMutex;
+		static FCriticalSection	PackageOutputMutex;
+		static FCriticalSection	PackageInputMutex;
 		TArray< TUniquePtr<FThreadingProxy> > UninitializedProxys;
 		TMap< FThreadingProxy::FKey, TUniquePtr<FThreadingProxy> > Proxies;
-		TArray< TUniquePtr<FOutputPackage>  > OutputPackages;
+		TArray< TUniquePtr<FDeformablePackage>  > InputPackages;
+		TArray< TUniquePtr<FDeformablePackage>  > OutputPackages;
 
 		// User Configuration
 		FDeformableSolverProperties Property;
