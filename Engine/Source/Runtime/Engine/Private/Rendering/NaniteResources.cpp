@@ -1846,7 +1846,7 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 				Entry.bHasPerInstanceCustomData	= CachedMaterialData.bHasPerInstanceCustomData;
 				Entry.bHasPixelDepthOffset		= Material->HasPixelDepthOffsetConnected();
 				Entry.bHasWorldPositionOffset	= Material->HasVertexPositionOffsetConnected();
-				Entry.bHasUnsupportedBlendMode	= !IsSupportedBlendMode(Material->GetBlendMode());
+				Entry.bHasUnsupportedBlendMode	= !IsSupportedBlendMode(Entry.Material->GetBlendMode());
 				Entry.bHasInvalidUsage			= !Material->CheckMaterialUsage_Concurrent(MATUSAGE_Nanite);
 			}
 
