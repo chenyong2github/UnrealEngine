@@ -1990,7 +1990,7 @@ namespace UnrealBuildTool
 			// Enable function level hot-patching
 			if(!bBuildImportLibraryOnly && Target.WindowsPlatform.bCreateHotpatchableImage)
 			{
-				Arguments.Add("/FUNCTIONPADMIN");
+				Arguments.Add("/FUNCTIONPADMIN:6"); // For some reason, not providing the number causes full linking to happen all the time
 			}
 
 			// For targets that are cross-referenced, we don't want to write a LIB file during the link step as that
