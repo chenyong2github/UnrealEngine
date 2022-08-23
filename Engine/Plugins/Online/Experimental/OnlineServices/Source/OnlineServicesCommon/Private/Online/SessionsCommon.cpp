@@ -504,9 +504,23 @@ namespace UE::Online {
 
 	FOnlineError FSessionsCommon::CheckCreateSessionParams(const FCreateSession::Params& Params)
 	{
+		if (Params.SessionName.IsNone())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionParams] Could not create session with no valid SessionName set"));
+
+			return Errors::InvalidParams();
+		}
+
+		if (!Params.LocalUserId.IsValid())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionParams] Could not create session with name [%s]. LocalUserId [%s] not valid"), *Params.SessionName.ToString(), *ToLogString(Params.LocalUserId));
+
+			return Errors::InvalidParams();
+		}
+
 		if (Params.SessionSettings.NumMaxPrivateConnections == 0 && Params.SessionSettings.NumMaxPublicConnections == 0)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionParams] Could not create session with no valid NumMaxPrivateConnections [%d] or NumMaxPublicConnections [%d]"), Params.SessionSettings.NumMaxPrivateConnections, Params.SessionSettings.NumMaxPublicConnections);
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionParams] Could not create session with name [%s] with no valid NumMaxPrivateConnections [%d] or NumMaxPublicConnections [%d]"), *Params.SessionName.ToString(), Params.SessionSettings.NumMaxPrivateConnections, Params.SessionSettings.NumMaxPublicConnections);
 
 			return Errors::InvalidParams();
 		}
@@ -680,7 +694,7 @@ namespace UE::Online {
 			return Errors::InvalidParams();
 		}
 
-		if (Params.SessionName.ToString().IsEmpty())
+		if (Params.SessionName.IsNone())
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionParams] Could not join session with no valid SessionName set"));
 

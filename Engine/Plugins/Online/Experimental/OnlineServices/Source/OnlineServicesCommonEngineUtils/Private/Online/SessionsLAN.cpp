@@ -130,16 +130,6 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsLAN::CreateSession(FCreateSession:
 		return Op->GetHandle();
 	}
 
-	// We'll only host on the LAN beacon for public sessions
-	if (OpParams.SessionSettings.JoinPolicy == ESessionJoinPolicy::Public)
-	{
-		if (TOptional<FOnlineError> TryHostLANSessionResult = TryHostLANSession())
-		{
-			Op->SetError(MoveTemp(TryHostLANSessionResult.GetValue()));
-			return Op->GetHandle();
-		}
-	}
-
 	Op->Then([this](TOnlineAsyncOp<FCreateSession>& Op)
 	{
 		const FCreateSession::Params& OpParams = Op.GetParams();
@@ -149,6 +139,16 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsLAN::CreateSession(FCreateSession:
 		{
 			Op.SetError(MoveTemp(StateCheck));
 			return;
+		}
+
+		// We'll only host on the LAN beacon for public sessions
+		if (OpParams.SessionSettings.JoinPolicy == ESessionJoinPolicy::Public)
+		{
+			if (TOptional<FOnlineError> TryHostLANSessionResult = TryHostLANSession())
+			{
+				Op.SetError(MoveTemp(TryHostLANSessionResult.GetValue()));
+				return;
+			}
 		}
 
 		TSharedRef<FSessionLAN> NewSessionLANRef = MakeShared<FSessionLAN>();

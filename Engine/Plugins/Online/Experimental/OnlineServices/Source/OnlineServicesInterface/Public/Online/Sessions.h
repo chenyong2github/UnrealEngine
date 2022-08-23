@@ -152,10 +152,10 @@ struct ONLINESERVICESINTERFACE_API FSessionSettings
 	uint32 NumOpenPrivateConnections = 0;
 
 	/* Enum value describing the level of restriction to join the session */
-	ESessionJoinPolicy JoinPolicy;
+	ESessionJoinPolicy JoinPolicy = ESessionJoinPolicy::Public;
 
- 	/* In platforms that support this feature, it will set the session id to this value. Might be subject to minimum and maximum length */
- 	FString SessionIdOverride;
+	/* In platforms that support this feature, it will set the session id to this value. Might be subject to minimum and maximum length */
+	FString SessionIdOverride;
 
 	/* Whether the session is only available in the local network and not via internet connection. Only available in some platforms. False by default */
 	bool bIsLANSession = false;
@@ -840,9 +840,15 @@ public:
 namespace Meta {
 
 BEGIN_ONLINE_STRUCT_META(FFindSessionsSearchFilter)
+	ONLINE_STRUCT_FIELD(FFindSessionsSearchFilter, Key),
+	ONLINE_STRUCT_FIELD(FFindSessionsSearchFilter, ComparisonOp),
+	ONLINE_STRUCT_FIELD(FFindSessionsSearchFilter, Value)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCustomSessionSetting)
+	ONLINE_STRUCT_FIELD(FCustomSessionSetting, Data),
+	ONLINE_STRUCT_FIELD(FCustomSessionSetting, Visibility),
+	ONLINE_STRUCT_FIELD(FCustomSessionSetting, ID)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSessionMember)
