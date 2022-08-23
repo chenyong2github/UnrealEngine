@@ -3,6 +3,7 @@
 
 #include "GameplayTagContainer.h"
 #include "GameplayTagsManager.h"
+#include "Trace/SlateMemoryTags.h"
 
 #include "UITag.generated.h"
 
@@ -72,7 +73,8 @@ class TTypedTagStaticImpl
 	}
 
 	TTypedTagStaticImpl()
-	{
+	{ 
+		LLM_SCOPE(ELLMTag::UI);
 		UGameplayTagsManager::OnLastChanceToAddNativeTags().AddLambda([this]()
 			{
 				StaticImpl.RootTag = UGameplayTagsManager::Get().AddNativeGameplayTag(TagT::GetRootTagStr());

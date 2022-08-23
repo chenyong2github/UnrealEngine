@@ -6,6 +6,7 @@
 #include "Sound/SoundBase.h"
 #include "Sound/SlateSound.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Trace/SlateMemoryTags.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
 #include "Components/NamedSlot.h"
@@ -1390,6 +1391,7 @@ void UUserWidget::NativeOnInitialized()
 
 void UUserWidget::NativePreConstruct()
 {
+	LLM_SCOPE_BYTAG(UI_UMG);
 	const bool bIsDesignTime = IsDesignTime();
 	if (UWidgetBlueprintGeneratedClass* BPClass = Cast<UWidgetBlueprintGeneratedClass>(GetClass()))
 	{
@@ -1404,6 +1406,7 @@ void UUserWidget::NativePreConstruct()
 
 void UUserWidget::NativeConstruct()
 {
+	LLM_SCOPE_BYTAG(UI_UMG);
 	if (UWidgetBlueprintGeneratedClass* BPClass = Cast<UWidgetBlueprintGeneratedClass>(GetClass()))
 	{
 		BPClass->ForEachExtension([this](UWidgetBlueprintGeneratedClassExtension* Extension)
@@ -2042,6 +2045,8 @@ UUserWidget* UUserWidget::CreateWidgetInstance(UWorld& World, TSubclassOf<UUserW
 
 UUserWidget* UUserWidget::CreateInstanceInternal(UObject* Outer, TSubclassOf<UUserWidget> UserWidgetClass, FName InstanceName, UWorld* World, ULocalPlayer* LocalPlayer)
 {
+	LLM_SCOPE_BYTAG(UI_UMG);
+
 	//CSV_SCOPED_TIMING_STAT(Slate, CreateWidget);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

@@ -4,7 +4,7 @@
 #include "Stats/Stats.h"
 #include "Textures/SlateShaderResource.h"
 #include "Textures/SlateTextureData.h"
-#include "HAL/LowLevelMemTracker.h"
+#include "Trace/SlateMemoryTags.h"
 #include "Misc/MemStack.h"
 
 #include <limits>
@@ -113,7 +113,7 @@ void FSlateTextureAtlas::MarkTextureDirty()
 
 void FSlateTextureAtlas::InitAtlasData()
 {
-	LLM_SCOPE(ELLMTag::UI);
+	LLM_SCOPE_BYTAG(UI_Texture);
 
 	check(AtlasEmptySlots == NULL && AtlasData.Num() == 0);
 

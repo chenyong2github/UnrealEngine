@@ -15,6 +15,7 @@
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "Brushes/SlateImageBrush.h"
 #include "Brushes/SlateDynamicImageBrush.h"
+#include "Trace/SlateMemoryTags.h"
 
 class UTexture2D;
 struct FSlateWidgetStyle;
@@ -81,6 +82,7 @@ public:
 	template< typename DefinitionType >
 	FORCENOINLINE void Set(const FName PropertyName, const DefinitionType& InStyleDefintion)
 	{
+		LLM_SCOPE_BYTAG(UI_Style);
 		WidgetStyleValues.Add(PropertyName, MakeShared<DefinitionType>(InStyleDefintion));
 	}
 
@@ -91,6 +93,7 @@ public:
 	 */
 	FORCENOINLINE void Set(const FName PropertyName, const float InFloat)
 	{
+		LLM_SCOPE_BYTAG(UI_Style);
 		FloatValues.Add(PropertyName, InFloat);
 	}
 
@@ -101,6 +104,7 @@ public:
 	 */
 	FORCENOINLINE void Set(const FName PropertyName, const FVector2D InVector)
 	{
+		LLM_SCOPE_BYTAG(UI_Style);
 		Vector2DValues.Add(PropertyName, InVector);
 	}
 
@@ -111,11 +115,13 @@ public:
 	 */
 	FORCENOINLINE void Set(const FName PropertyName, const FLinearColor& InColor)
 	{
+		LLM_SCOPE_BYTAG(UI_Style);
 		ColorValues.Add(PropertyName, InColor);
 	}
 
 	FORCENOINLINE void Set(const FName PropertyName, const FColor& InColor)
 	{
+		LLM_SCOPE_BYTAG(UI_Style);
 		ColorValues.Add(PropertyName, InColor);
 	}
 
@@ -126,6 +132,7 @@ public:
 	 */
 	FORCENOINLINE void Set(const FName PropertyName, const FSlateColor& InColor)
 	{
+		LLM_SCOPE_BYTAG(UI_Style);
 		SlateColorValues.Add(PropertyName, InColor);
 	}
 
@@ -136,6 +143,7 @@ public:
 	 */
 	FORCENOINLINE void Set(const FName PropertyName, const FMargin& InMargin)
 	{
+		LLM_SCOPE_BYTAG(UI_Style);
 		MarginValues.Add(PropertyName, InMargin);
 	}
 
@@ -147,6 +155,9 @@ public:
 	template<typename BrushType>
 	FORCENOINLINE void Set(const FName PropertyName, BrushType* InBrush)
 	{
+		// @TODO: This scope may not work, the memory was allocated from the caller not in this scope
+		// Need some way to capure in parent scope?
+		LLM_SCOPE_BYTAG(UI_Style);
 		BrushResources.Add(PropertyName, InBrush);
 	}
 	/**
@@ -157,6 +168,7 @@ public:
 	 */
 	FORCENOINLINE void Set(FName PropertyName, const FSlateSound& InSound)
 	{
+		LLM_SCOPE_BYTAG(UI_Style);
 		Sounds.Add(PropertyName, InSound);
 	}
 
@@ -168,6 +180,7 @@ public:
 	 */
 	FORCENOINLINE void Set(FName PropertyName, const FSlateFontInfo& InFontInfo)
 	{
+		LLM_SCOPE_BYTAG(UI_Style);
 		FontInfoResources.Add(PropertyName, InFontInfo);
 	}
 

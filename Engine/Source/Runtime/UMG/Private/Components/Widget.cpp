@@ -28,8 +28,8 @@
 #include "Blueprint/WidgetTree.h"
 #include "UMGStyle.h"
 #include "Types/ReflectionMetadata.h"
+#include "Trace/SlateMemoryTags.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
-#include "HAL/LowLevelMemTracker.h"
 #include "Components/NamedSlotInterface.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
@@ -889,7 +889,7 @@ void UWidget::OnWidgetRebuilt()
 
 TSharedRef<SWidget> UWidget::TakeWidget()
 {
-	LLM_SCOPE(ELLMTag::UI);
+	LLM_SCOPE_BYTAG(UI_UMG);
 
 	return TakeWidget_Private( []( UUserWidget* Widget, TSharedRef<SWidget> Content ) -> TSharedPtr<SObjectWidget> {
 		       return SNew( SObjectWidget, Widget )[ Content ];

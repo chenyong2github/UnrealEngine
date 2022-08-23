@@ -7,6 +7,7 @@
 #include "InputCoreTypes.h"
 #include "Layout/Visibility.h"
 #include "Textures/SlateIcon.h"
+#include "Trace/SlateMemoryTags.h"
 #include "Framework/Commands/InputChord.h"
 #include "UICommandInfo.generated.h"
 
@@ -198,6 +199,8 @@ public:
 		, UserInterfaceType( EUserInterfaceActionType::Button )
 		, bUseLongDisplayName( true )
 	{
+		LLM_SCOPE_BYTAG(UI_Slate);
+
 		ActiveChords.Empty(2);
 		ActiveChords.Add(TSharedRef<FInputChord>(new FInputChord));
 		ActiveChords.Add(TSharedRef<FInputChord>(new FInputChord));

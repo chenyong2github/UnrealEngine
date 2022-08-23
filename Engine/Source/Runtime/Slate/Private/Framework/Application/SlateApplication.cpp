@@ -39,12 +39,11 @@
 #include "Framework/Application/IInputProcessor.h"
 #include "GenericPlatform/ITextInputMethodSystem.h"
 #include "Framework/Docking/TabCommands.h"
-#include "HAL/LowLevelMemTracker.h"
 #include "Math/UnitConversion.h"
-#include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/StallDetector.h"
 #include "Types/ReflectionMetadata.h"
+#include "Trace/SlateMemoryTags.h"
 #include "Trace/SlateTrace.h"
 #include "Styling/StarshipCoreStyle.h"
 #include "Styling/UMGCoreStyle.h"
@@ -1449,7 +1448,7 @@ static const TCHAR* LexToString(ESlateTickType TickType)
 
 void FSlateApplication::Tick(ESlateTickType TickType)
 {
-	LLM_SCOPE(ELLMTag::UI);
+	LLM_SCOPE_BYTAG(UI_Slate);
 
 	SCOPE_TIME_GUARD(TEXT("FSlateApplication::Tick"));
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UI);

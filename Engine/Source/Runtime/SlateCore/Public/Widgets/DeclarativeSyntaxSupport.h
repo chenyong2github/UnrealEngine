@@ -10,6 +10,7 @@
 #include "Rendering/SlateRenderTransform.h"
 #include "GenericPlatform/ICursor.h"
 #include "Types/ISlateMetaData.h"
+#include "Trace/SlateMemoryTags.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/Accessibility/SlateWidgetAccessibleTypes.h"
 
@@ -947,5 +948,6 @@ struct TSlateDecl
 template<typename WidgetType, typename RequiredArgsPayloadType>
 TSlateDecl<WidgetType, RequiredArgsPayloadType> MakeTDecl( const ANSICHAR* InType, const ANSICHAR* InFile, int32 OnLine, RequiredArgsPayloadType&& InRequiredArgs )
 {
+	LLM_SCOPE_BYTAG(UI_Slate);
 	return TSlateDecl<WidgetType, RequiredArgsPayloadType>(InType, InFile, OnLine, Forward<RequiredArgsPayloadType>(InRequiredArgs));
 }

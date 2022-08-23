@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/Commands/UICommandInfo.h"
+
 #include "Styling/SlateColor.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 #include "Styling/CoreStyle.h"
 #include "Framework/Commands/InputBindingManager.h"
+#include "Trace/SlateMemoryTags.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SToolTip.h"
 
@@ -15,6 +17,7 @@ FOnBindingContextChanged FBindingContext::CommandsChanged;
 
 FUICommandInfoDecl FBindingContext::NewCommand( const FName InCommandName, const FText& InCommandLabel, const FText& InCommandDesc )
 {
+	LLM_SCOPE_BYTAG(UI_Slate);
 	return FUICommandInfoDecl( this->AsShared(), InCommandName, InCommandLabel, InCommandDesc );
 }
 
@@ -53,6 +56,7 @@ const FText& FBindingContext::GetBundleLabel(const FName Name)
 FUICommandInfoDecl::FUICommandInfoDecl( const TSharedRef<FBindingContext>& InContext, const FName InCommandName, const FText& InLabel, const FText& InDesc, const FName InBundle)
 	: Context( InContext )
 {
+	LLM_SCOPE_BYTAG(UI_Slate);
 	Info = MakeShareable( new FUICommandInfo( InContext->GetContextName() ) );
 	Info->CommandName = InCommandName;
 	Info->Label = InLabel;
@@ -107,6 +111,8 @@ const FText FUICommandInfo::GetInputText() const
 void FUICommandInfo::MakeCommandInfo( const TSharedRef<class FBindingContext>& InContext, TSharedPtr< FUICommandInfo >& OutCommand, const FName InCommandName, const FText& InCommandLabel, const FText& InCommandDesc, const FSlateIcon& InIcon, const EUserInterfaceActionType InUserInterfaceType, const FInputChord& InDefaultChord, const FInputChord& InAlternateDefaultChord, const FName InBundle)
 {
 	ensureMsgf( !InCommandLabel.IsEmpty(), TEXT("Command labels cannot be empty") );
+
+	LLM_SCOPE_BYTAG(UI_Slate);
 
 	OutCommand = MakeShareable( new FUICommandInfo( InContext->GetContextName() ) );
 	OutCommand->CommandName = InCommandName;

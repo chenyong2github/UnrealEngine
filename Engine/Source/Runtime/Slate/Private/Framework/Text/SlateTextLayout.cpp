@@ -10,9 +10,11 @@
 #include "Framework/Text/ISlateLineHighlighter.h"
 #include "Framework/Text/SlateTextRun.h"
 #include "Framework/Text/SlatePasswordRun.h"
+#include "Trace/SlateMemoryTags.h"
 
 TSharedRef< FSlateTextLayout > FSlateTextLayout::Create(SWidget* InOwner, FTextBlockStyle InDefaultTextStyle)
 {
+	LLM_SCOPE_BYTAG(UI_Text);
 	TSharedRef< FSlateTextLayout > Layout = MakeShareable( new FSlateTextLayout(InOwner, MoveTemp(InDefaultTextStyle)) );
 	Layout->AggregateChildren();
 

@@ -2,6 +2,7 @@
 
 #include "Framework/Commands/InputBindingManager.h"
 #include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
@@ -10,8 +11,8 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "SlateGlobals.h"
+#include "Trace/SlateMemoryTags.h"
 #include "Misc/RemoteConfigIni.h"
-#include "HAL/IConsoleManager.h"
 
 /* FUserDefinedChords helper class
  *****************************************************************************/
@@ -409,6 +410,8 @@ void FInputBindingManager::CreateInputCommand( const TSharedRef<FBindingContext>
 	// The command name should be valid
 	check( InCommandInfo->CommandName != NAME_None );
 
+	LLM_SCOPE_BYTAG(UI_Slate);
+
 	// Should not have already created a chord for this command
 	for (uint32 i = 0; i < static_cast<uint8>(EMultipleKeyBindingIndex::NumChords); ++i)
 	{
@@ -517,6 +520,8 @@ void FInputBindingManager::RemoveInputCommand(const TSharedRef<FBindingContext>&
 
 	// The command name should be valid
 	check(InUICommandInfo->CommandName != NAME_None);
+
+	LLM_SCOPE_BYTAG(UI_Slate);
 
 	const FName ContextName = InBindingContext->GetContextName();
 
