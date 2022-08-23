@@ -36,24 +36,29 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "SteamVRSkeletonDefinition.h"
 #include "AnimNode_SteamVRSetWristTransform.generated.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /**
 * Custom animation node that sets the wrist transform of a target pose from a reference pose
 */
-USTRUCT(BlueprintInternalUseOnly)
+USTRUCT(BlueprintInternalUseOnly, meta = (Deprecated = "5.1"))
 struct STEAMVRINPUTDEVICE_API FAnimNode_SteamVRSetWristTransform : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
 	/** The pose from where we will get the root and/or wrist transform from */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Links)
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Links, meta = (DeprecatedProperty))
 	FPoseLink ReferencePose;
 
 	/** What kind of skeleton is used in the reference pose */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (AlwaysAsPin))
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (AlwaysAsPin, DeprecatedProperty))
 	EHandSkeleton HandSkeleton = EHandSkeleton::VR_SteamVRHandSkeleton;
 
 	/** The pose to apply the wrist transform to */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Links)
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Links, meta = (DeprecatedProperty))
 	FPoseLink TargetPose;
 
 public:
@@ -75,3 +80,5 @@ private:
 	FCompactPoseBoneIndex SteamVRWristBoneIndex = FCompactPoseBoneIndex(1);
 
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

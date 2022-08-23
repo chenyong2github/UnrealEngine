@@ -150,22 +150,22 @@ void FSteamVREditorModule::PluginButtonClicked()
 
 void FSteamVREditorModule::JsonRegenerateActionManifest()
 {
-	USteamVRInputDeviceFunctionLibrary::RegenActionManifest();
+	UDEPRECATED_USteamVRInputDeviceFunctionLibrary::RegenActionManifest();
 }
 
 void FSteamVREditorModule::JsonRegenerateControllerBindings()
 {
-	USteamVRInputDeviceFunctionLibrary::RegenControllerBindings();
+	UDEPRECATED_USteamVRInputDeviceFunctionLibrary::RegenControllerBindings();
 }
 
 void FSteamVREditorModule::ReloadActionManifest()
 {
-	USteamVRInputDeviceFunctionLibrary::ReloadActionManifest();
+	UDEPRECATED_USteamVRInputDeviceFunctionLibrary::ReloadActionManifest();
 }
 
 void FSteamVREditorModule::LaunchBindingsURL()
 {
-	USteamVRInputDeviceFunctionLibrary::LaunchBindingsURL();
+	UDEPRECATED_USteamVRInputDeviceFunctionLibrary::LaunchBindingsURL();
 }
 
 void FSteamVREditorModule::AddSampleInputs()

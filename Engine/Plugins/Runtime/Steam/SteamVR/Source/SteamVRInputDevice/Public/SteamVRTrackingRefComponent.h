@@ -39,42 +39,49 @@ POSSIBILITY OF SUCH DAMAGE.
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FComponentTrackingActivatedSignature, int32, DeviceID, FName, DeviceClass, FString, DeviceModel);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FComponentTrackingDeactivatedSignature, int32, DeviceID, FName, DeviceClass, FString, DeviceModel);
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class STEAMVRINPUTDEVICE_API USteamVRTrackingReferences : public UActorComponent
+UCLASS( ClassGroup=(Custom), deprecated, meta=(BlueprintSpawnableComponent, DeprecationMessage = "SteamVR plugin is deprecated; please use the OpenXR plugin.") )
+class STEAMVRINPUTDEVICE_API UDEPRECATED_USteamVRTrackingReferences : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:	
-	USteamVRTrackingReferences();
+	UDEPRECATED_USteamVRTrackingReferences();
 
 	/** Blueprint event - When a new active device is recognized */
-	UPROPERTY(BlueprintAssignable, Category = "VR")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(BlueprintAssignable, Category = "VR", meta = (DeprecatedProperty))
 	FComponentTrackingActivatedSignature OnTrackedDeviceActivated;
 
 	/** When an active device gets deactivated */
-	UPROPERTY(BlueprintAssignable, Category = "VR")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(BlueprintAssignable, Category = "VR", meta = (DeprecatedProperty))
 	FComponentTrackingDeactivatedSignature OnTrackedDeviceDeactivated;
 
 	// TODO: Set default mesh to SteamVR provided render model. Must be backwards compatible to UE4.15
 
 	/** Display Tracking References in-world */
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	bool ShowTrackingReferences(UStaticMesh* TrackingReferenceMesh);
 
 	/** Remove Tracking References in-world */
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	void HideTrackingReferences();
 
 	/** Scale to apply to the tracking reference mesh */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	float ActiveDevicePollFrequency = 1.f;
 
 	/** Scale to apply to the tracking reference mesh */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FVector TrackingReferenceScale = FVector(1.f);
 
 	/** Currently displayed Tracking References in-world */
-	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	TArray<TObjectPtr<UStaticMeshComponent>> TrackingReferences;
 
 private:

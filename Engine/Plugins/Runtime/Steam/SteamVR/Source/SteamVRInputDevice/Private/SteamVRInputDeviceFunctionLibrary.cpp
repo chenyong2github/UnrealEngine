@@ -38,7 +38,9 @@ POSSIBILITY OF SUCH DAMAGE.
 using namespace vr;
 //#endif // STEAMVRCONTROLLER_SUPPORTED_PLATFORMS
 
-void USteamVRInputDeviceFunctionLibrary::PlaySteamVR_HapticFeedback(ESteamVRHand Hand, float StartSecondsFromNow, float DurationSeconds, float Frequency, float Amplitude)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::PlaySteamVR_HapticFeedback(ESteamVRHand Hand, float StartSecondsFromNow, float DurationSeconds, float Frequency, float Amplitude)
 {
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
 	if (VRSystem() && VRInput())
@@ -68,7 +70,7 @@ void USteamVRInputDeviceFunctionLibrary::PlaySteamVR_HapticFeedback(ESteamVRHand
 	}
 }
 
-void USteamVRInputDeviceFunctionLibrary::RegenActionManifest()
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::RegenActionManifest()
 {
 #if WITH_EDITOR
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
@@ -79,7 +81,7 @@ void USteamVRInputDeviceFunctionLibrary::RegenActionManifest()
 #endif
 }
 
-void USteamVRInputDeviceFunctionLibrary::RegenControllerBindings()
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::RegenControllerBindings()
 {
 #if WITH_EDITOR
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
@@ -90,7 +92,7 @@ void USteamVRInputDeviceFunctionLibrary::RegenControllerBindings()
 #endif
 }
 
-void USteamVRInputDeviceFunctionLibrary::ReloadActionManifest()
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::ReloadActionManifest()
 {
 #if WITH_EDITOR
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
@@ -101,7 +103,7 @@ void USteamVRInputDeviceFunctionLibrary::ReloadActionManifest()
 #endif
 }
 
-void USteamVRInputDeviceFunctionLibrary::GetCurlsAndSplaysState(bool& LeftHandState, bool& RightHandState)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetCurlsAndSplaysState(bool& LeftHandState, bool& RightHandState)
 {
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
 	if (SteamVRInputDevice != nullptr)
@@ -111,7 +113,7 @@ void USteamVRInputDeviceFunctionLibrary::GetCurlsAndSplaysState(bool& LeftHandSt
 	}
 }
 
-void USteamVRInputDeviceFunctionLibrary::GetSkeletalState(bool& LeftHandState, bool& RightHandState)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetSkeletalState(bool& LeftHandState, bool& RightHandState)
 {
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
 	if (SteamVRInputDevice != nullptr)
@@ -121,7 +123,7 @@ void USteamVRInputDeviceFunctionLibrary::GetSkeletalState(bool& LeftHandState, b
 	}
 }
 
-void USteamVRInputDeviceFunctionLibrary::GetControllerFidelity(EControllerFidelity& LeftControllerFidelity, EControllerFidelity& RightControllerFidelity)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetControllerFidelity(EControllerFidelity& LeftControllerFidelity, EControllerFidelity& RightControllerFidelity)
 {
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
 	if (SteamVRInputDevice != nullptr)
@@ -167,7 +169,7 @@ void USteamVRInputDeviceFunctionLibrary::GetControllerFidelity(EControllerFideli
 	}
 }
 
-void USteamVRInputDeviceFunctionLibrary::SetCurlsAndSplaysState(bool NewLeftHandState, bool NewRightHandState)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::SetCurlsAndSplaysState(bool NewLeftHandState, bool NewRightHandState)
 {
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
 	if (SteamVRInputDevice != nullptr)
@@ -177,7 +179,7 @@ void USteamVRInputDeviceFunctionLibrary::SetCurlsAndSplaysState(bool NewLeftHand
 	}
 }
 
-void USteamVRInputDeviceFunctionLibrary::GetPoseSource(bool& bUsingSkeletonPose)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetPoseSource(bool& bUsingSkeletonPose)
 {
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
 	if (SteamVRInputDevice != nullptr)
@@ -186,7 +188,7 @@ void USteamVRInputDeviceFunctionLibrary::GetPoseSource(bool& bUsingSkeletonPose)
 	}
 }
 
-void USteamVRInputDeviceFunctionLibrary::SetPoseSource(bool bUseSkeletonPose)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::SetPoseSource(bool bUseSkeletonPose)
 {
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
 	if (SteamVRInputDevice != nullptr)
@@ -195,7 +197,7 @@ void USteamVRInputDeviceFunctionLibrary::SetPoseSource(bool bUseSkeletonPose)
 	}
 }
 
-void USteamVRInputDeviceFunctionLibrary::GetSkeletalTransform(FSteamVRSkeletonTransform& LeftHand, FSteamVRSkeletonTransform& RightHand, bool bWithController)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetSkeletalTransform(FSteamVRSkeletonTransform& LeftHand, FSteamVRSkeletonTransform& RightHand, bool bWithController)
 {
 	FTransform OutPose[STEAMVR_SKELETON_BONE_COUNT];
 
@@ -289,7 +291,7 @@ void USteamVRInputDeviceFunctionLibrary::GetSkeletalTransform(FSteamVRSkeletonTr
 	}
 }
 
-void USteamVRInputDeviceFunctionLibrary::GetLeftHandPoseData(FVector& Position, FRotator& Orientation, FVector& AngularVelocity, FVector& Velocity)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetLeftHandPoseData(FVector& Position, FRotator& Orientation, FVector& AngularVelocity, FVector& Velocity)
 {
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
 	if (SteamVRInputDevice != nullptr)
@@ -298,7 +300,7 @@ void USteamVRInputDeviceFunctionLibrary::GetLeftHandPoseData(FVector& Position, 
 	}
 }
 
-void USteamVRInputDeviceFunctionLibrary::GetRightHandPoseData(FVector& Position, FRotator& Orientation, FVector& AngularVelocity, FVector& Velocity)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetRightHandPoseData(FVector& Position, FRotator& Orientation, FVector& AngularVelocity, FVector& Velocity)
 {
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
 	if (SteamVRInputDevice != nullptr)
@@ -307,7 +309,7 @@ void USteamVRInputDeviceFunctionLibrary::GetRightHandPoseData(FVector& Position,
 	}
 }
 
-void USteamVRInputDeviceFunctionLibrary::GetSteamVR_ActionArray(TArray<FSteamVRAction>& SteamVRActions)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetSteamVR_ActionArray(TArray<FSteamVRAction>& SteamVRActions)
 {
 	bool bAlreadyExists;
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
@@ -336,7 +338,7 @@ void USteamVRInputDeviceFunctionLibrary::GetSteamVR_ActionArray(TArray<FSteamVRA
 	}
 }
 
-void USteamVRInputDeviceFunctionLibrary::FindSteamVR_Action(FName ActionName, bool& bResult, FSteamVRAction& FoundAction, FSteamVRActionSet& FoundActionSet, FName ActionSet)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::FindSteamVR_Action(FName ActionName, bool& bResult, FSteamVRAction& FoundAction, FSteamVRActionSet& FoundActionSet, FName ActionSet)
 {
 	bool bActionFound = false;
 	bool bActionSetFound = false;
@@ -376,7 +378,7 @@ void USteamVRInputDeviceFunctionLibrary::FindSteamVR_Action(FName ActionName, bo
 	bResult = bActionFound && bActionSetFound;
 }
 
-void USteamVRInputDeviceFunctionLibrary::GetSteamVR_ActionSetArray(TArray<FSteamVRActionSet>& SteamVRActionSets)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetSteamVR_ActionSetArray(TArray<FSteamVRActionSet>& SteamVRActionSets)
 {
 	// We only have one Action Set supported for this version of the plugin, so just return that
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
@@ -386,7 +388,7 @@ void USteamVRInputDeviceFunctionLibrary::GetSteamVR_ActionSetArray(TArray<FSteam
 	}
 }
 
-bool USteamVRInputDeviceFunctionLibrary::GetSteamVR_OriginTrackedDeviceInfo(FSteamVRAction SteamVRAction, FSteamVRInputOriginInfo& InputOriginInfo)
+bool UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetSteamVR_OriginTrackedDeviceInfo(FSteamVRAction SteamVRAction, FSteamVRInputOriginInfo& InputOriginInfo)
 {
 	if (VRSystem() && VRInput())
 	{
@@ -414,7 +416,7 @@ bool USteamVRInputDeviceFunctionLibrary::GetSteamVR_OriginTrackedDeviceInfo(FSte
 	return false;
 }
 
-void USteamVRInputDeviceFunctionLibrary::FindSteamVR_OriginTrackedDeviceInfo(FName ActionName, bool& bResult, FSteamVRInputOriginInfo& InputOriginInfo, FName ActionSet /*= FName("main")*/)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::FindSteamVR_OriginTrackedDeviceInfo(FName ActionName, bool& bResult, FSteamVRInputOriginInfo& InputOriginInfo, FName ActionSet /*= FName("main")*/)
 {
 	bResult = false;
 	FSteamVRAction FoundAction;
@@ -428,7 +430,7 @@ void USteamVRInputDeviceFunctionLibrary::FindSteamVR_OriginTrackedDeviceInfo(FNa
 	}
 }
 
-void USteamVRInputDeviceFunctionLibrary::GetSteamVR_OriginLocalizedName(FSteamVRAction SteamVRAction, TArray<ESteamVRInputStringBits> LocalizedParts, FString& OriginLocalizedName)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetSteamVR_OriginLocalizedName(FSteamVRAction SteamVRAction, TArray<ESteamVRInputStringBits> LocalizedParts, FString& OriginLocalizedName)
 {
 	if (VRSystem() && VRInput())
 	{
@@ -475,7 +477,7 @@ void USteamVRInputDeviceFunctionLibrary::GetSteamVR_OriginLocalizedName(FSteamVR
 	}
 }
 
-void USteamVRInputDeviceFunctionLibrary::ShowSteamVR_ActionOrigin(FSteamVRAction SteamVRAction, FSteamVRActionSet SteamVRActionSet)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::ShowSteamVR_ActionOrigin(FSteamVRAction SteamVRAction, FSteamVRActionSet SteamVRActionSet)
 {
 	if (VRSystem() && VRInput())
 	{
@@ -494,7 +496,7 @@ void USteamVRInputDeviceFunctionLibrary::ShowSteamVR_ActionOrigin(FSteamVRAction
 	}
 }
 
-bool USteamVRInputDeviceFunctionLibrary::FindSteamVR_ActionOrigin(FName ActionName, FName ActionSet)
+bool UDEPRECATED_USteamVRInputDeviceFunctionLibrary::FindSteamVR_ActionOrigin(FName ActionName, FName ActionSet)
 {
 	// Find SteamVR Action
 	bool bIsActionFound = false;
@@ -512,7 +514,7 @@ bool USteamVRInputDeviceFunctionLibrary::FindSteamVR_ActionOrigin(FName ActionNa
 	return false;
 }
 
-bool USteamVRInputDeviceFunctionLibrary::GetSteamVR_HandPoseRelativeToNow(FVector& Position, FRotator& Orientation, ESteamVRHand Hand /*= ESteamVRHand::VR_Left*/, float PredictedSecondsFromNow /*= 0.f*/)
+bool UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetSteamVR_HandPoseRelativeToNow(FVector& Position, FRotator& Orientation, ESteamVRHand Hand /*= ESteamVRHand::VR_Left*/, float PredictedSecondsFromNow /*= 0.f*/)
 {
 	if (VRSystem() && VRInput())
 	{
@@ -564,7 +566,7 @@ bool USteamVRInputDeviceFunctionLibrary::GetSteamVR_HandPoseRelativeToNow(FVecto
 	return false;
 }
 
-float USteamVRInputDeviceFunctionLibrary::GetSteamVR_GlobalPredictedSecondsFromNow()
+float UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetSteamVR_GlobalPredictedSecondsFromNow()
 {
 	if (VRSystem() && VRInput())
 	{
@@ -578,7 +580,7 @@ float USteamVRInputDeviceFunctionLibrary::GetSteamVR_GlobalPredictedSecondsFromN
 	return -9999.f;
 }
 
-float USteamVRInputDeviceFunctionLibrary::SetSteamVR_GlobalPredictedSecondsFromNow(float NewValue)
+float UDEPRECATED_USteamVRInputDeviceFunctionLibrary::SetSteamVR_GlobalPredictedSecondsFromNow(float NewValue)
 {
 	if (VRSystem() && VRInput())
 	{
@@ -593,13 +595,13 @@ float USteamVRInputDeviceFunctionLibrary::SetSteamVR_GlobalPredictedSecondsFromN
 	return -9999.f;
 }
 
-void USteamVRInputDeviceFunctionLibrary::ShowAllSteamVR_ActionOrigins()
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::ShowAllSteamVR_ActionOrigins()
 {
 	VRActiveActionSet_t ActiveActionSet;
 	VRInput()->ShowBindingsForActionSet(&ActiveActionSet, sizeof(ActiveActionSet), 1, 0);
 }
 
-TArray<FSteamVRInputBindingInfo> USteamVRInputDeviceFunctionLibrary::GetSteamVR_InputBindingInfo(FSteamVRAction SteamVRActionHandle)
+TArray<FSteamVRInputBindingInfo> UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetSteamVR_InputBindingInfo(FSteamVRAction SteamVRActionHandle)
 {
 	// Setup variables to be used by the OpenVR call
 	TArray<FSteamVRInputBindingInfo> SteamVRBindingInfo;
@@ -657,7 +659,7 @@ TArray<FSteamVRInputBindingInfo> USteamVRInputDeviceFunctionLibrary::GetSteamVR_
 	return SteamVRBindingInfo;
 }
 
-TArray<FSteamVRInputBindingInfo> USteamVRInputDeviceFunctionLibrary::FindSteamVR_InputBindingInfo(FName ActionName, FName ActionSet /*= FName("main")*/)
+TArray<FSteamVRInputBindingInfo> UDEPRECATED_USteamVRInputDeviceFunctionLibrary::FindSteamVR_InputBindingInfo(FName ActionName, FName ActionSet /*= FName("main")*/)
 {
 	// Check for a valid OpenVR session and action name/set
 	if (VRInput() && ActionName != NAME_None && ActionSet != NAME_None)
@@ -692,7 +694,7 @@ TArray<FSteamVRInputBindingInfo> USteamVRInputDeviceFunctionLibrary::FindSteamVR
 
 }
 
-bool USteamVRInputDeviceFunctionLibrary::ResetSeatedPosition()
+bool UDEPRECATED_USteamVRInputDeviceFunctionLibrary::ResetSeatedPosition()
 {
 	if (VRSystem() && VRInput())
 	{
@@ -711,7 +713,7 @@ bool USteamVRInputDeviceFunctionLibrary::ResetSeatedPosition()
 }
 
 
-float USteamVRInputDeviceFunctionLibrary::GetUserIPD()
+float UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetUserIPD()
 {
 	if (VRSystem())
 	{
@@ -721,7 +723,7 @@ float USteamVRInputDeviceFunctionLibrary::GetUserIPD()
 	return 0.f;
 }
 
-FTransform USteamVRInputDeviceFunctionLibrary::GetUETransform(VRBoneTransform_t SteamBoneTransform)
+FTransform UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetUETransform(VRBoneTransform_t SteamBoneTransform)
 {
 	FTransform RetTransform;
 
@@ -738,7 +740,7 @@ FTransform USteamVRInputDeviceFunctionLibrary::GetUETransform(VRBoneTransform_t 
 	return RetTransform;
 }
 
-void USteamVRInputDeviceFunctionLibrary::LaunchBindingsURL()
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::LaunchBindingsURL()
 {
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
 	if (SteamVRInputDevice != nullptr)
@@ -749,7 +751,7 @@ void USteamVRInputDeviceFunctionLibrary::LaunchBindingsURL()
 	}
 }
 
-void USteamVRInputDeviceFunctionLibrary::GetFingerCurlsAndSplays(EHand Hand, FSteamVRFingerCurls& FingerCurls, FSteamVRFingerSplays& FingerSplays, ESkeletalSummaryDataType SummaryDataType)
+void UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetFingerCurlsAndSplays(EHand Hand, FSteamVRFingerCurls& FingerCurls, FSteamVRFingerSplays& FingerSplays, ESkeletalSummaryDataType SummaryDataType)
 {
 	FSteamVRInputDevice* SteamVRInputDevice = GetSteamVRInputDevice();
 	if (SteamVRInputDevice != nullptr && VRSystem() && VRInput())
@@ -837,7 +839,7 @@ void USteamVRInputDeviceFunctionLibrary::GetFingerCurlsAndSplays(EHand Hand, FSt
 	FingerSplays = {};
 }
 
-FSteamVRInputDevice* USteamVRInputDeviceFunctionLibrary::GetSteamVRInputDevice()
+FSteamVRInputDevice* UDEPRECATED_USteamVRInputDeviceFunctionLibrary::GetSteamVRInputDevice()
 {
 	TArray<IMotionController*> MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
 	for (auto MotionController : MotionControllers)
@@ -863,3 +865,4 @@ FSteamVRInputDevice* USteamVRInputDeviceFunctionLibrary::GetSteamVRInputDevice()
 	return nullptr;
 }
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

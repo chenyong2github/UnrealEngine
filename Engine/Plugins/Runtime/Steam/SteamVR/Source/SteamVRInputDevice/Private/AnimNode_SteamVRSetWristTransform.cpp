@@ -35,6 +35,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "SteamVRInputDevice.h"
 #include "UE4HandSkeletonDefinition.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 FAnimNode_SteamVRSetWristTransform::FAnimNode_SteamVRSetWristTransform()
 {
 }
@@ -83,3 +85,5 @@ void FAnimNode_SteamVRSetWristTransform::Evaluate_AnyThread(FPoseContext& Output
 		Output.Pose[RootBoneIndex] = ReferenceContext.Pose[RootBoneIndex];
 	}
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

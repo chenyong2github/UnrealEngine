@@ -36,36 +36,44 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "SteamVRSkeletonDefinition.h"
 #include "AnimNode_SteamVRInputAnimPose.generated.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /**
 * Custom animation node to retrieve poses from the Skeletal Input System
 */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta = (Deprecated = "5.1"))
 struct STEAMVRINPUTDEVICE_API FAnimNode_SteamVRInputAnimPose : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
 	/** Range of motion for the skeletal input values */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (AlwaysAsPin))
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (AlwaysAsPin, DeprecatedProperty))
 	EMotionRange MotionRange = EMotionRange::VR_WithoutController;
 
 	/** Which hand should the animation node retrieve skeletal input values for */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (AlwaysAsPin))
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (AlwaysAsPin, DeprecatedProperty))
 	EHand Hand = EHand::VR_LeftHand;
 
 	/** What kind of skeleton are we dealing with */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (AlwaysAsPin))
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (AlwaysAsPin, DeprecatedProperty))
 	EHandSkeleton HandSkeleton = EHandSkeleton::VR_SteamVRHandSkeleton;
 
 	/** Should the pose be mirrored so it can be applied to the opposite hand */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = ( AlwaysAsPin ))
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (AlwaysAsPin, DeprecatedProperty))
 	bool Mirror = false;
 
 	/** The UE4 equivalent of the SteamVR Transform values per bone */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SteamVRInput)
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SteamVRInput, meta = (DeprecatedProperty))
 	FSteamVRSkeletonTransform SteamVRSkeletalTransform;
 
 	/** SteamVR Skeleton to UE4 retargetting cache */
-	UPROPERTY()
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(meta = (DeprecatedProperty))
 	FUE4RetargettingRefs UE4RetargettingRefs;
 
 public:
@@ -92,3 +100,5 @@ public:
 	FTransform CalcModelSpaceTransform(const FCompactPose& Pose, FCompactPoseBoneIndex BoneIndex);
 
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

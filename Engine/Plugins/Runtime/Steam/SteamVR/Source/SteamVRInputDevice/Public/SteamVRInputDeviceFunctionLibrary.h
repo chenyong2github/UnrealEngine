@@ -48,135 +48,179 @@ using namespace vr;
 #define ACTION_PATH_VIBRATE_RIGHT		"/actions/main/out/vibrateright"
 #define MAX_BINDINGINFO_COUNT	5
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /** UE4 Bone definition of the SteamVR Skeleton */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta = (Deprecated = "5.1"))
 struct STEAMVRINPUTDEVICE_API FSteamVRSkeletonTransform
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Root;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Wrist;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Thumb_0;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Thumb_1;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Thumb_2;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Thumb_3;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Index_0;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Index_1;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Index_2;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Index_3;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Index_4;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Middle_0;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Middle_1;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Middle_2;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Middle_3;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Middle_4;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Ring_0;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Ring_1;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Ring_2;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Ring_3;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Ring_4;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Pinky_0;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Pinky_1;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Pinky_2;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Pinky_3;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Pinky_4;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Aux_Thumb;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Aux_Index;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Aux_Middle;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Aux_Ring;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FTransform Aux_Pinky;
 };
 
 /** SteamVR finger curls */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta = (Deprecated = "5.1"))
 struct STEAMVRINPUTDEVICE_API FSteamVRFingerCurls
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	float	Thumb = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	float	Index = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	float	Middle = 0.0f;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	float	Ring = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	float	Pinky = 0.0f;
 };
 
 /** SteamVR finger splays */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta = (Deprecated = "5.1"))
 struct STEAMVRINPUTDEVICE_API FSteamVRFingerSplays
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	float	Thumb_Index = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	float	Index_Middle = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	float	Middle_Ring = 0.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	float	Ring_Pinky = 0.0f;
 };
 
 /** SteamVR actions as defined by the developer */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta = (Deprecated = "5.1"))
 struct STEAMVRINPUTDEVICE_API FSteamVRAction
 {
 	GENERATED_BODY()
 
 	// The SteamVR name of the action (e.g. Teleport, OpenConsole)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FName		Name;
 
 	// The path defined for the action (e.g. main/in/{ActionName})
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FString		Path;
 
 	VRActionHandle_t Handle;				// The handle to the SteamVR Action 
@@ -195,13 +239,14 @@ struct STEAMVRINPUTDEVICE_API FSteamVRAction
 
 
 /** SteamVR action set as defined by the developer */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta = (Deprecated = "5.1"))
 struct STEAMVRINPUTDEVICE_API FSteamVRActionSet
 {
 	GENERATED_BODY()
 
 	// The path defined for this action set (e.g. /actions/main)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FString		Path;			
 	
 	VRActionSetHandle_t Handle;	// The handle to the SteamVR Action Set
@@ -216,21 +261,24 @@ struct STEAMVRINPUTDEVICE_API FSteamVRActionSet
 };
 
 /** Information about the tracked device associated from the input source */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta = (Deprecated = "5.1"))
 struct STEAMVRINPUTDEVICE_API FSteamVRInputOriginInfo
 {
 	GENERATED_BODY()
 
 	// The tracked device index for the device or k_unTrackedDeviceInvalid (0xFFFFFFFF)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	int32	TrackedDeviceIndex;
 	
 	//  The name of the component of the tracked device's render model that represents this input source, or an empty string if there is no associated render model component.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FString	RenderModelComponentName;
 
 	//  The tracked device's model info
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FString	TrackedDeviceModel;
 
 	FSteamVRInputOriginInfo(const int32 InDeviceIndex, const FString InRenderModelComponentName)
@@ -245,24 +293,29 @@ struct STEAMVRINPUTDEVICE_API FSteamVRInputOriginInfo
 };
 
 /** Retargetting information for the SteamVR skeleton to UE4 stock skeleton */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta = (Deprecated = "5.1"))
 struct STEAMVRINPUTDEVICE_API FUE4RetargettingRefs
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	bool bIsInitialized;
 
-	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	bool bIsRightHanded;
 
-	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FVector KnuckleAverageMS_UE4;
 
-	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FVector WristSideDirectionLS_UE4;
 
-	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FVector WristForwardLS_UE4;
 
 	FUE4RetargettingRefs()
@@ -276,21 +329,25 @@ struct STEAMVRINPUTDEVICE_API FUE4RetargettingRefs
 };
 
 /** Information about the input bindings for an action on currently active controller (i.e device path, input path, mode, slot)  */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta = (Deprecated = "5.1"))
 struct STEAMVRINPUTDEVICE_API FSteamVRInputBindingInfo
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FName	DevicePathName;
 
-	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FName	InputPathName;
 
-	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FName	ModeName;
 
-	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UPROPERTY(BlueprintReadOnly, Category = "SteamVR Input", meta = (DeprecatedProperty))
 	FName	SlotName;
 
 	FSteamVRInputBindingInfo()
@@ -312,7 +369,7 @@ struct STEAMVRINPUTDEVICE_API FSteamVRInputBindingInfo
 
 /** Convenience type for SteamVR Hand designation (Left/Right) */
 UENUM(BlueprintType)	
-enum class ESteamVRHand : uint8
+enum class UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.") ESteamVRHand : uint8
 {
 	VR_Left		UMETA(DisplayName = "Left"),
 	VR_Right	UMETA(DisplayName = "Right")
@@ -320,7 +377,7 @@ enum class ESteamVRHand : uint8
 
 /** Valid range of motion for a skeletal animation */
 UENUM(BlueprintType)
-enum class EMotionRange : uint8
+enum class UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.") EMotionRange : uint8
 {
 	VR_WithoutController 	UMETA(DisplayName = "Without Controller"),
 	VR_WithController 		UMETA(DisplayName = "With Controller")
@@ -328,7 +385,7 @@ enum class EMotionRange : uint8
 
 /** Valid values for hands thats used for the Skeletal Input System calls */
 UENUM(BlueprintType)
-enum class EHand : uint8
+enum class UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.") EHand : uint8
 {
 	VR_LeftHand 	UMETA(DisplayName = "Left Hand"),
 	VR_RightHand 	UMETA(DisplayName = "Right Hand")
@@ -336,7 +393,7 @@ enum class EHand : uint8
 
 /** Types of known skeletons that this animation node can handle */
 UENUM(BlueprintType)
-enum class EHandSkeleton : uint8
+enum class UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.") EHandSkeleton : uint8
 {
 	VR_SteamVRHandSkeleton 	UMETA(DisplayName = "SteamVR Hand Skeleton"),
 	VR_UE4HandSkeleton 		UMETA(DisplayName = "UE4 Hand Skeleton")
@@ -344,7 +401,7 @@ enum class EHandSkeleton : uint8
 
 /** Skeletal Tracking Level of a controller */
 UENUM(BlueprintType)
-enum class EControllerFidelity : uint8
+enum class UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.") EControllerFidelity : uint8
 {
 	VR_ControllerFidelity_Estimated 	UMETA(DisplayName = "Controller Fidelity Estimated"),
 	VR_ControllerFidelity_Full 			UMETA(DisplayName = "Controller Fidelity Full"),
@@ -353,7 +410,7 @@ enum class EControllerFidelity : uint8
 
 /** Input String Values for querying user hardware */
 UENUM(BlueprintType)
-enum class ESteamVRInputStringBits : uint8
+enum class UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.") ESteamVRInputStringBits : uint8
 {
 	// Which hand the origin is in (e.g. "Left Hand")
 	VR_InputString_Hand					UMETA(DisplayName = "Hand"),
@@ -370,7 +427,7 @@ enum class ESteamVRInputStringBits : uint8
 
 /** Input String Values for querying user hardware */
 UENUM(BlueprintType)
-enum class ESkeletalSummaryDataType : uint8
+enum class UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.") ESkeletalSummaryDataType : uint8
 {
 	// The data should match the animated transforms in the skeleton transforms. This data will probably be smoothed and may be more latent
 	VR_SummaryType_FromAnimation		UMETA(DisplayName = "From Animation"),
@@ -383,8 +440,8 @@ enum class ESkeletalSummaryDataType : uint8
  * SteamVR Input Extended Functions
  * Functions and properties defined here are safe for developer use
  */
-UCLASS()
-class STEAMVRINPUTDEVICE_API USteamVRInputDeviceFunctionLibrary : public UBlueprintFunctionLibrary
+UCLASS(deprecated, meta = (DeprecationMessage = "SteamVR plugin is deprecated; please use the OpenXR plugin."))
+class STEAMVRINPUTDEVICE_API UDEPRECATED_USteamVRInputDeviceFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -394,7 +451,8 @@ public:
 	* @param Hand - Which hand to get the finger curls and splay values for
 	* @param FingerCurls - Curl values for each finger pair this frame
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void GetFingerCurlsAndSplays(EHand Hand, FSteamVRFingerCurls& FingerCurls, FSteamVRFingerSplays& FingerSplays, ESkeletalSummaryDataType SummaryDataType = ESkeletalSummaryDataType::VR_SummaryType_FromAnimation);
 
 	/**
@@ -405,7 +463,8 @@ public:
 	* @param Frequency - Frequency used in the haptic feedback
 	* @param Amplitude - Amplitude used in the haptic feedback
 	*/
-	UFUNCTION(BlueprintCallable, Category="SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category="SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void PlaySteamVR_HapticFeedback(ESteamVRHand Hand, float StartSecondsFromNow, float DurationSeconds = 1.f,
 			float Frequency = 1.f, float Amplitude = 0.5f);
 
@@ -414,7 +473,8 @@ public:
 	* @return LeftHandState - Whether or not curls and splay values are being retrieved from the left hand
 	* @return RightHandState -  Whether or not curls and splay values are being retrieved from the right hand
 	*/
-	UFUNCTION(BlueprintCallable, Category="SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category="SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void GetCurlsAndSplaysState(bool& LeftHandState, bool& RightHandState);
 
 	/**
@@ -422,7 +482,8 @@ public:
 	* @return LeftHandState - Whether or not the controller attached to the player's left hand have skeletal input support
 	* @return RightHandState -  Whether or not the controller attached to the player's right hand have skeletal input support
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void GetSkeletalState(bool& LeftHandState, bool& RightHandState);
 
 	/** 
@@ -430,7 +491,8 @@ public:
 	* @return LeftControllerFidelity - The skeletal tracking level of the left controller
 	* @return RightControllerFidelity -  The skeletal tracking level of the right controller
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void GetControllerFidelity(EControllerFidelity& LeftControllerFidelity, EControllerFidelity& RightControllerFidelity);
 
 	/**
@@ -438,21 +500,24 @@ public:
 	* @param NewLeftHandState - Whether or not curls and splay values will be retrieved for the left hand
 	* @param NewRightHandState -  Whether or not curls and splay values will be retrieved for the right hand
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void SetCurlsAndSplaysState(bool NewLeftHandState, bool NewRightHandState);
 
 	/**
 	* Check whether we are using a skeleton pose or the raw controller pose for the orientation and position of the motion controller
 	* @param bUseSkeletonPose - Whether or not we are using the skeleton pose instead of the controller raw pose
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void GetPoseSource(bool& bUsingSkeletonPose);
 
 	/**
 	* Set whether to use skeleton pose or the raw controller pose for the orientation and position of the motion controller
 	* @param bUseSkeletonPose - Whether or not to use the skeleton pose instead of the controller raw pose
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void SetPoseSource(bool bUseSkeletonPose);
 
 	/**
@@ -462,7 +527,8 @@ public:
 	* @param bWithController - Whether or not retrieve skeletal input values with controller
 	* @param bXAxisForward - Whether or not the Skeleton has the X axis facing forward
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void GetSkeletalTransform(FSteamVRSkeletonTransform& LeftHand, FSteamVRSkeletonTransform& RightHand, bool bWithController=false);
 	
 	/**
@@ -472,7 +538,8 @@ public:
 	* @return AngularVelocity - The angular velocity of the hand this frame
 	* @return Velocity - The velocity of the hand this frame
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void GetLeftHandPoseData(FVector& Position, FRotator& Orientation, FVector& AngularVelocity, FVector& Velocity);
 
 	/**
@@ -482,14 +549,16 @@ public:
 	* @return AngularVelocity - The angular velocity of the hand this frame
 	* @return Velocity - The velocity of the hand this frame
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void GetRightHandPoseData(FVector& Position, FRotator& Orientation, FVector& AngularVelocity, FVector& Velocity);
 
 	/**
 	* Retrieve the input actions for this project
 	* @return SteamVRActions - Input actions defined in this project
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void GetSteamVR_ActionArray(TArray<FSteamVRAction>& SteamVRActions);
 
 	/**
@@ -500,14 +569,16 @@ public:
 	* @return FoundAction - The action if found
 	* @return FoundActionSet - The action set if found
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void FindSteamVR_Action(FName ActionName, bool& bResult, FSteamVRAction& FoundAction, FSteamVRActionSet& FoundActionSet, FName ActionSet = FName("main"));
 
 	/**
 	* Retrieve the input action sets for this project
 	* @return SteamVRActionSets - Input action sets defined in this project
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void GetSteamVR_ActionSetArray(TArray<FSteamVRActionSet>& SteamVRActionSets);
 
 	/**
@@ -516,7 +587,8 @@ public:
 	* @return InputOriginInfo - The origin info of the action
 	* @return bool - whether the operation is successful or not
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static bool GetSteamVR_OriginTrackedDeviceInfo(FSteamVRAction SteamVRAction, FSteamVRInputOriginInfo& InputOriginInfo);
 
 	/**
@@ -525,7 +597,8 @@ public:
 	* @return InputOriginInfo - The origin info of the action
 	* @return bool - whether the operation is successful or not
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void FindSteamVR_OriginTrackedDeviceInfo(FName ActionName, bool& bResult, FSteamVRInputOriginInfo& InputOriginInfo, FName ActionSet = FName("main"));
 
 	/**
@@ -534,7 +607,8 @@ public:
 	* @param LocalizedParts - Bitfields to specify which origin parts to return
 	* @return OriginLocalizedName -  The localized name of the origin of a given action (e.g. "Left Hand Index Controller Trackpad")
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void GetSteamVR_OriginLocalizedName(FSteamVRAction SteamVRAction, TArray<ESteamVRInputStringBits> LocalizedParts, FString& OriginLocalizedName);
 
 	/**
@@ -542,7 +616,8 @@ public:
 	* @param SteamVRAction - The action that we will lookup the current binding for
 	* @param SteamVRActionSet - The action set that the action belongs to
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void ShowSteamVR_ActionOrigin(FSteamVRAction SteamVRAction, FSteamVRActionSet SteamVRActionSet);
 
 	/**
@@ -550,7 +625,8 @@ public:
 	* @param SteamVRAction - The action that we will lookup the current binding for
 	* @param SteamVRActionSet - The action set that the action belongs to. Defaults to "main"
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static bool FindSteamVR_ActionOrigin(FName ActionName, FName ActionSet = FName("main"));
 
 	/**
@@ -560,7 +636,8 @@ public:
 	* @return Orientation - The rotation of the hand at the point in time, given a relative number of seconds, from the current time
 	* @return bool - Whether or not the call was succesful
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static bool GetSteamVR_HandPoseRelativeToNow(FVector& Position, FRotator& Orientation, ESteamVRHand Hand = ESteamVRHand::VR_Left, float PredictedSecondsFromNow = 0.f);
 
 	/**
@@ -568,7 +645,8 @@ public:
 	* A value of -9999.f triggers a GetPoseActionDataForNextFrame, otherwise GetPoseActionRelativeToNow is called with this value
 	* @return float - The current Predicted Seconds From Now from the SteamVRInput device
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static float GetSteamVR_GlobalPredictedSecondsFromNow();
 
 	/**
@@ -577,13 +655,15 @@ public:
 	* @param NewValue - The value for PredictedSecondsFromNow that will be used by the SteamVRInput device for Get Action Pose Data calls 
 	* @return float - The current Predicted Seconds From Now from the SteamVRInput device
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static float SetSteamVR_GlobalPredictedSecondsFromNow(float NewValue);
 
 	/**
 	* Shows all current bindings for the current controller in the user's headset
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static void ShowAllSteamVR_ActionOrigins();
 
 	/**
@@ -591,7 +671,8 @@ public:
 	* @param SteamVRActionHandle - The action handle of the action that binding info will be retrieved for the currently active controller. Use Find SteamVRAction node to get a handle
 	* @return SteamVRInputBindingInfo - Array of binding info for an action with the currently active controller
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static TArray<FSteamVRInputBindingInfo> GetSteamVR_InputBindingInfo(FSteamVRAction SteamVRActionHandle);
 
 	/**
@@ -600,7 +681,8 @@ public:
 	* @param ActionSet - The name of the action set that the action belongs in
 	* @return SteamVRInputBindingInfo - Array of binding info for an action with the currently active controller
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static TArray<FSteamVRInputBindingInfo> FindSteamVR_InputBindingInfo(FName ActionName, FName ActionSet = FName("main"));
 
 	/**
@@ -610,14 +692,16 @@ public:
 	* NOTE: This function overrides the user's previously saved seated zero pose and should only be called as the result of a user action.
 	* Users are also able to set their seated zero pose via the SteamVR Dashboard.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static bool ResetSeatedPosition();
 
 	/**
 	* Returns the user's HMD's current IPD (interpupillary distance) setting in millimetres.
 	* @return float - The current IPD setting of the user's headset in millimetres
 	*/
-	UFUNCTION(BlueprintCallable, Category = "SteamVR Input")
+	UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.")
+	UFUNCTION(BlueprintCallable, Category = "SteamVR Input", meta = (DeprecatedFunction, DeprecationMessage = "The SteamVR plugin is deprecated."))
 	static float GetUserIPD();
 
 	/**
@@ -642,3 +726,5 @@ private:
 	/** Retrieve the first available SteamVR Input device currently active in a game */
 	static class FSteamVRInputDevice* GetSteamVRInputDevice();
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

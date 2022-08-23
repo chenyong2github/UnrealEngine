@@ -35,6 +35,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "SteamVRInputDevice.h"
 #include "UE4HandSkeletonDefinition.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 // Lookup table that maps each bone in the UE4 hand skeleton to the corresponding
 // bone in the SteamVR hand skeleton
 static const int32 kUE4BoneToSteamVRBone[] = {
@@ -342,3 +344,5 @@ FTransform FAnimNode_SteamVRInputAnimPose::CalcModelSpaceTransform(const FCompac
 
 	return BoneTransform;
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

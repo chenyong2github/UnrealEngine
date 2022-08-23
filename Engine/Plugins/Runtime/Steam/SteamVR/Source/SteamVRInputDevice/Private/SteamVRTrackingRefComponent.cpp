@@ -35,12 +35,14 @@ POSSIBILITY OF SUCH DAMAGE.
 using namespace vr;
 DEFINE_LOG_CATEGORY_STATIC(LogSteamVRTrackingRefComponent, Log, All);
 
-USteamVRTrackingReferences::USteamVRTrackingReferences()
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+UDEPRECATED_USteamVRTrackingReferences::UDEPRECATED_USteamVRTrackingReferences()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
-bool USteamVRTrackingReferences::ShowTrackingReferences(UStaticMesh* TrackingReferenceMesh)
+bool UDEPRECATED_USteamVRTrackingReferences::ShowTrackingReferences(UStaticMesh* TrackingReferenceMesh)
 {
 	if (!TrackingReferenceMesh->IsValidLowLevel())
 	{
@@ -124,7 +126,7 @@ bool USteamVRTrackingReferences::ShowTrackingReferences(UStaticMesh* TrackingRef
 	return false;
 }
 
-void USteamVRTrackingReferences::HideTrackingReferences()
+void UDEPRECATED_USteamVRTrackingReferences::HideTrackingReferences()
 {
 	// Check if need to clear up any existing Tracking Reference in-world
 	if (TrackingReferences.Num()> 0)
@@ -143,7 +145,7 @@ void USteamVRTrackingReferences::HideTrackingReferences()
 	}
 }
 
-void USteamVRTrackingReferences::BeginPlay()
+void UDEPRECATED_USteamVRTrackingReferences::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -157,7 +159,7 @@ void USteamVRTrackingReferences::BeginPlay()
 	}
 }
 
-void USteamVRTrackingReferences::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UDEPRECATED_USteamVRTrackingReferences::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -256,7 +258,7 @@ void USteamVRTrackingReferences::TickComponent(float DeltaTime, ELevelTick TickT
 	}
 }
 
-FName USteamVRTrackingReferences::GetDeviceClass(unsigned int id)
+FName UDEPRECATED_USteamVRTrackingReferences::GetDeviceClass(unsigned int id)
 {
 	// Get device class
 	ETrackedDeviceClass TrackedDeviceClass = VRSystem()->GetTrackedDeviceClass(id);
@@ -282,7 +284,7 @@ FName USteamVRTrackingReferences::GetDeviceClass(unsigned int id)
 	return DeviceClass;
 }
 
-bool USteamVRTrackingReferences::FindTrackedDevice(unsigned int id)
+bool UDEPRECATED_USteamVRTrackingReferences::FindTrackedDevice(unsigned int id)
 {
 	for (FActiveTrackedDevice Device : ActiveTrackingDevices)
 	{
@@ -293,3 +295,5 @@ bool USteamVRTrackingReferences::FindTrackedDevice(unsigned int id)
 	}
 	return false;
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -34,6 +34,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "Modules/ModuleManager.h"
 #include "IInputDeviceModule.h"
 
+class UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.") ISteamVRInputDeviceModule;
+
 class STEAMVRINPUTDEVICE_API ISteamVRInputDeviceModule : public IInputDeviceModule
 {
 

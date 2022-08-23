@@ -30,6 +30,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "SteamVRSkeletonDefinition.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 namespace SteamVRSkeleton
 {
 	// Define the index of each bone's parent
@@ -159,3 +161,5 @@ namespace SteamVRSkeleton
 		return kBoneChildList[nBoneIndex][nChildIndex];
 	}
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

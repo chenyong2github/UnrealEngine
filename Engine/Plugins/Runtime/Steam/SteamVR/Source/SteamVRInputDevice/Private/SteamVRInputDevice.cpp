@@ -61,6 +61,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #define LOCTEXT_NAMESPACE "SteamVRInputDevice"
 DEFINE_LOG_CATEGORY_STATIC(LogSteamVRInputDevice, Log, All);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 // List of bones that are effectively in model space because
 // they are children of the root
 static const int32 kModelSpaceBones[] = {
@@ -4780,5 +4782,7 @@ bool FSteamVRInputDevice::ProcessVector2D(FSteamVRAxisKeyMapping AxisKeyMapping)
 	// TODO: For when Vector Actions are a thing
 	return false;
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE //"SteamVRInputDevice"

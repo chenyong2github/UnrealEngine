@@ -32,10 +32,12 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "CoreMinimal.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /**
  * Enum for each bone in the SteamVR hand skeleton
 */
-enum ESteamVRBone : int8
+enum UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.") ESteamVRBone : int8
 {
 	ESteamVRBone_Root = 0,
 	ESteamVRBone_Wrist,
@@ -93,3 +95,5 @@ namespace SteamVRSkeleton
 	/** Returns the index of the nth child of the given bone */
 	int32			GetChildIndex(int32 nBoneIndex, int32 nChildIndex);
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

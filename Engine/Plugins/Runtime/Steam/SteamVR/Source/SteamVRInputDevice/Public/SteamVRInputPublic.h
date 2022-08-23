@@ -30,6 +30,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+struct UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.") FSteamVRSkeletonTransform_t;
+
 struct FSteamVRSkeletonTransform_t
 {
 	FTransform Wrist;

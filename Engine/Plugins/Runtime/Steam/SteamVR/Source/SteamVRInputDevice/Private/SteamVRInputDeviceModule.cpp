@@ -41,6 +41,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "IVREditorModule.h"
 #endif
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class FSteamVRInputDeviceModule : public ISteamVRInputDeviceModule
 {
 	/* Creates a new instance of SteamVR Input Controller **/
@@ -90,3 +92,5 @@ void FSteamVRInputDeviceModule::ShutdownModule()
 }
 
 IMPLEMENT_MODULE(FSteamVRInputDeviceModule, SteamVRInputDevice)
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
