@@ -70,6 +70,7 @@
 #include "Engine/LevelScriptActor.h"
 #include "Engine/NetworkSettings.h"
 #include "Engine/NetworkDelegates.h"
+#include "Engine/Private/Net/NetSubObjectRegistryGetter.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "SocketSubsystem.h"
 #include "AddressInfoTypes.h"
@@ -2063,8 +2064,15 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 			RemoteFunctionFlags |= EProcessRemoteFunctionFlags::ReplicatedActor;
 		}
 
+		if (!Ch->IsActorReadyForReplication())
+		{
+			// Build the list of replicated components since the actor isn't BeginPlay yet. Otherwise none of the components would be replicated by this initial ReplicateActor.
+			UE::Net::FSubObjectRegistryGetter::InitReplicatedComponentsList(Ch->GetActor());
+		}
 
+		Ch->SetForcedSerializeFromRPC(true);
 		Ch->ReplicateActor();
+		Ch->SetForcedSerializeFromRPC(false);
 	}
 
 	// Clients may be "closing" this connection but still processing bunches, we can't send anything if we have an invalid ChIndex.

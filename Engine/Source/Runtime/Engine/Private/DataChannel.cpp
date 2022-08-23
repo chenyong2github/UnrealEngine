@@ -125,6 +125,12 @@ namespace UE::Net
 		QueuedBunchTimeoutSeconds,
 		TEXT("Time in seconds to wait for queued bunches on a channel to flush before logging a warning."));
 
+	bool bNetReplicateOnlyBeginPlay = false;
+	static FAutoConsoleVariableRef CVarNetReplicateOnlyBeginPlay(
+		TEXT("net.ReplicateOnlyBeginPlay"),
+		bNetReplicateOnlyBeginPlay,
+		TEXT("Only allow property replication of actors that had BeginPlay called on them."), ECVF_Default);
+
 #if SUBOBJECT_TRANSITION_VALIDATION
 	static int32 GCVarCompareSubObjectsReplicated = 0;
 	static FAutoConsoleVariableRef CVarCompareSubObjectsReplicated(
@@ -184,13 +190,11 @@ namespace DataChannelInternal
 
 		FString Describe(AActor* ReplicatedActor) const
 		{
-			return FString::Printf(TEXT("Subobject %s::%s (%s) [owner %s]"), 
+			return FString::Printf(TEXT("Subobject %s(%s)::%s [owner %s]"), 
 				*ReplicatedActor->GetName(), 
-				*SubObject->GetName(), 
-				ReplicatedActor->HasActorBegunPlay() ? TEXT("BegunPlay") : 
-					ReplicatedActor->IsActorBeginningPlay() ? TEXT("BeginningPlay") :
-					TEXT("HasNotBegunPlay"),
-				*GetNameSafe(SubObjectOwner));
+                ReplicatedActor->HasActorBegunPlay() ? TEXT("BegunPlay") : ReplicatedActor->IsActorBeginningPlay() ? TEXT("BeginningPlay") : TEXT("HasNotBegunPlay"),
+				*SubObject->GetName(),				
+				*GetPathNameSafe(SubObjectOwner));
 		}
 	};
 
@@ -3244,6 +3248,12 @@ int64 UActorChannel::ReplicateActor()
 		}
 		bPausedUntilReliableACK = 0;
 		UE_LOG(LogNet, Verbose, TEXT("ReplicateActor: bPausedUntilReliableACK is ending now that reliables have been ACK'd. %s"), *Describe());
+	}
+
+	if (UE::Net::bNetReplicateOnlyBeginPlay && !IsActorReadyForReplication() && !bIsForcedSerializeFromRPC)
+	{
+		UE_LOG(LogNet, Verbose, TEXT("ReplicateActor ignored since actor is not BeginPlay yet: %s"), *Describe());
+		return 0;
 	}
 
 	const TArray<FNetViewer>& NetViewers = ActorWorld->GetWorldSettings()->ReplicationViewers;

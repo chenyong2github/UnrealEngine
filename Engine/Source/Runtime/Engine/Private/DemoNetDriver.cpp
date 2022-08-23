@@ -103,6 +103,11 @@ namespace ReplayTaskNames
 	static FName FastForwardLevelsTask(TEXT("FastForwardLevelsTask"));
 };
 
+namespace UE::Net
+{
+	extern bool bNetReplicateOnlyBeginPlay;
+}
+
 // This is only intended for testing purposes
 // A "better" way might be to throw together a GameplayDebuggerComponent or Category, so we could populate
 // more than just the DemoTime.
@@ -1951,6 +1956,12 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 					if (!Actor->bRelevantForNetworkReplays)
 					{
 						ActorsToRemove.Add(Actor);
+						continue;
+					}
+
+					if (UE::Net::bNetReplicateOnlyBeginPlay && !Actor->HasActorBegunPlay())
+					{
+						UE_LOG(LogNet, Verbose, TEXT("DemoNetDriver::ReplicateActor ignored the Actor since he was not BeginPlay yet: %s"), *GetPathNameSafe(Actor));
 						continue;
 					}
 

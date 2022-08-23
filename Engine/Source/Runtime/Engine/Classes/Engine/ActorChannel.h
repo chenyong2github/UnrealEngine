@@ -90,6 +90,12 @@ public:
 	 * set to false in cases where the Actor can't become relevant again (e.g. destruction) as it's unnecessary in that case
 	 */
 	uint32	bClearRecentActorRefs:1;
+	uint32	bHoldQueuedExportBunchesAndGUIDs:1;	// Don't export QueuedExportBunches or QueuedMustBeMappedGuidsInLastBunch if this is true
+
+#if !UE_BUILD_SHIPPING
+	/** Whether or not to block sending of NMT_ActorChannelFailure (for NetcodeUnitTest) */
+	uint32	bBlockChannelFailure:1;
+#endif
 
 private:
 	uint32	bSkipRoleSwap:1;		// true if we should not swap the role and remote role of this actor when properties are received
@@ -102,6 +108,9 @@ private:
 	 * This is used by ProcessQueuedBunches to prevent erroneous log spam.
 	 */
 	uint32 bSuppressQueuedBunchWarningsDueToHitches : 1;
+
+	/** Set to true if SerializeActor is called due to an RPC forcing the channel open */
+	uint32 bIsForcedSerializeFromRPC:1;
 
 public:
 	bool GetSkipRoleSwap() const { return !!bSkipRoleSwap; }
@@ -122,12 +131,7 @@ public:
 
 	TArray< FNetworkGUID >				QueuedMustBeMappedGuidsInLastBunch;	// Array of guids that will async load on client. This list is used for queued RPC's.
 	TArray< class FOutBunch * >			QueuedExportBunches;				// Bunches that need to be appended to the export list on the next SendBunch call. This list is used for queued RPC's.
-	bool								bHoldQueuedExportBunchesAndGUIDs;	// Don't export QueuedExportBunches or QueuedMustBeMappedGuidsInLastBunch if this is true
 
-#if !UE_BUILD_SHIPPING
-	/** Whether or not to block sending of NMT_ActorChannelFailure (for NetcodeUnitTest) */
-	bool bBlockChannelFailure;
-#endif
 
 	EChannelCloseReason QueuedCloseReason;
 
@@ -165,6 +169,9 @@ public:
 
 	/** Replicate this channel's actor differences. Returns how many bits were replicated (does not include non-bunch packet overhead) */
 	int64 ReplicateActor();
+
+	/** Tells if the actor is ready to be replicated since he is BeginPlay or inside BeginPlay */
+	bool IsActorReadyForReplication() const { return (Actor ? (Actor->HasActorBegunPlay() || Actor->IsActorBeginningPlay()) : false); }
 
 	/**
 	 * Set this channel's actor to the given actor.
@@ -309,6 +316,8 @@ public:
 
 		return WroteSomething;
 	}
+
+	void SetForcedSerializeFromRPC(bool bInFromRPC) { bIsForcedSerializeFromRPC = bInFromRPC; }
 
 #if NET_ENABLE_SUBOBJECT_REPKEYS
 	// Static size for SubobjectRepKeyMap. Allows us to resuse arrays and avoid dyanmic memory allocations

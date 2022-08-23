@@ -1782,7 +1782,7 @@ int64 UReplicationGraph::ReplicateSingleActor_FastShared(AActor* Actor, FConnect
 
 	// SendIt
 	{
-		TGuardValue<bool> Guard(ActorChannel->bHoldQueuedExportBunchesAndGUIDs, true);		// Don't export queued GUIDs in fast path
+		FGuardValue_Bitfield(ActorChannel->bHoldQueuedExportBunchesAndGUIDs, true);
 		
 		ActorChannel->SendBunch(&OutBunch, false);
 	}

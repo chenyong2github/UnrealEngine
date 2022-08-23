@@ -65,6 +65,11 @@ public:
 
 		return false;
 	}
+
+	static void InitReplicatedComponentsList(AActor* InActor)
+	{
+		InActor->BuildReplicatedComponentsInfo();
+	}
 };
 
 }
