@@ -4539,7 +4539,7 @@ void FRendererModule::BeginRenderingViewFamilies(FCanvas* Canvas, TArrayView<FSc
 
 	UWorld* World = nullptr;
 
-	FScene* const Scene = ViewFamilies[0]->Scene->GetRenderScene();
+	FScene* const Scene = ViewFamilies[0]->Scene ? ViewFamilies[0]->Scene->GetRenderScene() : nullptr;
 	if (Scene)
 	{
 		World = Scene->GetWorld();
