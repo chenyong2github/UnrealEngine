@@ -51,6 +51,10 @@ public:
 	int32 Source2DTileSizeY;
 #endif
 
+	/** The addressing mode to use for the X, Y and Z axis. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Texture, meta = (DisplayName = "Tiling Method"), AssetRegistrySearchable, AdvancedDisplay)
+	TEnumAsByte<enum TextureAddress> AddressMode = TA_Wrap;
+
 	ENGINE_API bool UpdateSourceFromSourceTexture();
 	
 	/**
@@ -85,6 +89,9 @@ public:
 	virtual float GetSurfaceHeight() const override { return static_cast<float>(GetSizeY()); }
 	virtual float GetSurfaceDepth() const override { return static_cast<float>(GetSizeZ()); }
 	virtual uint32 GetSurfaceArraySize() const override { return 0; }
+	virtual TextureAddress GetTextureAddressX() const override { return AddressMode; }
+	virtual TextureAddress GetTextureAddressY() const override { return AddressMode; }
+	virtual TextureAddress GetTextureAddressZ() const override { return AddressMode; }
 	virtual FTextureResource* CreateResource() override;
 #if WITH_EDITOR
 	ENGINE_API void SetDefaultSource2DTileSize();

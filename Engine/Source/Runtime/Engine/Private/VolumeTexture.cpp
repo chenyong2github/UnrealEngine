@@ -594,6 +594,11 @@ void UVolumeTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		{
 			UpdateSourceFromSourceTexture();
 		}
+		// Potentially update sampler state in the materials
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UVolumeTexture, AddressMode))
+		{
+			NotifyMaterials();
+		}
 	}
 		
 	Super::PostEditChangeProperty(PropertyChangedEvent);
