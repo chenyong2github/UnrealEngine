@@ -229,9 +229,13 @@ EConnectionStatus FCompactBinaryTCPImpl::PollSendBytes(FSocket* Socket, const vo
 		{
 			InOutBytesWritten += BytesSent;
 		}
-		if (!bResult)
+
+		// Return values of false indicate the socket send failed with an error, but the error
+		// might be temporary, such as EWOULDBLOCK. Even when return value is false, return incomplete
+		// unless socket's ConnectionState has been set to error
+		if (!bResult && Socket->GetConnectionState() == SCS_ConnectionError)
 		{
-			UE_LOG(LogSockets, Error, TEXT("Could not WritePacket to Socket. Socket->Send failed."));
+			UE_LOG(LogSockets, Error, TEXT("Could not WritePacket to Socket. Socket is in the error state."));
 			return EConnectionStatus::Failed;
 		}
 		else

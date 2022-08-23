@@ -1299,6 +1299,7 @@ uint32 UCookOnTheFlyServer::TickCookWorker()
 	if (StackData.bCookCancelled)
 	{
 		CancelAllQueues();
+		// Make sure no UE_SCOPED_HIERARCHICAL_COOKTIMERs are around ShutdownCookSession, as ShutdownCookSession deletes memory for them
 		ShutdownCookSession();
 		SetIdleStatus(StackData, EIdleStatus::Done);
 	}
@@ -4807,7 +4808,6 @@ void UCookOnTheFlyServer::ShutdownCookOnTheFly()
 		UE_LOG(LogCook, Display, TEXT("Shutting down cook on the fly server"));
 		CookOnTheFlyRequestManager->Shutdown();
 		CookOnTheFlyRequestManager.Reset();
-		ClearHierarchyTimers();
 
 		ShutdownCookSession();
 
@@ -8406,10 +8406,10 @@ void UCookOnTheFlyServer::ShutdownCookSession()
 		PrintFinishStats();
 
 		OutputHierarchyTimers();
-		ClearHierarchyTimers();
 	}
 	CookByTheBookOptions->ClearSessionData();
 	PlatformManager->ClearSessionPlatforms(*this);
+	ClearHierarchyTimers();
 }
 
 void UCookOnTheFlyServer::PrintFinishStats()
