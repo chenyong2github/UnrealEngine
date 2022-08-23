@@ -5,6 +5,7 @@
 #include "RenderGridUtils.h"
 #include "IRenderGridModule.h"
 #include "LevelSequence.h"
+#include "Misc/Base64.h"
 #include "MoviePipelineMasterConfig.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MovieScene.h"
@@ -12,7 +13,7 @@
 
 
 URenderGridJob::URenderGridJob()
-	: Id(FGuid::NewGuid())
+	: Guid(FGuid::NewGuid())
 	, WaitFramesBeforeRendering(0)
 	, Sequence(nullptr)
 	, bOverrideStartFrame(false)
@@ -268,6 +269,19 @@ TOptional<double> URenderGridJob::GetDurationInSeconds() const
 	return (EndFrame.Get(0) - StartFrame.Get(0)) / DisplayRate.AsDecimal();
 }
 
+FIntPoint URenderGridJob::GetOutputResolution() const
+{
+	if (bOverrideResolution)
+	{
+		return CustomResolution;
+	}
+	if (UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings())
+	{
+		return Settings->OutputResolution;
+	}
+	return GetDefault<UMoviePipelineOutputSetting>()->OutputResolution;
+}
+
 double URenderGridJob::GetOutputAspectRatio() const
 {
 	const UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings();
@@ -446,11 +460,10 @@ bool URenderGridJob::SetRemoteControlValue(const TSharedPtr<FRemoteControlEntity
 
 
 URenderGrid::URenderGrid()
-	: Id(FGuid::NewGuid())
+	: Guid(FGuid::NewGuid())
 	, PropsSourceType(ERenderGridPropsSourceType::Local)
 	, PropsSourceOrigin_RemoteControl(nullptr)
-	, bExecutingPreRender(false)
-	, bExecutingPostRender(false)
+	, bExecutingBlueprintEvent(false)
 	, CachedPropsSource(nullptr)
 	, CachedPropsSourceType(ERenderGridPropsSourceType::Local)
 {
@@ -516,18 +529,46 @@ void URenderGrid::PostLoad()
 	LoadValuesFromCDO();
 }
 
-void URenderGrid::PreRender(URenderGridJob* Job)
+void URenderGrid::BeginBatchRender(URenderGridQueue* Queue)
 {
-	bExecutingPreRender = true;
-	ReceivePreRender(Job);
-	bExecutingPreRender = false;
+	bExecutingBlueprintEvent = true;
+	ReceiveBeginBatchRender(Queue);
+	bExecutingBlueprintEvent = false;
 }
 
-void URenderGrid::PostRender(URenderGridJob* Job)
+void URenderGrid::EndBatchRender(URenderGridQueue* Queue)
 {
-	bExecutingPostRender = true;
-	ReceivePostRender(Job);
-	bExecutingPostRender = false;
+	bExecutingBlueprintEvent = true;
+	ReceiveEndBatchRender(Queue);
+	bExecutingBlueprintEvent = false;
+}
+
+void URenderGrid::BeginJobRender(URenderGridQueue* Queue, URenderGridJob* Job)
+{
+	bExecutingBlueprintEvent = true;
+	ReceiveBeginJobRender(Queue, Job);
+	bExecutingBlueprintEvent = false;
+}
+
+void URenderGrid::EndJobRender(URenderGridQueue* Queue, URenderGridJob* Job)
+{
+	bExecutingBlueprintEvent = true;
+	ReceiveEndJobRender(Queue, Job);
+	bExecutingBlueprintEvent = false;
+}
+
+void URenderGrid::BeginViewportRender(URenderGridJob* Job)
+{
+	bExecutingBlueprintEvent = true;
+	ReceiveBeginViewportRender(Job);
+	bExecutingBlueprintEvent = false;
+}
+
+void URenderGrid::EndViewportRender(URenderGridJob* Job)
+{
+	bExecutingBlueprintEvent = true;
+	ReceiveEndViewportRender(Job);
+	bExecutingBlueprintEvent = false;
 }
 
 void URenderGrid::CopyValuesToOrFromCDO(const bool bToCDO)
@@ -723,6 +764,38 @@ void URenderGrid::InsertRenderGridJobAfter(URenderGridJob* Job, URenderGridJob* 
 	}
 }
 
+FString URenderGrid::GenerateUniqueRandomJobId()
+{
+	TArray<uint8> ByteArray;
+
+	{// adding timestamp bytes >>
+		const int64 Value = FDateTime::UtcNow().GetTicks();
+		bool Add = false;
+		for (int32 i = 56; i >= 0; i -= 8)
+		{
+			if (!Add)
+			{
+				if ((Value >> i) <= 0)
+				{
+					// don't add a 0 byte to the start
+					continue;
+				}
+				Add = true;
+			}
+			ByteArray.Add(Value >> i);
+		}
+	}// adding timestamp bytes <<
+
+	{// adding random bytes >>
+		for (int32 i = 1; i <= 16; i++)
+		{
+			ByteArray.Add(FMath::Rand() & 0xff);
+		}
+	}// adding random bytes <<
+
+	return FBase64::Encode(ByteArray).Replace(TEXT("="), TEXT("")).Replace(TEXT("/"), TEXT("_")).Replace(TEXT("+"), TEXT("-"));
+}
+
 FString URenderGrid::GenerateNextJobId()
 {
 	int32 Max = 0;
@@ -763,10 +836,10 @@ bool URenderGrid::DoesJobIdExist(const FString& JobId)
 	return false;
 }
 
-URenderGridJob* URenderGrid::CreateAndAddNewRenderGridJob()
+URenderGridJob* URenderGrid::CreateTempRenderGridJob()
 {
 	URenderGridJob* Job = NewObject<URenderGridJob>(this);
-	Job->SetJobId(GenerateNextJobId());
+	Job->SetJobId(GenerateUniqueRandomJobId());
 	Job->SetJobName(TEXT("New"));
 	Job->SetOutputDirectory(FPaths::ProjectDir() / TEXT("Saved/MovieRenders/"));
 
@@ -781,7 +854,13 @@ URenderGridJob* URenderGrid::CreateAndAddNewRenderGridJob()
 			}
 		}
 	}
+	return Job;
+}
 
+URenderGridJob* URenderGrid::CreateAndAddNewRenderGridJob()
+{
+	URenderGridJob* Job = CreateTempRenderGridJob();
+	Job->SetJobId(GenerateNextJobId());
 	AddRenderGridJob(Job);
 	return Job;
 }
@@ -795,7 +874,7 @@ URenderGridJob* URenderGrid::DuplicateAndAddRenderGridJob(URenderGridJob* Job)
 
 	if (URenderGridJob* DuplicateRenderGridJob = DuplicateObject(Job, this); IsValid(DuplicateRenderGridJob))
 	{
-		DuplicateRenderGridJob->GenerateNewId();
+		DuplicateRenderGridJob->GenerateNewGuid();
 		DuplicateRenderGridJob->SetJobId(GenerateNextJobId());
 		InsertRenderGridJobAfter(DuplicateRenderGridJob, Job);
 		return DuplicateRenderGridJob;

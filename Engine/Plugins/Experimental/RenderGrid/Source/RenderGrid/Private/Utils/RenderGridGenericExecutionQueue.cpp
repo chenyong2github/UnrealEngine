@@ -1,9 +1,9 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Utils/RenderGridQueue.h"
+#include "Utils/RenderGridGenericExecutionQueue.h"
 
 
-void UE::RenderGrid::Private::FRenderGridQueue::Tick(float DeltaTime)
+void UE::RenderGrid::Private::FRenderGridGenericExecutionQueue::Tick(float DeltaTime)
 {
 	if (DelayRemainingFrames > 0)
 	{
@@ -29,7 +29,7 @@ void UE::RenderGrid::Private::FRenderGridQueue::Tick(float DeltaTime)
 			return;
 		}
 		QueueDelay(DelayRemainingFutureReturningDelay.Get());
-		DelayRemainingFutureReturningDelay = TFuture<FRenderGridQueueDelay>();
+		DelayRemainingFutureReturningDelay = TFuture<FRenderGridGenericExecutionQueueDelay>();
 	}
 
 	if (!bExecuting || ((DelayRemainingFrames <= 0) && (DelayRemainingSeconds <= 0)))
@@ -38,17 +38,17 @@ void UE::RenderGrid::Private::FRenderGridQueue::Tick(float DeltaTime)
 	}
 }
 
-void UE::RenderGrid::Private::FRenderGridQueue::Start()
+void UE::RenderGrid::Private::FRenderGridGenericExecutionQueue::Start()
 {
 	bStarted = true;
 }
 
-void UE::RenderGrid::Private::FRenderGridQueue::Stop()
+void UE::RenderGrid::Private::FRenderGridGenericExecutionQueue::Stop()
 {
 	bStarted = false;
 }
 
-void UE::RenderGrid::Private::FRenderGridQueue::ExecuteNext()
+void UE::RenderGrid::Private::FRenderGridGenericExecutionQueue::ExecuteNext()
 {
 	bExecuting = true;
 	while (true)
@@ -74,13 +74,13 @@ void UE::RenderGrid::Private::FRenderGridQueue::ExecuteNext()
 	bExecuting = false;
 }
 
-bool UE::RenderGrid::Private::FRenderGridQueue::ExecuteNextDelay()
+bool UE::RenderGrid::Private::FRenderGridGenericExecutionQueue::ExecuteNextDelay()
 {
 	while (true)
 	{
-		if (TDoubleLinkedList<FRenderGridQueueDelay>::TDoubleLinkedListNode* DelayNode = QueuedDelays.GetHead())
+		if (TDoubleLinkedList<FRenderGridGenericExecutionQueueDelay>::TDoubleLinkedListNode* DelayNode = QueuedDelays.GetHead())
 		{
-			const FRenderGridQueueDelay& Delay = DelayNode->GetValue();
+			const FRenderGridGenericExecutionQueueDelay& Delay = DelayNode->GetValue();
 			if (Delay.MinimumFrames > 0)
 			{
 				DelayRemainingFrames = Delay.MinimumFrames;
@@ -100,11 +100,11 @@ bool UE::RenderGrid::Private::FRenderGridQueue::ExecuteNextDelay()
 	}
 }
 
-bool UE::RenderGrid::Private::FRenderGridQueue::ExecuteNextEntry()
+bool UE::RenderGrid::Private::FRenderGridGenericExecutionQueue::ExecuteNextEntry()
 {
-	if (TDoubleLinkedList<FRenderGridQueueEntry>::TDoubleLinkedListNode* EntryNode = QueuedEntries.GetHead())
+	if (TDoubleLinkedList<FRenderGridGenericExecutionQueueEntry>::TDoubleLinkedListNode* EntryNode = QueuedEntries.GetHead())
 	{
-		const FRenderGridQueueEntry& Entry = EntryNode->GetValue();
+		const FRenderGridGenericExecutionQueueEntry& Entry = EntryNode->GetValue();
 
 		Entry.ActionRegular.ExecuteIfBound();
 

@@ -10,7 +10,7 @@
 class URenderGridJob;
 class URenderGrid;
 class URenderGridPropRemoteControl;
-class URenderGridMoviePipelineRenderJob;
+class URenderGridQueue;
 class UTexture2D;
 
 
@@ -90,11 +90,11 @@ namespace UE::RenderGrid
 
 	public:
 		/** Batch render the currently enabled render grid job(s) of the given render grid. **/
-		URenderGridMoviePipelineRenderJob* CreateBatchRenderJob(URenderGrid* Grid);
+		URenderGridQueue* CreateBatchRenderQueue(URenderGrid* Grid);
 
 
 		/** Render a preview frame (or multiple if no frame number is specified) of the given render grid job. **/
-		URenderGridMoviePipelineRenderJob* RenderPreviewFrame(const FRenderGridManagerRenderPreviewFrameArgs& Args);
+		URenderGridQueue* RenderPreviewFrame(const FRenderGridManagerRenderPreviewFrameArgs& Args);
 
 		/** Gets the rendered preview frame (of a rendering in which the frame number was specified). */
 		UTexture2D* GetSingleRenderedPreviewFrame(URenderGridJob* Job, UTexture2D* ReusingTexture2D, bool& bOutReusedGivenTexture2D);

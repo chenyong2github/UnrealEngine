@@ -129,15 +129,15 @@ void UE::RenderGrid::Private::SRenderGridRemoteControlField::RefreshValue()
 		{
 			TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
 			Node->GetChildren(ChildNodes);
-			ChildWidgets.Reset(ChildNodes.Num());
 
+			ChildWidgets.Reset(ChildNodes.Num());
 			for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
 			{
 				ChildWidgets.Add(SNew(SRenderGridRemoteControlFieldChildNode, ChildNode, ColumnSizeData));
 			}
 
 			//TODO:  still causes the value widgets (like the color wheel) to disconnect when this function is called,  have to somehow prevent this disconnection from happening,
-			//       skipping this line all-together causes the value widgets to not respond anymore to user input,  same happens when trying to cache and reuse the output of Node->CreateNodeWidgets()
+			//       skipping this line all-together causes the value widgets to not respond to user input anymore,  same happens when trying to cache and reuse the output of Node->CreateNodeWidgets()
 			ChildSlot.AttachWidget(MakeFieldWidget(ExposedFieldUtils::CreateNodeValueWidget(Node->CreateNodeWidgets())));
 			return;
 		}

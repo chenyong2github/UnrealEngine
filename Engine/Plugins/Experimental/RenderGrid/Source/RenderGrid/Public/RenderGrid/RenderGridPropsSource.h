@@ -56,11 +56,11 @@ class RENDERGRID_API URenderGridPropsSourceBase : public UObject
 	GENERATED_BODY()
 
 public:
-	/** Returns the ID, which is randomly generated when an instance of this class is constructed. */
-	FGuid GetId() const { return Id; }
+	/** Returns the GUID, which is randomly generated at creation. */
+	FGuid GetGuid() const { return Guid; }
 
-	/** Randomly generates a new ID. */
-	void GenerateNewId() { Id = FGuid::NewGuid(); }
+	/** Randomly generates a new GUID. */
+	void GenerateNewGuid() { Guid = FGuid::NewGuid(); }
 
 
 	/** Returns the type of this properties source. */
@@ -74,7 +74,7 @@ public:
 
 protected:
 	UPROPERTY()
-	FGuid Id = FGuid::NewGuid();
+	FGuid Guid = FGuid::NewGuid();
 };
 
 

@@ -1,27 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderGrid/RenderGridManager.h"
-#include "RenderGrid/RenderGridMoviePipelineJob.h"
+#include "RenderGrid/RenderGridQueue.h"
 #include "RenderGridUtils.h"
 #include "MoviePipelineHighResSetting.h"
 #include "MoviePipelinePIEExecutor.h"
 
 
-URenderGridMoviePipelineRenderJob* UE::RenderGrid::FRenderGridManager::CreateBatchRenderJob(URenderGrid* Grid)
+URenderGridQueue* UE::RenderGrid::FRenderGridManager::CreateBatchRenderQueue(URenderGrid* Grid)
 {
-	FRenderGridMoviePipelineRenderJobCreateArgs JobArgs;
+	FRenderGridQueueCreateArgs JobArgs;
 	JobArgs.RenderGrid = Grid;
 	JobArgs.RenderGridJobs.Append(Grid->GetEnabledRenderGridJobs());
-	URenderGridMoviePipelineRenderJob* NewRenderJob = URenderGridMoviePipelineRenderJob::Create(JobArgs);
-	if (!IsValid(NewRenderJob))
+	JobArgs.bIsBatchRender = true;
+	URenderGridQueue* NewRenderQueue = URenderGridQueue::Create(JobArgs);
+	if (!IsValid(NewRenderQueue))
 	{
 		return nullptr;
 	}
-	return NewRenderJob;
+	return NewRenderQueue;
 }
 
 
-URenderGridMoviePipelineRenderJob* UE::RenderGrid::FRenderGridManager::RenderPreviewFrame(const FRenderGridManagerRenderPreviewFrameArgs& Args)
+URenderGridQueue* UE::RenderGrid::FRenderGridManager::RenderPreviewFrame(const FRenderGridManagerRenderPreviewFrameArgs& Args)
 {
 	const FRenderGridManagerRenderPreviewFrameArgsCallback Callback = Args.Callback;
 
@@ -38,7 +39,7 @@ URenderGridMoviePipelineRenderJob* UE::RenderGrid::FRenderGridManager::RenderPre
 		return nullptr;
 	}
 
-	JobCopy->SetJobId(JobCopy->GetId().ToString(EGuidFormats::Base36Encoded));
+	JobCopy->SetJobId(JobCopy->GetGuid().ToString(EGuidFormats::Base36Encoded));
 
 	if (Args.Frame.IsSet())
 	{
@@ -63,7 +64,7 @@ URenderGridMoviePipelineRenderJob* UE::RenderGrid::FRenderGridManager::RenderPre
 
 	JobCopy->SetOutputDirectory(TmpRenderedFramesPath / (Args.Frame.IsSet() ? TEXT("PreviewFrame") : TEXT("PreviewFrames")));
 
-	FRenderGridMoviePipelineRenderJobCreateArgs JobArgs;
+	FRenderGridQueueCreateArgs JobArgs;
 	JobArgs.RenderGrid = Args.RenderGrid;
 	JobArgs.RenderGridJobs.Add(JobCopy);
 	JobArgs.bHeadless = Args.bHeadless;
@@ -71,19 +72,19 @@ URenderGridMoviePipelineRenderJob* UE::RenderGrid::FRenderGridManager::RenderPre
 	JobArgs.bForceOnlySingleOutput = true;
 	JobArgs.bForceUseSequenceFrameRate = Args.Frame.IsSet();
 	JobArgs.bEnsureSequentialFilenames = true;
-	JobArgs.DisableSettingsClasses.Add(UMoviePipelineAntiAliasingSetting::StaticClass());
-	JobArgs.DisableSettingsClasses.Add(UMoviePipelineHighResSetting::StaticClass());
+	JobArgs.DisablePipelineSettingsClasses.Add(UMoviePipelineAntiAliasingSetting::StaticClass());
+	JobArgs.DisablePipelineSettingsClasses.Add(UMoviePipelineHighResSetting::StaticClass());
 
-	URenderGridMoviePipelineRenderJob* NewRenderJob = URenderGridMoviePipelineRenderJob::Create(JobArgs);
-	if (!NewRenderJob)
+	URenderGridQueue* NewRenderQueue = URenderGridQueue::Create(JobArgs);
+	if (!NewRenderQueue)
 	{
 		Callback.ExecuteIfBound(false);
 		return nullptr;
 	}
 
-	const FGuid JobId = JobCopy->GetId();
+	const FGuid JobId = JobCopy->GetGuid();
 	const TOptional<int32> StartFrameOfRender = (Args.Frame.IsSet() ? TOptional<int32>() : JobCopy->GetStartFrame());
-	NewRenderJob->OnExecuteFinished().AddLambda([this, Callback, JobId, StartFrameOfRender](URenderGridMoviePipelineRenderJob* RenderJob, const bool bSuccess)
+	NewRenderQueue->OnExecuteFinished().AddLambda([this, Callback, JobId, StartFrameOfRender](URenderGridQueue* Queue, const bool bSuccess)
 	{
 		if (StartFrameOfRender.IsSet())
 		{
@@ -99,8 +100,8 @@ URenderGridMoviePipelineRenderJob* UE::RenderGrid::FRenderGridManager::RenderPre
 		Callback.ExecuteIfBound(bSuccess);
 	});
 
-	NewRenderJob->Execute();
-	return NewRenderJob;
+	NewRenderQueue->Execute();
+	return NewRenderQueue;
 }
 
 UTexture2D* UE::RenderGrid::FRenderGridManager::GetSingleRenderedPreviewFrame(URenderGridJob* Job, UTexture2D* ReusingTexture2D, bool& bOutReusedGivenTexture2D)
@@ -111,7 +112,7 @@ UTexture2D* UE::RenderGrid::FRenderGridManager::GetSingleRenderedPreviewFrame(UR
 		bOutReusedGivenTexture2D = (ReusingTexture2D == nullptr);
 		return nullptr;
 	}
-	const FString PreviewFramesSubDir = Job->GetId().ToString(EGuidFormats::Base36Encoded);
+	const FString PreviewFramesSubDir = Job->GetGuid().ToString(EGuidFormats::Base36Encoded);
 
 	TArray<FString> ImagePaths = Private::FRenderGridUtils::GetFiles(PreviewFramesDir / PreviewFramesSubDir, true);
 	ImagePaths.Sort();
@@ -141,10 +142,10 @@ UTexture2D* UE::RenderGrid::FRenderGridManager::GetRenderedPreviewFrame(URenderG
 		bOutReusedGivenTexture2D = (ReusingTexture2D == nullptr);
 		return nullptr;
 	}
-	const FString PreviewFramesSubDir = Job->GetId().ToString(EGuidFormats::Base36Encoded);
+	const FString PreviewFramesSubDir = Job->GetGuid().ToString(EGuidFormats::Base36Encoded);
 
 	int32 CurrentFrame = 0;
-	if (int32* StartFrameOfRenderPtr = StartFrameOfRenders.Find(Job->GetId()))
+	if (int32* StartFrameOfRenderPtr = StartFrameOfRenders.Find(Job->GetGuid()))
 	{
 		CurrentFrame = *StartFrameOfRenderPtr;
 	}

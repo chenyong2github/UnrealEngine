@@ -13,30 +13,30 @@ namespace UE::RenderGrid::Private
 	/**
 	 * Struct containing the delay data (such as the frames or the seconds of delay this delay requires before it can move on to the next step).
 	 */
-	struct RENDERGRID_API FRenderGridQueueDelay
+	struct RENDERGRID_API FRenderGridGenericExecutionQueueDelay
 	{
 	public:
-		static FRenderGridQueueDelay Frames(const int64 Frames) { return FRenderGridQueueDelay(Frames); }
-		static FRenderGridQueueDelay Seconds(const double Seconds) { return FRenderGridQueueDelay(Seconds); }
-		static FRenderGridQueueDelay FramesOrSeconds(const int64 Frames, const double Seconds) { return FRenderGridQueueDelay(Frames, Seconds); }
+		static FRenderGridGenericExecutionQueueDelay Frames(const int64 Frames) { return FRenderGridGenericExecutionQueueDelay(Frames); }
+		static FRenderGridGenericExecutionQueueDelay Seconds(const double Seconds) { return FRenderGridGenericExecutionQueueDelay(Seconds); }
+		static FRenderGridGenericExecutionQueueDelay FramesOrSeconds(const int64 Frames, const double Seconds) { return FRenderGridGenericExecutionQueueDelay(Frames, Seconds); }
 
 	public:
-		FRenderGridQueueDelay(TYPE_OF_NULLPTR)
+		FRenderGridGenericExecutionQueueDelay(TYPE_OF_NULLPTR)
 		{}
 
 	private:
-		FRenderGridQueueDelay()
+		FRenderGridGenericExecutionQueueDelay()
 		{}
 
-		explicit FRenderGridQueueDelay(const int64 Frames)
+		explicit FRenderGridGenericExecutionQueueDelay(const int64 Frames)
 			: MinimumFrames(Frames)
 		{}
 
-		explicit FRenderGridQueueDelay(const double Seconds)
+		explicit FRenderGridGenericExecutionQueueDelay(const double Seconds)
 			: MinimumSeconds(Seconds)
 		{}
 
-		explicit FRenderGridQueueDelay(const int64 Frames, const double Seconds)
+		explicit FRenderGridGenericExecutionQueueDelay(const int64 Frames, const double Seconds)
 			: MinimumFrames(Frames)
 			, MinimumSeconds(Seconds)
 		{}
@@ -48,51 +48,51 @@ namespace UE::RenderGrid::Private
 
 
 	/** A delegate for a queued action. */
-	DECLARE_DELEGATE(FRenderGridQueueAction);
+	DECLARE_DELEGATE(FRenderGridGenericExecutionQueueAction);
 
 	/** A delegate for a queued action, that optionally requires a delay after its execution. */
-	DECLARE_DELEGATE_RetVal(FRenderGridQueueDelay, FRenderGridQueueActionReturningDelay);
+	DECLARE_DELEGATE_RetVal(FRenderGridGenericExecutionQueueDelay, FRenderGridGenericExecutionQueueActionReturningDelay);
 
 	/** A delegate for a queued action, that will delay execution until the returned TFuture finishes. */
-	DECLARE_DELEGATE_RetVal(TSharedFuture<void>, FRenderGridQueueActionReturningDelayFuture);
+	DECLARE_DELEGATE_RetVal(TSharedFuture<void>, FRenderGridGenericExecutionQueueActionReturningDelayFuture);
 
 	/** A delegate for a queued action, that will delay execution until the returned TFuture finishes, which can optionally return yet another delay if required. */
-	DECLARE_DELEGATE_RetVal(TSharedFuture<FRenderGridQueueDelay>, FRenderGridQueueActionReturningDelayFutureReturningDelay);
+	DECLARE_DELEGATE_RetVal(TSharedFuture<FRenderGridGenericExecutionQueueDelay>, FRenderGridGenericExecutionQueueActionReturningDelayFutureReturningDelay);
 
 	/**
 	 * Struct containing the data of a queued action.
 	 */
-	struct RENDERGRID_API FRenderGridQueueEntry
+	struct RENDERGRID_API FRenderGridGenericExecutionQueueEntry
 	{
 	public:
-		FRenderGridQueueEntry(const FRenderGridQueueAction& Action)
+		FRenderGridGenericExecutionQueueEntry(const FRenderGridGenericExecutionQueueAction& Action)
 			: ActionRegular(Action)
 		{}
 
-		FRenderGridQueueEntry(const FRenderGridQueueActionReturningDelay& Action)
+		FRenderGridGenericExecutionQueueEntry(const FRenderGridGenericExecutionQueueActionReturningDelay& Action)
 			: ActionReturningDelay(Action)
 		{}
 
-		FRenderGridQueueEntry(const FRenderGridQueueActionReturningDelayFuture& Action)
+		FRenderGridGenericExecutionQueueEntry(const FRenderGridGenericExecutionQueueActionReturningDelayFuture& Action)
 			: ActionReturningDelayFuture(Action)
 		{}
 
-		FRenderGridQueueEntry(const FRenderGridQueueActionReturningDelayFutureReturningDelay& Action)
+		FRenderGridGenericExecutionQueueEntry(const FRenderGridGenericExecutionQueueActionReturningDelayFutureReturningDelay& Action)
 			: ActionReturningDelayFutureReturningDelay(Action)
 		{}
 
 	public:
-		const FRenderGridQueueAction ActionRegular;
-		const FRenderGridQueueActionReturningDelay ActionReturningDelay;
-		const FRenderGridQueueActionReturningDelayFuture ActionReturningDelayFuture;
-		const FRenderGridQueueActionReturningDelayFutureReturningDelay ActionReturningDelayFutureReturningDelay;
+		const FRenderGridGenericExecutionQueueAction ActionRegular;
+		const FRenderGridGenericExecutionQueueActionReturningDelay ActionReturningDelay;
+		const FRenderGridGenericExecutionQueueActionReturningDelayFuture ActionReturningDelayFuture;
+		const FRenderGridGenericExecutionQueueActionReturningDelayFutureReturningDelay ActionReturningDelayFutureReturningDelay;
 	};
 
 
 	/**
 	 * This class provides generic queue support, with built-in support for delays between actions.
 	 */
-	class RENDERGRID_API FRenderGridQueue : public TSharedFromThis<FRenderGridQueue>, public FTickableGameObject
+	class RENDERGRID_API FRenderGridGenericExecutionQueue : public TSharedFromThis<FRenderGridGenericExecutionQueue>, public FTickableGameObject
 	{
 	public:
 		//~ Begin FTickableGameObject interface
@@ -104,25 +104,25 @@ namespace UE::RenderGrid::Private
 		virtual bool IsAllowedToTick() const override { return true; }
 		virtual TStatId GetStatId() const override
 		{
-			RETURN_QUICK_DECLARE_CYCLE_STAT(FRenderGridQueue, STATGROUP_Tickables);
+			RETURN_QUICK_DECLARE_CYCLE_STAT(FRenderGridGenericExecutionQueue, STATGROUP_Tickables);
 		}
 		//~ End FTickableGameObject interface
 
 	public:
 		/** Queues the given action. */
-		void Add(const FRenderGridQueueEntry& Entry) { QueuedEntries.AddTail(Entry); }
+		void Add(const FRenderGridGenericExecutionQueueEntry& Entry) { QueuedEntries.AddTail(Entry); }
 
 		/** Queues the given delay. */
-		void Delay(const FRenderGridQueueDelay& Delay) { Add(FRenderGridQueueActionReturningDelay::CreateLambda([Delay]() -> FRenderGridQueueDelay { return Delay; })); }
+		void Delay(const FRenderGridGenericExecutionQueueDelay& Delay) { Add(FRenderGridGenericExecutionQueueActionReturningDelay::CreateLambda([Delay]() -> FRenderGridGenericExecutionQueueDelay { return Delay; })); }
 
 		/** Queues the given delay, which will wait for the given number of frames. */
-		void DelayFrames(const int64 Frames) { Delay(FRenderGridQueueDelay::Frames(Frames)); }
+		void DelayFrames(const int64 Frames) { Delay(FRenderGridGenericExecutionQueueDelay::Frames(Frames)); }
 
 		/** Queues the given delay, which will wait for the given number of seconds. */
-		void DelaySeconds(const double Seconds) { Delay(FRenderGridQueueDelay::Seconds(Seconds)); }
+		void DelaySeconds(const double Seconds) { Delay(FRenderGridGenericExecutionQueueDelay::Seconds(Seconds)); }
 
 		/** Queues the given delay, which will wait for the given number of frames or seconds, whatever takes the longest. */
-		void DelayFramesOrSeconds(const int64 Frames, const double Seconds) { Delay(FRenderGridQueueDelay::FramesOrSeconds(Frames, Seconds)); }
+		void DelayFramesOrSeconds(const int64 Frames, const double Seconds) { Delay(FRenderGridGenericExecutionQueueDelay::FramesOrSeconds(Frames, Seconds)); }
 
 		/** Starts the execution of this queue. */
 		void Start();
@@ -144,14 +144,14 @@ namespace UE::RenderGrid::Private
 		bool ExecuteNextEntry();
 
 		/** Adds the delay to the queued delays. */
-		void QueueDelay(const FRenderGridQueueDelay& Delay) { QueuedDelays.AddTail(Delay); }
+		void QueueDelay(const FRenderGridGenericExecutionQueueDelay& Delay) { QueuedDelays.AddTail(Delay); }
 
 	protected:
 		/** The queued up entries (actions). */
-		TDoubleLinkedList<FRenderGridQueueEntry> QueuedEntries;
+		TDoubleLinkedList<FRenderGridGenericExecutionQueueEntry> QueuedEntries;
 
 		/** The queued up delays. */
-		TDoubleLinkedList<FRenderGridQueueDelay> QueuedDelays;
+		TDoubleLinkedList<FRenderGridGenericExecutionQueueDelay> QueuedDelays;
 
 	protected:
 		/** Whether it has started (and hasn't been stopped/paused yet). This means that if this is true, Start() has been called, and Stop() hasn't been called yet since then. */
@@ -170,6 +170,6 @@ namespace UE::RenderGrid::Private
 		TSharedFuture<void> DelayRemainingFuture;
 
 		/** The TFuture it's waiting for (if any), that can return a delay. */
-		TSharedFuture<FRenderGridQueueDelay> DelayRemainingFutureReturningDelay;
+		TSharedFuture<FRenderGridGenericExecutionQueueDelay> DelayRemainingFutureReturningDelay;
 	};
 }

@@ -6,18 +6,18 @@
 #include "UI/Components/SRenderGridEditableTextBlock.h"
 #include "UI/Components/SRenderGridFileSelectorTextBlock.h"
 #include "RenderGrid/RenderGrid.h"
-#include "RenderGrid/RenderGridMoviePipelineJob.h"
-#include "RenderGrid/RenderGridManager.h"
+#include "RenderGrid/RenderGridQueue.h"
 #include "IRenderGridEditor.h"
-#include "IRenderGridModule.h"
 
-#include "DesktopPlatformModule.h"
 #include "Misc/MessageDialog.h"
 #include "MoviePipelineExecutor.h"
+#include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineQueue.h"
+#include "MovieScene.h"
 #include "PropertyCustomizationHelpers.h"
 #include "SlateOptMacros.h"
 #include "Styling/AppStyle.h"
+#include "Tracks/MovieSceneSubTrack.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SScaleBox.h"
@@ -35,6 +35,7 @@ namespace UE::RenderGrid::Private::FRenderGridJobListColumns
 	const FName RenderPreset = TEXT("RenderPreset");
 	const FName StartFrame = TEXT("StartFrame");
 	const FName EndFrame = TEXT("EndFrame");
+	const FName Resolution = TEXT("Resolution");
 	const FName Tags = TEXT("Tags");
 	const FName Duration = TEXT("Duration");
 	const FName RenderingStatus = TEXT("Status");
@@ -63,6 +64,7 @@ void UE::RenderGrid::Private::SRenderGridJobList::Construct(const FArguments& In
 	InBlueprintEditor->OnRenderGridChanged().AddSP(this, &SRenderGridJobList::Refresh);
 	InBlueprintEditor->OnRenderGridBatchRenderingStarted().AddSP(this, &SRenderGridJobList::OnBatchRenderingStarted);
 	InBlueprintEditor->OnRenderGridBatchRenderingFinished().AddSP(this, &SRenderGridJobList::OnBatchRenderingFinished);
+	FCoreUObjectDelegates::OnObjectModified.AddSP(this, &SRenderGridJobList::OnObjectModified);
 
 	ChildSlot
 	[
@@ -73,6 +75,7 @@ void UE::RenderGrid::Private::SRenderGridJobList::Construct(const FArguments& In
 		.Padding(2.f)
 		[
 			SNew(SHorizontalBox)
+
 			// Search Box
 			+ SHorizontalBox::Slot()
 			.Padding(4.f, 2.f)
@@ -81,6 +84,7 @@ void UE::RenderGrid::Private::SRenderGridJobList::Construct(const FArguments& In
 				.HintText(LOCTEXT("Search_HintText", "Search Tags | Text"))
 				.OnTextChanged(this, &SRenderGridJobList::OnSearchBarTextChanged)
 			]
+
 			// Filters
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -101,6 +105,7 @@ void UE::RenderGrid::Private::SRenderGridJobList::Construct(const FArguments& In
 				]
 			]
 		]
+
 		// Job List
 		+ SVerticalBox::Slot()
 		.FillHeight(1.f)
@@ -156,8 +161,8 @@ void UE::RenderGrid::Private::SRenderGridJobList::Construct(const FArguments& In
 					.DefaultLabel(LOCTEXT("JobListEndFrameColumnHeader", "End Frame"))
 					.FixedWidth(80.0f)
 
-					+ SHeaderRow::Column(FRenderGridJobListColumns::Tags)
-					.DefaultLabel(LOCTEXT("JobListTagsColumnHeader", "Tags"))
+					+ SHeaderRow::Column(FRenderGridJobListColumns::Resolution)
+					.DefaultLabel(LOCTEXT("JobListResolutionColumnHeader", "Resolution"))
 					.FillWidth(0.7f)
 
 					+ SHeaderRow::Column(FRenderGridJobListColumns::Duration)
@@ -238,7 +243,7 @@ void UE::RenderGrid::Private::SRenderGridJobList::AddRenderStatusColumn()
 	}
 	RenderGridJobListWidget->GetHeaderRow()->AddColumn(SHeaderRow::Column(FRenderGridJobListColumns::RenderingStatus)
 		.DefaultLabel(LOCTEXT("JobListRenderStatusColumnHeader", "Render Status"))
-		.FillWidth(0.5f));
+		.FixedWidth(110.0f));
 }
 
 void UE::RenderGrid::Private::SRenderGridJobList::RemoveRenderStatusColumn()
@@ -248,6 +253,15 @@ void UE::RenderGrid::Private::SRenderGridJobList::RemoveRenderStatusColumn()
 		return;
 	}
 	RenderGridJobListWidget->GetHeaderRow()->RemoveColumn(FRenderGridJobListColumns::RenderingStatus);
+}
+
+
+void UE::RenderGrid::Private::SRenderGridJobList::OnObjectModified(UObject* Object)
+{
+	if (Cast<UMoviePipelineOutputSetting>(Object) || Cast<UMovieSceneSequence>(Object) || Cast<UMovieScene>(Object) || Cast<UMovieSceneTrack>(Object) || Cast<UMovieSceneSection>(Object) || Cast<UMovieSceneSubTrack>(Object) || Cast<UMovieSceneSubSection>(Object))
+	{
+		Refresh();
+	}
 }
 
 
@@ -484,7 +498,7 @@ TSharedRef<SWidget> UE::RenderGrid::Private::SRenderGridJobListTableRow::Generat
 	{
 		return SNew(SObjectPropertyEntryBox)
 			.AllowedClass(UMoviePipelineMasterConfig::StaticClass())
-			.ObjectPath_Lambda([this]()-> FString
+			.ObjectPath_Lambda([this]() -> FString
 			{
 				if (UMoviePipelineMasterConfig* Preset = RenderGridJob->GetRenderPreset(); IsValid(Preset))
 				{
@@ -522,7 +536,8 @@ TSharedRef<SWidget> UE::RenderGrid::Private::SRenderGridJobListTableRow::Generat
 		}
 		return SNew(SBox)
 			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
+			//.HAlign(HAlign_Right)
+			.Padding(FMargin(10, 0))
 			[
 				SNew(STextBlock).Text(Text)
 			];
@@ -530,6 +545,26 @@ TSharedRef<SWidget> UE::RenderGrid::Private::SRenderGridJobListTableRow::Generat
 	else if (ColumnName == FRenderGridJobListColumns::Tags)
 	{
 		//TODO: add support for tags
+	}
+	else if (ColumnName == FRenderGridJobListColumns::Resolution)
+	{
+		FIntPoint Resolution = RenderGridJob->GetOutputResolution();
+
+		FNumberFormattingOptions NumberFormattingOptions;
+		NumberFormattingOptions.UseGrouping = false;
+
+		FText ResolutionFormat = LOCTEXT("Resolution", "{Width} x {Height}");
+		FFormatNamedArguments ResolutionArguments;
+		ResolutionArguments.Add(TEXT("Width"), FText::AsNumber(Resolution.X, &NumberFormattingOptions));
+		ResolutionArguments.Add(TEXT("Height"), FText::AsNumber(Resolution.Y, &NumberFormattingOptions));
+		FText Text = FText::Format(ResolutionFormat, ResolutionArguments);
+
+		return SNew(SBox)
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(10, 0))
+			[
+				SNew(STextBlock).Text(Text)
+			];
 	}
 	else if (ColumnName == FRenderGridJobListColumns::Duration)
 	{
@@ -545,13 +580,12 @@ TSharedRef<SWidget> UE::RenderGrid::Private::SRenderGridJobListTableRow::Generat
 			NumberFormattingOptions.MinimumIntegralDigits = 2;
 			NumberFormattingOptions.MaximumIntegralDigits = 2;
 
-			FText TimespanFormatPattern = NSLOCTEXT("Timespan", "Format_HoursMinutesSeconds", "{Hours}:{Minutes}:{Seconds}");
+			FText TimespanFormat = NSLOCTEXT("Timespan", "Format_HoursMinutesSeconds", "{Hours}:{Minutes}:{Seconds}");
 			FFormatNamedArguments TimeArguments;
 			TimeArguments.Add(TEXT("Hours"), Hours);
 			TimeArguments.Add(TEXT("Minutes"), FText::AsNumber(Minutes, &NumberFormattingOptions));
 			TimeArguments.Add(TEXT("Seconds"), FText::AsNumber(Seconds, &NumberFormattingOptions));
-
-			Text = FText::Format(TimespanFormatPattern, TimeArguments);
+			Text = FText::Format(TimespanFormat, TimeArguments);
 		}
 		return SNew(SBox)
 			.VAlign(VAlign_Center)
@@ -578,9 +612,9 @@ FText UE::RenderGrid::Private::SRenderGridJobListTableRow::GetRenderStatusText()
 {
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
-		if (URenderGridMoviePipelineRenderJob* RenderJob = BlueprintEditor->GetBatchRenderJob(); IsValid(RenderJob))
+		if (URenderGridQueue* RenderQueue = BlueprintEditor->GetBatchRenderQueue(); IsValid(RenderQueue))
 		{
-			return FText::FromString(RenderJob->GetRenderGridJobStatus(RenderGridJob));
+			return FText::FromString(RenderQueue->GetJobStatus(RenderGridJob));
 		}
 	}
 	return FText();

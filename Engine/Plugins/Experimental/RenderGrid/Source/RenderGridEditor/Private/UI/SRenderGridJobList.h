@@ -15,7 +15,7 @@
 class SCheckBox;
 class SSearchBox;
 class URenderGridJob;
-class URenderGridMoviePipelineRenderJob;
+class URenderGridQueue;
 
 namespace UE::RenderGrid
 {
@@ -63,8 +63,9 @@ namespace UE::RenderGrid::Private
 		void RemoveRenderStatusColumn();
 
 	private:
-		void OnBatchRenderingStarted(URenderGridMoviePipelineRenderJob* RenderJob) { Refresh(); }
-		void OnBatchRenderingFinished(URenderGridMoviePipelineRenderJob* RenderJob) { Refresh(); }
+		void OnObjectModified(UObject* Object);
+		void OnBatchRenderingStarted(URenderGridQueue* Queue) { Refresh(); }
+		void OnBatchRenderingFinished(URenderGridQueue* Queue) { Refresh(); }
 		void OnSearchBarTextChanged(const FText& Text) { Refresh(); }
 
 	private:

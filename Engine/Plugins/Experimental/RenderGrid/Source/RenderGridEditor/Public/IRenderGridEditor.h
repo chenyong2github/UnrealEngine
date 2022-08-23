@@ -6,7 +6,7 @@
 #include "BlueprintEditor.h"
 
 
-class URenderGridMoviePipelineRenderJob;
+class URenderGridQueue;
 class URenderGridJob;
 class URenderGrid;
 class URenderGridBlueprint;
@@ -31,6 +31,9 @@ namespace UE::RenderGrid
 		/** @return The render grid instance. */
 		virtual URenderGrid* GetInstance() const = 0;
 
+		/** Sets whether the blueprint editor is in debugging mode or not. */
+		virtual void SetIsDebugging(const bool bInIsDebugging) = 0;
+
 		/** @return The render grid toolbar. */
 		virtual TSharedPtr<Private::FRenderGridBlueprintEditorToolbar> GetRenderGridToolbarBuilder() = 0;
 
@@ -43,17 +46,17 @@ namespace UE::RenderGrid
 		/** Returns whether it is currently batch rendering or not. */
 		virtual bool IsBatchRendering() const = 0;
 
-		/** Returns the current batch rendering job, or null if it's not currently batch rendering. */
-		virtual URenderGridMoviePipelineRenderJob* GetBatchRenderJob() const = 0;
+		/** Returns the current batch render queue, or null if it's not currently batch rendering. */
+		virtual URenderGridQueue* GetBatchRenderQueue() const = 0;
 
 		/** Returns whether it is currently preview rendering or not. */
 		virtual bool IsPreviewRendering() const = 0;
 
-		/** Returns the current preview rendering job, or null if it's not currently rendering a preview. */
-		virtual URenderGridMoviePipelineRenderJob* GetPreviewRenderJob() const = 0;
+		/** Returns the current preview render queue, or null if it's not currently rendering a preview. */
+		virtual URenderGridQueue* GetPreviewRenderQueue() const = 0;
 
-		/** Sets the current preview rendering job, set it to null if it's not currently rendering a preview. */
-		virtual void SetPreviewRenderJob(URenderGridMoviePipelineRenderJob* Job) = 0;
+		/** Sets the current preview render queue, set it to null if it's not currently rendering a preview. */
+		virtual void SetPreviewRenderQueue(URenderGridQueue* Queue) = 0;
 
 		/** Marks the editing asset as modified. */
 		virtual void MarkAsModified() = 0;
@@ -73,10 +76,10 @@ namespace UE::RenderGrid
 		DECLARE_MULTICAST_DELEGATE(FOnRenderGridJobsSelectionChanged);
 		virtual FOnRenderGridJobsSelectionChanged& OnRenderGridJobsSelectionChanged() { return OnRenderGridJobsSelectionChangedDelegate; }
 
-		DECLARE_MULTICAST_DELEGATE_OneParam(FOnRenderGridBatchRenderingStarted, URenderGridMoviePipelineRenderJob*);
+		DECLARE_MULTICAST_DELEGATE_OneParam(FOnRenderGridBatchRenderingStarted, URenderGridQueue*);
 		virtual FOnRenderGridBatchRenderingStarted& OnRenderGridBatchRenderingStarted() { return OnRenderGridBatchRenderingStartedDelegate; }
 
-		DECLARE_MULTICAST_DELEGATE_OneParam(FOnRenderGridBatchRenderingFinished, URenderGridMoviePipelineRenderJob*);
+		DECLARE_MULTICAST_DELEGATE_OneParam(FOnRenderGridBatchRenderingFinished, URenderGridQueue*);
 		virtual FOnRenderGridBatchRenderingFinished& OnRenderGridBatchRenderingFinished() { return OnRenderGridBatchRenderingFinishedDelegate; }
 
 	private:

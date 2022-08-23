@@ -12,7 +12,7 @@ class SDockTab;
 class URenderGrid;
 class URenderGridJob;
 class URenderGridBlueprint;
-class URenderGridMoviePipelineRenderJob;
+class URenderGridQueue;
 
 namespace UE::RenderGrid::Private
 {
@@ -30,6 +30,10 @@ namespace UE::RenderGrid::Private
 	 */
 	class FRenderGridEditor : public IRenderGridEditor
 	{
+	public:
+		/** The time it should remain in debugging mode after it has been turned off. */
+		static constexpr float TimeInSecondsToRemainDebugging = 4.0f;
+
 	public:
 		void InitRenderGridEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, URenderGridBlueprint* InRenderGridBlueprint);
 
@@ -52,12 +56,13 @@ namespace UE::RenderGrid::Private
 		//~ Begin IRenderGridEditor Interface
 		virtual URenderGridBlueprint* GetRenderGridBlueprint() const override;
 		virtual URenderGrid* GetInstance() const override;
+		virtual void SetIsDebugging(const bool bInIsDebugging) override;
 		virtual TSharedPtr<FRenderGridBlueprintEditorToolbar> GetRenderGridToolbarBuilder() override { return RenderGridToolbar; }
 		virtual bool IsBatchRendering() const override;
-		virtual URenderGridMoviePipelineRenderJob* GetBatchRenderJob() const override { return BatchRenderJob; }
+		virtual URenderGridQueue* GetBatchRenderQueue() const override { return BatchRenderQueue; }
 		virtual bool IsPreviewRendering() const override;
-		virtual URenderGridMoviePipelineRenderJob* GetPreviewRenderJob() const override { return PreviewRenderJob; }
-		virtual void SetPreviewRenderJob(URenderGridMoviePipelineRenderJob* Job) override { PreviewRenderJob = Job; }
+		virtual URenderGridQueue* GetPreviewRenderQueue() const override { return PreviewRenderQueue; }
+		virtual void SetPreviewRenderQueue(URenderGridQueue* Queue) override;
 		virtual void MarkAsModified() override;
 		virtual TArray<URenderGridJob*> GetSelectedRenderGridJobs() const override;
 		virtual void SetSelectedRenderGridJobs(const TArray<URenderGridJob*>& Jobs) override;
@@ -116,7 +121,7 @@ namespace UE::RenderGrid::Private
 		void BatchRenderListAction();
 
 		/** The callback for when the batch render list action finishes. */
-		void OnBatchRenderListActionFinished(URenderGridMoviePipelineRenderJob* RenderJob, bool bSuccess);
+		void OnBatchRenderListActionFinished(URenderGridQueue* Queue, bool bSuccess);
 
 		/** Undo the last action. */
 		void UndoAction();
@@ -169,10 +174,16 @@ namespace UE::RenderGrid::Private
 		/** True if it should call BatchRenderListAction() next frame. */
 		bool bRunRenderNewBatch;
 
-		/** The current batch rendering job, if any. */
-		TObjectPtr<URenderGridMoviePipelineRenderJob> BatchRenderJob;
+		/** The current batch render queue, if any. */
+		TObjectPtr<URenderGridQueue> BatchRenderQueue;
 
-		/** The current preview rendering job, if any. */
-		TObjectPtr<URenderGridMoviePipelineRenderJob> PreviewRenderJob;
+		/** The current preview render queue, if any. */
+		TObjectPtr<URenderGridQueue> PreviewRenderQueue;
+
+		/** The time it should still remain in debugging mode (after it has been turned off). */
+		float DebuggingTimeInSecondsRemaining;
+
+		/** True if the graph editor is currently in debugging mode. */
+		bool bIsDebugging;
 	};
 }

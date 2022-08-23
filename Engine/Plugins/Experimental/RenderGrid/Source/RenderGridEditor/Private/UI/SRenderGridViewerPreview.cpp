@@ -7,9 +7,12 @@
 #include "IRenderGridModule.h"
 #include "LevelSequence.h"
 #include "MoviePipelineOutputSetting.h"
+#include "MovieScene.h"
 #include "RenderGrid/RenderGridManager.h"
 #include "SlateOptMacros.h"
+#include "Sections/MovieSceneSubSection.h"
 #include "Styles/RenderGridEditorStyle.h"
+#include "Tracks/MovieSceneSubTrack.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Layout/SScaleBox.h"
@@ -24,7 +27,7 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::Tick(const FGeometry&, c
 {
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
-		if (BlueprintEditor->CanCurrentlyRender() && !CurrentRenderJob)
+		if (BlueprintEditor->CanCurrentlyRender() && !CurrentRenderQueue)
 		{
 			UpdateRerenderButton();
 			UpdateFrameSlider();
@@ -47,7 +50,7 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::Construct(const FArgumen
 {
 	BlueprintEditorWeakPtr = InBlueprintEditor;
 	SelectedJobWeakPtr = nullptr;
-	CurrentRenderJob = nullptr;
+	CurrentRenderQueue = nullptr;
 	FramesUntilRenderNewPreview = 0;
 	ImageBrushEmpty = FSlateBrush();
 	ImageBrushEmpty.DrawAs = ESlateBrushDrawType::Type::NoDrawType;
@@ -75,7 +78,7 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::Construct(const FArgumen
 	ChildSlot
 	[
 		SNew(SVerticalBox)
-		.Visibility_Lambda([this]() -> EVisibility { return (!IsPreviewWidget() && CurrentRenderJob) ? EVisibility::Hidden : EVisibility::Visible; })
+		.Visibility_Lambda([this]() -> EVisibility { return (!IsPreviewWidget() && CurrentRenderQueue) ? EVisibility::Hidden : EVisibility::Visible; })
 
 		// image
 		+ SVerticalBox::Slot()
@@ -113,7 +116,7 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::Construct(const FArgumen
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.Text_Lambda([this]()-> FText
+						.Text_Lambda([this]() -> FText
 						{
 							if (URenderGridJob* SelectedJob = SelectedJobWeakPtr.Get(); IsValid(SelectedJob))
 							{
@@ -210,6 +213,23 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::OnObjectModified(UObject
 		if (Object == BlueprintEditor->GetInstance())
 		{
 			// grid changed
+			GridDataChanged();
+		}
+	}
+	else if (UMoviePipelineOutputSetting* Settings = Cast<UMoviePipelineOutputSetting>(Object))
+	{
+		if (SelectedJobWeakPtr.IsValid() && (Settings == SelectedJobWeakPtr->GetRenderPresetOutputSettings()))
+		{
+			// movie pipeline output settings changed
+			GridDataChanged();
+		}
+	}
+	else if (SelectedJobWeakPtr.IsValid() && SelectedJobWeakPtr->GetSequence() && (Cast<UMovieSceneSequence>(Object) || Cast<UMovieScene>(Object) || Cast<UMovieSceneTrack>(Object) || Cast<UMovieSceneSection>(Object) || Cast<UMovieSceneSubTrack>(Object) || Cast<UMovieSceneSubSection>(Object)))
+	{
+		ULevelSequence* Sequence = SelectedJobWeakPtr->GetSequence();
+		if ((Object == Sequence) || (Object == Sequence->GetMovieScene()) || (Object->GetTypedOuter<UMovieScene>() == Sequence->GetMovieScene()))
+		{
+			// level sequence changed
 			GridDataChanged();
 		}
 	}
@@ -329,14 +349,14 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::InternalRenderNewPreview
 			}
 			else if (BlueprintEditor.IsValid())
 			{
-				BlueprintEditor->SetPreviewRenderJob(nullptr);
+				BlueprintEditor->SetPreviewRenderQueue(nullptr);
 			}
 		});
 
-		if (URenderGridMoviePipelineRenderJob* NewRenderJob = IRenderGridModule::Get().GetManager().RenderPreviewFrame(JobArgs))
+		if (URenderGridQueue* NewRenderQueue = IRenderGridModule::Get().GetManager().RenderPreviewFrame(JobArgs))
 		{
-			CurrentRenderJob = NewRenderJob;
-			BlueprintEditor->SetPreviewRenderJob(CurrentRenderJob);
+			CurrentRenderQueue = NewRenderQueue;
+			BlueprintEditor->SetPreviewRenderQueue(CurrentRenderQueue);
 			return;
 		}
 	}
@@ -348,10 +368,10 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::RenderNewPreviewCallback
 	bHasRenderedSinceAppStart = true;
 	UpdateImageTexture();
 
-	CurrentRenderJob = nullptr;
+	CurrentRenderQueue = nullptr;
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
-		BlueprintEditor->SetPreviewRenderJob(CurrentRenderJob);
+		BlueprintEditor->SetPreviewRenderQueue(CurrentRenderQueue);
 	}
 }
 

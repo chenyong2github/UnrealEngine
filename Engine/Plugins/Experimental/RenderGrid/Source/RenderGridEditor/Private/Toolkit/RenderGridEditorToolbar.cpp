@@ -117,7 +117,7 @@ void UE::RenderGrid::Private::FRenderGridBlueprintEditorToolbar::FillRenderGridB
 				.OnGetActiveMode(GetActiveMode)
 				.OnSetActiveMode(SetActiveMode)
 				.ToolTip(IDocumentation::Get()->CreateToolTip(
-					LOCTEXT("ListingModeButtonTooltip", "Switch to Blueprint Listing Mode"),
+					LOCTEXT("ListingModeButtonTooltip", "Switch to Job Listing Mode"),
 					nullptr,
 					TEXT("Shared/Editors/BlueprintEditor"),
 					TEXT("ListingMode")))
@@ -137,7 +137,6 @@ void UE::RenderGrid::Private::FRenderGridBlueprintEditorToolbar::FillRenderGridB
 					nullptr,
 					TEXT("Shared/Editors/BlueprintEditor"),
 					TEXT("GraphMode")))
-				.ToolTipText(LOCTEXT("LogicModeButtonTooltip", "Switch to Logic Editing Mode"))
 				.IconImage(FAppStyle::GetBrush("Icons.Blueprint"))
 				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("LogicMode")))
 			);

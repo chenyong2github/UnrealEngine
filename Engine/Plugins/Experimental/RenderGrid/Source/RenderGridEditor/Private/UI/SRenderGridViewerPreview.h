@@ -10,7 +10,7 @@ class SButton;
 class SImage;
 class SSlider;
 class URenderGridJob;
-class URenderGridMoviePipelineRenderJob;
+class URenderGridQueue;
 class UTexture2D;
 
 
@@ -73,8 +73,8 @@ namespace UE::RenderGrid::Private
 		/** A reference to the blueprint editor that owns the render grid instance. */
 		TWeakPtr<IRenderGridEditor> BlueprintEditorWeakPtr;
 
-		/** A reference to the job that's currently rendering. */
-		TObjectPtr<URenderGridMoviePipelineRenderJob> CurrentRenderJob;
+		/** A reference to the queue that's currently rendering. */
+		TObjectPtr<URenderGridQueue> CurrentRenderQueue;
 
 		/** A reference to the job that's currently rendering. */
 		TWeakObjectPtr<URenderGridJob> SelectedJobWeakPtr;

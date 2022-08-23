@@ -4,7 +4,7 @@
 
 #include "RenderGrid/RenderGrid.h"
 #include "RenderGrid/RenderGridManager.h"
-#include "RenderGrid/RenderGridMoviePipelineJob.h"
+#include "RenderGrid/RenderGridQueue.h"
 #include "RenderGridEditorToolbar.h"
 #include "IRenderGridEditorModule.h"
 #include "IRenderGridModule.h"
@@ -88,8 +88,9 @@ void UE::RenderGrid::Private::FRenderGridEditor::InitRenderGridEditor(const EToo
 UE::RenderGrid::Private::FRenderGridEditor::FRenderGridEditor()
 	: PreviewBlueprint(nullptr)
 	, bRunRenderNewBatch(false)
-	, BatchRenderJob(nullptr)
-	, PreviewRenderJob(nullptr)
+	, BatchRenderQueue(nullptr)
+	, PreviewRenderQueue(nullptr)
+	, bIsDebugging(false)
 {}
 
 UE::RenderGrid::Private::FRenderGridEditor::~FRenderGridEditor()
@@ -203,14 +204,34 @@ URenderGrid* UE::RenderGrid::Private::FRenderGridEditor::GetInstance() const
 	return RenderGridWeakPtr.Get();
 }
 
+void UE::RenderGrid::Private::FRenderGridEditor::SetIsDebugging(const bool bInIsDebugging)
+{
+	if (bInIsDebugging)
+	{
+		bIsDebugging = true;
+		DebuggingTimeInSecondsRemaining = TimeInSecondsToRemainDebugging;
+		GetBlueprintObj()->SetObjectBeingDebugged(GetInstance());
+	}
+	else
+	{
+		bIsDebugging = false;
+	}
+}
+
 bool UE::RenderGrid::Private::FRenderGridEditor::IsBatchRendering() const
 {
-	return IsValid(BatchRenderJob);
+	return IsValid(BatchRenderQueue);
 }
 
 bool UE::RenderGrid::Private::FRenderGridEditor::IsPreviewRendering() const
 {
-	return IsValid(PreviewRenderJob);
+	return IsValid(PreviewRenderQueue);
+}
+
+void UE::RenderGrid::Private::FRenderGridEditor::SetPreviewRenderQueue(URenderGridQueue* Queue)
+{
+	PreviewRenderQueue = Queue;
+	SetIsDebugging(IsValid(Queue));
 }
 
 void UE::RenderGrid::Private::FRenderGridEditor::MarkAsModified()
@@ -232,7 +253,7 @@ TArray<URenderGridJob*> UE::RenderGrid::Private::FRenderGridEditor::GetSelectedR
 	{
 		for (URenderGridJob* Job : Grid->GetRenderGridJobs())
 		{
-			if (SelectedRenderGridJobIds.Contains(Job->GetId()))
+			if (SelectedRenderGridJobIds.Contains(Job->GetGuid()))
 			{
 				SelectedJobs.Add(Job);
 			}
@@ -253,7 +274,7 @@ void UE::RenderGrid::Private::FRenderGridEditor::SetSelectedRenderGridJobs(const
 		{
 			continue;
 		}
-		SelectedRenderGridJobIds.Add(Job->GetId());
+		SelectedRenderGridJobIds.Add(Job->GetGuid());
 	}
 
 	if (SelectedRenderGridJobIds.Num() != PreviouslySelectedJobIds.Num())
@@ -321,6 +342,15 @@ void UE::RenderGrid::Private::FRenderGridEditor::Tick(float DeltaTime)
 	{
 		bRunRenderNewBatch = false;
 		BatchRenderListAction();
+	}
+
+	if ((DebuggingTimeInSecondsRemaining > 0) && !bIsDebugging)
+	{
+		DebuggingTimeInSecondsRemaining -= DeltaTime;
+		if (DebuggingTimeInSecondsRemaining <= 0)
+		{
+			GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
+		}
 	}
 }
 
@@ -466,21 +496,25 @@ void UE::RenderGrid::Private::FRenderGridEditor::BatchRenderListAction()
 			return;
 		}
 
-		if (URenderGridMoviePipelineRenderJob* RenderJob = IRenderGridModule::Get().GetManager().CreateBatchRenderJob(Instance); IsValid(RenderJob))
+		if (URenderGridQueue* RenderQueue = IRenderGridModule::Get().GetManager().CreateBatchRenderQueue(Instance); IsValid(RenderQueue))
 		{
-			RenderJob->OnExecuteFinished().AddRaw(this, &FRenderGridEditor::OnBatchRenderListActionFinished);
-			BatchRenderJob = RenderJob;
-			OnRenderGridBatchRenderingStarted().Broadcast(RenderJob);
-			RenderJob->Execute();
+			RenderQueue->OnExecuteFinished().AddRaw(this, &FRenderGridEditor::OnBatchRenderListActionFinished);
+			BatchRenderQueue = RenderQueue;
+			OnRenderGridBatchRenderingStarted().Broadcast(RenderQueue);
+
+			SetIsDebugging(true);
+			RenderQueue->Execute();
 		}
 	}
 }
 
-void UE::RenderGrid::Private::FRenderGridEditor::OnBatchRenderListActionFinished(URenderGridMoviePipelineRenderJob* RenderJob, bool bSuccess)
+void UE::RenderGrid::Private::FRenderGridEditor::OnBatchRenderListActionFinished(URenderGridQueue* Queue, bool bSuccess)
 {
-	URenderGridMoviePipelineRenderJob* FinishedRenderJob = BatchRenderJob;
-	BatchRenderJob = nullptr;
-	OnRenderGridBatchRenderingFinished().Broadcast(FinishedRenderJob);
+	SetIsDebugging(false);
+
+	URenderGridQueue* FinishedRenderQueue = BatchRenderQueue;
+	BatchRenderQueue = nullptr;
+	OnRenderGridBatchRenderingFinished().Broadcast(FinishedRenderQueue);
 }
 
 void UE::RenderGrid::Private::FRenderGridEditor::UndoAction()
@@ -574,8 +608,8 @@ void UE::RenderGrid::Private::FRenderGridEditor::UpdateInstance(UBlueprint* InBl
 			}
 		}
 
-		// Make sure the object being debugged is cleared out
-		GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
+		// Set the debug object again, if it was debugging
+		GetBlueprintObj()->SetObjectBeingDebugged(bIsDebugging ? RenderGrid : nullptr);
 
 		// Store a reference to the preview actor.
 		RenderGridWeakPtr = RenderGrid;

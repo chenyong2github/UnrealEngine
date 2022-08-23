@@ -59,7 +59,7 @@ void UE::RenderGrid::Private::SRenderGridEditorViewport::Render()
 {
 	bRenderedLastAttempt = false;
 
-	if (!ViewportClient.IsValid())
+	if (!ViewportClient.IsValid() || !IsValid(RenderGridJob))
 	{
 		return;
 	}
@@ -73,37 +73,26 @@ void UE::RenderGrid::Private::SRenderGridEditorViewport::Render()
 
 		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
 		{
-			if (!Grid->HasRenderGridJob(RenderGridJob))
+			if (ULevelSequencePlayer* SequencePlayer = GetSequencePlayer(); IsValid(SequencePlayer))
 			{
-				return;
-			}
-			bRenderedLastAttempt = true;
+				if (!Grid->HasRenderGridJob(RenderGridJob))
+				{
+					return;
+				}
+				bRenderedLastAttempt = true;
 
-			ULevelSequencePlayer* SequencePlayer = GetSequencePlayer();
-			if (IsValid(SequencePlayer))
-			{
+				BlueprintEditor->SetIsDebugging(true);
+
 				SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LevelSequenceTime, EUpdatePositionMethod::Play));// execute this every tick, in case any sequencer values get overwritten (by remote control props for example)
-			}
+				Grid->BeginViewportRender(RenderGridJob);
 
-			if (IsValid(RenderGridJob) && IsValid(Grid))
-			{
-				Grid->PreRender(RenderGridJob);
-			}
-
-			bool bHasSetCameraData = false;
-			if (IsValid(SequencePlayer))
-			{
 				if (UCameraComponent* Camera = SequencePlayer->GetActiveCameraComponent(); IsValid(Camera))
 				{
 					ViewportClient->SetViewLocation(Camera->GetComponentLocation());
 					ViewportClient->SetViewRotation(Camera->GetComponentRotation());
 					ViewportClient->ViewFOV = Camera->FieldOfView;
-					bHasSetCameraData = true;
 				}
-			}
-			if (!bHasSetCameraData)
-			{
-				if (UWorld* World = GetWorld(); IsValid(World))
+				else if (UWorld* World = GetWorld(); IsValid(World))
 				{
 					if (APlayerController* LocalPlayerController = World->GetFirstPlayerController(); IsValid(LocalPlayerController))
 					{
@@ -128,16 +117,19 @@ void UE::RenderGrid::Private::SRenderGridEditorViewport::Render()
 						}
 					}
 				}
-			}
 
-			ViewportClient->Viewport->Draw();
+				ViewportClient->Viewport->Draw();
+				Grid->EndViewportRender(RenderGridJob);
 
-			if (IsValid(RenderGridJob) && IsValid(Grid))
-			{
-				Grid->PostRender(RenderGridJob);
+				BlueprintEditor->SetIsDebugging(false);
 			}
 		}
 	}
+}
+
+void UE::RenderGrid::Private::SRenderGridEditorViewport::ClearSequenceFrame()
+{
+	ShowSequenceFrame(nullptr, nullptr, 0);
 }
 
 bool UE::RenderGrid::Private::SRenderGridEditorViewport::ShowSequenceFrame(URenderGridJob* InJob, ULevelSequence* InSequence, const float InTime)
@@ -307,7 +299,7 @@ void UE::RenderGrid::Private::SRenderGridViewerLive::Construct(const FArguments&
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Text_Lambda([this]()-> FText
+					.Text_Lambda([this]() -> FText
 					{
 						if (URenderGridJob* SelectedJob = SelectedJobWeakPtr.Get(); IsValid(SelectedJob))
 						{
@@ -405,15 +397,15 @@ void UE::RenderGrid::Private::SRenderGridViewerLive::UpdateViewport()
 			{
 				TOptional<double> StartTime = SelectedJob->GetStartTime();
 				TOptional<double> EndTime = SelectedJob->GetEndTime();
-				if (!StartTime.IsSet() || !EndTime.IsSet() || (StartTime.Get(0) > EndTime.Get(0)))
+				if (StartTime.IsSet() && EndTime.IsSet() && (StartTime.Get(0) <= EndTime.Get(0)))
 				{
+					ViewportWidget->ShowSequenceFrame(SelectedJob, Sequence, FMath::Lerp(StartTime.Get(0), EndTime.Get(0), FrameSlider->GetValue()));
 					return;
 				}
-
-				ViewportWidget->ShowSequenceFrame(SelectedJob, Sequence, FMath::Lerp(StartTime.Get(0), EndTime.Get(0), FrameSlider->GetValue()));
 			}
 		}
 	}
+	ViewportWidget->ClearSequenceFrame();
 }
 
 void UE::RenderGrid::Private::SRenderGridViewerLive::UpdateFrameSlider()

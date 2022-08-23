@@ -56,6 +56,7 @@ namespace UE::RenderGrid::Private
 		virtual ~SRenderGridEditorViewport() override;
 
 		void Render();
+		void ClearSequenceFrame();
 		bool ShowSequenceFrame(URenderGridJob* InJob, ULevelSequence* InSequence, const float InTime);
 		bool HasRenderedLastAttempt() const { return bRenderedLastAttempt; }
 

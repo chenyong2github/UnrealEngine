@@ -4,7 +4,7 @@
 
 #include "RenderGridManager.h"
 #include "RenderGridUtils.h"
-#include "RenderGridMoviePipelineJob.generated.h"
+#include "RenderGridQueue.generated.h"
 
 
 class UMoviePipelineSetting;
@@ -16,26 +16,26 @@ class UMoviePipelineExecutorBase;
 class UMoviePipelinePIEExecutor;
 class UMoviePipelineQueue;
 class UMoviePipelineExecutorJob;
-class URenderGridMoviePipelineRenderJob;
+class URenderGridQueue;
 
 namespace UE::RenderGrid::Private
 {
-	class FRenderGridQueue;
+	class FRenderGridGenericExecutionQueue;
 }
 
 
 namespace UE::RenderGrid
 {
-	/** A delegate for when a render job is about to start. */
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRenderGridMoviePipelineRenderJobStarted, URenderGridMoviePipelineRenderJob* /*RenderJob*/);
+	/** A delegate for when a rendering queue is about to start. */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRenderGridQueueStarted, URenderGridQueue* /*Queue*/);
 
-	/** A delegate for when a render job has finished. */
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRenderGridMoviePipelineRenderJobFinished, URenderGridMoviePipelineRenderJob* /*RenderJob*/, bool /*bSuccess*/);
+	/** A delegate for when a rendering queue has finished. */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRenderGridQueueFinished, URenderGridQueue* /*Queue*/, bool /*bSuccess*/);
 
 	/**
-	 * The arguments for the URenderGridMoviePipelineRenderJob::Create function.
+	 * The arguments for the URenderGridQueue::Create function.
 	 */
-	struct RENDERGRID_API FRenderGridMoviePipelineRenderJobCreateArgs
+	struct RENDERGRID_API FRenderGridQueueCreateArgs
 	{
 	public:
 		/** The render grid of the given render grid jobs that will be rendered. */
@@ -44,11 +44,14 @@ namespace UE::RenderGrid
 		/** The specific render grid jobs that will be rendered. */
 		TArray<TObjectPtr<URenderGridJob>> RenderGridJobs;
 
-		/** If not null, it will override the MRQ pipeline executor class with this class. */
+		/** If not null, it will override the movie pipeline executor class with this class. */
 		TSubclassOf<UMoviePipelinePIEExecutor> PipelineExecutorClass = nullptr;
 
-		/** The MRQ settings classes to disable (things like Anti-Aliasing, High-Res, etc). */
-		TArray<TSubclassOf<UMoviePipelineSetting>> DisableSettingsClasses;
+		/** The movie pipeline settings classes to disable (things like Anti-Aliasing, High-Res, etc). */
+		TArray<TSubclassOf<UMoviePipelineSetting>> DisablePipelineSettingsClasses;
+
+		/** Whether it should run the Begin and End Batch Render events or not. */
+		bool bIsBatchRender = false;
 
 		/** Whether it should run invisibly (so without any UI elements popping up during rendering) or not. */
 		bool bHeadless = false;
@@ -69,16 +72,16 @@ namespace UE::RenderGrid
 
 
 /**
- * This class is responsible for the MRQ part of the rendering of the given render grid job.
+ * This class is responsible for the movie pipeline part of the rendering of the given render grid job.
  */
 UCLASS()
-class RENDERGRID_API URenderGridMoviePipelineRenderJobEntry : public UObject
+class RENDERGRID_API URenderGridMoviePipelineRenderJob : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	/** Creates a new render job instance, it won't be started right away. */
-	static URenderGridMoviePipelineRenderJobEntry* Create(URenderGridMoviePipelineRenderJob* RenderJob, URenderGridJob* Job, const UE::RenderGrid::FRenderGridMoviePipelineRenderJobCreateArgs& Args);
+	/** Creates a new render job, it won't be started right away. */
+	static URenderGridMoviePipelineRenderJob* Create(URenderGridQueue* Queue, URenderGridJob* Job, const UE::RenderGrid::FRenderGridQueueCreateArgs& Args);
 
 	/** The destructor, cleans up the TPromise (if it's set). */
 	virtual void BeginDestroy() override;
@@ -86,7 +89,7 @@ public:
 	/** Starts this render job. */
 	TSharedFuture<void> Execute();
 
-	/** Cancels this render job. Relies on the internal MRQ implementation of job canceling on whether this will do anything or not. */
+	/** Cancels this render job. Relies on the internal movie pipeline implementation of job canceling on whether this will do anything or not. */
 	void Cancel();
 
 	/** Retrieves the rendering status of the given render grid job. */
@@ -101,9 +104,7 @@ public:
 
 private:
 	void ComputePlaybackContext(bool& bOutAllowBinding);
-	void ExecuteJobStarted(UMoviePipelineExecutorJob* StartingExecutorJob);
-	void ExecuteJobFinished(FMoviePipelineOutputData PipelineOutputData);
-	void ExecuteFinished(UMoviePipelineExecutorBase* PipelineExecutor, const bool bSuccess);
+	void ExecuteFinished(UMoviePipelineExecutorBase* InPipelineExecutor, const bool bSuccess);
 
 protected:
 	/** The render grid job that will be rendered. */
@@ -114,17 +115,17 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<URenderGrid> RenderGrid;
 
-	/** The MRQ queue. */
+	/** The movie pipeline queue. */
 	UPROPERTY(Transient)
-	TObjectPtr<UMoviePipelineQueue> RenderQueue;
+	TObjectPtr<UMoviePipelineQueue> PipelineQueue;
 
-	/** The MRQ pipeline executor. */
+	/** The movie pipeline executor. */
 	UPROPERTY(Transient)
-	TObjectPtr<UMoviePipelineExecutorBase> Executor;
+	TObjectPtr<UMoviePipelineExecutorBase> PipelineExecutor;
 
-	/** The MRQ job of the given render grid job. */
+	/** The movie pipeline executor job of the given render grid job. */
 	UPROPERTY(Transient)
-	TObjectPtr<UMoviePipelineExecutorJob> ExecutorJob;
+	TObjectPtr<UMoviePipelineExecutorJob> PipelineExecutorJob;
 
 	/** The TPromise of the rendering process. */
 	TSharedPtr<TPromise<void>> Promise;
@@ -150,33 +151,61 @@ protected:
  * This class is responsible for rendering the given render grid jobs.
  */
 UCLASS()
-class RENDERGRID_API URenderGridMoviePipelineRenderJob : public UObject
+class RENDERGRID_API URenderGridQueue : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	/** Creates a new render job instance, it won't be started right away. */
-	static URenderGridMoviePipelineRenderJob* Create(const UE::RenderGrid::FRenderGridMoviePipelineRenderJobCreateArgs& Args);
+	/** Creates a new render queue, it won't be started right away. */
+	static URenderGridQueue* Create(const UE::RenderGrid::FRenderGridQueueCreateArgs& Args);
 
-	/** Starts this render job. */
+	/** Starts this render queue. */
 	void Execute();
 
-	/** Cancels this render job. Relies on the internal MRQ implementation of job canceling on whether this will stop the current render grid job from rendering or not. Will always prevent new render grid jobs from rendering. */
+public:
+	/** Queues the given job. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="render append"))
+	void AddJob(URenderGridJob* Job);
+
+	/** Pauses the queue. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="wait"))
+	void Pause();
+
+	/** Resumes the queue. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="unwait unpause"))
+	void Resume();
+
+	/** Cancels the current and the remaining queued jobs. Relies on the internal movie pipeline implementation of job canceling on whether this will stop the current render grid job from rendering or not. Will always prevent new render grid jobs from rendering. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="stop quit exit kill terminate end"))
 	void Cancel();
 
-	/** Returns true if this render job has been canceled. */
+	/** Returns true if this queue has been canceled. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="stopped quited exited killed terminated ended"))
 	bool IsCanceled() const { return bCanceled; }
 
 	/** Retrieves the rendering status of the given render grid job. */
-	FString GetRenderGridJobStatus(URenderGridJob* Job) const;
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="render progress"))
+	FString GetJobStatus(URenderGridJob* Job) const;
+
+protected:
+	void OnStart();
+	void OnProcessJob(URenderGridJob* Job);
+	void OnFinish();
 
 protected:
 	/** The queue containing the render actions. */
-	TSharedPtr<UE::RenderGrid::Private::FRenderGridQueue> Queue;
+	UE::RenderGrid::FRenderGridQueueCreateArgs Args;
 
-	/** The render grid jobs that are to be rendered, mapped to the rendering job of each specific render grid job. */
+	/** The queue containing the render actions. */
+	TSharedPtr<UE::RenderGrid::Private::FRenderGridGenericExecutionQueue> Queue;
+
+	/** The render grid jobs that are to be rendered, removed when one is grabbed from it and added to the execution queue. */
 	UPROPERTY(Transient)
-	TMap<TObjectPtr<const URenderGridJob>, TObjectPtr<URenderGridMoviePipelineRenderJobEntry>> Entries;
+	TArray<TObjectPtr<URenderGridJob>> RemainingJobs;
+
+	/** The render grid jobs that are to be rendered, mapped to the movie pipeline render job of each specific render grid job. */
+	UPROPERTY(Transient)
+	TMap<TObjectPtr<const URenderGridJob>, TObjectPtr<URenderGridMoviePipelineRenderJob>> Entries;
 
 	/** The render grid of the given render grid job that will be rendered. */
 	UPROPERTY(Transient)
@@ -195,13 +224,13 @@ protected:
 	FRenderGridPreviousEngineFpsSettings PreviousFrameLimitSettings;
 
 public:
-	/** A delegate for when the render job is about to start. */
-	UE::RenderGrid::FOnRenderGridMoviePipelineRenderJobStarted& OnExecuteStarted() { return OnExecuteStartedDelegate; }
+	/** A delegate for when the queue is about to start. */
+	UE::RenderGrid::FOnRenderGridQueueStarted& OnExecuteStarted() { return OnExecuteStartedDelegate; }
 
-	/** A delegate for when the render job has finished. */
-	UE::RenderGrid::FOnRenderGridMoviePipelineRenderJobFinished& OnExecuteFinished() { return OnExecuteFinishedDelegate; }
+	/** A delegate for when the queue has finished. */
+	UE::RenderGrid::FOnRenderGridQueueFinished& OnExecuteFinished() { return OnExecuteFinishedDelegate; }
 
 private:
-	UE::RenderGrid::FOnRenderGridMoviePipelineRenderJobStarted OnExecuteStartedDelegate;
-	UE::RenderGrid::FOnRenderGridMoviePipelineRenderJobFinished OnExecuteFinishedDelegate;
+	UE::RenderGrid::FOnRenderGridQueueStarted OnExecuteStartedDelegate;
+	UE::RenderGrid::FOnRenderGridQueueFinished OnExecuteFinishedDelegate;
 };

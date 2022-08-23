@@ -8,7 +8,7 @@
 
 class SBorder;
 class URenderGridJob;
-class URenderGridMoviePipelineRenderJob;
+class URenderGridQueue;
 
 namespace UE::RenderGrid
 {
@@ -49,8 +49,8 @@ namespace UE::RenderGrid::Private
 		void Refresh();
 
 	private:
-		void OnBatchRenderingStarted(URenderGridMoviePipelineRenderJob* RenderJob) { Refresh(); }
-		void OnBatchRenderingFinished(URenderGridMoviePipelineRenderJob* RenderJob) { Refresh(); }
+		void OnBatchRenderingStarted(URenderGridQueue* Queue) { Refresh(); }
+		void OnBatchRenderingFinished(URenderGridQueue* Queue) { Refresh(); }
 
 	private:
 		/** A reference to the blueprint editor that owns the render grid instance. */

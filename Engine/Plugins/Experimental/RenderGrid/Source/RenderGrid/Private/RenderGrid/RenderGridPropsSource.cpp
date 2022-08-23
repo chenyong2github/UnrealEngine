@@ -89,7 +89,7 @@ bool URenderGridPropRemoteControl::SetValueOfEntity(const TSharedPtr<FRemoteCont
 		 * 
 		 * Remote control doesn't fire the PreEditChange and PostEditChangeProperty functions right away,
 		 * causing construction scripts to not fire right away,
-		 * which causes changes made in construction scripts to not be rendered when using MRQ.
+		 * which causes changes made in construction scripts to not be rendered when using the movie pipeline plugin.
 		 * 
 		 * The work-around is to call the functions manually.
 		 */

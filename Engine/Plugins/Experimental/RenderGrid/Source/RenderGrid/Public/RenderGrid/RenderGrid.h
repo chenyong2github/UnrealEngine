@@ -7,6 +7,7 @@
 #include "RenderGrid.generated.h"
 
 
+class URenderGridQueue;
 class UMoviePipelineOutputSetting;
 class UMoviePipelineMasterConfig;
 class ULevelSequence;
@@ -78,6 +79,10 @@ public:
 	/** Gets the calculated duration in seconds. */
 	TOptional<double> GetDurationInSeconds() const;
 
+	/** Gets the resolution that this job will be rendered in. */
+	UFUNCTION(BlueprintPure, Category="Render Grid|Job")
+	FIntPoint GetOutputResolution() const;
+
 	/** Gets the aspect ratio that this job will be rendered in. */
 	UFUNCTION(BlueprintPure, Category="Render Grid|Job")
 	double GetOutputAspectRatio() const;
@@ -87,11 +92,13 @@ public:
 	bool MatchesSearchTerm(const FString& SearchTerm) const;
 
 public:
+	/** Returns the GUID, which is randomly generated at creation. */
 	UFUNCTION(BlueprintPure, Category="Render Grid|Job")
-	FGuid GetId() const { return Id; }
+	FGuid GetGuid() const { return Guid; }
 
+	/** Randomly generates a new GUID. */
 	UFUNCTION(BlueprintCallable, Category="Render Grid|Job")
-	void GenerateNewId() { Id = FGuid::NewGuid(); }
+	void GenerateNewGuid() { Guid = FGuid::NewGuid(); }
 
 
 	UFUNCTION(BlueprintPure, Category="Render Grid|Job")
@@ -209,7 +216,7 @@ public:
 private:
 	/** The unique ID of this job. */
 	UPROPERTY()
-	FGuid Id;
+	FGuid Guid;
 
 	/** Waits the given number of frames before it will render this job. This can be set to a higher amount when the renderer has to wait for your code to complete (such as construction scripts etc). Try increasing this value when rendering doesn't produce the output you expect it to. */
 	UPROPERTY(EditInstanceOnly, Category="Render Grid|Job", Meta=(AllowPrivateAccess="true", ClampMin="0"))
@@ -236,11 +243,11 @@ private:
 	int32 CustomEndFrame;
 
 	/** If this is true, the CustomResolution property will override the resolution of the render. */
-	UPROPERTY()
+	UPROPERTY(EditInstanceOnly, Category="Render Grid|Job", Meta=(AllowPrivateAccess="true", InlineEditConditionToggle))
 	bool bOverrideResolution;
 
 	/** If bOverrideResolution is true, this property will override the resolution of the render. */
-	UPROPERTY()
+	UPROPERTY(EditInstanceOnly, Category="Render Grid|Job", Meta=(AllowPrivateAccess="true", EditCondition="bOverrideResolution", ClampMin="1", UIMin="1"))
 	FIntPoint CustomResolution;
 
 	/** If this is true, this job will be rendered during a batch rendering, otherwise it will be skipped. */
@@ -259,11 +266,11 @@ private:
 	UPROPERTY()
 	FString OutputDirectory;
 
-	/** The MRQ render preset. Render grid jobs are rendered using the MRQ (Movie Render Queue) plugin. This 'preset' contains the configuration of that plugin. */
+	/** The movie pipeline render preset. Render grid jobs are rendered using the movie pipeline plugin. This 'preset' contains the configuration of that plugin. */
 	UPROPERTY()
 	TObjectPtr<UMoviePipelineMasterConfig> RenderPreset;
 
-	/** The Remote Control plugin can be used to customize and modify the way a job is rendered. If Remote Control is being used, the property values of this job will be stored in this map (remote control entity id -> value as bytes). */
+	/** The remote control plugin can be used to customize and modify the way a job is rendered. If remote control is being used, the property values of this job will be stored in this map (remote control entity id -> value as bytes). */
 	UPROPERTY()
 	TMap<FString, FRenderGridRemoteControlPropertyData> RemoteControlValues;
 };
@@ -291,23 +298,91 @@ public:
 	void OnClose() { SaveValuesToCDO(); }
 
 public:
-	static TArray<FString> GetBlueprintImplementableEvents() { return {TEXT("ReceivePreRender"), TEXT("ReceivePostRender")}; }
+	static TArray<FString> GetBlueprintImplementableEvents()
+	{
+		return {
+			TEXT("ReceiveBeginBatchRender"),
+			TEXT("ReceiveEndBatchRender"),
+			TEXT("ReceiveBeginJobRender"),
+			TEXT("ReceiveEndJobRender"),
+			TEXT("ReceiveBeginViewportRender"),
+			TEXT("ReceiveEndViewportRender"),
+		};
+	}
 
 protected:
-	/** Event for when rendering begins for a job. */
-	UFUNCTION(BlueprintImplementableEvent, Meta=(DisplayName="PreRender"))
-	void ReceivePreRender(URenderGridJob* Job);
+	/**
+	 * Event for when batch rendering begins.
+	 * 
+	 * In here, you could for example obtain jobs from an external source and add them to the queue.
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Meta=(DisplayName="BeginBatchRender"))
+	void ReceiveBeginBatchRender(URenderGridQueue* Queue);
 
-	/** Event for when rendering ends for a job. */
-	UFUNCTION(BlueprintImplementableEvent, Meta=(DisplayName="PostRender"))
-	void ReceivePostRender(URenderGridJob* Job);
+	/**
+	 * Event for when batch rendering ends.
+	 * 
+	 * In here, you could do any cleanup required at the end of a batch render.
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Meta=(DisplayName="EndBatchRender"))
+	void ReceiveEndBatchRender(URenderGridQueue* Queue);
+
+	/**
+	 * Event for when job rendering begins.
+	 * 
+	 * In here, you could for example change elements in the world according to what job this is.
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Meta=(DisplayName="BeginJobRender"))
+	void ReceiveBeginJobRender(URenderGridQueue* Queue, URenderGridJob* Job);
+
+	/**
+	 * Event for when job rendering ends.
+	 * 
+	 * In here, you could do any cleanup required at the end of rendering out a job,
+	 * like for example undoing the changes you've made to the world for this job.
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Meta=(DisplayName="EndJobRender"))
+	void ReceiveEndJobRender(URenderGridQueue* Queue, URenderGridJob* Job);
+
+	/**
+	 * Event for when job rendering for the viewport viewer-mode begins.
+	 * 
+	 * This event will fire every frame, as long as the viewport viewer-mode is open.
+	 * 
+	 * In here, you could for example change elements in the world according to what job this is.
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Meta=(DisplayName="BeginViewportRender"))
+	void ReceiveBeginViewportRender(URenderGridJob* Job);
+
+	/**
+	 * Event for when job rendering for the viewport viewer-mode ends.
+	 * 
+	 * This event will fire every frame, as long as the viewport viewer-mode is open.
+	 * 
+	 * In here, you could do any cleanup required at the end of rendering out a job,
+	 * like for example undoing the changes you've made to the world for this job.
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Meta=(DisplayName="EndViewportRender"))
+	void ReceiveEndViewportRender(URenderGridJob* Job);
 
 public:
-	/** Overridable native event for when rendering begins for a job. */
-	virtual void PreRender(URenderGridJob* Job);
+	/** Overridable native event for when batch rendering begins. */
+	virtual void BeginBatchRender(URenderGridQueue* Queue);
 
-	/** Overridable native event for when rendering ends for a job. */
-	virtual void PostRender(URenderGridJob* Job);
+	/** Overridable native event for when batch rendering ends. */
+	virtual void EndBatchRender(URenderGridQueue* Queue);
+
+	/** Overridable native event for when job rendering begins. */
+	virtual void BeginJobRender(URenderGridQueue* Queue, URenderGridJob* Job);
+
+	/** Overridable native event for when job rendering ends. */
+	virtual void EndJobRender(URenderGridQueue* Queue, URenderGridJob* Job);
+
+	/** Overridable native event for when job rendering for the viewport viewer-mode begins. */
+	virtual void BeginViewportRender(URenderGridJob* Job);
+
+	/** Overridable native event for when job rendering for the viewport viewer-mode ends. */
+	virtual void EndViewportRender(URenderGridJob* Job);
 
 private:
 	/**
@@ -329,11 +404,13 @@ private:
 	void CopyValuesToOrFromCDO(const bool bToCDO);
 
 public:
+	/** Returns the GUID, which is randomly generated at creation. */
 	UFUNCTION(BlueprintPure, Category="Render Grid|Grid")
-	FGuid GetId() const { return Id; }
+	FGuid GetGuid() const { return Guid; }
 
+	/** Randomly generates a new GUID. */
 	UFUNCTION(BlueprintCallable, Category="Render Grid|Grid")
-	void GenerateNewId() { Id = FGuid::NewGuid(); }
+	void GenerateNewGuid() { Guid = FGuid::NewGuid(); }
 
 	UFUNCTION(BlueprintCallable, Category="Render Grid|Grid")
 	void SetPropsSource(ERenderGridPropsSourceType InPropsSourceType, UObject* InPropsSourceOrigin = nullptr);
@@ -391,6 +468,10 @@ public:
 	void InsertRenderGridJobAfter(URenderGridJob* Job, URenderGridJob* AfterJob);
 
 public:
+	/** Generates a unique job ID by grabbing the current time, as well as 16 random bytes, and converting that to a base64 string. **/
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Grid")
+	FString GenerateUniqueRandomJobId();
+
 	/** Generates a unique job ID by finding the currently highest job ID and increasing it by one. **/
 	UFUNCTION(BlueprintCallable, Category="Render Grid|Grid")
 	FString GenerateNextJobId();
@@ -398,6 +479,10 @@ public:
 	/** Finds whether given job ID already exists in this grid. **/
 	UFUNCTION(BlueprintPure, Category="Render Grid|Grid")
 	bool DoesJobIdExist(const FString& JobId);
+
+	/** Creates a new job. This job won't be added to the grid, so it will eventually be garbage collected. **/
+	UFUNCTION(BlueprintCallable, Category="Render Grid|Grid")
+	URenderGridJob* CreateTempRenderGridJob();
 
 	/** Creates a new job and adds it to this grid. **/
 	UFUNCTION(BlueprintCallable, Category="Render Grid|Grid")
@@ -413,7 +498,7 @@ public:
 
 public:
 	/** Returns true when it's currently executing a blueprint implementable event, returns false otherwise. */
-	bool IsCurrentlyExecutingUserCode() const { return bExecutingPreRender || bExecutingPostRender; }
+	bool IsCurrentlyExecutingUserCode() const { return bExecutingBlueprintEvent; }
 
 private:
 	DECLARE_MULTICAST_DELEGATE(FOnRenderGridPreSave);
@@ -426,7 +511,7 @@ private:
 private:
 	/** The unique ID of this render grid. */
 	UPROPERTY()
-	FGuid Id;
+	FGuid Guid;
 
 
 	/** The type of the properties that a job in this grid can have. */
@@ -443,13 +528,9 @@ private:
 	TArray<TObjectPtr<URenderGridJob>> RenderGridJobs;
 
 
-	/** True when it's currently executing the PreRender event, false otherwise. */
+	/** True when it's currently executing a blueprint event, false otherwise. */
 	UPROPERTY(Transient)
-	bool bExecutingPreRender;
-
-	/** True when it's currently executing the PostRender event, false otherwise. */
-	UPROPERTY(Transient)
-	bool bExecutingPostRender;
+	bool bExecutingBlueprintEvent;
 
 
 	/** GetPropsSource calls are somewhat expensive, we speed that up by caching the result (the PropsSource) that has been last outputted by that function. */
