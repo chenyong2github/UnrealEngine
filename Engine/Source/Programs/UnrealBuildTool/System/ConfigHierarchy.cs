@@ -452,7 +452,7 @@ namespace UnrealBuildTool
 		public bool TryGetValue<T>(string SectionName, string KeyName, out T Value) where T : struct
 		{
 			string? Text;
-			if (TryGetValue(SectionName, KeyName, out Text))
+			if (!TryGetValue(SectionName, KeyName, out Text))
 			{
 				Value = default(T);
 				return false;
