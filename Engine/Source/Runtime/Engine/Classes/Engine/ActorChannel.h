@@ -171,7 +171,7 @@ public:
 	int64 ReplicateActor();
 
 	/** Tells if the actor is ready to be replicated since he is BeginPlay or inside BeginPlay */
-	bool IsActorReadyForReplication() const { return (Actor ? (Actor->HasActorBegunPlay() || Actor->IsActorBeginningPlay()) : false); }
+	bool IsActorReadyForReplication() const;
 
 	/**
 	 * Set this channel's actor to the given actor.

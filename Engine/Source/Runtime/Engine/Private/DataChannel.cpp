@@ -3960,6 +3960,11 @@ void UActorChannel::PrepareForRemoteFunction(UObject* TargetObj)
 	}
 }
 
+bool UActorChannel::IsActorReadyForReplication() const
+{ 
+	return (Actor ? (Actor->HasActorBegunPlay() || Actor->IsActorBeginningPlay()) : false); 
+}
+
 void UActorChannel::QueueRemoteFunctionBunch( UObject* CallTarget, UFunction* Func, FOutBunch &Bunch )
 {
 	FindOrCreateReplicator(CallTarget).Get().QueueRemoteFunctionBunch( Func, Bunch );
