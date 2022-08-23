@@ -15,6 +15,12 @@ struct IStateTreeBindingLookup;
 struct FStateTreeEditorPropertyPath;
 #endif
 
+enum class EStateTreeCompare : uint8
+{
+	Default,
+	Invert,
+};
+
 /**
  * Base struct for all conditions.
  */

@@ -1,9 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Conditions/GameplayTagConditions.h"
+#include "Conditions/StateTreeGameplayTagConditions.h"
 #include "GameplayTagContainer.h"
 #include "StateTreeExecutionContext.h"
-#include "StateTreeLinker.h"
 
 #if WITH_EDITOR
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
@@ -48,47 +47,29 @@ namespace UE::StateTree::Conditions
 //  FGameplayTagMatchCondition
 //----------------------------------------------------------------------//
 
-bool FGameplayTagMatchCondition::Link(FStateTreeLinker& Linker)
-{
-	Linker.LinkInstanceDataProperty(TagContainerHandle, STATETREE_INSTANCEDATA_PROPERTY(FGameplayTagMatchConditionInstanceData, TagContainer));
-	Linker.LinkInstanceDataProperty(TagHandle, STATETREE_INSTANCEDATA_PROPERTY(FGameplayTagMatchConditionInstanceData, Tag));
-
-	return true;
-}
-
 bool FGameplayTagMatchCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const FGameplayTagContainer& TagContainer = Context.GetInstanceData(TagContainerHandle);
-	const FGameplayTag& Tag = Context.GetInstanceData(TagHandle);
-
-	return (bExactMatch ? TagContainer.HasTagExact(Tag) : TagContainer.HasTag(Tag)) ^ bInvert;
+	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	
+	return (bExactMatch ? InstanceData.TagContainer.HasTagExact(InstanceData.Tag) : InstanceData.TagContainer.HasTag(InstanceData.Tag)) ^ bInvert;
 }
 
 //----------------------------------------------------------------------//
 //  FGameplayTagContainerMatchCondition
 //----------------------------------------------------------------------//
 
-bool FGameplayTagContainerMatchCondition::Link(FStateTreeLinker& Linker)
-{
-	Linker.LinkInstanceDataProperty(TagContainerHandle, STATETREE_INSTANCEDATA_PROPERTY(FGameplayTagContainerMatchConditionInstanceData, TagContainer));
-	Linker.LinkInstanceDataProperty(OtherContainerHandle, STATETREE_INSTANCEDATA_PROPERTY(FGameplayTagContainerMatchConditionInstanceData, OtherContainer));
-
-	return true;
-}
-
 bool FGameplayTagContainerMatchCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const FGameplayTagContainer& TagContainer = Context.GetInstanceData(TagContainerHandle);
-	const FGameplayTagContainer& OtherContainer = Context.GetInstanceData(OtherContainerHandle);
+	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
 
 	bool bResult = false;
 	switch (MatchType)
 	{
 	case EGameplayContainerMatchType::Any:
-		bResult = bExactMatch ? TagContainer.HasAnyExact(OtherContainer) : TagContainer.HasAny(OtherContainer);
+		bResult = bExactMatch ? InstanceData.TagContainer.HasAnyExact(InstanceData.OtherContainer) : InstanceData.TagContainer.HasAny(InstanceData.OtherContainer);
 		break;
 	case EGameplayContainerMatchType::All:
-		bResult = bExactMatch ? TagContainer.HasAllExact(OtherContainer) : TagContainer.HasAll(OtherContainer);
+		bResult = bExactMatch ? InstanceData.TagContainer.HasAllExact(InstanceData.OtherContainer) : InstanceData.TagContainer.HasAll(InstanceData.OtherContainer);
 		break;
 	default:
 		ensureMsgf(false, TEXT("Unhandled match type %s."), *UEnum::GetValueAsString(MatchType));
@@ -102,17 +83,11 @@ bool FGameplayTagContainerMatchCondition::TestCondition(FStateTreeExecutionConte
 //  FGameplayTagQueryCondition
 //----------------------------------------------------------------------//
 
-bool FGameplayTagQueryCondition::Link(FStateTreeLinker& Linker)
-{
-	Linker.LinkInstanceDataProperty(TagContainerHandle, STATETREE_INSTANCEDATA_PROPERTY(FGameplayTagQueryConditionInstanceData, TagContainer));
-
-	return true;
-}
-
 bool FGameplayTagQueryCondition::TestCondition(FStateTreeExecutionContext& Context) const
 {
-	const FGameplayTagContainer& TagContainer = Context.GetInstanceData(TagContainerHandle);
-	return TagQuery.Matches(TagContainer) ^ bInvert;
+	const InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+
+	return TagQuery.Matches(InstanceData.TagContainer) ^ bInvert;
 }
 
 

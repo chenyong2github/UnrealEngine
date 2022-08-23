@@ -5,7 +5,7 @@
 #include "StateTreeEditorData.h"
 #include "StateTreeState.h"
 #include "StateTreeCompiler.h"
-#include "Conditions/StateTreeCondition_Common.h"
+#include "Conditions/StateTreeCommonConditions.h"
 #include "StateTree.h"
 #include "StateTreeTestTypes.h"
 #include "StateTreeExecutionContext.h"
@@ -48,7 +48,7 @@ struct FStateTreeTest_MakeAndBakeStateTree : FAITestBase
 		auto& TaskB1 = StateA.AddTask<FTestTask_B>();
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(EvalA.ID, TEXT("IntA")), FStateTreeEditorPropertyPath(TaskB1.ID, TEXT("IntB")));
 
-		auto& IntCond = StateA.AddEnterCondition<FStateTreeCondition_CompareInt>(EGenericAICheck::Less);
+		auto& IntCond = StateA.AddEnterCondition<FStateTreeCompareIntCondition>(EGenericAICheck::Less);
 		IntCond.GetInstance().Right = 2;
 
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(EvalA.ID, TEXT("IntA")), FStateTreeEditorPropertyPath(IntCond.ID, TEXT("Left")));
@@ -59,8 +59,8 @@ struct FStateTreeTest_MakeAndBakeStateTree : FAITestBase
 		auto& TaskB2 = StateB.AddTask<FTestTask_B>();
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(EvalA.ID, TEXT("bBoolA")), FStateTreeEditorPropertyPath(TaskB2.ID, TEXT("bBoolB")));
 
-		FStateTreeTransition& Trans = StateB.AddTransition(EStateTreeTransitionEvent::OnCondition, EStateTreeTransitionType::GotoState, &Root);
-		auto& TransFloatCond = Trans.AddCondition<FStateTreeCondition_CompareFloat>(EGenericAICheck::Less);
+		FStateTreeTransition& Trans = StateB.AddTransition({}, EStateTreeTransitionType::GotoState, &Root);
+		auto& TransFloatCond = Trans.AddCondition<FStateTreeCompareFloatCondition>(EGenericAICheck::Less);
 		TransFloatCond.GetInstance().Right = 13.0f;
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(EvalA.ID, TEXT("FloatA")), FStateTreeEditorPropertyPath(TransFloatCond.ID, TEXT("Left")));
 
@@ -105,16 +105,16 @@ struct FStateTreeTest_WanderLoop : FAITestBase
 		//      |- UseSmartObjectOnLane
 		auto& ReserveSOTask = UseSmartObjectOnLane.AddTask<FTestTask_ReserveSmartObject>(FName(TEXT("ReserveSOTask")));
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(SmartObjectEval.ID, TEXT("PotentialSmartObjects")), FStateTreeEditorPropertyPath(ReserveSOTask.ID, TEXT("PotentialSmartObjects")));
-		auto& ReserveHasSmartObjects = UseSmartObjectOnLane.AddEnterCondition<FStateTreeCondition_CompareBool>();
+		auto& ReserveHasSmartObjects = UseSmartObjectOnLane.AddEnterCondition<FStateTreeCompareBoolCondition>();
 		ReserveHasSmartObjects.GetInstance().bRight = true;
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(SmartObjectEval.ID, TEXT("bHasSmartObjects")), FStateTreeEditorPropertyPath(ReserveHasSmartObjects.ID, TEXT("bLeft")));
-		UseSmartObjectOnLane.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &Wander); // This catches child states too
+		UseSmartObjectOnLane.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Wander); // This catches child states too
 
 		//      |  |- WalkToSO
 		auto& MoveToSOTask = WalkToSO.AddTask<FTestTask_MoveTo>(FName(TEXT("MoveToSOTask")));
 		MoveToSOTask.GetItem().TicksToCompletion = 2;
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(ReserveSOTask.ID, TEXT("ReservedSmartObjectLocation")), FStateTreeEditorPropertyPath(MoveToSOTask.ID, TEXT("MoveLocation")));
-		WalkToSO.AddTransition(EStateTreeTransitionEvent::OnSucceeded, EStateTreeTransitionType::NextState);
+		WalkToSO.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 
 		//      |  \- UseSO
 		auto& UseSOTask = UseSO.AddTask<FTestTask_UseSmartObject>(FName(TEXT("UseSOTask")));
@@ -126,15 +126,15 @@ struct FStateTreeTest_WanderLoop : FAITestBase
 		auto& MoveAlongLaneTask = WalkAlongLane.AddTask<FTestTask_MoveTo>(FName(TEXT("MoveAlongLaneTask")));
 		MoveAlongLaneTask.GetItem().TicksToCompletion = 2;
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(WanderEval.ID, TEXT("WanderLocation")), FStateTreeEditorPropertyPath(MoveAlongLaneTask.ID, TEXT("MoveLocation")));
-		auto& MoveHasWanderLoc = WalkAlongLane.AddEnterCondition<FStateTreeCondition_CompareBool>();
+		auto& MoveHasWanderLoc = WalkAlongLane.AddEnterCondition<FStateTreeCompareBoolCondition>();
 		MoveHasWanderLoc.GetInstance().bRight = true;
 		EditorData.AddPropertyBinding(FStateTreeEditorPropertyPath(WanderEval.ID, TEXT("bHasWanderLocation")), FStateTreeEditorPropertyPath(MoveHasWanderLoc.ID, TEXT("bLeft")));
-		WalkAlongLane.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &Wander);
+		WalkAlongLane.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Wander);
 
 		//      \- StandOnLane
 		auto& StandTask = StandOnLane.AddTask<FTestTask_Stand>(FName(TEXT("StandTask")));
 		StandTask.GetItem().TicksToCompletion = 2;
-		StandOnLane.AddTransition(EStateTreeTransitionEvent::OnCompleted, EStateTreeTransitionType::GotoState, &Wander);
+		StandOnLane.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &Wander);
 
 		FStateTreeCompilerLog Log;
 		FStateTreeCompiler Compiler(Log);

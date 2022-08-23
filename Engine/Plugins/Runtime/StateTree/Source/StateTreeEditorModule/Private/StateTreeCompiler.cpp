@@ -4,7 +4,7 @@
 #include "StateTree.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeTypes.h"
-#include "Conditions/StateTreeCondition_Common.h"
+#include "Conditions/StateTreeCommonConditions.h"
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
 #include "StateTreeConditionBase.h"

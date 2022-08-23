@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "StateTreeConditionBase.h"
-#include "Conditions/StateTreeCondition_Common.h"
 #include "GameplayTagContainer.h"
-#include "GameplayTagConditions.generated.h"
+#include "StateTreeGameplayTagConditions.generated.h"
 
 /**
  * Gameplay Tag match condition.
@@ -28,15 +26,13 @@ struct STATETREEMODULE_API FGameplayTagMatchCondition : public FStateTreeConditi
 {
 	GENERATED_BODY()
 
+	typedef FGameplayTagMatchConditionInstanceData InstanceDataType;
+
 	FGameplayTagMatchCondition() = default;
 	
-	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return FGameplayTagMatchConditionInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
 
-	TStateTreeInstanceDataPropertyHandle<FGameplayTagContainer> TagContainerHandle;
-	TStateTreeInstanceDataPropertyHandle<FGameplayTag> TagHandle;
-	
 	UPROPERTY(EditAnywhere, Category = Condition)
 	bool bExactMatch = false;
 
@@ -64,14 +60,12 @@ struct STATETREEMODULE_API FGameplayTagContainerMatchCondition : public FStateTr
 {
 	GENERATED_BODY()
 
+	typedef FGameplayTagContainerMatchConditionInstanceData InstanceDataType;
+
 	FGameplayTagContainerMatchCondition() = default;
 	
-	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return FGameplayTagContainerMatchConditionInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
-
-	TStateTreeInstanceDataPropertyHandle<FGameplayTagContainer> TagContainerHandle;
-	TStateTreeInstanceDataPropertyHandle<FGameplayTagContainer> OtherContainerHandle;
 
 	UPROPERTY(EditAnywhere, Category = Condition)
 	EGameplayContainerMatchType MatchType = EGameplayContainerMatchType::Any;
@@ -100,13 +94,12 @@ struct STATETREEMODULE_API FGameplayTagQueryCondition : public FStateTreeConditi
 {
 	GENERATED_BODY()
 
+	typedef FGameplayTagQueryConditionInstanceData InstanceDataType;
+
 	FGameplayTagQueryCondition() = default;
 	
-	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return FGameplayTagQueryConditionInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const override;
-
-	TStateTreeInstanceDataPropertyHandle<FGameplayTagContainer> TagContainerHandle;
 
 	UPROPERTY(EditAnywhere, Category = Condition)
 	FGameplayTagQuery TagQuery;
