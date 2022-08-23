@@ -50,12 +50,12 @@ public:
 	/** Periodic Tick function to send and receive messages to the Client. */
 	void TickFromSchedulerThread();
 	/** Called when the COTFS Server has detected all packages are complete. Tell the CookWorker to flush messages and exit. */
-	void PumpCookComplete();
+	void SignalCookComplete();
 
-	/** Is this in one of the connected states (wherein the CookWorker is working and can send arbitrary messages)? */
-	bool IsConnected() const;
 	/** Is this either shutting down or completed shutdown of its remote Client? */
 	bool IsShuttingDown() const;
+	/** Is this executing the portion of graceful shutdown where it waits for the CookWorker to transfer remaining messages? */
+	bool IsFlushingBeforeShutdown() const;
 	/** Is this not yet or no longer connected to a remote Client? */
 	bool IsShutdownComplete() const;
 
@@ -64,17 +64,13 @@ private:
 	{
 		Uninitialized,
 		WaitForConnect,
-		ConnectedFirst,
-		Connected = ConnectedFirst,
+		Connected,
 		PumpingCookComplete,
-		ConnectedLast = PumpingCookComplete,
 		WaitForDisconnect,
 		LostConnection,
 	};
 
 private:
-	/** Helper for Tick, Pump messages when connecting or disconnecting. */
-	void PumpConnect();
 	/** Helper for PumpConnect, launch the remote Client process. */
 	void LaunchProcess();
 	/** Helper for PumpConnect, wait for connect message from Client, set state to LostConnection if we timeout. */
@@ -164,6 +160,7 @@ public:
 	{
 		CookComplete,
 		Abort,
+		AbortAcknowledge,
 	};
 	FAbortWorkerMessage(EType InType = EType::Abort);
 	virtual void Write(FCbWriter& Writer) const override;

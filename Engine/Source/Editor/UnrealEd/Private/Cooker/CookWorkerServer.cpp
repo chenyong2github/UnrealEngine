@@ -38,7 +38,7 @@ FCookWorkerServer::~FCookWorkerServer()
 		PackageData->SendToState(UE::Cook::EPackageState::Request, ESendFlags::QueueAddAndRemove);
 	}
 
-	if (IsConnected() || ConnectStatus == EConnectStatus::WaitForDisconnect)
+	if (ConnectStatus == EConnectStatus::Connected || ConnectStatus == EConnectStatus::PumpingCookComplete || ConnectStatus == EConnectStatus::WaitForDisconnect)
 	{
 		UE_LOG(LogCook, Error, TEXT("CookWorkerServer %d was destroyed before it finished Disconnect. The remote process may linger and may interfere with writes of future packages."),
 			WorkerId.GetRemoteIndex());
@@ -75,7 +75,7 @@ void FCookWorkerServer::AbortAssignments(TSet<FPackageData*>& OutPendingPackages
 {
 	if (PendingPackages.Num())
 	{
-		if (IsConnected())
+		if (ConnectStatus == EConnectStatus::Connected)
 		{
 			TArray<FName> PackageNames;
 			PackageNames.Reserve(PendingPackages.Num());
@@ -96,7 +96,7 @@ void FCookWorkerServer::AbortAssignment(FPackageData& PackageData)
 {
 	if (PendingPackages.Remove(&PackageData))
 	{
-		if (IsConnected())
+		if (ConnectStatus == EConnectStatus::Connected)
 		{
 			TArray<FName> PackageNames;
 			PackageNames.Add(PackageData.GetPackageName());
@@ -110,10 +110,21 @@ void FCookWorkerServer::AbortAssignment(FPackageData& PackageData)
 void FCookWorkerServer::AbortWorker(TSet<FPackageData*>& OutPendingPackages)
 {
 	AbortAssignments(OutPendingPackages);
-	if (IsConnected())
+	switch (ConnectStatus)
+	{
+	case EConnectStatus::Uninitialized: // Fall through
+	case EConnectStatus::WaitForConnect:
+		SendToState(EConnectStatus::LostConnection);
+		break;
+	case EConnectStatus::Connected: // Fall through
+	case EConnectStatus::PumpingCookComplete:
 	{
 		SendMessage(FAbortWorkerMessage(FAbortWorkerMessage::EType::Abort));
 		SendToState(EConnectStatus::WaitForDisconnect);
+		break;
+	}
+	default:
+		break;
 	}
 }
 
@@ -142,14 +153,14 @@ void FCookWorkerServer::SendToState(EConnectStatus TargetStatus)
 	ConnectStatus = TargetStatus;
 }
 
-bool FCookWorkerServer::IsConnected() const
-{
-	return EConnectStatus::ConnectedFirst <= ConnectStatus && ConnectStatus <= EConnectStatus::ConnectedLast;
-}
-
 bool FCookWorkerServer::IsShuttingDown() const
 {
-	return ConnectStatus == EConnectStatus::WaitForDisconnect || ConnectStatus == EConnectStatus::LostConnection;
+	return ConnectStatus == EConnectStatus::PumpingCookComplete || ConnectStatus == EConnectStatus::WaitForDisconnect || ConnectStatus == EConnectStatus::LostConnection;
+}
+
+bool FCookWorkerServer::IsFlushingBeforeShutdown() const
+{
+	return ConnectStatus == EConnectStatus::PumpingCookComplete;
 }
 
 bool FCookWorkerServer::IsShutdownComplete() const
@@ -183,59 +194,8 @@ bool FCookWorkerServer::TryHandleConnectMessage(FWorkerConnectMessage& Message, 
 
 void FCookWorkerServer::TickFromSchedulerThread()
 {
-	if (IsConnected())
-	{
-		PumpReceiveMessages();
-		if (IsConnected())
-		{
-			SendPendingPackages();
-			PumpSendMessages();
-		}
-	}
-	else
-	{
-		PumpConnect();
-		if (IsConnected())
-		{
-			// Recursively call this function to call PumpReceive and PumpSend
-			TickFromSchedulerThread();
-		}
-	}
-}
-
-void FCookWorkerServer::PumpCookComplete()
-{
-	if (ConnectStatus == EConnectStatus::Connected)
-	{
-		SendMessage(FAbortWorkerMessage(FAbortWorkerMessage::EType::CookComplete));
-		SendToState(EConnectStatus::PumpingCookComplete);
-	}
-	else if (ConnectStatus == EConnectStatus::PumpingCookComplete)
-	{
-		TickFromSchedulerThread();
-		if (IsConnected())
-		{
-			constexpr float WaitForPumpCompleteTimeout = 10.f * 60;
-			if (FPlatformTime::Seconds()  - ConnectStartTimeSeconds > WaitForPumpCompleteTimeout && !IsCookIgnoreTimeouts())
-			{
-				UE_LOG(LogCook, Error, TEXT("CookWorker process of CookWorkerServer %d failed to finalize its cook within %.0f seconds; we will tell it to shutdown."),
-					WorkerId.GetRemoteIndex(), WaitForPumpCompleteTimeout);
-				SendMessage(FAbortWorkerMessage(FAbortWorkerMessage::EType::Abort));
-				SendToState(EConnectStatus::WaitForDisconnect);
-				return;
-			}
-		}
-	}
-}
-void FCookWorkerServer::PumpConnect()
-{
 	for (;;)
 	{
-		if (IsConnected())
-		{
-			// Nothing further to do
-			return;
-		}
 		switch (ConnectStatus)
 		{
 		case EConnectStatus::Uninitialized:
@@ -248,6 +208,33 @@ void FCookWorkerServer::PumpConnect()
 				return; // Try again later
 			}
 			break;
+		case EConnectStatus::Connected:
+			PumpReceiveMessages();
+			if (ConnectStatus == EConnectStatus::Connected)
+			{
+				SendPendingPackages();
+				PumpSendMessages();
+				return; // Tick duties complete; yield the tick
+			}
+			break;
+		case EConnectStatus::PumpingCookComplete:
+		{
+			PumpReceiveMessages();
+			if (ConnectStatus == EConnectStatus::PumpingCookComplete)
+			{
+				PumpSendMessages();
+				constexpr float WaitForPumpCompleteTimeout = 10.f * 60;
+				if (FPlatformTime::Seconds() - ConnectStartTimeSeconds <= WaitForPumpCompleteTimeout || IsCookIgnoreTimeouts())
+				{
+					return; // Try again later
+				}
+				UE_LOG(LogCook, Error, TEXT("CookWorker process of CookWorkerServer %d failed to finalize its cook within %.0f seconds; we will tell it to shutdown."),
+					WorkerId.GetRemoteIndex(), WaitForPumpCompleteTimeout);
+				SendMessage(FAbortWorkerMessage(FAbortWorkerMessage::EType::Abort));
+				SendToState(EConnectStatus::WaitForDisconnect);
+			}
+			break;
+		}
 		case EConnectStatus::WaitForDisconnect:
 			TickWaitForDisconnect();
 			if (ConnectStatus == EConnectStatus::WaitForDisconnect)
@@ -261,6 +248,23 @@ void FCookWorkerServer::PumpConnect()
 			checkNoEntry();
 			return;
 		}
+	}
+}
+
+void FCookWorkerServer::SignalCookComplete()
+{
+	switch (ConnectStatus)
+	{
+	case EConnectStatus::Uninitialized: // Fall through
+	case EConnectStatus::WaitForConnect:
+		SendToState(EConnectStatus::LostConnection);
+		break;
+	case EConnectStatus::Connected:
+		SendMessage(FAbortWorkerMessage(FAbortWorkerMessage::EType::CookComplete));
+		SendToState(EConnectStatus::PumpingCookComplete);
+		break;
+	default:
+		break; // Already in a disconnecting state
 	}
 }
 
@@ -339,14 +343,6 @@ void FCookWorkerServer::TickWaitForDisconnect()
 	UE::CompactBinaryTCP::TryFlushBuffer(Socket, SendBuffer);
 	TArray<UE::CompactBinaryTCP::FMarshalledMessage> Messages;
 	TryReadPacket(Socket, ReceiveBuffer, Messages);
-	for (UE::CompactBinaryTCP::FMarshalledMessage& Message : Messages)
-	{
-		if (Message.MessageType == FAbortWorkerMessage::MessageType)
-		{
-			SendToState(EConnectStatus::LostConnection);
-			return;
-		}
-	}
 
 	if (bTerminateImmediately || (CurrentTime - ConnectStartTimeSeconds > WaitForDisconnectTimeout && !IsCookIgnoreTimeouts()))
 	{
@@ -413,7 +409,9 @@ void FCookWorkerServer::HandleReceiveMessages(TArray<UE::CompactBinaryTCP::FMars
 			UE_CLOG(ConnectStatus != EConnectStatus::PumpingCookComplete && ConnectStatus != EConnectStatus::WaitForDisconnect,
 				LogCook, Error, TEXT("CookWorkerServer %d remote process shut down unexpectedly. Assigned packages will be returned to the director."),
 				WorkerId.GetRemoteIndex());
-			SendToState(EConnectStatus::LostConnection);
+
+			SendMessage(FAbortWorkerMessage(FAbortWorkerMessage::AbortAcknowledge));
+			SendToState(EConnectStatus::WaitForDisconnect);
 			break;
 		}
 		else if (Message.MessageType == FPackageResultsMessage::MessageType)

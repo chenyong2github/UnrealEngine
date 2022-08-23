@@ -215,27 +215,51 @@ void FCookDirector::TickFromSchedulerThread()
 void FCookDirector::PumpCookComplete(bool& bCompleted)
 {
 	TickWorkerConnects();
+
+	// MPCOOKTODO: Messages sent from the CookWorkers about discovered packages might come in after
+	// the last message sent about completed saves. These discovered packages can cause the cook to fall
+	// back to incomplete. Don't send CookComplete messages to the CookWorkers until all CookWorkers have
+	// reported they are idle.
 	for (TPair<int32, TUniquePtr<FCookWorkerServer>>& Pair : RemoteWorkers)
 	{
 		FCookWorkerServer& RemoteWorker = *Pair.Value;
-		RemoteWorker.PumpCookComplete();
-		if (RemoteWorker.IsShuttingDown())
-		{
-			TUniquePtr<FCookWorkerServer>& Existing = ShuttingDownWorkers.FindOrAdd(&RemoteWorker);
-			check(!Existing); // We should not be able to send the same pointer into ShuttingDown twice
-		}
+		RemoteWorker.SignalCookComplete();
+		check(RemoteWorker.IsShuttingDown());
+		TUniquePtr<FCookWorkerServer>& Existing = ShuttingDownWorkers.FindOrAdd(&RemoteWorker);
+		check(!Existing); // We should not be able to send the same pointer into ShuttingDown twice
 	}
 	TickWorkerShutdowns();
-	bCompleted = RemoteWorkers.Num() == 0;
+	check(RemoteWorkers.Num() == 0);
+
+	bCompleted = true;
+	for (const TPair <FCookWorkerServer*, TUniquePtr<FCookWorkerServer>>& Pair : ShuttingDownWorkers)
+	{
+		FCookWorkerServer* RemoteWorker = Pair.Key;
+		check(RemoteWorker->IsShuttingDown());
+		bCompleted = bCompleted && !RemoteWorker->IsFlushingBeforeShutdown();
+	}
 	SetWorkersStalled(!bCompleted);
 }
 
 void FCookDirector::ShutdownCookSession()
 {
+	// Cancel any inprogress workers and move them to the Shutdown list
 	while (!RemoteWorkers.IsEmpty())
 	{
 		AbortWorker(TMap<int32, TUniquePtr<FCookWorkerServer>>::TIterator(RemoteWorkers).Value()->GetWorkerId());
 	}
+
+	// Immediately shutdown any gracefully shutting down workers
+	for (TPair<FCookWorkerServer*, TUniquePtr<FCookWorkerServer>>& Pair : ShuttingDownWorkers)
+	{
+		if (Pair.Key->IsFlushingBeforeShutdown())
+		{
+			TSet<FPackageData*> UnusedPendingPackages;
+			Pair.Key->AbortWorker(UnusedPendingPackages);
+		}
+	}
+
+	// Wait for all the shutdowns to complete
 	for (;;)
 	{
 		TickWorkerShutdowns();
@@ -246,6 +270,8 @@ void FCookDirector::ShutdownCookSession()
 		constexpr double SleepSeconds = 0.010;
 		FPlatformProcess::Sleep(SleepSeconds);
 	}
+
+	// Kill any connections that had just been made and not yet assigned to a Server
 	PendingConnections.Reset();
 
 	// Restore the FCookDirector to its original state so that it is ready for a new session
@@ -591,7 +617,11 @@ void FCookDirector::AbortWorker(FWorkerId WorkerId)
 	}
 	--DesiredNumRemoteWorkers;
 	TSet<FPackageData*> PackagesToReassign;
-	RemoteWorker->AbortWorker(PackagesToReassign);
+	RemoteWorker->AbortAssignments(PackagesToReassign);
+	if (!RemoteWorker->IsShuttingDown())
+	{
+		RemoteWorker->AbortWorker(PackagesToReassign);
+	}
 	for (FPackageData* PackageData : PackagesToReassign)
 	{
 		check(PackageData->IsInProgress()); // Packages that were assigned to a worker should be in the AssignedToWorker state

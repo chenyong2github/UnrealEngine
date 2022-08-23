@@ -32,7 +32,7 @@ FCookWorkerClient::FCookWorkerClient(UCookOnTheFlyServer& InCOTFS)
 FCookWorkerClient::~FCookWorkerClient()
 {
 	if (ConnectStatus == EConnectStatus::Connected ||
-		(EConnectStatus::WaitForDisconnectFirst <= ConnectStatus && ConnectStatus <= EConnectStatus::WaitForDisconnectLast))
+		(EConnectStatus::FlushAndAbortFirst <= ConnectStatus && ConnectStatus <= EConnectStatus::FlushAndAbortLast))
 	{
 		UE_LOG(LogCook, Warning, TEXT("CookWorkerServer %d was destroyed before it finished Disconnect. The CookDirector may be missing some information."));
 	}
@@ -76,7 +76,7 @@ void FCookWorkerClient::TickFromSchedulerThread(FTickStackData& StackData)
 bool FCookWorkerClient::IsDisconnecting() const
 {
 	return ConnectStatus == EConnectStatus::LostConnection ||
-		(EConnectStatus::WaitForDisconnectFirst <= ConnectStatus && ConnectStatus <= EConnectStatus::WaitForDisconnectLast);
+		(EConnectStatus::FlushAndAbortFirst <= ConnectStatus && ConnectStatus <= EConnectStatus::FlushAndAbortLast);
 }
 
 bool FCookWorkerClient::IsDisconnectComplete() const
@@ -412,35 +412,50 @@ void FCookWorkerClient::HandleReceiveMessages(TArray<UE::CompactBinaryTCP::FMars
 {
 	for (UE::CompactBinaryTCP::FMarshalledMessage& Message : Messages)
 	{
-		if (Message.MessageType == FAbortWorkerMessage::MessageType)
+		if (EConnectStatus::FlushAndAbortFirst <= ConnectStatus && ConnectStatus <= EConnectStatus::FlushAndAbortLast)
 		{
-			FAbortWorkerMessage AbortMessage;
-			AbortMessage.TryRead(MoveTemp(Message.Object));
-			if (AbortMessage.Type == FAbortWorkerMessage::EType::CookComplete)
+			if (Message.MessageType == FAbortWorkerMessage::MessageType)
 			{
-				UE_LOG(LogCook, Display, TEXT("CookWorkerClient received CookComplete message from Director. Flushing messages and shutting down."));
+				UE_LOG(LogCook, Display, TEXT("CookWorkerClient received AbortWorker message from Director. Terminating flush and shutting down."));
+				SendToState(EConnectStatus::LostConnection);
+				break;
 			}
-			else
-			{
-				UE_LOG(LogCook, Display, TEXT("CookWorkerClient received AbortWorker message from Director. Shutting down."));
-			}
-			SendToState(EConnectStatus::WaitForDisconnect);
-			break;
+			UE_LOG(LogCook, Error, TEXT("CookWorkerClient received message %s from Director after receiving Abort message. Message will be ignored."),
+			*Message.MessageType.ToString());
 		}
-		else if (Message.MessageType == FInitialConfigMessage::MessageType)
+		else
 		{
-			UE_LOG(LogCook, Warning, TEXT("CookWorkerClient received unexpected repeat of InitialConfigMessage. Ignoring it."));
-		}
-		else if (Message.MessageType == FAssignPackagesMessage::MessageType)
-		{
-			FAssignPackagesMessage AssignPackagesMessage;
-			if (!AssignPackagesMessage.TryRead(MoveTemp(Message.Object)))
+			if (Message.MessageType == FAbortWorkerMessage::MessageType)
 			{
-				LogInvalidMessage(TEXT("FAssignPackagesMessage"));
+				FAbortWorkerMessage AbortMessage;
+				AbortMessage.TryRead(MoveTemp(Message.Object));
+				if (AbortMessage.Type == FAbortWorkerMessage::EType::CookComplete)
+				{
+					UE_LOG(LogCook, Display, TEXT("CookWorkerClient received CookComplete message from Director. Flushing messages and shutting down."));
+					SendToState(EConnectStatus::FlushAndAbortFirst);
+				}
+				else
+				{
+					UE_LOG(LogCook, Display, TEXT("CookWorkerClient received AbortWorker message from Director. Shutting down."));
+					SendToState(EConnectStatus::LostConnection);
+					break;
+				}
 			}
-			else
+			else if (Message.MessageType == FInitialConfigMessage::MessageType)
 			{
-				AssignPackages(AssignPackagesMessage);
+				UE_LOG(LogCook, Warning, TEXT("CookWorkerClient received unexpected repeat of InitialConfigMessage. Ignoring it."));
+			}
+			else if (Message.MessageType == FAssignPackagesMessage::MessageType)
+			{
+				FAssignPackagesMessage AssignPackagesMessage;
+				if (!AssignPackagesMessage.TryRead(MoveTemp(Message.Object)))
+				{
+					LogInvalidMessage(TEXT("FAssignPackagesMessage"));
+				}
+				else
+				{
+					AssignPackages(AssignPackagesMessage);
+				}
 			}
 		}
 	}
@@ -452,20 +467,22 @@ void FCookWorkerClient::PumpDisconnect(FTickStackData& StackData)
 	{
 		switch (ConnectStatus)
 		{
-		case EConnectStatus::WaitForDisconnect:
+		case EConnectStatus::FlushAndAbortFirst:
 		{
 			TickCollectors(StackData, true /* bFlush */);
 			// Add code here for any waiting we need to do for the local CookOnTheFlyServer to gracefully shutdown
 			SendMessage(FAbortWorkerMessage(FAbortWorkerMessage::EType::Abort));
-			SendToState(EConnectStatus::WaitForDisconnectSocketFlush);
+			SendToState(EConnectStatus::WaitForAbortAcknowledge);
 			break;
 		}
-		case EConnectStatus::WaitForDisconnectSocketFlush:
+		case EConnectStatus::WaitForAbortAcknowledge:
 		{
 			using namespace UE::CompactBinaryTCP;
-			EConnectionStatus SocketStatus = TryFlushBuffer(ServerSocket, SendBuffer);
-			if (SocketStatus == EConnectionStatus::Incomplete)
+			PumpReceiveMessages();
+			if (ConnectStatus == EConnectStatus::WaitForAbortAcknowledge)
 			{
+				PumpSendMessages();
+
 				constexpr float WaitForDisconnectTimeout = 60.f;
 				if (FPlatformTime::Seconds() - ConnectStartTimeSeconds > WaitForDisconnectTimeout && !IsCookIgnoreTimeouts())
 				{
@@ -476,8 +493,11 @@ void FCookWorkerClient::PumpDisconnect(FTickStackData& StackData)
 				}
 				return; // Exit the Pump loop for now and keep waiting
 			}
-			SendToState(EConnectStatus::LostConnection);
-			break;
+			else
+			{
+				check(ConnectStatus == EConnectStatus::LostConnection);
+				return;
+			}
 		}
 		case EConnectStatus::LostConnection:
 		{
@@ -500,7 +520,7 @@ void FCookWorkerClient::SendToState(EConnectStatus TargetStatus)
 {
 	switch (TargetStatus)
 	{
-	case EConnectStatus::WaitForDisconnect:
+	case EConnectStatus::FlushAndAbortFirst:
 		ConnectStartTimeSeconds = FPlatformTime::Seconds();
 		break;
 	case EConnectStatus::LostConnection:

@@ -66,10 +66,9 @@ private:
 		PollWriteConnectMessage,
 		PollReceiveConfigMessage,
 		Connected,
-		WaitForDisconnectFirst,
-		WaitForDisconnect = WaitForDisconnectFirst,
-		WaitForDisconnectSocketFlush,
-		WaitForDisconnectLast = WaitForDisconnectSocketFlush,
+		FlushAndAbortFirst,
+		WaitForAbortAcknowledge,
+		FlushAndAbortLast = WaitForAbortAcknowledge,
 		LostConnection,
 	};
 
