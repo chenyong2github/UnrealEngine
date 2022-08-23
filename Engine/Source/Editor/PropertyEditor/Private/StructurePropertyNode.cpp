@@ -10,20 +10,16 @@ void FStructurePropertyNode::InitChildNodes()
 	const bool bShouldShowHiddenProperties = !!HasNodeFlags(EPropertyNodeFlags::ShouldShowHiddenProperties);
 	const bool bShouldShowDisableEditOnInstance = !!HasNodeFlags(EPropertyNodeFlags::ShouldShowDisableEditOnInstance);
 
-	const UStruct* Struct = StructData.IsValid() ? StructData->GetStruct() : NULL;
+	const UStruct* Struct = StructData.IsValid() ? StructData->GetStruct() : nullptr;
 
 	TArray<FProperty*> StructMembers;
 
 	for (TFieldIterator<FProperty> It(Struct); It; ++It)
 	{
 		FProperty* StructMember = *It;
-
-		if (StructMember)
+		if (PropertyEditorHelpers::ShouldBeVisible(*this, StructMember))
 		{
-			if (PropertyEditorHelpers::ShouldBeVisible(*this, StructMember))
-			{
-				StructMembers.Add(StructMember);
-			}
+			StructMembers.Add(StructMember);
 		}
 	}
 
