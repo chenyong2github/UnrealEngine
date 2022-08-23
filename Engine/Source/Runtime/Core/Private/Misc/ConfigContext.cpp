@@ -874,3 +874,8 @@ int32 FConfigFileHierarchy::AddDynamicLayer(const FString& Filename)
 	Emplace(Key, Filename);
 	return Key;
 }
+
+void FConfigContext::EnsureRequiredGlobalPathsHaveBeenInitialized()
+{
+	PerformBasicReplacements(TEXT(""), TEXT("")); // requests user directories and FConfigCacheIni::GetCustomConfigString
+}

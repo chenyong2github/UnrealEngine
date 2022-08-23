@@ -4124,9 +4124,11 @@ static FCriticalSection GConfigForPlatformLock;
 #if WITH_EDITOR
 void FConfigCacheIni::AsyncInitializeConfigForPlatforms()
 {
-	// since GConfig just became ready, this will cache something new on first use, and we don't want two threads going at it
+	// make sure any (non-const static) paths the worker threads will use are already initialized
 	FPaths::ProjectDir();
-	FConfigCacheIni::GetCustomConfigString();
+	FPlatformMisc::GeneratedConfigDir(); // also inits FPaths::ProjectSavedDir
+	FConfigContext::EnsureRequiredGlobalPathsHaveBeenInitialized();
+	FPlatformProcess::ApplicationSettingsDir();
 
 	// pre-create all platforms so that the loop below doesn't reallocate anything in the map
 	for (auto Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())

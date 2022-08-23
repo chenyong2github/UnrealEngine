@@ -117,6 +117,10 @@ public:
 		return Context;
 	}
 
+	/**
+	 * Call to make before attempting parallel config init
+	 */
+	static void EnsureRequiredGlobalPathsHaveBeenInitialized();
 
 	/**
 	 * Use the context to perform the actual load operation. Note that this is where you specify the Ini name (for instance "Engine"), meaning
