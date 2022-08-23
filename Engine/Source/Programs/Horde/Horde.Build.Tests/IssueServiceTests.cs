@@ -271,6 +271,12 @@ namespace Horde.Build.Tests
 			await LogFileService.CreateEventsAsync(new List<NewLogEventData> { new NewLogEventData { LogId = logId, LineIndex = metadata.MaxLineIndex, LineCount = 1, Severity = severity } });
 		}
 
+		private TestJsonLogger CreateLogger(IJob job, int batchIdx, int stepIdx)
+		{
+			LogId logId = job.Batches[batchIdx].Steps[stepIdx].LogId!.Value;
+			return new TestJsonLogger(LogFileService, logId);
+		}
+
 		private async Task ParseEventsAsync(IJob job, int batchIdx, int stepIdx, string[] lines)
 		{
 			LogId logId = job.Batches[batchIdx].Steps[stepIdx].LogId!.Value;
@@ -457,6 +463,48 @@ namespace Horde.Build.Tests
 				Assert.AreEqual(IssueSeverity.Error, issues[0].Severity);
 
 				Assert.AreEqual("Errors in Update Version Files", issues[0].Summary);
+			}
+		}
+
+		[TestMethod]
+		public async Task PerforceCaseIssueTest()
+		{
+			// #1
+			// Scenario: Job step completes successfully at CL 105
+			// Expected: No issues are created
+			{
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);
+			}
+
+			// #2
+			// Scenario: Job step fails at CL 170 with P4 case error
+			// Expected: Creates issue, identifies source file correctly
+			{
+				IUser chris = await UserCollection.FindOrAddUserByLoginAsync("Chris");
+				_perforce.AddChange(MainStreamName, 150, chris, "Description", new string[] { "Engine/Foo/Bar.txt" });
+
+				IUser john = await UserCollection.FindOrAddUserByLoginAsync("John");
+				_perforce.AddChange(MainStreamName, 160, john, "Description", new string[] { "Engine/Foo/Baz.txt" });
+
+				IJob job = CreateJob(_mainStreamId, 170, "Test Build", _graph);
+				await using (TestJsonLogger logger = CreateLogger(job, 0, 0))
+				{
+					logger.LogWarning(KnownLogEvents.AutomationTool_PerforceCase, "    {DepotFile}", new LogValue(LogValueType.DepotPath, "//UE5/Main/Engine/Foo/Bar.txt"));
+				}
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+				Assert.AreEqual(IssueSeverity.Warning, issues[0].Severity);
+				Assert.AreEqual("PerforceCase", issues[0].Fingerprints[0].Type);
+				Assert.AreEqual("//UE5/Main/Engine/Foo/Bar.txt", issues[0].Fingerprints[0].Keys.First());
+				Assert.AreEqual(chris.Id, issues[0].OwnerId);
+
+				Assert.AreEqual("Inconsistent case for Bar.txt", issues[0].Summary);
 			}
 		}
 

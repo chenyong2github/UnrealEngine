@@ -58,18 +58,12 @@ namespace Horde.Build.Issues.Handlers
 		/// <param name="depotFiles">List of source files</param>
 		static void GetSourceFiles(ILogEventData logEventData, HashSet<string> depotFiles)
 		{
-			foreach (ILogEventLine line in logEventData.Lines)
+			foreach (JsonProperty property in logEventData.FindPropertiesOfType(LogValueType.DepotPath))
 			{
-				JsonElement properties;
-				if (line.Data.TryGetProperty("properties", out properties) && properties.ValueKind == JsonValueKind.Object)
+				JsonElement value;
+				if (property.Value.TryGetProperty(LogEventPropertyName.Text.Span, out value) && value.ValueKind == JsonValueKind.String)
 				{
-					foreach (JsonProperty property in properties.EnumerateObject())
-					{
-						if (property.NameEquals("File") && property.Value.ValueKind == JsonValueKind.String)
-						{
-							depotFiles.Add(property.Value.GetString()!);
-						}
-					}
+					depotFiles.Add(value.GetString()!);
 				}
 			}
 		}

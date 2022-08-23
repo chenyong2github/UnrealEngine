@@ -17,7 +17,7 @@ namespace Horde.Build.Tests.Stubs.Services
 	{
 		public static ChangeFile CreateChangeFile(string path)
 		{
-			return new ChangeFile(path, null!, 0, 0, EpicGames.Core.Md5Hash.Zero, null!);
+			return new ChangeFile(path, $"//UE5/Main/{path}", 0, 0, EpicGames.Core.Md5Hash.Zero, null!);
 		}
 
 		public static void Add(this List<ChangeFile> files, string path)
