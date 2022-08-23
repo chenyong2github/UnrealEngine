@@ -92,6 +92,10 @@ namespace PerfSummaries
 			foreach (string unitStat in stats)
 			{
 				string StatToCheck = unitStat.Split('(')[0];
+				if (!csvStats.Stats.ContainsKey(StatToCheck.ToLower()))
+				{
+					continue;
+				}
 
 				htmlFile.WriteLine("  <tr><td><b>" + StatToCheck + "</b></td>");
 				int thresholdIndex = 0;
