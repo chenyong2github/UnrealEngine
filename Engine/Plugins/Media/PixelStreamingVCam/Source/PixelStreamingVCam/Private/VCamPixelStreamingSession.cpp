@@ -146,6 +146,10 @@ void UVCamPixelStreamingSession::Activate()
 			double Timestamp;
 			Ar << Timestamp;
 
+			if(TSharedPtr<FPixelStreamingLiveLinkSource> LiveLinkSource = UVCamPixelStreamingSubsystem::Get()->LiveLinkSource)
+			{
+				LiveLinkSource->PushTransformForSubject(GetFName(), FTransform(ARKitMatrix), Timestamp);
+			}
 
 			/**
 			 * Code to control the level editor viewport

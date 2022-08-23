@@ -4,7 +4,11 @@
 
 #include "IPixelCaptureInputFrame.h"
 #include "IPixelCaptureOutputFrame.h"
-#include "PixelCaptureFwd.h"
+
+namespace UE::PixelCapture
+{
+	class FOutputFrameBuffer;
+}
 
 /**
  * The base class for all Capturers in the system.
