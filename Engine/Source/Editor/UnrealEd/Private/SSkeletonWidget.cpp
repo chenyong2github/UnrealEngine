@@ -15,7 +15,6 @@
 #include "Editor.h"
 #include "Animation/AnimSet.h"
 #include "Interfaces/IMainFrameModule.h"
-#include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "IDocumentation.h"
 #include "Animation/Rig.h"
@@ -30,6 +29,8 @@
 
 void SSkeletonListWidget::Construct(const FArguments& InArgs)
 {
+	bShowBones = InArgs._ShowBones;
+	InitialViewType = InArgs._InitialViewType;
 	CurSelectedSkeleton = nullptr;
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
@@ -37,34 +38,37 @@ void SSkeletonListWidget::Construct(const FArguments& InArgs)
 	FAssetPickerConfig AssetPickerConfig;
 	AssetPickerConfig.Filter.ClassPaths.Add(USkeleton::StaticClass()->GetClassPathName());
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SSkeletonListWidget::SkeletonSelectionChanged);
-	AssetPickerConfig.InitialAssetViewType = EAssetViewType::Column;
+	AssetPickerConfig.InitialAssetViewType = InitialViewType;
 	AssetPickerConfig.SelectionMode = ESelectionMode::Single;
 	AssetPickerConfig.bShowPathInColumnView = true;
 	AssetPickerConfig.bShowTypeInColumnView = false;
 
-	this->ChildSlot
+	TSharedRef<SVerticalBox> ContentBox = SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			SNew(SVerticalBox)
-
-			+SVerticalBox::Slot()
-			.AutoHeight()
+			SNew(STextBlock)
+			.Text(LOCTEXT("SelectSkeletonLabel", "Select Skeleton: "))
+		]
+		+ SVerticalBox::Slot().FillHeight(1).Padding(2)
 			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("SelectSkeletonLabel", "Select Skeleton: "))
-			]
-
-			+SVerticalBox::Slot() .FillHeight(1) .Padding(2)
+				SNew(SBorder)
+				.Content()
 				[
-					SNew(SBorder)
-					.Content()
-					[
-						ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
-					]
+					ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
 				]
+			];
 
-			+SVerticalBox::Slot() .FillHeight(1) .Padding(2)
-				.Expose(BoneListSlot)
+	if (bShowBones)
+	{
+		ContentBox->AddSlot()
+			.FillHeight(1).Padding(2)
+			.Expose(BoneListSlot);
+	}
 
+	ChildSlot
+		[
+			ContentBox
 		];
 
 	// Construct the BoneListSlot by clearing the skeleton selection. 
@@ -76,43 +80,46 @@ void SSkeletonListWidget::SkeletonSelectionChanged(const FAssetData& AssetData)
 	BoneList.Empty();
 	CurSelectedSkeleton = Cast<USkeleton>(AssetData.GetAsset());
 
-	if (CurSelectedSkeleton != nullptr)
+	if (bShowBones)
 	{
-		const FReferenceSkeleton& RefSkeleton = CurSelectedSkeleton->GetReferenceSkeleton();
-
-		for (int32 I=0; I<RefSkeleton.GetNum(); ++I)
+		if (CurSelectedSkeleton != nullptr)
 		{
-			BoneList.Add( MakeShareable(new FName(RefSkeleton.GetBoneName(I))) ) ;
-		}
+			const FReferenceSkeleton& RefSkeleton = CurSelectedSkeleton->GetReferenceSkeleton();
 
-		(*BoneListSlot)
-			[
-				SNew(SBorder) .Padding(2)
-				.Content()
+			for (int32 I = 0; I < RefSkeleton.GetNum(); ++I)
+			{
+				BoneList.Add(MakeShareable(new FName(RefSkeleton.GetBoneName(I))));
+			}
+
+			(*BoneListSlot)
+				[
+					SNew(SBorder).Padding(2)
+					.Content()
 				[
 					SNew(SListView< TSharedPtr<FName> >)
 					.OnGenerateRow(this, &SSkeletonListWidget::GenerateSkeletonBoneRow)
-					.ListItemsSource(&BoneList)
-					.HeaderRow
-					(
+				.ListItemsSource(&BoneList)
+				.HeaderRow
+				(
 					SNew(SHeaderRow)
-					+SHeaderRow::Column(TEXT("Bone Name"))
+					+ SHeaderRow::Column(TEXT("Bone Name"))
 					.DefaultLabel(NSLOCTEXT("SkeletonWidget", "BoneName", "Bone Name"))
-					)
+				)
 				]
-			];
-	}
-	else
-	{
-		(*BoneListSlot)
-			[
-				SNew(SBorder) .Padding(2)
-				.Content()
+				];
+		}
+		else
+		{
+			(*BoneListSlot)
+				[
+					SNew(SBorder).Padding(2)
+					.Content()
 				[
 					SNew(STextBlock)
 					.Text(NSLOCTEXT("SkeletonWidget", "NoSkeletonIsSelected", "No skeleton is selected!"))
 				]
-			];
+				];
+		}
 	}
 }
 
@@ -282,6 +289,10 @@ void SSkeletonSelectorWindow::Construct(const FArguments& InArgs)
 	{
 		ConstructWindowFromAnimSet(CastChecked<UAnimSet>(Object));
 	}
+	else if (Object->IsA(UAnimBlueprint::StaticClass()))
+	{
+		ConstructWindowFromAnimBlueprint(CastChecked<UAnimBlueprint>(Object));
+	}
 }
 
 void SSkeletonSelectorWindow::ConstructWindowFromAnimSet(UAnimSet* InAnimSet)
@@ -331,12 +342,32 @@ void SSkeletonSelectorWindow::ConstructWindowFromMesh(USkeletalMesh* InSkeletalM
 		];
 }
 
+void SSkeletonSelectorWindow::ConstructWindowFromAnimBlueprint(UAnimBlueprint* AnimBlueprint)
+{
+	TSharedRef<SVerticalBox> ContentBox = SNew(SVerticalBox)
+		+ SVerticalBox::Slot().FillHeight(1).Padding(2)
+		[
+			SAssignNew(SkeletonWidget, SSkeletonListWidget)
+				.ShowBones(false)
+				.InitialViewType(EAssetViewType::List)
+		];
+
+	ConstructButtons(ContentBox);
+
+	ChildSlot
+		[
+			ContentBox
+		];
+}
+
 void SSkeletonSelectorWindow::ConstructWindow()
 {
 	TSharedRef<SVerticalBox> ContentBox = SNew(SVerticalBox)
 		+SVerticalBox::Slot() .FillHeight(1) .Padding(2)
 		[
 			SAssignNew(SkeletonWidget, SSkeletonListWidget)
+				.ShowBones(true)
+				.InitialViewType(EAssetViewType::Column)
 		];
 
 	ConstructButtons(ContentBox);

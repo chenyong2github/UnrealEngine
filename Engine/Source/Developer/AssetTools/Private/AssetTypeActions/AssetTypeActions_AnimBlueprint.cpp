@@ -141,6 +141,18 @@ void FAssetTypeActions_AnimBlueprint::GetActions(const TArray<UObject*>& InObjec
 				FCanExecuteAction()
 				)
 			);
+
+		Section.AddMenuEntry(
+			"AnimBlueprint_AssignSkeleton",
+			LOCTEXT("SkeletalMesh_AssignSkeleton", "Assign Skeleton"),
+			LOCTEXT("SkeletalMesh_AssignSkeletonTooltip", "Assigns a skeleton to the selected Animation Blueprint(s)."),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.AssetActions.AssignSkeleton"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FAssetTypeActions_AnimBlueprint::ExecuteAssignSkeleton, AnimBlueprints),
+				FCanExecuteAction()
+			)
+		);
+
 	}
 }
 
@@ -283,6 +295,40 @@ void FAssetTypeActions_AnimBlueprint::ExecuteFindSkeleton(TArray<TWeakObjectPtr<
 	{
 		FText ShouldRetargetMessage = LOCTEXT("NoSkeletonFound", "Could not find the skeleton");
 		FMessageDialog::Open(EAppMsgType::Ok, ShouldRetargetMessage);
+	}
+}
+
+void FAssetTypeActions_AnimBlueprint::ExecuteAssignSkeleton(TArray<TWeakObjectPtr<UAnimBlueprint>> Objects)
+{
+	if (Objects.Num() > 0)
+	{
+		TSharedRef<SWindow> WidgetWindow = SNew(SWindow)
+			.Title(LOCTEXT("ChooseSkeletonWindowTitle", "Choose Skeleton"))
+			.ClientSize(FVector2D(400, 600));
+
+		TSharedPtr<SSkeletonSelectorWindow> SkeletonSelectorWindow;
+		WidgetWindow->SetContent
+		(
+			SNew(SBorder)
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				SAssignNew(SkeletonSelectorWindow, SSkeletonSelectorWindow)
+				.Object(Objects[0].Get())
+			.WidgetWindow(WidgetWindow)
+			]
+		);
+
+		GEditor->EditorAddModalWindow(WidgetWindow);
+		USkeleton* SelectedSkeleton = SkeletonSelectorWindow->GetSelectedSkeleton();
+
+		// only do this if not same
+		if (SelectedSkeleton)
+		{
+			for (TWeakObjectPtr<UAnimBlueprint>& AnimBP : Objects)
+			{
+				AnimBP->TargetSkeleton = SelectedSkeleton;
+			}
+		}
 	}
 }
 

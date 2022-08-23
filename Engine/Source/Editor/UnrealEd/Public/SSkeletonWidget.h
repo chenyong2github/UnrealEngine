@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IContentBrowserSingleton.h"
 #include "Input/Reply.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
@@ -121,6 +122,8 @@ class SSkeletonListWidget : public SSkeletonWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SSkeletonListWidget ){}
+		SLATE_ARGUMENT(bool, ShowBones)
+		SLATE_ARGUMENT(EAssetViewType::Type, InitialViewType)
 	SLATE_END_ARGS()
 public:
 	// WIDGETS
@@ -153,6 +156,8 @@ public:
 	}
 
 private:
+	bool bShowBones = true;
+	EAssetViewType::Type InitialViewType = EAssetViewType::Column;
 	SVerticalBox::FSlot* BoneListSlot;
 	TArray< TSharedPtr<FName> > BoneList;
 };
@@ -204,6 +209,8 @@ public:
 	void ConstructWindowFromAnimSet(UAnimSet* InAnimSet);
 
 	void ConstructWindowFromMesh(USkeletalMesh* InSkeletalMesh);
+
+	void ConstructWindowFromAnimBlueprint(UAnimBlueprint* AnimBlueprint);
 
 	void ConstructWindow();
 
