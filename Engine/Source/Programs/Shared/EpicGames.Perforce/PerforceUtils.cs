@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using EpicGames.Core;
@@ -12,6 +13,30 @@ namespace EpicGames.Perforce
 	/// </summary>
 	public static class PerforceUtils
 	{
+		/// <summary>
+		/// Set of extensions to treat as code
+		/// </summary>
+		public static readonly HashSet<string> CodeExtensions = new HashSet<string>
+		{
+			".c",
+			".cc",
+			".cpp",
+			".inl",
+			".m",
+			".mm",
+			".rc",
+			".cs",
+			".csproj",
+			".h",
+			".hpp",
+			".inl",
+			".usf",
+			".ush",
+			".uproject",
+			".uplugin",
+			".sln"
+		};
+
 		/// <summary>
 		/// Escape a path to Perforce syntax
 		/// </summary>

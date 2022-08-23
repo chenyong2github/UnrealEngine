@@ -32,30 +32,6 @@ namespace UnrealGameSync
 
 	public class PerforceChangeDetails
 	{
-		/// <summary>
-		/// Set of extensions to treat as code
-		/// </summary>
-		static readonly HashSet<string> CodeExtensions = new HashSet<string>
-		{
-			".c",
-			".cc",
-			".cpp",
-			".inl",
-			".m",
-			".mm",
-			".rc",
-			".cs",
-			".csproj",
-			".h",
-			".hpp",
-			".inl",
-			".usf",
-			".ush",
-			".uproject",
-			".uplugin",
-			".sln"
-		};
-
 		public string Description;
 		public bool ContainsCode;
 		public bool ContainsContent;
@@ -67,7 +43,7 @@ namespace UnrealGameSync
 			// Check whether the files are code or content
 			foreach (DescribeFileRecord file in describeRecord.Files)
 			{
-				if (CodeExtensions.Any(extension => file.DepotFile.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
+				if (PerforceUtils.CodeExtensions.Any(extension => file.DepotFile.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
 				{
 					ContainsCode = true;
 				}

@@ -458,8 +458,7 @@ namespace AutomationTool
 			// Retrieve the current changelist
 			StringBuilder P4Cmd = new StringBuilder("changes -m 1");
 
-			string[] CodeExtensions = { ".cs", ".h", ".cpp", ".inl", ".usf", ".ush", ".uproject", ".uplugin" };
-			foreach(string CodeExtension in CodeExtensions)
+			foreach (string CodeExtension in EpicGames.Perforce.PerforceUtils.CodeExtensions)
 			{
 				P4Cmd.AppendFormat(" \"{0}/...{1}#have\"", CommandUtils.CombinePaths(PathSeparator.Depot, ClientRootPath), CodeExtension);
 			}
