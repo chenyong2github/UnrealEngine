@@ -232,6 +232,27 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
+	/// Optimization mode for compiler settings
+	/// </summary>
+	public enum OptimizationMode
+	{
+		/// <summary>
+		/// Favor speed
+		/// </summary>
+		Speed,
+
+		/// <summary>
+		/// Favor minimal code size
+		/// </summary>
+		Size,
+
+		/// <summary>
+		/// Somewhere between Speed and Size
+		/// </summary>
+		SizeAndSpeed
+	}
+
+	/// <summary>
 	/// Utility class for EngineIncludeOrderVersion defines
 	/// </summary>
 	public class EngineIncludeOrderHelper
@@ -263,7 +284,7 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
-	/// Attribute used to mark fields which much match between targets in the shared build environment
+	/// Attribute used to mark fields which must match between targets in the shared build environment
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
 	class RequiresUniqueBuildEnvironmentAttribute : Attribute
@@ -1115,8 +1136,15 @@ namespace UnrealBuildTool
 		/// True if we want to favor optimizing size over speed.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
+		[Obsolete("Deprecated in UE5.1 - Please use OptimizationLevel instead.")]
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/BuildSettings.BuildSettings", "bCompileForSize")]
 		public bool bCompileForSize = false;
+
+		/// <summary>
+		/// Allows to fine tune optimizations level for speed and\or code size
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public OptimizationMode OptimizationLevel = OptimizationMode.Speed;
 
 		/// <summary>
 		/// Whether to compile development automation tests.
@@ -2862,9 +2890,15 @@ namespace UnrealBuildTool
 			get { return Inner.bCompileFreeType; }
 		}
 
+		[Obsolete("Deprecated in UE5.1 - Please use OptimizationLevel instead.")]
 		public bool bCompileForSize
 		{
 			get { return Inner.bCompileForSize; }
+		}
+
+		public OptimizationMode OptimizationLevel
+		{
+			get { return Inner.OptimizationLevel; }
 		}
 
 		public bool bRetainFramePointers

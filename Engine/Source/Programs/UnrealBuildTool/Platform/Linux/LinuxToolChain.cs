@@ -385,7 +385,22 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					Arguments.Add("-O3");
+					if (CompileEnvironment.OptimizationLevel == OptimizationMode.Size)
+					{
+						Arguments.Add("-Oz");
+					}
+					else if (CompileEnvironment.OptimizationLevel == OptimizationMode.SizeAndSpeed)
+					{
+						Arguments.Add("-Os");
+						if (Architecture.StartsWith("aarch64"))
+						{
+							Arguments.Add("-moutline");
+						}
+					}
+					else
+					{
+						Arguments.Add("-O3");
+					}
 				}
 			}
 

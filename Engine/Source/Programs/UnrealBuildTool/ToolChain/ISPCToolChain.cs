@@ -575,7 +575,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				CommonArgs.Add("-O2");
+				CommonArgs.Add("-O3");
 			}
 			GlobalArguments.AddRange(CommonArgs);
 

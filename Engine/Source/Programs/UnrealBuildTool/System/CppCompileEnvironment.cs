@@ -284,9 +284,9 @@ namespace UnrealBuildTool
 		public bool bOptimizeCode = false;
 
 		/// <summary>
-		/// Whether to optimize for minimal code size
+		/// Allows to fine tune optimizations level for speed and\or code size
 		/// </summary>
-		public bool bOptimizeForSize = false;
+		public OptimizationMode OptimizationLevel = OptimizationMode.Speed;
 
 		/// <summary>
 		/// True if debug info should be created.
@@ -527,7 +527,7 @@ namespace UnrealBuildTool
 			StaticAnalyzerDisabledCheckers = new HashSet<string>(Other.StaticAnalyzerDisabledCheckers);
 			StaticAnalyzerAdditionalCheckers = new HashSet<string>(Other.StaticAnalyzerAdditionalCheckers);
 			bOptimizeCode = Other.bOptimizeCode;
-			bOptimizeForSize = Other.bOptimizeForSize;
+			OptimizationLevel = Other.OptimizationLevel;
 			bCreateDebugInfo = Other.bCreateDebugInfo;
 			bIsBuildingLibrary = Other.bIsBuildingLibrary;
 			bIsBuildingDLL = Other.bIsBuildingDLL;

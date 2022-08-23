@@ -533,8 +533,15 @@ namespace UnrealBuildTool
 					// Maximum optimizations.
 					Arguments.Add("/Ox");
 
-					// Favor code speed.
-					Arguments.Add("/Ot");
+					if (CompileEnvironment.OptimizationLevel != OptimizationMode.Speed)
+					{
+						Arguments.Add("/Os");
+					}
+					else
+					{
+						// Favor code speed.
+						Arguments.Add("/Ot");
+					}
 
 					// Coalesce duplicate strings
 					Arguments.Add("/GF");

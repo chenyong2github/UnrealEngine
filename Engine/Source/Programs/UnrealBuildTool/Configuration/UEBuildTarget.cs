@@ -3869,7 +3869,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.bUndefinedIdentifierWarningsAsErrors = Rules.bUndefinedIdentifierErrors;
 			GlobalCompileEnvironment.bRetainFramePointers = Rules.bRetainFramePointers;
 			GlobalCompileEnvironment.bWarningsAsErrors = Rules.bWarningsAsErrors;
-			GlobalCompileEnvironment.bOptimizeForSize = Rules.bCompileForSize;
+			GlobalCompileEnvironment.OptimizationLevel = Rules.OptimizationLevel;
 			GlobalCompileEnvironment.bUseStaticCRT = Rules.bUseStaticCRT;
 			GlobalCompileEnvironment.bOmitFramePointers = Rules.bOmitFramePointers;
 			GlobalCompileEnvironment.bUsePDBFiles = Rules.bUsePDBFiles;
@@ -3894,7 +3894,6 @@ namespace UnrealBuildTool
 			GlobalLinkEnvironment.bUseDebugCRT = bUseDebugCRT;
 			GlobalLinkEnvironment.bUseStaticCRT = Rules.bUseStaticCRT;
 			GlobalLinkEnvironment.bIsBuildingConsoleApplication = Rules.bIsBuildingConsoleApplication;
-			GlobalLinkEnvironment.bOptimizeForSize = Rules.bCompileForSize;
 			GlobalLinkEnvironment.bOmitFramePointers = Rules.bOmitFramePointers;
 			GlobalLinkEnvironment.bSupportEditAndContinue = Rules.bSupportEditAndContinue;
 			GlobalLinkEnvironment.bCreateMapFile = Rules.bCreateMapFile;

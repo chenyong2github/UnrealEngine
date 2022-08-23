@@ -659,9 +659,17 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				if (CompileEnvironment.bOptimizeForSize)
+				if (CompileEnvironment.OptimizationLevel == OptimizationMode.Size)
 				{
 					Result += " -Oz";
+				}
+				else if (CompileEnvironment.OptimizationLevel == OptimizationMode.SizeAndSpeed)
+				{
+					Result += " -Os";
+					if (Architecture == "-arm64")
+					{
+						Result += " -moutline";
+					}
 				}
 				else
 				{

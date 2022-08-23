@@ -197,11 +197,6 @@ namespace UnrealBuildTool
 		public int DefaultStackSizeCommit = 0;
 
 		/// <summary>
-		/// Whether to optimize for minimal code size
-		/// </summary>
-		public bool bOptimizeForSize = false;
-
-		/// <summary>
 		/// Whether to omit frame pointers or not. Disabling is useful for e.g. memory profiling on the PC
 		/// </summary>
 		public bool bOmitFramePointers = true;
@@ -366,7 +361,6 @@ namespace UnrealBuildTool
 			bIsBuildingDotNetAssembly = Other.bIsBuildingDotNetAssembly;
 			DefaultStackSize = Other.DefaultStackSize;
 			DefaultStackSizeCommit = Other.DefaultStackSizeCommit;
-			bOptimizeForSize = Other.bOptimizeForSize;
 			bOmitFramePointers = Other.bOmitFramePointers;
 			bSupportEditAndContinue = Other.bSupportEditAndContinue;
 			bUseIncrementalLinking = Other.bUseIncrementalLinking;
