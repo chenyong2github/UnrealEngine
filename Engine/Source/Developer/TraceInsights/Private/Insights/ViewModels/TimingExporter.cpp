@@ -10,6 +10,7 @@
 #include "Insights/Log.h"
 #include "Insights/ViewModels/ThreadTimingTrack.h"
 #include "Insights/TimingProfilerManager.h"
+#include "TraceServices/Model/Bookmarks.h"
 
 namespace Insights
 {
@@ -543,6 +544,74 @@ int32 FTimingExporter::ExportTimingEventsAsText(const FString& Filename, FExport
 	UE_LOG(TraceInsights, Log, TEXT("Exported %d timing events to file in %.3fs (\"%s\")."), TimingEventCount, TotalTime, *Filename);
 
 	return TimingEventCount;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+int32 FTimingExporter::ExportTimerStatisticsAsText(const FString& Filename, FExportTimerStatisticsParams& Params) const
+{
+	TraceServices::ITable<TraceServices::FTimingProfilerAggregatedStats>* StatsTable;
+
+	double RegionStartTime = 0;
+	double RegionEndTime = std::numeric_limits<double>::max();
+	
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(Session);
+		
+		const TraceServices::ITimingProfilerProvider* TimingProfilerProvider = TraceServices::ReadTimingProfilerProvider(Session);
+		if (!TimingProfilerProvider)
+		{
+			UE_LOG(TraceInsights, Error, TEXT("Unable to access TimingProfilerProvider for ExportTimerStatisticsAsText"));
+			return -1;
+		}
+		
+		if (!Params.Region.IsEmpty())
+		{
+			
+			const TraceServices::IBookmarkProvider& BookmarkProvider = TraceServices::ReadBookmarkProvider(Session);
+			const FString RegionStartName = TEXT("RegionStart:") + Params.Region;
+			const FString RegionEndName = TEXT("RegionEnd:") + Params.Region;
+			UE_LOG(TraceInsights, Log, TEXT("Looking for the following bookmarks: '%s' and '%s'"), *RegionStartName, *RegionEndName);
+			
+			BookmarkProvider.EnumerateBookmarks(0, std::numeric_limits<double>::max(),
+				[&RegionStartTime, &RegionEndTime, &RegionStartName, &RegionEndName](const TraceServices::FBookmark& InBookmark){
+					if (RegionStartTime == 0 && RegionStartName.Equals(InBookmark.Text))
+					{
+						RegionStartTime = InBookmark.Time;
+					}
+					if (RegionEndTime == std::numeric_limits<double>::max() && RegionEndName.Equals(InBookmark.Text))
+					{
+						RegionEndTime = InBookmark.Time;
+					}
+			});
+
+			if (RegionStartTime == 0 || RegionEndTime == std::numeric_limits<double>::max())
+			{
+				UE_LOG(TraceInsights, Error, TEXT("Unable to find 'RegionStart:' and 'RegionEnd:' bookmarks for region '%s'"), *Params.Region);
+				return -1;
+			}
+		}
+
+		if (RegionStartTime != 0 && RegionEndTime != std::numeric_limits<double>::max())
+		{
+			Params.IntervalStartTime = RegionStartTime;
+			Params.IntervalEndTime = RegionEndTime;
+			UE_LOG(TraceInsights, Display, TEXT("Limit selection to region '%s' from %f to %f"), *Params.Region, RegionStartTime, RegionEndTime);
+		}
+
+		//@Todo: this does not yet handle the -column and -timers parameters.
+		StatsTable = TimingProfilerProvider->CreateAggregation(Params.IntervalStartTime, Params.IntervalEndTime, Params.ThreadFilter, true);
+	}
+		
+	FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	TraceServices::Table2Csv(*StatsTable, *Filename);
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	UE_LOG(TraceInsights, Log, TEXT("Exported timing statistics to file in %.3fs (\"%s\")."), TotalTime, *Filename);
+	return 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

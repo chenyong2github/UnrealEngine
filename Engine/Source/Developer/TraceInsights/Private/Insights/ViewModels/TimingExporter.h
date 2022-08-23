@@ -65,12 +65,22 @@ public:
 
 		/**
 		 * Filters the timing events by time.
-		 * Only timning events that intersects the [StartTime, EndTime] interval are exported.
+		 * Only timing events that intersects the [StartTime, EndTime] interval are exported.
 		 */
 		double IntervalStartTime = -std::numeric_limits<double>::infinity();
 		double IntervalEndTime = +std::numeric_limits<double>::infinity();
 	};
 
+	struct FExportTimerStatisticsParams : public FExportTimingEventsParams
+	{
+		/**
+		 * The time region to be exported. This is defined by having corresponding "RegionStart:Name" and
+		 * "RegionEnd:Name" bookmarks in the bookmarks channel.
+		 * If empty falls back to IntervalStartTime and IntervalEndTime.
+		 */
+		FString Region;
+	};
+	
 private:
 	typedef TUtf8StringBuilder<1024> FUtf8StringBuilder;
 
@@ -94,6 +104,12 @@ public:
 	int32 ExportThreadsAsText(const FString& Filename, FExportThreadsParams& Params) const;
 	int32 ExportTimersAsText(const FString& Filename, FExportTimersParams& Params) const;
 	int32 ExportTimingEventsAsText(const FString& Filename, FExportTimingEventsParams& Params) const;
+	/**
+	 * Exports Timer Statistics (min,max, inclusive average, exclusive average, etc.).
+	 * Supports specifying a range to export via bookmarks, but does not support timer selection via -timers
+	 * or column selection via -columns yet
+	 */
+	int32 ExportTimerStatisticsAsText(const FString& Filename, FExportTimerStatisticsParams& Params) const;
 
 	void MakeExportTimingEventsColumnList(const FString& InColumnsString, TArray<FName>& OutColumnList) const;
 
@@ -151,6 +167,8 @@ private:
 	const TraceServices::IAnalysisSession& Session;
 	mutable TSet<FName> ExportTimingEventsColumns;
 	mutable TArray<FName> ExportTimingEventsDefaultColumns;
+	mutable TArray<FName> ExportTimerStatisticsDefaultColumns;
+	mutable TArray<FName> ExportTimerStatisticsColumns;
 
 	static const FName ExportTimingEvents_ThreadIdColumn;
 	static const FName ExportTimingEvents_ThreadNameColumn;
