@@ -10,6 +10,7 @@
 #include "Editor.h"
 #include "Framework/Docking/TabManager.h"
 #include "ISettingsModule.h"
+#include "LevelEditor.h"
 #include "ObjectMixerEditorSerializedData.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "Modules/ModuleManager.h"
@@ -30,7 +31,7 @@ void FObjectMixerEditorModule::StartupModule()
 	// In the future, Object Mixer and Light Mixer tabs may go into an Object Mixer group
 	//RegisterMenuGroup();
 	
-	Initialize();
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FObjectMixerEditorModule::Initialize);
 }
 
 void FObjectMixerEditorModule::ShutdownModule()
@@ -73,7 +74,13 @@ void FObjectMixerEditorModule::Teardown()
 	
 	FEditorDelegates::MapChange.RemoveAll(this);
 	FEditorDelegates::PostUndoRedo.RemoveAll(this);
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 	FCoreUObjectDelegates::OnObjectTransacted.RemoveAll(this);
+
+	if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor"))
+	{
+		LevelEditorModule->OnComponentsEdited().RemoveAll(this);
+	}
 
 	for (FDelegateHandle& Delegate : DelegateHandles)
 	{
@@ -87,11 +94,6 @@ void FObjectMixerEditorModule::Teardown()
 	
 	UnregisterTabSpawner();
 	UnregisterProjectSettings();
-}
-
-void FObjectMixerEditorModule::AddOnComponentEditedDelegate(const FDelegateHandle& InOnComponentEditedHandle)
-{
-	DelegateHandles.Add(InOnComponentEditedHandle);
 }
 
 FObjectMixerEditorModule& FObjectMixerEditorModule::Get()
@@ -321,6 +323,12 @@ void FObjectMixerEditorModule::BindDelegates()
 			RequestRebuildList();
 		}
 	}));
+
+	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	LevelEditorModule.OnComponentsEdited().AddLambda([this]()
+	{
+		RequestRebuildList();
+	});
 }
 
 #undef LOCTEXT_NAMESPACE

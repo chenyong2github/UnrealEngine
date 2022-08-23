@@ -20,8 +20,6 @@ public:
 	virtual void Initialize();
 	virtual void Teardown();
 
-	void AddOnComponentEditedDelegate(const FDelegateHandle& InOnComponentEditedHandle);
-
 	static FObjectMixerEditorModule& Get();
 
 	static void OpenProjectSettings();

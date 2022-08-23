@@ -17,8 +17,8 @@ IMPLEMENT_MODULE(FLightMixerModule, LightMixer)
 void FLightMixerModule::StartupModule()
 {
 	FLightMixerStyle::Initialize();
-
-	Initialize();
+	
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FLightMixerModule::Initialize);
 }
 
 void FLightMixerModule::ShutdownModule()

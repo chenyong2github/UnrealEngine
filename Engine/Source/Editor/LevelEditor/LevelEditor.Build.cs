@@ -61,8 +61,6 @@ public class LevelEditor : ModuleRules
 				"TypedElementFramework",
 				"TypedElementRuntime",
 				"EngineSettings",
-				"LightMixer",
-				"ObjectMixerEditor",
 				"PropertyEditor",
 				"Kismet",
 				"KismetWidgets",
