@@ -31,6 +31,8 @@ public:
 
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 
+	const FSlateBrush* GetBorderBrush() const;
+
 	TWeakPtr<SObjectMixerEditorMainPanel> MainPanelPtr;
 	FName CollectionName = NAME_None;
 

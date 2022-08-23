@@ -494,6 +494,11 @@ void SObjectMixerEditorMainPanel::RebuildCollectionSelector()
 		return SNew(SCollectionSelectionButton, SharedThis(this), CollectionName);
 	};
 
+	CollectionSelectorBox->AddSlot()
+	[
+		CreateSection("All")
+	];
+
 	for (const FName& Key : AllCollections)
 	{
 		CollectionSelectorBox->AddSlot()
@@ -501,11 +506,6 @@ void SObjectMixerEditorMainPanel::RebuildCollectionSelector()
 			CreateSection(Key)
 		];
 	}
-
-	CollectionSelectorBox->AddSlot()
-	[
-		CreateSection("All")
-	];
 
 	CollectionSelectorBox->SetVisibility(EVisibility::Visible);
 }

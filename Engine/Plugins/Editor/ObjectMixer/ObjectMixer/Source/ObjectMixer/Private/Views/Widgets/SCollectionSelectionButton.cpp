@@ -50,42 +50,7 @@ void SCollectionSelectionButton::Construct(const FArguments& InArgs, const TShar
 	[
 		SNew(SBorder)
 		.Padding(FMargin(16, 4))
-		.BorderImage_Lambda([this]()
-		{
-			if (MainPanelPtr.Pin()->IsCollectionChecked(CollectionName) == ECheckBoxState::Checked)
-			{
-				if (bIsPressed)
-				{
-					return &CheckedPressedImage;
-				}
-				else if (bDropIsValid)
-				{
-					return &CheckedValidDropImage;
-				}
-				else if (IsHovered())
-				{
-					return &CheckedHoveredImage;
-				}
-
-				return &CheckedImage;
-			}
-
-			if (bIsPressed)
-			{
-				return &UncheckedPressedImage;
-			}
-			else if (bDropIsValid)
-			{
-				return &UncheckedValidDropImage;
-			}
-			else if (IsHovered())
-			{
-				return &UncheckedHoveredImage;
-			}
-
-			return &UncheckedImage;
-			
-		})
+		.BorderImage(this, &SCollectionSelectionButton::GetBorderBrush)
 		[
 			SNew(STextBlock)
 			.TextStyle(FAppStyle::Get(), "SmallText")
@@ -168,7 +133,7 @@ void SCollectionSelectionButton::OnDragEnter(const FGeometry& MyGeometry, const 
 	if (TSharedPtr<FCollectionSelectionButtonDragDropOp> OperationFromCollection =
 		DragDropEvent.GetOperationAs<FCollectionSelectionButtonDragDropOp>())
 	{
-		if (CollectionName != NAME_None && CollectionName != OperationFromCollection->DraggedItem)
+		if (CollectionName != "All" && CollectionName != NAME_None && CollectionName != OperationFromCollection->DraggedItem)
 		{
 			OperationFromCollection->SetToolTip(
 			   FText::Format(
@@ -207,32 +172,75 @@ FReply SCollectionSelectionButton::OnDrop(const FGeometry& MyGeometry, const FDr
 	if (TSharedPtr<FObjectMixerListRowDragDropOp> OperationFromRow =
 		DragDropEvent.GetOperationAs<FObjectMixerListRowDragDropOp>())
 	{
-		if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanelModel = MainPanelPtr.Pin()->GetMainPanelModel().Pin())
+		if (CollectionName != "All" && CollectionName != NAME_None)
 		{
-			TSet<FSoftObjectPath> ObjectPaths;
-
-			for (const TSharedPtr<FObjectMixerEditorListRow>& Item : OperationFromRow->DraggedItems)
+			if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanelModel = MainPanelPtr.Pin()->GetMainPanelModel().Pin())
 			{
-				if (const UObject* Object = Item->GetObject())
+				TSet<FSoftObjectPath> ObjectPaths;
+
+				for (const TSharedPtr<FObjectMixerEditorListRow>& Item : OperationFromRow->DraggedItems)
 				{
-					ObjectPaths.Add(Object);
+					if (const UObject* Object = Item->GetObject())
+					{
+						ObjectPaths.Add(Object);
+					}
 				}
-			}
 	
-			MainPanelModel->AddObjectsToCollection(CollectionName, ObjectPaths);
+				MainPanelModel->AddObjectsToCollection(CollectionName, ObjectPaths);
+			}
 		}
 	}
 
 	if (TSharedPtr<FCollectionSelectionButtonDragDropOp> OperationFromCollection =
 		DragDropEvent.GetOperationAs<FCollectionSelectionButtonDragDropOp>())
 	{
-		if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanelModel = MainPanelPtr.Pin()->GetMainPanelModel().Pin())
+		if (CollectionName != "All" && CollectionName != NAME_None && CollectionName != OperationFromCollection->DraggedItem)
 		{
-			MainPanelModel->ReorderCollection(OperationFromCollection->DraggedItem, CollectionName);
+			if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanelModel = MainPanelPtr.Pin()->GetMainPanelModel().Pin())
+			{
+				MainPanelModel->ReorderCollection(OperationFromCollection->DraggedItem, CollectionName);
+			}
 		}
 	}
 		
 	return FReply::Handled();
+}
+
+const FSlateBrush* SCollectionSelectionButton::GetBorderBrush() const
+{
+	if (MainPanelPtr.Pin()->IsCollectionChecked(CollectionName) == ECheckBoxState::Checked)
+	{
+		if (bIsPressed)
+		{
+			return &CheckedPressedImage;
+		}
+		else if (bDropIsValid)
+		{
+			return &CheckedValidDropImage;
+		}
+		else if (IsHovered())
+		{
+			return &CheckedHoveredImage;
+		}
+
+		return &CheckedImage;
+	}
+
+	if (bIsPressed)
+	{
+		return &UncheckedPressedImage;
+	}
+	else if (bDropIsValid)
+	{
+		return &UncheckedValidDropImage;
+	}
+	else if (IsHovered())
+	{
+		return &UncheckedHoveredImage;
+	}
+
+	return &UncheckedImage;
+			
 }
 
 #undef LOCTEXT_NAMESPACE
