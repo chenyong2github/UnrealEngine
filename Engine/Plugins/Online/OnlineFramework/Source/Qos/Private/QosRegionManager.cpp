@@ -3,6 +3,7 @@
 #include "QosRegionManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/TrackedActivity.h"
 #include "QosInterface.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
@@ -186,6 +187,9 @@ UQosRegionManager::UQosRegionManager(const FObjectInitializer& ObjectInitializer
 	{
 		ForceRegionId.ToUpperInline();
 	}
+
+	// Will add an info entry to the console
+	static FTrackedActivity Ta(TEXT("McpRegion"), *ForceRegionId, FTrackedActivity::ELight::None, FTrackedActivity::EType::Info);
 }
 
 void UQosRegionManager::PostReloadConfig(FProperty* PropertyThatWasLoaded)

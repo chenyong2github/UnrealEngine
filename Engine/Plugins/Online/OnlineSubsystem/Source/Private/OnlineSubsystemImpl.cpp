@@ -33,6 +33,8 @@ const FName FOnlineSubsystemImpl::DefaultInstanceName(TEXT("DefaultInstance"));
 FOnlineSubsystemImpl::FOnlineSubsystemImpl(FName InSubsystemName, FName InInstanceName) :
 	FOnlineSubsystemImpl(InSubsystemName, InInstanceName, FTSTicker::GetCoreTicker())
 {
+	// This is just here to prime BuildId variable and add as info in console
+	GetBuildUniqueId();
 }
 
 FOnlineSubsystemImpl::FOnlineSubsystemImpl(FName InSubsystemName, FName InInstanceName, FTSTicker& Ticker) :

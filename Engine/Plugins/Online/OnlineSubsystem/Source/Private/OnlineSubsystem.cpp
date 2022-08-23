@@ -3,6 +3,7 @@
 #include "OnlineSubsystem.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/TrackedActivity.h"
 #include "HAL/IConsoleManager.h"
 #include "Online/NboSerializer.h"
 #include "Misc/NetworkVersion.h"
@@ -178,6 +179,10 @@ int32 GetBuildUniqueId()
 		{
 			BuildId = BuildIdOverride;
 		}
+
+		// Will add an info entry to the console
+		static FTrackedActivity Ta(TEXT("BuildId"), *FString::FromInt(BuildId), FTrackedActivity::ELight::None, FTrackedActivity::EType::Info);
+		CVarBuildIdOverride->SetOnChangedCallback(FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* CVar) { Ta.Update(*CVar->GetString()); }));
 	}
 
 	return BuildId;
