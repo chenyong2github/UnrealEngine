@@ -81,6 +81,16 @@ namespace EpicGames.Core
 		public static EventId Engine_Localization { get; } = new EventId(304);
 
 		/// <summary>
+		/// Engine: appErrorf called
+		/// </summary>
+		public static EventId Engine_AppError { get; } = new EventId(305);
+
+		/// <summary>
+		/// Engine: Shader compiler output
+		/// </summary>
+		public static EventId Engine_ShaderCompiler { get; } = new EventId(310);
+
+		/// <summary>
 		/// UAT error
 		/// </summary>
 		public static EventId AutomationTool { get; } = new EventId(400);

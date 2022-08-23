@@ -15,6 +15,8 @@ namespace AutomationUtils.Matchers
 	{
 		static readonly Regex s_exitCodePattern = new Regex(@"ExitCode=(3|139|255)(?!\d)");
 
+		static readonly Regex s_appErrorPattern = new Regex(@"^\s*[A-Za-z]+: Error: appError called: ");
+
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
 			if (cursor.Contains("begin: stack for UAT"))
@@ -27,6 +29,11 @@ namespace AutomationUtils.Matchers
 						return builder.ToMatch(LogEventPriority.BelowNormal, GetLogLevel(cursor), KnownLogEvents.Engine_Crash);
 					}
 				}
+			}
+			if (cursor.IsMatch(s_appErrorPattern))
+			{
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				return builder.ToMatch(LogEventPriority.Normal, LogLevel.Error, KnownLogEvents.Engine_AppError);
 			}
 			if (cursor.Contains("AutomationTool: Stack:"))
 			{
