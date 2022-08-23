@@ -269,6 +269,7 @@ public:
 		Result.bDynamicRelevance = true;
 		Result.bShadowRelevance = IsShadowCast(View);
 		MaterialRelevance.SetPrimitiveViewRelevance(Result);
+		Result.bVelocityRelevance = DrawsVelocity() && Result.bOpaque && Result.bRenderInMainPass;
 		return Result;
 	}
 	virtual bool CanBeOccluded() const override { return !MaterialRelevance.bDisableDepthTest; }
