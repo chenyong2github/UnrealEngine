@@ -14,6 +14,7 @@ public:
 	virtual ~FConcertClientTransactionBridge();
 
 	//~ IConcertClientTransactionBridge interface
+	virtual void SetIncludeEditorOnlyProperties(const bool InIncludeEditorOnlyProperties) override;
 	virtual FOnConcertClientLocalTransactionSnapshot& OnLocalTransactionSnapshot() override;
 	virtual FOnConcertClientLocalTransactionFinalized& OnLocalTransactionFinalized() override;
 	virtual bool CanApplyRemoteTransaction() const override;

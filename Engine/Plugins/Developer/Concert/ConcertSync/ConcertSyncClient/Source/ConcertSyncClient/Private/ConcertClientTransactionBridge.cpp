@@ -470,6 +470,11 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 
 }	// namespace ConcertClientTransactionBridgeUtil
 
+TUniquePtr<IConcertClientTransactionBridge> IConcertClientTransactionBridge::NewInstance()
+{
+	return MakeUnique<FConcertClientTransactionBridge>();
+}
+
 FConcertClientTransactionBridge::FConcertClientTransactionBridge()
 	: bHasBoundUnderlyingLocalTransactionEvents(false)
 	, bIgnoreLocalTransactions(false)
@@ -503,6 +508,11 @@ FConcertClientTransactionBridge::~FConcertClientTransactionBridge()
 
 	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
 	FCoreDelegates::OnEndFrame.RemoveAll(this);
+}
+
+void FConcertClientTransactionBridge::SetIncludeEditorOnlyProperties(const bool InIncludeEditorOnlyProperties)
+{
+	bIncludeEditorOnlyProperties = InIncludeEditorOnlyProperties;
 }
 
 FOnConcertClientLocalTransactionSnapshot& FConcertClientTransactionBridge::OnLocalTransactionSnapshot()
