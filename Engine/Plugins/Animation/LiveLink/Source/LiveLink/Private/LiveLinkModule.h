@@ -33,7 +33,9 @@ public:
 
 	//~ Begin ILiveLinkModule interface
 	virtual FLiveLinkHeartbeatEmitter& GetHeartbeatEmitter() override { return *HeartbeatEmitter; }
+#if WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
 	virtual FLiveLinkMessageBusDiscoveryManager& GetMessageBusDiscoveryManager() override { return *DiscoveryManager; }
+#endif
 	virtual TSharedPtr<FSlateStyleSet> GetStyle() override { return StyleSet; }
 	//~ End ILiveLinkModule interface
 

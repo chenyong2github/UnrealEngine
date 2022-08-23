@@ -7,7 +7,9 @@
 #include "LiveLinkClient.h"
 #include "LiveLinkHeartbeatEmitter.h"
 #include "LiveLinkLog.h"
+#if WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
 #include "LiveLinkMessageBusDiscoveryManager.h"
+#endif
 #include "LiveLinkMessageBusSourceSettings.h"
 #include "LiveLinkMessages.h"
 #include "LiveLinkRoleTrait.h"
@@ -49,7 +51,9 @@ void FLiveLinkMessageBusSource::ReceiveClient(ILiveLinkClient* InClient, FGuid I
 	}
 	else
 	{
+#if WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
 		ILiveLinkModule::Get().GetMessageBusDiscoveryManager().AddDiscoveryMessageRequest();
+#endif
 		bIsValid = false;
 	}
 
@@ -60,6 +64,7 @@ void FLiveLinkMessageBusSource::Update()
 {
 	if (!ConnectionAddress.IsValid())
 	{
+#if WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
 		FLiveLinkMessageBusDiscoveryManager& DiscoveryManager = ILiveLinkModule::Get().GetMessageBusDiscoveryManager();
 		for (const FProviderPollResultPtr& Result : DiscoveryManager.GetDiscoveryResults())
 		{
@@ -74,6 +79,7 @@ void FLiveLinkMessageBusSource::Update()
 				break;
 			}
 		}
+#endif
 	}
 	else
 	{
@@ -296,11 +302,13 @@ void FLiveLinkMessageBusSource::SendConnectMessage()
 
 bool FLiveLinkMessageBusSource::RequestSourceShutdown()
 {
+#if WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
 	FLiveLinkMessageBusDiscoveryManager& DiscoveryManager = ILiveLinkModule::Get().GetMessageBusDiscoveryManager();
 	if (DiscoveryManager.IsRunning() && !ConnectionAddress.IsValid())
 	{
 		DiscoveryManager.RemoveDiscoveryMessageRequest();
 	}
+#endif
 
 	FLiveLinkHeartbeatEmitter& HeartbeatEmitter = ILiveLinkModule::Get().GetHeartbeatEmitter();
 	HeartbeatEmitter.StopHeartbeat(ConnectionAddress, MessageEndpoint);

@@ -6,6 +6,10 @@
 #include "Containers/Array.h"
 #include "Modules/ModuleManager.h"
 
+#ifndef WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
+#define WITH_LIVELINK_DISCOVERY_MANAGER_THREAD 1
+#endif
+
 class FLiveLinkHeartbeatEmitter;
 class FLiveLinkMessageBusDiscoveryManager;
 class FSlateStyleSet;
@@ -35,7 +39,9 @@ public:
 
 	virtual TSharedPtr<FSlateStyleSet> GetStyle() = 0;
 	virtual FLiveLinkHeartbeatEmitter& GetHeartbeatEmitter() = 0;
+#if WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
 	virtual FLiveLinkMessageBusDiscoveryManager& GetMessageBusDiscoveryManager() = 0;
+#endif
 
 public:
 

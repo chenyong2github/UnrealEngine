@@ -18,7 +18,9 @@ FLiveLinkModule::FLiveLinkModule()
 	: LiveLinkClient()
 	, LiveLinkMotionController(LiveLinkClient)
 	, HeartbeatEmitter(MakeUnique<FLiveLinkHeartbeatEmitter>())
+#if WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
 	, DiscoveryManager(MakeUnique<FLiveLinkMessageBusDiscoveryManager>())
+#endif
 	, LiveLinkDebugCommand(MakeUnique<FLiveLinkDebugCommand>(LiveLinkClient))
 {
 }
@@ -41,7 +43,9 @@ void FLiveLinkModule::ShutdownModule()
 	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
 
 	HeartbeatEmitter->Exit();
+#if WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
 	DiscoveryManager->Stop();
+#endif
 	LiveLinkMotionController.UnregisterController();
 
 	IModularFeatures::Get().UnregisterModularFeature(FLiveLinkClient::ModularFeatureName, &LiveLinkClient);

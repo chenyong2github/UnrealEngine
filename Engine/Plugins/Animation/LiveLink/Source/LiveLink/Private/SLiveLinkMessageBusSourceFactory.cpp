@@ -4,7 +4,9 @@
 
 #include "ILiveLinkClient.h"
 #include "ILiveLinkModule.h"
+#if WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
 #include "LiveLinkMessageBusDiscoveryManager.h"
+#endif
 #include "LiveLinkMessageBusFinder.h"
 #include "Widgets/Layout/SBox.h"
 
@@ -76,17 +78,21 @@ private:
 
 SLiveLinkMessageBusSourceFactory::~SLiveLinkMessageBusSourceFactory()
 {
+#if WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
 	if (ILiveLinkModule* ModulePtr = FModuleManager::GetModulePtr<ILiveLinkModule>("LiveLink"))
 	{
 		ModulePtr->GetMessageBusDiscoveryManager().RemoveDiscoveryMessageRequest();
 	}
+#endif
 }
 
 void SLiveLinkMessageBusSourceFactory::Construct(const FArguments& Args)
 {
 	OnSourceSelected = Args._OnSourceSelected;
 
+#if WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
 	ILiveLinkModule::Get().GetMessageBusDiscoveryManager().AddDiscoveryMessageRequest();
+#endif
 
 	ChildSlot
 	[
@@ -123,7 +129,9 @@ void SLiveLinkMessageBusSourceFactory::Tick(const FGeometry& AllottedGeometry, c
 	if (FApp::GetCurrentTime() - LastUIUpdateSeconds > 0.5)
 	{
 		PollData.Reset();
+#if WITH_LIVELINK_DISCOVERY_MANAGER_THREAD
 		PollData.Append(ILiveLinkModule::Get().GetMessageBusDiscoveryManager().GetDiscoveryResults());
+#endif
 		
 		Sources.RemoveAllSwap([this](TSharedPtr<FLiveLinkSource> Source)
 		{
