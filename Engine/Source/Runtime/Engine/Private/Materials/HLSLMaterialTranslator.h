@@ -54,6 +54,12 @@
 
 class Error;
 
+/**
+ * Returns whether the specified class of material expression is permitted.
+ * For instance, custom expressions are not permitted in certain UE editor configurations for client generated materials.
+ */
+bool IsExpressionClassPermitted(const UClass* const Class);
+
 #if WITH_EDITORONLY_DATA
 
 enum EMaterialExpressionVisitResult
@@ -514,6 +520,12 @@ protected:
 public:
 	// Must always be valid
 	virtual FString GetParameterCodeDeriv(int32 Index, ECompiledPartialDerivativeVariation Variation);
+
+	// Puts the translator into restrictive mode.
+	static void SetRestrictiveMode(bool bRestrictiveMode);
+	// Returns whether the material translator is in restrictive mode. If true, custom HLSL expressions are only allowed for cooked content.
+	static bool InRestrictiveMode();
+
 protected:
 
 	uint64 GetParameterHash(int32 Index);

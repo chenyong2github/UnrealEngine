@@ -24,6 +24,7 @@
 #include "Engine/Font.h"
 #include "MaterialShared.h"
 #include "MaterialExpressionIO.h"
+#include "Materials/HLSLMaterialTranslator.h"
 #include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionMaterialAttributeLayers.h"
@@ -311,6 +312,12 @@ bool Engine_IsStrataEnabled();
 /** Returns whether the given expression class is allowed. */
 bool IsAllowedExpressionType(const UClass* const Class, const bool bMaterialFunction)
 {
+	// Custom HLSL expressions are not allowed for client generated materials in certain UE editor configuration
+	if (!IsExpressionClassPermitted(Class))
+	{
+		return false;
+	}
+
 	static const auto AllowTextureArrayAssetCreationVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowTexture2DArrayCreation"));
 
 	// Exclude comments from the expression list, as well as the base parameter expression, as it should not be used directly

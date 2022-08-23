@@ -4,6 +4,26 @@
 =============================================================================*/
 #include "HLSLMaterialTranslator.h"
 #include "VT/VirtualTextureScalability.h"
+#include "Materials/MaterialExpressionCustom.h"
+#include "MaterialRestrictiveMode.h"
+
+bool IsExpressionClassPermitted(const UClass* const Class)
+{
+	if (Class)
+	{
+		if (Class == UMaterialExpressionCustom::StaticClass())
+		{
+			// If custom HLSL expressions are restricted, they can only be used in cooked content
+			return
+				Class->bCooked
+#if WITH_EDITORONLY_DATA
+				|| !FHLSLMaterialTranslator::InRestrictiveMode()
+#endif
+			;
+		}
+	}
+	return true;
+}
 
 #if WITH_EDITORONLY_DATA
 
@@ -2547,6 +2567,24 @@ FString FHLSLMaterialTranslator::GetParameterCodeRaw(int32 Index, const TCHAR* D
 		check(CodeChunk.SymbolName.Len() > 0);
 		return CodeChunk.SymbolName;
 	}
+}
+
+// Public interface for restrictive mode.
+void SetHLSLMaterialTranslatorRestrictiveMode(bool bRestrictiveMode)
+{
+	FHLSLMaterialTranslator::SetRestrictiveMode(bRestrictiveMode);
+}
+
+static bool GIsMaterialTranslatorInRestrictiveMode = false;
+
+void FHLSLMaterialTranslator::SetRestrictiveMode(bool bRestrictiveMode)
+{
+	GIsMaterialTranslatorInRestrictiveMode = bRestrictiveMode;
+}
+
+bool FHLSLMaterialTranslator::InRestrictiveMode()
+{
+	return GIsMaterialTranslatorInRestrictiveMode;
 }
 
 uint64 FHLSLMaterialTranslator::GetParameterHash(int32 Index)
@@ -11056,6 +11094,11 @@ int32 FHLSLMaterialTranslator::AccessMaterialAttribute(int32 CodeIndex, const FG
 
 int32 FHLSLMaterialTranslator::CustomExpression( class UMaterialExpressionCustom* Custom, int32 OutputIndex, TArray<int32>& CompiledInputs )
 {
+	if (!IsExpressionClassPermitted(Custom->GetClass()))
+	{
+		return Errorf(TEXT("Custom HLSL expressions are not permitted"));
+	}
+
 	const FMaterialCustomExpressionEntry* CustomEntry = nullptr;
 	for (const FMaterialCustomExpressionEntry& Entry : CustomExpressions)
 	{
