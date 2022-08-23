@@ -33,8 +33,13 @@ void UGizmoElementRectangle::Render(IToolsContextRenderAPI* RenderAPI, const FRe
 		}
 		if (bDrawLine)
 		{
+			check(RenderAPI);
+			const FSceneView* View = RenderAPI->GetSceneView();
+			check(View);
+			float CurrentLineThickness = GetCurrentLineThickness(View->IsPerspectiveProjection(), View->FOV);
+
 			FColor LineColor = CurrentRenderState.GetCurrentLineColor().ToFColor(false);
-			DrawRectangle(PDI, WorldCenter, WorldUpAxis, WorldSideAxis, LineColor, WorldWidth, WorldHeight, SDPG_Foreground, GetCurrentLineThickness());
+			DrawRectangle(PDI, WorldCenter, WorldUpAxis, WorldSideAxis, LineColor, WorldWidth, WorldHeight, SDPG_Foreground, CurrentLineThickness, 0.0, bScreenSpaceLine);
 		}
 	}
 }

@@ -19,8 +19,8 @@ class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementLineBase : public UGizmoElement
 	GENERATED_BODY()
 public:
 
-	// Get line thickness for based on current element interaction state
-	virtual float GetCurrentLineThickness() const;
+	// Get line thickness for based on current element interaction state and view
+	virtual float GetCurrentLineThickness(bool bPerspectiveView, float InViewFOV) const;
 
 	// Line thickness when rendering lines, 0.0 is valid and will render thinnest line 
 	virtual void SetLineThickness(float InLineThickness);
@@ -33,6 +33,10 @@ public:
 	// Multiplier applied to line thickness when interacting
 	virtual void SetInteractLineThicknessMultiplier(float InInteractLineThicknessMultiplier);
 	virtual float GetInteractLineThicknessMultiplier() const;
+
+	// Whether line thickness is in screen space 
+	virtual void SetScreenSpaceLine(bool bInScreenSpaceLine);
+	virtual bool GetScreenSpaceLine() const;
 
 	//
 	// Methods for managing line state attributes: LineColor, HoverLineColor, InteractLineColor
@@ -103,6 +107,10 @@ protected:
 	// Line thickness when rendering lines, must be >= 0.0, value of 0.0 will render thinnest line 
 	UPROPERTY()
 	float LineThickness = 0.0;
+
+	// Whether line thickness is in screen space
+	UPROPERTY()
+	bool bScreenSpaceLine = true;
 
 	// Multiplier applied to line thickness when hovering
 	UPROPERTY(EditAnywhere, Category = Options)

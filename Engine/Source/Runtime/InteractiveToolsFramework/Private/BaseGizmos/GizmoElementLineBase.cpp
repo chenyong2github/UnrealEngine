@@ -11,18 +11,29 @@ bool UGizmoElementLineBase::UpdateRenderState(IToolsContextRenderAPI* RenderAPI,
 	return Super::UpdateRenderState(RenderAPI, InLocalOrigin, InOutRenderState);
 }
 
-float UGizmoElementLineBase::GetCurrentLineThickness() const
+float UGizmoElementLineBase::GetCurrentLineThickness(bool bPerspectiveView, float InViewFOV) const
 {
+	float CurrentLineThickness;
+
 	if (ElementInteractionState == EGizmoElementInteractionState::Hovering)
 	{
-		return (LineThickness > 0.0f ? LineThickness * HoverLineThicknessMultiplier : HoverLineThicknessMultiplier);
+		CurrentLineThickness = (LineThickness > 0.0f ? LineThickness * HoverLineThicknessMultiplier : HoverLineThicknessMultiplier);
 	}
 	else if (ElementInteractionState == EGizmoElementInteractionState::Interacting)
 	{
-		return (LineThickness > 0.0f ? LineThickness * InteractLineThicknessMultiplier : InteractLineThicknessMultiplier);
+		CurrentLineThickness = (LineThickness > 0.0f ? LineThickness * InteractLineThicknessMultiplier : InteractLineThicknessMultiplier);
+	}
+	else
+	{
+		CurrentLineThickness = LineThickness;
 	}
 
-	return LineThickness;
+	if (bPerspectiveView)
+	{
+		CurrentLineThickness *= (InViewFOV / 90.0);		// compensate for FOV scaling in Gizmos...
+	}
+
+	return CurrentLineThickness;
 }
 
 void UGizmoElementLineBase::SetLineThickness(float InLineThickness)
@@ -61,6 +72,16 @@ void UGizmoElementLineBase::SetInteractLineThicknessMultiplier(float InInteractL
 float UGizmoElementLineBase::GetInteractLineThicknessMultiplier() const
 {
 	return InteractLineThicknessMultiplier;
+}
+
+void UGizmoElementLineBase::SetScreenSpaceLine(bool bInScreenSpaceLine)
+{
+	bScreenSpaceLine = bInScreenSpaceLine;
+}
+
+bool UGizmoElementLineBase::GetScreenSpaceLine() const
+{
+	return bScreenSpaceLine;
 }
 
 void UGizmoElementLineBase::SetLineColor(FLinearColor InLineColor, bool InOverridesChildState)

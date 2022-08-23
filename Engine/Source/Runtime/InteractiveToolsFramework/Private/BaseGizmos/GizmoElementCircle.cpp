@@ -36,7 +36,12 @@ void UGizmoElementCircle::Render(IToolsContextRenderAPI* RenderAPI, const FRende
 
 		if (bDrawLine)
 		{
-			DrawCircle(PDI, WorldCenter, WorldUpAxis, WorldSideAxis, CurrentRenderState.GetCurrentLineColor(), WorldRadius, NumSides, SDPG_Foreground, GetCurrentLineThickness());
+			check(RenderAPI);
+			const FSceneView* View = RenderAPI->GetSceneView();
+			check(View);
+			float CurrentLineThickness = GetCurrentLineThickness(View->IsPerspectiveProjection(), View->FOV);
+
+			DrawCircle(PDI, WorldCenter, WorldUpAxis, WorldSideAxis, CurrentRenderState.GetCurrentLineColor(), WorldRadius, NumSides, SDPG_Foreground, CurrentLineThickness, 0.0, bScreenSpaceLine);
 		}
 	}
 }
