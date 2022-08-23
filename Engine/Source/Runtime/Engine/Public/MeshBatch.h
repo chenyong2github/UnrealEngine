@@ -117,11 +117,14 @@ struct FMeshBatchDynamicPrimitiveData
 
 		if (PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA)
 		{
-#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
-			Total += 2;
-#else
-			Total += 3;
-#endif
+			if (FDataDrivenShaderPlatformInfo::GetSupportSceneDataCompressedTransforms(GMaxRHIShaderPlatform))
+			{
+				Total += 2;
+			}
+			else
+			{
+				Total += 3;
+			}
 		}
 
 		if (PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS)

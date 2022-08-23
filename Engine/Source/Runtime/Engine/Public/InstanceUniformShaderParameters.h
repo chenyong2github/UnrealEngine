@@ -36,8 +36,6 @@
 
 #define INVALID_LAST_UPDATE_FRAME 0xFFFFFFFFu
 
-#define INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS	1
-
 // TODO: Rename to FInstanceSceneData
 struct FPrimitiveInstance
 {
