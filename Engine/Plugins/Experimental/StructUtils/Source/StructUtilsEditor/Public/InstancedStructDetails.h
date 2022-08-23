@@ -79,7 +79,7 @@ private:
 	void SyncEditableInstanceFromSource(bool* OutStructMismatch = nullptr);
 
 	/** Outer objects at the time of PreChangeProperties */
-	TArray<FSoftObjectPtr> PreChangeOuterObjects;
+	TArray<FString> PreChangeOuterObjectNames;
 	
 	/** Handle to the struct property being edited */
 	TSharedPtr<IPropertyHandle> StructProperty;
