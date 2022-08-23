@@ -305,7 +305,10 @@ void FTransaction::FObjectRecord::Finalize( FTransaction* Owner, TSharedPtr<ITra
 			// have been tracking delta-changes between snapshots and this finalization will need to account for those changes too
 			if (DiffableObjectSnapshot)
 			{
-				UE::Transaction::DiffUtil::GenerateObjectDiff(*DiffableObjectSnapshot, CurrentDiffableObject, DeltaChange, /*bFullDiff*/false);
+				UE::Transaction::DiffUtil::FGenerateObjectDiffOptions DiffOptions;
+				DiffOptions.bFullDiff = false;
+
+				UE::Transaction::DiffUtil::GenerateObjectDiff(*DiffableObjectSnapshot, CurrentDiffableObject, DeltaChange, DiffOptions);
 			}
 		}
 
@@ -371,7 +374,12 @@ void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, TArrayView<cons
 		// Diff against the correct serialized data depending on whether we already had a snapshot
 		const UE::Transaction::FDiffableObject& InitialDiffableObject = DiffableObjectSnapshot ? *DiffableObjectSnapshot : *DiffableObject;
 		FTransactionObjectDeltaChange SnapshotDeltaChange;
-		UE::Transaction::DiffUtil::GenerateObjectDiff(InitialDiffableObject, CurrentDiffableObject, SnapshotDeltaChange, /*bFullDiff*/false);
+		{
+			UE::Transaction::DiffUtil::FGenerateObjectDiffOptions DiffOptions;
+			DiffOptions.bFullDiff = false;
+
+			UE::Transaction::DiffUtil::GenerateObjectDiff(InitialDiffableObject, CurrentDiffableObject, SnapshotDeltaChange, DiffOptions);
+		}
 
 		// Update the snapshot data for next time
 		if (!DiffableObjectSnapshot)

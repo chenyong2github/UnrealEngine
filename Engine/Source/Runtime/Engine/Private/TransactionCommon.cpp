@@ -468,14 +468,14 @@ FDiffableObject GetDiffableObject(const UObject* Object, const EGetDiffableObjec
 	return DiffableObject;
 }
 
-FTransactionObjectDeltaChange GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, const bool bFullDiff)
+FTransactionObjectDeltaChange GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, const FGenerateObjectDiffOptions& DiffOptions)
 {
 	FTransactionObjectDeltaChange DeltaChange;
-	GenerateObjectDiff(OldDiffableObject, NewDiffableObject, DeltaChange, bFullDiff);
+	GenerateObjectDiff(OldDiffableObject, NewDiffableObject, DeltaChange, DiffOptions);
 	return DeltaChange;
 }
 
-void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const bool bFullDiff)
+void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const FGenerateObjectDiffOptions& DiffOptions)
 {
 	auto IsTaggedDataBlockIdentical = [&OldDiffableObject, &NewDiffableObject, &OutDeltaChange](const FName TaggedDataKey, const FSerializedTaggedData& OldSerializedTaggedData, const FSerializedTaggedData& NewSerializedTaggedData) -> bool
 	{
@@ -488,11 +488,16 @@ void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffabl
 		return bIsTaggedDataIdentical;
 	};
 
-	auto ShouldCompareTaggedData = [](const FName TaggedDataKey) -> bool
+	auto ShouldCompareTaggedData = [&DiffOptions](const FName TaggedDataKey) -> bool
 	{
 		if (TaggedDataKey.GetComparisonIndex() == TaggedDataKey_ScriptData.GetComparisonIndex())
 		{
 			// Never compare script data, as it's assumed to be overhead around the tagged property serialization
+			return false;
+		}
+
+		if (DiffOptions.ShouldSkipProperty && DiffOptions.ShouldSkipProperty(TaggedDataKey))
+		{
 			return false;
 		}
 
@@ -504,7 +509,7 @@ void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffabl
 		return TaggedDataKey.GetComparisonIndex() == TaggedDataKey_UnknownData.GetComparisonIndex();
 	};
 
-	if (bFullDiff)
+	if (DiffOptions.bFullDiff)
 	{
 		OutDeltaChange.bHasNameChange |= OldDiffableObject.ObjectInfo.ObjectName != NewDiffableObject.ObjectInfo.ObjectName;
 		OutDeltaChange.bHasOuterChange |= OldDiffableObject.ObjectInfo.ObjectOuterPathName != NewDiffableObject.ObjectInfo.ObjectOuterPathName;
@@ -522,7 +527,7 @@ void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffabl
 		const FSerializedTaggedData* OldSerializedTaggedData = OldDiffableObject.SerializedTaggedData.Find(NewNamePropertyPair.Key);
 		if (ShouldCompareAsNonPropertyData(NewNamePropertyPair.Key))
 		{
-			if (bFullDiff && !OutDeltaChange.bHasNonPropertyChanges && (!OldSerializedTaggedData || !IsTaggedDataBlockIdentical(NewNamePropertyPair.Key, *OldSerializedTaggedData, NewNamePropertyPair.Value)))
+			if (DiffOptions.bFullDiff && !OutDeltaChange.bHasNonPropertyChanges && (!OldSerializedTaggedData || !IsTaggedDataBlockIdentical(NewNamePropertyPair.Key, *OldSerializedTaggedData, NewNamePropertyPair.Value)))
 			{
 				OutDeltaChange.bHasNonPropertyChanges = true;
 			}
@@ -534,14 +539,14 @@ void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffabl
 				OutDeltaChange.ChangedProperties.AddUnique(NewNamePropertyPair.Key);
 			}
 		}
-		else if (bFullDiff)
+		else if (DiffOptions.bFullDiff)
 		{
 			// Missing property, assume that the property changed
 			OutDeltaChange.ChangedProperties.AddUnique(NewNamePropertyPair.Key);
 		}
 	}
 
-	if (bFullDiff)
+	if (DiffOptions.bFullDiff)
 	{
 		for (const TPair<FName, FSerializedTaggedData>& OldNamePropertyPair : OldDiffableObject.SerializedTaggedData)
 		{
