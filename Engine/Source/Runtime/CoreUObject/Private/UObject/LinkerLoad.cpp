@@ -1066,7 +1066,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 			FAsyncArchive* AsyncArchive = new FAsyncArchive(GetPackagePath(), this,
 				GEventDrivenLoaderEnabled ? Forward<TFunction<void()>>(InSummaryReadyCallback) : TFunction<void()>([]() {}));
 			Loader = AsyncArchive; // We're only allowed to delete any FAsyncArchive with this->DestroyLoader
-			bLoaderNeedsEngineVersionChecks = AsyncArchive->NeedsEngineVersionChecks();
+			bLoaderNeedsEngineVersionChecks = !(LoadFlags & LOAD_DisableEngineVersionChecks) && AsyncArchive->NeedsEngineVersionChecks();
 			if (AsyncArchive->IsError())
 			{
 				bool bRetryWithNormalArchive = AsyncArchive->GetLoadError() == FAsyncArchive::ELoadError::UnsupportedFormat;
@@ -1093,7 +1093,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 				OpenResult = IPackageResourceManager::Get().OpenReadPackage(GetPackagePath());
 			}
 			Loader = OpenResult.Archive.Release();
-			bLoaderNeedsEngineVersionChecks = OpenResult.bNeedsEngineVersionChecks;
+			bLoaderNeedsEngineVersionChecks = !(LoadFlags & LOAD_DisableEngineVersionChecks) && OpenResult.bNeedsEngineVersionChecks;
 			if (!Loader || Loader->IsError())
 			{
 				if (Loader)

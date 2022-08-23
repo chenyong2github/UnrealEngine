@@ -78,6 +78,7 @@ enum ELoadFlags
 	LOAD_DeferDependencyLoads       = 0x00100000,   ///< Do not load external (blueprint) dependencies (instead, track them for deferred loading)
 	LOAD_ForFileDiff				= 0x00200000,	///< Load the package (not for diffing in the editor), instead verify at the two packages serialized output are the same, if they are not then debug break so that you can get the callstack and object information
 	LOAD_DisableCompileOnLoad		= 0x00400000,	///< Prevent this load call from running compile on load for the loaded blueprint (intentionally not recursive, dependencies will still compile on load)
+	LOAD_DisableEngineVersionChecks = 0x00800000,   ///< Prevent this load call from running engine version checks
 };
 
 /** Flags for saving objects/packages, passed into UPackage::SavePackage() as a uint32 */
