@@ -94,8 +94,8 @@ private:
 
 		void AddDisplacedMesh(UNaniteDisplacedMesh* Mesh, TSet<UObject*>&& AssetsToTrack);
 
-		const TSet<UNaniteDisplacedMesh*>* GetMeshesThatUseAsset(UObject* Object);
-		const TSet<UNaniteDisplacedMesh*>* GetMeshesThatUseAsset(UObject* Object, uint32 Hash);
+		const TArray<UNaniteDisplacedMesh*> GetMeshesThatUseAsset(UObject* Object);
+		const TArray<UNaniteDisplacedMesh*> GetMeshesThatUseAsset(UObject* Object, uint32 Hash);
 
 		void ReplaceObject(UObject* OldObject, UObject* NewObject);
 	private:
@@ -104,8 +104,6 @@ private:
 	};
 
 	FBidirectionalAssetsAndDisplacementMeshMap MeshesAndAssetsReimportTracking;
-
-	bool bIsNotifyingDisplacedMeshesOfAssetChange = false;
 
 	FDelegateHandle OnPreEditChangeHandle;
 	FDelegateHandle OnPostEditChangeHandle;

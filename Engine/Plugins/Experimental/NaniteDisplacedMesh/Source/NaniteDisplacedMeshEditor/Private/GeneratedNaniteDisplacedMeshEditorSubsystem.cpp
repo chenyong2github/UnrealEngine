@@ -446,20 +446,16 @@ bool UGeneratedNaniteDisplacedMeshEditorSubsystem::ShouldCallback(UClass* AssetC
 
 void UGeneratedNaniteDisplacedMeshEditorSubsystem::UpdateDisplacedMeshesDueToAssetChanges(UObject* Asset)
 {
-	TGuardValue(bIsNotifyingDisplacedMeshesOfAssetChange, true);
-
 	if (IsValid(Asset))
 	{
-		if (const TSet<UNaniteDisplacedMesh*>* Meshes =  MeshesAndAssetsReimportTracking.GetMeshesThatUseAsset(Asset))
+		const TArray<UNaniteDisplacedMesh*> Meshes =  MeshesAndAssetsReimportTracking.GetMeshesThatUseAsset(Asset);
+		for (UNaniteDisplacedMesh* Mesh : Meshes)
 		{
-			for (UNaniteDisplacedMesh* Mesh : *Meshes)
+			if (IsValid(Mesh))
 			{
-				if (IsValid(Mesh))
-				{
-					// Kick the asset build
-					Mesh->PreEditChange(nullptr);
-					Mesh->PostEditChange();
-				}
+				// Kick the asset build
+				Mesh->PreEditChange(nullptr);
+				Mesh->PostEditChange();
 			}
 		}
 	}
@@ -467,42 +463,38 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::UpdateDisplacedMeshesDueToAss
 
 void UGeneratedNaniteDisplacedMeshEditorSubsystem::UpdateDisplacementMeshToAssets(UNaniteDisplacedMesh* DisplacementMesh)
 {
-	// If this called because of a reimport/update notification, there is no need to update the dependencies here because they didn't change.
-	if (!bIsNotifyingDisplacedMeshesOfAssetChange)
+	const FNaniteDisplacedMeshParams& Params = DisplacementMesh->Parameters;
+
+	TSet<UObject*> AssetsToTrack;
+	AssetsToTrack.Reserve(1 + Params.DisplacementMaps.Num());
+
+	if (IsValid(Params.BaseMesh))
 	{
-		const FNaniteDisplacedMeshParams& Params = DisplacementMesh->Parameters;
+		AssetsToTrack.Add(Params.BaseMesh);
+	}
+	else
+	{
+		// No need to track change for a displaced mesh without a mesh
+		MeshesAndAssetsReimportTracking.RemoveDisplacedMesh(DisplacementMesh);
+		return;
+	}
 
-		TSet<UObject*> AssetsToTrack;
-		AssetsToTrack.Reserve(1 + Params.DisplacementMaps.Num());
+	for (const FNaniteDisplacedMeshDisplacementMap& DisplacementMap : Params.DisplacementMaps)
+	{
+		if (!FMath::IsNearlyZero(DisplacementMap.Magnitude) && DisplacementMap.Texture)
+		{
+			AssetsToTrack.Add(DisplacementMap.Texture);
+		}
+	}
 
-		if (IsValid(Params.BaseMesh))
-		{
-			AssetsToTrack.Add(Params.BaseMesh);
-		}
-		else
-		{
-			// No need to track change for a displaced mesh without a mesh
-			MeshesAndAssetsReimportTracking.RemoveDisplacedMesh(DisplacementMesh);
-			return;
-		}
-
-		for (const FNaniteDisplacedMeshDisplacementMap& DisplacementMap : Params.DisplacementMaps)
-		{
-			if (!FMath::IsNearlyZero(DisplacementMap.Magnitude) && DisplacementMap.Texture)
-			{
-				AssetsToTrack.Add(DisplacementMap.Texture);
-			}
-		}
-
-		// We need at least a mesh and a texture with some magnitude for the displacement mesh to do something
-		if (AssetsToTrack.Num() > 1)
-		{
-			MeshesAndAssetsReimportTracking.AddDisplacedMesh(DisplacementMesh, MoveTemp(AssetsToTrack));
-		}
-		else
-		{
-			MeshesAndAssetsReimportTracking.RemoveDisplacedMesh(DisplacementMesh);
-		}
+	// We need at least a mesh and a texture with some magnitude for the displacement mesh to do something
+	if (AssetsToTrack.Num() > 1)
+	{
+		MeshesAndAssetsReimportTracking.AddDisplacedMesh(DisplacementMesh, MoveTemp(AssetsToTrack));
+	}
+	else
+	{
+		MeshesAndAssetsReimportTracking.RemoveDisplacedMesh(DisplacementMesh);
 	}
 }
 
@@ -510,18 +502,16 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::WaitForDependentDisplacedMesh
 {
 	if (IsValid(AssetAboutToChange))
 	{
-		if (const TSet<UNaniteDisplacedMesh*>* Meshes = MeshesAndAssetsReimportTracking.GetMeshesThatUseAsset(AssetAboutToChange))
+		const TArray<UNaniteDisplacedMesh*> Meshes = MeshesAndAssetsReimportTracking.GetMeshesThatUseAsset(AssetAboutToChange);
+		for (UNaniteDisplacedMesh* Mesh : Meshes)
 		{
-			for (UNaniteDisplacedMesh* Mesh : *Meshes)
+			if (IsValid(Mesh))
 			{
-				if (IsValid(Mesh))
+				if (Mesh->IsCompiling())
 				{
-					if (Mesh->IsCompiling())
-					{
-						// Todo turn that into a proper log
-						GWarn->Logf(ELogVerbosity::Log, TEXT("Staling the game thread while waiting for NaniteDisplacedMesh (%s) to finish compiling."), *(Mesh->GetPathName()));
-						Mesh->FinishAsyncTasks();
-					}
+					// Todo turn that into a proper log
+					GWarn->Logf(ELogVerbosity::Log, TEXT("Staling the game thread while waiting for NaniteDisplacedMesh (%s) to finish compiling."), *(Mesh->GetPathName()));
+					Mesh->FinishAsyncTasks();
 				}
 			}
 		}
@@ -628,14 +618,19 @@ void UGeneratedNaniteDisplacedMeshEditorSubsystem::FBidirectionalAssetsAndDispla
 	MeshToAssets.AddByHash(MeshHash, Mesh, MoveTemp(AssetsToTrack));
 }
 
-const TSet<UNaniteDisplacedMesh*>* UGeneratedNaniteDisplacedMeshEditorSubsystem::FBidirectionalAssetsAndDisplacementMeshMap::GetMeshesThatUseAsset(UObject* Object)
+const TArray<UNaniteDisplacedMesh*> UGeneratedNaniteDisplacedMeshEditorSubsystem::FBidirectionalAssetsAndDisplacementMeshMap::GetMeshesThatUseAsset(UObject* Object)
 {
 	return GetMeshesThatUseAsset(Object, GetTypeHash(Object));
 }
 
-const TSet<UNaniteDisplacedMesh*>* UGeneratedNaniteDisplacedMeshEditorSubsystem::FBidirectionalAssetsAndDisplacementMeshMap::GetMeshesThatUseAsset(UObject* Object, uint32 Hash)
+const TArray<UNaniteDisplacedMesh*> UGeneratedNaniteDisplacedMeshEditorSubsystem::FBidirectionalAssetsAndDisplacementMeshMap::GetMeshesThatUseAsset(UObject* Object, uint32 Hash)
 {
-	return AssetToMeshes.FindByHash(Hash, Object);
+	if (TSet<UNaniteDisplacedMesh*>* DisplacedMeshes = AssetToMeshes.FindByHash(Hash, Object))
+	{
+		return DisplacedMeshes->Array();
+	}
+
+	return {};
 }
 
 void UGeneratedNaniteDisplacedMeshEditorSubsystem::FBidirectionalAssetsAndDisplacementMeshMap::ReplaceObject(UObject* OldObject, UObject* NewObject)
