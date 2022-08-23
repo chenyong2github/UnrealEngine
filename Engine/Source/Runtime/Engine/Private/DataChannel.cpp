@@ -3196,8 +3196,6 @@ int64 UActorChannel::ReplicateActor()
 #endif
 
 	const bool bReplay = Connection->IsReplay();
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(ReplicateActor, !bReplay);
-
 	const bool bEnableScopedCycleCounter = !bReplay && GReplicateActorTimingEnabled;
 	FSimpleScopeSecondsCounter ScopedSecondsCounter(GReplicateActorTimeSeconds, bEnableScopedCycleCounter);
 

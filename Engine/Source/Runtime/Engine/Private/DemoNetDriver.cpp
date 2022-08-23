@@ -2138,6 +2138,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Replay actor replication time"), STAT_ReplayReplicateActors, STATGROUP_Net);
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ReplayReplicateActors);
 
 		if (HasLevelStreamingFixes())
 		{
