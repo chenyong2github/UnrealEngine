@@ -355,6 +355,7 @@ public class Engine : ModuleRules
 			);
 
 			PrivateDependencyModuleNames.Add("DerivedDataCache");
+			PrivateDependencyModuleNames.Add("TextureCompressor");
 
 			PrivateIncludePathModuleNames.Add("TextureCompressor");
 			PrivateIncludePaths.Add("Developer/TextureCompressor/Public");

@@ -3138,6 +3138,12 @@ static TAutoConsoleVariable<float> CVarSkeletalMeshLODRadiusScale(
 	TEXT("Scale factor for the screen radius used in computing discrete LOD for skeletal meshes. (0.25-1)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarSharedLinearTextureEncoding(
+	TEXT("r.SharedLinearTextureEncoding"),
+	1,
+	TEXT("If set to 1, textures for platforms that tile will reuse a host linear texture instead of reencoding."),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarPreTileTextures(
 	TEXT("r.PreTileTextures"),
 	1,

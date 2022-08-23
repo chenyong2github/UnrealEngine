@@ -828,18 +828,19 @@ struct FTexturePlatformData
 
 	struct FStructuredDerivedDataKey
 	{
+		FIoHash TilingBuildDefinitionKey; // All zeroes if the derived data didn't have a child build.
 		FIoHash BuildDefinitionKey;
 		FGuid SourceGuid;
 		FGuid CompositeSourceGuid;
 
 		bool operator==(const FStructuredDerivedDataKey& Other) const
 		{
-			return BuildDefinitionKey == Other.BuildDefinitionKey && SourceGuid == Other.SourceGuid && CompositeSourceGuid == Other.CompositeSourceGuid;
+			return TilingBuildDefinitionKey == Other.TilingBuildDefinitionKey && BuildDefinitionKey == Other.BuildDefinitionKey && SourceGuid == Other.SourceGuid && CompositeSourceGuid == Other.CompositeSourceGuid;
 		}
 
 		bool operator!=(const FStructuredDerivedDataKey& Other) const
 		{
-			return BuildDefinitionKey != Other.BuildDefinitionKey || SourceGuid != Other.SourceGuid || CompositeSourceGuid != Other.CompositeSourceGuid;
+			return TilingBuildDefinitionKey != Other.TilingBuildDefinitionKey || BuildDefinitionKey != Other.BuildDefinitionKey || SourceGuid != Other.SourceGuid || CompositeSourceGuid != Other.CompositeSourceGuid;
 		}
 	};
 
@@ -902,6 +903,12 @@ public:
 	 */
 	void SerializeCooked(FArchive& Ar, class UTexture* Owner, bool bStreamable);
 	
+	
+	inline void SetPackedData(int32 InNumSlices, bool bInHasOptData, bool bInCubeMap)
+	{
+		PackedData = (InNumSlices & BitMask_NumSlices) | (bInCubeMap ? BitMask_CubeMap : 0) | (bInHasOptData ? BitMask_HasOptData : 0);
+	}
+
 	inline bool GetHasOptData() const
 	{
 		return (PackedData & BitMask_HasOptData) == BitMask_HasOptData;
@@ -947,7 +954,6 @@ public:
 	}
 
 #if WITH_EDITOR
-	static bool IsUsingNewDerivedData();
 	bool IsAsyncWorkComplete() const;
 
 	// Compresses the texture using the given compressor and adds the result to the DDC.

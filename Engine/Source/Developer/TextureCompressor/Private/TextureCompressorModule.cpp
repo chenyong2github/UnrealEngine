@@ -2,6 +2,7 @@
 
 #include "TextureCompressorModule.h"
 #include "Math/RandomStream.h"
+#include "ChildTextureFormat.h"
 #include "Containers/IndirectArray.h"
 #include "Stats/Stats.h"
 #include "Async/AsyncWork.h"
@@ -1261,7 +1262,40 @@ struct FTextureDownscaleSettings
 	float Downscale;
 	uint8 DownscaleOptions;
 	bool UseNewMipFilter;
+
+	FTextureDownscaleSettings(const FTextureBuildSettings& BuildSettings)
+	{
+		Downscale = BuildSettings.Downscale;
+		DownscaleOptions = BuildSettings.DownscaleOptions;
+		BlockSize = 4;
+		UseNewMipFilter = BuildSettings.bUseNewMipFilter;
+	}
 };
+
+static float GetDownscaleFinalSizeAndClampedDownscale(int32 SrcImageWidth, int32 SrcImageHeight,  const FTextureDownscaleSettings& Settings, int32& OutWidth, int32& OutHeight)
+{
+	check(Settings.Downscale > 1.0f); // must be already handled.
+	float Downscale = FMath::Clamp(Settings.Downscale, 1.f, 8.f);
+	// note: more accurate would be to use FMath::Max(1, FMath::RoundToInt(SrcImage.SizeX / Downscale))
+	int32 FinalSizeX = FMath::CeilToInt(SrcImageWidth / Downscale);
+	int32 FinalSizeY = FMath::CeilToInt(SrcImageHeight / Downscale);
+
+	// compute final size respecting image block size
+	if (Settings.BlockSize > 1
+		&& SrcImageWidth % Settings.BlockSize == 0
+		&& SrcImageHeight % Settings.BlockSize == 0)
+	{
+		// the following code finds non-zero dimensions of the scaled image which preserve both aspect ratio and block alignment, and are also the closest to the requested dimensions
+		int32 ScalingGridSizeX = SrcImageWidth / FMath::GreatestCommonDivisor(SrcImageWidth, SrcImageHeight) * Settings.BlockSize;
+		// note: more accurate would be to use (SrcImage.SizeX / Downscale) instead of FinalSizeX here
+		FinalSizeX = FMath::Max(ScalingGridSizeX, FMath::GridSnap(FinalSizeX, ScalingGridSizeX));
+		FinalSizeY = (int64)FinalSizeX * SrcImageHeight / SrcImageWidth;
+	}
+
+	OutWidth = FinalSizeX;
+	OutHeight = FinalSizeY;
+	return Downscale;
+}
 
 static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FTextureDownscaleSettings& Settings)
 {
@@ -1272,22 +1306,8 @@ static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FText
 	
 	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.DownscaleImage);
 
-	float Downscale = FMath::Clamp(Settings.Downscale, 1.f, 8.f);
-	// note: more accurate would be to use FMath::Max(1, FMath::RoundToInt(SrcImage.SizeX / Downscale))
-	int32 FinalSizeX = FMath::CeilToInt(SrcImage.SizeX / Downscale);
-	int32 FinalSizeY = FMath::CeilToInt(SrcImage.SizeY / Downscale);
-
-	// compute final size respecting image block size
-	if (Settings.BlockSize > 1
-		&& SrcImage.SizeX % Settings.BlockSize == 0 
-		&& SrcImage.SizeY % Settings.BlockSize == 0)
-	{
-		// the following code finds non-zero dimensions of the scaled image which preserve both aspect ratio and block alignment, and are also the closest to the requested dimensions
-		int32 ScalingGridSizeX = SrcImage.SizeX / FMath::GreatestCommonDivisor(SrcImage.SizeX, SrcImage.SizeY) * Settings.BlockSize;
-		// note: more accurate would be to use (SrcImage.SizeX / Downscale) instead of FinalSizeX here
-		FinalSizeX = FMath::Max(ScalingGridSizeX, FMath::GridSnap(FinalSizeX, ScalingGridSizeX));
-		FinalSizeY = (int64)FinalSizeX * SrcImage.SizeY / SrcImage.SizeX;
-	}
+	int32 FinalSizeX = 0, FinalSizeY =0;
+	float Downscale = GetDownscaleFinalSizeAndClampedDownscale(SrcImage.SizeX, SrcImage.SizeY, Settings, FinalSizeX, FinalSizeY);
 
 	Downscale = (float)SrcImage.SizeX / FinalSizeX;
 		
@@ -2773,7 +2793,7 @@ static void ApplyCompositeTexture(FImage& RoughnessSourceMips, const FImage& Nor
 	Image Compression.
 ------------------------------------------------------------------------------*/
 
-void FTextureBuildSettings::GetEncodedTextureDescription(FEncodedTextureDescription* OutTextureDescription, const ITextureFormat* InTextureFormat, int32 InMipCount, bool bInImageHasAlphaChannel) const
+void FTextureBuildSettings::GetEncodedTextureDescription(FEncodedTextureDescription* OutTextureDescription, const ITextureFormat* InTextureFormat, int32 InEncodedMip0SizeX, int32 InEncodedMip0SizeY, int32 InEncodedMip0NumSlices, int32 InMipCount, bool bInImageHasAlphaChannel) const
 {
 	FEncodedTextureDescription& TextureDescription = *OutTextureDescription;
 	TextureDescription = FEncodedTextureDescription();
@@ -2782,10 +2802,25 @@ void FTextureBuildSettings::GetEncodedTextureDescription(FEncodedTextureDescript
 	TextureDescription.bVolumeTexture = bVolume;
 	TextureDescription.NumMips = InMipCount;
 	TextureDescription.PixelFormat = InTextureFormat->GetEncodedPixelFormat(*this, bInImageHasAlphaChannel);
-	TextureDescription.TopMipSizeX = TopMipSize.X;
-	TextureDescription.TopMipSizeY = TopMipSize.Y;
-	TextureDescription.TopMipVolumeSizeZ = VolumeSizeZ;
-	TextureDescription.ArraySlices = ArraySlices;
+
+	TextureDescription.TopMipSizeX = InEncodedMip0SizeX;
+	TextureDescription.TopMipSizeY = InEncodedMip0SizeY;
+	TextureDescription.TopMipVolumeSizeZ = bVolume ? InEncodedMip0NumSlices : 1;
+	if (bTextureArray)
+	{
+		if (bCubemap)
+		{
+			TextureDescription.ArraySlices = InEncodedMip0NumSlices / 6;
+		}
+		else
+		{
+			TextureDescription.ArraySlices = InEncodedMip0NumSlices;
+		}
+	}
+	else
+	{
+		TextureDescription.ArraySlices = 1;
+	}
 }
 
 // compress mip-maps in InMipChain and add mips to Texture, might alter the source content
@@ -2805,10 +2840,9 @@ static bool CompressMipChain(
 	// Determine ExtData (platform specific data) and NumMipsInTail.
 	// ExtData gets passed 
 	FEncodedTextureExtendedData ExtendedData;
+	FEncodedTextureDescription TextureDescription;
+	Settings.GetEncodedTextureDescription(&TextureDescription, TextureFormat, MipChain[0].SizeX, MipChain[0].SizeY, MipChain[0].NumSlices, MipChain.Num(), bImageHasAlphaChannel);
 	{
-		FEncodedTextureDescription TextureDescription;
-		Settings.GetEncodedTextureDescription(&TextureDescription, TextureFormat, MipChain.Num(), bImageHasAlphaChannel);
-
 		ExtendedData = TextureFormat->GetExtendedDataForTexture(TextureDescription);
 		OutNumMipsInTail = ExtendedData.NumMipsInTail;
 		OutExtData = ExtendedData.ExtData;
@@ -2907,6 +2941,7 @@ static bool CompressMipChain(
 		bCompressionSucceeded = ProcessMips(0, FirstMipTailIndex + 1);
 	}
 
+	// Fill out the dimensions for the packed mip tail, should we have one
 	for (int32 MipIndex = FirstMipTailIndex + 1; MipIndex < MipCount; ++MipIndex)
 	{
 		FCompressedImage2D& PrevMip = OutMips[MipIndex - 1];
@@ -2953,7 +2988,7 @@ static void NormalizeMip(FImage& InOutMip)
 
 
 // Special case for TMGS_LeaveExistingMips
-static int32 GetMipCountForLeaveExistingMips(int32 InMip0SizeX, int32 InMip0SizeY, int32 InExistingMipCount, uint32 InMaxTexture2DResolution)
+static int32 GetMipCountForLeaveExistingMips(int32 InMip0SizeX, int32 InMip0SizeY, int32 InExistingMipCount, uint32 InMaxTexture2DResolution, int32& OutMip0SizeX, int32& OutMip0SizeY)
 {
 	int32 i = 0;
 	for (; i < InExistingMipCount; i++)
@@ -2964,6 +2999,8 @@ static int32 GetMipCountForLeaveExistingMips(int32 InMip0SizeX, int32 InMip0Size
 		if (MipSizeX <= InMaxTexture2DResolution &&
 			MipSizeY <= InMaxTexture2DResolution)
 		{
+			OutMip0SizeX = MipSizeX;
+			OutMip0SizeY = MipSizeY;
 			return InExistingMipCount - i;
 		}
 	}
@@ -3034,16 +3071,17 @@ public:
 	{
 	}
 
-	virtual int32 GetMipCountForBuildSettings(int32 InMip0SizeX, int32 InMip0SizeY, int32 InMip0NumSlices, int32 InExistingMipCount, const FTextureBuildSettings& BuildSettings) const override
+	virtual int32 GetMipCountForBuildSettings(
+		int32 InMip0SizeX, int32 InMip0SizeY, int32 InMip0NumSlices, 
+		int32 InExistingMipCount, 
+		const FTextureBuildSettings& BuildSettings, 
+		int32& OutMip0SizeX, int32& OutMip0SizeY, int32& OutMip0NumSlices) const override
 	{
 		if (BuildSettings.MipGenSettings == TMGS_LeaveExistingMips)
 		{
 			// Since we can't generate, we only have to limit to MaxTextureSize
-			return GetMipCountForLeaveExistingMips(InMip0SizeX, InMip0SizeY, InExistingMipCount, BuildSettings.MaxTextureResolution);
-		}
-		else if (BuildSettings.MipGenSettings == TMGS_NoMipmaps)
-		{
-			return 1;
+			OutMip0NumSlices = InMip0NumSlices; // At the moment, when importing a volume texture, only the 2d dimensions are checked against max resolution.
+			return GetMipCountForLeaveExistingMips(InMip0SizeX, InMip0SizeY, InExistingMipCount, BuildSettings.MaxTextureResolution, OutMip0SizeX, OutMip0SizeY);
 		}
 
 		// AFAICT LatLongCubeMaps don't do any of this - pow2 is broken with them but it runs, and max texture stuff
@@ -3097,19 +3135,52 @@ public:
 					break;
 				}
 			}
+
+			if (BuildSettings.Downscale > 1.0f)
+			{
+				int32 DownscaledSizeX = 0, DownscaledSizeY = 0;
+				GetDownscaleFinalSizeAndClampedDownscale(BaseSizeX, BaseSizeY, FTextureDownscaleSettings(BuildSettings), DownscaledSizeX, DownscaledSizeY);
+
+				if (BuildSettings.bVolume)
+				{
+					UE_LOG(LogTextureCompressor, Error, TEXT("Downscaling volumes not yet supported - should have been handled in GetTextureBuildSettings!"));
+				}
+				check(BuildSettings.bVolume == false);
+
+				BaseSizeX = DownscaledSizeX;
+				BaseSizeY = DownscaledSizeY;
+			}
+
+			// Volumes are the only thing where num slices changes.
+			if (BuildSettings.bVolume == false)
+			{
+				OutMip0NumSlices = InMip0NumSlices;
+			}
+			else
+			{
+				OutMip0NumSlices = BaseSizeZ;
+			}
+		}
+		else
+		{
+			uint32 LongLatCubemapExtents = ComputeLongLatCubemapExtents(BaseSizeX, BuildSettings.MaxTextureResolution);
+			BaseSizeX = LongLatCubemapExtents;
+			BaseSizeY = LongLatCubemapExtents;
+			OutMip0NumSlices = 6;
 		}
 
 		// At this point we have a base mip size that is valid.
+		OutMip0SizeX = BaseSizeX;
+		OutMip0SizeY = BaseSizeY;
 
-		// Relevant BuildSettings.MipGenSettings have been handled at top of function.
+		if (BuildSettings.MipGenSettings == TMGS_NoMipmaps)
+		{
+			return 1;
+		}
 
 		// NumOutputMips is the number of mips that would be made if you made a full mip chain
 		//  eg. 256 makes 9 mips , 300 also makes 9 mips
 		uint32 MaxMipDimension = FMath::Max3(BaseSizeX, BaseSizeY, BaseSizeZ);
-		if (BuildSettings.bLongLatSource)
-		{
-			MaxMipDimension = ComputeLongLatCubemapExtents(BaseSizeX, BuildSettings.MaxTextureResolution);
-		}
 		return 1 + FMath::FloorLog2(MaxMipDimension);
 	}
 
@@ -3120,9 +3191,10 @@ public:
 		FStringView DebugTexturePathName,
 		TArray<FCompressedImage2D>& OutTextureMips,
 		uint32& OutNumMipsInTail,
-		uint32& OutExtData
+		uint32& OutExtData,
+		bool* bOutImageHasAlpha
 	)
-	{
+	{		
 		//TRACE_CPUPROFILER_EVENT_SCOPE(Texture.BuildTexture);
 
 		const ITextureFormat* TextureFormat = nullptr;
@@ -3221,6 +3293,11 @@ public:
 		else
 		{
 			BuildSettings.ArraySlices = 1;
+		}
+
+		if (bOutImageHasAlpha)
+		{
+			*bOutImageHasAlpha = bImageHasAlphaChannel;
 		}
 		
 		return CompressMipChain(TextureFormat, IntermediateMipChain, BuildSettings, bImageHasAlphaChannel, DebugTexturePathName,
@@ -3556,14 +3633,8 @@ private:
 			}
 
 			if (BuildSettings.Downscale > 1.f)
-			{
-				FTextureDownscaleSettings DownscaleSettings;
-				DownscaleSettings.Downscale = BuildSettings.Downscale;
-				DownscaleSettings.DownscaleOptions = BuildSettings.DownscaleOptions;
-				DownscaleSettings.BlockSize = 4;
-				DownscaleSettings.UseNewMipFilter = BuildSettings.bUseNewMipFilter;
-		
-				DownscaleImage(*Mip, *Mip, DownscaleSettings);
+			{		
+				DownscaleImage(*Mip, *Mip, FTextureDownscaleSettings(BuildSettings));
 			}
 
 			if (BuildSettings.bHasColorSpaceDefinition)
@@ -3623,10 +3694,19 @@ private:
 		}
 		check(OutMipChain.Num() == NumOutputMips);
 
-		int32 CalculatedMipCount = GetMipCountForBuildSettings(InSourceMipChain[0].SizeX, InSourceMipChain[0].SizeY, InSourceMipChain[0].NumSlices, InSourceMipChain.Num(), BuildSettings);
-		if (CalculatedMipCount != NumOutputMips)
+		int32 CalculatedMip0SizeX, CalculatedMip0SizeY, CalculatedMip0NumSlices;
+		int32 CalculatedMipCount = GetMipCountForBuildSettings(
+			InSourceMipChain[0].SizeX, InSourceMipChain[0].SizeY, InSourceMipChain[0].NumSlices, InSourceMipChain.Num(), BuildSettings,
+			CalculatedMip0SizeX, CalculatedMip0SizeY, CalculatedMip0NumSlices);
+		if (CalculatedMipCount != NumOutputMips ||
+			CalculatedMip0SizeX != OutMipChain[0].SizeX ||
+			CalculatedMip0SizeY != OutMipChain[0].SizeY ||
+			CalculatedMip0NumSlices != OutMipChain[0].NumSlices)
 		{
-			UE_LOG(LogTextureCompressor, Error, TEXT("Texture %.*s generated %d mips when GetMipCountForBuildSettings expected %d!"), DebugTexturePathName.Len(), DebugTexturePathName.GetData(), NumOutputMips, CalculatedMipCount);
+			UE_LOG(LogTextureCompressor, Error, TEXT("Texture %.*s generated unexpected mip chain: GetMipCountForBuildSettings expected %d mips, %dx%dx%d, got %d mips, %dx%dx%d!"), 
+				DebugTexturePathName.Len(), DebugTexturePathName.GetData(), 
+				CalculatedMipCount, CalculatedMip0SizeX, CalculatedMip0SizeY, CalculatedMip0NumSlices,
+				NumOutputMips, OutMipChain[0].SizeX, OutMipChain[0].SizeY, OutMipChain[0].NumSlices);
 		}
 
 		// Apply post-mip generation adjustments.

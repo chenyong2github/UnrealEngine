@@ -3,6 +3,7 @@
 #include "TextureDerivedDataBuildUtils.h"
 
 #if WITH_EDITOR
+#include "ChildTextureFormat.h"
 #include "DerivedDataBuild.h"
 #include "DerivedDataBuildFunctionRegistry.h"
 #include "DerivedDataSharedString.h"
@@ -162,7 +163,7 @@ static void WriteBuildSettings(FCbWriter& Writer, const FTextureBuildSettings& B
 	WriteCbFieldWithDefault(Writer, "TopMipSize", BuildSettings.TopMipSize, DefaultSettings.TopMipSize);
 	WriteCbFieldWithDefault(Writer, "VolumeSizeZ", BuildSettings.VolumeSizeZ, DefaultSettings.VolumeSizeZ);
 	WriteCbFieldWithDefault(Writer, "ArraySlices", BuildSettings.ArraySlices, DefaultSettings.ArraySlices);
-	WriteCbFieldWithDefault<bool>(Writer, "bStreamable", BuildSettings.bStreamable, DefaultSettings.bStreamable);
+	WriteCbFieldWithDefault<bool>(Writer, "bStreamable", BuildSettings.bStreamable_Unused, DefaultSettings.bStreamable_Unused);
 	WriteCbFieldWithDefault<bool>(Writer, "bVirtualStreamable", BuildSettings.bVirtualStreamable, DefaultSettings.bVirtualStreamable);
 	WriteCbFieldWithDefault<bool>(Writer, "bChromaKeyTexture", BuildSettings.bChromaKeyTexture, DefaultSettings.bChromaKeyTexture);
 	WriteCbFieldWithDefault(Writer, "PowerOfTwoMode", BuildSettings.PowerOfTwoMode, DefaultSettings.PowerOfTwoMode);
@@ -193,15 +194,6 @@ static void WriteBuildSettings(FCbWriter& Writer, const FTextureBuildSettings& B
 	{
 		WriteCbField<bool>(Writer, "VTPow22_ForceNewDDcKey", true); 
 	}
-
-	Writer.EndObject();
-}
-
-static void WriteOutputSettings(FCbWriter& Writer, int32 NumInlineMips)
-{
-	Writer.BeginObject();
-
-	Writer.AddInteger("NumInlineMips", NumInlineMips);
 
 	Writer.EndObject();
 }
@@ -293,7 +285,7 @@ UE::DerivedData::FUtf8SharedString FindTextureBuildFunction(const FName TextureF
 	return Function;
 }
 
-FCbObject SaveTextureBuildSettings(const UTexture& Texture, const FTextureBuildSettings& BuildSettings, int32 LayerIndex, int32 NumInlineMips, bool bUseCompositeTexture, int64 RequiredMemoryEstimate)
+FCbObject SaveTextureBuildSettings(const UTexture& Texture, const FTextureBuildSettings& BuildSettings, int32 LayerIndex, bool bUseCompositeTexture, int64 RequiredMemoryEstimate)
 {
 	const ITextureFormat* TextureFormat = nullptr;
 	if (ITextureFormatManagerModule* TFM = GetTextureFormatManager())
@@ -321,9 +313,6 @@ FCbObject SaveTextureBuildSettings(const UTexture& Texture, const FTextureBuildS
 
 	Writer.SetName("Build");
 	WriteBuildSettings(Writer, BuildSettings, TextureFormat);
-
-	Writer.SetName("Output");
-	WriteOutputSettings(Writer, NumInlineMips);
 
 	Writer.SetName("Source");
 	WriteSource(Writer, Texture, LayerIndex, BuildSettings);

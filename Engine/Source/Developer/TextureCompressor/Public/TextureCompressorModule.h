@@ -10,6 +10,8 @@
 
 struct FEncodedTextureDescription;
 class ITextureFormat;
+class ITextureTiler;
+struct FTextureEngineParameters;
 
 /**
  * Compressed image data.
@@ -165,8 +167,11 @@ struct FTextureBuildSettings
 	mutable int32 VolumeSizeZ;
 	/** The array texture's top mip size Z without LODBias applied */
 	mutable int32 ArraySlices;
-	/** Can the texture be streamed */
-	uint32 bStreamable : 1;
+	/** Can the texture be streamed. This is deprecated because it was used in a single place in a single 
+	*	platform for something that handled an edge case that never happened. That code is removes so this is
+	*	never touched other than saving it, and it'll be removed soon.
+	*/
+	uint32 bStreamable_Unused : 1;
 	/** Is the texture streamed using the VT system */
 	uint32 bVirtualStreamable : 1;
 	/** Whether to chroma key the image, replacing any pixels that match ChromaKeyColor with transparent black */
@@ -216,6 +221,9 @@ struct FTextureBuildSettings
 	// ETextureEncodeSpeed, either Final or Fast.
 	uint8 RepresentsEncodeSpeedNoSend;
 
+	// If the target format is a tiled format and can leverage reusing the linear encoding, this is not nullptr.
+	const ITextureTiler* Tiler = nullptr;
+
 	static constexpr uint32 MaxTextureResolutionDefault = TNumericLimits<uint32>::Max();
 
 	/** Default settings. */
@@ -262,7 +270,7 @@ struct FTextureBuildSettings
 		, TopMipSize(0, 0)
 		, VolumeSizeZ(0)
 		, ArraySlices(0)
-		, bStreamable(false)
+		, bStreamable_Unused(false)
 		, bVirtualStreamable(false)
 		, bChromaKeyTexture(false)
 		, PowerOfTwoMode(0 /*ETexturePowerOfTwoSetting::None*/)
@@ -310,7 +318,7 @@ struct FTextureBuildSettings
 	* 
 	* At the moment, this only generates valid results _after_ some setup code in FTextureCompressorModule::BuildTexture()
 	*/
-	void GetEncodedTextureDescription(FEncodedTextureDescription* OutTextureDescription, const ITextureFormat* InTextureFormat, int32 InMipCount, bool bInImageHasAlphaChannel) const;
+	TEXTURECOMPRESSOR_API void GetEncodedTextureDescription(FEncodedTextureDescription* OutTextureDescription, const ITextureFormat* InTextureFormat, int32 InEncodedMip0SizeX, int32 InEncodedMip0SizeY, int32 InEncodedMip0NumSlices, int32 InMipCount, bool bInImageHasAlphaChannel) const;
 };
 
 /**
@@ -337,7 +345,8 @@ public:
 		FStringView DebugTexturePathName,
 		TArray<FCompressedImage2D>& OutTextureMips,
 		uint32& OutNumMipsInTail,
-		uint32& OutExtData
+		uint32& OutExtData,
+		bool* bOutImageHasAlpha // If desired, this will report whether the mip processing determined an alpha channel is necessary in the encoded texture.		
 		) = 0;
 
 	
@@ -380,7 +389,10 @@ public:
 	TEXTURECOMPRESSOR_API static void GenerateAngularFilteredMips(TArray<FImage>& InOutMipChain, int32 NumMips, uint32 DiffuseConvolveMipLevel);
 
 	/**
-	* Returns the number of mips that the given texture will generate with the given build settings.
+	* Returns the number of mips that the given texture will generate with the given build settings, as well as the size of the top mip.
 	*/
-	virtual int32 GetMipCountForBuildSettings(int32 InMip0SizeX, int32 InMip0SizeY, int32 InMip0NumSlices, int32 InExistingMipCount, const FTextureBuildSettings& InBuildSettings) const =0;
+	virtual int32 GetMipCountForBuildSettings(
+		int32 InMip0SizeX, int32 InMip0SizeY, int32 InMip0NumSlices, 
+		int32 InExistingMipCount, const FTextureBuildSettings& InBuildSettings, 
+		int32& OutMip0SizeX, int32& OutMip0SizeY, int32& OutMip0NumSlices) const =0;
 };

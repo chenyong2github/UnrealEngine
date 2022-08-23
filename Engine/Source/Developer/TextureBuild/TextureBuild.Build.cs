@@ -18,6 +18,7 @@ public class TextureBuild : ModuleRules
 			"DerivedDataCache",
 			"ImageCore",
 			"ImageWrapper",
+			"TextureBuildUtilities",
 			"TextureCompressor",
 			"TextureFormat",
 		});

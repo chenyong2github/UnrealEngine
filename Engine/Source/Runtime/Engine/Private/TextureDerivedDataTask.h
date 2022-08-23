@@ -24,7 +24,10 @@
 
 enum
 {
-	/** The number of mips to store inline. */
+	/**
+	*	The number of mips to store "inline". This is the number of mips, counting from the smallest, that are
+	*	always loaded and never streamed.
+	*/
 	NUM_INLINE_DERIVED_MIPS = 7,
 };
 

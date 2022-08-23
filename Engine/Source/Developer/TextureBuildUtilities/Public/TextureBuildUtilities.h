@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ImageCore.h"
 #include "TextureCompressorModule.h" // for FTextureBuildSettings
+#include "Interfaces/ITextureFormat.h"
 
 /***
 
@@ -21,6 +22,24 @@ namespace UE
 namespace TextureBuildUtilities
 {
 
+namespace EncodedTextureExtendedData
+{
+	TEXTUREBUILDUTILITIES_API FCbObject ToCompactBinary(const FEncodedTextureExtendedData& InExtendedData);
+	TEXTUREBUILDUTILITIES_API bool FromCompactBinary(FEncodedTextureExtendedData& OutExtendedData, FCbObject InCbObject);
+}
+
+namespace EncodedTextureDescription
+{
+	TEXTUREBUILDUTILITIES_API FCbObject ToCompactBinary(const FEncodedTextureDescription& InDescription);
+	TEXTUREBUILDUTILITIES_API bool FromCompactBinary(FEncodedTextureDescription& OutDescription, FCbObject InCbObject);
+}
+
+namespace TextureEngineParameters
+{
+	TEXTUREBUILDUTILITIES_API FCbObject ToCompactBinaryWithDefaults(const FTextureEngineParameters& InEngineParameters);
+	TEXTUREBUILDUTILITIES_API bool FromCompactBinary(FTextureEngineParameters& OutEngineParameters, FCbObject InCbObject);
+}
+
 TEXTUREBUILDUTILITIES_API bool TextureFormatIsHdr(FName const& InName);
 
 // Removes platform and other custom prefixes from the name.
@@ -36,5 +55,5 @@ FORCEINLINE const FName TextureFormatRemovePrefixFromName(FName const& InName)
 
 TEXTUREBUILDUTILITIES_API ERawImageFormat::Type GetVirtualTextureBuildIntermediateFormat(const FTextureBuildSettings& BuildSettings);
 
-}
-}
+} // namespace TextureBuildUtilities
+} // namespace UE

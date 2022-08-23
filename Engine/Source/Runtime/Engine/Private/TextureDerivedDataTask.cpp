@@ -25,6 +25,7 @@
 
 #include "Algo/Accumulate.h"
 #include "Algo/AnyOf.h"
+#include "ChildTextureFormat.h"
 #include "DerivedDataBuild.h"
 #include "DerivedDataBuildAction.h"
 #include "DerivedDataBuildInputResolver.h"
@@ -51,7 +52,7 @@
 #include "Misc/ScopeExit.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Serialization/BulkDataRegistry.h"
-#include "TextureCompressorModule.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "TextureBuildUtilities.h"
 #include "TextureDerivedDataBuildUtils.h"
 #include "TextureEncodingSettings.h"
@@ -74,7 +75,23 @@ static TAutoConsoleVariable<int32> CVarVTValidateCompressionOnSave(
 	TEXT("This is slow, but allows debugging corrupt VT data")
 );
 
+static TAutoConsoleVariable<int32> CVarForceRetileTextures(
+	TEXT("r.ForceRetileTextures"),
+	0,
+	TEXT("If r.SharedLinearTextureEncoding is enabled, this will force the tiling build step to rebuild,")
+	TEXT("however the linear texture is allowed to fetch from cache.")
+);
+
 void GetTextureDerivedDataKeyFromSuffix(const FString& KeySuffix, FString& OutKey);
+
+static FTextureEngineParameters GenerateTextureEngineParameters()
+{
+	FTextureEngineParameters EngineParameters;
+	EngineParameters.bEngineSupportsTexture2DArrayStreaming = GSupportsTexture2DArrayStreaming;
+	EngineParameters.bEngineSupportsVolumeTextureStreaming = GSupportsVolumeTextureStreaming;
+	EngineParameters.NumInlineDerivedMips = NUM_INLINE_DERIVED_MIPS;
+	return EngineParameters;
+}
 
 class FTextureStatusMessageContext : public FScopedSlowTask
 {
@@ -306,10 +323,126 @@ void FTextureSourceData::GetAsyncSourceMips(IImageWrapperModule* InImageWrapper)
 	}
 }
 
+
+// When texture streaming is disabled, all of the mips are packed into a single FBulkData/FDerivedData
+// and "inlined", meaning they are saved and loaded as part of the serialized asset data.
+static bool GetBuildSettingsDisablesStreaming(const FTextureBuildSettings& InBuildSettings, const FTextureEngineParameters& InEngineParameters)
+{
+	if (InBuildSettings.bVirtualStreamable)
+	{
+		// Only basic 2d textures can be virtual streamable.
+		return InBuildSettings.bCubemap || InBuildSettings.bVolume || InBuildSettings.bTextureArray;
+	}
+	else
+	{
+		return GetStreamingDisabledForNonVirtualTextureProperties(InBuildSettings.bCubemap, InBuildSettings.bVolume, InBuildSettings.bTextureArray, InEngineParameters);
+	}
+}
+
 namespace UE::TextureDerivedData
 {
 
 using namespace UE::DerivedData;
+
+// Handle converting the tiling build's inputs from names to concrete values.
+class FTilingTextureBuildInputResolver final : public IBuildInputResolver
+{
+public:
+	explicit FTilingTextureBuildInputResolver(UE::DerivedData::FBuildSession& InParentBuild_Session, UE::DerivedData::FBuildDefinition& InParentBuild_Definition, UE::DerivedData::FBuildPolicy& InParentBuild_Policy)
+		: ParentBuild_Session(InParentBuild_Session),
+		ParentBuild_Definition(InParentBuild_Definition),
+		ParentBuild_Policy(InParentBuild_Policy)
+	{
+	}
+
+	UE::DerivedData::FBuildSession& ParentBuild_Session;
+	UE::DerivedData::FBuildDefinition ParentBuild_Definition;
+	UE::DerivedData::FBuildPolicy ParentBuild_Policy;
+
+	UE::DerivedData::FOptionalBuildOutput ParentBuild_Output;
+	bool bParentBuild_HitCache = false;
+
+	// Convert from named keys to hash/size pairs. There is no expectation that the results are
+	// ready when this function returns - InResolvedCallback is called when the results arrive.
+	void ResolveInputMeta(
+		const FBuildDefinition& InDefinition,
+		IRequestOwner& InOwner,
+		FOnBuildInputMetaResolved&& InResolvedCallback) final
+	{
+		// This should only ever be called once, so the build should never be ready.
+		check(!ParentBuild_Output);
+
+		// Kick the parent build so we can get access to the results. When we get the results,
+		// do the actual input resolution.
+		ParentBuild_Session.Build(ParentBuild_Definition, {}, ParentBuild_Policy, InOwner,
+			[this, InResolvedCallback = MoveTemp(InResolvedCallback), &InDefinition](UE::DerivedData::FBuildCompleteParams&& InParams)
+		{
+			this->ParentBuild_Output = MoveTemp(InParams.Output);
+
+			if (InParams.Status == UE::DerivedData::EStatus::Canceled)
+			{
+				return;
+			}
+
+			this->bParentBuild_HitCache = EnumHasAnyFlags(InParams.BuildStatus, EBuildStatus::CacheQueryHit);
+
+			TArray<UE::DerivedData::FBuildInputMetaByKey, TInlineAllocator<8>> Inputs;
+
+			UE::DerivedData::EStatus Status = UE::DerivedData::EStatus::Ok;
+			InDefinition.IterateInputBuilds([this, &Status, &Inputs](FUtf8StringView InOurKey, const UE::DerivedData::FBuildValueKey& InBuildValueKey)
+			{
+				if (InBuildValueKey.BuildKey != this->ParentBuild_Definition.GetKey())
+				{
+					Status = UE::DerivedData::EStatus::Error;
+					return;
+				}
+				const UE::DerivedData::FValueWithId& ParentBuildValue = this->ParentBuild_Output.Get().GetValue(InBuildValueKey.Id);
+				if (ParentBuildValue.IsNull())
+				{
+					Status = UE::DerivedData::EStatus::Error;
+					return;
+				}
+				Inputs.Add({InOurKey, ParentBuildValue.GetRawHash(), ParentBuildValue.GetRawSize()});
+			});
+
+			if (Status != UE::DerivedData::EStatus::Ok)
+			{
+				return InResolvedCallback({{}, Status});
+			}
+			return InResolvedCallback({Inputs, UE::DerivedData::EStatus::Ok});
+		});
+	} // end ResolvedInputMeta
+
+	void ResolveInputData(
+		const FBuildDefinition & Definition,
+		IRequestOwner & Owner,
+		FOnBuildInputDataResolved && OnResolved,
+		FBuildInputFilter && Filter) final
+	{
+		EStatus Status = EStatus::Ok;
+		TArray<FBuildInputDataByKey, TInlineAllocator<8>> Inputs;
+		Definition.IterateInputBuilds([this, &Filter, &Status, &Inputs](FUtf8StringView InOurKey, const UE::DerivedData::FBuildValueKey& InBuildValueKey)
+		{
+			if (Filter && Filter(InOurKey) == false)
+			{
+				return;
+			}
+
+			const UE::DerivedData::FValueWithId& ParentBuildValue = ParentBuild_Output.Get().GetValue(InBuildValueKey.Id);
+			if (!ParentBuildValue || !ParentBuildValue.HasData())
+			{
+				Status = UE::DerivedData::EStatus::Error;
+				return;
+			}
+			
+			Inputs.Add({InOurKey, ParentBuildValue.GetData()});
+		});
+
+		OnResolved({ Inputs, Status });
+	}
+private:
+
+};
 
 class FTextureBuildInputResolver final : public IBuildInputResolver
 {
@@ -486,11 +619,6 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 				*TexturePathName, TextureData.Layers.Num());
 		}
 
-		int32 PredictedNumMips;
-		{
-			const TArray<FImage>& SourceMips = TextureData.Blocks[0].MipsPerLayer[0];
-			PredictedNumMips = Compressor->GetMipCountForBuildSettings(SourceMips[0].SizeX, SourceMips[0].SizeY, SourceMips[0].NumSlices, SourceMips.Num(), InBuildSettingsPerLayer[0]);
-		}
 
 		check(DerivedData->Mips.Num() == 0);
 		DerivedData->SizeX = 0;
@@ -502,6 +630,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 		FOptTexturePlatformData OptData;
 
 		// Compress the texture by calling texture compressor directly.
+		bool bImageHasAlphaChannel = false;
 		TArray<FCompressedImage2D> CompressedMips;
 		if (Compressor->BuildTexture(TextureData.Blocks[0].MipsPerLayer[0],
 			((bool)Texture.CompositeTexture && CompositeTextureData.Blocks.Num() && CompositeTextureData.Blocks[0].MipsPerLayer.Num()) ? CompositeTextureData.Blocks[0].MipsPerLayer[0] : TArray<FImage>(),
@@ -509,7 +638,8 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 			TexturePathName,
 			CompressedMips,
 			OptData.NumMipsInTail,
-			OptData.ExtData))
+			OptData.ExtData,
+			&bImageHasAlphaChannel))
 		{
 			check(CompressedMips.Num());
 
@@ -580,9 +710,6 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 
 			DerivedData->SetOptData(OptData);
 
-			// verify PredictedNumMips matches
-			check (PredictedNumMips == CompressedMips.Num());
-
 			// Store it in the cache.
 			// @todo: This will remove the streaming bulk data, which we immediately reload below!
 			// Should ideally avoid this redundant work, but it only happens when we actually have 
@@ -599,11 +726,16 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 
 		if (DerivedData->Mips.Num())
 		{
+			bSucceeded = true;
+
 			const bool bInlineMips = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::InlineMips);
-			bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(InBuildSettingsPerLayer[0].LODBiasWithCinematicMips, TexturePathName);
-			if (!bSucceeded)
+			if (bInlineMips) // Note that mips are inlined when cooking.
 			{
-				UE_LOG(LogTexture, Display, TEXT("Failed to put and then read back mipmap data from DDC for %s"), *TexturePathName);
+				bSucceeded = DerivedData->TryInlineMipData(InBuildSettingsPerLayer[0].LODBiasWithCinematicMips, TexturePathName);
+				if (bSucceeded == false)
+				{
+					UE_LOG(LogTexture, Display, TEXT("Failed to put and then read back mipmap data from DDC for %s"), *TexturePathName);
+				}
 			}
 		}
 		else
@@ -1538,6 +1670,342 @@ void FTextureCacheDerivedDataWorker::Finalize()
 	}
 }
 
+
+
+struct FBuildResultOptions
+{
+	bool bLoadStreamingMips;
+	int32 FirstStreamingMipToLoad;
+};
+
+static bool UnpackPlatformDataFromBuild(FTexturePlatformData& OutPlatformData, UE::DerivedData::FBuildCompleteParams&& InBuildCompleteParams, FBuildResultOptions InBuildResultOptions)
+{
+	using namespace UE::DerivedData;
+	UE::DerivedData::FBuildOutput& BuildOutput = InBuildCompleteParams.Output;
+
+	// We take this as a build output, however in ideal (future) situations, this is generated prior to build launch and
+	// just routed through the build. Since we currently handle several varying situations, we just always consume it from
+	// the build no matter where it came from. (Both TextureDescription and ExtendedData)
+	FEncodedTextureDescription EncodedTextureDescription;
+	{
+		const FValueWithId& Value = BuildOutput.GetValue(FValueId::FromName(ANSITEXTVIEW("EncodedTextureDescription")));
+		UE::TextureBuildUtilities::EncodedTextureDescription::FromCompactBinary(EncodedTextureDescription, FCbObject(Value.GetData().Decompress()));
+	}
+
+	FEncodedTextureExtendedData EncodedTextureExtendedData;
+	{
+		const FValueWithId& Value = BuildOutput.GetValue(FValueId::FromName(ANSITEXTVIEW("EncodedTextureExtendedData")));
+		UE::TextureBuildUtilities::EncodedTextureExtendedData::FromCompactBinary(EncodedTextureExtendedData, FCbObject(Value.GetData().Decompress()));
+	}
+
+	// consider putting this in the build output so that it's only ever polled in one place.
+	const FTextureEngineParameters EngineParameters = GenerateTextureEngineParameters();
+	int32 NumStreamingMips = EncodedTextureDescription.GetNumStreamingMips(&EncodedTextureExtendedData, EngineParameters);
+	int32 NumEncodedMips = EncodedTextureDescription.GetNumEncodedMips(&EncodedTextureExtendedData);
+	check(NumEncodedMips >= NumStreamingMips);
+
+	//
+	// Mips are split up:
+	//	Streaming mips are all stored independently under value FTexturePlatformData::MakeMipId(MipIndex);
+	//	Nonstreaming ("inlined") mips are stored in one buffer under value "MipTail". To disentangle the separate mips
+	//	we need their size. If EncodedTextureExtendedData is present, we have the ::MipSizesInBytes field. If that isn't
+	//	present, then we know it's nothing fancy and we can directly compute mip sizes.
+	//
+	TArray<uint64, TInlineAllocator<MAX_TEXTURE_MIP_COUNT>> MipSizesFromBuild;
+	if (EncodedTextureExtendedData.MipSizesInBytes.Num() == 0)
+	{
+		// Normal mip sizes - generate from texture description
+		MipSizesFromBuild.AddUninitialized(EncodedTextureDescription.NumMips);
+		for (int32 MipIndex = 0; MipIndex < EncodedTextureDescription.NumMips; MipIndex++)
+		{
+			MipSizesFromBuild[MipIndex] = EncodedTextureDescription.GetMipSizeInBytes(MipIndex);
+		}
+	}
+
+	// For the moment, we don't necessarily have the sizes from the extended data, in that case we must have them from the build.
+	TArray<uint64, TInlineAllocator<MAX_TEXTURE_MIP_COUNT>>& MipSizesInBytes = EncodedTextureExtendedData.MipSizesInBytes.Num() ? EncodedTextureExtendedData.MipSizesInBytes : MipSizesFromBuild;
+	check(MipSizesInBytes.Num() == NumEncodedMips);
+
+
+	//
+	//
+	// We have all the metadata we need, we can grab the data
+	//
+	//
+	OutPlatformData.PixelFormat = EncodedTextureDescription.PixelFormat;
+	OutPlatformData.SizeX = EncodedTextureDescription.TopMipSizeX;
+	OutPlatformData.SizeY = EncodedTextureDescription.TopMipSizeY;
+	OutPlatformData.OptData.NumMipsInTail = EncodedTextureExtendedData.NumMipsInTail;
+	OutPlatformData.OptData.ExtData = EncodedTextureExtendedData.ExtData;
+	{
+		const bool bHasOptData = (EncodedTextureExtendedData.NumMipsInTail != 0) || (EncodedTextureExtendedData.ExtData != 0);
+		OutPlatformData.SetPackedData(EncodedTextureDescription.GetNumSlices_WithDepth(0), bHasOptData, EncodedTextureDescription.bCubeMap);
+	}
+	OutPlatformData.Mips.Empty(EncodedTextureDescription.NumMips);
+	EFileRegionType FileRegion = FFileRegion::SelectType(EncodedTextureDescription.PixelFormat);
+
+
+	FSharedBuffer MipTailData;
+	if (EncodedTextureDescription.NumMips > NumStreamingMips)
+	{
+		const FValueWithId& MipTailValue = BuildOutput.GetValue(FValueId::FromName(ANSITEXTVIEW("MipTail")));
+		if (!MipTailValue)
+		{
+			UE_LOG(LogTexture, Error, TEXT("Missing texture mip tail for build of '%s' by %s."), *BuildOutput.GetName(), *WriteToString<32>(BuildOutput.GetFunction()));
+			return false;
+		}
+		MipTailData = MipTailValue.GetData().Decompress();
+	}
+
+
+
+	uint64 CurrentMipTailOffset = 0;
+	for (int32 MipIndex = 0; MipIndex < EncodedTextureDescription.NumMips; MipIndex++)
+	{
+		FTexture2DMipMap* NewMip = new FTexture2DMipMap();
+		OutPlatformData.Mips.Add(NewMip);
+
+		NewMip->FileRegionType = FileRegion;
+		FIntVector3 MipDims = EncodedTextureDescription.GetMipDimensions(MipIndex);
+		NewMip->SizeX = MipDims.X;
+		NewMip->SizeY = MipDims.Y;
+		NewMip->SizeZ = MipDims.Z;
+		if (EncodedTextureDescription.bTextureArray)
+		{
+			// FTexture2DMipMap expects SizeZ to be the array count, potentially with cubemap slices.
+			NewMip->SizeZ = EncodedTextureDescription.ArraySlices;
+
+			if (EncodedTextureDescription.bCubeMap)
+			{
+				NewMip->SizeZ *= 6; 
+			}
+		}
+
+		if (MipIndex >= NumEncodedMips)
+		{
+			// Packed mip tail data is inside the outermost mip for the pack, so we don't have
+			// any bulk data to pull out.
+			continue;
+		}
+
+		if (MipIndex >= NumStreamingMips)
+		{			
+			// This mip is packed inside a single buffer. This is distinct from a "packed mip tail", but might
+			// coincidentally be the same. All mips past NumStreamingMips need to be copied into the bulk data
+			// and are always resident in memory with the texture.
+
+			uint64 MipSizeInBytes = MipSizesInBytes[MipIndex];
+			FMemoryView MipView = MipTailData.GetView().Mid(CurrentMipTailOffset, MipSizeInBytes);
+			CurrentMipTailOffset += MipSizeInBytes;
+
+			NewMip->BulkData.Lock(LOCK_READ_WRITE);
+			void* MipAllocData = NewMip->BulkData.Realloc(int64(MipSizeInBytes));
+			MakeMemoryView(MipAllocData, MipSizeInBytes).CopyFrom(MipView);
+			NewMip->BulkData.Unlock();
+		}
+		else
+		{
+			const FValueId MipId = FTexturePlatformData::MakeMipId(MipIndex);
+			const FValueWithId& MipValue = BuildOutput.GetValue(MipId);
+			if (!MipValue)
+			{
+				UE_LOG(LogTexture, Error, TEXT("Missing streaming texture mip %d for build of '%s' by %s."), MipIndex, *BuildOutput.GetName(), *WriteToString<32>(BuildOutput.GetFunction()));
+				return false;
+			}
+
+			// Did whoever launched the build want the streaming mips in memory?
+			if (InBuildResultOptions.bLoadStreamingMips && (MipIndex >= InBuildResultOptions.FirstStreamingMipToLoad))
+			{
+				NewMip->BulkData.Lock(LOCK_READ_WRITE);
+				const uint64 MipSize = MipValue.GetRawSize();
+				void* MipData = NewMip->BulkData.Realloc(IntCastChecked<int64>(MipSize));
+				ON_SCOPE_EXIT{ NewMip->BulkData.Unlock(); };
+				if (!MipValue.GetData().TryDecompressTo(MakeMemoryView(MipData, MipSize)))
+				{
+					UE_LOG(LogTexture, Error, TEXT("Failed to decompress streaming texture mip %d for build of '%s' by %s."), MipIndex, *BuildOutput.GetName(), *WriteToString<32>(BuildOutput.GetFunction()));
+					return false;
+				}
+			}
+
+			FSharedString MipName(WriteToString<256>(BuildOutput.GetName(), TEXT(" [MIP "), MipIndex, TEXT("]")));
+			NewMip->DerivedData = UE::FDerivedData(MoveTemp(MipName), InBuildCompleteParams.CacheKey, MipId);
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+			NewMip->bPagedToDerivedData = true;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+		}
+	}
+	return true;
+}
+
+void HandleBuildOutputThenUnpack(FTexturePlatformData& OutPlatformData, UE::DerivedData::FBuildCompleteParams&& InBuildCompleteParams, FBuildResultOptions InBuildResultOptions)
+{
+	using namespace UE::DerivedData;
+
+	const FBuildOutput& Output = InBuildCompleteParams.Output;
+	const FSharedString& Name = Output.GetName();
+	const FUtf8SharedString& Function = Output.GetFunction();
+
+	for (const FBuildOutputMessage& Message : Output.GetMessages())
+	{
+		switch (Message.Level)
+		{
+		case EBuildOutputMessageLevel::Error:
+			UE_LOG(LogTexture, Warning, TEXT("[Error] %s (Build of '%s' by %s.)"),
+				*WriteToString<256>(Message.Message), *Name, *WriteToString<32>(Function));
+			break;
+		case EBuildOutputMessageLevel::Warning:
+			UE_LOG(LogTexture, Warning, TEXT("%s (Build of '%s' by %s.)"),
+				*WriteToString<256>(Message.Message), *Name, *WriteToString<32>(Function));
+			break;
+		case EBuildOutputMessageLevel::Display:
+			UE_LOG(LogTexture, Display, TEXT("%s (Build of '%s' by %s.)"),
+				*WriteToString<256>(Message.Message), *Name, *WriteToString<32>(Function));
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
+	}
+
+	for (const FBuildOutputLog& Log : Output.GetLogs())
+	{
+		switch (Log.Level)
+		{
+		case EBuildOutputLogLevel::Error:
+			UE_LOG(LogTexture, Warning, TEXT("[Error] %s: %s (Build of '%s' by %s.)"),
+				*WriteToString<64>(Log.Category), *WriteToString<256>(Log.Message),
+				*Name, *WriteToString<32>(Function));
+			break;
+		case EBuildOutputLogLevel::Warning:
+			UE_LOG(LogTexture, Warning, TEXT("%s: %s (Build of '%s' by %s.)"),
+				*WriteToString<64>(Log.Category), *WriteToString<256>(Log.Message),
+				*Name, *WriteToString<32>(Function));
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
+	}
+
+	if (Output.HasError())
+	{
+		UE_LOG(LogTexture, Warning, TEXT("Failed to build derived data for build of '%s' by %s."),
+			*Name, *WriteToString<32>(Function));
+		return;
+	}
+
+	UnpackPlatformDataFromBuild(OutPlatformData, MoveTemp(InBuildCompleteParams), InBuildResultOptions);
+}
+
+struct FBuildResults
+{
+	FTexturePlatformData& PlatformData;
+	bool bCacheHit = false;
+	uint64 BuildOutputSize = 0;
+
+	FBuildResults(FTexturePlatformData& InPlatformData) : PlatformData(InPlatformData) {}
+};
+
+static void GetBuildResultsFromCompleteParams(
+	FBuildResults& OutBuildResults, 
+	FBuildResultOptions InBuildResultOptions, 
+	UE::DerivedData::FBuildCompleteParams&& InBuildCompleteParams,
+	UE::TextureDerivedData::FTilingTextureBuildInputResolver* InTilingTextureBuildInputResolver // if we are completing a build that had a child build, we need this to get metadata.
+)
+{
+	using namespace UE::DerivedData;
+	OutBuildResults.PlatformData.DerivedDataKey.Emplace<FCacheKeyProxy>(InBuildCompleteParams.CacheKey);
+
+	if (InTilingTextureBuildInputResolver)
+	{
+		if (InTilingTextureBuildInputResolver->bParentBuild_HitCache &&
+			EnumHasAnyFlags(InBuildCompleteParams.BuildStatus, EBuildStatus::CacheQueryHit))
+		{
+			OutBuildResults.bCacheHit = true;
+		}
+	}
+	else
+	{
+		if (EnumHasAnyFlags(InBuildCompleteParams.BuildStatus, EBuildStatus::CacheQueryHit))
+		{
+			OutBuildResults.bCacheHit = true;
+		}
+	}
+
+	OutBuildResults.BuildOutputSize = Algo::TransformAccumulate(InBuildCompleteParams.Output.GetValues(),
+		[](const FValue& Value) { return Value.GetData().GetRawSize(); }, uint64(0));
+	if (InBuildCompleteParams.Status != EStatus::Canceled)
+	{
+		HandleBuildOutputThenUnpack(OutBuildResults.PlatformData, MoveTemp(InBuildCompleteParams), InBuildResultOptions);
+	}
+}
+
+
+struct FBuildInfo
+{
+	UE::DerivedData::FBuildSession& BuildSession;
+	UE::DerivedData::FBuildDefinition BuildDefinition;
+	UE::DerivedData::FBuildPolicy BuildPolicy;
+	TOptional<FTexturePlatformData::FTextureEncodeResultMetadata> ResultMetadata;
+	UE::TextureDerivedData::FTilingTextureBuildInputResolver* TilingInputResolver = nullptr; // nullptr if no tiling build.
+
+	explicit FBuildInfo(UE::DerivedData::FBuildSession& InBuildSession, UE::DerivedData::FBuildDefinition InBuildDefinition, UE::DerivedData::FBuildPolicy InBuildPolicy, TOptional<FTexturePlatformData::FTextureEncodeResultMetadata> InResultMetadata)
+		: BuildSession(InBuildSession)
+		, BuildDefinition(InBuildDefinition)
+		, BuildPolicy(InBuildPolicy)
+		, ResultMetadata(InResultMetadata)
+	{}
+};
+
+static void LaunchBuildWithFallback(
+	FBuildResults& OutBuildResults,
+	FBuildResultOptions InBuildResultOptions,
+	FBuildInfo& InInitialBuild, 
+	TOptional<FBuildInfo> InFallbackBuild, 
+	UE::DerivedData::FRequestOwner& InRequestOwner	// Owner must be valid for the duration of the build.
+)
+{
+	using namespace UE::DerivedData;
+
+	if (InInitialBuild.ResultMetadata.IsSet())
+	{
+		OutBuildResults.PlatformData.ResultMetadata = *InInitialBuild.ResultMetadata;
+	}
+
+	InInitialBuild.BuildSession.Build(InInitialBuild.BuildDefinition, {}, InInitialBuild.BuildPolicy, InRequestOwner,
+		[
+			FallbackBuild = MoveTemp(InFallbackBuild),
+			RequestOwner = &InRequestOwner,
+			OutBuildResults = &OutBuildResults,
+			BuildResultOptions = InBuildResultOptions,
+			InitialBuildTilingInputResolver = InInitialBuild.TilingInputResolver
+		](FBuildCompleteParams&& Params) mutable
+	{
+		if (Params.Status == EStatus::Error &&
+			FallbackBuild.IsSet())
+		{
+			if (FallbackBuild->ResultMetadata.IsSet())
+			{
+				OutBuildResults->PlatformData.ResultMetadata = *FallbackBuild->ResultMetadata;
+			}
+			FallbackBuild->BuildSession.Build(FallbackBuild->BuildDefinition, {}, FallbackBuild->BuildPolicy, *RequestOwner,
+				[
+					OutBuildResults = OutBuildResults,
+					BuildResultOptions = BuildResultOptions,
+					FallbackBuildTilingInputResolver = FallbackBuild->TilingInputResolver
+				](FBuildCompleteParams&& Params) mutable
+			{
+				GetBuildResultsFromCompleteParams(*OutBuildResults, BuildResultOptions, MoveTemp(Params), FallbackBuildTilingInputResolver);
+			});
+		}
+		else
+		{			
+			GetBuildResultsFromCompleteParams(*OutBuildResults, BuildResultOptions, MoveTemp(Params), InitialBuildTilingInputResolver);
+		}
+	});
+};
+
+
 //
 // DDC2 texture fetch/build task.
 //
@@ -1548,33 +2016,31 @@ public:
 		UTexture& Texture,
 		FTexturePlatformData& InDerivedData,
 		const UE::DerivedData::FUtf8SharedString& FunctionName,
+		const UE::DerivedData::FUtf8SharedString& TilingFunctionName,
 		const FTextureBuildSettings* InSettingsFetchFirst, // can be nullptr
 		const FTextureBuildSettings& InSettingsFetchOrBuild,
 		const FTexturePlatformData::FTextureEncodeResultMetadata* InFetchFirstMetadata, // can be nullptr
 		const FTexturePlatformData::FTextureEncodeResultMetadata* InFetchOrBuildMetadata, // can be nullptr
 		EQueuedWorkPriority InPriority,
 		ETextureCacheFlags Flags)
-		: DerivedData(InDerivedData)
+		: BuildResults(InDerivedData)
 		, Priority(InPriority)
-		, bCacheHit(false)
-		, bInlineMips(EnumHasAnyFlags(Flags, ETextureCacheFlags::InlineMips))
-		, FirstMipToLoad(InSettingsFetchOrBuild.LODBiasWithCinematicMips)
 		, InputResolver(Texture)
 	{
-		using namespace UE::DerivedData;
-
 		static bool bLoadedModules = LoadModules();
 
-		FSharedString TexturePath;
+		BuildResultOptions.bLoadStreamingMips = EnumHasAnyFlags(Flags, ETextureCacheFlags::InlineMips);
+		BuildResultOptions.FirstStreamingMipToLoad = InSettingsFetchOrBuild.LODBiasWithCinematicMips;
+
+		// Can't fetch first if we are rebuilding.
+		if (InSettingsFetchFirst &&
+			EnumHasAnyFlags(Flags, ETextureCacheFlags::ForceRebuild))
 		{
-			TStringBuilder<256> TexturePathBuilder;
-			Texture.GetPathName(nullptr, TexturePathBuilder);
-			TexturePath = TexturePathBuilder.ToView();
+			InSettingsFetchFirst = nullptr;
+			InFetchFirstMetadata = nullptr;
 		}
 
-		IBuild& Build = GetBuild();
-		IBuildInputResolver* GlobalResolver = GetGlobalBuildInputResolver();
-		BuildSession = Build.CreateSession(TexturePath, GlobalResolver ? GlobalResolver : &InputResolver);
+		using namespace UE::DerivedData;
 
 		EPriority OwnerPriority = EnumHasAnyFlags(Flags, ETextureCacheFlags::Async) ? ConvertPriority(Priority) : UE::DerivedData::EPriority::Blocking;
 		Owner.Emplace(OwnerPriority);
@@ -1589,12 +2055,20 @@ public:
 		check( Texture.Source.GetNumLayers() == 1 );
 		int64 RequiredMemoryEstimate = GetBuildRequiredMemoryEstimate(&Texture,&InSettingsFetchOrBuild);
 
+		// Debug string.
+		FSharedString TexturePath;
+		{
+			TStringBuilder<256> TexturePathBuilder;
+			Texture.GetPathName(nullptr, TexturePathBuilder);
+			TexturePath = TexturePathBuilder.ToView();
+		}
+
 		TOptional<FTextureStatusMessageContext> StatusMessage;
 		if (IsInGameThread() && OwnerPriority == EPriority::Blocking)
 		{
-			// this gets sent whether or not we are building the texture, and is a rare edge case for UI feedback.
+			// this gets set whether or not we are building the texture, and is a rare edge case for UI feedback.
 			// We don't actually know whether we're using fetchfirst or actually building, so if we have two keys,
-			// we can assume we're FinalIfAvailable.
+			// we just assume we're FinalIfAvailable.
 			ETextureEncodeSpeed EncodeSpeed = (ETextureEncodeSpeed)InSettingsFetchOrBuild.RepresentsEncodeSpeedNoSend;
 			if (InSettingsFetchFirst)
 			{
@@ -1605,65 +2079,146 @@ public:
 		}
 		
 
-		if (InSettingsFetchFirst &&
-			EnumHasAnyFlags(Flags, ETextureCacheFlags::ForceRebuild))
+		TOptional<FTexturePlatformData::FTextureEncodeResultMetadata> FetchFirstResultMetadata;
+		if (InFetchFirstMetadata)
 		{
-			// Can't fetch first if we are rebuilding.
-			InSettingsFetchFirst = nullptr;
+			FetchFirstResultMetadata = *InFetchFirstMetadata;
 		}
 
-		FBuildDefinition FetchOrBuildDefinition = CreateDefinition(Build, Texture, TexturePath, FunctionName, InSettingsFetchOrBuild, bUseCompositeTexture, RequiredMemoryEstimate);
-		DerivedData.FetchOrBuildDerivedDataKey.Emplace<FTexturePlatformData::FStructuredDerivedDataKey>(GetKey(FetchOrBuildDefinition, Texture, bUseCompositeTexture));
+		TOptional<FTexturePlatformData::FTextureEncodeResultMetadata> FetchOrBuildResultMetadata;
+		if (InFetchOrBuildMetadata)
+		{
+			FetchOrBuildResultMetadata = *InFetchOrBuildMetadata;
+		}
 
-		bool bBuildKicked = false;
+		// Description and MipTail should always cache. Everything else (i.e. Mip# i.e. streaming mips) should skip data
+		// when we are not inlining.
+		FBuildPolicy FetchFirstBuildPolicy = FetchFirst_CreateBuildPolicy(BuildResultOptions);
+		FBuildPolicy FetchOrBuildPolicy = FetchOrBuild_CreateBuildPolicy(Flags, BuildResultOptions);
+
+		//
+		// Set up the build
+		//
+		IBuild& Build = GetBuild();
+		{
+			IBuildInputResolver* GlobalResolver = GetGlobalBuildInputResolver();
+			BuildSession = Build.CreateSession(TexturePath, GlobalResolver ? GlobalResolver : &InputResolver);
+		}
+
+		/////////////////////////////////////////////////////////////////////////////////////
+
+		//
+		// We have a 2x2 possibility space, and this is the cleanest way to break that down:
+		// FetchFirst exists yes/no
+		// Tiling build exists yes/no
+		//
 		if (InSettingsFetchFirst)
 		{
-			// If the keys are the same, ignore fetch first.
-			FBuildDefinition FetchDefinition = CreateDefinition(Build, Texture, TexturePath, FunctionName, *InSettingsFetchFirst, bUseCompositeTexture, RequiredMemoryEstimate);
-			DerivedData.FetchFirstDerivedDataKey.Emplace<FTexturePlatformData::FStructuredDerivedDataKey>(GetKey(FetchDefinition, Texture, bUseCompositeTexture));
-			if (FetchDefinition.GetKey() != FetchOrBuildDefinition.GetKey())
+			if (TilingFunctionName.Len())
 			{
-				bBuildKicked = true;
-				if (InFetchFirstMetadata)
+				//
+				// FetchFirst_Tiling builds FetchFirst_Parent, if we miss in either place
+				// we go to FetchOrBuild_Tiling which builds FetchOrBuild_Parent.
+				//
+				FBuildDefinition FetchOrBuild_ParentDefinition = CreateDefinition(Build, Texture, TexturePath, FunctionName, InSettingsFetchOrBuild, bUseCompositeTexture, RequiredMemoryEstimate);
+				FBuildDefinition FetchOrBuild_TilingDefinition = CreateTilingDefinition(Build, &Texture, InSettingsFetchOrBuild, nullptr, nullptr, FetchOrBuild_ParentDefinition, TexturePath, TilingFunctionName);
+
+				FBuildDefinition FetchFirst_ParentDefinition = CreateDefinition(Build, Texture, TexturePath, FunctionName, *InSettingsFetchFirst, bUseCompositeTexture, RequiredMemoryEstimate);
+				FBuildDefinition FetchFirst_TilingDefinition = CreateTilingDefinition(Build, &Texture, *InSettingsFetchFirst, nullptr, nullptr, FetchFirst_ParentDefinition, TexturePath, TilingFunctionName);
+
+				BuildResults.PlatformData.FetchOrBuildDerivedDataKey.Emplace<FTexturePlatformData::FStructuredDerivedDataKey>(GetKey(FetchOrBuild_ParentDefinition, &FetchOrBuild_TilingDefinition, Texture, bUseCompositeTexture));
+				BuildResults.PlatformData.FetchFirstDerivedDataKey.Emplace<FTexturePlatformData::FStructuredDerivedDataKey>(GetKey(FetchFirst_ParentDefinition, &FetchFirst_TilingDefinition, Texture, bUseCompositeTexture));
+
+				FetchOrBuild_ChildInputResolver.Emplace(BuildSession.Get(), FetchOrBuild_ParentDefinition, FetchOrBuildPolicy);
+				FetchOrBuild_ChildBuildSession = Build.CreateSession(TexturePath, FetchOrBuild_ChildInputResolver.GetPtrOrNull());
+
+				// Must be done after the policy is copied in to the child input resolver
+				if (CVarForceRetileTextures.GetValueOnAnyThread())
 				{
-					this->DerivedData.ResultMetadata = *InFetchFirstMetadata;
+					FetchOrBuildPolicy = EBuildPolicy::Build;
 				}
 
-				FBuildPolicyBuilder BuildPolicyBuilder(bInlineMips ? EBuildPolicy::Cache : (EBuildPolicy::CacheQuery | EBuildPolicy::SkipData));
-				if (!bInlineMips)
-				{
-					BuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("Description")), EBuildPolicy::Cache);
-					BuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("MipTail")), EBuildPolicy::Cache);
-				}
+				FBuildInfo FetchOrBuildInfo(FetchOrBuild_ChildBuildSession.GetValue(), FetchOrBuild_TilingDefinition, FetchOrBuildPolicy, FetchOrBuildResultMetadata);
+				FetchOrBuildInfo.TilingInputResolver = FetchOrBuild_ChildInputResolver.GetPtrOrNull();
 
-				BuildSession.Get().Build(FetchDefinition, {}, BuildPolicyBuilder.Build(), *Owner,
-					[this,
-					 FetchOrBuildDefinition = MoveTemp(FetchOrBuildDefinition),
-					 Flags,
-					 FetchOrBuildMetadata = InFetchOrBuildMetadata ? *InFetchOrBuildMetadata : FTexturePlatformData::FTextureEncodeResultMetadata()
-					](FBuildCompleteParams&& Params)
+				if (FetchOrBuild_ParentDefinition.GetKey() == FetchFirst_ParentDefinition.GetKey() &&
+					FetchOrBuild_TilingDefinition.GetKey() == FetchFirst_TilingDefinition.GetKey())
+				{
+					// Same definition, just do FetchOrBuild.
+					LaunchBuildWithFallback(BuildResults, BuildResultOptions, FetchOrBuildInfo, {}, *Owner);
+				}
+				else
+				{	
+					FetchFirst_ChildInputResolver.Emplace(BuildSession.Get(), FetchFirst_ParentDefinition, FetchFirstBuildPolicy);
+					FetchFirst_ChildBuildSession = Build.CreateSession(TexturePath, FetchFirst_ChildInputResolver.GetPtrOrNull());
+					// Must be done after the policy is copied in to the child input resolver
+					if (CVarForceRetileTextures.GetValueOnAnyThread())
 					{
-						switch (Params.Status)
-						{
-						default:
-						case EStatus::Ok:
-							return EndBuild(MoveTemp(Params));
-						case EStatus::Error:
-							this->DerivedData.ResultMetadata = FetchOrBuildMetadata;
-							return BeginBuild(FetchOrBuildDefinition, Flags);
-						}
-					});
+						FetchFirstBuildPolicy = EBuildPolicy::Build;
+					}
+
+					FBuildInfo FetchFirstInfo(FetchFirst_ChildBuildSession.GetValue(), FetchFirst_TilingDefinition, FetchFirstBuildPolicy, FetchFirstResultMetadata);
+					FetchFirstInfo.TilingInputResolver = FetchFirst_ChildInputResolver.GetPtrOrNull();
+
+					LaunchBuildWithFallback(BuildResults, BuildResultOptions, FetchFirstInfo, FetchOrBuildInfo, *Owner);
+				}
+			}
+			else
+			{
+				// FetchFirst runs, if we miss we build FetchOrBuild
+				FBuildDefinition FetchOrBuild_Definition = CreateDefinition(Build, Texture, TexturePath, FunctionName, InSettingsFetchOrBuild, bUseCompositeTexture, RequiredMemoryEstimate);
+				FBuildDefinition FetchFirst_Definition = CreateDefinition(Build, Texture, TexturePath, FunctionName, *InSettingsFetchFirst, bUseCompositeTexture, RequiredMemoryEstimate);
+
+				BuildResults.PlatformData.FetchOrBuildDerivedDataKey.Emplace<FTexturePlatformData::FStructuredDerivedDataKey>(GetKey(FetchOrBuild_Definition, nullptr, Texture, bUseCompositeTexture));
+				BuildResults.PlatformData.FetchFirstDerivedDataKey.Emplace<FTexturePlatformData::FStructuredDerivedDataKey>(GetKey(FetchFirst_Definition, nullptr, Texture, bUseCompositeTexture));
+
+				FBuildInfo FetchOrBuildInfo(BuildSession.Get(), FetchOrBuild_Definition, FetchOrBuildPolicy, FetchOrBuildResultMetadata);
+				if (FetchOrBuild_Definition.GetKey() == FetchFirst_Definition.GetKey())
+				{
+					LaunchBuildWithFallback(BuildResults, BuildResultOptions, FetchOrBuildInfo, {}, *Owner);
+				}
+				else
+				{
+					FBuildInfo FetchFirstInfo(BuildSession.Get(), FetchFirst_Definition, FetchFirstBuildPolicy, FetchFirstResultMetadata);
+					LaunchBuildWithFallback(BuildResults, BuildResultOptions, FetchFirstInfo, FetchOrBuildInfo, *Owner);
+				}
 			}
 		}
-
-		if (bBuildKicked == false)
+		else
 		{
-			// we didn't use the fetch first path.
-			if (InFetchOrBuildMetadata)
+			if (TilingFunctionName.Len())
 			{
-				this->DerivedData.ResultMetadata = *InFetchOrBuildMetadata;
+				// Tiling runs which builds Parent.
+				FBuildDefinition FetchOrBuild_ParentDefinition = CreateDefinition(Build, Texture, TexturePath, FunctionName, InSettingsFetchOrBuild, bUseCompositeTexture, RequiredMemoryEstimate);
+				FBuildDefinition FetchOrBuild_TilingDefinition = CreateTilingDefinition(Build, &Texture, InSettingsFetchOrBuild, nullptr, nullptr, FetchOrBuild_ParentDefinition, TexturePath, TilingFunctionName);
+
+				BuildResults.PlatformData.FetchOrBuildDerivedDataKey.Emplace<FTexturePlatformData::FStructuredDerivedDataKey>(GetKey(FetchOrBuild_ParentDefinition, &FetchOrBuild_TilingDefinition, Texture, bUseCompositeTexture));
+
+				FetchOrBuild_ChildInputResolver.Emplace(BuildSession.Get(), FetchOrBuild_ParentDefinition, FetchOrBuildPolicy);
+				// Must be done after the policy is copied in to the child input resolver
+				if (CVarForceRetileTextures.GetValueOnAnyThread())
+				{
+					FetchOrBuildPolicy = EBuildPolicy::Build;
+				}
+
+				FetchOrBuild_ChildBuildSession = Build.CreateSession(TexturePath, FetchOrBuild_ChildInputResolver.GetPtrOrNull());
+
+				FBuildInfo FetchOrBuildInfo(FetchOrBuild_ChildBuildSession.GetValue(), FetchOrBuild_TilingDefinition, FetchOrBuildPolicy, FetchOrBuildResultMetadata);
+				FetchOrBuildInfo.TilingInputResolver = FetchOrBuild_ChildInputResolver.GetPtrOrNull();
+
+				LaunchBuildWithFallback(BuildResults, BuildResultOptions, FetchOrBuildInfo, {}, *Owner);
 			}
-			BeginBuild(FetchOrBuildDefinition, Flags);
+			else
+			{
+				// we just directly build the single definition.
+				FBuildDefinition FetchOrBuild_Definition = CreateDefinition(Build, Texture, TexturePath, FunctionName, InSettingsFetchOrBuild, bUseCompositeTexture, RequiredMemoryEstimate);
+
+				BuildResults.PlatformData.FetchOrBuildDerivedDataKey.Emplace<FTexturePlatformData::FStructuredDerivedDataKey>(GetKey(FetchOrBuild_Definition, nullptr, Texture, bUseCompositeTexture));
+
+				FBuildInfo FetchOrBuildInfo(BuildSession.Get(), FetchOrBuild_Definition, FetchOrBuildPolicy, FetchOrBuildResultMetadata);
+
+				LaunchBuildWithFallback(BuildResults, BuildResultOptions, FetchOrBuildInfo, {}, *Owner);
+			}
 		}
 
 		if (StatusMessage.IsSet())
@@ -1682,8 +2237,8 @@ public:
 		const int64 RequiredMemoryEstimate)
 	{
 		UE::DerivedData::FBuildDefinitionBuilder DefinitionBuilder = Build.CreateDefinition(TexturePath, FunctionName);
-		DefinitionBuilder.AddConstant(UTF8TEXTVIEW("Settings"),
-			SaveTextureBuildSettings(Texture, Settings, 0, NUM_INLINE_DERIVED_MIPS, bUseCompositeTexture, RequiredMemoryEstimate));
+		DefinitionBuilder.AddConstant(UTF8TEXTVIEW("EngineParameters"), UE::TextureBuildUtilities::TextureEngineParameters::ToCompactBinaryWithDefaults(GenerateTextureEngineParameters()));
+		DefinitionBuilder.AddConstant(UTF8TEXTVIEW("Settings"), SaveTextureBuildSettings(Texture, Settings, 0, bUseCompositeTexture, RequiredMemoryEstimate));
 		DefinitionBuilder.AddInputBulkData(UTF8TEXTVIEW("Source"), Texture.Source.GetPersistentId());
 		if (Texture.CompositeTexture && bUseCompositeTexture)
 		{
@@ -1693,48 +2248,53 @@ public:
 	}
 
 private:
-	void BeginBuild(const UE::DerivedData::FBuildDefinition& Definition, ETextureCacheFlags Flags)
+
+	static UE::DerivedData::FBuildPolicy FetchFirst_CreateBuildPolicy(FBuildResultOptions InBuildResultOptions)
 	{
 		using namespace UE::DerivedData;
 
-		FBuildPolicy BuildPolicy;
+		if (InBuildResultOptions.bLoadStreamingMips)
+		{
+			// We want all of the output values.
+			return EBuildPolicy::Cache;
+		}
+		else
+		{
+			// We only want the metadata and the mip tail.
+			FBuildPolicyBuilder FetchFirstBuildPolicyBuilder(EBuildPolicy::CacheQuery | EBuildPolicy::SkipData);
+			FetchFirstBuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("EncodedTextureDescription")), EBuildPolicy::Cache);
+			FetchFirstBuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("EncodedTextureExtendedData")), EBuildPolicy::Cache);
+			FetchFirstBuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("MipTail")), EBuildPolicy::Cache);
+			return FetchFirstBuildPolicyBuilder.Build();
+		}		
+	}
+
+	static UE::DerivedData::FBuildPolicy FetchOrBuild_CreateBuildPolicy(ETextureCacheFlags Flags, FBuildResultOptions InBuildResultOptions)
+	{
+		using namespace UE::DerivedData;
+
 		if (EnumHasAnyFlags(Flags, ETextureCacheFlags::ForceRebuild))
 		{
-			BuildPolicy = EBuildPolicy::Default & ~EBuildPolicy::CacheQuery;
+			return EBuildPolicy::Default & ~EBuildPolicy::CacheQuery;
 		}
-		else if (bInlineMips)
+		else if (InBuildResultOptions.bLoadStreamingMips)
 		{
-			BuildPolicy = EBuildPolicy::Default;
+			return EBuildPolicy::Default;
 		}
 		else
 		{
 			FBuildPolicyBuilder BuildPolicyBuilder(EBuildPolicy::Build | EBuildPolicy::CacheQuery | EBuildPolicy::CacheStoreOnBuild | EBuildPolicy::SkipData);
-			BuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("Description")), EBuildPolicy::Default);
+			BuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("EncodedTextureDescription")), EBuildPolicy::Cache);
+			BuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("EncodedTextureExtendedData")), EBuildPolicy::Cache);
 			BuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("MipTail")), EBuildPolicy::Default);
-			BuildPolicy = BuildPolicyBuilder.Build();
-		}
-
-		BuildSession.Get().Build(Definition, {}, BuildPolicy, *Owner,
-			[this](FBuildCompleteParams&& Params) { EndBuild(MoveTemp(Params)); });
-	}
-
-	void EndBuild(UE::DerivedData::FBuildCompleteParams&& Params)
-	{
-		using namespace UE::DerivedData;
-		DerivedData.DerivedDataKey.Emplace<FCacheKeyProxy>(Params.CacheKey);
-		bCacheHit = EnumHasAnyFlags(Params.BuildStatus, EBuildStatus::CacheQueryHit);
-		BuildOutputSize = Algo::TransformAccumulate(Params.Output.GetValues(),
-			[](const FValue& Value) { return Value.GetData().GetRawSize(); }, uint64(0));
-		if (Params.Status != EStatus::Canceled)
-		{
-			WriteDerivedData(MoveTemp(Params));
+			return BuildPolicyBuilder.Build();
 		}
 	}
 
 	void Finalize(bool& bOutFoundInCache, uint64& OutProcessedByteCount) final
 	{
-		bOutFoundInCache = bCacheHit;
-		OutProcessedByteCount = BuildOutputSize;
+		bOutFoundInCache = BuildResults.bCacheHit;
+		OutProcessedByteCount = BuildResults.BuildOutputSize;
 	}
 public:
 
@@ -1892,10 +2452,14 @@ public:
 		return true;
 	}
 
-	static FTexturePlatformData::FStructuredDerivedDataKey GetKey(const UE::DerivedData::FBuildDefinition& BuildDefinition, const UTexture& Texture, bool bUseCompositeTexture)
+	static FTexturePlatformData::FStructuredDerivedDataKey GetKey(const UE::DerivedData::FBuildDefinition& BuildDefinition, const UE::DerivedData::FBuildDefinition* TilingBuildDefinitionKey, const UTexture& Texture, bool bUseCompositeTexture)
 	{
 		// DDC2 Key SerializeForKey is here!
 		FTexturePlatformData::FStructuredDerivedDataKey Key;
+		if (TilingBuildDefinitionKey != nullptr)
+		{
+			Key.TilingBuildDefinitionKey = TilingBuildDefinitionKey->GetKey().Hash;
+		}
 		Key.BuildDefinitionKey = BuildDefinition.GetKey().Hash;
 		Key.SourceGuid = Texture.Source.GetId();
 		if (bUseCompositeTexture && Texture.CompositeTexture)
@@ -1905,189 +2469,63 @@ public:
 		return Key;
 	}
 
-private:
+	static UE::DerivedData::FBuildDefinition CreateTilingDefinition(
+		UE::DerivedData::IBuild& InBuild,
+		UTexture* InTexture,
+		const FTextureBuildSettings& InBuildSettings,
+		FEncodedTextureDescription* InTextureDescription, // only valid if our textures can generate this pre build
+		FEncodedTextureExtendedData* InTextureExtendedData, // only valid if our textures can generate this pre build
+		const UE::DerivedData::FBuildDefinition& InParentBuildDefinition,
+		const UE::DerivedData::FSharedString& InDefinitionDebugName,
+		const UE::DerivedData::FUtf8SharedString& InBuildFunctionName
+	)
+	{			
+		const FTextureEngineParameters EngineParameters = GenerateTextureEngineParameters();
 
-	static bool DeserializeTextureFromValues(FTexturePlatformData& DerivedData, UE::DerivedData::FBuildCompleteParams&& Params, int32 FirstMipToLoad, bool bInlineMips)
-	{
-		using namespace UE;
-		using namespace UE::DerivedData;
+		//
+		// We always consume an unpacked texture (i.e. extended data == nullptr)
+		//
+		const FTextureSource& Source = InTexture->Source;
+		int32 InputTextureMip0SizeX, InputTextureMip0SizeY, InputTextureMip0NumSlices;
+		int32 InputTextureNumMips = TextureCompressorModule->GetMipCountForBuildSettings(Source.GetSizeX(), Source.GetSizeY(), Source.GetNumSlices(), Source.GetNumMips(), InBuildSettings, InputTextureMip0SizeX, InputTextureMip0SizeY, InputTextureMip0NumSlices);
+		int32 InputTextureNumStreamingMips = GetNumStreamingMipsDirect(InputTextureNumMips, InBuildSettings.bCubemap, InBuildSettings.bVolume, InBuildSettings.bTextureArray, nullptr, EngineParameters);
 
-		const FBuildOutput& Output = Params.Output;
-		const FValueWithId& Value = Output.GetValue(FValueId::FromName(ANSITEXTVIEW("Description")));
-		if (!Value)
+		//
+		// A child definition consumes a parent definition and swizzles it. However it
+		// needs to know ahead of time the total mip count and the streaming mip count
+		//
+		const UE::DerivedData::FBuildKey InParentBuildKey = InParentBuildDefinition.GetKey();
+
+		UE::DerivedData::FBuildDefinitionBuilder DefinitionBuilder = InBuild.CreateDefinition(InDefinitionDebugName, InBuildFunctionName);
+
+		// The tiler needs the description, which either comes from us (new style) or the linear build (old style)
+		if (InTextureDescription == nullptr)
 		{
-			UE_LOG(LogTexture, Error, TEXT("Missing texture description for build of '%s' by %s."),
-				*Output.GetName(), *WriteToString<32>(Output.GetFunction()));
-			return false;
+			// old style
+			DefinitionBuilder.AddInputBuild(UTF8TEXTVIEW("EncodedTextureDescriptionInput"), { InParentBuildKey, UE::DerivedData::FValueId::FromName(UTF8TEXTVIEW("EncodedTextureDescription")) });			
+			// The tiling build can generate the extended data.
+		}
+		else
+		{
+			// new style - we want to provide everything so that the only outputs are bulk data that we can
+			// just hold references to.
+			DefinitionBuilder.AddConstant(UTF8TEXTVIEW("EncodedTextureDescriptionConstant"), UE::TextureBuildUtilities::EncodedTextureDescription::ToCompactBinary(*InTextureDescription));
+			DefinitionBuilder.AddConstant(UTF8TEXTVIEW("EncodedTextureExtendedDataConstant"), UE::TextureBuildUtilities::EncodedTextureExtendedData::ToCompactBinary(*InTextureExtendedData));
+		}
+		
+		if (InputTextureNumMips > InputTextureNumStreamingMips)
+		{
+			DefinitionBuilder.AddInputBuild(UTF8TEXTVIEW("MipTail"), { InParentBuildKey, UE::DerivedData::FValueId::FromName(UTF8TEXTVIEW("MipTail")) });
 		}
 
-		FCbObject TextureDescription(Value.GetData().Decompress());
-
-		FCbFieldViewIterator SizeIt = TextureDescription[ANSITEXTVIEW("Size")].AsArrayView().CreateViewIterator();
-		DerivedData.SizeX = SizeIt++->AsInt32();
-		DerivedData.SizeY = SizeIt++->AsInt32();
-		int32 NumSlices = SizeIt++->AsInt32();
-
-		UEnum* PixelFormatEnum = UTexture::GetPixelFormatEnum();
-		FUtf8StringView PixelFormatStringView = TextureDescription[ANSITEXTVIEW("PixelFormat")].AsString();
-		FName PixelFormatName(PixelFormatStringView.Len(), PixelFormatStringView.GetData());
-		DerivedData.PixelFormat = (EPixelFormat)PixelFormatEnum->GetValueByName(PixelFormatName);
-
-		const bool bCubeMap = TextureDescription[ANSITEXTVIEW("bCubeMap")].AsBool();
-		DerivedData.OptData.ExtData = TextureDescription[ANSITEXTVIEW("ExtData")].AsUInt32();
-		DerivedData.OptData.NumMipsInTail = TextureDescription[ANSITEXTVIEW("NumMipsInTail")].AsUInt32();
-		const bool bHasOptData = (DerivedData.OptData.NumMipsInTail != 0) || (DerivedData.OptData.ExtData != 0);
-		static constexpr uint32 BitMask_CubeMap = 1u << 31u;
-		static constexpr uint32 BitMask_HasOptData = 1u << 30u;
-		static constexpr uint32 BitMask_NumSlices = BitMask_HasOptData - 1u;
-		DerivedData.PackedData = (NumSlices & BitMask_NumSlices) | (bCubeMap ? BitMask_CubeMap : 0) | (bHasOptData ? BitMask_HasOptData : 0);
-
-		int32 NumMips = TextureDescription[ANSITEXTVIEW("NumMips")].AsInt32();
-		int32 NumStreamingMips = TextureDescription[ANSITEXTVIEW("NumStreamingMips")].AsInt32();
-
-		FCbArrayView MipArrayView = TextureDescription[ANSITEXTVIEW("Mips")].AsArrayView();
-		if (NumMips != MipArrayView.Num())
+		for (int32 MipIndex = 0; MipIndex < InputTextureNumStreamingMips; MipIndex++)
 		{
-			UE_LOG(LogTexture, Error, TEXT("Mismatched mip quantity (%d and %d) for build of '%s' by %s."),
-				NumMips, MipArrayView.Num(), *Output.GetName(), *WriteToString<32>(Output.GetFunction()));
-			return false;
-		}
-		check(NumMips >= (int32)DerivedData.OptData.NumMipsInTail);
-		check(NumMips >= NumStreamingMips);
-
-		FSharedBuffer MipTailData;
-		if (NumMips > NumStreamingMips)
-		{
-			const FValueWithId& MipTailValue = Output.GetValue(FValueId::FromName(ANSITEXTVIEW("MipTail")));
-			if (!MipTailValue)
-			{
-				UE_LOG(LogTexture, Error, TEXT("Missing texture mip tail for build of '%s' by %s."),
-					*Output.GetName(), *WriteToString<32>(Output.GetFunction()));
-				return false;
-			}
-			MipTailData = MipTailValue.GetData().Decompress();
+			TUtf8StringBuilder<10> MipName;
+			MipName << "Mip" << MipIndex;
+			DefinitionBuilder.AddInputBuild(MipName, { InParentBuildKey, UE::DerivedData::FValueId::FromName(MipName) });
 		}
 
-		int32 MipIndex = 0;
-		DerivedData.Mips.Empty(NumMips);
-		for (FCbFieldView MipFieldView : MipArrayView)
-		{
-			FCbObjectView MipObjectView = MipFieldView.AsObjectView();
-			TUniquePtr<FTexture2DMipMap> NewMip = MakeUnique<FTexture2DMipMap>();
-
-			FCbFieldViewIterator MipSizeIt = MipObjectView[ANSITEXTVIEW("Size")].AsArrayView().CreateViewIterator();
-			NewMip->SizeX = MipSizeIt++->AsInt32();
-			NewMip->SizeY = MipSizeIt++->AsInt32();
-			NewMip->SizeZ = MipSizeIt++->AsInt32();
-			NewMip->FileRegionType = static_cast<EFileRegionType>(MipObjectView[ANSITEXTVIEW("FileRegion")].AsInt32());
-			
-			if (MipIndex >= NumStreamingMips)
-			{
-				uint64 MipSize = MipObjectView[ANSITEXTVIEW("NumBytes")].AsUInt64();
-				FMemoryView MipView = MipTailData.GetView().Mid(MipObjectView[ANSITEXTVIEW("MipOffset")].AsUInt64(), MipSize);
-
-				NewMip->BulkData.Lock(LOCK_READ_WRITE);
-				void* MipAllocData = NewMip->BulkData.Realloc(int64(MipSize));
-				MakeMemoryView(MipAllocData, MipSize).CopyFrom(MipView);
-				NewMip->BulkData.Unlock();
-			}
-			else
-			{
-				const FValueId MipId = FTexturePlatformData::MakeMipId(MipIndex);
-				const FValueWithId& MipValue = Output.GetValue(MipId);
-				if (!MipValue)
-				{
-					UE_LOG(LogTexture, Error, TEXT("Missing streaming texture mip %d for build of '%s' by %s."),
-						MipIndex, *Output.GetName(), *WriteToString<32>(Output.GetFunction()));
-					return false;
-				}
-
-				if (bInlineMips && (MipIndex >= FirstMipToLoad))
-				{
-					NewMip->BulkData.Lock(LOCK_READ_WRITE);
-					const uint64 MipSize = MipValue.GetRawSize();
-					void* MipData = NewMip->BulkData.Realloc(IntCastChecked<int64>(MipSize));
-					ON_SCOPE_EXIT { NewMip->BulkData.Unlock(); };
-					if (!MipValue.GetData().TryDecompressTo(MakeMemoryView(MipData, MipSize)))
-					{
-						UE_LOG(LogTexture, Error, TEXT("Failed to decompress streaming texture mip %d for build of '%s' by %s."),
-							MipIndex, *Output.GetName(), *WriteToString<32>(Output.GetFunction()));
-						return false;
-					}
-				}
-
-				FSharedString MipName(WriteToString<256>(Output.GetName(), TEXT(" [MIP "), MipIndex, TEXT("]")));
-				NewMip->DerivedData = FDerivedData(MoveTemp(MipName), Params.CacheKey, MipId);
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-				NewMip->bPagedToDerivedData = true;
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-			}
-
-			DerivedData.Mips.Add(NewMip.Release());
-			++MipIndex;
-		}
-
-		return true;
-	}
-
-	void WriteDerivedData(UE::DerivedData::FBuildCompleteParams&& Params)
-	{
-		using namespace UE::DerivedData;
-
-		const FBuildOutput& Output = Params.Output;
-		const FSharedString& Name = Output.GetName();
-		const FUtf8SharedString& Function = Output.GetFunction();
-
-		for (const FBuildOutputMessage& Message : Output.GetMessages())
-		{
-			switch (Message.Level)
-			{
-			case EBuildOutputMessageLevel::Error:
-				UE_LOG(LogTexture, Warning, TEXT("[Error] %s (Build of '%s' by %s.)"),
-					*WriteToString<256>(Message.Message), *Name, *WriteToString<32>(Function));
-				break;
-			case EBuildOutputMessageLevel::Warning:
-				UE_LOG(LogTexture, Warning, TEXT("%s (Build of '%s' by %s.)"),
-					*WriteToString<256>(Message.Message), *Name, *WriteToString<32>(Function));
-				break;
-			case EBuildOutputMessageLevel::Display:
-				UE_LOG(LogTexture, Display, TEXT("%s (Build of '%s' by %s.)"),
-					*WriteToString<256>(Message.Message), *Name, *WriteToString<32>(Function));
-				break;
-			default:
-				checkNoEntry();
-				break;
-			}
-		}
-
-		for (const FBuildOutputLog& Log : Output.GetLogs())
-		{
-			switch (Log.Level)
-			{
-			case EBuildOutputLogLevel::Error:
-				UE_LOG(LogTexture, Warning, TEXT("[Error] %s: %s (Build of '%s' by %s.)"),
-					*WriteToString<64>(Log.Category), *WriteToString<256>(Log.Message),
-					*Name, *WriteToString<32>(Function));
-				break;
-			case EBuildOutputLogLevel::Warning:
-				UE_LOG(LogTexture, Warning, TEXT("%s: %s (Build of '%s' by %s.)"),
-					*WriteToString<64>(Log.Category), *WriteToString<256>(Log.Message),
-					*Name, *WriteToString<32>(Function));
-				break;
-			default:
-				checkNoEntry();
-				break;
-			}
-		}
-
-		if (Output.HasError())
-		{
-			UE_LOG(LogTexture, Warning, TEXT("Failed to build derived data for build of '%s' by %s."),
-				*Name, *WriteToString<32>(Function));
-			return;
-		}
-
-		DeserializeTextureFromValues(DerivedData, MoveTemp(Params), FirstMipToLoad, bInlineMips);
+		return DefinitionBuilder.Build();
 	}
 
 	static UE::DerivedData::EPriority ConvertPriority(EQueuedWorkPriority SourcePriority)
@@ -2119,24 +2557,36 @@ private:
 		}
 	}
 
+	static ITextureCompressorModule* TextureCompressorModule;
 	static bool LoadModules()
 	{
 		FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
-		FModuleManager::LoadModuleChecked<ITextureCompressorModule>(TEXTURE_COMPRESSOR_MODULENAME);
+		TextureCompressorModule = &FModuleManager::LoadModuleChecked<ITextureCompressorModule>(TEXTURE_COMPRESSOR_MODULENAME);
 		return true;
 	}
+	
+	// Stuff that we get as a result of the build.
+	FBuildResults BuildResults;
 
-	FTexturePlatformData& DerivedData;
+	// Controls for what optional build outputs we want.
+	FBuildResultOptions BuildResultOptions;
+
+	// Build bureaucracy
 	TOptional<UE::DerivedData::FRequestOwner> Owner;
-	UE::DerivedData::FOptionalBuildSession BuildSession;
 	EQueuedWorkPriority Priority;
-	bool bCacheHit;
-	bool bInlineMips;
-	int32 FirstMipToLoad;
-	uint64 BuildOutputSize = 0;
+
+	UE::DerivedData::FOptionalBuildSession BuildSession;
 	UE::TextureDerivedData::FTextureBuildInputResolver InputResolver;
+	
+	TOptional<UE::TextureDerivedData::FBuildSession> FetchOrBuild_ChildBuildSession;
+	TOptional<UE::TextureDerivedData::FBuildSession> FetchFirst_ChildBuildSession;
+	TOptional<UE::TextureDerivedData::FTilingTextureBuildInputResolver> FetchOrBuild_ChildInputResolver;
+	TOptional<UE::TextureDerivedData::FTilingTextureBuildInputResolver> FetchFirst_ChildInputResolver;
+
 	FRWLock Lock;
 }; // end DDC2 fetch/build task (FTextureBuildTask)
+
+/* static */ ITextureCompressorModule* FTextureBuildTask::TextureCompressorModule = 0;
 
 FTextureAsyncCacheDerivedDataTask* CreateTextureBuildTask(
 	UTexture& Texture,
@@ -2149,9 +2599,16 @@ FTextureAsyncCacheDerivedDataTask* CreateTextureBuildTask(
 	ETextureCacheFlags Flags)
 {
 	using namespace UE::DerivedData;
+	FUtf8SharedString TilingFunctionName;
+	if (SettingsFetchOrBuild.Tiler)
+	{
+		TilingFunctionName = SettingsFetchOrBuild.Tiler->GetBuildFunctionName();
+	}
+
 	if (FUtf8SharedString FunctionName = FindTextureBuildFunction(SettingsFetchOrBuild.TextureFormatName); !FunctionName.IsEmpty())
 	{
-		return new FTextureBuildTask(Texture, DerivedData, FunctionName, SettingsFetch, SettingsFetchOrBuild, FetchMetadata, FetchOrBuildMetadata, Priority, Flags);
+		return new FTextureBuildTask(Texture, DerivedData, FunctionName, TilingFunctionName, SettingsFetch, SettingsFetchOrBuild, FetchMetadata, FetchOrBuildMetadata, Priority, Flags);
+
 	}
 	return nullptr;
 }
@@ -2163,6 +2620,11 @@ FTexturePlatformData::FStructuredDerivedDataKey CreateTextureDerivedDataKey(
 {
 	using namespace UE::DerivedData;
 
+	FUtf8SharedString TilingFunctionName;
+	if (Settings.Tiler)
+	{
+		TilingFunctionName = Settings.Tiler->GetBuildFunctionName();
+	}
 	if (FUtf8SharedString FunctionName = FindTextureBuildFunction(Settings.TextureFormatName); !FunctionName.IsEmpty())
 	{
 		IBuild& Build = GetBuild();
@@ -2182,8 +2644,13 @@ FTexturePlatformData::FStructuredDerivedDataKey CreateTextureDerivedDataKey(
 			int64 RequiredMemoryEstimate = GetBuildRequiredMemoryEstimate(&Texture,&Settings);
 
 			FBuildDefinition Definition = FTextureBuildTask::CreateDefinition(Build, Texture, TexturePath.ToView(), FunctionName, Settings, bUseCompositeTexture, RequiredMemoryEstimate);
+			TOptional<FBuildDefinition> TilingDefinition;
+			if (TilingFunctionName.IsEmpty() == false)
+			{
+				TilingDefinition.Emplace(FTextureBuildTask::CreateTilingDefinition(Build, &Texture, Settings, nullptr, nullptr, Definition, TexturePath.ToView(), TilingFunctionName));
+			}
 
-			return FTextureBuildTask::GetKey(Definition, Texture, bUseCompositeTexture);
+			return FTextureBuildTask::GetKey(Definition, TilingDefinition.GetPtrOrNull(), Texture, bUseCompositeTexture);
 		}
 	}
 	return FTexturePlatformData::FStructuredDerivedDataKey();

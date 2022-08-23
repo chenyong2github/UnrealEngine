@@ -1327,6 +1327,10 @@ bool UTexture::IsCandidateForTextureStreaming(const ITargetPlatform* InTargetPla
 		MipGenSettings != TMGS_NoMipmaps)
 	{
 		// If bCookedIsStreamable flag was previously computed, use it.
+		// This is computed _after_ the derived data is cached. It's only Reset() and used in the SerializeCookedPlatformData
+		// path.. but not the BeginCacheForCookedPlatformData path. Need to know what happens if you do
+		// one, then the other, as the flag will be set. Also note that this is an OR when multiple platforms
+		// are cooked... so this can be true for a non-streaming platform if it gets cooked with a streaming platform!
 		if (bCookedIsStreamable.IsSet())
 		{
 			return *bCookedIsStreamable;

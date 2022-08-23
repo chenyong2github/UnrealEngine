@@ -34,6 +34,9 @@
 
 #if WITH_EDITOR
 
+#include "ChildTextureFormat.h"
+#include "ColorSpace.h"
+#include "Compression/OodleDataCompressionUtil.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataRequestOwner.h"
@@ -47,8 +50,6 @@
 #include "VT/LightmapVirtualTexture.h"
 #include "TextureCompiler.h"
 #include "TextureEncodingSettings.h"
-#include "ColorSpace.h"
-#include "Compression/OodleDataCompressionUtil.h"
 
 
 /*------------------------------------------------------------------------------
@@ -69,6 +70,26 @@
 // This is useful during development, but once large numbers of VT are present in shipped content, it will have the same problem as TEXTURE_DERIVEDDATA_VER
 // This is put in the DDC1 key but NOT in the DDC2 key
 #define TEXTURE_VT_DERIVEDDATA_VER	TEXT("7C16439390E24F1F9468894FB4D4BC54")
+
+
+static bool IsUsingNewDerivedData()
+{
+	struct FTextureDerivedDataSetting
+	{
+		FTextureDerivedDataSetting()
+		{
+			bUseNewDerivedData = FParse::Param(FCommandLine::Get(), TEXT("DDC2AsyncTextureBuilds")) || FParse::Param(FCommandLine::Get(), TEXT("DDC2TextureBuilds"));
+			if (!bUseNewDerivedData)
+			{
+				GConfig->GetBool(TEXT("TextureBuild"), TEXT("NewTextureBuilds"), bUseNewDerivedData, GEditorIni);
+			}
+			UE_CLOG(bUseNewDerivedData, LogTexture, Log, TEXT("Using new texture derived data builds."));
+		}
+		bool bUseNewDerivedData;
+	};
+	static const FTextureDerivedDataSetting TextureDerivedDataSetting;
+	return TextureDerivedDataSetting.bUseNewDerivedData;
+}
 
 
 #if ENABLE_COOK_STATS
@@ -587,7 +608,28 @@ static void FinalizeBuildSettingsForLayer(
 					OutBuildResultMetadata->bIsValid = true;
 					OutBuildResultMetadata->bSupportsEncodeSpeed = bSupportsEncodeSpeed;
 				}
-			}
+			
+				if (IsUsingNewDerivedData()) // shared linear encoding only hooked up to ddc2 atm.
+				{
+					static auto CVarSharedLinearTextureEncoding = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SharedLinearTextureEncoding"));
+					if (CVarSharedLinearTextureEncoding->GetValueOnAnyThread())
+					{
+						// Shared linear encoding can only work if the base texture format does not expect to
+						// do the tiling itself (SupportsTiling == false).
+						const FChildTextureFormat* ChildTextureFormat = TextureFormat->GetChildFormat();
+						if (ChildTextureFormat && ChildTextureFormat->GetBaseFormatObject(OutSettings.TextureFormatName)->SupportsTiling() == false)
+						{
+							OutSettings.Tiler = ChildTextureFormat->GetTiler();
+							if (OutSettings.Tiler)
+							{
+								// Since the tiler will do the encoding, skip the child texture format entirely and just look for the
+								// base texture and then run the tiler after.
+								OutSettings.TextureFormatName = ChildTextureFormat->GetBaseFormatName(OutSettings.TextureFormatName);
+							}
+						}
+					} // end if enabled
+				} // end if ddc2
+			} // end if texture format found.
 		}
 	}
 
@@ -875,7 +917,6 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.CompositePower = Texture.CompositePower;
 	OutBuildSettings.LODBias = TextureLODSettings.CalculateLODBias(SourceSize.X, SourceSize.Y, Texture.MaxTextureSize, Texture.LODGroup, Texture.LODBias, Texture.NumCinematicMipLevels, Texture.MipGenSettings, bVirtualTextureStreaming);
 	OutBuildSettings.LODBiasWithCinematicMips = TextureLODSettings.CalculateLODBias(SourceSize.X, SourceSize.Y, Texture.MaxTextureSize, Texture.LODGroup, Texture.LODBias, 0, Texture.MipGenSettings, bVirtualTextureStreaming);
-	OutBuildSettings.bStreamable = GetTextureIsStreamableOnPlatform(Texture, TargetPlatform);
 	OutBuildSettings.bVirtualStreamable = bVirtualTextureStreaming;
 	OutBuildSettings.PowerOfTwoMode = Texture.PowerOfTwoMode;
 	OutBuildSettings.PaddingColor = Texture.PaddingColor;
@@ -1318,25 +1359,6 @@ void FTexturePlatformData::CancelCache()
 	{
 		FinishCache();
 	}
-}
-
-bool FTexturePlatformData::IsUsingNewDerivedData()
-{
-	struct FTextureDerivedDataSetting
-	{
-		FTextureDerivedDataSetting()
-		{
-			bUseNewDerivedData = FParse::Param(FCommandLine::Get(), TEXT("DDC2AsyncTextureBuilds")) || FParse::Param(FCommandLine::Get(), TEXT("DDC2TextureBuilds"));
-			if (!bUseNewDerivedData)
-			{
-				GConfig->GetBool(TEXT("TextureBuild"), TEXT("NewTextureBuilds"), bUseNewDerivedData, GEditorIni);
-			}
-			UE_CLOG(bUseNewDerivedData, LogTexture, Log, TEXT("Using new texture derived data builds."));
-		}
-		bool bUseNewDerivedData;
-	};
-	static const FTextureDerivedDataSetting TextureDerivedDataSetting;
-	return TextureDerivedDataSetting.bUseNewDerivedData;
 }
 
 bool FTexturePlatformData::IsAsyncWorkComplete() const
@@ -2804,7 +2826,7 @@ void UTexture::CachePlatformData(bool bAsyncCache, bool bAllowAsyncBuild, bool b
 
 				// Check if our keys match. If we have two, they both have to match, otherwise a change that only affects one
 				// might not cause a rebuild, leading to confusion in the texture editor.
-				if (FTexturePlatformData::IsUsingNewDerivedData() && (Source.GetNumLayers() == 1) && !BuildSettingsFetchOrBuild[0].bVirtualStreamable)
+				if (IsUsingNewDerivedData() && (Source.GetNumLayers() == 1) && !BuildSettingsFetchOrBuild[0].bVirtualStreamable)
 				{
 					// DDC2 version
 					using namespace UE::DerivedData;
