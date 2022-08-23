@@ -35,8 +35,9 @@ namespace UE::Net
 	{
 		Original		= 0,	// The original/unversioned handshake protocol
 		Randomized		= 1,	// The version of the handshake protocol with randomization, versioning and debug/diagnostic tweaks
+		NetCLVersion	= 2,	// Added Network CL version, for optional extra-early client rejection
 
-		Latest			= Randomized
+		Latest			= NetCLVersion
 	};
 
 	/**
@@ -255,6 +256,9 @@ private:
 
 		/** The current handshake protocol version the remote side used for communication */
 		EHandshakeVersion RemoteCurVersion = EHandshakeVersion::Latest;
+
+		/** The Network CL version of the remote side */
+		uint32 RemoteNetworkVersion = 0;
 
 		/** The type of handshake packet */
 		UE::Net::EHandshakePacketType HandshakePacketType = UE::Net::EHandshakePacketType::InitialPacket;
