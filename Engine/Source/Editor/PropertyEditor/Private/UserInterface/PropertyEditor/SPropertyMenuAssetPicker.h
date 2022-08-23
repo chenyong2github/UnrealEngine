@@ -14,7 +14,7 @@ class SPropertyMenuAssetPicker : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SPropertyMenuAssetPicker )
-		: _InitialObject(NULL)
+		: _InitialObject(nullptr)
 		, _AllowClear(true)
 	{}
 		SLATE_ARGUMENT( FAssetData, InitialObject )
@@ -88,11 +88,15 @@ private:
 	 */
 	void SetValue( const FAssetData& AssetData );
 
+	virtual FReply OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
 private:
 	FAssetData CurrentObject;
 	
 	/** The property this asset picker will modify (if any) */
 	TSharedPtr<IPropertyHandle> PropertyHandle;
+
+	TSharedPtr<SWidget> AssetPickerWidget;
 
 	/** Whether the asset can be 'None' in this case */
 	bool bAllowClear;

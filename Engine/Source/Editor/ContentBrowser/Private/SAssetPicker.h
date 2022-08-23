@@ -49,6 +49,8 @@ public:
 	/** Function that's called when someone wants to execute a Rename Command*/
 	void ExecuteRenameCommand();
 
+	TSharedPtr<SWidget> GetSearchBox() const;
+
 private:
 	/** Focuses the search box post-construct */
 	EActiveTimerReturnType SetFocusPostConstruct( double InCurrentTime, float InDeltaTime );

@@ -19,17 +19,15 @@
 #include "Misc/NamePermissionList.h"
 
 class FViewport;
-class UFactory;
 class IPlugin;
+class SWidget;
+class UFactory;
 
 typedef const FContentBrowserItem& FAssetFilterType;
 typedef TFilterCollection<FAssetFilterType> FAssetFilterCollectionType;
 
 typedef const TSharedRef<IPlugin>& FPluginFilterType;
 typedef TFilterCollection<FPluginFilterType> FPluginFilterCollectionType;
-
-class UFactory;
-
 
 /** The view modes used in SAssetView */
 namespace EAssetViewType
@@ -484,7 +482,7 @@ public:
 	 *
 	 * @return The newly created content browser widget
 	 */
-	virtual TSharedRef<class SWidget> CreateContentBrowser( const FName InstanceName, TSharedPtr<SDockTab> ContainingTab, const FContentBrowserConfig* ContentBrowserConfig ) = 0;
+	virtual TSharedRef<SWidget> CreateContentBrowser( const FName InstanceName, TSharedPtr<SDockTab> ContainingTab, const FContentBrowserConfig* ContentBrowserConfig ) = 0;
 
 	/**
 	 * Generates an asset picker widget locked to the specified FARFilter.
@@ -492,7 +490,10 @@ public:
 	 * @param AssetPickerConfig		A struct containing details about how the asset picker should behave				
 	 * @return The asset picker widget
 	 */
-	virtual TSharedRef<class SWidget> CreateAssetPicker(const FAssetPickerConfig& AssetPickerConfig) = 0;
+	virtual TSharedRef<SWidget> CreateAssetPicker(const FAssetPickerConfig& AssetPickerConfig) = 0;
+
+	/** Focus the search box of the given asset picker widget. */
+	virtual TSharedPtr<SWidget> GetAssetPickerSearchBox(const TSharedRef<SWidget>& AssetPickerWidget) = 0;
 
 	/**
 	 * Generates a path picker widget.
@@ -500,7 +501,7 @@ public:
 	 * @param PathPickerConfig		A struct containing details about how the path picker should behave				
 	 * @return The path picker widget
 	 */
-	virtual TSharedRef<class SWidget> CreatePathPicker(const FPathPickerConfig& PathPickerConfig) = 0;
+	virtual TSharedRef<SWidget> CreatePathPicker(const FPathPickerConfig& PathPickerConfig) = 0;
 
 	/**
 	 * Generates a collection picker widget.
@@ -508,7 +509,7 @@ public:
 	 * @param CollectionPickerConfig		A struct containing details about how the collection picker should behave				
 	 * @return The collection picker widget
 	 */
-	virtual TSharedRef<class SWidget> CreateCollectionPicker(const FCollectionPickerConfig& CollectionPickerConfig) = 0;
+	virtual TSharedRef<SWidget> CreateCollectionPicker(const FCollectionPickerConfig& CollectionPickerConfig) = 0;
 
 	/**
 	 * Generates a content browser for use in a drawer. This content browser is a singleton and is reused among all drawers.
@@ -517,7 +518,7 @@ public:
 	 *
 	 * @return The content browser drawer widget
 	 */
-	virtual TSharedRef<class SWidget> CreateContentBrowserDrawer(const FContentBrowserConfig& ContentBrowserConfig, TFunction<TSharedPtr<SDockTab>()> InOnGetTabForDrawer) = 0;
+	virtual TSharedRef<SWidget> CreateContentBrowserDrawer(const FContentBrowserConfig& ContentBrowserConfig, TFunction<TSharedPtr<SDockTab>()> InOnGetTabForDrawer) = 0;
 
 	/**
 	 * Opens the Open Asset dialog in a non-modal window

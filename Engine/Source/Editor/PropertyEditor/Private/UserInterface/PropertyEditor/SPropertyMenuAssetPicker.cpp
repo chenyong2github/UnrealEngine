@@ -36,8 +36,9 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 
 	const bool bInShouldCloseWindowAfterMenuSelection = true;
 	const bool bCloseSelfOnly = true;
+	const bool bSearchable = false;
 	
-	FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, nullptr, nullptr, bCloseSelfOnly);
+	FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, nullptr, nullptr, bCloseSelfOnly, &FCoreStyle::Get(), bSearchable);
 
 	if (NewAssetFactories.Num() > 0)
 	{
@@ -105,8 +106,6 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("BrowseHeader", "Browse"));
 	{
-		TSharedPtr<SWidget> MenuContent;
-
 		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
 		FAssetPickerConfig AssetPickerConfig;
@@ -157,15 +156,17 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 		// Force show plugin content if meta data says so
 		AssetPickerConfig.bForceShowPluginContent = bForceShowPluginContent;
 
-		MenuContent =
+		AssetPickerWidget = ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig);
+
+		TSharedRef<SWidget> MenuContent =
 			SNew(SBox)
 			.WidthOverride(PropertyEditorAssetConstants::ContentBrowserWindowSize.X)
 			.HeightOverride(PropertyEditorAssetConstants::ContentBrowserWindowSize.Y)
 			[
-				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+				AssetPickerWidget.ToSharedRef()
 			];
 
-		MenuBuilder.AddWidget(MenuContent.ToSharedRef(), FText::GetEmpty(), true);
+		MenuBuilder.AddWidget(MenuContent, FText::GetEmpty(), true);
 	}
 	MenuBuilder.EndSection();
 
@@ -173,6 +174,39 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 	[
 		MenuBuilder.MakeWidget()
 	];
+}
+
+FReply SPropertyMenuAssetPicker::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (!AssetPickerWidget.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+	
+	// only give the search box focus if it's not a command like Ctrl+C
+	if (InKeyEvent.GetCharacter() == 0 || 
+		InKeyEvent.IsAltDown() ||
+		InKeyEvent.IsControlDown() ||
+		InKeyEvent.IsCommandDown())
+	{
+		return FReply::Unhandled();
+	}
+
+	const FWidgetPath* Path = InKeyEvent.GetEventPath();
+	if (Path != nullptr)
+	{
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+		TSharedPtr<SWidget> SearchBox = ContentBrowserModule.Get().GetAssetPickerSearchBox(AssetPickerWidget.ToSharedRef());
+		if (SearchBox.IsValid())
+		{
+			if (!Path->ContainsWidget(SearchBox.Get()))
+			{
+				return FReply::Unhandled().SetUserFocus(SearchBox.ToSharedRef());
+			}
+		}
+	}
+
+	return FReply::Unhandled();
 }
 
 void SPropertyMenuAssetPicker::OnEdit()

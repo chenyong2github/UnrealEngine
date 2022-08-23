@@ -109,6 +109,12 @@ TSharedRef<SWidget> FContentBrowserSingleton::CreateAssetPicker(const FAssetPick
 		.AssetPickerConfig(AssetPickerConfig);
 }
 
+TSharedPtr<SWidget> FContentBrowserSingleton::GetAssetPickerSearchBox(const TSharedRef<SWidget>& AssetPickerWidget)
+{
+	TSharedRef<SAssetPicker> AssetPicker = StaticCastSharedRef<SAssetPicker>(AssetPickerWidget);
+	return AssetPicker->GetSearchBox();
+}
+
 TSharedRef<SWidget> FContentBrowserSingleton::CreatePathPicker(const FPathPickerConfig& PathPickerConfig)
 {
 	return SNew( SPathPicker )
