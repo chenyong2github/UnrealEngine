@@ -178,6 +178,7 @@ public:
 		TArrayView<uint32> GetCodeView() {return CodeView;}
 	};
 	FSpirvCode GetSpirvCode();
+	FSpirvCode GetPatchedSpirvCode(const FGfxPipelineDesc& Desc, const FVulkanLayout* Layout);
 protected:
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 	FString							DebugEntryPoint;
@@ -213,7 +214,7 @@ protected:
 
 	TRefCountPtr<FVulkanShaderModule> CreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash);
 	TRefCountPtr<FVulkanShaderModule> CreateHandle(const FGfxPipelineDesc& Desc, const FVulkanLayout* Layout, uint32 LayoutHash);
-	
+
 	bool NeedsSpirvInputAttachmentPatching(const FGfxPipelineDesc& Desc) const;
 
 	friend class FVulkanCommandListContext;

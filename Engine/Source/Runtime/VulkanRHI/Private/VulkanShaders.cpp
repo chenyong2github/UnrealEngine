@@ -321,6 +321,15 @@ bool FVulkanShader::NeedsSpirvInputAttachmentPatching(const FGfxPipelineDesc& De
 TRefCountPtr<FVulkanShaderModule> FVulkanShader::CreateHandle(const FGfxPipelineDesc& Desc, const FVulkanLayout* Layout, uint32 LayoutHash)
 {
 	FScopeLock Lock(&VulkanShaderModulesMapCS);
+	FSpirvCode Spirv = GetPatchedSpirvCode(Desc, Layout);
+
+	TRefCountPtr<FVulkanShaderModule> Module = CreateShaderModule(Device, Spirv);
+	ShaderModules.Add(LayoutHash, Module);
+	return Module;
+}
+
+FVulkanShader::FSpirvCode FVulkanShader::GetPatchedSpirvCode(const FGfxPipelineDesc& Desc, const FVulkanLayout* Layout)
+{
 	FSpirvCode Spirv = GetSpirvCode();
 
 	Layout->PatchSpirvBindings(Spirv, Frequency, CodeHeader, StageFlag);
@@ -329,9 +338,7 @@ TRefCountPtr<FVulkanShaderModule> FVulkanShader::CreateHandle(const FGfxPipeline
 		Spirv = PatchSpirvInputAttachments(Spirv);
 	}
 
-	TRefCountPtr<FVulkanShaderModule> Module = CreateShaderModule(Device, Spirv);
-	ShaderModules.Add(LayoutHash, Module);
-	return Module;
+	return Spirv;
 }
 
 TRefCountPtr<FVulkanShaderModule> FVulkanShader::CreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash)

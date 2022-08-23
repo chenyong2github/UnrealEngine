@@ -214,7 +214,7 @@ import android.widget.TextView.OnEditorActionListener;
 import android.content.BroadcastReceiver;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.FileProvider;
-import com.epicgames.unreal.oglservices.OGLProgramServiceAccessor;
+import com.epicgames.unreal.psoservices.PSOProgramServiceAccessor;
 //$${gameActivityImportAdditions}$$
 
 //$${gameActivityPostImportAdditions}$$
@@ -485,7 +485,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public boolean bSupportsFloatingPointRenderTargets = false;
 	private String EGLErrorStatus = "UNSET";
 	
-	private OGLProgramServiceAccessor mOGLProgramServiceAccessor = new OGLProgramServiceAccessor();
+	private PSOProgramServiceAccessor mPSOProgramServiceAccessor = new PSOProgramServiceAccessor();
 
 	static final private AtomicBoolean bIsActivityPaused = new AtomicBoolean(true);
 	static public boolean IsActivityPaused() { return bIsActivityPaused.get();}
@@ -3194,7 +3194,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 //$${gameActivityOnCreateAdditions}$$
 //$${gameActivityOnCreateFinalAdditions}$$
-		mOGLProgramServiceAccessor.Init(this);
+		mPSOProgramServiceAccessor.Init(this);
 
 		Log.debug("==============> GameActive.onCreate complete!");
 	}

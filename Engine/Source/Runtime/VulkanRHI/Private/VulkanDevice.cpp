@@ -253,7 +253,6 @@ void FVulkanDevice::CreateDevice(TArray<const ANSICHAR*>& DeviceLayers, FVulkanD
 	VkDeviceCreateInfo DeviceInfo;
 	ZeroVulkanStruct(DeviceInfo, VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO);
 	
-	TArray<const ANSICHAR*> DeviceExtensions;
 	for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
 	{
 		if (UEExtension->InUse())

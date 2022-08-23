@@ -267,6 +267,12 @@ void FVulkanRHIGraphicsPipelineState::GetOrCreateShaderModules(TRefCountPtr<FVul
 	}
 }
 
+FVulkanShader::FSpirvCode FVulkanRHIGraphicsPipelineState::GetPatchedSpirvCode(FVulkanShader* Shader)
+{
+	check(Shader);
+	return Shader->GetPatchedSpirvCode(Desc, Layout);
+}
+
 void FVulkanRHIGraphicsPipelineState::PurgeShaderModules(FVulkanShader*const* Shaders)
 {
 	for (int32 Index = 0; Index < ShaderStage::NumStages; ++Index)
@@ -481,6 +487,20 @@ void FVulkanPipelineStateCacheManager::Save(const FString& CacheFilename)
 	//TODO: Save LRU cache here
 }
 
+
+#if PLATFORM_ANDROID
+static int32 GNumRemoteProgramCompileServices = 6;
+static FAutoConsoleVariableRef CVarNumRemoteProgramCompileServices(
+	TEXT("Android.Vulkan.NumRemoteProgramCompileServices"),
+	GNumRemoteProgramCompileServices,
+	TEXT("The number of separate processes to make available to compile Vulkan PSOs.\n")
+	TEXT("0 to disable use of separate processes to precompile PSOs\n")
+	TEXT("valid range is 1-8 (4 default).")
+	,
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
+#endif
+
 void FVulkanPipelineStateCacheManager::OnShaderPipelineCacheOpened(FString const& Name, EShaderPlatform Platform, uint32 Count, const FGuid& VersionGuid, FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext)
 {
 	//TODO: support reloading the same cache
@@ -542,6 +562,13 @@ void FVulkanPipelineStateCacheManager::OnShaderPipelineCacheOpened(FString const
 		UE_LOG(LogVulkanRHI, Log, TEXT("FVulkanPipelineStateCacheManager: %s does not exist."), *CompiledPSOCacheFolderName);
 	}
 
+#if PLATFORM_ANDROID
+	if (GNumRemoteProgramCompileServices)
+	{
+		FVulkanAndroidPlatform::StartAndWaitForRemoteCompileServices(GNumRemoteProgramCompileServices);
+	}
+#endif
+
 	if (!bPrecompilingCacheLoadedFromFile || (bEvictImmediately && CVarPipelineLRUCacheEvictBinaryPreloadScreen.GetValueOnAnyThread()))
 	{
 		//TODO: This!
@@ -552,6 +579,13 @@ void FVulkanPipelineStateCacheManager::OnShaderPipelineCacheOpened(FString const
 void FVulkanPipelineStateCacheManager::OnShaderPipelineCachePrecompilationComplete(uint32 Count, double Seconds, const FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext)
 {
 	UE_LOG(LogVulkanRHI, Log, TEXT("FVulkanPipelineStateCacheManager::OnShaderPipelineCachePrecompilationComplete"));
+
+#if PLATFORM_ANDROID
+	if (GNumRemoteProgramCompileServices)
+	{
+		FVulkanAndroidPlatform::StopRemoteCompileServices();
+	}
+#endif
 
 	bEvictImmediately = false;
 	if (!bPrecompilingCacheLoadedFromFile)
@@ -1099,7 +1133,6 @@ static const TMap<uint8, VkFragmentShadingRateCombinerOpKHR> FragmentCombinerOpM
 	// @todo: Add "VK_FRAGMENT_SHADING_RATE_COMBINER_OP_MUL_KHR"?
 };
 #endif
-
 bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGraphicsPipelineState* PSO, FVulkanShader* Shaders[ShaderStage::NumStages], VkPipeline* Pipeline, FPipelineCache& Cache)
 {
 	FGfxPipelineDesc* GfxEntry = &PSO->Desc;
@@ -1256,6 +1289,7 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 #endif
 
 	VkResult Result = VK_ERROR_INITIALIZATION_FAILED;
+
 	double BeginTime = FPlatformTime::Seconds();
 	if(bUseLRU)
 	{
@@ -1282,12 +1316,46 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 		else
 		{
 			SCOPE_CYCLE_COUNTER(STAT_VulkanPSOVulkanCreationTime);
-			// We create a single pipeline cache for this create so we can observe the size for LRU cache's accounting.
-			// measuring deltas from the global PipelineCache is not thread safe.
-			VkPipelineCacheCreateInfo PipelineCacheInfo;
-			ZeroVulkanStruct(PipelineCacheInfo, VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO);
-			VERIFYVULKANRESULT(VulkanRHI::vkCreatePipelineCache(Device->GetInstanceHandle(), &PipelineCacheInfo, VULKAN_CPU_ALLOCATOR, &LocalPipelineCache));
-			Result = VulkanRHI::vkCreateGraphicsPipelines(Device->GetInstanceHandle(), LocalPipelineCache, 1, &PipelineInfo, VULKAN_CPU_ALLOCATOR, Pipeline);
+
+			size_t AfterSize = 0;
+
+			bool PreCompiled = false;
+
+#if PLATFORM_ANDROID
+			if (FVulkanAndroidPlatform::AreRemoteCompileServicesActive() &&
+				CVarPipelineLRUCacheEvictBinary.GetValueOnAnyThread())
+			{
+				FVulkanShader::FSpirvCode VS = PSO->GetPatchedSpirvCode(Shaders[ShaderStage::Vertex]);
+				FVulkanShader::FSpirvCode PS = PSO->GetPatchedSpirvCode(Shaders[ShaderStage::Pixel]);
+				TArrayView<uint32_t> VSCode = VS.GetCodeView();
+				TArrayView<uint32_t> PSCode = PS.GetCodeView();
+
+				LocalPipelineCache = FVulkanPlatform::PrecompilePSO(Device, &PipelineInfo, GfxEntry, &PSO->RenderPass->GetLayout(), VSCode, PSCode, AfterSize);
+
+				if (LocalPipelineCache != VK_NULL_HANDLE)
+				{
+					PreCompiled = true;
+				}
+			}
+#endif
+
+			if (PreCompiled)
+			{
+				// The PSO has been sent to a separate process, this avoids process wide mutex on PSO creation with some drivers.
+				// We have not created the PSO in this case, it is passed to a separate process and added to the pipeline cache at the end of PSO precompile.
+				// TODO errors.
+				Pipeline = nullptr;
+				Result = VK_SUCCESS;
+			}
+			else
+			{
+				// We create a single pipeline cache for this create so we can observe the size for LRU cache's accounting.
+				// measuring deltas from the global PipelineCache is not thread safe.
+				VkPipelineCacheCreateInfo PipelineCacheInfo;
+				ZeroVulkanStruct(PipelineCacheInfo, VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO);
+				VERIFYVULKANRESULT(VulkanRHI::vkCreatePipelineCache(Device->GetInstanceHandle(), &PipelineCacheInfo, VULKAN_CPU_ALLOCATOR, &LocalPipelineCache));
+				Result = VulkanRHI::vkCreateGraphicsPipelines(Device->GetInstanceHandle(), LocalPipelineCache, 1, &PipelineInfo, VULKAN_CPU_ALLOCATOR, Pipeline);
+			}
 
 			if (Result == VK_SUCCESS)
 			{
@@ -1297,7 +1365,11 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(STAT_Vulkan_Calc_LRU_Size);
 					size_t Diff = 0;
-					VulkanRHI::vkGetPipelineCacheData(Device->GetInstanceHandle(), LocalPipelineCache, &Diff, nullptr);
+
+					if (LocalPipelineCache != VK_NULL_HANDLE)
+					{
+						VulkanRHI::vkGetPipelineCacheData(Device->GetInstanceHandle(), LocalPipelineCache, &Diff, nullptr);
+					}
 
 					if (!Diff)
 					{
@@ -1310,6 +1382,7 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 					LRU2SizeList.Add(ShaderHash, PipelineSize);
 					FoundSize = Diff;
 
+					if (LocalPipelineCache != VK_NULL_HANDLE)
 					{
 						QUICK_SCOPE_CYCLE_COUNTER(STAT_VulkanPSOCacheMerge);
 						FScopedPipelineCache PipelineCacheExclusive = Cache.Get(EPipelineCacheAccess::Exclusive);
@@ -1325,7 +1398,11 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 			{
 				UE_LOG(LogVulkanRHI, Warning, TEXT("LRU: PSO create failed."));
 			}
-			VulkanRHI::vkDestroyPipelineCache(Device->GetInstanceHandle(), LocalPipelineCache, VULKAN_CPU_ALLOCATOR);
+
+			if (LocalPipelineCache != VK_NULL_HANDLE)
+			{
+				VulkanRHI::vkDestroyPipelineCache(Device->GetInstanceHandle(), LocalPipelineCache, VULKAN_CPU_ALLOCATOR);
+			}
 		}
 
 		if(Result == VK_SUCCESS)

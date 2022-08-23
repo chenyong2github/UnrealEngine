@@ -207,12 +207,12 @@
 	public *;
 }
 
--keep class com.epicgames.unreal.oglservices.OGLProgramServiceAccessor$JNIProgramLinkResponse 
+-keep class com.epicgames.unreal.psoservices.PSOProgramServiceAccessor$JNIProgramLinkResponse 
 {
 	*;
 }
 
--keepclassmembers, allowoptimization class com.epicgames.unreal.oglservices.OGLProgramServiceAccessor
+-keepclassmembers, allowoptimization class com.epicgames.unreal.psoservices.PSOServiceAccessor
 {
     public static *** AndroidThunkJava_*(...);
 }

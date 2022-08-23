@@ -474,6 +474,8 @@ public:
 
 	FVulkanTransientHeapCache& GetOrCreateTransientHeapCache();
 
+	const TArray<const ANSICHAR*>& GetDeviceExtensions() { return DeviceExtensions; }
+
 	inline void SetDebugMarkersFound()
 	{
 		bDebugMarkersFound = true;
@@ -572,7 +574,8 @@ private:
 	
 	static TArray<const ANSICHAR*> SetupDeviceLayers(VkPhysicalDevice Gpu, FVulkanDeviceExtensionArray& UEExtensions);
 
-	FOptionalVulkanDeviceExtensions OptionalDeviceExtensions;
+	FOptionalVulkanDeviceExtensions	OptionalDeviceExtensions;
+	TArray<const ANSICHAR*>			DeviceExtensions;
 
 	void SetupFormats();
 

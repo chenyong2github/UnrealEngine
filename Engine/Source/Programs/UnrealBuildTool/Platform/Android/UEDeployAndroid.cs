@@ -896,6 +896,11 @@ namespace UnrealBuildTool
 			return Path.GetFullPath(Path.Combine(EngineDirectory, "Build/Android/Java"));
 		}
 
+		public string GetUnrealPreBuiltFilePath(String EngineDirectory)
+		{
+			return Path.GetFullPath(Path.Combine(EngineDirectory, "Build/Android/Prebuilt"));
+		}
+
 		public string GetUnrealJavaSrcPath()
 		{
 			return Path.Combine("src", "com", "epicgames", "unreal");
@@ -1333,6 +1338,28 @@ namespace UnrealBuildTool
 			Utils.RunLocalProcessAndLogOutput(StartInfo, Logger);
 		}
 
+		private static void CopySO(string FinalName, string SourceName)
+		{
+			// check to see if file is newer than last time we copied
+			bool bFileExists = File.Exists(FinalName);
+			TimeSpan Diff = File.GetLastWriteTimeUtc(FinalName) - File.GetLastWriteTimeUtc(SourceName);
+			if (!bFileExists || Diff.TotalSeconds < -1 || Diff.TotalSeconds > 1)
+			{
+				SafeDeleteFile(FinalName);
+
+				string? DirectoryName = Path.GetDirectoryName(FinalName);
+				if (DirectoryName != null)
+				{
+					Directory.CreateDirectory(DirectoryName);
+					File.Copy(SourceName, FinalName, true);
+
+					// make sure it's writable if the source was readonly (e.g. autosdks)
+					new FileInfo(FinalName).IsReadOnly = false;
+					File.SetLastWriteTimeUtc(FinalName, File.GetLastWriteTimeUtc(SourceName));
+				}
+			}
+		}
+
 		private static string GetPlatformNDKHostName()
 		{
 			if (RuntimePlatform.IsLinux)
@@ -1359,19 +1386,16 @@ namespace UnrealBuildTool
 			}
 			string FinalSTLSOName = UnrealBuildPath + "/jni/" + NDKArch + "/libc++_shared.so";
 
-			// check to see if libc++_shared.so is newer than last time we copied
-			bool bFileExists = File.Exists(FinalSTLSOName);
-			TimeSpan Diff = File.GetLastWriteTimeUtc(FinalSTLSOName) - File.GetLastWriteTimeUtc(SourceSTLSOName);
-			if (!bFileExists || Diff.TotalSeconds < -1 || Diff.TotalSeconds > 1)
-			{
-				SafeDeleteFile(FinalSTLSOName);
-				Directory.CreateDirectory(Path.GetDirectoryName(FinalSTLSOName)!);
-				File.Copy(SourceSTLSOName, FinalSTLSOName, true);
+			CopySO(FinalSTLSOName, SourceSTLSOName);
+		}
 
-				// make sure it's writable if the source was readonly (e.g. autosdks)
-				new FileInfo(FinalSTLSOName).IsReadOnly = false;
-				File.SetLastWriteTimeUtc(FinalSTLSOName, File.GetLastWriteTimeUtc(SourceSTLSOName));
-			}
+		private void CopyPSOService(string UnrealBuildPath, string PreBuiltPath, string UnrealArch, string NDKArch)
+		{
+			// copy it in!
+			string SourceSOName = Path.Combine(PreBuiltPath, "PSOService/Android/Release/" + NDKArch) + "/libpsoservice.so";
+			string FinalSOName = UnrealBuildPath + "/jni/" + NDKArch + "/libpsoservice.so";
+
+			CopySO(FinalSOName, SourceSOName);
 		}
 
 		private void CopyGfxDebugger(string UnrealBuildPath, string UnrealArch, string NDKArch)
@@ -2897,11 +2921,20 @@ namespace UnrealBuildTool
 			}
 
 			// Declare the 8 OpenGL program compiling services.
-			Text.AppendLine(@"		<service android:name=""com.epicgames.unreal.oglservices.OGLProgramService"" android:process="":oglprogramservice"" />");
+			Text.AppendLine(@"		<service android:name=""com.epicgames.unreal.psoservices.OGLProgramService"" android:process="":psoprogramservice"" />");
 			// Declare the remaining 7 OpenGL program compiling services. (all derived from OGLProgramService)
 			for(int i = 1; i<8;i++)
 			{
-				String serviceLine = String.Format("		<service android:name=\"com.epicgames.unreal.oglservices.OGLProgramService{0}\" android:process=\":oglprogramservice{0}\" />",i);
+				String serviceLine = String.Format("		<service android:name=\"com.epicgames.unreal.psoservices.OGLProgramService{0}\" android:process=\":psoprogramservice{0}\" />", i);
+				Text.AppendLine(serviceLine);
+			}
+
+			// Declare the 8 Vulkan program compiling services.
+			Text.AppendLine(@"		<service android:name=""com.epicgames.unreal.psoservices.VulkanProgramService"" android:process="":psoprogramservice"" />");
+			// Declare the remaining 7 Vulkan program compiling services. (all derived from VulkanProgramService)
+			for (int i = 1; i < 8; i++)
+			{
+				String serviceLine = String.Format("		<service android:name=\"com.epicgames.unreal.psoservices.VulkanProgramService{0}\" android:process=\":psoprogramservice{0}\" />", i);
 				Text.AppendLine(serviceLine);
 			}
 
@@ -4038,6 +4071,7 @@ namespace UnrealBuildTool
 			string IntermediateAndroidPath = Path.Combine(ProjectDirectory, "Intermediate", "Android");
 			string UnrealJavaFilePath = Path.Combine(ProjectDirectory, "Build", "Android", GetUnrealJavaSrcPath());
 			string UnrealBuildFilesPath = GetUnrealBuildFilePath(EngineDirectory);
+			string UnrealPreBuiltFilesPath = GetUnrealPreBuiltFilePath(EngineDirectory);
 			string UnrealBuildFilesPath_NFL = GetUnrealBuildFilePath(Path.Combine(EngineDirectory, "Restricted/NotForLicensees"));
 			string UnrealBuildFilesPath_NR = GetUnrealBuildFilePath(Path.Combine(EngineDirectory, "Restricted/NoRedist"));
 			string GameBuildFilesPath = Path.Combine(ProjectDirectory, "Build", "Android");
@@ -4718,6 +4752,7 @@ namespace UnrealBuildTool
 					// copy libc++_shared.so to library
 					CopySTL(ToolChain, UnrealBuildPath, Arch, NDKArch, bForDistribution);
 				}
+				CopyPSOService(UnrealBuildPath, UnrealPreBuiltFilesPath, Arch, NDKArch);
 				CopyGfxDebugger(UnrealBuildPath, Arch, NDKArch);
 				CopyVulkanValidationLayers(UnrealBuildPath, Arch, NDKArch, Configuration.ToString());
 				

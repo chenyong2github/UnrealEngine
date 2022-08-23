@@ -129,6 +129,13 @@ public:
 
 	static void DestroySwapchainKHR(VkDevice Device, VkSwapchainKHR Swapchain, const VkAllocationCallbacks* Allocator);
 
+	// handle precompile of PSOs, send to an android specific precompile external process.
+	static VkPipelineCache PrecompilePSO(FVulkanDevice* Device, VkGraphicsPipelineCreateInfo* PipelineInfo, FGfxPipelineDesc* GfxEntry, const FVulkanRenderTargetLayout* RTLayout, TArrayView<uint32_t> VS, TArrayView<uint32_t> PS, size_t& AfterSize);
+
+	static bool AreRemoteCompileServicesActive();
+	static bool StartAndWaitForRemoteCompileServices(int NumServices);
+	static void StopRemoteCompileServices();
+
 	// Do not attempt to immediately recreate swapchain
 	static bool RecreateSwapchainOnFail() { return false; }
 
