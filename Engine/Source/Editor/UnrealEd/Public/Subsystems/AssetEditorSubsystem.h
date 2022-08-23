@@ -70,6 +70,8 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
+	bool IsAssetEditable(const UObject* Asset);
+
 	/** Opens an asset by path */
 	void OpenEditorForAsset(const FString& AssetPathName);
 

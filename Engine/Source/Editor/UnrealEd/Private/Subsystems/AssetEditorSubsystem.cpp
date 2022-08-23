@@ -284,6 +284,30 @@ bool UAssetEditorSubsystem::CloseAllAssetEditors()
 	return bAllEditorsClosed;
 }
 
+bool UAssetEditorSubsystem::IsAssetEditable(const UObject* Asset)
+{
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+
+	if (!Asset)
+	{
+		return false;
+	}
+
+	if (UPackage* Package = Asset->GetPackage())
+	{
+		if (Package->bIsCookedForEditor)
+		{
+			return false;
+		}
+
+		if (!AssetToolsModule.Get().GetWritableFolderPermissionList()->PassesStartsWithFilter(Package->GetName()))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
 
 bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor, const bool bShowProgressWindow)
 {

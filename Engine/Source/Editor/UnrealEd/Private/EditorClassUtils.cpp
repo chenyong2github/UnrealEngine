@@ -7,6 +7,7 @@
 #include "Engine/Blueprint.h"
 #include "Editor.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #include "IDocumentationPage.h"
 #include "IDocumentation.h"
@@ -149,22 +150,66 @@ TSharedRef<SWidget> FEditorClassUtils::GetSourceLink(const UClass* Class, const 
 
 		TWeakObjectPtr<UBlueprint> BlueprintPtr = Blueprint;
 
-		FText Text = FText::FromName(Blueprint->GetFName());
+		auto CanEditBlueprint = [BlueprintPtr]()
+		{
+			if (const UBlueprint* Blueprint = BlueprintPtr.Get())
+			{
+				return GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->IsAssetEditable(Blueprint);
+			}
+
+			return false;
+		};
+
+		FText BlueprintNameText = FText::FromName(Blueprint->GetFName());
+
+		FText FormattedText;
 		if (Params.BlueprintFormat)
 		{
-			Text = FText::Format(*Params.BlueprintFormat, Text);
+			FormattedText = FText::Format(*Params.BlueprintFormat, BlueprintNameText);
 		}
 		else if (Params.bUseDefaultFormat)
 		{
 			const FText DefaultBlueprintFormat = NSLOCTEXT("SourceHyperlink", "EditBlueprint", "Edit {0}");
-			Text = FText::Format(DefaultBlueprintFormat, Text);
+			FormattedText = FText::Format(DefaultBlueprintFormat, BlueprintNameText);
+		}
+		else
+		{
+			FormattedText = BlueprintNameText;
 		}
 
-		Link = SNew(SHyperlink)
-			.Style(FAppStyle::Get(), "Common.GotoBlueprintHyperlink")
-			.OnNavigate_Static(&Local::OnEditBlueprintClicked, BlueprintPtr, Params.Object)
-			.Text(Text)
-			.ToolTipText(NSLOCTEXT("SourceHyperlink", "EditBlueprint_ToolTip", "Click to edit the blueprint"));
+		TSharedRef<SWidget> NoLinkWidget = SNullWidget::NullWidget;
+		if (Params.bEmptyIfNoLink)
+		{
+			NoLinkWidget = SNew(SSpacer)
+				.Visibility_Lambda([CanEditBlueprint]() { return CanEditBlueprint() ? EVisibility::Collapsed : EVisibility::Visible; });
+		}
+		else
+		{
+			NoLinkWidget = SNew(STextBlock)
+				.Text(Params.bUseFormatIfNoLink ? FormattedText : BlueprintNameText)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Visibility_Lambda([CanEditBlueprint]() { return CanEditBlueprint() ? EVisibility::Collapsed : EVisibility::Visible; });
+		}
+
+		Link = SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(SHyperlink)
+					.Style(FAppStyle::Get(), "Common.GotoBlueprintHyperlink")
+					.OnNavigate_Static(&Local::OnEditBlueprintClicked, BlueprintPtr, Params.Object)
+					.Text(FormattedText)
+					.ToolTipText(NSLOCTEXT("SourceHyperlink", "EditBlueprint_ToolTip", "Click to edit the blueprint"))
+					.Visibility_Lambda([CanEditBlueprint]() { return CanEditBlueprint() ? EVisibility::Visible : EVisibility::Collapsed; })
+				]
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					NoLinkWidget
+				];
+
 	}
 	else if (Class)
 	{

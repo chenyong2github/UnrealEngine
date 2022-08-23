@@ -1724,11 +1724,10 @@ TSharedRef<SWidget> SSubobject_RowWidget::GetInheritedLinkWidget()
 {
 	FSubobjectEditorTreeNodePtrType NodePtr = GetSubobjectPtr();
     const FSubobjectData* Data = NodePtr ? NodePtr->GetDataSource() : nullptr;
-
 	if(!Data)
 	{
 		return SNullWidget::NullWidget;
-	}	
+	}
 	
 	// Native components are inherited and have a gray hyperlink to their C++ class
 	if(Data->IsNativeComponent())
@@ -1752,7 +1751,8 @@ TSharedRef<SWidget> SSubobject_RowWidget::GetInheritedLinkWidget()
 				.Style(FAppStyle::Get(), "Common.GotoBlueprintHyperlink")
 				.OnNavigate(this, &SSubobject_RowWidget::OnEditBlueprintClicked)
 				.Text(InheritedBPLabel)
-				.ToolTipText(LOCTEXT("EditBlueprint_ToolTip", "Click to edit the blueprint"));
+				.ToolTipText(LOCTEXT("EditBlueprint_ToolTip", "Click to edit the blueprint"))
+				.Visibility(this, &SSubobject_RowWidget::GetEditBlueprintVisibility);
 		}
 	}
 
@@ -1794,6 +1794,24 @@ void SSubobject_RowWidget::OnEditBlueprintClicked()
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
 		}
 	}
+}
+
+EVisibility SSubobject_RowWidget::GetEditBlueprintVisibility() const
+{
+	FSubobjectEditorTreeNodePtrType NodePtr = GetSubobjectPtr();
+	const FSubobjectData* Data = NodePtr ? NodePtr->GetDataSource() : nullptr;
+
+	if (!Data)
+	{
+		return EVisibility::Collapsed;
+	}
+
+	if (const UBlueprint* BP = Data->GetBlueprint())
+	{
+		return GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->IsAssetEditable(BP) ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
+	return EVisibility::Collapsed;
 }
 
 EVisibility SSubobject_RowWidget::GetEditNativeCppVisibility() const
