@@ -98,6 +98,9 @@ public:
 
 	/** Called by engine when edit delete actors ends */
 	void OnDeleteActorsEnd();
+
+	/* Helper function to create the basic set of filters that the Actor Browser will have */
+	static void CreateOutlinerFilterBarFilters(FSceneOutlinerFilterBarOptions& OutFilterBarOptions);
 private:
 	/** Build and up the context menu */
 	TSharedPtr<SWidget> BuildContextMenu();

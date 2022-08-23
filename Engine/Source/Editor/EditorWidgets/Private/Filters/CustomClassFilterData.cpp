@@ -10,7 +10,7 @@
 
 void FCustomClassFilterData::AddCategory(TSharedPtr<FFilterCategory> InCategory)
 {
-	Categories.Add(InCategory);
+	Categories.AddUnique(InCategory);
 }
 
 TSharedPtr<IAssetTypeActions> FCustomClassFilterData::GetAssetTypeActions() const

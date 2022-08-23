@@ -13,11 +13,19 @@
 
 class FExtender;
 struct FToolMenuContext;
+class FCustomClassFilterData;
+template<typename FilterType> class FFilterBase;
 
 DECLARE_DELEGATE_TwoParams(FSceneOutlinerModifyContextMenu, FName& /* MenuName */, FToolMenuContext& /* MenuContext */);
 
 /** A delegate used as a factory to defer mode creation in the outliner */
 DECLARE_DELEGATE_RetVal_OneParam(ISceneOutlinerMode*, FCreateSceneOutlinerMode, SSceneOutliner*);
+
+namespace SceneOutliner
+{
+	/** The type of item that the Outliner's Filter Bar operates on */
+	typedef const ISceneOutlinerTreeItem& FilterBarType;
+}
 
 /** Container for built in column types. Function-static so they are available without linking */
 struct FSceneOutlinerBuiltInColumnTypes
@@ -117,6 +125,29 @@ public:
 	void UseDefaultColumns();
 };
 
+
+/* Settings for the Filter Bar attached to the Scene Outliner. Can be specified through FSceneOutlinerInitializationOptions */
+struct FSceneOutlinerFilterBarOptions
+{
+	/** If true, the Scene Outliner has a filter bar attached to it */
+	bool bHasFilterBar = false;
+
+	/** These are the custom filters that the Scene Outliner will have. All active filters will be AND'd together to test
+	 *  against.
+	 *  @see FGenericFilter on how to create generic filters
+	 */
+	TArray<TSharedRef<FFilterBase<SceneOutliner::FilterBarType>>> CustomFilters;
+
+	/** These are the asset type filters that the Scene Outliner will have. All active filters will be OR'd together to
+	 *  test against.
+	 *  Can be created using IAssetTypeActions or UClass (@see constructor)
+	 */
+	TArray<TSharedRef<FCustomClassFilterData>> CustomClassFilters;
+
+	/** If true, share this Outliner filter bar's custom text filters with the level editor outliners */
+	bool bUseSharedSettings = false;
+};
+
 /**
 	* Settings for the Scene Outliner set by the programmer before spawning an instance of the widget.  This
 	* is used to modify the outliner's behavior in various ways, such as filtering in or out specific classes
@@ -143,6 +174,9 @@ struct FSceneOutlinerInitializationOptions : FSharedSceneOutlinerData
 
 	/** Identifier for this outliner; NAME_None if this view is anonymous (Needs to be specified to save visibility of columns in EditorConfig)*/
 	FName OutlinerIdentifier;
+
+	/** Init options related to the filter bar */
+	FSceneOutlinerFilterBarOptions FilterBarOptions;
 
 public:
 

@@ -37,6 +37,10 @@
 #include "EditorLevelUtils.h"
 #include "EditorViewportCommands.h"
 #include "SceneOutlinerActorSCCColumn.h"
+#include "Filters/GenericFilter.h"
+#include "Engine/StaticMeshActor.h"
+#include "Filters/CustomClassFilterData.h"
+#include "IPlacementModeModule.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogActorBrowser, Log, All);
 
@@ -2104,6 +2108,107 @@ const FActorBrowsingModeConfig* FActorBrowsingMode::GetConstConfig() const
 void FActorBrowsingMode::SaveConfig()
 {
 	UActorBrowserConfig::Get()->SaveEditorConfig();
+}
+
+void FActorBrowsingMode::CreateOutlinerFilterBarFilters(FSceneOutlinerFilterBarOptions& OutFilterBarOptions)
+{
+	OutFilterBarOptions.bHasFilterBar = true;
+
+	// All level editor outliners share their custom text filters
+	OutFilterBarOptions.bUseSharedSettings = true;
+
+	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
+
+	// Get all the Categories
+	TArray<FPlacementCategoryInfo> Categories;
+	PlacementModeModule.GetSortedCategories(Categories);
+
+	// Array of unique class types to Add as filters
+	TMap<FTopLevelAssetPath, TSharedRef<FCustomClassFilterData>> FilterClasses;
+
+	// Remove the Recently Placed (doesn't make sense) and All Classes (too much bloat) categories from the filters
+	Categories.RemoveAll([](const FPlacementCategoryInfo& Category)
+	{
+		return Category.UniqueHandle == FBuiltInPlacementCategories::RecentlyPlaced() || Category.UniqueHandle == FBuiltInPlacementCategories::AllClasses();
+	});
+
+	// We will keep a reference to the shapes category if we find it for later
+	TSharedPtr<FFilterCategory> ShapesCategory;
+	
+	auto FindOrAddClassFilter = [&FilterClasses](UClass* Class, TSharedPtr<FFilterCategory> FilterCategory)
+	{
+		// If the underlying class already exists, just add this category to it
+		if(TSharedRef<FCustomClassFilterData>* ExistingClassData = FilterClasses.Find(Class->GetClassPathName()))
+		{
+			(*ExistingClassData)->AddCategory(FilterCategory);
+		}
+		else
+		{
+			TSharedRef<FCustomClassFilterData> NewClassData = MakeShared<FCustomClassFilterData>(Class, FilterCategory, FLinearColor::White);
+
+			FilterClasses.Add(Class->GetClassPathName(), NewClassData);
+		}
+	};
+	
+	for (const FPlacementCategoryInfo& Category : Categories)
+	{
+		// Make an FFilterCategory using the current PlacementCategory
+		TSharedPtr<FFilterCategory> FilterCategory = MakeShared<FFilterCategory>(Category.DisplayName, FText::GetEmpty());
+
+		if(Category.UniqueHandle == FBuiltInPlacementCategories::Shapes())
+		{
+			ShapesCategory = FilterCategory;
+		}
+
+		// Get all the items belonging to the current category
+		TArray<TSharedPtr<FPlaceableItem>> Items;
+		PlacementModeModule.RegenerateItemsForCategory(Category.UniqueHandle);
+		PlacementModeModule.GetItemsForCategory(Category.UniqueHandle, Items);
+
+		for(TSharedPtr<FPlaceableItem>& Item : Items)
+		{
+			// Get the underlying class from the Actor belonging to this item
+			const bool bIsClass = Item->AssetData.GetClass() == UClass::StaticClass();
+			const bool bIsActor = bIsClass ? CastChecked<UClass>(Item->AssetData.GetAsset())->IsChildOf(AActor::StaticClass()) : false;
+			AActor* DefaultActor = nullptr;
+			if (Item->Factory != nullptr)
+			{
+				DefaultActor = Item->Factory->GetDefaultActor(Item->AssetData);
+			}
+			else if (bIsActor)
+			{
+				DefaultActor = CastChecked<AActor>(CastChecked<UClass>(Item->AssetData.GetAsset())->ClassDefaultObject);
+			
+			}
+			if(!DefaultActor)
+			{
+				continue;
+			}
+			UClass* Class = DefaultActor->GetClass();
+
+			FindOrAddClassFilter(Class, FilterCategory);
+		}
+	}
+
+	if(ShapesCategory)
+	{
+		// Special case: Add Static Mesh Actor to the Shapes category
+		// TODO: Add a better way to register exception and extra classes if we want to deviate from the place actors set later on
+		FindOrAddClassFilter(AStaticMeshActor::StaticClass(), ShapesCategory);
+	}
+
+	// Sort the filter menu by name
+	FilterClasses.ValueSort([](const TSharedRef<FCustomClassFilterData>& ClassA, const TSharedRef<FCustomClassFilterData>& ClassB)
+		{
+			return ClassA->GetName().CompareTo(ClassB->GetName()) < 0;
+		});
+
+	// Now add all the classes to the filter bar
+	for(const TPair<FTopLevelAssetPath, TSharedRef<FCustomClassFilterData>>& FilterClass : FilterClasses)
+	{
+		OutFilterBarOptions.CustomClassFilters.Add(FilterClass.Value);
+	}
+	
 }
 
 #undef LOCTEXT_NAMESPACE

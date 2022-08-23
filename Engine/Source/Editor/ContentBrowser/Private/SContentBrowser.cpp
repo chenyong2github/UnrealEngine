@@ -709,7 +709,7 @@ void SContentBrowser::OnFilterBarLayoutChanging(EFilterBarLayout NewLayout)
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Top)
-			.Padding(6, 4, 0, 0)
+			.Padding(6, 4, 2, 0)
 			[
 				FilterComboButton.ToSharedRef()
 			]
@@ -813,6 +813,7 @@ void SContentBrowser::OnFilterBarLayoutChanging(EFilterBarLayout NewLayout)
 
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
+					.Padding(0, 0, 2, 0)
 					[
 						FilterComboButton.ToSharedRef()
 					]

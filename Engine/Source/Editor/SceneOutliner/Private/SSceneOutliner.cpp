@@ -38,7 +38,8 @@
 #include "EditorFolderUtils.h"
 #include "SceneOutlinerConfig.h"
 #include "Algo/ForEach.h"
-
+#include "SceneOutlinerFilterBar.h"
+#include "ActorTreeItem.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
@@ -100,11 +101,19 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	// @todo outliner: Should probably save this in layout!
 	// @todo outliner: Should save spacing for list view in layout
 
-	//Setup the SearchBox filter
+	// Setup the SearchBox
 	{
-		auto Delegate = SceneOutliner::TreeItemTextFilter::FItemToStringArray::CreateSP( this, &SSceneOutliner::PopulateSearchStrings );
-		SearchBoxFilter = MakeShareable( new SceneOutliner::TreeItemTextFilter( Delegate ) );
+		SearchBoxFilter = CreateTextFilter();
+		
+		FilterTextBoxWidget = SNew(SFilterSearchBox)
+		.Visibility( InInitOptions.bShowSearchBox ? EVisibility::Visible : EVisibility::Collapsed )
+		.HintText( LOCTEXT( "FilterSearch", "Search..." ) )
+		.ToolTipText( LOCTEXT("FilterSearchHint", "Type here to search (pressing enter selects the results)") )
+		.OnTextChanged( this, &SSceneOutliner::OnFilterTextChanged )
+		.OnTextCommitted( this, &SSceneOutliner::OnFilterTextCommitted );
 	}
+	
+	CreateFilterBar(InInitOptions.FilterBarOptions);
 
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
 	SceneOutlinerModule.OnColumnPermissionListChanged().AddSP(this, &SSceneOutliner::OnColumnPermissionListChanged);
@@ -138,12 +147,7 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	Toolbar->AddSlot()
 	.VAlign(VAlign_Center)
 	[
-		SAssignNew( FilterTextBoxWidget, SSearchBox )
-		.Visibility( InInitOptions.bShowSearchBox ? EVisibility::Visible : EVisibility::Collapsed )
-		.HintText( LOCTEXT( "FilterSearch", "Search..." ) )
-		.ToolTipText( LOCTEXT("FilterSearchHint", "Type here to search (pressing enter selects the results)") )
-		.OnTextChanged( this, &SSceneOutliner::OnFilterTextChanged )
-		.OnTextCommitted( this, &SSceneOutliner::OnFilterTextCommitted )
+		FilterTextBoxWidget.ToSharedRef()
 	];
 
 	if (Mode->CanCustomizeToolbar())
@@ -164,7 +168,7 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 				.OnClicked(this, &SSceneOutliner::OnCreateFolderClicked)
 				[
 					SNew(SImage)
-	                .ColorAndOpacity(FSlateColor::UseForeground())
+					.ColorAndOpacity(FSlateColor::UseForeground())
 					.Image(FAppStyle::Get().GetBrush("SceneOutliner.NewFolderIcon"))
 				]
 			];
@@ -185,7 +189,7 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 			.ButtonContent()
 			[
 				SNew(SImage)
-	            .ColorAndOpacity(FSlateColor::UseForeground())
+				.ColorAndOpacity(FSlateColor::UseForeground())
 				.Image( FAppStyle::Get().GetBrush("Icons.Settings") )
 			]
 		];
@@ -197,6 +201,26 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	[
 		Toolbar
 	];
+
+	// Add the FilterBar and the Add Filter button if it exists
+	if(FilterBar)
+	{
+		// Add Filter Menu
+		Toolbar->InsertSlot(0)
+		.VAlign(VAlign_Center)
+		.Padding(0.0f, 0.0f, 2.0f, 0.0f)
+		.AutoWidth()
+		[
+			SSceneOutlinerFilterBar::MakeAddFilterButton(FilterBar.ToSharedRef())
+		];
+
+		VerticalBox->AddSlot()
+		.AutoHeight()
+		.Padding( 0.0f, 0.0f, 0.0f, 4.0f )
+		[
+			FilterBar.ToSharedRef()
+		];
+	}
 
 	VerticalBox->AddSlot()
 	.FillHeight(1.0)
@@ -766,7 +790,7 @@ void SSceneOutliner::OnChildRemovedFromParent(ISceneOutlinerTreeItem& Parent)
 void SSceneOutliner::OnItemMoved(const FSceneOutlinerTreeItemRef& ReferenceItem)
 {
 	// Just remove the item if it no longer matches the filters
-	if (!ReferenceItem->Flags.bIsFilteredOut && !SearchBoxFilter->PassesFilter(*ReferenceItem))
+	if (!ReferenceItem->Flags.bIsFilteredOut && !PassesAllFilters(ReferenceItem))
 	{
 		// This will potentially remove any non-matching, empty parents as well
 		RemoveItemFromTree(ReferenceItem);
@@ -872,7 +896,7 @@ bool SSceneOutliner::AddItemToTree(FSceneOutlinerTreeItemRef Item)
 	}
 
 	// Set the filtered out flag
-	Item->Flags.bIsFilteredOut = !SearchBoxFilter->PassesFilter(*Item);
+	Item->Flags.bIsFilteredOut = !PassesAllFilters(Item);
 
 	if (!Item->Flags.bIsFilteredOut)
 	{
@@ -977,6 +1001,14 @@ void SSceneOutliner::PopulateSearchStrings(const ISceneOutlinerTreeItem& Item, T
 	{
 		Pair.Value->PopulateSearchStrings(Item, OutSearchStrings);
 	}
+}
+
+/** Creates a TextFilter for ISceneOutlinerTreeItem */
+TSharedPtr< SceneOutliner::TreeItemTextFilter > SSceneOutliner::CreateTextFilter() const
+{
+	auto Delegate = SceneOutliner::TreeItemTextFilter::FItemToStringArray::CreateSP( this, &SSceneOutliner::PopulateSearchStrings );
+
+	return MakeShareable( new SceneOutliner::TreeItemTextFilter( Delegate ) );
 }
 
 void SSceneOutliner::GetSelectedFolders(TArray<FFolderTreeItem*>& OutFolders) const
@@ -2014,7 +2046,7 @@ void SSceneOutliner::OnFilterTextCommitted( const FText& InFilterText, ETextComm
 			// Gather all of the items that match the filter text
 			for (auto& Pair : TreeItemMap)
 			{
-				Pair.Value->Flags.bIsFilteredOut = !SearchBoxFilter->PassesFilter(*Pair.Value);
+				Pair.Value->Flags.bIsFilteredOut = !PassesAllFilters(Pair.Value);
 				if (!Pair.Value->Flags.bIsFilteredOut)
 				{
 					Selection.Add(Pair.Value);
@@ -2385,6 +2417,56 @@ void SSceneOutliner::AddSourceControlMenuOptions(UToolMenu* Menu)
 {
 	TArray<FSceneOutlinerTreeItemPtr> SelectedItems = GetTree().GetSelectedItems();
 	SourceControlHandler->AddSourceControlMenuOptions(Menu, SelectedItems);
+}
+
+void SSceneOutliner::OnFilterBarFilterChanged()
+{
+	FilterCollection = FilterBar->GetAllActiveFilters();
+	FilterBar->SaveSettings();
+	
+	FullRefresh();
+}
+
+bool SSceneOutliner::ConvertItemToAssetData(SceneOutliner::FilterBarType InItem, FAssetData &OutAssetData) const
+{
+	// Type filtering only supported for Actors currently
+	if (const FActorTreeItem* ActorItem = InItem.CastTo<FActorTreeItem>())
+	{
+		AActor* Actor = ActorItem->Actor.Get();
+
+		OutAssetData = FAssetData(Actor);
+
+		return true;
+	}
+
+	return false;
+}
+
+void SSceneOutliner::CreateFilterBar(const FSceneOutlinerFilterBarOptions& FilterBarOptions)
+{
+	if(!FilterBarOptions.bHasFilterBar)
+	{
+		return;
+	}
+
+	FName FilterBarIdentifier = OutlinerIdentifier;
+
+	SAssignNew(FilterBar, SSceneOutlinerFilterBar)
+	.OnConvertItemToAssetData(this, &SSceneOutliner::ConvertItemToAssetData)
+	.OnFilterChanged(this, &SSceneOutliner::OnFilterBarFilterChanged)
+	.CustomClassFilters(FilterBarOptions.CustomClassFilters)
+	.CustomFilters(FilterBarOptions.CustomFilters)
+	.FilterSearchBox(FilterTextBoxWidget)
+	.FilterBarIdentifier(FilterBarIdentifier)
+	.UseSharedSettings(FilterBarOptions.bUseSharedSettings)
+	.CreateTextFilter(SSceneOutlinerFilterBar::FCreateTextFilter::CreateLambda([this]()
+	{
+		TSharedPtr< SceneOutliner::TreeItemTextFilter > Filter = this->CreateTextFilter();
+
+		return MakeShareable(new FCustomTextFilter<SceneOutliner::FilterBarType>(Filter));
+	}));
+
+	FilterBar->LoadSettings();
 }
 
 #undef LOCTEXT_NAMESPACE

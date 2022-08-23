@@ -49,6 +49,7 @@ public:
 		, _UseDefaultAssetFilters(true)
 	    , _FilterBarLayout(EFilterBarLayout::Horizontal)
 		, _CanChangeOrientation(false)
+		, _FilterPillStyle(EFilterPillStyle::Default)
 		{
 		
 		}
@@ -93,6 +94,9 @@ public:
 			
 		/** If true, allow dynamically changing the orientation and saving in the config */
 		SLATE_ARGUMENT(bool, CanChangeOrientation)
+		
+		/** Determines how each individual filter pill looks like */
+		SLATE_ARGUMENT(EFilterPillStyle, FilterPillStyle)
 	
 	SLATE_END_ARGS()
 
@@ -110,6 +114,7 @@ public:
 		Args._FilterBarIdentifier = InArgs._FilterBarIdentifier;
 		Args._FilterBarLayout = InArgs._FilterBarLayout;
         Args._CanChangeOrientation = InArgs._CanChangeOrientation;
+		Args._FilterPillStyle = InArgs._FilterPillStyle;
 		
 		SAssetFilterBar<FilterType>::Construct(Args);
 		

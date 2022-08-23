@@ -172,6 +172,10 @@ TSharedRef< ISceneOutliner > FSceneOutlinerModule::CreateActorBrowser(const FSce
 		}
 		
 	}
+
+	// Setup the FilterBar options for the Actor Browser
+	FActorBrowsingMode::CreateOutlinerFilterBarFilters(InitOptions.FilterBarOptions);
+	
 	return CreateSceneOutliner(InitOptions);
 }
 

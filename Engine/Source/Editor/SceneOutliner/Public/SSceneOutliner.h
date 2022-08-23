@@ -39,8 +39,9 @@ class ISceneOutlinerColumn;
 class SComboButton;
 class ULevel;
 struct FToolMenuSection;
-
+template<typename FilterType> class SFilterBar;
 template<typename ItemType> class STreeView;
+class SFilterSearchBox;
 
 /**
  * Scene Outliner definition
@@ -519,13 +520,19 @@ private:
 		{
 			const TreeItemType Temporary(Data);
 			bool bPassesFilters = Filters->PassesAllFilters(Temporary);
+
+			if(FilterCollection)
+			{
+				bPassesFilters &= FilterCollection->PassesAllFilters(Temporary);
+			}
+			
 			if (bPassesFilters)
 			{
 				OnItemPassesFilters(Temporary);
 			}
 
 		bPassesFilters &= SearchBoxFilter->PassesFilter(Temporary);
-
+			
 		if (bForce || bPassesFilters)
 		{
 			FSceneOutlinerTreeItemPtr Result = MakeShareable(new TreeItemType(Data));
@@ -558,7 +565,20 @@ private:
 
 	bool PassesTextFilter(const FSceneOutlinerTreeItemPtr& Item) const
 	{
-		return SearchBoxFilter->PassesFilter(*Item);
+		return PassesAllFilters(Item);
+	}
+
+	bool PassesAllFilters(const FSceneOutlinerTreeItemPtr& Item) const
+	{
+		bool bPassesFilters = SearchBoxFilter->PassesFilter(*Item);
+
+		if(FilterCollection)
+		{
+			bPassesFilters &= FilterCollection->PassesAllFilters(*Item);
+		}
+
+		return bPassesFilters;
+		
 	}
 
 	bool HasSelectorFocus(FSceneOutlinerTreeItemPtr Item) const
@@ -584,7 +604,22 @@ private:
 	/** Populates OutSearchStrings with the strings associated with TreeItem that should be used in searching */
 	void PopulateSearchStrings( const ISceneOutlinerTreeItem& TreeItem, OUT TArray< FString >& OutSearchStrings ) const;
 
+	/** Filter Bar related private functionality */
+	
+	/** Creates a TextFilter for ISceneOutlinerTreeItem used to save searches as Text Filters */
+	TSharedPtr< SceneOutliner::TreeItemTextFilter > CreateTextFilter() const;
 
+	/** Convert a SceneOutliner item into an FAssetData struct to compare against type filters *
+	 *  TODO: Move to the ISceneOutlinerMode maybe to allow each mode to specify how to convert items?
+	 */
+	bool ConvertItemToAssetData(SceneOutliner::FilterBarType InItem, FAssetData &OutAssetData) const;
+
+	/** Delegate for when a filter in the filter bar is changed */
+	void OnFilterBarFilterChanged();
+
+	/** Create the filter bar for this outliner using the specified init options */
+	void CreateFilterBar(const FSceneOutlinerFilterBarOptions& FilterBarOptions);
+	
 public:
 	/** Miscellaneous helper functions */
 
@@ -800,6 +835,7 @@ private:
 
 	/** Updates the expansion state of parent items after a repopulate, according to the previous state */
 	void SetParentsExpansionState(const FParentsExpansionState& ExpansionStateInfo) const;
+
 private:
 
 	/** True if the outliner needs to be repopulated at the next appropriate opportunity, usually because our
@@ -824,7 +860,7 @@ private:
 	bool bIsReentrant;
 
 	/* Widget containing the filtering text box */
-	TSharedPtr< SSearchBox > FilterTextBoxWidget;
+	TSharedPtr< SFilterSearchBox > FilterTextBoxWidget;
 
 	/** The header row of the scene outliner */
 	TSharedPtr< SHeaderRow > HeaderRowWidget;
@@ -837,6 +873,12 @@ private:
 
 	/** The TextFilter attached to the SearchBox widget of the Scene Outliner */
 	TSharedPtr< SceneOutliner::TreeItemTextFilter > SearchBoxFilter;
+
+	/** The FilterBar attached to this outliner to filter down assets further */
+	TSharedPtr< SFilterBar< SceneOutliner::FilterBarType > > FilterBar;
+
+	/** The FilterCollection belonging to the Filter Bar */
+	TSharedPtr< TFilterCollection< SceneOutliner::FilterBarType > > FilterCollection;
 
 	/** True if the search box will take keyboard focus next frame */
 	bool bPendingFocusNextFrame;

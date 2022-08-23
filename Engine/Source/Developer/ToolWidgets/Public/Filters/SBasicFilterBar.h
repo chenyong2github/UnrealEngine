@@ -52,6 +52,14 @@ enum class EFilterBarLayout : uint8
 	Vertical
 };
 
+/** Describes how each individual filter pill looks like */
+UENUM()
+enum class EFilterPillStyle : uint8
+{
+	Default, // The default style you see in the Content Browser, pills showing the color and filter name
+	Basic    // Simple filter pills that only show the name like you see in the Outliner
+};
+
 /** Forward declaration for a helper struct used to activate external filters */
 template<typename FilterType>
 struct FFrontendFilterExternalActivationHelper;
@@ -84,6 +92,7 @@ public:
  	SLATE_BEGIN_ARGS( SBasicFilterBar<FilterType> )
  		: _FilterBarLayout(EFilterBarLayout::Horizontal)
 		, _CanChangeOrientation(false)
+		, _FilterPillStyle(EFilterPillStyle::Default)
 	{}
 
  		/** Delegate for when filters have changed */
@@ -112,6 +121,9 @@ public:
 	
 		/** If true, allow dynamically changing the orientation and saving in the config */
 		SLATE_ARGUMENT(bool, CanChangeOrientation)
+
+		/** Determines how each individual filter pill looks like */
+		SLATE_ARGUMENT(EFilterPillStyle, FilterPillStyle)
 	
  	SLATE_END_ARGS()
 
@@ -122,6 +134,7 @@ public:
  		CreateTextFilter = InArgs._CreateTextFilter;
  		FilterBarLayout = InArgs._FilterBarLayout;
  		bCanChangeOrientation = InArgs._CanChangeOrientation;
+ 		FilterPillStyle = InArgs._FilterPillStyle;
 
  		// We use a widgetswitcher to allow dynamically swapping between the layouts
  		ChildSlot
@@ -364,6 +377,9 @@ protected:
 			/** Invoked when a request to remove all filters originated from within this filter */
 			SLATE_EVENT( FOnRequestRemoveAllButThis, OnRequestRemoveAllButThis )
 
+			/** Determines how each individual filter pill looks like */
+			SLATE_ARGUMENT(EFilterPillStyle, FilterPillStyle)
+
 		SLATE_END_ARGS()
 
 		/** Constructs this widget with InArgs */
@@ -387,7 +403,7 @@ protected:
 				FilterToolTip = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(FrontendFilter.ToSharedRef(), &FFilterBase<FilterType>::GetToolTipText));
 			}
 
-			Construct_Internal();
+			Construct_Internal(InArgs._FilterPillStyle);
 		}
 
 		/** Sets whether or not this filter is applied to the combined filter */
@@ -446,42 +462,66 @@ protected:
 	protected:
 
 		/** Function that constructs the actual widget for subclasses to call */
-		void Construct_Internal()
+		void Construct_Internal(EFilterPillStyle InFilterPillStyle)
 		{
-			ChildSlot
-			[
-				SNew(SBorder)
-				 .Padding(1.0f)
-				.BorderImage(FAppStyle::Get().GetBrush("ContentBrowser.FilterBackground"))
-				 [
-					SAssignNew( ToggleButtonPtr, SFilterCheckBox )
-					.Style(FAppStyle::Get(), "ContentBrowser.FilterButton")
+			TSharedPtr<SWidget> ContentWidget;
+
+			switch(InFilterPillStyle)
+			{
+			case EFilterPillStyle::Basic:
+				ContentWidget = SAssignNew( ToggleButtonPtr, SFilterCheckBox )
+					.Style(FAppStyle::Get(), "DetailsView.SectionButton")
 					.ToolTipText(FilterToolTip)
-					.Padding(0.0f)
 					.IsChecked(this, &SFilter::IsChecked)
 					.OnCheckStateChanged(this, &SFilter::FilterToggled)
 					.CheckBoxContentUsesAutoWidth(false)
 					.OnGetMenuContent(this, &SFilter::GetRightClickMenuContent)
 					[
-						SNew(SHorizontalBox)
-						+SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						[
-							SNew(SImage)
-							.Image(FAppStyle::Get().GetBrush("ContentBrowser.FilterImage"))
-							.ColorAndOpacity(this, &SFilter::GetFilterImageColorAndOpacity)
-						]
-						+SHorizontalBox::Slot()
-						.Padding(TAttribute<FMargin>(this, &SFilter::GetFilterNamePadding))
-						.VAlign(VAlign_Center)
+						SNew(STextBlock)
+						.Margin(FMargin(0.0f))
+						.TextStyle(FAppStyle::Get(), "SmallText")
+						.Text(this, &SFilter::GetFilterDisplayName)
+					];
+				break;
+			case EFilterPillStyle::Default:
+			default:
+				ContentWidget = SNew(SBorder)
+				 .Padding(1.0f)
+				 .BorderImage(FAppStyle::Get().GetBrush("ContentBrowser.FilterBackground"))
+				 [
+					 SNew(SHorizontalBox)
+					 +SHorizontalBox::Slot()
+					 .VAlign(VAlign_Center)
+					 .AutoWidth()
+					 [
+						 SNew(SImage)
+						 .Image(FAppStyle::Get().GetBrush("ContentBrowser.FilterImage"))
+						 .ColorAndOpacity(this, &SFilter::GetFilterImageColorAndOpacity)
+					 ]
+					 +SHorizontalBox::Slot()
+					 .Padding(TAttribute<FMargin>(this, &SFilter::GetFilterNamePadding))
+					 .VAlign(VAlign_Center)
+					 [
+						 SAssignNew( ToggleButtonPtr, SFilterCheckBox )
+						.Style(FAppStyle::Get(), "ContentBrowser.FilterButton")
+						.ToolTipText(FilterToolTip)
+						.IsChecked(this, &SFilter::IsChecked)
+						.OnCheckStateChanged(this, &SFilter::FilterToggled)
+						.CheckBoxContentUsesAutoWidth(false)
+						.OnGetMenuContent(this, &SFilter::GetRightClickMenuContent)
 						[
 							SNew(STextBlock)
 							.Text(this, &SFilter::GetFilterDisplayName)
 							.IsEnabled_Lambda([this] {return bEnabled;})
 						]
-					]
-				]
+					 ]
+				 ];
+					
+			}
+			
+			ChildSlot
+			[
+				ContentWidget.ToSharedRef()
 			];
 
 			ToggleButtonPtr->SetOnFilterCtrlClicked(FOnClicked::CreateSP(this, &SFilter::FilterCtrlClicked));
@@ -864,10 +904,23 @@ protected:
 	/** Add a widget to the current filter layout */
 	void AddWidgetToLayout(const TSharedRef<SWidget> WidgetToAdd)
 	{
+		FMargin HorizontalFilterPadding;
+		
+		switch(FilterPillStyle)
+		{
+		case EFilterPillStyle::Basic:
+			HorizontalFilterPadding = FMargin(2);
+			break;
+		case EFilterPillStyle::Default:
+		default:
+			HorizontalFilterPadding = FMargin(3);
+		}
+			
+		
 		if(FilterBarLayout == EFilterBarLayout::Horizontal)
 		{
 			HorizontalFilterBox->AddSlot()
-			.Padding(3, 3)
+			.Padding(HorizontalFilterPadding)
 			[
 				WidgetToAdd
 			];
@@ -921,6 +974,7 @@ protected:
 		TSharedRef<SFilter> NewFilter =
 			SNew(SFilter)
 			.FrontendFilter(Filter)
+			.FilterPillStyle(FilterPillStyle)
 			.OnFilterChanged( this, &SBasicFilterBar<FilterType>::FrontendFilterChanged, Filter )
 			.OnRequestRemove(this, &SBasicFilterBar<FilterType>::RemoveFilterAndUpdate)
 			.OnRequestEnableOnly(this, &SBasicFilterBar<FilterType>::EnableOnlyThisFilter)
@@ -1568,6 +1622,9 @@ protected:
 
 	/** Whether the orientation can be changed after initailization */
 	bool bCanChangeOrientation;
+
+	/** Determines how each individual pill looks like */
+	EFilterPillStyle FilterPillStyle;
 	
 	friend struct FFrontendFilterExternalActivationHelper<FilterType>;
 };

@@ -110,6 +110,7 @@ public:
 		: _UseDefaultAssetFilters(true)
 		, _FilterBarLayout(EFilterBarLayout::Horizontal)
 		, _CanChangeOrientation(false)
+		, _FilterPillStyle(EFilterPillStyle::Default)
 		{
 		
 		}
@@ -148,6 +149,9 @@ public:
 		
 		/** If true, allow dynamically changing the orientation and saving in the config */
 		SLATE_ARGUMENT(bool, CanChangeOrientation)
+
+		/** Determines how each individual filter pill looks like */
+		SLATE_ARGUMENT(EFilterPillStyle, FilterPillStyle)
 	
 	SLATE_END_ARGS()
 
@@ -167,6 +171,7 @@ public:
 		Args._FilterSearchBox = InArgs._FilterSearchBox;
 		Args._FilterBarLayout = InArgs._FilterBarLayout;
 		Args._CanChangeOrientation = InArgs._CanChangeOrientation;
+		Args._FilterPillStyle = InArgs._FilterPillStyle;
 		
 		SBasicFilterBar<FilterType>::Construct(Args);
 
@@ -294,6 +299,9 @@ protected:
 				FilterBarConfig->TypeFilters.Add(FilterName, Filter->IsEnabled());
 			}
 		}
+
+		// Add back all the unknown filters which we encountered while loading, but didn't find in our instance
+		FilterBarConfig->TypeFilters.Append(UnknownTypeFilters);
 	}
 
 	/** Load all the custom class filters (created by the user) from the specified config */
@@ -349,6 +357,9 @@ protected:
 			}
 		}
 
+		// Save a copy of all the type filters, and then remove anything we find
+		UnknownTypeFilters = FilterBarConfig->TypeFilters;
+
 		// Load all the type filters
 		for(const TSharedRef<FCustomClassFilterData> &CustomClassFilter : this->CustomClassFilters)
 		{
@@ -357,10 +368,13 @@ protected:
 				const FString FilterName = CustomClassFilter->GetFilterName();
 
 				// Try to find this type filter in our list of saved filters
-				if ( const bool* bIsActive = FilterBarConfig->TypeFilters.Find(CustomClassFilter->GetFilterName()) )
+				if ( const bool* bIsActive = FilterBarConfig->TypeFilters.Find(FilterName) )
 				{
 					TSharedRef<SFilter> NewFilter = this->AddAssetFilterToBar(CustomClassFilter);
 					NewFilter->SetEnabled(*bIsActive, false);
+
+					// Remove it from the Unknown list, we have encountered this type filter in the current instance
+					UnknownTypeFilters.Remove(FilterName);
 				}
 			}
 		}
@@ -409,6 +423,9 @@ protected:
 			/** Invoked when a request to remove all filters originated from within this filter */
 			SLATE_EVENT( FOnRequestRemoveAllButThis, OnRequestRemoveAllButThis )
 
+			/** Determines how each individual filter pill looks like */
+			SLATE_ARGUMENT(EFilterPillStyle, FilterPillStyle)
+
 		SLATE_END_ARGS()
 
 		/** Constructs this widget with InArgs */
@@ -439,7 +456,7 @@ protected:
 				this->FilterToolTip = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this->FrontendFilter.ToSharedRef(), &FFilterBase<FilterType>::GetToolTipText));
 			}
 
-			SFilter::Construct_Internal();
+			SFilter::Construct_Internal(InArgs._FilterPillStyle);
 		}
 
 	public:
@@ -674,6 +691,7 @@ protected:
 	{
 		TSharedRef<SAssetFilter> NewFilter =
 			SNew(SAssetFilter)
+			.FilterPillStyle(this->FilterPillStyle)
 			.CustomClassFilter(CustomClassFilter)
 			.OnFilterChanged(this->OnFilterChanged)
 			.OnRequestRemove(this, &SAssetFilterBar<FilterType>::RemoveFilterAndUpdate)
@@ -1160,6 +1178,10 @@ protected:
 
 	/** The AssetClassAction used to get the permission list from the Asset Tools Module */
 	EAssetClassAction AssetClassAction = EAssetClassAction::ViewAsset;
+
+	/** A map of any type filters we encounter while calling LoadSettings(), but don't have in this instance of the filter
+	 *  bar. These are stored so we can save these when calling SaveSettings() so that they are not lost */
+	TMap<FString, bool> UnknownTypeFilters; 
 
 };
 

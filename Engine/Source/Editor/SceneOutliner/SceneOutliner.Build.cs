@@ -8,17 +8,19 @@ public class SceneOutliner : ModuleRules
 	{
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
+				"PlacementMode"
 			}
 		);
-
+		
 		PrivateDependencyModuleNames.AddRange(
-			new string[] {
-				"Core", 
+			new string[]
+			{
+				"Core",
 				"CoreUObject",
 				"Engine",
-                "ApplicationCore",
-                "InputCore",
-				"Slate", 
+				"ApplicationCore",
+				"InputCore",
+				"Slate",
 				"SlateCore",
 				"EditorFramework",
 				"UnrealEd",
@@ -26,7 +28,10 @@ public class SceneOutliner : ModuleRules
 				"SourceControl",
 				"EditorConfig",
 				"SourceControlWindows",
+				"EditorWidgets",
+				"ToolWidgets",
 			}
 		);
+		
 	}
 }
