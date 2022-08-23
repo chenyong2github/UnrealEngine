@@ -7,7 +7,7 @@ public class ONNXRuntime : ModuleRules
 	public ONNXRuntime( ReadOnlyTargetRules Target ) : base( Target )
 	{
 		ShortName = "ORT"; // Shorten to avoid path-too-long errors
-		PCHUsage = ModuleRules.PCHUsageMode.NoPCHs;
+		PCHUsage = Target.StaticAnalyzer == StaticAnalyzer.None ? ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs : ModuleRules.PCHUsageMode.NoPCHs;
 
 		PublicIncludePaths.AddRange(
 			new string[] {
