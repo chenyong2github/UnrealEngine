@@ -209,42 +209,49 @@ TSharedRef<SHeaderRow> SPCGEditorGraphProfilingView::CreateHeaderRowWidget()
 		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_NodeLabel)
 		.HAlignHeader(HAlign_Center)
 		.HAlignCell(HAlign_Left)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_Node)
 		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
 		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_AvgTime)
 		.ManualWidth(100)
 		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_AvgTimeLabel)
 		.HAlignHeader(HAlign_Center)
 		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_AvgTime)
 		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
 		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_MinTime)
 		.ManualWidth(100)
 		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_MinTimeLabel)
 		.HAlignHeader(HAlign_Center)
 		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_MinTime)
 		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
 		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_MaxTime)
 		.ManualWidth(100)
 		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_MaxTimeLabel)
 		.HAlignHeader(HAlign_Center)
 		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_MaxTime)
 		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
 		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_StdTime)
 		.ManualWidth(100)
 		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_StdTimeLabel)
 		.HAlignHeader(HAlign_Center)
 		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_StdTime)
 		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
 		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_TotalTime)
 		.ManualWidth(100)
 		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_TotalTimeLabel)
 		.HAlignHeader(HAlign_Center)
 		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_TotalTime)
 		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader)
 		+ SHeaderRow::Column(PCGEditorGraphProfilingView::NAME_NbCalls)
 		.ManualWidth(125)
 		.DefaultLabel(PCGEditorGraphProfilingView::TEXT_NbCallsLabel)
 		.HAlignHeader(HAlign_Center)
 		.HAlignCell(HAlign_Right)
+		.SortMode(this, &SPCGEditorGraphProfilingView::GetColumnSortMode, PCGEditorGraphProfilingView::NAME_NbCalls)
 		.OnSort(this, &SPCGEditorGraphProfilingView::OnSortColumnHeader);
 }
 
@@ -262,6 +269,16 @@ void SPCGEditorGraphProfilingView::OnSortColumnHeader(const EColumnSortPriority:
 	}
 
 	Refresh();
+}
+
+EColumnSortMode::Type SPCGEditorGraphProfilingView::GetColumnSortMode(const FName ColumnId) const
+{
+	if (SortingColumn != ColumnId)
+	{
+		return EColumnSortMode::None;
+	}
+
+	return SortMode;
 }
 
 FReply SPCGEditorGraphProfilingView::ResetTimers()
