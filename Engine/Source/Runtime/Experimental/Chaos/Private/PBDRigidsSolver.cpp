@@ -7,6 +7,7 @@
 #include "Chaos/PBDCollisionConstraintsUtil.h"
 #include "Chaos/Utilities.h"
 #include "Chaos/ChaosDebugDraw.h"
+#include "Chaos/PBDRigidsEvolution.h"
 #include "ChaosStats.h"
 #include "ChaosSolversModule.h"
 #include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
@@ -495,7 +496,13 @@ namespace Chaos
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("FPBDRigidsSolver::RegisterObject()"));
 		auto& RigidBody_External = Proxy->GetGameThreadAPI();
 
-		if (RigidBody_External.Geometry() && RigidBody_External.Geometry()->HasBoundingBox() && RigidBody_External.Geometry()->BoundingBox().Extents().Max() >= MaxBoundsForTree)
+		if (BroadPhaseConfig.BroadphaseType == FBroadPhaseConfig::Tree)
+		{
+			FSpatialAccelerationIdx Idx = RigidBody_External.SpatialIdx();
+			Idx.Bucket = 0;
+			RigidBody_External.SetSpatialIdx(Idx);
+		}
+		else if (RigidBody_External.Geometry() && RigidBody_External.Geometry()->HasBoundingBox() && RigidBody_External.Geometry()->BoundingBox().Extents().Max() >= MaxBoundsForTree)
 		{
 			RigidBody_External.SetSpatialIdx(FSpatialAccelerationIdx{ 1,0 });
 		}

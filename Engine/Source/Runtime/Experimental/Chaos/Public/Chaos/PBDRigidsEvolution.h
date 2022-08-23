@@ -30,6 +30,41 @@ namespace Chaos
 {
 extern CHAOS_API int32 ForceNoCollisionIntoSQ;
 
+struct FBroadPhaseConfig
+{
+	enum 
+	{
+		Grid = 0,
+		Tree = 1,
+		TreeOfGrid = 2,
+		TreeAndGrid = 3,
+		TreeOfGridAndGrid = 4
+	};
+
+	int32 BroadphaseType;
+	int32 BVNumCells;
+	int32 MaxChildrenInLeaf;
+	int32 MaxTreeDepth;
+	int32 AABBMaxChildrenInLeaf;
+	int32 AABBMaxTreeDepth;
+	FRealSingle MaxPayloadSize;
+	int32 IterationsPerTimeSlice;
+
+	FBroadPhaseConfig()
+	{
+		BroadphaseType = 3;
+		BVNumCells = 35;
+		MaxChildrenInLeaf = 5;
+		MaxTreeDepth = 200;
+		AABBMaxChildrenInLeaf = 500;
+		AABBMaxTreeDepth = 200;
+		MaxPayloadSize = 100000;
+		IterationsPerTimeSlice = 4000;
+	}
+};
+
+extern CHAOS_API FBroadPhaseConfig BroadPhaseConfig;
+
 namespace Collisions
 {
 	void CHAOS_API ResetChaosCollisionCounters();
