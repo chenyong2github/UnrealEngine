@@ -112,15 +112,13 @@ namespace Chaos::Softs
 			typedef FThreadingProxy::FBuffer Super;
 
 		public:
-			FFleshInputBuffer(const UObject* InOwner = nullptr)
+			FFleshInputBuffer(const TArray<FTransform> & InTransforms, const UObject* InOwner = nullptr)
 				: Super(InOwner, FFleshThreadingProxy::TypeName())
-			{
-				// Ref.Dynamic will have updated solver data 
-				//InputData.AddAttribute<FTransform>("Transforms", FTransformCollection::TransformGroup);
-				//InputData.CopyMatchingAttributesFrom(Ref.GetDynamicCollection());
-			}
+				, Transforms(InTransforms)
+			{}
 			virtual ~FFleshInputBuffer() {}
 
+			TArray<FTransform> Transforms;
 			FManagedArrayCollection InputData;
 		};
 

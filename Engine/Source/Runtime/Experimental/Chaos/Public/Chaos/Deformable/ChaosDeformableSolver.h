@@ -126,8 +126,10 @@ namespace Chaos::Softs
 		static FCriticalSection	PackageInputMutex;
 		TArray< TUniquePtr<FThreadingProxy> > UninitializedProxys;
 		TMap< FThreadingProxy::FKey, TUniquePtr<FThreadingProxy> > Proxies;
-		TArray< TUniquePtr<FDeformablePackage>  > InputPackages;
-		TArray< TUniquePtr<FDeformablePackage>  > OutputPackages;
+		TArray< TUniquePtr<FDeformablePackage>  > BufferedInputPackages;
+		TArray< TUniquePtr<FDeformablePackage>  > BufferedOutputPackages;
+		TUniquePtr < FDeformablePackage > CurrentInputPackage;
+		TUniquePtr < FDeformablePackage > PreviousInputPackage;
 
 		// User Configuration
 		FDeformableSolverProperties Property;

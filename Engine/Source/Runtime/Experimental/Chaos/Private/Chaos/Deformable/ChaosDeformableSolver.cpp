@@ -40,7 +40,10 @@ namespace Chaos::Softs
 
 
 	FDeformableSolver::FDeformableSolver(FDeformableSolverProperties InProp)
-		: Property(InProp)
+		: CurrentInputPackage(TUniquePtr < FDeformablePackage >(nullptr))
+		, PreviousInputPackage(TUniquePtr < FDeformablePackage >(nullptr))
+		, Property(InProp)
+
 	{
 		Reset(Property);
 	}
@@ -405,7 +408,7 @@ namespace Chaos::Softs
 	{
 		FScopeLock Lock(&PackageInputMutex);
 		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PushInputPackage);
-		InputPackages.Push(TUniquePtr< FDeformablePackage >(new FDeformablePackage(InFrame, MoveTemp(InPackage))));
+		BufferedInputPackages.Push(TUniquePtr< FDeformablePackage >(new FDeformablePackage(InFrame, MoveTemp(InPackage))));
 	}
 
 	TUniquePtr<FDeformablePackage> FDeformableSolver::FPhysicsThreadAccess::PullInputPackage()
@@ -416,8 +419,8 @@ namespace Chaos::Softs
 	{
 		FScopeLock Lock(&PackageInputMutex);
 		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PullInputPackage);
-		if (InputPackages.Num())
-			return InputPackages.Pop();
+		if (BufferedInputPackages.Num())
+			return BufferedInputPackages.Pop();
 		return TUniquePtr<FDeformablePackage>(nullptr);
 	}
 
@@ -427,8 +430,18 @@ namespace Chaos::Softs
 	}
 	void FDeformableSolver::UpdateProxyInputPackages()
 	{
-		// todo(chaosflesh) : just clear the packages for now. 
-		while (PullInputPackage()) {}
+		if (CurrentInputPackage)
+		{
+			PreviousInputPackage = TUniquePtr < FDeformablePackage >(CurrentInputPackage.Release());
+			CurrentInputPackage = TUniquePtr < FDeformablePackage >(nullptr);
+		}
+
+		TUniquePtr < FDeformablePackage > TailPackage = PullInputPackage();
+		while(TailPackage)
+		{
+			CurrentInputPackage = TUniquePtr < FDeformablePackage >(TailPackage.Release());
+			TailPackage = PullInputPackage();
+		}
 	}
 
 	void FDeformableSolver::FPhysicsThreadAccess::TickSimulation(FSolverReal DeltaTime)
@@ -480,7 +493,7 @@ namespace Chaos::Softs
 	{
 		FScopeLock Lock(&PackageOutputMutex);
 		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PushPackage);
-		OutputPackages.Push(TUniquePtr< FDeformablePackage >(new FDeformablePackage(InFrame, MoveTemp(InPackage))));
+		BufferedOutputPackages.Push(TUniquePtr< FDeformablePackage >(new FDeformablePackage(InFrame, MoveTemp(InPackage))));
 	}
 
 
@@ -492,8 +505,8 @@ namespace Chaos::Softs
 	{
 		FScopeLock Lock(&PackageOutputMutex);
 		TRACE_CPUPROFILER_EVENT_SCOPE(DeformableSolver_PullPackage);
-		if (OutputPackages.Num())
-			return OutputPackages.Pop();
+		if (BufferedOutputPackages.Num())
+			return BufferedOutputPackages.Pop();
 		return TUniquePtr<FDeformablePackage>(nullptr);
 	}
 
