@@ -620,9 +620,12 @@ namespace Horde.Build.Issues
 				removeSpans = request.RemoveSpans.ConvertAll(x => ObjectId.Parse(x));
 			}
 
-			if (!await _issueService.UpdateIssueAsync(issueId, request.Summary, request.Description, request.Promoted, newOwnerId, newNominatedById, request.Acknowledged, newDeclinedById, request.FixChange, newResolvedById, addSpans, removeSpans, request.ExternalIssueKey, newQuarantinedById))
+			using (IDisposable scope = _issueCollection.GetLogger(issueId).BeginScope("User {UserId}", User.GetUserId() ?? UserId.Empty))
 			{
-				return NotFound();
+				if (!await _issueService.UpdateIssueAsync(issueId, request.Summary, request.Description, request.Promoted, newOwnerId, newNominatedById, request.Acknowledged, newDeclinedById, request.FixChange, newResolvedById, addSpans, removeSpans, request.ExternalIssueKey, newQuarantinedById))
+				{
+					return NotFound();
+				}
 			}
 			return Ok();
 		}
