@@ -263,13 +263,21 @@ class UMaterialInterface* UDecalComponent::GetDecalMaterial() const
 
 class UMaterialInstanceDynamic* UDecalComponent::CreateDynamicMaterialInstance()
 {
+	UMaterialInterface* CurrentMaterial = DecalMaterial;
+	
+	// If we already set a MID, then we need to create based on its parent.
+	if (UMaterialInstanceDynamic* CurrentMaterialMID = Cast<UMaterialInstanceDynamic>(CurrentMaterial))
+	{
+		CurrentMaterial = CurrentMaterialMID->Parent;
+	}
+
 	// Create the MID
-	UMaterialInstanceDynamic* Instance = UMaterialInstanceDynamic::Create(DecalMaterial, this);
+	UMaterialInstanceDynamic* NewMaterialInstance = UMaterialInstanceDynamic::Create(CurrentMaterial, this);
 
-	// Assign it, once parent is set
-	SetDecalMaterial(Instance);
+	// Assign the MID
+	SetDecalMaterial(NewMaterialInstance);
 
-	return Instance;
+	return NewMaterialInstance;
 }
 
 void UDecalComponent::GetUsedMaterials( TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials ) const
