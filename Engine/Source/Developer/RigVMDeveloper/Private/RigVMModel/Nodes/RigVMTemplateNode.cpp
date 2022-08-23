@@ -1086,13 +1086,9 @@ void URigVMTemplateNode::InvalidateCache()
 	CachedFunction = nullptr;
 	CachedTemplate = nullptr;
 
-	for(URigVMPin* Pin : GetPins())
+	if (HasWildCardPin())
 	{
-		if(Pin->IsWildCard())
-		{
-			ResolvedFunctionName.Reset();
-			break;
-		}
+		ResolvedFunctionName.Reset();
 	}
 }
 

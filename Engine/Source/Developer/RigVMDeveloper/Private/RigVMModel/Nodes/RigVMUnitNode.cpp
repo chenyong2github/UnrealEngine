@@ -12,16 +12,23 @@ void URigVMUnitNode::PostLoad()
 	Super::PostLoad();
 
 	// if we have a script struct but no notation let's figure out the template
-	if(GetScriptStruct() != nullptr && GetTemplate() == nullptr)
+	if(GetScriptStruct() != nullptr)
 	{
-		if(const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(GetScriptStruct(), *GetMethodName().ToString()))
+		if (IsDeprecated())
 		{
-			if(Function->TemplateIndex != INDEX_NONE)
+			TemplateNotation = NAME_None;
+		}
+		else if(GetTemplate() == nullptr)
+		{
+			if(const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(GetScriptStruct(), *GetMethodName().ToString()))
 			{
-				const FRigVMTemplate& Template = FRigVMRegistry::Get().GetTemplates()[Function->TemplateIndex];
-				TemplateNotation = Template.GetNotation();				
-			}
-			ResolvedFunctionName = Function->GetName();
+				if(Function->TemplateIndex != INDEX_NONE)
+				{
+					const FRigVMTemplate& Template = FRigVMRegistry::Get().GetTemplates()[Function->TemplateIndex];
+					TemplateNotation = Template.GetNotation();				
+				}
+				ResolvedFunctionName = Function->GetName();
+			}			
 		}
 	}
 }
