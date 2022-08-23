@@ -373,6 +373,11 @@ namespace Horde.Build.Server
 		/// Suffix for all triage messages
 		/// </summary>
 		public string? TriageSuffix { get; set; }
+		
+		/// <summary>
+		/// Instructions posted to triage threads
+		/// </summary>
+		public string? TriageInstructions { get; set; }
 
 		/// <summary>
 		/// Maximum number of people to mention on a triage thread

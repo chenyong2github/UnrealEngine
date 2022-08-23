@@ -822,6 +822,11 @@ namespace Horde.Build.Notifications.Sinks
 					actions.AddButton("Not Me", value: $"issue_{issue.Id}_decline", style: ButtonStyle.Danger);
 					actions.AddButton("Mark Fixed", value: $"issue_{issue.Id}_markfixed");
 
+					if (workflow.TriageInstructions != null)
+					{
+						message.AddSection(workflow.TriageInstructions);
+					}
+
 					string? summaryTs = await _slackClient.PostMessageAsync(triageChannel, state.Ts, message);
 
 					// Permalink to the summary text so we link inside the thread rather than just to the original message

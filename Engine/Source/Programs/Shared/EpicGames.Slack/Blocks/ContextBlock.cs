@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using EpicGames.Slack.Elements;
 
 namespace EpicGames.Slack.Blocks
 {
@@ -41,6 +42,19 @@ namespace EpicGames.Slack.Blocks
 			ContextBlock block = new ContextBlock();
 			configure(block);
 			container.Blocks.Add(block);
+		}
+
+		/// <summary>
+		/// Add an <see cref="ContextBlock"/> to the list of blocks
+		/// </summary>
+		/// <param name="container">Block container</param>
+		/// <param name="text">Configuration callback for the block</param>
+		public static ContextBlock AddContext(this ISlackBlockContainer container, TextObject text)
+		{
+			ContextBlock block = new ContextBlock();
+			block.Elements.Add(text);
+			container.Blocks.Add(block);
+			return block;
 		}
 	}
 }
