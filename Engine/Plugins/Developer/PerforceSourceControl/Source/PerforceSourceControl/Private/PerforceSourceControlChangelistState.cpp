@@ -12,12 +12,13 @@ FPerforceSourceControlChangelistState::FPerforceSourceControlChangelistState(con
 
 FName FPerforceSourceControlChangelistState::GetIconName() const
 {
-	return FName("SourceControl.Changelist");
+	// Mimic P4V colors, returning the red icon if there are active file(s), the blue if the changelist is empty or all the files are shelved.
+	return Files.Num() > 0 ? FName("SourceControl.Changelist") : FName("SourceControl.ShelvedCHangelist");
 }
 
 FName FPerforceSourceControlChangelistState::GetSmallIconName() const
 {
-	return FName("SourceControl.Changelist");
+	return GetIconName();
 }
 
 FText FPerforceSourceControlChangelistState::GetDisplayText() const

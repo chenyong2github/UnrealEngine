@@ -10,57 +10,69 @@
 #include "UncontrolledChangelistState.h"
 
 struct FAssetData;
-struct IChangelistTreeItem;
-typedef TSharedPtr<IChangelistTreeItem> FChangelistTreeItemPtr;
-typedef TSharedRef<IChangelistTreeItem> FChangelistTreeItemRef;
 
+/**
+ * Modelizes a changelist node in a source control tree-like structure.
+ * The modelized tree stored is as below in memory.
+ * 
+ * > Changelist
+ *     File
+ *     > ShelvedChangelist
+ *         ShelvedFile
+ * 
+ * > UncontrolledChangelist
+ *     File
+ *     Offline File
+ */
 struct IChangelistTreeItem : TSharedFromThis<IChangelistTreeItem>
 {
 	enum TreeItemType
 	{
-		Invalid,
-		Changelist,
-		UncontrolledChangelist,
-		File,
-		OfflineFile,
-		ShelvedChangelist, // container for shelved files
-		ShelvedFile
+		Changelist,              // Node displaying a change list description.
+		UncontrolledChangelist,  // Node displaying an uncontrolled change list description.
+		File,                    // Node displaying a file information.
+		ShelvedChangelist,       // Node displaying shelved files as children.
+		ShelvedFile,             // Node displaying a shelved file information.
+		OfflineFile,             // Node displaying an offline file information.
 	};
 
-	/** Get this item's parent. Can be nullptr. */
-	FChangelistTreeItemPtr GetParent() const;
+	virtual ~IChangelistTreeItem() = default;
+
+	/** Get this item's parent. Can be nullptr for root nodes. */
+	TSharedPtr<IChangelistTreeItem> GetParent() const;
 
 	/** Get this item's children, if any. Although we store as weak pointers, they are guaranteed to be valid. */
-	const TArray<FChangelistTreeItemPtr>& GetChildren() const;
+	const TArray<TSharedPtr<IChangelistTreeItem>>& GetChildren() const;
 
 	/** Returns the TreeItem's type */
-	const TreeItemType GetTreeItemType() const
-	{
-		return Type;
-	}
+	const TreeItemType GetTreeItemType() const { return Type; }
 
 	/** Add a child to this item */
-	void AddChild(FChangelistTreeItemRef Child);
+	void AddChild(TSharedRef<IChangelistTreeItem> Child);
 
 	/** Remove a child from this item */
-	void RemoveChild(const FChangelistTreeItemRef& Child);
+	void RemoveChild(const TSharedRef<IChangelistTreeItem>& Child);
 
 protected:
+	IChangelistTreeItem(TreeItemType InType) { Type = InType; }
+
 	/** This item's parent, if any. */
-	FChangelistTreeItemPtr Parent;
+	TSharedPtr<IChangelistTreeItem> Parent;
 
 	/** Array of children contained underneath this item */
-	TArray<FChangelistTreeItemPtr> Children;
+	TArray<TSharedPtr<IChangelistTreeItem>> Children;
 
+	/** This item type. */
 	TreeItemType Type;
 };
 
+/** Displays a changelist icon/number/description. */
 struct FChangelistTreeItem : public IChangelistTreeItem
 {
-	FChangelistTreeItem(FSourceControlChangelistStateRef InChangelistState)
-		: ChangelistState(InChangelistState)
+	FChangelistTreeItem(TSharedRef<ISourceControlChangelistState> InChangelistState)
+		: IChangelistTreeItem(IChangelistTreeItem::Changelist)
+		, ChangelistState(MoveTemp(InChangelistState))
 	{
-		Type = IChangelistTreeItem::Changelist;
 	}
 
 	FText GetDisplayText() const
@@ -73,15 +85,26 @@ struct FChangelistTreeItem : public IChangelistTreeItem
 		return ChangelistState->GetDescriptionText();
 	}
 
-	FSourceControlChangelistStateRef ChangelistState;
+	int32 GetFileCount() const
+	{
+		return ChangelistState->GetFilesStates().Num();
+	}
+
+	int32 GetShelvedFileCount() const
+	{
+		return ChangelistState->GetShelvedFilesStates().Num();
+	}
+
+	TSharedRef<ISourceControlChangelistState> ChangelistState;
 };
 
+/** Displays an uncontrolled changelist icon/number/description. */
 struct FUncontrolledChangelistTreeItem : public IChangelistTreeItem
 {
 	FUncontrolledChangelistTreeItem(FUncontrolledChangelistStateRef InUncontrolledChangelistState)
-		: UncontrolledChangelistState(InUncontrolledChangelistState)
+		: IChangelistTreeItem(IChangelistTreeItem::UncontrolledChangelist)
+		, UncontrolledChangelistState(InUncontrolledChangelistState)
 	{
-		Type = IChangelistTreeItem::UncontrolledChangelist;
 	}
 
 	FText GetDisplayText() const
@@ -94,22 +117,20 @@ struct FUncontrolledChangelistTreeItem : public IChangelistTreeItem
 		return UncontrolledChangelistState->GetDescriptionText();
 	}
 
+	int32 GetFileCount() const
+	{
+		return UncontrolledChangelistState->GetFilesStates().Num();
+	}
+
+	int32 GetOfflineFileCount() const
+	{
+		return UncontrolledChangelistState->GetOfflineFiles().Num();
+	}
+
 	FUncontrolledChangelistStateRef UncontrolledChangelistState;
 };
 
-typedef TSharedPtr<FUncontrolledChangelistTreeItem> FUncontrolledChangelistTreeItemPtr;
-typedef TSharedRef<FUncontrolledChangelistTreeItem> FUncontrolledChangelistTreeItemRef;
-
-struct FShelvedChangelistTreeItem : public IChangelistTreeItem
-{
-	FShelvedChangelistTreeItem()
-	{
-		Type = IChangelistTreeItem::ShelvedChangelist;
-	}
-
-	FText GetDisplayText() const;
-};
-
+/** Displays a set of files under a changelist or uncontrolled changelist. */
 struct FFileTreeItem : public IChangelistTreeItem
 {
 	explicit FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyPaths = true, bool bIsShelvedFile = false);
@@ -209,6 +230,21 @@ private:
 	bool bAssetsUpToDate;
 };
 
+/** Root node to group shelved files as children. */
+struct FShelvedChangelistTreeItem : public IChangelistTreeItem
+{
+	FShelvedChangelistTreeItem() : IChangelistTreeItem(IChangelistTreeItem::ShelvedChangelist) {}
+	FText GetDisplayText() const;
+};
+
+struct FShelvedFileTreeItem : public FFileTreeItem
+{
+	explicit FShelvedFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyPaths = true)
+		: FFileTreeItem(InFileState, bBeautifyPaths,/*bIsShelved=*/true)
+	{
+	}
+};
+
 struct FOfflineFileTreeItem : public IChangelistTreeItem
 {
 	explicit FOfflineFileTreeItem(const FString& InFilename);
@@ -233,16 +269,6 @@ private:
 	FSlateColor AssetTypeColor;
 };
 
-typedef TSharedPtr<FFileTreeItem> FFileTreeItemPtr;
-typedef TSharedRef<FFileTreeItem> FFileTreeItemRef;
-
-struct FShelvedFileTreeItem : public FFileTreeItem
-{
-	explicit FShelvedFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyPaths = true)
-		: FFileTreeItem(InFileState, bBeautifyPaths,/*bIsShelved=*/true)
-	{}
-};
-
 namespace SSourceControlCommon
 {
 	TSharedRef<SWidget> GetSCCFileWidget(FSourceControlStateRef InFileState, bool bIsShelvedFile = false);
@@ -251,3 +277,12 @@ namespace SSourceControlCommon
 	FText GetDefaultUnknownAssetType();
 	FText GetDefaultMultipleAsset();
 }
+
+
+typedef TSharedPtr<FUncontrolledChangelistTreeItem> FUncontrolledChangelistTreeItemPtr;
+typedef TSharedRef<FUncontrolledChangelistTreeItem> FUncontrolledChangelistTreeItemRef;
+typedef TSharedPtr<IChangelistTreeItem> FChangelistTreeItemPtr;
+typedef TSharedRef<IChangelistTreeItem> FChangelistTreeItemRef;
+typedef TSharedPtr<FFileTreeItem> FFileTreeItemPtr;
+typedef TSharedRef<FFileTreeItem> FFileTreeItemRef;
+

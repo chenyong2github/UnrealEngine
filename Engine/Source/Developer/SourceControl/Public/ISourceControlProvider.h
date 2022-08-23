@@ -273,7 +273,12 @@ public:
 	 */
 	virtual TArray< TSharedRef<class ISourceControlLabel> > GetLabels( const FString& InMatchingSpec ) const = 0;
 
-	virtual TArray<FSourceControlChangelistRef> GetChangelists( EStateCacheUsage::Type InStateCacheUsage ) = 0;
+	/**
+	 * Returns the list of available changelists if the underlying source control supports the 'changelist' concept.
+	 *
+	 * @param InStateCacheUsage True to retrieve the list from a local cache, false to request it from the server (if any).
+	 */
+	virtual TArray<FSourceControlChangelistRef> GetChangelists(EStateCacheUsage::Type InStateCacheUsage) = 0;
 
 	/**
 	 * Executes the FDownloadFile operation, but unlike the ::Execute method this can be called from a background thread, this

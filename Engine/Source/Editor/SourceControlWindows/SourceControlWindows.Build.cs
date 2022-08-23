@@ -16,6 +16,7 @@ public class SourceControlWindows : ModuleRules
 				"CoreUObject", 
                 "InputCore",
 				"Engine", 
+				"OutputLog",
 				"Slate",
 				"SlateCore",
 				"SourceControl", 
@@ -23,7 +24,7 @@ public class SourceControlWindows : ModuleRules
 				"AssetTools",
 				"EditorFramework",
 				"WorkspaceMenuStructure",
-				"UnrealEd"			// We need this dependency here because we use PackageTools.
+				"UnrealEd",		// We need this dependency here because we use PackageTools.
 			}
 		);
 

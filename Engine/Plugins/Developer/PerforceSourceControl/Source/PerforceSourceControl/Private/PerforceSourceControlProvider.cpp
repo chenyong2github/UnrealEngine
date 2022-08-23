@@ -94,7 +94,7 @@ TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> FPerforceSourceCont
 	else
 	{
 		// cache an unknown state for this item
-		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> NewState = MakeShareable( new FPerforceSourceControlState(Filename) );
+		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> NewState = MakeShared<FPerforceSourceControlState>(Filename);
 		StateCache.Add(Filename, NewState);
 		return NewState;
 	}
@@ -111,7 +111,7 @@ TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> FPerforce
 	else
 	{
 		// cache an unknown state for this item
-		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> NewState = MakeShareable(new FPerforceSourceControlChangelistState(InChangelist));
+		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> NewState = MakeShared<FPerforceSourceControlChangelistState>(InChangelist);
 		ChangelistsStateCache.Add(InChangelist, NewState);
 		return NewState;
 	}
@@ -520,6 +520,8 @@ void FPerforceSourceControlProvider::OutputCommandMessages(const FPerforceSource
 
 void FPerforceSourceControlProvider::Tick()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPerforceSourceControlProvider::Tick);
+
 	bool bStatesUpdated = false;
 	for (int32 CommandIndex = 0; CommandIndex < CommandQueue.Num(); ++CommandIndex)
 	{
@@ -625,7 +627,7 @@ TArray< TSharedRef<ISourceControlLabel> > FPerforceSourceControlProvider::GetLab
 	return Labels;
 }
 
-TArray<FSourceControlChangelistRef> FPerforceSourceControlProvider::GetChangelists( EStateCacheUsage::Type InStateCacheUsage )
+TArray<FSourceControlChangelistRef> FPerforceSourceControlProvider::GetChangelists(EStateCacheUsage::Type InStateCacheUsage)
 {
 	if (!IsEnabled())
 	{
@@ -641,7 +643,18 @@ TArray<FSourceControlChangelistRef> FPerforceSourceControlProvider::GetChangelis
 	}
 
 	TArray<FSourceControlChangelistRef> Changelists;
-	Algo::Transform(ChangelistsStateCache, Changelists, [](const auto& Pair) { return MakeShared<FPerforceSourceControlChangelist, ESPMode::ThreadSafe>(Pair.Key); });
+	Algo::Transform(ChangelistsStateCache, Changelists, [](const TPair<FPerforceSourceControlChangelist, TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe>>& Pair)
+	{
+		return MakeShared<FPerforceSourceControlChangelist, ESPMode::ThreadSafe>(Pair.Key);
+	});
+
+	// NOTE: Sort in ascending number. If this behavior needs to be configurable, we could have 3-state enum param: 'default, ascending, descending'. For P4, the 'default'
+	//       should be ascending. The changelists are source control agnostics, so sorting a changelist files is probably not a notion that should be leaked in the generic interface.
+	Changelists.Sort([](const FSourceControlChangelistRef& Lhs, const FSourceControlChangelistRef& Rhs)
+	{
+		return static_cast<const FPerforceSourceControlChangelist&>(Lhs.Get()).ToInt() < static_cast<const FPerforceSourceControlChangelist&>(Rhs.Get()).ToInt();
+	});
+
 	return Changelists;
 }
 
@@ -846,9 +859,9 @@ ECommandResult::Type FPerforceSourceControlProvider::ExecuteSynchronousCommand(F
 	}
 
 	// If the command failed, inform the user that they need to try again
-	if ( !InCommand.bCancelled && Result != ECommandResult::Succeeded && !bSuppressResponseMsg )
+	if (!InCommand.bCancelled && Result != ECommandResult::Succeeded && !bSuppressResponseMsg)
 	{
-		FMessageDialog::Open( EAppMsgType::Ok, LOCTEXT("Perforce_ServerUnresponsive", "Perforce server is unresponsive. Please check your connection and try again.") );
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("Perforce_ServerUnresponsive", "Perforce server is unresponsive. Please check your connection and try again."));
 	}
 
 	// Delete the command now if not marked as auto-delete

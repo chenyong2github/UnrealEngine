@@ -30,6 +30,7 @@ class FPerforceCheckOutWorker final : public IPerforceSourceControlWorker
 public:
 	FPerforceCheckOutWorker(FPerforceSourceControlProvider& InSourceControlProvider)
 		: IPerforceSourceControlWorker(InSourceControlProvider)
+		, InChangelist(FPerforceSourceControlChangelist::DefaultChangelist) // By default, add checked out files in the default changelist.
 	{}
 	virtual ~FPerforceCheckOutWorker() = default;
 
@@ -91,6 +92,7 @@ class FPerforceMarkForAddWorker final : public IPerforceSourceControlWorker
 public:
 	FPerforceMarkForAddWorker(FPerforceSourceControlProvider& InSourceControlProvider)
 		: IPerforceSourceControlWorker(InSourceControlProvider)
+		, InChangelist(FPerforceSourceControlChangelist::DefaultChangelist) // By default, add new files in the default changelist.
 	{}
 	virtual ~FPerforceMarkForAddWorker() = default;
 
@@ -110,6 +112,7 @@ class FPerforceDeleteWorker final : public IPerforceSourceControlWorker
 public:
 	FPerforceDeleteWorker(FPerforceSourceControlProvider& InSourceControlProvider)
 		: IPerforceSourceControlWorker(InSourceControlProvider)
+		, Changelist(FPerforceSourceControlChangelist::DefaultChangelist) // By default, add deleted files in the default changelist
 	{}
 	virtual ~FPerforceDeleteWorker() = default;
 

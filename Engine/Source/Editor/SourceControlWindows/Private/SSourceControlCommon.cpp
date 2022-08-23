@@ -21,6 +21,7 @@
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
 
 //////////////////////////////////////////////////////////////////////////
+
 FChangelistTreeItemPtr IChangelistTreeItem::GetParent() const
 {
 	return Parent;
@@ -31,13 +32,13 @@ const TArray<FChangelistTreeItemPtr>& IChangelistTreeItem::GetChildren() const
 	return Children;
 }
 
-void IChangelistTreeItem::AddChild(FChangelistTreeItemRef Child)
+void IChangelistTreeItem::AddChild(TSharedRef<IChangelistTreeItem> Child)
 {
 	Child->Parent = AsShared();
 	Children.Add(MoveTemp(Child));
 }
 
-void IChangelistTreeItem::RemoveChild(const FChangelistTreeItemRef& Child)
+void IChangelistTreeItem::RemoveChild(const TSharedRef<IChangelistTreeItem>& Child)
 {
 	if (Children.Remove(Child))
 	{
@@ -46,19 +47,14 @@ void IChangelistTreeItem::RemoveChild(const FChangelistTreeItemRef& Child)
 }
 
 //////////////////////////////////////////////////////////////////////////
-FText FShelvedChangelistTreeItem::GetDisplayText() const
-{
-	return LOCTEXT("SourceControl_ShelvedFiles", "Shelved Items");
-}
 
-//////////////////////////////////////////////////////////////////////////
 FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyPaths, bool bIsShelvedFile)
-	: FileState(InFileState)
+	: IChangelistTreeItem(bIsShelvedFile ? IChangelistTreeItem::ShelvedFile : IChangelistTreeItem::File)
+	, FileState(InFileState)
 	, MinTimeBetweenUpdate(FTimespan::FromSeconds(5.f))
 	, LastUpdateTime()
 	, bAssetsUpToDate(false)
 {
-	Type = (bIsShelvedFile ? IChangelistTreeItem::ShelvedFile : IChangelistTreeItem::File);
 	CheckBoxState = ECheckBoxState::Checked;
 
 	// Initialize asset data first
@@ -218,15 +214,22 @@ FString FFileTreeItem::RetrieveAssetPath(const FAssetData& InAssetData) const
 
 //////////////////////////////////////////////////////////////////////////
 
+FText FShelvedChangelistTreeItem::GetDisplayText() const
+{
+	return FText::Format(LOCTEXT("SourceControl_ShelvedFiles", "Shelved Items ({0})"), Children.Num());
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 FOfflineFileTreeItem::FOfflineFileTreeItem(const FString& InFilename)
-	: Assets()
+	: IChangelistTreeItem(IChangelistTreeItem::OfflineFile)
+	, Assets()
 	, PackageName(FText::FromString(InFilename)) 
 	, AssetName(SSourceControlCommon::GetDefaultAssetName())
 	, AssetPath()
 	, AssetType(SSourceControlCommon::GetDefaultAssetType())
 	, AssetTypeColor()
 {
-	Type = IChangelistTreeItem::OfflineFile;
 	FString TempString;
 
 	USourceControlHelpers::GetAssetData(InFilename, Assets);

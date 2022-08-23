@@ -10,36 +10,51 @@
 #include "ISourceControlProvider.h"
 #include "SSourceControlCommon.h"
 
+class FChangelistGroupTreeItem;
+class SExpandableChangelistArea;
+
 class SChangelistTree : public STreeView<FChangelistTreeItemPtr>
 {
 private:
 	virtual void Private_SetItemSelection(FChangelistTreeItemPtr TheItem, bool bShouldBeSelected, bool bWasUserDirected = false) override;
 };
 
+
+/**
+ * Displays the user source control change lists.
+ */
 class SSourceControlChangelistsWidget : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SSourceControlChangelistsWidget) {}
 	SLATE_END_ARGS()
 
-	/**
-	* Constructor.
-	*/
-	SSourceControlChangelistsWidget();
-
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 
 private:
-	TSharedRef<SChangelistTree> CreateTreeviewWidget();
+	// Holds the list/state of selected and expanded items in the changelist views and file views.
+	struct FExpandedAndSelectionStates
+	{
+		TSharedPtr<IChangelistTreeItem> SelectedChangelistNode;
+		TSharedPtr<IChangelistTreeItem> SelectedUncontrolledChangelistNode;
+		TArray<TSharedPtr<IChangelistTreeItem>> SelectedFileNodes;
+		TSet<TSharedPtr<IChangelistTreeItem>> ExpandedTreeNodes;
+		bool bShelvedFilesNodeSelected = false;
+	};
+
+private:
+	TSharedRef<SChangelistTree> CreateChangelistTreeView(TArray<TSharedPtr<IChangelistTreeItem>>& ItemSources);
+	TSharedRef<STreeView<FChangelistTreeItemPtr>> CreateChangelistFilesView();
 
 	TSharedRef<ITableRow> OnGenerateRow(FChangelistTreeItemPtr InTreeItem, const TSharedRef<STableViewBase>& OwnerTable);
-	void OnGetChildren(FChangelistTreeItemPtr InParent, TArray<FChangelistTreeItemPtr>& OutChildren);
+	void OnGetFileChildren(FChangelistTreeItemPtr InParent, TArray<FChangelistTreeItemPtr>& OutChildren);
+	void OnGetChangelistChildren(FChangelistTreeItemPtr InParent, TArray<FChangelistTreeItemPtr>& OutChildren);
 
 	FReply OnFilesDragged(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent);
 
 	void RequestRefresh();
-	void Refresh();
+	void OnRefresh();
 	void ClearChangelistsTree();
 
 	TSharedPtr<SWidget> OnOpenContextMenu();
@@ -70,13 +85,6 @@ private:
 
 	/** Returns list of currently selected shelved files */
 	TArray<FString> GetSelectedShelvedFiles();
-
-	/**
-	 * Check if the type given as argument is a parent of selected items.
-	 * @param 	ParentType 	The parent type to look for.
-	 * @return 	True of ParentType is a parent of selected items.
-	 */
-	bool IsParentOfSelection(const IChangelistTreeItem::TreeItemType ParentType) const;
 
 	/** Changelist operations */
 	void OnNewChangelist();
@@ -111,21 +119,26 @@ private:
 	void OnDiffAgainstWorkspace();
 	bool CanDiffAgainstWorkspace();
 
-	void OnSourceControlStateChanged();
+	/** Source control callbacks */
 	void OnSourceControlProviderChanged(ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider);
-	void OnChangelistsStatusUpdated(const FSourceControlOperationRef& InOperation, ECommandResult::Type InType);
+	void OnSourceControlStateChanged();
+	void OnChangelistSelectionChanged(TSharedPtr<IChangelistTreeItem> SelectedItem, ESelectInfo::Type SelectionType);
+	void OnChangelistsStatusUpdated(const TSharedRef<ISourceControlOperation>& InOperation, ECommandResult::Type InType);
+
+	void OnStartSourceControlOperation(TSharedRef<ISourceControlOperation> Operation, const FText& Message);
+	void OnEndSourceControlOperation(const TSharedRef<ISourceControlOperation>& Operation, ECommandResult::Type InType);
+
+	// Wrapper functions on top of the source control ones to display slow tasks for synchronous operations or toast notifications for async ones.
+	void Execute(const FText& Message, const TSharedRef<ISourceControlOperation>& InOperation, TSharedPtr<ISourceControlChangelist> InChangelist, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate);
+	void Execute(const FText& Message, const TSharedRef<ISourceControlOperation>& InOperation, TSharedPtr<ISourceControlChangelist> InChangelist, const EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate);
+	void Execute(const FText& Message, const TSharedRef<ISourceControlOperation>& InOperation, const EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate);
+	void Execute(const FText& Message, const TSharedRef<ISourceControlOperation>& InOperation, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate);
+	void ExecuteUncontrolledChangelistOperation(const FText& Message, const TFunction<void()>& UncontrolledChangelistTask);
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-private:
-	struct ExpandedState
-	{
-		bool bChangelistExpanded;
-		bool bShelveExpanded;
-	};
-
-	void SaveExpandedState(TMap<FSourceControlChangelistStateRef, ExpandedState>& ExpandedStates) const;
-	void RestoreExpandedState(const TMap<FSourceControlChangelistStateRef, ExpandedState>& ExpandedStates);
+	void SaveExpandedAndSelectionStates(FExpandedAndSelectionStates& OutStates);
+	void RestoreExpandedAndSelectionStates(const FExpandedAndSelectionStates& InStates);
 
 	TSharedRef<SWidget> MakeToolBar();
 
@@ -143,17 +156,28 @@ private:
 	bool HasValidationTag(const FText& InChangelistDescription) const;
 
 	/** Executes an operation to updates the changelist description of the provided changelist with a new description. */
-	void EditChangelistDescription(const FText& InNewChangelistDescription, const FSourceControlChangelistStatePtr& InChangelistState) const;
+	void EditChangelistDescription(const FText& InNewChangelistDescription, const FSourceControlChangelistStatePtr& InChangelistState);
 
 private:
 	/** Tag to append to a changelist that passed validation */
 	static const FText ChangelistValidatedTag;
 
-	/** Changelists (root nodes) */
-	TArray<FChangelistTreeItemPtr> ChangelistsNodes;
+	TSharedPtr<SExpandableChangelistArea> ChangelistExpandableArea;
+	TSharedPtr<SExpandableChangelistArea> UncontrolledChangelistExpandableArea;
 
-	/** Changelist treeview widget */
-	TSharedPtr<SChangelistTree> TreeView;
+	/** Hold the nodes displayed by the changelist tree. */
+	TArray<TSharedPtr<IChangelistTreeItem>> ChangelistTreeNodes;
+	TArray<TSharedPtr<IChangelistTreeItem>> UncontrolledChangelistTreeNodes;
+
+	/** Hold the nodes displayed by the file tree. */
+	TArray<TSharedPtr<IChangelistTreeItem>> FileTreeNodes;
+
+	/** Display the changelists, uncontrolled changelists and shelved nodes. */
+	TSharedPtr<SChangelistTree> ChangelistTreeView;
+	TSharedPtr<SChangelistTree> UncontrolledChangelistTreeView;
+
+	/** Display the list of files associated to the selected changelist, uncontrolled changelist or shelved node. */
+	TSharedPtr<STreeView<FChangelistTreeItemPtr>> FileTreeView;
 
 	/** Source control state changed delegate handle */
 	FDelegateHandle SourceControlStateChangedDelegateHandle;
@@ -161,13 +185,14 @@ private:
 	/** Uncontrolled Changelist changed delegate handle */
 	FDelegateHandle UncontrolledChangelistChangedDelegateHandle;
 
-	bool bShouldRefresh;
+	bool bShouldRefresh = false;
+	bool bSourceControlAvailable = false;
 
 	void StartRefreshStatus();
 	void TickRefreshStatus(double InDeltaTime);
 	void EndRefreshStatus();
 
 	FText RefreshStatus;
-	bool bIsRefreshing;
-	double RefreshStatusTimeElapsed;
+	bool bIsRefreshing = false;
+	double RefreshStatusStartSecs;
 };

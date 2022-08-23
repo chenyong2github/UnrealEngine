@@ -260,13 +260,16 @@ static void UpdateChangelistState(FPerforceSourceControlProvider& SCCProvider, c
 
 		for (TMap<FString, EPerforceState::Type>::TConstIterator It(InOperationResults); It; ++It)
 		{
-			if ((It.Value() != EPerforceState::CheckedOut) && (It.Value() != EPerforceState::OpenForAdd))
+			if ((It.Value() != EPerforceState::CheckedOut) && (It.Value() != EPerforceState::OpenForAdd) && It.Value() != EPerforceState::MarkedForDelete)
 			{
 				continue;
 			}
 
 			TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = SCCProvider.GetStateInternal(It.Key());
 			ChangelistState->Files.Add(State);
+
+			// Keep the changelist stored with cached file state in sync with the actual changelist that owns this file.
+			State->Changelist = InChangelist;
 		}
 	}
 }
