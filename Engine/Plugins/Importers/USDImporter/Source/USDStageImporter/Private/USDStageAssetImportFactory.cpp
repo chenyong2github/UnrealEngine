@@ -60,6 +60,9 @@ UObject* UUsdStageAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject
 		ImportContext.ImportOptions = Cast<UUsdStageImportOptions>( AssetImportTask->Options );
 	}
 
+	// When importing from file we don't want to use any opened stage
+	ImportContext.bReadFromStageCache = false;
+
 	const FString InitialPackagePath = InParent ? InParent->GetName() : TEXT( "/Game/" );
 	const bool bIsReimport = false;
 	const bool bAllowActorImport = false;
@@ -152,6 +155,8 @@ EReimportResult::Type UUsdStageAssetImportFactory::Reimport(UObject* Obj)
 		// which is not what we would expect
 		ImportContext.ImportOptions = DuplicateObject( ReimportOptions, ImportData );
 	}
+
+	ImportContext.bReadFromStageCache = false;
 
 	const bool bIsReimport = true;
 	const bool bAllowActorImport = false;

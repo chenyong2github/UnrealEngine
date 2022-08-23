@@ -54,24 +54,75 @@
 
 namespace UsdStageImporterImpl
 {
-	void LoadStageFromFilePath(FUsdStageImportContext& ImportContext)
+	void OpenStage( FUsdStageImportContext& ImportContext, bool bNeedsMasking )
 	{
-		const FString FilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ImportContext.FilePath);
+		const FString FilePath = !ImportContext.FilePath.IsEmpty()
+			? IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead( *ImportContext.FilePath )
+			: FString{};
+
+		if ( FilePath.IsEmpty() && !ImportContext.Stage )
+		{
+			// There's nothing we can do here to create a stage
+			return;
+		}
 
 		UsdUtils::StartMonitoringErrors();
 
-		for ( const UE::FUsdStage& OpenedStage : UnrealUSDWrapper::GetAllStagesFromCache() )
+		UE::FUsdStage Stage;
+		if ( bNeedsMasking )
 		{
-			FString RootPath = OpenedStage.GetRootLayer().GetRealPath();
-			FPaths::NormalizeFilename( RootPath );
-			if ( ImportContext.FilePath == RootPath )
+			// If we're masking we'll make a unique stage for us.
+			// Also, within USD the OpenMasked methods do not consult the stage cache anyway
+			ImportContext.bReadFromStageCache = false;
+			ImportContext.bStageWasOriginallyOpenInCache = false;
+
+			// Here even though we won't use the stage cache we don't want to force reload the stage's layers either:
+			// The whole point is that we're just opening another masked "view" into the same composed (potentially
+			// modified) layers
+			const bool bForceReloadLayersFromDisk = false;
+
+			// We don't have a file path to reopen, so just reopen the existing layers
+			if ( FilePath.IsEmpty() )
 			{
-				ImportContext.bStageWasOriginallyOpenInCache = true;
-				break;
+				Stage = UnrealUSDWrapper::OpenMaskedStage(
+					ImportContext.Stage.GetRootLayer(),
+					ImportContext.Stage.GetSessionLayer(),
+					EUsdInitialLoadSet::LoadAll,
+					ImportContext.ImportOptions->PrimsToImport,
+					bForceReloadLayersFromDisk
+				);
+			}
+			else
+			{
+				Stage = UnrealUSDWrapper::OpenMaskedStage(
+					*FilePath,
+					EUsdInitialLoadSet::LoadAll,
+					ImportContext.ImportOptions->PrimsToImport,
+					bForceReloadLayersFromDisk
+				);
 			}
 		}
+		else
+		{
+			for ( const UE::FUsdStage& OpenedStage : UnrealUSDWrapper::GetAllStagesFromCache() )
+			{
+				FString RootPath = OpenedStage.GetRootLayer().GetRealPath();
+				FPaths::NormalizeFilename( RootPath );
+				if ( ImportContext.FilePath == RootPath )
+				{
+					ImportContext.bStageWasOriginallyOpenInCache = true;
+					break;
+				}
+			}
 
-		UE::FUsdStage Stage = UnrealUSDWrapper::OpenStage( *FilePath, EUsdInitialLoadSet::LoadAll, ImportContext.bReadFromStageCache );
+			const bool bForceReloadLayersFromDisk = !ImportContext.bReadFromStageCache;
+			Stage = UnrealUSDWrapper::OpenStage(
+				*FilePath,
+				EUsdInitialLoadSet::LoadAll,
+				ImportContext.bReadFromStageCache,
+				bForceReloadLayersFromDisk
+			);
+		}
 
 		TArray<FString> ErrorStrings = UsdUtils::GetErrorsAndStopMonitoring();
 		FString Error = FString::Join(ErrorStrings, TEXT("\n"));
@@ -1447,9 +1498,17 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 
 	double StartTime = FPlatformTime::Cycles64();
 
-	if ( !ImportContext.Stage && !ImportContext.FilePath.IsEmpty() )
+	if ( ImportContext.ImportOptions->PrimsToImport.Num() == 0 )
 	{
-		UsdStageImporterImpl::LoadStageFromFilePath( ImportContext );
+		return;
+	}
+
+	const bool bNeedsMasking =
+		ImportContext.ImportOptions->PrimsToImport != TArray<FString>{ UE::FSdfPath::AbsoluteRootPath().GetString() };
+
+	if ( !ImportContext.Stage || bNeedsMasking )
+	{
+		UsdStageImporterImpl::OpenStage( ImportContext, bNeedsMasking );
 	}
 
 	if ( !ImportContext.Stage )
@@ -1550,9 +1609,13 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 #if USE_USD_SDK
 	double StartTime = FPlatformTime::Cycles64();
 
-	if ( !ImportContext.Stage && !ImportContext.FilePath.IsEmpty() )
+	// TODO: Maybe change this whole reimporting approach to just taking advantage of a population mask instead?
+	const bool bNeedsMasking =
+		ImportContext.ImportOptions->PrimsToImport != TArray<FString>{ UE::FSdfPath::AbsoluteRootPath().GetString() };
+
+	if ( !ImportContext.Stage || bNeedsMasking )
 	{
-		UsdStageImporterImpl::LoadStageFromFilePath( ImportContext );
+		UsdStageImporterImpl::OpenStage( ImportContext, bNeedsMasking );
 	}
 
 	if ( !ImportContext.Stage )

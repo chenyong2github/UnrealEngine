@@ -36,6 +36,13 @@ bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePa
 
 	FPaths::NormalizeFilename(FilePath);
 
+	// Open the stage if we haven't yet, as we'll need it open to show the preview tree
+	if ( !Stage )
+	{
+		const EUsdInitialLoadSet InitialLoadSet = EUsdInitialLoadSet::LoadAll;
+		Stage = UnrealUSDWrapper::OpenStage( *FilePath, InitialLoadSet, bReadFromStageCache );
+	}
+
 	if(!bIsAutomated)
 	{
 		// Show dialog for content folder
@@ -59,8 +66,7 @@ bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePa
 		ImportOptions->EnableActorImport( bAllowActorImport );
 
 		// Show dialog for import options
-		const bool bIsImport = true;
-		bool bProceedWithImport = SUsdOptionsWindow::ShowImportExportOptions( *ImportOptions, bIsImport );
+		bool bProceedWithImport = SUsdOptionsWindow::ShowImportOptions( *ImportOptions, &Stage );
 		if (!bProceedWithImport)
 		{
 			return false;

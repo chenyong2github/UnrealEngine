@@ -5,8 +5,8 @@
 #include "Internationalization/Text.h"
 #include "Templates/SharedPointer.h"
 
-#include "USDTreeItemViewModel.h"
 #include "UsdWrappers/UsdStage.h"
+#include "Widgets/IUSDTreeViewItem.h"
 
 class USDSTAGEEDITORVIEWMODELS_API FUsdLayerModel : public TSharedFromThis< FUsdLayerModel >
 {

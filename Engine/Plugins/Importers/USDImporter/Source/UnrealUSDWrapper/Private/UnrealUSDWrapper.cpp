@@ -939,7 +939,7 @@ namespace UE::UnrealUSDWrapper::Private
 		pxr::UsdStagePopulationMask Mask;
 		if( PopulationMask )
 		{
-			// The USD OpenMaskedStage functions don't actually consult or populate the stage cache
+			// The USD OpenMasked functions don't actually consult or populate the stage cache
 			ensure( bUseStageCache == false );
 
 			for ( const FString& AllowedPrimPath : *PopulationMask )

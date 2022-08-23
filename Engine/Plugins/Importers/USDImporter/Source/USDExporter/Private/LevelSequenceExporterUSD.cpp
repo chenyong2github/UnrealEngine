@@ -1186,8 +1186,7 @@ bool ULevelSequenceExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type
 			Options->LevelExportOptions.AssetFolder.Path = FPaths::Combine( FPaths::GetPath( UExporter::CurrentFilename ), TEXT( "Assets" ) );
 			Options->TimeCodesPerSecond = MovieScene->GetDisplayRate().AsDecimal();
 
-			const bool bIsImport = false;
-			const bool bContinue = SUsdOptionsWindow::ShowImportExportOptions( *Options, bIsImport );
+			const bool bContinue = SUsdOptionsWindow::ShowExportOptions( *Options );
 			if ( !bContinue )
 			{
 				return false;

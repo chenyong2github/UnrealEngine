@@ -47,6 +47,9 @@ UObject* UUsdStageImportFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 		ImportContext.ImportOptions = Cast<UUsdStageImportOptions>( AssetImportTask->Options );
 	}
 
+	// When importing from file we don't want to use any opened stage
+	ImportContext.bReadFromStageCache = false;
+
 #if USE_USD_SDK
 	const FString InitialPackagePath =InParent ? InParent->GetName() : TEXT( "/Game/" );
 	const bool bIsReimport = false;

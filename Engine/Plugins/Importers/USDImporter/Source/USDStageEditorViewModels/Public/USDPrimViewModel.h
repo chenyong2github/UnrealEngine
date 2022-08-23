@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "USDTreeItemViewModel.h"
+#include "UsdWrappers/UsdStage.h"
+#include "UsdWrappers/UsdPrim.h"
+#include "Widgets/IUSDTreeViewItem.h"
 
 #include "UsdWrappers/ForwardDeclarations.h"
 #include "UsdWrappers/UsdStage.h"

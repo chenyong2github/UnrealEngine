@@ -64,7 +64,13 @@ public:
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "DataToImport", meta = (DisplayName = "Materials & Textures"))
 	bool bImportMaterials;
 
-
+	/**
+	 * List of paths of prims to import (e.g. ["/Root/MyBox", "/Root/OtherPrim"]).
+	 * Importing a prim will import its entire subtree.
+	 * If this list contains the root prim path the entire stage will be imported (default value).
+	 */
+	UPROPERTY( BlueprintReadWrite, EditAnywhere, Category = "Prims to Import" )
+	TArray<FString> PrimsToImport = TArray<FString>{ TEXT( "/" ) };
 
 	/** Only import prims with these specific purposes from the USD file */
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "USD options", meta = (Bitmask, BitmaskEnum="/Script/UnrealUSDWrapper.EUsdPurpose"))

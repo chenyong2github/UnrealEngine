@@ -2,41 +2,36 @@
 
 #include "USDOptionsWindow.h"
 
+#include "USDStageImportOptions.h"
+#include "UsdWrappers/SdfLayer.h"
+#include "UsdWrappers/SdfPath.h"
+#include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/UsdStage.h"
+#include "Widgets/SUSDStagePreviewTree.h"
+
 #include "CoreMinimal.h"
 #include "Framework/Application/SlateApplication.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SWindow.h"
 
 #define LOCTEXT_NAMESPACE "USDOptionsWindow"
 
-bool SUsdOptionsWindow::ShowImportExportOptions( UObject& OptionsObject, bool bIsImport )
-{
-	if ( bIsImport )
-	{
-		return SUsdOptionsWindow::ShowOptions(
-			OptionsObject,
-			LOCTEXT( "USDImportOptionsTitle", "USD Import Options" ),
-			LOCTEXT( "USDOptionWindow_Import", "Import" )
-		);
-	}
-	else
-	{
-		return SUsdOptionsWindow::ShowOptions(
-			OptionsObject,
-			LOCTEXT( "USDExportOptionsTitle", "USD Export Options" ),
-			LOCTEXT( "USDOptionWindow_Export", "Export" )
-		);
-	}
-}
-
-bool SUsdOptionsWindow::ShowOptions( UObject& OptionsObject, const FText& WindowTitle, const FText& AcceptText )
+bool SUsdOptionsWindow::ShowOptions(
+	UObject& OptionsObject,
+	const FText& WindowTitle,
+	const FText& AcceptText,
+	const UE::FUsdStage* Stage
+)
 {
 	TSharedPtr<SWindow> ParentWindow;
 
@@ -46,9 +41,22 @@ bool SUsdOptionsWindow::ShowOptions( UObject& OptionsObject, const FText& Window
 		ParentWindow = MainFrame.GetParentWindow();
 	}
 
+	FDisplayMetrics DisplayMetrics;
+	FSlateApplication::Get().GetDisplayMetrics( DisplayMetrics );
+	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(
+		DisplayMetrics.PrimaryDisplayWorkAreaRect.Left,
+		DisplayMetrics.PrimaryDisplayWorkAreaRect.Top
+	);
+
+	const FVector2D ClientSize{
+		320.0f * DPIScaleFactor * ( Stage == nullptr ? 1 : 2 ), // Make it wider if we're going to show two panes
+		320.0f * DPIScaleFactor
+	};
+
 	TSharedRef<SWindow> Window = SNew( SWindow )
 		.Title( WindowTitle )
-		.SizingRule( ESizingRule::Autosized );
+		.SizingRule( ESizingRule::UserSized )
+		.ClientSize( ClientSize );
 
 	TSharedPtr<SUsdOptionsWindow> OptionsWindow;
 	Window->SetContent
@@ -57,6 +65,7 @@ bool SUsdOptionsWindow::ShowOptions( UObject& OptionsObject, const FText& Window
 		.OptionsObject( &OptionsObject )
 		.AcceptText( AcceptText )
 		.WidgetWindow( Window )
+		.Stage( Stage )
 	);
 
 	// Preemptively make sure we have a progress dialog created before showing our modal. This because the progress
@@ -70,7 +79,35 @@ bool SUsdOptionsWindow::ShowOptions( UObject& OptionsObject, const FText& Window
 	const bool bSlowTaskWindow = false;
 	FSlateApplication::Get().AddModalWindow( Window, ParentWindow, bSlowTaskWindow );
 
-	return OptionsWindow->UserAccepted();
+	const bool bAccepted = OptionsWindow->UserAccepted();
+	if ( bAccepted )
+	{
+		if ( UUsdStageImportOptions* StageImportOptions = Cast< UUsdStageImportOptions>( &OptionsObject ) )
+		{
+			StageImportOptions->PrimsToImport = OptionsWindow->GetSelectedFullPrimPaths();
+		}
+	}
+
+	return bAccepted;
+}
+
+bool SUsdOptionsWindow::ShowImportOptions( UObject& OptionsObject, const UE::FUsdStage* StageToImport )
+{
+	return SUsdOptionsWindow::ShowOptions(
+		OptionsObject,
+		LOCTEXT( "USDImportOptionsTitle", "USD Import Options" ),
+		LOCTEXT( "USDOptionWindow_Import", "Import" ),
+		StageToImport
+	);
+}
+
+bool SUsdOptionsWindow::ShowExportOptions( UObject& OptionsObject )
+{
+	return SUsdOptionsWindow::ShowOptions(
+		OptionsObject,
+		LOCTEXT( "USDExportOptionsTitle", "USD Export Options" ),
+		LOCTEXT( "USDOptionWindow_Export", "Export" )
+	);
 }
 
 void SUsdOptionsWindow::Construct( const FArguments& InArgs )
@@ -78,56 +115,124 @@ void SUsdOptionsWindow::Construct( const FArguments& InArgs )
 	OptionsObject = InArgs._OptionsObject;
 	Window = InArgs._WidgetWindow;
 	AcceptText = InArgs._AcceptText;
+	const UE::FUsdStage* Stage = InArgs._Stage;
 	bAccepted = false;
 
-	TSharedPtr<SBox> DetailsViewBox;
+	// Prepare box that shows the OptionsObject's properties
+	TSharedPtr<SWidget> DetailsViewBox;
+	{
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>( "PropertyEditor" );
+
+		FDetailsViewArgs DetailsViewArgs;
+		DetailsViewArgs.bAllowSearch = false;
+		DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+		TSharedPtr<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView( DetailsViewArgs );
+		DetailsView->SetObject( OptionsObject );
+
+		DetailsViewBox = DetailsView.ToSharedRef();
+	}
+
+	TSharedRef<SSplitter> Splitter = SNew( SSplitter ).Orientation( Orient_Horizontal );
+	{
+		// If we have a stage, show the preview tree on the left
+		if ( Stage )
+		{
+			SAssignNew( StagePreviewTree, SUsdStagePreviewTree, *Stage );
+
+			Splitter->AddSlot()
+			.Value(0.5f)
+			[
+				SNew( SVerticalBox )
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding( 0.0f )
+				[
+					SNew( SHorizontalBox )
+					+SHorizontalBox::Slot()
+					.FillWidth( 1.0f )
+					.Padding( 0.0f )
+					.VAlign( VAlign_Center )
+					[
+						SNew( STextBlock )
+						.Font( FAppStyle::GetFontStyle( "CurveEd.LabelFont" ) )
+						.Text( LOCTEXT( "TreeDescriptionText", "Select prims to import:" ) )
+					]
+
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.MaxWidth( 300.0f )
+					.Padding( FMargin( 5.0f, 2.0f ) )
+					.VAlign( VAlign_Center )
+					[
+						SNew( SSearchBox )
+						.HintText( LOCTEXT( "SearchInitialText", "Filter prims..." ) )
+						.OnTextChanged_Lambda( [this]( const FText& SearchText )
+						{
+							if ( StagePreviewTree )
+							{
+								StagePreviewTree->SetFilterText( SearchText );
+							}
+						})
+					]
+				]
+
+				+SVerticalBox::Slot()
+				.FillHeight( 1.0f )
+				.Padding( 0.0f )
+				[
+					StagePreviewTree.ToSharedRef()
+				]
+			];
+		}
+
+		Splitter->AddSlot()
+		.Value(0.5f)
+		[
+			DetailsViewBox.ToSharedRef()
+		];
+	}
 
 	ChildSlot
 	[
-		SNew( SVerticalBox )
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding( 2 )
+		SNew( SBorder )
+		.Padding( FMargin( 10.0f, 0.0f, 10.0f, 0.0f ) )
+		.BorderImage( FAppStyle::GetBrush( "ToolPanel.DarkGroupBorder" ) )
 		[
-			SAssignNew( DetailsViewBox, SBox )
-			.MaxDesiredHeight( 450.0f )
-			.MinDesiredWidth( 550.0f )
-		]
-
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign( HAlign_Right )
-		.Padding( 2 )
-		[
-			SNew( SUniformGridPanel )
-			.SlotPadding( 2 )
-
-			+ SUniformGridPanel::Slot( 0, 0 )
+			SNew( SVerticalBox )
+			+SVerticalBox::Slot()
+			.FillHeight( 1.0f )
+			.Padding( 0.0f )
 			[
-				SNew( SButton )
-				.HAlign( HAlign_Center )
-				.Text( AcceptText )
-				.OnClicked( this, &SUsdOptionsWindow::OnAccept )
+				Splitter
 			]
 
-			+ SUniformGridPanel::Slot( 1, 0 )
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign( HAlign_Right )
+			.Padding( 8 )
 			[
-				SNew( SButton )
-				.HAlign( HAlign_Center )
-				.Text( LOCTEXT( "USDOptionWindow_Cancel", "Cancel" ) )
-				.OnClicked( this, &SUsdOptionsWindow::OnCancel )
+				SNew( SUniformGridPanel )
+				.SlotPadding( 2 )
+
+				+ SUniformGridPanel::Slot( 0, 0 )
+				[
+					SNew( SButton )
+					.HAlign( HAlign_Center )
+					.Text( AcceptText )
+					.OnClicked( this, &SUsdOptionsWindow::OnAccept )
+				]
+
+				+ SUniformGridPanel::Slot( 1, 0 )
+				[
+					SNew( SButton )
+					.HAlign( HAlign_Center )
+					.Text( LOCTEXT( "USDOptionWindow_Cancel", "Cancel" ) )
+					.OnClicked( this, &SUsdOptionsWindow::OnCancel )
+				]
 			]
 		]
 	];
-
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>( "PropertyEditor" );
-	FDetailsViewArgs DetailsViewArgs;
-	DetailsViewArgs.bAllowSearch = false;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-	TSharedPtr<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView( DetailsViewArgs );
-
-	DetailsViewBox->SetContent( DetailsView.ToSharedRef() );
-	DetailsView->SetObject( OptionsObject );
 }
 
 bool SUsdOptionsWindow::SupportsKeyboardFocus() const
@@ -172,6 +277,16 @@ FReply SUsdOptionsWindow::OnKeyDown( const FGeometry& MyGeometry, const FKeyEven
 bool SUsdOptionsWindow::UserAccepted() const
 {
 	return bAccepted;
+}
+
+TArray<FString> SUsdOptionsWindow::GetSelectedFullPrimPaths() const
+{
+	if ( StagePreviewTree )
+	{
+		return StagePreviewTree->GetSelectedFullPrimPaths();
+	}
+
+	return {};
 }
 
 #undef LOCTEXT_NAMESPACE

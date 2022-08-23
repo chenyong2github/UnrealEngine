@@ -47,6 +47,13 @@ void FUsdStageImportOptionsCustomization::CustomizeDetails(IDetailLayoutBuilder&
 		return;
 	}
 
+	// Hide this property since we'll show the preview tree for it
+	IDetailCategoryBuilder& PrimsToImportCatBuilder = DetailLayoutBuilder.EditCategory( TEXT( "Prims to Import" ) );
+	if ( TSharedPtr<IPropertyHandle> PrimsToImportProperty = DetailLayoutBuilder.GetProperty( GET_MEMBER_NAME_CHECKED( UUsdStageImportOptions, PrimsToImport ) ) )
+	{
+		DetailLayoutBuilder.HideProperty( PrimsToImportProperty );
+	}
+
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT( "USDSchemas" ) );
 
 	RenderContextComboBoxItems.Reset();

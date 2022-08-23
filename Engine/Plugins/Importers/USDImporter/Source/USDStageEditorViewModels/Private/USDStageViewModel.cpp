@@ -300,6 +300,9 @@ void FUsdStageViewModel::ImportStage()
 			StageName = TEXT("TransientStage");
 		}
 
+		// Pass the stage directly too in case we're importing a transient stage with no filepath
+		ImportContext.Stage = UsdStage;
+
 		const bool bIsAutomated = false;
 		if ( ImportContext.Init( StageName, RootPath, TEXT("/Game/"), RF_Public | RF_Transactional, bIsAutomated ) )
 		{
@@ -314,9 +317,6 @@ void FUsdStageViewModel::ImportStage()
 
 			ImportContext.TargetSceneActorAttachParent = StageActor->GetRootComponent()->GetAttachParent();
 			ImportContext.TargetSceneActorTargetTransform = StageActor->GetActorTransform();
-
-			// Pass the stage directly too in case we're importing a transient stage with no filepath
-			ImportContext.Stage = UsdStage;
 
 			UUsdStageImporter* USDImporter = IUsdStageImporterModule::Get().GetImporter();
 			USDImporter->ImportFromFile(ImportContext);

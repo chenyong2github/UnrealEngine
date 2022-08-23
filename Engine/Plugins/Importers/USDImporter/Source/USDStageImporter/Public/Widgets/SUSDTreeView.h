@@ -8,7 +8,6 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 
-class AUsdStageActor;
 class IUsdTreeViewItem;
 
 class FUsdTreeViewColumn
