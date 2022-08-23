@@ -742,6 +742,7 @@ struct TIsBitwiseConstructible<TUniquePtr<T>, T*>
 
 /**
  * Allocates a new object of type T with the given arguments and returns it as a TUniquePtr.  Disabled for array-type TUniquePtrs.
+ * The object is value-initialized, which will call a user-defined default constructor if it exists, but a trivial type will be zeroed.
  *
  * @param Args The arguments to pass to the constructor of T.
  *
@@ -754,7 +755,22 @@ FORCEINLINE typename TEnableIf<!TIsArray<T>::Value, TUniquePtr<T>>::Type MakeUni
 }
 
 /**
+ * Allocates a new object of type T with the given arguments and returns it as a TUniquePtr.  Disabled for array-type TUniquePtrs.
+ * The object is default-initialized, which will call a user-defined default constructor if it exists, but a trivial type will be uninitialized.
+ *
+ * @param Args The arguments to pass to the constructor of T.
+ *
+ * @return A TUniquePtr which points to a newly-constructed T with the specified Args.
+ */
+template <typename T, typename... TArgs>
+FORCEINLINE typename TEnableIf<!TIsArray<T>::Value, TUniquePtr<T>>::Type MakeUniqueForOverwrite()
+{
+	return TUniquePtr<T>(new T);
+}
+
+/**
  * Allocates a new array of type T with the given size and returns it as a TUniquePtr.  Only enabled for array-type TUniquePtrs.
+ * Elements are value-initialized, which will call a user-defined default constructor if it exists, but causes trivial types to be zeroed.
  *
  * @param Size The size of the array to allocate.
  *
@@ -765,6 +781,21 @@ FORCEINLINE typename TEnableIf<TIsUnboundedArray<T>::Value, TUniquePtr<T>>::Type
 {
 	typedef typename TRemoveExtent<T>::Type ElementType;
 	return TUniquePtr<T>(new ElementType[Size]());
+}
+
+/**
+ * Allocates a new array of type T with the given size and returns it as a TUniquePtr.  Only enabled for array-type TUniquePtrs.
+ * Elements are default-initialized, which will call a user-defined default constructor if it exists, but causes trivial types to be left uninitialized.
+ *
+ * @param Size The size of the array to allocate.
+ *
+ * @return A TUniquePtr which points to a newly-constructed T array of the specified Size.
+ */
+template <typename T>
+FORCEINLINE typename TEnableIf<TIsUnboundedArray<T>::Value, TUniquePtr<T>>::Type MakeUniqueForOverwrite(SIZE_T Size)
+{
+	typedef typename TRemoveExtent<T>::Type ElementType;
+	return TUniquePtr<T>(new ElementType[Size]);
 }
 
 /**

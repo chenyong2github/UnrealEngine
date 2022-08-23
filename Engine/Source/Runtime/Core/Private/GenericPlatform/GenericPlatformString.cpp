@@ -189,8 +189,40 @@ namespace UE::Core::Private
 		return true;
 	}
 
-	template <typename DestBufferType, typename FromType>
-	static int32 ConvertToUTF8(DestBufferType& Dest, int32 DestLen, const FromType* Source, int32 SourceLen)
+	struct FNullTerminal
+	{
+		explicit FNullTerminal() = default;
+	};
+
+	template <typename Pointer>
+	bool IsRangeEmpty(Pointer& Ptr, int32& Len)
+	{
+		return Len <= 0;
+	}
+
+	template <typename Pointer>
+	bool IsRangeEmpty(Pointer& Ptr, FNullTerminal)
+	{
+		return *Ptr == '\0';
+	}
+
+	template <typename Pointer>
+	void PopFront(Pointer& Ptr, int32& Len)
+	{
+		checkfSlow(Len > 0, TEXT("Trying to pop past end end of the range"));
+		++Ptr;
+		--Len;
+	}
+
+	template <typename Pointer>
+	void PopFront(Pointer& Ptr, FNullTerminal)
+	{
+		checkfSlow(*Ptr != '\0', TEXT("Trying to pop the null terminator of the string"));
+		++Ptr;
+	}
+
+	template <typename DestBufferType, typename FromType, typename SourceEndType>
+	static int32 ConvertToUTF8(DestBufferType& Dest, int32 DestLen, const FromType* Source, SourceEndType SourceEnd)
 	{
 		using UnsignedFromType = std::make_unsigned_t<FromType>;
 
@@ -200,19 +232,19 @@ namespace UE::Core::Private
 
 			for (;;)
 			{
-				if (SourceLen <= 0)
+				if (IsRangeEmpty(Source, SourceEnd))
 				{
 					return UE_PTRDIFF_TO_INT32(Dest - DestStartingPosition);
 				}
 
-				uint32 Codepoint = (uint32)(UnsignedFromType)*Source++;
-				--SourceLen;
-
+				uint32 Codepoint = (uint32)(UnsignedFromType)*Source;
 				if (!WriteCodepointToBuffer(Codepoint, Dest, DestLen))
 				{
 					// Could not write data, bail out
 					return -1;
 				}
+
+				PopFront(Source, SourceEnd);
 			}
 		}
 		else
@@ -221,18 +253,18 @@ namespace UE::Core::Private
 
 			for (;;)
 			{
-				if (SourceLen <= 0)
+				if (IsRangeEmpty(Source, SourceEnd))
 				{
 					return UE_PTRDIFF_TO_INT32(Dest - DestStartingPosition);
 				}
 
-				uint32 Codepoint = (uint32)(UnsignedFromType)*Source++;
-				--SourceLen;
+				uint32 Codepoint = (uint32)(UnsignedFromType)*Source;
+				PopFront(Source, SourceEnd);
 
 				// Check if this character is a high-surrogate
 				if (IsHighSurrogate(Codepoint))
 				{
-					if (SourceLen == 0)
+					if (IsRangeEmpty(Source, SourceEnd))
 					{
 						// String ends with lone high-surrogate - write it out (will be converted into bogus character)
 						if (!WriteCodepointToBuffer(Codepoint, Dest, DestLen))
@@ -252,8 +284,7 @@ namespace UE::Core::Private
 					if (IsLowSurrogate(NextCodepoint))
 					{
 						Codepoint = EncodeSurrogate((uint16)Codepoint, (uint16)NextCodepoint);
-						++Source;
-						--SourceLen;
+						PopFront(Source, SourceEnd);
 					}
 				}
 
@@ -266,17 +297,17 @@ namespace UE::Core::Private
 		}
 	}
 
-	static bool ReadTrailingOctet(uint32& OutOctet, const UTF8CHAR*& Ptr, uint32& Size)
+	template <typename SourceEndType>
+	static bool ReadTrailingOctet(uint32& OutOctet, const UTF8CHAR*& Ptr, SourceEndType& SourceEnd)
 	{
 		// Ensure our string has enough characters to read from
-		if (Size == 0)
+		if (IsRangeEmpty(Ptr, SourceEnd))
 		{
 			return false;
 		}
 
 		uint32 Octet = (uint32)(uint8)*Ptr;
-		++Ptr;
-		--Size;
+		PopFront(Ptr, SourceEnd);
 
 		// Format isn't 10xxxxxx?
 		if ((Octet & 192) != 128)
@@ -288,13 +319,13 @@ namespace UE::Core::Private
 		return true;
 	};
 
-	static uint32 CodepointFromUtf8(const UTF8CHAR*& SourceString, uint32 SourceLengthRemaining)
+	template <typename SourceEndType>
+	static uint32 CodepointFromUtf8(const UTF8CHAR*& SourceString, SourceEndType& SourceEnd)
 	{
-		checkSlow(SourceLengthRemaining > 0);
+		checkSlow(!IsRangeEmpty(SourceString, SourceEnd));
 
 		uint32 Octet = (uint32)(uint8)*SourceString;
-		++SourceString;
-		--SourceLengthRemaining;
+		PopFront(SourceString, SourceEnd);
 
 		if (Octet < 128)  // one octet char: 0 to 127
 		{
@@ -311,7 +342,7 @@ namespace UE::Core::Private
 		}
 
 		uint32 Octet2;
-		if (!ReadTrailingOctet(Octet2, SourceString, SourceLengthRemaining))
+		if (!ReadTrailingOctet(Octet2, SourceString, SourceEnd))
 		{
 			return UNICODE_BOGUS_CHAR_CODEPOINT;
 		}
@@ -329,7 +360,7 @@ namespace UE::Core::Private
 		}
 
 		uint32 Octet3;
-		if (!ReadTrailingOctet(Octet3, SourceString, SourceLengthRemaining))
+		if (!ReadTrailingOctet(Octet3, SourceString, SourceEnd))
 		{
 			return UNICODE_BOGUS_CHAR_CODEPOINT;
 		}
@@ -349,7 +380,7 @@ namespace UE::Core::Private
 		}
 
 		uint32 Octet4;
-		if (!ReadTrailingOctet(Octet4, SourceString, SourceLengthRemaining))
+		if (!ReadTrailingOctet(Octet4, SourceString, SourceEnd))
 		{
 			return UNICODE_BOGUS_CHAR_CODEPOINT;
 		}
@@ -369,7 +400,7 @@ namespace UE::Core::Private
 		}
 
 		uint32 Octet5;
-		if (!ReadTrailingOctet(Octet5, SourceString, SourceLengthRemaining))
+		if (!ReadTrailingOctet(Octet5, SourceString, SourceEnd))
 		{
 			return UNICODE_BOGUS_CHAR_CODEPOINT;
 		}
@@ -387,7 +418,7 @@ namespace UE::Core::Private
 		// six octets
 
 		uint32 Octet6;
-		if (!ReadTrailingOctet(Octet6, SourceString, SourceLengthRemaining))
+		if (!ReadTrailingOctet(Octet6, SourceString, SourceEnd))
 		{
 			return UNICODE_BOGUS_CHAR_CODEPOINT;
 		}
@@ -398,15 +429,13 @@ namespace UE::Core::Private
 	/**
 	 * Read Source string, converting the data from UTF-8 into UTF-16, and placing these in the Destination
 	 */
-	template <typename DestType, typename DestBufferType>
-	static int32 ConvertFromUTF8(DestBufferType& ConvertedBuffer, int32 DestLen, const UTF8CHAR* Source, const int32 SourceLen)
+	template <typename DestType, typename DestBufferType, typename SourceEndType>
+	static int32 ConvertFromUTF8(DestBufferType& ConvertedBuffer, int32 DestLen, const UTF8CHAR* Source, SourceEndType SourceEnd)
 	{
 		DestBufferType DestStartingPosition = ConvertedBuffer;
 
-		const UTF8CHAR* SourceEnd = Source + SourceLen;
-
 		const uint64 ExtendedCharMask = 0x8080808080808080;
-		while (Source < SourceEnd)
+		while (!IsRangeEmpty(Source, SourceEnd))
 		{
 			if (DestLen == 0)
 			{
@@ -415,35 +444,40 @@ namespace UE::Core::Private
 
 			// In case we're given an unaligned pointer, we'll
 			// fallback to the slow path until properly aligned.
-			if (IsAligned(Source, 8))
+			// But we can only do that if we know how much buffer we have left.
+			if constexpr (std::is_integral_v<SourceEndType>)
 			{
-				// Fast path for most common case
-				while (Source < SourceEnd - 8 && DestLen >= 8)
+				if (IsAligned(Source, 8))
 				{
-					// Detect any extended characters 8 chars at a time
-					if ((*(const uint64*)Source) & ExtendedCharMask)
+					// Fast path for most common case
+					while (SourceEnd >= 8 && DestLen >= 8)
 					{
-						// Move to slow path since we got extended characters to process
-						break;
-					}
+						// Detect any extended characters 8 chars at a time
+						if ((*(const uint64*)Source) & ExtendedCharMask)
+						{
+							// Move to slow path since we got extended characters to process
+							break;
+						}
 
-					// This should get unrolled on most compiler
-					// ROI of diminished return to vectorize this as we 
-					// would have to deal with alignment, endianness and
-					// rewrite the iterators to support bulk writes
-					for (int32 Index = 0; Index < 8; ++Index)
-					{
-						*(ConvertedBuffer++) = (DestType)(uint8)*(Source++);
+						// This should get unrolled on most compiler
+						// ROI of diminished return to vectorize this as we 
+						// would have to deal with alignment, endianness and
+						// rewrite the iterators to support bulk writes
+						for (int32 Index = 0; Index < 8; ++Index)
+						{
+							*(ConvertedBuffer++) = (DestType)(uint8)*(Source++);
+						}
+						SourceEnd -= 8;
+						DestLen -= 8;
 					}
-					DestLen -= 8;
 				}
 			}
 
 			// Slow path for extended characters
-			while (Source < SourceEnd && DestLen > 0)
+			while (!IsRangeEmpty(Source, SourceEnd) && DestLen > 0)
 			{
 				// Read our codepoint, advancing the source pointer
-				uint32 Codepoint = CodepointFromUtf8(Source, UE_PTRDIFF_TO_UINT32(SourceEnd - Source));
+				uint32 Codepoint = CodepointFromUtf8(Source, SourceEnd);
 
 				if constexpr (sizeof(DestType) != 4)
 				{
@@ -476,15 +510,18 @@ namespace UE::Core::Private
 				*(ConvertedBuffer++) = (DestType)Codepoint;
 				--DestLen;
 
-				// Return to the fast path once aligned and back to simple ASCII chars
-				if (Codepoint < 128 && IsAligned(Source, 8))
+				if constexpr (std::is_integral_v<SourceEndType>)
 				{
-					break;
+					// Return to the fast path once aligned and back to simple ASCII chars
+					if (Codepoint < 128 && IsAligned(Source, 8))
+					{
+						break;
+					}
 				}
 			}
 		}
 
-		return UE_PTRDIFF_TO_INT32(ConvertedBuffer - DestStartingPosition);;
+		return UE_PTRDIFF_TO_INT32(ConvertedBuffer - DestStartingPosition);
 	}
 
 	/**
@@ -492,10 +529,22 @@ namespace UE::Core::Private
 	 *
 	 * @return The length of the string in UTF-16 code units.
 	 */
+	int32 GetConvertedLength(const UTF8CHAR*, const WIDECHAR* Source)
+	{
+		TCountingOutputIterator<UTF8CHAR> Dest;
+		int32 Result = ConvertToUTF8(Dest, INT32_MAX, Source, FNullTerminal{});
+		return Result;
+	}
 	int32 GetConvertedLength(const UTF8CHAR*, const WIDECHAR* Source, int32 SourceLen)
 	{
 		TCountingOutputIterator<UTF8CHAR> Dest;
 		int32 Result = ConvertToUTF8(Dest, INT32_MAX, Source, SourceLen);
+		return Result;
+	}
+	int32 GetConvertedLength(const UTF8CHAR*, const UCS2CHAR* Source)
+	{
+		TCountingOutputIterator<UTF8CHAR> Dest;
+		int32 Result = ConvertToUTF8(Dest, INT32_MAX, Source, FNullTerminal{});
 		return Result;
 	}
 	int32 GetConvertedLength(const UTF8CHAR*, const UCS2CHAR* Source, int32 SourceLen)
@@ -504,10 +553,22 @@ namespace UE::Core::Private
 		int32 Result = ConvertToUTF8(Dest, INT32_MAX, Source, SourceLen);
 		return Result;
 	}
+	int32 GetConvertedLength(const UTF8CHAR*, const UTF32CHAR* Source)
+	{
+		TCountingOutputIterator<UTF8CHAR> Dest;
+		int32 Result = ConvertToUTF8(Dest, INT32_MAX, Source, FNullTerminal{});
+		return Result;
+	}
 	int32 GetConvertedLength(const UTF8CHAR*, const UTF32CHAR* Source, int32 SourceLen)
 	{
 		TCountingOutputIterator<UTF8CHAR> Dest;
 		int32 Result = ConvertToUTF8(Dest, INT32_MAX, Source, SourceLen);
+		return Result;
+	}
+	int32 GetConvertedLength(const ANSICHAR*, const UTF8CHAR* Source)
+	{
+		TCountingOutputIterator<ANSICHAR> Dest;
+		int32 Result = ConvertFromUTF8<ANSICHAR>(Dest, INT32_MAX, Source, FNullTerminal{});
 		return Result;
 	}
 	int32 GetConvertedLength(const ANSICHAR*, const UTF8CHAR* Source, int32 SourceLen)
@@ -516,10 +577,22 @@ namespace UE::Core::Private
 		int32 Result = ConvertFromUTF8<ANSICHAR>(Dest, INT32_MAX, Source, SourceLen);
 		return Result;
 	}
+	int32 GetConvertedLength(const WIDECHAR*, const UTF8CHAR* Source)
+	{
+		TCountingOutputIterator<WIDECHAR> Dest;
+		int32 Result = ConvertFromUTF8<WIDECHAR>(Dest, INT32_MAX, Source, FNullTerminal{});
+		return Result;
+	}
 	int32 GetConvertedLength(const WIDECHAR*, const UTF8CHAR* Source, int32 SourceLen)
 	{
 		TCountingOutputIterator<WIDECHAR> Dest;
 		int32 Result = ConvertFromUTF8<WIDECHAR>(Dest, INT32_MAX, Source, SourceLen);
+		return Result;
+	}
+	int32 GetConvertedLength(const UCS2CHAR*, const UTF8CHAR* Source)
+	{
+		TCountingOutputIterator<UCS2CHAR> Dest;
+		int32 Result = ConvertFromUTF8<UCS2CHAR>(Dest, INT32_MAX, Source, FNullTerminal{});
 		return Result;
 	}
 	int32 GetConvertedLength(const UCS2CHAR*, const UTF8CHAR* Source, int32 SourceLen)
@@ -529,9 +602,25 @@ namespace UE::Core::Private
 		return Result;
 	}
 
+	UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const WIDECHAR* Src)
+	{
+		if (ConvertToUTF8(Dest, DestLen, Src, FNullTerminal{}) == -1)
+		{
+			return nullptr;
+		}
+		return Dest;
+	}
 	UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const WIDECHAR* Src, int32 SrcLen)
 	{
 		if (ConvertToUTF8(Dest, DestLen, Src, SrcLen) == -1)
+		{
+			return nullptr;
+		}
+		return Dest;
+	}
+	UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const UCS2CHAR* Src)
+	{
+		if (ConvertToUTF8(Dest, DestLen, Src, FNullTerminal{}) == -1)
 		{
 			return nullptr;
 		}
@@ -545,9 +634,25 @@ namespace UE::Core::Private
 		}
 		return Dest;
 	}
+	UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const UTF32CHAR* Src)
+	{
+		if (ConvertToUTF8(Dest, DestLen, Src, FNullTerminal{}) == -1)
+		{
+			return nullptr;
+		}
+		return Dest;
+	}
 	UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const UTF32CHAR* Src, int32 SrcLen)
 	{
 		if (ConvertToUTF8(Dest, DestLen, Src, SrcLen) == -1)
+		{
+			return nullptr;
+		}
+		return Dest;
+	}
+	ANSICHAR* Convert(ANSICHAR* Dest, int32 DestLen, const UTF8CHAR* Src)
+	{
+		if (ConvertFromUTF8<ANSICHAR>(Dest, DestLen, Src, FNullTerminal{}) == -1)
 		{
 			return nullptr;
 		}
@@ -561,9 +666,25 @@ namespace UE::Core::Private
 		}
 		return Dest;
 	}
+	WIDECHAR* Convert(WIDECHAR* Dest, int32 DestLen, const UTF8CHAR* Src)
+	{
+		if (ConvertFromUTF8<WIDECHAR>(Dest, DestLen, Src, FNullTerminal{}) == -1)
+		{
+			return nullptr;
+		}
+		return Dest;
+	}
 	WIDECHAR* Convert(WIDECHAR* Dest, int32 DestLen, const UTF8CHAR* Src, int32 SrcLen)
 	{
 		if (ConvertFromUTF8<WIDECHAR>(Dest, DestLen, Src, SrcLen) == -1)
+		{
+			return nullptr;
+		}
+		return Dest;
+	}
+	UCS2CHAR* Convert(UCS2CHAR* Dest, int32 DestLen, const UTF8CHAR* Src)
+	{
+		if (ConvertFromUTF8<UCS2CHAR>(Dest, DestLen, Src, FNullTerminal{}) == -1)
 		{
 			return nullptr;
 		}
@@ -577,49 +698,61 @@ namespace UE::Core::Private
 		}
 		return Dest;
 	}
+
+	template <typename DestEncoding, typename SourceEncoding, typename SourceEndType>
+	void LogBogusCharsImpl(const SourceEncoding* Src, SourceEndType SourceEnd)
+	{
+		static_assert(TIsFixedWidthCharEncoding_V<SourceEncoding>, "Currently unimplemented for non-fixed-width source conversions");
+
+		FString SrcStr;
+		bool    bFoundBogusChars = false;
+		for (; !IsRangeEmpty(Src, SourceEnd); PopFront(Src, SourceEnd))
+		{
+			SourceEncoding SrcCh = *Src;
+			if (!FGenericPlatformString::CanConvertCodepoint<DestEncoding>(SrcCh))
+			{
+				SrcStr += FString::Printf(TEXT("[0x%X]"), (int32)SrcCh);
+				bFoundBogusChars = true;
+			}
+			else if (FGenericPlatformString::CanConvertCodepoint<TCHAR>(SrcCh))
+			{
+				if (TChar<SourceEncoding>::IsLinebreak(SrcCh))
+				{
+					if (bFoundBogusChars)
+					{
+						TrimStringAndLogBogusCharsError(SrcStr, FGenericPlatformString::GetEncodingTypeName<SourceEncoding>(), FGenericPlatformString::GetEncodingTypeName<DestEncoding>());
+						bFoundBogusChars = false;
+					}
+					SrcStr.Empty();
+				}
+				else
+				{
+					SrcStr.AppendChar((TCHAR)SrcCh);
+				}
+			}
+			else
+			{
+				SrcStr.AppendChar((TCHAR)'?');
+			}
+		}
+
+		if (bFoundBogusChars)
+		{
+			TrimStringAndLogBogusCharsError(SrcStr, FGenericPlatformString::GetEncodingTypeName<SourceEncoding>(), FGenericPlatformString::GetEncodingTypeName<DestEncoding>());
+		}
+	}
+}
+
+template <typename DestEncoding, typename SourceEncoding>
+void FGenericPlatformString::LogBogusChars(const SourceEncoding* Src)
+{
+	UE::Core::Private::LogBogusCharsImpl<DestEncoding>(Src, UE::Core::Private::FNullTerminal{});
 }
 
 template <typename DestEncoding, typename SourceEncoding>
 void FGenericPlatformString::LogBogusChars(const SourceEncoding* Src, int32 SrcSize)
 {
-	static_assert(TIsFixedWidthCharEncoding_V<SourceEncoding>, "Currently unimplemented for non-fixed-width source conversions");
-
-	FString SrcStr;
-	bool    bFoundBogusChars = false;
-	for (; SrcSize; --SrcSize)
-	{
-		SourceEncoding SrcCh = *Src++;
-		if (!CanConvertCodepoint<DestEncoding>(SrcCh))
-		{
-			SrcStr += FString::Printf(TEXT("[0x%X]"), (int32)SrcCh);
-			bFoundBogusChars = true;
-		}
-		else if (CanConvertCodepoint<TCHAR>(SrcCh))
-		{
-			if (TChar<SourceEncoding>::IsLinebreak(SrcCh))
-			{
-				if (bFoundBogusChars)
-				{
-					TrimStringAndLogBogusCharsError(SrcStr, GetEncodingTypeName<SourceEncoding>(), GetEncodingTypeName<DestEncoding>());
-					bFoundBogusChars = false;
-				}
-				SrcStr.Empty();
-			}
-			else
-			{
-				SrcStr.AppendChar((TCHAR)SrcCh);
-			}
-		}
-		else
-		{
-			SrcStr.AppendChar((TCHAR)'?');
-		}
-	}
-
-	if (bFoundBogusChars)
-	{
-		TrimStringAndLogBogusCharsError(SrcStr, GetEncodingTypeName<SourceEncoding>(), GetEncodingTypeName<DestEncoding>());
-	}
+	UE::Core::Private::LogBogusCharsImpl<DestEncoding>(Src, SrcSize);
 }
 
 namespace GenericPlatformStringPrivate
@@ -659,17 +792,28 @@ int32 FGenericPlatformString::Strncmp(const WIDECHAR* Str1, const UTF8CHAR* Str2
 int32 FGenericPlatformString::Strncmp(const UTF8CHAR* Str1, const UTF8CHAR* Str2, SIZE_T Count) { return GenericPlatformStringPrivate::StrncmpImpl(Str1, Str2, Count); }
 
 #if !UE_BUILD_DOCS
+template CORE_API void FGenericPlatformString::LogBogusChars<ANSICHAR, WIDECHAR>(const WIDECHAR* Src);
 template CORE_API void FGenericPlatformString::LogBogusChars<ANSICHAR, WIDECHAR>(const WIDECHAR* Src, int32 SrcSize);
+template CORE_API void FGenericPlatformString::LogBogusChars<ANSICHAR, UCS2CHAR>(const UCS2CHAR* Src);
 template CORE_API void FGenericPlatformString::LogBogusChars<ANSICHAR, UCS2CHAR>(const UCS2CHAR* Src, int32 SrcSize);
+template CORE_API void FGenericPlatformString::LogBogusChars<WIDECHAR, ANSICHAR>(const ANSICHAR* Src);
 template CORE_API void FGenericPlatformString::LogBogusChars<WIDECHAR, ANSICHAR>(const ANSICHAR* Src, int32 SrcSize);
+template CORE_API void FGenericPlatformString::LogBogusChars<WIDECHAR, UCS2CHAR>(const UCS2CHAR* Src);
 template CORE_API void FGenericPlatformString::LogBogusChars<WIDECHAR, UCS2CHAR>(const UCS2CHAR* Src, int32 SrcSize);
+template CORE_API void FGenericPlatformString::LogBogusChars<UCS2CHAR, ANSICHAR>(const ANSICHAR* Src);
 template CORE_API void FGenericPlatformString::LogBogusChars<UCS2CHAR, ANSICHAR>(const ANSICHAR* Src, int32 SrcSize);
+template CORE_API void FGenericPlatformString::LogBogusChars<UCS2CHAR, WIDECHAR>(const WIDECHAR* Src);
 template CORE_API void FGenericPlatformString::LogBogusChars<UCS2CHAR, WIDECHAR>(const WIDECHAR* Src, int32 SrcSize);
+template CORE_API void FGenericPlatformString::LogBogusChars<UTF8CHAR, ANSICHAR>(const ANSICHAR* Src);
 template CORE_API void FGenericPlatformString::LogBogusChars<UTF8CHAR, ANSICHAR>(const ANSICHAR* Src, int32 SrcSize);
+template CORE_API void FGenericPlatformString::LogBogusChars<UTF8CHAR, WIDECHAR>(const WIDECHAR* Src);
 template CORE_API void FGenericPlatformString::LogBogusChars<UTF8CHAR, WIDECHAR>(const WIDECHAR* Src, int32 SrcSize);
+template CORE_API void FGenericPlatformString::LogBogusChars<UTF8CHAR, UCS2CHAR>(const UCS2CHAR* Src);
 template CORE_API void FGenericPlatformString::LogBogusChars<UTF8CHAR, UCS2CHAR>(const UCS2CHAR* Src, int32 SrcSize);
 #if PLATFORM_TCHAR_IS_CHAR16
+template CORE_API void FGenericPlatformString::LogBogusChars<wchar_t, char16_t>(const char16_t* Src);
 template CORE_API void FGenericPlatformString::LogBogusChars<wchar_t, char16_t>(const char16_t* Src, int32 SrcSize);
+template CORE_API void FGenericPlatformString::LogBogusChars<char16_t, wchar_t>(const wchar_t* Src);
 template CORE_API void FGenericPlatformString::LogBogusChars<char16_t, wchar_t>(const wchar_t* Src, int32 SrcSize);
 #endif
 #endif

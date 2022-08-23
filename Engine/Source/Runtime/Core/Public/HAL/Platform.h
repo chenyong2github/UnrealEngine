@@ -1171,7 +1171,7 @@ namespace UE::Core::Private
 }
 
 #define UTF8TEXT(x) (UE::Core::Private::ToUTF8Literal(UTF8TEXT_PASTE(x)))
-
+#define UTF16TEXT(x) UTF16TEXT_PASTE(x)
 #define WIDETEXT(str) WIDETEXT_PASTE(str)
 
 // IWYU pragma: end_exports

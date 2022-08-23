@@ -15,18 +15,30 @@
 namespace UE::Core::Private
 {
 	// The Dest parameter is just used for overload resolution
+	CORE_API int32 GetConvertedLength(const UTF8CHAR* Dest, const WIDECHAR*  Src);
 	CORE_API int32 GetConvertedLength(const UTF8CHAR* Dest, const WIDECHAR*  Src, int32 SrcLen);
+	CORE_API int32 GetConvertedLength(const UTF8CHAR* Dest, const UCS2CHAR*  Src);
 	CORE_API int32 GetConvertedLength(const UTF8CHAR* Dest, const UCS2CHAR*  Src, int32 SrcLen);
+	CORE_API int32 GetConvertedLength(const UTF8CHAR* Dest, const UTF32CHAR* Src);
 	CORE_API int32 GetConvertedLength(const UTF8CHAR* Dest, const UTF32CHAR* Src, int32 SrcLen);
+	CORE_API int32 GetConvertedLength(const ANSICHAR* Dest, const UTF8CHAR*  Src);
 	CORE_API int32 GetConvertedLength(const ANSICHAR* Dest, const UTF8CHAR*  Src, int32 SrcLen);
+	CORE_API int32 GetConvertedLength(const WIDECHAR* Dest, const UTF8CHAR*  Src);
 	CORE_API int32 GetConvertedLength(const WIDECHAR* Dest, const UTF8CHAR*  Src, int32 SrcLen);
+	CORE_API int32 GetConvertedLength(const UCS2CHAR* Dest, const UTF8CHAR*  Src);
 	CORE_API int32 GetConvertedLength(const UCS2CHAR* Dest, const UTF8CHAR*  Src, int32 SrcLen);
 
+	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const WIDECHAR*  Src);
 	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const WIDECHAR*  Src, int32 SrcLen);
+	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const UCS2CHAR*  Src);
 	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const UCS2CHAR*  Src, int32 SrcLen);
+	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const UTF32CHAR* Src);
 	CORE_API UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const UTF32CHAR* Src, int32 SrcLen);
+	CORE_API ANSICHAR* Convert(ANSICHAR* Dest, int32 DestLen, const UTF8CHAR*  Src);
 	CORE_API ANSICHAR* Convert(ANSICHAR* Dest, int32 DestLen, const UTF8CHAR*  Src, int32 SrcLen);
+	CORE_API WIDECHAR* Convert(WIDECHAR* Dest, int32 DestLen, const UTF8CHAR*  Src);
 	CORE_API WIDECHAR* Convert(WIDECHAR* Dest, int32 DestLen, const UTF8CHAR*  Src, int32 SrcLen);
+	CORE_API UCS2CHAR* Convert(UCS2CHAR* Dest, int32 DestLen, const UTF8CHAR*  Src);
 	CORE_API UCS2CHAR* Convert(UCS2CHAR* Dest, int32 DestLen, const UTF8CHAR*  Src, int32 SrcLen);
 }
 
@@ -170,6 +182,101 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 		enum { Value = TIsFixedWidthCharEncoding_V<EncodingA> && TIsFixedWidthCharEncoding_V<EncodingB> && sizeof(EncodingA) == sizeof(EncodingB) };
 	};
 
+
+	/**
+	 * Converts the null-terminated Src string range from SourceEncoding to DestEncoding and writes it to the [Dest, Dest+DestSize) range, including a null terminator.
+	 * If the Dest range is not big enough to hold the converted output, NULL is returned.  In this case, nothing should be assumed about the contents of Dest.
+	 *
+	 * @param Dest      The start of the destination buffer.
+	 * @param DestSize  The size of the destination buffer.
+	 * @param Src       The start of the string to convert.
+	 * @return          A pointer to one past the last-written element.
+	 */
+	template <typename SourceEncoding, typename DestEncoding>
+	static FORCEINLINE DestEncoding* Convert(DestEncoding* Dest, int32 DestSize, const SourceEncoding* Src)
+	{
+		if constexpr (TIsCharEncodingSimplyConvertibleTo_V<SourceEncoding, DestEncoding>)
+		{
+			for (;;)
+			{
+				if (DestSize == 0)
+				{
+					return nullptr;
+				}
+
+				if (!(*Dest++ = (DestEncoding)*Src++))
+				{
+					return Dest;
+				}
+
+				--DestSize;
+			}
+		}
+		else if constexpr (TIsFixedWidthCharEncoding_V<SourceEncoding> && TIsFixedWidthCharEncoding_V<DestEncoding>)
+		{
+			DestEncoding* DestCopy     = Dest;
+			DestEncoding* SrcCopy      = Src;
+			int32         DestSizeCopy = DestSize;
+
+			bool bInvalidChars = false;
+			for (;;)
+			{
+				if (DestSize == 0)
+				{
+					Dest = nullptr;
+					break;
+				}
+
+				SourceEncoding SrcCh = *Src++;
+				*Dest++ = (DestEncoding)SrcCh;
+				if (!SrcCh)
+				{
+					break;
+				}
+				bInvalidChars |= !CanConvertCodepoint<DestEncoding>(SrcCh);
+
+				--DestSize;
+			}
+
+			if (bInvalidChars)
+			{
+				for (;;)
+				{
+					if (DestSizeCopy == 0)
+					{
+						break;
+					}
+
+					SourceEncoding SrcCh = *SrcCopy++;
+					if (!SrcCh)
+					{
+						break;
+					}
+					if (!CanConvertCodepoint<DestEncoding>(SrcCh))
+					{
+						*DestCopy = UNICODE_BOGUS_CHAR_CODEPOINT;
+					}
+					++DestCopy;
+
+					--DestSizeCopy;
+				}
+
+				LogBogusChars<DestEncoding>(Src);
+			}
+
+			return Dest;
+		}
+		else
+		{
+			DestEncoding* Result = UE::Core::Private::Convert(Dest, DestSize, Src);
+			if (Result)
+			{
+				*Result++ = (DestEncoding)0;
+			}
+			return Result;
+		}
+	}
+
 	/**
 	 * Converts the [Src, Src+SrcSize) string range from SourceEncoding to DestEncoding and writes it to the [Dest, Dest+DestSize) range.
 	 * The Src range should contain a null terminator if a null terminator is required in the output.
@@ -238,6 +345,32 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 
 
 	/**
+	 * Returns the required buffer length for the null-terminated Src string when converted to the DestChar encoding.
+	 * The returned length includes the space for the null terminator (equivalent to strlen+1).
+	 * 
+	 * @param  Src  The start of the string to convert.
+	 * @return      The number of DestChar elements that Src will be converted into.
+	 */
+	template <typename DestEncoding, typename SourceEncoding>
+	static int32 ConvertedLength(const SourceEncoding* Src)
+	{
+		if constexpr (TIsCharEncodingSimplyConvertibleTo_V<SourceEncoding, DestEncoding> || (TIsFixedWidthCharEncoding_V<SourceEncoding> && TIsFixedWidthCharEncoding_V<DestEncoding>))
+		{
+			int32 Result = 0;
+			while (*Src)
+			{
+				++Src;
+				++Result;
+			}
+			return Result + 1;
+		}
+		else
+		{
+			return UE::Core::Private::GetConvertedLength((DestEncoding*)nullptr, Src) + 1;
+		}
+	}
+
+	/**
 	 * Returns the required buffer length for the [Src, Src+SrcSize) string when converted to the DestChar encoding.
 	 * The Src range should contain a null terminator if a null terminator is required in the output.
 	 * 
@@ -278,6 +411,15 @@ private:
 	 * @return      Dest
 	 */
 	static CORE_API void* Memcpy(void* Dest, const void* Src, SIZE_T Count);
+
+
+	/**
+	 * Logs a message about bogus characters which were detected during string conversion.
+	 *
+	 * @param Src     Pointer to the null-terminated string being converted.
+	 */
+	template <typename DestEncoding, typename SourceEncoding>
+	static CORE_API void LogBogusChars(const SourceEncoding* Src);
 
 
 	/**
