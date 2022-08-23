@@ -180,12 +180,12 @@ FInputRayHit UTransformGizmo::UpdateHoveredPart(const FInputDeviceRay& PressPos)
 	{
 		if (LastHitPart != ETransformGizmoPartIdentifier::Default)
 		{
-			HitTarget->UpdateHoverState(false, static_cast<uint32>(LastHitPart));
+			UpdateHoverState(false, LastHitPart);
 		}
 
 		if (HitPart != ETransformGizmoPartIdentifier::Default)
 		{
-			HitTarget->UpdateHoverState(true, static_cast<uint32>(HitPart));
+			UpdateHoverState(true, HitPart);
 		}
 
 		LastHitPart = HitPart;
@@ -854,6 +854,7 @@ void UTransformGizmo::SetupOnClickFunctions()
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXYPlanar)] = &UTransformGizmo::OnClickPressScaleXYPlanar;
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleYZPlanar)] = &UTransformGizmo::OnClickPressScaleYZPlanar;
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXZPlanar)] = &UTransformGizmo::OnClickPressScaleXZPlanar;
+	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleUniform)] = &UTransformGizmo::OnClickPressScaleXYZ;
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateXAxis)] = &UTransformGizmo::OnClickPressRotateXAxis;
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateYAxis)] = &UTransformGizmo::OnClickPressRotateYAxis;
 	OnClickPressFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateZAxis)] = &UTransformGizmo::OnClickPressRotateZAxis;
@@ -872,6 +873,7 @@ void UTransformGizmo::SetupOnClickFunctions()
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXYPlanar)] = &UTransformGizmo::OnClickDragScalePlanar;
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleYZPlanar)] = &UTransformGizmo::OnClickDragScalePlanar;
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXZPlanar)] = &UTransformGizmo::OnClickDragScalePlanar;
+	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleUniform)] = &UTransformGizmo::OnClickDragScaleXYZ;
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateXAxis)] = &UTransformGizmo::OnClickDragRotateAxis;
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateYAxis)] = &UTransformGizmo::OnClickDragRotateAxis;
 	OnClickDragFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateZAxis)] = &UTransformGizmo::OnClickDragRotateAxis;
@@ -890,6 +892,7 @@ void UTransformGizmo::SetupOnClickFunctions()
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXYPlanar)] = &UTransformGizmo::OnClickReleaseScalePlanar;
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleYZPlanar)] = &UTransformGizmo::OnClickReleaseScalePlanar;
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleXZPlanar)] = &UTransformGizmo::OnClickReleaseScalePlanar;
+	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::ScaleUniform)] = &UTransformGizmo::OnClickReleaseScaleXYZ;
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateXAxis)] = &UTransformGizmo::OnClickReleaseRotateAxis;
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateYAxis)] = &UTransformGizmo::OnClickReleaseRotateAxis;
 	OnClickReleaseFunctions[static_cast<int>(ETransformGizmoPartIdentifier::RotateZAxis)] = &UTransformGizmo::OnClickReleaseRotateAxis;
@@ -925,6 +928,65 @@ bool UTransformGizmo::GetRayParamIntersectionWithInteractionPlane(const FInputDe
 	return true;
 }
 
+void UTransformGizmo::UpdateHoverState(bool bInHover, ETransformGizmoPartIdentifier InHitPartId)
+{
+	HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(InHitPartId));
+
+	switch (InHitPartId)
+	{
+	case ETransformGizmoPartIdentifier::ScaleUniform:
+		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXAxis));
+		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleYAxis));
+		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleZAxis));
+		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXYPlanar));
+		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleYZPlanar));
+		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXZPlanar));
+		break;
+	case ETransformGizmoPartIdentifier::ScaleXYPlanar:
+		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXAxis));
+		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleYAxis));
+		break;
+	case ETransformGizmoPartIdentifier::ScaleYZPlanar:
+		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleYAxis));
+		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleZAxis));
+		break;
+	case ETransformGizmoPartIdentifier::ScaleXZPlanar:
+		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXAxis));
+		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleZAxis));
+		break;
+	}
+}
+
+void UTransformGizmo::UpdateInteractingState(bool bInInteracting, ETransformGizmoPartIdentifier InHitPartId)
+{
+	HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(InHitPartId));
+
+	switch (InHitPartId)
+	{
+	case ETransformGizmoPartIdentifier::ScaleUniform:
+		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXAxis));
+		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleYAxis));
+		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleZAxis));
+		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXYPlanar));
+		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleYZPlanar));
+		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXZPlanar));
+		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleUniform));
+		break;
+	case ETransformGizmoPartIdentifier::ScaleXYPlanar:
+		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXAxis));
+		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleYAxis));
+		break;
+	case ETransformGizmoPartIdentifier::ScaleYZPlanar:
+		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleYAxis));
+		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleZAxis));
+		break;
+	case ETransformGizmoPartIdentifier::ScaleXZPlanar:
+		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXAxis));
+		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleZAxis));
+		break;
+	}
+}
+
 void UTransformGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 {
 	check(OnClickPressFunctions.Num() == static_cast<int>(ETransformGizmoPartIdentifier::Max));
@@ -938,7 +1000,7 @@ void UTransformGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 	{
 		if (HitTarget && LastHitPart != ETransformGizmoPartIdentifier::Default)
 		{
-			HitTarget->UpdateInteractingState(true, static_cast<uint32>(LastHitPart));
+			UpdateInteractingState(true, LastHitPart);
 		}
 
 		if (StateTarget)
@@ -988,7 +1050,7 @@ void UTransformGizmo::OnClickRelease(const FInputDeviceRay& ReleasePos)
 
 	if (HitTarget && LastHitPart != ETransformGizmoPartIdentifier::Default)
 	{
-		HitTarget->UpdateInteractingState(false, static_cast<uint32>(LastHitPart));
+		UpdateInteractingState(false, LastHitPart);
 	}
 }
 
@@ -1249,6 +1311,21 @@ void UTransformGizmo::OnClickDragScreenSpaceTranslate(const FInputDeviceRay& Dra
 }
 
 void UTransformGizmo::OnClickReleaseScreenSpaceTranslate(const FInputDeviceRay& InReleasePos)
+{
+	bInInteraction = false;
+}
+
+void UTransformGizmo::OnClickPressScaleXYZ(const FInputDeviceRay& PressPos)
+{
+	// @todo - interaction handling coming soon?	bInInteraction = true;
+}
+
+void UTransformGizmo::OnClickDragScaleXYZ(const FInputDeviceRay& DragPos)
+{
+	// @todo - interaction handling coming soon
+}
+
+void UTransformGizmo::OnClickReleaseScaleXYZ(const FInputDeviceRay& InReleasePos)
 {
 	bInInteraction = false;
 }

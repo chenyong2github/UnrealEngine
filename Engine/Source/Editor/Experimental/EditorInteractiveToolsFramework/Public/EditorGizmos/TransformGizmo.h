@@ -420,6 +420,12 @@ protected:
 	/** Return true if input ray intersects current interaction plane and return param along ray in OutHitParam */
 	virtual bool GetRayParamIntersectionWithInteractionPlane(const FInputDeviceRay& InRay, float& OutHitParam);
 
+	/** Update hover state for given part id */
+	virtual void UpdateHoverState(bool bInHover, ETransformGizmoPartIdentifier InPartId);
+
+	/** Update interacting state for given part id */
+	virtual void UpdateInteractingState(bool bInInteracting, ETransformGizmoPartIdentifier InPartId);
+
 	/**
 	 * Translate and scale axis click-drag handling methods 
 	 */ 
@@ -567,6 +573,18 @@ protected:
 	/** Returns 2D vector projection of input axis onto the current viewing plane */
 	virtual FVector2D GetScreenProjectedAxis(const FVector& InAxis);
 
+	/**
+	* Scale click-drag handling methods
+	*/
+
+	/** Handle click press for uniform scale */
+	virtual void OnClickPressScaleXYZ(const FInputDeviceRay& PressPos);
+
+	/** Handle click drag for uniform scale */
+	virtual void OnClickDragScaleXYZ(const FInputDeviceRay& DragPos);
+
+	/** Handle click release for uniform scale */
+	virtual void OnClickReleaseScaleXYZ(const FInputDeviceRay& ReleasePos);
 
 	/**
 	 * Apply transform delta methods

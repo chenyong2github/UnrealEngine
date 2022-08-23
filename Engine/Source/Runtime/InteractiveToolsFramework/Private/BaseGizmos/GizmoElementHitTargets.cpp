@@ -29,7 +29,9 @@ void UGizmoElementHitTarget::UpdateHoverState(bool bHovering)
 	{
 		GizmoElement->SetElementInteractionState(EGizmoElementInteractionState::Hovering);
 	}
-	else
+	// If this element is interacting, do not update the hover state. This is necessary because when transitioning
+	// from hovering to interacting, the gizmo framework updates interacting to true before updating hovering to false.
+	else if (GizmoElement->GetElementInteractionState() != EGizmoElementInteractionState::Interacting)
 	{
 		GizmoElement->SetElementInteractionState(EGizmoElementInteractionState::None);
 	}
@@ -78,16 +80,21 @@ void UGizmoElementHitMultiTarget::UpdateHoverState(bool bInHovering, uint32 Part
 		return;
 	}
 
-	if (bInHovering && !bHovering)
+	if (bInHovering)
 	{
 		GizmoElement->UpdatePartInteractionState(EGizmoElementInteractionState::Hovering, PartIdentifier);
-		bHovering = true;
-		bInteracting = false;
 	}
-	else if (!bInHovering && bHovering)
+	else
 	{
+		// If this element is interacting, do not update the hover state. This is necessary because when transitioning
+		// from hovering to interacting, the gizmo framework updates interacting to true before updating hovering to false.
+		TOptional<EGizmoElementInteractionState> InteractionStateResult = GizmoElement->GetPartInteractionState(PartIdentifier);
+		if (InteractionStateResult.IsSet() && InteractionStateResult.GetValue() == EGizmoElementInteractionState::Interacting)
+		{
+			return;
+		}
+
 		GizmoElement->UpdatePartInteractionState(EGizmoElementInteractionState::None, PartIdentifier);
-		bHovering = false;
 	}
 }
 
@@ -98,16 +105,13 @@ void UGizmoElementHitMultiTarget::UpdateInteractingState(bool bInInteracting, ui
 		return;
 	}
 
-	if (bInInteracting && !bInteracting)
+	if (bInInteracting)
 	{
 		GizmoElement->UpdatePartInteractionState(EGizmoElementInteractionState::Interacting, PartIdentifier);
-		bInteracting = true;
-		bHovering = false;
 	}
-	else if (!bInInteracting && bInteracting)
+	else
 	{
 		GizmoElement->UpdatePartInteractionState(EGizmoElementInteractionState::None, PartIdentifier);
-		bInteracting = false;
 	}
 }
 
