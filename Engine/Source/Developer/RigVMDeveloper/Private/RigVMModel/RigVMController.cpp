@@ -16254,6 +16254,10 @@ TArray<TRigVMTypeIndex> URigVMController::GetFilteredTypes(URigVMPin* InPin)
 			}
 		}
 	}
+	if (InPin->IsWildCard())
+	{
+		return TArray<TRigVMTypeIndex>();
+	}
 	return {InPin->GetTypeIndex()};
 }
 
