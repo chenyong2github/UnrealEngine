@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "StreamerInputChannels.h"
+#include "Framework/Application/SlateApplication.h"
 
 namespace UE::PixelStreaming
 {
 	FStreamerInputChannels::FStreamerInputChannels(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
 		: MessageHandler(InMessageHandler)
 	{
+		// This is imperative for editor streaming as when a modal is open or we've hit a BP breakpoint, the engine tick loop will not run, so instead we rely on this delegate to tick for us
+		FSlateApplication::Get().OnPreTick().AddRaw(this, &FStreamerInputChannels::Tick);
 	}
 
 	TSharedPtr<IPixelStreamingInputChannel> FStreamerInputChannels::CreateInputChannel()

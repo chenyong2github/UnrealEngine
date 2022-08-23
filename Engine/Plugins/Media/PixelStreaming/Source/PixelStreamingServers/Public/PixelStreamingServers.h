@@ -10,12 +10,12 @@
 #include "Misc/MonitoredProcess.h"
 
 /*
-* Utility namespace for launching Pixel Streaming servers signaling, selective forwarding, or matchmaking>
-* This utility can launch embedded servers from:
-* 1. C++ classes in this module. 
-* 2. From known server binaries.
-* 3. From the Github releases of the servers.
-*/
+ * Utility namespace for launching Pixel Streaming servers signaling, selective forwarding, or matchmaking>
+ * This utility can launch embedded servers from:
+ * 1. C++ classes in this module.
+ * 2. From known server binaries.
+ * 3. From the Github releases of the servers.
+ */
 namespace UE::PixelStreamingServers
 {
 	/**
@@ -67,7 +67,7 @@ namespace UE::PixelStreamingServers
 
 	/**
 	 * Interface for all Pixel Streaming servers.
-	**/
+	 **/
 	class PIXELSTREAMINGSERVERS_API IServer
 	{
 	public:
@@ -102,7 +102,7 @@ namespace UE::PixelStreamingServers
 		 * @return	True if the server has timed out while trying to establish a connection.
 		 **/
 		virtual bool IsTimedOut() = 0;
-	
+
 	public:
 		// Delegate fired when the server is ready for connections, first parameter is a map of all supported endpoints and their urls.
 		FOnReady OnReady;
@@ -110,7 +110,6 @@ namespace UE::PixelStreamingServers
 		DECLARE_MULTICAST_DELEGATE(FOnFailedToReady);
 		/* Can fire when the server is unable to be contacted or connecting to it timed out. */
 		FOnFailedToReady OnFailedToReady;
-
 	};
 
 	/* -------------- Static utility methods for working with Pixel Streaming servers. ----------------- */
@@ -132,10 +131,18 @@ namespace UE::PixelStreamingServers
 	PIXELSTREAMINGSERVERS_API TSharedPtr<IServer> MakeSignallingServer();
 
 	/**
+	 * Creates a native C++ signalling server (matching signalling functionality of cirrus.js from legacy versions, pre UE5) with no dependencies launched inside the Unreal Engine process.
+	 * Note: Calling this method does not launch the server. You should call Launch() yourself
+	 * once you have bound to appropriate delegates such as OnReady.
+	 * @return	The embedded signalling server.
+	 **/
+	PIXELSTREAMINGSERVERS_API TSharedPtr<IServer> MakeLegacySignallingServer();
+
+	/**
 	 * Download the Pixel Streaming servers using the `get_ps_servers` scripts.
 	 * @param bSkipIfPresent Servers will not be downloaded if they are already present.
 	 * @return The child process that is used to download the servers.
 	 **/
 	PIXELSTREAMINGSERVERS_API TSharedPtr<FMonitoredProcess> DownloadPixelStreamingServers(bool bSkipIfPresent);
 
-} // namespace UE::PixelStreaming
+} // namespace UE::PixelStreamingServers

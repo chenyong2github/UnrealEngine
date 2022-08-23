@@ -10,7 +10,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "GameFramework/GameUserSettings.h"
 #include "PixelStreamingPrivate.h"
-#include "PixelStreamingProtocolDefs.h"
+#include "PixelStreamingProtocol.h"
 #include "IPixelStreamingStreamer.h"
 #include "Settings.h"
 #include "Utils.h"
@@ -58,9 +58,9 @@ void UPixelStreamingInput::SendPixelStreamingResponse(const FString& Descriptor)
 {
 	if (PixelStreamingModule)
 	{
-		PixelStreamingModule->ForEachStreamer([&Descriptor](TSharedPtr<IPixelStreamingStreamer> Streamer)
+		PixelStreamingModule->ForEachStreamer([&Descriptor, this](TSharedPtr<IPixelStreamingStreamer> Streamer)
 		{
-			Streamer->SendPlayerMessage(UE::PixelStreaming::Protocol::EToPlayerMsg::Response, Descriptor);
+			Streamer->SendPlayerMessage(PixelStreamingModule->GetProtocol().FromStreamerProtocol.Find("Response")->Id, Descriptor);
 		});
 	}
 	else

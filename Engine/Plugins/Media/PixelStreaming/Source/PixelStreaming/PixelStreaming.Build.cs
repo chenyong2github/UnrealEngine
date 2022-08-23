@@ -64,7 +64,8 @@ namespace UnrealBuildTool.Rules
 			{
 				"ApplicationCore",
 				"InputDevice",
-				"WebRTC"
+				"WebRTC",
+				"PixelCapture"
 			});
 
 			// NOTE: General rule is not to access the private folder of another module
@@ -90,6 +91,7 @@ namespace UnrealBuildTool.Rules
 				"Renderer",
 				"RenderCore",
 				"RHI",
+				"SignalProcessing",
 				"Slate",
 				"SlateCore",
 				"AudioMixer",
@@ -99,8 +101,8 @@ namespace UnrealBuildTool.Rules
 				"MediaUtils",
 				"DeveloperSettings",
 				"AVEncoder",
-				"PixelStreamingShaders",
-				"PixelStreamingServers"
+				"PixelCaptureShaders",
+				"PixelStreamingServers",
 			});
 
 			PrivateDependencyModuleNames.Add("VulkanRHI");

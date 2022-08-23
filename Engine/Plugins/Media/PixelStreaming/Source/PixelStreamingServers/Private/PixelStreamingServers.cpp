@@ -3,6 +3,7 @@
 #include "PixelStreamingServers.h"
 #include "CirrusWrapper.h"
 #include "SignallingServer.h"
+#include "SignallingServerLegacy.h"
 
 namespace UE::PixelStreamingServers
 {
@@ -19,6 +20,11 @@ namespace UE::PixelStreamingServers
 	TSharedPtr<FMonitoredProcess> DownloadPixelStreamingServers(bool bSkipIfPresent)
 	{
 		return Utils::DownloadPixelStreamingServers(bSkipIfPresent);
+	}
+
+	TSharedPtr<IServer> MakeLegacySignallingServer()
+	{
+		return MakeShared<FSignallingServerLegacy>();
 	}
 
 } // namespace UE::PixelStreamingServers

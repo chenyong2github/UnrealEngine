@@ -2,7 +2,7 @@
 
 #include "PixelStreamingMessageHandler.h"
 #include "InputStructures.h"
-#include "PixelStreamingProtocolDefs.h"
+#include "PixelStreamingProtocol.h"
 #include "PixelStreamingModule.h"
 #include "JavaScriptKeyCodes.inl"
 #include "Settings.h"
@@ -23,12 +23,10 @@ DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingMessageHandler, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(LogPixelStreamingMessageHandler);
 
 // TODO: Gesture recognition is moving to the browser, so add handlers for the gesture events.
-// The gestures supported will be swipe, pinch, 
+// The gestures supported will be swipe, pinch,
 
 namespace UE::PixelStreaming
 {
-    #define BIND_PLAYBACK_HANDLER(Address, Func) DispatchTable.FindOrAdd(Address).BindRaw(this, Func);
-
     FPixelStreamingMessageHandler::FPixelStreamingMessageHandler(TSharedPtr<FPixelStreamingApplicationWrapper> InApplicationWrapper, const TSharedPtr<FGenericApplicationMessageHandler>& InTargetHandler)
     : TargetViewport(nullptr)
     , NumActiveTouches(0)
@@ -39,36 +37,38 @@ namespace UE::PixelStreaming
     , FocusedPos(FVector2D(-1.0f, -1.0f))
     , UnfocusedPos(FVector2D(-1.0f, -1.0f))
     {
-        using namespace Protocol;
+        RegisterHandler("KeyPress", [this](FMemoryReader Ar) { HandleOnKeyChar(Ar); });
+        RegisterHandler("KeyUp", [this](FMemoryReader Ar) { HandleOnKeyUp(Ar); });
+        RegisterHandler("KeyDown", [this](FMemoryReader Ar) { HandleOnKeyDown(Ar); });
 
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::KeyPress, &FPixelStreamingMessageHandler::HandleOnKeyChar);
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::KeyUp, &FPixelStreamingMessageHandler::HandleOnKeyUp);
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::KeyDown, &FPixelStreamingMessageHandler::HandleOnKeyDown);
+        RegisterHandler("TouchStart", [this](FMemoryReader Ar) { HandleOnTouchStarted(Ar); });
+        RegisterHandler("TouchMove", [this](FMemoryReader Ar) { HandleOnTouchMoved(Ar); });
+        RegisterHandler("TouchEnd", [this](FMemoryReader Ar) { HandleOnTouchEnded(Ar); });
 
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::TouchStart, &FPixelStreamingMessageHandler::HandleOnTouchStarted);
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::TouchMove, &FPixelStreamingMessageHandler::HandleOnTouchMoved);
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::TouchEnd, &FPixelStreamingMessageHandler::HandleOnTouchEnded);
+        RegisterHandler("GamepadAnalog", [this](FMemoryReader Ar) { HandleOnControllerAnalog(Ar); });
+        RegisterHandler("GamepadButtonPressed", [this](FMemoryReader Ar) { HandleOnControllerButtonPressed(Ar); });
+        RegisterHandler("GamepadButtonReleased", [this](FMemoryReader Ar) { HandleOnControllerButtonReleased(Ar); });
 
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::GamepadAnalog, &FPixelStreamingMessageHandler::HandleOnControllerAnalog);
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::GamepadButtonPressed, &FPixelStreamingMessageHandler::HandleOnControllerButtonPressed);
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::GamepadButtonReleased, &FPixelStreamingMessageHandler::HandleOnControllerButtonReleased);
+        RegisterHandler("MouseEnter", [this](FMemoryReader Ar) { HandleOnMouseEnter(Ar); });
+        RegisterHandler("MouseLeave", [this](FMemoryReader Ar) { HandleOnMouseLeave(Ar); });
+        RegisterHandler("MouseUp", [this](FMemoryReader Ar) { HandleOnMouseUp(Ar); });
+        RegisterHandler("MouseDown", [this](FMemoryReader Ar) { HandleOnMouseDown(Ar); });
+        RegisterHandler("MouseMove", [this](FMemoryReader Ar) { HandleOnMouseMove(Ar); });
+        RegisterHandler("MouseWheel", [this](FMemoryReader Ar) { HandleOnMouseWheel(Ar); });
+		RegisterHandler("MouseDouble", [this](FMemoryReader Ar) { HandleOnMouseDoubleClick(Ar); });
 
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::MouseEnter, &FPixelStreamingMessageHandler::HandleOnMouseEnter);
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::MouseLeave, &FPixelStreamingMessageHandler::HandleOnMouseLeave);
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::MouseUp, &FPixelStreamingMessageHandler::HandleOnMouseUp);
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::MouseDown, &FPixelStreamingMessageHandler::HandleOnMouseDown);
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::MouseMove, &FPixelStreamingMessageHandler::HandleOnMouseMove);
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::MouseWheel, &FPixelStreamingMessageHandler::HandleOnMouseWheel);
-
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::Command, &FPixelStreamingMessageHandler::HandleCommand);
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::UIInteraction, &FPixelStreamingMessageHandler::HandleUIInteraction);
-
-        BIND_PLAYBACK_HANDLER((uint8) EToStreamerMsg::ARKitTransform, &FPixelStreamingMessageHandler::HandleARKitTransform);
+        RegisterHandler("Command", [this](FMemoryReader Ar) { HandleCommand(Ar); });
+        RegisterHandler("UIInteraction", [this](FMemoryReader Ar) { HandleUIInteraction(Ar); });
     }
 
     FPixelStreamingMessageHandler::~FPixelStreamingMessageHandler()
     {
+    }
 
+    void FPixelStreamingMessageHandler::RegisterHandler(const FString& MessageType, const TFunction<void(FMemoryReader)>& Handler)
+    {
+        TMap<FString, Protocol::FPixelStreamingInputMessage> Protocol = PixelStreamingModule->GetProtocol().ToStreamerProtocol;
+        DispatchTable.FindOrAdd(Protocol.Find(MessageType)->Id, Handler);
     }
 
     void FPixelStreamingMessageHandler::Tick(const float InDeltaTime)
@@ -77,31 +77,31 @@ namespace UE::PixelStreaming
 		while (Messages.Dequeue(Message))
 		{
             FMemoryReader Ar(Message.Data);
-            Message.Dispatch->ExecuteIfBound(Ar);
+            (*Message.Handler)(Ar);
         }
     }
 
-    void FPixelStreamingMessageHandler::OnMessage(const webrtc::DataBuffer& Buffer)
-    {
-        using namespace Protocol;
+	void FPixelStreamingMessageHandler::OnMessage(const webrtc::DataBuffer& Buffer)
+	{
+		using namespace Protocol;
 
 		const uint8* Data = Buffer.data.data();
 		uint32 Size = (uint32)Buffer.data.size();
-        if(sizeof(EToStreamerMsg) > Size)
+        if(sizeof(uint8) > Size)
         {
             UE_LOG(LogPixelStreamingMessageHandler, Warning, TEXT("Buffer size is too small to extract message type. Buffer size (bytes): %d"), Size);
             return;
         }
 		const uint8 MsgType = *Data;
-		Data += sizeof(EToStreamerMsg);
-		Size -= sizeof(EToStreamerMsg);
+		Data += sizeof(uint8);
+		Size -= sizeof(uint8);
 
-        FMessageDispatch* Dispatch = DispatchTable.Find(MsgType);
-        if (Dispatch != nullptr)
+        TFunction<void(FMemoryReader)>* Handler = DispatchTable.Find(MsgType);
+        if (Handler != nullptr)
         {
             TArray<uint8> MessageData(Data, Size);
             FMessage Message = {
-                Dispatch,   // The function to call
+                Handler,   // The function to call
                 MessageData // The message data
             };
             Messages.Enqueue(Message);
@@ -112,32 +112,42 @@ namespace UE::PixelStreaming
         }
     }
 
-    void FPixelStreamingMessageHandler::SetTargetWindow(TWeakPtr<SWindow> InWindow)
-    {
-        TargetWindow = InWindow;
-    }
+	void FPixelStreamingMessageHandler::SetTargetWindow(TWeakPtr<SWindow> InWindow)
+	{
+		TargetWindow = InWindow;
+	}
 
-    TWeakPtr<SWindow> FPixelStreamingMessageHandler::GetTargetWindow()
-    {
-        return TargetWindow;
-    }
+	TWeakPtr<SWindow> FPixelStreamingMessageHandler::GetTargetWindow()
+	{
+		return TargetWindow;
+	}
 
-    void FPixelStreamingMessageHandler::SetTargetViewport(FSceneViewport* InViewport)
-    {
-        TargetViewport = InViewport;
-    }
+	void FPixelStreamingMessageHandler::SetTargetScreenSize(TWeakPtr<FIntPoint> InScreenSize)
+	{
+		TargetScreenSize = InScreenSize;
+	}
 
-    FSceneViewport* FPixelStreamingMessageHandler::GetTargetViewport()
-    {
-        return TargetViewport;
-    }
+	TWeakPtr<FIntPoint> FPixelStreamingMessageHandler::GetTargetScreenSize()
+	{
+		return TargetScreenSize;
+	}
 
-    void FPixelStreamingMessageHandler::SetTargetHandler(const TSharedPtr<FGenericApplicationMessageHandler>& InTargetHandler)
-    {
-        MessageHandler = InTargetHandler;
-    }
+	void FPixelStreamingMessageHandler::SetTargetViewport(TWeakPtr<SViewport> InViewport)
+	{
+		TargetViewport = InViewport;
+	}
 
-    void FPixelStreamingMessageHandler::HandleOnKeyChar(FMemoryReader& Ar)
+	TWeakPtr<SViewport> FPixelStreamingMessageHandler::GetTargetViewport()
+	{
+		return TargetViewport;
+	}
+
+	void FPixelStreamingMessageHandler::SetTargetHandler(const TSharedPtr<FGenericApplicationMessageHandler>& InTargetHandler)
+	{
+		MessageHandler = InTargetHandler;
+	}
+
+    void FPixelStreamingMessageHandler::HandleOnKeyChar(FMemoryReader Ar)
     {
         TPayloadOneParam<TCHAR> Payload(Ar);
         UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("KEY_PRESSED: Character = '%c'"), Payload.Param1);
@@ -146,11 +156,28 @@ namespace UE::PixelStreaming
         MessageHandler->OnKeyChar(Payload.Param1, false);
     }
 
-    void FPixelStreamingMessageHandler::HandleOnKeyDown(FMemoryReader& Ar)
+    void FPixelStreamingMessageHandler::HandleOnKeyDown(FMemoryReader Ar)
     {
         TPayloadTwoParam<uint8, uint8> Payload(Ar);
 
-        bool bIsRepeat = Payload.Param2 != 0;
+		bool bIsRepeat = Payload.Param2 != 0;
+		const FKey* AgnosticKey = JavaScriptKeyCodeToFKey[Payload.Param1];
+		if (FilterKey(*AgnosticKey))
+		{
+			const uint32* KeyPtr;
+			const uint32* CharacterPtr;
+			FInputKeyManager::Get().GetCodesFromKey(*AgnosticKey, KeyPtr, CharacterPtr);
+			uint32 Key = KeyPtr ? *KeyPtr : 0;
+			uint32 Character = CharacterPtr ? *CharacterPtr : 0;
+
+			UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("KEY_DOWN: Key = %d; Character = %d; IsRepeat = %s"), Key, Character, bIsRepeat ? TEXT("True") : TEXT("False"));
+			MessageHandler->OnKeyDown((int32)Key, (int32)Character, bIsRepeat);
+		}
+	}
+
+    void FPixelStreamingMessageHandler::HandleOnKeyUp(FMemoryReader Ar)
+    {
+        TPayloadOneParam<uint8> Payload(Ar);
         const FKey* AgnosticKey = JavaScriptKeyCodeToFKey[Payload.Param1];
         if (FilterKey(*AgnosticKey))
 		{
@@ -160,97 +187,76 @@ namespace UE::PixelStreaming
 			uint32 Key = KeyPtr ? *KeyPtr : 0;
 			uint32 Character = CharacterPtr ? *CharacterPtr : 0;
 
-            UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("KEY_DOWN: Key = %d; Character = %d; IsRepeat = %s"), Key, Character, bIsRepeat ? TEXT("True") : TEXT("False"));
-            MessageHandler->OnKeyDown((int32) Key, (int32) Character, bIsRepeat);
+			UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("KEY_UP: Key = %d; Character = %d"), Key, Character);
+			MessageHandler->OnKeyUp((int32)Key, (int32)Character, false);
 		}
-    }
+	}
 
-    void FPixelStreamingMessageHandler::HandleOnKeyUp(FMemoryReader& Ar)
+    void FPixelStreamingMessageHandler::HandleOnTouchStarted(FMemoryReader Ar)
     {
         TPayloadOneParam<uint8> Payload(Ar);
-        const FKey* AgnosticKey = JavaScriptKeyCodeToFKey[Payload.Param1];
-        if (FilterKey(*AgnosticKey))
+
+		uint8 NumTouches = Payload.Param1;
+		for (uint8 TouchIdx = 0; TouchIdx < NumTouches; TouchIdx++)
 		{
-			const uint32* KeyPtr;
-			const uint32* CharacterPtr;
-			FInputKeyManager::Get().GetCodesFromKey(*AgnosticKey, KeyPtr, CharacterPtr);
-			uint32 Key = KeyPtr ? *KeyPtr : 0;
-			uint32 Character = CharacterPtr ? *CharacterPtr : 0;
-          
-            UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("KEY_UP: Key = %d; Character = %d"), Key, Character);
-            MessageHandler->OnKeyUp((int32) Key, (int32) Character, false);
+			//                 PosX    PoxY    IDX   Force  Valid
+			TPayloadFiveParam<uint16, uint16, uint8, uint8, uint8> Touch(Ar);
+			// If Touch is valid
+			if (Touch.Param5 != 0)
+			{
+				if (NumActiveTouches == 0 && !bIsMouseActive)
+				{
+					FSlateApplication::Get().OnCursorSet();
+					// Make sure the application is active.
+					FSlateApplication::Get().ProcessApplicationActivationEvent(true);
+
+					FVector2D OldCursorLocation = PixelStreamerApplicationWrapper->WrappedApplication->Cursor->GetPosition();
+					PixelStreamerApplicationWrapper->Cursor->SetPosition(OldCursorLocation.X, OldCursorLocation.Y);
+					FSlateApplication::Get().OverridePlatformApplication(PixelStreamerApplicationWrapper);
+				}
+
+				//                                                                           convert range from 0,65536 -> 0,1
+				FVector2D TouchLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / uint16_MAX, Touch.Param2 / uint16_MAX));
+
+				// We must update the user cursor position explicitly before updating the application cursor position
+				// as if there's a delta between them, when the touch event is started it will trigger a move
+				// resulting in a large 'drag' across the screen
+				TSharedPtr<FSlateUser> User = FSlateApplication::Get().GetCursorUser();
+				User->SetCursorPosition(TouchLocation);
+				PixelStreamerApplicationWrapper->Cursor->SetPosition(TouchLocation.X, TouchLocation.Y);
+				PixelStreamerApplicationWrapper->WrappedApplication->Cursor->SetPosition(TouchLocation.X, TouchLocation.Y);
+
+				UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("TOUCH_START: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d); Force = %.3f"), Touch.Param3, Touch.Param1, Touch.Param2, static_cast<int>(TouchLocation.X), static_cast<int>(TouchLocation.Y), Touch.Param4 / 255.0f);
+				MessageHandler->OnTouchStarted(PixelStreamerApplicationWrapper->GetWindowUnderCursor(), TouchLocation, Touch.Param4 / 255.0f, Touch.Param3, 0); // TODO: ControllerId?
+
+				NumActiveTouches++;
+			}
 		}
+		
+		FindFocusedWidget();
     }
 
-    void FPixelStreamingMessageHandler::HandleOnTouchStarted(FMemoryReader& Ar)
+    void FPixelStreamingMessageHandler::HandleOnTouchMoved(FMemoryReader Ar)
     {
         TPayloadOneParam<uint8> Payload(Ar);
 
-        uint8 NumTouches = Payload.Param1;
-        for(uint8 TouchIdx = 0; TouchIdx < NumTouches; TouchIdx++)
-        {
-            //                 PosX    PoxY    IDX   Force  Valid
-            TPayloadFiveParam<uint16, uint16, uint8, uint8, uint8> Touch(Ar);
-            // If Touch is valid
-            if(Touch.Param5 != 0)
-            {
-                if(NumActiveTouches == 0 && !bIsMouseActive)
-                {
-                    FSlateApplication::Get().OnCursorSet();
-                    // Make sure the application is active.
-                    FSlateApplication::Get().ProcessApplicationActivationEvent(true);
-
-                    FVector2D OldCursorLocation = PixelStreamerApplicationWrapper->WrappedApplication->Cursor->GetPosition();
-                    PixelStreamerApplicationWrapper->Cursor->SetPosition(OldCursorLocation.X, OldCursorLocation.Y);
-                    FSlateApplication::Get().OverridePlatformApplication(PixelStreamerApplicationWrapper);
-                }
-
-                //                                                                           convert range from 0,65536 -> 0,1
-                FVector2D TouchLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / 65536.0f, Touch.Param2 / 65536.0f));
-
-                // We must update the user cursor position explicitly before updating the application cursor position
-                // as if there's a delta between them, when the touch event is started it will trigger a move
-                // resulting in a large 'drag' across the screen
-                TSharedPtr<FSlateUser> User = FSlateApplication::Get().GetCursorUser();
-                User->SetCursorPosition(TouchLocation);
-                PixelStreamerApplicationWrapper->Cursor->SetPosition(TouchLocation.X, TouchLocation.Y);
-                PixelStreamerApplicationWrapper->WrappedApplication->Cursor->SetPosition(TouchLocation.X, TouchLocation.Y);
-                
-                UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("TOUCH_START: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d); Force = %.3f"), Touch.Param3, Touch.Param1, Touch.Param2, static_cast<int>(TouchLocation.X), static_cast<int>(TouchLocation.Y), Touch.Param4 / 255.0f);
-                MessageHandler->OnTouchStarted(PixelStreamerApplicationWrapper->GetWindowUnderCursor(), TouchLocation, Touch.Param4 / 255.0f, Touch.Param3, 0); // TODO: ControllerId?     
-
-                NumActiveTouches++;
-            }
-        }
-
-        FindFocusedWidget();
-    }
-
-    void FPixelStreamingMessageHandler::HandleOnTouchMoved(FMemoryReader& Ar)
-    {
-        TPayloadOneParam<uint8> Payload(Ar);
-
-        uint8 NumTouches = Payload.Param1;
-        for(uint8 TouchIdx = 0; TouchIdx < NumTouches; TouchIdx++)
-        {
-            //                 PosX    PoxY    IDX   Force  Valid
-            TPayloadFiveParam<uint16, uint16, uint8, uint8, uint8> Touch(Ar);
-            // If Touch is valid
-            if(Touch.Param5 != 0)
-            {
-                //                                                                           convert range from 0,65536 -> 0,1
-                FVector2D TouchLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / 65536.0f, Touch.Param2 / 65536.0f));
-                
-                PixelStreamerApplicationWrapper->Cursor->SetPosition(TouchLocation.X, TouchLocation.Y);
-                PixelStreamerApplicationWrapper->WrappedApplication->Cursor->SetPosition(TouchLocation.X, TouchLocation.Y);
-
+		uint8 NumTouches = Payload.Param1;
+		for (uint8 TouchIdx = 0; TouchIdx < NumTouches; TouchIdx++)
+		{
+			//                 PosX    PoxY    IDX   Force  Valid
+			TPayloadFiveParam<uint16, uint16, uint8, uint8, uint8> Touch(Ar);
+			// If Touch is valid
+			if (Touch.Param5 != 0)
+			{
+				//                                                                           convert range from 0,65536 -> 0,1
+				FVector2D TouchLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / uint16_MAX, Touch.Param2 / uint16_MAX));
                 UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("TOUCH_MOVE: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d); Force = %.3f"), Touch.Param3, Touch.Param1, Touch.Param2, static_cast<int>(TouchLocation.X), static_cast<int>(TouchLocation.Y),  Touch.Param4 / 255.0f);
                 MessageHandler->OnTouchMoved(TouchLocation, Touch.Param4 / 255.0f, Touch.Param3, 0); // TODO: ControllerId?
             }
         }
     }
 
-    void FPixelStreamingMessageHandler::HandleOnTouchEnded(FMemoryReader& Ar)
+    void FPixelStreamingMessageHandler::HandleOnTouchEnded(FMemoryReader Ar)
     {
         TPayloadOneParam<uint8> Payload(Ar);
         uint8 NumTouches = Payload.Param1;
@@ -260,43 +266,44 @@ namespace UE::PixelStreaming
             TPayloadFiveParam<uint16, uint16, uint8, uint8, uint8> Touch(Ar);
 			// Always allowing the "up" events regardless of in or outside the valid region so
 			// states aren't stuck "down". Might want to uncomment this if it causes other issues.
-            // if(Touch.Param5 != 0)
-            {
-                //                                                                           convert range from 0,65536 -> 0,1
-                FVector2D TouchLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / 65536.0f, Touch.Param2 / 65536.0f));
-                
-                UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("TOUCH_END: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), Touch.Param3, Touch.Param1, Touch.Param2, static_cast<int>(TouchLocation.X), static_cast<int>(TouchLocation.Y));
-                MessageHandler->OnTouchEnded(TouchLocation, Touch.Param3, 0); // TODO: ControllerId?
-                NumActiveTouches--;
-            }
-        }
+			// if(Touch.Param5 != 0)
+			{
+				//                                                                           convert range from 0,65536 -> 0,1
+				FVector2D TouchLocation = ConvertFromNormalizedScreenLocation(FVector2D(Touch.Param1 / uint16_MAX, Touch.Param2 / uint16_MAX));
 
-        // If there's no remaing touches, and there is also no mouse over the player window
-        // then set the platform application back to its default. We need to set it back to default
-        // so that people using the editor (if editor streaming) can click on buttons outside the target window
-        // and also have the correct cursor (pixel streaming forces default cursor)
-        if(NumActiveTouches == 0 && !bIsMouseActive)
-        {
-            FVector2D OldCursorLocation = PixelStreamerApplicationWrapper->Cursor->GetPosition();
-            PixelStreamerApplicationWrapper->WrappedApplication->Cursor->SetPosition(OldCursorLocation.X, OldCursorLocation.Y);
-            FSlateApplication::Get().OverridePlatformApplication(PixelStreamerApplicationWrapper->WrappedApplication);
-        }
-    }
+				UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("TOUCH_END: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), Touch.Param3, Touch.Param1, Touch.Param2, static_cast<int>(TouchLocation.X), static_cast<int>(TouchLocation.Y));
+				MessageHandler->OnTouchEnded(TouchLocation, Touch.Param3, 0); // TODO: ControllerId?
+				NumActiveTouches--;
+			}
+		}
 
-    void FPixelStreamingMessageHandler::HandleOnControllerAnalog(FMemoryReader& Ar)
-    {
-        TPayloadThreeParam<uint8, uint8, double> Payload(Ar);
+		// If there's no remaing touches, and there is also no mouse over the player window
+		// then set the platform application back to its default. We need to set it back to default
+		// so that people using the editor (if editor streaming) can click on buttons outside the target window
+		// and also have the correct cursor (pixel streaming forces default cursor)
+		if (NumActiveTouches == 0 && !bIsMouseActive)
+		{
+			FVector2D OldCursorLocation = PixelStreamerApplicationWrapper->Cursor->GetPosition();
+			PixelStreamerApplicationWrapper->WrappedApplication->Cursor->SetPosition(OldCursorLocation.X, OldCursorLocation.Y);
+			FSlateApplication::Get().OverridePlatformApplication(PixelStreamerApplicationWrapper->WrappedApplication);
+		}
+	}
 
-        FInputDeviceId ControllerId = FInputDeviceId::CreateFromInternalId((int32) Payload.Param1);
-        FGamepadKeyNames::Type Button = ConvertAxisIndexToGamepadAxis(Payload.Param2);
-        float AnalogValue = (float) Payload.Param3;
-        FPlatformUserId UserId = IPlatformInputDeviceMapper::Get().GetPrimaryPlatformUser();
 
-        UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("GAMEPAD_ANALOG: ControllerId = %d; KeyName = %s; AnalogValue = %.4f;"), ControllerId.GetId(), *Button.ToString(), AnalogValue);
+	void FPixelStreamingMessageHandler::HandleOnControllerAnalog(FMemoryReader Ar)
+	{
+		TPayloadThreeParam<uint8, uint8, double> Payload(Ar);
+
+		FInputDeviceId ControllerId = FInputDeviceId::CreateFromInternalId((int32)Payload.Param1);
+		FGamepadKeyNames::Type Button = ConvertAxisIndexToGamepadAxis(Payload.Param2);
+		float AnalogValue = (float)Payload.Param3;
+		FPlatformUserId UserId = IPlatformInputDeviceMapper::Get().GetPrimaryPlatformUser();
+
+		UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("GAMEPAD_ANALOG: ControllerId = %d; KeyName = %s; AnalogValue = %.4f;"), ControllerId.GetId(), *Button.ToString(), AnalogValue);
         MessageHandler->OnControllerAnalog(Button, UserId, ControllerId, AnalogValue);
-    }
+	}
 
-    void FPixelStreamingMessageHandler::HandleOnControllerButtonPressed(FMemoryReader& Ar)
+    void FPixelStreamingMessageHandler::HandleOnControllerButtonPressed(FMemoryReader Ar)
     {
         TPayloadThreeParam<uint8, uint8, uint8> Payload(Ar);
 
@@ -309,7 +316,7 @@ namespace UE::PixelStreaming
         MessageHandler->OnControllerButtonPressed(Button, UserId, ControllerId, bIsRepeat);
     }
 
-    void FPixelStreamingMessageHandler::HandleOnControllerButtonReleased(FMemoryReader& Ar)
+    void FPixelStreamingMessageHandler::HandleOnControllerButtonReleased(FMemoryReader Ar)
     {
         TPayloadTwoParam<uint8, uint8> Payload(Ar);
 
@@ -324,7 +331,7 @@ namespace UE::PixelStreaming
     /**
      * Mouse events
      */
-    void FPixelStreamingMessageHandler::HandleOnMouseEnter(FMemoryReader& Ar)
+    void FPixelStreamingMessageHandler::HandleOnMouseEnter(FMemoryReader Ar)
     {
         if(NumActiveTouches == 0 && !bIsMouseActive)
         {
@@ -338,7 +345,7 @@ namespace UE::PixelStreaming
         UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("MOUSE_ENTER"));
     }
 
-    void FPixelStreamingMessageHandler::HandleOnMouseLeave(FMemoryReader& Ar)
+    void FPixelStreamingMessageHandler::HandleOnMouseLeave(FMemoryReader Ar)
     {
         if(NumActiveTouches == 0)
         {
@@ -349,7 +356,7 @@ namespace UE::PixelStreaming
 	    UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("MOUSE_LEAVE"));
     }
 
-    void FPixelStreamingMessageHandler::HandleOnMouseUp(FMemoryReader& Ar)
+    void FPixelStreamingMessageHandler::HandleOnMouseUp(FMemoryReader Ar)
     {
         TPayloadThreeParam<uint8, uint16, uint16> Payload(Ar);
 
@@ -361,57 +368,70 @@ namespace UE::PixelStreaming
         }
     }
 
-    void FPixelStreamingMessageHandler::HandleOnMouseDown(FMemoryReader& Ar)
+    void FPixelStreamingMessageHandler::HandleOnMouseDown(FMemoryReader Ar)
     {
         TPayloadThreeParam<uint8, uint16, uint16> Payload(Ar);
         //                                                                           convert range from 0,65536 -> 0,1
-        FVector2D ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / 65536.0f, Payload.Param3 / 65536.0f));
+        FVector2D ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / uint16_MAX, Payload.Param3 / uint16_MAX));
         EMouseButtons::Type Button = static_cast<EMouseButtons::Type>(Payload.Param1);
 
 		UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("MOUSE_DOWN: Button = %d; Pos = (%.4f, %.4f)"), Button, ScreenLocation.X, ScreenLocation.Y);
-        // Force window focus
-        FSlateApplication::Get().ProcessApplicationActivationEvent(true);
-        MessageHandler->OnMouseDown(PixelStreamerApplicationWrapper->GetWindowUnderCursor(), Button, ScreenLocation);
-    }
+		// Force window focus
+		FSlateApplication::Get().ProcessApplicationActivationEvent(true);
+		MessageHandler->OnMouseDown(PixelStreamerApplicationWrapper->GetWindowUnderCursor(), Button, ScreenLocation);
+	}
 
-    void FPixelStreamingMessageHandler::HandleOnMouseMove(FMemoryReader& Ar)
+    void FPixelStreamingMessageHandler::HandleOnMouseMove(FMemoryReader Ar)
     {
         TPayloadFourParam<uint16, uint16, int16, int16> Payload(Ar);
         //                                                                           convert range from 0,65536 -> 0,1
-        FIntPoint ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param1 / 65536.0f, Payload.Param2 / 65536.0f));
+        FIntPoint ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param1 / uint16_MAX, Payload.Param2 / uint16_MAX));
         //                                                                 convert range from -32,768 to 32,767 -> -1,1
-        FIntPoint Delta = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param3 / 32767.0f, Payload.Param4 / 32767.0f), false);
+        FIntPoint Delta = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param3 / int16_MAX, Payload.Param4 / int16_MAX), false);
 
-        FSlateApplication::Get().OnCursorSet();
-        UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("MOUSE_MOVE: Pos = (%d, %d); Delta = (%d, %d)"), ScreenLocation.X, ScreenLocation.Y, Delta.X, Delta.Y);
-        PixelStreamerApplicationWrapper->Cursor->SetPosition(ScreenLocation.X, ScreenLocation.Y);
-        MessageHandler->OnRawMouseMove(Delta.X, Delta.Y);
-    }
+		FSlateApplication::Get().OnCursorSet();
+		UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("MOUSE_MOVE: Pos = (%d, %d); Delta = (%d, %d)"), ScreenLocation.X, ScreenLocation.Y, Delta.X, Delta.Y);
+		PixelStreamerApplicationWrapper->Cursor->SetPosition(ScreenLocation.X, ScreenLocation.Y);
+		MessageHandler->OnRawMouseMove(Delta.X, Delta.Y);
+	}
 
-    void FPixelStreamingMessageHandler::HandleOnMouseWheel(FMemoryReader& Ar)
+    void FPixelStreamingMessageHandler::HandleOnMouseWheel(FMemoryReader Ar)
     {
         TPayloadThreeParam<int16, uint16, uint16> Payload(Ar);
          //                                                                           convert range from 0,65536 -> 0,1
-        FIntPoint ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / 65536.0f, Payload.Param3 / 65536.0f));
+        FIntPoint ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / uint16_MAX, Payload.Param3 / uint16_MAX));
         const float SpinFactor = 1 / 120.0f;
         MessageHandler->OnMouseWheel(Payload.Param1 * SpinFactor, ScreenLocation);
         UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("MOUSE_WHEEL: Delta = %d; Pos = (%d, %d)"), Payload.Param1, ScreenLocation.X, ScreenLocation.Y);
     }
 
+	void FPixelStreamingMessageHandler::HandleOnMouseDoubleClick(FMemoryReader Ar)
+	{
+		TPayloadThreeParam<uint8, uint16, uint16> Payload(Ar);
+        //                                                                           convert range from 0,65536 -> 0,1
+        FVector2D ScreenLocation = ConvertFromNormalizedScreenLocation(FVector2D(Payload.Param2 / uint16_MAX, Payload.Param3 / uint16_MAX));
+        EMouseButtons::Type Button = static_cast<EMouseButtons::Type>(Payload.Param1);
+
+		UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("MOUSE_DOWN: Button = %d; Pos = (%.4f, %.4f)"), Button, ScreenLocation.X, ScreenLocation.Y);
+		// Force window focus
+		FSlateApplication::Get().ProcessApplicationActivationEvent(true);
+		MessageHandler->OnMouseDoubleClick(PixelStreamerApplicationWrapper->GetWindowUnderCursor(), Button, ScreenLocation);
+	}
+
     /**
      * Command handling
      */
-    void FPixelStreamingMessageHandler::HandleCommand(FMemoryReader& Ar)
+    void FPixelStreamingMessageHandler::HandleCommand(FMemoryReader Ar)
     {
         FString Res;
         Res.GetCharArray().SetNumUninitialized(Ar.TotalSize() / 2 + 1);
         Ar.Serialize(Res.GetCharArray().GetData(), Ar.TotalSize());
 
-        FString Descriptor = Res.Mid(MessageHeaderOffset);
-        UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("Command: %s"), *Descriptor);
+		FString Descriptor = Res.Mid(MessageHeaderOffset);
+		UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("Command: %s"), *Descriptor);
 
-        bool bSuccess = false;
-			
+		bool bSuccess = false;
+
 		FString ConsoleCommand;
 		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("ConsoleCommand"), ConsoleCommand, bSuccess);
 		if (bSuccess && UE::PixelStreaming::Settings::CVarPixelStreamingAllowConsoleCommands.GetValueOnAnyThread())
@@ -420,8 +440,8 @@ namespace UE::PixelStreaming
 			return;
 		}
 
-		/** 
-		 * Allowed Console commands 
+		/**
+		 * Allowed Console commands
 		 */
 		FString WidthString;
 		FString HeightString;
@@ -430,7 +450,7 @@ namespace UE::PixelStreaming
 		{
 			UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
 
-			if(bSuccess) 
+			if (bSuccess)
 			{
 				int Width = FCString::Atoi(*WidthString);
 				int Height = FCString::Atoi(*HeightString);
@@ -447,7 +467,7 @@ namespace UE::PixelStreaming
 
 		FString StatFPSString;
 		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Stat.FPS"), StatFPSString, bSuccess);
-		if(bSuccess)
+		if (bSuccess)
 		{
 			FString StatFPSCommand = FString::Printf(TEXT("stat fps"));
 			GEngine->Exec(GEngine->GetWorld(), *StatFPSCommand);
@@ -459,7 +479,7 @@ namespace UE::PixelStreaming
 		 */
 		FString MinQPString;
 		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Encoder.MinQP"), MinQPString, bSuccess);
-		if(bSuccess)
+		if (bSuccess)
 		{
 			int MinQP = FCString::Atoi(*MinQPString);
 			UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMinQP->Set(MinQP, ECVF_SetByCommandline);
@@ -468,7 +488,7 @@ namespace UE::PixelStreaming
 
 		FString MaxQPString;
 		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Encoder.MaxQP"), MaxQPString, bSuccess);
-		if(bSuccess)
+		if (bSuccess)
 		{
 			int MaxQP = FCString::Atoi(*MaxQPString);
 			UE::PixelStreaming::Settings::CVarPixelStreamingEncoderMaxQP->Set(MaxQP, ECVF_SetByCommandline);
@@ -480,7 +500,7 @@ namespace UE::PixelStreaming
 		 */
 		FString FPSString;
 		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("WebRTC.Fps"), FPSString, bSuccess);
-		if(bSuccess)
+		if (bSuccess)
 		{
 			int FPS = FCString::Atoi(*FPSString);
 			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCFps->Set(FPS, ECVF_SetByCommandline);
@@ -489,7 +509,7 @@ namespace UE::PixelStreaming
 
 		FString MinBitrateString;
 		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("WebRTC.MinBitrate"), MinBitrateString, bSuccess);
-		if(bSuccess)
+		if (bSuccess)
 		{
 			int MinBitrate = FCString::Atoi(*MinBitrateString);
 			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCMinBitrate->Set(MinBitrate, ECVF_SetByCommandline);
@@ -498,114 +518,84 @@ namespace UE::PixelStreaming
 
 		FString MaxBitrateString;
 		UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("WebRTC.MaxBitrate"), MaxBitrateString, bSuccess);
-		if(bSuccess)
+		if (bSuccess)
 		{
 			int MaxBitrate = FCString::Atoi(*MaxBitrateString);
 			UE::PixelStreaming::Settings::CVarPixelStreamingWebRTCMaxBitrate->Set(MaxBitrate, ECVF_SetByCommandline);
 			return;
 		}
-    }
+	}
 
     /**
      * UI Interaction handling
      */
-    void FPixelStreamingMessageHandler::HandleUIInteraction(FMemoryReader& Ar)
+    void FPixelStreamingMessageHandler::HandleUIInteraction(FMemoryReader Ar)
     {
         FString Res;
         Res.GetCharArray().SetNumUninitialized(Ar.TotalSize() / 2 + 1);
         Ar.Serialize(Res.GetCharArray().GetData(), Ar.TotalSize());
 
-        FString Descriptor = Res.Mid(MessageHeaderOffset);
+		FString Descriptor = Res.Mid(MessageHeaderOffset);
 
-        UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("UIInteraction: %s"), *Descriptor);
-        for (UPixelStreamingInput* InputComponent : PixelStreamingModule->GetInputComponents())
+		UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("UIInteraction: %s"), *Descriptor);
+		for (UPixelStreamingInput* InputComponent : PixelStreamingModule->GetInputComponents())
 		{
 			InputComponent->OnInputEvent.Broadcast(Descriptor);
 		}
-    }
-
-    /**
-     * ARKit Transform handling
-     */
-    void FPixelStreamingMessageHandler::HandleARKitTransform(FMemoryReader& Ar)
-    {
-        /**
-         * ARKit Transform data is currently only used in the PixelStreamingEditor module and the PixelStreamingVCam plugin, not in PixelStreaming itself.
-         * 
-         * If you wish to extract and use the incoming data, examples of how to do so can be found in their respective folders.
-         * 
-          
-         
-        TArray<TArray<TPayloadOneParam<float>>> Elements;
-
-        for(uint8 ColumnIdx = 0; ColumnIdx < 4; ColumnIdx++)
-        {
-            TArray<TPayloadOneParam<float>> Column;
-            for(uint8 RowIdx = 0; RowIdx < 4; RowIdx++)
-            {
-                TPayloadOneParam<float> Element(Ar);
-                Column.Add(Element);
-            }   
-            Elements.Add(Column);
-        }
-
-        TPayloadOneParam<double> Timestamp(Ar);
-
-        UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("ARKit_Transform"));
-        UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("[%.4f, %.4f, %.4f, %.4f]"), Elements[0][0].Param1, Elements[0][1].Param1, Elements[0][2].Param1, Elements[0][3].Param1);
-        UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("[%.4f, %.4f, %.4f, %.4f]"), Elements[1][0].Param1, Elements[1][1].Param1, Elements[1][2].Param1, Elements[1][3].Param1);
-        UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("[%.4f, %.4f, %.4f, %.4f]"), Elements[2][0].Param1, Elements[2][1].Param1, Elements[2][2].Param1, Elements[2][3].Param1);
-        UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("[%.4f, %.4f, %.4f, %.4f]"), Elements[3][0].Param1, Elements[3][1].Param1, Elements[3][2].Param1, Elements[3][3].Param1);
-        UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("Timestamp: %.4f"), Timestamp.Param1);
-        */
-    }
+	}
 
 	FIntPoint FPixelStreamingMessageHandler::ConvertFromNormalizedScreenLocation(const FVector2D& ScreenLocation, bool bIncludeOffset)
-    {
-        FIntPoint OutVector((int32) ScreenLocation.X, (int32) ScreenLocation.Y);
+	{
+		FIntPoint OutVector((int32)ScreenLocation.X, (int32)ScreenLocation.Y);
 
-        TSharedPtr<SWindow> ApplicationWindow = TargetWindow.Pin();
-        if (ApplicationWindow.IsValid())
-        {
-            FVector2D WindowOrigin = ApplicationWindow->GetPositionInScreen();
-            if (TargetViewport)
-            {
-                TSharedPtr<SViewport> ViewportWidget = TargetViewport->GetViewportWidget().Pin();
+		TSharedPtr<SWindow> ApplicationWindow = TargetWindow.Pin();
+		if (ApplicationWindow.IsValid())
+		{
+			FVector2D WindowOrigin = ApplicationWindow->GetPositionInScreen();
+			if (TargetViewport.IsValid())
+			{
+				TSharedPtr<SViewport> ViewportWidget = TargetViewport.Pin();
 
-                if (ViewportWidget.IsValid())
-                {
-                    FGeometry InnerWindowGeometry = ApplicationWindow->GetWindowGeometryInWindow();
+				if (ViewportWidget.IsValid())
+				{
+					FGeometry InnerWindowGeometry = ApplicationWindow->GetWindowGeometryInWindow();
 
-                    // Find the widget path relative to the window
-                    FArrangedChildren JustWindow(EVisibility::Visible);
-                    JustWindow.AddWidget(FArrangedWidget(ApplicationWindow.ToSharedRef(), InnerWindowGeometry));
+					// Find the widget path relative to the window
+					FArrangedChildren JustWindow(EVisibility::Visible);
+					JustWindow.AddWidget(FArrangedWidget(ApplicationWindow.ToSharedRef(), InnerWindowGeometry));
 
-                    FWidgetPath PathToWidget(ApplicationWindow.ToSharedRef(), JustWindow);
-                    if (PathToWidget.ExtendPathTo(FWidgetMatcher(ViewportWidget.ToSharedRef()), EVisibility::Visible))
-                    {
-                        FArrangedWidget ArrangedWidget = PathToWidget.FindArrangedWidget(ViewportWidget.ToSharedRef()).Get(FArrangedWidget::GetNullWidget());
+					FWidgetPath PathToWidget(ApplicationWindow.ToSharedRef(), JustWindow);
+					if (PathToWidget.ExtendPathTo(FWidgetMatcher(ViewportWidget.ToSharedRef()), EVisibility::Visible))
+					{
+						FArrangedWidget ArrangedWidget = PathToWidget.FindArrangedWidget(ViewportWidget.ToSharedRef()).Get(FArrangedWidget::GetNullWidget());
 
-                        FVector2D WindowClientOffset = ArrangedWidget.Geometry.GetAbsolutePosition();
-                        FVector2D WindowClientSize = ArrangedWidget.Geometry.GetAbsoluteSize();
+						FVector2D WindowClientOffset = ArrangedWidget.Geometry.GetAbsolutePosition();
+						FVector2D WindowClientSize = ArrangedWidget.Geometry.GetAbsoluteSize();
 
-                        FVector2D OutTemp =  bIncludeOffset ? WindowOrigin + WindowClientOffset + (ScreenLocation * WindowClientSize) : (ScreenLocation * WindowClientSize);
-                        UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("%.4f, %.4f"), ScreenLocation.X, ScreenLocation.Y);
-                        OutVector = FIntPoint((int32) OutTemp.X, (int32) OutTemp.Y);
-                    }
-                }
-            }
-            else
-            {
-                FVector2D SizeInScreen = ApplicationWindow->GetSizeInScreen();
-                FVector2D OutTemp = SizeInScreen * ScreenLocation;
-                OutVector = FIntPoint((int32) OutTemp.X, (int32) OutTemp.Y);
-            }
-        }
+						FVector2D OutTemp = bIncludeOffset ? WindowOrigin + WindowClientOffset + (ScreenLocation * WindowClientSize) : (ScreenLocation * WindowClientSize);
+						UE_LOG(LogPixelStreamingMessageHandler, Verbose, TEXT("%.4f, %.4f"), ScreenLocation.X, ScreenLocation.Y);
+						OutVector = FIntPoint((int32)OutTemp.X, (int32)OutTemp.Y);
+					}
+				}
+			}
+			else
+			{
+				FVector2D SizeInScreen = ApplicationWindow->GetSizeInScreen();
+				FVector2D OutTemp = SizeInScreen * ScreenLocation;
+				OutVector = FIntPoint((int32)OutTemp.X, (int32)OutTemp.Y);
+			}
+		}
+		else if(TargetScreenSize.IsValid())
+		{
+			FIntPoint SizeInScreen = *(TargetScreenSize.Pin());
+			FVector2D OutTemp = FVector2D(SizeInScreen) * ScreenLocation;
+			OutVector = FIntPoint((int32)OutTemp.X, (int32)OutTemp.Y);
+		}
 
-        return OutVector;
-    }
+		return OutVector;
+	}
 
-    bool FPixelStreamingMessageHandler::FilterKey(const FKey& Key)
+	bool FPixelStreamingMessageHandler::FilterKey(const FKey& Key)
 	{
 		for (auto&& FilteredKey : UE::PixelStreaming::Settings::FilteredKeys)
 		{
@@ -615,7 +605,7 @@ namespace UE::PixelStreaming
 		return true;
 	}
 
-    FGamepadKeyNames::Type FPixelStreamingMessageHandler::ConvertAxisIndexToGamepadAxis(uint8 AnalogAxis)
+	FGamepadKeyNames::Type FPixelStreamingMessageHandler::ConvertAxisIndexToGamepadAxis(uint8 AnalogAxis)
 	{
 		switch (AnalogAxis)
 		{
@@ -737,9 +727,9 @@ namespace UE::PixelStreaming
 		}
 	}
 
-    void FPixelStreamingMessageHandler::FindFocusedWidget()
-    {
-        FSlateApplication::Get().ForEachUser([this](FSlateUser& User) {
+	void FPixelStreamingMessageHandler::FindFocusedWidget()
+	{
+		FSlateApplication::Get().ForEachUser([this](FSlateUser& User) {
 			TSharedPtr<SWidget> FocusedWidget = User.GetFocusedWidget();
 
 			static FName SEditableTextType(TEXT("SEditableText"));
@@ -759,45 +749,45 @@ namespace UE::PixelStreaming
 
 				if (bEditable)
 				{
-                    FVector2D NormalizedLocation;
-                    TSharedPtr<SWindow> ApplicationWindow = TargetWindow.Pin();
-                    if (ApplicationWindow.IsValid())
-                    {
-                        FVector2D WindowOrigin = ApplicationWindow->GetPositionInScreen();
-                        if (TargetViewport)
-                        {
-                            TSharedPtr<SViewport> ViewportWidget = TargetViewport->GetViewportWidget().Pin();
+					FVector2D NormalizedLocation;
+					TSharedPtr<SWindow> ApplicationWindow = TargetWindow.Pin();
+					if (ApplicationWindow.IsValid())
+					{
+						FVector2D WindowOrigin = ApplicationWindow->GetPositionInScreen();
+						if (TargetViewport.IsValid())
+						{
+							TSharedPtr<SViewport> ViewportWidget = TargetViewport.Pin();
 
-                            if (ViewportWidget.IsValid())
-                            {
-                                FGeometry InnerWindowGeometry = ApplicationWindow->GetWindowGeometryInWindow();
+							if (ViewportWidget.IsValid())
+							{
+								FGeometry InnerWindowGeometry = ApplicationWindow->GetWindowGeometryInWindow();
 
-                                // Find the widget path relative to the window
-                                FArrangedChildren JustWindow(EVisibility::Visible);
-                                JustWindow.AddWidget(FArrangedWidget(ApplicationWindow.ToSharedRef(), InnerWindowGeometry));
+								// Find the widget path relative to the window
+								FArrangedChildren JustWindow(EVisibility::Visible);
+								JustWindow.AddWidget(FArrangedWidget(ApplicationWindow.ToSharedRef(), InnerWindowGeometry));
 
-                                FWidgetPath PathToWidget(ApplicationWindow.ToSharedRef(), JustWindow);
-                                if (PathToWidget.ExtendPathTo(FWidgetMatcher(ViewportWidget.ToSharedRef()), EVisibility::Visible))
-                                {
-                                    FArrangedWidget ArrangedWidget = PathToWidget.FindArrangedWidget(ViewportWidget.ToSharedRef()).Get(FArrangedWidget::GetNullWidget());
+								FWidgetPath PathToWidget(ApplicationWindow.ToSharedRef(), JustWindow);
+								if (PathToWidget.ExtendPathTo(FWidgetMatcher(ViewportWidget.ToSharedRef()), EVisibility::Visible))
+								{
+									FArrangedWidget ArrangedWidget = PathToWidget.FindArrangedWidget(ViewportWidget.ToSharedRef()).Get(FArrangedWidget::GetNullWidget());
 
-                                    FVector2D WindowClientOffset = ArrangedWidget.Geometry.GetAbsolutePosition();
-                                    FVector2D WindowClientSize = ArrangedWidget.Geometry.GetAbsoluteSize();
+									FVector2D WindowClientOffset = ArrangedWidget.Geometry.GetAbsolutePosition();
+									FVector2D WindowClientSize = ArrangedWidget.Geometry.GetAbsoluteSize();
 
-                                    Pos = Pos - WindowClientOffset;
-                                    NormalizedLocation = FVector2D(Pos / WindowClientSize);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            FVector2D SizeInScreen = ApplicationWindow->GetSizeInScreen();
-                            NormalizedLocation = FVector2D(Pos / SizeInScreen);
-                        }
-                    }
+									Pos = Pos - WindowClientOffset;
+									NormalizedLocation = FVector2D(Pos / WindowClientSize);
+								}
+							}
+						}
+						else
+						{
+							FVector2D SizeInScreen = ApplicationWindow->GetSizeInScreen();
+							NormalizedLocation = FVector2D(Pos / SizeInScreen);
+						}
+					}
 
-                    NormalizedLocation *= 65536.0f;
-                    // ConvertToNormalizedScreenLocation(Pos, NormalizedLocation);
+					NormalizedLocation *= uint16_MAX;
+					// ConvertToNormalizedScreenLocation(Pos, NormalizedLocation);
 					JsonObject->SetNumberField(TEXT("x"), static_cast<uint16>(NormalizedLocation.X));
 					JsonObject->SetNumberField(TEXT("y"), static_cast<uint16>(NormalizedLocation.Y));
 				}
@@ -806,12 +796,10 @@ namespace UE::PixelStreaming
 				TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Descriptor);
 				FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
 
-				PixelStreamingModule->ForEachStreamer([&Descriptor](TSharedPtr<IPixelStreamingStreamer> Streamer){
-					Streamer->SendPlayerMessage(Protocol::EToPlayerMsg::Command, Descriptor);
+				PixelStreamingModule->ForEachStreamer([&Descriptor, this](TSharedPtr<IPixelStreamingStreamer> Streamer){
+					Streamer->SendPlayerMessage(PixelStreamingModule->GetProtocol().FromStreamerProtocol.Find("Command")->Id, Descriptor);
 				});
 			}
 		});
     }
-
-    #undef BIND_PLAYBACK_HANDLER
-}
+} // namespace UE::PixelStreaming

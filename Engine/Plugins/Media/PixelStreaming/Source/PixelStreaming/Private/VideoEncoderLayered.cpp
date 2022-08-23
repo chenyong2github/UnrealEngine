@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "VideoEncoderLayered.h"
-#include "FrameBufferH264.h"
-#include "FrameBufferI420.h"
+#include "FrameBufferMultiFormat.h"
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
 #include "modules/video_coding/codecs/vp9/include/vp9.h"
 #include "VideoEncoderFactorySingleLayer.h"
@@ -210,12 +209,44 @@ namespace UE::PixelStreaming
 		return WEBRTC_VIDEO_CODEC_OK;
 	}
 
-	int FVideoEncoderLayered::EncodeVPX(const webrtc::VideoFrame& InputImage, const std::vector<webrtc::VideoFrameType>* FrameTypes, bool bSendKeyFrame)
+	int FVideoEncoderLayered::Encode(const webrtc::VideoFrame& input_image, const std::vector<webrtc::VideoFrameType>* frame_types)
 	{
-		const FFrameBufferI420Simulcast* FrameBuffer = static_cast<FFrameBufferI420Simulcast*>(InputImage.video_frame_buffer().get());
-		check(FrameBuffer->GetFrameBufferType() == EPixelStreamingFrameBufferType::Simulcast);
+		if (!IsInitialized())
+		{
+			return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
+		}
 
-		rtc::scoped_refptr<webrtc::I420BufferInterface> SourceBuffer;
+		if (EncodedCompleteCallback == nullptr)
+		{
+			return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
+		}
+
+		// All active streams should generate a key frame if
+		// a key frame is requested by any stream.
+		bool bSendKeyFrame = false;
+		if (frame_types)
+		{
+			for (size_t i = 0; i < frame_types->size(); ++i)
+			{
+				if (frame_types->at(i) == webrtc::VideoFrameType::kVideoFrameKey)
+				{
+					bSendKeyFrame = true;
+					break;
+				}
+			}
+		}
+
+		for (size_t StreamIdx = 0; StreamIdx < StreamInfos.size(); ++StreamIdx)
+		{
+			if (StreamInfos[StreamIdx].KeyFrameRequest && StreamInfos[StreamIdx].bSendStream)
+			{
+				bSendKeyFrame = true;
+				break;
+			}
+		}
+
+		const FFrameBufferMultiFormatLayered* FrameBuffer = static_cast<FFrameBufferMultiFormatLayered*>(input_image.video_frame_buffer().get());
+
 		for (size_t StreamIdx = 0; StreamIdx < StreamInfos.size(); ++StreamIdx)
 		{
 			// Don't encode frames in resolutions that we don't intend to send.
@@ -225,9 +256,9 @@ namespace UE::PixelStreaming
 			}
 
 			// extract the specific layer frame buffer
-			webrtc::VideoFrame NewFrame(InputImage);
+			webrtc::VideoFrame NewFrame(input_image);
 			const int LayerIndex = StreamInfos.size() == 1 ? FrameBuffer->GetNumLayers() - 1 : StreamIdx;
-			rtc::scoped_refptr<FFrameBufferI420> LayerFrameBuffer = new rtc::RefCountedObject<FFrameBufferI420>(FrameBuffer->GetFrameAdapter(), LayerIndex);
+			rtc::scoped_refptr<FFrameBufferMultiFormat> LayerFrameBuffer = FrameBuffer->GetLayer(LayerIndex);
 			NewFrame.set_video_frame_buffer(LayerFrameBuffer);
 
 #if WEBRTC_VERSION == 84
@@ -260,125 +291,14 @@ namespace UE::PixelStreaming
 #if WEBRTC_VERSION == 84
 			StreamInfos[StreamIdx].FramerateController->AddFrame(FrameTimestampMs);
 #endif
-			int RtcError = StreamInfos[StreamIdx].Encoder->Encode(NewFrame, &StreamFrameTypes);
+			const int RtcError = StreamInfos[StreamIdx].Encoder->Encode(NewFrame, &StreamFrameTypes);
 			if (RtcError != WEBRTC_VIDEO_CODEC_OK)
 			{
 				return RtcError;
 			}
 		}
+
 		return WEBRTC_VIDEO_CODEC_OK;
-	}
-
-	int FVideoEncoderLayered::EncodeH264(const webrtc::VideoFrame& InputImage, const std::vector<webrtc::VideoFrameType>* FrameTypes, bool bSendKeyFrame)
-	{
-		// ignore any init frames
-		// NOTE: It seems most of the time they never even get here because the internals of WebRTC decide to drop it. It seems it thinks
-		// the encoder is paused or something.
-		const IPixelStreamingFrameBuffer* FrameBuffer = static_cast<IPixelStreamingFrameBuffer*>(InputImage.video_frame_buffer().get());
-		if (FrameBuffer->GetFrameBufferType() == EPixelStreamingFrameBufferType::Initialize)
-		{
-			return WEBRTC_VIDEO_CODEC_OK;
-		}
-		// separate out our pixelstreaming image sources
-		check(FrameBuffer->GetFrameBufferType() == EPixelStreamingFrameBufferType::Simulcast);
-		const FFrameBufferH264Simulcast* SimulcastFrameBuffer = static_cast<const FFrameBufferH264Simulcast*>(FrameBuffer);
-		for (size_t StreamIdx = 0; StreamIdx < StreamInfos.size(); ++StreamIdx)
-		{
-			// Don't encode frames in resolutions that we don't intend to send.
-			if (!StreamInfos[StreamIdx].bSendStream)
-			{
-				continue;
-			}
-			webrtc::VideoFrame NewFrame(InputImage);
-			// grab the simulcast frame source, extract the frame source for this layer and wrap that in a new frame buffer appropriate for H264
-			const int LayerIndex = StreamInfos.size() == 1 ? SimulcastFrameBuffer->GetNumLayers() - 1 : StreamIdx;
-			rtc::scoped_refptr<FFrameBufferH264> LayerFrameBuffer = new rtc::RefCountedObject<FFrameBufferH264>(SimulcastFrameBuffer->GetFrameSource(), LayerIndex);
-			NewFrame.set_video_frame_buffer(LayerFrameBuffer);
-
-#if WEBRTC_VERSION == 84
-			const uint32_t FrameTimestampMs = 1000 * NewFrame.timestamp() / 90000;
-#elif WEBRTC_VERSION == 96
-			// Convert timestamp from RTP 90kHz clock.
-			webrtc::Timestamp FrameTimestamp = webrtc::Timestamp::Micros((1000 * NewFrame.timestamp()) / 90);
-#endif
-			// If adapter is passed through and only one sw encoder does simulcast,
-			// frame types for all streams should be passed to the encoder unchanged.
-			// Otherwise a single per-encoder frame type is passed.
-			std::vector<webrtc::VideoFrameType> StreamFrameTypes(StreamInfos.size() == 1 ? GetNumberOfStreams(CurrentCodec) : 1);
-			if (bSendKeyFrame)
-			{
-				std::fill(StreamFrameTypes.begin(), StreamFrameTypes.end(), webrtc::VideoFrameType::kVideoFrameKey);
-				StreamInfos[StreamIdx].KeyFrameRequest = false;
-			}
-			else
-			{
-#if WEBRTC_VERSION == 84
-				if (StreamInfos[StreamIdx].FramerateController->DropFrame(FrameTimestampMs))
-#elif WEBRTC_VERSION == 96
-				if (StreamInfos[StreamIdx].FramerateController->ShouldDropFrame(FrameTimestamp.us() * 1000))
-#endif
-				{
-					return WEBRTC_VIDEO_CODEC_OK;
-				}
-				std::fill(StreamFrameTypes.begin(), StreamFrameTypes.end(), webrtc::VideoFrameType::kVideoFrameDelta);
-			}
-#if WEBRTC_VERSION == 84
-			StreamInfos[StreamIdx].FramerateController->AddFrame(FrameTimestampMs);
-#endif
-			int RtcError = StreamInfos[StreamIdx].Encoder->Encode(NewFrame, &StreamFrameTypes);
-			if (RtcError != WEBRTC_VIDEO_CODEC_OK)
-			{
-				return RtcError;
-			}
-		}
-		return WEBRTC_VIDEO_CODEC_OK;
-	}
-
-	int FVideoEncoderLayered::Encode(const webrtc::VideoFrame& input_image, const std::vector<webrtc::VideoFrameType>* frame_types)
-	{
-		if (!IsInitialized())
-		{
-			return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
-		}
-		if (EncodedCompleteCallback == nullptr)
-		{
-			return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
-		}
-
-		// All active streams should generate a key frame if
-		// a key frame is requested by any stream.
-		bool bSendKeyFrame = false;
-		if (frame_types)
-		{
-			for (size_t i = 0; i < frame_types->size(); ++i)
-			{
-				if (frame_types->at(i) == webrtc::VideoFrameType::kVideoFrameKey)
-				{
-					bSendKeyFrame = true;
-					break;
-				}
-			}
-		}
-
-		for (size_t StreamIdx = 0; StreamIdx < StreamInfos.size(); ++StreamIdx)
-		{
-			if (StreamInfos[StreamIdx].KeyFrameRequest && StreamInfos[StreamIdx].bSendStream)
-			{
-				bSendKeyFrame = true;
-				break;
-			}
-		}
-
-		switch (CurrentCodec.codecType)
-		{
-			case webrtc::kVideoCodecVP8:
-			case webrtc::kVideoCodecVP9:
-				return EncodeVPX(input_image, frame_types, bSendKeyFrame);
-			case webrtc::kVideoCodecH264:
-				return EncodeH264(input_image, frame_types, bSendKeyFrame);
-			default:
-				return WEBRTC_VIDEO_CODEC_ERROR;
-		}
 	}
 
 	int FVideoEncoderLayered::RegisterEncodeCompleteCallback(webrtc::EncodedImageCallback* callback)

@@ -7,7 +7,6 @@
 #include "PixelStreamingPrivate.h"
 #include "Misc/DefaultValueHelper.h"
 #include "Async/Async.h"
-#include "IPixelStreamingStatsConsumer.h"
 #include "IPixelStreamingModule.h"
 #include "PixelStreamingDelegates.h"
 
@@ -192,6 +191,12 @@ namespace UE::PixelStreaming::Settings
 		TEXT("Disables the collection of WebRTC stats."),
 		ECVF_Default);
 
+	TAutoConsoleVariable<float> CVarPixelStreamingWebRTCAudioGain(
+		TEXT("PixelStreaming.WebRTC.AudioGain"),
+		1.0f,
+		TEXT("Sets the amount of gain to apply to audio. Default: 1.0"),
+		ECVF_Default);
+
 	// End WebRTC CVars
 
 	// Begin Pixel Streaming Plugin CVars
@@ -260,6 +265,12 @@ namespace UE::PixelStreaming::Settings
 		TEXT("PixelStreaming.SuppressICECandidateErrors"),
 		false,
 		TEXT("Silences ice candidate errors from the peer connection. This is used for testing and silencing a specific error that is expected but the number of errors is non-deterministic."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<float> CVarPixelStreamingSignalingReconnectInterval(
+		TEXT("PixelStreaming.SignalingReconnectInterval"),
+		2.0f,
+		TEXT("Changes the number of seconds between attempted reconnects to the signaling server. This is useful for reducing the log spam produced from attempted reconnects. A value <= 0 results in an immediate reconnect. Default: 2.0s"),
 		ECVF_Default);
 
 	TArray<FKey> FilteredKeys;
@@ -331,8 +342,7 @@ namespace UE::PixelStreaming::Settings
 
 	void OnWebRTCFpsChanged(IConsoleVariable* Var)
 	{
-		IPixelStreamingModule::Get().ForEachStreamer([Var](TSharedPtr<IPixelStreamingStreamer> Streamer)
-		{
+		IPixelStreamingModule::Get().ForEachStreamer([Var](TSharedPtr<IPixelStreamingStreamer> Streamer) {
 			Streamer->SetStreamFPS(Var->GetInt());
 		});
 	}
@@ -621,6 +631,7 @@ namespace UE::PixelStreaming::Settings
 		CommandLineParseValue(TEXT("PixelStreamingVideoTracks="), CVarPixelStreamingVideoTracks);
 		CommandLineParseValue(TEXT("PixelStreamingFrameScale="), CVarPixelStreamingFrameScale);
 		CommandLineParseValue(TEXT("PixelStreamingInputController="), CVarPixelStreamingInputController);
+		CommandLineParseValue(TEXT("PixelStreamingSignalingReconnectInterval="), CVarPixelStreamingSignalingReconnectInterval);
 
 		// Options parse (if these exist they are set to true)
 		CommandLineParseOption(TEXT("AllowPixelStreamingCommands"), CVarPixelStreamingAllowConsoleCommands);

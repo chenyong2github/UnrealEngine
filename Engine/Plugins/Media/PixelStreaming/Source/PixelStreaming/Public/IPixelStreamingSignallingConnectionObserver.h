@@ -7,7 +7,7 @@
 #include "PixelStreamingPlayerConfig.h"
 
 // callback interface for `FPixelStreamingSignallingConnection`
-class IPixelStreamingSignallingConnectionObserver
+class PIXELSTREAMING_API IPixelStreamingSignallingConnectionObserver
 {
 public:
 	virtual ~IPixelStreamingSignallingConnectionObserver() = default;
@@ -22,7 +22,7 @@ public:
 	virtual void OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig) { unimplemented(); }
 	virtual void OnSignallingPlayerDisconnected(FPixelStreamingPlayerId PlayerId) { unimplemented(); }
 	virtual void OnSignallingSFUPeerDataChannels(FPixelStreamingPlayerId SFUId, FPixelStreamingPlayerId PlayerId, int32 SendStreamId, int32 RecvStreamId) { unimplemented(); }
-	
+
 	// Player-only
 	virtual void OnSignallingSessionDescription(webrtc::SdpType Type, const FString& Sdp) { unimplemented(); }
 	virtual void OnSignallingRemoteIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp) { unimplemented(); }

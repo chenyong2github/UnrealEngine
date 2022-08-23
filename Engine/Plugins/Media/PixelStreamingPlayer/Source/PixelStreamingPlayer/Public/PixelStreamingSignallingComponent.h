@@ -41,6 +41,13 @@ public:
 	void Disconnect();
 
 	/**
+	 * Send an offer created from a Peer Connection to the signalling server.
+	 * @param Offer The answer object created from calling CreateAnswer on a Peer Connection.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "PixelStreaming")
+	void SendOffer(const FPixelStreamingSessionDescriptionWrapper& Offer);
+
+	/**
 	 * Send an answer created from a Peer Connection to the signalling server.
 	 * @param Answer The answer object created from calling CreateAnswer on a Peer Connection.
 	 */
@@ -83,6 +90,12 @@ public:
 	 */
 	UPROPERTY(BlueprintAssignable, Category = "Components|Activation")
 	FPixelStreamingSignallingComponentOffer OnOffer;
+
+	/**
+	 * Fired when the connection receives an answer from the server. The streamer is answering a previously sent offer by us. Forward to the peer connection.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "Components|Activation")
+	FPixelStreamingSignallingComponentAnswer OnAnswer;
 
 	/**
 	 * Fired when the server sends through an ice candidate. Forward this information on to the peer connection.

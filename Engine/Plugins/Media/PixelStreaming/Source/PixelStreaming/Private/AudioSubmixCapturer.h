@@ -2,13 +2,17 @@
 
 #pragma once
 
-#include "IPixelStreamingAudioSubmixCapturer.h"
 #include "AudioDevice.h"
+
+namespace webrtc
+{
+	class AudioTransport;
+} // namespace webrtc
 
 namespace UE::PixelStreaming
 {
 	// Captures audio from UE and passes it along to WebRTC.
-	class FAudioSubmixCapturer : public IPixelStreamingAudioSubmixCapturer, public ISubmixBufferListener
+	class FAudioSubmixCapturer : public ISubmixBufferListener
 	{
 	public:
 		// This magic number is the max volume used in webrtc fake audio device
@@ -18,15 +22,16 @@ namespace UE::PixelStreaming
 		FAudioSubmixCapturer();
 		virtual ~FAudioSubmixCapturer() = default;
 
-		virtual bool Init() override;
-		virtual bool IsInitialised() const override;
-		virtual bool IsCapturing() const override;
-		virtual void Uninitialise() override;
-		virtual bool StartCapturing() override;
-		virtual bool EndCapturing() override;
-		virtual uint32_t GetVolume() const override;
-		virtual void SetVolume(uint32_t NewVolume) override;
-		virtual void RegisterAudioCallback(webrtc::AudioTransport* AudioCb) override;
+		bool Init();
+		bool IsInitialised() const;
+		bool IsCapturing() const;
+		void Uninitialise();
+		bool StartCapturing();
+		bool EndCapturing();
+		uint32_t GetVolume() const;
+		void SetVolume(uint32_t NewVolume);
+		void RegisterAudioCallback(webrtc::AudioTransport* AudioCb);
+		void SetAudioInputMixerPatch(TSharedPtr<class FAudioInput> InPatchInput);
 
 		// ISubmixBufferListener interface
 		void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData,
@@ -47,5 +52,7 @@ namespace UE::PixelStreaming
 		TArray<int16_t> RecordingBuffer;
 		FCriticalSection CriticalSection; // One thread captures audio from UE, the
 										  // other controls the state of the capturer.
+
+		TSharedPtr<class FAudioInput> AudioMixerPatchInput;
 	};
 } // namespace UE::PixelStreaming

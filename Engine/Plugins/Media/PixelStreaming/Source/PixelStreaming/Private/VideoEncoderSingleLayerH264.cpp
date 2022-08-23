@@ -3,12 +3,16 @@
 #include "VideoEncoderSingleLayerH264.h"
 #include "VideoEncoderFactorySingleLayer.h"
 #include "VideoEncoderFactory.h"
-#include "FrameBufferH264.h"
+#include "FrameBufferMultiFormat.h"
 #include "Settings.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/Paths.h"
 #include "Stats.h"
 #include "PixelStreamingPeerConnection.h"
+#include "FrameBufferRHI.h"
+
+#include "PixelCaptureOutputFrameRHI.h"
+#include "PixelCaptureBufferFormat.h"
 
 namespace UE::PixelStreaming
 {
@@ -53,44 +57,57 @@ namespace UE::PixelStreaming
 		return WEBRTC_VIDEO_CODEC_OK;
 	}
 
-	int32 FVideoEncoderSingleLayerH264::Encode(webrtc::VideoFrame const& frame, std::vector<webrtc::VideoFrameType> const* frame_types)
+	void FVideoEncoderSingleLayerH264::UpdateFrameMetadataPreEncode(IPixelCaptureOutputFrame& Frame)
 	{
-		FFrameBufferH264* FrameBuffer = static_cast<FFrameBufferH264*>(frame.video_frame_buffer().get());
-
-		// If initialize frame is passed, this is a dummy frame so WebRTC is happy frames are passing through
-		// This is used so that an encoder can be active as far as WebRTC is concerned by simply have frames transmitted by some other encoder on its behalf.
-		if (FrameBuffer->GetFrameBufferType() == EPixelStreamingFrameBufferType::Initialize)
-		{
-			return WEBRTC_VIDEO_CODEC_OK;
-		}
-
-		FPixelStreamingFrameMetadata& FrameMetadata = FrameBuffer->GetAdaptedLayer()->Metadata;
+		FPixelCaptureFrameMetadata& FrameMetadata = Frame.Metadata;
 		FrameMetadata.UseCount++;
 		FrameMetadata.LastEncodeStartTime = FPlatformTime::Cycles64();
 		if (FrameMetadata.UseCount == 1)
 		{
 			FrameMetadata.FirstEncodeStartTime = FrameMetadata.LastEncodeStartTime;
 		}
+	}
 
-		bool bKeyframe = false;
-		if ((frame_types && (*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey))
-		{
-			bKeyframe = true;
-		}
+	void FVideoEncoderSingleLayerH264::UpdateFrameMetadataPostEncode(IPixelCaptureOutputFrame& Frame)
+	{
+		FPixelCaptureFrameMetadata& FrameMetadata = Frame.Metadata;
+		FrameMetadata.LastEncodeEndTime = FPlatformTime::Cycles64();
 
-		FVideoEncoderWrapperHardware* Encoder = Factory.GetHardwareEncoder();
-		if (Encoder == nullptr)
+		FStats::Get()->AddFrameTimingStats(FrameMetadata);
+	}
+
+	webrtc::VideoFrame FVideoEncoderSingleLayerH264::WrapAdaptedFrame(const webrtc::VideoFrame& ExistingFrame, const IPixelCaptureOutputFrame& AdaptedLayer)
+	{
+		webrtc::VideoFrame NewFrame(ExistingFrame);
+		const FPixelCaptureOutputFrameRHI& RHILayer = StaticCast<const FPixelCaptureOutputFrameRHI&>(AdaptedLayer);
+		rtc::scoped_refptr<FFrameBufferRHI> RHIBuffer = new rtc::RefCountedObject<FFrameBufferRHI>(RHILayer.GetFrameTexture());
+		NewFrame.set_video_frame_buffer(RHIBuffer);
+		return NewFrame;
+	}
+
+	int32 FVideoEncoderSingleLayerH264::Encode(webrtc::VideoFrame const& frame, std::vector<webrtc::VideoFrameType> const* frame_types)
+	{
+		if (HardwareEncoder == nullptr)
 		{
 			return WEBRTC_VIDEO_CODEC_ERROR;
 		}
 
+		const FFrameBufferMultiFormat* FrameBuffer = StaticCast<FFrameBufferMultiFormat*>(frame.video_frame_buffer().get());
+		IPixelCaptureOutputFrame* AdaptedLayer = FrameBuffer->RequestFormat(PixelCaptureBufferFormat::FORMAT_RHI);
+
+		if (AdaptedLayer == nullptr)
+		{
+			// probably the first request which starts the adapt pipeline for this format
+			return WEBRTC_VIDEO_CODEC_OK;
+		}
+
 		UpdateConfig();
 
-		Encoder->Encode(frame, bKeyframe);
-
-		FrameMetadata.LastEncodeEndTime = FPlatformTime::Cycles64();
-
-		FStats::Get()->AddFrameTimingStats(FrameMetadata);
+		UpdateFrameMetadataPreEncode(*AdaptedLayer);
+		const bool bKeyframe = (frame_types && (*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey);
+		const webrtc::VideoFrame NewFrame = WrapAdaptedFrame(frame, *AdaptedLayer);
+		HardwareEncoder->Encode(NewFrame, bKeyframe);
+		UpdateFrameMetadataPostEncode(*AdaptedLayer);
 
 		return WEBRTC_VIDEO_CODEC_OK;
 	}
@@ -123,9 +140,9 @@ namespace UE::PixelStreaming
 
 	void FVideoEncoderSingleLayerH264::UpdateConfig()
 	{
-		if (FVideoEncoderWrapperHardware* Encoder = Factory.GetHardwareEncoder())
+		if (HardwareEncoder)
 		{
-			AVEncoder::FVideoEncoder::FLayerConfig NewConfig = Encoder->GetCurrentConfig();
+			AVEncoder::FVideoEncoder::FLayerConfig NewConfig = HardwareEncoder->GetCurrentConfig();
 
 			if (PendingRateChange.IsSet())
 			{
@@ -142,7 +159,7 @@ namespace UE::PixelStreaming
 
 			NewConfig = CreateEncoderConfigFromCVars(NewConfig);
 
-			Encoder->SetConfig(NewConfig);
+			HardwareEncoder->SetConfig(NewConfig);
 		}
 	}
 

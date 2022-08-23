@@ -75,7 +75,13 @@ namespace UE::PixelStreaming
             {
                 Module->SetCodec(EPixelStreamingCodec::VP8);
             }),
-            FCanExecuteAction(),
+            FCanExecuteAction::CreateLambda([Module = &PixelStreamingModule] { 
+                if(TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID()))    
+                {
+                    return !Streamer->IsStreaming();
+                }
+                return false;
+            }),
             FIsActionChecked::CreateLambda([Module = &PixelStreamingModule]()
             { 
                 return Module->GetCodec() == EPixelStreamingCodec::VP8;
@@ -88,7 +94,13 @@ namespace UE::PixelStreaming
             {
                 Module->SetCodec(EPixelStreamingCodec::VP9);
             }),
-            FCanExecuteAction(),
+            FCanExecuteAction::CreateLambda([Module = &PixelStreamingModule] { 
+                if(TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID()))    
+                {
+                    return !Streamer->IsStreaming();
+                }
+                return false;
+            }),
             FIsActionChecked::CreateLambda([Module = &PixelStreamingModule]()
             { 
                 return Module->GetCodec() == EPixelStreamingCodec::VP9;
@@ -101,7 +113,13 @@ namespace UE::PixelStreaming
             {
                 Module->SetCodec(EPixelStreamingCodec::H264);
             }),
-            FCanExecuteAction(),
+            FCanExecuteAction::CreateLambda([Module = &PixelStreamingModule] { 
+                if(TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID()))    
+                {
+                    return !Streamer->IsStreaming();
+                }
+                return false;
+            }),
             FIsActionChecked::CreateLambda([Module = &PixelStreamingModule]()
             { 
                 return Module->GetCodec() == EPixelStreamingCodec::H264;
@@ -188,11 +206,7 @@ namespace UE::PixelStreaming
                                     TSharedRef<SWidget> URLInput = SNew(SEditableTextBox)
                                     .Text_Lambda([&, Module = &PixelStreamingModule]()
                                     {
-                                        if(TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID()))    
-                                        {
-                                             return FText::FromString(Streamer->GetSignallingServerURL());
-                                        }
-                                       return FText::FromString(TEXT("No Streamer configured"));
+                                        return FText::FromString(Module->GetDefaultSignallingURL());
                                     })
 								    .OnTextCommitted_Lambda([&, Module = &PixelStreamingModule](const FText& InText, ETextCommit::Type InTextCommit)
                                     {

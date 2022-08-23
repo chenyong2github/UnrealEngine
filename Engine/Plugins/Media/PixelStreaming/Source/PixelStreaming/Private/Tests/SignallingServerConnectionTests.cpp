@@ -164,7 +164,7 @@ namespace
 					return SocketEndpoint;
 				};
 				SignallingServerConnection = MakeUnique<FPixelStreamingSignallingConnection>(WebSocketFactory, Observer, ServerID);
-				SignallingServerConnection->Connect("Fake Url");
+				SignallingServerConnection->TryConnect("Fake Url");
 				OnMessageDelegateHandle = SocketEndpoint->OnMockResponseEvent.AddLambda([this](const FString& message) {
 					OnMessageReceived(message);
 				});

@@ -4,7 +4,8 @@
 #include "Stats.h"
 #include "VideoEncoderFactory.h"
 #include "VideoEncoderFactorySingleLayer.h"
-#include "FrameBufferH264.h"
+#include "FrameBufferMultiFormat.h"
+#include "FrameBufferRHI.h"
 
 namespace UE::PixelStreaming
 {
@@ -22,11 +23,10 @@ namespace UE::PixelStreaming
 
 	void FVideoEncoderWrapperHardware::Encode(const webrtc::VideoFrame& WebRTCFrame, bool bKeyframe)
 	{
-		FFrameBufferH264* FrameBuffer = static_cast<FFrameBufferH264*>(WebRTCFrame.video_frame_buffer().get());
-		checkf(FrameBuffer->GetFrameBufferType() == EPixelStreamingFrameBufferType::Layer, TEXT("FVideoEncoderWrapperHardware::Encode(): Supplied frame buffer is of incorrect type."));
+		FFrameBufferRHI* FrameBuffer = static_cast<FFrameBufferRHI*>(WebRTCFrame.video_frame_buffer().get());
 
 		AVEncoder::FVideoEncoder::FLayerConfig EncoderConfig = GetCurrentConfig();
-		TSharedPtr<AVEncoder::FVideoEncoderInputFrame> EncoderInputFrame = FrameFactory->GetFrameAndSetTexture(FrameBuffer->GetAdaptedLayer()->GetFrameTexture());
+		TSharedPtr<AVEncoder::FVideoEncoderInputFrame> EncoderInputFrame = FrameFactory->GetFrameAndSetTexture(FrameBuffer->GetFrameTexture());
 		if (EncoderInputFrame)
 		{
 			EncoderInputFrame->SetTimestampUs(WebRTCFrame.timestamp_us());

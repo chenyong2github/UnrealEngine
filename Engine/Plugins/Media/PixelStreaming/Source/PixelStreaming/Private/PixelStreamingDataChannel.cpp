@@ -110,39 +110,81 @@ bool FPixelStreamingDataChannel::SendArbitraryData(uint8 Type, const TArray64<ui
 
 void FPixelStreamingDataChannel::OnStateChange()
 {
-	// Dispatch this callback to the game thread since we don't want to delay
-	// the signalling thread or block it with mutexes etc.
-	TWeakPtr<FPixelStreamingDataChannel> WeakChannel = AsShared();
-	webrtc::DataChannelInterface::DataState NewState = RecvChannel->state();
-	AsyncTask(ENamedThreads::GameThread, [WeakChannel, NewState]() {
-		if (TSharedPtr<FPixelStreamingDataChannel> DataChannel = WeakChannel.Pin())
+	// ideally we use AsShared() here so we either get a shared ptr to this or it fails
+	// (because the destructor is being called in another thread) and we do nothing. If
+	// it succeeds then we know we wont get destructed while in the block.
+	// HOWEVER! inside AsShared() is a check to make sure the returned pointer is 'this'
+	// which it is NOT if we're in the destructor, SO we have to use DoesSharedInstanceExist
+	// FIRST to avoid hitting that check BUT in THEORY the destructor could get called
+	// after DoesSharedInstanceExist but before AsShared and so we end up in the same
+	// issue. That check really screws this situation.
+	if (DoesSharedInstanceExist())
+	{
+		// make sure we dont destruct while in here
+		if (TSharedPtr<FPixelStreamingDataChannel> SharedThis = AsShared())
 		{
-			switch (NewState)
-			{
-				case webrtc::DataChannelInterface::DataState::kOpen:
+			// Dispatch this callback to the game thread since we don't want to delay
+			// the signalling thread or block it with mutexes etc.
+			TWeakPtr<FPixelStreamingDataChannel> WeakChannel = SharedThis;
+			webrtc::DataChannelInterface::DataState NewState = RecvChannel->state();
+			AsyncTask(ENamedThreads::GameThread, [WeakChannel, NewState]() {
+				if (TSharedPtr<FPixelStreamingDataChannel> DataChannel = WeakChannel.Pin())
 				{
-					DataChannel->OnOpen.Broadcast(*DataChannel);
-					break;
+					switch (NewState)
+					{
+						case webrtc::DataChannelInterface::DataState::kOpen:
+						{
+							DataChannel->OnOpen.Broadcast(*DataChannel);
+							break;
+						}
+						case webrtc::DataChannelInterface::DataState::kConnecting:
+						case webrtc::DataChannelInterface::DataState::kClosing:
+							break;
+						case webrtc::DataChannelInterface::DataState::kClosed:
+						{
+							DataChannel->OnClosed.Broadcast(*DataChannel);
+							break;
+						}
+					}
 				}
-				case webrtc::DataChannelInterface::DataState::kConnecting:
-				case webrtc::DataChannelInterface::DataState::kClosing:
-					break;
-				case webrtc::DataChannelInterface::DataState::kClosed:
-				{
-					DataChannel->OnClosed.Broadcast(*DataChannel);
-					break;
-				}
-			}
+			});
 		}
-	});
+	}
 }
 
 void FPixelStreamingDataChannel::OnMessage(const webrtc::DataBuffer& Buffer)
 {
-	// Dispatch this callback to the game thread since we don't want to delay
-	// the signalling thread or block it with mutexes etc.
-	AsyncTask(ENamedThreads::GameThread, [this, Buffer = Buffer]() {
-		const uint8 MsgType = static_cast<uint8>(Buffer.data.data()[0]);
-		OnMessageReceived.Broadcast(MsgType, Buffer);
-	});
+	// See comment in OnStateChange()
+	if (DoesSharedInstanceExist())
+	{
+		if (TSharedPtr<FPixelStreamingDataChannel> SharedThis = AsShared())
+		{
+			// Dispatch this callback to the game thread (or Main Queue) since we don't want to delay
+			// the signalling thread or block it with mutexes etc.
+			TWeakPtr<FPixelStreamingDataChannel> WeakChannel = SharedThis;
+
+			if (GFirstFrameIntraFrameDebugging || GIntraFrameDebuggingGameThread)
+			{
+				// If we're streaming the editor and we hit a BP breakpoint, the gamethread is no longer able to respond to input
+				// in that case we post this task to the Main Queue as we know that that will still be running
+				AsyncTask(ENamedThreads::MainQueue, [WeakChannel, Buffer = Buffer]() {
+					if (TSharedPtr<FPixelStreamingDataChannel> DataChannel = WeakChannel.Pin())
+					{
+						const uint8 MsgType = static_cast<uint8>(Buffer.data.data()[0]);
+						DataChannel->OnMessageReceived.Broadcast(MsgType, Buffer);
+					}
+				});
+			}
+			else
+			{
+				AsyncTask(ENamedThreads::GameThread, [WeakChannel, Buffer = Buffer]() {
+					if (TSharedPtr<FPixelStreamingDataChannel> DataChannel = WeakChannel.Pin())
+					{
+						const uint8 MsgType = static_cast<uint8>(Buffer.data.data()[0]);
+						DataChannel->OnMessageReceived.Broadcast(MsgType, Buffer);
+					}
+				});
+			}
+		}
+	}
 }

@@ -12,24 +12,28 @@
 #include "PixelStreamingSignallingConnection.h"
 #include "Templates/SharedPointer.h"
 
+class IPixelStreamingModule;
+
 namespace UE::PixelStreaming
 {
 	class FStreamer : public IPixelStreamingStreamer, public IPixelStreamingSignallingConnectionObserver, public TSharedFromThis<FStreamer>
 	{
 	public:
 		static TSharedPtr<FStreamer> Create(const FString& StreamerId);
-		virtual ~FStreamer() = default;
+		virtual ~FStreamer();
 
 		virtual void SetStreamFPS(int32 InFramesPerSecond) override;
 		virtual int32 GetStreamFPS() override;
 		virtual void SetCoupleFramerate(bool bCouple) override;
 
-		virtual void SetVideoInput(TSharedPtr<IPixelStreamingVideoInput> Input) override;
-		virtual TWeakPtr<IPixelStreamingVideoInput> GetVideoInput() override;
-		virtual void SetTargetViewport(FSceneViewport* InTargetViewport) override;
-		virtual FSceneViewport* GetTargetViewport() override;
-		virtual void SetTargetWindow(TSharedPtr<SWindow> InTargetWindow) override;
+		virtual void SetVideoInput(TSharedPtr<FPixelStreamingVideoInput> Input) override;
+		virtual TWeakPtr<FPixelStreamingVideoInput> GetVideoInput() override;
+		virtual void SetTargetViewport(TWeakPtr<SViewport> InTargetViewport) override;
+		virtual TWeakPtr<SViewport> GetTargetViewport() override;
+		virtual void SetTargetWindow(TWeakPtr<SWindow> InTargetWindow) override;
 		virtual TWeakPtr<SWindow> GetTargetWindow() override;
+		virtual void SetTargetScreenSize(TWeakPtr<FIntPoint> InTargetScreenSize) override;
+		virtual TWeakPtr<FIntPoint> GetTargetScreenSize() override;
 
 		virtual void SetSignallingServerURL(const FString& InSignallingServerURL) override;
 		virtual FString GetSignallingServerURL() override;
@@ -47,7 +51,7 @@ namespace UE::PixelStreaming
 		virtual void FreezeStream(UTexture2D* Texture) override;
 		virtual void UnfreezeStream() override;
 
-		virtual void SendPlayerMessage(Protocol::EToPlayerMsg Type, const FString& Descriptor) override;
+		virtual void SendPlayerMessage(uint8 Type, const FString& Descriptor) override;
 		virtual void SendFileData(const TArray64<uint8>& ByteData, FString& MimeType, FString& FileExtension) override;
 		virtual void KickPlayer(FPixelStreamingPlayerId PlayerId) override;
 
@@ -56,6 +60,8 @@ namespace UE::PixelStreaming
 
 		virtual IPixelStreamingAudioSink* GetPeerAudioSink(FPixelStreamingPlayerId PlayerId) override;
 		virtual IPixelStreamingAudioSink* GetUnlistenedAudioSink() override;
+		TSharedPtr<IPixelStreamingAudioInput> CreateAudioInput() override;
+		void RemoveAudioInput(TSharedPtr<IPixelStreamingAudioInput> AudioInput) override;
 
 		// TODO(Luke) hook this back up so that the Engine can change how the interface is working browser side
 		void AddPlayerConfig(TSharedRef<FJsonObject>& JsonObject);
@@ -78,9 +84,11 @@ namespace UE::PixelStreaming
 		virtual void OnSignallingError(const FString& ErrorMsg) override;
 
 		// own methods
+		void OnProtocolUpdated();
 		void ConsumeStats(FPixelStreamingPlayerId PlayerId, FName StatName, float StatValue);
 		void OnOffer(FPixelStreamingPlayerId PlayerId, const FString& Sdp);
 		void OnAnswer(FPixelStreamingPlayerId PlayerId, const FString& Sdp);
+		void OnPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig, bool bSendOffer);
 		void DeletePlayerSession(FPixelStreamingPlayerId PlayerId);
 		void DeleteAllPlayerSessions();
 		void AddNewDataChannel(FPixelStreamingPlayerId PlayerId, TSharedPtr<FPixelStreamingDataChannel> NewChannel);
@@ -88,6 +96,7 @@ namespace UE::PixelStreaming
 		void OnDataChannelClosed(FPixelStreamingPlayerId PlayerId);
 		void OnDataChannelMessage(FPixelStreamingPlayerId PlayerId, uint8 Type, const webrtc::DataBuffer& RawBuffer);
 		void SendInitialSettings(FPixelStreamingPlayerId PlayerId) const;
+		void SendProtocol(FPixelStreamingPlayerId PlayerId) const;
 		void SendPeerControllerMessages(FPixelStreamingPlayerId PlayerId) const;
 		void SendLatencyReport(FPixelStreamingPlayerId PlayerId) const;
 		void SendFreezeFrame(TArray<FColor> RawData, const FIntRect& Rect);
@@ -134,5 +143,7 @@ namespace UE::PixelStreaming
 		TSharedPtr<FVideoSourceGroup> VideoSourceGroup;
 
 		FDelegateHandle ConsumeStatsHandle;
+
+		IPixelStreamingModule& Module;
 	};
 } // namespace UE::PixelStreaming

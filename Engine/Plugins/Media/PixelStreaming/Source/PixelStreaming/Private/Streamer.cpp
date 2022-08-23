@@ -4,7 +4,6 @@
 #include "IPixelStreamingModule.h"
 #include "PixelStreamingPrivate.h"
 #include "PixelStreamingDelegates.h"
-#include "PixelStreamingInputFrameRHI.h"
 #include "PixelStreamingSignallingConnection.h"
 #include "PixelStreamingAudioDeviceModule.h"
 #include "WebRTCIncludes.h"
@@ -22,6 +21,16 @@
 #include "Framework/Application/SlateApplication.h"
 #include "UtilsRender.h"
 #include "PixelStreamingCodec.h"
+#include "Dom/JsonValue.h"
+#include "Serialization/JsonWriter.h"
+#include "Serialization/JsonSerializer.h"
+#include "Dom/JsonObject.h"
+#include "PixelStreamingModule.h"
+#include "PixelStreamingProtocol.h"
+#include "IPixelStreamingModule.h"
+#include "PixelCaptureBufferFormat.h"
+#include "PixelCaptureOutputFrameRHI.h"
+#include "PixelCaptureInputFrameRHI.h"
 
 namespace UE::PixelStreaming
 {
@@ -32,10 +41,29 @@ namespace UE::PixelStreaming
 
 	FStreamer::FStreamer(const FString& InStreamerId)
 		: StreamerId(InStreamerId)
+		, Module(IPixelStreamingModule::Get())
 	{
 		VideoSourceGroup = FVideoSourceGroup::Create();
 		FPixelStreamingSignallingConnection::FWebSocketFactory WebSocketFactory = [](const FString& Url) { return FWebSocketsModule::Get().CreateWebSocket(Url, TEXT("")); };
 		SignallingServerConnection = MakeUnique<FPixelStreamingSignallingConnection>(WebSocketFactory, *this, InStreamerId);
+		SignallingServerConnection->SetAutoReconnect(true);
+
+		Module.OnProtocolUpdated.AddRaw(this, &FStreamer::OnProtocolUpdated);
+	}
+
+	FStreamer::~FStreamer()
+	{
+		Module.OnProtocolUpdated.RemoveAll(this);
+	}
+
+	void FStreamer::OnProtocolUpdated()
+	{
+		Players.Apply([this](FPixelStreamingPlayerId DataPlayerId, FPlayerContext& PlayerContext) {
+			if (PlayerContext.DataChannel)
+			{
+				SendProtocol(DataPlayerId);
+			}
+		});
 	}
 
 	void FStreamer::SetStreamFPS(int32 InFramesPerSecond)
@@ -53,46 +81,46 @@ namespace UE::PixelStreaming
 		VideoSourceGroup->SetCoupleFramerate(bCouple);
 	}
 
-	void FStreamer::SetVideoInput(TSharedPtr<IPixelStreamingVideoInput> Input)
+	void FStreamer::SetVideoInput(TSharedPtr<FPixelStreamingVideoInput> Input)
 	{
 		VideoSourceGroup->SetVideoInput(Input);
-		Input->OnFrameReady.AddLambda([this](const IPixelStreamingInputFrame& SourceFrame) {
-			if (SourceFrame.GetType() == static_cast<int32>(EPixelStreamingInputFrameType::RHI))
+		Input->OnFrameCaptured.AddLambda([this, Input]() {
+			TSharedPtr<IPixelCaptureOutputFrame> OutputFrame = Input->RequestFormat(PixelCaptureBufferFormat::FORMAT_RHI);
+			if (OutputFrame && bCaptureNextBackBufferAndStream)
 			{
-				const FPixelStreamingInputFrameRHI& RHISourceFrame = StaticCast<const FPixelStreamingInputFrameRHI&>(SourceFrame);
+				bCaptureNextBackBufferAndStream = false;
 
-				if (bCaptureNextBackBufferAndStream)
-				{
-					bCaptureNextBackBufferAndStream = false;
+				ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)
+				([this, OutputFrame](FRHICommandListImmediate& RHICmdList) {
+					FPixelCaptureOutputFrameRHI* RHISourceFrame = StaticCast<FPixelCaptureOutputFrameRHI*>(OutputFrame.Get());
 
 					// Read the data out of the back buffer and send as a JPEG.
-					FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-					FIntRect Rect(0, 0, RHISourceFrame.GetWidth(), RHISourceFrame.GetHeight());
+					FIntRect Rect(0, 0, RHISourceFrame->GetWidth(), RHISourceFrame->GetHeight());
 					TArray<FColor> Data;
 
-					RHICmdList.ReadSurfaceData(RHISourceFrame.FrameTexture, Rect, Data, FReadSurfaceDataFlags());
+					RHICmdList.ReadSurfaceData(RHISourceFrame->GetFrameTexture(), Rect, Data, FReadSurfaceDataFlags());
 					SendFreezeFrame(MoveTemp(Data), Rect);
-				}
+				});
 			}
 		});
 	}
 
-	TWeakPtr<IPixelStreamingVideoInput> FStreamer::GetVideoInput()
+	TWeakPtr<FPixelStreamingVideoInput> FStreamer::GetVideoInput()
 	{
 		return VideoSourceGroup->GetVideoInput();
 	}
 
-	void FStreamer::SetTargetViewport(FSceneViewport* InTargetViewport)
+	void FStreamer::SetTargetViewport(TWeakPtr<SViewport> InTargetViewport)
 	{
 		InputChannel->SetTargetViewport(InTargetViewport);
 	}
 
-	FSceneViewport* FStreamer::GetTargetViewport()
+	TWeakPtr<SViewport> FStreamer::GetTargetViewport()
 	{
 		return InputChannel ? InputChannel->GetTargetViewport() : nullptr;
 	}
 
-	void FStreamer::SetTargetWindow(TSharedPtr<SWindow> InTargetWindow)
+	void FStreamer::SetTargetWindow(TWeakPtr<SWindow> InTargetWindow)
 	{
 		InputChannel->SetTargetWindow(InTargetWindow);
 	}
@@ -100,6 +128,16 @@ namespace UE::PixelStreaming
 	TWeakPtr<SWindow> FStreamer::GetTargetWindow()
 	{
 		return InputChannel->GetTargetWindow();
+	}
+
+	void FStreamer::SetTargetScreenSize(TWeakPtr<FIntPoint> InTargetScreenSize)
+	{
+		InputChannel->SetTargetScreenSize(InTargetScreenSize);
+	}
+
+	TWeakPtr<FIntPoint> FStreamer::GetTargetScreenSize()
+	{
+		return InputChannel->GetTargetScreenSize();
 	}
 
 	void FStreamer::SetSignallingServerURL(const FString& InSignallingServerURL)
@@ -133,7 +171,7 @@ namespace UE::PixelStreaming
 		}
 
 		VideoSourceGroup->Start();
-		SignallingServerConnection->Connect(CurrentSignallingServerURL);
+		SignallingServerConnection->TryConnect(CurrentSignallingServerURL);
 		bStreamingStarted = true;
 	}
 
@@ -218,17 +256,17 @@ namespace UE::PixelStreaming
 		// Force a keyframe so when stream unfreezes if player has never received a h.264 frame before they can still connect.
 		ForceKeyFrame();
 
-		Players.Apply([](FPixelStreamingPlayerId PlayerId, FPlayerContext& PlayerContext) {
+		Players.Apply([this](FPixelStreamingPlayerId PlayerId, FPlayerContext& PlayerContext) {
 			if (PlayerContext.DataChannel)
 			{
-				PlayerContext.DataChannel->SendMessage(Protocol::EToPlayerMsg::UnfreezeFrame);
+				PlayerContext.DataChannel->SendMessage(Module.GetProtocol().FromStreamerProtocol.Find("UnfreezeFrame")->Id);
 			}
 		});
 
 		CachedJpegBytes.Empty();
 	}
 
-	void FStreamer::SendPlayerMessage(Protocol::EToPlayerMsg Type, const FString& Descriptor)
+	void FStreamer::SendPlayerMessage(uint8 Type, const FString& Descriptor)
 	{
 		Players.Apply([&Type, &Descriptor](FPixelStreamingPlayerId PlayerId, FPlayerContext& PlayerContext) {
 			if (PlayerContext.DataChannel)
@@ -244,17 +282,17 @@ namespace UE::PixelStreaming
 		// channels it might be a bad idea. At some point it would be good to take a snapshot of the
 		// keys in the map when we start, then one by one get the channel and send the data
 
-		Players.Apply([&ByteData, &MimeType, &FileExtension](FPixelStreamingPlayerId PlayerId, FPlayerContext& PlayerContext) {
+		Players.Apply([&ByteData, &MimeType, &FileExtension, this](FPixelStreamingPlayerId PlayerId, FPlayerContext& PlayerContext) {
 			if (PlayerContext.DataChannel)
 			{
 				// Send the mime type first
-				PlayerContext.DataChannel->SendMessage(Protocol::EToPlayerMsg::FileMimeType, MimeType);
+				PlayerContext.DataChannel->SendMessage(Module.GetProtocol().FromStreamerProtocol.Find("FileMimeType")->Id, MimeType);
 
 				// Send the extension next
-				PlayerContext.DataChannel->SendMessage(Protocol::EToPlayerMsg::FileExtension, FileExtension);
+				PlayerContext.DataChannel->SendMessage(Module.GetProtocol().FromStreamerProtocol.Find("FileExtension")->Id, FileExtension);
 
 				// Send the contents of the file. Note to callers: consider running this on its own thread, it can take a while if the file is big.
-				if (!PlayerContext.DataChannel->SendArbitraryData(Protocol::EToPlayerMsg::FileContents, ByteData))
+				if (!PlayerContext.DataChannel->SendArbitraryData(Module.GetProtocol().FromStreamerProtocol.Find("FileContents")->Id, ByteData))
 				{
 					UE_LOG(LogPixelStreaming, Error, TEXT("Unable to send file data over the data channel for player %s."), *PlayerId);
 				}
@@ -292,6 +330,16 @@ namespace UE::PixelStreaming
 			return false;
 		});
 		return Result;
+	}
+
+	TSharedPtr<IPixelStreamingAudioInput> FStreamer::CreateAudioInput()
+	{
+		return FPixelStreamingPeerConnection::CreateAudioInput();
+	}
+
+	void FStreamer::RemoveAudioInput(TSharedPtr<IPixelStreamingAudioInput> AudioInput)
+	{
+		FPixelStreamingPeerConnection::RemoveAudioInput(AudioInput);
 	}
 
 	void FStreamer::AddPlayerConfig(TSharedRef<FJsonObject>& JsonObject)
@@ -357,7 +405,7 @@ namespace UE::PixelStreaming
 			if (FPlayerContext* PlayerContext = Players.Find(PlayerId))
 			{
 				const bool AllowSimulcast = PlayerContext->Config.IsSFU;
-				PlayerContext->PeerConnection->SetVideoSource(VideoSourceGroup->CreateVideoSource(AllowSimulcast, [this, PlayerId]() { return ShouldPeerGenerateFrames(PlayerId); }));
+				PlayerContext->PeerConnection->SetVideoSource(VideoSourceGroup->CreateVideoSource([this, PlayerId]() { return ShouldPeerGenerateFrames(PlayerId); }));
 				if (!Settings::CVarPixelStreamingWebRTCDisableTransmitAudio.GetValueOnAnyThread())
 				{
 					PlayerContext->PeerConnection->SetAudioSource(FPixelStreamingPeerConnection::GetApplicationAudioSource());
@@ -404,7 +452,7 @@ namespace UE::PixelStreaming
 		}
 	}
 
-	void FStreamer::OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig)
+	void FStreamer::OnPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig, bool bSendOffer)
 	{
 		FPlayerContext& PlayerContext = Players.GetOrAdd(PlayerId);
 		PlayerContext.Config = PlayerConfig;
@@ -427,17 +475,25 @@ namespace UE::PixelStreaming
 				? FPixelStreamingPeerConnection::EReceiveMediaOption::Nothing
 				: FPixelStreamingPeerConnection::EReceiveMediaOption::Audio;
 
-			PlayerContext.PeerConnection->CreateOffer(
-				ReceiveOption,
-				[this, PlayerId](const webrtc::SessionDescriptionInterface* SDP) {
-					// on success
-					SignallingServerConnection->SendOffer(PlayerId, *SDP);
-				},
-				[this, PlayerId](const FString& Error) {
-					// on error
-					DeletePlayerSession(PlayerId);
-				});
+			if (bSendOffer)
+			{
+				PlayerContext.PeerConnection->CreateOffer(
+					ReceiveOption,
+					[this, PlayerId](const webrtc::SessionDescriptionInterface* SDP) {
+						// on success
+						SignallingServerConnection->SendOffer(PlayerId, *SDP);
+					},
+					[this, PlayerId](const FString& Error) {
+						// on error
+						DeletePlayerSession(PlayerId);
+					});
+			}
 		}
+	}
+
+	void FStreamer::OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig)
+	{
+		OnPlayerConnected(PlayerId, PlayerConfig, true /*bSendOffer*/);
 	}
 
 	void FStreamer::OnSignallingPlayerDisconnected(FPixelStreamingPlayerId PlayerId)
@@ -467,19 +523,11 @@ namespace UE::PixelStreaming
 	void FStreamer::OnSignallingDisconnected(int32 StatusCode, const FString& Reason, bool bWasClean)
 	{
 		DeleteAllPlayerSessions();
-
-		// Call disconnect here makes sure any other websocket callbacks etc are cleared
-		SignallingServerConnection->Disconnect();
-		SignallingServerConnection->Connect(CurrentSignallingServerURL);
 	}
 
 	void FStreamer::OnSignallingError(const FString& ErrorMsg)
 	{
 		DeleteAllPlayerSessions();
-
-		// Call disconnect here makes sure any other websocket callbacks etc are cleared
-		SignallingServerConnection->Disconnect();
-		SignallingServerConnection->Connect(CurrentSignallingServerURL);
 	}
 
 	void FStreamer::ConsumeStats(FPixelStreamingPlayerId PlayerId, FName StatName, float StatValue)
@@ -490,7 +538,7 @@ namespace UE::PixelStreaming
 			{
 				if (PlayerContext->DataChannel)
 				{
-					PlayerContext->DataChannel->SendMessage(Protocol::EToPlayerMsg::VideoEncoderAvgQP, FString::FromInt((int)StatValue));
+					PlayerContext->DataChannel->SendMessage(Module.GetProtocol().FromStreamerProtocol.Find("VideoEncoderAvgQP")->Id, FString::FromInt((int)StatValue));
 				}
 			}
 		}
@@ -498,35 +546,45 @@ namespace UE::PixelStreaming
 
 	void FStreamer::OnOffer(FPixelStreamingPlayerId PlayerId, const FString& Sdp)
 	{
-		if (FPlayerContext* PlayerContext = Players.Find(PlayerId))
+		FPlayerContext* PlayerContext = Players.Find(PlayerId);
+
+		// For backwards compatibility with versions before 5.0 where browser/player "offer" happens first and there is no "playerConnected" we make a player right here.
+		if (PlayerContext == nullptr)
 		{
-			// clear any existing connection
-			PlayerContext->PeerConnection = nullptr;
+			UE_LOG(LogPixelStreaming, Log, TEXT("Got offer before \"playerConnected\", making peer connection for this player - this should only happen when using older versions of the signalling server pre UE 5.0."));
 
-			if (CreateSession(PlayerId))
-			{
-				auto OnGeneralFailure = [this, PlayerId](const FString& Error) {
-					DeletePlayerSession(PlayerId);
-				};
+			FPixelStreamingPlayerConfig Config;
+			Config.SupportsDataChannel = true;
+			Config.IsSFU = false;
+			// Note: We do not send an offer here, as we are responding to an offer.
+			OnPlayerConnected(PlayerId, Config, false /*bSendOffer*/);
+			PlayerContext = Players.Find(PlayerId);
+		}
 
-				PlayerContext->PeerConnection->ReceiveOffer(
-					Sdp,
-					[this, PlayerContext, PlayerId, OnGeneralFailure]() {
-						AddStreams(PlayerId);
-						PlayerContext->PeerConnection->CreateAnswer(
-							FPixelStreamingPeerConnection::EReceiveMediaOption::Audio,
-							[this, PlayerId](const webrtc::SessionDescriptionInterface* LocalDescription) {
-								SignallingServerConnection->SendAnswer(PlayerId, *LocalDescription);
-								bStreamingStarted = true;
-							},
-							OnGeneralFailure);
-					},
-					OnGeneralFailure);
-			}
-			else
-			{
-				UE_LOG(LogPixelStreaming, Error, TEXT("Failed to create player session, peer connection was nullptr."));
-			}
+		verifyf(PlayerContext, TEXT("Player context should not be nullptr at this point."));
+
+		// clear any existing connection
+		PlayerContext->PeerConnection = nullptr;
+
+		if (CreateSession(PlayerId))
+		{
+			auto OnGeneralFailure = [this, PlayerId](const FString& Error) {
+				DeletePlayerSession(PlayerId);
+			};
+
+			PlayerContext->PeerConnection->ReceiveOffer(
+				Sdp,
+				[this, PlayerContext, PlayerId, OnGeneralFailure]() {
+					AddStreams(PlayerId);
+					PlayerContext->PeerConnection->CreateAnswer(
+						FPixelStreamingPeerConnection::EReceiveMediaOption::Audio,
+						[this, PlayerId](const webrtc::SessionDescriptionInterface* LocalDescription) {
+							SignallingServerConnection->SendAnswer(PlayerId, *LocalDescription);
+							bStreamingStarted = true;
+						},
+						OnGeneralFailure);
+				},
+				OnGeneralFailure);
 		}
 	}
 
@@ -551,6 +609,11 @@ namespace UE::PixelStreaming
 
 	void FStreamer::DeletePlayerSession(FPixelStreamingPlayerId PlayerId)
 	{
+		// We dont want to allow this to be deleted within Players.Remove because
+		// we lock the players map and the delete could dispatch a webrtc object
+		// delete on the signalling thread which might be waiting for the players
+		// lock.
+		FPlayerContext PendingDeletePlayer;
 		if (FPlayerContext* PlayerContext = Players.Find(PlayerId))
 		{
 			// when a sfu is connected we only get disconnect messages.
@@ -560,8 +623,14 @@ namespace UE::PixelStreaming
 			{
 				VideoSourceGroup->RemoveVideoSource(PlayerContext->PeerConnection->GetVideoSource().get());
 			}
+			PendingDeletePlayer = *PlayerContext;
 		}
+
 		Players.Remove(PlayerId);
+
+		// delete webrtc objects here outside the lock
+		PendingDeletePlayer.DataChannel.Reset();
+		PendingDeletePlayer.PeerConnection.Reset();
 
 		if (PlayerId == SFUPlayerId)
 		{
@@ -624,7 +693,7 @@ namespace UE::PixelStreaming
 		PlayerContext.DataChannel->OnMessageReceived.AddLambda([WeakStreamer, PlayerId](uint8 Type, const webrtc::DataBuffer& RawBuffer) {
 			if (TSharedPtr<FStreamer> Streamer = WeakStreamer.Pin())
 			{
-				
+
 				Streamer->OnDataChannelMessage(PlayerId, Type, RawBuffer);
 			}
 		});
@@ -639,7 +708,9 @@ namespace UE::PixelStreaming
 			InputControllingId = PlayerId;
 		}
 
-		// When data channel is open, try to send cached freeze frame (if we have one)
+		// When data channel is open
+		SendProtocol(PlayerId);
+		// Try to send cached freeze frame (if we have one)
 		SendCachedFreezeFrameTo(PlayerId);
 		SendInitialSettings(PlayerId);
 		SendPeerControllerMessages(PlayerId);
@@ -672,22 +743,24 @@ namespace UE::PixelStreaming
 
 	void FStreamer::OnDataChannelMessage(FPixelStreamingPlayerId PlayerId, uint8 Type, const webrtc::DataBuffer& RawBuffer)
 	{
-		Protocol::EToStreamerMsg MsgType = static_cast<Protocol::EToStreamerMsg>(Type);
-
-		if (MsgType == Protocol::EToStreamerMsg::RequestQualityControl)
+		if (Type == Module.GetProtocol().ToStreamerProtocol.Find("RequestQualityControl")->Id)
 		{
 			UE_LOG(LogPixelStreaming, Log, TEXT("Player %s has requested quality control through the data channel."), *PlayerId);
 			SetQualityController(PlayerId);
 		}
-		else if (MsgType == Protocol::EToStreamerMsg::LatencyTest)
+		else if (Type == Module.GetProtocol().ToStreamerProtocol.Find("LatencyTest")->Id)
 		{
 			SendLatencyReport(PlayerId);
 		}
-		else if (MsgType == Protocol::EToStreamerMsg::RequestInitialSettings)
+		else if (Type == Module.GetProtocol().ToStreamerProtocol.Find("RequestInitialSettings")->Id)
 		{
 			SendInitialSettings(PlayerId);
 		}
-		else if (MsgType == Protocol::EToStreamerMsg::TestEcho)
+		else if (Type == Module.GetProtocol().ToStreamerProtocol.Find("IFrameRequest")->Id)
+		{
+			ForceKeyFrame();
+		}
+		else if (Type == Module.GetProtocol().ToStreamerProtocol.Find("TestEcho")->Id)
 		{
 			if (FPlayerContext* PlayerContext = Players.Find(PlayerId))
 			{
@@ -696,7 +769,7 @@ namespace UE::PixelStreaming
 					const size_t DescriptorSize = (RawBuffer.data.size() - 1) / sizeof(TCHAR);
 					const TCHAR* DescPtr = reinterpret_cast<const TCHAR*>(RawBuffer.data.data() + 1);
 					const FString Message(DescriptorSize, DescPtr);
-					PlayerContext->DataChannel->SendMessage(Protocol::EToPlayerMsg::TestEcho, Message);
+					PlayerContext->DataChannel->SendMessage(Module.GetProtocol().FromStreamerProtocol.Find("TestEcho")->Id, Message);
 				}
 			}
 		}
@@ -750,9 +823,97 @@ namespace UE::PixelStreaming
 		{
 			if (PlayerContext->DataChannel)
 			{
-				if (!PlayerContext->DataChannel->SendMessage(Protocol::EToPlayerMsg::InitialSettings, FullPayload))
+				if (!PlayerContext->DataChannel->SendMessage(Module.GetProtocol().FromStreamerProtocol.Find("InitialSettings")->Id, FullPayload))
 				{
 					UE_LOG(LogPixelStreaming, Log, TEXT("Failed to send initial Pixel Streaming settings to player %s."), *PlayerId);
+				}
+			}
+		}
+	}
+
+	void FStreamer::SendProtocol(FPixelStreamingPlayerId PlayerId) const
+	{
+		using namespace Protocol;
+
+		Protocol::FPixelStreamingProtocol Protocol = Module.GetProtocol();
+
+		const TArray<EPixelStreamingMessageDirection> PixelStreamingMessageDirections = { EPixelStreamingMessageDirection::ToStreamer, EPixelStreamingMessageDirection::FromStreamer };
+		for (EPixelStreamingMessageDirection MessageDirection : PixelStreamingMessageDirections)
+		{
+			TMap<FString, FPixelStreamingInputMessage> MessageProtocol;
+			if (MessageDirection == EPixelStreamingMessageDirection::ToStreamer)
+			{
+				MessageProtocol = Protocol.ToStreamerProtocol;
+			}
+			else if (MessageDirection == EPixelStreamingMessageDirection::FromStreamer)
+			{
+				MessageProtocol = Protocol.FromStreamerProtocol;
+			}
+
+			TSharedPtr<FJsonObject> ProtocolJson = MakeShareable(new FJsonObject());
+
+			ProtocolJson->SetField("Direction", MakeShared<FJsonValueNumber>(static_cast<uint8>(MessageDirection)));
+			for (TMap<FString, FPixelStreamingInputMessage>::TIterator Iter = MessageProtocol.CreateIterator(); Iter; ++Iter)
+			{
+				TSharedPtr<FJsonObject> MessageJson = MakeShareable(new FJsonObject());
+				FString MessageType = Iter.Key();
+				FPixelStreamingInputMessage Message = Iter.Value();
+
+				MessageJson->SetField("id", MakeShared<FJsonValueNumber>(Message.Id));
+				MessageJson->SetField("byteLength", MakeShared<FJsonValueNumber>(Message.ByteLength));
+
+				if (Message.ByteLength > 0)
+				{
+					TArray<TSharedPtr<FJsonValue>> Structure;
+					for (auto It = Message.Structure.CreateIterator(); It; ++It)
+					{
+						FString Text;
+						switch (*It)
+						{
+							case EPixelStreamingMessageTypes::Uint8:
+								Text = "uint8";
+								break;
+							case EPixelStreamingMessageTypes::Uint16:
+								Text = "uint16";
+								break;
+							case EPixelStreamingMessageTypes::Int16:
+								Text = "int16";
+								break;
+							case EPixelStreamingMessageTypes::Float:
+								Text = "float";
+								break;
+							case EPixelStreamingMessageTypes::Double:
+								Text = "double";
+								break;
+							default:
+								Text = "";
+						}
+						TSharedRef<FJsonValueString> JsonValue = MakeShareable(new FJsonValueString(FString::Printf(TEXT("%s"), *Text)));
+						Structure.Add(JsonValue);
+					}
+					MessageJson->SetArrayField("structure", Structure);
+				}
+
+				ProtocolJson->SetField(*MessageType, MakeShared<FJsonValueObject>(MessageJson));
+			}
+
+			FString body;
+			TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(&body);
+			if (!ensure(FJsonSerializer::Serialize(ProtocolJson.ToSharedRef(), JsonWriter)))
+			{
+				UE_LOG(LogPixelStreaming, Warning, TEXT("Cannot serialize protocol json object"));
+				return;
+			}
+
+			if (const FPlayerContext* PlayerContext = Players.Find(PlayerId))
+			{
+				if (PlayerContext->DataChannel)
+				{
+					// Log a warning if we are unable to send our updated protocol
+					if (!PlayerContext->DataChannel->SendMessage(Module.GetProtocol().FromStreamerProtocol.Find("Protocol")->Id, body))
+					{
+						UE_LOG(LogPixelStreaming, Warning, TEXT("Failed to send Pixel Streaming protocol to player %s. This player will use the default protocol specified in the front end"), *PlayerId);
+					}
 				}
 			}
 		}
@@ -766,8 +927,8 @@ namespace UE::PixelStreaming
 			{
 				const uint8 ControlsInput = (Settings::GetInputControllerMode() == Settings::EInputControllerMode::Host) ? (PlayerId == InputControllingId) : 1;
 				const uint8 ControlsQuality = PlayerId == QualityControllingId ? 1 : 0;
-				PlayerContext->DataChannel->SendMessage(Protocol::EToPlayerMsg::InputControlOwnership, ControlsInput);
-				PlayerContext->DataChannel->SendMessage(Protocol::EToPlayerMsg::QualityControlOwnership, ControlsQuality);
+				PlayerContext->DataChannel->SendMessage(Module.GetProtocol().FromStreamerProtocol.Find("InputControlOwnership")->Id, ControlsInput);
+				PlayerContext->DataChannel->SendMessage(Module.GetProtocol().FromStreamerProtocol.Find("QualityControlOwnership")->Id, ControlsQuality);
 			}
 		}
 	}
@@ -818,7 +979,7 @@ namespace UE::PixelStreaming
 			{
 				if (PlayerContext->DataChannel)
 				{
-					PlayerContext->DataChannel->SendMessage(Protocol::EToPlayerMsg::LatencyTest, ReportToTransmitJSON);
+					PlayerContext->DataChannel->SendMessage(Module.GetProtocol().FromStreamerProtocol.Find("LatencyTest")->Id, ReportToTransmitJSON);
 				}
 			}
 		});
@@ -834,10 +995,10 @@ namespace UE::PixelStreaming
 			// Compress to a JPEG of the maximum possible quality.
 			int32 Quality = Settings::CVarPixelStreamingFreezeFrameQuality.GetValueOnAnyThread();
 			const TArray64<uint8>& JpegBytes = ImageWrapper->GetCompressed(Quality);
-			Players.Apply([&JpegBytes](FPixelStreamingPlayerId PlayerId, FPlayerContext& PlayerContext) {
+			Players.Apply([&JpegBytes, this](FPixelStreamingPlayerId PlayerId, FPlayerContext& PlayerContext) {
 				if (PlayerContext.DataChannel)
 				{
-					PlayerContext.DataChannel->SendArbitraryData(Protocol::EToPlayerMsg::FreezeFrame, JpegBytes);
+					PlayerContext.DataChannel->SendArbitraryData(Module.GetProtocol().FromStreamerProtocol.Find("FreezeFrame")->Id, JpegBytes);
 				}
 			});
 			CachedJpegBytes = JpegBytes;
@@ -856,7 +1017,7 @@ namespace UE::PixelStreaming
 			{
 				if (PlayerContext->DataChannel)
 				{
-					PlayerContext->DataChannel->SendArbitraryData(Protocol::EToPlayerMsg::FreezeFrame, CachedJpegBytes);
+					PlayerContext->DataChannel->SendArbitraryData(Module.GetProtocol().FromStreamerProtocol.Find("FreezeFrame")->Id, CachedJpegBytes);
 				}
 			}
 		}
@@ -865,15 +1026,15 @@ namespace UE::PixelStreaming
 	bool FStreamer::ShouldPeerGenerateFrames(FPixelStreamingPlayerId PlayerId) const
 	{
 		EPixelStreamingCodec Codec = Settings::GetSelectedCodec();
-		switch(Codec)
+		switch (Codec)
 		{
 			case EPixelStreamingCodec::H264:
 				return PlayerId != INVALID_PLAYER_ID && (PlayerId == QualityControllingId || PlayerId == SFUPlayerId);
-			break;
+				break;
 			case EPixelStreamingCodec::VP8:
 			case EPixelStreamingCodec::VP9:
 				return PlayerId != INVALID_PLAYER_ID;
-			break;
+				break;
 			default:
 				// There should be a case for every Codec type, so this should never happen.
 				checkNoEntry();
@@ -889,7 +1050,7 @@ namespace UE::PixelStreaming
 			if (PlayerContext.DataChannel)
 			{
 				const uint8 IsController = DataPlayerId == QualityControllingId ? 1 : 0;
-				PlayerContext.DataChannel->SendMessage(Protocol::EToPlayerMsg::QualityControlOwnership, IsController);
+				PlayerContext.DataChannel->SendMessage(Module.GetProtocol().FromStreamerProtocol.Find("QualityControlOwnership")->Id, IsController);
 			}
 		});
 	}

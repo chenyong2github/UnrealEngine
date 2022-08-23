@@ -2,25 +2,24 @@
 
 #pragma once
 
-#include "PixelStreamingVideoInput.h"
+#include "PixelStreamingVideoInputRHI.h"
 #include "Widgets/SWindow.h"
 #include "RHI.h"
 #include "Delegates/IDelegateInstance.h"
 
-
-namespace UE::PixelStreaming
+/*
+ * Use this if you want to send the UE backbuffer as video input.
+ */
+class PIXELSTREAMING_API FPixelStreamingVideoInputBackBuffer : public FPixelStreamingVideoInputRHI
 {
-	class PIXELSTREAMING_API FPixelStreamingVideoInputBackBuffer : public FPixelStreamingVideoInput
-	{
-	public:
-		static TSharedPtr<FPixelStreamingVideoInputBackBuffer> Create();
-		virtual ~FPixelStreamingVideoInputBackBuffer();
+public:
+	static TSharedPtr<FPixelStreamingVideoInputBackBuffer> Create();
+	virtual ~FPixelStreamingVideoInputBackBuffer();
 
-	private:
-		FPixelStreamingVideoInputBackBuffer() = default;
-		
-		void OnBackBufferReady(SWindow& SlateWindow, const FTexture2DRHIRef& FrameBuffer);
+private:
+	FPixelStreamingVideoInputBackBuffer() = default;
 
-		FDelegateHandle DelegateHandle;
-	};
-}
+	void OnBackBufferReady(SWindow& SlateWindow, const FTexture2DRHIRef& FrameBuffer);
+
+	FDelegateHandle DelegateHandle;
+};

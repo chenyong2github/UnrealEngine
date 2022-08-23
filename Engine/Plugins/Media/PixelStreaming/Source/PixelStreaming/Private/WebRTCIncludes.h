@@ -36,7 +36,6 @@ THIRD_PARTY_INCLUDES_START
 #include "api/video_codecs/video_encoder_software_fallback_wrapper.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_rotation.h"
-
 #include "api/video/video_sink_interface.h"
 
 #include "rtc_base/thread.h"
@@ -69,6 +68,7 @@ THIRD_PARTY_INCLUDES_START
 
 #include "modules/video_capture/video_capture_factory.h"
 #include "modules/audio_device/include/audio_device.h"
+#include "modules/audio_device/include/audio_device_defines.h"
 #include "modules/audio_device/audio_device_buffer.h"
 #include "modules/audio_processing/include/audio_processing.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"

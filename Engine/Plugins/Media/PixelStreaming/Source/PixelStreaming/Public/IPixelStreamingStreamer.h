@@ -2,13 +2,16 @@
 
 #pragma once
 
-#include "PixelStreamingProtocolDefs.h"
+#include "PixelStreamingProtocol.h"
 #include "PixelStreamingPlayerId.h"
-#include "IPixelStreamingVideoInput.h"
+#include "PixelStreamingVideoInput.h"
 #include "CoreMinimal.h"
-#include "Slate/SceneViewport.h"
+#include "Widgets/SViewport.h"
+#include "Widgets/SWindow.h"
+#include "Templates/SharedPointer.h"
 #include "IPixelStreamingAudioSink.h"
 #include "IPixelStreamingInputChannel.h"
+#include "IPixelStreamingAudioInput.h"
 
 class UTexture2D;
 
@@ -41,38 +44,51 @@ public:
 	 * @brief Set the Video Input object
 	 * @param Input The FPixelStreamingVideoInput that this streamer will stream
 	 */
-	virtual void SetVideoInput(TSharedPtr<IPixelStreamingVideoInput> Input) = 0;
+	virtual void SetVideoInput(TSharedPtr<FPixelStreamingVideoInput> Input) = 0;
 
 	/**
 	 * @brief Get the Video Input object
 	 * @return The FPixelStreamingVideoInput that this streamer will stream
 	 */
-	virtual TWeakPtr<IPixelStreamingVideoInput> GetVideoInput() = 0;
+	virtual TWeakPtr<FPixelStreamingVideoInput> GetVideoInput() = 0;
 
 	/**
 	 * @brief Set the Target Viewport for this streamer. This is used to ensure input between the browser and application scales correctly
 	 * @param InTargetViewport The target viewport
 	 */
-	virtual void SetTargetViewport(FSceneViewport* InTargetViewport) = 0;
+	virtual void SetTargetViewport(TWeakPtr<SViewport> InTargetViewport) = 0;
 
 	/**
 	 * @brief Get the Target Viewport for this streamer
 	 * @return The target viewport
 	 */
-	virtual FSceneViewport* GetTargetViewport() = 0;
+	virtual TWeakPtr<SViewport> GetTargetViewport() = 0;
 
 	/**
 	 * @brief Set the target window for this streamer. This is used to ensure mouse events are directed to the correct window if multiple
 	 * windows are tiled on top of one another as seen in the editor
 	 * @param InTargetWindow The target window
 	 */
-	virtual void SetTargetWindow(TSharedPtr<SWindow> InTargetWindow) = 0;
+	virtual void SetTargetWindow(TWeakPtr<SWindow> InTargetWindow) = 0;
 
 	/**
 	 * @brief Get the target window for this streamer
 	 * @return The target window
 	 */
 	virtual TWeakPtr<SWindow> GetTargetWindow() = 0;
+
+	/**
+	 * @brief Set the target screen size for this streamer. This is used to when the streamer doesn't have a singular target window / viewport
+	 * and as such we just use the manual scale
+	 * @param InTargetWindow The target screen size
+	 */
+	virtual void SetTargetScreenSize(TWeakPtr<FIntPoint> InTargetScreenSize) = 0;
+
+	/**
+	 * @brief Get the target screen size for this streamer
+	 * @return The target screen size
+	 */
+	virtual TWeakPtr<FIntPoint> GetTargetScreenSize() = 0;
 
 	/**
 	 * @brief Set the Signalling Server URL
@@ -157,7 +173,7 @@ public:
 	 * @param Type The message type to be sent to the player
 	 * @param Descriptor The contents of the message
 	 */
-	virtual void SendPlayerMessage(UE::PixelStreaming::Protocol::EToPlayerMsg Type, const FString& Descriptor) = 0;
+	virtual void SendPlayerMessage(uint8 Type, const FString& Descriptor) = 0;
 
 	/**
 	 * @brief Send a file to the browser where we are sending video.
@@ -173,7 +189,7 @@ public:
 	 */
 	virtual void KickPlayer(FPixelStreamingPlayerId PlayerId) = 0;
 
-	//virtual bool IsQualityController(FPixelStreamingPlayerId PlayerId) = 0;
+	// virtual bool IsQualityController(FPixelStreamingPlayerId PlayerId) = 0;
 
 	/**
 	 * @brief Set the streamer's input device
@@ -196,4 +212,16 @@ public:
 	 * @brief Get an audio sink that has no peers/players listening to it.
 	 */
 	virtual IPixelStreamingAudioSink* GetUnlistenedAudioSink() = 0;
+
+	/**
+	 * Create an audio input that can be used to push audio into the Pixel Streaming mix.
+	 * Note: Requires launching with -PixelStreamingExperimentalAudioInput.
+	 * @return The audio input to push to.
+	 */
+	virtual TSharedPtr<IPixelStreamingAudioInput> CreateAudioInput() = 0;
+
+	/**
+	 * Remove the audio input from the Pixel Streaming mix.
+	 */
+	virtual void RemoveAudioInput(TSharedPtr<IPixelStreamingAudioInput> AudioInput) = 0;
 };

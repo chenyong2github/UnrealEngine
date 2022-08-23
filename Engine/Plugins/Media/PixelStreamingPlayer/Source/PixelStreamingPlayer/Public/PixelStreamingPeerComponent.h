@@ -30,12 +30,26 @@ public:
 	void SetConfig(const FPixelStreamingRTCConfigWrapper& Config);
 
 	/**
+	 * Creates an offer.
+	 * @return The offer object generated. Send this to the signalling server to initiate negotiation.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "PixelStreaming")
+	FPixelStreamingSessionDescriptionWrapper CreateOffer();
+
+	/**
 	 * Creates an answer to the given offer objet that was provided.
 	 * @param Offer The offer SDP string to create an answer for. Should be obtained from the signalling server On Offer event.
 	 * @return The answer object generated. Send this to the signalling server to complete negotiation.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "PixelStreaming")
 	FPixelStreamingSessionDescriptionWrapper CreateAnswer(const FString& Offer);
+
+	/**
+	 * Receives an answer from a streamer after we've sent an offer to receive.
+	 * @param Offer The answer SDP. Should be obtained from the signalling server On Answer event.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "PixelStreaming")
+	void ReceiveAnswer(const FString& Offer);
 
 	/**
 	 * Notify the peer connection of an ICE candidate sent by the singalling connection.

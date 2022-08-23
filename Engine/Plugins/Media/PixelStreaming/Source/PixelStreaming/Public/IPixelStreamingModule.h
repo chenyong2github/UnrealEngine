@@ -14,6 +14,7 @@
 #include "IPixelStreamingStreamer.h"
 #include "IInputDeviceModule.h"
 #include "PixelStreamingCodec.h"
+#include "PixelStreamingProtocol.h"
 
 class UPixelStreamingInput;
 
@@ -78,48 +79,62 @@ public:
 	 */
 	virtual bool StartStreaming() = 0;
 
-	/*
+	/**
 	 * Stops all streamers from streaming.
 	 */
 	virtual void StopStreaming() = 0;
 
-	/*
+	/**
 	 * Creates a new streamer.
 	 * @param StreamerId - The ID of the Streamer to be created.
 	 */
 	virtual TSharedPtr<IPixelStreamingStreamer> CreateStreamer(const FString& StreamerId) = 0;
 
-	/* 
+	/**
 	 * Returns a TArray containing the keys to the currently held streamers.
 	 * @return TArray containing the keys to the currently held streamers.
 	 */
 	virtual TArray<FString> GetStreamerIds() = 0;
 
-	/*
+	/**
 	 * Get a streamer by an ID.
 	 * @return A pointer to the interface for a streamer. nullptr if the streamer isn't found
 	 */
 	virtual TSharedPtr<IPixelStreamingStreamer> GetStreamer(const FString& StreamerId) = 0;
 
-	/*
+	/**
 	 * Remove a streamer by an ID
 	 * @param StreamerId	-	The ID of the streamer to be removed.
 	 * @return The removed streamer. nullptr if the streamer wasn't found.
 	 */
 	virtual TSharedPtr<IPixelStreamingStreamer> DeleteStreamer(const FString& StreamerId) = 0;
 
-	/*
+	/**
+	 * Get the protocol currently used by each peer. 
+	 */
+	virtual const Protocol::FPixelStreamingProtocol& GetProtocol() = 0;
+
+	/**
+	 * Register a new message type that peers can send and pixel streaming can receive
+	 * @param MessageDirection The direction the message will travel. eg Streamer->Player or Player->Streamer
+	 * @param MessageType The human readable identifier (eg "TouchStarted")
+	 * @param Message The object used to define the structure of the message
+	 * @param Handler The handler for this message type. This function will be executed whenever the corresponding message type is received 
+	 */
+	virtual void RegisterMessage(Protocol::EPixelStreamingMessageDirection MessageDirection, const FString& MessageType, Protocol::FPixelStreamingInputMessage Message, const TFunction<void(FMemoryReader)>& Handler) = 0;
+
+	/**
 	 * Sets the target FPS for Externally Consumed video Tracks
 	 * @param InFPS new FPS for the ExternalVideoSource to output at. 
 	 */
 	virtual void SetExternalVideoSourceFPS(uint32 InFPS) = 0;
 
-	/*
+	/**
 	 * Allows the creation of Video Tracks that are fed the backbuffer
 	 */
 	virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CreateExternalVideoSource() = 0;
 
-	/*
+	/**
 	 * Used to clean up sources no longer needed
 	 */
 	virtual void ReleaseExternalVideoSource(const webrtc::VideoTrackSourceInterface* InVideoSource) = 0;
@@ -150,9 +165,15 @@ public:
 
 	/**
 	 * Get the Default Streamer ID
-	 * @return FString 
+	 * @return FString The default streamer ID
 	 */
 	virtual FString GetDefaultStreamerID() = 0;
+
+	/**
+	 * Get the Default Signaling URL ("ws://127.0.0.1:8888")
+	 * @return FString The default signaling url ("ws://127.0.0.1:8888")
+	 */
+	virtual FString GetDefaultSignallingURL() = 0;
 
 	/**
 	 * @brief A method for iterating through all of the streamers on the module
@@ -166,4 +187,7 @@ public:
 	 * @param InCreateInputeChannel - A lambda that will return input Channel
 	*/
 	virtual void RegisterCreateInputChannel(IPixelStreamingInputChannel::FCreateInputChannelFunc& InCreateInputChannel) = 0;
+
+	DECLARE_MULTICAST_DELEGATE(FOnProtocolUpdated);
+	FOnProtocolUpdated OnProtocolUpdated;
 };

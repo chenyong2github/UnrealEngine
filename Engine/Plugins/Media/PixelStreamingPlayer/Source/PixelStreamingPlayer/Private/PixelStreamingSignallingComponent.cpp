@@ -10,23 +10,40 @@ UPixelStreamingSignallingComponent::UPixelStreamingSignallingComponent(const FOb
 {
 	FPixelStreamingSignallingConnection::FWebSocketFactory WebSocketFactory = [](const FString& Url) { return FWebSocketsModule::Get().CreateWebSocket(Url, TEXT("")); };
 	SignallingConnection = MakeUnique<FPixelStreamingSignallingConnection>(WebSocketFactory, *this);
+	// I dont disable keep alive here because it causes a deadlock.
+	// This is because the game thread is waiting to load this component but the timer must be set
+	// on the game thread.
 }
 
 void UPixelStreamingSignallingComponent::Connect(const FString& Url)
 {
+	SignallingConnection->SetKeepAlive(false);
+	SignallingConnection->SetAutoReconnect(true);
 	if (MediaSource == nullptr)
 	{
-		SignallingConnection->Connect(Url);
+		SignallingConnection->TryConnect(Url);
 	}
 	else
 	{
-		SignallingConnection->Connect(MediaSource->GetUrl());
+		SignallingConnection->TryConnect(MediaSource->GetUrl());
 	}
 }
 
 void UPixelStreamingSignallingComponent::Disconnect()
 {
 	SignallingConnection->Disconnect();
+}
+
+void UPixelStreamingSignallingComponent::SendOffer(const FPixelStreamingSessionDescriptionWrapper& Offer)
+{
+	if (Offer.SDP == nullptr)
+	{
+		UE_LOG(LogPixelStreamingPlayer, Error, TEXT("Send Offer failed: Offer was null"));
+	}
+	else
+	{
+		SignallingConnection->SendOffer(*Offer.SDP);
+	}
 }
 
 void UPixelStreamingSignallingComponent::SendAnswer(const FPixelStreamingSessionDescriptionWrapper& Answer)
@@ -76,7 +93,7 @@ void UPixelStreamingSignallingComponent::OnSignallingSessionDescription(webrtc::
 	}
 	else if (Type == webrtc::SdpType::kAnswer)
 	{
-		// TODO if needed. Currently we never send an offer so we shouldnt expect an answer.
+		OnAnswer.Broadcast(Sdp);
 	}
 }
 

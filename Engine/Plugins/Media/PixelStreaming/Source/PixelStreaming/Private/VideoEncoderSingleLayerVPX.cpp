@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VideoEncoderSingleLayerVPX.h"
-#include "FrameBufferI420.h"
+#include "FrameBufferMultiFormat.h"
 #include "Stats.h"
+#include "FrameBufferI420.h"
+
+#include "PixelCaptureBufferFormat.h"
+#include "PixelCaptureOutputFrameI420.h"
 
 namespace UE::PixelStreaming
 {
@@ -33,23 +37,52 @@ namespace UE::PixelStreaming
 		return WebRTCVPXEncoder->Release();
 	}
 
-	int32 FVideoEncoderSingleLayerVPX::Encode(webrtc::VideoFrame const& frame, std::vector<webrtc::VideoFrameType> const* frame_types)
+	void FVideoEncoderSingleLayerVPX::UpdateFrameMetadataPreEncode(IPixelCaptureOutputFrame& Frame)
 	{
-		FFrameBufferI420* FrameBuffer = static_cast<FFrameBufferI420*>(frame.video_frame_buffer().get());
-
-		FPixelStreamingFrameMetadata& FrameMetadata = FrameBuffer->GetAdaptedLayer()->Metadata;
+		FPixelCaptureFrameMetadata& FrameMetadata = Frame.Metadata;
 		FrameMetadata.UseCount++;
 		FrameMetadata.LastEncodeStartTime = FPlatformTime::Cycles64();
 		if (FrameMetadata.UseCount == 1)
 		{
 			FrameMetadata.FirstEncodeStartTime = FrameMetadata.LastEncodeStartTime;
 		}
+	}
 
-		const int32 EncodeResult = WebRTCVPXEncoder->Encode(frame, frame_types);
+	void FVideoEncoderSingleLayerVPX::UpdateFrameMetadataPostEncode(IPixelCaptureOutputFrame& Frame)
+	{
+		FPixelCaptureFrameMetadata& FrameMetadata = Frame.Metadata;
+		FrameMetadata.LastEncodeEndTime = FPlatformTime::Cycles64();
 
-		FrameBuffer->GetAdaptedLayer()->Metadata.LastEncodeEndTime = FPlatformTime::Cycles64();
+		FStats::Get()->AddFrameTimingStats(FrameMetadata);
+	}
 
-		FStats::Get()->AddFrameTimingStats(FrameBuffer->GetAdaptedLayer()->Metadata);
+	webrtc::VideoFrame FVideoEncoderSingleLayerVPX::WrapAdaptedFrame(const webrtc::VideoFrame& ExistingFrame, const IPixelCaptureOutputFrame& AdaptedLayer)
+	{
+		webrtc::VideoFrame NewFrame(ExistingFrame);
+		const FPixelCaptureOutputFrameI420& AdaptedLayerI420 = StaticCast<const FPixelCaptureOutputFrameI420&>(AdaptedLayer);
+		rtc::scoped_refptr<FFrameBufferI420> I420Buffer = new rtc::RefCountedObject<FFrameBufferI420>(AdaptedLayerI420.GetI420Buffer());
+		NewFrame.set_video_frame_buffer(I420Buffer);
+		return NewFrame;
+	}
+
+	int32 FVideoEncoderSingleLayerVPX::Encode(webrtc::VideoFrame const& frame, std::vector<webrtc::VideoFrameType> const* frame_types)
+	{
+		checkf(WebRTCVPXEncoder, TEXT("WebRTCVPXEncoder was null. Should never happen."));
+
+		const FFrameBufferMultiFormat* FrameBuffer = StaticCast<FFrameBufferMultiFormat*>(frame.video_frame_buffer().get());
+		IPixelCaptureOutputFrame* AdaptedLayer = FrameBuffer->RequestFormat(PixelCaptureBufferFormat::FORMAT_I420);
+
+		if (AdaptedLayer == nullptr)
+		{
+			// probably the first request which starts the adapt pipeline for this format
+			return WEBRTC_VIDEO_CODEC_OK;
+		}
+
+		int lidx = AdaptedLayer->Metadata.Layer;
+		UpdateFrameMetadataPreEncode(*AdaptedLayer);
+		const webrtc::VideoFrame NewFrame = WrapAdaptedFrame(frame, *AdaptedLayer);
+		const int32 EncodeResult = WebRTCVPXEncoder->Encode(NewFrame, frame_types);
+		UpdateFrameMetadataPostEncode(*AdaptedLayer);
 
 		return EncodeResult;
 	}

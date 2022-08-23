@@ -63,8 +63,13 @@ namespace UE::PixelStreaming
 		template <typename T>
 		void Apply(T&& Visitor)
 		{
-			FScopeLock Lock(&Mutex);
-			for (auto&& [Key, Value] : InnerMap)
+			// work on a copy of the map so we dont lock while calling the visitor
+			TMap<KeyType, ValueType> MapCopy;
+			{
+				FScopeLock Lock(&Mutex);
+				MapCopy = InnerMap;
+			}
+			for (auto&& [Key, Value] : MapCopy)
 			{
 				Visitor(Key, Value);
 			}
@@ -74,8 +79,13 @@ namespace UE::PixelStreaming
 		template <typename T>
 		void ApplyUntil(T&& Visitor)
 		{
-			FScopeLock Lock(&Mutex);
-			for (auto&& [Key, Value] : InnerMap)
+			// work on a copy of the map so we dont lock while calling the visitor
+			TMap<KeyType, ValueType> MapCopy;
+			{
+				FScopeLock Lock(&Mutex);
+				MapCopy = InnerMap;
+			}
+			for (auto&& [Key, Value] : MapCopy)
 			{
 				if (Visitor(Key, Value))
 				{

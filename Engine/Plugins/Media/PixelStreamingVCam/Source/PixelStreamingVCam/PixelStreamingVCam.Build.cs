@@ -30,7 +30,8 @@ namespace UnrealBuildTool.Rules
 				"UMG",
 				"RHI",
 				"CinematicCamera",
-				"LiveLinkInterface"
+				"LiveLinkInterface",
+				"PixelCapture"
 			});
 
 			// Can't package non-editor targets (e.g. games) with UnrealEd, so this dependency should only be added in editor.

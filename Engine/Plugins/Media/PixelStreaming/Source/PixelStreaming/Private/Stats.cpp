@@ -5,10 +5,8 @@
 #include "CanvasTypes.h"
 #include "PixelStreamingDelegates.h"
 #include "Settings.h"
-#include "IPixelStreamingStatsConsumer.h"
 #include "Engine/Console.h"
 #include "ConsoleSettings.h"
-#include "PixelStreamingFrameMetadata.h"
 #include "PixelStreamingPeerConnection.h"
 
 namespace UE::PixelStreaming
@@ -185,6 +183,7 @@ namespace UE::PixelStreaming
 		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
 		{
 			Delegates->OnStatChangedNative.Broadcast(PlayerId, StatName, StatValue);
+			Delegates->OnStatChanged.Broadcast(PlayerId, StatName, StatValue);
 		}
 	}
 
@@ -482,6 +481,14 @@ namespace UE::PixelStreaming
 		}
 	}
 
+	double FStats::AddTimeStat(uint64 Cycles1, const FString& Label)
+	{
+		const double DeltaMs = FPlatformTime::ToMilliseconds64(Cycles1);
+		const FStatData TimeData{ FName(*Label), DeltaMs, 2, true };
+		StoreApplicationStat(TimeData);
+		return DeltaMs;
+	}
+
 	double FStats::AddTimeDeltaStat(uint64 Cycles1, uint64 Cycles2, const FString& Label)
 	{
 		const uint64 MaxCycles = FGenericPlatformMath::Max(Cycles1, Cycles2);
@@ -492,23 +499,20 @@ namespace UE::PixelStreaming
 		return DeltaMs;
 	}
 
-	void FStats::AddFrameTimingStats(const FPixelStreamingFrameMetadata& FrameMetadata)
+	void FStats::AddFrameTimingStats(const FPixelCaptureFrameMetadata& FrameMetadata)
 	{
-		const double TimePending = AddTimeDeltaStat(FrameMetadata.AdaptProcessStartTime, FrameMetadata.AdaptCallTime, FString::Printf(TEXT("%s Layer %d Frame Adapt Pending Time"), *FrameMetadata.ProcessName, FrameMetadata.Layer));
-		const double TimeGPU = AddTimeDeltaStat(FrameMetadata.AdaptProcessFinalizeTime, FrameMetadata.AdaptProcessStartTime, FString::Printf(TEXT("%s Layer %d Frame Adapt GPU Time"), *FrameMetadata.ProcessName, FrameMetadata.Layer));
-		const double TimeCPU = AddTimeDeltaStat(FrameMetadata.AdaptProcessEndTime, FrameMetadata.AdaptProcessFinalizeTime, FString::Printf(TEXT("%s Layer %d Frame Adapt CPU Time"), *FrameMetadata.ProcessName, FrameMetadata.Layer));
-		const double TimeWait = AddTimeDeltaStat(FrameMetadata.FirstEncodeStartTime, FrameMetadata.AdaptProcessEndTime, FString::Printf(TEXT("%s Layer %d Frame Wait Time"), *FrameMetadata.ProcessName, FrameMetadata.Layer));
+		const double TimeCapture = AddTimeStat(FrameMetadata.CaptureTime, FString::Printf(TEXT("%s Layer %d Frame Capture Time"), *FrameMetadata.ProcessName, FrameMetadata.Layer));
+		const double TimeGPU = AddTimeStat(FrameMetadata.CaptureProcessGPUTime, FString::Printf(TEXT("%s Layer %d Frame Capture GPU Time"), *FrameMetadata.ProcessName, FrameMetadata.Layer));
+		const double TimeCPU = AddTimeStat(FrameMetadata.CaptureProcessCPUTime, FString::Printf(TEXT("%s Layer %d Frame Capture CPU Time"), *FrameMetadata.ProcessName, FrameMetadata.Layer));
 		const double TimeEncode = AddTimeDeltaStat(FrameMetadata.LastEncodeEndTime, FrameMetadata.LastEncodeStartTime, FString::Printf(TEXT("%s Layer %d Frame Encode Time"), *FrameMetadata.ProcessName, FrameMetadata.Layer));
 
 		const FStatData UseData{ FName(*FString::Printf(TEXT("%s Layer %d Frame Uses"), *FrameMetadata.ProcessName, FrameMetadata.Layer)), static_cast<double>(FrameMetadata.UseCount), 0, false };
 		StoreApplicationStat(UseData);
 
 		const int Samples = 100;
-		GraphValue(*FString::Printf(TEXT("%d Frame Lifetime"), FrameMetadata.Layer), StaticCast<float>(TimePending + TimeGPU + TimeCPU + TimeEncode), Samples, 0.0f, 30.0f, 16.66f);
-		GraphValue(*FString::Printf(TEXT("%d Pending Time"), FrameMetadata.Layer), StaticCast<float>(TimePending), Samples, 0.0f, 30.0f);
+		GraphValue(*FString::Printf(TEXT("%d Capture Time"), FrameMetadata.Layer), StaticCast<float>(TimeCapture), Samples, 0.0f, 30.0f);
 		GraphValue(*FString::Printf(TEXT("%d GPU Time"), FrameMetadata.Layer), StaticCast<float>(TimeGPU), Samples, 0.0f, 6.0f);
 		GraphValue(*FString::Printf(TEXT("%d CPU Time"), FrameMetadata.Layer), StaticCast<float>(TimeCPU), Samples, 0.0f, 6.0f);
-		GraphValue(*FString::Printf(TEXT("%d Wait Time"), FrameMetadata.Layer), StaticCast<float>(TimeWait), Samples, 0.0f, 30.0f);
 		GraphValue(*FString::Printf(TEXT("%d Encode Time"), FrameMetadata.Layer), StaticCast<float>(TimeEncode), Samples, 0.0f, 10.0f);
 		GraphValue(*FString::Printf(TEXT("%d Frame Uses"), FrameMetadata.Layer), StaticCast<float>(FrameMetadata.UseCount), Samples, 0.0f, 10.0f);
 	}

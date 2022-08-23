@@ -34,6 +34,43 @@ void UPixelStreamingPeerComponent::SetConfig(const FPixelStreamingRTCConfigWrapp
 	}
 }
 
+FPixelStreamingSessionDescriptionWrapper UPixelStreamingPeerComponent::CreateOffer()
+{
+	if (PeerConnection)
+	{
+		FPixelStreamingSessionDescriptionWrapper Wrapper;
+		FEvent* TaskEvent = FPlatformProcess::GetSynchEventFromPool();
+		const auto OnGeneralFailure = [&TaskEvent](const FString& ErrorMsg) {
+			UE_LOG(LogPixelStreamingPlayer, Error, TEXT("CreateOffer Failed: %s"), *ErrorMsg);
+			TaskEvent->Trigger();
+		};
+		AsyncTask(ENamedThreads::AnyNormalThreadNormalTask, [this, &TaskEvent, &Wrapper, &OnGeneralFailure]() {
+			PeerConnection->CreateOffer(
+				FPixelStreamingPeerConnection::EReceiveMediaOption::All,
+				[&TaskEvent, &Wrapper](const webrtc::SessionDescriptionInterface* Sdp) {
+					// success
+					Wrapper.SDP = Sdp;
+					TaskEvent->Trigger();
+				},
+				OnGeneralFailure);
+		});
+		TaskEvent->Wait();
+		FPlatformProcess::ReturnSynchEventToPool(TaskEvent);
+
+		if (Wrapper.SDP == nullptr)
+		{
+			UE_LOG(LogPixelStreamingPlayer, Error, TEXT("CreateOffer Failed: Timeout"));
+		}
+
+		return Wrapper;
+	}
+	else
+	{
+		UE_LOG(LogPixelStreamingPlayer, Error, TEXT("Failed to create offer. Call SetConfig first."));
+		return {};
+	}
+}
+
 FPixelStreamingSessionDescriptionWrapper UPixelStreamingPeerComponent::CreateAnswer(const FString& Sdp)
 {
 	if (PeerConnection)
@@ -60,7 +97,7 @@ FPixelStreamingSessionDescriptionWrapper UPixelStreamingPeerComponent::CreateAns
 				},
 				OnGeneralFailure);
 		});
-		TaskEvent->Wait(500);
+		TaskEvent->Wait();
 		FPlatformProcess::ReturnSynchEventToPool(TaskEvent);
 
 		if (Wrapper.SDP == nullptr)
@@ -74,6 +111,33 @@ FPixelStreamingSessionDescriptionWrapper UPixelStreamingPeerComponent::CreateAns
 	{
 		UE_LOG(LogPixelStreamingPlayer, Error, TEXT("Failed to create answer. Call SetConfig first."));
 		return {};
+	}
+}
+
+void UPixelStreamingPeerComponent::ReceiveAnswer(const FString& Offer)
+{
+	if (PeerConnection)
+	{
+		FEvent* TaskEvent = FPlatformProcess::GetSynchEventFromPool();
+		const auto OnGeneralFailure = [&TaskEvent](const FString& ErrorMsg) {
+			UE_LOG(LogPixelStreamingPlayer, Error, TEXT("ReceiveAnswer Failed: %s"), *ErrorMsg);
+			TaskEvent->Trigger();
+		};
+		AsyncTask(ENamedThreads::AnyNormalThreadNormalTask, [this, &TaskEvent, &Offer, &OnGeneralFailure]() {
+			PeerConnection->ReceiveAnswer(
+				Offer,
+				[this, &TaskEvent, &OnGeneralFailure]() {
+					// success
+					TaskEvent->Trigger();
+				},
+				OnGeneralFailure);
+		});
+		TaskEvent->Wait();
+		FPlatformProcess::ReturnSynchEventToPool(TaskEvent);
+	}
+	else
+	{
+		UE_LOG(LogPixelStreamingPlayer, Error, TEXT("Failed to receive answer. Call SetConfig first."));
 	}
 }
 

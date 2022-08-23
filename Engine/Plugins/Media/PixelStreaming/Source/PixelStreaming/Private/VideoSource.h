@@ -3,14 +3,10 @@
 #pragma once
 
 #include "AdaptedVideoTrackSource.h"
-
-class IPixelStreamingVideoInput;
-class IPixelStreamingInputFrame;
+#include "PixelStreamingVideoInput.h"
 
 namespace UE::PixelStreaming
 {
-	class FFrameAdapter;
-	
 	/**
 	 * A source of video frames for a WebRTC peer. Has a video input which will provide
 	 * frame data to this source. The source will then pass that data to an adapter
@@ -25,13 +21,8 @@ namespace UE::PixelStreaming
 	class FVideoSource : public FAdaptedVideoTrackSource
 	{
 	public:
-		FVideoSource(TSharedPtr<IPixelStreamingVideoInput> InVideoInput, bool bInAllowSimulcast, const TFunction<bool()>& InShouldGenerateFramesCheck);
+		FVideoSource(TSharedPtr<FPixelStreamingVideoInput> InVideoInput, const TFunction<bool()>& InShouldGenerateFramesCheck);
 		virtual ~FVideoSource() = default;
-
-		void SetCoupleFramerate(bool bCouple);
-
-		void InputFrame(const IPixelStreamingInputFrame& SourceFrame);
-		void ResolutionChanged(int32 NewWidth, int32 NewHeight);
 
 		void MaybePushFrame();
 
@@ -44,16 +35,9 @@ namespace UE::PixelStreaming
 
 	private:
 		webrtc::MediaSourceInterface::SourceState CurrentState;
-		TSharedPtr<IPixelStreamingVideoInput> VideoInput;
-		bool bAllowSimulcast = false;
+		TSharedPtr<FPixelStreamingVideoInput> VideoInput;
 		TFunction<bool()> ShouldGenerateFramesCheck;
-		FCriticalSection FrameAdapterCS;
-		TSharedPtr<FFrameAdapter> FrameAdapter;
-		bool bCoupleFramerate = false;
-		FDelegateHandle AdaptCompleteHandle;
 
-		void CreateFrameAdapter();
-		void OnAdaptComplete();
 		void PushFrame();
 	};
 } // namespace UE::PixelStreaming

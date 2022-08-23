@@ -2,6 +2,8 @@
 
 #include "AudioSubmixCapturer.h"
 #include "PixelStreamingPrivate.h"
+#include "AudioInputMixer.h"
+#include "Settings.h"
 
 namespace UE::PixelStreaming
 {
@@ -92,15 +94,35 @@ namespace UE::PixelStreaming
 
 		UE_LOG(LogPixelStreaming, VeryVerbose, TEXT("captured %d samples, %dc, %dHz"), NumSamples, NumChannels, SampleRate);
 
-		// Note: TSampleBuffer takes in AudioData as float* and internally converts to
-		// int16
-		Audio::TSampleBuffer<int16> Buffer(AudioData, NumSamples, NumChannels,
-			SampleRate);
+		// We got passed a patch to send the audio to instead of directly to WebRTC
+		if (AudioMixerPatchInput.IsValid())
+		{
+			AudioMixerPatchInput->PushAudio(AudioData, NumSamples, NumChannels, SampleRate);
+			return;
+		}
 
-		// Mix to our target number of channels if the source does not already match.
-		if (Buffer.GetNumChannels() != TargetNumChannels)
+		// Note: TSampleBuffer takes in AudioData as float* and internally converts to int16
+		Audio::TSampleBuffer<int16> Buffer(AudioData, NumSamples, NumChannels, SampleRate);
+
+		// Ensure we end up with our target number of channels
+		if (NumChannels != TargetNumChannels)
 		{
 			Buffer.MixBufferToChannels(TargetNumChannels);
+		}
+
+		// Apply gain
+		float AudioGain = Settings::CVarPixelStreamingWebRTCAudioGain.GetValueOnAnyThread();
+		if (AudioGain != 1.0f)
+		{
+			// hacky const cast here, but it saves us from a memcpy
+			int16* PCMAudio = const_cast<int16*>(Buffer.GetData());
+
+			// multiply audio by gain multiplier
+			for (int i = 0; i < NumSamples; i++)
+			{
+				*PCMAudio = FMath::Max(-32768, FMath::Min(32767, *PCMAudio * AudioGain));
+				PCMAudio++;
+			}
 		}
 
 		RecordingBuffer.Append(Buffer.GetData(), Buffer.GetNumSamples());
@@ -144,7 +166,10 @@ namespace UE::PixelStreaming
 		AudioCallback = AudioTransportCallback;
 	}
 
-	bool FAudioSubmixCapturer::IsInitialised() const { return bInitialised; }
+	bool FAudioSubmixCapturer::IsInitialised() const
+	{
+		return bInitialised;
+	}
 
 	void FAudioSubmixCapturer::Uninitialise()
 	{
@@ -184,5 +209,14 @@ namespace UE::PixelStreaming
 		return true;
 	}
 
-	bool FAudioSubmixCapturer::IsCapturing() const { return bCapturing; }
+	bool FAudioSubmixCapturer::IsCapturing() const
+	{
+		return bCapturing;
+	}
+
+	void FAudioSubmixCapturer::SetAudioInputMixerPatch(TSharedPtr<FAudioInput> InPatchInput)
+	{
+		AudioMixerPatchInput = InPatchInput;
+	}
+
 } // namespace UE::PixelStreaming

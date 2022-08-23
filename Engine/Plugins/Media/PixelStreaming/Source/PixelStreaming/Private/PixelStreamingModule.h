@@ -7,6 +7,7 @@
 #include "Tickable.h"
 #include "PixelStreamingInputChannel.h"
 #include "StreamerInputChannels.h"
+#include "PixelStreamingProtocol.h"
 
 class UPixelStreamingInput;
 class SWindow;
@@ -37,6 +38,10 @@ namespace UE::PixelStreaming
 		virtual TSharedPtr<IPixelStreamingStreamer> GetStreamer(const FString& StreamerId) override;
 		virtual TSharedPtr<IPixelStreamingStreamer> DeleteStreamer(const FString& StreamerId) override;
 		virtual FString GetDefaultStreamerID() override;
+		virtual FString GetDefaultSignallingURL() override;
+		virtual const Protocol::FPixelStreamingProtocol& GetProtocol() override;
+		
+		virtual void RegisterMessage(Protocol::EPixelStreamingMessageDirection MessageDirection, const FString& MessageType, Protocol::FPixelStreamingInputMessage Message, const TFunction<void(FMemoryReader)>& Handler) override;
 		// These are staying on the module at the moment as theres no way of the BPs knowing which streamer they are relevant to
 		virtual void AddInputComponent(UPixelStreamingInput* InInputComponent) override;
 		virtual void RemoveInputComponent(UPixelStreamingInput* InInputComponent) override;
@@ -63,18 +68,19 @@ namespace UE::PixelStreaming
 
 		virtual TSharedPtr<IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;
 
+		void PopulateProtocol();
+
 	private:
 		bool bModuleReady = false;
 		bool bStartupCompleted = false;
 		static IPixelStreamingModule* PixelStreamingModule;
 
 		FReadyEvent ReadyEvent;
-
 		TArray<UPixelStreamingInput*> InputComponents;
 		TSharedPtr<FVideoSourceGroup> ExternalVideoSourceGroup;
 		mutable FCriticalSection StreamersCS;
 		TMap<FString, TSharedPtr<IPixelStreamingStreamer>> Streamers;
-
+		Protocol::FPixelStreamingProtocol MessageProtocol;
 		TSharedPtr<FStreamerInputChannels> StreamerInputChannels;
 	};
 } // namespace UE::PixelStreaming

@@ -7,7 +7,7 @@
 #include "Misc/SingleThreadRunnable.h"
 #include "Templates/SharedPointer.h"
 #include "VideoSource.h"
-#include "IPixelStreamingVideoInput.h"
+#include "PixelStreamingVideoInput.h"
 
 namespace UE::PixelStreaming
 {
@@ -17,14 +17,14 @@ namespace UE::PixelStreaming
 		static TSharedPtr<FVideoSourceGroup> Create();
 		~FVideoSourceGroup();
 
-		void SetVideoInput(TSharedPtr<IPixelStreamingVideoInput> InVideoInput);
-		TSharedPtr<IPixelStreamingVideoInput> GetVideoInput() { return VideoInput; }
+		void SetVideoInput(TSharedPtr<FPixelStreamingVideoInput> InVideoInput);
+		TSharedPtr<FPixelStreamingVideoInput> GetVideoInput() { return VideoInput; }
 		void SetFPS(int32 InFramesPerSecond);
 		int32 GetFPS();
 
 		void SetCoupleFramerate(bool Couple);
 
-		rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CreateVideoSource(bool InAllowSimulcast, const TFunction<bool()>& InShouldGenerateFramesCheck);
+		rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CreateVideoSource(const TFunction<bool()>& InShouldGenerateFramesCheck);
 		void RemoveVideoSource(const webrtc::VideoTrackSourceInterface* ToRemove);
 		void RemoveAllVideoSources();
 
@@ -39,9 +39,7 @@ namespace UE::PixelStreaming
 		void StartThread();
 		void StopThread();
 		void CheckStartStopThread();
-
-		void InputFrame(const IPixelStreamingInputFrame& SourceFrame);
-		void ResolutionChanged(int32 NewWidth, int32 NewHeight);
+		void OnFrameCaptured();
 
 		class FFrameThread : public FRunnable, public FSingleThreadRunnable
 		{
@@ -76,13 +74,12 @@ namespace UE::PixelStreaming
 		bool bThreadRunning = false;
 		bool bCoupleFramerate = false;
 		int32 FramesPerSecond = 30;
-		TSharedPtr<IPixelStreamingVideoInput> VideoInput;
+		TSharedPtr<FPixelStreamingVideoInput> VideoInput;
 		TUniquePtr<FFrameThread> FrameRunnable;
 		FRunnableThread* FrameThread = nullptr; // constant FPS tick thread
 		TArray<rtc::scoped_refptr<FVideoSource>> VideoSources;
 
 		FDelegateHandle FrameDelegateHandle;
-		FDelegateHandle ResizeDelegateHandle;
 
 		mutable FCriticalSection CriticalSection;
 	};

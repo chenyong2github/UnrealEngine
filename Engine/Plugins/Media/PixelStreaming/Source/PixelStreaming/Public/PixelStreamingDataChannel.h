@@ -3,7 +3,7 @@
 #pragma once
 
 #include "PixelStreamingBufferBuilder.h"
-#include "PixelStreamingProtocolDefs.h"
+#include "PixelStreamingProtocol.h"
 #include "PixelStreamingWebRTCIncludes.h"
 
 class FPixelStreamingPeerConnection;
@@ -20,7 +20,7 @@ public:
 
 	/**
 	 * Sends a series of arguments to the data channel with the given type.
-	 * @param Type Should be a value from UE::PixelStreaming::Protocol::EToStreamerMsg or UE::PixelStreaming::Protocol::EToPlayerMsg
+	 * @param Type Should be the ID from a registered PixelStreamingProtocol message
 	 * @returns True of the message was successfully sent.
 	 */
 	template <typename... Args>
@@ -38,46 +38,12 @@ public:
 	}
 
 	/**
-	 * Helper to prevent constant casts when calling SendMessage.
-	 */
-	template <typename... Args>
-	bool SendMessage(UE::PixelStreaming::Protocol::EToPlayerMsg Type, Args... VarArgs)
-	{
-		return SendMessage(static_cast<uint8>(Type), VarArgs...);
-	}
-
-	/**
-	 * Helper to prevent constant casts when calling SendMessage.
-	 */
-	template <typename... Args>
-	bool SendMessage(UE::PixelStreaming::Protocol::EToStreamerMsg Type, Args... VarArgs)
-	{
-		return SendMessage(static_cast<uint8>(Type), VarArgs...);
-	}
-
-	/**
 	 * Sends a large buffer of data to the data channel.
 	 * @param Type See SendMessage. The type of the message.
 	 * @param DataBytes The raw byte buffer to send.
 	 * @returns True when all data was successfully sent.
 	 */
 	bool SendArbitraryData(uint8 Type, const TArray64<uint8>& DataBytes) const;
-
-	/**
-	 * Helper to prevent constant casts when calling SendArbitraryData.
-	 */
-	bool SendArbitraryData(UE::PixelStreaming::Protocol::EToPlayerMsg Type, const TArray64<uint8>& DataBytes) const
-	{
-		return SendArbitraryData(static_cast<uint8>(Type), DataBytes);
-	}
-
-	/**
-	 * Helper to prevent constant casts when calling SendArbitraryData.
-	 */
-	bool SendArbitraryData(UE::PixelStreaming::Protocol::EToStreamerMsg Type, const TArray64<uint8>& DataBytes) const
-	{
-		return SendArbitraryData(static_cast<uint8>(Type), DataBytes);
-	}
 
 	/**
 	 * Broadcast when the data channel state changes to open

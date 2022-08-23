@@ -84,7 +84,7 @@ namespace UE::PixelStreaming
 
 	void FRTCStatsCollector::ExtractValueAndSet(const webrtc::RTCStatsMemberInterface* ExtractFrom, FStatData* SetValueHere)
 	{
-		FString StatValueStr = ToString(ExtractFrom->ValueToString());
+		FString StatValueStr = ExtractFrom->is_defined() ? ToString(ExtractFrom->ValueToString()) : TEXT("0.0");
 		double StatValueDouble = FCString::Atod(*StatValueStr);
 		SetValueHere->StatValue = StatValueDouble;
 	}
@@ -122,7 +122,8 @@ namespace UE::PixelStreaming
 					FString StatName = FString(StatMember->name());
 					if (StatName == "rid")
 					{
-						Rid = ToString(StatMember->ValueToString());
+
+						Rid = StatMember->is_defined() ? ToString(StatMember->ValueToString()) : TEXT("");
 						if (!StreamStatsSinks.Contains(Rid))
 						{
 							StreamStatsSinks.Add(Rid, FStreamStatsSink(Rid));

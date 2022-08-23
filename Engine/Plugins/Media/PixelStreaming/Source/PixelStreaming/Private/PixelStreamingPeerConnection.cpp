@@ -9,9 +9,10 @@
 #include "AudioCapturer.h"
 #include "PixelStreamingAudioDeviceModule.h"
 #include "ToStringExtensions.h"
-#include "PixelStreamingProtocolDefs.h"
+#include "PixelStreamingProtocol.h"
 #include "PixelStreamingDataChannel.h"
 #include "Stats.h"
+#include "AudioInputMixer.h"
 
 namespace
 {
@@ -178,6 +179,7 @@ public:
 TUniquePtr<rtc::Thread> FPixelStreamingPeerConnection::SignallingThread = nullptr;
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> FPixelStreamingPeerConnection::PeerConnectionFactory = nullptr;
 rtc::scoped_refptr<webrtc::AudioSourceInterface> FPixelStreamingPeerConnection::ApplicationAudioSource = nullptr;
+TSharedPtr<UE::PixelStreaming::FAudioInputMixer> FPixelStreamingPeerConnection::AudioMixer = MakeShared<UE::PixelStreaming::FAudioInputMixer>();
 
 // Defined here because otherwise the compiler doesnt know how to delete StatsSource since the destructor is declared in
 // this cpp. The important part is the destructor here but I put both constructor and destructor for consistency.
@@ -238,6 +240,12 @@ void FPixelStreamingPeerConnection::Shutdown()
 		SignallingThread->Stop();
 	}
 	SignallingThread = nullptr;
+
+	if (AudioMixer)
+	{
+		AudioMixer->StopMixing();
+	}
+	AudioMixer = nullptr;
 }
 
 void FPixelStreamingPeerConnection::CreateOffer(EReceiveMediaOption ReceiveOption, const SDPCallback& SuccessCallback, const ErrorCallback& ErrorCallback)
@@ -634,7 +642,7 @@ void FPixelStreamingPeerConnection::OnIceGatheringChange(webrtc::PeerConnectionI
 
 void FPixelStreamingPeerConnection::OnIceCandidate(const webrtc::IceCandidateInterface* Candidate)
 {
-	UE_LOG(LogPixelStreaming, Log, TEXT("OnIceCandidate"));
+	// UE_LOG(LogPixelStreaming, Log, TEXT("OnIceCandidate"));
 	OnEmitIceCandidate.Broadcast(Candidate);
 }
 
@@ -723,6 +731,16 @@ void FPixelStreamingPeerConnection::CreateSDP(ESDPType SDPType, EReceiveMediaOpt
 	}
 }
 
+TSharedPtr<IPixelStreamingAudioInput> FPixelStreamingPeerConnection::CreateAudioInput()
+{
+	return AudioMixer->CreateInput();
+}
+
+void FPixelStreamingPeerConnection::RemoveAudioInput(TSharedPtr<IPixelStreamingAudioInput> AudioInput)
+{
+	AudioMixer->DisconnectInput(StaticCastSharedPtr<FAudioInput>(AudioInput));
+}
+
 void FPixelStreamingPeerConnection::CreatePeerConnectionFactory()
 {
 	using namespace UE::PixelStreaming;
@@ -731,7 +749,7 @@ void FPixelStreamingPeerConnection::CreatePeerConnectionFactory()
 	SignallingThread = MakeUnique<rtc::Thread>(rtc::SocketServer::CreateDefault());
 #elif WEBRTC_VERSION == 96
 	SignallingThread = MakeUnique<rtc::Thread>(rtc::CreateDefaultSocketServer());
-#endif 
+#endif
 	SignallingThread->SetName("FPixelStreamingPeerConnection SignallingThread", nullptr);
 	SignallingThread->Start();
 
@@ -743,7 +761,17 @@ void FPixelStreamingPeerConnection::CreatePeerConnectionFactory()
 		}
 		else
 		{
-			AudioDeviceModule = new rtc::RefCountedObject<FPixelStreamingAudioDeviceModule>();
+			// If experimental audio input is enabled we pass the mixer, if not we don't - no mixer means only use the UE submix.
+			if (Settings::IsExperimentalAudioInputEnabled())
+			{
+				AudioDeviceModule = new rtc::RefCountedObject<FAudioDeviceModule>(AudioMixer);
+				UE_LOG(LogPixelStreaming, Log, TEXT("Using -PixelStreamingExperimentalAudioInput. Pixel Streaming audio will mix the UE submix with user audio inputs."));
+			}
+			else
+			{
+				AudioDeviceModule = new rtc::RefCountedObject<FAudioDeviceModule>();
+				UE_LOG(LogPixelStreaming, Log, TEXT("Not using -PixelStreamingExperimentalAudioInput. Pixel Streaming audio will only transmit the UE submix."));
+			}
 		}
 	}
 

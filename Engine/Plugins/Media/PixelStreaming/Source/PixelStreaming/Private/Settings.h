@@ -6,7 +6,6 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/CommandLine.h"
 #include "InputCoreTypes.h"
-#include "Misc/CommandLine.h"
 #include "VideoEncoder.h"
 #include "WebRTCIncludes.h"
 #include "PixelStreamingCodec.h"
@@ -43,6 +42,7 @@ namespace UE::PixelStreaming::Settings
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableAudioSync;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCUseLegacyAudioDevice;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableStats;
+	extern TAutoConsoleVariable<float> CVarPixelStreamingWebRTCAudioGain;
 	// End WebRTC CVars
 
 	// Begin Pixel Streaming Plugin CVars
@@ -55,6 +55,7 @@ namespace UE::PixelStreaming::Settings
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingVPXUseCompute;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingInputController;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingSuppressICECandidateErrors;
+	extern TAutoConsoleVariable<float> CVarPixelStreamingSignalingReconnectInterval;
 
 	extern TArray<FKey> FilteredKeys;
 	// Ends Pixel Streaming Plugin CVars
@@ -103,6 +104,11 @@ namespace UE::PixelStreaming::Settings
 	extern FSimulcastParameters SimulcastParameters;
 
 	// Begin Command line args
+	inline bool IsExperimentalAudioInputEnabled()
+	{
+		return FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingExperimentalAudioInput"));
+	}
+
 	inline bool IsPixelStreamingHideCursor()
 	{
 		return FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingHideCursor"));
@@ -132,5 +138,6 @@ namespace UE::PixelStreaming::Settings
 	{
 		return FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingFastPan="), OutFastPan);
 	}
+
 	// End Command line args
 } // namespace UE::PixelStreaming::Settings

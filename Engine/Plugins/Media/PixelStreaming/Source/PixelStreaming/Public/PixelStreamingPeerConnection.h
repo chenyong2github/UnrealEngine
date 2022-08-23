@@ -2,11 +2,17 @@
 
 #pragma once
 
-#include "PixelStreamingProtocolDefs.h"
+#include "PixelStreamingProtocol.h"
 #include "IPixelStreamingAudioSink.h"
+#include "IPixelStreamingAudioInput.h"
 #include "PixelStreamingWebRTCIncludes.h"
 
 class FPixelStreamingDataChannel;
+
+namespace UE::PixelStreaming
+{
+	class FAudioInputMixer;
+}
 
 /**
  * A specialized representation of a WebRTC peer connection for Pixel Streaming.
@@ -42,16 +48,16 @@ public:
 	enum EReceiveMediaOption : int
 	{
 		// Receive no media
-		Nothing 	= 0x00,
+		Nothing = 0x00,
 
 		// Can receive audio
-		Audio 		= 0x01,
+		Audio = 0x01,
 
 		// Can receive video
-		Video 		= 0x02,
+		Video = 0x02,
 
 		// Can receive both audio and video
-		All 		= Audio | Video,
+		All = Audio | Video,
 	};
 
 	/**
@@ -222,6 +228,9 @@ public:
 		SignallingThread->PostTask(RTC_FROM_HERE, Forward<FunctorT>(InFunc));
 	}
 
+	static TSharedPtr<IPixelStreamingAudioInput> CreateAudioInput();
+	static void RemoveAudioInput(TSharedPtr<IPixelStreamingAudioInput> AudioInput);
+
 protected:
 	//
 	// webrtc::PeerConnectionObserver implementation.
@@ -255,7 +264,7 @@ private:
 	rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> VideoSource;
 	rtc::scoped_refptr<webrtc::AudioSourceInterface> AudioSource;
 
-	rtc::VideoSinkInterface<webrtc::VideoFrame>* VideoSink;
+	rtc::VideoSinkInterface<webrtc::VideoFrame>* VideoSink = nullptr;
 	TSharedPtr<IPixelStreamingAudioSink> AudioSink;
 
 	// using unique_ptr here because TUniquePtr does not like incomplete types with -disableunity and -nopch
@@ -268,6 +277,7 @@ private:
 	static TUniquePtr<rtc::Thread> SignallingThread;
 	static rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PeerConnectionFactory;
 	static rtc::scoped_refptr<webrtc::AudioSourceInterface> ApplicationAudioSource;
+	static TSharedPtr<UE::PixelStreaming::FAudioInputMixer> AudioMixer;
 
 	// we want to be able to create data channels from events emitted from the peer connection
 	friend FPixelStreamingDataChannel;

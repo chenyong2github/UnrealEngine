@@ -14,6 +14,7 @@ namespace UE::PixelStreaming
 
 	FVideoSourceGroup::FVideoSourceGroup()
 		: bCoupleFramerate(!Settings::DecoupleFrameRate())
+		, FramesPerSecond(Settings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread())
 	{
 	}
 
@@ -22,20 +23,18 @@ namespace UE::PixelStreaming
 		Stop();
 	}
 
-	void FVideoSourceGroup::SetVideoInput(TSharedPtr<IPixelStreamingVideoInput> InVideoInput)
+	void FVideoSourceGroup::SetVideoInput(TSharedPtr<FPixelStreamingVideoInput> InVideoInput)
 	{
 		if (VideoInput)
 		{
-			VideoInput->OnFrameReady.Remove(FrameDelegateHandle);
-			VideoInput->OnResolutionChanged.Remove(ResizeDelegateHandle);
+			VideoInput->OnFrameCaptured.Remove(FrameDelegateHandle);
 		}
 
 		VideoInput = InVideoInput;
 
 		if (VideoInput)
 		{
-			FrameDelegateHandle = VideoInput->OnFrameReady.AddSP(AsShared(), &FVideoSourceGroup::InputFrame);
-			ResizeDelegateHandle = VideoInput->OnResolutionChanged.AddSP(AsShared(), &FVideoSourceGroup::ResolutionChanged);
+			FrameDelegateHandle = VideoInput->OnFrameCaptured.AddSP(AsShared(), &FVideoSourceGroup::OnFrameCaptured);
 		}
 	}
 
@@ -51,18 +50,12 @@ namespace UE::PixelStreaming
 
 	void FVideoSourceGroup::SetCoupleFramerate(bool Couple)
 	{
-		FScopeLock Lock(&CriticalSection);
 		bCoupleFramerate = Couple;
-		for (auto& VideoSource : VideoSources)
-		{
-			VideoSource->SetCoupleFramerate(bCoupleFramerate);
-		}
 	}
 
-	rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> FVideoSourceGroup::CreateVideoSource(bool InAllowSimulcast, const TFunction<bool()>& InShouldGenerateFramesCheck)
+	rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> FVideoSourceGroup::CreateVideoSource(const TFunction<bool()>& InShouldGenerateFramesCheck)
 	{
-		rtc::scoped_refptr<FVideoSource> NewVideoSource = new FVideoSource(VideoInput, InAllowSimulcast, InShouldGenerateFramesCheck);
-		NewVideoSource->SetCoupleFramerate(bCoupleFramerate);
+		rtc::scoped_refptr<FVideoSource> NewVideoSource = new FVideoSource(VideoInput, InShouldGenerateFramesCheck);
 		{
 			FScopeLock Lock(&CriticalSection);
 			VideoSources.Add(NewVideoSource);
@@ -125,6 +118,14 @@ namespace UE::PixelStreaming
 		}
 	}
 
+	void FVideoSourceGroup::OnFrameCaptured()
+	{
+		if (bCoupleFramerate)
+		{
+			Tick();
+		}
+	}
+
 	void FVideoSourceGroup::StartThread()
 	{
 		if (!bCoupleFramerate && !bThreadRunning)
@@ -157,30 +158,6 @@ namespace UE::PixelStreaming
 			else if (!bThreadRunning && NumSources > 0)
 			{
 				StartThread();
-			}
-		}
-	}
-
-	void FVideoSourceGroup::InputFrame(const IPixelStreamingInputFrame& SourceFrame)
-	{
-		FScopeLock Lock(&CriticalSection);
-		for (auto& VideoSource : VideoSources)
-		{
-			if (VideoSource)
-			{
-				VideoSource->InputFrame(SourceFrame);
-			}
-		}
-	}
-
-	void FVideoSourceGroup::ResolutionChanged(int32 NewWidth, int32 NewHeight)
-	{
-		FScopeLock Lock(&CriticalSection);
-		for (auto& VideoSource : VideoSources)
-		{
-			if (VideoSource)
-			{
-				VideoSource->ResolutionChanged(NewWidth, NewHeight);
 			}
 		}
 	}

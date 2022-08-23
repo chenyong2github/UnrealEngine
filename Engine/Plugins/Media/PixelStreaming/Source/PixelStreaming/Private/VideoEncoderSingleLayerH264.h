@@ -4,6 +4,7 @@
 #include "WebRTCIncludes.h"
 #include "VideoEncoder.h"
 #include "VideoEncoderWrapperHardware.h"
+#include "IPixelCaptureOutputFrame.h"
 
 namespace UE::PixelStreaming
 {
@@ -44,6 +45,10 @@ namespace UE::PixelStreaming
 		void MaybeDumpFrame(webrtc::EncodedImage const& encoded_image);
 
 		AVEncoder::FVideoEncoder::FLayerConfig CreateEncoderConfigFromCVars(AVEncoder::FVideoEncoder::FLayerConfig BaseEncoderConfig) const;
+
+		void UpdateFrameMetadataPreEncode(IPixelCaptureOutputFrame& Frame);
+		void UpdateFrameMetadataPostEncode(IPixelCaptureOutputFrame& Frame);
+		webrtc::VideoFrame WrapAdaptedFrame(const webrtc::VideoFrame& ExistingFrame, const IPixelCaptureOutputFrame& AdaptedLayer);
 
 		FVideoEncoderFactorySingleLayer& Factory;
 

@@ -2,6 +2,7 @@
 #pragma once
 
 #include "WebRTCIncludes.h"
+#include "IPixelCaptureOutputFrame.h"
 
 namespace UE::PixelStreaming
 {
@@ -23,6 +24,10 @@ namespace UE::PixelStreaming
 		virtual webrtc::VideoEncoder::EncoderInfo GetEncoderInfo() const override;
 
 	private:
+		void UpdateFrameMetadataPreEncode(IPixelCaptureOutputFrame& Frame);
+		void UpdateFrameMetadataPostEncode(IPixelCaptureOutputFrame& Frame);
+		webrtc::VideoFrame WrapAdaptedFrame(const webrtc::VideoFrame& ExistingFrame, const IPixelCaptureOutputFrame& AdaptedLayer);
+
 		std::unique_ptr<webrtc::VideoEncoder> WebRTCVPXEncoder;
 	};
 } // namespace UE::PixelStreaming

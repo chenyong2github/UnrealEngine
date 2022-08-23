@@ -25,7 +25,7 @@ public:
 	 * Connect to a specified signalling server at ths given URL
 	 * @param URL The url of the destination signalling server.
 	 */
-	void Connect(const FString& URL);
+	void TryConnect(FString URL);
 
 	/**
 	 * Disconnects from the signalling server. Safe to call even when not connected.
@@ -84,9 +84,23 @@ public:
 	 */
 	void SendIceCandidate(const webrtc::IceCandidateInterface& IceCandidate);
 
-private:
-	void KeepAlive();
+	/**
+	 * Enables or disables the keep alive pings on this connection. Receiving connections
+	 * should disable the keep alive since the reference signalling server will reject
+	 * pings from players and close the connection.
+	 * @param bKeepAlive True to enable keep alive pings. False to disable.
+	 */
+	void SetKeepAlive(bool bKeepAlive);
 
+	/**
+	 * Toggles automatic reconnecting when websocket is closed or unreachable.
+	 * @param bAutoReconnect True to enable auto reconnect. False to disable.
+	 */
+	void SetAutoReconnect(bool bAutoReconnect);
+
+private:
+	void Connect(FString Url, bool bIsReconnect);
+	void KeepAlive();
 	void OnConnected();
 	void OnConnectionError(const FString& Error);
 	void OnClosed(int32 StatusCode, const FString& Reason, bool bWasClean);
@@ -109,6 +123,9 @@ private:
 
 	void StartKeepAliveTimer();
 	void StopKeepAliveTimer();
+
+	void StartReconnectTimer();
+	void StopReconnectTimer();
 
 	void SendMessage(const FString& Msg);
 
@@ -133,8 +150,11 @@ private:
 	FDelegateHandle OnClosedHandle;
 	FDelegateHandle OnMessageHandle;
 
+	bool bAutoReconnectEnabled = true;
+	bool bKeepAliveEnabled = true;
 	/** Handle for efficient management of KeepAlive timer */
 	FTimerHandle TimerHandle_KeepAlive;
+	FTimerHandle TimerHandle_Reconnect;
 	const float KEEP_ALIVE_INTERVAL = 60.0f;
 
 	TMap<FString, TFunction<void(FJsonObjectPtr)>> MessageHandlers;

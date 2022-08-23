@@ -58,8 +58,8 @@ void UPixelStreamingMediaTexture::OnFrame(const webrtc::VideoFrame& frame)
 	// Additionally, we're rendering to a texture then updating the texture resource with every frame. We
 	// might be able to just map a single dest texture and update it each frame.
 
-	constexpr auto TEXTURE_PIXEL_FORMAT = PF_B8G8R8A8;
-	constexpr auto WEBRTC_PIXEL_FORMAT = webrtc::VideoType::kARGB;
+	static constexpr auto TEXTURE_PIXEL_FORMAT = PF_B8G8R8A8;
+	static constexpr auto WEBRTC_PIXEL_FORMAT = webrtc::VideoType::kARGB;
 
 	SizeX = frame.width();
 	SizeY = frame.height();

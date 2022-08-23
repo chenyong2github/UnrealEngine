@@ -5,6 +5,7 @@
 #include "Misc/ScopeLock.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/PlatformProcess.h"
+#include "WebRTCIncludes.h"
 
 namespace UE::PixelStreaming
 {

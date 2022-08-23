@@ -2,9 +2,17 @@
 
 #pragma once
 
-#include "IPixelStreamingAudioPlayoutRequester.h"
 #include "HAL/Runnable.h"
+#include "HAL/RunnableThread.h"
 #include "HAL/ThreadSafeBool.h"
+#include "HAL/CriticalSection.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
+
+namespace webrtc
+{
+	class AudioTransport;
+}
 
 namespace UE::PixelStreaming
 {
@@ -12,7 +20,7 @@ namespace UE::PixelStreaming
 	// This is required so that WebRTC audio sinks actually have
 	// some audio data for their sinks. Without this WebRTC assumes
 	// there is no demand for audio and does not populate the sinks.
-	class FAudioPlayoutRequester : public IPixelStreamingAudioPlayoutRequester
+	class FAudioPlayoutRequester
 	{
 	public:
 		class Runnable : public FRunnable
@@ -37,13 +45,13 @@ namespace UE::PixelStreaming
 		FAudioPlayoutRequester();
 		virtual ~FAudioPlayoutRequester() = default;
 
-		virtual void InitPlayout() override;
-		virtual void StartPlayout() override;
-		virtual void StopPlayout() override;
-		virtual bool Playing() const override;
-		virtual bool PlayoutIsInitialized() const override;
-		virtual void Uninitialise() override;
-		virtual void RegisterAudioCallback(webrtc::AudioTransport* AudioCallback) override;
+		virtual void InitPlayout();
+		virtual void StartPlayout();
+		virtual void StopPlayout();
+		virtual bool Playing() const;
+		virtual bool PlayoutIsInitialized() const;
+		virtual void Uninitialise();
+		virtual void RegisterAudioCallback(webrtc::AudioTransport* AudioCallback);
 
 	public:
 		static int16_t const RequestIntervalMs = 10;

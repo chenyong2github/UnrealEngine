@@ -14,6 +14,8 @@
 #include "VCamPixelStreamingSubsystem.h"
 #include "VCamPixelStreamingLiveLink.h"
 #include "PixelStreamingVCamLog.h"
+#include "IPixelStreamingModule.h"
+#include "PixelStreamingProtocol.h"
 
 namespace VCamPixelStreamingSession
 {
@@ -111,69 +113,56 @@ void UVCamPixelStreamingSession::Activate()
 
 	if(MediaOutput->GetStreamer())
 	{
-		MediaOutput->GetStreamer()->OnInputReceived.AddUObject(this, &UVCamPixelStreamingSession::OnARKitTransformReceived);
-	}
+		IPixelStreamingModule& PixelStreamingModule = IPixelStreamingModule::Get();
+		
+		Protocol::EPixelStreamingMessageDirection MessageDirection = Protocol::EPixelStreamingMessageDirection::ToStreamer;
 
+		typedef Protocol::EPixelStreamingMessageTypes EType;
+		Protocol::FPixelStreamingInputMessage Message = Protocol::FPixelStreamingInputMessage(100, 72, {
+			// 4x4 Transform
+			EType::Float, EType::Float, EType::Float, EType::Float,
+			EType::Float, EType::Float, EType::Float, EType::Float,
+			EType::Float, EType::Float, EType::Float, EType::Float,
+			EType::Float, EType::Float, EType::Float, EType::Float,
+			// Timestamp
+			EType::Double
+		});
+
+		const TFunction<void(FMemoryReader)>& Handler = [this](FMemoryReader Ar) { 
+			// The buffer contains the transform matrix stored as 16 floats
+			FMatrix ARKitMatrix;
+			for (int32 Row = 0; Row < 4; ++Row)
+			{
+				float Col0, Col1, Col2, Col3;
+				Ar << Col0 << Col1 << Col2 << Col3;
+				ARKitMatrix.M[Row][0] = Col0;
+				ARKitMatrix.M[Row][1] = Col1;
+				ARKitMatrix.M[Row][2] = Col2;
+				ARKitMatrix.M[Row][3] = Col3;
+			}
+			ARKitMatrix.DiagnosticCheckNaN();
+
+			// Extract timestamp
+			double Timestamp;
+			Ar << Timestamp;
+
+
+			/**
+			 * Code to control the level editor viewport
+			 */
+			// for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+			// {
+			// 	if (LevelVC && LevelVC->IsPerspective())
+			// 	{
+			// 		LevelVC->SetViewLocation(Translation);
+			// 		LevelVC->SetViewRotation(ModifiedRotation);
+			// 	}
+			// }
+		};
+
+		PixelStreamingModule.RegisterMessage(MessageDirection, "ARKitTransform", Message, Handler);
+	}
 	Super::Activate();
-}
-
-void UVCamPixelStreamingSession::OnARKitTransformReceived(FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data)
-{
-	if(Type != static_cast<uint8>(UE::PixelStreaming::Protocol::EToStreamerMsg::ARKitTransform) || !EnableARKitTracking)
-	{
-		return;
-	}
-
-	// 1 byte for type, 16 floats for transform, 1 double for timestamp
-	static constexpr int ExpectedDataSize = 1 + (16 * 4) + 8;
-	if (Data.Num() != ExpectedDataSize)
-	{
-		UE_LOG(LogPixelStreamingVCam, Warning, TEXT("ARKitTransform data received but with invalid size. Expects %d bytes but received %d"),
-			ExpectedDataSize,
-			Data.Num());
-
-		return;
-	}
-	
-	FMemoryReader Buffer(Data);
-	
-	// Extract message type
-	uint8 MessageType;
-	Buffer << MessageType;
-
-	// Extract transform, the buffer contains the transform matrix stored as 16 floats
-	FMatrix ARKitMatrix;
-	for (int32 Row = 0; Row < 4; ++Row)
-	{
-		float Col0, Col1, Col2, Col3;
-		Buffer << Col0 << Col1 << Col2 << Col3;
-		ARKitMatrix.M[Row][0] = Col0;
-		ARKitMatrix.M[Row][1] = Col1;
-		ARKitMatrix.M[Row][2] = Col2;
-		ARKitMatrix.M[Row][3] = Col3;
-	}
-	ARKitMatrix.DiagnosticCheckNaN();
-
-	// Extract timestamp
-	double Timestamp;
-	Buffer << Timestamp;
-
-	if(TSharedPtr<FPixelStreamingLiveLinkSource> LiveLinkSource = UVCamPixelStreamingSubsystem::Get()->LiveLinkSource)
-	{
-		LiveLinkSource->PushTransformForSubject(GetFName(), FTransform(ARKitMatrix), Timestamp);
-	}
-
-	/**
-	 * Code to control the level editor viewport
-	 */
-	// for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
-	// {
-	// 	if (LevelVC && LevelVC->IsPerspective())
-	// 	{
-	// 		LevelVC->SetViewLocation(Translation);
-	// 		LevelVC->SetViewRotation(ModifiedRotation);
-	// 	}
-	// }
 }
 
 void UVCamPixelStreamingSession::StopSignallingServer()

@@ -86,8 +86,5 @@ namespace UE::PixelStreaming
 		FCriticalSection StreamInfosGuard;
 		std::vector<StreamInfo> StreamInfos;
 		webrtc::EncodedImageCallback* EncodedCompleteCallback;
-
-		int EncodeVPX(const webrtc::VideoFrame& InputImage, const std::vector<webrtc::VideoFrameType>* FrameTypes, bool bSendKeyFrame);
-		int EncodeH264(const webrtc::VideoFrame& InputImage, const std::vector<webrtc::VideoFrameType>* FrameTypes, bool bSendKeyFrame);
 	};
 } // namespace UE::PixelStreaming

@@ -7,7 +7,6 @@
 #include "Delegates/DelegateSignatureImpl.inl"
 #include "PixelStreamingDelegates.generated.h"
 
-
 namespace webrtc
 {
 	class DataChannelInterface;
@@ -30,7 +29,6 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FConnectedToSignallingServerNative);
 	FConnectedToSignallingServerNative OnConnectedToSignallingServerNative;
 
-
 	/**
 	 * A connection to the signalling server was lost.
 	 */
@@ -41,7 +39,6 @@ public:
 	// C++ Delegate
 	DECLARE_MULTICAST_DELEGATE(FDisconnectedFromSignallingServerNative);
 	FDisconnectedFromSignallingServerNative OnDisconnectedFromSignallingServerNative;
-
 
 	/**
 	 * A new connection has been made to the session.
@@ -54,7 +51,6 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FNewConnectionNative, FString, bool);
 	FNewConnectionNative OnNewConnectionNative;
 
-
 	/**
 	 * A connection to a player was lost.
 	 */
@@ -65,7 +61,6 @@ public:
 	// C++ Delegate
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FClosedConnectionNative, FPixelStreamingPlayerId, bool);
 	FClosedConnectionNative OnClosedConnectionNative;
-
 
 	/**
 	 * All connections have closed and nobody is viewing or interacting with
@@ -79,35 +74,37 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FAllConnectionsClosedNative);
 	FAllConnectionsClosedNative OnAllConnectionsClosedNative;
 
-
 	/**
 	 * The quality controlling peer has changed
 	 */
 	// C++ Delegate
-	DECLARE_MULTICAST_DELEGATE_OneParam(FQualityControllerChanged, FPixelStreamingPlayerId)
+	DECLARE_MULTICAST_DELEGATE_OneParam(FQualityControllerChanged, FPixelStreamingPlayerId);
 	FQualityControllerChanged OnQualityControllerChangedNative;
-
 
 	/**
 	 * A new data channel has been opened
 	 */
 	// C++ Delegate
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FDataChannelOpen, FPixelStreamingPlayerId, webrtc::DataChannelInterface*)
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FDataChannelOpen, FPixelStreamingPlayerId, webrtc::DataChannelInterface*);
 	FDataChannelOpen OnDataChannelOpenNative;
-	
+
 	/**
 	 * An existing data channel has been closed
 	 */
-	 // C++ Delegate
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FDataChannelClosed, FPixelStreamingPlayerId, webrtc::DataChannelInterface*)
+	// C++ Delegate
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FDataChannelClosed, FPixelStreamingPlayerId, webrtc::DataChannelInterface*);
 	FDataChannelClosed OnDataChannelClosedNative;
 
 	/**
 	 * A pixel streaming stat has changed
 	 */
+	// BP Delegate
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FStatsChanged, FString, PlayerId, FName, StatName, float, StatValue);
+	UPROPERTY(BlueprintAssignable, Category = "Pixel Streaming Delegates")
+	FStatsChanged OnStatChanged;
 	// C++ Delegate
-	DECLARE_MULTICAST_DELEGATE_ThreeParams(FStatChanged, FPixelStreamingPlayerId, FName, float)
-	FStatChanged OnStatChangedNative;
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FStatChangedNative, FPixelStreamingPlayerId, FName, float);
+	FStatChangedNative OnStatChangedNative;
 
 	/**
 	 * Create the singleton.

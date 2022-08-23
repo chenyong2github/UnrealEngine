@@ -15,17 +15,17 @@ namespace UE::PixelStreamingServers
 
 	void FSignallingServer::Stop()
 	{
-		if(PlayersWS)
+		if (PlayersWS)
 		{
 			PlayersWS->Stop();
 			PlayersWS.Reset();
 		}
-		if(StreamersWS)
+		if (StreamersWS)
 		{
 			StreamersWS->Stop();
 			StreamersWS.Reset();
 		}
-		if(Probe)
+		if (Probe)
 		{
 			Probe.Reset();
 		}
@@ -57,7 +57,7 @@ namespace UE::PixelStreamingServers
 	{
 		FString ServersDir;
 		bool bServersDirExists = Utils::GetWebServersDir(ServersDir);
-		if(bServersDirExists)
+		if (bServersDirExists)
 		{
 			ServersDir = ServersDir / TEXT("SignallingWebServer");
 			bServersDirExists = FPaths::DirectoryExists(ServersDir);
@@ -68,13 +68,13 @@ namespace UE::PixelStreamingServers
 #if WITH_EDITOR
 		// If server directory doesn't exist we will serve a known directory that gives the user a message
 		// telling them to run the `get_ps_servers` script.
-		if(!bServersDirExists)
+		if (!bServersDirExists)
 		{
 			FString OutResourcesDir;
 			bool bResourcesDirExists = Utils::GetResourcesDir(OutResourcesDir);
 			FString NotFoundDir = OutResourcesDir / TEXT("NotFound");
 
-			if(bResourcesDirExists && FPaths::DirectoryExists(NotFoundDir))
+			if (bResourcesDirExists && FPaths::DirectoryExists(NotFoundDir))
 			{
 				FWebSocketHttpMount Mount;
 				Mount.SetPathOnDisk(NotFoundDir);
@@ -84,7 +84,7 @@ namespace UE::PixelStreamingServers
 				return MountsArr;
 			}
 		}
-#endif //WITH_EDITOR
+#endif // WITH_EDITOR
 
 		// Add /Public
 		FWebSocketHttpMount PublicMount;
@@ -115,38 +115,37 @@ namespace UE::PixelStreamingServers
 		FURL StreamerURL = OutEndpoints[EEndpoint::Signalling_Streamer];
 
 		/*
-		* --------------- Streamers websocket server ---------------
-		*/
+		 * --------------- Streamers websocket server ---------------
+		 */
 		StreamersWS = MakeUnique<FWebSocketServerWrapper>();
 		StreamersWS->OnMessage.AddRaw(this, &FSignallingServer::OnStreamerMessage);
 		StreamersWS->OnOpenConnection.AddRaw(this, &FSignallingServer::OnStreamerConnected);
 		bool bLaunchedStreamerServer = StreamersWS->Launch(StreamerURL.Port);
 
-		if(!bLaunchedStreamerServer)
+		if (!bLaunchedStreamerServer)
 		{
 			UE_LOG(LogPixelStreamingServers, Error, TEXT("Failed to launch websocket server for streamers on port=%d"), StreamerURL.Port);
 			return false;
 		}
 
 		/*
-		* --------------- Players websocket server ---------------
-		*/
+		 * --------------- Players websocket server ---------------
+		 */
 		PlayersWS = MakeUnique<FWebSocketServerWrapper>();
 		PlayersWS->EnableWebServer(GenerateDirectoriesToServe());
 		PlayersWS->OnMessage.AddRaw(this, &FSignallingServer::OnPlayerMessage);
 		PlayersWS->OnOpenConnection.AddRaw(this, &FSignallingServer::OnPlayerConnected);
 		bool bLaunchedPlayerServer = PlayersWS->Launch(PlayersURL.Port);
 
-		if(!bLaunchedPlayerServer)
+		if (!bLaunchedPlayerServer)
 		{
 			UE_LOG(LogPixelStreamingServers, Error, TEXT("Failed to launch websocket server for players on port=%d"), PlayersURL.Port);
 			return false;
 		}
 
-		
 		/*
-		* --------------- Websocket probe ---------------
-		*/
+		 * --------------- Websocket probe ---------------
+		 */
 
 		if (bPollUntilReady)
 		{
@@ -186,7 +185,7 @@ namespace UE::PixelStreamingServers
 	{
 		TSharedPtr<FJsonObject> JSONObj = MakeShared<FJsonObject>();
 		bool bSuccess = Utils::Jsonify(Message, JSONObj);
-		if(!bSuccess)
+		if (!bSuccess)
 		{
 			UE_LOG(LogPixelStreamingServers, Warning, TEXT("Could not deserialize message into a JSON object - message=%s"), *Message);
 		}
@@ -205,6 +204,30 @@ namespace UE::PixelStreamingServers
 		return true;
 	}
 
+	void FSignallingServer::SendPlayerMessage(uint16 PlayerConnectionId, FString MessageType, FString Message)
+	{
+		// All other message types just get routed to the player that streamer wishes to recieve it
+		bool bForwardStraightToPlayer =
+			MessageType == FString(TEXT("offer")) || MessageType == FString(TEXT("answer")) || MessageType == FString(TEXT("iceCandidate"));
+
+		if (bForwardStraightToPlayer)
+		{
+			PlayersWS->Send(PlayerConnectionId, Message);
+			return;
+		}
+		else if (MessageType == FString(TEXT("disconnectPlayer")))
+		{
+			PlayersWS->Close(PlayerConnectionId);
+			return;
+		}
+		else
+		{
+			// Unsupported message type
+			UE_LOG(LogPixelStreamingServers, Warning, TEXT("Unsupported message type receieved from streamer, message=%s"), *Message);
+			return;
+		}
+	}
+
 	void FSignallingServer::OnStreamerMessage(uint16 ConnectionId, TArrayView<uint8> Message)
 	{
 		FString Msg = Utils::ToString(Message);
@@ -213,10 +236,13 @@ namespace UE::PixelStreamingServers
 		TSharedPtr<FJsonObject> JSONObj = ParseToJSON(Msg);
 		FString MsgType;
 		bool bHasMsgType = GetMessageType(JSONObj, MsgType);
-		if(!bHasMsgType) { return; }
+		if (!bHasMsgType)
+		{
+			return;
+		}
 
 		// Got ping, respond with pong ---  { "type" : "pong", "time" : "1657509114" }
-		if(MsgType == FString(TEXT("ping")))
+		if (MsgType == FString(TEXT("ping")))
 		{
 			const double UnixTime = FDateTime::UtcNow().ToUnixTimestamp();
 			TSharedRef<FJsonObject> PongJSON = MakeShared<FJsonObject>();
@@ -225,7 +251,7 @@ namespace UE::PixelStreamingServers
 			StreamersWS->Send(ConnectionId, Utils::ToString(PongJSON));
 			return;
 		}
-		
+
 		// All other message types require a `playerId` field to be valid.
 		FString PlayerId;
 		if (!JSONObj->TryGetStringField(TEXT("playerId"), PlayerId))
@@ -240,34 +266,13 @@ namespace UE::PixelStreamingServers
 		// As message are going to the player they don't actually need the playerId field, the field exists only so we know who to send it to.
 		JSONObj->RemoveField(TEXT("playerId"));
 
-		// All other message types just get routed to the player that streamer wishes to recieve it
-		bool bForwardStraightToPlayer = 
-			MsgType == FString(TEXT("offer")) ||
-			MsgType == FString(TEXT("answer")) ||
-			MsgType == FString(TEXT("iceCandidate"));
-
-		if(bForwardStraightToPlayer)
-		{
-			PlayersWS->Send(PlayerIdInt, Utils::ToString(JSONObj.ToSharedRef()));
-			return;
-		}
-		else if(MsgType == FString(TEXT("disconnectPlayer")))
-		{
-			PlayersWS->Close(PlayerIdInt);
-			return;
-		}
-		else
-		{
-			// Unsupported message type
-			UE_LOG(LogPixelStreamingServers, Warning, TEXT("Unsupported message type receieved from streamer, message=%s"), *Msg);
-			return;
-		}
+		SendPlayerMessage(PlayerIdInt, MsgType, Utils::ToString(JSONObj.ToSharedRef()));
 	}
 
 	void FSignallingServer::OnPlayerMessage(uint16 ConnectionId, TArrayView<uint8> Message)
 	{
 		uint16 OutStreamerId;
-		if(!StreamersWS->GetFirstConnection(OutStreamerId))
+		if (!StreamersWS->GetFirstConnection(OutStreamerId))
 		{
 			UE_LOG(LogPixelStreamingServers, Warning, TEXT("Player message ignored because no streamer is yet connected to the signalling server."));
 			return;
@@ -279,43 +284,53 @@ namespace UE::PixelStreamingServers
 		TSharedPtr<FJsonObject> JSONObj = ParseToJSON(Msg);
 		FString MsgType;
 		bool bHasMsgType = GetMessageType(JSONObj, MsgType);
-		if(!bHasMsgType) { return; }
+		if (!bHasMsgType)
+		{
+			return;
+		}
 
 		// Add player id to any messages going to streamer so streamer knows who sent it
 		JSONObj->SetStringField(FString(TEXT("playerId")), FString::FromInt(ConnectionId));
 
-		bool bForwardStraightToStreamer =
-			MsgType == FString(TEXT("answer")) ||
-			MsgType == FString(TEXT("offer")) ||
-			MsgType == FString(TEXT("iceCandidate")) ||
-			MsgType == FString(TEXT("dataChannelRequest")) ||
-			MsgType == FString(TEXT("peerDataChannelsReady"));
+		SendStreamerMessage(OutStreamerId, MsgType, Utils::ToString(JSONObj.ToSharedRef()));
+	}
 
-		if(bForwardStraightToStreamer)
+	void FSignallingServer::SendStreamerMessage(uint16 StreamerConnectionId, FString MessageType, FString Message)
+	{
+		// clang-format off
+		bool bForwardStraightToStreamer =
+			MessageType == FString(TEXT("answer")) || 
+			MessageType == FString(TEXT("offer")) || 
+			MessageType == FString(TEXT("iceCandidate")) || 
+			MessageType == FString(TEXT("dataChannelRequest")) || 
+			MessageType == FString(TEXT("peerDataChannelsReady"));
+		// clang-format on
+
+		if (bForwardStraightToStreamer)
 		{
-			StreamersWS->Send(OutStreamerId, Utils::ToString(JSONObj.ToSharedRef()));
+			StreamersWS->Send(StreamerConnectionId, Message);
 			return;
 		}
-		else if(MsgType == FString(TEXT("stats")))
+		else if (MessageType == FString(TEXT("stats")))
 		{
-			UE_LOG(LogPixelStreamingServers, Log, TEXT("Player stats = \n %s"), *Msg);
+			UE_LOG(LogPixelStreamingServers, Log, TEXT("Player stats = \n %s"), *Message);
 			return;
 		}
 		else
 		{
 			// Unsupported message type
-			UE_LOG(LogPixelStreamingServers, Warning, TEXT("Unsupported message type receieved from player, message=%s"), *Msg);
+			UE_LOG(LogPixelStreamingServers, Warning, TEXT("Unsupported message type receieved from player, message=%s"), *Message);
 			return;
 		}
 	}
 
 	void FSignallingServer::OnPlayerConnected(uint16 ConnectionId)
 	{
-		// Todo (Luke): If we did want to support multiple streamers we could grab streamer id from url params perhaps. 
+		// Todo (Luke): If we did want to support multiple streamers we could grab streamer id from url params perhaps.
 		// For now we just grab the first streamer websocket connection.
 
 		uint16 OutStreamerId;
-		if(StreamersWS->GetFirstConnection(OutStreamerId))
+		if (StreamersWS->GetFirstConnection(OutStreamerId))
 		{
 			// Send "playerConnected" message to streamer which kicks off making a new RTC connection
 			UE_LOG(LogPixelStreamingServers, Log, TEXT("Player connected over websocket. PlayerId=%d"), ConnectionId);
@@ -341,5 +356,4 @@ namespace UE::PixelStreamingServers
 		}
 	}
 
-} // UE::PixelStreamingServers
-
+} // namespace UE::PixelStreamingServers

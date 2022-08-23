@@ -12,11 +12,12 @@ namespace UE::PixelStreaming
 		std::vector<webrtc::SdpVideoFormat> video_formats;
 		video_formats.push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
 		video_formats.push_back(webrtc::SdpVideoFormat(cricket::kVp9CodecName));
-#if WEBRTC_VERSION == 84
-		video_formats.push_back(CreateH264Format(webrtc::H264::kProfileConstrainedBaseline, webrtc::H264::kLevel3_1));
-#elif WEBRTC_VERSION == 96
-		video_formats.push_back(CreateH264Format(webrtc::H264Profile::kProfileConstrainedBaseline, webrtc::H264Level::kLevel3_1));
-#endif
+		// uncomment these when we get a h264 decoder
+// #if WEBRTC_VERSION == 84
+// 		video_formats.push_back(CreateH264Format(webrtc::H264::kProfileConstrainedBaseline, webrtc::H264::kLevel3_1));
+// #elif WEBRTC_VERSION == 96
+// 		video_formats.push_back(CreateH264Format(webrtc::H264Profile::kProfileConstrainedBaseline, webrtc::H264Level::kLevel3_1));
+// #endif
 		return video_formats;
 	}
 

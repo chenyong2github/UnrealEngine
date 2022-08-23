@@ -9,42 +9,89 @@
 #include "PixelStreamingPrivate.h"
 #include "Utils.h"
 
+namespace
+{
+	// the list of each individual codec we have encoder support for
+	const TArray<EPixelStreamingCodec> SupportedCodecList{ EPixelStreamingCodec::H264, EPixelStreamingCodec::VP8, EPixelStreamingCodec::VP9 };
+
+	// mapping of codec to a list of video formats
+	// done this way so we can order the list of formats based on selected codec in GetSupportedFormats
+	TMap<EPixelStreamingCodec, std::vector<webrtc::SdpVideoFormat>> CreateSupportedFormatMap()
+	{
+		TMap<EPixelStreamingCodec, std::vector<webrtc::SdpVideoFormat>> Codecs;
+		for (auto& Codec : SupportedCodecList)
+		{
+			Codecs.Add(Codec);
+		}
+
+		Codecs[EPixelStreamingCodec::VP8].push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
+		Codecs[EPixelStreamingCodec::VP9].push_back(webrtc::SdpVideoFormat(cricket::kVp9CodecName));
+#if WEBRTC_VERSION == 84
+		Codecs[EPixelStreamingCodec::H264].push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264::kProfileConstrainedBaseline, webrtc::H264::kLevel3_1));
+		Codecs[EPixelStreamingCodec::H264].push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264::kProfileBaseline, webrtc::H264::kLevel3_1));
+#elif WEBRTC_VERSION == 96
+		Codecs[EPixelStreamingCodec::H264].push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264Profile::kProfileConstrainedBaseline, webrtc::H264Level::kLevel3_1));
+		Codecs[EPixelStreamingCodec::H264].push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264Profile::kProfileBaseline, webrtc::H264Level::kLevel3_1));
+#endif
+		return Codecs;
+	}
+} // namespace
+
 namespace UE::PixelStreaming
 {
+
+	// we want this method to return all the formats we have encoders for but the selected codecs formats should be first in the list.
+	// the reason for this is weird. when we receive video from another pixel streaming source, for some reason webrtc will query
+	// the encoder factory on the receiving end and if it doesnt support the video we are receiving then transport_cc is not enabled
+	// which leads to very low bitrate streams.
 	std::vector<webrtc::SdpVideoFormat> FVideoEncoderFactorySingleLayer::GetSupportedFormats() const
 	{
-		std::vector<webrtc::SdpVideoFormat> video_formats;
+		// static so we dont create the list every time this is called since the list will not change during runtime.
+		static TMap<EPixelStreamingCodec, std::vector<webrtc::SdpVideoFormat>> CodecMap = CreateSupportedFormatMap();
 
-		switch (UE::PixelStreaming::Settings::GetSelectedCodec())
+		// since this method is const we need to store this state statically. it means all instances will share this state
+		// but that actually works in our favor since we're describing more about the plugin state than the actual
+		// instance of this factory.
+		static std::vector<webrtc::SdpVideoFormat> SupportedFormats;
+		static EPixelStreamingCodec LastSelectedCodec = EPixelStreamingCodec::Invalid;
+
+		const EPixelStreamingCodec SelectedCodec = UE::PixelStreaming::Settings::GetSelectedCodec();
+		if (LastSelectedCodec != SelectedCodec)
 		{
-			case EPixelStreamingCodec::VP8:
-				video_formats.push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
-				break;
-			case EPixelStreamingCodec::VP9:
-				video_formats.push_back(webrtc::SdpVideoFormat(cricket::kVp9CodecName));
-				break;
-			case EPixelStreamingCodec::H264:
-			default:
-#if WEBRTC_VERSION == 84
-				video_formats.push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264::kProfileConstrainedBaseline, webrtc::H264::kLevel3_1));
-				video_formats.push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264::kProfileBaseline, webrtc::H264::kLevel3_1));
-#elif WEBRTC_VERSION == 96
-				video_formats.push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264Profile::kProfileConstrainedBaseline, webrtc::H264Level::kLevel3_1));
-				video_formats.push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264Profile::kProfileBaseline, webrtc::H264Level::kLevel3_1));
-#endif
-				break;
+			// build a new format list
+			LastSelectedCodec = SelectedCodec;
+			SupportedFormats.clear();
+
+			// order the codecs so the selected is first
+			TArray<EPixelStreamingCodec> OrderedCodecList;
+			OrderedCodecList.Add(SelectedCodec);
+			for (auto& SupportedCodec : SupportedCodecList)
+			{
+				if (SupportedCodec != SelectedCodec)
+				{
+					OrderedCodecList.Add(SupportedCodec);
+				}
+			}
+
+			// now just add each of the formats in order
+			for (auto& Codec : OrderedCodecList)
+			{
+				if (CodecMap.Contains(Codec))
+				{
+					for (auto& Format : CodecMap[Codec])
+					{
+						SupportedFormats.push_back(Format);
+					}
+				}
+			}
 		}
-		return video_formats;
+
+		return SupportedFormats;
 	}
 
 	FVideoEncoderFactorySingleLayer::CodecInfo FVideoEncoderFactorySingleLayer::QueryVideoEncoder(const webrtc::SdpVideoFormat& format) const
 	{
-		webrtc::VideoEncoderFactory::CodecInfo CodecInfo = { false
-#if WEBRTC_VERSION == 84
-			,
-			false
-#endif
-		};
+		webrtc::VideoEncoderFactory::CodecInfo CodecInfo;
 #if WEBRTC_VERSION == 84
 		CodecInfo.is_hardware_accelerated = true;
 #endif

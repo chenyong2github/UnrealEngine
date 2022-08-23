@@ -9,8 +9,7 @@
 #include "ConsoleSettings.h"
 #include "DebugGraph.h"
 
-class IPixelStreamingStatsConsumer;
-struct FPixelStreamingFrameMetadata;
+#include "PixelCaptureFrameMetadata.h"
 
 namespace UE::PixelStreaming
 {
@@ -30,8 +29,8 @@ namespace UE::PixelStreaming
 			, StatValue(InStatValue)
 			, NDecimalPlacesToPrint(InNDecimalPlacesToPrint)
 			, bSmooth(bInSmooth)
-			 {
-			 }
+		{
+		}
 
 		bool operator==(const FStatData& Other) const
 		{
@@ -83,7 +82,6 @@ namespace UE::PixelStreaming
 
 	public:
 		TMap<FName, FRenderableStat> StoredStats;
-		TMap<FName, TArray<TWeakPtr<IPixelStreamingStatsConsumer>>> SingleStatConsumers;
 		FCanvasTextItem PlayerIdCanvasItem;
 	};
 
@@ -114,9 +112,10 @@ namespace UE::PixelStreaming
 		FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(PixelStreamingStats, STATGROUP_Tickables); }
 
 		void GraphValue(FName InName, float Value, int InSamples, float InMinRange, float InMaxRange, float InRefValue = 0.0f);
-		
+
+		double AddTimeStat(uint64 Cycles1, const FString& Label);
 		double AddTimeDeltaStat(uint64 Cycles1, uint64 Cycles2, const FString& Label);
-		void AddFrameTimingStats(const FPixelStreamingFrameMetadata& FrameMetadata);
+		void AddFrameTimingStats(const FPixelCaptureFrameMetadata& FrameMetadata);
 
 		void AddCanvasTile(FName Name, const FCanvasTileItem& Tile);
 

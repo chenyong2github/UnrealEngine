@@ -30,13 +30,6 @@
 			"TargetDenyList": [ ]
 		},
 		{
-            "Name": "PixelStreamingShaders",
-            "Type": "Runtime",
-            "LoadingPhase": "PostConfigInit",
-            "PlatformAllowList": [ "Win64", "Linux" ],
-            "TargetDenyList": [ "Server" ]
-		},
-		{
             "Name": "PixelStreamingEditor",
             "Type": "Editor",
             "LoadingPhase": "PreDefault",
@@ -45,6 +38,10 @@
 		}
 	],
 	"Plugins": [
+		{
+			"Name": "PixelCapture",
+			"Enabled": true
+		},
 		{
 			"Name": "WmfMedia",
 			"Enabled": true,

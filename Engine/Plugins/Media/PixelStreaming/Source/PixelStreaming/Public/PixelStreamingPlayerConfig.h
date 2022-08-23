@@ -2,7 +2,7 @@
 
 #pragma once
 
-struct FPixelStreamingPlayerConfig
+struct PIXELSTREAMING_API FPixelStreamingPlayerConfig
 {
 	bool SupportsDataChannel = false;
 	bool IsSFU = false;
