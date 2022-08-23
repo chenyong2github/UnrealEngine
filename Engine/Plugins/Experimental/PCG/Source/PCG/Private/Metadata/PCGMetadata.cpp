@@ -816,6 +816,11 @@ void UPCGMetadata::ComputeWeightedAttribute(PCGMetadataEntryKey& OutKey, const T
 	AttributeLock.ReadUnlock();
 }
 
+int64 UPCGMetadata::GetItemKeyCountForParent() const
+{
+	return ItemKeyOffset;
+}
+
 void UPCGMetadata::SetAttributes(PCGMetadataEntryKey InKey, const UPCGMetadata* InMetadata, PCGMetadataEntryKey& OutKey)
 {
 	if (!InMetadata)
