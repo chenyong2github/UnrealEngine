@@ -3770,7 +3770,7 @@ running forever. Default time is set at 300 seconds. If this is not enough time,
 	}
 
 	// Returns if we have exceeded max allowed total run time for this latent command
-	double HasExceededMaxTotalRunTime()
+	bool HasExceededMaxTotalRunTime()
 	{
 		return MaxTotalRunTimeInSeconds - GetCurrentRunTime() < 0;
 	}
