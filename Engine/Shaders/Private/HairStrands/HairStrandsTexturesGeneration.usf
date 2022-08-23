@@ -566,3 +566,28 @@ void MainCS(int2 DispatchThreadId : SV_DispatchThreadID)
 	}
 }
 #endif // SHADER_TEXTURE_DILATION
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_READ_POSITIONS
+
+#include "HairStrandsVertexFactoryCommon.ush"
+
+uint MaxVertexCount;
+Buffer<uint4> InPositions;
+Buffer<float4> InPositionOffset;
+RWBuffer<float4> OutPositions;
+[numthreads(128, 1, 1)]
+void MainCS(int2 DispatchThreadId : SV_DispatchThreadID)
+{
+	uint VertexIndex = DispatchThreadId.x;
+	if (VertexIndex < MaxVertexCount)
+	{
+		const uint4 PackedPosition = InPositions[VertexIndex];
+		const float3 PositionOffset = InPositionOffset[0].xyz;
+		const FHairControlPoint CP = UnpackHairControlPoint(PackedPosition, PositionOffset, 1.0f /*InVF_Radius*/, 1.0f /*InVF_RootScale*/, 1.0f /*InVF_TipScale*/);
+		
+		OutPositions[VertexIndex] = float4(CP.Position, CP.Type);
+	}
+}
+#endif // SHADER_READ_POSITIONS

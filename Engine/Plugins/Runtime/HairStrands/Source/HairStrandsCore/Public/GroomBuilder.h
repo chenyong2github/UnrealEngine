@@ -23,6 +23,7 @@ struct FHairDescriptionGroup;
 struct FHairGroupInfo;
 class FHairDescription;
 class UGroomAsset;
+class UGroomComponent;
 
 struct FHairStrandsVoxelData
 {
@@ -106,3 +107,20 @@ struct HAIRSTRANDSCORE_API FGroomBuilder
 		const FHairDescriptionGroups& In,
 		FHairStrandsVoxelData& Out);
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FStrandsPositionOutput
+{
+	typedef TArray<FVector3f> FStrand;
+	typedef TArray<FStrand>   FGroup;
+
+	TArray<FGroup> Groups;
+	const UGroomComponent* Component = nullptr;
+
+	int32 Status = -1;
+
+	bool IsValid() const { return Status == 0; }
+};
+
+HAIRSTRANDSCORE_API bool RequestStrandsPosition(const UGroomComponent* Component, FStrandsPositionOutput* Output);
