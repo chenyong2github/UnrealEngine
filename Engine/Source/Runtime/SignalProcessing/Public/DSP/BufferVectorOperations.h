@@ -7,6 +7,7 @@
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1 
 #include "CoreMinimal.h"
+#endif
 
 namespace Audio
 {
