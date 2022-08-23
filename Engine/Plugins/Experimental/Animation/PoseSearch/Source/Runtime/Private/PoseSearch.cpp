@@ -1247,7 +1247,7 @@ void UPoseSearchDatabase::GenerateDDCKey(FBlake3& InOutKeyHasher) const
 	InOutKeyHasher.Update(&KDTreeQueryNumNeighbors, sizeof(KDTreeQueryNumNeighbors));
 	InOutKeyHasher.Update(&PoseSearchMode, sizeof(PoseSearchMode));
 
-	// @todo: add database version if POSESEARCHDB_DERIVEDDATA_VER is not enought
+	// @todo: add database version if POSESEARCHDB_DERIVEDDATA_VER is not enough
 }
 
 #endif // WITH_EDITOR
@@ -1304,6 +1304,12 @@ bool UPoseSearchDatabase::IsValidForSearch() const
 #endif // WITH_EDITOR
 
 	return bIsValid;
+}
+
+bool UPoseSearchDatabase::IsValidPoseIndex(int32 PoseIdx) const
+{
+	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
+	return SearchIndex ? SearchIndex->IsValidPoseIndex(PoseIdx) : false;
 }
 
 void UPoseSearchDatabase::CollectSimpleSequences()
@@ -4598,6 +4604,7 @@ void DrawFeatureVector(const FDebugDrawParams& DrawParams, int32 PoseIdx)
 	if (PoseIdx != INDEX_NONE && DrawParams.CanDraw())
 	{
 		const FPoseSearchIndex* SearchIndex = DrawParams.GetSearchIndex();
+
 		// PreprocessInfo happens to be invalid when updating the database
 		if (SearchIndex->PreprocessInfo.IsValid())
 		{

@@ -746,6 +746,7 @@ struct POSESEARCH_API FPoseSearchIndex
 	float MinCostAddend = -MAX_FLT;
 
 	bool IsValid() const;
+	bool IsValidPoseIndex(int32 PoseIdx) const { return PoseIdx < NumPoses; }
 	bool IsEmpty() const;
 
 	TArrayView<const float> GetPoseValues(int32 PoseIdx) const;
@@ -1162,6 +1163,7 @@ public:
 	bool GetSkipSearchIfPossible() const;
 	bool IsValidForIndexing() const;
 	bool IsValidForSearch() const;
+	bool IsValidPoseIndex(int32 PoseIdx) const;
 
 	float GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset* SearchIndexAsset = nullptr) const;
 	int32 GetPoseIndexFromTime(float AssetTime, const FPoseSearchIndexAsset* SearchIndexAsset) const;

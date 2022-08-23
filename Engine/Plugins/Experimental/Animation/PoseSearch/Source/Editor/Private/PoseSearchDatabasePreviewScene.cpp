@@ -58,16 +58,18 @@ namespace UE::PoseSearch
 		}
 
 		const FDatabaseViewModel* ViewModel = GetEditor()->GetViewModel();
-		if (ViewModel->GetPoseSearchDatabase()->IsValidForSearch() &&
+		const UPoseSearchDatabase* Database = ViewModel->GetPoseSearchDatabase();
+
+		if (Database && Database->IsValidForSearch() &&
 			ViewModel->IsPoseFeaturesDrawMode(EFeaturesDrawMode::All))
 		{
 			for (const FDatabasePreviewActor& PreviewActor : ViewModel->GetPreviewActors())
 			{
-				if (PreviewActor.CurrentPoseIndex != INDEX_NONE)
+				if (Database->IsValidPoseIndex(PreviewActor.CurrentPoseIndex))
 				{
 					UE::PoseSearch::FDebugDrawParams DrawParams;
 					DrawParams.RootTransform = PreviewActor.Mesh->GetComponentTransform();
-					DrawParams.Database = ViewModel->GetPoseSearchDatabase();
+					DrawParams.Database = Database;
 					DrawParams.World = GetWorld();
 					DrawParams.DefaultLifeTime = 0.f;
 					DrawParams.PointSize = 5.f;
