@@ -1314,7 +1314,9 @@ void AliasStandardParameter(const FNiagaraAliasContext& InContext, TArray<FStrin
 	// If there are more than 2 parts in the parameter, and it's not an assignment node, then
 	// it may be a module specific dataset value, so the 2nd position must be checked for the
 	// module mapping.
-	if (InOutSplitName.Num() > 1 && ModuleMapping.IsSet() &&
+	// Examples to match: Particles.Module.CustomOutput, Transient.Module.PhysicsVar
+	// Examples *not* to match: Module.SpawnRate, where SpawnRate is also the name of the module.
+	if (InOutSplitName.Num() > 2 && ModuleMapping.IsSet() &&
 		InOutSplitName[1] == ModuleMapping.GetValue().Key)
 	{
 		InOutSplitName[1] = ModuleMapping.GetValue().Value;

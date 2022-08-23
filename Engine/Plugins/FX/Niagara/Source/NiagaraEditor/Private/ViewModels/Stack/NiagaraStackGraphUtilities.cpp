@@ -3194,6 +3194,11 @@ TSharedRef<TMap<FName, FGuid>> GetVariableNameToVariableIdMap(UNiagaraNodeFuncti
 			if (VariableGuid.IsValid())
 			{
 				VariableNameToVariableIdMap->FindOrAdd(VariableMetadataPair.Key.GetName()) = VariableGuid;
+                // Add in alternate names as well so that we can map them cleanly in the second pass.
+				for (const FName& AltName : VariableMetadataPair.Value->Metadata.AlternateAliases)
+				{
+					VariableNameToVariableIdMap->FindOrAdd(AltName) = VariableGuid;
+				}
 			}
 		}
 	}
