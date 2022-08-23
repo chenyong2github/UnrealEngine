@@ -4590,6 +4590,8 @@ void FRepLayout::CallRepNotifies(FReceivingRepState* RepState, UObject* Object) 
 		return;
 	}
 
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RepNotifies);
+
 	FRepShadowDataBuffer ShadowData(RepState->StaticBuffer.GetData());
 	FRepObjectDataBuffer ObjectData(Object);
 

@@ -2182,7 +2182,6 @@ void FObjectReplicator::CallRepNotifies(bool bSkipIfChannelHasQueuedBunches)
 {
 	// This logic is mostly a copy of FRepLayout::CallRepNotifies, and they should be merged.
 
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RepNotifies);
 	UObject* Object = GetObject();
 
 	if (!IsValid(Object))
