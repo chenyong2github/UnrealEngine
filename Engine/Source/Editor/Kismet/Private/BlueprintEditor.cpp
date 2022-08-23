@@ -1287,9 +1287,10 @@ void FBlueprintEditor::OnComponentAddedToBlueprint(const FSubobjectData& NewSubo
 	const UObject* NewSubobject = NewSubobjectData.GetObject();
 	check(NewSubobject);
 
-	// If necessary, auto-import the namespace associated with the new subobject's class.
-	const FString SubobjectTypeNamespace = FBlueprintNamespaceUtilities::GetObjectNamespace(NewSubobject->GetClass());
-	ImportNamespace(SubobjectTypeNamespace);
+	// If necessary, auto-import the default namespace set associated with the new subobject's class.
+	FImportNamespaceExParameters Params;
+	FBlueprintNamespaceUtilities::GetDefaultImportsForObject(NewSubobject, Params.NamespacesToImport);
+	ImportNamespaceEx(Params);
 }
 
 TSharedRef<SWidget> FBlueprintEditor::CreateGraphTitleBarWidget(TSharedRef<FTabInfo> InTabInfo, UEdGraph* InGraph)
@@ -3405,14 +3406,14 @@ void FBlueprintEditor::ReparentBlueprint_NewParentChosen(UClass* ChosenClass)
 
 			// Gather the set of default imports with the old parent class set.
 			TSet<FString> OldDefaultImports;
-			FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(BlueprintObj, OldDefaultImports);
+			FBlueprintNamespaceUtilities::GetDefaultImportsForObject(BlueprintObj, OldDefaultImports);
 
 			UClass* OldParentClass = BlueprintObj->ParentClass;
 			BlueprintObj->ParentClass = ChosenClass;
 
 			// Gather the set of default imports with the new parent class set.
 			TSet<FString> NewDefaultImports;
-			FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(BlueprintObj, NewDefaultImports);
+			FBlueprintNamespaceUtilities::GetDefaultImportsForObject(BlueprintObj, NewDefaultImports);
 
 			// Move namespace imports that no longer appear in the default set to the explicit set.
 			FImportNamespaceExParameters Params;
@@ -7402,11 +7403,7 @@ void FBlueprintEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const FV
 			{
 				for (const UStruct* ExternalDependency : ExternalDependencies)
 				{
-					FString ObjectNamespace = FBlueprintNamespaceUtilities::GetObjectNamespace(ExternalDependency);
-					if (!ObjectNamespace.IsEmpty())
-					{
-						NamespacesToImport.Add(MoveTemp(ObjectNamespace));
-					}
+					FBlueprintNamespaceUtilities::GetDefaultImportsForObject(ExternalDependency, NamespacesToImport);
 				}
 			}
 

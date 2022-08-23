@@ -592,11 +592,7 @@ void SBlueprintActionMenu::OnActionSelected( const TArray< TSharedPtr<FEdGraphSc
 						{
 							for (const UStruct* ExternalDependency : ExternalDependencies)
 							{
-								FString ObjectNamespace = FBlueprintNamespaceUtilities::GetObjectNamespace(ExternalDependency);
-								if (!ObjectNamespace.IsEmpty())
-								{
-									NamespacesToImport.Add(MoveTemp(ObjectNamespace));
-								}
+								FBlueprintNamespaceUtilities::GetDefaultImportsForObject(ExternalDependency, NamespacesToImport);
 							}
 						}
 
@@ -645,7 +641,7 @@ void SBlueprintActionMenu::OnGetNamespacesToExcludeFromImportMenu(TSet<FString>&
 
 	for (const UBlueprint* Blueprint : MenuContext.Blueprints)
 	{
-		FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(Blueprint, OutNamespacesToExclude);
+		FBlueprintNamespaceUtilities::GetDefaultImportsForObject(Blueprint, OutNamespacesToExclude);
 		OutNamespacesToExclude.Append(Blueprint->ImportedNamespaces);
 	}
 }

@@ -147,7 +147,7 @@ void FBlueprintNamespaceHelper::AddBlueprint(const UBlueprint* InBlueprint)
 
 	// Add the default import set for the given Blueprint.
 	TSet<FString> DefaultImports;
-	FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(InBlueprint, DefaultImports);
+	FBlueprintNamespaceUtilities::GetDefaultImportsForObject(InBlueprint, DefaultImports);
 	AddNamespaces(DefaultImports);
 
 	// Additional namespaces that are explicitly imported by this Blueprint.

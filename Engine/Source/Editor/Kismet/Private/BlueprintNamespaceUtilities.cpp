@@ -229,43 +229,54 @@ void FBlueprintNamespaceUtilities::GetSharedGlobalImports(TSet<FString>& OutName
 	OutNamespaces.Remove(FString());
 }
 
-void FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(const UBlueprint* InBlueprint, TSet<FString>& OutNamespaces)
+void FBlueprintNamespaceUtilities::GetDefaultImportsForObject(const UObject* InObject, TSet<FString>& OutNamespaces)
 {
-	if (!InBlueprint)
+	if (!InObject)
 	{
 		return;
 	}
 
-	// Blueprint namespace (if set).
-	FString BlueprintNamespace = GetObjectNamespace(InBlueprint);
-	if (!BlueprintNamespace.IsEmpty())
+	// Get the object's associated namespace (if set).
+	FString ObjectNamespace = GetObjectNamespace(InObject);
+	if (!ObjectNamespace.IsEmpty())
 	{
-		OutNamespaces.Add(BlueprintNamespace);
+		OutNamespaces.Add(ObjectNamespace);
 	}
 
-	const bool bAddParentClassImportedNamespaces = GetDefault<UBlueprintEditorSettings>()->bInheritImportedNamespacesFromParentBP;
-
-	// Inherited namespaces from the parent class hierarchy (if set).
-	UClass* ParentClass = InBlueprint->ParentClass;
-	while (ParentClass)
+	if (const UBlueprint* Blueprint = Cast<UBlueprint>(InObject))
 	{
-		// Parent class namespace (if set).
-		FString ParentClassNamespace = GetObjectNamespace(ParentClass);
-		if (!ParentClassNamespace.IsEmpty())
-		{
-			OutNamespaces.Add(ParentClassNamespace);
-		}
+		// Append inherited namespaces from the parent class hierarchy.
+		GetDefaultImportsForObject(Blueprint->ParentClass, OutNamespaces);
+	}
+	else if (const UStruct* StructType = Cast<UStruct>(InObject))
+	{
+		const bool bAddParentClassImportedNamespaces = GetDefault<UBlueprintEditorSettings>()->bInheritImportedNamespacesFromParentBP;
 
-		// If enabled, also include namespaces that are explicitly imported by all ancestor BPs.
-		if (bAddParentClassImportedNamespaces)
+		UStruct* ParentStruct = StructType->GetSuperStruct();
+		while (ParentStruct)
 		{
-			if (const UBlueprint* ParentBP = UBlueprint::GetBlueprintFromClass(ParentClass))
+			// Parent type namespace (if set).
+			FString ParentTypeNamespace = GetObjectNamespace(ParentStruct);
+			if (!ParentTypeNamespace.IsEmpty())
 			{
-				OutNamespaces.Append(ParentBP->ImportedNamespaces);
+				OutNamespaces.Add(ParentTypeNamespace);
 			}
-		}
 
-		ParentClass = ParentClass->GetSuperClass();
+			// If enabled, also include namespaces that are explicitly imported by all ancestor BPs.
+			if (bAddParentClassImportedNamespaces)
+			{
+				if (const UClass* ParentClass = Cast<UClass>(ParentStruct))
+				{
+					const UBlueprint* ParentBP = UBlueprint::GetBlueprintFromClass(ParentClass);
+					if (ParentBP)
+					{
+						OutNamespaces.Append(ParentBP->ImportedNamespaces);
+					}
+				}
+			}
+
+			ParentStruct = ParentStruct->GetSuperStruct();
+		}
 	}
 }
 

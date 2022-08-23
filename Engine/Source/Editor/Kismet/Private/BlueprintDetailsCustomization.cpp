@@ -1456,15 +1456,13 @@ void FBlueprintVarActionDetails::OnVarTypeChanged(const FEdGraphPinType& NewPinT
 
 				TSharedPtr<FBlueprintEditor> BlueprintEditor = MyBlueprint.Pin()->GetBlueprintEditor().Pin();
 					
-				// If the underlying type object's namespace is not imported, auto-import it now into the current editor context.
+				// Auto-import the underlying type object's default namespace set into the current editor context.
 				const UObject* PinSubCategoryObject = NewPinType.PinSubCategoryObject.Get();
-				if (PinSubCategoryObject && BlueprintEditor.IsValid() && BlueprintEditor->IsNonImportedObject(PinSubCategoryObject))
+				if (PinSubCategoryObject && BlueprintEditor.IsValid())
 				{
-					FString Namespace = FBlueprintNamespaceUtilities::GetObjectNamespace(PinSubCategoryObject);
-					if (!Namespace.IsEmpty())
-					{
-						BlueprintEditor->ImportNamespace(Namespace);
-					}
+					FBlueprintEditor::FImportNamespaceExParameters Params;
+					FBlueprintNamespaceUtilities::GetDefaultImportsForObject(PinSubCategoryObject, Params.NamespacesToImport);
+					BlueprintEditor->ImportNamespaceEx(Params);
 				}
 			}
 		}
@@ -3468,15 +3466,13 @@ void FBlueprintGraphArgumentLayout::PinInfoChanged(const FEdGraphPinType& PinTyp
 								BlueprintEditor = MyBPPinned->GetBlueprintEditor().Pin();
 							}
 
-							// If the underlying type object's namespace is not imported, auto-import it now into the current editor context.
+							// Auto-import the underlying type object's default namespace set into the current editor context.
 							const UObject* PinSubCategoryObject = PinType.PinSubCategoryObject.Get();
-							if (PinSubCategoryObject && BlueprintEditor.IsValid() && BlueprintEditor->IsNonImportedObject(PinSubCategoryObject))
+							if (PinSubCategoryObject && BlueprintEditor.IsValid())
 							{
-								FString Namespace = FBlueprintNamespaceUtilities::GetObjectNamespace(PinSubCategoryObject);
-								if (!Namespace.IsEmpty())
-								{
-									BlueprintEditor->ImportNamespace(Namespace);
-								}
+								FBlueprintEditor::FImportNamespaceExParameters Params;
+								FBlueprintNamespaceUtilities::GetDefaultImportsForObject(PinSubCategoryObject, Params.NamespacesToImport);
+								BlueprintEditor->ImportNamespaceEx(Params);
 							}
 						}
 						GraphActionDetailsPinned->OnParamsChanged(Node);
@@ -5673,7 +5669,7 @@ void FBlueprintImportsLayout::GetManagedListItems(TArray<FManagedListItem>& OutL
 
 	// Default imports (non-removable). These include anything from the shared global set, as well as any namespaces assigned to the Blueprint hierarchy.
 	FBlueprintNamespaceUtilities::GetSharedGlobalImports(NamespaceItems);
-	FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(Blueprint, NamespaceItems);
+	FBlueprintNamespaceUtilities::GetDefaultImportsForObject(Blueprint, NamespaceItems);
 
 	if(!bShouldShowDefaultImports)
 	{
@@ -5722,7 +5718,7 @@ void FBlueprintImportsLayout::OnGetNamespacesToExclude(TSet<FString>& OutNamespa
 	const UBlueprint* Blueprint = GetBlueprintObjectChecked();
 
 	FBlueprintNamespaceUtilities::GetSharedGlobalImports(OutNamespacesToExclude);
-	FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(Blueprint, OutNamespacesToExclude);
+	FBlueprintNamespaceUtilities::GetDefaultImportsForObject(Blueprint, OutNamespacesToExclude);
 
 	OutNamespacesToExclude.Append(Blueprint->ImportedNamespaces);
 }
