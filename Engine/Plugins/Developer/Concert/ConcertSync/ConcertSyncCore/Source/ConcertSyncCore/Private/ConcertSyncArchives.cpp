@@ -64,7 +64,8 @@ void ResetObjectPropertiesToArchetypeValues(UObject* Object, const bool InInclud
 		virtual bool ShouldSkipProperty(const FProperty* InProperty) const
 		{
 			return FObjectWriter::ShouldSkipProperty(InProperty)
-				|| InProperty->HasAnyPropertyFlags(CPF_DisableEditOnInstance);
+				|| !InProperty->HasAnyPropertyFlags(CPF_Edit)
+				|| InProperty->HasAnyPropertyFlags(CPF_EditConst | CPF_DisableEditOnInstance);
 		}
 	};
 
