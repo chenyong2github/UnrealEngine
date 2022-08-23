@@ -1,14 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma warning disable CS8600
+#pragma warning disable CS8602
+#pragma warning disable CS8618
+#pragma warning disable CS8603
+#pragma warning disable CS8604
+
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Windows.Input;
 using EpicGames.Core;
 using UnrealBuildTool;
+using ICommand = System.Windows.Input.ICommand;
 
 namespace Timing_Data_Investigator.Models
 {
@@ -143,7 +149,7 @@ namespace Timing_Data_Investigator.Models
 		public static TimingDataViewModel FromJsonFile(FileReference JsonFile)
 		{
 			string JsonString = File.ReadAllText(JsonFile.FullName);
-			TimingData DeserializedTimingData = Json.Deserialize<TimingData>(JsonString);
+			TimingData DeserializedTimingData = System.Text.Json.JsonSerializer.Deserialize<TimingData>(JsonString);
 			return FromTimingData(DeserializedTimingData);
 		}
 

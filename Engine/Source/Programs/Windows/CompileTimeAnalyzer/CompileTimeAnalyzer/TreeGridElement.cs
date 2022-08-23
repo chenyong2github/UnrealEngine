@@ -1,5 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma warning disable CS8625
+#pragma warning disable CS8622
+#pragma warning disable CS8618
+#pragma warning disable CS8600
+#pragma warning disable CS8602
+#pragma warning disable CS8604
+
 using System;
 using System.Collections;
 using System.Collections.ObjectModel;

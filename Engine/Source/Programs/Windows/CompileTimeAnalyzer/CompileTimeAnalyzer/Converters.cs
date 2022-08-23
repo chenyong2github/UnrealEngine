@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma warning disable CS8604
+
 using System;
 using System.Globalization;
 using System.Windows;

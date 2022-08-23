@@ -35,7 +35,7 @@ namespace Timing_Data_Investigator
 			string[] CmdArgs = Environment.GetCommandLineArgs();
 			if(CmdArgs.Length > 1)
 			{
-				if(CmdArgs[1].EndsWith(".timing.bin"))
+				if(CmdArgs[1].EndsWith(".cta"))
 				{
 					LoadTimingFile(CmdArgs[1]);
 					return;
@@ -115,7 +115,7 @@ namespace Timing_Data_Investigator
 		private void ShowOpenFileDialog()
 		{
 			OpenFileDialog OpenFileDialog = new OpenFileDialog();
-			OpenFileDialog.Filter = "Timing Files (*.timing.bin)|*.timing.bin|All Files (*.*)|*.*";
+			OpenFileDialog.Filter = "Timing Files (*.cta)|*.cta|All Files (*.*)|*.*";
 			if (OpenFileDialog.ShowDialog(this) == true)
 			{
 				LoadTimingFile(OpenFileDialog.FileName);

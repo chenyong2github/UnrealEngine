@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma warning disable CS8600
+#pragma warning disable CS8602
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,7 +21,7 @@ namespace Timing_Data_Investigator
 			bSortDescending = SortDescending;
 		}
 
-		public int Compare(TClassType x, TClassType y)
+		public int Compare(TClassType? x, TClassType? y)
 		{
 			PropertyInfo ComparePropertyInfo = typeof(TClassType).GetProperties().FirstOrDefault(p => p.Name == sCompareProperty);
 			if (ComparePropertyInfo == null)
