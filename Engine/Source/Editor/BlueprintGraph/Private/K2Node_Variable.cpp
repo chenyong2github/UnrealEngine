@@ -1151,8 +1151,8 @@ void UK2Node_Variable::GetNodeContextMenuActions(class UToolMenu* Menu, class UG
 
 	if (HasDeprecatedReference())
 	{
-		FText MenuEntryTitle = LOCTEXT("SuppressDeprecationWarningTitle", "Suppress Deprecation Warning");
-		FText MenuEntryTooltip = LOCTEXT("SuppressDeprecationWarningTooltip", "Adds this variable to the suppressed deprecation warnings list in the Bluperint Editor Project Settings for this project.");
+		FText MenuEntryTitle = LOCTEXT("SuppressVariableDeprecationWarningTitle", "Suppress Deprecation Warning");
+		FText MenuEntryTooltip = LOCTEXT("SuppressVariableDeprecationWarningTooltip", "Adds this variable to the suppressed deprecation warnings list in the Bluperint Editor Project Settings for this project.");
 
 		FToolMenuSection& Section = Menu->AddSection("K2NodeVariable", LOCTEXT("VariableHeader", "Variable"));
 		Section.AddMenuEntry(
