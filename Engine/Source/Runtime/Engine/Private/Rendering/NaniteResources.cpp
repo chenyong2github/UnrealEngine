@@ -28,6 +28,7 @@
 #include "Elements/SMInstance/SMInstanceManager.h"
 #include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
 #include "MaterialCachedData.h"
+#include "EngineStats.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCache.h"

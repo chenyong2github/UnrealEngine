@@ -7,8 +7,12 @@
 #include "PrimitiveViewRelevance.h"
 #include "Rendering/NaniteResources.h"
 #include "RayTracingInstance.h"
+#include "LocalVertexFactory.h"
 
 struct FPerInstanceRenderData;
+class UStaticMeshComponent;
+struct FStaticMeshVertexFactories;
+using FStaticMeshVertexFactoriesArray = TArray<FStaticMeshVertexFactories>;
 
 namespace Nanite
 {
