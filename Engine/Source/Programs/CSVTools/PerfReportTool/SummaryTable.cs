@@ -342,7 +342,10 @@ namespace PerfSummaries
 						double prevValue = FilterInvalidValue(doubleValues[i - 1]);
 						newDoubleValues.Add(thisValue - prevValue);
 					}
-					newDoubleValues.Add(0.0);
+					else
+					{
+						newDoubleValues.Add(0.0);
+					}
 				}
 			}
 			for (int i = 0; i < stringValues.Count; i++)
