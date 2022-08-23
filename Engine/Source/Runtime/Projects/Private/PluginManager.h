@@ -82,6 +82,11 @@ public:
 		return Descriptor.bCanContainVerse;
 	}
 
+	virtual const FString& GetVersePath() const override
+	{
+		return Descriptor.VersePath;
+	}
+
 	virtual EPluginType GetType() const override
 	{
 		return Type;
