@@ -338,6 +338,9 @@ public:
 	// converts the types provided by a string (like "A:float,B:int32") into a type map
 	FTypeMap GetArgumentTypesFromString(const FString& InTypeString) const;
 
+	// converts the types provided to a string (like "A:float,B:int32")
+	static FString GetStringFromArgumentTypes(const FTypeMap& InTypes); 
+
 #if WITH_EDITOR
 
 	// Returns the color based on the permutation's metadata

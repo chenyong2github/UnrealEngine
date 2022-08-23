@@ -90,17 +90,9 @@ FString FRigVMDispatchFactory::GetPermutationName(const FRigVMTemplateTypeMap& I
 
 FString FRigVMDispatchFactory::GetPermutationNameImpl(const FRigVMTemplateTypeMap& InTypes) const
 {
-	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
-	TArray<FString> TypePairStrings;
-	for(const TPair<FName,TRigVMTypeIndex>& Pair : InTypes)
-	{
-		const FRigVMTemplateArgumentType& Type = Registry.GetType(Pair.Value);
-		static constexpr TCHAR Format[] = TEXT("%s:%s");
-		TypePairStrings.Add(FString::Printf(Format, *Pair.Key.ToString(), *Type.CPPType.ToString()));
-	}
-			
+	const FString TypePairStrings = FRigVMTemplate::GetStringFromArgumentTypes(InTypes);
 	static constexpr TCHAR Format[] = TEXT("%s::%s");
-	return FString::Printf(Format, *GetFactoryName().ToString(), *FString::Join(TypePairStrings, TEXT(",")));
+	return FString::Printf(Format, *GetFactoryName().ToString(), *TypePairStrings);
 }
 
 const FRigVMTemplate* FRigVMDispatchFactory::GetTemplate() const

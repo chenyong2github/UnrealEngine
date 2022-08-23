@@ -72,6 +72,9 @@ URigVMController::URigVMController()
 	, bIsRunningUnitTest(false)
 	, bIsFullyResolvingTemplateNode(false)
 	, bSuspendRecomputingTemplateFilters(false)
+#if WITH_EDITOR
+	, bRegisterTemplateNodeUsage(true)
+#endif
 {
 }
 
@@ -87,6 +90,9 @@ URigVMController::URigVMController(const FObjectInitializer& ObjectInitializer)
 	, bIsRunningUnitTest(false)
 	, bIsFullyResolvingTemplateNode(false)
 	, bSuspendRecomputingTemplateFilters(false)
+#if WITH_EDITOR
+	, bRegisterTemplateNodeUsage(true)
+#endif
 {
 	ActionStack = CreateDefaultSubobject<URigVMActionStack>(TEXT("ActionStack"));
 
@@ -9352,6 +9358,52 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 
 	if (bSetupUndoRedo)
 	{
+#if WITH_EDITOR
+		auto ResolveTemplateNodeToCommonTypes = [this](URigVMPin* Pin)
+		{
+			if(!Pin->IsExecuteContext())
+			{
+				return;
+			}
+			
+			URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Pin->GetNode());
+			if(TemplateNode == nullptr)
+			{
+				return;
+			}
+
+			const FRigVMTemplate* Template = TemplateNode->GetTemplate();
+			if(Template == nullptr)
+			{
+				return;
+			}
+
+			if(!TemplateNode->HasWildCardPin())
+			{
+				return;
+			}
+
+			const FRigVMTemplate::FTypeMap PreferredTypes = GetCommonlyUsedTypesForTemplate(TemplateNode);
+			if(PreferredTypes.IsEmpty())
+			{
+				return;
+			}
+
+			const int32 PreferredPermutation = Template->FindPermutation(PreferredTypes);
+			if(PreferredPermutation != INDEX_NONE)
+			{
+				const TGuardValue<bool> DisableRegisterUseOfTemplate(bRegisterTemplateNodeUsage, false);
+				if(FullyResolveTemplateNode(TemplateNode, PreferredPermutation, true))
+				{
+					static const FString Message = TEXT("Template node was automatically resolved to commonly used types.");
+					SendUserFacingNotification(Message, 0.f, TemplateNode, TEXT("MessageLog.Note"));
+				}
+			}
+		};
+		ResolveTemplateNodeToCommonTypes(OutputPin);
+		ResolveTemplateNodeToCommonTypes(InputPin);
+#endif
+		
 		ActionStack->EndAction(Action);
 	}
 
@@ -15826,6 +15878,9 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 	
 	if(bSetupUndoRedo)
 	{
+#if WITH_EDITOR
+		RegisterUseOfTemplate(InNode);
+#endif
 		CloseUndoBracket();
 	}
 
@@ -18552,4 +18607,94 @@ bool URigVMController::RestoreLinkedPaths(
 	}
 	
 	return bSuccess;
+}
+
+#if WITH_EDITOR
+
+void URigVMController::RegisterUseOfTemplate(const URigVMTemplateNode* InNode)
+{
+	check(InNode);
+
+	if(!bRegisterTemplateNodeUsage)
+	{
+		return;
+	}
+
+	const FRigVMTemplate* Template = InNode->GetTemplate();
+	if(Template == nullptr)
+	{
+		return;
+	}
+
+	if(!InNode->IsResolved())
+	{
+		return;
+	}
+
+	const TArray<int32>& Permutations = InNode->GetFilteredPermutationsIndices();
+	if(!ensure(Permutations.Num() == 1))
+	{
+		return;
+	}
+
+	URigVMControllerSettings* Settings = GetMutableDefault<URigVMControllerSettings>();
+	Settings->Modify();
+
+	const FName& Notation = Template->GetNotation();
+	FRigVMController_CommonTypePerTemplate& TypesForTemplate = Settings->TemplateDefaultTypes.FindOrAdd(Notation);
+
+	const FString TypesString = FRigVMTemplate::GetStringFromArgumentTypes(Template->GetTypesForPermutation(Permutations[0]));
+	int32& Count = TypesForTemplate.Counts.FindOrAdd(TypesString);
+	Count++;
+}
+
+FRigVMTemplate::FTypeMap URigVMController::GetCommonlyUsedTypesForTemplate(
+	const URigVMTemplateNode* InNode) const
+{
+	static FRigVMTemplate::FTypeMap EmptyTypes;
+
+	const URigVMControllerSettings* Settings = GetDefault<URigVMControllerSettings>();
+	if(!Settings->bAutoResolveTemplateNodesWhenLinkingExecute)
+	{
+		return EmptyTypes;
+	}
+	
+	const FRigVMTemplate* Template = InNode->GetTemplate();
+	if(Template == nullptr)
+	{
+		return EmptyTypes;
+	}
+
+	const FName& Notation = Template->GetNotation();
+
+	const FRigVMController_CommonTypePerTemplate* TypesForTemplate = Settings->TemplateDefaultTypes.Find(Notation);
+	if(TypesForTemplate == nullptr)
+	{
+		return EmptyTypes;
+	}
+
+	if(TypesForTemplate->Counts.IsEmpty())
+	{
+		return EmptyTypes;
+	}
+
+	TPair<FString,int32> MaxPair;
+	for(const TPair<FString,int32>& Pair : TypesForTemplate->Counts)
+	{
+		if(Pair.Value > MaxPair.Value)
+		{
+			MaxPair = Pair;
+		}
+	}
+
+	const FString& TypesString = MaxPair.Key;
+	return Template->GetArgumentTypesFromString(TypesString);
+}
+
+#endif
+
+URigVMControllerSettings::URigVMControllerSettings(const FObjectInitializer& Initializer)
+	: Super(Initializer)
+{
+	bAutoResolveTemplateNodesWhenLinkingExecute = true;
 }

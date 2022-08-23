@@ -618,6 +618,21 @@ FRigVMTemplate::FTypeMap FRigVMTemplate::GetArgumentTypesFromString(const FStrin
 	return Types;
 }
 
+FString FRigVMTemplate::GetStringFromArgumentTypes(const FTypeMap& InTypes)
+{
+	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+	
+	TArray<FString> TypePairStrings;
+	for(const TPair<FName,TRigVMTypeIndex>& Pair : InTypes)
+	{
+		const FRigVMTemplateArgumentType& Type = Registry.GetType(Pair.Value);
+		static constexpr TCHAR Format[] = TEXT("%s:%s");
+		TypePairStrings.Add(FString::Printf(Format, *Pair.Key.ToString(), *Type.CPPType.ToString()));
+	}
+			
+	return FString::Join(TypePairStrings, TEXT(","));
+}
+
 bool FRigVMTemplate::IsValid() const
 {
 	return !Notation.IsNone();

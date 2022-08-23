@@ -1152,6 +1152,14 @@ public:
 		return RestoreLinkedPaths(InLinkedPaths, InNodeNameMap, InRemapDelegates, FRigVMController_CheckPinComatibilityDelegate(), bSetupUndoRedo, InUserDirection);
 	}
 
+#if WITH_EDITOR
+	// Registers this template node's use for later determining the commonly used types
+	void RegisterUseOfTemplate(const URigVMTemplateNode* InNode);
+
+	// Inquire on the commonly used types for a template node. This can be used to resolve a node without user input (as a default)
+	FRigVMTemplate::FTypeMap GetCommonlyUsedTypesForTemplate(const URigVMTemplateNode* InNode) const;
+#endif
+	
 private: 
 	UPROPERTY(transient)
 	TArray<TObjectPtr<URigVMGraph>> Graphs;
@@ -1209,6 +1217,9 @@ private:
 	bool bIsRunningUnitTest;
 	bool bIsFullyResolvingTemplateNode;
 	bool bSuspendRecomputingTemplateFilters;
+#if WITH_EDITOR
+	bool bRegisterTemplateNodeUsage;
+#endif
 
 	friend class URigVMGraph;
 	friend class URigVMPin;
@@ -1243,4 +1254,37 @@ private:
 
 	URigVMController* Controller;
 	bool bUndo;
+};
+
+USTRUCT()
+struct FRigVMController_CommonTypePerTemplate
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "RigVMController")
+	TMap<FString,int32> Counts;
+};
+
+/**
+ * Default settings for the RigVM Controller
+ */
+UCLASS(config = EditorSettings)
+class  URigVMControllerSettings : public UObject
+{
+public:
+	URigVMControllerSettings(const FObjectInitializer& Initializer);
+
+	GENERATED_BODY()
+
+	/**
+	 * When adding a link to an execute pin on a template node,
+	 * this functionality automatically resolves the template node to the
+	 * most commonly used type.
+	 */
+	UPROPERTY(EditAnywhere, Category = "RigVMController")
+	bool bAutoResolveTemplateNodesWhenLinkingExecute;
+
+	/** The commonly used types for a template node */
+	UPROPERTY()
+	TMap<FName,FRigVMController_CommonTypePerTemplate> TemplateDefaultTypes;
 };
