@@ -1229,10 +1229,13 @@ void FMobileSceneRenderer::RenderForwardMultiPass(FRDGBuilder& GraphBuilder, FMo
 	});
 
 	// resolve MSAA depth
-	AddResolveSceneColorPass(GraphBuilder, View, SceneTextures.DepthAux);
 	if (!bIsFullDepthPrepassEnabled)
 	{
 		AddResolveSceneDepthPass(GraphBuilder, View, SceneTextures.Depth);
+	}
+	if (bRequiresSceneDepthAux)
+	{
+		AddResolveSceneColorPass(GraphBuilder, View, SceneTextures.DepthAux);
 	}
 
 	FExclusiveDepthStencil::Type ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilRead;
@@ -1664,7 +1667,7 @@ bool FMobileSceneRenderer::RequiresMultiPass(FRHICommandListImmediate& RHICmdLis
 	}
 		
 	// Always render LDR in single pass
-	if (!IsMobileHDR())
+	if (!IsMobileHDR() && !IsSimulatedPlatform(ShaderPlatform))
 	{
 		return false;
 	}
