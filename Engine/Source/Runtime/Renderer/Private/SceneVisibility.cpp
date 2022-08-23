@@ -4883,8 +4883,6 @@ void FDeferredShadingSceneRenderer::ComputeLightVisibility()
 
 	CreateIndirectCapsuleShadows();
 
-	InitFogConstants();
-
 	SetupVolumetricFog();
 }
 
@@ -4972,6 +4970,8 @@ void FSceneRenderer::ComputeLightVisibility()
 			}
 		}
 	}
+
+	InitFogConstants();
 }
 
 void FSceneRenderer::GatherReflectionCaptureLightMeshElements()
