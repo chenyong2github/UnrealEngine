@@ -5,7 +5,7 @@
 #include "Styling/AppStyle.h"
 #include "IRenderGridEditor.h"
 
-#define LOCTEXT_NAMESPACE "RenderGrid"
+#define LOCTEXT_NAMESPACE "RenderGridPropertiesTabSummoner"
 
 
 const FName UE::RenderGrid::Private::FRenderGridPropertiesTabSummoner::TabID(TEXT("RenderGridProperties"));

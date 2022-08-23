@@ -14,7 +14,7 @@
 #include "Widgets/SToolTip.h"
 #include "WorkflowOrientedApp/SModeWidget.h"
 
-#define LOCTEXT_NAMESPACE "RenderGrid"
+#define LOCTEXT_NAMESPACE "RenderGridEditorToolbar"
 
 
 //////////////////////////////////////////////////////////////////////////
