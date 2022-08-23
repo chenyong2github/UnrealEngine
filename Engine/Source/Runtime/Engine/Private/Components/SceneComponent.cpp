@@ -750,6 +750,36 @@ void USceneComponent::OnUnregister()
 	Super::OnUnregister();
 }
 
+void USceneComponent::EndPlay(EEndPlayReason::Type Reason)
+{
+	Super::EndPlay(Reason);
+
+	if (Reason == EEndPlayReason::RemovedFromWorld && !HasBeenInitialized())
+	{
+		// Detach components which are in different streaming levels so that this level can be properly garbage collected.
+		// Note that we explicitly want to check the outer hierarchy and not the owning package because we want references that participate in GC.
+		UObject* Outermost = GetOutermostObject();
+		if (AttachParent && AttachParent->GetOutermostObject() != Outermost)
+		{
+			DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		}
+
+		TInlineComponentArray<USceneComponent*> ChildrenToDetach;
+		for (int32 i = 0; i < AttachChildren.Num(); ++i)
+		{
+			if (USceneComponent* AttachChild = AttachChildren[i].Get(); AttachChild && AttachChild->GetOutermostObject() != Outermost)
+			{
+				ChildrenToDetach.Add(AttachChild);
+			}
+		}
+
+		for (USceneComponent* Child : ChildrenToDetach)
+		{
+			Child->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		}
+	}
+}
+
 void USceneComponent::PropagateTransformUpdate(bool bTransformChanged, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
 	//QUICK_SCOPE_CYCLE_COUNTER(STAT_USceneComponent_PropagateTransformUpdate);
