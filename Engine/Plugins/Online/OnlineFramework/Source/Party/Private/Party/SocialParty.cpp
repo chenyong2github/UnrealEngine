@@ -133,6 +133,7 @@ ECrossplayPreference GetCrossplayPreferenceFromJoinData(const FOnlinePartyData& 
 	return ECrossplayPreference::NoSelection;
 }
 
+// DEPRECATED - Use the new join in progress flow with USocialParty::RequestJoinInProgress.
 FPartyJoinApproval USocialParty::EvaluateJIPRequest(const FUniqueNetId& PlayerId) const
 {
 	FPartyJoinApproval JoinApproval;
@@ -473,17 +474,21 @@ void USocialParty::InitializePartyInternal()
 	PartyInterface->AddOnPartyConfigChangedDelegate_Handle(FOnPartyConfigChangedDelegate::CreateUObject(this, &USocialParty::HandlePartyConfigChanged));
 	PartyInterface->AddOnPartyDataReceivedDelegate_Handle(FOnPartyDataReceivedDelegate::CreateUObject(this, &USocialParty::HandlePartyDataReceived));
 	PartyInterface->AddOnPartyJoinRequestReceivedDelegate_Handle(FOnPartyJoinRequestReceivedDelegate::CreateUObject(this, &USocialParty::HandlePartyJoinRequestReceived));
-	PartyInterface->AddOnPartyJIPRequestReceivedDelegate_Handle(FOnPartyJIPRequestReceivedDelegate::CreateUObject(this, &USocialParty::HandlePartyJIPRequestReceived));
 	PartyInterface->AddOnQueryPartyJoinabilityReceivedDelegate_Handle(FOnQueryPartyJoinabilityReceivedDelegate::CreateUObject(this, &USocialParty::HandleJoinabilityQueryReceived));
 	PartyInterface->AddOnPartyExitedDelegate_Handle(FOnPartyExitedDelegate::CreateUObject(this, &USocialParty::HandlePartyLeft));
 	PartyInterface->AddOnPartyStateChangedDelegate_Handle(FOnPartyStateChangedDelegate::CreateUObject(this, &USocialParty::HandlePartyStateChanged));
 
 	PartyInterface->AddOnPartyMemberJoinedDelegate_Handle(FOnPartyMemberJoinedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberJoined));
-	PartyInterface->AddOnPartyJIPResponseDelegate_Handle(FOnPartyJIPResponseDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberJIP));
 	PartyInterface->AddOnPartyMemberDataReceivedDelegate_Handle(FOnPartyMemberDataReceivedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberDataReceived));
 	PartyInterface->AddOnPartyMemberPromotedDelegate_Handle(FOnPartyMemberPromotedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberPromoted));
 	PartyInterface->AddOnPartyMemberExitedDelegate_Handle(FOnPartyMemberExitedDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberExited));
 	PartyInterface->AddOnPartySystemStateChangeDelegate_Handle(FOnPartySystemStateChangeDelegate::CreateUObject(this, &USocialParty::HandlePartySystemStateChange));
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	PartyInterface->AddOnPartyJIPRequestReceivedDelegate_Handle(FOnPartyJIPRequestReceivedDelegate::CreateUObject(this, &USocialParty::HandlePartyJIPRequestReceived));
+	PartyInterface->AddOnPartyJIPResponseDelegate_Handle(FOnPartyJIPResponseDelegate::CreateUObject(this, &USocialParty::HandlePartyMemberJIP));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	// Create a UPartyMember for every existing member on the OSS party
 	TArray<FOnlinePartyMemberConstRef> OssPartyMembers;
 	PartyInterface->GetPartyMembers(*OwningLocalUserId, GetPartyId(), OssPartyMembers);
@@ -802,6 +807,7 @@ void USocialParty::RemovePlayerFromReservationBeacon(const FUniqueNetId& LocalUs
 	}
 }
 
+// DEPRECATED - Use the new join in progress flow with USocialParty::RequestJoinInProgress.
 void USocialParty::HandlePartyJIPRequestReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId)
 {
 	if (!IsLocalPlayerPartyLeader() || PartyId != GetPartyId())
@@ -810,8 +816,10 @@ void USocialParty::HandlePartyJIPRequestReceived(const FUniqueNetId& LocalUserId
 	}
 
 	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
-	
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FPartyJoinApproval JoinApproval = EvaluateJIPRequest(SenderId);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (JoinApproval.GetApprovalAction() == EApprovalAction::Enqueue ||
 		JoinApproval.GetApprovalAction() == EApprovalAction::EnqueueAndStartBeacon)
@@ -845,10 +853,11 @@ void USocialParty::HandlePartyJIPRequestReceived(const FUniqueNetId& LocalUserId
 		const bool bIsApproved = JoinApproval.CanJoin();
 		UE_LOG(LogParty, Verbose, TEXT("[%s] Responding to approval request for %s with %s"), *PartyId.ToString(), *SenderId.ToString(), bIsApproved ? TEXT("approved") : TEXT("denied"));
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		PartyInterface->ApproveJIPRequest(LocalUserId, PartyId, SenderId, bIsApproved, JoinApproval.GetDenialReason());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
-
 
 void USocialParty::HandleJoinabilityQueryReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const IOnlinePartyPendingJoinRequestInfo& JoinRequestInfo)
 {
@@ -941,6 +950,7 @@ void USocialParty::HandlePartyMemberJoined(const FUniqueNetId& LocalUserId, cons
 	}
 }
 
+// DEPRECATED - Use the new join in progress flow with USocialParty::RequestJoinInProgress.
 void USocialParty::HandlePartyMemberJIP(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, bool Success, int32 DeniedResultCode)
 {
 	if (PartyId == GetPartyId())
@@ -1006,9 +1016,11 @@ void USocialParty::HandleMemberInitialized(UPartyMember* Member)
 	{
 		Member->GetRepData().OnPlatformDataUniqueIdChanged().AddUObject(this, &USocialParty::HandleMemberPlatformUniqueIdChanged, Member);
 		Member->GetRepData().OnPlatformDataSessionIdChanged().AddUObject(this, &USocialParty::HandleMemberSessionIdChanged, Member);
-
 		HandleMemberPlatformUniqueIdChanged(Member->GetRepData().GetPlatformDataUniqueId(), Member);
 	}
+
+	Member->GetRepData().OnJoinInProgressDataRequestChanged().AddUObject(this, &USocialParty::HandleJoinInProgressDataRequestChanged, Member);
+	Member->GetRepData().OnJoinInProgressDataResponsesChanged().AddUObject(this, &USocialParty::HandleJoinInProgressDataResponsesChanged, Member);
 }
 
 void USocialParty::HandleMemberPlatformUniqueIdChanged(const FUniqueNetIdRepl& NewPlatformUniqueId, UPartyMember* Member)
@@ -1569,7 +1581,11 @@ void USocialParty::RejectAllPendingJoinRequests()
 		UE_LOG(LogParty, Verbose, TEXT("[%s] Responding to approval request for %s with denied"), *PartyId.ToString(), *PrimaryJoiningUserId.ToDebugString());
 		if (PendingApproval.bIsJIPApproval)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			PartyInterface->ApproveJIPRequest(*PendingApproval.RecipientId, PartyId, PrimaryJoiningUserId, false, (int32)EPartyJoinDenialReason::Busy);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+			RespondToJoinInProgressRequest(PendingApproval, EPartyJoinDenialReason::Busy);
 		}
 		else
 		{
@@ -1673,7 +1689,11 @@ void USocialParty::HandleReservationRequestComplete(EPartyReservationResult::Typ
 			if (PendingApproval.bIsJIPApproval)
 			{
 				// This player is already in our party. ApproveJIPRequest
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				PartyInterface->ApproveJIPRequest(*PendingApproval.RecipientId, GetPartyId(), *PendingApproval.Members[0].MemberId, bReservationApproved, DenialReason);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+				RespondToJoinInProgressRequest(PendingApproval, DenialReason.GetReason());
 			}
 			else if (PendingApproval.bIsPlayerRemoval)
 			{
@@ -1903,4 +1923,190 @@ bool USocialParty::ShouldAlwaysJoinPlatformSession(const FSessionId& SessionId) 
 void USocialParty::JoinSessionCompleteAnalytics(const FSessionId& SessionId, const FString& JoinBootableGroupSessionResult)
 {
 	// Work is to be done in the override
+}
+
+void USocialParty::RequestJoinInProgress(const UPartyMember& TargetMember, const FOnRequestJoinInProgressComplete& CompletionDelegate)
+{
+	// Only allow one join attempt at a time
+	if (RequestJoinInProgressComplete.IsSet())
+	{
+		UE_LOG(LogParty, Warning, TEXT("RequestJoinInProgress: Request already in progress"));
+		GetWorld()->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([CompletionDelegate]() {
+			CompletionDelegate.ExecuteIfBound(EPartyJoinDenialReason::Busy);
+		}));
+		return;
+	}
+
+	RequestJoinInProgressComplete = CompletionDelegate;
+	FPartyMemberJoinInProgressRequest Request;
+	Request.Target = TargetMember.GetPrimaryNetId();
+	Request.Time = FDateTime::UtcNow().ToUnixTimestamp();
+
+	UE_LOG(LogParty, Verbose, TEXT("RequestJoinInProgress: Sending request Target=%s Time=%d"), *Request.Target.ToDebugString(), Request.Time);
+	GetOwningLocalMember().GetMutableRepData().SetJoinInProgressDataRequest(Request);
+	RunJoinInProgressTimer();
+}
+
+void USocialParty::HandleJoinInProgressDataRequestChanged(const FPartyMemberJoinInProgressRequest& Request, UPartyMember* Member)
+{
+	if (Request.Time == 0 || !IsLocalPlayerPartyLeader())
+	{
+		// Ignore if this is not an active request or if we're not the party leader.
+		return;
+	}
+
+	const UPartyMember* TargetPartyMember = GetPartyMember(Request.Target);
+	if (!TargetPartyMember)
+	{
+		UE_LOG(LogParty, Warning, TEXT("HandleJoinInProgressDataRequestChanged: Could not find member for request Target=%s Time=%d"), *Request.Target.ToDebugString(), Request.Time);
+		return;
+	}
+
+	if (!TargetPartyMember->IsLocalPlayer())
+	{
+		// Request was not sent to us.
+		return;
+	}
+
+	UE_LOG(LogParty, Verbose, TEXT("HandleJoinInProgressDataRequestChanged: Received request Requester=%s Time=%d"), *Member->GetPrimaryNetId().ToDebugString(), Request.Time);
+	FPendingMemberApproval PendingApproval;
+	PendingApproval.RecipientId = OwningLocalUserId;
+	PendingApproval.Members.Emplace(Member->GetPrimaryNetId(), Member->GetRepData().GetPlatformDataPlatform());
+	PendingApproval.bIsJIPApproval = true;
+	PendingApproval.JoinInProgressRequestTime = Request.Time;
+	PendingApprovals.Enqueue(MoveTemp(PendingApproval));
+	if (!ReservationBeaconClient.Get())
+	{
+		ConnectToReservationBeacon();
+	}
+}
+
+void USocialParty::RespondToJoinInProgressRequest(const FPendingMemberApproval& PendingApproval, const EPartyJoinDenialReason DenialReason)
+{
+	if (PendingApproval.Members.IsEmpty() || PendingApproval.JoinInProgressRequestTime == 0)
+	{
+		return;
+	}
+
+	const UPartyMember* RequestingMember = GetPartyMember(PendingApproval.Members[0].MemberId);
+	if (!RequestingMember)
+	{
+		UE_LOG(LogParty, Warning, TEXT("RespondToJoinInProgressRequest: Could not find member for approval MemberId=%s"), *PendingApproval.Members[0].MemberId.ToDebugString());
+		return;
+	}
+
+	FPartyMemberJoinInProgressResponse Response;
+	Response.Requester = RequestingMember->GetPrimaryNetId();
+	Response.Time = PendingApproval.JoinInProgressRequestTime;
+	Response.DenialReason = static_cast<uint8>(DenialReason);
+
+	UE_LOG(LogParty, Verbose, TEXT("RespondToJoinInProgressRequest: Sending response Requester=%s Time=%d DenialReason=%s"),
+		*Response.Requester.ToDebugString(), Response.Time, ToString(DenialReason));
+	TArray<FPartyMemberJoinInProgressResponse> Responses = GetOwningLocalMember().GetRepData().GetJoinInProgressDataResponses();
+	Responses.Add(Response);
+	GetOwningLocalMember().GetMutableRepData().SetJoinInProgressDataResponses(Responses);
+	RunJoinInProgressTimer();
+}
+
+void USocialParty::HandleJoinInProgressDataResponsesChanged(const TArray<FPartyMemberJoinInProgressResponse>& Responses, UPartyMember* Member)
+{
+	if (!RequestJoinInProgressComplete.IsSet())
+	{
+		// Skip if we're not waiting for a response.
+		return;
+	}
+
+	const FPartyMemberJoinInProgressRequest Request = GetOwningLocalMember().GetRepData().GetJoinInProgressDataRequest();
+
+	for (const FPartyMemberJoinInProgressResponse& Response : Responses)
+	{
+		if (Response.Time != Request.Time)
+		{
+			// Response was not for us.
+			continue;
+		}
+
+		const UPartyMember* RequestingMember = GetPartyMember(Response.Requester);
+		const EPartyJoinDenialReason DenialReason = static_cast<EPartyJoinDenialReason>(Response.DenialReason);
+
+		if (!RequestingMember)
+		{
+			UE_LOG(LogParty, Warning, TEXT("HandleJoinInProgressDataResponsesChanged: Could not find member for response Requester=%s Time=%d DenialReason=%s"),
+				*Response.Requester.ToDebugString(), Response.Time, ToString(DenialReason));
+			continue;
+		}
+
+		if (!RequestingMember->IsLocalPlayer())
+		{
+			// Response was not for us.
+			continue;
+		}
+
+		// Responses are ordered newest first, so use the first one we find.
+		const int64 Now = FDateTime::UtcNow().ToUnixTimestamp();
+		UE_LOG(LogParty, Verbose, TEXT("HandleJoinInProgressDataResponsesChanged: Received response Requester=%s Time=%d DenialReason=%s ResponseTime=%d"),
+			*Response.Requester.ToDebugString(), Response.Time, ToString(DenialReason), Now - Response.Time);
+		CallJoinInProgressComplete(DenialReason);
+		break;
+	}
+}
+
+void USocialParty::CallJoinInProgressComplete(const EPartyJoinDenialReason DenialReason)
+{
+	if (RequestJoinInProgressComplete.IsSet())
+	{
+		FOnRequestJoinInProgressComplete CompletionDelegate = MoveTemp(RequestJoinInProgressComplete.GetValue());
+		RequestJoinInProgressComplete.Reset();
+		CompletionDelegate.ExecuteIfBound(DenialReason);
+	}
+}
+
+void USocialParty::RunJoinInProgressTimer()
+{
+	UE_LOG(LogParty, VeryVerbose, TEXT("RunJoinInProgressTimer: Checking for stale data"));
+
+	const int64 Now = FDateTime::UtcNow().ToUnixTimestamp();
+	int64 NextTimer = 0;
+
+	FPartyMemberJoinInProgressRequest Request = GetOwningLocalMember().GetRepData().GetJoinInProgressDataRequest();
+	if (Request.Time > 0)
+	{
+		const int64 Expires = Request.Time + JoinInProgressRequestTimeout;
+		if (Expires <= Now)
+		{
+			UE_LOG(LogParty, Verbose, TEXT("RunJoinInProgressTimer: Removing request data"));
+			CallJoinInProgressComplete(EPartyJoinDenialReason::JoinAttemptAborted);
+			Request.Target = FUniqueNetIdRepl::Invalid();
+			Request.Time = 0;
+			GetOwningLocalMember().GetMutableRepData().SetJoinInProgressDataRequest(Request);
+		}
+		else
+		{
+			NextTimer = Expires - Now;
+		}
+	}
+
+	const TArray<FPartyMemberJoinInProgressResponse>& Responses = GetOwningLocalMember().GetRepData().GetJoinInProgressDataResponses();
+	TArray<FPartyMemberJoinInProgressResponse> ResponsesToKeep;
+	for (const FPartyMemberJoinInProgressResponse& Response : Responses)
+	{
+		const int64 Expires = Response.Time + JoinInProgressResponseTimeout;
+		if (Expires > Now)
+		{
+			ResponsesToKeep.Add(Response);
+			NextTimer = NextTimer ? FMath::Min(NextTimer, Expires - Now) : Expires - Now;
+		}
+	}
+
+	if (Responses.Num() != ResponsesToKeep.Num())
+	{
+		UE_LOG(LogParty, Verbose, TEXT("RunJoinInProgressTimer: Removing response data, %d remaining"), ResponsesToKeep.Num());
+		GetOwningLocalMember().GetMutableRepData().SetJoinInProgressDataResponses(ResponsesToKeep);
+	}
+
+	if (NextTimer > 0)
+	{
+		UE_LOG(LogParty, Verbose, TEXT("RunJoinInProgressTimer: Running again in %d seconds"), NextTimer);
+		GetWorld()->GetTimerManager().SetTimer(JoinInProgressTimerHandle, this, &USocialParty::RunJoinInProgressTimer, static_cast<float>(NextTimer));
+	}
 }

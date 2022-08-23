@@ -999,9 +999,10 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyStateChanged);
 * @param DeniedResultCode - descriptive reason for a failure to join
 */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyJIP), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, bool /*Success*/);
-UE_DEPRECATED(5.1, "Use FOnPartyJIPResponseDelegate instead of FOnPartyJIPDelegate")
+UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
 typedef FOnPartyJIP::FDelegate FOnPartyJIPDelegate;
 DECLARE_MULTICAST_DELEGATE_FourParams(F_PREFIX(OnPartyJIPResponse), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, bool /*Success*/, int32 /*DeniedResultCode*/);
+UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
 PARTY_DECLARE_DELEGATETYPE(OnPartyJIPResponse);
 
 /**
@@ -1179,6 +1180,7 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyJoinRequestReceived);
  * @param PartyData - data provided by the sender for the leader to use to determine joinability
  */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyJIPRequestReceived), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/);
+UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
 PARTY_DECLARE_DELEGATETYPE(OnPartyJIPRequestReceived);
 
 /**
@@ -1347,7 +1349,8 @@ public:
 	*
 	* @return true if task was started
 	*/
-	virtual bool JIPFromWithinParty(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& PartyLeaderId) = 0;
+	UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
+	virtual bool JIPFromWithinParty(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& PartyLeaderId) { return false; }
 
 	/**
 	 * Query a party to check it's current joinability
@@ -1436,7 +1439,8 @@ public:
 	*
 	* @return true if task was started
 	*/
-	virtual bool ApproveJIPRequest(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RecipientId, bool bIsApproved, int32 DeniedResultCode = 0) = 0;
+	UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
+	virtual bool ApproveJIPRequest(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RecipientId, bool bIsApproved, int32 DeniedResultCode = 0) { return false; }
 
 	/**
 	 * Respond to a query joinability request.  This reflects the current party's joinability state and can change from moment to moment, and therefore does not guarantee a successful join.
@@ -1809,7 +1813,9 @@ public:
 	* @param Success - whether the join in progress action succeeded
 	* @param DeniedResultCode - descriptive reason for a failure to join
 	*/
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	DEFINE_ONLINE_DELEGATE_FOUR_PARAM(OnPartyJIPResponse, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, bool /*Success*/, int32 /*DeniedResultCode*/);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Notification when player promotion is locked out.
@@ -1938,7 +1944,9 @@ public:
 	* @param Platform - platform of member that sent the request
 	* @param PartyData - data provided by the sender for the leader to use to determine joinability
 	*/
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnPartyJIPRequestReceived, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Notification when a player wants to know if the party is in a joinable state

@@ -24,6 +24,8 @@ class USocialUser;
 class FOnlineSessionSettings;
 class FOnlineSessionSearchResult;
 enum class EMemberExitedReason : uint8;
+struct FPartyMemberJoinInProgressRequest;
+struct FPartyMemberJoinInProgressResponse;
 
 /** Base struct used to replicate data about the state of the party to all members. */
 USTRUCT()
@@ -195,10 +197,11 @@ public:
 	FOnInviteSent& OnInviteSent() const { return OnInviteSentEvent; }
 
 	DECLARE_EVENT_TwoParams(USocialParty, FOnPartyJIPApproved, const FOnlinePartyId&, bool /* Success*/);
-	UE_DEPRECATED(5.0, "Use OnPartyJIPResponse instead of OnPartyJIPApproved")
+	UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
 	FOnPartyJIPApproved& OnPartyJIPApproved() const { return OnPartyJIPApprovedEvent; }
 
 	DECLARE_EVENT_ThreeParams(USocialParty, FOnPartyJIPResponse, const FOnlinePartyId&, bool /* Success*/, const FString& /*DeniedResultCode*/);
+	UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
 	FOnPartyJIPResponse& OnPartyJIPResponse() const { return OnPartyJIPResponseEvent; }
 
 	DECLARE_EVENT_TwoParams(USocialParty, FOnPartyMemberConnectionStatusChanged, UPartyMember&, EMemberConnectionStatus);
@@ -211,6 +214,9 @@ public:
 
 	virtual void JoinSessionCompleteAnalytics(const FSessionId& SessionId, const FString& JoinBootableGroupSessionResult);
 	bool IsCurrentlyLeaving() const;
+
+	DECLARE_DELEGATE_OneParam(FOnRequestJoinInProgressComplete, const EPartyJoinDenialReason /*DenialReason*/);
+	void RequestJoinInProgress(const UPartyMember& TargetMember, const FOnRequestJoinInProgressComplete& CompletionDelegate);
 
 protected:
 	void InitializeParty(const TSharedRef<const FOnlineParty>& InOssParty);
@@ -267,6 +273,7 @@ protected:
 	virtual FPartyJoinApproval EvaluateJoinRequest(const TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef>& Players, bool bFromJoinRequest) const;
 
 	/** Determines the joinability of the game a party is in for JoinInProgress */
+	UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
 	virtual FPartyJoinApproval EvaluateJIPRequest(const FUniqueNetId& PlayerId) const;
 
 	/** Determines the reason why, if at all, this party is currently flat-out unjoinable  */
@@ -329,7 +336,6 @@ private:
 
 	void HandlePreClientTravel(const FString& PendingURL, ETravelType TravelType, bool bIsSeamlessTravel);
 
-
 	UPartyMember* GetMemberInternal(const FUniqueNetIdRepl& MemberId) const;
 
 private:	// Handlers
@@ -339,11 +345,13 @@ private:	// Handlers
 	void HandlePartyDataReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FName& Namespace, const FOnlinePartyData& PartyData);
 	void HandleJoinabilityQueryReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const IOnlinePartyPendingJoinRequestInfo& JoinRequestInfo);
 	void HandlePartyJoinRequestReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const IOnlinePartyPendingJoinRequestInfo& JoinRequestInfo);
+	UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
 	void HandlePartyJIPRequestReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId);
 	void HandlePartyLeft(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId);
 	void HandlePartyMemberExited(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& MemberId, EMemberExitedReason ExitReason);
 	void HandlePartyMemberDataReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& MemberId, const FName& Namespace, const FOnlinePartyData& PartyMemberData);
 	void HandlePartyMemberJoined(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& MemberId);
+	UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
 	void HandlePartyMemberJIP(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, bool Success, int32 DeniedResultCode);
 	void HandlePartyMemberPromoted(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& NewLeaderId);
 	void HandlePartyPromotionLockoutChanged(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, bool bArePromotionsLocked);
@@ -359,6 +367,10 @@ private:	// Handlers
 	void HandleRemoveLocalPlayerComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, ELeavePartyCompletionResult LeaveResult, FOnLeavePartyAttemptComplete OnAttemptComplete);
 
 	void RemovePlayerFromReservationBeacon(const FUniqueNetId& LocalUserId, const FUniqueNetId& PlayerToRemove);
+
+	void HandleJoinInProgressDataRequestChanged(const FPartyMemberJoinInProgressRequest& Request, UPartyMember* Member);
+	void HandleJoinInProgressDataResponsesChanged(const TArray<FPartyMemberJoinInProgressResponse>& Responses, UPartyMember* Member);
+
 private:
 	TSharedPtr<const FOnlineParty> OssParty;
 
@@ -404,6 +416,7 @@ private:
 		FUniqueNetIdRepl RecipientId;
 		TArray<FMemberInfo> Members;
 		bool bIsJIPApproval;
+		int64 JoinInProgressRequestTime = 0;
 		bool bIsPlayerRemoval = false;
 	};
 	TQueue<FPendingMemberApproval> PendingApprovals;
@@ -444,6 +457,27 @@ private:
 	bool bIsInitialized = false;
 	bool bHasReceivedRepData = false;
 	TOptional<bool> bIsRequestingShutdown;
+
+	void RespondToJoinInProgressRequest(const FPendingMemberApproval& PendingApproval, const EPartyJoinDenialReason DenialReason);
+	void CallJoinInProgressComplete(const EPartyJoinDenialReason DenialReason);
+	void RunJoinInProgressTimer();
+
+	/** Complete delegate for join in progress requests. This should only have one at a time. */
+	TOptional<FOnRequestJoinInProgressComplete> RequestJoinInProgressComplete;
+
+	FTimerHandle JoinInProgressTimerHandle;
+
+	/** How often the timer should check in seconds for stale data when running. */
+	UPROPERTY(config)
+	float JoinInProgressTimerRate = 5.f;
+	
+	/** How long in seconds before join in progress requests timeout and are cleared from member data. */
+	UPROPERTY(config)
+	int32 JoinInProgressRequestTimeout = 30;
+
+	/** How long in seconds before join in progress responses are cleared from member data. */
+	UPROPERTY(config)
+	int32 JoinInProgressResponseTimeout = 60;
 
 	mutable FLeavePartyEvent OnPartyLeaveBeginEvent;
 	mutable FLeavePartyEvent OnPartyLeftEvent;

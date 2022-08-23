@@ -31,6 +31,8 @@ void FPartyMemberRepData::CompareAgainst(const FOnlinePartyRepDataBase& OldData)
 	ComparePlatformDataUniqueId(TypedOldData);
 	ComparePlatformDataSessionId(TypedOldData);
 	CompareCrossplayPreference(TypedOldData);
+	CompareJoinInProgressDataRequest(TypedOldData);
+	CompareJoinInProgressDataResponses(TypedOldData);
 }
 
 const USocialParty* FPartyMemberRepData::GetOwnerParty() const

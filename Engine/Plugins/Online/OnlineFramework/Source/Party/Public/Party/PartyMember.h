@@ -39,6 +39,71 @@ public:
 	FString SessionId;
 };
 
+/** Join in progress request. Represents a request from a local party member to a remote party member to acquire a reservation for the session the remote party member is in. */
+USTRUCT()
+struct FPartyMemberJoinInProgressRequest
+{
+	GENERATED_BODY()
+
+public:
+	bool operator==(const FPartyMemberJoinInProgressRequest& Other) const { return Target == Other.Target && Time == Other.Time; }
+	bool operator!=(const FPartyMemberJoinInProgressRequest& Other) const { return !operator==(Other); }
+
+	/** Remote member we want to join. */
+	UPROPERTY()
+	FUniqueNetIdRepl Target;
+
+	/** Time the request was made. */
+	UPROPERTY()
+	int64 Time = 0;
+};
+
+/** Join in progress response. Represents a response from a local party member to a remote party member that requested to join in progress. */
+USTRUCT()
+struct FPartyMemberJoinInProgressResponse
+{
+	GENERATED_BODY()
+
+public:
+	bool operator==(const FPartyMemberJoinInProgressResponse& Other) const { return Requester == Other.Requester && Time == Other.Time; }
+	bool operator!=(const FPartyMemberJoinInProgressResponse& Other) const { return !operator==(Other); }
+
+	/** Remote member that this response is for. */
+	UPROPERTY()
+	FUniqueNetIdRepl Requester;
+
+	/** Time the request was made. Matches FPartyMemberJoinInProgressRequest::Time */
+	UPROPERTY()
+	int64 Time = 0;
+	
+	/**
+	 * Result of session reservation attempt.
+	 * @see EPartyJoinDenialReason
+	 */
+	UPROPERTY()
+	uint8 DenialReason = 0;
+};
+
+/** Join in progress data. Holds the current request and any responses. Requests and responses are expected to be cleared in a short amount of time. Combined into one field to reduce field count. */
+USTRUCT()
+struct FPartyMemberJoinInProgressData
+{
+	GENERATED_BODY()
+
+public:
+
+	bool operator==(const FPartyMemberJoinInProgressData& Other) const { return Request == Other.Request && Responses == Other.Responses; }
+	bool operator!=(const FPartyMemberJoinInProgressData& Other) const { return !operator==(Other); }
+
+	/** Current request for the local member. */
+	UPROPERTY()
+	FPartyMemberJoinInProgressRequest Request;
+
+	/** List of responses for other members who requested a reservation. */
+	UPROPERTY()
+	TArray<FPartyMemberJoinInProgressResponse> Responses;
+};
+
 /** Base struct used to replicate data about the state of a single party member to all members. */
 USTRUCT()
 struct PARTY_API FPartyMemberRepData : public FOnlinePartyRepDataBase
@@ -74,6 +139,12 @@ private:
 	UPROPERTY()
 	FString JoinMethod;
 	EXPOSE_REP_DATA_PROPERTY(FPartyMemberRepData, FString, JoinMethod);
+
+	/** Data used for join in progress flow. */
+	UPROPERTY()
+	FPartyMemberJoinInProgressData JoinInProgressData;
+	EXPOSE_USTRUCT_REP_DATA_PROPERTY(FPartyMemberRepData, FPartyMemberJoinInProgressRequest, JoinInProgressData, Request);
+	EXPOSE_USTRUCT_REP_DATA_PROPERTY(FPartyMemberRepData, TArray<FPartyMemberJoinInProgressResponse>, JoinInProgressData, Responses);
 };
 
 using FPartyMemberDataReplicator = TPartyDataReplicator<FPartyMemberRepData, UPartyMember>;
