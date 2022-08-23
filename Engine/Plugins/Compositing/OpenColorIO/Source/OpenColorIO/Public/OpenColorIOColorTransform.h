@@ -65,6 +65,9 @@ public:
 	/**
 	 * Returns the desired resources required to apply this transform during rendering.
 	 */
+	bool GetRenderResources(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, TArray<FTextureResource*>& OutTextureResources);
+
+	UE_DEPRECATED(5.1, "GetShaderAndLUTResouces is deprecated, please use GetRenderResources instead.")
 	bool GetShaderAndLUTResouces(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource);
 
 	bool IsTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace) const;
@@ -87,8 +90,11 @@ protected:
 	static void ProcessSerializedShaderMaps(UOpenColorIOColorTransform* Owner, TArray<FOpenColorIOTransformResource>& LoadedResources, FOpenColorIOTransformResource* (&OutColorTransformResourcesLoaded)[ERHIFeatureLevel::Num]);
 	
 	/**
-	 * Returns a Guid for the LUT based on its unique identifier and the OCIO DDC key.
+	 * Returns a Guid for the LUT based on its unique identifier, name and the OCIO DDC key.
 	 */
+	static void GetOpenColorIOLUTKeyGuid(const FString& InProcessorIdentifier, const FName& InName, FGuid& OutLutGuid );
+
+	UE_DEPRECATED(5.1, "This version of GetOpenColorIOLUTKeyGuid is deprecated. Please use the version that takes InName instead.")
 	static void GetOpenColorIOLUTKeyGuid(const FString& InLutIdentifier, FGuid& OutLutGuid);
 
 	/**
@@ -111,9 +117,17 @@ protected:
 	bool UpdateShaderInfo(FString& OutShaderCodeHash, FString& OutShaderCode, FString& OutRawConfigHash);
 
 	/**
-	 * Helper function taking raw LUT data coming from the library and initializing a UTexture with it.
+	 * Helper function taking raw 3D LUT data coming from the library and initializing a UVolumeTexture with it.
 	 */
+	TObjectPtr<UTexture> CreateTexture3DLUT(const FString& InProcessorIdentifier, const FName& InName, uint32 InLutLength, TextureFilter InFilter, const float* InSourceData);
+
+	UE_DEPRECATED(5.1, "Update3dLutTexture is deprecated, please use CreateTexture3DLUT instead.")
 	void Update3dLutTexture(const FString& InLutIdentifier, const float* InSourceData);
+
+	/**
+	 * Helper function taking raw 1D LUT data coming from the library and initializing a UTexture with it.
+	 */
+	TObjectPtr<UTexture> CreateTexture1DLUT(const FString& InProcessorIdentifier, const FName& InName, uint32 InTextureWidth, uint32 InTextureHeight, TextureFilter InFilter, bool bRedChannelOnly, const float* InSourceData );
 
 private:
 	void FlushResourceShaderMaps();
@@ -156,10 +170,10 @@ public:
 
 private:
 
-	/** If the color space requires a 3dLUT, this will contains the data to do the transform */
+	/** If the color space requires textures, this will contains the data to do the transform */
 	/** Note: This will be serialized when cooking. Otherwhise, it relies on raw data of the library and what's on DDC */
 	UPROPERTY(Transient)
-	TObjectPtr<UVolumeTexture> Lut3dTexture = nullptr;
+	TArray<TObjectPtr<UTexture>> Textures;
 	
 	/** Inline ColorTransform resources serialized from disk. To be processed on game thread in PostLoad. */
 	TArray<FOpenColorIOTransformResource> LoadedTransformResources;

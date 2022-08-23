@@ -18,9 +18,6 @@ namespace UnrealBuildTool.Rules
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
-					"Core",
-					"CoreUObject",
-					"Engine",
 					"Projects",
 					"RenderCore",
 					"RHI",
@@ -43,6 +40,10 @@ namespace UnrealBuildTool.Rules
 
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
+					"Core",
+					"CoreUObject",
+					"Engine",
+					"DeveloperSettings"
 				});
 
 			if (Target.bBuildEditor == true)

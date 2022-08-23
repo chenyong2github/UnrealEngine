@@ -55,7 +55,7 @@ void FOpenColorIODisplayExtension::SetupView(FSceneViewFamily& InViewFamily, FSc
 	//Cache render resource so they are available on the render thread (Can't access UObjects on RT)
 	//If something fails, cache invalid resources to invalidate them
 	FOpenColorIOTransformResource* ShaderResource = nullptr;
-	FTextureResource* LUT3dResource = nullptr;
+	TArray<FTextureResource*> TextureResources;
 
 	if (DisplayConfiguration.ColorConfiguration.ConfigurationSource == nullptr)
 	{
@@ -63,12 +63,12 @@ void FOpenColorIODisplayExtension::SetupView(FSceneViewFamily& InViewFamily, FSc
 	}
 	else
 	{
-		const bool bFoundTransform = DisplayConfiguration.ColorConfiguration.ConfigurationSource->GetShaderAndLUTResources(
+		const bool bFoundTransform = DisplayConfiguration.ColorConfiguration.ConfigurationSource->GetRenderResources(
 			InViewFamily.GetFeatureLevel()
 			, DisplayConfiguration.ColorConfiguration.SourceColorSpace.ColorSpaceName
 			, DisplayConfiguration.ColorConfiguration.DestinationColorSpace.ColorSpaceName
 			, ShaderResource
-			, LUT3dResource);
+			, TextureResources);
 
 		if (!bFoundTransform)
 		{
@@ -99,11 +99,11 @@ void FOpenColorIODisplayExtension::SetupView(FSceneViewFamily& InViewFamily, FSc
 	}
 
 	ENQUEUE_RENDER_COMMAND(ProcessColorSpaceTransform)(
-		[this, ShaderResource, LUT3dResource](FRHICommandListImmediate& RHICmdList)
+		[this, ShaderResource, TextureResources](FRHICommandListImmediate& RHICmdList)
 		{
 			//Caches render thread resource to be used when applying configuration in PostRenderViewFamily_RenderThread
 			CachedResourcesRenderThread.ShaderResource = ShaderResource;
-			CachedResourcesRenderThread.LUT3dResource = LUT3dResource;
+			CachedResourcesRenderThread.TextureResources = TextureResources;
 		}
 	);
 }
@@ -139,8 +139,6 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 		return SceneColor;
 	}
 
-	RDG_EVENT_SCOPE(GraphBuilder, "OCIODisplayLook");
-
 	FScreenPassRenderTarget BackBufferRenderTarget;
 
 	// If the override output is provided it means that this is the last pass in post processing.
@@ -173,11 +171,7 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 	FOpenColorIOPixelShaderParameters* Parameters = GraphBuilder.AllocParameters<FOpenColorIOPixelShaderParameters>();
 	Parameters->InputTexture = SceneColorRenderTarget.Texture;
 	Parameters->InputTextureSampler = TStaticSamplerState<>::GetRHI();
-	if (CachedResourcesRenderThread.LUT3dResource)
-	{
-		Parameters->Ocio_lut3d_0 = CachedResourcesRenderThread.LUT3dResource->TextureRHI;
-	}
-	Parameters->Ocio_lut3d_0Sampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	OpenColorIOBindTextureResources(Parameters, CachedResourcesRenderThread.TextureResources);
 
 	// There is a special case where post processing and tonemapper are disabled. In this case tonemapper applies a static display Inverse of Gamma which defaults to 2.2.
 	// In the case when Both PostProcessing and ToneMapper are disabled we apply gamma manually. In every other case we apply inverse gamma before applying OCIO.
@@ -187,7 +181,7 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 	checkSlow(View.bIsViewInfo);
 	const FViewInfo& ViewInfo = static_cast<const FViewInfo&>(View);
 
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("ProcessOCIOColorSpaceXfrm"), ViewInfo, BackBufferViewport, SceneColorViewport, OCIOPixelShader, Parameters);
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("OCIODisplayLook"), ViewInfo, BackBufferViewport, SceneColorViewport, OCIOPixelShader, Parameters);
 
 	return MoveTemp(BackBufferRenderTarget);
 }

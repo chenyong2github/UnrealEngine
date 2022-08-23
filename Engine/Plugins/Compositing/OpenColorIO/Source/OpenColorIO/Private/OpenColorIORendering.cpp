@@ -13,6 +13,7 @@
 #include "OpenColorIOShader.h"
 #include "OpenColorIOShaderType.h"
 #include "OpenColorIOShared.h"
+#include "OpenColorIOColorTransform.h"
 #include "ScreenPass.h"
 #include "TextureResource.h"
 
@@ -21,7 +22,7 @@ void ProcessOCIOColorSpaceTransform_RenderThread(
 	FRHICommandListImmediate& InRHICmdList
 	, ERHIFeatureLevel::Type InFeatureLevel
 	, FOpenColorIOTransformResource* InOCIOColorTransformResource
-	, FTextureResource* InLUT3dResource
+	, TArray<FTextureResource*> InTextureResources
 	, FTextureRHIRef InputSpaceColorTexture
 	, FTextureRHIRef OutputSpaceColorTexture
 	, FIntPoint OutputResolution)
@@ -40,11 +41,7 @@ void ProcessOCIOColorSpaceTransform_RenderThread(
 	FOpenColorIOPixelShaderParameters* Parameters = GraphBuilder.AllocParameters<FOpenColorIOPixelShaderParameters>();
 	Parameters->InputTexture = InputTexture;
 	Parameters->InputTextureSampler = TStaticSamplerState<>::GetRHI();
-	if (InLUT3dResource != nullptr)
-	{
-		Parameters->Ocio_lut3d_0 = InLUT3dResource->TextureRHI;
-	}
-	Parameters->Ocio_lut3d_0Sampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	OpenColorIOBindTextureResources(Parameters, InTextureResources);
 	// Set Gamma to 1., since we do not have any display parameters or requirement for Gamma.
 	Parameters->Gamma = 1.0;
 	Parameters->RenderTargets[0] = ScreenPassRenderTarget.GetRenderTargetBinding();
@@ -106,8 +103,8 @@ bool FOpenColorIORendering::ApplyColorTransform(UWorld* InWorld, const FOpenColo
 
 	const ERHIFeatureLevel::Type FeatureLevel = InWorld->Scene->GetFeatureLevel();
 	FOpenColorIOTransformResource* ShaderResource = nullptr;
-	FTextureResource* LUT3dResource = nullptr;
-	bool bFoundTransform = InSettings.ConfigurationSource->GetShaderAndLUTResources(FeatureLevel, InSettings.SourceColorSpace.ColorSpaceName, InSettings.DestinationColorSpace.ColorSpaceName, ShaderResource, LUT3dResource);
+	TArray<FTextureResource*> TextureResources;
+	bool bFoundTransform = InSettings.ConfigurationSource->GetRenderResources(FeatureLevel, InSettings.SourceColorSpace.ColorSpaceName, InSettings.DestinationColorSpace.ColorSpaceName, ShaderResource, TextureResources);
 	if (!bFoundTransform)
 	{
 		UE_LOG(LogOpenColorIO, Warning, TEXT("Can't apply color transform - Couldn't find shader to transform from %s to %s"), *InSettings.SourceColorSpace.ColorSpaceName, *InSettings.DestinationColorSpace.ColorSpaceName);
@@ -124,13 +121,13 @@ bool FOpenColorIORendering::ApplyColorTransform(UWorld* InWorld, const FOpenColo
 
 
 	ENQUEUE_RENDER_COMMAND(ProcessColorSpaceTransform)(
-		[FeatureLevel, InputResource, OutputResource, ShaderResource, LUT3dResource](FRHICommandListImmediate& RHICmdList)
+		[FeatureLevel, InputResource, OutputResource, ShaderResource, TextureResources](FRHICommandListImmediate& RHICmdList)
 		{
 			ProcessOCIOColorSpaceTransform_RenderThread(
 			RHICmdList,
 			FeatureLevel,
 			ShaderResource,
-			LUT3dResource,
+			TextureResources,
 			InputResource->TextureRHI,
 			OutputResource->TextureRHI,
 			FIntPoint(OutputResource->GetSizeX(), OutputResource->GetSizeY()));

@@ -54,7 +54,7 @@ void UOpenColorIOConfiguration::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-bool UOpenColorIOConfiguration::GetShaderAndLUTResources(ERHIFeatureLevel::Type InFeatureLevel, const FString& InSourceColorSpace, const FString& InDestinationColorSpace, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource)
+bool UOpenColorIOConfiguration::GetRenderResources(ERHIFeatureLevel::Type InFeatureLevel, const FString& InSourceColorSpace, const FString& InDestinationColorSpace, FOpenColorIOTransformResource*& OutShaderResource, TArray<FTextureResource*>& OutTextureResources)
 {
 	UE_TRANSITIONAL_OBJECT_PTR(UOpenColorIOColorTransform)* TransformPtr = ColorTransforms.FindByPredicate([&](const UOpenColorIOColorTransform* InTransform)
 	{
@@ -68,7 +68,22 @@ bool UOpenColorIOConfiguration::GetShaderAndLUTResources(ERHIFeatureLevel::Type 
 	}
 
 	UOpenColorIOColorTransform* Transform = *TransformPtr;
-	return Transform->GetShaderAndLUTResouces(InFeatureLevel, OutShaderResource, OutLUT3dResource);
+	return Transform->GetRenderResources(InFeatureLevel, OutShaderResource, OutTextureResources);
+}
+
+bool UOpenColorIOConfiguration::GetShaderAndLUTResources(ERHIFeatureLevel::Type InFeatureLevel, const FString& InSourceColorSpace, const FString& InDestinationColorSpace, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource)
+{
+	TArray<FTextureResource*> TextureResources;
+	if (GetRenderResources(InFeatureLevel, InSourceColorSpace, InDestinationColorSpace, OutShaderResource, TextureResources))
+	{
+		if (TextureResources.Num() > 0)
+		{
+			OutLUT3dResource = TextureResources[0];
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool UOpenColorIOConfiguration::HasTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace)

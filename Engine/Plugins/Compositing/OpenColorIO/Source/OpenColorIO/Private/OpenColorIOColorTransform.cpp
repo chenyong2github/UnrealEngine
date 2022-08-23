@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "OpenColorIOConfiguration.h"
 #include "OpenColorIOModule.h"
+#include "OpenColorIOSettings.h"
 #include "UObject/UObjectIterator.h"
 
 
@@ -24,7 +25,20 @@
 
 #endif //WITH_EDITOR
 
+namespace {
+#if WITH_EDITOR && WITH_OCIO
+	/*
+	 * Get the processor optimization flag.
+	 * @todo: Remove "no dynamic properties" once this path is enabled.
+	 */
+	OCIO_NAMESPACE::OptimizationFlags GetProcessorOptimization()
+	{
+		using namespace OCIO_NAMESPACE;
 
+		return static_cast<OptimizationFlags>(OptimizationFlags::OPTIMIZATION_DEFAULT | OptimizationFlags::OPTIMIZATION_NO_DYNAMIC_PROPERTIES);
+	}
+#endif
+}
 
 
 void UOpenColorIOColorTransform::SerializeOpenColorIOShaderMaps(const TMap<const ITargetPlatform*, TArray<FOpenColorIOTransformResource*>>* PlatformColorTransformResourcesToSavePtr, FArchive& Ar, TArray<FOpenColorIOTransformResource>&  OutLoadedResources)
@@ -95,16 +109,26 @@ void UOpenColorIOColorTransform::ProcessSerializedShaderMaps(UOpenColorIOColorTr
 	}
 }
 
-void UOpenColorIOColorTransform::GetOpenColorIOLUTKeyGuid(const FString& InLutIdentifier, FGuid& OutLutGuid)
+void UOpenColorIOColorTransform::GetOpenColorIOLUTKeyGuid(const FString& InProcessorIdentifier, FGuid& OutLutGuid)
+{
+	GetOpenColorIOLUTKeyGuid(InProcessorIdentifier, FName(), OutLutGuid);
+}
+
+void UOpenColorIOColorTransform::GetOpenColorIOLUTKeyGuid(const FString& InProcessorIdentifier, const FName& InName, FGuid& OutLutGuid)
 {
 #if WITH_EDITOR
-	FString DDCKey = FDerivedDataCacheInterface::BuildCacheKey(TEXT("OCIOLUT"), OPENCOLORIO_DERIVEDDATA_VER, *InLutIdentifier);
+	FString DDCKey = FDerivedDataCacheInterface::BuildCacheKey(TEXT("OCIOLUT"), OPENCOLORIO_DERIVEDDATA_VER, *InProcessorIdentifier);
 
 #if WITH_OCIO
 	//Keep library version in the DDC key to invalidate it once we move to a new library
 	DDCKey += TEXT("OCIOVersion");
 	DDCKey += TEXT(OCIO_VERSION);
 #endif //WITH_OCIO
+
+	if (!InName.IsNone())
+	{
+		DDCKey += InName.ToString();
+	}
 
 	const uint32 KeyLength = DDCKey.Len() * sizeof(DDCKey[0]);
 	uint32 Hash[5];
@@ -166,17 +190,14 @@ void UOpenColorIOColorTransform::SerializeLuts(FArchive& Ar)
 		int32 Num3dLutsToSave = 0;
 		if (Ar.IsCooking())
 		{
-			if (Lut3dTexture != nullptr)
-			{
-				Num3dLutsToSave = 1;
-			}
+			Num3dLutsToSave = Textures.Num();
 		}
 
 		Ar << Num3dLutsToSave;
 
 		if (Num3dLutsToSave > 0)
 		{
-			Ar << Lut3dTexture;
+			Ar << Textures;
 		}
 	}
 	else if (Ar.IsLoading())
@@ -187,14 +208,14 @@ void UOpenColorIOColorTransform::SerializeLuts(FArchive& Ar)
 		if (NumLoaded3dLuts > 0)
 		{
 			//Will only happen on cooked data
-			Ar << Lut3dTexture;
+			Ar << Textures;
 		}
 	}
 }
 
 void UOpenColorIOColorTransform::CacheResourceTextures()
 {
-	if (Lut3dTexture == nullptr)
+	if (Textures.IsEmpty())
 	{
 #if WITH_EDITOR && WITH_OCIO
 		OCIO_NAMESPACE::ConstConfigRcPtr CurrentConfig = ConfigurationOwner->GetLoadedConfigurationFile();
@@ -205,6 +226,7 @@ void UOpenColorIOColorTransform::CacheResourceTextures()
 #endif
 			{
 				OCIO_NAMESPACE::ConstProcessorRcPtr TransformProcessor = CurrentConfig->getProcessor(StringCast<ANSICHAR>(*SourceColorSpace).Get(), StringCast<ANSICHAR>(*DestinationColorSpace).Get());
+				
 				if (TransformProcessor)
 				{
 					OCIO_NAMESPACE::GpuShaderDescRcPtr ShaderDescription = OCIO_NAMESPACE::GpuShaderDesc::CreateShaderDesc();
@@ -212,27 +234,87 @@ void UOpenColorIOColorTransform::CacheResourceTextures()
 					ShaderDescription->setFunctionName(StringCast<ANSICHAR>(OpenColorIOShader::OpenColorIOShaderFunctionName).Get());
 					ShaderDescription->setResourcePrefix("Ocio");
 
-					OCIO_NAMESPACE::ConstGPUProcessorRcPtr GPUProcessor = TransformProcessor->getOptimizedLegacyGPUProcessor(OCIO_NAMESPACE::OptimizationFlags::OPTIMIZATION_DEFAULT, OpenColorIOShader::Lut3dEdgeLength);
-					GPUProcessor->extractGpuShaderInfo(ShaderDescription);
+					OCIO_NAMESPACE::ConstGPUProcessorRcPtr GPUProcessor = nullptr;
+					const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
+					check(Settings);
 
-					FString Lut3dIdentifier = StringCast<TCHAR>(GPUProcessor->getCacheID()).Get();
-					if (Lut3dIdentifier != TEXT("<NULL>") && ShaderDescription->getNum3DTextures() > 0 )
+					if (Settings->bUseLegacyProcessor)
+					{
+						unsigned int EdgeLength = static_cast<unsigned int>(OpenColorIOShader::Lut3dEdgeLength);
+						GPUProcessor = TransformProcessor->getOptimizedLegacyGPUProcessor(GetProcessorOptimization(), EdgeLength);
+					}
+					else
+					{
+						GPUProcessor = TransformProcessor->getOptimizedGPUProcessor(GetProcessorOptimization());
+					}
+
+					GPUProcessor->extractGpuShaderInfo(ShaderDescription);
+					// @todo: Remove once we add support for dynamic properties
+					ensureMsgf(ShaderDescription->getNumDynamicProperties() == 0, TEXT("Dynamic properties are not currently supported."));
+
+					const FString ProcessorID = StringCast<TCHAR>(GPUProcessor->getCacheID()).Get();
+
+					//In editor, it will use what's on DDC if there's something corresponding to the actual data or use that raw data
+					//that OCIO library has on board. The textures will be serialized only when cooking.
+					
+					// Process 3D luts
+					for (uint32 Index = 0; Index < ShaderDescription->getNum3DTextures(); ++Index)
 					{
 						const char* TextureName = nullptr;
 						const char* SamplerName = nullptr;
-						unsigned int EdgeLength = static_cast<unsigned int>(OpenColorIOShader::Lut3dEdgeLength);
-						OCIO_NAMESPACE::Interpolation Interpolation = OCIO_NAMESPACE::INTERP_BEST;
-						ShaderDescription->get3DTexture(0, TextureName, SamplerName, EdgeLength, Interpolation);
-						checkf(TextureName && *TextureName && SamplerName && *SamplerName && EdgeLength > 0, TEXT("Invalid OCIO texture or sampler."));
+						unsigned int EdgeLength;
+						OCIO_NAMESPACE::Interpolation Interpolation = OCIO_NAMESPACE::INTERP_TETRAHEDRAL;
 
-						const float* Lut3dData = 0x0;
-						ShaderDescription->get3DTextureValues(0, Lut3dData);
-						checkf(Lut3dData, TEXT("Failed to read OCIO 3d LUT data."));
+						ShaderDescription->get3DTexture(Index, TextureName, SamplerName, EdgeLength, Interpolation);
+						checkf(TextureName && *TextureName && SamplerName && *SamplerName && EdgeLength > 0, TEXT("Invalid OCIO 3D texture or sampler."));
 
-						//In editor, it will use what's on DDC if there's something corresponding to the actual data or use that raw data
-						//that OCIO library has on board. The texture will be serialized only when cooking.
-						Update3dLutTexture(Lut3dIdentifier, Lut3dData);
+						const float* TextureValues = 0x0;
+						ShaderDescription->get3DTextureValues(Index, TextureValues);
+						checkf(TextureValues, TEXT("Failed to read OCIO 3D LUT data."));
+
+						TextureFilter Filter = TF_Bilinear;
+						if (Interpolation == OCIO_NAMESPACE::Interpolation::INTERP_NEAREST || Interpolation == OCIO_NAMESPACE::Interpolation::INTERP_TETRAHEDRAL)
+						{
+							Filter = TF_Nearest;
+						}
+						TObjectPtr<UTexture> Result = CreateTexture3DLUT(ProcessorID, FName(TextureName), EdgeLength, Filter, TextureValues);
+
+						Textures.Add(MoveTemp(Result));
 					}
+
+					// Process 1D luts
+					for (uint32 Index = 0; Index < ShaderDescription->getNumTextures(); ++Index)
+					{
+						const char* TextureName = nullptr;
+						const char* SamplerName = nullptr;
+						unsigned TextureWidth = 0;
+						unsigned TextureHeight = 0;
+						OCIO_NAMESPACE::GpuShaderDesc::TextureType Channel = OCIO_NAMESPACE::GpuShaderDesc::TEXTURE_RGB_CHANNEL;
+						OCIO_NAMESPACE::Interpolation Interpolation = OCIO_NAMESPACE::Interpolation::INTERP_LINEAR;
+
+						ShaderDescription->getTexture(Index, TextureName, SamplerName, TextureWidth, TextureHeight, Channel, Interpolation);
+						checkf(TextureName && *TextureName && SamplerName && *SamplerName && TextureWidth > 0, TEXT("Invalid OCIO 1D texture or sampler."));
+
+						const float* TextureValues = 0x0;
+						ShaderDescription->getTextureValues(Index, TextureValues);
+						checkf(TextureValues, TEXT("Failed to read OCIO 1D LUT data."));
+
+						TextureFilter Filter = Interpolation == OCIO_NAMESPACE::Interpolation::INTERP_NEAREST ? TF_Nearest : TF_Bilinear;
+						bool bRedChannelOnly = Channel == OCIO_NAMESPACE::GpuShaderCreator::TEXTURE_RED_CHANNEL;
+						TObjectPtr<UTexture> Result = CreateTexture1DLUT(ProcessorID, FName(TextureName), TextureWidth, TextureHeight, Filter, bRedChannelOnly, TextureValues);
+
+						Textures.Add(MoveTemp(Result));
+					}
+
+					ensureAlwaysMsgf(Textures.Num() <= (int32)OpenColorIOShader::MaximumTextureSlots, TEXT("Color transform %s exceeds our current limit of %u texture slots. Use the legacy processor instead."), *GetTransformFriendlyName(), OpenColorIOShader::MaximumTextureSlots);
+
+					// Subscript numbers extracted by FName can be used to sort textures for matching the shader binding accesses.
+					Textures.Sort(
+						[](const UTexture& TextureA, const UTexture& TextureB)
+						{
+							return TextureA.GetFName().GetNumber() < TextureB.GetFName().GetNumber();
+						}
+					);
 				}
 				else
 				{
@@ -323,15 +405,16 @@ FOpenColorIOTransformResource* UOpenColorIOColorTransform::AllocateResource()
 	return new FOpenColorIOTransformResource();
 }
 
-bool UOpenColorIOColorTransform::GetShaderAndLUTResouces(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource)
+bool UOpenColorIOColorTransform::GetRenderResources(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, TArray<FTextureResource*>& OutTextureResources)
 {
 	OutShaderResource = ColorTransformResources[InFeatureLevel];
 	if (OutShaderResource)
 	{
-		//Some color transform will only require shader code with no LUT involved.
-		if (Lut3dTexture != nullptr)
+		OutTextureResources.Reserve(Textures.Num());
+
+		for (const TObjectPtr<UTexture>& Texture : Textures)
 		{
-			OutLUT3dResource = Lut3dTexture->GetResource();
+			OutTextureResources.Add(Texture->GetResource());
 		}
 
 		return true;
@@ -341,6 +424,18 @@ bool UOpenColorIOColorTransform::GetShaderAndLUTResouces(ERHIFeatureLevel::Type 
 		UE_LOG(LogOpenColorIO, Warning, TEXT("Shader resource was invalid for color transform %s. Were there errors during loading?"), *GetTransformFriendlyName());
 		return false;
 	}
+}
+
+bool UOpenColorIOColorTransform::GetShaderAndLUTResouces(ERHIFeatureLevel::Type InFeatureLevel, FOpenColorIOTransformResource*& OutShaderResource, FTextureResource*& OutLUT3dResource)
+{
+	TArray<FTextureResource*> OutTextureResources;
+	bool bResult = GetRenderResources(InFeatureLevel, OutShaderResource, OutTextureResources);
+
+	if (!OutTextureResources.IsEmpty())
+	{
+		OutLUT3dResource = OutTextureResources[0];
+	}
+	return bResult;
 }
 
 bool UOpenColorIOColorTransform::IsTransform(const FString& InSourceColorSpace, const FString& InDestinationColorSpace) const
@@ -401,8 +496,22 @@ bool UOpenColorIOColorTransform::UpdateShaderInfo(FString& OutShaderCodeHash, FS
 				ShaderDescription->setFunctionName(StringCast<ANSICHAR>(OpenColorIOShader::OpenColorIOShaderFunctionName).Get());
 				ShaderDescription->setResourcePrefix("Ocio");
 
-				OCIO_NAMESPACE::ConstGPUProcessorRcPtr GPUProcessor = TransformProcessor->getOptimizedLegacyGPUProcessor(OCIO_NAMESPACE::OptimizationFlags::OPTIMIZATION_DEFAULT, OpenColorIOShader::Lut3dEdgeLength);
+				OCIO_NAMESPACE::ConstGPUProcessorRcPtr GPUProcessor = nullptr;
+				const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
+				check(Settings);
+
+				if (Settings->bUseLegacyProcessor)
+				{
+					unsigned int EdgeLength = static_cast<unsigned int>(OpenColorIOShader::Lut3dEdgeLength);
+					GPUProcessor = TransformProcessor->getOptimizedLegacyGPUProcessor(GetProcessorOptimization(), EdgeLength);
+				}
+				else
+				{
+					GPUProcessor = TransformProcessor->getOptimizedGPUProcessor(GetProcessorOptimization());
+				}
 				GPUProcessor->extractGpuShaderInfo(ShaderDescription);
+				// @todo: Remove once we add support for dynamic properties
+				ensureMsgf(ShaderDescription->getNumDynamicProperties() == 0, TEXT("We do not currently support dynamic properties."));
 
 				FString GLSLShaderCode = StringCast<TCHAR>(ShaderDescription->getShaderText()).Get();
 
@@ -444,43 +553,119 @@ bool UOpenColorIOColorTransform::UpdateShaderInfo(FString& OutShaderCodeHash, FS
 #endif
 }
 
-void UOpenColorIOColorTransform::Update3dLutTexture(const FString& InLutIdentifier, const float* InSourceData)
+TObjectPtr<UTexture> UOpenColorIOColorTransform::CreateTexture3DLUT(const FString& InProcessorIdentifier, const FName& InName, uint32 InLutLength, TextureFilter InFilter, const float* InSourceData)
 {
+	TObjectPtr<UVolumeTexture> OutTexture = nullptr;
+
 #if WITH_EDITOR && WITH_OCIO
 	check(InSourceData);
 
-	Lut3dTexture = NewObject<UVolumeTexture>(this, NAME_None, RF_NoFlags);
+	/* Note here that while it is possible to create proper 32f textures using [UTexture]::CreateTransient and reparenting
+	 * via Texture->Rename(nullptr, this), cooking would fail as it remains unsupported currently for those formats.
+	 * (The same note applies to 1D LUT creation.) */
+
+	OutTexture = NewObject<UVolumeTexture>(this, InName);
 
 	//Initializes source data with the raw LUT. If it's found in DDC, the resulting platform data will be fetched from there. 
 	//If not, the source data will be used to generate the platform data.
-	Lut3dTexture->MipGenSettings = TMGS_NoMipmaps;
-	Lut3dTexture->CompressionNone = true;
-	Lut3dTexture->Source.Init(OpenColorIOShader::Lut3dEdgeLength, OpenColorIOShader::Lut3dEdgeLength, OpenColorIOShader::Lut3dEdgeLength, /*NumMips=*/ 1, TSF_RGBA16F, nullptr);
+	OutTexture->MipGenSettings = TMGS_NoMipmaps;
+	OutTexture->SRGB = 0;
+	OutTexture->CompressionNone = true;
+	OutTexture->Filter = InFilter;
+	OutTexture->AddressMode = TextureAddress::TA_Clamp;
+	OutTexture->Source.Init(InLutLength, InLutLength, InLutLength, /*NumMips=*/ 1, TSF_RGBA16F, nullptr);
 
-	FFloat16Color* MipData = reinterpret_cast<FFloat16Color*>(Lut3dTexture->Source.LockMip(0));
-	const uint32 LutLength = OpenColorIOShader::Lut3dEdgeLength;
-	for (uint32 Z = 0; Z < LutLength; ++Z)
+	FFloat16Color* MipData = reinterpret_cast<FFloat16Color*>(OutTexture->Source.LockMip(0));
+	for (uint32 Z = 0; Z < InLutLength; ++Z)
 	{
-		for (uint32 Y = 0; Y < LutLength; Y++)
+		for (uint32 Y = 0; Y < InLutLength; Y++)
 		{
-			FFloat16Color* Row = &MipData[Y * LutLength + Z * LutLength * LutLength];
-			const float* Source = &InSourceData[Y * LutLength * 3 + Z * LutLength * LutLength * 3];
-			for (uint32 X = 0; X < LutLength; X++)
+			FFloat16Color* Row = &MipData[Y * InLutLength + Z * InLutLength * InLutLength];
+			const float* Source = &InSourceData[Y * InLutLength * 3 + Z * InLutLength * InLutLength * 3];
+			for (uint32 X = 0; X < InLutLength; X++)
 			{
-				Row[X] = FFloat16Color(FLinearColor(Source[X * 3 + 0], Source[X * 3 + 1], Source[X * 3 + 2]));
+				FFloat16Color& TargetColor = Row[X];
+				TargetColor.R.SetClamped(Source[X * 3 + 0]);
+				TargetColor.G.SetClamped(Source[X * 3 + 1]);
+				TargetColor.B.SetClamped(Source[X * 3 + 2]);
+				TargetColor.A.SetOne();
 			}
 		}
 	}
-	Lut3dTexture->Source.UnlockMip(0);
+	OutTexture->Source.UnlockMip(0);
 
 	//Generate a Guid from the identifier received from the library and our DDC version.
 	FGuid LutGuid;
-	GetOpenColorIOLUTKeyGuid(InLutIdentifier, LutGuid);
-	Lut3dTexture->Source.SetId(LutGuid, true);
+	GetOpenColorIOLUTKeyGuid(InProcessorIdentifier, InName, LutGuid);
+	OutTexture->Source.SetId(LutGuid, true);
 
 	//Process our new texture to be usable in rendering pipeline.
-	Lut3dTexture->UpdateResource();
+	OutTexture->UpdateResource();
 #endif
+
+	return OutTexture;
+}
+
+void UOpenColorIOColorTransform::Update3dLutTexture(const FString& InLutIdentifier, const float* InSourceData)
+{
+#if WITH_EDITOR && WITH_OCIO
+	Textures.Empty();
+
+	TObjectPtr<UTexture> Texture = CreateTexture3DLUT(InLutIdentifier, FName(), OpenColorIOShader::Lut3dEdgeLength, TextureFilter::TF_Bilinear, InSourceData);
+	Textures.Add(MoveTemp(Texture));
+#endif
+}
+
+TObjectPtr<UTexture> UOpenColorIOColorTransform::CreateTexture1DLUT(const FString& InProcessorIdentifier, const FName& InName, uint32 InTextureWidth, uint32 InTextureHeight, TextureFilter InFilter, bool bRedChannelOnly, const float* InSourceData)
+{
+	TObjectPtr<UTexture2D> OutTexture = nullptr;
+
+#if WITH_EDITOR && WITH_OCIO
+	check(InSourceData);
+
+	OutTexture = NewObject<UTexture2D>(this, InName);
+	OutTexture->MipGenSettings = TMGS_NoMipmaps;
+	OutTexture->SRGB = 0;
+	OutTexture->CompressionNone = true;
+	OutTexture->Filter = InFilter;
+	OutTexture->AddressX = TextureAddress::TA_Clamp;
+	OutTexture->AddressY = TextureAddress::TA_Clamp;
+
+	if (bRedChannelOnly)
+	{
+		OutTexture->Source.Init(InTextureWidth, InTextureHeight, /*NumSlices=*/ 1, /*NumMips=*/ 1, TSF_R32F, reinterpret_cast<const uint8*>(InSourceData));
+	}
+	else
+	{
+		OutTexture->Source.Init(InTextureWidth, InTextureHeight, /*NumSlices=*/ 1, /*NumMips=*/ 1, TSF_RGBA16F, nullptr);
+
+		FFloat16Color* MipData = reinterpret_cast<FFloat16Color*>(OutTexture->Source.LockMip(0));
+		for (uint32 Y = 0; Y < InTextureHeight; Y++)
+		{
+			FFloat16Color* Row = &MipData[Y * InTextureWidth];
+			const float* Source = &InSourceData[Y * InTextureWidth * 3];
+			for (uint32 X = 0; X < InTextureWidth; X++)
+			{
+				FFloat16Color& TargetColor = Row[X];
+				TargetColor.R.SetClamped(Source[X * 3 + 0]);
+				TargetColor.G.SetClamped(Source[X * 3 + 1]);
+				TargetColor.B.SetClamped(Source[X * 3 + 2]);
+				TargetColor.A.SetOne();
+			}
+		}
+		OutTexture->Source.UnlockMip(0);
+	}
+
+	//Generate a Guid from the identifier received from the library and our DDC version.
+	FGuid LutGuid;
+	GetOpenColorIOLUTKeyGuid(InProcessorIdentifier, InName, LutGuid);
+	OutTexture->Source.SetId(LutGuid, true);
+
+	//Process our new texture to be usable in rendering pipeline.
+	OutTexture->UpdateResource();
+#endif
+
+	return OutTexture;
 }
 
 void UOpenColorIOColorTransform::FlushResourceShaderMaps()
