@@ -10,6 +10,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/PathTree.h"
 #include "ContentBrowserItemData.h"
+#include "ContentBrowserItemPath.h"
 #include "ContentBrowserAliasDataSource.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogContentBrowserAliasDataSource, Log, All);
