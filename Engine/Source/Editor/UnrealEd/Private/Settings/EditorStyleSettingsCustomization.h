@@ -5,6 +5,7 @@
 #include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
 #include "Styling/StyleColors.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 class IDetailLayoutBuilder;
 class STextComboBox;
@@ -40,6 +41,8 @@ private:
 	void GenerateThemeOptions(TSharedPtr<FString>& OutSelectedTheme);
 
 	void MakeThemePickerRow(IDetailPropertyRow& PropertyRow);
+	FReply OnExportThemeClicked(); 
+	FReply OnImportThemeClicked(); 
 	FReply OnDeleteThemeClicked();
 	FReply OnDuplicateAndEditThemeClicked();
 	FReply OnEditThemeClicked();
@@ -47,6 +50,7 @@ private:
 	void OnThemePicked(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
 	void OpenThemeEditorWindow(FOnThemeEditorClosed OnThemeEditorClosed);
 	bool IsThemeEditingEnabled() const;
+	void ShowNotification(const FText& Text, SNotificationItem::ECompletionState CompletionState) const;
 private:
 	TArray<TSharedPtr<FString>> ThemeOptions;
 	TSharedPtr<STextComboBox> ComboBox;

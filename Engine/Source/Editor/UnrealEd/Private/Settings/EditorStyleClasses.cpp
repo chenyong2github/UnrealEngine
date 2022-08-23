@@ -6,6 +6,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UnrealType.h"
+#include "Styling/StyleColors.h"
 
 
 /* UEditorStyleSettings interface
@@ -37,6 +38,17 @@ UEditorStyleSettings::UEditorStyleSettings( const FObjectInitializer& ObjectInit
 
 void UEditorStyleSettings::Init()
 {
+	// if it's a valid id, set current theme ID in USlateThemeManager to CurrentAppliedTheme. 
+	if (CurrentAppliedTheme.IsValid())
+	{
+		USlateThemeManager::Get().ApplyTheme(CurrentAppliedTheme); 
+	}
+	// if it's invalid id, set current theme to default. 
+	else
+	{
+		CurrentAppliedTheme = USlateThemeManager::Get().GetCurrentThemeID();
+		SaveConfig(); 
+	}
 
 	// Set from CVar 
 	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("EnableHighDPIAwareness"));

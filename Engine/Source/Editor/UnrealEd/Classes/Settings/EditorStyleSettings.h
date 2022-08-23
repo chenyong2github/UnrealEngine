@@ -71,14 +71,14 @@ public:
 	bool bColorVisionDeficiencyCorrectionPreviewWithDeficiency;
 
 	/** The color used to represent selection */
-	UPROPERTY(EditAnywhere, config, Category=Colors, meta=(DisplayName="Viewport Selection Color"))
+	UPROPERTY(EditAnywhere, config, Category=UserInterface, meta=(DisplayName="Viewport Selection Color"))
 	FLinearColor SelectionColor;
 
 	UPROPERTY(config)
 	bool bEnableEditorWindowBackgroundColor;
 
 	/** The color used to tint the editor window backgrounds */
-	UPROPERTY(EditAnywhere, config, Category=Colors, meta=(EditCondition="bEnableEditorWindowBackgroundColor"))
+	UPROPERTY(EditAnywhere, config, Category=UserInterface, meta=(EditCondition="bEnableEditorWindowBackgroundColor"))
 	FLinearColor EditorWindowBackgroundColor;
 
 	/** Whether to use small toolbar icons without labels or not. */
@@ -144,6 +144,9 @@ public:
 	/** Should editor tabs be colorized according to the asset type */
 	UPROPERTY(EditAnywhere, config, Category=UserInterface)
 	uint32 bEnableColorizedEditorTabs : 1;
+
+	UPROPERTY(config)
+	FGuid CurrentAppliedTheme; 
 
 public:
 

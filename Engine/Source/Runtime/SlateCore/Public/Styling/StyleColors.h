@@ -156,6 +156,10 @@ public:
 		return ActiveColors.StyleColors[static_cast<int32>(Color)];
 	}
 
+	const FGuid& GetCurrentThemeID()
+	{
+		return CurrentThemeId; 
+	}
 
 	USlateThemeManager();
 
@@ -213,9 +217,14 @@ public:
 	void ApplyDefaultTheme();
 
 	/**
-	* Returns true if the default dark theme is the active theme
+	* Returns true if the active theme is an engine-specific theme
 	*/
-	bool IsDefaultThemeActive() const;
+	bool IsEngineTheme() const;
+
+	/**
+	* Returns true if the active theme is a project-specific theme
+	*/
+	bool IsProjectTheme() const;
 
 	/**
 	 * Removes a theme. 

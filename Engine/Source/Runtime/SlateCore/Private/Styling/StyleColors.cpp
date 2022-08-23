@@ -146,7 +146,7 @@ void USlateThemeManager::LoadThemes()
 	LoadThemesFromDirectory(GetProjectThemeDir());
 
 	// User specific themes
-	LoadThemesFromDirectory(FPaths::EngineVersionAgnosticUserDir());
+	LoadThemesFromDirectory(GetUserThemeDir());
 
 	EnsureValidCurrentTheme();
 
@@ -186,7 +186,7 @@ void USlateThemeManager::SaveCurrentThemeAs(const FString& Filename)
 		{
 			FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*Filename, false);
 			// create a new path if the filename has been changed. 
-			NewPath = USlateThemeManager::Get().GetEngineThemeDir() / CurrentTheme.DisplayName.ToString() + TEXT(".json");
+			NewPath = USlateThemeManager::Get().GetUserThemeDir() / CurrentTheme.DisplayName.ToString() + TEXT(".json");
 
 			if (!NewPath.Equals(CurrentTheme.Filename))
 			{
@@ -237,9 +237,32 @@ void USlateThemeManager::ApplyDefaultTheme()
 	ApplyTheme(DefaultDarkTheme.Id); 
 }
 
-bool USlateThemeManager::IsDefaultThemeActive() const 
+bool USlateThemeManager::IsEngineTheme() const
 {
-	return GetCurrentTheme() == DefaultDarkTheme; 
+	// users cannot edit/delete engine-specific themes: 
+	const FString EnginePath = GetEngineThemeDir() / GetCurrentTheme().DisplayName.ToString() + TEXT(".json");
+
+	IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
+
+	if (FileManager.FileExists(*EnginePath))
+	{
+		return true;
+	}
+	return false;
+}
+
+bool USlateThemeManager::IsProjectTheme() const
+{
+	// users cannot edit/delete project-specific themes: 
+	const FString ProjectPath = GetProjectThemeDir() / GetCurrentTheme().DisplayName.ToString() + TEXT(".json");
+
+	IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile(); 
+
+	if (FileManager.FileExists(*ProjectPath))
+	{
+		return true; 
+	}
+	return false; 
 }
 
 void USlateThemeManager::RemoveTheme(FGuid ThemeId)
