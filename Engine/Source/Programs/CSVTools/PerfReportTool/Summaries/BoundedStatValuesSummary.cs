@@ -133,7 +133,8 @@ namespace PerfSummaries
 			}
 			if (startFrame >= endFrame)
 			{
-				throw new Exception("BoundedStatValuesSummary: end event appeared before the start event");
+				Console.WriteLine("Warning: BoundedStatValuesSummary: end event "+ endEvent + " appeared before the start event "+beginEvent);
+				return;
 			}
 			endFrame = Math.Min(endFrame, csvStats.SampleCount - 1);
 			startFrame = Math.Max(startFrame, 0);
