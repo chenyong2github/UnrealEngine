@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
@@ -8,14 +8,6 @@
     <DocumentationFile>Horde.Build.xml</DocumentationFile>
     <ApplicationIcon>HordeServer.ico</ApplicationIcon>
     <RunAnalyzersDuringBuild>False</RunAnalyzersDuringBuild>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(WithHordeStorage)' == ''">
-    <WithHordeStorage>true</WithHordeStorage>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="$(WithHordeStorage)">
-    <DefineConstants>$(DefineConstants);WITH_HORDE_STORAGE</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -111,10 +103,6 @@
     <ProjectReference Include="..\..\Shared\EpicGames.Serialization\EpicGames.Serialization.csproj" />
     <ProjectReference Include="..\..\..\ThirdParty\Perforce\P4Api.Net\p4api.net\p4api.net.csproj" />
     <ProjectReference Include="..\..\Shared\EpicGames.Slack\EpicGames.Slack.csproj" />
-  </ItemGroup>
-
-  <ItemGroup Condition="$(WithHordeStorage)">
-    <ProjectReference Include="..\HordeStorage\Horde.Storage\Horde.Storage.csproj" />
   </ItemGroup>
 
   <ItemGroup>

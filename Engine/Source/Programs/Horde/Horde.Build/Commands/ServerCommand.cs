@@ -41,21 +41,8 @@ namespace Horde.Build.Commands
 		{
 			using (X509Certificate2? grpcCertificate = ReadGrpcCertificate(_hordeSettings))
 			{
-				List<IHost> hosts = new List<IHost>();
-				hosts.Add(CreateHostBuilderWithCert(_args, _config, _hordeSettings, grpcCertificate).Build());
-#if WITH_HORDE_STORAGE
-				IHostBuilder storageHostBuilder = Horde.Storage.Program.CreateHostBuilder(_args);
-				storageHostBuilder.ConfigureWebHostDefaults(builder =>
-				{
-					builder.ConfigureKestrel(options =>
-					{
-						options.ListenAnyIP(57000);
-						options.ListenAnyIP(57001, configure => configure.UseHttps());
-					});
-				});
-				hosts.Add(storageHostBuilder.Build());
-#endif
-				await Task.WhenAll(hosts.Select(x => x.RunAsync()));
+				using IHost host = CreateHostBuilderWithCert(_args, _config, _hordeSettings, grpcCertificate).Build();
+				await host.RunAsync();
 				return 0;
 			}
 		}

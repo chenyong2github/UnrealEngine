@@ -40,14 +40,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Redis", "..\Share
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.BuildGraph", "..\Shared\EpicGames.BuildGraph\EpicGames.BuildGraph.csproj", "{9F1E5536-9C20-44E5-AE15-2CCA37D3D654}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Storage", "HordeStorage\Horde.Storage\Horde.Storage.csproj", "{F736961C-5DEB-49DC-B214-47AF07479D71}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Storage.Tests.Unit", "HordeStorage\Horde.Storage\Tests\UnitTests\Horde.Storage.Tests.Unit.csproj", "{7F3F9B46-5261-4D7A-AECB-67AFD40F165D}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Horde.Storage.Tests.Functional", "HordeStorage\Horde.Storage\Tests\Functional\Horde.Storage.Tests.Functional.csproj", "{F3BFE2BB-E4DE-4CFA-90A1-32FE5E1DA1B5}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jupiter.Common", "HordeStorage\Jupiter.Common\Jupiter.Common.csproj", "{4D6E8222-A53D-4AD5-87F8-15208007E20B}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.AspNet", "..\Shared\EpicGames.AspNet\EpicGames.AspNet.csproj", "{4A64B662-55DC-4A54-B41D-8A32B18AB0E5}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Horde.Tests", "..\Shared\EpicGames.Horde.Tests\EpicGames.Horde.Tests.csproj", "{18C0EB0A-1514-4597-BDBB-47A82B70D5CF}"
@@ -178,38 +170,6 @@ Global
 		{9F1E5536-9C20-44E5-AE15-2CCA37D3D654}.Development|Any CPU.Build.0 = Development|Any CPU
 		{9F1E5536-9C20-44E5-AE15-2CCA37D3D654}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9F1E5536-9C20-44E5-AE15-2CCA37D3D654}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F736961C-5DEB-49DC-B214-47AF07479D71}.Analyze|Any CPU.ActiveCfg = Debug|Any CPU
-		{F736961C-5DEB-49DC-B214-47AF07479D71}.Analyze|Any CPU.Build.0 = Debug|Any CPU
-		{F736961C-5DEB-49DC-B214-47AF07479D71}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F736961C-5DEB-49DC-B214-47AF07479D71}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F736961C-5DEB-49DC-B214-47AF07479D71}.Development|Any CPU.ActiveCfg = Debug|Any CPU
-		{F736961C-5DEB-49DC-B214-47AF07479D71}.Development|Any CPU.Build.0 = Debug|Any CPU
-		{F736961C-5DEB-49DC-B214-47AF07479D71}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F736961C-5DEB-49DC-B214-47AF07479D71}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7F3F9B46-5261-4D7A-AECB-67AFD40F165D}.Analyze|Any CPU.ActiveCfg = Debug|Any CPU
-		{7F3F9B46-5261-4D7A-AECB-67AFD40F165D}.Analyze|Any CPU.Build.0 = Debug|Any CPU
-		{7F3F9B46-5261-4D7A-AECB-67AFD40F165D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7F3F9B46-5261-4D7A-AECB-67AFD40F165D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7F3F9B46-5261-4D7A-AECB-67AFD40F165D}.Development|Any CPU.ActiveCfg = Debug|Any CPU
-		{7F3F9B46-5261-4D7A-AECB-67AFD40F165D}.Development|Any CPU.Build.0 = Debug|Any CPU
-		{7F3F9B46-5261-4D7A-AECB-67AFD40F165D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7F3F9B46-5261-4D7A-AECB-67AFD40F165D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F3BFE2BB-E4DE-4CFA-90A1-32FE5E1DA1B5}.Analyze|Any CPU.ActiveCfg = Debug|Any CPU
-		{F3BFE2BB-E4DE-4CFA-90A1-32FE5E1DA1B5}.Analyze|Any CPU.Build.0 = Debug|Any CPU
-		{F3BFE2BB-E4DE-4CFA-90A1-32FE5E1DA1B5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F3BFE2BB-E4DE-4CFA-90A1-32FE5E1DA1B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F3BFE2BB-E4DE-4CFA-90A1-32FE5E1DA1B5}.Development|Any CPU.ActiveCfg = Debug|Any CPU
-		{F3BFE2BB-E4DE-4CFA-90A1-32FE5E1DA1B5}.Development|Any CPU.Build.0 = Debug|Any CPU
-		{F3BFE2BB-E4DE-4CFA-90A1-32FE5E1DA1B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F3BFE2BB-E4DE-4CFA-90A1-32FE5E1DA1B5}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4D6E8222-A53D-4AD5-87F8-15208007E20B}.Analyze|Any CPU.ActiveCfg = Debug|Any CPU
-		{4D6E8222-A53D-4AD5-87F8-15208007E20B}.Analyze|Any CPU.Build.0 = Debug|Any CPU
-		{4D6E8222-A53D-4AD5-87F8-15208007E20B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4D6E8222-A53D-4AD5-87F8-15208007E20B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4D6E8222-A53D-4AD5-87F8-15208007E20B}.Development|Any CPU.ActiveCfg = Debug|Any CPU
-		{4D6E8222-A53D-4AD5-87F8-15208007E20B}.Development|Any CPU.Build.0 = Debug|Any CPU
-		{4D6E8222-A53D-4AD5-87F8-15208007E20B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4D6E8222-A53D-4AD5-87F8-15208007E20B}.Release|Any CPU.Build.0 = Release|Any CPU
 		{4A64B662-55DC-4A54-B41D-8A32B18AB0E5}.Analyze|Any CPU.ActiveCfg = Debug|Any CPU
 		{4A64B662-55DC-4A54-B41D-8A32B18AB0E5}.Analyze|Any CPU.Build.0 = Debug|Any CPU
 		{4A64B662-55DC-4A54-B41D-8A32B18AB0E5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
