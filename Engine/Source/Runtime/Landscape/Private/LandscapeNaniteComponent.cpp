@@ -73,6 +73,9 @@ void ULandscapeNaniteComponent::UpdatedSharedPropertiesFromActor()
 
 	// We don't want Nanite representation in ray tracing
 	bVisibleInRayTracing = false;
+
+	// We don't want WPO evaluation enabled on landscape meshes
+	bEvaluateWorldPositionOffset = false;
 }
 
 void ULandscapeNaniteComponent::SetEnabled(bool bValue)
