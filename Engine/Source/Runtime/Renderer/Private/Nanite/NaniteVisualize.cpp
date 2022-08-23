@@ -444,7 +444,7 @@ void DisplayPicking(const FScene* Scene, const FNanitePickingFeedback& PickingFe
 				}
 			}
 
-			if (PickedRasterMaterial.MaterialUsesPixelDepthOffset_RenderThread())
+			if (false) //(PickedRasterMaterial.MaterialUsesPixelDepthOffset_RenderThread()) // TODO: Restore PDO
 			{
 				Writer.DrawLine(FText::FromString(FString::Printf(TEXT("   - Pixel Depth Offset"))), 10, FColor::Yellow);
 			}
