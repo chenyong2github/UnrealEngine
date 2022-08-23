@@ -9,9 +9,7 @@
 #include "CoreTypes.h"
 #include "DerivedDataSharedStringFwd.h"
 #include "Misc/ScopeExit.h"
-#include "Serialization/CompactBinary.h"
 #include "Templates/RefCounting.h"
-#include "Templates/RemoveReference.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"
 
@@ -19,6 +17,7 @@
 
 class FCbObject;
 class FCbWriter;
+
 namespace UE::DerivedData { class FBuildOutput; }
 namespace UE::DerivedData { class FBuildOutputBuilder; }
 namespace UE::DerivedData { class FCacheRecord; }

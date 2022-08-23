@@ -3,11 +3,11 @@
 #pragma once
 
 #include "Containers/StringFwd.h"
-#include "Templates/Function.h"
 
-namespace UE::DerivedData { class IBuildFunction; }
 struct FGuid;
 template <typename FuncType> class TFunctionRef;
+
+namespace UE::DerivedData { class IBuildFunction; }
 
 namespace UE::DerivedData
 {

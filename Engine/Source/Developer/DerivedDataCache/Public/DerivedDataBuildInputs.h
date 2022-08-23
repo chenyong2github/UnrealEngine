@@ -9,11 +9,11 @@
 #include "Misc/ScopeExit.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
-#include "Templates/RemoveReference.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"
 
 class FCompressedBuffer;
+
 namespace UE::DerivedData { class FBuildInputs; }
 namespace UE::DerivedData { class FBuildInputsBuilder; }
 

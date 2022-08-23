@@ -7,6 +7,8 @@
 
 #define UE_API DERIVEDDATACACHE_API
 
+struct FGuid;
+
 namespace UE::DerivedData { class FBuildActionBuilder; }
 namespace UE::DerivedData { class FBuildDefinitionBuilder; }
 namespace UE::DerivedData { class FBuildInputsBuilder; }
@@ -16,7 +18,6 @@ namespace UE::DerivedData { class IBuildFunctionRegistry; }
 namespace UE::DerivedData { class IBuildInputResolver; }
 namespace UE::DerivedData { class IBuildScheduler; }
 namespace UE::DerivedData { class IBuildWorkerRegistry; }
-struct FGuid;
 
 namespace UE::DerivedData { enum class EPriority : uint8; }
 

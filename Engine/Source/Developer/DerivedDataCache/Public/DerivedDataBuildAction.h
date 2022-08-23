@@ -9,7 +9,6 @@
 #include "Misc/ScopeExit.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
-#include "Templates/RemoveReference.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"
 
@@ -17,12 +16,13 @@
 
 class FCbObject;
 class FCbWriter;
+struct FGuid;
+struct FIoHash;
+
 namespace UE::DerivedData { class FBuildAction; }
 namespace UE::DerivedData { class FBuildActionBuilder; }
 namespace UE::DerivedData { class FOptionalBuildAction; }
 namespace UE::DerivedData { struct FBuildActionKey; }
-struct FGuid;
-struct FIoHash;
 
 namespace UE::DerivedData::Private
 {

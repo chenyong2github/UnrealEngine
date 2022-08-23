@@ -4,17 +4,16 @@
 
 #include "Containers/StringFwd.h"
 #include "CoreTypes.h"
-#include "DerivedDataBuildOutput.h"
 #include "DerivedDataRequestTypes.h"
 #include "DerivedDataSharedStringFwd.h"
+
+template <typename FuncType> class TUniqueFunction;
 
 namespace UE::DerivedData { class FBuildOutput; }
 namespace UE::DerivedData { class IBuild; }
 namespace UE::DerivedData { class ICache; }
 namespace UE::DerivedData { struct FBuildJobCompleteParams; }
 namespace UE::DerivedData { struct FCacheKey; }
-template <typename FuncType> class TUniqueFunction;
-
 namespace UE::DerivedData { enum class EBuildStatus : uint32; }
 
 namespace UE::DerivedData

@@ -3,15 +3,12 @@
 
 #include "Containers/Array.h"
 #include "Containers/Map.h"
-#include "Containers/Set.h"
-#include "Containers/SparseArray.h"
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "HAL/Platform.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
-#include "Templates/Tuple.h"
 #include "Templates/UnrealTemplate.h"
 
 /**

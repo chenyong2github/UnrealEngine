@@ -10,8 +10,6 @@
 #include "Misc/CString.h"
 #include "Templates/TypeHash.h"
 
-template <typename CharType> class TStringBuilderBase;
-
 #define UE_API DERIVEDDATACACHE_API
 
 class FCbFieldView;

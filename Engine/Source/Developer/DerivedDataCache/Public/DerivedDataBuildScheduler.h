@@ -12,7 +12,6 @@
 namespace UE::DerivedData { class IBuildJobSchedule; }
 namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FBuildSchedulerParams; }
-namespace UE { namespace DerivedData { class IBuildJob; } }
 
 namespace UE::DerivedData
 {

@@ -8,11 +8,7 @@
 #include "IO/IoHash.h"
 #include "Memory/MemoryFwd.h"
 #include "Misc/AssertionMacros.h"
-#include "Templates/RemoveReference.h"
 #include "Templates/UnrealTemplate.h"
-
-class FCompositeBuffer;
-class FSharedBuffer;
 
 #define UE_API DERIVEDDATACACHE_API
 
