@@ -1001,9 +1001,7 @@ static int64 GetBuildRequiredMemoryEstimate(UTexture* InTexture,
 		
 		if ( Source.GetNumBlocks() != 1 || Source.GetNumLayers() != 1 )
 		{
-			UE_LOG(LogTexture, Warning, TEXT("Texture has no source data: %s"), *(InTexture->GetPathName()));
-
-			return -1; /* Unknown */
+			return -1; /* Requires VT enabled. */
 		}
 
 		// Compute the memory it should take to uncompress the bulkdata in memory
