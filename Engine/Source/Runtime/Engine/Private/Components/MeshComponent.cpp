@@ -26,7 +26,11 @@ UMeshComponent::UMeshComponent(const FObjectInitializer& ObjectInitializer)
 
 UMaterialInterface* UMeshComponent::GetMaterial(int32 ElementIndex) const
 {
-	if (OverrideMaterials.IsValidIndex(ElementIndex))
+	if (NaniteOverrideMaterials.IsValidIndex(ElementIndex) && UseNaniteOverrideMaterials())
+	{
+		return NaniteOverrideMaterials[ElementIndex];
+	}
+	else if (OverrideMaterials.IsValidIndex(ElementIndex))
 	{
 		return OverrideMaterials[ElementIndex];
 	}
@@ -40,23 +44,25 @@ void UMeshComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* Materia
 {
 	if (ElementIndex >= 0)
 	{
-		if (OverrideMaterials.IsValidIndex(ElementIndex) && (OverrideMaterials[ElementIndex] == Material))
+		TArray<TObjectPtr<UMaterialInterface>>& OverrideMaterialsRef = UseNaniteOverrideMaterials() ? NaniteOverrideMaterials : OverrideMaterials;
+
+		if (OverrideMaterialsRef.IsValidIndex(ElementIndex) && (OverrideMaterialsRef[ElementIndex] == Material))
 		{
 			// Do nothing, the material is already set
 		}
 		else
 		{
 			// Grow the array if the new index is too large
-			if (OverrideMaterials.Num() <= ElementIndex)
+			if (OverrideMaterialsRef.Num() <= ElementIndex)
 			{
-				OverrideMaterials.AddZeroed(ElementIndex + 1 - OverrideMaterials.Num());
+				OverrideMaterialsRef.AddZeroed(ElementIndex + 1 - OverrideMaterialsRef.Num());
 			}
 			
 			// Check if we are setting a dynamic instance of the original material, or replacing a nullptr material  (if not we should dirty the material parameter name cache)
 			if (Material != nullptr)
 			{
 				UMaterialInstanceDynamic* DynamicMaterial = Cast<UMaterialInstanceDynamic>(Material);
-				if (!((DynamicMaterial != nullptr && DynamicMaterial->Parent == OverrideMaterials[ElementIndex]) || OverrideMaterials[ElementIndex] == nullptr))
+				if (!((DynamicMaterial != nullptr && DynamicMaterial->Parent == OverrideMaterialsRef[ElementIndex]) || OverrideMaterialsRef[ElementIndex] == nullptr))
 				{
 					// Mark cached material parameter names dirty
 					MarkCachedMaterialParameterNameIndicesDirty();
@@ -64,7 +70,7 @@ void UMeshComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* Materia
 			}	
 
 			// Set the material and invalidate things
-			OverrideMaterials[ElementIndex] = Material;
+			OverrideMaterialsRef[ElementIndex] = Material;
 			MarkRenderStateDirty();
 			// If MarkRenderStateDirty didn't notify the streamer, do it now
 			if (!bIgnoreStreamingManagerUpdate && OwnerLevelHasRegisteredStaticComponentsInStreamingManager(GetOwner()))
@@ -130,6 +136,11 @@ FMaterialRelevance UMeshComponent::GetMaterialRelevance(ERHIFeatureLevel::Type I
 
 int32 UMeshComponent::GetNumOverrideMaterials() const
 {
+	if (UseNaniteOverrideMaterials())
+	{
+		return FMath::Max(NaniteOverrideMaterials.Num(), OverrideMaterials.Num());
+	}
+
 	return OverrideMaterials.Num();
 }
 
@@ -140,7 +151,8 @@ void UMeshComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 
 	if (PropertyChangedEvent.Property != nullptr)
 	{
-		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_STRING_CHECKED(UMeshComponent, OverrideMaterials))
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_STRING_CHECKED(UMeshComponent, OverrideMaterials) ||
+			PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_STRING_CHECKED(UMeshComponent, NaniteOverrideMaterials))
 		{
 			CleanUpOverrideMaterials();
 		}
@@ -151,12 +163,21 @@ void UMeshComponent::CleanUpOverrideMaterials()
 {
 	bool bUpdated = false;
 
-	//We have to remove material override Ids that are bigger then the material list
-	if (GetNumOverrideMaterials() > GetNumMaterials())
+	// We have to remove material override Ids that are bigger then the material list
+	if (OverrideMaterials.Num() > GetNumMaterials())
 	{
 		//Remove the override material id that are superior to the static mesh materials number
-		int32 RemoveCount = GetNumOverrideMaterials() - GetNumMaterials();
+		int32 RemoveCount = OverrideMaterials.Num() - GetNumMaterials();
 		OverrideMaterials.RemoveAt(GetNumMaterials(), RemoveCount);
+		bUpdated = true;
+	}
+
+	// We have to remove Nanite material override Ids that are bigger then the material list
+	if (NaniteOverrideMaterials.Num() > GetNumMaterials())
+	{
+		// Remove the override material id that are superior to the static mesh materials number
+		int32 RemoveCount = NaniteOverrideMaterials.Num() - GetNumMaterials();
+		NaniteOverrideMaterials.RemoveAt(GetNumMaterials(), RemoveCount);
 		bUpdated = true;
 	}
 
@@ -169,9 +190,10 @@ void UMeshComponent::CleanUpOverrideMaterials()
 
 void UMeshComponent::EmptyOverrideMaterials()
 {
-	if (OverrideMaterials.Num())
+	if (OverrideMaterials.Num() || NaniteOverrideMaterials.Num())
 	{
 		OverrideMaterials.Reset();
+		NaniteOverrideMaterials.Reset();
 		MarkRenderStateDirty();
 	}
 }
@@ -292,19 +314,19 @@ TArray<class UMaterialInterface*> UMeshComponent::GetMaterials() const
 
 int32 UMeshComponent::GetMaterialIndex(FName MaterialSlotName) const
 {
-	//This function should be override
-	return -1;
+	// This function should be overridden
+	return INDEX_NONE;
 }
 
 TArray<FName> UMeshComponent::GetMaterialSlotNames() const
 {
-	//This function should be override
+	// This function should be overridden
 	return TArray<FName>();
 }
 
 bool UMeshComponent::IsMaterialSlotNameValid(FName MaterialSlotName) const
 {
-	//This function should be override
+	// This function should be overridden
 	return false;
 }
 
@@ -312,7 +334,7 @@ void UMeshComponent::SetScalarParameterValueOnMaterials(const FName ParameterNam
 {
 	if (!bEnableMaterialParameterCaching)
 	{
-		const TArray<UMaterialInterface*> MaterialInterfaces = GetMaterials();		
+		const TArray<UMaterialInterface*> MaterialInterfaces = GetMaterials();
 		for (int32 MaterialIndex = 0; MaterialIndex < MaterialInterfaces.Num(); ++MaterialIndex)
 		{
 			UMaterialInterface* MaterialInterface = MaterialInterfaces[MaterialIndex];

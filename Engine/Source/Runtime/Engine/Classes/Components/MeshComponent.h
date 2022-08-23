@@ -26,6 +26,10 @@ public:
 	/** Per-Component material overrides.  These must NOT be set directly or a race condition can occur between GC and the rendering thread. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Rendering, Meta=(ToolTip="Material overrides."))
 	TArray<TObjectPtr<class UMaterialInterface>> OverrideMaterials;
+
+	/** Per-Component Nanite specific material overrides.  These must NOT be set directly or a race condition can occur between GC and the rendering thread. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Rendering, Meta = (ToolTip = "Nanite Material overrides."))
+	TArray<TObjectPtr<class UMaterialInterface>> NaniteOverrideMaterials;
 	
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	virtual TArray<class UMaterialInterface*> GetMaterials() const;
@@ -39,7 +43,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
 	virtual bool IsMaterialSlotNameValid(FName MaterialSlotName) const;
 
-	/** Returns override Materials count */
+	/** Determines if NaniteOverrideMaterials array is used instead of OverrideMaterials */
+	virtual bool UseNaniteOverrideMaterials() const { return false; }
+
+	/** Returns override materials count */
 	virtual int32 GetNumOverrideMaterials() const;
 
 	/** Translucent material to blend on top of this mesh. Mesh will be rendered twice - once with a base material and once with overlay material */

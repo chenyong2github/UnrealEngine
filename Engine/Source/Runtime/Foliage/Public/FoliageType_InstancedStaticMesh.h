@@ -19,6 +19,9 @@ class UFoliageType_InstancedStaticMesh : public UFoliageType
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Mesh, Meta = (ToolTip = "Material overrides for foliage instances."))
 	TArray<TObjectPtr<class UMaterialInterface>> OverrideMaterials;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Mesh, Meta = (ToolTip = "Nanite material overrides for foliage instances."))
+	TArray<TObjectPtr<class UMaterialInterface>> NaniteOverrideMaterials;
 		
 	/** The component class to use for foliage instances. 
 	  * You can make a Blueprint subclass of FoliageInstancedStaticMeshComponent to implement custom behavior and assign that class here. */

@@ -439,6 +439,9 @@ public:
 	 */
 	virtual bool HasValidNaniteData() const;
 
+	/** Determines if NaniteOverrideMaterials array is used instead of OverrideMaterials */
+	virtual bool UseNaniteOverrideMaterials() const override;
+
 	UFUNCTION(BlueprintCallable, Category="Rendering|LOD")
 	void SetForcedLodModel(int32 NewForcedLodModel);
 

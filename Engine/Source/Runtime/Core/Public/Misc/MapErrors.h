@@ -194,6 +194,9 @@ struct CORE_API FMapErrors
 	/** More overridden materials {Count} on static mesh component than are referenced {Count} in source mesh {StaticMesh}: **TODO** */
     static FLazyName MoreMaterialsThanReferenced;
 
+	/** More Nanite overridden materials {Count} on static mesh component than are referenced {Count} in source mesh {StaticMesh}: **TODO** */
+	static FLazyName MoreNaniteMaterialsThanReferenced;
+
 	 /** {Count} element(s) with zero triangles in static mesh {StaticMesh}: **TODO** */
     static FLazyName ElementsWithZeroTriangles;
   

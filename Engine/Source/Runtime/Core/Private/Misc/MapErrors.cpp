@@ -55,6 +55,7 @@ FLazyName FMapErrors::StaticMeshNull(TEXT("StaticMeshNull"));
 FLazyName FMapErrors::StaticMeshComponent(TEXT("StaticMeshComponent"));
 FLazyName FMapErrors::SimpleCollisionButNonUniformScale(TEXT("SimpleCollisionButNonUniformScale"));
 FLazyName FMapErrors::MoreMaterialsThanReferenced(TEXT("MoreMaterialsThanReferenced"));
+FLazyName FMapErrors::MoreNaniteMaterialsThanReferenced(TEXT("MoreNaniteMaterialsThanReferenced"));
 FLazyName FMapErrors::ElementsWithZeroTriangles(TEXT("ElementsWithZeroTriangles"));
 FLazyName FMapErrors::LevelStreamingVolume(TEXT("LevelStreamingVolume"));
 FLazyName FMapErrors::NoLevelsAssociated(TEXT("NoLevelsAssociated"));

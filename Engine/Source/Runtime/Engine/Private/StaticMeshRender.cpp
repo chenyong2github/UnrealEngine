@@ -111,6 +111,19 @@ FAutoConsoleVariableRef CVarRenderNaniteMeshes(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+// TODO: Should move this outside of SM, since Nanite can be used for multiple primitive types
+int32 GEnableNaniteMaterialOverrides = 1;
+FAutoConsoleVariableRef CVarEnableNaniteNaterialOverrides(
+	TEXT("r.Nanite.MaterialOverrides"),
+	GEnableNaniteMaterialOverrides,
+	TEXT("Enable support for Nanite specific material overrides."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GNaniteProxyRenderMode = 0;
 FAutoConsoleVariableRef CVarNaniteProxyRenderMode(
 	TEXT("r.Nanite.ProxyRenderMode"),

@@ -55,6 +55,7 @@
 DECLARE_MEMORY_STAT( TEXT( "StaticMesh VxColor Inst Mem" ), STAT_InstVertexColorMemory, STATGROUP_MemoryStaticMesh );
 DECLARE_MEMORY_STAT( TEXT( "StaticMesh PreCulled Index Memory" ), STAT_StaticMeshPreCulledIndexMemory, STATGROUP_MemoryStaticMesh );
 
+extern int32 GEnableNaniteMaterialOverrides;
 
 FStaticMeshComponentInstanceData::FStaticMeshComponentInstanceData(const UStaticMeshComponent* SourceComponent)
 	: FPrimitiveComponentInstanceData(SourceComponent)
@@ -504,6 +505,19 @@ void UStaticMeshComponent::CheckForErrors()
 				->AddToken(FTextToken::Create(FText::Format(LOCTEXT( "MapCheck_Message_MoreMaterialsThanReferenced", "More overridden materials ({OverridenCount}) on static mesh component than are referenced ({ReferencedCount}) in source mesh '{MeshName}'" ), Arguments ) ))
 				->AddToken(FMapErrorToken::Create(FMapErrors::MoreMaterialsThanReferenced));
 		}
+
+		if (NaniteOverrideMaterials.Num() > GetStaticMesh()->GetStaticMaterials().Num())
+		{
+			FFormatNamedArguments Arguments;
+			Arguments.Add(TEXT("OverridenCount"), NaniteOverrideMaterials.Num());
+			Arguments.Add(TEXT("ReferencedCount"), GetStaticMesh()->GetStaticMaterials().Num());
+			Arguments.Add(TEXT("MeshName"), FText::FromString(GetStaticMesh()->GetName()));
+			FMessageLog("MapCheck").Warning()
+				->AddToken(FUObjectToken::Create(Owner))
+				->AddToken(FTextToken::Create(FText::Format(LOCTEXT( "MapCheck_Message_MoreNaniteMaterialsThanReferenced", "More Nanite overridden materials ({OverridenCount}) on static mesh component than are referenced ({ReferencedCount}) in source mesh '{MeshName}'" ), Arguments ) ))
+				->AddToken(FMapErrorToken::Create(FMapErrors::MoreNaniteMaterialsThanReferenced));
+		}
+
 		if (ZeroTriangleElements > 0)
 		{
 			FFormatNamedArguments Arguments;
@@ -1643,7 +1657,7 @@ void UStaticMeshComponent::UpdatePreCulledData(int32 LODIndex, const TArray<uint
 
 bool UStaticMeshComponent::ShouldCreateNaniteProxy() const
 {
-	if (bDisallowNanite)
+	if (bDisallowNanite || GetScene() == nullptr)
 	{
 		// Regardless of the static mesh asset supporting Nanite, this component does not want Nanite to be used
 		return false;
@@ -1848,17 +1862,18 @@ void UStaticMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 			// Broadcast that the static mesh has changed
 			OnStaticMeshChangedEvent.Broadcast(this);
 
-			// If the staticmesh changed, then the component needs a texture streaming rebuild.
+			// If the static mesh changed, then the component needs a texture streaming rebuild.
 			StreamingTextureData.Empty();
 			
-			if (OverrideMaterials.Num())
+			if (OverrideMaterials.Num() || NaniteOverrideMaterials.Num())
 			{
 				// Static mesh was switched so we should clean up the override materials
 				CleanUpOverrideMaterials();
 			}
 		}
 
-		if (PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(UStaticMeshComponent, OverrideMaterials))
+		if (PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(UStaticMeshComponent, OverrideMaterials) ||
+			PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(UStaticMeshComponent, NaniteOverrideMaterials))
 		{
 			// If the owning actor is part of a cluster flag it as dirty
 			IHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<IHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
@@ -2179,6 +2194,12 @@ bool UStaticMeshComponent::HasValidNaniteData() const
 {
 	const Nanite::FResources* NaniteResources = GetNaniteResources();
 	return NaniteResources ? NaniteResources->PageStreamingStates.Num() > 0 : false;
+}
+
+bool UStaticMeshComponent::UseNaniteOverrideMaterials() const
+{
+	// Check for valid data on this SMC and support for Nanite material overrides
+	return ShouldCreateNaniteProxy() && GEnableNaniteMaterialOverrides != 0;
 }
 
 void UStaticMeshComponent::SetForcedLodModel(int32 NewForcedLodModel)
@@ -2568,8 +2589,13 @@ bool UStaticMeshComponent::IsMaterialSlotNameValid(FName MaterialSlotName) const
 
 UMaterialInterface* UStaticMeshComponent::GetMaterial(int32 MaterialIndex) const
 {
+	// If we have Nanite specific overrides, use that
+	if (NaniteOverrideMaterials.IsValidIndex(MaterialIndex) && NaniteOverrideMaterials[MaterialIndex] && UseNaniteOverrideMaterials())
+	{
+		return NaniteOverrideMaterials[MaterialIndex];
+	}
 	// If we have a base materials array, use that
-	if(OverrideMaterials.IsValidIndex(MaterialIndex) && OverrideMaterials[MaterialIndex])
+	else if (OverrideMaterials.IsValidIndex(MaterialIndex) && OverrideMaterials[MaterialIndex])
 	{
 		return OverrideMaterials[MaterialIndex];
 	}
@@ -2624,8 +2650,19 @@ void UStaticMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMate
 #if WITH_EDITOR
 bool UStaticMeshComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty)
 {
-	if(OverrideMaterials.IsValidIndex(ElementIndex))
-	{				
+	if (NaniteOverrideMaterials.IsValidIndex(ElementIndex) && UseNaniteOverrideMaterials())
+	{
+		OutOwner = this;
+		OutPropertyPath = FString::Printf(TEXT("%s[%d]"), GET_MEMBER_NAME_STRING_CHECKED(UMeshComponent, NaniteOverrideMaterials), ElementIndex);
+		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(UMeshComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMeshComponent, NaniteOverrideMaterials))))
+		{
+			OutProperty = ArrayProperty->Inner;
+		}
+
+		return true;
+	}
+	else if (OverrideMaterials.IsValidIndex(ElementIndex))
+	{
 		OutOwner = this;
 		OutPropertyPath = FString::Printf(TEXT("%s[%d]"), GET_MEMBER_NAME_STRING_CHECKED(UMeshComponent, OverrideMaterials), ElementIndex);
 		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(UMeshComponent::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials))))
@@ -2635,6 +2672,7 @@ bool UStaticMeshComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*&
 
 		return true;
 	}
+
 	if (GetStaticMesh())
 	{
 		OutOwner = GetStaticMesh();
