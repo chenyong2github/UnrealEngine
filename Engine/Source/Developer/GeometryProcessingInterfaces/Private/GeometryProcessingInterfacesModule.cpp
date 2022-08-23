@@ -6,6 +6,7 @@
 #include "Modules/ModuleManager.h"
 
 #include "GeometryProcessingInterfaces/ApproximateActors.h"
+#include "GeometryProcessingInterfaces/UVEditorAssetEditor.h"
 
 
 //DEFINE_LOG_CATEGORY_STATIC(LogMeshReduction, Verbose, All);
@@ -36,5 +37,18 @@ IGeometryProcessing_ApproximateActors* FGeometryProcessingInterfacesModule::GetA
 	}
 
 	return ApproximateActors;
+}
+
+IGeometryProcessing_UVEditorAssetEditor* FGeometryProcessingInterfacesModule::GetUVEditorAssetEditorImplementation()
+{
+	if (UVEditorAssetEditor == nullptr)
+	{
+		TArray<IGeometryProcessing_UVEditorAssetEditor*> UVEditorAssetEditorOptions =
+			IModularFeatures::Get().GetModularFeatureImplementations<IGeometryProcessing_UVEditorAssetEditor>(IGeometryProcessing_UVEditorAssetEditor::GetModularFeatureName());
+
+		UVEditorAssetEditor = (UVEditorAssetEditorOptions.Num() > 0) ? UVEditorAssetEditorOptions[0] : nullptr;
+	}
+
+	return UVEditorAssetEditor;
 }
 

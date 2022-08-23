@@ -154,6 +154,9 @@ public:
 
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_Delete;
 
+	// For connecting ModelingMode with UVEditor plugin
+	TSharedPtr<FUICommandInfo> LaunchUVEditor;
+
 	//
 	// Accept/Cancel/Complete commands are used to end the active Tool via ToolManager
 	//

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelingToolsEditorMode.h"
+#include "IGeometryProcessingInterfacesModule.h"
+#include "GeometryProcessingInterfaces/UVEditorAssetEditor.h"
 #include "InteractiveTool.h"
 #include "ModelingToolsEditorModeToolkit.h"
 #include "ModelingToolsEditorModeSettings.h"
@@ -643,6 +645,8 @@ void UModelingToolsEditorMode::Enter()
 
 	RegisterTool(ToolManagerCommands.BeginUVSeamEditTool, TEXT("BeginUVSeamEditTool"), NewObject< USeamSculptToolBuilder>());
 
+	RegisterUVEditor();
+
 	auto MeshSelectionToolBuilder = NewObject<UMeshSelectionToolBuilder>();
 	RegisterTool(ToolManagerCommands.BeginMeshSelectionTool, TEXT("BeginMeshSelectionTool"), MeshSelectionToolBuilder);
 
@@ -852,6 +856,63 @@ void UModelingToolsEditorMode::Enter()
 	// events because they do not fire at the right times, particular wrt undo/redo. 
 	SelectionModifiedEventHandle = GetModeManager()->GetSelectedActors()->SelectionChangedEvent.AddLambda(
 		[this](const UObject* Object)  { UpdateSelectionManagerOnEditorSelectionChange(); } );
+
+}
+
+void UModelingToolsEditorMode::RegisterUVEditor()
+{
+	// Handle the inclusion of the optional UVEditor button if the UVEditor plugin has been found
+	IGeometryProcessingInterfacesModule& GeomProcInterfaces = FModuleManager::Get().LoadModuleChecked<IGeometryProcessingInterfacesModule>("GeometryProcessingInterfaces");
+	IGeometryProcessing_UVEditorAssetEditor* UVEditorAPI = GeomProcInterfaces.GetUVEditorAssetEditorImplementation();
+	const FModelingToolsManagerCommands& ToolManagerCommands = FModelingToolsManagerCommands::Get();
+
+	if (UVEditorAPI)
+	{
+		const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
+		CommandList->MapAction(ToolManagerCommands.LaunchUVEditor,
+			FExecuteAction::CreateLambda([this, UVEditorAPI]() 
+            {
+				if (UVEditorAPI) 
+                {
+					EToolsContextScope ToolScope = GetDefaultToolScope();
+					UEditorInteractiveToolsContext* UseToolsContext = GetInteractiveToolsContext(ToolScope);
+					if (ensure(UseToolsContext != nullptr) == false)
+					{
+						return;
+					}
+
+					TArray<UObject*> SelectedActors, SelectedComponents;
+					TArray<TObjectPtr<UObject>> SelectedObjects;
+					UseToolsContext->GetParentEditorModeManager()->GetSelectedActors()->GetSelectedObjects(SelectedActors);
+					UseToolsContext->GetParentEditorModeManager()->GetSelectedComponents()->GetSelectedObjects(SelectedComponents);
+					SelectedObjects.Append(SelectedActors);
+					SelectedObjects.Append(SelectedComponents);
+					UVEditorAPI->LaunchUVEditor(SelectedObjects);
+				}
+				}),
+			FCanExecuteAction::CreateLambda([this, UVEditorAPI]() 
+            {
+				if (UVEditorAPI) 
+                {
+					EToolsContextScope ToolScope = GetDefaultToolScope();
+					UEditorInteractiveToolsContext* UseToolsContext = GetInteractiveToolsContext(ToolScope);
+					if (ensure(UseToolsContext != nullptr) == false)
+					{
+						return false;
+					}
+
+					TArray<UObject*> SelectedActors, SelectedComponents;
+					TArray<TObjectPtr<UObject>> SelectedObjects;
+					UseToolsContext->GetParentEditorModeManager()->GetSelectedActors()->GetSelectedObjects(SelectedActors);
+					UseToolsContext->GetParentEditorModeManager()->GetSelectedComponents()->GetSelectedObjects(SelectedComponents);
+					SelectedObjects.Append(SelectedActors);
+					SelectedObjects.Append(SelectedComponents);
+					return UVEditorAPI->CanLaunchUVEditor(SelectedObjects);
+				}
+				return false;
+				})
+			);
+	}
 
 }
 

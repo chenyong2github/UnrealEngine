@@ -2,6 +2,7 @@
 
 #include "UVEditorModule.h"
 
+#include "Features/IModularFeatures.h"
 #include "ContentBrowserMenuContexts.h"
 #include "EditorModeRegistry.h"
 #include "LevelEditorMenuContext.h"
@@ -20,6 +21,13 @@
 
 void FUVEditorModule::StartupModule()
 {
+	UVEditorAssetEditor = MakeShared<UE::Geometry::FUVEditorAssetEditorImpl>();
+
+	if (UVEditorAssetEditor.IsValid())
+	{
+		IModularFeatures::Get().RegisterModularFeature(IGeometryProcessing_UVEditorAssetEditor::GetModularFeatureName(), UVEditorAssetEditor.Get());
+	}
+
 	FUVEditorStyle::Get(); // Causes the constructor to be called
 	FUVEditorCommands::Register();
 
@@ -38,6 +46,12 @@ void FUVEditorModule::StartupModule()
 
 void FUVEditorModule::ShutdownModule()
 {
+	if (UVEditorAssetEditor.IsValid())
+	{
+		IModularFeatures::Get().UnregisterModularFeature(IGeometryProcessing_UVEditorAssetEditor::GetModularFeatureName(), UVEditorAssetEditor.Get());
+		UVEditorAssetEditor = nullptr;
+	}
+
 	// Clean up menu things
 	UToolMenus::UnRegisterStartupCallback(this);
 	UToolMenus::UnregisterOwner(this);

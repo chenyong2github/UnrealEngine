@@ -79,6 +79,9 @@ protected:
 	
 	virtual void OnToolPostBuild(UInteractiveToolManager* InToolManager, EToolSide InSide, UInteractiveTool* InBuiltTool, UInteractiveToolBuilder* InToolBuilder, const FToolBuilderState& ToolState);
 
+	// Method to optionally register the UV Editor launcher in the Modeling Mode UV category if the plugin is available.
+	void RegisterUVEditor();
+
 	FDelegateHandle MeshCreatedEventHandle;
 	FDelegateHandle TextureCreatedEventHandle;
 	FDelegateHandle SelectionModifiedEventHandle;

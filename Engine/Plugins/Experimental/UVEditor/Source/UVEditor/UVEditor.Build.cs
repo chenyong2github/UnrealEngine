@@ -31,6 +31,7 @@ public class UVEditor : ModuleRules
 				"InputCore",
 				"InteractiveToolsFramework",
 				"MeshModelingToolsExp",
+				"GeometryProcessingInterfaces" // For supporting launching the UVEditor directly from Modeling Tools or elsewhere
 				
 				// ... add other public dependencies that you statically link with here ...
 			}
