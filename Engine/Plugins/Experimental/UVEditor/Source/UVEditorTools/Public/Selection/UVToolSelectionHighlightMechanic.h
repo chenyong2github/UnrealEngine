@@ -14,9 +14,11 @@ PREDECLARE_GEOMETRY(class FUVToolSelection);
 
 class APreviewGeometryActor;
 class UMaterialInstanceDynamic;
-class UTriangleSetComponent;
-class ULineSetComponent;
-class UPointSetComponent;
+class UBasic2DPointSetComponent;
+class UBasic3DPointSetComponent;
+class UBasic2DLineSetComponent;
+class UBasic3DLineSetComponent;
+class UBasic2DTriangleSetComponent;
 class UUVEditorToolMeshInput;
 class UWorld;
 
@@ -96,15 +98,16 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> TriangleSetMaterial = nullptr;
 
-	TWeakObjectPtr<UTriangleSetComponent> UnwrapTriangleSet = nullptr;
-	TWeakObjectPtr<ULineSetComponent> UnwrapLineSet = nullptr;
-	TWeakObjectPtr<ULineSetComponent> SewEdgePairingLineSet = nullptr;
-	TWeakObjectPtr<UPointSetComponent> UnwrapPointSet = nullptr;
-	TWeakObjectPtr<ULineSetComponent> UnwrapPairedEdgeLineSet = nullptr;
+	TWeakObjectPtr<UBasic2DTriangleSetComponent> UnwrapTriangleSet = nullptr;
+	TWeakObjectPtr<UBasic2DLineSetComponent> UnwrapLineSet = nullptr;
+	TWeakObjectPtr<UBasic2DLineSetComponent> SewEdgePairingLeftLineSet = nullptr;
+	TWeakObjectPtr<UBasic2DLineSetComponent> SewEdgePairingRightLineSet = nullptr;
+	TWeakObjectPtr<UBasic2DPointSetComponent> UnwrapPointSet = nullptr;
+	TWeakObjectPtr<UBasic2DLineSetComponent> UnwrapPairedEdgeLineSet = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<APreviewGeometryActor> UnwrapStationaryGeometryActor = nullptr;
-	TWeakObjectPtr<ULineSetComponent> SewEdgeUnselectedPairingLineSet = nullptr;
+	TWeakObjectPtr<UBasic2DLineSetComponent> SewEdgeUnselectedPairingLineSet = nullptr;
 
 	// Per mesh, gives a list of endpoint vid pairs for the unselected edges that
 	// are part of edge pairs, for rebuilding when necessary.
@@ -113,8 +116,8 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<APreviewGeometryActor> LivePreviewGeometryActor = nullptr;
-	TWeakObjectPtr<ULineSetComponent> LivePreviewLineSet = nullptr;
-	TWeakObjectPtr<UPointSetComponent> LivePreviewPointSet = nullptr;
+	TWeakObjectPtr<UBasic3DLineSetComponent> LivePreviewLineSet = nullptr;
+	TWeakObjectPtr<UBasic3DPointSetComponent> LivePreviewPointSet = nullptr;
 
 	bool bPairedEdgeHighlightsEnabled = true;
 };

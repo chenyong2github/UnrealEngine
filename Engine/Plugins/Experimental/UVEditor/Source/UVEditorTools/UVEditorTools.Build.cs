@@ -43,6 +43,8 @@ public class UVEditorTools : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
+				"RenderCore",
+				"RHI",
 					
 				"MeshModelingToolsExp",
 				"DynamicMesh",

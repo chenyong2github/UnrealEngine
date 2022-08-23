@@ -4,7 +4,9 @@
 
 #include "Actions/UVSeamSewAction.h"
 #include "Drawing/LineSetComponent.h"
-#include "Drawing/PointSetComponent.h"
+#include "Drawing/BasicPointSetComponent.h"
+#include "Drawing/BasicLineSetComponent.h"
+#include "Drawing/BasicTriangleSetComponent.h"
 #include "Drawing/PreviewGeometryActor.h"
 #include "Drawing/TriangleSetComponent.h"
 #include "DynamicMesh/DynamicMesh3.h"
@@ -39,7 +41,7 @@ void UUVToolSelectionHighlightMechanic::Initialize(UWorld* UnwrapWorld, UWorld* 
 	UnwrapGeometryActor = UnwrapWorld->SpawnActor<APreviewGeometryActor>(
 		FVector::ZeroVector, FRotator(0, 0, 0), FActorSpawnParameters());
 
-	UnwrapTriangleSet = NewObject<UTriangleSetComponent>(UnwrapGeometryActor);
+	UnwrapTriangleSet = NewObject<UBasic2DTriangleSetComponent>(UnwrapGeometryActor);
 	// We are setting the TranslucencySortPriority here to handle the UV editor's use case in 2D
 	// where multiple translucent layers are drawn on top of each other but still need depth sorting.
 	UnwrapTriangleSet->TranslucencySortPriority = FUVEditorUXSettings::SelectionTriangleDepthBias;
@@ -47,38 +49,62 @@ void UUVToolSelectionHighlightMechanic::Initialize(UWorld* UnwrapWorld, UWorld* 
 		FUVEditorUXSettings::SelectionTriangleFillColor,
 		FUVEditorUXSettings::SelectionTriangleDepthBias,
 		FUVEditorUXSettings::SelectionTriangleOpacity);
+	UnwrapTriangleSet->SetTriangleMaterial(TriangleSetMaterial);
+	UnwrapTriangleSet->SetTriangleSetParameters(FUVEditorUXSettings::SelectionTriangleFillColor, FVector3f(0, 0, 1));
 	UnwrapGeometryActor->SetRootComponent(UnwrapTriangleSet.Get());
 	UnwrapTriangleSet->RegisterComponent();
 
-	UnwrapLineSet = NewObject<ULineSetComponent>(UnwrapGeometryActor);
+	UnwrapLineSet = NewObject<UBasic2DLineSetComponent>(UnwrapGeometryActor);
 	UnwrapLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(GetParentTool()->GetToolManager(), true));
+	UnwrapLineSet->SetLineSetParameters(FUVEditorUXSettings::SelectionTriangleWireframeColor,
+							     			 FUVEditorUXSettings::SelectionLineThickness,
+										     FUVEditorUXSettings::SelectionWireframeDepthBias);
 	UnwrapLineSet->AttachToComponent(UnwrapTriangleSet.Get(), FAttachmentTransformRules::KeepWorldTransform);
 	UnwrapLineSet->RegisterComponent();
 
-	UnwrapPairedEdgeLineSet = NewObject<ULineSetComponent>(UnwrapGeometryActor);
+	UnwrapPairedEdgeLineSet = NewObject<UBasic2DLineSetComponent>(UnwrapGeometryActor);
 	UnwrapPairedEdgeLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(GetParentTool()->GetToolManager(), true));
 	UnwrapPairedEdgeLineSet->AttachToComponent(UnwrapTriangleSet.Get(), FAttachmentTransformRules::KeepWorldTransform);
 	UnwrapPairedEdgeLineSet->RegisterComponent();
 
-	SewEdgePairingLineSet = NewObject<ULineSetComponent>(UnwrapGeometryActor);
-	SewEdgePairingLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(
+	SewEdgePairingLeftLineSet = NewObject<UBasic2DLineSetComponent>(UnwrapGeometryActor);
+	SewEdgePairingLeftLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(
 		GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
-	SewEdgePairingLineSet->AttachToComponent(UnwrapTriangleSet.Get(), FAttachmentTransformRules::KeepWorldTransform);
-	SewEdgePairingLineSet->RegisterComponent();
-	SewEdgePairingLineSet->SetVisibility(bPairedEdgeHighlightsEnabled);
+	SewEdgePairingLeftLineSet->SetLineSetParameters(FUVEditorUXSettings::SewSideLeftColor,
+		                                                 FUVEditorUXSettings::SewLineHighlightThickness,
+		                                                 FUVEditorUXSettings::SewLineDepthOffset);
+	SewEdgePairingLeftLineSet->AttachToComponent(UnwrapTriangleSet.Get(), FAttachmentTransformRules::KeepWorldTransform);
+	SewEdgePairingLeftLineSet->RegisterComponent();
+	SewEdgePairingLeftLineSet->SetVisibility(bPairedEdgeHighlightsEnabled);
+
+	SewEdgePairingRightLineSet = NewObject<UBasic2DLineSetComponent>(UnwrapGeometryActor);
+	SewEdgePairingRightLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(
+		GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
+	SewEdgePairingRightLineSet->SetLineSetParameters(FUVEditorUXSettings::SewSideRightColor,
+		                                                  FUVEditorUXSettings::SewLineHighlightThickness,
+		                                                  FUVEditorUXSettings::SewLineDepthOffset);
+	SewEdgePairingRightLineSet->AttachToComponent(UnwrapTriangleSet.Get(), FAttachmentTransformRules::KeepWorldTransform);
+	SewEdgePairingRightLineSet->RegisterComponent();
+	SewEdgePairingRightLineSet->SetVisibility(bPairedEdgeHighlightsEnabled);
 
 	// The unselected paired edges get their own, stationary, actor.
 	UnwrapStationaryGeometryActor = UnwrapWorld->SpawnActor<APreviewGeometryActor>(
 		FVector::ZeroVector, FRotator(0, 0, 0), FActorSpawnParameters());
-	SewEdgeUnselectedPairingLineSet = NewObject<ULineSetComponent>(UnwrapStationaryGeometryActor);
+	SewEdgeUnselectedPairingLineSet = NewObject<UBasic2DLineSetComponent>(UnwrapStationaryGeometryActor);
 	SewEdgeUnselectedPairingLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(
 		GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
+	SewEdgeUnselectedPairingLineSet->SetLineSetParameters(FUVEditorUXSettings::SewSideRightColor,
+		                                                       FUVEditorUXSettings::SewLineHighlightThickness,
+		                                                       FUVEditorUXSettings::SewLineDepthOffset);
 	UnwrapStationaryGeometryActor->SetRootComponent(SewEdgeUnselectedPairingLineSet.Get());
 	SewEdgeUnselectedPairingLineSet->RegisterComponent();
 	SewEdgeUnselectedPairingLineSet->SetVisibility(bPairedEdgeHighlightsEnabled);
 
-	UnwrapPointSet = NewObject<UPointSetComponent>(UnwrapGeometryActor);
+	UnwrapPointSet = NewObject<UBasic2DPointSetComponent>(UnwrapGeometryActor);
 	UnwrapPointSet->SetPointMaterial(ToolSetupUtil::GetDefaultPointComponentMaterial(GetParentTool()->GetToolManager(), true));
+	UnwrapPointSet->SetPointSetParameters(FUVEditorUXSettings::SelectionTriangleWireframeColor,
+											   FUVEditorUXSettings::SelectionPointThickness,
+											   FUVEditorUXSettings::SelectionWireframeDepthBias);
 	UnwrapPointSet->AttachToComponent(UnwrapTriangleSet.Get(), FAttachmentTransformRules::KeepWorldTransform);
 	UnwrapPointSet->RegisterComponent();
 
@@ -86,15 +112,21 @@ void UUVToolSelectionHighlightMechanic::Initialize(UWorld* UnwrapWorld, UWorld* 
 	LivePreviewGeometryActor = LivePreviewWorld->SpawnActor<APreviewGeometryActor>(
 		FVector::ZeroVector, FRotator(0, 0, 0), FActorSpawnParameters());
 
-	LivePreviewLineSet = NewObject<ULineSetComponent>(LivePreviewGeometryActor);
+	LivePreviewLineSet = NewObject<UBasic3DLineSetComponent>(LivePreviewGeometryActor);
 	LivePreviewLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(
 		GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
+	LivePreviewLineSet->SetLineSetParameters(FUVEditorUXSettings::SelectionTriangleWireframeColor,
+	                                               FUVEditorUXSettings::LivePreviewHighlightThickness,
+		                                           FUVEditorUXSettings::LivePreviewHighlightDepthOffset);
 	LivePreviewGeometryActor->SetRootComponent(LivePreviewLineSet.Get());
 	LivePreviewLineSet->RegisterComponent();
 
-	LivePreviewPointSet = NewObject<UPointSetComponent>(LivePreviewGeometryActor);
+	LivePreviewPointSet = NewObject<UBasic3DPointSetComponent>(LivePreviewGeometryActor);
 	LivePreviewPointSet->SetPointMaterial(ToolSetupUtil::GetDefaultPointComponentMaterial(
 		GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
+	LivePreviewPointSet->SetPointSetParameters(FUVEditorUXSettings::SelectionTriangleWireframeColor,
+													FUVEditorUXSettings::LivePreviewHighlightPointSize,
+													FUVEditorUXSettings::LivePreviewHighlightDepthOffset);
 	LivePreviewPointSet->AttachToComponent(LivePreviewLineSet.Get(), FAttachmentTransformRules::KeepWorldTransform);
 	LivePreviewPointSet->RegisterComponent();
 }
@@ -148,7 +180,8 @@ void UUVToolSelectionHighlightMechanic::RebuildUnwrapHighlight(
 	UnwrapTriangleSet->Clear();
 	UnwrapLineSet->Clear();
 	UnwrapPointSet->Clear();
-	SewEdgePairingLineSet->Clear();
+	SewEdgePairingRightLineSet->Clear();
+	SewEdgePairingLeftLineSet->Clear();
 	SewEdgeUnselectedPairingLineSet->Clear();
 	StaticPairedEdgeVidsPerMesh.Reset();
 
@@ -168,31 +201,36 @@ void UUVToolSelectionHighlightMechanic::RebuildUnwrapHighlight(
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UUVToolSelectionHighlightMechanic::AppendUnwrapHighlight_Triangle);
 
-			UnwrapTriangleSet->ReserveTriangles(Selection.SelectedIDs.Num());
-			UnwrapLineSet->ReserveLines(Selection.SelectedIDs.Num() * 3);
+			UBasic2DTriangleSetComponent* UnwrapTriangleSetPtr = UnwrapTriangleSet.Get();
+			UBasic2DLineSetComponent* UnwrapLineSetPtr = UnwrapLineSet.Get();
+			UnwrapTriangleSetPtr->ReserveElements(Selection.SelectedIDs.Num());
+			UnwrapLineSetPtr->ReserveElements(Selection.SelectedIDs.Num() * 3);
 			for (int32 Tid : Selection.SelectedIDs)
 			{
 				if (!ensure(Mesh.IsTriangle(Tid)))
 				{
 					continue;
 				}
-
-				FIndex3i Vids = Mesh.GetTriangle(Tid);
+				
 				FVector Points[3];
+				Mesh.GetTriVertices(Tid, Points[0], Points[1], Points[2]);
 				for (int i = 0; i < 3; ++i)
 				{
-					Points[i] = StartTransform.InverseTransformPosition(Mesh.GetVertex(Vids[i]));
+					Points[i] = StartTransform.InverseTransformPosition(Points[i]);
 				}
-				UnwrapTriangleSet->AddTriangle(Points[0], Points[1], Points[2], FVector(0, 0, 1), FUVEditorUXSettings::SelectionTriangleFillColor, TriangleSetMaterial);
+				UnwrapTriangleSetPtr->AddElement(FVector2f(Points[0].X, Points[0].Y),
+											  FVector2f(Points[1].X, Points[1].Y),
+											  FVector2f(Points[2].X, Points[2].Y));
+					
 				for (int i = 0; i < 3; ++i)
 				{
 					int NextIndex = (i + 1) % 3;
-					UnwrapLineSet->AddLine(Points[i], Points[NextIndex],
-						FUVEditorUXSettings::SelectionTriangleWireframeColor,
-						FUVEditorUXSettings::SelectionLineThickness,
-						FUVEditorUXSettings::SelectionWireframeDepthBias);
+					UnwrapLineSetPtr->AddElement(FVector2f(Points[i].X, Points[i].Y),
+						                      FVector2f(Points[NextIndex].X, Points[NextIndex].Y));
 				}
 			}
+			UnwrapTriangleSetPtr->MarkRenderStateDirty();
+			UnwrapLineSetPtr->MarkRenderStateDirty();
 		}
 		else if (Selection.Type == FUVToolSelection::EType::Edge)
 		{
@@ -204,21 +242,28 @@ void UUVToolSelectionHighlightMechanic::RebuildUnwrapHighlight(
 			const FDynamicMesh3& AppliedMesh = bUsePreviews ? *Selection.Target->AppliedPreview->PreviewMesh->GetMesh()
 				: *Selection.Target->AppliedCanonical;
 
-			UnwrapLineSet->ReserveLines(Selection.SelectedIDs.Num());
+			UBasic2DLineSetComponent* UnwrapLineSetPtr = UnwrapLineSet.Get();
+			UBasic2DLineSetComponent* SewEdgePairingLeftLineSetPtr = SewEdgePairingLeftLineSet.Get();
+			UBasic2DLineSetComponent* SewEdgePairingRightLineSetPtr = SewEdgePairingRightLineSet.Get();
+			UBasic2DLineSetComponent* SewEdgeUnselectedPairingLineSetPtr = SewEdgeUnselectedPairingLineSet.Get();
+
+			UnwrapLineSetPtr->ReserveElements(Selection.SelectedIDs.Num());
+			SewEdgePairingLeftLineSetPtr->ReserveElements(Selection.SelectedIDs.Num());
+			SewEdgePairingRightLineSetPtr->ReserveElements(Selection.SelectedIDs.Num());
+			SewEdgeUnselectedPairingLineSetPtr->ReserveElements(Selection.SelectedIDs.Num());
 			for (int32 Eid : Selection.SelectedIDs)
 			{
 				if (!ensure(Mesh.IsEdge(Eid)))
 				{
 					continue;
 				}
-
-				FIndex2i EdgeVids = Mesh.GetEdgeV(Eid);
-				UnwrapLineSet->AddLine(
-					StartTransform.InverseTransformPosition(Mesh.GetVertex(EdgeVids.A)),
-					StartTransform.InverseTransformPosition(Mesh.GetVertex(EdgeVids.B)),
-					FUVEditorUXSettings::SelectionTriangleWireframeColor,
-					FUVEditorUXSettings::SelectionLineThickness,
-					FUVEditorUXSettings::SelectionWireframeDepthBias);
+				
+				FVector Points[2];
+				Mesh.GetEdgeV(Eid, Points[0], Points[1]);
+				Points[0] = StartTransform.InverseTransformPosition(Points[0]);
+				Points[1] = StartTransform.InverseTransformPosition(Points[1]);
+				UnwrapLineSetPtr->AddElement(FVector2f(Points[0].X, Points[0].Y),
+					                      FVector2f(Points[1].X, Points[1].Y));
 
 				if (bPairedEdgeHighlightsEnabled)
 				{
@@ -236,53 +281,54 @@ void UUVToolSelectionHighlightMechanic::RebuildUnwrapHighlight(
 						continue;
 					}
 
-					FIndex2i Vids1 = Mesh.GetEdgeV(Eid);
-					SewEdgePairingLineSet->AddLine(
-						StartTransform.InverseTransformPosition(Mesh.GetVertex(Vids1.A)),
-						StartTransform.InverseTransformPosition(Mesh.GetVertex(Vids1.B)),
-						FUVEditorUXSettings::SewSideLeftColor, FUVEditorUXSettings::SewLineHighlightThickness, FUVEditorUXSettings::SewLineDepthOffset);
+					Mesh.GetEdgeV(Eid, Points[0], Points[1]);
+					Points[0] = StartTransform.InverseTransformPosition(Points[0]);
+					Points[1] = StartTransform.InverseTransformPosition(Points[1]);
+					SewEdgePairingLeftLineSetPtr->AddElement(FVector2f(Points[0].X, Points[0].Y),
+					                                      FVector2f(Points[1].X, Points[1].Y));
 
 					// The paired edge may need to go into a separate line set if it is not selected so that it does
 					// not get affected by transformations of the selected highlights in SetUnwrapHighlightTransform
 					FIndex2i Vids2 = Mesh.GetEdgeV(PairedEid);
+					Mesh.GetEdgeV(PairedEid, Points[0], Points[1]);
 					if (bPairedEdgeIsSelected)
 					{
-						SewEdgePairingLineSet->AddLine(
-							StartTransform.InverseTransformPosition(Mesh.GetVertex(Vids2.A)),
-							StartTransform.InverseTransformPosition(Mesh.GetVertex(Vids2.B)),
-							FUVEditorUXSettings::SewSideRightColor, FUVEditorUXSettings::SewLineHighlightThickness, 
-							FUVEditorUXSettings::SewLineDepthOffset);
+						Points[0] = StartTransform.InverseTransformPosition(Points[0]);
+						Points[1] = StartTransform.InverseTransformPosition(Points[1]);
+						SewEdgePairingRightLineSetPtr->AddElement(FVector2f(Points[0].X, Points[0].Y),
+							                                      FVector2f(Points[1].X, Points[1].Y));
 					}
 					else
 					{
 						StaticPairedEdgeVidsPerMesh.Last().Value.Add(TPair<int32, int32>(Vids2.A, Vids2.B));
-						SewEdgeUnselectedPairingLineSet->AddLine(
-							Mesh.GetVertex(Vids2.A),
-							Mesh.GetVertex(Vids2.B),
-							FUVEditorUXSettings::SewSideRightColor, FUVEditorUXSettings::SewLineHighlightThickness,
-							FUVEditorUXSettings::SewLineDepthOffset);
+						SewEdgeUnselectedPairingLineSetPtr->AddElement(FVector2f(Points[0].X, Points[0].Y),
+ 							                                           FVector2f(Points[1].X, Points[1].Y));						
 					}
 				}//end if visualizing paired edges
 			}//end for each edge
+			UnwrapLineSetPtr->MarkRenderStateDirty();
+			SewEdgePairingLeftLineSetPtr->MarkRenderStateDirty();
+			SewEdgePairingRightLineSetPtr->MarkRenderStateDirty();
+			SewEdgeUnselectedPairingLineSetPtr->MarkRenderStateDirty();
 		}
 		else if (Selection.Type == FUVToolSelection::EType::Vertex)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_RebuildDrawnElements_Vertex);
 
-			UnwrapPointSet->ReservePoints(Selection.SelectedIDs.Num());
-			for (int32 Vid : Selection.SelectedIDs)
+			UBasic2DPointSetComponent* UnwrapPointSetPtr = UnwrapPointSet.Get();
+			UnwrapPointSetPtr->ReserveElements(Selection.SelectedIDs.Num());
+
+			for (const int32 Vid : Selection.SelectedIDs)
 			{
 				if (!ensure(Mesh.IsVertex(Vid)))
 				{
 					continue;
 				}
 
-				FRenderablePoint PointToRender(StartTransform.InverseTransformPosition(Mesh.GetVertex(Vid)),
-					FUVEditorUXSettings::SelectionTriangleWireframeColor,
-					FUVEditorUXSettings::SelectionPointThickness,
-					FUVEditorUXSettings::SelectionWireframeDepthBias);
-				UnwrapPointSet->AddPoint(PointToRender);
+				const FVector3d Position = StartTransform.InverseTransformPosition(Mesh.GetVertex(Vid));
+				UnwrapPointSetPtr->AddElement(FVector2f(Position.X, Position.Y));
 			}
+			UnwrapPointSetPtr->MarkRenderStateDirty();
 		}
 	}
 }
@@ -295,8 +341,18 @@ void UUVToolSelectionHighlightMechanic::SetUnwrapHighlightTransform(const FTrans
 		UnwrapGeometryActor->SetActorTransform(Transform);
 	}
 	if (bPairedEdgeHighlightsEnabled && bRebuildStaticPairedEdges)
-	{
-		SewEdgeUnselectedPairingLineSet->Clear();
+	{		
+		int32 PairedEdgeCount = 0;
+		for (const TPair<TWeakObjectPtr<UUVEditorToolMeshInput>,
+			TArray<TPair<int32, int32>>>& MeshVidPairs : StaticPairedEdgeVidsPerMesh)
+		{
+			PairedEdgeCount += MeshVidPairs.Value.Num();
+		}
+
+		UBasic2DLineSetComponent* SewEdgeUnselectedPairingLineSetPtr = SewEdgeUnselectedPairingLineSet.Get();
+		SewEdgeUnselectedPairingLineSetPtr->Clear();
+		SewEdgeUnselectedPairingLineSetPtr->ReserveElements(PairedEdgeCount);
+
 		for (const TPair<TWeakObjectPtr<UUVEditorToolMeshInput>, 
 			TArray<TPair<int32, int32>>>& MeshVidPairs : StaticPairedEdgeVidsPerMesh)
 		{
@@ -315,12 +371,12 @@ void UUVToolSelectionHighlightMechanic::SetUnwrapHighlightTransform(const FTrans
 				{
 					continue;
 				}
-				SewEdgeUnselectedPairingLineSet->AddLine(
-					Mesh.GetVertex(VidPair.Key),
-					Mesh.GetVertex(VidPair.Value),
-					FUVEditorUXSettings::SewSideRightColor, FUVEditorUXSettings::SewLineHighlightThickness,
-					FUVEditorUXSettings::SewLineDepthOffset);
+				FVector3d VertA = Mesh.GetVertex(VidPair.Key);
+				FVector3d VertB = Mesh.GetVertex(VidPair.Value);
+				SewEdgeUnselectedPairingLineSetPtr->AddElement(FVector2f(VertA.X, VertA.Y),
+                                         					FVector2f(VertB.X, VertB.Y));
 			}
+			SewEdgeUnselectedPairingLineSetPtr->MarkRenderStateDirty();
 		}
 	}
 }
@@ -342,8 +398,11 @@ void UUVToolSelectionHighlightMechanic::RebuildAppliedHighlightFromUnwrapSelecti
 		return;
 	}
 
-	LivePreviewLineSet->Clear();
-	LivePreviewPointSet->Clear();
+	UBasic3DLineSetComponent* LivePreviewLineSetPtr = LivePreviewLineSet.Get();
+	UBasic3DPointSetComponent* LivePreviewPointSetPtr = LivePreviewPointSet.Get();
+
+	LivePreviewLineSetPtr->Clear();
+	LivePreviewPointSetPtr->Clear();
 
 	for (const FUVToolSelection& Selection : UnwrapSelections)
 	{
@@ -361,23 +420,22 @@ void UUVToolSelectionHighlightMechanic::RebuildAppliedHighlightFromUnwrapSelecti
 
 		FTransform MeshTransform = Target->AppliedPreview->PreviewMesh->GetTransform();
 
-		auto AppendEdgeLine = [this, &AppliedMesh, &MeshTransform](int32 AppliedEid)
+		auto AppendEdgeLine = [this, &AppliedMesh, &MeshTransform, LivePreviewLineSetPtr](int32 AppliedEid)
 		{
-			FVector3d Vert1, Vert2;
-			AppliedMesh.GetEdgeV(AppliedEid, Vert1, Vert2);
-
-			LivePreviewLineSet->AddLine(
-				MeshTransform.TransformPosition(Vert1),
-				MeshTransform.TransformPosition(Vert2),
-				FUVEditorUXSettings::SelectionTriangleWireframeColor,
-				FUVEditorUXSettings::LivePreviewHighlightThickness,
-				FUVEditorUXSettings::LivePreviewHighlightDepthOffset);
+			FVector Points[2];
+			AppliedMesh.GetEdgeV(AppliedEid, Points[0], Points[1]);
+			Points[0] = MeshTransform.TransformPosition(Points[0]);
+			Points[1] = MeshTransform.TransformPosition(Points[1]);
+			LivePreviewLineSetPtr->AddElement(
+				FVector3f(Points[0].X, Points[0].Y, Points[0].Z),
+				FVector3f(Points[1].X, Points[1].Y, Points[1].Z));
 		};
 
 		if (Selection.Type == FUVToolSelection::EType::Triangle)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Triangle);
 
+			LivePreviewLineSet->ReserveElements(Selection.SelectedIDs.Num()*3);
 			for (int32 Tid : Selection.SelectedIDs)
 			{
 				if (!ensure(AppliedMesh.IsTriangle(Tid)))
@@ -400,10 +458,12 @@ void UUVToolSelectionHighlightMechanic::RebuildAppliedHighlightFromUnwrapSelecti
 					}
 				}//end for tri edges
 			}//end for selection tids
+			LivePreviewLineSetPtr->MarkRenderStateDirty();
 		}
 		else if (Selection.Type == FUVToolSelection::EType::Edge)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Edge);
+			LivePreviewLineSet->ReserveElements(Selection.SelectedIDs.Num());
 
 			for (int32 UnwrapEid : Selection.SelectedIDs)
 			{
@@ -421,21 +481,19 @@ void UUVToolSelectionHighlightMechanic::RebuildAppliedHighlightFromUnwrapSelecti
 
 				AppendEdgeLine(AppliedEid);
 			}
+			LivePreviewLineSetPtr->MarkRenderStateDirty();
 		}
 		else if (Selection.Type == FUVToolSelection::EType::Vertex)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Vertex);
 
-			for (int32 UnwrapVid : Selection.SelectedIDs)
-			{
-				FVector3d Position = AppliedMesh.GetVertex(
-					Target->UnwrapVidToAppliedVid(UnwrapVid));
+			LivePreviewPointSetPtr->ReserveElements(Selection.SelectedIDs.Num());
 
-				LivePreviewPointSet->AddPoint(Position,
-					FUVEditorUXSettings::SelectionTriangleWireframeColor,
-					FUVEditorUXSettings::LivePreviewHighlightPointSize,
-					FUVEditorUXSettings::LivePreviewHighlightDepthOffset);
+			for (const int32 UnwrapVid : Selection.SelectedIDs)
+			{
+				LivePreviewPointSetPtr->AddElement(static_cast<FVector3f>(AppliedMesh.GetVertex(Target->UnwrapVidToAppliedVid(UnwrapVid))));
 			}
+			LivePreviewPointSetPtr->MarkRenderStateDirty();
 		}
 	}//end for selection
 }
@@ -446,6 +504,9 @@ void UUVToolSelectionHighlightMechanic::AppendAppliedHighlight(const TArray<FUVT
 	{
 		return;
 	}
+
+	UBasic3DLineSetComponent* LivePreviewLineSetPtr = LivePreviewLineSet.Get();
+	UBasic3DPointSetComponent* LivePreviewPointSetPtr = LivePreviewPointSet.Get();
 
 	for (const FUVToolSelection& Selection : AppliedSelections)
 	{
@@ -461,17 +522,15 @@ void UUVToolSelectionHighlightMechanic::AppendAppliedHighlight(const TArray<FUVT
 
 		FTransform MeshTransform = Target->AppliedPreview->PreviewMesh->GetTransform();
 
-		auto AppendEdgeLine = [this, &AppliedMesh, &MeshTransform](int32 AppliedEid)
+		auto AppendEdgeLine = [this, &AppliedMesh, &MeshTransform, LivePreviewLineSetPtr](int32 AppliedEid)
 		{
-			FVector3d Vert1, Vert2;
-			AppliedMesh.GetEdgeV(AppliedEid, Vert1, Vert2);
-
-			LivePreviewLineSet->AddLine(
-				MeshTransform.TransformPosition(Vert1),
-				MeshTransform.TransformPosition(Vert2),
-				FUVEditorUXSettings::SelectionTriangleWireframeColor,
-				FUVEditorUXSettings::LivePreviewHighlightThickness,
-				FUVEditorUXSettings::LivePreviewHighlightDepthOffset);
+			FVector Points[2];
+			AppliedMesh.GetEdgeV(AppliedEid, Points[0], Points[1]);
+			Points[0] = MeshTransform.TransformPosition(Points[0]);
+			Points[1] = MeshTransform.TransformPosition(Points[1]);
+			LivePreviewLineSetPtr->AddElement(
+				FVector3f(Points[0].X, Points[0].Y, Points[0].Z),
+				FVector3f(Points[1].X, Points[1].Y, Points[1].Z));
 		};
 
 		if (Selection.Type == FUVToolSelection::EType::Triangle)
@@ -500,6 +559,7 @@ void UUVToolSelectionHighlightMechanic::AppendAppliedHighlight(const TArray<FUVT
 					}
 				}//end for tri edges
 			}//end for selection tids
+			LivePreviewLineSetPtr->MarkRenderStateDirty();
 		}
 		else if (Selection.Type == FUVToolSelection::EType::Edge)
 		{
@@ -514,20 +574,19 @@ void UUVToolSelectionHighlightMechanic::AppendAppliedHighlight(const TArray<FUVT
 
 				AppendEdgeLine(Eid);
 			}
+			LivePreviewLineSetPtr->MarkRenderStateDirty();
 		}
 		else if (Selection.Type == FUVToolSelection::EType::Vertex)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Vertex);
 
-			for (int32 Vid : Selection.SelectedIDs)
-			{
-				FVector3d Position = AppliedMesh.GetVertex(Vid);
+			LivePreviewPointSetPtr->ReserveElements(Selection.SelectedIDs.Num());
 
-				LivePreviewPointSet->AddPoint(Position,
-					FUVEditorUXSettings::SelectionTriangleWireframeColor,
-					FUVEditorUXSettings::LivePreviewHighlightPointSize,
-					FUVEditorUXSettings::LivePreviewHighlightDepthOffset);
+			for (const int32 Vid : Selection.SelectedIDs)
+			{
+				LivePreviewPointSetPtr->AddElement(static_cast<FVector3f>(AppliedMesh.GetVertex(Vid)));
 			}
+			LivePreviewPointSetPtr->MarkRenderStateDirty();
 		}
 	}//end for selection
 }
@@ -536,7 +595,8 @@ void UUVToolSelectionHighlightMechanic::AppendAppliedHighlight(const TArray<FUVT
 void UUVToolSelectionHighlightMechanic::SetEnablePairedEdgeHighlights(bool bEnable)
 {
 	bPairedEdgeHighlightsEnabled = bEnable;
-	SewEdgePairingLineSet->SetVisibility(bEnable);
+	SewEdgePairingLeftLineSet->SetVisibility(bEnable);
+	SewEdgePairingRightLineSet->SetVisibility(bEnable);
 	SewEdgeUnselectedPairingLineSet->SetVisibility(bEnable);
 }
 
