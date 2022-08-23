@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -343,6 +343,18 @@ namespace UnrealBuildTool
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Game, "/Script/UnrealEd.ProjectPackagingSettings", "ForDistribution")]
 		public readonly bool bForDistribution = false;
+
+		/// <summary>
+		/// override for the app's display name if different from the project name
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Game, "/Script/UnrealEd.ProjectPackagingSettings", "BundleName")]
+		public readonly string BundleName = "";
+
+		/// <summary>
+		/// longer display name than BundleName if needed
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Game, "/Script/UnrealEd.ProjectPackagingSettings", "BundleDisplayName")]
+		public readonly string BundleDisplayName = "";
 
 		/// <summary>
 		/// Returns a list of all the non-shipping architectures which are supported

@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 using System;
@@ -360,7 +360,7 @@ namespace UnrealBuildTool
 		{
 			// get the list of architectures to compile
 			string Archs =
-				UBTArchitecture == "-simulator" ? "i386" :
+				UBTArchitecture == "-simulator" ? "arm64" :
 				String.Join(",", (Configuration == CppConfiguration.Shipping) ? ProjectSettings.ShippingArchitectures : ProjectSettings.NonShippingArchitectures);
 
 			Log.TraceLogOnce("Compiling with these architectures: " + Archs);
@@ -677,7 +677,6 @@ namespace UnrealBuildTool
 				// This is not a shipping build so no need to delete the output file since symbols will not have been stripped from it.
 				LinkAction.CommandArguments = string.Format("-c \"\\\"{0}\\\" {1}\"", LinkerPath, LinkCommandArguments);
 			}
-
 			return OutputFile;
 		}
 
@@ -1233,7 +1232,14 @@ namespace UnrealBuildTool
 				OutputFiles.Add(StripCompleteFile);
 			}
 
-			if (!BinaryLinkEnvironment.bIsBuildingDLL)
+			bool bUseModernXcode = false;
+			if (OperatingSystem.IsMacOS())
+			{
+				ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Target.ProjectFile), UnrealTargetPlatform.IOS);
+				Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode);
+			}
+
+			if (!BinaryLinkEnvironment.bIsBuildingDLL && !bUseModernXcode)
 			{
 				// generate the asset catalog
 				bool bUserImagesExist = false;
@@ -1266,36 +1272,40 @@ namespace UnrealBuildTool
 				VersionNumber SdkVersion = VersionNumber.Parse(Settings.Value.IOSSDKVersion);
 
 				Dictionary<string, DirectoryReference> FrameworkNameToSourceDir = new Dictionary<string, DirectoryReference>();
-				FileReference StagedExecutablePath = GetStagedExecutablePath(Executable.Location, Target.Name);
-				DirectoryReference BundleDirectory = Target.bShouldCompileAsDLL ? Executable.Directory.Location : StagedExecutablePath.Directory;
-				foreach (UEBuildFramework Framework in BinaryLinkEnvironment.AdditionalFrameworks)
-				{
-					if (Framework.FrameworkDirectory != null)
-					{
-						if (!String.IsNullOrEmpty(Framework.CopyBundledAssets))
-						{
-							// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
-							DirectoryReference LocalSource = DirectoryReference.Combine(Framework.FrameworkDirectory, Framework.CopyBundledAssets);
-							string BundleName = Framework.CopyBundledAssets.Substring(Framework.CopyBundledAssets.LastIndexOf('/') + 1);
-							FrameworkNameToSourceDir[BundleName] = LocalSource;
-						}
 
-						if (Framework.bCopyFramework)
+				if (!bUseModernXcode)
+				{
+					FileReference StagedExecutablePath = GetStagedExecutablePath(Executable.Location, Target.Name);
+					DirectoryReference BundleDirectory = Target.bShouldCompileAsDLL ? Executable.Directory.Location : StagedExecutablePath.Directory;
+					foreach (UEBuildFramework Framework in BinaryLinkEnvironment.AdditionalFrameworks)
+					{
+						if (Framework.FrameworkDirectory != null)
 						{
-							string FrameworkDir = Framework.FrameworkDirectory.FullName;
-							if (FrameworkDir.EndsWith(".framework"))
+							if (!String.IsNullOrEmpty(Framework.CopyBundledAssets))
 							{
-								FrameworkDir = Path.GetDirectoryName(FrameworkDir)!;
+								// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
+								DirectoryReference LocalSource = DirectoryReference.Combine(Framework.FrameworkDirectory, Framework.CopyBundledAssets);
+								string BundleName = Framework.CopyBundledAssets.Substring(Framework.CopyBundledAssets.LastIndexOf('/') + 1);
+								FrameworkNameToSourceDir[BundleName] = LocalSource;
 							}
 
-							OutputFiles.Add(CopyBundleResource(new UEBuildBundleResource(new ModuleRules.BundleResource(Path.Combine(FrameworkDir, Framework.Name + ".framework"), "Frameworks")), Executable, BundleDirectory, Graph));
+							if (Framework.bCopyFramework)
+							{
+								string FrameworkDir = Framework.FrameworkDirectory.FullName;
+								if (FrameworkDir.EndsWith(".framework"))
+								{
+									FrameworkDir = Path.GetDirectoryName(FrameworkDir)!;
+								}
+
+								OutputFiles.Add(CopyBundleResource(new UEBuildBundleResource(new ModuleRules.BundleResource(Path.Combine(FrameworkDir, Framework.Name + ".framework"), "Frameworks")), Executable, BundleDirectory, Graph));
+							}
 						}
 					}
-				}
 
-				foreach (UEBuildBundleResource Resource in BinaryLinkEnvironment.AdditionalBundleResources)
-				{
-					OutputFiles.Add(CopyBundleResource(Resource, Executable, StagedExecutablePath.Directory, Graph));
+					foreach (UEBuildBundleResource Resource in BinaryLinkEnvironment.AdditionalBundleResources)
+					{
+						OutputFiles.Add(CopyBundleResource(Resource, Executable, StagedExecutablePath.Directory, Graph));
+					}
 				}
 
 				IOSPostBuildSyncTarget PostBuildSyncTarget = new IOSPostBuildSyncTarget(Target, Executable.Location, BinaryLinkEnvironment.IntermediateDirectory, UPLScripts, SdkVersion, FrameworkNameToSourceDir);
@@ -1424,7 +1434,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		internal static bool GenerateProjectFiles(FileReference? ProjectFile, string[] Arguments, ILogger Logger)
+		internal static bool GenerateProjectFiles(FileReference? ProjectFile, string[] Arguments, ILogger Logger, out DirectoryReference? XcodeProjectFile)
 		{
 			ProjectFileGenerator.bGenerateProjectFiles = true;
 			try
@@ -1436,12 +1446,20 @@ namespace UnrealBuildTool
 				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.TVOS, new TVOSProjectGenerator(CmdLine, Logger), Logger);
 
 				XcodeProjectFileGenerator Generator = new XcodeProjectFileGenerator(ProjectFile, CmdLine);
-				return Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments, Logger);
+				bool bSucces = Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments, Logger);
+				XcodeProjectFile = Generator.XCWorkspace;
+				return bSucces;
+			}
+			catch(Exception ex)
+			{
+				XcodeProjectFile = null;
+				Logger.LogError(ex.ToString());
 			}
 			finally
 			{
 				ProjectFileGenerator.bGenerateProjectFiles = false;
 			}
+			return false;
 		}
 
 		public static FileReference GetStagedExecutablePath(FileReference Executable, string TargetName)
@@ -1538,11 +1556,18 @@ namespace UnrealBuildTool
 
 		public static void PostBuildSync(IOSPostBuildSyncTarget Target, ILogger Logger)
 		{
+			// if xcode is building this, it will also do the Run stuff anyway, so no need to do it here as well
+			if (Environment.GetEnvironmentVariable("UE_BUILD_FROM_XCODE") == "1")
+			{
+				return;
+			}
+
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, GetActualProjectDirectory(Target.ProjectFile), UnrealTargetPlatform.IOS);
-			string? BundleID;
-			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleID!);
+			bool bUseModernXcode;
+			Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode);
 
 			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
+			string? BundleID = ProjectSettings.BundleIdentifier;
 
 			bool bPerformFullAppCreation = true;
 			string PathToDsymZip = Target.OutputPath.FullName + ".dSYM.zip";
@@ -1595,6 +1620,43 @@ namespace UnrealBuildTool
 			DirectoryReference.CreateDirectory(StagedExecutablePath.Directory);
 			FileReference.Copy(Target.OutputPath, StagedExecutablePath, true);
 			string RemoteShadowDirectoryMac = Target.OutputPath.Directory.FullName;
+
+			if (bUseModernXcode)
+			{
+				// generate a run-only project file for codesigning, etc
+				DirectoryReference? GeneratedProjectFile;
+				IOSExports.GenerateRunOnlyXcodeProject(Target.ProjectFile, Target.Platform, Target.bForDistribution, Logger, out GeneratedProjectFile);
+
+				// @todo - should we move this in to FinalizeAppWithXcode?
+				string ConfigName = Target.Configuration.ToString();
+				if (Target.TargetType != TargetType.Game && Target.TargetType != TargetType.Program)
+				{
+					ConfigName += " " + Target.TargetType.ToString();
+				}
+
+				string SchemeName;
+				if (AppName == "UnrealGame" || AppName == "UnrealClient")
+				{
+					if (Target.bBuildAsFramework)
+					{
+						SchemeName = "UnrealGame";
+					}
+					else
+					{
+						SchemeName = "UE5";
+					}
+				}
+				else
+				{
+					SchemeName = Target.ProjectFile!.GetFileNameWithoutExtension();
+				}
+
+				// run xcodebuild on the generated project to make the .app
+				IOSExports.FinalizeAppWithModernXcode(GeneratedProjectFile!, Target.Platform, SchemeName, ConfigName, Target.bForDistribution, Logger);
+
+				return;
+			}
+
 
 			if (Target.bCreateStubIPA || Target.bBuildAsFramework)
 			{
@@ -1781,16 +1843,17 @@ namespace UnrealBuildTool
 
 				if (!Target.bBuildAsFramework)
 				{
+					DirectoryReference? GeneratedProjectFile;
 				    if (AppName == "UnrealGame" || AppName == "UnrealClient" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
 				    {
-					    GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), "-bundleID=" + BundleID, "-includetemptargets", "-appname=" + AppName }, Logger);
+					    GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), "-bundleID=" + BundleID, "-includetemptargets", "-appname=" + AppName }, Logger, out GeneratedProjectFile);
 				    }
 				    else
 				    {
-					    GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), String.Format("-project={0}", Target.ProjectFile), "-game", "-bundleID=" + BundleID, "-includetemptargets" }, Logger);
+					    GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), String.Format("-project={0}", Target.ProjectFile), "-game", "-bundleID=" + BundleID, "-includetemptargets" }, Logger, out GeneratedProjectFile);
 				    }
 				    // Make sure it exists
-				    if (!DirectoryReference.Exists(XcodeWorkspaceDir!))
+				    if (!DirectoryReference.Exists(XcodeWorkspaceDir!) || (GeneratedProjectFile != null && GeneratedProjectFile.ParentDirectory != XcodeWorkspaceDir))
 				    {
 					    throw new BuildException("Unable to create stub IPA; Xcode workspace not found at {0}", XcodeWorkspaceDir);
 				    }

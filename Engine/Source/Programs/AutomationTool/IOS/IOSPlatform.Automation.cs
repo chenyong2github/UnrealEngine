@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -1065,6 +1065,7 @@ public class IOSPlatform : Platform
 		PrintRunTime();
 	}
 
+#if true
 	private string EnsureXcodeProjectExists(FileReference RawProjectPath, string LocalRoot, string ShortProjectName, string ProjectRoot, bool IsCodeBasedProject, out bool bWasGenerated)
 	{
 		// first check for the .xcodeproj
@@ -1107,9 +1108,39 @@ public class IOSPlatform : Platform
 
 		return XcodeProj;
 	}
+#endif
 
 	private void CodeSign(string BaseDirectory, string GameName, FileReference RawProjectPath, UnrealTargetConfiguration TargetConfig, string LocalRoot, string ProjectName, string ProjectDirectory, bool IsCode, bool Distribution = false, string Provision = null, string Certificate = null, string Team = null, bool bAutomaticSigning = false, string SchemeName = null, string SchemeConfiguration = null)
 	{
+		bool bUseModernXcode = false;
+		if (OperatingSystem.IsMacOS())
+		{
+			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, RawProjectPath.Directory, UnrealTargetPlatform.IOS);
+			Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode);
+		}
+
+		if (bUseModernXcode)
+		{
+			// we need an xcode project to continue
+			DirectoryReference GeneratedProject = null;
+			IOSExports.GenerateRunOnlyXcodeProject(RawProjectPath, TargetPlatformType, false, Logger, out GeneratedProject);
+
+			if (GeneratedProject == null || !DirectoryReference.Exists(GeneratedProject))
+			{
+				// something very bad happened
+				throw new AutomationException("iOS couldn't find the appropriate Xcode Project for " + RawProjectPath);
+			}
+
+			int ReturnCode = IOSExports.FinalizeAppWithXcode(GeneratedProject, TargetPlatformType, SchemeName ?? GameName, SchemeConfiguration ?? TargetConfig.ToString(), Provision, Certificate, Team, bAutomaticSigning, Distribution, bUseModernXcode, Logger);
+			if (ReturnCode != 0)
+			{
+				throw new AutomationException(ExitCode.Error_FailedToCodeSign, "CodeSign Failed");
+			}
+
+			return;
+		}
+// @todo make this use the new IOSExports functionality that modern mode is using, after testing it
+#if true
 		// check for the proper xcodeproject
 		bool bWasGenerated = false;
 		string XcodeProj = EnsureXcodeProjectExists(RawProjectPath, LocalRoot, ProjectName, ProjectDirectory, IsCode, out bWasGenerated);
@@ -1171,6 +1202,7 @@ public class IOSPlatform : Platform
 		{
 			throw new AutomationException(ExitCode.Error_FailedToCodeSign, "CodeSign Failed");
 		}
+#endif
 	}
 
 	private bool ShouldUseMaxIPACompression(ProjectParams Params)
@@ -2302,7 +2334,7 @@ public class IOSPlatform : Platform
 		}
 	}
 
-	#region Hooks
+#region Hooks
 
 	public override void PreBuildAgenda(UnrealBuild Build, UnrealBuild.BuildAgenda Agenda, ProjectParams Params)
 	{
@@ -2312,7 +2344,7 @@ public class IOSPlatform : Platform
 		}
 	}
 
-	#endregion
+#endregion
 
 	public override DirectoryReference GetProjectRootForStage(DirectoryReference RuntimeRoot, StagedDirectoryReference RelativeProjectRootForStage)
 	{

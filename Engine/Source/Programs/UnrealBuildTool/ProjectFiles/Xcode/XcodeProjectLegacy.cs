@@ -11,49 +11,10 @@ using System.Text;
 using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using UnrealBuildTool.XcodeProjectXcconfig;
 
 namespace UnrealBuildTool.XcodeProjectLegacy
 {
-	/// <summary>
-	/// Info needed to make a file a member of specific group
-	/// </summary>
-	class XcodeSourceFile : ProjectFile.SourceFile
-	{
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public XcodeSourceFile(FileReference InitFilePath, DirectoryReference? InitRelativeBaseFolder)
-			: base(InitFilePath, InitRelativeBaseFolder)
-		{
-			FileGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
-			FileRefGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
-		}
-
-		/// <summary>
-		/// File Guid for use in Xcode project
-		/// </summary>
-		public string FileGuid
-		{
-			get;
-			private set;
-		}
-
-		public void ReplaceGuids(string NewFileGuid, string NewFileRefGuid)
-		{
-			FileGuid = NewFileGuid;
-			FileRefGuid = NewFileRefGuid;
-		}
-
-		/// <summary>
-		/// File reference Guid for use in Xcode project
-		/// </summary>
-		public string FileRefGuid
-		{
-			get;
-			private set;
-		}
-	}
-
 	/// <summary>
 	/// Represents a group of files shown in Xcode's project navigator as a folder
 	/// </summary>
