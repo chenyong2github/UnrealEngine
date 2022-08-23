@@ -92,6 +92,9 @@ public:
 	FPhysicsReplication(FPhysScene* PhysScene);
 	virtual ~FPhysicsReplication();
 
+	/** Helper method so the Skip Replication CVar can be check elsewhere (including game extensions to this class) */
+	static bool ShouldSkipPhysicsReplication();
+
 	/** Tick and update all body states according to replicated targets */
 	void Tick(float DeltaSeconds);
 
