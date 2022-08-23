@@ -25,7 +25,8 @@ namespace AdaptiveTessellateLocals
 								  FProgressCancel* Progress,
 								  FTessellationData& TessData,
 								  FCompactMaps& CompactInfo,
-								  FDynamicMesh3* ResultMesh);
+								  FDynamicMesh3* ResultMesh,
+								  FAdaptiveTessellate::FTessellationInformation& TessInfo);
 
 	template<typename RealType, int ElementSize> 
 	bool ConstructTessellatedOverlay(const FDynamicMesh3* Mesh, 
@@ -859,9 +860,10 @@ namespace AdaptiveTessellateLocals
 							FProgressCancel* Progress,
 							FCompactMaps& OutCompactInfo, 
 							FTessellationData& TessData,
-							FDynamicMesh3* OutMesh) 
+							FDynamicMesh3* OutMesh,
+							FAdaptiveTessellate::FTessellationInformation& TessInfo) 
 	{	
-		
+
 		TessData.Init(Pattern);
 
 		// Tessellate edge patches
@@ -951,7 +953,12 @@ namespace AdaptiveTessellateLocals
 			return false;
 		}
 
-		if (AdaptiveTessellateLocals::ConstructTessellatedMesh(Mesh, Progress, TessData, OutCompactInfo, OutMesh) == false) 
+		if (AdaptiveTessellateLocals::ConstructTessellatedMesh(Mesh, 
+														       Progress, 
+															   TessData, 
+															   OutCompactInfo, 
+															   OutMesh, 
+															   TessInfo) == false)
 		{
 			return false;
 		}
@@ -1142,7 +1149,8 @@ namespace AdaptiveTessellateLocals
 								  FProgressCancel* Progress,
 								  FTessellationData& TessData,
 								  FCompactMaps& CompactInfo,
-								  FDynamicMesh3* ResultMesh)
+								  FDynamicMesh3* ResultMesh,
+								  FAdaptiveTessellate::FTessellationInformation& TessInfo)
 	{
 		ResultMesh->Clear();
 
@@ -1187,7 +1195,14 @@ namespace AdaptiveTessellateLocals
 				
 				const FVector3d Vertex = (1.0 - Alpha)*Mesh->GetVertex(EdgeV[0]) + Alpha*Mesh->GetVertex(EdgeV[1]);
 				
-				CompactInfo.SetVertexMapping(VertexID, ResultMesh->AppendVertex(Vertex));
+				const int NewVertexID = ResultMesh->AppendVertex(Vertex);
+
+				CompactInfo.SetVertexMapping(VertexID, NewVertexID);
+
+				if (TessInfo.SelectedVertices) 
+				{
+					TessInfo.SelectedVertices->Add(NewVertexID);
+				}
 			}
 		}
 
@@ -1214,7 +1229,13 @@ namespace AdaptiveTessellateLocals
 										 Bary[1] * Mesh->GetVertex(TriangleV[1]) + 
 										 Bary[2] * Mesh->GetVertex(TriangleV[2]);
 				
-				CompactInfo.SetVertexMapping(VertexID, ResultMesh->AppendVertex(Vertex));
+				const int NewVertexID = ResultMesh->AppendVertex(Vertex);
+				CompactInfo.SetVertexMapping(VertexID, NewVertexID);
+
+				if (TessInfo.SelectedVertices) 
+				{
+					TessInfo.SelectedVertices->Add(NewVertexID);
+				}
 			}
 		}
 
@@ -1254,6 +1275,26 @@ namespace AdaptiveTessellateLocals
 				const FIndex3i Tri = TrianglesBlock[Index];
 				const FIndex3i MappedTri = CompactInfo.GetVertexMapping(Tri);
 				CompactInfo.SetTriangleMapping(NewTriangleID, ResultMesh->AppendTriangle(MappedTri, TriGrp));
+			}	 
+		}
+		
+		if (TessInfo.SelectedVertices) 
+		{
+			// Add all of the original vertices of the triangles we are tessellating
+			TSet<int> TempSetSelectedVertices; // first add them to tset to avoid duplicates
+			for (const int TriangleID : TessData.TrianglesToTessellate) 
+			{
+				const FIndex3i Tri = Mesh->GetTriangle(TriangleID);
+				const FIndex3i MappedTri = CompactInfo.GetVertexMapping(Tri);
+				
+				TempSetSelectedVertices.Add(MappedTri[0]);
+				TempSetSelectedVertices.Add(MappedTri[1]);
+				TempSetSelectedVertices.Add(MappedTri[2]);
+			}
+
+			for (int VID : TempSetSelectedVertices) 
+			{
+				TessInfo.SelectedVertices->Add(VID);
 			}
 		}
 
@@ -1709,14 +1750,19 @@ namespace AdaptiveTessellateLocals
 	 * @param OutMesh The resulting tessellated mesh.
 	 * @return false if the tessellation failed or the user cancelled it
 	 */
-	bool Tessellate(const FDynamicMesh3* InMesh, const FTessellationPattern* Pattern, const bool bUseParallel, FProgressCancel* Progress, FDynamicMesh3* OutMesh)
+	bool Tessellate(const FDynamicMesh3* InMesh, 
+					const FTessellationPattern* Pattern, 
+					const bool bUseParallel, 
+					FProgressCancel* Progress, 
+					FDynamicMesh3* OutMesh,
+					FAdaptiveTessellate::FTessellationInformation& TessInfo)
 	{
 		OutMesh->Clear();
 
 		FCompactMaps CompactInfo;
 
 		AdaptiveTessellateLocals::FTessellationData TessData(InMesh);
-		if (TessellateGeometry(InMesh, Pattern, bUseParallel, Progress, CompactInfo, TessData, OutMesh) == false) 
+		if (TessellateGeometry(InMesh, Pattern, bUseParallel, Progress, CompactInfo, TessData, OutMesh, TessInfo) == false) 
 		{
 			return false;
 		}
@@ -2157,7 +2203,7 @@ bool FAdaptiveTessellate::Compute()
 		Mesh = ResultMeshCopy.Get();
 	}
 
-	bool bTessResult = AdaptiveTessellateLocals::Tessellate(Mesh, Pattern, bUseParallel, Progress, ResultMesh);
+	bool bTessResult = AdaptiveTessellateLocals::Tessellate(Mesh, Pattern, bUseParallel, Progress, ResultMesh, TessInfo);
 
 	if (Cancelled() || bTessResult == false)
 	{

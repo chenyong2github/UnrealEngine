@@ -228,7 +228,29 @@ public:
 
 	/** The tessellated mesh. */
 	FDynamicMesh3* ResultMesh = nullptr;
-	
+
+    //
+    // Output
+    //
+    
+    /** 
+     * Stores any additional tessellation information that was requested by the caller.
+     * The caller should set the pointers to request the information to be computed. 
+     * 
+     * @note The caller is responsible for managing the memmory the pointers are pointing to.
+     *       The operator simply populates the data structures if they are not null.
+     */
+    struct FTessellationInformation
+    {
+        /** 
+         * If not null, construction of tessellated mesh will append a list of all the vertices that belong to 
+         * triangles affected by the tessellation.
+         */
+        TArray<int32>* SelectedVertices = nullptr;
+    };
+
+    FTessellationInformation TessInfo;  
+    	
 protected:
 	
 	/** 
