@@ -114,7 +114,7 @@ namespace Chaos
 				TArray<float>* PendingPY = EvaluatedResult.Channels.Find(PositionYName);
 				TArray<float>* PendingPZ = EvaluatedResult.Channels.Find(PositionZName);
 					
-				if(PendingVX && PendingVY && PendingVZ && PendingPZ && PendingPY && PendingPZ)
+				if(PendingVX && PendingVY && PendingVZ && PendingPX && PendingPY && PendingPZ)
 				{
 					for(uint32 ParticleIndex = 0; ParticleIndex < NumParticles; ++ParticleIndex)
 					{
@@ -223,7 +223,7 @@ namespace Chaos
 					TArray<float>* PendingPY = EvaluatedResult.Channels.Find(PositionYName);
 					TArray<float>* PendingPZ = EvaluatedResult.Channels.Find(PositionZName);
 					
-					if(PendingVX && PendingVY && PendingVZ && PendingPZ && PendingPY && PendingPZ)
+					if(PendingVX && PendingVY && PendingVZ && PendingPX && PendingPY && PendingPZ)
 					{
 						for(int32 ParticleIndex = 0; ParticleIndex < NumCurves; ++ParticleIndex)
 						{

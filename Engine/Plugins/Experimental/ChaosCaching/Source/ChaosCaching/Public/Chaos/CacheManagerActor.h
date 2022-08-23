@@ -45,12 +45,25 @@ struct CHAOSCACHING_API FObservedComponent
 {
 	GENERATED_BODY()
 
-		FObservedComponent()
+	FObservedComponent()
 		: CacheName(NAME_None)
 		, bIsSimulating(true)
 		, Cache(nullptr)
 		, BestFitAdapter(nullptr)
 	{
+	}
+
+	FObservedComponent(const FObservedComponent& OtherComponent)
+	{
+		CacheName = OtherComponent.CacheName;
+		bIsSimulating = OtherComponent.bIsSimulating;
+		bTriggered = OtherComponent.bTriggered;
+		AbsoluteTime = OtherComponent.AbsoluteTime;
+		TimeSinceTrigger = OtherComponent.TimeSinceTrigger;
+		Cache = OtherComponent.Cache;
+		TickRecord = OtherComponent.TickRecord;
+		BestFitAdapter = OtherComponent.BestFitAdapter;
+		SoftComponentRef = OtherComponent.SoftComponentRef;
 	}
 
 	FObservedComponent& operator=(const FObservedComponent& OtherComponent)
