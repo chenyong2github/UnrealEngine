@@ -419,14 +419,12 @@ bool BoxProjectUVs(
 				TargetTris.Add(TID);
 			}
 		}
-		if (TargetTris.Num() == 0)
+		if (TargetTris.Num() > 0)
 		{
-			continue;
+			FDynamicMeshUVEditor UVEd(&Mesh, TargetUVLayer, false);
+			FFrame3d BoxFrame; // defaults to origin / no rotation
+			UVEd.SetTriangleUVsFromBoxProjection(TargetTris, [](const FVector3d& Pos) { return Pos; }, BoxFrame, BoxDimensions, 1);
 		}
-
-		FDynamicMeshUVEditor UVEd(&Mesh, TargetUVLayer, false);
-		FFrame3d BoxFrame; // defaults to origin / no rotation
-		UVEd.SetTriangleUVsFromBoxProjection(TargetTris, [](const FVector3d& Pos) { return Pos; }, BoxFrame, BoxDimensions);
 
 		Mesh.CompactInPlace();
 
