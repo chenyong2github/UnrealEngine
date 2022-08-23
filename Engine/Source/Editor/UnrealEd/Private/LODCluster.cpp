@@ -99,6 +99,16 @@ FLODCluster::FLODCluster(const FLODCluster& Other)
 	
 }
 
+FLODCluster::FLODCluster(FLODCluster&& Other)
+	: Actors(Other.Actors)
+	, Bound(Other.Bound)
+	, FillingFactor(Other.FillingFactor)
+	, ClusterCost(Other.ClusterCost)
+	, bValid(Other.bValid)
+{
+
+}
+
 FLODCluster::FLODCluster(AActor* Actor1)
 : Bound(ForceInit)
 , bValid(true)
@@ -132,7 +142,7 @@ FLODCluster::FLODCluster()
 FSphere FLODCluster::AddActor(AActor* NewActor)
 {
 	bValid = true;
-	ensure (Actors.Contains(NewActor) == false);
+
 	Actors.Add(NewActor);
 	FVector Origin, Extent;
 
@@ -182,9 +192,29 @@ FLODCluster& FLODCluster::operator=(const FLODCluster& Other)
 	return *this;
 }
 
+FLODCluster& FLODCluster::operator=(FLODCluster&& Other)
+{
+	this->bValid = Other.bValid;
+	this->Actors = Other.Actors;
+	this->Bound = Other.Bound;
+	this->FillingFactor = Other.FillingFactor;
+	this->ClusterCost = Other.ClusterCost;
+
+	return *this;
+}
+
 bool FLODCluster::operator==(const FLODCluster& Other) const
 {
-	return Actors == Other.Actors;
+	return Actors.Num() == Other.Actors.Num() && Actors.Includes(Other.Actors);
+}
+
+float FLODCluster::GetMergedCost(const FLODCluster& Other) const
+{
+	float MergedFillingFactor = CalculateFillingFactor(Bound, FillingFactor, Other.Bound, Other.FillingFactor);
+	FSphere MergedBound = Bound + Other.Bound;
+
+	float MergedClusterCost = (MergedBound.W * MergedBound.W * MergedBound.W) / MergedFillingFactor;
+	return MergedClusterCost;
 }
 
 void FLODCluster::MergeClusters(const FLODCluster& Other)
@@ -196,11 +226,7 @@ void FLODCluster::MergeClusters(const FLODCluster& Other)
 
 	ClusterCost = ( Bound.W * Bound.W * Bound.W ) / FillingFactor;
 	
-
-	for (auto& Actor: Other.Actors)
-	{
-		Actors.AddUnique(Actor);
-	}
+	Actors.Append(Other.Actors);
 
 	if (Actors.Num() > 0)
 	{
@@ -210,51 +236,30 @@ void FLODCluster::MergeClusters(const FLODCluster& Other)
 
 void FLODCluster::SubtractCluster(const FLODCluster& Other)
 {
-	for(int32 ActorId=0; ActorId<Actors.Num(); ++ActorId)
-	{
-		if (Other.Actors.Contains(Actors[ActorId]))
-		{
-			Actors.RemoveAt(ActorId);
-			--ActorId;
-		}
-	}
+	Actors = Actors.Difference(Other.Actors);
 
-	TArray<AActor*> NewActors = Actors;
-	Actors.Empty();
-	// need to recalculate parameter
-	if (NewActors.Num() == 0)
+	Invalidate();
+
+	// We need to recalculate parameters
+	if (Actors.Num() > 0)
 	{
-		Invalidate();
-	}
-	else if (NewActors.Num() == 1)
-	{
-		Bound = FSphere(ForceInitToZero);
-		AddActor(NewActors[0]);
+		bValid = true;
 		FillingFactor = 1.f;
-		ClusterCost = ( Bound.W * Bound.W * Bound.W ) / FillingFactor;
-	}
-	else if (NewActors.Num() >= 2)
-	{
-		Bound = FSphere(ForceInit);
+		Bound = FSphere(ForceInitToZero);
 
-		FSphere Actor1Bound = AddActor(NewActors[0]);
-		FSphere Actor2Bound = AddActor(NewActors[1]);
-
-		// calculate new filling factor
-		FillingFactor = CalculateFillingFactor(Actor1Bound, 1.f, Actor2Bound, 1.f);
-
-		// if more actors, we add them manually
-		for (int32 ActorId=2; ActorId<NewActors.Num(); ++ActorId)
+		for (AActor* Actor : Actors)
 		{
-			// if not contained, it shouldn't be
-			check (!Actors.Contains(NewActors[ActorId]));
+			FVector Origin, Extent;
+			Actor->GetActorBounds(false, Origin, Extent);
 
-			FSphere NewBound = AddActor(NewActors[ActorId]);
+			// scale 0.01 (change to meter from centimeter)
+			FSphere NewBound = FSphere(Origin * CM_TO_METER, Extent.Size() * CM_TO_METER);
+
 			FillingFactor = CalculateFillingFactor(NewBound, 1.f, Bound, FillingFactor);
 			Bound += NewBound;
 		}
 
-		ClusterCost = ( Bound.W * Bound.W * Bound.W ) / FillingFactor;
+		ClusterCost = (Bound.W * Bound.W * Bound.W) / FillingFactor;
 	}
 }
 
