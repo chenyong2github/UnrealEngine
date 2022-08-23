@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfaceUtilities.h"
 #include "NiagaraComponent.h"
 #include "NiagaraComputeExecutionContext.h"
+#include "NiagaraConstants.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraSystem.h"
 
@@ -151,6 +152,11 @@ void ForEachDataInterface(const FNiagaraParameterStore& ParameterStore, TFunctio
 	for (const FNiagaraVariableWithOffset& Variable : ParameterStore.ReadParameterVariables())
 	{
 		if (Variable.IsDataInterface() == false)
+		{
+			continue;
+		}
+
+		if (Variable.IsInNameSpace(FNiagaraConstants::InternalNamespaceString))
 		{
 			continue;
 		}

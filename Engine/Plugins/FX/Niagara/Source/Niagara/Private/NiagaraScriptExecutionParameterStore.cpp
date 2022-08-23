@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraScriptExecutionParameterStore.h"
+#include "NiagaraConstants.h"
 #include "NiagaraStats.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraSystemInstance.h"
@@ -320,7 +321,11 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 		{
 			// If the data interface wasn't used in a parameter map, mangle the name so that it doesn't accidentally bind to
 			// a valid parameter.
-			ParameterName = *(TEXT("__INTERNAL__.") + Info.Name.ToString());
+			FNameBuilder NameBuilder;
+			NameBuilder.Append(FNiagaraConstants::InternalNamespaceString);
+			NameBuilder.AppendChar(TEXT('.'));
+			Info.Name.AppendString(NameBuilder);
+			ParameterName = FName(NameBuilder.ToString()); ;
 		}
 
 		FNiagaraVariable Var(Info.Type, ParameterName);
