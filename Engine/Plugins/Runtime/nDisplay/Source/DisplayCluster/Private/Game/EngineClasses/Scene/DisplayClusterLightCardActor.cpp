@@ -174,6 +174,16 @@ void ADisplayClusterLightCardActor::PostEditChangeProperty(FPropertyChangedEvent
 	}
 }
 
+FName ADisplayClusterLightCardActor::GetCustomIconName() const
+{
+	if (bIsUVLightCard)
+	{
+		return TEXT("UVLightCard");
+	}
+
+	return Super::GetCustomIconName();
+}
+
 #endif
 
 FTransform ADisplayClusterLightCardActor::GetLightCardTransform(bool bIgnoreSpinYawPitch) const

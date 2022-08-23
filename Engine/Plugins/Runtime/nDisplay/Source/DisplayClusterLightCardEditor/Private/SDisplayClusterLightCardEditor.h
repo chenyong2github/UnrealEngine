@@ -17,7 +17,7 @@ class FTabManager;
 class FToolBarBuilder;
 class FUICommandList;
 class SDockTab;
-class SDisplayClusterLightCardList;
+class SDisplayClusterLightCardOutliner;
 class SDisplayClusterLightCardTemplateList;
 class SDisplayClusterLightCardEditorViewport;
 class ADisplayClusterRootActor;
@@ -33,6 +33,9 @@ public:
 	/** The name of the tab that the light card editor lives in */
 	static const FName TabName;
 
+	/** The name of the tab that the outliner lives in */
+	static const FName OutlinerTabName;
+
 	/** Registers the light card editor with the global tab manager and adds it to the operator panel's extension tab stack */
 	static void RegisterTabSpawner();
 
@@ -45,6 +48,9 @@ public:
 	/** Creates a tab with the light card editor inside */
 	static TSharedRef<SDockTab> SpawnInTab(const FSpawnTabArgs& SpawnTabArgs);
 
+	/** Spawns in the outliner tab */
+	static TSharedRef<SDockTab> SpawnOutlinerTab(const FSpawnTabArgs& SpawnTabArgs);
+	
 	SLATE_BEGIN_ARGS(SDisplayClusterLightCardEditor)
 	{}
 	SLATE_END_ARGS()
@@ -56,8 +62,11 @@ public:
 	virtual void PostRedo(bool bSuccess) override;
 	// ~FEditorUndoClient
 	
-	void Construct(const FArguments& args, const TSharedRef<SDockTab>& MajorTabOwner, const TSharedPtr<SWindow>& WindowOwner);
+	void Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& MajorTabOwner, const TSharedPtr<SWindow>& WindowOwner);
 
+	/** Return the command list for the light card editor */
+	TSharedPtr<FUICommandList> GetCommandList() const { return CommandList; }
+	
 	/** The current active root actor for this light card editor */
 	TWeakObjectPtr<ADisplayClusterRootActor> GetActiveRootActor() const { return ActiveRootActor; }
 
@@ -74,7 +83,7 @@ public:
 	void CenterLightCardInView(ADisplayClusterLightCardActor& LightCard);
 
 	/** Spawns a new light card and adds it to the root actor */
-	ADisplayClusterLightCardActor* SpawnLightCard();
+	ADisplayClusterLightCardActor* SpawnLightCard(const FName& LightCardName = TEXT("LightCard"));
 
 	/** Spawns a new light card from a light card template */
 	ADisplayClusterLightCardActor* SpawnLightCardFromTemplate(const UDisplayClusterLightCardTemplate* InTemplate, ULevel* InLevel = nullptr, bool bIsPreview = false);
@@ -84,6 +93,9 @@ public:
 
 	/** Select an existing Light Card from a menu */
 	void AddExistingLightCard();
+
+	/** Adds a new light card configured as a flag */
+	void AddNewFlag();
 
 	/** Adds the given Light Card to the root actor */
 	void AddLightCardsToActor(TArray<ADisplayClusterLightCardActor*> LightCards);
@@ -121,6 +133,13 @@ public:
 	 */
 	void RemoveLightCards(bool bDeleteLightCardActor);
 
+	/**
+	 * Remove the given light cards from the actor
+	 * @param InLightCardsToRemove Light cards which should be removed
+	 * @param bDeleteLightCards If the light cards should be deleted from the level
+	 */
+	void RemoveLightCards(const TArray<ADisplayClusterLightCardActor*>& InLightCardsToRemove, bool bDeleteLightCards);
+	
 	/** If the selected Light Card can be removed */
 	bool CanRemoveLightCards() const;
 
@@ -150,7 +169,7 @@ private:
 	void OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor);
 
 	/** Creates the widget used to show the list of light cards associated with the active root actor */
-	TSharedRef<SWidget> CreateLightCardListWidget();
+	TSharedRef<SWidget> CreateLightCardOutlinerWidget();
 
 	/** Create the widget for selecting light card templates */
 	TSharedRef<SWidget> CreateLightCardTemplateWidget();
@@ -211,9 +230,6 @@ private:
 	/** Raised when any object is transacted */
 	void OnObjectTransacted(UObject* Object, const FTransactionObjectEvent& TransactionObjectEvent);
 
-	/** Raised when the light card list has added or removed a card */
-	void OnLightCardListChanged();
-
 	/** Add an item to recently placed list. Reorders matching items to the top of the list and trims the list */
 	void AddRecentlyPlacedItem(const FDisplayClusterLightCardEditorRecentItem& InItem);
 
@@ -221,10 +237,8 @@ private:
 	void CleanupRecentlyPlacedItems();
 	
 private:
-	TSharedPtr<FTabManager> TabManager;
-	
-	/** The light card list widget */
-	TSharedPtr<SDisplayClusterLightCardList> LightCardList;
+	/** The light card outliner widget */
+	TSharedPtr<SDisplayClusterLightCardOutliner> LightCardOutliner;
 
 	/** Templates to their icon brushes */
 	TMap<TWeakObjectPtr<UDisplayClusterLightCardTemplate>, TSharedPtr<FSlateBrush>> TemplateBrushes;

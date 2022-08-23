@@ -23,6 +23,7 @@ UDisplayClusterLightCardEditorProjectSettings::UDisplayClusterLightCardEditorPro
 }
 
 const FName FDisplayClusterLightCardEditorRecentItem::Type_LightCard = "LightCard";
+const FName FDisplayClusterLightCardEditorRecentItem::Type_Flag = "Flag";
 const FName FDisplayClusterLightCardEditorRecentItem::Type_LightCardTemplate = "LightCardTemplate";
 
 FText FDisplayClusterLightCardEditorRecentItem::GetItemDisplayName() const
@@ -30,6 +31,10 @@ FText FDisplayClusterLightCardEditorRecentItem::GetItemDisplayName() const
 	if (ItemType == Type_LightCard)
 	{
 		return LOCTEXT("LightCardRecentItemName", "Light Card");
+	}
+	if (ItemType == Type_Flag)
+	{
+		return LOCTEXT("FlagRecentItemName", "Flag");
 	}
 	if (const UObject* Object = ObjectPath.LoadSynchronous())
 	{
@@ -41,7 +46,7 @@ FText FDisplayClusterLightCardEditorRecentItem::GetItemDisplayName() const
 
 const FSlateBrush* FDisplayClusterLightCardEditorRecentItem::GetSlateBrush() const
 {
-	if (ItemType == Type_LightCard)
+	if (ItemType == Type_LightCard || ItemType == Type_Flag)
 	{
 		return FSlateIconFinder::FindIconBrushForClass(ADisplayClusterLightCardActor::StaticClass());
 	}

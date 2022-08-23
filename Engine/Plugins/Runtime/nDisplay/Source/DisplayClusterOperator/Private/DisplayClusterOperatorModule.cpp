@@ -47,6 +47,11 @@ FName FDisplayClusterOperatorModule::GetAuxilliaryOperatorExtensionId()
 	return SDisplayClusterOperatorPanel::AuxilliaryTabExtensionId;
 }
 
+FName FDisplayClusterOperatorModule::GetDetailsTabId()
+{
+	return SDisplayClusterOperatorPanel::DetailsTabId;
+}
+
 void FDisplayClusterOperatorModule::GetRootActorLevelInstances(TArray<ADisplayClusterRootActor*>& OutRootActorInstances)
 {
 	UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;

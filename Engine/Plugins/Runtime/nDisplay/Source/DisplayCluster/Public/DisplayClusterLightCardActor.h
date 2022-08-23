@@ -45,7 +45,7 @@ struct FLightCardAlphaGradientSettings
 	float Angle = 0;
 };
 
-UCLASS(Blueprintable)
+UCLASS(Blueprintable, DisplayName = "Light Card")
 class DISPLAYCLUSTER_API ADisplayClusterLightCardActor : public AActor
 {
 	GENERATED_BODY()
@@ -82,6 +82,7 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool ShouldTickIfViewportsOnly() const override { return true; }
+	virtual FName GetCustomIconName() const override;
 #endif
 
 	/**

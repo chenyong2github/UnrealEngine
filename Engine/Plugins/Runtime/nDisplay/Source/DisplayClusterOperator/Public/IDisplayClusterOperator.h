@@ -66,6 +66,9 @@ public:
 	/** Gets the extension ID for the auxilliary window region intended for lower-thirds windows (e.g log output) that can be used to add tabs to the operator panel */
 	virtual FName GetAuxilliaryOperatorExtensionId() = 0;
 
+	/** Gets the tab ID used for the details panel */
+	virtual FName GetDetailsTabId() = 0;
+	
 	/** Gets the extensibility manager for the operator panel's toolbar */
 	virtual TSharedPtr<FExtensibilityManager> GetOperatorToolBarExtensibilityManager() = 0;
 

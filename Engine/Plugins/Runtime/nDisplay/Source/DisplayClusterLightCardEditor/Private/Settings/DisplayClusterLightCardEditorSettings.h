@@ -38,6 +38,7 @@ struct FDisplayClusterLightCardEditorRecentItem
 	GENERATED_BODY()
 	
 	static const FName Type_LightCard;
+	static const FName Type_Flag;
 	static const FName Type_LightCardTemplate;
 
 	/** Path of object to instantiate */

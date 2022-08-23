@@ -64,7 +64,7 @@ void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSh
 					(
 						FTabManager::NewSplitter()
 						->SetOrientation(Orient_Vertical)
-						->SetSizeCoefficient(0.67f)
+						->SetSizeCoefficient(0.75f)
 						->Split
 						(
 							FTabManager::NewStack()
@@ -78,10 +78,16 @@ void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSh
 					)
 					->Split
 					(
-						FTabManager::NewStack()
+						FTabManager::NewSplitter()
+						->SetOrientation(Orient_Vertical)
+						->SetSizeCoefficient(0.25f)
+						->Split
+						(
+							FTabManager::NewStack()
 							->AddTab(DetailsTabId, ETabState::OpenedTab)
 							->SetHideTabWell(true)
-							->SetSizeCoefficient(0.33f)
+						)
+						
 					)
 			)
 		);

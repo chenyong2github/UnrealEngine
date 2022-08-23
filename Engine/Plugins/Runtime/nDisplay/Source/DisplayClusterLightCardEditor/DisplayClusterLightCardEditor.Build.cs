@@ -35,6 +35,8 @@ public class DisplayClusterLightCardEditor : ModuleRules
 				"UnrealEd",
 				"WorkspaceMenuStructure",
 				"ToolWidgets",
+				"ToolMenus",
+				"SceneOutliner"
 			});
 	}
 }

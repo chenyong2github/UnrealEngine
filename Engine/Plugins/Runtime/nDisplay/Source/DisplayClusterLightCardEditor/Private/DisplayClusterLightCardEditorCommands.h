@@ -38,6 +38,7 @@ public:
 	TSharedPtr<FUICommandInfo> ViewOrientationBack;
 
 	TSharedPtr<FUICommandInfo> AddNewLightCard;
+	TSharedPtr<FUICommandInfo> AddNewFlag;
 	TSharedPtr<FUICommandInfo> AddExistingLightCard;
 	TSharedPtr<FUICommandInfo> RemoveLightCard;
 	TSharedPtr<FUICommandInfo> PasteHere;

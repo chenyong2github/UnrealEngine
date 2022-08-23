@@ -33,6 +33,7 @@ public:
 
 	virtual FName GetPrimaryOperatorExtensionId() override;
 	virtual FName GetAuxilliaryOperatorExtensionId() override;
+	virtual FName GetDetailsTabId() override;
 	virtual TSharedPtr<FExtensibilityManager> GetOperatorToolBarExtensibilityManager() override { return OperatorToolBarExtensibilityManager; }
 	virtual void GetRootActorLevelInstances(TArray<ADisplayClusterRootActor*>& OutRootActorInstances) override;
 	virtual void ShowDetailsForObject(UObject* Object) override;
