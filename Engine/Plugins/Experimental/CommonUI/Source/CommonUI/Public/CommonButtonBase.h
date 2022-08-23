@@ -230,6 +230,9 @@ public:
 	/** Called when the button receives focus */
 	FSimpleDelegate OnReceivedFocus;
 
+	/** Called when the button loses focus */
+	FSimpleDelegate OnLostFocus;
+
 protected:
 	// UWidget interface
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -243,6 +246,9 @@ protected:
 
 	/** Called when internal slate button receives focus; Fires OnReceivedFocus */
 	void SlateHandleOnReceivedFocus();
+
+	/** Called when internal slate button loses focus; Fires OnLostFocus */
+	void SlateHandleOnLostFocus();
 
 	/** The minimum width of the button */
 	UPROPERTY()
@@ -346,9 +352,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Common Button|Setters")
 	void SetIsSelected(bool InSelected, bool bGiveClickFeedback = true);
 
+	/** Change whether this widget is locked. If locked, the button can be focusable and responsive to mouse input but will not broadcast OnClicked events. */
+	UFUNCTION(BlueprintCallable, Category = "Common Button|Setters")
+	void SetIsLocked(bool bInIsLocked);
+
 	/** @returns True if the button is currently in a selected state, False otherwise */
 	UFUNCTION(BlueprintCallable, Category = "Common Button|Getters")
 	bool GetSelected() const;
+
+	/** @returns True if the button is currently locked, False otherwise */
+	UFUNCTION(BlueprintCallable, Category = "Common Button|Getters")
+	bool GetLocked() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Common Button" )
 	void ClearSelection();
@@ -432,6 +446,9 @@ public:
 	FCommonButtonEvent& OnHovered() const { return OnHoveredEvent; }
 	FCommonButtonEvent& OnUnhovered() const { return OnUnhoveredEvent; }
 	FCommonButtonEvent& OnFocusReceived() const { return OnFocusReceivedEvent; }
+	FCommonButtonEvent& OnFocusLost() const { return OnFocusLostEvent; }
+	FCommonButtonEvent& OnLockClicked() const { return OnLockClickedEvent; }
+	FCommonButtonEvent& OnLockDoubleClicked() const { return OnLockDoubleClickedEvent; }
 
 	DECLARE_EVENT_OneParam(UCommonButtonBase, FOnIsSelectedChanged, bool);
 	FOnIsSelectedChanged& OnIsSelectedChanged() const { return OnIsSelectedChangedEvent; }
@@ -443,6 +460,7 @@ protected:
 	virtual void PostLoad() override;
 	virtual void SynchronizeProperties() override;
 	virtual FReply NativeOnFocusReceived(const FGeometry& InGeometry, const FFocusEvent& InFocusEvent) override;
+	virtual void NativeOnFocusLost(const FFocusEvent& InFocusEvent) override;
 
 #if WITH_EDITOR
 	virtual void OnCreationFromPalette() override;
@@ -484,6 +502,10 @@ protected:
 	/** Helper function registered to the underlying button receiving focus */
 	UFUNCTION()
 	virtual void HandleFocusReceived();
+	
+	/** Helper function registered to the underlying button losing focus */
+	UFUNCTION()
+	virtual void HandleFocusLost();
 
 	/** Helper function registered to the underlying button when pressed */
 	UFUNCTION()
@@ -508,6 +530,21 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Unhovered"))
 	void BP_OnUnhovered();
 	virtual void NativeOnUnhovered();
+	
+	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Focused"))
+	void BP_OnFocusReceived();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Unfocused"))
+	void BP_OnFocusLost();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Locked Changed"))
+	void BP_OnLockedChanged(bool bIsLocked);
+	
+	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Lock Clicked"))
+	void BP_OnLockClicked();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Lock Double Clicked"))
+	void BP_OnLockDoubleClicked();
 
 	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Clicked"))
 	void BP_OnClicked();
@@ -613,7 +650,7 @@ protected:
 	/** True if the button can be deselected by clicking it when selected */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Selection, meta = (ExposeOnSpawn = true, EditCondition = "bSelectable"))
 	uint8 bToggleable:1;
-
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Selection, meta = (ExposeOnSpawn = true, EditCondition = "bSelectable"))
 	uint8 bTriggerClickedAfterSelection:1;
 
@@ -633,6 +670,9 @@ private:
 
 	/** True if this button is currently selected */
 	uint8 bSelected:1;
+
+	/** True if this button is currently locked */
+	uint8 bLocked:1;
 
 	/** True if this button is currently enabled */
 	uint8 bButtonEnabled:1;
@@ -754,6 +794,9 @@ private:
 	mutable FCommonButtonEvent OnHoveredEvent;
 	mutable FCommonButtonEvent OnUnhoveredEvent;
 	mutable FCommonButtonEvent OnFocusReceivedEvent;
+	mutable FCommonButtonEvent OnFocusLostEvent;
+	mutable FCommonButtonEvent OnLockClickedEvent;
+	mutable FCommonButtonEvent OnLockDoubleClickedEvent;
 
 	mutable FOnIsSelectedChanged OnIsSelectedChangedEvent;
 

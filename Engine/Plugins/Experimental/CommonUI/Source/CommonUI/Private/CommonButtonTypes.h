@@ -38,6 +38,7 @@ public:
 		SLATE_ARGUMENT(EButtonPressMethod::Type, PressMethod)
 		SLATE_ARGUMENT(bool, IsFocusable)
 		SLATE_EVENT(FSimpleDelegate, OnReceivedFocus)
+		SLATE_EVENT(FSimpleDelegate, OnLostFocus)
 
 		/** Is interaction enabled? */
 		SLATE_ARGUMENT(bool, IsButtonEnabled)
@@ -69,6 +70,7 @@ public:
 		SetHover(false);
 
 		OnReceivedFocus = InArgs._OnReceivedFocus;
+		OnLostFocus = InArgs._OnLostFocus;
 		bIsButtonEnabled = InArgs._IsButtonEnabled;
 		bIsInteractionEnabled = InArgs._IsInteractionEnabled;
 		bHovered = false;
@@ -101,6 +103,8 @@ public:
 	/** Overridden to fire delegate for external listener */
 	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent);
 
+	virtual void OnFocusLost(const FFocusEvent& InFocusEvent) override;
+
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyClippingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 protected:
@@ -112,6 +116,9 @@ private:
 
 	/** Delegate fired whenever focus is received */
 	FSimpleDelegate OnReceivedFocus;
+
+	/** Delegate fired whenever focus is lost */
+	FSimpleDelegate OnLostFocus;
 
 	/** True if the button is enabled */
 	bool bIsButtonEnabled;

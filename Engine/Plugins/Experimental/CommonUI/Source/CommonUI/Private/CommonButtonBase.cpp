@@ -237,7 +237,8 @@ TSharedRef<SWidget> UCommonButtonInternalBase::RebuildWidget()
 		.IsFocusable(IsFocusable)
 		.IsButtonEnabled(bButtonEnabled)
 		.IsInteractionEnabled(bInteractionEnabled)
-		.OnReceivedFocus(BIND_UOBJECT_DELEGATE(FSimpleDelegate, SlateHandleOnReceivedFocus));
+		.OnReceivedFocus(BIND_UOBJECT_DELEGATE(FSimpleDelegate, SlateHandleOnReceivedFocus))
+		.OnLostFocus(BIND_UOBJECT_DELEGATE(FSimpleDelegate, SlateHandleOnLostFocus));
 
 	MyBox = SNew(SBox)
 		.MinDesiredWidth(MinWidth)
@@ -300,6 +301,11 @@ void UCommonButtonInternalBase::SlateHandleOnReceivedFocus()
 	OnReceivedFocus.ExecuteIfBound();
 }
 
+void UCommonButtonInternalBase::SlateHandleOnLostFocus()
+{
+	OnLostFocus.ExecuteIfBound();
+}
+
 //////////////////////////////////////////////////////////////////////////
 // UCommonButtonBase
 //////////////////////////////////////////////////////////////////////////
@@ -316,6 +322,7 @@ UCommonButtonBase::UCommonButtonBase(const FObjectInitializer& ObjectInitializer
 	, bDisplayInputActionWhenNotInteractable(true)
 	, bShouldUseFallbackDefaultInputAction(true)
 	, bSelected(false)
+	, bLocked(false)
 	, bButtonEnabled(true)
 	, bInteractionEnabled(true)
 {
@@ -397,6 +404,7 @@ bool UCommonButtonBase::Initialize()
 			RootButton->OnClicked.AddUniqueDynamic(this, &UCommonButtonBase::HandleButtonClicked);
 			RootButton->HandleDoubleClicked.BindUObject(this, &UCommonButtonBase::HandleButtonDoubleClicked);
 			RootButton->OnReceivedFocus.BindUObject(this, &UCommonButtonBase::HandleFocusReceived);
+			RootButton->OnLostFocus.BindUObject(this, &UCommonButtonBase::HandleFocusLost);
 			RootButton->OnPressed.AddUniqueDynamic(this, &UCommonButtonBase::HandleButtonPressed);
 			RootButton->OnReleased.AddUniqueDynamic(this, &UCommonButtonBase::HandleButtonReleased);
 		}
@@ -721,6 +729,13 @@ void UCommonButtonBase::SetIsSelected(bool InSelected, bool bGiveClickFeedback)
 	}
 }
 
+void UCommonButtonBase::SetIsLocked(bool bInIsLocked)
+{
+	bLocked = bInIsLocked;
+
+	BP_OnLockedChanged(bLocked);
+}
+
 void UCommonButtonBase::SetSelectedInternal(bool bInSelected, bool bAllowSound /*= true*/, bool bBroadcast /*= true*/)
 {
 	bSelected = bInSelected;
@@ -793,6 +808,11 @@ void UCommonButtonBase::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 bool UCommonButtonBase::GetSelected() const
 {
 	return bSelected;
+}
+
+bool UCommonButtonBase::GetLocked() const
+{
+	return bLocked;
 }
 
 void UCommonButtonBase::ClearSelection()
@@ -1042,6 +1062,13 @@ void UCommonButtonBase::HandleFocusReceived()
 		SetIsSelected(true, false);
 	}
 	OnFocusReceived().Broadcast();
+	BP_OnFocusReceived();
+}
+
+void UCommonButtonBase::HandleFocusLost()
+{
+	OnFocusLost().Broadcast();
+	BP_OnFocusLost();
 }
 
 void UCommonButtonBase::HandleButtonPressed()
@@ -1077,6 +1104,11 @@ FReply UCommonButtonBase::NativeOnFocusReceived(const FGeometry& InGeometry, con
 	HandleFocusReceived();
 
 	return Reply;
+}
+
+void UCommonButtonBase::NativeOnFocusLost(const FFocusEvent& InFocusEvent)
+{
+	Super::NativeOnFocusLost(InFocusEvent);
 }
 
 void UCommonButtonBase::NativeOnSelected(bool bBroadcast)
@@ -1135,33 +1167,49 @@ void UCommonButtonBase::NativeOnUnhovered()
 
 void UCommonButtonBase::NativeOnClicked()
 {
-	BP_OnClicked();
-	OnClicked().Broadcast();
-	if (OnButtonBaseClicked.IsBound())
+	if(!GetLocked())
 	{
-		OnButtonBaseClicked.Broadcast(this);
-	}
-
-	FString ButtonName, ABTestName, ExtraData;
-	if (GetButtonAnalyticInfo(ButtonName, ABTestName, ExtraData))
-	{
-		UCommonUISubsystemBase* CommonUISubsystem = GetUISubsystem();
-		if (GetGameInstance())
+		BP_OnClicked();
+		OnClicked().Broadcast();
+		if (OnButtonBaseClicked.IsBound())
 		{
-			check(CommonUISubsystem);
-
-			CommonUISubsystem->FireEvent_ButtonClicked(ButtonName, ABTestName, ExtraData);
+			OnButtonBaseClicked.Broadcast(this);
 		}
+		
+		FString ButtonName, ABTestName, ExtraData;
+		if (GetButtonAnalyticInfo(ButtonName, ABTestName, ExtraData))
+		{
+			UCommonUISubsystemBase* CommonUISubsystem = GetUISubsystem();
+			if (GetGameInstance())
+			{
+				check(CommonUISubsystem);
+
+				CommonUISubsystem->FireEvent_ButtonClicked(ButtonName, ABTestName, ExtraData);
+			}
+		}
+	}
+	else
+	{
+		BP_OnLockClicked();
+		OnLockClicked().Broadcast();
 	}
 }
 
 void UCommonButtonBase::NativeOnDoubleClicked()
 {
-	BP_OnDoubleClicked();
-	OnDoubleClicked().Broadcast();
-	if (OnButtonBaseDoubleClicked.IsBound())
+	if(!GetLocked())
 	{
-		OnButtonBaseDoubleClicked.Broadcast(this);
+		BP_OnDoubleClicked();
+		OnDoubleClicked().Broadcast();
+		if (OnButtonBaseDoubleClicked.IsBound())
+		{
+			OnButtonBaseDoubleClicked.Broadcast(this);
+		}
+	}
+	else
+	{
+		BP_OnLockDoubleClicked();
+		OnLockDoubleClicked().Broadcast();
 	}
 }
 

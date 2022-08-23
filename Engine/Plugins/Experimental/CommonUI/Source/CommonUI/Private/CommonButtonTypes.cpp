@@ -196,6 +196,11 @@ FReply SCommonButton::OnFocusReceived(const FGeometry& MyGeometry, const FFocusE
 	return ReturnReply;
 }
 
+void SCommonButton::OnFocusLost(const FFocusEvent& InFocusEvent)
+{
+	OnLostFocus.ExecuteIfBound();
+}
+
 int32 SCommonButton::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyClippingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	bool bEnabled = bParentEnabled && bIsButtonEnabled;
