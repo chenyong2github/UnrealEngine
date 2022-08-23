@@ -229,6 +229,11 @@ void FBlueprintNamespaceUtilities::GetSharedGlobalImports(TSet<FString>& OutName
 	OutNamespaces.Remove(FString());
 }
 
+void FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(const UBlueprint* InBlueprint, TSet<FString>& OutNamespaces)
+{
+	GetDefaultImportsForObject(InBlueprint, OutNamespaces);
+}
+
 void FBlueprintNamespaceUtilities::GetDefaultImportsForObject(const UObject* InObject, TSet<FString>& OutNamespaces)
 {
 	if (!InObject)

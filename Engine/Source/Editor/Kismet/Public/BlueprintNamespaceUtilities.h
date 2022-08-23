@@ -74,10 +74,7 @@ public:
 	 * @param OutNamespaces	Zero or more unique namespace identifier(s) representing the Blueprint asset's default namespace set.
 	 */
 	UE_DEPRECATED(5.1, "Please use GetDefaultImportsForObject instead")
-	inline static void GetDefaultImportsForBlueprint(const UBlueprint* InBlueprint, TSet<FString>& OutNamespaces)
-	{
-		GetDefaultImportsForObject(InBlueprint, OutNamespaces);
-	}
+	static void GetDefaultImportsForBlueprint(const UBlueprint* InBlueprint, TSet<FString>& OutNamespaces);
 
 	/**
 	 * Gathers the set of default namespaces that are implicitly imported by a given object's type.
