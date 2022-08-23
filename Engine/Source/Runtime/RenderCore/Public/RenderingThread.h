@@ -344,10 +344,8 @@ class FRHIAsyncCommandList
 {
 public:
 	FRHIAsyncCommandList(FRHIGPUMask InGPUMask = FRHIGPUMask::All())
-		: RHICmdListStack(InGPUMask)
-	{
-		RHICmdListStack.DisallowBypass();
-	}
+		: RHICmdListStack(InGPUMask, FRHICommandList::ERecordingThread::Any)
+	{}
 
 	FRHICommandList& GetCommandList()
 	{
@@ -368,7 +366,7 @@ public:
 	{
 		if (RHICmdListStack.HasCommands())
 		{
-			FRHICommandList* RHICmdList = new FRHICommandList(FRHIGPUMask::All());
+			FRHICommandList* RHICmdList = new FRHICommandList(FRHIGPUMask::All(), FRHICommandList::ERecordingThread::Any);
 			RHICmdList->ExchangeCmdList(RHICmdListStack);
 
 			ENQUEUE_RENDER_COMMAND(AsyncCommandListScope)(

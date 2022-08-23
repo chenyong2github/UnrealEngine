@@ -42,8 +42,8 @@ FORCEINLINE_DEBUGGABLE bool FRHICommandListBase::Bypass() const
 {
 	check(!IsImmediate() || IsInRenderingThread() || IsInRHIThread());
 	return GRHICommandList.Bypass()
-#if CAN_DISALLOW_COMMAND_LIST_BYPASS
-		&& bAllowBypass
+#if CAN_TOGGLE_COMMAND_LIST_BYPASS
+		&& RecordingThread == ERecordingThread::Render
 #endif
 		;
 }

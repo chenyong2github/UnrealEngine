@@ -1104,10 +1104,11 @@ void FRHICommandListExecutor::Transition(TArrayView<const FRHITransitionInfo> In
 	}
 }
 
-FRHICommandListBase::FRHICommandListBase(FRHIGPUMask InGPUMask)
+FRHICommandListBase::FRHICommandListBase(FRHIGPUMask InGPUMask, ERecordingThread InRecordingThread)
 	: Root(nullptr)
 	, CommandLink(nullptr)
 	, bExecuting(false)
+	, RecordingThread(InRecordingThread)
 	, NumCommands(0)
 	, UID(UINT32_MAX)
 	, Context(nullptr)
@@ -1118,14 +1119,26 @@ FRHICommandListBase::FRHICommandListBase(FRHIGPUMask InGPUMask)
 	, InitialGPUMask(InGPUMask)
 	, BoundComputeShaderRHI(nullptr)
 {
-	GRHICommandList.OutstandingCmdListCount.Increment();
+	if (RecordingThread == ERecordingThread::Render)
+	{
+		GRHICommandList.OutstandingCmdListCount.Increment();
+	}
+	else
+	{
+		checkf(!PLATFORM_RHITHREAD_DEFAULT_BYPASS, TEXT("The platform has enabled RHI command list bypass mode for shipping builds. Only render thread command lists are allowed."));
+	}
+
 	Reset();
 }
 
 FRHICommandListBase::~FRHICommandListBase()
 {
 	Flush();
-	GRHICommandList.OutstandingCmdListCount.Decrement();
+
+	if (RecordingThread == ERecordingThread::Render)
+	{
+		GRHICommandList.OutstandingCmdListCount.Decrement();
+	}
 }
 
 const int32 FRHICommandListBase::GetUsedMemory() const
