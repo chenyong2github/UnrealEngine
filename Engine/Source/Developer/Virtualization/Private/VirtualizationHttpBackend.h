@@ -40,6 +40,8 @@ private:
 
 	virtual bool Initialize(const FString& ConfigEntry) override;
 
+	virtual EConnectionStatus OnConnect() override;
+
 	virtual EPushResult PushData(const FIoHash& Id, const FCompressedBuffer& CompressedPayload, const FString& PackageContext) override;
 
 	virtual FCompressedBuffer PullData(const FIoHash& Id) override;

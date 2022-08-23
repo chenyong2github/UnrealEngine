@@ -36,6 +36,8 @@ private:
 
 	virtual bool Initialize(const FString& ConfigEntry) override;
 
+	virtual EConnectionStatus OnConnect() override;
+
 	virtual EPushResult PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& PackageContext) override;
 	virtual bool PushData(TArrayView<FPushRequest> Requests) override;
 

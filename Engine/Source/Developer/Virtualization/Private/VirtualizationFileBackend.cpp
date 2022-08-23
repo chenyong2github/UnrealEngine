@@ -53,6 +53,11 @@ bool FFileSystemBackend::Initialize(const FString& ConfigEntry)
 	return true;
 }
 
+IVirtualizationBackend::EConnectionStatus FFileSystemBackend::OnConnect()
+{
+	return IVirtualizationBackend::EConnectionStatus::Connected;
+}
+
 EPushResult FFileSystemBackend::PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& PackageContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::PushData);

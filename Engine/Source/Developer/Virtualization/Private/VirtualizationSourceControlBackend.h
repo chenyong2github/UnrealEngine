@@ -65,6 +65,8 @@ private:
 	/* IVirtualizationBackend implementation */
 
 	virtual bool Initialize(const FString& ConfigEntry) override;
+
+	virtual EConnectionStatus OnConnect() override;
 	
 	virtual EPushResult PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& Context) override;
 	virtual bool PushData(TArrayView<FPushRequest> Requests) override;

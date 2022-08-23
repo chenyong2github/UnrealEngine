@@ -61,6 +61,7 @@ class FOutputDevice;
  * FilterEngineContent=True/False			When true any payload from a package under Engine/Content/.. will be excluded from virtualization
  * FilterEnginePluginContent=True/False		When true any payload from a package under Engine/Plugins/../Content/.. will be excluded from virtualization
  * FilterMapContent=True/False				When true any payload stored in a .umap or _BuildData.uasset file will be excluded from virtualization
+ * LazyInitConnections=True/False			When true the backends will not try to make their connections until first used.
  * 
  * PackagePath Setup:
  * 
@@ -142,6 +143,9 @@ private:
 private:
 
 	void ApplySettingsFromConfigFiles(const FConfigFile& ConfigFile);
+	void ApplySettingsFromFromCmdline();
+	void ApplySettingsFromCVar();
+
 	void ApplyDebugSettingsFromFromCmdline();
 
 	void RegisterConsoleCommands();
@@ -160,6 +164,8 @@ private:
 	bool CreateBackend(const FConfigFile& ConfigFile, const TCHAR* GraphName, const FString& ConfigEntryName, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
 
 	void AddBackend(TUniquePtr<IVirtualizationBackend> Backend, FBackendArray& PushArray);
+
+	void EnsureBackendConnections();
 
 	void CachePayload(const FIoHash& Id, const FCompressedBuffer& Payload, const IVirtualizationBackend* BackendSource);
 
@@ -231,6 +237,9 @@ private:
 	/** Should file submits be allowed to continue if a call to TryVirtualizePackages fails */
 	bool bAllowSubmitIfVirtualizationFailed;
 	
+	/** Should backends defer connecting to their services until first use */
+	bool bLazyInitConnections;
+
 private:
 
 	/** The name of the current project */
@@ -253,6 +262,9 @@ private:
 	 * and can contain a mixture of local cacheable and persistent backends 
 	 */
 	FBackendArray PullEnabledBackends;
+
+	/** Do we have backends that have not yet tried connecting to their services */
+	bool bPendingBackendConnections;
 
 	/** Our notification Event */
 	FOnNotification NotificationEvent;

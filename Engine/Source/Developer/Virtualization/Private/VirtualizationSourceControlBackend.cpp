@@ -233,6 +233,11 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 		return false;
 	}
 
+	return true;
+}
+
+IVirtualizationBackend::EConnectionStatus FSourceControlBackend::OnConnect()
+{
 	// We do not want the connection to have a client workspace so explicitly set it to empty
 	FSourceControlInitSettings SCCSettings(FSourceControlInitSettings::EBehavior::OverrideExisting);
 	SCCSettings.AddSetting(TEXT("P4Client"), TEXT(""));
@@ -241,11 +246,11 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 	if (!SCCProvider.IsValid())
 	{
 		UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to create a perforce connection, this seems to be unsupported by the editor"), *GetDebugName());
-		return false;
+		return IVirtualizationBackend::EConnectionStatus::Error;
 	}
 
 	SCCProvider->Init(true);
- 
+
 	if (IsInGameThread())
 	{
 		// Note that if the connect is failing then we expect it to fail here rather than in the subsequent attempts to get the meta info file
@@ -263,7 +268,7 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 				Errors.ToText()));
 
 			OnConnectionError();
-			return true;
+			return IVirtualizationBackend::EConnectionStatus::Error;
 		}
 	}
 
@@ -278,11 +283,11 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 		FMessageLog Log("LogVirtualization");
 
 		Log.Warning(FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\nThe source control backend will be unable to pull payloads, is your source control  config set up correctly?"),
-					FText::FromString(DepotRoot)));
-		
+			FText::FromString(DepotRoot)));
+
 		OnConnectionError();
-		return true;
-	}	
+		return IVirtualizationBackend::EConnectionStatus::Error;
+}
 #else
 	TSharedRef<FDownloadFile, ESPMode::ThreadSafe> DownloadCommand = ISourceControlOperation::Create<FDownloadFile>();
 	if (!SCCProvider->TryToDownloadFileFromBackgroundThread(DownloadCommand, PayloadMetaInfoPath))
@@ -290,11 +295,11 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 		FMessageLog Log("LogVirtualization");
 
 		Log.Warning(FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\nThe source control backend will be unable to pull payloads, is your source control  config set up correctly?"),
-					FText::FromString(DepotRoot)));
-		
+			FText::FromString(DepotRoot)));
+
 		OnConnectionError();
-		return true;
-	}		
+		return IVirtualizationBackend::EConnectionStatus::Error;
+	}
 #endif //IS_SOURCE_CONTROL_THREAD_SAFE
 
 	FSharedBuffer MetaInfoBuffer = DownloadCommand->GetFileData(PayloadMetaInfoPath);
@@ -303,18 +308,17 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 		FMessageLog Log("LogVirtualization");
 
 		Log.Warning(FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find 'payload_metainfo.txt' in the depot '{0}'\nThe source control backend will be unable to pull payloads, is your source control  config set up correctly?"),
-					FText::FromString(DepotRoot)));
+			FText::FromString(DepotRoot)));
 
 		OnConnectionError();
-		return true;
+		return IVirtualizationBackend::EConnectionStatus::Error;
 	}
 
 	// Currently we do not do anything with the payload meta info, in the future we could structure
 	// it's format to include more information that might be worth logging or something. 
 	// But for now being able to pull the payload meta info path at least shows that we can use the
 	// depot.
-
-	return true;
+	return IVirtualizationBackend::EConnectionStatus::Connected;
 }
 
 FCompressedBuffer FSourceControlBackend::PullData(const FIoHash& Id)

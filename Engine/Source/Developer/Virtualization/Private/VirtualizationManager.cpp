@@ -25,6 +25,18 @@ namespace UE::Virtualization
 {
 UE_REGISTER_VIRTUALIZATION_SYSTEM(UE::Virtualization::FVirtualizationManager, Default);
 
+// Can be defined as 1 by programs target.cs files force the backend connections
+// to lazy initialize on first use rather than when the system is initialized.
+#ifndef UE_VIRTUALIZATION_CONNECTION_LAZY_INIT
+	#define UE_VIRTUALIZATION_CONNECTION_LAZY_INIT 0
+#endif //UE_VIRTUALIZATION_CONNECTION_LAZY_INIT
+
+// TODO: Move to RegisterConsoleCommands
+static TAutoConsoleVariable<bool> CVarLazyInitConnections(
+	TEXT("VA.LazyInitConnections"),
+	false,
+	TEXT("When true the VA backends will defer creating their connections until first use"));
+
 /** Utility struct, similar to FScopeLock but allows the lock to be enabled/disabled more easily */
 struct FConditionalScopeLock
 {
@@ -281,6 +293,8 @@ FVirtualizationManager::FVirtualizationManager()
 	, bFilterEnginePluginContent(true)
 	, bFilterMapContent(true)
 	, bAllowSubmitIfVirtualizationFailed(false)
+	, bLazyInitConnections(false)
+	, bPendingBackendConnections(false)
 {
 }
 
@@ -319,6 +333,9 @@ bool FVirtualizationManager::Initialize(const FInitParams& InitParams)
 	ProjectName = InitParams.ProjectName;
 
 	ApplySettingsFromConfigFiles(InitParams.ConfigFile);
+	ApplySettingsFromFromCmdline();
+	ApplySettingsFromCVar();
+
 	ApplyDebugSettingsFromFromCmdline();
 
 	// Do this after all of the command line settings have been processed and any 
@@ -470,6 +487,8 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 		return false;
 	}
 
+	EnsureBackendConnections();
+
 	FConditionalScopeLock _(&DebugValues.ForceSingleThreadedCS, DebugValues.bSingleThreaded);
 
 	// TODO: Note that all push operations are currently synchronous, probably 
@@ -482,6 +501,12 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 
 	for (IVirtualizationBackend* Backend : Backends)
 	{
+		if (Backend->GetConnectionStatus() != IVirtualizationBackend::EConnectionStatus::Connected)
+		{
+			UE_LOG(LogVirtualization, Verbose, TEXT("Cannot push to backend '%s' as it is not connected"), *Backend->GetDebugName());
+			continue;
+		}
+
 		const bool bResult = TryPushDataToBackend(*Backend, ValidatedRequests);
 
 		UE_CLOG(bResult == true, LogVirtualization, Verbose, TEXT("[%s] Pushed '%d' payload(s)"), *Backend->GetDebugName(), ValidatedRequests.Num());
@@ -541,6 +566,8 @@ FCompressedBuffer FVirtualizationManager::PullData(const FIoHash& Id)
 		return FCompressedBuffer();
 	}
 
+	EnsureBackendConnections();
+
 	FConditionalScopeLock _(&DebugValues.ForceSingleThreadedCS, DebugValues.bSingleThreaded);
 
 	GetNotificationEvent().Broadcast(IVirtualizationSystem::PullBegunNotification, Id);
@@ -592,11 +619,19 @@ EQueryResult FVirtualizationManager::QueryPayloadStatuses(TArrayView<const FIoHa
 	HitCount.SetNum(Ids.Num());
 	Results.SetNum(Ids.Num());
 
+	EnsureBackendConnections();
+
 	{
 		FConditionalScopeLock _(&DebugValues.ForceSingleThreadedCS, DebugValues.bSingleThreaded);
 
 		for (IVirtualizationBackend* Backend : Backends)
 		{
+			if (Backend->GetConnectionStatus() != IVirtualizationBackend::EConnectionStatus::Connected)
+			{
+				UE_LOG(LogVirtualization, Verbose, TEXT("Cannot query backend '%s' as it is not connected"), *Backend->GetDebugName());
+				continue;
+			}
+
 			if (!Backend->DoPayloadsExist(Ids, Results))
 			{
 				// If a backend entirely failed we should early out and report the problem
@@ -906,6 +941,22 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].AllowSubmitIfVirtualizationFailed from config file!"));
 	}
 
+	// Optional
+#if UE_VIRTUALIZATION_CONNECTION_LAZY_INIT == 0
+	bool bLazyInitConnectionsFromIni = true;
+	if (ConfigFile.GetBool(ConfigSection, TEXT("LazyInitConnections"), bLazyInitConnectionsFromIni))
+	{
+		bLazyInitConnections = bLazyInitConnectionsFromIni;
+		UE_LOG(LogVirtualization, Display, TEXT("\tLazyInitConnections : %s"), bLazyInitConnections ? TEXT("true") : TEXT("false"));
+	}
+	else
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].LazyInitConnections from config file!"));
+	}
+#else
+	UE_LOG(LogVirtualization, Display, TEXT("\tLazyInitConnections : false (set by code)"), bLazyInitConnections ? TEXT("true") : TEXT("false"));
+#endif //UE_VIRTUALIZATION_CONNECTION_LAZY_INIT
+
 	// Check for any legacy settings and print them out (easier to do this in one block rather than one and time)
 	{
 		// Entries that are allows to be in [Core.ContentVirtualization
@@ -933,6 +984,24 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 				UE_LOG(LogVirtualization, Warning, TEXT("\t\t%s"), *LegacyEntry);
 			}
 		}
+	}
+}
+
+void FVirtualizationManager::ApplySettingsFromFromCmdline()
+{
+	if (!bLazyInitConnections && FParse::Param(FCommandLine::Get(), TEXT("VA-LazyInitConnections")))
+	{
+		bLazyInitConnections = true;
+		UE_LOG(LogVirtualization, Display, TEXT("Cmdline has set the virtualization system backends to lazy init their connections"));
+	}
+}
+
+void FVirtualizationManager::ApplySettingsFromCVar()
+{
+	if (!bLazyInitConnections && CVarLazyInitConnections.GetValueOnAnyThread())
+	{
+		bLazyInitConnections = true;
+		UE_LOG(LogVirtualization, Display, TEXT("CVar has set the virtualization system backends to lazy init their connections"));
 	}
 }
 
@@ -1340,6 +1409,7 @@ void FVirtualizationManager::AddBackend(TUniquePtr<IVirtualizationBackend> Backe
 
 	// Get a reference pointer to use in the other backend arrays
 	IVirtualizationBackend* BackendRef = AllBackends.Last().Get();
+	check(BackendRef != nullptr);
 
 	if (BackendRef->IsOperationSupported(IVirtualizationBackend::EOperations::Pull))
 	{
@@ -1351,12 +1421,45 @@ void FVirtualizationManager::AddBackend(TUniquePtr<IVirtualizationBackend> Backe
 		PushArray.Add(BackendRef);
 	}
 
+	// We immediately try to connect once the backend has been added.
+	// In the future this will be made async to avoid blocking the GameThread on startup
+	if (!bLazyInitConnections)
+	{
+		BackendRef->Connect();
+	}
+	else
+	{
+		bPendingBackendConnections = true;
+	}
+
 	COOK_STAT(Profiling::CreateStats(*BackendRef));
+}
+
+void FVirtualizationManager::EnsureBackendConnections()
+{
+	if (bPendingBackendConnections)
+	{
+		// Only allow one thread to initialize the system at a time
+		static FCriticalSection InitCS;
+
+		FScopeLock _(&InitCS);
+		if (bPendingBackendConnections)
+		{
+			for (const TUniquePtr<IVirtualizationBackend>& Backend : AllBackends)
+			{
+				Backend->Connect();
+			}
+
+			bPendingBackendConnections = false;
+		}
+	}
 }
 
 void FVirtualizationManager::CachePayload(const FIoHash& Id, const FCompressedBuffer& Payload, const IVirtualizationBackend* BackendSource)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::CachePayload);
+
+	check(!bPendingBackendConnections);
 
 	// We start caching at the first (assumed to be fastest) local cache backend. 
 	for (IVirtualizationBackend* BackendToCache : CacheStorageBackends)
@@ -1441,6 +1544,12 @@ FCompressedBuffer FVirtualizationManager::PullDataFromAllBackends(const FIoHash&
 		if (Backend->IsOperationDebugDisabled(IVirtualizationBackend::EOperations::Pull))
 		{
 			UE_LOG(LogVirtualization, Verbose, TEXT("Pulling from backend '%s' is debug disabled for payload '%s'"), *Backend->GetDebugName(), *LexToString(Id));
+			continue;
+		}
+
+		if (Backend->GetConnectionStatus() != IVirtualizationBackend::EConnectionStatus::Connected)
+		{
+			UE_LOG(LogVirtualization, Verbose, TEXT("Cannot pull from backend '%s' as it is not connected"), *Backend->GetDebugName());
 			continue;
 		}
 

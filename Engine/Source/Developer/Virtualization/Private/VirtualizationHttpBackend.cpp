@@ -1373,6 +1373,14 @@ bool FHttpBackend::Initialize(const FString& ConfigEntry)
 	return true;
 }
 
+IVirtualizationBackend::EConnectionStatus FHttpBackend::OnConnect()
+{
+	// TODO: In theory this backend has connection work that should be moved here, but we are more
+	// likely to just delete this backend at the moment, since it has been effectively replaced with
+	// the DDC backend (which can use horde storage)
+	return IVirtualizationBackend::EConnectionStatus::Connected;
+}
+
 EPushResult FHttpBackend::PushData(const FIoHash& Id, const FCompressedBuffer& CompressedPayload, const FString& PackageContext)
 {
 	using namespace Utility;

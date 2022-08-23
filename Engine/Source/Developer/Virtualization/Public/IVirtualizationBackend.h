@@ -37,7 +37,7 @@ enum class EPushResult
  */
 class IVirtualizationBackend
 {
-public: 
+public:
 	/** Enum detailing which operations a backend can support */
 	enum class EOperations : uint8
 	{
@@ -51,8 +51,19 @@ public:
 
 	FRIEND_ENUM_CLASS_FLAGS(EOperations);
 
+	/** Status of the backends connection to its services */
+	enum class EConnectionStatus
+	{
+		/** No connection attempt has been made */
+		None,
+		/** The previous connection attempt ended with an error */
+		Error,
+		/** The connection has been made successfully */
+		Connected,
+	};
+
 protected:
-	
+
 	IVirtualizationBackend(FStringView InConfigName, FStringView InDebugName, EOperations InSupportedOperations)
 		: SupportedOperations(InSupportedOperations)
 		, DebugDisabledOperations(EOperations::None)
@@ -69,15 +80,36 @@ public:
 	 * This will be called during the setup of the backend hierarchy. The entry config file
 	 * entry that caused the backend to be created will be passed to the method so that any
 	 * additional settings may be parsed from it.
-	 * Take care to clearly log any error that occurs so that the end user has a clear way 
+	 * Take care to clearly log any error that occurs so that the end user has a clear way
 	 * to fix them.
-	 * 
-	 * @param ConfigEntry	The entry for the backend from the config ini file that may 
+	 *
+	 * @param ConfigEntry	The entry for the backend from the config ini file that may
 	 *						contain additional settings.
-	 * @return				Returning false indicates that initialization failed in a way 
+	 * @return				Returning false indicates that initialization failed in a way
 	 *						that the backend will not be able to function correctly.
 	 */
 	virtual bool Initialize(const FString& ConfigEntry) = 0;
+
+	/**
+	 * Attempt to connect the backend to its services if not already connected.
+	 */
+	virtual void Connect()
+	{
+		if (ConnectionStatus != EConnectionStatus::Connected)
+		{
+			ConnectionStatus = OnConnect();
+		}
+	}
+
+	/**
+	 * Returns the connection status of the backend
+	 * 
+	 * @return @see EConnectionStatus
+	 */
+	EConnectionStatus GetConnectionStatus() const
+	{
+		return ConnectionStatus;
+	}
 
 	/**
 	 * The backend will attempt to store the given payload by what ever method the backend uses.
@@ -210,6 +242,11 @@ public:
 
 private:
 
+	/** Override to implement the backends connection code */
+	virtual EConnectionStatus OnConnect() = 0;
+
+private:
+
 	/** The operations that this backend supports */
 	EOperations SupportedOperations;
 
@@ -220,6 +257,9 @@ private:
 
 	/** Combination of the backend type and the name used to create it in the virtualization graph */
 	FString DebugName;
+
+	/** The status of the connection to the backends service */
+	EConnectionStatus ConnectionStatus = EConnectionStatus::None;
 };
 
 /** 

@@ -69,6 +69,11 @@ bool FDDCBackend::Initialize(const FString& ConfigEntry)
 	return true;	
 }
 
+IVirtualizationBackend::EConnectionStatus FDDCBackend::OnConnect()
+{
+	return IVirtualizationBackend::EConnectionStatus::Connected;
+}
+
 EPushResult FDDCBackend::PushData(const FIoHash& Id, const FCompressedBuffer& Payload, const FString& PackageContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::PushData);
