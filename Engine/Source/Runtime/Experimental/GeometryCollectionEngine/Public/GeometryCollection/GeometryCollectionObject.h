@@ -301,6 +301,26 @@ private:
 	bool bIsInitialized = false;
 };
 
+
+USTRUCT(BlueprintType)
+struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionDamagePropagationData
+{
+public:
+	GENERATED_BODY()
+
+	/** Whether or not damage propagation is enabled. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage Propagation")
+	bool bEnabled = true;
+
+	/** factor of the remaining strain propagated through the connection graph after a piece breaks. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage Propagation")
+	float BreakDamagePropagationFactor = 1.0f;
+
+	/** factor of the received strain propagated throug the connection graph if the piece did not break. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage Propagation")
+	float ShockDamagePropagationFactor = 0.0f;
+};
+
 /**
 * UGeometryCollectionObject (UObject)
 *
@@ -436,14 +456,18 @@ public:
 	int32 MaxClusterLevel;
 
 	/** Damage threshold for clusters at different levels. */
-	UPROPERTY(EditAnywhere, Category = "Clustering")
+	UPROPERTY(EditAnywhere, Category = "Damage")
 	TArray<float> DamageThreshold;
 
 	/** compatibility check, when true, only cluster compute damage from parameters and propagate to direct children
 	 *  when false, each child will compute it's damage threshold allowing for more precise and intuitive destruction behavior
 	 */
-	UPROPERTY(EditAnywhere, Category = "Clustering")
+	UPROPERTY(EditAnywhere, Category = "Damage")
 	bool PerClusterOnlyDamageThreshold;
+
+	/** Data about how damage propagation shoudl behave. */
+	UPROPERTY(EditAnywhere, Category = "Damage")
+	FGeometryCollectionDamagePropagationData DamagePropagationData;
 
 	/** */
 	UPROPERTY(EditAnywhere, Category = "Clustering")

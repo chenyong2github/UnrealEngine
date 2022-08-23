@@ -826,6 +826,12 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		PerClusterOnlyDamageThreshold = true; 
 	}
 
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::GeometryCollectionDamagePropagationData)
+	{
+		// prior this version, damage propagation was not enabled by default
+		DamagePropagationData.bEnabled = false;
+	}
+
 #if WITH_EDITORONLY_DATA
 	if (bCreateSimulationData)
 	{

@@ -206,6 +206,9 @@ struct FSimulationParameters
 		, UseCCD(false)
 		, LinearDamping(0.01f)
 		, AngularDamping(0)
+		, bUseDamagePropagation(true)
+		, BreakDamagePropagationFactor(1.0f)
+		, ShockDamagePropagationFactor(0.0f)
 		, SimulationFilterData()
 		, QueryFilterData()
 		, UserData(nullptr)
@@ -252,6 +255,9 @@ struct FSimulationParameters
 		, UseCCD(Other.UseCCD)
 		, LinearDamping(Other.LinearDamping)
 		, AngularDamping(Other.AngularDamping)
+		, bUseDamagePropagation(Other.bUseDamagePropagation)
+		, BreakDamagePropagationFactor(Other.BreakDamagePropagationFactor)
+		, ShockDamagePropagationFactor(Other.ShockDamagePropagationFactor)
 		, SimulationFilterData(Other.SimulationFilterData)
 		, QueryFilterData(Other.QueryFilterData)
 		, UserData(Other.UserData)
@@ -321,6 +327,10 @@ struct FSimulationParameters
 	bool UseCCD;
 	float LinearDamping;
 	float AngularDamping;
+
+	bool bUseDamagePropagation;
+	float BreakDamagePropagationFactor;
+	float ShockDamagePropagationFactor;
 
 	FCollisionFilterData SimulationFilterData;
 	FCollisionFilterData QueryFilterData;

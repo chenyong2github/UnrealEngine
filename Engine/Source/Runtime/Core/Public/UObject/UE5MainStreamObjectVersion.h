@@ -268,6 +268,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Low resolution data in Height Field will store one height for (6x6) 36 cells
 		DecreaseLowResolutionHeightField,
 
+		// Add damage propagation settings to geometry collections
+		GeometryCollectionDamagePropagationData,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

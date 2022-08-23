@@ -623,8 +623,32 @@ namespace Chaos
 		{
 			return ActivatedChildren;
 		}
-		
+
+		// gather propagation information from the parent proxy
+		bool bUseDamagePropagation = false;
+		float BreakDamagePropagationFactor = 0.0f;
+		float ShockDamagePropagationFactor = 0.0f;
+		FPBDRigidClusteredParticleHandle* ClusteredParent = ClusteredParticle->CastToClustered();
+		if (const IPhysicsProxyBase* Proxy = ClusteredParent->PhysicsProxy())
+		{
+			if (Proxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
+			{
+				const FGeometryCollectionPhysicsProxy* ConcreteProxy = static_cast<const FGeometryCollectionPhysicsProxy*>(Proxy);
+				bUseDamagePropagation = ConcreteProxy->GetSimParameters().bUseDamagePropagation;
+				BreakDamagePropagationFactor = ConcreteProxy->GetSimParameters().BreakDamagePropagationFactor;
+				ShockDamagePropagationFactor = ConcreteProxy->GetSimParameters().ShockDamagePropagationFactor;
+			}
+		}
+
 		TArray<FPBDRigidParticleHandle*>& Children = MChildren[ClusteredParticle];
+
+		// only used for propagation
+		TArray<FReal> AppliedStrains;
+		if (bUseDamagePropagation)
+		{
+			AppliedStrains.SetNum(Children.Num());
+		}
+
 		for (int32 ChildIdx = Children.Num() - 1; ChildIdx >= 0; --ChildIdx)
 		{
 			FPBDRigidClusteredParticleHandle* Child = Children[ChildIdx]->CastToClustered();
@@ -659,55 +683,59 @@ namespace Chaos
 				{
 					SendBreakingEvent(Child);
 				}
+			}
+			if (bUseDamagePropagation)
+			{
+				AppliedStrains[ChildIdx] = MaxAppliedStrain;
+			}
+			Child->ClearExternalStrain();
+		}
 
-				if (GraphPropagationBasedCollisionImpulseProcessing && !bForceRelease)
+		// if necessary propagate strain through the graph
+		if (bUseDamagePropagation)
+		{
+			for (int32 ChildIdx = 0; ChildIdx < Children.Num(); ChildIdx++)
+			{
+				FPBDRigidClusteredParticleHandle* ClusteredChild = Children[ChildIdx]->CastToClustered();
+
+				const FReal AppliedStrain = AppliedStrains[ChildIdx];
+				FReal PropagatedStrainPerConnection = 0.0f;
+
+				// @todo(chaos) : may not be optimal, but good enough for now
+				if (ActivatedChildren.Contains(Children[ChildIdx]))
 				{
-					// keep max applied strain in external strain
-					// @todo(chaos) eventually shoudl get rid of collision impulse array and only use external strain
-					Child->SetExternalStrain(MaxAppliedStrain);
+					// break damage propagation case: we only look at the broken pieces and propagate the strain remainder 
+					const FReal RemainingStrain = (AppliedStrain - ClusteredChild->Strain());
+					if (RemainingStrain > 0)
+					{
+						const FReal AdjustedRemainingStrain = (FReal)BreakDamagePropagationFactor * RemainingStrain;
+						// todo(chaos) : could do better and have something weighted on distance with a falloff maybe ?  
+						PropagatedStrainPerConnection = AdjustedRemainingStrain / ClusteredChild->ConnectivityEdges().Num();
+					}
 				}
 				else
 				{
-					Child->ClearExternalStrain();	
+					// shock damage propagation case : for all the non broken pieces, proapagate the actual applied strain 
+					PropagatedStrainPerConnection = (FReal)ShockDamagePropagationFactor * AppliedStrain;
 				}
-			}
-			else
-			{
-				// no need anymore of the external strain let's clear it
-				Child->ClearExternalStrain();				
-			}
-		}
 
-		// if necessary propagate through the graph
-		if (GraphPropagationBasedCollisionImpulseProcessing && !bForceRelease)
-		{
-			for (FPBDRigidParticleHandle* ActivatedChild: ActivatedChildren)
-			{
-				FPBDRigidClusteredParticleHandle* ClusteredChild = ActivatedChild->CastToClustered();
-
-				const FReal RemainingStrain = (ClusteredChild->GetExternalStrain() - ClusteredChild->Strain());
-				if (RemainingStrain > 0)
+				if (PropagatedStrainPerConnection > 0)
 				{
-					const FReal AdjustedRemainingStrain = GraphPropagationBasedCollisionFactor * RemainingStrain;
-					// todo(chaos) : could do better and have something weighted on distance with a falloff maybe ?  
-					const FReal RemainingStrainPerSibling = AdjustedRemainingStrain / ClusteredChild->ConnectivityEdges().Num();
-					for (const TConnectivityEdge<FReal>& Edge: ClusteredChild->ConnectivityEdges())
+					for (const TConnectivityEdge<FReal>& Edge : ClusteredChild->ConnectivityEdges())
 					{
 						if (Edge.Sibling)
 						{
 							if (FPBDRigidClusteredParticleHandle* ClusteredSibling = Edge.Sibling->CastToClustered())
 							{
 								// todo(chaos) this may currently be non optimal as we are in the apply loop and this may be cleareed right after
-								ClusteredSibling->SetExternalStrain(FMath::Max(ClusteredSibling->GetExternalStrain(), RemainingStrainPerSibling));
+								ClusteredSibling->SetExternalStrain(FMath::Max(ClusteredSibling->GetExternalStrain(), PropagatedStrainPerConnection));
 							}
 						}
 					}
 				}
-				// finally reset the external strain
-				ClusteredChild->ClearExternalStrain();
 			}
 		}
-		
+
 		if (ActivatedChildren.Num() > 0)
 		{
 			if (Children.Num() == 0)
@@ -1163,7 +1191,18 @@ namespace Chaos
 				const FReal AccumulatedImpulse = ContactHandle->GetAccumulatedImpulse().Size();
 				if (AccumulatedImpulse > UE_SMALL_NUMBER)
 				{
-					if (GraphPropagationBasedCollisionImpulseProcessing)
+					// gather propagation information from the parent proxy
+					bool bUseDamagePropagation = false;
+					if (const IPhysicsProxyBase* Proxy = Cluster->PhysicsProxy())
+					{
+						if (Proxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
+						{
+							const FGeometryCollectionPhysicsProxy* ConcreteProxy = static_cast<const FGeometryCollectionPhysicsProxy*>(Proxy);
+							bUseDamagePropagation = ConcreteProxy->GetSimParameters().bUseDamagePropagation;
+						}
+					}
+
+					if (bUseDamagePropagation)
 					{
 						// propagation based breaking model start from the closest particle and propagate through the connection graph
 						// propagation logic is dealt when evaluating the strain

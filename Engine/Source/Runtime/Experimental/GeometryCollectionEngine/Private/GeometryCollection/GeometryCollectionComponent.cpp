@@ -296,6 +296,9 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 
 	bWantsInitializeComponent = true;
 
+	// make sure older asset are using the default behaviour
+	DamagePropagationData.bEnabled = false;
+
 }
 
 Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent)
@@ -2486,6 +2489,9 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		SimulationParameters.UseCCD = BodyInstance.bUseCCD;
 		SimulationParameters.LinearDamping = BodyInstance.LinearDamping;
 		SimulationParameters.AngularDamping = BodyInstance.AngularDamping;
+		SimulationParameters.bUseDamagePropagation = DamagePropagationData.bEnabled;
+		SimulationParameters.BreakDamagePropagationFactor = DamagePropagationData.BreakDamagePropagationFactor;
+		SimulationParameters.ShockDamagePropagationFactor = DamagePropagationData.ShockDamagePropagationFactor;
 		SimulationParameters.WorldTransform = GetComponentToWorld();
 		SimulationParameters.UserData = static_cast<void*>(&PhysicsUserData);
 
@@ -2666,6 +2672,9 @@ void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* 
 
 		// initialize the component per level damage threshold from the asset defaults 
 		DamageThreshold = RestCollection->DamageThreshold;
+
+		// initialize the component damage progataion data from the asset defaults 
+		DamagePropagationData = RestCollection->DamagePropagationData;
 		
 		//ResetDynamicCollection();
 	}
