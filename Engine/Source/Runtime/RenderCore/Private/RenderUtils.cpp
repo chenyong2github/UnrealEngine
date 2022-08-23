@@ -1247,9 +1247,6 @@ static_assert(SP_NumPlatforms <= sizeof(GForwardShadingPlatformMask) * 8, "GForw
 RENDERCORE_API uint64 GDBufferPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GDBufferPlatformMask) * 8, "GDBufferPlatformMask must be large enough to support all shader platforms");
 
-RENDERCORE_API uint64 GBasePassVelocityPlatformMask = 0;
-static_assert(SP_NumPlatforms <= sizeof(GBasePassVelocityPlatformMask) * 8, "GBasePassVelocityPlatformMask must be large enough to support all shader platforms");
-
 RENDERCORE_API uint64 GVelocityEncodeDepthPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GVelocityEncodeDepthPlatformMask) * 8, "GVelocityEncodeDepthPlatformMask must be large enough to support all shader platforms");
 
@@ -1287,12 +1284,6 @@ RENDERCORE_API void RenderUtilsInit()
 	if (DBufferVar && DBufferVar->GetInt())
 	{
 		GDBufferPlatformMask = ~0ull;
-	}
-
-	static IConsoleVariable* VelocityPassCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VelocityOutputPass"));
-	if (VelocityPassCVar && VelocityPassCVar->GetInt() == 1)
-	{
-		GBasePassVelocityPlatformMask = ~0ull;
 	}
 
 	static IConsoleVariable* SelectiveBasePassOutputsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SelectiveBasePassOutputs"));
@@ -1347,15 +1338,6 @@ RENDERCORE_API void RenderUtilsInit()
 				else
 				{
 					GDBufferPlatformMask &= ~Mask;
-				}
-
-				if (TargetPlatform->UsesBasePassVelocity() && !IsMobilePlatform(ShaderPlatform))
-				{
-					GBasePassVelocityPlatformMask |= Mask;
-				}
-				else
-				{
-					GBasePassVelocityPlatformMask &= ~Mask;
 				}
 
 				if (TargetPlatform->UsesSelectiveBasePassOutputs())
@@ -1428,7 +1410,6 @@ RENDERCORE_API void RenderUtilsInit()
 	if (IsMobilePlatform(GMaxRHIShaderPlatform))
 	{
 		GDBufferPlatformMask = 0;
-		GBasePassVelocityPlatformMask = 0;
 	}
 
 	if (RayTracingCVar && RayTracingCVar->GetInt() && GRHISupportsRayTracing)
@@ -1790,4 +1771,17 @@ RENDERCORE_API bool DoesRuntimeSupportOnePassPointLightShadows(EShaderPlatform P
 
 	return RHISupportsVertexShaderLayer(Platform)
 		|| (CVar->GetValueOnAnyThread() != 0 && GRHISupportsArrayIndexFromAnyShader != 0);
+}
+
+bool IsUsingBasePassVelocity(const FStaticShaderPlatform Platform)
+{
+	static FShaderPlatformCachedIniValue<bool> PerPlatformCVar(TEXT("r.VelocityOutputPass"));
+	if (IsMobilePlatform(Platform))
+	{
+		return false;
+	}
+	else
+	{
+		return (PerPlatformCVar.Get(Platform) == 1);
+	}
 }

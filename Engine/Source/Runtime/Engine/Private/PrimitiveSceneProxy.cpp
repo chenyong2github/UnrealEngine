@@ -375,7 +375,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 
 	bAlwaysHasVelocity = CVarVelocityForceOutput.GetValueOnAnyThread();
 
-	if (!bAlwaysHasVelocity && VertexDeformationOutputsVelocity())
+	if (!bAlwaysHasVelocity && InComponent->SupportsWorldPositionOffsetVelocity() && VertexDeformationOutputsVelocity())
 	{
 		// Find if we have any WPO materials.
 		ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();

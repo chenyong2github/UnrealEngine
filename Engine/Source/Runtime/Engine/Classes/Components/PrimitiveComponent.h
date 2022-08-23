@@ -2091,6 +2091,9 @@ public:
 	 */
 	virtual bool IsShown(const FEngineShowFlags& ShowFlags) const;
 
+	/** Returns false if this primitive should never output velocity based on its WPO state. */
+	virtual bool SupportsWorldPositionOffsetVelocity() const { return true; }
+
 #if WITH_EDITOR
 	/**
 	 * Determines whether the supplied bounding box intersects with the component.

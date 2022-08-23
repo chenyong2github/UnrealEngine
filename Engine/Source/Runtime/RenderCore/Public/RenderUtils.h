@@ -614,11 +614,7 @@ inline bool IsUsingGBuffers(const FStaticShaderPlatform Platform)
 }
 
 /** Returns whether the base pass should output to the velocity buffer is enabled for a given shader platform */
-inline bool IsUsingBasePassVelocity(const FStaticShaderPlatform Platform)
-{
-	extern RENDERCORE_API uint64 GBasePassVelocityPlatformMask;
-	return !!(GBasePassVelocityPlatformMask & (1ull << Platform));
-}
+RENDERCORE_API bool IsUsingBasePassVelocity(const FStaticShaderPlatform Platform);
 
 /** Returns whether the base pass should use selective outputs for a given shader platform */
 inline bool IsUsingSelectiveBasePassOutputs(const FStaticShaderPlatform Platform)

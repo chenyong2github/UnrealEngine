@@ -79,6 +79,7 @@ public:
 
 	TARGETPLATFORM_API virtual bool UsesDBuffer() const override;
 
+	UE_DEPRECATED(5.1, "Use IsUsingBasePassVelocity(EShaderPlatform Platform) in renderutils that will uses FShaderPlatformCachedIniValue to retrieve the cvar value per platform.")
 	TARGETPLATFORM_API virtual bool UsesBasePassVelocity() const override;
 
     TARGETPLATFORM_API virtual bool VelocityEncodeDepth() const override;
