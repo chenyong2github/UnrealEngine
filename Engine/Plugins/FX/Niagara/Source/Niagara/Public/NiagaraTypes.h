@@ -373,6 +373,30 @@ public:
 	static UScriptStruct* FindNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct, ENiagaraStructConversion StructConversion);
 	static bool IsNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct, ENiagaraStructConversion StructConversion);
 	static UScriptStruct* GetSWCStruct(UScriptStruct* LWCStruct);
+	static UScriptStruct* GetLWCStruct(UScriptStruct* LWCStruct);
+	static void TickTypeRemap();
+
+private:
+	struct FRemapEntry
+	{
+		UScriptStruct* Get(UScriptStruct* InStruct) const
+		{
+#if WITH_EDITORONLY_DATA
+			return SerialNumber == InStruct->FieldPathSerialNumber ? Struct.Get() : nullptr;
+#else
+			return Struct.Get();
+#endif
+		}
+
+		TWeakObjectPtr<UScriptStruct>	Struct;
+#if WITH_EDITORONLY_DATA
+		int32 SerialNumber = 0;
+#endif
+	};
+
+	static FRWLock RemapTableLock;
+	static TMap<TWeakObjectPtr<UScriptStruct>, FRemapEntry> RemapTable;
+	static std::atomic<bool> RemapTableDirty;
 };
 
 /** Information about how this type should be laid out in an FNiagaraDataSet */
@@ -869,8 +893,12 @@ struct NIAGARA_API FNiagaraTypeDefinition
 
 	enum FTypeFlags
 	{
-		TF_None = 0,
-		TF_Static
+		TF_None			= 0x0000,
+		TF_Static		= 0x0001,
+
+		/// indicates that the ClassStructOrEnum property has been serialized as the LWC struct (see FNiagaraTypeHelper)
+		/// instead of the Transient SWC version of the struct
+		TF_SerializedAsLWC	= 0x0002,
 	};
 
 public:
@@ -1126,7 +1154,6 @@ public:
 	uint16 UnderlyingType;
 
 	bool Serialize(FArchive& Ar);
-	void PostSerialize(const FArchive& Ar);
 
 private:
 	UPROPERTY(EditAnywhere, Category = Type)
@@ -1318,7 +1345,6 @@ struct TStructOpsTypeTraits<FNiagaraTypeDefinition> : public TStructOpsTypeTrait
 	enum
 	{
 		WithSerializer = true,
-		WithPostSerialize = true,
 	};
 };
 

@@ -377,6 +377,7 @@ void INiagaraModule::StartupModule()
 	FWorldDelegates::OnWorldTickStart.AddRaw(this, &INiagaraModule::OnWorldTickStart);
 
 	FCoreDelegates::OnBeginFrame.AddRaw(this, &INiagaraModule::OnBeginFrame);
+	FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &INiagaraModule::OnPostGarbageCollect);
 }
 
 void INiagaraModule::OnPostEngineInit()
@@ -442,6 +443,11 @@ void INiagaraModule::OnWorldTickStart(UWorld* World, ELevelTick TickType, float 
 		BaselineHandler->Tick(World, DeltaSeconds);
 	}
 #endif
+}
+
+void INiagaraModule::OnPostGarbageCollect()
+{
+	FNiagaraTypeHelper::TickTypeRemap();
 }
 
 void INiagaraModule::OnBeginFrame()
@@ -1272,40 +1278,83 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::GetNumericOutputType(const TArray
 bool FNiagaraTypeDefinition::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
-	return false;
-}
 
-void FNiagaraTypeDefinition::PostSerialize(const FArchive& Ar)
-{
+	UScriptStruct* StructToResetOnExit = nullptr;
+	ON_SCOPE_EXIT
+	{
+		if (StructToResetOnExit)
+		{
+			ClassStructOrEnum = StructToResetOnExit;
+			Flags &= ~TF_SerializedAsLWC;
+		}
+	};
+
+	if (Ar.IsSaving())
+	{
+		if (UScriptStruct* StructDef = GetScriptStruct())
+		{
+			// if the struct is a transient package then we look for the source struct that was used
+			if (StructDef->GetOutermost() == GetTransientPackage())
+			{
+				Flags |= TF_SerializedAsLWC;
+
+				StructToResetOnExit = StructDef;
+				ClassStructOrEnum = FNiagaraTypeHelper::GetLWCStruct(StructDef);
+				check(ClassStructOrEnum);
+				check(ClassStructOrEnum->GetOutermost() != GetTransientPackage());
+			}
+		}
+	}
+
+	if (Ar.IsLoading() || Ar.IsSaving())
+	{
+		UScriptStruct* Struct = FNiagaraTypeDefinition::StaticStruct();
+		Struct->SerializeTaggedProperties(Ar, (uint8*)this, Struct, nullptr);
+	}
+
+	if (Ar.IsLoading())
+	{
 #if WITH_EDITORONLY_DATA
-	if (Ar.IsLoading() && Ar.CustomVer(FNiagaraCustomVersion::GUID) < FNiagaraCustomVersion::MemorySaving)
-	{
-		if (Enum_DEPRECATED != nullptr)
+		if (Ar.CustomVer(FNiagaraCustomVersion::GUID) < FNiagaraCustomVersion::MemorySaving)
 		{
-			UnderlyingType = UT_Enum;
-			ClassStructOrEnum = Enum_DEPRECATED;
-			Enum_DEPRECATED = nullptr;
+			if (Enum_DEPRECATED != nullptr)
+			{
+				UnderlyingType = UT_Enum;
+				ClassStructOrEnum = Enum_DEPRECATED;
+				Enum_DEPRECATED = nullptr;
+			}
+			else if (Struct_DEPRECATED != nullptr)
+			{
+				UnderlyingType = Struct_DEPRECATED->IsA<UClass>() ? UT_Class : UT_Struct;
+				ClassStructOrEnum = Struct_DEPRECATED;
+				Struct_DEPRECATED = nullptr;
+			}
+			else
+			{
+				UnderlyingType = UT_None;
+				ClassStructOrEnum = nullptr;
+			}
 		}
-		else if (Struct_DEPRECATED != nullptr)
-		{
-			UnderlyingType = Struct_DEPRECATED->IsA<UClass>() ? UT_Class : UT_Struct;
-			ClassStructOrEnum = Struct_DEPRECATED;
-			Struct_DEPRECATED = nullptr;
-		}
-		else
-		{
-			UnderlyingType = UT_None;
-			ClassStructOrEnum = nullptr;
-		}
-	}
-	if (Ar.IsLoading() && ClassStructOrEnum != nullptr)
-	{
-		if (ClassStructOrEnum.GetClass()->IsChildOf(UScriptStruct::StaticClass()))
-		{
-			ClassStructOrEnum = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(static_cast<UScriptStruct*>(ClassStructOrEnum), ENiagaraStructConversion::UserFacing);
-		}
-	}
 #endif
+
+		if (UScriptStruct* StructDef = GetScriptStruct())
+		{
+			if (Flags & TF_SerializedAsLWC)
+			{
+				ClassStructOrEnum = FNiagaraTypeHelper::GetSWCStruct(StructDef);
+
+				Flags &= ~TF_SerializedAsLWC;
+			}
+#if WITH_EDITORONLY_DATA
+			else
+			{
+				ClassStructOrEnum = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(static_cast<UScriptStruct*>(ClassStructOrEnum), ENiagaraStructConversion::UserFacing);
+			}
+#endif
+		}
+	}
+
+	return true;
 }
 
 //////////////////////////////////////////////////////////////////////////

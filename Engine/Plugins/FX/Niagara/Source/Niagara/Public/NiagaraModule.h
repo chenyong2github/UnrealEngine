@@ -55,6 +55,7 @@ public:
 
 	void OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaSeconds);
 	void OnBeginFrame();
+	void OnPostGarbageCollect();
 	void OnWorldBeginTearDown(UWorld* World);
 
 	FDelegateHandle SetOnProcessShaderCompilationQueue(FOnProcessQueue InOnProcessQueue);

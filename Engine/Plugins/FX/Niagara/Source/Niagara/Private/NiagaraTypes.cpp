@@ -243,6 +243,10 @@ void FNiagaraLwcStructConverter::AddConversionStep(int32 InSourceBytes, int32 In
 
 //////////////////////////////////////////////////////////////////////////
 
+FRWLock FNiagaraTypeHelper::RemapTableLock;
+TMap<TWeakObjectPtr<UScriptStruct>, FNiagaraTypeHelper::FRemapEntry> FNiagaraTypeHelper::RemapTable;
+std::atomic<bool> FNiagaraTypeHelper::RemapTableDirty;
+
 FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UObject* StructOrEnum)
 {
 	FString Ret;
@@ -440,30 +444,32 @@ bool FNiagaraTypeHelper::IsLWCType(const FNiagaraTypeDefinition& InType)
 	return InType.IsValid() && !InType.IsUObject() && IsLWCStructure(InType.GetStruct());
 }
 
-UScriptStruct* FNiagaraTypeHelper::GetSWCStruct(UScriptStruct* LWCStruct)
+void FNiagaraTypeHelper::TickTypeRemap()
 {
-	struct FRemapEntry
+	if (RemapTableDirty)
 	{
-		UScriptStruct* Get(UScriptStruct* InStruct) const
+		FWriteScopeLock WriteLock(RemapTableLock);
+
+		for (auto it = RemapTable.CreateIterator(); it; ++it)
 		{
-		#if WITH_EDITORONLY_DATA
-			return SerialNumber == InStruct->FieldPathSerialNumber ? Struct.Get() : nullptr;
-		#else
-			return Struct.Get();
-		#endif
+			UScriptStruct* SrcScript = it->Key.Get();
+			if (SrcScript == nullptr || it->Value.Get(SrcScript) == nullptr)
+			{
+				UScriptStruct* DstStruct = it->Value.Struct.Get();
+				if (DstStruct && SrcScript != DstStruct)
+				{
+					DstStruct->RemoveFromRoot();
+				}
+				it.RemoveCurrent();
+			}
 		}
 
-		TWeakObjectPtr<UScriptStruct>	Struct;
-	#if WITH_EDITORONLY_DATA
-		int32 SerialNumber = 0;
-	#endif
-	};
+		RemapTableDirty = false;
+	}
+}
 
-	static FRWLock RemapTableLock;
-	static TMap<TWeakObjectPtr<UScriptStruct>, FRemapEntry> RemapTable;
-
-	bool bRemoveDeadRemaps = false;
-
+UScriptStruct* FNiagaraTypeHelper::GetSWCStruct(UScriptStruct* LWCStruct)
+{
 	// Attempt to find existing struct
 	UScriptStruct* SWCStruct = nullptr;
 	{
@@ -471,7 +477,7 @@ UScriptStruct* FNiagaraTypeHelper::GetSWCStruct(UScriptStruct* LWCStruct)
 		if ( FRemapEntry* RemapEntry = RemapTable.Find(LWCStruct) )
 		{
 			SWCStruct = RemapEntry->Get(LWCStruct);
-			bRemoveDeadRemaps = true;
+			RemapTableDirty = true;
 		}
 	}
 
@@ -483,32 +489,12 @@ UScriptStruct* FNiagaraTypeHelper::GetSWCStruct(UScriptStruct* LWCStruct)
 		if (FRemapEntry* RemapEntry = RemapTable.Find(LWCStruct))
 		{
 			SWCStruct = RemapEntry->Get(LWCStruct);
-			bRemoveDeadRemaps = true;
+			RemapTableDirty = true;
 		}
 
 		if (SWCStruct == nullptr)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_Niagara_GetSWCStruct);
-
-			// Do we need to remove dead remaps from the list?  
-			//-OPT: We should hook into post GC and prune the map at that point
-			bRemoveDeadRemaps = true;
-			if ( bRemoveDeadRemaps )
-			{
-				for (auto it = RemapTable.CreateIterator(); it; ++it)
-				{
-					UScriptStruct* SrcScript = it->Key.Get();
-					if (SrcScript == nullptr || it->Value.Get(SrcScript) == nullptr)
-					{
-						UScriptStruct* DstStruct = it->Value.Struct.Get();
-						if (DstStruct && SrcScript != DstStruct)
-						{
-							DstStruct->RemoveFromRoot();
-						}
-						it.RemoveCurrent();
-					}
-				}
-			}
 
 			// If this is a LWC structure we need to built a new structure now
 			if (IsLWCStructure(LWCStruct))
@@ -533,6 +519,27 @@ UScriptStruct* FNiagaraTypeHelper::GetSWCStruct(UScriptStruct* LWCStruct)
 		}
 	}
 	return SWCStruct;
+}
+
+UScriptStruct* FNiagaraTypeHelper::GetLWCStruct(UScriptStruct* SWCStruct)
+{
+	if (SWCStruct->GetOutermost() != GetTransientPackage())
+	{
+		return SWCStruct;
+	}
+
+	FReadScopeLock ReadLock(RemapTableLock);
+
+	for (auto It = RemapTable.CreateConstIterator(); It; ++It)
+	{
+		const FRemapEntry& RemapEntry = It.Value();
+		if (RemapEntry.Get(SWCStruct) == SWCStruct)
+		{
+			return It.Key().Get();
+		}
+	}
+
+	return nullptr;
 }
 
 UScriptStruct* FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct, ENiagaraStructConversion StructConversion)
