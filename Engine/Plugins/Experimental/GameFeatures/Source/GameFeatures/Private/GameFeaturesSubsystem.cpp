@@ -670,11 +670,11 @@ const UGameFeatureData* UGameFeaturesSubsystem::GetGameFeatureDataForActivePlugi
 	return nullptr;
 }
 
-const UGameFeatureData* UGameFeaturesSubsystem::GetGameFeatureDataForRegisteredPluginByURL(const FString& PluginURL)
+const UGameFeatureData* UGameFeaturesSubsystem::GetGameFeatureDataForRegisteredPluginByURL(const FString& PluginURL, bool bCheckForRegistering /*= false*/)
 {
 	if (UGameFeaturePluginStateMachine* GFSM = FindGameFeaturePluginStateMachine(PluginURL))
 	{
-		return GFSM->GetGameFeatureDataForRegisteredPlugin();
+		return GFSM->GetGameFeatureDataForRegisteredPlugin(bCheckForRegistering);
 	}
 
 	return nullptr;
@@ -689,11 +689,13 @@ bool UGameFeaturesSubsystem::IsGameFeaturePluginInstalled(const FString& PluginU
 	return false;
 }
 
-bool UGameFeaturesSubsystem::IsGameFeaturePluginRegistered(const FString& PluginURL) const
+bool UGameFeaturesSubsystem::IsGameFeaturePluginRegistered(const FString& PluginURL, bool bCheckForRegistering /*= false*/) const
 {
 	if (const UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
-		return StateMachine->GetCurrentState() >= EGameFeaturePluginState::Registered;
+		const EGameFeaturePluginState CurrentState = StateMachine->GetCurrentState();
+
+		return StateMachine->GetCurrentState() >= EGameFeaturePluginState::Registered || (bCheckForRegistering && CurrentState == EGameFeaturePluginState::Registering);
 	}
 	return false;
 }

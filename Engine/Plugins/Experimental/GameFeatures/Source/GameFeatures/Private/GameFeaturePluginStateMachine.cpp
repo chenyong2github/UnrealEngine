@@ -2427,9 +2427,11 @@ UGameFeatureData* UGameFeaturePluginStateMachine::GetGameFeatureDataForActivePlu
 	return nullptr;
 }
 
-UGameFeatureData* UGameFeaturePluginStateMachine::GetGameFeatureDataForRegisteredPlugin()
+UGameFeatureData* UGameFeaturePluginStateMachine::GetGameFeatureDataForRegisteredPlugin(bool bCheckForRegistering /*= false*/)
 {
-	if (GetCurrentState() >= EGameFeaturePluginState::Registered)
+	const EGameFeaturePluginState CurrentState = GetCurrentState();
+
+	if (CurrentState >= EGameFeaturePluginState::Registered || (bCheckForRegistering && (CurrentState == EGameFeaturePluginState::Registering)))
 	{
 		return StateProperties.GameFeatureData;
 	}

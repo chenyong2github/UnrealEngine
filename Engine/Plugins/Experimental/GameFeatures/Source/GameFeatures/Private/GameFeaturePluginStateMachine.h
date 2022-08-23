@@ -480,7 +480,7 @@ public:
 	UGameFeatureData* GetGameFeatureDataForActivePlugin();
 
 	/** If the plugin is registered already, we will retrieve its game feature data */
-	UGameFeatureData* GetGameFeatureDataForRegisteredPlugin();
+	UGameFeatureData* GetGameFeatureDataForRegisteredPlugin(bool bCheckForRegistering = false);
 
 private:
 	/** Returns true if the specified state is not a transition state */

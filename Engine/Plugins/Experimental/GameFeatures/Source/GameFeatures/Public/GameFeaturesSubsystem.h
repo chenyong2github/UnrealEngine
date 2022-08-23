@@ -374,13 +374,13 @@ public:
 	const UGameFeatureData* GetGameFeatureDataForActivePluginByURL(const FString& PluginURL);
 
 	/** Returns the game feature data for a registered plugin specified by PluginURL */
-	const UGameFeatureData* GetGameFeatureDataForRegisteredPluginByURL(const FString& PluginURL);
+	const UGameFeatureData* GetGameFeatureDataForRegisteredPluginByURL(const FString& PluginURL, bool bCheckForRegistering = false);
 
 	/** Determines if a plugin is in the Installed state (or beyond) */
 	bool IsGameFeaturePluginInstalled(const FString& PluginURL) const;
 
 	/** Determines if a plugin is in the Registered state (or beyond) */
-	bool IsGameFeaturePluginRegistered(const FString& PluginURL) const;
+	bool IsGameFeaturePluginRegistered(const FString& PluginURL, bool bCheckForRegistering = false) const;
 
 	/** Determines if a plugin is in the Loaded state (or beyond) */
 	bool IsGameFeaturePluginLoaded(const FString& PluginURL) const;
