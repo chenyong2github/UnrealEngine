@@ -136,19 +136,14 @@ namespace Horde.Storage.Implementation
                     return;
                 }
 
-                await Parallel.ForEachAsync(blobIndex.References, cancellationToken, async (tuple, token) =>
+                foreach ((BucketId, IoHashKey) tuple in blobIndex.References)
                 {
-                    (BucketId bucket, IoHashKey key) = tuple;
-                    if (token.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
                     try
                     {
-                        (ObjectRecord, BlobContents?) _ = await _objectService.Get(blobNamespace,
-                            bucket, key, new string[] { "name" }, doLastAccessTracking:false);
+                        (BucketId bucket, IoHashKey key) = tuple;
+                        (ObjectRecord, BlobContents?) _ = await _objectService.Get(blobNamespace, bucket, key, new string[] { "name" }, doLastAccessTracking: false);
                         found = true;
+                        break;
                     }
                     catch (ObjectNotFoundException)
                     {
@@ -159,7 +154,7 @@ namespace Horde.Storage.Implementation
                         // we do not care if there are missing blobs, as long as the record is valid we keep this blob around
                         found = true;
                     }
-                });
+                }
             });
 
             if (cancellationToken.IsCancellationRequested)
