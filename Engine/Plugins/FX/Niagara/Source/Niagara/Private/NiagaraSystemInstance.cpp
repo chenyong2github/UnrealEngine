@@ -2174,7 +2174,7 @@ void FNiagaraSystemInstance::SimCacheTick_GameThread(UNiagaraSimCache* SimCache,
 		return;
 	}
 
-	if ( DesiredAge >= SimCache->StartSeconds + SimCache->DurationSeconds )
+	if ( DesiredAge >= SimCache->GetStartSeconds() + SimCache->GetDurationSeconds() )
 	{
 		Complete(false);
 		return;

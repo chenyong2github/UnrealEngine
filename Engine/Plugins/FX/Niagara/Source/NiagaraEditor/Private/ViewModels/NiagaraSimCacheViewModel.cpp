@@ -269,7 +269,7 @@ int32 FNiagaraSimCacheViewModel::GetNumInstances() const
 int32 FNiagaraSimCacheViewModel::GetNumFrames() const
 {
 	const UNiagaraSimCache* SimCache = BufferReader ? BufferReader->GetSimCache() : nullptr;
-	return SimCache ? SimCache->CacheFrames.Num() : 0;
+	return SimCache ? SimCache->GetNumFrames() : 0;
 }
 
 void FNiagaraSimCacheViewModel::SetFrameIndex(const int32 InFrameIndex)
@@ -298,13 +298,13 @@ bool FNiagaraSimCacheViewModel::IsCacheValid()
 int32 FNiagaraSimCacheViewModel::GetNumEmitterLayouts()
 {
 	const UNiagaraSimCache* SimCache = BufferReader ? BufferReader->GetSimCache() : nullptr;
-	return SimCache ? SimCache->CacheLayout.EmitterLayouts.Num() : 0;
+	return SimCache ? SimCache->GetNumEmitters() : 0;
 }
 
 FName FNiagaraSimCacheViewModel::GetEmitterLayoutName(const int32 Index)
 {
 	const UNiagaraSimCache* SimCache = BufferReader ? BufferReader->GetSimCache() : nullptr;
-	return SimCache ? SimCache->CacheLayout.EmitterLayouts[Index].LayoutName : NAME_None;
+	return SimCache ? SimCache->GetEmitterName(Index) : NAME_None;
 }
 
 FNiagaraSimCacheViewModel::FOnFrameUpdated& FNiagaraSimCacheViewModel::OnFrameUpdated()

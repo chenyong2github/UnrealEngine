@@ -114,7 +114,10 @@ struct FNiagaraSimCacheFrame
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FTransform LocalToWorld;
+	FTransform LocalToWorld = FTransform::Identity;
+
+	UPROPERTY()
+	FVector3f LWCTile = FVector3f::ZeroVector;
 
 	UPROPERTY()
 	FNiagaraSimCacheSystemFrame SystemData;
@@ -193,6 +196,9 @@ struct FNiagaraSimCacheDataBuffersLayout
 	uint16 Int32Count = 0;
 
 	UPROPERTY()
+	bool bLocalSpace = false;
+
+	UPROPERTY()
 	TArray<FName> RebaseVariableNames;
 
 	TArray<uint16> ComponentMappingsToDataBuffer;
@@ -216,8 +222,129 @@ struct FNiagaraSimCacheLayout
 UCLASS(Experimental, BlueprintType)
 class NIAGARA_API UNiagaraSimCache : public UObject
 {
+	friend struct FNiagaraSimCacheAttributeReaderHelper;
+	friend struct FNiagaraSimCacheHelper;
+	friend struct FSimCacheBufferReader;	//-TODO: Refactor to use API
+
 	GENERATED_UCLASS_BODY()
 
+public:
+	// UObject Interface
+	virtual bool IsReadyForFinishDestroy() override;
+	// UObject Interface
+
+	/** Is the simulation cache valid or not. */
+	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache)
+	bool IsCacheValid() const { return SoftNiagaraSystem.IsNull() == false; }
+
+	void BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent);
+	void WriteFrame(UNiagaraComponent* NiagaraComponent);
+	void EndWrite();
+
+	bool CanRead(UNiagaraSystem* NiagaraSystem);
+	bool Read(float TimeSeconds, FNiagaraSystemInstance* SystemInstance) const;
+	bool ReadFrame(int32 FrameIndex, float FrameFraction, FNiagaraSystemInstance* SystemInstance) const;
+
+	/** Get the time the simulation was at when recorded. */
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	float GetStartSeconds() const { return StartSeconds; }
+
+	/** Get the duration the cache was recorded over. */
+	float GetDurationSeconds() const { return DurationSeconds; }
+
+	/** Get number of frames stored in the cache. */
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	int GetNumFrames() const { return CacheFrames.Num(); }
+
+	/** Get number of emitters stored inside the cache. */
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	int GetNumEmitters() const { return CacheLayout.EmitterLayouts.Num(); }
+
+	/** Get the emitter name at the provided index. */
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	FName GetEmitterName(int32 EmitterIndex) const { return CacheLayout.EmitterLayouts.IsValidIndex(EmitterIndex) ? CacheLayout.EmitterLayouts[EmitterIndex].LayoutName : NAME_None; }
+
+	/** Returns a list of emitters we have captured in the SimCache. */
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	TArray<FName> GetEmitterNames() const;
+
+	/**
+	Reads Niagara int attributes by name from the cache frame and appends them into the OutValues array.
+	EmitterName - If left blank will return the system simulation attributes.
+	*/
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	void ReadIntAttribute(TArray<int32>& OutValues, FName AttributeName, FName EmitterName, int FrameIndex = 0) const;
+
+	/**
+	Reads Niagara float attributes by name from the cache frame and appends them into the OutValues array.
+	EmitterName - If left blank will return the system simulation attributes.
+	*/
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	void ReadFloatAttribute(TArray<float>& OutValues, FName AttributeName, FName EmitterName, int FrameIndex = 0) const;
+
+	/**
+	Reads Niagara Vec2 attributes by name from the cache frame and appends them into the OutValues array.
+	EmitterName - If left blank will return the system simulation attributes.
+	*/
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	void ReadVector2Attribute(TArray<FVector2D>& OutValues, FName AttributeName, FName EmitterName, int FrameIndex = 0) const;
+
+	/**
+	Reads Niagara Vec3 attributes by name from the cache frame and appends them into the OutValues array.
+	EmitterName - If left blank will return the system simulation attributes.
+	*/
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	void ReadVectorAttribute(TArray<FVector>& OutValues, FName AttributeName, FName EmitterName, int FrameIndex = 0) const;
+
+	/**
+	Reads Niagara Vec4 attributes by name from the cache frame and appends them into the OutValues array.
+	EmitterName - If left blank will return the system simulation attributes.
+	*/
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	void ReadVector4Attribute(TArray<FVector4>& OutValues, FName AttributeName, FName EmitterName, int FrameIndex = 0) const;
+
+	/**
+	Reads Niagara Color attributes by name from the cache frame and appends them into the OutValues array.
+	EmitterName - If left blank will return the system simulation attributes.
+	*/
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	void ReadColorAttribute(TArray<FLinearColor>& OutValues, FName AttributeName, FName EmitterName, int FrameIndex = 0) const;
+
+	/**
+	Reads Niagara Position attributes by name from the cache frame and appends them into the OutValues array.
+	Local space emitters provide data at local locations unless bLocalSpaceToWorld is true.
+	EmitterName - If left blank will return the system simulation attributes.
+	*/
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	void ReadPositionAttribute(TArray<FVector>& OutValues, FName AttributeName, FName EmitterName, bool bLocalSpaceToWorld = true, int FrameIndex = 0) const;
+
+	/**
+	Reads Niagara Position attributes by name from the cache frame and appends them into the OutValues array.
+	All attributes read with this method will be re-based from the captured space into the provided transform space,
+	this will occur even if the cache was not captured with re-basing enabled.
+	EmitterName - If left blank will return the system simulation attributes.
+	*/
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	void ReadPositionAttributeWithRebase(TArray<FVector>& OutValues, FName AttributeName, FName EmitterName, FTransform Transform, int FrameIndex = 0) const;
+
+	/**
+	Reads Niagara Quaternion attributes by name from the cache frame and appends them into the OutValues array.
+	Local space emitters provide data at local rotation unless bLocalSpaceToWorld is true.
+	EmitterName - If left blank will return the system simulation attributes.
+	*/
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	void ReadQuatAttribute(TArray<FQuat>& OutValues, FName AttributeName, FName EmitterName, bool bLocalSpaceToWorld = true, int FrameIndex = 0) const;
+
+	/**
+	Reads Niagara Quaternion attributes by name from the cache frame and appends them into the OutValues array.
+	Only attributes that in the rebase list will be transform into the provided Quat space.  Therefore the cache
+	must be captured with rebasing enabled to have any impact.
+	EmitterName - If left blank will return the system simulation attributes.
+	*/
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	void ReadQuatAttributeWithRebase(TArray<FQuat>& OutValues, FName AttributeName, FName EmitterName, FQuat Quat, int FrameIndex = 0) const;
+
+private:
 	UPROPERTY(VisibleAnywhere, Category=SimCache, meta=(DisplayName="Niagara System"))
 	TSoftObjectPtr<UNiagaraSystem> SoftNiagaraSystem;
 
@@ -247,22 +374,5 @@ class NIAGARA_API UNiagaraSimCache : public UObject
 	UPROPERTY()
 	TMap<FNiagaraVariableBase, TObjectPtr<UObject>> DataInterfaceStorage;
 
-	// UObject Interface
-	virtual bool IsReadyForFinishDestroy() override;
-	// UObject Interface
-
-	/** Is the simulation cache valid or not. */
-	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache)
-	bool IsCacheValid() const { return SoftNiagaraSystem.IsNull() == false; }
-
-	void BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent);
-	void WriteFrame(UNiagaraComponent* NiagaraComponent);
-	void EndWrite();
-
-	bool CanRead(UNiagaraSystem* NiagaraSystem);
-	bool Read(float TimeSeconds, FNiagaraSystemInstance* SystemInstance) const;
-	bool ReadFrame(int32 FrameIndex, float FrameFraction, FNiagaraSystemInstance* SystemInstance) const;
-
-private:
 	mutable std::atomic<int32> PendingCommandsInFlight;
 };
