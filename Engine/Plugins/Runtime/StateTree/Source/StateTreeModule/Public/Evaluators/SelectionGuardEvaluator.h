@@ -33,7 +33,7 @@ struct STATETREEMODULE_API FSelectionGuardEvaluatorInstanceData
 };
 
 USTRUCT(DisplayName="Selection Guard")
-struct STATETREEMODULE_API FSelectionGuardEvaluator : public FStateTreeEvaluatorCommonBase
+struct UE_DEPRECATED(5.1, "This function will be removed for 5.1.") FSelectionGuardEvaluator : public FStateTreeEvaluatorCommonBase
 {
 	GENERATED_BODY()
 

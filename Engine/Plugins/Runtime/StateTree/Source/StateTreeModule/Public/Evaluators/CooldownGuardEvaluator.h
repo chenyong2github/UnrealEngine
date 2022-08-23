@@ -39,7 +39,7 @@ struct STATETREEMODULE_API FCooldownGuardEvaluatorInstanceData
 };
 
 USTRUCT(DisplayName="Cooldown Guard")
-struct STATETREEMODULE_API FCooldownGuardEvaluator : public FStateTreeEvaluatorCommonBase
+struct UE_DEPRECATED(5.1, "This function will be removed for 5.1.") FCooldownGuardEvaluator : public FStateTreeEvaluatorCommonBase
 {
 	GENERATED_BODY()
 
