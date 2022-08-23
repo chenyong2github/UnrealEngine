@@ -180,6 +180,61 @@ FAutoConsoleVariableRef CVarFlushAudioRenderThreadOnGC(
 	TEXT("When set to 1, every time the GC runs, we flush all pending audio render thread commands.\n"),
 	ECVF_Default);
 
+static FAutoConsoleCommandWithWorld GListAvailableSpatialPluginsCommand(
+	TEXT("au.spatialization.ListAvailableSpatialPlugins"),
+	TEXT("This will output a list of currently availible/active spatialization plugins"),
+	FConsoleCommandWithWorldDelegate::CreateStatic(
+		[](UWorld* InWorld)
+	{
+			if(InWorld)
+			{
+				if (FAudioDeviceHandle AudioDevice = InWorld->GetAudioDevice())
+				{
+					const TArray<FName> PluginNames = AudioDevice->GetAvailableSpatializationPluginNames();
+					FName ActivePluginName = AudioDevice->GetCurrentSpatializationPluginInterfaceInfo().PluginName;
+
+					if(GEngine)
+					{
+						for (FName PluginName : PluginNames)
+						{
+							const bool bIsActive = PluginName == ActivePluginName;
+							GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow
+								, PluginName.ToString() + (bIsActive? '*' : ' '));
+						}
+						GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow
+							, FString::Printf(TEXT("-----------------------------------------")));
+						GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow
+							, FString::Printf(TEXT("Available spatial plugins [count = %i] (* = Active)"), PluginNames.Num()));
+					}
+				}
+			}
+	})
+);
+
+static FAutoConsoleCommandWithWorldArgsAndOutputDevice GSetCurrentSpatialPluginCommand(
+	TEXT("au.spatialization.SetCurrentSpatialPlugin"),
+	TEXT("Attempt to swap to the named spatialization plugin (au.spatialization.ListAvailableSpatialPlugins to see what is availible)"),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& PluginNameArray, UWorld* InWorld, FOutputDevice&)
+		{
+			FString PluginName;
+			for(const FString& Substring : PluginNameArray)
+			{
+				PluginName += Substring;
+				PluginName += ' ';
+			}
+			PluginName.TrimStartAndEndInline();
+
+			if(InWorld)
+			{
+				if (FAudioDeviceHandle AudioDevice = InWorld->GetAudioDevice())
+				{
+					AudioDevice->SetCurrentSpatializationPlugin(FName(PluginName));
+				}
+			}
+		})
+	);
+
 namespace Audio
 {
 	ICompressedAudioInfo* CreateSoundAssetDecoder(const FName& InRuntimeFormat)
@@ -289,7 +344,6 @@ FAudioDevice::FAudioDevice()
 	, SampleRate(0)
 	, NumPrecacheFrames(MONO_PCM_BUFFER_SAMPLES)
 	, DeviceID(static_cast<Audio::FDeviceId>(INDEX_NONE))
-	, SpatializationPluginInterface(nullptr)
 	, SourceDataOverridePluginInterface(nullptr)
 	, ReverbPluginInterface(nullptr)
 	, OcclusionInterface(nullptr)
@@ -320,10 +374,8 @@ FAudioDevice::FAudioDevice()
 	, bIsStoppingVoicesEnabled(false)
 	, bIsBakedAnalysisEnabled(false)
 	, bAudioMixerModuleLoaded(false)
-	, bSpatializationIsExternalSend(false)
 	, bOcclusionIsExternalSend(false)
 	, bReverbIsExternalSend(false)
-	, MaxChannelsSupportedBySpatializationPlugin(1)
 	, bStartupSoundsPreCached(false)
 	, bSpatializationInterfaceEnabled(false)
 	, bOcclusionInterfaceEnabled(false)
@@ -490,27 +542,46 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources, int32 I
 	// Cache any plugin settings objects we have loaded
 	UpdateAudioPluginSettingsObjectCache();
 
-	//Get the requested spatialization plugin and set it up.
+	//Get the requested default spatialization plugin and set it up.
 	IAudioSpatializationFactory* SpatializationPluginFactory = AudioPluginUtilities::GetDesiredSpatializationPlugin();
 	if (SpatializationPluginFactory != nullptr)
 	{
-		SpatializationPluginInterface = SpatializationPluginFactory->CreateNewSpatializationPlugin(this);
+		// cache the name of our default Spatialization plugin
+		CurrentSpatializationPluginInterfaceName = AudioPluginUtilities::GetDesiredSpatializationPluginName();
+
+		// Cache info for the available spatial plugins
+		TArray<IAudioSpatializationFactory*> SpatializerFactories = AudioPluginUtilities::GetSpatialPluginArray();
+		for(const auto& Factory : SpatializerFactories)
+		{
+			if(!ensure(Factory))
+			{
+				continue;  // null factory ptr in the modular features array
+			}
+
+			const FName PluginName = FName(Factory->GetDisplayName());
+			FAudioSpatializationInterfaceInfo SpatPluginInfo(PluginName, /* InAudioDevice */ this, Factory);
+
+			SpatializationInterfaces.Add(SpatPluginInfo);
+		}
+
 		if (!IsAudioMixerEnabled())
 		{
 			//Set up initialization parameters for system level effect plugins:
-			FAudioPluginInitializationParams PluginInitializationParams;
 			PluginInitializationParams.SampleRate = SampleRate;
-				PluginInitializationParams.NumSources = GetMaxSources();
+			PluginInitializationParams.NumSources = GetMaxSources();
 			PluginInitializationParams.BufferLength = PlatformSettings.CallbackBufferFrameSize;
 			PluginInitializationParams.AudioDevicePtr = this;
 
-			SpatializationPluginInterface->Initialize(PluginInitializationParams);
+			const TAudioSpatializationPtr PluginInterfacePtr = GetSpatializationPluginInterface();
+			if(ensure(PluginInterfacePtr))
+			{
+				GetSpatializationPluginInterface()->Initialize(PluginInitializationParams);
+			}
 		}
 
 		bSpatializationInterfaceEnabled = true;
-		bSpatializationIsExternalSend = SpatializationPluginFactory->IsExternalSend();
-		MaxChannelsSupportedBySpatializationPlugin = SpatializationPluginFactory->GetMaxSupportedChannels();
-		UE_LOG(LogAudio, Display, TEXT("Audio Spatialization Plugin: %s is external send: %d"), *(SpatializationPluginFactory->GetDisplayName()), bSpatializationIsExternalSend);
+
+		UE_LOG(LogAudio, Display, TEXT("Audio Spatialization Plugin: %s is external send: %d"), *(SpatializationPluginFactory->GetDisplayName()), SpatializationPluginFactory->IsExternalSend());
 	}
 	else
 	{
@@ -560,9 +631,8 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources, int32 I
 		ModulationInterface = ModulationPluginFactory->CreateNewModulationPlugin(this);
 
 		//Set up initialization parameters for system level effect plugins:
-		FAudioPluginInitializationParams PluginInitializationParams;
 		PluginInitializationParams.SampleRate = SampleRate;
-			PluginInitializationParams.NumSources = GetMaxSources();
+		PluginInitializationParams.NumSources = GetMaxSources();
 		PluginInitializationParams.BufferLength = PlatformSettings.CallbackBufferFrameSize;
 		PluginInitializationParams.AudioDevicePtr = this;
 		ModulationInterface->Initialize(PluginInitializationParams);
@@ -649,6 +719,66 @@ float FAudioDevice::GetLowPassFilterResonance() const
 {
 	// hard-coded to the default value vs being store in the settings since this shouldn't be a global audio settings value
 	return 0.9f;
+}
+
+
+bool FAudioDevice::SetCurrentSpatializationPlugin(FName PluginName)
+{
+	if(PluginName == CurrentSpatializationPluginInterfaceName)
+	{
+		return true; // no need to do anything.
+	}
+
+	StopAllSounds(false);
+
+	for (FAudioSpatializationInterfaceInfo& Plugin : SpatializationInterfaces)
+	{
+		if(Plugin.PluginName == PluginName)
+		{
+			CurrentSpatializationPluginInterfaceName = PluginName;
+			CurrentSpatializationInterfaceInfoPtr = &Plugin;
+
+			if(!Plugin.bIsInitialized && Plugin.SpatializationPlugin)
+			{
+				Plugin.SpatializationPlugin->Initialize(PluginInitializationParams);
+				Plugin.bIsInitialized = true;
+			}
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+TArray<FName> FAudioDevice::GetAvailableSpatializationPluginNames() const
+{
+	TArray<FName> SpatPluginNames;
+	for(const auto& Plugin : SpatializationInterfaces)
+	{
+		SpatPluginNames.Add(Plugin.PluginName);
+	}
+
+	return SpatPluginNames;
+}
+
+FAudioDevice::FAudioSpatializationInterfaceInfo FAudioDevice::GetCurrentSpatializationPluginInterfaceInfo()
+{
+	// See if we need to update the ptr to the current info
+	if(!CurrentSpatializationInterfaceInfoPtr || CurrentSpatializationInterfaceInfoPtr->PluginName != CurrentSpatializationPluginInterfaceName)
+	{
+		CurrentSpatializationInterfaceInfoPtr = nullptr;
+		for (FAudioSpatializationInterfaceInfo& Plugin : SpatializationInterfaces)
+		{
+			if(Plugin.PluginName == CurrentSpatializationPluginInterfaceName)
+			{
+				CurrentSpatializationInterfaceInfoPtr = &Plugin;
+				break;
+			}
+		}
+	}
+
+	return *CurrentSpatializationInterfaceInfoPtr;
 }
 
 void FAudioDevice::PrecacheStartupSounds()
@@ -815,13 +945,21 @@ void FAudioDevice::Teardown()
 
 	LLM_SCOPE(ELLMTag::AudioMixerPlugins);
 
-	if (SpatializationPluginInterface.IsValid())
+	// shutdown our active audio plugins
+
+	// (spatial)
+	for(const auto& Plugin : SpatializationInterfaces)
 	{
-		SpatializationPluginInterface->Shutdown();
-		SpatializationPluginInterface.Reset();
-		bSpatializationInterfaceEnabled = false;
+		if(TAudioSpatializationPtr SpatialPluginPtr = Plugin.SpatializationPlugin)
+		{
+			SpatialPluginPtr->Shutdown();
+		}
 	}
 
+	SpatializationInterfaces.Empty();
+	bSpatializationInterfaceEnabled = false;
+
+	// (reverb)
 	if (ReverbPluginInterface.IsValid())
 	{
 		ReverbPluginInterface->Shutdown();
@@ -829,12 +967,14 @@ void FAudioDevice::Teardown()
 		bReverbInterfaceEnabled = false;
 	}
 
+	// (source data override)
 	if (SourceDataOverridePluginInterface.IsValid())
 	{
 		SourceDataOverridePluginInterface.Reset();
 		bSourceDataOverrideInterfaceEnabled = false;
 	}
 
+	// (Occlusion)
 	if (OcclusionInterface.IsValid())
 	{
 		OcclusionInterface->Shutdown();
@@ -842,6 +982,7 @@ void FAudioDevice::Teardown()
 		bOcclusionInterfaceEnabled = false;
 	}
 
+	// (modulation)
 	ModulationInterface.Reset();
 	bModulationInterfaceEnabled = false;
 
@@ -7118,6 +7259,24 @@ void FAudioDevice::SetAudioStateProperty(const FName& PropertyName, const FName&
 	FName& Property = AudioStateProperties.FindOrAdd(PropertyName);
 	Property = PropertyValue;
 }
+
+
+FAudioDevice::FAudioSpatializationInterfaceInfo::FAudioSpatializationInterfaceInfo(FName InPluginName, FAudioDevice* InAudioDevice, IAudioSpatializationFactory* InAudioSpatializationFactoryPtr)
+			: PluginName(InPluginName)
+{
+	if(!ensure(InAudioDevice && InAudioSpatializationFactoryPtr))
+	{
+		return;
+	}
+
+	// use the factory to create a PluginInterface
+	SpatializationPlugin = InAudioSpatializationFactoryPtr->CreateNewSpatializationPlugin(InAudioDevice);
+
+	// cache metadata from the incoming plugin interface 
+	bSpatializationIsExternalSend = InAudioSpatializationFactoryPtr->IsExternalSend();
+	MaxChannelsSupportedBySpatializationPlugin = InAudioSpatializationFactoryPtr->GetMaxSupportedChannels();
+}
+
 
 bool FAudioDevice::ShouldUseAttenuation(const UWorld* World) const
 {

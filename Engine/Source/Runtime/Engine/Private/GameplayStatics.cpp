@@ -1928,6 +1928,45 @@ void UGameplayStatics::PrimeSound(USoundBase* InSound)
 	}
 }
 
+TArray<FName> UGameplayStatics::GetAvailableSpatialPluginNames(const UObject* WorldContextObject)
+{
+	if(const UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
+		{
+			return AudioDevice->GetAvailableSpatializationPluginNames();
+		}
+	}
+
+	return {};
+}
+
+FName UGameplayStatics::GetActiveSpatialPluginName(const UObject* WorldContextObject)
+{
+	if(const UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
+		{
+			return AudioDevice->GetCurrentSpatializationPluginInterfaceInfo().PluginName;
+		}
+	}
+
+	return {};
+}
+
+bool UGameplayStatics::SetActiveSpatialPluginByName(const UObject* WorldContextObject, FName InPluginName)
+{
+	if(const UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
+		{
+			return AudioDevice->SetCurrentSpatializationPlugin(InPluginName);
+		}
+	}
+
+	return {};
+}
+
 void UGameplayStatics::PrimeAllSoundsInSoundClass(class USoundClass* InSoundClass)
 {
 	for (TObjectIterator<USoundWave> Itr; Itr; ++Itr)
