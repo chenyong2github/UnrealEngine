@@ -584,6 +584,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	// Copy the pointer to the volume data, async building of the data may modify the one on FStaticMeshLODResources while we are rendering
 	DistanceFieldData = MeshResources.DistanceFieldData;
 	CardRepresentationData = MeshResources.CardRepresentationData;
+
+	bEvaluateWorldPositionOffset = !IsOptimizedWPO() || Component->bEvaluateWorldPositionOffset;
 	
 	MaterialSections.SetNumZeroed(MeshSections.Num());
 
@@ -627,7 +629,11 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 		MaterialSection.ShadingMaterialProxy = ShadingMaterial->GetRenderProxy();
 
-		bHasProgrammableRaster |= MaterialSection.MaterialRelevance.bUsesWorldPositionOffset;
+		if (bEvaluateWorldPositionOffset)
+		{
+			bHasProgrammableRaster |= MaterialSection.MaterialRelevance.bUsesWorldPositionOffset;
+		}
+
 		bHasProgrammableRaster |= MaterialSection.MaterialRelevance.bUsesPixelDepthOffset;
 		bHasProgrammableRaster |= MaterialSection.MaterialRelevance.bMasked;
 
@@ -637,8 +643,6 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 	// Nanite supports distance field representation for fully opaque meshes.
 	bSupportsDistanceFieldRepresentation = CombinedMaterialRelevance.bOpaque;
-
-	bEvaluateWorldPositionOffset = !IsOptimizedWPO() || Component->bEvaluateWorldPositionOffset;
 
 #if RHI_RAYTRACING
 	int32 ValidLODIndex = GetFirstValidRaytracingGeometryLODIndex();
