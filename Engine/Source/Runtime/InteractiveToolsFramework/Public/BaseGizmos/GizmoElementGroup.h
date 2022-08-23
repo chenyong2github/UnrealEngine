@@ -31,14 +31,23 @@ public:
 	// Remove object from group, if it exists
 	virtual void Remove(UGizmoElementBase* InElement);
 
-	// Update group and contained elements' visibility state for elements in specified gizmo parts.
-	virtual void UpdatePartVisibleState(bool bVisible, uint32 InPartIdentifier);
+	// Update group and contained elements' visibility state for elements in specified gizmo parts, return true if part was found.
+	virtual bool UpdatePartVisibleState(bool bVisible, uint32 InPartIdentifier);
 
-	// Update group and contained elements' hittable state for elements in specified gizmo parts.
-	virtual void UpdatePartHittableState(bool bHittable, uint32 InPartIdentifier);
+	// Get element's visible state for element associated with the specified gizmo part, if part was found.
+	virtual TOptional<bool> GetPartVisibleState(uint32 InPartIdentifier) const;
 
-	// Update group and contained elements' interaction state for elements in specified gizmo parts.
-	virtual void UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier);
+	// Update group and contained elements' hittable state for elements in specified gizmo parts, return true if part was found.
+	virtual bool UpdatePartHittableState(bool bHittable, uint32 InPartIdentifier);
+
+	// Get element's hittable state for element associated with the specified gizmo part, if part was found.
+	virtual TOptional<bool> GetPartHittableState(uint32 InPartIdentifier) const;
+
+	// Update group and contained elements' interaction state for elements in specified gizmo parts, return true if part was found.
+	virtual bool UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier);
+
+	// Get element's interaction state for element associated with the specified gizmo part, if part was found.
+	virtual TOptional<EGizmoElementInteractionState> GetPartInteractionState(uint32 InPartIdentifiero) const;
 
 	// When true, maintains view-dependent constant scale for this gizmo object hierarchy
 	virtual void SetConstantScale(bool InConstantScale);

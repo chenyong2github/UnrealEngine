@@ -104,43 +104,129 @@ void UGizmoElementGroup::Remove(UGizmoElementBase* InElement)
 	}
 }
 
-void UGizmoElementGroup::UpdatePartVisibleState(bool bVisible, uint32 InPartIdentifier)
+bool UGizmoElementGroup::UpdatePartVisibleState(bool bVisible, uint32 InPartIdentifier)
 {
-	Super::UpdatePartVisibleState(bVisible, InPartIdentifier);
+	if (Super::UpdatePartVisibleState(bVisible, InPartIdentifier))
+	{
+		return true;
+	}
 
 	for (UGizmoElementBase* Element : Elements)
 	{
-		if (Element)
+		if (Element && Element->UpdatePartVisibleState(bVisible, InPartIdentifier))
 		{
-			Element->UpdatePartVisibleState(bVisible, InPartIdentifier);
+			return true;
 		}
 	}
+
+	return false;
 }
 
-void UGizmoElementGroup::UpdatePartHittableState(bool bHittable, uint32 InPartIdentifier)
+TOptional<bool> UGizmoElementGroup::GetPartVisibleState(uint32 InPartIdentifier) const
 {
-	Super::UpdatePartHittableState(bHittable, InPartIdentifier);
+	TOptional<bool> Result = Super::GetPartVisibleState(InPartIdentifier);
+	if (Result.IsSet())
+	{
+		return Result;
+	}
 
 	for (UGizmoElementBase* Element : Elements)
 	{
 		if (Element)
 		{
-			Element->UpdatePartHittableState(bHittable, InPartIdentifier);
+			Result = Element->GetPartVisibleState(InPartIdentifier);
+			if (Result.IsSet())
+			{
+				return Result;
+			}
 		}
 	}
+
+	return TOptional<bool>();
 }
 
-void UGizmoElementGroup::UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier)
+
+bool UGizmoElementGroup::UpdatePartHittableState(bool bHittable, uint32 InPartIdentifier)
 {
-	Super::UpdatePartInteractionState(InInteractionState, InPartIdentifier);
+	if (Super::UpdatePartHittableState(bHittable, InPartIdentifier))
+	{
+		return true;
+	}
+
+	for (UGizmoElementBase* Element : Elements)
+	{
+		if (Element && Element->UpdatePartHittableState(bHittable, InPartIdentifier))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+TOptional<bool> UGizmoElementGroup::GetPartHittableState(uint32 InPartIdentifier) const
+{
+	TOptional<bool> Result = Super::GetPartHittableState(InPartIdentifier);
+	if (Result.IsSet())
+	{
+		return Result;
+	}
 
 	for (UGizmoElementBase* Element : Elements)
 	{
 		if (Element)
 		{
-			Element->UpdatePartInteractionState(InInteractionState, InPartIdentifier);
+			Result = Element->GetPartHittableState(InPartIdentifier);
+			if (Result.IsSet())
+			{
+				return Result;
+			}
 		}
 	}
+
+	return TOptional<bool>();
+}
+
+bool UGizmoElementGroup::UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier)
+{
+	if (Super::UpdatePartInteractionState(InInteractionState, InPartIdentifier))
+	{
+		return true;
+	}
+
+	for (UGizmoElementBase* Element : Elements)
+	{
+		if (Element && Element->UpdatePartInteractionState(InInteractionState, InPartIdentifier))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+TOptional<EGizmoElementInteractionState> UGizmoElementGroup::GetPartInteractionState(uint32 InPartIdentifier) const
+{
+	TOptional<EGizmoElementInteractionState> Result = Super::GetPartInteractionState(InPartIdentifier);
+	if (Result.IsSet())
+	{
+		return Result;
+	}
+
+	for (UGizmoElementBase* Element : Elements)
+	{
+		if (Element)
+		{ 
+			Result = Element->GetPartInteractionState(InPartIdentifier);
+			if (Result.IsSet())
+			{
+				return Result;
+			}
+		}
+	}
+
+	return TOptional<EGizmoElementInteractionState>();
 }
 
 void UGizmoElementGroup::SetConstantScale(bool bInConstantScale)

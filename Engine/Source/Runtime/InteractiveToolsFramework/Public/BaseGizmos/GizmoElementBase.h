@@ -169,14 +169,23 @@ public:
 	virtual void SetElementInteractionState(EGizmoElementInteractionState InInteractionState);
 	virtual EGizmoElementInteractionState GetElementInteractionState() const;
 
-	// Update element's visibility state if element is associated with the specified gizmo part.
-	virtual void UpdatePartVisibleState(bool bVisible, uint32 InPartIdentifier);
+	// Update element's visibility state if element is associated with the specified gizmo part, return true if part was found.
+	virtual bool UpdatePartVisibleState(bool bVisible, uint32 InPartIdentifier);
 
-	// Update element's hittable state if element is associated with the specified gizmo part.
-	virtual void UpdatePartHittableState(bool bHittable, uint32 InPartIdentifier);
+	// Get element's visible state for element associated with the specified gizmo part, if part id was found.
+	virtual TOptional<bool> GetPartVisibleState(uint32 InPartIdentifier) const;
 
-	// Update element's interaction state if element is associated with the specified gizmo part.
-	virtual void UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier);
+	// Update element's hittable state if element is associated with the specified gizmo part, return true if part id was found.
+	virtual bool UpdatePartHittableState(bool bHittable, uint32 InPartIdentifier);
+
+	// Get element's hittable state for element associated with the specified gizmo part, if part id was found.
+	virtual TOptional<bool> GetPartHittableState(uint32 InPartIdentifier) const;
+
+	// Update element's interaction state if element is associated with the specified gizmo part, return true if part id was found.
+	virtual bool UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier);
+
+	// Get element's interaction state for element associated with the specified gizmo part, if part id was found.
+	virtual TOptional<EGizmoElementInteractionState> GetPartInteractionState(uint32 InPartIdentifier) const;
 
 	// View-dependent type - None, Axis or Plane. 
 	virtual void SetViewDependentType(EGizmoElementViewDependentType ViewDependentType);

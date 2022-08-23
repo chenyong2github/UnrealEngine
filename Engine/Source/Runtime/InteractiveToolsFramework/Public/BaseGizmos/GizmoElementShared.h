@@ -17,6 +17,8 @@ enum class EGizmoElementState : uint8
 	VisibleAndHittable = Visible | Hittable
 };
 
+ENUM_CLASS_FLAGS(EGizmoElementState)
+
 //
 // Interaction state of gizmo element
 //

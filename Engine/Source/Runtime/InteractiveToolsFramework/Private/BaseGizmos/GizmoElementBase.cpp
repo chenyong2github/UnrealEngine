@@ -398,34 +398,57 @@ EGizmoElementInteractionState UGizmoElementBase::GetElementInteractionState() co
 	return ElementInteractionState;
 }
 
-void UGizmoElementBase::UpdatePartHittableState(bool bHittable, uint32 InPartIdentifier)
+bool UGizmoElementBase::UpdatePartHittableState(bool bHittable, uint32 InPartIdentifier)
 {
-	if (InPartIdentifier == PartIdentifier)
+	if (InPartIdentifier != PartIdentifier)
 	{
-		uint8 State = static_cast<uint8>(ElementState);
-		uint8 HittableMask = static_cast<uint8>(EGizmoElementState::Hittable);
-		uint8 NewState = (bHittable ? State | HittableMask : State & (~HittableMask));
-		ElementState = static_cast<EGizmoElementState>(NewState);
+		return false;
 	}
+
+	ElementState = (bHittable ? ElementState | EGizmoElementState::Hittable : ElementState & (~EGizmoElementState::Hittable));
+	return true;
 }
 
-void UGizmoElementBase::UpdatePartVisibleState(bool bVisible, uint32 InPartIdentifier)
+TOptional<bool> UGizmoElementBase::GetPartHittableState(uint32 InPartIdentifier) const
 {
-	if (InPartIdentifier == PartIdentifier)
-	{
-		uint8 State = static_cast<uint8>(ElementState);
-		uint8 VisibleMask = static_cast<uint8>(EGizmoElementState::Visible);
-		uint8 NewState = (bVisible ? State | VisibleMask : State & (~VisibleMask));
-		ElementState = static_cast<EGizmoElementState>(NewState);
-	}
+	return InPartIdentifier == PartIdentifier ? TOptional<bool>(GetHittableState()) : TOptional<bool>();
 }
 
-void UGizmoElementBase::UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier)
+bool UGizmoElementBase::UpdatePartVisibleState(bool bVisible, uint32 InPartIdentifier)
+{
+	if (InPartIdentifier != PartIdentifier)
+	{
+		return false;
+	}
+
+	ElementState = (bVisible ? ElementState | EGizmoElementState::Visible : ElementState & (~EGizmoElementState::Visible));
+	return true;
+}
+
+TOptional<bool> UGizmoElementBase::GetPartVisibleState(uint32 InPartIdentifier) const
+{
+	return InPartIdentifier == PartIdentifier ? TOptional<bool>(GetVisibleState()) : TOptional<bool>();
+}
+
+bool UGizmoElementBase::UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier)
+{
+	if (InPartIdentifier != PartIdentifier)
+	{
+		return false;
+	}
+	
+	ElementInteractionState = InInteractionState;
+	return true;
+}
+
+TOptional<EGizmoElementInteractionState> UGizmoElementBase::GetPartInteractionState(uint32 InPartIdentifier) const
 {
 	if (InPartIdentifier == PartIdentifier)
 	{
-		ElementInteractionState = InInteractionState;
+		return TOptional<EGizmoElementInteractionState>(GetElementInteractionState());
 	}
+
+	return  TOptional<EGizmoElementInteractionState>();
 }
 
 void UGizmoElementBase::SetViewDependentType(EGizmoElementViewDependentType InViewDependentType)
