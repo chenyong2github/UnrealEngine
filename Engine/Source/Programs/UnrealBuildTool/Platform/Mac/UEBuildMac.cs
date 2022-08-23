@@ -151,11 +151,6 @@ namespace UnrealBuildTool
 					"MetaHumans",
 					"NeuralMorphModel",
 
-					// MDL
-					"MDLImporter",
-					"USDImporter",
-					"USDMultiUser",
-
 					// EOSSDK
 					"EOSManager",
 					"EOSShared",
