@@ -59,10 +59,14 @@ string(CONCAT UE_FLAGS_RELEASE
 if(BUILD_WITH_LIBCXX)
 	string(CONCAT UE_FLAGS_CXX
 		"${UE_FLAGS_CXX}"
+		" -stdlib=libc++"
 		" -I${LIBCXX_PATH}/include"
 		" -I${LIBCXX_PATH}/include/c++/v1"
 		)
 	string(CONCAT LIBCXX_FLAGS
+		"${LIBCXX_FLAGS}"
+		" -stdlib=libc++"
+		" -L${LIBCXX_PATH}/lib/Unix/${UE_LINUX_TARGET}"
 		" ${LIBCXX_PATH}/lib/Unix/${UE_LINUX_TARGET}/libc++.a"
 		" ${LIBCXX_PATH}/lib/Unix/${UE_LINUX_TARGET}/libc++abi.a"
 		)
