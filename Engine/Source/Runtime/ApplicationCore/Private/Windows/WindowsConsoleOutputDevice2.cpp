@@ -267,7 +267,7 @@ public:
 				TCHAR Id[256];
 				const TCHAR* Str = Info.Name;
 				FCString::Sprintf(Id, TEXT("%u%s"), Info.Id, Str);
-				SetActivity(Id, Str, Info.Status, (int32)Info.Light, Info.SortValue);
+				SetActivity(Id, Str, Info.Status, (int32)Info.Light, Info.SortValue, Info.Type == FTrackedActivity::EType::Activity);
 			});
 
 		UpdateWindow(MainHwnd);
