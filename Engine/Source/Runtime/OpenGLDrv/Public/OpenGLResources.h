@@ -1244,9 +1244,6 @@ public:
 	GLenum Target = GL_NONE;
 	GLenum Attachment = GL_NONE;
 
-	uint8 NumSamplesRendered = 1;
-	uint8 NumSamplesStored   = 1;
-
 	uint32 MemorySize = 0;
 
 	uint8 bCubemap            : 1;
@@ -1255,7 +1252,7 @@ public:
 	uint8 bDepthStencil       : 1;
 	uint8 bCanCreateAsEvicted : 1;
 	uint8 bIsPowerOfTwo       : 1;
-	uint8 bTileMemDepthBuffer : 1;
+	uint8 bMultisampleRenderbuffer : 1;
 
 private:
 	static bool CanDeferTextureCreation();
@@ -1268,9 +1265,6 @@ public:
 		: FRHITextureCreateDesc(CreateDesc)
 		, FOpenGLTextureDesc(CreateDesc)
 	{
-		// Tiled GPUs modify the number of samples the FRHITexture reports.
-		// Ensure the base descriptor is updated with the actual number of samples.
-		FRHITextureCreateDesc::NumSamples = FOpenGLTextureDesc::NumSamplesStored;
 	}
 };
 
@@ -1325,25 +1319,6 @@ public:
 	{
 		VERIFY_GL_SCOPE();
 		Resource = InResource;
-	}
-
-	// Returns true if this texture will perform automatic MSAA resolve on tile-based GPUs.
-	bool IsTiledMSAA() const
-    {
-		return NumSamplesInternal > 1 && NumSamplesInternal <= FOpenGL::GetMaxMSAASamplesTileMem(); //-V547
-    }
-
-	// Returns the number of samples used during rendering. These samples may be kept in on-chip GPU tiled memory.
-	// For non-tiled GPUs, this is always equal to the number of stored samples.
-	uint32 GetNumSamplesRendered() const
-	{
-		return NumSamplesInternal;
-	}
-
-	// Returns the number of samples stored in the actual GPU resource memory.
-	uint32 GetNumSamplesStored() const
-	{
-		return IsTiledMSAA() ? 1 : NumSamplesInternal;
 	}
 
 	bool IsEvicted() const { VERIFY_GL_SCOPE(); return EvictionParamsPtr.IsValid() && !EvictionParamsPtr->bHasRestored; }
@@ -1471,9 +1446,6 @@ private:
 public:
 	uint32 const MemorySize;
 
-private:
-	uint8 const NumSamplesInternal;
-
 public:
 	uint8 const bIsPowerOfTwo       : 1;
 	uint8 const bCanCreateAsEvicted : 1;
@@ -1481,8 +1453,8 @@ public:
 	uint8 const bCubemap            : 1;
 	uint8 const bArrayTexture       : 1;
 	uint8 const bDepthStencil       : 1;
-	uint8 const bTileMemDepthBuffer : 1;
 	uint8 const bAlias              : 1;
+	uint8 const bMultisampleRenderbuffer : 1;
 };
 
 template <typename T>

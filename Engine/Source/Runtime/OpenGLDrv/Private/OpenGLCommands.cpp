@@ -1283,7 +1283,7 @@ void FOpenGLDynamicRHI::SetPendingBlendStateForActiveRenderTargets( FOpenGLConte
 		else if (RenderTargetIndex == 0)
 		{
 			FOpenGLTexture* RenderTarget2D = PendingState.RenderTargets[RenderTargetIndex];
-			bMSAAEnabled = RenderTarget2D->GetNumSamplesRendered() > 1;
+			bMSAAEnabled = PendingState.NumRenderingSamples > 1 || RenderTarget2D->IsMultisampled();
 		}
 
 		const FOpenGLBlendStateData::FRenderTarget& RenderTargetBlendState = PendingState.BlendState.RenderTargets[RenderTargetIndex];
@@ -1536,7 +1536,7 @@ void FOpenGLDynamicRHI::SetRenderTargets(
 		return;
 	}
 
-	PendingState.Framebuffer = GetOpenGLFramebuffer(NumSimultaneousRenderTargets, PendingState.RenderTargets, PendingState.RenderTargetArrayIndex, PendingState.RenderTargetMipmapLevels, PendingState.DepthStencil);
+	PendingState.Framebuffer = GetOpenGLFramebuffer(NumSimultaneousRenderTargets, PendingState.RenderTargets, PendingState.RenderTargetArrayIndex, PendingState.RenderTargetMipmapLevels, PendingState.DepthStencil, PendingState.NumRenderingSamples);
 	PendingState.bFramebufferSetupInvalid = false;
 
 	if (PendingState.FirstNonzeroRenderTarget != -1)

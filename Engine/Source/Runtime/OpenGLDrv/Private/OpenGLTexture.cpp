@@ -173,38 +173,38 @@ bool FOpenGLDynamicRHI::RHIGetTextureMemoryVisualizeData( FColor* /*TextureData*
 }
 
 FOpenGLTextureDesc::FOpenGLTextureDesc(FRHITextureDesc const& InDesc)
-	: NumSamplesRendered (InDesc.NumSamples)
-	, NumSamplesStored   (InDesc.NumSamples)
-	, bCubemap           (InDesc.IsTextureCube())
+	: bCubemap           (InDesc.IsTextureCube())
 	, bArrayTexture      (InDesc.IsTextureArray())
 	, bStreamable        (EnumHasAnyFlags(InDesc.Flags, TexCreate_Streamable))
 	, bDepthStencil      (EnumHasAnyFlags(InDesc.Flags, TexCreate_DepthStencilTargetable))
 	, bCanCreateAsEvicted(false)
 	, bIsPowerOfTwo      (false)
-	, bTileMemDepthBuffer(false)
+	, bMultisampleRenderbuffer(EnumHasAnyFlags(InDesc.Flags, TexCreate_Memoryless) && InDesc.NumSamples > 1)
 {
-	checkf(!bCubemap || NumSamplesStored == 1, TEXT("Texture cubes cannot be multisampled."));
+	checkf(!bCubemap || InDesc.NumSamples == 1, TEXT("Texture cubes cannot be multisampled."));
 	checkf(FOpenGL::SupportsTexture3D() || (!InDesc.IsTexture3D() && !InDesc.IsTextureArray()), TEXT("Texture3D / Texture2DArray support requires FOpenGL::SupportsTexture3D()."));
+	checkf(!bMultisampleRenderbuffer || EnumHasAnyFlags(InDesc.Flags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable), TEXT("Only render targets can be memoryless"));
 
-	// Use on-chip tile memory for MSAA if available
-	if (NumSamplesStored <= FOpenGL::GetMaxMSAASamplesTileMem())
+	// Special case for multiview MSAA depth target. It has to be a non-MSAA texture with multisample rendering
+	const bool bMultiviewMSAADepthTarget = (bDepthStencil && InDesc.NumSamples > 1 && InDesc.Dimension == ETextureDimension::Texture2DArray);
+	if (bMultiviewMSAADepthTarget)
 	{
-		NumSamplesRendered = FMath::Min<uint32>(NumSamplesStored, FOpenGL::GetMaxMSAASamplesTileMem());
-		NumSamplesStored = 1;
+		bMultisampleRenderbuffer = false;
 	}
-
+			
 	// Select an appropriate texture target
-#if PLATFORM_ANDROID
-	if (bDepthStencil && NumSamplesRendered != NumSamplesStored)
+	if (bMultisampleRenderbuffer)
 	{
-		// Special case for MSAA depth render target on tiled GPUs / mobile renderer.
+		// Special case for multisample memoryless render targets
 		Target = GL_RENDERBUFFER;
-		bTileMemDepthBuffer = true;
 	}
 	else 
-#endif
 	{
-		if (EnumHasAnyFlags(InDesc.Flags, TexCreate_External))
+		if (bMultiviewMSAADepthTarget)
+		{
+			Target = GL_TEXTURE_2D_ARRAY;
+		}
+		else if (EnumHasAnyFlags(InDesc.Flags, TexCreate_External))
 		{
 			check(InDesc.IsTexture2D());
 			check(!InDesc.IsTextureArray());
@@ -225,8 +225,8 @@ FOpenGLTextureDesc::FOpenGLTextureDesc(FRHITextureDesc const& InDesc)
 			switch (InDesc.Dimension)
 			{
 			default: checkNoEntry();
-			case ETextureDimension::Texture2D:		  Target = (NumSamplesStored > 1) ? GL_TEXTURE_2D_MULTISAMPLE       : GL_TEXTURE_2D;       break;
-			case ETextureDimension::Texture2DArray:	  Target = (NumSamplesStored > 1) ? GL_TEXTURE_2D_MULTISAMPLE_ARRAY : GL_TEXTURE_2D_ARRAY; break;
+			case ETextureDimension::Texture2D:		  Target = (InDesc.NumSamples > 1) ? GL_TEXTURE_2D_MULTISAMPLE       : GL_TEXTURE_2D;       break;
+			case ETextureDimension::Texture2DArray:	  Target = (InDesc.NumSamples > 1) ? GL_TEXTURE_2D_MULTISAMPLE_ARRAY : GL_TEXTURE_2D_ARRAY; break;
 			case ETextureDimension::TextureCubeArray: Target = GL_TEXTURE_CUBE_MAP_ARRAY; break;
 			case ETextureDimension::TextureCube:	  Target = GL_TEXTURE_CUBE_MAP;       break;
 			case ETextureDimension::Texture3D:		  Target = GL_TEXTURE_3D;             break;
@@ -282,11 +282,11 @@ FOpenGLTextureDesc::FOpenGLTextureDesc(FRHITextureDesc const& InDesc)
 	switch (Attachment)
 	{
 	case GL_COLOR_ATTACHMENT0:
-		check(GMaxOpenGLColorSamples >= (GLint)NumSamplesRendered);
+		check(GMaxOpenGLColorSamples >= (GLint)InDesc.NumSamples);
 		break;
 	case GL_DEPTH_ATTACHMENT:
 	case GL_DEPTH_STENCIL_ATTACHMENT:
-		check(GMaxOpenGLDepthSamples >= (GLint)NumSamplesRendered);
+		check(GMaxOpenGLDepthSamples >= (GLint)InDesc.NumSamples);
 		break;
 	default:
 		break;
@@ -299,15 +299,14 @@ FOpenGLTexture::FOpenGLTexture(FOpenGLTexture& Other, const FString& Name, EAlia
 	, Target             (Other.Target)
 	, Attachment         (Other.Attachment)
 	, MemorySize         (0)
-	, NumSamplesInternal (Other.NumSamplesInternal)
 	, bIsPowerOfTwo      (Other.bIsPowerOfTwo)
 	, bCanCreateAsEvicted(false)
 	, bStreamable        (Other.bStreamable)
 	, bCubemap           (Other.bCubemap)
 	, bArrayTexture      (Other.bArrayTexture)
 	, bDepthStencil      (Other.bDepthStencil)
-	, bTileMemDepthBuffer(Other.bTileMemDepthBuffer)
 	, bAlias             (true)
+	, bMultisampleRenderbuffer(Other.bMultisampleRenderbuffer)
 {
 	RunOnGLRenderContextThread([&]()
 	{
@@ -336,15 +335,14 @@ FOpenGLTexture::FOpenGLTexture(FOpenGLTextureCreateDesc const& CreateDesc, GLuin
 	, Target             (CreateDesc.Target)
 	, Attachment         (CreateDesc.Attachment)
 	, MemorySize         (CreateDesc.MemorySize)
-	, NumSamplesInternal (CreateDesc.NumSamplesRendered)
 	, bIsPowerOfTwo      (CreateDesc.bIsPowerOfTwo)
 	, bCanCreateAsEvicted(false)
 	, bStreamable        (CreateDesc.bStreamable)
 	, bCubemap           (CreateDesc.bCubemap)
 	, bArrayTexture      (CreateDesc.bArrayTexture)
 	, bDepthStencil      (CreateDesc.bDepthStencil)
-	, bTileMemDepthBuffer(CreateDesc.bTileMemDepthBuffer)
 	, bAlias             (true)
+	, bMultisampleRenderbuffer(CreateDesc.bMultisampleRenderbuffer)
 {}
 
 // Standard constructor.
@@ -353,15 +351,14 @@ FOpenGLTexture::FOpenGLTexture(FOpenGLTextureCreateDesc const& CreateDesc)
 	, Target             (CreateDesc.Target)
 	, Attachment         (CreateDesc.Attachment)
 	, MemorySize         (CreateDesc.MemorySize)
-	, NumSamplesInternal (CreateDesc.NumSamplesRendered)
 	, bIsPowerOfTwo      (CreateDesc.bIsPowerOfTwo)
 	, bCanCreateAsEvicted(CreateDesc.bCanCreateAsEvicted)
 	, bStreamable        (CreateDesc.bStreamable)
 	, bCubemap           (CreateDesc.bCubemap)
 	, bArrayTexture      (CreateDesc.bArrayTexture)
 	, bDepthStencil      (CreateDesc.bDepthStencil)
-	, bTileMemDepthBuffer(CreateDesc.bTileMemDepthBuffer)
 	, bAlias             (false)
+	, bMultisampleRenderbuffer(CreateDesc.bMultisampleRenderbuffer)
 {
 	check(IsInRenderingThread());
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
@@ -487,7 +484,7 @@ void FOpenGLDynamicRHI::InitializeGLTexture(FOpenGLTexture* Texture, const void*
 
 	// Allocate the GL resource ID
 	GLuint TextureID;
-	if (Texture->bTileMemDepthBuffer)
+	if (Texture->bMultisampleRenderbuffer)
 	{
 		check(Texture->Target == GL_RENDERBUFFER);
 		glGenRenderbuffers(1, &TextureID);
@@ -554,6 +551,8 @@ void FOpenGLDynamicRHI::InitializeGLTextureInternal(FOpenGLTexture* Texture, voi
 	{
 		UE_LOG(LogRHI, Fatal,TEXT("Texture format '%s' not supported (sRGB=%d)."), GPixelFormats[Desc.Format].Name, bSRGB);
 	}
+	
+	const bool bMultiviewMSAADepthTarget = (Texture->bDepthStencil && Desc.NumSamples > 1 && Desc.Dimension == ETextureDimension::Texture2DArray);
 
 	FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
 
@@ -561,20 +560,13 @@ void FOpenGLDynamicRHI::InitializeGLTextureInternal(FOpenGLTexture* Texture, voi
 	CachedBindPixelUnpackBuffer(ContextState, 0);
 
 	bool bAllocatedStorage = false;
-#if PLATFORM_ANDROID
-	if (Texture->bTileMemDepthBuffer)
+	if (Texture->bMultisampleRenderbuffer)
 	{
-		glBindRenderbuffer(GL_RENDERBUFFER, TextureID);
-
-		glRenderbufferStorageMultisampleEXT(GL_RENDERBUFFER, Texture->GetNumSamplesRendered(), GL_DEPTH24_STENCIL8, Desc.Extent.X, Desc.Extent.Y);
-		VERIFY_GL(glRenderbufferStorageMultisampleEXT);
-
-		glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-		bAllocatedStorage = true;
+		check(Texture->IsMultisampled());
+		check(Target == GL_RENDERBUFFER);
+		// Multisample Renderbuffers will be allocated on first use. See ConditionallyAllocateRenderbufferStorage
 	}
 	else
-#endif
 	{
 		// Use a texture stage that's not likely to be used for draws, to avoid waiting
 		CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Target, TextureID, 0, Desc.NumMips);
@@ -589,7 +581,7 @@ void FOpenGLDynamicRHI::InitializeGLTextureInternal(FOpenGLTexture* Texture, voi
 			glTexParameteri(Target, GL_TEXTURE_SWIZZLE_B, GL_RED);
 		}
 
-		if (Texture->GetNumSamplesStored() == 1)
+		if (!Texture->IsMultisampled())
 		{
 			if (Target == GL_TEXTURE_EXTERNAL_OES || !FMath::IsPowerOfTwo(Desc.Extent.X) || !FMath::IsPowerOfTwo(Desc.Extent.Y))
 			{
@@ -837,14 +829,15 @@ void FOpenGLDynamicRHI::InitializeGLTextureInternal(FOpenGLTexture* Texture, voi
 					checkf(BulkDataPtr == nullptr, TEXT("Multisample textures cannot be created with initial bulk data."));
 
 					// Try to create an immutable storage texture and fallback if it fails
+					const int32 NumSamples = Texture->GetDesc().NumSamples;
 					const bool FixedSampleLocations = true;
-					if (FOpenGL::TexStorage2DMultisample(Target, Texture->GetNumSamplesStored(), GLFormat.InternalFormat[bSRGB], Desc.Extent.X, Desc.Extent.Y, FixedSampleLocations))
+					if (FOpenGL::TexStorage2DMultisample(Target, NumSamples, GLFormat.InternalFormat[bSRGB], Desc.Extent.X, Desc.Extent.Y, FixedSampleLocations))
 					{
 						bAllocatedStorage = true;
 					}
 					else
 					{
-						FOpenGL::TexImage2DMultisample(Target, Texture->GetNumSamplesStored(), GLFormat.InternalFormat[bSRGB], Desc.Extent.X, Desc.Extent.Y, FixedSampleLocations);
+						FOpenGL::TexImage2DMultisample(Target, NumSamples, GLFormat.InternalFormat[bSRGB], Desc.Extent.X, Desc.Extent.Y, FixedSampleLocations);
 					}
 				}
 				break;

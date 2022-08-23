@@ -427,6 +427,7 @@ struct FOpenGLRHIState final : public FOpenGLCommonState
 	bool							bAlphaToCoverageEnabled;
 
 	// Pending framebuffer setup
+	int32							NumRenderingSamples;// Only used with GL_EXT_multisampled_render_to_texture
 	int32							FirstNonzeroRenderTarget;
 	FOpenGLTexture*					RenderTargets[MaxSimultaneousRenderTargets];
 	uint32							RenderTargetMipmapLevels[MaxSimultaneousRenderTargets];
@@ -484,6 +485,7 @@ struct FOpenGLRHIState final : public FOpenGLCommonState
 	,	RenderTargetHeight(0)
 	,	RunningOcclusionQuery(0)
 	,	bAlphaToCoverageEnabled(false)
+	,	NumRenderingSamples(1)
 	,	FirstNonzeroRenderTarget(-1)
 	,	DepthStencil(0)
 	,	StencilStoreAction(ERenderTargetStoreAction::ENoAction)

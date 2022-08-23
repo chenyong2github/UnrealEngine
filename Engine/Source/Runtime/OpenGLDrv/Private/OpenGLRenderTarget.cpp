@@ -43,9 +43,11 @@ public:
 		const uint32* InRenderTargetArrayIndices,
 		const uint32* InRenderTargetMipmapLevels,
 		FOpenGLTexture* InDepthStencilTarget,
+		int32 InNumRenderingSamples,
 		EOpenGLCurrentContext InContext
 		)
 		:	DepthStencilTarget(InDepthStencilTarget)
+		,	NumRenderingSamples(InNumRenderingSamples)
 		,	Context(InContext)
 	{
 		uint32 RenderTargetIndex;
@@ -71,7 +73,11 @@ public:
 	*/
 	friend bool operator ==(const FOpenGLFramebufferKey& A,const FOpenGLFramebufferKey& B)
 	{
-		return	!FMemory::Memcmp(A.RenderTargets, B.RenderTargets, sizeof(A.RenderTargets) ) && A.DepthStencilTarget == B.DepthStencilTarget && A.Context == B.Context;
+		return	
+			!FMemory::Memcmp(A.RenderTargets, B.RenderTargets, sizeof(A.RenderTargets) ) && 
+			A.DepthStencilTarget == B.DepthStencilTarget &&
+			A.NumRenderingSamples == B.NumRenderingSamples &&
+			A.Context == B.Context;
 	}
 
 	/**
@@ -81,18 +87,41 @@ public:
 	*/
 	friend uint32 GetTypeHash(const FOpenGLFramebufferKey &Key)
 	{
-		return FCrc::MemCrc_DEPRECATED(Key.RenderTargets, sizeof(Key.RenderTargets)) ^ GetTypeHash(Key.DepthStencilTarget) ^ GetTypeHash(Key.Context);
+		return FCrc::MemCrc_DEPRECATED(Key.RenderTargets, sizeof(Key.RenderTargets)) ^ GetTypeHash(Key.DepthStencilTarget) ^ GetTypeHash(Key.NumRenderingSamples) ^ GetTypeHash(Key.Context);
 	}
 
 	const FOpenGLTexture* GetRenderTarget( int32 Index ) const { return RenderTargets[Index].Texture; }
 	const FOpenGLTexture* GetDepthStencilTarget( void ) const { return DepthStencilTarget; }
+	int32 GetNumRenderingSamples( void ) const { return NumRenderingSamples; }
 
 private:
 
 	RenderTargetInfo RenderTargets[MaxSimultaneousRenderTargets];
 	FOpenGLTexture* DepthStencilTarget;
+	int32 NumRenderingSamples; // MSAA on tile
 	EOpenGLCurrentContext Context;
 };
+
+static void ConditionallyAllocateRenderbufferStorage(FOpenGLTexture& RenderTarget)
+{
+	if (RenderTarget.bMultisampleRenderbuffer && 
+		RenderTarget.GetAllocatedStorageForMip(0,0) == false)
+	{
+		check(RenderTarget.IsMultisampled());
+		check(RenderTarget.Target == GL_RENDERBUFFER);
+
+		GLuint TextureID = RenderTarget.GetRawResourceName();
+		const FRHITextureDesc& Desc = RenderTarget.GetDesc();
+		const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Desc.Format];
+		const bool bSRGB = EnumHasAnyFlags(Desc.Flags, TexCreate_SRGB);
+		
+		glBindRenderbuffer(GL_RENDERBUFFER, TextureID);
+		FOpenGL::RenderbufferStorageMultisample(GL_RENDERBUFFER, Desc.NumSamples, GLFormat.InternalFormat[bSRGB], Desc.Extent.X, Desc.Extent.Y);
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+		RenderTarget.SetAllocatedStorage(true);
+	}
+}
 
 typedef TMap<FOpenGLFramebufferKey,GLuint> FOpenGLFramebufferCache;
 
@@ -105,11 +134,17 @@ static FOpenGLFramebufferCache& GetOpenGLFramebufferCache()
 
 GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTargets, FOpenGLTexture** RenderTargets, const uint32* ArrayIndices, const uint32* MipmapLevels, FOpenGLTexture* DepthStencilTarget)
 {
+	const int32 NumRenderingSamples = 1;
+	return GetOpenGLFramebuffer(NumSimultaneousRenderTargets, RenderTargets, ArrayIndices, MipmapLevels, DepthStencilTarget, NumRenderingSamples);
+}
+
+GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTargets, FOpenGLTexture** RenderTargets, const uint32* ArrayIndices, const uint32* MipmapLevels, FOpenGLTexture* DepthStencilTarget, int32 NumRenderingSamples)
+{
 	VERIFY_GL_SCOPE();
 
 	check( NumSimultaneousRenderTargets <= MaxSimultaneousRenderTargets );
 
-	uint32 FramebufferRet = GetOpenGLFramebufferCache().FindRef(FOpenGLFramebufferKey(NumSimultaneousRenderTargets, RenderTargets, ArrayIndices, MipmapLevels, DepthStencilTarget, PlatformOpenGLCurrentContext(PlatformDevice)));
+	uint32 FramebufferRet = GetOpenGLFramebufferCache().FindRef(FOpenGLFramebufferKey(NumSimultaneousRenderTargets, RenderTargets, ArrayIndices, MipmapLevels, DepthStencilTarget, NumRenderingSamples, PlatformOpenGLCurrentContext(PlatformDevice)));
 	if( FramebufferRet > 0 )
 	{
 		// Found and is valid. We never store zero as a result, increasing all results by 1 to avoid range overlap.
@@ -130,7 +165,6 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 	glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer);
 	VERIFY_GL(glBindFramebuffer)
 
-#if PLATFORM_ANDROID
 	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 
 	// Allocate mobile multi-view frame buffer if enabled and supported.
@@ -147,26 +181,25 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Framebuffer);
 
-		const uint32 NumSamplesRendered = RenderTarget->GetNumSamplesRendered();
-		if (NumSamplesRendered > 1)
+		if (NumRenderingSamples > 1)
 		{
-			glFramebufferTextureMultisampleMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, RenderTarget->GetResource(), 0, NumSamplesRendered, 0, 2);
+			FOpenGL::FramebufferTextureMultisampleMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, RenderTarget->GetResource(), 0, NumRenderingSamples, 0, 2);
 			VERIFY_GL(glFramebufferTextureMultisampleMultiviewOVR);
 
 			if (DepthStencilTarget)
 			{
-				glFramebufferTextureMultisampleMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, DepthStencilTarget->GetResource(), 0, NumSamplesRendered, 0, 2);
+				FOpenGL::FramebufferTextureMultisampleMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, DepthStencilTarget->GetResource(), 0, NumRenderingSamples, 0, 2);
 				VERIFY_GL(glFramebufferTextureMultisampleMultiviewOVR);
 			}
 		}
 		else
 		{
-			glFramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, RenderTarget->GetResource(), 0, 0, 2);
+			FOpenGL::FramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, RenderTarget->GetResource(), 0, 0, 2);
 			VERIFY_GL(glFramebufferTextureMultiviewOVR);
 
 			if (DepthStencilTarget)
 			{
-				glFramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, DepthStencilTarget->GetResource(), 0, 0, 2);
+				FOpenGL::FramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, DepthStencilTarget->GetResource(), 0, 0, 2);
 				VERIFY_GL(glFramebufferTextureMultiviewOVR);
 			}
 		}
@@ -176,12 +209,11 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 		FOpenGL::ReadBuffer(GL_NONE);
 		FOpenGL::DrawBuffer(GL_COLOR_ATTACHMENT0);
 
-		GetOpenGLFramebufferCache().Add(FOpenGLFramebufferKey(NumSimultaneousRenderTargets, RenderTargets, ArrayIndices, MipmapLevels, DepthStencilTarget, PlatformOpenGLCurrentContext(PlatformDevice)), Framebuffer + 1);
+		GetOpenGLFramebufferCache().Add(FOpenGLFramebufferKey(NumSimultaneousRenderTargets, RenderTargets, ArrayIndices, MipmapLevels, DepthStencilTarget, NumRenderingSamples, PlatformOpenGLCurrentContext(PlatformDevice)), Framebuffer + 1);
 		
 		return Framebuffer;
 	}
-#endif
-
+	
 	int32 FirstNonzeroRenderTarget = -1;
 	for (int32 RenderTargetIndex = NumSimultaneousRenderTargets - 1; RenderTargetIndex >= 0; --RenderTargetIndex)
 	{
@@ -196,19 +228,23 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 			// If no index was specified, bind the entire object, rather than a slice
 			switch (RenderTarget->Target)
 			{
+			case GL_RENDERBUFFER:
+			{
+				// lazily allocate render buffer storage in case it's multisampled
+				ConditionallyAllocateRenderbufferStorage(*RenderTarget);
+				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, GL_RENDERBUFFER, RenderTarget->GetResource());
+				break;
+			}
 			case GL_TEXTURE_2D:
 			case GL_TEXTURE_EXTERNAL_OES:
 			case GL_TEXTURE_2D_MULTISAMPLE:
 			{
-#if PLATFORM_ANDROID
-				if (RenderTarget->IsTiledMSAA() && glFramebufferTexture2DMultisampleEXT)
+				if (NumRenderingSamples > 1)
 				{
-					// GL_EXT_multisampled_render_to_texture requires GL_COLOR_ATTACHMENT0
-					glFramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex], RenderTarget->GetNumSamplesRendered());
-					VERIFY_GL(glFramebufferTexture2DMultisampleEXT);
+					// GL_EXT_multisampled_render_to_texture
+					FOpenGL::FramebufferTexture2DMultisample(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex], NumRenderingSamples);
 				}
 				else
-#endif
 				{
 					FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex]);
 				}
@@ -230,20 +266,25 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 			// Bind just one slice of the object
 			switch( RenderTarget->Target )
 			{
+			case GL_RENDERBUFFER:
+			{
+				check(ArrayIndices[RenderTargetIndex] == 0);
+				// lazily allocate render buffer storage in case it's multisampled
+				ConditionallyAllocateRenderbufferStorage(*RenderTarget);
+				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, GL_RENDERBUFFER, RenderTarget->GetResource());
+				break;
+			}
 			case GL_TEXTURE_2D:
 			case GL_TEXTURE_EXTERNAL_OES:
 			case GL_TEXTURE_2D_MULTISAMPLE:
 			{
 				check(ArrayIndices[RenderTargetIndex] == 0);
-#if PLATFORM_ANDROID
-				if (RenderTarget->IsTiledMSAA() && glFramebufferTexture2DMultisampleEXT)
+				if (NumRenderingSamples > 1)
 				{
-					// GL_EXT_multisampled_render_to_texture requires GL_COLOR_ATTACHMENT0
-					glFramebufferTexture2DMultisampleEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex], RenderTarget->GetNumSamplesRendered());
-					VERIFY_GL(glFramebufferTexture2DMultisampleEXT);
+					// GL_EXT_multisampled_render_to_texture
+					FOpenGL::FramebufferTexture2DMultisample(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex], NumRenderingSamples);
 				}
 				else
-#endif
 				{
 					FOpenGL::FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + RenderTargetIndex, RenderTarget->Target, RenderTarget->GetResource(), MipmapLevels[RenderTargetIndex]);
 				}
@@ -282,6 +323,8 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 		}
 		case GL_RENDERBUFFER:
 		{
+			// lazily allocate render buffer storage in case it's multisampled
+			ConditionallyAllocateRenderbufferStorage(*DepthStencilTarget);
 			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, DepthStencilTarget->GetResource());
 			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, DepthStencilTarget->GetResource());
 			VERIFY_GL(glFramebufferRenderbuffer);
@@ -294,7 +337,7 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 			FOpenGL::FramebufferTexture(GL_FRAMEBUFFER, DepthStencilTarget->Attachment, DepthStencilTarget->GetResource(), 0);
 			break;
 		default:
-				FOpenGL::FramebufferRenderbuffer(GL_FRAMEBUFFER, DepthStencilTarget->Attachment, GL_RENDERBUFFER, DepthStencilTarget->GetResource());
+			FOpenGL::FramebufferRenderbuffer(GL_FRAMEBUFFER, DepthStencilTarget->Attachment, GL_RENDERBUFFER, DepthStencilTarget->GetResource());
 			break;
 		}
 	}
@@ -323,7 +366,7 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 	
 	FOpenGL::CheckFrameBuffer();
 
-	GetOpenGLFramebufferCache().Add(FOpenGLFramebufferKey(NumSimultaneousRenderTargets, RenderTargets, ArrayIndices, MipmapLevels, DepthStencilTarget, PlatformOpenGLCurrentContext(PlatformDevice)), Framebuffer+1);
+	GetOpenGLFramebufferCache().Add(FOpenGLFramebufferKey(NumSimultaneousRenderTargets, RenderTargets, ArrayIndices, MipmapLevels, DepthStencilTarget, NumRenderingSamples, PlatformOpenGLCurrentContext(PlatformDevice)), Framebuffer+1);
 
 	return Framebuffer;
 }
@@ -1125,11 +1168,35 @@ void FOpenGLDynamicRHI::BindPendingFramebuffer( FOpenGLContextState& ContextStat
 	}
 }
 
+// Replaces RenderTargets with ResoveTargets to utilize GL_EXT_multisampled_render_to_texture
+static int32 SetupMultisampleRenderingInfo(FRHISetRenderTargetsInfo& RTInfo)
+{
+	if (FOpenGL::GetMaxMSAASamplesTileMem() > 1 && RTInfo.NumColorRenderTargets > 0)
+	{
+		int32 NumRenderingSamples = RTInfo.ColorRenderTarget[0].Texture->GetDesc().NumSamples;
+		if (NumRenderingSamples > 1)
+		{
+			for (int32 i = 0; i < RTInfo.NumColorRenderTargets; ++i)
+			{
+				if (RTInfo.ColorResolveRenderTarget[i].Texture)
+				{
+					RTInfo.ColorRenderTarget[i].Texture = RTInfo.ColorResolveRenderTarget[i].Texture;
+				}
+			}
+			
+			return NumRenderingSamples;
+		}
+	}
+		
+	return 1;
+}
 
 void FOpenGLDynamicRHI::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName)
 {
 	FRHISetRenderTargetsInfo RTInfo;
 	InInfo.ConvertToRenderTargetsInfo(RTInfo);
+	// Begin GL_EXT_multisampled_render_to_texture if any
+	PendingState.NumRenderingSamples = SetupMultisampleRenderingInfo(RTInfo);
 	SetRenderTargetsAndClear(RTInfo);
 
 	RenderPassInfo = InInfo;
@@ -1163,6 +1230,9 @@ void FOpenGLDynamicRHI::RHIEndRenderPass()
 		extern void EndOcclusionQueryBatch();
 		EndOcclusionQueryBatch();
 	}
+
+	// End GL_EXT_multisampled_render_to_texture
+	PendingState.NumRenderingSamples = 1;
 
 	// Discard transient color targets
 	uint32 ColorMask = 0u;

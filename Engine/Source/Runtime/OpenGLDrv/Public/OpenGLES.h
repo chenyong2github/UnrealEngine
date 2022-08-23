@@ -383,6 +383,12 @@ struct FOpenGLES : public FOpenGLBase
 		return true;
 	}
 
+	static FORCEINLINE void RenderbufferStorageMultisample(GLenum Target, GLsizei Samples, GLint InternalFormat, GLsizei Width, GLsizei Height)
+	{
+		check(glRenderbufferStorageMultisampleEXT);
+		glRenderbufferStorageMultisampleEXT(Target, Samples, InternalFormat, Width, Height);
+	}
+
 	static FORCEINLINE void ClearBufferfv(GLenum Buffer, GLint DrawBufferIndex, const GLfloat* Value)
 	{
 		glClearBufferfv(Buffer, DrawBufferIndex, Value);
@@ -655,6 +661,24 @@ struct FOpenGLES : public FOpenGLBase
 
 		glFramebufferTexture2D(Target, Attachment, TexTarget, Texture, Level);
 		VERIFY_GL(FramebufferTexture_2D);
+	}
+
+	static FORCEINLINE void FramebufferTexture2DMultisample(GLenum Target, GLenum Attachment, GLenum TexTarget, GLuint Texture, GLint Level, GLint NumSamples)
+	{
+		check(glFramebufferTexture2DMultisampleEXT != nullptr);
+		glFramebufferTexture2DMultisampleEXT(Target, Attachment, TexTarget, Texture, Level, NumSamples);
+	}
+
+	static FORCEINLINE void FramebufferTextureMultiviewOVR(GLenum Target, GLenum Attachment, GLuint Texture, GLint Level, GLint BaseViewIndex, GLsizei NumViews)
+	{
+		check(glFramebufferTextureMultiviewOVR);
+		glFramebufferTextureMultiviewOVR(Target, Attachment, Texture, Level, BaseViewIndex, NumViews);
+	}
+	
+	static FORCEINLINE void FramebufferTextureMultisampleMultiviewOVR(GLenum Target, GLenum Attachment, GLuint Texture, GLint Level, GLsizei NumSamples, GLint BaseViewIndex, GLsizei NumViews)
+	{
+		check(glFramebufferTextureMultisampleMultiviewOVR);
+		glFramebufferTextureMultisampleMultiviewOVR(Target, Attachment, Texture, Level, NumSamples, BaseViewIndex, NumViews);
 	}
 
 	static FORCEINLINE void BlitFramebuffer(GLint SrcX0, GLint SrcY0, GLint SrcX1, GLint SrcY1, GLint DstX0, GLint DstY0, GLint DstX1, GLint DstY1, GLbitfield Mask, GLenum Filter)

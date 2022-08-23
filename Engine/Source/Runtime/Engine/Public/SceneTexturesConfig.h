@@ -106,6 +106,7 @@ struct ENGINE_API FSceneTexturesConfig
 		, bKeepDepthContent{ 1 }
 		, bPreciseDepthAux{}
 		, bSamplesCustomDepthAndStencil{}
+		, bMemorylessMSAA{}
 		, bSupportsXRTargetManagerDepthAlloc{}
 	{}
 
@@ -167,6 +168,9 @@ struct ENGINE_API FSceneTexturesConfig
 
 	// (Mobile) True if both CustomDepth and CustomStencil are sampled in a shader
 	uint32 bSamplesCustomDepthAndStencil : 1;
+	
+	// (Mobile) True if MSAA targets can be memoryless
+	uint32 bMemorylessMSAA : 1;
 
 	// (XR) True if we can request an XR depth swapchain
 	uint32 bSupportsXRTargetManagerDepthAlloc : 1;

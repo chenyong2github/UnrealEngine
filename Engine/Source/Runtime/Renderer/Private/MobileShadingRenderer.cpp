@@ -530,6 +530,8 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 
 	// Update the bKeepDepthContent based on the mobile renderer status.
 	SceneTexturesConfig.bKeepDepthContent = bKeepDepthContent;
+	// If we render in a single pass MSAA targets can be memoryless
+	SceneTexturesConfig.bMemorylessMSAA = !bRequiresMultiPass;
 	
 	if (bDeferredShading) 
 	{
@@ -1215,6 +1217,7 @@ void FMobileSceneRenderer::RenderForwardMultiPass(FRDGBuilder& GraphBuilder, FMo
 
 	// resolve MSAA depth for translucency
 	AddResolveSceneDepthPass(GraphBuilder, View, SceneTextures.Depth);
+	AddResolveSceneColorPass(GraphBuilder, View, SceneTextures.DepthAux);
 
 	FExclusiveDepthStencil::Type ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilRead;
 	if (bModulatedShadowsInUse)
@@ -1267,6 +1270,8 @@ void FMobileSceneRenderer::RenderForwardMultiPass(FRDGBuilder& GraphBuilder, FMo
 		// Pre-tonemap before MSAA resolve (iOS only)
 		PreTonemapMSAA(RHICmdList, SceneTextures);
 	});
+
+	AddResolveSceneColorPass(GraphBuilder, View, SceneTextures.Color);
 }
 
 class FMobileDeferredCopyPLSPS : public FGlobalShader

@@ -2215,7 +2215,7 @@ inline bool IsFeatureLevelSupported(const FStaticShaderPlatform InShaderPlatform
 inline bool RHISupportsSeparateMSAAAndResolveTextures(const FStaticShaderPlatform Platform)
 {
 	// Metal mobile devices and Android ES3.1 need to handle MSAA and resolve textures internally (unless RHICreateTexture2D was changed to take an optional resolve target)
-	return !IsMetalMobilePlatform(Platform) && !IsAndroidOpenGLESPlatform(Platform);
+	return !IsMetalMobilePlatform(Platform);
 }
 
 inline bool RHISupportsComputeShaders(const FStaticShaderPlatform Platform)
