@@ -50,9 +50,6 @@ struct FNiagaraParameterStore;
 /** Defines The maximum ThreadGroup size we allow in Niagara.  This is important for how memory is allocated as we always need to round this and the final instance is used to avoid overflowing the buffer. */
 constexpr uint32 NiagaraComputeMaxThreadGroupSize = 64;
 
-/** Defines The maximum Thread Group Count Per Dimension. */
-constexpr uint32 NiagaraMaxThreadGroupCountPerDimension = 65535;
-
 /** The maximum number of spawn infos we can run on the GPU, modifying this will require a version update as it is used in the shader compiler  */
 constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS = 8;
 

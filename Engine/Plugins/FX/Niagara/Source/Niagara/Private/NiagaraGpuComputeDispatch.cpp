@@ -1540,9 +1540,13 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 		// In the OneD case we can use the Y dimension to get higher particle counts
 		if (DispatchType == ENiagaraGpuDispatchType::OneD)
 		{
-			const int32 TotalThreadGroups = FMath::DivideAndRoundUp(DispatchCount.X, DispatchNumThreads.X);
-			DispatchCount.Y = FMath::DivideAndRoundUp<int32>(TotalThreadGroups, NiagaraMaxThreadGroupCountPerDimension);
-			DispatchCount.X = FMath::DivideAndRoundUp(DispatchCount.X, DispatchNumThreads.Y);
+			const int32 GroupCount = FMath::DivideAndRoundUp(DispatchCount.X, DispatchNumThreads.X);
+			if (GroupCount > GRHIMaxDispatchThreadGroupsPerDimension.X)
+			{
+				DispatchCount.Y = FMath::DivideAndRoundUp(GroupCount, GRHIMaxDispatchThreadGroupsPerDimension.X);
+				DispatchCount.X = FMath::DivideAndRoundUp(GroupCount, DispatchCount.Y) * DispatchNumThreads.X;
+				ensure(DispatchCount.Y <= GRHIMaxDispatchThreadGroupsPerDimension.Y);
+			}
 		}
 
 		FIntVector ThreadGroupCount;
