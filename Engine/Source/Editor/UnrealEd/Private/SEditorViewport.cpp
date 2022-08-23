@@ -85,17 +85,6 @@ void SEditorViewport::Construct( const FArguments& InArgs )
 	// Ensure the commands are registered
 	FEditorViewportCommands::Register();
 	BindCommands();
-
-	TSharedPtr<SWidget> ViewportToolbar = MakeViewportToolbar();
-
-	if(ViewportToolbar.IsValid())
-	{
-		ViewportOverlay->AddSlot()
-			.VAlign(VAlign_Top)
-			[
-				ViewportToolbar.ToSharedRef()
-			];
-	}
 	
 	ViewportOverlay->AddSlot()
 	[
@@ -106,6 +95,17 @@ void SEditorViewport::Construct( const FArguments& InArgs )
 		.Padding(0.0f)
 		.ShowEffectWhenDisabled(false)
 	];
+
+	TSharedPtr<SWidget> ViewportToolbar = MakeViewportToolbar();
+
+	if (ViewportToolbar.IsValid())
+	{
+		ViewportOverlay->AddSlot()
+			.VAlign(VAlign_Top)
+			[
+				ViewportToolbar.ToSharedRef()
+			];
+	}
 
 	// This makes a gradient that displays whether or not a viewport is active
 	FLinearColor ActiveBorderColor = FAppStyle::Get().GetSlateColor("EditorViewport.ActiveBorderColor").GetSpecifiedColor();
