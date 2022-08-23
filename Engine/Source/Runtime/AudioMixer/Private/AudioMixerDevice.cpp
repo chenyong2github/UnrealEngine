@@ -429,7 +429,7 @@ namespace Audio
 				AudioClock = 0.0;
 				AudioClockDelta = (double)OpenStreamParams.NumFrames / OpenStreamParams.SampleRate;
 
-
+				FAudioPluginInitializationParams PluginInitializationParams;
 				PluginInitializationParams.NumSources = SourceManagerInitParams.NumSources;
 				PluginInitializationParams.SampleRate = SampleRate;
 				PluginInitializationParams.BufferLength = OpenStreamParams.NumFrames;
@@ -439,11 +439,10 @@ namespace Audio
 					LLM_SCOPE(ELLMTag::AudioMixerPlugins);
 
 					// Initialize any plugins if they exist
-
-					// spatialization
-					FAudioDevice::FAudioSpatializationInterfaceInfo PluginInfo = GetCurrentSpatializationPluginInterfaceInfo();
-					PluginInfo.SpatializationPlugin->Initialize(PluginInitializationParams);
-					PluginInfo.bIsInitialized = true;
+					if (SpatializationPluginInterface.IsValid())
+					{
+						SpatializationPluginInterface->Initialize(PluginInitializationParams);
+					}
 
 					if (OcclusionInterface.IsValid())
 					{

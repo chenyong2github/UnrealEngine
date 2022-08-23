@@ -32,18 +32,17 @@ void FOculusAudioContextManager::OnListenerInitialize(FAudioDevice* AudioDevice,
 void FOculusAudioContextManager::OnListenerShutdown(FAudioDevice* AudioDevice)
 {
 	FOculusAudioPlugin* Plugin = &FModuleManager::GetModuleChecked<FOculusAudioPlugin>("OculusAudio");
-	const FString OculusSpatializerPluginName = Plugin->GetSpatializationPluginFactory()->GetDisplayName();
-	const FString CurrentSpatializerPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::SPATIALIZATION);
+	FString OculusSpatializerPluginName = Plugin->GetSpatializationPluginFactory()->GetDisplayName();
+	FString CurrentSpatializerPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::SPATIALIZATION);
 	if (CurrentSpatializerPluginName.Equals(OculusSpatializerPluginName)) // we have a match!
 	{
 		OculusAudioSpatializationAudioMixer* Spatializer =
-			static_cast<OculusAudioSpatializationAudioMixer*>(AudioDevice->GetSpatializationPluginInterface().Get());
-
+			static_cast<OculusAudioSpatializationAudioMixer*>(AudioDevice->SpatializationPluginInterface.Get());
 		Spatializer->ClearContext();
 	}
 
-	const FString OculusReverbPluginName = Plugin->GetReverbPluginFactory()->GetDisplayName();
-	const FString CurrentReverbPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::REVERB);
+	FString OculusReverbPluginName = Plugin->GetReverbPluginFactory()->GetDisplayName();
+	FString CurrentReverbPluginName = AudioPluginUtilities::GetDesiredPluginName(EAudioPlugin::REVERB);
 	if (CurrentReverbPluginName.Equals(OculusReverbPluginName))
 	{
 		OculusAudioReverb* Reverb = static_cast<OculusAudioReverb*>(AudioDevice->ReverbPluginInterface.Get());

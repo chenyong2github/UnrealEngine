@@ -165,6 +165,7 @@ namespace Audio
 		, NumSourceWorkers(4)
 		, bInitialized(false)
 		, bUsingSpatializationPlugin(false)
+		, MaxChannelsSupportedBySpatializationPlugin(1)
 	{
 		// Get a manual resetable event
 		const bool bIsManualReset = true;
@@ -336,11 +337,11 @@ namespace Audio
 		NumSourceWorkers = SourceWorkers.Num();
 
 		// Cache the spatialization plugin
-		SpatialInterfaceInfo = MixerDevice->GetCurrentSpatializationPluginInterfaceInfo();
-		const auto& SpatializationPlugin = SpatialInterfaceInfo.SpatializationPlugin;
-		if (SpatialInterfaceInfo.SpatializationPlugin.IsValid())
+		SpatializationPlugin = MixerDevice->SpatializationPluginInterface;
+		if (SpatializationPlugin.IsValid())
 		{
 			bUsingSpatializationPlugin = true;
+			MaxChannelsSupportedBySpatializationPlugin = MixerDevice->MaxChannelsSupportedBySpatializationPlugin;
 		}
 
 		// Spam command queue with nops.
@@ -528,7 +529,7 @@ namespace Audio
 		{
 			AUDIO_MIXER_CHECK(bUsingSpatializationPlugin);
 			LLM_SCOPE(ELLMTag::AudioMixerPlugins);
-			SpatialInterfaceInfo.SpatializationPlugin->OnReleaseSource(SourceId);
+			SpatializationPlugin->OnReleaseSource(SourceId);
 		}
 
 		if (SourceInfo.bUseOcclusionPlugin)
@@ -843,17 +844,7 @@ namespace Audio
 			{
 				AUDIO_MIXER_CHECK(bUsingSpatializationPlugin);
 				LLM_SCOPE(ELLMTag::AudioMixerPlugins);
-
-				// re-cache the spatialization plugin in case it changed
-				bUsingSpatializationPlugin = false;
-				SpatialInterfaceInfo = MixerDevice->GetCurrentSpatializationPluginInterfaceInfo();
-				const auto& SpatializationPlugin = SpatialInterfaceInfo.SpatializationPlugin;
-				if (SpatialInterfaceInfo.SpatializationPlugin.IsValid())
-				{
-					bUsingSpatializationPlugin = true;
-				}
-
-				SpatialInterfaceInfo.SpatializationPlugin->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.SpatializationPluginSettings);
+				SpatializationPlugin->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.SpatializationPluginSettings);
 			}
 
 			// Create the occlusion plugin source effect
@@ -2230,8 +2221,8 @@ namespace Audio
 			CSV_SCOPED_TIMING_STAT(Audio, HRTF);
 			SCOPE_CYCLE_COUNTER(STAT_AudioMixerHRTF);
 
-			AUDIO_MIXER_CHECK(SpatialInterfaceInfo.SpatializationPlugin.IsValid());
-			AUDIO_MIXER_CHECK(SourceInfo.NumInputChannels <= SpatialInterfaceInfo.MaxChannelsSupportedBySpatializationPlugin);
+			AUDIO_MIXER_CHECK(SpatializationPlugin.IsValid());
+			AUDIO_MIXER_CHECK(SourceInfo.NumInputChannels <= MaxChannelsSupportedBySpatializationPlugin);
 
 			FAudioPluginSourceInputData AudioPluginInputData;
 			AudioPluginInputData.AudioBuffer = &SourceInfo.SourceBuffer;
@@ -2239,7 +2230,7 @@ namespace Audio
 			AudioPluginInputData.SourceId = SourceId;
 			AudioPluginInputData.SpatializationParams = &SourceInfo.SpatParams;
 
-			if (!SpatialInterfaceInfo.bSpatializationIsExternalSend)
+			if (!MixerDevice->bSpatializationIsExternalSend)
 			{
 				SourceInfo.AudioPluginOutputData.AudioBuffer.Reset();
 				SourceInfo.AudioPluginOutputData.AudioBuffer.AddZeroed(2 * NumOutputFrames);
@@ -2247,7 +2238,7 @@ namespace Audio
 
 			{
 				LLM_SCOPE(ELLMTag::AudioMixerPlugins);
-				SpatialInterfaceInfo.SpatializationPlugin->ProcessAudio(AudioPluginInputData, SourceInfo.AudioPluginOutputData);
+				SpatializationPlugin->ProcessAudio(AudioPluginInputData, SourceInfo.AudioPluginOutputData);
 			}
 
 			// If this is an external send, we treat this source audio as if it was still a mono source
@@ -2255,7 +2246,7 @@ namespace Audio
 			// sent to submixes (e.g. reverb) panned and mixed down. Certain submixes will want this spatial 
 			// information in addition to the external send. We've already bypassed adding this source
 			// to a base submix (e.g. master/eq, etc)
-			if (SpatialInterfaceInfo.bSpatializationIsExternalSend)
+			if (MixerDevice->bSpatializationIsExternalSend)
 			{
 				// Otherwise our pre- and post-effect channels are the same as the input channels
 				SourceInfo.NumPostEffectChannels = SourceInfo.NumInputChannels;
@@ -2528,7 +2519,7 @@ namespace Audio
 				}
 			}
 
-			if (SourceInfo.IsRenderingToSubmixes() || SpatialInterfaceInfo.bSpatializationIsExternalSend)
+			if (SourceInfo.IsRenderingToSubmixes() || MixerDevice->bSpatializationIsExternalSend)
 			{
 				// Apply distance attenuation
 				ApplyDistanceAttenuation(SourceInfo, NumSamples);
@@ -2905,9 +2896,9 @@ namespace Audio
 		// Let the plugin know we finished processing all sources
 		if (bUsingSpatializationPlugin)
 		{
-			AUDIO_MIXER_CHECK(SpatialInterfaceInfo.SpatializationPlugin.IsValid());
+			AUDIO_MIXER_CHECK(SpatializationPlugin.IsValid());
 			LLM_SCOPE(ELLMTag::AudioMixerPlugins);
-			SpatialInterfaceInfo.SpatializationPlugin->OnAllSourcesProcessed();
+			SpatializationPlugin->OnAllSourcesProcessed();
 		}
 
 		// Update the game thread copy of source doneness

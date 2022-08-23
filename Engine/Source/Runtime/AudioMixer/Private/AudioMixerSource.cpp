@@ -379,9 +379,7 @@ namespace Audio
 			InitParams.NumInputFrames = NumFrames;
 			InitParams.SourceVoice = MixerSourceVoice;
 			InitParams.bUseHRTFSpatialization = UseObjectBasedSpatialization();
-
-			// in this file once spat override is implemented
-			InitParams.bIsExternalSend = MixerDevice->GetCurrentSpatializationPluginInterfaceInfo().bSpatializationIsExternalSend;
+			InitParams.bIsExternalSend = MixerDevice->bSpatializationIsExternalSend;
 			InitParams.bIsSoundfield = WaveInstance->bIsAmbisonics && (WaveData->NumChannels == 4);
 
 			FActiveSound* ActiveSound = WaveInstance->ActiveSound;
@@ -473,7 +471,7 @@ namespace Audio
 	
 			// If we're spatializing using HRTF and its an external send, don't need to setup a default/base submix send to master or EQ submix
 			// We'll only be using non-default submix sends (e.g. reverb).
-			if (!(InitParams.bUseHRTFSpatialization && InitParams.bIsExternalSend))
+			if (!(InitParams.bUseHRTFSpatialization && MixerDevice->bSpatializationIsExternalSend))
 			{
 				FMixerSubmixWeakPtr SubmixPtr;
 				// If a sound specifies a base submix manually, always use that
@@ -1731,7 +1729,7 @@ namespace Audio
 
 	bool FMixerSource::UseObjectBasedSpatialization() const
 	{
-		return (Buffer->NumChannels <= MixerDevice->GetCurrentSpatializationPluginInterfaceInfo().MaxChannelsSupportedBySpatializationPlugin &&
+		return (Buffer->NumChannels <= MixerDevice->MaxChannelsSupportedBySpatializationPlugin &&
 				AudioDevice->IsSpatializationPluginEnabled() &&
 				WaveInstance->SpatializationMethod == ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF);
 	}
@@ -1754,7 +1752,7 @@ namespace Audio
 
 	bool FMixerSource::UseSpatializationPlugin() const
 	{
-		return (Buffer->NumChannels <= MixerDevice->GetCurrentSpatializationPluginInterfaceInfo().MaxChannelsSupportedBySpatializationPlugin) &&
+		return (Buffer->NumChannels <= MixerDevice->MaxChannelsSupportedBySpatializationPlugin) &&
 			AudioDevice->IsSpatializationPluginEnabled() &&
 			WaveInstance->SpatializationPluginSettings != nullptr;
 	}

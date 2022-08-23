@@ -71,7 +71,7 @@ namespace ResonanceAudio
 		}
 
 		ReverbPtr = (FResonanceAudioReverb*)AudioDevice->ReverbPluginInterface.Get();
-		SpatializationPtr = (FResonanceAudioSpatialization*)AudioDevice->GetSpatializationPluginInterface().Get();
+		SpatializationPtr = (FResonanceAudioSpatialization*)AudioDevice->SpatializationPluginInterface.Get();
 
 		// Make sure that Reverb *AND* spatialization plugins are enabled.
 		if (ReverbPtr == nullptr || SpatializationPtr == nullptr)
