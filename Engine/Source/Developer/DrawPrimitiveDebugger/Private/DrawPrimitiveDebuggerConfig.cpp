@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DrawPrimitiveDebuggerConfig.h"
+#include "Misc/ConfigCacheIni.h"
 
 void UDrawPrimitiveDebuggerUserSettings::SetFontSize(const int32 InFontSize)
 {

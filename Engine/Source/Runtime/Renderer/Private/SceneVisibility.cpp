@@ -47,7 +47,17 @@
 #include "RayTracing/RayTracingInstanceCulling.h"
 #include "RendererModule.h"
 #include "SceneViewExtension.h"
+
+#if !UE_BUILD_SHIPPING
 #include "ViewDebug.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
+#include "Materials/MaterialInterface.h"
+#include "Components/PrimitiveComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Rendering/SkeletalMeshRenderData.h"
+#endif
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -4222,18 +4232,6 @@ FViewDebugInfo::FViewDebugInfo()
 	bShouldUpdate = false;
 	bShouldCaptureSingleFrame = false;
 }
-
-/*bool FViewDebugInfo::FPrimitiveInfo::operator<(const FPrimitiveInfo& Other) const
-{
-	// Sort by name to group similar assets together, then by exact primitives so we can ignore duplicates
-	const int32 NameCompare = Name.Compare(Other.Name);
-	if (NameCompare != 0)
-	{
-		return NameCompare < 0;
-	}
-
-	return PrimitiveSceneInfo < Other.PrimitiveSceneInfo;
-}*/
 
 void FViewDebugInfo::ProcessPrimitive(FPrimitiveSceneInfo* PrimitiveSceneInfo, const FViewInfo& View, FScene* Scene, const UPrimitiveComponent* DebugComponent)
 {
