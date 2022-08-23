@@ -227,6 +227,17 @@ public:
 	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
+#if NANITE_ENABLE_DEBUG_RENDERING
+	/** Sets up a collision FMeshBatch for a specific LOD and element. */
+	virtual bool GetCollisionMeshElement(
+		int32 LODIndex,
+		int32 BatchIndex,
+		int32 ElementIndex,
+		uint8 InDepthPriorityGroup,
+		const FMaterialRenderProxy* RenderProxy,
+		FMeshBatch& OutMeshBatch) const;
+#endif
+
 #if RHI_RAYTRACING
 	virtual bool HasRayTracingRepresentation() const override;
 	virtual bool IsRayTracingRelevant() const { return true; }
@@ -290,6 +301,19 @@ protected:
 	void SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& Materials) const;
 #endif // RHI_RAYTRACING
 
+#if NANITE_ENABLE_DEBUG_RENDERING
+	/** Configures mesh batch vertex / index state. Returns the number of primitives used in the element. */
+	uint32 SetMeshElementGeometrySource(
+		int32 LODIndex,
+		int32 ElementIndex,
+		bool bWireframe,
+		bool bUseInversedIndices,
+		const ::FVertexFactory* VertexFactory,
+		FMeshBatch& OutMeshElement) const;
+
+	bool IsReversedCullingNeeded(bool bUseReversedIndices) const;
+#endif
+
 protected:
 	FMeshInfo MeshInfo;
 
@@ -343,6 +367,14 @@ protected:
 	/** Collision Response of this component */
 	FCollisionResponseContainer CollisionResponse;
 
+	/** Minimum LOD index to use.  Clamped to valid range [0, NumLODs - 1]. */
+	int32 ClampedMinLOD;
+
+	/**
+	 * The ForcedLOD set in the static mesh editor, copied from the mesh component
+	 */
+	int32 ForcedLodModel;
+
 	/** LOD used for collision */
 	int32 LODForCollision;
 
@@ -351,6 +383,56 @@ protected:
 
 	/** Draw mesh collision if used for simple collision */
 	uint32 bDrawMeshCollisionIfSimple : 1;
+
+	class FFallbackLODInfo
+	{
+	public:
+		/** Information about an element of a LOD. */
+		struct FSectionInfo
+		{
+			/** Default constructor. */
+			FSectionInfo()
+				: Material(nullptr)
+			#if WITH_EDITOR
+				, bSelected(false)
+				, HitProxy(nullptr)
+			#endif
+			{}
+
+			/** The material with which to render this section. */
+			UMaterialInterface* Material;
+
+		#if WITH_EDITOR
+			/** True if this section should be rendered as selected (editor only). */
+			bool bSelected;
+
+			/** The editor needs to be able to individual sub-mesh hit detection, so we store a hit proxy on each mesh. */
+			HHitProxy* HitProxy;
+		#endif
+
+		#if WITH_EDITORONLY_DATA
+			// The material index from the component. Used by the texture streaming accuracy viewmodes.
+			int32 MaterialIndex;
+		#endif
+		};
+
+		/** Per-section information. */
+		TArray<FSectionInfo, TInlineAllocator<1>> Sections;
+
+		/** Vertex color data for this LOD (or NULL when not overridden), FStaticMeshComponentLODInfo handles the release of the memory */
+		FColorVertexBuffer* OverrideColorVertexBuffer;
+
+		TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> OverrideColorVFUniformBuffer;
+
+		FFallbackLODInfo(
+			const UStaticMeshComponent* InComponent,
+			const FStaticMeshVertexFactoriesArray& InLODVertexFactories,
+			int32 InLODIndex,
+			int32 InClampedMinLOD
+		);
+	};
+
+	TArray<FFallbackLODInfo> FallbackLODs;
 #endif
 };
 

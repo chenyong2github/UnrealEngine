@@ -522,6 +522,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 : FSceneProxyBase(Component)
 , MeshInfo(Component)
 , RenderData(Component->GetStaticMesh()->GetRenderData())
+, bReverseCulling(Component->bReverseCulling)
 , StaticMesh(Component->GetStaticMesh())
 #if WITH_EDITOR
 , bHasSelectedInstances(false)
@@ -532,6 +533,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 , BodySetup(Component->GetBodySetup())
 , CollisionTraceFlag(ECollisionTraceFlag::CTF_UseSimpleAndComplex)
 , CollisionResponse(Component->GetCollisionResponseToChannels())
+, ForcedLodModel(Component->ForcedLodModel)
 , LODForCollision(Component->GetStaticMesh()->LODForCollision)
 , bDrawMeshCollisionIfComplex(Component->bDrawMeshCollisionIfComplex)
 , bDrawMeshCollisionIfSimple(Component->bDrawMeshCollisionIfSimple)
@@ -662,6 +664,33 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	}
 #endif
 
+#if NANITE_ENABLE_DEBUG_RENDERING
+	// Find the first LOD with any vertices (ie that haven't been stripped)
+	int32 FirstAvailableLOD = 0;
+	for (; FirstAvailableLOD < RenderData->LODResources.Num(); FirstAvailableLOD++)
+	{
+		if (RenderData->LODResources[FirstAvailableLOD].GetNumVertices() > 0)
+		{
+			break;
+		}
+	}
+
+	const int32 SMCurrentMinLOD = Component->GetStaticMesh()->GetMinLODIdx();
+	int32 EffectiveMinLOD = Component->bOverrideMinLOD ? Component->MinLOD : SMCurrentMinLOD; 
+	
+	ClampedMinLOD = FMath::Clamp(EffectiveMinLOD, FirstAvailableLOD, RenderData->LODResources.Num() - 1);
+
+	for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
+	{
+		FFallbackLODInfo* NewLODInfo = new (FallbackLODs) FFallbackLODInfo(Component, RenderData->LODVertexFactories, LODIndex, ClampedMinLOD);
+	}
+
+	if (BodySetup)
+	{
+		CollisionTraceFlag = BodySetup->GetCollisionTraceFlag();
+	}
+#endif
+
 	FPrimitiveInstance& Instance = InstanceSceneData.Emplace_GetRef();
 	Instance.LocalToPrimitive.SetIdentity();
 }
@@ -683,16 +712,16 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 
 	if (HitProxyMode == EHitProxyMode::PerInstance)
 	{
-	    for (int32 InstanceIndex = 0; InstanceIndex < Component->SelectedInstances.Num() && !bHasSelectedInstances; ++InstanceIndex)
-	    {
-		    bHasSelectedInstances |= Component->SelectedInstances[InstanceIndex];
-	    }
-    
-	    if (bHasSelectedInstances)
-	    {
-		    // If we have selected indices, mark scene proxy as selected.
-		    SetSelection_GameThread(true);
-	    }
+		for (int32 InstanceIndex = 0; InstanceIndex < Component->SelectedInstances.Num() && !bHasSelectedInstances; ++InstanceIndex)
+		{
+			bHasSelectedInstances |= Component->SelectedInstances[InstanceIndex];
+		}
+
+		if (bHasSelectedInstances)
+		{
+			// If we have selected indices, mark scene proxy as selected.
+			SetSelection_GameThread(true);
+		}
 	}
 #endif
 
@@ -1069,12 +1098,116 @@ FLightInteraction FSceneProxy::FMeshInfo::GetInteraction(const FLightSceneProxy*
 	return FLightInteraction::Dynamic();
 }
 
+#if NANITE_ENABLE_DEBUG_RENDERING
+
+// Loosely copied from FStaticMeshSceneProxy::FLODInfo::FLODInfo and modified for Nanite fallback
+// TODO: Refactor all this to share common code with Nanite and regular SM scene proxy
+FSceneProxy::FFallbackLODInfo::FFallbackLODInfo(
+	const UStaticMeshComponent* InComponent,
+	const FStaticMeshVertexFactoriesArray& InLODVertexFactories,
+	int32 LODIndex,
+	int32 InClampedMinLOD
+)
+{
+	const auto FeatureLevel = InComponent->GetWorld()->FeatureLevel;
+
+	FStaticMeshRenderData* MeshRenderData = InComponent->GetStaticMesh()->GetRenderData();
+	FStaticMeshLODResources& LODModel = MeshRenderData->LODResources[LODIndex];
+	const FStaticMeshVertexFactories& VFs = InLODVertexFactories[LODIndex];
+
+	if (LODIndex < InComponent->LODData.Num() && LODIndex >= InClampedMinLOD)
+	{
+		const FStaticMeshComponentLODInfo& ComponentLODInfo = InComponent->LODData[LODIndex];
+
+		// Initialize this LOD's overridden vertex colors, if it has any
+		if (ComponentLODInfo.OverrideVertexColors)
+		{
+			bool bBroken = false;
+			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+			{
+				const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+				if (Section.MaxVertexIndex >= ComponentLODInfo.OverrideVertexColors->GetNumVertices())
+				{
+					bBroken = true;
+					break;
+				}
+			}
+			if (!bBroken)
+			{
+				// the instance should point to the loaded data to avoid copy and memory waste
+				OverrideColorVertexBuffer = ComponentLODInfo.OverrideVertexColors;
+				check(OverrideColorVertexBuffer->GetStride() == sizeof(FColor)); //assumed when we set up the stream
+
+				if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+				{
+					TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters>* UniformBufferPtr = &OverrideColorVFUniformBuffer;
+					const FLocalVertexFactory* LocalVF = &VFs.VertexFactoryOverrideColorVertexBuffer;
+					FColorVertexBuffer* VertexBuffer = OverrideColorVertexBuffer;
+
+					//temp measure to identify nullptr crashes deep in the renderer
+					FString ComponentPathName = InComponent->GetPathName();
+					checkf(LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices() > 0, TEXT("LOD: %i of PathName: %s has an empty position stream."), LODIndex, *ComponentPathName);
+
+					ENQUEUE_RENDER_COMMAND(FLocalVertexFactoryCopyData)(
+						[UniformBufferPtr, LocalVF, LODIndex, VertexBuffer, ComponentPathName](FRHICommandListImmediate& RHICmdList)
+						{
+							checkf(LocalVF->GetTangentsSRV(), TEXT("LOD: %i of PathName: %s has a null tangents srv."), LODIndex, *ComponentPathName);
+							checkf(LocalVF->GetTextureCoordinatesSRV(), TEXT("LOD: %i of PathName: %s has a null texcoord srv."), LODIndex, *ComponentPathName);
+							*UniformBufferPtr = CreateLocalVFUniformBuffer(LocalVF, LODIndex, VertexBuffer, 0, 0);
+						});
+				}
+			}
+		}
+	}
+
+	// Gather the materials applied to the LOD.
+	Sections.Empty(MeshRenderData->LODResources[LODIndex].Sections.Num());
+	for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+	{
+		const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+		FSectionInfo SectionInfo;
+
+		// Determine the material applied to this element of the LOD.
+		SectionInfo.Material = InComponent->GetMaterial(Section.MaterialIndex);
+#if WITH_EDITORONLY_DATA
+		SectionInfo.MaterialIndex = Section.MaterialIndex;
+#endif
+
+		if (!SectionInfo.Material)
+		{
+			SectionInfo.Material = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+
+		// Per-section selection for the editor.
+#if WITH_EDITORONLY_DATA
+		if (GIsEditor)
+		{
+			if (InComponent->SelectedEditorMaterial >= 0)
+			{
+				SectionInfo.bSelected = (InComponent->SelectedEditorMaterial == Section.MaterialIndex);
+			}
+			else
+			{
+				SectionInfo.bSelected = (InComponent->SelectedEditorSection == SectionIndex);
+			}
+		}
+#endif
+
+		// Store the element info.
+		Sections.Add(SectionInfo);
+	}
+}
+
+#endif
+
 void FSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PDI)
 {
 	const FLightCacheInterface* LCI = &MeshInfo;
 	DrawStaticElementsInternal(PDI, LCI);
 }
 
+// Loosely copied from FStaticMeshSceneProxy::GetDynamicMeshElements and modified for Nanite fallback
+// TODO: Refactor all this to share common code with Nanite and regular SM scene proxy
 void FSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const
 {
 #if !WITH_EDITOR
@@ -1107,7 +1240,6 @@ void FSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views,
 		{
 			if (AllowDebugViewmodes())
 			{
-#if 0 // NANITE_TODO: Complex collision rendering
 				// Should we draw the mesh wireframe to indicate we are using the mesh as collision
 				bool bDrawComplexWireframeCollision = (EngineShowFlags.Collision && IsCollisionEnabled() && CollisionTraceFlag == ECollisionTraceFlag::CTF_UseComplexAsSimple);
 				
@@ -1149,7 +1281,7 @@ void FSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views,
 							{
 							#if WITH_EDITOR
 								// See if we are selected
-								const bool bSectionIsSelected = LODs[DrawLOD].Sections[SectionIndex].bSelected;
+								const bool bSectionIsSelected = FallbackLODs[DrawLOD].Sections[SectionIndex].bSelected;
 							#else
 								const bool bSectionIsSelected = false;
 							#endif
@@ -1159,25 +1291,24 @@ void FSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views,
 								Collector.RegisterOneFrameMaterialProxy(CollisionMaterialInstance);
 
 								// Iterate over batches
-								for (int32 BatchIndex = 0; BatchIndex < GetNumMeshBatches(); BatchIndex++)
+								const int32 NumMeshBatches = 1; // TODO: GetNumMeshBatches()
+								for (int32 BatchIndex = 0; BatchIndex < NumMeshBatches; BatchIndex++)
 								{
 									FMeshBatch& CollisionElement = Collector.AllocateMesh();
 									if (GetCollisionMeshElement(DrawLOD, BatchIndex, SectionIndex, SDPG_World, CollisionMaterialInstance, CollisionElement))
 									{
 										Collector.AddMesh(ViewIndex, CollisionElement);
-										INC_DWORD_STAT_BY(STAT_NaniteTriangles, CollisionElement.GetNumPrimitives());
+										INC_DWORD_STAT_BY(STAT_StaticMeshTriangles, CollisionElement.GetNumPrimitives());
 									}
 								}
 							}
 						}
 					}
 				}
-#endif // NANITE_TODO
 			}
 
 			// Draw simple collision as wireframe if 'show collision', collision is enabled, and we are not using the complex as the simple
-			// NANITE_TODO: const bool bDrawSimpleWireframeCollision = (EngineShowFlags.Collision && IsCollisionEnabled() && CollisionTraceFlag != ECollisionTraceFlag::CTF_UseComplexAsSimple); 
-			const bool bDrawSimpleWireframeCollision = (EngineShowFlags.Collision && IsCollisionEnabled());
+			const bool bDrawSimpleWireframeCollision = (EngineShowFlags.Collision && IsCollisionEnabled() && CollisionTraceFlag != ECollisionTraceFlag::CTF_UseComplexAsSimple); 
 
 			if ((bDrawSimpleCollision || bDrawSimpleWireframeCollision) && BodySetup)
 			{
@@ -1257,6 +1388,96 @@ void FSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views,
 	}
 #endif // NANITE_ENABLE_DEBUG_RENDERING
 }
+
+#if NANITE_ENABLE_DEBUG_RENDERING
+
+// Loosely copied from FStaticMeshSceneProxy::GetCollisionMeshElement and modified for Nanite fallback
+// TODO: Refactor all this to share common code with Nanite and regular SM scene proxy
+bool FSceneProxy::GetCollisionMeshElement(
+	int32 LODIndex,
+	int32 BatchIndex,
+	int32 SectionIndex,
+	uint8 InDepthPriorityGroup,
+	const FMaterialRenderProxy* RenderProxy,
+	FMeshBatch& OutMeshBatch) const
+{
+	const FStaticMeshLODResources& LOD = RenderData->LODResources[LODIndex];
+	const FStaticMeshVertexFactories& VFs = RenderData->LODVertexFactories[LODIndex];
+	const FStaticMeshSection& Section = LOD.Sections[SectionIndex];
+
+	if (Section.NumTriangles == 0)
+	{
+		return false;
+	}
+
+	const ::FVertexFactory* VertexFactory = nullptr;
+
+	const FFallbackLODInfo& ProxyLODInfo = FallbackLODs[LODIndex];
+
+	const bool bWireframe = false;
+	const bool bUseReversedIndices = false;
+	const bool bDitheredLODTransition = false;
+
+	SetMeshElementGeometrySource(LODIndex, SectionIndex, bWireframe, bUseReversedIndices, VertexFactory, OutMeshBatch);
+
+	FMeshBatchElement& OutMeshBatchElement = OutMeshBatch.Elements[0];
+
+	if (ProxyLODInfo.OverrideColorVertexBuffer)
+	{
+		VertexFactory = &VFs.VertexFactoryOverrideColorVertexBuffer;
+	
+		OutMeshBatchElement.VertexFactoryUserData = ProxyLODInfo.OverrideColorVFUniformBuffer.GetReference();
+	}
+	else
+	{
+		VertexFactory = &VFs.VertexFactory;
+
+		OutMeshBatchElement.VertexFactoryUserData = VFs.VertexFactory.GetUniformBuffer();
+	}
+
+	if (OutMeshBatchElement.NumPrimitives > 0)
+	{
+		OutMeshBatch.LODIndex = LODIndex;
+		OutMeshBatch.VisualizeLODIndex = LODIndex;
+		OutMeshBatch.VisualizeHLODIndex = 0;// HierarchicalLODIndex;
+		OutMeshBatch.ReverseCulling = IsReversedCullingNeeded(bUseReversedIndices);
+		OutMeshBatch.CastShadow = false;
+		OutMeshBatch.DepthPriorityGroup = (ESceneDepthPriorityGroup)InDepthPriorityGroup;
+		OutMeshBatch.LCI = &MeshInfo;// &ProxyLODInfo;
+		OutMeshBatch.VertexFactory = VertexFactory;
+		OutMeshBatch.MaterialRenderProxy = RenderProxy;
+		OutMeshBatchElement.MinVertexIndex = Section.MinVertexIndex;
+		OutMeshBatchElement.MaxVertexIndex = Section.MaxVertexIndex;
+		OutMeshBatchElement.VisualizeElementIndex = SectionIndex;
+
+		if (ForcedLodModel > 0)
+		{
+			OutMeshBatch.bDitheredLODTransition = false;
+
+			OutMeshBatchElement.MaxScreenSize = 0.0f;
+			OutMeshBatchElement.MinScreenSize = -1.0f;
+		}
+		else
+		{
+			OutMeshBatch.bDitheredLODTransition = bDitheredLODTransition;
+
+			OutMeshBatchElement.MaxScreenSize = RenderData->ScreenSize[LODIndex].GetValue();
+			OutMeshBatchElement.MinScreenSize = 0.0f;
+			if (LODIndex < MAX_STATIC_MESH_LODS - 1)
+			{
+				OutMeshBatchElement.MinScreenSize = RenderData->ScreenSize[LODIndex + 1].GetValue();
+			}
+		}
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+#endif
 
 void FSceneProxy::OnTransformChanged()
 {
@@ -1460,6 +1681,74 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 }
 
 #endif // RHI_RAYTRACING
+
+#if NANITE_ENABLE_DEBUG_RENDERING
+
+// Loosely copied from FStaticMeshSceneProxy::SetMeshElementGeometrySource and modified for Nanite fallback
+// TODO: Refactor all this to share common code with Nanite and regular SM scene proxy
+uint32 FSceneProxy::SetMeshElementGeometrySource(
+	int32 LODIndex,
+	int32 SectionIndex,
+	bool bWireframe,
+	bool bUseReversedIndices,
+	const ::FVertexFactory* VertexFactory,
+	FMeshBatch& OutMeshElement) const
+{
+	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
+
+	const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+	if (Section.NumTriangles == 0)
+	{
+		return 0;
+	}
+
+	const FFallbackLODInfo& LODInfo = FallbackLODs[LODIndex];
+	const FFallbackLODInfo::FSectionInfo& SectionInfo = LODInfo.Sections[SectionIndex];
+
+	FMeshBatchElement& OutMeshBatchElement = OutMeshElement.Elements[0];
+	uint32 NumPrimitives = 0;
+
+	if (bWireframe)
+	{
+		if (LODModel.AdditionalIndexBuffers && LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized())
+		{
+			OutMeshElement.Type = PT_LineList;
+			OutMeshBatchElement.FirstIndex = 0;
+			OutMeshBatchElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->WireframeIndexBuffer;
+			NumPrimitives = LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices() / 2;
+		}
+		else
+		{
+			OutMeshBatchElement.FirstIndex = 0;
+			OutMeshBatchElement.IndexBuffer = &LODModel.IndexBuffer;
+			NumPrimitives = LODModel.IndexBuffer.GetNumIndices() / 3;
+
+			OutMeshElement.Type = PT_TriangleList;
+			OutMeshElement.bWireframe = true;
+			OutMeshElement.bDisableBackfaceCulling = true;
+		}
+	}
+	else
+	{
+		OutMeshElement.Type = PT_TriangleList;
+
+		OutMeshBatchElement.IndexBuffer = bUseReversedIndices ? &LODModel.AdditionalIndexBuffers->ReversedIndexBuffer : &LODModel.IndexBuffer;
+		OutMeshBatchElement.FirstIndex = Section.FirstIndex;
+		NumPrimitives = Section.NumTriangles;
+	}
+
+	OutMeshBatchElement.NumPrimitives = NumPrimitives;
+	OutMeshElement.VertexFactory = VertexFactory;
+
+	return NumPrimitives;
+}
+
+bool FSceneProxy::IsReversedCullingNeeded(bool bUseReversedIndices) const
+{
+	return (bReverseCulling || IsLocalToWorldDeterminantNegative()) && !bUseReversedIndices;
+}
+
+#endif
 
 const FCardRepresentationData* FSceneProxy::GetMeshCardRepresentation() const
 {
