@@ -38,6 +38,11 @@ public:
 		return Hash != Other.Hash;
 	}
 
+	inline IntType AsUInt() const
+	{
+		return Hash;
+	}
+
 private:
 	template<typename, typename, typename, typename>
 	friend class RobinHoodHashTable_Private::TRobinHoodHashTable;
@@ -57,11 +62,6 @@ private:
 	inline bool IsFree() const
 	{
 		return Hash == InvalidHash;
-	}
-
-	inline IntType AsUInt() const
-	{
-		return Hash;
 	}
 
 	static constexpr const IntType InvalidHash = (IntType(1)) << (sizeof(IntType) * 8 - 1);
