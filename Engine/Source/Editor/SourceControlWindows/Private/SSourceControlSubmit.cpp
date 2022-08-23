@@ -31,6 +31,10 @@
 
 #define LOCTEXT_NAMESPACE "SSourceControlSubmit"
 
+// This is useful for source control that do not support changelist (Git/SVN) or when the submit widget is not created from the changelist window. If a user
+// commits/submits this way, then edits the submit description but cancels, the description will be remembered in memory for the next time he tries to submit.
+static FText GSavedChangeListDescription;
+
 bool TryToVirtualizeFilesToSubmit(const TArray<FString>& FilesToSubmit, FText& Description, FText& OutFailureMsg)
 {
 	// TODO: Once this is removed and not deprecated move the following arrays inside of the System.IsEnabled() scope
@@ -119,12 +123,11 @@ TSharedRef<SWidget> SSourceControlSubmitListRow::GenerateWidgetForColumn(const F
 	return SNullWidget::NullWidget;
 }
 
-FText SSourceControlSubmitWidget::SavedChangeListDescription;
 
 SSourceControlSubmitWidget::~SSourceControlSubmitWidget()
 {
-	// If the user cancel the submit, save the changelist. (On successful submit, ChangeListDescriptionTextCtrl is cleared).
-	SavedChangeListDescription = ChangeListDescriptionTextCtrl->GetText();
+	// If the user cancel the submit, save the changelist. If the user submitted, ChangeListDescriptionTextCtrl was cleared).
+	GSavedChangeListDescription = ChangeListDescriptionTextCtrl->GetText();
 }
 
 void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
@@ -134,8 +137,8 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 	SortMode = EColumnSortMode::Ascending;
 	if (!InArgs._Description.Get().IsEmpty())
 	{
-		// This is meant to restore the description entered by the user if they canceled a previous submit operation (or the submit failed somehow).
-		SavedChangeListDescription = InArgs._Description.Get();
+		// If a description is provided, override the last one saved in memory.
+		GSavedChangeListDescription = InArgs._Description.Get();
 	}
 	bAllowSubmit = InArgs._AllowSubmit.Get();
 
@@ -143,6 +146,7 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 	const bool bAllowUncheckFiles = InArgs._AllowUncheckFiles.Get();
 	const bool bAllowKeepCheckedOut = InArgs._AllowKeepCheckedOut.Get();
 	const bool bShowChangelistValidation = !InArgs._ChangeValidationResult.Get().IsEmpty();
+	OnSaveChangelistDescription = InArgs._OnSaveChangelistDescription;
 
 	for (const auto& Item : InArgs._Items.Get())
 	{
@@ -219,7 +223,7 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(ChangeListDescriptionTextCtrl, SMultiLineEditableTextBox)
 			.SelectAllTextWhenFocused(!bDescriptionIsReadOnly)
-			.Text(SavedChangeListDescription)
+			.Text(GSavedChangeListDescription)
 			.AutoWrapText(true)
 			.IsReadOnly(bDescriptionIsReadOnly)
 		]
@@ -252,7 +256,9 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 			.Padding(5)
 			[
 				SNew( SErrorText )
-				.ErrorText( NSLOCTEXT("SourceControl.SubmitPanel", "ChangeListDescWarning", "Changelist description is required to submit") )
+				.ErrorText(ChangeListDescriptionTextCtrl->GetText().IsEmpty() ? 
+					NSLOCTEXT("SourceControl.SubmitPanel", "ChangeListDescWarning", "Changelist description is required to submit") :
+					NSLOCTEXT("SourceControl.SubmitPanel", "Error", "Error!")) // Other errors exist and a better mechanism should be built in to display the right error. 
 			]
 		];
 	}
@@ -380,13 +386,22 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 		+SUniformGridPanel::Slot(0,0)
 		[
 			SNew(SButton)
+			.Visibility(OnSaveChangelistDescription.IsBound() ? EVisibility::Visible : EVisibility::Collapsed)
+			.HAlign(HAlign_Center)
+			.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
+			.Text( NSLOCTEXT("SourceControl.SubmitPanel", "Update", "Update") )
+			.OnClicked(FOnClicked::CreateLambda([this]() { OnSaveChangelistDescription.ExecuteIfBound(ChangeListDescriptionTextCtrl->GetText()); return FReply::Handled(); }))
+		]
+		+SUniformGridPanel::Slot(1,0)
+		[
+			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
 			.IsEnabled(this, &SSourceControlSubmitWidget::IsSubmitEnabled)
 			.Text( NSLOCTEXT("SourceControl.SubmitPanel", "OKButton", "Submit") )
 			.OnClicked(this, &SSourceControlSubmitWidget::SubmitClicked)
 		]
-		+SUniformGridPanel::Slot(1,0)
+		+SUniformGridPanel::Slot(2,0)
 		[
 			SNew(SButton)
 			.HAlign(HAlign_Center)
@@ -635,7 +650,7 @@ bool SSourceControlSubmitWidget::IsSubmitEnabled() const
 
 EVisibility SSourceControlSubmitWidget::IsWarningPanelVisible() const
 {
-	return IsSubmitEnabled()? EVisibility::Hidden : EVisibility::Visible;
+	return IsSubmitEnabled() ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 
@@ -741,7 +756,6 @@ void SSourceControlSubmitWidget::SortTree()
 		}
 	}
 }
-
 
 #undef LOCTEXT_NAMESPACE
 

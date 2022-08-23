@@ -42,6 +42,8 @@ public:
 
 bool TryToVirtualizeFilesToSubmit(const TArray<FString>& FilesToSubmit, FText& Description, FText& OutFailureMsg);
 
+DECLARE_DELEGATE_OneParam(FSourceControlSaveChangelistDescription, const FText& /*NewDescription*/);
+
 class SSourceControlSubmitWidget : public SCompoundWidget
 {
 public:
@@ -56,6 +58,7 @@ public:
 		, _AllowUncheckFiles(true)
 		, _AllowKeepCheckedOut(true)
 		, _AllowSubmit(true)
+		, _OnSaveChangelistDescription()
 	{}
 
 		SLATE_ATTRIBUTE(TSharedPtr<SWindow>, ParentWindow)
@@ -68,6 +71,7 @@ public:
 		SLATE_ATTRIBUTE(bool, AllowUncheckFiles)
 		SLATE_ATTRIBUTE(bool, AllowKeepCheckedOut)
 		SLATE_ATTRIBUTE(bool, AllowSubmit)
+		SLATE_EVENT(FSourceControlSaveChangelistDescription, OnSaveChangelistDescription)
 
 	SLATE_END_ARGS()
 
@@ -165,7 +169,7 @@ private:
 	bool CanDiffAgainstDepot() const;
 	void OnDiffAgainstDepot();
 	void OnDiffAgainstDepotSelected(TSharedPtr<FFileTreeItem> InSelectedItem);
-	
+
 private:
 	ESubmitResults::Type DialogResult;
 
@@ -193,8 +197,8 @@ private:
 	/** Currently selected sorting mode */
 	EColumnSortMode::Type SortMode;
 
-	/** Submit Description saved when the widget is destroyed if canceled */
-	static FText SavedChangeListDescription;	
+	/** Delegate invoked to save the description of a changelist with the source control. */
+	FSourceControlSaveChangelistDescription OnSaveChangelistDescription;
 };
 
 class SSourceControlSubmitListRow : public SMultiColumnTableRow<TSharedPtr<FFileTreeItem>>

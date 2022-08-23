@@ -614,19 +614,24 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 				// Remove any deleted files from status cache
 				TArray<TSharedRef<ISourceControlState, ESPMode::ThreadSafe>> States;
 				GetSCCProvider().GetState(FilesToSubmit, States, EStateCacheUsage::Use);
-				for (const auto& State : States)
+				for (const TSharedRef<ISourceControlState>& State : States)
 				{
 					if (State->IsDeleted())
 					{
 						GetSCCProvider().RemoveFileFromCache(State->GetFilename());
 					}
+
+					if (Operation->GetKeepCheckedOut() && (State->IsAdded() || State->IsCheckedOut()))
+					{
+						FilesToKeepCheckedOut.Emplace(State->GetFilename(), EPerforceState::CheckedOut);
+					}
 				}
 
 				StaticCastSharedRef<FCheckIn>(InCommand.Operation)->SetSuccessMessage(ParseSubmitResults(Records));
 
-				for(auto Iter(FilesToSubmit.CreateIterator()); Iter; Iter++)
+				for (const FString& Filename : FilesToSubmit)
 				{
-					OutResults.Add(*Iter, EPerforceState::ReadOnly);
+					OutResults.Add(Filename, EPerforceState::ReadOnly);
 				}
 
 				InChangelist = InCommand.Changelist;
@@ -681,6 +686,14 @@ bool FPerforceCheckInWorker::UpdateStates() const
 		if (InChangelist.IsDefault())
 		{
 			bUpdatedChangelistStates = RemoveFilesFromChangelist(OutResults, GetSCCProvider(), InChangelist);
+		}
+
+		// Ensure to update the cache with respect to the file kept in checkout. Those files are move to the 'default' changelist by P4.
+		if (!FilesToKeepCheckedOut.IsEmpty())
+		{
+			UpdateChangelistState(GetSCCProvider(), FPerforceSourceControlChangelist::DefaultChangelist, FilesToKeepCheckedOut);
+			UpdateCachedStates(GetSCCProvider(), FilesToKeepCheckedOut);
+			bUpdatedChangelistStates = true;
 		}
 	}
 

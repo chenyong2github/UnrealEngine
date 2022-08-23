@@ -141,26 +141,11 @@ private:
 	void RestoreExpandedAndSelectionStates(const FExpandedAndSelectionStates& InStates);
 
 	TSharedRef<SWidget> MakeToolBar();
-
-	/**
-	 * Returns a new changelist description if needed, appending validation tag.
-	 * 
-	 * @param bInValidationResult	The result of the validation step
-	 * @param InOriginalChangelistDescription	Description of the changelist before modification
-	 * 
-	 * @return The new changelist description
-	 */
-	FText UpdateChangelistDescriptionToSubmitIfNeeded(const bool bInValidationResult, const FText& InOriginalChangelistDescription) const;
 	
-	/** Returns true if the provided changelist description contains a validation tag. */
-	bool HasValidationTag(const FText& InChangelistDescription) const;
-
 	/** Executes an operation to updates the changelist description of the provided changelist with a new description. */
 	void EditChangelistDescription(const FText& InNewChangelistDescription, const FSourceControlChangelistStatePtr& InChangelistState);
 
 private:
-	/** Tag to append to a changelist that passed validation */
-	static const FText ChangelistValidatedTag;
 
 	TSharedPtr<SExpandableChangelistArea> ChangelistExpandableArea;
 	TSharedPtr<SExpandableChangelistArea> UncontrolledChangelistExpandableArea;
@@ -181,9 +166,6 @@ private:
 
 	/** Source control state changed delegate handle */
 	FDelegateHandle SourceControlStateChangedDelegateHandle;
-
-	/** Uncontrolled Changelist changed delegate handle */
-	FDelegateHandle UncontrolledChangelistChangedDelegateHandle;
 
 	bool bShouldRefresh = false;
 	bool bSourceControlAvailable = false;

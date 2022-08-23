@@ -41,8 +41,8 @@
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
 
-
-const FText SSourceControlChangelistsWidget::ChangelistValidatedTag = LOCTEXT("ValidationTag", "#changelist validated");
+namespace
+{
 
 /** Wraps the execution of a changelist operations with a slow task. */
 void ExecuteChangelistOperationWithSlowTaskWrapper(const FText& Message, const TFunction<void()>& ChangelistTask)
@@ -85,12 +85,49 @@ bool AreUncontrolledChangelistsEnabled()
 	return FUncontrolledChangelistsModule::Get().IsEnabled();
 };
 
-/** Returns true if they are changelists to display. */
+/** Returns true if there are changelists to display. */
 bool AreChangelistsEnabled()
 {
 	return AreControlledChangelistsEnabled() || AreUncontrolledChangelistsEnabled();
 };
 
+/**
+ * Returns a new changelist description if needed, appending validation tag.
+ * 
+ * @param bInValidationResult	The result of the validation step
+ * @param InOriginalChangelistDescription	Description of the changelist before modification
+ * 
+ * @return The new changelist description
+ */
+FText UpdateChangelistDescriptionToSubmitIfNeeded(const bool bInValidationResult, const FText& InChangelistDescription)
+{
+	auto GetChangelistValidationTag = []
+	{
+		return LOCTEXT("ValidationTag", "#changelist validated");
+	};
+
+	auto ContainsValidationFlag = [&GetChangelistValidationTag](const FText& InChangelistDescription)
+	{
+		FString DescriptionString = InChangelistDescription.ToString();
+		FString ValidationString = GetChangelistValidationTag().ToString();
+		return DescriptionString.Find(ValidationString) != INDEX_NONE;
+	};
+
+	if (bInValidationResult && USourceControlPreferences::IsValidationTagEnabled() && !ContainsValidationFlag(InChangelistDescription))
+	{
+		FStringOutputDevice Str;
+
+		Str.SetAutoEmitLineTerminator(true);
+		Str.Log(InChangelistDescription);
+		Str.Log(GetChangelistValidationTag());
+
+		return FText::FromString(Str);
+	}
+
+	return InChangelistDescription;
+}
+
+} // Anonymous namespace
 
 /** Implements drag and drop operation. */
 struct FSCCFileDragDropOp : public FDragDropOperation
@@ -474,14 +511,6 @@ TSharedRef<SWidget> SSourceControlChangelistsWidget::MakeToolBar()
 	return ToolBarBuilder.MakeWidget();
 }
 
-bool SSourceControlChangelistsWidget::HasValidationTag(const FText& InChangelistDescription) const
-{
-	FString DescriptionString = InChangelistDescription.ToString();
-	FString ValidationString = ChangelistValidatedTag.ToString();
-
-	return DescriptionString.Find(ValidationString) != INDEX_NONE;
-}
-
 void SSourceControlChangelistsWidget::EditChangelistDescription(const FText& InNewChangelistDescription, const FSourceControlChangelistStatePtr& InChangelistState)
 {
 	TSharedRef<FEditChangelist> EditChangelistOperation = ISourceControlOperation::Create<FEditChangelist>();
@@ -574,7 +603,7 @@ void SSourceControlChangelistsWidget::StartRefreshStatus()
 
 void SSourceControlChangelistsWidget::TickRefreshStatus(double InDeltaTime)
 {
-	int RefreshStatusTimeElapsed = static_cast<int>(FPlatformTime::Seconds() - RefreshStatusStartSecs);
+	int32 RefreshStatusTimeElapsed = static_cast<int32>(FPlatformTime::Seconds() - RefreshStatusStartSecs);
 	RefreshStatus = FText::Format(LOCTEXT("SourceControl_RefreshStatus", "Refreshing changelists... ({0} s)"), FText::AsNumber(RefreshStatusTimeElapsed));
 }
 
@@ -638,7 +667,7 @@ void SSourceControlChangelistsWidget::OnRefresh()
 	}
 
 	FScopedSlowTask SlowTask(ElementsToProcess, LOCTEXT("SourceControl_RebuildTree", "Refreshing Tree Items"));
-	SlowTask.MakeDialog(/*bShowCancelButton=*/true);
+	SlowTask.MakeDialogDelayed(1.5f, /*bShowCancelButton=*/true);
 
 	// Rebuild the tree data models
 	bool bBeautifyPaths = true;
@@ -1391,10 +1420,15 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 	FString ChangelistValidationErrorsText;
 	bool bValidationResult = GetChangelistValidationResult(ChangelistState->GetChangelist(), ChangelistValidationTitle, ChangelistValidationWarningsText, ChangelistValidationErrorsText);
 
-	// Build list of states for the dialog
-	const FText OriginalChangelistDescription = ChangelistState->GetDescriptionText();
-	const bool bAskForChangelistDescription = (OriginalChangelistDescription.IsEmptyOrWhitespace());
-	FText ChangelistDescriptionToSubmit = UpdateChangelistDescriptionToSubmitIfNeeded(bValidationResult, OriginalChangelistDescription);
+	// The description from the source control.
+	const FText CurrentChangelistDescription = ChangelistState->GetDescriptionText();
+	const bool bAskForChangelistDescription = (CurrentChangelistDescription.IsEmptyOrWhitespace());
+
+	// The description possibly updated with the #validated proposed to the user.
+	FText ChangelistDescriptionToSubmit = UpdateChangelistDescriptionToSubmitIfNeeded(bValidationResult, CurrentChangelistDescription);
+
+	// The description once edited by the user in the Submit window.
+	FText UserEditChangelistDescription = ChangelistDescriptionToSubmit;
 
 	TSharedRef<SWindow> NewWindow = SNew(SWindow)
 		.Title(NSLOCTEXT("SourceControl.ConfirmSubmit", "Title", "Confirm changelist submit"))
@@ -1411,10 +1445,19 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 		.ChangeValidationResult(ChangelistValidationTitle)
 		.ChangeValidationWarnings(ChangelistValidationWarningsText)
 		.ChangeValidationErrors(ChangelistValidationErrorsText)
-		.AllowDescriptionChange(bAskForChangelistDescription)
+		.AllowDescriptionChange(true)
 		.AllowUncheckFiles(false)
-		.AllowKeepCheckedOut(false)
-		.AllowSubmit(bValidationResult);
+		.AllowKeepCheckedOut(true)
+		.AllowSubmit(bValidationResult)
+		.OnSaveChangelistDescription(
+			FSourceControlSaveChangelistDescription::CreateLambda([this, &ChangelistState, &bValidationResult, &UserEditChangelistDescription](const FText& NewDescription)
+			{
+				// NOTE this is called from a modal dialog, so adding a slow task on top of it doesn't really look good. Just run a synchronous operation.
+				TSharedRef<FEditChangelist> EditChangelistOperation = ISourceControlOperation::Create<FEditChangelist>();
+				EditChangelistOperation->SetDescription(NewDescription);
+				ISourceControlModule::Get().GetProvider().Execute(EditChangelistOperation, ChangelistState->GetChangelist(), EConcurrency::Synchronous);
+				UserEditChangelistDescription = NewDescription;
+			}));
 
 	NewWindow->SetContent(
 		SourceControlWidget
@@ -1426,59 +1469,46 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 	{
 		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 		FChangeListDescription Description;
-		auto SubmitChangelistOperation = ISourceControlOperation::Create<FCheckIn>();
+		TSharedRef<FCheckIn> SubmitChangelistOperation = ISourceControlOperation::Create<FCheckIn>();
+		SubmitChangelistOperation->SetKeepCheckedOut(SourceControlWidget->WantToKeepCheckedOut());
 		bool bCheckinSuccess = false;
 
+		// Get the changelist description the user had when he hit the 'submit' button.
 		SourceControlWidget->FillChangeListDescription(Description);
+		UserEditChangelistDescription = Description.Description;
 
-		// Check if any of the presubmit hooks fail and if so early out to avoid the submit
-		if (!GetOnPresubmitResult(ChangelistState, Description))
+		// Check if any of the presubmit hooks fail. (This might also update the changelist description)
+		if (GetOnPresubmitResult(ChangelistState, Description))
 		{
-			return;
+			// If the description was modified, add it to the operation to update the changelist
+			if (!ChangelistDescriptionToSubmit.EqualTo(Description.Description))
+			{
+				SubmitChangelistOperation->SetDescription(UpdateChangelistDescriptionToSubmitIfNeeded(bValidationResult, Description.Description));
+			}
+
+			Execute(LOCTEXT("Submitting_Changelist", "Submitting changelist..."), SubmitChangelistOperation, ChangelistState->GetChangelist(), EConcurrency::Synchronous, FSourceControlOperationComplete::CreateLambda(
+				[&SubmitChangelistOperation, &bCheckinSuccess](const TSharedRef<ISourceControlOperation>& Operation, ECommandResult::Type InResult)
+				{
+					if (InResult == ECommandResult::Succeeded)
+					{
+						DisplaySourceControlOperationNotification(SubmitChangelistOperation->GetSuccessMessage(), SNotificationItem::CS_Success);
+						bCheckinSuccess = true;
+					}
+					else if (InResult == ECommandResult::Failed)
+					{
+						DisplaySourceControlOperationNotification(LOCTEXT("SCC_Checkin_Failed", "Failed to check in files!"), SNotificationItem::CS_Fail);
+					}
+				}));
 		}
 
-		// If the description was modified, we add it to the operation to update the changelist
-		if (!OriginalChangelistDescription.EqualTo(Description.Description))
+		// If something went wrong with the submit, try to preserve the changelist edited by the user (if he edited).
+		if (!bCheckinSuccess && !UserEditChangelistDescription.EqualTo(ChangelistDescriptionToSubmit))
 		{
-			SubmitChangelistOperation->SetDescription(Description.Description);
+			TSharedRef<FEditChangelist> EditChangelistOperation = ISourceControlOperation::Create<FEditChangelist>();
+			EditChangelistOperation->SetDescription(UserEditChangelistDescription);
+			ISourceControlModule::Get().GetProvider().Execute(EditChangelistOperation, ChangelistState->GetChangelist(), EConcurrency::Synchronous);
 		}
-
-		bCheckinSuccess = SourceControlProvider.Execute(SubmitChangelistOperation, ChangelistState->GetChangelist()) == ECommandResult::Succeeded;
-
-		// Setup the notification for operation feedback
-		FNotificationInfo Info(SubmitChangelistOperation->GetSuccessMessage());
-
-		// Override the notification fields for failure ones
-		if (!bCheckinSuccess)
-		{
-			Info.Text = LOCTEXT("SCC_Checkin_Failed", "Failed to check in files!");
-		}
-		
-		Info.ExpireDuration = 8.0f;
-		Info.HyperlinkText = LOCTEXT("SCC_Checkin_ShowLog", "Show Message Log");
-		Info.Hyperlink = FSimpleDelegate::CreateLambda([]() { FMessageLog("SourceControl").Open(EMessageSeverity::Info, true); });
-
-		TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
-		Notification->SetCompletionState(bCheckinSuccess ? SNotificationItem::CS_Success : SNotificationItem::CS_Fail);
 	}
-}
-
-FText SSourceControlChangelistsWidget::UpdateChangelistDescriptionToSubmitIfNeeded(const bool bInValidationResult, const FText& InOriginalChangelistDescription) const
-{
-	if (bInValidationResult && USourceControlPreferences::IsValidationTagEnabled() && (!HasValidationTag(InOriginalChangelistDescription)))
-	{
-		FStringOutputDevice Str;
-
-		Str.SetAutoEmitLineTerminator(true);
-		Str.Log(InOriginalChangelistDescription);
-		Str.Log(ChangelistValidatedTag);
-
-		FText ChangelistDescription = FText::FromString(Str);
-
-		return ChangelistDescription;
-	}
-
-	return InOriginalChangelistDescription;
 }
 
 bool SSourceControlChangelistsWidget::CanSubmitChangelist()

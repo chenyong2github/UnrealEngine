@@ -67,6 +67,9 @@ public:
 
 	/** Changelist we submitted */
 	FPerforceSourceControlChangelist OutChangelist;
+
+	/** List of file to kept in checked out after the submit.*/
+	TMap<FString, EPerforceState::Type> FilesToKeepCheckedOut;
 };
 
 class FPerforceGetFileListWorker final : public IPerforceSourceControlWorker
