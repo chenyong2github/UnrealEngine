@@ -3,6 +3,7 @@
 set(CMAKE_SYSTEM_NAME Darwin)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 string(CONCAT UE_FLAGS
 	" -gdwarf-2"
@@ -13,6 +14,7 @@ string(CONCAT UE_FLAGS_C
 
 string(CONCAT UE_FLAGS_CXX
 	" -std=c++14"
+	" -fvisibility-ms-compat"
 	)
 
 string(CONCAT UE_FLAGS_DEBUG

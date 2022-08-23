@@ -146,6 +146,15 @@ public sealed class BuildCMakeLib : BuildCommand
 					// If not available then check the lib source root
 					CMakeDirectory = TargetLib.GetLibSourceDirectory();
 				}
+				if (!FileReference.Exists(FileReference.Combine(CMakeDirectory, "CMakeLists.txt")))
+				{
+					// If not available then check the cmake directory
+					CMakeDirectory = DirectoryReference.Combine(TargetLib.GetLibSourceDirectory(), "cmake");
+				}
+				if (!FileReference.Exists(FileReference.Combine(CMakeDirectory, "CMakeLists.txt")))
+				{
+					throw new AutomationException("No CMakeLists.txt found to build.");
+				}
 			}
 
 			return CMakeDirectory;
