@@ -16,7 +16,6 @@ public class SourceControlWindows : ModuleRules
 				"CoreUObject", 
                 "InputCore",
 				"Engine", 
-				"OutputLog",
 				"Slate",
 				"SlateCore",
 				"SourceControl", 
