@@ -139,6 +139,8 @@ public:
 
 	FControlFlowBranchDefiner& GetDelegate() { return BranchDelegate; }
 
+	TSharedPtr<FTrackedActivity> Activity;
+
 protected:
 	virtual void Execute() override;
 	virtual void Cancel() override;

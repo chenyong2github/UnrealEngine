@@ -10,6 +10,7 @@
 //////////////////////////
 
 FControlFlowSubTaskBase::FControlFlowSubTaskBase(const FString& TaskName)
+:	DebugName(TaskName)
 {
 
 }
@@ -252,6 +253,7 @@ void FControlFlowTask_Branch::Execute()
 		if (ensureAlwaysMsgf(BranchDefinitions->Contains(SelectedBranchKey), TEXT("You've returned a Branch Key that doesn't exist!")))
 		{
 			SelectedBranchFlow = BranchDefinitions->FindChecked(SelectedBranchKey);
+			SelectedBranchFlow->Activity = Activity;
 
 			SelectedBranchFlow->OnComplete().BindSP(SharedThis(this), &FControlFlowTask_Branch::HandleBranchCompleted);
 			SelectedBranchFlow->OnExecutedWithoutAnyNodes().BindSP(SharedThis(this), &FControlFlowTask_Branch::HandleBranchCompleted);

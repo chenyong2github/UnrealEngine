@@ -132,6 +132,7 @@ bool FControlFlowStatics::IterateForInvalidFlows(float DeltaTime)
 				TSharedRef<FControlFlow> ExecutingFlow = Executing[Idx]->GetControlFlow();
 				if (!ExecutingFlow->IsRunning() && ensureAlways(ExecutingFlow->NumInQueue() == 0))
 				{
+					Executing[Idx]->ControlFlow->Activity = nullptr;
 					FinishedFlows.Add(Executing[Idx]);
 					Executing.RemoveAtSwap(Idx);
 					--Idx;
@@ -139,6 +140,7 @@ bool FControlFlowStatics::IterateForInvalidFlows(float DeltaTime)
 			}
 			else
 			{
+				Executing[Idx]->ControlFlow->Activity = nullptr;
 				Executing.RemoveAtSwap(Idx);
 				--Idx;
 			}

@@ -12,6 +12,7 @@ class FControlFlowSubTaskBase;
 class FControlFlowBranch;
 class FConcurrentControlFlows;
 class FConcurrentControlFlowBehavior;
+class FTrackedActivity;
 
 using FControlFlowNodePtr = TSharedPtr<FControlFlowNode>;
 using FControlFlowNodeRef = TSharedRef<FControlFlowNode>;
@@ -37,6 +38,8 @@ public:
 
 	CONTROLFLOWS_API void ContinueFlow();
 	CONTROLFLOWS_API virtual void CancelFlow();
+
+	CONTROLFLOWS_API TSharedPtr<FTrackedActivity> GetTrackedActivity() const;
 
 protected:
 	friend class FControlFlow;

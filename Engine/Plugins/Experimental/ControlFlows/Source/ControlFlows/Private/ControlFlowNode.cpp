@@ -42,6 +42,15 @@ void FControlFlowNode::CancelFlow()
 	}
 }
 
+TSharedPtr<FTrackedActivity> FControlFlowNode::GetTrackedActivity() const
+{
+	if (ensureAlways(Parent.IsValid()))
+	{
+		return Parent.Pin()->GetTrackedActivity();
+	}
+	return nullptr;
+}
+
 void FControlFlowNode::LogExecution()
 {
 	if (ensureAlways(Parent.IsValid()))
@@ -142,7 +151,8 @@ void FControlFlowNode_Task::CancelFlow()
 
 FString FControlFlowNode_Task::GetNodeName() const
 {
-	return FString::Format(TEXT("{0}({1})"), { NodeName, GetFlowTask()->GetTaskName() });
+	const FString& TaskName = GetFlowTask()->GetTaskName();
+	return TaskName.IsEmpty() ? NodeName : TaskName;
 }
 
 void FControlFlowNode_Task::CompleteCancelFlow()

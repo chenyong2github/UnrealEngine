@@ -67,6 +67,8 @@ public:
 
 	TOptional<FString> GetCurrentStepDebugName() const;
 
+	TSharedPtr<FTrackedActivity> GetTrackedActivity() const;
+
 public:
 
 	template<typename...ArgsT>
@@ -111,6 +113,8 @@ public:
 		QueueConcurrentFlows(FormatOrGetNewNodeDebugName()).BindLambda(InForkLambda, Params...);
 		return *this;
 	}
+
+	FControlFlow& TrackActivities(TSharedPtr<FTrackedActivity> InActivity = nullptr);
 
 public:
 	FSimpleDelegate& QueueFunction(const FString& FlowNodeDebugName = TEXT(""));
@@ -219,6 +223,7 @@ private:
 	friend class FControlFlowTask_Loop;
 	friend class FControlFlowTask_BranchLegacy;
 	friend class FControlFlowTask_Branch;
+	friend class FControlFlowStatics;
 	friend struct FConcurrencySubFlowContainer;
 
 public:
@@ -290,4 +295,6 @@ private:
 	TArray<TSharedRef<FControlFlow>> SubFlowStack_ForDebugging;
 
 	TArray<TSharedRef<FControlFlowNode>> FlowQueue;
+
+	TSharedPtr<FTrackedActivity> Activity;
 };
