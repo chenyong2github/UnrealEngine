@@ -210,7 +210,7 @@ private:
 
 public:
 	/** Whether to hide the primitive in game, if the primitive is Visible. */
-	UPROPERTY(Interp, EditAnywhere, BlueprintReadOnly, Category=Rendering, meta=(SequencerTrackClass = "MovieSceneVisibilityTrack"))
+	UPROPERTY(Interp, EditAnywhere, BlueprintReadOnly, Category=Rendering, meta=(SequencerTrackClass = "/Script/MovieSceneTracks.MovieSceneVisibilityTrack"))
 	uint8 bHiddenInGame:1;
 
 	/** If true, a change in the bounds of the component will call trigger a streaming data rebuild */
