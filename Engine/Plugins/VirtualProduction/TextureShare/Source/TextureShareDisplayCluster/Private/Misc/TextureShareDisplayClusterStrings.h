@@ -25,13 +25,8 @@ namespace TextureShareDisplayClusterStrings
 		static constexpr auto Warped = TEXT("ViewportWarpBlend");
 	}
 
-	// final frame resource (after warp, output remaps)
 	namespace Output
 	{
-		// name mapped as viewport resource
-		// Ex.: "vp_0.BackbufferRect"
-		static constexpr auto Viewport = TEXT("FrameBackbufferRect");
-
 		// access to nDisplay frame backbuffer
 		static constexpr auto Backbuffer     = TEXT("FrameBackbuffer");
 		static constexpr auto BackbufferTemp = TEXT("FrameBackbufferTemp");

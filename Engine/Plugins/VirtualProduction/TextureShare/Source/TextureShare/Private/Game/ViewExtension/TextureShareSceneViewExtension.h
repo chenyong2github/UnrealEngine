@@ -6,6 +6,7 @@
 
 class ITextureShareObjectProxy;
 struct FTextureShareCoreViewDesc;
+struct FTextureShareSceneView;
 
 /**
  * Convenience type definition of a function that gives an opinion of whether the scene view extension should be active in the given context for the current frame.
@@ -30,23 +31,22 @@ public:
 	//~ Begin ISceneViewExtension interface
 	virtual int32 GetPriority() const override { return -1; }
 
-	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
-	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override {};
+	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override { }
+	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override { };
+	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override { };
 
-	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override;
-	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
-	virtual void PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
+	virtual void PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) override;
+	virtual void PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) override;
 
 	virtual void OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
 	virtual void OnBackBufferReadyToPresent_RenderThread(SWindow&, const FTexture2DRHIRef&);
 
 	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
-	//~End ISceneVIewExtension interface
+	//~End ISceneViewExtension interface
 
 public:
-	virtual void GetSceneViewData_RenderThread(const FSceneView& InSceneView, const FTextureShareCoreViewDesc& InViewDesc);
-	virtual void GetTextureShareCoreSceneViewData_RenderThread(const FSceneViewFamily& InViewFamily, const FSceneView& InSceneView, struct FTextureShareCoreSceneViewData& OutData) const;
-	virtual void ShareSceneViewColors_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, const FSceneView& InSceneView, const FTextureShareCoreViewDesc& InViewDesc);
+	virtual void GetSceneViewData_RenderThread(const FTextureShareSceneView& InView);
+	virtual void ShareSceneViewColors_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, const FTextureShareSceneView& InView);
 
 public:
 	// Returns true if the given object is of the same type.
@@ -58,13 +58,6 @@ public:
 	const TSharedRef<ITextureShareObjectProxy, ESPMode::ThreadSafe>& GetObjectProxy() const
 	{
 		return ObjectProxy;
-	}
-	
-	FSceneViewFamily* GetViewFamily_RenderThread() const
-	{
-		check(IsInRenderingThread());
-
-		return ViewFamily_RenderThread;
 	}
 
 	void Initialize(const TSharedPtr<FTextureShareSceneViewExtension, ESPMode::ThreadSafe> InViewExtension);
@@ -80,6 +73,10 @@ public:
 	FViewport* GetLinkedViewport() const;
 	void SetLinkedViewport(FViewport* InLinkedViewport);
 
+private:
+	void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily);
+	void PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily);
+
 protected:
 	mutable FCriticalSection DataCS;
 
@@ -89,7 +86,8 @@ protected:
 	bool bEnableObjectProxySync = false;
 
 	bool bEnabled = true;
-	bool bEnabled_RenderThread = true;
+
+	TArray<FTextureShareSceneView> Views;
 
 	TFunctionTextureShareViewExtension PreRenderViewFamilyFunction;
 	TFunctionTextureShareViewExtension PostRenderViewFamilyFunction;
@@ -98,7 +96,4 @@ protected:
 	
 	/** TextureShare proxy owner*/
 	TSharedRef<ITextureShareObjectProxy, ESPMode::ThreadSafe> ObjectProxy;
-
-	/** Runtime value */
-	FSceneViewFamily* ViewFamily_RenderThread = nullptr;
 };

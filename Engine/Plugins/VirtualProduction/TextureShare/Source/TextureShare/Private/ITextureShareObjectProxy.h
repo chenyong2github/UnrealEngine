@@ -2,13 +2,10 @@
 
 #pragma once
 #include "CoreMinimal.h"
+#include "RendererInterface.h"
 
 #include "Containers/TextureShareContainers.h"
 #include "Containers/TextureShareCoreContainers.h"
-
-#include "RHI.h"
-#include "RHICommandList.h"
-#include "RHIResources.h"
 
 class FTextureShareSceneViewExtension;
 
@@ -96,11 +93,13 @@ public:
 	virtual const TSharedPtr<FTextureShareSceneViewExtension, ESPMode::ThreadSafe>& GetViewExtension_RenderThread() const = 0;
 
 public:
+	/////////////////////////// Resource ///////////////////////////
+
 	/**
 	 * Share texture resource with ResourceRequest
 	 *
 	 * @param RHICmdList        - RHI cmd list
-	 * @param InResourceRequest - resource information
+	 * @param InResourceDesc    - resource information
 	 * @param InTexture         - Texture RHI resource
 	 * @param InTextureGPUIndex - Texture GPU index
 	 * @param InTextureRect     - (optional) Share only region from InTexture
@@ -108,4 +107,17 @@ public:
 	 * @return True if the success
 	 */
 	virtual bool ShareResource_RenderThread(FRHICommandListImmediate& RHICmdList, const FTextureShareCoreResourceDesc& InResourceDesc, FRHITexture* InTexture, const int32 InTextureGPUIndex, const FIntRect* InTextureRect = nullptr) const = 0;
+
+	/**
+	 * Share texture resource with ResourceRequest
+	 *
+	 * @param GraphBuilder      - RDG builder
+	 * @param InResourceDesc    - resource information
+	 * @param InTextureRef      - RDG Texture ref
+	 * @param InTextureGPUIndex - Texture GPU index
+	 * @param InTextureRect     - (optional) Share only region from InTexture
+	 *
+	 * @return True if the success
+	 */
+	virtual bool ShareResource_RenderThread(FRDGBuilder& GraphBuilder, const FTextureShareCoreResourceDesc& InResourceDesc, const FRDGTextureRef& InTextureRef, const int32 InTextureGPUIndex, const FIntRect* InTextureRect = nullptr) const = 0;
 };

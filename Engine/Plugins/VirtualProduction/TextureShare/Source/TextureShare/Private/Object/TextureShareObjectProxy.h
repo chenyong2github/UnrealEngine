@@ -4,6 +4,7 @@
 #include "ITextureShareObjectProxy.h"
 #include "ITextureShareCoreObject.h"
 #include "Containers/TextureShareContainers.h"
+#include "Templates/SharedPointer.h"
 
 class FTextureShareResourcesProxy;
 class FTextureShareSceneViewExtension;
@@ -13,6 +14,7 @@ class FTextureShareSceneViewExtension;
  */
 class FTextureShareObjectProxy
 	: public ITextureShareObjectProxy
+	, public TSharedFromThis<FTextureShareObjectProxy, ESPMode::ThreadSafe>
 {
 	friend class FTextureShareObject;
 
@@ -41,12 +43,13 @@ public:
 	virtual const TSharedPtr<FTextureShareSceneViewExtension, ESPMode::ThreadSafe>& GetViewExtension_RenderThread() const override;
 
 	virtual bool ShareResource_RenderThread(FRHICommandListImmediate& RHICmdList, const FTextureShareCoreResourceDesc& InResourceDesc, FRHITexture* InTexture, const int32 InTextureGPUIndex, const FIntRect* InTextureRect = nullptr) const override;
+	virtual bool ShareResource_RenderThread(FRDGBuilder& GraphBuilder, const FTextureShareCoreResourceDesc& InResourceDesc, const FRDGTextureRef& InTextureRef, const int32 InTextureGPUIndex, const FIntRect* InTextureRect = nullptr) const override;
 	//~ITextureShareObjectProxy
 
 protected:
 	bool BeginSession_RenderThread();
 	bool EndSession_RenderThread();
-	void HandleNewFrame_RenderThread(const TSharedPtr<FTextureShareData, ESPMode::ThreadSafe>& InData, const TSharedPtr<FTextureShareSceneViewExtension, ESPMode::ThreadSafe>& InViewExtension);
+	void HandleNewFrame_RenderThread(const TSharedRef<FTextureShareData, ESPMode::ThreadSafe>& InTextureShareData, const TSharedPtr<FTextureShareSceneViewExtension, ESPMode::ThreadSafe>& InViewExtension);
 
 	static void BeginSession_GameThread(const FTextureShareObject& In);
 	static void EndSession_GameThread(const FTextureShareObject& In);
@@ -57,7 +60,7 @@ private:
 	const TSharedRef<ITextureShareCoreObject, ESPMode::ThreadSafe> CoreObject;
 
 	// Object data from game thread
-	TSharedPtr<FTextureShareData, ESPMode::ThreadSafe> ObjectData;
+	TSharedRef<FTextureShareData, ESPMode::ThreadSafe> TextureShareData;
 
 	// Frame proxy sync valid
 	mutable bool bFrameProxySyncActive = false;

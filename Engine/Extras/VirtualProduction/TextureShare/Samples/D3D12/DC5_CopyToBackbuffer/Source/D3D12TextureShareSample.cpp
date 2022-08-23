@@ -13,8 +13,8 @@ FD3D12TextureShareSample::FD3D12TextureShareSample(ID3D12Resource* InBackBufferT
 	if(TextureShareObject = ITextureShareObject::CreateInstance(TextureShareSample::ObjectDesc))
 	{
 		// Request resources for receive
-		TextureShareObject->GetData().ResourceRequests.Add(TextureShareSample::Receive::Texture1::Desc);
-		TextureShareObject->GetData().ResourceRequests.Add(TextureShareSample::Receive::Texture2::Desc);
+		TextureShareObject->GetData().ResourceRequests.Add(FTextureShareResourceRequest(TextureShareSample::Receive::Texture1::Desc, D3D12AppSetup::Backbuffer::Format));
+		TextureShareObject->GetData().ResourceRequests.Add(FTextureShareResourceRequest(TextureShareSample::Receive::Texture2::Desc, D3D12AppSetup::Backbuffer::Format));
 	}
 }
 

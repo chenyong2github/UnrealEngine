@@ -11,11 +11,14 @@
 
 #include "ITextureShareCore.h"
 
+#include "RenderGraphUtils.h"
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareObjectProxy
 //////////////////////////////////////////////////////////////////////////////////////////////
 FTextureShareObjectProxy::FTextureShareObjectProxy(const TSharedRef<ITextureShareCoreObject, ESPMode::ThreadSafe>& InCoreObject)
 	: CoreObject(InCoreObject)
+	, TextureShareData(MakeShared<FTextureShareData, ESPMode::ThreadSafe>())
 { }
 
 FTextureShareObjectProxy::~FTextureShareObjectProxy()
@@ -64,25 +67,24 @@ bool FTextureShareObjectProxy::BeginFrameSync_RenderThread(FRHICommandListImmedi
 	{
 		if (CoreObject->BeginFrameSync_RenderThread())
 		{
-			if (ObjectData.IsValid())
-			{
-				// update frame markers from game thread data
-				FTextureShareCoreProxyData& ProxyDataRef = CoreObject->GetProxyData_RenderThread();
+			// update frame markers from game thread data
+			FTextureShareCoreProxyData& CoreProxyDataRef = CoreObject->GetProxyData_RenderThread();
 				
-				// Copy frame marker from game thread
-				ProxyDataRef.FrameMarker = ObjectData->ObjectData.FrameMarker;
+			// Copy frame marker from game thread
+			CoreProxyDataRef.FrameMarker = TextureShareData->ObjectData.FrameMarker;
 
-				// Copy the frame markers from the objects saved at the end of the game stream.
-				ProxyDataRef.RemoteFrameMarkers.Empty();
-				for (const FTextureShareCoreObjectData& ObjectDataIt : ObjectData->ReceivedObjectsData)
-				{
-					ProxyDataRef.RemoteFrameMarkers.Add(FTextureShareCoreObjectFrameMarker(ObjectDataIt.Desc, ObjectDataIt.Data.FrameMarker));
-				}
+			// Copy the frame markers from the objects saved at the end of the game stream.
+			CoreProxyDataRef.RemoteFrameMarkers.Empty();
 
-				bFrameProxySyncActive = true;
-
-				return true;
+			// Update remote frame markers
+			for (const FTextureShareCoreObjectData& ObjectDataIt : TextureShareData->ReceivedObjectsData)
+			{
+				CoreProxyDataRef.RemoteFrameMarkers.Add(FTextureShareCoreObjectFrameMarker(ObjectDataIt.Desc, ObjectDataIt.Data.FrameMarker));
 			}
+
+			bFrameProxySyncActive = true;
+
+			return true;
 		}
 	}
 
@@ -147,13 +149,7 @@ const FTextureShareData& FTextureShareObjectProxy::GetData_RenderThread() const
 {
 	check(IsInRenderingThread());
 
-	if (!ObjectData.IsValid())
-	{
-		static FTextureShareData EmptyData;
-		return EmptyData;
-	}
-
-	return *ObjectData;
+	return *TextureShareData;
 }
 
 const TSharedPtr<FTextureShareSceneViewExtension, ESPMode::ThreadSafe>& FTextureShareObjectProxy::GetViewExtension_RenderThread() const
@@ -182,6 +178,67 @@ const TArray<FTextureShareCoreObjectProxyData>& FTextureShareObjectProxy::GetRec
 	check(IsInRenderingThread());
 
 	return CoreObject->GetReceivedProxyData_RenderThread();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+BEGIN_SHADER_PARAMETER_STRUCT(FSendTextureParameters, )
+RDG_TEXTURE_ACCESS(Texture, ERHIAccess::CopySrc)
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_SHADER_PARAMETER_STRUCT(FReceiveTextureParameters, )
+RDG_TEXTURE_ACCESS(Texture, ERHIAccess::CopyDest)
+END_SHADER_PARAMETER_STRUCT()
+
+bool FTextureShareObjectProxy::ShareResource_RenderThread(FRDGBuilder& GraphBuilder, const FTextureShareCoreResourceDesc& InResourceDesc, const FRDGTextureRef& InTextureRef, const int32 InTextureGPUIndex, const FIntRect* InTextureRect) const
+{
+	if (HasBeenProduced(InTextureRef))
+	{
+		FIntRect InViewRect = (InTextureRect) ? *InTextureRect : FIntRect();
+
+		switch (InResourceDesc.OperationType)
+		{
+		case ETextureShareTextureOp::Read:
+		{
+			FSendTextureParameters* PassParameters = GraphBuilder.AllocParameters<FSendTextureParameters>();
+			PassParameters->Texture = InTextureRef;
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("TextureShare_SendRDGTexture_%s", *InResourceDesc.ResourceName),
+				PassParameters,
+				ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
+				[ObjectProxy = SharedThis(this), SyncStep = InResourceDesc.SyncStep, InResourceDesc, InTextureRef, InTextureGPUIndex, InViewRect](FRHICommandListImmediate& RHICmdList)
+				{
+					ObjectProxy->ShareResource_RenderThread(RHICmdList, InResourceDesc, InTextureRef->GetRHI(), InTextureGPUIndex, &InViewRect);
+				});
+
+			return true;
+		}
+		break;
+
+		case ETextureShareTextureOp::Write:
+		{
+			FReceiveTextureParameters* PassParameters = GraphBuilder.AllocParameters<FReceiveTextureParameters>();
+			PassParameters->Texture = InTextureRef;
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("TextureShare_ReceiveRDGTexture_%s", *InResourceDesc.ResourceName),
+				PassParameters,
+				ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
+				[ObjectProxy = SharedThis(this), InTextureRef, InTextureGPUIndex, InResourceDesc, InViewRect](FRHICommandListImmediate& RHICmdList)
+				{
+					ObjectProxy->ShareResource_RenderThread(RHICmdList, InResourceDesc, InTextureRef->GetRHI(), InTextureGPUIndex, &InViewRect);
+				});
+
+			return true;
+		}
+		break;
+
+		default:
+			break;
+		}
+	}
+
+	return false;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -265,12 +322,12 @@ bool FTextureShareObjectProxy::EndSession_RenderThread()
 	return false;
 }
 
-void FTextureShareObjectProxy::HandleNewFrame_RenderThread(const TSharedPtr<FTextureShareData, ESPMode::ThreadSafe>& InObjectData, const TSharedPtr<FTextureShareSceneViewExtension, ESPMode::ThreadSafe>& InViewExtension)
+void FTextureShareObjectProxy::HandleNewFrame_RenderThread(const TSharedRef<FTextureShareData, ESPMode::ThreadSafe>& InTextureShareData, const TSharedPtr<FTextureShareSceneViewExtension, ESPMode::ThreadSafe>& InViewExtension)
 {
 	check(IsInRenderingThread());
 
 	// Assign new frame data sent from game thread
-	ObjectData = InObjectData;
+	TextureShareData = InTextureShareData;
 
 	ViewExtension = InViewExtension;
 
@@ -308,9 +365,9 @@ void FTextureShareObjectProxy::UpdateProxy_GameThread(const FTextureShareObject&
 {
 	ENQUEUE_RENDER_COMMAND(TextureShare_UpdateObjectProxy)(
 		[ObjectProxyRef = In.GetObjectProxyRef()
-		, NewData = In.ObjectData
+		, NewTextureShareData = In.TextureShareData
 		, SceneViewExtension = In.ViewExtension](FRHICommandListImmediate& RHICmdList)
 	{
-		ObjectProxyRef->HandleNewFrame_RenderThread(NewData, SceneViewExtension);
+		ObjectProxyRef->HandleNewFrame_RenderThread(NewTextureShareData, SceneViewExtension);
 	});
 }

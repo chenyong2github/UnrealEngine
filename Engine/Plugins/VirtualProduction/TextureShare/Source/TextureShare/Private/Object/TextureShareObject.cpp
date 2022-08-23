@@ -12,7 +12,8 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 FTextureShareObject::FTextureShareObject(const TSharedRef<ITextureShareCoreObject, ESPMode::ThreadSafe>& InCoreObject)
 	: CoreObject(InCoreObject)
-	, ObjectProxy(MakeShared<FTextureShareObjectProxy, ESPMode::ThreadSafe>(CoreObject))
+	, ObjectProxy(new FTextureShareObjectProxy(CoreObject))
+	, TextureShareData(MakeShared<FTextureShareData, ESPMode::ThreadSafe>())
 { }
 
 FTextureShareObject::~FTextureShareObject()
@@ -121,17 +122,16 @@ bool FTextureShareObject::EndFrameSync(FViewport* InViewport)
 	bFrameSyncActive = false;
 
 	// Store gamethread data for proxy
-	FTextureShareData& ProxyObjectData = GetData();
-	ProxyObjectData.ObjectData = CoreObject->GetData();
-	ProxyObjectData.ReceivedObjectsData.Append(CoreObject->GetReceivedData());
+	TextureShareData->ObjectData = CoreObject->GetData();
+	TextureShareData->ReceivedObjectsData.Append(CoreObject->GetReceivedData());
 
 	FTextureShareObjectProxy::UpdateProxy_GameThread(*this);
 
+	// Reset ptr to data, now this data used in proxy
+	TextureShareData = MakeShared<FTextureShareData, ESPMode::ThreadSafe>();
+
 	// Game thread data now sent to the proxy.Game-thread data can now be cleared
 	const bool bResult = CoreObject->EndFrameSync();
-
-	// Reset ptr to data, now this data used in proxy
-	ObjectData.Reset();
 
 	CoreObject->UnlockThreadMutex(ETextureShareThreadMutex::RenderingThread);
 
@@ -172,12 +172,7 @@ const TArray<FTextureShareCoreObjectData>& FTextureShareObject::GetReceivedCoreO
 //////////////////////////////////////////////////////////////////////////////////////////////
 FTextureShareData& FTextureShareObject::GetData()
 {
-	if (!ObjectData.IsValid())
-	{
-		ObjectData = MakeShared<FTextureShareData>();
-	}
-
-	return *ObjectData;
+	return *TextureShareData;
 }
 
 TSharedPtr<FTextureShareSceneViewExtension, ESPMode::ThreadSafe> FTextureShareObject::GetViewExtension() const

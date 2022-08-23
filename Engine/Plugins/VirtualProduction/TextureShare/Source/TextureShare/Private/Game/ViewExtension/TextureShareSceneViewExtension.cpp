@@ -68,76 +68,67 @@ namespace TextureShareSceneViewExtensionHelpers
 		OutViewFamily.GammaCorrection = InViewFamily.GammaCorrection;
 		OutViewFamily.SecondaryViewFraction = InViewFamily.SecondaryViewFraction;
 	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FSendTextureParameters, )
-	RDG_TEXTURE_ACCESS(Texture, ERHIAccess::CopySrc)
-	END_SHADER_PARAMETER_STRUCT()
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FReceiveTextureParameters, )
-	RDG_TEXTURE_ACCESS(Texture, ERHIAccess::CopyDest)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static void SendRDGTexture(const TSharedPtr<ITextureShareObjectProxy, ESPMode::ThreadSafe> ObjectProxy, FRDGBuilder& GraphBuilder, FRDGTextureRef InTextureRef, const int32 InTextureGPUIndex, const FTextureShareCoreResourceDesc& InResourceDesc, const FIntRect& InViewRect)
-	{
-		FSendTextureParameters* PassParameters = GraphBuilder.AllocParameters<FSendTextureParameters>();
-		PassParameters->Texture = InTextureRef;
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("TextureShare_SendRDGTexture_%s", *InResourceDesc.ResourceName),
-			PassParameters,
-			ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
-			[ObjectProxy, InTextureRef, InTextureGPUIndex, InResourceDesc, InViewRect](FRHICommandListImmediate& RHICmdList)
-		{
-			ObjectProxy->ShareResource_RenderThread(RHICmdList, InResourceDesc, InTextureRef->GetRHI(), InTextureGPUIndex, &InViewRect);
-		});
-	}
-
 };
 using namespace TextureShareSceneViewExtensionHelpers;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// FTextureShareSceneViewExtension
-//////////////////////////////////////////////////////////////////////////////////////////////
-void FTextureShareSceneViewExtension::GetTextureShareCoreSceneViewData_RenderThread(const FSceneViewFamily& InViewFamily, const FSceneView& InSceneView, FTextureShareCoreSceneViewData& OutSceneViewData) const
+struct FTextureShareSceneView
 {
-	GetTextureShareCoreSceneView(InSceneView, OutSceneViewData.View);
-	GetTextureShareCoreSceneViewFamily(InViewFamily, OutSceneViewData.ViewFamily);
-}
-
-void FTextureShareSceneViewExtension::GetSceneViewData_RenderThread(const FSceneView& InSceneView, const FTextureShareCoreViewDesc& InViewDesc)
-{
-	// Create new data container for viewport eye
-	FTextureShareCoreSceneViewData SceneViewData(InViewDesc);
-
-	// Get view eye data
-	GetTextureShareCoreSceneViewData_RenderThread(*ViewFamily_RenderThread, InSceneView, SceneViewData);
-
-	// Save scene viewport eye data
-	ObjectProxy->GetCoreProxyData_RenderThread().SceneData.Add(SceneViewData);
-}
-
-void FTextureShareSceneViewExtension::ShareSceneViewColors_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, const FSceneView& InSceneView, const FTextureShareCoreViewDesc& InViewDesc)
-{
-	int32 SceneViewGPUIndex = -1;
-
-#if WITH_MGPU
-	if (ViewFamily_RenderThread->bMultiGPUForkAndJoin)
+	FTextureShareSceneView(const FSceneViewFamily& InViewFamily, const FSceneView& InSceneView, const FTextureShareSceneViewInfo& InViewInfo)
+		: ViewInfo(InViewInfo)
+		, SceneView(InSceneView)
 	{
-		SceneViewGPUIndex = InSceneView.GPUMask.GetFirstIndex();
-	}
+#if WITH_MGPU
+		if (InViewFamily.bMultiGPUForkAndJoin)
+		{
+			GPUIndex = InSceneView.GPUMask.GetFirstIndex();
+		}
 #endif
 
-	const auto AddShareTexturePass = [&](const TCHAR* InTextureName, FRDGTextureRef InTextureRef)
+		UnconstrainedViewRect = SceneView.UnconstrainedViewRect;
+		UnscaledViewRect = SceneView.UnscaledViewRect;
+	}
+
+public:
+	int32 GPUIndex = -1;
+
+	FIntRect UnconstrainedViewRect;
+	FIntRect UnscaledViewRect;
+
+	FTextureShareSceneViewInfo ViewInfo;
+
+	const FSceneView& SceneView;
+};
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// FTextureShareSceneViewExtension
+//////////////////////////////////////////////////////////////////////////////////////////////
+void FTextureShareSceneViewExtension::GetSceneViewData_RenderThread(const FTextureShareSceneView& InView)
+{
+	const FSceneView& InSceneView = InView.SceneView;
+	if (InSceneView.Family)
 	{
-		if (HasBeenProduced(InTextureRef))
-		{
-			FTextureShareCoreResourceDesc InResourceDesc(InTextureName, InViewDesc, ETextureShareTextureOp::Read);
-			// Share only if the resource is requested from a remote process
-			if (const FTextureShareCoreResourceRequest* ExistResourceRequest = ObjectProxy->GetData_RenderThread().FindResourceRequest(InResourceDesc))
-			{
-				SendRDGTexture(ObjectProxy, GraphBuilder, InTextureRef, SceneViewGPUIndex, InResourceDesc, InSceneView.UnconstrainedViewRect);
-			}
-		}
+		const FSceneViewFamily& InViewFamily = *InSceneView.Family;
+
+		// Create new data container for viewport eye
+		FTextureShareCoreSceneViewData SceneViewData(InView.ViewInfo.ViewDesc);
+
+		// Get view eye data
+		GetTextureShareCoreSceneView(InSceneView, SceneViewData.View);
+		GetTextureShareCoreSceneViewFamily(InViewFamily, SceneViewData.ViewFamily);
+
+		// Save scene viewport eye data
+		ObjectProxy->GetCoreProxyData_RenderThread().SceneData.Add(SceneViewData);
+	}
+}
+
+void FTextureShareSceneViewExtension::ShareSceneViewColors_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, const FTextureShareSceneView& InView)
+{
+	const auto AddShareTexturePass = [&](const TCHAR* InTextureName, const FRDGTextureRef& InTextureRef)
+	{
+		// Send resource
+		ObjectProxy->ShareResource_RenderThread(GraphBuilder, FTextureShareCoreResourceDesc(InTextureName, InView.ViewInfo.ViewDesc, ETextureShareTextureOp::Read),
+			InTextureRef, InView.GPUIndex, &InView.UnconstrainedViewRect);
 	};
 
 	AddShareTexturePass(TextureShareStrings::SceneTextures::SceneColor, SceneTextures.Color.Resolve);
@@ -248,23 +239,43 @@ bool FTextureShareSceneViewExtension::IsActiveThisFrame_Internal(const FSceneVie
 	return (LinkedViewport == Context.Viewport);
 }
 
-void FTextureShareSceneViewExtension::SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView)
+void FTextureShareSceneViewExtension::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
 {
 	FScopeLock Lock(&DataCS);
 
+	// Reset values
+	Views.Empty();
+
+	// Initialize views
+	for (const FSceneView* SceneViewIt : InViewFamily.Views)
+	{
+		if (SceneViewIt)
+		{
+			if (const FTextureShareSceneViewInfo* ViewInfo = ObjectProxy->GetData_RenderThread().Views.Find(SceneViewIt->StereoViewIndex, SceneViewIt->StereoPass))
+			{
+				Views.Add(FTextureShareSceneView(InViewFamily, *SceneViewIt, *ViewInfo));
+			}
+		}
+	}
+
+	// Add RDG pass
+	AddPass(GraphBuilder, RDG_EVENT_NAME("PreRenderViewFamily_RenderThread"), [this, &InViewFamily](FRHICommandListImmediate& RHICmdList)
+		{
+			PreRenderViewFamily_RenderThread(RHICmdList, InViewFamily);
+		});
+}
+
+void FTextureShareSceneViewExtension::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
+{
+	AddPass(GraphBuilder, RDG_EVENT_NAME("PostRenderViewFamily_RenderThread"), [this, &InViewFamily](FRHICommandListImmediate& RHICmdList)
+		{
+			PostRenderViewFamily_RenderThread(RHICmdList, InViewFamily);
+		});
 }
 
 void FTextureShareSceneViewExtension::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
 {
 	FScopeLock Lock(&DataCS);
-
-	// be default scene view capturing is disabled
-	ViewFamily_RenderThread = nullptr;
-
-	if (bEnabled_RenderThread)
-	{
-		ViewFamily_RenderThread = &InViewFamily;
-	}
 
 	// Handle view extension functor callbacks
 	if (PreRenderViewFamilyFunction)
@@ -273,69 +284,32 @@ void FTextureShareSceneViewExtension::PreRenderViewFamily_RenderThread(FRHIComma
 	}
 }
 
-void FTextureShareSceneViewExtension::OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures)
-{
-	FScopeLock Lock(&DataCS);
-
-	if (ViewFamily_RenderThread && bEnabled_RenderThread)
-	{
-		// Send all  textures from viewfamily views
-		for (const FSceneView* SceneViewIt : ViewFamily_RenderThread->Views)
-		{
-			if (SceneViewIt)
-			{
-				if (const FTextureShareSceneViewInfo* ViewInfo = ObjectProxy->GetData_RenderThread().Views.Find(SceneViewIt->StereoViewIndex, SceneViewIt->StereoPass))
-				{
-					// Always get scene view data
-					GetSceneViewData_RenderThread(*SceneViewIt, ViewInfo->ViewDesc);
-
-					// Send scene textures on request
-					ShareSceneViewColors_RenderThread(GraphBuilder, SceneTextures, *SceneViewIt, ViewInfo->ViewDesc);
-				}
-			}
-		}
-	}
-}
-
 void FTextureShareSceneViewExtension::PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
 {
 	FScopeLock Lock(&DataCS);
 
-	if (ViewFamily_RenderThread && bEnabled_RenderThread)
+	for (const FTextureShareSceneView& ViewIt : Views)
 	{
-		for (const FSceneView* SceneViewIt : InViewFamily.Views)
-		{
-			if (SceneViewIt)
-			{
-				if (const FTextureShareSceneViewInfo* ViewInfo = ObjectProxy->GetData_RenderThread().Views.Find(SceneViewIt->StereoViewIndex, SceneViewIt->StereoPass))
-				{
-					// Share only if the resource is requested from a remote process
-					if (const FTextureShareCoreResourceRequest* ExistResourceRequest = ObjectProxy->GetData_RenderThread().FindResourceRequest(FTextureShareCoreResourceDesc(TextureShareStrings::SceneTextures::FinalColor, ViewInfo->ViewDesc, ETextureShareTextureOp::Undefined)))
-					{
-						int32 SceneViewGPUIndex = -1;
-#if WITH_MGPU
-						if (ViewFamily_RenderThread->bMultiGPUForkAndJoin)
-						{
-							SceneViewGPUIndex = SceneViewIt->GPUMask.GetFirstIndex();
-						}
-#endif
-						FTexture2DRHIRef RenderTargetTexture = InViewFamily.RenderTarget->GetRenderTargetTexture();
-						if (RenderTargetTexture.IsValid())
-						{
-							// Send
-							const FTextureShareCoreResourceDesc SendResourceDesc(TextureShareStrings::SceneTextures::FinalColor, ViewInfo->ViewDesc, ETextureShareTextureOp::Read);
-							ObjectProxy->ShareResource_RenderThread(RHICmdList, SendResourceDesc, RenderTargetTexture, SceneViewGPUIndex, &SceneViewIt->UnscaledViewRect);
+		// Always get scene view data
+		GetSceneViewData_RenderThread(ViewIt);
 
-							if (bEnableObjectProxySync)
-							{
-								// Receive
-								const FTextureShareCoreResourceDesc ReceiveResourceDesc(TextureShareStrings::SceneTextures::FinalColor, ViewInfo->ViewDesc, ETextureShareTextureOp::Write, ETextureShareSyncStep::FrameSceneFinalColorEnd);
-								if (ObjectProxy->ShareResource_RenderThread(RHICmdList, ReceiveResourceDesc, RenderTargetTexture, SceneViewGPUIndex, &SceneViewIt->UnscaledViewRect))
-								{
-									ObjectProxy->FrameSync_RenderThread(RHICmdList, ETextureShareSyncStep::FrameSceneFinalColorEnd);
-								}
-							}
-						}
+		// Share only if the resource is requested from a remote process
+		if (const FTextureShareCoreResourceRequest* ExistResourceRequest = ObjectProxy->GetData_RenderThread().FindResourceRequest(FTextureShareCoreResourceDesc(TextureShareStrings::SceneTextures::FinalColor, ViewIt.ViewInfo.ViewDesc, ETextureShareTextureOp::Undefined)))
+		{
+			FTexture2DRHIRef RenderTargetTexture = InViewFamily.RenderTarget->GetRenderTargetTexture();
+			if (RenderTargetTexture.IsValid())
+			{
+				// Send
+				const FTextureShareCoreResourceDesc SendResourceDesc(TextureShareStrings::SceneTextures::FinalColor, ViewIt.ViewInfo.ViewDesc, ETextureShareTextureOp::Read);
+				ObjectProxy->ShareResource_RenderThread(RHICmdList, SendResourceDesc, RenderTargetTexture, ViewIt.GPUIndex, &ViewIt.UnscaledViewRect);
+
+				if (bEnableObjectProxySync)
+				{
+					// Receive
+					const FTextureShareCoreResourceDesc ReceiveResourceDesc(TextureShareStrings::SceneTextures::FinalColor, ViewIt.ViewInfo.ViewDesc, ETextureShareTextureOp::Write, ETextureShareSyncStep::FrameSceneFinalColorEnd);
+					if (ObjectProxy->ShareResource_RenderThread(RHICmdList, ReceiveResourceDesc, RenderTargetTexture, ViewIt.GPUIndex, &ViewIt.UnscaledViewRect))
+					{
+						ObjectProxy->FrameSync_RenderThread(RHICmdList, ETextureShareSyncStep::FrameSceneFinalColorEnd);
 					}
 				}
 			}
@@ -347,9 +321,17 @@ void FTextureShareSceneViewExtension::PostRenderViewFamily_RenderThread(FRHIComm
 	{
 		PostRenderViewFamilyFunction(RHICmdList, *this);
 	}
+}
 
-	// Clear stored value
-	ViewFamily_RenderThread = nullptr;
+void FTextureShareSceneViewExtension::OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures)
+{
+	FScopeLock Lock(&DataCS);
+
+	// Send scene textures on request
+	for (const FTextureShareSceneView& ViewIt : Views)
+	{
+		ShareSceneViewColors_RenderThread(GraphBuilder, SceneTextures, ViewIt);
+	}
 }
 
 void FTextureShareSceneViewExtension::OnBackBufferReadyToPresent_RenderThread(SWindow& SlateWindow, const FTexture2DRHIRef& InBackbuffer)

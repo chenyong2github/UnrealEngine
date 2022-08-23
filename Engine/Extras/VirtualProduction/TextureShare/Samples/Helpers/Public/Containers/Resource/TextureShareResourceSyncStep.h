@@ -22,8 +22,7 @@ namespace TextureShareResourceSyncStepHelper
 	static ETextureShareSyncStep GetDisplayClusterSyncStep(const wchar_t* InResourceName, const ETextureShareTextureOp InOperationType)
 	{
 		// Display cluster sync steps for resources:
-		if (IsEqual(InResourceName, TextureShareDisplayClusterStrings::Output::Viewport)
-			|| IsEqual(InResourceName, TextureShareDisplayClusterStrings::Output::Backbuffer)
+		if (IsEqual(InResourceName, TextureShareDisplayClusterStrings::Output::Backbuffer)
 			|| IsEqual(InResourceName, TextureShareDisplayClusterStrings::Output::BackbufferTemp))
 		{
 			return (InOperationType == ETextureShareTextureOp::Read) ? ETextureShareSyncStep::FrameProxyPostRenderBegin : ETextureShareSyncStep::FrameProxyPostRenderEnd;

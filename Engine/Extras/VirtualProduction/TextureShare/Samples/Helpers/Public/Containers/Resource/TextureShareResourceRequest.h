@@ -14,4 +14,12 @@ public:
 	FTextureShareResourceRequest(const FTextureShareCoreResourceDesc& InResourceDesc, const FTextureShareCustomResource& InCustomResource)
 		: FTextureShareCoreResourceRequest(InResourceDesc, InCustomResource.CustomSize, InCustomResource.CustomFormat)
 	{ }
+
+	FTextureShareResourceRequest(const FTextureShareCoreResourceDesc& InResourceDesc, const DXGI_FORMAT InCustomFormat)
+		: FTextureShareCoreResourceRequest(InResourceDesc, InCustomFormat)
+	{ }
+
+	FTextureShareResourceRequest(const FTextureShareCoreResourceDesc& InResourceDesc, const FIntPoint& InSize, const DXGI_FORMAT InFormat = DXGI_FORMAT_UNKNOWN)
+		: FTextureShareCoreResourceRequest(InResourceDesc, InSize, InFormat)
+	{ }
 };

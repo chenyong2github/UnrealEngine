@@ -204,8 +204,11 @@ void FTextureSharePostprocess::HandleEndUpdateFrameResources_RenderThread(FRHICo
 
 	if (IsActive() && ObjectProxy->IsFrameSyncActive_RenderThread())
 	{
-		// Share RTT with remote process
-		ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostRenderEnd, EDisplayClusterViewportResourceType::OutputFrameTargetableResource,  TextureShareDisplayClusterStrings::Output::Viewport);
+		// Share per-viewport
+		ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostRenderEnd, EDisplayClusterViewportResourceType::OutputFrameTargetableResource, TextureShareDisplayClusterStrings::Output::Backbuffer);
+		ShareViewport_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostRenderEnd, EDisplayClusterViewportResourceType::AdditionalFrameTargetableResource, TextureShareDisplayClusterStrings::Output::BackbufferTemp);
+
+		//Share whole backbuffer
 		ShareFrame_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostRenderEnd, EDisplayClusterViewportResourceType::OutputFrameTargetableResource,     TextureShareDisplayClusterStrings::Output::Backbuffer);
 		ShareFrame_RenderThread(RHICmdList, InViewportManagerProxy, ETextureShareSyncStep::FrameProxyPostRenderEnd, EDisplayClusterViewportResourceType::AdditionalFrameTargetableResource, TextureShareDisplayClusterStrings::Output::BackbufferTemp);
 

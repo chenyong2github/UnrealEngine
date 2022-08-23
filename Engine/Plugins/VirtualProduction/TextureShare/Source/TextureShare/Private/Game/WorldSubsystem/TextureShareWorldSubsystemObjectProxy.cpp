@@ -75,11 +75,9 @@ FTextureShareWorldSubsystemObjectProxy::FTextureShareWorldSubsystemObjectProxy(c
 
 bool FTextureShareWorldSubsystemObjectProxy::Update(const UTextureShareObject* InTextureShareObject)
 {
-	TSharedPtr<FProxyResourcesData> ProxyData = MakeShared<FProxyResourcesData>(InTextureShareObject);
-
 	// Updated sceneproxy on renderthread
 	ENQUEUE_RENDER_COMMAND(TextureShare_UpdateObjectProxy)(
-		[ObjectProxy = ObjectProxy, ProxyData](FRHICommandListImmediate& RHICmdList)
+		[ObjectProxy = ObjectProxy, ProxyData = MakeShared<FProxyResourcesData>(InTextureShareObject)](FRHICommandListImmediate& RHICmdList)
 	{
 		FTextureShareWorldSubsystemObjectProxy ProxyAPI(ObjectProxy);
 		ProxyAPI.Update_RenderThread(RHICmdList, ProxyData);
@@ -107,46 +105,28 @@ void FTextureShareWorldSubsystemObjectProxy::Update_RenderThread(FRHICommandList
 				TSharedPtr<ITextureShareObjectProxy, ESPMode::ThreadSafe> ObjectProxy = InViewExtension.GetObjectProxy();
 				if (ObjectProxy.IsValid())
 				{
-					if (InViewExtension.GetViewFamily_RenderThread())
-					{
-						ObjectProxy->BeginFrameSync_RenderThread(RHICmdList);
-					}
-					else
-					{
-						// TextureShare not used for this viewfamily
-						if (ObjectProxy->BeginFrameSync_RenderThread(RHICmdList)
-							&& ObjectProxy->IsFrameSyncActive_RenderThread())
-						{
-							FTextureShareWorldSubsystemObjectProxy ProxyAPI(ObjectProxy);
-							ProxyAPI.UpdateResources_RenderThread(RHICmdList, ProxyData);
-
-							ObjectProxy->EndFrameSync_RenderThread(RHICmdList);
-						}
-					}
+					ObjectProxy->BeginFrameSync_RenderThread(RHICmdList);
 				}
 			};
 
 			TFunctionTextureShareViewExtension PostRenderViewFamilyFunction = [ProxyData, bBackbufferShared](FRHICommandListImmediate& RHICmdList, FTextureShareSceneViewExtension& InViewExtension)
 			{
-				if (InViewExtension.GetViewFamily_RenderThread())
+				// Share user resources
+				TSharedPtr<ITextureShareObjectProxy, ESPMode::ThreadSafe> ObjectProxy = InViewExtension.GetObjectProxy();
+				if (ObjectProxy.IsValid()
+					&& ObjectProxy->IsFrameSyncActive_RenderThread())
 				{
-					// Share user resources
-					TSharedPtr<ITextureShareObjectProxy, ESPMode::ThreadSafe> ObjectProxy = InViewExtension.GetObjectProxy();
-					if (ObjectProxy.IsValid()
-						&& ObjectProxy->IsFrameSyncActive_RenderThread())
+					FTextureShareWorldSubsystemObjectProxy ProxyAPI(ObjectProxy);
+
+					ProxyAPI.UpdateResources_RenderThread(RHICmdList, ProxyData);
+
+					if (bBackbufferShared)
 					{
-						FTextureShareWorldSubsystemObjectProxy ProxyAPI(ObjectProxy);
-
-						ProxyAPI.UpdateResources_RenderThread(RHICmdList, ProxyData);
-
-						if (bBackbufferShared)
-						{
-							ObjectProxy->FrameSync_RenderThread(RHICmdList, ETextureShareSyncStep::FrameProxyPreRenderEnd);
-						}
-						else
-						{
-							ObjectProxy->EndFrameSync_RenderThread(RHICmdList);
-						}
+						ObjectProxy->FrameSync_RenderThread(RHICmdList, ETextureShareSyncStep::FrameProxyPreRenderEnd);
+					}
+					else
+					{
+						ObjectProxy->EndFrameSync_RenderThread(RHICmdList);
 					}
 				}
 			};

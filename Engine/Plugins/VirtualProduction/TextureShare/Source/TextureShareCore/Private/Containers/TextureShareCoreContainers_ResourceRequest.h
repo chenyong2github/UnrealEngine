@@ -53,6 +53,11 @@ public:
 		, Size(InSize)
 	{ }
 
+	FTextureShareCoreResourceRequest(const FTextureShareCoreResourceDesc& InResourceDesc, const DXGI_FORMAT InFormat)
+		: ResourceDesc(InResourceDesc)
+		, Format(InFormat)
+	{ }
+
 	void SetPixelFormat(uint32 InPixelFormat)
 	{
 		PixelFormat = (EPixelFormat)InPixelFormat;

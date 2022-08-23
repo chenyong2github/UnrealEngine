@@ -25,7 +25,7 @@ namespace TextureShareSample
 		namespace Texture2
 		{
 			// Request to read a resource #2 to a remote process
-			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport2, TextureShareStrings::SceneTextures::FinalColor, ETextureShareTextureOp::Read);
+			static FTextureShareViewportResourceDesc Desc(DisplayCluster::Viewport2, TextureShareDisplayClusterStrings::Output::Backbuffer, ETextureShareTextureOp::Read);
 		}
 	}
 };

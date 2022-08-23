@@ -78,7 +78,7 @@ TSharedPtr<ITextureShareObject, ESPMode::ThreadSafe> FTextureShareAPI::GetOrCrea
 		CoreObject->SetDeviceType(GetTextureShareDeviceType());
 
 		// Create game thread object
-		TSharedPtr<FTextureShareObject, ESPMode::ThreadSafe> NewObject = MakeShared<FTextureShareObject, ESPMode::ThreadSafe>(CoreObject.ToSharedRef());
+		const TSharedPtr<FTextureShareObject, ESPMode::ThreadSafe> NewObject(new FTextureShareObject(CoreObject.ToSharedRef()));
 		if (NewObject.IsValid())
 		{
 			// Register for game thread

@@ -5,6 +5,7 @@
 #include "ITextureShareCoreObject.h"
 
 #include "Game/ViewExtension/TextureShareSceneViewExtension.h"
+#include "Templates/SharedPointer.h"
 
 class FViewport;
 class FTextureShareObjectProxy;
@@ -14,6 +15,7 @@ class FTextureShareObjectProxy;
  */
 class FTextureShareObject
 	: public ITextureShareObject
+	, public TSharedFromThis<FTextureShareObject, ESPMode::ThreadSafe>
 {
 public:
 	FTextureShareObject(const TSharedRef<ITextureShareCoreObject, ESPMode::ThreadSafe>& InCoreObject);
@@ -74,7 +76,7 @@ protected:
 	const TSharedRef<FTextureShareObjectProxy, ESPMode::ThreadSafe> ObjectProxy;
 
 	// Object data from game thread
-	TSharedPtr<FTextureShareData, ESPMode::ThreadSafe> ObjectData;
+	TSharedRef<FTextureShareData, ESPMode::ThreadSafe> TextureShareData;
 
 	bool bFrameSyncActive = false;
 	bool bSessionActive = false;
