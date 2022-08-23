@@ -161,31 +161,16 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Workflow)
 	bool bEnablePinValueInspectionTooltips;
 
-// Experimental
-public:
 	/** Whether to enable namespace importing and filtering features in the Blueprint editor */
-	UPROPERTY(config, EditAnywhere, Category = Experimental)
+	UPROPERTY(config, EditAnywhere, Category = Workflow)
 	bool bEnableNamespaceEditorFeatures;
 
-	/** Whether to enable namespace filtering features in the Blueprint editor */
-	// @todo_namespaces - Remove this if/when dependent code is changed to utilize the single setting above.
-	UPROPERTY(Transient)
-	bool bEnableNamespaceFilteringFeatures;
-
-	/** Whether to enable namespace importing features in the Blueprint editor */
-	// @todo_namespaces - Remove this if/when dependent code is changed to utilize the single setting above.
-	UPROPERTY(Transient)
-	bool bEnableNamespaceImportingFeatures;
-
-	/** Whether to inherit the set of imported namespaces from the parent class hierarchy */
-	// @todo_namespaces - Remove this if/when this becomes a permanent setting. For now this is experimental.
-	UPROPERTY(Transient)
-	bool bInheritImportedNamespacesFromParentBP;
-
 	// A list of namespace identifiers that the Blueprint editor should always import by default. Requires Blueprint namespace features to be enabled and only applies to the current local user. Editing this list will also cause any visible Blueprint editor windows to be closed.
-	UPROPERTY(EditAnywhere, config, Category = Experimental, meta = (EditCondition = "bEnableNamespaceEditorFeatures", DisplayName = "Global Namespace Imports (Local User Only)"))
+	UPROPERTY(EditAnywhere, config, Category = Workflow, meta = (EditCondition = "bEnableNamespaceEditorFeatures", DisplayName = "Global Namespace Imports (Local User Only)"))
 	TArray<FString> NamespacesToAlwaysInclude;
 
+// Experimental
+public:
 	/** If enabled, then placed cast nodes will default to their "pure" form (meaning: without execution pins). */
 	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category = Experimental, meta = (DisplayName = "Default to Using Pure Cast Nodes"))
 	bool bFavorPureCastNodes;
@@ -272,6 +257,21 @@ public:
 	/** Blueprint graph editor "Quick Jump" command bindings */
 	UPROPERTY(config)
 	TMap<int32, FEditedDocumentInfo> GraphEditorQuickJumps;
+
+	/** Whether to enable namespace filtering features in the Blueprint editor */
+	// @todo_namespaces - Remove this if/when dependent code is changed to utilize the single setting above.
+	UPROPERTY(Transient)
+	bool bEnableNamespaceFilteringFeatures;
+
+	/** Whether to enable namespace importing features in the Blueprint editor */
+	// @todo_namespaces - Remove this if/when dependent code is changed to utilize the single setting above.
+	UPROPERTY(Transient)
+	bool bEnableNamespaceImportingFeatures;
+
+	/** Whether to inherit the set of imported namespaces from the parent class hierarchy */
+	// @todo_namespaces - Remove this if/when this becomes a permanent setting. For now this is experimental.
+	UPROPERTY(Transient)
+	bool bInheritImportedNamespacesFromParentBP;
 
 	/**
 	 * Any blueprint deriving from one of these base classes will be allowed to recompile during Play-in-Editor

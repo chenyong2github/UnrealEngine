@@ -44,7 +44,7 @@ public:
 	EChildActorComponentTreeViewVisualizationMode DefaultChildActorTreeViewMode;
 
 	// A list of namespace identifiers that all Blueprint assets in the project should import by default. Requires Blueprint namespace features to be enabled in editor preferences. Editing this list will also cause any visible Blueprint editor windows to be closed.
-	UPROPERTY(EditAnywhere, config, Category = Experimental, DisplayName = "Global Namespace Imports (Shared)")
+	UPROPERTY(EditAnywhere, config, Category = Blueprints, DisplayName = "Global Namespace Imports (Shared)")
 	TArray<FString> NamespacesToAlwaysInclude;
 
 	/** 

@@ -38,11 +38,8 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, TypePromotionPinDenyList { UEdGraphSchema_K2::PC_String, UEdGraphSchema_K2::PC_Text, UEdGraphSchema_K2::PC_SoftClass }
 	, BreakpointReloadMethod(EBlueprintBreakpointReloadMethod::RestoreAll)
 	, bEnablePinValueInspectionTooltips(true)
+	, bEnableNamespaceEditorFeatures(true)
 	// Experimental
-	, bEnableNamespaceEditorFeatures(false)
-	, bEnableNamespaceFilteringFeatures(false)
-	, bEnableNamespaceImportingFeatures(false)
-	, bInheritImportedNamespacesFromParentBP(false)
 	, bFavorPureCastNodes(false)
 	// Compiler Settings
 	, SaveOnCompile(SoC_Never)
@@ -62,6 +59,9 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bShowAccessSpecifier(false)
 	, bIncludeCommentNodesInBookmarksTab(true)
 	, bShowBookmarksForCurrentDocumentOnlyInTab(false)
+	, bEnableNamespaceFilteringFeatures(false)
+	, bEnableNamespaceImportingFeatures(false)
+	, bInheritImportedNamespacesFromParentBP(false)
 {
 	// settings that were moved out of experimental...
 	UEditorExperimentalSettings const* ExperimentalSettings = GetDefault<UEditorExperimentalSettings>();

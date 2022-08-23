@@ -113,12 +113,19 @@ TSharedRef<IDetailCustomization> FBlueprintEditorSettingsCustomization::MakeInst
 
 void FBlueprintEditorSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& LayoutBuilder)
 {
+	// Get the property name and handle for the namespace feature toggle setting. Mark it hidden because we will add it via customization below.
+	static FName PropertyName_bEnableNamespaceEditorFeatures = GET_MEMBER_NAME_CHECKED(UBlueprintEditorSettings, bEnableNamespaceEditorFeatures);
+	TSharedRef<IPropertyHandle> PropertyHandle_bEnableNamespaceEditorFeatures = LayoutBuilder.GetProperty(PropertyName_bEnableNamespaceEditorFeatures);
+	PropertyHandle_bEnableNamespaceEditorFeatures->MarkHiddenByCustomization();
+
+	// Get the property name and handle for the global namespace list setting. Mark it hidden because we will add it via customization below.
 	static FName PropertyName_NamespacesToAlwaysInclude = GET_MEMBER_NAME_CHECKED(UBlueprintEditorSettings, NamespacesToAlwaysInclude);
 	TSharedRef<IPropertyHandle> PropertyHandle_NamespacesToAlwaysInclude = LayoutBuilder.GetProperty(PropertyName_NamespacesToAlwaysInclude);
-
 	PropertyHandle_NamespacesToAlwaysInclude->MarkHiddenByCustomization();
 
-	IDetailCategoryBuilder& CategoryBuilder = LayoutBuilder.EditCategory(PropertyHandle_NamespacesToAlwaysInclude->GetDefaultCategoryName());
+	// List the edit condition first, followed by the customization for the global namespace list (i.e. ensure they are adjacent within the same category).
+	IDetailCategoryBuilder& CategoryBuilder = LayoutBuilder.EditCategory(PropertyHandle_bEnableNamespaceEditorFeatures->GetDefaultCategoryName());
+	CategoryBuilder.AddProperty(PropertyHandle_bEnableNamespaceEditorFeatures);
 	CategoryBuilder.AddCustomBuilder(MakeShared<UE::Editor::BlueprintEditorSettingsCustomization::Private::FBlueprintGlobalEditorImportsLayout>(PropertyHandle_NamespacesToAlwaysInclude));
 }
 
