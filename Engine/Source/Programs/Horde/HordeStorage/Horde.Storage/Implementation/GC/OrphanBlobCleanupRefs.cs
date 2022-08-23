@@ -122,18 +122,23 @@ namespace Horde.Storage.Implementation
             bool found = false;
 
             // check all namespaces that share the same storage pool for presence of the blob
-            await Parallel.ForEachAsync(namespacesThatSharePool, cancellationToken, async (blobNamespace, token) =>
+            foreach (NamespaceId blobNamespace in namespacesThatSharePool)
             {
-                if (token.IsCancellationRequested)
+                if (cancellationToken.IsCancellationRequested)
                 {
-                    return;
+                    break;
+                }
+
+                if (found)
+                {
+                    break;
                 }
 
                 BlobInfo? blobIndex = await _blobIndex.GetBlobInfo(blobNamespace, blob);
 
                 if (blobIndex == null)
                 {
-                    return;
+                    break;
                 }
 
                 foreach ((BucketId, IoHashKey) tuple in blobIndex.References)
@@ -155,7 +160,7 @@ namespace Horde.Storage.Implementation
                         found = true;
                     }
                 }
-            });
+            }
 
             if (cancellationToken.IsCancellationRequested)
             {
