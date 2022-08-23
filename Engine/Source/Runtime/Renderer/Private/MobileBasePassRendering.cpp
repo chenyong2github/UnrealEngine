@@ -24,8 +24,8 @@
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarMobileDisableVertexFog(
 	TEXT("r.Mobile.DisableVertexFog"),
-	0,
-	TEXT("Set to 1 to disable vertex fogging in all mobile shaders."),
+	1,
+	TEXT("If true, vertex fog will be omitted from the most of the mobile base pass shaders. Instead, fog will be applied in a separate pass and only when scene has a fog component."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarMobileEnableMovableSpotLightShadows(
