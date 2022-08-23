@@ -784,6 +784,15 @@ private:
 
 #endif // WITH_EDITOR
 
+
+	/**
+	 * Validate if the current linker may reference a certain package
+	 * Checks if the reference to a certain package from this linker is legal if that package isn't externally referenceable (i.e private outiside its plugin)
+	 * @param InPackage the package to validate
+	 * @returns true if the package can be referenced from this linker
+	 */
+	bool IsPackageReferenceAllowed(UPackage* InPackage);
+
 	UObject* CreateExport( int32 Index );
 
 	/**

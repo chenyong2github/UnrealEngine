@@ -2494,7 +2494,12 @@ UObject* FLinkerLoad::FindExistingImport(int32 ImportIndex)
 	{
 		// if the import outer is null then we have a package, resolve it, potentially remapping it
 		FName ObjectName = InstancingContextRemap(Import.ObjectName);
-		return StaticFindObjectFast(UPackage::StaticClass(), nullptr, ObjectName, /*bExactClass*/true);
+		UPackage* Package = static_cast<UPackage*>(StaticFindObjectFast(UPackage::StaticClass(), nullptr, ObjectName, /*bExactClass*/true));
+		if (!IsPackageReferenceAllowed(Package))
+		{
+			return nullptr;
+		}
+		return Package;
 	}
 	// if our outer is an import, recurse to find it
 	else if (Import.OuterIndex.IsImport())
@@ -3142,6 +3147,12 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 				FLinkerLoad::AddKnownMissingPackage(PackageToLoad);
 				UE_ASSET_LOG(LogLinker, Warning, PackagePath, TEXT("VerifyImport: Failed to load package for import object '%s'"), *GetImportFullName(ImportIndex));
 			}
+			return nullptr;
+		}
+
+		if (!IsPackageReferenceAllowed(Package))
+		{
+			UE_LOG(LogLinker, Warning, TEXT("VerifyImport: illegal reference to private package for import object '%s'"), *GetImportFullName(ImportIndex));
 			return nullptr;
 		}
 
@@ -4432,6 +4443,20 @@ bool FLinkerLoad::WillTextureBeLoaded( UClass* Class, int32 ExportIndex )
 	}
 }
 
+bool FLinkerLoad::IsPackageReferenceAllowed(UPackage* InPackage)
+{
+	if (InPackage && !InPackage->IsExternallyReferenceable())
+	{
+		FName MountPointName = FPackageName::GetPackageMountPoint(LinkerRoot->GetName());
+		FName ImportMountPointName = FPackageName::GetPackageMountPoint(InPackage->GetName());
+		if (MountPointName != ImportMountPointName)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 UObject* FLinkerLoad::CreateExport( int32 Index )
 {
 	FScopedCreateExportCounter ScopedCounter( this, Index );
@@ -5083,7 +5108,7 @@ UObject* FLinkerLoad::CreateImport( int32 Index )
 		if (!GIsEditor && !IsRunningCommandlet())
 		{
 			// Try to find existing version in memory first.
-			if( UPackage* ClassPackage = FindObjectFast<UPackage>( NULL, Import.ClassPackage, false ) )
+			if( UPackage* ClassPackage = FindObjectFast<UPackage>( nullptr, Import.ClassPackage, false ) )
 			{
 				if( UClass*	FindClass = FindObjectFast<UClass>( ClassPackage, Import.ClassName, false ) ) // 
 				{
@@ -5094,19 +5119,23 @@ UObject* FLinkerLoad::CreateImport( int32 Index )
 					Preload( FindClass );
 
 					FindClass->GetDefaultObject(); // build the CDO if it isn't already built
-					UObject*	FindObject		= NULL;
+					UObject*	FindObject		= nullptr;
 	
 					// Import is a toplevel package.
 					if( Import.OuterIndex.IsNull() )
 					{
 						FName ObjectName = InstancingContextRemap(Import.ObjectName);
-						FindObject = CreatePackage(*ObjectName.ToString());
+						UPackage* Pkg = CreatePackage(*ObjectName.ToString());
+						if (IsPackageReferenceAllowed(Pkg))
+						{
+							FindObject = Pkg;
+						}
 					}
 					// Import is regular import/ export.
 					else
 					{
 						// Find the imports' outer.
-						UObject* FindOuter = NULL;
+						UObject* FindOuter = nullptr;
 						// Import.
 						if( Import.OuterIndex.IsImport() )
 						{
@@ -5120,7 +5149,12 @@ UObject* FLinkerLoad::CreateImport( int32 Index )
 							else if( OuterImport.OuterIndex.IsNull() )
 							{
 								FName ObjectName = InstancingContextRemap(OuterImport.ObjectName);
-								FindOuter = CreatePackage( *ObjectName.ToString() );
+								UPackage* Pkg = CreatePackage(*ObjectName.ToString());
+								if (IsPackageReferenceAllowed(Pkg))
+								{
+									FindOuter = Pkg;
+								}
+
 							}
 							// Outer is regular import/ export, use IndexToObject to potentially recursively load/ find it.
 							else
