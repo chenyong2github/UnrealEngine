@@ -240,12 +240,12 @@ public:
 	 */
 	void RenderThread_ClearParameters()
 	{
+		InvalidateUniformExpressionCache(false);
 		VectorParameterArray.Empty();
 		DoubleVectorParameterArray.Empty();
 		ScalarParameterArray.Empty();
 		TextureParameterArray.Empty();
 		RuntimeVirtualTextureParameterArray.Empty();
-		InvalidateUniformExpressionCache(false);
 	}
 
 	/**
