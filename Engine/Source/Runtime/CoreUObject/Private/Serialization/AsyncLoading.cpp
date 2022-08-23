@@ -20,6 +20,7 @@
 #include "Misc/MessageDialog.h"
 #include "Misc/PackageName.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/TrackedActivity.h"
 #include "UObject/PackageFileSummary.h"
 #include "UObject/Linker.h"
 #include "UObject/CoreRedirects.h"
@@ -495,7 +496,35 @@ static FName StaticGetNativeClassName(UClass* InClass)
 /** Returns true if we're inside a FGCScopeLock */
 bool IsGarbageCollectionLocked();
 
+#if UE_ENABLE_TRACKED_IO
+struct FActiveAsyncLoadContext* ActiveAsyncLoadContext;
 
+struct FActiveAsyncLoadContext
+{
+	uint32 TotalCompleted = 0;
+
+	FActiveAsyncLoadContext(const TCHAR* Name)
+	{
+		if (*Name == '/')
+			++Name;
+		FTrackedActivity::GetIOActivity().Push(Name);
+		FTrackedActivity::GetIOActivity().Push(TEXT(""), true);
+		ActiveAsyncLoadContext = this;
+	}
+
+	~FActiveAsyncLoadContext()
+	{
+		ActiveAsyncLoadContext = nullptr;
+		FTrackedActivity::GetIOActivity().Pop();
+		FTrackedActivity::GetIOActivity().Pop();
+	}
+
+	void Update(uint32 Queued)
+	{
+		FTrackedActivity::GetIOActivity().Update(*TStringBuilder<256>().Appendf(TEXT(" (%u/%u)"), TotalCompleted, TotalCompleted + Queued));
+	}
+};
+#endif // UE_ENABLE_TRACKED_IO
 
 /**
  * Updates FUObjectThreadContext with the current package when processing it.
@@ -3495,6 +3524,7 @@ void FAsyncPackage::EventDrivenSerializeExport(int32 LocalExportIndex)
 			}
 			else
 			{
+				UE_SCOPED_IO_ACTIVITY(*Object->GetName());
 				Object->Serialize(*Linker);
 			}
 		}
@@ -4249,6 +4279,10 @@ void FAsyncLoadingThread::AddToLoadedPackages(FAsyncPackage* Package)
 #endif
 	if (!LoadedPackages.Contains(Package))
 	{
+		#if UE_ENABLE_TRACKED_IO
+		if (ActiveAsyncLoadContext)
+			++ActiveAsyncLoadContext->TotalCompleted;
+		#endif
 		LoadedPackages.Add(Package);
 		LoadedPackagesNameLookup.Add(Package->GetPackageName(), Package);
 	}
@@ -4299,6 +4333,11 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 				FThreadHeartBeat::Get().HeartBeat();
 				FCoreDelegates::OnAsyncLoadingFlushUpdate.Broadcast();
 			}
+
+			#if UE_ENABLE_TRACKED_IO
+			if (ActiveAsyncLoadContext)
+				ActiveAsyncLoadContext->Update(AsyncPackages.Num());
+			#endif
 
 			bool bDidSomething = false;
 			{
@@ -4507,6 +4546,11 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 				const float RemainingTimeLimit = FMath::Max(0.0f, TimeLimit - (float)(FPlatformTime::Seconds() - TickStartTime));
 				CreateAsyncPackagesFromQueue(bUseTimeLimit, bUseFullTimeLimit, RemainingTimeLimit);
 			}
+
+			#if UE_ENABLE_TRACKED_IO
+			if (ActiveAsyncLoadContext)
+				ActiveAsyncLoadContext->Update(AsyncPackages.Num());
+			#endif
 
 			if (bNeedsHeartbeatTick)
 			{
@@ -7466,6 +7510,10 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadingUntilComplete(TFunct
 		// Set to one hour if no time limit
 		TimeLimit = 60.0 * 60.0;
 	}
+
+	#if UE_ENABLE_TRACKED_IO
+	FActiveAsyncLoadContext Context(*QueuedPackages[0]->Name.ToString());
+	#endif
 
 	while (IsAsyncLoadingPackages() && TimeLimit > 0 && !CompletionPredicate())
 	{

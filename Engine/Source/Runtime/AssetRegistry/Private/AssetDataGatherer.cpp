@@ -26,6 +26,7 @@
 #include "Misc/PathViews.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/ScopeExit.h"
+#include "Misc/TrackedActivity.h"
 #include "PackageReader.h"
 #include "Serialization/Archive.h"
 #include "Tasks/Task.h"
@@ -3212,6 +3213,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 				ReadContext.bCanceled = true;
 				return;
 			}
+			UE_SCOPED_IO_ACTIVITY(*WriteToString<512>(TEXT("Loading Asset"), ReadContext.PackageName.ToString()));
 			ReadContext.bResult = ReadAssetFile(ReadContext.AssetFileData.LongPackageName, ReadContext.AssetFileData.LocalAbsPath, ReadContext.AssetDataFromFile, ReadContext.DependencyData, ReadContext.CookedPackageNamesWithoutAssetData, ReadContext.bCanAttemptAssetRetry);
 		},
 		EParallelForFlags::Unbalanced | EParallelForFlags::BackgroundPriority

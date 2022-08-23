@@ -127,3 +127,17 @@ public:
 private:
 	FTrackedActivity& Activity;
 };
+
+
+/**
+* Enabled tracking of IO
+*/
+#ifndef UE_ENABLE_TRACKED_IO
+	#if UE_BUILD_SHIPPING
+		#define UE_ENABLE_TRACKED_IO 0
+		#define UE_SCOPED_IO_ACTIVITY(...)
+	#else
+		#define UE_ENABLE_TRACKED_IO 1
+		#define UE_SCOPED_IO_ACTIVITY(...) FTrackedActivityScope ANONYMOUS_VARIABLE(IOActivity_)(FTrackedActivity::GetIOActivity(), __VA_ARGS__);
+	#endif
+#endif

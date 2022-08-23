@@ -44,6 +44,7 @@
 #include "UObject/LinkerLoad.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "Misc/SecureHash.h"
+#include "Misc/TrackedActivity.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/UObjectThreadContext.h"
 #include "UObject/LinkerManager.h"
@@ -1493,6 +1494,8 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 	
 	// Set up a load context
 	TRefCountPtr<FUObjectSerializeContext> LoadContext = FUObjectThreadContext::Get().GetSerializeContext();
+
+	UE_SCOPED_IO_ACTIVITY(*WriteToString<512>(TEXT("Sync %s"), PackagePath.GetDebugName()));
 
 	// Try to load.
 	BeginLoad(LoadContext, *PackagePath.GetDebugName());

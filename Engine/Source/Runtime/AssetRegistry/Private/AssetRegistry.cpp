@@ -25,6 +25,7 @@
 #include "Misc/RedirectCollector.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeRWLock.h"
+#include "Misc/TrackedActivity.h"
 #include "PackageReader.h"
 #include "Serialization/ArrayReader.h"
 #include "Templates/UnrealTemplate.h"
@@ -3218,6 +3219,8 @@ void UAssetRegistryImpl::ScanFilesSynchronous(const TArray<FString>& InFilePaths
 void UAssetRegistryImpl::ScanPathsSynchronousInternal(const TArray<FString>& InDirs, const TArray<FString>& InFiles,
 	bool bInForceRescan, bool bInIgnoreDenyListScanFilters)
 {
+	UE_SCOPED_IO_ACTIVITY(*WriteToString<256>("Scan Paths"));
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAssetRegistryImpl::ScanPathsSynchronousInternal);
 	UE_TRACK_REFERENCING_OPNAME_SCOPED(PackageAccessTrackingOps::NAME_ResetContext);
 	const double SearchStartTime = FPlatformTime::Seconds();

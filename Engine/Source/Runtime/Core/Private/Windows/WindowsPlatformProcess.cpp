@@ -16,6 +16,7 @@
 #include "Misc/SingleThreadEvent.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
+#include "Misc/TrackedActivity.h"
 #include "Internationalization/Internationalization.h"
 #include "CoreGlobals.h"
 #include "Stats/Stats.h"
@@ -1980,6 +1981,8 @@ static void LogImportDiagnostics(const FString& FileName, const TArray<FString>&
 
 void *FWindowsPlatformProcess::LoadLibraryWithSearchPaths(const FString& FileName, const TArray<FString>& SearchPaths)
 {
+	UE_SCOPED_IO_ACTIVITY(*WriteToString<256>("Loading Dll ", FileName));
+
 	// Make sure the initial module exists. If we can't find it from the path we're given, it's probably a system dll.
 	FString FullFileName = FileName;
 	if (FPaths::FileExists(FullFileName))
