@@ -70,6 +70,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	TObjectPtr<UStaticMesh> DefaultMesh;
 
+protected:
 	/** The source actor from which to sample. Takes precedence over the direct mesh. Note that this can only be set when used as a user variable on a component in the world. */
 	UPROPERTY(EditAnywhere, Category = "Mesh", meta = (DisplayName = "Source Actor"))
 	TSoftObjectPtr<AActor> SoftSourceActor;
@@ -82,6 +83,7 @@ public:
 	/** The source component from which to sample. Takes precedence over the direct mesh. Not exposed to the user, only indirectly accessible from blueprints. */
 	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> SourceComponent;
+public:
 
 	/** Array of filters the can be used to limit sampling to certain sections of the mesh. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
@@ -153,6 +155,13 @@ public:
 	void SetDefaultMeshFromBlueprints(UStaticMesh* MeshToUse);
 
 protected:
+	// Bind/unbind delegates to release references to the source actor & component.
+	void UnbindSourceDelegates();
+	void BindSourceDelegates();
+
+	UFUNCTION()
+	void OnSourceEndPlay(AActor* InSource, EEndPlayReason::Type Reason);
+
 	// VM Vertex Sampling
 	void VMIsValidVertex(FVectorVMExternalFunctionContext& Context);
 	void VMRandomVertex(FVectorVMExternalFunctionContext& Context);

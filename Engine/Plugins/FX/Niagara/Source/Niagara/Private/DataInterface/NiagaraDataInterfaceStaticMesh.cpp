@@ -2626,6 +2626,7 @@ bool UNiagaraDataInterfaceStaticMesh::CopyToInternal(UNiagaraDataInterface* Dest
 	}
 
 	UNiagaraDataInterfaceStaticMesh* OtherTyped = CastChecked<UNiagaraDataInterfaceStaticMesh>(Destination);
+	OtherTyped->UnbindSourceDelegates();
 	OtherTyped->SourceMode = SourceMode;
 #if WITH_EDITORONLY_DATA
 	OtherTyped->PreviewMesh = PreviewMesh;
@@ -2636,6 +2637,7 @@ bool UNiagaraDataInterfaceStaticMesh::CopyToInternal(UNiagaraDataInterface* Dest
 	OtherTyped->SectionFilter = SectionFilter;
 	OtherTyped->bUsePhysicsBodyVelocity = bUsePhysicsBodyVelocity;
 	OtherTyped->FilteredSockets = FilteredSockets;
+	OtherTyped->BindSourceDelegates();
 	return true;
 }
 
@@ -2841,8 +2843,40 @@ void UNiagaraDataInterfaceStaticMesh::SetSourceComponentFromBlueprints(UStaticMe
 {
 	// NOTE: When ChangeId changes the next tick will be skipped and a reset of the per-instance data will be initiated. 
 	++ChangeId;
+	UnbindSourceDelegates();
 	SourceComponent = ComponentToUse;
 	SoftSourceActor = ComponentToUse->GetOwner();
+	BindSourceDelegates();
+}
+
+void UNiagaraDataInterfaceStaticMesh::BindSourceDelegates()
+{
+	if (AActor* Source = SoftSourceActor.Get())
+	{
+		Source->OnEndPlay.AddDynamic(this, &UNiagaraDataInterfaceStaticMesh::OnSourceEndPlay);
+	}
+	else if (SourceComponent)
+	{
+		UE_CLOG(!UObjectBaseUtility::IsPendingKillEnabled(),
+			LogNiagara, Warning, TEXT("%s: Unable to bind OnEndPlay for actor-less source component %s, this may extend the lifetime of the component"),
+			*GetFullName(), *SourceComponent->GetPathName());
+	}
+}
+
+void UNiagaraDataInterfaceStaticMesh::UnbindSourceDelegates()
+{
+	if (AActor* Source = SoftSourceActor.Get())
+	{
+		Source->OnEndPlay.RemoveAll(this);
+	}
+}
+
+void UNiagaraDataInterfaceStaticMesh::OnSourceEndPlay(AActor* InSource, EEndPlayReason::Type Reason)
+{
+	// Increment change id in case we're able to find a new source component 
+	++ChangeId;
+	SoftSourceActor = nullptr;
+	SourceComponent = nullptr;
 }
 
 void UNiagaraDataInterfaceStaticMesh::SetDefaultMeshFromBlueprints(UStaticMesh* MeshToUse)
