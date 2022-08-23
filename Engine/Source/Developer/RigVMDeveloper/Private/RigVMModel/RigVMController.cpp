@@ -15599,6 +15599,11 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 	
 	check(InNode);
 
+	if (InNode->IsSingleton())
+	{
+		return true;
+	}
+
 	const FRigVMTemplate* Template = InNode->GetTemplate();
 	const FRigVMDispatchFactory* Factory = Template->GetDispatchFactory();
 	
