@@ -39,6 +39,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 DEFINE_LOG_CATEGORY_STATIC(LogSteamInput, Log, All);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 void FSteamVRInputModule::StartupModule()
 {
 }
@@ -47,6 +49,9 @@ void FSteamVRInputModule::ShutdownModule()
 {
 }
 
+
 #undef LOCTEXT_NAMESPACE
 	
 IMPLEMENT_MODULE(FSteamVRInputModule, SteamVRInput)
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
