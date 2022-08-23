@@ -133,6 +133,17 @@ FMovieSceneEntityID FEntityLedger::FindImportedEntity(const FMovieSceneEvaluatio
 	return ImportedEntities.FindRef(EntityKey).EntityID;
 }
 
+void FEntityLedger::FindImportedEntities(TWeakObjectPtr<UObject> EntityOwner, TArray<FMovieSceneEntityID>& OutEntityIDs) const
+{
+	for (const TPair<FMovieSceneEvaluationFieldEntityKey, FImportedEntityData>& Pair : ImportedEntities)
+	{
+		if (Pair.Key.EntityOwner == EntityOwner)
+		{
+			OutEntityIDs.Add(Pair.Value.EntityID);
+		}
+	}
+}
+
 void FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const FMovieSceneEvaluationFieldEntityQuery& Query)
 {
 	// We always add an entry even if no entity was imported by the provider to ensure that we do not repeatedly try and import the same entity every frame

@@ -380,6 +380,11 @@ FMovieSceneEntityID FSequenceInstance::FindEntity(UObject* Owner, uint32 EntityI
 	return Ledger.FindImportedEntity(FMovieSceneEvaluationFieldEntityKey{ decltype(FMovieSceneEvaluationFieldEntityKey::EntityOwner)(Owner), EntityID });
 }
 
+void FSequenceInstance::FindEntities(UObject* Owner, TArray<FMovieSceneEntityID>& OutEntityIDs) const
+{
+	Ledger.FindImportedEntities(Owner, OutEntityIDs);
+}
+
 FSubSequencePath FSequenceInstance::GetSubSequencePath() const
 {
 	return FSubSequencePath(SequenceID, *GetPlayer());

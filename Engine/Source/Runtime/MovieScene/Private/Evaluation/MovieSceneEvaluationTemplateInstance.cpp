@@ -317,6 +317,16 @@ UE::MovieScene::FMovieSceneEntityID FMovieSceneRootEvaluationTemplateInstance::F
 	return FMovieSceneEntityID::Invalid();
 }
 
+void FMovieSceneRootEvaluationTemplateInstance::FindEntitiesFromOwner(UObject* Owner, FMovieSceneSequenceID SequenceID, TArray<UE::MovieScene::FMovieSceneEntityID>& OutEntityIDs) const
+{
+	using namespace UE::MovieScene;
+
+	if (const FSequenceInstance* SequenceInstance = FindInstance(SequenceID))
+	{
+		SequenceInstance->FindEntities(Owner, OutEntityIDs);
+	}
+}
+
 UObject* FMovieSceneRootEvaluationTemplateInstance::GetOrCreateDirectorInstance(FMovieSceneSequenceIDRef SequenceID, IMovieScenePlayer& Player)
 {
 	UObject* ExistingDirectorInstance = DirectorInstances.FindRef(SequenceID);

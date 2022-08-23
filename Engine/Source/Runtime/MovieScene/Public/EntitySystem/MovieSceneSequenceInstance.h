@@ -203,6 +203,11 @@ public:
 	FMovieSceneEntityID FindEntity(UObject* Owner, uint32 EntityID) const;
 
 	/**
+	 * Attempt to locate all entities given their owner
+	 */
+	void FindEntities(UObject* Owner, TArray<FMovieSceneEntityID>& OutEntityIDs) const;
+
+	/**
 	 * Retrieve the legacy evaluator for this sequence, if it is available (may return nullptr)
 	 */
 	const FMovieSceneTrackEvaluator* GetLegacyEvaluator() const

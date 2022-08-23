@@ -73,6 +73,11 @@ public:
 	FMovieSceneEntityID FindImportedEntity(const FMovieSceneEvaluationFieldEntityKey& EntityKey) const;
 
 	/**
+	 * Find imported entities
+	 */
+	void FindImportedEntities(TWeakObjectPtr<UObject> EntityOwner, TArray<FMovieSceneEntityID>& OutEntityIDs) const;
+
+	/**
 	 * Indicate that the specified field entity is currently being evaluated
 	 *
 	 * @param Linker         The linker To import into
