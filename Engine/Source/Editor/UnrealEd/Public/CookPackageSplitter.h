@@ -40,7 +40,8 @@ public:
 	/** Data sent to the cooker to describe each desired generated package */
 	struct FGeneratedPackage
 	{
-		FString RelativePath;		// Generated package relative to the Parent/_Generated_ root
+		FString GeneratedRootPath;
+		FString RelativePath;		// Generated package relative to GeneratedRootPath/Generated_ if GeneratedRootPath member is specified, relative to  Parent/Generated otherwise.
 		TArray<FName> Dependencies; // LongPackageNames that the generated package references
 		/* GetGenerateList must specify true if the package will be a map (.umap, contains a UWorld or ULevel), else false */
 		void SetCreateAsMap(bool bInCreateAsMap) { bCreateAsMap = bInCreateAsMap; }
@@ -68,6 +69,8 @@ public:
 	{
 		/** RelativePath returned from GetGenerateList */
 		FString RelativePath;
+		/** Root returned from GetGenerateList */
+		FString GeneratedRootPath;
 		/**
 		 * Non-null, constructed package. May have been previously passed into PreSaveGeneratedPackage,
 		 * or may be completely empty if that previous package was garbage collected before this call.
@@ -116,6 +119,8 @@ public:
 	{
 		/** RelativePath returned from GetGenerateList */
 		FString RelativePath;
+		/** Root returned from GetGenerateList */
+		FString GeneratedRootPath;
 		/**
 		 * Non-null, constructed package. May have been previously passed into PreSaveGeneratedPackage,
 		 * or may be completely empty if that previous package was garbage collected before this call.

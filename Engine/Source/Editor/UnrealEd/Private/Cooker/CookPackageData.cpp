@@ -1375,8 +1375,10 @@ bool FGeneratorPackage::TryGenerateList(UObject* OwnerObject, FPackageDatas& Pac
 		}
 		bool bCreateAsMap = *SplitterData.GetCreateAsMap();
 
-		FString PackageName = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("%s/%s/%s"),
-			*OwnerPackageData.GetPackageName().ToString(), GeneratedPackageSubPath, *SplitterData.RelativePath));
+		FString PackageRoot = SplitterData.GeneratedRootPath.IsEmpty() ? OwnerPackageData.GetPackageName().ToString() : SplitterData.GeneratedRootPath;
+
+		FString PackageName = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("/%s/%s/%s"),
+			*PackageRoot, GeneratedPackageSubPath, *SplitterData.RelativePath));
 		const FName PackageFName(*PackageName);
 		UE::Cook::FPackageData* PackageData = PackageDatas.TryAddPackageDataByPackageName(PackageFName,
 			false /* bRequireExists */, bCreateAsMap);
@@ -1400,6 +1402,7 @@ bool FGeneratorPackage::TryGenerateList(UObject* OwnerObject, FPackageDatas& Pac
 
 		FCookGenerationInfo& GeneratedInfo = PackagesToGenerate.Emplace_GetRef(*PackageData, false /* bInGenerator */);
 		GeneratedInfo.RelativePath = MoveTemp(SplitterData.RelativePath);
+		GeneratedInfo.GeneratedRootPath = MoveTemp(SplitterData.GeneratedRootPath);
 		GeneratedInfo.Dependencies = MoveTemp(SplitterData.Dependencies);
 		GeneratedInfo.SetIsCreateAsMap(bCreateAsMap);
 		PackageData->SetGeneratedOwner(this);
@@ -1601,6 +1604,7 @@ void FGeneratorPackage::ResetSaveState(FCookGenerationInfo& Info, UPackage* Pack
 			{
 				ICookPackageSplitter::FGeneratedPackageForPopulate PopulateInfo;
 				PopulateInfo.RelativePath = Info.RelativePath;
+				PopulateInfo.GeneratedRootPath = Info.GeneratedRootPath;
 				PopulateInfo.bCreatedAsMap = Info.IsCreateAsMap();
 				PopulateInfo.Package = Package;
 				GetCookPackageSplitterInstance()->PostSaveGeneratedPackage(GetOwnerPackage(), SplitObject, PopulateInfo);

@@ -3148,7 +3148,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCacheObjectsToMove(UE::Cook::FGe
 		}
 		else
 		{
-			ICookPackageSplitter::FGeneratedPackageForPopulate SplitterInfo{ Info.RelativePath, Package, Info.IsCreateAsMap() };
+			ICookPackageSplitter::FGeneratedPackageForPopulate SplitterInfo{ Info.RelativePath, Info.GeneratedRootPath, Package, Info.IsCreateAsMap() };
 			bPopulateSucceeded = Splitter->PopulateGeneratedPackage(Package, SplitDataObject, SplitterInfo,
 				ObjectsToMove, ModifiedPackages);
 		}
@@ -3229,6 +3229,7 @@ void UCookOnTheFlyServer::ConstructGeneratedPackagesForPresave(UE::Cook::FPackag
 	{
 		ICookPackageSplitter::FGeneratedPackageForPreSave& SplitterData = GeneratedPackagesForPresave.Emplace_GetRef();
 		SplitterData.RelativePath = Info.RelativePath;
+		SplitterData.GeneratedRootPath = Info.GeneratedRootPath;
 		SplitterData.bCreatedAsMap = Info.IsCreateAsMap();
 
 		const FString GeneratedPackageName = Info.PackageData->GetPackageName().ToString();
@@ -3374,6 +3375,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::TryPopulateGeneratedPackage(UE::Cook:
 	// properly setup any internal reference to this package (SoftObjectPaths or others)
 	ICookPackageSplitter::FGeneratedPackageForPopulate PopulateData;
 	PopulateData.RelativePath = GeneratedInfo.RelativePath;
+	PopulateData.GeneratedRootPath = GeneratedInfo.GeneratedRootPath;
 	PopulateData.Package = GeneratedPackage;
 	PopulateData.bCreatedAsMap = GeneratedInfo.IsCreateAsMap();
 	TArray<UPackage*> ModifiedPackages;

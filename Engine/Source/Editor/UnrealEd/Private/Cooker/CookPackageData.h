@@ -708,6 +708,7 @@ public:
 public:
 	FBeginCacheObjects BeginCacheObjects;
 	FString RelativePath;
+	FString GeneratedRootPath;
 	TArray<FName> Dependencies;
 	FPackageData* PackageData = nullptr;
 	TArray<UPackage*> ModifiedPackages;

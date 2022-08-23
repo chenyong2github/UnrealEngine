@@ -110,6 +110,7 @@ TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitt
 	{
 		ICookPackageSplitter::FGeneratedPackage& GeneratedPackage = PackagesToGenerate.Emplace_GetRef();
 		GeneratedPackage.RelativePath = PackageName;
+		GeneratedPackage.GeneratedRootPath = OwnerPackage->GetName();
 		// all packages we generate get a ULevel from CreateEmptyLevelForRuntimeCell and are hence maps
 		GeneratedPackage.SetCreateAsMap(true);
 		// @todo_ow: Set dependencies once we get iterative cooking working
