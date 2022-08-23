@@ -1418,7 +1418,7 @@ void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* Captu
 
 				FRDGTexture* FilteredSceneCubemapTexture = FilterReflectionEnvironment(GraphBuilder, ShaderMap, SceneCubemapTexture, nullptr);
 
-				if (FeatureLevel == ERHIFeatureLevel::SM5)
+				if (FeatureLevel >= ERHIFeatureLevel::SM5)
 				{
 					CopyToSceneArray(GraphBuilder, Scene, FilteredSceneCubemapTexture, ReflectionProxy, CubemapIndex);
 				}
