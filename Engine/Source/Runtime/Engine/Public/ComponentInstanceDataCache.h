@@ -6,6 +6,7 @@
 #include "Templates/SubclassOf.h"
 #include "UObject/Object.h"
 #include "UObject/StructOnScope.h"
+#include "Engine/EngineTypes.h"
 #include "ComponentInstanceDataCache.generated.h"
 
 class AActor;
@@ -115,6 +116,37 @@ private:
 	TArray<FName> ReferencedNames;
 };
 
+USTRUCT()
+struct ENGINE_API FActorComponentInstanceSourceInfo
+{
+	GENERATED_BODY()
+
+public:
+	FActorComponentInstanceSourceInfo() = default;
+	explicit FActorComponentInstanceSourceInfo(const UActorComponent* SourceComponent);
+	FActorComponentInstanceSourceInfo(TObjectPtr<const UObject> InSourceComponentTemplate, EComponentCreationMethod InSourceComponentCreationMethod, int32 InSourceComponentTypeSerializedIndex);
+
+	/** Determines whether this component instance data matches the component */
+	bool MatchesComponent(const UActorComponent* Component) const;
+	bool MatchesComponent(const UActorComponent* Component, const UObject* ComponentTemplate) const;
+
+	void AddReferencedObjects(FReferenceCollector& Collector);
+
+private:
+	/** The template used to create the source component */
+	UPROPERTY()
+	TObjectPtr<const UObject> SourceComponentTemplate = nullptr;
+
+	/** The method that was used to create the source component */
+	UPROPERTY()
+	EComponentCreationMethod SourceComponentCreationMethod = EComponentCreationMethod::Native;
+
+	/** The index of the source component in its owner's serialized array
+	when filtered to just that component type */
+	UPROPERTY()
+	int32 SourceComponentTypeSerializedIndex = INDEX_NONE;
+};
+
 /** Base class for component instance cached data of a particular type. */
 USTRUCT()
 struct ENGINE_API FActorComponentInstanceData : public FInstanceCacheDataBase
@@ -125,7 +157,7 @@ public:
 	FActorComponentInstanceData(const UActorComponent* SourceComponent);
 
 	/** Determines whether this component instance data matches the component */
-	bool MatchesComponent(const UActorComponent* Component, const UObject* ComponentTemplate, const TMap<UActorComponent*, const UObject*>& ComponentToArchetypeMap) const;
+	bool MatchesComponent(const UActorComponent* Component, const UObject* ComponentTemplate) const;
 
 	/** Determines if any instance data was actually saved. */
 	virtual bool ContainsData() const { return SavedProperties.Num() > 0; }
@@ -216,6 +248,8 @@ public:
 	bool HasInstanceData() const { return ComponentsInstanceData.Num() > 0; }
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
+
+	static void GetComponentHierarchy(const AActor* Actor, TArray<UActorComponent*, TInlineAllocator<NumInlinedActorComponents>>& OutComponentHierarchy);
 
 private:
 	// called during de-serialization to copy serialized properties over existing component instance data and keep non UPROPERTY data intact
