@@ -7,12 +7,14 @@
 #include "ObjectMixerEditorProjectSettings.h"
 #include "Views/List/ObjectMixerEditorList.h"
 #include "Views/MainPanel/ObjectMixerEditorMainPanel.h"
+#include "Views/Widgets/SCollectionSelectionButton.h"
 #include "Views/Widgets/SObjectMixerPlacementAssetMenuEntry.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "PlacementMode/Public/IPlacementModeModule.h"
 #include "SPositiveActionButton.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Styling/StyleColors.h"
 #include "Views/List/ObjectMixerEditorListFilters/IObjectMixerEditorListFilter.h"
 #include "Views/List/ObjectMixerEditorListFilters/ObjectMixerEditorListFilter_Collection.h"
@@ -478,36 +480,19 @@ void SObjectMixerEditorMainPanel::RebuildCollectionSelector()
 	CollectionSelectorBox->ClearChildren();
 	CollectionSelectorBox->SetVisibility(EVisibility::Collapsed);
 
-	TArray<FName> AllCollections = MainPanelModel.Pin()->GetAllCollections().Array();
+	TArray<FName> AllCollections = MainPanelModel.Pin()->GetAllCollectionNames();
 	
 	if (AllCollections.IsEmpty())
 	{
-		// we've selected something that has no sections - rather than show just "All", hide the box
+		// no collections - rather than show just "All", hide the box
 		ResetCurrentCollectionSelection();
 		return;
 	}
 
 	auto CreateSection = [this](FName CollectionName) 
 	{
-		return SNew(SBox)
-			.Padding(FMargin(0))
-			[
-				SNew(SCheckBox)
-				.Style(FAppStyle::Get(), "DetailsView.SectionButton")
-				.OnCheckStateChanged(this, &SObjectMixerEditorMainPanel::OnCollectionCheckedChanged, CollectionName)
-				.IsChecked(this, &SObjectMixerEditorMainPanel::IsCollectionChecked, CollectionName)
-				[
-					SNew(STextBlock)
-					.TextStyle(FAppStyle::Get(), "SmallText")
-					.Text(FText::FromName(CollectionName))
-				]
-			];
+		return SNew(SCollectionSelectionButton, SharedThis(this), CollectionName);
 	};
-	
-	AllCollections.Sort([](FName A, FName B)
-		{
-			return A.LexicalLess(B);
-		});
 
 	for (const FName& Key : AllCollections)
 	{
@@ -525,16 +510,21 @@ void SObjectMixerEditorMainPanel::RebuildCollectionSelector()
 	CollectionSelectorBox->SetVisibility(EVisibility::Visible);
 }
 
-void SObjectMixerEditorMainPanel::OnCollectionCheckedChanged(ECheckBoxState State, FName SectionName)
+void SObjectMixerEditorMainPanel::RequestRemoveCollection(const FName& CollectionName)
+{
+	MainPanelModel.Pin()->RemoveCollection(CollectionName);
+
+	CurrentCollectionSelection.Remove(CollectionName);
+}
+
+void SObjectMixerEditorMainPanel::OnCollectionCheckedStateChanged(ECheckBoxState State, FName CollectionName)
 {
 	check(MainPanelModel.IsValid());
 
 	// Remove Collection
 	if (FSlateApplication::Get().GetModifierKeys().IsAltDown())
 	{
-		MainPanelModel.Pin()->RemoveCollection(SectionName);
-
-		CurrentCollectionSelection.Remove(SectionName);
+		RequestRemoveCollection(CollectionName);
 	}
 	else
 	{
@@ -544,15 +534,15 @@ void SObjectMixerEditorMainPanel::OnCollectionCheckedChanged(ECheckBoxState Stat
 		{
 			if (bIsControlDown)
 			{
-				CurrentCollectionSelection.Remove(SectionName);
+				CurrentCollectionSelection.Remove(CollectionName);
 			}
 			else
 			{
 				CurrentCollectionSelection.Reset();
 
-				if (SectionName != "All")
+				if (CollectionName != "All")
 				{
-					CurrentCollectionSelection.Add(SectionName);
+					CurrentCollectionSelection.Add(CollectionName);
 				}
 			}
 		}
@@ -563,9 +553,9 @@ void SObjectMixerEditorMainPanel::OnCollectionCheckedChanged(ECheckBoxState Stat
 				CurrentCollectionSelection.Reset();
 			}
 
-			if (SectionName != "All")
+			if (CollectionName != "All")
 			{
-				CurrentCollectionSelection.Add(SectionName);
+				CurrentCollectionSelection.Add(CollectionName);
 			}
 		}
 	}

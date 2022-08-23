@@ -9,6 +9,24 @@
 #include "Views/List/ObjectMixerEditorList.h"
 #include "Views/List/SObjectMixerEditorList.h"
 
+TSharedRef<FObjectMixerListRowDragDropOp> FObjectMixerListRowDragDropOp::New(const TArray<FObjectMixerEditorListRowPtr>& InItems)
+{
+	check(InItems.Num() > 0);
+
+	TSharedRef<FObjectMixerListRowDragDropOp> Operation = MakeShareable(
+		new FObjectMixerListRowDragDropOp());
+
+	Operation->DraggedItems = InItems;
+
+	Operation->DefaultHoverIcon = FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.Error");
+
+	Operation->DefaultHoverText = NSLOCTEXT("ObjectMixerEditor","DefaultRowHoverText","Drop onto another row or Collection Button.");
+
+	Operation->Construct();
+
+	return Operation;
+}
+
 FObjectMixerEditorListRow::~FObjectMixerEditorListRow()
 {
 	FlushReferences();

@@ -22,6 +22,11 @@ public:
 
 	void Construct(const FArguments& InArgs, const TSharedRef<FObjectMixerEditorMainPanel>& InMainPanel);
 
+	TWeakPtr<FObjectMixerEditorMainPanel> GetMainPanelModel()
+	{
+		return MainPanelModel;
+	}
+
 	FString GetSearchStringFromSearchInputField() const;
 	void SetSearchStringInSearchInputField(const FString InSearchString) const;
 	void ExecuteListViewSearchOnAllRows(const FString& SearchString, const bool bShouldRefreshAfterward = true);
@@ -45,6 +50,11 @@ public:
 	const TSet<FName>& GetCurrentCollectionSelection();
 	
 	void RebuildCollectionSelector();
+
+	void RequestRemoveCollection(const FName& CollectionName);
+	
+	void OnCollectionCheckedStateChanged(ECheckBoxState State, FName CollectionName);
+	ECheckBoxState IsCollectionChecked(FName Section) const;
 
 	virtual ~SObjectMixerEditorMainPanel() override;
 
@@ -75,7 +85,4 @@ private:
 	{
 		CurrentCollectionSelection.Reset();
 	}
-	
-	void OnCollectionCheckedChanged(ECheckBoxState State, FName SectionName);
-	ECheckBoxState IsCollectionChecked(FName Section) const;
 };

@@ -35,7 +35,7 @@ struct FObjectMixerSerializationData
 	FName FilterClassName = NAME_None;
 
 	UPROPERTY()
-	TSet<FObjectMixerCollectionObjectSet> SerializedCollection = {};
+	TArray<FObjectMixerCollectionObjectSet> SerializedCollection = {};
 
 	bool operator==(const FObjectMixerSerializationData& Other) const
 	{
@@ -55,7 +55,10 @@ class OBJECTMIXEREDITOR_API UObjectMixerEditorSerializedData : public UObject
 public:
 	
 	UObjectMixerEditorSerializedData(const FObjectInitializer& ObjectInitializer)
-	{}
+	{
+		// Makes undo/redo possible for this object
+		SetFlags(RF_Transactional);
+	}
 	
 	UPROPERTY(Config)
 	TSet<FObjectMixerSerializationData> SerializedData;
@@ -68,9 +71,11 @@ public:
 
 	void RemoveCollection(const FName& FilterClassName, const FName& CollectionName);
 
+	void ReorderCollection(const FName& FilterClassName, const FName& CollectionToMoveName, const FName& CollectionInsertBeforeName);
+
 	bool IsObjectInCollection(const FName& FilterClassName, const FName& CollectionName, const FSoftObjectPath& InObject);
 
 	TSet<FName> GetCollectionsForObject(const FName& FilterClassName, const FSoftObjectPath& InObject);
 
-	TSet<FName> GetAllCollections(const FName& FilterClassName);
+	TArray<FName> GetAllCollectionNames(const FName& FilterClassName);
 };

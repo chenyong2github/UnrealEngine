@@ -4,6 +4,7 @@
 
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Layout/Visibility.h"
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
 #include "Templates/SharedPointer.h"
@@ -17,6 +18,18 @@ struct FSlateBrush;
 
 struct FObjectMixerEditorListRow;
 typedef TSharedPtr<FObjectMixerEditorListRow> FObjectMixerEditorListRowPtr;
+
+class FObjectMixerListRowDragDropOp : public FDecoratedDragDropOp
+{
+public:
+	DRAG_DROP_OPERATOR_TYPE(FObjectMixerListRowDragDropOp, FDecoratedDragDropOp)
+
+	/** The item being dragged and dropped */
+	TArray<FObjectMixerEditorListRowPtr> DraggedItems;
+
+	/** Constructs a new drag/drop operation */
+	static TSharedRef<FObjectMixerListRowDragDropOp> New(const TArray<FObjectMixerEditorListRowPtr>& InItems);
+};
 
 struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<FObjectMixerEditorListRow>
 {

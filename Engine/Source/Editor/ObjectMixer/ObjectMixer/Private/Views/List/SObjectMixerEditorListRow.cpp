@@ -25,50 +25,10 @@
 
 #define LOCTEXT_NAMESPACE "ObjectMixerEditor"
 
-// const FText InsertFormatText = LOCTEXT("InsertAboveFormatText", "Insert {0} {1} {2}");
-// const FText AboveText = LOCTEXT("AboveListItem", "above");
-// const FText BelowText = LOCTEXT("BelowListItem", "below");
-// const FText MultiDragFormatText = LOCTEXT("MultiDragFormatText", "{0} Items");
-
-// class FObjectMixerListRowDragDropOp : public FDecoratedDragDropOp
-// {
-// public:
-// 	DRAG_DROP_OPERATOR_TYPE(FObjectMixerListRowDragDropOp, FDecoratedDragDropOp)
-//
-// 	/** The item being dragged and dropped */
-// 	TArray<FObjectMixerEditorListRowPtr> DraggedItems;
-//
-// 	/** Constructs a new drag/drop operation */
-// 	static TSharedRef<FObjectMixerListRowDragDropOp> New(const TArray<FObjectMixerEditorListRowPtr>& InItems)
-// 	{
-// 		check(InItems.Num() > 0);
-//
-// 		TSharedRef<FObjectMixerListRowDragDropOp> Operation = MakeShareable(
-// 			new FObjectMixerListRowDragDropOp());
-//
-// 		Operation->DraggedItems = InItems;
-//
-// 		Operation->DefaultHoverIcon = FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.Error");
-//
-// 		// Set the display text and the transaction name based on whether we're dragging a single or multiple widgets
-// 		if (InItems.Num() == 1)
-// 		{
-// 			//Operation->DefaultHoverText = FText::FromString(InItems[0]->GetCommandInfo().Pin()->Command);
-// 		}
-// 		else
-// 		{
-// 			Operation->DefaultHoverText =
-// 				FText::Format(
-// 					SObjectMixerEditorListRow::MultiDragFormatText,
-// 					FText::AsNumber(Operation->DraggedItems.Num())
-// 				);
-// 		}
-//
-// 		Operation->Construct();
-//
-// 		return Operation;
-// 	}
-// };
+const FText InsertFormatText = LOCTEXT("InsertAboveFormatText", "Insert {0} {1} {2}");
+const FText AboveText = LOCTEXT("AboveListItem", "above");
+const FText BelowText = LOCTEXT("BelowListItem", "below");
+const FText MultiDragFormatText = LOCTEXT("MultiDragFormatText", "{0} Items");
 
 void SObjectMixerEditorListRow::Construct(
 	const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable,
@@ -82,10 +42,10 @@ void SObjectMixerEditorListRow::Construct(
 	SMultiColumnTableRow<FObjectMixerEditorListRowPtr>::Construct(
 		FSuperRowType::FArguments()
 		.Padding(1.0f)
-	// 	.OnCanAcceptDrop(this, &SObjectMixerEditorListRow::HandleCanAcceptDrop)
-	// 	.OnAcceptDrop(this, &SObjectMixerEditorListRow::HandleAcceptDrop)
-	// 	.OnDragDetected(this, &SObjectMixerEditorListRow::HandleDragDetected)
-	// 	.OnDragLeave(this, &SObjectMixerEditorListRow::HandleDragLeave)
+		.OnCanAcceptDrop(this, &SObjectMixerEditorListRow::HandleCanAcceptDrop)
+		.OnAcceptDrop(this, &SObjectMixerEditorListRow::HandleAcceptDrop)
+		.OnDragDetected(this, &SObjectMixerEditorListRow::HandleDragDetected)
+		.OnDragLeave(this, &SObjectMixerEditorListRow::HandleDragLeave)
 	 	, InOwnerTable
 	);
 
@@ -160,124 +120,124 @@ SObjectMixerEditorListRow::~SObjectMixerEditorListRow()
 	Item.Reset();
 }
 
-// FReply SObjectMixerEditorListRow::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-// {
-// 	TArray<FObjectMixerEditorListRowPtr> DraggedItems = Item.Pin()->GetSelectedTreeViewItems();
-// 	TSharedRef<FObjectMixerListRowDragDropOp> Operation =
-// 		FObjectMixerListRowDragDropOp::New(DraggedItems);
-//
-// 	return FReply::Handled().BeginDragDrop(Operation);
-// }
-//
-// void SObjectMixerEditorListRow::HandleDragLeave(const FDragDropEvent& DragDropEvent)
-// {
-// 	if (TSharedPtr<FObjectMixerListRowDragDropOp> Operation =
-// 		DragDropEvent.GetOperationAs<FObjectMixerListRowDragDropOp>())
-// 	{
-// 		Operation->ResetToDefaultToolTip();
-// 	}
-// }
+FReply SObjectMixerEditorListRow::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	TArray<FObjectMixerEditorListRowPtr> DraggedItems = Item.Pin()->GetSelectedTreeViewItems();
+	TSharedRef<FObjectMixerListRowDragDropOp> Operation =
+		FObjectMixerListRowDragDropOp::New(DraggedItems);
 
-// TOptional<EItemDropZone> SObjectMixerEditorListRow::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent,
-//                                                                              EItemDropZone DropZone,
-//                                                                              FObjectMixerEditorListRowPtr
-//                                                                              TargetItem)
-// {
-// 	TSharedPtr<FObjectMixerListRowDragDropOp> Operation =
-// 		DragDropEvent.GetOperationAs<FObjectMixerListRowDragDropOp>();
-//
-// 	if (!Operation.IsValid())
-// 	{
-// 		return TOptional<EItemDropZone>();
-// 	}
-//
-// 	Operation->SetToolTip(
-// 		LOCTEXT("SortByCustomOrderDrgDropWarning", "Sort by custom order (\"#\") to drag & drop"),
-// 		FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.Error")
-// 	);
-//
-// 	const bool bIsDropDenied = false;
-//
-// 	FString BoolAsString = bIsDropDenied ? "true" : "false";
-//
-// 	if (bIsDropDenied)
-// 	{
-// 		Operation->ResetToDefaultToolTip();
-//
-// 		return TOptional<EItemDropZone>();
-// 	}
-//
-// 	FText ItemNameText = FText::FromString("Light Label");
-//
-// 	if (Operation->DraggedItems.Num() > 1)
-// 	{
-// 		ItemNameText = FText::Format(MultiDragFormatText, FText::AsNumber(Operation->DraggedItems.Num()));
-// 	}
-//
-// 	const FText DropPermittedText =
-// 		FText::Format(InsertFormatText,
-// 		              ItemNameText,
-// 		              DropZone == EItemDropZone::BelowItem ? BelowText : AboveText,
-// 		              ItemNameText
-// 		);
-//
-// 	Operation->SetToolTip(
-// 		DropPermittedText,
-// 		FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.OK")
-// 	);
-//
-// 	// We have no behaviour yet for dropping one item onto another, so we'll treat it like we dropped it above
-// 	return DropZone == EItemDropZone::OntoItem ? EItemDropZone::AboveItem : DropZone;
-// }
+	return FReply::Handled().BeginDragDrop(Operation);
+}
 
-// FReply SObjectMixerEditorListRow::HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone,
-//                                                         FObjectMixerEditorListRowPtr TargetItem)
-// {
-// 	TSharedPtr<FObjectMixerListRowDragDropOp> Operation =
-// 		DragDropEvent.GetOperationAs<FObjectMixerListRowDragDropOp>();
-//
-// 	if (!Operation.IsValid())
-// 	{
-// 		return FReply::Unhandled();
-// 	}
-//
-// 	const TSharedPtr<SObjectMixerEditorList> ListView = Item.Pin()->GetListViewPtr().Pin();
-//
-// 	TArray<FObjectMixerEditorListRowPtr> DraggedItems = Operation->DraggedItems;
-//
-// 	TArray<FObjectMixerEditorListRowPtr> AllTreeItemsCopy = ListView->GetTreeViewItems();
-//
-// 	for (const FObjectMixerEditorListRowPtr& DraggedItem : DraggedItems)
-// 	{
-// 		if (!DraggedItem.IsValid() || !AllTreeItemsCopy.Contains(DraggedItem))
-// 		{
-// 			continue;
-// 		}
-//
-// 		AllTreeItemsCopy.Remove(DraggedItem);
-// 	}
-//
-// 	const int32 TargetIndex = AllTreeItemsCopy.IndexOfByKey(TargetItem);
-//
-// 	if (TargetIndex > -1)
-// 	{
-// 		for (int32 ItemIndex = DraggedItems.Num() - 1; ItemIndex >= 0; ItemIndex--)
-// 		{
-// 			const FObjectMixerEditorListRowPtr& DraggedItem = DraggedItems[ItemIndex];
-//
-// 			if (!DraggedItem.IsValid() || AllTreeItemsCopy.Contains(DraggedItem))
-// 			{
-// 				continue;
-// 			}
-//
-// 			AllTreeItemsCopy.Insert(DraggedItem, DropZone == EItemDropZone::AboveItem ? TargetIndex : TargetIndex + 1);
-// 		}
-//
-// 		ListView->SetTreeViewItems(AllTreeItemsCopy);
-// 	}
-//
-// 	return FReply::Handled();
-// }
+void SObjectMixerEditorListRow::HandleDragLeave(const FDragDropEvent& DragDropEvent)
+{
+	if (TSharedPtr<FObjectMixerListRowDragDropOp> Operation =
+		DragDropEvent.GetOperationAs<FObjectMixerListRowDragDropOp>())
+	{
+		Operation->ResetToDefaultToolTip();
+	}
+}
+
+TOptional<EItemDropZone> SObjectMixerEditorListRow::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent,
+                                                                             EItemDropZone DropZone,
+                                                                             FObjectMixerEditorListRowPtr
+                                                                             TargetItem)
+{
+	TSharedPtr<FObjectMixerListRowDragDropOp> Operation =
+		DragDropEvent.GetOperationAs<FObjectMixerListRowDragDropOp>();
+
+	if (!Operation.IsValid())
+	{
+		return TOptional<EItemDropZone>();
+	}
+
+	Operation->SetToolTip(
+		LOCTEXT("SortByCustomOrderDrgDropWarning", "Sort by custom order (\"#\") to drag & drop"),
+		FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.Error")
+	);
+
+	const bool bIsDropDenied = false;
+
+	FString BoolAsString = bIsDropDenied ? "true" : "false";
+
+	if (bIsDropDenied)
+	{
+		Operation->ResetToDefaultToolTip();
+
+		return TOptional<EItemDropZone>();
+	}
+
+	FText ItemNameText = FText::FromString("Light Label");
+
+	if (Operation->DraggedItems.Num() > 1)
+	{
+		ItemNameText = FText::Format(MultiDragFormatText, FText::AsNumber(Operation->DraggedItems.Num()));
+	}
+
+	const FText DropPermittedText =
+		FText::Format(InsertFormatText,
+		              ItemNameText,
+		              DropZone == EItemDropZone::BelowItem ? BelowText : AboveText,
+		              ItemNameText
+		);
+
+	Operation->SetToolTip(
+		DropPermittedText,
+		FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.OK")
+	);
+
+	// We have no behaviour yet for dropping one item onto another, so we'll treat it like we dropped it above
+	return DropZone == EItemDropZone::OntoItem ? EItemDropZone::AboveItem : DropZone;
+}
+
+FReply SObjectMixerEditorListRow::HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone,
+                                                        FObjectMixerEditorListRowPtr TargetItem)
+{
+	TSharedPtr<FObjectMixerListRowDragDropOp> Operation =
+		DragDropEvent.GetOperationAs<FObjectMixerListRowDragDropOp>();
+
+	if (!Operation.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	const TSharedPtr<SObjectMixerEditorList> ListView = Item.Pin()->GetListViewPtr().Pin();
+
+	TArray<FObjectMixerEditorListRowPtr> DraggedItems = Operation->DraggedItems;
+
+	TArray<FObjectMixerEditorListRowPtr> AllTreeItemsCopy = ListView->GetTreeViewItems();
+
+	for (const FObjectMixerEditorListRowPtr& DraggedItem : DraggedItems)
+	{
+		if (!DraggedItem.IsValid() || !AllTreeItemsCopy.Contains(DraggedItem))
+		{
+			continue;
+		}
+
+		AllTreeItemsCopy.Remove(DraggedItem);
+	}
+
+	const int32 TargetIndex = AllTreeItemsCopy.IndexOfByKey(TargetItem);
+
+	if (TargetIndex > -1)
+	{
+		for (int32 ItemIndex = DraggedItems.Num() - 1; ItemIndex >= 0; ItemIndex--)
+		{
+			const FObjectMixerEditorListRowPtr& DraggedItem = DraggedItems[ItemIndex];
+
+			if (!DraggedItem.IsValid() || AllTreeItemsCopy.Contains(DraggedItem))
+			{
+				continue;
+			}
+
+			AllTreeItemsCopy.Insert(DraggedItem, DropZone == EItemDropZone::AboveItem ? TargetIndex : TargetIndex + 1);
+		}
+
+		ListView->SetTreeViewItems(AllTreeItemsCopy);
+	}
+
+	return FReply::Handled();
+}
 
 bool SObjectMixerEditorListRow::IsVisible() const
 {

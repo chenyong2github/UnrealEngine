@@ -10,6 +10,7 @@
 #include "Editor.h"
 #include "Framework/Docking/TabManager.h"
 #include "ISettingsModule.h"
+#include "ObjectMixerEditorSerializedData.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "Modules/ModuleManager.h"
 #include "ToolMenus.h"
@@ -308,6 +309,9 @@ void FObjectMixerEditorModule::BindDelegates()
 	DelegateHandles.Add(FEditorDelegates::PostUndoRedo.AddLambda([this]()
 	{
 		RequestRebuildList();
+		
+		// Because we can undo/redo collection adds and removes, we need to save the data after each
+		GetMutableDefault<UObjectMixerEditorSerializedData>()->SaveConfig();
 	}));
 
 	DelegateHandles.Add(FCoreUObjectDelegates::OnObjectTransacted.AddLambda([this](UObject*, const FTransactionObjectEvent& Event)

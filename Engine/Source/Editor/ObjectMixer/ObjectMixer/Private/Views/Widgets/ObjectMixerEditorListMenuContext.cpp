@@ -108,7 +108,7 @@ void UObjectMixerEditorListMenuContext::RegisterContextMenu()
 							
 							if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanel = Context->Data.MainPanelPtr.Pin())
 							{
-								if (TArray<FName> Collections = MainPanel->GetAllCollections().Array(); Collections.Num() > 0)
+								if (TArray<FName> Collections = MainPanel->GetAllCollectionNames(); Collections.Num() > 0)
 								{
 									FToolMenuSection& Section = Menu->FindOrAddSection("Collections");
 								   Section.Label = LOCTEXT("CollectionsSectionName", "Collections");

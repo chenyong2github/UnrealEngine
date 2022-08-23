@@ -154,9 +154,10 @@ public:
 	void AddObjectsToCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToAdd) const;
 	void RemoveObjectsFromCollection(const FName& CollectionName, const TSet<FSoftObjectPath>& ObjectsToRemove) const;
 	void RemoveCollection(const FName& CollectionName) const;
+	void ReorderCollection(const FName& CollectionToMoveName, const FName& CollectionInsertBeforeName) const;
 	bool IsObjectInCollection(const FName& CollectionName, const FSoftObjectPath& InObject) const;
 	TSet<FName> GetCollectionsForObject(const FSoftObjectPath& InObject) const;
-	TSet<FName> GetAllCollections() const;
+	TArray<FName> GetAllCollectionNames() const;
 	FOnObjectMixerCollectionMapChanged& GetOnObjectMixerCollectionMapChanged()
 	{
 		return OnObjectMixerCollectionMapChanged;
