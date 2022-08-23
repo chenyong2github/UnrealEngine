@@ -21,12 +21,5 @@
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default"
 		}
-	],
-	"Plugins": [
-		{
-			"Name": "PlatformCrypto",
-			"Enabled": true
-		}
 	]
-
 }

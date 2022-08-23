@@ -5,10 +5,6 @@
 #include "PlatformCryptoAesEncryptorsOpenSSL.h"
 #include "PlatformCryptoAesDecryptorsOpenSSL.h"
 
-THIRD_PARTY_INCLUDES_START
-#include <openssl/err.h>
-THIRD_PARTY_INCLUDES_END
-
 #include "Misc/AssertionMacros.h"
 
 DEFINE_LOG_CATEGORY(LogPlatformCryptoOpenSSL);
@@ -327,103 +323,25 @@ bool FEncryptionContextOpenSSL::DigestSign_RS256(const TArrayView<const uint8> M
 	return RSA_sign(NID_sha256, Message.GetData(), Message.Num(), Signature.GetData(), &BytesWritten, (RSA*)Key) == 1;
 }
 
-// Verify a message against the provided signature, using the PS256 algorithm.
-// PS256 is a JWT abbrieviation which translates to "RSASSA-PSS using SHA-256 digest, and MGF1 with SHA-256"
-bool FEncryptionContextOpenSSL::DigestVerify_PS256(const TArrayView<const uint8> Message, const TArrayView<const uint8> Signature, FRSAKeyHandle Key)
+bool FEncryptionContextOpenSSL::DigestVerify_PS256(const TArrayView<const char> Message, const TArrayView<const uint8> Signature, const TArrayView<const uint8> PKCS1Key)
 {
-	TArray<uint8> MessageDigest;
-	if (!CalcSHA256(Message, MessageDigest))
+	FScopedEVPMDContext Context;
+
+	if (Context.Get() == nullptr)
 	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Verbose, TEXT("FEncryptionContextOpenSSL::DigestVerify_PS256 failed: error in generate digest"));
 		return false;
 	}
 
-	if (!ensure(SHA256_DIGEST_LENGTH == MessageDigest.Num()))
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Verbose, TEXT("FEncryptionContextOpenSSL::DigestVerify_PS256 failed: invalid digest length"));
-		return false;
-	}
+	const unsigned char* PKCS1KeyData = PKCS1Key.GetData();
+	RSA* RsaKey = d2i_RSAPublicKey(nullptr, &PKCS1KeyData, PKCS1Key.Num());
+	EVP_PKEY* PKey = EVP_PKEY_new();
+	EVP_PKEY_assign_RSA(PKey, RsaKey);
 
-	return DigestVerifyPreHashed_PS256(MessageDigest.GetData(), Signature.GetData(), Signature.Num(), Key);
-}
-
-// Verify a message digest (hash) against the provided signature, using the PS256 algorithm.
-// PS256 is a JWT abbrieviation which translates to "RSASSA-PSS using SHA-256 digest, and MGF1 with SHA-256"
-bool FEncryptionContextOpenSSL::DigestVerifyPreHashed_PS256(const uint8* const MessageDigest, const TArrayView<const uint8> Signature, FRSAKeyHandle Key)
-{
-	return DigestVerifyPreHashed_PS256(MessageDigest, Signature.GetData(), Signature.Num(), Key);
-}
-
-bool FEncryptionContextOpenSSL::DigestVerifyPreHashed_PS256(const uint8* const MessageDigest, const uint8* const Signature, const uint32 SignatureLen, FRSAKeyHandle Key)
-{
-	RSA *RsaKey = (RSA*)Key;
-
-	// Create public key (PKEY) and copy the relevant RSA key data into it.
-	EVP_PKEY *PubKey = EVP_PKEY_new();
-	const bool bPubKeySetOk = 1 == EVP_PKEY_set1_RSA(PubKey, RsaKey);
-	if (!bPubKeySetOk)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Verbose, TEXT("FEncryptionContextOpenSSL::DigestVerifyPreHashed_PS256 failed: error setting public key"));
-		EVP_PKEY_free(PubKey);
-		return false;
-	}
-
-	// Create a context for this public key operation, to hold any internal/intermediate variables.
-	EVP_PKEY_CTX *PubKeyContext = EVP_PKEY_CTX_new(PubKey, nullptr);
-	if (!PubKeyContext)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Verbose, TEXT("FEncryptionContextOpenSSL::DigestVerifyPreHashed_PS256 failed: error allocating public key context"));
-		EVP_PKEY_free(PubKey);
-		return false;
-	}
-
-	// Set up the context of this operation.
-
-	bool bInitOk = true;
-	bInitOk = bInitOk && (1 == EVP_PKEY_verify_init(PubKeyContext)); // set that we want to perform a verification operation
-	bInitOk = bInitOk && (1 == EVP_PKEY_CTX_set_signature_md(PubKeyContext, EVP_sha256())); // set digest algorithm used in signature operation
-
-	// PSS-specific context params.
-	bInitOk = bInitOk && (1 == EVP_PKEY_CTX_set_rsa_padding(PubKeyContext, RSA_PKCS1_PSS_PADDING)); // set padding mode (PKCS1 PSS)
-	bInitOk = bInitOk && (1 == EVP_PKEY_CTX_set_rsa_mgf1_md(PubKeyContext, EVP_sha256())); // set digest algorithm used by mask generation function (MGF1)
-	// Salt length options:
-	// - RSA_PSS_SALTLEN_DIGEST (-1) : Salt length matches digest length
-	// - RSA_PSS_SALTLEN_AUTO (-2) : Auto-detect salt length (for verification only)
-	// - RSA_PSS_SALTLEN_MAX (-3) : Set salt length to maximum possible
-	// - Positive values : Fixed-size salt length
-	bInitOk = bInitOk && (1 == EVP_PKEY_CTX_set_rsa_pss_saltlen(PubKeyContext, RSA_PSS_SALTLEN_AUTO)); // set PSS salt length
-
-	if (!bInitOk)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Verbose, TEXT("FEncryptionContextOpenSSL::DigestVerifyPreHashed_PS256 failed in initializing public key context (%u): %s"),
-			ERR_get_error(), UTF8_TO_TCHAR(ERR_error_string(ERR_get_error(), nullptr)));
-
-		EVP_PKEY_CTX_free(PubKeyContext);
-		EVP_PKEY_free(PubKey);
-		return false;
-	}
-
-	// Verify against pre-hashed input.
-	const int VerifyResult = EVP_PKEY_verify(PubKeyContext, Signature, SignatureLen, MessageDigest, SHA256_DIGEST_LENGTH);
-	const bool bVerifyOk = (1 == VerifyResult);
-	if (!bVerifyOk)
-	{
-		if (0 == VerifyResult)
-		{
-			UE_LOG(LogPlatformCryptoOpenSSL, Verbose, TEXT("FEncryptionContextOpenSSL::DigestVerifyPreHashed_PS256 signature is invalid (%u): %s"),
-				ERR_get_error(), UTF8_TO_TCHAR(ERR_error_string(ERR_get_error(), nullptr)));
-		}
-		else
-		{
-			UE_LOG(LogPlatformCryptoOpenSSL, Verbose, TEXT("FEncryptionContextOpenSSL::DigestVerifyPreHashed_PS256 error verifying signature (%u): %s"),
-				ERR_get_error(), UTF8_TO_TCHAR(ERR_error_string(ERR_get_error(), nullptr)));
-		}
-	}
-
-	EVP_PKEY_CTX_free(PubKeyContext);
-	EVP_PKEY_free(PubKey);
-
-	return bVerifyOk;
+	EVP_PKEY_CTX* KeyContext = nullptr;
+	EVP_DigestVerifyInit(Context.Get(), &KeyContext, EVP_sha256(), nullptr, PKey);
+	EVP_PKEY_CTX_set_rsa_padding(KeyContext, RSA_PKCS1_PSS_PADDING);
+	EVP_DigestVerifyUpdate(Context.Get(), Message.GetData(), Message.Num());
+	return EVP_DigestVerifyFinal(Context.Get(), const_cast<uint8*>(Signature.GetData()), Signature.Num()) == 1;
 }
 
 bool FEncryptionContextOpenSSL::DigestVerify_RS256(const TArrayView<const uint8> Message, const TArrayView<const uint8> Signature, FRSAKeyHandle Key)
@@ -503,56 +421,24 @@ FRSAKeyHandle FEncryptionContextOpenSSL::CreateKey_RSA(const TArrayView<const ui
 	BIGNUM* BN_PrivateExponent = PrivateExponent.Num() > 0 ? BN_new() : nullptr;
 	BIGNUM* BN_Modulus = BN_new();
 
-	bool bCreateKeyFailed = false;
-
 	if (PublicExponent.Num())
 	{
 		LoadBinaryIntoBigNum(PublicExponent.GetData(), PublicExponent.Num(), BN_PublicExponent);
-
-		if (!BN_is_odd(BN_PublicExponent))
-		{
-			bCreateKeyFailed = true;
-			UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::CreateKey_RSA: public exponent is not an odd number"));
-		}
 	}
 
 	if (PrivateExponent.Num())
 	{
 		LoadBinaryIntoBigNum(PrivateExponent.GetData(), PrivateExponent.Num(), BN_PrivateExponent);
-
-		if (!BN_is_odd(BN_PrivateExponent))
-		{
-			bCreateKeyFailed = true;
-			UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::CreateKey_RSA: private exponent is not an odd number"));
-		}
 	}
 
 	LoadBinaryIntoBigNum(Modulus.GetData(), Modulus.Num(), BN_Modulus);
-	if (!BN_is_odd(BN_Modulus))
-	{
-		bCreateKeyFailed = true;
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::CreateKey_RSA: modulus is not an odd number"));
-	}
-
 #if USE_LEGACY_OPENSSL
 	NewKey->n = BN_Modulus;
 	NewKey->e = BN_PublicExponent;
 	NewKey->d = BN_PrivateExponent;
 #else
-	const int Result = RSA_set0_key(NewKey, BN_Modulus, BN_PublicExponent, BN_PrivateExponent);
-	if (!Result)
-	{
-		bCreateKeyFailed = true;
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FEncryptionContextOpenSSL::CreateKey_RSA failed (%u): %s"),
-			ERR_get_error(), UTF8_TO_TCHAR(ERR_error_string(ERR_get_error(), nullptr)));
-	}
+	RSA_set0_key(NewKey, BN_Modulus, BN_PublicExponent, BN_PrivateExponent);
 #endif
-
-	if (bCreateKeyFailed)
-	{
-		RSA_free(NewKey);
-		NewKey = nullptr;
-	}
 
 	return NewKey;
 }
@@ -641,30 +527,4 @@ EPlatformCryptoResult FEncryptionContextOpenSSL::CreatePseudoRandomBytes(const T
 FSHA256Hasher FEncryptionContextOpenSSL::CreateSHA256Hasher()
 {
 	return FSHA256Hasher();
-}
-
-bool FEncryptionContextOpenSSL::CalcSHA256(const TArrayView<const uint8> Source, TArray<uint8>& OutHash)
-{
-	FSHA256Hasher Hasher = CreateSHA256Hasher();
-	if (Hasher.Init() != EPlatformCryptoResult::Success)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Verbose, TEXT("FEncryptionContextOpenSSL::CalcSHA256: create failed"));
-		return false;
-	}
-
-	if (Hasher.Update(Source) != EPlatformCryptoResult::Success)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Verbose, TEXT("FEncryptionContextOpenSSL::CalcSHA256: update failed"));
-		return false;
-	}
-
-	OutHash.Empty();
-	OutHash.AddUninitialized(FSHA256Hasher::OutputByteLength);
-	if (Hasher.Finalize(OutHash) != EPlatformCryptoResult::Success)
-	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Verbose, TEXT("FEncryptionContextOpenSSL::CalcSHA256: finalize failed"));
-		return false;
-	}
-
-	return true;
 }

@@ -32,14 +32,14 @@ void FJwt::ShutdownModule()
 
 namespace UE::JWT
 {
-	TOptional<FJsonWebToken> FromString(const FStringView InEncodedJsonWebToken)
+	TOptional<FJsonWebToken> FromString(const FStringView InEncodedJsonWebToken, const bool bIsSignatureEncoded)
 	{
-		return FJsonWebToken::FromString(InEncodedJsonWebToken);
+		return FJsonWebToken::FromString(InEncodedJsonWebToken, bIsSignatureEncoded);
 	}
 
 
-	bool FromString(const FStringView InEncodedJsonWebToken, FJsonWebToken& OutJsonWebToken)
+	bool FromString(const FStringView InEncodedJsonWebToken, FJsonWebToken& OutJsonWebToken, const bool bIsSignatureEncoded)
 	{
-		return FJsonWebToken::FromString(InEncodedJsonWebToken, OutJsonWebToken);
+		return FJsonWebToken::FromString(InEncodedJsonWebToken, OutJsonWebToken, bIsSignatureEncoded);
 	}
 }

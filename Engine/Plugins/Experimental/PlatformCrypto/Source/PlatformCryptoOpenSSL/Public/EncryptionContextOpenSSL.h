@@ -76,10 +76,8 @@ public:
 
 	bool DigestSign_RS256(const TArrayView<const uint8> Message, TArray<uint8>& Signature, FRSAKeyHandle Key);
 
+	bool DigestVerify_PS256(const TArrayView<const char> Message, const TArrayView<const uint8> Signature, const TArrayView<const uint8> PKCS1Key);
 	bool DigestVerify_RS256(const TArrayView<const uint8> Message, const TArrayView<const uint8> Signature, FRSAKeyHandle Key);
-
-	bool DigestVerify_PS256(const TArrayView<const uint8> Message, const TArrayView<const uint8> Signature, FRSAKeyHandle Key);
-	bool DigestVerifyPreHashed_PS256(const uint8* const MessageDigest, const TArrayView<const uint8> Signature, FRSAKeyHandle Key);
 
 	bool GenerateKey_RSA(const int32 InNumKeyBits, TArray<uint8>& OutPublicExponent, TArray<uint8>& OutPrivateExponent, TArray<uint8>& OutModulus);
 
@@ -96,13 +94,6 @@ public:
 	EPlatformCryptoResult CreatePseudoRandomBytes(const TArrayView<uint8> OutData);
 
 	FSHA256Hasher CreateSHA256Hasher();
-
-	bool CalcSHA256(const TArrayView<const uint8> Source, TArray<uint8>& OutHash);
-
-private:
-
-	bool DigestVerify_PS256(const uint8* const Message, const uint32 MessageLen, const uint8* const Signature, const uint32 SignatureLen, FRSAKeyHandle Key);
-	bool DigestVerifyPreHashed_PS256(const uint8* const MessageDigest, const uint8* const Signature, const uint32 SignatureLen, FRSAKeyHandle Key);
 };
 
 typedef FEncryptionContextOpenSSL FEncryptionContext;

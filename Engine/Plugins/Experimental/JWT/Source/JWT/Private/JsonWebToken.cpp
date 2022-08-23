@@ -2,11 +2,8 @@
 
 #include "JsonWebToken.h"
 #include "Algo/Count.h"
-#include "Algo/Reverse.h"
 #include "Misc/Base64.h"
 #include "Serialization/JsonSerializer.h"
-#include "IPlatformCrypto.h"
-#include "PlatformCryptoIncludes.h"
 
 // JWT header field names
 const TCHAR *const FJsonWebToken::HEADER_TYPE = TEXT("typ");
@@ -23,10 +20,6 @@ const TCHAR *const FJsonWebToken::CLAIM_EXPIRATION = TEXT("exp");
 const TCHAR *const FJsonWebToken::CLAIM_SUBJECT = TEXT("sub");
 const TCHAR *const FJsonWebToken::CLAIM_AUDIENCE = TEXT("aud");
 
-// Expected/supported values
-constexpr const TCHAR* TYPE_VALUE_JWT = TEXT("JWT");
-constexpr const TCHAR* ALGORITHM_VALUE_RS256 = TEXT("RS256"); // RSASSA using SHA-256 digest
-constexpr const TCHAR* ALGORITHM_VALUE_PS256 = TEXT("PS256"); // RSASSA-PSS using SHA-256 digest, and MGF1 with SHA-256
 
 namespace
 {
@@ -74,31 +67,31 @@ namespace
 		return true;
 	}
 
-	bool Base64UrlDecode(const FStringView InSource, FString& OutDest)
+	bool Base64Decode(const FStringView InSource, FString& OutDest)
 	{
 		if (InSource.IsEmpty())
 		{
 			return false;
 		}
 
-		return FBase64::Decode(FString(InSource), OutDest, EBase64Mode::UrlSafe);
+		return FBase64::Decode(FString(InSource), OutDest);
 	}
 
-	bool Base64UrlDecode(const FStringView InSource, TArray<uint8>& OutDest)
+	bool Base64Decode(const FStringView InSource, TArray<uint8>& OutDest)
 	{
 		if (InSource.IsEmpty())
 		{
 			return false;
 		}
 
-		return FBase64::Decode(FString(InSource), OutDest, EBase64Mode::UrlSafe);
+		return FBase64::Decode(FString(InSource), OutDest);
 	}
 
 	bool StringViewToBytes(const FStringView In, TArray<uint8>& OutBytes, const bool IsEncoded)
 	{
 		if (IsEncoded)
 		{
-			return Base64UrlDecode(In, OutBytes);
+			return Base64Decode(In, OutBytes);
 		}
 
 		OutBytes.Reserve(In.Len());
@@ -137,7 +130,7 @@ void FJsonWebToken::DumpJsonObject(const FJsonObject& InJsonObject)
 			continue;
 		}
 
-		// Present the JSON value in a printable form; TryGetString() is overloaded for
+		// Present the JSON value in a printable form; TryGetString() is overridden for
 		// non-compound types (bool, number, string).
 		FString OutString;
 		if (Value->TryGetString(OutString))
@@ -162,7 +155,7 @@ void FJsonWebToken::DumpJsonObject(const FJsonObject& InJsonObject)
 			continue;
 		}
 
-		UE_LOG(LogJwt, VeryVerbose, TEXT("  %s [unknown type]"), *Name);
+		UE_LOG(LogJwt, VeryVerbose, TEXT("  %s [unknown type])"), *Name);
 	}
 }
 
@@ -195,7 +188,7 @@ TSharedPtr<FJsonObject> FJsonWebToken::ParseEncodedJson(const FStringView InEnco
 	TSharedPtr<FJsonObject> ParsedObj;
 
 	FString DecodedJson;
-	if (Base64UrlDecode(InEncodedJson, DecodedJson))
+	if (Base64Decode(InEncodedJson, DecodedJson))
 	{
 		ParsedObj = FromJson(DecodedJson);
 	}
@@ -203,9 +196,9 @@ TSharedPtr<FJsonObject> FJsonWebToken::ParseEncodedJson(const FStringView InEnco
 	return ParsedObj;
 }
 
-bool FJsonWebToken::FromString(const FStringView InEncodedJsonWebToken, FJsonWebToken& OutJsonWebToken)
+bool FJsonWebToken::FromString(const FStringView InEncodedJsonWebToken, FJsonWebToken& OutJsonWebToken, const bool bIsSignatureEncoded)
 {
-	TOptional<FJsonWebToken> JsonWebToken = FromString(InEncodedJsonWebToken);
+	TOptional<FJsonWebToken> JsonWebToken = FromString(InEncodedJsonWebToken, bIsSignatureEncoded);
 	if (!JsonWebToken.IsSet())
 	{
 		return false;
@@ -215,7 +208,7 @@ bool FJsonWebToken::FromString(const FStringView InEncodedJsonWebToken, FJsonWeb
 	return true;
 }
 
-TOptional<FJsonWebToken> FJsonWebToken::FromString(const FStringView InEncodedJsonWebToken)
+TOptional<FJsonWebToken> FJsonWebToken::FromString(const FStringView InEncodedJsonWebToken, const bool bIsSignatureEncoded)
 {
 	// Check for the correct number of dots.
 	if (Algo::Count(InEncodedJsonWebToken, TEXT('.')) != 2)
@@ -257,7 +250,7 @@ TOptional<FJsonWebToken> FJsonWebToken::FromString(const FStringView InEncodedJs
 	{
 		UE_LOG(LogJwt, VeryVerbose, TEXT("[FJsonWebToken::FromString] Decoding JWT signature."));
 		TArray<uint8> SignatureBytes;
-		if (!Base64UrlDecode(SignaturePart, SignatureBytes))
+		if (!StringViewToBytes(SignaturePart, SignatureBytes, bIsSignatureEncoded))
 		{
 			UE_LOG(LogJwt, Verbose, TEXT("[FJsonWebToken::FromString] Failed to decode the signature."));
 			return {};
@@ -313,147 +306,10 @@ bool FJsonWebToken::GetClaim(const FStringView InName, TSharedPtr<FJsonValue>& O
 	return OutClaim.IsValid();
 }
 
-bool FJsonWebToken::GetIssuer(FString& OutValue) const
+
+bool FJsonWebToken::Verify() const
 {
-	return Payload->TryGetStringField(CLAIM_ISSUER, OutValue);
-}
-
-bool FJsonWebToken::GetIssuedAt(double& OutValue) const
-{
-	return Payload->TryGetNumberField(CLAIM_ISSUED_AT, OutValue);
-}
-
-bool FJsonWebToken::GetExpiration(double& OutValue) const
-{
-	return Payload->TryGetNumberField(CLAIM_EXPIRATION, OutValue);
-}
-
-bool FJsonWebToken::GetSubject(FString& OutValue) const
-{
-	return Payload->TryGetStringField(CLAIM_SUBJECT, OutValue);
-}
-
-bool FJsonWebToken::GetAudience(FString& OutValue) const
-{
-	return Payload->TryGetStringField(CLAIM_AUDIENCE, OutValue);
-}
-
-bool IsSupportedAlgorithm(const FString& Algorithm)
-{
-	return (ALGORITHM_VALUE_RS256 == Algorithm) || (ALGORITHM_VALUE_PS256 == Algorithm);
-}
-
-bool DigestVerify(FEncryptionContextOpenSSL& EncryptionContext, const FString& Algorithm, const TArrayView<const uint8> Message, TArray<uint8>& Signature, FRSAKeyHandle Key)
-{
-	if (ALGORITHM_VALUE_RS256 == Algorithm)
-	{
-		return EncryptionContext.DigestVerify_RS256(Message, Signature, Key);
-	}
-
-	if (ALGORITHM_VALUE_PS256 == Algorithm)
-	{
-		return EncryptionContext.DigestVerify_PS256(Message, Signature, Key);
-	}
-
-	return false;
-}
-
-bool FJsonWebToken::Verify(const TArrayView<const uint8> InKeyExponent, const TArrayView<const uint8> InKeyModulus) const
-{
-	if (!Signature.IsSet())
-	{
-		UE_LOG(LogJwt, Verbose, TEXT("[FJsonWebToken::Verify] Failed because signature is empty"));
-		return false;
-	}
-
-	FString Algorithm;
-	if (!GetAlgorithm(Algorithm))
-	{
-		UE_LOG(LogJwt, Verbose, TEXT("[FJsonWebToken::Verify] Failed to find signing algorithm"));
-		return false;
-	}
-
-	if (!IsSupportedAlgorithm(Algorithm))
-	{
-		UE_LOG(LogJwt, Verbose, TEXT("[FJsonWebToken::Verify] Signing algorithm is not currently supported: '%s'"), *Algorithm);
-		return false;
-	}
-
-	TUniquePtr<FEncryptionContext> EncryptionContext = IPlatformCrypto::Get().CreateContext();
-	if (!EncryptionContext)
-	{
-		UE_LOG(LogJwt, Verbose, TEXT("[FJsonWebToken::Verify] Failed to create encryption context"));
-		return false;
-	}
-
-	// Create the public key from the exponent and modulus.
-	// InKeyExponent and InKeyModulus must be in little-endian format (required by PlatformCrypto module).
-	const static TArrayView<const uint8> EmptyPrivateKeyExponent;
-	FRSAKeyHandle RsaKeyHandle = EncryptionContext->CreateKey_RSA(InKeyExponent, EmptyPrivateKeyExponent, InKeyModulus);
-	if (!RsaKeyHandle)
-	{
-		UE_LOG(LogJwt, Verbose, TEXT("[FJsonWebToken::Verify] Failed to create RSA key"));
-		return false;
-	}
-
-	// Split out the token string into header, payload, and signature parts.
-	FStringView EncodedHeader;
-	FStringView EncodedPayload;
-	FStringView EncodedSignature;
-	if (!SplitEncodedJsonWebTokenString(EncodedJsonWebToken, EncodedHeader, EncodedPayload, EncodedSignature))
-	{
-		return false;
-	}
-
-	// Decode JWT signature from Base64Url form to raw bytes.
-	TArray<uint8> DecodedSignatureBytes;
-	Base64UrlDecode(EncodedSignature, DecodedSignatureBytes); // Big-endian.
-
-	// Verify the digest hash against the signature.
-	const FString EncodedContent = FString::Printf(TEXT("%s.%s"), *FString(EncodedHeader), *FString(EncodedPayload));
-	const TArray<uint8> EncodedContentBytes(reinterpret_cast<uint8*>(TCHAR_TO_ANSI(*EncodedContent)), EncodedContent.Len());
-
-	// Select the appropriate algorithm and verify the JWT content against the signature with it.
-	const bool bIsVerified = DigestVerify(*EncryptionContext.Get(), Algorithm, EncodedContentBytes, DecodedSignatureBytes, RsaKeyHandle);
-
-	EncryptionContext->DestroyKey_RSA(RsaKeyHandle);
-
-	if (!bIsVerified)
-	{
-		UE_LOG(LogJwt, Verbose, TEXT("[FJsonWebToken::Verify] Failed to verify signature"));
-		return false;
-	}
-
+	// Signature verification is yet to be implemented, so return true for now.
+	// TODO: Add support for RSA crypto algorithm (PlatformCrypto plugin) and key management so that signature verification can be performed.
 	return true;
-}
-
-bool FJsonWebToken::Verify(const FStringView InKeyExponent, const FStringView InKeyModulus, const bool bIsBase64UrlEncoded, const bool bIsBigEndian) const
-{
-	TArray<uint8> ExponentBytes;
-	if (!StringViewToBytes(InKeyExponent, ExponentBytes, bIsBase64UrlEncoded))
-	{
-		UE_LOG(LogJwt, Verbose, TEXT("[FJsonWebToken::Verify] Failed to parse the public key exponent."));
-		return false;
-	}
-
-	TArray<uint8> ModulusBytes;
-	if (!StringViewToBytes(InKeyModulus, ModulusBytes, bIsBase64UrlEncoded))
-	{
-		UE_LOG(LogJwt, Verbose, TEXT("[FJsonWebToken::Verify] Failed to parse the key modulus."));
-		return false;
-	}
-
-	// When retrieved from the web, the key will be in big-endian form.  PlatformCrypto requires little-endian, so reverse here.
-	if (bIsBigEndian)
-	{
-		Algo::Reverse(ExponentBytes);
-		Algo::Reverse(ModulusBytes);
-	}
-
-	return Verify(ExponentBytes, ModulusBytes);
-}
-
-bool FJsonWebToken::Verify(const FStringView InKeyExponent, const FStringView InKeyModulus) const
-{
-	return Verify(InKeyExponent, InKeyModulus, true, true);
 }

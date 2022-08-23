@@ -46,7 +46,7 @@ public:
 
 namespace UE::JWT
 {
-	JWT_API TOptional<FJsonWebToken> FromString(const FStringView InEncodedJsonWebToken);
+	JWT_API TOptional<FJsonWebToken> FromString(const FStringView InEncodedJsonWebToken, const bool bIsSignatureEncoded);
 
-	JWT_API bool FromString(const FStringView InEncodedJWT, FJsonWebToken& OutJsonWebToken);
+	JWT_API bool FromString(const FStringView InEncodedJWT, FJsonWebToken& OutJsonWebToken, const bool bIsSignatureEncoded);
 }
