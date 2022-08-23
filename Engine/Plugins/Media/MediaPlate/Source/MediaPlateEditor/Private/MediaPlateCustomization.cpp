@@ -113,11 +113,24 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	// Create playlist group.
 	IDetailGroup& PlaylistGroup = MediaPlateCategory.AddGroup(TEXT("Playlist"),
 		LOCTEXT("Playlist", "Playlist"));
-	TSharedRef<IPropertyHandle> PropertyHandle = DetailBuilder.GetProperty(
-		GET_MEMBER_NAME_CHECKED(UMediaPlateComponent, MediaPlaylist));
-	PlaylistGroup.HeaderProperty(PropertyHandle);
-	PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this,
-		&FMediaPlateCustomization::OnPlaylistChanged));
+
+	// Add playlist.
+	PlaylistGroup.AddWidgetRow()
+		.NameContent()
+		[
+			SNew(STextBlock)
+				.Text(LOCTEXT("PlaylistAsset", "Playlist Asset"))
+				.ToolTipText(LOCTEXT("PlaylistAsset_Tooltip",
+					"The playlist asset to use. If none then an internal asset will be used."))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SObjectPropertyEntryBox)
+				.AllowedClass(UMediaPlaylist::StaticClass())
+				.ObjectPath(this, &FMediaPlateCustomization::GetPlaylistPath)
+				.OnObjectChanged(this, &FMediaPlateCustomization::OnPlaylistChanged)
+		];
 
 	// Add media source.
 	PlaylistGroup.AddWidgetRow()
@@ -903,9 +916,45 @@ FString FMediaPlateCustomization::GetMediaSourcePath() const
 	return Path;
 }
 
-void FMediaPlateCustomization::OnPlaylistChanged()
+FString FMediaPlateCustomization::GetPlaylistPath() const
+{
+	FString Path;
+
+	// Get the first media plate.
+	if (MediaPlatesList.Num() > 0)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatesList[0].Get();
+		if (MediaPlate != nullptr)
+		{
+			UMediaPlaylist* Playlist = MediaPlate->MediaPlaylist;
+			if (Playlist != nullptr)
+			{
+				if (Playlist->GetOuter() != MediaPlate)
+				{
+					Path = Playlist->GetPathName();
+				}
+			}
+		}
+	}
+
+	return Path;
+}
+
+void FMediaPlateCustomization::OnPlaylistChanged(const FAssetData& AssetData)
 {
 	StopMediaPlates();
+
+	// Update the playlist.
+	UMediaPlaylist* Playlist = Cast<UMediaPlaylist>(AssetData.GetAsset());
+	for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+		if (MediaPlate != nullptr)
+		{
+			MediaPlate->MediaPlaylist = Playlist;
+		}
+	}
+
 	UpdateMediaPath();
 }
 

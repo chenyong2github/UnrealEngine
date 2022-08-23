@@ -139,7 +139,7 @@ public:
 	TArray<TObjectPtr<UStaticMeshComponent>> Letterboxes;
 
 	/** What media playlist to play. */
-	UPROPERTY(EditAnywhere, Category = "MediaPlate")
+	UPROPERTY(BlueprintReadWrite, Category = "MediaPlate")
 	TObjectPtr<UMediaPlaylist> MediaPlaylist;
 
 	/** The current index of the source in the play list being played. */

@@ -162,9 +162,14 @@ private:
 	FString GetMediaSourcePath() const;
 
 	/**
+	 * Gets the object path for the media playlist object.
+	 */
+	FString GetPlaylistPath() const;
+
+	/**
 	 * Called when the playlist changes.
 	 */
-	void OnPlaylistChanged();
+	void OnPlaylistChanged(const FAssetData& AssetData);
 
 	/**
 	 * Called when the media source widget changes.
