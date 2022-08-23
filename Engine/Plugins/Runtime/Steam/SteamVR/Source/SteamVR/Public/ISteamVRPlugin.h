@@ -21,6 +21,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSteamVR, Log, All);
  * The public interface to this module.  In most cases, this interface is only public to sibling modules 
  * within this plugin.
  */
+class UE_DEPRECATED(5.1, "SteamVR plugin is deprecated; please use the OpenXR plugin.") ISteamVRPlugin;
 class ISteamVRPlugin : public IHeadMountedDisplayModule
 {
 

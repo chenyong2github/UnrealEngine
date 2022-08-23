@@ -4,6 +4,8 @@
 #include "SteamVRStereoLayers.h"
 #include "IStereoLayers.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 void USteamVRHQStereoLayerShape::ApplyShape(IStereoLayers::FLayerDesc& LayerDesc)
 {
 	LayerDesc.SetShape<FSteamVRHQLayer>(bCurved, bAntiAlias, AutoCurveMinDistance, AutoCurveMaxDistance);
@@ -49,3 +51,4 @@ void USteamVRHQStereoLayerShape::SetAutoCurveMaxDistance(float InDistance)
 	MarkStereoLayerDirty();
 }
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

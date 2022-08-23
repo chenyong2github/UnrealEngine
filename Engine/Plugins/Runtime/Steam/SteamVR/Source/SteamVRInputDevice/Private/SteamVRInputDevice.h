@@ -44,6 +44,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "SteamVRInputPublic.h"
 #include "ISteamVRPlugin.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class STEAMVRINPUTDEVICE_API FSteamVRInputDevice : public IInputDevice, public FXRMotionControllerBase, public IHapticDevice
 {
 public:
@@ -556,3 +558,5 @@ private:
 	*/
 	bool bSteamVRWasShutdown = false;
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

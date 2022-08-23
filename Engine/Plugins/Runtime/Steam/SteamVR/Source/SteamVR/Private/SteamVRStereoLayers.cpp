@@ -12,6 +12,8 @@ const FName FSteamVRHQLayer::ShapeName = FName("SteamVRHQLayer");
 
 #if STEAMVR_SUPPORTED_PLATFORMS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 // enable to ensure all openvr calls succeed
 #if 0
 static vr::EVROverlayError sOvrError;
@@ -360,5 +362,7 @@ IStereoLayers* FSteamVRHMD::GetStereoLayers()
 
 	return nullptr;
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif //STEAMVR_SUPPORTED_PLATFORMS

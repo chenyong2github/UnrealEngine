@@ -5,6 +5,8 @@
 
 #if STEAMVR_SUPPORTED_PLATFORMS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 #include "HeadMountedDisplay.h"
 #include "HeadMountedDisplayBase.h"
 #include "SteamVRFunctionLibrary.h"
@@ -593,5 +595,6 @@ public:
 	friend class FSteamSplashTicker;
 };
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif //STEAMVR_SUPPORTED_PLATFORMS
