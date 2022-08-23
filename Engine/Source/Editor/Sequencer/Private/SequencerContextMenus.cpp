@@ -7,6 +7,7 @@
 #include "SequencerCommands.h"
 #include "SSequencer.h"
 #include "SectionLayout.h"
+#include "IKeyArea.h"
 #include "SSequencerSection.h"
 #include "SequencerSettings.h"
 #include "MVVM/Views/ITrackAreaHotspot.h"
@@ -442,7 +443,13 @@ void FSectionContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FEx
 				LOCTEXT("KeySection", "Key This Section"),
 				LOCTEXT("KeySection_ToolTip", "This section will get changed when we modify the property externally"),
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateLambda([=] { return Shared->SetSectionToKey(); }))
+				FUIAction(
+					FExecuteAction::CreateLambda([=] { return Shared->SetSectionToKey(); }),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateLambda([=] { return Shared->IsSectionToKey(); })
+				),
+				NAME_None,
+				EUserInterfaceActionType::Check
 			);
 		}
 	}
@@ -673,6 +680,7 @@ void FSectionContextMenu::SetSectionToKey()
 		return;
 	}
 
+	const bool bToggle = IsSectionToKey();
 	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sequencer->GetSelection().GetSelectedSections())
 	{
 		if (UMovieSceneSection* Section = WeakSection.Get())
@@ -682,11 +690,27 @@ void FSectionContextMenu::SetSectionToKey()
 			{
 				FScopedTransaction Transaction(LOCTEXT("SetSectionToKey", "Set Section To Key"));
 				Track->Modify();
-				Track->SetSectionToKey(Section);
+				Track->SetSectionToKey(bToggle ? nullptr : Section);
 			}
 		}
 		break;
 	}
+}
+
+bool FSectionContextMenu::IsSectionToKey() const
+{
+	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sequencer->GetSelection().GetSelectedSections())
+	{
+		if (UMovieSceneSection* Section = WeakSection.Get())
+		{
+			UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
+			if (Track && Track->GetSectionToKey() != Section)
+			{
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 bool FSectionContextMenu::CanSetSectionToKey() const

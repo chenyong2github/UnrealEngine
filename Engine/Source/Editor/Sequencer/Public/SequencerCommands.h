@@ -346,6 +346,9 @@ public:
 	/** Toggles whether to show layer bars to edit keyframes in bulk. */
 	TSharedPtr< FUICommandInfo > ToggleLayerBars;
 
+	/** Show/hide key bar connectors for quickly retiming pairs of keys*/
+	TSharedPtr< FUICommandInfo > ToggleKeyBars;
+
 	/** Toggles whether to show channel colors in the track area. */
 	TSharedPtr< FUICommandInfo > ToggleChannelColors;
 

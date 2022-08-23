@@ -65,6 +65,7 @@ public:
 	/*~ ITrackAreaExtension */
 	FTrackAreaParameters GetTrackAreaParameters() const override;
 	FViewModelVariantIterator GetTrackAreaModelList() const override;
+	FViewModelVariantIterator GetTopLevelChildTrackAreaModels() const override;
 
 	/*~ IDimmableExtension */
 	bool IsDimmed() const override;

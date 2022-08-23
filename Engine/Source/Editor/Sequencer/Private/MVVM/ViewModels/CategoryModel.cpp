@@ -6,7 +6,10 @@
 #include "MVVM/ViewModels/SequencerModelUtils.h"
 #include "MVVM/Views/SOutlinerItemViewBase.h"
 #include "MVVM/Views/SSequencerKeyNavigationButtons.h"
+#include "MVVM/Views/SChannelView.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
+
+#include "SequencerSectionPainter.h"
 
 #include "Styling/AppStyle.h"
 
@@ -46,13 +49,26 @@ FOutlinerSizing FCategoryModel::GetDesiredSizing() const
 
 TSharedPtr<ITrackLaneWidget> FCategoryModel::CreateTrackLaneView(const FCreateTrackLaneViewParams& InParams)
 {
-	return nullptr;
+	return SNew(SChannelView, SharedThis(this), InParams.TimeToPixel, InParams.Editor->GetTrackArea())
+		.KeyBarColor(this, &FCategoryModel::GetKeyBarColor);
 }
 
 FTrackLaneVirtualAlignment FCategoryModel::ArrangeVirtualTrackLaneView() const
 {
 	TSharedPtr<ITrackLaneExtension> Parent = FindAncestorOfType<ITrackLaneExtension>();
 	return Parent ? Parent->ArrangeVirtualTrackLaneView() : FTrackLaneVirtualAlignment();
+}
+
+FLinearColor FCategoryModel::GetKeyBarColor() const
+{
+	TViewModelPtr<ITrackExtension> Track = FindAncestorOfType<ITrackExtension>();
+	UMovieSceneTrack* TrackObject = Track ? Track->GetTrack() : nullptr;
+	if (TrackObject)
+	{
+		FLinearColor Tint = FSequencerSectionPainter::BlendColor(TrackObject->GetColorTint());
+		return Tint.CopyWithNewOpacity(1.f);
+	}
+	return FColor(160, 160, 160);
 }
 
 FCategoryGroupModel::FCategoryGroupModel(FName InCategoryName, const FText& InDisplayText)
@@ -164,7 +180,7 @@ TSharedRef<SWidget> FCategoryGroupModel::CreateOutlinerView(const FCreateOutline
 FTrackAreaParameters FCategoryGroupModel::GetTrackAreaParameters() const
 {
 	FTrackAreaParameters Parameters;
-	Parameters.LaneType = ETrackAreaLaneType::None;
+	Parameters.LaneType = ETrackAreaLaneType::Inline;
 	return Parameters;
 }
 

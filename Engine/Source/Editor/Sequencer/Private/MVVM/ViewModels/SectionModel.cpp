@@ -79,6 +79,18 @@ TViewModelPtr<ITrackExtension> FSectionModel::GetParentTrackExtension() const
 	return FindAncestorOfType<ITrackExtension>();
 }
 
+int32 FSectionModel::GetPreRollFrames() const
+{
+	UMovieSceneSection* Section = GetSection();
+	return Section ? Section->GetPreRollFrames() : 0;
+}
+
+int32 FSectionModel::GetPostRollFrames() const
+{
+	UMovieSceneSection* Section = GetSection();
+	return Section ? Section->GetPostRollFrames() : 0;
+}
+
 TSharedPtr<ITrackLaneWidget> FSectionModel::CreateTrackLaneView(const FCreateTrackLaneViewParams& InParams)
 {
 	UMovieSceneSection* Section = WeakSection.Get();
@@ -88,7 +100,7 @@ TSharedPtr<ITrackLaneWidget> FSectionModel::CreateTrackLaneView(const FCreateTra
 	}
 
 	TSharedPtr<FSequencer> Sequencer = InParams.Editor->CastThisChecked<FSequencerEditorViewModel>()->GetSequencerImpl();
-	return SNew(SSequencerSection, Sequencer, SharedThis(this));
+	return SNew(SSequencerSection, Sequencer, SharedThis(this), InParams.OwningTrackLane);
 }
 
 FTrackLaneVirtualAlignment FSectionModel::ArrangeVirtualTrackLaneView() const
@@ -135,6 +147,19 @@ void FSectionModel::UpdateCachedData()
 	// Compute the layer bar range from this section's effective key range
 	TRange<FFrameNumber> KeyRangeHull = TRange<FFrameNumber>::Empty();
 
+	if (SectionRange.GetLowerBound().IsClosed() && SectionRange.GetUpperBound().IsClosed())
+	{
+		KeyRangeHull = SectionRange;
+	}
+	else if (SectionRange.GetLowerBound().IsClosed())
+	{
+		KeyRangeHull = TRange<FFrameNumber>::Inclusive(SectionRange.GetLowerBoundValue(), SectionRange.GetLowerBoundValue());
+	}
+	else if (SectionRange.GetUpperBound().IsClosed())
+	{
+		KeyRangeHull = TRange<FFrameNumber>::Inclusive(SectionRange.GetUpperBoundValue(), SectionRange.GetUpperBoundValue());
+	}
+
 	// Find the first key time and use that
 	const FMovieSceneChannelProxy& Proxy = Section->GetChannelProxy();
 	for (const FMovieSceneChannelEntry& Entry : Proxy.GetAllEntries())
@@ -149,7 +174,7 @@ void FSectionModel::UpdateCachedData()
 		}
 	}
 
-	if (!KeyRangeHull.IsEmpty())
+	if (!KeyRangeHull.IsEmpty() && KeyRangeHull.GetLowerBound().IsClosed() && KeyRangeHull.GetUpperBound().IsClosed())
 	{
 		LayerBarRange = TRange<FFrameNumber>::Intersection(KeyRangeHull, SectionRange);
 	}

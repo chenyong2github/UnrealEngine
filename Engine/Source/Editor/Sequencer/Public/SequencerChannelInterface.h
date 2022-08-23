@@ -165,6 +165,19 @@ struct TSequencerChannelInterfaceCommon : ISequencerChannelInterface
 	}
 
 	/**
+	 * Whether this channel should draw a curve on its editor UI
+	 *
+	 * @param Channel               The channel to query
+	 * @param InSection             The section that owns the channel
+	 * @return true to show the curve on the UI, false otherwise
+	 */
+	virtual bool ShouldShowCurve_Raw(const FMovieSceneChannel* Channel, UMovieSceneSection* InSection) const override
+	{
+		using namespace Sequencer;
+		return ShouldShowCurve(static_cast<const ChannelType*>(Channel), InSection);
+	}
+
+	/**
 	 * Create a new model for this channel that can be used on the curve editor interface
 	 *
 	 * @return (Optional) A new model to be added to a curve editor

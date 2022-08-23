@@ -16,7 +16,7 @@
 #include "GameFramework/Actor.h"
 #include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
-#include "KeyDrawParams.h"
+#include "MVVM/Views/KeyDrawParams.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneChannelEditorData.h"

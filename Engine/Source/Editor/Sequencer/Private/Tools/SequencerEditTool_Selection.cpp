@@ -319,6 +319,11 @@ FSequencerEditTool_Selection::FSequencerEditTool_Selection(FSequencer& InSequenc
 
 FCursorReply FSequencerEditTool_Selection::OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
 {
+	if (DragOperation)
+	{
+		return DragOperation->GetCursor();
+	}
+
 	return FCursorReply::Cursor(EMouseCursor::Crosshairs);
 }
 

@@ -20,7 +20,8 @@ public:
 
 	//~ ISequencerSection interface
 	virtual FReply OnKeyDoubleClicked(const TArray<FKeyHandle>& KeyHandles) override;
-	virtual int32 OnPaintSection(FSequencerSectionPainter& InPainter) const override;
 	virtual bool RequestDeleteCategory(const TArray<FName>& CategoryNamePath) override;
 	virtual bool RequestDeleteKeyArea(const TArray<FName>& KeyAreaNamePath) override;
+
+	virtual TSharedPtr<UE::Sequencer::FCategoryModel> ConstructCategoryModel(FName InCategoryName, const FText& InDisplayText, TArrayView<const FChannelData> Channels) const;
 };

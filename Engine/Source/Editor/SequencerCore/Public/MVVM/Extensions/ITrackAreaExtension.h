@@ -20,9 +20,14 @@ enum class ETrackAreaLaneType : uint8
 	None
 };
 
-struct SEQUENCERCORE_API FTrackAreaParameters
+struct FTrackAreaParameters
 {
-	ETrackAreaLaneType LaneType;
+	ETrackAreaLaneType LaneType = ETrackAreaLaneType::None;
+	struct
+	{
+		float Top = 0.f;
+		float Bottom = 0.f;
+	} TrackLanePadding;
 };
 
 /**
@@ -38,6 +43,7 @@ public:
 
 	virtual FTrackAreaParameters GetTrackAreaParameters() const = 0;
 	virtual FViewModelVariantIterator GetTrackAreaModelList() const = 0;
+	virtual FViewModelVariantIterator GetTopLevelChildTrackAreaModels() const { return FViewModelVariantIterator(); }
 
 	template<typename T>
 	TTypedIterator<T, FViewModelVariantIterator> GetTrackAreaModelListAs() const

@@ -215,12 +215,14 @@ void SSequencerLayerBar::Construct(const FArguments& InArgs, TWeakPtr<FSequencer
 	ChildSlot
 	[
 		SNew(SHorizontalBox)
+		.Visibility(this, &SSequencerLayerBar::GetHandleVisibility)
 
 		+ SHorizontalBox::Slot()
+		.Padding(FMargin(1.f, 2.f))
 		.AutoWidth()
 		[
 			SNew(SBox)
-			.WidthOverride(16.f)
+			.WidthOverride(8.f)
 			[
 				SNew(SSequencerLayerBarHandle, SharedThis(this), EStretchConstraint::AnchorToEnd)
 				.BackgroundBrush(FAppStyle::Get().GetBrush("Sequencer.LayerBar.HandleLeft"))
@@ -233,10 +235,11 @@ void SSequencerLayerBar::Construct(const FArguments& InArgs, TWeakPtr<FSequencer
 		]
 
 		+ SHorizontalBox::Slot()
+		.Padding(FMargin(1.f, 2.f))
 		.AutoWidth()
 		[
 			SNew(SBox)
-			.WidthOverride(16.f)
+			.WidthOverride(8.f)
 			[
 				SNew(SSequencerLayerBarHandle, SharedThis(this), EStretchConstraint::AnchorToStart)
 				.BackgroundBrush(FAppStyle::Get().GetBrush("Sequencer.LayerBar.HandleRight"))
@@ -273,6 +276,11 @@ FTrackLaneScreenAlignment SSequencerLayerBar::GetAlignment(const FTimeToPixel& I
 	return FTrackLaneScreenAlignment{};
 }
 
+EVisibility SSequencerLayerBar::GetHandleVisibility() const
+{
+	return IsHovered() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
 int32 SSequencerLayerBar::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	const ESlateDrawEffect DrawEffects = bParentEnabled
@@ -280,8 +288,7 @@ int32 SSequencerLayerBar::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 		: ESlateDrawEffect::DisabledEffect;
 
 	static const FSlateBrush* LayerBarBackgroundBrush = FAppStyle::Get().GetBrush("Sequencer.LayerBar.Background");
-	static const FSlateBrush* LayerBarBorderBrush     = FAppStyle::Get().GetBrush("Sequencer.LayerBar.Border");
-	static const FSlateBrush* SelectedSectionOverlay  = FAppStyle::Get().GetBrush("Sequencer.Section.SelectedSectionOverlay");
+	static const FSlateBrush* SelectedSectionOverlay  = FAppStyle::Get().GetBrush("Sequencer.Section.CollapsedSelectedSectionOverlay");
 
 	// Draw the background
 	FSlateDrawElement::MakeBox(
@@ -289,15 +296,6 @@ int32 SSequencerLayerBar::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 		LayerId,
 		AllottedGeometry.ToPaintGeometry(),
 		LayerBarBackgroundBrush,
-		DrawEffects
-	);
-
-	// Draw the border
-	FSlateDrawElement::MakeBox(
-		OutDrawElements,
-		LayerId,
-		AllottedGeometry.ToPaintGeometry(),
-		LayerBarBorderBrush,
 		DrawEffects
 	);
 	++LayerId;

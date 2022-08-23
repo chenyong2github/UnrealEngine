@@ -95,8 +95,8 @@ void FLayerBarModel::AddToSnapField(const ISnapCandidate& Candidate, ISnapField&
 	using namespace UE::MovieScene;
 
 	TRange<FFrameNumber> Range = ComputeRange();
-	SnapField.AddSnapPoint(FSnapPoint{ FSnapPoint::CustomSection, DiscreteInclusiveLower(Range) });
-	SnapField.AddSnapPoint(FSnapPoint{ FSnapPoint::CustomSection, DiscreteExclusiveUpper(Range) });
+	SnapField.AddSnapPoint(FSnapPoint{ FSnapPoint::CustomSection, DiscreteInclusiveLower(Range), 1.f });
+	SnapField.AddSnapPoint(FSnapPoint{ FSnapPoint::CustomSection, DiscreteExclusiveUpper(Range), 1.f });
 }
 
 bool FLayerBarModel::CanDrag() const

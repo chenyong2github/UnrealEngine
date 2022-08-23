@@ -26,7 +26,7 @@ namespace Sequencer
  * For instance, this represents the "Location" category of a single transform section, which would
  * contain the X, Y, and Z translation channels.
  */
-class FCategoryModel
+class SEQUENCER_API FCategoryModel
 	: public FViewModel
 	, public FLinkedOutlinerExtension
 	, public FGeometryExtensionShim
@@ -53,6 +53,10 @@ public:
 
 private:
 
+	FLinearColor GetKeyBarColor() const;
+
+private:
+
 	FViewModelListHead Children;
 	FName CategoryName;
 };
@@ -62,7 +66,7 @@ private:
  * For instance, this represents the "Location" category entry in the Sequence outliner, which would contain
  * the X, Y, and Z translation channels of all the corresponding sections in the track area.
  */
-class FCategoryGroupModel
+class SEQUENCER_API FCategoryGroupModel
 	: public FOutlinerItemModel
 	, public ITrackAreaExtension
 	, public ICompoundOutlinerExtension

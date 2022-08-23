@@ -5,11 +5,8 @@
 #include "Math/Range.h"
 #include "Misc/FrameNumber.h"
 
-#include "Layout/Children.h"
-#include "Layout/Visibility.h"
-
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SPanel.h"
 
 #include "MVVM/Extensions/ITrackLaneExtension.h"
 #include "MVVM/Extensions/ViewModelExtensionCollection.h"
@@ -57,6 +54,8 @@ private:
 
 	void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	void OnMouseLeave(const FPointerEvent& MouseEvent) override;
+
+	EVisibility GetHandleVisibility() const;
 
 private:
 

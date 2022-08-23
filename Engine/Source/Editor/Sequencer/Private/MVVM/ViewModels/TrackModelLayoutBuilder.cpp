@@ -149,7 +149,7 @@ void FTrackModelLayoutBuilder::RefreshLayout(TSharedPtr<FSectionModel> InSection
 	TrackAreaList = FHierarchicalModelListRefresher();
 }
 
-void FTrackModelLayoutBuilder::PushCategory(FName CategoryName, const FText& DisplayLabel)
+void FTrackModelLayoutBuilder::PushCategory(FName CategoryName, const FText& DisplayLabel, TFunction<TSharedPtr<FCategoryModel>(FName, const FText&)> OptionalFactory)
 {
 	check(TrackAreaList.IsValid() && SequencerSection);
 
@@ -175,7 +175,15 @@ void FTrackModelLayoutBuilder::PushCategory(FName CategoryName, const FText& Dis
 	TSharedPtr<FCategoryModel> TrackAreaModel = TrackAreaList.FindItem<FCategoryModel>(CategoryNamePredicate);
 	if (!TrackAreaModel)
 	{
-		TrackAreaModel = MakeShared<FCategoryModel>(CategoryName);
+		if (OptionalFactory)
+		{
+			TrackAreaModel = OptionalFactory(CategoryName, DisplayLabel);
+		}
+
+		if (!TrackAreaModel)
+		{
+			TrackAreaModel = MakeShared<FCategoryModel>(CategoryName);
+		}
 	}
 
 	OutlinerModel->AddCategory(TrackAreaModel);
@@ -193,7 +201,7 @@ void FTrackModelLayoutBuilder::PopCategory()
 	OutlinerList.Pop();
 }
 
-void FTrackModelLayoutBuilder::SetTopLevelChannel(const FMovieSceneChannelHandle& Channel)
+void FTrackModelLayoutBuilder::SetTopLevelChannel(const FMovieSceneChannelHandle& Channel, TFunction<TSharedPtr<UE::Sequencer::FChannelModel>(FName, const FMovieSceneChannelHandle&)> OptionalFactory)
 {
 	ensureAlwaysMsgf(
 			OutlinerList.GetCurrentParent() == Root,
@@ -204,10 +212,10 @@ void FTrackModelLayoutBuilder::SetTopLevelChannel(const FMovieSceneChannelHandle
 	TSharedPtr<FViewModel> CurrentModel = OutlinerList.GetCurrentParent();
 	OutlinerList.RecurseInto(CurrentModel, TopLevelGroup);
 
-	AddChannel(Channel, true);
+	AddChannel(Channel, true, OptionalFactory);
 }
 
-void FTrackModelLayoutBuilder::AddChannel(const FMovieSceneChannelHandle& Channel)
+void FTrackModelLayoutBuilder::AddChannel(const FMovieSceneChannelHandle& Channel, TFunction<TSharedPtr<UE::Sequencer::FChannelModel>(FName, const FMovieSceneChannelHandle&)> OptionalFactory)
 {
 	check(TrackAreaList.IsValid() && SequencerSection);
 
@@ -218,10 +226,10 @@ void FTrackModelLayoutBuilder::AddChannel(const FMovieSceneChannelHandle& Channe
 		TrackAreaList.RecurseInto(CurrentModel, CurrentModel->GetChildList(EViewModelListType::Generic));
 	}
 
-	AddChannel(Channel, false);
+	AddChannel(Channel, false, OptionalFactory);
 }
 
-void FTrackModelLayoutBuilder::AddChannel(const FMovieSceneChannelHandle& Channel, bool bIsTopLevel)
+void FTrackModelLayoutBuilder::AddChannel(const FMovieSceneChannelHandle& Channel, bool bIsTopLevel, TFunction<TSharedPtr<UE::Sequencer::FChannelModel>(FName, const FMovieSceneChannelHandle&)> OptionalFactory)
 {
 	check(TrackAreaList.IsValid() && SequencerSection);
 
@@ -243,7 +251,7 @@ void FTrackModelLayoutBuilder::AddChannel(const FMovieSceneChannelHandle& Channe
 	//       of channels. We have to be careful to ensure that we reuse existing items that may have been added
 	//       to the outliner from a previously built section.
 
-	TSharedPtr<FChannelGroupModel> OutlinerModel;
+	TViewModelPtr<FChannelGroupModel> OutlinerModel;
 	if (bIsTopLevel)
 	{
 		OutlinerModel = OutlinerList.FindItem<FChannelGroupModel>(ChannelNamePredicate);
@@ -280,7 +288,15 @@ void FTrackModelLayoutBuilder::AddChannel(const FMovieSceneChannelHandle& Channe
 		TrackAreaModel = TrackAreaList.FindRecycledItem<FChannelModel>(ChannelNamePredicate);
 		if (!TrackAreaModel)
 		{
-			TrackAreaModel = MakeShared<FChannelModel>(ChannelName, SequencerSection, Channel);
+			if (OptionalFactory)
+			{
+				TrackAreaModel = OptionalFactory(ChannelName, Channel);
+			}
+
+			if (!TrackAreaModel)
+			{
+				TrackAreaModel = MakeShared<FChannelModel>(ChannelName, SequencerSection, Channel);
+			}
 		}
 
 		OutlinerModel->AddChannel(TrackAreaModel);
@@ -290,7 +306,7 @@ void FTrackModelLayoutBuilder::AddChannel(const FMovieSceneChannelHandle& Channe
 		}
 		else
 		{
-			TrackAreaModel->SetLinkedOutlinerItem(OutlinerModel);
+			TrackAreaModel->SetLinkedOutlinerItem(OutlinerModel.ImplicitCast());
 		}
 		TrackAreaModel->Initialize(SequencerSection, Channel);
 

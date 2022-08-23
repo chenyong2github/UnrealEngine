@@ -9,6 +9,9 @@
 #include "MVVM/Extensions/LinkedOutlinerExtension.h"
 #include "MVVM/Extensions/ITrackAreaExtension.h"
 #include "MVVM/Extensions/IDeletableExtension.h"
+#include "MVVM/Extensions/ITrackLaneExtension.h"
+#include "MVVM/Extensions/IKeyExtension.h"
+
 #include "EventHandlers/ISignedObjectEventHandler.h"
 #include "Tree/ICurveEditorTreeItem.h"
 
@@ -39,10 +42,12 @@ class FChannelModel
 	, public FLinkedOutlinerExtension
 	, public FGeometryExtensionShim
 	, public FLinkedOutlinerComputedSizingShim
+	, public ITrackLaneExtension
+	, public IKeyExtension
 {
 public:
 
-	UE_SEQUENCER_DECLARE_CASTABLE(FChannelModel, FViewModel, FLinkedOutlinerExtension, IGeometryExtension);
+	UE_SEQUENCER_DECLARE_CASTABLE(FChannelModel, FViewModel, FLinkedOutlinerExtension, IGeometryExtension, ITrackLaneExtension, IKeyExtension);
 
 	FChannelModel(FName InChannelName, TWeakPtr<ISequencerSection> InSection, FMovieSceneChannelHandle InChannel);
 	~FChannelModel();
@@ -70,6 +75,21 @@ public:
 	/** Returns the desired sizing for the track area row */
 	FOutlinerSizing GetDesiredSizing() const;
 
+	/*~ ITrackLaneExtension */
+	TSharedPtr<ITrackLaneWidget> CreateTrackLaneView(const FCreateTrackLaneViewParams& InParams) override;
+	FTrackLaneVirtualAlignment ArrangeVirtualTrackLaneView() const override;
+
+	/*~ IKeyExtension */
+	bool UpdateCachedKeys(TSharedPtr<FCachedKeys>& OutCachedKeys) const override;
+	bool GetFixedExtents(double& OutFixedMin, double& OutFixedMax) const override;
+	int32 CustomPaint(const FGeometry& KeyGeometry, int32 LayerId) const override;
+	void DrawKeys(TArrayView<const FKeyHandle> InKeyHandles, TArrayView<FKeyDrawParams> OutKeyDrawParams) override;
+	TUniquePtr<FCurveModel> CreateCurveModel() override;
+
+private:
+
+	FLinearColor GetKeyBarColor() const;
+
 private:
 
 	TSharedPtr<IKeyArea> KeyArea;
@@ -80,7 +100,7 @@ private:
  * Model for the outliner entry associated with all sections' channels of a given common name.
  * For instance, this represents the "Location.X" entry in the Sequencer outliner.
  */
-class FChannelGroupModel
+class SEQUENCER_API FChannelGroupModel
 	: public FViewModel
 	, public ITrackAreaExtension
 {
@@ -141,7 +161,7 @@ protected:
  * Model for the outliner entry associated with all sections' channels of a given common name.
  * For instance, this represents the "Location.X" entry in the Sequencer outliner.
  */
-class FChannelGroupOutlinerModel
+class SEQUENCER_API FChannelGroupOutlinerModel
 	: public TOutlinerModelMixin<FChannelGroupModel>
 	, public ICompoundOutlinerExtension
 	, public IDeletableExtension

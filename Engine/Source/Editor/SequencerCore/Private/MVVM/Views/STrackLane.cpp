@@ -12,10 +12,11 @@
 #include "MVVM/SharedViewModelData.h"
 #include "MVVM/ViewModels/EditorViewModel.h"
 #include "MVVM/ViewModels/OutlinerViewModel.h"
-#include "MVVM/ViewModels/TrackAreaViewModel.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
+#include "MVVM/ViewModels/TrackAreaViewModel.h"
 #include "MVVM/Views/SOutlinerView.h"
+#include "MVVM/Views/STrackAreaView.h"
 
 namespace UE
 {
@@ -40,15 +41,22 @@ STrackLane::~STrackLane()
 {
 }
 
-void STrackLane::Construct(const FArguments& InArgs, TWeakPtr<FTrackAreaViewModel> InTrackAreaViewModel, TWeakViewModelPtr<IOutlinerExtension> InWeakOutlinerItem, const FTrackAreaParameters& InTrackParams, const TSharedRef<SOutlinerView>& InTreeView)
+void STrackLane::Construct(const FArguments& InArgs, TWeakPtr<STrackAreaView> InTrackAreaView, TWeakViewModelPtr<IOutlinerExtension> InWeakOutlinerItem, TSharedPtr<STrackLane> InParentLane, const FTrackAreaParameters& InTrackParams, const TSharedRef<SOutlinerView>& InTreeView)
 {
 	bWidgetsDirty = true;
 
-	WeakTrackAreaViewModel = InTrackAreaViewModel;
+	WeakTrackAreaView = InTrackAreaView;
 	WeakOutlinerItem = InWeakOutlinerItem;
 	TreeView = InTreeView;
+	ParentLane = InParentLane;
+
+	if (ParentLane)
+	{
+		ParentLane->WeakChildLanes.Add(SharedThis(this));
+	}
 
 	TrackParams = InTrackParams;
+	TimeToPixel = InTrackAreaView.Pin()->GetTimeToPixel();
 
 	FViewModelPtr OutlinerItem = GetOutlinerItem();
 	if (ensure(OutlinerItem))
@@ -68,6 +76,16 @@ TViewModelPtr<IOutlinerExtension> STrackLane::GetOutlinerItem() const
 	return WeakOutlinerItem.Pin();
 }
 
+TSharedPtr<STrackLane> STrackLane::GetParentLane() const
+{
+	return ParentLane;
+}
+
+TArrayView<const TWeakPtr<STrackLane>> STrackLane::GetChildLanes() const
+{
+	return WeakChildLanes;
+}
+
 bool STrackLane::IsPinned() const
 {
 	TSharedPtr<IPinnableExtension> Pinnable = WeakOutlinerItem.ImplicitPin();
@@ -84,8 +102,13 @@ void STrackLane::OnHierarchyUpdated()
 	RecreateWidgets();
 }
 
+TSharedPtr<ITrackLaneWidget> STrackLane::FindWidgetForModel(const FWeakViewModelPtr& InModel) const
+{
+	return WidgetsByModel.FindRef(InModel);
+}
+
 void STrackLane::RecreateWidgets()
-{	
+{
 	if (!bWidgetsDirty)
 	{
 		return;
@@ -93,44 +116,93 @@ void STrackLane::RecreateWidgets()
 
 	bWidgetsDirty = false;
 	Children.Empty();
+	WidgetsByModel.Reset();
 
+	WeakChildLanes.Remove(TWeakPtr<STrackLane>());
+
+	TSharedPtr<STrackAreaView>      TrackAreaView      = WeakTrackAreaView.Pin();
 	TSharedPtr<ITrackAreaExtension> TrackAreaExtension = WeakOutlinerItem.ImplicitPin();
-	TSharedPtr<FTrackAreaViewModel> TrackAreaViewModel = WeakTrackAreaViewModel.Pin();
-	if (!TrackAreaViewModel || !TrackAreaExtension)
+	TSharedPtr<SOutlinerView>       PinnedTree         = TreeView.Pin();
+	if (!TrackAreaView || !TrackAreaExtension || !PinnedTree)
 	{
 		return;
 	}
 
-	TArray<TSharedPtr<ITrackLaneWidget>> ChildrenWidgets;
+	FCreateTrackLaneViewParams ViewParams(TrackAreaView->GetViewModel()->GetEditor());
+	ViewParams.OwningTrackLane = SharedThis(this);
+	ViewParams.TimeToPixel = TimeToPixel;
 
 	// Construct views for this track lane
-
-	FCreateTrackLaneViewParams CreateLaneParams(TrackAreaViewModel->GetEditor());
 	for (TTypedIterator<ITrackLaneExtension, FViewModelVariantIterator> It(TrackAreaExtension->GetTrackAreaModelList()); It; ++It)
 	{
-		TSharedPtr<ITrackLaneWidget> NewView = It->CreateTrackLaneView(CreateLaneParams);
+		TViewModelPtr<ITrackLaneExtension> Model = *It;
 
-		if (NewView)
+		TSharedPtr<ITrackLaneWidget> ParentView;
+
+		if (ParentLane)
 		{
-			if (NewView->AcceptsChildren())
+			FViewModelPtr Parent = Model.AsModel()->GetParent();
+			// Find the parent model that exists in the parent lane
+			while (Parent && !ParentView)
 			{
-				for (const TViewModelPtr<ITrackLaneExtension>& Child : It.GetCurrentItem()->GetDescendantsOfType<ITrackLaneExtension>())
-				{
-					TSharedPtr<ITrackLaneWidget> ChildView = Child->CreateTrackLaneView(CreateLaneParams);
-					NewView->AddChildLane(ChildView);
-				}
+				ParentView = ParentLane->FindWidgetForModel(Parent);
+				Parent = Parent->GetParent();
 			}
-			ChildrenWidgets.Add(NewView);
+		}
+
+		TSharedPtr<ITrackLaneWidget> NewView = Model->CreateTrackLaneView(ViewParams);
+		WidgetsByModel.Add(Model, NewView);
+
+		// If we have a parent view, add the widget to that
+		if (ParentView)
+		{
+			ParentView->AddChildView(NewView, SharedThis(this));
+		}
+		// Otherwise we add it directly to this lane
+		else
+		{
+			FSlot::FSlotArguments SlotArguments(MakeUnique<FSlot>(NewView));
+			SlotArguments.AttachWidget(NewView->AsWidget());
+			Children.AddSlot(MoveTemp(SlotArguments));
 		}
 	}
 
-	// Add children to the widget
-
-	for (const TSharedPtr<ITrackLaneWidget>& ChildWidget : ChildrenWidgets)
+	// Construct views for top level children track lane
+	for (TTypedIterator<ITrackAreaExtension, FViewModelVariantIterator> TopLevelIt(TrackAreaExtension->GetTopLevelChildTrackAreaModels()); TopLevelIt; ++TopLevelIt)
 	{
-		FSlot::FSlotArguments SlotArguments(MakeUnique<FSlot>(ChildWidget));
-		SlotArguments.AttachWidget(ChildWidget->AsWidget());
-		Children.AddSlot(MoveTemp(SlotArguments));
+		TViewModelPtr<ITrackAreaExtension> InlineModel = *TopLevelIt;
+		if (InlineModel->GetTrackAreaParameters().LaneType != ETrackAreaLaneType::None)
+		{
+			// Add these widgets directly to this lane as well
+			for (TTypedIterator<ITrackLaneExtension, FViewModelVariantIterator> It(InlineModel->GetTrackAreaModelList()); It; ++It)
+			{
+				TViewModelPtr<ITrackLaneExtension> Model = *It;
+				TSharedPtr<ITrackLaneWidget> ParentView;
+				FViewModelPtr Parent = Model.AsModel()->GetParent();
+				// Find the parent model that exists in the parent lane
+				while (Parent && !ParentView)
+				{
+					ParentView = FindWidgetForModel(Parent);
+					Parent = Parent->GetParent();
+				}
+
+				TSharedPtr<ITrackLaneWidget> NewView = Model->CreateTrackLaneView(ViewParams);
+				WidgetsByModel.Add(Model, NewView);
+
+				// If we have a parent view, add the widget to that
+				if (ParentView)
+				{
+					ParentView->AddChildView(NewView, SharedThis(this));
+				}
+				// Otherwise we add it directly to this lane
+				else
+				{
+					FSlot::FSlotArguments SlotArguments(MakeUnique<FSlot>(NewView));
+					SlotArguments.AttachWidget(NewView->AsWidget());
+					Children.AddSlot(MoveTemp(SlotArguments));
+				}
+			}
+		}
 	}
 }
 
@@ -138,15 +210,13 @@ void STrackLane::OnArrangeChildren( const FGeometry& AllottedGeometry, FArranged
 {
 	for (int32 WidgetIndex = 0; WidgetIndex < Children.Num(); ++WidgetIndex)
 	{
-		const FSlot&        Slot = Children[WidgetIndex];
-		TSharedRef<SWidget> Widget    = Slot.GetWidget();
+		const FSlot&        Slot   = Children[WidgetIndex];
+		TSharedRef<SWidget> Widget = Slot.GetWidget();
 
 		EVisibility WidgetVisibility = Widget->GetVisibility();
-		TSharedPtr<FTrackAreaViewModel> TrackAreaViewModel = WeakTrackAreaViewModel.Pin();
-		if (TrackAreaViewModel.IsValid() && ArrangedChildren.Accepts(WidgetVisibility))
+		if (ArrangedChildren.Accepts(WidgetVisibility))
 		{
-			FTimeToPixel TimeToPixel = TrackAreaViewModel->GetTimeToPixel(AllottedGeometry);
-			FTrackLaneScreenAlignment ScreenAlignment = Slot.Interface->GetAlignment(TimeToPixel, AllottedGeometry);
+			FTrackLaneScreenAlignment ScreenAlignment = Slot.Interface->GetAlignment(*TimeToPixel, AllottedGeometry);
 			if (ScreenAlignment.IsVisible())
 			{
 				FArrangedWidget ArrangedWidget = ScreenAlignment.ArrangeWidget(Widget, AllottedGeometry);
@@ -178,11 +248,14 @@ int32 STrackLane::PaintLaneBackground(const FGeometry& AllottedGeometry, const F
 	static const FName BorderName("Sequencer.AnimationOutliner.DefaultBorder");
 	static const FName SelectionColorName("SelectionColor");
 
-	TViewModelPtr<IOutlinerExtension> OutlinerItem = WeakOutlinerItem.Pin();
-	if (!OutlinerItem || OutlinerItem->IsFilteredOut())
+	TSharedPtr<STrackAreaView>        TrackAreaView = WeakTrackAreaView.Pin();;
+	TViewModelPtr<IOutlinerExtension> OutlinerItem  = WeakOutlinerItem.Pin();
+	if (!TrackAreaView || !OutlinerItem || OutlinerItem->IsFilteredOut())
 	{
 		return LayerId;
 	}
+
+	const int32 PaintLayerId = TrackAreaView->GetPaintLayers().LaneBackgrounds;
 
 	TViewModelPtr<IHoveredExtension> Hoverable = OutlinerItem.ImplicitCast();
 
@@ -197,7 +270,7 @@ int32 STrackLane::PaintLaneBackground(const FGeometry& AllottedGeometry, const F
 
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
-			LayerId,
+			PaintLayerId,
 			AllottedGeometry.ToPaintGeometry(
 				FVector2D(0, 0),
 				FVector2D(AllottedGeometry.GetLocalSize().X, TotalNodeHeight)
@@ -228,7 +301,7 @@ int32 STrackLane::PaintLaneBackground(const FGeometry& AllottedGeometry, const F
 		{
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
-				LayerId,
+				PaintLayerId,
 				AllottedGeometry.ToPaintGeometry(
 					FVector2D(0, 0),
 					FVector2D(AllottedGeometry.GetLocalSize().X, TotalNodeHeight)
@@ -240,7 +313,7 @@ int32 STrackLane::PaintLaneBackground(const FGeometry& AllottedGeometry, const F
 		}
 	}
 
-	return LayerId + 1;
+	return LayerId;
 }
 
 void STrackLane::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -277,8 +350,6 @@ void STrackLane::Tick(const FGeometry& AllottedGeometry, const double InCurrentT
 
 FVector2D STrackLane::ComputeDesiredSize(float LayoutScale) const
 {
-	TSharedPtr<FOutlinerViewModel> Outliner = WeakTrackAreaViewModel.Pin()->GetEditor()->GetOutliner();
-
 	TViewModelPtr<IOutlinerExtension>  OutlinerItem = WeakOutlinerItem.Pin();
 	TViewModelPtr<ITrackAreaExtension> TrackArea    = OutlinerItem.ImplicitCast();
 
@@ -309,6 +380,8 @@ FVector2D STrackLane::ComputeDesiredSize(float LayoutScale) const
 				}
 			}
 		}
+
+		Height -= Parameters.TrackLanePadding.Top + Parameters.TrackLanePadding.Bottom;
 	}
 
 	return FVector2D(100.f, Height);
@@ -321,6 +394,10 @@ void STrackLane::SetVerticalPosition(float InPosition)
 
 float STrackLane::GetVerticalPosition() const
 {
+	if (TViewModelPtr<ITrackAreaExtension> TrackArea = WeakOutlinerItem.ImplicitPin())
+	{
+		return Position + TrackArea->GetTrackAreaParameters().TrackLanePadding.Top;
+	}
 	return Position;
 }
 
@@ -391,11 +468,6 @@ void STrackLane::PositionParentTrackLanes(TViewModelPtr<IOutlinerExtension> InIt
 	{
 		ParentLane->PositionParentTrackLanes(GetOutlinerItem(), AccumulatedItemTop);
 	}
-}
-
-void STrackLane::SetParent(TSharedPtr<STrackLane> InParentLane)
-{
-	ParentLane = InParentLane;
 }
 
 FReply STrackLane::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)

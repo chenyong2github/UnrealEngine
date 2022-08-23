@@ -158,6 +158,7 @@
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieScenePreAnimatedStateSystem.h"
 #include "Systems/MovieSceneMotionVectorSimulationSystem.h"
+#include "IKeyArea.h"
 
 #include "EngineModule.h"
 
@@ -10708,6 +10709,15 @@ void FSequencer::BindCommands()
 		} ),
 		FCanExecuteAction::CreateLambda( []{ return true; } ),
 		FIsActionChecked::CreateLambda( [this]{ return Settings->GetShowLayerBars(); } ) );
+
+	SequencerCommandBindings->MapAction(
+		Commands.ToggleKeyBars,
+		FExecuteAction::CreateLambda( [this]{
+			Settings->SetShowKeyBars( !Settings->GetShowKeyBars() );
+			RefreshUI();
+		} ),
+		FCanExecuteAction::CreateLambda( []{ return true; } ),
+		FIsActionChecked::CreateLambda( [this]{ return Settings->GetShowKeyBars(); } ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleChannelColors,

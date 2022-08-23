@@ -107,6 +107,17 @@ public:
 	}
 
 	/**
+	 * Converts a pixel delta value to delta seconds time 
+	 *
+	 * @param PixelDelta The delta value in pixel space
+	 * @return The equivalent delta time in seconds
+	 */
+	double PixelDeltaToSeconds( float PixelDelta ) const
+	{
+		return ( PixelDelta / PixelsPerSecond );
+	}
+
+	/**
 	 * Retrieve the tick resolution of the current sequence
 	 */
 	FFrameRate GetTickResolution() const
@@ -117,7 +128,7 @@ public:
 	/**
 	 * Make this converter relative to the specified time (ie, such that pixel 0 == FrameAmount)
 	 */
-	FTimeToPixel RelativeTo(FFrameNumber FrameZero) const
+	FTimeToPixel RelativeTo(const FFrameTime& FrameZero) const
 	{
 		FTimeToPixel Copy = *this;
 		Copy.ViewRangeStartSeconds = FrameZero / TickResolution;

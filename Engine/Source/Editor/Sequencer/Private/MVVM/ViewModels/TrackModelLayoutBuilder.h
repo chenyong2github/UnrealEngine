@@ -103,14 +103,14 @@ public:
 
 	// ISectionLayoutBuilder interface
 
-	virtual void PushCategory( FName CategoryName, const FText& DisplayLabel ) override;
-	virtual void SetTopLevelChannel( const FMovieSceneChannelHandle& Channel ) override;
-	virtual void AddChannel( const FMovieSceneChannelHandle& Channel ) override;
+	virtual void PushCategory( FName CategoryName, const FText& DisplayLabel, TFunction<TSharedPtr<UE::Sequencer::FCategoryModel>(FName, const FText&)> OptionalFactory ) override;
+	virtual void SetTopLevelChannel( const FMovieSceneChannelHandle& Channel, TFunction<TSharedPtr<UE::Sequencer::FChannelModel>(FName, const FMovieSceneChannelHandle&)> OptionalFactory ) override;
+	virtual void AddChannel( const FMovieSceneChannelHandle& Channel, TFunction<TSharedPtr<UE::Sequencer::FChannelModel>(FName, const FMovieSceneChannelHandle&)> OptionalFactory ) override;
 	virtual void PopCategory() override;
 
 private:
 
-	void AddChannel( const FMovieSceneChannelHandle& Channel, bool bIsTopLevel );
+	void AddChannel( const FMovieSceneChannelHandle& Channel, bool bIsTopLevel, TFunction<TSharedPtr<UE::Sequencer::FChannelModel>(FName, const FMovieSceneChannelHandle&)> OptionalFactory );
 
 private:
 

@@ -274,6 +274,11 @@ public:
 	/** Set whether to show layer bars */ 
 	void SetShowLayerBars(bool bInShowLayerBars);
 
+	/** @return true if showing key bars */
+	bool GetShowKeyBars() const;
+	/** Set whether to show key bars */ 
+	void SetShowKeyBars(bool bInShowKeyBars);
+
 	/** @return true if key areas are infinite */
 	bool GetInfiniteKeyAreas() const;
 	/** Set whether to show channel colors */
@@ -294,9 +299,9 @@ public:
 	/** @ Remove curve extents for the given channel */
 	void RemoveKeyAreaCurveExtents(const FString& ChannelName);
 	/** @return Get the key area curve extents for the given channel */
-	void GetKeyAreaCurveExtents(const FString& ChannelName, float& InMin, float& InMax) const;
+	void GetKeyAreaCurveExtents(const FString& ChannelName, double& InMin, double& InMax) const;
 	/** Set the key area curve extents for the given channel */
-	void SetKeyAreaCurveExtents(const FString& ChannelName, float InMin, float InMax);
+	void SetKeyAreaCurveExtents(const FString& ChannelName, double InMin, double InMax);
 
 	/** @return The key area height when showing curves */
 	float GetKeyAreaHeightWithCurves() const;
@@ -529,6 +534,10 @@ protected:
 	/** Enable or disable the layer bars to edit keyframes in bulk. */
 	UPROPERTY( config, EditAnywhere, Category=Timeline )
 	bool bShowLayerBars;
+
+	/** Enable or disable key bar connections. */
+	UPROPERTY( config, EditAnywhere, Category=Timeline )
+	bool bShowKeyBars;
 
 	/** Enable or disable setting key area sections as infinite by default. */
 	UPROPERTY( config, EditAnywhere, Category=Timeline )

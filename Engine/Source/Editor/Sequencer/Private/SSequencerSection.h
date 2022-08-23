@@ -7,11 +7,7 @@
 #include "Input/Reply.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "SequencerSelectedKey.h"
 #include "Rendering/RenderingCommon.h"
-#include "SectionLayout.h"
-#include "SequencerKeyRenderer.h"
-#include "DisplayNodes/SequencerKeyTimeCache.h"
 
 #include "EventHandlers/ISignedObjectEventHandler.h"
 #include "MVVM/ViewModels/SectionModel.h"
@@ -27,6 +23,7 @@ namespace UE
 namespace Sequencer
 {
 
+class SCompoundTrackLaneView;
 class FSectionModel;
 struct ITrackAreaHotspot;
 
@@ -37,7 +34,7 @@ public:
 	{}
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs, TSharedPtr<FSequencer> Sequencer, TSharedPtr<FSectionModel> InSectionModel);
+	void Construct( const FArguments& InArgs, TSharedPtr<FSequencer> Sequencer, TSharedPtr<FSectionModel> InSectionModel, TSharedPtr<STrackLane> InOwningTrackLane);
 	~SSequencerSection();
 
 	TSharedPtr<ISequencerSection> GetSectionInterface() const { return SectionInterface; }
@@ -45,27 +42,6 @@ public:
 	virtual FVector2D ComputeDesiredSize(float) const override;
 
 private:
-
-	/**
-	 * Determines the key that is under the mouse
-	 *
-	 * @param MousePosition		The current screen space position of the mouse
-	 * @param AllottedGeometry	The geometry of the mouse event
-	 * @param OutKeys			Array to populate with the keys that are under the mouse
-	 * @param KeyHeightFraction Optional key height fraction. Keys are by default offset and half height. Pass in 1 if checking full height of key track area.  
-	 * @return The key that is under the mouse.  Invalid if there is no key under the mouse
-	 */
-	void GetKeysUnderMouse( const FVector2D& MousePosition, const FGeometry& AllottedGeometry, TArray<FSequencerSelectedKey>& OutKeys, float KeyHeightFraction=0.5f ) const;
-
-	/**
-	 * Creates a key at the mouse position
-	 *
-	 * @param MousePosition		The current screen space position of the mouse
-	 * @param AllottedGeometry	The geometry of the mouse event
-	 * @param InPressedKeys     Keys if pressed
-	 * @param OutKeys			Array to populate with the new keys
-	 */
-	void CreateKeysUnderMouse( const FVector2D& MousePosition, const FGeometry& AllottedGeometry, TArrayView<const FSequencerSelectedKey> InPressedKeys, TArray<FSequencerSelectedKey>& OutKeys );
 
 	/**
 	 * Checks for user interaction (via the mouse) with the left and right edge of a section
@@ -94,7 +70,7 @@ private:
 	virtual void ReportParentGeometry(const FGeometry& InParentGeometry) override;
 	virtual TSharedRef<const SWidget> AsWidget() const override { return AsShared(); }
 	virtual bool AcceptsChildren() const override { return true; }
-	virtual void AddChildLane(TSharedPtr<ITrackLaneWidget> ChildWidget) override;
+	virtual void AddChildView(TSharedPtr<ITrackLaneWidget> ChildWidget, TWeakPtr<STrackLane> InWeakOwningLane) override;
 
 	/**
 	 * Paint the easing handles for this section
@@ -139,11 +115,11 @@ public:
 	/** Indicate that the current key selection should throb the specified number of times. A single throb takes 0.2s. */
 	static void ThrobKeySelection(int32 ThrobCount = 1);
 
-	/** Get a value between 0 and 1 that indicates the amount of throb-scale to apply to the currently selected sections */
-	static float GetSectionSelectionThrobValue();
-
 	/** Get a value between 0 and 1 that indicates the amount of throb-scale to apply to the currently selected keys */
 	static float GetKeySelectionThrobValue();
+
+	/** Get a value between 0 and 1 that indicates the amount of throb-scale to apply to the currently selected sections */
+	static float GetSectionSelectionThrobValue();
 
 	/**
 	 * Check to see whether the specified section is highlighted
@@ -156,8 +132,10 @@ private:
 	TSharedPtr<ISequencerSection> SectionInterface;
 	/** Section model */
 	TWeakPtr<FSectionModel> WeakSectionModel;
-	/** Cached layout generated each tick */
-	TOptional<FSectionLayout> Layout;
+	/** Widget container for child lanes */
+	TSharedPtr<SCompoundTrackLaneView> ChildLaneWidgets;
+	/** The track lane that this widget is on */
+	TWeakPtr<STrackLane> WeakOwningTrackLane;
 	/** Cached parent geometry to pass down to any section interfaces that need it during tick */
 	FGeometry ParentGeometry;
 	/** The end time for a throbbing animation for selected sections */
@@ -170,8 +148,6 @@ private:
 	TArray<FOverlappingSections> UnderlappingSegments;
 	/** Array of segments that define other sections that reside below this one */
 	TArray<FOverlappingSections> UnderlappingEasingSegments;
-	/** structure responsible for rendering keys  */
-	FKeyRenderer KeyRenderer;
 
 	MovieScene::TNonIntrusiveEventHandler<MovieScene::ISignedObjectEventHandler> TrackModifiedBinding;
 

@@ -1104,7 +1104,7 @@ TSharedPtr<STrackLane> SOutlinerView::FindOrCreateParentLane(TViewModelPtr<IOutl
 				if (!TrackLane)
 				{
 					// Add a track slot for the nested track lane parent if it doesn't already exist
-					TrackLane = SNew(STrackLane, TrackArea->GetViewModel(), OutlinerExtItem, TrackAreaParameters, SharedThis(this));
+					TrackLane = SNew(STrackLane, TrackArea, OutlinerExtItem, nullptr, TrackAreaParameters, SharedThis(this));
 					TrackArea->AddTrackSlot(OutlinerExtItem, TrackLane);
 				}
 
@@ -1136,13 +1136,8 @@ void SOutlinerView::CreateTrackLanesForRow(TSharedRef<SOutlinerViewRow> InRow, T
 				if (!TrackLane)
 				{
 					// Add a track slot for the row
-					TrackLane = SNew(STrackLane, TrackArea->GetViewModel(), CurDataModel, Parameters, SharedThis(this));
-
 					TSharedPtr<STrackLane> ParentLane = FindOrCreateParentLane(CurDataModel);
-					if (ParentLane)
-					{
-						TrackLane->SetParent(ParentLane);
-					}
+					TrackLane = SNew(STrackLane, TrackArea, CurDataModel, ParentLane, Parameters, SharedThis(this));
 
 					TrackArea->AddTrackSlot(CurDataModel, TrackLane);
 				}

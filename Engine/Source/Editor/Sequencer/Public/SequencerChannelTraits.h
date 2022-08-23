@@ -4,7 +4,7 @@
 
 #include "Templates/SharedPointer.h"
 #include "ISequencerChannelInterface.h"
-#include "KeyDrawParams.h"
+#include "MVVM/Views/KeyDrawParams.h"
 #include "Channels/MovieSceneChannelData.h"
 #include "MovieSceneClipboard.h"
 #include "SequencerClipboardReconciler.h"
@@ -356,5 +356,18 @@ namespace Sequencer
 	 * @return (Optional) A new model to be added to a curve editor
 	 */
 	SEQUENCER_API TUniquePtr<FCurveModel> CreateCurveEditorModel(const FMovieSceneChannelHandle& ChannelHandle, UMovieSceneSection* OwningSection, TSharedRef<ISequencer> InSequencer);
+
+
+	/**
+	 * Whether this channel should draw a curve on its editor UI
+	 *
+	 * @param Channel               The channel to query
+	 * @param InSection             The section that owns the channel
+	 * @return true to show the curve on the UI, false otherwise
+	 */
+	inline bool ShouldShowCurve(const FMovieSceneChannel* Channel, UMovieSceneSection* InSection)
+	{
+		return false;
+	}
 
 }	// namespace Sequencer

@@ -500,18 +500,9 @@ FCursorReply FSequencerEditTool_Movement::OnCursorQuery(const FGeometry& MyGeome
 {
 	using namespace UE::Sequencer;
 
-	TSharedPtr<FTrackAreaViewModel> TrackArea = Sequencer.GetViewModel()->GetTrackArea();
-	TSharedPtr<ITrackAreaHotspot> Hotspot = DelayedDrag.IsSet()
-		? DelayedDrag->Hotspot
-		: TrackArea->GetHotspot();
-
-	if (Hotspot.IsValid())
+	if (DragOperation)
 	{
-		FCursorReply Reply = Hotspot->GetCursor();
-		if (Reply.IsEventHandled())
-		{
-			return Reply;
-		}
+		return DragOperation->GetCursor();
 	}
 
 	return FCursorReply::Cursor(EMouseCursor::CardinalCross);

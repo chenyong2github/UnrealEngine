@@ -7,16 +7,6 @@
 #include "IKeyArea.h"
 #include "Channels/MovieSceneChannelProxy.h"
 
-/** Structure used during key area creation to group channels by their group name */
-struct FChannelData
-{
-	/** Handle to the channel */
-	FMovieSceneChannelHandle Channel;
-
-	/** The channel's editor meta data */
-	const FMovieSceneChannelMetaData& MetaData;
-};
-
 /** Data pertaining to a group of channels */
 struct FGroupData
 {
@@ -25,7 +15,7 @@ struct FGroupData
 		, SortOrder(-1)
 	{}
 
-	void AddChannel(FChannelData&& InChannel)
+	void AddChannel(ISequencerSection::FChannelData&& InChannel)
 	{
 		if (InChannel.MetaData.SortOrder < SortOrder)
 		{
@@ -42,7 +32,7 @@ struct FGroupData
 	uint32 SortOrder;
 
 	/** Array of channels within this group */
-	TArray<FChannelData, TInlineAllocator<4>> Channels;
+	TArray<ISequencerSection::FChannelData, TInlineAllocator<4>> Channels;
 };
 
 void ISequencerSection::GenerateSectionLayout( ISectionLayoutBuilder& LayoutBuilder )
@@ -90,20 +80,25 @@ void ISequencerSection::GenerateSectionLayout( ISectionLayoutBuilder& LayoutBuil
 		return;
 	}
 
+	auto ChannelFactory = [this](FName InChannelName, const FMovieSceneChannelHandle& InChannel)
+	{
+		return this->ConstructChannelModel(InChannelName, InChannel);
+	};
+
 	// Collapse single channels to the top level track node if allowed
 	if (GroupToChannelsMap.Num() == 1)
 	{
 		const TTuple<FName, FGroupData>& Pair = *GroupToChannelsMap.CreateIterator();
 		if (Pair.Value.Channels.Num() == 1 && Pair.Value.Channels[0].MetaData.bCanCollapseToTrack)
 		{
-			LayoutBuilder.SetTopLevelChannel(Pair.Value.Channels[0].Channel);
+			LayoutBuilder.SetTopLevelChannel(Pair.Value.Channels[0].Channel, ChannelFactory);
 			return;
 		}
 	}
 
 	// Sort the channels in each group by its sort order and name
 	TArray<FName, TInlineAllocator<6>> SortedGroupNames;
-	for (auto& Pair : GroupToChannelsMap)
+	for (TPair<FName, FGroupData>& Pair : GroupToChannelsMap)
 	{
 		SortedGroupNames.Add(Pair.Key);
 
@@ -138,16 +133,21 @@ void ISequencerSection::GenerateSectionLayout( ISectionLayoutBuilder& LayoutBuil
 	// Create key areas for each group name
 	for (FName GroupName : SortedGroupNames)
 	{
-		auto& ChannelData = GroupToChannelsMap.FindChecked(GroupName);
+		FGroupData& ChannelData = GroupToChannelsMap.FindChecked(GroupName);
 
 		if (!GroupName.IsNone())
 		{
-			LayoutBuilder.PushCategory(GroupName, ChannelData.GroupText);
+			auto Factory = [this, &ChannelData](FName InCategoryName, const FText& InDisplayText)
+			{
+				return this->ConstructCategoryModel(InCategoryName, InDisplayText, ChannelData.Channels);
+			};
+
+			LayoutBuilder.PushCategory(GroupName, ChannelData.GroupText, Factory);
 		}
 
 		for (const FChannelData& ChannelAndData : ChannelData.Channels)
 		{
-			LayoutBuilder.AddChannel(ChannelAndData.Channel);
+			LayoutBuilder.AddChannel(ChannelAndData.Channel, ChannelFactory);
 		}
 
 		if (!GroupName.IsNone())

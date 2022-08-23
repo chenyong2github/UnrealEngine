@@ -330,3 +330,16 @@ TUniquePtr<FCurveModel> IKeyArea::CreateCurveEditorModel(TSharedRef<ISequencer> 
 
 	return nullptr;
 }
+
+bool IKeyArea::ShouldShowCurve() const
+{
+	ISequencerChannelInterface* EditorInterface = FindChannelEditorInterface();
+	FMovieSceneChannel* Channel = ChannelHandle.Get();
+	UMovieSceneSection* OwningSection = GetOwningSection();
+	if (EditorInterface && Channel && OwningSection)
+	{
+		return EditorInterface->ShouldShowCurve_Raw(Channel, OwningSection);
+	}
+
+	return false;
+}

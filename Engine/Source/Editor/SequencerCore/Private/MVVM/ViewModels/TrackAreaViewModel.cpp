@@ -34,9 +34,9 @@ void FTrackAreaViewModel::AddEditTool(TSharedPtr<ISequencerEditTool> InNewTool)
 	EditTools.Add(MoveTemp(InNewTool));
 }
 
-FTimeToPixel FTrackAreaViewModel::GetTimeToPixel(const FGeometry& AllottedGeometry) const
+FTimeToPixel FTrackAreaViewModel::GetTimeToPixel(float TrackAreaWidth) const
 {
-	return FTimeToPixel(AllottedGeometry, GetViewRange(), GetTickResolution());
+	return FTimeToPixel(TrackAreaWidth, GetViewRange(), GetTickResolution());
 }
 
 FFrameRate FTrackAreaViewModel::GetTickResolution() const

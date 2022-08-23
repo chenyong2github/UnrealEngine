@@ -74,9 +74,6 @@ public:
 	/** The full geometry of the section. This is the width of the track area in the case of infinite sections */
 	FGeometry SectionGeometry;
 
-	/** Key area info with key area geometry for per key area track painting */
-	TArray<FKeyAreaElement> KeyAreaElements;
-	
 	/** The full clipping rectangle for the section */
 	FSlateRect SectionClippingRect;
 	

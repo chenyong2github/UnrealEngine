@@ -146,6 +146,15 @@ struct ISequencerChannelInterface
 	virtual void DrawKeys_Raw(FMovieSceneChannel* Channel, TArrayView<const FKeyHandle> InKeyHandles, const UMovieSceneSection* InOwner, TArrayView<FKeyDrawParams> OutKeyDrawParams) const = 0;
 
 	/**
+	 * Whether this channel should draw a curve on its editor UI
+	 *
+	 * @param Channel               The channel to query
+	 * @param InSection             The section that owns the channel
+	 * @return true to show the curve on the UI, false otherwise
+	 */
+	virtual bool ShouldShowCurve_Raw(const FMovieSceneChannel* Channel, UMovieSceneSection* InSection) const = 0;
+
+	/**
 	 * Whether this channel supports curve models
 	 */
 	virtual bool SupportsCurveEditorModels_Raw(const FMovieSceneChannelHandle& InChannel) const = 0;

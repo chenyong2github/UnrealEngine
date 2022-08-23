@@ -52,6 +52,8 @@ private:
 
 	void SetSectionToKey();
 
+	bool IsSectionToKey() const;
+
 	bool CanSetSectionToKey() const;
 
 	void AutoSizeSection();

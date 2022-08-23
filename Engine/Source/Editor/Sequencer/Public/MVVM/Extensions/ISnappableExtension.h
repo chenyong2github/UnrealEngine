@@ -21,11 +21,31 @@ struct SEQUENCER_API FSnapPoint
 {
 	enum ESnapType { Key, SectionBounds, CustomSection, PlaybackRange, CurrentTime, InOutRange, Mark };
 
-	/** The type of snap */
-	ESnapType Type;
+	FSnapPoint(ESnapType InType, FFrameNumber InTime, float InWeighting = -1.f)
+		: Time(InTime)
+		, Weighting(InWeighting)
+		, Type(InType)
+	{
+		if (InWeighting == -1.f)
+		{
+			if (Type != UE::Sequencer::FSnapPoint::Key)
+			{
+				Weighting = 10.f;
+			}
+			else
+			{
+				Weighting = 1.f;
+			}
+		}
+	}
 
 	/** The time of the snap */
 	FFrameNumber Time;
+
+	float Weighting = 1.f;
+
+	/** The type of snap */
+	ESnapType Type;
 };
 
 class SEQUENCER_API ISnapField

@@ -19,9 +19,11 @@ public:
 	struct FSnapResult
 	{
 		/** The time before it was snapped */
-		FFrameNumber Original;
+		FFrameTime OriginalTime;
 		/** The time after it was snapped */
-		FFrameNumber Snapped;
+		FFrameNumber SnappedTime;
+		/** The total weight of the time that was snapped to */
+		float SnappedWeight = 0.f;
 	};
 
 	FSequencerSnapField(){}
@@ -40,10 +42,10 @@ public:
 	void Finalize();
 
 	/** Snap the specified time to this field with the given threshold */
-	TOptional<FFrameNumber> Snap(FFrameNumber InTime, int32 Threshold) const;
+	TOptional<FSnapResult> Snap(const FFrameTime& InTime, const FFrameTime& Threshold) const;
 
 	/** Snap the specified times to this field with the given threshold. Will return the closest snap value of the entire intersection. */
-	TOptional<FSnapResult> Snap(const TArray<FFrameNumber>& InTimes, int32 Threshold) const;
+	TOptional<FSnapResult> Snap(const TArray<FFrameTime>& InTimes, const FFrameTime& Threshold) const;
 
 private:
 	/** Array of snap points, approximately grouped, and sorted in ascending order by time */

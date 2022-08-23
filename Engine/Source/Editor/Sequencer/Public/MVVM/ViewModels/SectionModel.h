@@ -78,6 +78,9 @@ public:
 	/** Gets an array of sections whose easing bounds underlap the specified section */
 	TArray<FOverlappingSections> GetEasingSegments();
 
+	int32 GetPreRollFrames() const;
+	int32 GetPostRollFrames() const;
+
 public:
 
 	/*~ ILayerBarExtension Interface */

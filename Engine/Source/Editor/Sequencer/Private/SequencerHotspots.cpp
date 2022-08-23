@@ -9,14 +9,17 @@
 #include "MVVM/Views/STrackAreaView.h"
 #include "Tools/SequencerEditTool_Movement.h"
 #include "Tools/SequencerEditTool_Selection.h"
+#include "Tools/SequencerSnapField.h"
 #include "Widgets/Layout/SBox.h"
 #include "Styling/AppStyle.h"
 #include "Channels/MovieSceneChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "MovieSceneTimeHelpers.h"
 #include "SequencerCommonHelpers.h"
+#include "MovieSceneSignedObject.h"
 
 #include "MVVM/ViewModels/SectionModel.h"
+#include "MVVM/ViewModels/VirtualTrackArea.h"
 
 #define LOCTEXT_NAMESPACE "SequencerHotspots"
 
@@ -26,6 +29,7 @@ namespace Sequencer
 {
 
 UE_SEQUENCER_DEFINE_CASTABLE(FKeyHotspot);
+UE_SEQUENCER_DEFINE_CASTABLE(FKeyBarHotspot);
 UE_SEQUENCER_DEFINE_CASTABLE(FSectionEasingAreaHotspot);
 UE_SEQUENCER_DEFINE_CASTABLE(FSectionEasingHandleHotspot);
 UE_SEQUENCER_DEFINE_CASTABLE(FSectionHotspot);
@@ -179,6 +183,149 @@ bool FKeyHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExt
 		FKeyContextMenu::BuildMenu(MenuBuilder, MenuExtender, *Sequencer);
 	}
 	return true;
+}
+
+void FKeyBarHotspot::UpdateOnHover(FTrackAreaViewModel& InTrackArea) const
+{
+}
+TOptional<FFrameNumber> FKeyBarHotspot::GetTime() const
+{
+	FFrameNumber Time = 0;
+
+	if (LeadingKeys.Num())
+	{
+		TArrayView<const FSequencerSelectedKey> FirstKey(&LeadingKeys.Last(), 1);
+		TArrayView<FFrameNumber> FirstKeyTime(&Time, 1);
+		GetKeyTimes(FirstKey, FirstKeyTime);
+	}
+
+	return Time;
+}
+
+FCursorReply FKeyBarHotspot::GetCursor() const
+{
+	return FCursorReply::Cursor(EMouseCursor::ResizeLeftRight);
+}
+
+TSharedPtr<ISequencerEditToolDragOperation> FKeyBarHotspot::InitiateDrag(const FPointerEvent& MouseEvent)
+{
+	struct FKeyBarDrag : ISequencerEditToolDragOperation, UE::Sequencer::ISnapCandidate
+	{
+		FFrameTime RelativeStartTime;
+
+		TArray<FFrameTime> RelativeStartTimes;
+		TArray<FSequencerSelectedKey> AllLinearKeys;
+
+		TSet<FSequencerSelectedKey> AllKeys;
+
+		TSharedPtr<FKeyBarHotspot> Hotspot;
+		TUniquePtr<FScopedTransaction> Transaction;
+		TSet<UMovieSceneSection*> ModifiedSections;
+		FSequencerSnapField SnapField;
+	
+		FKeyBarDrag(TSharedPtr<FKeyBarHotspot> InHotspot, TSharedPtr<FSequencer> InSequencer)
+			: Hotspot(InHotspot)
+		{
+			AllKeys.Append(Hotspot->LeadingKeys);
+			AllKeys.Append(Hotspot->TrailingKeys);
+			AllKeys.Append(InSequencer->GetSelection().GetSelectedKeys());
+
+			AllLinearKeys = AllKeys.Array();
+
+			SnapField = FSequencerSnapField(*InSequencer, *this);
+		}
+
+		void OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea) override
+		{
+			RelativeStartTime = VirtualTrackArea.PixelToFrame(LocalMousePos.X);
+
+			// Cache off the starting times
+			TArray<FFrameNumber> AbsoluteStartTimes;
+			AbsoluteStartTimes.SetNumUninitialized(AllLinearKeys.Num());
+			RelativeStartTimes.SetNumUninitialized(AllLinearKeys.Num());
+
+			// Make the times relative to the initial drag position
+			GetKeyTimes(AllLinearKeys, AbsoluteStartTimes);
+			for (int32 Index = 0; Index < AbsoluteStartTimes.Num() ; ++Index)
+			{
+				RelativeStartTimes[Index] = (AbsoluteStartTimes[Index] - RelativeStartTime);
+			}
+
+			Transaction = MakeUnique<FScopedTransaction>(LOCTEXT("DragKeyBarTransaction", "Move Keys"));
+
+			for (const FSequencerSelectedKey& Key : AllLinearKeys)
+			{
+				if (!ModifiedSections.Contains(Key.Section))
+				{
+					ModifiedSections.Add(Key.Section);
+				}
+			}
+		}
+		void OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea) override
+		{
+			UE::MovieScene::FScopedSignedObjectModifyDefer Defer(true);
+
+			const FFrameTime NewTime = VirtualTrackArea.PixelToFrame(LocalMousePos.X);
+
+			for (UMovieSceneSection* Section : ModifiedSections)
+			{
+				Section->Modify();
+			}
+
+			// Set the position of leading and trailing keys
+			TArray<FFrameTime> NewKeyTimes;
+			NewKeyTimes.SetNumUninitialized(RelativeStartTimes.Num());
+
+			for (int32 Index = 0; Index < RelativeStartTimes.Num(); ++Index)
+			{
+				NewKeyTimes[Index] = NewTime + RelativeStartTimes[Index];
+			}
+
+			const float PixelSnapWidth = 20.f;
+			const int32 SnapThreshold = VirtualTrackArea.PixelDeltaToFrame(PixelSnapWidth).FloorToFrame().Value;
+			if (TOptional<FSequencerSnapField::FSnapResult> SnappedTime = SnapField.Snap(NewKeyTimes, SnapThreshold))
+			{
+				FFrameTime SnappedDiff = SnappedTime->SnappedTime - SnappedTime->OriginalTime;
+				for (int32 Index = 0; Index < RelativeStartTimes.Num(); ++Index)
+				{
+					NewKeyTimes[Index] = NewKeyTimes[Index] + SnappedDiff;
+				}
+			}
+
+			TArray<FFrameNumber> NewKeyFrames;
+			NewKeyFrames.SetNumUninitialized(NewKeyTimes.Num());
+			for (int32 Index = 0; Index < NewKeyTimes.Num(); ++Index)
+			{
+				NewKeyFrames[Index] = NewKeyTimes[Index].RoundToFrame();
+			}
+			SetKeyTimes(AllLinearKeys, NewKeyFrames);
+		}
+		void OnEndDrag( const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea) override
+		{
+			Transaction.Reset();
+		}
+		FCursorReply GetCursor() const override
+		{
+			return FCursorReply::Cursor(EMouseCursor::ResizeLeftRight);
+		}
+		int32 OnPaint(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const override
+		{
+			return LayerId;
+		}
+		bool IsKeyApplicable(FKeyHandle KeyHandle, const UE::Sequencer::FViewModelPtr& Owner) const override
+		{
+			using namespace UE::Sequencer;
+
+			TSharedPtr<FChannelModel> Channel = Owner.ImplicitCast();
+			return Channel && !AllKeys.Contains(FSequencerSelectedKey(*Channel->GetSection(), Channel, KeyHandle));
+		}
+		bool AreSectionBoundsApplicable(UMovieSceneSection* Section) const override
+		{
+			return true;
+		}
+	};
+
+	return MakeShared<FKeyBarDrag>(SharedThis(this), WeakSequencer.Pin());
 }
 
 UMovieSceneSection* FSectionHotspotBase::GetSection() const

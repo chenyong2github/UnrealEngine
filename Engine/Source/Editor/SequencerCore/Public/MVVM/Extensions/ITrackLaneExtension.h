@@ -3,8 +3,7 @@
 #pragma once
 
 #include "MVVM/ViewModelTypeID.h"
-#include "MVVM/ViewModels/EditorViewModel.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Types/SlateEnums.h"
 
 struct FGeometry;
 
@@ -18,6 +17,9 @@ namespace UE
 namespace Sequencer
 {
 
+class FViewModel;
+class STrackLane;
+class FEditorViewModel;
 struct FTrackLaneScreenAlignment;
 
 struct SEQUENCERCORE_API FTrackLaneVerticalArrangement
@@ -124,7 +126,7 @@ public:
 	/**
 	 * Add a new child to this lane
 	 */
-	virtual void AddChildLane(TSharedPtr<ITrackLaneWidget> ChildWidget) {}
+	virtual void AddChildView(TSharedPtr<ITrackLaneWidget> ChildWidget, TWeakPtr<STrackLane> InWeakOwningLane) {}
 };
 
 /** Parameters for creating a track lane widget */
@@ -135,6 +137,12 @@ struct SEQUENCERCORE_API FCreateTrackLaneViewParams
 	{}
 
 	const TSharedPtr<FEditorViewModel> Editor;
+
+	TSharedPtr<FViewModel> ParentModel;
+
+	TSharedPtr<STrackLane> OwningTrackLane;
+
+	TSharedPtr<FTimeToPixel> TimeToPixel;
 };
 
 /** Extension for view-models that can create track lanes in the track area */

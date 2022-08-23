@@ -36,7 +36,7 @@ public:
 	TSharedPtr<FEditorViewModel> GetEditor() const;
 
 	/** Create a time/pixel converter for the given geometry */
-	FTimeToPixel GetTimeToPixel(const FGeometry& AllottedGeometry) const;
+	FTimeToPixel GetTimeToPixel(float TrackAreaWidth) const;
 
 	/** Gets the current tick resolution of the editor */
 	virtual FFrameRate GetTickResolution() const;

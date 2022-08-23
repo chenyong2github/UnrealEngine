@@ -12,9 +12,7 @@
 #include "MVVM/Extensions/ITrackLaneExtension.h"
 #include "MVVM/Extensions/IOutlinerExtension.h"
 
-class FViewModel;
 class FPaintArgs;
-class FViewModel;
 class FSlateWindowElementList;
 class FTrackAreaViewModel;
 
@@ -24,11 +22,12 @@ namespace Sequencer
 {
 
 class SOutlinerView;
+class STrackAreaView;
 
 /**
  * A wrapper widget responsible for positioning a track lane within the section area
  */
-class STrackLane
+class SEQUENCERCORE_API STrackLane
 	: public SPanel
 {
 public:
@@ -39,7 +38,7 @@ public:
 	~STrackLane();
 
 	/** Construct this widget */
-	void Construct(const FArguments& InArgs, TWeakPtr<FTrackAreaViewModel> InTrackAreaViewModel, TWeakViewModelPtr<IOutlinerExtension> InWeakOutlinerItem, const FTrackAreaParameters& InTrackParams, const TSharedRef<SOutlinerView>& InTreeView);
+	void Construct(const FArguments& InArgs, TWeakPtr<STrackAreaView> InTrackAreaView, TWeakViewModelPtr<IOutlinerExtension> InWeakOutlinerItem, TSharedPtr<STrackLane> InParentLane, const FTrackAreaParameters& InTrackParams, const TSharedRef<SOutlinerView>& InTreeView);
 
 	/*~ SWidget Interface */
 	int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
@@ -57,8 +56,11 @@ public:
 	/** Gets the outliner view-model that created this track lane */
 	TViewModelPtr<IOutlinerExtension> GetOutlinerItem() const;
 
-	/** Sets the parent track lane of this track lane */
-	void SetParent(TSharedPtr<STrackLane> InParentLane);
+	TSharedPtr<STrackLane> GetParentLane() const;
+
+	TArrayView<const TWeakPtr<STrackLane>> GetChildLanes() const;
+
+	const TMap<FWeakViewModelPtr, TSharedPtr<ITrackLaneWidget>>& GetAllWidgets() const { return WidgetsByModel; }
 
 	/** Gets the vertical offset of this track lane */
 	float GetVerticalPosition() const;
@@ -76,6 +78,8 @@ public:
 	/** Returns whether the outliner item that created this track lane is pinned or not */
 	bool IsPinned() const;
 
+	TSharedPtr<ITrackLaneWidget> FindWidgetForModel(const FWeakViewModelPtr& InModel) const;
+
 protected:
 
 	int32 PaintLaneBackground(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle) const;
@@ -84,7 +88,7 @@ protected:
 	void RecreateWidgets();
 
 private:
-	TWeakPtr<FTrackAreaViewModel> WeakTrackAreaViewModel;
+	TWeakPtr<STrackAreaView> WeakTrackAreaView;
 
 	/** The outliner item that created this lane */
 	TWeakViewModelPtr<IOutlinerExtension> WeakOutlinerItem;
@@ -92,8 +96,14 @@ private:
 	/** Pointer back to the tree view for virtual <-> physical space conversions. Important: weak ptr to avoid circular references */
 	TWeakPtr<SOutlinerView> TreeView;
 
+	TMap<FWeakViewModelPtr, TSharedPtr<ITrackLaneWidget>> WidgetsByModel;
+
+	TArray<TWeakPtr<STrackLane>> WeakChildLanes;
+
 	/** Parent track lane - intentionally a _strong_ ptr to the parent in order to keep it alive even if it is scrolled out of view */
 	TSharedPtr<STrackLane> ParentLane;
+
+	TSharedPtr<FTimeToPixel> TimeToPixel;
 
 	struct FSlot : TSlotBase<FSlot>
 	{

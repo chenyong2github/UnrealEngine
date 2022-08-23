@@ -56,16 +56,31 @@ void STrackAreaView::Construct(const FArguments& InArgs, TWeakPtr<FTrackAreaView
 	// Space for the edit tool
 	InputStack.AddHandler(nullptr);
 
-	if (TSharedPtr<FTrackAreaViewModel> ViewModel = WeakViewModel.Pin())
-	{
-		InputStack.OnBeginCapture.AddSP(ViewModel.Get(), &FTrackAreaViewModel::LockEditTool);
-		InputStack.OnEndCapture.AddSP(ViewModel.Get(), &FTrackAreaViewModel::UnlockEditTool);
-	}
+	TSharedPtr<FTrackAreaViewModel> ViewModel = WeakViewModel.Pin();
+	check(ViewModel);
+
+	InputStack.OnBeginCapture.AddSP(ViewModel.Get(), &FTrackAreaViewModel::LockEditTool);
+	InputStack.OnEndCapture.AddSP(ViewModel.Get(), &FTrackAreaViewModel::UnlockEditTool);
+
+	// Set some default time to pixel
+	TimeToPixel = MakeShared<FTimeToPixel>(ViewModel->GetTimeToPixel(100.f));
+
+	SetClipping(EWidgetClipping::ClipToBoundsAlways);
+}
+
+const FTrackAreaViewLayers& STrackAreaView::GetPaintLayers() const
+{
+	return LayerIds;
 }
 
 TSharedPtr<FTrackAreaViewModel> STrackAreaView::GetViewModel() const
 {
 	return WeakViewModel.Pin();
+}
+
+TSharedPtr<FTimeToPixel> STrackAreaView::GetTimeToPixel() const
+{
+	return TimeToPixel;
 }
 
 FLinearColor STrackAreaView::BlendDefaultTrackColor(FLinearColor InColor)
@@ -104,6 +119,14 @@ TSharedPtr<STrackLane> STrackAreaView::FindTrackSlot(const TViewModelPtr<IOutlin
 
 void STrackAreaView::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const
 {
+	TSharedPtr<FTrackAreaViewModel> TrackArea = WeakViewModel.Pin();
+	if (!TrackArea)
+	{
+		return;
+	}
+
+	*const_cast<STrackAreaView*>(this)->TimeToPixel = FTimeToPixel(TrackArea->GetTimeToPixel(AllottedGeometry.GetLocalSize().X));
+
 	for (int32 ChildIndex = 0; ChildIndex < Children.Num(); ++ChildIndex)
 	{
 		const FTrackAreaSlot& CurChild = Children[ChildIndex];
@@ -171,6 +194,9 @@ int32 STrackAreaView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedG
 		return LayerId;
 	}
 
+	// Reassign the time <-> pixel space for this frame
+	*GetTimeToPixel() = TrackArea->GetTimeToPixel(AllottedGeometry.GetLocalSize().X);
+
 	// TODO: TrackEditors are drawn in subclass, maybe should be done in viewmodel?
 
 	// paint the child widgets
@@ -179,14 +205,19 @@ int32 STrackAreaView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedG
 
 	const FPaintArgs NewArgs = Args.WithNewParent(this);
 
+	LayerIds.LaneBackgrounds = LayerId;
+
+	float MaxLayerId = LayerId;
 	for (int32 ChildIndex = 0; ChildIndex < ArrangedChildren.Num(); ++ChildIndex)
 	{
 		FArrangedWidget& CurWidget = ArrangedChildren[ChildIndex];
 		FSlateRect ChildClipRect = MyCullingRect.IntersectionWith( CurWidget.Geometry.GetLayoutBoundingRect() );
-		const int32 ThisWidgetLayerId = CurWidget.Widget->Paint( NewArgs, CurWidget.Geometry, ChildClipRect, OutDrawElements, LayerId + 2, InWidgetStyle, ShouldBeEnabled( bParentEnabled ) );
+		const int32 ThisWidgetLayerId = CurWidget.Widget->Paint( NewArgs, CurWidget.Geometry, ChildClipRect, OutDrawElements, LayerId, InWidgetStyle, ShouldBeEnabled( bParentEnabled ) );
 
-		LayerId = FMath::Max(LayerId, ThisWidgetLayerId);
+		MaxLayerId = FMath::Max(MaxLayerId, ThisWidgetLayerId);
 	}
+
+	LayerId = MaxLayerId;
 
 	if (const ISequencerEditTool* EditTool = TrackArea->GetEditTool())
 	{
@@ -217,9 +248,8 @@ int32 STrackAreaView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedG
 
 		if (DropFrameRange.IsSet())
 		{
-			FTimeToPixel TimeToPixel = TrackArea->GetTimeToPixel(AllottedGeometry);
-			DropMinX = TimeToPixel.FrameToPixel(DropFrameRange.GetValue().GetLowerBoundValue());
-			DropMaxX = TimeToPixel.FrameToPixel(DropFrameRange.GetValue().GetUpperBoundValue());
+			DropMinX = TimeToPixel->FrameToPixel(DropFrameRange.GetValue().GetLowerBoundValue());
+			DropMaxX = TimeToPixel->FrameToPixel(DropFrameRange.GetValue().GetUpperBoundValue());
 		}
 
 		// Top
@@ -412,6 +442,15 @@ FCursorReply STrackAreaView::OnCursorQuery( const FGeometry& MyGeometry, const F
 
 	if (TSharedPtr<FTrackAreaViewModel> TrackArea = WeakViewModel.Pin())
 	{
+		if (TSharedPtr<ITrackAreaHotspot> Hotspot = TrackArea->GetHotspot())
+		{
+			FCursorReply HotspotCursor = Hotspot->GetCursor();
+			if (HotspotCursor.IsEventHandled())
+			{
+				return HotspotCursor;
+			}
+		}
+
 		if (ISequencerEditTool* EditTool  = TrackArea->GetEditTool())
 		{
 			return EditTool->OnCursorQuery(MyGeometry, CursorEvent);

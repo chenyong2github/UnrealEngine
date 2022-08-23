@@ -132,6 +132,13 @@ public:
 	 */
 	TSharedPtr<ISequencerSection> GetSectionInterface() const;
 
+	/**
+	 * Check whether we should show this key area's curve on its channel UI or not
+	 *
+	 * @return True to show the curve, false otherwise
+	 */
+	bool ShouldShowCurve() const;
+
 public:
 
 	/**

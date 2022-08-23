@@ -701,7 +701,7 @@ void UMovieSceneSection::EvaluateEasing(FFrameTime InTime, TOptional<float>& Out
 		}
 	}
 
-	if (HasEndFrame() && Easing.EaseOut.GetObject() && GetEaseOutRange().Contains(InTime.FrameNumber))
+	if (HasEndFrame() && Easing.EaseOut.GetObject() && (GetEaseOutRange().Contains(InTime.FrameNumber) || GetEaseOutRange().GetUpperBoundValue() == InTime.FrameNumber))
 	{
 		const int32  EaseFrame     = (InTime.FrameNumber - GetExclusiveEndFrame() + Easing.GetEaseOutDuration()).Value;
 		const double EaseOutInterp = (double(EaseFrame) + InTime.GetSubFrame()) / Easing.GetEaseOutDuration();

@@ -128,9 +128,8 @@ FReply SSequencerTrackAreaView::OnDragOver(const FGeometry& MyGeometry, const FD
 			// give track editors a chance to accept the drag event
 			const TArray<TSharedPtr<ISequencerTrackEditor>>& TrackEditors = Sequencer->GetTrackEditors();
 
-			FTimeToPixel TimeToPixel(MyGeometry, Sequencer->GetViewRange(), Sequencer->GetFocusedTickResolution());
 			FVector2D LocalPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
-			FFrameNumber DropFrameNumber = TimeToPixel.PixelToFrame(LocalPos.X).FrameNumber;
+			FFrameNumber DropFrameNumber = TimeToPixel->PixelToFrame(LocalPos.X).FrameNumber;
 			if (Sequencer->GetSequencerSettings()->GetIsSnapEnabled() && Sequencer->GetSequencerSettings()->GetSnapPlayTimeToInterval())
 			{
 				DropFrameNumber = FFrameRate::Snap(DropFrameNumber, Sequencer->GetFocusedTickResolution(), Sequencer->GetFocusedDisplayRate()).FrameNumber;
@@ -182,9 +181,8 @@ FReply SSequencerTrackAreaView::OnDrop(const FGeometry& MyGeometry, const FDragD
 			// give track editors a chance to process the drag event
 			const TArray<TSharedPtr<ISequencerTrackEditor>>& TrackEditors = Sequencer->GetTrackEditors();
 
-			FTimeToPixel TimeToPixel(MyGeometry, Sequencer->GetViewRange(), Sequencer->GetFocusedTickResolution());
 			FVector2D LocalPos = MyGeometry.AbsoluteToLocal(DragDropEvent.GetScreenSpacePosition());
-			FFrameNumber DropFrameNumber = TimeToPixel.PixelToFrame(LocalPos.X).FrameNumber;
+			FFrameNumber DropFrameNumber = TimeToPixel->PixelToFrame(LocalPos.X).FrameNumber;
 			if (Sequencer->GetSequencerSettings()->GetIsSnapEnabled() && Sequencer->GetSequencerSettings()->GetSnapPlayTimeToInterval())
 			{
 				DropFrameNumber = FFrameRate::Snap(DropFrameNumber, Sequencer->GetFocusedTickResolution(), Sequencer->GetFocusedDisplayRate()).FrameNumber;

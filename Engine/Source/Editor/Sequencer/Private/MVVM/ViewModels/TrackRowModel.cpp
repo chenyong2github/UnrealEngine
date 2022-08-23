@@ -99,12 +99,18 @@ FTrackAreaParameters FTrackRowModel::GetTrackAreaParameters() const
 {
 	FTrackAreaParameters Params;
 	Params.LaneType = ETrackAreaLaneType::Nested;
+	Params.TrackLanePadding.Bottom = 1.f;
 	return Params;
 }
 
 FViewModelVariantIterator FTrackRowModel::GetTrackAreaModelList() const
 {
 	return &SectionList;
+}
+
+FViewModelVariantIterator FTrackRowModel::GetTopLevelChildTrackAreaModels() const
+{
+	return &TopLevelChannelList;
 }
 
 void FTrackRowModel::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels)

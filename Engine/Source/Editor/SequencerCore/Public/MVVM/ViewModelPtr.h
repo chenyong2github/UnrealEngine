@@ -60,6 +60,19 @@ struct FViewModelPtr
 		return *this;
 	}
 
+	/** Construction from a shared ptr */
+	template<typename ModelType>
+	FViewModelPtr(const TSharedRef<ModelType>& InModel)
+		: Model(InModel)
+	{}
+	/** Assignment from a shared ptr */
+	template<typename ModelType>
+	FViewModelPtr& operator=(const TSharedRef<ModelType>& InModel)
+	{
+		Model = InModel;
+		return *this;
+	}
+
 	/** Construction from a raw ptr */
 	FViewModelPtr(FViewModel* InModel)
 		: Model(InModel->AsShared())
@@ -224,15 +237,28 @@ struct TViewModelPtr : FViewModelPtr
 	/** Construction from a regular view model ptr */
 	template<typename SharedType>
 	TViewModelPtr(const TSharedPtr<SharedType>& InModel)
-		: Extension(nullptr)
 	{
-		Assign(InModel);
+		Assign(InModel, InModel.Get());
 	}
 	/** Assignment from a regular view model ptr */
 	template<typename SharedType>
 	TViewModelPtr& operator=(const TSharedPtr<SharedType>& InModel)
 	{
-		Assign(InModel);
+		Assign(InModel, InModel.Get());
+		return *this;
+	}
+
+	/** Construction from a regular view model ref */
+	template<typename SharedType>
+	TViewModelPtr(const TSharedRef<SharedType>& InModel)
+	{
+		Assign(InModel, &InModel.Get());
+	}
+	/** Assignment from a regular view model ptr */
+	template<typename SharedType>
+	TViewModelPtr& operator=(const TSharedRef<SharedType>& InModel)
+	{
+		Assign(InModel, &InModel.Get());
 		return *this;
 	}
 
@@ -300,6 +326,14 @@ struct TViewModelPtr : FViewModelPtr
 	 * Conversion to a normal shared pointer of this extension type
 	 */
 	operator TSharedPtr<ExtensionType>() const
+	{
+		return TSharedPtr<ExtensionType>(Model, Extension);
+	}
+
+	/**
+	 * Conversion to a normal weak pointer of this extension type
+	 */
+	operator TWeakPtr<ExtensionType>() const
 	{
 		return TSharedPtr<ExtensionType>(Model, Extension);
 	}

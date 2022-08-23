@@ -53,6 +53,10 @@ FSequencerSnapField::FSequencerSnapField(const FSequencer& InSequencer, UE::Sequ
 
 void FSequencerSnapField::AddExplicitSnap(UE::Sequencer::FSnapPoint InSnap)
 {
+	if (InSnap.Weighting == 1.f && InSnap.Type != UE::Sequencer::FSnapPoint::Key)
+	{
+		InSnap.Weighting = 10.f;
+	}
 	SortedSnaps.Add(InSnap);
 }
 
@@ -133,6 +137,7 @@ void FSequencerSnapField::Finalize()
 	{
 		const FFrameNumber CurrentTime = SortedSnaps[Index].Time;
 
+		float FinalWeight = SortedSnaps[Index].Weighting;
 		int32 NumToMerge = 0;
 		for (int32 DuplIndex = Index + 1; DuplIndex < SortedSnaps.Num(); ++DuplIndex)
 		{
@@ -141,16 +146,18 @@ void FSequencerSnapField::Finalize()
 				break;
 			}
 			++NumToMerge;
+			FinalWeight += SortedSnaps[DuplIndex].Weighting;
 		}
 
 		if (NumToMerge)
 		{
+			SortedSnaps[Index].Weighting = FinalWeight;
 			SortedSnaps.RemoveAt(Index + 1, NumToMerge, false);
 		}
 	}
 }
 
-TOptional<FFrameNumber> FSequencerSnapField::Snap(FFrameNumber InTime, int32 Threshold) const
+TOptional<FSequencerSnapField::FSnapResult> FSequencerSnapField::Snap(const FFrameTime& InTime, const FFrameTime& Threshold) const
 {
 	int32 Min = 0;
 	int32 Max = SortedSnaps.Num();
@@ -160,68 +167,79 @@ TOptional<FFrameNumber> FSequencerSnapField::Snap(FFrameNumber InTime, int32 Thr
 	{
 		int32 SearchIndex = Min + (Max - Min) / 2;
 
-		FFrameNumber ProspectiveSnapPos = SortedSnaps[SearchIndex].Time;
-		if (ProspectiveSnapPos > InTime + Threshold)
+		UE::Sequencer::FSnapPoint ProspectiveSnap = SortedSnaps[SearchIndex];
+		if (ProspectiveSnap.Time > InTime + Threshold)
 		{
 			Max = SearchIndex;
 		}
-		else if (ProspectiveSnapPos < InTime - Threshold)
+		else if (ProspectiveSnap.Time < InTime - Threshold)
 		{
 			Min = SearchIndex + 1;
 		}
 		else
 		{
-			// Linearly search forwards and backwards to find the closest snap
+			// Linearly search forwards and backwards to find the closest or heaviest snap
 
-			FFrameNumber SnapDelta = ProspectiveSnapPos - InTime;
+			float SnapWeight = 0.f;
+			FFrameTime SnapDelta = ProspectiveSnap.Time - InTime;
 
 			// Search forwards while we're in the threshold
-			for (int32 FwdIndex = SearchIndex+1; FwdIndex < Max-1 && SortedSnaps[FwdIndex].Time < InTime + Threshold; ++FwdIndex)
+			for (int32 FwdIndex = SearchIndex; FwdIndex < Max && SortedSnaps[FwdIndex].Time < InTime + Threshold; ++FwdIndex)
 			{
-				FFrameNumber ThisSnapDelta = InTime - SortedSnaps[FwdIndex].Time;
-				if (FMath::Abs(ThisSnapDelta) < FMath::Abs(SnapDelta))
+				FFrameTime ThisSnapDelta = InTime - SortedSnaps[FwdIndex].Time;
+				float ThisSnapWeight = SortedSnaps[FwdIndex].Weighting;
+				if (ThisSnapWeight > SnapWeight || (ThisSnapWeight == SnapWeight && FMath::Abs(ThisSnapDelta) < FMath::Abs(SnapDelta)))
 				{
 					SnapDelta = ThisSnapDelta;
-					ProspectiveSnapPos = SortedSnaps[FwdIndex].Time;
+					SnapWeight = ThisSnapWeight;
+					ProspectiveSnap = SortedSnaps[FwdIndex];
 				}
 			}
 
 			// Search backwards while we're in the threshold
-			for (int32 BckIndex = SearchIndex-1; BckIndex >= Min && SortedSnaps[BckIndex].Time > InTime + Threshold; --BckIndex)
+			for (int32 BckIndex = SearchIndex-1; BckIndex >= Min && SortedSnaps[BckIndex].Time > InTime - Threshold; --BckIndex)
 			{
-				FFrameNumber ThisSnapDelta = InTime - SortedSnaps[BckIndex].Time;
-				if (FMath::Abs(ThisSnapDelta) < FMath::Abs(SnapDelta))
+				FFrameTime ThisSnapDelta = InTime - SortedSnaps[BckIndex].Time;
+				float ThisSnapWeight = SortedSnaps[BckIndex].Weighting;
+				if (ThisSnapWeight > SnapWeight || (ThisSnapWeight == SnapWeight && FMath::Abs(ThisSnapDelta) < FMath::Abs(SnapDelta)))
 				{
 					SnapDelta = ThisSnapDelta;
-					ProspectiveSnapPos = SortedSnaps[BckIndex].Time;
+					SnapWeight = ThisSnapWeight;
+					ProspectiveSnap = SortedSnaps[BckIndex];
 				}
 			}
 
-			return ProspectiveSnapPos;
+			if (SnapWeight != 0.f)
+			{
+				FSnapResult Result = { InTime, ProspectiveSnap.Time, ProspectiveSnap.Weighting };
+				return Result;
+			}
+
+			break;
 		}
 	}
 
-	return TOptional<FFrameNumber>();
+	return TOptional<FSequencerSnapField::FSnapResult>();
 }
 
-TOptional<FSequencerSnapField::FSnapResult> FSequencerSnapField::Snap(const TArray<FFrameNumber>& InTimes, int32 Threshold) const
+TOptional<FSequencerSnapField::FSnapResult> FSequencerSnapField::Snap(const TArray<FFrameTime>& InTimes, const FFrameTime& Threshold) const
 {
 	TOptional<FSnapResult> ProspectiveSnap;
-	FFrameNumber SnapDelta(0);
 
-	for (FFrameNumber Time : InTimes)
+	int32 NumSnaps = 0;
+	float MaxSnapWeight = 0.f;
+	for (FFrameTime Time : InTimes)
 	{
-		TOptional<FFrameNumber> ThisSnap = Snap(Time, Threshold);
+		TOptional<FSnapResult> ThisSnap = Snap(Time, Threshold);
 		if (!ThisSnap.IsSet())
 		{
 			continue;
 		}
 
-		FFrameNumber ThisSnapDelta = ThisSnap.GetValue() - Time;
-		if (!ProspectiveSnap.IsSet() || FMath::Abs(ThisSnapDelta) < FMath::Abs(SnapDelta))
+		if (!ProspectiveSnap.IsSet() || ThisSnap->SnappedWeight > MaxSnapWeight)
 		{
-			ProspectiveSnap = FSnapResult{ Time, ThisSnap.GetValue() };
-			SnapDelta = ThisSnapDelta;
+			ProspectiveSnap = ThisSnap;
+			MaxSnapWeight = ThisSnap->SnappedWeight;
 		}
 	}
 

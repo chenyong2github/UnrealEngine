@@ -52,24 +52,24 @@ protected:
 	TSet<UMovieSceneSection*> SectionsToExclude;
 };
 
-TOptional<FSequencerSnapField::FSnapResult> SnapToInterval(const TArray<FFrameNumber>& InTimes, int32 FrameThreshold, FFrameRate Resolution, FFrameRate DisplayRate, ESequencerScrubberStyle ScrubStyle)
+TOptional<FSequencerSnapField::FSnapResult> SnapToInterval(const TArray<FFrameTime>& InTimes, int32 FrameThreshold, FFrameRate Resolution, FFrameRate DisplayRate, ESequencerScrubberStyle ScrubStyle)
 {
 	TOptional<FSequencerSnapField::FSnapResult> Result;
 
-	FFrameNumber SnapAmount(0);
-	for (FFrameNumber Time : InTimes)
+	FFrameTime SnapAmount(0);
+	for (FFrameTime Time : InTimes)
 	{
 		// Convert from resolution to DisplayRate, round to frame, then back again. We floor to frames when using the frame block scrubber, and round using the vanilla scrubber
 		FFrameTime   DisplayTime      = FFrameRate::TransformTime(Time, Resolution, DisplayRate);
 		FFrameNumber PlayIntervalTime = ScrubStyle == ESequencerScrubberStyle::FrameBlock ? DisplayTime.FloorToFrame() : DisplayTime.RoundToFrame();
-		FFrameNumber IntervalSnap     = FFrameRate::TransformTime(PlayIntervalTime, DisplayRate, Resolution  ).FloorToFrame();
+		FFrameNumber IntervalSnap     = FFrameRate::TransformTime(PlayIntervalTime, DisplayRate, Resolution).FloorToFrame();
 
-		FFrameNumber ThisSnapAmount   = IntervalSnap - Time;
+		FFrameTime ThisSnapAmount   = IntervalSnap - Time;
 		if (FMath::Abs(ThisSnapAmount) <= FrameThreshold)
 		{
 			if (!Result.IsSet() || FMath::Abs(ThisSnapAmount) < SnapAmount)
 			{
-				Result = FSequencerSnapField::FSnapResult{Time, IntervalSnap};
+				Result = FSequencerSnapField::FSnapResult{Time, IntervalSnap, 1.f};
 				SnapAmount = ThisSnapAmount;
 			}
 		}
@@ -79,7 +79,7 @@ TOptional<FSequencerSnapField::FSnapResult> SnapToInterval(const TArray<FFrameNu
 }
 
 /** How many pixels near the mouse has to be before snapping occurs */
-const float PixelSnapWidth = 10.f;
+const float PixelSnapWidth = 20.f;
 
 
 
@@ -277,7 +277,7 @@ void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMous
 	// Snapping
 	if ( Settings->GetIsSnapEnabled() )
 	{
-		TArray<FFrameNumber> SectionTimes;
+		TArray<FFrameTime> SectionTimes;
 		for (UMovieSceneSection* Section : Sections)
 		{
 			SectionTimes.Add(SectionInitTimes[Section] + DeltaTime);
@@ -302,7 +302,7 @@ void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMous
 		if (SnappedTime.IsSet())
 		{
 			// Add the snapped amount onto the delta
-			DeltaTime += SnappedTime->Snapped - SnappedTime->Original;
+			DeltaTime += (SnappedTime->SnappedTime - SnappedTime->OriginalTime).RoundToFrame();
 		}
 	}
 	
@@ -590,7 +590,7 @@ void FManipulateSectionEasing::OnDrag(const FPointerEvent& MouseEvent, FVector2D
 	// Snapping
 	if (Settings->GetIsSnapEnabled())
 	{
-		TArray<FFrameNumber> SnapTimes;
+		TArray<FFrameTime> SnapTimes;
 		if (bEaseIn)
 		{
 			FFrameNumber DesiredTime = (DeltaTime + Section->GetInclusiveStartFrame() + InitValue.Get(0)).RoundToFrame();
@@ -621,7 +621,7 @@ void FManipulateSectionEasing::OnDrag(const FPointerEvent& MouseEvent, FVector2D
 		if (SnappedTime.IsSet())
 		{
 			// Add the snapped amount onto the delta
-			DeltaTime += SnappedTime->Snapped - SnappedTime->Original;
+			DeltaTime += SnappedTime->SnappedTime - SnappedTime->OriginalTime;
 		}
 	}
 
@@ -778,12 +778,11 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 	// Calculate snapping first which modifies our MouseTime to reflect where it would have to be for the closest snap to work.
 	if (Settings->GetIsSnapEnabled())
 	{
-		float SnapThresholdPx = VirtualTrackArea.PixelToSeconds(PixelSnapWidth) - VirtualTrackArea.PixelToSeconds(0.f);
-		int32 SnapThreshold = (SnapThresholdPx * TickResolution).FloorToFrame().Value;
+		FFrameTime SnapThreshold = VirtualTrackArea.PixelDeltaToFrame(PixelSnapWidth);
 
 		// The edge of each bounded section as well as each individual key is a valid marker to try and snap to intervals/sections/etc.
 		// We take our stored offsets and add them to our current time to figure out where on the timeline the are currently.
-		TArray<FFrameNumber> ValidSnapMarkers;
+		TArray<FFrameTime> ValidSnapMarkers;
 
 		// If they have both keys and settings selected then we snap to the interval if either one of them is enabled, otherwise respect the individual setting.
 		const bool bSnapToInterval = (KeysAsArray.Num() > 0 && Settings->GetSnapKeyTimesToInterval()) || (Sections.Num() > 0 && Settings->GetSnapSectionTimesToInterval());
@@ -793,7 +792,7 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 		ValidSnapMarkers.SetNumUninitialized(RelativeSnapOffsets.Num());
 		for (int32 Index = 0; Index < RelativeSnapOffsets.Num(); ++Index)
 		{
-			ValidSnapMarkers[Index] = (RelativeSnapOffsets[Index] + MouseTime).FloorToFrame();
+			ValidSnapMarkers[Index] = (RelativeSnapOffsets[Index] + MouseTime);
 		}
 
 		// Now we'll try and snap all of these points to the closest valid snap marker (which may be a section or interval)
@@ -817,7 +816,7 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 		if (SnappedTime.IsSet())
 		{
 			// Add the snapped amount onto the mouse time so the resulting delta brings us in alignment.
-			MouseTime += (SnappedTime->Snapped - SnappedTime->Original);
+			MouseTime += (SnappedTime->SnappedTime - SnappedTime->OriginalTime);
 		}
 	}
 

@@ -23,6 +23,7 @@
 #include "MVVM/Extensions/IRenameableExtension.h"
 #include "MVVM/Extensions/LinkedOutlinerExtension.h"
 #include "MVVM/Extensions/IDeletableExtension.h"
+#include "MVVM/Extensions/IKeyExtension.h"
 #include "MVVM/ViewModels/EditorViewModel.h"
 #include "MVVM/ViewModels/OutlinerSpacer.h"
 #include "MVVM/ViewModels/OutlinerViewModel.h"
@@ -59,6 +60,7 @@ UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(IStretchableExtension);
 UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(ITrackAreaExtension);
 UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(ITrackLaneExtension);
 UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(IDeletableExtension);
+UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(IKeyExtension);
 
 // Extension types
 UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(IDynamicExtension);

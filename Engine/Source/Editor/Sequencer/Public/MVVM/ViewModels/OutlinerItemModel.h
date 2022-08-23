@@ -119,10 +119,6 @@ template<typename BaseType>
 class TOutlinerModelMixin : public BaseType, public FOutlinerItemModelMixin
 {
 public:
-	TOutlinerModelMixin()
-	{
-		this->RegisterChildList(&this->OutlinerChildList);
-	}
 
 	template<typename... ArgTypes>
 	TOutlinerModelMixin(ArgTypes&&... InArgs)

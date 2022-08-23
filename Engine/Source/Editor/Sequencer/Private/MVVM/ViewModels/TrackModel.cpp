@@ -344,12 +344,18 @@ FTrackAreaParameters FTrackModel::GetTrackAreaParameters() const
 {
 	FTrackAreaParameters Params;
 	Params.LaneType = ETrackAreaLaneType::Nested;
+	Params.TrackLanePadding.Bottom = 1.f;
 	return Params;
 }
 
 FViewModelVariantIterator FTrackModel::GetTrackAreaModelList() const
 {
 	return &SectionList;
+}
+
+FViewModelVariantIterator FTrackModel::GetTopLevelChildTrackAreaModels() const
+{
+	return &TopLevelChannelList;
 }
 
 bool FTrackModel::CanRename() const

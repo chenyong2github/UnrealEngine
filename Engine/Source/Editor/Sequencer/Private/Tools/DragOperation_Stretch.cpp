@@ -122,10 +122,10 @@ void FEditToolDragOperation_Stretch::OnDrag(const FPointerEvent& MouseEvent, FVe
 		const float SnapThresholdPx = VirtualTrackArea.PixelToSeconds(PixelSnapWidth) - VirtualTrackArea.PixelToSeconds(0.f);
 		const int32 SnapThreshold = (SnapThresholdPx * Sequencer->GetFocusedTickResolution()).FloorToFrame().Value;
 
-		TOptional<FFrameNumber> SnappedResult = SnapField->Snap(CurrentTime.RoundToFrame(), SnapThreshold);
+		TOptional<FSequencerSnapField::FSnapResult> SnappedResult = SnapField->Snap(CurrentTime.RoundToFrame(), SnapThreshold);
 		if (SnappedResult.IsSet())
 		{
-			CurrentTime = SnappedResult.GetValue();
+			CurrentTime = SnappedResult->SnappedTime;
 		}
 	}
 
@@ -163,10 +163,10 @@ void FEditToolDragOperation_Stretch::OnEndDrag( const FPointerEvent& MouseEvent,
 		const float SnapThresholdPx = VirtualTrackArea.PixelToSeconds(PixelSnapWidth) - VirtualTrackArea.PixelToSeconds(0.f);
 		const int32 SnapThreshold = (SnapThresholdPx * Sequencer->GetFocusedTickResolution()).FloorToFrame().Value;
 
-		TOptional<FFrameNumber> SnappedResult = SnapField->Snap(CurrentTime.RoundToFrame(), SnapThreshold);
+		TOptional<FSequencerSnapField::FSnapResult> SnappedResult = SnapField->Snap(CurrentTime.RoundToFrame(), SnapThreshold);
 		if (SnappedResult.IsSet())
 		{
-			CurrentTime = SnappedResult.GetValue();
+			CurrentTime = SnappedResult->SnappedTime;
 		}
 	}
 

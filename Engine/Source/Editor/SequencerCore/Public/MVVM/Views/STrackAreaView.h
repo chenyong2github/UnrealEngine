@@ -18,6 +18,7 @@ class FArrangedChildren;
 class FPaintArgs;
 class FSlateWindowElementList;
 class ISequencerEditTool;
+struct FTimeToPixel;
 
 namespace UE
 {
@@ -46,6 +47,12 @@ public:
 };
 
 
+struct FTrackAreaViewLayers
+{
+	int32 LaneBackgrounds = 0;
+};
+
+
 /**
  * The area where tracks( rows of sections ) are displayed.
  */
@@ -70,6 +77,8 @@ public:
 	
 	void SetVirtualPosition(float InVirtualTop);
 
+	TSharedPtr<FTimeToPixel> GetTimeToPixel() const;
+
 public:
 
 	/** Empty the track area */
@@ -93,6 +102,7 @@ public:
 	void SetIsPinned(bool bInIsPinned) { bIsPinned = bInIsPinned; }
 	bool IsPinned() const { return bIsPinned; }
 
+	const FTrackAreaViewLayers& GetPaintLayers() const;
 	static FLinearColor BlendDefaultTrackColor(FLinearColor InColor);
 
 public:
@@ -151,13 +161,17 @@ protected:
 	/** Weak pointer to the dropped node */
 	TWeakViewModelPtr<IOutlinerExtension> WeakDroppedItem;
 
+	mutable TSharedPtr<FTimeToPixel> TimeToPixel;
+
 	float VirtualTop;
 
-	/** Whether the dropped node is allowed to be dropped onto */
-	bool bAllowDrop;
+	mutable FTrackAreaViewLayers LayerIds;
 
 	/** The frame range of the section about to be dropped */
 	TOptional<TRange<FFrameNumber>> DropFrameRange;
+
+	/** Whether the dropped node is allowed to be dropped onto */
+	bool bAllowDrop;
 
 	/** Whether this TrackArea is for pinned nodes or non-pinned nodes */
 	bool bShowPinnedNodes;

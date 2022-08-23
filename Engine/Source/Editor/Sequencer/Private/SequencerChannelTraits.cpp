@@ -13,6 +13,7 @@ void DrawKeys(FMovieSceneChannel* Channel, TArrayView<const FKeyHandle> InHandle
 	// By default just render diamonds for keys
 	FKeyDrawParams DefaultParams;
 	DefaultParams.BorderBrush = DefaultParams.FillBrush = FAppStyle::Get().GetBrush("Sequencer.KeyDiamond");
+	DefaultParams.ConnectionStyle = EKeyConnectionStyle::Solid;
 
 	for (FKeyDrawParams& Param : OutKeyDrawParams)
 	{

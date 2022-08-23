@@ -20,7 +20,7 @@
 #include "CurveKeyEditors/SStringCurveKeyEditor.h"
 #include "CurveKeyEditors/SEnumKeyEditor.h"
 #include "UObject/StructOnScope.h"
-#include "KeyDrawParams.h"
+#include "MVVM/Views/KeyDrawParams.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneChannelEditorData.h"
@@ -784,6 +784,7 @@ void DrawKeysImpl(ChannelType* Channel, TArrayView<const FKeyHandle> InKeyHandle
 
 	FKeyDrawParams TempParams;
 	TempParams.BorderBrush = TempParams.FillBrush = DiamondKeyBrush;
+	TempParams.ConnectionStyle = EKeyConnectionStyle::Solid;
 
 	for (int32 Index = 0; Index < InKeyHandles.Num(); ++Index)
 	{
@@ -795,6 +796,7 @@ void DrawKeysImpl(ChannelType* Channel, TArrayView<const FKeyHandle> InKeyHandle
 		ERichCurveTangentMode TangentMode = KeyIndex == INDEX_NONE ? RCTM_None : Values[KeyIndex].TangentMode.GetValue();
 
 		TempParams.FillOffset = FVector2D(0.f, 0.f);
+		TempParams.ConnectionStyle = EKeyConnectionStyle::Solid;
 
 		switch (InterpMode)
 		{
@@ -807,6 +809,7 @@ void DrawKeysImpl(ChannelType* Channel, TArrayView<const FKeyHandle> InKeyHandle
 		case RCIM_Constant:
 			TempParams.BorderBrush = TempParams.FillBrush = SquareKeyBrush;
 			TempParams.FillTint = FLinearColor(0.0f, 0.445f, 0.695f, 1.0f); // blue
+			TempParams.ConnectionStyle = EKeyConnectionStyle::Dashed;
 			break;
 
 		case RCIM_Cubic:
@@ -1177,11 +1180,11 @@ struct TCurveChannelSectionMenuExtension : TSharedFromThis<TCurveChannelSectionM
 		};
 		auto GetKeyAreaCurveNormalized = [=](FString KeyAreaName) { return !Settings->HasKeyAreaCurveExtents(KeyAreaName); };
 
-		auto OnKeyAreaCurveMinChanged = [=](float NewValue, FString KeyAreaName) { float CurveMin = 0.f; float CurveMax = 0.f; Settings->GetKeyAreaCurveExtents(KeyAreaName, CurveMin, CurveMax); Settings->SetKeyAreaCurveExtents(KeyAreaName, NewValue, CurveMax); };
-		auto GetKeyAreaCurveMin = [=](FString KeyAreaName) { float CurveMin = 0.f; float CurveMax = 0.f; Settings->GetKeyAreaCurveExtents(KeyAreaName, CurveMin, CurveMax); return CurveMin; };
+		auto OnKeyAreaCurveMinChanged = [=](double NewValue, FString KeyAreaName) { double CurveMin = 0.f; double CurveMax = 0.f; Settings->GetKeyAreaCurveExtents(KeyAreaName, CurveMin, CurveMax); Settings->SetKeyAreaCurveExtents(KeyAreaName, NewValue, CurveMax); };
+		auto GetKeyAreaCurveMin = [=](FString KeyAreaName) { double CurveMin = 0.f; double CurveMax = 0.f; Settings->GetKeyAreaCurveExtents(KeyAreaName, CurveMin, CurveMax); return CurveMin; };
 
-		auto OnKeyAreaCurveMaxChanged = [=](float NewValue, FString KeyAreaName) { float CurveMin = 0.f; float CurveMax = 0.f; Settings->GetKeyAreaCurveExtents(KeyAreaName, CurveMin, CurveMax); Settings->SetKeyAreaCurveExtents(KeyAreaName, CurveMin, NewValue); };
-		auto GetKeyAreaCurveMax = [=](FString KeyAreaName) { float CurveMin = 0.f; float CurveMax = 0.f; Settings->GetKeyAreaCurveExtents(KeyAreaName, CurveMin, CurveMax); return CurveMax; };
+		auto OnKeyAreaCurveMaxChanged = [=](double NewValue, FString KeyAreaName) { double CurveMin = 0.f; double CurveMax = 0.f; Settings->GetKeyAreaCurveExtents(KeyAreaName, CurveMin, CurveMax); Settings->SetKeyAreaCurveExtents(KeyAreaName, CurveMin, NewValue); };
+		auto GetKeyAreaCurveMax = [=](FString KeyAreaName) { double CurveMin = 0.f; double CurveMax = 0.f; Settings->GetKeyAreaCurveExtents(KeyAreaName, CurveMin, CurveMax); return CurveMax; };
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ToggleShowCurve", "Show Curve"),
@@ -1234,11 +1237,11 @@ struct TCurveChannelSectionMenuExtension : TSharedFromThis<TCurveChannelSectionM
 					.WidthOverride(50.f)
 					.IsEnabled_Lambda([=]() { return SharedThis->IsShowCurve() && Settings->HasKeyAreaCurveExtents(KeyAreaName); })
 					[
-						SNew(SSpinBox<float>)
+						SNew(SSpinBox<double>)
 						.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
-						.OnValueCommitted_Lambda([=](float NewValue, ETextCommit::Type CommitType) { OnKeyAreaCurveMinChanged(NewValue, KeyAreaName); })
-						.OnValueChanged_Lambda([=](float NewValue) { OnKeyAreaCurveMinChanged(NewValue, KeyAreaName); })
-						.Value_Lambda([=]() -> float { return GetKeyAreaCurveMin(KeyAreaName); })
+						.OnValueCommitted_Lambda([=](double NewValue, ETextCommit::Type CommitType) { OnKeyAreaCurveMinChanged(NewValue, KeyAreaName); })
+						.OnValueChanged_Lambda([=](double NewValue) { OnKeyAreaCurveMinChanged(NewValue, KeyAreaName); })
+						.Value_Lambda([=]() -> double { return GetKeyAreaCurveMin(KeyAreaName); })
 					]
 				]
 			+ SHorizontalBox::Slot()
@@ -1248,11 +1251,11 @@ struct TCurveChannelSectionMenuExtension : TSharedFromThis<TCurveChannelSectionM
 					.WidthOverride(50.f)
 					.IsEnabled_Lambda([=]() { return SharedThis->IsShowCurve() && Settings->HasKeyAreaCurveExtents(KeyAreaName); })
 					[
-						SNew(SSpinBox<float>)
+						SNew(SSpinBox<double>)
 						.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
-						.OnValueCommitted_Lambda([=](float NewValue, ETextCommit::Type CommitType) { OnKeyAreaCurveMaxChanged(NewValue, KeyAreaName); })
-						.OnValueChanged_Lambda([=](float NewValue) { OnKeyAreaCurveMaxChanged(NewValue, KeyAreaName); })
-						.Value_Lambda([=]() -> float { return GetKeyAreaCurveMax(KeyAreaName); })
+						.OnValueCommitted_Lambda([=](double NewValue, ETextCommit::Type CommitType) { OnKeyAreaCurveMaxChanged(NewValue, KeyAreaName); })
+						.OnValueChanged_Lambda([=](double NewValue) { OnKeyAreaCurveMaxChanged(NewValue, KeyAreaName); })
+						.Value_Lambda([=]() -> double { return GetKeyAreaCurveMax(KeyAreaName); })
 					]
 				],
 				LOCTEXT("KeyAreaCurveRangeText", "Key Area Curve Range")
@@ -1565,5 +1568,13 @@ TUniquePtr<FCurveModel> CreateCurveEditorModel(const TMovieSceneChannelHandle<FM
 	return MakeUnique<FEventChannelCurveModel>(EventChannel, OwningSection, InSequencer);
 }
 
+bool ShouldShowCurve(const FMovieSceneFloatChannel* Channel, UMovieSceneSection* InSection)
+{
+	return Channel->GetShowCurve();
+}
+bool ShouldShowCurve(const FMovieSceneDoubleChannel* Channel, UMovieSceneSection* InSection)
+{
+	return Channel->GetShowCurve();
+}
 
 #undef LOCTEXT_NAMESPACE

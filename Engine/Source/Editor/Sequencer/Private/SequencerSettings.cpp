@@ -45,6 +45,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	ZeroPadFrames = 0;
 	JumpFrameIncrement = FFrameNumber(5);
 	bShowLayerBars = true;
+	bShowKeyBars = true;
 	bInfiniteKeyAreas = false;
 	bShowChannelColors = false;
 	bShowStatusBar = true;
@@ -552,6 +553,19 @@ void USequencerSettings::SetShowLayerBars(bool InbShowLayerBars)
 	}
 }
 
+bool USequencerSettings::GetShowKeyBars() const
+{
+	return bShowKeyBars;
+}
+
+void USequencerSettings::SetShowKeyBars(bool InbShowKeyBars)
+{
+	if (bShowKeyBars != InbShowKeyBars)
+	{
+		bShowKeyBars = InbShowKeyBars;
+		SaveConfig();
+	}
+}
 
 bool USequencerSettings::GetInfiniteKeyAreas() const
 {
@@ -638,7 +652,7 @@ void USequencerSettings::RemoveKeyAreaCurveExtents(const FString& ChannelName)
 	SaveConfig();
 }
 
-void USequencerSettings::SetKeyAreaCurveExtents(const FString& ChannelName, float InMin, float InMax)
+void USequencerSettings::SetKeyAreaCurveExtents(const FString& ChannelName, double InMin, double InMax)
 {
 	RemoveKeyAreaCurveExtents(ChannelName);
 
@@ -649,7 +663,7 @@ void USequencerSettings::SetKeyAreaCurveExtents(const FString& ChannelName, floa
 	SaveConfig();
 }
 
-void USequencerSettings::GetKeyAreaCurveExtents(const FString& ChannelName, float& InMin, float& InMax) const
+void USequencerSettings::GetKeyAreaCurveExtents(const FString& ChannelName, double& OutMin, double& OutMax) const
 {
 	TArray<FString> ChannelsArray;
 	KeyAreaCurveExtents.ParseIntoArray(ChannelsArray, TEXT(":"));
@@ -661,8 +675,8 @@ void USequencerSettings::GetKeyAreaCurveExtents(const FString& ChannelName, floa
 
 		if (ExtentsArray.Num() == 3 && ExtentsArray[0] == ChannelName)
 		{
-			InMin = FCString::Atof(*ExtentsArray[1]);
-			InMax = FCString::Atof(*ExtentsArray[2]);
+			OutMin = FCString::Atod(*ExtentsArray[1]);
+			OutMax = FCString::Atod(*ExtentsArray[2]);
 			return;
 		}
 	}
