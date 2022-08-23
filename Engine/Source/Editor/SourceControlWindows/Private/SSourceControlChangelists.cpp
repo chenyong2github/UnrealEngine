@@ -37,6 +37,7 @@
 #include "SSourceControlSubmit.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "Framework/Docking/TabManager.h"
 #include "OutputLogModule.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
