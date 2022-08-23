@@ -287,11 +287,20 @@ public:
 		int32& MaxNumForcedLODs,
 		const TCHAR* LogPrefix) const;
 
-	bool HasRenderAssetReferences(const UStreamableRenderAsset* InAsset) const;
+	FORCEINLINE bool HasRenderAssetReferences(const UStreamableRenderAsset* InAsset) const
+	{
+		return View.IsValid() && (bool)View->GetElementIterator(InAsset);
+	}
 
-	bool HasComponentWithForcedLOD(const UStreamableRenderAsset* InAsset) const;
+	FORCEINLINE bool HasComponentWithForcedLOD(const UStreamableRenderAsset* InAsset) const
+	{
+		return View.IsValid() && View->HasComponentWithForcedLOD(InAsset);
+	}
 
-	bool HasAnyComponentWithForcedLOD() const;
+	FORCEINLINE bool HasAnyComponentWithForcedLOD() const
+	{
+		return View.IsValid() && View->HasAnyComponentWithForcedLOD();
+	}
 
 	// Release the data now as this is expensive.
 	void OnTaskDone() { BoundsViewInfo.Empty(); }

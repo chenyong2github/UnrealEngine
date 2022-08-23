@@ -620,18 +620,3 @@ void FRenderAssetInstanceAsyncView::GetRenderAssetScreenSize(
 		}
 	}
 }
-
-bool FRenderAssetInstanceAsyncView::HasRenderAssetReferences(const UStreamableRenderAsset* InAsset) const
-{
-	return View.IsValid() && (bool)View->GetElementIterator(InAsset);
-}
-
-bool FRenderAssetInstanceAsyncView::HasComponentWithForcedLOD(const UStreamableRenderAsset* InAsset) const
-{
-	return View.IsValid() && View->HasComponentWithForcedLOD(InAsset);
-}
-
-bool FRenderAssetInstanceAsyncView::HasAnyComponentWithForcedLOD() const
-{
-	return View.IsValid() && View->HasAnyComponentWithForcedLOD();
-}
