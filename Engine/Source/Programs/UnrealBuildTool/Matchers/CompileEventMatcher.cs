@@ -22,8 +22,8 @@ namespace UnrealBuildTool.Matchers
 				@"[^:(\s]+" +
 				// any path character
 				@"[^:<>*?""]+" +
-				// valid source file extension
-				@"\.(?:(?i)(?:h|hpp|hxx|c|cc|cpp|cxx|inc|inl|cs|targets))" +
+				// valid source file extension (or extensionless file)
+				@"(?:\.(?i)(?:h|hpp|hxx|c|cc|cpp|cxx|inc|inl|cs|targets)|[/\\][a-zA-Z0-9]+)" +
 				// or the string "<scratch space>"
 			@")|<scratch space>)";
 
