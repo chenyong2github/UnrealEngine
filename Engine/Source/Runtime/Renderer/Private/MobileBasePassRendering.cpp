@@ -218,17 +218,6 @@ TRDGUniformBufferRef<FMobileBasePassUniformParameters> CreateMobileBasePassUnifo
 	}
 #endif
 
-	// Cannot be null even when DebugVM is off because it is in the same pass as RenderMobileBasePass(ValidateShaderParameterResourcesRHI UAV).
-	// If this is problematic, move DebugView to run in another pass and use FDebugViewModePassUniformParameters
-	const FSceneTextures& SceneTextures = View.GetSceneTextures();
-	FRDGTextureRef QuadOverdrawTexture = SceneTextures.QuadOverdraw;
-	if (!QuadOverdrawTexture)
-	{
-		QuadOverdrawTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV), TEXT("DummyOverdrawUAV"));
-	}
-
-	BasePassParameters->QuadOverdraw = GraphBuilder.CreateUAV(QuadOverdrawTexture);
-
 	return GraphBuilder.CreateUniformBuffer(BasePassParameters);
 }
 

@@ -175,7 +175,9 @@ public:
 		TCHAR BufferRegister[] = { 'u', '0', 0 };
 		BufferRegister[1] += GetQuadOverdrawUAVIndex(Parameters.Platform, Parameters.MaterialParameters.FeatureLevel);
 		OutEnvironment.SetDefine(TEXT("QUAD_BUFFER_REGISTER"), BufferRegister);
-		OutEnvironment.SetDefine(TEXT("OUTPUT_QUAD_OVERDRAW"), 1);
+		const bool bUsingMobileRenderer = FSceneInterface::GetShadingPath(GetMaxSupportedFeatureLevel(Parameters.Platform)) == EShadingPath::Mobile;
+		OutEnvironment.SetDefine(TEXT("OUTPUT_QUAD_OVERDRAW"), !bUsingMobileRenderer);
+
 
 		for (int i = 0; i < DVSM_MAX; ++i)
 		{
