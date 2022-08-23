@@ -57,47 +57,11 @@ static IDynamicRHIModule* LoadDynamicRHIModule()
 	return DynamicRHIModule;
 }
 
-static IDynamicRHIModule* LoadWindowsMixedRealityDynamicRHIModule()
-{
-	IDynamicRHIModule* DynamicRHIModule = NULL;
-
-#if WITH_D3D12_RHI
-	bool bConfigRequestsD3D12 = false;
-	GConfig->GetBool(TEXT("/Script/HoloLensPlatformEditor.HoloLensTargetSettings"), TEXT("bUseD3D12RHI"), bConfigRequestsD3D12, GEngineIni);
-	const bool bForceD3D12 = FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"));
-
-	if (bForceD3D12 || bConfigRequestsD3D12)
-	{
-		DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(TEXT("D3D12RHI"));
-	}
-	else
-#endif
-	{
-		// Load the dynamic RHI module.
-		auto& FMan = FModuleManager::Get();
-		DynamicRHIModule = (IDynamicRHIModule*)FMan.GetModule(TEXT("WindowsMixedRealityRHI"));
-		if (DynamicRHIModule == nullptr)
-		{
-			DynamicRHIModule = (IDynamicRHIModule*)FMan.LoadModule(TEXT("D3D11RHI"));
-		}
-	}
-
-	return DynamicRHIModule;
-}
-
 FDynamicRHI* PlatformCreateDynamicRHI()
 {
 	IDynamicRHIModule* DynamicRHIModule = NULL;
 
-	if (FModuleManager::Get().IsModuleLoaded(TEXT("WindowsMixedRealityRHI")))
-	{
-		// WindowsMixedReality uses a custom D3D11-based RHI and is incompatible with OpenXR.
-		DynamicRHIModule = LoadWindowsMixedRealityDynamicRHIModule();
-	}
-	else
-	{
-		DynamicRHIModule = LoadDynamicRHIModule();
-	}
+	DynamicRHIModule = LoadDynamicRHIModule();
 
 	// Create the dynamic RHI.
 	FDynamicRHI* DynamicRHI = NULL;

@@ -10,7 +10,7 @@ A few communicate with the platform specific local anchor api's, where that is n
 It is extended by AzureSpatialAnchorsBase, which owns the UAzureCloudSpatialAnchor objects which are UE's representation of the ASA CloudAnchor object.
 That is then extended by AzureSpatialAnchorsFor<Platform> classes in their own plugins (so one can choose to enable the feature per platform).  
 The ForPlatform classes implement the api wrapper functions and do whatever type conversions and async translation is required.
-AzureSpatialAnchorsForWMR is an example, however it is complicated by the existance of the interop layer (which keeps winrt types out of UE4's build).
+AzureSpatialAnchorsForARKit is an example.
 Other implementations may be somewhat simpler without this additional layer.
 
 AzureSpatialAnchorsFunctionLibrary provides the blueprint api for AzureSpatialAnchors.

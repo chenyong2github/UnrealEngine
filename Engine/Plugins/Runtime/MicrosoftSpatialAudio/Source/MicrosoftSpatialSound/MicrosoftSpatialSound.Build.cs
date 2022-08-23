@@ -54,7 +54,6 @@ public class MicrosoftSpatialSound : ModuleRules
 			new string[]
 			{
 				"Core",
-				"MixedRealityInteropLibrary",
                 "AudioExtensions"
             }
 			);

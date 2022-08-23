@@ -405,7 +405,6 @@ class D3D11RHI_API FD3D11DynamicRHI : public ID3D11DynamicRHI, public IRHIComman
 public:
 	typedef TMap<FD3D11LockedKey, FD3D11LockedData> FD3D11LockTracker;
 	friend class FD3D11Viewport;
-	friend class FWindowsMixedRealityViewport;
 
 	/** Initialization constructor. */
 	FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1, D3D_FEATURE_LEVEL InFeatureLevel, const FD3D11Adapter& InAdapter);

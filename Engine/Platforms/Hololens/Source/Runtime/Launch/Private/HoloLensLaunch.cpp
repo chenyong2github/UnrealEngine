@@ -948,8 +948,6 @@ bool ViewProvider::ProcessMouseEvent(const QueuedPointerEvent& Event)
 
 void ViewProvider::SetWindow(Windows::UI::Core::CoreWindow^ window)
 {
-	FModuleManager::Get().LoadModule(TEXT("WindowsMixedRealityRHI"));
-
 	window->KeyDown += ref new Windows::Foundation::TypedEventHandler<CoreWindow^, KeyEventArgs^>(this, &ViewProvider::OnKeyDown);
 	window->KeyUp += ref new Windows::Foundation::TypedEventHandler<CoreWindow^, KeyEventArgs^>(this, &ViewProvider::OnKeyUp);
 	window->CharacterReceived += ref new Windows::Foundation::TypedEventHandler<CoreWindow^, CharacterReceivedEventArgs^>(this, &ViewProvider::OnCharacterReceived);

@@ -134,7 +134,6 @@ bool FVREditorModeManager::IsVREditorActive() const
 	return CurrentVREditorMode != nullptr && CurrentVREditorMode->IsActive();
 }
 
-const static FName WMRSytemName = FName(TEXT("WindowsMixedRealityHMD"));
 bool FVREditorModeManager::IsVREditorAvailable() const
 {
 	if (!GetDefault<UVRModeSettings>()->ModeClass.LoadSynchronous())
@@ -148,12 +147,6 @@ bool FVREditorModeManager::IsVREditorAvailable() const
 	}
 
 	if (!GEngine->XRSystem.IsValid())
-	{
-		return false;
-	}
-
-	// TODO: UE-71871 Work around for avoiding starting VRMode when using WMR
-	if (GEngine->XRSystem->GetSystemName() == WMRSytemName)
 	{
 		return false;
 	}
