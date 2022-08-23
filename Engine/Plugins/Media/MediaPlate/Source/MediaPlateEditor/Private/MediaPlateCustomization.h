@@ -56,6 +56,9 @@ private:
 	/** Handles mesh stuff. */
 	FMediaPlateCustomizationMesh MeshCustomization;
 
+	/** True if the first media source in the playlist is an external asset. */
+	bool bIsMediaSourceAsset;
+
 	/**
 	 * Object property change callback used for static mesh material changes.
 	 */
@@ -155,6 +158,26 @@ private:
 	 * Call this to set the range of the mesh.
 	 */
 	void SetMeshRange(FVector2D Range);
+
+	/**
+	 * Updates bIsMediaSourceAsset depending on the current playlist.
+	 */
+	void UpdateIsMediaSourceAsset();
+
+	/**
+	 * Call this to enable/disable automatic aspect ratio.
+	 */
+	void SetIsMediaSourceAsset(bool bIsAsset);
+
+	/**
+	 * Controls visibility for widgets when the media source is an asset.
+	 */
+	EVisibility ShouldShowMediaSourceAsset() const;
+
+	/**
+	 * Controls visibility for widgets when the media source is a file.
+	 */
+	EVisibility ShouldShowMediaSourceFile() const;
 
 	/**
 	 * Gets the object path for the media source object.
