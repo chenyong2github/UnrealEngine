@@ -877,6 +877,15 @@ namespace Horde.Build.Notifications.Sinks
 					await _slackClient.RemoveReactionAsync(state.Channel, state.Ts, "eyes");
 				}
 
+				if (issue.QuarantinedByUserId != null)
+				{
+					await _slackClient.AddReactionAsync(state.Channel, state.Ts, "mask");
+				}
+				else
+				{
+					await _slackClient.RemoveReactionAsync(state.Channel, state.Ts, "mask");
+				}
+
 				IIssueSpan? fixFailedSpan = null;
 				if (issue.FixChange != null)
 				{
