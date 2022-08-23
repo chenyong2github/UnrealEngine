@@ -795,7 +795,7 @@ namespace EpicGames.Core
 		ContainsNoAsset = 0x00000400,
 
 		/// <summary>
-		/// (Not Implemented) Objects in this package cannot be referenced in a different plugin or mount point (i.e /Game -> /Engine)
+		/// Objects in this package cannot be referenced in a different plugin or mount point (i.e /Game -> /Engine)
 		/// </summary>
 		NotExternallyReferenceable = 0x00000800,
 
