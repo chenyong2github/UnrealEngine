@@ -11,6 +11,7 @@
  * The public interface to this module.  In most cases, this interface is only public to sibling modules 
  * within this plugin.
  */
+class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") IOculusInputModule;
 class IOculusInputModule : public IInputDeviceModule
 {
 

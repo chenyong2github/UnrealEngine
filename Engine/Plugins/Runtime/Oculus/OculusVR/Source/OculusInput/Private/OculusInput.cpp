@@ -1059,7 +1059,7 @@ bool FOculusInput::GetControllerOrientationAndPosition( const int32 ControllerIn
 									}
 
 									auto bSuccess = true;
-									UOculusInputFunctionLibrary::HandMovementFilter.Broadcast(
+									UDEPRECATED_UOculusInputFunctionLibrary::HandMovementFilter.Broadcast(
 										DeviceHand,
 										&OutPosition,
 										&OutOrientation,
@@ -1078,7 +1078,7 @@ bool FOculusInput::GetControllerOrientationAndPosition( const int32 ControllerIn
 	}
 
 	auto bSuccess = false;
-	UOculusInputFunctionLibrary::HandMovementFilter.Broadcast(
+	UDEPRECATED_UOculusInputFunctionLibrary::HandMovementFilter.Broadcast(
 		DeviceHand,
 		&OutPosition,
 		&OutOrientation,

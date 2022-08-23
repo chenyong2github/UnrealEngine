@@ -20,6 +20,7 @@
 namespace OculusInput
 {
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FQuat FOculusHandTracking::GetBoneRotation(const int32 ControllerIndex, const EOculusHandType DeviceHand, const EBone BoneId)
 {
 	IPlatformInputDeviceMapper& DeviceMapper = IPlatformInputDeviceMapper::Get();
@@ -667,4 +668,5 @@ FQuat FOculusHandTracking::OvrBoneQuatToFQuat(ovrpQuatf ovrpQuat)
 {
 	return FQuat(ovrpQuat.x, -ovrpQuat.y, ovrpQuat.z, -ovrpQuat.w);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

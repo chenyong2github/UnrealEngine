@@ -4,17 +4,20 @@
 #include "OculusHandTracking.h"
 #include "Logging/MessageLog.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 //-------------------------------------------------------------------------------------------------
 // UOculusHandTrackingFunctionLibrary
 //-------------------------------------------------------------------------------------------------
-UOculusInputFunctionLibrary::UOculusInputFunctionLibrary(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_UOculusInputFunctionLibrary::UDEPRECATED_UOculusInputFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
 
-UOculusInputFunctionLibrary::FHandMovementFilterDelegate UOculusInputFunctionLibrary::HandMovementFilter;
+UDEPRECATED_UOculusInputFunctionLibrary::FHandMovementFilterDelegate UDEPRECATED_UOculusInputFunctionLibrary::HandMovementFilter;
 
-EOculusFinger UOculusInputFunctionLibrary::ConvertBoneToFinger(const EBone Bone)
+
+EOculusFinger UDEPRECATED_UOculusInputFunctionLibrary::ConvertBoneToFinger(const EBone Bone)
 {
 	switch (Bone)
 	{
@@ -50,47 +53,47 @@ EOculusFinger UOculusInputFunctionLibrary::ConvertBoneToFinger(const EBone Bone)
 	}
 }
 
-ETrackingConfidence UOculusInputFunctionLibrary::GetFingerTrackingConfidence(const EOculusHandType DeviceHand, const EOculusFinger Finger, const int32 ControllerIndex)
+ETrackingConfidence UDEPRECATED_UOculusInputFunctionLibrary::GetFingerTrackingConfidence(const EOculusHandType DeviceHand, const EOculusFinger Finger, const int32 ControllerIndex)
 {
 	return OculusInput::FOculusHandTracking::GetFingerTrackingConfidence(ControllerIndex, DeviceHand, (OculusInput::EOculusHandAxes)(uint8)Finger);
 }
 
-bool UOculusInputFunctionLibrary::GetHandSkeletalMesh(USkeletalMesh* HandSkeletalMesh, EOculusHandType SkeletonType, EOculusHandType MeshType, float WorldToMeters)
+bool UDEPRECATED_UOculusInputFunctionLibrary::GetHandSkeletalMesh(USkeletalMesh* HandSkeletalMesh, EOculusHandType SkeletonType, EOculusHandType MeshType, float WorldToMeters)
 {
 	return OculusInput::FOculusHandTracking::GetHandSkeletalMesh(HandSkeletalMesh, SkeletonType, MeshType, WorldToMeters);
 }
 
-TArray<FOculusCapsuleCollider> UOculusInputFunctionLibrary::InitializeHandPhysics(EOculusHandType SkeletonType, USkinnedMeshComponent* HandComponent, const float WorldToMeters)
+TArray<FOculusCapsuleCollider> UDEPRECATED_UOculusInputFunctionLibrary::InitializeHandPhysics(EOculusHandType SkeletonType, USkinnedMeshComponent* HandComponent, const float WorldToMeters)
 {
 	return OculusInput::FOculusHandTracking::InitializeHandPhysics(SkeletonType, HandComponent, WorldToMeters);
 }
 
-FQuat UOculusInputFunctionLibrary::GetBoneRotation(const EOculusHandType DeviceHand, const EBone BoneId, const int32 ControllerIndex)
+FQuat UDEPRECATED_UOculusInputFunctionLibrary::GetBoneRotation(const EOculusHandType DeviceHand, const EBone BoneId, const int32 ControllerIndex)
 {
 	return OculusInput::FOculusHandTracking::GetBoneRotation(ControllerIndex, DeviceHand, BoneId);
 }
 
-ETrackingConfidence UOculusInputFunctionLibrary::GetTrackingConfidence(const EOculusHandType DeviceHand, const int32 ControllerIndex)
+ETrackingConfidence UDEPRECATED_UOculusInputFunctionLibrary::GetTrackingConfidence(const EOculusHandType DeviceHand, const int32 ControllerIndex)
 {
 	return OculusInput::FOculusHandTracking::GetTrackingConfidence(ControllerIndex, DeviceHand);
 }
 
-FTransform UOculusInputFunctionLibrary::GetPointerPose(const EOculusHandType DeviceHand, const int32 ControllerIndex)
+FTransform UDEPRECATED_UOculusInputFunctionLibrary::GetPointerPose(const EOculusHandType DeviceHand, const int32 ControllerIndex)
 {
 	return OculusInput::FOculusHandTracking::GetPointerPose(ControllerIndex, DeviceHand);
 }
 
-bool UOculusInputFunctionLibrary::IsPointerPoseValid(const EOculusHandType DeviceHand, const int32 ControllerIndex)
+bool UDEPRECATED_UOculusInputFunctionLibrary::IsPointerPoseValid(const EOculusHandType DeviceHand, const int32 ControllerIndex)
 {
 	return OculusInput::FOculusHandTracking::IsPointerPoseValid(ControllerIndex, DeviceHand);
 }
 
-float UOculusInputFunctionLibrary::GetHandScale(const EOculusHandType DeviceHand, const int32 ControllerIndex)
+float UDEPRECATED_UOculusInputFunctionLibrary::GetHandScale(const EOculusHandType DeviceHand, const int32 ControllerIndex)
 {
 	return OculusInput::FOculusHandTracking::GetHandScale(ControllerIndex, DeviceHand);
 }
 
-EOculusHandType UOculusInputFunctionLibrary::GetDominantHand(const int32 ControllerIndex)
+EOculusHandType UDEPRECATED_UOculusInputFunctionLibrary::GetDominantHand(const int32 ControllerIndex)
 {
 	EOculusHandType DominantHand = EOculusHandType::None;
 	if (OculusInput::FOculusHandTracking::IsHandDominant(ControllerIndex, EOculusHandType::HandLeft))
@@ -104,19 +107,20 @@ EOculusHandType UOculusInputFunctionLibrary::GetDominantHand(const int32 Control
 	return DominantHand;
 }
 
-bool UOculusInputFunctionLibrary::IsHandTrackingEnabled()
+bool UDEPRECATED_UOculusInputFunctionLibrary::IsHandTrackingEnabled()
 {
 	return OculusInput::FOculusHandTracking::IsHandTrackingEnabled();
 }
 
-bool UOculusInputFunctionLibrary::IsHandPositionValid(const EOculusHandType DeviceHand, const int32 ControllerIndex)
+bool UDEPRECATED_UOculusInputFunctionLibrary::IsHandPositionValid(const EOculusHandType DeviceHand, const int32 ControllerIndex)
 {
 	return OculusInput::FOculusHandTracking::IsHandPositionValid(ControllerIndex, DeviceHand);
 }
 
-FString UOculusInputFunctionLibrary::GetBoneName(EBone BoneId)
+FString UDEPRECATED_UOculusInputFunctionLibrary::GetBoneName(EBone BoneId)
 {
 	uint32 ovrBoneId = OculusInput::FOculusHandTracking::ToOvrBone(BoneId);
 	return OculusInput::FOculusHandTracking::GetBoneName(ovrBoneId);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 

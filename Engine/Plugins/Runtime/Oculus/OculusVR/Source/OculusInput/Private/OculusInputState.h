@@ -9,6 +9,8 @@
 #include "OculusInputFunctionLibrary.h"
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 namespace OculusInput
 {
 
@@ -537,5 +539,7 @@ struct FOculusControllerPair
 };
 
 } // namespace OculusInput
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif	// OCULUS_INPUT_SUPPORTED_PLATFORMS

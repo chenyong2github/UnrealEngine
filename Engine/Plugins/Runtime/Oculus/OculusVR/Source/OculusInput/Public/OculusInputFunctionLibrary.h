@@ -8,8 +8,10 @@
 
 #include "OculusInputFunctionLibrary.generated.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UENUM(BlueprintType)
-enum class EOculusHandType : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") EOculusHandType : uint8
 {
 	None,
 	HandLeft,
@@ -17,14 +19,14 @@ enum class EOculusHandType : uint8
 };
 
 UENUM(BlueprintType)
-enum class ETrackingConfidence : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") ETrackingConfidence : uint8
 {
 	Low,
 	High
 };
 
 UENUM(BlueprintType)
-enum class EOculusFinger : uint8
+enum class UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.") EOculusFinger : uint8
 {
 	Thumb,
 	Index,
@@ -34,11 +36,13 @@ enum class EOculusFinger : uint8
 	Invalid
 };
 
+// This is deprecated, but explicit deprecation causes issues with Android non-adaptive unity build.
+// We can follow-up once we investigate the build issue a bit more.
 /**
 * EBone is enum representing the Bone Ids that come from the Oculus Runtime. 
 */
 UENUM(BlueprintType)
-enum class EBone : uint8
+enum class /*UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")*/ EBone : uint8
 {
 	Wrist_Root UMETA(DisplayName = "Wrist Root"),
 	Hand_Start = Wrist_Root UMETA(DisplayName = "Hand Start"),
@@ -78,7 +82,7 @@ enum class EBone : uint8
 * @var BoneIndex	The Bone that this collision capsule is parented to. Corresponds to the EBone enum.
 *
 */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta = (Deprecated = "5.1"))
 struct OCULUSINPUT_API FOculusCapsuleCollider
 {
 	GENERATED_BODY()
@@ -91,16 +95,17 @@ public:
 	EBone BoneId = EBone::Wrist_Root;
 };
 
-UCLASS()
-class OCULUSINPUT_API UOculusInputFunctionLibrary : public UBlueprintFunctionLibrary
+UCLASS(deprecated, meta = (DeprecationMessage = "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace."))
+class OCULUSINPUT_API UDEPRECATED_UOculusInputFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
-	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|HandTracking")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|HandTracking", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static EOculusFinger ConvertBoneToFinger(const EBone Bone);
-	
+
 	DECLARE_MULTICAST_DELEGATE_FourParams(FHandMovementFilterDelegate, EControllerHand, FVector*, FRotator*, bool*);
 	static FHandMovementFilterDelegate HandMovementFilter; /// Called to modify Hand position and orientation whenever it is queried
 	
@@ -112,7 +117,8 @@ public:
 	 * @param MeshType					(in) The mesh type that will be used for generating the hand mesh
 	 * @param WorldTometers				(in) Optional change to the world to meters conversion value
 	 */
-	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|HandTracking")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|HandTracking", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static bool GetHandSkeletalMesh(USkeletalMesh* HandSkeletalMesh, EOculusHandType SkeletonType, EOculusHandType MeshType, const float WorldToMeters = 100.0f);
 
 	/**
@@ -122,7 +128,8 @@ public:
 	 * @param HandComponent				(in) The skinned mesh component that the capsules will be attached to
 	 * @param WorldTometers				(in) Optional change to the world to meters conversion value
 	 */
-	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|HandTracking")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|HandTracking", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static TArray<FOculusCapsuleCollider> InitializeHandPhysics(EOculusHandType SkeletonType, USkinnedMeshComponent* HandComponent, const float WorldToMeters = 100.0f);
 
 	/**
@@ -132,7 +139,8 @@ public:
 	 * @param BoneId					(in) The specific bone to get the rotation from
 	 * @param ControllerIndex			(in) Optional different controller index
 	 */
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static FQuat GetBoneRotation(const EOculusHandType DeviceHand, const EBone BoneId, const int32 ControllerIndex = 0);
 	
 	/**
@@ -141,7 +149,8 @@ public:
 	 * @param DeviceHand				(in) The hand to get the pointer pose from
 	 * @param ControllerIndex			(in) Optional different controller index
 	 */
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static FTransform GetPointerPose(const EOculusHandType DeviceHand, const int32 ControllerIndex = 0);
 
 	/**
@@ -150,7 +159,8 @@ public:
 	 * @param DeviceHand				(in) The hand to get the pointer status from
 	 * @param ControllerIndex			(in) Optional different controller index
 	 */
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static bool IsPointerPoseValid(const EOculusHandType DeviceHand, const int32 ControllerIndex = 0);
 
 	/**
@@ -159,7 +169,8 @@ public:
 	 * @param DeviceHand				(in) The hand to get tracking confidence of
 	 * @param ControllerIndex			(in) Optional different controller index
 	 */
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static ETrackingConfidence GetTrackingConfidence(const EOculusHandType DeviceHand, const int32 ControllerIndex = 0);
 
 	/**
@@ -169,7 +180,8 @@ public:
 	* @param ControllerIndex			(in) Optional different controller index
 	* @param Finger			(in) The finger to get tracking confidence of
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static ETrackingConfidence GetFingerTrackingConfidence(const EOculusHandType DeviceHand, const EOculusFinger Finger, const int32 ControllerIndex = 0);
 
 	/**
@@ -178,7 +190,8 @@ public:
 	 * @param DeviceHand				(in) The hand to get scale of
 	 * @param ControllerIndex			(in) Optional different controller index
 	 */
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static float GetHandScale(const EOculusHandType DeviceHand, const int32 ControllerIndex = 0);
 
 	/**
@@ -186,13 +199,15 @@ public:
 	 *
 	 * @param ControllerIndex			(in) Optional different controller index
 	 */
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static EOculusHandType GetDominantHand(const int32 ControllerIndex = 0);
 
 	/**
 	 * Check if hand tracking is enabled currently
 	 */
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static bool IsHandTrackingEnabled();
 
 	/**
@@ -201,7 +216,8 @@ public:
 	* @param DeviceHand				(in) The hand to get the position from
 	* @param ControllerIndex			(in) Optional different controller index
 	*/
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static bool IsHandPositionValid(const EOculusHandType DeviceHand, const int32 ControllerIndex = 0);
 
 	/**
@@ -209,7 +225,9 @@ public:
 	 *
 	 * @param BoneIndex					(in) Bone index to get the name of
 	 */
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
+	UE_DEPRECATED(5.1, "OculusVR plugin is deprecated; please use the built-in OpenXR plugin or OculusXR plugin from the Marketplace.")
+	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking", meta = (DeprecatedFunction, DeprecationMessage = "The OculusVR plugin is deprecated."))
 	static FString GetBoneName(EBone BoneId);
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 

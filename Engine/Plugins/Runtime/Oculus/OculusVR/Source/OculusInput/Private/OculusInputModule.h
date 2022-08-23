@@ -14,6 +14,8 @@
 
 #if OCULUS_INPUT_SUPPORTED_PLATFORMS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 namespace OculusInput
 {
 	class FOculusInput;
@@ -47,6 +49,8 @@ class FOculusInputModule : public FDefaultModuleImpl
 		return 0;
 	};
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif	// OCULUS_INPUT_SUPPORTED_PLATFORMS
 

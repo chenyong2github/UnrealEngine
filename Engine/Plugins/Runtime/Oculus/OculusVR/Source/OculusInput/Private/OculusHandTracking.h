@@ -12,6 +12,8 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogOcHandTracking, Log, All);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 //-------------------------------------------------------------------------------------------------
 // FOculusHandTracking
 //-------------------------------------------------------------------------------------------------
@@ -50,5 +52,7 @@ private:
 
 
 } // namespace OculusInput
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE
