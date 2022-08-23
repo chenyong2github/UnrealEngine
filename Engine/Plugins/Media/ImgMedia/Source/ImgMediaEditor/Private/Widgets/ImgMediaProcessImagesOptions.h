@@ -23,10 +23,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = Sequence)
 	FDirectoryPath OutputPath;
 
-	/** If checked, then use our custom format with a single file for all tiles. */
-	UPROPERTY(EditAnywhere, Category = Sequence)
-	bool bUseCustomFormat;
-
 	/** If checked, then enable mip mapping. */
 	UPROPERTY(EditAnywhere, Category = Sequence)
 	bool bEnableMipMapping;
