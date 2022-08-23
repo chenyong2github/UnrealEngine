@@ -19,6 +19,20 @@
 #ifndef UE_VIRTUALIZATION_SYSTEM_LAZY_INIT
 	#define UE_VIRTUALIZATION_SYSTEM_LAZY_INIT 0
 #endif //UE_VIRTUALIZATION_SYSTEM_LAZY_INIT
+
+// When enabled we will log if FNullVirtualizationSystem tries to push or pull payloads
+#define UE_LOG_ON_NULLSYSTEM_USE 1
+
+// When enabled messages logged when FNullVirtualizationSystem is in use will use the 'Error'
+// severity. When disabled the messages will use 'Warning' severity.
+#define UE_USING_NULLSYSTEM_IS_ERROR 1
+
+#if UE_USING_NULLSYSTEM_IS_ERROR
+	#define UE_NULLSYSTEM_SEVERITY Error
+#else
+	#define UE_NULLSYSTEM_SEVERITY Warning
+#endif // UE_USING_NULLSYSTEM_IS_ERROR
+
 namespace UE::Virtualization
 {
 
@@ -60,16 +74,28 @@ public:
 
 	virtual bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override
 	{
+#if UE_LOG_ON_NULLSYSTEM_USE
+		UE_LOG(LogVirtualization, UE_NULLSYSTEM_SEVERITY, TEXT("Cannot push payload '%s' as the virtualization system is disabled"), *LexToString(Id));
+#endif //UE_LOG_ON_NULLSYSTEM_USE
+		
 		return false;
 	}
 
 	virtual bool PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType) override
 	{
+#if UE_LOG_ON_NULLSYSTEM_USE
+		UE_LOG(LogVirtualization, UE_NULLSYSTEM_SEVERITY, TEXT("Cannot push payloads as the virtualization system is disabled"));
+#endif //UE_LOG_ON_NULLSYSTEM_USE
+
 		return false;
 	}
 
 	virtual FCompressedBuffer PullData(const FIoHash& Id) override
 	{
+#if UE_LOG_ON_NULLSYSTEM_USE
+		UE_LOG(LogVirtualization, UE_NULLSYSTEM_SEVERITY, TEXT("Cannot pull payload '%s' as the virtualization system is disabled"), *LexToString(Id));
+#endif //UE_LOG_ON_NULLSYSTEM_USE
+
 		return FCompressedBuffer();
 	}
 

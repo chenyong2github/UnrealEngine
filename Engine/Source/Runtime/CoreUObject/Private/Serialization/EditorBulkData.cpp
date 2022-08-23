@@ -1458,17 +1458,25 @@ FCompressedBuffer FEditorBulkData::PullData() const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::PullData);
 
-	FCompressedBuffer PulledPayload = UE::Virtualization::IVirtualizationSystem::Get().PullData(PayloadContentId);
-
-	if (PulledPayload)
+	UE::Virtualization::IVirtualizationSystem& System = UE::Virtualization::IVirtualizationSystem::Get();
+	if (System.IsEnabled())
 	{
-		checkf(	PayloadSize == PulledPayload.GetRawSize(),
-				TEXT("Mismatch between serialized length (%" INT64_FMT ") and virtualized data length (%" UINT64_FMT ")"),
-				PayloadSize,
-				PulledPayload.GetRawSize());
+		FCompressedBuffer PulledPayload = UE::Virtualization::IVirtualizationSystem::Get().PullData(PayloadContentId);
+
+		checkf(!PulledPayload || PayloadSize == PulledPayload.GetRawSize(),
+			TEXT("Mismatch between serialized length (%" INT64_FMT ") and virtualized data length (%" UINT64_FMT ")"),
+			PayloadSize,
+			PulledPayload.GetRawSize());
+
+		UE_CLOG(PulledPayload.IsNull(), LogSerialization, Error, TEXT("Failed to pull payload '%s'"), *LexToString(PayloadContentId));
+
+		return PulledPayload;
 	}
-	
-	return PulledPayload;
+	else
+	{
+		UE_LOG(LogSerialization, Error, TEXT("Cannot pull payload '%s' as the virtualization system is disabled"), *LexToString(PayloadContentId));
+		return FCompressedBuffer();
+	}	
 }
 
 bool FEditorBulkData::CanUnloadData() const
@@ -1664,7 +1672,7 @@ void FEditorBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompre
 
 				this->OffsetInFile = PayloadOffset;
 				this->Flags = (this->Flags & TransientFlags) | (UpdatedFlags & ~TransientFlags);
-	
+
 				// If the payload is valid we might want to fix up the package path or virtualization flags now
 				// that the package has saved.
 				if (!this->PayloadContentId.IsZero())
@@ -1703,7 +1711,11 @@ void FEditorBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompre
 		}
 	};
 
-	UE::Virtualization::EPayloadFilterReason PayloadFilter = UE::Virtualization::IVirtualizationSystem::Get().FilterPayload(Owner);
+	UE::Virtualization::EPayloadFilterReason PayloadFilter = UE::Virtualization::EPayloadFilterReason::None;
+	if (UE::Virtualization::IVirtualizationSystem::IsInitialized())
+	{
+		PayloadFilter = UE::Virtualization::IVirtualizationSystem::Get().FilterPayload(Owner);
+	}
 
 #if UE_ENABLE_VIRTUALIZATION_TOGGLE
 	if (bSkipVirtualization)
@@ -1781,7 +1793,6 @@ FCompressedBuffer FEditorBulkData::GetDataInternal() const
 		
 		checkf(Payload.IsNull(), TEXT("Pulling data somehow assigned it to the bulk data object!")); //Make sure that we did not assign the buffer internally
 
-		UE_CLOG(CompressedPayload.IsNull(), LogSerialization, Error, TEXT("Failed to pull payload '%s'"), *LexToString(PayloadContentId));
 		UE_CLOG(!IsDataValid(*this, CompressedPayload), LogSerialization, UE_CORRUPTED_DATA_SEVERITY, TEXT("Virtualized payload '%s' is corrupt! Check the backend storage."), *LexToString(PayloadContentId));
 		
 		TRACE_COUNTER_ADD(EditorBulkData_PayloadDataPulled, (int64)CompressedPayload.GetCompressedSize());
