@@ -258,7 +258,7 @@ void FMemberReference::InitFieldRedirectMap()
 				}			
 			}
 
-			FCoreRedirects::AddRedirectList(NewRedirects, GEngineIni);
+			FCoreRedirects::AddRedirectList(NewRedirects, TEXT("InitFieldRedirectMap"));
 			bFieldRedirectMapInitialized = true;
 		}
 	}

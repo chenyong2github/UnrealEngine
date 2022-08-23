@@ -23,6 +23,8 @@ class UClass;
 
 #define WITH_COREREDIRECTS_MULTITHREAD_WARNING !UE_BUILD_SHIPPING && !IS_PROGRAM && !WITH_EDITOR
 
+DECLARE_LOG_CATEGORY_EXTERN(LogCoreRedirects, Log, All);
+
 /** 
  * Flags describing the type and properties of this redirect
  */
@@ -317,6 +319,15 @@ struct COREUOBJECT_API FCoreRedirects
 	/** Returns true if this has ever been initialized */
 	static bool IsInitialized() { return bInitialized; }
 
+	/** Returns true if this is in debug mode that slows loading and adds additional warnings */
+	static bool IsInDebugMode() { return bInDebugMode; }
+
+	/** Validate a named list of redirects */
+	static void ValidateRedirectList(TArrayView<const FCoreRedirect> Redirects, const FString& SourceString);
+
+	/** Validates all known redirects and warn if they seem to point to missing things */
+	static void ValidateAllRedirects();
+
 	/** Gets map from config key -> Flags */
 	static const TMap<FName, ECoreRedirectFlags>& GetConfigKeyMap() { return ConfigKeyMap; }
 
@@ -358,6 +369,12 @@ private:
 
 	/** Whether this has been initialized at least once */
 	static bool bInitialized;
+
+	/** True if we are in debug mode that does extra validation */
+	static bool bInDebugMode;
+
+	/** True if we have done our initial validation. After initial validation, each change to redirects will validate independently */
+	static bool bValidatedOnce;
 
 #if WITH_COREREDIRECTS_MULTITHREAD_WARNING
 	/** Whether CoreRedirects is now being used multithreaded and therefore does not support writes to RedirectTypeMap keyvalue pairs */

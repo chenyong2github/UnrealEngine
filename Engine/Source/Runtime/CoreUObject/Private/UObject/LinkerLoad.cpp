@@ -349,7 +349,7 @@ void FLinkerLoad::CreateActiveRedirectsMap(const FString& GEngineIniName)
 				}
 			}
 
-			FCoreRedirects::AddRedirectList(NewRedirects, GEngineIniName);
+			FCoreRedirects::AddRedirectList(NewRedirects, FString::Printf(TEXT("ActiveClassRedirects %s"), *GEngineIniName));
 		}
 	}
 	else
