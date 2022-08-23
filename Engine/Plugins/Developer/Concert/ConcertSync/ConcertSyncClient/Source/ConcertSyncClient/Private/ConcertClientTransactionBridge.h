@@ -6,11 +6,10 @@
 #include "Misc/ITransaction.h"
 #include "ConcertSyncArchives.h"
 
-class CONCERTSYNCCLIENT_API FConcertClientTransactionBridge : public IConcertClientTransactionBridge
+class FConcertClientTransactionBridge : public IConcertClientTransactionBridge
 {
 public:
 	FConcertClientTransactionBridge();
-	FConcertClientTransactionBridge(bool bInIncludeEditorOnlyProperties);
 	virtual ~FConcertClientTransactionBridge();
 
 	//~ IConcertClientTransactionBridge interface

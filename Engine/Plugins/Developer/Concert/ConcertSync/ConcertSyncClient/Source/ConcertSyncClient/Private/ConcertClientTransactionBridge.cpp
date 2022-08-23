@@ -486,12 +486,6 @@ FConcertClientTransactionBridge::FConcertClientTransactionBridge()
 	FCoreDelegates::OnEndFrame.AddRaw(this, &FConcertClientTransactionBridge::OnEndFrame);
 }
 
-FConcertClientTransactionBridge::FConcertClientTransactionBridge(bool bInIncludeEditorOnlyProperties)
-	: FConcertClientTransactionBridge()
-{
-	bIncludeEditorOnlyProperties = bInIncludeEditorOnlyProperties;
-}
-
 FConcertClientTransactionBridge::~FConcertClientTransactionBridge()
 {
 #if WITH_EDITOR
