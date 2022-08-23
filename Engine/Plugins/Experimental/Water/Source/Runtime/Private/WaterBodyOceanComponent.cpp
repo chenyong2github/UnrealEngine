@@ -127,110 +127,259 @@ void UWaterBodyOceanComponent::Reset()
 	CollisionHullSets.Reset();
 }
 
-void UWaterBodyOceanComponent::GenerateWaterBodyMesh()
+// Adds a quad to a dynamic mesh reusing passed vertex indices if they are not INDEX_NONE
+static void AddAABBQuadToDynamicMesh(UE::Geometry::FDynamicMesh3& EditMesh, FVector3d Min, FVector3d Max, TArray<int32, TInlineAllocator<4>>& InOutVertices)
+{
+	using namespace UE::Geometry;
+
+	int32 VertexAIndex = InOutVertices[0];
+	int32 VertexBIndex = InOutVertices[1];
+	int32 VertexCIndex = InOutVertices[2];
+	int32 VertexDIndex = InOutVertices[3];
+
+	if (VertexAIndex == INDEX_NONE)
+	{ 
+		FVertexInfo VertexA;
+		VertexA.Position = Min;
+		VertexA.Color = FVector3f(0.0);
+		VertexA.bHaveC = true;
+		VertexAIndex = EditMesh.AppendVertex(VertexA);
+	}
+	
+	if (VertexBIndex == INDEX_NONE)
+	{
+		FVertexInfo VertexB;
+		VertexB.Position = FVector3d(Max.X, Min.Y, 0);
+		VertexB.Color = FVector3f(0.0);
+		VertexB.bHaveC = true;
+		VertexBIndex = EditMesh.AppendVertex(VertexB);
+	}
+
+	if (VertexCIndex == INDEX_NONE)
+	{
+		FVertexInfo VertexC;
+		VertexC.Position = Max;
+		VertexC.Color = FVector3f(0.0);
+		VertexC.bHaveC = true;
+		VertexCIndex = EditMesh.AppendVertex(VertexC);
+	}
+
+	if (VertexDIndex == INDEX_NONE)
+	{
+		FVertexInfo VertexD;
+		VertexD.Position = FVector3d(Min.X, Max.Y, 0);
+		VertexD.Color = FVector3f(0.0);
+		VertexD.bHaveC = true;
+		VertexDIndex = EditMesh.AppendVertex(VertexD);
+	}
+
+	const int TriOne = EditMesh.AppendTriangle(VertexAIndex, VertexDIndex, VertexBIndex);
+	const int TriTwo = EditMesh.AppendTriangle(VertexBIndex, VertexDIndex, VertexCIndex);
+	check(TriOne != INDEX_NONE && TriTwo != INDEX_NONE);
+
+	InOutVertices = {VertexAIndex, VertexBIndex, VertexCIndex, VertexDIndex};
+}
+
+bool UWaterBodyOceanComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3& OutMesh, UE::Geometry::FDynamicMesh3* OutDilatedMesh) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateOceanMesh);
 
 	using namespace UE::Geometry;
 
-	WaterBodyMeshVertices.Empty();
-	WaterBodyMeshIndices.Empty();
-
 	const UWaterSplineComponent* SplineComp = GetWaterSpline();
+	const FVector OceanLocation = GetComponentLocation();
 	
 	if (SplineComp->GetNumberOfSplineSegments() < 3)
 	{
-		return;
+		return false;
 	}
 
 	FPolygon2d Island;
 	TArray<FVector> PolyLineVertices;
 	SplineComp->ConvertSplineToPolyLine(ESplineCoordinateSpace::Local, FMath::Square(10.f), PolyLineVertices);
-	
+
+	FAxisAlignedBox2d IslandBounds = FAxisAlignedBox2d(FVector2d(0.f), FVector2d(0.f));
 	// Construct a 2D polygon describing the central island
 	for (int32 i = PolyLineVertices.Num() - 2; i >= 0; --i) // skip the last vertex since it's the same as the first vertex
 	{
 		Island.AppendVertex(FVector2D(PolyLineVertices[i]));
+		IslandBounds.Contain(FVector2d(PolyLineVertices[i]));
 	}
+	// Expand the island slightly so we aren't intersecting with the spline
+	IslandBounds.Expand(1);
 
-	FVector OceanLocation = GetComponentLocation();
-	FPolygon2d OceanBoundingPolygon = FPolygon2d::MakeRectangle(FVector2d(0, 0), VisualExtents.X, VisualExtents.Y);
+	// #todo: account for scale
+	const FAxisAlignedBox2d OceanBounds = FAxisAlignedBox2d(-FVector2d(VisualExtents) / 2.0, FVector2d(VisualExtents) / 2.0);
+	FPolygon2d IslandBoundingPolygon = FPolygon2d::MakeRectangle(FVector2d(IslandBounds.Center()), 2 * IslandBounds.Extents().X, 2 * IslandBounds.Extents().Y);
+
 
 	FConstrainedDelaunay2d Triangulation;
 	Triangulation.FillRule = FConstrainedDelaunay2d::EFillRule::Positive;
-	Triangulation.Add(OceanBoundingPolygon);
+	Triangulation.Add(IslandBoundingPolygon);
+
 	if (!Island.IsClockwise())
 	{
 		Island.Reverse();
 	}
 	Triangulation.Add(Island);
-	Triangulation.Triangulate();
+	if (!Triangulation.Triangulate())
+	{
+		UE_LOG(LogWater, Warning, TEXT("Failed to triangulate ocean (%s). Spline might not be fully contained by VisualExtents."), *GetOwner()->GetActorNameOrLabel());
+		return false;
+	}
 
 	if (Triangulation.Triangles.Num() == 0)
 	{
-		return;
+		return false;
 	}
+	
+	int32 IslandBottomLeft = INDEX_NONE;
+	FVector3d IslandBottomLeftVertex;
 
-	// This FDynamicMesh3 will only be used to compute the inset region for shape dilation
-	FDynamicMesh3 OceanMesh(EMeshComponents::None);
+	int32 IslandBottomRight = INDEX_NONE;
+	FVector3d IslandBottomRightVertex;
+	
+	int32 IslandTopRight = INDEX_NONE;
+	FVector3d IslandTopRightVertex;
+
+	int32 IslandTopLeft = INDEX_NONE;
+	FVector3d IslandTopLeftVertex;
+
 	for (const FVector2d& Vertex : Triangulation.Vertices)
 	{
-		// push the set of undilated vertices to the persistent mesh
-		FDynamicMeshVertex MeshVertex(FVector3f(Vertex.X, Vertex.Y, 0.f));
-		MeshVertex.Color = FColor::Black;
-		MeshVertex.TextureCoordinate[0].X = WaterBodyIndex;
-		WaterBodyMeshVertices.Add(MeshVertex);
+		FVertexInfo VertexInfo;
+		VertexInfo.Position = FVector3d(Vertex, 0.f);
+		VertexInfo.Color = FVector3f(0.0);
+		VertexInfo.bHaveC = true;
 
-		OceanMesh.AppendVertex(FVector3d(Vertex, 0.0));
+		int32 Index = OutMesh.AppendVertex(VertexInfo);
+
+		// Collect the corner vertices of the island bounding box so we can stitch the outer quads to them.
+		if ((IslandBottomLeft == INDEX_NONE) || (VertexInfo.Position.X < IslandBottomLeftVertex.X || VertexInfo.Position.Y < IslandBottomLeftVertex.Y))
+		{
+			IslandBottomLeft = Index;
+			IslandBottomLeftVertex = VertexInfo.Position;
+		}
+		if ((IslandBottomRight == INDEX_NONE) || (VertexInfo.Position.X > IslandBottomRightVertex.X || VertexInfo.Position.Y < IslandBottomRightVertex.Y))
+		{
+			IslandBottomRight = Index;
+			IslandBottomRightVertex = VertexInfo.Position;
+		}
+		if ((IslandTopRight == INDEX_NONE) || (VertexInfo.Position.X > IslandTopRightVertex.X || VertexInfo.Position.Y > IslandTopRightVertex.Y))
+		{
+			IslandTopRight = Index;
+			IslandTopRightVertex = VertexInfo.Position;
+		}
+		if ((IslandTopLeft == INDEX_NONE) || (VertexInfo.Position.X < IslandTopLeftVertex.X || VertexInfo.Position.Y > IslandTopLeftVertex.Y))
+		{
+			IslandTopLeft = Index;
+			IslandTopLeftVertex = VertexInfo.Position;
+		}
 	}
+	check(IslandBottomLeft != INDEX_NONE &&
+		  IslandBottomRight != INDEX_NONE &&
+		  IslandTopRight != INDEX_NONE &&
+		  IslandTopLeft != INDEX_NONE);
 
 	for (const FIndex3i& Triangle : Triangulation.Triangles)
 	{
-		WaterBodyMeshIndices.Append({ (uint32)Triangle.A, (uint32)Triangle.B, (uint32)Triangle.C });
-		OceanMesh.AppendTriangle(Triangle);
+		OutMesh.AppendTriangle(Triangle);
 	}
 
+	// Add the bounding quads:
 
-	if (ShapeDilation > 0.f)
+	// Each quad has four vertices laid out like so
+	// D --- C
+	// |  \  |
+	// A --- B
+	
+	TArray<int32, TInlineAllocator<4>> Vertices({ INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE });
+
+	// Bottom left quad
+	Vertices[2] = IslandBottomLeft;
+	AddAABBQuadToDynamicMesh(OutMesh, FVector3d(OceanBounds.Min, 0), FVector3d(IslandBounds.Min, 0), Vertices);
+	// We need the B and C vertices of the first quad to attach to the last quad
+	int32 FirstQuadB = Vertices[1];
+	int32 FirstQuadC = Vertices[2];
+
+	// Left middle quad
+	Vertices[0] = Vertices[3];
+	Vertices[1] = Vertices[2];
+	Vertices[2] = IslandTopLeft;
+	Vertices[3] = INDEX_NONE;
+	AddAABBQuadToDynamicMesh(OutMesh, FVector3d(OceanBounds.Min.X, IslandBounds.Min.Y, 0), FVector3d(IslandBounds.Min.X, IslandBounds.Max.Y, 0), Vertices);
+
+	// Top left quad
+	Vertices[0] = Vertices[3];
+	Vertices[1] = Vertices[2];
+	Vertices[2] = INDEX_NONE;
+	Vertices[3] = INDEX_NONE;
+	AddAABBQuadToDynamicMesh(OutMesh, FVector3d(OceanBounds.Min.X, IslandBounds.Max.Y, 0), FVector3d(IslandBounds.Min.X, OceanBounds.Max.Y, 0), Vertices);
+
+	// Top middle quad
+	Vertices[0] = Vertices[1];
+	Vertices[3] = Vertices[2];
+	Vertices[1] = IslandTopRight;
+	Vertices[2] = INDEX_NONE;
+	AddAABBQuadToDynamicMesh(OutMesh, FVector3d(IslandBounds.Min.X, IslandBounds.Max.Y, 0), FVector3d(IslandBounds.Max.X, OceanBounds.Max.Y, 0), Vertices);
+
+	// Top right quad
+	Vertices[0] = Vertices[1];
+	Vertices[3] = Vertices[2];
+	Vertices[1] = INDEX_NONE;
+	Vertices[2] = INDEX_NONE;
+	AddAABBQuadToDynamicMesh(OutMesh, FVector3d(IslandBounds.Max, 0), FVector3d(OceanBounds.Max, 0), Vertices);
+
+	// Middle right quad
+	Vertices[3] = Vertices[0];
+	Vertices[2] = Vertices[1];
+	Vertices[1] = INDEX_NONE;
+	Vertices[0] = IslandBottomRight;
+	AddAABBQuadToDynamicMesh(OutMesh, FVector3d(IslandBounds.Max.X, IslandBounds.Min.Y, 0), FVector3d(OceanBounds.Max.X, IslandBounds.Max.Y, 0), Vertices);
+
+	// Bottom right quad
+	Vertices[3] = Vertices[0];
+	Vertices[2] = Vertices[1];
+	Vertices[1] = INDEX_NONE;
+	Vertices[0] = INDEX_NONE;
+	AddAABBQuadToDynamicMesh(OutMesh, FVector3d(IslandBounds.Max.X, OceanBounds.Min.Y, 0), FVector3d(OceanBounds.Max.X, IslandBounds.Min.Y, 0), Vertices);
+
+	// Middle bottom quad
+	Vertices[1] = Vertices[0];
+	Vertices[2] = Vertices[3];
+	Vertices[0] = FirstQuadB;
+	Vertices[3] = FirstQuadC;
+	AddAABBQuadToDynamicMesh(OutMesh, FVector3d(IslandBounds.Min.X, OceanBounds.Min.Y, 0), FVector3d(IslandBounds.Max.X, IslandBounds.Min.Y, 0), Vertices);
+	
+	if (ShapeDilation > 0.f && OutDilatedMesh)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DilateOceanMesh);
 
 		// Inset the mesh by -ShapeDilation to effectively expand the mesh
-		FInsetMeshRegion Inset(&OceanMesh);
+		OutDilatedMesh->Copy(OutMesh);
+		FInsetMeshRegion Inset(OutDilatedMesh);
 		Inset.InsetDistance = -1 * ShapeDilation / 2.f;
 
-		Inset.Triangles.Reserve(OceanMesh.TriangleCount());
-		for (int32 Idx : OceanMesh.TriangleIndicesItr())
+		Inset.Triangles.Reserve(OutDilatedMesh->TriangleCount());
+		for (int32 Idx : OutDilatedMesh->TriangleIndicesItr())
 		{
 			Inset.Triangles.Add(Idx);
 		}
 		
-		if (Inset.Apply())
+		if (!Inset.Apply())
 		{
-			for (const FVector3d& Vertex : OceanMesh.GetVerticesBuffer())
-			{
-				// push the set of dilated vertices to the persistent mesh
-				FDynamicMeshVertex MeshVertex(FVector3f(Vertex.X, Vertex.Y, 0.f));
-				MeshVertex.Color = FColor::Black;
-				DilatedWaterBodyMeshVertices.Add(MeshVertex);
-			}
-
-			for (const FIndex3i& Triangle : OceanMesh.GetTrianglesBuffer())
-			{
-				DilatedWaterBodyMeshIndices.Append({ (uint32)Triangle.A, (uint32)Triangle.B, (uint32)Triangle.C });
-			}
-		}
-		else
-		{
-			UE_LOG(LogWater, Warning, TEXT("Failed to apply mesh inset for shape dilation (%s"), *GetOwner()->GetActorNameOrLabel());
+			UE_LOG(LogWater, Warning, TEXT("Failed to apply mesh inset for shape dilation (%s)"), *GetOwner()->GetActorNameOrLabel());
+			return false;
 		}
 	}	
+	return true;
 }
 
 void UWaterBodyOceanComponent::PostLoad()
 {
 	Super::PostLoad();
 
+#ifdef WITH_EDITORONLY_DATA
 	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterZonesRefactor)
 	{
 		if (AWaterZone* WaterZone = GetWaterZone())
@@ -238,6 +387,13 @@ void UWaterBodyOceanComponent::PostLoad()
 			SetVisualExtents(WaterZone->GetZoneExtent());
 		}
 	}
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterNontessellatedLODSupportAdded)
+	{
+		// Prior to the refactors when introducing the non-tessellated LOD, the Ocean's visual extent was treated as 2x the actual value.
+		// To maintain visual consistency with previous versions, the value needs to now be updated to be 2x.
+		VisualExtents = VisualExtents * 2.;
+	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 FBoxSphereBounds UWaterBodyOceanComponent::CalcBounds(const FTransform& LocalToWorld) const

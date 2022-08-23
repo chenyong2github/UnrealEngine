@@ -180,18 +180,18 @@ bool FMeshPlaneCut::CutWithoutDelete(bool bSplitVerticesAtPlane, float OffsetVer
 		ensure(OffsetVertices == 0.0); // it would be weird to not split vertices and still request any offset of the 'other side' vertices; please don't do that
 	}
 
-
-	if (!TriLabels)
-	{
-		ensure(!bSplitVerticesAtPlane); // need labels to split verts currently
-		return false;
-	}
-
 	// collapse degenerate edges if we got em
 	if (bCollapseDegenerateEdgesOnCut)
 	{
 		CollapseDegenerateEdges(OnCutEdges, ZeroEdges);
 	}
+
+	if (!bSplitVerticesAtPlane)
+	{
+		return true;
+	}
+
+	ensure(TriLabels); // need labels to split verts currently
 
 	TMap<int, int> OldLabelToNew;
 	int AvailableID = NewLabelStartID;

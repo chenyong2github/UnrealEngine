@@ -150,6 +150,14 @@ FMaterialRelevance UWaterMeshComponent::GetWaterMaterialRelevance(ERHIFeatureLev
 	return Result;
 }
 
+void UWaterMeshComponent::PushTessellatedWaterMeshBoundsToPoxy(const FBox2D& TessellatedWaterMeshBounds)
+{
+	if (SceneProxy)
+	{
+		static_cast<FWaterMeshSceneProxy*>(SceneProxy)->OnTessellatedWaterMeshBoundsChanged_GameThread(TessellatedWaterMeshBounds);
+	}
+}
+
 void UWaterMeshComponent::SetExtentInTiles(FIntPoint NewExtentInTiles)
 {
 	ExtentInTiles = NewExtentInTiles;
@@ -573,6 +581,18 @@ void UWaterMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 	{
 		const FName PropertyName = PropertyThatChanged->GetFName();
 
+		// Properties that require water body geometry to be rebuilt since they depend on the mesh grid layout
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaterMeshComponent, TileSize)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(UWaterMeshComponent, ExtentInTiles)
+			|| PropertyName == TEXT("RelativeScale3D")
+			|| PropertyName == TEXT("RelativeLocation")
+			|| PropertyName == TEXT("RelativeRotation"))
+		{
+			AWaterZone* WaterZone = GetOwner<AWaterZone>();
+			check(WaterZone);
+			WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterBodyLODSections);
+		}
+
 		// Properties that needs the scene proxy to be rebuilt
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaterMeshComponent, LODScale)
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(UWaterMeshComponent, TessellationFactor)
@@ -585,6 +605,16 @@ void UWaterMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 			MarkWaterMeshGridDirty();
 			MarkRenderStateDirty();
 		}
+	}
+}
+
+void UWaterMeshComponent::PostEditComponentMove(bool bFinished)
+{
+	if (bFinished)
+	{
+		AWaterZone* WaterZone = GetOwner<AWaterZone>();
+		check(WaterZone);
+		WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterBodyLODSections);
 	}
 }
 #endif

@@ -36,6 +36,9 @@
 #include "Logging/TokenizedMessage.h"
 #include "WaterBodySceneProxy.h"
 #include "Engine/StaticMesh.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
+#include "Operations/MeshPlaneCut.h"
 
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
@@ -128,7 +131,13 @@ void UWaterBodyComponent::OnHiddenInGameChanged()
 
 FPrimitiveSceneProxy* UWaterBodyComponent::CreateSceneProxy()
 {
-	return new FWaterBodySceneProxy(this);
+	if (AffectsWaterMesh() && GetWaterZone())
+	{
+		const FVector TessellatedMeshCenter = GetWaterZone()->GetTessellatedWaterMeshCenter();
+		const FVector TessellatedMeshExtent =  GetWaterZone()->GetTessellatedWaterMeshExtent();
+		return new FWaterBodySceneProxy(this, FBox2D(FVector2D(TessellatedMeshCenter - TessellatedMeshExtent/ 2), FVector2D(TessellatedMeshCenter + TessellatedMeshExtent/ 2)));
+	}
+	return nullptr;
 }
 
 void UWaterBodyComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterialInterfaces, bool bGetDebugMaterials) const
@@ -136,6 +145,27 @@ void UWaterBodyComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 	if (WaterInfoMID)
 	{
 		OutMaterialInterfaces.Add(WaterInfoMID);
+	}
+	if (WaterLODMID)
+	{
+		OutMaterialInterfaces.Add(WaterLODMID);
+	}
+}
+
+
+void UWaterBodyComponent::OnTessellatedWaterMeshBoundsChanged()
+{
+	// When the water info bounds changes, we need to push new bounds to the MIDs so they can address the texture correctly.
+	UpdateMaterialInstances();
+}
+
+void UWaterBodyComponent::PushTessellatedWaterMeshBoundsToProxy(const FBox2D& TessellatedWaterMeshBounds)
+{
+	OnTessellatedWaterMeshBoundsChanged();
+
+	if (SceneProxy)
+	{
+		static_cast<FWaterBodySceneProxy*>(SceneProxy)->OnTessellatedWaterMeshBoundsChanged_GameThread(TessellatedWaterMeshBounds);
 	}
 }
 
@@ -265,6 +295,12 @@ UMaterialInstanceDynamic* UWaterBodyComponent::GetWaterInfoMaterialInstance()
 	return WaterInfoMID;
 }
 
+UMaterialInstanceDynamic* UWaterBodyComponent::GetWaterLODMaterialInstance()
+{
+	CreateOrUpdateWaterLODMID();
+	return WaterLODMID;
+}
+
 void UWaterBodyComponent::SetUnderwaterPostProcessMaterial(UMaterialInterface* InMaterial)
 {
 	UnderwaterPostProcessMaterial = InMaterial;
@@ -337,6 +373,27 @@ void UWaterBodyComponent::UpdateExclusionVolumes()
 		{
 			ExclusionVolume->UpdateOverlappingWaterBodies();
 		}
+	}
+}
+
+void UWaterBodyComponent::UpdateWaterZones()
+{
+	if (UWorld* World = GetWorld())
+	{
+		AWaterZone* FoundZone = FindWaterZone();
+
+		if (OwningWaterZone != nullptr)
+		{
+			OwningWaterZone->RemoveWaterBodyComponent(this);
+			OwningWaterZone = nullptr;
+		}
+
+		if (FoundZone != nullptr)
+		{
+			FoundZone->AddWaterBodyComponent(this);
+		}
+
+		OwningWaterZone = FoundZone;
 	}
 }
 
@@ -684,8 +741,6 @@ void UWaterBodyComponent::OnRegister()
 
 	check(WaterSplineMetadata);
 
-	CreateOrUpdateWaterInfoMID();
-
 #if WITH_EDITOR
 	RegisterOnChangeWaterSplineData(/*bRegister = */true); 
 
@@ -745,6 +800,7 @@ void UWaterBodyComponent::UpdateMaterialInstances()
 {
 	CreateOrUpdateWaterMID();
 	CreateOrUpdateWaterInfoMID();
+	CreateOrUpdateWaterLODMID();
 	CreateOrUpdateUnderwaterPostProcessMID();
 }
 
@@ -807,6 +863,16 @@ void UWaterBodyComponent::CreateOrUpdateWaterInfoMID()
 		WaterInfoMID = FWaterUtils::GetOrCreateTransientMID(WaterInfoMID, TEXT("WaterInfoMID"), WaterInfoMaterial, GetTransientMIDFlags());
 
 		SetDynamicParametersOnWaterInfoMID(WaterInfoMID);
+	}
+}
+
+void UWaterBodyComponent::CreateOrUpdateWaterLODMID()
+{
+	if (GetWorld())
+	{
+		WaterLODMID = FWaterUtils::GetOrCreateTransientMID(WaterLODMID, TEXT("WaterLODMID"), WaterLODMaterial, GetTransientMIDFlags());
+
+		SetDynamicParametersOnMID(WaterLODMID);
 	}
 }
 
@@ -1203,6 +1269,8 @@ void UWaterBodyComponent::UpdateAll(bool bShapeOrPositionChanged)
 			UpdateIslands();
 
 			UpdateExclusionVolumes();
+
+			UpdateWaterZones();
 		}
 
 		// Finally, generate the body once again, this time with the updated list of exclusion volumes
@@ -1298,6 +1366,9 @@ void UWaterBodyComponent::PostLoad()
 #if WITH_EDITOR
 	RegisterOnUpdateWavesData(GetWaterWaves(), /* bRegister = */true);
 #endif // WITH_EDITOR
+
+	// Register the component with the water zone since the component is the authority
+	UpdateWaterZones();
 }
 
 void UWaterBodyComponent::DeprecateData()
@@ -1374,9 +1445,17 @@ void UWaterBodyComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceS
 {
 	Super::GetResourceSizeEx(CumulativeResourceSize);
 
+	uint32 SectionsSize = 0;
+	for (const FWaterBodyMeshSection& Section : WaterBodyMeshSections)
+	{
+		SectionsSize += Section.GetAllocatedSize();
+	}
+
 	// Account for all non-editor data properties :
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(
-		WaterBodyMeshIndices.GetAllocatedSize()
+		WaterBodyMeshSections.GetAllocatedSize() 
+		+ SectionsSize
+		+ WaterBodyMeshIndices.GetAllocatedSize()
 		+ WaterBodyMeshVertices.GetAllocatedSize()
 		+ DilatedWaterBodyMeshIndices.GetAllocatedSize()
 		+ DilatedWaterBodyMeshVertices.GetAllocatedSize());
@@ -1407,14 +1486,14 @@ bool UWaterBodyComponent::SetDynamicParametersOnMID(UMaterialInstanceDynamic* In
 		check(WaterMeshComponent);
 
 		// Location should be the bottom left of the zone
-		const FVector2D ZoneExtent = WaterZone->GetZoneExtent();
-		const FVector2D WaterAreaLocation = FVector2D(WaterZone->GetActorLocation()) - (ZoneExtent / 2.f);
+		const FVector2D WaterInfoExtent = FVector2D(WaterZone->GetTessellatedWaterMeshExtent());
+		const FVector2D WaterInfoLocation = FVector2D(WaterZone->GetTessellatedWaterMeshCenter()) - (WaterInfoExtent / 2.f);
 
 		FVector4 WaterArea;
-		WaterArea.X = WaterAreaLocation.X;
-		WaterArea.Y = WaterAreaLocation.Y;
-		WaterArea.Z = ZoneExtent.X;
-		WaterArea.W = ZoneExtent.Y;
+		WaterArea.X = WaterInfoLocation.X;
+		WaterArea.Y = WaterInfoLocation.Y;
+		WaterArea.Z = WaterInfoExtent.X;
+		WaterArea.W = WaterInfoExtent.Y;
 		InMID->SetDoubleVectorParameterValue(WaterAreaParamName, WaterArea);
 
 		const FVector2f WaterHeightExtents = WaterZone->GetWaterHeightExtents();
@@ -1518,7 +1597,7 @@ float UWaterBodyComponent::GetMaxWaveHeight() const
 	return (HasWaves() ? GetWaterWaves()->GetMaxWaveHeight() : 0.0f) + MaxWaveHeightOffset;
 }
 
-void UWaterBodyComponent::CopySharedCollisionSettingsToComponent(UPrimitiveComponent * InComponent)
+void UWaterBodyComponent::CopySharedCollisionSettingsToComponent(UPrimitiveComponent* InComponent)
 {
 	InComponent->SetCollisionEnabled(GetCollisionEnabled());
 	InComponent->SetNotifyRigidBodyCollision(BodyInstance.bNotifyRigidBodyCollision);
@@ -1527,7 +1606,7 @@ void UWaterBodyComponent::CopySharedCollisionSettingsToComponent(UPrimitiveCompo
 	InComponent->SetGenerateOverlapEvents(GetGenerateOverlapEvents());
 }
 
-void UWaterBodyComponent::CopySharedNavigationSettingsToComponent(UPrimitiveComponent * InComponent)
+void UWaterBodyComponent::CopySharedNavigationSettingsToComponent(UPrimitiveComponent* InComponent)
 {
 	InComponent->SetCanEverAffectNavigation(CanEverAffectNavigation());
 	InComponent->SetCustomNavigableGeometry(HasCustomNavigableGeometry());
@@ -1564,12 +1643,12 @@ UWaterWavesBase* UWaterBodyComponent::GetWaterWaves() const
 	return nullptr;
 }
 
-AWaterZone* UWaterBodyComponent::GetWaterZone() const
+AWaterZone* UWaterBodyComponent::FindWaterZone() const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UWaterBodyComponent::GetWaterZone);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWaterBodyComponent::FindWaterZone);
 
 	TArray<AWaterZone*, TInlineAllocator<4>> ViableZones;
-	
+
 	if (const UWorld* World = GetWorld())
 	{
 		const ULevel* PreferredLevel = GetTypedOuter<ULevel>();
@@ -1578,12 +1657,15 @@ AWaterZone* UWaterBodyComponent::GetWaterZone() const
 			for (AWaterZone* WaterZone : TActorRange<AWaterZone>(World, AWaterZone::StaticClass(), EActorIteratorFlags::SkipPendingKill))
 			{
 				// WaterZone->GetZoneExtents returns the full extent of the zone but BoxSphereBounds expects a half-extent.
-				const FBoxSphereBounds WaterZoneBounds(WaterZone->GetActorLocation(), FVector(WaterZone->GetZoneExtent() / 2.f, 8192.f), 0.f);
-				const FBoxSphereBounds ComponentBounds = CalcBounds(GetComponentTransform());
+				const FVector2D WaterZoneLocation = FVector2D(WaterZone->GetActorLocation());
+				const FVector2D WaterZoneHalfExtent = WaterZone->GetZoneExtent() / 2.0;
+				const FBox2D WaterZoneBounds(WaterZoneLocation - WaterZoneHalfExtent, WaterZoneLocation + WaterZoneHalfExtent);
+				const FBox ComponentBounds3d = CalcBounds(GetComponentTransform()).GetBox();
+				const FBox2D ComponentBounds = FBox2D(FVector2D(ComponentBounds3d.Min), FVector2D(ComponentBounds3d.Max));
 
-				// Only consider WaterZones which this component overlaps but prefer choosing water zones
-				// which are part of the same outered level.
-				if (FBoxSphereBounds::BoxesIntersect(ComponentBounds, WaterZoneBounds))
+				// Only consider WaterZones which this component overlaps 
+				// but prefer choosing water zones which are part of the same outered level.
+				if (ComponentBounds.Intersect(WaterZoneBounds))
 				{
 					if (WaterZone->GetTypedOuter<ULevel>() == PreferredLevel)
 					{
@@ -1598,24 +1680,367 @@ AWaterZone* UWaterBodyComponent::GetWaterZone() const
 	return ViableZones.Num() > 0 ? ViableZones[0] : nullptr;
 }
 
+static inline FColor PackFlowData(float VelocityMagnitude, float DirectionAngle, float MaxVelocity)
+{
+	check((DirectionAngle >= 0.f) && (DirectionAngle <= TWO_PI));
+
+	const float NormalizedMagnitude = FMath::Clamp(VelocityMagnitude, 0.f, MaxVelocity) / MaxVelocity;
+	const float NormalizedAngle = DirectionAngle / TWO_PI;
+	const float MappedMagnitude = NormalizedMagnitude * TNumericLimits<uint16>::Max();
+	const float MappedAngle = NormalizedAngle * TNumericLimits<uint16>::Max();
+
+	const uint16 ResultMag = (uint16)MappedMagnitude;
+	const uint16 ResultAngle = (uint16)MappedAngle;
+	
+	FColor Result;
+	Result.R = (ResultMag >> 8) & 0xFF;
+	Result.G = (ResultMag >> 0) & 0xFF;
+	Result.B = (ResultAngle >> 8) & 0xFF;
+	Result.A = (ResultAngle >> 0) & 0xFF;
+
+	return Result;
+}
+
+
+void UWaterBodyComponent::RebuildWaterBodyInfoMesh()
+{
+	using namespace UE::Geometry;
+
+	WaterBodyMeshVertices.Empty();
+	WaterBodyMeshIndices.Empty();
+	DilatedWaterBodyMeshVertices.Empty();
+	DilatedWaterBodyMeshIndices.Empty();
+
+	FDynamicMesh3 WaterBodyMesh(EMeshComponents::VertexColors);
+	FDynamicMesh3 WaterBodyDilatedMesh(EMeshComponents::None);
+
+	GenerateWaterBodyMesh(WaterBodyMesh, &WaterBodyDilatedMesh);
+	
+	const float MaxFlowVelocity = FWaterUtils::GetWaterMaxFlowVelocity(false);
+	WaterBodyMeshVertices.Reserve(WaterBodyMesh.VertexCount());
+	WaterBodyMeshIndices.Reserve(3 * WaterBodyMesh.TriangleCount());
+	for (int VertexIndex : WaterBodyMesh.VertexIndicesItr())
+	{
+		FVertexInfo VertexInfo;
+		const bool bWantColors = true;
+		const bool bWantNormals = false;
+		const bool bWantUVs = false;
+		WaterBodyMesh.GetVertex(VertexIndex, VertexInfo, bWantNormals, bWantColors, bWantUVs);
+
+		const FVector3f LocalSpacePosition = FVector3f(VertexInfo.Position);
+		FDynamicMeshVertex MeshVertex(LocalSpacePosition);
+
+		const float FlowSpeed = VertexInfo.Color.X;
+		const float FlowDirection = VertexInfo.Color.Y;
+		MeshVertex.Color = PackFlowData(FlowSpeed, FlowDirection, MaxFlowVelocity);
+
+		WaterBodyMeshVertices.Add(MeshVertex);
+	}
+	for (FIndex3i Triangle : WaterBodyMesh.TrianglesItr())
+	{
+		WaterBodyMeshIndices.Append({ (uint32)Triangle.A, (uint32)Triangle.B, (uint32)Triangle.C });
+	}
+
+	DilatedWaterBodyMeshIndices.Reserve(3 * WaterBodyDilatedMesh.TriangleCount());
+	DilatedWaterBodyMeshVertices.Reserve(WaterBodyDilatedMesh.VertexCount());
+	for (FVector3d Vertex : WaterBodyDilatedMesh.VerticesItr())
+	{
+		DilatedWaterBodyMeshVertices.Emplace(FVector3f(Vertex));
+	}
+	for (FIndex3i Triangle : WaterBodyDilatedMesh.TrianglesItr())
+	{
+		DilatedWaterBodyMeshIndices.Append( {(uint32)Triangle.A, (uint32)Triangle.B, (uint32)Triangle.C });
+	}
+}
+
+void UWaterBodyComponent::RebuildWaterBodyLODSections()
+{
+	using namespace UE::Geometry;
+
+	WaterBodyMeshSections.Empty();
+
+	TRACE_CPUPROFILER_EVENT_SCOPE("ComputeWaterBodyMeshSections");
+
+	const AWaterZone* WaterZone = GetWaterZone();
+	check(WaterZone);
+
+	const UWaterMeshComponent* WaterMesh = WaterZone->GetWaterMeshComponent();
+	check(WaterMesh);
+
+	const float WaterLODSectionSize = WaterZone->GetNonTessellatedLODSectionSize();
+	const FVector2i WaterZoneExtentInLODSections = FVector2i(FMath::DivideAndRoundUp(WaterZone->GetZoneExtent(), FVector2d(WaterLODSectionSize)));
+
+	const float GridTileSize = WaterMesh->GetTileSize();
+	const FVector2d GridPosition = FVector2d(WaterMesh->GetComponentLocation().GridSnap(GridTileSize));
+	const FVector2d MeshOrigin = GridPosition - (GridTileSize * FVector2d(WaterMesh->GetExtentInTiles()));
+
+	FDynamicMesh3 EditMesh(EMeshComponents::VertexColors);
+
+	GenerateWaterBodyMesh(EditMesh);
+
+	// Transform everything to world space. This is necessary to maintain an axis-aligned grid. The water mesh is guaranteed to always be axis-aligned in worldspace
+	// so we transform into that coordinate system to guarantee the calculations occur with axis-aligned section tiles.
+	for (int32 VID : EditMesh.VertexIndicesItr())
+	{
+		FVertexInfo VertexInfo = EditMesh.GetVertexInfo(VID);
+		VertexInfo.Position = GetComponentTransform().TransformPosition(VertexInfo.Position);
+		EditMesh.SetVertex(VID, VertexInfo.Position);
+	}
+
+
+	// Slice the mesh along the grid defined by the Water Mesh
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE("ComputeWaterBodyMeshSections::PartitionWaterBodyMesh");
+
+		// We start at an index of -1 and go to +1 here to ensure the bordering sections don't contain triangles that could extend outside the bounds of the cell.
+		for (int32 SectionIndexX = -1; SectionIndexX < WaterZoneExtentInLODSections.X + 1; ++SectionIndexX)
+		{
+			const FVector3d SlicePos = FVector3d(MeshOrigin + SectionIndexX * FVector2d(WaterLODSectionSize, 0.0), 0.0);
+			const FVector3d SliceNormal(-1.0, 0.0, 0.0);
+
+			FMeshPlaneCut Cut(&EditMesh, SlicePos, SliceNormal);
+			if (!ensure(Cut.CutWithoutDelete(false)))
+			{
+				continue;
+			}
+		}
+
+		for (int32 SectionIndexY = -1; SectionIndexY < WaterZoneExtentInLODSections.Y + 1; ++SectionIndexY)
+		{
+			const FVector3d SlicePos = FVector3d(MeshOrigin + SectionIndexY * FVector2d(0.0, WaterLODSectionSize), 0.0);
+			const FVector3d SliceNormal(0.0, -1.0, 0.0);
+
+			FMeshPlaneCut Cut(&EditMesh, SlicePos, SliceNormal);
+			if (!ensure(Cut.CutWithoutDelete(false)))
+			{
+				continue;
+			}
+		}
+	}
+
+	FDynamicMeshAABBTree3 AABBTree(&EditMesh, true);
+
+	const uint32 NumberOfSections = WaterZoneExtentInLODSections.X * WaterZoneExtentInLODSections.Y;
+	TArray<FWaterBodyMeshSection> Sections;
+	Sections.SetNum(NumberOfSections);
+
+	// Need to access this before the ParallelFor since Foreground Worker threads don't count as gamethread.
+	const float MaxFlowVelocity = FWaterUtils::GetWaterMaxFlowVelocity(false);
+	ParallelFor(NumberOfSections, [&](int32 SectionIndex)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE("ComputeWaterBodyMeshSections::BuildMeshSection");
+		const int32 SectionIndexX = SectionIndex % WaterZoneExtentInLODSections.X;
+		const int32 SectionIndexY = SectionIndex / WaterZoneExtentInLODSections.X;
+
+		const FVector2d SectionPos = MeshOrigin + FVector2d(SectionIndexX, SectionIndexY) * WaterLODSectionSize;
+
+		const FAxisAlignedBox2d GridRectXY(SectionPos, SectionPos + WaterLODSectionSize);
+
+		FDynamicMeshAABBTree3::FTreeTraversal Traversal;
+		
+		int SelectAllDepth = TNumericLimits<int>::Max();
+		int CurrentDepth = -1;
+		
+		TArray<int> Triangles;
+
+		Traversal.NextBoxF =
+			[&GridRectXY, &SelectAllDepth, &CurrentDepth](const FAxisAlignedBox3d& Box, int Depth)
+		{
+			CurrentDepth = Depth;
+			if (Depth > SelectAllDepth)
+			{
+				// We are deeper than the depth whose AABB was first detected to be contained in the RectangleXY,
+				// descend and collect all leaf triangles
+				return true;
+			}
+			
+			SelectAllDepth = TNumericLimits<int>::Max();
+			
+			const FAxisAlignedBox2d BoxXY(FVector2d(Box.Min.X, Box.Min.Y), FVector2d(Box.Max.X, Box.Max.Y));
+			if (GridRectXY.Intersects(BoxXY))
+			{
+				if (GridRectXY.Contains(BoxXY))
+				{
+					SelectAllDepth = Depth;
+				}
+				
+				return true;		
+			}
+			return false;
+		};
+		
+
+		Traversal.NextTriangleF =
+			[&GridRectXY, &SelectAllDepth, &CurrentDepth, &Triangles, &EditMesh]
+			(int TriangleID)
+		{
+			if (CurrentDepth >= SelectAllDepth)
+			{
+				// This TriangleID is entirely contained in the selection rectangle so we can skip intersection testing
+				Triangles.Add(TriangleID);
+				return;
+			}
+
+			FAxisAlignedBox2d ExpandedGridRect(GridRectXY);
+			// Expand the rect by 1 unit to add an floating point error margin. 
+			ExpandedGridRect.Expand(1);
+		
+			// this triangle is either on the edge or intersecting with the edge but since we did the plane cuts we know it can't be crossing over into the next cell
+			FIndex3i Triangle = EditMesh.GetTriangle(TriangleID);
+			FVector3d VertexA;
+			FVector3d VertexB;
+			FVector3d VertexC;
+			EditMesh.GetTriVertices(TriangleID, VertexA, VertexB, VertexC);
+			if ((ExpandedGridRect.Contains(FVector2d(VertexA))) &&
+				(ExpandedGridRect.Contains(FVector2d(VertexB))) &&
+				(ExpandedGridRect.Contains(FVector2d(VertexC))))
+			{
+				Triangles.Add(TriangleID);
+			}
+		};
+			
+
+		AABBTree.DoTraversal(Traversal);
+
+		if (Triangles.Num() == 0)
+		{
+			return;
+		}
+
+		TArray<FDynamicMeshVertex> Vertices;
+		TArray<uint32> Indices;
+
+		bool bHasBoundaryTriangle = false;
+		if (GetWaterBodyType() != EWaterBodyType::River)
+		{
+			for (int32 TriangleID : Triangles)
+			{
+				if (EditMesh.IsBoundaryTriangle(TriangleID))
+				{
+					bHasBoundaryTriangle = true;
+					break;
+				}
+			}
+		}
+
+		// Simplification can occur for lakes/rivers since they have flat geometry and no vertex color data.
+		if (!bHasBoundaryTriangle && (GetWaterBodyType() != EWaterBodyType::River))
+		{
+			const float MeshZ = GetConstantSurfaceZ();
+			uint32 TriIndices[4];
+
+			auto AddQuadVertex = [&](FVector2D Position, int QuadIndex)
+			{
+				// Transform back into local space when rebuilding the mesh.
+				const FVector3f LocalSpacePosition = FVector3f(GetComponentTransform().InverseTransformPosition(FVector(Position, MeshZ)));
+				FDynamicMeshVertex MeshVertex(LocalSpacePosition);
+				MeshVertex.Color = FColor(0);
+				TriIndices[QuadIndex] = Vertices.Add(MeshVertex);
+			};
+
+			AddQuadVertex(GridRectXY.Min, 0);
+			AddQuadVertex(GridRectXY.Max, 1);
+			AddQuadVertex(FVector2D(GridRectXY.Min.X, GridRectXY.Max.Y), 2);
+			AddQuadVertex(FVector2D(GridRectXY.Max.X, GridRectXY.Min.Y), 3);
+
+			Indices.Append({ TriIndices[0], TriIndices[2], TriIndices[1], TriIndices[0], TriIndices[1], TriIndices[3] });
+		}
+		else
+		{
+			TMap<uint32, uint32> VertexMap;
+			for (int32 TriangleID : Triangles)
+			{
+				FIndex3i Triangle = EditMesh.GetTriangle(TriangleID);
+				
+				TArray<uint32, TInlineAllocator<3>> TriIndices;
+				for (int32 TriIndex = 0; TriIndex < 3; ++TriIndex)
+				{
+					if (uint32* VertexIndexPtr = VertexMap.Find(Triangle[TriIndex]))
+					{
+						TriIndices.Add(*VertexIndexPtr);
+					}
+					else
+					{
+						FVertexInfo VertexInfo;
+						const bool bWantColors = true;
+						const bool bWantNormals = false;
+						const bool bWantUVs = false;
+						EditMesh.GetVertex(Triangle[TriIndex], VertexInfo, bWantNormals, bWantColors, bWantUVs);
+
+						// Transform back into local space when rebuilding the mesh.
+						const FVector3f LocalSpacePosition = FVector3f(GetComponentTransform().InverseTransformPosition(VertexInfo.Position));
+						FDynamicMeshVertex MeshVertex(LocalSpacePosition);
+						MeshVertex.Color = PackFlowData(VertexInfo.Color.X, VertexInfo.Color.Y, MaxFlowVelocity);
+
+						uint32 NewIndex = Vertices.Add(MeshVertex);
+						VertexMap.Add(Triangle[TriIndex], NewIndex);
+						TriIndices.Add(NewIndex);
+					}
+				}
+
+				Indices.Append(TriIndices);
+			}
+		}
+
+		if (Vertices.Num() != 0)
+		{
+			Sections[SectionIndex].Vertices = MoveTemp(Vertices);
+			Sections[SectionIndex].Indices = MoveTemp(Indices);
+			Sections[SectionIndex].SectionBounds = FBox2D(FVector2D(SectionPos), FVector2D(SectionPos + WaterLODSectionSize));
+		}
+	});
+
+	for (FWaterBodyMeshSection& Section : Sections)
+	{
+		if (Section.IsValid())
+		{
+			WaterBodyMeshSections.Emplace(MoveTemp(Section));
+		}
+	}
+}
+
+
 void UWaterBodyComponent::UpdateWaterBodyRenderData()
 {
-	if (AffectsWaterInfo())
-	{
-		GenerateWaterBodyMesh();
-		MarkRenderStateDirty();
+	const bool bAffectsWaterInfo = AffectsWaterInfo();
+	const bool bAffectsWaterMesh = AffectsWaterMesh();
 
-		// Compact the arrays since they are not going to change unless everything is rebuilt
-		WaterBodyMeshVertices.Shrink();
-		WaterBodyMeshIndices.Shrink();
-		DilatedWaterBodyMeshVertices.Shrink();
-		DilatedWaterBodyMeshIndices.Shrink();
+	if (bAffectsWaterInfo)
+	{
+		RebuildWaterBodyInfoMesh();
 
 		if (AWaterZone* WaterZone = GetWaterZone())
 		{
 			WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture);
 		}
 	}
+
+	if (bAffectsWaterMesh)
+	{
+		checkf(bAffectsWaterInfo, TEXT("Invalid water body! WaterBody affects water mesh but doesn't affect water info"));
+
+		UpdateNonTessellatedMeshSections();
+	}
+
+	if (bAffectsWaterInfo || bAffectsWaterMesh)
+	{
+		MarkRenderStateDirty();
+	}
+}
+
+void UWaterBodyComponent::UpdateNonTessellatedMeshSections()
+{
+	if (AWaterZone* WaterZone = GetWaterZone(); WaterZone && WaterZone->IsNonTessellatedLODMeshEnabled())
+	{
+		RebuildWaterBodyLODSections();
+	}
+	else
+	{
+		// Clear the mesh sections if LOD is disabled
+		WaterBodyMeshSections.Empty();
+	}
+
+	MarkRenderStateDirty();
 }
 
 #if WITH_EDITOR

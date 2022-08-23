@@ -31,6 +31,7 @@ class AWaterZone;
 class ALandscapeProxy;
 class UMaterialInstanceDynamic;
 class FTokenizedMessage;
+namespace UE::Geometry { class FDynamicMesh3; }
 
 // ----------------------------------------------------------------------------------
 
@@ -78,6 +79,29 @@ enum class EWaterBodyStatus : uint8
 	MissingWaterZone,
 	MissingLandscape,
 	InvalidWaveData,
+};
+
+
+// ----------------------------------------------------------------------------------
+
+struct FWaterBodyMeshSection
+{
+public:
+	FWaterBodyMeshSection()
+		: Vertices()
+		, Indices()
+		, SectionBounds()
+	{
+	}
+
+	bool IsValid() const { return (bool)SectionBounds.bIsValid; }
+
+	uint32 GetAllocatedSize() const { return Vertices.GetAllocatedSize() + Indices.GetAllocatedSize(); }
+
+	TArray<FDynamicMeshVertex> Vertices;
+	TArray<uint32> Indices;
+
+	FBox2D SectionBounds;
 };
 
 // ----------------------------------------------------------------------------------
@@ -178,12 +202,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Rendering)
 	UMaterialInterface* GetWaterMaterial() const { return WaterMaterial; }
 
+	/** Returns material used to render the water LOD mesh sections */
+	UMaterialInterface* GetWaterLODMaterial() const { return WaterLODMaterial; }
+
 	/** Sets water material */
 	void SetWaterMaterial(UMaterialInterface* InMaterial);
 
 	/** Returns water MID */
 	UFUNCTION(BlueprintCallable, Category = Rendering)
 	UMaterialInstanceDynamic* GetWaterMaterialInstance();
+
+	/** Returns water LOD MID */
+	UFUNCTION(BlueprintCallable, Category = Rendering)
+	UMaterialInstanceDynamic* GetWaterLODMaterialInstance();
 
 	/** Returns under water post process MID */
 	UFUNCTION(BlueprintCallable, Category = Rendering)
@@ -330,12 +361,15 @@ public:
 	virtual void Reset() {}
 
 	/** Gets the water zone to which this component belongs */
-	AWaterZone* GetWaterZone() const;
+	AWaterZone* GetWaterZone() const { return OwningWaterZone; }
 
 	void UpdateWaterBodyRenderData();
+	void UpdateNonTessellatedMeshSections();
 
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const override;
+
+	void PushTessellatedWaterMeshBoundsToProxy(const FBox2D& TessellatedWaterMeshBounds);
 	
 	/** Set the navigation area class */
 	void SetNavAreaClass(TSubclassOf<UNavAreaBase> NewWaterNavAreaClass) { WaterNavAreaClass = NewWaterNavAreaClass; }
@@ -373,8 +407,8 @@ protected:
 
 	virtual void OnUpdateBody(bool bWithExclusionVolumes) {}
 
-	/* Generates the mesh used to render the Water Info texture */
-	virtual void GenerateWaterBodyMesh() {}
+	/* Generates the meshes used to render the Water Info texture */
+	virtual bool GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3& OutMesh, UE::Geometry::FDynamicMesh3* OutDilatedMesh = nullptr) const { checkf(!AffectsWaterInfo(), TEXT("WaterBodyComponent affects water info but does not implement GenerateWaterBodyMesh!")); return false; }
 
 	/** Returns navigation area class */
 	TSubclassOf<UNavAreaBase> GetNavAreaClass() const { return WaterNavAreaClass; }
@@ -411,8 +445,11 @@ protected:
 	EWaterBodyQueryFlags CheckAndAjustQueryFlags(EWaterBodyQueryFlags InQueryFlags) const;
 	void UpdateSplineComponent();
 	void UpdateExclusionVolumes();
+	void UpdateWaterZones();
+	AWaterZone* FindWaterZone() const;
 	bool UpdateWaterHeight();
 	virtual void CreateOrUpdateWaterMID();
+	void CreateOrUpdateWaterLODMID();
 	void CreateOrUpdateUnderwaterPostProcessMID();
 	void CreateOrUpdateWaterInfoMID();
 	void PrepareCurrentPostProcessSettings();
@@ -421,6 +458,9 @@ protected:
 	void RequestGPUWaveDataUpdate();
 	EObjectFlags GetTransientMIDFlags() const; 
 	void DeprecateData();
+	void RebuildWaterBodyInfoMesh();
+	void RebuildWaterBodyLODSections();
+	void OnTessellatedWaterMeshBoundsChanged();
 
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
@@ -480,7 +520,7 @@ public:
 
 	/** Post process settings to apply when the camera goes underwater (only available when bGenerateCollisions is true because collisions are needed to detect if it's under water).
 	Note: Underwater post process material is setup using UnderwaterPostProcessMaterial. */
-	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bGenerateCollisions && UnderwaterPostProcessMaterial != nullptr", DisplayAfter = "UnderwaterPostProcessMaterial"))
+	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta = (EditCondition = "bGenerateCollisions && UnderwaterPostProcessMaterial != nullptr", DisplayAfter = "UnderwaterPostProcessMaterial"))
 	FUnderwaterPostProcessSettings UnderwaterPostProcessSettings;
 
 	UPROPERTY(Category = Terrain, EditAnywhere, BlueprintReadWrite)
@@ -491,6 +531,9 @@ public:
 
 	UPROPERTY(Category = HLOD, EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Water HLOD Material"))
 	TObjectPtr<UMaterialInterface> WaterHLODMaterial;
+
+	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Water LOD Material"))
+	UMaterialInterface* WaterLODMaterial;
 
 	/** Post process material to apply when the camera goes underwater (only available when bGenerateCollisions is true because collisions are needed to detect if it's under water). */
 	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly, meta = (EditCondition = "bGenerateCollisions", DisplayAfter = "WaterMaterial"))
@@ -544,6 +587,9 @@ protected:
 	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "WaterMaterial"))
 	TObjectPtr<UMaterialInstanceDynamic> WaterMID;
 
+	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "WaterLODMaterial"))
+	UMaterialInstanceDynamic* WaterLODMID;
+
 	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "UnderwaterPostProcessMaterial"))
 	TObjectPtr<UMaterialInstanceDynamic> UnderwaterPostProcessMID;
 	
@@ -560,6 +606,9 @@ protected:
 	UPROPERTY(Transient)
 	mutable TWeakObjectPtr<ALandscapeProxy> Landscape;
 
+	UPROPERTY()
+	AWaterZone* OwningWaterZone;
+
 	UPROPERTY(Transient)
 	FPostProcessSettings CurrentPostProcessSettings;
 
@@ -567,7 +616,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Navigation, meta = (EditCondition = "bCanAffectNavigation && bGenerateCollisions"))
 	TSubclassOf<UNavAreaBase> WaterNavAreaClass;
 
-	// #todo_water [roey]: these need to be refactored into individual section structs and serialized
+	// #todo_water [roey]: serialize and don't rebuild on load.
+	TArray<FWaterBodyMeshSection> WaterBodyMeshSections;
+
 	TArray<FDynamicMeshVertex> WaterBodyMeshVertices;
 	TArray<uint32> WaterBodyMeshIndices;
 

@@ -263,6 +263,68 @@ void FWaterQuadTree::FNode::SelectLOD(const FNodeData& InNodeData, int32 InLODLe
 	}
 }
 
+void FWaterQuadTree::FNode::SelectLODWithinBounds(const FNodeData& InNodeData, int32 InLODLevel, const FTraversalDesc& InTraversalDesc, FTraversalOutput& Output) const
+{
+	// #todo_water [roey]: this function currently forces all nodes to render at their lowest lod size. This isn't _that_ bad considering most of the nodes are close
+	// enough to the camera to render at lowest lod level anyways but ideally we would leverage the same lod selection system as the non-bounds implementation.
+
+	const FWaterBodyRenderData& WaterBodyRenderData = InNodeData.WaterBodyRenderData[WaterBodyIndex];
+	const FVector CenterPosition = Bounds.GetCenter();
+	const FVector Extent = Bounds.GetExtent();
+
+	// Early out on frustum culling 
+	if (!InTraversalDesc.Frustum.IntersectBox(CenterPosition, Extent))
+	{
+		// Handled
+		return;
+	}
+
+	check(InTraversalDesc.TessellatedWaterMeshBounds.bIsValid);
+	if (InLODLevel == 0)
+	{
+		if ((InTraversalDesc.TessellatedWaterMeshBounds.IsInsideOrOn(FVector2D(Bounds.Min)) && InTraversalDesc.TessellatedWaterMeshBounds.IsInsideOrOn(FVector2D(Bounds.Max))) &&
+			CanRender(0, InTraversalDesc.ForceCollapseDensityLevel, WaterBodyRenderData))
+		{
+			AddNodeForRender(InNodeData, WaterBodyRenderData, 0, InLODLevel, InTraversalDesc, Output);
+		}
+	}
+	else
+	{
+		// If this node has a complete subtree it will not contain any actual children, they are implicit to save memory so we generate them here
+		if (HasCompleteSubtree && IsSubtreeSameWaterBody)
+		{
+			FNode ChildNode;
+			const FVector HalfBoundSize(Extent.X, Extent.Y, Extent.Z*2.0f);
+			const FVector HalfOffsets[] = { {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f} , {0.0f, 1.0f, 0.0f} , {1.0f, 1.0f, 0.0f} };
+			for (int i = 0; i < 4; i++)
+			{
+				const FVector ChildMin = Bounds.Min + HalfBoundSize * HalfOffsets[i];
+				const FVector ChildMax = ChildMin + HalfBoundSize;
+				const FBox ChildBounds(ChildMin, ChildMax);
+
+				// Create a temporary node to traverse
+				ChildNode.HasCompleteSubtree = 1;
+				ChildNode.IsSubtreeSameWaterBody = 1;
+				ChildNode.TransitionWaterBodyIndex = TransitionWaterBodyIndex;
+				ChildNode.WaterBodyIndex = WaterBodyIndex;
+				ChildNode.Bounds = ChildBounds;
+
+				ChildNode.SelectLODWithinBounds(InNodeData, InLODLevel - 1, InTraversalDesc, Output);
+			}
+		}
+		else
+		{
+			for (int32 ChildIndex : Children)
+			{
+				if (ChildIndex > 0)
+				{
+					InNodeData.Nodes[ChildIndex].SelectLODWithinBounds(InNodeData, InLODLevel - 1, InTraversalDesc, Output);
+				}
+			}
+		}
+	}
+}
+
 void FWaterQuadTree::FNode::AddNodes(FNodeData& InNodeData, const FBox& InMeshBounds, const FBox& InWaterBodyBounds, uint32 InWaterBodyIndex, int32 InLODLevel, uint32 InParentIndex)
 {
 	const FWaterBodyRenderData& InWaterBody = InNodeData.WaterBodyRenderData[InWaterBodyIndex];
@@ -645,7 +707,14 @@ void FWaterQuadTree::BuildWaterTileInstanceData(const FTraversalDesc& InTraversa
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildWaterTileInstanceData);
 	check(bIsReadOnly);
-	NodeData.Nodes[0].SelectLOD(NodeData, TreeDepth, InTraversalDesc, Output);
+	if (InTraversalDesc.TessellatedWaterMeshBounds.bIsValid)
+	{
+		NodeData.Nodes[0].SelectLODWithinBounds(NodeData, TreeDepth, InTraversalDesc, Output);
+	}
+	else
+	{
+		NodeData.Nodes[0].SelectLOD(NodeData, TreeDepth, InTraversalDesc, Output);
+	}
 
 	// Append Far Mesh tiles
 	if (FarMeshData.InstanceData.Num() > 0 && FarMeshData.MaterialIndex != INDEX_NONE)

@@ -99,6 +99,9 @@ public:
 	/** Static helper function to get a waterbody manager from a world, returns nullptr if world or manager don't exist */
 	static FWaterBodyManager* GetWaterBodyManager(const UWorld* InWorld);
 
+	/** Static helper function to get a weak ptr to the water scene view extension for a given world. */
+	static TWeakPtr<FWaterViewExtension, ESPMode::ThreadSafe> GetWaterViewExtension(const UWorld* InWorld);
+
 	UE_DEPRECATED(5.1, "Please use FWaterBodyManager::ForEachWaterBodyComponent instead.")
 	static void ForEachWaterBodyComponent(const UWorld* World, TFunctionRef<bool(UWaterBodyComponent*)> Predicate) {}
 
@@ -171,8 +174,6 @@ public:
 	UMaterialParameterCollection* GetMaterialParameterCollection() const {	return MaterialParameterCollection; }
 	
 	void MarkAllWaterZonesForRebuild(EWaterZoneRebuildFlags RebuildFlags = EWaterZoneRebuildFlags::All);
-
-	void MarkWaterInfoTextureForRebuild(const UE::WaterInfo::FRenderingContext& WaterInfoContext);
 
 #if WITH_EDITOR
 	/** Little scope object to temporarily change the value of bAllowWaterSubsystemOnPreviewWorld */
@@ -251,7 +252,7 @@ private:
 
 	FUnderwaterPostProcessVolume UnderwaterPostProcessVolume;
 
-	TSharedPtr<FWaterViewExtension, ESPMode::ThreadSafe> WaterViewExtension;
+	TSharedPtr<FWaterViewExtension> WaterViewExtension;
 
 #if WITH_EDITOR
 	/** By default, there is no water subsystem allowed on preview worlds except when explicitly requested : */

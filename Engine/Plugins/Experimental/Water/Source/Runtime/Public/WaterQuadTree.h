@@ -107,6 +107,7 @@ struct FWaterQuadTree
 		FVector PreViewTranslation = FVector::ZeroVector;
 		FConvexVolume Frustum;
 		bool bLODMorphingEnabled = true;
+		FBox2D TessellatedWaterMeshBounds = FBox2D(ForceInit);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		// Debug
@@ -210,6 +211,9 @@ private:
 
 		/** Recursive function to select nodes visible from the current point of view */
 		void SelectLOD(const FNodeData& InNodeData, int32 InLODLevel, const FTraversalDesc& InTraversalDesc, FTraversalOutput& Output) const;
+
+		/** Recursive function to select nodes visible from the current point of view within an active bounding box */
+		void SelectLODWithinBounds(const FNodeData& InNodeData, int32 InLODLevel, const FTraversalDesc& InTraversalDesc, FTraversalOutput& Output) const;
 
 		/** Recursive function to query the height(prior to any displacement) at a given location, return false if no height could be found */
 		bool QueryBaseHeightAtLocation(const FNodeData& InNodeData, const FVector2D& InWorldLocationXY, float& OutHeight) const;

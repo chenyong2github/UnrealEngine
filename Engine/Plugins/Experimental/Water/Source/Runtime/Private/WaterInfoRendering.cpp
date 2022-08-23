@@ -37,7 +37,7 @@ struct FUpdateWaterInfoParams
 	FRenderTarget* RenderTarget = nullptr;
 	FTexture* OutputTexture = nullptr;
 
-	FVector2D WaterZoneExtents;
+	FVector WaterZoneExtents;
 	FVector2f WaterHeightExtents;
 	float GroundZMin;
 	float CaptureZ;
@@ -413,7 +413,7 @@ static void UpdateWaterInfoRendering_RenderThread(
 
 		SCOPED_DRAW_EVENT(RHICmdList, DepthRendering_RT);
 
-		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("WaterInfoColorRendering"), ERDGBuilderFlags::AllowParallelExecute);
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("WaterInfoDepthRendering"), ERDGBuilderFlags::AllowParallelExecute);
 
 		// We need to execute the pre-render view extensions before we do any view dependent work.
 		FSceneRenderer::ViewExtensionPreRender_RenderThread(GraphBuilder, DepthRenderer);
@@ -524,7 +524,7 @@ static void UpdateWaterInfoRendering_RenderThread(
 
 		SCOPED_DRAW_EVENT(RHICmdList, DilationRendering_RT);
 
-		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("WaterInfoColorRendering"), ERDGBuilderFlags::AllowParallelExecute);
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("WaterInfoDilationRendering"), ERDGBuilderFlags::AllowParallelExecute);
 
 
 		// We need to execute the pre-render view extensions before we do any view dependent work.
@@ -690,9 +690,9 @@ void UpdateWaterInfoRendering(
 	{
 		return;
 	}
+	const FVector ZoneExtent = Context.ZoneToRender->GetTessellatedWaterMeshExtent();
 
-	const FVector2D ZoneExtent = Context.ZoneToRender->GetZoneExtent();
-	FVector ViewLocation = Context.ZoneToRender->GetActorLocation();
+	FVector ViewLocation = Context.ZoneToRender->GetTessellatedWaterMeshCenter();
 	ViewLocation.Z = Context.CaptureZ;
 
 	// Zone rendering always happens facing towards negative z.
@@ -762,7 +762,7 @@ void UpdateWaterInfoRendering(
 	Params.WaterHeightExtents = Context.ZoneToRender->GetWaterHeightExtents();
 	Params.GroundZMin = Context.ZoneToRender->GetGroundZMin();
 	Params.VelocityBlurRadius = Context.ZoneToRender->GetVelocityBlurRadius();
-	Params.WaterZoneExtents = Context.ZoneToRender->GetZoneExtent();
+	Params.WaterZoneExtents = ZoneExtent;
 
 	ENQUEUE_RENDER_COMMAND(WaterInfoCommand)(
 	[Params, ZoneName = Context.ZoneToRender->GetActorNameOrLabel()](FRHICommandListImmediate& RHICmdList)

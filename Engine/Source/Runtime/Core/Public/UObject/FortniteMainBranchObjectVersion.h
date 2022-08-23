@@ -234,6 +234,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 
 		// Reset default value for Water exclusion volumes to make them more intuitive and support the "it just works" philosophy.
 		WaterExclusionVolumeExcludeAllDefault,
+		
+		// Added water non-tessellated LOD
+		WaterNontessellatedLODSupportAdded,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

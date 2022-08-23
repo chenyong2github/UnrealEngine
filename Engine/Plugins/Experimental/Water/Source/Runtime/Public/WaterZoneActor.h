@@ -18,6 +18,7 @@ enum class EWaterZoneRebuildFlags
 	None = 0,
 	UpdateWaterInfoTexture = (1 << 1),
 	UpdateWaterMesh = (1 << 2),
+	UpdateWaterBodyLODSections = (1 << 3),
 	All = (~0),
 };
 ENUM_CLASS_FLAGS(EWaterZoneRebuildFlags);
@@ -36,6 +37,9 @@ public:
 	/** Execute a predicate function on each valid water body within the water zone. Predicate should return false for early exit. */
 	void ForEachWaterBodyComponent(TFunctionRef<bool(UWaterBodyComponent*)> Predicate);
 
+	void AddWaterBodyComponent(UWaterBodyComponent* WaterBodyComponent);
+	void RemoveWaterBodyComponent(UWaterBodyComponent* WaterBodyComponent);
+
 	FVector2D GetZoneExtent() const { return ZoneExtent; }
 	void SetZoneExtent(FVector2D NewExtents);
 
@@ -48,21 +52,32 @@ public:
 	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
 	virtual void PostLoad() override;
 
-#if WITH_EDITOR
-	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
-#endif
-
 	FVector2f GetWaterHeightExtents() const { return WaterHeightExtents; }
 	float GetGroundZMin() const { return GroundZMin; }
 
 	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, BlueprintReadOnly, Category = Texture)
 	TObjectPtr<UTextureRenderTarget2D> WaterInfoTexture;
+
+	FVector GetTessellatedWaterMeshCenter() const;
+	void SetTessellatedWaterMeshCenter(FVector NewCenter) { TessellatedWaterMeshCenter = NewCenter;}
+
+	FVector GetTessellatedWaterMeshExtent() const;
+
+	uint32 GetNonTessellatedLODScale() const { return NonTessellatedLODSectionScale; }
+	float GetNonTessellatedLODSectionSize() const;
+
+	bool IsNonTessellatedLODMeshEnabled() const { return bEnableNonTessellatedLODMesh; }
+
+#if WITH_EDITOR
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
+#endif
+
 private:
 
 	bool UpdateWaterInfoTexture();
 
 	void OnExtentChanged();
-	
+
 #if WITH_EDITOR
 	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);
 	
@@ -76,7 +91,10 @@ private:
 	/** Called when the Bounds component is modified. Updates the value of ZoneExtent to match the new bounds */
 	void OnBoundsComponentModified();
 #endif // WITH_EDITOR
-	
+
+	UPROPERTY(Transient, Category = Water, VisibleAnywhere)
+	TArray<TWeakObjectPtr<UWaterBodyComponent>> OwnedWaterBodies;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Texture, meta = (AllowPrivateAccess = "true"))
 	FIntPoint RenderTargetResolution;
 
@@ -84,12 +102,12 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = Water, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UWaterMeshComponent> WaterMesh;
 
-	/** Radius of the zone bounding box */
+	/** Width of the zone bounding box */
 	UPROPERTY(Category = Shape, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	FVector2D ZoneExtent;
 
 	/** Offsets the height above the water zone at which the WaterInfoTexture is rendered. This is applied after computing the maximum Z of all the water bodies within the zone. */
-	UPROPERTY(Category = Shape, EditAnywhere, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = Shape, EditAnywhere, AdvancedDisplay, meta = (AllowPrivateAccess = "true"))
 	float CaptureZOffset = 64.f;
 
 	/** Determines if the WaterInfoTexture should be 16 or 32 bits per channel */
@@ -100,10 +118,22 @@ private:
 	UPROPERTY(Category = Texture, EditAnywhere, AdvancedDisplay)
 	int32 VelocityBlurRadius = 1;
 
+	/** Area around the camera covered by the tessellated water mesh when LOD is enabled. */
+	UPROPERTY(Category = NonTessellatedLOD, EditAnywhere, meta = (EditCondition = "bEnableNonTessellatedLODMesh"))
+	FVector TessellatedWaterMeshExtent;
+
+	UPROPERTY(Category = NonTessellatedLOD, EditAnywhere, meta = (ClampMin = "1", DisplayName = "Non Tessellated LOD Section Scale", EditCondition = "bEnableNonTessellatedLODMesh"))
+	uint32 NonTessellatedLODSectionScale = 4;
+
+	UPROPERTY(Category = NonTessellatedLOD, EditAnywhere, meta = (DisplayName = "Enable Non-Tessellated LOD Mesh"))
+	bool bEnableNonTessellatedLODMesh = false;
+
 	bool bNeedsWaterInfoRebuild = true;
 
 	FVector2f WaterHeightExtents;
 	float GroundZMin;
+
+	FVector TessellatedWaterMeshCenter;
 
 #if WITH_EDITORONLY_DATA
 	/** A manipulatable box for visualizing/editing the water zone bounds */

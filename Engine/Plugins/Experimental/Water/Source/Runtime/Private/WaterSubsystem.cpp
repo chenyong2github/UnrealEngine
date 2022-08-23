@@ -180,6 +180,15 @@ FWaterBodyManager* UWaterSubsystem::GetWaterBodyManager(const UWorld* InWorld)
 	return nullptr;
 }
 
+TWeakPtr<FWaterViewExtension, ESPMode::ThreadSafe> UWaterSubsystem::GetWaterViewExtension(const UWorld* InWorld)
+{
+	if (UWaterSubsystem* Subsystem = GetWaterSubsystem(InWorld))
+	{
+		return Subsystem->WaterViewExtension;
+	}
+	return {};
+}
+
 void UWaterSubsystem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -505,11 +514,6 @@ void UWaterSubsystem::MarkAllWaterZonesForRebuild(EWaterZoneRebuildFlags Rebuild
 			WaterZone->MarkForRebuild(RebuildFlags);
 		}
 	}
-}
-
-void UWaterSubsystem::MarkWaterInfoTextureForRebuild(const UE::WaterInfo::FRenderingContext& WaterInfoContext)
-{
-	WaterViewExtension->MarkWaterInfoTextureForRebuild(WaterInfoContext);
 }
 
 void UWaterSubsystem::NotifyWaterScalabilityChangedInternal(IConsoleVariable* CVar)

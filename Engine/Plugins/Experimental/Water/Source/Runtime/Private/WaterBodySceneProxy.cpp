@@ -7,90 +7,204 @@
 #include "WaterBodyComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "SceneInterface.h"
+#include "PrimitiveSceneInfo.h"
+#include "Algo/Transform.h"
 
 
-static TAutoConsoleVariable<int32> CVarWaterShowProxies(
-	TEXT("r.Water.ShowWaterSceneProxies"),
-	0,
-	TEXT("Allows editor visualization of water scene proxies. If the mode is set to 1 we will show only the selected water body in wireframe, if it is set to 2 we will show all in wireframe, and if it is 3 we will show all as opaque meshes"),
-	ECVF_Default);
-
-// ----------------------------------------------------------------------------------
-
-class FWaterBodyMeshSection
+FWaterBodySceneProxy::FWaterBodySceneProxy(UWaterBodyComponent* Component, const FBox2D& TessellatedMeshBounds)
+	: FPrimitiveSceneProxy(Component)
+	, WaterBodySectionedLODMesh(GetScene().GetFeatureLevel())
+	, WaterBodyInfoMesh(GetScene().GetFeatureLevel())
+	, WaterBodyInfoDilatedMesh(GetScene().GetFeatureLevel())
 {
-public:
-	FStaticMeshVertexBuffers VertexBuffers;
-	FDynamicMeshIndexBuffer32 IndexBuffer;
-	FLocalVertexFactory VertexFactory;
+	TRACE_CPUPROFILER_EVENT_SCOPE("FWaterBodySceneProxy::FWaterBodySceneProxy");
+	WaterBodySectionedLODMesh.InitFromSections(Component->WaterBodyMeshSections);
+	WaterBodyInfoMesh.Init(Component->WaterBodyMeshVertices, Component->WaterBodyMeshIndices);
+	WaterBodyInfoDilatedMesh.Init(Component->DilatedWaterBodyMeshVertices, Component->DilatedWaterBodyMeshIndices);
+	WaterBodySectionedLODMesh.RebuildIndexBuffer(TessellatedMeshBounds);
 
-	FWaterBodyMeshSection(ERHIFeatureLevel::Type InFeatureLevel)
-		: VertexFactory(InFeatureLevel, "FWaterBodyMeshSection")
-	{}
-};
-
-void FWaterBodySceneProxy::InitResources(FWaterBodyMeshSection& Section)
-{
-	BeginInitResource(&Section.VertexBuffers.PositionVertexBuffer);
-	BeginInitResource(&Section.VertexBuffers.StaticMeshVertexBuffer);
-	BeginInitResource(&Section.VertexBuffers.ColorVertexBuffer);
-	BeginInitResource(&Section.IndexBuffer);
-	BeginInitResource(&Section.VertexFactory);
+	if (UMaterialInstance* WaterInfoMaterialInstance = Component->GetWaterInfoMaterialInstance())
+	{
+		WaterInfoMaterial = WaterInfoMaterialInstance->GetRenderProxy();
+		WaterInfoMaterialRelevance |= WaterInfoMaterialInstance->GetRelevance_Concurrent(GetScene().GetFeatureLevel());
+	}
+	if (UMaterialInstance* WaterMaterialInstance = Component->GetWaterLODMaterialInstance())
+	{
+		WaterLODMaterial = WaterMaterialInstance->GetRenderProxy();
+		WaterLODMaterialRelevance |= WaterMaterialInstance->GetRelevance_Concurrent(GetScene().GetFeatureLevel());
+	}
 }
 
-FWaterBodySceneProxy::FWaterBodySceneProxy(UWaterBodyComponent* Component)
-	: FPrimitiveSceneProxy(Component)
+void FWaterBodySceneProxy::FWaterBodySectionedLODMesh::RebuildIndexBuffer(const FBox2D& TessellatedWaterMeshBounds)
 {
-	if (Component->WaterBodyMeshVertices.Num() > 0 && Component->WaterBodyMeshIndices.Num() > 0)
+	TRACE_CPUPROFILER_EVENT_SCOPE("FWaterBodySceneProxy::RebuildIndexBuffer");
+
+	TArray<uint32> Indices;
+	for (const FWaterBodySectionedMeshProxy& MeshSectionProxy : Sections)
 	{
-		FWaterBodyMeshSection& NewSection = Sections.Emplace_GetRef(GetScene().GetFeatureLevel());
-		NewSection.IndexBuffer.Indices = Component->WaterBodyMeshIndices;
-
-		NewSection.VertexBuffers.InitFromDynamicVertex(&NewSection.VertexFactory, Component->WaterBodyMeshVertices);
-
-		InitResources(NewSection);
+		if (!(TessellatedWaterMeshBounds.IsInsideOrOn(MeshSectionProxy.Bounds.Min) && TessellatedWaterMeshBounds.IsInsideOrOn(MeshSectionProxy.Bounds.Max)))
+		{
+			Indices.Append(MeshSectionProxy.Indices);
+		}
 	}
 
-	if (Component->DilatedWaterBodyMeshVertices.Num() > 0 && Component->DilatedWaterBodyMeshIndices.Num() > 0)
+	IndexBuffer.Indices = MoveTemp(Indices);
+
+	if (IndexBuffer.Indices.Num() > 0)
 	{
-		FWaterBodyMeshSection& NewSection = DilatedSections.Emplace_GetRef(GetScene().GetFeatureLevel());
-		NewSection.IndexBuffer.Indices = Component->DilatedWaterBodyMeshIndices;
+		if (IndexBuffer.IsInitialized())
+		{
+			BeginUpdateResourceRHI(&IndexBuffer);
+		}
+		else
+		{
+			BeginInitResource(&IndexBuffer);
 
-		NewSection.VertexBuffers.InitFromDynamicVertex(&NewSection.VertexFactory, Component->DilatedWaterBodyMeshVertices);
+			bInitialized = true;
+		}
+	}
+}
 
-		InitResources(NewSection);
+void FWaterBodySceneProxy::FWaterBodySectionedLODMesh::InitFromSections(const TArray<FWaterBodyMeshSection>& MeshSections)
+{
+	TArray<FDynamicMeshVertex> Vertices;
+	for (const FWaterBodyMeshSection& MeshSection : MeshSections)
+	{
+		if (MeshSection.Vertices.Num() > 0 && MeshSection.Indices.Num() > 0)
+		{
+			FWaterBodySectionedMeshProxy& NewSection = Sections.Emplace_GetRef(MeshSection.SectionBounds);
+			
+			const uint32 BaseIndex = Vertices.Num();
+			TArray<uint32, TInlineAllocator<6>> Indices;
+			Algo::Transform(MeshSection.Indices, Indices, [BaseIndex](const uint32 Index) { return Index + BaseIndex; });
+
+			NewSection.Indices = MoveTemp(Indices);
+
+			Vertices.Append(MeshSection.Vertices);
+		}
 	}
 
-	if (UMaterialInstance* WaterInfoMaterial = Component->GetWaterInfoMaterialInstance())
+	if (Vertices.Num() > 0)
 	{
-		Material = WaterInfoMaterial->GetRenderProxy();
+		VertexBuffers.InitFromDynamicVertex(&VertexFactory, Vertices);
+		BeginInitResource(&VertexBuffers.PositionVertexBuffer);
+		BeginInitResource(&VertexBuffers.StaticMeshVertexBuffer);
+		BeginInitResource(&VertexBuffers.ColorVertexBuffer);
+		BeginInitResource(&VertexFactory);
 	}
+}
+
+void FWaterBodySceneProxy::FWaterBodyMesh::Init(TArray<FDynamicMeshVertex>& Vertices, TArray<uint32>& Indices)
+{
+	if (Indices.Num() > 0)
+	{
+		IndexBuffer.Indices = Indices;
+		VertexBuffers.InitFromDynamicVertex(&VertexFactory, Vertices);
+		BeginInitResource(&VertexBuffers.PositionVertexBuffer);
+		BeginInitResource(&VertexBuffers.StaticMeshVertexBuffer);
+		BeginInitResource(&VertexBuffers.ColorVertexBuffer);
+		BeginInitResource(&VertexFactory);
+		BeginInitResource(&IndexBuffer);
+	}
+}
+
+void FWaterBodySceneProxy::FWaterBodySectionedLODMesh::ReleaseResources()
+{
+	Sections.Empty();
+	VertexBuffers.PositionVertexBuffer.ReleaseResource();
+	VertexBuffers.StaticMeshVertexBuffer.ReleaseResource();
+	VertexBuffers.ColorVertexBuffer.ReleaseResource();
+	VertexFactory.ReleaseResource();
+	IndexBuffer.ReleaseResource();
+}
+
+void FWaterBodySceneProxy::FWaterBodyMesh::ReleaseResources()
+{
+	VertexBuffers.PositionVertexBuffer.ReleaseResource();
+	VertexBuffers.StaticMeshVertexBuffer.ReleaseResource();
+	VertexBuffers.ColorVertexBuffer.ReleaseResource();
+	VertexFactory.ReleaseResource();
+	IndexBuffer.ReleaseResource();
+}
+
+bool FWaterBodySceneProxy::FWaterBodyMesh::GetMeshElements(FMeshBatch& OutMeshBatch, uint8 DepthPriorityGroup, bool bUseReverseCulling) const
+{
+	uint32 FirstIndex = 0;
+	uint32 NumPrimitives = IndexBuffer.Indices.Num() / 3;
+	if (NumPrimitives == 0)
+	{
+		return false;
+	}
+
+	OutMeshBatch.VertexFactory = &VertexFactory;
+	OutMeshBatch.ReverseCulling = bUseReverseCulling;
+	OutMeshBatch.Type = PT_TriangleList;
+	OutMeshBatch.DepthPriorityGroup = DepthPriorityGroup;
+	OutMeshBatch.bCanApplyViewModeOverrides = false;
+
+	FMeshBatchElement& BatchElement = OutMeshBatch.Elements[0];
+	BatchElement.IndexBuffer = &IndexBuffer;
+	BatchElement.FirstIndex = FirstIndex;
+	BatchElement.NumPrimitives = NumPrimitives;
+	check(BatchElement.NumPrimitives != 0);
+	BatchElement.MinVertexIndex = 0;
+	BatchElement.MaxVertexIndex = VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
+
+	return true;
+}
+
+uint32 FWaterBodySceneProxy::FWaterBodySectionedLODMesh::GetAllocatedSize() const
+{
+	return Sections.GetAllocatedSize();
+}
+
+bool FWaterBodySceneProxy::FWaterBodySectionedLODMesh::GetMeshElements(FMeshBatch& OutMeshBatch, uint8 DepthPriorityGroup, bool bUseReverseCulling) const
+{
+	if (!bInitialized)
+	{
+		return false;
+	}
+	const int32 NumPrimitives = IndexBuffer.Indices.Num() / 3;
+
+	if (NumPrimitives == 0)
+	{
+		return false;
+	}
+
+	OutMeshBatch.VertexFactory = &VertexFactory;
+	OutMeshBatch.ReverseCulling = bUseReverseCulling;
+	OutMeshBatch.Type = PT_TriangleList;
+	OutMeshBatch.DepthPriorityGroup = DepthPriorityGroup;
+	OutMeshBatch.bCanApplyViewModeOverrides = false;
+	OutMeshBatch.LODIndex = 0;
+	OutMeshBatch.bUseForDepthPass = true;
+
+	FMeshBatchElement& BatchElement = OutMeshBatch.Elements[0];
+	BatchElement.IndexBuffer = &IndexBuffer;
+	BatchElement.FirstIndex = 0;
+	BatchElement.NumPrimitives = NumPrimitives;
+	check(BatchElement.NumPrimitives != 0);
+	BatchElement.MinVertexIndex = 0;
+	BatchElement.MaxVertexIndex = VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
+
+	return true;
 }
 
 FWaterBodySceneProxy::~FWaterBodySceneProxy()
 {
-	for (FWaterBodyMeshSection& Section : Sections)
-	{
-		Section.VertexBuffers.PositionVertexBuffer.ReleaseResource();
-		Section.VertexBuffers.StaticMeshVertexBuffer.ReleaseResource();
-		Section.VertexBuffers.ColorVertexBuffer.ReleaseResource();
-		Section.IndexBuffer.ReleaseResource();
-		Section.VertexFactory.ReleaseResource();
-	}
-
-	for (FWaterBodyMeshSection& Section : DilatedSections)
-	{
-		Section.VertexBuffers.PositionVertexBuffer.ReleaseResource();
-		Section.VertexBuffers.StaticMeshVertexBuffer.ReleaseResource();
-		Section.VertexBuffers.ColorVertexBuffer.ReleaseResource();
-		Section.IndexBuffer.ReleaseResource();
-		Section.VertexFactory.ReleaseResource();
-	}
+	WaterBodyInfoMesh.ReleaseResources();
+	WaterBodyInfoDilatedMesh.ReleaseResources();
+	WaterBodySectionedLODMesh.ReleaseResources();
 }
 
 void FWaterBodySceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const
 {
-	FMaterialRenderProxy* MaterialToUse = Material;
+	TRACE_CPUPROFILER_EVENT_SCOPE("FWaterBodySceneProxy::GetDynamicMeshElements");
+
+	const bool bWithinWaterInfoPasses = CurrentWaterInfoPass != EWaterInfoPass::None;
+
+	FMaterialRenderProxy* MaterialToUse = bWithinWaterInfoPasses ? WaterInfoMaterial : WaterLODMaterial;
+
 	if (!MaterialToUse)
 	{
 		FColoredMaterialRenderProxy* FallbackMaterial = new FColoredMaterialRenderProxy(
@@ -102,13 +216,8 @@ void FWaterBodySceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 		MaterialToUse = FallbackMaterial;
 	}
 
-	const bool bWithinWaterInfoPasses = CurrentWaterInfoPass != EWaterInfoPass::None;
-
-	const int32 ShowProxiesCVar = CVarWaterShowProxies.GetValueOnRenderThread();
-	const bool bDebugShowWaterSceneProxiesEnabled = !bWithinWaterInfoPasses && ((ShowProxiesCVar == 1 && IsSelected()) || ShowProxiesCVar >= 2);
-
 	// If we are not in the waterinfo pass and the cvar is not set to show opaque bodies, we should be in wireframe
-	const bool bWireframe = AllowDebugViewmodes() && !(bWithinWaterInfoPasses) && (CVarWaterShowProxies.GetValueOnRenderThread() != 3);
+	const bool bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
 
 	if (bWireframe)
 	{
@@ -121,53 +230,41 @@ void FWaterBodySceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 		MaterialToUse = WireframeMaterialInstance;
 	}
 
-	auto AddWaterBodyMeshSection = [&](const FWaterBodyMeshSection& Section, int32 ViewIndex)
-	{
-		FMeshBatch& Mesh = Collector.AllocateMesh();
-		FMeshBatchElement& BatchElement = Mesh.Elements[0];
-		BatchElement.IndexBuffer = &Section.IndexBuffer;
-		Mesh.bWireframe = bWireframe;
-		Mesh.VertexFactory = &Section.VertexFactory;
-		Mesh.MaterialRenderProxy = MaterialToUse;
-
-		bool bHasPrecomputedVolumetricLightmap;
-		FMatrix PreviousLocalToWorld;
-		int32 SingleCaptureIndex;
-		bool bOutputVelocity;
-		GetScene().GetPrimitiveUniformShaderParameters_RenderThread(GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
-		bOutputVelocity |= AlwaysHasVelocity();
-
-		FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
-		DynamicPrimitiveUniformBuffer.Set(GetLocalToWorld(), PreviousLocalToWorld, GetBounds(), GetLocalBounds(), true, bHasPrecomputedVolumetricLightmap, bOutputVelocity);
-		BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
-
-		BatchElement.FirstIndex = 0;
-		BatchElement.NumPrimitives = Section.IndexBuffer.Indices.Num() / 3;
-		check(BatchElement.NumPrimitives != 0);
-		BatchElement.MinVertexIndex = 0;
-		BatchElement.MaxVertexIndex = Section.VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
-		Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
-		Mesh.Type = PT_TriangleList;
-		Mesh.DepthPriorityGroup = bWireframe ? SDPG_Foreground : SDPG_World;
-		Mesh.bCanApplyViewModeOverrides = false;
-		Collector.AddMesh(ViewIndex, Mesh);
-	};
-
+	const bool bHasDilatedSections = WaterBodyInfoDilatedMesh.IndexBuffer.Indices.Num() > 0;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
-		if ((CurrentWaterInfoPass == EWaterInfoPass::Color) || (bDebugShowWaterSceneProxiesEnabled))
+		TRACE_CPUPROFILER_EVENT_SCOPE("FWaterBodySceneProxy::AddSectionsForView");
+
+		if (CurrentWaterInfoPass == EWaterInfoPass::Color)
 		{
-			for (const FWaterBodyMeshSection& Section : Sections)
+			FMeshBatch& MeshBatch = Collector.AllocateMesh();
+			MeshBatch.MaterialRenderProxy = MaterialToUse;
+			MeshBatch.bWireframe = bWireframe;
+			MeshBatch.bUseForDepthPass = true;
+			if (WaterBodyInfoMesh.GetMeshElements(MeshBatch, SDPG_World, IsLocalToWorldDeterminantNegative()))
 			{
-				AddWaterBodyMeshSection(Section, ViewIndex);
+				Collector.AddMesh(ViewIndex, MeshBatch);
 			}
 		}
-
-		if ((CurrentWaterInfoPass == EWaterInfoPass::Dilation) || (bDebugShowWaterSceneProxiesEnabled))
+		else if ((CurrentWaterInfoPass == EWaterInfoPass::Dilation) && bHasDilatedSections)
 		{
-			for (const FWaterBodyMeshSection& Section : DilatedSections)
+			FMeshBatch& MeshBatch = Collector.AllocateMesh();
+			MeshBatch.MaterialRenderProxy = MaterialToUse;
+			MeshBatch.bWireframe = bWireframe;
+			MeshBatch.bUseForDepthPass = true;
+			if (WaterBodyInfoDilatedMesh.GetMeshElements(MeshBatch, SDPG_World, IsLocalToWorldDeterminantNegative()))
 			{
-				AddWaterBodyMeshSection(Section, ViewIndex);
+				Collector.AddMesh(ViewIndex, MeshBatch);
+			}
+		}
+		else if (CurrentWaterInfoPass == EWaterInfoPass::None)
+		{
+			FMeshBatch& MeshBatch = Collector.AllocateMesh();
+			MeshBatch.MaterialRenderProxy = MaterialToUse;
+			MeshBatch.bWireframe = bWireframe;
+			if (WaterBodySectionedLODMesh.GetMeshElements(MeshBatch, SDPG_World, IsLocalToWorldDeterminantNegative()))
+			{
+				Collector.AddMesh(ViewIndex, MeshBatch);
 			}
 		}
 	}
@@ -179,11 +276,24 @@ FPrimitiveViewRelevance FWaterBodySceneProxy::GetViewRelevance(const FSceneView*
 	Result.bDrawRelevance = IsShown(View);
 	Result.bShadowRelevance = IsShadowCast(View);
 	Result.bDynamicRelevance = true;
+	Result.bStaticRelevance = false;
+	Result.bRenderInDepthPass = true;
 	Result.bRenderInMainPass = ShouldRenderInMainPass();
 	Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 	Result.bRenderCustomDepth = ShouldRenderCustomDepth();
 	Result.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
-	Result.bVelocityRelevance = IsMovable();
+
+	const bool bWithinWaterInfoPasses = CurrentWaterInfoPass != EWaterInfoPass::None;
+	if (bWithinWaterInfoPasses)
+	{
+		WaterInfoMaterialRelevance.SetPrimitiveViewRelevance(Result);
+	}
+	else
+	{
+		WaterLODMaterialRelevance.SetPrimitiveViewRelevance(Result);
+	}
+
+	Result.bVelocityRelevance = DrawsVelocity() && Result.bOpaque && Result.bRenderInMainPass;
 	return Result;
 }
 
@@ -200,22 +310,30 @@ uint32 FWaterBodySceneProxy::GetMemoryFootprint() const
 
 uint32 FWaterBodySceneProxy::GetAllocatedSize() const
 {
-
-	return FPrimitiveSceneProxy::GetAllocatedSize() + Sections.GetAllocatedSize() + DilatedSections.GetAllocatedSize();
+	return FPrimitiveSceneProxy::GetAllocatedSize()
+		+ WaterBodySectionedLODMesh.GetAllocatedSize();
 }
 
 bool FWaterBodySceneProxy::IsShown(const FSceneView* View) const
 {
-	if (CurrentWaterInfoPass == EWaterInfoPass::None)
-	{
-		const int32 ShowProxiesCVar = CVarWaterShowProxies.GetValueOnRenderThread();
-		if ((ShowProxiesCVar == 1 && IsSelected()) || ShowProxiesCVar >= 2)
-		{
-			return true;
-		}
-
-		return false;
-	}
-
 	return FPrimitiveSceneProxy::IsShown(View);
+}
+
+void FWaterBodySceneProxy::OnTessellatedWaterMeshBoundsChanged_GameThread(const FBox2D& TessellatedWaterMeshBounds)
+{
+	check(IsInParallelGameThread() || IsInGameThread());
+
+	FWaterBodySceneProxy* SceneProxy = this;
+	ENQUEUE_RENDER_COMMAND(SetNewActiveWaterInfoGridArea)(
+		[SceneProxy, TessellatedWaterMeshBounds](FRHICommandListImmediate& RHICmdList)
+		{
+			SceneProxy->OnTessellatedWaterMeshBoundsChanged_RenderThread(TessellatedWaterMeshBounds);
+		});
+}
+
+void FWaterBodySceneProxy::OnTessellatedWaterMeshBoundsChanged_RenderThread(const FBox2D& TessellatedWaterMeshBounds)
+{
+	check(IsInRenderingThread());
+
+	WaterBodySectionedLODMesh.RebuildIndexBuffer(TessellatedWaterMeshBounds);
 }

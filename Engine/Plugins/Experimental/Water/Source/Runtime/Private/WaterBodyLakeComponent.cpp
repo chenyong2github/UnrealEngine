@@ -49,19 +49,16 @@ TArray<UPrimitiveComponent*> UWaterBodyLakeComponent::GetStandardRenderableCompo
 	return Result;
 }
 
-void UWaterBodyLakeComponent::GenerateWaterBodyMesh()
+bool UWaterBodyLakeComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3& OutMesh, UE::Geometry::FDynamicMesh3* OutDilatedMesh) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateLakeMesh);
-
 	using namespace UE::Geometry;
 
-	WaterBodyMeshVertices.Empty();
-	WaterBodyMeshIndices.Empty();
+	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateLakeMesh);
 
 	const UWaterSplineComponent* SplineComp = GetWaterSpline();
 	if (SplineComp == nullptr || SplineComp->GetNumberOfSplineSegments() < 3)
 	{
-		return;
+		return false;
 	}
 
 	FPolygon2d LakePoly;
@@ -82,61 +79,45 @@ void UWaterBodyLakeComponent::GenerateWaterBodyMesh()
 
 	if (Triangulation.Triangles.Num() == 0)
 	{
-		return;
+		return false;
 	}
 
 
-	// This FDynamicMesh3 will only be used to compute the inset region for shape dilation
-	FDynamicMesh3 LakeMesh(EMeshComponents::None);
 	for (const FVector2d& Vertex : Triangulation.Vertices)
 	{
-		// push the set of undilated vertices to the persistent mesh
-		FDynamicMeshVertex MeshVertex(FVector3f(Vertex.X, Vertex.Y, 0.f));
-		MeshVertex.Color = FColor::Black;
-		MeshVertex.TextureCoordinate[0].X = WaterBodyIndex;
-		WaterBodyMeshVertices.Add(MeshVertex);
+		FVertexInfo MeshVertex(FVector3d(Vertex.X, Vertex.Y, 0.f));
+		MeshVertex.Color = FVector3f(0.0);
+		MeshVertex.bHaveC = true;
 
-		LakeMesh.AppendVertex(FVector3d(Vertex, 0.0));
+		OutMesh.AppendVertex(MeshVertex);
 	}
 
 	for (const FIndex3i& Triangle : Triangulation.Triangles)
 	{
-		WaterBodyMeshIndices.Append({ (uint32)Triangle.A, (uint32)Triangle.B, (uint32)Triangle.C });
-		LakeMesh.AppendTriangle(Triangle);
+		OutMesh.AppendTriangle(Triangle);
 	}
 
-	if (ShapeDilation > 0.f)
+	if (ShapeDilation > 0.f && OutDilatedMesh)
 	{
 		// Inset the mesh by -ShapeDilation to effectively expand the mesh
-		FInsetMeshRegion Inset(&LakeMesh);
+		OutDilatedMesh->Copy(OutMesh);
+		FInsetMeshRegion Inset(OutDilatedMesh);
 		Inset.InsetDistance = -1 * ShapeDilation / 2.f;
 
-		Inset.Triangles.Reserve(LakeMesh.TriangleCount());
-		for (int32 Idx : LakeMesh.TriangleIndicesItr())
+		Inset.Triangles.Reserve(OutDilatedMesh->TriangleCount());
+		for (int32 Idx : OutDilatedMesh->TriangleIndicesItr())
 		{
 			Inset.Triangles.Add(Idx);
 		}
 		
-		if (Inset.Apply())
-		{
-			for (const FVector3d& Vertex : LakeMesh.GetVerticesBuffer())
-			{
-				// push the set of dilated vertices to the persistent mesh
-				FDynamicMeshVertex MeshVertex(FVector3f(Vertex.X, Vertex.Y, 0.f));
-				MeshVertex.Color = FColor::Black;
-				DilatedWaterBodyMeshVertices.Add(MeshVertex);
-			}
-
-			for (const FIndex3i& Triangle : LakeMesh.GetTrianglesBuffer())
-			{
-				DilatedWaterBodyMeshIndices.Append({ (uint32)Triangle.A, (uint32)Triangle.B, (uint32)Triangle.C });
-			}
-		}
-		else
+		if (!Inset.Apply())
 		{
 			UE_LOG(LogWater, Warning, TEXT("Failed to apply mesh inset for shape dilation (%s"), *GetOwner()->GetActorNameOrLabel());
+			return false;
 		}
 	}
+
+	return true;
 }
 
 FBoxSphereBounds UWaterBodyLakeComponent::CalcBounds(const FTransform& LocalToWorld) const

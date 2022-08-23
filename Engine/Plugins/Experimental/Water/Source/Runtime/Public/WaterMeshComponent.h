@@ -46,6 +46,8 @@ public:
 	/** Use this instead of GetMaterialRelevance, since this one will go over all materials from all tiles */
 	FMaterialRelevance GetWaterMaterialRelevance(ERHIFeatureLevel::Type InFeatureLevel) const;
 
+	void PushTessellatedWaterMeshBoundsToPoxy(const FBox2D& TessellatedWaterMeshBounds);
+
 	const FWaterQuadTree& GetWaterQuadTree() const { return WaterQuadTree; }
 
 	const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE(TSet, UMaterialInterface)& GetUsedMaterialsSet() const { return UsedMaterials; }
@@ -68,16 +70,16 @@ public:
 	 *	Setting this to 0 will allow every level to collapse
 	 *	Setting this to something higher than the LODCount will have no effect
 	 */
-	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ClampMin = "-1"))
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (ClampMin = "-1"))
 	int32 ForceCollapseDensityLevel = -1;
 
-	UPROPERTY(EditAnywhere, Category = "Mesh|FarDistance")
+	UPROPERTY(EditAnywhere, Category = "Rendering|FarDistance")
 	TObjectPtr<UMaterialInterface> FarDistanceMaterial = nullptr;
 
-	UPROPERTY(EditAnywhere, Category = "Mesh|FarDistance", meta = (ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Rendering|FarDistance", meta = (ClampMin = "0"))
 	float FarDistanceMeshExtent = 0.0f;
 
-	UFUNCTION(BlueprintPure, Category = Mesh)
+	UFUNCTION(BlueprintPure, Category = Rendering)
 	bool IsEnabled() const { return bIsEnabled; }
 private:
 	//~ Begin USceneComponent Interface
@@ -88,11 +90,11 @@ private:
 	void RebuildWaterMesh(float InTileSize, const FIntPoint& InExtentInTiles);
 
 	/** World size of the water tiles at LOD0. Multiply this with the ExtentInTiles to get the world extents of the system */
-	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ClampMin = "100", AllowPrivateAcces = "true"))
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (ClampMin = "100", AllowPrivateAcces = "true"))
 	float TileSize = 2400.0f;
 
 	/** The extent of the system in number of tiles. Maximum number of tiles for this system will be ExtentInTiles.X*2*ExtentInTiles.Y*2 */
-	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ClampMin = "1", AllowPrivateAcces = "true"))
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (ClampMin = "1", AllowPrivateAcces = "true"))
 	FIntPoint ExtentInTiles = FIntPoint(64, 64);
 
 	/** Tiles containing water, stored in a quad tree */
@@ -118,16 +120,17 @@ private:
 	float LODScaleBiasScalability = 0.0f;
 
 	/** Highest tessellation factor of a water tile. Max number of verts on the side of a tile will be (2^TessellationFactor)+1)  */
-	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ClampMin = "1", ClampMax = "12"))
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (ClampMin = "1", ClampMax = "12"))
 	int32 TessellationFactor = 6;
 
 	/** World scale of the concentric LODs */
-	UPROPERTY(EditAnywhere, Category = Mesh, meta = (ClampMin = "0.5"))
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (ClampMin = "0.5"))
 	float LODScale = 1.0f;
 
 #if WITH_EDITOR
 	//~ Begin USceneComponent Interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditComponentMove(bool bFinished) override;
 	//~ Begin USceneComponent Interface
 #endif
 };

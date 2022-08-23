@@ -266,6 +266,7 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 			TraversalDesc.PreViewTranslation = View->ViewMatrices.GetPreViewTranslation();
 			TraversalDesc.LODScale = LODScale;
 			TraversalDesc.bLODMorphingEnabled = !!CVarWaterMeshLODMorphEnabled.GetValueOnRenderThread();
+			TraversalDesc.TessellatedWaterMeshBounds = TessellatedWaterMeshBounds;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			//Debug
@@ -505,6 +506,7 @@ void FWaterMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGath
 	TraversalDesc.Frustum = FConvexVolume(); // Default volume to disable frustum culling
 	TraversalDesc.LODScale = LODScale;
 	TraversalDesc.bLODMorphingEnabled = !!CVarWaterMeshLODMorphEnabled.GetValueOnRenderThread();
+	TraversalDesc.TessellatedWaterMeshBounds = TessellatedWaterMeshBounds;
 
 	WaterQuadTree.BuildWaterTileInstanceData(TraversalDesc, WaterInstanceData);
 
@@ -659,3 +661,23 @@ HHitProxy* FWaterMeshSceneProxy::CreateHitProxies(UPrimitiveComponent* Component
 	return nullptr;
 }
 #endif // WITH_WATER_SELECTION_SUPPORT
+
+
+void FWaterMeshSceneProxy::OnTessellatedWaterMeshBoundsChanged_GameThread(const FBox2D& InTessellatedWaterMeshBounds)
+{
+	check(IsInParallelGameThread() || IsInGameThread());
+
+	FWaterMeshSceneProxy* SceneProxy = this;
+	ENQUEUE_RENDER_COMMAND(OnTessellatedWaterMeshBoundsChanged)(
+		[SceneProxy, InTessellatedWaterMeshBounds](FRHICommandListImmediate& RHICmdList)
+		{
+			SceneProxy->OnTessellatedWaterMeshBoundsChanged_RenderThread(InTessellatedWaterMeshBounds);
+		});
+}
+
+void FWaterMeshSceneProxy::OnTessellatedWaterMeshBoundsChanged_RenderThread(const FBox2D& InTessellatedWaterMeshBounds)
+{
+	check(IsInRenderingThread());
+
+	TessellatedWaterMeshBounds = InTessellatedWaterMeshBounds;
+}

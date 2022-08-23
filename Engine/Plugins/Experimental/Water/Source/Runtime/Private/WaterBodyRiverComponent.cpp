@@ -11,6 +11,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/StaticMesh.h"
 #include "Algo/Transform.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 // for working around Chaos issue
 #include "Chaos/Particles.h"
@@ -90,39 +91,15 @@ void UWaterBodyRiverComponent::OnUpdateBody(bool bWithExclusionVolumes)
 
 // ----------------------------------------------------------------------------------
 
-static FColor PackWaterFlow(float VelocityMagnitude, float DirectionAngle)
-{
-	check((DirectionAngle >= 0.f) && (DirectionAngle <= TWO_PI));
-
-	const float MaxVelocity = FWaterUtils::GetWaterMaxFlowVelocity(false);
-
-	float NormalizedMagnitude = FMath::Clamp(VelocityMagnitude, 0.f, MaxVelocity) / MaxVelocity;
-	float NormalizedAngle = DirectionAngle / TWO_PI;
-	float MappedMagnitude = NormalizedMagnitude * TNumericLimits<uint16>::Max();
-	float MappedAngle = NormalizedAngle * TNumericLimits<uint16>::Max();
-
-	uint16 ResultMag = (uint16)MappedMagnitude;
-	uint16 ResultAngle = (uint16)MappedAngle;
-	
-	FColor Result;
-	Result.R = (ResultMag >> 8) & 0xFF;
-	Result.G = (ResultMag >> 0) & 0xFF;
-	Result.B = (ResultAngle >> 8) & 0xFF;
-	Result.A = (ResultAngle >> 0) & 0xFF;
-
-	return Result;
-}
-
 static void AddVerticesForRiverSplineStep(
 	float DistanceAlongSpline, 
 	const UWaterBodyRiverComponent* Component, 
 	const UWaterSplineComponent* SplineComp, 
 	const UWaterSplineMetadata* WaterSplineMetadata,
-	TArray<FDynamicMeshVertex>& Vertices, 
-	TArray<uint32>& Indices, 
-	TArray<FDynamicMeshVertex>& DilatedVertices, 
-	TArray<uint32>& DilatedIndices)
+	UE::Geometry::FDynamicMesh3& OutMesh,
+	UE::Geometry::FDynamicMesh3* OutDilatedMesh)
 {
+	using namespace UE::Geometry;
 	check((Component != nullptr) && (SplineComp != nullptr) && (WaterSplineMetadata != nullptr));
 	
 	const FVector Tangent = SplineComp->GetTangentAtDistanceAlongSpline(DistanceAlongSpline, ESplineCoordinateSpace::Local).GetSafeNormal();
@@ -140,17 +117,6 @@ static void AddVerticesForRiverSplineStep(
 	// Prevent there being a relative height difference between the two vertices even when the spline has a slight roll to it
 	OutwardDistance.Z = 0.f;
 
-	const float DilationAmount = Component->ShapeDilation;
-	const FVector DilationOffset = Normal * DilationAmount;
-
-	FDynamicMeshVertex Left(FVector3f(Pos - OutwardDistance));
-	FDynamicMeshVertex Right(FVector3f(Pos + OutwardDistance));
-
-	FDynamicMeshVertex DilatedFarLeft(FVector3f(Pos - OutwardDistance - DilationOffset));
-	FDynamicMeshVertex DilatedLeft(FVector3f(Pos - OutwardDistance));
-	FDynamicMeshVertex DilatedRight(FVector3f(Pos + OutwardDistance));
-	FDynamicMeshVertex DilatedFarRight(FVector3f(Pos + OutwardDistance + DilationOffset));
-
 	float FlowDirection = Tangent.HeadingAngle() + FMath::DegreesToRadians(Component->GetRelativeRotation().Yaw);
 
 	// Restrict all angles between [0, 2 PI]. UnwindRadians returns a value between [-Pi, Pi] so we must remap again:
@@ -167,41 +133,73 @@ static void AddVerticesForRiverSplineStep(
 		FlowDirection = FMath::Fmod(PI + FlowDirection, TWO_PI);
 	}
 
-	const FColor EmptyFlowData = FColor(0.f);
+	FVertexInfo Left(FVector3d(Pos - OutwardDistance));
+	FVertexInfo Right(FVector3d(Pos + OutwardDistance));
 
-	const FColor PackedFlowData = PackWaterFlow(Velocity, FlowDirection);
-	Left.Color = PackedFlowData;
-	Right.Color = PackedFlowData;
+	const FVector3f FlowData = FVector3f(Velocity, FlowDirection, 0.f);
+	Left.Color = FlowData;
+	Right.Color = FlowData;
+	Left.bHaveC = true;
+	Right.bHaveC = true;
 
-	DilatedFarLeft.Color = EmptyFlowData;
-	DilatedLeft.Color = EmptyFlowData;
-	DilatedRight.Color = EmptyFlowData;
-	DilatedFarRight.Color = EmptyFlowData;
-
+	// Append regular geometry to mesh:
 	{
 		/* Non - dilated river segment geometry:
-		   2 --- 3
-		   |  /  |
-		   0 --- 1
+		    0 --- 1
+		    |  /  |
+		   -2 --- -1
 		*/
-		const uint32 BaseIndex = Vertices.Num();
-		Vertices.Append({ Left, Right });
-		Indices.Append({ BaseIndex, BaseIndex + 3, BaseIndex + 1, BaseIndex, BaseIndex + 2, BaseIndex + 3 });
+		const int32 BaseIndex = OutMesh.GetVerticesBuffer().Num();
+
+		OutMesh.AppendVertex(Left);
+		OutMesh.AppendVertex(Right);
+
+		if (BaseIndex != 0)
+		{
+			OutMesh.AppendTriangle(BaseIndex - 2, BaseIndex + 1, BaseIndex - 1);
+			OutMesh.AppendTriangle(BaseIndex - 2, BaseIndex, BaseIndex + 1);
+		}
 	}
 	
-	if (DilationAmount > 0.f)
+	const float DilationAmount = Component->ShapeDilation;
+	// If dilation is required, append dilated geometry:
+	if (DilationAmount > 0.f && OutDilatedMesh)
 	{
+		const FVector DilationOffset = Normal * DilationAmount;
+
+		const FVertexInfo DilatedFarLeft(FVector3d(Pos - OutwardDistance - DilationOffset));
+		const FVertexInfo DilatedLeft(FVector3d(Pos - OutwardDistance));
+		const FVertexInfo DilatedRight(FVector3d(Pos + OutwardDistance));
+		const FVertexInfo DilatedFarRight(FVector3d(Pos + OutwardDistance + DilationOffset));
+
 		/* Dilated River segment geometry:
-			4---5   6---7
-			| / |   | / |
-			0---1   2---3
+			 1 --- 2     3 --- 4
+			 |  /  |      |  /  |
+			-4 --- -3    -2 --- -1
 		*/
-		const uint32 BaseIndex = DilatedVertices.Num();
-		DilatedVertices.Append({ DilatedFarLeft, DilatedLeft, DilatedRight, DilatedFarRight });
-		// Append left dilation quad
-		DilatedIndices.Append({ BaseIndex, BaseIndex + 5, BaseIndex + 1, BaseIndex, BaseIndex + 4, BaseIndex + 5 });
-		// Append right dilation quad
-		DilatedIndices.Append({ BaseIndex + 2, BaseIndex + 6, BaseIndex + 7, BaseIndex + 2, BaseIndex + 7, BaseIndex + 3 });
+		const int32 BaseIndex = OutDilatedMesh->GetVerticesBuffer().Num();
+
+		OutDilatedMesh->AppendVertex(DilatedFarLeft);
+		OutDilatedMesh->AppendVertex(DilatedLeft);
+		OutDilatedMesh->AppendVertex(DilatedRight);
+		OutDilatedMesh->AppendVertex(DilatedFarRight);
+
+		// If this is the first point we need to add the triangles for the starting dilated center quad since that references vertices which were only just appended
+		if (DistanceAlongSpline == 0.f)
+		{
+			OutDilatedMesh->AppendTriangle(BaseIndex - 3, BaseIndex + 2, BaseIndex - 2);
+			OutDilatedMesh->AppendTriangle(BaseIndex - 3, BaseIndex + 1, BaseIndex + 2);
+		}
+		
+		if (BaseIndex != 0)
+		{
+			// Append left dilation quad
+			OutDilatedMesh->AppendTriangle(BaseIndex - 4, BaseIndex + 1, BaseIndex - 3);
+			OutDilatedMesh->AppendTriangle(BaseIndex - 4, BaseIndex, BaseIndex + 1);
+			// Append right dilation quad
+			OutDilatedMesh->AppendTriangle(BaseIndex - 2, BaseIndex + 2, BaseIndex + 3);
+			OutDilatedMesh->AppendTriangle(BaseIndex - 2, BaseIndex + 3, BaseIndex - 1);
+		}
 	}
 }
 
@@ -210,8 +208,15 @@ enum class ERiverBoundaryEdge {
 	End,
 };
 
-static void AddTerminalVerticesForRiverSpline(ERiverBoundaryEdge Edge, const UWaterBodyRiverComponent* Component, const UWaterSplineComponent* SplineComp, const UWaterSplineMetadata* WaterSplineMetadata, TArray<FDynamicMeshVertex>& Vertices, TArray<uint32>& Indices)
+static void AddTerminalVerticesForRiverSpline(
+	ERiverBoundaryEdge Edge, 
+	const UWaterBodyRiverComponent* Component,
+	const UWaterSplineComponent* SplineComp, 
+	const UWaterSplineMetadata* WaterSplineMetadata, 
+	UE::Geometry::FDynamicMesh3& OutDilatedMesh)
 {
+	using namespace UE::Geometry;
+
 	check((Component != nullptr) && (SplineComp != nullptr) && (WaterSplineMetadata != nullptr));
 
 	const float DistanceAlongSpline = (Edge == ERiverBoundaryEdge::Start) ? 0.f : SplineComp->GetSplineLength();
@@ -239,90 +244,73 @@ static void AddTerminalVerticesForRiverSpline(ERiverBoundaryEdge Edge, const UWa
 		TangentialOffset *= -1;
 	}
 
-	FDynamicMeshVertex BackLeft(FVector3f(Pos - OutwardDistance + TangentialOffset - DilationOffset));
-	FDynamicMeshVertex Left(FVector3f(Pos - OutwardDistance + TangentialOffset));
-	FDynamicMeshVertex Right(FVector3f(Pos + OutwardDistance + TangentialOffset));
-	FDynamicMeshVertex BackRight(FVector3f(Pos + OutwardDistance + TangentialOffset + DilationOffset));
+	const FVertexInfo BackLeft(FVector3d(Pos - OutwardDistance + TangentialOffset - DilationOffset));
+	const FVertexInfo Left(FVector3d(Pos - OutwardDistance + TangentialOffset));
+	const FVertexInfo Right(FVector3d(Pos + OutwardDistance + TangentialOffset));
+	const FVertexInfo BackRight(FVector3d(Pos + OutwardDistance + TangentialOffset + DilationOffset));
 
-	// Initialize the vertex data to correct represent what we expect the dilated region to look like (no flow data)
-	BackLeft.Color = FColor(0.f);
-	Left.Color = FColor(0.f);
-	Right.Color = FColor(0.f);
-	BackRight.Color = FColor(0.f);
+	const int32 BaseIndex = OutDilatedMesh.GetVerticesBuffer().Num();
 
-	/* Dilated edge segment geometry:
-		4---5-----6---7
-		| / |  /  | / |
-		0---1-----2---3
-	*/
+	OutDilatedMesh.AppendVertex(BackLeft);
+	OutDilatedMesh.AppendVertex(Left);
+	OutDilatedMesh.AppendVertex(Right);
+	OutDilatedMesh.AppendVertex(BackRight);
 
-	Vertices.Append({ BackLeft, Left, Right, BackRight });
 
-	const uint32 BaseIndex = Edge == ERiverBoundaryEdge::Start ? 0 : Vertices.Num() - 8;
+	if (Edge == ERiverBoundaryEdge::End)
+	{
+		/* Dilated edge segment geometry:
+			 0 --- 1 ------- 2 --- 3
+			 |  /  |    /    |  /  |
+			-4 --- -3 ----- -2 --- -1
+		*/
 
-	// Since iterating the spline returns the final distance, all the side quads are already added for the final point so we only need to do this for the first point.
-	if (Edge == ERiverBoundaryEdge::Start)
-	{ 
+		OutDilatedMesh.AppendTriangle(BaseIndex - 4, BaseIndex + 0, BaseIndex + 1);
+		OutDilatedMesh.AppendTriangle(BaseIndex - 4, BaseIndex + 1, BaseIndex - 3);
 
-		Indices.Append({ BaseIndex + 0, BaseIndex + 5, BaseIndex + 1, BaseIndex + 0, BaseIndex + 4, BaseIndex + 5 });
-		Indices.Append({ BaseIndex + 2, BaseIndex + 7, BaseIndex + 3, BaseIndex + 2, BaseIndex + 6, BaseIndex + 7 });
+		OutDilatedMesh.AppendTriangle(BaseIndex - 3, BaseIndex + 1, BaseIndex + 2);
+		OutDilatedMesh.AppendTriangle(BaseIndex - 3, BaseIndex + 2, BaseIndex - 2);
+
+		OutDilatedMesh.AppendTriangle(BaseIndex - 2, BaseIndex + 2, BaseIndex + 3);
+		OutDilatedMesh.AppendTriangle(BaseIndex - 2, BaseIndex + 3, BaseIndex - 1);
 	}
-	Indices.Append({ BaseIndex + 1, BaseIndex + 6, BaseIndex + 2, BaseIndex + 1, BaseIndex + 5, BaseIndex + 6 });
 }
 
 // ----------------------------------------------------------------------------------
 
-void UWaterBodyRiverComponent::GenerateWaterBodyMesh()
+bool UWaterBodyRiverComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3& OutMesh, UE::Geometry::FDynamicMesh3* OutDilatedMesh) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateRiverMesh);
-
-	WaterBodyMeshVertices.Empty();
-	WaterBodyMeshIndices.Empty();
 
 	const UWaterSplineComponent* SplineComp = GetWaterSpline();
 	if ((SplineComp == nullptr) || (WaterSplineMetadata == nullptr) || (SplineComp->GetNumberOfSplinePoints() < 2))
 	{
-		return;
+		return false;
 	}
 
 	TArray<double> Distances;
 	TArray<FVector> Points;
-	SplineComp->DivideSplineIntoPolylineRecursiveWithDistances(0.f, SplineComp->GetSplineLength(), ESplineCoordinateSpace::Local, FMath::Square(10.f), Points, Distances);
+	SplineComp->DivideSplineIntoPolylineRecursiveWithDistances(0.f, SplineComp->GetSplineLength(), ESplineCoordinateSpace::Local, FMath::Square(5.f), Points, Distances);
 	if (Distances.Num() == 0)
 	{
-		return;
+		return false;
 	}
 	
-	TArray<FDynamicMeshVertex> Vertices;
-	TArray<uint32> Indices;
-
-	TArray<FDynamicMeshVertex> DilatedVertices;
-	TArray<uint32> DilatedIndices;
-
-	// Add an extra point at the start to dilate starting edge
-	if (ShapeDilation > 0.f)
+	if (ShapeDilation > 0.f && OutDilatedMesh)
 	{
-		AddTerminalVerticesForRiverSpline(ERiverBoundaryEdge::Start, this, SplineComp, WaterSplineMetadata, DilatedVertices, DilatedIndices);
+		AddTerminalVerticesForRiverSpline(ERiverBoundaryEdge::Start, this, SplineComp, WaterSplineMetadata, *OutDilatedMesh);
 	}
 
 	for (double DistanceAlongSpline : Distances)
 	{
-		AddVerticesForRiverSplineStep(DistanceAlongSpline, this, SplineComp, WaterSplineMetadata, Vertices, Indices, DilatedVertices, DilatedIndices);
+		AddVerticesForRiverSplineStep(DistanceAlongSpline, this, SplineComp, WaterSplineMetadata, OutMesh, OutDilatedMesh);
 	}
-	// Remove the last two triangles since AddverticesForRiverSplineStep doesn't know which distance is the final distance and tries to create a triangle
-	// which links to vertices that don't exist.
-	Indices.SetNum(Indices.Num() - 6);
 	
-	// Add an extra point at the end to dilate ending edge
-	if (ShapeDilation > 0.f)
+	if (ShapeDilation > 0.f && OutDilatedMesh)
 	{
-		AddTerminalVerticesForRiverSpline(ERiverBoundaryEdge::End, this, SplineComp, WaterSplineMetadata, DilatedVertices, DilatedIndices);
+		AddTerminalVerticesForRiverSpline(ERiverBoundaryEdge::End, this, SplineComp, WaterSplineMetadata, *OutDilatedMesh);
 	}
-
-	WaterBodyMeshVertices = MoveTemp(Vertices);
-	WaterBodyMeshIndices = MoveTemp(Indices);
-	DilatedWaterBodyMeshVertices = MoveTemp(DilatedVertices);
-	DilatedWaterBodyMeshIndices = MoveTemp(DilatedIndices);
+	return true;
 }
 
 FBoxSphereBounds UWaterBodyRiverComponent::CalcBounds(const FTransform& LocalToWorld) const

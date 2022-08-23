@@ -13,6 +13,7 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "WaterBodyOceanComponent.h"
 #include "RenderCaptureInterface.h"
+#include "WaterViewExtension.h"
 
 #if	WITH_EDITOR
 #include "Algo/Transform.h"
@@ -35,7 +36,8 @@ AWaterZone::AWaterZone(const FObjectInitializer& Initializer)
 {
 	WaterMesh = CreateDefaultSubobject<UWaterMeshComponent>(TEXT("WaterMesh"));
 	SetRootComponent(WaterMesh);
-	ZoneExtent = FVector2D(51200.f, 51200.f);
+	ZoneExtent = FVector2D(51200., 51200.);
+	TessellatedWaterMeshExtent = FVector(35000., 35000., 10000.);
 	
 #if	WITH_EDITOR
 	// Setup bounds component
@@ -47,7 +49,7 @@ AWaterZone::AWaterZone(const FObjectInitializer& Initializer)
 		BoundsComponent->SetGenerateOverlapEvents(false);
 		BoundsComponent->SetupAttachment(WaterMesh);
 		// Bounds component extent is half-extent, ZoneExtent is full extent.
-		BoundsComponent->SetBoxExtent(FVector(ZoneExtent / 2.f, 8192.f));
+		BoundsComponent->SetBoxExtent(FVector(ZoneExtent / 2., 8192.));
 	}
 
 	if (GIsEditor && !IsTemplate())
@@ -96,7 +98,8 @@ void AWaterZone::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITORONLY_DATA
-	const FVector2D ExtentInTiles = WaterMesh->GetExtentInTiles();
+	// WaterMesh ExtentInTiles returns the half extent.
+	const FVector2D ExtentInTiles = 2.0 * FVector2D(WaterMesh->GetExtentInTiles());
 	ZoneExtent = FVector2D(ExtentInTiles * WaterMesh->GetTileSize());
 	OnExtentChanged();
 #endif // WITH_EDITORONLY_DATA
@@ -112,18 +115,35 @@ void AWaterZone::MarkForRebuild(EWaterZoneRebuildFlags Flags)
 	{
 		bNeedsWaterInfoRebuild = true;
 	}
+	if (EnumHasAnyFlags(Flags, EWaterZoneRebuildFlags::UpdateWaterBodyLODSections))
+	{
+		ForEachWaterBodyComponent([](UWaterBodyComponent* WaterBodyComponent)
+		{
+			WaterBodyComponent->UpdateWaterBodyRenderData();
+			return true;
+		});
+	}
 }
 
 void AWaterZone::ForEachWaterBodyComponent(TFunctionRef<bool(UWaterBodyComponent*)> Predicate)
 {
-	FWaterBodyManager::ForEachWaterBodyComponent(GetWorld(), [this, Predicate](UWaterBodyComponent* Component)
+	for (const TWeakObjectPtr<UWaterBodyComponent>& WaterBodyComponent : OwnedWaterBodies)
+	{
+		if (WaterBodyComponent.IsValid() && !Predicate(WaterBodyComponent.Get()))
 		{
-			if (Component->GetWaterZone() == this)
-			{
-				return Predicate(Component);
-			}
-			return true;
-		});
+			break;
+		}
+	}
+}
+
+void AWaterZone::AddWaterBodyComponent(UWaterBodyComponent* WaterBodyComponent)
+{
+	OwnedWaterBodies.AddUnique(WaterBodyComponent);
+}
+
+void AWaterZone::RemoveWaterBodyComponent(UWaterBodyComponent* WaterBodyComponent)
+{
+	OwnedWaterBodies.RemoveSwap(WaterBodyComponent);
 }
 
 void AWaterZone::Update()
@@ -154,7 +174,12 @@ void AWaterZone::PostEditMove(bool bFinished)
 	Super::PostEditMove(bFinished);
 
 	// Ensure that the water mesh is rebuilt if it moves
-	MarkForRebuild(EWaterZoneRebuildFlags::All);
+	EWaterZoneRebuildFlags RebuildFlags = EWaterZoneRebuildFlags::UpdateWaterInfoTexture | EWaterZoneRebuildFlags::UpdateWaterMesh;
+	if (bFinished)
+	{
+		RebuildFlags |= EWaterZoneRebuildFlags::UpdateWaterBodyLODSections;
+	}
+	MarkForRebuild(RebuildFlags);
 }
 
 void AWaterZone::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -182,6 +207,18 @@ void AWaterZone::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	{
 		MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture);
 	}
+	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(AWaterZone, TessellatedWaterMeshExtent))
+	{
+		MarkForRebuild(EWaterZoneRebuildFlags::All);
+	}
+	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(AWaterZone, bEnableNonTessellatedLODMesh))
+	{
+		MarkForRebuild(EWaterZoneRebuildFlags::All);
+	}
+	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(AWaterZone, NonTessellatedLODSectionScale))
+	{
+		MarkForRebuild(EWaterZoneRebuildFlags::All);
+	}
 }
 
 void AWaterZone::OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh)
@@ -197,7 +234,7 @@ void AWaterZone::OnActorSelectionChanged(const TArray<UObject*>& NewSelection, b
 	if (SelectedWaterBodies != NewWeakWaterBodiesSelection)
 	{
 		SelectedWaterBodies = NewWeakWaterBodiesSelection;
-		MarkForRebuild(EWaterZoneRebuildFlags::All);
+		MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterMesh | EWaterZoneRebuildFlags::UpdateWaterInfoTexture);
 	}
 }
 #endif // WITH_EDITOR
@@ -206,9 +243,10 @@ void AWaterZone::OnExtentChanged()
 {
 	// Compute the new tile extent based on the new bounds
 	const float MeshTileSize = WaterMesh->GetTileSize();
+	const FVector2D ZoneHalfExtent = ZoneExtent / 2.0;
 
-	int32 NewExtentInTilesX = FMath::FloorToInt(ZoneExtent.X / MeshTileSize);
-	int32 NewExtentInTilesY = FMath::FloorToInt(ZoneExtent.Y / MeshTileSize);
+	int32 NewExtentInTilesX = FMath::FloorToInt(ZoneHalfExtent.X / MeshTileSize);
+	int32 NewExtentInTilesY = FMath::FloorToInt(ZoneHalfExtent.Y / MeshTileSize);
 	
 	// We must ensure that the zone is always at least 1x1
 	NewExtentInTilesX = FMath::Max(1, NewExtentInTilesX);
@@ -217,8 +255,7 @@ void AWaterZone::OnExtentChanged()
 	WaterMesh->SetExtentInTiles(FIntPoint(NewExtentInTilesX, NewExtentInTilesY));
 
 #if WITH_EDITOR
-	// Bounds component extent is half-extent, ZoneExtent is full extent.
-	BoundsComponent->SetBoxExtent(FVector(ZoneExtent / 2.f, 8192.f));
+	BoundsComponent->SetBoxExtent(FVector(ZoneHalfExtent, 8192.f));
 #endif // WITH_EDITOR
 
 	MarkForRebuild(EWaterZoneRebuildFlags::All);
@@ -228,7 +265,8 @@ void AWaterZone::OnExtentChanged()
 #if WITH_EDITOR
 void AWaterZone::OnBoundsComponentModified()
 {
-	const FVector2D NewBounds = FVector2D(BoundsComponent->GetUnscaledBoxExtent());
+	// BoxExtent is the radius of the box (half-extent).
+	const FVector2D NewBounds = 2.0 * FVector2D(BoundsComponent->GetUnscaledBoxExtent());
 
 	SetZoneExtent(NewBounds);
 }
@@ -246,31 +284,29 @@ bool AWaterZone::UpdateWaterInfoTexture()
 		// If they do not, we must submit compile jobs for them and wait until they are finished before re-rendering.
 		TArray<UMaterialInterface*> UsedMaterials;
 
-		// #todo_water [roey]: we should try caching this list to avoid potentially iterating over a lot of water bodies which may not belong to this zone specifically.
-		// For now whenever we update the water info texture we will collect all water bodies within the zone and pass those to the renderer each time this function is called.
-		TArray<UWaterBodyComponent*> WaterBodies;
-		ForEachWaterBodyComponent([World, &WaterBodies, &WaterZMax, &WaterZMin, &UsedMaterials](UWaterBodyComponent* Component)
+		TArray<UWaterBodyComponent*> WaterBodiesToRender;
+		ForEachWaterBodyComponent([World, &WaterBodiesToRender, &WaterZMax, &WaterZMin, &UsedMaterials](UWaterBodyComponent* WaterBodyComponent)
 		{
 			// skip components which don't affect the water info texture
-			if (!Component->AffectsWaterInfo())
+			if (!WaterBodyComponent->AffectsWaterInfo())
 			{
 				return true;
 			}
 
-			if (UMaterialInterface* WaterInfoMaterial = Component->GetWaterInfoMaterialInstance())
+			if (UMaterialInterface* WaterInfoMaterial = WaterBodyComponent->GetWaterInfoMaterialInstance())
 			{
 				UsedMaterials.Add(WaterInfoMaterial);
 			}
 
-			WaterBodies.Add(Component);
-			const FBox WaterBodyBounds = Component->CalcBounds(Component->GetComponentToWorld()).GetBox();
+			WaterBodiesToRender.Add(WaterBodyComponent);
+			const FBox WaterBodyBounds = WaterBodyComponent->CalcBounds(WaterBodyComponent->GetComponentToWorld()).GetBox();
 			WaterZMax = FMath::Max(WaterZMax, WaterBodyBounds.Max.Z);
 			WaterZMin = FMath::Min(WaterZMin, WaterBodyBounds.Min.Z);
 			return true;
 		});
 
 		// If we don't have any water bodies we don't need to do anything.
-		if (WaterBodies.Num() == 0)
+		if (WaterBodiesToRender.Num() == 0)
 		{
 			return true;
 		}
@@ -334,29 +370,64 @@ bool AWaterZone::UpdateWaterInfoTexture()
 			return false;
 		}
 
-
 		const ETextureRenderTargetFormat Format = bHalfPrecisionTexture ? ETextureRenderTargetFormat::RTF_RGBA16f : RTF_RGBA32f;
-		WaterInfoTexture = FWaterUtils::GetOrCreateTransientRenderTarget2D(WaterInfoTexture, TEXT("WaterInfoTexture"), RenderTargetResolution, Format);
+		UTextureRenderTarget2D* NewWaterInfoTexture = FWaterUtils::GetOrCreateTransientRenderTarget2D(WaterInfoTexture, TEXT("WaterInfoTexture"), RenderTargetResolution, Format);
+		const bool bNeedsMIDUpdate = WaterInfoTexture != NewWaterInfoTexture;
+		WaterInfoTexture = NewWaterInfoTexture;
 
 		UE::WaterInfo::FRenderingContext Context;
 		Context.ZoneToRender = this;
-		Context.WaterBodies = WaterBodies;
+		Context.WaterBodies = WaterBodiesToRender;
 		Context.GroundActors = MoveTemp(GroundActors);
 		Context.CaptureZ = FMath::Max(WaterZMax, GroundZMax) + CaptureZOffset;
 		Context.TextureRenderTarget = WaterInfoTexture;
 
-		if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(World))
+		if (TWeakPtr<FWaterViewExtension> WaterViewExtension = UWaterSubsystem::GetWaterViewExtension(World); WaterViewExtension.IsValid())
 		{
-			WaterSubsystem->MarkWaterInfoTextureForRebuild(Context);
+			WaterViewExtension.Pin()->MarkWaterInfoTextureForRebuild(Context);
 		}
 
-		for (UWaterBodyComponent* Component : WaterBodies)
+		if (bNeedsMIDUpdate)
 		{
-			Component->UpdateMaterialInstances();
+			for (UWaterBodyComponent* Component : WaterBodiesToRender)
+			{
+				Component->UpdateMaterialInstances();
+			}
 		}
 
 		UE_LOG(LogWater, Verbose, TEXT("Queued Water Info texture update"));
 	}
 
 	return true;
+}
+
+FVector AWaterZone::GetTessellatedWaterMeshCenter() const
+{
+	if (IsNonTessellatedLODMeshEnabled())
+	{
+		return TessellatedWaterMeshCenter;
+	}
+	else
+	{
+		return GetActorLocation();
+	}
+}
+
+FVector AWaterZone::GetTessellatedWaterMeshExtent() const
+{
+	if (IsNonTessellatedLODMeshEnabled())
+	{
+		return TessellatedWaterMeshExtent.GridSnap(GetNonTessellatedLODSectionSize());
+	}
+	else
+	{
+		// #todo_water [roey]: better implementation for 3D extent
+		return FVector(GetZoneExtent(), 0.0);
+	}
+}
+
+float AWaterZone::GetNonTessellatedLODSectionSize() const
+{
+	check(WaterMesh)
+	return WaterMesh->GetTileSize() * NonTessellatedLODSectionScale;
 }

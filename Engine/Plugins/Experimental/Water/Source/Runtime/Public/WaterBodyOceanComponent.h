@@ -33,7 +33,7 @@ protected:
 	virtual void BeginUpdateWaterBody() override;
 	virtual void OnUpdateBody(bool bWithExclusionVolumes) override;
 	virtual void Reset() override;
-	virtual void GenerateWaterBodyMesh() override;
+	virtual bool GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3& OutMesh, UE::Geometry::FDynamicMesh3* OutDilatedMesh = nullptr) const override;
 
 	virtual void PostLoad() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const;
