@@ -94,11 +94,11 @@ public:
 	void ClearSelections(bool bBroadcast, bool bEmitChange);
 
 	/**
-	 * Gets the centroid of the current selection. The centroid is cached and
+	 * Gets the bounding box center of the current selection. The center point is cached and
 	 * invalidated on the next SetSelection call, but can be forced to be
 	 * recalculated.
 	 */
-	FVector3d GetUnwrapSelectionCentroid(bool bForceRecalculate = false);
+	FVector3d GetUnwrapSelectionBoundingBoxCenter(bool bForceRecalculate = false);
 
 	// These are functions that are used if a selection made in the applied mesh cannot be
 	// converted to an unwrap mesh selection due to unset UV elements (meaning that the selected
@@ -357,8 +357,8 @@ protected:
 
 	FHighlightOptions HighlightOptions;
 
-	FVector3d CachedUnwrapSelectionCentroid;
-	bool bCachedUnwrapSelectionCentroidValid = false;
+	FVector3d CachedUnwrapSelectionBoundingBoxCenter;
+	bool bCachedUnwrapSelectionBoundingBoxCenterValid = false;
 };
 
 // UInterface for IUVToolSupportsSelection

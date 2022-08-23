@@ -341,7 +341,7 @@ void UUVSelectTool::UpdateGizmo()
 {
 	if (SelectionAPI->HaveSelections())
 	{
-		TransformGizmo->ReinitializeGizmoTransform(FTransform(SelectionAPI->GetUnwrapSelectionCentroid()));
+		TransformGizmo->ReinitializeGizmoTransform(FTransform(SelectionAPI->GetUnwrapSelectionBoundingBoxCenter()));
 	}
 
 	TransformGizmo->SetVisibility(
@@ -434,7 +434,6 @@ void UUVSelectTool::OnSelectionChanged(bool, uint32 SelectionChangeType)
 			TRACE_CPUPROFILER_EVENT_SCOPE(Vertex);
 
 			VidSet.SetNumUninitialized(Selection.SelectedIDs.Num());
-			TidSet.Reserve(Selection.SelectedIDs.Num());
 			
 			int32 VIndex = 0;
 			TArray<int> Tids;

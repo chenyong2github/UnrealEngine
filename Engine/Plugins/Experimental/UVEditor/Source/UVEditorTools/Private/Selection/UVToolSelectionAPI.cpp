@@ -151,7 +151,7 @@ void UUVToolSelectionAPI::SetSelections(const TArray<FUVToolSelection>& Selectio
 	bool bWillCallEndChange = bEmitChange && !bUsingExistingTransaction;
 
 
-	bCachedUnwrapSelectionCentroidValid = false;
+	bCachedUnwrapSelectionBoundingBoxCenterValid = false;
 
 	// If we don't match with the current unset selection type, just clear them to keep everything consistent
 	if (CurrentUnsetSelections.Num() > 0 && SelectionsIn.Num() > 0 && SelectionsIn[0].Type != CurrentUnsetSelections[0].Type)
@@ -209,7 +209,7 @@ void UUVToolSelectionAPI::SetSelections(const TArray<FUVToolSelection>& Selectio
 			FTransform Transform = FTransform::Identity;
 			if (HighlightOptions.bUseCentroidForUnwrapAutoUpdate)
 			{
-				Transform = FTransform(GetUnwrapSelectionCentroid());
+				Transform = FTransform(GetUnwrapSelectionBoundingBoxCenter());
 			}
 			RebuildUnwrapHighlight(Transform);
 		}
@@ -236,56 +236,26 @@ void UUVToolSelectionAPI::SetSelectionMechanicMode(EUVEditorSelectionMode Mode,
 	SelectionMechanic->SetSelectionMode(Mode, Options);
 }
 
-FVector3d UUVToolSelectionAPI::GetUnwrapSelectionCentroid(bool bForceRecalculate)
+FVector3d UUVToolSelectionAPI::GetUnwrapSelectionBoundingBoxCenter(bool bForceRecalculate)
 {
-	if (bCachedUnwrapSelectionCentroidValid && !bForceRecalculate)
+	if (bCachedUnwrapSelectionBoundingBoxCenterValid && !bForceRecalculate)
 	{
-		return CachedUnwrapSelectionCentroid;
+		return CachedUnwrapSelectionBoundingBoxCenter;
 	}
 
-	FVector3d& Centroid = CachedUnwrapSelectionCentroid;
-
-	Centroid = FVector3d::Zero();
+	FVector3d& Center = CachedUnwrapSelectionBoundingBoxCenter;
+	
+	FAxisAlignedBox3d AllSelectionsBoundingBox;
 	double Divisor = 0;
 	for (const FUVToolSelection& Selection : GetSelections())
 	{
 		FDynamicMesh3* Mesh = Selection.Target->UnwrapCanonical.Get();
-		if (Selection.Type == FUVToolSelection::EType::Edge)
-		{
-			for (int32 Eid : Selection.SelectedIDs)
-			{
-				Centroid += Mesh->GetEdgePoint(Eid, 0.5);
-			}
-		}
-		else if (Selection.Type == FUVToolSelection::EType::Triangle)
-		{
-			for (int32 Tid : Selection.SelectedIDs)
-			{
-				Centroid += Mesh->GetTriCentroid(Tid);
-			}
-		}
-		else if (Selection.Type == FUVToolSelection::EType::Vertex)
-		{
-			for (int32 Vid : Selection.SelectedIDs)
-			{
-				Centroid += Mesh->GetVertex(Vid);
-			}
-		}
-		else
-		{
-			ensure(false);
-		}
-
-		Divisor += Selection.SelectedIDs.Num();
+		AllSelectionsBoundingBox.Contain(Selection.ToBoundingBox(*Mesh));
 	}
+	Center = AllSelectionsBoundingBox.Center();
 
-	if (Divisor > 0)
-	{
-		Centroid /= Divisor;
-	}
-
-	bCachedUnwrapSelectionCentroidValid = true;
-	return Centroid;
+	bCachedUnwrapSelectionBoundingBoxCenterValid = true;
+	return Center;
 }
 
 
@@ -375,7 +345,7 @@ void UUVToolSelectionAPI::SetHighlightVisible(bool bUnwrapHighlightVisible, bool
 			FTransform UnwrapTransform = FTransform::Identity;
 			if (HighlightOptions.bUseCentroidForUnwrapAutoUpdate)
 			{
-				UnwrapTransform = FTransform(GetUnwrapSelectionCentroid());
+				UnwrapTransform = FTransform(GetUnwrapSelectionBoundingBoxCenter());
 			}
 			RebuildUnwrapHighlight(UnwrapTransform);
 		}
