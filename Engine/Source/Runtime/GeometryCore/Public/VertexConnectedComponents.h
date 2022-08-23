@@ -303,6 +303,39 @@ public:
 		return ComponentMap;
 	}
 
+	// Return an ordering of the vertex indices so that each connected component is in a contiguous block
+	TArray<int32> MakeContiguousComponentsArray(int32 MaxVID)
+	{
+		TMap<int32, int32> ComponentLoc;
+		TArray<int32> Contiguous;
+		Contiguous.SetNum(MaxVID);
+		int32 LastSingleEntryIdx = MaxVID;
+		int32 FirstUnusedIdx = 0;
+		for (int32 VID = 0; VID < MaxVID; VID++)
+		{
+			int32 SetID = DisjointSet.Find(VID);
+			int32 SetSize = DisjointSet.Sizes[SetID];
+			if (SetSize == 1) // just place the single-element groups at the end, no need to track in map
+			{
+				LastSingleEntryIdx--;
+				Contiguous[LastSingleEntryIdx] = VID;
+				continue;
+			}
+			int32* Loc = ComponentLoc.Find(SetID);
+			if (Loc)
+			{
+				Contiguous[(*Loc)++] = VID;
+			}
+			else
+			{
+				Contiguous[FirstUnusedIdx] = VID;
+				ComponentLoc.Add(SetID, FirstUnusedIdx + 1);
+				FirstUnusedIdx += SetSize;
+			}
+		}
+		return Contiguous;
+	}
+
 	inline int32 GetComponent(int32 VertexID)
 	{
 		return DisjointSet.Find(VertexID);

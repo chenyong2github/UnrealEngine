@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 					"MeshUtilitiesCommon",
 					"StaticMeshDescription",
 					"MeshConversion",
+					"Eigen",
 				}
 				);
 			PublicDependencyModuleNames.AddRange(
