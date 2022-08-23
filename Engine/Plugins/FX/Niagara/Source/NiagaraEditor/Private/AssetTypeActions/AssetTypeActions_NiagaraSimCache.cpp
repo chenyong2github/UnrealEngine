@@ -15,8 +15,7 @@ UClass* FAssetTypeActions_NiagaraSimCache::GetSupportedClass() const
 	return UNiagaraSimCache::StaticClass();
 }
 
-void FAssetTypeActions_NiagaraSimCache::OpenAssetEditor(const TArray<UObject*>& InObjects,
-	TSharedPtr<IToolkitHost> EditWithinLevelEditor)
+void FAssetTypeActions_NiagaraSimCache::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
 {
 	const EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
 

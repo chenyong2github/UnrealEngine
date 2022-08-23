@@ -12,7 +12,7 @@ UNiagaraSimCacheFactoryNew::UNiagaraSimCacheFactoryNew(const FObjectInitializer&
 
 bool UNiagaraSimCacheFactoryNew::ShouldShowInNewMenu() const
 {
-	return false;
+	return true;
 }
 
 UObject* UNiagaraSimCacheFactoryNew::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)

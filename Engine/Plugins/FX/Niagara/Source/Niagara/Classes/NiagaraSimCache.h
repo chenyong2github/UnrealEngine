@@ -8,7 +8,7 @@
 
 class UNiagaraComponent;
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FNiagaraSimCacheCreateParameters
 {
 	GENERATED_BODY()
@@ -23,14 +23,14 @@ struct FNiagaraSimCacheCreateParameters
 	When enabled allows the SimCache to be re-based.
 	i.e. World space emitters can be moved to the new component's location
 	*/
-	UPROPERTY(EditAnywhere, Category="SimCache")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SimCache")
 	uint32 bAllowRebasing : 1;
 
 	/**
 	When enabled Data Interface data will be stored in the SimCache.
 	This can result in a large increase to the cache size, depending on what Data Interfaces are used
 	*/
-	UPROPERTY(EditAnywhere, Category="SimCache")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="SimCache")
 	uint32 bAllowDataInterfaceCaching : 1;
 
 	/**
@@ -45,14 +45,14 @@ struct FNiagaraSimCacheCreateParameters
 	List of Attributes to force include in the SimCache rebase, they should be the full path to the attribute
 	For example, MyEmitter.Particles.MyQuat would force the particle attribute MyQuat to be included for MyEmitter
 	*/
-	UPROPERTY(EditAnywhere, Category = "SimCache")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SimCache")
 	TArray<FName> RebaseIncludeList;
 
 	/**
 	List of Attributes to force exclude from the SimCache rebase, they should be the full path to the attribute
 	For example, MyEmitter.Particles.MyQuat would force the particle attribute MyQuat to be included for MyEmitter
 	*/
-	UPROPERTY(EditAnywhere, Category = "SimCache")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SimCache")
 	TArray<FName> RebaseExcludeList;
 };
 
@@ -213,7 +213,7 @@ struct FNiagaraSimCacheLayout
 	TArray<FNiagaraSimCacheDataBuffersLayout> EmitterLayouts;
 };
 
-UCLASS(Experimental)
+UCLASS(Experimental, BlueprintType)
 class NIAGARA_API UNiagaraSimCache : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -251,6 +251,8 @@ class NIAGARA_API UNiagaraSimCache : public UObject
 	virtual bool IsReadyForFinishDestroy() override;
 	// UObject Interface
 
+	/** Is the simulation cache valid or not. */
+	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache)
 	bool IsCacheValid() const { return SoftNiagaraSystem.IsNull() == false; }
 
 	void BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent);

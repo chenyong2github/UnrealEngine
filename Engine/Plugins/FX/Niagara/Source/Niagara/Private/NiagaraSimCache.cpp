@@ -27,6 +27,11 @@ struct FNiagaraSimCacheHelper
 
 	explicit FNiagaraSimCacheHelper(UNiagaraComponent* NiagaraComponent)
 	{
+		if ( NiagaraComponent == nullptr )
+		{
+			return;
+		}
+
 		NiagaraSystem = NiagaraComponent->GetAsset();
 		if ( NiagaraSystem == nullptr )
 		{
@@ -951,7 +956,7 @@ bool UNiagaraSimCache::Read(float TimeSeconds, FNiagaraSystemInstance* SystemIns
 		return false;
 	}
 
-	const float FrameTime		= (RelativeTime / DurationSeconds) * float(CacheFrames.Num() - 1);
+	const float FrameTime		= DurationSeconds > 0.0f ? (RelativeTime / DurationSeconds) * float(CacheFrames.Num() - 1) : 0.0f;
 	const float FrameIndex		= FMath::Floor(FrameTime);
 	const float FrameFraction	= FrameTime - float(FrameIndex);
 
@@ -973,7 +978,7 @@ bool UNiagaraSimCache::ReadFrame(int32 FrameIndex, float FrameFraction, FNiagara
 	{
 		RebaseTransform = AttachComponent->GetComponentToWorld();
 		RebaseTransform.AddToTranslation(FVector(SystemInstance->GetLWCTile()) * -FLargeWorldRenderScalar::GetTileSize());
-		RebaseTransform = CacheFrame.LocalToWorld * RebaseTransform;
+		RebaseTransform = RebaseTransform * CacheFrame.LocalToWorld.Inverse();
 	}
 
 	Helper.SystemInstance->LocalBounds = CacheFrame.SystemData.LocalBounds;
