@@ -2428,12 +2428,12 @@ int32 FSlateApplication::GetUserIndexForController(int32 ControllerId) const
 	return InputManager->GetUserIndexForController(ControllerId);
 }
 
-int32 FSlateApplication::GetUserIndexForInputDevice(FInputDeviceId InputDeviceId) const
+TOptional<int32> FSlateApplication::GetUserIndexForInputDevice(FInputDeviceId InputDeviceId) const
 {
 	return InputManager->GetUserIndexForInputDevice(InputDeviceId);
 }
 
-int32 FSlateApplication::GetUserIndexForPlatformUser(FPlatformUserId PlatformUser) const
+TOptional<int32> FSlateApplication::GetUserIndexForPlatformUser(FPlatformUserId PlatformUser) const
 {
 	return InputManager->GetUserIndexForPlatformUser(PlatformUser);
 }

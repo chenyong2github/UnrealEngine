@@ -314,8 +314,15 @@ void IEnhancedInputSubsystemInterface::ShowPlatformInputDebugInfo(class UCanvas*
 			FString SlateUserIdString = TEXT("Slate UserID is unknown (Application is not initialized)");
 			if (FSlateApplication::IsInitialized())
 			{
-				const int32 SlateUserId = FSlateApplication::Get().GetUserIndexForInputDevice(Device);
-				SlateUserIdString = FString::Printf(TEXT("Slate UserId ID: %d"), SlateUserId);				
+				TOptional<int32> SlateUserId = FSlateApplication::Get().GetUserIndexForInputDevice(Device);
+				if (SlateUserId.IsSet())
+				{
+					SlateUserIdString = FString::Printf(TEXT("Slate UserId ID: %d"), SlateUserId.GetValue());
+				}
+				else
+				{
+					SlateUserIdString = TEXT("Slate UserId ID: invalid");
+				}
 			}
 			
 			DisplayDebugManager.SetDrawColor(FColor::White);

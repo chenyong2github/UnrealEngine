@@ -124,13 +124,13 @@ public:
 	virtual FInputDeviceId GetInputDeviceIdForMouse() const = 0;
 	virtual FInputDeviceId GetInputDeviceIdForKeyboard() const = 0;
 	
-	virtual int32 GetUserIndexForInputDevice(FInputDeviceId InputDeviceId) const
+	virtual TOptional<int32> GetUserIndexForInputDevice(FInputDeviceId InputDeviceId) const
 	{
 		// There is a 1:1 mapping of the platform user ID to a slate user index.
 		return GetUserIndexForPlatformUser(IPlatformInputDeviceMapper::Get().GetUserForInputDevice(InputDeviceId));
 	}
 
-	virtual int32 GetUserIndexForPlatformUser(FPlatformUserId PlatformUser) const
+	virtual TOptional<int32> GetUserIndexForPlatformUser(FPlatformUserId PlatformUser) const
 	{
 		// There is a 1:1 mapping of the platform user ID to a slate user index.
 		return PlatformUser.GetInternalId();
@@ -1596,9 +1596,9 @@ public:
 	int32 GetUserIndexForController(int32 ControllerId) const;
 
 	/** @return Gets the slate user index that this input device is mapped to */	
-	int32 GetUserIndexForInputDevice(FInputDeviceId InputDeviceId) const;
+	TOptional<int32> GetUserIndexForInputDevice(FInputDeviceId InputDeviceId) const;
 	/** @return Gets the slate user index that this platform user id mapped to*/	
-	int32 GetUserIndexForPlatformUser(FPlatformUserId PlatformUser) const;
+	TOptional<int32> GetUserIndexForPlatformUser(FPlatformUserId PlatformUser) const;
 	
 	TOptional<int32> GetUserIndexForController(int32 ControllerId, FKey InKey) const;
 
