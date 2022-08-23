@@ -367,6 +367,26 @@ bool UContentBrowserDataSource::BulkDeleteItems(TArrayView<const FContentBrowser
 	return bSuccess;
 }
 
+bool UContentBrowserDataSource::CanPrivatizeItem(const FContentBrowserItemData& InItem, FText* OutErrorMsg)
+{
+	return false;
+}
+
+bool UContentBrowserDataSource::PrivatizeItem(const FContentBrowserItemData& InItem)
+{
+	return false;
+}
+
+bool UContentBrowserDataSource::BulkPrivatizeItems(TArrayView<const FContentBrowserItemData> InItems)
+{
+	bool bSuccess = false;
+	for (const FContentBrowserItemData& Item : InItems)
+	{
+		bSuccess |= PrivatizeItem(Item);
+	}
+	return bSuccess;
+}
+
 bool UContentBrowserDataSource::CanRenameItem(const FContentBrowserItemData& InItem, const FString* InNewName, FText* OutErrorMsg)
 {
 	return false;

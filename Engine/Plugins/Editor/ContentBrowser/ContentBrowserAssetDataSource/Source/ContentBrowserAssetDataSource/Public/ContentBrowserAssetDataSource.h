@@ -212,6 +212,12 @@ public:
 
 	virtual bool BulkDeleteItems(TArrayView<const FContentBrowserItemData> InItems) override;
 
+	virtual bool CanPrivatizeItem(const FContentBrowserItemData& InItem, FText* OutErrorMsg);
+
+	virtual bool PrivatizeItem(const FContentBrowserItemData& InItem) override;
+
+	virtual bool BulkPrivatizeItems(TArrayView<const FContentBrowserItemData> InItems) override;
+
 	virtual bool CanRenameItem(const FContentBrowserItemData& InItem, const FString* InNewName, FText* OutErrorMsg) override;
 
 	virtual bool RenameItem(const FContentBrowserItemData& InItem, const FString& InNewName, FContentBrowserItemData& OutNewItem) override;

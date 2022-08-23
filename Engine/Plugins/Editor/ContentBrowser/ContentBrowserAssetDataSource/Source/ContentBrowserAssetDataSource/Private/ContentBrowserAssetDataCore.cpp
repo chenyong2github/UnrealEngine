@@ -587,6 +587,42 @@ bool CanDeleteAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAsse
 	return true;
 }
 
+bool CanPrivatizeItem(IAssetTools* InAssetTools, IAssetRegistry* InAssetRegistry, const UContentBrowserDataSource* InOwnerDataSource, const FContentBrowserItemData& InItem, FText* OutErrorMsg)
+{
+	if (TSharedPtr<const FContentBrowserAssetFolderItemDataPayload> FolderPayload = GetAssetFolderItemPayload(InOwnerDataSource, InItem))
+	{
+		return false;
+	}
+
+	if (TSharedPtr<const FContentBrowserAssetFileItemDataPayload> AssetPayload = GetAssetFileItemPayload(InOwnerDataSource, InItem))
+	{
+		return CanPrivatizeAssetFileItem(InAssetTools, *AssetPayload, OutErrorMsg);
+	}
+
+	return false;
+}
+
+bool CanPrivatizeAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetFileItemDataPayload& InAssetPayload, FText* OutErrorMsg)
+{
+	if (!CanModifyAssetFileItem(InAssetTools, InAssetPayload, OutErrorMsg))
+	{
+		return false;
+	}
+
+	if (IsRunningPIE(OutErrorMsg))
+	{
+		return false;
+	}
+
+	if (InAssetPayload.GetAssetData().IsRedirector())
+	{
+		SetOptionalErrorMessage(OutErrorMsg, LOCTEXT("Error_CannotPrivatizeRedirectors", "Cannot make redirectors private"));
+		return false;
+	}
+
+	return true;
+}
+
 bool DeleteItems(IAssetTools* InAssetTools, IAssetRegistry* InAssetRegistry, const UContentBrowserDataSource* InOwnerDataSource, TArrayView<const FContentBrowserItemData> InItems)
 {
 	TArray<TSharedRef<const FContentBrowserAssetFolderItemDataPayload>, TInlineAllocator<16>> FolderPayloads;
@@ -625,6 +661,41 @@ bool DeleteItems(IAssetTools* InAssetTools, IAssetRegistry* InAssetRegistry, con
 	}
 
 	return bDidDelete;
+}
+
+bool PrivatizeItems(IAssetTools* InAssetTools, IAssetRegistry* InAssetRegistry, const UContentBrowserDataSource* InOwnerDataSource, TArrayView<const FContentBrowserItemData> InItems)
+{
+	TArray<TSharedRef<const FContentBrowserAssetFileItemDataPayload>, TInlineAllocator<16>> AssetPayloads;
+
+	auto ProcessAssetFolderItem = [](const TSharedRef<const FContentBrowserAssetFolderItemDataPayload>& InFolderPayload)
+	{
+		return true;
+	};
+
+	auto ProcessAssetFileItem = [InAssetTools, &AssetPayloads](const TSharedRef<const FContentBrowserAssetFileItemDataPayload>& InAssetPayload)
+	{
+		if (CanPrivatizeAssetFileItem(InAssetTools, *InAssetPayload, nullptr))
+		{
+			AssetPayloads.Add(InAssetPayload);
+		}
+		return true;
+	};
+
+	EnumerateAssetItemPayloads(InOwnerDataSource, InItems, ProcessAssetFolderItem, ProcessAssetFileItem);
+
+	if (AssetPayloads.IsEmpty())
+	{
+		return false;
+	}
+
+	TArray<FAssetData> AssetsToPrivatize;
+
+	for (const TSharedRef<const FContentBrowserAssetFileItemDataPayload>& AssetPayload : AssetPayloads)
+	{
+		AssetsToPrivatize.Add(AssetPayload->GetAssetData());
+	}
+
+	return ObjectTools::PrivatizeAssets(AssetsToPrivatize) > 0;
 }
 
 bool DeleteAssetFolderItems(TArrayView<const TSharedRef<const FContentBrowserAssetFolderItemDataPayload>> InFolderPayloads)

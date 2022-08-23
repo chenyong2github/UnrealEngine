@@ -71,6 +71,7 @@
 #include "Dialogs/DlgReferenceTree.h"
 #include "AssetRegistry/ARFilter.h"
 #include "AssetDeleteModel.h"
+#include "Dialogs/SPrivateAssetsDialog.h"
 #include "Dialogs/SDeleteAssetsDialog.h"
 #include "AudioDevice.h"
 #include "ReferencedAssetsUtils.h"
@@ -2523,6 +2524,27 @@ namespace ObjectTools
 		return NumPackagesToDelete + NumObjectsToDelete;
 	}
 
+	int32 PrivatizeAssets(const TArray<FAssetData>& AssetsToPrivatize, bool bShowConfirmation)
+	{
+		TArray<UObject*> ObjectsToPrivatize;
+		for (const FAssetData& AssetToPrivatize : AssetsToPrivatize)
+		{
+			UObject* ObjectToPrivatize = AssetToPrivatize.GetAsset({ ULevel::LoadAllExternalObjectsTag });
+
+			if (ObjectToPrivatize)
+			{
+				ObjectsToPrivatize.Add(ObjectToPrivatize);
+			}
+		}
+
+		if (!ObjectsToPrivatize.IsEmpty())
+		{
+			return PrivatizeObjects(ObjectsToPrivatize, bShowConfirmation);
+		}
+
+		return 0;
+	}
+
 	void AddExtraObjectsToDelete(TArray< UObject* >& ObjectsToDelete)
 	{
 		const int32 OriginalNum = ObjectsToDelete.Num();
@@ -2740,6 +2762,76 @@ namespace ObjectTools
 		}
 
 		return DeleteModel->GetDeletedObjectCount();
+	}
+
+	int32 PrivatizeObjects(const TArray<UObject*>& InObjectsToPrivatize, bool bShowConfirmation, EAllowCancelDuringPrivatize AllowCancelDuringPrivatize)
+	{
+		const FScopedBusyCursor BusyCursor;
+		TArray<UObject*> ObjectsToPrivatize = InObjectsToPrivatize;
+
+		if (!HandleFullyLoadingPackages(ObjectsToPrivatize, NSLOCTEXT("UnrealEd", "Privatize", "Privatize")))
+		{
+			return 0;
+		}
+
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+
+		if (AssetRegistryModule.Get().IsLoadingAssets())
+		{
+			FNotificationInfo Info(NSLOCTEXT("UnrealEd", "Warning_CantPrivatizeRebuildingAssetRegistry", "Unable To Mark Private While Discovering Assets"));
+			Info.ExpireDuration = 3.0f;
+			FSlateNotificationManager::Get().AddNotification(Info);
+			return 0;
+		}
+
+		TSharedRef<FAssetPrivatizeModel> PrivatizeModel = MakeShared<FAssetPrivatizeModel>(ObjectsToPrivatize);
+
+		if (bShowConfirmation)
+		{
+			const FVector2D DEFAULT_WINDOW_SIZE = FVector2D(600, 700);
+
+			TSharedRef<SWindow> PrivatizeAssetsWindow = SNew(SWindow)
+				.Title(NSLOCTEXT("UnrealED", "Privatize Assets", "Make Assets Private"))
+				.ClientSize(DEFAULT_WINDOW_SIZE);
+
+			TSharedRef<SPrivateAssetsDialog> PrivatizeDialog =
+				SNew(SPrivateAssetsDialog, PrivatizeModel)
+				.ParentWindow(PrivatizeAssetsWindow);
+
+			PrivatizeAssetsWindow->SetContent(PrivatizeDialog);
+
+			GEditor->EditorAddModalWindow(PrivatizeAssetsWindow);
+
+			return PrivatizeModel->GetObjectsPrivatizedCount();
+		}
+
+		bool bUserCanceled = false;
+		const bool bAllowCancelDuringPrivatize = (AllowCancelDuringPrivatize == EAllowCancelDuringPrivatize::AllowCancel);
+		GWarn->BeginSlowTask(NSLOCTEXT("UnrealEd", "VerifyingPrivatize", "Verifying Privatize"), true, bAllowCancelDuringPrivatize);
+		while (!bUserCanceled && PrivatizeModel->GetState() != FAssetPrivatizeModel::Finished)
+		{
+			PrivatizeModel->Tick(0);
+			GWarn->StatusUpdate((int32)(PrivatizeModel->GetProgress() * 100), 100, PrivatizeModel->GetProgressText());
+
+			if (bAllowCancelDuringPrivatize)
+			{
+				bUserCanceled = GWarn->ReceivedUserCancel();
+			}
+		}
+		GWarn->EndSlowTask();
+
+		if (bUserCanceled)
+		{
+			UE_LOG(LogUObjectGlobals, Warning, TEXT("User cancelled privatize operation"));
+			return 0;
+		}
+
+		if (!PrivatizeModel->DoPrivatize())
+		{
+			UE_LOG(LogUObjectGlobals, Warning, TEXT("Could not mark private"));
+		}
+
+		return PrivatizeModel->GetObjectsPrivatizedCount();
 	}
 
 	static bool MakeReadOnlyPackageWritable(UObject* ObjectToDelete, bool& bMakeWritable, bool& bSilent)

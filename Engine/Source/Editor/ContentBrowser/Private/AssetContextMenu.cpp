@@ -941,7 +941,15 @@ void FAssetContextMenu::ExecutePublicAssetToggle()
 				return;
 			}
 
-			ItemAssetPackage->SetIsExternallyReferenceable(!ItemAssetPackage->IsExternallyReferenceable());
+			if (ItemAssetPackage->IsExternallyReferenceable())
+			{
+				ExecuteBulkUnsetPublicAsset();
+				return;
+			}
+			else
+			{
+				ItemAssetPackage->SetIsExternallyReferenceable(true);
+			}
 
 			ItemAssetPackage->Modify();
 
@@ -983,25 +991,32 @@ void FAssetContextMenu::ExecuteBulkSetPublicAsset()
 
 void FAssetContextMenu::ExecuteBulkUnsetPublicAsset()
 {
+	// Batch these by their data sources
+	TMap<UContentBrowserDataSource*, TArray<FContentBrowserItemData>> SourcesAndItems;
 	for (const FContentBrowserItem& SelectedItem : SelectedFiles)
 	{
-		FAssetData ItemAssetData;
-		if (SelectedItem.Legacy_TryGetAssetData(ItemAssetData))
+		FContentBrowserItem::FItemDataArrayView ItemDataArray = SelectedItem.GetInternalItems();
+		for (const FContentBrowserItemData& ItemData : ItemDataArray)
 		{
-			UPackage* ItemAssetPackage = ItemAssetData.GetPackage();
-
-			if (!ItemAssetPackage)
+			if (UContentBrowserDataSource* ItemDataSource = ItemData.GetOwnerDataSource())
 			{
-				continue;
-			}
-
-			if (ItemAssetPackage->IsExternallyReferenceable())
-			{
-				ItemAssetPackage->SetIsExternallyReferenceable(false);
-
-				ItemAssetPackage->Modify();
+				FText PrivateErrorMsg;
+				if (ItemDataSource->CanPrivatizeItem(ItemData, &PrivateErrorMsg))
+				{
+					TArray<FContentBrowserItemData>& ItemsForSource = SourcesAndItems.FindOrAdd(ItemDataSource);
+					ItemsForSource.Add(ItemData);
+				}
+				else
+				{
+					AssetViewUtils::ShowErrorNotifcation(PrivateErrorMsg);
+				}
 			}
 		}
+	}
+
+	for (const auto& SourceAndItemsPair : SourcesAndItems)
+	{
+		SourceAndItemsPair.Key->BulkPrivatizeItems(SourceAndItemsPair.Value);
 	}
 
 	OnAssetViewRefreshRequested.ExecuteIfBound();

@@ -133,6 +133,12 @@ namespace ObjectTools
 		CancelNotAllowed
 	};
 
+	enum class EAllowCancelDuringPrivatize : uint8
+	{
+		AllowCancel,
+		CancelNotAllowed
+	};
+
 	/**
 	 * Handles fully loading packages for a set of passed in objects.
 	 *
@@ -297,6 +303,17 @@ namespace ObjectTools
 	UNREALED_API int32 DeleteObjects( const TArray< UObject* >& ObjectsToDelete, bool bShowConfirmation = true, EAllowCancelDuringDelete AllowCancelDuringDelete = EAllowCancelDuringDelete::AllowCancel);
 
 	/**
+	* Privatizes the list of objects (marks their packages as NotExternallyReferencable)
+	* 
+	* @param InObjectsToPrivatize The list of objects to privatize
+	* @param bShowConfirmation True when the dialog should prompt the user that they are about to privatize something and doing so would break references
+	* @param AllowCancelDuringPrivatize Whether or not canceling is allowed when not showing the confirmation dialog
+	* 
+	* @return The number of objects successfully privatized
+	*/
+	UNREALED_API int32 PrivatizeObjects(const TArray<UObject*>& InObjectsToPrivatize, bool bShowConfirmation = true, EAllowCancelDuringPrivatize AllowCancelDuringPrivatize = EAllowCancelDuringPrivatize::AllowCancel);
+
+	/**
 	* Deletes the list of objects without checking if they are still being used.  This should not be called directly
 	* this is primarily used by the delete system after it has done the work of making sure it's safe to delete.
 	*
@@ -315,6 +332,16 @@ namespace ObjectTools
 	* @return The number of assets successfully deleted
 	*/
 	UNREALED_API int32 DeleteAssets( const TArray<FAssetData>& AssetsToDelete, bool bShowConfirmation = true );
+	
+	/**
+	* Privatizes the list of Assets (marks their packages as NotExternallyReferenceable)
+	* 
+	* @param AssetsToPrivatize The list of assets to privatize
+	* @param bShowConfirmation True when a dialog should prompt the user that they are about to privatize something and going to break references
+	* 
+	* @return The number of assets successfully privatized
+	*/
+	UNREALED_API int32 PrivatizeAssets(const TArray<FAssetData>& AssetsToPrivatize, bool bShowConfirmation = true);
 
 	/**
 	 * Delete a single object

@@ -464,6 +464,34 @@ public:
 	virtual bool BulkDeleteItems(TArrayView<const FContentBrowserItemData> InItems);
 
 	/**
+	* Query whether the given item can be privatized, optionally providing error information if it cannot.
+	* 
+	* @param InItem The item to query.
+	* @param OutErrorMessage Optional error message to fill on failure.
+	* 
+	* @return True if the item was deleted, false otherwise.
+	*/
+	virtual bool CanPrivatizeItem(const FContentBrowserItemData& InItem, FText* OutErrorMsg);
+
+	/**
+	* Attempt to mark the given item as private (NotExternallyReferenceable).
+	* 
+	* @param InItem The item to mark private.
+	*
+	* @return True if the item was marked private, false otherwise
+	*/
+	virtual bool PrivatizeItem(const FContentBrowserItemData& InItem);
+
+	/**
+	* Attempt to mark the given items as private (NotExternallyReferenceable)
+	* 
+	* @param InItems The items to be marked private.
+	* 
+	* @return True if any items were marked private, false otherwise
+	*/
+	virtual bool BulkPrivatizeItems(TArrayView<const FContentBrowserItemData> InItems);
+
+	/**
 	 * Query whether the given item is can be renamed, optionally providing error information if it cannot.
 	 *
 	 * @param InItem The item to query.
