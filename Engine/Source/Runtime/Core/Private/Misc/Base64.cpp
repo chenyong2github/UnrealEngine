@@ -1,67 +1,85 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/Base64.h"
-
 #include "Containers/StringConv.h"
 #include "Misc/AssertionMacros.h"
 
-/** The table used to encode a 6 bit value as an ascii character */
-static const uint8 EncodingAlphabet[64] = 
-{ 
-	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 
-	'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 
-	'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 
-	'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/' 
-};
-
-/** The table used to convert an ascii character into a 6 bit value */
-static const uint8 DecodingAlphabet[256] = 
-{ 
-	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0x00-0x0f
-	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0x10-0x1f
-	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x3E, 0xFF, 0xFF, 0xFF, 0x3F, // 0x20-0x2f
-	0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0x30-0x3f
-	0xFF, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, // 0x40-0x4f
-	0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0x50-0x5f
-	0xFF, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, // 0x60-0x6f
-	0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0x70-0x7f
-	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0x80-0x8f
-	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0x90-0x9f
-	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0xa0-0xaf
-	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0xb0-0xbf
-	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0xc0-0xcf
-	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0xd0-0xdf
-	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0xe0-0xef
-	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // 0xf0-0xff
-};
-
-FString FBase64::Encode(const FString& Source)
+namespace
 {
-	return Encode((uint8*)TCHAR_TO_ANSI(*Source), Source.Len());
+	/** The table used to encode a 6 bit value as an ascii character using Table 1 from RFC 4648 ("base64") */
+	static constexpr uint8 GBase64EncodingAlphabet[64] =
+	{
+		'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+		'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
+		'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+		'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'
+	};
+	/** The table used to encode a 6 bit value as an ascii character using Table 2 from RFC 4648 ("base64url") */
+	static constexpr uint8 GBase64UrlSafeEncodingAlphabet[64] =
+	{
+		'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+		'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
+		'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+		'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '_'
+	};
+
+	/** The table used to convert an ascii character into a 6 bit value using Table 1 from RFC 4648 ("base64") */
+	static constexpr uint8 GBase64DecodingAlphabet[128] =
+	{
+		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0x00-0x0f
+		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0x10-0x1f
+		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x3E, 0xFF, 0xFF, 0xFF, 0x3F, // 0x20-0x2f
+		0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0x30-0x3f
+		0xFF, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, // 0x40-0x4f
+		0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0x50-0x5f
+		0xFF, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, // 0x60-0x6f
+		0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // 0x70-0x7f
+	};
+
+	/** The table used to convert an ascii character into a 6 bit value using Table 2 from RFC 4648 ("base64url") */
+	static constexpr uint8 GBase64UrlSafeDecodingAlphabet[128] =
+	{
+		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0x00-0x0f
+		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0x10-0x1f
+		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x3E, 0xFF, 0xFF, // 0x20-0x2f
+		0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // 0x30-0x3f
+		0xFF, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, // 0x40-0x4f
+		0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0xFF, 0xFF, 0xFF, 0xFF, 0x3F, // 0x50-0x5f
+		0xFF, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, // 0x60-0x6f
+		0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF  // 0x70-0x7f
+	};
 }
 
-FString FBase64::Encode(const TArray<uint8>& Source)
+FString FBase64::Encode(const FString& Source, EBase64Mode Mode)
 {
-	return Encode((uint8*)Source.GetData(), Source.Num());
+	return Encode((uint8*)TCHAR_TO_ANSI(*Source), Source.Len(), Mode);
 }
 
-FString FBase64::Encode(const uint8* Source, uint32 Length)
+FString FBase64::Encode(const TArray<uint8>& Source, EBase64Mode Mode)
+{
+	return Encode((uint8*)Source.GetData(), Source.Num(), Mode);
+}
+
+FString FBase64::Encode(const uint8* Source, uint32 Length, EBase64Mode Mode)
 {
 	uint32 ExpectedLength = GetEncodedDataSize(Length);
-	
+
 	FString OutBuffer;
 
 	TArray<TCHAR, FString::AllocatorType>& OutCharArray = OutBuffer.GetCharArray();
 	OutCharArray.SetNum(ExpectedLength + 1);
-	int64 EncodedLength = Encode(Source, Length, OutCharArray.GetData());
+	int64 EncodedLength = Encode(Source, Length, OutCharArray.GetData(), Mode);
 	verify(EncodedLength == OutBuffer.Len());
 
 	return OutBuffer;
 }
 
-template<typename CharType> uint32 FBase64::Encode(const uint8* Source, uint32 Length, CharType* Dest)
+template<typename CharType> uint32 FBase64::Encode(const uint8* Source, uint32 Length, CharType* Dest, EBase64Mode Mode)
 {
+	check(Mode == EBase64Mode::Standard || Mode == EBase64Mode::UrlSafe);
+
 	CharType* EncodedBytes = Dest;
+	const uint8* const EncodingAlphabet = (Mode == EBase64Mode::UrlSafe ? GBase64UrlSafeEncodingAlphabet : GBase64EncodingAlphabet);
 
 	// Loop through the buffer converting 3 bytes of binary data at a time
 	while (Length >= 3)
@@ -126,16 +144,16 @@ template<typename CharType> uint32 FBase64::Encode(const uint8* Source, uint32 L
 	return UE_PTRDIFF_TO_UINT32(EncodedBytes - Dest);
 }
 
-template CORE_API uint32 FBase64::Encode<ANSICHAR>(const uint8* Source, uint32 Length, ANSICHAR* Dest);
-template CORE_API uint32 FBase64::Encode<WIDECHAR>(const uint8* Source, uint32 Length, WIDECHAR* Dest);
+template CORE_API uint32 FBase64::Encode<ANSICHAR>(const uint8* Source, uint32 Length, ANSICHAR* Dest, EBase64Mode Mode);
+template CORE_API uint32 FBase64::Encode<WIDECHAR>(const uint8* Source, uint32 Length, WIDECHAR* Dest, EBase64Mode Mode);
 
-bool FBase64::Decode(const FString& Source, FString& OutDest)
+bool FBase64::Decode(const FString& Source, FString& OutDest, EBase64Mode Mode)
 {
 	uint32 ExpectedLength = GetDecodedDataSize(Source);
 
 	TArray<ANSICHAR> TempDest;
 	TempDest.AddZeroed(ExpectedLength + 1);
-	if(!Decode(*Source, Source.Len(), (uint8*)TempDest.GetData()))
+	if (!Decode(*Source, Source.Len(), (uint8*)TempDest.GetData(), Mode))
 	{
 		return false;
 	}
@@ -143,35 +161,39 @@ bool FBase64::Decode(const FString& Source, FString& OutDest)
 	return true;
 }
 
-bool FBase64::Decode(const FString& Source, TArray<uint8>& OutDest)
+bool FBase64::Decode(const FString& Source, TArray<uint8>& OutDest, EBase64Mode Mode)
 {
 	OutDest.SetNum(GetDecodedDataSize(Source));
-	return Decode(*Source, Source.Len(), OutDest.GetData());
+	return Decode(*Source, Source.Len(), OutDest.GetData(), Mode);
 }
 
-template<typename CharType> bool FBase64::Decode(const CharType* Source, uint32 Length, uint8* Dest)
+template<typename CharType> bool FBase64::Decode(const CharType* Source, uint32 Length, uint8* Dest, EBase64Mode Mode)
 {
+	check(Mode == EBase64Mode::Standard || Mode == EBase64Mode::UrlSafe);
+
 	// Remove the trailing '=' characters, so we can handle padded and non-padded input the same
-	while(Length > 0 && Source[Length - 1] == '=')
+	while (Length > 0 && Source[Length - 1] == '=')
 	{
 		Length--;
 	}
 
 	// Make sure the length is valid. Only lengths modulo 4 of 0, 2, and 3 are valid.
-	if((Length & 3) == 1)
+	if ((Length & 3) == 1)
 	{
 		return false;
 	}
 
+	const uint8* const DecodingAlphabet = (Mode == EBase64Mode::UrlSafe ? GBase64UrlSafeDecodingAlphabet : GBase64DecodingAlphabet);
+
 	// Convert all the full chunks of data
-	for(; Length >= 4; Length -= 4)
+	for (; Length >= 4; Length -= 4)
 	{
 		// Decode the next 4 BYTEs
 		uint32 OriginalTriplet = 0;
 		for (int32 Index = 0; Index < 4; Index++)
 		{
 			uint32 SourceChar = (uint32)*Source++;
-			if(SourceChar >= 256)
+			if (SourceChar >= 128)
 			{
 				return false;
 			}
@@ -195,14 +217,14 @@ template<typename CharType> bool FBase64::Decode(const CharType* Source, uint32 
 	}
 
 	// Convert the last chunk of data
-	if(Length > 0)
+	if (Length > 0)
 	{
 		// Decode the next 4 BYTEs, or up to the end of the input buffer
 		uint32 OriginalTriplet = 0;
 		for (uint32 Index = 0; Index < Length; Index++)
 		{
 			uint32 SourceChar = (uint32)*Source++;
-			if(SourceChar >= 256)
+			if (SourceChar >= 128)
 			{
 				return false;
 			}
@@ -213,14 +235,14 @@ template<typename CharType> bool FBase64::Decode(const CharType* Source, uint32 
 			}
 			OriginalTriplet = (OriginalTriplet << 6) | DecodedValue;
 		}
-		for(int32 Index = Length; Index < 4; Index++)
+		for (int32 Index = Length; Index < 4; Index++)
 		{
 			OriginalTriplet = (OriginalTriplet << 6);
 		}
 
 		// Now we can tear the uint32 into bytes
 		OriginalTriplet >>= 8;
-		if(Length >= 3)
+		if (Length >= 3)
 		{
 			Dest[1] = OriginalTriplet & 0xFF;
 		}
@@ -230,8 +252,8 @@ template<typename CharType> bool FBase64::Decode(const CharType* Source, uint32 
 	return true;
 }
 
-template CORE_API bool FBase64::Decode<ANSICHAR>(const ANSICHAR* Source, uint32 Length, uint8* Dest);
-template CORE_API bool FBase64::Decode<WIDECHAR>(const WIDECHAR* Source, uint32 Length, uint8* Dest);
+template CORE_API bool FBase64::Decode<ANSICHAR>(const ANSICHAR* Source, uint32 Length, uint8* Dest, EBase64Mode Mode);
+template CORE_API bool FBase64::Decode<WIDECHAR>(const WIDECHAR* Source, uint32 Length, uint8* Dest, EBase64Mode Mode);
 
 uint32 FBase64::GetDecodedDataSize(const FString& Source)
 {
@@ -241,21 +263,21 @@ uint32 FBase64::GetDecodedDataSize(const FString& Source)
 template<typename CharType> uint32 FBase64::GetDecodedDataSize(const CharType* Source, uint32 Length)
 {
 	uint32 NumBytes = 0;
-	if(Length > 0)
+	if (Length > 0)
 	{
 		// Get the source length without the trailing padding characters
-		while(Length > 0 && Source[Length - 1] == '=')
+		while (Length > 0 && Source[Length - 1] == '=')
 		{
 			Length--;
 		}
 
 		// Get the lower bound for number of bytes, excluding the last partial chunk
 		NumBytes += (Length / 4) * 3;
-		if((Length & 3) == 3)
+		if ((Length & 3) == 3)
 		{
 			NumBytes += 2;
 		}
-		if((Length & 3) == 2)
+		if ((Length & 3) == 2)
 		{
 			NumBytes++;
 		}

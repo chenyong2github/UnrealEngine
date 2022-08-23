@@ -13,15 +13,28 @@ public:
 	 * Creates a JWT from the provided string.
 	 * The string must consist of 3 base64 url encoded parts: a header, payload, and signature.
 	 * The parts must be split by a period character.
-	 * The signature part is optional. If the signature is excluded, the string must still contain a period character in its place.
+	 * The signature part is optional. If the signature is excluded, the string must still contain
+	 * a period character in its place.
 	 * Valid formats: "header.payload.signature" and "header.payload."
 	 *
 	 * @param InJsonWebTokenString The string to decode.
-	 * @return An optional set with a FJsonWebToken if the JWT was successfully decoded.
+	 * @return An optional set with a FJsonWebToken if the JWT was generated successfully.
 	 */
-	static TOptional<FJsonWebToken> FromString(const FStringView InEncodedJsonWebToken, const bool bIsSignatureEncoded);
+	static TOptional<FJsonWebToken> FromString(const FStringView InEncodedJsonWebToken);
 
-	static bool FromString(const FStringView InEncodedJsonWebToken, FJsonWebToken& OutJsonWebToken, const bool bIsSignatureEncoded);
+	/**
+	 * Creates a JWT from the provided string.
+	 * The string must consist of 3 base64 url encoded parts: a header, payload, and signature.
+	 * The parts must be split by a period character.
+	 * The signature part is optional. If the signature is excluded, the string must still contain
+	 * a period character in its place.
+	 * Valid formats: "header.payload.signature" and "header.payload."
+	 *
+	 * @param InJsonWebTokenString The string to decode.
+	 * @param OutJsonWebToken The generated JWT (FJsonWebToken instance), if input string was decoded successfully.
+	 * @return True if JWT was generated successfully, otherwise false.
+	 */
+	static bool FromString(const FStringView InEncodedJsonWebToken, FJsonWebToken& OutJsonWebToken);
 
 	/**
 	 * Gets the type.
@@ -71,14 +84,82 @@ public:
 	}
 
 	/**
-	 * Perform verification of the encoded header and encoded payload.
-	 * The is done using the cryptographic algorithm specified in the header, and a secret value obtained
-	 * by key-lookup, to generate a signature.  The generated signature must be identical to the signature
-	 * provided in the JWT for verification to succeed.
+	 * Gets the issuer (`iss`) claim from the payload, if present.
 	 * 
+	 * @param OutValue the issuer value, if successful.
+	 * @return True on success (claim exists), otherwise false.
+	 */
+	bool GetIssuer(FString& OutValue) const;
+
+	/**
+	 * Gets the issued at (`iat`) claim from the payload, if present.
+	 *
+	 * @param OutValue the issued at value, if successful.
+	 * @return True on success (claim exists), otherwise false.
+	 */
+	bool GetIssuedAt(double& OutValue) const;
+
+	/**
+	 * Gets the expiriation time (`exp`) claim from the payload, if present.
+	 *
+	 * @param OutValue the expiration time value, if successful.
+	 * @return True on success (claim exists), otherwise false.
+	 */
+	bool GetExpiration(double& OutValue) const;
+
+	/**
+	 * Gets the subject (`sub`) claim from the payload, if present.
+	 *
+	 * @param OutValue the subject value, if successful.
+	 * @return True on success (claim exists), otherwise false.
+	 */
+	bool GetSubject(FString& OutValue) const;
+
+	/**
+	 * Gets the audience (`aud`) claim from the payload, if present.
+	 *
+	 * @param OutValue the audience value, if successful.
+	 * @return True on success (claim exists), otherwise false.
+	 */
+	bool GetAudience(FString& OutValue) const;
+
+	/**
+	 * Verifies the signature against the header and content, using the given public key info, which
+	 * may be obtained from a JWK object.
+	 * Assumes that input arrays are in little-endian byte order.
+	 * The cryptographic algorithm used for verification is specified in this JsonWebToken's header.
+	 *
+	 * @see GetAlgorithm
+	 *
+	 * @param InKeyExponent The e (exponent) value of the public key.
+	 * @param InKeyModulus The n (modulus) value of the public key.
 	 * @return true if the header and payload were verified successfully (signature match), otherwise false.
 	 */
-	bool Verify() const;
+	bool Verify(const TArrayView<const uint8> InKeyExponent, const TArrayView<const uint8> InKeyModulus) const;
+
+	/**
+	 * Verifies the signature against the header and content, using the given public key info, which
+	 * may be obtained from a JWK object.
+	 * If specified, will decode the key from Base64Url form, and/or convert to little-endian.
+	 *
+	 * @param InKeyExponent The e (exponent) value of the public key.
+	 * @param InKeyModulus The n (modulus) value of the public key.
+	 * @param bIsBase64UrlEncoded Set to true if InKeyExponent and InKeyModulus are Base64Url encoded (will decode).
+	 * @param bIsBigEndian Set to true if InKeyExponent and InKeyModulus and in big-endian byte form (will reverse).
+	 * @return true if the header and payload were verified successfully (signature match), otherwise false.
+	 */
+	bool Verify(const FStringView InKeyExponent, const FStringView InKeyModulus, const bool bIsBase64UrlEncoded, const bool bIsBigEndian) const;
+
+	/**
+	 * Verifies the signature against the header and content, using the given public key info, which
+	 * may be obtained from a JWK object.
+	 * Assumes Base64Url-encoded big-endian byte format for the key, as it would arrive from the web.
+	 *
+	 * @param InKeyExponent The e (exponent) value of the public key.
+	 * @param InKeyModulus The n (modulus) value of the public key.
+	 * @return true if the header and payload were verified successfully (signature match), otherwise false.
+	 */
+	bool Verify(const FStringView InKeyExponent, const FStringView InKeyModulus) const;
 
 private:
 	FJsonWebToken(const FStringView InEncodedJsonWebToken, const TSharedRef<FJsonObject>& InHeaderPtr,
