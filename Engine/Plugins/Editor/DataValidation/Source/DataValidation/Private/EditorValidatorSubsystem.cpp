@@ -212,12 +212,8 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 int32 UEditorValidatorSubsystem::ValidateAssetsWithSettings(const TArray<FAssetData>& AssetDataList, const FValidateAssetsSettings& InSettings, FValidateAssetsResults& OutResults) const
 {
 	FScopedSlowTask SlowTask(1.0f, LOCTEXT("ValidatingDataTask", "Validating Data..."));
-	SlowTask.Visibility = InSettings.bShowIfNoFailures ? ESlowTaskVisibility::ForceVisible : ESlowTaskVisibility::Invisible;
-	
-	if (InSettings.bShowIfNoFailures)
-	{
-		SlowTask.MakeDialogDelayed(.1f);
-	}
+	SlowTask.Visibility = ESlowTaskVisibility::ForceVisible;
+	SlowTask.MakeDialogDelayed(.1f);
 
 	FMessageLog DataValidationLog("AssetCheck");
 
