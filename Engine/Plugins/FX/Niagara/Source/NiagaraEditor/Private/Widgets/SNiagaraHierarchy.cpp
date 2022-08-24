@@ -120,18 +120,21 @@ void SNiagaraHierarchySection::Construct(const FArguments& InArgs, TSharedPtr<FN
 				.DropTargetArgs(OntoDropTargetArgs
 				.Content()
 				[
-					SNew(SCheckBox)
-					.Visibility(EVisibility::HitTestInvisible)
-					.Style(FAppStyle::Get(), "DetailsView.SectionButton")
-					.OnCheckStateChanged(this, &SNiagaraHierarchySection::OnSectionCheckChanged)
-					.IsChecked(this, &SNiagaraHierarchySection::GetSectionCheckState)
+					SAssignNew(MenuAnchor, SMenuAnchor)
 					.OnGetMenuContent(this, &SNiagaraHierarchySection::OnGetMenuContent)
 					[
-						SAssignNew(InlineEditableTextBlock, SInlineEditableTextBlock)
-						.IsSelected(InArgs._IsSelected)
-						.Text(this, &SNiagaraHierarchySection::GetText)
-						.OnTextCommitted(this, &SNiagaraHierarchySection::OnRenameSection)
-						.OnVerifyTextChanged(this, &SNiagaraHierarchySection::OnVerifySectionRename)
+						SNew(SCheckBox)
+						.Visibility(EVisibility::HitTestInvisible)
+						.Style(FAppStyle::Get(), "DetailsView.SectionButton")
+						.OnCheckStateChanged(this, &SNiagaraHierarchySection::OnSectionCheckChanged)
+						.IsChecked(this, &SNiagaraHierarchySection::GetSectionCheckState)
+						[
+							SAssignNew(InlineEditableTextBlock, SInlineEditableTextBlock)
+							.IsSelected(InArgs._IsSelected)
+							.Text(this, &SNiagaraHierarchySection::GetText)
+							.OnTextCommitted(this, &SNiagaraHierarchySection::OnRenameSection)
+							.OnVerifyTextChanged(this, &SNiagaraHierarchySection::OnVerifySectionRename)
+						]
 					]
 				])
 			]
@@ -262,6 +265,7 @@ FReply SNiagaraHierarchySection::OnMouseButtonDown(const FGeometry& MyGeometry, 
 	{
 		if(MouseEvent.IsMouseButtonDown(EKeys::RightMouseButton))
 		{
+			MenuAnchor->SetIsOpen(true);
 			OnSectionCheckChanged(ECheckBoxState::Checked);
 			return FReply::Handled();
 		}

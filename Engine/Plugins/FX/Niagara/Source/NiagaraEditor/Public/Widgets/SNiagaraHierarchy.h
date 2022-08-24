@@ -8,6 +8,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SMenuAnchor.h"
 #include "Styling/SlateTypes.h"
 
 class UNiagaraHierarchyViewModelBase;
@@ -89,6 +90,7 @@ public:
 	ECheckBoxState GetSectionCheckState() const;
 	void OnSectionCheckChanged(ECheckBoxState NewState);
 private:
+	TSharedPtr<SMenuAnchor> MenuAnchor;
 	TSharedPtr<SInlineEditableTextBlock> InlineEditableTextBlock;
 	TWeakObjectPtr<UNiagaraHierarchyViewModelBase> HierarchyViewModel;
 	TSharedPtr<FNiagaraHierarchySectionViewModel> SectionViewModel;
