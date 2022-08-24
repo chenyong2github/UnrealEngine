@@ -206,11 +206,13 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// Optional condition for a machine to be eligable to use this server
 		/// </summary>
+		[BsonIgnoreIfNull]
 		public Condition? Condition { get; set; }
 
 		/// <summary>
 		/// List of properties for an agent to be eligable to use this server
 		/// </summary>
+		[BsonIgnoreIfNull]
 		public List<string>? Properties { get; set; }
 	}
 
