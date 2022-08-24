@@ -16,6 +16,6 @@ void UMassSmoothOrientationTrait::BuildTemplate(FMassEntityTemplateBuildContext&
 	BuildContext.RequireFragment<FMassVelocityFragment>();
 	BuildContext.RequireFragment<FTransformFragment>();
 
-	const FConstSharedStruct OrientationFragment = EntityManager.GetOrCreateConstSharedFragment(UE::StructUtils::GetStructCrc32(FConstStructView::Make(Orientation)), Orientation);
+	const FConstSharedStruct OrientationFragment = EntityManager.GetOrCreateConstSharedFragment(Orientation);
 	BuildContext.AddConstSharedFragment(OrientationFragment);
 }

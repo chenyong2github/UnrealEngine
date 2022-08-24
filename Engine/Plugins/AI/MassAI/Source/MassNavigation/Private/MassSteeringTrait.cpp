@@ -24,9 +24,9 @@ void UMassSteeringTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildCon
 	BuildContext.AddFragment<FMassStandingSteeringFragment>();
 	BuildContext.AddFragment<FMassGhostLocationFragment>();
 
-	const FConstSharedStruct MovingSteeringFragment = EntityManager.GetOrCreateConstSharedFragment(UE::StructUtils::GetStructCrc32(FConstStructView::Make(MovingSteering)), MovingSteering);
+	const FConstSharedStruct MovingSteeringFragment = EntityManager.GetOrCreateConstSharedFragment(MovingSteering);
 	BuildContext.AddConstSharedFragment(MovingSteeringFragment);
 
-	const FConstSharedStruct StandingSteeringFragment = EntityManager.GetOrCreateConstSharedFragment(UE::StructUtils::GetStructCrc32(FConstStructView::Make(StandingSteering)), StandingSteering);
+	const FConstSharedStruct StandingSteeringFragment = EntityManager.GetOrCreateConstSharedFragment(StandingSteering);
 	BuildContext.AddConstSharedFragment(StandingSteeringFragment);
 }

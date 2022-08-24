@@ -36,7 +36,7 @@ void UMassStateTreeTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildCo
 	FMassStateTreeSharedFragment SharedStateTree;
 	SharedStateTree.StateTree = StateTree;
 	
-	const FConstSharedStruct StateTreeFragment = EntityManager.GetOrCreateConstSharedFragment(UE::StructUtils::GetStructCrc32(FConstStructView::Make(SharedStateTree)), SharedStateTree);
+	const FConstSharedStruct StateTreeFragment = EntityManager.GetOrCreateConstSharedFragment(SharedStateTree);
 	BuildContext.AddConstSharedFragment(StateTreeFragment);
 
 	BuildContext.AddFragment<FMassStateTreeInstanceFragment>();

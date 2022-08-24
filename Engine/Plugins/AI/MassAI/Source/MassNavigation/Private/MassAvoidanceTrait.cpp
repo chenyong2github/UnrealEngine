@@ -22,12 +22,10 @@ void UMassObstacleAvoidanceTrait::BuildTemplate(FMassEntityTemplateBuildContext&
 	BuildContext.RequireFragment<FMassMoveTargetFragment>();
 
 	const FMassMovingAvoidanceParameters MovingValidated = MovingParameters.GetValidated();
-	const uint32 MovingHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(MovingValidated));
-	const FConstSharedStruct MovingFragment = EntityManager.GetOrCreateConstSharedFragment(MovingHash, MovingValidated);
+	const FConstSharedStruct MovingFragment = EntityManager.GetOrCreateConstSharedFragment(MovingValidated);
 	BuildContext.AddConstSharedFragment(MovingFragment);
 
 	const FMassStandingAvoidanceParameters StandingValidated = StandingParameters.GetValidated();
-	const uint32 StandingHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(StandingValidated));
-	const FConstSharedStruct StandingFragment = EntityManager.GetOrCreateConstSharedFragment(StandingHash, StandingValidated);
+	const FConstSharedStruct StandingFragment = EntityManager.GetOrCreateConstSharedFragment(StandingValidated);
 	BuildContext.AddConstSharedFragment(StandingFragment);
 }

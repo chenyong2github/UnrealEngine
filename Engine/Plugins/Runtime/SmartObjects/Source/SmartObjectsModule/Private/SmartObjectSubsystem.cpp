@@ -188,8 +188,7 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const
 	{
 		// Build our shared fragment
 		FMassArchetypeSharedFragmentValues SharedFragmentValues;
-		const uint32 DefinitionHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(SlotDefinition));
-		FConstSharedStruct& SharedFragment = EntityManager->GetOrCreateConstSharedFragment(DefinitionHash, FSmartObjectSlotDefinitionFragment(Definition, SlotDefinition));
+		FConstSharedStruct& SharedFragment = EntityManager->GetOrCreateConstSharedFragment(FSmartObjectSlotDefinitionFragment(Definition, SlotDefinition));
 		SharedFragmentValues.AddConstSharedFragment(SharedFragment);
 
 		FSmartObjectSlotTransform TransformFragment;

@@ -325,7 +325,7 @@ public:
 	 * Shared fragment creation methods
 	 */
 	template<typename T>
-	FConstSharedStruct& GetOrCreateConstSharedFragment(const uint32 Hash, const T& Fragment)
+	FConstSharedStruct& GetOrCreateConstSharedFragmentByHash(const uint32 Hash, const T& Fragment)
 	{
 		static_assert(TIsDerivedFrom<T, FMassSharedFragment>::IsDerived, "Given struct doesn't represent a valid shared fragment type. Make sure to inherit from FMassSharedFragment or one of its child-types.");
 		int32& Index = ConstSharedFragmentsMap.FindOrAddByHash(Hash, Hash, INDEX_NONE);
@@ -336,8 +336,15 @@ public:
 		return ConstSharedFragments[Index];
 	}
 
+	template<typename T>
+	FConstSharedStruct& GetOrCreateConstSharedFragment(const T& Fragment)
+	{
+		const uint32 Hash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(Fragment));
+		return GetOrCreateConstSharedFragmentByHash(Hash, Fragment);
+	}
+
 	template<typename T, typename... TArgs>
-	FSharedStruct& GetOrCreateSharedFragment(const uint32 Hash, TArgs&&... InArgs)
+	FSharedStruct& GetOrCreateSharedFragmentByHash(const uint32 Hash, TArgs&&... InArgs)
 	{
 		static_assert(TIsDerivedFrom<T, FMassSharedFragment>::IsDerived, "Given struct doesn't represent a valid shared fragment type. Make sure to inherit from FMassSharedFragment or one of its child-types.");
 

@@ -23,6 +23,6 @@ void UMassZoneGraphNavigationTrait::BuildTemplate(FMassEntityTemplateBuildContex
 	BuildContext.AddFragment<FMassZoneGraphShortPathFragment>();
 	BuildContext.AddFragment<FMassZoneGraphCachedLaneFragment>();
 
-	const FConstSharedStruct ZGMovementParamsFragment = EntityManager.GetOrCreateConstSharedFragment(UE::StructUtils::GetStructCrc32(FConstStructView::Make(NavigationParameters)), NavigationParameters);
+	const FConstSharedStruct ZGMovementParamsFragment = EntityManager.GetOrCreateConstSharedFragment(NavigationParameters);
 	BuildContext.AddConstSharedFragment(ZGMovementParamsFragment);
 }
