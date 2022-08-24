@@ -337,6 +337,17 @@
             MinWidth="100"
             ShowText="false"
             UID="189ae82b-5e0f-4d3b-aa93-81e928234b27" />
+          <wpfcust:MaxRibbonCheckBox
+            CommandHandler="{wpfcust:ActionItem MacroName=Datasmith_ExportOptions_XRefScenes, MacroCategory=Datasmith}"
+            Description="Enables export/sync of XRef Scenes"
+            IsCheckable="true"
+            IsToolTipEnabled="true"
+            MinWidth="0"
+            Name="Export XRef Scenes"
+            ResizeStyle="NoResize"
+            ShowText="true"
+            Text="Export XRef Scenes"
+            UID="f8ed3b9b-6c4b-4b0c-92cb-618f4784ab94" />
         </ads:RibbonRowPanel>
       </wpfcust:MaxRibbonPanelSource>
     </wpfcust:MaxModelingRibbonPanel>

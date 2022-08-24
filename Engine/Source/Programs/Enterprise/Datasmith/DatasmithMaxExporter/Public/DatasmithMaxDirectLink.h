@@ -60,6 +60,10 @@ public:
 
 	virtual void SetTextureResolution(int32 Bool) = 0;
 	virtual int32 GetTextureResolution() = 0;
+
+	virtual void SetXRefScenes(bool) = 0;
+	virtual bool GetXRefScenes() = 0;
+
 };
 
 //---- Main class for export/change tracking

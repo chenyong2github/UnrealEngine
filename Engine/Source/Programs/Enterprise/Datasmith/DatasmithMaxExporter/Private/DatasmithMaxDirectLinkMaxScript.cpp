@@ -321,6 +321,7 @@ DefinePersistentExportOption(AnimatedTransforms)
 
 DefinePersistentExportOption(StatSync)
 DefinePersistentExportOptionInt(TextureResolution)
+DefinePersistentExportOption(XRefScenes)
 //////////////////////////////////////////
 
 #undef DefinePersistentExportOption
