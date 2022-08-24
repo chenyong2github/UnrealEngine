@@ -496,7 +496,7 @@ RENDERCORE_API bool AllowPixelDepthOffset(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool AllowPerPixelShadingModels(const FStaticShaderPlatform Platform);
 
-RENDERCORE_API int32 EnabledShadingModelsMask(const FStaticShaderPlatform Platform);
+RENDERCORE_API uint32 GetPlatformShadingModelsMask(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool IsMobileAmbientOcclusionEnabled(const FStaticShaderPlatform Platform);
 

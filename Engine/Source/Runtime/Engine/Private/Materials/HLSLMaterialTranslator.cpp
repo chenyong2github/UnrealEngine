@@ -9399,10 +9399,12 @@ int32 FHLSLMaterialTranslator::CustomPrimitiveData(int32 OutputIndex, EMaterialV
 int32 FHLSLMaterialTranslator::ShadingModel(EMaterialShadingModel InSelectedShadingModel)
 {
 	// If the shading model is masked out, fallback to default shading model
-	if ((EnabledShadingModelsMask(Platform) & (1 << (int32)InSelectedShadingModel)) == 0)
+	uint32 PlatformShadingModelsMask = GetPlatformShadingModelsMask(Platform);
+	if ((PlatformShadingModelsMask & (1u << (uint32)InSelectedShadingModel)) == 0)
 	{
 		InSelectedShadingModel = MSM_DefaultLit;
 	}
+	
 	ShadingModelsFromCompilation.AddShadingModel(InSelectedShadingModel);
 	return AddInlinedCodeChunk(MCT_ShadingModel, TEXT("%d"), InSelectedShadingModel);
 }

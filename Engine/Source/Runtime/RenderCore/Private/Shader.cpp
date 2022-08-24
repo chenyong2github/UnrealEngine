@@ -1619,13 +1619,16 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			KeyString += IsMobileDistanceFieldEnabled(Platform) ? TEXT("_MobSDF") : TEXT("");
 		}
 
-		{
-			KeyString +=  FString::Printf(TEXT("ESMM_%X"), EnabledShadingModelsMask(Platform));
-		}
 	}
 	else
 	{
 		KeyString += IsUsingEmulatedUniformBuffers(Platform) ? TEXT("_NoUB") : TEXT("");
+	}
+
+	uint32 PlatformShadingModelsMask = GetPlatformShadingModelsMask(Platform);
+	if (PlatformShadingModelsMask != 0xFFFFFFFF)
+	{
+		KeyString +=  FString::Printf(TEXT("SMM_%X"), PlatformShadingModelsMask);
 	}
 
 	const IShaderFormat* ShaderFormat = GetTargetPlatformManagerRef().FindShaderFormat(ShaderFormatName);

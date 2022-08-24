@@ -2644,9 +2644,9 @@ static TAutoConsoleVariable<int32> CVarMobileAllowPerPixelShadingModels(
 );
 
 static TAutoConsoleVariable<int32> CVarMobileEnabledShadingModelsMask(
-	TEXT("r.Mobile.EnabledShadingModelsMask"),
-	0xFFFF,
-	TEXT("The mask of shader models that indicates which shading models could be enabled on mobile."),
+	TEXT("r.Mobile.ShadingModelsMask"),
+	0xFFFFFFFF,
+	TEXT("The mask that indicates which shading models are enabled on mobile platforms."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
