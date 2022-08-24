@@ -1158,7 +1158,7 @@ void UMovieSceneSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRa
 	{
 		CurrentRunner->QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
 	}
-	else
+	else if (TickManager)
 	{
 		// Look up the runner based on our tick interval
 		FMovieSceneEntitySystemRunner* Runner = TickManager->GetRunner(RegisteredTickInterval.GetValue());
