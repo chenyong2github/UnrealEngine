@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#define USE_DISTANCE_FIELD_SAMPLER 1
+
 #include "../Common.ush"
 #include "../HeightfieldLightingShared.ush"
 #include "GlobalDistanceFieldShared.ush"

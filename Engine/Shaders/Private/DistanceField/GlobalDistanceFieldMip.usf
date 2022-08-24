@@ -11,6 +11,7 @@ float MipInfluenceRadius;
 Texture3D<uint> PageTableTexture;
 Texture3D PageAtlasTexture;
 Texture3D PrevMipTexture;
+SamplerState DistanceFieldSampler;
 
 // https://en.wikipedia.org/wiki/Eikonal_equation
 float Eikonal1(float X, float Step)
@@ -58,7 +59,7 @@ float LoadPrevDistanceFieldValue(int3 MipCoord, int3 Offset)
 	if (PageIndex < GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
 	{
 		float3 PageUV = ComputeGlobalDistanceFieldPageUV(ScrolledClipmapUV, PageIndex);
-		DistanceFieldValue = Texture3DSampleLevel(PageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
+		DistanceFieldValue = Texture3DSampleLevel(PageAtlasTexture, DistanceFieldSampler, PageUV, 0).x;
 		if (DistanceFieldValue < 1.0f)
 		{
 			DistanceFieldValue = DistanceFieldValue * CoarseDistanceFieldValueScale + CoarseDistanceFieldValueBias;

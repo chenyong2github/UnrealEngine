@@ -36,6 +36,10 @@
 #define OFFSET_DATA_STRUCT (0)
 #endif
 
+#ifndef USE_DISTANCE_FIELD_SAMPLER
+#define USE_DISTANCE_FIELD_SAMPLER (0)
+#endif
+
 // Size of SDF brick in voxels, including padding
 float3 DistanceFieldBrickSize;
 
@@ -367,7 +371,7 @@ bool ViewFrustumIntersectAABB(float3 BoxCenter, float3 BoxExtent)
 
 float SampleDistanceFieldBrickTexture(float3 UV)
 {
-#if SUPPORTS_INDEPENDENT_SAMPLERS
+#if SUPPORTS_INDEPENDENT_SAMPLERS && !USE_DISTANCE_FIELD_SAMPLER
 	return Texture3DSampleLevel(DistanceFieldBrickTexture, GlobalBilinearWrappedSampler, UV, 0).x;
 #else
 	return Texture3DSampleLevel(DistanceFieldBrickTexture, DistanceFieldSampler, UV, 0).x;
@@ -483,7 +487,7 @@ Texture2D HFVisibilityTexture;
 
 float SampleHeightFieldAtlas(float2 UV)
 {
-#if SUPPORTS_INDEPENDENT_SAMPLERS
+#if SUPPORTS_INDEPENDENT_SAMPLERS && !USE_DISTANCE_FIELD_SAMPLER
 	float4 SampleValue = Texture2DSampleLevel(HeightFieldTexture, GlobalBilinearWrappedSampler, UV, 0);
 #else
 	float4 SampleValue = Texture2DSampleLevel(HeightFieldTexture, DistanceFieldSampler, UV, 0);
@@ -493,7 +497,7 @@ float SampleHeightFieldAtlas(float2 UV)
 
 float SampleHFVisibilityTexture(float2 UV)
 {
-#if SUPPORTS_INDEPENDENT_SAMPLERS
+#if SUPPORTS_INDEPENDENT_SAMPLERS && !USE_DISTANCE_FIELD_SAMPLER
 	return Texture2DSampleLevel(HFVisibilityTexture, GlobalBilinearWrappedSampler, UV, 0).r;
 #else
 	return Texture2DSampleLevel(HFVisibilityTexture, DistanceFieldSampler, UV, 0).r;
