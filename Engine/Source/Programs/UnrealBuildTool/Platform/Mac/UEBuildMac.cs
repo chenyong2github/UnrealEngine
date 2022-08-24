@@ -142,14 +142,14 @@ namespace UnrealBuildTool
 				Target.DisablePlugins.AddRange(new string[]
 				{
 					// onnx:
-					"NeuralNetworkInference",
-					"MLAdapter",
-					"LegacyVertexDeltaModel",
-					"MLDeformerFramework",
-					"VertexDeltaModel",
-					"MetaHumanAnimator",
-					"MetaHumans",
-					"NeuralMorphModel",
+					//"NeuralNetworkInference",
+					//"MLAdapter",
+					//"LegacyVertexDeltaModel",
+					//"MLDeformerFramework",
+					//"VertexDeltaModel",
+					//"MetaHumanAnimator",
+					//"MetaHumans",
+					//"NeuralMorphModel",
 
 					// EOSSDK
 					"EOSManager",
