@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Behaviour/RCSetAssetByPathBehaviour.h"
+#include "Behaviour/Builtin/Path/RCSetAssetByPathBehaviour.h"
 
 #include "Backends/CborStructDeserializerBackend.h"
 #include "Backends/CborStructSerializerBackend.h"

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Behaviour/Builtin/Path/RCSetAssetByPathBehaviour.h"
 #include "RemoteControlEntity.h"
-#include "Behaviour/RCSetAssetByPathBehaviour.h"
 #include "UI/Behaviour/RCBehaviourModel.h"
 
 class IDetailTreeNode;

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Behaviour/Builtin/RCBehaviourSetAssetByPathNode.h"
+#include "Behaviour/Builtin/Path/RCBehaviourSetAssetByPathNode.h"
 
+#include "Behaviour/Builtin/Path/RCSetAssetByPathBehaviour.h"
 #include "Behaviour/RCBehaviour.h"
-#include "Behaviour/RCSetAssetByPathBehaviour.h"
 #include "Controller/RCController.h"
 #include "RCVirtualProperty.h"
 #include "RCVirtualPropertyContainer.h"

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "RCBehaviour.h"
+#include "Behaviour/RCBehaviour.h"
 #include "RCVirtualProperty.h"
 #include "RemoteControlEntity.h"
 

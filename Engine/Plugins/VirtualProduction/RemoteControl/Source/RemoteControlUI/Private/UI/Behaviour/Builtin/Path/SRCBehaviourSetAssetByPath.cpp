@@ -7,7 +7,7 @@
 #include "SPositiveActionButton.h"
 #include "SlateOptMacros.h"
 #include "Styling/StyleColors.h"
-#include "UI/Behaviour/Builtin/RCBehaviourSetAssetByPathModel.h"
+#include "UI/Behaviour/Builtin/Path/RCBehaviourSetAssetByPathModel.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "Widgets/Input/SButton.h"
 
