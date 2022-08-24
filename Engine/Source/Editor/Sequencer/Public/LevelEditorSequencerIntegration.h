@@ -30,12 +30,14 @@ struct FLevelEditorSequencerIntegrationOptions
 		, bRequiresActorEvents(false)
 		, bForceRefreshDetails(true)
 		, bAttachOutlinerColumns(true)
+		, bActivateSequencerEdMode(true)
 	{}
 
 	bool bRequiresLevelEvents : 1;
 	bool bRequiresActorEvents : 1;
 	bool bForceRefreshDetails : 1;
 	bool bAttachOutlinerColumns : 1;
+	bool bActivateSequencerEdMode : 1;
 };
 
 
@@ -174,6 +176,7 @@ private:
 private:
 
 	void ActivateSequencerEditorMode();
+	void DeactivateSequencerEditorMode();
 	void AddLevelViewportMenuExtender();
 	void ActivateDetailHandler(const FLevelEditorSequencerIntegrationOptions& Options);
 	void AttachOutlinerColumn();
