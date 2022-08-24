@@ -282,6 +282,10 @@ void FMovieSceneEntitySystemRunner::Flush(double BudgetMs)
 	// again.
 	TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, GetEntityManager());
 
+	// Also reset the capture source scope so that each group of sequences tied to a given linker starts
+	// with a clean slate.
+	TGuardValue<FScopedPreAnimatedCaptureSource*> CaptureSourceGuard(FScopedPreAnimatedCaptureSource::GetCaptureSourcePtr(), nullptr);
+
 	const double BudgetSeconds = BudgetMs / 1000.f;
 	if (BudgetSeconds > 0.0)
 	{
@@ -312,10 +316,6 @@ bool FMovieSceneEntitySystemRunner::GameThread_UpdateSequenceInstances(UMovieSce
 	using namespace UE::MovieScene;
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMovieSceneEntitySystemRunner::GameThread_UpdateSequenceInstances);
-
-	// Also reset the capture source scope so that each group of sequences tied to a given linker starts
-	// with a clean slate.
-	TGuardValue<FScopedPreAnimatedCaptureSource*> CaptureSourceGuard(FScopedPreAnimatedCaptureSource::GetCaptureSourcePtr(), nullptr);
 
 	// Allow the next step to run
 	FlushState &= ~ERunnerFlushState::Import;
