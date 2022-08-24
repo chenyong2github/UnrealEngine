@@ -395,6 +395,10 @@ bool FElectraHTTPStreamRequestLibCurl::Setup(FElectraHTTPStreamLibCurl* OwningMa
 	{
 		Result = curl_easy_setopt(CurlEasyHandle, CURLOPT_CONNECTTIMEOUT_MS, (long)ConnectionTimeoutMillis);
 	}
+#ifdef ELECTRA_HTTPSTREAM_CURL_PLATFORM_FORBID_REUSE
+	Result = curl_easy_setopt(CurlEasyHandle, CURLOPT_FORBID_REUSE, 1L);
+#endif
+
 
 	// HTTP/2 ?
 	if (OwningManager->SupportsHTTP2())
@@ -934,6 +938,26 @@ bool FElectraHTTPStreamLibCurl::Initialize(const Electra::FParamDict& InOptions)
 		ElectraHTTPStreamLibCurl::LogError(TEXT("Calling curl_multi_init() failed"));
 		return false;
 	}
+
+#ifdef ELECTRA_HTTPSTREAM_CURL_PLATFORM_LIMIT_MAX_TOTAL_CONNECTIONS
+	// Limit the maximum simultaneously open connectinos?
+	#if ELECTRA_HTTPSTREAM_CURL_PLATFORM_LIMIT_MAX_TOTAL_CONNECTIONS > 0
+	{
+		// Try setting the option. If it does not work it is ok.
+		mcode = curl_multi_setopt(CurlMultiHandle, CURLMOPT_MAX_TOTAL_CONNECTIONS, (long)ELECTRA_HTTPSTREAM_CURL_PLATFORM_LIMIT_MAX_TOTAL_CONNECTIONS);
+	}
+	#endif
+#endif
+
+#ifdef ELECTRA_HTTPSTREAM_CURL_PLATFORM_LIMIT_MAXCONNECTS
+	// Limit the maximum simultaneously open connections licburl may keep in its connection cache?
+	#if ELECTRA_HTTPSTREAM_CURL_PLATFORM_LIMIT_MAXCONNECTS > 0
+	{
+		// Try setting the option. If it does not work it is ok.
+		mcode = curl_multi_setopt(CurlMultiHandle, CURLMOPT_MAXCONNECTS, (long)ELECTRA_HTTPSTREAM_CURL_PLATFORM_LIMIT_MAXCONNECTS);
+	}
+	#endif
+#endif
 
 	if (bSupportsHTTP2)
 	{
