@@ -145,6 +145,7 @@ namespace MaterialX
 	{
 		static constexpr const char* IsVisited = "UE:IsVisited";
 		static constexpr const char* OriginalName = "UE:OriginalName";
+		static constexpr const char* NewName = "UE:NewName";
 	}
 
 	namespace Category
@@ -187,6 +188,7 @@ namespace MaterialX
 		static constexpr const char* InvertMatrix = "invertmatrix";
 		static constexpr const char* Rotate2D = "rotate2d";
 		static constexpr const char* Rotate3D = "rotate3d";
+		static constexpr const char* Place2D = "place2d";
 		static constexpr const char* ArrayAppend = "arrayappend";
 		// Compositing nodes
 		static constexpr const char* Mix = "mix";

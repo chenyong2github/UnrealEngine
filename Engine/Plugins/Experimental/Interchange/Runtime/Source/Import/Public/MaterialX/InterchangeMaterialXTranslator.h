@@ -199,16 +199,6 @@ protected:
 	void RenameInput(MaterialX::InputPtr Input, const char * NewName) const;
 
 	/**
-	 * Helper function to retrieve an Input in a Node from its original name (after a renaming)
-	 * 
-	 * @param Node - The node with the Inputs to look up
-	 * @param OriginalNameAttribute - The previous name of an Input
-	 * 
-	 * @return The found Input, nullptr otherwise
-	 */
-	MaterialX::InputPtr GetInputFromOriginalName(MaterialX::NodePtr Node, const char * OriginalNameAttribute) const;
-
-	/**
 	 * Get the input name, use this function instead of getName, because a renaming may have occured and we ensure to have the proper name that will be used by UE inputs
 	 * 
 	 * @param Input - The input to retrieve the name from
