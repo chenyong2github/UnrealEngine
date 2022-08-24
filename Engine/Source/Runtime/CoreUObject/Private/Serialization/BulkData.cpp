@@ -1944,7 +1944,7 @@ bool FBulkData::TryLoadDataIntoMemory(FIoBuffer Dest)
 	// To make calls to those BulkDatas threadsafe, we need to not use AttachedAr when called multithreaded.
 	// Also don't use the attached archive when loading from the editor domain and the bulk data is referenced
 	// from the original .uasset file
-	if (IsInGameThread() && IsInExternalResource() == false)
+	if (IsInGameThread() && !IsInSeparateFile() && !IsInExternalResource())
 	{
 		if (FArchive* Ar = AttachedAr)
 		{
