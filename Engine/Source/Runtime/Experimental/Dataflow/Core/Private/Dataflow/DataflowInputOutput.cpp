@@ -129,3 +129,20 @@ void FDataflowOutput::Invalidate()
 	}
 }
 
+bool FDataflowOutput::EvaluateImpl(Dataflow::FContext& Context) const
+{
+	// check if the cache has a valid version
+	if(Context.HasData(CacheKey(), OwningNode->LastModifiedTimestamp))
+	{
+		return true;
+	}
+	// if not, evaluate
+	OwningNode->Evaluate(Context, this);
+	// Validation
+	if (!Context.HasData(CacheKey()))
+	{
+		ensureMsgf(false, TEXT("Failed to evaluate output (%s:%s)"), *OwningNode->GetName().ToString(), *GetName().ToString());
+		return false;
+	}
+	return true;
+}

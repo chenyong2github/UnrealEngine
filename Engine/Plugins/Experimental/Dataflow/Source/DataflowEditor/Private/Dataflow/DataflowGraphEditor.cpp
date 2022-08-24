@@ -115,7 +115,7 @@ void SDataflowGraphEditor::EvaluateNode()
 	{
 		FDataflowEditorCommands::FGraphEvaluationCallback LocalEvaluateCallback = [](FDataflowNode* Node, FDataflowOutput* Out)
 		{
-			Dataflow::FContext Context(FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds());
+			Dataflow::FContextThreaded Context(FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds());
 			Node->Evaluate(Context, Out);
 		};
 

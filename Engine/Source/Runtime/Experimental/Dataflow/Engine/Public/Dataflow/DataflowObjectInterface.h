@@ -12,14 +12,29 @@ class UObject;
 
 namespace Dataflow
 {
-
-	class DATAFLOWENGINE_API FEngineContext : public FContext
+	template<class Base = FContextSingle>
+	class DATAFLOWENGINE_API TEngineContext : public Base
 	{
 	public:
-		FEngineContext(UObject* Owner, UDataflow* InGraph, float InTime, FString InType = "");
-		static FString StaticType() { return "FEngineContext"; }
-
+		TEngineContext(UObject* InOwner, UDataflow* InGraph, float InTime, FString InType)
+				: Base(InTime, StaticType().Append(InType))
+				, Owner(InOwner)
+				, Graph(InGraph)
+		{}
+	
+		static FString StaticType()
+		{
+			return "TEngineContext";
+		}
+	
 		UObject* Owner = nullptr;
 		UDataflow* Graph = nullptr;
 	};
+
+	template class TEngineContext<FContextSingle>;
+	template class TEngineContext<FContextThreaded>;
+
+	typedef TEngineContext<FContextSingle> FEngineContext;
+	typedef TEngineContext<FContextThreaded> FEngineContextThreaded;
+
 }

@@ -89,11 +89,7 @@ struct DATAFLOWCORE_API FDataflowOutput : public FDataflowConnection
 	GENERATED_USTRUCT_BODY()
 
 	friend struct FDataflowConnection;
-
-	mutable uint32 CacheKeyValue = UINT_MAX;
-	mutable Dataflow::TCacheValue Cache;
-
-
+	
 	TArray< FDataflowInput* > Connections;
 
 	size_t PassthroughOffsetAddress = INDEX_NONE;
@@ -101,11 +97,8 @@ struct DATAFLOWCORE_API FDataflowOutput : public FDataflowConnection
 public:
 	static FDataflowOutput NoOpOutput;
 	
-	mutable TSharedPtr<FCriticalSection> OutputLock; // @todo(dataflow) find alternatives
-	// Why is this made into a SharedPtr? FCriticalSection cannot be copied - making FCriticalSection a member of
-	// FDataflowOutput deletes the copy constructor of FDataflowOutput. But some other part of the code needs
-	// FDataflowOutput to be copyable. Hence wrapped it in a sharedPtr inspired by NiagaraEmitter.h:227.
-
+	mutable TSharedPtr<FCriticalSection> OutputLock;
+	
 	FDataflowOutput(const Dataflow::FOutputParameters& Param = {}, FGuid InGuid = FGuid::NewGuid());
 
 	TArray<FDataflowInput*>& GetConnections();
@@ -156,6 +149,8 @@ public:
 		return Default;
 	}
 
+	bool EvaluateImpl(Dataflow::FContext& Context) const;
+	
 	template<class T>
 	bool Evaluate(Dataflow::FContext& Context) const;
 
@@ -197,29 +192,15 @@ TFuture<const T&> FDataflowInput::GetValueParallel(Dataflow::FContext& Context, 
 template<class T>
 bool FDataflowOutput::Evaluate(Dataflow::FContext& Context) const
 {
-	OutputLock->Lock(); ON_SCOPE_EXIT { this->OutputLock->Unlock(); };
-
 	check(OwningNode);
  
 	if (OwningNode->bActive)
 	{
-		// check if the cache has a valid version
-		if(Context.HasData(CacheKey(), OwningNode->LastModifiedTimestamp))
-		{
-			return true;
-		}
-		// if not, evaluate
-		OwningNode->Evaluate(Context, this);
-		// Validation
-		if (!Context.HasData(CacheKey()))
-		{
-			ensureMsgf(false, TEXT("Failed to evaluate output (%s:%s)"), *OwningNode->GetName().ToString(), *GetName().ToString());
-			return false;
-		}
-		return true;
+		return Context.Evaluate(*this);
 	}
 	else if(const FDataflowInput* PassthroughInput = OwningNode->FindInput(GetPassthroughRealAddress()))
 	{
+		// @todo(dataflow) would be nice if the passthrough does not overwrite the existing cache value.
 		T PassthroughData = PassthroughInput->GetValue<T>(Context, *reinterpret_cast<const T*>(PassthroughInput->RealAddress()));
 		SetValue<T>(PassthroughData, Context);
 		return true;
