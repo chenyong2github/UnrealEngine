@@ -8,6 +8,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 
+#include "NiagaraDataInterfaceRenderTargetCommon.h"
 #include "NiagaraSettings.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
@@ -42,119 +43,6 @@ namespace NDIRenderTarget2DLocal
 }
 
 FNiagaraVariableBase UNiagaraDataInterfaceRenderTarget2D::ExposedRTVar;
-
-int32 GNiagaraReleaseResourceOnRemove = false;
-static FAutoConsoleVariableRef CVarNiagaraReleaseResourceOnRemove(
-	TEXT("fx.Niagara.RenderTarget.ReleaseResourceOnRemove"),
-	GNiagaraReleaseResourceOnRemove,
-	TEXT("Releases the render target resource once it is removed from the manager list rather than waiting for a GC."),
-	ECVF_Default
-);
-
-//-TEMP: Until we prune data interface on cook this will avoid consuming memory
-int32 GNiagaraRenderTargetIgnoreCookedOut = true;
-static FAutoConsoleVariableRef CVarNiagaraRenderTargetIgnoreCookedOut(
-	TEXT("fx.Niagara.RenderTarget.IgnoreCookedOut"),
-	GNiagaraRenderTargetIgnoreCookedOut,
-	TEXT("Ignores create render targets for cooked out emitter, i.e. ones that are not used by any GPU emitter."),
-	ECVF_Default
-);
-
-float GNiagaraRenderTargetResolutionMultiplier = 1.0f;
-static FAutoConsoleVariableRef CVarNiagaraRenderTargetResolutionMultiplier(
-	TEXT("fx.Niagara.RenderTarget.ResolutionMultiplier"),
-	GNiagaraRenderTargetResolutionMultiplier,
-	TEXT("Optional global modifier to Niagara render target resolution."),
-	ECVF_Default
-);
-
-int GNiagaraRenderTargetAllowReads = 0;
-static FAutoConsoleVariableRef CVarNiagaraRenderTargetAllowReads(
-	TEXT("fx.Niagara.RenderTarget.AllowReads"),
-	GNiagaraRenderTargetAllowReads,
-	TEXT("Enables read operations to be visible in the UI, very experimental."),
-	ECVF_Default
-);
-
-/*--------------------------------------------------------------------------------------------------------------------------*/
-
-static bool GNiagaraRenderTargetOverrideFormatEnabled = false;
-static ETextureRenderTargetFormat GNiagaraRenderTargetOverrideFormat = ETextureRenderTargetFormat::RTF_RGBA32f;
-
-static FAutoConsoleCommandWithWorldAndArgs GCommandNiagaraRenderTargetOverrideFormat(
-	TEXT("fx.Niagara.RenderTarget.OverrideFormat"),
-	TEXT("Optional global format override for all Niagara render targets"),
-	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
-		[](const TArray<FString>& Args, UWorld*)
-		{
-			static UEnum* TextureRenderTargetFormatEnum = StaticEnum<ETextureRenderTargetFormat>();
-			if ( ensure(TextureRenderTargetFormatEnum) )
-			{
-				if (Args.Num() == 1)
-				{
-					const int32 EnumIndex = TextureRenderTargetFormatEnum->GetIndexByNameString(Args[0]);
-					if (EnumIndex != INDEX_NONE)
-					{
-						GNiagaraRenderTargetOverrideFormatEnabled = true;
-						GNiagaraRenderTargetOverrideFormat = ETextureRenderTargetFormat(EnumIndex);
-					}
-					else
-					{
-						GNiagaraRenderTargetOverrideFormatEnabled = false;
-					}
-				}
-				UE_LOG(LogNiagara, Log, TEXT("Niagara RenderTarget Override is '%s' with format '%s'."), GNiagaraRenderTargetOverrideFormatEnabled ? TEXT("Enabled") : TEXT("Disabled"), *TextureRenderTargetFormatEnum->GetNameStringByIndex(int32(GNiagaraRenderTargetOverrideFormat)));
-			}
-		}
-	)
-);
-
-bool GetRenderTargetFormat(bool bOverrideFormat, ETextureRenderTargetFormat OverrideFormat, ETextureRenderTargetFormat& OutRenderTargetFormat)
-{
-	OutRenderTargetFormat = bOverrideFormat ? OverrideFormat : GetDefault<UNiagaraSettings>()->DefaultRenderTargetFormat.GetValue();
-	EPixelFormat PixelFormat = GetPixelFormatFromRenderTargetFormat(OutRenderTargetFormat);
-	if (GNiagaraRenderTargetOverrideFormatEnabled)
-	{
-		OutRenderTargetFormat = GNiagaraRenderTargetOverrideFormat;
-	}
-
-	// If the format does not support typed store we need to find one that will
-	while ( RHIIsTypedUAVStoreSupported(GetPixelFormatFromRenderTargetFormat(OutRenderTargetFormat)) == false )
-	{
-		static const TPair<ETextureRenderTargetFormat, ETextureRenderTargetFormat> FormatRemapTable[] =
-		{
-			TPairInitializer(RTF_R8,			RTF_R16f),
-			TPairInitializer(RTF_RG8,			RTF_RG16f),
-			TPairInitializer(RTF_RGBA8,			RTF_RGBA16f),
-			TPairInitializer(RTF_RGBA8_SRGB,	RTF_RGBA16f),
-			TPairInitializer(RTF_R16f,			RTF_R32f),
-			TPairInitializer(RTF_RG16f,			RTF_RG32f),
-			TPairInitializer(RTF_RGBA16f,		RTF_RGBA32f),
-			TPairInitializer(RTF_R32f,			RTF_RGBA32f),
-			TPairInitializer(RTF_RG32f,			RTF_RGBA32f),
-			TPairInitializer(RTF_RGBA32f,		RTF_RGBA32f),
-			TPairInitializer(RTF_RGB10A2,		RTF_RGBA32f),
-		};
-
-		const ETextureRenderTargetFormat PreviousFormat = OutRenderTargetFormat;
-		for ( const auto& FormatRemap : FormatRemapTable)
-		{
-			if (FormatRemap.Key == OutRenderTargetFormat)
-			{
-				OutRenderTargetFormat = FormatRemap.Value;
-				break;
-			}
-		}
-		if ( PreviousFormat == OutRenderTargetFormat)
-		{
-			// This is fatal as we failed to find any format that supports typed UAV stores
-			UE_LOG(LogNiagara, Warning, TEXT("Failed to find a render target format that supports UAV store"));
-			return false;
-		}
-	}
-
-	return true;
-}
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
 
@@ -285,7 +173,7 @@ void UNiagaraDataInterfaceRenderTarget2D::GetFunctions(TArray<FNiagaraFunctionSi
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value")));
 
-		Sig.bHidden = GNiagaraRenderTargetAllowReads != 1;
+		Sig.bHidden = NiagaraDataInterfaceRenderTargetCommon::GAllowReads != 1;
 		Sig.bExperimental = true;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
@@ -304,7 +192,7 @@ void UNiagaraDataInterfaceRenderTarget2D::GetFunctions(TArray<FNiagaraFunctionSi
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("UV")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value")));
 
-		Sig.bHidden = GNiagaraRenderTargetAllowReads != 1;
+		Sig.bHidden = NiagaraDataInterfaceRenderTargetCommon::GAllowReads != 1;
 		Sig.bExperimental = true;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
@@ -566,18 +454,22 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 {
 	check(Proxy);
 
-	extern float GNiagaraRenderTargetResolutionMultiplier;
 	FRenderTarget2DRWInstanceData_GameThread* InstanceData = new (PerInstanceData) FRenderTarget2DRWInstanceData_GameThread();
 	SystemInstancesToProxyData_GT.Emplace(SystemInstance->GetId(), InstanceData);
 
+	if (NiagaraDataInterfaceRenderTargetCommon::GIgnoreCookedOut && !IsUsedWithGPUEmitter())
+	{
+		return true;
+	}
+
 	ETextureRenderTargetFormat RenderTargetFormat;
-	if ( GetRenderTargetFormat(bOverrideFormat, OverrideRenderTargetFormat, RenderTargetFormat) == false )
+	if ( NiagaraDataInterfaceRenderTargetCommon::GetRenderTargetFormat(bOverrideFormat, OverrideRenderTargetFormat, RenderTargetFormat) == false )
 	{
 		return false;
 	}
 
-	InstanceData->Size.X = FMath::Clamp<int>(int(float(Size.X) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
-	InstanceData->Size.Y = FMath::Clamp<int>(int(float(Size.Y) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
+	InstanceData->Size.X = FMath::Clamp<int>(int(float(Size.X) * NiagaraDataInterfaceRenderTargetCommon::GResolutionMultiplier), 1, GMaxTextureDimensions);
+	InstanceData->Size.Y = FMath::Clamp<int>(int(float(Size.Y) * NiagaraDataInterfaceRenderTargetCommon::GResolutionMultiplier), 1, GMaxTextureDimensions);
 	InstanceData->MipMapGeneration = MipMapGeneration;
 	InstanceData->MipMapGenerationType = MipMapGenerationType;
 	InstanceData->Format = RenderTargetFormat;
@@ -616,7 +508,7 @@ void UNiagaraDataInterfaceRenderTarget2D::DestroyPerInstanceData(void* PerInstan
 	// Make sure to clear out the reference to the render target if we created one.
 	using RenderTargetType = decltype(decltype(ManagedRenderTargets)::ElementType::Value);
 	RenderTargetType ExistingRenderTarget = nullptr;
-	if ( ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && GNiagaraReleaseResourceOnRemove)
+	if ( ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && NiagaraDataInterfaceRenderTargetCommon::GReleaseResourceOnRemove )
 	{
 		ExistingRenderTarget->ReleaseResource();
 	}
@@ -683,7 +575,6 @@ void UNiagaraDataInterfaceRenderTarget2D::VMSetSize(FVectorVMExternalFunctionCon
 	FNDIInputParam<int> InSizeY(Context);
 	FNDIOutputParam<FNiagaraBool> OutSuccess(Context);
 
-	extern float GNiagaraRenderTargetResolutionMultiplier;
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		const int SizeX = InSizeX.GetAndAdvance();
@@ -692,8 +583,8 @@ void UNiagaraDataInterfaceRenderTarget2D::VMSetSize(FVectorVMExternalFunctionCon
 		OutSuccess.SetAndAdvance(bSuccess);
 		if (bSuccess)
 		{
-			InstData->Size.X = FMath::Clamp<int>(int(float(SizeX) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
-			InstData->Size.Y = FMath::Clamp<int>(int(float(SizeY) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
+			InstData->Size.X = FMath::Clamp<int>(int(float(SizeX) * NiagaraDataInterfaceRenderTargetCommon::GResolutionMultiplier), 1, GMaxTextureDimensions);
+			InstData->Size.Y = FMath::Clamp<int>(int(float(SizeY) * NiagaraDataInterfaceRenderTargetCommon::GResolutionMultiplier), 1, GMaxTextureDimensions);
 		}
 	}
 }
@@ -723,7 +614,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTick(void* PerInstanceData,
 		InstanceData->TargetTexture = UserTargetTexture;
 
 		TObjectPtr<UTextureRenderTarget2D> ExistingRenderTarget = nullptr;
-		if (ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && GNiagaraReleaseResourceOnRemove)
+		if (ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && NiagaraDataInterfaceRenderTargetCommon::GReleaseResourceOnRemove)
 		{
 			ExistingRenderTarget->ReleaseResource();
 		}
@@ -767,7 +658,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 #endif
 
 	//-TEMP: Until we prune data interface on cook this will avoid consuming memory
-	if (GNiagaraRenderTargetIgnoreCookedOut && !IsUsedWithGPUEmitter())
+	if (NiagaraDataInterfaceRenderTargetCommon::GIgnoreCookedOut && !IsUsedWithGPUEmitter())
 	{
 		return false;
 	}
