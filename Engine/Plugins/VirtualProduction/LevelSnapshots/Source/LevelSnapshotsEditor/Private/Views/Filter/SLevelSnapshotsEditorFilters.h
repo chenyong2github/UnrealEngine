@@ -12,7 +12,6 @@ enum class EFilterChangeType : uint8;
 class FLevelSnapshotsEditorFilters;
 class SFavoriteFilterList;
 class SLevelSnapshotsEditorFilterRowGroup;
-class SMasterFilterIndicatorButton;
 class SCustomSplitter;
 class ULevelSnapshotsEditorData;
 class ULevelSnapshotFilter;
