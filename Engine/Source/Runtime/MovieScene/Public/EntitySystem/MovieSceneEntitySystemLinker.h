@@ -62,6 +62,7 @@ namespace MovieScene
 DECLARE_MULTICAST_DELEGATE_OneParam(FMovieSceneEntitySystemLinkerEvent, UMovieSceneEntitySystemLinker*);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FMovieSceneEntitySystemLinkerAROEvent, UMovieSceneEntitySystemLinker*, FReferenceCollector&);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FMovieSceneEntitySystemLinkerWorldEvent, UMovieSceneEntitySystemLinker*, UWorld*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FMovieSceneEntitySystemLinkerPostSpawnEvent, UMovieSceneEntitySystemLinker*);
 
 UCLASS()
 class MOVIESCENE_API UMovieSceneEntitySystemLinker
@@ -320,11 +321,12 @@ public:
 
 	struct
 	{
-		FMovieSceneEntitySystemLinkerEvent      TagGarbage;
-		FMovieSceneEntitySystemLinkerEvent      CleanTaggedGarbage;
-		FMovieSceneEntitySystemLinkerAROEvent   AddReferencedObjects;
-		FMovieSceneEntitySystemLinkerEvent      AbandonLinker;
-		FMovieSceneEntitySystemLinkerWorldEvent CleanUpWorld;
+		FMovieSceneEntitySystemLinkerPostSpawnEvent PostSpawnEvent;
+		FMovieSceneEntitySystemLinkerEvent          TagGarbage;
+		FMovieSceneEntitySystemLinkerEvent          CleanTaggedGarbage;
+		FMovieSceneEntitySystemLinkerAROEvent       AddReferencedObjects;
+		FMovieSceneEntitySystemLinkerEvent          AbandonLinker;
+		FMovieSceneEntitySystemLinkerWorldEvent     CleanUpWorld;
 	} Events;
 
 private:

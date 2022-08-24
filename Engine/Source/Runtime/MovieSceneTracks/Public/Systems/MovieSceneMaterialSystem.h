@@ -108,9 +108,12 @@ public:
 	TSharedPtr<MaterialParameterStorageType> MaterialParameterStorage;
 
 	void OnLink(UMovieSceneEntitySystemLinker* Linker, TComponentTypeID<RequiredComponents>... InRequiredComponents);
+	void OnUnlink(UMovieSceneEntitySystemLinker* Linker);
 	void OnRun(UMovieSceneEntitySystemLinker* Linker, TComponentTypeID<RequiredComponents>... InRequiredComponents, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 
 	void SavePreAnimatedState(UMovieSceneEntitySystemLinker* Linker, TComponentTypeID<RequiredComponents>... InRequiredComponents, const IMovieScenePreAnimatedStateSystemInterface::FPreAnimationParameters& InParameters);
+
+	void OnPostSpawn(UMovieSceneEntitySystemLinker* InLinker, TComponentTypeID<RequiredComponents>... InRequiredComponents);
 
 protected:
 
@@ -145,7 +148,7 @@ struct TApplyMaterialSwitchers
 template<typename AccessorType, typename... RequiredComponents>
 struct TInitializeBoundMaterials
 {
-	static void ForEachEntity(typename TCallTraits<RequiredComponents>::ParamType... Inputs, UObject*& OutDynamicMaterial)
+	static bool InitializeBoundMaterial(typename TCallTraits<RequiredComponents>::ParamType... Inputs, UObject*& OutDynamicMaterial)
 	{
 		AccessorType Accessor(Inputs...);
 
@@ -153,23 +156,65 @@ struct TInitializeBoundMaterials
 
 		if (!ExistingMaterial)
 		{
-			// The object no longer has a valid material assigned.
-			// Rather than null the bound material and cause all downstream systems to have to check for null
-			// We just leave it assigned to the previous MID, even if that won't have an effect any more
-			return;
-		}
-		else if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(ExistingMaterial))
-		{
-			OutDynamicMaterial = MID;
-			return;
+			OutDynamicMaterial = nullptr;
+			return true;
 		}
 
-		if (OutDynamicMaterial && OutDynamicMaterial->IsA<UMaterialInstanceDynamic>())
+		if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(ExistingMaterial))
 		{
-			return;
+			if (OutDynamicMaterial != MID)
+			{
+				OutDynamicMaterial = MID;
+				return true;
+			}
+			return false;
+		}
+
+		UMaterialInstanceDynamic* CurrentMID = Cast<UMaterialInstanceDynamic>(OutDynamicMaterial);
+		if (CurrentMID && CurrentMID->Parent == ExistingMaterial)
+		{
+			Accessor.SetMaterial(CurrentMID);
+			return false;
 		}
 		
-		OutDynamicMaterial = Accessor.CreateDynamicMaterial(ExistingMaterial);
+		UMaterialInstanceDynamic* NewMaterial = Accessor.CreateDynamicMaterial(ExistingMaterial);
+		OutDynamicMaterial = NewMaterial;
+		Accessor.SetMaterial(NewMaterial);
+		return true;
+	}
+
+	static void ForEachEntity(typename TCallTraits<RequiredComponents>::ParamType... Inputs, UObject*& OutDynamicMaterial)
+	{
+		InitializeBoundMaterial(Inputs..., OutDynamicMaterial);
+	}
+};
+
+
+template<typename AccessorType, typename... RequiredComponents>
+struct TReinitializeBoundMaterials
+{
+	UMovieSceneEntitySystemLinker* Linker;
+	TArray<FMovieSceneEntityID> ReboundMaterials;
+
+	TReinitializeBoundMaterials(UMovieSceneEntitySystemLinker* InLinker)
+		: Linker(InLinker)
+	{}
+
+	void ForEachEntity(FMovieSceneEntityID EntityID, typename TCallTraits<RequiredComponents>::ParamType... Inputs, UObject*& OutDynamicMaterial)
+	{
+		if (TInitializeBoundMaterials<AccessorType, RequiredComponents...>::InitializeBoundMaterial(Inputs..., OutDynamicMaterial))
+		{
+			ReboundMaterials.Add(EntityID);
+		}
+	}
+
+	void PostTask()
+	{
+		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+		for (FMovieSceneEntityID EntityID : ReboundMaterials)
+		{
+			Linker->EntityManager.AddComponent(EntityID, BuiltInComponents->Tags.NeedsLink);
+		}
 	}
 };
 
@@ -201,40 +246,12 @@ struct TAddBoundMaterialMutationImpl<AccessorType, TIntegerSequence<int, Indices
 		for (int32 Index = 0; Index < Num; ++Index)
 		{
 			OutBoundMaterials[Index] = nullptr;
-			TInitializeBoundMaterials<AccessorType, RequiredComponents...>::ForEachEntity(InRequiredComponents[Index]..., OutBoundMaterials[Index]);
-
-			// @todo: We could remove the entity if it is null to avoid having to check for null downstream
-			//        but that is a problem for some widgets that play animations in PreConstruct _before_
-			//        the material is able to resolve correctly.
-			// if (!ensureAlwaysMsgf(OutBoundMaterials[Index] != nullptr,
-			//	TEXT("Unable to resolve material for %s. Material parameter tracks on this object will not function until it is resolved."),
-			//	*AccessorType(InRequiredComponents[Index]...).ToString()))
-			//{
-			//	
-			//	InvalidEntities.Add(Allocation->GetRawEntityIDs()[Index]);
-			//}
 		}
-	}
-
-	void RemoveInvalidBoundMaterials(UMovieSceneEntitySystemLinker* InLinker)
-	{
-#if 0
-		// Currently disabled due to the comment in InitializeAllocation. Another approach would be to
-		// Tag these differently, but that would require us mutating the entity manager during evaluation
-		// if the material _does_ resolve in the future, and mutation during eval is not supported
-		for (FMovieSceneEntityID InvalidEntity : InvalidEntities)
-		{
-			InLinker->EntityManager.RemoveComponent(InvalidEntity, TracksComponents->BoundMaterial);
-		}
-#endif
 	}
 private:
 
 	FBuiltInComponentTypes* BuiltInComponents;
 	FMovieSceneTracksComponentTypes* TracksComponents;
-
-	/** Track entities that we added a BoundMaterial component to but were unable to resolve so we can remove the component. This should happen rarely */
-	mutable TArray<FMovieSceneEntityID> InvalidEntities;
 
 	TTuple<TComponentTypeID<RequiredComponents>...> ComponentTypes;
 };
@@ -256,6 +273,34 @@ void TMovieSceneMaterialSystem<AccessorType, RequiredComponents...>::OnLink(UMov
 	MaterialParameterFilter.Reset();
 	MaterialParameterFilter.All({ InRequiredComponents... });
 	MaterialParameterFilter.Any({ TracksComponents->ScalarParameterName, TracksComponents->ColorParameterName, TracksComponents->VectorParameterName });
+
+	Linker->Events.PostSpawnEvent.AddRaw(this, &TMovieSceneMaterialSystem<AccessorType, RequiredComponents...>::OnPostSpawn, InRequiredComponents...);
+}
+
+template<typename AccessorType, typename... RequiredComponents>
+void TMovieSceneMaterialSystem<AccessorType, RequiredComponents...>::OnUnlink(UMovieSceneEntitySystemLinker* Linker)
+{
+	Linker->Events.PostSpawnEvent.RemoveAll(this);
+}
+
+template<typename AccessorType, typename... RequiredComponents>
+void TMovieSceneMaterialSystem<AccessorType, RequiredComponents...>::OnPostSpawn(UMovieSceneEntitySystemLinker* InLinker, TComponentTypeID<RequiredComponents>... InRequiredComponents)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes*          BuiltInComponents = FBuiltInComponentTypes::Get();
+	FMovieSceneTracksComponentTypes* TracksComponents  = FMovieSceneTracksComponentTypes::Get();
+
+	TReinitializeBoundMaterials<AccessorType, RequiredComponents...> ReinitializeBoundMaterialsTask(InLinker);
+
+	// Reinitialize bound dynamic materials, adding NeedsLink during PostTask to any that changed
+	// This will cause the instantiation phase to be re-run for these entities (and any other new or expired ones)
+	FEntityTaskBuilder()
+	.ReadEntityIDs()
+	.ReadAllOf(InRequiredComponents...)
+	.Write(TracksComponents->BoundMaterial)
+	.FilterNone({ BuiltInComponents->Tags.NeedsUnlink })
+	.RunInline_PerEntity(&InLinker->EntityManager, ReinitializeBoundMaterialsTask);
 }
 
 template<typename AccessorType, typename... RequiredComponents>
@@ -275,35 +320,34 @@ void TMovieSceneMaterialSystem<AccessorType, RequiredComponents...>::OnRun(UMovi
 	ESystemPhase CurrentPhase = ActiveRunner->GetCurrentPhase();
 	if (CurrentPhase == ESystemPhase::Instantiation)
 	{
-		// Only mutate things that are tagged as requiring linking
-		FEntityComponentFilter Filter(MaterialParameterFilter);
-		Filter.All({ BuiltInComponents->Tags.NeedsLink});
-
-		// Initialize bound dynamic materials (for material parameters)
-		using MutationType = TAddBoundMaterialMutationImpl<AccessorType, TMakeIntegerSequence<int, sizeof...(RequiredComponents)>, RequiredComponents...>;
-		MutationType BindMaterialsMutation(InRequiredComponents...);
-
-		Linker->EntityManager.MutateAll(Filter, BindMaterialsMutation);
-		BindMaterialsMutation.RemoveInvalidBoundMaterials(Linker);
-	}
-	else if (CurrentPhase == ESystemPhase::Evaluation)
-	{
-		using ApplyMaterialSwitchers = TApplyMaterialSwitchers<AccessorType, RequiredComponents...>;
-		using InitializeBoundMaterials = TInitializeBoundMaterials<AccessorType, RequiredComponents...>;
-
+		// --------------------------------------------------------------------------------------
 		// Apply material switchers
+		TApplyMaterialSwitchers<AccessorType, RequiredComponents...> ApplyMaterialSwitchers;
+
 		FEntityTaskBuilder()
 		.ReadAllOf(InRequiredComponents...)
 		.Read(BuiltInComponents->ObjectResult)
-		.SetDesiredThread(Linker->EntityManager.GetDispatchThread())
-		.template Dispatch_PerEntity<ApplyMaterialSwitchers>(&Linker->EntityManager, InPrerequisites, &Subsequents);
+		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
+		.RunInline_PerEntity(&Linker->EntityManager, ApplyMaterialSwitchers);
 
-		// Initialize bound dynamic materials
+		// --------------------------------------------------------------------------------------
+		// Add bound materials for any NeedsLink entities that have material parameters
+		FEntityComponentFilter Filter(MaterialParameterFilter);
+		Filter.All({ BuiltInComponents->Tags.NeedsLink });
+
+		using MutationType = TAddBoundMaterialMutationImpl<AccessorType, TMakeIntegerSequence<int, sizeof...(RequiredComponents)>, RequiredComponents...>;
+		Linker->EntityManager.MutateAll(Filter, MutationType(InRequiredComponents...));
+
+		// --------------------------------------------------------------------------------------
+		// (Re)initialize bound materials for any NeedsLink materials
+		TReinitializeBoundMaterials<AccessorType, RequiredComponents...> ReinitializeBoundMaterialsTask(Linker);
+
 		FEntityTaskBuilder()
+		.ReadEntityIDs()
 		.ReadAllOf(InRequiredComponents...)
 		.Write(TracksComponents->BoundMaterial)
-		.SetDesiredThread(Linker->EntityManager.GetDispatchThread())
-		.template Dispatch_PerEntity<InitializeBoundMaterials>(&Linker->EntityManager, InPrerequisites, &Subsequents);
+		.FilterNone({ BuiltInComponents->Tags.NeedsUnlink })
+		.RunInline_PerEntity(&Linker->EntityManager, ReinitializeBoundMaterialsTask);
 	}
 }
 

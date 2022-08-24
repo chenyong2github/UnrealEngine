@@ -48,6 +48,7 @@ public:
 private:
 
 	virtual void OnLink() override;
+	virtual void OnUnlink() override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
 	void OnInstantiation();

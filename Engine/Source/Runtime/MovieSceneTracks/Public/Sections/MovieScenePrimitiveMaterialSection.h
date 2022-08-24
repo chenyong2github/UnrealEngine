@@ -18,6 +18,7 @@ public:
 
 	UMovieScenePrimitiveMaterialSection(const FObjectInitializer& ObjInit);
 
+	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
 	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* Linker, const FEntityImportParams& ImportParams, FImportedEntity* OutImportedEntity) override;
 
 	UPROPERTY()

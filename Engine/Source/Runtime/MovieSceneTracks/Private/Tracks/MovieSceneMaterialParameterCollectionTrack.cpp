@@ -14,6 +14,8 @@ UMovieSceneMaterialParameterCollectionTrack::UMovieSceneMaterialParameterCollect
 {
 	BuiltInTreePopulationMode = ETreePopulationMode::Blended;
 
+	SupportedBlendTypes.Add(EMovieSceneBlendType::Absolute);
+
 #if WITH_EDITORONLY_DATA
 	TrackTint = FColor(64,192,64,65);
 #endif

@@ -114,6 +114,11 @@ void UMovieSceneComponentMaterialSystem::OnLink()
 	SystemImpl.OnLink(Linker, FBuiltInComponentTypes::Get()->BoundObject, FMovieSceneTracksComponentTypes::Get()->ComponentMaterialIndex);
 }
 
+void UMovieSceneComponentMaterialSystem::OnUnlink()
+{
+	SystemImpl.OnUnlink(Linker);
+}
+
 void UMovieSceneComponentMaterialSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	using namespace UE::MovieScene;

@@ -299,6 +299,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	{
 		// Object channel components should be duplicated to children
 		ComponentRegistry->Factories.DuplicateChildComponent(ObjectPathChannel);
+		ComponentRegistry->Factories.DuplicateChildComponent(ObjectResult);
 
 		// Object channel components need a time and result to evaluate
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(ObjectPathChannel, EvalTime);

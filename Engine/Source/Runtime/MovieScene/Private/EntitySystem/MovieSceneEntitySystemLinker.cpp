@@ -161,6 +161,7 @@ void UMovieSceneEntitySystemLinker::SystemUnlinked(UMovieSceneEntitySystem* InSy
 	check(EntitySystemsByGlobalGraphID[GlobalID] == InSystem);
 	EntitySystemsByGlobalGraphID.RemoveAt(GlobalID);
 
+	Events.PostSpawnEvent.RemoveAll(InSystem);
 	Events.TagGarbage.RemoveAll(InSystem);
 	Events.CleanTaggedGarbage.RemoveAll(InSystem);
 	Events.AddReferencedObjects.RemoveAll(InSystem);

@@ -14,11 +14,11 @@
 namespace UE::MovieScene
 {
 
-bool GMaterialParameterBlending = false;
+bool GMaterialParameterBlending = true;
 FAutoConsoleVariableRef CVarMaterialParameterBlending(
 	TEXT("Sequencer.MaterialParameterBlending"),
 	GMaterialParameterBlending,
-	TEXT("(Default: false) Defines whether material parameter blending should be enabled or not.\n"),
+	TEXT("(Default: true) Defines whether material parameter blending should be enabled or not.\n"),
 	ECVF_Default
 );
 
@@ -101,11 +101,6 @@ struct FOverlappingMaterialParameterHandler
 
 	void UpdateOutput(UObject* BoundMaterial, FName ParameterName, TArrayView<const FMovieSceneEntityID> Inputs, FAnimatedMaterialParameterInfo* Output, FEntityOutputAggregate Aggregate)
 	{
-		if (BoundMaterial == nullptr)
-		{
-			return;
-		}
-
 		using namespace UE::MovieScene;
 
 		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
@@ -208,19 +203,21 @@ void UMovieSceneMaterialParameterSystem::OnLink()
 {
 	using namespace UE::MovieScene;
 
+	ScalarParameterTracker.Initialize(this);
+	VectorParameterTracker.Initialize(this);
+}
+
+void UMovieSceneMaterialParameterSystem::OnUnlink()
+{
+	using namespace UE::MovieScene;
+
 	// Always reset the float blender system on link to ensure that recycled systems are correctly initialized.
 	DoubleBlenderSystem = nullptr;
 
-	if (GMaterialParameterBlending)
-	{
-		FOverlappingMaterialParameterHandler Handler(this);
+	FOverlappingMaterialParameterHandler Handler(this);
 
-		ScalarParameterTracker.Destroy(Handler);
-		VectorParameterTracker.Destroy(Handler);
-
-		ScalarParameterTracker.Initialize(this);
-		VectorParameterTracker.Initialize(this);
-	}
+	ScalarParameterTracker.Destroy(Handler);
+	VectorParameterTracker.Destroy(Handler);
 }
 
 void UMovieSceneMaterialParameterSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)

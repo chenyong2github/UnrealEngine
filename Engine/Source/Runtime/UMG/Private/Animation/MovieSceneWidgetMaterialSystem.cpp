@@ -110,6 +110,11 @@ void UMovieSceneWidgetMaterialSystem::OnLink()
 	SystemImpl.OnLink(Linker, BuiltInComponents->BoundObject, WidgetComponents->WidgetMaterialPath);
 }
 
+void UMovieSceneWidgetMaterialSystem::OnUnlink()
+{
+	SystemImpl.OnUnlink(Linker);
+}
+
 void UMovieSceneWidgetMaterialSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	using namespace UE::MovieScene;

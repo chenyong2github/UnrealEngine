@@ -165,9 +165,16 @@ struct TOverlappingEntityTrackerImpl
 	/**
 	 * Update this tracker by (re)linking the specified allocation
 	 */
-	void VisitLinkedAllocation(const FEntityAllocation* Allocation, TRead<InputKeyTypes>... ReadKeys)
+	void VisitActiveAllocation(const FEntityAllocation* Allocation, TComponentPtr<const InputKeyTypes>... ReadKeys)
 	{
-		VisitLinkedAllocationImpl(Allocation, ReadKeys...);
+		VisitActiveAllocationImpl(Allocation, ReadKeys...);
+	}
+	/**
+	 * Update this tracker by (re)linking the specified allocation
+	 */
+	void VisitLinkedAllocation(const FEntityAllocation* Allocation, TComponentPtr<const InputKeyTypes>... ReadKeys)
+	{
+		VisitActiveAllocationImpl(Allocation, ReadKeys...);
 	}
 
 	/**
@@ -336,7 +343,7 @@ struct TOverlappingEntityTrackerImpl
 
 protected:
 
-	void VisitLinkedAllocationImpl(const FEntityAllocation* Allocation, TRead<InputKeyTypes>... Keys)
+	void VisitActiveAllocationImpl(const FEntityAllocation* Allocation, TComponentPtr<const InputKeyTypes>... Keys)
 	{
 		check(bIsInitialized);
 
@@ -344,11 +351,12 @@ protected:
 
 		const FMovieSceneEntityID* EntityIDs = Allocation->GetRawEntityIDs();
 
+		const bool bNeedsLink = Allocation->HasComponent(FBuiltInComponentTypes::Get()->Tags.NeedsLink);
 		if (Allocation->HasComponent(FBuiltInComponentTypes::Get()->Tags.RestoreState))
 		{
 			for (int32 Index = 0; Index < Num; ++Index)
 			{
-				const uint16 OutputIndex = MakeOutput(EntityIDs[Index], TOverlappingEntityInput<InputKeyTypes...>(Keys[Index]...));
+				const uint16 OutputIndex = MakeOutput(EntityIDs[Index], TOverlappingEntityInput<InputKeyTypes...>(Keys[Index]...), bNeedsLink);
 				Outputs[OutputIndex].Aggregate.bNeedsRestoration = true;
 			}
 		}
@@ -356,7 +364,7 @@ protected:
 		{
 			for (int32 Index = 0; Index < Num; ++Index)
 			{
-				MakeOutput(EntityIDs[Index], TOverlappingEntityInput<InputKeyTypes...>(Keys[Index]...));
+				MakeOutput(EntityIDs[Index], TOverlappingEntityInput<InputKeyTypes...>(Keys[Index]...), bNeedsLink);
 			}
 		}
 	}
@@ -374,17 +382,42 @@ protected:
 		}
 	}
 
-	uint16 MakeOutput(FMovieSceneEntityID EntityID, ParamType InKey)
+	uint16 MakeOutput(FMovieSceneEntityID EntityID, ParamType InKey, bool bAlwaysInvalidate)
 	{
-		// If this entity was already assigned an output, clear it
-		ClearOutputByEntity(EntityID);
+		const uint16 PreviousOutputIndex = FindOutputByEntity(EntityID);
+		const uint16 DesiredOutputIndex  = CreateOutputByKey(InKey);
 
-		const uint16 Output = CreateOutputByKey(InKey);
+		if (PreviousOutputIndex == DesiredOutputIndex)
+		{
+			if (bAlwaysInvalidate)
+			{
+				// Previous output is now invalidated since we're removing this entity
+				InvalidatedOutputs.PadToNum(DesiredOutputIndex + 1, false);
+				InvalidatedOutputs[DesiredOutputIndex] = true;
+			}
 
-		EntityToOutput.Add(EntityID, Output);
-		OutputToEntity.Add(Output, EntityID);
+			return DesiredOutputIndex;
+		}
 
-		return Output;
+		if (PreviousOutputIndex != NO_OUTPUT)
+		{
+			// Previous output is now invalidated since we're removing this entity
+			InvalidatedOutputs.PadToNum(PreviousOutputIndex + 1, false);
+			InvalidatedOutputs[PreviousOutputIndex] = true;
+
+			// Remove the entitiy's contribution from the previous output
+			OutputToEntity.Remove(PreviousOutputIndex, EntityID);
+			EntityToOutput.Remove(EntityID);
+		}
+
+		// Invalidate the new output
+		InvalidatedOutputs.PadToNum(DesiredOutputIndex + 1, false);
+		InvalidatedOutputs[DesiredOutputIndex] = true;
+
+		EntityToOutput.Add(EntityID, DesiredOutputIndex);
+		OutputToEntity.Add(DesiredOutputIndex, EntityID);
+
+		return DesiredOutputIndex;
 	}
 
 	uint16 CreateOutputByKey(ParamType Key)
@@ -392,8 +425,6 @@ protected:
 		const uint16 ExistingOutput = FindOutputByKey(Key);
 		if (ExistingOutput != NO_OUTPUT)
 		{
-			InvalidatedOutputs.PadToNum(ExistingOutput + 1, false);
-			InvalidatedOutputs[ExistingOutput] = true;
 			return ExistingOutput;
 		}
 
@@ -404,9 +435,6 @@ protected:
 
 		NewOutputs.PadToNum(NewOutput + 1, false);
 		NewOutputs[NewOutput] = true;
-
-		InvalidatedOutputs.PadToNum(NewOutput + 1, false);
-		InvalidatedOutputs[NewOutput] = true;
 
 		KeyToOutput.Add(Key, NewOutput);
 		return NewOutput;

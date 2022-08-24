@@ -28,7 +28,7 @@ struct FAddSingleMutation : IMovieSceneEntityMutation
 		: ComponentToAdd(InType)
 	{}
 
-	virtual void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const override;
+	MOVIESCENE_API virtual void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const override;
 };
 
 struct FRemoveSingleMutation : IMovieSceneEntityMutation
@@ -39,14 +39,14 @@ struct FRemoveSingleMutation : IMovieSceneEntityMutation
 		: ComponentToRemove(InType)
 	{}
 
-	virtual void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const override;
+	MOVIESCENE_API virtual void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const override;
 };
 
 struct FAddMultipleMutation : IMovieSceneEntityMutation
 {
 	FComponentMask MaskToAdd;
 
-	virtual void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const override;
+	MOVIESCENE_API virtual void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const override;
 };
 
 struct FRemoveMultipleMutation : IMovieSceneEntityMutation
@@ -54,7 +54,7 @@ struct FRemoveMultipleMutation : IMovieSceneEntityMutation
 
 	void RemoveComponent(FComponentTypeID InComponentType);
 
-	virtual void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const override;
+	MOVIESCENE_API virtual void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const override;
 
 private:
 

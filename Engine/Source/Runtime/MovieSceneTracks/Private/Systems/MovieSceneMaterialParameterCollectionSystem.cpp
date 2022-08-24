@@ -192,57 +192,41 @@ void UMovieSceneMaterialParameterCollectionSystem::OnRun(FSystemTaskPrerequisite
 					UMaterialParameterCollectionInstance* Instance = World->GetParameterCollectionInstance(Collection);
 					OutBoundMaterials[Index] = Instance;
 
-					if (!ensureAlwaysMsgf(Instance != nullptr,
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+					if (ensureAlwaysMsgf(Instance != nullptr,
 						TEXT("Unable to create MPC instance for %s with World %s. Material parameter collection tracks will not function."),
 						*Collection->GetName(), *World->GetName()))
-					{
-						// Remove the entity if it is null to avoid having to check for null downstream
-						InvalidEntities.Add(Allocation->GetRawEntityIDs()[Index]);
-					}
-					else 
 					{
 						if (ScalarParameterNames)
 						{
 							FName Name = ScalarParameterNames[Index];
 							if (Collection->GetScalarParameterByName(Name) == nullptr)
 							{
-								InvalidEntities.Add(Allocation->GetRawEntityIDs()[Index]);
-
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 								if (!Instance->bLoggedMissingParameterWarning)
 								{
 									MissingParameters.FindOrAdd(MakeTuple(Instance, Player)).Add(Name.ToString());
 								}
-#endif
 							}
 						}
-						else 
+						else if (VectorParameterNames || ColorParameterNames)
 						{
 							FName Name = VectorParameterNames ? VectorParameterNames[Index] : ColorParameterNames[Index];
 							if (Collection->GetVectorParameterByName(Name) == nullptr)
 							{
-								InvalidEntities.Add(Allocation->GetRawEntityIDs()[Index]);
-
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 								if (!Instance->bLoggedMissingParameterWarning)
 								{
 									MissingParameters.FindOrAdd(MakeTuple(Instance, Player)).Add(Name.ToString());
 								}
-#endif
 							}
 						}
 					}
+#endif
 				}
 			}
 		}
 
 		void Cleanup(UMovieSceneEntitySystemLinker* InLinker)
 		{
-			for (FMovieSceneEntityID InvalidEntity : InvalidEntities)
-			{
-				InLinker->EntityManager.RemoveComponent(InvalidEntity, TracksComponents->BoundMaterial);
-			}
-
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 
 			for (TPair<TTuple<UMaterialParameterCollectionInstance*, IMovieScenePlayer*>, TArray<FString>>& Pair : MissingParameters)
@@ -267,15 +251,12 @@ void UMovieSceneMaterialParameterCollectionSystem::OnRun(FSystemTaskPrerequisite
 		FMovieSceneTracksComponentTypes* TracksComponents;
 
 		mutable TMap<TTuple<UMaterialParameterCollectionInstance*, IMovieScenePlayer*>, TArray<FString>> MissingParameters;
-
-		/** Track entities that we added a BoundMaterial component to but were unable to resolve so we can remove the component. This should happen rarely */
-		mutable TArray<FMovieSceneEntityID> InvalidEntities;
 	};
 
 
 	// Only mutate things that are tagged as requiring linking
 	FEntityComponentFilter Filter;
-	Filter.All({TracksComponents->MPC, BuiltInComponents->InstanceHandle, BuiltInComponents->Tags.NeedsLink});
+	Filter.All({ TracksComponents->MPC, BuiltInComponents->InstanceHandle, BuiltInComponents->Tags.NeedsLink });
 
 	// Initialize bound dynamic materials (for material collection parameters)
 	FAddMPCMutation BindMaterialsMutation(Linker);
