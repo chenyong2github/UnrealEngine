@@ -356,8 +356,8 @@ TSharedRef<SWidget> SIKRetargetHierarchy::CreateFilterMenuWidget()
 	MenuBuilder.BeginSection("Clear", LOCTEXT("ClearMapFiltersSection", "Clear"));
 	
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ClearMapFilterLabel", "Clear Filters"),
-		LOCTEXT("ClearMapFilterTooltip", "Clear all filters to show all bones."),
+		LOCTEXT("ClearIKRigHierarchyFilterLabel", "Clear Filters"),
+		LOCTEXT("ClearIKRigHierarchyFilterTooltip", "Clear all filters to show all bones."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateLambda([this]
 		{

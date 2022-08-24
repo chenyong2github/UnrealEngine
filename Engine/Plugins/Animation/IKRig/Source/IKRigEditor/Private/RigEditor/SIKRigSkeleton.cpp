@@ -1407,8 +1407,8 @@ TSharedRef<SWidget> SIKRigSkeleton::CreateFilterMenuWidget()
 	MenuBuilder.BeginSection("Hierarchy Filters", LOCTEXT("HierarchyFiltersSection", "Hierarchy Filters"));
 
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("OnlyBonesLabel", "Show All Types"),
-		LOCTEXT("OnlyBonesTooltip", "Show all object types in the hierarchy."),
+		LOCTEXT("ShowAllTypesLabel", "Show All Types"),
+		LOCTEXT("ShowAllTypesTooltip", "Show all object types in the hierarchy."),
 		FSlateIcon(),
 		FilterShowAllAction,
 		NAME_None,
@@ -1451,8 +1451,8 @@ TSharedRef<SWidget> SIKRigSkeleton::CreateFilterMenuWidget()
 	MenuBuilder.BeginSection("Clear", LOCTEXT("ClearMapFiltersSection", "Clear"));
 	
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ClearMapFilterLabel", "Clear Filters"),
-		LOCTEXT("ClearMapFilterTooltip", "Clear all filters to show all hierarchy elements."),
+		LOCTEXT("ClearSkeletonFilterLabel", "Clear Filters"),
+		LOCTEXT("ClearSkeletonFilterTooltip", "Clear all filters to show all hierarchy elements."),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateLambda([this]
 		{

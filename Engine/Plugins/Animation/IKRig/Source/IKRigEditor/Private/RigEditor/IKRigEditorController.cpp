@@ -944,7 +944,7 @@ void FIKRigEditorController::PromptToAddNewRetargetChain(const FBoneChain& BoneC
 void FIKRigEditorController::PromptToAddGoalToNewlyMirroredChain(const FBoneChain& OldChain, const FBoneChain& MirroredChain) const
 {
 	const TSharedRef<SCustomDialog> AddGoalToChainDialog = SNew(SCustomDialog)
-		.Title(FText(LOCTEXT("AddGoalToMirroredChainLabel", "Mirror Goal")))
+		.Title(FText(LOCTEXT("AddGoalToMirroredChainTitleLabel", "Mirror Goal")))
 		.Content()
 		[
 			SNew(STextBlock)

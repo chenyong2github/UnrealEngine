@@ -223,7 +223,7 @@ void SIKRetargetChainMapList::Construct(
 			[
 				SNew(SPositiveActionButton)
 				.Icon(FAppStyle::Get().GetBrush("Icons.Settings"))
-				.Text(LOCTEXT("EditRootButtonLabel", "Global Settings"))
+				.Text(LOCTEXT("EditGlobalButtonLabel", "Global Settings"))
 				.ToolTipText(LOCTEXT("EditGlobalButtonToolTip", "Edit the global retarget settings."))
 				.OnClicked(this, &SIKRetargetChainMapList::OnGlobalSettingsButtonClicked)
 			]
@@ -543,7 +543,7 @@ TSharedRef<SWidget> SIKRetargetChainMapList::CreateFilterMenuWidget()
 	static constexpr bool CloseAfterSelection = true;
 	FMenuBuilder MenuBuilder(CloseAfterSelection, CommandList);
 
-	MenuBuilder.BeginSection("Chain Map Filters", LOCTEXT("ChainFiltersSection", "Filter Chain Mappings"));
+	MenuBuilder.BeginSection("Chain Map Filters", LOCTEXT("ChainMapFiltersSection", "Filter Chain Mappings"));
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("HideMappedLabel", "Hide Mapped Chains"),

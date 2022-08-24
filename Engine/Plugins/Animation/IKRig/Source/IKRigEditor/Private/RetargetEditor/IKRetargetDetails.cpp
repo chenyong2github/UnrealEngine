@@ -850,7 +850,7 @@ void FRetargetChainSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder&
 		.Content()
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT( "ChainStatus_Label", "Source Chain" ))
+			.Text(LOCTEXT( "SoureChain_Label", "Source Chain" ))
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 		]
 	]
