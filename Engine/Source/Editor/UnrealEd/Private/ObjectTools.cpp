@@ -2323,7 +2323,7 @@ namespace ObjectTools
 		}
 
 		// Get the current source control states of all the package files we're deleting at once.
-		if (ISourceControlModule::Get().IsEnabled())
+		if ( PackagesToDelete.Num() && ISourceControlModule::Get().IsEnabled() )
 		{
 			SourceControlProvider.GetState(PackageFilesToDelete, PackageSCCStates, EStateCacheUsage::ForceUpdate);
 		}
