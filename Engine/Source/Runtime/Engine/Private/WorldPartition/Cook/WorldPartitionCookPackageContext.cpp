@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "WorldPartition/Cook/WorldPartitionCookPackageContext.h"
 
 #if WITH_EDITOR
