@@ -114,13 +114,9 @@ void UDMXComponent::UpdateTickEnabled()
 	FEditorScriptExecutionGuard ScriptGuard;
 #endif
 
-	if (!OnDMXComponentTick.IsBound())
-	{
-		SetComponentTickEnabled(false);
-		return;
-	}
-
-	if (!bReceiveDMXFromPatch)
+	if (IsBeingDestroyed() ||
+		!OnDMXComponentTick.IsBound() ||
+		!bReceiveDMXFromPatch)
 	{
 		SetComponentTickEnabled(false);
 		return;
