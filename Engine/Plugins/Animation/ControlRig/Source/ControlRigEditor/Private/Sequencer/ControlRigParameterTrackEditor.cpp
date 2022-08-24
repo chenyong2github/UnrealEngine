@@ -2826,6 +2826,10 @@ void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* Control
 	{
 		return;
 	}
+	if (IsInGameThread() == false)
+	{
+		return;
+	}
 	if (!GetSequencer().IsValid() || !GetSequencer()->IsAllowedToChange() || Context.SetKey == EControlRigSetKey::Never 
 		|| ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl
 		|| ControlElement->Settings.AnimationType == ERigControlAnimationType::VisualCue)
