@@ -49,6 +49,11 @@ Copyright (c) 2012 Brandon Pelfrey
 	#if __has_warning("-Wimplicit-int-float-conversion")
 		#pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
 	#endif
+	#if defined(__clang_analyzer__)
+		#ifndef XA_DEBUG
+			#define XA_DEBUG 1
+		#endif
+	#endif
 #endif
 
 #include "ThirdParty/xatlas/xatlas.h"

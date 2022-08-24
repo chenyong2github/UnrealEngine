@@ -925,6 +925,7 @@ namespace Chaos
 
 			const bool bPositive = MaxNegDistance < MaxPosDistance;
 			FHalfEdge* D = bPositive ? PosD : NegD;
+			check(D);
 
 			//remove D from conflict list
 			D->Prev->Next = D->Next;

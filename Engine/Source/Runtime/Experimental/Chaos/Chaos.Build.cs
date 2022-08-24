@@ -36,6 +36,8 @@ namespace UnrealBuildTool.Rules
 			}
 			
 			UnsafeTypeCastWarningLevel = WarningLevel.Error;
+
+			StaticAnalyzerDisabledCheckers.Add("cplusplus.NewDeleteLeaks"); // To be reevalulated, believed to be invalid warnings.
 		}
     }
 }
