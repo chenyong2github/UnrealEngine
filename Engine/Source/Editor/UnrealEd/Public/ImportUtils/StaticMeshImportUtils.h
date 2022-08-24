@@ -89,6 +89,8 @@ struct FExistingStaticMeshData
 	bool						ExistingNeverStream;
 	int32						ExistingNumCinematicMipLevels;
 
+	FMeshNaniteSettings			ExistingNaniteSettings;
+
 	UStaticMesh::FOnMeshChanged	ExistingOnMeshChanged;
 	UStaticMesh* ExistingComplexCollisionMesh = nullptr;
 
