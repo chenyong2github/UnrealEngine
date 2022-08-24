@@ -14,7 +14,7 @@ namespace GPULightmass
 class FVolumetricLightmapRenderer
 {
 public:
-	const int32 BrickBatchSize = 256;
+	const int32 BrickBatchSize = 2048;
 	
 	FVolumetricLightmapRenderer(FSceneRenderState* Scene);
 

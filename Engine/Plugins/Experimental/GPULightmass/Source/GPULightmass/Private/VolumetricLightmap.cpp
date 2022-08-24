@@ -24,6 +24,8 @@ IMPLEMENT_GLOBAL_SHADER(FCountNumBricksCS, "/Plugin/GPULightmass/Private/BrickAl
 IMPLEMENT_GLOBAL_SHADER(FGatherBrickRequestsCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "GatherBrickRequestsCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FSplatVolumeCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "SplatVolumeCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FStitchBorderCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "StitchBorderCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FCopyPaddingStripsCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "CopyPaddingStripsCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FFillInvalidCellCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "FillInvalidCellCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FFinalizeBrickResultsCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "FinalizeBrickResultsCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FWriteSortedBrickRequestsCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "WriteSortedBrickRequestsCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FPermuteVoxelizeVolumeCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "PermuteVoxelizeVolumeCS", SF_Compute);
@@ -456,7 +458,20 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 	}
 
 	InitializeBrickData(BrickLayoutDimensions * 5, VolumetricLightmapData.BrickData, false);
-	InitializeBrickData(FIntVector(256, 1, 1) * 5, AccumulationBrickData, true);
+
+	FIntVector BrickLayoutDimensionsForAccumulation;
+
+	{
+		int32 BrickTextureLinearAllocator = BrickBatchSize;
+		BrickLayoutDimensionsForAccumulation.X = FMath::Min(BrickTextureLinearAllocator, MaxBricksInLayoutOneDim);
+		BrickTextureLinearAllocator = FMath::DivideAndRoundUp(BrickTextureLinearAllocator, BrickLayoutDimensionsForAccumulation.X);
+		BrickLayoutDimensionsForAccumulation.Y = FMath::Min(BrickTextureLinearAllocator, MaxBricksInLayoutOneDim);
+		BrickTextureLinearAllocator = FMath::DivideAndRoundUp(BrickTextureLinearAllocator, BrickLayoutDimensionsForAccumulation.Y);
+		BrickLayoutDimensionsForAccumulation.Z = FMath::Min(BrickTextureLinearAllocator, MaxBricksInLayoutOneDim);
+	}
+	
+	InitializeBrickData(BrickLayoutDimensionsForAccumulation * 5, AccumulationBrickData, true);
+	
 	BrickRequests.Initialize(TEXT("BrickRequests"), 16, NumTotalBricks, PF_R32G32B32A32_UINT, BUF_UnorderedAccess);
 
 	VolumetricLightmapData.BrickDataDimensions = BrickLayoutDimensions * 5;
@@ -745,7 +760,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(Scene->FeatureLevel);
 
 	const bool bIsViewportNonRealtime = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
-	const int32 NumSamplesPerFrame = 8 * (bIsViewportNonRealtime ? Scene->Settings->TilePassesInFullSpeedMode : Scene->Settings->TilePassesInSlowMode);
+	const int32 NumSamplesPerFrame = bIsViewportNonRealtime ? Scene->Settings->TilePassesInFullSpeedMode : Scene->Settings->TilePassesInSlowMode;
 
 	FVolumetricLightmapPathTracingRGS::FParameters* PreviousPassParameters = nullptr;
 	
@@ -834,7 +849,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 			FSceneRenderState* SceneRenderState = Scene; // capture member variable
 			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("VolumetricLightmapPathTracing %d bricks %d rays", BricksToCalcThisFrame, BricksToCalcThisFrame * (BrickSize + 1) * (BrickSize + 1) * (BrickSize + 1)),
+				RDG_EVENT_NAME("VolumetricLightmapPathTracing %d bricks %d rays", BricksToCalcThisFrame, BricksToCalcThisFrame * BrickSize * BrickSize * BrickSize),
 				PassParameters,
 				ERDGPassFlags::Compute,
 				[
@@ -849,7 +864,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
 
 					RHICmdList.RayTraceDispatch(RayTracingPipelineState, RayGenShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources,
-					                            BricksToCalcThisFrame * (BrickSize + 1) * (BrickSize + 1) * (BrickSize + 1), 1);
+					                            BricksToCalcThisFrame * BrickSize * BrickSize * BrickSize, 1);
 				}
 			);
 		}
@@ -890,16 +905,138 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("FinalizeBrickResults"), ComputeShader, PassParameters, FIntVector(BricksToCalcThisFrame, 1, 1));
 		}
 
+		FRDGTextureUAV* IndirectionTextureUAV = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalTexture(IndirectionTexture));
+		
+		// Do some temporary copy and fill passes for preview
+		if (!bIsViewportNonRealtime)
+		{
+			for (int32 MipLevel = VoxelizationVolumeMips.Num() - 1; MipLevel >= 0; MipLevel--)
+			{
+				// Copy padding strips from the neighbors of each brick
+				TShaderMapRef<FCopyPaddingStripsCS> ComputeShader(GlobalShaderMap);
+
+				FCopyPaddingStripsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCopyPaddingStripsCS::FParameters>();
+				PassParameters->BrickDataDimensions = VolumetricLightmapData.BrickDataDimensions;
+				PassParameters->IndirectionTextureDim = IndirectionTextureDimensions;
+				PassParameters->FrameNumber = NumTotalPassesToRender;
+				PassParameters->NumTotalBricks = NumTotalBricks;
+				PassParameters->BrickBatchOffset = BrickBatchOffset;
+				PassParameters->IndirectionTexture = IndirectionTextureUAV;
+				PassParameters->MipLevel = MipLevel;
+				PassParameters->VoxelizeVolume = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalTexture(VoxelizationVolumeMips[MipLevel]));
+				PassParameters->ValidityMask = ValidityBrickDataUAV;
+				PassParameters->BrickRequests = BrickRequests.UAV;
+				PassParameters->OutAmbientVector = OutputBrickDataRDG.AmbientVector;
+				PassParameters->OutSHCoefficients0R = OutputBrickDataRDG.SHCoefficients[0];
+				PassParameters->OutSHCoefficients1R = OutputBrickDataRDG.SHCoefficients[1];
+				PassParameters->OutSHCoefficients0G = OutputBrickDataRDG.SHCoefficients[2];
+				PassParameters->OutSHCoefficients1G = OutputBrickDataRDG.SHCoefficients[3];
+				PassParameters->OutSHCoefficients0B = OutputBrickDataRDG.SHCoefficients[4];
+				PassParameters->OutSHCoefficients1B = OutputBrickDataRDG.SHCoefficients[5];
+				PassParameters->OutSkyBentNormal = OutputBrickDataRDG.SkyBentNormal;
+				PassParameters->OutDirectionalLightShadowing = OutputBrickDataRDG.DirectionalLightShadowing;
+
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("VolumetricLightmapCopyPaddingStrips %d bricks", BrickBatchSize), ComputeShader, PassParameters,
+				                             FIntVector(BrickBatchSize, 1, 1));
+			}
+
+			if (RenderPassIndex == NumTotalPassesToRender - 1)
+			{
+				TShaderMapRef<FFillInvalidCellCS> ComputeShader(GlobalShaderMap);
+
+				FFillInvalidCellCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FFillInvalidCellCS::FParameters>();
+				PassParameters->BrickDataDimensions = VolumetricLightmapData.BrickDataDimensions;
+				PassParameters->IndirectionTextureDim = IndirectionTextureDimensions;
+				PassParameters->FrameNumber = NumTotalPassesToRender;
+				PassParameters->NumTotalBricks = NumTotalBricks;
+				PassParameters->BrickBatchOffset = BrickBatchOffset;
+				PassParameters->IndirectionTexture = IndirectionTextureUAV;
+				PassParameters->ValidityMask = ValidityBrickDataUAV;
+				PassParameters->BrickRequests = BrickRequests.UAV;
+				PassParameters->OutAmbientVector = OutputBrickDataRDG.AmbientVector;
+				PassParameters->OutSHCoefficients0R = OutputBrickDataRDG.SHCoefficients[0];
+				PassParameters->OutSHCoefficients1R = OutputBrickDataRDG.SHCoefficients[1];
+				PassParameters->OutSHCoefficients0G = OutputBrickDataRDG.SHCoefficients[2];
+				PassParameters->OutSHCoefficients1G = OutputBrickDataRDG.SHCoefficients[3];
+				PassParameters->OutSHCoefficients0B = OutputBrickDataRDG.SHCoefficients[4];
+				PassParameters->OutSHCoefficients1B = OutputBrickDataRDG.SHCoefficients[5];
+				PassParameters->OutSkyBentNormal = OutputBrickDataRDG.SkyBentNormal;
+				PassParameters->OutDirectionalLightShadowing = OutputBrickDataRDG.DirectionalLightShadowing;
+
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("VolumetricLightmapFillInvalidCell %d bricks", BrickBatchSize), ComputeShader, PassParameters,
+											 FIntVector(BrickBatchSize, 1, 1));
+			}
+		}
+
 		// Do stitching over all brickes if this is the very last pass of all bricks
 		if (SamplesTaken < NumTotalSamples && SamplesTaken + BricksToCalcThisFrame >= NumTotalSamples)
 		{
-			FRDGTextureUAV* IndirectionTextureUAV = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalTexture(IndirectionTexture));
+			const int32 StitchingBrickBatchSize = 256;
 
+			for (int32 MipLevel = VoxelizationVolumeMips.Num() - 1; MipLevel >= 0; MipLevel--)
+			{
+				// Copy padding strips from the neighbors of each brick
+				for (int32 StitchingBrickBatchOffset = 0; StitchingBrickBatchOffset < NumTotalBricks; StitchingBrickBatchOffset += StitchingBrickBatchSize)
+				{
+					TShaderMapRef<FCopyPaddingStripsCS> ComputeShader(GlobalShaderMap);
+
+					FCopyPaddingStripsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCopyPaddingStripsCS::FParameters>();
+					PassParameters->BrickDataDimensions = VolumetricLightmapData.BrickDataDimensions;
+					PassParameters->IndirectionTextureDim = IndirectionTextureDimensions;
+					PassParameters->FrameNumber = NumTotalPassesToRender;
+					PassParameters->NumTotalBricks = NumTotalBricks;
+					PassParameters->BrickBatchOffset = StitchingBrickBatchOffset;
+					PassParameters->IndirectionTexture = IndirectionTextureUAV;
+					PassParameters->MipLevel = MipLevel;
+					PassParameters->VoxelizeVolume = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalTexture(VoxelizationVolumeMips[MipLevel]));
+					PassParameters->ValidityMask = ValidityBrickDataUAV;
+					PassParameters->BrickRequests = BrickRequests.UAV;
+					PassParameters->OutAmbientVector = OutputBrickDataRDG.AmbientVector;
+					PassParameters->OutSHCoefficients0R = OutputBrickDataRDG.SHCoefficients[0];
+					PassParameters->OutSHCoefficients1R = OutputBrickDataRDG.SHCoefficients[1];
+					PassParameters->OutSHCoefficients0G = OutputBrickDataRDG.SHCoefficients[2];
+					PassParameters->OutSHCoefficients1G = OutputBrickDataRDG.SHCoefficients[3];
+					PassParameters->OutSHCoefficients0B = OutputBrickDataRDG.SHCoefficients[4];
+					PassParameters->OutSHCoefficients1B = OutputBrickDataRDG.SHCoefficients[5];
+					PassParameters->OutSkyBentNormal = OutputBrickDataRDG.SkyBentNormal;
+					PassParameters->OutDirectionalLightShadowing = OutputBrickDataRDG.DirectionalLightShadowing;
+
+					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("VolumetricLightmapCopyPaddingStrips %d bricks", StitchingBrickBatchSize), ComputeShader, PassParameters,
+												 FIntVector(StitchingBrickBatchSize, 1, 1));
+				}
+			}
+
+			// Fill invalid cells by dilation
+			for (int32 StitchingBrickBatchOffset = 0; StitchingBrickBatchOffset < NumTotalBricks; StitchingBrickBatchOffset += StitchingBrickBatchSize)
+			{
+				TShaderMapRef<FFillInvalidCellCS> ComputeShader(GlobalShaderMap);
+
+				FFillInvalidCellCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FFillInvalidCellCS::FParameters>();
+				PassParameters->BrickDataDimensions = VolumetricLightmapData.BrickDataDimensions;
+				PassParameters->IndirectionTextureDim = IndirectionTextureDimensions;
+				PassParameters->FrameNumber = NumTotalPassesToRender;
+				PassParameters->NumTotalBricks = NumTotalBricks;
+				PassParameters->BrickBatchOffset = StitchingBrickBatchOffset;
+				PassParameters->IndirectionTexture = IndirectionTextureUAV;
+				PassParameters->ValidityMask = ValidityBrickDataUAV;
+				PassParameters->BrickRequests = BrickRequests.UAV;
+				PassParameters->OutAmbientVector = OutputBrickDataRDG.AmbientVector;
+				PassParameters->OutSHCoefficients0R = OutputBrickDataRDG.SHCoefficients[0];
+				PassParameters->OutSHCoefficients1R = OutputBrickDataRDG.SHCoefficients[1];
+				PassParameters->OutSHCoefficients0G = OutputBrickDataRDG.SHCoefficients[2];
+				PassParameters->OutSHCoefficients1G = OutputBrickDataRDG.SHCoefficients[3];
+				PassParameters->OutSHCoefficients0B = OutputBrickDataRDG.SHCoefficients[4];
+				PassParameters->OutSHCoefficients1B = OutputBrickDataRDG.SHCoefficients[5];
+				PassParameters->OutSkyBentNormal = OutputBrickDataRDG.SkyBentNormal;
+				PassParameters->OutDirectionalLightShadowing = OutputBrickDataRDG.DirectionalLightShadowing;
+
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("VolumetricLightmapFillInvalidCell %d bricks", StitchingBrickBatchSize), ComputeShader, PassParameters,
+											 FIntVector(StitchingBrickBatchSize, 1, 1));
+			}
+			
 			// Do 2 passes to propagate across 3 refinement levels
 			for (int32 StitchPass = 0; StitchPass < 2; StitchPass++)
 			{
-				const int32 StitchingBrickBatchSize = 256;
-
 				for (int32 StitchingBrickBatchOffset = 0; StitchingBrickBatchOffset < NumTotalBricks; StitchingBrickBatchOffset += StitchingBrickBatchSize)
 				{
 					TShaderMapRef<FStitchBorderCS> ComputeShader(GlobalShaderMap);

@@ -1214,11 +1214,11 @@ StructuredBuffer<FLightShaderConstants> LightShaderParametersArray;
 [shader("raygeneration")]
 void VolumetricLightmapPathTracingMainRG()
 {
-	uint BrickVolumeSize = 5 * 5 * 5;
+	uint BrickVolumeSize = 4 * 4 * 4;
 	uint BrickIndex = DispatchRaysIndex().x / BrickVolumeSize + BrickBatchOffset;
 	if (BrickIndex >= NumTotalBricks) return;
 	uint CellIndex = DispatchRaysIndex().x % BrickVolumeSize;
-	uint3 CellPosInBrick = ComputeBrickLayoutPosition(CellIndex, uint3(5, 5, 5));
+	uint3 CellPosInBrick = ComputeBrickLayoutPosition(CellIndex, uint3(4, 4, 4));
 	uint PaddedBrickSize = 4 + 1;
 	uint3 VoxelPos = ComputeBrickLayoutPosition(DispatchRaysIndex().x / BrickVolumeSize, uint3(256, 256, 256)) * PaddedBrickSize + CellPosInBrick;
 	

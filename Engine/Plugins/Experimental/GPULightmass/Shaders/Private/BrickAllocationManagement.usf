@@ -107,7 +107,7 @@ void GatherBrickRequestsCS(
 	if (VoxelizeVolume[VoxelPos])
 	{
 		int LinearIndex = VoxelizeVolume[VoxelPos] - 1;
-		BrickRequestKeys[LinearIndex] = (MipLevel << 30) | MortonCode3(VoxelPos.x) | (MortonCode3(VoxelPos.y) << 1) | (MortonCode3(VoxelPos.z) << 2);
+		BrickRequestKeys[LinearIndex] = ((2 - MipLevel) << 30) | MortonCode3(VoxelPos.x) | (MortonCode3(VoxelPos.y) << 1) | (MortonCode3(VoxelPos.z) << 2);
 		BrickRequestSortedIndices[LinearIndex] = LinearIndex;
 		BrickRequestsUnsorted[LinearIndex] = uint4(VoxelPos, BrickSize);
 	}
@@ -381,7 +381,41 @@ int BrickBatchOffset;
 RWTexture3D<uint> ValidityMask;
 
 [numthreads(5, 5, 5)]
-void StitchBorderCS(uint3 BrickID : SV_GroupID, uint3 CellPosInBrick : SV_GroupThreadID)
+void CopyPaddingStripsCS(uint3 BrickID : SV_GroupID, uint3 CellPosInBrick : SV_GroupThreadID)
+{
+	uint BrickIndex = BrickID.x + BrickBatchOffset;
+	if (BrickIndex >= NumTotalBricks) return;	
+	int3 CellPosInCurrentMip = BrickRequests[BrickIndex].xyz * 4 + CellPosInBrick;	
+	float3 InvCellSizeInCurrentMip = float3(1, 1, 1) / 4.0f;
+	float PaddedBrickSize = 4 + 1;
+	uint3 VoxelPos = ComputeBrickLayoutPosition(BrickIndex, uint3(256, 256, 256)) * PaddedBrickSize + CellPosInBrick;
+
+	if (BrickRequests[BrickIndex].w == 1 << (2 * MipLevel))
+	{
+		int3 VoxelizeVolumeCoords = floor(CellPosInCurrentMip * InvCellSizeInCurrentMip);
+		int BrickLinearAddress = VoxelizeVolume[VoxelizeVolumeCoords] - 1;
+
+		if (BrickLinearAddress >= 0)
+		{
+			int3 BrickOrigin = ComputeBrickLayoutPosition(BrickLinearAddress, uint3(256, 256, 256));
+			int3 BrickUVW = 5 * BrickOrigin + 4 * frac(CellPosInCurrentMip * InvCellSizeInCurrentMip);
+		
+			OutAmbientVector[VoxelPos] = OutAmbientVector[BrickUVW];
+			OutSHCoefficients0R[VoxelPos] = OutSHCoefficients0R[BrickUVW];
+			OutSHCoefficients1R[VoxelPos] = OutSHCoefficients1R[BrickUVW];
+			OutSHCoefficients0G[VoxelPos] = OutSHCoefficients0G[BrickUVW];
+			OutSHCoefficients1G[VoxelPos] = OutSHCoefficients1G[BrickUVW];
+			OutSHCoefficients0B[VoxelPos] = OutSHCoefficients0B[BrickUVW];
+			OutSHCoefficients1B[VoxelPos] = OutSHCoefficients1B[BrickUVW];
+			OutSkyBentNormal[VoxelPos] = OutSkyBentNormal[BrickUVW];
+			OutDirectionalLightShadowing[VoxelPos] = OutDirectionalLightShadowing[BrickUVW];
+			ValidityMask[VoxelPos] = ValidityMask[BrickUVW];
+		}
+	}
+}
+
+[numthreads(5, 5, 5)]
+void FillInvalidCellCS(uint3 BrickID : SV_GroupID, uint3 CellPosInBrick : SV_GroupThreadID)
 {
 	uint BrickIndex = BrickID.x + BrickBatchOffset;
 	if (BrickIndex >= NumTotalBricks) return;	
@@ -403,6 +437,17 @@ void StitchBorderCS(uint3 BrickID : SV_GroupID, uint3 CellPosInBrick : SV_GroupT
 		OutSkyBentNormal[VoxelPos] = DilateWithValidityMask(OutSkyBentNormal, ValidityMask, IndirectionTextureUVW);
 		OutDirectionalLightShadowing[VoxelPos] = DilateWithValidityMask(OutDirectionalLightShadowing, ValidityMask, IndirectionTextureUVW);
 	}
+}
+
+[numthreads(5, 5, 5)]
+void StitchBorderCS(uint3 BrickID : SV_GroupID, uint3 CellPosInBrick : SV_GroupThreadID)
+{
+	uint BrickIndex = BrickID.x + BrickBatchOffset;
+	if (BrickIndex >= NumTotalBricks) return;	
+	int3 CellPosInVLM = (BrickRequests[BrickIndex].xyz * 4 + CellPosInBrick) * BrickRequests[BrickIndex].w;	
+	float3 InvCellSizeInVLM = float3(1, 1, 1) / 4.0f;
+	float PaddedBrickSize = 4 + 1;
+	uint3 VoxelPos = ComputeBrickLayoutPosition(BrickIndex, uint3(256, 256, 256)) * PaddedBrickSize + CellPosInBrick;
 
 	for (int dx = -1; dx <= 1; dx++)
 	{
