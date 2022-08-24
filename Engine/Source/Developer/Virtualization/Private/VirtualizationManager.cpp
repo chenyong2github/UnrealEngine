@@ -960,7 +960,8 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.VirtualizationModule].LazyInitConnections from config file!"));
 	}
 #else
-	UE_LOG(LogVirtualization, Display, TEXT("\tLazyInitConnections : false (set by code)"), bLazyInitConnections ? TEXT("true") : TEXT("false"));
+	bLazyInitConnections = true;
+	UE_LOG(LogVirtualization, Display, TEXT("\tLazyInitConnections : %s (set by code)"), bLazyInitConnections ? TEXT("true") : TEXT("false"));
 #endif //UE_VIRTUALIZATION_CONNECTION_LAZY_INIT
 
 	// Check for any legacy settings and print them out (easier to do this in one block rather than one and time)
