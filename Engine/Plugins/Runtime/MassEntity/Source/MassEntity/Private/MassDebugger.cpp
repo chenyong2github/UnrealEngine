@@ -20,7 +20,6 @@ namespace UE::Mass::Debug
 
 	FString DebugGetFragmentAccessString(EMassFragmentAccess Access)
 	{
-#if WITH_MASSENTITY_DEBUG
 		switch (Access)
 		{
 		case EMassFragmentAccess::None:	return TEXT("--");
@@ -30,13 +29,11 @@ namespace UE::Mass::Debug
 			ensureMsgf(false, TEXT("Missing string conversion for EMassFragmentAccess=%d"), Access);
 			break;
 		}
-#endif // WITH_MASSENTITY_DEBUG
 		return TEXT("Missing string conversion");
 	}
 
 	void DebugOutputDescription(TConstArrayView<UMassProcessor*> Processors, FOutputDevice& Ar)
 	{
-#if WITH_MASSENTITY_DEBUG
 		const bool bAutoLineEnd = Ar.GetAutoEmitLineTerminator();
 		Ar.SetAutoEmitLineTerminator(false);
 		for (const UMassProcessor* Proc : Processors)
@@ -52,10 +49,8 @@ namespace UE::Mass::Debug
 			}
 		}
 		Ar.SetAutoEmitLineTerminator(bAutoLineEnd);
-#endif // WITH_MASSENTITY_DEBUG
 	}
 
-#if WITH_MASSENTITY_DEBUG && WITH_MASSENTITY_DEBUG
 	FAutoConsoleCommandWithWorldArgsAndOutputDevice PrintEntityFragmentsCmd(
 		TEXT("mass.PrintEntityFragments"),
 		TEXT("Prints all fragment types and values (uproperties) for the specified Entity index"),
@@ -194,14 +189,17 @@ namespace UE::Mass::Debug
 				PrintKnownTypes(FMassChunkFragmentBitSet::DebugGetAllStructTypes());
 			}));
 
-#endif // WITH_MASSENTITY_DEBUG
-
 } // namespace UE::Mass::Debug
 
 //----------------------------------------------------------------------//
 // FMassDebugger
 //----------------------------------------------------------------------//
 FMassDebugger::FOnEntitySelected FMassDebugger::OnEntitySelectedDelegate;
+
+FMassDebugger::FOnMassEntityManagerEvent FMassDebugger::OnEntityManagerInitialized;
+FMassDebugger::FOnMassEntityManagerEvent FMassDebugger::OnEntityManagerDeinitialized;
+TArray<TWeakPtr<const FMassEntityManager>> FMassDebugger::ActiveEntityManagers;
+UE::FSpinLock FMassDebugger::EntityManagerRegistrationLock;
 
 TConstArrayView<FMassEntityQuery*> FMassDebugger::GetProcessorQueries(const UMassProcessor& Processor)
 {
@@ -422,6 +420,32 @@ void FMassDebugger::OutputEntityDescription(FOutputDevice& Ar, const FMassEntity
 void FMassDebugger::SelectEntity(const FMassEntityManager& EntityManager, const FMassEntityHandle EntityHandle)
 {
 	OnEntitySelectedDelegate.Broadcast(EntityManager, EntityHandle);
+}
+
+void FMassDebugger::RegisterEntityManager(FMassEntityManager& EntityManager)
+{
+	UE::TScopeLock<UE::FSpinLock> ScopeLock(EntityManagerRegistrationLock);
+
+	ActiveEntityManagers.Add(EntityManager.AsShared());
+	OnEntityManagerInitialized.Broadcast(EntityManager);
+}
+
+void FMassDebugger::UnregisterEntityManager(FMassEntityManager& EntityManager)
+{
+	UE::TScopeLock<UE::FSpinLock> ScopeLock(EntityManagerRegistrationLock);
+
+	if (EntityManager.DoesSharedInstanceExist())
+	{
+		ActiveEntityManagers.Remove(EntityManager.AsWeak());
+	}
+	else
+	{
+		ActiveEntityManagers.RemoveAll([](const TWeakPtr<const FMassEntityManager>& Item)
+			{
+				return Item.IsValid();
+			});
+	}
+	OnEntityManagerDeinitialized.Broadcast(EntityManager);
 }
 
 #endif // WITH_MASSENTITY_DEBUG

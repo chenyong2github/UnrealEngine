@@ -7,6 +7,7 @@
 #include "Containers/ContainersFwd.h"
 #include "MassEntityQuery.h"
 #include "MassProcessor.h"
+#include "Misc/SpinLock.h"
 #endif // WITH_MASSENTITY_DEBUG
 
 class FOutputDevice;
@@ -57,6 +58,8 @@ struct FArchetypeStats
 struct MASSENTITY_API FMassDebugger
 {
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEntitySelected, const FMassEntityManager&, const FMassEntityHandle);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMassEntityManagerEvent, const FMassEntityManager&);
+
 
 	static TConstArrayView<FMassEntityQuery*> GetProcessorQueries(const UMassProcessor& Processor);
 	/** fetches all queries registered for given Processor. Note that in order to get up to date information
@@ -85,6 +88,17 @@ struct MASSENTITY_API FMassDebugger
 	static void SelectEntity(const FMassEntityManager& EntityManager, const FMassEntityHandle EntityHandle);
 
 	static FOnEntitySelected OnEntitySelectedDelegate;
+
+	static FOnMassEntityManagerEvent OnEntityManagerInitialized;
+	static FOnMassEntityManagerEvent OnEntityManagerDeinitialized;
+
+	static void RegisterEntityManager(FMassEntityManager& EntityManager);
+	static void UnregisterEntityManager(FMassEntityManager& EntityManager);
+	static TConstArrayView<TWeakPtr<const FMassEntityManager>> GetEntityManagers() { return ActiveEntityManagers; }
+
+private:
+	static TArray<TWeakPtr<const FMassEntityManager>> ActiveEntityManagers;
+	static UE::FSpinLock EntityManagerRegistrationLock;
 };
 
 #else

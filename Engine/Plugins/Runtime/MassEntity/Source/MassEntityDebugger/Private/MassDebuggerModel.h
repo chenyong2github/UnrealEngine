@@ -135,16 +135,17 @@ struct FMassDebuggerProcessingGraph
 
 struct FMassDebuggerEnvironment
 {
-	explicit FMassDebuggerEnvironment(UWorld* InWorld)
-		: World(InWorld)
+	explicit FMassDebuggerEnvironment(const TSharedRef<const FMassEntityManager>& InEntityManager)
+		: EntityManager(InEntityManager), World(InEntityManager->GetWorld())
 	{}
 
-	bool operator==(const FMassDebuggerEnvironment& Other) const { return World == Other.World; }
+	bool operator==(const FMassDebuggerEnvironment& Other) const { return EntityManager == Other.EntityManager; }
 
 	FString GetDisplayName() const;
 	const FMassEntityManager* GetEntityManager() const;
 	bool IsWorldValid() const { return World.IsValid(); }
 	
+	TWeakPtr<const FMassEntityManager> EntityManager;
 	TWeakObjectPtr<UWorld> World;
 };
 
@@ -167,6 +168,7 @@ struct FMassDebuggerModel
 	void ClearArchetypeSelection();
 
 	bool IsCurrentEnvironment(const FMassDebuggerEnvironment& InEnvironment) const { return Environment && *Environment.Get() == InEnvironment; }
+	bool IsCurrentEnvironmentValid() const { return Environment && Environment->EntityManager.IsValid(); }
 
 	void CacheArchetypesData(TMap<FMassArchetypeHandle, TSharedPtr<FMassDebuggerArchetypeData>>& OutTransientArchetypesMap); 
 	void CacheProcessorsData(const TMap<FMassArchetypeHandle, TSharedPtr<FMassDebuggerArchetypeData>>& InTransientArchetypesMap);

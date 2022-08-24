@@ -8,6 +8,8 @@
 #include "UObject/UObjectIterator.h"
 #include "VisualLogger/VisualLogger.h"
 #include "MassExecutionContext.h"
+#include "MassDebugger.h"
+
 
 const FMassEntityHandle FMassEntityManager::InvalidEntity;
 
@@ -42,6 +44,17 @@ FMassEntityManager::FMassEntityManager(UObject* InOwner)
 	: ObserverManager(*this)
 	, Owner(InOwner)
 {
+#if WITH_MASSENTITY_DEBUG
+	DebugName = InOwner ? (InOwner->GetName() + TEXT("_EntityManager")) : TEXT("Unset");
+#endif
+}
+
+FMassEntityManager::~FMassEntityManager()
+{
+	if (bInitialized)
+	{
+		Deinitialize();
+	}
 }
 
 void FMassEntityManager::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
@@ -80,6 +93,13 @@ void FMassEntityManager::AddReferencedObjects(FReferenceCollector& Collector)
 
 void FMassEntityManager::Initialize()
 {
+	if (bInitialized)
+	{
+		UE_LOG(LogMass, Log, TEXT("Calling %s on already initialized entity manager owned by %s")
+			, ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(Owner.Get()));
+		return;
+	}
+
 	// Index 0 is reserved so we can treat that index as an invalid entity handle
 	Entities.Add();
 	SerialNumberGenerator.fetch_add(FMath::Max(1,NumReservedEntities));
@@ -125,11 +145,15 @@ void FMassEntityManager::Initialize()
 	}
 #if WITH_MASSENTITY_DEBUG
 	RequirementAccessDetector.Initialize();	
+	FMassDebugger::RegisterEntityManager(*this);
 #endif // WITH_MASSENTITY_DEBUG
+
+	bInitialized = true;
 }
 
 void FMassEntityManager::PostInitialize()
 {
+	ensure(bInitialized);
 	// this needs to be done after all the subsystems have been initialized since some processors might want to access
 	// them during processors' initialization
 	ObserverManager.Initialize();
@@ -137,8 +161,22 @@ void FMassEntityManager::PostInitialize()
 
 void FMassEntityManager::Deinitialize()
 {
-	// closing down so no point in actually flushing commands, but need to clean them up to avoid warnings on destruction
-	DeferredCommandBuffer->CleanUp();
+	if (bInitialized)
+	{
+		// closing down so no point in actually flushing commands, but need to clean them up to avoid warnings on destruction
+		DeferredCommandBuffer->CleanUp();
+
+#if WITH_MASSENTITY_DEBUG
+		FMassDebugger::UnregisterEntityManager(*this);
+#endif // WITH_MASSENTITY_DEBUG
+
+		bInitialized = false;
+	}
+	else
+	{
+		UE_LOG(LogMass, Log, TEXT("Calling %s on already deinitialized entity manager owned by %s")
+			, ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(Owner.Get()));
+	}
 }
 
 FMassArchetypeHandle FMassEntityManager::CreateArchetype(TConstArrayView<const UScriptStruct*> FragmentsAndTagsList, const FName ArchetypeDebugName)
@@ -1312,6 +1350,13 @@ void FMassEntityManager::FlushCommands(const TSharedPtr<FMassCommandBuffer>& InC
 
 		bCommandBufferFlushingInProgress = false;
 	}
+}
+
+void FMassEntityManager::SetDebugName(const FString& NewDebugGame) 
+{ 
+#if WITH_MASSENTITY_DEBUG
+	DebugName = NewDebugGame; 
+#endif // WITH_MASSENTITY_DEBUG
 }
 
 #if WITH_MASSENTITY_DEBUG

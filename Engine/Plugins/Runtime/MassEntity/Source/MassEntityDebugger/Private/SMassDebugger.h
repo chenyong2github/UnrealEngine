@@ -6,6 +6,7 @@
 
 struct FMassDebuggerEnvironment;
 struct FMassDebuggerModel;
+struct FMassEntityManager;
 template<typename T> class SComboBox;
 
 
@@ -60,8 +61,8 @@ protected:
 	TSharedRef<SDockTab> SpawnArchetypesTab(const FSpawnTabArgs& Args);
 
 	void BindDelegates();
-	void OnWorldAdded(UWorld* NewWorld);
-	void OnWorldDestroyed(UWorld* InWorld);
+	void OnEntityManagerInitialized(const FMassEntityManager& EntityManager);
+	void OnEntityManagerDeinitialized(const FMassEntityManager& EntityManager);
 	void HandleEnvironmentChanged(TSharedPtr<FMassDebuggerEnvironment> Item, ESelectInfo::Type SelectInfo);
 	void RebuildEnvironmentsList();
 
@@ -78,10 +79,6 @@ protected:
 
 	TSharedRef<FMassDebuggerModel> DebuggerModel;
 
-#if WITH_EDITOR
-	FDelegateHandle PIEEndHandle;
-	FDelegateHandle PIEWorldInitialize;
-#endif // WITH_EDITOR
-	FDelegateHandle OnWorldAddedHandle;
-	FDelegateHandle OnWorldDestroyedHandle;
+	FDelegateHandle OnEntityManagerInitializedHandle;
+	FDelegateHandle OnEntityManagerDeinitializedHandle;
 };

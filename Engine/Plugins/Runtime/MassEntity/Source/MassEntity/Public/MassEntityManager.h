@@ -82,6 +82,7 @@ public:
 
 	explicit FMassEntityManager(UObject* InOwner = nullptr);
 	FMassEntityManager(const FMassEntityManager& Other) = delete;
+	~FMassEntityManager();
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize);
@@ -371,6 +372,7 @@ public:
 	UWorld* GetWorld() const { return Owner.IsValid() ? Owner->GetWorld() : nullptr; }
 	UObject* GetOwner() const { return Owner.Get(); }
 
+	void SetDebugName(const FString& NewDebugGame);
 #if WITH_MASSENTITY_DEBUG
 	void DebugPrintArchetypes(FOutputDevice& Ar, const bool bIncludeEmpty = true) const;
 	void DebugGetArchetypesStringDetails(FOutputDevice& Ar, const bool bIncludeEmpty = true) const;
@@ -383,6 +385,7 @@ public:
 	void DebugForceArchetypeDataVersionBump() { ++ArchetypeDataVersion; }
 	void DebugGetArchetypeStrings(const FMassArchetypeHandle& Archetype, TArray<FName>& OutFragmentNames, TArray<FName>& OutTagNames);
 	FMassEntityHandle DebugGetEntityIndexHandle(const int32 EntityIndex) const { return Entities.IsValidIndex(EntityIndex) ? FMassEntityHandle(EntityIndex, Entities[EntityIndex].SerialNumber) : FMassEntityHandle(); }
+	const FString& DebugGetName() const { return DebugName; }
 
 	FMassRequirementAccessDetector& GetRequirementAccessDetector() { return RequirementAccessDetector; }
 #endif // WITH_MASSENTITY_DEBUG
@@ -449,7 +452,10 @@ private:
 
 #if WITH_MASSENTITY_DEBUG
 	FMassRequirementAccessDetector RequirementAccessDetector;
+	FString DebugName;
 #endif // WITH_MASSENTITY_DEBUG
 
 	TWeakObjectPtr<UObject> Owner;
+
+	bool bInitialized = false;
 };

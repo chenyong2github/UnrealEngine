@@ -53,12 +53,10 @@ SMassDebugger::SMassDebugger()
 
 SMassDebugger::~SMassDebugger()
 {
-#if WITH_EDITOR
-	FEditorDelegates::EndPIE.Remove(PIEEndHandle);
-	FWorldDelegates::OnPostDuplicate.Remove(PIEWorldInitialize);
-#endif // WITH_EDITOR
-	GEngine->OnWorldAdded().Remove(OnWorldAddedHandle);
-	GEngine->OnWorldDestroyed().Remove(OnWorldDestroyedHandle);
+#if WITH_MASSENTITY_DEBUG
+	FMassDebugger::OnEntityManagerInitialized.Remove(OnEntityManagerInitializedHandle);
+	FMassDebugger::OnEntityManagerDeinitialized.Remove(OnEntityManagerDeinitializedHandle);
+#endif // WITH_MASSENTITY_DEBUG
 }
 
 void SMassDebugger::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
@@ -199,31 +197,54 @@ TSharedRef<SDockTab> SMassDebugger::SpawnToolbar(const FSpawnTabArgs& Args)
 	return MajorTab;
 }
 
-void SMassDebugger::OnWorldAdded(UWorld* NewWorld)
+void SMassDebugger::OnEntityManagerInitialized(const FMassEntityManager& EntityManager)
 {
-	if (NewWorld &&  UE::Mass::Debugger::Private::IsSupportedWorldType(NewWorld->WorldType))
+	const UWorld* World = EntityManager.GetWorld();
+	if (World && UE::Mass::Debugger::Private::IsSupportedWorldType(World->WorldType))
 	{
-		EnvironmentsList.Add(MakeShareable(new FMassDebuggerEnvironment(NewWorld)));
+		EnvironmentsList.Add(MakeShareable(new FMassDebuggerEnvironment(EntityManager.AsShared())));
 	}
 }
 
-void SMassDebugger::OnWorldDestroyed(UWorld* InWorld)
+void SMassDebugger::OnEntityManagerDeinitialized(const FMassEntityManager& EntityManager)
 {
-	if (InWorld == nullptr || UE::Mass::Debugger::Private::IsSupportedWorldType(InWorld->WorldType) == false)
+	const UWorld* World = EntityManager.GetWorld();
+	if (World != nullptr && UE::Mass::Debugger::Private::IsSupportedWorldType(World->WorldType) == false)
 	{
 		return;
 	}
 
-	FMassDebuggerEnvironment InEnvironment(InWorld);
-
-	if (EnvironmentsList.RemoveAll([&InEnvironment](const TSharedPtr<FMassDebuggerEnvironment>& Element)
-		{
-			return *Element.Get() == InEnvironment;
-		}) > 0)
+	if (EntityManager.DoesSharedInstanceExist())
 	{
-		if (DebuggerModel->IsCurrentEnvironment(InEnvironment))
+		FMassDebuggerEnvironment InEnvironment(EntityManager.AsShared());
+
+		if (EnvironmentsList.RemoveAll([&InEnvironment](const TSharedPtr<FMassDebuggerEnvironment>& Element)
+			{
+				return *Element.Get() == InEnvironment;
+			}) > 0)
 		{
-			EnvironmentComboLabel->SetText(FText::FromString(TEXT("Stale")));
+			if (DebuggerModel->IsCurrentEnvironment(InEnvironment))
+			{
+				DebuggerModel->MarkAsStale();
+				EnvironmentComboLabel->SetText(DebuggerModel->GetDisplayName());
+			}
+		}
+	}
+	else
+	{
+		// EntityManager is either undergoing destruction or it has never been made sharable
+		// all we can do right now is remove all no longer valid environments
+		if (EnvironmentsList.RemoveAll([](const TSharedPtr<FMassDebuggerEnvironment>& Element)
+			{
+				check(Element);
+				return Element.Get()->EntityManager.IsValid() == false;
+			}) > 0)
+		{
+			if (DebuggerModel->IsCurrentEnvironmentValid() == false)
+			{
+				DebuggerModel->MarkAsStale();
+				EnvironmentComboLabel->SetText(DebuggerModel->GetDisplayName());
+			}
 		}
 	}
 }
@@ -236,15 +257,19 @@ void SMassDebugger::HandleEnvironmentChanged(TSharedPtr<FMassDebuggerEnvironment
 
 void SMassDebugger::RebuildEnvironmentsList()
 {
-	const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
-	EnvironmentsList.Reset();
-	for (const FWorldContext& Context : WorldContexts)
+#if WITH_MASSENTITY_DEBUG
+	for (const TWeakPtr<const FMassEntityManager>& WeakEntityManager : FMassDebugger::GetEntityManagers())
 	{
-		if (UE::Mass::Debugger::Private::IsSupportedWorldType(Context.WorldType))
+		if (const FMassEntityManager* EntityManagerPtr = WeakEntityManager.Pin().Get())
 		{
-			EnvironmentsList.Add(MakeShareable(new FMassDebuggerEnvironment(Context.World())));
+			const UWorld* World = EntityManagerPtr->GetWorld();
+			if (World != nullptr && UE::Mass::Debugger::Private::IsSupportedWorldType(World->WorldType))
+			{
+				EnvironmentsList.Add(MakeShareable(new FMassDebuggerEnvironment(EntityManagerPtr->AsShared())));
+			}
 		}
 	}
+#endif // WITH_MASSENTITY_DEBUG
 }
 
 TSharedRef<SDockTab> SMassDebugger::SpawnProcessorsTab(const FSpawnTabArgs& Args)
@@ -282,39 +307,10 @@ TSharedRef<SDockTab> SMassDebugger::SpawnArchetypesTab(const FSpawnTabArgs& Args
 
 void SMassDebugger::BindDelegates()
 {
-#if WITH_EDITOR
-	PIEWorldInitialize = FWorldDelegates::OnPostDuplicate.AddLambda([this](UWorld* World, bool bDuplicateForPIE, TMap<UObject*, UObject*>& ReplacementMap, TArray<UObject*>& ObjectsToFixReferences)
-		{
-			if (World && bDuplicateForPIE)
-			{
-				EnvironmentsList.Add(MakeShareable(new FMassDebuggerEnvironment(World)));
-			}
-		});
-
-	PIEEndHandle = FEditorDelegates::EndPIE.AddLambda([this](const bool bIsSimulating)
-		{
-			const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
-			EnvironmentsList.Reset();
-			for (const FWorldContext& Context : WorldContexts)
-			{
-				if (Context.WorldType == EWorldType::Game || Context.WorldType == EWorldType::Editor)
-				{
-					EnvironmentsList.Add(MakeShareable(new FMassDebuggerEnvironment(Context.World())));
-				}
-				else if (Context.WorldType == EWorldType::PIE)
-				{
-					FMassDebuggerEnvironment TempEnvironment(Context.World());
-					if (DebuggerModel->IsCurrentEnvironment(TempEnvironment))
-					{
-						DebuggerModel->MarkAsStale();
-					}
-				}
-			}
-			EnvironmentComboLabel->SetText(DebuggerModel->GetDisplayName());
-		});
-#endif
-	OnWorldAddedHandle = GEngine->OnWorldAdded().AddRaw(this, &SMassDebugger::OnWorldAdded);
-	OnWorldDestroyedHandle = GEngine->OnWorldDestroyed().AddRaw(this, &SMassDebugger::OnWorldDestroyed);
+#if WITH_MASSENTITY_DEBUG
+	OnEntityManagerInitializedHandle = FMassDebugger::OnEntityManagerInitialized.AddRaw(this, &SMassDebugger::OnEntityManagerInitialized);
+	OnEntityManagerDeinitializedHandle = FMassDebugger::OnEntityManagerDeinitialized.AddRaw(this, &SMassDebugger::OnEntityManagerDeinitialized);
+#endif // WITH_MASSENTITY_DEBUG
 }
 
 #undef LOCTEXT_NAMESPACE

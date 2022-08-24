@@ -55,12 +55,27 @@ namespace UE::Mass::Debugger::Private
 //----------------------------------------------------------------------//
 FString FMassDebuggerEnvironment::GetDisplayName() const
 {
-	return World.IsValid() ? World->GetPathName() : TEXT("Invalid");
+	FString DisplayName;
+
+#if WITH_MASSENTITY_DEBUG
+	if (const FMassEntityManager* EntityManagerPtr = GetEntityManager())
+	{
+		DisplayName += EntityManagerPtr->DebugGetName();
+		if (DisplayName.Len())
+		{
+			DisplayName += TEXT(" - ");
+		}
+	}
+#endif // WITH_MASSENTITY_DEBUG
+	
+	const UWorld* WorldPtr = World.Get();
+	DisplayName += WorldPtr ? WorldPtr->GetPathName() : TEXT("Invalid");
+	return DisplayName;
 }
 
 const FMassEntityManager* FMassDebuggerEnvironment::GetEntityManager() const
 {
-	return UE::Mass::Utils::GetEntityManager(World.Get());
+	return EntityManager.Pin().Get();
 }
 
 //----------------------------------------------------------------------//
@@ -150,7 +165,7 @@ FMassDebuggerArchetypeData::FMassDebuggerArchetypeData(const FMassArchetypeHandl
 #if WITH_MASSENTITY_DEBUG
 	Composition = FMassDebugger::GetArchetypeComposition(ArchetypeHandle);
 
-	// @todo should ensure we're using same hashing as the EntitySubsystem here
+	// @todo should ensure we're using same hashing as the EntityManager here
 	CompositionHash = Composition.CalculateHash();
 	FullHash = CompositionHash;
 
@@ -304,6 +319,8 @@ void FMassDebuggerModel::RefreshAll()
 	CacheProcessorsData(TransientArchetypesMap);
 	CacheProcessingGraphs();
 
+	ClearArchetypeSelection();
+
 	OnRefreshDelegate.Broadcast();
 }
 
@@ -384,9 +401,9 @@ void FMassDebuggerModel::CacheProcessorsData(const TMap<FMassArchetypeHandle, TS
 	CachedProcessors.Reset();
 
 	UWorld* World = Environment ? Environment->World.Get() : nullptr;
-	const FMassEntityManager* EntitySubsystem = Environment ? Environment->GetEntityManager() : nullptr;
+	const FMassEntityManager* EntityManager = Environment ? Environment->GetEntityManager() : nullptr;
 
-	if (EntitySubsystem)
+	if (EntityManager)
 	{
 		check(World);
 		for (FThreadSafeObjectIterator It(UMassProcessor::StaticClass()); It; ++It)
@@ -396,7 +413,7 @@ void FMassDebuggerModel::CacheProcessorsData(const TMap<FMassArchetypeHandle, TS
 				&& Cast<UMassCompositeProcessor>(Processor) == nullptr
 				&& Processor->GetWorld() == World)
 			{
-				CachedProcessors.Add(MakeShareable(new FMassDebuggerProcessorData(*EntitySubsystem, *Processor, InTransientArchetypesMap)));
+				CachedProcessors.Add(MakeShareable(new FMassDebuggerProcessorData(*EntityManager, *Processor, InTransientArchetypesMap)));
 			}
 		}
 	}
@@ -442,9 +459,9 @@ void FMassDebuggerModel::CacheArchetypesData(TMap<FMassArchetypeHandle, TSharedP
 
 	if (Environment)
 	{
-		if (const FMassEntityManager* EntitySubsystem = Environment->GetEntityManager())
+		if (const FMassEntityManager* EntityManager = Environment->GetEntityManager())
 		{
-			StoreArchetypes(*EntitySubsystem, OutTransientArchetypesMap);
+			StoreArchetypes(*EntityManager, OutTransientArchetypesMap);
 		}
 	}
 }

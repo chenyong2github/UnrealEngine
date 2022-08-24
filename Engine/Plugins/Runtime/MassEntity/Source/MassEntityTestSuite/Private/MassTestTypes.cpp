@@ -12,6 +12,7 @@ bool FExecutionTestBase::SetUp()
 {
 	World = FAITestHelpers::GetWorld();
 	EntityManager = MakeShareable(new FMassEntityManager);
+	EntityManager->SetDebugName(TEXT("MassEntityTestSuite"));
 	EntityManager->Initialize();
 
 	return true;
