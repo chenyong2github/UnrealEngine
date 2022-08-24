@@ -11,6 +11,7 @@
 #include "RenderTargetPool.h"
 #include "ClearQuad.h"
 #include "LTC.h"
+#include "Math/PackedVector.h"
 
 /*-----------------------------------------------------------------------------
 SystemTextures
@@ -1170,10 +1171,19 @@ void FormatData5551(const TInType& In, uint8* Out, uint32& OutByteCount)
 }
 
 template<typename TInType>
+void FormatData9995(const TInType& In, uint8* Out, uint32& OutByteCount)
+{
+	FFloat3PackedSE PackedFloat(FLinearColor(In[0], In[1], In[2], 1.0f));
+	uint32* OutTyped = (uint32*)Out;
+	OutByteCount = 4;
+	*OutTyped = PackedFloat.EncodedValue;
+}
+
+template<typename TInType>
 void InitializeData(const TInType& InData, EPixelFormat InFormat, uint8* OutData, uint32& OutByteCount)
 {
 	// If a new format is added insure that it is either supported here, or at least flagged as not supported
-	static_assert(PF_MAX == 85);
+	static_assert(PF_MAX == 86);
 
 	switch (InFormat)
 	{
@@ -1236,6 +1246,7 @@ void InitializeData(const TInType& InData, EPixelFormat InFormat, uint8* OutData
 		case PF_A2B10G10R10:			{ FormatData1010102<TInType>(InData, OutData, OutByteCount); } break;
 		case PF_FloatR11G11B10:			{ FormatData111110<TInType>	(InData, OutData, OutByteCount); } break;
 		case PF_B5G5R5A1_UNORM:         { FormatData5551<TInType>(InData, OutData, OutByteCount); } break;
+		case PF_R9G9B9EXP5:				{ FormatData9995<TInType>(InData, OutData, OutByteCount); }	break;
 			return;
 
 		// Not supported

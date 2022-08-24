@@ -219,6 +219,26 @@ static inline void ConvertRawR11G11B10DataToFColor(uint32 Width, uint32 Height, 
 	}
 }
 
+static inline void ConvertRawR9G9B9E5DataToFColor(uint32 Width, uint32 Height, uint8* In, uint32 SrcPitch, FColor* Out, bool LinearToGamma)
+{
+	check(sizeof(FFloat3PackedSE) == sizeof(uint32));
+
+	for (uint32 Y = 0; Y < Height; Y++)
+	{
+		FFloat3PackedSE* SrcPtr = (FFloat3PackedSE*)(In + Y * SrcPitch);
+		FColor* DestPtr = Out + Y * Width;
+
+		for (uint32 X = 0; X < Width; X++)
+		{
+			FLinearColor Value = (*SrcPtr).ToLinearColor();
+
+			*DestPtr = Value.ToFColor(LinearToGamma);
+			++SrcPtr;
+			++DestPtr;
+		}
+	}
+}
+
 static inline void ConvertRawR32G32B32A32DataToFColor(uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, bool LinearToGamma)
 {
 	FPlane MinValue(0.0f, 0.0f, 0.0f, 0.0f);

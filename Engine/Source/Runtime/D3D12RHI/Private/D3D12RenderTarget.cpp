@@ -65,6 +65,7 @@ static uint32 ComputeBytesPerPixel(DXGI_FORMAT Format)
 	case DXGI_FORMAT_R16G16_SINT:
 	case DXGI_FORMAT_D32_FLOAT:
 	case DXGI_FORMAT_R32_SINT:
+	case DXGI_FORMAT_R9G9B9E5_SHAREDEXP:
 		BytesPerPixel = 4;
 		break;
 	case DXGI_FORMAT_R16G16B16A16_FLOAT:
@@ -855,6 +856,9 @@ static void ConvertDXGIToFColor(DXGI_FORMAT Format, uint32 Width, uint32 Height,
 		break;
 	case DXGI_FORMAT_R11G11B10_FLOAT:
 		ConvertRawR11G11B10DataToFColor(Width, Height, In, SrcPitch, Out, bLinearToGamma);
+		break;
+	case DXGI_FORMAT_R9G9B9E5_SHAREDEXP:
+		ConvertRawR9G9B9E5DataToFColor(Width, Height, In, SrcPitch, Out, bLinearToGamma);
 		break;
 	case DXGI_FORMAT_R32G32B32A32_FLOAT:
 		ConvertRawR32G32B32A32DataToFColor(Width, Height, In, SrcPitch, Out, bLinearToGamma);

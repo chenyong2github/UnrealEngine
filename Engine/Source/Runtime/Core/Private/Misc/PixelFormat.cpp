@@ -132,6 +132,7 @@ FPixelFormatInfo    GPixelFormats[PF_MAX] =
 	FPixelFormatInfo(PF_R32G32B32F,         TEXT("R32G32B32F"),            1,          1,          1,          12,         3,              1),
 	FPixelFormatInfo(PF_R8_SINT,            TEXT("R8_SINT"),               1,          1,          1,          1,          1,              1),
 	FPixelFormatInfo(PF_R64_UINT,			TEXT("R64_UINT"),              1,          1,          1,          8,          1,              0),
+	FPixelFormatInfo(PF_R9G9B9EXP5,			TEXT("R9G9B9EXP5"),			   1,		   1,		   1,		   4,		   4,			   0),
 };
 
 

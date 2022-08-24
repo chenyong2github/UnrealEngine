@@ -6,6 +6,7 @@
 #include "Math/NumericLimits.h"
 #include "Math/UnrealMathUtility.h"
 #include "Math/Color.h"
+#include "Templates/TypeCompatibleBytes.h"
 
 /** 
  * 3 component vector corresponding to DXGI_FORMAT_R11G11B10_FLOAT. 
@@ -304,4 +305,121 @@ inline FLinearColor FFixedRGBASigned8::ToLinearColor() const
 {
 	const float Scale = 1.0f / MAX_int8;
 	return FLinearColor(R * Scale, G * Scale, B * Scale, A * Scale);
+}
+
+/**
+ * 3 component vector corresponding to PF_R9G9B9EXP5.
+ */
+class FFloat3PackedSE
+{
+public:
+
+	union
+	{
+		struct
+		{
+			uint32 RMantissa : 9;
+			uint32 GMantissa : 9;
+			uint32 BMantissa : 9;
+			uint32 SharedExponent : 5;
+		};
+		uint32 EncodedValue;
+	};
+
+	FFloat3PackedSE() {}
+
+	explicit FFloat3PackedSE(const FLinearColor& Src);
+	explicit FFloat3PackedSE(uint32 InEncodedValue) : EncodedValue(InEncodedValue) {}
+
+	FLinearColor ToLinearColor() const;
+};
+
+inline FFloat3PackedSE::FFloat3PackedSE(const FLinearColor& Src)
+{
+
+	//s=sign, e = exponent, m = mantissa
+	//32 bit floating point:
+	// s:e:m 1:8:23   
+	// if e > 0					float = (-1)^sign X 2^(e-127) X (1.0 + m)
+	// if e == 0	&& m!= 0		float = (-1)^sign X 2^(-126) X (0.0 + m)   (subnormal)
+	// if e == 0xff && m==0        float = (-1)^sign X infinity					
+	// if e == 0xff && m!=0         NaN											
+	//
+	struct PackedFloat
+	{
+		union
+		{
+			struct
+			{
+				uint32_t m : 23;
+				uint32_t e : 8;
+				uint32_t s : 1;
+			};
+			float v;
+		};
+		bool IsSubnormal() { return (e == 0 && m != 0 ); }
+		uint32 Mantissa() { return m + (IsSubnormal() ? 0 : (1 << 23) ); }
+		int32 Exponent() { return e - 127; }
+		bool IsInfinity() { return (e == 0xff) && (m == 0); }
+		bool IsNaN() { return (e == 0xff) && (m != 0); }
+	};
+
+	PackedFloat RGBPacked[3];
+	RGBPacked[0] = BitCast<PackedFloat, float>(Src.R);
+	RGBPacked[1] = BitCast<PackedFloat, float>(Src.G);
+	RGBPacked[2] = BitCast<PackedFloat, float>(Src.B);
+
+	uint32 Mantissas[3];
+	int32 Exponents[3];
+
+	for (uint32 i = 0; i < 3; ++i)
+	{
+		Mantissas[i] = RGBPacked[i].Mantissa();
+		Exponents[i] = RGBPacked[i].Exponent();
+
+		// 9995 uses (0.0 + m) instead of floating point's (1.0 + m) , so let's fix that here.
+		if (!RGBPacked[i].IsSubnormal()) //don't need to fix subnormal (it is already 0.m based)
+		{
+			// example 2^2 X 1.5 ---> 2^3 X 0.75.  Exponent++, and mantissa/=2
+			Exponents[i]++;
+			Mantissas[i] /= 2;
+		}
+		if (  (Exponents[i] < -15 && RGBPacked[i].v != 0.0f) || (RGBPacked[i].v < 0.0f) || RGBPacked[i].IsNaN()) //underflow or negative or NaN
+		{
+			//As per DirectX implementation, underflow or negative or NaN clamp to a lowest possible exponent and mantissa
+			Exponents[i] = -15;
+			Mantissas[i] = 0;
+		}
+		else if (Exponents[i] > 15)  //overflow or infinity
+		{
+			Exponents[i] = 16; //Match behavior of XMStoreFloat3SE
+			Mantissas[i] = 0x7fffff; //as close to 1 as possible
+		}
+	}
+
+	//exponent now guaranteed to be from -15 to +15
+	int32 NewExponent = FMath::Max<int32>(Exponents[0], FMath::Max<int32>(Exponents[1], Exponents[2]));
+
+	for (uint32 i = 0; i < 3; ++i)
+	{
+		Mantissas[i] = (Mantissas[i] >> ((uint32)(NewExponent - Exponents[i]))); // this can conceivably go to zero if the diff between max and min Exponents > 8 !
+		//Mantissa is still 23 bits Need to make it 9 bit
+		Mantissas[i]	= Mantissas[i] >> (23 - 9); // now 9 bit
+	}
+	
+	check( Mantissas[0] < (1 << 23) && Mantissas[1] < (1 << 23) && Mantissas[2] < (1 << 23) );
+
+	EncodedValue = (((NewExponent + 15) & 0x01f) << (9 + 9 + 9)) |
+				    ((Mantissas[2]      & 0x1ff) << (0 + 9 + 9)) |
+				    ((Mantissas[1]      & 0x1ff) << (0 + 0 + 9)) |
+				    ((Mantissas[0]      & 0x1ff) << (0 + 0 + 0)) ;
+
+}
+
+inline FLinearColor FFloat3PackedSE::ToLinearColor() const
+{
+    int32 SharedExponent8Bits = 0x33800000 + (SharedExponent << 23);
+    float Scale = BitCast<float, int32>(SharedExponent8Bits);
+
+	return FLinearColor( Scale * float(RMantissa), Scale * float(GMantissa), Scale * float(BMantissa),1.0f );
 }
