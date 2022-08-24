@@ -263,7 +263,7 @@ namespace Horde.Build.Devices
 			/// <summary>
 			/// Id of telemetry document
 			/// </summary>
-			[BsonRequired, BsonId, BsonElement("tid")]
+			[BsonRequired, BsonId]
 			public ObjectId TelemetryId { get; set; }
 
 			/// <summary>
@@ -358,19 +358,19 @@ namespace Horde.Build.Devices
 		class DeviceReservationPoolTelemetryDocument : IDevicePoolReservationTelemetry
 		{
 			/// <inheritdoc/>
-			[BsonRequired]
+			[BsonRequired, BsonElement("did")]
 			public DeviceId DeviceId { get; set; }
 
-			[BsonIgnoreIfNull]
+			[BsonIgnoreIfNull, BsonElement("ji")]
 			public string? JobId { get; set; }
 
-			[BsonIgnoreIfNull]
+			[BsonIgnoreIfNull, BsonElement("si")]
 			public string? StepId { get; set; }
 
-			[BsonIgnoreIfNull]
+			[BsonIgnoreIfNull, BsonElement("jn")]
 			public string? JobName { get; set; }
 
-			[BsonIgnoreIfNull]
+			[BsonIgnoreIfNull, BsonElement("sn")]
 			public string? StepName { get; set; }
 
 			[BsonConstructor]

@@ -267,7 +267,7 @@ export const StepsPanelInner: React.FC<{ jobDetails: JobDetailsV2, depStepId?: s
 
          case 'ViewLogColumn':
             return <React.Fragment>
-               {!disabled && <Link onClick={(ev) => { ev.stopPropagation(); }} to={`/log/${item.batch?.logId}`} target="_blank"> <Stack horizontal horizontalAlign={"end"} verticalAlign="center" tokens={{ childrenGap: 0, padding: 0 }} style={{ width: "100%", height: "100%" }}>
+               {!disabled && <Link onClick={(ev) => { ev.stopPropagation(); }} to={`/log/${item.batch?.logId}`}> <Stack horizontal horizontalAlign={"end"} verticalAlign="center" tokens={{ childrenGap: 0, padding: 0 }} style={{ width: "100%", height: "100%" }}>
                   <Text styles={{ root: { margin: '0px', padding: '0px', paddingRight: '14px' } }} className={"view-log-link"}>View Log</Text>
                </Stack></Link>}
             </React.Fragment>;
@@ -287,7 +287,7 @@ export const StepsPanelInner: React.FC<{ jobDetails: JobDetailsV2, depStepId?: s
 
          // see data-automation-key in onRenderRow selectors
          return <React.Fragment>
-            {!disabled && <Link onClick={(ev) => { ev.stopPropagation(); }} to={`/log/${item.step!.logId}`} target="_blank"> <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 0, padding: 0 }} style={{ paddingLeft: 33, width: "100%", height: "100%" }}>
+            {!disabled && <Link onClick={(ev) => { ev.stopPropagation(); }} to={`/log/${item.step!.logId}`}> <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 0, padding: 0 }} style={{ paddingLeft: 33, width: "100%", height: "100%" }}>
                <Text styles={{ root: { margin: '0px', padding: '0px', paddingRight: '14px' } }} className={"view-log-link"}>View Log</Text>
             </Stack></Link>}
          </React.Fragment>;

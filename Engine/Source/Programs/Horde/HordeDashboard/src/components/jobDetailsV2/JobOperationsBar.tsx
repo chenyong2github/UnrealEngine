@@ -155,7 +155,7 @@ export const JobOperations: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({
                <StepOperations jobDetails={jobDetails} stepId={stepId} />
             </Stack>}
 
-            {!!step && !viewLogDisabled && <Link to={`${viewLogDisabled ? "" : logUrl}`} target="_blank">
+            {!!step && !viewLogDisabled && <Link to={`${viewLogDisabled ? "" : logUrl}`}>
                <Stack styles={{ root: { paddingTop: 4 } }}>
                   <CommandBarButton disabled={viewLogDisabled} className={hordeClasses.commandBarSmall} styles={{ root: { padding: "10px 8px 10px 8px" } }} iconProps={{ iconName: "AlignLeft" }} text="View Log" />
                </Stack>
