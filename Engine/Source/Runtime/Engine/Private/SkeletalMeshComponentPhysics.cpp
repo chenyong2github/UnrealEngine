@@ -1303,6 +1303,24 @@ void USkeletalMeshComponent::SetConstraintProfileForAll(FName ProfileName, bool 
 	}
 }
 
+bool USkeletalMeshComponent::GetConstraintProfileProperties(
+	FConstraintProfileProperties& OutProperties, FName JointName, FName ProfileName)
+{
+	if (UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset())
+	{
+		for (int32 i = 0; i < Constraints.Num(); i++)
+		{
+			FConstraintInstance* ConstraintInstance = Constraints[i];
+			if (ConstraintInstance->JointName == JointName)
+			{
+				OutProperties = PhysicsAsset->ConstraintSetup[i]->GetConstraintProfileProperties(ProfileName);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void USkeletalMeshComponent::SetAllMotorsAngularDriveParams(float InSpring, float InDamping, float InForceLimit, bool bSkipCustomPhysicsType)
 {
 	UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset();

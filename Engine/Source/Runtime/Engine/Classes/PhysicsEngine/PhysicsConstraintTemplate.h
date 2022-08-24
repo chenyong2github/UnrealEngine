@@ -99,6 +99,21 @@ class UPhysicsConstraintTemplate : public UObject
 		}
 	}
 
+	ENGINE_API const FConstraintProfileProperties& GetConstraintProfileProperties(FName ProfileName) const
+	{
+		if (ProfileName != NAME_None)
+		{
+			for (const FPhysicsConstraintProfileHandle& Handle : ProfileHandles)
+			{
+				if (Handle.ProfileName == ProfileName)
+				{
+					return Handle.ProfileProperties;
+				}
+			}
+		}
+		return DefaultProfile;
+	}
+
 #if WITH_EDITOR
 	/** Copy constraint instance into default profile.*/
 	ENGINE_API void SetDefaultProfile(FConstraintInstance& CI)

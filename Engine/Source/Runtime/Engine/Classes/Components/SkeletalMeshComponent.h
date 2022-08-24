@@ -2109,6 +2109,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void SetConstraintProfileForAll(FName ProfileName, bool bDefaultIfNotFound = false);
 
+	/**
+	 * Gets the constraint profile properties that a joint drive would adopt if it were set to 
+	 * the given constraint profile. The default will be returned if an empty or invalid profile name 
+	 * is passed in. Returns true if the successful, or false if the joint can't be found.
+	 */
+	bool GetConstraintProfileProperties(FConstraintProfileProperties& OutProperties, FName JointName, FName ProfileName);
+
 	/** Enable or Disable AngularPositionDrive based on a list of bone names */
 	void SetNamedMotorsAngularPositionDrive(bool bEnableSwingDrive, bool bEnableTwistDrive, const TArray<FName>& BoneNames, bool bSetOtherBodiesToComplement = false);
 
