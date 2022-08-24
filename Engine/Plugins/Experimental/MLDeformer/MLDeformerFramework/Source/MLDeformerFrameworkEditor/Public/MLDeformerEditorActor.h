@@ -31,19 +31,21 @@ namespace UE::MLDeformer
 			FText LabelText;
 			bool bIsTrainingActor = false;
 		};
+
 		FMLDeformerEditorActor(const FConstructSettings& Settings);
 		virtual ~FMLDeformerEditorActor();
 
 		// Main methods you can override.
 		virtual void SetVisibility(bool bIsVisible);
 		virtual bool IsVisible() const;
-		virtual void SetPlayPosition(float TimeInSeconds, bool bAutoPause=true);
+		virtual void SetPlayPosition(float TimeInSeconds, bool bAutoPause = true);
 		virtual float GetPlayPosition() const;
 		virtual void SetPlaySpeed(float PlaySpeed);
 		virtual float GetPlaySpeed();
 
 		virtual FBox GetBoundingBox() const;
 		virtual void Pause(bool bPaused);
+		virtual bool IsPlaying() const;
 		virtual bool IsGroundTruthActor() const;
 		virtual bool HasVisualMesh() const;
 
@@ -88,4 +90,4 @@ namespace UE::MLDeformer
 		/** Is this actor used for training? */
 		bool bIsTrainingActor = true;
 	};
-}	// namespace UE::MLDeformer
+} // namespace UE::MLDeformer

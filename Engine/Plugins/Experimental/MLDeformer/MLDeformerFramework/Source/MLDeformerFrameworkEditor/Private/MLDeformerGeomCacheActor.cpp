@@ -1,19 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VertexDeltaEditorModelActor.h"
+#include "MLDeformerGeomCacheActor.h"
 #include "GeometryCacheComponent.h"
 #include "Animation/DebugSkelMeshComponent.h"
 
-namespace UE::VertexDeltaModel
+namespace UE::MLDeformer
 {
-	using namespace UE::MLDeformer;
-
-	FVertexDeltaEditorModelActor::FVertexDeltaEditorModelActor(const FConstructSettings& Settings)
+	FMLDeformerGeomCacheActor::FMLDeformerGeomCacheActor(const FConstructSettings& Settings)
 		: FMLDeformerEditorActor(Settings)
 	{
 	}
 
-	FVertexDeltaEditorModelActor::~FVertexDeltaEditorModelActor()
+	FMLDeformerGeomCacheActor::~FMLDeformerGeomCacheActor()
 	{
 		if (GeomCacheComponent)
 		{
@@ -21,7 +19,7 @@ namespace UE::VertexDeltaModel
 		}
 	}
 
-	void FVertexDeltaEditorModelActor::SetVisibility(bool bIsVisible)
+	void FMLDeformerGeomCacheActor::SetVisibility(bool bIsVisible)
 	{
 		FMLDeformerEditorActor::SetVisibility(bIsVisible);
 
@@ -31,7 +29,7 @@ namespace UE::VertexDeltaModel
 		}
 	}
 
-	bool FVertexDeltaEditorModelActor::IsVisible() const
+	bool FMLDeformerGeomCacheActor::IsVisible() const
 	{
 		if (SkeletalMeshComponent)
 		{
@@ -46,7 +44,7 @@ namespace UE::VertexDeltaModel
 		return true;
 	}
 
-	bool FVertexDeltaEditorModelActor::HasVisualMesh() const
+	bool FMLDeformerGeomCacheActor::HasVisualMesh() const
 	{
 		if (SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshAsset())
 		{
@@ -61,7 +59,7 @@ namespace UE::VertexDeltaModel
 		return false;
 	}
 
-	void FVertexDeltaEditorModelActor::SetPlayPosition(float TimeInSeconds, bool bAutoPause)
+	void FMLDeformerGeomCacheActor::SetPlayPosition(float TimeInSeconds, bool bAutoPause)
 	{
 		if (SkeletalMeshComponent)
 		{
@@ -79,7 +77,7 @@ namespace UE::VertexDeltaModel
 		}
 	}
 
-	float FVertexDeltaEditorModelActor::GetPlayPosition() const
+	float FMLDeformerGeomCacheActor::GetPlayPosition() const
 	{
 		if (SkeletalMeshComponent)
 		{
@@ -88,17 +86,17 @@ namespace UE::VertexDeltaModel
 
 		if (GeomCacheComponent)
 		{
-			float Duration = GeomCacheComponent->GetDuration(); 
-			float AnimTime =  GeomCacheComponent->GetAnimationTime();
+			float Duration = GeomCacheComponent->GetDuration();
+			float AnimTime = GeomCacheComponent->GetAnimationTime();
 			float StartTime = GeomCacheComponent->GetStartTimeOffset();
-			float DeltaTime = AnimTime - StartTime; 
+			float DeltaTime = AnimTime - StartTime;
 			return DeltaTime > Duration ? FMath::Fmod(DeltaTime, Duration) : DeltaTime;
 		}
 
 		return 0.0f;
 	}
 
-	void FVertexDeltaEditorModelActor::SetPlaySpeed(float PlaySpeed)
+	void FMLDeformerGeomCacheActor::SetPlaySpeed(float PlaySpeed)
 	{
 		if (SkeletalMeshComponent)
 		{
@@ -111,7 +109,7 @@ namespace UE::VertexDeltaModel
 		}
 	}
 
-	void FVertexDeltaEditorModelActor::Pause(bool bPaused)
+	void FMLDeformerGeomCacheActor::Pause(bool bPaused)
 	{
 		if (SkeletalMeshComponent)
 		{
@@ -124,7 +122,22 @@ namespace UE::VertexDeltaModel
 		}
 	}
 
-	FBox FVertexDeltaEditorModelActor::GetBoundingBox() const
+	bool FMLDeformerGeomCacheActor::IsPlaying() const
+	{
+		if (SkeletalMeshComponent)
+		{
+			return !SkeletalMeshComponent->bPauseAnims;
+		}
+
+		if (GeomCacheComponent)
+		{
+			return GeomCacheComponent->IsPlaying();
+		}
+
+		return false;
+	}
+
+	FBox FMLDeformerGeomCacheActor::GetBoundingBox() const
 	{
 		if (SkeletalMeshComponent)
 		{
@@ -140,4 +153,4 @@ namespace UE::VertexDeltaModel
 		Box.Init();
 		return Box;
 	}
-}	// namespace UE::VertexDeltaModel
+}	// namespace UE::MLDeformer

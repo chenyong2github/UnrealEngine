@@ -4,7 +4,7 @@
 #include "VertexDeltaModel.h"
 #include "VertexDeltaModelVizSettings.h"
 #include "VertexDeltaTrainingModel.h"
-#include "VertexDeltaEditorModelActor.h"
+#include "MLDeformerGeomCacheActor.h"
 #include "MLDeformerEditorToolkit.h"
 #include "MLDeformerEditorStyle.h"
 #include "MLDeformerInputInfo.h"
@@ -157,19 +157,20 @@ namespace UE::VertexDeltaModel
 		Settings.LabelColor = LabelColor;
 		Settings.LabelText = LabelText;
 		Settings.bIsTrainingActor = bIsTrainingActor;
-		FVertexDeltaEditorModelActor* EditorActor = static_cast<FVertexDeltaEditorModelActor*>(CreateEditorActor(Settings));
+
+		FMLDeformerGeomCacheActor* EditorActor = static_cast<FMLDeformerGeomCacheActor*>(CreateEditorActor(Settings));
 		EditorActor->SetGeometryCacheComponent(GeomCacheComponent);
 		EditorActors.Add(EditorActor);
 	} 
 
 	FMLDeformerEditorActor* FVertexDeltaEditorModel::CreateEditorActor(const FMLDeformerEditorActor::FConstructSettings& Settings) const
 	{
-		return new FVertexDeltaEditorModelActor(Settings);
+		return new FMLDeformerGeomCacheActor(Settings);
 	}
 
-	FVertexDeltaEditorModelActor* FVertexDeltaEditorModel::FindVertexDeltaModelEditorActor(int32 TypeID) const
+	FMLDeformerGeomCacheActor* FVertexDeltaEditorModel::FindVertexDeltaModelEditorActor(int32 TypeID) const
 	{
-		return static_cast<FVertexDeltaEditorModelActor*>(FindEditorActor(TypeID));
+		return static_cast<FMLDeformerGeomCacheActor*>(FindEditorActor(TypeID));
 	}
 
 	UVertexDeltaModelVizSettings* FVertexDeltaEditorModel::GetVertexDeltaModelVizSettings() const
@@ -179,7 +180,7 @@ namespace UE::VertexDeltaModel
 
 	double FVertexDeltaEditorModel::GetTrainingTimeAtFrame(int32 FrameNumber) const
 	{
-		const FVertexDeltaEditorModelActor* EditorActor = static_cast<FVertexDeltaEditorModelActor*>(FindEditorActor(ActorID_Train_GroundTruth));
+		const FMLDeformerGeomCacheActor* EditorActor = static_cast<FMLDeformerGeomCacheActor*>(FindEditorActor(ActorID_Train_GroundTruth));
 		if (EditorActor && EditorActor->GetGeometryCacheComponent() && EditorActor->GetGeometryCacheComponent()->GeometryCache.Get())
 		{
 			return EditorActor->GetGeometryCacheComponent()->GetTimeAtFrame(FrameNumber);
@@ -190,7 +191,7 @@ namespace UE::VertexDeltaModel
 
 	int32 FVertexDeltaEditorModel::GetTrainingFrameAtTime(double TimeInSeconds) const
 	{
-		const FVertexDeltaEditorModelActor* EditorActor = static_cast<FVertexDeltaEditorModelActor*>(FindEditorActor(ActorID_Train_GroundTruth));
+		const FMLDeformerGeomCacheActor* EditorActor = static_cast<FMLDeformerGeomCacheActor*>(FindEditorActor(ActorID_Train_GroundTruth));
 		if (EditorActor && EditorActor->GetGeometryCacheComponent() && EditorActor->GetGeometryCacheComponent()->GeometryCache.Get())
 		{
 			return EditorActor->GetGeometryCacheComponent()->GetFrameAtTime(TimeInSeconds);
@@ -201,7 +202,7 @@ namespace UE::VertexDeltaModel
 
 	double FVertexDeltaEditorModel::GetTestTimeAtFrame(int32 FrameNumber) const
 	{
-		const FVertexDeltaEditorModelActor* EditorActor = static_cast<FVertexDeltaEditorModelActor*>(FindEditorActor(ActorID_Test_GroundTruth));
+		const FMLDeformerGeomCacheActor* EditorActor = static_cast<FMLDeformerGeomCacheActor*>(FindEditorActor(ActorID_Test_GroundTruth));
 		if (EditorActor && EditorActor->GetGeometryCacheComponent() && EditorActor->GetGeometryCacheComponent()->GeometryCache.Get())
 		{
 			return EditorActor->GetGeometryCacheComponent()->GetTimeAtFrame(FrameNumber);
@@ -212,7 +213,7 @@ namespace UE::VertexDeltaModel
 
 	int32 FVertexDeltaEditorModel::GetTestFrameAtTime(double TimeInSeconds) const
 	{
-		const FVertexDeltaEditorModelActor* EditorActor = static_cast<FVertexDeltaEditorModelActor*>(FindEditorActor(ActorID_Test_GroundTruth));
+		const FMLDeformerGeomCacheActor* EditorActor = static_cast<FMLDeformerGeomCacheActor*>(FindEditorActor(ActorID_Test_GroundTruth));
 		if (EditorActor && EditorActor->GetGeometryCacheComponent() && EditorActor->GetGeometryCacheComponent()->GeometryCache.Get())
 		{
 			return EditorActor->GetGeometryCacheComponent()->GetFrameAtTime(TimeInSeconds);

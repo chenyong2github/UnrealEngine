@@ -85,7 +85,7 @@ namespace UE::MLDeformer
 		TWeakPtr<FMLDeformerEditorModel> Model;
 
 		/** The currently active editor model. */
-		UE::MLDeformer::FMLDeformerEditorToolkit* Editor;
+		UE::MLDeformer::FMLDeformerEditorToolkit* Editor = nullptr;
 
 		/** The time slider controller. */
 		TSharedPtr<FMLTimeSliderController> TimeSliderController;
@@ -97,7 +97,7 @@ namespace UE::MLDeformer
 		TSharedPtr<ITimeSlider> TopTimeSlider;
 
 		/** The fill coefficients of each column in the grid. */
-		float ColumnFillCoefficients[2];
+		float ColumnFillCoefficients[2] = { 0.2f, 0.8f };
 
 		/** Called when the user has begun dragging the selection selection range. */
 		FSimpleDelegate OnSelectionRangeBeginDrag;

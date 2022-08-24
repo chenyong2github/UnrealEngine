@@ -124,6 +124,16 @@ namespace UE::MLDeformer
 		}
 	}
 
+	bool FMLDeformerEditorActor::IsPlaying() const
+	{
+		if (SkeletalMeshComponent)
+		{
+			return !SkeletalMeshComponent->bPauseAnims;
+		}
+
+		return false;
+	}
+
 	FBox FMLDeformerEditorActor::GetBoundingBox() const
 	{
 		if (SkeletalMeshComponent)

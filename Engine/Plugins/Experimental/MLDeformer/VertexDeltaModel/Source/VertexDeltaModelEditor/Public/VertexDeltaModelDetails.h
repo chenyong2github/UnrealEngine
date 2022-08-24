@@ -20,7 +20,7 @@ namespace UE::VertexDeltaModel
 {
 	class FVertexDeltaEditorModel;
 
-	class VERTEXDELTAMODELEDITOR_API FVertexDeltaModelDetails final
+	class VERTEXDELTAMODELEDITOR_API FVertexDeltaModelDetails
 		: public UE::MLDeformer::FMLDeformerModelDetails
 	{
 	public:

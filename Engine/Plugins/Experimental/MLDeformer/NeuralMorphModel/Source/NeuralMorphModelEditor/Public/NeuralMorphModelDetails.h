@@ -20,7 +20,7 @@ namespace UE::NeuralMorphModel
 {
 	class FNeuralMorphEditorModel;
 
-	class NEURALMORPHMODELEDITOR_API FNeuralMorphModelDetails final
+	class NEURALMORPHMODELEDITOR_API FNeuralMorphModelDetails
 		: public UE::MLDeformer::FMLDeformerModelDetails
 	{
 	public:

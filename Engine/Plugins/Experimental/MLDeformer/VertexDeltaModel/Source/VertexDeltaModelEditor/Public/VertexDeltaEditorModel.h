@@ -9,6 +9,11 @@
 #include "MLDeformerEditorActor.h"
 #include "UObject/GCObject.h"
 
+namespace UE::MLDeformer
+{
+	class FMLDeformerGeomCacheActor;
+}
+
 class UMLDeformerAsset;
 class USkeletalMesh;
 class UGeometryCache;
@@ -19,7 +24,6 @@ namespace UE::VertexDeltaModel
 {
 	using namespace UE::MLDeformer;
 
-	class FVertexDeltaEditorModelActor;
 	class FVertexDeltaModelSampler;
 
 	class VERTEXDELTAMODELEDITOR_API FVertexDeltaEditorModel 
@@ -54,7 +58,7 @@ namespace UE::VertexDeltaModel
 		// Some helpers that cast to this model's variants of some classes.
 		UVertexDeltaModel* GetVertexDeltaModel() const { return Cast<UVertexDeltaModel>(Model); }
 		UVertexDeltaModelVizSettings* GetVertexDeltaModelVizSettings() const;
-		FVertexDeltaEditorModelActor* FindVertexDeltaModelEditorActor(int32 TypeID) const;
+		FMLDeformerGeomCacheActor* FindVertexDeltaModelEditorActor(int32 TypeID) const;
 		FMLDeformerGeomCacheSampler* GetGeomCacheSampler() const { return static_cast<FMLDeformerGeomCacheSampler*>(Sampler); }
 
 	protected:

@@ -689,17 +689,21 @@ namespace UE::MLDeformer
 
 	void FMLDeformerEditorModel::OnPlayPressed()
 	{
+		// The play button shouldn't do anything in training mode.
 		UMLDeformerVizSettings* VizSettings = Model->GetVizSettings();
-		const bool bTestData = VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData;
-		FMLDeformerEditorActor* BaseActor = GetVisualizationModeBaseActor();
+		if (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData)
+		{
+			return;
+		}
 
+		FMLDeformerEditorActor* BaseActor = GetVisualizationModeBaseActor();
 		const bool bMustPause = (BaseActor && BaseActor->GetSkeletalMeshComponent()) ? !BaseActor->GetSkeletalMeshComponent()->bPauseAnims : false;
 
+		const bool bTestData = (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData);
 		for (FMLDeformerEditorActor* EditorActor : EditorActors)
 		{
 			if (EditorActor && ((EditorActor->IsTestActor() && bTestData) || (EditorActor->IsTrainingActor() && !bTestData)))
 			{
-
 				EditorActor->SetPlaySpeed(VizSettings->AnimPlaySpeed);
 				EditorActor->Pause(bMustPause);
 			}

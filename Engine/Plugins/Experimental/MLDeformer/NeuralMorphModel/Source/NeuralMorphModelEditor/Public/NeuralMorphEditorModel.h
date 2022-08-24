@@ -9,6 +9,11 @@
 #include "NeuralMorphModel.h"
 #include "UObject/GCObject.h"
 
+namespace UE::MLDeformer
+{
+	class FMLDeformerGeomCacheActor;
+}
+
 class UMLDeformerAsset;
 class USkeletalMesh;
 class UGeometryCache;
@@ -60,9 +65,8 @@ namespace UE::NeuralMorphModel
 		// Some helpers that cast to this model's variants of some classes.
 		UNeuralMorphModel* GetNeuralMorphModel() const { return Cast<UNeuralMorphModel>(Model); }
 		UNeuralMorphModelVizSettings* GetNeuralMorphModelVizSettings() const;
-		FNeuralMorphEditorModelActor* FindNeuralMorphModelEditorActor(int32 TypeID) const;
+		FMLDeformerGeomCacheActor* FindNeuralMorphModelEditorActor(int32 TypeID) const;
 		FMLDeformerGeomCacheSampler* GetGeomCacheSampler() const { return static_cast<FMLDeformerGeomCacheSampler*>(Sampler); }
-	
 
 	protected:
 		void CreateGeomCacheActor(UWorld* World, int32 ActorID, const FName& Name, UGeometryCache* GeomCache, FLinearColor LabelColor, FLinearColor WireframeColor, const FText& LabelText, bool bIsTrainingActor);

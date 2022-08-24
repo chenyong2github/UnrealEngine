@@ -7,16 +7,14 @@
 class UMLDeformerComponent;
 class UGeometryCacheComponent;
 
-namespace UE::VertexDeltaModel
+namespace UE::MLDeformer
 {
-	using namespace UE::MLDeformer;
-
-	class VERTEXDELTAMODELEDITOR_API FVertexDeltaEditorModelActor
+	class MLDEFORMERFRAMEWORKEDITOR_API FMLDeformerGeomCacheActor
 		: public FMLDeformerEditorActor
 	{
 	public:
-		FVertexDeltaEditorModelActor(const FConstructSettings& Settings);
-		virtual ~FVertexDeltaEditorModelActor() override;
+		FMLDeformerGeomCacheActor(const FConstructSettings& Settings);
+		virtual ~FMLDeformerGeomCacheActor() override;
 
 		void SetGeometryCacheComponent(UGeometryCacheComponent* Component) { GeomCacheComponent = Component; }
 		UGeometryCacheComponent* GetGeometryCacheComponent() const { return GeomCacheComponent; }
@@ -25,10 +23,11 @@ namespace UE::VertexDeltaModel
 		virtual void SetVisibility(bool bIsVisible) override;
 		virtual bool IsVisible() const override;
 		virtual bool HasVisualMesh() const override;
-		virtual void SetPlayPosition(float TimeInSeconds, bool bAutoPause=true) override;
+		virtual void SetPlayPosition(float TimeInSeconds, bool bAutoPause = true) override;
 		virtual float GetPlayPosition() const override;
 		virtual void SetPlaySpeed(float PlaySpeed) override;
 		virtual void Pause(bool bPaused) override;
+		virtual bool IsPlaying() const override;
 		virtual FBox GetBoundingBox() const override;
 		// ~END FMLDeformerEditorActor overrides.
 
@@ -36,4 +35,4 @@ namespace UE::VertexDeltaModel
 		/** The geometry cache component (can be nullptr). */
 		TObjectPtr<UGeometryCacheComponent> GeomCacheComponent = nullptr;
 	};
-}	// namespace UE::VertexDeltaModel
+}	// namespace UE::MLDeformer

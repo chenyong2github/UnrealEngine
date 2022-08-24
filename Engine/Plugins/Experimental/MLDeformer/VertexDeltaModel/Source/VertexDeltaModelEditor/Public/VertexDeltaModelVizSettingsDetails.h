@@ -15,7 +15,7 @@ class UVertexDeltaModelVizSettings;
 
 namespace UE::VertexDeltaModel
 {
-	class VERTEXDELTAMODELEDITOR_API FVertexDeltaModelVizSettingsDetails final
+	class VERTEXDELTAMODELEDITOR_API FVertexDeltaModelVizSettingsDetails
 		: public UE::MLDeformer::FMLDeformerVizSettingsDetails
 	{
 	public:

@@ -15,7 +15,7 @@ class UNeuralMorphModelVizSettings;
 
 namespace UE::NeuralMorphModel
 {
-	class NEURALMORPHMODELEDITOR_API FNeuralMorphModelVizSettingsDetails final
+	class NEURALMORPHMODELEDITOR_API FNeuralMorphModelVizSettingsDetails
 		: public UE::MLDeformer::FMLDeformerVizSettingsDetails
 	{
 	public:

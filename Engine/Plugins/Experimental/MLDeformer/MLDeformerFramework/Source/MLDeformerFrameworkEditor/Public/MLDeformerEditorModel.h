@@ -52,12 +52,13 @@ enum class ETrainingResult : uint8
 namespace UE::MLDeformer
 {
 	class FMLDeformerEditorToolkit;
-	class FMLDeformerEditorActor;
 	class FMLDeformerSampler;
+	class FMLDeformerEditorModel;
 
 	/** The base class for the editor side of an UMLDeformerModel. */
 	class MLDEFORMERFRAMEWORKEDITOR_API FMLDeformerEditorModel
-		: public TSharedFromThis<FMLDeformerEditorModel>, public FGCObject
+		: public TSharedFromThis<FMLDeformerEditorModel>
+		, public FGCObject
 	{
 	public:
 		/** 
@@ -258,6 +259,7 @@ namespace UE::MLDeformer
 		double CalcTimelinePosition() const;
 
 		void UpdateRanges();
+
 	protected:
 		/** The runtime model associated with this editor model. */
 		TObjectPtr<UMLDeformerModel> Model = nullptr;

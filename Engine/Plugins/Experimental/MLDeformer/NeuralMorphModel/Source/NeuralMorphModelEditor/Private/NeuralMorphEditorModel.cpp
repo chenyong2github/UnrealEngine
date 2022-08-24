@@ -5,7 +5,7 @@
 #include "NeuralMorphModel.h"
 #include "NeuralMorphModelVizSettings.h"
 #include "NeuralMorphTrainingModel.h"
-#include "NeuralMorphEditorModelActor.h"
+#include "MLDeformerGeomCacheActor.h"
 #include "MLDeformerEditorToolkit.h"
 #include "MLDeformerEditorStyle.h"
 #include "MLDeformerInputInfo.h"
@@ -111,6 +111,7 @@ namespace UE::NeuralMorphModel
 
 		// Update the test geometry cache (ground truth) component.
 		GeometryCacheComponent = FindNeuralMorphModelEditorActor(ActorID_Test_GroundTruth)->GetGeometryCacheComponent();
+		check(GeometryCacheComponent);
 		GeometryCacheComponent->SetGeometryCache(VizSettings->GetTestGroundTruth());
 		GeometryCacheComponent->SetLooping(true);
 		GeometryCacheComponent->SetManualTick(true);
@@ -177,19 +178,19 @@ namespace UE::NeuralMorphModel
 		Settings.LabelColor = LabelColor;
 		Settings.LabelText = LabelText;
 		Settings.bIsTrainingActor = bIsTrainingActor;
-		FNeuralMorphEditorModelActor* EditorActor = static_cast<FNeuralMorphEditorModelActor*>(CreateEditorActor(Settings));
+		FMLDeformerGeomCacheActor* EditorActor = static_cast<FMLDeformerGeomCacheActor*>(CreateEditorActor(Settings));
 		EditorActor->SetGeometryCacheComponent(GeomCacheComponent);
 		EditorActors.Add(EditorActor);
 	} 
 
 	FMLDeformerEditorActor* FNeuralMorphEditorModel::CreateEditorActor(const FMLDeformerEditorActor::FConstructSettings& Settings) const
 	{
-		return new FNeuralMorphEditorModelActor(Settings);
+		return new FMLDeformerGeomCacheActor(Settings);
 	}
 
-	FNeuralMorphEditorModelActor* FNeuralMorphEditorModel::FindNeuralMorphModelEditorActor(int32 TypeID) const
+	FMLDeformerGeomCacheActor* FNeuralMorphEditorModel::FindNeuralMorphModelEditorActor(int32 TypeID) const
 	{
-		return static_cast<FNeuralMorphEditorModelActor*>(FindEditorActor(TypeID));
+		return static_cast<FMLDeformerGeomCacheActor*>(FindEditorActor(TypeID));
 	}
 
 	UNeuralMorphModelVizSettings* FNeuralMorphEditorModel::GetNeuralMorphModelVizSettings() const
@@ -200,7 +201,7 @@ namespace UE::NeuralMorphModel
 	double FNeuralMorphEditorModel::GetTrainingTimeAtFrame(int32 FrameNumber) const
 	{
 		// Try to get the frame from the geometry cache.
-		FNeuralMorphEditorModelActor* EditorActor = static_cast<FNeuralMorphEditorModelActor*>(FindEditorActor(ActorID_Train_GroundTruth));
+		FMLDeformerGeomCacheActor* EditorActor = static_cast<FMLDeformerGeomCacheActor*>(FindEditorActor(ActorID_Train_GroundTruth));
 		if (EditorActor && EditorActor->GetGeometryCacheComponent() && EditorActor->GetGeometryCacheComponent()->GeometryCache.Get())
 		{
 			return EditorActor->GetGeometryCacheComponent()->GetTimeAtFrame(FrameNumber);
@@ -211,7 +212,7 @@ namespace UE::NeuralMorphModel
 
 	int32 FNeuralMorphEditorModel::GetTrainingFrameAtTime(double TimeInSeconds) const
 	{
-		FNeuralMorphEditorModelActor* EditorActor = static_cast<FNeuralMorphEditorModelActor*>(FindEditorActor(ActorID_Train_GroundTruth));
+		FMLDeformerGeomCacheActor* EditorActor = static_cast<FMLDeformerGeomCacheActor*>(FindEditorActor(ActorID_Train_GroundTruth));
 		if (EditorActor && EditorActor->GetGeometryCacheComponent() && EditorActor->GetGeometryCacheComponent()->GeometryCache.Get())
 		{
 			return EditorActor->GetGeometryCacheComponent()->GetFrameAtTime(TimeInSeconds);
@@ -223,7 +224,7 @@ namespace UE::NeuralMorphModel
 	double FNeuralMorphEditorModel::GetTestTimeAtFrame(int32 FrameNumber) const
 	{
 		// Try to get the frame from the geometry cache.
-		FNeuralMorphEditorModelActor* EditorActor = static_cast<FNeuralMorphEditorModelActor*>(FindEditorActor(ActorID_Test_GroundTruth));
+		FMLDeformerGeomCacheActor* EditorActor = static_cast<FMLDeformerGeomCacheActor*>(FindEditorActor(ActorID_Test_GroundTruth));
 		if (EditorActor && EditorActor->GetGeometryCacheComponent() && EditorActor->GetGeometryCacheComponent()->GeometryCache.Get())
 		{
 			return EditorActor->GetGeometryCacheComponent()->GetTimeAtFrame(FrameNumber);
@@ -234,7 +235,7 @@ namespace UE::NeuralMorphModel
 
 	int32 FNeuralMorphEditorModel::GetTestFrameAtTime(double TimeInSeconds) const
 	{
-		FNeuralMorphEditorModelActor* EditorActor = static_cast<FNeuralMorphEditorModelActor*>(FindEditorActor(ActorID_Test_GroundTruth));
+		FMLDeformerGeomCacheActor* EditorActor = static_cast<FMLDeformerGeomCacheActor*>(FindEditorActor(ActorID_Test_GroundTruth));
 		if (EditorActor && EditorActor->GetGeometryCacheComponent() && EditorActor->GetGeometryCacheComponent()->GeometryCache.Get())
 		{
 			return EditorActor->GetGeometryCacheComponent()->GetFrameAtTime(TimeInSeconds);
@@ -374,7 +375,7 @@ namespace UE::NeuralMorphModel
 
 		// Debug draw the selected morph target.
 		UNeuralMorphModelVizSettings* VizSettings = GetNeuralMorphModelVizSettings();
-		if (VizSettings->bDrawMorphTargets)
+		if (VizSettings->bDrawMorphTargets && VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData)
 		{
 			const FVector DrawOffset = -VizSettings->GetMeshSpacingOffsetVector();
 			DrawMorphTarget(PDI, GetNeuralMorphModel()->MorphTargetDeltas, VizSettings->MorphTargetDeltaThreshold, VizSettings->MorphTargetNumber, DrawOffset);
