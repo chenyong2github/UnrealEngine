@@ -3,16 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Channels/IMovieSceneChannelOverrideProvider.h"
+#include "Channels/MovieSceneSectionChannelOverrideRegistry.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "EntitySystem/MovieSceneEntityBuilder.h"
+#include "EntitySystem/MovieScenePropertyBinding.h"
 #include "MovieSceneCommonHelpers.h"
 #include "MovieSceneNameableTrack.h"
 #include "MovieSceneTracksComponentTypes.h"
 #include "Systems/MovieScenePiecewiseBoolBlenderSystem.h"
-#include "EntitySystem/MovieScenePropertyBinding.h"
 #include "UObject/ObjectMacros.h"
-#include "Channels/MovieSceneSectionChannelOverrideRegistry.h"
 #include "MovieScenePropertyTrack.generated.h"
 
 /**
@@ -155,7 +156,7 @@ struct MOVIESCENETRACKS_API FMovieScenePropertyTrackEntityImportHelper
 	static const int32 SectionPropertyValueImportingID;
 	static const int32 SectionEditConditionToggleImportingID;
 
-	static void PopulateEvaluationField(UMovieSceneSection& Section, const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder, UMovieSceneSectionChannelOverrideRegistry* OverrideRegistry = nullptr);
+	static void PopulateEvaluationField(UMovieSceneSection& Section, const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder);
 
 	static bool IsPropertyValueID(const UE::MovieScene::FEntityImportParams& Params);
 	static bool IsEditConditionToggleID(const UE::MovieScene::FEntityImportParams& Params);
@@ -177,9 +178,8 @@ namespace MovieScene
 template<typename... T>
 struct TPropertyTrackEntityImportHelperImpl
 {
-	TPropertyTrackEntityImportHelperImpl(TEntityBuilder<T...>&& InBuilder, UMovieSceneSectionChannelOverrideRegistry* InOverrideRegistry = nullptr, FComponentTypeID InPropertyTag = {})
+	TPropertyTrackEntityImportHelperImpl(TEntityBuilder<T...>&& InBuilder, FComponentTypeID InPropertyTag = {})
 		: Builder(MoveTemp(InBuilder))
-		, OverrideRegistry(InOverrideRegistry)
 		, PropertyTag(InPropertyTag)
 	{
 	}
@@ -187,19 +187,146 @@ struct TPropertyTrackEntityImportHelperImpl
 	template<typename U, typename PayloadType>
 	TPropertyTrackEntityImportHelperImpl<T..., TAdd<U>> Add(TComponentTypeID<U> ComponentType, PayloadType&& InPayload)
 	{
-		return TPropertyTrackEntityImportHelperImpl<T..., TAdd<U>>(Builder.Add(ComponentType, InPayload), OverrideRegistry, PropertyTag);
+		return TPropertyTrackEntityImportHelperImpl<T..., TAdd<U>>(Builder.Add(ComponentType, InPayload), PropertyTag);
 	}
 
 	template<typename U, typename PayloadType>
 	TPropertyTrackEntityImportHelperImpl<T..., TAddConditional<U>> AddConditional(TComponentTypeID<U> ComponentType, PayloadType&& InPayload, bool bCondition)
 	{
-		return TPropertyTrackEntityImportHelperImpl<T..., TAddConditional<U>>(Builder.AddConditional(ComponentType, InPayload, bCondition), OverrideRegistry, PropertyTag);
+		return TPropertyTrackEntityImportHelperImpl<T..., TAddConditional<U>>(Builder.AddConditional(ComponentType, InPayload, bCondition), PropertyTag);
+	}
+
+	void Commit(const UMovieSceneSection* InSection, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
+	{
+		const FGuid ObjectBindingID = Params.GetObjectBindingID();
+		const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+		const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+
+		if (UMovieScenePropertyTrack* PropertyTrack = Cast<UMovieScenePropertyTrack>(InSection->GetOuter()))
+		{
+			if (FMovieScenePropertyTrackEntityImportHelper::IsPropertyValueID(Params))
+			{
+				OutImportedEntity->AddBuilder(
+					Builder
+					.Add(BuiltInComponents->PropertyBinding, PropertyTrack->GetPropertyBinding())
+					.AddConditional(BuiltInComponents->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid()));
+			}
+			else if (ensure(FMovieScenePropertyTrackEntityImportHelper::IsEditConditionToggleID(Params)))
+			{
+				// We effectively discard the builder we've been setting up, because we just
+				// need to import the edit condition toggle entity.
+				FMovieScenePropertyTrackEntityImportHelper::ImportEditConditionToggleEntity(Params, OutImportedEntity);
+			}
+		}
+		else
+		{
+			OutImportedEntity->AddBuilder(
+				Builder
+				.AddConditional(BuiltInComponents->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid()));
+		}
+	}
+
+protected:
+
+	TEntityBuilder<T...> Builder;
+	FComponentTypeID PropertyTag;
+};
+
+
+/**
+ * The starting point for TPropertyTrackEntityImportHelperImpl<...T>
+ */
+template<>
+struct TPropertyTrackEntityImportHelperImpl<>
+{
+	TPropertyTrackEntityImportHelperImpl(FComponentTypeID InPropertyTag)
+		: Builder(FEntityBuilder().AddTag(InPropertyTag))
+		, PropertyTag(InPropertyTag)
+	{
 	}
 
 	template<typename U, typename PayloadType>
-	TPropertyTrackEntityImportHelperImpl<T..., TAddConditional<U>> AddConditional(TComponentTypeID<U> ComponentType, PayloadType&& InPayload, bool bCondition, int32 ChannelIndex)
+	TPropertyTrackEntityImportHelperImpl<FAdd, TAdd<U>> Add(TComponentTypeID<U> ComponentType, PayloadType&& InPayload)
 	{
-		return TPropertyTrackEntityImportHelperImpl<T..., TAddConditional<U>>(Builder.AddConditional(ComponentType, InPayload, bCondition && !IsChannelOverriden(OverrideRegistry, ChannelIndex)), OverrideRegistry, PropertyTag);
+		return TPropertyTrackEntityImportHelperImpl<FAdd, TAdd<U>>(Builder.Add(ComponentType, InPayload), PropertyTag);
+	}
+
+	template<typename U, typename PayloadType>
+	TPropertyTrackEntityImportHelperImpl<FAdd, TAddConditional<U>> AddConditional(TComponentTypeID<U> ComponentType, PayloadType&& InPayload, bool bCondition)
+	{
+		return TPropertyTrackEntityImportHelperImpl<FAdd, TAddConditional<U>>(Builder.AddConditional(ComponentType, InPayload, bCondition), PropertyTag);
+	}
+
+protected:
+
+	TEntityBuilder<FAdd> Builder;
+	FComponentTypeID PropertyTag;
+};
+
+struct MOVIESCENETRACKS_API FPropertyTrackEntityImportHelper : TPropertyTrackEntityImportHelperImpl<>
+{
+	template<typename PropertyTraits>
+	FPropertyTrackEntityImportHelper(const TPropertyComponents<PropertyTraits>& PropertyComponents)
+		: TPropertyTrackEntityImportHelperImpl<>(PropertyComponents.PropertyTag)
+	{}
+};
+
+struct FPropertyTrackEntityImportHelperParamsImpl
+{
+	FPropertyTrackEntityImportHelperParamsImpl(TScriptInterface<IMovieSceneChannelOverrideProvider> InRegistryProvider)
+		: RegistryProvider(InRegistryProvider)
+	{
+		if (InRegistryProvider)
+		{
+			Registry = InRegistryProvider->GetChannelOverrideRegistry(false);
+		}
+	}
+	TScriptInterface<IMovieSceneChannelOverrideProvider> RegistryProvider;
+	TObjectPtr<UMovieSceneSectionChannelOverrideRegistry> Registry;
+	TArray<FMovieSceneChannelOverrideResultComponentEntityImportParams> ImportParams;
+};
+
+/**
+ * Same as TPropertyTrackEntityImportHelperImpl but with support for overridable channels.
+ */
+template<typename... T>
+struct TPropertyTrackWithOverridableChannelsEntityImportHelperImpl
+{
+	TPropertyTrackWithOverridableChannelsEntityImportHelperImpl(TEntityBuilder<T...>&& InBuilder, FPropertyTrackEntityImportHelperParamsImpl& InOverrideInfo, FComponentTypeID InPropertyTag = {})
+		: Builder(MoveTemp(InBuilder))
+		, OverrideInfo(InOverrideInfo)
+		, PropertyTag(InPropertyTag)
+	{
+	}
+
+	template<typename U, typename PayloadType>
+	TPropertyTrackEntityImportHelperImpl<T..., TAddConditional<U>> Add(TComponentTypeID<U> ComponentType, FName ChannelName, PayloadType&& InPayload)
+	{
+		check(!ChannelName.IsNone());
+		const bool bOverriden = (OverrideInfo.Registry && OverrideInfo.Registry->ContainsChannel(ChannelName));
+		if (bOverriden)
+		{
+			FMovieSceneChannelOverrideResultComponentEntityImportParams OverrideParams;
+			OverrideParams.ChannelName = ChannelName;
+			OverrideParams.ResultComponent = ComponentType;
+			OverrideInfo.ImportParams.Add(OverrideParams);
+		}
+		return TPropertyTrackEntityImportHelperImpl<T..., TAddConditional<U>>(Builder.Add(ComponentType, InPayload, !bOverriden), OverrideInfo, PropertyTag);
+	}
+
+	template<typename U, typename PayloadType>
+	TPropertyTrackEntityImportHelperImpl<T..., TAddConditional<U>> AddConditional(TComponentTypeID<U> ComponentType, FName ChannelName, PayloadType&& InPayload, bool bCondition)
+	{
+		check(!ChannelName.IsNone());
+		const bool bOverriden = (OverrideInfo.Registry && OverrideInfo.Registry->ContainsChannel(ChannelName));
+		if (bOverriden)
+		{
+			FMovieSceneChannelOverrideResultComponentEntityImportParams OverrideParams;
+			OverrideParams.ChannelName = ChannelName;
+			OverrideParams.ResultComponent = ComponentType;
+			OverrideInfo.ImportParams.Add(OverrideParams);
+		}
+		return TPropertyTrackEntityImportHelperImpl<T..., TAddConditional<U>>(Builder.AddConditional(ComponentType, InPayload, bCondition && !bOverriden), OverrideInfo, PropertyTag);
 	}
 
 	void Commit(const UMovieSceneSection* InSection, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
@@ -223,16 +350,30 @@ struct TPropertyTrackEntityImportHelperImpl
 				// need to import the edit condition toggle entity.
 				FMovieScenePropertyTrackEntityImportHelper::ImportEditConditionToggleEntity(Params, OutImportedEntity);
 			}
-			// Overriden
-			else if (OverrideRegistry)
+			else if (ensure(OverrideInfo.Registry))
 			{
-				auto BaseBuilder = FEntityBuilder()
-					.Add(BuiltInComponents->PropertyBinding, PropertyTrack->GetPropertyBinding())
-					.AddConditional(BuiltInComponents->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid())
-					.AddTag(PropertyTag);
-			
-				OutImportedEntity->AddBuilder(BaseBuilder);
-				OverrideRegistry->ImportEntityImpl(Params, OutImportedEntity);
+				// This should be an overriden channel, which goes into a different entity.
+				if (ensure(OverrideInfo.RegistryProvider))
+				{
+					auto BaseBuilder = FEntityBuilder()
+						.Add(BuiltInComponents->PropertyBinding, PropertyTrack->GetPropertyBinding())
+						.AddConditional(BuiltInComponents->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid())
+						.AddTag(PropertyTag);
+					OutImportedEntity->AddBuilder(BaseBuilder);
+				
+					FChannelOverrideProviderTraitsHandle Traits = OverrideInfo.RegistryProvider->GetChannelOverrideProviderTraits();
+					check(Traits.IsValid());
+					const FName ChannelOverrideName = Traits->GetChannelOverrideName(Params.EntityID);
+					auto* ChannelOverrideParams = OverrideInfo.ImportParams.FindByPredicate(
+							[=](const FMovieSceneChannelOverrideResultComponentEntityImportParams& CurParams)
+							{
+								return CurParams.ChannelName == ChannelOverrideName;
+							});
+					if (ensure(ChannelOverrideParams))
+					{
+						OverrideInfo.Registry->ImportEntityImpl(*ChannelOverrideParams, Params, OutImportedEntity);
+					}
+				}
 			}
 		}
 		else
@@ -246,54 +387,66 @@ struct TPropertyTrackEntityImportHelperImpl
 protected:
 
 	TEntityBuilder<T...> Builder;
-	TObjectPtr<UMovieSceneSectionChannelOverrideRegistry> OverrideRegistry;
+	FPropertyTrackEntityImportHelperParamsImpl OverrideInfo;
 	FComponentTypeID PropertyTag;
 };
 
 
 /**
- * The starting point for TPropertyTrackEntityImportHelperImpl<...T>
+ * The starting point for TPropertyTrackWithOverridableChannelsEntityImportHelperImpl<...T>
  */
 template<>
-struct TPropertyTrackEntityImportHelperImpl<>
+struct TPropertyTrackWithOverridableChannelsEntityImportHelperImpl<>
 {
-	TPropertyTrackEntityImportHelperImpl(FComponentTypeID InPropertyTag, UMovieSceneSectionChannelOverrideRegistry* InOverrideRegistry = nullptr)
+	TPropertyTrackWithOverridableChannelsEntityImportHelperImpl(FComponentTypeID InPropertyTag, TScriptInterface<IMovieSceneChannelOverrideProvider> InRegistryProvider)
 		: Builder(FEntityBuilder().AddTag(InPropertyTag))
-		, OverrideRegistry(InOverrideRegistry)
+		, OverrideInfo(InRegistryProvider)
 		, PropertyTag(InPropertyTag)
 	{
 	}
 
 	template<typename U, typename PayloadType>
-	TPropertyTrackEntityImportHelperImpl<FAdd, TAdd<U>> Add(TComponentTypeID<U> ComponentType, PayloadType&& InPayload)
+	TPropertyTrackWithOverridableChannelsEntityImportHelperImpl<FAdd, TAddConditional<U>> Add(TComponentTypeID<U> ComponentType, FName ChannelName, PayloadType&& InPayload)
 	{
-		return TPropertyTrackEntityImportHelperImpl<FAdd, TAdd<U>>(Builder.Add(ComponentType, InPayload), OverrideRegistry, PropertyTag);
+		check(!ChannelName.IsNone());
+		const bool bOverriden = (OverrideInfo.Registry && OverrideInfo.Registry->ContainsChannel(ChannelName));
+		if (bOverriden)
+		{
+			FMovieSceneChannelOverrideResultComponentEntityImportParams OverrideParams;
+			OverrideParams.ChannelName = ChannelName;
+			OverrideParams.ResultComponent = ComponentType;
+			OverrideInfo.ImportParams.Add(OverrideParams);
+		}
+		return TPropertyTrackWithOverridableChannelsEntityImportHelperImpl<FAdd, TAddConditional<U>>(Builder.AddConditional(ComponentType, InPayload, !bOverriden), OverrideInfo, PropertyTag);
 	}
 
 	template<typename U, typename PayloadType>
-	TPropertyTrackEntityImportHelperImpl<FAdd, TAddConditional<U>> AddConditional(TComponentTypeID<U> ComponentType, PayloadType&& InPayload, bool bCondition)
+	TPropertyTrackWithOverridableChannelsEntityImportHelperImpl<FAdd, TAddConditional<U>> AddConditional(TComponentTypeID<U> ComponentType, FName ChannelName, PayloadType&& InPayload, bool bCondition)
 	{
-		return TPropertyTrackEntityImportHelperImpl<FAdd, TAddConditional<U>>(Builder.AddConditional(ComponentType, InPayload, bCondition), OverrideRegistry, PropertyTag);
-	}
-
-	template<typename U, typename PayloadType>
-	TPropertyTrackEntityImportHelperImpl<FAdd, TAddConditional<U>> AddConditional(TComponentTypeID<U> ComponentType, PayloadType&& InPayload, bool bCondition, int32 ChannelIndex)
-	{
-		return TPropertyTrackEntityImportHelperImpl<FAdd, TAddConditional<U>>(Builder.AddConditional(ComponentType, InPayload, bCondition && !IsChannelOverriden(OverrideRegistry, ChannelIndex)), OverrideRegistry, PropertyTag);
+		check(!ChannelName.IsNone());
+		const bool bOverriden = (OverrideInfo.Registry && OverrideInfo.Registry->ContainsChannel(ChannelName));
+		if (bOverriden)
+		{
+			FMovieSceneChannelOverrideResultComponentEntityImportParams OverrideParams;
+			OverrideParams.ChannelName = ChannelName;
+			OverrideParams.ResultComponent = ComponentType;
+			OverrideInfo.ImportParams.Add(OverrideParams);
+		}
+		return TPropertyTrackWithOverridableChannelsEntityImportHelperImpl<FAdd, TAddConditional<U>>(Builder.AddConditional(ComponentType, InPayload, bCondition && !bOverriden), OverrideInfo, PropertyTag);
 	}
 
 protected:
 
 	TEntityBuilder<FAdd> Builder;
-	TObjectPtr<UMovieSceneSectionChannelOverrideRegistry> OverrideRegistry;
+	FPropertyTrackEntityImportHelperParamsImpl OverrideInfo;
 	FComponentTypeID PropertyTag;
 };
 
-struct MOVIESCENETRACKS_API FPropertyTrackEntityImportHelper : TPropertyTrackEntityImportHelperImpl<>
+struct MOVIESCENETRACKS_API FPropertyTrackWithOverridableChannelsEntityImportHelper : TPropertyTrackWithOverridableChannelsEntityImportHelperImpl<>
 {
 	template<typename PropertyTraits>
-	FPropertyTrackEntityImportHelper(const TPropertyComponents<PropertyTraits>& PropertyComponents, UMovieSceneSectionChannelOverrideRegistry* InOverrideRegistry = nullptr)
-		: TPropertyTrackEntityImportHelperImpl<>(PropertyComponents.PropertyTag, InOverrideRegistry)
+	FPropertyTrackWithOverridableChannelsEntityImportHelper(const TPropertyComponents<PropertyTraits>& PropertyComponents, TScriptInterface<IMovieSceneChannelOverrideProvider> InRegistryProvider)
+		: TPropertyTrackWithOverridableChannelsEntityImportHelperImpl<>(PropertyComponents.PropertyTag, InRegistryProvider)
 	{}
 };
 

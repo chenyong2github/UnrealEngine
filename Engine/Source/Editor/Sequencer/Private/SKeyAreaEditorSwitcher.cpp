@@ -20,6 +20,7 @@ void SKeyAreaEditorSwitcher::Construct(const FArguments& InArgs, TSharedPtr<FCha
 {
 	WeakModel = InModel;
 	WeakSequencer = InWeakSequencer;
+	CachedChannelsSerialNumber = 0;
 }
 
 int32 SKeyAreaEditorSwitcher::GetWidgetIndex() const
@@ -109,15 +110,16 @@ void SKeyAreaEditorSwitcher::Tick( const FGeometry& AllottedGeometry, const doub
 	}
 	else
 	{
-		TArray<TSharedRef<IKeyArea>> NewCachedKeyAreas = Model->GetAllKeyAreas();
-		if (CachedKeyAreas != NewCachedKeyAreas)
+		const uint32 NewChannelsSerialNumber = Model->GetChannelsSerialNumber();
+		const bool bRebuild = (NewChannelsSerialNumber != CachedChannelsSerialNumber);
+		if (bRebuild)
 		{
-			Swap(CachedKeyAreas, NewCachedKeyAreas);
-
-			// Node is valid but now has a different set of key areas. Must rebuild the widgets.
+			CachedChannelsSerialNumber = NewChannelsSerialNumber;
+			CachedKeyAreas = Model->GetAllKeyAreas();
 			Rebuild();
 		}
 
+		// Figure out which widget is active based on which section the current time is at.
 		TArray<UMovieSceneSection*> AllSections;
 		for (const TSharedRef<IKeyArea>& KeyArea : CachedKeyAreas)
 		{

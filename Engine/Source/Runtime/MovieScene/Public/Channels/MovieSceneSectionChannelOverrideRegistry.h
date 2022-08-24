@@ -3,6 +3,10 @@
 #pragma once
 #include "Containers/Map.h"
 #include "CoreMinimal.h"
+
+#include "Channels/MovieSceneChannel.h"
+#include "Channels/MovieSceneChannelOverrideContainer.h"
+#include "Channels/MovieSceneChannelProxy.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
 #include "HAL/Platform.h"
@@ -40,101 +44,136 @@ class MOVIESCENE_API UMovieSceneSectionChannelOverrideRegistry : public UObject
 {
 	GENERATED_BODY()
 
-	static constexpr int32 ImportEntityIDOffset = 10;
-
-private:
-	/** Map of channel overrides. */
-	UPROPERTY()
-	TMap<int32, TObjectPtr<UMovieSceneChannelOverrideContainer>> Overrides;
-
 public:
 	UMovieSceneSectionChannelOverrideRegistry();
 
 	/** 
-	* A way for all kinds of sections inform the sequencer editor what channels they have
-	*/
-	EMovieSceneChannelProxyType CacheChannelProxy();
-
-	/** 
 	* Add channel to the registry 
-	* @param ChannelToOverride		The key indicates which channel to override
-	* @param Data					The container that owns a overriden channel instanse
+	* @param ChannelName		The name of the channel to override
+	* @param Data				The container that owns a overriden channel instanse
 	*/
-	void AddChannel(int32 ChannelToOverride, UMovieSceneChannelOverrideContainer* ChannelContainer);
+	void AddChannel(FName ChannelName, UMovieSceneChannelOverrideContainer* ChannelContainer);
+
+	/**
+	* Returns if the channel is overriden
+	* @param ChannelName	Name of the channel
+	* @return	Whether this channel is overriden
+	*/
+	bool ContainsChannel(FName ChannelName) const;
+
+	/**
+	 * Returns the channel override for a given name, or nullptr if not found
+	 * @param ChannelName	Name of the channel
+	 * @return	The channel override container
+	 */
+	UMovieSceneChannelOverrideContainer* GetChannel(FName ChannelName) const;
+
+	/**
+	 *
+	 */
+	template<typename ChannelContainerType>
+	void GetChannels(TArray<ChannelContainerType*>& OutChannels) const
+	{
+		for (TPair<FName, TObjectPtr<UMovieSceneChannelOverrideContainer>> Pair : Overrides)
+		{
+			ChannelContainerType* TypedContainer = Cast<ChannelContainerType>(Pair.Value);
+			if (TypedContainer)
+			{
+				OutChannels.Add(TypedContainer);
+			}
+		}
+	}
 
 	/**
 	* Removes a channel from the registry
-	* @param ChannelToOverride		The key indicates which channel to override
+	* @param ChannelName		The name of the channel whose override to remove
 	*/
-	void RemoveChannel(int32 ChannelToRemove);
+	void RemoveChannel(FName ChannelName);
 
 	/**
-	* Forward ImportEntityImpl calls to overriden channels
+	* Forward ImportEntityImpl calls to an overriden channel
 	*/
-	void ImportEntityImpl(const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity);
+	void ImportEntityImpl(const FMovieSceneChannelOverrideEntityImportParamsHandle& OverrideParams, const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity);
 
 	/**
 	* Called when overridden channels should populate evaluation field
 	*/
-	bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder, UMovieSceneSection& OwnerSection);
+	void PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder, UMovieSceneSection& OwnerSection);
 
-	/**
-	* From Channel Index to EntityID
-	* @param ChannelIndex	Represents the channel index in Overrides. Should be from 0 to 9
-	*/
-	static int32 ToEntityID(int32 ChannelIndex) { return ChannelIndex + ImportEntityIDOffset; }
+private:
 
-	/**
-	* From EntityID to channel index
-	* @param EntityID	Represents the EntityID.
-	*/
-	static int32 ToChannelIndex(int32 EntityID) { return EntityID - ImportEntityIDOffset; }
-
-	/**
-	* Returns if the channel is overriden
-	* @param ChannelIndex	Index for the channel.
-	* @return	If this channel is overriden
-	*/
-	bool IsOverriden(int32 ChannelIndex) const;
-
-	/**
-	* Returns the overriden map
-	*/
-	const TMap<int32, TObjectPtr<UMovieSceneChannelOverrideContainer>>& GetOverrides() const { return Overrides; }
+	/** Map of channel overrides. */
+	UPROPERTY()
+	TMap<FName, TObjectPtr<UMovieSceneChannelOverrideContainer>> Overrides;
 };
 
 namespace UE
 {
 namespace MovieScene 
 {
-inline bool IsChannelOverriden(const UMovieSceneSectionChannelOverrideRegistry* OverrideRegistry, int32 ChannelIndex)
+
+/** Utility function to return whether a channel is overriden */
+inline bool IsChannelOverriden(const UMovieSceneSectionChannelOverrideRegistry* OverrideRegistry, FName ChannelName)
 {
-	return OverrideRegistry && OverrideRegistry->IsOverriden(ChannelIndex);
+	return OverrideRegistry && OverrideRegistry->ContainsChannel(ChannelName);
 }
 
-template<typename ChannelType>
-inline bool HasAnyDataImpl(const UMovieSceneSectionChannelOverrideRegistry* OverrideRegistry, int32 Index, const ChannelType& InChannel)
+/** Utility function to return a channel override */
+inline UMovieSceneChannelOverrideContainer* GetChannelOverride(const UMovieSceneSectionChannelOverrideRegistry* OverrideRegistry, FName ChannelName)
 {
-	return InChannel.HasAnyData() || IsChannelOverriden(OverrideRegistry, Index);
+	return OverrideRegistry ? OverrideRegistry->GetChannel(ChannelName) : nullptr;
 }
 
-template<typename HeadChannelType, typename ...TailChannelTypes>
-inline bool HasAnyDataImpl(const UMovieSceneSectionChannelOverrideRegistry* OverrideRegistry, int32 HeadIndex, const HeadChannelType& InHeadChannel, TailChannelTypes ...InTailChannels)
-{
-	if (InHeadChannel.HasAnyData() || IsChannelOverriden(OverrideRegistry, HeadIndex))
-	{
-		return true;
-	}
-	return HasAnyDataImpl(OverrideRegistry, HeadIndex + 1, InTailChannels...);
-}
+#if WITH_EDITOR
 
 /**
-* Returns if at least one channel in the InChannels has any data. An example is HasAnyData(OverrideRegistry, 0, RedCurve, GreenCurve, BlueCurve, AlphaCurve)
-*/
-template<typename ...ChannelTypes>
-inline bool HasAnyData(const UMovieSceneSectionChannelOverrideRegistry* OverrideRegistry, int32 HeadIndex, ChannelTypes ...InChannels)
+ * Utility function for adding a possibly-overriden channel into a channel proxy, with some specific extended editor
+ * data.
+ */
+template<typename ChannelType, typename ExtendedEditorDataType>
+void AddChannelProxy(
+		FMovieSceneChannelProxyData& ProxyData, const UMovieSceneSectionChannelOverrideRegistry* OverrideRegistry,
+		FName ChannelName, ChannelType& DefaultChannel, 
+		const FMovieSceneChannelMetaData& InMetaData, ExtendedEditorDataType&& InExtendedEditorData)
 {
-	return HasAnyDataImpl(OverrideRegistry, 0, InChannels...);
+	UMovieSceneChannelOverrideContainer* OverrideContainer = GetChannelOverride(OverrideRegistry, ChannelName);
+	if (OverrideContainer)
+	{
+		// Because the extended editor data is a strongly-typed templated parameter, we can't pass it through the
+		// virtual methods of the channel containers. So channel containers will add an entry with default extended
+		// editor data, and we set the correct data immediately after.
+		FMovieSceneChannelHandle ChannelHandle = OverrideContainer->AddChannelProxy(ChannelName, ProxyData, InMetaData);
+		ProxyData.SetExtendedEditorData<ChannelType>(ChannelHandle, InExtendedEditorData);
+	}
+	else
+	{
+		ProxyData.Add(DefaultChannel, InMetaData, InExtendedEditorData);
+	}
 }
+
+#else
+
+/**
+ * Utility function for adding a possibly-overriden channel into a channel proxy.
+ */
+template<typename ChannelType>
+void AddChannelProxy(
+		FMovieSceneChannelProxyData& ProxyData, const UMovieSceneSectionChannelOverrideRegistry* OverrideRegistry,
+		FName ChannelName, ChannelType& DefaultChannel)
+{
+	UMovieSceneChannelOverrideContainer* OverrideContainer = GetChannelOverride(OverrideRegistry, ChannelName);
+	if (OverrideContainer)
+	{
+		OverrideContainer->AddChannelProxy(ChannelName, ProxyData);
+	}
+	else
+	{
+		ProxyData.Add(DefaultChannel);
+	}
 }
-}
+
+#endif
+
+}  // namespace MovieScene
+}  // namespace UE
+

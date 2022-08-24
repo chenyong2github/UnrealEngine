@@ -8,6 +8,7 @@
 #include "Curves/RichCurve.h"
 #include "MovieSceneSection.h"
 #include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/IMovieSceneChannelOverrideProvider.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "MovieSceneFloatSection.generated.h"
 
@@ -19,6 +20,7 @@ UCLASS( MinimalAPI )
 class UMovieSceneFloatSection
 	: public UMovieSceneSection
 	, public IMovieSceneEntityProvider
+	, public IMovieSceneChannelOverrideProvider
 {
 	GENERATED_BODY()
 
@@ -33,9 +35,19 @@ public:
 
 protected:
 
+	virtual UMovieSceneSectionChannelOverrideRegistry* GetChannelOverrideRegistry(bool bCreateIfMissing) override;
+	virtual UE::MovieScene::FChannelOverrideProviderTraitsHandle GetChannelOverrideProviderTraits() const override;
+	virtual void OnChannelOverridesChanged() override;
+
+protected:
+
 	/** Float data */
 	UPROPERTY()
 	FMovieSceneFloatChannel FloatCurve;
+
+	/** Channel overrides */
+	UPROPERTY()
+	TObjectPtr<UMovieSceneSectionChannelOverrideRegistry> OverrideRegistry;
 
 private:
 
@@ -44,3 +56,4 @@ private:
 
 	virtual EMovieSceneChannelProxyType CacheChannelProxy() override;
 };
+

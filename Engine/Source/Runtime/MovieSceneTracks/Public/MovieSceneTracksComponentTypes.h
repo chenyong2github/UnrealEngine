@@ -27,10 +27,12 @@ struct MOVIESCENETRACKS_API FFloatPerlinNoiseParams
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	/** The frequency of the noise, i.e. how many times per second does the noise peak */
+	UPROPERTY(EditAnywhere, Category="Perlin Noise")
 	float Frequency;
 
-	UPROPERTY()
+	/** The amplitude of the noise, which will vary between [-Amplitude, +Amplitude] */
+	UPROPERTY(EditAnywhere, Category = "Perlin Noise")
 	float Amplitude;
 
 	FFloatPerlinNoiseParams();
@@ -43,10 +45,12 @@ struct MOVIESCENETRACKS_API FDoublePerlinNoiseParams
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	/** The frequency of the noise, i.e. how many times per second does the noise peak */
+	UPROPERTY(EditAnywhere, Category = "Perlin Noise")
 	double Frequency;
 
-	UPROPERTY()
+	/** The amplitude of the noise, which will vary between [-Amplitude, +Amplitude] */
+	UPROPERTY(EditAnywhere, Category = "Perlin Noise")
 	double Amplitude;
 
 	FDoublePerlinNoiseParams();

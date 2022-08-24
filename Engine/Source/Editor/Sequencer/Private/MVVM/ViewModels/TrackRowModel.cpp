@@ -302,6 +302,14 @@ void FTrackRowModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			})
 		);
 	}
+
+	TViewModelPtr<FChannelGroupModel> ChannelGroup = TopLevelChannelList.GetHead().ImplicitCast();
+	if (ChannelGroup)
+	{
+		ChannelGroup->BuildChannelOverrideMenu(MenuBuilder);
+	}
+
+	FOutlinerItemModel::BuildContextMenu(MenuBuilder);
 }
 
 bool FTrackRowModel::CanDelete(FText* OutErrorMessage) const

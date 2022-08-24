@@ -11,7 +11,7 @@
 #include "MVVM/Extensions/IDeletableExtension.h"
 #include "MVVM/Extensions/ITrackLaneExtension.h"
 #include "MVVM/Extensions/IKeyExtension.h"
-
+#include "Channels/MovieSceneChannelOverrideContainer.h"
 #include "EventHandlers/ISignedObjectEventHandler.h"
 #include "Tree/ICurveEditorTreeItem.h"
 
@@ -24,7 +24,6 @@ struct FMovieSceneChannelHandle;
 class IKeyArea;
 class ISequencerSection;
 class UMovieSceneSection;
-class FSequencerSectionKeyAreaNode;
 
 namespace UE
 {
@@ -131,6 +130,9 @@ public:
 	/** Get the key area of the channel associated with the given section */
 	TSharedPtr<IKeyArea> GetKeyArea(const UMovieSceneSection* InOwnerSection) const;
 
+	/** Get the channel model at the given index in the list of channels */
+	TSharedPtr<FChannelModel> GetChannel(int32 Index) const;
+
 	/** Get the channel model of the channel associated with the given section */
 	TSharedPtr<FChannelModel> GetChannel(TSharedPtr<FSectionModel> InOwnerSection) const;
 
@@ -139,6 +141,9 @@ public:
 
 	/** Get the key areas of all channels */
 	TArray<TSharedRef<IKeyArea>> GetAllKeyAreas() const;
+
+	/** Gets a serial number representing if the list of channels has changed */
+	uint32 GetChannelsSerialNumber() const;
 
 public:
 
@@ -149,9 +154,22 @@ public:
 	void CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels);
 	bool HasCurves() const;
 
+	void BuildChannelOverrideMenu(FMenuBuilder& MenuBuilder);
+
+	void CleanupChannels();
+
+private:
+
+	void BuildChannelOverrideMenu(FMenuBuilder& MenuBuilder, UMovieSceneChannelOverrideContainer::FOverrideCandidates OverrideCandidates);
+	void OverrideChannels(TSubclassOf<UMovieSceneChannelOverrideContainer> OverrideClass);
+	void RemoveChannelOverrides();
+	
+	void BuildChannelOverrideParametersMenu(FMenuBuilder& MenuBuilder, TArray<UMovieSceneChannelOverrideContainer*> ChannelParameters);
+
 protected:
 
 	TArray<TWeakViewModelPtr<FChannelModel>> Channels;
+	uint32 ChannelsSerialNumber;
 	FName ChannelName;
 	FText DisplayText;
 };
@@ -193,13 +211,16 @@ public:
 
 	/*~ ICurveEditorTreeItemExtension */
 	bool HasCurves() const override;
+	void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
 private:
 
 	EVisibility GetKeyEditorVisibility() const;
+	
+private:
+
 	FOutlinerSizing ComputedSizing;
 };
-
 
 } // namespace Sequencer
 } // namespace UE

@@ -120,7 +120,7 @@ struct FMovieSceneChannelProxyData
 		// Add the channel
 		const int32 ChannelTypeIndex = AddInternal(InChannel);
 		// Add a default editor data at the same index, hopefully the caller will set it afterwards
-		Entries[ChannelTypeIndex].AddMetaData<ChannelType>(InMetaData, TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType());
+		Entries[ChannelTypeIndex].AddMetaData<ChannelType>(InMetaData, typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType());
 		// Return index usable for SetExtendedEditorData
 		const FName ChannelTypeName = ChannelType::StaticStruct()->GetFName();
 		return FMovieSceneChannelHandle(nullptr, ChannelTypeName, Entries[ChannelTypeIndex].GetChannels().Num() - 1);

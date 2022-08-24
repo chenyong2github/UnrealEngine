@@ -322,6 +322,11 @@ void FTrackModel::ForceUpdate()
 			//       we fixup row indices
 		}
 	}
+
+	for (TSharedPtr<FChannelGroupModel> ChannelModel : GetDescendantsOfType<FChannelGroupModel>(false, EViewModelListType::Outliner))
+	{
+
+	}
 }
 
 FOutlinerSizing FTrackModel::GetOutlinerSizing() const
@@ -643,6 +648,12 @@ void FTrackModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				SequencerHelpers::AddPropertiesMenu(*Sequencer, SubMenuBuilder, TrackSections);
 			})
 		);
+	}
+
+	TViewModelPtr<FChannelGroupModel> ChannelGroup = TopLevelChannelList.GetHead().ImplicitCast();
+	if (ChannelGroup)
+	{
+		ChannelGroup->BuildChannelOverrideMenu(MenuBuilder);
 	}
 
 	FOutlinerItemModel::BuildContextMenu(MenuBuilder);

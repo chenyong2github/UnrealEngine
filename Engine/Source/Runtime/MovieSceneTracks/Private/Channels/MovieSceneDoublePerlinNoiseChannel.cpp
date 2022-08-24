@@ -1,20 +1,39 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Channels/MovieSceneDoublePerlinNoiseChannel.h"
+#include "MovieScene.h"
+#include "MovieSceneSection.h"
 
 FMovieSceneDoublePerlinNoiseChannel::FMovieSceneDoublePerlinNoiseChannel()
-	: DoublePerlinNoiseParams{}
+	: PerlinNoiseParams{}
 {
 }
 
-FMovieSceneDoublePerlinNoiseChannel::FMovieSceneDoublePerlinNoiseChannel(const FDoublePerlinNoiseParams& InDoublePerlinNoiseParams)
-	: DoublePerlinNoiseParams{ InDoublePerlinNoiseParams }
+FMovieSceneDoublePerlinNoiseChannel::FMovieSceneDoublePerlinNoiseChannel(const FDoublePerlinNoiseParams& InPerlinNoiseParams)
+	: PerlinNoiseParams{ InPerlinNoiseParams }
 {
 }
 
-double FMovieSceneDoublePerlinNoiseChannel::Evaluate(double InSeconds)
+double FMovieSceneDoublePerlinNoiseChannel::Evaluate(double InSeconds) const
 {
-	double Result = static_cast<double>(FMath::PerlinNoise1D(InSeconds * DoublePerlinNoiseParams.Frequency));
-	Result *= DoublePerlinNoiseParams.Amplitude;
+	double Result = static_cast<double>(FMath::PerlinNoise1D(InSeconds * PerlinNoiseParams.Frequency));
+	Result *= PerlinNoiseParams.Amplitude;
 	return Result;
 }
+
+bool FMovieSceneDoublePerlinNoiseChannel::Evaluate(const UMovieSceneSection* InSection, FFrameTime InTime, double& OutValue) const
+{
+	if (ensure(InSection))
+	{
+		UMovieScene* MovieScene = InSection->GetTypedOuter<UMovieScene>();
+		if (MovieScene)
+		{
+			const FFrameRate TickResolution = MovieScene->GetTickResolution();
+			const double Seconds = TickResolution.AsSeconds(InTime);
+			OutValue = Evaluate(Seconds);
+			return true;
+		}
+	}
+	return false;
+}
+

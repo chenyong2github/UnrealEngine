@@ -54,6 +54,8 @@
 #include "TrackEditors/CameraShakeSourceShakeTrackEditor.h"
 #include "TrackEditors/CVarTrackEditor.h"
 
+#include "Channels/PerlinNoiseChannelInterface.h"
+
 #include "MVVM/ViewModels/CameraCutTrackModel.h"
 #include "MVVM/ViewModels/CinematicShotTrackModel.h"
 
@@ -77,6 +79,8 @@
 #include "Channels/MovieSceneObjectPathChannel.h"
 #include "Channels/MovieSceneCameraShakeSourceTriggerChannel.h"
 #include "Channels/MovieSceneStringChannel.h"
+#include "Channels/MovieSceneFloatPerlinNoiseChannel.h"
+#include "Channels/MovieSceneDoublePerlinNoiseChannel.h"
 #include "Channels/EventChannelCurveModel.h"
 #include "Channels/SCurveEditorEventChannelView.h"
 #include "Channels/MovieSceneAudioTriggerChannel.h"
@@ -85,6 +89,10 @@
 #include "Channels/ConstraintChannelCurveModel.h"
 #include "Channels/SCurveEditorKeyBarView.h"
 #include "Sections/MovieSceneEventSection.h"
+
+#include "Channels/MovieSceneDoublePerlinNoiseChannelContainer.h"
+#include "Channels/MovieSceneFloatPerlinNoiseChannelContainer.h"
+#include "Channels/PerlinNoiseChannelDetailsCustomization.h"
 
 #include "MovieSceneEventUtils.h"
 
@@ -176,6 +184,8 @@ void FMovieSceneToolsModule::StartupModule()
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomClassLayout("MovieSceneToolsProjectSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FMovieSceneToolsProjectSettingsCustomization::MakeInstance));
 		PropertyModule.RegisterCustomClassLayout("MovieSceneBuiltInEasingFunction", FOnGetDetailCustomizationInstance::CreateLambda(&MakeShared<FMovieSceneBuiltInEasingFunctionCustomization>));
+		PropertyModule.RegisterCustomClassLayout("MovieSceneFloatPerlinNoiseChannelContainer", FOnGetDetailCustomizationInstance::CreateStatic(&FMovieSceneFloatPerlinNoiseChannelDetailsCustomization::MakeInstance));
+		PropertyModule.RegisterCustomClassLayout("MovieSceneDoublePerlinNoiseChannelContainer", FOnGetDetailCustomizationInstance::CreateStatic(&FMovieSceneDoublePerlinNoiseChannelDetailsCustomization::MakeInstance));
 		PropertyModule.RegisterCustomPropertyTypeLayout("MovieSceneObjectBindingID", FOnGetPropertyTypeCustomizationInstance::CreateLambda(&MakeShared<FMovieSceneObjectBindingIDCustomization>));
 		PropertyModule.RegisterCustomPropertyTypeLayout("MovieSceneEvent", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FMovieSceneEventCustomization::MakeInstance));
 		PropertyModule.RegisterCustomPropertyTypeLayout("MovieSceneCVarOverrides", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&UE::MovieScene::FCVarOverridesPropertyTypeCustomization::MakeInstance));
@@ -198,6 +208,9 @@ void FMovieSceneToolsModule::StartupModule()
 		SequencerModule.RegisterChannelInterface<FMovieSceneCameraShakeSourceTriggerChannel>();
 
 		SequencerModule.RegisterChannelInterface<FMovieSceneConstraintChannel>();
+
+		SequencerModule.RegisterChannelInterface<FMovieSceneFloatPerlinNoiseChannel>(MakeUnique<TPerlinNoiseChannelInterface<UMovieSceneFloatPerlinNoiseChannelContainer>>());
+		SequencerModule.RegisterChannelInterface<FMovieSceneDoublePerlinNoiseChannel>(MakeUnique<TPerlinNoiseChannelInterface<UMovieSceneDoublePerlinNoiseChannelContainer>>());
 
 		ICurveEditorModule& CurveEditorModule = FModuleManager::LoadModuleChecked<ICurveEditorModule>("CurveEditor");
 

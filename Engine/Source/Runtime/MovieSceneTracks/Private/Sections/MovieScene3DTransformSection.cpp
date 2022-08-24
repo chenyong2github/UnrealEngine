@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieScene3DTransformSection.h"
+#include "Channels/IMovieSceneChannelOverrideProvider.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/SequencerObjectVersion.h"
 #include "Algo/AnyOf.h"
 #include "Channels/MovieSceneChannelProxy.h"
+#include "Channels/MovieSceneSectionChannelOverrideRegistry.h"
 #include "GameFramework/Actor.h"
 #include "EulerTransform.h"
 #include "Systems/MovieScene3DTransformPropertySystem.h"
@@ -307,6 +309,13 @@ namespace UE::MovieScene
 /* UMovieScene3DTransformSection interface
  *****************************************************************************/
 
+UE::MovieScene::FChannelOverrideNames UMovieScene3DTransformSection::ChannelOverrideNames(10, {
+		TEXT("Location.X"), TEXT("Location.Y"), TEXT("Location.Z"),
+		TEXT("Rotation.X"), TEXT("Rotation.Y"), TEXT("Rotation.Z"),
+		TEXT("Scale.X"), TEXT("Scale.Y"), TEXT("Scale.Z"),
+		TEXT("Weight")
+		});
+
 UMovieScene3DTransformSection::UMovieScene3DTransformSection(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bUseQuaternionInterpolation(false)
@@ -396,31 +405,54 @@ void UMovieScene3DTransformSection::BuildEntity(BaseBuilderType& InBaseBuilder, 
 		RotationChannel[2] = TrackComponents->QuaternionRotationChannel[2];
 	}
 
-	// Let override registry handles overriden channel here
-	int32 ChannelIndex = UMovieSceneSectionChannelOverrideRegistry::ToChannelIndex(Params.EntityID);
+	// Let the override registry handle overriden channels
+	const FName ChannelOverrideName = ChannelOverrideNames.GetChannelName(Params.EntityID);
 
-	// If we are building the entity of an overriden channel, we pass the partial builder we have at this point (the one with the bindings) and add the tag to it.
+	// If we are building the entity of an overriden channel, we pass the partial builder we have at this point 
+	// (the one with the bindings) and add the tag to it.
 	// Then call into the override repository so it can add a second builder with the override stuff.
-	if (IsChannelOverriden(OverrideRegistry, ChannelIndex))
+	if (ChannelOverrideName != NAME_None)
 	{
+		check(OverrideRegistry && OverrideRegistry->ContainsChannel(ChannelOverrideName));
 		OutImportedEntity->AddBuilder(InBaseBuilder.AddTag(PropertyTag));
-		OverrideRegistry->ImportEntityImpl(Params, OutImportedEntity);
+
+		const int32 ChannelOverrideIndex = (Params.EntityID - ChannelOverrideNames.IndexOffset);
+		if (ChannelOverrideIndex == 9)
+		{
+			if (EnumHasAnyFlags(Channels, EMovieSceneTransformChannel::Weight))
+			{
+				TMovieSceneChannelOverrideResultComponentEntityImportParams<double> OverrideParams;
+				OverrideParams.ChannelName = ChannelOverrideName;
+				OverrideParams.ResultComponent = BuiltInComponentTypes->WeightResult;
+				OverrideRegistry->ImportEntityImpl(OverrideParams, Params, OutImportedEntity);
+			}
+		}
+		else
+		{
+			if (ActiveChannelsMask[ChannelOverrideIndex])
+			{
+				TMovieSceneChannelOverrideResultComponentEntityImportParams<double> OverrideParams;
+				OverrideParams.ChannelName = ChannelOverrideName;
+				OverrideParams.ResultComponent = BuiltInComponentTypes->DoubleResult[ChannelOverrideIndex];
+				OverrideRegistry->ImportEntityImpl(OverrideParams, Params, OutImportedEntity);
+			}
+		}
 		return;
 	}	
 	
 	// Here proceed with the all the normal channels
 	OutImportedEntity->AddBuilder(
 		InBaseBuilder
-		.AddConditional(BuiltInComponentTypes->DoubleChannel[0], &Translation[0], ActiveChannelsMask[0] && !IsChannelOverriden(OverrideRegistry, 0))
-		.AddConditional(BuiltInComponentTypes->DoubleChannel[1], &Translation[1], ActiveChannelsMask[1] && !IsChannelOverriden(OverrideRegistry, 1))
-		.AddConditional(BuiltInComponentTypes->DoubleChannel[2], &Translation[2], ActiveChannelsMask[2] && !IsChannelOverriden(OverrideRegistry, 2))
-		.AddConditional(RotationChannel[0],                      &Rotation[0],    ActiveChannelsMask[3] && !IsChannelOverriden(OverrideRegistry, 3))
-		.AddConditional(RotationChannel[1],                      &Rotation[1],    ActiveChannelsMask[4] && !IsChannelOverriden(OverrideRegistry, 4))
-		.AddConditional(RotationChannel[2],                       &Rotation[2],   ActiveChannelsMask[5] && !IsChannelOverriden(OverrideRegistry, 5))
-		.AddConditional(BuiltInComponentTypes->DoubleChannel[6], &Scale[0],       ActiveChannelsMask[6] && !IsChannelOverriden(OverrideRegistry, 6))
-		.AddConditional(BuiltInComponentTypes->DoubleChannel[7], &Scale[1],       ActiveChannelsMask[7] && !IsChannelOverriden(OverrideRegistry, 7))
-		.AddConditional(BuiltInComponentTypes->DoubleChannel[8], &Scale[2],       ActiveChannelsMask[8] && !IsChannelOverriden(OverrideRegistry, 8))
-		.AddConditional(BuiltInComponentTypes->WeightChannel,    &ManualWeight,   EnumHasAnyFlags(Channels, EMovieSceneTransformChannel::Weight) && ManualWeight.HasAnyData() && !IsChannelOverriden(OverrideRegistry, 9))
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[0], &Translation[0], ActiveChannelsMask[0] && !IsChannelOverriden(OverrideRegistry, TEXT("Location.X")))
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[1], &Translation[1], ActiveChannelsMask[1] && !IsChannelOverriden(OverrideRegistry, TEXT("Location.Y")))
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[2], &Translation[2], ActiveChannelsMask[2] && !IsChannelOverriden(OverrideRegistry, TEXT("Location.Z")))
+		.AddConditional(RotationChannel[0],                      &Rotation[0],    ActiveChannelsMask[3] && !IsChannelOverriden(OverrideRegistry, TEXT("Rotation.X")))
+		.AddConditional(RotationChannel[1],                      &Rotation[1],    ActiveChannelsMask[4] && !IsChannelOverriden(OverrideRegistry, TEXT("Rotation.Y")))
+		.AddConditional(RotationChannel[2],                      &Rotation[2],    ActiveChannelsMask[5] && !IsChannelOverriden(OverrideRegistry, TEXT("Rotation.Z")))
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[6], &Scale[0],       ActiveChannelsMask[6] && !IsChannelOverriden(OverrideRegistry, TEXT("Scale.X")))
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[7], &Scale[1],       ActiveChannelsMask[7] && !IsChannelOverriden(OverrideRegistry, TEXT("Scale.Y")))
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[8], &Scale[2],       ActiveChannelsMask[8] && !IsChannelOverriden(OverrideRegistry, TEXT("Scale.Z")))
+		.AddConditional(BuiltInComponentTypes->WeightChannel,    &ManualWeight,   EnumHasAnyFlags(Channels, EMovieSceneTransformChannel::Weight) && ManualWeight.HasAnyData() && !IsChannelOverriden(OverrideRegistry, TEXT("Weight")))
 		.AddTag(PropertyTag)
 	);
 }
@@ -453,9 +485,12 @@ bool UMovieScene3DTransformSection::PopulateEvaluationFieldImpl(const TRange<FFr
 	}
 	if (OverrideRegistry)
 	{
-		return OverrideRegistry->PopulateEvaluationFieldImpl(EffectiveRange, InMetaData, OutFieldBuilder, *this);
+		// Add evaluation field entries for each channel that runs with a different logic.
+		OverrideRegistry->PopulateEvaluationFieldImpl(EffectiveRange, InMetaData, OutFieldBuilder, *this);
 	}
 
+	// Return false even if we have an override registry, so that we also add an evaluation field entry for the default
+	// stuff.
 	return false;
 }
 
@@ -598,6 +633,8 @@ FMovieSceneTransformMask UMovieScene3DTransformSection::GetMaskByName(const FNam
 
 EMovieSceneChannelProxyType UMovieScene3DTransformSection::CacheChannelProxy()
 {
+	using namespace UE::MovieScene;
+
 	FMovieSceneChannelProxyData Channels;
 
 	//Constraints go on top
@@ -641,29 +678,29 @@ EMovieSceneChannelProxyType UMovieScene3DTransformSection::CacheChannelProxy()
 
 	F3DTransformChannelEditorData EditorData(TransformMask.GetChannels(), NumConstraints);
 
-	Channels.Add(Translation[0], EditorData.MetaData[0], EditorData.ExternalValues[0]);
-	Channels.Add(Translation[1], EditorData.MetaData[1], EditorData.ExternalValues[1]);
-	Channels.Add(Translation[2], EditorData.MetaData[2], EditorData.ExternalValues[2]);
-	Channels.Add(Rotation[0],    EditorData.MetaData[3], EditorData.ExternalValues[3]);
-	Channels.Add(Rotation[1],    EditorData.MetaData[4], EditorData.ExternalValues[4]);
-	Channels.Add(Rotation[2],    EditorData.MetaData[5], EditorData.ExternalValues[5]);
-	Channels.Add(Scale[0],       EditorData.MetaData[6], EditorData.ExternalValues[6]);
-	Channels.Add(Scale[1],       EditorData.MetaData[7], EditorData.ExternalValues[7]);
-	Channels.Add(Scale[2],       EditorData.MetaData[8], EditorData.ExternalValues[8]);
-	Channels.Add(ManualWeight,   EditorData.MetaData[9], EditorData.WeightExternalValue);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Location.X"), Translation[0], EditorData.MetaData[0], EditorData.ExternalValues[0]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Location.Y"), Translation[1], EditorData.MetaData[1], EditorData.ExternalValues[1]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Location.Z"), Translation[2], EditorData.MetaData[2], EditorData.ExternalValues[2]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Rotation.X"), Rotation[0],    EditorData.MetaData[3], EditorData.ExternalValues[3]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Rotation.Y"), Rotation[1],    EditorData.MetaData[4], EditorData.ExternalValues[4]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Rotation.Z"), Rotation[2],    EditorData.MetaData[5], EditorData.ExternalValues[5]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Scale.X"),    Scale[0],       EditorData.MetaData[6], EditorData.ExternalValues[6]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Scale.Y"),    Scale[1],       EditorData.MetaData[7], EditorData.ExternalValues[7]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Scale.Z"),    Scale[2],       EditorData.MetaData[8], EditorData.ExternalValues[8]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Weight"),     ManualWeight,   EditorData.MetaData[9], EditorData.WeightExternalValue);
 
 #else
 
-	Channels.Add(Translation[0]);
-	Channels.Add(Translation[1]);
-	Channels.Add(Translation[2]);
-	Channels.Add(Rotation[0]);
-	Channels.Add(Rotation[1]);
-	Channels.Add(Rotation[2]);
-	Channels.Add(Scale[0]);
-	Channels.Add(Scale[1]);
-	Channels.Add(Scale[2]);
-	Channels.Add(ManualWeight);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Location.X"), Translation[0]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Location.Y"), Translation[1]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Location.Z"), Translation[2]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Rotation.X"), Rotation[0]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Rotation.Y"), Rotation[1]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Rotation.Z"), Rotation[2]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Scale.X"),    Scale[0]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Scale.Y"),    Scale[1]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Scale.Z"),    Scale[2]);
+	AddChannelProxy(Channels, OverrideRegistry, TEXT("Weight"),     ManualWeight);
 
 #endif
 
@@ -902,3 +939,49 @@ void UMovieScene3DTransformSection::RemoveConstraintChannel(const FName& InConst
 		}
 	}
 }
+
+UMovieSceneSectionChannelOverrideRegistry* UMovieScene3DTransformSection::GetChannelOverrideRegistry(bool bCreateIfMissing)
+{
+	if (bCreateIfMissing && OverrideRegistry == nullptr)
+	{
+		OverrideRegistry = NewObject<UMovieSceneSectionChannelOverrideRegistry>(this);
+	}
+	return OverrideRegistry;
+}
+
+UE::MovieScene::FChannelOverrideProviderTraitsHandle UMovieScene3DTransformSection::GetChannelOverrideProviderTraits() const
+{
+	struct F3DTransformChannelOverrideProviderTraits : UE::MovieScene::FChannelOverrideProviderTraits
+	{
+		FName GetDefaultChannelTypeName(FName ChannelName) const override
+		{
+			if (ChannelName == TEXT("Weight"))
+			{
+				return FMovieSceneFloatChannel::StaticStruct()->GetFName();
+			}
+			else
+			{
+				return FMovieSceneDoubleChannel::StaticStruct()->GetFName();
+			}
+		}
+
+		int32 GetChannelOverrideEntityID(FName ChannelName) const override
+		{
+			return UMovieScene3DTransformSection::ChannelOverrideNames.GetIndex(ChannelName);
+		}
+
+		FName GetChannelOverrideName(int32 EntityID) const override
+		{
+			return UMovieScene3DTransformSection::ChannelOverrideNames.GetChannelName(EntityID);
+		}
+	};
+
+	F3DTransformChannelOverrideProviderTraits Traits;
+	return UE::MovieScene::FChannelOverrideProviderTraitsHandle(Traits);
+}
+
+void UMovieScene3DTransformSection::OnChannelOverridesChanged()
+{
+	ChannelProxy = nullptr;
+}
+

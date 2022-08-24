@@ -3,52 +3,58 @@
 #include "Channels/MovieSceneSectionChannelOverrideRegistry.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneChannelOverrideContainer.h"
+#include "Channels/IMovieSceneChannelOverrideProvider.h"
 #include "EntitySystem/MovieSceneEntityBuilder.h"
 
 UMovieSceneSectionChannelOverrideRegistry::UMovieSceneSectionChannelOverrideRegistry()
 {
 }
 
-EMovieSceneChannelProxyType UMovieSceneSectionChannelOverrideRegistry::CacheChannelProxy()
+void UMovieSceneSectionChannelOverrideRegistry::AddChannel(FName ChannelName, UMovieSceneChannelOverrideContainer* ChannelContainer)
 {
-	// TODO in Phase 2
-	return EMovieSceneChannelProxyType();
+	Overrides.Emplace(ChannelName, ChannelContainer);
 }
 
-void UMovieSceneSectionChannelOverrideRegistry::AddChannel(int32 ChannelToOverride, UMovieSceneChannelOverrideContainer* ChannelContainer)
+bool UMovieSceneSectionChannelOverrideRegistry::ContainsChannel(FName ChannelName) const
 {
-	Overrides.Emplace(ChannelToOverride, ChannelContainer);
+	return Overrides.Contains(ChannelName);
 }
 
-void UMovieSceneSectionChannelOverrideRegistry::RemoveChannel(int32 ChannelToRemove)
+UMovieSceneChannelOverrideContainer* UMovieSceneSectionChannelOverrideRegistry::GetChannel(FName ChannelName) const
 {
-	Overrides.Remove(ChannelToRemove);
+	return Overrides.FindRef(ChannelName);
 }
 
-bool UMovieSceneSectionChannelOverrideRegistry::IsOverriden(int32 ChannelIndex) const
+void UMovieSceneSectionChannelOverrideRegistry::RemoveChannel(FName ChannelName)
 {
-	return Overrides.Contains(ChannelIndex);
+	Overrides.Remove(ChannelName);
 }
 
-void UMovieSceneSectionChannelOverrideRegistry::ImportEntityImpl(const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
-{
-	using namespace UE::MovieScene;
-;
-	int32 ChannelIndex = UMovieSceneSectionChannelOverrideRegistry::ToChannelIndex(Params.EntityID);
-	check(IsOverriden(ChannelIndex));	
-	Overrides[ChannelIndex]->ImportEntityImpl(ChannelIndex, Params, OutImportedEntity);
-}
-
-bool UMovieSceneSectionChannelOverrideRegistry::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder, UMovieSceneSection& OwnerSection)
+void UMovieSceneSectionChannelOverrideRegistry::ImportEntityImpl(const FMovieSceneChannelOverrideEntityImportParamsHandle& OverrideParams, const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
-	for (const TPair<int32, TObjectPtr<UMovieSceneChannelOverrideContainer>>& OverrideChannelPair : Overrides)
+	check(OverrideParams.IsValid());
+	FName ChannelName = OverrideParams.GetPtr()->ChannelName;
+	check(!ChannelName.IsNone());
+	Overrides[ChannelName]->ImportEntityImpl(OverrideParams, ImportParams, OutImportedEntity);
+}
+
+void UMovieSceneSectionChannelOverrideRegistry::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder, UMovieSceneSection& OwnerSection)
+{
+	using namespace UE::MovieScene;
+
+	IMovieSceneChannelOverrideProvider* OverrideProvider = Cast<IMovieSceneChannelOverrideProvider>(GetOuter());
+	if (ensure(OverrideProvider))
 	{
-		const int32 EntityIndex = OutFieldBuilder->FindOrAddEntity(&OwnerSection, ToEntityID(OverrideChannelPair.Key));
-		const int32 MetaDataIndex = OutFieldBuilder->AddMetaData(InMetaData);
-		OutFieldBuilder->AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
+		for (const TPair<FName, TObjectPtr<UMovieSceneChannelOverrideContainer>>& Override : Overrides)
+		{
+			FChannelOverrideProviderTraitsHandle ChannelOverrideTraits = OverrideProvider->GetChannelOverrideProviderTraits();
+			check(ChannelOverrideTraits.IsValid());
+			const int32 EntityID = ChannelOverrideTraits->GetChannelOverrideEntityID(Override.Key);
+			const int32 EntityIndex = OutFieldBuilder->FindOrAddEntity(&OwnerSection, EntityID);
+			const int32 MetaDataIndex = OutFieldBuilder->AddMetaData(InMetaData);
+			OutFieldBuilder->AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
+		}
 	}
-
-	return false;
 }

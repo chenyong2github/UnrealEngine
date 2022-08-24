@@ -1,26 +1,41 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Channels/MovieSceneDoublePerlinNoiseChannelContainer.h"
+#include "Channels/MovieSceneDoubleChannel.h"
 #include "Tracks/MovieScenePropertyTrack.h"
 #include "MovieSceneTracksComponentTypes.h"
 #include "Misc/Guid.h"
 
-void UMovieSceneDoublePerlinNoiseChannelContainer::ImportEntityImpl(int32 ChannelIndex, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
+bool UMovieSceneDoublePerlinNoiseChannelContainer::SupportsOverride(FName DefaultChannelTypeName) const
+{
+	return FMovieSceneDoubleChannel::StaticStruct()->GetFName() == DefaultChannelTypeName;
+}
+
+void UMovieSceneDoublePerlinNoiseChannelContainer::ImportEntityImpl(const FMovieSceneChannelOverrideEntityImportParamsHandle& OverrideParams, const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
 	const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
+	const auto& DoubleResultParams = OverrideParams.CastThis<TMovieSceneChannelOverrideResultComponentEntityImportParams<double>>();
+
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()
-		.Add(TracksComponents->DoublePerlinNoiseChannel, DoublePerlinNoiseChannel.GetParam())
-		.Add(BuiltInComponents->DoubleResult[ChannelIndex], TNumericLimits<double>::Max())
+		.Add(TracksComponents->DoublePerlinNoiseChannel, PerlinNoiseChannel.GetParams())
+		.Add(DoubleResultParams.ResultComponent, TNumericLimits<double>::Max())
 	);
 }
 
-EMovieSceneChannelProxyType UMovieSceneDoublePerlinNoiseChannelContainer::CacheChannelProxy()
+#if WITH_EDITOR
+FMovieSceneChannelHandle UMovieSceneDoublePerlinNoiseChannelContainer::AddChannelProxy(FName ChannelName, FMovieSceneChannelProxyData& ProxyData, const FMovieSceneChannelMetaData& MetaData)
 {
-	//TODO in Phase 2
-	return EMovieSceneChannelProxyType();
+	return ProxyData.AddWithDefaultEditorData(PerlinNoiseChannel, MetaData);
 }
+#else
+void UMovieSceneDoublePerlinNoiseChannelContainer::AddChannelProxy(FName ChannelName, FMovieSceneChannelProxyData& ProxyData)
+{
+	ProxyData.Add(PerlinNoiseChannel);
+}
+#endif
+

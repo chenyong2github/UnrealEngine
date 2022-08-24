@@ -12,6 +12,7 @@
 #include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneSectionChannelOverrideRegistry.h"
+#include "Channels/IMovieSceneChannelOverrideProvider.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "TransformData.h"
 #include "Misc/LargeWorldCoordinates.h"
@@ -211,6 +212,7 @@ class UMovieScene3DTransformSection
 	: public UMovieSceneSection
 	, public IMovieSceneConstrainedSection
 	, public IMovieSceneEntityProvider
+	, public IMovieSceneChannelOverrideProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -258,7 +260,7 @@ protected:
 	MOVIESCENETRACKS_API virtual EMovieSceneChannelProxyType CacheChannelProxy() override;
 
 private:
-	
+
 	MOVIESCENETRACKS_API virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
 	MOVIESCENETRACKS_API virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 	MOVIESCENETRACKS_API virtual void InterrogateEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
@@ -267,6 +269,14 @@ private:
 	void BuildEntity(BaseBuilderType& InBaseBuilder, UMovieSceneEntitySystemLinker* Linker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity);
 	void PopulateConstraintEntities(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder);
 	void ImportConstraintEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity);
+
+private:
+
+	static UE::MovieScene::FChannelOverrideNames ChannelOverrideNames;
+
+	UMovieSceneSectionChannelOverrideRegistry* GetChannelOverrideRegistry(bool bCreateIfMissing) override;
+	UE::MovieScene::FChannelOverrideProviderTraitsHandle GetChannelOverrideProviderTraits() const override;
+	void OnChannelOverridesChanged() override;
 
 private:
 

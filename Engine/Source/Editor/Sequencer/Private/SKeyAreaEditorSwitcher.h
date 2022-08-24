@@ -47,6 +47,8 @@ private:
 	TWeakPtr<ISequencer> WeakSequencer;
 	/** Key areas cached from the node */
 	TArray<TSharedRef<IKeyArea>> CachedKeyAreas;
+	/** Serial cached from the node */
+	uint32 CachedChannelsSerialNumber;
 };
 
 

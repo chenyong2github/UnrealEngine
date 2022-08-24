@@ -331,13 +331,17 @@ UMovieSceneSection* UMovieScenePropertyTrack::GetSectionToKey() const
 const int32 FMovieScenePropertyTrackEntityImportHelper::SectionPropertyValueImportingID = 0;
 const int32 FMovieScenePropertyTrackEntityImportHelper::SectionEditConditionToggleImportingID = 1;
 
-void FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(UMovieSceneSection& Section, const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder, UMovieSceneSectionChannelOverrideRegistry* OverridesRegistry/*= nullptr*/)
+void FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(UMovieSceneSection& Section, const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
 {
 	using namespace UE::MovieScene;
 
-	if (OverridesRegistry)
+	IMovieSceneChannelOverrideProvider* RegistryProvider = Cast<IMovieSceneChannelOverrideProvider>(&Section);
+	if (RegistryProvider)
 	{
-		OverridesRegistry->PopulateEvaluationFieldImpl(EffectiveRange, InMetaData, OutFieldBuilder, Section);
+		if (UMovieSceneSectionChannelOverrideRegistry* OverrideRegistry = RegistryProvider->GetChannelOverrideRegistry(false))
+		{
+			OverrideRegistry->PopulateEvaluationFieldImpl(EffectiveRange, InMetaData, OutFieldBuilder, Section);
+		}
 	}
 
 	// Add the default entity for this section.

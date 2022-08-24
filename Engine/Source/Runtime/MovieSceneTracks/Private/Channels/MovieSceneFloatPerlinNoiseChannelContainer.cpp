@@ -1,26 +1,42 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Channels/MovieSceneFloatPerlinNoiseChannelContainer.h"
+#include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneChannelProxy.h"
 #include "Tracks/MovieScenePropertyTrack.h"
 #include "MovieSceneTracksComponentTypes.h"
 #include "Misc/Guid.h"
 
-void UMovieSceneFloatPerlinNoiseChannelContainer::ImportEntityImpl(int32 ChannelIndex, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
+bool UMovieSceneFloatPerlinNoiseChannelContainer::SupportsOverride(FName DefaultChannelTypeName) const
+{
+	return FMovieSceneFloatChannel::StaticStruct()->GetFName() == DefaultChannelTypeName;
+}
+
+void UMovieSceneFloatPerlinNoiseChannelContainer::ImportEntityImpl(const FMovieSceneChannelOverrideEntityImportParamsHandle& OverrideParams, const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
 	const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
+	const auto& FloatResultParams = OverrideParams.CastThis<TMovieSceneChannelOverrideResultComponentEntityImportParams<float>>();
+
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()
-		.Add(TracksComponents->FloatPerlinNoiseChannel, FloatPerlinNoiseChannel.GetParam())
-		.Add(BuiltInComponents->DoubleResult[ChannelIndex], TNumericLimits<float>::Max())
+		.Add(TracksComponents->FloatPerlinNoiseChannel, PerlinNoiseChannel.GetParams())
+		.Add(FloatResultParams.ResultComponent, TNumericLimits<float>::Max())
 	);
 }
 
-EMovieSceneChannelProxyType UMovieSceneFloatPerlinNoiseChannelContainer::CacheChannelProxy()
+#if WITH_EDITOR
+FMovieSceneChannelHandle UMovieSceneFloatPerlinNoiseChannelContainer::AddChannelProxy(FName ChannelName, FMovieSceneChannelProxyData& ProxyData, const FMovieSceneChannelMetaData& MetaData)
 {
-	//TODO in Phase 2
-	return EMovieSceneChannelProxyType();
+	return ProxyData.AddWithDefaultEditorData(PerlinNoiseChannel, MetaData);
 }
+#else
+void UMovieSceneFloatPerlinNoiseChannelContainer::AddChannelProxy(FName ChannelName, FMovieSceneChannelProxyData& ProxyData)
+{
+	ProxyData.Add(PerlinNoiseChannel);
+}
+#endif
+

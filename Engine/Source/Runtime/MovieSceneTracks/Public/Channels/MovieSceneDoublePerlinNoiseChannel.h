@@ -23,13 +23,19 @@ struct MOVIESCENETRACKS_API FMovieSceneDoublePerlinNoiseChannel : public FMovieS
 	* @param InSeconds  The Frame second to evaluate at
 	* @return A value to receive the PerlinNoise result
 	*/
-	double Evaluate(double InSeconds);
+	double Evaluate(double InSeconds) const;
 
-	const FDoublePerlinNoiseParams& GetParam() const { return DoublePerlinNoiseParams; }
-	FDoublePerlinNoiseParams& GetParam() { return DoublePerlinNoiseParams; }
+	bool Evaluate(const UMovieSceneSection* InSection, FFrameTime InTime, double& OutValue) const;
+
+	const FDoublePerlinNoiseParams& GetParams() const { return PerlinNoiseParams; }
+	FDoublePerlinNoiseParams& GetParams() { return PerlinNoiseParams; }
 
 private:
-	FDoublePerlinNoiseParams DoublePerlinNoiseParams;
+
+	UPROPERTY(EditAnywhere, Category = "Perlin Noise")
+	FDoublePerlinNoiseParams PerlinNoiseParams;
+
+	friend class FMovieSceneDoublePerlinNoiseChannelDetailsCustomization;
 };
 
 template<>
@@ -37,8 +43,14 @@ struct TMovieSceneChannelTraits<FMovieSceneDoublePerlinNoiseChannel> : TMovieSce
 {
 #if WITH_EDITOR
 
-	/** FMovieSceneFloatPerlinNoiseChannel channels can have external values (ie, they can get their values from external objects for UI purposes) */
+	/** Perlin noise channels can have external values (ie, they can get their values from external objects for UI purposes) */
 	typedef TMovieSceneExternalValue<double> ExtendedEditorDataType;
 
 #endif
 };
+
+inline bool EvaluateChannel(const UMovieSceneSection* InSection, const FMovieSceneDoublePerlinNoiseChannel* InChannel, FFrameTime InTime, double& OutValue)
+{
+	return InChannel->Evaluate(InSection, InTime, OutValue);
+}
+

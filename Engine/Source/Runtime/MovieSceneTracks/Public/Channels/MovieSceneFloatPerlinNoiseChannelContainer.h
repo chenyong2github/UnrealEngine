@@ -1,26 +1,43 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
 #include "Channels/MovieSceneChannelOverrideContainer.h"
 #include "Channels/MovieSceneFloatPerlinNoiseChannel.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "MovieSceneFloatPerlinNoiseChannelContainer.generated.h"
 
 /**
-* Float perlin noise channel overriden container
-*/
-UCLASS(meta = (DisplayName = "Float Perlin Noise", ToolTip = "Override a channel to use float perlin noise"))
+ * Float perlin noise channel overriden container
+ */
+UCLASS(meta=(DisplayName="Float Perlin Noise", ToolTip="Override a channel to use float perlin noise"))
 class MOVIESCENETRACKS_API UMovieSceneFloatPerlinNoiseChannelContainer : public UMovieSceneChannelOverrideContainer
 {
 	GENERATED_BODY()
 
-private:
-	UPROPERTY()
-	FMovieSceneFloatPerlinNoiseChannel FloatPerlinNoiseChannel;
-
 public:
-	virtual void ImportEntityImpl(int32 ChannelIndex, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) override final;
-	virtual EMovieSceneChannelProxyType CacheChannelProxy() override final;
 
-	virtual const FMovieSceneChannel* GetChannel() const override final { return &FloatPerlinNoiseChannel; }
-	virtual FMovieSceneChannel* GetChannel() override final { return &FloatPerlinNoiseChannel; }
+	using ChannelType = FMovieSceneFloatPerlinNoiseChannel;
+
+	bool SupportsOverride(FName DefaultChannelTypeName) const override;
+	void ImportEntityImpl(
+			const FMovieSceneChannelOverrideEntityImportParamsHandle& OverrideParams, 
+			const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity) override;
+
+	const FMovieSceneChannel* GetChannel() const override { return &PerlinNoiseChannel; }
+	FMovieSceneChannel* GetChannel() override { return &PerlinNoiseChannel; }
+
+#if WITH_EDITOR
+	FMovieSceneChannelHandle AddChannelProxy(FName ChannelName, FMovieSceneChannelProxyData& ProxyData, const FMovieSceneChannelMetaData& MetaData) override;
+#else
+	void AddChannelProxy(FName ChannelName, FMovieSceneChannelProxyData& ProxyData) override;
+#endif
+
+private:
+
+	UPROPERTY(EditAnywhere, Category = "Perlin Noise")
+	FMovieSceneFloatPerlinNoiseChannel PerlinNoiseChannel;
+
+	friend class FMovieSceneFloatPerlinNoiseChannelDetailsCustomization;
 };
+
