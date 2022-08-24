@@ -141,6 +141,53 @@ protected:
 	{ }
 
 protected:
+	template<typename DelegateInstanceInterfaceType, typename DelegateType>
+	void CopyFrom(const TMulticastDelegateBase& Other)
+	{
+		checkSlow(&Other != this);
+
+		Clear();
+
+		for (const TDelegateBase<UserPolicy>& OtherDelegateRef : Other.GetInvocationList())
+		{
+			if (IDelegateInstance* OtherInstance = GetDelegateInstanceProtectedHelper(OtherDelegateRef))
+			{
+				DelegateType TempDelegate;
+				((DelegateInstanceInterfaceType*)OtherInstance)->CreateCopy(TempDelegate);
+				AddDelegateInstance(MoveTemp(TempDelegate));
+			}
+		}
+	}
+
+	template<typename DelegateInstanceInterfaceType, typename DelegateBaseType, typename... ParamTypes>
+	void Broadcast(ParamTypes... Params) const
+	{
+		bool NeedsCompaction = false;
+
+		LockInvocationList();
+		{
+			const InvocationListType& LocalInvocationList = GetInvocationList();
+
+			// call bound functions in reverse order, so we ignore any instances that may be added by callees
+			for (int32 InvocationListIndex = LocalInvocationList.Num() - 1; InvocationListIndex >= 0; --InvocationListIndex)
+			{
+				// this down-cast is OK! allows for managing invocation list in the base class without requiring virtual functions
+				const DelegateBaseType& DelegateBase = (const DelegateBaseType&)LocalInvocationList[InvocationListIndex];
+
+				IDelegateInstance* DelegateInstanceInterface = GetDelegateInstanceProtectedHelper(DelegateBase);
+				if (DelegateInstanceInterface == nullptr || !((DelegateInstanceInterfaceType*)DelegateInstanceInterface)->ExecuteIfSafe(Params...))
+				{
+					NeedsCompaction = true;
+				}
+			}
+		}
+		UnlockInvocationList();
+
+		if (NeedsCompaction)
+		{
+			const_cast<TMulticastDelegateBase*>(this)->CompactInvocationList();
+		}
+	}
 
 	/**
 	 * Adds the given delegate instance to the invocation list.
@@ -149,10 +196,14 @@ protected:
 	 */
 	inline FDelegateHandle AddDelegateInstance(TDelegateBase<UserPolicy>&& NewDelegateBaseRef)
 	{
-		// compact but obey threshold of when this will trigger
-		CompactInvocationList(true);
-		FDelegateHandle Result = NewDelegateBaseRef.GetHandle();
-		InvocationList.Add(MoveTemp(NewDelegateBaseRef));
+		FDelegateHandle Result;
+		if (GetDelegateInstanceProtectedHelper(NewDelegateBaseRef))
+		{
+			// compact but obey threshold of when this will trigger
+			CompactInvocationList(true);
+			Result = NewDelegateBaseRef.GetHandle();
+			InvocationList.Add(MoveTemp(NewDelegateBaseRef));
+		}
 		return Result;
 	}
 
@@ -180,6 +231,17 @@ protected:
 		return false;
 	}
 
+protected:
+	/**
+	 * Helper function for derived classes of TMulticastDelegateBase to get at the delegate instance.
+	 */
+	template <typename DelegateType>
+	static FORCEINLINE auto* GetDelegateInstanceProtectedHelper(const DelegateType& Base)
+	{
+		return Base.GetDelegateInstanceProtected();
+	}
+
+private:
 	/**
 	 * Removes any expired or deleted functions from the invocation list.
 	 *
@@ -258,16 +320,6 @@ protected:
 	inline int32 GetInvocationListLockCount() const
 	{
 		return InvocationListLockCount;
-	}
-
-protected:
-	/**
-	 * Helper function for derived classes of TMulticastDelegateBase to get at the delegate instance.
-	 */
-	template <typename DelegateType>
-	static FORCEINLINE auto* GetDelegateInstanceProtectedHelper(const DelegateType& Base)
-	{
-		return Base.GetDelegateInstanceProtected();
 	}
 
 private:

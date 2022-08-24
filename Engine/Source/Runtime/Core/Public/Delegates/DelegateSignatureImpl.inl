@@ -664,11 +664,6 @@ private:
 	// Make sure TMulticastDelegateBase's protected functions are not accidentally exposed through the TMulticastDelegate API
 	using Super::AddDelegateInstance;
 	using Super::RemoveDelegateInstance;
-	using Super::CompactInvocationList;
-	using Super::GetInvocationList;
-	using Super::LockInvocationList;
-	using Super::UnlockInvocationList;
-	using Super::GetInvocationListLockCount;
 	using Super::GetDelegateInstanceProtectedHelper;
 
 public:
@@ -679,13 +674,7 @@ public:
 	 */
 	FDelegateHandle Add(FDelegate&& InNewDelegate)
 	{
-		FDelegateHandle Result;
-		if (Super::GetDelegateInstanceProtectedHelper(InNewDelegate))
-		{
-			Result = Super::AddDelegateInstance(MoveTemp(InNewDelegate));
-		}
-
-		return Result;
+		return Super::AddDelegateInstance(MoveTemp(InNewDelegate));
 	}
 
 	/**
@@ -695,13 +684,7 @@ public:
 	 */
 	FDelegateHandle Add(const FDelegate& InNewDelegate)
 	{
-		FDelegateHandle Result;
-		if (Super::GetDelegateInstanceProtectedHelper(InNewDelegate))
-		{
-			Result = Super::AddDelegateInstance(CopyTemp(InNewDelegate));
-		}
-
-		return Result;
+		return Super::AddDelegateInstance(CopyTemp(InNewDelegate));
 	}
 
 	/**
@@ -928,19 +911,8 @@ public:
 	{
 		if (&Other != this)
 		{
-			Super::Clear();
-
-			for (const TDelegateBase<UserPolicy>& OtherDelegateRef : Other.GetInvocationList())
-			{
-				if (IDelegateInstance* OtherInstance = Super::GetDelegateInstanceProtectedHelper(OtherDelegateRef))
-				{
-					FDelegate TempDelegate;
-					((DelegateInstanceInterfaceType*)OtherInstance)->CreateCopy(TempDelegate);
-					Super::AddDelegateInstance(MoveTemp(TempDelegate));
-				}
-			}
+			Super::template CopyFrom<DelegateInstanceInterfaceType, FDelegate>(Other);
 		}
-
 		return *this;
 	}
 
@@ -951,31 +923,7 @@ public:
 	 */
 	void Broadcast(ParamTypes... Params) const
 	{
-		bool NeedsCompaction = false;
-
-		Super::LockInvocationList();
-		{
-			const InvocationListType& LocalInvocationList = Super::GetInvocationList();
-
-			// call bound functions in reverse order, so we ignore any instances that may be added by callees
-			for (int32 InvocationListIndex = LocalInvocationList.Num() - 1; InvocationListIndex >= 0; --InvocationListIndex)
-			{
-				// this down-cast is OK! allows for managing invocation list in the base class without requiring virtual functions
-				const FDelegate& DelegateBase = (const FDelegate&)LocalInvocationList[InvocationListIndex];
-
-				IDelegateInstance* DelegateInstanceInterface = Super::GetDelegateInstanceProtectedHelper(DelegateBase);
-				if (DelegateInstanceInterface == nullptr || !((DelegateInstanceInterfaceType*)DelegateInstanceInterface)->ExecuteIfSafe(Params...))
-				{
-					NeedsCompaction = true;
-				}
-			}
-		}
-		Super::UnlockInvocationList();
-
-		if (NeedsCompaction)
-		{
-			const_cast<TMulticastDelegate*>(this)->CompactInvocationList();
-		}
+		Super::template Broadcast<DelegateInstanceInterfaceType, FDelegate, ParamTypes...>(Params...);
 	}
 };
 
