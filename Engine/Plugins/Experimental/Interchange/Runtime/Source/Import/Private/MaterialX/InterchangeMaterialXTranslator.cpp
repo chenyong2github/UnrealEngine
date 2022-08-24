@@ -592,6 +592,79 @@ void UInterchangeMaterialXTranslator::ProcessStandardSurface(UInterchangeBaseNod
 			ConnectNodeGraphOutputToInput(InputTangent, ShaderGraphNode, StandardSurface::Parameters::Tangent.ToString(), NamesToShaderNodes, NodeContainer);
 		}
 	}
+
+	//Transmission
+	{
+		//Weight
+		{
+			mx::InputPtr InputTransmission = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::Transmission, Document);
+
+			if (!ConnectNodeGraphOutputToInput(InputTransmission, ShaderGraphNode, StandardSurface::Parameters::Transmission.ToString(), NamesToShaderNodes, NodeContainer))
+			{
+				AddFloatAttribute(InputTransmission, StandardSurface::Parameters::Transmission.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::Transmission);
+			}
+		}
+
+		//Color
+		{
+			mx::InputPtr InputTransmissionColor = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::TransmissionColor, Document);
+
+			if (!ConnectNodeGraphOutputToInput(InputTransmissionColor, ShaderGraphNode, StandardSurface::Parameters::TransmissionColor.ToString(), NamesToShaderNodes, NodeContainer))
+			{
+				AddLinearColorAttribute(InputTransmissionColor, StandardSurface::Parameters::TransmissionColor.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Color3::TransmissionColor);
+			}
+		}
+
+		//Depth
+		{
+			mx::InputPtr InputTransmissionDepth = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::TransmissionDepth, Document);
+
+			if (!ConnectNodeGraphOutputToInput(InputTransmissionDepth, ShaderGraphNode, StandardSurface::Parameters::TransmissionDepth.ToString(), NamesToShaderNodes, NodeContainer))
+			{
+				AddFloatAttribute(InputTransmissionDepth, StandardSurface::Parameters::TransmissionDepth.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::TransmissionDepth);
+			}
+		}
+
+		//Scatter
+		{
+			mx::InputPtr InputTransmissionScatter = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::TransmissionScatter, Document);
+
+			if (!ConnectNodeGraphOutputToInput(InputTransmissionScatter, ShaderGraphNode, StandardSurface::Parameters::TransmissionScatter.ToString(), NamesToShaderNodes, NodeContainer))
+			{
+				AddLinearColorAttribute(InputTransmissionScatter, StandardSurface::Parameters::TransmissionScatter.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Color3::TransmissionScatter);
+			}
+		}
+
+		//Scatter Anisotropy
+		{
+			mx::InputPtr InputTransmissionScatterAnisotropy = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::TransmissionScatterAnisotropy, Document);
+
+			if (!ConnectNodeGraphOutputToInput(InputTransmissionScatterAnisotropy, ShaderGraphNode, StandardSurface::Parameters::TransmissionScatterAnisotropy.ToString(), NamesToShaderNodes, NodeContainer))
+			{
+				AddFloatAttribute(InputTransmissionScatterAnisotropy, StandardSurface::Parameters::TransmissionScatterAnisotropy.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::TransmissionScatterAnisotropy);
+			}
+		}
+
+		//Dispersion
+		{
+			mx::InputPtr InputTransmissionDispersion = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::TransmissionDispersion, Document);
+
+			if (!ConnectNodeGraphOutputToInput(InputTransmissionDispersion, ShaderGraphNode, StandardSurface::Parameters::TransmissionDispersion.ToString(), NamesToShaderNodes, NodeContainer))
+			{
+				AddFloatAttribute(InputTransmissionDispersion, StandardSurface::Parameters::TransmissionDispersion.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::TransmissionDispersion);
+			}
+		}
+
+		//Extra Roughness
+		{
+			mx::InputPtr InputTransmissionExtraRoughness = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::TransmissionExtraRoughness, Document);
+
+			if (!ConnectNodeGraphOutputToInput(InputTransmissionExtraRoughness, ShaderGraphNode, StandardSurface::Parameters::TransmissionExtraRoughness.ToString(), NamesToShaderNodes, NodeContainer))
+			{
+				AddFloatAttribute(InputTransmissionExtraRoughness, StandardSurface::Parameters::TransmissionExtraRoughness.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::TransmissionExtraRoughness);
+			}
+		}
+	}
 }
 
 void UInterchangeMaterialXTranslator::ProcessLightShader(UInterchangeBaseNodeContainer& NodeContainer, MaterialX::NodePtr LightShaderNode, MaterialX::DocumentPtr Document) const
