@@ -10,8 +10,7 @@
 #include "RayTracingDirectionalLight.ush"
 #include "RayTracingRectLight.ush"
 #include "RayTracingSphereLight.ush"
-#include "RayTracingSpotLight.ush"
-#include "RayTracingPointLight.ush"
+#include "RayTracingCapsuleLight.ush"
 #include "RayTracingSkyLightEvaluation.ush"
 #include "RayTracingLightCullingCommon.ush"
 
@@ -240,7 +239,8 @@ void TraceShadowRayMissShaderLighting(
 	);
 }
 
-float3 SampleAreaLightDirection(
+// Returns xyz: Direction, w: RayLength
+float4 SampleAreaLightDirection(
 	in FDeferredLightData LightData, 
 	in float3 TranslatedWorldPosition,
 	in float3 WorldNormal,
@@ -277,33 +277,24 @@ float3 SampleAreaLightDirection(
 			/* out */ RayTMin,
 			/* out */ RayTMax);
 	}
-	else if (LightType == LIGHT_TYPE_SPOT)
+	else if (LightType == LIGHT_TYPE_POINT || LightType == LIGHT_TYPE_SPOT)
 	{
-		GenerateSpotLightOcclusionRay(
-			LightParameters,
-			TranslatedWorldPosition, WorldNormal,
-			RandSample,
-			/* out */ RayOrigin,
-			/* out */ ShadowRayDirection,
-			/* out */ RayTMin,
-			/* out */ RayTMax);
-	}
-	else if (LightType == LIGHT_TYPE_POINT)
-	{
-		if (LightData.SourceRadius == 0)
+		// NOTE: Spot cone is being checked before calling this function, so we know we are inside the cone
+		float RayPdf;
+		if (LightParameters.SourceLength > 0.0)
 		{
-			GeneratePointLightOcclusionRay(
+			GenerateCapsuleLightOcclusionRayWithSolidAngleSampling(
 				LightParameters,
 				TranslatedWorldPosition, WorldNormal,
 				RandSample,
 				/* out */ RayOrigin,
 				/* out */ ShadowRayDirection,
 				/* out */ RayTMin,
-				/* out */ RayTMax);
+				/* out */ RayTMax,
+				/* out */ RayPdf);
 		}
 		else
 		{
-			//GenerateSphereLightOcclusionRayWithAreaSampling(
 			GenerateSphereLightOcclusionRayWithSolidAngleSampling(
 				LightParameters,
 				TranslatedWorldPosition, WorldNormal,
@@ -328,7 +319,7 @@ float3 SampleAreaLightDirection(
 			/* out */ RayPdf);
 	}
 
-	return ShadowRayDirection;
+	return float4(ShadowRayDirection, RayTMax);
 }
 
 float3 ComputeIndirectLighting(
@@ -461,9 +452,17 @@ float3 ComputeDirectLighting(
 		}
 
 		bool IsLightVisible = false;
+		float ShadowRayLength = 0.0;
 		if (ReflectedShadowsType == 2)
 		{
-			ShadowRayDirection = SampleAreaLightDirection(LightData, TranslatedWorldPosition, Payload.GetWorldNormal(), LightType, RandSequence);
+			float4 Result = SampleAreaLightDirection(LightData, TranslatedWorldPosition, Payload.GetWorldNormal(), LightType, RandSequence);
+			ShadowRayDirection = Result.xyz;
+			ShadowRayLength = Result.w;
+		}
+		else
+		{
+			// hard shadow or no shadow -- just trace toward light center
+			ShadowRayLength = length(ToLight);
 		}
 
 		const bool ApplyShadow = (Lit && ReflectedShadowsType != 0);
@@ -472,7 +471,7 @@ float3 ComputeDirectLighting(
 		ShadowRay.Origin = TranslatedWorldPosition;
 		ShadowRay.Direction = ShadowRayDirection;
 		ShadowRay.TMin = 1e-4f;
-		ShadowRay.TMax = (ApplyShadow) ? length(ToLight) : ShadowRay.TMin;
+		ShadowRay.TMax = (ApplyShadow) ? ShadowRayLength : ShadowRay.TMin;
 		ApplyPositionBias(ShadowRay, Payload.GetWorldNormal(), ShadowMaxNormalBias);
 
 		uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;

@@ -23,11 +23,6 @@
 #include "RayTracingCommon.ush"
 #include "RayTracingDeferredShadingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
-#include "RayTracingDirectionalLight.ush"
-#include "RayTracingRectLight.ush"
-#include "RayTracingSphereLight.ush"
-#include "RayTracingSpotLight.ush"
-#include "RayTracingPointLight.ush"
 
 #define	ERayTracingPrimaryRaysFlag_None                               0
 #define	ERayTracingPrimaryRaysFlag_UseGBufferForMaxDistance    (1u << 0)

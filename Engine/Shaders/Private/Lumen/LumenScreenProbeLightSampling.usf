@@ -9,10 +9,9 @@
 #define SUPPORT_CONTACT_SHADOWS 0
 #define NON_DIRECTIONAL_DIRECT_LIGHTING 1
 #include "../DeferredLightingCommon.ush"
+#include "../RayTracing/RayTracingCapsuleLight.ush"
 #include "../RayTracing/RayTracingSphereLight.ush"
-#include "../RayTracing/RayTracingPointLight.ush"
 #include "../RayTracing/RayTracingRectLight.ush"
-#include "../RayTracing/RayTracingSpotLight.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
@@ -89,20 +88,9 @@ bool GenerateShadowRay(
 	out float RayTMin,
 	out float RayTMax)
 {
-	if (bSpotLight)
+	float RayPdf = 0.0;
+	if (bRectLight)
 	{
-		return GenerateSpotLightOcclusionRay(
-			LightParameters,
-			TranslatedWorldPosition, WorldNormal,
-			RandSample,
-			/* out */ RayOrigin,
-			/* out */ RayDirection,
-			/* out */ RayTMin,
-			/* out */ RayTMax);
-	}
-	else if (bRectLight)
-	{
-		float RayPdf = 0.0;
 		return GenerateRectLightOcclusionRay(
 			LightParameters,
 			TranslatedWorldPosition, WorldNormal,
@@ -115,21 +103,10 @@ bool GenerateShadowRay(
 	}
 	else
 	{
-		if (LightParameters.SourceRadius == 0)
+		// point or spot light
+		if (LightParameters.SourceLength > 0.0)
 		{
-			return GeneratePointLightOcclusionRay(
-				LightParameters,
-				TranslatedWorldPosition, WorldNormal,
-				RandSample,
-				/* out */ RayOrigin,
-				/* out */ RayDirection,
-				/* out */ RayTMin,
-				/* out */ RayTMax);
-		}
-		else
-		{
-			float RayPdf;
-			return GenerateSphereLightOcclusionRayWithSolidAngleSampling(
+			return GenerateCapsuleLightOcclusionRayWithSolidAngleSampling(
 				LightParameters,
 				TranslatedWorldPosition, WorldNormal,
 				RandSample,
@@ -139,6 +116,15 @@ bool GenerateShadowRay(
 				/* out */ RayTMax,
 				/* out */ RayPdf);
 		}
+		return GenerateSphereLightOcclusionRayWithSolidAngleSampling(
+			LightParameters,
+			TranslatedWorldPosition, WorldNormal,
+			RandSample,
+			/* out */ RayOrigin,
+			/* out */ RayDirection,
+			/* out */ RayTMin,
+			/* out */ RayTMax,
+			/* out */ RayPdf);
 	}
 }
 

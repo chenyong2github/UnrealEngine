@@ -16,7 +16,6 @@ PathTracingRayGenShader.usf: Reference path tracing
 #include "/Engine/Private/RayTracing/RayTracingRectLight.ush"
 #include "/Engine/Private/RayTracing/RayTracingSphereLight.ush"
 #include "/Engine/Private/RayTracing/RayTracingCapsuleLight.ush"
-#include "/Engine/Private/RayTracing/RayTracingPointLight.ush"
 
 #include "/Engine/Private/PathTracing/PathTracingCommon.ush"
 #include "/Engine/Private/PathTracing/Light/PathTracingLightGrid.ush"
