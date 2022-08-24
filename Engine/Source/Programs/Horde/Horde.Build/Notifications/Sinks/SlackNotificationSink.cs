@@ -923,6 +923,12 @@ namespace Horde.Build.Notifications.Sinks
 							string suspectMessage = $"Possibly {StringUtils.FormatList(suspectList, "or")}.";
 							await _slackClient.PostMessageAsync(triageChannel, state.Ts, suspectMessage);
 						}
+
+						if (workflow.TriageAlias != null)
+						{
+							string triageMessage = $"(<@{workflow.TriageAlias}> for triage).";
+							await _slackClient.PostMessageAsync(triageChannel, state.Ts, triageMessage);
+						}
 					}
 
 					if (_environment.IsProduction() && workflow.AllowMentions)

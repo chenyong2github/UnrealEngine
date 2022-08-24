@@ -380,6 +380,11 @@ namespace Horde.Build.Server
 		public string? TriageInstructions { get; set; }
 
 		/// <summary>
+		/// User id of a Slack user/alias to ping if there is nobody assigned to an issue by default.
+		/// </summary>
+		public string? TriageAlias { get; set; }
+
+		/// <summary>
 		/// Maximum number of people to mention on a triage thread
 		/// </summary>
 		public int MaxMentions { get; set; } = 5;
