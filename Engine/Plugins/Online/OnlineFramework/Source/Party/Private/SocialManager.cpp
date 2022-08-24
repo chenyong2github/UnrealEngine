@@ -882,6 +882,7 @@ const USocialManager::FJoinPartyAttempt* USocialManager::GetJoinAttemptInProgres
 
 USocialParty* USocialManager::EstablishNewParty(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FOnlinePartyTypeId& PartyTypeId)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_SocialManager_EstablishNewParty);
 	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 	
 	TSubclassOf<USocialParty> PartyClass = GetPartyClassForType(PartyTypeId);
@@ -896,7 +897,10 @@ USocialParty* USocialManager::EstablishNewParty(const FUniqueNetId& LocalUserId,
 		// This must be done before InitializeParty(), as initialization can complete synchronously.
 		JoinedPartiesByTypeId.Add(PartyTypeId, NewParty);
 
-		NewParty->InitializeParty(OssParty.ToSharedRef());
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_SocialManager_EstablishNewParty_InitializeParty);
+			NewParty->InitializeParty(OssParty.ToSharedRef());
+		}
 
 		if (NewParty->IsPersistentParty())
 		{
@@ -1125,6 +1129,7 @@ void USocialManager::HandleCreatePartyComplete(const FUniqueNetId& LocalUserId, 
 {
 	ABORT_DURING_SHUTDOWN();
 
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_SocialManager_HandleCreatePartyComplete);
 	ECreatePartyCompletionResult LocalCreationResult = Result;
 	if (Result == ECreatePartyCompletionResult::Succeeded)
 	{
@@ -1145,7 +1150,10 @@ void USocialManager::HandleCreatePartyComplete(const FUniqueNetId& LocalUserId, 
 	}
 
 	UE_LOG(LogParty, Verbose, TEXT("Finished trying to create party [%s] with result [%s]"), PartyId.IsValid() ? *PartyId->ToDebugString() : TEXT("Invalid"), ToString(LocalCreationResult));
-	CompletionDelegate.ExecuteIfBound(LocalCreationResult);
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_SocialManager_HandleCreatePartyComplete_Delegate);
+		CompletionDelegate.ExecuteIfBound(LocalCreationResult);
+	}
 }
 
 void USocialManager::HandleJoinPartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EJoinPartyCompletionResult Result, int32 NotApprovedReasonCode, FOnlinePartyTypeId PartyTypeId)

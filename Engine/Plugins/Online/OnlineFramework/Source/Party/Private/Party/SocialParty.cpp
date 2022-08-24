@@ -470,6 +470,7 @@ void USocialParty::InitializeParty(const TSharedRef<const FOnlineParty>& InOssPa
 
 void USocialParty::InitializePartyInternal()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_SocialParty_InitializePartyInternal);
 	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 	PartyInterface->AddOnPartyConfigChangedDelegate_Handle(FOnPartyConfigChangedDelegate::CreateUObject(this, &USocialParty::HandlePartyConfigChanged));
 	PartyInterface->AddOnPartyDataReceivedDelegate_Handle(FOnPartyDataReceivedDelegate::CreateUObject(this, &USocialParty::HandlePartyDataReceived));
@@ -1486,6 +1487,7 @@ TSubclassOf<UPartyMember> USocialParty::GetDesiredMemberClass(bool bLocalPlayer)
 
 void USocialParty::HandlePartyStateChanged(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EPartyState PartyState, EPartyState PreviousPartyState)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_SocialParty_HandlePartyStateChanged);
 	if (PartyState == EPartyState::Disconnected)
 	{
 		// If we transition to the disconnected state, then we are lacking an XMPP connection (or logged out of MCP?)
