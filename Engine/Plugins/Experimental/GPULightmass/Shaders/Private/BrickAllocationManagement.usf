@@ -51,25 +51,6 @@ void DownsampleVolumeCS(
 	}
 }
 
-[numthreads(4, 4, 4)]
-void DilateVolumeCS(uint3 VoxelPos : SV_DispatchThreadID) 
-{
-	if (any(VoxelPos >= VolumeSize)) return; 
-	for (int dx = -1; dx <= 1; dx++)
-	{
-		for (int dy = -1; dy <= 1; dy++)
-		{
-			for (int dz = -1; dz <= 1; dz++)
-			{
-				if (VoxelizeVolume[VoxelPos] == BRICK_IN_IMPORTANCE_VOLUME && VoxelizeVolume[int3(VoxelPos) + int3(dx, dy, dz)] == BRICK_ALLOCATED)
-				{
-					VoxelizeVolume[VoxelPos] = BRICK_DILATED;
-				}
-			}
-		}
-	}
-}
-
 RWTexture3D<uint4> IndirectionTexture;
 
 RWBuffer<uint4> BrickRequests;

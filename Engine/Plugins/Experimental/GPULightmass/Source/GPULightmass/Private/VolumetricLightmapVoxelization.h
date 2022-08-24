@@ -228,27 +228,6 @@ class FVoxelizeImportanceVolumeCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-class FDilateVolumeCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FDilateVolumeCS);
-	SHADER_USE_PARAMETER_STRUCT(FDilateVolumeCS, FGlobalShader);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData) && RHISupportsRayTracingShaders(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FIntVector, VolumeSize)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, VoxelizeVolume)
-	END_SHADER_PARAMETER_STRUCT()
-};
-
 class FDownsampleVolumeCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FDownsampleVolumeCS);

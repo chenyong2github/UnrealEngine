@@ -18,7 +18,6 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(, FVLMVoxelizationGS, TEXT("/Plugin/GPULightmass/
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FVLMVoxelizationPS, TEXT("/Plugin/GPULightmass/Private/VolumetricLightmapVoxelization.usf"), TEXT("VLMVoxelizationPS"), SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FClearVolumeCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "ClearVolumeCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FVoxelizeImportanceVolumeCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "VoxelizeImportanceVolumeCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FDilateVolumeCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "DilateVolumeCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FDownsampleVolumeCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "DownsampleVolumeCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FCountNumBricksCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "CountNumBricksCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FGatherBrickRequestsCS, "/Plugin/GPULightmass/Private/BrickAllocationManagement.usf", "GatherBrickRequestsCS", SF_Compute);
@@ -247,8 +246,8 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 			FVoxelizeImportanceVolumeCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelizeImportanceVolumeCS::FParameters>();
 			Parameters->VolumeSize = VoxelizationVolumeMips[0]->GetDesc().GetSize();
-			Parameters->ImportanceVolumeMin = (FVector3f)ImportanceVolume.Min;
-			Parameters->ImportanceVolumeMax = (FVector3f)ImportanceVolume.Max;
+			Parameters->ImportanceVolumeMin = (FVector3f)ImportanceVolume.Min - FVector3f(2 * TargetDetailCellSize);
+			Parameters->ImportanceVolumeMax = (FVector3f)ImportanceVolume.Max + FVector3f(2 * TargetDetailCellSize);
 			Parameters->VLMVoxelizationParams = PassUniformBuffer;
 			Parameters->VoxelizeVolume = VoxelizationVolumeMipUAVs[0];
 
@@ -277,7 +276,10 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 			ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
 			[this, CubeMaxDim, PassUniformBuffer, PassParameters](FRHICommandList& RHICmdList)
 		{
-			RHICmdList.SetViewport(0, 0, 0, CubeMaxDim, CubeMaxDim, 1);
+			// Must match VolumetricLightmapVoxelization.usf
+			const int32 SUPER_RESOLUTION_FACTOR = 4;
+			
+			RHICmdList.SetViewport(0, 0, 0, CubeMaxDim * SUPER_RESOLUTION_FACTOR, CubeMaxDim * SUPER_RESOLUTION_FACTOR, 1);
 
 			SCOPED_DRAW_EVENTF(RHICmdList, GPULightmassVoxelizeScene, TEXT("GPULightmass VoxelizeScene"));
 
@@ -367,21 +369,6 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 				}
 			});
 		});
-
-		{
-			TShaderMapRef<FDilateVolumeCS> ComputeShader(GlobalShaderMap);
-
-			FDilateVolumeCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDilateVolumeCS::FParameters>();
-			Parameters->VolumeSize = VoxelizationVolumeMips[0]->GetDesc().GetSize();
-			Parameters->VoxelizeVolume = VoxelizationVolumeMipUAVs[0];
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("DilateVolume"),
-				ComputeShader,
-				Parameters,
-				FComputeShaderUtils::GetGroupCount(VoxelizationVolumeMips[0]->GetDesc().GetSize(), FIntVector(4)));
-		}
 
 		for (int32 MipLevel = 1; MipLevel < VoxelizationVolumeMips.Num(); MipLevel++)
 		{

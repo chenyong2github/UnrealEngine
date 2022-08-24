@@ -12,6 +12,7 @@
 #include "BrickAllocationDefs.ush"
 
 #define SOFTWARE_CONSERVATIVE_RASTERIZATION 1
+#define SUPER_RESOLUTION_FACTOR 4 // Must match VolumetricLightmap.cpp
 
 struct FVLMVoxelizationVSToGS
 {
@@ -100,8 +101,8 @@ void VLMVoxelizationGS(triangle FVLMVoxelizationVSToGS Inputs[3], inout Triangle
 	AABB.zw = max(AABB.zw, Vertices[1].ScreenPosition.xy);
 	AABB.xy = min(AABB.xy, Vertices[2].ScreenPosition.xy);
 	AABB.zw = max(AABB.zw, Vertices[2].ScreenPosition.xy);
-	AABB.xy -= float2(1.0f / VLMVoxelizationParams.VolumeMaxDim, 1.0f / VLMVoxelizationParams.VolumeMaxDim);
-	AABB.zw += float2(1.0f / VLMVoxelizationParams.VolumeMaxDim, 1.0f / VLMVoxelizationParams.VolumeMaxDim);
+	AABB.xy -= float2(1.0f / VLMVoxelizationParams.VolumeMaxDim / SUPER_RESOLUTION_FACTOR, 1.0f / VLMVoxelizationParams.VolumeMaxDim / SUPER_RESOLUTION_FACTOR);
+	AABB.zw += float2(1.0f / VLMVoxelizationParams.VolumeMaxDim / SUPER_RESOLUTION_FACTOR, 1.0f / VLMVoxelizationParams.VolumeMaxDim / SUPER_RESOLUTION_FACTOR);
 	
 	Vertices[0].AABB = AABB;
 	Vertices[1].AABB = AABB;
@@ -114,10 +115,10 @@ void VLMVoxelizationGS(triangle FVLMVoxelizationVSToGS Inputs[3], inout Triangle
 	};
 	
 	float3 SemiDiagonalVectors[4] = {
-		{ sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim,  sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim, 0.0f},
-		{ sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim, -sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim, 0.0f},
-		{-sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim,  sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim, 0.0f},
-		{-sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim, -sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim, 0.0f}
+		{ sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim / SUPER_RESOLUTION_FACTOR,  sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim / SUPER_RESOLUTION_FACTOR, 0.0f},
+		{ sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim / SUPER_RESOLUTION_FACTOR, -sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim / SUPER_RESOLUTION_FACTOR, 0.0f},
+		{-sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim / SUPER_RESOLUTION_FACTOR,  sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim / SUPER_RESOLUTION_FACTOR, 0.0f},
+		{-sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim / SUPER_RESOLUTION_FACTOR, -sqrt(2.0f) / VLMVoxelizationParams.VolumeMaxDim / SUPER_RESOLUTION_FACTOR, 0.0f}
 	};
 	
 	float MaxProj[3] = {0, 0, 0};
@@ -151,7 +152,7 @@ void VLMVoxelizationPS(
 {
 	// Recover {[-1, 1], [-1, 1], [-1, 1]} bounding box normalized coordinates from SV_Position (which is in {[0, ResX], [0, ResY], [0, 1]}
 	Input.ScreenPosition.xyz /= 0.5f;
-	Input.ScreenPosition.xy /= VLMVoxelizationParams.VolumeMaxDim;
+	Input.ScreenPosition.xy /= VLMVoxelizationParams.VolumeMaxDim * SUPER_RESOLUTION_FACTOR;
 	Input.ScreenPosition.x -= 1;
 	Input.ScreenPosition.y = 1 - Input.ScreenPosition.y;
 	Input.ScreenPosition.z -= 1;
@@ -175,8 +176,20 @@ void VLMVoxelizationPS(
 		WorldPosition.xyz = Input.ScreenPosition.xyz;
 	}
 
-	if (VLMVoxelizationParams.VoxelizeVolume[(WorldPosition + 1.0f) * 0.5f * VLMVoxelizationParams.VolumeMaxDim] == BRICK_IN_IMPORTANCE_VOLUME)
+	float3 VoxelPos = (WorldPosition + 1.0f) * 0.5f * VLMVoxelizationParams.VolumeMaxDim;
+
+	// Expand by 1 cell to avoid losing details from stitching to a higher mip
+	for (int dx = -1; dx <= 1; dx++)
 	{
-		VLMVoxelizationParams.VoxelizeVolume[(WorldPosition + 1.0f) * 0.5f * VLMVoxelizationParams.VolumeMaxDim] = BRICK_ALLOCATED;
+		for (int dy = -1; dy <= 1; dy++)
+		{
+			for (int dz = -1; dz <= 1; dz++)
+			{
+				if (VLMVoxelizationParams.VoxelizeVolume[VoxelPos + float3(dx, dy, dz) / SUPER_RESOLUTION_FACTOR] == BRICK_IN_IMPORTANCE_VOLUME)
+				{
+					VLMVoxelizationParams.VoxelizeVolume[VoxelPos + float3(dx, dy, dz) / SUPER_RESOLUTION_FACTOR] = BRICK_ALLOCATED;
+				}
+			}
+		}
 	}
 }
