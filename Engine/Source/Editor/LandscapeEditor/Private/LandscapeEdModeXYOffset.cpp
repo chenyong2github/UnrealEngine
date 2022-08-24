@@ -557,9 +557,9 @@ public:
 	{
 	}
 
-	virtual const TCHAR* GetToolName() override { return TEXT("Retopologize"); }
-	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_Retopologize", "Retopologize"); }
-	virtual FText GetDisplayMessage() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_Retopologize_Message", "Similar to the smooth tool, Retopologize will push and pull triangles to smooth the transition of the terrain, however it will attempt to keep the basic form of the terrain, minimizing change in the Z direction. An X/Y offset map makes the Landscape slower to render and paint on with other tools, so only use the Retopologize tool if needed."); }
+	virtual const TCHAR* GetToolName() const override { return TEXT("Retopologize"); }
+	virtual FText GetDisplayName() const override { return NSLOCTEXT("UnrealEd", "LandscapeMode_Retopologize", "Retopologize"); }
+	virtual FText GetDisplayMessage() const override { return NSLOCTEXT("UnrealEd", "LandscapeMode_Retopologize_Message", "Similar to the smooth tool, Retopologize will push and pull triangles to smooth the transition of the terrain, however it will attempt to keep the basic form of the terrain, minimizing change in the Z direction. An X/Y offset map makes the Landscape slower to render and paint on with other tools, so only use the Retopologize tool if needed."); }
 
 	virtual ELandscapeToolTargetTypeMask::Type GetSupportedTargetTypes() override
 	{

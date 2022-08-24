@@ -47,9 +47,9 @@ public:
 	{
 	}
 
-	virtual const TCHAR* GetToolName() override { return TEXT("BlueprintBrush"); }
-	virtual FText GetDisplayName() override { return FText(); };
-	virtual FText GetDisplayMessage() override { return FText(); };
+	virtual const TCHAR* GetToolName() const override { return TEXT("BlueprintBrush"); }
+	virtual FText GetDisplayName() const override { return FText(); };
+	virtual FText GetDisplayMessage() const override { return FText(); };
 
 	virtual void SetEditRenderType() override { GLandscapeEditRenderMode = ELandscapeEditRenderMode::None | (GLandscapeEditRenderMode & ELandscapeEditRenderMode::BitMaskForMask); }
 	virtual bool SupportsMask() override { return false; }

@@ -206,9 +206,9 @@ public:
 
 	FLandscapeTool() {}
 	virtual ~FLandscapeTool() {}
-	virtual const TCHAR* GetToolName() = 0;
-	virtual FText GetDisplayName() = 0;
-	virtual FText GetDisplayMessage() = 0;
+	virtual const TCHAR* GetToolName() const = 0;
+	virtual FText GetDisplayName() const = 0;
+	virtual FText GetDisplayMessage() const = 0;
 	virtual void SetEditRenderType();
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) {}
 	virtual bool HitTrace(const FVector& TraceStart, const FVector& TraceEnd, FVector& OutHitLocation) { return false; }
@@ -261,7 +261,7 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override {}
 	virtual FString GetReferencerName() const override
 	{
-		return TEXT("FLandscapeTool");
+		return FString(TEXT("FLandscapeTool::")).Append(GetToolName());
 	}
 
 public:
