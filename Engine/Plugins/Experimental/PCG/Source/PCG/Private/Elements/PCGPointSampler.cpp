@@ -34,6 +34,8 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	const bool bKeepZeroDensityPoints = false;
 #endif
 
+	const int Seed = PCGSettingsHelpers::ComputeSeedWithOverride(Settings, Context->SourceComponent, Params);
+
 	const bool bNoSampling = (Ratio <= 0.0f);
 	const bool bTrivialSampling = (Ratio >= 1.0f);
 
@@ -96,12 +98,12 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FPCGPointSamplerElement::Execute::SelectPoints);
 
-			FPCGAsync::AsyncPointProcessing(Context, OriginalPointCount, SampledPoints, [&Points, Settings, Ratio, bKeepZeroDensityPoints](int32 Index, FPCGPoint& OutPoint)
+			FPCGAsync::AsyncPointProcessing(Context, OriginalPointCount, SampledPoints, [&Points, Seed, Ratio, bKeepZeroDensityPoints](int32 Index, FPCGPoint& OutPoint)
 			{
 				const FPCGPoint& Point = Points[Index];
 
 				// Apply a high-pass filter based on selected ratio
-				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, Point.Seed));
+				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Seed, Point.Seed));
 				float Chance = RandomSource.FRand();
 
 				if (Chance < Ratio)

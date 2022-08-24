@@ -30,6 +30,8 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 	const float SettingsRemapMax = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGLinearDensityRemapSettings, RemapMax), Settings->RemapMax, Params);
 	const bool bMultiplyDensity = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGLinearDensityRemapSettings, bMultiplyDensity), Settings->bMultiplyDensity, Params);
 
+	const int Seed = PCGSettingsHelpers::ComputeSeedWithOverride(Settings, Context->SourceComponent, Params);
+
 	const float RemapMin = FMath::Min(SettingsRemapMin, SettingsRemapMax);
 	const float RemapMax = FMath::Max(SettingsRemapMin, SettingsRemapMax);
 
@@ -63,20 +65,20 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (bMultiplyDensity)
 		{
-			FPCGAsync::AsyncPointProcessing(Context, OriginalPointCount, SampledPoints, [&Points, Settings, RemapMin, RemapMax](int32 Index, FPCGPoint& OutPoint)
+			FPCGAsync::AsyncPointProcessing(Context, OriginalPointCount, SampledPoints, [&Points, Seed, RemapMin, RemapMax](int32 Index, FPCGPoint& OutPoint)
 			{
 				OutPoint = Points[Index];
-				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, OutPoint.Seed));
+				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Seed, OutPoint.Seed));
 				OutPoint.Density *= RandomSource.FRandRange(RemapMin, RemapMax);
 				return true;
 			});
 		}
 		else
 		{
-			FPCGAsync::AsyncPointProcessing(Context, OriginalPointCount, SampledPoints, [&Points, Settings, RemapMin, RemapMax](int32 Index, FPCGPoint& OutPoint)
+			FPCGAsync::AsyncPointProcessing(Context, OriginalPointCount, SampledPoints, [&Points, Seed, RemapMin, RemapMax](int32 Index, FPCGPoint& OutPoint)
 			{
 				OutPoint = Points[Index];
-				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, OutPoint.Seed));
+				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Seed, OutPoint.Seed));
 				OutPoint.Density = RandomSource.FRandRange(RemapMin, RemapMax);
 				return true;
 			});

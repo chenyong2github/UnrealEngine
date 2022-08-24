@@ -8,6 +8,9 @@
 
 #include <type_traits>
 
+class UPCGComponent;
+class UPCGSettings;
+
 namespace PCGSettingsHelpers
 {
 	// Utility function to return a value from an attribute that doesn't match the type
@@ -215,6 +218,8 @@ namespace PCGSettingsHelpers
 
 		return ReturnType();
 	}
+
+	int ComputeSeedWithOverride(const UPCGSettings* InSettings, const UPCGComponent* InComponent, UPCGParamData* InParams);
 }
 
 #define PCG_GET_OVERRIDEN_VALUE(Settings, Variable, Params) PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(TRemovePointer<TRemoveConst<decltype(Settings)>::Type>::Type, Variable), (Settings)->Variable, Params);

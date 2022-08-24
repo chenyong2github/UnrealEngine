@@ -2,6 +2,10 @@
 
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include "PCGComponent.h"
+#include "PCGHelpers.h"
+#include "PCGSettings.h"
+
 namespace PCGSettingsHelpers
 {
 	template<typename T>
@@ -199,5 +203,13 @@ namespace PCGSettingsHelpers
 			// Mismatching types
 			UE_LOG(LogPCG, Warning, TEXT("Mismatching type in params vs. property %s"), *Property->GetFName().ToString());
 		}
+	}
+
+	int ComputeSeedWithOverride(const UPCGSettings* InSettings, const UPCGComponent* InComponent, UPCGParamData* InParams)
+	{
+		check(InSettings);
+
+		const int SettingsSeed = InParams ? PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSettings, Seed), InSettings->Seed, InParams) : InSettings->Seed;
+		return InComponent ? PCGHelpers::ComputeSeed(SettingsSeed, InComponent->Seed) : SettingsSeed;
 	}
 }

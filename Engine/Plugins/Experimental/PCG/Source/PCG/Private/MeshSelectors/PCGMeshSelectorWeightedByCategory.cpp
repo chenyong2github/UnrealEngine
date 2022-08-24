@@ -2,13 +2,13 @@
 
 #include "MeshSelectors/PCGMeshSelectorWeightedByCategory.h"
 
-#include "PCGHelpers.h"
+#include "Elements/PCGPointFilter.h"
+#include "Elements/PCGStaticMeshSpawner.h"
+#include "Helpers/PCGBlueprintHelpers.h"
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTraits.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Elements/PCGPointFilter.h"
-#include "Elements/PCGStaticMeshSpawner.h"
 
 #include "Math/RandomStream.h"
 #include "Engine/StaticMesh.h"
@@ -185,7 +185,7 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 
 		const int TotalWeight = InstancesAndWeights->CumulativeWeights.Last();
 
-		FRandomStream RandomSource(PCGHelpers::ComputeSeed(Point.Seed, Settings->Seed));
+		FRandomStream RandomSource = UPCGBlueprintHelpers::GetRandomStream(Point, Settings, Context.SourceComponent);
 		int RandomWeightedPick = RandomSource.RandRange(0, TotalWeight - 1);
 
 		int RandomPick = 0;

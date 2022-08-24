@@ -28,10 +28,13 @@ bool FPCGDensityNoiseElement::ExecuteInternal(FPCGContext* Context) const
 	const float DensityNoiseMax = PCG_GET_OVERRIDEN_VALUE(Settings, DensityNoiseMax, Params);
 	const bool bInvertSourceDensity = PCG_GET_OVERRIDEN_VALUE(Settings, bInvertSourceDensity, Params);
 
+	// Precompute a seed based on the settings one and the component one
+	const int Seed = PCGSettingsHelpers::ComputeSeedWithOverride(Settings, Context->SourceComponent, Params);
+
 	ProcessPoints(Context, Inputs, Outputs, [&](const FPCGPoint& InPoint, FPCGPoint& OutPoint)
 	{
 		OutPoint = InPoint;
-		FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, OutPoint.Seed));
+		FRandomStream RandomSource(PCGHelpers::ComputeSeed(Seed, OutPoint.Seed));
 
 		const float DensityNoise = RandomSource.FRandRange(DensityNoiseMin, DensityNoiseMax);
 

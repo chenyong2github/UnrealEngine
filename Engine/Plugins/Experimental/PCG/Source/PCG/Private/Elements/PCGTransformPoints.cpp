@@ -42,11 +42,13 @@ bool FPCGTransformPointsElement::ExecuteInternal(FPCGContext* Context) const
 	const bool bUniformScale = PCG_GET_OVERRIDEN_VALUE(Settings, bUniformScale, Params);
 	const bool bRecomputeSeed = PCG_GET_OVERRIDEN_VALUE(Settings, bRecomputeSeed, Params);
 
+	const int Seed = PCGSettingsHelpers::ComputeSeedWithOverride(Settings, Context->SourceComponent, Params);
+
 	ProcessPoints(Context, Inputs, Outputs, [&](const FPCGPoint& InPoint, FPCGPoint& OutPoint)
 	{
 		OutPoint = InPoint;
 
-		FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, InPoint.Seed));
+		FRandomStream RandomSource(PCGHelpers::ComputeSeed(Seed, InPoint.Seed));
 
 		const float OffsetX = RandomSource.FRandRange(OffsetMin.X, OffsetMax.X);
 		const float OffsetY = RandomSource.FRandRange(OffsetMin.Y, OffsetMax.Y);

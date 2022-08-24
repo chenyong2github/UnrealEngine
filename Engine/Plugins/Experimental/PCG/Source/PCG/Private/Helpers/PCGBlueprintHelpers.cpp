@@ -17,16 +17,24 @@ void UPCGBlueprintHelpers::SetSeedFromPosition(FPCGPoint& InPoint)
 	InPoint.Seed = ComputeSeedFromPosition(InPoint.Transform.GetLocation());
 }
 
-FRandomStream UPCGBlueprintHelpers::GetRandomStream(const FPCGPoint& InPoint, const UPCGSettings* OptionalSettings)
+FRandomStream UPCGBlueprintHelpers::GetRandomStream(const FPCGPoint& InPoint, const UPCGSettings* OptionalSettings, const UPCGComponent* OptionalComponent)
 {
-	if (OptionalSettings)
+	int Seed = InPoint.Seed;
+
+	if (OptionalSettings && OptionalComponent)
 	{
-		return FRandomStream(PCGHelpers::ComputeSeed(InPoint.Seed, OptionalSettings->Seed));
+		Seed = PCGHelpers::ComputeSeed(InPoint.Seed, OptionalSettings->Seed, OptionalComponent->Seed);
 	}
-	else
+	else if (OptionalSettings)
 	{
-		return FRandomStream(InPoint.Seed);
+		Seed = PCGHelpers::ComputeSeed(InPoint.Seed, OptionalSettings->Seed);
 	}
+	else if (OptionalComponent)
+	{
+		Seed = PCGHelpers::ComputeSeed(InPoint.Seed, OptionalComponent->Seed);
+	}
+
+	return FRandomStream(Seed);
 }
 
 UPCGData* UPCGBlueprintHelpers::GetActorData(FPCGContext& Context)

@@ -34,6 +34,8 @@ struct FPCGSurfaceSamplerLoopData
 
 	float Ratio;
 
+	int Seed;
+
 	bool Initialize(const UPCGSurfaceSamplerSettings* InSettings, FPCGContext* Context, const FBox& InputBounds)
 	{
 		UPCGParamData* Params = Context->InputData.GetParams();
@@ -48,6 +50,8 @@ struct FPCGSurfaceSamplerLoopData
 #if WITH_EDITORONLY_DATA
 		bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSurfaceSamplerSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
 #endif
+
+		Seed = PCGSettingsHelpers::ComputeSeedWithOverride(InSettings, Context->SourceComponent, Params);
 
 		// Conceptually, we will break down the surface bounds in a N x M grid
 		InterstitialDistance = PointExtents * 2;
@@ -180,7 +184,7 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 			const FVector::FReal CurrentY = CellY * LoopData.CellSize.Y;
 			const FVector InnerCellSize = LoopData.InnerCellSize;
 
-			FRandomStream RandomSource(PCGHelpers::ComputeSeed(LoopData.Settings->Seed, CellX, CellY));
+			FRandomStream RandomSource(PCGHelpers::ComputeSeed(LoopData.Seed, CellX, CellY));
 			float Chance = RandomSource.FRand();
 
 			const float Ratio = LoopData.Ratio;

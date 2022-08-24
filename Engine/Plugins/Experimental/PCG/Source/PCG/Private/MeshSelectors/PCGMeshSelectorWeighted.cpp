@@ -2,9 +2,9 @@
 
 #include "MeshSelectors/PCGMeshSelectorWeighted.h"
 
-#include "PCGHelpers.h"
 #include "PCGPoint.h"
 #include "Elements/PCGStaticMeshSpawner.h"
+#include "Helpers/PCGBlueprintHelpers.h"
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTraits.h"
@@ -91,7 +91,7 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 				continue;
 			}
 
-			FRandomStream RandomSource(PCGHelpers::ComputeSeed(Point.Seed, Settings->Seed));
+			FRandomStream RandomSource = UPCGBlueprintHelpers::GetRandomStream(Point, Settings, Context.SourceComponent);
 			int RandomWeightedPick = RandomSource.RandRange(0, TotalWeight - 1);
 
 			int RandomPick = 0;
