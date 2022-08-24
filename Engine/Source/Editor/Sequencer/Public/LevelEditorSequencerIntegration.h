@@ -29,11 +29,13 @@ struct FLevelEditorSequencerIntegrationOptions
 		: bRequiresLevelEvents(true)
 		, bRequiresActorEvents(false)
 		, bForceRefreshDetails(true)
+		, bAttachOutlinerColumns(true)
 	{}
 
 	bool bRequiresLevelEvents : 1;
 	bool bRequiresActorEvents : 1;
 	bool bForceRefreshDetails : 1;
+	bool bAttachOutlinerColumns : 1;
 };
 
 

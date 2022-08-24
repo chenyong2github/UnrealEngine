@@ -1023,7 +1023,6 @@ void FLevelEditorSequencerIntegration::AttachOutlinerColumn()
 		true, TOptional<float>(), LOCTEXT("SpawnableColumnName", "Spawnable"));
 
 	SceneOutlinerModule.RegisterDefaultColumnType< Sequencer::FSequencerSpawnableColumn >(SpawnColumnInfo);
-	AcquiredResources.Add([=]{ this->DetachOutlinerColumn(); });
 
 	FSceneOutlinerColumnInfo ColumnInfo(ESceneOutlinerColumnVisibility::Visible, 15, 
 		FCreateSceneOutlinerColumn::CreateRaw( this, &FLevelEditorSequencerIntegration::CreateSequencerInfoColumn), 
@@ -1251,7 +1250,10 @@ void FLevelEditorSequencerIntegration::AddSequencer(TSharedRef<ISequencer> InSeq
 	}
 
 	ActivateRealtimeViewports();
-	AttachOutlinerColumn();
+	if (Options.bAttachOutlinerColumns)
+	{
+		AttachOutlinerColumn();
+	}
 	OnSequencersChanged.Broadcast();
 }
 
@@ -1286,6 +1288,12 @@ void FLevelEditorSequencerIntegration::RemoveSequencer(TSharedRef<ISequencer> In
 	if (!BoundSequencers.FindByPredicate(IsValidSequencer))
 	{
 		AcquiredResources.Release();
+	}
+	
+	auto HasOutlinerColumns = [](const FSequencerAndOptions& In) { return In.Sequencer.IsValid() && In.Options.bAttachOutlinerColumns; };
+	if (!BoundSequencers.FindByPredicate(HasOutlinerColumns))
+	{
+		DetachOutlinerColumn();
 	}
 
 	OnSequencersChanged.Broadcast();
