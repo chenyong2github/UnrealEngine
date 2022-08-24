@@ -53,6 +53,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Timing")
 	FFrameRate FrameRate;
 
+	/** Indicates that this custom time step should block to enforce the specified frame rate. Set to false if this is enforced elsewhere. */
+	UPROPERTY(EditAnywhere, Category = "Timing")
+	bool bShouldBlock;
+
+	/** When true, delta time will always be 1/FrameRate, regardless of how much real time has elapsed */
+	UPROPERTY(EditAnywhere, Category = "Timing")
+	bool bForceSingleFrameDeltaTime;
+
 private:
 	uint32 LastSyncCountDelta;
 	double QuantizedCurrentTime;
