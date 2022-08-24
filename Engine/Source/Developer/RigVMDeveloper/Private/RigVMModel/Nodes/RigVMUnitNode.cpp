@@ -17,6 +17,10 @@ void URigVMUnitNode::PostLoad()
 		if (IsDeprecated())
 		{
 			TemplateNotation = NAME_None;
+			if(const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(GetScriptStruct(), *GetMethodName().ToString()))
+			{
+				ResolvedFunctionName = Function->GetName();
+			}
 		}
 		else if(GetTemplate() == nullptr)
 		{
