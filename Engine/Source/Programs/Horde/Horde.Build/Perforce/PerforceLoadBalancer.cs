@@ -246,7 +246,19 @@ namespace Horde.Build.Perforce
 		/// </summary>
 		static bool EvaluateCondition(Condition? condition, IReadOnlyList<string> properties)
 		{
-			return condition != null && !condition.IsEmpty() && condition.Evaluate(x => GetPropertyValues(properties, x));
+			if (condition == null)
+			{
+				return false;
+			}
+			if (condition.IsEmpty())
+			{
+				return false;
+			}
+			if (properties == null)
+			{
+				throw new ArgumentException(nameof(properties));
+			}
+			return condition.Evaluate(x => GetPropertyValues(properties, x));
 		}
 
 		/// <summary>
