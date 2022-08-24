@@ -32,7 +32,6 @@
 
 UInterchangeGenericAssetsPipeline::UInterchangeGenericAssetsPipeline()
 {
-	TexturePipeline = CreateDefaultSubobject<UInterchangeGenericTexturePipeline>("TexturePipeline");
 	MaterialPipeline = CreateDefaultSubobject<UInterchangeGenericMaterialPipeline>("MaterialPipeline");
 	CommonMeshesProperties = CreateDefaultSubobject<UInterchangeGenericCommonMeshesProperties>("CommonMeshesProperties");
 	CommonSkeletalMeshesAndAnimationsProperties = CreateDefaultSubobject<UInterchangeGenericCommonSkeletalMeshesAndAnimationsProperties>("CommonSkeletalMeshesAndAnimationsProperties");
@@ -48,11 +47,6 @@ void UInterchangeGenericAssetsPipeline::PreDialogCleanup(const FName PipelineSta
 	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull())
 	//We always clean the pipeline skeleton when showing the dialog
 	CommonSkeletalMeshesAndAnimationsProperties->Skeleton = nullptr;
-
-	if (TexturePipeline)
-	{
-		TexturePipeline->PreDialogCleanup(PipelineStackName);
-	}
 
 	if (MaterialPipeline)
 	{
@@ -74,11 +68,6 @@ void UInterchangeGenericAssetsPipeline::PreDialogCleanup(const FName PipelineSta
 
 bool UInterchangeGenericAssetsPipeline::IsSettingsAreValid(TOptional<FText>& OutInvalidReason) const
 {
-	if (TexturePipeline && !TexturePipeline->IsSettingsAreValid(OutInvalidReason))
-	{
-		return false;
-	}
-
 	if (MaterialPipeline && !MaterialPipeline->IsSettingsAreValid(OutInvalidReason))
 	{
 		return false;
@@ -111,11 +100,6 @@ void UInterchangeGenericAssetsPipeline::AdjustSettingsForContext(EInterchangePip
 {
 	Super::AdjustSettingsForContext(ImportType, ReimportAsset);
 
-	if (TexturePipeline)
-	{
-		TexturePipeline->AdjustSettingsForContext(ImportType, ReimportAsset);
-	}
-
 	if (MaterialPipeline)
 	{
 		MaterialPipeline->AdjustSettingsForContext(ImportType, ReimportAsset);
@@ -146,10 +130,6 @@ void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 	//The parent Results container should be set at this point
 	ensure(!Results.IsNull());
 	{
-		if (TexturePipeline)
-		{
-			TexturePipeline->SetResultsContainer(Results);
-		}
 		if (MaterialPipeline)
 		{
 			MaterialPipeline->SetResultsContainer(Results);
@@ -170,11 +150,11 @@ void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 	//When we import only animation we need to prevent material and physic asset to be created
 	if (CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations)
 	{
-		MaterialPipeline->MaterialImport = EInterchangeMaterialImportOption::DoNotImport;
+		MaterialPipeline->bImportMaterials = false;
 		MeshPipeline->bImportStaticMeshes = false;
 		MeshPipeline->bCreatePhysicsAsset = false;
 		MeshPipeline->PhysicsAsset = nullptr;
-		TexturePipeline->bImportTextures = false;
+		MaterialPipeline->TexturePipeline->bImportTextures = false;
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -214,10 +194,6 @@ void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 		SourceDatas.Add(SourceData);
 	}
 
-	if (TexturePipeline)
-	{
-		TexturePipeline->ScriptedExecutePreImportPipeline(InBaseNodeContainer, InSourceDatas);
-	}
 	if (MaterialPipeline)
 	{
 		MaterialPipeline->ScriptedExecutePreImportPipeline(InBaseNodeContainer, InSourceDatas);
@@ -241,10 +217,6 @@ void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 
 void UInterchangeGenericAssetsPipeline::ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)
 {
-	if (TexturePipeline)
-	{
-		TexturePipeline->ScriptedExecutePostImportPipeline(InBaseNodeContainer, NodeKey, CreatedAsset, bIsAReimport);
-	}
 	if (MaterialPipeline)
 	{
 		MaterialPipeline->ScriptedExecutePostImportPipeline(InBaseNodeContainer, NodeKey, CreatedAsset, bIsAReimport);
@@ -276,7 +248,7 @@ void UInterchangeGenericAssetsPipeline::AddPackageMetaData(UObject* CreatedAsset
 	//Add UObject package meta data
 	if (UMetaData* MetaData = CreatedAsset->GetOutermost()->GetMetaData())
 	{
-		//Cleanup existing INTERCHANGE_ prefix metadata name for this object (in casse we re-import)
+		//Cleanup existing INTERCHANGE_ prefix metadata name for this object (in case we re-import)
 		{
 			TArray<FName> InterchangeMetaDataKeys;
 			if(TMap<FName, FString>* MetaDataMapPtr = MetaData->GetMapForObject(CreatedAsset))
@@ -494,11 +466,6 @@ void UInterchangeGenericAssetsPipeline::AddPackageMetaData(UObject* CreatedAsset
 
 void UInterchangeGenericAssetsPipeline::SetReimportSourceIndex(UClass* ReimportObjectClass, const int32 SourceFileIndex)
 {
-	if (TexturePipeline)
-	{
-		TexturePipeline->ScriptedSetReimportSourceIndex(ReimportObjectClass, SourceFileIndex);
-	}
-
 	if (MaterialPipeline)
 	{
 		MaterialPipeline->ScriptedSetReimportSourceIndex(ReimportObjectClass, SourceFileIndex);

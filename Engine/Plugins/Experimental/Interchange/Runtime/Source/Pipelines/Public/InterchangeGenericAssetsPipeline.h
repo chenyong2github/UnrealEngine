@@ -72,10 +72,6 @@ public:
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "Materials")
 	TObjectPtr<UInterchangeGenericMaterialPipeline> MaterialPipeline;
 
-	//////	TEXTURES_CATEGORY Properties //////
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "Textures")
-	TObjectPtr<UInterchangeGenericTexturePipeline> TexturePipeline;
-
 	virtual void PreDialogCleanup(const FName PipelineStackName) override;
 
 	virtual bool IsSettingsAreValid(TOptional<FText>& OutInvalidReason) const override;

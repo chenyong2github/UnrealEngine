@@ -871,15 +871,10 @@ TArray<FString> UInterchangeOBJTranslator::GetSupportedFormats() const
 	}
 }
 
-bool UInterchangeOBJTranslator::DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const
+EInterchangeTranslatorAssetType UInterchangeOBJTranslator::GetSupportedAssetTypes() const
 {
 	//Obj translator support Meshes and Materials
-	if (AssetType == EInterchangeTranslatorAssetType::Materials || AssetType == EInterchangeTranslatorAssetType::Meshes)
-	{
-		return true;
-	}
-
-	return false;
+	return EInterchangeTranslatorAssetType::Materials | EInterchangeTranslatorAssetType::Meshes;
 }
 
 

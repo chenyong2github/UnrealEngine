@@ -36,7 +36,7 @@ class UInterchangeGltfTranslator : public UInterchangeTranslatorBase
 public:
 	/** Begin UInterchangeTranslatorBase API*/
 	virtual EInterchangeTranslatorType GetTranslatorType() const override;
-	virtual bool DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const override;
+	virtual EInterchangeTranslatorAssetType GetSupportedAssetTypes() const override;
 	virtual TArray<FString> GetSupportedFormats() const override;
 	virtual bool Translate( UInterchangeBaseNodeContainer& BaseNodeContainer ) const override;
 	/** End UInterchangeTranslatorBase API*/

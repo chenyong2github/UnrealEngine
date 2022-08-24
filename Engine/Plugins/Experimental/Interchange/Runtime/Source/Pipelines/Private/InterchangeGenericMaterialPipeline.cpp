@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "InterchangeGenericTexturePipeline.h"
 #include "InterchangeMaterialDefinitions.h"
 #include "InterchangeMaterialFactoryNode.h"
 #include "InterchangeShaderGraphNode.h"
@@ -62,9 +63,39 @@ FString LexToString(UInterchangeGenericMaterialPipeline::EMaterialInputType Valu
 	}
 }
 
+UInterchangeGenericMaterialPipeline::UInterchangeGenericMaterialPipeline()
+{
+	TexturePipeline = CreateDefaultSubobject<UInterchangeGenericTexturePipeline>("TexturePipeline");
+}
+
+void UInterchangeGenericMaterialPipeline::PreDialogCleanup(const FName PipelineStackName)
+{
+	if (TexturePipeline)
+	{
+		TexturePipeline->PreDialogCleanup(PipelineStackName);
+	}
+
+	SaveSettings(PipelineStackName);
+}
+
+bool UInterchangeGenericMaterialPipeline::IsSettingsAreValid(TOptional<FText>& OutInvalidReason) const
+{
+	if (TexturePipeline && !TexturePipeline->IsSettingsAreValid(OutInvalidReason))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 void UInterchangeGenericMaterialPipeline::AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset)
 {
 	Super::AdjustSettingsForContext(ImportType, ReimportAsset);
+
+	if (TexturePipeline)
+	{
+		TexturePipeline->AdjustSettingsForContext(ImportType, ReimportAsset);
+	}
 
 	TArray<FString> HideCategories;
 	bool bIsObjectAMaterial = ReimportAsset.IsNull() ? false : ReimportAsset->IsA(UMaterialInterface::StaticClass());
@@ -74,7 +105,7 @@ void UInterchangeGenericMaterialPipeline::AdjustSettingsForContext(EInterchangeP
 		|| ImportType == EInterchangePipelineContext::AssetAlternateSkinningImport
 		|| ImportType == EInterchangePipelineContext::AssetAlternateSkinningReimport)
 	{
-		MaterialImport = EInterchangeMaterialImportOption::DoNotImport;
+		bImportMaterials = false;
 		HideCategories.Add(TEXT("Materials"));
 	}
 
@@ -95,6 +126,16 @@ void UInterchangeGenericMaterialPipeline::ExecutePreImportPipeline(UInterchangeB
 		return;
 	}
 
+	//Set the result container to allow error message
+	//The parent Results container should be set at this point
+	ensure(!Results.IsNull());
+	{
+		if (TexturePipeline)
+		{
+			TexturePipeline->SetResultsContainer(Results);
+		}
+	}
+
 	BaseNodeContainer = InBaseNodeContainer;
 	SourceDatas.Empty(InSourceDatas.Num());
 	for (const UInterchangeSourceData* SourceData : InSourceDatas)
@@ -102,6 +143,11 @@ void UInterchangeGenericMaterialPipeline::ExecutePreImportPipeline(UInterchangeB
 		SourceDatas.Add(SourceData);
 	}
 	
+	if (TexturePipeline)
+	{
+		TexturePipeline->ScriptedExecutePreImportPipeline(InBaseNodeContainer, InSourceDatas);
+	}
+
 	//Find all translated node we need for this pipeline
 	BaseNodeContainer->IterateNodes([this](const FString& NodeUid, UInterchangeBaseNode* Node)
 	{
@@ -165,6 +211,22 @@ void UInterchangeGenericMaterialPipeline::ExecutePreImportPipeline(UInterchangeB
 				MaterialInstanceFactoryNode->SetEnabled(bImportUnusedMaterial);
 			}
 		}
+	}
+}
+
+void UInterchangeGenericMaterialPipeline::ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)
+{
+	if (TexturePipeline)
+	{
+		TexturePipeline->ScriptedExecutePostImportPipeline(InBaseNodeContainer, NodeKey, CreatedAsset, bIsAReimport);
+	}
+}
+
+void UInterchangeGenericMaterialPipeline::SetReimportSourceIndex(UClass* ReimportObjectClass, const int32 SourceFileIndex)
+{
+	if (TexturePipeline)
+	{
+		TexturePipeline->ScriptedSetReimportSourceIndex(ReimportObjectClass, SourceFileIndex);
 	}
 }
 

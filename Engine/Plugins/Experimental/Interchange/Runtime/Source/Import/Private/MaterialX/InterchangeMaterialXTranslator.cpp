@@ -149,9 +149,9 @@ EInterchangeTranslatorType UInterchangeMaterialXTranslator::GetTranslatorType() 
 	return EInterchangeTranslatorType::Scenes;
 }
 
-bool UInterchangeMaterialXTranslator::DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const
+EInterchangeTranslatorAssetType UInterchangeMaterialXTranslator::GetSupportedAssetTypes() const
 {
-	return AssetType == EInterchangeTranslatorAssetType::Materials;
+	return EInterchangeTranslatorAssetType::Materials;
 }
 
 TArray<FString> UInterchangeMaterialXTranslator::GetSupportedFormats() const

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
 #include "Engine/EngineTypes.h"
 #include "InterchangeFilePickerBase.h"
@@ -11,6 +10,8 @@
 #include "UObject/SoftObjectPath.h"
 
 #include "InterchangeProjectSettings.generated.h"
+
+class UInterchangeSourceData;
 
 USTRUCT()
 struct FInterchangePipelineStack
@@ -43,6 +44,20 @@ struct FInterchangeImportSettings
 	bool bShowPipelineStacksConfigurationDialog = true;
 };
 
+USTRUCT()
+struct FInterchangeContentImportSettings : public FInterchangeImportSettings
+{
+	GENERATED_BODY()
+
+	/** This tell interchange which pipeline stack to select when importing.*/
+	UPROPERTY(EditAnywhere, Category = "Pipeline", Meta=(DisplayAfter="DefaultPipelineStack"))
+	TMap<EInterchangeTranslatorAssetType, FName> DefaultPipelineStackOverride;
+
+	/** This tell interchange which pipeline stack to select when importing.*/
+	UPROPERTY(EditAnywhere, Category = "Pipeline", Meta=(DisplayAfter="bShowPipelineStacksConfigurationDialog"))
+	TMap<EInterchangeTranslatorAssetType, bool> ShowPipelineStacksConfigurationDialogOverride;
+};
+
 UCLASS(config=Engine, meta=(DisplayName=Interchange), MinimalAPI)
 class UInterchangeProjectSettings : public UDeveloperSettings
 {
@@ -53,11 +68,11 @@ public:
 	 * Settings used when importing into the content browser.
 	 */
 	UPROPERTY(EditAnywhere, config, Category = "ImportContent")
-	FInterchangeImportSettings ContentImportSettings;
+	FInterchangeContentImportSettings ContentImportSettings;
 
 	/**
 	 * Settings used when importing into a level.
-	¸*/
+	 */
 	UPROPERTY(EditAnywhere, config, Category = "ImportIntoLevel")
 	FInterchangeImportSettings SceneImportSettings;
 
@@ -79,4 +94,17 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category = "Editor Generic Pipeline Class")
 	TSoftClassPtr <UInterchangePipelineBase> GenericPipelineClass;
+};
+
+class INTERCHANGEENGINE_API FInterchangeProjectSettingsUtils
+{
+public:
+	static const FInterchangeImportSettings& GetImportSettings(const UInterchangeProjectSettings& InterchangeProjectSettings, const bool bIsSceneImport);
+	static FInterchangeImportSettings& GetMutableImportSettings(UInterchangeProjectSettings& InterchangeProjectSettings, const bool bIsSceneImport);
+	static const FInterchangeImportSettings& GetDefaultImportSettings(const bool bIsSceneImport);
+	static FInterchangeImportSettings& GetMutableDefaultImportSettings(const bool bIsSceneImport);
+
+	static FName GetDefaultPipelineStackName(const bool bIsSceneImport, const UInterchangeSourceData& SourceData);
+
+	static bool ShouldShowPipelineStacksConfigurationDialog(const bool bIsSceneImport, const UInterchangeSourceData& SourceData);
 };

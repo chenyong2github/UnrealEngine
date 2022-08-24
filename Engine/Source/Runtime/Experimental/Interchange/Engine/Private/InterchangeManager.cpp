@@ -49,27 +49,9 @@ namespace UE::Interchange::Private
 #endif
 	}
 
-	const FInterchangeImportSettings& GetImportSettings(const UInterchangeProjectSettings& InterchangeProjectSettings, EImportType ImportType)
-	{
-		if (ImportType == EImportType::ImportType_Asset)
-		{
-			return InterchangeProjectSettings.ContentImportSettings;
-		}
-		else if (ImportType == EImportType::ImportType_Scene)
-		{
-			return InterchangeProjectSettings.SceneImportSettings;
-		}
-		else
-		{
-			ensure(false);
-			static FInterchangeImportSettings InvalidSettings;
-			return InvalidSettings;
-		}
-	}
-
 	FInterchangeImportSettings& GetMutableImportSettings(UInterchangeProjectSettings& InterchangeProjectSettings, EImportType ImportType)
 	{
-		return const_cast<FInterchangeImportSettings&>(GetImportSettings(InterchangeProjectSettings, ImportType));
+		return const_cast<FInterchangeImportSettings&>(FInterchangeProjectSettingsUtils::GetImportSettings(InterchangeProjectSettings, ImportType == EImportType::ImportType_Scene));
 	}
 }
 
@@ -731,8 +713,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 	}
 
 	const bool bImportScene = ImportType == UE::Interchange::EImportType::ImportType_Scene;
-	const UInterchangeProjectSettings* InterchangeProjectSettings = GetDefault<UInterchangeProjectSettings>();
-	const FInterchangeImportSettings& InterchangeImportSettings = UE::Interchange::Private::GetImportSettings(*InterchangeProjectSettings, ImportType);
+	const FInterchangeImportSettings& InterchangeImportSettings = FInterchangeProjectSettingsUtils::GetDefaultImportSettings(bImportScene);
 	
 	if (InterchangeImportSettings.PipelineStacks.Num() == 0)
 	{
@@ -743,8 +724,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 	//Set a default pipeline stack if none is valid
 	if (!InterchangeImportSettings.PipelineStacks.Contains(InterchangeImportSettings.DefaultPipelineStack))
 	{
-		UInterchangeProjectSettings* MutableInterchangeProjectSettings = GetMutableDefault<UInterchangeProjectSettings>();
-		FInterchangeImportSettings& MutableInterchangeImportSettings = UE::Interchange::Private::GetMutableImportSettings(*MutableInterchangeProjectSettings, ImportType);
+		FInterchangeImportSettings& MutableInterchangeImportSettings = FInterchangeProjectSettingsUtils::GetMutableDefaultImportSettings(bImportScene);
 		TArray<FName> Keys;
 		MutableInterchangeImportSettings.PipelineStacks.GetKeys(Keys);
 		check(Keys.Num() > 0);
@@ -822,12 +802,12 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 
 #if WITH_EDITORONLY_DATA
 		const bool bShowPipelineStacksConfigurationDialog = !bIsUnattended
-															&& InterchangeImportSettings.bShowPipelineStacksConfigurationDialog
+															&& FInterchangeProjectSettingsUtils::ShouldShowPipelineStacksConfigurationDialog(bImportScene, *SourceData)
 															&& !bImportAllWithDefault;
 #else
 		const bool bShowPipelineStacksConfigurationDialog = false;
 #endif
-															
+
 		const TMap<FName, FInterchangePipelineStack>& DefaultPipelineStacks = InterchangeImportSettings.PipelineStacks;
 
 		//If we reimport we want to load the original pipeline and the original pipeline settings
@@ -901,7 +881,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 		}
 		else
 		{
-			FName PipelineStackName = InterchangeImportSettings.DefaultPipelineStack;
+			FName PipelineStackName = FInterchangeProjectSettingsUtils::GetDefaultPipelineStackName(ImportType == UE::Interchange::EImportType::ImportType_Scene, *SourceData);
 			if (RegisteredPipelineConfiguration && (bShowPipelineStacksConfigurationDialog || (!DefaultPipelineStacks.Contains(PipelineStackName) && !bIsUnattended)))
 			{
 				//Show the dialog, a plugin should have register this dialog. We use a plugin to be able to use editor code when doing UI
@@ -914,15 +894,15 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 				{
 					bImportAllWithDefault = true;
 				}
-				PipelineStackName = InterchangeImportSettings.DefaultPipelineStack;
 			}
+
 			if (!bImportCancel)
 			{
 				if (!DefaultPipelineStacks.Contains(PipelineStackName))
 				{
-					if (DefaultPipelineStacks.Contains(InterchangeImportSettings.DefaultPipelineStack))
+					if (DefaultPipelineStacks.Contains(FInterchangeProjectSettingsUtils::GetDefaultPipelineStackName(ImportType == UE::Interchange::EImportType::ImportType_Scene, *SourceData)))
 					{
-						PipelineStackName = InterchangeImportSettings.DefaultPipelineStack;
+						PipelineStackName = FInterchangeProjectSettingsUtils::GetDefaultPipelineStackName(ImportType == UE::Interchange::EImportType::ImportType_Scene, *SourceData);
 					}
 					else
 					{
@@ -946,12 +926,17 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 							if(UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(Pipelines[GraphPipelineIndex]))
 							{
 								GeneratedPipeline->AdjustSettingsForContext(bImportScene ? EInterchangePipelineContext::SceneImport : EInterchangePipelineContext::AssetImport, nullptr);
-								//Load the settings for this pipeline
-								//The dialog is saving the settings for all default pipelines
-								GeneratedPipeline->LoadSettings(PipelineStackName);
+
+								if (FInterchangeProjectSettingsUtils::ShouldShowPipelineStacksConfigurationDialog(bImportScene, *SourceData))
+								{
+									//Load the settings for this pipeline
+									//The dialog is saving the settings for all default pipelines
+									GeneratedPipeline->LoadSettings(PipelineStackName);
+								}
+								
 								AsyncHelper->Pipelines.Add(GeneratedPipeline);
 
-								//We need to save the python pipeline asset because we cannot save an asset create with a python class
+								//We need to save the python pipeline asset because we cannot save an asset created with a python class
 								if (UInterchangePythonPipelineAsset* OriginalPipeline = Cast<UInterchangePythonPipelineAsset>(Pipelines[GraphPipelineIndex].TryLoad()))
 								{
 									if (UInterchangePythonPipelineAsset* DuplicatedPythonPipelineAsset = DuplicateObject<UInterchangePythonPipelineAsset>(OriginalPipeline, GetTransientPackage()))

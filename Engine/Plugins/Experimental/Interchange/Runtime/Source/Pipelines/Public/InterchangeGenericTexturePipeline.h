@@ -13,7 +13,7 @@
 class UInterchangeTextureFactoryNode;
 class UInterchangeTextureNode;
 
-UCLASS(BlueprintType, hidedropdown, Experimental)
+UCLASS(BlueprintType, editinlinenew, Experimental)
 class INTERCHANGEPIPELINES_API UInterchangeGenericTexturePipeline : public UInterchangePipelineBase
 {
 	GENERATED_BODY()
@@ -28,19 +28,19 @@ public:
 	 * If enable, after a new import a test will be run to see if the texture is a normal map.
 	 * If the texture is a normal map the SRG, CompressionSettings and LODGroup settings will be adjusted.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures", Meta=(EditCondition="bImportTextures"))
 	bool bDetectNormalMapTexture = true;
 
 	/** If enabled, the texture's green channel will be inverted for normal maps. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures", Meta=(EditCondition="bImportTextures"))
 	bool bFlipNormalMapGreenChannel = false;
 
 	/** If enabled detect if a texture use a UDIM pattern and if so import it as UIDMs. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures", Meta=(EditCondition="bImportTextures"))
 	bool bImportUDIMs = true;
 
 	/** Specify the files type that should be imported as long/lat cubemap */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures", Meta=(EditCondition="bImportTextures"))
 	TSet<FString> FileExtensionsToImportAsLongLatCubemap = {"hdr"};
 
 	/** 
@@ -50,13 +50,13 @@ public:
 	 * 
 	 * Compressed source source data is generally store the data as it is in the source file.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Textures")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Textures", Meta=(EditCondition="bImportTextures"))
 	bool bPreferCompressedSourceData = false;
 
 #endif
 
 	/** Should the textures that have a non-power of two resolution be imported */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Textures")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Textures", Meta=(EditCondition="bImportTextures"))
 	bool bAllowNonPowerOfTwo = false;
 
 public:

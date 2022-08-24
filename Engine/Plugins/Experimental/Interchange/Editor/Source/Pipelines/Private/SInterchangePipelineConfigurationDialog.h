@@ -53,6 +53,7 @@ public:
 		: _OnSelectionChangedDelegate()
 	{}
 		SLATE_EVENT(FOnPipelineConfigurationSelectionChanged, OnSelectionChangedDelegate)
+		SLATE_ARGUMENT(TWeakObjectPtr<UInterchangeSourceData>, SourceData)
 		SLATE_ARGUMENT(bool, bSceneImport)
 		SLATE_ARGUMENT(bool, bReimport)
 		SLATE_ARGUMENT(TArray<UInterchangePipelineBase*>, PipelineStack)
@@ -74,6 +75,7 @@ public:
 protected:
 	/** Delegate to invoke when selection changes. */
 	FOnPipelineConfigurationSelectionChanged OnSelectionChangedDelegate;
+	TWeakObjectPtr<UInterchangeSourceData> SourceData;
 	bool bSceneImport = false;
 	bool bReimport = false;
 	TArray<UInterchangePipelineBase*> PipelineStack;

@@ -40,15 +40,10 @@ EInterchangeTranslatorType UInterchangeFbxTranslator::GetTranslatorType() const
 	return EInterchangeTranslatorType::Scenes;
 }
 
-bool UInterchangeFbxTranslator::DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const
+EInterchangeTranslatorAssetType UInterchangeFbxTranslator::GetSupportedAssetTypes() const
 {
 	//fbx translator support Meshes, Materials and animation
-	if (AssetType == EInterchangeTranslatorAssetType::Materials || AssetType == EInterchangeTranslatorAssetType::Meshes || AssetType == EInterchangeTranslatorAssetType::Animations)
-	{
-		return true;
-	}
-
-	return false;
+	return EInterchangeTranslatorAssetType::Materials | EInterchangeTranslatorAssetType::Meshes | EInterchangeTranslatorAssetType::Animations;
 }
 
 TArray<FString> UInterchangeFbxTranslator::GetSupportedFormats() const

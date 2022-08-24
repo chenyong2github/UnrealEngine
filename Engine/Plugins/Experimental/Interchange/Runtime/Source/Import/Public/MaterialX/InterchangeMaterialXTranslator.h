@@ -34,7 +34,7 @@ public:
 
 	virtual EInterchangeTranslatorType GetTranslatorType() const override;
 
-	virtual bool DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const override;
+	virtual EInterchangeTranslatorAssetType GetSupportedAssetTypes() const override;
 
 	virtual TArray<FString> GetSupportedFormats() const override;
 

@@ -19,7 +19,7 @@ class INTERCHANGEIMPORT_API UInterchangeIESTranslator : public UInterchangeTrans
 public:
 
 	virtual TArray<FString> GetSupportedFormats() const override;
-	virtual bool DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const override { return AssetType == EInterchangeTranslatorAssetType::Textures; }
+	virtual EInterchangeTranslatorAssetType GetSupportedAssetTypes() const override { return EInterchangeTranslatorAssetType::Textures; }
 
 	/**
 	 * Translate the associated source data into a node hold by the specified nodes container.

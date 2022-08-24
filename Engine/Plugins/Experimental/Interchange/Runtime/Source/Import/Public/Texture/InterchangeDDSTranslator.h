@@ -21,7 +21,7 @@ class INTERCHANGEIMPORT_API UInterchangeDDSTranslator : public UInterchangeTrans
 public:
 
 	virtual TArray<FString> GetSupportedFormats() const override;
-	virtual bool DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const override { return AssetType == EInterchangeTranslatorAssetType::Textures; }
+	virtual EInterchangeTranslatorAssetType GetSupportedAssetTypes() const override { return EInterchangeTranslatorAssetType::Textures; }
 	
 	/*
 	 * return true if the translator can translate the specified source data.

@@ -32,12 +32,13 @@ enum class EInterchangeTranslatorType : uint8
 UENUM(BlueprintType)
 enum class EInterchangeTranslatorAssetType : uint8
 {
-	None = 0,
-	Textures = 1,
-	Materials = 2,
-	Meshes = 3,
-	Animations = 4,
+	None = 0x0,
+	Textures = 0x1 << 0,
+	Materials = 0x1 << 1,
+	Meshes = 0x1 << 2,
+	Animations = 0x1 << 3,
 };
+ENUM_CLASS_FLAGS(EInterchangeTranslatorAssetType);
 
 UCLASS(BlueprintType, Blueprintable, Abstract, Experimental)
 class INTERCHANGECORE_API UInterchangeTranslatorBase : public UObject
@@ -50,7 +51,9 @@ public:
 
 	/** Specifies the capabilities of a translator. */
 	virtual EInterchangeTranslatorType GetTranslatorType() const { return EInterchangeTranslatorType::Assets; }
-	virtual bool DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const { return false; }
+
+	bool DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const { return EnumHasAllFlags(GetSupportedAssetTypes(), AssetType); }
+	virtual EInterchangeTranslatorAssetType GetSupportedAssetTypes() const PURE_VIRTUAL(UInterchangeTranslatorBase::GetSupportedAssetTypes, return EInterchangeTranslatorAssetType::None;);
 
 	/** List of formats supported by the translator. Each entry is of the form "ext;Description" where ext is the file extension. */
 	virtual TArray<FString> GetSupportedFormats() const PURE_VIRTUAL(UInterchangeTranslatorBase::GetSupportedExtensions, return TArray<FString>(););

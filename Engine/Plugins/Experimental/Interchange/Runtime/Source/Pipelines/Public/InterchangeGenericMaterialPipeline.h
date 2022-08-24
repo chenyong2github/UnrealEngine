@@ -13,6 +13,7 @@
 
 class UInterchangeBaseMaterialFactoryNode;
 class UInterchangeFunctionCallShaderNode;
+class UInterchangeGenericTexturePipeline;
 class UInterchangeShaderGraphNode;
 class UInterchangeShaderNode;
 class UInterchangeMaterialFactoryNode;
@@ -24,28 +25,42 @@ class UInterchangeResult;
 UENUM(BlueprintType)
 enum class EInterchangeMaterialImportOption : uint8
 {
-	DoNotImport,
 	ImportAsMaterials,
 	ImportAsMaterialInstances,
 };
 
-UCLASS(BlueprintType, hidedropdown, Experimental)
+UCLASS(BlueprintType, editinlinenew, Experimental)
 class INTERCHANGEPIPELINES_API UInterchangeGenericMaterialPipeline : public UInterchangePipelineBase
 {
 	GENERATED_BODY()
 
 public:
+	UInterchangeGenericMaterialPipeline();
+
+	/** If enabled, imports the texture assets found in the sources. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials")
+	bool bImportMaterials = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials", Meta=(EditCondition="bImportMaterials"))
 	EInterchangeMaterialImportOption MaterialImport = EInterchangeMaterialImportOption::ImportAsMaterials;
 
 	/** Optional material used as the parent when importing materials as instances. If no parent material is specified, one will be automatically selected during the import process. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials", Meta= (EditCondition="MaterialImport==EInterchangeMaterialImportOption::ImportAsMaterialInstances", AllowedClasses="/Script/Engine.MaterialInterface"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Materials", Meta= (EditCondition="bImportMaterials && MaterialImport==EInterchangeMaterialImportOption::ImportAsMaterialInstances", AllowedClasses="/Script/Engine.MaterialInterface"))
 	FSoftObjectPath ParentMaterial;
 
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "Textures")
+	TObjectPtr<UInterchangeGenericTexturePipeline> TexturePipeline;
+
+	/** BEGIN UInterchangePipelineBase overrides */
+	virtual void PreDialogCleanup(const FName PipelineStackName) override;
+	virtual bool IsSettingsAreValid(TOptional<FText>& OutInvalidReason) const override;
 	virtual void AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset) override;
 
 protected:
 	virtual void ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas) override;
+	virtual void ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport) override;
+	virtual void SetReimportSourceIndex(UClass* ReimportObjectClass, const int32 SourceFileIndex) override;
+	/** END UInterchangePipelineBase overrides */
 
 	UPROPERTY()
 	TObjectPtr<UInterchangeBaseNodeContainer> BaseNodeContainer;
