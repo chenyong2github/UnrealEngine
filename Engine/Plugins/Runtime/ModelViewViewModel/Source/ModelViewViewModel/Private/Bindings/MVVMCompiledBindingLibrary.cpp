@@ -93,11 +93,11 @@ void FMVVMCompiledBindingLibrary::Load()
 }
 
 
-TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMCompiledBindingLibrary::Execute(UObject* InExecutionSource, const FMVVMVCompiledBinding& InBinding) const
+TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMCompiledBindingLibrary::Execute(UObject* InExecutionSource, const FMVVMVCompiledBinding& InBinding, EConversionFunctionType InFunctionType) const
 {
 	check(InExecutionSource);
 
-	return ExecuteImpl(InExecutionSource, InBinding, nullptr);
+	return ExecuteImpl(InExecutionSource, InBinding, nullptr, InFunctionType);
 }
 
 
@@ -106,11 +106,11 @@ TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMC
 	check(InExecutionSource);
 	check(InSource);
 
-	return ExecuteImpl(InExecutionSource, InBinding, InSource);
+	return ExecuteImpl(InExecutionSource, InBinding, InSource, EConversionFunctionType::Simple);
 }
 
 
-TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMCompiledBindingLibrary::ExecuteImpl(UObject* InExecutionSource, const FMVVMVCompiledBinding& InBinding, UObject* InSource) const
+TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMCompiledBindingLibrary::ExecuteImpl(UObject* InExecutionSource, const FMVVMVCompiledBinding& InBinding, UObject* InSource, EConversionFunctionType InFunctionType) const
 {
 #if WITH_EDITORONLY_DATA
 	const bool bIsValidBinding = InBinding.CompiledBindingLibraryId == CompiledBindingLibraryId;
@@ -122,45 +122,48 @@ TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMC
 #endif
 
 	UE::MVVM::FFieldContext ValidSource;
-	if (InSource)
+	if (InFunctionType != EConversionFunctionType::Complex)
 	{
+		if (InSource)
+		{
 #if DO_CHECK
-		TValueOrError<UE::MVVM::FFieldContext, void> TestSource = EvaluateFieldPath(InExecutionSource, InBinding.SourceFieldPath);
-		if (TestSource.HasError())
-		{
-			ensureAlwaysMsgf(false, TEXT("The source was provided but it was not able to fetch it."));
-			return MakeError(EExecutionFailingReason::InvalidSource);
-		}
-		if (!TestSource.GetValue().GetObjectVariant().IsUObject())
-		{
-			ensureAlwaysMsgf(false, TEXT("The source was provided as a UObject but the fetched source is not a UObject."));
-			return MakeError(EExecutionFailingReason::InvalidSource);
-		}
-		if (InSource != TestSource.GetValue().GetObjectVariant().GetUObject())
-		{
-			ensureAlwaysMsgf(false, TEXT("The source was provided and it's not the same as the fetched source."));
-			return MakeError(EExecutionFailingReason::InvalidSource);
-		}
-		checkf(TestSource.GetValue().GetObjectVariant().GetData() != nullptr, TEXT("Tested in EvaluateFieldPath"));
+			TValueOrError<UE::MVVM::FFieldContext, void> TestSource = EvaluateFieldPath(InExecutionSource, InBinding.SourceFieldPath);
+			if (TestSource.HasError())
+			{
+				ensureAlwaysMsgf(false, TEXT("The source was provided but it was not able to fetch it."));
+				return MakeError(EExecutionFailingReason::InvalidSource);
+			}
+			if (!TestSource.GetValue().GetObjectVariant().IsUObject())
+			{
+				ensureAlwaysMsgf(false, TEXT("The source was provided as a UObject but the fetched source is not a UObject."));
+				return MakeError(EExecutionFailingReason::InvalidSource);
+			}
+			if (InSource != TestSource.GetValue().GetObjectVariant().GetUObject())
+			{
+				ensureAlwaysMsgf(false, TEXT("The source was provided and it's not the same as the fetched source."));
+				return MakeError(EExecutionFailingReason::InvalidSource);
+			}
+			checkf(TestSource.GetValue().GetObjectVariant().GetData() != nullptr, TEXT("Tested in EvaluateFieldPath"));
 #endif
 
-		TValueOrError<UE::MVVM::FMVVMFieldVariant, void> FinalPath = GetFinalFieldFromPathImpl(InBinding.SourceFieldPath);
-		if (FinalPath.HasError())
-		{
-			return MakeError(EExecutionFailingReason::InvalidSource);
+			TValueOrError<UE::MVVM::FMVVMFieldVariant, void> FinalPath = GetFinalFieldFromPathImpl(InBinding.SourceFieldPath);
+			if (FinalPath.HasError())
+			{
+				return MakeError(EExecutionFailingReason::InvalidSource);
+			}
+			ValidSource = UE::MVVM::FFieldContext(InSource, FinalPath.StealValue());
 		}
-		ValidSource = UE::MVVM::FFieldContext(InSource, FinalPath.StealValue());
-	}
-	else
-	{
-		TValueOrError<UE::MVVM::FFieldContext, void> FoundSource = EvaluateFieldPath(InExecutionSource, InBinding.SourceFieldPath);
-		if (FoundSource.HasError())
+		else
 		{
-			return MakeError(EExecutionFailingReason::InvalidSource);
-		}
-		checkf(FoundSource.GetValue().GetObjectVariant().GetData() != nullptr, TEXT("Tested in EvaluateFieldPath"));
+			TValueOrError<UE::MVVM::FFieldContext, void> FoundSource = EvaluateFieldPath(InExecutionSource, InBinding.SourceFieldPath);
+			if (FoundSource.HasError())
+			{
+				return MakeError(EExecutionFailingReason::InvalidSource);
+			}
+			checkf(FoundSource.GetValue().GetObjectVariant().GetData() != nullptr, TEXT("Tested in EvaluateFieldPath"));
 
-		ValidSource = FoundSource.StealValue();
+			ValidSource = FoundSource.StealValue();
+		}
 	}
 
 	TValueOrError<UE::MVVM::FFieldContext, void> FoundDestination = EvaluateFieldPath(InExecutionSource, InBinding.DestinationFieldPath);
@@ -193,22 +196,25 @@ TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMC
 		}
 	}
 
-	return ExecuteImpl(ValidSource, FoundDestination.GetValue(), ConversionFunction);
+	return ExecuteImpl(ValidSource, FoundDestination.GetValue(), ConversionFunction, InFunctionType);
 }
 
 
-TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMCompiledBindingLibrary::ExecuteImpl(UE::MVVM::FFieldContext& Source, UE::MVVM::FFieldContext& Destination, UE::MVVM::FFunctionContext& ConversionFunction) const
+TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMCompiledBindingLibrary::ExecuteImpl(UE::MVVM::FFieldContext& Source, UE::MVVM::FFieldContext& Destination, UE::MVVM::FFunctionContext& ConversionFunction, EConversionFunctionType FunctionType) const
 {
-	check(!Source.GetObjectVariant().IsEmpty());
-	check(!Destination.GetObjectVariant().IsEmpty());
-	check(!Source.GetObjectVariant().IsNull());
-	check(!Destination.GetObjectVariant().IsNull());
-	check(!Source.GetFieldVariant().IsEmpty());
-	check(!Destination.GetFieldVariant().IsEmpty());
-	if (!Source.GetObjectVariant().GetOwner()->IsChildOf(Source.GetFieldVariant().GetOwner()))
+	if (FunctionType != EConversionFunctionType::Complex)
 	{
-		return MakeError(EExecutionFailingReason::InvalidCast);
+		check(!Source.GetObjectVariant().IsEmpty());
+		check(!Source.GetObjectVariant().IsNull());
+		check(!Source.GetFieldVariant().IsEmpty());
+		if (!Source.GetObjectVariant().GetOwner()->IsChildOf(Source.GetFieldVariant().GetOwner()))
+		{
+			return MakeError(EExecutionFailingReason::InvalidCast);
+		}
 	}
+	check(!Destination.GetObjectVariant().IsEmpty());
+	check(!Destination.GetObjectVariant().IsNull());
+	check(!Destination.GetFieldVariant().IsEmpty());
 	if (!Destination.GetObjectVariant().GetOwner()->IsChildOf(Destination.GetFieldVariant().GetOwner()))
 	{
 		return MakeError(EExecutionFailingReason::InvalidCast);
@@ -216,7 +222,14 @@ TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMC
 
 	if (ConversionFunction.GetFunction())
 	{
-		UE::MVVM::BindingHelper::ExecuteBinding_NoCheck(Source, Destination, ConversionFunction);
+		if (FunctionType == EConversionFunctionType::Complex)
+		{
+			UE::MVVM::BindingHelper::ExecuteBinding_NoCheck(Destination, ConversionFunction);
+		}
+		else
+		{
+			UE::MVVM::BindingHelper::ExecuteBinding_NoCheck(Source, Destination, ConversionFunction);
+		}
 	}
 	else
 	{

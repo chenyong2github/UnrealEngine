@@ -11,6 +11,7 @@
 #include "MVVMFunctionGraphHelper.h"
 #include "MVVMSubsystem.h"
 #include "MVVMViewModelBase.h"
+#include "MVVMViewModelBase.h"
 #include "WidgetBlueprintCompiler.h"
 #include "View/MVVMViewClass.h"
 
@@ -38,12 +39,11 @@ void FMVVMViewBlueprintCompiler::CleanOldData(UWidgetBlueprintGeneratedClass* Cl
 	{
 		auto RenameObjectToTransientPackage = [](UObject* ObjectToRename)
 		{
-			const ERenameFlags RenFlags = REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty;
+			const ERenameFlags RenFlags = REN_DoNotDirty | REN_ForceNoResetLoaders | REN_DontCreateRedirectors;
 
 			ObjectToRename->Rename(nullptr, GetTransientPackage(), RenFlags);
 			ObjectToRename->SetFlags(RF_Transient);
 			ObjectToRename->ClearFlags(RF_Public | RF_Standalone | RF_ArchetypeObject);
-
 			FLinkerLoad::InvalidateExport(ObjectToRename);
 		};
 
@@ -67,16 +67,6 @@ void FMVVMViewBlueprintCompiler::CleanOldData(UWidgetBlueprintGeneratedClass* Cl
 
 void FMVVMViewBlueprintCompiler::CleanTemporaries(UWidgetBlueprintGeneratedClass* ClassToClean)
 {
-	for (FCompilerSourceCreatorContext& SourceCreatorContext : CompilerSourceCreatorContexts)
-	{
-		if (SourceCreatorContext.SetterGraph)
-		{
-			ensureMsgf(SourceCreatorContext.SetterGraph->HasAnyFlags(RF_Transient), TEXT("The graph should be temporary and should be generated automaticly."));
-			// GC may not have clean the graph (GC doesn't run when bRegenerateSkeletonOnly is on)
-			SourceCreatorContext.SetterGraph->Rename(nullptr, SourceCreatorContext.SetterGraph->GetOuter(), REN_DoNotDirty | REN_ForceNoResetLoaders);
-			SourceCreatorContext.SetterGraph = nullptr;
-		}
-	}
 }
 
 
@@ -402,17 +392,40 @@ void FMVVMViewBlueprintCompiler::CreateSourceLists(const FWidgetBlueprintCompile
 
 void FMVVMViewBlueprintCompiler::CreateFunctionsDeclaration(const FWidgetBlueprintCompilerContext::FCreateVariableContext& Context, UMVVMBlueprintView* BlueprintView)
 {
+	// Clean all previous intermediate function graph. It should stay alive. The graph lives on the Blueprint not on the class and it's used to generate the UFunction.
+	{
+		auto RenameObjectToTransientPackage = [](UObject* ObjectToRename)
+		{
+			const ERenameFlags RenFlags = REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty;
+			ObjectToRename->Rename(nullptr, GetTransientPackage(), RenFlags);
+			ObjectToRename->SetFlags(RF_Transient);
+			ObjectToRename->ClearFlags(RF_Public | RF_Standalone | RF_ArchetypeObject);
+			FLinkerLoad::InvalidateExport(ObjectToRename);
+		};
+
+		for (UEdGraph* OldGraph : BlueprintView->TemporaryGraph)
+		{
+			if (OldGraph)
+			{
+				RenameObjectToTransientPackage(OldGraph);
+			}
+		}
+		BlueprintView->TemporaryGraph.Reset();
+	}
+
 	for (FCompilerSourceCreatorContext& SourceCreator : CompilerSourceCreatorContexts)
 	{
 		if (!SourceCreator.SetterFunctionName.IsEmpty() && SourceCreator.Type == ECompilerSourceCreatorType::ViewModel)
 		{
 			ensure(SourceCreator.SetterGraph == nullptr);
+
 			SourceCreator.SetterGraph = UE::MVVM::FunctionGraphHelper::CreateIntermediateFunctionGraph(
 				WidgetBlueprintCompilerContext
 				, SourceCreator.SetterFunctionName
 				, (FUNC_BlueprintCallable | FUNC_Public)
 				, TEXT("Viewmodel")
 				, false);
+			BlueprintView->TemporaryGraph.Add(SourceCreator.SetterGraph);
 
 			if (SourceCreator.SetterGraph == nullptr || SourceCreator.SetterGraph->GetFName() != FName(*SourceCreator.SetterFunctionName))
 			{
@@ -754,11 +767,11 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 		FMVVMBlueprintViewBinding& Binding = *BindingPtr;
 
 		FMVVMViewBlueprintCompiler* Self = this;
-		auto AddBinding = [Self](UWidgetBlueprintGeneratedClass* Class, const TArrayView<TArray<UE::MVVM::FMVVMConstFieldVariant>> GetterFields, TArrayView<UE::MVVM::FMVVMConstFieldVariant> SetterFields, const UFunction* ConversionFunction) -> TValueOrError<FCompilerBinding, FString>
+		auto AddBinding = [Self](UWidgetBlueprintGeneratedClass* Class, TArrayView<const UE::MVVM::FMVVMConstFieldVariant> GetterField, TArrayView<const UE::MVVM::FMVVMConstFieldVariant> SetterFields, const UFunction* ConversionFunction) -> TValueOrError<FCompilerBinding, FString>
 		{
 			FCompilerBinding Result;
 
-			for (const TArray<UE::MVVM::FMVVMConstFieldVariant>& GetterField : GetterFields)
+			if (GetterField.Num() != 0)
 			{
 				// Generate a path to read the value at runtime
 				TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GeneratedField = FieldPathHelper::GenerateFieldPathList(GetterField, true);
@@ -776,7 +789,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 						, *::UE::MVVM::FieldPathHelper::ToString(GetterField)
 						, *FieldPathResult.GetError()));
 				}
-				Result.SourceRead.Add(FieldPathResult.GetValue());
+				Result.SourceRead = FieldPathResult.StealValue();
 			}
 
 			{
@@ -795,7 +808,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 						, *::UE::MVVM::FieldPathHelper::ToString(SetterFields)
 						, *FieldPathResult.GetError()));
 				}
-				Result.DestinationWrite = FieldPathResult.GetValue();
+				Result.DestinationWrite = FieldPathResult.StealValue();
 			}
 
 			if (ConversionFunction != nullptr)
@@ -807,7 +820,18 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 						, *ConversionFunction->GetPathName()
 						, *FieldPathResult.GetError()));
 				}
-				Result.ConversionFunction = FieldPathResult.GetValue();
+				Result.ConversionFunction = FieldPathResult.StealValue();
+				Result.bIsConversionFunctionComplex = BindingHelper::IsValidForComplexRuntimeConversion(ConversionFunction);
+			}
+
+			// Sanity check.
+			if (GetterField.Num() == 0 && (ConversionFunction == nullptr || !BindingHelper::IsValidForComplexRuntimeConversion(ConversionFunction)))
+			{
+				return MakeError(FString::Printf(TEXT("The binding should have a getter.")));
+			}
+			if (GetterField.Num() != 0 && ConversionFunction == nullptr && BindingHelper::IsValidForComplexRuntimeConversion(ConversionFunction))
+			{
+				return MakeError(FString::Printf(TEXT("The binding has a complex conversion function and a getter.")));
 			}
 
 			// Generate the binding
@@ -838,16 +862,6 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 			continue;
 		}
 
-		TArray<TArray<UE::MVVM::FMVVMConstFieldVariant>> GetterFields;
-		//if (Binding.Conversion.HasConversionFunction && has read values defined (that are not the default one))
-		//{
-		//  Add the read values for the conversion function
-		//}
-		//else
-		{
-			GetterFields.Add(BindingSourceContext.PropertyPath);
-		}
-
 		TArray<UE::MVVM::FMVVMConstFieldVariant> SetterPath;
 		{
 			const FMVVMBlueprintPropertyPath& DestinationPath = BindingSourceContext.bIsForwardBinding ? Binding.WidgetPath : Binding.ViewModelPath;
@@ -868,8 +882,14 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 		}
 
 		const UFunction* ConversionFunction = ConversionFunctionReference.ResolveMember<UFunction>(Class);
+		if (!ConversionFunctionWrapper.IsNone() && ConversionFunction == nullptr)
+		{
+			AddErrorForBinding(Binding, BlueprintView, TEXT("A complex conversion function was created but could not be found."));
+			bIsBindingsValid = false;
+			continue;
+		}
 
-		TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, GetterFields, SetterPath, ConversionFunction);
+		TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, BindingSourceContext.PropertyPath, SetterPath, ConversionFunction);
 		if (AddBindingResult.HasError())
 		{
 			AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The binding could not be created. %s"), *AddBindingResult.GetError()));
@@ -924,6 +944,16 @@ bool FMVVMViewBlueprintCompiler::CompileBindings(const FCompiledBindingLibraryCo
 			continue;
 		}
 
+		bool bIsOptional = false;
+		if (CompilerSourceCreatorContexts.IsValidIndex(CompileBinding.CompilerSourceContextIndex))
+		{
+			const FMVVMBlueprintViewModelContext& ModelContext = CompilerSourceCreatorContexts[CompileBinding.CompilerSourceContextIndex].ViewModelContext;
+			if (ModelContext.IsValid())
+			{
+				bIsOptional = ModelContext.bOptional;
+			}
+		}
+
 		NewBinding.FieldId = CompiledFieldId  ? *CompiledFieldId : FMVVMVCompiledFieldId();
 		NewBinding.Binding = *CompiledBinding;
 		NewBinding.UpdateMode = ViewBinding.UpdateMode;
@@ -933,7 +963,8 @@ bool FMVVMViewBlueprintCompiler::CompileBindings(const FCompiledBindingLibraryCo
 		NewBinding.Flags |= (IsForwardBinding(ViewBinding.BindingType)) ? FMVVMViewClass_CompiledBinding::EBindingFlags::ForwardBinding : 0;
 		NewBinding.Flags |= (ViewBinding.BindingType == EMVVMBindingMode::TwoWay) ? FMVVMViewClass_CompiledBinding::EBindingFlags::TwoWayBinding : 0;
 		NewBinding.Flags |= (IsOneTimeBinding(ViewBinding.BindingType)) ? FMVVMViewClass_CompiledBinding::EBindingFlags::OneTime : 0;
-		//NewBinding.Flags |= () ? FMVVMViewClass_CompiledBinding::EBindingFlags::RegistrationOptional : 0;
+		NewBinding.Flags |= (bIsOptional) ? FMVVMViewClass_CompiledBinding::EBindingFlags::ViewModelOptional : 0;
+		NewBinding.Flags |= (CompileBinding.bIsConversionFunctionComplex) ? FMVVMViewClass_CompiledBinding::EBindingFlags::ConversionFunctionIsComplex : 0;
 
 		ViewExtension->CompiledBindings.Emplace(MoveTemp(NewBinding));
 	}

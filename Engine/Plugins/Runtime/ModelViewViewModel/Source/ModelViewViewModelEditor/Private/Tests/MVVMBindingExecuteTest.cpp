@@ -614,6 +614,68 @@ bool FMVVMBindingExecuteTest::RunTest(const FString& Parameters)
 		AssignPropertyFloatDouble(UE::MVVM::FMVVMFieldVariant(GetFloat), UE::MVVM::FMVVMFieldVariant(GetDouble)
 			, UE::MVVM::FMVVMFieldVariant(PropFloat), UE::MVVM::FMVVMFieldVariant(PropDouble), ConversionIncDoubleFuntion, TEXT("PropertyReal = GetPropertyReal()"));
 	}
+	{
+		auto AssignPropertyAFromConversionFunction = [this, SourceObj, DestinationObj](UE::MVVM::FMVVMFieldVariant DestinationBinding, UFunction* Conversion, const TCHAR* Msg)
+		{
+			SourceObj->PropertyA.Value = 448;
+			DestinationObj->PropertyA.Value = 999;
+			UE::MVVM::Private::GMVVMBindingExecTextCounter = 0;
+
+			UE::MVVM::FFieldContext Destination(UE::MVVM::FObjectVariant(DestinationObj), DestinationBinding);
+			UE::MVVM::FFunctionContext Function = UE::MVVM::FFunctionContext(SourceObj, Conversion);
+			UE::MVVM::BindingHelper::ExecuteBinding_NoCheck(Destination, Function);
+
+			if (UE::MVVM::Private::GMVVMBindingExecTextCounter != 0) // -V547
+			{
+				AddError(FString::Printf(TEXT("%s failed to release the reources."), Msg));
+			}
+			if (SourceObj->PropertyA != DestinationObj->PropertyA)
+			{
+				AddError(FString::Printf(TEXT("%s failed the assignement."), Msg));
+			}
+			if (SourceObj->PropertyA.Value != 448)
+			{
+				AddError(FString::Printf(TEXT("%s the source value changes."), Msg));
+			}
+		};
+
+		FProperty* PropA = UMVVMViewModelBindingExecTest::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMVVMViewModelBindingExecTest, PropertyA));
+		UFunction* SetA = UMVVMViewModelBindingExecTest::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UMVVMViewModelBindingExecTest, SetterA));
+		UFunction* GetA = UMVVMViewModelBindingExecTest::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UMVVMViewModelBindingExecTest, GetterA));
+		AssignPropertyAFromConversionFunction(UE::MVVM::FMVVMFieldVariant(PropA), GetA, TEXT("PropertyA = GetterA()"));
+		AssignPropertyAFromConversionFunction(UE::MVVM::FMVVMFieldVariant(SetA), GetA, TEXT("SetPropertyA(GetterA())"));
+	}
+	{
+		auto AssignPropertyCFromConversionFunction = [this, SourceObj, DestinationObj](UE::MVVM::FMVVMFieldVariant DestinationBinding, UFunction* Conversion, const TCHAR* Msg)
+		{
+			SourceObj->PropertyC = 458;
+			DestinationObj->PropertyC = 999;
+			UE::MVVM::Private::GMVVMBindingExecTextCounter = 0;
+
+			UE::MVVM::FFieldContext Destination(UE::MVVM::FObjectVariant(DestinationObj), DestinationBinding);
+			UE::MVVM::FFunctionContext Function = UE::MVVM::FFunctionContext(SourceObj, Conversion);
+			UE::MVVM::BindingHelper::ExecuteBinding_NoCheck(Destination, Function);
+
+			if (UE::MVVM::Private::GMVVMBindingExecTextCounter != 0) // -V547
+			{
+				AddError(FString::Printf(TEXT("%s failed to release the reources."), Msg));
+			}
+			if (SourceObj->PropertyC != DestinationObj->PropertyC)
+			{
+				AddError(FString::Printf(TEXT("%s failed the assignement."), Msg));
+			}
+			if (SourceObj->PropertyC != 458)
+			{
+				AddError(FString::Printf(TEXT("%s the source value changes."), Msg));
+			}
+		};
+
+		FProperty* PropC = UMVVMViewModelBindingExecTest::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMVVMViewModelBindingExecTest, PropertyC));
+		UFunction* SetC = UMVVMViewModelBindingExecTest::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UMVVMViewModelBindingExecTest, SetterC));
+		UFunction* GetC = UMVVMViewModelBindingExecTest::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UMVVMViewModelBindingExecTest, GetterC));
+		AssignPropertyCFromConversionFunction(UE::MVVM::FMVVMFieldVariant(PropC), GetC, TEXT("PropertyC = GetterC()"));
+		AssignPropertyCFromConversionFunction(UE::MVVM::FMVVMFieldVariant(SetC), GetC, TEXT("SetPropertyC(GetterC())"));
+	}
 
 	SourceObj->RemoveFromRoot();
 	DestinationObj->RemoveFromRoot();

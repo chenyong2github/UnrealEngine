@@ -75,7 +75,7 @@ bool FMVVMBindingHelperTest::RunTest(const FString& Parameters)
 
 
 	auto TestFunction = [this](FName FunctionName
-		, bool bIsValidForSourceBinding, bool bIsValidForDestinationBinding, bool bIsValidForRuntimeConversion
+		, bool bIsValidForSourceBinding, bool bIsValidForDestinationBinding, bool bIsValidForSimpleRuntimeConversion, bool bIsValidForComplexRuntimeConversion
 		, FFieldClass* PropertyTypeForSourceBinding, FFieldClass* PropertyTypeForDestinationBinding)
 	{
 		UFunction* Function = UMVVMViewModelBindingHelperTest::StaticClass()->FindFunctionByName(FunctionName);
@@ -89,9 +89,13 @@ bool FMVVMBindingHelperTest::RunTest(const FString& Parameters)
 		{
 			AddError(FString::Printf(TEXT("IsValidForDestinationBinding failed for '%s'."), *FunctionName.ToString()));
 		}
-		if (::UE::MVVM::BindingHelper::IsValidForRuntimeConversion(Function) != bIsValidForRuntimeConversion)
+		if (::UE::MVVM::BindingHelper::IsValidForSimpleRuntimeConversion(Function) != bIsValidForSimpleRuntimeConversion)
 		{
-			AddError(FString::Printf(TEXT("IsValidForRuntimeConversion failed for '%s'."), *FunctionName.ToString()));
+			AddError(FString::Printf(TEXT("IsValidForSimpleRuntimeConversion failed for '%s'."), *FunctionName.ToString()));
+		}
+		if (::UE::MVVM::BindingHelper::IsValidForComplexRuntimeConversion(Function) != bIsValidForComplexRuntimeConversion)
+		{
+			AddError(FString::Printf(TEXT("IsValidForComplexRuntimeConversion failed for '%s'."), *FunctionName.ToString()));
 		}
 
 		{
@@ -118,41 +122,41 @@ bool FMVVMBindingHelperTest::RunTest(const FString& Parameters)
 		}
 	};
 
-	TestFunction("FunctionGetA", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionGetB", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionGetC", true, false, false, FIntProperty::StaticClass(), nullptr);
-	TestFunction("FunctionGetD", false, false, true, nullptr, nullptr);
-	TestFunction("FunctionGetE", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionGetF", true, false, false, FArrayProperty::StaticClass(), nullptr);
-	TestFunction("FunctionGetG", true, false, false, FArrayProperty::StaticClass(), nullptr);
-	TestFunction("FunctionGetH", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionGetI", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionGetJ", false, false, true, nullptr, nullptr);
+	TestFunction("FunctionGetA", false, false, false, false, nullptr, nullptr);
+	TestFunction("FunctionGetB", false, false, false, false, nullptr, nullptr);
+	TestFunction("FunctionGetC", true, false, false, true, FIntProperty::StaticClass(), nullptr);
+	TestFunction("FunctionGetD", false, false, true, false, nullptr, nullptr);
+	TestFunction("FunctionGetE", false, false, false, false, nullptr, nullptr);
+	TestFunction("FunctionGetF", true, false, false, true, FArrayProperty::StaticClass(), nullptr);
+	TestFunction("FunctionGetG", true, false, false, true, FArrayProperty::StaticClass(), nullptr);
+	TestFunction("FunctionGetH", false, false, false, false, nullptr, nullptr);
+	TestFunction("FunctionGetI", false, false, false, false, nullptr, nullptr);
+	TestFunction("FunctionGetJ", false, false, true, false, nullptr, nullptr);
 
-	TestFunction("FunctionSetA", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionSetB", false, true, false, nullptr, FIntProperty::StaticClass());
-	TestFunction("FunctionSetC", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionSetD", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionSetE", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionSetF", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionSetG", false, true, false, nullptr, FArrayProperty::StaticClass());
-	TestFunction("FunctionSetH", false, false, false, nullptr, nullptr);
+	TestFunction("FunctionSetA", false, false, false, false, nullptr, nullptr);
+	TestFunction("FunctionSetB", false, true, false, false, nullptr, FIntProperty::StaticClass());
+	TestFunction("FunctionSetC", false, false, false, false, nullptr, nullptr);
+	TestFunction("FunctionSetD", false, false, false, false, nullptr, nullptr);
+	TestFunction("FunctionSetE", false, false, false, false, nullptr, nullptr);
+	TestFunction("FunctionSetF", false, false, false, false, nullptr, nullptr);
+	TestFunction("FunctionSetG", false, true, false, false, nullptr, FArrayProperty::StaticClass());
+	TestFunction("FunctionSetH", false, false, false, false, nullptr, nullptr);
 
-	TestFunction("FunctionGetProtected", true, false, false, FIntProperty::StaticClass(), nullptr);
-	TestFunction("FunctionSetProtected", false, true, false, nullptr, FIntProperty::StaticClass());
-	TestFunction("FunctionGetter", true, false, false, FIntProperty::StaticClass(), nullptr);
-	TestFunction("FunctionSetter", false, true, false, nullptr, FIntProperty::StaticClass());
+	TestFunction("FunctionGetProtected", true, false, false, true, FIntProperty::StaticClass(), nullptr);
+	TestFunction("FunctionSetProtected", false, true, false, false, nullptr, FIntProperty::StaticClass());
+	TestFunction("FunctionGetter", true, false, false, true, FIntProperty::StaticClass(), nullptr);
+	TestFunction("FunctionSetter", false, true, false, false, nullptr, FIntProperty::StaticClass());
 
-	TestFunction("FunctionConversionA", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionConversionB", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionConversionC", false, false, true, nullptr, nullptr);
-	TestFunction("FunctionConversionD", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionConversionE", false, true, false, nullptr, FIntProperty::StaticClass());
-	TestFunction("FunctionConversionF", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionConversionG", false, false, true, nullptr, nullptr);
-	TestFunction("FunctionConversionH", false, false, true, nullptr, nullptr);
-	TestFunction("FunctionConversionI", false, false, false, nullptr, nullptr);
-	TestFunction("FunctionConversionJ", false, false, false, nullptr, nullptr);
+	TestFunction("FunctionConversionA", false, false, false, false, nullptr, nullptr);
+	TestFunction("FunctionConversionB", false, false, false, true, nullptr, nullptr);
+	TestFunction("FunctionConversionC", false, false, true, false, nullptr, nullptr);
+	TestFunction("FunctionConversionD", false, false, false, false, nullptr, nullptr);
+	TestFunction("FunctionConversionE", false, true, false, false, nullptr, FIntProperty::StaticClass());
+	TestFunction("FunctionConversionF", false, false, false, false, nullptr, nullptr);
+	TestFunction("FunctionConversionG", false, false, true, false, nullptr, nullptr);
+	TestFunction("FunctionConversionH", false, false, true, false, nullptr, nullptr);
+	TestFunction("FunctionConversionI", false, false, false, false, nullptr, nullptr);
+	TestFunction("FunctionConversionJ", false, false, false, false, nullptr, nullptr);
 
 	auto TestConversionFunction = [this](FName FunctionName, FFieldClass* ExpectedReturnProperty, FFieldClass* ExpectedFirstProperty)
 	{

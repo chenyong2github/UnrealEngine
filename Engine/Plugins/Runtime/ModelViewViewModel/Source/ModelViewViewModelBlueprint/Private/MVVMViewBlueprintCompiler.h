@@ -118,6 +118,7 @@ private:
 		int32 CompilerSourceContextIndex = INDEX_NONE;
 		bool bSourceIsUserWidget = false;
 		bool bFieldIdNeeded = false;
+		bool bIsConversionFunctionComplex = false;
 
 		FCompiledBindingLibraryCompiler::FBindingHandle BindingHandle;
 
@@ -128,7 +129,7 @@ private:
 		//else we read the same property that TriggerField changed
 		// then we copy TriggerField to DestiantionWrite.
 		FCompiledBindingLibraryCompiler::FFieldIdHandle FieldIdHandle;
-		TArray<FCompiledBindingLibraryCompiler::FFieldPathHandle> SourceRead;
+		FCompiledBindingLibraryCompiler::FFieldPathHandle SourceRead;
 		FCompiledBindingLibraryCompiler::FFieldPathHandle DestinationWrite;
 		FCompiledBindingLibraryCompiler::FFieldPathHandle ConversionFunction;
 	};

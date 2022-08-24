@@ -76,6 +76,10 @@ public:
 	DECLARE_EVENT(UMVVMBlueprintView, FOnViewModelsUpdated);
 	FOnViewModelsUpdated OnViewModelsUpdated;
 
+	// Use during compilation to clean the automatically generated graph.
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UEdGraph>> TemporaryGraph;
+
 private:
 	UPROPERTY(EditAnywhere, Category = "MVVM")
 	TArray<FMVVMBlueprintViewBinding> Bindings;

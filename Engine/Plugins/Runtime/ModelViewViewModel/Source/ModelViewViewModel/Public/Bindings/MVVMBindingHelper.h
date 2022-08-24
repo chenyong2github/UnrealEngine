@@ -48,9 +48,16 @@ namespace UE::MVVM::BindingHelper
 	UE_NODISCARD MODELVIEWVIEWMODEL_API bool IsValidForDestinationBinding(const FMVVMConstFieldVariant InFunction);
 
 	/**
-	 * Is the Function usable as a conversion function by the binding system.
+	 * Is the Function usable as a conversion function by the binding system without any wrapper.
+	 * A simple conversion takes a single argument and returns a single value.
 	 */
-	UE_NODISCARD MODELVIEWVIEWMODEL_API bool IsValidForRuntimeConversion(const UFunction* InFunction);
+	UE_NODISCARD MODELVIEWVIEWMODEL_API bool IsValidForSimpleRuntimeConversion(const UFunction* InFunction);
+
+	/**
+	 * Is the Function usable as a conversion function by the binding system with a wrapper.
+	 * A complex conversion takes a no argument and returns a single value.
+	 */
+	UE_NODISCARD MODELVIEWVIEWMODEL_API bool IsValidForComplexRuntimeConversion(const UFunction* InFunction);
 
 #if WITH_EDITOR
 	/** Is the Property usable as a source by the binding system and can it be read directly or it requires a Getter. */
@@ -115,13 +122,24 @@ namespace UE::MVVM::BindingHelper
 	 *   LocalValue = Src.Property; Dst.SetProperty(LocalValue);
 	 *   LocalValue = Src.GetProperty(); Dst.Property = LocalValue;
 	 *   LocalValue = Src.GetProperty(); Dst.SetProperty(LocalValue);
-	 * with conversion from float to double between the getter and the setter.
+	 * with conversion from float to double or integral to integral between the getter and the setter.
 	 * 
 	 * @note No test is performed to see if the Src Property can be safely assign to the Destination Property. Use with caution.
 	 * @note No test is performed to see if the Src.GetProperty can be safely executed. Use with caution.
 	 * @note No test is performed to see if the Dst.SetProperty can be safely executed. Use with caution.
 	 */
 	MODELVIEWVIEWMODEL_API void ExecuteBinding_NoCheck(const FFieldContext& Source, const FFieldContext& Destination);
+
+	/**
+	 * Execute a binding that can be
+	 *   LocalValue = ConcFuncOwner.ConversionFunction(LocalValue); Dst.Property = LocalValue;
+	 *   LocalValue = ConcFuncOwner.ConversionFunction(LocalValue); Dst.SetProperty(LocalValue);
+	 * with conversion from float to double or integral to integral between the getter and the conversion function and/or the conversion function and the setter.
+	 *
+	 * @note No test is performed to see if the Dst.SetProperty can be safely executed. Use with caution.
+	 * @note No test is performed to see if the ConversionFunction can be safely executed. Use with caution.
+	 */
+	MODELVIEWVIEWMODEL_API void ExecuteBinding_NoCheck(const FFieldContext& Destination, const FFunctionContext& ConversionFunction);
 
 	/**
 	 * Execute a binding that can be

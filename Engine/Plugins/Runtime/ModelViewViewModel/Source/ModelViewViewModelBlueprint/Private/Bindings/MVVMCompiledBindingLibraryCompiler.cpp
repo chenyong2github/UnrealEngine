@@ -361,7 +361,9 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 		return MakeError(TEXT("The function path is empty."));
 	}
 
-	if (!BindingHelper::IsValidForRuntimeConversion(Function))
+	const bool bIsSimpleFunction = BindingHelper::IsValidForSimpleRuntimeConversion(Function);
+	const bool bIsComplexFunction = BindingHelper::IsValidForComplexRuntimeConversion(Function);
+	if (!bIsSimpleFunction && !bIsComplexFunction)
 	{
 		return MakeError(FString::Printf(TEXT("Function %s cannot be used as a runtime conversion function."), *Function->GetName()));
 	}

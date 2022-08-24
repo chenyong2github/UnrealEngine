@@ -258,6 +258,13 @@ public:
 		InvalidCast,
 	};
 
+	/** */
+	enum class EConversionFunctionType
+	{
+		Simple, 	// accept an single argument and returns a single property
+		Complex,	// returns a single property. The argument are fetch from inside the function 
+	};
+
 	/** Fetch the FProperty and UFunction. */
 	void Load();
 
@@ -267,7 +274,7 @@ public:
 	 * The Source of the binding (ViewModel, UserWidget, Widget, ...) can be provided if already known.
 	 * The Destination or the binding (ViewModel, UserWIdget, Widget, ...) can be provided if already known.
 	 */
-	TValueOrError<void, EExecutionFailingReason> Execute(UObject* ExecutionSource, const FMVVMVCompiledBinding& Binding) const;
+	TValueOrError<void, EExecutionFailingReason> Execute(UObject* ExecutionSource, const FMVVMVCompiledBinding& Binding, EConversionFunctionType ConversionType) const;
 	TValueOrError<void, EExecutionFailingReason> ExecuteWithSource(UObject* ExecutionSource, const FMVVMVCompiledBinding& Binding, UObject* Source) const;
 
 	/**
@@ -284,8 +291,8 @@ public:
 	TValueOrError<FString, FString> FieldPathToString(const FMVVMVCompiledFieldPath& FieldPath) const;
 
 private:
-	TValueOrError<void, EExecutionFailingReason> ExecuteImpl(UObject* ExecutionSource, const FMVVMVCompiledBinding& Binding, UObject* Source) const;
-	TValueOrError<void, EExecutionFailingReason> ExecuteImpl(UE::MVVM::FFieldContext& Source, UE::MVVM::FFieldContext& Destination, UE::MVVM::FFunctionContext& ConversionFunction) const;
+	TValueOrError<void, EExecutionFailingReason> ExecuteImpl(UObject* ExecutionSource, const FMVVMVCompiledBinding& Binding, UObject* Source, EConversionFunctionType ConversionType) const;
+	TValueOrError<void, EExecutionFailingReason> ExecuteImpl(UE::MVVM::FFieldContext& Source, UE::MVVM::FFieldContext& Destination, UE::MVVM::FFunctionContext& ConversionFunction, EConversionFunctionType ConversionType) const;
 
 	TValueOrError<UE::MVVM::FMVVMFieldVariant, void> GetFinalFieldFromPathImpl(const FMVVMVCompiledFieldPath& FieldPath) const;
 

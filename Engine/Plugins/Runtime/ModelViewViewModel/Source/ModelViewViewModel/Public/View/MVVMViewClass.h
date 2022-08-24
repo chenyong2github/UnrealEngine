@@ -135,10 +135,16 @@ public:
 		return (Flags & EBindingFlags::EnabledByDefault) != 0;
 	}
 
-	/** @return true if the binding . */
+	/** @return true if it's normal that the binding could not find it's source when registering it. */
 	bool IsRegistrationOptional() const
 	{
-		return (Flags & EBindingFlags::RegistrationOptional) != 0;
+		return (Flags & EBindingFlags::ViewModelOptional) != 0;
+	}
+
+	/** @return true if the binding use a conversion function and that the conversion function is complex. */
+	bool IsConversionFunctionComplex() const
+	{
+		return (Flags & EBindingFlags::ConversionFunctionIsComplex) != 0;
 	}
 
 	/** @return a human readable version of the binding that can be use for debugging purposes. */
@@ -165,7 +171,10 @@ private:
 		TwoWayBinding = 1 << 1, // The binding is one part of a 2 ways binding.
 		OneTime = 1 << 2,
 		EnabledByDefault = 1 << 3,
-		RegistrationOptional = 1 << 4,	// The source (viewmodel) can be nullptr and the binding could failed without warning.
+		ViewModelOptional = 1 << 4,	// The source (viewmodel) can be nullptr and the binding could failed and should not log a warning.
+		ConversionFunctionIsComplex = 1 << 5,	// The conversion function is complex, there is no input. The inputs are calculated in the BP function.
+		Unused01 = 1 << 6,
+		Unused02 = 1 << 7,
 	};
 
 	UPROPERTY()

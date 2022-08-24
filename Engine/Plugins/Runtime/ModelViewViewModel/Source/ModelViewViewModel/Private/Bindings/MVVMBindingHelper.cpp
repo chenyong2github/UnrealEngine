@@ -109,15 +109,29 @@ namespace UE::MVVM::BindingHelper
 	}
 
 
-	bool IsValidForRuntimeConversion(const UFunction* InFunction)
+	bool IsValidForSimpleRuntimeConversion(const UFunction* InFunction)
 	{
 		if (Private::IsValidCommon(InFunction)
 			&& (InFunction->HasAllFunctionFlags(FUNC_Static) || InFunction->HasAllFunctionFlags(FUNC_Const | FUNC_BlueprintPure))
-			&& InFunction->NumParms == 2)
+			&& InFunction->NumParms <= 2)
 		{
 			const FProperty* ReturnProperty = GetReturnProperty(InFunction);
 			const FProperty* FirstArgumentProperty = GetFirstArgumentProperty(InFunction);
 			return ReturnProperty && FirstArgumentProperty && ReturnProperty != FirstArgumentProperty;
+		}
+		return false;
+	}
+	
+	
+	bool IsValidForComplexRuntimeConversion(const UFunction* InFunction)
+	{
+		if (Private::IsValidCommon(InFunction)
+			&& (InFunction->HasAllFunctionFlags(FUNC_Static) || InFunction->HasAllFunctionFlags(FUNC_Const | FUNC_BlueprintPure))
+			&& InFunction->NumParms <= 1)
+		{
+			const FProperty* ReturnProperty = GetReturnProperty(InFunction);
+			const FProperty* FirstArgumentProperty = GetFirstArgumentProperty(InFunction);
+			return ReturnProperty && FirstArgumentProperty == nullptr;
 		}
 		return false;
 	}
@@ -388,11 +402,6 @@ namespace UE::MVVM::BindingHelper
 			return MakeError(FString::Printf(TEXT("The function '%s' is not static or is not const and pure."), *InFunction->GetName()));
 		}
 
-		if (InFunction->NumParms < 2)
-		{
-			return MakeError(FString::Printf(TEXT("The function '%s' does not have the correct number of arguments."), *InFunction->GetName()));
-		}
-
 		const FProperty* ReturnProperty = GetReturnProperty(InFunction);
 		if (ReturnProperty == nullptr)
 		{
@@ -615,6 +624,77 @@ namespace UE::MVVM::BindingHelper
 		}
 
 		GetterType->DestroyValue(DataPtr);
+	}
+
+
+	void ExecuteBinding_NoCheck(const FFieldContext& Destination, const FFunctionContext& ConversionFunction)
+	{
+		check(!Destination.GetObjectVariant().IsNull());
+		check(!Destination.GetFieldVariant().IsEmpty());
+		check(ConversionFunction.GetFunction() && ConversionFunction.GetObject());
+
+		void* ConversionFunctionDataPtr = FMemory_Alloca_Aligned(ConversionFunction.GetFunction()->ParmsSize, ConversionFunction.GetFunction()->GetMinAlignment());
+		for (TFieldIterator<FProperty> It(ConversionFunction.GetFunction()); It && It->HasAnyPropertyFlags(CPF_Parm); ++It)
+		{
+			It->InitializeValue_InContainer(ConversionFunctionDataPtr);
+		}
+
+		ConversionFunction.GetObject()->ProcessEvent(ConversionFunction.GetFunction(), ConversionFunctionDataPtr);
+
+		{
+			const FProperty* ReturnConversionProperty = GetReturnProperty(ConversionFunction.GetFunction());
+			check(ReturnConversionProperty);
+
+			const bool bIsDestinationBindingIsProperty = Destination.GetFieldVariant().IsProperty();
+			const FProperty* SetterType = bIsDestinationBindingIsProperty ? Destination.GetFieldVariant().GetProperty() : GetFirstArgumentProperty(Destination.GetFieldVariant().GetFunction());
+			check(SetterType);
+			check(ArePropertiesCompatible(ReturnConversionProperty, SetterType));
+
+			if (Private::IsNumericConversionRequired(ReturnConversionProperty, SetterType))
+			{
+				// we need to do a copy because we may destroy the ReturnConversionProperty (imagine the return type is a TArray)
+				const int32 AllocationSize = FMath::Max(SetterType->GetSize(), ReturnConversionProperty->GetSize());
+				const int32 AllocationMinAlignment = FMath::Max(SetterType->GetMinAlignment(), ReturnConversionProperty->GetMinAlignment());
+				void* SetterDataPtr = FMemory_Alloca_Aligned(AllocationSize, AllocationMinAlignment);
+				SetterType->InitializeValue(SetterDataPtr); // probably not needed since they are double/float
+
+				ReturnConversionProperty->CopyCompleteValue(SetterDataPtr, ReturnConversionProperty->ContainerPtrToValuePtr<void>(ConversionFunctionDataPtr));
+				Private::ConvertNumeric(ReturnConversionProperty, SetterType, SetterDataPtr);
+
+				if (bIsDestinationBindingIsProperty)
+				{
+					SetterType->SetValue_InContainer(Destination.GetObjectVariant().GetData(), SetterDataPtr);
+				}
+				else
+				{
+					check(SetterType->GetSize() == Destination.GetFieldVariant().GetFunction()->ParmsSize); // only 1 param
+					check(Destination.GetObjectVariant().IsUObject());
+					Destination.GetObjectVariant().GetUObject()->ProcessEvent(Destination.GetFieldVariant().GetFunction(), SetterDataPtr);
+				}
+
+				SetterType->DestroyValue(SetterDataPtr);
+			}
+			else
+			{
+				// Re use the same buffer, no need to create a new copy
+				void* DestinationDataPtr = ReturnConversionProperty->ContainerPtrToValuePtr<void>(ConversionFunctionDataPtr);
+				if (bIsDestinationBindingIsProperty)
+				{
+					SetterType->SetValue_InContainer(Destination.GetObjectVariant().GetData(), DestinationDataPtr);
+				}
+				else
+				{
+					check(SetterType->GetSize() == Destination.GetFieldVariant().GetFunction()->ParmsSize); // only 1 param
+					check(Destination.GetObjectVariant().IsUObject());
+					Destination.GetObjectVariant().GetUObject()->ProcessEvent(Destination.GetFieldVariant().GetFunction(), DestinationDataPtr);
+				}
+			}
+		}
+
+		for (TFieldIterator<FProperty> It(ConversionFunction.GetFunction()); It && It->HasAnyPropertyFlags(CPF_Parm); ++It)
+		{
+			It->DestroyValue_InContainer(ConversionFunctionDataPtr);
+		}
 	}
 
 

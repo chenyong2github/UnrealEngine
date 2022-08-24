@@ -318,36 +318,53 @@ TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FConstDirectionalBin
 			return MakeError(ReturnResult.StealError());
 		}
 
-		TValueOrError<TArray<const FProperty*>, FString> ArgumentsResult = UE::MVVM::BindingHelper::TryGetArgumentsForConversionFunction(Args.ConversionFunction);
-		if (ArgumentsResult.HasError())
+		const bool bIsSimpleConversionFunction = UE::MVVM::BindingHelper::IsValidForSimpleRuntimeConversion(Args.ConversionFunction);
+		const bool bIsComplexConversionFunction = UE::MVVM::BindingHelper::IsValidForComplexRuntimeConversion(Args.ConversionFunction);
+		if (!bIsSimpleConversionFunction && !bIsComplexConversionFunction)
 		{
-			return MakeError(ArgumentsResult.StealError());
+			return MakeError(FString::Printf(TEXT("The conversion function '%s' is not valid as a conversion function"), *Args.ConversionFunction->GetName()));
 		}
 
-		// The compiled version should look like Setter(Conversion(Getter())).
-		const FProperty* ReturnProperty = ReturnResult.GetValue();
-		if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(ReturnProperty, DestinationProperty))
+		// The simple compiled version look like Setter(Conversion(Getter())).
+		if (bIsSimpleConversionFunction)
 		{
-			return MakeError(FString::Printf(TEXT("The destination property '%s' (%s) does not match the return type of the conversion function (%s)."), *DestinationProperty->GetName(), *DestinationProperty->GetCPPType(), *ReturnProperty->GetCPPType()));
-		}
-
-		bool bAnyCompatible = false;
-
-		const TArray<const FProperty*>& ArgumentProperties = ArgumentsResult.GetValue();
-		for (const FProperty* ArgumentProperty : ArgumentProperties)
-		{
-			if (UE::MVVM::BindingHelper::ArePropertiesCompatible(SourceProperty, ArgumentProperty))
+			TValueOrError<TArray<const FProperty*>, FString> ArgumentsResult = UE::MVVM::BindingHelper::TryGetArgumentsForConversionFunction(Args.ConversionFunction);
+			if (ArgumentsResult.HasError())
 			{
-				bAnyCompatible = true;
-				break;
+				return MakeError(ArgumentsResult.StealError());
+			}
+			if (ArgumentsResult.GetValue().Num() != 1)
+			{
+				return MakeError(TEXT("Internal error. The number of arguments should be 1."));
+			}
+
+			bool bAnyCompatible = false;
+			const TArray<const FProperty*>& ArgumentProperties = ArgumentsResult.GetValue();
+			for (const FProperty* ArgumentProperty : ArgumentProperties)
+			{
+				if (UE::MVVM::BindingHelper::ArePropertiesCompatible(SourceProperty, ArgumentProperty))
+				{
+					bAnyCompatible = true;
+					break;
+				}
+			}
+
+			if (!bAnyCompatible)
+			{
+				FString ArgumentsString = FString::JoinBy(ArgumentProperties, TEXT(", "), [](const FProperty* Property) { return Property->GetCPPType(); });
+
+				return MakeError(FString::Printf(TEXT("The source property '%s' (%s) does not match any of the argument types of the conversion function (%s)."), *SourceProperty->GetName(), *SourceProperty->GetCPPType(), *ArgumentsString));
 			}
 		}
-
-		if (!bAnyCompatible)
+		else
 		{
-			FString ArgumentsString = FString::JoinBy(ArgumentProperties, TEXT(", "), [](const FProperty* Property) { return Property->GetCPPType(); });
-
-			return MakeError(FString::Printf(TEXT("The source property '%s' (%s) does not match any of the argument types of the conversion function (%s)."), *SourceProperty->GetName(), *SourceProperty->GetCPPType(), *ArgumentsString));
+			// The complex compiled version look like Setter(Conversion()) (no argument)
+			check(bIsComplexConversionFunction);
+			const FProperty* ReturnProperty = ReturnResult.GetValue();
+			if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(ReturnProperty, DestinationProperty))
+			{
+				return MakeError(FString::Printf(TEXT("The destination property '%s' (%s) does not match the return type of the conversion function (%s)."), *DestinationProperty->GetName(), *DestinationProperty->GetCPPType(), *ReturnProperty->GetCPPType()));
+			}
 		}
 	}
 	else if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(SourceProperty, DestinationProperty))

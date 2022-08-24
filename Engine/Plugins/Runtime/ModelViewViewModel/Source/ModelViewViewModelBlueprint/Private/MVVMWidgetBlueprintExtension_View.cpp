@@ -113,24 +113,26 @@ void UMVVMWidgetBlueprintExtension_View::HandleFinishCompilingClass(UWidgetBluep
 
 	check(CurrentCompilerContext);
 
-	if (CurrentCompilerContext->GetCompilerContext().bAssignDelegateSignatureFunction)
+	if (CurrentCompilerContext->GetCompilerContext().bIsFullCompile)
+	{
+		UMVVMViewClass* ViewExtension = nullptr;
+		bool bCompiled = false;
+		if (CurrentCompilerContext->PreCompile(Class, BlueprintView))
+		{
+			ViewExtension = NewObject<UMVVMViewClass>(Class);
+			bCompiled = CurrentCompilerContext->Compile(Class, BlueprintView, ViewExtension);
+		}
+
+		CurrentCompilerContext->CleanTemporaries(Class);
+
+		if (bCompiled)
+		{
+			check(ViewExtension);
+			CurrentCompilerContext->AddExtension(Class, ViewExtension);
+		}
+	}
+	else
 	{
 		CurrentCompilerContext->CleanTemporaries(Class);
-		return;
-	}
-
-	UMVVMViewClass* ViewExtension = nullptr;
-	bool bCompiled = false;
-	if (CurrentCompilerContext->PreCompile(Class, BlueprintView))
-	{
-		ViewExtension = NewObject<UMVVMViewClass>(Class);
-		bCompiled = CurrentCompilerContext->Compile(Class, BlueprintView, ViewExtension);
-	}
-
-	CurrentCompilerContext->CleanTemporaries(Class);
-	if (bCompiled)
-	{
-		check(ViewExtension);
-		CurrentCompilerContext->AddExtension(Class, ViewExtension);
 	}
 }
