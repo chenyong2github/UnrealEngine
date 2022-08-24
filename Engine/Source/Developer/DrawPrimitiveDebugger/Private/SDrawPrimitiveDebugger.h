@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Slate/Public/Widgets/Input/SSearchBox.h"
+#include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "ViewDebug.h"
 
 #if !UE_BUILD_SHIPPING
