@@ -9,7 +9,9 @@
 #include "SMSWindow.h"
 #include "TCPServer.h"
 #include "Engine/StaticMeshActor.h"
+#include "Engine/DecalActor.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "AssetRegistry/AssetData.h"
 #include "Engine/Selection.h"
@@ -121,42 +123,6 @@ void FAssetDragDropCustomOp::OnDrop(bool bDropWasHandled, const FPointerEvent& M
 		FBridgeUIManager::BrowserBinding->OnDropDiscardedDelegate.ExecuteIfBound(TEXT("dropped-discarded"));
 		return;
 	} 
-
-	if (bDropWasHandled && FBridgeUIManager::BrowserBinding->DragOperationToAssetsMap[IDs[0]].IsEmpty())
-	{
-		// UE_LOG(LogTemp, Error, TEXT("Drag accepted and all assets were covered in this operation"));
-	}
-	else
-	{
-		// UE_LOG(LogTemp, Error, TEXT("Drag accepted but not all assets were covered in this operation"));
-		USelection* SelectedActors = GEditor->GetSelectedActors();
-		TArray<AStaticMeshActor*> Actors;
-		for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
-		{
-			AStaticMeshActor* Actor = Cast<AStaticMeshActor>(*Iter);
-			// Log Actor path name
-			// UE_LOG(LogTemp, Error, TEXT("Actor Name: %s"), *Actor->GetActorLabel());
-			if (Actor->GetActorLabel().Contains(TEXT("Sphere")))
-			{
-				Actors.Add(Actor);
-			}
-		}
-		TArray<FString> AssetsInOperation = FBridgeUIManager::BrowserBinding->DragOperationToAssetsMap[IDs[0]];
-		for (int32 i = 0; i < AssetsInOperation.Num(); i++)
-		{
-			if (!FBridgeUIManager::BrowserBinding->AssetToSphereMap.Contains(AssetsInOperation[i]))
-			{
-				if (i < Actors.Num())
-				{
-					FBridgeUIManager::BrowserBinding->AssetToSphereMap.Add(AssetsInOperation[i], Actors[i]);
-				}
-				else
-				{
-					break;
-				}
-			}
-		}
-	}
 }
 
 TSharedRef<FAssetDragDropCustomOp> FAssetDragDropCustomOp::New(TArray<FAssetData> AssetDataArray, UActorFactory* ActorFactory, TArray<FString> ImageUrls, TArray<FString> IDs)
@@ -320,14 +286,6 @@ void UBrowserBinding::OpenExternalUrl(FString Url)
 
 void UBrowserBinding::SwitchDragDropOp(TArray<FString> URLs, TSharedRef<FAssetDragDropOp> DragDropOperation)
 {
-	// UE_LOG(LogTemp, Error, TEXT("Switch Drag and Drop Op"));
-	TArray<FAssetData> Assets = DragDropOperation->GetAssets();
-	// Loop over assets and log their names
-	for (const FAssetData& Asset : Assets)
-	{
-		// UE_LOG(LogTemp, Error, TEXT("Asset: %s"), *Asset.AssetName.ToString());
-	}
-
 	FBridgeUIManager::BrowserBinding->bWasSwitchDragOperation = true;
 	FSlateApplication::Get().CancelDragDrop(); // calls onDrop method on the current drag drop operation
 	FBridgeUIManager::BrowserBinding->bWasSwitchDragOperation = false;
@@ -352,17 +310,212 @@ void UBrowserBinding::SwitchDragDropOp(TArray<FString> URLs, TSharedRef<FAssetDr
 			ModifierKeyState);
 
 	// Tell slate to enter drag and drop mode.
-	// Make a faux mouse event for slate, so we can initiate a drag and drop.
+	// Make a fake mouse event for slate, so we can initiate a drag and drop.
 	FDragDropEvent DragDropEvent(FakePointerEvent, DragDropOperation);
 
 	TSharedPtr<SWindow> OwnerWindow = FSlateApplication::Get().FindWidgetWindow(FBridgeUIManager::Instance->LocalBrowserDock.ToSharedRef());
 	FSlateApplication::Get().ProcessDragEnterEvent(OwnerWindow.ToSharedRef(), DragDropEvent);
 }
 
-void UBrowserBinding::DragStarted(TArray<FString> ImageUrls, TArray<FString> IDs)
+void SetupOnActorsDroppedEvent()
+{
+	FEditorDelegates::OnNewActorsDropped.AddLambda([](TArray<UObject*> DroppedObjects, TArray<AActor*> DroppedActors)
+	{
+		if (FBridgeUIManager::BrowserBinding->bIsDragging)
+		{
+			// Take out 3d from the list of DroppedObjects
+			TArray<UObject*> Filtered3dObjects;
+			TArray<AActor*> Filtered3dActors;
+			TArray<FString> Filtered3dIDs;
+
+			for (int32 i = 0; i < DroppedObjects.Num(); i++)
+			{	
+				if (DroppedObjects[i]->IsA(UStaticMesh::StaticClass()) || DroppedObjects[i]->IsA(UMaterialInstanceConstant::StaticClass()))
+				{
+					Filtered3dObjects.Add(DroppedObjects[i]);
+				}
+			}
+
+			// Take out actors other than decals from the list of DroppedActors
+			for (int32 i = 0; i < DroppedActors.Num(); i++)
+			{	
+				if (DroppedActors[i]->IsA(AStaticMeshActor::StaticClass()) || DroppedActors[i]->IsA(ADecalActor::StaticClass()))
+				{
+					Filtered3dActors.Add(DroppedActors[i]);
+				}
+			}
+
+			for (int32 i = 0; i < FBridgeUIManager::BrowserBinding->DragDropTypes.Num(); i++)
+			{
+				FString Type = FBridgeUIManager::BrowserBinding->DragDropTypes[i];
+				FString ID = FBridgeUIManager::BrowserBinding->DragDropIDs[i];
+				if (Type == "surface" || Type == "imperfection") continue;
+				Filtered3dIDs.Add(ID);
+			}
+
+			// Search for the ID against filtered objects (specific case for decals)
+			for (int32 i = 0; i < Filtered3dIDs.Num(); i++)
+			{
+				FString ID = Filtered3dIDs[i];
+				for (int32 j = 0; j < Filtered3dObjects.Num(); j++)
+				{
+					UObject* Object = Filtered3dObjects[j];
+					AActor* Actor = Filtered3dActors[j];
+					if (Object != nullptr && Object->GetName().Find(ID) != -1)
+					{
+						FBridgeUIManager::BrowserBinding->AssetToSphereMap.Add(ID, Actor);
+						Filtered3dIDs[i] = "-1";
+						Filtered3dObjects[j] = nullptr;
+						Filtered3dActors[j] = nullptr;
+					}
+				}
+			}
+
+			Filtered3dIDs = Filtered3dIDs.FilterByPredicate([](FString ID) { return ID != "-1"; });
+			Filtered3dObjects = Filtered3dObjects.FilterByPredicate([](UObject* Object) { return Object != nullptr; });
+			Filtered3dActors = Filtered3dActors.FilterByPredicate([](AActor* Actor) { return Actor != nullptr; });
+
+			for (int32 i = 0; i < Filtered3dObjects.Num(); i++)
+			{
+				UObject* Object = Filtered3dObjects[i];
+				AActor* Actor = Filtered3dActors[i];
+				FString ID = Filtered3dIDs[i];
+
+				if (Object->GetName().Find("Sphere") != -1)
+				{
+					FBridgeUIManager::BrowserBinding->AssetToSphereMap.Add(ID, Actor);
+				}
+			}
+		}
+	});
+}
+
+void SetupOnObjectAppliedToActorEvent()
+{
+	FEditorDelegates::OnApplyObjectToActor.AddLambda([](UObject* TheObject, AActor* Actor)
+	{
+		if (!FBridgeUIManager::BrowserBinding->bIsDragging) return;
+		for (int32 i = 0; i < FBridgeUIManager::BrowserBinding->DragDropTypes.Num(); i++)
+		{
+			FString Type = FBridgeUIManager::BrowserBinding->DragDropTypes[i];
+			if (Type == "surface" || Type == "imperfection")
+			{
+				if (FBridgeDragDropHelper::Instance->SurfaceToActorMap.Contains(FBridgeUIManager::BrowserBinding->DragDropIDs[i]))
+				{
+					FBridgeDragDropHelper::Instance->SurfaceToActorMap.Remove(FBridgeUIManager::BrowserBinding->DragDropIDs[i]);
+				}
+
+				FBridgeDragDropHelper::Instance->SurfaceToActorMap.Add(FBridgeUIManager::BrowserBinding->DragDropIDs[i], Actor);
+			}
+		}
+	});
+}
+
+void PopuplateInAssetData()
+{
+	TArray<FString> Types = FBridgeUIManager::BrowserBinding->DragDropTypes;
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	FString SurfaceInstancePath = TEXT("/Game/MSPresets/M_MS_Surface_Material/M_MS_Surface_Material.M_MS_Surface_Material");
+	FAssetData SurfaceInstanceData = AssetRegistry.GetAssetByObjectPath(FName(*SurfaceInstancePath));
+
+	for (int32 i = 0; i < Types.Num(); i++)
+	{
+		if (Types[i] == "surface" || Types[i] == "imperfection")
+		{
+			FBridgeUIManager::BrowserBinding->InAssetData.Add(SurfaceInstanceData);
+		}
+		else
+		{
+			// For 3d assets and decals - we start with a sphere
+			FAssetData SphereData = FAssetData(LoadObject<UStaticMesh>(nullptr, *UActorFactoryBasicShape::BasicSphere.ToString()));
+			FBridgeUIManager::BrowserBinding->InAssetData.Add(SphereData);
+		}
+	}
+}
+
+void HandleDecalHighInstance(FString AssetId, FAssetData AssetData)
+{
+	ADecalActor* Stage1Actor = Cast<ADecalActor>(FBridgeUIManager::BrowserBinding->AssetToSphereMap[AssetId]);
+	if (!Stage1Actor) return;
+
+	UWorld* CurrentWorld = GEngine->GetWorldContexts()[0].World();
+	FTransform InitialTransform(Stage1Actor->GetActorLocation());	
+	CurrentWorld->DestroyActor(Stage1Actor);
+	FViewport* ActiveViewport = GEditor->GetActiveViewport();
+	FEditorViewportClient* EditorViewClient = (FEditorViewportClient*)ActiveViewport->GetClient();
+	ADecalActor* ADActor = Cast<ADecalActor>(CurrentWorld->SpawnActor(ADecalActor::StaticClass(), &InitialTransform));
+	UMaterialInterface* MaterialInstance = Cast<UMaterialInterface>(AssetData.GetAsset());
+	ADActor->SetDecalMaterial(MaterialInstance);
+	ADActor->SetActorLabel(AssetData.AssetName.ToString());
+	GEditor->EditorUpdateComponents();
+	CurrentWorld->UpdateWorldComponents(true, false);
+	ADActor->RerunConstructionScripts();
+	GEditor->SelectActor(ADActor, true, false);
+
+	FBridgeUIManager::BrowserBinding->AssetToSphereMap.Remove(AssetId);
+}
+
+bool IsAssetFoundInDragOperation(FString AssetId, TArray<FString> IDs)
+{
+	TArray<FString> AssetsInOperation = FBridgeUIManager::BrowserBinding->DragOperationToAssetsMap[IDs[0]];
+	for (int32 i = 0; i < AssetsInOperation.Num(); i++)
+	{
+		if (AssetsInOperation[i] == AssetId) return true;
+	}
+
+	UE_LOG(LogTemp, Error, TEXT("AssetId not found in Drag operation: %s"), *AssetId);
+
+	return false;
+}
+
+void FilterOutAssetInCurrentDragOperation(FString AssetId, TArray<FString> IDs, FString AssetType)
+{
+	// Don't filter out if the type is decal stage 1
+	if (AssetType == "decal-stage-1") return;
+
+	TArray<FString> AssetsInOperation = FBridgeUIManager::BrowserBinding->DragOperationToAssetsMap[IDs[0]];
+	// Filter out the asset we're currently processing
+	TArray<FString> RemainingAssetsInOperation;
+	// Iterate over AssetsInOperation
+	for (int32 i = 0; i < AssetsInOperation.Num(); i++)
+	{
+		if (AssetsInOperation[i] != AssetId)
+		{
+			RemainingAssetsInOperation.Add(AssetsInOperation[i]);
+		}
+	}
+
+	FBridgeUIManager::BrowserBinding->DragOperationToAssetsMap[IDs[0]] = RemainingAssetsInOperation;
+}
+
+void RemoveSphereForAsset()
+{
+	for (int32 i = 0; i < FBridgeUIManager::BrowserBinding->InAssetData.Num(); i++)
+	{
+		if (FBridgeUIManager::BrowserBinding->InAssetData[i].ObjectPath.ToString().Contains("Sphere"))
+		{
+			FBridgeUIManager::BrowserBinding->InAssetData.RemoveAt(i);
+			break;
+		}
+	}
+}
+
+void UBrowserBinding::DragStarted(TArray<FString> ImageUrls, TArray<FString> IDs, TArray<FString> Types)
 {
 	FBridgeUIManager::BrowserBinding->bWasSwitchDragOperation = false;
 	FBridgeUIManager::BrowserBinding->bIsDragging = true;
+	FBridgeUIManager::BrowserBinding->DragDropIDs = IDs;
+	FBridgeUIManager::BrowserBinding->DragDropTypes = Types;
+
+	if (!bIsDropEventBound)
+	{
+		SetupOnActorsDroppedEvent();
+		SetupOnObjectAppliedToActorEvent();
+		FBridgeUIManager::BrowserBinding->bIsDropEventBound = true;
+	}
 
 	if (FBridgeUIManager::BrowserBinding->DragOperationToAssetsMap.Contains(IDs[0]))
 	{
@@ -372,151 +525,132 @@ void UBrowserBinding::DragStarted(TArray<FString> ImageUrls, TArray<FString> IDs
 	FBridgeUIManager::BrowserBinding->DragOperationToAssetsMap.Add(IDs[0], IDs);
 	FBridgeUIManager::BrowserBinding->InAssetData.Empty();
 
-	// Iterate over ImageUrls
-	for (int32 i = 0; i < IDs.Num(); i++)
-	{
-		FAssetData SphereData = FAssetData(LoadObject<UStaticMesh>(nullptr, *UActorFactoryBasicShape::BasicSphere.ToString()));
-		FBridgeUIManager::BrowserBinding->InAssetData.Add(SphereData);
-	}
-	// UE_LOG(LogTemp, Error, TEXT("IDs we're getting from frontend: %d"), IDs.Num());
-
-	UActorFactory* ActorFactory = GEditor->FindActorFactoryByClass(UActorFactoryBasicShape::StaticClass());
+	PopuplateInAssetData();
+	UActorFactory* ActorFactory = GEditor->FindActorFactoryByClass(UActorFactoryStaticMesh::StaticClass());
 	TSharedRef<FAssetDragDropOp> DragDropOperation = FAssetDragDropCustomOp::New(FBridgeUIManager::BrowserBinding->InAssetData, ActorFactory, ImageUrls, IDs);
 	SwitchDragDropOp(ImageUrls, DragDropOperation);
 
 	// FBridgeUIManager::BrowserBinding->OnDroppedDelegate.ExecuteIfBound(TEXT("dropped"));
-
-	FBridgeDragDrop::Instance->SetOnAddProgressiveStageData(FOnAddProgressiveStageDataCallback::CreateLambda([this, ImageUrls, IDs](FAssetData AssetData, FString AssetId, AStaticMeshActor* SpawnedActor) {
-		// Find the key for this d&d operation
-		FString Key = AssetId;
-
-		if (Key.IsEmpty())
+	FBridgeDragDropHelper::Instance->SetOnAddProgressiveStageData(FOnAddProgressiveStageDataCallbackInternal::CreateLambda(
+		[this, ImageUrls, IDs](FAssetData AssetData, FString AssetId, FString AssetType, AStaticMeshActor* SpawnedActor) 
 		{
-			return;
-		} 
-
-		// Now we have the ID of the current drag and drop operation
-		// Get all the assets in this op
-		TArray<FString> AssetsInOperation = FBridgeUIManager::BrowserBinding->DragOperationToAssetsMap[IDs[0]];
-		// Iterate over AssetsInOperation
-		bool Found = false;
-		for (int32 i = 0; i < AssetsInOperation.Num(); i++)
-		{
-			// If the asset is in the current drag and drop operation
-			if (AssetsInOperation[i] == AssetId)
+			// UE_LOG(LogTemp, Error, TEXT("Processing AssetId: %s"), *AssetId);
+			if (AssetType == "decal-stage-4" && !FBridgeUIManager::BrowserBinding->bIsDragging)
 			{
-				Found = true;
-			}
-		}
-
-		// UE_LOG(LogTemp, Error, TEXT("%s Found: %d"), *AssetId, Found);
-		if (!Found) return;
-
-		// Filter out the asset we're currently processing
-		TArray<FString> RemainingAssetsInOperation;
-		// Iterate over AssetsInOperation
-		for (int32 i = 0; i < AssetsInOperation.Num(); i++)
-		{
-			if (AssetsInOperation[i] != Key)
-			{
-				RemainingAssetsInOperation.Add(AssetsInOperation[i]);
-			}
-		}
-
-		// Replace AssetsInOperation with RemainingAssetsInOperation
-		FBridgeUIManager::BrowserBinding->DragOperationToAssetsMap[IDs[0]] = RemainingAssetsInOperation;
-
-		// Log remaining assets in this operation
-		// UE_LOG(LogTemp, Error, TEXT("Remaining Assets: %s"), *FString::Join(RemainingAssetsInOperation, TEXT(", ")));
-
-		UWorld* CurrentWorld = GEngine->GetWorldContexts()[0].World();
-		UActorFactory* ActorFactory = GEditor->FindActorFactoryByClass(UActorFactoryStaticMesh::StaticClass());
-
-		// Remove the Sphere for this asset if it's a 3D asset
-		for (int32 i = 0; i < FBridgeUIManager::BrowserBinding->InAssetData.Num(); i++)
-		{
-			if (FBridgeUIManager::BrowserBinding->InAssetData[i].ObjectPath.ToString().Contains("Sphere"))
-			{
-				FBridgeUIManager::BrowserBinding->InAssetData.RemoveAt(i);
-				break;
-			}
-		}
-
-
-		if (!FBridgeUIManager::BrowserBinding->bIsDragging)
-		{
-			// Return if AssetToSphereMap is empty
-			if (FBridgeUIManager::BrowserBinding->AssetToSphereMap.Num() == 0)
-			{
+				HandleDecalHighInstance(AssetId, AssetData);
 				return;
 			}
 
-			// This is where we'd want to replace the individual cubes with actual assets
-			// Find the cube and replace it with the asset
-			if (!FBridgeUIManager::BrowserBinding->AssetToSphereMap.Contains(Key)) return;
+			if (!IsAssetFoundInDragOperation(AssetId, IDs)) return;
 
-			FVector SpawnLocation;
-			AStaticMeshActor* FoundSphereActor = FBridgeUIManager::BrowserBinding->AssetToSphereMap[Key];
-			if (FoundSphereActor == nullptr)
-			{
-				// UE_LOG(LogTemp, Error, TEXT("FoundSphereActor is null"));
-				return;
-			}
+			FilterOutAssetInCurrentDragOperation(AssetId, IDs, AssetType);
 
-			// Get the spawn location from cube
-			SpawnLocation = FoundSphereActor->GetActorLocation();
-			FBridgeUIManager::BrowserBinding->AssetToSphereMap.Remove(Key);
-			
-			UStaticMesh* SourceMesh = Cast<UStaticMesh>(AssetData.GetAsset());
-			CurrentWorld->DestroyActor(FoundSphereActor);
-			FViewport* ActiveViewport = GEditor->GetActiveViewport();
-			FEditorViewportClient* EditorViewClient = (FEditorViewportClient*)ActiveViewport->GetClient();
-			FTransform InitialTransform(SpawnLocation);	
-			AStaticMeshActor* SMActor;
-			if (SpawnedActor == nullptr)
+			// Remove the Sphere for this asset
+			RemoveSphereForAsset();
+
+			UWorld* CurrentWorld = GEngine->GetWorldContexts()[0].World();
+			if (FBridgeUIManager::BrowserBinding->bIsDragging)
 			{
-				// UE_LOG(LogTemp, Error, TEXT("SpawnedActor is null"));
-				SMActor = Cast<AStaticMeshActor>(CurrentWorld->SpawnActor(AStaticMeshActor::StaticClass(), &InitialTransform));
-				SMActor->GetStaticMeshComponent()->SetStaticMesh(SourceMesh);
-				SMActor->SetActorLabel(AssetData.AssetName.ToString());
+				// We continue the d&d operation
+				if (SpawnedActor == nullptr)
+				{
+					if (AssetType == "decal-stage-4")
+					{
+						// Loop over InAssetData
+						for (int32 i = 0; i < FBridgeUIManager::BrowserBinding->InAssetData.Num(); i++)
+						{
+							if (FBridgeUIManager::BrowserBinding->InAssetData[i].ObjectPath.ToString().Contains(AssetId))
+							{
+								FBridgeUIManager::BrowserBinding->InAssetData.RemoveAt(i);
+								break;
+							}
+						}
+					}
+
+					UActorFactory* ActorFactory = GEditor->FindActorFactoryByClass(UActorFactoryStaticMesh::StaticClass());
+					FBridgeUIManager::BrowserBinding->InAssetData.Add(AssetData);
+					TSharedRef<FAssetDragDropOp> DragDropOperation = FAssetDragDropCustomOp::New(FBridgeUIManager::BrowserBinding->InAssetData, ActorFactory, ImageUrls, IDs);
+					SwitchDragDropOp(ImageUrls, DragDropOperation);
+				}
+				else
+				{
+					if (!FBridgeUIManager::BrowserBinding->AssetToSphereMap.Contains(AssetId)) return;
+
+					AActor* FoundSphereActor = FBridgeUIManager::BrowserBinding->AssetToSphereMap[AssetId];
+					if (FoundSphereActor == nullptr)
+					{
+						// UE_LOG(LogTemp, Error, TEXT("FoundSphereActor is null"));
+						return;
+					}
+
+					FBridgeUIManager::BrowserBinding->AssetToSphereMap.Remove(AssetId);
+
+					CurrentWorld->DestroyActor(FoundSphereActor);
+				}
 			}
 			else
 			{
-				SMActor = SpawnedActor;
-				SMActor->SetActorTransform(InitialTransform);
-				SMActor->SetActorLabel(AssetId);
+				// Return if AssetToSphereMap is empty
+				if (FBridgeUIManager::BrowserBinding->AssetToSphereMap.Num() == 0)
+				{
+					return;
+				}
+
+				// This is where we'd want to replace the individual cubes with actual assets
+				// Find the sphere and replace it with the asset
+				if (!FBridgeUIManager::BrowserBinding->AssetToSphereMap.Contains(AssetId)) return;
+
+				FVector SpawnLocation;
+				AActor* FoundSphereActor = FBridgeUIManager::BrowserBinding->AssetToSphereMap[AssetId];
+				if (FoundSphereActor == nullptr) return;
+
+				// Get the spawn location from sphere
+				SpawnLocation = FoundSphereActor->GetActorLocation();
+				FBridgeUIManager::BrowserBinding->AssetToSphereMap.Remove(AssetId);
+				if (AssetType == "decal-stage-1" || AssetType == "decal-normal")
+				{
+					CurrentWorld->DestroyActor(FoundSphereActor);
+					FViewport* ActiveViewport = GEditor->GetActiveViewport();
+					FEditorViewportClient* EditorViewClient = (FEditorViewportClient*)ActiveViewport->GetClient();
+					FTransform InitialTransform(SpawnLocation);	
+					ADecalActor* ADActor = Cast<ADecalActor>(CurrentWorld->SpawnActor(ADecalActor::StaticClass(), &InitialTransform));
+					UMaterialInterface* MaterialInstance = Cast<UMaterialInterface>(AssetData.GetAsset());
+					ADActor->SetDecalMaterial(MaterialInstance);
+					ADActor->SetActorLabel(AssetData.AssetName.ToString());
+					GEditor->EditorUpdateComponents();
+					CurrentWorld->UpdateWorldComponents(true, false);
+					ADActor->RerunConstructionScripts();
+					GEditor->SelectActor(ADActor, true, false);
+					FBridgeUIManager::BrowserBinding->AssetToSphereMap.Add(AssetId, ADActor);
+					return;
+				}
+				
+				UStaticMesh* SourceMesh = Cast<UStaticMesh>(AssetData.GetAsset());
+				CurrentWorld->DestroyActor(FoundSphereActor);
+				FViewport* ActiveViewport = GEditor->GetActiveViewport();
+				FEditorViewportClient* EditorViewClient = (FEditorViewportClient*)ActiveViewport->GetClient();
+				FTransform InitialTransform(SpawnLocation);	
+				AStaticMeshActor* SMActor;
+				if (SpawnedActor == nullptr)
+				{
+					// UE_LOG(LogTemp, Error, TEXT("SpawnedActor is null"));
+					SMActor = Cast<AStaticMeshActor>(CurrentWorld->SpawnActor(AStaticMeshActor::StaticClass(), &InitialTransform));
+					SMActor->GetStaticMeshComponent()->SetStaticMesh(SourceMesh);
+					SMActor->SetActorLabel(AssetData.AssetName.ToString());
+				}
+				else
+				{
+					SMActor = SpawnedActor;
+					SMActor->SetActorTransform(InitialTransform);
+					SMActor->SetActorLabel(AssetId);
+				}
+
+				GEditor->EditorUpdateComponents();
+				CurrentWorld->UpdateWorldComponents(true, false);
+				SMActor->RerunConstructionScripts();
+				GEditor->SelectActor(SMActor, true, false);
 			}
-
-			GEditor->EditorUpdateComponents();
-			CurrentWorld->UpdateWorldComponents(true, false);
-			SMActor->RerunConstructionScripts();
-			GEditor->SelectActor(SMActor, true, false);
-			return;
-		}
-
-		// We continue the d&d operation
-		if (SpawnedActor == nullptr)
-		{
-			// UE_LOG(LogTemp, Error, TEXT("SpawnedActor is not null"));
-			FBridgeUIManager::BrowserBinding->InAssetData.Add(AssetData);
-			TSharedRef<FAssetDragDropOp> DragDropOperation = FAssetDragDropCustomOp::New(FBridgeUIManager::BrowserBinding->InAssetData, ActorFactory, ImageUrls, IDs);
-			SwitchDragDropOp(ImageUrls, DragDropOperation);
-		}
-		else
-		{
-			if (!FBridgeUIManager::BrowserBinding->AssetToSphereMap.Contains(Key)) return;
-
-			AStaticMeshActor* FoundSphereActor = FBridgeUIManager::BrowserBinding->AssetToSphereMap[Key];
-			if (FoundSphereActor == nullptr)
-			{
-				// UE_LOG(LogTemp, Error, TEXT("FoundSphereActor is null"));
-				return;
-			}
-
-			FBridgeUIManager::BrowserBinding->AssetToSphereMap.Remove(Key);
-			CurrentWorld->DestroyActor(FoundSphereActor);
-		}
-	}));
+		}));
 }
 
 void UBrowserBinding::Logout()

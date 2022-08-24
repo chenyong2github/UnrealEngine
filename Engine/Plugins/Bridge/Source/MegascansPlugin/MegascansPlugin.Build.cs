@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
 					"ContentBrowser",
 					"Core",
 					"CoreUObject",
+					"EditorStyle",
 					"Engine",
 					"LevelEditor",					
 					"Settings",
@@ -34,7 +35,8 @@ namespace UnrealBuildTool.Rules
 					"MeshBuilder",
 					"TargetPlatform",
 					"EditorScriptingUtilities",
-					"Projects"
+					"Projects",
+					"ApplicationCore"
 				}
 			);
 		}

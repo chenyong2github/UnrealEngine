@@ -202,7 +202,8 @@ void MegascansSettingsWindow::OpenSettingsWindow()
 
 	if (MatAssetPathsSettings->MasterMaterial3d != "None" && MatAssetPathsSettings->MasterMaterial3d != "")
 	{
-		if (UEditorAssetLibrary::DoesAssetExist(MatAssetPathsSettings->MasterMaterial3d)) {
+		if (UEditorAssetLibrary::DoesAssetExist(MatAssetPathsSettings->MasterMaterial3d))
+		{
 			MaterialOverrideSettings->MasterMaterial3d = CastChecked<UMaterial>(UEditorAssetLibrary::LoadAsset(MatAssetPathsSettings->MasterMaterial3d));
 		}
 	}
@@ -217,22 +218,24 @@ void MegascansSettingsWindow::OpenSettingsWindow()
 	}*/
 	if (MatAssetPathsSettings->MasterMaterialPlant != "None" && MatAssetPathsSettings->MasterMaterialPlant != "")
 	{
-		if (UEditorAssetLibrary::DoesAssetExist(MatAssetPathsSettings->MasterMaterialPlant)) {
+		if (UEditorAssetLibrary::DoesAssetExist(MatAssetPathsSettings->MasterMaterialPlant))
+		{
 			MaterialOverrideSettings->MasterMaterialPlant = CastChecked<UMaterial>(UEditorAssetLibrary::LoadAsset(MatAssetPathsSettings->MasterMaterialPlant));
 		}
-
 	}
 	/*else
 	{
 		CopyMSPresets();
 		FString MasterMaterialPath = TEXT("/Game/MSPresets/M_MS_Foliage_Material/M_MS_Foliage_Material.M_MS_Foliage_Material");
-		if (UEditorAssetLibrary::DoesAssetExist(MasterMaterialPath)) {
+		if (UEditorAssetLibrary::DoesAssetExist(MasterMaterialPath))
+		{
 			MaterialOverrideSettings->MasterMaterialPlant = CastChecked<UMaterial>(UEditorAssetLibrary::LoadAsset(MasterMaterialPath));
 		}
 	}*/
 	if (MatAssetPathsSettings->MasterMaterialSurface != "None" && MatAssetPathsSettings->MasterMaterialSurface != "")
 	{
-		if (UEditorAssetLibrary::DoesAssetExist(MatAssetPathsSettings->MasterMaterialSurface)) {
+		if (UEditorAssetLibrary::DoesAssetExist(MatAssetPathsSettings->MasterMaterialSurface))
+		{
 			MaterialOverrideSettings->MasterMaterialSurface = CastChecked<UMaterial>(UEditorAssetLibrary::LoadAsset(MatAssetPathsSettings->MasterMaterialSurface));
 		}
 	}
@@ -240,7 +243,8 @@ void MegascansSettingsWindow::OpenSettingsWindow()
 	{
 		CopyMSPresets();
 		FString MasterMaterialPath = TEXT("/Game/MSPresets/M_MS_Surface_Material/M_MS_Surface_Material.M_MS_Surface_Material");
-		if (UEditorAssetLibrary::DoesAssetExist(MasterMaterialPath)) {
+		if (UEditorAssetLibrary::DoesAssetExist(MasterMaterialPath))
+		{
 			MaterialOverrideSettings->MasterMaterialSurface = CastChecked<UMaterial>(UEditorAssetLibrary::LoadAsset(MasterMaterialPath));
 		}
 

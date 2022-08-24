@@ -12,13 +12,13 @@ class MEGASCANSPLUGIN_API FBridgeDragDropImpl : public TSharedFromThis<FBridgeDr
 {
 public:
     FOnAddProgressiveStageDataCallback OnAddProgressiveStageDataDelegate;
-    
+
     void SetOnAddProgressiveStageData(FOnAddProgressiveStageDataCallback InDelegate);
 };
 
 class MEGASCANSPLUGIN_API FBridgeDragDrop
 {
 public:
-	static void Initialize();
-	static TSharedPtr<FBridgeDragDropImpl> Instance;
+    static void Initialize();
+    static TSharedPtr<FBridgeDragDropImpl> Instance;
 };

@@ -31,7 +31,6 @@
 
 #include "StaticMeshCompiler.h"
 
-
 TSharedPtr<FImportProgressive3D> FImportProgressive3D::ImportProgressive3DInst;
 
 TSharedPtr<FImportProgressive3D> FImportProgressive3D::Get()
@@ -118,7 +117,7 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, 
 		FSoftObjectPath ItemToStream = AssetMeshData.ToSoftObjectPath();
 		if (!AssetMeshData.IsValid()) return;
 
-		FBridgeDragDrop::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(AssetMeshData, ImportData->AssetId, nullptr);
+		FBridgeDragDropHelper::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(AssetMeshData, ImportData->AssetId, AssetMetaData.assetType, nullptr);
 
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandleNormalAssetLoad, AssetMeshData, AssetMetaData, LocationOffset));
 
@@ -161,7 +160,7 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, 
 		FString AssetPath = PreviewMeshData.ObjectPath.ToString();
 		FAssetData DraggedAssetData = FAssetData(LoadObject<UStaticMesh>(nullptr, *AssetPath));
 
-		FBridgeDragDrop::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(DraggedAssetData, ImportData->AssetId, nullptr);
+		FBridgeDragDropHelper::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(DraggedAssetData, ImportData->AssetId, AssetMetaData.assetType, nullptr);
 	}
 	else if (ImportData->ProgressiveStage == 2)
 	{
@@ -262,7 +261,10 @@ void FImportProgressive3D::HandleHighAssetLoad(FAssetData HighAssetData, FString
 		UE_LOG(LogTemp, Error, TEXT("Data build complete..."));
 	});*/
 
-	AssetUtils::ConvertToVT(AssetMetaData);
+	if (AssetMetaData.assetType != TEXT("3dplant"))
+	{
+		AssetUtils::ConvertToVT(AssetMetaData);
+	}
 
 	if (FMaterialUtils::ShouldOverrideMaterial(AssetMetaData.assetType))
 	{
@@ -270,6 +272,11 @@ void FImportProgressive3D::HandleHighAssetLoad(FAssetData HighAssetData, FString
 		UMaterialInstanceConstant* OverridenInstance = FMaterialUtils::CreateMaterialOverride(AssetMetaData);
 		FMaterialUtils::ApplyMaterialInstance(AssetMetaData, OverridenInstance);
 		
+	}
+	else if (AssetUtils::IsVTEnabled() && AssetMetaData.assetType != TEXT("3dplant"))
+	{
+		UMaterialInstanceConstant* OverridenInstance = FMaterialUtils::CreateMaterialOverride(AssetMetaData);
+		FMaterialUtils::ApplyMaterialInstance(AssetMetaData, OverridenInstance);
 	}
 
 	AssetUtils::ManageImportSettings(AssetMetaData);

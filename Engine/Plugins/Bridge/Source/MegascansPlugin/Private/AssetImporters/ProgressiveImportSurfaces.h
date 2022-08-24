@@ -6,7 +6,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "Engine/StaticMeshActor.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "BridgeDragDropUtils.h"
+#include "BridgeDragDropHelper.h"
 
 struct FProgressiveSurfaces
 {	

@@ -11,6 +11,7 @@
 #include "Materials/MaterialInstanceConstant.h"
 
 
+
 TSharedPtr<FJsonObject>  DeserializeJson(const FString& JsonStringData);
 
 FString GetPluginPath();
@@ -23,7 +24,7 @@ bool CopyPresetTextures();
 void CopyUassetFiles(TArray<FString> FilesToCopy, FString DestinationDirectory);
 void CopyUassetFilesPlants(TArray<FString> FilesToCopy, FString DestinationDirectory, const int8 & AssetTier);
 
-
+void UpdateMHVersionInfo(TMap<FString, TArray<FString>> AssetsStatus, TMap<FString, float> SourceAssetsVersionInfo);
 
 
 namespace AssetUtils {	//template<typename T>
@@ -42,6 +43,8 @@ namespace AssetUtils {	//template<typename T>
 	void RegisterAsset(const FString& PackagePath);
 
 	void ConvertToVT(FUAssetMeta AssetMetaData);
+	bool IsVTEnabled();
+
 }
 
 namespace JsonUtils

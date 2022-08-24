@@ -28,7 +28,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Actor.h"
 #include "Components/StaticMeshComponent.h"
-
+#include "Engine/DecalActor.h"
 
 
 
@@ -68,18 +68,47 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 
 	CopyUassetFiles(ImportData->FilePaths, DestinationFolder);
 
+	if (AssetMetaData.assetType == TEXT("atlas"))
+	{
+		if (bIsNormal)
+		{
+			FString InstancePath = AssetMetaData.materialInstances[0].instancePath;
+			FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FName(*InstancePath));
+			FBridgeDragDropHelper::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(AssetData, ImportData->AssetId, "decal-normal", nullptr);
+			return;
+		}
+
+		if (!PreviewDetails.Contains(ImportData->AssetId))
+		{
+			TSharedPtr< FProgressiveSurfaces> ProgressiveDetails = MakeShareable(new FProgressiveSurfaces);
+			PreviewDetails.Add(ImportData->AssetId, ProgressiveDetails);
+		}
+
+		if (ImportData->ProgressiveStage == 1)
+		{
+			FString InstancePath = AssetMetaData.materialInstances[0].instancePath;
+			FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FName(*InstancePath));
+			FBridgeDragDropHelper::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(AssetData, ImportData->AssetId, TEXT("decal-stage-1"), nullptr);
+		}
+		if (ImportData->ProgressiveStage == 4)
+		{
+			 FString MInstanceHighPath = AssetMetaData.materialInstances[0].instancePath;
+			 FAssetData MInstanceHighData = AssetRegistry.GetAssetByObjectPath(FName(*MInstanceHighPath));
+			 FBridgeDragDropHelper::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(MInstanceHighData, ImportData->AssetId, TEXT("decal-stage-4"), nullptr);
+		}
+
+		return;
+	}
+
 	if (bIsNormal)
 	{
-
 		FString MInstancePath = AssetMetaData.materialInstances[0].instancePath;
 		FAssetData MInstanceData = AssetRegistry.GetAssetByObjectPath(FName(*MInstancePath));
 
 		if (!MInstanceData.IsValid()) return;
 
-
 		FSoftObjectPath ItemToStream = MInstanceData.ToSoftObjectPath();
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandleNormalMaterialLoad, MInstanceData, AssetMetaData,  LocationOffset));
-
 
 		return;
 	}
@@ -100,7 +129,6 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 		PreviewDetails.Add(ImportData->AssetId, ProgressiveDetails);
 	}
 
-
 	if (ImportData->ProgressiveStage == 1)
 	{
 		FString MInstancePath = AssetMetaData.materialInstances[0].instancePath;
@@ -113,8 +141,8 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 		}
 
 		FSoftObjectPath ItemToStream = MInstanceData.ToSoftObjectPath();
-		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandlePreviewInstanceLoad, MInstanceData, ImportData->AssetId, LocationOffset));
 
+		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandlePreviewInstanceLoad, MInstanceData, ImportData->AssetId, LocationOffset));
 	}
 	else if (ImportData->ProgressiveStage == 2)
 	{
@@ -143,13 +171,10 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 
 		FSoftObjectPath ItemToStream = TextureData.ToSoftObjectPath();
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandlePreviewTextureLoad, TextureData, ImportData->AssetId, TextureType));
-
-
 	}
 
 	else if (ImportData->ProgressiveStage == 3)
 	{
-
 		FString NormalPath = TEXT("");
 		FString TextureType = TEXT("normal");
 
@@ -167,7 +192,6 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 
 		FSoftObjectPath ItemToStream = NormalData.ToSoftObjectPath();
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandlePreviewTextureLoad, NormalData, ImportData->AssetId, TextureType));
-
 	}
 
 	else if (ImportData->ProgressiveStage == 4)
@@ -178,11 +202,9 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 		if (!MInstanceHighData.IsValid()) return;
 
 		FSoftObjectPath ItemToStream = MInstanceHighData.ToSoftObjectPath();
+
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandleHighInstanceLoad, MInstanceHighData, ImportData->AssetId, AssetMetaData));
-
 	}
-
-
 }
 
 void FImportProgressiveSurfaces::HandlePreviewTextureLoad(FAssetData TextureData, FString AssetID, FString Type)
@@ -196,8 +218,6 @@ void FImportProgressiveSurfaces::HandlePreviewTextureLoad(FAssetData TextureData
 	UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(PreviewDetails[AssetID]->PreviewInstance, FName(*Type), PreviewTexture);
 	AssetUtils::SavePackage(PreviewDetails[AssetID]->PreviewInstance);
 }
-
-
 
 void FImportProgressiveSurfaces::HandlePreviewInstanceLoad(FAssetData PreviewInstanceData, FString AssetID, float LocationOffset)
 {
@@ -213,8 +233,6 @@ void FImportProgressiveSurfaces::SpawnMaterialPreviewActor(FString AssetID, floa
 	{
 		if (bIsNormal)
 		{
-
-
 			FMaterialUtils::ApplyMaterialToSelection(MInstanceData.GetPackage()->GetPathName());
 			//PreviewDetails[AssetID]->ActorsInLevel = FMaterialUtils::ApplyMaterialToSelection(MInstanceData.GetPackage()->GetPathName());
 		}
@@ -227,51 +245,38 @@ void FImportProgressiveSurfaces::SpawnMaterialPreviewActor(FString AssetID, floa
 
 	}
 
-
-	IAssetRegistry& AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
-	FString SphereMeshPath = TEXT("/Engine/BasicShapes/Sphere.Sphere");
-
-	FAssetData PreviewerMeshData = AssetRegistry.GetAssetByObjectPath(FName(*SphereMeshPath));
+	if (!FBridgeDragDropHelper::Instance->SurfaceToActorMap.Contains(AssetID)) return;
 
 	FViewport* ActiveViewport = GEditor->GetActiveViewport();
 	FEditorViewportClient* EditorViewClient = (FEditorViewportClient*)ActiveViewport->GetClient();
 
-	FVector SpawnLocation;
+	AStaticMeshActor* SMActor = Cast<AStaticMeshActor>(FBridgeDragDropHelper::Instance->SurfaceToActorMap[AssetID]);
 
-	UWorld* CurrentWorld = GEngine->GetWorldContexts()[0].World();
-	UStaticMesh* SourceMesh = Cast<UStaticMesh>(PreviewerMeshData.GetAsset());
-	FTransform InitialTransform(SpawnLocation);
-
-	AStaticMeshActor* SMActor = Cast<AStaticMeshActor>(CurrentWorld->SpawnActor(AStaticMeshActor::StaticClass(), &InitialTransform));
-	SMActor->GetStaticMeshComponent()->SetStaticMesh(SourceMesh);
 	if (bIsNormal)
 	{
 		UMaterialInstanceConstant* MInstance = Cast<UMaterialInstanceConstant>(MInstanceData.GetAsset());
-		SMActor->GetStaticMeshComponent()->SetMaterial(0, MInstance);
-
+		if (SMActor != nullptr)
+		{
+			SMActor->GetStaticMeshComponent()->SetMaterial(0, MInstance);
+		}
 	}
 	else
 	{
-		SMActor->GetStaticMeshComponent()->SetMaterial(0, CastChecked<UMaterialInterface>(PreviewDetails[AssetID]->PreviewInstance));
+		if (SMActor != nullptr)
+		{
+			SMActor->GetStaticMeshComponent()->SetMaterial(0, CastChecked<UMaterialInterface>(PreviewDetails[AssetID]->PreviewInstance));
+		}
 	}
-	//SMActor->Rename(TEXT("MyStaticMeshInTheWorld"));
-	SMActor->SetActorLabel(AssetID);
 
-	GEditor->SelectActor(SMActor, true, false);
-
-	GEditor->EditorUpdateComponents();
-	CurrentWorld->UpdateWorldComponents(true, false);
-	SMActor->RerunConstructionScripts();
 	if (bIsNormal)
 	{
-		FBridgeDragDrop::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(MInstanceData, AssetID, SMActor);
 		return;
 	}
 
 	if (PreviewDetails.Contains(AssetID))
 	{
 		PreviewDetails[AssetID]->ActorsInLevel.Add(SMActor);
-		FBridgeDragDrop::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(PreviewerMeshData, AssetID, SMActor);
+		//FBridgeDragDropHelper::Instance->OnAddProgressiveStageDataDelegate.ExecuteIfBound(PreviewerMeshData, AssetID, SMActor);
 	}
 }
 
@@ -279,14 +284,18 @@ void FImportProgressiveSurfaces::HandleHighInstanceLoad(FAssetData HighInstanceD
 {
 	AssetUtils::ConvertToVT(AssetMetaData);
 
+
 	if (FMaterialUtils::ShouldOverrideMaterial(AssetMetaData.assetType))
 	{
 		AssetUtils::DeleteAsset(AssetMetaData.materialInstances[0].instancePath);
 		UMaterialInstanceConstant* OverridenInstance = FMaterialUtils::CreateMaterialOverride(AssetMetaData);
 		FMaterialUtils::ApplyMaterialInstance(AssetMetaData, OverridenInstance);
-
 	}
-
+	else if (AssetUtils::IsVTEnabled() && AssetMetaData.assetType != TEXT("3dplant"))
+	{
+		UMaterialInstanceConstant* OverridenInstance = FMaterialUtils::CreateMaterialOverride(AssetMetaData);
+		FMaterialUtils::ApplyMaterialInstance(AssetMetaData, OverridenInstance);
+	}
 
 	if (!PreviewDetails.Contains(AssetID)) return;
 	if (PreviewDetails[AssetID]->ActorsInLevel.Num() == 0)
@@ -294,8 +303,6 @@ void FImportProgressiveSurfaces::HandleHighInstanceLoad(FAssetData HighInstanceD
 		PreviewDetails.Remove(AssetID);
 		return;
 	}
-
-	
 
 	for (AStaticMeshActor* UsedActor : PreviewDetails[AssetID]->ActorsInLevel)
 	{
@@ -325,10 +332,18 @@ void FImportProgressiveSurfaces::HandleNormalMaterialLoad(FAssetData AssetInstan
 		FAssetData OverridenInstanceData = AssetRegistry.GetAssetByObjectPath(FName(*OverridenInstance->GetPathName()));
 		SpawnMaterialPreviewActor(AssetMetaData.assetID, LocationOffset, true, OverridenInstanceData);
 		return;
-		
-
 	}
-	SpawnMaterialPreviewActor(AssetMetaData.assetID, LocationOffset, true, AssetInstanceData);
 
+	// SpawnMaterialPreviewActor(AssetMetaData.assetID, LocationOffset, true, AssetInstanceData);
+	// FBridgeDragDropHelper::Instance->OnNormalSurfaceDelegate.ExecuteIfBound(AssetInstanceData);
+
+	if (FBridgeDragDropHelper::Instance->SurfaceToActorMap.Contains(AssetMetaData.assetID))
+	{
+		UMaterialInstanceConstant* MInstance = Cast<UMaterialInstanceConstant>(AssetInstanceData.GetAsset());
+		AStaticMeshActor* Actor = Cast<AStaticMeshActor>(FBridgeDragDropHelper::Instance->SurfaceToActorMap[AssetMetaData.assetID]);
+		if (Actor != nullptr)
+		{
+			Actor->GetStaticMeshComponent()->SetMaterial(0, MInstance);
+		}
+	}
 }
-
