@@ -21,6 +21,9 @@ class PCG_API UPCGManagedResource : public UObject
 {
 	GENERATED_BODY()
 public:
+	/** Called when after a PCG component is applied to (such as after a RerunConstructionScript) */
+	virtual void PostApplyToComponent();
+
 	/** Releases/Mark Unsued the resource depending on the bHardRelease flag. Returns true if resource can be removed from the PCG component */
 	virtual bool Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete);
 	/** Releases resource if empty or unused. Returns true if the resource can be removed from the PCG component */
@@ -48,6 +51,7 @@ public:
 	//~End UObject interface
 
 	//~Begin UPCGManagedResource interface
+	virtual void PostApplyToComponent() override;
 	virtual bool Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete) override;
 	virtual bool ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete) override;
 	virtual bool MoveResourceToNewActor(AActor* NewActor) override;

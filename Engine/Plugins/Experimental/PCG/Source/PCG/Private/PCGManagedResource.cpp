@@ -6,6 +6,11 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 
+void UPCGManagedResource::PostApplyToComponent()
+{
+	PostEditImport();
+}
+
 // By default, if it is not a hard release, we mark the resource unused.
 bool UPCGManagedResource::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& /*OutActorsToDelete*/)
 {
@@ -36,6 +41,11 @@ void UPCGManagedActors::PostEditImport()
 	// So we just have to "forget" the actors.
 	Super::PostEditImport();
 	GeneratedActors.Reset();
+}
+
+void UPCGManagedActors::PostApplyToComponent()
+{
+	// In this case, we want to preserve the data, so we need to do nothing
 }
 
 bool UPCGManagedActors::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)

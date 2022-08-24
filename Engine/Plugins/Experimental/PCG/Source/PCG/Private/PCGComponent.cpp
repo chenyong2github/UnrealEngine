@@ -2149,9 +2149,12 @@ void FPCGComponentInstanceData::ApplyToComponent(UActorComponent* Component, con
 		TArray<TObjectPtr<UPCGManagedResource>> DuplicatedResources;
 		for (TObjectPtr<UPCGManagedResource> Resource : GeneratedResources)
 		{
-			UPCGManagedResource* DuplicatedResource = CastChecked<UPCGManagedResource>(StaticDuplicateObject(Resource, PCGComponent, FName()));
-			DuplicatedResource->PostEditImport();
-			DuplicatedResources.Add(DuplicatedResource);
+			if (Resource)
+			{
+				UPCGManagedResource* DuplicatedResource = CastChecked<UPCGManagedResource>(StaticDuplicateObject(Resource, PCGComponent, FName()));
+				DuplicatedResource->PostApplyToComponent();
+				DuplicatedResources.Add(DuplicatedResource);
+			}
 		}
 
 		if (DuplicatedResources.Num() > 0)
