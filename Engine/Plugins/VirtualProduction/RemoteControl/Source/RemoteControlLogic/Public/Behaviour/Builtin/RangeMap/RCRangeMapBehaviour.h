@@ -18,7 +18,7 @@ struct FRCRangeMapStep
 	FRCRangeMapStep(const double InStepValue, URCVirtualPropertySelfContainer* InPropertyValue)
 		: StepValue(InStepValue)
 	{
-		if (!PropertyValue)
+		if (!InPropertyValue)
 		{
 			return;
 		}
