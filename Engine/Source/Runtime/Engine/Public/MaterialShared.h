@@ -567,7 +567,7 @@ public:
 
 	bool IsEmpty() const;
 	bool operator==(const FUniformExpressionSet& ReferenceSet) const;
-	FString GetSummaryString() const;
+	ENGINE_API FString GetSummaryString() const;
 
 	FShaderParametersMetadata* CreateBufferStruct();
 
