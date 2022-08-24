@@ -76,7 +76,7 @@ bool FDatasmithMeshExporterImpl::DoExport(TSharedPtr<IDatasmithMeshElement>& Mes
 	}
 	else
 	{
-		UE_LOG(LogDatasmith, Warning, TEXT("Cannot export mesh %s"), Mesh.GetName());
+		UE_LOG(LogDatasmith, Warning, TEXT("Cannot export mesh %s: %s"), Mesh.GetName(), *LastError);
 	}
 
 	return false;
