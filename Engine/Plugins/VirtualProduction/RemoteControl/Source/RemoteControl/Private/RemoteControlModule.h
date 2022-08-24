@@ -192,9 +192,6 @@ private:
 
 	/** Holds the set of active masking operations. */
 	TSet<TSharedPtr<FRCMaskingOperation>> ActiveMaskingOperations;
-
-	/** Holds the set of structs supported by masking. */
-	static TSet<UScriptStruct*> MaskingSupportedStructs;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
