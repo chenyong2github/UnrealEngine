@@ -11,6 +11,7 @@
 #include "MVVM/Extensions/ISnappableExtension.h"
 #include "MVVM/Extensions/IDraggableTrackAreaExtension.h"
 #include "MVVM/Extensions/IStretchableExtension.h"
+#include "MVVM/Extensions/LinkedOutlinerExtension.h"
 #include "Delegates/DelegateCombinations.h"
 #include "EventHandlers/ISignedObjectEventHandler.h"
 #include "EventHandlers/ISectionEventHandler.h"
@@ -31,6 +32,7 @@ struct FOverlappingSections;
  */
 class FSectionModel
 	: public FViewModel
+	, public FLinkedOutlinerExtension
 	, public ILayerBarExtension
 	, public ITrackLaneExtension
 	, public ISelectableExtension
@@ -43,6 +45,7 @@ class FSectionModel
 public:
 
 	UE_SEQUENCER_DECLARE_CASTABLE(FSectionModel, FViewModel
+		, FLinkedOutlinerExtension
 		, ILayerBarExtension
 		, ITrackLaneExtension
 		, ISelectableExtension

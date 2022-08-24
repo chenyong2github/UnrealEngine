@@ -55,7 +55,9 @@ public:
 	/** Gets the outliner view-model that created this track lane */
 	TViewModelPtr<IOutlinerExtension> GetOutlinerItem() const;
 
+	TSharedPtr<STrackAreaView> GetTrackAreaView() const;
 	TSharedPtr<STrackLane> GetParentLane() const;
+	TSharedPtr<FTimeToPixel> GetTimeToPixel() const;
 
 	TArrayView<const TWeakPtr<STrackLane>> GetChildLanes() const;
 

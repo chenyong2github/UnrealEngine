@@ -81,6 +81,16 @@ TSharedPtr<STrackLane> STrackLane::GetParentLane() const
 	return ParentLane;
 }
 
+TSharedPtr<STrackAreaView> STrackLane::GetTrackAreaView() const
+{
+	return WeakTrackAreaView.Pin();
+}
+
+TSharedPtr<FTimeToPixel> STrackLane::GetTimeToPixel() const
+{
+	return TimeToPixel;
+}
+
 TArrayView<const TWeakPtr<STrackLane>> STrackLane::GetChildLanes() const
 {
 	return WeakChildLanes;
@@ -167,43 +177,6 @@ void STrackLane::RecreateWidgets()
 		}
 	}
 
-	// Construct views for top level children track lane
-	for (TTypedIterator<ITrackAreaExtension, FViewModelVariantIterator> TopLevelIt(TrackAreaExtension->GetTopLevelChildTrackAreaModels()); TopLevelIt; ++TopLevelIt)
-	{
-		TViewModelPtr<ITrackAreaExtension> InlineModel = *TopLevelIt;
-		if (InlineModel->GetTrackAreaParameters().LaneType != ETrackAreaLaneType::None)
-		{
-			// Add these widgets directly to this lane as well
-			for (TTypedIterator<ITrackLaneExtension, FViewModelVariantIterator> It(InlineModel->GetTrackAreaModelList()); It; ++It)
-			{
-				TViewModelPtr<ITrackLaneExtension> Model = *It;
-				TSharedPtr<ITrackLaneWidget> ParentView;
-				FViewModelPtr Parent = Model.AsModel()->GetParent();
-				// Find the parent model that exists in the parent lane
-				while (Parent && !ParentView)
-				{
-					ParentView = FindWidgetForModel(Parent);
-					Parent = Parent->GetParent();
-				}
-
-				TSharedPtr<ITrackLaneWidget> NewView = Model->CreateTrackLaneView(ViewParams);
-				WidgetsByModel.Add(Model, NewView);
-
-				// If we have a parent view, add the widget to that
-				if (ParentView)
-				{
-					ParentView->AddChildView(NewView, SharedThis(this));
-				}
-				// Otherwise we add it directly to this lane
-				else
-				{
-					FSlot::FSlotArguments SlotArguments(MakeUnique<FSlot>(NewView));
-					SlotArguments.AttachWidget(NewView->AsWidget());
-					Children.AddSlot(MoveTemp(SlotArguments));
-				}
-			}
-		}
-	}
 }
 
 void STrackLane::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const

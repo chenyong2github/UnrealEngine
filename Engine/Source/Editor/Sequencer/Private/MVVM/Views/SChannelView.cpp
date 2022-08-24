@@ -415,8 +415,10 @@ int32 SChannelView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 		return LayerId;
 	}
 
+	const bool bIncludeThis = true;
+
 	TViewModelPtr<FTrackAreaViewModel> TrackArea = WeakTrackArea.Pin();
-	TViewModelPtr<FSectionModel>  Section  = Model->FindAncestorOfType<FSectionModel>();
+	TViewModelPtr<FSectionModel>  Section  = Model->FindAncestorOfType<FSectionModel>(bIncludeThis);
 	TViewModelPtr<FSequenceModel> Sequence = Model->FindAncestorOfType<FSequenceModel>();
 
 	UMovieSceneSection* SectionObject = Section->GetSection();
@@ -596,7 +598,8 @@ TViewModelPtr<FSectionModel> SChannelView::GetSection() const
 	FViewModelPtr Model = WeakModel.Pin();
 	if (Model)
 	{
-		return Model->FindAncestorOfType<FSectionModel>();
+		constexpr bool bIncludeThis = true;
+		return Model->FindAncestorOfType<FSectionModel>(bIncludeThis);
 	}
 	return nullptr;
 }

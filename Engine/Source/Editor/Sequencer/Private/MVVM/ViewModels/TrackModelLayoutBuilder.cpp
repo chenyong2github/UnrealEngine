@@ -136,6 +136,8 @@ FTrackModelLayoutBuilder::~FTrackModelLayoutBuilder()
 
 void FTrackModelLayoutBuilder::RefreshLayout(TSharedPtr<FSectionModel> InSection)
 {
+	InSection->SetLinkedOutlinerItem(Root);
+
 	// Reset everything
 	OutlinerList.Reset();
 

@@ -10,6 +10,7 @@
 #include "MVVM/Views/STrackAreaView.h"
 #include "MVVM/Views/SCompoundTrackLaneView.h"
 #include "MVVM/Views/STrackLane.h"
+#include "MVVM/Views/SChannelView.h"
 #include "MVVM/Extensions/IObjectBindingExtension.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/AppStyle.h"
@@ -845,11 +846,31 @@ void SSequencerSection::Construct( const FArguments& InArgs, TSharedPtr<FSequenc
 		[
 			SectionInterface->GenerateSectionWidget()
 		]
+
+		+ SOverlay::Slot()
+		[
+			SNew(SChannelView, InSectionModel, OwningTrackLane->GetTimeToPixel(), OwningTrackLane->GetTrackAreaView()->GetViewModel())
+			.Visibility(this, &SSequencerSection::GetTopLevelChannelGroupVisibility)
+		]
 	];
 }
 
 SSequencerSection::~SSequencerSection()
 {
+}
+
+EVisibility SSequencerSection::GetTopLevelChannelGroupVisibility() const
+{
+	using namespace UE::MovieScene;
+
+	TSharedPtr<FSectionModel> SectionModel = WeakSectionModel.Pin();
+	TViewModelPtr<IOutlinerExtension> Outliner = SectionModel ? SectionModel->FindAncestorOfType<IOutlinerExtension>() : nullptr;
+
+	if (!Outliner || Outliner->IsExpanded())
+	{
+		return EVisibility::Collapsed;
+	}
+	return EVisibility::Visible;
 }
 
 FText SSequencerSection::GetToolTipText() const
