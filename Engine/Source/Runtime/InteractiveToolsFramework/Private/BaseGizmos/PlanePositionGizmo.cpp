@@ -71,7 +71,12 @@ void UPlanePositionGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 		InteractionOrigin, InteractionNormal,
 		PressPos.WorldRay.Origin, PressPos.WorldRay.Direction,
 		bIntersects, IntersectionPoint);
-	check(bIntersects);  // need to handle this case...
+	if (!bIntersects)
+	{
+		// Generally should not happen since the user clicked the plane to start the interaction, but could happen in a floating point error edge case
+		bInInteraction = false;
+		return;
+	}
 
 	InteractionStartPoint = InteractionCurPoint = IntersectionPoint;
 
@@ -110,6 +115,11 @@ void UPlanePositionGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 
 void UPlanePositionGizmo::OnClickDrag(const FInputDeviceRay& DragPos)
 {
+	if (!bInInteraction)
+	{
+		return;
+	}
+
 	FVector HitPoint;
 	FVector2D NewParamValue;
 
@@ -152,7 +162,10 @@ void UPlanePositionGizmo::OnClickDrag(const FInputDeviceRay& DragPos)
 
 void UPlanePositionGizmo::OnClickRelease(const FInputDeviceRay& ReleasePos)
 {
-	check(bInInteraction);
+	if (!bInInteraction)
+	{
+		return;
+	}
 
 	ParameterSource->EndModify();
 	if (StateTarget)
@@ -165,7 +178,10 @@ void UPlanePositionGizmo::OnClickRelease(const FInputDeviceRay& ReleasePos)
 
 void UPlanePositionGizmo::OnTerminateDragSequence()
 {
-	check(bInInteraction);
+	if (!bInInteraction)
+	{
+		return;
+	}
 
 	ParameterSource->EndModify();
 	if (StateTarget)
