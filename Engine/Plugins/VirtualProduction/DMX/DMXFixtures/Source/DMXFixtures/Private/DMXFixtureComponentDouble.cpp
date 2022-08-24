@@ -4,11 +4,33 @@
 #include "DMXFixtureComponentDouble.h"
 #include "DMXFixtureActor.h"
 
+#include "DMXTypes.h"
 
 
 UDMXFixtureComponentDouble::UDMXFixtureComponentDouble()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+}
+
+void UDMXFixtureComponentDouble::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttributeValueMap& ValuePerAttribute)
+{
+	const float* FirstTargetValuePtr = ValuePerAttribute.Map.Find(DMXChannel1.Name);
+	if (FirstTargetValuePtr)
+	{
+		float Channel1RemappedValue = NormalizedToAbsoluteValue(0, *FirstTargetValuePtr);
+
+		constexpr int32 FirstChannelIndex = 0;
+		SetTargetValue(FirstChannelIndex, *FirstTargetValuePtr);
+	}
+
+	const float* SecondTargetValuePtr = ValuePerAttribute.Map.Find(DMXChannel2.Name);
+	if (SecondTargetValuePtr)
+	{
+		float Channel2RemappedValue = NormalizedToAbsoluteValue(1, *SecondTargetValuePtr);
+
+		constexpr int32 SecondChannelIndex = 1;
+		SetTargetValue(SecondChannelIndex, *SecondTargetValuePtr);
+	}
 }
 
 void UDMXFixtureComponentDouble::GetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames)

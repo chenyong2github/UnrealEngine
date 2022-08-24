@@ -4,10 +4,22 @@
 #include "DMXFixtureComponentSingle.h"
 #include "DMXFixtureActor.h"
 
+#include "DMXTypes.h"
+
 
 UDMXFixtureComponentSingle::UDMXFixtureComponentSingle()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+}
+
+void UDMXFixtureComponentSingle::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttributeValueMap& ValuePerAttribute)
+{
+	const float* TargetValuePtr = ValuePerAttribute.Map.Find(DMXChannel.Name);
+	if (TargetValuePtr)
+	{
+		const float RemappedValue = NormalizedToAbsoluteValue(*TargetValuePtr);
+		SetTargetValue(RemappedValue);
+	}
 }
 
 void UDMXFixtureComponentSingle::GetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames)

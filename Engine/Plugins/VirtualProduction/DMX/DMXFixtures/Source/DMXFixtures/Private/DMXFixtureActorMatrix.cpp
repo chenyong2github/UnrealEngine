@@ -4,6 +4,7 @@
 
 #include "DMXProtocolConstants.h"
 #include "DMXStats.h"
+#include "Game/DMXComponent.h"
 
 #include "Engine/Texture2D.h"
 #include "Rendering/Texture2DResource.h"

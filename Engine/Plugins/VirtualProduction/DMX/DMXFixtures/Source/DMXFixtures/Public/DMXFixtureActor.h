@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "DMXFixtureActorBase.h"
+
 #include "DMXFixtureComponent.h"
 #include "DMXFixtureComponentDouble.h"
 #include "DMXFixtureComponentSingle.h"
@@ -13,8 +15,6 @@
 #include "CoreMinimal.h"
 #include "Components/ArrowComponent.h"
 #include "Components/SpotLightComponent.h"
-#include "Game/DMXComponent.h"
-#include "GameFramework/Actor.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 #include "DMXFixtureActor.generated.h"
@@ -32,7 +32,7 @@ enum EDMXFixtureQualityLevel
 
 UCLASS()
 class DMXFIXTURES_API ADMXFixtureActor 
-	: public AActor
+	: public ADMXFixtureActorBase
 	, public IDMXMVRFixtureActorInterface
 {
 	GENERATED_BODY()
@@ -87,13 +87,9 @@ public:
 	void InitializeFixture(UStaticMeshComponent* StaticMeshLens, UStaticMeshComponent* StaticMeshBeam);
 
 	/** Pushes DMX Values to the Fixture. Expects normalized values in the range of 0.0f - 1.0f */
-	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
-	void PushNormalizedValuesPerAttribute(const FDMXNormalizedAttributeValueMap& ValuePerAttributeMap);
+	virtual void PushNormalizedValuesPerAttribute(const FDMXNormalizedAttributeValueMap& ValuePerAttributeMap) override;
 	
 public:
-	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
-	void InterpolateDMXComponents(float DeltaSeconds);
-	
 	/** Sets the a new max light intensity */
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
 	void SetLightIntensityMax(float NewLightIntensityMax);
@@ -148,12 +144,6 @@ public:
 	// Simple solution useful for walls, 1 linetrace from the center
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	bool UseDynamicOcclusion;
-
-
-	// DMX COMPONENT -----------------------------
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DMX Light Fixture")
-	TObjectPtr<class UDMXComponent> DMX;
 
 	// COMPONENTS ---------------------------------
 

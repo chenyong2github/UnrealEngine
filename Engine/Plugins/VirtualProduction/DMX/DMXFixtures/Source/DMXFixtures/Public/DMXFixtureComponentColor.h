@@ -19,6 +19,7 @@ public:
 	UDMXFixtureComponentColor();
 
 	//~ Begin DMXFixtureComponent interface
+	virtual void PushNormalizedValuesPerAttribute(const FDMXNormalizedAttributeValueMap& ValuePerAttribute) override;
 	virtual void GetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames) override;
 	//~ End DMXFixtureComponent interface
 

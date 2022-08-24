@@ -12,6 +12,8 @@
 #include "DMXInterpolation.h"
 #include "DMXFixtureComponent.generated.h"
 
+struct FDMXNormalizedAttributeValueMap;
+
 
 USTRUCT(BlueprintType)
 struct FDMXChannelData
@@ -32,7 +34,7 @@ struct FDMXChannelData
 };
 
 
-UCLASS(meta=(IsBlueprintBase=false))
+UCLASS(Abstract, Meta=(IsBlueprintBase=false))
 class DMXFIXTURES_API UDMXFixtureComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -50,6 +52,9 @@ public:
 
 	/** Sets the cell that is currently active */
 	virtual void SetCurrentCell(int Index);
+
+	/** Pushes DMX Values to the Fixture Component. Expects normalized values in the range of 0.0f to 1.0f */
+	virtual void PushNormalizedValuesPerAttribute(const FDMXNormalizedAttributeValueMap& ValuePerAttribute)  PURE_VIRTUAL(UDMXFixtureComponent::PushNormalizedValuesPerAttribute, return; );
 
 	/** If used within a DMX Fixture Actor or Fixture Matrix Actor, the component only receives data when set to true. Else needs be implemented in blueprints. */
 	UPROPERTY(EditAnywhere, Category = "DMX Parameters", meta = (DisplayPriority = 0))
