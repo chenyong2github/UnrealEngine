@@ -17,7 +17,7 @@ TSharedPtr<FAccountInfo> FAccountInfoRegistry::Find(FPlatformUserId PlatformUser
 	return FoundPtr ? TSharedPtr<FAccountInfo>(*FoundPtr) : TSharedPtr<FAccountInfo>();
 }
 
-TSharedPtr<FAccountInfo> FAccountInfoRegistry::Find(FOnlineAccountIdHandle AccountIdHandle) const
+TSharedPtr<FAccountInfo> FAccountInfoRegistry::Find(FAccountId AccountIdHandle) const
 {
 	FReadScopeLock Lock(IndexLock);
 	const TSharedRef<FAccountInfo>* FoundPtr = AuthDataByOnlineAccountIdHandle.Find(AccountIdHandle);
@@ -189,7 +189,7 @@ TOnlineEvent<void(const FAuthAccountAttributesChanged&)> FAuthCommon::OnAccountA
 	return OnAuthAccountAttributesChangedEvent;
 }
 
-bool FAuthCommon::IsLoggedIn(const FOnlineAccountIdHandle& AccountId) const
+bool FAuthCommon::IsLoggedIn(const FAccountId& AccountId) const
 {
 	const TSharedPtr<FAccountInfo> AccountInfo = GetAccountInfoRegistry().Find(AccountId);
 	return (AccountInfo && IsOnlineStatus(AccountInfo->LoginStatus));

@@ -51,9 +51,9 @@ protected:
 	TOnlineEventCallable<void(const FAchievementStateUpdated&)> OnAchievementStateUpdatedEvent;
 
 	void UnlockAchievementsByStats(const FStatsUpdated& StatsUpdated);
-	void ExecuteUnlockRulesRelatedToStat(const FOnlineAccountIdHandle& UserId, const FString& StatName, const TMap<FString, FStatValue>& Stats, TArray<FString>& OutAchievementsToUnlock);
+	void ExecuteUnlockRulesRelatedToStat(const FAccountId& UserId, const FString& StatName, const TMap<FString, FStatValue>& Stats, TArray<FString>& OutAchievementsToUnlock);
 	bool MeetUnlockCondition(FAchievementUnlockRule AchievementUnlockRule, const TMap<FString, FStatValue>& Stats);
-	bool IsUnlocked(const FOnlineAccountIdHandle& UserId, const FString& AchievementName) const;
+	bool IsUnlocked(const FAccountId& UserId, const FString& AchievementName) const;
 
 	TArray<FAchievementUnlockRule> AchievementUnlockRules;
 	FOnlineEventDelegateHandle StatEventHandle;

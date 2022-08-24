@@ -214,9 +214,9 @@ protected:
 	/** Map of sessions that local users are part of, indexed by their local name */
 	TMap<FName, TSharedRef<FSession>> LocalSessionsByName;
 	/** Cache for the last set of session search results, mapped per user */
-	TMap<FOnlineAccountIdHandle, TMap<FOnlineSessionIdHandle, TSharedRef<FSession>>> SessionSearchResultsUserMap;
+	TMap<FAccountId, TMap<FOnlineSessionIdHandle, TSharedRef<FSession>>> SessionSearchResultsUserMap;
 	/** Cache for received session invites, mapped per user */
-	TMap<FOnlineAccountIdHandle, TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>> SessionInvitesUserMap;
+	TMap<FAccountId, TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>> SessionInvitesUserMap;
 
 	TSharedPtr<FFindSessions::Result> CurrentSessionSearch;
 	TSharedPtr<TOnlineAsyncOp<FFindSessions>> CurrentSessionSearchHandle;

@@ -29,8 +29,8 @@ public:
 	virtual TOnlineAsyncOpHandle<FUpdatePresence> UpdatePresence(FUpdatePresence::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FPartialUpdatePresence> PartialUpdatePresence(FPartialUpdatePresence::Params&& Params) override;
 
-	FUniqueNetIdRef GetUniqueNetId(FOnlineAccountIdHandle AccountIdHandle) const;
-	int32 GetLocalUserNum(FOnlineAccountIdHandle AccountIdHandle) const;
+	FUniqueNetIdRef GetUniqueNetId(FAccountId AccountIdHandle) const;
+	int32 GetLocalUserNum(FAccountId AccountIdHandle) const;
 
 protected:
 	const FAuthOSSAdapter* Auth;

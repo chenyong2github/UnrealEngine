@@ -15,7 +15,7 @@ public:
 	virtual ~FAccountInfoRegistry() = default;
 
 	TSharedPtr<FAccountInfo> Find(FPlatformUserId PlatformUserId) const;
-	TSharedPtr<FAccountInfo> Find(FOnlineAccountIdHandle AccountIdHandle) const;
+	TSharedPtr<FAccountInfo> Find(FAccountId AccountIdHandle) const;
 
 	TArray<TSharedRef<FAccountInfo>> GetAllAccountInfo(TFunction<bool(const TSharedRef<FAccountInfo>&)> Predicate) const;
 
@@ -27,7 +27,7 @@ protected:
 
 private:
 	TMap<FPlatformUserId, TSharedRef<FAccountInfo>> AuthDataByPlatformUserId;
-	TMap<FOnlineAccountIdHandle, TSharedRef<FAccountInfo>> AuthDataByOnlineAccountIdHandle;
+	TMap<FAccountId, TSharedRef<FAccountInfo>> AuthDataByOnlineAccountIdHandle;
 };
 
 class ONLINESERVICESCOMMON_API FAuthCommon : public TOnlineComponent<IAuth>
@@ -56,7 +56,7 @@ public:
 	virtual TOnlineEvent<void(const FAuthLoginStatusChanged&)> OnLoginStatusChanged() override;
 	virtual TOnlineEvent<void(const FAuthPendingAuthExpiration&)> OnPendingAuthExpiration() override;
 	virtual TOnlineEvent<void(const FAuthAccountAttributesChanged&)> OnAccountAttributesChanged() override;
-	virtual bool IsLoggedIn(const FOnlineAccountIdHandle& AccountId) const override;
+	virtual bool IsLoggedIn(const FAccountId& AccountId) const override;
 
 protected:
 	virtual const FAccountInfoRegistry& GetAccountInfoRegistry() const = 0;

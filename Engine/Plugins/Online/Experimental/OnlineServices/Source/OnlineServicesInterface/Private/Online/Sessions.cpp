@@ -112,19 +112,19 @@ FSessionSettings& FSessionSettings::operator+=(const FSessionSettingsUpdate& Upd
 
 	CustomSettings.Append(UpdatedSettings.UpdatedCustomSettings);
 
-	for (const FOnlineAccountIdHandle& Key : UpdatedSettings.RemovedRegisteredPlayers)
+	for (const FAccountId& Key : UpdatedSettings.RemovedRegisteredPlayers)
 	{
 		RegisteredPlayers.Remove(Key);
 	}
 
 	RegisteredPlayers.Append(UpdatedSettings.UpdatedRegisteredPlayers);
 
-	for (const FOnlineAccountIdHandle& Key : UpdatedSettings.RemovedSessionMembers)
+	for (const FAccountId& Key : UpdatedSettings.RemovedSessionMembers)
 	{
 		SessionMembers.Remove(Key);
 	}
 
-	for (const TPair<FOnlineAccountIdHandle, FSessionMemberUpdate>& Entry : UpdatedSettings.UpdatedSessionMembers)
+	for (const TPair<FAccountId, FSessionMemberUpdate>& Entry : UpdatedSettings.UpdatedSessionMembers)
 	{
 		if (FSessionMember* SessionMember = SessionMembers.Find(Entry.Key))
 		{
@@ -199,7 +199,7 @@ FSessionSettingsUpdate& FSessionSettingsUpdate::operator+=(FSessionSettingsUpdat
 		RemovedCustomSettings.AddUnique(MoveTemp(Key));
 	}
 
-	for (TPair<FOnlineAccountIdHandle, FSessionMemberUpdate>& UpdatedSessionMember : UpdatedValue.UpdatedSessionMembers)
+	for (TPair<FAccountId, FSessionMemberUpdate>& UpdatedSessionMember : UpdatedValue.UpdatedSessionMembers)
 	{
 		// If an update adds a modification to a member that had previously been marked for removal, we'll keep the latest change
 		RemovedSessionMembers.Remove(UpdatedSessionMember.Key);
@@ -208,21 +208,21 @@ FSessionSettingsUpdate& FSessionSettingsUpdate::operator+=(FSessionSettingsUpdat
 		MemberUpdate += MoveTemp(UpdatedSessionMember.Value);
 	}
 
-	for (FOnlineAccountIdHandle& Key : UpdatedValue.RemovedSessionMembers)
+	for (FAccountId& Key : UpdatedValue.RemovedSessionMembers)
 	{
 		// If an update removes a member that had previously been modified, we'll keep the latest change
 		UpdatedSessionMembers.Remove(Key);
 		RemovedSessionMembers.AddUnique(MoveTemp(Key));
 	}
 
-	for (const TPair<FOnlineAccountIdHandle, FRegisteredPlayer>& UpdatedRegisteredPlayer : UpdatedValue.UpdatedRegisteredPlayers)
+	for (const TPair<FAccountId, FRegisteredPlayer>& UpdatedRegisteredPlayer : UpdatedValue.UpdatedRegisteredPlayers)
 	{
 		// If an update adds a modification to a registered player that had previously been marked for removal, we'll keep the latest change
 		RemovedRegisteredPlayers.Remove(UpdatedRegisteredPlayer.Key);
 	}
 	UpdatedRegisteredPlayers.Append(MoveTemp(UpdatedValue.UpdatedRegisteredPlayers));
 
-	for (FOnlineAccountIdHandle& Key : UpdatedValue.RemovedRegisteredPlayers)
+	for (FAccountId& Key : UpdatedValue.RemovedRegisteredPlayers)
 	{
 		// If an update removes a registered player that had previously been modified, we'll keep the latest change
 		UpdatedRegisteredPlayers.Remove(Key);

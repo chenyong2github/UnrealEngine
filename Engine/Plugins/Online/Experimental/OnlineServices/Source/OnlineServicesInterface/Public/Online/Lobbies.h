@@ -56,8 +56,8 @@ ONLINESERVICESINTERFACE_API void LexFromString(ELobbyMemberLeaveReason& OutLeave
 
 struct FLobbyMember
 {
-	FOnlineAccountIdHandle AccountId;
-	FOnlineAccountIdHandle PlatformAccountId;
+	FAccountId AccountId;
+	FAccountId PlatformAccountId;
 	FString PlatformDisplayName;
 	TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
 };
@@ -65,19 +65,19 @@ struct FLobbyMember
 struct FLobby
 {
 	FOnlineLobbyIdHandle LobbyId;
-	FOnlineAccountIdHandle OwnerAccountId;
+	FAccountId OwnerAccountId;
 	FName LocalName;
 	FName SchemaName;
 	int32 MaxMembers;
 	ELobbyJoinPolicy JoinPolicy;
 	TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
-	TMap<FOnlineAccountIdHandle, TSharedRef<const FLobbyMember>> Members;
+	TMap<FAccountId, TSharedRef<const FLobbyMember>> Members;
 };
 
 struct FJoinLobbyLocalUserData
 {
 	/** Local users who will be joining the lobby. */
-	FOnlineAccountIdHandle LocalUserId;
+	FAccountId LocalUserId;
 
 	/** Initial attributes. */
 	TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
@@ -105,7 +105,7 @@ struct FCreateLobby
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/** The local name for the lobby. */
 		FName LocalName;
@@ -142,7 +142,7 @@ struct FFindLobbies
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/**
 		* Max results to return in one search.
@@ -154,7 +154,7 @@ struct FFindLobbies
 		TArray<FFindLobbySearchFilter> Filters;
 
 		/** Find lobbies containing the target user. */
-		TOptional<FOnlineAccountIdHandle> TargetUser;
+		TOptional<FAccountId> TargetUser;
 
 		/** Find join info for the target lobby id. */
 		TOptional<FOnlineLobbyIdHandle> LobbyId;
@@ -190,7 +190,7 @@ struct FJoinLobby
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/** The local name for the lobby. */
 		FName LocalName;
@@ -218,7 +218,7 @@ struct FLeaveLobby
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/** Id of the lobby to leave. */
 		FOnlineLobbyIdHandle LobbyId;
@@ -238,13 +238,13 @@ struct FInviteLobbyMember
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/** Id of the lobby for which the invitation will be sent. */
 		FOnlineLobbyIdHandle LobbyId;
 
 		/** Id of the player who will be sent the invitation. */
-		FOnlineAccountIdHandle TargetUserId;
+		FAccountId TargetUserId;
 	};
 
 	/** Output struct for Lobbies::InviteLobbyMember */
@@ -261,7 +261,7 @@ struct FDeclineLobbyInvitation
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/** Id of the lobby for which the invitations will be declined. */
 		FOnlineLobbyIdHandle LobbyId;
@@ -281,13 +281,13 @@ struct FKickLobbyMember
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/** Id of the lobby. */
 		FOnlineLobbyIdHandle LobbyId;
 
 		/** The target user to be kicked. */
-		FOnlineAccountIdHandle TargetUserId;
+		FAccountId TargetUserId;
 	};
 
 	/** Output struct for Lobbies::KickLobbyMember */
@@ -304,13 +304,13 @@ struct FPromoteLobbyMember
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/** Id of the lobby. */
 		FOnlineLobbyIdHandle LobbyId;
 
 		/** The target user to be promoted to owner. */
-		FOnlineAccountIdHandle TargetUserId;
+		FAccountId TargetUserId;
 	};
 
 	/** Output struct for Lobbies::PromoteLobbyMember */
@@ -342,7 +342,7 @@ struct FModifyLobbyJoinPolicy
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/** Id of the lobby. */
 		FOnlineLobbyIdHandle LobbyId;
@@ -365,7 +365,7 @@ struct FModifyLobbyAttributes
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/** Id of the lobby. */
 		FOnlineLobbyIdHandle LobbyId;
@@ -391,7 +391,7 @@ struct FModifyLobbyMemberAttributes
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/** Id of the lobby. */
 		FOnlineLobbyIdHandle LobbyId;
@@ -417,7 +417,7 @@ struct FGetJoinedLobbies
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	/** Output struct for Lobbies::GetJoinedLobbies */
@@ -435,7 +435,7 @@ struct FGetReceivedInvitations
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	/** Output struct for Lobbies::GetReceivedInvitations */
@@ -526,10 +526,10 @@ struct FLobbyMemberAttributesChanged
 struct FLobbyInvitationAdded
 {
 	/** The local user associated with the invitation. */
-	FOnlineAccountIdHandle LocalUserId;
+	FAccountId LocalUserId;
 
 	/** The user who sent the invitation. */
-	FOnlineAccountIdHandle SenderId;
+	FAccountId SenderId;
 
 	/** The invited lobby. */
 	TSharedRef<const FLobby> Lobby;
@@ -539,10 +539,10 @@ struct FLobbyInvitationAdded
 struct FLobbyInvitationRemoved
 {
 	/** The local user associated with the invitation. */
-	FOnlineAccountIdHandle LocalUserId;
+	FAccountId LocalUserId;
 
 	/** The user who sent the invitation. */
-	FOnlineAccountIdHandle SenderId;
+	FAccountId SenderId;
 
 	/** The invited lobby. */
 	TSharedRef<const FLobby> Lobby;
@@ -564,7 +564,7 @@ ONLINESERVICESINTERFACE_API void LexFromString(EUILobbyJoinRequestedSource& OutU
 struct FUILobbyJoinRequested
 {
 	/** The local user associated with the join request. */
-	FOnlineAccountIdHandle LocalUserId;
+	FAccountId LocalUserId;
 
 	/** The lobby the local user requested to join, or the online error if there was a failure */
 	TResult<TSharedRef<const FLobby>, FOnlineError> Result;

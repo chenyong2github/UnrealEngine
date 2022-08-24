@@ -4,7 +4,7 @@
 
 namespace UE::Online {
 
-FString FOnlineForeignAccountIdRegistry::ToLogString(const FOnlineAccountIdHandle& Handle) const
+FString FOnlineForeignAccountIdRegistry::ToLogString(const FAccountId& Handle) const
 {
 	FString Result;
 	if (Handle.IsValid())
@@ -27,7 +27,7 @@ FString FOnlineForeignAccountIdRegistry::ToLogString(const FOnlineAccountIdHandl
 	return Result;
 }
 
-TArray<uint8> FOnlineForeignAccountIdRegistry::ToReplicationData(const FOnlineAccountIdHandle& Handle) const
+TArray<uint8> FOnlineForeignAccountIdRegistry::ToReplicationData(const FAccountId& Handle) const
 {
 	TArray<uint8> RepData;
 	if (Handle.IsValid())
@@ -46,20 +46,20 @@ TArray<uint8> FOnlineForeignAccountIdRegistry::ToReplicationData(const FOnlineAc
 	return RepData;
 }
 
-FOnlineAccountIdHandle FOnlineForeignAccountIdRegistry::FromReplicationData(EOnlineServices Services, const TArray<uint8>& RepData)
+FAccountId FOnlineForeignAccountIdRegistry::FromReplicationData(EOnlineServices Services, const TArray<uint8>& RepData)
 {
-	FOnlineAccountIdHandle Handle;
+	FAccountId Handle;
 	if (RepData.Num())
 	{
 		FRepData& RepDataForServices = OnlineServicesToRepData.FindOrAdd(Services);
-		if (FOnlineAccountIdHandle* Found = RepDataForServices.RepDataToHandle.Find(RepData))
+		if (FAccountId* Found = RepDataForServices.RepDataToHandle.Find(RepData))
 		{
 			Handle = *Found;
 		}
 		else
 		{
 			RepDataForServices.RepDataArray.Add(RepData);
-			Handle = FOnlineAccountIdHandle(Services, RepDataForServices.RepDataArray.Num());
+			Handle = FAccountId(Services, RepDataForServices.RepDataArray.Num());
 			RepDataForServices.RepDataToHandle.Emplace(RepData, Handle);
 		}
 	}

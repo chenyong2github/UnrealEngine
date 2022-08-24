@@ -191,7 +191,7 @@ TOnlineAsyncOpHandle<FUserFileDeleteFile> FUserFileNull::DeleteFile(FUserFileDel
 	return Op->GetHandle();
 }
 
-FUserFileNull::FUserState& FUserFileNull::GetUserState(const FOnlineAccountIdHandle AccountId)
+FUserFileNull::FUserState& FUserFileNull::GetUserState(const FAccountId AccountId)
 {
 	check(AccountId.IsValid());
 

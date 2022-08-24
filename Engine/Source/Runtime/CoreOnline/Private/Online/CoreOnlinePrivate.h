@@ -28,14 +28,14 @@ namespace UE::Online {
 class FOnlineForeignAccountIdRegistry
 {
 public:
-	FString ToLogString(const FOnlineAccountIdHandle& Handle) const;
-	TArray<uint8> ToReplicationData(const FOnlineAccountIdHandle& Handle) const;
-	FOnlineAccountIdHandle FromReplicationData(EOnlineServices Services, const TArray<uint8>& RepData);
+	FString ToLogString(const FAccountId& Handle) const;
+	TArray<uint8> ToReplicationData(const FAccountId& Handle) const;
+	FAccountId FromReplicationData(EOnlineServices Services, const TArray<uint8>& RepData);
 
 private:
 	struct FRepData
 	{
-		TMap<TArray<uint8>, FOnlineAccountIdHandle> RepDataToHandle;
+		TMap<TArray<uint8>, FAccountId> RepDataToHandle;
 		TArray<TArray<uint8>> RepDataArray;
 	};
 	TMap<EOnlineServices, FRepData> OnlineServicesToRepData;

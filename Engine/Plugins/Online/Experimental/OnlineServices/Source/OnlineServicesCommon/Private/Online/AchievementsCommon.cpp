@@ -141,7 +141,7 @@ void FAchievementsCommon::UnlockAchievementsByStats(const FStatsUpdated& StatsUp
 	}
 
 	TArray<FString> StatNames;
-	TArray<FOnlineAccountIdHandle> UserIds;
+	TArray<FAccountId> UserIds;
 	for (const FUserStats& UserStats : StatsUpdated.UpdateUsersStats)
 	{
 		for (const TPair<FString, FStatValue>& StatPair : UserStats.Stats)
@@ -197,7 +197,7 @@ void FAchievementsCommon::UnlockAchievementsByStats(const FStatsUpdated& StatsUp
 	});
 }
 
-void FAchievementsCommon::ExecuteUnlockRulesRelatedToStat(const FOnlineAccountIdHandle& UserId, const FString& StatName, const TMap<FString, FStatValue>& Stats, TArray<FString>& OutAchievementsToUnlock)
+void FAchievementsCommon::ExecuteUnlockRulesRelatedToStat(const FAccountId& UserId, const FString& StatName, const TMap<FString, FStatValue>& Stats, TArray<FString>& OutAchievementsToUnlock)
 {
 	for (const FAchievementUnlockRule& AchievementUnlockRule : AchievementUnlockRules)
 	{
@@ -251,7 +251,7 @@ bool FAchievementsCommon::MeetUnlockCondition(FAchievementUnlockRule Achievement
 	return true;
 }
 
-bool FAchievementsCommon::IsUnlocked(const FOnlineAccountIdHandle& UserId, const FString& AchievementName) const
+bool FAchievementsCommon::IsUnlocked(const FAccountId& UserId, const FString& AchievementName) const
 {
 	FGetAchievementState::Params Params;
 	Params.LocalUserId = UserId;

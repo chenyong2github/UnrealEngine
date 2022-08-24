@@ -87,7 +87,7 @@ public:
 	}
 
 	/* Queues for executing per-user tasks in serial */
-	FOnlineAsyncOpQueue& GetSerialQueue(const FOnlineAccountIdHandle& AccountId)
+	FOnlineAsyncOpQueue& GetSerialQueue(const FAccountId& AccountId)
 	{
 		TUniquePtr<FOnlineAsyncOpQueueSerial>* Queue = PerUserSerialQueue.Find(AccountId);
 		if (Queue == nullptr)
@@ -210,7 +210,7 @@ private:
 	TMap<FString, TUniquePtr<IOnlineExecHandler>> ExecCommands;
 
 	FOnlineAsyncOpQueueSerial SerialQueue;
-	TMap<FOnlineAccountIdHandle, TUniquePtr<FOnlineAsyncOpQueueSerial>> PerUserSerialQueue;
+	TMap<FAccountId, TUniquePtr<FOnlineAsyncOpQueueSerial>> PerUserSerialQueue;
 };
 
 /* UE::Online */ }

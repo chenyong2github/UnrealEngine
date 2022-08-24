@@ -42,7 +42,7 @@ struct FSessionMember
 	FCustomSessionSettingsMap MemberSettings;
 };
 
-using FSessionMembersMap = TMap<FOnlineAccountIdHandle, FSessionMember>;
+using FSessionMembersMap = TMap<FAccountId, FSessionMember>;
 
 struct FSessionMemberUpdate
 {
@@ -52,7 +52,7 @@ struct FSessionMemberUpdate
 	FSessionMemberUpdate& operator+=(FSessionMemberUpdate&& UpdatedValue);
 };
 
-using FSessionMemberUpdatesMap = TMap<FOnlineAccountIdHandle, FSessionMemberUpdate>;
+using FSessionMemberUpdatesMap = TMap<FAccountId, FSessionMemberUpdate>;
 
 enum class ESessionState : uint8
 {
@@ -85,7 +85,7 @@ struct FRegisteredPlayer
 	bool bIsInSession = false;
 };
 
-using FRegisteredPlayersMap = TMap<FOnlineAccountIdHandle, FRegisteredPlayer>;
+using FRegisteredPlayersMap = TMap<FAccountId, FRegisteredPlayer>;
 
 struct FSessionSettingsUpdate
 {
@@ -124,12 +124,12 @@ struct FSessionSettingsUpdate
 	/** Updated values for session member info to change in the update operation*/
 	FSessionMemberUpdatesMap UpdatedSessionMembers;
 	/** Id handles for session members to be removed in the update operation*/
-	TArray<FOnlineAccountIdHandle> RemovedSessionMembers;
+	TArray<FAccountId> RemovedSessionMembers;
 
 	/** Updated values for registered players to change in the update operation*/
 	FRegisteredPlayersMap UpdatedRegisteredPlayers;
 	/** Id handles for registered players to be removed in the update operation*/
-	TArray<FOnlineAccountIdHandle> RemovedRegisteredPlayers;
+	TArray<FAccountId> RemovedRegisteredPlayers;
 
 	FSessionSettingsUpdate& operator+=(FSessionSettingsUpdate&& UpdatedValue);
 };
@@ -196,7 +196,7 @@ struct ONLINESERVICESINTERFACE_API FSession
 	FSession(const FSession& InSession);
 
 	/** The user who currently owns the session */
-	FOnlineAccountIdHandle OwnerUserId;
+	FAccountId OwnerUserId;
 
 	/** The id for the session, platform dependent */
 	FOnlineSessionIdHandle SessionId;
@@ -211,10 +211,10 @@ struct ONLINESERVICESINTERFACE_API FSession
 struct FSessionInvite
 {
 	/* The user which the invite got sent to */
-	FOnlineAccountIdHandle RecipientId;
+	FAccountId RecipientId;
 
 	/* The user which sent the invite */
-	FOnlineAccountIdHandle SenderId;
+	FAccountId SenderId;
 
 	/* The invite id handle, needed for retrieving session information and rejecting the invite */
 	FOnlineSessionInviteIdHandle InviteId;
@@ -263,7 +263,7 @@ struct FGetSessionById
 
 	struct Params
 	{
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		FOnlineSessionIdHandle IdHandle;
 	};
@@ -283,7 +283,7 @@ struct FCreateSession
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/** The local name for the session */
 		FName SessionName;
@@ -310,7 +310,7 @@ struct FUpdateSession
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/** The local name for the session */
 		FName SessionName;
@@ -334,13 +334,13 @@ struct FLeaveSession
 	struct Params
 	{
 		/* The local user agent which leaves the session*/
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/* The local name for the session. */
 		FName SessionName;
 
 		/** Ids for all local users who will leave the session (includes the main caller) */
-		TArray<FOnlineAccountIdHandle> LocalUsers;
+		TArray<FAccountId> LocalUsers;
 
 		/* Whether the call should attempt to destroy the session instead of just leave it */
 		bool bDestroySession;
@@ -359,7 +359,7 @@ struct FFindSessions
 	struct Params
 	{
 		/* The local user agent which starts the session search*/
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/* Maximum number of results to return in one search */
 		uint32 MaxResults;
@@ -371,7 +371,7 @@ struct FFindSessions
 		TArray<FFindSessionsSearchFilter> Filters;
 
 		/* Find sessions containing the target user. */
-		TOptional<FOnlineAccountIdHandle> TargetUser;
+		TOptional<FAccountId> TargetUser;
 
 		/* Find join info for the target session id. */
 		TOptional<FOnlineSessionIdHandle> SessionId;
@@ -390,7 +390,7 @@ struct FStartMatchmaking
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/* Information for all local users who will join the session (includes the session creator) */
 		FSessionMembersMap LocalUsers;
@@ -420,7 +420,7 @@ struct FJoinSession
 	struct Params
 	{
 		/* The local user agent which starts the join operation*/
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/* Local name for the session */
 		FName SessionName;
@@ -447,7 +447,7 @@ struct FAddSessionMembers
 	struct Params
 	{
 		/* The local user agent */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/* Local name for the session */
 		FName SessionName;
@@ -472,13 +472,13 @@ struct FRemoveSessionMembers
 	struct Params
 	{
 		/* The local user agent */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/* Local name for the session */
 		FName SessionName;
 
 		/* Id handles for the session members to be removed from the session */
-		TArray<FOnlineAccountIdHandle> SessionMemberIds;
+		TArray<FAccountId> SessionMemberIds;
 
 		/** Whether or not the session members should also be removed from the list of registered players. True by default*/
 		bool bUnregisterPlayers = true;
@@ -497,13 +497,13 @@ struct FSendSessionInvite
 	struct Params
 	{
 		/* The local user agent which sends the invite*/
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/* The local name for the session. */
 		FName SessionName;
 
 		/* Array of id handles for users to which the invites will be sent */
-		TArray<FOnlineAccountIdHandle> TargetUsers;
+		TArray<FAccountId> TargetUsers;
 	};
 
 	struct Result
@@ -519,7 +519,7 @@ struct FGetSessionInvites
 	struct Params
 	{
 		/* The local user agent */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -536,7 +536,7 @@ struct FRejectSessionInvite
 	struct Params
 	{
 		/* The local user agent which started the query*/
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/* The id handle for the invite to be rejected */
 		FOnlineSessionInviteIdHandle SessionInviteId;
@@ -557,7 +557,7 @@ struct FRegisterPlayers
 		FName SessionName;
 
 		/* Array of users which will be registered */
-		TArray<FOnlineAccountIdHandle> TargetUsers;
+		TArray<FAccountId> TargetUsers;
 
 		/* Whether a slot should be saved for the registered players */
 		bool bReserveSlot;
@@ -578,7 +578,7 @@ struct FUnregisterPlayers
 		FName SessionName;
 
 		/* Array of users which will be unregistered */
-		TArray<FOnlineAccountIdHandle> TargetUsers;
+		TArray<FAccountId> TargetUsers;
 
 		/* Whether unregistered players should be removed from the session, if they are in it */
 		bool bRemoveUnregisteredPlayers;
@@ -594,7 +594,7 @@ struct FUnregisterPlayers
 struct FSessionJoined
 {
 	/* The local users which joined the session */
-	TArray<FOnlineAccountIdHandle> LocalUserIds;
+	TArray<FAccountId> LocalUserIds;
 
 	/* A shared reference to the session joined. */
 	TSharedRef<const FSession> Session;
@@ -605,7 +605,7 @@ struct FSessionJoined
 struct FSessionLeft
 {
 	/* The local users which left the session */
-	TArray<FOnlineAccountIdHandle> LocalUserIds;
+	TArray<FAccountId> LocalUserIds;
 };
 
 struct FSessionUpdated
@@ -622,7 +622,7 @@ struct FSessionUpdated
 struct FSessionInviteReceived
 {
 	/* The local user which received the invite */
-	FOnlineAccountIdHandle LocalUserId;
+	FAccountId LocalUserId;
 
 	/** The session invite the local user was sent, or the online error if there was a failure retrieving the session for it*/
 	TSharedRef<const FSessionInvite> SessionInvite;
@@ -644,7 +644,7 @@ ONLINESERVICESINTERFACE_API void LexFromString(EUISessionJoinRequestedSource& Ou
 struct FUISessionJoinRequested
 {
 	/** The local user associated with the join request. */
-	FOnlineAccountIdHandle LocalUserId;
+	FAccountId LocalUserId;
 
 	/** The session the local user requested to join, or the online error if there was a failure retrieving it */
 	TResult<TSharedRef<const FSession>, FOnlineError> Result;

@@ -18,17 +18,17 @@ FOnlineAccountIdRegistryEOSGS::FOnlineAccountIdRegistryEOSGS()
 
 }
 
-FOnlineAccountIdHandle FOnlineAccountIdRegistryEOSGS::FindAccountId(const EOS_ProductUserId ProductUserId) const
+FAccountId FOnlineAccountIdRegistryEOSGS::FindAccountId(const EOS_ProductUserId ProductUserId) const
 {
 	return Registry.FindHandle(ProductUserId);
 }
 
-EOS_ProductUserId FOnlineAccountIdRegistryEOSGS::GetProductUserId(const FOnlineAccountIdHandle& Handle) const
+EOS_ProductUserId FOnlineAccountIdRegistryEOSGS::GetProductUserId(const FAccountId& Handle) const
 {
 	return Registry.FindIdValue(Handle);
 }
 
-FString FOnlineAccountIdRegistryEOSGS::ToLogString(const FOnlineAccountIdHandle& Handle) const
+FString FOnlineAccountIdRegistryEOSGS::ToLogString(const FAccountId& Handle) const
 {
 	if (Registry.ValidateOnlineId(Handle))
 	{
@@ -38,7 +38,7 @@ FString FOnlineAccountIdRegistryEOSGS::ToLogString(const FOnlineAccountIdHandle&
 	return FString();
 }
 
-TArray<uint8> FOnlineAccountIdRegistryEOSGS::ToReplicationData(const FOnlineAccountIdHandle& Handle) const
+TArray<uint8> FOnlineAccountIdRegistryEOSGS::ToReplicationData(const FAccountId& Handle) const
 {
 	TArray<uint8> ReplicationData;
 	if (Registry.ValidateOnlineId(Handle))
@@ -59,7 +59,7 @@ TArray<uint8> FOnlineAccountIdRegistryEOSGS::ToReplicationData(const FOnlineAcco
 	}
 	return ReplicationData;
 }
-FOnlineAccountIdHandle FOnlineAccountIdRegistryEOSGS::FromReplicationData(const TArray<uint8>& ReplicationData)
+FAccountId FOnlineAccountIdRegistryEOSGS::FromReplicationData(const TArray<uint8>& ReplicationData)
 {
 	if (ReplicationData.Num() == OnlineIdEOSHexBufferLength)
 	{
@@ -84,7 +84,7 @@ FOnlineAccountIdRegistryEOSGS& FOnlineAccountIdRegistryEOSGS::Get()
 	return Instance;
 }
 
-FOnlineAccountIdHandle FOnlineAccountIdRegistryEOSGS::FindOrAddAccountId(const EOS_ProductUserId ProductUserId)
+FAccountId FOnlineAccountIdRegistryEOSGS::FindOrAddAccountId(const EOS_ProductUserId ProductUserId)
 {
 	if (ensure(EOS_ProductUserId_IsValid(ProductUserId)))
 	{
@@ -93,26 +93,26 @@ FOnlineAccountIdHandle FOnlineAccountIdRegistryEOSGS::FindOrAddAccountId(const E
 	return Registry.GetInvalidHandle();
 }
 
-EOS_ProductUserId GetProductUserId(const FOnlineAccountIdHandle& Handle)
+EOS_ProductUserId GetProductUserId(const FAccountId& Handle)
 {
 	return FOnlineAccountIdRegistryEOSGS::GetRegistered().GetProductUserId(Handle);
 }
 
-EOS_ProductUserId GetProductUserIdChecked(const FOnlineAccountIdHandle& Handle)
+EOS_ProductUserId GetProductUserIdChecked(const FAccountId& Handle)
 {
 	EOS_ProductUserId ProductUserId = GetProductUserId(Handle);
 	check(EOS_ProductUserId_IsValid(ProductUserId) == EOS_TRUE);
 	return ProductUserId;
 }
 
-FOnlineAccountIdHandle FindAccountId(const EOS_ProductUserId ProductUserId)
+FAccountId FindAccountId(const EOS_ProductUserId ProductUserId)
 {
 	return FOnlineAccountIdRegistryEOSGS::GetRegistered().FindAccountId(ProductUserId);
 }
 
-FOnlineAccountIdHandle FindAccountIdChecked(const EOS_ProductUserId ProductUserId)
+FAccountId FindAccountIdChecked(const EOS_ProductUserId ProductUserId)
 {
-	FOnlineAccountIdHandle Result = FindAccountId(ProductUserId);
+	FAccountId Result = FindAccountId(ProductUserId);
 	check(Result.IsValid());
 	return Result;
 }

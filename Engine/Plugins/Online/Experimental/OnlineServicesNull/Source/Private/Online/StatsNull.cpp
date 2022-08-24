@@ -139,7 +139,7 @@ TOnlineAsyncOpHandle<FBatchQueryStats> FStatsNull::BatchQueryStats(FBatchQuerySt
 	{
 		FBatchQueryStats::Result Result;
 
-		for (const FOnlineAccountIdHandle& TargetUserId : InAsyncOp.GetParams().TargetUserIds)
+		for (const FAccountId& TargetUserId : InAsyncOp.GetParams().TargetUserIds)
 		{
 			if (FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsByAccountId(TargetUserId)))
 			{

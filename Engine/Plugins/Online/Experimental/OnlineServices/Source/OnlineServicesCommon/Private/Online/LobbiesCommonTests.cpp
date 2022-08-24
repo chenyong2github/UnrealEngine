@@ -117,8 +117,8 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 		FOnlineLobbyIdHandle LobbyId(EOnlineServices::Null, 1);
 		FClientLobbyData ClientData(LobbyId);
 
-		FOnlineAccountIdHandle User1(EOnlineServices::Null, 1);
-		FOnlineAccountIdHandle User2(EOnlineServices::Null, 2);
+		FAccountId User1(EOnlineServices::Null, 1);
+		FAccountId User2(EOnlineServices::Null, 2);
 		FName LobbySchemaName = TEXT("SchemaName");
 		int32 LobbyMaxMembers = 5;
 		ELobbyJoinPolicy LobbyJoinPolicy = ELobbyJoinPolicy::PublicAdvertised;
@@ -137,7 +137,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 
 		// 1.1 setup.
 		{
-			TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
+			TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
 			{
 				TSharedRef<FClientLobbyMemberSnapshot> MemberSnapshot = MakeShared<FClientLobbyMemberSnapshot>();
 				MemberSnapshot->AccountId = User1;
@@ -158,7 +158,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 			LobbySnapshot.Attributes.Add(LobbyAttribute1Key, LobbyAttribute1Value);
 			LobbySnapshot.Members = {User1, User2};
 
-			TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeaveReasons;
+			TMap<FAccountId, ELobbyMemberLeaveReason> LeaveReasons;
 			FApplyLobbyUpdateResult Result = ClientData.ApplyLobbyUpdateFromServiceSnapshot(MoveTemp(LobbySnapshot), MoveTemp(LobbyMemberSnapshots), MoveTemp(LeaveReasons), &LobbyEvents);
 			UTEST_EQUAL("Check no local members left.", Result.LeavingLocalMembers.Num(), 0);
 		}
@@ -187,7 +187,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 			LobbyMemberAttribute1Value.Set(TEXT("ModifiedMemberAttribute1"));
 			LobbySchemaName = TEXT("ModifiedSchemaName");
 
-			TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
+			TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
 			{
 				TSharedRef<FClientLobbyMemberSnapshot> MemberSnapshot = MakeShared<FClientLobbyMemberSnapshot>();
 				MemberSnapshot->AccountId = User1;
@@ -208,7 +208,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 			LobbySnapshot.Attributes.Add(LobbyAttribute1Key, LobbyAttribute1Value);
 			LobbySnapshot.Members = {User1, User2};
 
-			TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeaveReasons;
+			TMap<FAccountId, ELobbyMemberLeaveReason> LeaveReasons;
 			FApplyLobbyUpdateResult Result = ClientData.ApplyLobbyUpdateFromServiceSnapshot(MoveTemp(LobbySnapshot), MoveTemp(LobbyMemberSnapshots), MoveTemp(LeaveReasons), &LobbyEvents);
 			UTEST_EQUAL("Check no local members left.", Result.LeavingLocalMembers.Num(), 0);
 		}
@@ -234,7 +234,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 
 		// 1.3 setup.
 		{
-			TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
+			TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
 			{
 				TSharedRef<FClientLobbyMemberSnapshot> MemberSnapshot = MakeShared<FClientLobbyMemberSnapshot>();
 				MemberSnapshot->AccountId = User1;
@@ -248,7 +248,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 			LobbySnapshot.JoinPolicy = LobbyJoinPolicy;
 			LobbySnapshot.Members = {User1};
 
-			TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeaveReasons;
+			TMap<FAccountId, ELobbyMemberLeaveReason> LeaveReasons;
 			FApplyLobbyUpdateResult Result = ClientData.ApplyLobbyUpdateFromServiceSnapshot(MoveTemp(LobbySnapshot), MoveTemp(LobbyMemberSnapshots), MoveTemp(LeaveReasons), &LobbyEvents);
 			UTEST_EQUAL("Check no local members left.", Result.LeavingLocalMembers.Num(), 0);
 		}
@@ -270,8 +270,8 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 		FOnlineLobbyIdHandle LobbyId(EOnlineServices::Null, 1);
 		FClientLobbyData ClientData(LobbyId);
 
-		FOnlineAccountIdHandle User1(EOnlineServices::Null, 1);
-		FOnlineAccountIdHandle User2(EOnlineServices::Null, 2);
+		FAccountId User1(EOnlineServices::Null, 1);
+		FAccountId User2(EOnlineServices::Null, 2);
 		FName LobbySchemaName = TEXT("SchemaName");
 		int32 LobbyMaxMembers = 5;
 		ELobbyJoinPolicy LobbyJoinPolicy = ELobbyJoinPolicy::PublicAdvertised;
@@ -290,7 +290,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 
 		// 2.1 setup
 		{
-			TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
+			TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
 			{
 				TSharedRef<FClientLobbyMemberSnapshot> MemberSnapshot = MakeShared<FClientLobbyMemberSnapshot>();
 				MemberSnapshot->AccountId = User1;
@@ -311,7 +311,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 			LobbySnapshot.Attributes.Add(LobbyAttribute1Key, LobbyAttribute1Value);
 			LobbySnapshot.Members = {User1, User2};
 
-			TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeaveReasons;
+			TMap<FAccountId, ELobbyMemberLeaveReason> LeaveReasons;
 			FApplyLobbyUpdateResult Result = ClientData.ApplyLobbyUpdateFromServiceSnapshot(MoveTemp(LobbySnapshot), MoveTemp(LobbyMemberSnapshots), MoveTemp(LeaveReasons), &LobbyEvents);
 			UTEST_EQUAL("Check no members left.", Result.LeavingLocalMembers.Num(), 0);
 		}
@@ -349,7 +349,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 			LobbyMemberAttribute1Value.Set(TEXT("ModifiedMemberAttribute1"));
 			LobbySchemaName = TEXT("ModifiedSchemaName");
 
-			TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
+			TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
 			{
 				TSharedRef<FClientLobbyMemberSnapshot> MemberSnapshot = MakeShared<FClientLobbyMemberSnapshot>();
 				MemberSnapshot->AccountId = User1;
@@ -370,7 +370,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 			LobbySnapshot.Attributes.Add(LobbyAttribute1Key, LobbyAttribute1Value);
 			LobbySnapshot.Members = {User1, User2};
 
-			TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeaveReasons;
+			TMap<FAccountId, ELobbyMemberLeaveReason> LeaveReasons;
 			FApplyLobbyUpdateResult Result = ClientData.ApplyLobbyUpdateFromServiceSnapshot(MoveTemp(LobbySnapshot), MoveTemp(LobbyMemberSnapshots), MoveTemp(LeaveReasons), &LobbyEvents);
 			UTEST_EQUAL("Check no local members left.", Result.LeavingLocalMembers.Num(), 0);
 		}
@@ -399,7 +399,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 		{
 			EventCapture.Empty();
 
-			TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
+			TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
 			{
 				TSharedRef<FClientLobbyMemberSnapshot> MemberSnapshot = MakeShared<FClientLobbyMemberSnapshot>();
 				MemberSnapshot->AccountId = User2;
@@ -413,7 +413,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 			LobbySnapshot.JoinPolicy = LobbyJoinPolicy;
 			LobbySnapshot.Members = {User2};
 
-			TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeaveReasons;
+			TMap<FAccountId, ELobbyMemberLeaveReason> LeaveReasons;
 			LeaveReasons.Add(User1, ELobbyMemberLeaveReason::Kicked);
 
 			FApplyLobbyUpdateResult Result = ClientData.ApplyLobbyUpdateFromServiceSnapshot(MoveTemp(LobbySnapshot), MoveTemp(LobbyMemberSnapshots), MoveTemp(LeaveReasons), &LobbyEvents);
@@ -457,15 +457,15 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 		FOnlineLobbyIdHandle LobbyId(EOnlineServices::Null, 1);
 		FClientLobbyData ClientData(LobbyId);
 
-		FOnlineAccountIdHandle User1(EOnlineServices::Null, 1);
-		FOnlineAccountIdHandle User2(EOnlineServices::Null, 2);
+		FAccountId User1(EOnlineServices::Null, 1);
+		FAccountId User2(EOnlineServices::Null, 2);
 		FName LobbySchemaName = TEXT("SchemaName");
 		int32 LobbyMaxMembers = 5;
 		ELobbyJoinPolicy LobbyJoinPolicy = ELobbyJoinPolicy::PublicAdvertised;
 
 		// 3.1 setup - initialize lobby data with initial snapshot.
 		{
-			TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
+			TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
 			{
 				TSharedRef<FClientLobbyMemberSnapshot> MemberSnapshot = MakeShared<FClientLobbyMemberSnapshot>();
 				MemberSnapshot->AccountId = User1;
@@ -484,7 +484,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 			LobbySnapshot.JoinPolicy = LobbyJoinPolicy;
 			LobbySnapshot.Members = {User1, User2};
 
-			TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeaveReasons;
+			TMap<FAccountId, ELobbyMemberLeaveReason> LeaveReasons;
 			FApplyLobbyUpdateResult Result = ClientData.ApplyLobbyUpdateFromServiceSnapshot(MoveTemp(LobbySnapshot), MoveTemp(LobbyMemberSnapshots), MoveTemp(LeaveReasons), &LobbyEvents);
 			UTEST_EQUAL("Check no local members left.", Result.LeavingLocalMembers.Num(), 0);
 		}
@@ -501,7 +501,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 		{
 			EventCapture.Empty();
 
-			TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
+			TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
 			{
 				TSharedRef<FClientLobbyMemberSnapshot> MemberSnapshot = MakeShared<FClientLobbyMemberSnapshot>();
 				MemberSnapshot->AccountId = User1;
@@ -515,7 +515,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 			LobbySnapshot.JoinPolicy = LobbyJoinPolicy;
 			LobbySnapshot.Members = {User1};
 
-			TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeaveReasons;
+			TMap<FAccountId, ELobbyMemberLeaveReason> LeaveReasons;
 			FApplyLobbyUpdateResult Result = ClientData.ApplyLobbyUpdateFromServiceSnapshot(MoveTemp(LobbySnapshot), MoveTemp(LobbyMemberSnapshots), MoveTemp(LeaveReasons), &LobbyEvents);
 			UTEST_EQUAL("Check no local members left.", Result.LeavingLocalMembers.Num(), 0);
 		}
@@ -531,7 +531,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 		{
 			EventCapture.Empty();
 
-			TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
+			TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
 			{
 				TSharedRef<FClientLobbyMemberSnapshot> MemberSnapshot = MakeShared<FClientLobbyMemberSnapshot>();
 				MemberSnapshot->AccountId = User1;
@@ -550,7 +550,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 			LobbySnapshot.JoinPolicy = LobbyJoinPolicy;
 			LobbySnapshot.Members = {User1};
 
-			TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeaveReasons;
+			TMap<FAccountId, ELobbyMemberLeaveReason> LeaveReasons;
 			FApplyLobbyUpdateResult Result = ClientData.ApplyLobbyUpdateFromServiceSnapshot(MoveTemp(LobbySnapshot), MoveTemp(LobbyMemberSnapshots), MoveTemp(LeaveReasons), &LobbyEvents);
 			UTEST_EQUAL("Check no local members left.", Result.LeavingLocalMembers.Num(), 0);
 		}
@@ -562,7 +562,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 		{
 			EventCapture.Empty();
 
-			TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
+			TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
 			{
 				TSharedRef<FClientLobbyMemberSnapshot> MemberSnapshot = MakeShared<FClientLobbyMemberSnapshot>();
 				MemberSnapshot->AccountId = User1;
@@ -581,7 +581,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 			LobbySnapshot.JoinPolicy = LobbyJoinPolicy;
 			LobbySnapshot.Members = {User1, User2};
 
-			TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeaveReasons;
+			TMap<FAccountId, ELobbyMemberLeaveReason> LeaveReasons;
 			FApplyLobbyUpdateResult Result = ClientData.ApplyLobbyUpdateFromServiceSnapshot(MoveTemp(LobbySnapshot), MoveTemp(LobbyMemberSnapshots), MoveTemp(LeaveReasons), &LobbyEvents);
 			UTEST_EQUAL("Check no local members left.", Result.LeavingLocalMembers.Num(), 0);
 		}
@@ -600,8 +600,8 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 		FOnlineLobbyIdHandle LobbyId(EOnlineServices::Null, 1);
 		FClientLobbyData ClientData(LobbyId);
 
-		FOnlineAccountIdHandle User1(EOnlineServices::Null, 1);
-		FOnlineAccountIdHandle User2(EOnlineServices::Null, 2);
+		FAccountId User1(EOnlineServices::Null, 1);
+		FAccountId User2(EOnlineServices::Null, 2);
 		FName LobbySchemaName = TEXT("SchemaName");
 		int32 LobbyMaxMembers = 5;
 		ELobbyJoinPolicy LobbyJoinPolicy = ELobbyJoinPolicy::PublicAdvertised;
@@ -620,7 +620,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 
 		// 4.1 setup. Local member in snapshot with remote member to simulate lobby join.
 		{
-			TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
+			TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
 			{
 				TSharedRef<FClientLobbyMemberSnapshot> MemberSnapshot = MakeShared<FClientLobbyMemberSnapshot>();
 				MemberSnapshot->AccountId = User1;
@@ -641,7 +641,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 			LobbySnapshot.Attributes.Add(LobbyAttribute1Key, LobbyAttribute1Value);
 			LobbySnapshot.Members = {User1, User2};
 
-			TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeaveReasons;
+			TMap<FAccountId, ELobbyMemberLeaveReason> LeaveReasons;
 			FApplyLobbyUpdateResult Result = ClientData.ApplyLobbyUpdateFromServiceSnapshot(MoveTemp(LobbySnapshot), MoveTemp(LobbyMemberSnapshots), MoveTemp(LeaveReasons), &LobbyEvents);
 			UTEST_EQUAL("Check no local members left.", Result.LeavingLocalMembers.Num(), 0);
 		}
@@ -779,8 +779,8 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 		FOnlineLobbyIdHandle LobbyId(EOnlineServices::Null, 1);
 		FClientLobbyData ClientData(LobbyId);
 
-		FOnlineAccountIdHandle User1(EOnlineServices::Null, 1);
-		FOnlineAccountIdHandle User2(EOnlineServices::Null, 2);
+		FAccountId User1(EOnlineServices::Null, 1);
+		FAccountId User2(EOnlineServices::Null, 2);
 		FName LobbySchemaName = TEXT("SchemaName");
 		int32 LobbyMaxMembers = 5;
 		ELobbyJoinPolicy LobbyJoinPolicy = ELobbyJoinPolicy::PublicAdvertised;
@@ -799,7 +799,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 
 		// 5.1 setup.
 		{
-			TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
+			TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
 			{
 				TSharedRef<FClientLobbyMemberSnapshot> MemberSnapshot = MakeShared<FClientLobbyMemberSnapshot>();
 				MemberSnapshot->AccountId = User1;
@@ -820,7 +820,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 			LobbySnapshot.Attributes.Add(LobbyAttribute1Key, LobbyAttribute1Value);
 			LobbySnapshot.Members = {User1, User2};
 
-			TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeaveReasons;
+			TMap<FAccountId, ELobbyMemberLeaveReason> LeaveReasons;
 			FApplyLobbyUpdateResult Result = ClientData.ApplyLobbyUpdateFromServiceSnapshot(MoveTemp(LobbySnapshot), MoveTemp(LobbyMemberSnapshots), MoveTemp(LeaveReasons), &LobbyEvents);
 			UTEST_EQUAL("Check no local members left.", Result.LeavingLocalMembers.Num(), 0);
 		}
@@ -1123,7 +1123,7 @@ TFuture<int> AwaitNextGameTick()
 
 TFuture<TDefaultErrorResultInternal<FOnlineLobbyIdHandle>> AwaitInvitation(
 	FLobbyEvents& LobbyEvents,
-	FOnlineAccountIdHandle TargetAccountId,
+	FAccountId TargetAccountId,
 	FOnlineLobbyIdHandle LobbyId,
 	float TimeoutSeconds)
 {

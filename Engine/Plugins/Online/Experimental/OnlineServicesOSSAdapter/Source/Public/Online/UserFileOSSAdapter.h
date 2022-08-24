@@ -44,7 +44,7 @@ public:
 protected:
 	FUserFileOSSAdapterConfig Config;
 	IOnlineUserCloudPtr UserCloudInterface = nullptr;
-	TMap<FOnlineAccountIdHandle, TArray<FString>> EnumeratedFiles;
+	TMap<FAccountId, TArray<FString>> EnumeratedFiles;
 };
 
 /* UE::Online */ }

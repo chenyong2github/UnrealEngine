@@ -313,9 +313,9 @@ namespace UE::Online {
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
-		for (const TPair<FOnlineAccountIdHandle, FSessionMember>& Entry : Params.NewSessionMembers)
+		for (const TPair<FAccountId, FSessionMember>& Entry : Params.NewSessionMembers)
 		{
-			const FOnlineAccountIdHandle& SessionMemberId = Entry.Key;
+			const FAccountId& SessionMemberId = Entry.Key;
 			const FSessionMember& SessionMember = Entry.Value;
 
 			// If the user was already registered in the session, we'll update it and reserve a slot for it
@@ -378,7 +378,7 @@ namespace UE::Online {
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
-		for (const FOnlineAccountIdHandle& SessionMemberId : Params.SessionMemberIds)
+		for (const FAccountId& SessionMemberId : Params.SessionMemberIds)
 		{
 			if (Params.bUnregisterPlayers) // If the parameters dictate it, well unregister the player as well
 			{
@@ -420,7 +420,7 @@ namespace UE::Online {
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
-		for (const FOnlineAccountIdHandle& User : Params.TargetUsers)
+		for (const FAccountId& User : Params.TargetUsers)
 		{
 			FRegisteredPlayer& RegisteredPlayer = SessionSettings.RegisteredPlayers.FindOrAdd(User);
 
@@ -459,7 +459,7 @@ namespace UE::Online {
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
-		for (const FOnlineAccountIdHandle& User : Params.TargetUsers)
+		for (const FAccountId& User : Params.TargetUsers)
 		{
 			if (const FRegisteredPlayer* RegisteredPlayer = SessionSettings.RegisteredPlayers.Find(User))
 			{
@@ -553,11 +553,11 @@ namespace UE::Online {
 		// User login check for all local users
 		IAuthPtr Auth = Services.GetAuthInterface();
 
-		TArray<FOnlineAccountIdHandle> LocalUserIds;
+		TArray<FAccountId> LocalUserIds;
 		LocalUserIds.Reserve(Params.LocalUsers.Num());
 		Params.LocalUsers.GenerateKeyArray(LocalUserIds);
 
-		for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
+		for (const FAccountId& LocalUserId : LocalUserIds)
 		{
 			if (!Auth->IsLoggedIn(LocalUserId))
 			{
@@ -652,11 +652,11 @@ namespace UE::Online {
 		// User login check for all local users
 		IAuthPtr Auth = Services.GetAuthInterface();
 
-		TArray<FOnlineAccountIdHandle> LocalUserIds;
+		TArray<FAccountId> LocalUserIds;
 		LocalUserIds.Reserve(Params.LocalUsers.Num());
 		Params.LocalUsers.GenerateKeyArray(LocalUserIds);
 
-		for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
+		for (const FAccountId& LocalUserId : LocalUserIds)
 		{
 			if (!Auth->IsLoggedIn(LocalUserId))
 			{
@@ -717,11 +717,11 @@ namespace UE::Online {
 		// User login check for all local users
 		IAuthPtr Auth = Services.GetAuthInterface();
 
-		TArray<FOnlineAccountIdHandle> LocalUserIds;
+		TArray<FAccountId> LocalUserIds;
 		LocalUserIds.Reserve(Params.LocalUsers.Num());
 		Params.LocalUsers.GenerateKeyArray(LocalUserIds);
 
-		for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
+		for (const FAccountId& LocalUserId : LocalUserIds)
 		{
 			if(!Auth->IsLoggedIn(LocalUserId))
 			{
@@ -751,7 +751,7 @@ namespace UE::Online {
 			return Errors::InvalidParams();
 		}
 
-		for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
+		for (const FAccountId& LocalUserId : LocalUserIds)
 		{
 			if (SessionSettings.SessionMembers.Contains(LocalUserId))
 			{
@@ -770,7 +770,7 @@ namespace UE::Online {
 
 		if (!SessionSettings.bAllowUnregisteredPlayers)
 		{
-			for (const FOnlineAccountIdHandle& LocalUserId : LocalUserIds)
+			for (const FAccountId& LocalUserId : LocalUserIds)
 			{
 				if (!SessionSettings.RegisteredPlayers.Contains(LocalUserId))
 				{
@@ -837,7 +837,7 @@ namespace UE::Online {
 		IAuthPtr Auth = Services.GetAuthInterface();
 
 		// User login check for all local users
-		for (const FOnlineAccountIdHandle& LocalUserId : Params.LocalUsers)
+		for (const FAccountId& LocalUserId : Params.LocalUsers)
 		{
 			if (!Auth->IsLoggedIn(LocalUserId))
 			{

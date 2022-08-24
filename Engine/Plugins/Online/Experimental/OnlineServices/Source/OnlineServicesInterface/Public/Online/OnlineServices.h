@@ -35,7 +35,7 @@ struct FGetResolvedConnectString
 
 	struct Params
 	{
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		FOnlineLobbyIdHandle LobbyId;
 		FOnlineSessionIdHandle SessionId;
 		FName PortType;

@@ -36,8 +36,8 @@ protected:
 		FUserFileMap Files;
 	};
 
-	TMap<FOnlineAccountIdHandle, FUserState> UserStates;
-	FUserState& GetUserState(const FOnlineAccountIdHandle AccountId);
+	TMap<FAccountId, FUserState> UserStates;
+	FUserState& GetUserState(const FAccountId AccountId);
 
 	FUserFileMap InitialFileStateFromConfig;
 };

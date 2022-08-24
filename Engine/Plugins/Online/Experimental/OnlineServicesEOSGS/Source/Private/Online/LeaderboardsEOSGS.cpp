@@ -42,7 +42,7 @@ TOnlineAsyncOpHandle<FReadEntriesForUsers> FLeaderboardsEOSGS::ReadEntriesForUse
 	{
 		TArray<EOS_ProductUserId> ProductUserIds;
 		ProductUserIds.AddZeroed(InAsyncOp.GetParams().UserIds.Num());
-		for (const FOnlineAccountIdHandle& UserId : InAsyncOp.GetParams().UserIds)
+		for (const FAccountId& UserId : InAsyncOp.GetParams().UserIds)
 		{
 			ProductUserIds.Emplace(GetProductUserIdChecked(UserId));
 		}
@@ -84,7 +84,7 @@ TOnlineAsyncOpHandle<FReadEntriesForUsers> FLeaderboardsEOSGS::ReadEntriesForUse
 
 		FReadEntriesForUsers::Result Result;
 
-		for (const FOnlineAccountIdHandle& UserId : InAsyncOp.GetParams().UserIds)
+		for (const FAccountId& UserId : InAsyncOp.GetParams().UserIds)
 		{
 			EOS_Leaderboards_CopyLeaderboardUserScoreByUserIdOptions UserCopyOptions = { };
 			UserCopyOptions.ApiVersion = EOS_LEADERBOARDS_COPYLEADERBOARDUSERSCOREBYUSERID_API_LATEST;
@@ -120,7 +120,7 @@ TOnlineAsyncOpHandle<FReadEntriesForUsers> FLeaderboardsEOSGS::ReadEntriesForUse
 namespace Private
 {
 
-void QueryLeaderboardsEOS(EOS_HLeaderboards LeaderboardsHandle, const FOnlineAccountIdHandle& LocalUserId, const FString& BoardName, TPromise<const EOS_Leaderboards_OnQueryLeaderboardRanksCompleteCallbackInfo*>&& Promise)
+void QueryLeaderboardsEOS(EOS_HLeaderboards LeaderboardsHandle, const FAccountId& LocalUserId, const FString& BoardName, TPromise<const EOS_Leaderboards_OnQueryLeaderboardRanksCompleteCallbackInfo*>&& Promise)
 {
 	EOS_Leaderboards_QueryLeaderboardRanksOptions Options;
 	Options.LocalUserId = GetProductUserIdChecked(LocalUserId);

@@ -15,7 +15,7 @@ struct FTitleFileEnumerateFiles
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -30,7 +30,7 @@ struct FTitleFileGetEnumeratedFiles
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -52,7 +52,7 @@ struct FTitleFileReadFile
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** File to be opened */
 		FString Filename;
 	};

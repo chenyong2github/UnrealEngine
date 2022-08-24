@@ -41,7 +41,7 @@ public:
 
 	TFuture<FBatchQueryPresenceHelperResult> GetPromise()
 	{
-		for(FOnlineAccountIdHandle TargetUserId : Op->GetParams().TargetUserIds)
+		for(FAccountId TargetUserId : Op->GetParams().TargetUserIds)
 		{
 			FQueryPresence::Params Params;
 			Params.LocalUserId = Op->GetParams().LocalUserId;

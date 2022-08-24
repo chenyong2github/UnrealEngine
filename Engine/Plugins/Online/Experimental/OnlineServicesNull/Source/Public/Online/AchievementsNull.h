@@ -30,7 +30,7 @@ protected:
 	using FAchievementStateMap = TMap<FString, FAchievementState>;
 
 	TOptional<FAchievementDefinitionMap> AchievementDefinitions;
-	TMap<FOnlineAccountIdHandle, FAchievementStateMap> AchievementStates;
+	TMap<FAccountId, FAchievementStateMap> AchievementStates;
 };
 
 /* UE::Online */ }

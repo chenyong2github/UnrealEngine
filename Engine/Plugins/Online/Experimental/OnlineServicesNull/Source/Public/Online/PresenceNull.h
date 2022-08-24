@@ -23,8 +23,8 @@ public:
 	virtual TOnlineAsyncOpHandle<FPartialUpdatePresence> PartialUpdatePresence(FPartialUpdatePresence::Params&& Params) override;
 
 protected:
-	TMap<FOnlineAccountIdHandle, TSharedRef<const FUserPresence>> Presences;
-	TMap<FOnlineAccountIdHandle, TSet<FOnlineAccountIdHandle>> PresenceListeners;
+	TMap<FAccountId, TSharedRef<const FUserPresence>> Presences;
+	TMap<FAccountId, TSet<FAccountId>> PresenceListeners;
 };
 
 	/* UE::Online */

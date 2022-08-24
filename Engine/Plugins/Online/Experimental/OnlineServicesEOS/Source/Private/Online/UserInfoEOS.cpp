@@ -36,7 +36,7 @@ TOnlineAsyncOpHandle<FQueryUserInfo> FUserInfoEOS::QueryUserInfo(FQueryUserInfo:
 		return Op->GetHandle();
 	}
 
-	for (const FOnlineAccountIdHandle TargetUserId : Params.UserIds)
+	for (const FAccountId TargetUserId : Params.UserIds)
 	{
 		Op->Then([this, TargetUserId](TOnlineAsyncOp<FQueryUserInfo>& Op, TPromise<const EOS_UserInfo_QueryUserInfoCallbackInfo*>&& Promise)
 		{

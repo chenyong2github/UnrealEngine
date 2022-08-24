@@ -15,8 +15,8 @@ namespace UE::Online {
 class IOnlineAccountIdRegistryEOSGS : public IOnlineAccountIdRegistry
 {
 public:
-	virtual FOnlineAccountIdHandle FindAccountId(EOS_ProductUserId ProductUserId) const = 0;
-	virtual EOS_ProductUserId GetProductUserId(const FOnlineAccountIdHandle& Handle) const = 0;
+	virtual FAccountId FindAccountId(EOS_ProductUserId ProductUserId) const = 0;
+	virtual EOS_ProductUserId GetProductUserId(const FAccountId& Handle) const = 0;
 };
 
 /**
@@ -30,14 +30,14 @@ public:
 	virtual ~FOnlineAccountIdRegistryEOSGS() = default;
 
 	// Begin IOnlineAccountIdRegistryEOSGS
-	virtual FOnlineAccountIdHandle FindAccountId(const EOS_ProductUserId ProductUserId) const override;
-	virtual EOS_ProductUserId GetProductUserId(const FOnlineAccountIdHandle& Handle) const override;
+	virtual FAccountId FindAccountId(const EOS_ProductUserId ProductUserId) const override;
+	virtual EOS_ProductUserId GetProductUserId(const FAccountId& Handle) const override;
 	// End IOnlineAccountIdRegistryEOSGS
 
 	// Begin IOnlineAccountIdRegistry
-	virtual FString ToLogString(const FOnlineAccountIdHandle& Handle) const override;
-	virtual TArray<uint8> ToReplicationData(const FOnlineAccountIdHandle& Handle) const override;
-	virtual FOnlineAccountIdHandle FromReplicationData(const TArray<uint8>& ReplicationData) override;
+	virtual FString ToLogString(const FAccountId& Handle) const override;
+	virtual TArray<uint8> ToReplicationData(const FAccountId& Handle) const override;
+	virtual FAccountId FromReplicationData(const TArray<uint8>& ReplicationData) override;
 	// End IOnlineAccountIdRegistry
 
 	static IOnlineAccountIdRegistryEOSGS& GetRegistered();
@@ -47,15 +47,15 @@ private:
 	friend class FAuthEOSGS;
 	friend class FOnlineServicesEOSGSModule;
 	static FOnlineAccountIdRegistryEOSGS& Get();
-	FOnlineAccountIdHandle FindOrAddAccountId(const EOS_ProductUserId ProductUserId);
+	FAccountId FindOrAddAccountId(const EOS_ProductUserId ProductUserId);
 
 	TOnlineBasicAccountIdRegistry<EOS_ProductUserId> Registry;
 };
 
-EOS_ProductUserId ONLINESERVICESEOSGS_API GetProductUserId(const FOnlineAccountIdHandle& Handle);
-EOS_ProductUserId ONLINESERVICESEOSGS_API GetProductUserIdChecked(const FOnlineAccountIdHandle& Handle);
-FOnlineAccountIdHandle ONLINESERVICESEOSGS_API FindAccountId(const EOS_ProductUserId EpicAccountId);
-FOnlineAccountIdHandle ONLINESERVICESEOSGS_API FindAccountIdChecked(const EOS_ProductUserId EpicAccountId);
+EOS_ProductUserId ONLINESERVICESEOSGS_API GetProductUserId(const FAccountId& Handle);
+EOS_ProductUserId ONLINESERVICESEOSGS_API GetProductUserIdChecked(const FAccountId& Handle);
+FAccountId ONLINESERVICESEOSGS_API FindAccountId(const EOS_ProductUserId EpicAccountId);
+FAccountId ONLINESERVICESEOSGS_API FindAccountIdChecked(const EOS_ProductUserId EpicAccountId);
 
 template<typename IdType>
 inline bool ValidateOnlineId(const TOnlineIdHandle<IdType> Handle)

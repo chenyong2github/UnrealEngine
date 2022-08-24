@@ -97,7 +97,7 @@ FSessionEOSGS::FSessionEOSGS(const EOS_HSessionDetails& InSessionDetailsHandle)
 						// We retrieve the registered player id
 						const FString& PlayerIdStr = KeyComponents[1];
 						const EOS_ProductUserId ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*PlayerIdStr));
-						const FOnlineAccountIdHandle& IdHandle = FindAccountId(ProductUserId);
+						const FAccountId& IdHandle = FindAccountId(ProductUserId);
 
 						// This constructor should only be used by BuildSessionFromDetailsHandle, after all user ids in the session have been resolved
 						check(IdHandle.IsValid());
@@ -125,7 +125,7 @@ FSessionEOSGS::FSessionEOSGS(const EOS_HSessionDetails& InSessionDetailsHandle)
 						// We retrieve the member id
 						FString PlayerIdStr = KeyComponents[0];
 						EOS_ProductUserId ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*PlayerIdStr));
-						FOnlineAccountIdHandle IdHandle = FindAccountId(ProductUserId);
+						FAccountId IdHandle = FindAccountId(ProductUserId);
 
 						FSessionMember& SessionMember = SessionSettings.SessionMembers.FindOrAdd(IdHandle);
 
@@ -276,17 +276,17 @@ void FSessionsEOSGS::UnregisterEventHandlers()
 
 void FSessionsEOSGS::HandleSessionInviteReceived(const EOS_Sessions_SessionInviteReceivedCallbackInfo* Data)
 {
-	FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->LocalUserId);
+	FAccountId LocalUserId = FindAccountId(Data->LocalUserId);
 	if (LocalUserId.IsValid())
 	{
 		Services.Get<FAuthEOSGS>()->ResolveAccountIds(LocalUserId, { Data->LocalUserId, Data->TargetUserId })
-			.Next([this, WeakThis = AsWeak(), LocalUserId, InviteId = FString(UTF8_TO_TCHAR(Data->InviteId))](TArray<FOnlineAccountIdHandle> ResolvedAccountIds)
+			.Next([this, WeakThis = AsWeak(), LocalUserId, InviteId = FString(UTF8_TO_TCHAR(Data->InviteId))](TArray<FAccountId> ResolvedAccountIds)
 		{
 			if (const TSharedPtr<ISessions> StrongThis = WeakThis.Pin())
 			{
 				// First and second place in the array will be occupied by the receiver and the sender, respectively, since the same order is kept in the array of resolved ids
-				const FOnlineAccountIdHandle& ReceiverId = ResolvedAccountIds[0];
-				const FOnlineAccountIdHandle& SenderId = ResolvedAccountIds[1];
+				const FAccountId& ReceiverId = ResolvedAccountIds[0];
+				const FAccountId& SenderId = ResolvedAccountIds[1];
 
 				TResult<TSharedRef<const FSession>, FOnlineError> SessionInviteResult = BuildSessionFromInvite(InviteId);
 				
@@ -317,7 +317,7 @@ void FSessionsEOSGS::HandleSessionInviteReceived(const EOS_Sessions_SessionInvit
 
 void FSessionsEOSGS::HandleSessionInviteAccepted(const EOS_Sessions_SessionInviteAcceptedCallbackInfo* Data)
 {
-	FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->LocalUserId);
+	FAccountId LocalUserId = FindAccountId(Data->LocalUserId);
 	if (LocalUserId.IsValid())
 	{
 		FUISessionJoinRequested Event{
@@ -334,7 +334,7 @@ void FSessionsEOSGS::HandleSessionInviteAccepted(const EOS_Sessions_SessionInvit
 
 void FSessionsEOSGS::HandleJoinSessionAccepted(const EOS_Sessions_JoinSessionAcceptedCallbackInfo* Data)
 {
-	FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->LocalUserId);
+	FAccountId LocalUserId = FindAccountId(Data->LocalUserId);
 	if (LocalUserId.IsValid())
 	{
 		FUISessionJoinRequested Event {
@@ -639,7 +639,7 @@ void FSessionsEOSGS::WriteCreateSessionModificationHandle(EOS_HSessionModificati
 
 	// Session Members
 
-	for (const TPair<FOnlineAccountIdHandle, FSessionMember>& SessionMemberEntry : SessionSettings.SessionMembers)
+	for (const TPair<FAccountId, FSessionMember>& SessionMemberEntry : SessionSettings.SessionMembers)
 	{
 		const FSessionMember& SessionMember = SessionMemberEntry.Value;
 		
@@ -652,7 +652,7 @@ void FSessionsEOSGS::WriteCreateSessionModificationHandle(EOS_HSessionModificati
 
 	// TODO: Should always be empty at session creation time so might not be needed
 	// Registered Players
-	for (const TPair<FOnlineAccountIdHandle, FRegisteredPlayer>& Entry : SessionSettings.RegisteredPlayers)
+	for (const TPair<FAccountId, FRegisteredPlayer>& Entry : SessionSettings.RegisteredPlayers)
 	{
 		const FName& HasReservedSlotKey = FName(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(Entry.Key)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_HAS_RESERVED_SLOT.ToString());
 		AddAttribute(SessionModificationHandle, HasReservedSlotKey, { FSchemaVariant(Entry.Value.bHasReservedSlot), ESchemaAttributeVisibility::Public });
@@ -744,7 +744,7 @@ void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModificati
 
 	// Session Members
 	
-	for (const FOnlineAccountIdHandle& SessionMemberId : NewSettings.RemovedSessionMembers)
+	for (const FAccountId& SessionMemberId : NewSettings.RemovedSessionMembers)
 	{
 		// To remove a session member, we'll remove all their attributes
  		if (const FSessionMember* SessionMember = SessionSettings.SessionMembers.Find(SessionMemberId))
@@ -759,7 +759,7 @@ void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModificati
  		}
 	}
 
-	for (const TPair<FOnlineAccountIdHandle, FSessionMemberUpdate>& SessionMemberEntry : NewSettings.UpdatedSessionMembers)
+	for (const TPair<FAccountId, FSessionMemberUpdate>& SessionMemberEntry : NewSettings.UpdatedSessionMembers)
 	{
 		const FSessionMemberUpdate& SessionMemberUpdate = SessionMemberEntry.Value;
 
@@ -778,7 +778,7 @@ void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModificati
 
 	// Registered Players
 	
-	for (const FOnlineAccountIdHandle& RemovedEntry : NewSettings.RemovedRegisteredPlayers)
+	for (const FAccountId& RemovedEntry : NewSettings.RemovedRegisteredPlayers)
 	{
 		const FSchemaAttributeId& HasReservedSlotKey = FSchemaAttributeId(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(RemovedEntry)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_HAS_RESERVED_SLOT.ToString());
 		RemoveAttribute(SessionModificationHandle, HasReservedSlotKey);
@@ -787,7 +787,7 @@ void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModificati
 		RemoveAttribute(SessionModificationHandle, IsInSessionKey);
 	}
 
-	for (const TPair<FOnlineAccountIdHandle, FRegisteredPlayer>& Entry : NewSettings.UpdatedRegisteredPlayers)
+	for (const TPair<FAccountId, FRegisteredPlayer>& Entry : NewSettings.UpdatedRegisteredPlayers)
 	{
 		const FSchemaAttributeId& HasReservedSlotKey = FSchemaAttributeId(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(Entry.Key)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_HAS_RESERVED_SLOT.ToString());
 		AddAttribute(SessionModificationHandle, HasReservedSlotKey, { FSchemaVariant(Entry.Value.bHasReservedSlot), ESchemaAttributeVisibility::Public });
@@ -1183,7 +1183,7 @@ void FSessionsEOSGS::SetSessionSearchSessionId(FSessionSearchHandleEOSGS& Sessio
 	}
 }
 
-void FSessionsEOSGS::SetSessionSearchTargetId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FOnlineAccountIdHandle& TargetUserId)
+void FSessionsEOSGS::SetSessionSearchTargetId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FAccountId& TargetUserId)
 {
 	EOS_SessionSearch_SetTargetUserIdOptions Options = { };
 	Options.ApiVersion = EOS_SESSIONSEARCH_SETTARGETUSERID_API_LATEST;
@@ -1646,7 +1646,7 @@ TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> FSessionsEOSGS::BuildSessio
 	if (GetIdsResult.IsOk())
 	{
 		Services.Get<FAuthEOSGS>()->ResolveAccountIds(Params.LocalUserId, GetIdsResult.GetOkValue())
-			.Next([this, WeakOp = Op->AsWeak(), Params = MoveTemp(Params)](TArray<FOnlineAccountIdHandle> ResolvedAccountIds) mutable
+			.Next([this, WeakOp = Op->AsWeak(), Params = MoveTemp(Params)](TArray<FAccountId> ResolvedAccountIds) mutable
 		{
 			if (TOnlineAsyncOpPtr<FBuildSessionFromDetailsHandle> StrongOp = WeakOp.Pin())
 			{
@@ -1680,7 +1680,7 @@ TOnlineAsyncOpHandle<FSendSessionInvite> FSessionsEOSGS::SendSessionInvite(FSend
 		}
 
 		TArray<TFuture<TDefaultErrorResult<FSendSingleSessionInviteImpl>>> PendingSessionInvites;
-		for (const FOnlineAccountIdHandle& TargetUser : OpParams.TargetUsers)
+		for (const FAccountId& TargetUser : OpParams.TargetUsers)
 		{
 			FSendSingleSessionInviteImpl::Params FSendSingleSessionInviteParams;
 			FSendSingleSessionInviteParams.LocalUserId = OpParams.LocalUserId;
@@ -1809,9 +1809,9 @@ TOnlineAsyncOpHandle<FAddSessionMembers> FSessionsEOSGS::AddSessionMembers(FAddS
 		Options.PlayersToRegisterCount = OpParams.NewSessionMembers.Num();
 
 		TArray<EOS_ProductUserId> PlayersToRegister;
-		TArray<FOnlineAccountIdHandle> SessionMemberIds;
+		TArray<FAccountId> SessionMemberIds;
 		OpParams.NewSessionMembers.GenerateKeyArray(SessionMemberIds);		
-		for (FOnlineAccountIdHandle IdHandle : SessionMemberIds)
+		for (FAccountId IdHandle : SessionMemberIds)
 		{
 			// TODO: Do this with ResolveAccountIds instead
 			PlayersToRegister.Add(GetProductUserIdChecked(IdHandle));
@@ -1879,7 +1879,7 @@ TOnlineAsyncOpHandle<FRemoveSessionMembers> FSessionsEOSGS::RemoveSessionMembers
 		Options.PlayersToUnregisterCount = OpParams.SessionMemberIds.Num();
 
 		TArray<EOS_ProductUserId> PlayersToUnregister;
-		for (FOnlineAccountIdHandle IdHandle : OpParams.SessionMemberIds)
+		for (FAccountId IdHandle : OpParams.SessionMemberIds)
 		{
 			// TODO: Do this with ResolveAccountIds instead
 			PlayersToUnregister.Add(GetProductUserIdChecked(IdHandle));

@@ -213,19 +213,19 @@ public:
 
 	static TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> CreateFromLobbyId(
 		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
-		FOnlineAccountIdHandle LocalUserId,
+		FAccountId LocalUserId,
 		EOS_LobbyId LobbyId);
 	static TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> CreateFromInviteId(
 		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
-		FOnlineAccountIdHandle LocalUserId,
+		FAccountId LocalUserId,
 		const char* InviteId);
 	static TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> CreateFromUiEventId(
 		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
-		FOnlineAccountIdHandle LocalUserId,
+		FAccountId LocalUserId,
 		EOS_UI_EventId UiEventId);
 	static TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> CreateFromSearchResult(
 		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
-		FOnlineAccountIdHandle LocalUserId,
+		FAccountId LocalUserId,
 		EOS_HLobbySearch SearchHandle,
 		uint32_t ResultIndex);
 
@@ -235,7 +235,7 @@ public:
 	EOS_HLobbyDetails GetEOSHandle() const { return LobbyDetailsHandle; }
 	const TSharedRef<FLobbyDetailsInfoEOS>& GetInfo() const { return LobbyDetailsInfo; }
 	ELobbyDetailsSource GetDetailsSource() const { return LobbyDetailsSource; }
-	FOnlineAccountIdHandle GetAssociatedUser() const { return AssociatedLocalUser; }
+	FAccountId GetAssociatedUser() const { return AssociatedLocalUser; }
 
 	/**
 	 * Retrieve a lobby data snapshot from the EOS lobby details object.
@@ -247,19 +247,19 @@ public:
 	 * Retrieve lobby member data snapshot from the EOS lobby details object.
 	 * The lobby schema will be used to translate attribute data before returning.
 	 */
-	TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>> GetLobbyMemberSnapshot(FOnlineAccountIdHandle MemberHandle) const;
+	TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>> GetLobbyMemberSnapshot(FAccountId MemberHandle) const;
 
 	/**
 	 * Apply client side lobby changes to the lobby service.
 	 * The lobby schema will be used to translate any changed attributes before sending.
 	 */
-	TFuture<EOS_EResult> ApplyLobbyDataUpdateFromLocalChanges(FOnlineAccountIdHandle LocalUserId, const FClientLobbyDataChanges& Changes) const;
+	TFuture<EOS_EResult> ApplyLobbyDataUpdateFromLocalChanges(FAccountId LocalUserId, const FClientLobbyDataChanges& Changes) const;
 
 	/**
 	 * Apply client side lobby member changes to the lobby service.
 	 * The lobby schema will be used to translate any changed attributes before sending.
 	 */
-	TFuture<EOS_EResult> ApplyLobbyMemberDataUpdateFromLocalChanges(FOnlineAccountIdHandle LocalUserId, const FClientLobbyMemberDataChanges& Changes) const;
+	TFuture<EOS_EResult> ApplyLobbyMemberDataUpdateFromLocalChanges(FAccountId LocalUserId, const FClientLobbyMemberDataChanges& Changes) const;
 
 private:
 	template <typename, ESPMode>
@@ -267,14 +267,14 @@ private:
 	FLobbyDetailsEOS(
 		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
 		const TSharedRef<FLobbyDetailsInfoEOS>& LobbyDetailsInfo,
-		FOnlineAccountIdHandle LocalUserId,
+		FAccountId LocalUserId,
 		ELobbyDetailsSource LobbyDetailsSource,
 		EOS_HLobbyDetails LobbyDetailsHandle);
 
 	static const EOS_HLobbyDetails InvalidLobbyDetailsHandle;
 	TSharedRef<FLobbyPrerequisitesEOS> Prerequisites;
 	TSharedRef<FLobbyDetailsInfoEOS> LobbyDetailsInfo;
-	FOnlineAccountIdHandle AssociatedLocalUser;
+	FAccountId AssociatedLocalUser;
 	ELobbyDetailsSource LobbyDetailsSource;
 	EOS_HLobbyDetails LobbyDetailsHandle = InvalidLobbyDetailsHandle;
 };
@@ -334,8 +334,8 @@ public:
 	EOS_LobbyId GetLobbyIdEOS() const { return LobbyDetailsInfo->GetLobbyId(); }
 	const FString& GetLobbyId() const { return LobbyId; }
 
-	void AddUserLobbyDetails(FOnlineAccountIdHandle LocalUserId, const TSharedPtr<FLobbyDetailsEOS>& LobbyDetails);
-	TSharedPtr<FLobbyDetailsEOS> GetUserLobbyDetails(FOnlineAccountIdHandle LocalUserId) const;
+	void AddUserLobbyDetails(FAccountId LocalUserId, const TSharedPtr<FLobbyDetailsEOS>& LobbyDetails);
+	TSharedPtr<FLobbyDetailsEOS> GetUserLobbyDetails(FAccountId LocalUserId) const;
 
 	/**
 	 * Active lobby details are needed to process lobby notifications. Search for and return active
@@ -356,7 +356,7 @@ private:
 	TSharedRef<FLobbyDetailsInfoEOS> LobbyDetailsInfo;
 	FUnregisterFn UnregisterFn;
 	FString LobbyId;
-	TMap<FOnlineAccountIdHandle, TSharedPtr<FLobbyDetailsEOS>> UserLobbyDetails;
+	TMap<FAccountId, TSharedPtr<FLobbyDetailsEOS>> UserLobbyDetails;
 };
 
 // Todo: implement handling for FOnlineIdRegistryRegistry.
@@ -367,7 +367,7 @@ public:
 
 	TSharedPtr<FLobbyDataEOS> Find(EOS_LobbyId EOSLobbyId) const;
 	TSharedPtr<FLobbyDataEOS> Find(FOnlineLobbyIdHandle LobbyIdHandle) const;
-	TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FindOrCreateFromLobbyDetails(FOnlineAccountIdHandle LocalUserId, const TSharedRef<FLobbyDetailsEOS>& LobbyDetails);
+	TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FindOrCreateFromLobbyDetails(FAccountId LocalUserId, const TSharedRef<FLobbyDetailsEOS>& LobbyDetails);
 
 private:
 	void Register(const TSharedRef<FLobbyDataEOS>& LobbyIdHandleData);
@@ -407,7 +407,7 @@ public:
 	static TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyInviteDataEOS>>> CreateFromInviteId(
 		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
 		const TSharedRef<FLobbyDataRegistryEOS>& LobbyDataRegistry,
-		FOnlineAccountIdHandle LocalUserId,
+		FAccountId LocalUserId,
 		const char* InviteIdEOS,
 		EOS_ProductUserId Sender);
 
@@ -417,8 +417,8 @@ public:
 	const char* GetInviteIdEOS() const { return InviteIdEOS->Get(); }
 	const FString& GetInviteId() const { return InviteId; }
 
-	FOnlineAccountIdHandle GetReceiver() const { return Receiver; }
-	FOnlineAccountIdHandle GetSender() const { return Sender; }
+	FAccountId GetReceiver() const { return Receiver; }
+	FAccountId GetSender() const { return Sender; }
 
 private:
 	template <typename, ESPMode>
@@ -426,14 +426,14 @@ private:
 
 	FLobbyInviteDataEOS(
 		const TSharedRef<FLobbyInviteIdEOS>& InviteIdEOS,
-		FOnlineAccountIdHandle Receiver,
-		FOnlineAccountIdHandle Sender,
+		FAccountId Receiver,
+		FAccountId Sender,
 		const TSharedRef<FLobbyDetailsEOS>& LobbyDetails,
 		const TSharedRef<FLobbyDataEOS>& LobbyData);
 
 	TSharedRef<FLobbyInviteIdEOS> InviteIdEOS;
-	FOnlineAccountIdHandle Receiver;
-	FOnlineAccountIdHandle Sender;
+	FAccountId Receiver;
+	FAccountId Sender;
 	TSharedRef<FLobbyDetailsEOS> LobbyDetails;
 	TSharedRef<FLobbyDataEOS> LobbyData;
 	FString InviteId;

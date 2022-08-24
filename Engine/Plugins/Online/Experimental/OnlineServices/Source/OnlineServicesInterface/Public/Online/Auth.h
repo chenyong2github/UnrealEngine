@@ -109,7 +109,7 @@ ONLINESERVICESINTERFACE_API void LexFromString(EExternalAuthTokenMethod& OutMeth
 struct FAccountInfo
 {
 	/** The account id for the user which represents the user's online platform account. */
-	FOnlineAccountIdHandle AccountId;
+	FAccountId AccountId;
 	/** The platform user id associated with the online user. */
 	FPlatformUserId PlatformUserId = PLATFORMUSERID_NONE;
 	/** Login status */
@@ -142,7 +142,7 @@ using FCredentialsToken = TVariant<FString, FExternalAuthToken>;
 struct FVerifiedAuthSession
 {
 	FOnlineVerifiedAuthSessionIdHandle SessionId;
-	FOnlineAccountIdHandle RemoteAccountId;
+	FAccountId RemoteAccountId;
 	double CreationTime;
 };
 
@@ -182,7 +182,7 @@ struct FAuthLogout
 	struct Params
 	{
 		/** The online account id of the Local User making the request. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** Whether to remove persistent credentials on logout. */
 		bool bDestroyAuth = false;
 	};
@@ -199,7 +199,7 @@ struct FAuthModifyAccountAttributes
 	struct Params
 	{
 		/** The online account id of the Local User making the request. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** New or changed attributes. */
 		TMap<FSchemaAttributeId, FSchemaVariant> MutatedAttributes;
 		/** Attributes to be cleared. */
@@ -218,7 +218,7 @@ struct FAuthQueryExternalServerAuthTicket
 	struct Params
 	{
 		/** The online account id of the Local User making the request. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -234,7 +234,7 @@ struct FAuthQueryExternalAuthToken
 	struct Params
 	{
 		/** The online account id of the Local User making the request. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** The method of external auth to provide. */
 		EExternalAuthTokenMethod Method = EExternalAuthTokenMethod::Primary;
 	};
@@ -252,7 +252,7 @@ struct FAuthQueryVerifiedAuthTicket
 	struct Params
 	{
 		/** The online account id of the Local User making the request. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** The intended purpose of the auth ticket. */
 		ERemoteAuthTicketAudience Audience = ERemoteAuthTicketAudience::Peer;
 	};
@@ -273,7 +273,7 @@ struct FAuthCancelVerifiedAuthTicket
 	struct Params
 	{
 		/** The online account id of the Local User making the request. */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** Local ticket id used to reference the verified auth ticket. */
 		FOnlineVerifiedAuthTicketIdHandle VerifiedAuthTicketId;
 	};
@@ -290,7 +290,7 @@ struct FAuthBeginVerifiedAuthSession
 	struct Params
 	{
 		/** The remote user for which to start the verified auth session. */
-		FOnlineAccountIdHandle RemoteAccountId;
+		FAccountId RemoteAccountId;
 		/** The ticket used to verify the identity of the user. */
 		FVerifiedAuthTicket Ticket;
 	};
@@ -322,7 +322,7 @@ struct FAuthGetLocalOnlineUserByOnlineAccountId
 	struct Params
 	{
 		/** Account Id of the Local User making the request */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -516,7 +516,7 @@ public:
 	/**
 	 * Helper for querying the login status of a local user.
 	 */
-	virtual bool IsLoggedIn(const FOnlineAccountIdHandle& AccountId) const = 0;
+	virtual bool IsLoggedIn(const FAccountId& AccountId) const = 0;
 };
 
 namespace Meta {

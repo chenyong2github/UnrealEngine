@@ -174,7 +174,7 @@ FOnlineAsyncOpQueue& FOnlineServicesCommon::GetSerialQueue()
 	return SerialQueue;
 }
 
-FOnlineAsyncOpQueue& FOnlineServicesCommon::GetSerialQueue(const FOnlineAccountIdHandle& AccountId)
+FOnlineAsyncOpQueue& FOnlineServicesCommon::GetSerialQueue(const FAccountId& AccountId)
 {
 	TUniquePtr<FOnlineAsyncOpQueueSerial>* Queue = PerUserSerialQueue.Find(AccountId);
 	if (Queue == nullptr)

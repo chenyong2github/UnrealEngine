@@ -105,7 +105,7 @@ protected:
 	TSet<FName> RegisteredSessionNames;
 
 	/** Cache of session search information to be used by ongoing session searches, indexed per user. Entries are removed upon search completion. */
-	TMap<FOnlineAccountIdHandle, TSharedRef<FOnlineSessionSearch>> PendingV1SessionSearchesPerUser;
+	TMap<FAccountId, TSharedRef<FOnlineSessionSearch>> PendingV1SessionSearchesPerUser;
 };
 
 /* UE::Online */ }

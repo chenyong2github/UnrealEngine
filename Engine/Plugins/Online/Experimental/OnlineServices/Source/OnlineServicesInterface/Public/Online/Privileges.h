@@ -65,7 +65,7 @@ struct FQueryUserPrivilege
 	struct Params
 	{
 		/** User id whose privilege we want to query */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** Privilege to query */
 		EUserPrivileges Privilege;
 	};

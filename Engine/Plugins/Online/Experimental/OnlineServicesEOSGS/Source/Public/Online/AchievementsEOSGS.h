@@ -41,7 +41,7 @@ protected:
 	using FAchievementStateMap = TMap<FString, FAchievementState>;
 
 	TOptional<FAchievementDefinitionMap> AchievementDefinitions;
-	TMap<FOnlineAccountIdHandle, FAchievementStateMap> AchievementStates;
+	TMap<FAccountId, FAchievementStateMap> AchievementStates;
 
 	EOS_NotificationId NotifyAchievementsUnlockedNotificationId = EOS_INVALID_NOTIFICATIONID;
 };

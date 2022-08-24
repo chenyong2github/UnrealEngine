@@ -15,7 +15,7 @@ struct FUserFileEnumerateFiles
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -30,7 +30,7 @@ struct FUserFileGetEnumeratedFiles
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -52,7 +52,7 @@ struct FUserFileReadFile
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** File to be read */
 		FString Filename;
 	};
@@ -71,7 +71,7 @@ struct FUserFileWriteFile
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** File to be written */
 		FString Filename;
 		/** Data to write */
@@ -90,7 +90,7 @@ struct FUserFileCopyFile
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** File to copy contents from */
 		FString SourceFilename;
 		/** File to copy contents to */
@@ -109,7 +109,7 @@ struct FUserFileDeleteFile
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** File to delete */
 		FString Filename;
 	};

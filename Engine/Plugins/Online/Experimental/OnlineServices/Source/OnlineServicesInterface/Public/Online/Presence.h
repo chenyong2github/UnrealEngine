@@ -78,7 +78,7 @@ typedef TMap<FString, FPresenceVariant> FPresenceProperties;
 struct FUserPresence
 {
 	/** User whose presence this is */
-	FOnlineAccountIdHandle UserId;
+	FAccountId UserId;
 	/** Presence state */
 	EUserPresenceStatus Status = EUserPresenceStatus::Unknown;
 	/** Session state */
@@ -100,9 +100,9 @@ struct FQueryPresence
 	struct Params
 	{
 		/** Local user performing the query */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** User to query the presence for */
-		FOnlineAccountIdHandle TargetUserId;
+		FAccountId TargetUserId;
 		/** If true, then future presence updates for this user will be propagated via the OnPresenceUpdated event */
 		bool bListenToChanges = true;
 	};
@@ -122,9 +122,9 @@ struct FBatchQueryPresence
 	struct Params
 	{
 		/** Local user performing the query */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** Users to query the presence for */
-		TArray<FOnlineAccountIdHandle> TargetUserIds;
+		TArray<FAccountId> TargetUserIds;
 		/** If true, then future presence updates for these users will be propagated via the OnPresenceUpdated event */
 		bool bListenToChanges = true;
 	};
@@ -143,9 +143,9 @@ struct FGetCachedPresence
 	struct Params
 	{
 		/** Local user getting the presence */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** User to get the presence for */
-		FOnlineAccountIdHandle TargetUserId;
+		FAccountId TargetUserId;
 	};
 
 	struct Result
@@ -162,7 +162,7 @@ struct FUpdatePresence
 	struct Params
 	{
 		/** Local user performing the query */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** The new presence to send to the server */
 		TSharedRef<FUserPresence> Presence;
 	};
@@ -179,7 +179,7 @@ struct FPartialUpdatePresence
 	struct Params
 	{
 		/** Local user performing the query */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 
 		struct FMutations
@@ -293,7 +293,7 @@ inline TSharedRef<FUserPresence> ApplyPresenceMutations(const FUserPresence& Bas
 struct FPresenceUpdated
 {
 	/** Local user receiving the presence update */
-	FOnlineAccountIdHandle LocalUserId;
+	FAccountId LocalUserId;
 	/** Presence that has updated */
 	TSharedRef<const FUserPresence> UpdatedPresence;
 };

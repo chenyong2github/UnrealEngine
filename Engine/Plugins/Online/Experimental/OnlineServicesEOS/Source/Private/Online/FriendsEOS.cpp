@@ -45,9 +45,9 @@ void FFriendsEOS::Initialize()
 	{
 		FFriendsEOS* This = reinterpret_cast<FFriendsEOS*>(Data->ClientData);
 
-		const FOnlineAccountIdHandle LocalUserId = FindAccountIdChecked(Data->LocalUserId);
+		const FAccountId LocalUserId = FindAccountIdChecked(Data->LocalUserId);
 		This->Services.Get<FAuthEOS>()->ResolveAccountId(LocalUserId, Data->TargetUserId)
-		.Next([This, LocalUserId, PreviousStatus = Data->PreviousStatus, CurrentStatus = Data->CurrentStatus](const FOnlineAccountIdHandle& FriendUserId)
+		.Next([This, LocalUserId, PreviousStatus = Data->PreviousStatus, CurrentStatus = Data->CurrentStatus](const FAccountId& FriendUserId)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("OnEOSFriendsUpdate: LocalUserId=[%s] FriendUserId=[%s]"), *ToLogString(LocalUserId), *ToLogString(FriendUserId));
 			This->OnEOSFriendsUpdate(LocalUserId, FriendUserId, PreviousStatus, CurrentStatus);
@@ -115,18 +115,18 @@ TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Par
 			}
 			return MakeFulfilledPromise<TArray<EOS_EpicAccountId>>(CurrentFriends).GetFuture();
 		}).Then(Services.Get<FAuthEOS>()->ResolveEpicIdsFn())
-		.Then([this](TOnlineAsyncOp<FQueryFriends>& InAsyncOp, const TArray<FOnlineAccountIdHandle>& CurrentFriendIds) mutable
+		.Then([this](TOnlineAsyncOp<FQueryFriends>& InAsyncOp, const TArray<FAccountId>& CurrentFriendIds) mutable
 		{
-			const FOnlineAccountIdHandle LocalUserId = InAsyncOp.GetParams().LocalUserId;
+			const FAccountId LocalUserId = InAsyncOp.GetParams().LocalUserId;
 			const EOS_EpicAccountId LocalUserEasId = GetEpicAccountIdChecked(LocalUserId);
 
-			TMap<FOnlineAccountIdHandle, TSharedRef<FFriend>>& FriendsList = FriendsLists.FindOrAdd(LocalUserId);
-			TArray<FOnlineAccountIdHandle> NewFriendIds;
-			TArray<FOnlineAccountIdHandle> PreviousFriendIds;
-			TArray<FOnlineAccountIdHandle> UpdatedFriendIds; // TODO:  More granular updates like what changed?
+			TMap<FAccountId, TSharedRef<FFriend>>& FriendsList = FriendsLists.FindOrAdd(LocalUserId);
+			TArray<FAccountId> NewFriendIds;
+			TArray<FAccountId> PreviousFriendIds;
+			TArray<FAccountId> UpdatedFriendIds; // TODO:  More granular updates like what changed?
 			FriendsList.GenerateKeyArray(PreviousFriendIds);
 				
-			for (const FOnlineAccountIdHandle& FriendId : CurrentFriendIds)
+			for (const FAccountId& FriendId : CurrentFriendIds)
 			{
 				const EOS_EpicAccountId FriendEasId = GetEpicAccountIdChecked(FriendId);
 
@@ -163,7 +163,7 @@ TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Par
 
 			// TODO:  Delegates
 
-			for (const FOnlineAccountIdHandle& AccountId : PreviousFriendIds)
+			for (const FAccountId& AccountId : PreviousFriendIds)
 			{
 				UE_LOG(LogTemp, Warning, TEXT("QueryFriendsComplete: %s is no longer a friend, removing"), *ToLogString(AccountId));
 				FriendsList.Remove(AccountId);
@@ -191,7 +191,7 @@ TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Par
 
 TOnlineResult<FGetFriends> FFriendsEOS::GetFriends(FGetFriends::Params&& Params)
 {
-	if (TMap<FOnlineAccountIdHandle, TSharedRef<FFriend>>* FriendsList = FriendsLists.Find(Params.LocalUserId))
+	if (TMap<FAccountId, TSharedRef<FFriend>>* FriendsList = FriendsLists.Find(Params.LocalUserId))
 	{
 		FGetFriends::Result Result;
 		FriendsList->GenerateValueArray(Result.Friends);
@@ -245,16 +245,16 @@ TOnlineAsyncOpHandle<FAddFriend> FFriendsEOS::AddFriend(FAddFriend::Params&& InP
 	return Op->GetHandle();
 }
 
-void FFriendsEOS::OnEOSFriendsUpdate(FOnlineAccountIdHandle LocalUserId, FOnlineAccountIdHandle FriendUserId, EOS_EFriendsStatus PreviousStatus, EOS_EFriendsStatus CurrentStatus)
+void FFriendsEOS::OnEOSFriendsUpdate(FAccountId LocalUserId, FAccountId FriendUserId, EOS_EFriendsStatus PreviousStatus, EOS_EFriendsStatus CurrentStatus)
 {
 	// TODO
 	UE_LOG(LogTemp, Warning, TEXT("OnEOSFriendsUpdate: LocalUserId=[%s] FriendUserId=[%s] PreviousStatus=[%s] CurrentStatus=[%s]"), *ToLogString(LocalUserId), *ToLogString(FriendUserId), LexToString(PreviousStatus), LexToString(CurrentStatus));
 
-	TMap<FOnlineAccountIdHandle, TSharedRef<FFriend>>& FriendsList = FriendsLists.FindOrAdd(LocalUserId);
+	TMap<FAccountId, TSharedRef<FFriend>>& FriendsList = FriendsLists.FindOrAdd(LocalUserId);
 	bool bAnyChanges = false;
-	TArray<FOnlineAccountIdHandle, TInlineAllocator<1>> AddedFriends;
-	TArray<FOnlineAccountIdHandle, TInlineAllocator<1>> RemovedFriends;
-	TArray<FOnlineAccountIdHandle, TInlineAllocator<1>> UpdatedFriends;
+	TArray<FAccountId, TInlineAllocator<1>> AddedFriends;
+	TArray<FAccountId, TInlineAllocator<1>> RemovedFriends;
+	TArray<FAccountId, TInlineAllocator<1>> UpdatedFriends;
 	if (CurrentStatus == EOS_EFriendsStatus::EOS_FS_NotFriends)
 	{
 		bAnyChanges = FriendsList.Remove(FriendUserId) > 0;

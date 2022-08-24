@@ -78,10 +78,10 @@ void FPresenceEOS::Initialize()
 	NotifyPresenceChangedNotificationId = EOS_Presence_AddNotifyOnPresenceChanged(PresenceHandle, &Options, this, [](const EOS_Presence_PresenceChangedCallbackInfo* Data)
 	{
 		FPresenceEOS* This = reinterpret_cast<FPresenceEOS*>(Data->ClientData);
-		const FOnlineAccountIdHandle LocalUserId = FindAccountIdChecked(Data->LocalUserId);
+		const FAccountId LocalUserId = FindAccountIdChecked(Data->LocalUserId);
 
 		This->Services.Get<FAuthEOS>()->ResolveAccountId(LocalUserId, Data->PresenceUserId)
-		.Next([This, LocalUserId](const FOnlineAccountIdHandle& PresenceUserId)
+		.Next([This, LocalUserId](const FAccountId& PresenceUserId)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("OnEOSPresenceUpdate: LocalUserId=[%s] PresenceUserId=[%s]"), *ToLogString(LocalUserId), *ToLogString(PresenceUserId));
 			This->UpdateUserPresence(LocalUserId, PresenceUserId);
@@ -154,7 +154,7 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceEOS::QueryPresence(FQueryPresence:
 
 TOnlineResult<FGetCachedPresence> FPresenceEOS::GetCachedPresence(FGetCachedPresence::Params&& Params)
 {
-	if (TMap<FOnlineAccountIdHandle, TSharedRef<FUserPresence>>* PresenceList = PresenceLists.Find(Params.LocalUserId))
+	if (TMap<FAccountId, TSharedRef<FUserPresence>>* PresenceList = PresenceLists.Find(Params.LocalUserId))
 	{
 		TSharedRef<FUserPresence>* PresencePtr = PresenceList->Find(Params.TargetUserId);
 		if (PresencePtr)
@@ -548,9 +548,9 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 }
 
 /** Get a user's presence, creating entries if missing */
-TSharedRef<FUserPresence> FPresenceEOS::FindOrCreatePresence(FOnlineAccountIdHandle LocalUserId, FOnlineAccountIdHandle PresenceUserId)
+TSharedRef<FUserPresence> FPresenceEOS::FindOrCreatePresence(FAccountId LocalUserId, FAccountId PresenceUserId)
 {
-	TMap<FOnlineAccountIdHandle, TSharedRef<FUserPresence>>& LocalUserPresenceList = PresenceLists.FindOrAdd(LocalUserId);
+	TMap<FAccountId, TSharedRef<FUserPresence>>& LocalUserPresenceList = PresenceLists.FindOrAdd(LocalUserId);
 	if (const TSharedRef<FUserPresence>* const ExistingPresence = LocalUserPresenceList.Find(PresenceUserId))
 	{
 		return *ExistingPresence;
@@ -562,7 +562,7 @@ TSharedRef<FUserPresence> FPresenceEOS::FindOrCreatePresence(FOnlineAccountIdHan
 	return UserPresence;
 }
 
-void FPresenceEOS::UpdateUserPresence(FOnlineAccountIdHandle LocalUserId, FOnlineAccountIdHandle PresenceUserId)
+void FPresenceEOS::UpdateUserPresence(FAccountId LocalUserId, FAccountId PresenceUserId)
 {
 	bool bPresenceHasChanged = false;
 	TSharedRef<FUserPresence> UserPresence = FindOrCreatePresence(LocalUserId, PresenceUserId);

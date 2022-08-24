@@ -47,7 +47,7 @@ struct FWriteLeaderboardScores
 
 	struct Params
 	{
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		FString BoardName;
 		uint64 Score;
 	};

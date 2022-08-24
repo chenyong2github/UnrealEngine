@@ -306,14 +306,14 @@ private:
 	uint32 Value = uint32(EOnlineServices::Null) << 24;
 };
 
-using FOnlineAccountIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FAccount>;
+using FAccountId = TOnlineIdHandle<OnlineIdHandleTags::FAccount>;
 using FOnlineLobbyIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FLobby>;
 using FOnlineSessionIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FSession>;
 using FOnlineSessionInviteIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FSessionInvite>;
 using FOnlineVerifiedAuthTicketIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FVerifiedAuthTicket>;
 using FOnlineVerifiedAuthSessionIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FVerifiedAuthSession>;
 
-COREONLINE_API FString ToLogString(const FOnlineAccountIdHandle& Id);
+COREONLINE_API FString ToLogString(const FAccountId& Id);
 COREONLINE_API FString ToLogString(const FOnlineLobbyIdHandle& Id);
 COREONLINE_API FString ToLogString(const FOnlineSessionIdHandle& Id);
 COREONLINE_API FString ToLogString(const FOnlineSessionInviteIdHandle& Id);
@@ -374,9 +374,9 @@ public:
 	 */
 	COREONLINE_API void UnregisterAccountIdRegistry(EOnlineServices OnlineServices, int32 Priority = 0);
 
-	COREONLINE_API FString ToLogString(const FOnlineAccountIdHandle& Handle) const;
-	COREONLINE_API TArray<uint8> ToReplicationData(const FOnlineAccountIdHandle& Handle) const;
-	COREONLINE_API FOnlineAccountIdHandle ToAccountId(EOnlineServices Services, const TArray<uint8>& RepData) const;
+	COREONLINE_API FString ToLogString(const FAccountId& Handle) const;
+	COREONLINE_API TArray<uint8> ToReplicationData(const FAccountId& Handle) const;
+	COREONLINE_API FAccountId ToAccountId(EOnlineServices Services, const TArray<uint8>& RepData) const;
 
 	COREONLINE_API IOnlineAccountIdRegistry* GetAccountIdRegistry(EOnlineServices OnlineServices) const;
 
@@ -465,7 +465,7 @@ struct FUniqueNetIdWrapper
 {
 	//GENERATED_BODY()
 	
-	using FVariantType = TVariant<FUniqueNetIdPtr, UE::Online::FOnlineAccountIdHandle>;
+	using FVariantType = TVariant<FUniqueNetIdPtr, UE::Online::FAccountId>;
 
 	FUniqueNetIdWrapper() = default;
 	virtual ~FUniqueNetIdWrapper() = default;
@@ -487,9 +487,9 @@ struct FUniqueNetIdWrapper
 	{
 	}
 
-	FUniqueNetIdWrapper(const UE::Online::FOnlineAccountIdHandle& Handle)
+	FUniqueNetIdWrapper(const UE::Online::FAccountId& Handle)
 	{
-		Variant.Emplace<UE::Online::FOnlineAccountIdHandle>(Handle);
+		Variant.Emplace<UE::Online::FAccountId>(Handle);
 	}
 
 	// temporarily restored implicit conversion from FUniqueNetId
@@ -515,15 +515,15 @@ struct FUniqueNetIdWrapper
 
 	bool IsV2() const
 	{
-		return Variant.IsType<UE::Online::FOnlineAccountIdHandle>();
+		return Variant.IsType<UE::Online::FAccountId>();
 	}
 
-	UE::Online::FOnlineAccountIdHandle GetV2() const
+	UE::Online::FAccountId GetV2() const
 	{
-		UE::Online::FOnlineAccountIdHandle Result;
+		UE::Online::FAccountId Result;
 		if (ensure(IsV2()))
 		{
-			Result = Variant.Get<UE::Online::FOnlineAccountIdHandle>();
+			Result = Variant.Get<UE::Online::FAccountId>();
 		}
 		return Result;
 	}
@@ -562,7 +562,7 @@ struct FUniqueNetIdWrapper
 		}
 		else
 		{
-			const UE::Online::FOnlineAccountIdHandle& Handle = GetV2();
+			const UE::Online::FAccountId& Handle = GetV2();
 			return Handle.IsValid();
 		}
 	}
@@ -577,9 +577,9 @@ struct FUniqueNetIdWrapper
 		Variant.Emplace<FUniqueNetIdPtr>(InUniqueNetId);
 	}
 
-	virtual void SetAccountId(const UE::Online::FOnlineAccountIdHandle& Handle)
+	virtual void SetAccountId(const UE::Online::FAccountId& Handle)
 	{
-		Variant.Emplace<UE::Online::FOnlineAccountIdHandle>(Handle);
+		Variant.Emplace<UE::Online::FAccountId>(Handle);
 	}
 
 	/** @return unique id associated with this wrapper object */

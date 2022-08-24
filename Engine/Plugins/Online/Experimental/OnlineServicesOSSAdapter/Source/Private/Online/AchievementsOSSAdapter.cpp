@@ -32,7 +32,7 @@ void FAchievementsOSSAdapter::PostInitialize()
 
 	AchievementsInterface->AddOnAchievementUnlockedDelegate_Handle(FOnAchievementUnlockedDelegate::CreateLambda([this](const FUniqueNetId& LocalUserIdV1, const FString& AchievementId)
 	{
-		const FOnlineAccountIdHandle LocalUserIdV2 = Services.Get<FAuthOSSAdapter>()->GetAccountIdHandle(LocalUserIdV1.AsShared());
+		const FAccountId LocalUserIdV2 = Services.Get<FAuthOSSAdapter>()->GetAccountIdHandle(LocalUserIdV1.AsShared());
 
 		FAchievementStateUpdated AchievementStateUpdated;
 		AchievementStateUpdated.LocalUserId = LocalUserIdV2;

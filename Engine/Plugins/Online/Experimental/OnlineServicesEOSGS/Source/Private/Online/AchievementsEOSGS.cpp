@@ -33,7 +33,7 @@ void FAchievementsEOSGS::Initialize()
 	{
 		FAchievementsEOSGS* This = reinterpret_cast<FAchievementsEOSGS*>(Data->ClientData);
 
-		const FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->UserId);
+		const FAccountId LocalUserId = FindAccountId(Data->UserId);
 		if (LocalUserId.IsValid())
 		{
 			const FString AchievementId = UTF8_TO_TCHAR(Data->AchievementId);

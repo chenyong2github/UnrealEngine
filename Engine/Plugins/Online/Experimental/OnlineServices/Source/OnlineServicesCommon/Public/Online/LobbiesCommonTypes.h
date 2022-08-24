@@ -195,7 +195,7 @@ struct FClientLobbyDataChanges
 	TOptional<ELobbyJoinPolicy> JoinPolicy;
 
 	/** Setting for lobby ownership change. */
-	TOptional<FOnlineAccountIdHandle> OwnerAccountId;
+	TOptional<FAccountId> OwnerAccountId;
 
 	/** Setting for lobby schema change. */
 	TOptional<FLobbySchemaId> LobbySchema;
@@ -207,10 +207,10 @@ struct FClientLobbyDataChanges
 	TSet<FLobbyAttributeId> ClearedAttributes;
 
 	/** Members to be added or changed. */
-	TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberDataChanges>> MutatedMembers;
+	TMap<FAccountId, TSharedRef<FClientLobbyMemberDataChanges>> MutatedMembers;
 
 	/** Members to be removed. */
-	TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeavingMembers;
+	TMap<FAccountId, ELobbyMemberLeaveReason> LeavingMembers;
 };
 
 /**
@@ -220,12 +220,12 @@ struct FClientLobbyDataChanges
 */
 struct FClientLobbySnapshot
 {
-	FOnlineAccountIdHandle OwnerAccountId;
+	FAccountId OwnerAccountId;
 	FName SchemaName;
 	int32 MaxMembers;
 	ELobbyJoinPolicy JoinPolicy;
 	TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
-	TSet<FOnlineAccountIdHandle> Members;
+	TSet<FAccountId> Members;
 };
 
 struct FClientLobbyMemberSnapshot : public FLobbyMember
@@ -235,7 +235,7 @@ struct FClientLobbyMemberSnapshot : public FLobbyMember
 
 struct FApplyLobbyUpdateResult
 {
-	TArray<FOnlineAccountIdHandle> LeavingLocalMembers;
+	TArray<FAccountId> LeavingLocalMembers;
 };
 
 /** Lobby data as seen by the client. */
@@ -247,7 +247,7 @@ public:
 	TSharedRef<const FLobby> GetPublicDataPtr() const { return PublicData; }
 	const FLobby& GetPublicData() const { return *PublicData; }
 
-	TSharedPtr<const FClientLobbyMemberSnapshot> GetMemberData(FOnlineAccountIdHandle MemberAccountId) const;
+	TSharedPtr<const FClientLobbyMemberSnapshot> GetMemberData(FAccountId MemberAccountId) const;
 
 	/**
 	 * Apply updated lobby data and generate changes.
@@ -256,8 +256,8 @@ public:
 	 */
 	FApplyLobbyUpdateResult ApplyLobbyUpdateFromServiceSnapshot(
 		FClientLobbySnapshot&& LobbySnapshot,
-		TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>>&& LobbyMemberSnapshots,
-		TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason>&& LeaveReasons = TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason>(),
+		TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>>&& LobbyMemberSnapshots,
+		TMap<FAccountId, ELobbyMemberLeaveReason>&& LeaveReasons = TMap<FAccountId, ELobbyMemberLeaveReason>(),
 		FLobbyEvents* LobbyEvents = nullptr);
 
 	/**
@@ -286,13 +286,13 @@ private:
 	TSharedRef<FLobby> PublicData;
 
 	/** Mutable lobby member data storage. */
-	TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> MemberDataStorage;
+	TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> MemberDataStorage;
 
 	/**
 	 * Keep track of which members are local to the client.
 	 * When all local members have been removed all members will be removed.
 	 */
-	TSet<FOnlineAccountIdHandle> LocalMembers;
+	TSet<FAccountId> LocalMembers;
 };
 
 #if LOBBIES_FUNCTIONAL_TEST_ENABLED

@@ -14,7 +14,7 @@ using FStatValue = FSchemaVariant;
 struct FUserStats
 {
 	/* The user id */
-	FOnlineAccountIdHandle UserId;
+	FAccountId UserId;
 	/* The stats of one account */
 	TMap<FString, FStatValue> Stats;
 };
@@ -26,7 +26,7 @@ struct FUpdateStats
 	struct Params
 	{
 		/* Local user id */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* The stats of users to update */
 		TArray<FUserStats> UpdateUsersStats;
 	};
@@ -43,9 +43,9 @@ struct FQueryStats
 	struct Params
 	{
 		/* Local user id */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* Target user id to query */
-		FOnlineAccountIdHandle TargetUserId;
+		FAccountId TargetUserId;
 		/* The stats to query */
 		TArray<FString> StatNames;
 	};
@@ -64,9 +64,9 @@ struct FBatchQueryStats
 	struct Params
 	{
 		/* Local user id */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* The user ids to query */
-		TArray<FOnlineAccountIdHandle> TargetUserIds;
+		TArray<FAccountId> TargetUserIds;
 		/* The stats to query */
 		TArray<FString> StatNames;
 	};
@@ -86,7 +86,7 @@ struct FResetStats
 	struct Params
 	{
 		/* Local user id */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result

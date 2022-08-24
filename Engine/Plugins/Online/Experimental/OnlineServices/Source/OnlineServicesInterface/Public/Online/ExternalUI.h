@@ -37,7 +37,7 @@ struct FExternalUIShowFriendsUI
 	struct Params
 	{
 		/** Local user id to show the friends UI for */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result

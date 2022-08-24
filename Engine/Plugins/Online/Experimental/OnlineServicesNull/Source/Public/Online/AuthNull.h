@@ -14,7 +14,7 @@ class FOnlineAccountIdString
 public:
 	FString Data;
 	int32 AccountIndex;
-	FOnlineAccountIdHandle Handle;
+	FAccountId Handle;
 };
 
 class FOnlineAccountIdRegistryNull : public IOnlineAccountIdRegistry
@@ -22,22 +22,22 @@ class FOnlineAccountIdRegistryNull : public IOnlineAccountIdRegistry
 public:
 	static FOnlineAccountIdRegistryNull& Get();
 
-	FOnlineAccountIdHandle Find(FString UserId) const;
-	FOnlineAccountIdHandle Find(FPlatformUserId UserId) const;
-	FOnlineAccountIdHandle Find(int32 UserIndex) const;
+	FAccountId Find(FString UserId) const;
+	FAccountId Find(FPlatformUserId UserId) const;
+	FAccountId Find(int32 UserIndex) const;
 
-	FOnlineAccountIdHandle Create(FString UserId, FPlatformUserId PlatformUserId = PLATFORMUSERID_NONE);
+	FAccountId Create(FString UserId, FPlatformUserId PlatformUserId = PLATFORMUSERID_NONE);
 
 	// Begin IOnlineAccountIdRegistry
-	virtual FString ToLogString(const FOnlineAccountIdHandle& Handle) const override;
-	virtual TArray<uint8> ToReplicationData(const FOnlineAccountIdHandle& Handle) const override;
-	virtual FOnlineAccountIdHandle FromReplicationData(const TArray<uint8>& ReplicationString) override;
+	virtual FString ToLogString(const FAccountId& Handle) const override;
+	virtual TArray<uint8> ToReplicationData(const FAccountId& Handle) const override;
+	virtual FAccountId FromReplicationData(const TArray<uint8>& ReplicationString) override;
 	// End IOnlineAccountIdRegistry
 
 	virtual ~FOnlineAccountIdRegistryNull() = default;
 
 private:
-	const FOnlineAccountIdString* GetInternal(const FOnlineAccountIdHandle& Handle) const;
+	const FOnlineAccountIdString* GetInternal(const FAccountId& Handle) const;
 
 	// how much of these are actually necessary?
 	TArray<FOnlineAccountIdString> Ids;
@@ -62,10 +62,10 @@ public:
 	virtual ~FAccountInfoRegistryNULL() = default;
 
 	TSharedPtr<FAccountInfoNull> Find(FPlatformUserId PlatformUserId) const;
-	TSharedPtr<FAccountInfoNull> Find(FOnlineAccountIdHandle AccountIdHandle) const;
+	TSharedPtr<FAccountInfoNull> Find(FAccountId AccountIdHandle) const;
 
 	void Register(const TSharedRef<FAccountInfoNull>&UserAuthData);
-	void Unregister(FOnlineAccountIdHandle AccountId);
+	void Unregister(FAccountId AccountId);
 };
 
 class ONLINESERVICESNULL_API FAuthNull : public FAuthCommon

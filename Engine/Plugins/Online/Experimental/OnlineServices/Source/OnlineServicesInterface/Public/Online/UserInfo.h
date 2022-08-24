@@ -11,7 +11,7 @@ namespace UE::Online {
 struct FUserInfo
 {
 	/* Account Id */
-	FOnlineAccountIdHandle UserId;
+	FAccountId UserId;
 	/* Display Name of the User */
 	FString DisplayName;
 };
@@ -24,9 +24,9 @@ struct FQueryUserInfo
 	struct Params
 	{
 		/* Local user to query users for */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* List of User ids to Query*/
-		TArray<FOnlineAccountIdHandle> UserIds;
+		TArray<FAccountId> UserIds;
 	};
 
 	/**
@@ -46,9 +46,9 @@ struct FGetUserInfo
 	struct Params
 	{
 		/* Local user */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* User id to get info for*/
-		FOnlineAccountIdHandle UserId;
+		FAccountId UserId;
 	};
 
 	/**
@@ -69,9 +69,9 @@ struct FQueryUserAvatar
 	struct Params
 	{
 		/* Local user to query users for */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* List of User ids to Query*/
-		TArray<FOnlineAccountIdHandle> UserIds;
+		TArray<FAccountId> UserIds;
 	};
 
 	/**
@@ -91,9 +91,9 @@ struct FGetUserAvatar
 	struct Params
 	{
 		/* Local user */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* User id to get avatar for*/
-		FOnlineAccountIdHandle UserId;
+		FAccountId UserId;
 	};
 
 	/**
@@ -114,9 +114,9 @@ struct FShowUserProfile
 	struct Params
 	{
 		/* Local user */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* User id to display the profile for*/
-		FOnlineAccountIdHandle UserId;
+		FAccountId UserId;
 	};
 
 	/**

@@ -12,7 +12,7 @@ class FOnlineServicesNull;
 
 struct FUserScoreNull
 {
-	FOnlineAccountIdHandle UserId;
+	FAccountId UserId;
 	uint64 Score;
 };
 

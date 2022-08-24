@@ -22,7 +22,7 @@
 	Next argument is the interface- i.e. "Auth", "Presence"
 	Next argument is the name of the function being called, i.e. "QueryPresence"
 	Arguments after that are the function's params in declared order. Special types are as follows:
-		for FOnlineAccountIdHandle, either pass in 0-9 to grab the nth local user, or pass in the output from a handle's tostring that looks like "epic:3"
+		for FAccountId, either pass in 0-9 to grab the nth local user, or pass in the output from a handle's tostring that looks like "epic:3"
 		for TSharedPtr, simply type in the parameter as normal
 			- TSharedRef *technically* is implemented however will crash because you cannot default construct shared refs. At the moment, we recommend all console commands with shared ptr parameters to use tsharedptr instead of tsharedref.
 		for TOptional, pass in "null" and the optional will be unset
@@ -32,7 +32,7 @@
 			- i32 for int32
 			- b for bool
 			- s for string
-			- u for user (FOnlineAccountIdHandle)
+			- u for user (FAccountId)
 			- d for double
 			- f for float
 			- e for enum
@@ -222,18 +222,18 @@ public:
 };
 
 template< typename VariantObject >
-struct TOnlineVariantVisitInfo<FOnlineAccountIdHandle, VariantObject>
+struct TOnlineVariantVisitInfo<FAccountId, VariantObject>
 {
 public:
 	inline static TArray<FString> Prefixes = { TEXT("u"),TEXT("user") };
 
 	static bool Assign(FString& VariantValue, VariantObject& Variant, IOnlineServices* Services)
 	{
-		FOnlineAccountIdHandle Handle;
+		FAccountId Handle;
 		const TCHAR* ValueTCHAR = *VariantValue;
 		if (ParseOnlineExecParams<TOnlineIdHandle<OnlineIdHandleTags::FAccount>>(ValueTCHAR, Handle, Services))
 		{
-			Variant.template Set<FOnlineAccountIdHandle>(Handle);
+			Variant.template Set<FAccountId>(Handle);
 			return true;
 		}
 		return false;

@@ -41,8 +41,8 @@ private:
 	void EOSEntitlementToOssEntitlement(FEntitlement& OutEntitlement, EOS_Ecom_Entitlement* EosEntitlement);
 
 	EOS_HEcom EcomHandle;
-	TMap<FOnlineAccountIdHandle, TArray<FEntitlement>> CachedEntitlements;
-	TMap<FOnlineAccountIdHandle, TArray<FOffer>> CachedOffers;
+	TMap<FAccountId, TArray<FEntitlement>> CachedEntitlements;
+	TMap<FAccountId, TArray<FOffer>> CachedOffers;
 };
 
 /* UE::Online */

@@ -9,7 +9,7 @@
 
 namespace UE::Online {
 
-FString FOnlineAccountIdRegistryEOS::ToLogString(const FOnlineAccountIdHandle& Handle) const
+FString FOnlineAccountIdRegistryEOS::ToLogString(const FAccountId& Handle) const
 {
 	FString Result;
 	if (ValidateOnlineId(Handle))
@@ -35,7 +35,7 @@ ENUM_CLASS_FLAGS(EEOSAccountIdElements);
 const uint8 OnlineIdEOSUtf8BufferLength = 32;
 const uint8 OnlineIdEOSHexBufferLength = 16;
 
-TArray<uint8> FOnlineAccountIdRegistryEOS::ToReplicationData(const FOnlineAccountIdHandle& Handle) const
+TArray<uint8> FOnlineAccountIdRegistryEOS::ToReplicationData(const FAccountId& Handle) const
 {
 	TArray<uint8> ReplicationData;
 	if (ValidateOnlineId(Handle))
@@ -87,7 +87,7 @@ TArray<uint8> FOnlineAccountIdRegistryEOS::ToReplicationData(const FOnlineAccoun
 	return ReplicationData;
 }
 
-FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FromReplicationData(const TArray<uint8>& ReplicationData)
+FAccountId FOnlineAccountIdRegistryEOS::FromReplicationData(const TArray<uint8>& ReplicationData)
 {
 	const EEOSAccountIdElements Elements = EEOSAccountIdElements(ReplicationData[0]);
 	const int EasHexBufferLength = EnumHasAnyFlags(Elements, EEOSAccountIdElements::EAS) ? OnlineIdEOSHexBufferLength : 0;
@@ -112,13 +112,13 @@ FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FromReplicationData(const TA
 	return FindOrAddAccountId(EpicAccountId, ProductUserId);
 }
 
-FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FindAccountId(const EOS_ProductUserId ProductUserId) const
+FAccountId FOnlineAccountIdRegistryEOS::FindAccountId(const EOS_ProductUserId ProductUserId) const
 {
-	FOnlineAccountIdHandle Handle;
+	FAccountId Handle;
 	if (EOS_ProductUserId_IsValid(ProductUserId) == EOS_TRUE)
 	{
 		const FReadScopeLock ReadLock(Lock);
-		if (const FOnlineAccountIdHandle* Found = ProductUserIdToHandle.Find(ProductUserId))
+		if (const FAccountId* Found = ProductUserIdToHandle.Find(ProductUserId))
 		{
 			Handle = *Found;
 		}
@@ -126,18 +126,18 @@ FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FindAccountId(const EOS_Prod
 	return Handle;
 }
 
-EOS_ProductUserId FOnlineAccountIdRegistryEOS::GetProductUserId(const FOnlineAccountIdHandle& Handle) const
+EOS_ProductUserId FOnlineAccountIdRegistryEOS::GetProductUserId(const FAccountId& Handle) const
 {
 	return GetAccountIdData(Handle).ProductUserId;
 }
 
-FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FindAccountId(const EOS_EpicAccountId EpicAccountId) const
+FAccountId FOnlineAccountIdRegistryEOS::FindAccountId(const EOS_EpicAccountId EpicAccountId) const
 {
-	FOnlineAccountIdHandle Handle;
+	FAccountId Handle;
 	if (EOS_EpicAccountId_IsValid(EpicAccountId) == EOS_TRUE)
 	{
 		const FReadScopeLock ReadLock(Lock);
-		if (const FOnlineAccountIdHandle* Found = EpicAccountIdToHandle.Find(EpicAccountId))
+		if (const FAccountId* Found = EpicAccountIdToHandle.Find(EpicAccountId))
 		{
 			Handle = *Found;
 		}
@@ -145,7 +145,7 @@ FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FindAccountId(const EOS_Epic
 	return Handle;
 }
 
-FOnlineAccountIdDataEOS FOnlineAccountIdRegistryEOS::GetAccountIdData(const FOnlineAccountIdHandle& Handle) const
+FOnlineAccountIdDataEOS FOnlineAccountIdRegistryEOS::GetAccountIdData(const FAccountId& Handle) const
 {
 	if (ValidateOnlineId(Handle))
 	{
@@ -161,9 +161,9 @@ FOnlineAccountIdRegistryEOS& FOnlineAccountIdRegistryEOS::Get()
 	return Instance;
 }
 
-FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FindOrAddAccountId(const EOS_EpicAccountId InEpicAccountId, const EOS_ProductUserId InProductUserId)
+FAccountId FOnlineAccountIdRegistryEOS::FindOrAddAccountId(const EOS_EpicAccountId InEpicAccountId, const EOS_ProductUserId InProductUserId)
 {
-	FOnlineAccountIdHandle Result;
+	FAccountId Result;
 	const bool bInEpicAccountIdValid = EOS_EpicAccountId_IsValid(InEpicAccountId) == EOS_TRUE;
 	const bool bInProductUserIdValid = EOS_ProductUserId_IsValid(InProductUserId) == EOS_TRUE;
 	if (ensure(bInEpicAccountIdValid || bInProductUserIdValid))
@@ -173,12 +173,12 @@ FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FindOrAddAccountId(const EOS
 
 		auto FindExisting = [this, InEpicAccountId, InProductUserId, bInEpicAccountIdValid, bInProductUserIdValid, &bUpdateEpicAccountId, &bUpdateProductUserId]()
 		{
-			FOnlineAccountIdHandle Result;
-			if (const FOnlineAccountIdHandle* FoundEas = bInEpicAccountIdValid ? EpicAccountIdToHandle.Find(InEpicAccountId) : nullptr)
+			FAccountId Result;
+			if (const FAccountId* FoundEas = bInEpicAccountIdValid ? EpicAccountIdToHandle.Find(InEpicAccountId) : nullptr)
 			{
 				Result = *FoundEas;
 			}
-			else if (const FOnlineAccountIdHandle* FoundProd = bInProductUserIdValid ? ProductUserIdToHandle.Find(InProductUserId) : nullptr)
+			else if (const FAccountId* FoundProd = bInProductUserIdValid ? ProductUserIdToHandle.Find(InProductUserId) : nullptr)
 			{
 				Result = *FoundProd;
 			}
@@ -218,7 +218,7 @@ FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FindOrAddAccountId(const EOS
 				NewAccountIdData.EpicAccountId = InEpicAccountId;
 				NewAccountIdData.ProductUserId = InProductUserId;
 
-				Result = FOnlineAccountIdHandle(EOnlineServices::Epic, AccountIdData.Num());
+				Result = FAccountId(EOnlineServices::Epic, AccountIdData.Num());
 
 				if (bInEpicAccountIdValid)
 				{
@@ -253,26 +253,26 @@ FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FindOrAddAccountId(const EOS
 	return Result;
 }
 
-EOS_EpicAccountId GetEpicAccountId(const FOnlineAccountIdHandle& Handle)
+EOS_EpicAccountId GetEpicAccountId(const FAccountId& Handle)
 {
 	return FOnlineAccountIdRegistryEOS::Get().GetAccountIdData(Handle).EpicAccountId;
 }
 
-EOS_EpicAccountId GetEpicAccountIdChecked(const FOnlineAccountIdHandle& Handle)
+EOS_EpicAccountId GetEpicAccountIdChecked(const FAccountId& Handle)
 {
 	EOS_EpicAccountId EpicAccountId = GetEpicAccountId(Handle);
 	check(EOS_EpicAccountId_IsValid(EpicAccountId) == EOS_TRUE);
 	return EpicAccountId;
 }
 
-FOnlineAccountIdHandle FindAccountId(const EOS_EpicAccountId EpicAccountId)
+FAccountId FindAccountId(const EOS_EpicAccountId EpicAccountId)
 {
 	return FOnlineAccountIdRegistryEOS::Get().FindAccountId(EpicAccountId);
 }
 
-FOnlineAccountIdHandle FindAccountIdChecked(const EOS_EpicAccountId EpicAccountId)
+FAccountId FindAccountIdChecked(const EOS_EpicAccountId EpicAccountId)
 {
-	FOnlineAccountIdHandle Result = FindAccountId(EpicAccountId);
+	FAccountId Result = FindAccountId(EpicAccountId);
 	check(Result.IsValid());
 	return Result;
 }

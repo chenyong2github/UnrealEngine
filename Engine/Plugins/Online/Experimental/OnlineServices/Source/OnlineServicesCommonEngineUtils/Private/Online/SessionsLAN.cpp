@@ -298,7 +298,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsLAN::JoinSession(FJoinSession::Param
 
 		Op.SetResult(FJoinSession::Result{ NewSessionRef });
 
-		TArray<FOnlineAccountIdHandle> LocalUserIds;
+		TArray<FAccountId> LocalUserIds;
 		LocalUserIds.Reserve(OpParams.LocalUsers.Num());
 		OpParams.LocalUsers.GenerateKeyArray(LocalUserIds);
 

@@ -102,7 +102,7 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsEOSGS::UpdateStats(FUpdateStats::Params
 namespace Private
 {
 
-void QueryStatsEOS(EOS_HStats StatsHandle, const FOnlineAccountIdHandle& LocalUserId, const FOnlineAccountIdHandle& TargetUserId, const TArray<FString>& StatNames, TPromise<const EOS_Stats_OnQueryStatsCompleteCallbackInfo*>&& Promise)
+void QueryStatsEOS(EOS_HStats StatsHandle, const FAccountId& LocalUserId, const FAccountId& TargetUserId, const TArray<FString>& StatNames, TPromise<const EOS_Stats_OnQueryStatsCompleteCallbackInfo*>&& Promise)
 {
 	EOS_Stats_QueryStatsOptions Options;
 	Options.ApiVersion = EOS_STATS_QUERYSTATS_API_LATEST;
@@ -212,7 +212,7 @@ TOnlineAsyncOpHandle<FBatchQueryStats> FStatsEOSGS::BatchQueryStats(FBatchQueryS
 		return Op->GetHandle();
 	}
 
-	for (const FOnlineAccountIdHandle& TargetUserId : Op->GetParams().TargetUserIds)
+	for (const FAccountId& TargetUserId : Op->GetParams().TargetUserIds)
 	{
 		Op->Then([this, &TargetUserId](TOnlineAsyncOp<FBatchQueryStats>& InAsyncOp, TPromise<const EOS_Stats_OnQueryStatsCompleteCallbackInfo*>&& Promise)
 		{

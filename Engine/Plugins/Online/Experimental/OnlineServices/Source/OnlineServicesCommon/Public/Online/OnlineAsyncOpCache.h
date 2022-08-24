@@ -494,7 +494,7 @@ private:
 	friend uint32 GetTypeHash(const FWrappedOperationKey& Key);
 
 	TMap<FWrappedOperationKey, TUniquePtr<IWrappedOperation>> Operations;
-	TMap<FOnlineAccountIdHandle, TMap<FWrappedOperationKey, TUniquePtr<IWrappedOperation>>> UserOperations;
+	TMap<FAccountId, TMap<FWrappedOperationKey, TUniquePtr<IWrappedOperation>>> UserOperations;
 };
 
 inline uint32 GetTypeHash(const FOnlineAsyncOpCache::FWrappedOperationKey& Key)

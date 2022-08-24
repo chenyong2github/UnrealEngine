@@ -21,7 +21,7 @@ struct FAuthHandleLoginStatusChangedImpl
 	struct Params
 	{
 		FPlatformUserId PlatformUserId;
-		FOnlineAccountIdHandle AccountId;
+		FAccountId AccountId;
 		ELoginStatus NewLoginStatus;
 	};
 
@@ -44,10 +44,10 @@ public:
 	virtual ~FAccountInfoRegistryOSSAdapter() = default;
 
 	TSharedPtr<FAccountInfoOSSAdapter> Find(FPlatformUserId PlatformUserId) const;
-	TSharedPtr<FAccountInfoOSSAdapter> Find(FOnlineAccountIdHandle AccountIdHandle) const;
+	TSharedPtr<FAccountInfoOSSAdapter> Find(FAccountId AccountIdHandle) const;
 
 	void Register(const TSharedRef<FAccountInfoOSSAdapter>&UserAuthData);
-	void Unregister(FOnlineAccountIdHandle AccountId);
+	void Unregister(FAccountId AccountId);
 };
 
 class FAuthOSSAdapter : public FAuthCommon
@@ -67,9 +67,9 @@ public:
 	virtual TOnlineAsyncOpHandle<FAuthQueryExternalServerAuthTicket> QueryExternalServerAuthTicket(FAuthQueryExternalServerAuthTicket::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FAuthQueryExternalAuthToken> QueryExternalAuthToken(FAuthQueryExternalAuthToken::Params&& Params) override;
 
-	FUniqueNetIdPtr GetUniqueNetId(FOnlineAccountIdHandle AccountIdHandle) const;
-	FOnlineAccountIdHandle GetAccountIdHandle(const FUniqueNetIdRef& UniqueNetId) const;
-	int32 GetLocalUserNum(FOnlineAccountIdHandle AccountIdHandle) const;
+	FUniqueNetIdPtr GetUniqueNetId(FAccountId AccountIdHandle) const;
+	FAccountId GetAccountIdHandle(const FUniqueNetIdRef& UniqueNetId) const;
+	int32 GetLocalUserNum(FAccountId AccountIdHandle) const;
 
 protected:
 #if !UE_BUILD_SHIPPING

@@ -13,7 +13,7 @@ namespace UE::Online {
 struct FLeaderboardEntry
 {
 	/* The account id of this leaderboard entry */
-	FOnlineAccountIdHandle UserId;
+	FAccountId UserId;
 	/* The rank of this account */
 	int32 Rank;
 	/* The score of this account */
@@ -27,9 +27,9 @@ struct FReadEntriesForUsers
 	struct Params
 	{
 		/* Local user id */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* The account ids of users */
-		TArray<FOnlineAccountIdHandle> UserIds;
+		TArray<FAccountId> UserIds;
 		/* The leaderboard name */
 		FString BoardName;
 	};
@@ -48,7 +48,7 @@ struct FReadEntriesAroundRank
 	struct Params
 	{
 		/* Local user id */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* The rank index to start read */
 		uint32 Rank;
 		/* How many entries to fetch */
@@ -71,9 +71,9 @@ struct FReadEntriesAroundUser
 	struct Params
 	{
 		/* Local user id */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* The account id of specified user */
-		FOnlineAccountIdHandle UserId;
+		FAccountId UserId;
 		/* The offset to the rank of user */
 		int32 Offset;
 		/* How many entries to fetch */

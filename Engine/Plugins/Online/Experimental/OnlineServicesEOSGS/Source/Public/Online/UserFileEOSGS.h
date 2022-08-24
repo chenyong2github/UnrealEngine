@@ -52,7 +52,7 @@ protected:
 
 	FUserFileEOSGSConfig Config;
 
-	TMap<FOnlineAccountIdHandle, TArray<FString>> UserToFiles;
+	TMap<FAccountId, TArray<FString>> UserToFiles;
 
 	static EOS_PlayerDataStorage_EReadResult EOS_CALL OnReadFileDataStatic(const EOS_PlayerDataStorage_ReadFileDataCallbackInfo* Data);
 	static void EOS_CALL OnReadFileCompleteStatic(const EOS_PlayerDataStorage_ReadFileCallbackInfo* Data);

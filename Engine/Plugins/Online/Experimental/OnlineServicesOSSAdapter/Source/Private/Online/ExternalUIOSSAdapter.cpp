@@ -66,7 +66,7 @@ TOnlineAsyncOpHandle<FExternalUIShowLoginUI> FExternalUIOSSAdapter::ShowLoginUI(
 							{
 								if (Error.WasSuccessful())
 								{
-									FOnlineAccountIdHandle Handle = static_cast<FOnlineServicesOSSAdapter&>(Services).GetAccountIdRegistry().FindOrAddHandle(UniqueId.ToSharedRef());
+									FAccountId Handle = static_cast<FOnlineServicesOSSAdapter&>(Services).GetAccountIdRegistry().FindOrAddHandle(UniqueId.ToSharedRef());
 									FExternalUIShowLoginUI::Result Result = { MakeShared<FAccountInfo>() };
 									Result.AccountInfo->PlatformUserId = PinnedOp->GetParams().PlatformUserId;
 									Result.AccountInfo->AccountId = Handle;

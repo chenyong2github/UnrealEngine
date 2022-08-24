@@ -24,20 +24,20 @@ public:
 	virtual ~FOnlineAccountIdRegistryEOS() = default;
 
 	// Begin IOnlineAccountIdRegistry
-	virtual FString ToLogString(const FOnlineAccountIdHandle& Handle) const override;
-	virtual TArray<uint8> ToReplicationData(const FOnlineAccountIdHandle& Handle) const override;
-	virtual FOnlineAccountIdHandle FromReplicationData(const TArray<uint8>& ReplicationString) override;
+	virtual FString ToLogString(const FAccountId& Handle) const override;
+	virtual TArray<uint8> ToReplicationData(const FAccountId& Handle) const override;
+	virtual FAccountId FromReplicationData(const TArray<uint8>& ReplicationString) override;
 	// End IOnlineAccountIdRegistry
 
 	// Begin IOnlineAccountRegistryEOSGS
-	virtual FOnlineAccountIdHandle FindAccountId(const EOS_ProductUserId ProductUserId) const override;
-	virtual EOS_ProductUserId GetProductUserId(const FOnlineAccountIdHandle& Handle) const override;
+	virtual FAccountId FindAccountId(const EOS_ProductUserId ProductUserId) const override;
+	virtual EOS_ProductUserId GetProductUserId(const FAccountId& Handle) const override;
 	// End IOnlineAccountRegistryEOSGS
 
-	FOnlineAccountIdHandle FindAccountId(const EOS_EpicAccountId EpicAccountId) const;
+	FAccountId FindAccountId(const EOS_EpicAccountId EpicAccountId) const;
 
 	// Return copies as it is not thread safe to return pointers/references to array elements, in case the array is grown+relocated on another thread.
-	FOnlineAccountIdDataEOS GetAccountIdData(const FOnlineAccountIdHandle& Handle) const;
+	FOnlineAccountIdDataEOS GetAccountIdData(const FAccountId& Handle) const;
 
 	static FOnlineAccountIdRegistryEOS& Get();
 
@@ -45,19 +45,19 @@ private:
 	friend class FAuthEOS;
 	friend class FOnlineServicesEOSModule;
 	friend FAccountIdReplicationTest;
-	FOnlineAccountIdHandle FindOrAddAccountId(const EOS_EpicAccountId EpicAccountId, const EOS_ProductUserId ProductUserId);
+	FAccountId FindOrAddAccountId(const EOS_EpicAccountId EpicAccountId, const EOS_ProductUserId ProductUserId);
 
 	mutable FRWLock Lock;
 
 	TArray<FOnlineAccountIdDataEOS> AccountIdData; // Actual container for the info, indexed by the handle
 
-	TMap<EOS_EpicAccountId, FOnlineAccountIdHandle> EpicAccountIdToHandle; // Map of EOS_EpicAccountId to the associated handle.
-	TMap<EOS_ProductUserId, FOnlineAccountIdHandle> ProductUserIdToHandle; // Map of EOS_ProductUserId to the associated handle.
+	TMap<EOS_EpicAccountId, FAccountId> EpicAccountIdToHandle; // Map of EOS_EpicAccountId to the associated handle.
+	TMap<EOS_ProductUserId, FAccountId> ProductUserIdToHandle; // Map of EOS_ProductUserId to the associated handle.
 };
 
-EOS_EpicAccountId GetEpicAccountId(const FOnlineAccountIdHandle& Handle);
-EOS_EpicAccountId GetEpicAccountIdChecked(const FOnlineAccountIdHandle& Handle);
-FOnlineAccountIdHandle FindAccountId(const EOS_EpicAccountId EpicAccountId);
-FOnlineAccountIdHandle FindAccountIdChecked(const EOS_EpicAccountId EpicAccountId);
+EOS_EpicAccountId GetEpicAccountId(const FAccountId& Handle);
+EOS_EpicAccountId GetEpicAccountIdChecked(const FAccountId& Handle);
+FAccountId FindAccountId(const EOS_EpicAccountId EpicAccountId);
+FAccountId FindAccountIdChecked(const EOS_EpicAccountId EpicAccountId);
 
 } /* namespace UE::Online */

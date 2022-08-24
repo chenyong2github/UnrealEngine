@@ -71,7 +71,7 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOSGS::CreateLobby(FCreateLobby::Para
 	auto DestroyLobbyDuringCreate = [this](
 		TOnlineAsyncOp<FCreateLobby>& InAsyncOp,
 		const TSharedPtr<FLobbyDataEOS>& LobbyData,
-		FOnlineAccountIdHandle LocalUserId,
+		FAccountId LocalUserId,
 		FOnlineError ErrorResult) -> TFuture<void>
 	{
 		FLobbiesDestroyLobbyImpl::Params DestroyLobbyParams;
@@ -186,10 +186,10 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOSGS::CreateLobby(FCreateLobby::Para
 
 		// Add owner attributes to operation data.
 		// CreatingMemberData is used to update the local lobby data and for dispatching notifications once creation has completed.
-		TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberDataChanges>> CreatingMemberData;
+		TMap<FAccountId, TSharedRef<FClientLobbyMemberDataChanges>> CreatingMemberData;
 		CreatingMemberData.Reserve(Params.LocalUsers.Num());
 		CreatingMemberData.Add(Params.LocalUserId, LobbyOwnerAttributes);
-		InAsyncOp.Data.Set<TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberDataChanges>>>(LobbyMemberChangesKeyName, MoveTemp(CreatingMemberData));
+		InAsyncOp.Data.Set<TMap<FAccountId, TSharedRef<FClientLobbyMemberDataChanges>>>(LobbyMemberChangesKeyName, MoveTemp(CreatingMemberData));
 
 		if (UserData)
 		{
@@ -284,8 +284,8 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOSGS::CreateLobby(FCreateLobby::Para
 
 		// Add member changes to the lobby changes object.
 		const TSharedRef<FClientLobbyDataChanges>& LobbyChanges = GetOpDataChecked<TSharedRef<FClientLobbyDataChanges>>(InAsyncOp, LobbyChangesKeyName);
-		const TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberDataChanges>>& MemberChanges =
-			GetOpDataChecked<TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberDataChanges>>>(InAsyncOp, LobbyMemberChangesKeyName);
+		const TMap<FAccountId, TSharedRef<FClientLobbyMemberDataChanges>>& MemberChanges =
+			GetOpDataChecked<TMap<FAccountId, TSharedRef<FClientLobbyMemberDataChanges>>>(InAsyncOp, LobbyMemberChangesKeyName);
 		LobbyChanges->MutatedMembers = MemberChanges;
 		LobbyChanges->LocalName = InAsyncOp.GetParams().LocalName;
 
@@ -447,7 +447,7 @@ TOnlineAsyncOpHandle<FLeaveLobby> FLobbiesEOSGS::LeaveLobby(FLeaveLobby::Params&
 
 		// Remove the lobby from the active list for the user.
 		// The lobby data will be cleaned up once all references are removed.
-		for (FOnlineAccountIdHandle LeavingMember : ApplyResult.LeavingLocalMembers)
+		for (FAccountId LeavingMember : ApplyResult.LeavingLocalMembers)
 		{
 			RemoveActiveLobby(LeavingMember, LobbyData.ToSharedRef());
 		}
@@ -944,7 +944,7 @@ void FLobbiesEOSGS::HandleLobbyInviteReceived(const EOS_Lobby_LobbyInviteReceive
 #endif
 
 	// Todo: Queue this like an operation.
-	const FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->LocalUserId);
+	const FAccountId LocalUserId = FindAccountId(Data->LocalUserId);
 	if (LocalUserId.IsValid())
 	{
 		FLobbyInviteDataEOS::CreateFromInviteId(LobbyPrerequisites.ToSharedRef(), LobbyDataRegistry.ToSharedRef(), LocalUserId, Data->InviteId, Data->TargetUserId)
@@ -972,7 +972,7 @@ void FLobbiesEOSGS::HandleLobbyInviteReceived(const EOS_Lobby_LobbyInviteReceive
 void FLobbiesEOSGS::HandleLobbyInviteAccepted(const EOS_Lobby_LobbyInviteAcceptedCallbackInfo* Data)
 {
 	// Todo: Queue this like an operation.
-	const FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->LocalUserId);
+	const FAccountId LocalUserId = FindAccountId(Data->LocalUserId);
 	if (LocalUserId.IsValid())
 	{
 		FLobbyInviteDataEOS::CreateFromInviteId(LobbyPrerequisites.ToSharedRef(), LobbyDataRegistry.ToSharedRef(), LocalUserId, Data->InviteId, Data->TargetUserId)
@@ -1007,7 +1007,7 @@ void FLobbiesEOSGS::HandleLobbyInviteAccepted(const EOS_Lobby_LobbyInviteAccepte
 void FLobbiesEOSGS::HandleJoinLobbyAccepted(const EOS_Lobby_JoinLobbyAcceptedCallbackInfo* Data)
 {
 	// Todo: Queue this like an operation.
-	const FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->LocalUserId);
+	const FAccountId LocalUserId = FindAccountId(Data->LocalUserId);
 	if (LocalUserId.IsValid())
 	{
 		TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> LobbyDetailsResult = 
@@ -1154,13 +1154,13 @@ void FLobbiesEOSGS::UnregisterHandlers()
 	OnJoinLobbyAcceptedEOSEventRegistration = nullptr;
 }
 
-void FLobbiesEOSGS::AddActiveLobby(FOnlineAccountIdHandle LocalUserId, const TSharedRef<FLobbyDataEOS>& LobbyData)
+void FLobbiesEOSGS::AddActiveLobby(FAccountId LocalUserId, const TSharedRef<FLobbyDataEOS>& LobbyData)
 {
 	// Add bookkeeping for the user.
 	ActiveLobbies.FindOrAdd(LocalUserId).Add(LobbyData);
 }
 
-void FLobbiesEOSGS::RemoveActiveLobby(FOnlineAccountIdHandle LocalUserId, const TSharedRef<FLobbyDataEOS>& LobbyData)
+void FLobbiesEOSGS::RemoveActiveLobby(FAccountId LocalUserId, const TSharedRef<FLobbyDataEOS>& LobbyData)
 {
 	// Remove bookkeeping for the local user.
 	if (TSet<TSharedRef<FLobbyDataEOS>>* Lobbies = ActiveLobbies.Find(LocalUserId))
@@ -1199,7 +1199,7 @@ void FLobbiesEOSGS::RemoveActiveInvite(const TSharedRef<FLobbyInviteDataEOS>& In
 		});
 }
 
-TSharedPtr<FLobbyInviteDataEOS> FLobbiesEOSGS::GetActiveInvite(FOnlineAccountIdHandle TargetUser, FOnlineLobbyIdHandle TargetLobbyId)
+TSharedPtr<FLobbyInviteDataEOS> FLobbiesEOSGS::GetActiveInvite(FAccountId TargetUser, FOnlineLobbyIdHandle TargetLobbyId)
 {
 	const TSharedRef<FLobbyInviteDataEOS>* Result = ActiveInvites.FindOrAdd(TargetUser).Find(TargetLobbyId);
 	return Result ? *Result : TSharedPtr<FLobbyInviteDataEOS>();
@@ -1276,7 +1276,7 @@ TFuture<TDefaultErrorResult<FLobbiesJoinLobbyImpl>> FLobbiesEOSGS::JoinLobbyImpl
 			TArray<TFuture<TDefaultErrorResult<FLobbiesLeaveLobbyImpl>>> PendingMemberExits;
 			for (int32 MemberIndex = 0; MemberIndex < Params.LocalUsers.Num(); ++MemberIndex)
 			{
-				const FOnlineAccountIdHandle MemberId = Params.LocalUsers[MemberIndex].LocalUserId;
+				const FAccountId MemberId = Params.LocalUsers[MemberIndex].LocalUserId;
 
 				if (Results.Get()[MemberIndex].IsError())
 				{
@@ -1783,11 +1783,11 @@ TOnlineAsyncOpHandle<FLobbiesProcessLobbyNotificationImpl> FLobbiesEOSGS::Proces
 		}
 
 		// Get member snapshots.
-		TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
+		TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> LobbyMemberSnapshots;
 		LobbyMemberSnapshots.Reserve(Params.MutatedMembers.Num());
 		for (EOS_ProductUserId MutatedMember : Params.MutatedMembers)
 		{
-			const FOnlineAccountIdHandle MutatedMemberAccountId = FindAccountId(MutatedMember);
+			const FAccountId MutatedMemberAccountId = FindAccountId(MutatedMember);
 			if (MutatedMemberAccountId.IsValid())
 			{
 				TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>> MemberSnapshotResult = LobbyDetails->GetLobbyMemberSnapshot(MutatedMemberAccountId);
@@ -1801,12 +1801,12 @@ TOnlineAsyncOpHandle<FLobbiesProcessLobbyNotificationImpl> FLobbiesEOSGS::Proces
 			}
 		}
 
-		// Translate leaving members from EOS_ProductUserId to FOnlineAccountIdHandle.
-		TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason> LeavingMemberReason;
+		// Translate leaving members from EOS_ProductUserId to FAccountId.
+		TMap<FAccountId, ELobbyMemberLeaveReason> LeavingMemberReason;
 		LeavingMemberReason.Reserve(Params.LeavingMembers.Num());
 		for (const TPair<EOS_ProductUserId, ELobbyMemberLeaveReason>& LeavingMember : Params.LeavingMembers)
 		{
-			const FOnlineAccountIdHandle LeavingMemberAccountId = FindAccountId(LeavingMember.Key);
+			const FAccountId LeavingMemberAccountId = FindAccountId(LeavingMember.Key);
 			if (LeavingMemberAccountId.IsValid())
 			{
 				LeavingMemberReason.Add(LeavingMemberAccountId, LeavingMember.Value);
@@ -1821,7 +1821,7 @@ TOnlineAsyncOpHandle<FLobbiesProcessLobbyNotificationImpl> FLobbiesEOSGS::Proces
 			&LobbyEvents);
 
 		// Remove active users if needed.
-		for (FOnlineAccountIdHandle LeavingMember : Result.LeavingLocalMembers)
+		for (FAccountId LeavingMember : Result.LeavingLocalMembers)
 		{
 			RemoveActiveLobby(LeavingMember, Params.LobbyData.ToSharedRef());
 		}

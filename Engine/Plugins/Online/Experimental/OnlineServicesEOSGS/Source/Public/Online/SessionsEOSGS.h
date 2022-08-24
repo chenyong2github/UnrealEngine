@@ -138,11 +138,11 @@ struct FSendSingleSessionInviteImpl
 
 	struct Params
 	{
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		FName SessionName;
 
-		FOnlineAccountIdHandle TargetUserId;
+		FAccountId TargetUserId;
 	};
 
 	struct Result
@@ -157,7 +157,7 @@ struct FBuildSessionFromDetailsHandle
 	struct Params
 	{
 		/** User which will drive the id resolution */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/** EOS session details handle used to extract the data */
 		TSharedRef<FSessionDetailsHandleEOSGS> SessionDetailsHandleEOSGS;
@@ -166,7 +166,7 @@ struct FBuildSessionFromDetailsHandle
 	struct Result
 	{
 		/** User which started the resolution operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		/** Session built from the details handle */
 		TSharedRef<FSession> Session;
@@ -216,7 +216,7 @@ protected:
 	void SetSessionSearchMaxResults(FSessionSearchHandleEOSGS& SessionSearchHandle, uint32 MaxResults);
 	void SetSessionSearchParameters(FSessionSearchHandleEOSGS& SessionSearchHandle, TArray<FFindSessionsSearchFilter> Filters);
 	void SetSessionSearchSessionId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FOnlineSessionIdHandle& SessionId);
-	void SetSessionSearchTargetId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FOnlineAccountIdHandle& TargetUserId);
+	void SetSessionSearchTargetId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FAccountId& TargetUserId);
 
 	/**
 	 * Writes all values in the passed SessionSettings to the SessionModificationHandle

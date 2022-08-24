@@ -19,7 +19,7 @@ namespace NboSerializerEOSGSSvc {
 
 /** NboSerializeToBuffer methods */
 
-inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const FOnlineAccountIdHandle& UniqueId)
+inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const FAccountId& UniqueId)
 {
 	TArray<uint8> Data = FOnlineAccountIdRegistryEOSGS::GetRegistered().ToReplicationData(UniqueId);
 	Ar << Data.Num();
@@ -37,7 +37,7 @@ inline void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionMembe
 {
 	Packet << SessionMembersMap.Num();
 
-	for (const TPair<FOnlineAccountIdHandle, FSessionMember>& Entry : SessionMembersMap)
+	for (const TPair<FAccountId, FSessionMember>& Entry : SessionMembersMap)
 	{
 		SerializeToBuffer(Packet, Entry.Key);
 		NboSerializerCommonSvc::SerializeToBuffer(Packet, Entry.Value);
@@ -48,7 +48,7 @@ inline void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FRegisteredPl
 {
 	Packet << RegisteredPlayersMap.Num();
 
-	for (const TPair<FOnlineAccountIdHandle, FRegisteredPlayer>& Entry : RegisteredPlayersMap)
+	for (const TPair<FAccountId, FRegisteredPlayer>& Entry : RegisteredPlayersMap)
 	{
 		SerializeToBuffer(Packet, Entry.Key);
 		NboSerializerCommonSvc::SerializeToBuffer(Packet, Entry.Value);
@@ -57,7 +57,7 @@ inline void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FRegisteredPl
 
 /** NboSerializeFromBuffer methods */
 
-inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, FOnlineAccountIdHandle& UniqueId)
+inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, FAccountId& UniqueId)
 {
 	TArray<uint8> Data;
 	int32 Size;
@@ -82,7 +82,7 @@ inline void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionMembers
 
 	for (int32 Index = 0; Index < NumEntries; ++Index)
 	{
-		FOnlineAccountIdHandle Key;
+		FAccountId Key;
 		SerializeFromBuffer(Packet, Key);
 
 		FSessionMember Value;
@@ -99,7 +99,7 @@ inline void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FRegisteredPlay
 
 	for (int32 Index = 0; Index < NumEntries; ++Index)
 	{
-		FOnlineAccountIdHandle Key;
+		FAccountId Key;
 		SerializeFromBuffer(Packet, Key);
 
 		FRegisteredPlayer Value;

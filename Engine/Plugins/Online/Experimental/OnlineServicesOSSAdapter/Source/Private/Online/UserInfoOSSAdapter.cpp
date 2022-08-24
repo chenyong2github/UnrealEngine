@@ -48,7 +48,7 @@ TOnlineAsyncOpHandle<FQueryUserInfo> FUserInfoOSSAdapter::QueryUserInfo(FQueryUs
 
 		TArray<FUniqueNetIdRef> UserIds;
 		UserIds.Reserve(Params.UserIds.Num());
-		for(const FOnlineAccountIdHandle& TargetAccountIdHandle : Params.UserIds)
+		for(const FAccountId& TargetAccountIdHandle : Params.UserIds)
 		{
 			FUniqueNetIdPtr TargetUserNetId = AuthInterface->GetUniqueNetId(TargetAccountIdHandle);
 			if (!TargetUserNetId)

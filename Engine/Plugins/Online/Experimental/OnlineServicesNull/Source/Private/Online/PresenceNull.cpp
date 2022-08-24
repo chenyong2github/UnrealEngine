@@ -73,7 +73,7 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceNull::UpdatePresence(FUpdatePrese
 		const FUpdatePresence::Params& Params = InAsyncOp.GetParams();
 		Presences.Add(Params.LocalUserId, Params.Presence);
 
-		for (const TPair<FOnlineAccountIdHandle, TSet<FOnlineAccountIdHandle>>& Pairs : PresenceListeners)
+		for (const TPair<FAccountId, TSet<FAccountId>>& Pairs : PresenceListeners)
 		{
 			if (Pairs.Value.Contains(Params.LocalUserId))
 			{
@@ -106,7 +106,7 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceNull::PartialUpdatePresenc
 		TSharedRef<FUserPresence> MutatedPresence = ApplyPresenceMutations(*NewPresence, Mutations);
 		Presences.Add(InAsyncOp.GetParams().LocalUserId, MutatedPresence);
 
-		for (const TPair<FOnlineAccountIdHandle, TSet<FOnlineAccountIdHandle>>& Pairs : PresenceListeners)
+		for (const TPair<FAccountId, TSet<FAccountId>>& Pairs : PresenceListeners)
 		{
 			if (Pairs.Value.Contains(InAsyncOp.GetParams().LocalUserId))
 			{

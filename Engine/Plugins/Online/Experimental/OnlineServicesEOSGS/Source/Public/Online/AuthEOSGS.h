@@ -169,12 +169,12 @@ public:
 	virtual ~FAccountInfoRegistryEOS() = default;
 
 	TSharedPtr<FAccountInfoEOS> Find(FPlatformUserId PlatformUserId) const;
-	TSharedPtr<FAccountInfoEOS> Find(FOnlineAccountIdHandle AccountIdHandle) const;
+	TSharedPtr<FAccountInfoEOS> Find(FAccountId AccountIdHandle) const;
 	TSharedPtr<FAccountInfoEOS> Find(EOS_EpicAccountId EpicAccountId) const;
 	TSharedPtr<FAccountInfoEOS> Find(EOS_ProductUserId ProductUserId) const;
 
 	void Register(const TSharedRef<FAccountInfoEOS>& UserAuthData);
-	void Unregister(FOnlineAccountIdHandle AccountId);
+	void Unregister(FAccountId AccountId);
 
 protected:
 	virtual void DoRegister(const TSharedRef<FAccountInfo>& AccountInfo);
@@ -208,10 +208,10 @@ public:
 	// End IAuth
 
 	// Begin FAuthEOSGS
-	virtual TFuture<FOnlineAccountIdHandle> ResolveAccountId(const FOnlineAccountIdHandle& LocalUserId, const EOS_ProductUserId ProductUserId);
-	virtual TFuture<TArray<FOnlineAccountIdHandle>> ResolveAccountIds(const FOnlineAccountIdHandle& LocalUserId, const TArray<EOS_ProductUserId>& ProductUserIds);
-	virtual TFunction<TFuture<FOnlineAccountIdHandle>(FOnlineAsyncOp& InAsyncOp, const EOS_ProductUserId& ProductUserId)> ResolveProductIdFn();
-	virtual TFunction<TFuture<TArray<FOnlineAccountIdHandle>>(FOnlineAsyncOp& InAsyncOp, const TArray<EOS_ProductUserId>& ProductUserIds)> ResolveProductIdsFn();
+	virtual TFuture<FAccountId> ResolveAccountId(const FAccountId& LocalUserId, const EOS_ProductUserId ProductUserId);
+	virtual TFuture<TArray<FAccountId>> ResolveAccountIds(const FAccountId& LocalUserId, const TArray<EOS_ProductUserId>& ProductUserIds);
+	virtual TFunction<TFuture<FAccountId>(FOnlineAsyncOp& InAsyncOp, const EOS_ProductUserId& ProductUserId)> ResolveProductIdFn();
+	virtual TFunction<TFuture<TArray<FAccountId>>(FOnlineAsyncOp& InAsyncOp, const TArray<EOS_ProductUserId>& ProductUserIds)> ResolveProductIdsFn();
 	// End FAuthEOSGS
 
 protected:
@@ -243,7 +243,7 @@ protected:
 
 	void InitializeConnectLoginRecoveryTimer(const TSharedRef<FAccountInfoEOS>& UserAuthData);
 
-	static FOnlineAccountIdHandle CreateAccountId(const EOS_ProductUserId ProductUserId);
+	static FAccountId CreateAccountId(const EOS_ProductUserId ProductUserId);
 
 	EOS_HAuth AuthHandle = nullptr;
 	EOS_HConnect ConnectHandle = nullptr;

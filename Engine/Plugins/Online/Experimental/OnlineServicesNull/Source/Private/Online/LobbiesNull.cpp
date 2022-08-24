@@ -299,7 +299,7 @@ void FLobbiesNull::ReadLobbyFromPacket(FNboSerializeFromBuffer& Packet, const TS
 	UE_LOG(LogTemp, Verbose, TEXT("Reading session information from server"));
 
 	/** Owner of the session */
-	FOnlineAccountIdHandle OwningUserId;
+	FAccountId OwningUserId;
 	FString OwningUserName;
 	uint32 NumOpenPrivateConnections, NumOpenPublicConnections;
 	SerializeFromBuffer(Packet, OwningUserId);

@@ -103,7 +103,7 @@ FClientLobbyData::FClientLobbyData(FOnlineLobbyIdHandle LobbyId)
 	PublicData->LobbyId = LobbyId;
 }
 
-TSharedPtr<const FClientLobbyMemberSnapshot> FClientLobbyData::GetMemberData(FOnlineAccountIdHandle MemberAccountId) const
+TSharedPtr<const FClientLobbyMemberSnapshot> FClientLobbyData::GetMemberData(FAccountId MemberAccountId) const
 {
 	const TSharedRef<FClientLobbyMemberSnapshot>* FoundMemberData = MemberDataStorage.Find(MemberAccountId);
 	return FoundMemberData ? *FoundMemberData : TSharedPtr<const FClientLobbyMemberSnapshot>();
@@ -111,8 +111,8 @@ TSharedPtr<const FClientLobbyMemberSnapshot> FClientLobbyData::GetMemberData(FOn
 
 FApplyLobbyUpdateResult FClientLobbyData::ApplyLobbyUpdateFromServiceSnapshot(
 	FClientLobbySnapshot&& LobbySnapshot,
-	TMap<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>>&& LobbyMemberSnapshots,
-	TMap<FOnlineAccountIdHandle, ELobbyMemberLeaveReason>&& LeaveReasons,
+	TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>>&& LobbyMemberSnapshots,
+	TMap<FAccountId, ELobbyMemberLeaveReason>&& LeaveReasons,
 	FLobbyEvents* LobbyEvents)
 {
 	FApplyLobbyUpdateResult Result;
@@ -140,7 +140,7 @@ FApplyLobbyUpdateResult FClientLobbyData::ApplyLobbyUpdateFromServiceSnapshot(
 	{
 		// Build list of leaving members.
 		TArray<TPair<TSharedRef<FClientLobbyMemberSnapshot>, ELobbyMemberLeaveReason>> LeavingMembers;
-		for (TPair<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>>& MemberData : MemberDataStorage)
+		for (TPair<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>>& MemberData : MemberDataStorage)
 		{
 			// Check if member exists in new snapshot.
 			if (LobbySnapshot.Members.Find(MemberData.Key) == nullptr)
@@ -182,7 +182,7 @@ FApplyLobbyUpdateResult FClientLobbyData::ApplyLobbyUpdateFromServiceSnapshot(
 
 	// Process member joins and attribute changes.
 	// Joining members are expected to have a member data snapshot.
-	for (TPair<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>>& MemberSnapshot : LobbyMemberSnapshots)
+	for (TPair<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>>& MemberSnapshot : LobbyMemberSnapshots)
 	{
 		if (LobbySnapshot.Members.Find(MemberSnapshot.Key) == nullptr)
 		{
@@ -329,7 +329,7 @@ FApplyLobbyUpdateResult FClientLobbyData::ApplyLobbyUpdateFromLocalChanges(FClie
 			{
 				LobbyEvents.OnLobbyJoined.Broadcast(FLobbyJoined{PublicData});
 
-				for (TPair<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberSnapshot>>& MemberData : MemberDataStorage)
+				for (TPair<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>>& MemberData : MemberDataStorage)
 				{
 					// The lobby creator will already be in the list during lobby creation due to applying a lobby snapshot.
 					if (Changes.MutatedMembers.Find(MemberData.Key) == nullptr)
@@ -341,7 +341,7 @@ FApplyLobbyUpdateResult FClientLobbyData::ApplyLobbyUpdateFromLocalChanges(FClie
 
 			// Create or modify state for each mutated member and notify.
 			// The lobby creator will already be in the list during lobby creation due to applying a lobby snapshot.
-			for (TPair<FOnlineAccountIdHandle, TSharedRef<FClientLobbyMemberDataChanges>>& MutatedMemberPair : Changes.MutatedMembers)
+			for (TPair<FAccountId, TSharedRef<FClientLobbyMemberDataChanges>>& MutatedMemberPair : Changes.MutatedMembers)
 			{
 				if (TSharedRef<FClientLobbyMemberSnapshot>* MemberDataPtr = MemberDataStorage.Find(MutatedMemberPair.Key))
 				{
@@ -389,7 +389,7 @@ FApplyLobbyUpdateResult FClientLobbyData::ApplyLobbyUpdateFromLocalChanges(FClie
 		// remaining lobby members and for the lobby itself.
 		if (!Changes.LeavingMembers.IsEmpty())
 		{
-			for (TPair<FOnlineAccountIdHandle, ELobbyMemberLeaveReason>& LeavingMemberPair : Changes.LeavingMembers)
+			for (TPair<FAccountId, ELobbyMemberLeaveReason>& LeavingMemberPair : Changes.LeavingMembers)
 			{
 				// Member data is expected to be added through changes before being mutated.
 				TSharedRef<FClientLobbyMemberSnapshot>* MemberDataPtr = MemberDataStorage.Find(LeavingMemberPair.Key);

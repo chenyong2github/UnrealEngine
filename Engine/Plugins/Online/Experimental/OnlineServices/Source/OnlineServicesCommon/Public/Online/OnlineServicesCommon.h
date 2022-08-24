@@ -306,7 +306,7 @@ public:
 	FOnlineAsyncOpQueue& GetSerialQueue();
 
 	/* Queues for executing per-user tasks in serial */
-	FOnlineAsyncOpQueue& GetSerialQueue(const FOnlineAccountIdHandle& AccountId);
+	FOnlineAsyncOpQueue& GetSerialQueue(const FAccountId& AccountId);
 	
 	void RegisterExecHandler(const FString& Name, TUniquePtr<IOnlineExecHandler>&& Handler);
 
@@ -330,7 +330,7 @@ protected:
 
 	FOnlineAsyncOpQueueParallel ParallelQueue;
 	FOnlineAsyncOpQueueSerial SerialQueue;
-	TMap<FOnlineAccountIdHandle, TUniquePtr<FOnlineAsyncOpQueueSerial>> PerUserSerialQueue;
+	TMap<FAccountId, TUniquePtr<FOnlineAsyncOpQueueSerial>> PerUserSerialQueue;
 };
 
 /* UE::Online */ }

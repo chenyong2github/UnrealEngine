@@ -41,7 +41,7 @@ protected:
 	TOptional<FAchievementDefinitionMap> AchievementDefinitions;
 
 	using FAchievementStateMap = TMap<FString, FAchievementState>;
-	TMap<FOnlineAccountIdHandle, FAchievementStateMap> UserToAchievementStates;
+	TMap<FAccountId, FAchievementStateMap> UserToAchievementStates;
 };
 
 /* UE::Online */ }

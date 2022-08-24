@@ -47,7 +47,7 @@ struct FTestUserOp
 
 	struct Params
 	{
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -74,7 +74,7 @@ struct FJoinableTestUserOp
 
 	struct Params
 	{
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -109,7 +109,7 @@ struct FMergeableTestUserOp
 
 	struct Params
 	{
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		FTestMutation Mutations;
 	};
 

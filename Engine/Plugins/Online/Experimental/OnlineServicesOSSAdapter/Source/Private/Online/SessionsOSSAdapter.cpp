@@ -337,7 +337,7 @@ void FSessionsOSSAdapter::Initialize()
 
 			const FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 			const FUniqueNetIdRef TargetUniqueNetIdRef = TargetUniqueNetId.AsShared();
-			const FOnlineAccountIdHandle TargetAccountIdHandle = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(TargetUniqueNetIdRef);
+			const FAccountId TargetAccountIdHandle = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(TargetUniqueNetIdRef);
 
 			FSessionSettingsUpdate SettingsUpdate;
 			SettingsUpdate.RemovedSessionMembers.Add(TargetAccountIdHandle);
@@ -358,7 +358,7 @@ void FSessionsOSSAdapter::Initialize()
 
 			const FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 			const FUniqueNetIdRef TargetUniqueNetIdRef = TargetUniqueNetId.AsShared();
-			const FOnlineAccountIdHandle TargetAccountIdHandle = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(TargetUniqueNetIdRef);
+			const FAccountId TargetAccountIdHandle = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(TargetUniqueNetIdRef);
 
 			FSessionSettingsUpdate SettingsUpdate;
 			if (bJoined)
@@ -392,7 +392,7 @@ void FSessionsOSSAdapter::Initialize()
 
 			const FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 			const FUniqueNetIdRef TargetUniqueNetIdRef = TargetUniqueNetId.AsShared();
-			const FOnlineAccountIdHandle TargetAccountIdHandle = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(TargetUniqueNetIdRef);
+			const FAccountId TargetAccountIdHandle = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(TargetUniqueNetIdRef);
 
 			FSessionSettingsUpdate SettingsUpdate;
 			if (const FSessionMember* SessionMember = FoundSession->SessionSettings.SessionMembers.Find(TargetAccountIdHandle))
@@ -841,7 +841,7 @@ TOnlineAsyncOpHandle<FStartMatchmaking> FSessionsOSSAdapter::StartMatchmaking(FS
 		FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 
 		TArray<FSessionMatchmakingUser> MatchMakingUsers;
-		for (const TPair<FOnlineAccountIdHandle, FSessionMember>& LocalUser : OpParams.LocalUsers)
+		for (const TPair<FAccountId, FSessionMember>& LocalUser : OpParams.LocalUsers)
 		{
 			FSessionMatchmakingUser NewMatchMakingUser { ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(LocalUser.Key).ToSharedRef() };
 
@@ -1039,9 +1039,9 @@ TOnlineAsyncOpHandle<FAddSessionMembers> FSessionsOSSAdapter::AddSessionMembers(
 
 		FAuthOSSAdapter* Auth = Services.Get<FAuthOSSAdapter>();
 		TArray<FUniqueNetIdRef> TargetUserNetIds;
-		TArray<FOnlineAccountIdHandle> NewSessionMemberIds;
+		TArray<FAccountId> NewSessionMemberIds;
 		OpParams.NewSessionMembers.GenerateKeyArray(NewSessionMemberIds);
-		for (const FOnlineAccountIdHandle& TargetUser : NewSessionMemberIds)
+		for (const FAccountId& TargetUser : NewSessionMemberIds)
 		{
 			FUniqueNetIdRef TargetUserNetId = Auth->GetUniqueNetId(TargetUser).ToSharedRef();
 			if (TargetUserNetId->IsValid())
@@ -1094,7 +1094,7 @@ TOnlineAsyncOpHandle<FRemoveSessionMembers> FSessionsOSSAdapter::RemoveSessionMe
 
 		FAuthOSSAdapter* Auth = Services.Get<FAuthOSSAdapter>();
 		TArray<FUniqueNetIdRef> TargetUserNetIds;
-		for (const FOnlineAccountIdHandle& TargetUser : OpParams.SessionMemberIds)
+		for (const FAccountId& TargetUser : OpParams.SessionMemberIds)
 		{
 			FUniqueNetIdRef TargetUserNetId = Auth->GetUniqueNetId(TargetUser).ToSharedRef();
 			if (TargetUserNetId->IsValid())
@@ -1136,7 +1136,7 @@ TOnlineAsyncOpHandle<FSendSessionInvite> FSessionsOSSAdapter::SendSessionInvite(
 		}
 
 		TArray<FUniqueNetIdRef> TargetUserNetIds;
-		for (const FOnlineAccountIdHandle& TargetUser : OpParams.TargetUsers)
+		for (const FAccountId& TargetUser : OpParams.TargetUsers)
 		{
 			FUniqueNetIdRef TargetUserNetId = Auth->GetUniqueNetId(TargetUser).ToSharedRef();
 			if (TargetUserNetId->IsValid())
@@ -1241,7 +1241,7 @@ FOnlineSessionSettings FSessionsOSSAdapter::BuildV1Settings(const FSessionSettin
 	
 	FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 
-	for (const TPair<FOnlineAccountIdHandle, FSessionMember>& Entry : InSessionSettings.SessionMembers)
+	for (const TPair<FAccountId, FSessionMember>& Entry : InSessionSettings.SessionMembers)
 	{
 		Result.MemberSettings.Emplace(ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(Entry.Key).ToSharedRef(), ::FSessionSettings()); // TODO: Pending SchemaVariant work
 	}
@@ -1276,7 +1276,7 @@ void FSessionsOSSAdapter::WriteV2SessionSettingsFromV1Session(const FOnlineSessi
 
 	for (const TPair<FUniqueNetIdRef, ::FSessionSettings>& Entry : InSession->SessionSettings.MemberSettings)
 	{
-		FOnlineAccountIdHandle SessionMemberId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(Entry.Key);
+		FAccountId SessionMemberId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(Entry.Key);
 
 		FSessionMember SessionMember;
 		SessionMember.MemberSettings = GetV2SessionSettings(Entry.Value);

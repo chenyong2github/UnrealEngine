@@ -50,7 +50,7 @@ struct FStatDefinition
 
 struct FFindUserStatsByAccountId
 {
-	FFindUserStatsByAccountId(const FOnlineAccountIdHandle& InUserId)
+	FFindUserStatsByAccountId(const FAccountId& InUserId)
 		: UserId(InUserId)
 	{
 	}
@@ -60,7 +60,7 @@ struct FFindUserStatsByAccountId
 		return UserStats.UserId == UserId;
 	}
 
-	FOnlineAccountIdHandle UserId;
+	FAccountId UserId;
 };
 
 class ONLINESERVICESCOMMON_API FStatsCommon : public TOnlineComponent<IStats>

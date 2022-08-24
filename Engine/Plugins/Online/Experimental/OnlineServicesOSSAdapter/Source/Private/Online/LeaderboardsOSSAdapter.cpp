@@ -42,7 +42,7 @@ TOnlineAsyncOpHandle<FReadEntriesForUsers> FLeaderboardsOSSAdapter::ReadEntriesF
 		}
 
 		TArray<FUniqueNetIdRef> NetIds;
-		for (const FOnlineAccountIdHandle& UserId : Op.GetParams().UserIds)
+		for (const FAccountId& UserId : Op.GetParams().UserIds)
 		{
 			const FUniqueNetIdPtr UniqueNetId = Auth->GetUniqueNetId(UserId);
 			if (!UniqueNetId)

@@ -473,7 +473,7 @@ TSharedPtr<FAccountInfoEOS> FAccountInfoRegistryEOS::Find(FPlatformUserId Platfo
 	return StaticCastSharedPtr<FAccountInfoEOS>(Super::Find(PlatformUserId));
 }
 
-TSharedPtr<FAccountInfoEOS> FAccountInfoRegistryEOS::Find(FOnlineAccountIdHandle AccountIdHandle) const
+TSharedPtr<FAccountInfoEOS> FAccountInfoRegistryEOS::Find(FAccountId AccountIdHandle) const
 {
 	return StaticCastSharedPtr<FAccountInfoEOS>(Super::Find(AccountIdHandle));
 }
@@ -510,7 +510,7 @@ void FAccountInfoRegistryEOS::Register(const TSharedRef<FAccountInfoEOS>& Accoun
 	DoRegister(AccountInfoEOS);
 }
 
-void FAccountInfoRegistryEOS::Unregister(FOnlineAccountIdHandle AccountId)
+void FAccountInfoRegistryEOS::Unregister(FAccountId AccountId)
 {
 	if (TSharedPtr<FAccountInfoEOS> AccountInfoEOS = Find(AccountId))
 	{
@@ -946,43 +946,43 @@ TOnlineAsyncOpHandle<FAuthEndVerifiedAuthSession> FAuthEOSGS::EndVerifiedAuthSes
 	return Operation->GetHandle();
 }
 
-TFuture<FOnlineAccountIdHandle> FAuthEOSGS::ResolveAccountId(const FOnlineAccountIdHandle& LocalUserId, const EOS_ProductUserId ProductUserId)
+TFuture<FAccountId> FAuthEOSGS::ResolveAccountId(const FAccountId& LocalUserId, const EOS_ProductUserId ProductUserId)
 {
-	return MakeFulfilledPromise<FOnlineAccountIdHandle>(CreateAccountId(ProductUserId)).GetFuture();
+	return MakeFulfilledPromise<FAccountId>(CreateAccountId(ProductUserId)).GetFuture();
 }
 
-TFuture<TArray<FOnlineAccountIdHandle>> FAuthEOSGS::ResolveAccountIds(const FOnlineAccountIdHandle& LocalUserId, const TArray<EOS_ProductUserId>& InProductUserIds)
+TFuture<TArray<FAccountId>> FAuthEOSGS::ResolveAccountIds(const FAccountId& LocalUserId, const TArray<EOS_ProductUserId>& InProductUserIds)
 {
-	TArray<FOnlineAccountIdHandle> AccountIds;
+	TArray<FAccountId> AccountIds;
 	AccountIds.Reserve(InProductUserIds.Num());
 	for (const EOS_ProductUserId ProductUserId : InProductUserIds)
 	{
 		AccountIds.Emplace(CreateAccountId(ProductUserId));
 	}
-	return MakeFulfilledPromise<TArray<FOnlineAccountIdHandle>>(MoveTemp(AccountIds)).GetFuture();
+	return MakeFulfilledPromise<TArray<FAccountId>>(MoveTemp(AccountIds)).GetFuture();
 }
 
-TFunction<TFuture<FOnlineAccountIdHandle>(FOnlineAsyncOp& InAsyncOp, const EOS_ProductUserId& ProductUserId)> FAuthEOSGS::ResolveProductIdFn()
+TFunction<TFuture<FAccountId>(FOnlineAsyncOp& InAsyncOp, const EOS_ProductUserId& ProductUserId)> FAuthEOSGS::ResolveProductIdFn()
 {
 	return [this](FOnlineAsyncOp& InAsyncOp, const EOS_ProductUserId& ProductUserId)
 	{
-		const FOnlineAccountIdHandle* LocalUserIdPtr = InAsyncOp.Data.Get<FOnlineAccountIdHandle>(TEXT("LocalUserId"));
+		const FAccountId* LocalUserIdPtr = InAsyncOp.Data.Get<FAccountId>(TEXT("LocalUserId"));
 		if (!ensure(LocalUserIdPtr))
 		{
-			return MakeFulfilledPromise<FOnlineAccountIdHandle>().GetFuture();
+			return MakeFulfilledPromise<FAccountId>().GetFuture();
 		}
 		return ResolveAccountId(*LocalUserIdPtr, ProductUserId);
 	};
 }
 
-TFunction<TFuture<TArray<FOnlineAccountIdHandle>>(FOnlineAsyncOp& InAsyncOp, const TArray<EOS_ProductUserId>& ProductUserIds)> FAuthEOSGS::ResolveProductIdsFn()
+TFunction<TFuture<TArray<FAccountId>>(FOnlineAsyncOp& InAsyncOp, const TArray<EOS_ProductUserId>& ProductUserIds)> FAuthEOSGS::ResolveProductIdsFn()
 {
 	return [this](FOnlineAsyncOp& InAsyncOp, const TArray<EOS_ProductUserId>& ProductUserIds)
 	{
-		const FOnlineAccountIdHandle* LocalUserIdPtr = InAsyncOp.Data.Get<FOnlineAccountIdHandle>(TEXT("LocalUserId"));
+		const FAccountId* LocalUserIdPtr = InAsyncOp.Data.Get<FAccountId>(TEXT("LocalUserId"));
 		if (!ensure(LocalUserIdPtr))
 		{
-			return MakeFulfilledPromise<TArray<FOnlineAccountIdHandle>>().GetFuture();
+			return MakeFulfilledPromise<TArray<FAccountId>>().GetFuture();
 		}
 		return ResolveAccountIds(*LocalUserIdPtr, ProductUserIds);
 	};
@@ -1540,7 +1540,7 @@ void FAuthEOSGS::InitializeConnectLoginRecoveryTimer(const TSharedRef<FAccountIn
 		DelayTime);
 }
 
-FOnlineAccountIdHandle FAuthEOSGS::CreateAccountId(const EOS_ProductUserId ProductUserId)
+FAccountId FAuthEOSGS::CreateAccountId(const EOS_ProductUserId ProductUserId)
 {
 	return FOnlineAccountIdRegistryEOSGS::Get().FindOrAddAccountId(ProductUserId);
 }

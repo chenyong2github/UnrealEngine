@@ -159,7 +159,7 @@ TOnlineAsyncOpHandle<FReadEntriesForUsers> FLeaderboardsNull::ReadEntriesForUser
 
 		if (FLeaderboardDataNull* LeaderboardData = LeaderboardsData.FindByPredicate(FFindLeaderboardDataByName(InAsyncOp.GetParams().BoardName)))
 		{
-			for (const FOnlineAccountIdHandle& UserId : InAsyncOp.GetParams().UserIds)
+			for (const FAccountId& UserId : InAsyncOp.GetParams().UserIds)
 			{
 				uint32 Index = 0;
 				TDoubleLinkedList<FUserScoreNull>::TDoubleLinkedListNode* CurrentNode = LeaderboardData->UserScoreList.GetHead();

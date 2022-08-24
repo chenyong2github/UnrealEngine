@@ -66,7 +66,7 @@ struct FCommerceQueryOffers
 	struct Params
 	{
 		/* Local user */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -83,7 +83,7 @@ struct FCommerceQueryOffersById
 	struct Params
 	{
 		/* Local user */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* List of offer ids */
 		TArray<FOfferId> OfferIds;
 	};
@@ -103,7 +103,7 @@ struct FCommerceGetOffers
 	struct Params
 	{
 		/* Local user */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -121,7 +121,7 @@ struct FCommerceGetOffersById
 	struct Params
 	{
 		/* Local user */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* List of offer ids */
 		TArray<FOfferId> OfferIds;
 	};
@@ -142,7 +142,7 @@ struct FCommerceShowStoreUI
 	struct Params
 	{
 		/* Local user */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -167,7 +167,7 @@ struct FCommerceCheckout
 	struct Params
 	{
 		/* Local user */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* Offers to purchase */
 		TArray<FPurchaseOffer> Offers;
 	};
@@ -206,7 +206,7 @@ struct FCommerceQueryTransactionEntitlements
 	struct Params
 	{
 		/* Local user */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* Transaction id for a completed purchase */
 		FString TransactionId;
 	};
@@ -226,7 +226,7 @@ struct FCommerceQueryEntitlements
 	struct Params
 	{
 		/* Local user */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* Whether or not to fetch redeemed entitlements */
 		bool bIncludeRedeemed;
 	};
@@ -245,7 +245,7 @@ struct FCommerceGetEntitlements
 	struct Params
 	{
 		/* Local user */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -263,7 +263,7 @@ struct FCommerceRedeemEntitlement
 	struct Params
 	{
 		/* Local user */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* Entitlement id to mark as redeemed */
 		FEntitlementId EntitlementId;
 		/* Quantity to consume */
@@ -284,7 +284,7 @@ struct FCommerceRetrieveS2SToken
 	struct Params
 	{
 		/* Local user */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/* Implementation specific, used to specify the type of token to retrieve. See implementation specific documentation for valid values */
 		FString TokenType;
 	};
@@ -302,7 +302,7 @@ struct FCommerceOnPurchaseComplete
 public:
 	
 	/* Local user */
-	FOnlineAccountIdHandle LocalUserId;
+	FAccountId LocalUserId;
 	
 	/* If available, the transaction id for the completed purchase */
 	TOptional<FString> TransactionId;

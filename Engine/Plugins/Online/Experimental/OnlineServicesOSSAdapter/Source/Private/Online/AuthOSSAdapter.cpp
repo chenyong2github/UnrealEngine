@@ -100,7 +100,7 @@ TSharedPtr<FAccountInfoOSSAdapter> FAccountInfoRegistryOSSAdapter::Find(FPlatfor
 	return StaticCastSharedPtr<FAccountInfoOSSAdapter>(Super::Find(PlatformUserId));
 } 
 
-TSharedPtr<FAccountInfoOSSAdapter> FAccountInfoRegistryOSSAdapter::Find(FOnlineAccountIdHandle AccountIdHandle) const
+TSharedPtr<FAccountInfoOSSAdapter> FAccountInfoRegistryOSSAdapter::Find(FAccountId AccountIdHandle) const
 {
 	return StaticCastSharedPtr<FAccountInfoOSSAdapter>(Super::Find(AccountIdHandle));
 }
@@ -110,7 +110,7 @@ void FAccountInfoRegistryOSSAdapter::Register(const TSharedRef<FAccountInfoOSSAd
 	DoRegister(AccountInfoNULL);
 }
 
-void FAccountInfoRegistryOSSAdapter::Unregister(FOnlineAccountIdHandle AccountId)
+void FAccountInfoRegistryOSSAdapter::Unregister(FAccountId AccountId)
 {
 	if (TSharedPtr<FAccountInfoOSSAdapter> AccountInfoNULL = Find(AccountId))
 	{
@@ -516,17 +516,17 @@ TOnlineAsyncOpHandle<FAuthQueryExternalAuthToken> FAuthOSSAdapter::QueryExternal
 	return Op->GetHandle();
 }
 
-FUniqueNetIdPtr FAuthOSSAdapter::GetUniqueNetId(FOnlineAccountIdHandle AccountIdHandle) const
+FUniqueNetIdPtr FAuthOSSAdapter::GetUniqueNetId(FAccountId AccountIdHandle) const
 {
 	return GetOnlineServicesOSSAdapter().GetAccountIdRegistry().GetIdValue(AccountIdHandle);
 }
 
-FOnlineAccountIdHandle FAuthOSSAdapter::GetAccountIdHandle(const FUniqueNetIdRef& UniqueNetId) const
+FAccountId FAuthOSSAdapter::GetAccountIdHandle(const FUniqueNetIdRef& UniqueNetId) const
 {
 	return GetOnlineServicesOSSAdapter().GetAccountIdRegistry().FindOrAddHandle(UniqueNetId);
 }
 
-int32 FAuthOSSAdapter::GetLocalUserNum(FOnlineAccountIdHandle AccountIdHandle) const
+int32 FAuthOSSAdapter::GetLocalUserNum(FAccountId AccountIdHandle) const
 {
 	TSharedPtr<FAccountInfoOSSAdapter> AccountInfoOSSAdapter = AccountInfoRegistryOSSAdapter.Find(AccountIdHandle);
 	return AccountInfoOSSAdapter ? AccountInfoOSSAdapter->LocalUserNum : INDEX_NONE;

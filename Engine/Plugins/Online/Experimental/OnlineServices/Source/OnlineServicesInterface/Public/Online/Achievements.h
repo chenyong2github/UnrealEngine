@@ -16,7 +16,7 @@ struct FQueryAchievementDefinitions
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -31,7 +31,7 @@ struct FGetAchievementIds
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -84,7 +84,7 @@ struct FGetAchievementDefinition
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** Achievement to get definition of */
 		FString AchievementId;
 	};
@@ -103,7 +103,7 @@ struct FQueryAchievementStates
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -130,7 +130,7 @@ struct FGetAchievementState
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** Achievement to get state of */
 		FString AchievementId;
 	};
@@ -149,7 +149,7 @@ struct FUnlockAchievements
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** Achievements to unlock */
 		TArray<FString> AchievementIds;
 	};
@@ -166,7 +166,7 @@ struct FDisplayAchievementUI
 	struct Params
 	{
 		/** Local user performing the operation */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** Achievement to display */
 		FString AchievementId;
 	};
@@ -180,7 +180,7 @@ struct FDisplayAchievementUI
 struct FAchievementStateUpdated
 {
 	/** User whose achievement states have updated */
-	FOnlineAccountIdHandle LocalUserId;
+	FAccountId LocalUserId;
 	/** Achievements which have updated */
 	TArray<FString> AchievementIds;
 };

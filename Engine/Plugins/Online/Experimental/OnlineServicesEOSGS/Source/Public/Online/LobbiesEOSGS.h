@@ -32,7 +32,7 @@ struct FLobbiesJoinLobbyImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		// The local name for the lobby.
 		FName LocalName;
@@ -56,7 +56,7 @@ struct FLobbiesJoinLobbyMemberImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		// Initial attributes.
 		TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
@@ -77,7 +77,7 @@ struct FLobbiesLeaveLobbyImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -95,7 +95,7 @@ struct FLobbiesDestroyLobbyImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 	};
 
 	struct Result
@@ -113,10 +113,10 @@ struct FLobbiesInviteLobbyMemberImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		// The target user for the invitation.
-		FOnlineAccountIdHandle TargetUserId;
+		FAccountId TargetUserId;
 	};
 
 	struct Result
@@ -131,7 +131,7 @@ struct FLobbiesDeclineLobbyInvitationImpl
 	struct Params
 	{
 		// The local user agent which will perform the action.
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		// Id of the lobby for which the invitations will be declined.
 		FOnlineLobbyIdHandle LobbyId;
@@ -152,10 +152,10 @@ struct FLobbiesKickLobbyMemberImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		// The target user to be kicked.
-		FOnlineAccountIdHandle TargetUserId;
+		FAccountId TargetUserId;
 	};
 
 	struct Result
@@ -173,10 +173,10 @@ struct FLobbiesPromoteLobbyMemberImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		// The target user to be promoted to owner.
-		FOnlineAccountIdHandle TargetUserId;
+		FAccountId TargetUserId;
 	};
 
 	struct Result
@@ -194,7 +194,7 @@ struct FLobbiesModifyLobbyDataImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		// The changes to apply to the lobby data.
 		TSharedPtr<FClientLobbyDataChanges> Changes;
@@ -218,7 +218,7 @@ struct FLobbiesModifyLobbyMemberDataImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 
 		// The changes to apply to the lobby member data.
 		TSharedPtr<FClientLobbyMemberDataChanges> Changes;
@@ -293,13 +293,13 @@ protected:
 	void RegisterHandlers();
 	void UnregisterHandlers();
 
-	void AddActiveLobby(FOnlineAccountIdHandle LocalUserId, const TSharedRef<FLobbyDataEOS>& LobbyData);
-	void RemoveActiveLobby(FOnlineAccountIdHandle LocalUserId, const TSharedRef<FLobbyDataEOS>& LobbyData);
+	void AddActiveLobby(FAccountId LocalUserId, const TSharedRef<FLobbyDataEOS>& LobbyData);
+	void RemoveActiveLobby(FAccountId LocalUserId, const TSharedRef<FLobbyDataEOS>& LobbyData);
 
 	// Todo: store list of invites per lobby.
 	void AddActiveInvite(const TSharedRef<FLobbyInviteDataEOS>& Invite);
 	void RemoveActiveInvite(const TSharedRef<FLobbyInviteDataEOS>& Invite);
-	TSharedPtr<FLobbyInviteDataEOS> GetActiveInvite(FOnlineAccountIdHandle TargetUser, FOnlineLobbyIdHandle TargetLobbyId);
+	TSharedPtr<FLobbyInviteDataEOS> GetActiveInvite(FAccountId TargetUser, FOnlineLobbyIdHandle TargetLobbyId);
 
 	// LobbyData will be fetched from the operation data if not set in Params.
 	TFuture<TDefaultErrorResult<FLobbiesJoinLobbyImpl>> JoinLobbyImpl(FLobbiesJoinLobbyImpl::Params&& Params);
@@ -325,9 +325,9 @@ protected:
 	TSharedPtr<FLobbyPrerequisitesEOS> LobbyPrerequisites;
 	TSharedPtr<FLobbyDataRegistryEOS> LobbyDataRegistry;
 
-	TMap<FOnlineAccountIdHandle, TSet<TSharedRef<FLobbyDataEOS>>> ActiveLobbies;
-	TMap<FOnlineAccountIdHandle, TMap<FOnlineLobbyIdHandle, TSharedRef<FLobbyInviteDataEOS>>> ActiveInvites;
-	TMap<FOnlineAccountIdHandle, TSharedRef<FLobbySearchEOS>> ActiveSearchResults;
+	TMap<FAccountId, TSet<TSharedRef<FLobbyDataEOS>>> ActiveLobbies;
+	TMap<FAccountId, TMap<FOnlineLobbyIdHandle, TSharedRef<FLobbyInviteDataEOS>>> ActiveInvites;
+	TMap<FAccountId, TSharedRef<FLobbySearchEOS>> ActiveSearchResults;
 };
 
 namespace Meta {
