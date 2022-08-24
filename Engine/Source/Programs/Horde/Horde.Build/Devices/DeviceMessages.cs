@@ -657,6 +657,55 @@ namespace Horde.Build.Devices
 
 
 	/// <summary>
+	/// Stream device telemetry for pool snapshot
+	/// </summary>
+	public class GetDevicePoolReservationTelemetryResponse
+	{
+		/// <summary>
+		/// Device id for reservation
+		/// </summary>
+		public string DeviceId { get; set; }
+
+		/// <summary>
+		/// Job id associated with reservation
+		/// </summary>
+		public string? JobId { get; set; }
+
+		/// <summary>
+		/// The step id of reservation
+		/// </summary>
+		public string? StepId { get; set; }
+
+		/// <summary>
+		/// The name of the job holding reservation
+		/// </summary>
+		public string? JobName { get; set; }
+
+		/// <summary>
+		/// The name of the step holding reservation
+		/// </summary>
+		public string? StepName { get; set; }
+
+		/// <summary>
+		/// constructor
+		/// </summary>
+		/// <param name="deviceId"></param>
+		/// <param name="jobId"></param>
+		/// <param name="stepId"></param>
+		/// <param name="jobName"></param>
+		/// <param name="stepName"></param>
+		public GetDevicePoolReservationTelemetryResponse(string deviceId, string? jobId, string? stepId, string? jobName, string? stepName)
+		{
+			DeviceId = deviceId;
+			JobId = jobId;
+			StepId = stepId;
+			JobName = jobName;
+			StepName = stepName;
+		}
+
+	}
+
+	/// <summary>
 	/// Device telemetry respponse
 	/// </summary>
 	public class GetDevicePlatformTelemetryResponse
@@ -667,47 +716,65 @@ namespace Horde.Build.Devices
 		public string PlatformId { get; set; }
 
 		/// <summary>
-		/// Number of available devices of this platform 
+		/// Available devices of this platform 
 		/// </summary>
-		public int? Available { get; set; }
+		public List<string>? Available { get; set; }
 
 		/// <summary>
-		/// Number of reserved devices of this platform 
+		/// Devices in maintenance state
 		/// </summary>
-		public int? Reserved { get; set; }
+		public List<string>? Maintenance { get; set; }
 
 		/// <summary>
-		/// Number of devices in maintenance state
+		/// Devices in problem state
 		/// </summary>
-		public int? Maintenance { get; set; }
-
-		/// <summary>
-		/// Number of devices in problem state
-		/// </summary>
-		public int? Problem { get; set; }
+		public List<string>? Problem { get; set; }
 
 		/// <summary>
 		/// Number of devices in disabled state
 		/// </summary>
-		public int? Disabled { get; set; }
+		public List<string>? Disabled { get; set; }
 
 		/// <summary>
-		/// StreamId to reserved device ids
+		/// Reserved devices
 		/// </summary>
-		public Dictionary<string, List<string>>? StreamDevices { get; set; }
+		public Dictionary<string, List<GetDevicePoolReservationTelemetryResponse>>? Reserved { get; set; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public GetDevicePlatformTelemetryResponse(string platformId, int available, int reserved, int maintenance, int problem, int disabled, Dictionary<string, List<string>> streamDevices)
+		public GetDevicePlatformTelemetryResponse(string platformId, List<string>? available, List<string>? maintenance, List<string>? problem, List<string>? disabled, IReadOnlyDictionary<string, IReadOnlyList<IDevicePoolReservationTelemetry>>? reserved)
 		{
 			PlatformId = platformId;
-			Available = available == 0 ? null : available;
-			Reserved = reserved == 0 ? null : reserved;
-			Maintenance = maintenance == 0 ? null : maintenance;
-			Problem = problem == 0 ? null : problem;
-			Disabled = disabled == 0 ? null : disabled;
-			StreamDevices = streamDevices.Count == 0 ? null : streamDevices;
+			if (available != null && available.Count > 0)
+			{
+				Available = available;
+			}
+			if (maintenance != null && maintenance.Count > 0)
+			{
+				Maintenance = maintenance;
+			}
+			if (problem != null && problem.Count > 0)
+			{
+				Problem = problem;
+			}
+			if (disabled != null && disabled.Count > 0)
+			{
+				Disabled = disabled;
+			}
+			if (reserved != null && reserved.Count > 0)
+			{
+				Reserved = new Dictionary<string, List<GetDevicePoolReservationTelemetryResponse>>();
+
+				foreach (KeyValuePair<string, IReadOnlyList<IDevicePoolReservationTelemetry>> r in reserved)
+				{
+					Reserved[r.Key] = new List<GetDevicePoolReservationTelemetryResponse>();
+					foreach (IDevicePoolReservationTelemetry telemetry in r.Value)
+					{
+						Reserved[r.Key].Add(new GetDevicePoolReservationTelemetryResponse(telemetry.DeviceId.ToString(), telemetry.JobId, telemetry.StepId, telemetry.JobName, telemetry.StepName));
+					}
+				}
+			}
 		}
 	}
 

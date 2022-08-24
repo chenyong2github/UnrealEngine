@@ -12,6 +12,7 @@ using Horde.Build.Users;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Bson.Serialization.Options;
 using MongoDB.Driver;
 
 namespace Horde.Build.Devices
@@ -354,15 +355,39 @@ namespace Horde.Build.Devices
 
 		}
 
-		class StreamDeviceTelemetry : IStreamDeviceTelemetry
+		class DeviceReservationPoolTelemetryDocument : IDevicePoolReservationTelemetry
 		{
 			/// <inheritdoc/>
-			public StreamId StreamId { get; set; } = new StreamId();
+			[BsonRequired]
+			public DeviceId DeviceId { get; set; }
 
-			/// <inheritdoc/>
-			public List<DeviceId> DeviceIds { get; set; } = new List<DeviceId>();
+			[BsonIgnoreIfNull]
+			public string? JobId { get; set; }
+
+			[BsonIgnoreIfNull]
+			public string? StepId { get; set; }
+
+			[BsonIgnoreIfNull]
+			public string? JobName { get; set; }
+
+			[BsonIgnoreIfNull]
+			public string? StepName { get; set; }
+
+			[BsonConstructor]
+			private DeviceReservationPoolTelemetryDocument()
+			{
+			}
+
+			public DeviceReservationPoolTelemetryDocument(DeviceId deviceId, string? jobId, string? stepId, string? jobName, string? stepName)
+			{
+				DeviceId = deviceId;
+				JobId = jobId;
+				StepId = stepId;
+				JobName = jobName;
+				StepName = stepName;
+			}
+
 		}
-
 
 		class DevicePlatformTelemetryDocument : IDevicePlatformTelemetry
 		{
@@ -372,73 +397,68 @@ namespace Horde.Build.Devices
 			[BsonRequired, BsonId, BsonElement("tid")]
 			public ObjectId TelemetryId { get; set; }
 
-			/// <summary>
-			/// The time this telemetry data was created
-			/// </summary>
 			[BsonRequired, BsonElement("c")]
 			public DateTime CreateTimeUtc { get; set; }
 
-			/// <summary>
-			/// The platform id 
-			/// </summary>
 			[BsonRequired, BsonElement("pid")]
 			public DevicePlatformId PlatformId { get; set; }
 
-			/// <summary>
-			/// Number of available devices of this platform 
-			/// </summary>
-			[BsonIgnoreIfDefault, BsonDefaultValue(0), BsonElement("a")]
-			public int Available { get; set; } = 0;
+			[BsonIgnoreIfNull, BsonElement("a")]
+			public List<DeviceId>? Available { get; set; }
+			IReadOnlyList<DeviceId>? IDevicePlatformTelemetry.Available => Available;
 
-			/// <summary>
-			/// Number of reserved devices of this platform 
-			/// </summary>
-			[BsonIgnoreIfDefault, BsonDefaultValue(0), BsonElement("r")]
-			public int Reserved { get; set; } = 0;
+			[BsonIgnoreIfNull, BsonElement("m")]
+			public List<DeviceId>? Maintenance { get; set; }
+			IReadOnlyList<DeviceId>? IDevicePlatformTelemetry.Maintenance => Maintenance;
 
-			/// <summary>
-			/// Number of devices in maintenance state
-			/// </summary>
-			[BsonIgnoreIfDefault, BsonDefaultValue(0), BsonElement("m")]
-			public int Maintenance { get; set; } = 0;
+			[BsonIgnoreIfNull, BsonElement("p")]
+			public List<DeviceId>? Problem { get; set; }
+			IReadOnlyList<DeviceId>? IDevicePlatformTelemetry.Problem => Problem;
 
-			/// <summary>
-			/// Number of devices in problem state
-			/// </summary>			
-			[BsonIgnoreIfDefault, BsonDefaultValue(0), BsonElement("p")]
-			public int Problem { get; set; } = 0;
+			[BsonIgnoreIfNull, BsonElement("d")]
+			public List<DeviceId>? Disabled { get; set; }
+			IReadOnlyList<DeviceId>? IDevicePlatformTelemetry.Disabled => Disabled;
 
-			/// <summary>
-			/// Number of devices that are disabled
-			/// </summary>
-			[BsonIgnoreIfDefault, BsonDefaultValue(0), BsonElement("d")]
-			public int Disabled { get; set; } = 0;
-
-			/// <summary>
-			/// Stream devices that are reserved
-			/// </summary>
-			[BsonIgnoreIfNull]
-			public List<StreamDeviceTelemetry> StreamDevices { get; set; } = new List<StreamDeviceTelemetry>();
-			IReadOnlyList<IStreamDeviceTelemetry> IDevicePlatformTelemetry.StreamDevices => StreamDevices;
+			[BsonIgnoreIfNull, BsonElement("r"), BsonDictionaryOptions(DictionaryRepresentation.ArrayOfDocuments)]
+			public Dictionary<StreamId, List<DeviceReservationPoolTelemetryDocument>>? Reserved { get; set; }
+			IReadOnlyDictionary<StreamId, IReadOnlyList<IDevicePoolReservationTelemetry>>? IDevicePlatformTelemetry.Reserved => Reserved?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value as IReadOnlyList<IDevicePoolReservationTelemetry>) ?? new Dictionary<StreamId, IReadOnlyList<IDevicePoolReservationTelemetry>>();
 
 			[BsonConstructor]
 			private DevicePlatformTelemetryDocument()
 			{
 			}
 
-			public DevicePlatformTelemetryDocument(DevicePlatformId platformId, int available, int reserved, int maintenance, int problem, int disabled, List<StreamDeviceTelemetry> streamDevices)
+			public DevicePlatformTelemetryDocument(DevicePlatformId platformId, List<DeviceId>? available, Dictionary<StreamId, List<DeviceReservationPoolTelemetryDocument>>? reserved, List<DeviceId>? maintenance, List<DeviceId>? problem, List<DeviceId>? disabled)
 			{
 				TelemetryId = ObjectId.GenerateNewId();
-				CreateTimeUtc = DateTime.UtcNow;
+				CreateTimeUtc = DateTime.UtcNow;				
 				PlatformId = platformId;
-				Available = available;
-				Reserved = reserved;
-				Maintenance = maintenance;	
-				Problem = problem;
-				Disabled = disabled;
-				StreamDevices = streamDevices;
-			}
 
+				if (available != null && available.Count > 0)
+				{
+					Available = available;
+				}
+
+				if (reserved != null && reserved.Count > 0)
+				{
+					Reserved = reserved;
+				}
+
+				if (maintenance != null && maintenance.Count > 0)
+				{
+					Maintenance = maintenance;
+				}
+
+				if (problem != null && problem.Count > 0)
+				{
+					Problem = problem;
+				}
+
+				if (disabled != null && disabled.Count > 0)
+				{
+					Disabled = disabled;
+				}				
+			}
 		}
 
 		/// <summary>
@@ -1097,15 +1117,15 @@ namespace Horde.Build.Devices
 			return results.ConvertAll<IDeviceTelemetry>(x => x);
 		}
 
-		internal class DevicePoolTelemetryHelper
+		struct DevicePoolTelemetryHelper
 		{
-			public int available = 0;
-			public int reserved = 0;
-			public int maintenance = 0;
-			public int problem = 0;
-			public int disabled = 0;
-			public Dictionary<StreamId, List<DeviceId>> streamDevices = new Dictionary<StreamId, List<DeviceId>>();
+			public List<DeviceId> available = new List<DeviceId>();
+			public List<DeviceId> problem = new List<DeviceId>();
+			public List<DeviceId> maintenance = new List<DeviceId>();
+			public List<DeviceId> disabled = new List<DeviceId>();
+			public Dictionary<StreamId, List<DeviceReservationPoolTelemetryDocument>> reserved = new Dictionary<StreamId, List<DeviceReservationPoolTelemetryDocument>>();
 
+			public DevicePoolTelemetryHelper() { }
 		}
 
 		/// <summary>
@@ -1139,7 +1159,6 @@ namespace Horde.Build.Devices
 			foreach (IDevicePool pool in pools)
 			{								
 				List<IDevice> poolDevices = devices.Where(x => x.PoolId == pool.Id).ToList();
-
 				HashSet<DevicePlatformId> platforms = new HashSet<DevicePlatformId>();
 				poolDevices.ForEach(d => platforms.Add(d.PlatformId));
 
@@ -1155,54 +1174,50 @@ namespace Horde.Build.Devices
 
 					if (reservedDevices.Contains(device))
 					{
-						helper.reserved++;
 						IDeviceReservation? reservation = reservations.FirstOrDefault(x => x.Devices.Contains(device.Id));
 						if (reservation != null && reservation.StreamId != null)
 						{
 							StreamId streamId = new StreamId(reservation.StreamId);
-							List<DeviceId>? deviceIds;
-							if (!helper.streamDevices.TryGetValue(streamId, out deviceIds))
+							List<DeviceReservationPoolTelemetryDocument>? rdevices;
+							if (!helper.reserved.TryGetValue(streamId, out rdevices))
 							{
-								deviceIds = new List<DeviceId>();
-								helper.streamDevices[streamId] = deviceIds;
+								rdevices = new List<DeviceReservationPoolTelemetryDocument>();
+								helper.reserved[streamId] = rdevices;
 							}
-							deviceIds.Add(device.Id);
+							rdevices.Add(new DeviceReservationPoolTelemetryDocument(device.Id, reservation.JobId, reservation.StepId, reservation.JobName, reservation.StepName));
 						}
 						continue;
 					}
 
 					if (problemDevices.Contains(device))
 					{
-						helper.problem++;
+						helper.problem.Add(device.Id);
 						continue;
 					}
 
 					if (maintenanceDevices.Contains(device))
 					{
-						helper.maintenance++;
+						helper.maintenance.Add(device.Id);
 						continue;
 					}
 
 					if (disabledDevices.Contains(device))
 					{
-						helper.disabled++;
+						helper.disabled.Add(device.Id);
 						continue;
 					}
 
-					helper.available++;
+					helper.available.Add(device.Id);
 				}
 
 				List<DevicePlatformTelemetryDocument> platformTelemtry = new List<DevicePlatformTelemetryDocument>();
+
+
 				foreach (KeyValuePair<DevicePlatformId, DevicePoolTelemetryHelper> platform in helpers)
 				{
 					DevicePoolTelemetryHelper helper = platform.Value;
-					List<StreamDeviceTelemetry> streamDevices = new List<StreamDeviceTelemetry>();
-					foreach (KeyValuePair<StreamId, List<DeviceId>> i in helper.streamDevices)
-					{
-						streamDevices.Add(new StreamDeviceTelemetry() { StreamId = i.Key, DeviceIds = i.Value });
-					}
 
-					platformTelemtry.Add(new DevicePlatformTelemetryDocument(platform.Key, helper.available, helper.reserved, helper.maintenance, helper.problem, helper.disabled, streamDevices));
+					platformTelemtry.Add(new DevicePlatformTelemetryDocument(platform.Key, helper.available, helper.reserved, helper.maintenance, helper.problem, helper.disabled));
 				}
 
 				poolTelemetry[pool.Id] = platformTelemtry;

@@ -526,12 +526,8 @@ namespace Horde.Build.Devices
 
 					foreach (IDevicePlatformTelemetry telemetry in pool.Value)
 					{
-						Dictionary<string, List<string>> streamDevices = new Dictionary<string, List<string>>();
-						foreach(IStreamDeviceTelemetry i in telemetry.StreamDevices)
-						{
-							streamDevices[i.StreamId.ToString()] = i.DeviceIds.Select(x => x.ToString()).ToList();
-						}
-						platformTelemetry.Add(new GetDevicePlatformTelemetryResponse(telemetry.PlatformId.ToString(), telemetry.Available, telemetry.Reserved, telemetry.Maintenance, telemetry.Problem, telemetry.Disabled, streamDevices));
+						IReadOnlyDictionary<string, IReadOnlyList<IDevicePoolReservationTelemetry>>? reserved = telemetry.Reserved?.ToDictionary(kvp => kvp.Key.ToString(), kvp => kvp.Value);
+						platformTelemetry.Add(new GetDevicePlatformTelemetryResponse(telemetry.PlatformId.ToString(), telemetry.Available?.Select(d => d.ToString()).ToList(), telemetry.Maintenance?.Select(d => d.ToString()).ToList(), telemetry.Problem?.Select(d => d.ToString()).ToList(), telemetry.Disabled?.Select(d => d.ToString()).ToList(), reserved));
 					}
 
 					poolData[pool.Key.ToString()] = platformTelemetry;

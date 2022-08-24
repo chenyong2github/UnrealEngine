@@ -223,21 +223,23 @@ namespace Horde.Build.Tests
 				if (t.PlatformId == "testdeviceplatform1")
 				{
 					Assert.IsNull(t.Available);
-					Assert.AreEqual(1, t.Reserved);
-					Assert.AreEqual(1, t.Maintenance);
+					Assert.AreEqual(1, t.Reserved?.Count);
+					Assert.AreEqual(1, t.Maintenance?.Count);
 
-					Assert.IsTrue(t.StreamDevices!.ContainsKey("ue5-main"));
-					Assert.AreEqual(t.StreamDevices["ue5-main"].Count, 1);
-					Assert.AreEqual(t.StreamDevices["ue5-main"][0], reservedDevice.Id);
+					Assert.AreEqual(true, t.Reserved?.ContainsKey("ue5-main"));
+					Assert.AreEqual(t.Reserved?["ue5-main"].Count, 1);
+					Assert.AreEqual(t.Reserved?["ue5-main"][0].DeviceId, reservedDevice.Id);
+					Assert.AreEqual(t.Reserved?["ue5-main"][0].JobName, "hello2");
+					Assert.AreEqual(t.Reserved?["ue5-main"][0].StepId, "abcd");
 				}
 				else if (t.PlatformId == "testdeviceplatform3")
 				{
-					Assert.AreEqual(1, t.Available);
-					Assert.AreEqual(1, t.Disabled);
+					Assert.AreEqual(1, t.Available?.Count);
+					Assert.AreEqual(1, t.Disabled?.Count);
 				}
 				else
 				{
-					Assert.AreEqual(2, t.Available);
+					Assert.AreEqual(2, t.Available?.Count);
 				}
 			}
 
@@ -245,12 +247,12 @@ namespace Horde.Build.Tests
 			{
 				if (t.PlatformId == "testdeviceplatform2")
 				{
-					Assert.AreEqual(1, t.Available);
-					Assert.AreEqual(1, t.Problem);
+					Assert.AreEqual(1, t.Available?.Count);
+					Assert.AreEqual(1, t.Problem?.Count);
 				}
 				else
 				{
-					Assert.AreEqual(2, t.Available);
+					Assert.AreEqual(2, t.Available?.Count);
 				}
 			}
 		}

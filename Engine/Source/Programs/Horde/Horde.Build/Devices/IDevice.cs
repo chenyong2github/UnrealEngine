@@ -358,18 +358,32 @@ namespace Horde.Build.Devices
 	/// <summary>
 	/// Stream device telemetry for pool snapshot
 	/// </summary>
-	public interface IStreamDeviceTelemetry
+	public interface IDevicePoolReservationTelemetry
 	{
 		/// <summary>
-		/// Associated stream
+		/// Device id for reservation
 		/// </summary>
-		public StreamId StreamId { get;  }
+		public DeviceId DeviceId { get;}
 
 		/// <summary>
-		/// Device ids contained in the snapshot
+		/// Job id associated with reservation
 		/// </summary>
-		public List<DeviceId> DeviceIds { get; }
+		public string? JobId { get; }
 
+		/// <summary>
+		/// The step id of reservation
+		/// </summary>
+		public string? StepId { get; }
+
+		/// <summary>
+		/// The name of the job holding reservation
+		/// </summary>
+		public string? JobName { get; }
+
+		/// <summary>
+		/// The name of the step holding reservation
+		/// </summary>
+		public string? StepName { get; }
 	}
 
 
@@ -384,34 +398,29 @@ namespace Horde.Build.Devices
 		public DevicePlatformId PlatformId { get; }
 
 		/// <summary>
-		/// Number of available devices of this platform 
+		/// Available devices of this platform 
 		/// </summary>
-		public int Available { get; }
-
-		/// <summary>
-		/// Number of reserved devices of this platform 
-		/// </summary>
-		public int Reserved { get; }
+		public IReadOnlyList<DeviceId>? Available { get; }
 
 		/// <summary>
 		/// Number of devices in maintenance state
 		/// </summary>
-		public int Maintenance { get; }
+		public IReadOnlyList<DeviceId>? Maintenance { get; }
 
 		/// <summary>
 		/// Number of devices in problem state
 		/// </summary>
-		public int Problem { get; }
+		public IReadOnlyList<DeviceId>? Problem { get; }
 
 		/// <summary>
 		/// Number of devices in disabled state
 		/// </summary>
-		public int Disabled { get; }
+		public IReadOnlyList<DeviceId>? Disabled { get; }
 
 		/// <summary>
-		/// Devices reserved in streams
+		/// Number of reserved devices of this platform 
 		/// </summary>
-		public IReadOnlyList<IStreamDeviceTelemetry> StreamDevices { get; }
+		public IReadOnlyDictionary<StreamId, IReadOnlyList<IDevicePoolReservationTelemetry>>? Reserved { get; }
 
 	}
 
