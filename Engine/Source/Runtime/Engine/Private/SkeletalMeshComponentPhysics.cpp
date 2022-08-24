@@ -1303,7 +1303,7 @@ void USkeletalMeshComponent::SetConstraintProfileForAll(FName ProfileName, bool 
 	}
 }
 
-bool USkeletalMeshComponent::GetConstraintProfileProperties(
+bool USkeletalMeshComponent::GetConstraintProfilePropertiesOrDefault(
 	FConstraintProfileProperties& OutProperties, FName JointName, FName ProfileName)
 {
 	if (UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset())
@@ -1313,7 +1313,7 @@ bool USkeletalMeshComponent::GetConstraintProfileProperties(
 			FConstraintInstance* ConstraintInstance = Constraints[i];
 			if (ConstraintInstance->JointName == JointName)
 			{
-				OutProperties = PhysicsAsset->ConstraintSetup[i]->GetConstraintProfileProperties(ProfileName);
+				OutProperties = PhysicsAsset->ConstraintSetup[i]->GetConstraintProfilePropertiesOrDefault(ProfileName);
 				return true;
 			}
 		}
